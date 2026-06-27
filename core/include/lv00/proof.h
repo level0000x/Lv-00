@@ -286,12 +286,16 @@ const char *constraint_solver_get_proposition(void *solver, void *geom_obj);
 void *proof_navigator_search(void *nav);
 
 const char *html_escape(const char *s);
-typedef void *Lv00TaskGroup;
-Lv00TaskGroup lv00_task_group_create(const char *name);
-typedef void *Lv00Task;
-Lv00Task lv00_task_create(void (*fn)(void*), void *arg, const char *name);
-void lv00_task_group_add(Lv00TaskGroup g, Lv00Task t);
-void lv00_task_group_destroy(Lv00TaskGroup g);
+
+#include "thread_pool.h"
+
+typedef Lv00ThreadTask Lv00Task;
+typedef Lv00WaitGroup Lv00TaskGroup;
+
+Lv00TaskGroup *lv00_task_group_create(const char *name);
+Lv00Task *lv00_task_create(int (*fn)(void*), void *arg, const char *name);
+void lv00_task_group_add(Lv00TaskGroup *g, Lv00Task *t);
+void lv00_task_group_destroy(Lv00TaskGroup *g);
 
 /* ============== 证明导航器 ============== */
 struct ProofNavigator {
@@ -1584,7 +1588,10 @@ typedef enum {
 } VerifyRuleType;
 
 /** @brief 验证结果 */
+#ifndef VERIFY_RESULT_DEFINED
+#define VERIFY_RESULT_DEFINED
 typedef enum { VERIFY_VALID, VERIFY_INVALID, VERIFY_UNDECIDED } VerifyResult;
+#endif
 
 /**
  * @brief 极简验证 — 仅用不超过 10 条基本规则验证一个证明步骤

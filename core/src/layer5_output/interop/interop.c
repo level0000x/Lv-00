@@ -2009,7 +2009,7 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
             bool is_blue = (step->color == PROOF_COLOR_BLUE_UNEXPLORED ||
                             step->color == PROOF_COLOR_BLUE_RESOURCE ||
                             step->color == PROOF_COLOR_BLUE_OUT_OF_RANGE);
-            bool is_orange = (step->color == PROOF_COLOR_ORACLE_ORACLE ||
+            bool is_orange = (step->color == PROOF_COLOR_ORANGE_ORACLE ||
                               step->color == PROOF_COLOR_ORANGE_EX_FALSO ||
                               step->color == PROOF_COLOR_DARK_ORANGE);
             bool is_amber = (step->color == PROOF_COLOR_AMBER);

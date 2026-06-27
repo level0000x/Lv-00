@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_pkg.c
  * @brief 公理系统包实现
  * @details 实现公理包的加载、验证和展开功能。支持约束模板、
@@ -21,6 +21,17 @@
 
 /* 兼容性宏：set_error → lv00_set_error */
 #define set_error(fmt, ...)   lv00_set_error(LV00_ERROR_INVALID_PARAM, (fmt), ##__VA_ARGS__)
+
+/* 兼容性宏：PropositionKind 短名 */
+#ifndef CONSTRUCTIVE
+#define CONSTRUCTIVE PROPOSITION_KIND_CONSTRUCTIVE
+#endif
+#ifndef NON_CONSTRUCTIVE_ORACLE
+#define NON_CONSTRUCTIVE_ORACLE PROPOSITION_KIND_NON_CONSTRUCTIVE_ORACLE
+#endif
+#ifndef EXPLOSION_PRINCIPLE
+#define EXPLOSION_PRINCIPLE PROPOSITION_KIND_EXPLOSION_PRINCIPLE
+#endif
 
 /* 线程局部存储用于错误消息（使用lv00_internal.h中定义的LV00_THREAD_LOCAL） */
 

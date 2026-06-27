@@ -158,6 +158,17 @@ extern "C" {
 #endif
 #endif
 
+/* ============== 全局默认常量 ============== */
+#ifndef LV00_DEFAULT_TIMEOUT_MS
+#define LV00_DEFAULT_TIMEOUT_MS 10000
+#endif
+#ifndef LV00_DEFAULT_MAX_ITERATIONS
+#define LV00_DEFAULT_MAX_ITERATIONS 1000
+#endif
+#ifndef MAX_BLOCK_PORTS
+#define MAX_BLOCK_PORTS 32
+#endif
+
 /* strdup 兼容性（非标准C函数）
  * 使用 lv00_strdup_safe 确保与 lv00_malloc/lv00_free 内存分配器兼容。
  * 如果 memory_pool.h 中声明了 lv00_strdup 函数，则不使用宏定义，

@@ -90,6 +90,25 @@ Lv00Timestamp lv00_timestamp_now(void) {
 }
 
 /* ========================================================================
+ * 安全乘法
+ * ======================================================================== */
+
+/**
+ * @brief 安全乘法 —— a * b，检测溢出
+ */
+bool lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
+    if (!out) return false;
+    if (a == 0 || b == 0) { *out = 0; return true; }
+    /* 检查是否会溢出: |a * b| > INT64_MAX */
+    if (a > 0 && b > 0 && a > INT64_MAX / b) return false;
+    if (a > 0 && b < 0 && b < INT64_MIN / a) return false;
+    if (a < 0 && b > 0 && a < INT64_MIN / b) return false;
+    if (a < 0 && b < 0 && a < INT64_MAX / b) return false;
+    *out = a * b;
+    return true;
+}
+
+/* ========================================================================
  * 安全幂运算
  * ======================================================================== */
 

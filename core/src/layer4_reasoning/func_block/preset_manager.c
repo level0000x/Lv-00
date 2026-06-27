@@ -1,6 +1,178 @@
 /**
+ * @file preset_manager.c
+ * @brief 预设函数块管理器 - 核心实现
+ *
+ * @details 实现预设函数块系统的核心管理功能，包括：
+ *          - 预设库的初始化和关闭
+ *          - 预设的注册、查询、实例化
+ *          - 线程安全的预设操作
+ *          - 内存管理和错误处理
+ *
+ * @version 4.0.0
+ * @author Lv-00 Project
+ */
+
+#include "lv00_internal.h"
+#include "error_codes.h"
+#include "lv00_utils.h"
+#include "func_block_preset.h"
+#include "func_block_registry.h"
+#include "preset_core.h"
+#include "preset_common.h"
+#include "preset_blocks.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
 #endif
 
+/* ============================================================
+ * 预设系统常量与宏
+ * ============================================================ */
+
+#ifndef PRESET_BUFFER_SIZE
+#define PRESET_BUFFER_SIZE 1024
+#endif
+
+#ifndef PRESET_ID_OFFSET
+#define PRESET_ID_OFFSET 1000
+#endif
+
+#ifndef PRESET_MAX_COUNT
+#define PRESET_MAX_COUNT 10000
+#endif
+
+#ifndef PRESET_SYSTEM_VERSION_MAJOR
+#define PRESET_SYSTEM_VERSION_MAJOR 4
+#endif
+
+#ifndef PRESET_SYSTEM_VERSION_MINOR
+#define PRESET_SYSTEM_VERSION_MINOR 0
+#endif
+
+#ifndef PRESET_SYSTEM_VERSION_PATCH
+#define PRESET_SYSTEM_VERSION_PATCH 0
+#endif
+
+#define PRESET_CHECK_NULL(ptr, label) \
+    do { \
+        if ((ptr) == NULL) { \
+            set_error("参数不能为空: " #ptr); \
+            goto label; \
+        } \
+    } while (0)
+
+#define PRESET_CHECK_STRING(str, label) \
+    do { \
+        if ((str) == NULL || *(str) == '\0') { \
+            set_error("字符串参数无效: " #str); \
+            goto label; \
+        } \
+    } while (0)
+
+#ifdef _WIN32
+#define PRESET_ATOMIC_INC(counter) InterlockedIncrement(&(counter))
+#define PRESET_ATOMIC_DEC(counter) InterlockedDecrement(&(counter))
+#else
+#define PRESET_ATOMIC_INC(counter) __atomic_add_fetch(&(counter), 1, __ATOMIC_SEQ_CST)
+#define PRESET_ATOMIC_DEC(counter) __atomic_sub_fetch(&(counter), 1, __ATOMIC_SEQ_CST)
+#endif
+
+typedef enum {
+    PRESET_COMPOSE_SEQUENCE,
+    PRESET_COMPOSE_PARALLEL,
+    PRESET_COMPOSE_PIPE,
+    PRESET_COMPOSE_FEEDBACK,
+    PRESET_COMPOSE_BRANCH
+} PresetComposeMode;
+
+#ifndef DETERMINISM_UNVERIFIED
+#define DETERMINISM_UNVERIFIED DETERMINISM_STATE_UNVERIFIED
+#endif
+
+#ifndef DETERMINISM_VERIFIED
+#define DETERMINISM_VERIFIED DETERMINISM_STATE_VERIFIED
+#endif
+
+#ifndef DETERMINISM_NON_DETERMINISTIC
+#define DETERMINISM_NON_DETERMINISTIC DETERMINISM_STATE_NON_DETERMINISTIC
+#endif
+
+/* ============================================================
+ * 预设系统类型定义
+ * ============================================================ */
+
+#ifdef _WIN32
+typedef volatile long PresetAtomicCounter;
+#else
+typedef volatile int PresetAtomicCounter;
+#endif
+
+typedef struct PresetInstance *PresetInstanceHandle;
+typedef struct InternalPresetEntry *PresetEntryHandle;
+
+typedef struct {
+    int major;
+    int minor;
+    int patch;
+    const char *build_info;
+} PresetVersion;
+
+typedef struct {
+    int total_count;
+    int builtin_count;
+    int custom_count;
+    int active_count;
+    int category_counts[PRESET_CATEGORY_COUNT];
+} PresetStatistics;
+
+typedef struct {
+    const char *name_pattern;
+    PresetCategory category;
+    PresetProperty required_properties;
+    PresetProperty forbidden_properties;
+    int min_inputs;
+    int max_inputs;
+    int min_outputs;
+    int max_outputs;
+    bool search_description;
+} PresetQueryCriteria;
+
+typedef struct {
+    const char **names;
+    int count;
+    int total_matches;
+} PresetQueryResult;
+
+typedef struct {
+    bool validate_types;
+    bool validate_constraints;
+    bool auto_resolve_ambiguity;
+    int max_solutions;
+} PresetInstantiateOptions;
+
+typedef struct {
+    bool (*cancel_callback)(void *user_data);
+    void (*progress_callback)(int current, int total, void *user_data);
+    void *user_data;
+} PresetExecutionContext;
+
+typedef struct {
+    const char **preset_names;
+    int count;
+    const char *new_name;
+    PresetComposeMode mode;
+    int *output_mapping;
+    int mapping_count;
+} PresetComposition;
+
+/* ============================================================
  * 内部数据结构
  * ============================================================ */
 
@@ -8,6 +180,7 @@
  * @brief 内部预设条目结构
  */
 typedef struct InternalPresetEntry {
+    int id;                         /**< 预设ID */
     PresetMetadata metadata;        /**< 预设元数据 */
     FuncBlock *template_fb;         /**< 模板函数块（可为NULL） */
     bool is_builtin;                /**< 是否为内置预设 */
@@ -59,43 +232,6 @@ static PresetLibraryState g_library = {
     .error_callback_data = NULL
 };
 
-/* ============================================================
-
-#endif
-/**
- * @file preset_manager.c
- * @brief 预设函数块管理器 - 核心实现
- *
- * @details 实现预设函数块系统的核心管理功能，包括：
- *          - 预设库的初始化和关闭
- *          - 预设的注册、查询、实例化
- *          - 线程安全的预设操作
- *          - 内存管理和错误处理
- *
- * @version 4.0.0
- * @author Lv-00 Project
- */
-
-#include "lv00_internal.h"
-#include "error_codes.h"
-#include "lv00_utils.h"
-#include "preset_core.h"
-#include "preset_common.h"
-#include "preset_blocks.h"
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
-#ifdef _WIN32
-
-#endif
-
-#include <windows.h>
-#else
-#include <pthread.h>
-#endif
-
 /* ── 前向声明：供下方新增函数使用的静态辅助函数 ──
  * （这些函数的定义在文件后半部分） */
 static void lock_library(void);
@@ -103,6 +239,31 @@ static void unlock_library(void);
 static void set_error(const char *fmt, ...);
 static void clear_error(void);
 static struct InternalPresetEntry* find_entry(const char *name);
+static bool insert_entry(InternalPresetEntry *entry);
+static bool remove_entry(const char *name);
+static void free_entry(InternalPresetEntry *entry);
+
+/* ── 前向声明：公共API函数（定义在文件后半部分）── */
+bool preset_register_custom(const PresetMetadata *metadata,
+                            const FuncBlock *template_fb,
+                            PresetEntryHandle *out_entry);
+PresetEntryHandle preset_find(const char *name);
+void preset_release(PresetEntryHandle entry);
+const PresetMetadata* preset_get_metadata(PresetEntryHandle entry);
+bool preset_library_init(void);
+bool preset_library_shutdown(void);
+bool preset_library_is_initialized(void);
+const PresetVersion* preset_library_get_version(void);
+bool preset_library_get_statistics(PresetStatistics *stats);
+bool preset_library_reset(void);
+bool preset_unregister(const char *name);
+bool preset_exists(const char *name);
+bool preset_is_builtin(const char *name);
+const char* preset_get_last_error(void);
+void preset_clear_error(void);
+void preset_set_error_callback(void (*callback)(const char *error,
+                                               void *user_data),
+                              void *user_data);
 
 /* ============================================================
  * 预设实例内部结构（PresetInstance 不透明类型的定义）
@@ -2198,10 +2359,15 @@ static void free_entry(InternalPresetEntry *entry)
 
     /* 释放元数据中的动态内存 */
     /* 注意：metadata 字段可能为 const 限定，需要通过非 const 中间变量释放 */
-    if (entry->metadata.input_types != NULL) {
-        void *tmp = (void *)entry->metadata.input_types;
+    if (entry->metadata.input_params != NULL) {
+        void *tmp = (void *)entry->metadata.input_params;
         lv00_free(&tmp);
-        entry->metadata.input_types = NULL;
+        entry->metadata.input_params = NULL;
+    }
+    if (entry->metadata.output_params != NULL) {
+        void *tmp = (void *)entry->metadata.output_params;
+        lv00_free(&tmp);
+        entry->metadata.output_params = NULL;
     }
     if (entry->metadata.preconditions != NULL) {
         for (int i = 0; i < entry->metadata.precondition_count; i++) {
@@ -2472,7 +2638,7 @@ bool preset_register_custom(const PresetMetadata *metadata,
         lv00_strdup(metadata->mathematical_def) : NULL;
     
     /* 分配ID */
-    entry->metadata.id = PRESET_ATOMIC_INC(g_library.next_id);
+    entry->id = PRESET_ATOMIC_INC(g_library.next_id);
     
     entry->is_builtin = false;
     entry->is_active = true;

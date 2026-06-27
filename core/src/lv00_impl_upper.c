@@ -898,7 +898,7 @@ void lv00_application_destroy(Lv00Application *app) {
  * ============================================================ */
 
 /** 导出为Coq格式 */
-int64_t interop_export_coq(LV00Engine *ctx, int64_t proof_id, char *buf, int64_t buf_size) {
+int64_t upper_interop_export_coq(LV00Engine *ctx, int64_t proof_id, char *buf, int64_t buf_size) {
     (void)ctx; (void)proof_id;
     if (!buf || buf_size <= 0) return -1;
     return (int64_t)snprintf(buf, (size_t)buf_size,
@@ -925,7 +925,7 @@ int64_t interop_export_opml(LV00Engine *ctx, int64_t session_id, char *buf, int6
 }
 
 /** 导出为GeoJSON格式 */
-int64_t interop_export_geojson(LV00Engine *ctx, int64_t graph_id, char *buf, int64_t buf_size) {
+int64_t upper_interop_export_geojson(LV00Engine *ctx, int64_t graph_id, char *buf, int64_t buf_size) {
     (void)ctx; (void)graph_id;
     if (!buf || buf_size <= 0) return -1;
     return (int64_t)snprintf(buf, (size_t)buf_size,
@@ -933,7 +933,7 @@ int64_t interop_export_geojson(LV00Engine *ctx, int64_t graph_id, char *buf, int
 }
 
 /** 导出为SVG格式 */
-int64_t interop_export_svg(LV00Engine *ctx, int64_t graph_id, char *buf, int64_t buf_size) {
+int64_t upper_interop_export_svg(LV00Engine *ctx, int64_t graph_id, char *buf, int64_t buf_size) {
     (void)ctx; (void)graph_id;
     if (!buf || buf_size <= 0) return -1;
     return (int64_t)snprintf(buf, (size_t)buf_size,
@@ -944,7 +944,7 @@ int64_t interop_export_svg(LV00Engine *ctx, int64_t graph_id, char *buf, int64_t
 }
 
 /** 导出为TikZ格式 */
-int64_t interop_export_tikz(LV00Engine *ctx, int64_t graph_id, char *buf, int64_t buf_size) {
+int64_t upper_interop_export_tikz(LV00Engine *ctx, int64_t graph_id, char *buf, int64_t buf_size) {
     (void)ctx; (void)graph_id;
     if (!buf || buf_size <= 0) return -1;
     return (int64_t)snprintf(buf, (size_t)buf_size,
@@ -963,13 +963,13 @@ int64_t interop_export_tikz(LV00Engine *ctx, int64_t graph_id, char *buf, int64_
 /* ---- 13a. 元数据与属性函数（24个）---- */
 
 /** 获取预设总数 */
-int64_t func_block_preset_count(LV00Engine *ctx) {
+int64_t upper_func_block_preset_count(LV00Engine *ctx) {
     (void)ctx;
     return 87; /* 模拟：当前已注册87个预设函数块 */
 }
 
 /** 检查预设是否存在 */
-int64_t func_block_preset_exists(LV00Engine *ctx, const char *name) {
+int64_t upper_func_block_preset_exists(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return 0;
     /* 模拟：任意非空名称均视为存在 */
@@ -1161,14 +1161,14 @@ int64_t func_block_preset_metadata(LV00Engine *ctx, const char *name, char *buf,
 }
 
 /** 实例化预设函数块 */
-int64_t func_block_preset_instantiate(LV00Engine *ctx, const char *name,
+int64_t upper_func_block_preset_instantiate(LV00Engine *ctx, const char *name,
         int64_t *input_ids, int64_t input_count) {
     (void)ctx; (void)name; (void)input_ids; (void)input_count;
     return g_upper_id++; /* 返回新创建的函数块实例ID */
 }
 
 /** 列举所有预设名称 */
-int64_t func_block_preset_list(LV00Engine *ctx, char *buf, int64_t buf_size) {
+int64_t upper_func_block_preset_list(LV00Engine *ctx, char *buf, int64_t buf_size) {
     (void)ctx;
     if (!buf || buf_size <= 0) return -1;
     return (int64_t)snprintf(buf, (size_t)buf_size,
@@ -1177,7 +1177,7 @@ int64_t func_block_preset_list(LV00Engine *ctx, char *buf, int64_t buf_size) {
 }
 
 /** 组合两个预设 */
-int64_t func_block_preset_compose(LV00Engine *ctx, const char *name_a, const char *name_b,
+int64_t upper_func_block_preset_compose(LV00Engine *ctx, const char *name_a, const char *name_b,
         const char *new_name) {
     (void)ctx; (void)name_a; (void)name_b; (void)new_name;
     return g_upper_id++; /* 返回新组合预设ID */
@@ -1248,7 +1248,7 @@ int64_t func_block_preset_recursive(LV00Engine *ctx, int64_t preset_id, int64_t 
 }
 
 /** 注销指定预设 */
-int64_t func_block_preset_unregister(LV00Engine *ctx, const char *name) {
+int64_t upper_func_block_preset_unregister(LV00Engine *ctx, const char *name) {
     (void)ctx; (void)name;
     return 0; /* 0=成功 */
 }
@@ -1320,9 +1320,9 @@ int64_t lv00_upper_export_all(LV00Engine *ctx, int64_t proof_id,
         char *lean_buf, int64_t lean_sz,
         char *svg_buf, int64_t svg_sz) {
     int64_t n = 0;
-    if (interop_export_coq(ctx, proof_id, coq_buf, coq_sz) > 0) n++;
+    if (upper_interop_export_coq(ctx, proof_id, coq_buf, coq_sz) > 0) n++;
     if (interop_export_lean4(ctx, proof_id, lean_buf, lean_sz) > 0) n++;
-    if (interop_export_svg(ctx, proof_id, svg_buf, svg_sz) > 0) n++;
+    if (upper_interop_export_svg(ctx, proof_id, svg_buf, svg_sz) > 0) n++;
     return n;
 }
 

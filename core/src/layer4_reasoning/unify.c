@@ -326,7 +326,7 @@ static bool match_ports(const ConstraintGraph *construction,
  * 基础合一
  * ------------------------------------------------------------------------- */
 
-UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, ConstraintGraph *proposition) {
+UnifyStatus unify_construction_with_proposition(const ConstraintGraph *construction, const ConstraintGraph *proposition) {
     if (unify_stream_ctx) {
         stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
             "合一检查开始", 0);
@@ -425,7 +425,7 @@ UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, C
  * 这确保了深层子图同构不仅匹配拓扑结构，还匹配几何语义。
  * ------------------------------------------------------------------------- */
 
-UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construction, ConstraintGraph *proposition) {
+UnifyStatus unify_construction_with_proposition_coord(const ConstraintGraph *construction, const ConstraintGraph *proposition) {
     /*
      * 执行带坐标级判等的合一检查。流程分为四个阶段：
      *
@@ -538,9 +538,9 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
  * 不必要的约束匹配次数。
  * ------------------------------------------------------------------------- */
 
-UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *construction, ConstraintGraph *proposition) {
-    NormalizationResult *nc = graph_normalize(construction, true);
-    NormalizationResult *np = graph_normalize(proposition, true);
+UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGraph *construction, const ConstraintGraph *proposition) {
+    NormalizationResult *nc = graph_normalize((ConstraintGraph *)construction, true);
+    NormalizationResult *np = graph_normalize((ConstraintGraph *)proposition, true);
     if (!nc || !np) {
         if (nc) normalization_result_destroy(nc);
         if (np) normalization_result_destroy(np);
@@ -870,8 +870,8 @@ static void failure_info_set(UnifyFailureInfo *info, UnifyStatus status,
 }
 
 UnifyStatus unify_construction_with_proposition_detailed(
-    ConstraintGraph *construction,
-    ConstraintGraph *pattern,
+    const ConstraintGraph *construction,
+    const ConstraintGraph *pattern,
     UnifyFailureInfo *out_failure)
 {
     if (out_failure) failure_info_init(out_failure);
@@ -1701,7 +1701,8 @@ bool unify_instantiate_proposition(
  */
 int unify_match_ports(const ConstraintGraph *construction,
                        const ConstraintGraph *proposition,
-                       int *out_port_bindings)
+                       int *out_port_bindings,
+                       int max_bindings)
 {
     if (!construction || !proposition) return -1;
 
@@ -1754,7 +1755,7 @@ int unify_match_ports(const ConstraintGraph *construction,
             used[j] = true;
             found = true;
 
-            if (out_port_bindings) {
+            if (out_port_bindings && match_count < max_bindings) {
                 out_port_bindings[match_count * 2] = pn->id;
                 out_port_bindings[match_count * 2 + 1] = cn->id;
             }

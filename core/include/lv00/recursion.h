@@ -34,6 +34,7 @@
 #include <stdbool.h>
 
 #include "constraint_graph.h"
+#include "context.h"
 #include "stream.h"
 #include "symbolic_coord.h"
 
@@ -90,6 +91,23 @@ typedef enum {
     MEASURE_COMPARE_UNKNOWN, /**< 无法比较 */
     MEASURE_COMPARE_ERROR    /**< 比较出错 */
 } MeasureCompareResult;
+
+/* 向后兼容别名：旧代码使用短名称 */
+#ifndef MEASURE_LESS
+#define MEASURE_LESS MEASURE_COMPARE_LESS
+#endif
+#ifndef MEASURE_EQUAL
+#define MEASURE_EQUAL MEASURE_COMPARE_EQUAL
+#endif
+#ifndef MEASURE_GREATER
+#define MEASURE_GREATER MEASURE_COMPARE_GREATER
+#endif
+#ifndef MEASURE_UNKNOWN
+#define MEASURE_UNKNOWN MEASURE_COMPARE_UNKNOWN
+#endif
+#ifndef MEASURE_ERROR
+#define MEASURE_ERROR MEASURE_COMPARE_ERROR
+#endif
 
 /* ============== 测度定义 ============== */
 /**
@@ -189,6 +207,11 @@ typedef enum {
     BRANCH_SHADOWED  /* 虚影状态（被遮蔽的分支） */
 } BranchState;
 
+/* 向后兼容别名 */
+#ifndef BRANCH_ACTIVE
+#define BRANCH_ACTIVE BRANCH_ACTIVE_SELECTED
+#endif
+
 /* ============== 选择器块 ============== */
 struct SelectorBlock {
     int id; /* 选择器块ID */
@@ -224,6 +247,19 @@ typedef enum {
     RECURSION_DEPTH_ACTION_CONTINUE, /**< 继续执行 */
     RECURSION_DEPTH_ACTION_STOP      /**< 停止递归 */
 } RecursionAction;
+
+/* 向后兼容：旧代码使用短名称 RECURSION_ACTION_* */
+#ifndef RECURSION_ACTION_CONTINUE
+#define RECURSION_ACTION_CONTINUE RECURSION_DEPTH_ACTION_CONTINUE
+#endif
+#ifndef RECURSION_ACTION_STOP
+#define RECURSION_ACTION_STOP RECURSION_DEPTH_ACTION_STOP
+#endif
+
+/* 单个 RecursionContext 的最大深度上限 */
+#ifndef LV00_MAX_RECURSION_DEPTH_LIMIT
+#define LV00_MAX_RECURSION_DEPTH_LIMIT 100000
+#endif
 
 /**
  * @brief 递归深度超限回调函数类型
@@ -267,6 +303,26 @@ typedef enum {
     RECURSION_CHECK_RESULT_MEASURE_UNKNOWN, /**< 测度未知 */
     RECURSION_CHECK_RESULT_ERROR            /**< 检查出错 */
 } RecursionCheckResult;
+
+/* 向后兼容别名：旧代码使用短名称 */
+#ifndef RECURSION_OK
+#define RECURSION_OK RECURSION_CHECK_RESULT_OK
+#endif
+#ifndef RECURSION_NOT_DECREASING
+#define RECURSION_NOT_DECREASING RECURSION_CHECK_RESULT_NOT_DECREASING
+#endif
+#ifndef RECURSION_DEPTH_EXCEEDED
+#define RECURSION_DEPTH_EXCEEDED RECURSION_CHECK_RESULT_DEPTH_EXCEEDED
+#endif
+#ifndef RECURSION_CYCLE_DETECTED
+#define RECURSION_CYCLE_DETECTED RECURSION_CHECK_RESULT_CYCLE_DETECTED
+#endif
+#ifndef RECURSION_MEASURE_UNKNOWN
+#define RECURSION_MEASURE_UNKNOWN RECURSION_CHECK_RESULT_MEASURE_UNKNOWN
+#endif
+#ifndef RECURSION_ERROR
+#define RECURSION_ERROR RECURSION_CHECK_RESULT_ERROR
+#endif
 
 /* ============== 测度系统API ============== */
 

@@ -73,13 +73,11 @@ void stream_context_register_setter(StreamContextSetter setter) {
     registered_setters[registered_count++] = setter;
 }
 
-void stream_context_dispatch_all(void *ctx) {
-    /* 将 void * 转为 StreamContext *，与 setter 签名匹配 */
-    StreamContext *sc = (StreamContext *) ctx;
+void stream_context_dispatch_all(StreamContext *ctx) {
     /* 遍历已注册的 setter 数组，依次调用 */
     for (int i = 0; i < registered_count; i++) {
         if (registered_setters[i]) {
-            registered_setters[i](sc);
+            registered_setters[i](ctx);
         }
     }
 }
@@ -107,7 +105,8 @@ void stream_context_dispatch_all(void *ctx) {
  * 新增模块时，在此函数末尾追加一行 stream_context_register_setter()
  * 调用即可，无需修改 engine.c。
  */
-void stream_context_register_builtins(void) {
+void stream_context_register_builtins(StreamContext *ctx) {
+    (void)ctx;
     /* 使用 static 标志确保只注册一次 */
     static int builtins_registered = 0;
     if (builtins_registered)

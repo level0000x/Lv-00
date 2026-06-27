@@ -10,14 +10,14 @@
 typedef struct {
     char pattern[128];   /* 匹配模式（子串） */
     char type_name[128]; /* 推理出的类型名 */
-} TypeInferenceRule;
+} Lv00TypeInferenceRule;
 
 typedef struct Lv00TypeInference {
     void *type_env;
     int inference_depth;
 
     /* 自定义规则表 */
-    TypeInferenceRule *rules;
+    Lv00TypeInferenceRule *rules;
     int rule_count;
     int rule_capacity;
 } Lv00TypeInference;
@@ -26,7 +26,7 @@ Lv00TypeInference *lv00_type_inference_create(void) {
     Lv00TypeInference *inf = lv00_calloc(1, sizeof(Lv00TypeInference));
     if (!inf) return NULL;
     inf->rule_capacity = 8;
-    inf->rules = lv00_calloc(inf->rule_capacity, sizeof(TypeInferenceRule));
+    inf->rules = lv00_calloc(inf->rule_capacity, sizeof(Lv00TypeInferenceRule));
     if (!inf->rules) {
         lv00_free((void **)&inf);
         return NULL;
@@ -46,8 +46,8 @@ int lv00_type_inference_register_rule(Lv00TypeInference *inf,
     if (!inf || !pattern || !type) return -1;
     if (inf->rule_count >= inf->rule_capacity) {
         int new_cap = inf->rule_capacity * 2;
-        TypeInferenceRule *new_arr = lv00_realloc(inf->rules,
-                                              new_cap * sizeof(TypeInferenceRule));
+        Lv00TypeInferenceRule *new_arr = lv00_realloc(inf->rules,
+                                              new_cap * sizeof(Lv00TypeInferenceRule));
         if (!new_arr) return -1;
         inf->rules = new_arr;
         inf->rule_capacity = new_cap;

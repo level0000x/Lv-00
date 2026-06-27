@@ -26,6 +26,78 @@
 #include "lv00_utils.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
+#include "preset_name_defs.h"
+
+/* ==================== 兼容宏与常量定义 ==================== */
+
+#define PRESET_REGISTER_CAT_COUNTED(cnt, name, desc, cat, inputs, in_cnt, out, math_def, comp, constructive, reversible) \
+    do { \
+        if (preset_blocks_register_simple(name, desc, (PresetCategory)(cat), inputs, in_cnt, out, math_def, comp, constructive, reversible)) { \
+            (cnt)++; \
+        } \
+    } while(0)
+
+/* 缺失的 PresetType 兼容定义 */
+#define PRESET_TYPE_RING_ELEMENT       PRESET_TYPE_GROUP_ELEMENT
+#define PRESET_TYPE_RING_HOMOMORPHISM  PRESET_TYPE_HOMOMORPHISM
+#define PRESET_TYPE_DOMAIN             PRESET_TYPE_RING
+#define PRESET_TYPE_ALGEBRAIC_ELEMENT  PRESET_TYPE_GROUP_ELEMENT
+#define PRESET_TYPE_FIELD_EXTENSION    PRESET_TYPE_EXTENSION
+#define PRESET_TYPE_SUBMODULE          PRESET_TYPE_SUBGROUP
+#define PRESET_TYPE_MODULE_HOMOMORPHISM PRESET_TYPE_HOMOMORPHISM
+#define PRESET_TYPE_REPRESENTATION     PRESET_TYPE_HOMOMORPHISM
+
+/* 群论预设名称兼容 */
+#define PRESET_GROUP_CYCLIC_GENERATOR       "group_cyclic_generator"
+#define PRESET_GROUP_ELEMENT_ORDER          PRESET_ELEMENT_ORDER
+#define PRESET_GROUP_COSET                  "group_coset"
+#define PRESET_GROUP_NORMAL_SUBGROUP        "group_normal_subgroup"
+#define PRESET_GROUP_QUOTIENT               "group_quotient"
+#define PRESET_GROUP_ISOMORPHISM            "group_isomorphism"
+#define PRESET_GROUP_AUTOMORPHISM           "group_automorphism"
+#define PRESET_GROUP_CONJUGACY_CLASS        PRESET_CONJUGACY_CLASS
+#define PRESET_GROUP_CENTRALIZER            "group_centralizer"
+#define PRESET_GROUP_COMMUTATOR             "group_commutator"
+#define PRESET_GROUP_DERIVED_SUBGROUP       "group_derived_subgroup"
+#define PRESET_GROUP_SYLOW_SUBGROUP         "group_sylow_subgroup"
+
+/* 环论预设名称兼容 */
+#define PRESET_RING_IDEAL                   "ring_ideal"
+#define PRESET_RING_PRINCIPAL_IDEAL         "ring_principal_ideal"
+#define PRESET_RING_QUOTIENT                "ring_quotient"
+#define PRESET_RING_HOMOMORPHISM_KERNEL     "ring_homomorphism_kernel"
+#define PRESET_RING_HOMOMORPHISM_IMAGE      "ring_homomorphism_image"
+#define PRESET_RING_PRIME_IDEAL             "ring_prime_ideal"
+#define PRESET_RING_MAXIMAL_IDEAL           "ring_maximal_ideal"
+#define PRESET_RING_JACOBSON_RADICAL        "ring_jacobson_radical"
+#define PRESET_RING_NILRADICAL              "ring_nilradical"
+#define PRESET_RING_FRACTION_FIELD          "ring_fraction_field"
+
+/* 域论预设名称兼容 */
+#define PRESET_FIELD_EXTENSION_DEGREE       "field_extension_degree"
+#define PRESET_FIELD_MINIMAL_POLYNOMIAL     "field_minimal_polynomial"
+#define PRESET_FIELD_CONJUGATE              "field_conjugate"
+#define PRESET_FIELD_SPLITTING_FIELD        "field_splitting_field"
+#define PRESET_FIELD_GALOIS_GROUP           "field_galois_group"
+#define PRESET_FIELD_GALOIS_CORRESPONDENCE  "field_galois_correspondence"
+#define PRESET_FIELD_SEPARABLE_EXTENSION    "field_separable_extension"
+#define PRESET_FIELD_NORMAL_BASIS           "field_normal_basis"
+
+/* 模论预设名称兼容 */
+#define PRESET_MODULE_FREE_RANK             "module_free_rank"
+#define PRESET_MODULE_SUBMODULE             "module_submodule"
+#define PRESET_MODULE_QUOTIENT              "module_quotient"
+#define PRESET_MODULE_HOMOMORPHISM_KERNEL   "module_homomorphism_kernel"
+#define PRESET_MODULE_HOMOMORPHISM_IMAGE    "module_homomorphism_image"
+#define PRESET_MODULE_HOM                   "module_hom"
+#define PRESET_MODULE_TENSOR_PRODUCT        "module_tensor_product"
+#define PRESET_MODULE_EXACT_SEQUENCE        "module_exact_sequence"
+
+/* 表示论预设名称兼容 */
+#define PRESET_REPRESENTATION_GROUP         "representation_group"
+#define PRESET_REPRESENTATION_EQUIVALENCE   "representation_equivalence"
+#define PRESET_REPRESENTATION_CHARACTER     "representation_character"
+#define PRESET_REPRESENTATION_DECOMPOSITION "representation_decomposition"
 
 /* ==================== 预设函数块数量 ==================== */
 

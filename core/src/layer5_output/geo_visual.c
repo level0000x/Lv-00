@@ -4,7 +4,7 @@
  */
 
 #include "lv00/geo_visual.h"
-#include "lv00_utils.h"
+#include "lv00/lv00_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>

@@ -1,4 +1,5 @@
 #include "lv00/application.h"
+#include "lv00/orchestrator.h"
 #include "lv00/lv00_internal.h"
 #include "lv00/lv00_utils.h"
 #include <stdlib.h>

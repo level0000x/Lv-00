@@ -4507,9 +4507,9 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
             /* Try rationalization: check if the result is actually a rational number */
             {
                 /* Use continued fraction on the numerical value to find a candidate */
-                double margin_cf = fabs(result_val) * 1e-10;
-                if (margin_cf < 1e-15)
-                    margin_cf = 1e-15;
+                double margin_cf = fabs(result_val) * LV00_EPSILON_NUMERIC_COMPARE;
+                if (margin_cf < LV00_EPSILON_SUPERTINY)
+                    margin_cf = LV00_EPSILON_SUPERTINY;
 
                 /* Try mpq_set_d as a quick rationality check */
                 mpq_t approx;
@@ -5611,7 +5611,7 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
 
             /* Pick the root that falls within the isolation interval */
             Rational *chosen = NULL;
-            if (mid >= v1 - 1e-10 && mid <= v1 + 1e-10) {
+            if (mid >= v1 - LV00_EPSILON_NUMERIC_COMPARE && mid <= v1 + LV00_EPSILON_NUMERIC_COMPARE) {
                 chosen = r1;
                 rational_destroy(r2);
             } else {
@@ -5674,7 +5674,7 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
 
             /* Determine sign of b coefficient */
             double b_val;
-            if (mid >= v1 - 1e-10 && mid <= v1 + 1e-10) {
+            if (mid >= v1 - LV00_EPSILON_NUMERIC_COMPARE && mid <= v1 + LV00_EPSILON_NUMERIC_COMPARE) {
                 b_val = sf / 2.0;
             } else {
                 b_val = -sf / 2.0;

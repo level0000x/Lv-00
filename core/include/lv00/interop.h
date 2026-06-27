@@ -155,12 +155,56 @@ typedef struct {
     bool running;              /**< 运行状态 */
     void *internal_data;       /**< 内部数据 */
 
+    /* 引擎复用：首次命令时惰性创建 */
+    void *persistent_engine;   /**< LV00Engine* 引擎复用 */
+    int engine_in_use;         /**< 引擎使用计数 */
+
     /* 流式输出 */
     bool stream_enabled;         /**< 流式输出是否启用 */
     int stream_callback_id;      /**< 流式回调注册 ID（-1 表示未注册） */
     uint64_t stream_filter_mask; /**< 当前事件过滤掩码 */
     long stream_events_sent;     /**< 已发送的流式事件总数 */
 } InteropServer;
+
+typedef InteropServer Lv00InteropManager;
+
+/**
+ * @brief 外部证明系统类型
+ */
+typedef enum {
+    LV00_EXT_COQ,       /**< Coq 证明助手 */
+    LV00_EXT_LEAN4,     /**< Lean 4 证明助手 */
+    LV00_EXT_JSON,      /**< JSON 格式 (OPML 等) */
+    LV00_EXT_COUNT
+} Lv00ExternalSystem;
+
+/* 前向声明 */
+typedef struct Lv00InteropPlugin Lv00InteropPlugin;
+
+/**
+ * @brief 互操作插件（外部证明系统桥接）
+ */
+struct Lv00InteropPlugin {
+    char name[64];                    /**< 插件名称 */
+    char version[32];                 /**< 版本号 */
+    Lv00ExternalSystem system;        /**< 外部系统类型 */
+    int (*export_proof)(void *, char *, int);  /**< 导出证明函数 */
+    int (*import_proof)(const char *, void **); /**< 导入证明函数 */
+    int (*validate)(const char *);    /**< 验证函数 */
+};
+
+/* 兼容宏：旧代码使用 Lv00Plugin，实际是 Lv00InteropPlugin */
+#ifndef LV00_PLUGIN_FULL_TYPE
+typedef Lv00InteropPlugin Lv00Plugin;
+#endif
+
+/**
+ * @brief 注册互操作插件
+ * @param mgr 互操作管理器
+ * @param plugin 插件信息
+ * @return 成功返回0，失败返回-1
+ */
+int lv00_interop_register_plugin(Lv00InteropManager *mgr, const Lv00Plugin *plugin);
 
 /**
  * @brief 导出配置

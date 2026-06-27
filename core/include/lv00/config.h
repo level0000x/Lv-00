@@ -98,6 +98,128 @@ extern "C" {
 #define LV00_CONFIG_DEFAULT_PRECISION_BITS         52
 #define LV00_CONFIG_ROOT_EPSILON                 1e-12
 
+/* ---- 数值精度常量（浮点数比较容差） ---- */
+/* 通用高精度容差 */
+#ifndef LV00_EPSILON_SUPERTINY
+#define LV00_EPSILON_SUPERTINY 1e-15   /* 极高精度：用于Adams/BDF步长、Groebner基 */
+#endif
+#ifndef LV00_EPSILON_ULTRA
+#define LV00_EPSILON_ULTRA     1e-12   /* 超高精度：用于根求解、收敛判断 */
+#endif
+#ifndef LV00_EPSILON_HIGH
+#define LV00_EPSILON_HIGH      1e-10   /* 高精度：用于角度/距离判断 */
+#endif
+#ifndef LV00_EPSILON_MEDIUM
+#define LV00_EPSILON_MEDIUM    1e-9    /* 中等精度：用于几何谓词（orientation） */
+#endif
+#ifndef LV00_EPSILON_LOW
+#define LV00_EPSILON_LOW       1e-6    /* 低精度：用于近似计算 */
+#endif
+
+/* 几何专用容差 */
+#ifndef LV00_GEO_COLLINEAR_EPSILON
+#define LV00_GEO_COLLINEAR_EPSILON 1e-9   /* 共线性判断容差 */
+#endif
+#ifndef LV00_GEO_DISTANCE_EPSILON
+#define LV00_GEO_DISTANCE_EPSILON 1e-8    /* 距离判断容差 */
+#endif
+#ifndef LV00_GEO_ANGLE_EPSILON
+#define LV00_GEO_ANGLE_EPSILON 1e-10      /* 角度相等容差 */
+#endif
+
+/* 代数运算安全阈值 */
+#ifndef LV00_SINGULARITY_THRESHOLD
+#define LV00_SINGULARITY_THRESHOLD 1e-12   /* 矩阵奇异性判断 */
+#endif
+#ifndef LV00_NORMALIZATION_THRESHOLD
+#define LV00_NORMALIZATION_THRESHOLD 1e-15  /* 向量归一化容差 */
+#endif
+
+/* 数值范围极限（用于哨兵值） */
+#ifndef LV00_INFINITY_SENTINEL
+#define LV00_INFINITY_SENTINEL 1e308      /* "无穷大"哨兵 */
+#endif
+#ifndef LV00_TINY_SENTINEL
+#define LV00_TINY_SENTINEL  1e-300        /* "接近零"哨兵 */
+#endif
+#ifndef LV00_HUGE_NUMBER
+#define LV00_HUGE_NUMBER     1e30        /* 极大数阈值 */
+#endif
+#ifndef LV00_LARGE_NUMBER
+#define LV00_LARGE_NUMBER    1e18        /* 大数阈值 */
+#endif
+#ifndef LV00_BIG_NUMBER
+#define LV00_BIG_NUMBER      1e9         /* 10亿级阈值 */
+#endif
+
+/* ---- 常用数学系数与比例因子 ---- */
+/* 缩放系数 */
+#ifndef LV00_HALF
+#define LV00_HALF         0.5         /* 1/2 */
+#endif
+#ifndef LV00_THIRD
+#define LV00_THIRD        0.333333333333333333333   /* 1/3 */
+#endif
+#ifndef LV00_QUARTER
+#define LV00_QUARTER      0.25        /* 1/4 */
+#endif
+#ifndef LV00_TENTH
+#define LV00_TENTH        0.1         /* 1/10 */
+#endif
+
+/* 角度系数（弧度↔度） */
+#ifndef LV00_DEG_TO_RAD
+#define LV00_DEG_TO_RAD   0.017453292519943295769   /* π/180 */
+#endif
+#ifndef LV00_RAD_TO_DEG
+#define LV00_RAD_TO_DEG   57.2957795130823208768    /* 180/π */
+#endif
+#ifndef LV00_PI
+#define LV00_PI           3.1415926535897932384626  /* π */
+#endif
+#ifndef LV00_TWO_PI
+#define LV00_TWO_PI       6.28318530717958647692   /* 2π */
+#endif
+#ifndef LV00_HALF_PI
+#define LV00_HALF_PI      1.57079632679489661923   /* π/2 */
+#endif
+#ifndef LV00_QUARTER_PI
+#define LV00_QUARTER_PI   0.78539816339744830962   /* π/4 */
+#endif
+
+/* 颜色通道（RGB 0-255 归一化） */
+#ifndef LV00_COLOR_CHANNEL_MAX
+#define LV00_COLOR_CHANNEL_MAX 255.0f   /* RGB最大通道值 */
+#endif
+#ifndef LV00_COLOR_CHANNEL_HALF
+#define LV00_COLOR_CHANNEL_HALF 0.5f    /* 0.5f */
+#endif
+
+/* 哈希表负载因子 */
+#ifndef LV00_HASH_LOAD_FACTOR_MAX
+#define LV00_HASH_LOAD_FACTOR_MAX 0.75  /* 最大负载因子 */
+#endif
+#ifndef LV00_HASH_LOAD_FACTOR_MIN
+#define LV00_HASH_LOAD_FACTOR_MIN 0.25  /* 最小负载因子 */
+#endif
+
+/* 缓冲区/块大小（2的幂次） */
+#ifndef LV00_KB
+#define LV00_KB           1024.0       /* 1KB */
+#endif
+#ifndef LV00_MB
+#define LV00_MB           1048576.0    /* 1MB */
+#endif
+#ifndef LV00_GB
+#define LV00_GB           1073741824.0 /* 1GB */
+#endif
+#ifndef LV00_KB_I
+#define LV00_KB_I         1024         /* 1KB (int) */
+#endif
+#ifndef LV00_MB_I
+#define LV00_MB_I         1048576      /* 1MB (int) */
+#endif
+
 /* == 以下全部移入 Lv00Config 运行时 == */
 
 typedef struct {
@@ -291,7 +413,9 @@ void lv00_config_reset(void);
 /* 这些宏仍然有效，值固定；代码应逐步迁移到 cfg->field */
 
 /* solver.h compat */
-#define SOLVER_MAX_VAR_ID LV00_CONFIG_SOLVER_MAX_VAR_ID
+#ifndef SOLVER_MAX_VAR_ID
+#define SOLVER_MAX_VAR_ID 100000
+#endif
 
 /* symbolic_coord.h compat */
 #ifndef MAX_MODULE_DEPTH

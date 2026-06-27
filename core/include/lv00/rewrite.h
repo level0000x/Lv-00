@@ -96,6 +96,23 @@ typedef enum {
     REWRITE_STATUS_TERMINATED        /**< 重写终止 */
 } RewriteStatus;
 
+/* 向后兼容别名：旧代码使用短名称 */
+#ifndef REWRITE_OK
+#define REWRITE_OK REWRITE_STATUS_OK
+#endif
+#ifndef REWRITE_TERMINATED
+#define REWRITE_TERMINATED REWRITE_STATUS_TERMINATED
+#endif
+#ifndef REWRITE_NO_MATCH
+#define REWRITE_NO_MATCH REWRITE_STATUS_NO_MATCH
+#endif
+#ifndef REWRITE_APPLIED
+#define REWRITE_APPLIED REWRITE_STATUS_APPLIED
+#endif
+#ifndef REWRITE_CONFLUENCE_ISSUE
+#define REWRITE_CONFLUENCE_ISSUE REWRITE_STATUS_CONFLUENCE_ISSUE
+#endif
+
 /* VF2 子图同构匹配状态 */
 typedef struct {
     int *core_1;      /* core_1[pattern_node] = target_node 或 -1 */
@@ -122,6 +139,9 @@ typedef struct {
 #endif
 #ifndef WL_HISTORY_SIZE
 #define WL_HISTORY_SIZE 64
+#endif
+#ifndef LV00_REWRITE_WL_HASH_MULTIPLIER
+#define LV00_REWRITE_WL_HASH_MULTIPLIER 0x01000193U
 #endif
 
 typedef struct {
@@ -359,7 +379,7 @@ LV00_PUBLIC_API RewriteMatch *find_best_match(ConstraintGraph *graph, RewriteRul
  * @param[in] graph_before   重写前的图哈希快照
  * @return true 如果度量满足归约/扩展要求，false 如果没有
  */
-LV00_PUBLIC_API bool rewrite_validate_measure(const ConstraintGraph *graph, const RewriteRule *rule, const GraphHash *graph_before);
+LV00_PUBLIC_API bool rewrite_validate_measure(const ConstraintGraph *graph, const RewriteRule *rule, const GraphSnapshot *graph_before);
 
 /* ---- WL 图核哈希（公开接口） ---- */
 

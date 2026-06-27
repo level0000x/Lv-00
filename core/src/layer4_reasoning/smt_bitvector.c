@@ -23,6 +23,10 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#undef bv_from_int
 
 /* ========================================================================
  * Internal helpers

@@ -85,7 +85,7 @@ int module_get_axiom_package_count(const Module *mod) {
     return mod ? mod->axiom_package_count : 0;
 }
 
-ConstraintGraph *module_get_graph(const Module *mod) {
+const ConstraintGraph *module_get_graph(const Module *mod) {
     return mod ? mod->graph : NULL;
 }
 

@@ -117,7 +117,7 @@ static volatile int g_test_init_mutex_initialized = 0;
 
 static void init_test_system(void) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange(&g_test_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile*)&g_test_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_test_init_mutex);
     }
     EnterCriticalSection(&g_test_init_mutex);

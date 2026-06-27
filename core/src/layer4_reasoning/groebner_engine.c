@@ -2758,8 +2758,7 @@ bool ideal_membership(Lv00RingRegistry *registry, int ideal_id, int poly_id) {
 /**
  * @brief 理想交
  */
-int ideal_intersection(Lv00RingRegistry *registry, int ideal_id_a, int ideal_id_b,
-                       const char *result_label) {
+int ideal_intersection(Lv00RingRegistry *registry, int ideal_id_a, int ideal_id_b) {
     if (!registry) return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
@@ -2795,7 +2794,7 @@ int ideal_intersection(Lv00RingRegistry *registry, int ideal_id_a, int ideal_id_
     result_ideal->generator_count = 0;
     result_ideal->cached_basis = NULL;
     result_ideal->basis_valid = false;
-    result_ideal->label = groebner_strdup_safe(result_label);
+    result_ideal->label = NULL;
 
     /* 将 I 的生成元加入 */
     for (int i = 0; i < ia->generator_count; i++) {
@@ -2969,7 +2968,7 @@ int variety_compute(Lv00RingRegistry *registry, int ideal_id, const char *label)
 /**
  * @brief 获取代数簇的维数
  */
-int variety_dimension(const Lv00RingRegistry *registry, int variety_id) {
+int variety_dimension(Lv00RingRegistry *registry, int variety_id) {
     LV00_UNUSED(registry);
     GROEBNER_MUTEX_LOCK(g_data_mutex);
     if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
@@ -2985,7 +2984,7 @@ int variety_dimension(const Lv00RingRegistry *registry, int variety_id) {
 /**
  * @brief 检查是否为零维簇
  */
-bool variety_is_zero_dimensional(const Lv00RingRegistry *registry, int variety_id) {
+bool variety_is_zero_dimensional(Lv00RingRegistry *registry, int variety_id) {
     LV00_UNUSED(registry);
     GROEBNER_MUTEX_LOCK(g_data_mutex);
     if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {

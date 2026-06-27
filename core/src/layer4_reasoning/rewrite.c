@@ -3948,7 +3948,7 @@ static bool evaluate_precondition(ConstraintGraph *graph,
  * 则返回 1，否则返回 0。
  * =========================================================================== */
 
-bool rewrite_validate_measure(const ConstraintGraph *graph, const RewriteRule *rule, const GraphHash *graph_before) {
+bool rewrite_validate_measure(const ConstraintGraph *graph, const RewriteRule *rule, const GraphSnapshot *graph_before) {
     if (!graph || !rule) return false;
 
     /* 根据 design_v2.9.md 第6.1节：

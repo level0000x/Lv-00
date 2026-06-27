@@ -16,6 +16,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
+
+/* ========================================================================
+ * 内部常量
+ * ======================================================================== */
+
+/** @brief Buchberger 算法最大步数 */
+#define GROEBNER_PARALLEL_BUCHBERGER_MAX_STEPS 50000
+
+/** @brief 多项式约化最大步数 */
+#define GROEBNER_PARALLEL_REDUCE_MAX_STEPS 10000
 
 /* ========================================================================
  * 内部数据结构
@@ -287,7 +298,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
             simple_poly_destroy(&result);
             result.term_count = 0;
             result.terms = NULL;
-            result.capacity = 0;
+            result.term_capacity = 0;
             return result;
         }
         lv00_free((void **)&new_exp);
@@ -312,7 +323,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
             simple_poly_destroy(&result);
             result.term_count = 0;
             result.terms = NULL;
-            result.capacity = 0;
+            result.term_capacity = 0;
             return result;
         }
         lv00_free((void **)&new_exp);
@@ -339,7 +350,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
 static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_size) {
     if (simple_poly_is_zero(&f) || basis_size == 0) return f;
 
-    int max_steps = LV00_SOLVER_BUCHBERGER_STEP_LIMIT;
+    int max_steps = GROEBNER_PARALLEL_REDUCE_MAX_STEPS;
     int step = 0;
 
     while (f.term_count > 0 && step < max_steps) {
@@ -762,7 +773,7 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
         lv00_free((void **)&old_basis);
     }
 
-    engine->groebner_basis = final_basis;
+    engine->groebner_basis = (void **)final_basis;
     engine->basis_size = final_basis_size;
 
     /* 清理线程参数中的队列引用（队列本身保留给 destroy 清理） */
@@ -782,4 +793,17 @@ Lv00GroebnerState lv00_groebner_parallel_state(const Lv00GroebnerParallel *engin
     Lv00GroebnerState state = {0};
     if (engine) state = engine->state;
     return state;
+}
+
+bool lv00_groebner_poly_is_nonzero_constant(void *poly) {
+    if (!poly) return false;
+    SimplePoly *p = (SimplePoly *)poly;
+    if (p->term_count != 1) return false;
+    if (fabs(p->terms[0].coeff) < LV00_EPSILON_DOUBLE) return false;
+    if (p->terms[0].var_count > 0 && p->terms[0].exponents) {
+        for (int i = 0; i < p->terms[0].var_count; i++) {
+            if (p->terms[0].exponents[i] != 0) return false;
+        }
+    }
+    return true;
 }

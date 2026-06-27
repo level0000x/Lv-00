@@ -148,6 +148,11 @@ Lv00Expr *lv00_expr_function(const char *func_name, Lv00Expr *argument);
  */
 void lv00_expr_destroy(Lv00Expr **expr);
 
+/* 兼容宏：旧的 lv00_expr_free(x) 风格 */
+#ifndef lv00_expr_free
+#define lv00_expr_free(x) lv00_expr_destroy(&(x))
+#endif
+
 /**
  * @brief 深拷贝表达式
  * @param expr 源表达式

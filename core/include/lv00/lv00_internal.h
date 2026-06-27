@@ -78,6 +78,25 @@ extern "C" {
 #endif
 
 /* ================================================================
+ * 全局默认常量（与 lv00.h 保持同步，使用 #ifndef 守卫确保幂等）
+ * ================================================================ */
+#ifndef LV00_DEFAULT_TIMEOUT_MS
+#define LV00_DEFAULT_TIMEOUT_MS 10000
+#endif
+#ifndef LV00_DEFAULT_MAX_ITERATIONS
+#define LV00_DEFAULT_MAX_ITERATIONS 1000
+#endif
+#ifndef MAX_BLOCK_PORTS
+#define MAX_BLOCK_PORTS 32
+#endif
+#ifndef LV00_DEFAULT_MAX_DEPTH
+#define LV00_DEFAULT_MAX_DEPTH 64
+#endif
+#ifndef LV00_VERSION_STRING
+#define LV00_VERSION_STRING "3.5.0"
+#endif
+
+/* ================================================================
  * 日志级别与日志宏
  * ================================================================ */
 

@@ -14,7 +14,8 @@
 #include <stdint.h>
 
 #include "lv00.h"
-#include "lv00_utils.h"
+#include "lv00/lv00_internal.h"
+#include "circuit_breaker.h"
 
 /* ============== 内部辅助函数 ============== */
 

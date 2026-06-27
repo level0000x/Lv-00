@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_representation_theory.c
  * @brief 表示论预设函数块 - 实现
  *
@@ -46,9 +46,9 @@
  * @param constructive  是否构造性
  * @param reversible    是否可逆
  */
-#define REGISTER_RT(preset_name, desc, inputs, n_inputs, output, math, comp, constructive, reversible) \
+#define REGISTER_RT(preset_name, desc, n_inputs, output, math, comp, constructive, reversible, ...) \
     do { \
-        PresetType _in[] = inputs; \
+        PresetType _in[] = { __VA_ARGS__ }; \
         if (register_rt_preset(preset_name, desc, _in, n_inputs, output, math, comp, constructive, reversible)) { \
             success_count++; \
         } \
@@ -115,11 +115,12 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_LINEAR_REPRESENTATION,
         "线性表示：构造群 G 在向量空间 V 上的群同态 rho: G -> GL(V)，用线性变换刻画群结构",
-        {PRESET_TYPE_GROUP, PRESET_TYPE_SPACE}, 2, PRESET_TYPE_HOMOMORPHISM,
+        2, PRESET_TYPE_HOMOMORPHISM,
         "\\rho: G \\to GL(V), \\quad "
         "\\rho(gh) = \\rho(g)\\rho(h), \\quad "
         "\\rho(e) = I_V",
-        "O(|G| \\cdot n^2)", true, false);
+        "O(|G| \\cdot n^2)", true, false,
+        PRESET_TYPE_GROUP, PRESET_TYPE_SPACE);
 
     /**
      * @brief 置换表示
@@ -136,10 +137,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_PERMUTATION_REP,
         "置换表示：由群 G 在有限集 X 上的作用构造维数为 |X| 的置换矩阵表示",
-        {PRESET_TYPE_GROUP, PRESET_TYPE_SET}, 2, PRESET_TYPE_LIST,
+        2, PRESET_TYPE_LIST,
         "P_g: \\mathbb{C}X \\to \\mathbb{C}X, \\quad "
         "P_g(e_x) = e_{g\\cdot x}",
-        "O(|G| \\cdot |X|^2)", true, false);
+        "O(|G| \\cdot |X|^2)", true, false,
+        PRESET_TYPE_GROUP, PRESET_TYPE_SET);
 
     /**
      * @brief 正则表示
@@ -156,11 +158,12 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_REGULAR_REPRESENTATION,
         "正则表示：构造群代数上的左平移表示，每个不可约表示出现 dim(rho) 次",
-        {PRESET_TYPE_GROUP}, 1, PRESET_TYPE_HOMOMORPHISM,
+        1, PRESET_TYPE_HOMOMORPHISM,
         "\\lambda: G \\to GL(\\mathbb{C}G), \\quad "
         "\\lambda(g)(h) = gh, \\quad "
         "\\mathbb{C}G \\cong \\bigoplus_\\rho (\\dim\\rho)\\rho",
-        "O(|G|^2)", true, false);
+        "O(|G|^2)", true, false,
+        PRESET_TYPE_GROUP);
 
     /**
      * @brief 酉表示
@@ -177,10 +180,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_UNITARY_REPRESENTATION,
         "酉表示：在 Hilbert 空间上构造保持内积的酉表示 rho: G -> U(H)（可酉化）",
-        {PRESET_TYPE_HOMOMORPHISM}, 1, PRESET_TYPE_HOMOMORPHISM,
+        1, PRESET_TYPE_HOMOMORPHISM,
         "\\rho: G \\to U(\\mathcal{H}), \\quad "
         "\\langle\\rho(g)v,\\rho(g)w\\rangle = \\langle v,w\\rangle",
-        "O(|G| \\cdot n^2)", true, false);
+        "O(|G| \\cdot n^2)", true, false,
+        PRESET_TYPE_HOMOMORPHISM);
 
     /**
      * @brief 表示维数
@@ -196,9 +200,10 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_REPRESENTATION_DIMENSION,
         "表示维数：计算线性表示 rho: G -> GL(V) 的维数 dim(rho) = dim V = chi(e)",
-        {PRESET_TYPE_HOMOMORPHISM}, 1, PRESET_TYPE_INTEGER,
+        1, PRESET_TYPE_INTEGER,
         "\\dim\\rho = \\dim V = \\chi_\\rho(e)",
-        "O(1)", true, false);
+        "O(1)", true, false,
+        PRESET_TYPE_HOMOMORPHISM);
 
     /**
      * @brief 表示的直和与张量积
@@ -215,11 +220,12 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_REP_DIRECT_SUM_TENSOR,
         "表示的直和与张量积：构造函数 rho1⊕rho2 (维数相加) 或 rho1⊗rho2 (维数相乘)",
-        {PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_BOOLEAN}, 3, PRESET_TYPE_HOMOMORPHISM,
+        3, PRESET_TYPE_HOMOMORPHISM,
         "(\\rho_1 \\oplus \\rho_2)(g) = \\begin{pmatrix} "
         "\\rho_1(g) & 0 \\\\ 0 & \\rho_2(g) \\end{pmatrix}, \\quad "
         "(\\rho_1 \\otimes \\rho_2)(g) = \\rho_1(g) \\otimes \\rho_2(g)",
-        "O(n^2)", true, false);
+        "O(n^2)", true, false,
+        PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_BOOLEAN);
 
     /* ============================================================
      * 第二部分：特征标理论（4个）
@@ -240,9 +246,10 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_CHARACTER_CALCULATION,
         "特征标计算：对表示 rho 计算特征标函数 chi(g) = Tr(rho(g))（等价不变量）",
-        {PRESET_TYPE_HOMOMORPHISM}, 1, PRESET_TYPE_FUNCTION,
+        1, PRESET_TYPE_FUNCTION,
         "\\chi_\\rho(g) = \\operatorname{Tr}(\\rho(g))",
-        "O(|G| \\cdot n^2)", true, false);
+        "O(|G| \\cdot n^2)", true, false,
+        PRESET_TYPE_HOMOMORPHISM);
 
     /**
      * @brief 特征标表
@@ -259,10 +266,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_CHARACTER_TABLE,
         "特征标表：构造有限群的不可约特征标表（行=不可约表示，列=共轭类），行正交",
-        {PRESET_TYPE_GROUP}, 1, PRESET_TYPE_MATRIX,
+        1, PRESET_TYPE_MATRIX,
         "\\chi_{i}(C_j) = \\operatorname{Tr}(\\rho_i(g_j)), \\quad "
         "\\sum_{g\\in G} \\chi_i(g)\\overline{\\chi_j(g)} = |G|\\,\\delta_{ij}",
-        "O(|G|^2)", true, false);
+        "O(|G|^2)", true, false,
+        PRESET_TYPE_GROUP);
 
     /**
      * @brief 特征标内积
@@ -279,10 +287,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_CHARACTER_INNER_PRODUCT,
         "特征标内积：计算类函数的内积 (chi, psi)_G = 1/|G| ∑ chi(g)·conj(psi(g))",
-        {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION, PRESET_TYPE_GROUP}, 3, PRESET_TYPE_SCALAR,
+        3, PRESET_TYPE_SCALAR,
         "\\langle\\chi, \\psi\\rangle_G = "
         "\\frac{1}{|G|}\\sum_{g\\in G} \\chi(g)\\overline{\\psi(g)}",
-        "O(|G|)", true, false);
+        "O(|G|)", true, false,
+        PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION, PRESET_TYPE_GROUP);
 
     /**
      * @brief 不可约特征标正交性
@@ -299,10 +308,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_CHARACTER_ORTHOGONALITY,
         "不可约特征标正交性：验证 Schur 正交关系 sum χ_i(g)·conj(χ_j(g)) = |G|·δ_ij",
-        {PRESET_TYPE_MATRIX, PRESET_TYPE_GROUP}, 2, PRESET_TYPE_BOOLEAN,
+        2, PRESET_TYPE_BOOLEAN,
         "\\sum_{g\\in G} \\chi_i(g)\\overline{\\chi_j(g)} = |G|\\,\\delta_{ij}, \\quad "
         "\\sum_{\\chi} \\chi(C_i)\\overline{\\chi(C_j)} = \\frac{|G|}{|C_i|}\\,\\delta_{ij}",
-        "O(|G|^2)", false, false);
+        "O(|G|^2)", false, false,
+        PRESET_TYPE_MATRIX, PRESET_TYPE_GROUP);
 
     /* ============================================================
      * 第三部分：不可约表示（4个）
@@ -323,10 +333,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_IRREDUCIBILITY_TEST,
         "不可约表示判定：验证表示是否不可约（特征标内积 (chi, chi) = 1 则不可约）",
-        {PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_GROUP}, 2, PRESET_TYPE_BOOLEAN,
+        2, PRESET_TYPE_BOOLEAN,
         "\\rho \\text{ 不可约} \\Leftrightarrow "
         "\\langle\\chi_\\rho, \\chi_\\rho\\rangle_G = 1",
-        "O(|G| \\cdot n^2)", false, false);
+        "O(|G| \\cdot n^2)", false, false,
+        PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_GROUP);
 
     /**
      * @brief Maschke定理
@@ -343,10 +354,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_MASCHKE_THEOREM,
         "Maschke定理：验证有限群在 char(F)∤|G| 的域上的表示完全可约",
-        {PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_INTEGER}, 2, PRESET_TYPE_BOOLEAN,
+        2, PRESET_TYPE_BOOLEAN,
         "\\operatorname{char}(F) \\nmid |G| \\Rightarrow "
         "\\rho = \\bigoplus_i \\rho_i",
-        "O(|G| \\cdot n^2)", false, false);
+        "O(|G| \\cdot n^2)", false, false,
+        PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_INTEGER);
 
     /**
      * @brief 不可约表示分解
@@ -363,10 +375,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_IRREDUCIBLE_DECOMPOSITION,
         "不可约表示分解：将可约表示分解为不可约表示的直和 rho ≅ ⊕ d_i·rho_i，d_i = (chi, chi_i)",
-        {PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_GROUP}, 2, PRESET_TYPE_LIST,
+        2, PRESET_TYPE_LIST,
         "\\rho \\cong \\bigoplus_i d_i\\,\\rho_i, \\quad "
         "d_i = \\langle\\chi_\\rho, \\chi_i\\rangle_G",
-        "O(|G|^2)", true, false);
+        "O(|G|^2)", true, false,
+        PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_GROUP);
 
     /**
      * @brief Schur引理
@@ -384,10 +397,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_SCHURS_LEMMA,
         "Schur引理：计算 Intertwiner 空间 Hom_G(rho1, rho2) 维数（不可约时 0 或 1）",
-        {PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_GROUP}, 3, PRESET_TYPE_INTEGER,
+        3, PRESET_TYPE_INTEGER,
         "\\dim\\operatorname{Hom}_G(\\rho_1, \\rho_2) = "
         "\\begin{cases} 1, & \\rho_1 \\cong \\rho_2 \\\\ 0, & \\text{否则} \\end{cases}",
-        "O(n^2)", false, false);
+        "O(n^2)", false, false,
+        PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_HOMOMORPHISM, PRESET_TYPE_GROUP);
 
     /* ============================================================
      * 第四部分：诱导表示（2个）
@@ -408,10 +422,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_FROBENIUS_RECIPROCITY,
         "Frobenius互反律：(Ind_H^G chi, psi)_G = (chi, Res_H^G psi)_H，诱导与限制对偶",
-        {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION}, 2, PRESET_TYPE_SCALAR,
+        2, PRESET_TYPE_SCALAR,
         "\\langle\\operatorname{Ind}_H^G \\chi, \\psi\\rangle_G = "
         "\\langle\\chi, \\operatorname{Res}_H^G \\psi\\rangle_H",
-        "O(|G|)", false, false);
+        "O(|G|)", false, false,
+        PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION);
 
     /**
      * @brief 诱导特征标
@@ -428,11 +443,12 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_INDUCED_CHARACTER,
         "诱导特征标：计算 Ind_H^G chi(g) = 1/|H|·sum_{x∈G, xgx^{-1}∈H} chi(xgx^{-1})",
-        {PRESET_TYPE_FUNCTION, PRESET_TYPE_SUBGROUP, PRESET_TYPE_GROUP}, 3, PRESET_TYPE_FUNCTION,
+        3, PRESET_TYPE_FUNCTION,
         "\\operatorname{Ind}_H^G \\chi(g) = "
         "\\frac{1}{|H|}\\sum_{\\substack{x\\in G \\\\ xgx^{-1}\\in H}} "
         "\\chi(xgx^{-1})",
-        "O(|G|^2)", true, false);
+        "O(|G|^2)", true, false,
+        PRESET_TYPE_FUNCTION, PRESET_TYPE_SUBGROUP, PRESET_TYPE_GROUP);
 
     /* ============================================================
      * 第五部分：李代数表示（2个）
@@ -453,10 +469,11 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_ADJOINT_REPRESENTATION,
         "伴随表示：构造李代数的伴随表示 ad_X(Y) = [X, Y]，Killing 形式 B(X,Y)=Tr(ad_X ad_Y)",
-        {PRESET_TYPE_ALGEBRA}, 1, PRESET_TYPE_MATRIX,
+        1, PRESET_TYPE_MATRIX,
         "\\operatorname{ad}: \\mathfrak{g} \\to \\mathfrak{gl}(\\mathfrak{g}), \\quad "
         "\\operatorname{ad}_X(Y) = [X, Y]",
-        "O(n^2)", true, true);
+        "O(n^2)", true, true,
+        PRESET_TYPE_ALGEBRA);
 
     /**
      * @brief 最高权表示
@@ -473,12 +490,13 @@ bool preset_representation_theory_register(void)
      */
     REGISTER_RT(PRESET_RT_HIGHEST_WEIGHT_REP,
         "最高权表示：从统治整权 lambda 构造有限维不可约表示 V_lambda（Cartan-Weyl理论）",
-        {PRESET_TYPE_VECTOR, PRESET_TYPE_MATRIX}, 2, PRESET_TYPE_HOMOMORPHISM,
+        2, PRESET_TYPE_HOMOMORPHISM,
         "V_\\lambda \\text{ 由 } \\lambda \\in P^+ \\text{ 唯一决定}, \\quad "
         "\\dim V_\\lambda = \\prod_{\\alpha>0} "
         "\\frac{\\langle\\lambda+\\rho,\\alpha^\\vee\\rangle}"
         "{\\langle\\rho,\\alpha^\\vee\\rangle}",
-        "O(n^3)", true, false);
+        "O(n^3)", true, false,
+        PRESET_TYPE_VECTOR, PRESET_TYPE_MATRIX);
 
     /* 返回是否所有预设都注册成功 */
     if (success_count == RT_PRESET_COUNT) {
@@ -556,8 +574,8 @@ bool preset_representation_theory_get_names(char ***out_names, int *out_count)
     for (int i = 0; i < count; i++) {
         names[i] = lv00_strdup(preset_names[i]);
         if (names[i] == NULL) {
-            for (int j = 0; j < i; j++) lv00_free(names[j]);
-            lv00_free(names);
+            for (int j = 0; j < i; j++) lv00_free((void**)&names[j]);
+            lv00_free((void**)&names);
             return false;
         }
     }

@@ -21,6 +21,7 @@
 #endif
 
 #include "lv00/geo_constraint_solver.h"
+#include "lv00/config.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -377,9 +378,9 @@ LV00_PUBLIC_API Lv00SolverConfig lv00_solver_default_config(void)
 {
     Lv00SolverConfig cfg;
     cfg.max_iterations  = 50;
-    cfg.convergence_tol = 1e-10;
+    cfg.convergence_tol = LV00_EPSILON_HIGH;
     cfg.damping_factor  = 0.8;
-    cfg.min_step        = 1e-15;
+    cfg.min_step        = LV00_EPSILON_SUPERTINY;
     cfg.verbose         = false;
     return cfg;
 }
@@ -710,7 +711,7 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
         double bx = eb->params[2], by = eb->params[3];
         double ldx = bx - ax, ldy = by - ay;
         double len = sqrt(ldx * ldx + ldy * ldy);
-        if (len < 1e-15) { if (error_val) *error_val = 0.0; return 1; }
+        if (len < LV00_EPSILON_SUPERTINY) { if (error_val) *error_val = 0.0; return 1; }
         err = ((px - ax) * ldy - (py - ay) * ldx) / len;
         if (error_val) *error_val = err;
         return 1;
@@ -726,7 +727,7 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
         double bx = eb->params[2], by = eb->params[3];
         double ldx = bx - ax, ldy = by - ay;
         double len = sqrt(ldx * ldx + ldy * ldy);
-        if (len < 1e-15) { if (error_val) *error_val = 0.0; return 1; }
+        if (len < LV00_EPSILON_SUPERTINY) { if (error_val) *error_val = 0.0; return 1; }
         double dist = fabs(((px - ax) * ldy - (py - ay) * ldx) / len);
         err = dist - c->value;
         if (error_val) *error_val = err;
@@ -879,7 +880,7 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
         double r  = eb->params[2];
         double ldx = bx - ax, ldy = by - ay;
         double len = sqrt(ldx * ldx + ldy * ldy);
-        if (len < 1e-15) { if (error_val) *error_val = 0.0; return 1; }
+        if (len < LV00_EPSILON_SUPERTINY) { if (error_val) *error_val = 0.0; return 1; }
         double dist = fabs(((cx - ax) * ldy - (cy - ay) * ldx) / len);
         err = dist - r;
         if (error_val) *error_val = err;
