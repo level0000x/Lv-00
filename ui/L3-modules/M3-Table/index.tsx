@@ -1,37 +1,24 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { TableRow, trustColorToCSS } from '../types';
+import { useGeometryStore, GeoObject } from '../../L5-core/store/geometryStore';
 import { Empty } from '../shared';
 
-/* ---- Modified row type for editing ---- */
-export interface ModifiedRow {
-  id: number;
-  name: string;
-  coordX: string;
-  coordY: string;
-  nodeType: string;
-  constraintCount: number;
-  colorRGBA: number;
-  trustColor: string;
-  status: string;
-  parentBlockId: number;
-}
-
-interface TableViewProps {
-  rows: TableRow[];
-  selectedId?: number | null;
-  onRowClick?: (id: number) => void;
-  onRowsChange?: (rows: ModifiedRow[]) => void;
-}
-
-const Columns = ['ID', '名称 Name', '类型 Type', 'X', 'Y', '约束数 Cnt'];
+const TYPE_LABELS: Record<string, string> = {
+  point: '点 Point',
+  segment: '线段 Segment',
+  line: '直线 Line',
+  ray: '射线 Ray',
+  circle: '圆 Circle',
+  arc: '弧 Arc',
+  polygon: '多边形 Polygon',
+  angle: '角 Angle',
+};
 
 /* ---- Inline cell editor ---- */
 const CellEditor: React.FC<{
   value: string;
   onCommit: (val: string) => void;
   onCancel: () => void;
-  style?: React.CSSProperties;
-}> = ({ value, onCommit, onCancel, style }) => {
+}> = ({ value, onCommit, onCancel }) => {
   const ref = useRef<HTMLInputElement>(null);
   const [val, setVal] = useState(value);
 
@@ -47,8 +34,8 @@ const CellEditor: React.FC<{
       onChange={(e) => setVal(e.target.value)}
       onBlur={() => onCommit(val)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') { onCommit(val); }
-        if (e.key === 'Escape') { onCancel(); }
+        if (e.key === 'Enter') onCommit(val);
+        if (e.key === 'Escape') onCancel();
       }}
       style={{
         width: '100%',
@@ -60,99 +47,78 @@ const CellEditor: React.FC<{
         fontSize: 12,
         padding: '2px 6px',
         outline: 'none',
-        boxShadow: '0 0 0 2px rgba(var(--color-accent-rgb), 0.15)',
-        ...style,
       }}
     />
   );
 };
 
-export const TableView: React.FC<TableViewProps> = ({
-  rows: initialRows,
-  selectedId,
-  onRowClick,
-  onRowsChange,
-}) => {
-  /* ---- Local editable rows ---- */
-  const [localRows, setLocalRows] = useState<ModifiedRow[]>(() =>
-    initialRows.map((r) => ({
-      id: r.id, name: r.name, coordX: r.coordX, coordY: r.coordY,
-      nodeType: r.nodeType, constraintCount: r.constraintCount,
-      colorRGBA: r.colorRGBA, trustColor: r.trustColor as string,
-      status: r.status, parentBlockId: r.parentBlockId,
-    }))
-  );
+const td: React.CSSProperties = { padding: '7px 14px' };
 
-  /* Sync from props when they change externally */
-  useEffect(() => {
-    setLocalRows(initialRows.map((r) => ({
-      id: r.id, name: r.name, coordX: r.coordX, coordY: r.coordY,
-      nodeType: r.nodeType, constraintCount: r.constraintCount,
-      colorRGBA: r.colorRGBA, trustColor: r.trustColor as string,
-      status: r.status, parentBlockId: r.parentBlockId,
-    })));
-  }, [initialRows]);
+export const TableView: React.FC = () => {
+  const objects = useGeometryStore((s) => s.objects);
+  const constraints = useGeometryStore((s) => s.constraints);
+  const updateObject = useGeometryStore((s) => s.updateObject);
+  const removeObject = useGeometryStore((s) => s.removeObject);
+  const addObject = useGeometryStore((s) => s.addObject);
+  const selectObjects = useGeometryStore((s) => s.selectObjects);
+  const selectedIds = useGeometryStore((s) => s.selectedIds);
 
-  /* ---- Cell editing state ---- */
-  const [editingCell, setEditingCell] = useState<{ rowId: number; field: string } | null>(null);
-  const [hoverRowId, setHoverRowId] = useState<number | null>(null);
+  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [hoverId, setHoverId] = useState<string | null>(null);
 
-  const notifyChange = useCallback((next: ModifiedRow[]) => {
-    setLocalRows(next);
-    onRowsChange?.(next);
-  }, [onRowsChange]);
+  // Count constraints per object
+  const constraintCount = useCallback((objId: string): number => {
+    return constraints.filter((c) => c.objIds.includes(objId)).length;
+  }, [constraints]);
 
-  /* ---- Double-click to edit ---- */
-  const handleCellDblClick = (rowId: number, field: string) => {
-    setEditingCell({ rowId, field });
+  // Handle cell double-click to edit
+  const handleCellDblClick = (objId: string, field: string) => {
+    setEditingCell({ id: objId, field });
   };
 
-  /* ---- Commit cell edit ---- */
+  // Commit cell edit
   const commitCell = (val: string) => {
     if (!editingCell) return;
-    const { rowId, field } = editingCell;
-    const next = localRows.map((r) => {
-      if (r.id !== rowId) return r;
-      if (field === 'name') return { ...r, name: val };
-      if (field === 'coordX') return { ...r, coordX: val };
-      if (field === 'coordY') return { ...r, coordY: val };
-      return r;
-    });
-    notifyChange(next);
+    const { id, field } = editingCell;
+    if (field === 'label') {
+      updateObject(id, { label: val });
+    } else if (field === 'x') {
+      const num = parseFloat(val);
+      if (!isNaN(num)) updateObject(id, { x: num });
+    } else if (field === 'y') {
+      const num = parseFloat(val);
+      if (!isNaN(num)) updateObject(id, { y: num });
+    }
     setEditingCell(null);
   };
 
-  /* ---- Add row ---- */
-  const addRow = () => {
-    const maxId = localRows.reduce((m, r) => Math.max(m, r.id), 0);
-    const newRow: ModifiedRow = {
-      id: maxId + 1,
-      name: `New_${maxId + 1}`,
-      coordX: '0',
-      coordY: '0',
-      nodeType: 'Point',
-      constraintCount: 0,
-      colorRGBA: 0,
-      trustColor: 'GREY',
-      status: 'free',
-      parentBlockId: 1,
-    };
-    notifyChange([...localRows, newRow]);
+  // Add point
+  const addPoint = () => {
+    const id = addObject({ type: 'point', label: '', x: 0, y: 0, visible: true });
+    selectObjects([id]);
   };
 
-  /* ---- Delete row ---- */
-  const deleteRow = (rowId: number) => {
-    notifyChange(localRows.filter((r) => r.id !== rowId));
+  // Delete object
+  const deleteObj = (objId: string) => {
+    removeObject(objId);
   };
 
-  if (!localRows.length) return <Empty msg="无数据 No data to display" icon={'📊'} />;
+  // Click row to select
+  const handleRowClick = (objId: string) => {
+    selectObjects([objId]);
+  };
+
+  if (!objects.length) return <Empty msg="无数据 No data to display" icon={'📊'} />;
+
+  const isEditing = (objId: string, field: string) =>
+    editingCell && editingCell.id === objId && editingCell.field === field;
 
   return (
     <div style={{ width: '100%', height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
         <thead>
           <tr style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--color-bg-secondary)' }}>
-            {Columns.map((h) => (
+            {['ID', '类型 Type', '名称 Label', 'X', 'Y', '属性 Props', '约束 Constraints'].map((h) => (
               <th key={h} style={{
                 padding: '8px 14px', textAlign: 'left', fontWeight: 600,
                 borderBottom: '1px solid var(--color-border-primary)',
@@ -163,15 +129,25 @@ export const TableView: React.FC<TableViewProps> = ({
           </tr>
         </thead>
         <tbody>
-          {localRows.map((r) => {
-            const sel = r.id === selectedId;
-            const hovered = r.id === hoverRowId;
-            const col = trustColorToCSS(r.trustColor as any);
-            const isEditing = (field: string) =>
-              editingCell && editingCell.rowId === r.id && editingCell.field === field;
+          {objects.map((obj) => {
+            const sel = selectedIds.includes(obj.id);
+            const hovered = obj.id === hoverId;
+            const cc = constraintCount(obj.id);
 
-            const renderCell = (field: 'name' | 'coordX' | 'coordY', displayVal: string) => {
-              if (isEditing(field)) {
+            // Computed property display
+            let propDisplay = '';
+            if (obj.type === 'segment' || obj.type === 'line' || obj.type === 'ray') {
+              propDisplay = obj.length !== undefined ? `L=${obj.length.toFixed(1)}` : '';
+            } else if (obj.type === 'circle') {
+              propDisplay = obj.radius !== undefined ? `R=${obj.radius.toFixed(1)}` : '';
+            } else if (obj.type === 'polygon') {
+              propDisplay = obj.area !== undefined ? `S=${obj.area.toFixed(1)}` : '';
+            } else if (obj.type === 'angle') {
+              propDisplay = obj.angle !== undefined ? `${obj.angle.toFixed(1)}deg` : '';
+            }
+
+            const renderEditableCell = (field: 'label' | 'x' | 'y', displayVal: string) => {
+              if (isEditing(obj.id, field)) {
                 return (
                   <CellEditor
                     value={displayVal}
@@ -180,10 +156,18 @@ export const TableView: React.FC<TableViewProps> = ({
                   />
                 );
               }
+              const isEditable = field === 'label' || (obj.type === 'point' && (field === 'x' || field === 'y'));
               return (
                 <span
-                  onDoubleClick={() => handleCellDblClick(r.id, field)}
-                  style={{ cursor: 'text', padding: '1px 0', display: 'inline-block', minWidth: 30 }}
+                  onDoubleClick={isEditable ? () => handleCellDblClick(obj.id, field) : undefined}
+                  style={{
+                    cursor: isEditable ? 'text' : 'default',
+                    padding: '1px 0',
+                    display: 'inline-block',
+                    minWidth: 30,
+                    color: isEditable ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                  }}
+                  title={isEditable ? '双击编辑 Double-click to edit' : ''}
                 >
                   {displayVal}
                 </span>
@@ -192,29 +176,46 @@ export const TableView: React.FC<TableViewProps> = ({
 
             return (
               <tr
-                key={r.id}
-                onClick={() => onRowClick?.(r.id)}
-                onMouseEnter={() => setHoverRowId(r.id)}
-                onMouseLeave={() => setHoverRowId(null)}
+                key={obj.id}
+                onClick={() => handleRowClick(obj.id)}
+                onMouseEnter={() => setHoverId(obj.id)}
+                onMouseLeave={() => setHoverId(null)}
                 style={{
                   borderBottom: '1px solid var(--color-border-secondary)',
-                  background: sel ? 'rgba(var(--color-accent-rgb), 0.08)' : 'transparent',
+                  background: sel ? 'rgba(0,188,212,0.08)' : 'transparent',
                   cursor: 'pointer',
                   transition: 'background 0.12s',
                   color: 'var(--color-text-primary)',
                 }}
               >
-                <td style={td}>{r.id}</td>
-                <td style={td}>{renderCell('name', r.name)}</td>
-                <td style={td}><span style={{ color: col, fontWeight: 600 }}>{r.nodeType}</span></td>
-                <td style={td}>{renderCell('coordX', r.coordX)}</td>
-                <td style={td}>{renderCell('coordY', r.coordY)}</td>
-                <td style={{ ...td, textAlign: 'center', color: 'var(--color-text-secondary)' }}>{r.constraintCount}</td>
+                <td style={{ ...td, color: 'var(--color-text-muted)', fontSize: 11 }}>{obj.id}</td>
+                <td style={td}>
+                  <span style={{ color: obj.color, fontWeight: 600 }}>
+                    {TYPE_LABELS[obj.type] ?? obj.type}
+                  </span>
+                </td>
+                <td style={td}>{renderEditableCell('label', obj.label)}</td>
+                <td style={td}>
+                  {obj.type === 'point'
+                    ? renderEditableCell('x', String(obj.x ?? '--'))
+                    : '--'}
+                </td>
+                <td style={td}>
+                  {obj.type === 'point'
+                    ? renderEditableCell('y', String(obj.y ?? '--'))
+                    : '--'}
+                </td>
+                <td style={{ ...td, color: 'var(--color-text-secondary)', fontSize: 11 }}>
+                  {propDisplay || '--'}
+                </td>
+                <td style={{ ...td, textAlign: 'center', color: cc > 0 ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
+                  {cc}
+                </td>
                 <td style={td}>
                   {(hovered || sel) && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); deleteRow(r.id); }}
-                      title="删除行 Delete row"
+                      onClick={(e) => { e.stopPropagation(); deleteObj(obj.id); }}
+                      title="删除 Delete"
                       style={{
                         background: 'transparent',
                         border: 'none',
@@ -226,7 +227,7 @@ export const TableView: React.FC<TableViewProps> = ({
                         opacity: 0.8,
                       }}
                     >
-                      ×
+                      x
                     </button>
                   )}
                 </td>
@@ -235,9 +236,10 @@ export const TableView: React.FC<TableViewProps> = ({
           })}
         </tbody>
       </table>
-      {/* Add row button */}
+
+      {/* Add point button */}
       <div
-        onClick={addRow}
+        onClick={addPoint}
         style={{
           padding: '6px 14px',
           borderTop: '1px solid var(--color-border-secondary)',
@@ -247,7 +249,7 @@ export const TableView: React.FC<TableViewProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          transition: 'color var(--transition-fast), background var(--transition-fast)',
+          transition: 'color 0.15s, background 0.15s',
           userSelect: 'none',
         }}
         onMouseEnter={(e) => {
@@ -260,10 +262,8 @@ export const TableView: React.FC<TableViewProps> = ({
         }}
       >
         <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
-        <span>添加行 Add Row</span>
+        <span>添加点 Add Point</span>
       </div>
     </div>
   );
 };
-
-const td: React.CSSProperties = { padding: '7px 14px' };

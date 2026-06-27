@@ -83,8 +83,8 @@
 - **用途**: 版本发布准备，进行最后的测试和文档更新
 - **命名规则**: `release/v<主版本>.<次版本>.<补丁版本>`
 - **示例**:
-  - `release/v3.5.0`
-  - `release/v3.4.2`
+  - `release/v1.2.0`
+  - `release/v1.1.1`
 - **基于**: `develop`（新功能版本）或 `main`（补丁版本）
 - **合并目标**: `main` 和 `develop`
 - **生命周期**: 版本发布后删除
@@ -199,7 +199,8 @@
 - `proof`: 证明系统
 - `graph`: 约束图
 - `stream`: 流式输出
-- `gui`: Web GUI
+- `ui`: Web 前端
+- `geometry`: 几何模块
 - `docs`: 文档
 - `build`: 构建系统
 
