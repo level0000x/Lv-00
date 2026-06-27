@@ -1,308 +1,105 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { TreeNode, TreeNodeStatus, trustColorToCSS } from '../types';
+import React, { useState, useCallback } from 'react';
+import { useGeometryStore, GeoObject, GeoObjectType } from '../../L5-core/store/geometryStore';
 import { Empty } from '../shared';
 
-const statusIcon: Record<string, string> = {
-  proved: '✓', pending: '⏳', failed: '✗', assumed: '📖', root: '🏠',
-};
-
-const statusLabels: Record<TreeNodeStatus, string> = {
-  proved: '已证 proved',
-  pending: '待证 pending',
-  failed: '失败 failed',
-  assumed: '假设 assumed',
-  root: '根 root',
-};
-
-const allStatuses: TreeNodeStatus[] = ['proved', 'pending', 'failed', 'assumed'];
-
-/* ---- Context Menu ---- */
-interface CtxMenuState {
-  x: number; y: number;
-  nodeId: string;
+/* ---- Type group config ---- */
+interface TypeGroup {
+  type: GeoObjectType;
+  label: string;
+  icon: string;
 }
 
-const CtxMenu: React.FC<{
-  state: CtxMenuState;
-  onClose: () => void;
-  onRename: (nodeId: string) => void;
-  onAddChild: (nodeId: string) => void;
-  onDelete: (nodeId: string) => void;
-  onStatusChange: (nodeId: string, status: TreeNodeStatus) => void;
-  canDelete: boolean;
-}> = ({ state, onClose, onRename, onAddChild, onDelete, onStatusChange, canDelete }) => {
-  const ref = useRef<HTMLDivElement>(null);
+const TYPE_GROUPS: TypeGroup[] = [
+  { type: 'point', label: '点 Points', icon: '●' },
+  { type: 'segment', label: '线段 Segments', icon: '━' },
+  { type: 'circle', label: '圆 Circles', icon: '○' },
+  { type: 'line', label: '直线 Lines', icon: '╱' },
+  { type: 'ray', label: '射线 Rays', icon: '→' },
+  { type: 'arc', label: '弧 Arcs', icon: '◠' },
+  { type: 'polygon', label: '多边形 Polygons', icon: '△' },
+  { type: 'angle', label: '角 Angles', icon: '∠' },
+];
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as HTMLElement)) onClose();
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
-
-  return (
-    <div
-      ref={ref}
-      className="context-menu"
-      style={{ left: state.x, top: state.y }}
-    >
-      <div className="context-menu-item" onClick={() => { onRename(state.nodeId); onClose(); }}>
-        重命名 Rename
-      </div>
-      <div className="context-menu-item" onClick={() => { onAddChild(state.nodeId); onClose(); }}>
-        添加子节点 Add Child
-      </div>
-      {canDelete && (
-        <div className="context-menu-item" style={{ color: 'var(--color-danger)' }} onClick={() => { onDelete(state.nodeId); onClose(); }}>
-          删除 Delete
-        </div>
-      )}
-      <div className="context-menu-separator" />
-      <div style={{ padding: '4px 12px', color: 'var(--color-text-muted)', fontSize: 10, textTransform: 'uppercase' }}>
-        状态 Status
-      </div>
-      {allStatuses.map((s) => (
-        <div key={s} className="context-menu-item" onClick={() => { onStatusChange(state.nodeId, s); onClose(); }}>
-          <span>{statusIcon[s]} {statusLabels[s]}</span>
-        </div>
-      ))}
-    </div>
+export const TreeView: React.FC = () => {
+  const objects = useGeometryStore((s) => s.objects);
+  const selectObjects = useGeometryStore((s) => s.selectObjects);
+  const removeObject = useGeometryStore((s) => s.removeObject);
+  const addObject = useGeometryStore((s) => s.addObject);
+  const selectedIds = useGeometryStore((s) => s.selectedIds);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    () => new Set(TYPE_GROUPS.map((g) => g.type))
   );
-};
 
-/* ---- Inline label editor ---- */
-const LabelEditor: React.FC<{
-  value: string;
-  onCommit: (val: string) => void;
-  onCancel: () => void;
-}> = ({ value, onCommit, onCancel }) => {
-  const ref = useRef<HTMLInputElement>(null);
-  const [val, setVal] = useState(value);
-
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
-  return (
-    <input
-      ref={ref}
-      value={val}
-      onChange={(e) => setVal(e.target.value)}
-      onBlur={() => onCommit(val)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(val);
-        if (e.key === 'Escape') onCancel();
-      }}
-      style={{
-        background: 'var(--color-bg-primary)',
-        border: '1px solid var(--color-accent)',
-        borderRadius: 3,
-        color: 'var(--color-text-bright)',
-        fontFamily: 'var(--font-sans)',
-        fontSize: 12,
-        padding: '1px 6px',
-        outline: 'none',
-        width: 160,
-        boxShadow: '0 0 0 2px rgba(var(--color-accent-rgb), 0.15)',
-      }}
-    />
-  );
-};
-
-/* ---- Tree node item ---- */
-interface TreeNodeItemProps {
-  node: TreeNode;
-  expanded: Set<string>;
-  onToggle: (id: string) => void;
-  onSelect: (node: TreeNode) => void;
-  onCtxMenu: (e: React.MouseEvent, nodeId: string) => void;
-  onDblClick: (nodeId: string) => void;
-  editingId: string | null;
-  onEditCommit: (id: string, val: string) => void;
-  onEditCancel: () => void;
-  depth: number;
-}
-
-const TreeNodeItem: React.FC<TreeNodeItemProps> = React.memo(({
-  node, expanded, onToggle, onSelect, onCtxMenu, onDblClick,
-  editingId, onEditCommit, onEditCancel, depth,
-}) => {
-  const hasChildren = node.children.length > 0;
-  const isOpen = expanded.has(node.id);
-  const col = trustColorToCSS(node.trustColor);
-  const isEditing = editingId === node.id;
-
-  return (
-    <div style={{ marginLeft: depth > 0 ? 20 : 0 }}>
-      <div
-        onClick={() => {
-          if (!isEditing) {
-            if (hasChildren) onToggle(node.id);
-            if (node.nodeId) onSelect(node);
-          }
-        }}
-        onContextMenu={(e) => { e.preventDefault(); onCtxMenu(e, node.id); }}
-        onDoubleClick={() => onDblClick(node.id)}
-        style={{
-          display: 'flex', alignItems: 'center', cursor: 'pointer',
-          padding: '5px 8px', borderRadius: 4, fontSize: 12,
-          color: 'var(--color-text-primary)', gap: 6,
-          transition: 'background var(--transition-fast)',
-        }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-hover-subtle)'; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-      >
-        <span style={{ fontSize: 10, width: 12, color: 'var(--color-text-secondary)' }}>
-          {hasChildren ? (isOpen ? '▼' : '▶') : ' '}
-        </span>
-        <span style={{ color: col }}>{statusIcon[node.status] ?? '•'}</span>
-        <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: col }} />
-        {isEditing ? (
-          <LabelEditor
-            value={node.label}
-            onCommit={(val) => onEditCommit(node.id, val)}
-            onCancel={onEditCancel}
-          />
-        ) : (
-          <span>{node.label}</span>
-        )}
-      </div>
-      {hasChildren && isOpen && node.children.map((c) => (
-        <TreeNodeItem
-          key={c.id}
-          node={c}
-          expanded={expanded}
-          onToggle={onToggle}
-          onSelect={onSelect}
-          onCtxMenu={onCtxMenu}
-          onDblClick={onDblClick}
-          editingId={editingId}
-          onEditCommit={onEditCommit}
-          onEditCancel={onEditCancel}
-          depth={depth + 1}
-        />
-      ))}
-    </div>
-  );
-});
-TreeNodeItem.displayName = 'TreeNodeItem';
-
-/* ---- Deep helpers ---- */
-function deepFind(nodes: TreeNode[], id: string): TreeNode | null {
-  for (const n of nodes) {
-    if (n.id === id) return n;
-    const found = deepFind(n.children, id);
-    if (found) return found;
-  }
-  return null;
-}
-
-function deepClone(n: TreeNode): TreeNode {
-  return { ...n, children: n.children.map(deepClone) };
-}
-
-function deepSetLabel(root: TreeNode, id: string, label: string): TreeNode {
-  if (root.id === id) return { ...root, label };
-  return { ...root, children: root.children.map((c) => deepSetLabel(c, id, label)) };
-}
-
-function deepSetStatus(root: TreeNode, id: string, status: TreeNodeStatus): TreeNode {
-  if (root.id === id) return { ...root, status };
-  return { ...root, children: root.children.map((c) => deepSetStatus(c, id, status)) };
-}
-
-function deepAddChild(root: TreeNode, parentId: string, child: TreeNode): TreeNode {
-  if (root.id === parentId) return { ...root, children: [...root.children, child] };
-  return { ...root, children: root.children.map((c) => deepAddChild(c, parentId, child)) };
-}
-
-function deepDelete(root: TreeNode, id: string): TreeNode {
-  if (root.id === id) return { ...root, children: [] }; // can't delete root, clear children
-  return {
-    ...root,
-    children: root.children
-      .filter((c) => c.id !== id)
-      .map((c) => deepDelete(c, id)),
+  const toggleGroup = (type: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
   };
-}
 
-let _nodeIdCounter = 1000;
-function nextNodeId() { return ++_nodeIdCounter; }
+  const expandAll = () => {
+    setExpandedGroups(new Set(TYPE_GROUPS.map((g) => g.type)));
+  };
 
-/* ---- Main Tree View ---- */
-interface TreeViewProps {
-  tree: TreeNode | null;
-  onNodeSelect?: (nodeId: number) => void;
-  onTreeChange?: (tree: TreeNode) => void;
-}
+  const collapseAll = () => {
+    setExpandedGroups(new Set());
+  };
 
-export const TreeView: React.FC<TreeViewProps> = ({ tree: externalTree, onNodeSelect, onTreeChange }) => {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [localTree, setLocalTree] = useState<TreeNode | null>(externalTree ? deepClone(externalTree) : null);
-  const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const handleNodeClick = (objId: string) => {
+    selectObjects([objId]);
+  };
 
-  /* Sync from external */
-  useEffect(() => {
-    if (externalTree) setLocalTree(deepClone(externalTree));
-  }, [externalTree]);
-
-  const notifyChange = useCallback((t: TreeNode) => {
-    setLocalTree(t);
-    onTreeChange?.(t);
-  }, [onTreeChange]);
-
-  const toggle = (id: string) => setExpanded((p) => {
-    const n = new Set(p);
-    n.has(id) ? n.delete(id) : n.add(id);
-    return n;
-  });
-
-  /* Context menu actions */
-  const handleRename = (nodeId: string) => setEditingId(nodeId);
-
-  const handleAddChild = (parentId: string) => {
-    if (!localTree) return;
-    const newChild: TreeNode = {
-      id: `n_${nextNodeId()}`,
-      label: 'New Node 新节点',
-      trustColor: 'BLUE',
-      status: 'pending',
-      nodeId: nextNodeId(),
-      children: [],
-    };
-    const updated = deepAddChild(localTree, parentId, newChild);
-    // Auto-expand parent
-    if (!expanded.has(parentId)) {
-      setExpanded((p) => new Set(p).add(parentId));
+  const handleAddObject = (type: GeoObjectType) => {
+    if (type === 'point') {
+      addObject({ type: 'point', label: '', x: 200, y: 200, visible: true });
     }
-    notifyChange(updated);
   };
 
-  const handleDelete = (nodeId: string) => {
-    if (!localTree) return;
-    const updated = deepDelete(localTree, nodeId);
-    notifyChange(updated);
+  const handleDeleteObject = (objId: string) => {
+    removeObject(objId);
   };
 
-  const handleStatusChange = (nodeId: string, status: TreeNodeStatus) => {
-    if (!localTree) return;
-    const updated = deepSetStatus(localTree, nodeId, status);
-    notifyChange(updated);
+  if (!objects.length) return <Empty msg="无几何对象 No geometry objects" icon={'🌿'} />;
+
+  // Format object subtitle
+  const formatSubtitle = (obj: GeoObject): string => {
+    if (obj.type === 'point') {
+      return `(${obj.x?.toFixed(0) ?? '?'}, ${obj.y?.toFixed(0) ?? '?'})`;
+    }
+    if (obj.type === 'segment' || obj.type === 'line' || obj.type === 'ray') {
+      return obj.length !== undefined ? `L = ${obj.length.toFixed(1)}` : '';
+    }
+    if (obj.type === 'circle') {
+      return obj.radius !== undefined ? `R = ${obj.radius.toFixed(1)}` : '';
+    }
+    if (obj.type === 'polygon') {
+      return obj.area !== undefined ? `S = ${obj.area.toFixed(1)}` : '';
+    }
+    if (obj.type === 'angle') {
+      return obj.angle !== undefined ? `${obj.angle.toFixed(1)} deg` : '';
+    }
+    return '';
   };
 
-  const handleEditCommit = (id: string, val: string) => {
-    if (!localTree || !val.trim()) { setEditingId(null); return; }
-    const updated = deepSetLabel(localTree, id, val.trim());
-    notifyChange(updated);
-    setEditingId(null);
+  // Format properties for expanded child nodes
+  const formatProperties = (obj: GeoObject): { key: string; value: string }[] => {
+    const props: { key: string; value: string }[] = [];
+    if (obj.type === 'point') {
+      props.push({ key: 'X', value: String(obj.x ?? '?') });
+      props.push({ key: 'Y', value: String(obj.y ?? '?') });
+    } else if (obj.type === 'segment' || obj.type === 'line' || obj.type === 'ray') {
+      props.push({ key: 'Start', value: obj.startId ?? '?' });
+      props.push({ key: 'End', value: obj.endId ?? '?' });
+      if (obj.length !== undefined) props.push({ key: 'Length', value: obj.length.toFixed(1) });
+    } else if (obj.type === 'circle') {
+      props.push({ key: 'Center', value: obj.centerId ?? '?' });
+      props.push({ key: 'Radius Pt', value: obj.radiusPointId ?? '?' });
+      if (obj.radius !== undefined) props.push({ key: 'Radius', value: obj.radius.toFixed(1) });
+    }
+    return props;
   };
-
-  const tree = localTree;
-
-  if (!tree) return <Empty msg="无依赖数据 No dependency data" icon={'🌿'} />;
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -316,28 +113,19 @@ export const TreeView: React.FC<TreeViewProps> = ({ tree: externalTree, onNodeSe
       }}>
         <button
           className="btn btn-small"
-          onClick={() => {
-            if (tree) handleAddChild(tree.id);
-          }}
+          onClick={() => handleAddObject('point')}
         >
-          + 添加子节点 Add Node
+          + 添加点 Add Point
         </button>
         <button
           className="btn btn-small"
-          onClick={() => setExpanded(new Set())}
+          onClick={collapseAll}
         >
           全部折叠 Collapse
         </button>
         <button
           className="btn btn-small"
-          onClick={() => {
-            if (tree) {
-              const allIds = new Set<string>();
-              const collect = (n: TreeNode) => { allIds.add(n.id); n.children.forEach(collect); };
-              collect(tree);
-              setExpanded(allIds);
-            }
-          }}
+          onClick={expandAll}
         >
           全部展开 Expand
         </button>
@@ -345,32 +133,113 @@ export const TreeView: React.FC<TreeViewProps> = ({ tree: externalTree, onNodeSe
 
       {/* Tree content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
-        <TreeNodeItem
-          node={tree}
-          expanded={expanded}
-          onToggle={toggle}
-          onSelect={(n) => { if (n.nodeId > 0) onNodeSelect?.(n.nodeId); }}
-          onCtxMenu={(e, nodeId) => setCtxMenu({ x: e.clientX, y: e.clientY, nodeId })}
-          onDblClick={(nodeId) => setEditingId(nodeId)}
-          editingId={editingId}
-          onEditCommit={handleEditCommit}
-          onEditCancel={() => setEditingId(null)}
-          depth={0}
-        />
-      </div>
+        {TYPE_GROUPS.map((group) => {
+          const groupObjects = objects.filter((o) => o.type === group.type);
+          if (groupObjects.length === 0) return null;
 
-      {/* Context menu */}
-      {ctxMenu && (
-        <CtxMenu
-          state={ctxMenu}
-          onClose={() => setCtxMenu(null)}
-          onRename={handleRename}
-          onAddChild={handleAddChild}
-          onDelete={handleDelete}
-          onStatusChange={handleStatusChange}
-          canDelete={ctxMenu.nodeId !== (tree?.id ?? '')}
-        />
-      )}
+          const isExpanded = expandedGroups.has(group.type);
+
+          return (
+            <div key={group.type}>
+              {/* Group header */}
+              <div
+                onClick={() => toggleGroup(group.type)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  padding: '5px 8px',
+                  fontWeight: 600,
+                  fontSize: 12,
+                  color: 'var(--color-text-secondary)',
+                  gap: 6,
+                  userSelect: 'none',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-hover-subtle)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              >
+                <span style={{ fontSize: 10, width: 12 }}>{isExpanded ? '▼' : '▶'}</span>
+                <span>{group.icon}</span>
+                <span>{group.label}</span>
+                <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>({groupObjects.length})</span>
+              </div>
+
+              {/* Group children */}
+              {isExpanded && groupObjects.map((obj) => {
+                const isSelected = selectedIds.includes(obj.id);
+                const props = formatProperties(obj);
+
+                return (
+                  <div key={obj.id}>
+                    {/* Object node */}
+                    <div
+                      onClick={() => handleNodeClick(obj.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        padding: '3px 8px 3px 28px',
+                        fontSize: 12,
+                        color: 'var(--color-text-primary)',
+                        gap: 6,
+                        background: isSelected ? 'rgba(0,188,212,0.08)' : 'transparent',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-hover-subtle)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent';
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: obj.color, flexShrink: 0 }} />
+                      <span style={{ fontWeight: 500 }}>{obj.label}</span>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>{formatSubtitle(obj)}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--color-text-muted)' }}>{obj.id}</span>
+                    </div>
+
+                    {/* Properties as child nodes */}
+                    {isSelected && props.length > 0 && (
+                      <div style={{ paddingLeft: 44 }}>
+                        {props.map((p) => (
+                          <div key={p.key} style={{
+                            display: 'flex',
+                            gap: 8,
+                            padding: '1px 8px',
+                            fontSize: 11,
+                            color: 'var(--color-text-muted)',
+                          }}>
+                            <span style={{ width: 60 }}>{p.key}:</span>
+                            <span style={{ fontFamily: 'var(--font-mono)' }}>{p.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Delete button when selected */}
+                    {isSelected && (
+                      <div style={{ paddingLeft: 44, paddingBottom: 2 }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteObject(obj.id); }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--color-danger)',
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            padding: '1px 4px',
+                          }}
+                        >
+                          删除 Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

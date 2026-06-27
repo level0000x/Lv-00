@@ -4,7 +4,7 @@ import ErrorBoundary from '../L2-components/ErrorBoundary';
 import ToastContainer from '../L2-components/Toast';
 import CommandPalette, { CommandItem } from '../L2-components/CommandPalette';
 import { useUIStore } from '../L5-core/store/uiStore';
-import { KernelBridge, createMockBridge } from '../L5-core/protocol';
+import { useGeometryStore } from '../L5-core/store/geometryStore';
 import { ViewKey, PanelKey } from '../L5-core/types';
 
 import { CanvasView } from '../L3-modules/M1-Canvas';
@@ -24,40 +24,28 @@ import { DebugPanel } from '../L3-modules/P7-Debug';
 import { EnginePanel } from '../L3-modules/P8-Engine';
 import { HelpPanel } from '../L3-modules/P-Help';
 
-const bridge: KernelBridge = createMockBridge();
-
-function renderView(key: ViewKey, bridge: KernelBridge) {
+function renderView(key: ViewKey, activeTool: string) {
   switch (key) {
     case 'canvas':
-      return (
-        <CanvasView
-          commands={bridge.getDrawCommands(0, 0, 1, 1100, 650).cmds}
-          onMouseDown={(sx, sy, btn) => bridge.sendCanvasEvent({ type: 'MOUSE_DOWN', screenX: sx, screenY: sy, button: btn, shiftDown: false, ctrlDown: false, wheelDelta: 0, key: '' })}
-          onMouseMove={(sx, sy) => bridge.sendCanvasEvent({ type: 'MOUSE_MOVE', screenX: sx, screenY: sy, button: 0, shiftDown: false, ctrlDown: false, wheelDelta: 0, key: '' })}
-          onMouseUp={(sx, sy, btn) => bridge.sendCanvasEvent({ type: 'MOUSE_UP', screenX: sx, screenY: sy, button: btn, shiftDown: false, ctrlDown: false, wheelDelta: 0, key: '' })}
-          onWheel={(delta) => bridge.sendCanvasEvent({ type: 'MOUSE_WHEEL', screenX: 0, screenY: 0, button: 0, shiftDown: false, ctrlDown: false, wheelDelta: delta, key: '' })}
-          width={1100}
-          height={650}
-        />
-      );
+      return <CanvasView activeTool={activeTool} />;
     case 'text':
-      return <TextView value={bridge.getDslText()} onChange={(t) => bridge.executeTerminal(t)} />;
+      return <TextView value="" onChange={() => {}} />;
     case 'table':
-      return <TableView rows={bridge.getTableRows()} onRowClick={(id) => bridge.sendTableSelect({ rowId: id, ctrlDown: false })} />;
+      return <TableView />;
     case 'tree':
-      return <TreeView tree={bridge.getTree()} onNodeSelect={(nid) => console.log('[Tree] select', nid)} />;
+      return <TreeView />;
     case 'terminal':
-      return <TerminalView onSubmit={(cmd) => { const r = bridge.executeTerminal(cmd); console.log('[Terminal]', r.output); }} />;
-    case 'topology': {
-      const g = bridge.getTopology();
-      return <TopologyView blocks={g.blocks} edges={g.edges} onBlockMove={(bid, x, y) => bridge.sendBlockDrag({ blockId: bid, newX: x, newY: y })} />;
-    }
+      return <TerminalView />;
+    case 'topology':
+      return <TopologyView blocks={[]} edges={[]} onBlockMove={() => {}} />;
+    default:
+      return <div className="empty-state">未知视图 Unknown view</div>;
   }
 }
 
 function renderPanel(key: PanelKey) {
   switch (key) {
-    case 'formula': return <FormulaPanel onSubmit={(t) => console.log('[Formula]', t)} />;
+    case 'formula': return <FormulaPanel />;
     case 'graph': return <GraphPanel />;
     case 'block': return <BlockPanel />;
     case 'proof': return <ProofPanel />;
@@ -70,13 +58,17 @@ function renderPanel(key: PanelKey) {
 }
 
 export function App() {
+  const tool = useUIStore((s) => s.tool);
   const activeView = useUIStore((s) => s.activeView);
   const activePanel = useUIStore((s) => s.activePanel);
   const setActivePanel = useUIStore((s) => s.setActivePanel);
   const setActiveView = useUIStore((s) => s.setActiveView);
   const [showPalette, setShowPalette] = useState(false);
 
-  const engineStatus = bridge.getEngineStatus();
+  // Load demo scene on first render
+  useEffect(() => {
+    useGeometryStore.getState().loadDemoScene();
+  }, []);
 
   const COMMANDS: CommandItem[] = [
     { id: 'view.canvas', label: '画布 Canvas', shortcut: '1', group: '视图 Views' },
@@ -119,14 +111,18 @@ export function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // Get counts from geometry store
+  const objectCount = useGeometryStore((s) => s.objects.length);
+  const constraintCount = useGeometryStore((s) => s.constraints.length);
+
   return (
     <ErrorBoundary>
       <Layout
-        viewContent={renderView(activeView, bridge)}
+        viewContent={renderView(activeView, tool)}
         panelContent={renderPanel(activePanel)}
         renderPanelContent={renderPanel}
-        nodes={engineStatus.nodeCount}
-        constraints={engineStatus.constraintCount}
+        nodes={objectCount}
+        constraints={constraintCount}
         version="3.4.0"
       />
       <ToastContainer />

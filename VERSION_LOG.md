@@ -108,3 +108,33 @@
 - CI workflow 检查：5 个 workflow 均使用 main/dev 分支
 - 无自动提交脚本存在
 - CONTRIBUTING.md 已禁止空提交
+
+---
+
+## v1.1.0-dev -- 2026-06-27 UI 内核解耦 + 头文件修复
+
+### UI 系统重建
+- **内核/UI 完全解耦** — UI 仅通过 `ui/L5-core/protocol/index.ts` 的 `KernelBridge` 接口与 C 内核通信
+- **UI L1–L6 分层架构** — base / components / modules / shell / core / monitor 六层清晰分离
+- **Mock Bridge** — `createMockBridge()` 完整模拟内核响应，前端可独立开发和测试
+- **新增 UI 组件** — CanvasToolbar、Checkbox、CommandPalette、ExpressionList、Slider
+- **嵌壳方案** — `ui/shells/` 下提供 VS Code 扩展和 Qt 独立窗口方案
+
+### C 内核头文件修复
+- 恢复 git 历史中的 63+ 源文件（版本 A `38310ea`、版本 B `e36f4b6`）
+- 重写 11+ 个头文件以匹配 .c 实现：`geo_halfedge_mesh.h`、`simd_ops.h`、`interval_arithmetic.h`、`geometry_transform.h`、`geo_event_detect.h`、`algebraic_number.h`、`geo_topology.h`、`geo_invariant_type.h`、`high_dim.h`、`geometry_compress.h`、`lv00_internal.h`、`euclidean_geometry.h`
+- 新增 8 个头文件：`lv00_config.h`、`preset_abstract_algebra.h`、`preset_name_defs.h`、`proof_rule_engine_internal.h`、`proof_session_internal.h`、`proof_version_internal.h`、`smt_theory_combiner.h`、`smt_trigger_engine.h`
+- 清理 `core/include/lv00/stubs/` 下的废弃预设桩文件
+
+### 内核新增源文件
+- `lv00_config.c` — 独立配置管理系统
+- `sparse_linear_algebra.c`、`status_codes.c`、`tikz_export.c` — 新源码
+
+### 构建与打包
+- 新增 `cmake/lv00-config.cmake.in` + `cmake/lv00.pc.in`，支持 `find_package(lv00)` 和 `pkg-config`
+- CMake 新增 UI 前端构建目标
+
+### 验证记录
+- 头文件修复通过 `cc -fsyntax-only` 逐个验证
+- master/main 分支同步至同一提交
+- README.md 全面重写：添加项目现状表、修正虚假 API 示例、补充 UI 系统描述
