@@ -106,7 +106,7 @@ static volatile int g_log_init_mutex_initialized = 0;
 
 bool lv00_log_init(const Lv00LogConfig *config) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange(&g_log_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile*)&g_log_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_log_init_mutex);
     }
     EnterCriticalSection(&g_log_init_mutex);
@@ -386,7 +386,7 @@ static volatile int g_perf_init_mutex_initialized = 0;
 
 bool lv00_perf_init(void) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange(&g_perf_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile*)&g_perf_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_perf_init_mutex);
     }
     EnterCriticalSection(&g_perf_init_mutex);
@@ -639,7 +639,7 @@ static volatile int g_health_init_mutex_initialized = 0;
 
 bool lv00_health_init(void) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange(&g_health_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile*)&g_health_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_health_init_mutex);
     }
     EnterCriticalSection(&g_health_init_mutex);
@@ -1070,7 +1070,7 @@ static volatile int g_event_init_mutex_initialized = 0;
 
 bool lv00_event_trace_init(uint32_t max_events) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange(&g_event_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile*)&g_event_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_event_init_mutex);
     }
     EnterCriticalSection(&g_event_init_mutex);

@@ -511,13 +511,13 @@ Lv00Plugin** lv00_plugin_get_by_state(Lv00PluginSystem* system, Lv00PluginState 
 
 /* ============ 接口注册与查询 ============ */
 
-int lv00_plugin_register_interface(Lv00Plugin* plugin, Lv00PluginInterface* interface) {
-    if (!plugin || !plugin->context || !interface) return -1;
+int lv00_plugin_register_interface(Lv00Plugin* plugin, Lv00PluginInterface* iface) {
+    if (!plugin || !plugin->context || !iface) return -1;
     if (plugin->registered_interface_count >= LV00_MAX_INTERFACES) return -1;
     
     /* 检查是否已注册 */
     for (size_t i = 0; i < plugin->registered_interface_count; i++) {
-        if (strcmp(plugin->registered_interfaces[i]->name, interface->name) == 0) {
+        if (strcmp(plugin->registered_interfaces[i]->name, iface->name) == 0) {
             return -1;
         }
     }
@@ -529,13 +529,13 @@ int lv00_plugin_register_interface(Lv00Plugin* plugin, Lv00PluginInterface* inte
         if (!plugin->registered_interfaces) return -1;
     }
     
-    interface->owner = plugin;
-    plugin->registered_interfaces[plugin->registered_interface_count++] = interface;
+    iface->owner = plugin;
+    plugin->registered_interfaces[plugin->registered_interface_count++] = iface;
     
     /* 添加到系统注册表 */
     Lv00PluginSystem* system = plugin->context->system;
     if (system->interface_count < system->interface_capacity) {
-        system->interfaces[system->interface_count++] = interface;
+        system->interfaces[system->interface_count++] = iface;
     }
     
     return 0;

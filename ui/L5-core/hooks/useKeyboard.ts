@@ -41,11 +41,11 @@ export function useKeyboard() {
 }
 
 export const SHORTCUTS = [
-  { keys: ['Ctrl', 'G'], label: 'Toggle Grid' },
-  { keys: ['Ctrl', 'A'], label: 'Toggle Axes' },
-  { keys: ['Ctrl', 'L'], label: 'Toggle Labels' },
-  { keys: ['Ctrl', '0'], label: 'Reset View' },
-  { keys: ['Ctrl', 'T'], label: 'Toggle Theme' },
-  { keys: ['\u221E', 'Mouse Wheel'], label: 'Zoom' },
-  { keys: ['\u21B5', 'Drag'], label: 'Pan Canvas' },
+  { keys: ['Ctrl', 'G'], label: '网格 Grid' },
+  { keys: ['Ctrl', 'A'], label: '坐标轴 Axes' },
+  { keys: ['Ctrl', 'L'], label: '标签 Labels' },
+  { keys: ['Ctrl', '0'], label: '重置视图 Reset View' },
+  { keys: ['Ctrl', 'T'], label: '主题 Theme' },
+  { keys: ['\u221E', 'Mouse Wheel'], label: '缩放 Zoom' },
+  { keys: ['\u21B5', 'Drag'], label: '平移 Pan' },
 ] as const;

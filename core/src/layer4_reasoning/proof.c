@@ -4521,7 +4521,7 @@ void fill_suggestions_destroy(FillSuggestion *list) {
 #define MAX_GHOST_STEPS 1024
 
 static ProofQuantifier g_ghost_table[MAX_GHOST_STEPS];
-static volatile int g_ghost_table_initialized = 0;
+static volatile long g_ghost_table_initialized = 0;
 
 /**
  * @brief 惰性初始化 ghost 标记表（线程安全的一次性初始化）
@@ -4536,7 +4536,7 @@ static void ghost_table_init(void) {
     }
 #else
     int expected = 0;
-    if (__atomic_compare_exchange_n(&g_ghost_table_initialized, &expected, 1, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+    if (__atomic_compare_exchange_n((volatile int*)&g_ghost_table_initialized, &expected, 1, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
         for (int i = 0; i < MAX_GHOST_STEPS; i++) {
             g_ghost_table[i] = PROOF_QTT_UNRESTRICTED; /* 默认非擦除 */
         }

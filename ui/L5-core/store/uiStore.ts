@@ -1,12 +1,15 @@
 import { create } from 'zustand';
-import { Theme, ToastItem, LogEntry, ModalConfig, PanelState, ResizeState, PerfStats, ModuleKey, CanvasTool, ConnectionState } from '../types';
+import { Theme, ToastItem, LogEntry, ModalConfig, PanelState, ResizeState, PerfStats, ViewKey, PanelKey, FloatingPanel, CanvasTool, ConnectionState } from '../types';
 
 let toastId = 0;
 let logId = 0;
+let floatId = 0;
+let floatZIndex = 100;
 
 interface UIState {
   theme: Theme;
-  activeModule: ModuleKey;
+  activeView: ViewKey;
+  activePanel: PanelKey;
   tool: CanvasTool;
   backend: 'wasm' | 'js' | null;
   graphHandle: number | null;
@@ -25,8 +28,11 @@ interface UIState {
   formulaInput: string;
   formulaOutputFormat: 'latex' | 'python' | 'dsl';
 
+  floatingPanels: FloatingPanel[];
+
   setTheme: (t: Theme) => void;
-  setActiveModule: (m: ModuleKey) => void;
+  setActiveView: (v: ViewKey) => void;
+  setActivePanel: (p: PanelKey) => void;
   setTool: (t: CanvasTool) => void;
   setBackend: (b: 'wasm' | 'js' | null) => void;
   setGraphHandle: (h: number | null) => void;
@@ -47,11 +53,18 @@ interface UIState {
   setConnectionState: (s: ConnectionState) => void;
   setFormulaInput: (i: string) => void;
   setFormulaOutputFormat: (f: 'latex' | 'python' | 'dsl') => void;
+
+  openFloatingPanel: (panelKey: PanelKey) => void;
+  closeFloatingPanel: (id: string) => void;
+  moveFloatingPanel: (id: string, x: number, y: number) => void;
+  resizeFloatingPanel: (id: string, width: number, height: number) => void;
+  bringFloatingToFront: (id: string) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
   theme: 'dark',
-  activeModule: 'canvas',
+  activeView: 'canvas',
+  activePanel: 'formula',
   tool: 'select',
   backend: null,
   graphHandle: null,
@@ -64,13 +77,15 @@ export const useUIStore = create<UIState>((set) => ({
   leftSidebarWidth: 280,
   rightSidebarWidth: 280,
   resizeState: null,
-  statusMessage: 'Ready',
+  statusMessage: '就绪 Ready',
   connectionState: 'disconnected',
   formulaInput: '',
   formulaOutputFormat: 'dsl',
+  floatingPanels: [],
 
   setTheme: (theme) => set({ theme }),
-  setActiveModule: (activeModule) => set({ activeModule }),
+  setActiveView: (activeView) => set({ activeView }),
+  setActivePanel: (activePanel) => set({ activePanel }),
   setTool: (tool) => set({ tool }),
   setBackend: (backend) => set({ backend }),
   setGraphHandle: (graphHandle) => set({ graphHandle }),
@@ -97,4 +112,31 @@ export const useUIStore = create<UIState>((set) => ({
   setConnectionState: (connectionState) => set({ connectionState }),
   setFormulaInput: (formulaInput) => set({ formulaInput }),
   setFormulaOutputFormat: (formulaOutputFormat) => set({ formulaOutputFormat }),
+
+  openFloatingPanel: (panelKey) => set((s) => {
+    const id = `float-${++floatId}`;
+    floatZIndex += 1;
+    const panel: FloatingPanel = {
+      id,
+      panelKey,
+      x: 120 + (s.floatingPanels.length * 30) % 200,
+      y: 80 + (s.floatingPanels.length * 30) % 150,
+      width: 400,
+      height: 500,
+      zIndex: floatZIndex,
+    };
+    return { floatingPanels: [...s.floatingPanels, panel] };
+  }),
+  closeFloatingPanel: (id) => set((s) => ({
+    floatingPanels: s.floatingPanels.filter((p) => p.id !== id),
+  })),
+  moveFloatingPanel: (id, x, y) => set((s) => ({
+    floatingPanels: s.floatingPanels.map((p) => p.id === id ? { ...p, x, y } : p),
+  })),
+  resizeFloatingPanel: (id, width, height) => set((s) => ({
+    floatingPanels: s.floatingPanels.map((p) => p.id === id ? { ...p, width, height } : p),
+  })),
+  bringFloatingToFront: (id) => set((s) => ({
+    floatingPanels: s.floatingPanels.map((p) => p.id === id ? { ...p, zIndex: ++floatZIndex } : p),
+  })),
 }));

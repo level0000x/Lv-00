@@ -101,6 +101,7 @@ struct PrimitiveTestResult {
     char *input_description;            /**< 输入描述 */
     char *c_api_result;                 /**< C API 结果 */
     char *geo_layer_result;             /**< 几何层结果 */
+    char *error_message;                /**< 错误消息 */
     
     int64_t execution_time_ns;          /**< 执行时间 */
 };

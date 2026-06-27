@@ -8,9 +8,11 @@
 extern "C" {
 #endif
 
-/* 图哈希结构体（占位实现） */
+/* 图哈希结构体 */
 typedef struct GraphHash {
-    uint64_t hash_value;
+    uint64_t hash;             /**< 整体哈希值 */
+    int node_count;            /**< 节点数量（用于完整图哈希） */
+    uint64_t *node_hashes;     /**< 各节点独立哈希数组（用于完整图哈希比较） */
 } GraphHash;
 
 #ifdef __cplusplus

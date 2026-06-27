@@ -31,8 +31,20 @@
 
 #include <stdbool.h>
 
+/* 预设系统宏（如果尚未定义） */
+#ifndef LV00_PRESET_MAX_COUNT
+#define LV00_PRESET_MAX_COUNT 10000
+#endif
+#ifndef LV00_PRESET_ID_OFFSET
+#define LV00_PRESET_ID_OFFSET 1000
+#endif
+#ifndef LV00_PRESET_MAX_PARAMS
+#define LV00_PRESET_MAX_PARAMS 32
+#endif
+
 #include "func_block.h"
 #include "func_block_registry.h"
+#include "func_block_internal.h"
 
 #ifdef __cplusplus
 extern "C" {

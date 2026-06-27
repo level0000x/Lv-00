@@ -6,6 +6,14 @@
 extern "C" {
 #endif
 
+/* 公共宏 */
+#ifndef PRESET_BUFFER_SIZE
+#define PRESET_BUFFER_SIZE 1024
+#endif
+#ifndef PRESET_ID_OFFSET
+#define PRESET_ID_OFFSET 1000
+#endif
+
 #define DIFFERENTIAL_EQUATIONS_PRESET_COUNT 16
 bool preset_differential_equations_register(void);
 

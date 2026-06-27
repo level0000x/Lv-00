@@ -226,7 +226,7 @@ bool lv00_ineq_system_add_var_constraint(Lv00InequalitySystem *sys,
 
     Lv00Inequality *ineq = lv00_ineq_create(var, type, val_expr);
     if (!ineq) {
-        lv00_expr_free(val_expr);
+        lv00_expr_destroy(&val_expr);
         return false;
     }
 
@@ -1116,8 +1116,8 @@ Lv00Inequality *lv00_ineq_add(Lv00Inequality *ineq, Lv00Expr *expr) {
     Lv00Expr *new_left = lv00_expr_add(ineq->left, expr);
     Lv00Expr *new_right = lv00_expr_add(ineq->right, expr);
     if (!new_left || !new_right) {
-        lv00_expr_destroy(new_left);
-        lv00_expr_destroy(new_right);
+        lv00_expr_destroy(&new_left);
+        lv00_expr_destroy(&new_right);
         return NULL;
     }
 
@@ -1125,8 +1125,8 @@ Lv00Inequality *lv00_ineq_add(Lv00Inequality *ineq, Lv00Expr *expr) {
     if (result)
         result->status = ineq->status;
     else {
-        lv00_expr_destroy(new_left);
-        lv00_expr_destroy(new_right);
+        lv00_expr_destroy(&new_left);
+        lv00_expr_destroy(&new_right);
     }
     return result;
 }
@@ -1152,8 +1152,8 @@ Lv00Inequality *lv00_ineq_mul(Lv00Inequality *ineq, Lv00Expr *expr, int expr_sig
     Lv00Expr *new_left = lv00_expr_mul(ineq->left, expr);
     Lv00Expr *new_right = lv00_expr_mul(ineq->right, expr);
     if (!new_left || !new_right) {
-        lv00_expr_destroy(new_left);
-        lv00_expr_destroy(new_right);
+        lv00_expr_destroy(&new_left);
+        lv00_expr_destroy(&new_right);
         return NULL;
     }
 
@@ -1161,8 +1161,8 @@ Lv00Inequality *lv00_ineq_mul(Lv00Inequality *ineq, Lv00Expr *expr, int expr_sig
     if (result)
         result->status = ineq->status;
     else {
-        lv00_expr_destroy(new_left);
-        lv00_expr_destroy(new_right);
+        lv00_expr_destroy(&new_left);
+        lv00_expr_destroy(&new_right);
     }
     return result;
 }

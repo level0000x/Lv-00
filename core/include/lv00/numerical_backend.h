@@ -45,6 +45,7 @@ typedef enum {
     LV00_BACKEND_OPENMP = 1, /**< OpenMP 多核 CPU 并行 */
     LV00_BACKEND_CUDA = 2,   /**< NVIDIA CUDA GPU */
     LV00_BACKEND_HIP = 3,    /**< AMD HIP GPU（ROCm 平台） */
+    LV00_BACKEND_SINGULAR = 4, /**< Singular 计算机代数后端 */
     LV00_BACKEND_CUSTOM = 99 /**< 用户自定义后端（使用自定义操作表） */
 } Lv00BackendType;
 /* ==================== 误差码 ==================== */

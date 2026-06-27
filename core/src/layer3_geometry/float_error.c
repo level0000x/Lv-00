@@ -38,6 +38,7 @@
 
 #include "lv00/constraint_graph.h"
 #include "lv00_internal.h"
+#include "lv00/config.h"
 #include "lv00_utils.h"
 #include "symbolic_coord.h"
 
@@ -1154,7 +1155,7 @@ FPTaylorConfig fptaylor_config_default(void) {
     cfg.taylor_order = 1;
     cfg.use_z3_opt = false;
     cfg.use_gelpia = false;
-    cfg.branch_bound_threshold = 1e-6;
+    cfg.branch_bound_threshold = LV00_EPSILON_LOW;
     return cfg;
 }
 

@@ -2,10 +2,75 @@
 #include "lv00/func_block.h"
 #include "lv00/geometry_types.h"
 #include "lv00/lv00_utils.h"
+#include "lv00/symbolic_coord.h"
 #include <string.h>
 #include <math.h>
 
 #define MAX_BLOCK_PORTS 64
+
+/* ============== 几何实体兼容 stub ============== */
+
+typedef struct {
+    double x_min;
+    double y_min;
+    double x_max;
+    double y_max;
+} BoundingBox;
+
+typedef struct {
+    char *name;
+    int id;
+    BoundingBox bounding_box;
+} GeometryEntityBase;
+
+typedef struct {
+    GeometryEntityBase base;
+    double *vertices;
+    int vertex_count;
+} PolygonEntity;
+
+typedef struct {
+    GeometryEntityBase base;
+    SymbolicCoord *x;
+    SymbolicCoord *y;
+} PointEntity;
+
+typedef struct {
+    GeometryEntityBase base;
+    PointEntity *start;
+    PointEntity *end;
+} LinearEntity;
+
+static inline SymbolicCoord *symbolic_coord_from_double(double val) {
+    return symbolic_coord_create_rational((int64_t)(val * 1000000), 1000000);
+}
+
+static inline PointEntity *point_entity_create(SymbolicCoord *x, SymbolicCoord *y) {
+    PointEntity *p = (PointEntity *)lv00_malloc(sizeof(PointEntity));
+    if (!p) return NULL;
+    memset(p, 0, sizeof(PointEntity));
+    p->x = x;
+    p->y = y;
+    return p;
+}
+
+static inline PolygonEntity *polygon_entity_create(PointEntity **corners, int count) {
+    PolygonEntity *poly = (PolygonEntity *)lv00_malloc(sizeof(PolygonEntity));
+    if (!poly) return NULL;
+    memset(poly, 0, sizeof(PolygonEntity));
+    poly->vertex_count = count;
+    (void)corners;
+    return poly;
+}
+
+static inline LinearEntity *linear_entity_create_segment(PointEntity *p1, PointEntity *p2) {
+    LinearEntity *line = (LinearEntity *)lv00_malloc(sizeof(LinearEntity));
+    if (!line) return NULL;
+    memset(line, 0, sizeof(LinearEntity));
+    line->start = p1;
+    line->end = p2;
+    return line;
+}
 
 /* 几何编码内部结构：将 FuncBlock 编码为几何实体集合 */
 typedef struct {

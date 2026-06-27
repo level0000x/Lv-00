@@ -96,8 +96,20 @@ typedef struct {
 /* ============== 自适应剪枝器 ============== */
 
 /**
- * @brief 自适应剪枝器（不透明类型）
+ * @brief 自适应剪枝器
  */
+struct Lv00AdaptivePruner {
+    Lv00AdaptiveConfig config;          /**< 自适应配置 */
+    Lv00ProblemComplexity complexity;   /**< 问题复杂度 */
+    Lv00SearchHeuristics heuristics;    /**< 搜索启发式信息 */
+    size_t max_iterations;              /**< 最大迭代次数 */
+    double max_time_ms;                 /**< 最大时间（毫秒） */
+    size_t max_depth;                   /**< 最大深度 */
+    size_t total_pruned;                /**< 总剪枝数 */
+    size_t total_explored;              /**< 总探索数 */
+    double total_time_saved_ms;         /**< 节省的总时间（毫秒） */
+};
+
 typedef struct Lv00AdaptivePruner Lv00AdaptivePruner;
 
 /* ============== 剪枝统计 ============== */

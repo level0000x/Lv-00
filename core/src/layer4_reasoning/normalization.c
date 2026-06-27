@@ -675,7 +675,7 @@ static uint64_t segment_endpoint_hash(GeomNode *node) {
  * 3. 将具有相同哈希的节点分组
  * 4. 仅在每组内进行比较
  */
-NodeMergeCandidate *find_merge_candidates(ConstraintGraph *graph, int *out_count) {
+NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out_count) {
     *out_count = 0;
 
     /* 最坏情况：所有节点对都是候选，乘以3覆盖三个阶段（点、线段、区域）。
@@ -1387,7 +1387,7 @@ void rewrite_history_destroy(RewriteHistory *history) {
     }
 }
 
-bool rewrite_history_check_cycle(RewriteHistory *history, ConstraintGraph *graph) {
+bool rewrite_history_check_cycle(const RewriteHistory *history, const ConstraintGraph *graph) {
     GraphHash *current_hash = compute_complete_graph_hash(graph);
     if (!current_hash) return false;
     bool cycle = false;

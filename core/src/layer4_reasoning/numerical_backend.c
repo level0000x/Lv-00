@@ -32,11 +32,12 @@
 #include <string.h>
 
 #include "error_codes.h"
+#include "lv00/config.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
 #ifndef LV00_NUM_EPSILON
-#define LV00_NUM_EPSILON 1e-9
+#define LV00_NUM_EPSILON LV00_EPSILON_MEDIUM
 #endif
 
 /* ========================================================================
@@ -47,7 +48,7 @@
 #define NBLINSOL_DEFAULT_MAX_ITERS 200
 
 /** @brief 迭代法默认收敛容差 */
-#define NBLINSOL_DEFAULT_TOL 1e-10
+#define NBLINSOL_DEFAULT_TOL LV00_EPSILON_HIGH
 
 /** @brief 小型行/列块大小（用于 LU 分解的临时工作区） */
 #define NBMAT_WORK_BLOCK_SIZE 64

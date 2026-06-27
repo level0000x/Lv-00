@@ -60,6 +60,14 @@ Lv00ConvertResult lv00_convert_from_text(Lv00RepresentationConverter *conv, cons
 int lv00_converter_verify_roundtrip(Lv00RepresentationConverter *conv,
                                      void *original, Lv00ViewType type);
 
+/* Direct conversion functions (legacy API) */
+Lv00ConvertResult lv00_convert_block_to_text(void *block);
+Lv00ConvertResult lv00_convert_text_to_block(const char *code);
+Lv00ConvertResult lv00_convert_block_to_node(void *block);
+Lv00ConvertResult lv00_convert_node_to_block(void *node);
+Lv00ConvertResult lv00_convert_block_to_geometry(void *block);
+Lv00ConvertResult lv00_convert_geometry_to_block(void *entity);
+
 #ifdef __cplusplus
 }
 #endif

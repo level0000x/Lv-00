@@ -19,6 +19,7 @@
 
 #include "lv00/geo_predicate.h"
 #include "lv00/geometry_config.h"
+#include "lv00/config.h"
 #include "lv00/interval_arithmetic.h"
 
 #include <math.h>
@@ -288,7 +289,7 @@ LV00_PUBLIC_API Lv00Orientation lv00_orientation_2d(
     double d23_sq = (p3x - p2x) * (p3x - p2x) + (p3y - p2y) * (p3y - p2y);
 
     const Lv00GeometryConfig *cfg = lv00_geometry_get_config();
-    double eps = cfg ? cfg->collinear_epsilon : 1e-9;
+    double eps = cfg ? cfg->collinear_epsilon : LV00_GEO_COLLINEAR_EPSILON;
 
     if (d12_sq < eps * eps && d13_sq < eps * eps) {
         return LV00_ORIENTATION_DEGENERATE;
@@ -390,7 +391,7 @@ LV00_PUBLIC_API Lv00Orientation lv00_orientation_3d(
     double d14_sq = (p4x-p1x)*(p4x-p1x) + (p4y-p1y)*(p4y-p1y) + (p4z-p1z)*(p4z-p1z);
 
     const Lv00GeometryConfig *cfg = lv00_geometry_get_config();
-    double eps = cfg ? cfg->collinear_epsilon : 1e-9;
+    double eps = cfg ? cfg->collinear_epsilon : LV00_GEO_COLLINEAR_EPSILON;
 
     if (d12_sq < eps * eps && d13_sq < eps * eps && d14_sq < eps * eps) {
         return LV00_ORIENTATION_DEGENERATE;
@@ -493,7 +494,7 @@ LV00_PUBLIC_API Lv00LineSide lv00_line_side(
 {
     /* 检查退化情况：直线的两个定义点重合 */
     const Lv00GeometryConfig *cfg = lv00_geometry_get_config();
-    double eps = cfg ? cfg->distance_epsilon : 1e-9;
+    double eps = cfg ? cfg->distance_epsilon : LV00_GEO_COLLINEAR_EPSILON;
 
     double d_sq = (lx2 - lx1) * (lx2 - lx1) + (ly2 - ly1) * (ly2 - ly1);
     if (d_sq < eps * eps) {
@@ -527,7 +528,7 @@ LV00_PUBLIC_API Lv00LineSide lv00_segment_side(
 {
     /* 检查退化情况：线段长度为零 */
     const Lv00GeometryConfig *cfg = lv00_geometry_get_config();
-    double eps = cfg ? cfg->distance_epsilon : 1e-9;
+    double eps = cfg ? cfg->distance_epsilon : LV00_GEO_COLLINEAR_EPSILON;
 
     double d_sq = (sx2 - sx1) * (sx2 - sx1) + (sy2 - sy1) * (sy2 - sy1);
     if (d_sq < eps * eps) {
@@ -568,7 +569,7 @@ LV00_PUBLIC_API Lv00SideOfCircle lv00_side_of_circle(
     }
 
     const Lv00GeometryConfig *cfg = lv00_geometry_get_config();
-    double eps = cfg ? cfg->distance_epsilon : 1e-9;
+    double eps = cfg ? cfg->distance_epsilon : LV00_GEO_COLLINEAR_EPSILON;
 
     if (mode == LV00_PREDICATE_SYMBOLIC) {
         mode = LV00_PREDICATE_EXACT;
@@ -765,17 +766,17 @@ LV00_PUBLIC_API bool lv00_segments_intersect(
          * 或 A 或 B 是否在 CD 的 bounding box 内。
          */
         /* C 在 AB 上的 bounding box 检查 */
-        int c_on_ab = (cx >= fmin(ax, bx) - 1e-9 && cx <= fmax(ax, bx) + 1e-9 &&
-                       cy >= fmin(ay, by) - 1e-9 && cy <= fmax(ay, by) + 1e-9);
+        int c_on_ab = (cx >= fmin(ax, bx) - LV00_GEO_DISTANCE_EPSILON && cx <= fmax(ax, bx) + LV00_GEO_DISTANCE_EPSILON &&
+                       cy >= fmin(ay, by) - LV00_GEO_DISTANCE_EPSILON && cy <= fmax(ay, by) + LV00_GEO_DISTANCE_EPSILON);
         /* D 在 AB 上的 bounding box 检查 */
-        int d_on_ab = (dx >= fmin(ax, bx) - 1e-9 && dx <= fmax(ax, bx) + 1e-9 &&
-                       dy >= fmin(ay, by) - 1e-9 && dy <= fmax(ay, by) + 1e-9);
+        int d_on_ab = (dx >= fmin(ax, bx) - LV00_GEO_DISTANCE_EPSILON && dx <= fmax(ax, bx) + LV00_GEO_DISTANCE_EPSILON &&
+                       dy >= fmin(ay, by) - LV00_GEO_DISTANCE_EPSILON && dy <= fmax(ay, by) + LV00_GEO_DISTANCE_EPSILON);
         /* A 在 CD 上的 bounding box 检查 */
-        int a_on_cd = (ax >= fmin(cx, dx) - 1e-9 && ax <= fmax(cx, dx) + 1e-9 &&
-                       ay >= fmin(cy, dy) - 1e-9 && ay <= fmax(cy, dy) + 1e-9);
+        int a_on_cd = (ax >= fmin(cx, dx) - LV00_GEO_DISTANCE_EPSILON && ax <= fmax(cx, dx) + LV00_GEO_DISTANCE_EPSILON &&
+                       ay >= fmin(cy, dy) - LV00_GEO_DISTANCE_EPSILON && ay <= fmax(cy, dy) + LV00_GEO_DISTANCE_EPSILON);
         /* B 在 CD 上的 bounding box 检查 */
-        int b_on_cd = (bx >= fmin(cx, dx) - 1e-9 && bx <= fmax(cx, dx) + 1e-9 &&
-                       by >= fmin(cy, dy) - 1e-9 && by <= fmax(cy, dy) + 1e-9);
+        int b_on_cd = (bx >= fmin(cx, dx) - LV00_GEO_DISTANCE_EPSILON && bx <= fmax(cx, dx) + LV00_GEO_DISTANCE_EPSILON &&
+                       by >= fmin(cy, dy) - LV00_GEO_DISTANCE_EPSILON && by <= fmax(cy, dy) + LV00_GEO_DISTANCE_EPSILON);
 
         return (c_on_ab || d_on_ab || a_on_cd || b_on_cd);
     }
@@ -785,8 +786,8 @@ LV00_PUBLIC_API bool lv00_segments_intersect(
      * 如果 C 在 AB 上（d1 == COLLINEAR），检查 C 是否在 AB 的 bounding box 内
      */
     if (d1 == LV00_ORIENTATION_COLLINEAR) {
-        int c_on_ab = (cx >= fmin(ax, bx) - 1e-9 && cx <= fmax(ax, bx) + 1e-9 &&
-                       cy >= fmin(ay, by) - 1e-9 && cy <= fmax(ay, by) + 1e-9);
+        int c_on_ab = (cx >= fmin(ax, bx) - LV00_GEO_DISTANCE_EPSILON && cx <= fmax(ax, bx) + LV00_GEO_DISTANCE_EPSILON &&
+                       cy >= fmin(ay, by) - LV00_GEO_DISTANCE_EPSILON && cy <= fmax(ay, by) + LV00_GEO_DISTANCE_EPSILON);
         if (c_on_ab && ((d3 == LV00_ORIENTATION_LEFT && d4 == LV00_ORIENTATION_RIGHT) ||
                         (d3 == LV00_ORIENTATION_RIGHT && d4 == LV00_ORIENTATION_LEFT))) {
             return true;
@@ -794,8 +795,8 @@ LV00_PUBLIC_API bool lv00_segments_intersect(
     }
 
     if (d2 == LV00_ORIENTATION_COLLINEAR) {
-        int d_on_ab = (dx >= fmin(ax, bx) - 1e-9 && dx <= fmax(ax, bx) + 1e-9 &&
-                       dy >= fmin(ay, by) - 1e-9 && dy <= fmax(ay, by) + 1e-9);
+        int d_on_ab = (dx >= fmin(ax, bx) - LV00_GEO_DISTANCE_EPSILON && dx <= fmax(ax, bx) + LV00_GEO_DISTANCE_EPSILON &&
+                       dy >= fmin(ay, by) - LV00_GEO_DISTANCE_EPSILON && dy <= fmax(ay, by) + LV00_GEO_DISTANCE_EPSILON);
         if (d_on_ab && ((d3 == LV00_ORIENTATION_LEFT && d4 == LV00_ORIENTATION_RIGHT) ||
                         (d3 == LV00_ORIENTATION_RIGHT && d4 == LV00_ORIENTATION_LEFT))) {
             return true;
@@ -803,8 +804,8 @@ LV00_PUBLIC_API bool lv00_segments_intersect(
     }
 
     if (d3 == LV00_ORIENTATION_COLLINEAR) {
-        int a_on_cd = (ax >= fmin(cx, dx) - 1e-9 && ax <= fmax(cx, dx) + 1e-9 &&
-                       ay >= fmin(cy, dy) - 1e-9 && ay <= fmax(cy, dy) + 1e-9);
+        int a_on_cd = (ax >= fmin(cx, dx) - LV00_GEO_DISTANCE_EPSILON && ax <= fmax(cx, dx) + LV00_GEO_DISTANCE_EPSILON &&
+                       ay >= fmin(cy, dy) - LV00_GEO_DISTANCE_EPSILON && ay <= fmax(cy, dy) + LV00_GEO_DISTANCE_EPSILON);
         if (a_on_cd && ((d1 == LV00_ORIENTATION_LEFT && d2 == LV00_ORIENTATION_RIGHT) ||
                         (d1 == LV00_ORIENTATION_RIGHT && d2 == LV00_ORIENTATION_LEFT))) {
             return true;
@@ -812,8 +813,8 @@ LV00_PUBLIC_API bool lv00_segments_intersect(
     }
 
     if (d4 == LV00_ORIENTATION_COLLINEAR) {
-        int b_on_cd = (bx >= fmin(cx, dx) - 1e-9 && bx <= fmax(cx, dx) + 1e-9 &&
-                       by >= fmin(cy, dy) - 1e-9 && by <= fmax(cy, dy) + 1e-9);
+        int b_on_cd = (bx >= fmin(cx, dx) - LV00_GEO_DISTANCE_EPSILON && bx <= fmax(cx, dx) + LV00_GEO_DISTANCE_EPSILON &&
+                       by >= fmin(cy, dy) - LV00_GEO_DISTANCE_EPSILON && by <= fmax(cy, dy) + LV00_GEO_DISTANCE_EPSILON);
         if (b_on_cd && ((d1 == LV00_ORIENTATION_LEFT && d2 == LV00_ORIENTATION_RIGHT) ||
                         (d1 == LV00_ORIENTATION_RIGHT && d2 == LV00_ORIENTATION_LEFT))) {
             return true;
@@ -882,7 +883,7 @@ LV00_PUBLIC_API bool lv00_four_points_concyclic(
     }
 
     const Lv00GeometryConfig *cfg = lv00_geometry_get_config();
-    double eps = cfg ? cfg->collinear_epsilon : 1e-9;
+    double eps = cfg ? cfg->collinear_epsilon : LV00_GEO_COLLINEAR_EPSILON;
 
     if (mode == LV00_PREDICATE_APPROX) {
         g_predicate_stats.approx_count++;
@@ -1122,7 +1123,7 @@ LV00_PUBLIC_API bool lv00_point_in_polygon(
     }
 
     const Lv00GeometryConfig *cfg = lv00_geometry_get_config();
-    double eps = cfg ? cfg->collinear_epsilon : 1e-9;
+    double eps = cfg ? cfg->collinear_epsilon : LV00_GEO_COLLINEAR_EPSILON;
 
     int crossings = 0;
 

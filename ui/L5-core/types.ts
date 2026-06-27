@@ -64,10 +64,23 @@ export interface PerfStats {
   lastFpsUpdate: number;
 }
 
-export type ModuleKey =
+export type ViewKey = 'canvas' | 'text' | 'table' | 'tree' | 'terminal' | 'topology';
+
+export type PanelKey =
   | 'formula' | 'graph' | 'block' | 'proof' | 'type'
-  | 'recurse' | 'engine' | 'debug' | 'help'
-  | 'canvas' | 'text' | 'table' | 'tree' | 'terminal' | 'topology';
+  | 'recurse' | 'engine' | 'debug' | 'help';
+
+export type ModuleKey = ViewKey | PanelKey;
+
+export interface FloatingPanel {
+  id: string;
+  panelKey: PanelKey;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+}
 
 export interface ModuleTab {
   key: ModuleKey;

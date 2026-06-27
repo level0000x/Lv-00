@@ -33,6 +33,7 @@
 #include <string.h>
 
 #include "error_codes.h"
+#include "lv00/config.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "numerical_backend.h"
@@ -42,10 +43,10 @@
  * ======================================================================== */
 
 /** @brief 默认相对误差容限 */
-#define GEOEVOL_DEFAULT_REL_TOL 1e-6
+#define GEOEVOL_DEFAULT_REL_TOL LV00_EPSILON_LOW
 
 /** @brief 默认绝对误差容限 */
-#define GEOEVOL_DEFAULT_ABS_TOL 1e-12
+#define GEOEVOL_DEFAULT_ABS_TOL LV00_EPSILON_ULTRA
 
 /** @brief 默认初始步长 */
 #define GEOEVOL_DEFAULT_STEP 0.01
@@ -555,7 +556,7 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
 
     /* Newton 迭代参数 */
     const int newton_max_iter = 10;
-    const double newton_tol = 1e-10;
+    const double newton_tol = LV00_EPSILON_HIGH;
     /* 有限差分 Jacobian 的扰动步长 */
     const double fd_eps = 1e-8;
 

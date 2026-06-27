@@ -1,74 +1,90 @@
 import React from 'react';
-import { ModuleKey } from '../L5-core/types';
-import { moduleColor, ICONS } from '../L1-base/visual';
+import { ViewKey, PanelKey } from '../L5-core/types';
+import { useUIStore } from '../L5-core/store/uiStore';
 
 interface HeaderProps {
-  activeModule: ModuleKey;
-  onModuleChange: (key: ModuleKey) => void;
   version?: string;
-  onUndo?: () => void;
-  onRedo?: () => void;
-  onNormalize?: () => void;
-  canUndo?: boolean;
-  canRedo?: boolean;
 }
 
-const TAB_MODULES: { key: ModuleKey; icon: string; label: string; color: string }[] = [
-  { key: 'formula', icon: ICONS.FORMULA, label: 'Formula', color: 'var(--color-module-formula)' },
-  { key: 'graph', icon: ICONS.GRAPH, label: 'Graph', color: 'var(--color-module-graph)' },
-  { key: 'block', icon: ICONS.BLOCK, label: 'Block', color: 'var(--color-module-block)' },
-  { key: 'proof', icon: ICONS.PROOF, label: 'Proof', color: 'var(--color-module-proof)' },
-  { key: 'type', icon: ICONS.TYPE, label: 'Type', color: 'var(--color-module-type)' },
-  { key: 'recurse', icon: ICONS.RECURSE, label: 'Recurse', color: 'var(--color-module-recurse)' },
-  { key: 'engine', icon: ICONS.ENGINE, label: 'Engine', color: 'var(--color-module-engine)' },
-  { key: 'debug', icon: ICONS.DEBUG, label: 'Debug', color: 'var(--color-module-debug)' },
-  { key: 'help', icon: ICONS.HELP, label: 'Help', color: 'var(--color-module-help)' },
+const VIEW_LABELS: Record<ViewKey, string> = {
+  canvas: '\u2B21 画布 Canvas',
+  text: '\u270E 文本 Text',
+  table: '\u2637 表格 Table',
+  tree: '\u2261 树 Tree',
+  terminal: '\u25B8 终端 Terminal',
+  topology: '\u29BF 拓扑 Topology',
+};
+
+const TAB_PANELS: { key: PanelKey; icon: string; label: string }[] = [
+  { key: 'formula', icon: 'F', label: '公式 Formula' },
+  { key: 'graph', icon: 'G', label: '约束图 Graph' },
+  { key: 'block', icon: 'B', label: '函数块 Block' },
+  { key: 'proof', icon: 'P', label: '证明 Proof' },
+  { key: 'type', icon: 'T', label: '类型 Type' },
+  { key: 'recurse', icon: 'R', label: '递归 Recurse' },
+  { key: 'engine', icon: 'E', label: '引擎 Engine' },
+  { key: 'debug', icon: 'D', label: '调试 Debug' },
+  { key: 'help', icon: '?', label: '帮助 Help' },
 ];
 
-const Header: React.FC<HeaderProps> = ({
-  activeModule,
-  onModuleChange,
-  version = '3.0.0',
-  onUndo,
-  onRedo,
-  onNormalize,
-  canUndo,
-  canRedo,
-}) => (
-  <header className="header">
-    <span className="header-title">LV-00</span>
-    <span className="header-version">{version}</span>
-    <div className="module-tabs" role="tablist">
-      {TAB_MODULES.map((tab) => (
-        <button
-          key={tab.key}
-          className={`module-tab ${activeModule === tab.key ? 'active' : ''}`}
-          onClick={() => onModuleChange(tab.key)}
-          role="tab"
-          aria-selected={activeModule === tab.key}
-          style={
-            activeModule === tab.key
-              ? { borderBottomColor: tab.color, color: 'var(--color-text-primary)' }
-              : {}
-          }
-        >
-          <span className="tab-icon">{tab.icon}</span>
-          {tab.label}
-        </button>
-      ))}
-    </div>
-    <div className="header-actions">
-      <button className="header-action-btn" onClick={onUndo} disabled={!canUndo} title="Undo">
-        {ICONS.UNDO}
-      </button>
-      <button className="header-action-btn" onClick={onRedo} disabled={!canRedo} title="Redo">
-        {ICONS.REDO}
-      </button>
-      <button className="header-action-btn" onClick={onNormalize} title="Normalize">
-        {ICONS.NORMALIZE}
-      </button>
-    </div>
-  </header>
-);
+const Header: React.FC<HeaderProps> = ({ version = '3.4.0' }) => {
+  const theme = useUIStore((s) => s.theme);
+  const setTheme = useUIStore((s) => s.setTheme);
+  const activePanel = useUIStore((s) => s.activePanel);
+  const setActivePanel = useUIStore((s) => s.setActivePanel);
+  const activeView = useUIStore((s) => s.activeView);
+  const openFloatingPanel = useUIStore((s) => s.openFloatingPanel);
+
+  return (
+    <>
+      <div className="title-bar">
+        <div className="title-bar-left">
+          <div className="title-bar-logo">L</div>
+          <span className="title-bar-brand">LV-00</span>
+          <span className="title-bar-version">v{version}</span>
+        </div>
+
+        <div className="title-bar-center">
+          <span className="title-bar-view-indicator">{VIEW_LABELS[activeView]}</span>
+          <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 8 }}>
+            <span className="kbd" style={{ fontSize: 9 }}>Ctrl+P</span>
+          </span>
+        </div>
+
+        <div className="title-bar-actions">
+          <button
+            className="btn-icon"
+            onClick={() => openFloatingPanel(activePanel)}
+            title="弹出面板 Pop-out Panel"
+          >
+            {'\u29C9'}
+          </button>
+          <button
+            className="btn-icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            title="切换主题 Toggle Theme (Ctrl+T)"
+          >
+            {theme === 'dark' ? '\u2600' : '\u263E'}
+          </button>
+        </div>
+      </div>
+
+      <div className="tab-bar" role="tablist">
+        {TAB_PANELS.map((tab) => (
+          <button
+            key={tab.key}
+            className={`module-tab ${activePanel === tab.key ? 'active' : ''}`}
+            onClick={() => setActivePanel(tab.key)}
+            role="tab"
+            aria-selected={activePanel === tab.key}
+          >
+            <span className="tab-icon">{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+};
 
 export default Header;

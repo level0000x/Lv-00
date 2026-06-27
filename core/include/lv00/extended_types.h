@@ -2,6 +2,7 @@
 #define LV00_EXTENDED_TYPES_H
 
 #include "lv00/type_system.h"
+#include "lv00/effect_system.h"
 
 #ifdef __cplusplus
 extern "C" {

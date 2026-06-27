@@ -1,6 +1,6 @@
 #include "lv00/representation_converter.h"
 #include "lv00/func_block.h"
-#include "lv00/lv00_utils.h"
+#include "lv00/lv00_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>

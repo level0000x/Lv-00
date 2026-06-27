@@ -120,7 +120,7 @@ void lv00_he_mesh_get_stats(const Lv00HeMesh *mesh, Lv00HeMeshStats *s);
 Lv00HeVertexIterator lv00_he_mesh_vertex_iter_begin(Lv00HeMesh *mesh, int flags);
 Lv00HeVertexIterator lv00_he_mesh_vertex_out_iter_begin(Lv00HeMesh *mesh, Lv00Vertex v);
 Lv00Vertex           lv00_he_mesh_vertex_out_iter_next(Lv00HeVertexIterator *iter);
-Lv00Halfedge         lv00_he_vertex_iter_get(Lv00HeVertexIterator *iter);
+Lv00Halfedge         lv00_he_vertex_iter_get(const Lv00HeVertexIterator *iter);
 bool lv00_he_mesh_vertex_iter_next(Lv00HeVertexIterator *iter);
 
 Lv00HeFaceIterator lv00_he_mesh_face_iter_begin(Lv00HeMesh *mesh, int flags);

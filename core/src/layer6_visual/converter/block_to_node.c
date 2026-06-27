@@ -29,6 +29,8 @@ typedef struct {
     int edge_cap;
 } NodeGraph;
 
+static void lv00_convert_block_to_node_cleanup(NodeGraph *ng);
+
 /* 将函数块转换为节点图表示 */
 /* 每个 FuncBlock → 一个 NodeGraphNode */
 /* 块的输入/输出端口 → 节点的输入/输出端口 */
@@ -168,7 +170,7 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
 }
 
 /* 清理节点图中的动态内存（strdup分配的name等） */
-void lv00_convert_block_to_node_cleanup(NodeGraph *ng) {
+static void lv00_convert_block_to_node_cleanup(NodeGraph *ng) {
     if (!ng) return;
     for (int i = 0; i < ng->node_count; i++) {
         lv00_free((void **)&ng->nodes[i].name);

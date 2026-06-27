@@ -700,6 +700,8 @@ char *preset_blocks_generate_single_doc(const char *name);
 #define PRESET_EXISTENTIAL_QUANTIFIER "existential_quantifier"
 #endif
 
+#include "preset_name_defs.h"
+
 /* ================================================================
  * 预设函数块统计信息
  * ================================================================ */

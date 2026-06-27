@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file recursion.c
  * @brief 递归与条件系统实现 —— 良基递归与测度递减验证
  *
@@ -817,7 +817,7 @@ MeasureCompareResult measure_compare(Measure *m, SymbolicCoord *a, SymbolicCoord
  * @param graph 约束图指针
  * @return 比较结果
  */
-MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b, ConstraintGraph *graph) {
+MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b, const ConstraintGraph *graph) {
     if (!m || !a || !b) return MEASURE_ERROR;
 
     if (m->type == MEASURE_SYMBOLIC) {
@@ -1092,7 +1092,7 @@ void recursion_context_exit(RecursionContext *ctx) {
  * @param new_value 新的测度值
  * @return 递归检查结果
  */
-RecursionCheckResult recursion_context_check_decreasing(RecursionContext *ctx, SymbolicCoord *new_value) {
+RecursionCheckResult recursion_context_check_decreasing(const RecursionContext *ctx, SymbolicCoord *new_value) {
     if (!ctx || !new_value) return RECURSION_ERROR;
 
     if (!ctx->active_measure) return RECURSION_OK;

@@ -1,95 +1,141 @@
-import React from 'react';
-import { ModuleKey } from '../L5-core/types';
-import { moduleColor, ICONS } from '../L1-base/visual';
-
-export interface PanelEntry {
-  key: ModuleKey;
-  icon: string;
-  label: string;
-}
-
-const PANEL_MODULES: PanelEntry[] = [
-  { key: 'formula', icon: ICONS.FORMULA, label: 'Formula' },
-  { key: 'graph', icon: ICONS.GRAPH, label: 'Graph' },
-  { key: 'block', icon: ICONS.BLOCK, label: 'Block' },
-  { key: 'proof', icon: ICONS.PROOF, label: 'Proof' },
-  { key: 'type', icon: ICONS.TYPE, label: 'Type' },
-  { key: 'recurse', icon: ICONS.RECURSE, label: 'Recurse' },
-  { key: 'engine', icon: ICONS.ENGINE, label: 'Engine' },
-  { key: 'debug', icon: ICONS.DEBUG, label: 'Debug' },
-  { key: 'canvas', icon: ICONS.CANVAS, label: 'Canvas' },
-  { key: 'text', icon: ICONS.TEXT, label: 'Text' },
-  { key: 'table', icon: ICONS.TABLE, label: 'Table' },
-  { key: 'tree', icon: ICONS.TREE, label: 'Tree' },
-  { key: 'terminal', icon: ICONS.TERMINAL, label: 'Terminal' },
-  { key: 'topology', icon: ICONS.TOPOLOGY, label: 'Topology' },
-  { key: 'help', icon: ICONS.HELP, label: 'Help' },
-];
+import React, { useState } from 'react';
+import { ViewKey, PanelKey } from '../L5-core/types';
+import { moduleColor } from '../L1-base/visual';
 
 interface SidebarLeftProps {
-  activeModule: ModuleKey;
-  onModuleSelect: (key: ModuleKey) => void;
+  activeView: ViewKey;
+  activePanel: PanelKey;
+  onViewSelect: (key: ViewKey) => void;
+  onPanelSelect: (key: PanelKey) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   sidebarWidth: number;
 }
 
+interface ModuleEntry {
+  key: ViewKey | PanelKey;
+  icon: string;
+  label: string;
+}
+
+const VIEW_MODULES: ModuleEntry[] = [
+  { key: 'canvas', icon: '\u2B21', label: '画布 Canvas' },
+  { key: 'text', icon: '\u270E', label: '文本编辑 Text' },
+  { key: 'table', icon: '\u2637', label: '数据表 Table' },
+  { key: 'tree', icon: '\u2261', label: '证明树 Tree' },
+  { key: 'terminal', icon: '\u25B8', label: '终端 Terminal' },
+  { key: 'topology', icon: '\u29BF', label: '拓扑 Topology' },
+];
+
+const PANEL_MODULES: ModuleEntry[] = [
+  { key: 'formula', icon: 'F', label: '公式 Formula' },
+  { key: 'graph', icon: 'G', label: '约束图 Graph' },
+  { key: 'block', icon: 'B', label: '函数块 Block' },
+  { key: 'proof', icon: 'P', label: '证明导航 Proof' },
+  { key: 'type', icon: 'T', label: '类型浏览 Type' },
+  { key: 'recurse', icon: 'R', label: '递归 Recurse' },
+  { key: 'engine', icon: 'E', label: '引擎状态 Engine' },
+  { key: 'debug', icon: 'D', label: '调试控制台 Debug' },
+  { key: 'help', icon: '?', label: '帮助与快捷键 Help' },
+];
+
 const SidebarLeft: React.FC<SidebarLeftProps> = ({
-  activeModule,
-  onModuleSelect,
+  activeView,
+  activePanel,
+  onViewSelect,
+  onPanelSelect,
   searchQuery,
   onSearchChange,
   sidebarWidth,
 }) => {
-  const filtered = PANEL_MODULES.filter(
-    (m) => !searchQuery || m.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [collapsedViews, setCollapsedViews] = useState(false);
+  const [collapsedPanels, setCollapsedPanels] = useState(false);
+
+  const filtered = (items: ModuleEntry[]) => {
+    if (!searchQuery) return items;
+    const q = searchQuery.toLowerCase();
+    return items.filter(m => m.label.toLowerCase().includes(q));
+  };
+
+  const toggleSection = (section: 'views' | 'panels') => {
+    if (section === 'views') setCollapsedViews(v => !v);
+    else setCollapsedPanels(v => !v);
+  };
+
+  const filteredViews = filtered(VIEW_MODULES);
+  const filteredPanels = filtered(PANEL_MODULES);
 
   return (
     <aside className="sidebar-left" style={{ width: sidebarWidth }}>
       <div className="search-box">
-        <input
-          className="input"
-          placeholder="Search modules..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-        />
+        <div className="search-input-wrapper">
+          <span className="search-icon">{'\u2315'}</span>
+          <input
+            className="input"
+            placeholder="搜索模块 Search..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+        </div>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-        {filtered.map((panel) => {
-          const active = panel.key === activeModule;
-          const color = moduleColor(panel.key);
-          return (
+
+      {/* Views Section — controls center canvas area */}
+      <div
+        className={`sidebar-section-header ${collapsedViews ? 'collapsed' : ''}`}
+        onClick={() => toggleSection('views')}
+      >
+        <span>视图 Views</span>
+        <span className="section-chevron">{'\u25BE'}</span>
+      </div>
+      {!collapsedViews && (
+        <div>
+          {filteredViews.length === 0 && (
+            <div style={{ padding: '4px 16px', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>无结果 No results</div>
+          )}
+          {filteredViews.map((m) => (
             <div
-              key={panel.key}
-              onClick={() => onModuleSelect(panel.key)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 12px',
-                cursor: 'pointer',
-                borderRadius: 6,
-                fontSize: 'var(--font-size-md)',
-                color: active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                background: active ? 'rgba(var(--color-accent-rgb), 0.08)' : 'transparent',
-                borderLeft: active ? `3px solid ${color}` : '3px solid transparent',
-                transition: 'all var(--transition-fast)',
-                marginBottom: 2,
-              }}
-              onMouseEnter={(e) => {
-                if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-hover-subtle)';
-              }}
-              onMouseLeave={(e) => {
-                if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent';
-              }}
+              key={m.key}
+              className={`sidebar-item ${m.key === activeView ? 'active' : ''}`}
+              onClick={() => onViewSelect(m.key as ViewKey)}
             >
-              <span style={{ fontSize: 14, width: 20, textAlign: 'center' }}>{panel.icon}</span>
-              <span>{panel.label}</span>
+              <span className="sidebar-item-icon">{m.icon}</span>
+              <span className="sidebar-item-label">{m.label}</span>
             </div>
-          );
-        })}
+          ))}
+        </div>
+      )}
+
+      <div className="sidebar-section-divider" />
+
+      {/* Panels Section — controls right sidebar */}
+      <div
+        className={`sidebar-section-header ${collapsedPanels ? 'collapsed' : ''}`}
+        onClick={() => toggleSection('panels')}
+      >
+        <span>面板 Panels</span>
+        <span className="section-chevron">{'\u25BE'}</span>
       </div>
+      {!collapsedPanels && (
+        <div style={{ paddingBottom: 8 }}>
+          {filteredPanels.length === 0 && (
+            <div style={{ padding: '4px 16px', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>无结果 No results</div>
+          )}
+          {filteredPanels.map((m) => {
+            const color = moduleColor(m.key as string);
+            const active = m.key === activePanel;
+            return (
+              <div
+                key={m.key}
+                className={`sidebar-item ${active ? 'active' : ''}`}
+                onClick={() => onPanelSelect(m.key as PanelKey)}
+              >
+                <span className="sidebar-item-icon" style={{ color: active ? color : undefined }}>{m.icon}</span>
+                <span className="sidebar-item-label">{m.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </aside>
   );
 };

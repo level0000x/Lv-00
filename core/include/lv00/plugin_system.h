@@ -14,6 +14,7 @@
  */
 #ifndef LV00_PLUGIN_SYSTEM_H
 #define LV00_PLUGIN_SYSTEM_H
+#define LV00_PLUGIN_FULL_TYPE 1
 #include <lv00.h>
 #include <stddef.h>
 #include <stdint.h>

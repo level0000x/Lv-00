@@ -94,6 +94,28 @@ typedef enum {
     SELECTOR_TYPE_CUSTOM            /**< 自定义选择器 */
 } SelectorType;
 
+/* SELECTOR_* 旧命名兼容 */
+#ifndef SELECTOR_POSITIVE_ROOT
+#define SELECTOR_POSITIVE_ROOT SELECTOR_TYPE_POSITIVE_ROOT
+#endif
+#ifndef SELECTOR_NEGATIVE_ROOT
+#define SELECTOR_NEGATIVE_ROOT SELECTOR_TYPE_NEGATIVE_ROOT
+#endif
+#ifndef SELECTOR_IN_REGION
+#define SELECTOR_IN_REGION SELECTOR_TYPE_IN_REGION
+#endif
+#ifndef SELECTOR_NEAREST_TO_POINT
+#define SELECTOR_NEAREST_TO_POINT SELECTOR_TYPE_NEAREST_TO_POINT
+#endif
+#ifndef SELECTOR_CUSTOM
+#define SELECTOR_CUSTOM SELECTOR_TYPE_CUSTOM
+#endif
+
+/* 距离默认值 */
+#ifndef LV00_DEFAULT_DISTANCE_SQUARED
+#define LV00_DEFAULT_DISTANCE_SQUARED 1e-6
+#endif
+
 typedef bool (*SelectorFunction)(GeomNode **candidates, int count, int *selected_index, void *user_data);
 
 /**
@@ -151,6 +173,44 @@ typedef enum {
     FB_VIEW_STATE_COLLAPSED, /**< 折叠为单个盒子 */
     FB_VIEW_STATE_PINNED     /**< 固定展开（用户锁定） */
 } FuncBlockViewState;
+
+/* FB_VIEW_* 旧命名兼容 */
+#ifndef FB_VIEW_EXPANDED
+#define FB_VIEW_EXPANDED FB_VIEW_STATE_EXPANDED
+#endif
+#ifndef FB_VIEW_COLLAPSED
+#define FB_VIEW_COLLAPSED FB_VIEW_STATE_COLLAPSED
+#endif
+#ifndef FB_VIEW_PINNED
+#define FB_VIEW_PINNED FB_VIEW_STATE_PINNED
+#endif
+
+/* DeterminismState 旧命名兼容（由 func_block_internal.h 完整定义） */
+#ifndef DETERMINISM_VERIFIED
+#define DETERMINISM_VERIFIED DETERMINISM_STATE_VERIFIED
+#endif
+#ifndef DETERMINISM_NON_DETERMINISTIC
+#define DETERMINISM_NON_DETERMINISTIC DETERMINISM_STATE_NON_DETERMINISTIC
+#endif
+#ifndef DETERMINISM_PARTIALLY_VERIFIED
+#define DETERMINISM_PARTIALLY_VERIFIED DETERMINISM_STATE_PARTIALLY_VERIFIED
+#endif
+#ifndef DETERMINISM_UNVERIFIED
+#define DETERMINISM_UNVERIFIED DETERMINISM_STATE_UNVERIFIED
+#endif
+
+/* 预设ID偏移量 */
+#ifndef LV00_PRESET_ID_OFFSET
+#define LV00_PRESET_ID_OFFSET 1000
+#endif
+#ifndef LV00_PRESET_MAX_COUNT
+#define LV00_PRESET_MAX_COUNT 10000
+#endif
+
+/* 函数块ID偏移量 */
+#ifndef LV00_FUNC_BLOCK_ID_OFFSET
+#define LV00_FUNC_BLOCK_ID_OFFSET 0
+#endif
 
 /* ============== 跨边界约束处理结果 ============== */
 typedef struct {
@@ -560,7 +620,7 @@ LV00_PUBLIC_API DeterminismState func_block_verify_determinism(FuncBlock *fb, Co
  *       调用者负责使用 lv00_free() 释放该数组。
  *       失败时 *out_new_node_ids 设为 NULL，无需释放。
  */
-LV00_PUBLIC_API InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, const int *arg_mappings, int arg_count,
+LV00_PUBLIC_API InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, int *arg_mappings, int arg_count,
                                          int **out_new_node_ids, int *out_new_node_count);
 
 /**
@@ -576,7 +636,7 @@ LV00_PUBLIC_API InstantiateResult func_block_instantiate(FuncBlock *fb, Constrai
  *       调用者获得其所有权，负责在不再使用时调用 func_block_destroy() 释放。
  *       原函数块 fb 的所有权不受影响。
  */
-LV00_PUBLIC_API bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *graph, const int *fixed_arg_mappings, int fixed_count,
+LV00_PUBLIC_API bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *graph, int *fixed_arg_mappings, int fixed_count,
                               FuncBlock **out_new_fb);
 
 /**

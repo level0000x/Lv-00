@@ -1,5 +1,5 @@
 #include "lv00/control_flow_blocks.h"
-#include "lv00/lv00_utils.h"
+#include "lv00/lv00_internal.h"
 
 Lv00WhileBlock *lv00_while_block_create(void) {
     Lv00WhileBlock *block = lv00_calloc(1, sizeof(Lv00WhileBlock));
