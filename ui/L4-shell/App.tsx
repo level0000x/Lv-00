@@ -13,7 +13,6 @@ import { TableView } from '../L3-modules/M3-Table';
 import { TreeView } from '../L3-modules/M4-Tree';
 import { TerminalView } from '../L3-modules/M5-Terminal';
 import { TopologyView } from '../L3-modules/M6-Topology';
-
 import { FormulaPanel } from '../L3-modules/P1-Formula';
 import { GraphPanel } from '../L3-modules/P2-Graph';
 import { BlockPanel } from '../L3-modules/P3-Block';
@@ -26,20 +25,13 @@ import { HelpPanel } from '../L3-modules/P-Help';
 
 function renderView(key: ViewKey, activeTool: string) {
   switch (key) {
-    case 'canvas':
-      return <CanvasView activeTool={activeTool} />;
-    case 'text':
-      return <TextView value="" onChange={() => {}} />;
-    case 'table':
-      return <TableView />;
-    case 'tree':
-      return <TreeView />;
-    case 'terminal':
-      return <TerminalView />;
-    case 'topology':
-      return <TopologyView blocks={[]} edges={[]} onBlockMove={() => {}} />;
-    default:
-      return <div className="empty-state">未知视图 Unknown view</div>;
+    case 'canvas': return <CanvasView activeTool={activeTool} />;
+    case 'text': return <TextView value="" onChange={() => {}} />;
+    case 'table': return <TableView />;
+    case 'tree': return <TreeView />;
+    case 'terminal': return <TerminalView />;
+    case 'topology': return <TopologyView blocks={[]} edges={[]} onBlockMove={() => {}} />;
+    default: return <div className="empty-state">Unknown view</div>;
   }
 }
 
@@ -65,42 +57,29 @@ export function App() {
   const setActiveView = useUIStore((s) => s.setActiveView);
   const [showPalette, setShowPalette] = useState(false);
 
-  // Load demo scene on first render
-  useEffect(() => {
-    useGeometryStore.getState().loadDemoScene();
-  }, []);
+  useEffect(() => { useGeometryStore.getState().loadDemoScene(); }, []);
 
   const COMMANDS: CommandItem[] = [
-    { id: 'view.canvas', label: '画布 Canvas', shortcut: '1', group: '视图 Views' },
-    { id: 'view.text', label: '文本编辑 Text', shortcut: '2', group: '视图 Views' },
-    { id: 'view.table', label: '数据表 Table', shortcut: '3', group: '视图 Views' },
-    { id: 'view.tree', label: '证明树 Tree', shortcut: '4', group: '视图 Views' },
-    { id: 'view.terminal', label: '终端 Terminal', shortcut: '5', group: '视图 Views' },
-    { id: 'view.topology', label: '拓扑 Topology', shortcut: '6', group: '视图 Views' },
-    { id: 'panel.formula', label: '公式 Formula', shortcut: 'Shift+1', group: '面板 Panels' },
-    { id: 'panel.graph', label: '约束图 Graph', shortcut: 'Shift+2', group: '面板 Panels' },
-    { id: 'panel.block', label: '函数块 Block', group: '面板 Panels' },
-    { id: 'panel.proof', label: '证明 Proof', group: '面板 Panels' },
-    { id: 'panel.type', label: '类型 Type', group: '面板 Panels' },
-    { id: 'panel.engine', label: '引擎 Engine', group: '面板 Panels' },
-    { id: 'panel.debug', label: '调试 Debug', group: '面板 Panels' },
-    { id: 'panel.help', label: '帮助 Help', group: '面板 Panels' },
-    { id: 'toggle.theme', label: '切换主题 Toggle Theme', shortcut: 'Ctrl+T', group: '操作 Actions' },
-    { id: 'toggle.grid', label: '切换网格 Toggle Grid', shortcut: 'Ctrl+G', group: '操作 Actions' },
-    { id: 'popout.panel', label: '弹出面板 Pop-out Panel', group: '操作 Actions' },
+    { id: 'view.canvas', label: 'Canvas', shortcut: '1', group: 'Views' },
+    { id: 'view.text', label: 'Text Editor', shortcut: '2', group: 'Views' },
+    { id: 'view.table', label: 'Table', shortcut: '3', group: 'Views' },
+    { id: 'view.tree', label: 'Tree', shortcut: '4', group: 'Views' },
+    { id: 'view.terminal', label: 'Terminal', shortcut: '5', group: 'Views' },
+    { id: 'view.topology', label: 'Topology', shortcut: '6', group: 'Views' },
+    { id: 'panel.formula', label: 'Formula', shortcut: 'Shift+1', group: 'Panels' },
+    { id: 'panel.graph', label: 'Graph', shortcut: 'Shift+2', group: 'Panels' },
+    { id: 'panel.block', label: 'Block', group: 'Panels' },
+    { id: 'panel.proof', label: 'Proof', group: 'Panels' },
+    { id: 'panel.type', label: 'Type', group: 'Panels' },
+    { id: 'panel.engine', label: 'Engine', group: 'Panels' },
+    { id: 'panel.debug', label: 'Debug', group: 'Panels' },
+    { id: 'panel.help', label: 'Help', group: 'Panels' },
   ];
 
   const handleCommand = useCallback((id: string) => {
     const [cat, key] = id.split('.');
     if (cat === 'view') setActiveView(key as ViewKey);
     else if (cat === 'panel') setActivePanel(key as PanelKey);
-    else if (id === 'toggle.theme') {
-      const store = useUIStore.getState();
-      useUIStore.getState().setTheme(store.theme === 'dark' ? 'light' : 'dark');
-    }
-    else if (id === 'popout.panel') {
-      useUIStore.getState().openFloatingPanel(useUIStore.getState().activePanel);
-    }
   }, [setActiveView, setActivePanel]);
 
   useEffect(() => {
@@ -111,7 +90,6 @@ export function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Get counts from geometry store
   const objectCount = useGeometryStore((s) => s.objects.length);
   const constraintCount = useGeometryStore((s) => s.constraints.length);
 
@@ -126,9 +104,7 @@ export function App() {
         version="3.4.0"
       />
       <ToastContainer />
-      {showPalette && (
-        <CommandPalette commands={COMMANDS} onSelect={handleCommand} onClose={() => setShowPalette(false)} />
-      )}
+      {showPalette && <CommandPalette commands={COMMANDS} onSelect={handleCommand} onClose={() => setShowPalette(false)} />}
     </ErrorBoundary>
   );
 }

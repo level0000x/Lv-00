@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import { useGeometryStore, GeoObject } from '../../L5-core/store/geometryStore';
 
 /* ── graph data ── */
 
@@ -8,39 +9,20 @@ interface GNode {
   x: number;
   y: number;
   color: string;
+  storeId: string;
 }
 
 interface GEdge {
   from: string;
   to: string;
   style: 'solid' | 'dashed';
+  label: string;
 }
-
-const DEFAULT_NODES: GNode[] = [
-  { id: 'A', label: 'A', x: 180, y: 60, color: '#4fc3f7' },
-  { id: 'B', label: 'B', x: 60, y: 180, color: '#81c784' },
-  { id: 'C', label: 'C', x: 180, y: 300, color: '#ffb74d' },
-  { id: 'D', label: 'D', x: 300, y: 180, color: '#e57373' },
-  { id: 'E', label: 'E', x: 100, y: 120, color: '#ba68c8' },
-  { id: 'F', label: 'F', x: 260, y: 240, color: '#4dd0e1' },
-];
-
-const EDGES: GEdge[] = [
-  { from: 'A', to: 'B', style: 'solid' },
-  { from: 'B', to: 'C', style: 'solid' },
-  { from: 'C', to: 'D', style: 'solid' },
-  { from: 'D', to: 'A', style: 'solid' },
-  { from: 'A', to: 'C', style: 'dashed' },
-  { from: 'B', to: 'D', style: 'dashed' },
-  { from: 'E', to: 'A', style: 'solid' },
-  { from: 'E', to: 'B', style: 'dashed' },
-  { from: 'F', to: 'C', style: 'solid' },
-  { from: 'F', to: 'D', style: 'dashed' },
-];
 
 /* ── helpers ── */
 
 function connectedComponents(nodes: GNode[], edges: GEdge[]): number {
+  if (nodes.length === 0) return 0;
   const parent: Record<string, string> = {};
   const find = (n: string) => {
     if (parent[n] !== n) parent[n] = find(parent[n]);
@@ -48,40 +30,115 @@ function connectedComponents(nodes: GNode[], edges: GEdge[]): number {
   };
   nodes.forEach((n) => (parent[n.id] = n.id));
   edges.forEach((e) => {
-    const a = find(e.from), b = find(e.to);
-    if (a !== b) parent[a] = b;
+    if (parent[e.from] && parent[e.to]) {
+      const a = find(e.from), b = find(e.to);
+      if (a !== b) parent[a] = b;
+    }
   });
   const roots = new Set<string>();
   nodes.forEach((n) => roots.add(find(n.id)));
   return roots.size;
 }
 
+// Scale geometry coordinates to fit SVG viewport
+function scaleToViewport(x: number, y: number, objects: GeoObject[]): { x: number; y: number } {
+  if (objects.length === 0) return { x: 180, y: 180 };
+  const points = objects.filter((o) => o.type === 'point' && o.x !== undefined && o.y !== undefined);
+  if (points.length === 0) return { x: 180, y: 180 };
+
+  const xs = points.map((p) => p.x!);
+  const ys = points.map((p) => p.y!);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+  const padding = 40;
+  const viewW = 360 - padding * 2;
+  const viewH = 360 - padding * 2;
+
+  return {
+    x: padding + ((x - minX) / rangeX) * viewW,
+    y: padding + ((y - minY) / rangeY) * viewH,
+  };
+}
+
 /* ── component ── */
 
 export const GraphPanel: React.FC = () => {
-  const [nodes, setNodes] = useState<GNode[]>(DEFAULT_NODES);
+  const objects = useGeometryStore((s) => s.objects);
+  const selectedIds = useGeometryStore((s) => s.selectedIds);
+  const selectObjects = useGeometryStore((s) => s.selectObjects);
 
-  const handleMouseDown = useCallback((id: string) => {
-    const startPos = { x: 0, y: 0 };
-    const handleMove = (ev: MouseEvent) => {
-      const rect = (ev.target as SVGElement).closest('svg')!.getBoundingClientRect();
-      const x = ev.clientX - rect.left;
-      const y = ev.clientY - rect.top;
-      startPos.x = x;
-      startPos.y = y;
-      setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
-    };
-    const handleUp = () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-    };
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  }, []);
+  // Derive nodes from points
+  const nodes: GNode[] = useMemo(() => {
+    const points = objects.filter((o) => o.type === 'point' && o.x !== undefined && o.y !== undefined);
+    return points.map((p) => {
+      const scaled = scaleToViewport(p.x!, p.y!, objects);
+      return {
+        id: p.label,
+        label: p.label,
+        x: scaled.x,
+        y: scaled.y,
+        color: p.color,
+        storeId: p.id,
+      };
+    });
+  }, [objects]);
 
-  const solidEdges = EDGES.filter((e) => e.style === 'solid');
-  const dashedEdges = EDGES.filter((e) => e.style === 'dashed');
-  const components = connectedComponents(nodes, EDGES);
+  // Derive edges from segments and circles
+  const edges: GEdge[] = useMemo(() => {
+    const result: GEdge[] = [];
+    for (const o of objects) {
+      if (o.type === 'segment' && o.startId && o.endId) {
+        const startPt = objects.find((p) => p.id === o.startId);
+        const endPt = objects.find((p) => p.id === o.endId);
+        if (startPt && endPt) {
+          result.push({
+            from: startPt.label,
+            to: endPt.label,
+            style: 'solid',
+            label: o.label,
+          });
+        }
+      }
+      if (o.type === 'circle' && o.centerId && o.radiusPointId) {
+        const center = objects.find((p) => p.id === o.centerId);
+        const rp = objects.find((p) => p.id === o.radiusPointId);
+        if (center && rp) {
+          result.push({
+            from: center.label,
+            to: rp.label,
+            style: 'dashed',
+            label: o.label,
+          });
+        }
+      }
+      if (o.type === 'line' && o.startId && o.endId) {
+        const p1 = objects.find((p) => p.id === o.startId);
+        const p2 = objects.find((p) => p.id === o.endId);
+        if (p1 && p2) {
+          result.push({ from: p1.label, to: p2.label, style: 'solid', label: o.label });
+        }
+      }
+      if (o.type === 'ray' && o.startId && o.endId) {
+        const p1 = objects.find((p) => p.id === o.startId);
+        const p2 = objects.find((p) => p.id === o.endId);
+        if (p1 && p2) {
+          result.push({ from: p1.label, to: p2.label, style: 'dashed', label: o.label });
+        }
+      }
+    }
+    return result;
+  }, [objects]);
+
+  const handleMouseDown = useCallback((storeId: string) => {
+    selectObjects([storeId]);
+  }, [selectObjects]);
+
+  const solidEdges = edges.filter((e) => e.style === 'solid');
+  const dashedEdges = edges.filter((e) => e.style === 'dashed');
+  const components = connectedComponents(nodes, edges);
 
   const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]));
 
@@ -99,6 +156,8 @@ export const GraphPanel: React.FC = () => {
       />
     );
   };
+
+  const emptyState = objects.length === 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 8 }}>
@@ -119,6 +178,17 @@ export const GraphPanel: React.FC = () => {
           userSelect: 'none',
         }}
       >
+        {emptyState && (
+          <text
+            x={180} y={180}
+            textAnchor="middle" dominantBaseline="middle"
+            fill="var(--color-text-tertiary, #555)"
+            fontSize={12}
+            fontFamily="var(--font-mono)"
+          >
+            暂无对象 No objects
+          </text>
+        )}
         {/* edges: solid */}
         {solidEdges.map(line)}
         {/* edges: dashed */}
@@ -129,11 +199,11 @@ export const GraphPanel: React.FC = () => {
             <circle
               cx={n.x} cy={n.y} r={16}
               fill={n.color}
-              fillOpacity={0.2}
+              fillOpacity={selectedIds.includes(n.storeId) ? 0.5 : 0.2}
               stroke={n.color}
-              strokeWidth={2}
-              style={{ cursor: 'grab' }}
-              onMouseDown={() => handleMouseDown(n.id)}
+              strokeWidth={selectedIds.includes(n.storeId) ? 3 : 2}
+              style={{ cursor: 'pointer' }}
+              onClick={() => handleMouseDown(n.storeId)}
             />
             <text
               x={n.x} y={n.y + 1}
@@ -154,11 +224,11 @@ export const GraphPanel: React.FC = () => {
       <div style={{ display: 'flex', gap: 12, fontSize: 'var(--font-size-xs, 11px)', color: 'var(--color-text-secondary)' }}>
         <span>
           <span style={{ display: 'inline-block', width: 16, height: 2, background: 'var(--color-border-primary, #444)', verticalAlign: 'middle', marginRight: 4 }} />
-          线段 Segment
+          线段/直线 Segment/Line
         </span>
         <span>
           <span style={{ display: 'inline-block', width: 16, height: 0, borderTop: '2px dashed var(--color-border-primary, #444)', verticalAlign: 'middle', marginRight: 4 }} />
-          依赖 Dependency
+          圆/射线 Circle/Ray
         </span>
       </div>
 
@@ -176,7 +246,7 @@ export const GraphPanel: React.FC = () => {
         }}
       >
         <Stat label="节点 Nodes" value={String(nodes.length)} />
-        <Stat label="边 Edges" value={String(EDGES.length)} />
+        <Stat label="边 Edges" value={String(edges.length)} />
         <Stat label="连通分量 Components" value={String(components)} />
       </div>
     </div>
