@@ -157,7 +157,7 @@ const Layout: React.FC<LayoutProps> = ({
     if (!resizeState) return;
     const onMove = (e: MouseEvent) => {
       const delta = e.clientX - resizeState.startX;
-      const newWidth = Math.max(200, Math.min(380, resizeState.startWidth + delta));
+      const newWidth = Math.max(160, Math.min(380, resizeState.startWidth + delta));
       if (resizeState.sidebar === 'left') setLeftSidebarWidth(newWidth);
       else setRightSidebarWidth(newWidth);
     };

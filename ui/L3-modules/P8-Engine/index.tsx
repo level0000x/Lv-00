@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useGeometryStore } from '../../L5-core/store/geometryStore';
 
 /* ── types ── */
 
@@ -58,6 +59,8 @@ const StatCard: React.FC<{ label: string; value: string | number; accent?: boole
 /* ── EnginePanel ── */
 
 export const EnginePanel: React.FC = () => {
+  const objects = useGeometryStore((s) => s.objects);
+  const constraints = useGeometryStore((s) => s.constraints);
   const [engineState, setEngineState] = useState<EngineState>('idle');
   const [backend, setBackend] = useState<'wasm-rs' | 'js' | 'none'>('none');
 
@@ -71,7 +74,32 @@ export const EnginePanel: React.FC = () => {
     engineState === 'running' ? 'var(--color-accent, #4fc3f7)' :
     'var(--color-success, #81c784)';
 
+  // Real statistics from store
+  const stats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    objects.forEach((o) => { counts[o.type] = (counts[o.type] || 0) + 1; });
+    // Rough estimate: ~200 bytes per object (id, type, label, color, coords, etc.)
+    const approxBytes = objects.length * 200;
+    const approxKB = (approxBytes / 1024).toFixed(1);
+
+    return {
+      total: objects.length,
+      points: counts['point'] || 0,
+      segments: counts['segment'] || 0,
+      circles: counts['circle'] || 0,
+      lines: counts['line'] || 0,
+      rays: counts['ray'] || 0,
+      polygons: counts['polygon'] || 0,
+      arcs: counts['arc'] || 0,
+      angles: counts['angle'] || 0,
+      constraintCount: constraints.length,
+      storeSize: approxKB,
+      nonPointCount: objects.filter((o) => o.type !== 'point').length,
+    };
+  }, [objects, constraints]);
+
   const runDemo = () => {
+    useGeometryStore.getState().loadDemoScene();
     setEngineState('running');
     setTimeout(() => setEngineState('complete'), 2000);
   };
@@ -127,15 +155,18 @@ export const EnginePanel: React.FC = () => {
         </div>
       ))}
 
-      {/* stats grid */}
+      {/* stats grid - real data from store */}
       {section('\u7EDF\u8BA1 Statistics', (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          <StatCard label="节点 Nodes" value={6} />
-          <StatCard label="约束 Constraints" value={10} />
-          <StatCard label="证明 Proofs" value={2} accent />
-          <StatCard label="函数块 Blocks" value={5} />
-          <StatCard label="快照 Snapshots" value={3} />
-          <StatCard label="撤销深度 Undo" value={12} />
+          <StatCard label="总对象 Total" value={stats.total} accent />
+          <StatCard label="点 Points" value={stats.points} />
+          <StatCard label="线段 Segments" value={stats.segments} />
+          <StatCard label="圆 Circles" value={stats.circles} />
+          <StatCard label="直线 Lines" value={stats.lines} />
+          <StatCard label="射线 Rays" value={stats.rays} />
+          <StatCard label="多边形 Polygons" value={stats.polygons} />
+          <StatCard label="弧 Arcs" value={stats.arcs} />
+          <StatCard label="约束 Constraints" value={stats.constraintCount} />
         </div>
       ))}
 
@@ -143,15 +174,15 @@ export const EnginePanel: React.FC = () => {
       {section('\u6027\u80FD Performance', (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs, 11px)' }}>
-            <span style={{ color: 'var(--color-text-tertiary, #555)' }}>上次求解时间 Last solve</span>
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>1.23 ms</span>
+            <span style={{ color: 'var(--color-text-tertiary, #555)' }}>构造对象 Constructions</span>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>{stats.nonPointCount}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs, 11px)' }}>
-            <span style={{ color: 'var(--color-text-tertiary, #555)' }}>内存 Memory</span>
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>4.2 MB</span>
+            <span style={{ color: 'var(--color-text-tertiary, #555)' }}>存储估算 Store size</span>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>{stats.storeSize} KB</span>
           </div>
-          <ProgressBar label="内存占用 Memory" value={42} color="#4dd0e1" />
-          <ProgressBar label="证明完成 Proof completion" value={engineState === 'complete' ? 100 : engineState === 'running' ? 67 : 0} color="#81c784" />
+          <ProgressBar label="存储占用 Storage" value={Math.min(100, objects.length * 5)} color="#4dd0e1" />
+          <ProgressBar label="约束完成 Constraint" value={stats.constraintCount > 0 ? 100 : 0} color="#81c784" />
         </div>
       ))}
     </div>
