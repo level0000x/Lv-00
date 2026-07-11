@@ -50,7 +50,7 @@
  * @endcode
  *
  * @section version_sec 版本
- * 当前版本: 1.1.0
+ * 当前版本: 3.3.0
  *
  * @section architecture_sec 架构
  *
@@ -64,7 +64,7 @@
  * 详见 docs/ARCHITECTURE_v3.3.md
  *
  * @author Lv-00 Project
- * @version 1.1.0
+ * @version 3.3.0
  * @copyright Copyright (c) 2024-2026 Lv-00 Project
  */
 
@@ -158,17 +158,6 @@ extern "C" {
 #endif
 #endif
 
-/* ============== 全局默认常量 ============== */
-#ifndef LV00_DEFAULT_TIMEOUT_MS
-#define LV00_DEFAULT_TIMEOUT_MS 10000
-#endif
-#ifndef LV00_DEFAULT_MAX_ITERATIONS
-#define LV00_DEFAULT_MAX_ITERATIONS 1000
-#endif
-#ifndef MAX_BLOCK_PORTS
-#define MAX_BLOCK_PORTS 32
-#endif
-
 /* strdup 兼容性（非标准C函数）
  * 使用 lv00_strdup_safe 确保与 lv00_malloc/lv00_free 内存分配器兼容。
  * 如果 memory_pool.h 中声明了 lv00_strdup 函数，则不使用宏定义，
@@ -206,9 +195,9 @@ extern "C" {
 /* 向后兼容：旧宏名 LV00_PATH_SEPARATOR 保留 */
 #define LV00_PATH_SEPARATOR LV00_PATH_SEPARATOR_CHAR
 
-/* ---- 版本信息（统一版本号 v1.1.0，所有模块引用此宏） ---- */
-#define LV00_VERSION_MAJOR 1
-#define LV00_VERSION_MINOR 1
+/* ---- 版本信息（统一版本号 v3.3.0，所有模块引用此宏） ---- */
+#define LV00_VERSION_MAJOR 5
+#define LV00_VERSION_MINOR 0
 #define LV00_VERSION_PATCH 0
 #define LV00_VERSION_STRING_EXPAND(maj, min, pat) #maj "." #min "." #pat
 #define LV00_VERSION_STRING_MACRO(maj, min, pat) LV00_VERSION_STRING_EXPAND(maj, min, pat)
@@ -225,17 +214,50 @@ extern "C" {
 
 /* 核心模块 */
 #include "constraint_graph.h" /* 约束图核心 */
-
+#include "graph_hash.h"       /* 图结构哈希 */
+#include "normalization.h"    /* 图规范化遍引擎 */
+#include "rewrite.h"          /* 图重写引擎 */
 #include "solver.h"           /* 符号代数求解器 */
+#include "symbolic_coord.h"   /* 符号坐标系统 */
+#include "unify.h"            /* 合一检查 */
+
+/* 公理系统 */
+#include "axiom_pkg.h" /* 公理系统包 */
+#include "module.h"    /* 模块系统 */
+
+/* 高级功能 */
+#include "func_block.h"          /* 函数块系统 */
+#include "func_block_preset.h"   /* 预设函数块库 */
+#include "func_block_registry.h" /* 预设函数块注册系统 */
+
+/* 模块化预设函数块系统 */
+#include "preset_algebraic.h"       /* 代数运算模块 */
+#include "preset_basic_geometry.h"  /* 基础几何构造模块 */
+#include "preset_blocks.h"          /* 模块化预设函数块主系统 */
+#include "preset_measurements.h"    /* 度量计算模块 */
+#include "preset_polygons.h"        /* 多边形构造模块 */
+#include "preset_transformations.h" /* 几何变换模块 */
+#include "proof.h"                  /* 命题与证明系统 */
+#include "three_valued_logic.h"     /* 三值逻辑系统 */
+#include "modal_operators.h"        /* 模态逻辑算子 */
+#include "proof_engine_enhanced.h"  /* 增强证明引擎 */
+#include "recursion.h"              /* 递归与条件 */
+#include "type_system.h"            /* 类型系统 */
+#include "quantifier.h"             /* 量词系统 */
 
 /* 引擎 */
 #include "engine.h" /* 主引擎 */
+#include "magic.h"  /* Magic 模拟器模块 */
 
 /* 调试 */
 #include "debug.h" /* 调试工具 */
 
 /* 工具函数库 */
 #include "lv00_utils.h" /* 通用工具函数 */
+
+/* 流式输出 */
+#include "stream.h"              /* 流式事件系统 */
+#include "stream_context_util.h" /* 流式上下文工具宏 */
 
 /* ============================================================
  * === 版本信息 API ===
@@ -272,7 +294,7 @@ typedef struct LV00VersionInfo {
     int         major;          /**< 主版本号 */
     int         minor;          /**< 次版本号 */
     int         patch;          /**< 补丁版本号 */
-    const char *version_string; /**< 完整版本字符串（如 "1.1.0"） */
+    const char *version_string; /**< 完整版本字符串（如 "3.3.0"） */
     const char *platform;       /**< 编译平台名称 */
     const char *compiler;       /**< 编译器名称 */
     const char *arch;           /**< 目标架构 */
@@ -284,7 +306,7 @@ typedef struct LV00VersionInfo {
  * @brief 获取版本字符串（编译期常量）
  *
  * 返回编译期确定的版本字符串，零开销。
- * 格式为 "major.minor.patch"，例如 "1.1.0"。
+ * 格式为 "major.minor.patch"，例如 "3.3.0"。
  *
  * @return 版本字符串（静态常量，无需释放）
  *
@@ -294,7 +316,7 @@ typedef struct LV00VersionInfo {
  * 示例:
  * @code
  *   printf("Lv-00 version: %s\n", lv00_get_version_string());
- *   // 输出: Lv-00 version: 1.1.0
+ *   // 输出: Lv-00 version: 3.3.0
  * @endcode
  */
 LV00_PUBLIC_API const char *lv00_get_version_string(void);
@@ -655,7 +677,7 @@ LV00_PUBLIC_API const char *lv00_config_get_string(const char *key,
  * @param[in] value 配置值
  * @return true 成功，false 失败（键名无效或值超出范围）
  */
-LV00_PUBLIC_API int lv00_config_set_int(const char *key, int value);
+LV00_PUBLIC_API bool lv00_config_set_int(const char *key, int value);
 
 /**
  * @brief 设置布尔配置值
@@ -673,7 +695,7 @@ LV00_PUBLIC_API bool lv00_config_set_bool(const char *key, bool value);
  * @param[in] value 配置值
  * @return true 成功，false 失败
  */
-LV00_PUBLIC_API int lv00_config_set_double(const char *key, double value);
+LV00_PUBLIC_API bool lv00_config_set_double(const char *key, double value);
 
 /**
  * @brief 设置字符串配置值
@@ -783,7 +805,7 @@ LV00_PUBLIC_API bool lv00_are_assertions_enabled(void);
  * 确保 lv00.h 中的版本宏与 CMakeLists.txt 的 project(VERSION ...)
  * 保持一致。版本不匹配时触发编译错误，防止 API 兼容性问题。
  * ============================================================ */
-#if LV00_VERSION_MAJOR != 1 || LV00_VERSION_MINOR != 1 || LV00_VERSION_PATCH != 0
+#if LV00_VERSION_MAJOR != 5 || LV00_VERSION_MINOR != 0 || LV00_VERSION_PATCH != 0
 #error "[Lv-00] 版本宏不匹配：lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 与 CMakeLists.txt 的 project(VERSION ...) 不一致，请同步后重新编译。"
 #endif
 
