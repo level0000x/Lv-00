@@ -65,10 +65,6 @@ dist/
 .eggs/
 *.whl
 
-# WebAssembly
-web/wasm/dist/
-web/wasm/build/
-
 # Lake (Lean 4 build)
 .lake/
 
@@ -148,3 +144,7 @@ log/benchmark_results/_archive/
 # 分支原型目录（非正式源码）
 module/branches/
 .git-safe/
+
+# 已废弃/断裂的幽灵目录（目录存在但 Git 无法遍历 — 已清空无内容）
+lv00-ui/
+web/
