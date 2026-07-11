@@ -558,6 +558,11 @@ set(LV00_LAYER2_SOURCES
 set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph.c
     core/src/layer3_geometry/symbolic_coord.c
+    core/src/layer3_geometry/symbolics/rational.c
+    core/src/layer3_geometry/symbolics/algebraic.c
+    core/src/layer3_geometry/symbolics/quadratic.c
+    core/src/layer3_geometry/symbolics/transcendental.c
+    core/src/layer3_geometry/symbolics/symbolic_coord_ops.c
     core/src/layer3_geometry/euclidean_geometry.c
     core/src/layer3_geometry/interactive_geo.c
     core/src/layer3_geometry/high_dim.c
@@ -777,6 +782,11 @@ set(LV00_LAYER5_SOURCES
     core/src/layer5_output/tikz_export.c
     core/src/layer5_output/proof_export_enhanced.c
     core/src/layer5_output/interop/interop.c
+    core/src/layer5_output/interop/interop_server.c
+    core/src/layer5_output/interop/interop_command.c
+    core/src/layer5_output/interop/interop_export.c
+    core/src/layer5_output/interop/interop_import.c
+    core/src/layer5_output/interop/interop_theorem.c
     # Magic 模拟器模块
     core/src/layer5_output/magic/magic.c
     # 补全遗漏文件：几何可视化（基础版 + 完整版）
