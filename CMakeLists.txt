@@ -607,6 +607,11 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/engine.c
     core/src/layer4_reasoning/engine_scheduler.c
     core/src/layer4_reasoning/solver.c
+    core/src/layer4_reasoning/solver/solver_snapshot.c
+    core/src/layer4_reasoning/solver/solver_eq_system.c
+    core/src/layer4_reasoning/solver/solver_coord_extract.c
+    core/src/layer4_reasoning/solver/solver_linear.c
+    core/src/layer4_reasoning/solver/solver_symbolic.c
     core/src/layer4_reasoning/solver_core.c
     # 证明系统
     core/src/layer4_reasoning/proof.c
