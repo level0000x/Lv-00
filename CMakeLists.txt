@@ -505,6 +505,10 @@ set(LV00_HEADERS
 # 依赖：Layer 2
 set(LV00_LAYER1_SOURCES
     core/src/layer1_parser/formula_parser.c
+    core/src/layer1_parser/parser/formula_ast.c
+    core/src/layer1_parser/parser/formula_dsl.c
+    core/src/layer1_parser/parser/formula_latex.c
+    core/src/layer1_parser/parser/formula_python.c
     core/src/layer1_parser/formula_converter.c
     core/src/layer1_parser/formula_renderer.c
     core/src/layer1_parser/lexer_shared.c
@@ -557,6 +561,11 @@ set(LV00_LAYER2_SOURCES
 # 依赖：Layer 2，GMP（通过 Layer 2 传递）
 set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph.c
+    core/src/layer3_geometry/constraint_graph/graph_node.c
+    core/src/layer3_geometry/constraint_graph/graph_index.c
+    core/src/layer3_geometry/constraint_graph/graph_memory.c
+    core/src/layer3_geometry/constraint_graph/graph_conflict.c
+    core/src/layer3_geometry/constraint_graph/graph_serialize.c
     core/src/layer3_geometry/symbolic_coord.c
     core/src/layer3_geometry/symbolics/rational.c
     core/src/layer3_geometry/symbolics/algebraic.c
@@ -620,6 +629,10 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/solver_core.c
     # 证明系统
     core/src/layer4_reasoning/proof.c
+    core/src/layer4_reasoning/proof/proof_proposition.c
+    core/src/layer4_reasoning/proof/proof_navigator.c
+    core/src/layer4_reasoning/proof/proof_dependency.c
+    core/src/layer4_reasoning/proof/proof_version.c
     core/src/layer4_reasoning/proof_optimize.c
     core/src/layer4_reasoning/proof_multi_strategy.c
     core/src/layer4_reasoning/proof_trace.c
@@ -634,6 +647,10 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_engine_enhanced.c
     # 重写与合一
     core/src/layer4_reasoning/rewrite.c
+    core/src/layer4_reasoning/rewrite/rewrite_match.c
+    core/src/layer4_reasoning/rewrite/rewrite_apply.c
+    core/src/layer4_reasoning/rewrite/rewrite_vf2.c
+    core/src/layer4_reasoning/rewrite/rewrite_wl.c
     core/src/layer4_reasoning/unify.c
     core/src/layer4_reasoning/normalization.c
     core/src/layer4_reasoning/recursion.c
@@ -659,6 +676,9 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/numerical_backend.c
     # 内核与协议
     core/src/layer4_reasoning/module.c
+    core/src/layer4_reasoning/module/module_lvz.c
+    core/src/layer4_reasoning/module/module_serialize.c
+    core/src/layer4_reasoning/module/module_delta.c
     core/src/layer4_reasoning/mini_kernel.c
     core/src/layer4_reasoning/gc_language.c
     core/src/layer4_reasoning/ecosystem.c
