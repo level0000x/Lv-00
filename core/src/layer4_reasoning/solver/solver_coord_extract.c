@@ -30,6 +30,44 @@
 #define LV00_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define LV00_ZERO_EPSILON 1e-12
 #define SOLVER_DETAIL_BUF_SIZE 512
+
+/* --- 方程系统类型定义（与其他 solver 子模块保持一致）--- */
+typedef struct PolyEquation {
+    mpz_poly_t poly;
+    int var_node_id;
+    int coord_index;
+} PolyEquation;
+
+typedef struct EquationSystem {
+    PolyEquation *eqs;
+    int count;
+    int capacity;
+} EquationSystem;
+
+static int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+
+/** @brief 添加方程到方程系统 */
+static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
+    if (sys->count >= sys->capacity) {
+        int new_cap = sys->capacity == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : sys->capacity * 2;
+        PolyEquation *new_eqs = lv00_realloc(sys->eqs, (size_t)new_cap * sizeof(PolyEquation));
+        if (!new_eqs) return -1;
+        sys->eqs = new_eqs;
+        sys->capacity = new_cap;
+    }
+    sys->eqs[sys->count].var_node_id = var_node_id;
+    sys->eqs[sys->count].coord_index = coord_index;
+    mpz_poly_init(&sys->eqs[sys->count].poly);
+    mpz_poly_set(&sys->eqs[sys->count].poly, &poly);
+    sys->count++;
+    return 0;
+}
+
+/* 使用宏包装以保持一致性 */
+static int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
+    return equation_system_push_impl(sys, poly, var_node_id, coord_index);
+}
+
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
     do { \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
@@ -1419,3 +1457,11 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
  * @return true 表示成功求解，false 表示次数不为 1 或 a 近似为 0
  */
 static bool solve_linear(const mpz_poly_t *poly, double *x_out) {
+    if (!poly || !x_out) return false;
+    if (poly->degree != 1) return false;
+    double a = mpz_get_d(poly->coeffs[1]);
+    double b = mpz_get_d(poly->coeffs[0]);
+    if (fabs(a) < LV00_ZERO_EPSILON) return false;
+    *x_out = -b / a;
+    return true;
+}

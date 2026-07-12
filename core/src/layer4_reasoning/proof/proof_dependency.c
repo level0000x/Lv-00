@@ -774,8 +774,11 @@ static void backtrack_node_write_json(FILE *f, const BacktrackNode *node, int in
     fprintf(f, "%s{\n", pad);
     fprintf(f, "%s  \"id\": %d,\n", pad, node->id);
     fprintf(f, "%s  \"type\": \"%s\",\n", pad, backtrack_node_type_to_string(node->type));
-    fprintf(f, "%s  \"label\": \"%s\",\n", pad, json_escape(node->label));
-    fprintf(f, "%s  \"strategy\": \"%s\",\n", pad, json_escape(node->strategy_name));
+    char _esc_buf1[512], _esc_buf2[512];
+    json_escape(_esc_buf1, sizeof(_esc_buf1), node->label);
+    json_escape(_esc_buf2, sizeof(_esc_buf2), node->strategy_name);
+    fprintf(f, "%s  \"label\": \"%s\",\n", pad, _esc_buf1);
+    fprintf(f, "%s  \"strategy\": \"%s\",\n", pad, _esc_buf2);
     fprintf(f, "%s  \"isBacktrackPoint\": %s,\n", pad, node->is_backtrack_point ? "true" : "false");
     fprintf(f, "%s  \"explored\": %s,\n", pad, node->explored ? "true" : "false");
     fprintf(f, "%s  \"color\": \"%s\",\n", pad, proof_color_to_string(node->color));

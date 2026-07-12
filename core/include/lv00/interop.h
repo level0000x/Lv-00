@@ -532,6 +532,25 @@ char **interop_get_command_completions(LV00Engine *engine, const char *prefix, i
  */
 void interop_free_completions(char **completions, int count);
 
+/* ==================== 内部共享函数 ==================== */
+
+/** @brief 获取信任颜色对应的 SVG 颜色字符串 */
+const char *interop_trust_color_to_svg(TrustColor trust);
+/** @brief 获取信任颜色对应的 TikZ 颜色字符串 */
+const char *interop_trust_color_to_tikz(TrustColor trust);
+/** @brief 获取几何类型名称字符串 */
+const char *interop_geom_type_name(GeomType type);
+/** @brief 获取约束类型名称字符串 */
+const char *interop_constraint_type_name(ConstraintType type);
+/** @brief 流式输出回调（供 interop_command.c 使用） */
+void interop_stream_callback(const struct StreamEvent *event, void *user_data);
+
+/* 兼容宏 */
+#define trust_color_to_svg(trust)     interop_trust_color_to_svg(trust)
+#define trust_color_to_tikz(trust)    interop_trust_color_to_tikz(trust)
+#define geom_type_name(type)          interop_geom_type_name(type)
+#define constraint_type_name(type)    interop_constraint_type_name(type)
+
 #ifdef __cplusplus
 }
 #endif

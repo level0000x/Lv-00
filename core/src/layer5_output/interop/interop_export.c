@@ -16,11 +16,17 @@
 #include <string.h>
 #include <zlib.h>
 #include "lv00/constraint_graph.h"
+#include "lv00/engine.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
 LV00_DECLARE_STREAM_CTX(interop);
+
+/** @brief 单个约束节点涉及的最大约束数量 */
+#ifndef MAX_CONSTRAINT_INDICES
+#define MAX_CONSTRAINT_INDICES 32
+#endif
 
 /* ── 导出模块 ── */
 
@@ -2879,3 +2885,6 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
 /** @brief 从字节缓冲区读取小端序 uint32 */
 static uint32_t ggb_read_u32_le(const uint8_t *buf, size_t offset) {
+    return (uint32_t)buf[offset] | ((uint32_t)buf[offset + 1] << 8) |
+           ((uint32_t)buf[offset + 2] << 16) | ((uint32_t)buf[offset + 3] << 24);
+}

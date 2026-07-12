@@ -63,7 +63,7 @@ const char *formula_parser_get_last_error(void) {
  * DSL 关键字表
  * ============================================================ */
 
-static const char *DSL_KEYWORDS[] = {"point",         "segment",  "circle",    "triangle", "line",      "region",
+const char *formula_dsl_keywords[] = {"point",         "segment",  "circle",    "triangle", "line",      "region",
                                      "perpendicular", "parallel", "midpoint",  "angle",    "distance",  "area",
                                      "perimeter",     "tangent",  "intersect", "equal",    "collinear", "bisector",
                                      "congruent",     "polygon",  "vector",    NULL};
@@ -72,7 +72,7 @@ static const char *DSL_KEYWORDS[] = {"point",         "segment",  "circle",    "
  * LaTeX 命令表
  * ============================================================ */
 
-static const char *LATEX_COMMANDS[] = {
+const char *formula_latex_commands[] = {
     "\\frac",   "\\sqrt",   "\\sin",    "\\cos",     "\\tan",    "\\cot",    "\\pi",    "\\theta", "\\alpha",
     "\\beta",   "\\gamma",  "\\delta",  "\\epsilon", "\\lambda", "\\mu",     "\\sigma", "\\omega", "\\leq",
     "\\geq",    "\\neq",    "\\approx", "\\equiv",   "\\cdot",   "\\times",  "\\div",   "\\left",  "\\right",
@@ -82,7 +82,7 @@ static const char *LATEX_COMMANDS[] = {
  * Python 特征表
  * ============================================================ */
 
-static const char *PYTHON_FEATURES[] = {"**",    "==",   "!=",     "<=",      ">=",      "and ", "or ",  "not ",
+const char *formula_python_features[] = {"**",    "==",   "!=",     "<=",      ">=",      "and ", "or ",  "not ",
                                         "sqrt(", "sin(", "cos(",   "tan(",    "abs(",    "pow(", "True", "False",
                                         "None",  "pi",   "e)",     "import ", "from ",   "def ", "if ",  "else ",
                                         "elif ", "for ", "while ", "return ", "lambda ", NULL};
@@ -110,7 +110,7 @@ static const char *GREEK_LETTERS[] = {
  *
  * @param ctx 解析器上下文指针
  */
-static void skip_whitespace(ParserContext *ctx) {
+void formula_skip_whitespace(ParserContext *ctx) {
     while (ctx->pos < ctx->length) {
         char c = ctx->input[ctx->pos];
         if (c == ' ' || c == '\t' || c == '\r') {
@@ -139,7 +139,7 @@ static void skip_whitespace(ParserContext *ctx) {
  * @param ctx 解析器上下文指针
  * @return char 当前字符，如果已到达末尾则返回 '\0'
  */
-static char peek(ParserContext *ctx) {
+char formula_peek(ParserContext *ctx) {
     if (ctx->pos >= ctx->length) {
         return '\0';
     }
@@ -155,7 +155,7 @@ static char peek(ParserContext *ctx) {
  * @param ctx 解析器上下文指针
  * @return char 下一个字符，如果接近末尾则返回 '\0'
  */
-static char peek_next(ParserContext *ctx) {
+char formula_peek_next(ParserContext *ctx) {
     if (ctx->pos + 1 >= ctx->length) {
         return '\0';
     }
@@ -171,7 +171,7 @@ static char peek_next(ParserContext *ctx) {
  * @param ctx 解析器上下文指针
  * @return char 被消费的字符，如果已到达末尾则返回 '\0'
  */
-static char consume(ParserContext *ctx) {
+char formula_consume(ParserContext *ctx) {
     if (ctx->pos >= ctx->length) {
         return '\0';
     }
@@ -197,7 +197,7 @@ static char consume(ParserContext *ctx) {
  * @return true 当前位置匹配给定字符串
  * @return false 当前位置不匹配或输入长度不足
  */
-static bool match_string(ParserContext *ctx, const char *str) {
+bool formula_match_string(ParserContext *ctx, const char *str) {
     size_t len = strlen(str);
     if (ctx->pos + len > ctx->length) {
         return false;
@@ -216,8 +216,8 @@ static bool match_string(ParserContext *ctx, const char *str) {
  * @return true 成功匹配并消费字符串
  * @return false 匹配失败，解析位置不变
  */
-static bool match_and_consume(ParserContext *ctx, const char *str) {
-    if (!match_string(ctx, str)) {
+bool formula_match_and_consume(ParserContext *ctx, const char *str) {
+    if (!formula_match_string(ctx, str)) {
         return false;
     }
     size_t len = strlen(str);
@@ -238,8 +238,8 @@ static bool match_and_consume(ParserContext *ctx, const char *str) {
  * @return true 成功匹配并消费字符
  * @return false 字符不匹配或已到达末尾，错误状态已设置
  */
-static bool expect_char(ParserContext *ctx, char c) {
-    if (peek(ctx) != c) {
+bool formula_expect_char(ParserContext *ctx, char c) {
+    if (formula_peek(ctx) != c) {
         char msg[LV00_MAX_TEMP_MSG_SIZE];
         snprintf(msg, sizeof(msg), "Expected '%c' but got '%s'", c, peek(ctx) ? "unexpected char" : "EOF");
         /* 使用 lv00_strlcpy 替代不安全的 strncpy */
@@ -261,7 +261,7 @@ static bool expect_char(ParserContext *ctx, char c) {
  * @param ctx 解析器上下文指针
  * @param msg 错误消息字符串
  */
-static void set_error(ParserContext *ctx, const char *msg) {
+void formula_set_error(ParserContext *ctx, const char *msg) {
     if (!ctx->has_error) {
         snprintf(ctx->error_message, sizeof(ctx->error_message), "Error at line %d, column %d: %s", ctx->line,
                  ctx->column, msg);
@@ -277,7 +277,7 @@ static void set_error(ParserContext *ctx, const char *msg) {
  * @return true 已到达输入末尾
  * @return false 尚未到达输入末尾
  */
-static bool is_at_end(ParserContext *ctx) {
+bool formula_is_at_end(ParserContext *ctx) {
     return ctx->pos >= ctx->length;
 }
 
@@ -290,7 +290,7 @@ static bool is_at_end(ParserContext *ctx) {
  * @return true 字符是字母或下划线
  * @return false 字符不是字母或下划线
  */
-static bool is_alpha(char c) {
+bool formula_is_alpha(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
@@ -304,8 +304,8 @@ static bool is_alpha(char c) {
  * @return true 字符是字母、数字或下划线
  * @return false 字符不是上述字符
  */
-static bool is_alnum(char c) {
-    return is_alpha(c) || (c >= '0' && c <= '9');
+bool formula_is_alnum(char c) {
+    return formula_is_alpha(c) || (c >= '0' && c <= '9');
 }
 
 /**
@@ -317,7 +317,7 @@ static bool is_alnum(char c) {
  * @return true 字符是数字
  * @return false 字符不是数字
  */
-static bool is_digit(char c) {
+bool formula_is_digit(char c) {
     return c >= '0' && c <= '9';
 }
 

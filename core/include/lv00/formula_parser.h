@@ -479,6 +479,108 @@ FormulaNode *formula_create_compound(FormulaNode **statements, int count);
  */
 int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement);
 
+/* ============================================================
+ * 解析器内部辅助函数 —— 跨编译单元共享
+ *
+ * 以下函数在 formula_parser.c 中定义，供 formula_dsl.c、
+ * formula_latex.c、formula_python.c 等子模块使用。
+ * ============================================================ */
+
+/** @brief 跳过空白字符和注释 */
+void formula_skip_whitespace(ParserContext *ctx);
+/** @brief 查看当前字符（不消费） */
+char formula_peek(ParserContext *ctx);
+/** @brief 查看下一个字符（不消费） */
+char formula_peek_next(ParserContext *ctx);
+/** @brief 消费当前字符 */
+char formula_consume(ParserContext *ctx);
+/** @brief 期望并消费指定字符 */
+bool formula_expect_char(ParserContext *ctx, char c);
+/** @brief 设置解析错误信息 */
+void formula_set_error(ParserContext *ctx, const char *msg);
+/** @brief 检查是否到达输入末尾 */
+bool formula_is_at_end(ParserContext *ctx);
+/** @brief 检查字符是否为字母或下划线 */
+bool formula_is_alpha(char c);
+/** @brief 检查字符是否为字母、数字或下划线 */
+bool formula_is_alnum(char c);
+/** @brief 检查字符是否为十进制数字 */
+bool formula_is_digit(char c);
+/** @brief 检查当前位置是否匹配字符串（不消费） */
+bool formula_match_string(ParserContext *ctx, const char *str);
+/** @brief 匹配并消费字符串 */
+bool formula_match_and_consume(ParserContext *ctx, const char *str);
+/** @brief 跟踪节点（设置行列号、引用计数） */
+FormulaNode *formula_track_node(ParserContext *ctx, FormulaNode *node);
+/** @brief 解析数字字面量 */
+FormulaNode *formula_parse_number(ParserContext *ctx);
+/** @brief 解析标识符字符串 */
+char *formula_parse_identifier_str(ParserContext *ctx);
+
+/** @brief DSL 关键字表（NULL 终止） */
+extern const char *formula_dsl_keywords[];
+/** @brief LaTeX 命令表（NULL 终止） */
+extern const char *formula_latex_commands[];
+/** @brief Python 特征表（NULL 终止） */
+extern const char *formula_python_features[];
+
+/** @brief DSL 语法顶层解析入口 */
+FormulaNode *parse_dsl_compound(ParserContext *ctx);
+/** @brief LaTeX 语法顶层解析入口 */
+FormulaNode *parse_latex_expression(ParserContext *ctx);
+/** @brief Python 语法顶层解析入口 */
+FormulaNode *parse_python_expression(ParserContext *ctx);
+
+/** @brief 函数参数最大数量 */
+#ifndef LV00_MAX_ARGUMENTS
+#define LV00_MAX_ARGUMENTS 32
+#endif
+
+/** @brief 坐标最大维度 */
+#ifndef LV00_MAX_COORDINATES
+#define LV00_MAX_COORDINATES 4
+#endif
+
+/** @brief 多边形最大顶点数 */
+#ifndef LV00_MAX_POLYGON_VERTICES
+#define LV00_MAX_POLYGON_VERTICES 64
+#endif
+
+/** @brief 临时消息缓冲区大小 */
+#ifndef LV00_MAX_TEMP_MSG_SIZE
+#define LV00_MAX_TEMP_MSG_SIZE 512
+#endif
+
+/** @brief 约束最大参与者数 */
+#ifndef LV00_MAX_PARTICIPANTS
+#define LV00_MAX_PARTICIPANTS 16
+#endif
+
+/** @brief 复合语句最大数量 */
+#ifndef LV00_MAX_STATEMENTS
+#define LV00_MAX_STATEMENTS 256
+#endif
+
+/* 兼容宏：简化子模块中的调用 */
+#define set_error(ctx, msg)            formula_set_error(ctx, msg)
+#define is_digit(c)                    formula_is_digit(c)
+#define is_alpha(c)                    formula_is_alpha(c)
+#define is_alnum(c)                    formula_is_alnum(c)
+#define peek(ctx)                      formula_peek(ctx)
+#define peek_next(ctx)                 formula_peek_next(ctx)
+#define consume(ctx)                   formula_consume(ctx)
+#define skip_whitespace(ctx)           formula_skip_whitespace(ctx)
+#define expect_char(ctx, c)            formula_expect_char(ctx, c)
+#define is_at_end(ctx)                 formula_is_at_end(ctx)
+#define match_string(ctx, str)         formula_match_string(ctx, str)
+#define match_and_consume(ctx, str)    formula_match_and_consume(ctx, str)
+#define track_node(ctx, node)          formula_track_node(ctx, node)
+#define parse_number(ctx)              formula_parse_number(ctx)
+#define parse_identifier_str(ctx)      formula_parse_identifier_str(ctx)
+#define DSL_KEYWORDS                   formula_dsl_keywords
+#define LATEX_COMMANDS                 formula_latex_commands
+#define PYTHON_FEATURES                formula_python_features
+
 #ifdef __cplusplus
 }
 #endif

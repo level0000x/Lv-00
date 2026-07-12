@@ -732,7 +732,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
  * @param trust 信任颜色枚举值
  * @return 对应的 SVG 颜色字符串（如 "#22c55e"），未知颜色返回 "#9ca3af"
  */
-static const char *trust_color_to_svg(TrustColor trust) {
+const char *interop_trust_color_to_svg(TrustColor trust) {
     (void)trust;
     /* 颜色映射已迁移至 lv00_protocol.c */
     return NULL;
@@ -746,7 +746,7 @@ static const char *trust_color_to_svg(TrustColor trust) {
  * @param trust 信任颜色枚举值
  * @return 对应的 TikZ 颜色字符串（如 "green!70!black"），未知颜色返回 "gray"
  */
-static const char *trust_color_to_tikz(TrustColor trust) {
+const char *interop_trust_color_to_tikz(TrustColor trust) {
     (void)trust;
     /* 颜色映射已迁移至 lv00_protocol.c */
     return NULL;
@@ -760,7 +760,7 @@ static const char *trust_color_to_tikz(TrustColor trust) {
  * @param type 几何类型枚举值
  * @return 对应的类型名称字符串（如 "point"、"line_segment"），未知类型返回 "unknown"
  */
-static const char *geom_type_name(GeomType type) {
+const char *interop_geom_type_name(GeomType type) {
     switch (type) {
         case GEOM_POINT:
             return "point";
@@ -785,7 +785,7 @@ static const char *geom_type_name(GeomType type) {
  * @param type 约束类型枚举值
  * @return 对应的类型名称字符串（如 "incidence"、"betweenness"），未知类型返回 "unknown"
  */
-static const char *constraint_type_name(ConstraintType type) {
+const char *interop_constraint_type_name(ConstraintType type) {
     switch (type) {
         case INCIDENCE:
             return "incidence";

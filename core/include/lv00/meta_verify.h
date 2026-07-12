@@ -41,13 +41,13 @@ typedef enum {
  * ============================================================ */
 
 /**
- * @brief 单项检查结果
+ * @brief 单项检查结果（元验证专用）
  */
 typedef struct {
     Lv00VerifyCheck check;       /**< 检查项标识 */
     int passed;                   /**< 1=通过, 0=失败, -1=跳过 */
     char description[512];       /**< 检查描述/诊断信息 */
-} Lv00VerifyResult;
+} Lv00MetaVerifyResult;
 
 /**
  * @brief 元验证报告

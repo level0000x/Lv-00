@@ -18,7 +18,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
-static FormulaNode *parse_python_expression(ParserContext *ctx);
+FormulaNode *parse_python_expression(ParserContext *ctx);
 static FormulaNode *parse_python_term(ParserContext *ctx);
 static FormulaNode *parse_python_factor(ParserContext *ctx);
 static FormulaNode *parse_python_atom(ParserContext *ctx);
@@ -281,7 +281,7 @@ static FormulaNode *parse_python_term(ParserContext *ctx) {
  * @param ctx 解析器上下文指针
  * @return FormulaNode* 解析出的表达式节点，失败返回 NULL
  */
-static FormulaNode *parse_python_expression(ParserContext *ctx) {
+FormulaNode *parse_python_expression(ParserContext *ctx) {
     FormulaNode *left = parse_python_term(ctx);
     if (!left)
         return NULL;
@@ -333,18 +333,4 @@ static FormulaNode *parse_python_expression(ParserContext *ctx) {
     return left;
 }
 
-/* ============================================================
- * 主解析函数
- * ============================================================ */
-
-/**
- * @brief 解析公式字符串为 AST
- *
- * 支持多种语法格式（DSL、LaTeX、Python 等），自动检测或按指定语法解析。
- * 返回的 AST 节点引用计数为 1，调用者需通过 formula_node_destroy() 释放。
- *
- * @param input  输入公式字符串，不能为 NULL
- * @param syntax 语法格式名称（如 "dsl"、"latex"、"python"），NULL 时自动检测
- * @return 新分配的 AST 根节点指针，失败返回 NULL
- */
-FormulaNode *formula_parse(const char *input, const char *syntax) {
+/* formula_parse 定义在 formula_parser.c 中，此处不再重复 */

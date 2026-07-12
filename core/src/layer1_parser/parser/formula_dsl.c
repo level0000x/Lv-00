@@ -9,6 +9,7 @@
 
 #include <float.h>
 #include <math.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -341,7 +342,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
  * @param[in]     node 新创建的AST节点
  * @return 新创建的节点（如果超限则释放并返回NULL）
  */
-static FormulaNode *track_node(ParserContext *ctx, FormulaNode *node) {
+FormulaNode *formula_track_node(ParserContext *ctx, FormulaNode *node) {
     if (!node) return NULL;
     ctx->node_count++;
     if (ctx->node_count > LV00_MAX_AST_NODES) {
@@ -373,7 +374,7 @@ static FormulaNode *track_node(ParserContext *ctx, FormulaNode *node) {
  * @param ctx 解析器上下文指针
  * @return FormulaNode* 解析出的数字节点，失败返回 NULL
  */
-static FormulaNode *parse_number(ParserContext *ctx) {
+FormulaNode *formula_parse_number(ParserContext *ctx) {
     size_t start = ctx->pos;
     bool has_dot = false;
     bool has_exponent = false;
@@ -605,7 +606,7 @@ static FormulaNode *parse_number(ParserContext *ctx) {
  * @return char* 解析出的标识符字符串（需调用者释放），失败返回 NULL
  * @retval NULL 解析失败，错误信息已设置到上下文中
  */
-static char *parse_identifier_str(ParserContext *ctx) {
+char *formula_parse_identifier_str(ParserContext *ctx) {
     if (!is_alpha(peek(ctx))) {
         set_error(ctx, "Expected identifier");
         return NULL;
@@ -1865,7 +1866,7 @@ static FormulaNode *parse_dsl_statement(ParserContext *ctx) {
  * @param ctx 解析器上下文指针
  * @return FormulaNode* 解析出的复合节点或单个语句节点，无语句返回 NULL
  */
-static FormulaNode *parse_dsl_compound(ParserContext *ctx) {
+FormulaNode *parse_dsl_compound(ParserContext *ctx) {
     FormulaNode *statements[LV00_MAX_STATEMENTS] = {NULL};
     int statement_count = 0;
 
@@ -1916,4 +1917,4 @@ static FormulaNode *parse_dsl_compound(ParserContext *ctx) {
  * LaTeX 解析器
  * ============================================================ */
 
-static FormulaNode *parse_latex_expression(ParserContext *ctx);
+/* parse_latex_expression 已在 formula_parser.h 中声明 */

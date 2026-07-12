@@ -16,6 +16,7 @@
 #include <string.h>
 #include <zlib.h>
 #include "lv00/constraint_graph.h"
+#include "lv00/engine.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
@@ -26,7 +27,13 @@
 #define GGB_EOCD_SIG        0x06054b50
 #define GGB_CENTRAL_DIR_MIN 46
 #define GGB_LOCAL_FILE_SIG  0x04034b50
+#define GGB_LOCAL_HEADER_MIN 30  /* ZIP local file header fixed size */
 #define GGB_CENTRAL_DIR_SIG 0x02014b50
+
+/** @brief 导入坐标精度分母（1e6 精度） */
+#ifndef INTEROP_COORD_DENOM_PRECISION
+#define INTEROP_COORD_DENOM_PRECISION 1000000ULL
+#endif
 
 /* ── GeoGebra ZIP 解析器 ── */
 
@@ -822,6 +829,12 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
      *   4. 解压（STORE 或 Deflate）获取 XML 内容
      *   5. 手工 XML 解析，提取 <element> 标签
      *   6. 按 type 属性（point/segment/circle/line/polygon）映射到约束图
+     */
+    if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
+    (void)engine; (void)config;
+    /* TODO: 实现 GeoGebra .ggb 导入 */
+    return LV00_ERROR_UNSUPPORTED;
+}
 
 /* ── SVG 解析器 ── */
 
@@ -1498,3 +1511,8 @@ static int svg_parse_circle(double cx, double cy, double r, double *out_points, 
 }
 
 int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
+    if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
+    (void)engine; (void)config;
+    /* TODO: 实现 SVG 导入 */
+    return LV00_ERROR_UNSUPPORTED;
+}

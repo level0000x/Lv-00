@@ -54,6 +54,36 @@ typedef struct EquationSystem {
 
 /* ── 符号求解器 ── */
 
+/* 从 solver_coord_extract.c / solver.c / solver_linear.c 中共享的函数 */
+static bool coord_to_double(const SymbolicCoord *c, double *out) {
+    if (!c || !out) return false;
+    char *str = symbolic_coord_serialize(c);
+    if (!str) return false;
+    char *endptr = NULL;
+    *out = strtod(str, &endptr);
+    lv00_free((void **) &str);
+    return (endptr != str);
+}
+
+static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
+    mpz_set_d(result, val * (double)scale);
+}
+
+static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions) {
+    (void)poly; (void)solutions; (void)max_solutions;
+    /* TODO: 实现精确二次求解 */
+    return 0;
+}
+
+static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions) {
+    (void)poly; (void)solutions; (void)max_solutions;
+    /* TODO: 实现精确三次求解 */
+    return 0;
+}
+
+/* solver 流式输出上下文（定义在 solver.c 中） */
+static LV00_THREAD_LOCAL StreamContext *solver_stream_ctx;
+
 static bool symbolic_coord_to_mpq(const SymbolicCoord *c, mpq_t out) {
     if (!c)
         return false;
@@ -1068,3 +1098,12 @@ static void cleanup_groebner_result(GroebnerResult *result) {
 
 /* 前向声明：order_variables_by_dependency（定义见下文） */
 static int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
+                                          int *out_count) {
+    (void)graph;
+    if (!var_ids || var_count <= 0 || !out_count) return NULL;
+    int *order = (int *)lv00_malloc((size_t)var_count * sizeof(int));
+    if (!order) return NULL;
+    for (int i = 0; i < var_count; i++) order[i] = var_ids[i];
+    *out_count = var_count;
+    return order;
+}

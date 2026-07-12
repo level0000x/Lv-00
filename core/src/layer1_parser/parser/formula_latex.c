@@ -18,7 +18,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
-static FormulaNode *parse_latex_expression(ParserContext *ctx);
+FormulaNode *parse_latex_expression(ParserContext *ctx);
 static FormulaNode *parse_latex_term(ParserContext *ctx);
 static FormulaNode *parse_latex_factor(ParserContext *ctx);
 static FormulaNode *parse_latex_atom(ParserContext *ctx);
@@ -418,7 +418,7 @@ static FormulaNode *parse_latex_term(ParserContext *ctx) {
  * @param ctx 解析器上下文指针
  * @return FormulaNode* 解析出的表达式节点，失败返回 NULL
  */
-static FormulaNode *parse_latex_expression(ParserContext *ctx) {
+FormulaNode *parse_latex_expression(ParserContext *ctx) {
     FormulaNode *left = parse_latex_term(ctx);
     if (!left)
         return NULL;
@@ -475,4 +475,4 @@ static FormulaNode *parse_latex_expression(ParserContext *ctx) {
  * Python 解析器
  * ============================================================ */
 
-static FormulaNode *parse_python_expression(ParserContext *ctx);
+/* parse_python_expression 已在 formula_parser.h 中声明 */

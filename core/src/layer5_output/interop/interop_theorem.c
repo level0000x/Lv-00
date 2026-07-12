@@ -16,6 +16,7 @@
 #include <string.h>
 #include <zlib.h>
 #include "lv00/constraint_graph.h"
+#include "lv00/engine.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"

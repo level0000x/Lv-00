@@ -16,6 +16,7 @@
 #include <string.h>
 #include <zlib.h>
 #include "lv00/constraint_graph.h"
+#include "lv00/engine.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
@@ -145,7 +146,6 @@ static void stdout_lock_destroy(void) {
  * 由 interop_set_stream_context() 设置，通常在引擎初始化时
  * 通过 engine_get_stream_context() 获取并注入。
  */
-LV00_DECLARE_STREAM_CTX(interop);
 
 /* ==================== 流式输出集成 ==================== */
 
@@ -162,7 +162,7 @@ LV00_DECLARE_STREAM_CTX(interop);
  * @param event     流式事件数据
  * @param user_data  指向 InteropServer 的指针（用于统计）
  */
-static void interop_stream_callback(const StreamEvent *event, void *user_data) {
+void interop_stream_callback(const StreamEvent *event, void *user_data) {
     if (!event)
         return;
 
@@ -847,3 +847,8 @@ int interop_server_run(InteropServer *server) {
  * @return LV00_OK 成功，错误码表示失败原因
  */
 int interop_parse_command(const char *input, InteropCommand *cmd) {
+    if (!input || !cmd) return LV00_ERROR_INVALID_PARAM;
+    (void)input; (void)cmd;
+    /* TODO: 实现命令解析 */
+    return LV00_ERROR_UNSUPPORTED;
+}

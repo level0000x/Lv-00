@@ -21,7 +21,7 @@
 #define SNAP_LEN    (LV00_GEO_STATE_BUFFER_SIZE)
 
 /* 前向声明 */
-static void interactive_geo_snapshot(Lv00InteractiveGeo *g, const char *label);
+int interactive_geo_snapshot(Lv00InteractiveGeo *g);
 
 /* ── 内部辅助 ── */
 
