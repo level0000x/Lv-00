@@ -123,6 +123,20 @@ LV00_PUBLIC_API bool ga_mv_equal(const Lv00MultiVector *a, const Lv00MultiVector
 /** @brief Check if all coefficients are within eps of zero. */
 LV00_PUBLIC_API bool ga_mv_is_zero(const Lv00MultiVector *mv, double eps);
 
+/** @brief Create scalar multivector with given value at grade-0. */
+LV00_PUBLIC_API Lv00MultiVector *ga_mv_scalar(double value);
+
+/* ============================================================
+ * Convenience aliases (short names)
+ * ============================================================ */
+#define ga_geometric_product(a, b)  ga_mv_geometric_product(a, b)
+#define ga_outer_product(a, b)      ga_mv_outer_product(a, b)
+#define ga_inner_product(a, b)      ga_mv_inner_product(a, b)
+#define ga_reverse(mv)              ga_mv_reverse(mv)
+#define ga_norm(mv)                 ga_mv_norm(mv)
+#define ga_norm_squared(mv)         ga_mv_norm_squared(mv)
+#define ga_equal(a, b, eps)         ga_mv_equal(a, b, eps)
+
 #ifdef __cplusplus
 }
 #endif

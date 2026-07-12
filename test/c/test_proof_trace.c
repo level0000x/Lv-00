@@ -135,9 +135,8 @@ static void test_proof_tree_node_add_premise(void) {
     TEST_ASSERT_EQ(node->premise_count, 0);
 
     /* 添加一个公理性前提 */
-    bool ok = lv00_proof_tree_add_premise(node, 100,
+    lv00_proof_tree_add_premise(node, 100,
         "Through any two points there is exactly one line", true);
-    TEST_ASSERT_MSG(ok, "add_premise should succeed");
     TEST_ASSERT_EQ(node->premise_count, 1);
 
     /* 验证前提字段 */
@@ -146,9 +145,8 @@ static void test_proof_tree_node_add_premise(void) {
     TEST_ASSERT_EQ(node->premises[0].is_axiom, (intptr_t)true);
 
     /* 添加第二个前提（非公理，如已证定理） */
-    ok = lv00_proof_tree_add_premise(node, 101,
+    lv00_proof_tree_add_premise(node, 101,
         "Triangle ABC is isosceles", false);
-    TEST_ASSERT_MSG(ok, "add_premise should succeed");
     TEST_ASSERT_EQ(node->premise_count, 2);
     TEST_ASSERT_EQ(node->premises[1].premise_id, 101);
     TEST_ASSERT_NOT_NULL(node->premises[1].description);

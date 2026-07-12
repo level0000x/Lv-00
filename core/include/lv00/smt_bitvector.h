@@ -45,6 +45,26 @@ int lv00_bv_equals(const Lv00BitVec *a, const Lv00BitVec *b);
 
 void lv00_bv_free(Lv00BitVec *bv);
 
+/** Convenience macros for test compatibility */
+#define bv_create(w)        lv00_bv_create((w), 0)
+#define bv_destroy(bv)      lv00_bv_free(bv)
+#define bv_and(a, b)        lv00_bv_and(a, b)
+#define bv_or(a, b)         lv00_bv_or(a, b)
+#define bv_xor(a, b)        lv00_bv_xor(a, b)
+#define bv_not(a)           lv00_bv_not(a)
+#define bv_add(a, b)        lv00_bv_add(a, b)
+#define bv_mul(a, b)        lv00_bv_mul(a, b)
+#define bv_eq(a, b)         lv00_bv_equals(a, b)
+#define bv_extract(bv, h, l) lv00_bv_extract(bv, h, l)
+#define bv_concat(a, b)     lv00_bv_concat(a, b)
+#define bv_to_int(bv)       lv00_bv_to_int(bv)
+
+/** Bitwise NOT */
+Lv00BitVec *lv00_bv_not(const Lv00BitVec *a);
+
+/** Convert bitvector to integer */
+long long lv00_bv_to_int(const Lv00BitVec *bv);
+
 #ifdef __cplusplus
 }
 #endif

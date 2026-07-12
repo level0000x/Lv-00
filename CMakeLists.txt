@@ -636,6 +636,7 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_system/proof_optimize.c
     core/src/layer4_reasoning/proof_system/proof_multi_strategy.c
     core/src/layer4_reasoning/proof_trace.c
+    core/src/layer4_reasoning/proof/proof_tree.c
     core/src/layer4_reasoning/proof_system/proof_priority.c
     core/src/layer4_reasoning/proof_system/logic_check.c
     core/src/layer4_reasoning/circuit_breaker.c

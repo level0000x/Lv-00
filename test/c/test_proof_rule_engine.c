@@ -61,33 +61,29 @@ static void test_rule_engine_create(void) {
 /* ============== Test: Rule Engine Add Rule ============== */
 
 /* Sample applicability check: always applicable */
-static bool sample_always_applicable(const Lv00ProofRule *rule,
-                                      const Lv00ProofState *state) {
+static bool sample_always_applicable(const void *rule, const void *state) {
     (void)rule;
     (void)state;
     return true;
 }
 
 /* Sample applicability check: never applicable */
-static bool sample_never_applicable(const Lv00ProofRule *rule,
-                                     const Lv00ProofState *state) {
+static bool sample_never_applicable(const void *rule, const void *state) {
     (void)rule;
     (void)state;
     return false;
 }
 
 /* Sample apply function: pops the current goal (proves it) */
-static bool sample_pop_goal_apply(const Lv00ProofRule *rule,
-                                   Lv00ProofState *state) {
+static bool sample_pop_goal_apply(void *rule, void *state) {
     (void)rule;
-    return proof_state_pop_goal(state);
+    return proof_state_pop_goal((Lv00ProofState *)state);
 }
 
 /* Sample apply function: pushes a sub-goal */
-static bool sample_push_subgoal_apply(const Lv00ProofRule *rule,
-                                       Lv00ProofState *state) {
+static bool sample_push_subgoal_apply(void *rule, void *state) {
     (void)rule;
-    return proof_state_push_goal(state, "sub_goal_trivial");
+    return proof_state_push_goal((Lv00ProofState *)state, "sub_goal_trivial");
 }
 
 static void test_rule_engine_add_rule(void) {

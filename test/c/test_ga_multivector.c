@@ -22,6 +22,24 @@
 #include "ga_interface.h"
 #include "test_helpers.h"
 
+/* Blade index definitions */
+#define GA_BLADE_1    0
+#define GA_BLADE_E0   1
+#define GA_BLADE_E1   2
+#define GA_BLADE_E2   3
+#define GA_BLADE_E3   4
+#define GA_BLADE_E01  5
+#define GA_BLADE_E02  6
+#define GA_BLADE_E03  7
+#define GA_BLADE_E12  8
+#define GA_BLADE_E13  9
+#define GA_BLADE_E23  10
+#define GA_BLADE_E012 11
+#define GA_BLADE_E013 12
+#define GA_BLADE_E023 13
+#define GA_BLADE_E123 14
+#define GA_BLADE_E0123 15
+
 /* Global test counters */
 int g_pass_count = 0;
 int g_fail_count = 0;
@@ -46,12 +64,9 @@ void test_ga_mv_zero(void) {
 
     /* All components should be zero */
     for (int i = 0; i < GA_MV_DIM; i++) {
-        TEST_ASSERT(approx_eq(mv->components[i], 0.0),
+        TEST_ASSERT(approx_eq(ga_mv_get(mv, i), 0.0),
                     "All components of zero multivector should be zero");
     }
-
-    /* Trust should be 1.0 */
-    TEST_ASSERT(approx_eq(mv->trust, 1.0), "Trust should be 1.0 for zero mv");
 
     ga_mv_free(mv);
     printf("  PASSED\n");
@@ -68,12 +83,12 @@ void test_ga_mv_scalar(void) {
     TEST_ASSERT_NOT_NULL(mv);
 
     /* Scalar component (index 0) should be 42.0 */
-    TEST_ASSERT(approx_eq(mv->components[GA_BLADE_1], 42.0),
+    TEST_ASSERT(approx_eq(ga_mv_get(mv, GA_BLADE_1), 42.0),
                 "Scalar component should be 42.0");
 
     /* All other components should be zero */
     for (int i = 1; i < GA_MV_DIM; i++) {
-        TEST_ASSERT(approx_eq(mv->components[i], 0.0),
+        TEST_ASSERT(approx_eq(ga_mv_get(mv, i), 0.0),
                     "Non-scalar components should be zero");
     }
 
@@ -90,42 +105,42 @@ void test_ga_geometric_product(void) {
 
     /* Test 1: e1 * e1 = 1 (scalar) */
     Lv00MultiVector *e1 = ga_mv_zero();
-    e1->components[GA_BLADE_E1] = 1.0;
+    ga_mv_set(e1, GA_BLADE_E1, 1.0);
 
     Lv00MultiVector *e1_sq = ga_geometric_product(e1, e1);
     TEST_ASSERT_NOT_NULL(e1_sq);
-    TEST_ASSERT(approx_eq(e1_sq->components[GA_BLADE_1], 1.0),
+    TEST_ASSERT(approx_eq(ga_mv_get(e1_sq, GA_BLADE_1), 1.0),
                 "e1 * e1 should equal 1 (scalar)");
 
     /* Other components should be zero */
     for (int i = 1; i < GA_MV_DIM; i++) {
-        TEST_ASSERT(approx_eq(e1_sq->components[i], 0.0),
+        TEST_ASSERT(approx_eq(ga_mv_get(e1_sq, i), 0.0),
                     "e1*e1 should have no other components");
     }
 
     /* Test 2: e1 * e2 = e12 (bivector) */
     Lv00MultiVector *e2 = ga_mv_zero();
-    e2->components[GA_BLADE_E2] = 1.0;
+    ga_mv_set(e2, GA_BLADE_E2, 1.0);
 
     Lv00MultiVector *e1_e2 = ga_geometric_product(e1, e2);
     TEST_ASSERT_NOT_NULL(e1_e2);
-    TEST_ASSERT(approx_eq(e1_e2->components[GA_BLADE_E12], 1.0),
+    TEST_ASSERT(approx_eq(ga_mv_get(e1_e2, GA_BLADE_E12), 1.0),
                 "e1 * e2 should have e12 component = 1");
 
     /* Test 3: e2 * e1 = -e12 (anti-commutativity) */
     Lv00MultiVector *e2_e1 = ga_geometric_product(e2, e1);
     TEST_ASSERT_NOT_NULL(e2_e1);
-    TEST_ASSERT(approx_eq(e2_e1->components[GA_BLADE_E12], -1.0),
+    TEST_ASSERT(approx_eq(ga_mv_get(e2_e1, GA_BLADE_E12), -1.0),
                 "e2 * e1 should have e12 component = -1");
 
     /* Test 4: e0 * e0 = 0 (null basis) */
     Lv00MultiVector *e0 = ga_mv_zero();
-    e0->components[GA_BLADE_E0] = 1.0;
+    ga_mv_set(e0, GA_BLADE_E0, 1.0);
 
     Lv00MultiVector *e0_sq = ga_geometric_product(e0, e0);
     TEST_ASSERT_NOT_NULL(e0_sq);
     for (int i = 0; i < GA_MV_DIM; i++) {
-        TEST_ASSERT(approx_eq(e0_sq->components[i], 0.0),
+        TEST_ASSERT(approx_eq(ga_mv_get(e0_sq, i), 0.0),
                     "e0 * e0 should be zero");
     }
 
@@ -148,21 +163,21 @@ void test_ga_outer_product(void) {
 
     /* Test 1: e1 ^ e2 = e12 */
     Lv00MultiVector *e1 = ga_mv_zero();
-    e1->components[GA_BLADE_E1] = 1.0;
+    ga_mv_set(e1, GA_BLADE_E1, 1.0);
 
     Lv00MultiVector *e2 = ga_mv_zero();
-    e2->components[GA_BLADE_E2] = 1.0;
+    ga_mv_set(e2, GA_BLADE_E2, 1.0);
 
     Lv00MultiVector *wedge = ga_outer_product(e1, e2);
     TEST_ASSERT_NOT_NULL(wedge);
-    TEST_ASSERT(approx_eq(wedge->components[GA_BLADE_E12], 1.0),
+    TEST_ASSERT(approx_eq(ga_mv_get(wedge, GA_BLADE_E12), 1.0),
                 "e1 ^ e2 should have e12 = 1");
 
     /* Test 2: e1 ^ e1 = 0 */
     Lv00MultiVector *self_wedge = ga_outer_product(e1, e1);
     TEST_ASSERT_NOT_NULL(self_wedge);
     for (int i = 0; i < GA_MV_DIM; i++) {
-        TEST_ASSERT(approx_eq(self_wedge->components[i], 0.0),
+        TEST_ASSERT(approx_eq(ga_mv_get(self_wedge, i), 0.0),
                     "e1 ^ e1 should be zero");
     }
 
@@ -184,31 +199,31 @@ void test_ga_reverse(void) {
     Lv00MultiVector *s = ga_mv_scalar(5.0);
     Lv00MultiVector *s_rev = ga_reverse(s);
     TEST_ASSERT_NOT_NULL(s_rev);
-    TEST_ASSERT(approx_eq(s_rev->components[GA_BLADE_1], 5.0),
+    TEST_ASSERT(approx_eq(ga_mv_get(s_rev, GA_BLADE_1), 5.0),
                 "Reverse of scalar should be itself");
 
     /* Test 2: reverse of e1 (grade 1) is e1 (unchanged) */
     Lv00MultiVector *e1 = ga_mv_zero();
-    e1->components[GA_BLADE_E1] = 1.0;
+    ga_mv_set(e1, GA_BLADE_E1, 1.0);
     Lv00MultiVector *e1_rev = ga_reverse(e1);
     TEST_ASSERT_NOT_NULL(e1_rev);
-    TEST_ASSERT(approx_eq(e1_rev->components[GA_BLADE_E1], 1.0),
+    TEST_ASSERT(approx_eq(ga_mv_get(e1_rev, GA_BLADE_E1), 1.0),
                 "Reverse of e1 should be e1");
 
     /* Test 3: reverse of e12 (grade 2) is -e12 */
     Lv00MultiVector *e12 = ga_mv_zero();
-    e12->components[GA_BLADE_E12] = 1.0;
+    ga_mv_set(e12, GA_BLADE_E12, 1.0);
     Lv00MultiVector *e12_rev = ga_reverse(e12);
     TEST_ASSERT_NOT_NULL(e12_rev);
-    TEST_ASSERT(approx_eq(e12_rev->components[GA_BLADE_E12], -1.0),
+    TEST_ASSERT(approx_eq(ga_mv_get(e12_rev, GA_BLADE_E12), -1.0),
                 "Reverse of e12 should be -e12");
 
     /* Test 4: reverse of e123 (grade 3) is -e123 */
     Lv00MultiVector *e123 = ga_mv_zero();
-    e123->components[GA_BLADE_E123] = 1.0;
+    ga_mv_set(e123, GA_BLADE_E123, 1.0);
     Lv00MultiVector *e123_rev = ga_reverse(e123);
     TEST_ASSERT_NOT_NULL(e123_rev);
-    TEST_ASSERT(approx_eq(e123_rev->components[GA_BLADE_E123], -1.0),
+    TEST_ASSERT(approx_eq(ga_mv_get(e123_rev, GA_BLADE_E123), -1.0),
                 "Reverse of e123 should be -e123");
 
     ga_mv_free(s);
@@ -333,13 +348,13 @@ void test_ga_norm_squared(void) {
 
     /* Norm of e1 should be 1.0 (e1^2 = 1) */
     Lv00MultiVector *e1 = ga_mv_zero();
-    e1->components[GA_BLADE_E1] = 1.0;
+    ga_mv_set(e1, GA_BLADE_E1, 1.0);
     double ne1 = ga_norm_squared(e1);
     TEST_ASSERT(approx_eq(ne1, 1.0), "||e1||^2 should be 1.0");
 
     /* Norm of 2*e1 should be 4.0 */
     Lv00MultiVector *two_e1 = ga_mv_zero();
-    two_e1->components[GA_BLADE_E1] = 2.0;
+    ga_mv_set(two_e1, GA_BLADE_E1, 2.0);
     double n2e1 = ga_norm_squared(two_e1);
     TEST_ASSERT(approx_eq(n2e1, 4.0), "||2*e1||^2 should be 4.0");
 

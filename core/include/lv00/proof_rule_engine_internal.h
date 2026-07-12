@@ -91,6 +91,7 @@ typedef struct Lv00ProofRule {
     RuleApplicabilityFn applicability_check_fn;
     RuleApplyFn apply_fn;
     Lv00ProofRuleType type;
+    int priority;
 } Lv00ProofRule;
 
 /* ============== 证明状态结构体 ============== */

@@ -437,6 +437,13 @@ bool ga_mv_equal(const Lv00MultiVector *a, const Lv00MultiVector *b, double eps)
     return true;
 }
 
+/* ── ga_mv_scalar: create scalar multivector ── */
+Lv00MultiVector *ga_mv_scalar(double value) {
+    Lv00MultiVector *mv = ga_mv_create();
+    if (mv) mv->c[0] = value;
+    return mv;
+}
+
 bool ga_mv_is_zero(const Lv00MultiVector *mv, double eps) {
     if (!mv) return true;
 

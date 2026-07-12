@@ -490,3 +490,31 @@ bool bv_slt(const Lv00BitVector *a, const Lv00BitVector *b) {
     /* Same sign: compare as unsigned (magnitude comparison) */
     return bv_ult(a, b);
 }
+
+/* ── lv00_bv_* public API wrappers ── */
+
+#include "lv00/smt_bitvector.h"
+
+Lv00BitVec *lv00_bv_create(size_t width, unsigned long long value) {
+    Lv00BitVec *bv = bv_create((int)width);
+    if (bv && value != 0 && bv->words) {
+        bv->words[0] = value;
+        bv_normalize(bv);
+    }
+    return bv;
+}
+
+void lv00_bv_free(Lv00BitVec *bv) { bv_destroy(bv); }
+
+Lv00BitVec *lv00_bv_and(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_and(a, b); }
+Lv00BitVec *lv00_bv_or(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_or(a, b); }
+Lv00BitVec *lv00_bv_xor(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_xor(a, b); }
+Lv00BitVec *lv00_bv_not(const Lv00BitVec *a) { return bv_not(a); }
+Lv00BitVec *lv00_bv_shift_left(const Lv00BitVec *a, int shift) { return bv_shift_left(a, shift); }
+Lv00BitVec *lv00_bv_shift_right(const Lv00BitVec *a, int shift) { return bv_shift_right(a, shift); }
+Lv00BitVec *lv00_bv_extract(const Lv00BitVec *bv, int high, int low) { return bv_extract(bv, high, low); }
+Lv00BitVec *lv00_bv_concat(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_concat(a, b); }
+Lv00BitVec *lv00_bv_add(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_add(a, b); }
+Lv00BitVec *lv00_bv_mul(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_mul(a, b); }
+int lv00_bv_equals(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_eq(a, b); }
+long long lv00_bv_to_int(const Lv00BitVec *bv) { return (long long)bv_to_int(bv); }

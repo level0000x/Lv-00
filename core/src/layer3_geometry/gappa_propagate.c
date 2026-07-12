@@ -329,6 +329,63 @@ static int forward_propagate(const char *expr, const PropInterval *vars,
     return 0;
 }
 
+/* ── Structured propagation API (stubs) ── */
+
+void gappa_pred_set_init(Lv00GappaPredSet *set) {
+    if (!set) return;
+    set->preds = NULL;
+    set->count = 0;
+    set->capacity = 0;
+}
+
+void gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
+    if (!set || !pred) return;
+    if (set->count >= set->capacity) {
+        int new_cap = set->capacity > 0 ? set->capacity * 2 : 8;
+        Lv00GappaPredicate **p = (Lv00GappaPredicate **)realloc(set->preds, (size_t)new_cap * sizeof(Lv00GappaPredicate *));
+        if (!p) return;
+        set->preds = p;
+        set->capacity = new_cap;
+    }
+    Lv00GappaPredicate *copy = (Lv00GappaPredicate *)malloc(sizeof(Lv00GappaPredicate));
+    if (!copy) return;
+    *copy = *pred;
+    set->preds[set->count++] = copy;
+}
+
+bool gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00GappaPredicate *found) {
+    (void)set; (void)name; (void)found;
+    return false;
+}
+
+void gappa_pred_set_clear(Lv00GappaPredSet *set) {
+    if (!set) return;
+    for (int i = 0; i < set->count; i++) free(set->preds[i]);
+    free(set->preds);
+    set->preds = NULL;
+    set->count = 0;
+    set->capacity = 0;
+}
+
+Lv00GappaPropagateConfig gappa_propagate_config_default(void) {
+    Lv00GappaPropagateConfig cfg;
+    cfg.max_iterations = 100;
+    cfg.precision = 1e-15;
+    cfg.backward = false;
+    return cfg;
+}
+
+int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg) {
+    (void)input; (void)output; (void)cfg;
+    return 0;
+}
+
+int gappa_propagate_backward(const Lv00GappaPredSet *goal, const Lv00GappaPredSet *known,
+                              Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg) {
+    (void)goal; (void)known; (void)output; (void)cfg;
+    return 0;
+}
+
 /**
  * @brief 反向传播：从输出约束推导输入约束
  *

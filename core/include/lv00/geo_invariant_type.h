@@ -59,6 +59,7 @@ bool geo_invariant_check_consistency(const GeoInvariant *inv);
 void geo_invariant_set_metadata(GeoInvariant *inv, const char *meta);
 const char *geo_invariant_get_metadata(const GeoInvariant *inv);
 int geo_invariant_to_json(const GeoInvariant *inv, char *buf, size_t buf_size);
+int geo_invariant_attach_to_type(GeoInvariant *inv, int type_id, const char *region_name);
 
 /* ── Legacy alias ── */
 #define lv00_geo_invariant_check(inv, pts, dim) \

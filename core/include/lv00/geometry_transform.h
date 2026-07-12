@@ -154,6 +154,9 @@ void lv00_transform_apply_double(const Lv00Transform *t, double src_x, double sr
 Lv00Transform *lv00_transform_compose(const Lv00Transform *a, const Lv00Transform *b);
 bool lv00_transform_get_matrix(Lv00Transform *t, Lv00TransformMatrix *matrix);
 const char *lv00_transform_type_name(Lv00TransformType type);
+bool lv00_transform_is_isometry(const Lv00Transform *t);
+bool lv00_transform_is_orientation_preserving(const Lv00Transform *t);
+Lv00Transform *lv00_transform_inverse(const Lv00Transform *t);
 bool lv00_reflect_point(const mpq_t ax, const mpq_t ay,
                          const mpq_t bx, const mpq_t by,
                          const mpq_t px, const mpq_t py,
