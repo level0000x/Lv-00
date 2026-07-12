@@ -162,6 +162,10 @@ int  high_dim_preset_serialize_json(const HighDimProjectionPreset *preset,
                                      char *buffer, size_t buffer_size);
 int  high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *preset);
 
+/* ── Folded Dimensions ── */
+int  high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset,
+                                          char *buffer, size_t buffer_size);
+
 /* ── 3D Projection ── */
 int  high_dim_project_to_3d(const double *coord_4d, int dim_count,
                              double angle_xy, int coord_count, double *out_coords);

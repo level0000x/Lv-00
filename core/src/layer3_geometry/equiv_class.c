@@ -687,6 +687,17 @@ int equiv_class_count(const EquivClassManager *mgr) {
     return count;
 }
 
+const EquivClass *equiv_get_class(const EquivClassManager *mgr, int node_id) {
+    if (!mgr || node_id < 0) return NULL;
+    int rep = equiv_find(mgr, node_id);
+    if (rep < 0) return NULL;
+    for (int i = 0; i < mgr->class_count; i++) {
+        if (mgr->classes[i].representative_id == rep && mgr->classes[i].member_count > 0)
+            return &mgr->classes[i];
+    }
+    return NULL;
+}
+
 /* ================================================================
  * 配置与诊断
  * ================================================================ */

@@ -89,6 +89,16 @@ bool equiv_are_equivalent(const EquivClassManager *mgr, int a, int b);
 EquivMergeResult   equiv_merge_classes(EquivClassManager *mgr, int node_a, int node_b,
                                         EquivSourceType source, int constraint_id, TrustColor trust);
 
+int  equiv_merge_by_coord(EquivClassManager *mgr);
+int  equiv_merge_all(EquivClassManager *mgr);
+int  equiv_find(const EquivClassManager *mgr, int node_id);
+const EquivClass *equiv_get_class(const EquivClassManager *mgr, int node_id);
+int  equiv_class_count(const EquivClassManager *mgr);
+void equiv_get_statistics(const EquivClassManager *mgr,
+                           int64_t *out_total, int64_t *out_coord,
+                           int64_t *out_derive, int64_t *out_conjugate,
+                           int64_t *out_transform, int64_t *out_rejected);
+
 int  equiv_manager_get_class_size(EquivClassManager *mgr, int node_id);
 int  equiv_manager_get_representative(EquivClassManager *mgr, int node_id);
 bool equiv_manager_sync_from_graph(EquivClassManager *mgr);
