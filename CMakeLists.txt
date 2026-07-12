@@ -627,82 +627,82 @@ set(LV00_LAYER3_SOURCES
 # 依赖：Layer 3，Layer 2
 set(LV00_LAYER4_SOURCES
     # 核心引擎与求解
-    core/src/layer4_reasoning/engine.c
+    core/src/layer4_reasoning/engine/engine.c
     core/src/layer4_reasoning/engine_scheduler.c
     core/src/layer4_reasoning/solver.c
-    core/src/layer4_reasoning/solver_core.c
+    core/src/layer4_reasoning/solver_ext/solver_core.c
     # 证明系统
     core/src/layer4_reasoning/proof.c
-    core/src/layer4_reasoning/proof_optimize.c
-    core/src/layer4_reasoning/proof_multi_strategy.c
+    core/src/layer4_reasoning/proof_system/proof_optimize.c
+    core/src/layer4_reasoning/proof_system/proof_multi_strategy.c
     core/src/layer4_reasoning/proof_trace.c
-    core/src/layer4_reasoning/proof_priority.c
-    core/src/layer4_reasoning/logic_check.c
+    core/src/layer4_reasoning/proof_system/proof_priority.c
+    core/src/layer4_reasoning/proof_system/logic_check.c
     core/src/layer4_reasoning/circuit_breaker.c
     # 三值逻辑、模态算子、量词系统
-    core/src/layer4_reasoning/three_valued_logic.c
-    core/src/layer4_reasoning/modal_operators.c
-    core/src/layer4_reasoning/quantifier.c
+    core/src/layer4_reasoning/type_logic/three_valued_logic.c
+    core/src/layer4_reasoning/type_logic/modal_operators.c
+    core/src/layer4_reasoning/type_logic/quantifier.c
     # 增强证明引擎
-    core/src/layer4_reasoning/proof_engine_enhanced.c
+    core/src/layer4_reasoning/engine/proof_engine_enhanced.c
     # 重写与合一
     core/src/layer4_reasoning/rewrite.c
-    core/src/layer4_reasoning/unify.c
-    core/src/layer4_reasoning/normalization.c
-    core/src/layer4_reasoning/recursion.c
+    core/src/layer4_reasoning/unify/unify.c
+    core/src/layer4_reasoning/unify/normalization.c
+    core/src/layer4_reasoning/model/recursion.c
     # 类型与属性
-    core/src/layer4_reasoning/type_system.c
-    core/src/layer4_reasoning/prop_verifier.c
+    core/src/layer4_reasoning/type_logic/type_system.c
+    core/src/layer4_reasoning/proof_system/prop_verifier.c
     # 后端求解引擎
-    core/src/layer4_reasoning/groebner_engine.c
-    core/src/layer4_reasoning/smt_backend_impl.c
-    core/src/layer4_reasoning/atp_backend.c
-    core/src/layer4_reasoning/sat_encoding.c
-    core/src/layer4_reasoning/bdd_encoding.c
+    core/src/layer4_reasoning/backends/groebner_engine.c
+    core/src/layer4_reasoning/backends/smt_backend_impl.c
+    core/src/layer4_reasoning/backends/atp_backend.c
+    core/src/layer4_reasoning/backends/sat_encoding.c
+    core/src/layer4_reasoning/backends/bdd_encoding.c
     core/src/layer4_reasoning/approx_counter.c
-    core/src/layer4_reasoning/probabilistic_constraint.c
-    core/src/layer4_reasoning/rational.c
-    core/src/layer4_reasoning/expr_canon.c
+    core/src/layer4_reasoning/backends/probabilistic_constraint.c
+    core/src/layer4_reasoning/expr/rational.c
+    core/src/layer4_reasoning/expr/expr_canon.c
     core/src/layer4_reasoning/exact_arithmetic.c
     # v1.1.0 新增：表达式规范化、不等式推理
-    core/src/layer4_reasoning/expr_canonical.c
+    core/src/layer4_reasoning/expr/expr_canonical.c
     # 模型与模式
-    core/src/layer4_reasoning/relation_model.c
-    core/src/layer4_reasoning/algebra_mode.c
-    core/src/layer4_reasoning/numerical_backend.c
+    core/src/layer4_reasoning/model/relation_model.c
+    core/src/layer4_reasoning/model/algebra_mode.c
+    core/src/layer4_reasoning/numeric/numerical_backend.c
     # 内核与协议
     core/src/layer4_reasoning/module.c
-    core/src/layer4_reasoning/mini_kernel.c
-    core/src/layer4_reasoning/gc_language.c
-    core/src/layer4_reasoning/ecosystem.c
-    core/src/layer4_reasoning/math_protocol.c
-    core/src/layer4_reasoning/stream.c
-    core/src/layer4_reasoning/stream_context_util.c
+    core/src/layer4_reasoning/kernel/mini_kernel.c
+    core/src/layer4_reasoning/kernel/gc_language.c
+    core/src/layer4_reasoning/kernel/ecosystem.c
+    core/src/layer4_reasoning/kernel/math_protocol.c
+    core/src/layer4_reasoning/stream/stream.c
+    core/src/layer4_reasoning/stream/stream_context_util.c
     # SMT/SAT 后端（从 Layer 3 迁移）
-    core/src/layer4_reasoning/smt_theory_combiner.c
-    core/src/layer4_reasoning/smt_bitvector.c
-    core/src/layer4_reasoning/smt_trigger_engine.c
+    core/src/layer4_reasoning/backends/smt_theory_combiner.c
+    core/src/layer4_reasoning/backends/smt_bitvector.c
+    core/src/layer4_reasoning/backends/smt_trigger_engine.c
     # 证明策略（从 Layer 3 迁移）
-    core/src/layer4_reasoning/proof_rule_engine.c
-    core/src/layer4_reasoning/proof_session.c
+    core/src/layer4_reasoning/proof_system/proof_rule_engine.c
+    core/src/layer4_reasoning/proof_system/proof_session.c
     # 数论/代数（从 Layer 3 迁移）
-    core/src/layer4_reasoning/nt_number_theory.c
-    core/src/layer4_reasoning/nt_polynomial.c
-    core/src/layer4_reasoning/sym_expr.c
+    core/src/layer4_reasoning/numeric/nt_number_theory.c
+    core/src/layer4_reasoning/numeric/nt_polynomial.c
+    core/src/layer4_reasoning/expr/sym_expr.c
     # 重写引擎（从 Layer 3 迁移）
-    core/src/layer4_reasoning/rewrite_strategy.c
+    core/src/layer4_reasoning/unify/rewrite_strategy.c
     # 版本控制（从 Layer 3 迁移）
-    core/src/layer4_reasoning/proof_version.c
+    core/src/layer4_reasoning/proof_system/proof_version.c
     # 自动微分（从 Layer 3 迁移）
-    core/src/layer4_reasoning/autodiff.c
+    core/src/layer4_reasoning/numeric/autodiff.c
     # ODE 求解器（从 Layer 3 迁移）
-    core/src/layer4_reasoning/ode_solver.c
+    core/src/layer4_reasoning/numeric/ode_solver.c
     # v1.1.0 新增：不等式推理系统（桩实现）
-    core/src/layer4_reasoning/inequality_reasoning.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning.c
     # v4.0.0 新增：自适应剪枝策略（动态阈值 + 启发式评分）
-    core/src/layer4_reasoning/adaptive_pruning.c
+    core/src/layer4_reasoning/engine/adaptive_pruning.c
     # v5.0.0 新增：并行 Groebner 引擎（并发优化）
-    core/src/layer4_reasoning/groebner_parallel.c
+    core/src/layer4_reasoning/backends/groebner_parallel.c
     # 公理包
     core/src/layer4_reasoning/axiom/axiom_pkg.c
     core/src/layer4_reasoning/axiom/axiom_grade.c
@@ -782,7 +782,7 @@ set(LV00_LAYER4_SOURCES
     # v3.6.0 新增：WFC 范式 - 剪枝合法性元证明（Layer 4 推理层）
     core/src/layer4_reasoning/meta_proof.c
     # 补全遗漏文件：冲突检测、矛盾证明、抽象代数预设
-    core/src/layer4_reasoning/conflict_detector.c
+    core/src/layer4_reasoning/engine/conflict_detector.c
     core/src/layer4_reasoning/proof_contradiction.c
     core/src/layer4_reasoning/func_block/preset_abstract_algebra.c
     # v1.1.0 补全遗漏：公理规则引擎、推理缓存、SIMD 运算
