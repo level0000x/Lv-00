@@ -1257,7 +1257,7 @@ if(BUILD_TESTS)
         test/c/test_autodiff.c test_autodiff)
     # prop_verifier 测试：链接 lv00 库以获取 lv00_malloc/lv00_free 等工具函数
     # [QA] Also listed in LV00_LAYER4_SOURCES; test target requires separate compilation
-    add_executable(test_prop_verifier test/c/test_prop_verifier.c core/src/layer4_reasoning/prop_verifier.c)
+    add_executable(test_prop_verifier test/c/test_prop_verifier.c core/src/layer4_reasoning/proof_system/prop_verifier.c)
     target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv00)
     target_link_libraries(test_prop_verifier lv00 ${GMP_LIBRARIES})
     add_test(NAME prop_verifier_test COMMAND test_prop_verifier
