@@ -27,6 +27,9 @@
  * 内部常量
  * ============================================================ */
 
+/* 前向声明内部类型 */
+typedef struct ApproxCounter ApproxCounter;
+
 /** 默认寄存器数量 */
 #define HLL_DEFAULT_M 16
 

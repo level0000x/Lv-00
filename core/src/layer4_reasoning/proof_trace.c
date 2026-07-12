@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 /* ============================================================
  * 内部数据结构

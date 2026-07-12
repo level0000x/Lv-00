@@ -8,6 +8,7 @@
  * @version 1.0.0
  */
 
+#define LV00_THREAD_POOL_IMPL
 #include "lv00/thread_pool.h"
 #include <stdlib.h>
 #include <string.h>

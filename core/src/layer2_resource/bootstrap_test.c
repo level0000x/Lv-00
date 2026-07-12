@@ -1128,14 +1128,13 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle,
     }
 
     /* 证明有效性验证：检查证明轨迹的基本结构 */
-    const ProofTrace *trace_data = (const ProofTrace *)trace;
+    int step_count = lv00_proof_trace_get_step_count(trace);
 
-    if (!trace_data || trace_data->step_count == 0) {
+    if (step_count == 0) {
         return false;
     }
 
     /* 简化实现：仅检查基本结构，详细验证留待后续实现 */
-    (void)trace_data;
 
     return true;
 }
