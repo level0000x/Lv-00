@@ -15,9 +15,18 @@
 #include <string.h>
 #include "lv00/proof.h"
 #include "lv00/constraint_graph.h"
+#include "lv00/node_deep_copy.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+
+/* ── 流式上下文声明 ── */
+LV00_DECLARE_STREAM_CTX(proof);
+
+/* ── 命题销毁栈初始容量 ── */
+#ifndef PROOF_DESTROY_STACK_INITIAL_CAPACITY
+#define PROOF_DESTROY_STACK_INITIAL_CAPACITY 64
+#endif
 
 /**
  * @brief 销毁命题并递归释放所有资源

@@ -19,6 +19,9 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+/* ── 前向声明（graph_index.c 中定义） ── */
+void node_destroy(GeomNode *node);
+
 /**
  * 获取约束图中最后添加的节点索引。
  * 注意：此 ID 是数组索引而非节点的逻辑 ID。
@@ -642,3 +645,28 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
                         already = true;
                         break;
                     }
+                }
+                if (!already && *out_count < max_redundant) {
+                    redundant[*out_count] = con_id;
+                    (*out_count)++;
+                    LOG_DEBUG("constraint_graph",
+                              "Linear dependency: constraint %d is identical to constraint %d",
+                              con_id, pivot_row[i]);
+                }
+            }
+        }
+    }
+
+    /* 清理 Phase 2 资源 */
+    for (int i = 0; i < num_linear * (num_vars + 1); i++) {
+        mpq_clear(matrix[i]);
+    }
+    lv00_free((void **) &matrix);
+    lv00_free((void **) &pivot_row);
+    lv00_free((void **) &linear_constraint_indices);
+    lv00_free((void **) &node_id_to_var_idx);
+    lv00_free((void **) &point_seen);
+    lv00_free((void **) &point_ids);
+
+    return redundant;
+}

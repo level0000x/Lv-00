@@ -5,7 +5,7 @@
  * 原位置: solver.c L6375-L6453
  */
 
-#include "solver_dirty_set.h"
+#include "../solver_dirty_set.h"
 #include "lv00/lv00.h"
 #include <limits.h>
 

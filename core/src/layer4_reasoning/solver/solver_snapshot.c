@@ -8,6 +8,7 @@
  */
 
 #include "lv00/solver.h"
+#include "../solver_snapshot.h"
 
 #include <float.h>
 #include <math.h>

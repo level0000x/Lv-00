@@ -30,6 +30,17 @@
 /* ── 前向声明 ── */
 static mpz_t *mpz_perfect_sqrt(mpz_t n);
 static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double precision);
+double algebraic_to_double(const Algebraic *a);
+double quadratic_to_double(const Quadratic *q);
+double transcendental_to_double(const Transcendental *t);
+bool is_rational_zero(const Rational *r);
+void refine_algebraic_bounds(Algebraic *a, int iterations);
+char *algebraic_serialize(const Algebraic *a);
+char *quadratic_serialize(const Quadratic *q);
+int remove_square_factors(int n);
+
+/* ── 外部溢出上下文 ── */
+extern LV00_THREAD_LOCAL struct OverflowContext g_overflow_context;
 
 /* ── SymbolicCoord 操作 ── */
 
@@ -3132,3 +3143,77 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
  * Returns: true if rationalization succeeded, false otherwise
  */
 bool algebraic_try_rationalize(Algebraic *a) {
+    if (!a)
+        return false;
+
+    /* 计算精度 = (right_bound - left_bound) / 4 */
+    double span = a->right_bound - a->left_bound;
+    if (span <= 0.0)
+        return false;
+
+    double precision = span / 4.0;
+
+    /* 生成连分数近似 */
+    Rational *candidate = algebraic_continued_fraction_approx(a, precision);
+    if (!candidate)
+        return false;
+
+    /* 在有理候选上精确计算最小多项式值 */
+    int deg = a->minimal_poly.degree;
+
+    /* 准备分母 = 1 */
+    mpz_t mpz_one;
+    mpz_init_set_ui(mpz_one, 1);
+
+    /* result = coeff[0] 的 Rational 表示 */
+    Rational *result = rational_create_from_mpz(a->minimal_poly.coeffs[0], mpz_one);
+    if (!result) {
+        mpz_clear(mpz_one);
+        rational_destroy(candidate);
+        return false;
+    }
+
+    /* power = candidate^0 = 1 */
+    Rational *power = rational_create(1, 1);
+    if (!power) {
+        mpz_clear(mpz_one);
+        rational_destroy(result);
+        rational_destroy(candidate);
+        return false;
+    }
+
+    for (int i = 1; i <= deg; i++) {
+        /* power *= candidate */
+        Rational *new_power = rational_multiply(power, candidate);
+        rational_destroy(power);
+        power = new_power;
+
+        /* term = coeff[i] * power */
+        Rational *coeff_r = rational_create_from_mpz(a->minimal_poly.coeffs[i], mpz_one);
+        Rational *term = rational_multiply(coeff_r, power);
+        rational_destroy(coeff_r);
+
+        /* result += term */
+        Rational *new_result = rational_add(result, term);
+        rational_destroy(result);
+        rational_destroy(term);
+        result = new_result;
+    }
+
+    mpz_clear(mpz_one);
+    rational_destroy(power);
+
+    /* 检查多项式值是否为零 */
+    if (is_rational_zero(result)) {
+        /* 成功有理化：缓存结果 */
+        if (a->cached_rational)
+            rational_destroy(a->cached_rational);
+        a->cached_rational = candidate;
+        rational_destroy(result);
+        return true;
+    }
+
+    rational_destroy(result);
+    rational_destroy(candidate);
+    return false;
+}

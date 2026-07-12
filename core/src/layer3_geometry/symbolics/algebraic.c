@@ -766,7 +766,7 @@ int algebraic_compare(const Algebraic *a, const Algebraic *b) {
  * @param a 代数数对象（不能为 NULL）
  * @return 代数数的双精度浮点数近似值
  */
-static double algebraic_to_double(const Algebraic *a) {
+double algebraic_to_double(const Algebraic *a) {
     if (a->cached_rational) {
         return rational_to_double(a->cached_rational);
     }
@@ -1239,7 +1239,7 @@ static unsigned int remove_square_factors(unsigned int n) {
  * @param r 有理数对象（不能为 NULL）
  * @return true 表示为零，false 表示非零
  */
-static bool is_rational_zero(const Rational *r) {
+bool is_rational_zero(const Rational *r) {
     if (!r)
         return true;
     return mpq_sgn(r->value) == 0;

@@ -22,6 +22,21 @@
 
 LV00_DECLARE_STREAM_CTX(rewrite);
 
+/* ── 前向声明：来自 rewrite_match.c 的共享函数 ── */
+int resolve_binding(const int *bindings, int binding_count, int pattern_var_id);
+int resolve_replacement_participant(
+    int participant_id,
+    const int *match_bindings, int match_binding_count,
+    const int *new_node_map, int new_node_map_count,
+    const int *new_nodes, int new_node_count);
+bool add_constraint_generic(ConstraintGraph *graph, ConstraintType type,
+                            const int *participants, int participant_count);
+bool pattern_var_used_in_replacement(const RewriteReplacement *repl, int pattern_var_id);
+bool pattern_var_in_replacement_bindings(const RewriteReplacement *repl, int pattern_var_id);
+bool is_matched_constraint(const RewriteMatch *match, int constraint_id);
+bool check_graph_consistency(ConstraintGraph *graph);
+uint32_t compute_graph_hash(ConstraintGraph *graph);
+
 /* 解析后的重写规则结构体 */
 typedef struct {
     char name[256];

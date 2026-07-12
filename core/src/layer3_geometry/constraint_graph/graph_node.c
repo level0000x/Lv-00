@@ -91,7 +91,7 @@ LV00_DECLARE_STREAM_CTX(graph);
  * graph_node_index_insert 和 graph_constraint_index_insert 已公开为公共接口，
  * 供 func_block.c 在例化时将新节点/约束注册到哈希索引 */
 void graph_node_index_insert(ConstraintGraph *graph, GeomNode *node);
-static void node_index_remove(ConstraintGraph *graph, int node_id);
+void node_index_remove(ConstraintGraph *graph, int node_id);
 void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
 
 /**
@@ -159,7 +159,7 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
  * @param type  约束类型（INCIDENCE / BETWEENNESS / INTERSECTION / CONTAINMENT / CONNECTION）
  * @return 新分配的 Constraint 指针，失败返回 NULL
  */
-static Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) {
+Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) {
     Constraint *con = lv00_malloc(sizeof(Constraint));
     if (!con)
         return NULL;
@@ -361,7 +361,7 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
  * @param count       参与者数量
  * @return true 表示约束已存在，false 表示不存在
  */
-static bool constraint_exists(const ConstraintGraph *graph, ConstraintType type, const int *participants, int count) {
+bool constraint_exists(const ConstraintGraph *graph, ConstraintType type, const int *participants, int count) {
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         if (!c->is_active)                    /* v3.5.0: 跳过不活跃约束 */
@@ -392,7 +392,7 @@ static bool constraint_exists(const ConstraintGraph *graph, ConstraintType type,
  * @param capacity 哈希表容量
  * @return 哈希值
  */
-static unsigned node_id_hash(int id, int capacity) {
+unsigned node_id_hash(int id, int capacity) {
     /* FNV-1a-like hash，乘数定义在 lv00_internal.h 中 */
     unsigned h = (unsigned) id * LV00_FNV_HASH_MULTIPLIER;
     /*
@@ -480,7 +480,7 @@ void graph_node_index_insert(ConstraintGraph *graph, GeomNode *node) {
  * @param graph 约束图指针
  * @param node_id 要移除的节点ID
  */
-static void node_index_remove(ConstraintGraph *graph, int node_id) {
+void node_index_remove(ConstraintGraph *graph, int node_id) {
     if (!graph->node_index)
         return;
     unsigned idx = node_id_hash(node_id, graph->node_index_capacity);
@@ -534,7 +534,7 @@ static void node_index_remove(ConstraintGraph *graph, int node_id) {
  * @param capacity 哈希表容量
  * @return 哈希值
  */
-static unsigned constraint_id_hash(int id, int capacity) {
+unsigned constraint_id_hash(int id, int capacity) {
     unsigned h = (unsigned) id * LV00_FNV_HASH_MULTIPLIER;
     return h & (unsigned) (capacity - 1);
 }
@@ -609,7 +609,7 @@ void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con) {
  * @param graph 约束图指针
  * @param constraint_id 要移除的约束ID
  */
-static void constraint_index_remove(ConstraintGraph *graph, int constraint_id) {
+void constraint_index_remove(ConstraintGraph *graph, int constraint_id) {
     if (!graph || !graph->constraint_index || graph->constraint_index_capacity == 0)
         return;
 
@@ -716,7 +716,7 @@ static bool segments_intersect(const GeomNode *seg_a, const GeomNode *seg_b) {
  * @param new_constraint 新约束指针
  * @return true 表示存在冲突，false 表示无冲突
  */
-static bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *new_constraint) {
+bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *new_constraint) {
     if (!graph || !new_constraint)
         return false;
 

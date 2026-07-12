@@ -27,9 +27,53 @@
 #define SYM_COORD_MAX_REFINE 15
 #define SYM_COORD_AMB_MIN_SIGFIGS 3
 #define COORD_SEVEN_OVER_FIVE_N 32
+
+/* ── 前向声明 ── */
+int remove_square_factors(int n);
+static TranscendentalExpr *transcendental_expr_parse(const char *name);
+static void transcendental_expr_destroy(TranscendentalExpr *expr);
+static void q_transcendental_destroy(Transcendental *t);
+
+/* ── 超越数表达式解析辅助函数 ── */
+
+/**
+ * 从名称字符串解析超越数表达式。
+ *
+ * 委托给 transcendental_create() 进行解析，提取其 expr 字段，
+ * 然后释放 Transcendental 外壳保留表达式树。
+ *
+ * @param name 常量名称（如 "pi/2", "3*pi/4"）
+ * @return 新分配的 TranscendentalExpr，调用者需用 transcendental_expr_destroy 释放
+ */
+static TranscendentalExpr *transcendental_expr_parse(const char *name) {
+    if (!name || name[0] == '\0')
+        return NULL;
+    /* 委托给 transcendental.c 的 transcendental_create 进行完整解析 */
+    Transcendental *tmp = transcendental_create(name);
+    if (!tmp)
+        return NULL;
+    TranscendentalExpr *expr = tmp->expr;
+    tmp->expr = NULL;          /* 转移所有权 */
+    q_transcendental_destroy(tmp); /* 释放外壳，expr 不受影响 */
+    return expr;
+}
+
+/**
+ * 释放超越数表达式树。
+ *
+ * @param expr 要释放的表达式，可为 NULL
+ */
+static void transcendental_expr_destroy(TranscendentalExpr *expr) {
+    if (!expr)
+        return;
+    if (expr->rational_operand)
+        rational_destroy(expr->rational_operand);
+    lv00_free((void **) &expr);
+}
+
 /* ── Quadratic type ── */
 
-static bool is_rational_zero(const Rational *r) {
+bool is_rational_zero(const Rational *r) {
     return mpq_cmp_ui(r->value, 0, 1) == 0;
 }
 
@@ -124,7 +168,7 @@ int quadratic_compare(const Quadratic *a, const Quadratic *b) {
  * @param q 二次根式对象（不能为 NULL）
  * @return 二次根式的双精度浮点数近似值
  */
-static double quadratic_to_double(const Quadratic *q) {
+double quadratic_to_double(const Quadratic *q) {
     return rational_to_double(q->a) + rational_to_double(q->b) * sqrt((double) q->n);
 }
 
@@ -317,100 +361,15 @@ char *quadratic_serialize(const Quadratic *q) {
  * ============================================================ */
 
 /**
- * 创建超越数对象。
- *
- * 支持的常量：pi, e
- * 支持的表达式形式：N*pi, N*pi/M, pi/N, -pi, -pi/N, -N*pi, -N*pi/M
- *
- * @param name 常量名称（不能为 NULL）
- * @return 新创建的超越数对象，解析失败时返回 NULL；调用者需负责释放
+ * 销毁超越数对象（quadratic.c 内部版本，用于 transcendental_expr_parse）。
  */
-Transcendental *transcendental_create(const char *name) {
-    if (!name || name[0] == '\0')
-        return NULL;
-
-    Transcendental *t = lv00_calloc(1, sizeof(Transcendental));
-    if (!t)
-        return NULL;
-
-    t->name = lv00_strdup(name);
-    if (!t->name) {
-        lv00_free((void **) &t);
-        return NULL;
-    }
-
-    /* 尝试解析表达式形式 */
-    t->expr = transcendental_expr_parse(name);
-    t->cache_valid = false;
-    t->cached_value = 0.0;
-
-    return t;
-}
-
-/**
- * 销毁超越数对象。
- */
-void transcendental_destroy(Transcendental *t) {
+static void q_transcendental_destroy(Transcendental *t) {
     if (!t)
         return;
     if (t->expr)
         transcendental_expr_destroy(t->expr);
-    lv00_free((void **) &t->name);
+    /* t->name 是 char[64] 固定数组，无需单独释放 */
     lv00_free((void **) &t);
-}
-
-/**
- * 获取超越数的 double 近似值。
- */
-double transcendental_to_double(const Transcendental *t) {
-    if (!t)
-        return 0.0;
-    if (t->cache_valid)
-        return t->cached_value;
-
-    double val = 0.0;
-    const char *base = t->expr ? t->expr->base_name : t->name;
-
-    if (strcmp(base, "pi") == 0) {
-        val = M_PI;
-    } else if (strcmp(base, "e") == 0) {
-        val = M_E;
-    }
-
-    if (t->expr && t->expr->rational_operand) {
-        double k = rational_to_double(t->expr->rational_operand);
-        switch (t->expr->expr_type) {
-            case TRANS_EXPR_MUL_RATIONAL:
-                val *= k;
-                break;
-            case TRANS_EXPR_ADD_RATIONAL:
-                val += k;
-                break;
-            default:
-                break;
-        }
-    }
-
-    return val;
-}
-
-/**
- * 比较两个超越数是否相等。
- */
-int transcendental_compare(const Transcendental *a, const Transcendental *b) {
-    if (a == b) return 0;
-    if (!a) return -1;
-    if (!b) return 1;
-    return strcmp(a->name, b->name);
-}
-
-/**
- * 复制超越数对象。
- */
-Transcendental *transcendental_copy(const Transcendental *t) {
-    if (!t)
-        return NULL;
-    return transcendental_create(t->name);
 }
 
 /**

@@ -27,6 +27,21 @@
 #include <stddef.h>
 #include <string.h>
 
+/* ── 错误码兼容：未在 error_codes.h 中定义的便捷 API 专用码 ── */
+#ifndef LV00_ERROR_PROOF_FAILED
+#define LV00_ERROR_PROOF_FAILED   LV00_ERROR_PROOF_INVALID
+#endif
+#ifndef LV00_ERROR_MODULE_ERROR
+#define LV00_ERROR_MODULE_ERROR   LV00_ERROR_INTERNAL
+#endif
+
+/* ── 预设系统前向声明（定义在 preset_manager.c） ── */
+typedef struct InternalPresetEntry *PresetEntryHandle;
+bool preset_library_is_initialized(void);
+PresetEntryHandle preset_find(const char *name);
+void preset_release(PresetEntryHandle entry);
+const PresetMetadata *preset_get_metadata(PresetEntryHandle entry);
+
 /* ============================================================
  * 内部辅助：状态转移安全检查
  * ============================================================ */

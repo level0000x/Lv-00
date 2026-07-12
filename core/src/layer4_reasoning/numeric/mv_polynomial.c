@@ -5,7 +5,7 @@
  * 原位置: solver.c L4703-L4950
  */
 
-#include "mv_polynomial.h"
+#include "../mv_polynomial.h"
 #include "lv00/lv00.h"
 #include <limits.h>
 #include <stdlib.h>

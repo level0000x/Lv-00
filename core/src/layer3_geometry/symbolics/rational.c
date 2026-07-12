@@ -21,6 +21,9 @@
 #include "lv00_utils.h"
 #include "mpz_poly.h"
 
+/* ── 外部溢出上下文 ── */
+extern LV00_THREAD_LOCAL struct OverflowContext g_overflow_context;
+
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
 #define SYM_COORD_SIGFIGS_MIN_SAFE 6
 #define SYM_COORD_SIGFIGS_APPROX 4
@@ -429,7 +432,7 @@ static double evaluate_poly_at_double(const mpz_poly_t *poly, double x) {
  * @param a         代数数对象
  * @param iterations 迭代次数
  */
-static void refine_algebraic_bounds(Algebraic *a, int iterations) {
+void refine_algebraic_bounds(Algebraic *a, int iterations) {
     if (a->minimal_poly.degree < 1)
         return;
 
@@ -498,152 +501,4 @@ static void evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly,
  * @param epsilon 容许误差
  * @param result  输出参数，存储找到的有理数近似
  * @return 找到合适近似返回 true，否则返回 false
-/* ── Circuit (rational helpers) ── */
-
-static CircuitStatus check_rational_circuit(const Rational *r) {
-    if (!r)
-        return CIRCUIT_STATUS_OK;
-    size_t num_bits = mpz_sizeinbase(mpq_numref(r->value), 2);
-    size_t den_bits = mpz_sizeinbase(mpq_denref(r->value), 2);
-    /* 溢出保护：防止 num_bits + den_bits 在 size_t 范围内溢出 */
-    if (num_bits > SIZE_MAX - den_bits) {
-        return CIRCUIT_STATUS_TRIPPED;
-    }
-    if (num_bits + den_bits > LV00_BIT_CUTOFF_THRESHOLD) {
-        return CIRCUIT_STATUS_TRIPPED;
-    }
-    return CIRCUIT_STATUS_OK;
-}
-
-/**
- * 检查代数数是否超过位数阈值。
- *
- * 同时检查缓存的有理数和多项式系数的比特位数。
- *
- * @param a 代数数对象（不能为 NULL）
- * @return CIRCUIT_STATUS_OK 表示正常，CIRCUIT_STATUS_TRIPPED 表示超过阈值
  */
-static CircuitStatus check_algebraic_circuit(const Algebraic *a) {
-    if (!a)
-        return CIRCUIT_STATUS_OK;
-
-    /* 检查缓存的有理数（如果存在） */
-    if (a->cached_rational) {
-        CircuitStatus status = check_rational_circuit(a->cached_rational);
-        if (status == CIRCUIT_STATUS_TRIPPED)
-            return CIRCUIT_STATUS_TRIPPED;
-    }
-
-    /* 检查多项式系数 */
-    for (int i = 0; i <= a->minimal_poly.degree; i++) {
-        size_t coeff_bits = mpz_sizeinbase(a->minimal_poly.coeffs[i], 2);
-        if (coeff_bits > LV00_BIT_CUTOFF_THRESHOLD) {
-            return CIRCUIT_STATUS_TRIPPED;
-        }
-    }
-
-    return CIRCUIT_STATUS_OK;
-}
-
-/**
- * 检查二次根式是否超过位数阈值。
- *
- * @param q 二次根式对象（不能为 NULL）
- * @return CIRCUIT_STATUS_OK 表示正常，CIRCUIT_STATUS_TRIPPED 表示超过阈值
- */
-static CircuitStatus check_quadratic_circuit(const Quadratic *q) {
-    if (!q)
-        return CIRCUIT_STATUS_OK;
-    CircuitStatus status_a = check_rational_circuit(q->a);
-    CircuitStatus status_b = check_rational_circuit(q->b);
-    if (status_a == CIRCUIT_STATUS_TRIPPED || status_b == CIRCUIT_STATUS_TRIPPED) {
-        return CIRCUIT_STATUS_TRIPPED;
-    }
-    return CIRCUIT_STATUS_OK;
-}
-
-/**
- * 检查 SymbolicCoord 是否超过位数阈值。
- *
- * 根据 design_v2.9.md Section 1.5：
- * "计算有理数分子和分母的比特位数总和，以及多项式的每个系数的比特位数。
- * 若任何值超过 10^6 比特，则触发位数熔断信号"
- *
- * @param coord SymbolicCoord 对象（不能为 NULL）
- * @return CIRCUIT_STATUS_OK 表示正常，CIRCUIT_STATUS_TRIPPED 表示超过阈值
- */
-CircuitStatus check_digit_circuit(const SymbolicCoord *coord) {
-    if (!coord)
-        return CIRCUIT_STATUS_OK;
-
-    switch (coord->type) {
-        case RATIONAL:
-            return check_rational_circuit(coord->data.rational);
-        case ALGEBRAIC:
-            return check_algebraic_circuit(coord->data.algebraic);
-        case QUADRATIC:
-            return check_quadratic_circuit(coord->data.quadratic);
-        case TRANSCENDENTAL:
-            return CIRCUIT_STATUS_OK; /* 超越数没有比特位需要检查 */
-        default:
-            return CIRCUIT_STATUS_OK; /* 未知类型视为安全 */
-    }
-    return CIRCUIT_STATUS_OK;
-}
-
-/**
- * 处理位数溢出事件。
- *
- * 根据 design_v2.9.md Section 1.5，用户选项：
- * 1. 忽略 (Ignore): 接受为"数值辅助"，标记为 AMBER
- * 2. 回退 (Rollback): 恢复到冻结点，撤销操作
- * 3. 永久降级 (Permanent Downgrade): 连续3次触发后，降级为数值近似
- */
-void circuit_handle_overflow(void) {
-    g_overflow_context.overflow_count++;
-
-    /* 记录溢出事件 */
-    LOG_WARN("[BIT CIRCUIT TRIPPED] Operation: %s, Count: %d\n",
-             g_overflow_context.last_operation ? g_overflow_context.last_operation : "unknown",
-             g_overflow_context.overflow_count);
-
-    /* 连续3次触发后，建议永久降级 */
-    if (g_overflow_context.overflow_count >= LV00_CIRCUIT_OVERFLOW_THRESHOLD) {
-        fprintf(stderr, "[BIT CIRCUIT] Suggesting permanent downgrade to numerical approximation (AMBER)\n");
-        /* 实际降级由调用者根据用户选择处理 */
-    }
-}
-
-/**
- * 重置溢出上下文。
- *
- * 清除最近一次结果和操作记录，重置溢出计数器。
- * 注意：保留 frozen_point 以便回退时使用。
- */
-void circuit_reset_context(void) {
-    g_overflow_context.last_result = NULL;
-    g_overflow_context.last_operation = NULL;
-    g_overflow_context.overflow_count = 0;
-}
-
-/**
- * 设置回滚的冻结点快照。
- *
- * @param snapshot 指向要保存的快照的指针
- */
-void circuit_set_frozen_point(void *snapshot) {
-    g_overflow_context.frozen_point = snapshot;
-    g_overflow_context.has_frozen_point = (snapshot != NULL);
-}
-
-/**
- * 获取当前溢出计数。
- *
- * @return 累计溢出次数
- */
-int circuit_get_overflow_count(void) {
-    return g_overflow_context.overflow_count;
-}
-
-/* ============================================================
- * Algebraic Number Implementation

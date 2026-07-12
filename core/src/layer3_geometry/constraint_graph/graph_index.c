@@ -18,6 +18,20 @@
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "lv00/context.h"
+#include <stdarg.h>
+
+/* ── 流上下文声明 ── */
+LV00_DECLARE_STREAM_CTX(graph);
+
+/* ── 前向声明（graph_node.c 中定义） ── */
+bool constraint_exists(const ConstraintGraph *graph, ConstraintType type, const int *participants, int count);
+Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type);
+void constraint_index_remove(ConstraintGraph *graph, int constraint_id);
+void node_index_remove(ConstraintGraph *graph, int node_id);
+bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *new_constraint);
+unsigned node_id_hash(int id, int capacity);
+unsigned constraint_id_hash(int id, int capacity);
 
 /**
  * 验证函数块的跨边界约束引用是否合法。
@@ -330,7 +344,7 @@ static void remove_references_to_node(ConstraintGraph *graph, int node_id) {
 }
 
 /* 前向声明 */
-static void node_destroy(GeomNode *node);
+void node_destroy(GeomNode *node);
 
 /**
  * @brief 检查节点是否属于某个区域的边界
@@ -902,7 +916,7 @@ const char *graph_get_error(const ConstraintGraph *graph) {
  *
  * @param node 要销毁的几何节点指针
  */
-static void node_destroy(GeomNode *node) {
+void node_destroy(GeomNode *node) {
     if (!node)
         return;
     if (node->symbolic_coords) {
@@ -938,3 +952,12 @@ static void node_destroy(GeomNode *node) {
  *
  * 返回节点数组中最后一个节点的索引（即 node_count - 1）。
  * 注意：此 ID 是数组索引而非节点的逻辑 ID。
+ *
+ * @param graph 约束图指针
+ * @return 最后节点的索引，图为空时返回 -1
+ */
+int graph_get_last_node_id(const ConstraintGraph *graph) {
+    if (!graph || graph->node_count == 0)
+        return -1;
+    return graph->node_count - 1;
+}

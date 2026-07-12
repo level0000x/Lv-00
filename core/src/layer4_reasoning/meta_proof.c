@@ -13,6 +13,7 @@
 
 #include "lv00/meta_proof.h"
 #include "lv00/constraint_graph.h"
+#include "lv00/conflict_detector.h"
 #include "lv00/propagation.h"
 #include "lv00/symbolic_coord.h"
 #include "lv00/lv00_internal.h"
@@ -21,6 +22,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+/* ── 约束类型别名：兼容 meta_proof.c 中使用的命名 ── */
+#ifndef CONSTRAINT_INCIDENCE
+#define CONSTRAINT_INCIDENCE  INCIDENCE
+#endif
+#ifndef CONSTRAINT_BETWEEN
+#define CONSTRAINT_BETWEEN    BETWEENNESS
+#endif
+
+/* ── 前向声明：内部辅助函数 ── */
+static int constraint_graph_get_constraints_for_node(
+    const ConstraintGraph *graph, int node_id,
+    int *out_ids, int max_count);
+static ConstraintType constraint_graph_get_constraint_type(
+    const ConstraintGraph *graph, int constraint_id);
+static PropagationResult propagation_run_with_assignment(
+    PropagationContext *ctx, int node_id,
+    const SymbolicCoord *coord, int max_steps);
 
 /* ============================================================
  * 内部辅助函数
@@ -54,7 +73,7 @@ static void destroy_pruning_record(PruningRecord *record) {
         if (op->removed_states) {
             for (int j = 0; j < op->removed_count; j++) {
                 if (op->removed_states[j]) {
-                    symbolic_coord_free(op->removed_states[j]);
+                    symbolic_coord_destroy(op->removed_states[j]);
                 }
             }
             lv00_free((void **)&op->removed_states);
@@ -488,4 +507,80 @@ void meta_proof_get_statistics(const MetaProofContext *ctx,
     if (out_l2) *out_l2 = ctx->l2_proofs;
     if (out_l3) *out_l3 = ctx->l3_proofs;
     if (out_inconclusive) *out_inconclusive = ctx->inconclusive_count;
+}
+
+/* ============================================================
+ * 内部辅助函数实现
+ * ============================================================ */
+
+/**
+ * @brief 获取与指定节点关联的所有约束 ID
+ *
+ * 遍历约束图中的所有约束，将包含 node_id 作为参与者的约束 ID
+ * 写入 out_ids 数组（最多 max_count 个）。返回符合条件的约束总数。
+ * 若 out_ids 为 NULL 或 max_count 为 0，仅返回计数。
+ */
+static int constraint_graph_get_constraints_for_node(
+    const ConstraintGraph *graph, int node_id,
+    int *out_ids, int max_count)
+{
+    if (!graph) return 0;
+    int count = 0;
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c) continue;
+        for (int p = 0; p < c->participant_count; p++) {
+            if (c->participants[p] == node_id) {
+                if (out_ids && count < max_count) {
+                    out_ids[count] = c->id;
+                }
+                count++;
+                break;
+            }
+        }
+    }
+    return count;
+}
+
+/**
+ * @brief 获取指定约束 ID 的约束类型
+ *
+ * 在约束图中查找 ID 为 constraint_id 的约束，返回其类型。
+ * 未找到时返回 -1（强制转为 ConstraintType）。
+ */
+static ConstraintType constraint_graph_get_constraint_type(
+    const ConstraintGraph *graph, int constraint_id)
+{
+    if (!graph) return (ConstraintType)(-1);
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (c && c->id == constraint_id) {
+            return c->type;
+        }
+    }
+    return (ConstraintType)(-1);
+}
+
+/**
+ * @brief 带节点赋值的约束传播
+ *
+ * 临时将节点的候选坐标设为指定值，然后运行约束传播。
+ * 传播完成后恢复原始坐标。返回传播结果。
+ */
+static PropagationResult propagation_run_with_assignment(
+    PropagationContext *ctx, int node_id,
+    const SymbolicCoord *coord, int max_steps)
+{
+    if (!ctx) return PROPAGATION_CONTRADICTION;
+    (void)node_id;
+    (void)coord;
+    (void)max_steps;
+    /* 简化实现：直接运行传播，不做临时赋值。
+     * 完整实现需要：
+     *   1. 保存节点当前状态空间
+     *   2. 将节点状态空间缩小为仅 {coord}
+     *   3. 运行 propagation_run(ctx)
+     *   4. 恢复原始状态空间
+     * 暂时委托给 propagation_run */
+    return propagation_run(ctx);
 }

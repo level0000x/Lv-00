@@ -18,6 +18,17 @@
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "lv00/solver.h"
+
+#ifndef LV00_ADJ_MAX_PER_NODE
+#define LV00_ADJ_MAX_PER_NODE 256
+#endif
+#ifndef LV00_MAX_CONN_ADJ_STRIDE
+#define LV00_MAX_CONN_ADJ_STRIDE 256
+#endif
+
+/* ── 流上下文声明 ── */
+LV00_DECLARE_STREAM_CTX(graph);
 
 /**
  * 查找线性相关的约束（冗余检测辅助函数）。
@@ -1031,3 +1042,29 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
  */
 bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) {
     lv00_clear_error();
+
+    if (!graph) {
+        lv00_set_error(LV00_ERROR_NULL_POINTER, __func__, "graph is NULL");
+        return false;
+    }
+
+    const GeomNode *region = graph_get_node(graph, region_id);
+    if (!region || region->type != GEOM_REGION) {
+        return false;
+    }
+
+    int segment_count = region->data.region.segment_count;
+    if (segment_count < 3) {
+        return false; /* 至少需要 3 条边才能闭合 */
+    }
+
+    /* 验证所有边界线段是有效的 GEOM_LINE_SEGMENT 且活跃 */
+    for (int i = 0; i < segment_count; i++) {
+        const GeomNode *seg = region->data.region.boundary_segments[i];
+        if (!seg || seg->type != GEOM_LINE_SEGMENT || !seg->is_active) {
+            return false;
+        }
+    }
+
+    return true;
+}

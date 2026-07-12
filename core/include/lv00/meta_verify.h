@@ -57,7 +57,7 @@ typedef struct {
     int passed_checks;            /**< 通过数 */
     int failed_checks;            /**< 失败数 */
     int skipped_checks;           /**< 跳过数 */
-    Lv00VerifyResult results[LV00_CHECK_COUNT]; /**< 各项结果 */
+    Lv00MetaVerifyResult results[LV00_CHECK_COUNT]; /**< 各项结果 */
     char summary[1024];           /**< 摘要 */
 } Lv00VerifyReport;
 
@@ -101,7 +101,7 @@ int lv00_verify_report_passed(const Lv00VerifyReport *report);
 const char *lv00_verify_report_summary(const Lv00VerifyReport *report);
 
 /** @brief 获取指定检查项的结果 */
-const Lv00VerifyResult *lv00_verify_report_result(const Lv00VerifyReport *report, Lv00VerifyCheck check);
+const Lv00MetaVerifyResult *lv00_verify_report_result(const Lv00VerifyReport *report, Lv00VerifyCheck check);
 
 #ifdef __cplusplus
 }

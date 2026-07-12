@@ -74,7 +74,7 @@
  * NOTE: 使用线程局部存储以保证多线程环境下的安全性。
  *       每个线程拥有独立的溢出上下文。
  * ============================================================ */
-static LV00_THREAD_LOCAL struct OverflowContext g_overflow_context = {
+LV00_THREAD_LOCAL struct OverflowContext g_overflow_context = {
     .last_result = NULL,
     .last_operation = NULL,
     .left_type = RATIONAL,

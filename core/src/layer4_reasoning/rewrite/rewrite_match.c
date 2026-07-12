@@ -21,7 +21,7 @@
 #include "mpz_poly.h"
 
 static uint64_t compute_wl_graph_hash(ConstraintGraph *graph);
-static uint32_t compute_graph_hash(ConstraintGraph *graph);
+uint32_t compute_graph_hash(ConstraintGraph *graph);
 
 /* ---------------------------------------------------------------------------
  * 内部辅助函数
@@ -63,7 +63,7 @@ static uint64_t fnv1a_mix(uint64_t hash, const void *data, size_t len) {
  * @param pattern_var_id 待解析的模式变量 ID（负值）
  * @return 对应的实际图节点 ID，未找到返回 -1
  */
-static int resolve_binding(const int *bindings, int binding_count, int pattern_var_id) {
+int resolve_binding(const int *bindings, int binding_count, int pattern_var_id) {
     for (int i = 0; i < binding_count; i++) {
         if (bindings[i * 2] == pattern_var_id) {
             return bindings[i * 2 + 1];
@@ -82,7 +82,7 @@ static int resolve_binding(const int *bindings, int binding_count, int pattern_v
  * @param pattern_var_id  待检查的模式变量 ID
  * @return true 如果该变量在替换约束中被引用，否则 false
  */
-static bool pattern_var_used_in_replacement(const RewriteReplacement *repl, int pattern_var_id) {
+bool pattern_var_used_in_replacement(const RewriteReplacement *repl, int pattern_var_id) {
     for (int c = 0; c < repl->replacement_constraint_count; c++) {
         Constraint *rc = repl->replacement_constraints[c];
         for (int p = 0; p < rc->participant_count; p++) {
@@ -104,7 +104,7 @@ static bool pattern_var_used_in_replacement(const RewriteReplacement *repl, int 
  * @param pattern_var_id  待检查的模式变量 ID
  * @return true 如果该变量在绑定表中，否则 false
  */
-static bool pattern_var_in_replacement_bindings(const RewriteReplacement *repl, int pattern_var_id) {
+bool pattern_var_in_replacement_bindings(const RewriteReplacement *repl, int pattern_var_id) {
     for (int b = 0; b < repl->binding_count; b++) {
         if (repl->node_bindings[b][0] == pattern_var_id) {
             return true;
@@ -130,7 +130,7 @@ static bool pattern_var_in_replacement_bindings(const RewriteReplacement *repl, 
  * @param new_node_count    新节点数量
  * @return 解析后的实际图节点 ID，失败返回 -1
  */
-static int resolve_replacement_participant(
+int resolve_replacement_participant(
     int participant_id,
     const int *match_bindings,
     int match_binding_count,
@@ -173,7 +173,7 @@ static int resolve_replacement_participant(
  * @param participant_count 参与者数量
  * @return true 添加成功，false 失败（类型不支持或参数不匹配）
  */
-static bool add_constraint_generic(ConstraintGraph *graph,
+bool add_constraint_generic(ConstraintGraph *graph,
                                    ConstraintType type,
                                    const int *participants,
                                    int participant_count)
@@ -241,7 +241,7 @@ static bool is_pattern_bound_node(const RewriteMatch *match, int node_id) {
  * @param constraint_id 待检查的约束 ID
  * @return true 如果该约束已被匹配，否则 false
  */
-static bool is_matched_constraint(const RewriteMatch *match, int constraint_id) {
+bool is_matched_constraint(const RewriteMatch *match, int constraint_id) {
     for (int i = 0; i < match->binding_count; i++) {
         if (match->constraint_bindings[i] == constraint_id) {
             return true;
@@ -261,7 +261,7 @@ static bool is_matched_constraint(const RewriteMatch *match, int constraint_id) 
  *       需要分别释放；两者可能为 NULL（无冲突或分配失败时）。
  *       此函数不区分"无冲突"和"分配失败"两种情况，均视为通过。
  */
-static bool check_graph_consistency(ConstraintGraph *graph) {
+bool check_graph_consistency(ConstraintGraph *graph) {
     int conflict_count = 0;
     int *conflict_sizes = NULL;
     int **conflicts = graph_detect_conflicts(graph, &conflict_count, &conflict_sizes);
@@ -947,7 +947,7 @@ void graph_snapshot_destroy(GraphSnapshot *snapshot) {
  * @param graph 约束图指针
  * @return 32位结构哈希值
  */
-static uint32_t compute_graph_hash(ConstraintGraph *graph) {
+uint32_t compute_graph_hash(ConstraintGraph *graph) {
     uint64_t h = LV00_FNV64_OFFSET_BASIS;
 
     /* 哈希节点类型和 POINT 节点的符号坐标 */

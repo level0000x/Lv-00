@@ -20,6 +20,14 @@
 #include "lv00_utils.h"
 #include "mpz_poly.h"
 
+/* ── 前向声明 ── */
+uint32_t compute_graph_hash(ConstraintGraph *graph);
+
+/* ── VF2 递归深度限制 ── */
+#ifndef REWRITE_VF2_MAX_DEPTH
+#define REWRITE_VF2_MAX_DEPTH 64
+#endif
+
 static bool detect_rewrite_loop(ConstraintGraph *graph, int *history_hashes, int history_count) {
     uint32_t current_hash = compute_graph_hash(graph);
     for (int i = 0; i < history_count; i++) {
@@ -764,3 +772,25 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
                                     found_bind = true;
                                 }
                                 break;
+                            }
+                        }
+                        if (!found_bind) { all_match = false; break; }
+                    } else {
+                        if (pid != tid) { all_match = false; break; }
+                    }
+                }
+                if (all_match) {
+                    match->constraint_bindings[constraint_match_count++] =
+                        pcon->id;
+                    break;
+                }
+            }
+        }
+        match->binding_count = pattern->var_count;
+        match->constraint_binding_count = constraint_match_count;
+    }
+
+    vf2_state_destroy(&state);
+    graph_destroy(pattern_graph);
+    return match;
+}

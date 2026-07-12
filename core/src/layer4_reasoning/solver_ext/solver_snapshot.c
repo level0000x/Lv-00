@@ -5,7 +5,7 @@
  * 原位置: solver.c L108-L222
  */
 
-#include "solver_snapshot.h"
+#include "../solver_snapshot.h"
 #include "lv00/lv00.h"
 #include "lv00/constraint_graph.h"
 #include <string.h>

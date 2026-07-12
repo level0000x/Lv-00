@@ -769,7 +769,7 @@ const char *lv00_verify_report_summary(const Lv00VerifyReport *report) {
     return report->summary;
 }
 
-const Lv00VerifyResult *lv00_verify_report_result(const Lv00VerifyReport *report, Lv00VerifyCheck check) {
+const Lv00MetaVerifyResult *lv00_verify_report_result(const Lv00VerifyReport *report, Lv00VerifyCheck check) {
     if (!report || check < 0 || check >= LV00_CHECK_COUNT) return NULL;
     return &report->results[check];
 }

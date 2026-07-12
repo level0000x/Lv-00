@@ -114,6 +114,8 @@ struct TranscendentalExpr {
 struct Transcendental {
     char                name[64];
     TranscendentalExpr *expr;
+    bool                cache_valid;
+    double              cached_value;
 };
 
 /* ── Algebraic info (equiv_class.c 依赖) ── */
