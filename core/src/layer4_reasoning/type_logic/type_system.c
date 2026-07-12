@@ -50,6 +50,10 @@
 
 LV00_DECLARE_STREAM_CTX(type_system);
 
+void type_system_set_stream_context(StreamContext *ctx) {
+    type_system_stream_ctx = ctx;
+}
+
 /* ============== 内部辅助宏和前向声明 ============== */
 
 /* 推断规则表初始容量 */

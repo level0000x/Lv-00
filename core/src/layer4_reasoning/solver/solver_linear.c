@@ -40,7 +40,7 @@
 
 /* ── 数值求解器 ── */
 
-static bool solve_linear(const mpz_poly_t *poly, double *x_out) {
+bool solve_linear(const mpz_poly_t *poly, double *x_out) {
     if (poly->degree != 1)
         return false;
     double a = mpz_get_d(poly->coeffs[1]);

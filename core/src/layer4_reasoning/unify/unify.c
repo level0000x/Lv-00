@@ -86,6 +86,10 @@
 
 LV00_DECLARE_STREAM_CTX(unify)
 
+void unify_set_stream_context(StreamContext *ctx) {
+    unify_stream_ctx = ctx;
+}
+
 /* 哈希值到节点ID的掩码 —— 取哈希值低31位以确保结果为正整数 */
 #define UNIFY_HASH_TO_ID_MASK 0x7FFFFFFF
 

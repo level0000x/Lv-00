@@ -513,6 +513,11 @@ set(LV00_LAYER1_SOURCES
     core/src/layer1_parser/parser_safety.c
     core/src/layer1_parser/dsl_compiler.c
     core/src/layer1_parser/math_input.c
+    # parser 子目录：公式 AST、DSL、LaTeX、Python 表达式
+    core/src/layer1_parser/parser/formula_ast.c
+    core/src/layer1_parser/parser/formula_dsl.c
+    core/src/layer1_parser/parser/formula_latex.c
+    core/src/layer1_parser/parser/formula_python.c
 )
 
 # ── Layer 2: 资源管理层 (Resource) ──
@@ -569,6 +574,8 @@ set(LV00_CORE_SOURCES
     core/src/core/lv00_convenience.c
     # 补全遗漏文件：原生实现
     core/src/lv00_impl_native.c
+    # 上层接口实现
+    core/src/lv00_impl_upper.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
@@ -620,6 +627,20 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/geometric_primitives.c
     core/src/layer3_geometry/parametric_curves.c
     core/src/layer3_geometry/path_type.c
+    # 约束图子模块：冲突检测、索引、内存、节点、序列化
+    core/src/layer3_geometry/constraint_graph/graph_conflict.c
+    core/src/layer3_geometry/constraint_graph/graph_index.c
+    core/src/layer3_geometry/constraint_graph/graph_memory.c
+    core/src/layer3_geometry/constraint_graph/graph_node.c
+    core/src/layer3_geometry/constraint_graph/graph_serialize.c
+    # 符号计算子模块：代数、二次、有理、坐标运算、超越函数
+    core/src/layer3_geometry/symbolics/algebraic.c
+    core/src/layer3_geometry/symbolics/quadratic.c
+    core/src/layer3_geometry/symbolics/rational.c
+    core/src/layer3_geometry/symbolics/symbolic_coord_ops.c
+    core/src/layer3_geometry/symbolics/transcendental.c
+    # 稀疏线性代数
+    core/src/layer3_geometry/sparse_linear_algebra.c
 )
 
 # ── Layer 4: 公理推理层 (Reasoning) ──
@@ -790,6 +811,47 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/axiom_rule_engine.c
     core/src/layer4_reasoning/reasoning_cache.c
     core/src/layer4_reasoning/simd_ops.c
+    # 求解器子模块：坐标提取、方程组、线性、快照、符号
+    core/src/layer4_reasoning/solver/solver_coord_extract.c
+    core/src/layer4_reasoning/solver/solver_eq_system.c
+    core/src/layer4_reasoning/solver/solver_linear.c
+    core/src/layer4_reasoning/solver/solver_snapshot.c
+    core/src/layer4_reasoning/solver/solver_symbolic.c
+    # 求解器扩展：脏集合、快照
+    core/src/layer4_reasoning/solver_ext/solver_dirty_set.c
+    core/src/layer4_reasoning/solver_ext/solver_snapshot.c
+    # 证明子模块：依赖、导航、命题、版本
+    core/src/layer4_reasoning/proof/proof_dependency.c
+    core/src/layer4_reasoning/proof/proof_navigator.c
+    core/src/layer4_reasoning/proof/proof_proposition.c
+    core/src/layer4_reasoning/proof/proof_version.c
+    # 证明系统子模块：矛盾、追踪
+    core/src/layer4_reasoning/proof_system/proof_contradiction.c
+    core/src/layer4_reasoning/proof_system/proof_trace.c
+    # 重写子模块：应用、匹配、VF2、WL
+    core/src/layer4_reasoning/rewrite/rewrite_apply.c
+    core/src/layer4_reasoning/rewrite/rewrite_match.c
+    core/src/layer4_reasoning/rewrite/rewrite_vf2.c
+    core/src/layer4_reasoning/rewrite/rewrite_wl.c
+    # 引擎调度
+    core/src/layer4_reasoning/engine/engine_scheduler.c
+    # 精确算术
+    core/src/layer4_reasoning/expr/exact_arithmetic.c
+    # 近似计数器
+    core/src/layer4_reasoning/backends/approx_counter.c
+    # 内核子模块：熔断器、元证明
+    core/src/layer4_reasoning/kernel/circuit_breaker.c
+    core/src/layer4_reasoning/kernel/meta_proof.c
+    # 推理缓存
+    core/src/layer4_reasoning/model/reasoning_cache.c
+    # 模块子模块：增量、LVZ、序列化
+    core/src/layer4_reasoning/module/module_delta.c
+    core/src/layer4_reasoning/module/module_lvz.c
+    core/src/layer4_reasoning/module/module_serialize.c
+    # 多项式
+    core/src/layer4_reasoning/numeric/mv_polynomial.c
+    # 统一子模块：SIMD 运算
+    core/src/layer4_reasoning/unify/simd_ops.c
 )
 
 # ── Layer 5: 结果输出层 (Output) ──
@@ -812,6 +874,12 @@ set(LV00_LAYER5_SOURCES
     # v1.1.0 补全遗漏：插件系统、证明编译器
     core/src/layer5_output/plugin_system.c
     core/src/layer5_output/proof_compiler.c
+    # 互操作子模块：命令、导出、导入、服务器、定理
+    core/src/layer5_output/interop/interop_command.c
+    core/src/layer5_output/interop/interop_export.c
+    core/src/layer5_output/interop/interop_import.c
+    core/src/layer5_output/interop/interop_server.c
+    core/src/layer5_output/interop/interop_theorem.c
 )
 
 # ============================================================

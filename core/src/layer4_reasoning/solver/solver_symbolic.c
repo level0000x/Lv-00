@@ -55,7 +55,7 @@ typedef struct EquationSystem {
 /* ── 符号求解器 ── */
 
 /* 从 solver_coord_extract.c / solver.c / solver_linear.c 中共享的函数 */
-static bool coord_to_double(const SymbolicCoord *c, double *out) {
+bool coord_to_double(const SymbolicCoord *c, double *out) {
     if (!c || !out) return false;
     char *str = symbolic_coord_serialize(c);
     if (!str) return false;
@@ -65,7 +65,7 @@ static bool coord_to_double(const SymbolicCoord *c, double *out) {
     return (endptr != str);
 }
 
-static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
+void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
     mpz_set_d(result, val * (double)scale);
 }
 
@@ -129,7 +129,7 @@ static SymbolicCoord *symbolic_coord_from_mpq(const mpq_t val) {
  * @param value 符号坐标求值点
  * @return 求值结果（新的 SymbolicCoord），调用者负责释放；失败返回 NULL
  */
-static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value) {
+SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value) {
     if (!poly || !value || poly->degree < 0 || !poly->coeffs)
         return NULL;
 
@@ -536,7 +536,7 @@ bool compute_algebraic_resultant(const mpz_poly_t *p, /* Minimal polynomial of a
  * @param coord_index 坐标索引
  * @param value       变量的数值
  */
-static void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, double value) {
+void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, double value) {
     /* For each equation that references this variable, substitute the
        known value and simplify. In our univariate representation, if
        an equation targets this exact (node_id, coord_index), we can
@@ -569,7 +569,7 @@ static void substitute_solved(EquationSystem *sys, int var_node_id, int coord_in
  * @param poly 多项式指针
  * @return true 表示超出范围，false 表示可求解
  */
-static bool is_out_of_scope(const mpz_poly_t *poly) {
+bool is_out_of_scope(const mpz_poly_t *poly) {
     /* quartic (degree 4) equations are now supported via exact Ferrari/Cardano solver */
     return poly->degree > 4;
 }
@@ -585,7 +585,7 @@ static bool is_out_of_scope(const mpz_poly_t *poly) {
  * @param factor2 输出：第二个因式
  * @return true 表示分解成功，false 表示失败
  */
-static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2) {
+bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2) {
     /* Try rational root theorem: test divisors of constant term / leading coeff */
     if (poly->degree < 3)
         return false;
@@ -746,7 +746,7 @@ static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, m
 /*  pair are incompatible                                              */
 /* ------------------------------------------------------------------ */
 
-static bool check_incompatible_distances(const ConstraintGraph *graph) {
+bool check_incompatible_distances(const ConstraintGraph *graph) {
     /* Build a map of (node_pair) -> list of distance values */
     /* We use a simple O(n^2) scan */
     for (int i = 0; i < graph->node_count; i++) {
@@ -818,7 +818,7 @@ static bool check_incompatible_distances(const ConstraintGraph *graph) {
 /*  Internal: check if after substitution any equation is 0 = nonzero  */
 /* ------------------------------------------------------------------ */
 
-static bool check_contradiction_after_substitution(EquationSystem *sys) {
+bool check_contradiction_after_substitution(EquationSystem *sys) {
     for (int i = 0; i < sys->count; i++) {
         mpz_poly_t *p = &sys->eqs[i].poly;
         if (p->degree < 0)
@@ -839,7 +839,7 @@ static bool check_contradiction_after_substitution(EquationSystem *sys) {
  * @param c 约束指针
  * @return 约束贡献的标量方程数量
  */
-static int constraint_weight(const Constraint *c) {
+int constraint_weight(const Constraint *c) {
     switch (c->type) {
         case INCIDENCE:
             return 1; /* one linear equation (point on line) */
@@ -867,7 +867,7 @@ static int constraint_weight(const Constraint *c) {
  * @param out_ids  输出：点节点 ID 数组（调用者负责释放），可为 NULL
  * @return 点节点数量
  */
-static int count_point_variables(const ConstraintGraph *graph, int **out_ids) {
+int count_point_variables(const ConstraintGraph *graph, int **out_ids) {
     int count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         if (graph->nodes[i]->type == GEOM_POINT)
@@ -929,7 +929,7 @@ static int append_solution(GroebnerResult *result, SymbolicCoord *sol) {
  * @param no_solution        输出：检测到无解时设为 true
  * @param do_substitute      是否在每次求解后进行回代
  */
-static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count,
+void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count,
                                  int *multiple_solutions, bool *no_solution, bool do_substitute) {
     /* Pass 0: linear, Pass 1: quadratic, Pass 2: cubic */
     for (int pass = 0; pass < 3; pass++) {
@@ -1085,7 +1085,7 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, in
 /**
  * Free all solutions in a GroebnerResult and reset it.
  */
-static void cleanup_groebner_result(GroebnerResult *result) {
+void cleanup_groebner_result(GroebnerResult *result) {
     if (!result)
         return;
     for (int i = 0; i < result->solution_count; i++) {

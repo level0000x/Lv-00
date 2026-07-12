@@ -45,6 +45,10 @@
 
 LV00_DECLARE_STREAM_CTX(recursion)
 
+void recursion_set_stream_context(StreamContext *ctx) {
+    recursion_stream_ctx = ctx;
+}
+
 
 /* ============== 测度系统API ============== */
 

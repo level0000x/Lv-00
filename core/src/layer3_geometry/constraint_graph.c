@@ -66,6 +66,10 @@
 
 LV00_DECLARE_STREAM_CTX(graph);
 
+void graph_set_stream_context(StreamContext *ctx) {
+    graph_stream_ctx = ctx;
+}
+
 /* Forward declarations for hash index functions
  * graph_node_index_insert 和 graph_constraint_index_insert 已公开为公共接口，
  * 供 func_block.c 在例化时将新节点/约束注册到哈希索引 */

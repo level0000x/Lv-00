@@ -62,7 +62,7 @@ LV00_DECLARE_STREAM_CTX(solver);
  *
  * @param sys 方程系统指针（必须非空）
  */
-static void equation_system_init(EquationSystem *sys) {
+void equation_system_init(EquationSystem *sys) {
     sys->eqs = NULL;
     sys->count = 0;
     sys->capacity = 0;
@@ -94,7 +94,7 @@ static void equation_system_init(EquationSystem *sys) {
  * @param coord_index 坐标索引（0 = x, 1 = y）
  * @return 0 表示成功，-1 表示失败（内存不足或容量溢出）
  */
-static int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
+int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
     if (sys->count >= sys->capacity) {
         if (sys->capacity > INT_MAX / 2)
             return -1;
@@ -134,7 +134,7 @@ static int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_no
  *
  * @param sys 方程系统指针
  */
-static void equation_system_clear(EquationSystem *sys) {
+void equation_system_clear(EquationSystem *sys) {
     if (!sys) return;
     for (int i = 0; i < sys->count; i++) {
         mpz_poly_clear(&sys->eqs[i].poly);

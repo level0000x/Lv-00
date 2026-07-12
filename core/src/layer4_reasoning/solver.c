@@ -113,6 +113,10 @@ typedef struct EquationSystem {
 
 LV00_DECLARE_STREAM_CTX(solver);
 
+void solver_set_stream_context(StreamContext *ctx) {
+    solver_stream_ctx = ctx;
+}
+
 /* ------------------------------------------------------------------ */
 /*  前向声明：solver 子模块（solver_eq_system / solver_coord_extract /  */
 /*  solver_symbolic / solver_snapshot / solver_linear）中定义的 static  */
@@ -121,41 +125,41 @@ LV00_DECLARE_STREAM_CTX(solver);
 /* ------------------------------------------------------------------ */
 
 /* solver_eq_system.c */
-static void equation_system_init(EquationSystem *sys);
-static int  equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
-static void equation_system_clear(EquationSystem *sys);
+void equation_system_init(EquationSystem *sys);
+int  equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+void equation_system_clear(EquationSystem *sys);
 
 /* solver_coord_extract.c */
-static bool coord_to_double(const SymbolicCoord *c, double *out);
-static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale);
-static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
-static bool point_coord(const GeomNode *pt, int idx, double *out);
-static void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
+bool coord_to_double(const SymbolicCoord *c, double *out);
+bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale);
+void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
+bool point_coord(const GeomNode *pt, int idx, double *out);
+void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
 
 /* 直线方程结构体 ax + by + c = 0 */
 typedef struct { double a, b, c; } LineEquation;
-static bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out);
+bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out);
 
 /* solver_linear.c */
-static bool solve_linear(const mpz_poly_t *poly, double *x_out);
+bool solve_linear(const mpz_poly_t *poly, double *x_out);
 
 /* solver_symbolic.c */
-static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value);
-static void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, double value);
-static bool is_out_of_scope(const mpz_poly_t *poly);
-static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2);
-static bool check_incompatible_distances(const ConstraintGraph *graph);
-static bool check_contradiction_after_substitution(EquationSystem *sys);
-static int  constraint_weight(const Constraint *c);
-static int  count_point_variables(const ConstraintGraph *graph, int **out_ids);
-static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count,
-                                 int *multiple_solutions, bool *no_solution, bool do_substitute);
-static void cleanup_groebner_result(GroebnerResult *result);
+SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value);
+void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, double value);
+bool is_out_of_scope(const mpz_poly_t *poly);
+bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2);
+bool check_incompatible_distances(const ConstraintGraph *graph);
+bool check_contradiction_after_substitution(EquationSystem *sys);
+int  constraint_weight(const Constraint *c);
+int  count_point_variables(const ConstraintGraph *graph, int **out_ids);
+void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count,
+                          int *multiple_solutions, bool *no_solution, bool do_substitute);
+void cleanup_groebner_result(GroebnerResult *result);
 
 /* solver_snapshot.c */
-static bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot);
-static void solver_snapshot_restore(ConstraintGraph *graph, const SolverSnapshot *snapshot);
-static void solver_snapshot_free(SolverSnapshot *snapshot);
+bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot);
+void solver_snapshot_restore(ConstraintGraph *graph, const SolverSnapshot *snapshot);
+void solver_snapshot_free(SolverSnapshot *snapshot);
 
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
     do { \

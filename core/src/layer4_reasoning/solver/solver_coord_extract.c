@@ -44,7 +44,7 @@ typedef struct EquationSystem {
     int capacity;
 } EquationSystem;
 
-static int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
 
 /** @brief 添加方程到方程系统 */
 static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
@@ -121,7 +121,7 @@ static bool coord_to_double_via_serialize(const SymbolicCoord *c, double *out) {
     return (endptr != str);
 }
 
-static bool coord_to_double(const SymbolicCoord *c, double *out) {
+bool coord_to_double(const SymbolicCoord *c, double *out) {
     if (!c)
         return false;
     switch (c->type) {
@@ -185,7 +185,7 @@ static void rational_to_mpz_scaled(mpq_srcptr val, mpz_t result, int64_t scale) 
  * @param scale  缩放因子
  * @return true 表示成功（精确或近似），false 表示失败
  */
-static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale) {
+bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale) {
     if (!c)
         return false;
 
@@ -252,7 +252,7 @@ static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t sc
 
 /* 前向声明：coord_to_mpz_scaled_exact 在 double_to_mpz_scaled 之后定义，
    但 coord_to_mpz_scaled 的回退路径需要引用 double_to_mpz_scaled */
-static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
+void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
 
 /**
  * 将符号坐标精确转换为缩放整数系数。
@@ -325,7 +325,7 @@ static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, 
  * 先从 double 构造 mpq，再乘以 scale 得到缩放后的整数。
  * 当 scaled_num 不能被 den 整除时，使用四舍五入取整。
  */
-static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
+void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
     /* 防御特殊浮点值 */
     if (!isfinite(val)) {
         mpz_set_ui(result, 0);
@@ -420,7 +420,7 @@ static GeomNode *find_node(const ConstraintGraph *graph, int id) {
  * @param out 输出：坐标的 double 近似值
  * @return true 表示成功获取，false 表示节点类型不符或坐标不足
  */
-static bool point_coord(const GeomNode *pt, int idx, double *out) {
+bool point_coord(const GeomNode *pt, int idx, double *out) {
     if (!pt || pt->type != GEOM_POINT || pt->coord_count <= idx)
         return false;
     return coord_to_double(pt->symbolic_coords[idx], out);
@@ -434,7 +434,7 @@ typedef struct {
     double a, b, c; /* ax + by + c = 0 */
 } LineEquation;
 
-static bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out) {
+bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out) {
     double x1, y1, x2, y2;
     if (!point_coord(p1, 0, &x1) || !point_coord(p1, 1, &y1))
         return false;
@@ -510,7 +510,7 @@ static bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out) 
  * @param graph 约束图指针
  * @param sys   输出：存储提取方程的系统
  */
-static void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys) {
+void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys) {
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
         if (!c || c->participant_count < 2)
@@ -1456,7 +1456,7 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
  * @param x_out 输出：方程的解
  * @return true 表示成功求解，false 表示次数不为 1 或 a 近似为 0
  */
-static bool solve_linear(const mpz_poly_t *poly, double *x_out) {
+bool solve_linear(const mpz_poly_t *poly, double *x_out) {
     if (!poly || !x_out) return false;
     if (poly->degree != 1) return false;
     double a = mpz_get_d(poly->coeffs[1]);

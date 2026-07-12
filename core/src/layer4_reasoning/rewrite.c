@@ -65,6 +65,10 @@
 
 LV00_DECLARE_STREAM_CTX(rewrite)
 
+void rewrite_set_stream_context(StreamContext *ctx) {
+    rewrite_stream_ctx = ctx;
+}
+
 /* ── 前向声明 ── */
 
 /* ── 子模块已拆分至 rewrite/ ── */

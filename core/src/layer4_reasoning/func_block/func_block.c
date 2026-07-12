@@ -170,7 +170,7 @@ FuncBlock *func_block_create(int id) {
  * 释放 SolutionSelector 结构体及其所有动态分配的成员。
  * 参数为 NULL 时安全返回（no-op）。
  */
-void selector_destroy(SolutionSelector *sel) {
+static void selector_destroy(SolutionSelector *sel) {
     if (!sel)
         return;
     lv00_free((void **) &sel->name);

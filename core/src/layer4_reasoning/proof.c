@@ -71,6 +71,10 @@
 
 LV00_DECLARE_STREAM_CTX(proof);
 
+void proof_set_stream_context(StreamContext *ctx) {
+    proof_stream_ctx = ctx;
+}
+
 /* 占位：证明树 API（待实现） */
 #define LV00_DEFAULT_MAX_STEPS 10000
 typedef struct Lv00ProofTree Lv00ProofTree;

@@ -450,7 +450,7 @@ int graph_solve(ConstraintGraph* g) {
     return 0;
 }
 
-void graph_normalize(ConstraintGraph* g) {
+static void graph_normalize(ConstraintGraph* g) {
     if (!g || g->node_count == 0) return;
     int min_idx = 0;
     for (int i = 1; i < g->node_count; i++) {

@@ -113,6 +113,10 @@ static int hash_idx_compare_asc(const void *a, const void *b) {
 
 LV00_DECLARE_STREAM_CTX(normalization)
 
+void normalization_set_stream_context(StreamContext *ctx) {
+    normalization_stream_ctx = ctx;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Global merge confirmation callback (线程局部)                      */
 /* ------------------------------------------------------------------ */
