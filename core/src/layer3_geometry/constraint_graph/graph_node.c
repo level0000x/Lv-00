@@ -1119,3 +1119,26 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
         out_result->status = LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED;
         out_result->diagnostic = "检测到重复线段约束";
         return true;
+    }
+
+    /* 计算自由度：每个点 2 自由度，每条线段 4 自由度（两个端点） */
+    int total_dof = active_geometry_nodes * 2;
+    int active_constraint_count = 0;
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *con = graph->constraints[i];
+        if (con && con->is_active)
+            active_constraint_count++;
+    }
+    int free_dof = total_dof - active_constraint_count;
+    if (free_dof > 0) {
+        out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
+        out_result->free_degree_count = free_dof;
+        out_result->diagnostic = "约束不足，存在自由度";
+        return true;
+    }
+
+    out_result->status = LV00_CONSTRAINT_STATUS_CONSISTENT;
+    out_result->free_degree_count = 0;
+    out_result->diagnostic = "约束图状态良好";
+    return true;
+}

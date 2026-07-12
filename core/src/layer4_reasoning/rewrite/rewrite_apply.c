@@ -20,6 +20,35 @@
 #include "lv00_utils.h"
 #include "mpz_poly.h"
 
+/* 解析后的重写规则结构体 */
+typedef struct {
+    char name[256];
+    int priority;
+    /* 模式变量节点 ID 列表 */
+    int *pattern_var_ids;
+    int pattern_var_count;
+    /* 模式约束 */
+    struct {
+        ConstraintType type;
+        int participant_count;
+        int participants[8];
+    } *pattern_constraints;
+    int pattern_constraint_count;
+    /* 替换约束 */
+    struct {
+        ConstraintType type;
+        int participant_count;
+        int participants[8];
+    } *replacement_constraints;
+    int replacement_constraint_count;
+    /* 替换节点绑定 */
+    struct {
+        int pattern_var_id;
+        int target_id;
+    } *node_bindings;
+    int node_binding_count;
+    /* 新节点 */
+    int *new_node_ids;
     int new_node_count;
     GeomType *new_node_types;     /* 新节点的几何类型 */
 } ParsedRule;

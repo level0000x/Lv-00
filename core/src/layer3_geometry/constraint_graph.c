@@ -198,5 +198,32 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
                 for (int j = 0; j < i; j++) {
                     symbolic_coord_destroy(node->symbolic_coords[j]);
                 }
+                lv00_free((void **) &node->symbolic_coords);
+                lv00_free((void **) &node);
+                return NULL;
+            }
+        }
+        node->coord_count = coord_count;
+    }
+
+    /* 将节点添加到图中 */
+    GeomNode **new_nodes = (GeomNode **)graph_ensure_capacity(
+        graph->nodes, graph->node_count, &graph->node_capacity,
+        sizeof(GeomNode *), 1);
+    if (!new_nodes) {
+        if (node->symbolic_coords) {
+            for (int i = 0; i < coord_count; i++) {
+                symbolic_coord_destroy(node->symbolic_coords[i]);
+            }
+            lv00_free((void **) &node->symbolic_coords);
+        }
+        lv00_free((void **) &node);
+        return NULL;
+    }
+    graph->nodes = new_nodes;
+    graph->nodes[graph->node_count++] = node;
+    graph_node_index_insert(graph, node);
+    return node;
+}
 
 /* ── 子模块已拆分至 constraint_graph/ ── */

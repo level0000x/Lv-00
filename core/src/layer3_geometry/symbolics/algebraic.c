@@ -1240,3 +1240,7 @@ static unsigned int remove_square_factors(unsigned int n) {
  * @return true 表示为零，false 表示非零
  */
 static bool is_rational_zero(const Rational *r) {
+    if (!r)
+        return true;
+    return mpq_sgn(r->value) == 0;
+}

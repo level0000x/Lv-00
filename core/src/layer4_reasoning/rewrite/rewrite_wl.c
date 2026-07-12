@@ -20,67 +20,89 @@
 #include "lv00_utils.h"
 #include "mpz_poly.h"
 
-                                break;
-                            }
-                        }
-                        if (!found_bind) { all_match = false; break; }
-                    } else {
-                        if (pid != tid) { all_match = false; break; }
-                    }
+/**
+ * 执行带坐标验证的子图同构匹配。
+ * 在 VF2 匹配基础上增加坐标相等性检查。
+ *
+ * @param target_graph              目标图
+ * @param pattern_graph             模式图
+ * @param match                     匹配结果结构（已部分填充）
+ * @param local_equivalence_tolerant 是否允许局部等价近似
+ * @return 填充完成的匹配结果，失败返回 NULL
+ */
+static RewriteMatch *perform_coord_validated_match(
+    ConstraintGraph *target_graph,
+    ConstraintGraph *pattern_graph,
+    RewriteMatch *match,
+    bool local_equivalence_tolerant) {
+    if (!target_graph || !pattern_graph || !match)
+        return NULL;
 
-                    /* local_equivalence_tolerant 模式下：
-                     * 对 POINT 节点使用 symbolic_coord_compare 验证坐标相等 */
-                    if (local_equivalence_tolerant && all_match) {
-                        GeomNode *p_node = graph_get_node(target_graph, pid);
-                        GeomNode *t_node = graph_get_node(target_graph, tid);
-                        if (p_node && t_node &&
-                            p_node->type == GEOM_POINT && t_node->type == GEOM_POINT &&
-                            p_node->coord_count > 0 && t_node->coord_count > 0) {
-                            if (p_node->coord_count != t_node->coord_count) {
-                                all_match = false;
-                            } else {
-                                for (int c = 0; c < p_node->coord_count; c++) {
-                                    if (!p_node->symbolic_coords[c] ||
-                                        !t_node->symbolic_coords[c] ||
-                                        symbolic_coord_compare(
-                                            p_node->symbolic_coords[c],
-                                            t_node->symbolic_coords[c]) != 0) {
-                                        all_match = false;
-                                        break;
-                                    }
+    int constraint_match_count = 0;
+
+    for (int pc = 0; pc < pattern_graph->constraint_count; pc++) {
+        Constraint *pcon = pattern_graph->constraints[pc];
+        if (!pcon || !pcon->is_active) continue;
+
+        bool found_match = false;
+        for (int tc = 0; tc < target_graph->constraint_count && !found_match; tc++) {
+            Constraint *tcon = target_graph->constraints[tc];
+            if (!tcon || !tcon->is_active) continue;
+            if (tcon->type != pcon->type) continue;
+            if (tcon->participant_count != pcon->participant_count) continue;
+
+            bool all_match = true;
+            for (int pi = 0; pi < pcon->participant_count && all_match; pi++) {
+                int pid = pcon->participants[pi];
+                int tid = tcon->participants[pi];
+                if (pid != tid) { all_match = false; break; }
+
+                /* local_equivalence_tolerant 模式下：
+                 * 对 POINT 节点使用 symbolic_coord_compare 验证坐标相等 */
+                if (local_equivalence_tolerant && all_match) {
+                    GeomNode *p_node = graph_get_node(target_graph, pid);
+                    GeomNode *t_node = graph_get_node(target_graph, tid);
+                    if (p_node && t_node &&
+                        p_node->type == GEOM_POINT && t_node->type == GEOM_POINT &&
+                        p_node->coord_count > 0 && t_node->coord_count > 0) {
+                        if (p_node->coord_count != t_node->coord_count) {
+                            all_match = false;
+                        } else {
+                            for (int c = 0; c < p_node->coord_count; c++) {
+                                if (!p_node->symbolic_coords[c] ||
+                                    !t_node->symbolic_coords[c] ||
+                                    symbolic_coord_compare(
+                                        p_node->symbolic_coords[c],
+                                        t_node->symbolic_coords[c]) != 0) {
+                                    all_match = false;
+                                    break;
                                 }
                             }
                         }
                     }
                 }
-
-                if (all_match) {
-                    match->constraint_bindings[pc] = tcon->id;
-                    constraint_match_count++;
-                    break;
-                }
             }
-        }
 
-        match->binding_count = constraint_match_count;
-
-        /* 验证所有已添加到模式图的约束都匹配成功 */
-        if (constraint_match_count != pattern_graph->constraint_count) {
-            lv00_free((void**)&match->node_bindings);
-            lv00_free((void**)&match->constraint_bindings);
-            lv00_free((void**)&match);
-            match = NULL;
-        }
-
-        /* 流式输出：匹配成功时发射事件 */
-        if (match && rewrite_stream_ctx) {
-            stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_MATCH_FOUND,
-                               "VF2 subgraph isomorphism match found", -1);
+            if (all_match) {
+                if (match->constraint_bindings)
+                    match->constraint_bindings[pc] = tcon->id;
+                constraint_match_count++;
+                found_match = true;
+            }
         }
     }
 
-    vf2_state_destroy(&state);
-    graph_destroy(pattern_graph);
+    if (match)
+        match->binding_count = constraint_match_count;
+
+    /* 验证所有已添加到模式图的约束都匹配成功 */
+    if (constraint_match_count != pattern_graph->constraint_count) {
+        lv00_free((void**)&match->node_bindings);
+        lv00_free((void**)&match->constraint_bindings);
+        lv00_free((void**)&match);
+        match = NULL;
+    }
+
     return match;
 }
 

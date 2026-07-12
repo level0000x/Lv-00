@@ -274,3 +274,47 @@ char *transcendental_serialize(const Transcendental *t) {
  */
 static double transcendental_to_double(const Transcendental *t) {
     /* Get base constant value */
+    double base_val = 0.0;
+    if (strcmp(t->name, "pi") == 0) {
+        base_val = M_PI;
+    } else if (strcmp(t->name, "e") == 0) {
+        base_val = M_E;
+    } else {
+        return 0.0;
+    }
+
+    /* 如果没有表达式修饰，直接返回基础常数 */
+    if (!t->expr)
+        return base_val;
+
+    /* 超出作用域的表达式返回基础常数近似值 */
+    if (t->expr->out_of_scope)
+        return base_val;
+
+    /* 应用有理数运算 */
+    if (t->expr->rational_operand) {
+        /* 将有理数转换为 double */
+        mpq_t rat_val;
+        mpq_init(rat_val);
+        /* Rational 结构体内部是 mpq_t value */
+        double k = 0.0;
+        /* 从 t->name 推断基础常数 */
+        k = mpq_get_d(t->expr->rational_operand->value);
+        mpq_clear(rat_val);
+
+        switch (t->expr->expr_type) {
+            case TRANS_EXPR_MUL_RATIONAL:
+                return k * base_val;
+            case TRANS_EXPR_ADD_RATIONAL:
+                return base_val + k;
+            case TRANS_EXPR_MUL_ALGEBRAIC:
+                return k * base_val;
+            case TRANS_EXPR_ADD_ALGEBRAIC:
+                return base_val + k;
+            default:
+                return base_val;
+        }
+    }
+
+    return base_val;
+}

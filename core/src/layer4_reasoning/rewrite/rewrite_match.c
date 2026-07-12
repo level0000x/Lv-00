@@ -1652,3 +1652,4 @@ typedef struct {
     /* 新节点 */
     int *new_nodes;
     int new_node_count;
+} LvzRewriteRule;

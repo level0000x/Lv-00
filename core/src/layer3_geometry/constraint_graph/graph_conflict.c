@@ -19,6 +19,169 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+/**
+ * 查找线性相关的约束（冗余检测辅助函数）。
+ * 使用高斯消元法构建约束矩阵并识别线性相关的约束。
+ *
+ * @param graph         约束图指针
+ * @param out_count     输出：找到的冗余约束数量
+ * @param max_redundant 冗余约束数组的最大容量
+ * @return 冗余约束 ID 数组，调用者负责释放；失败返回 NULL
+ */
+static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
+                                                  int *out_count,
+                                                  int max_redundant) {
+    if (!graph || !out_count || max_redundant <= 0)
+        return NULL;
+
+    int *redundant = lv00_malloc((size_t) max_redundant * sizeof(int));
+    if (!redundant)
+        return NULL;
+    *out_count = 0;
+
+    /* 统计线性约束和点的数量 */
+    int num_linear = 0;
+    int num_point_nodes = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *n = graph->nodes[i];
+        if (n && n->type == GEOM_POINT)
+            num_point_nodes++;
+    }
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (c && c->is_active && c->type == INCIDENCE)
+            num_linear++;
+    }
+
+    if (num_linear == 0 || num_point_nodes == 0) {
+        return redundant;
+    }
+
+    int num_vars = num_point_nodes * 2; /* 每个点 2 个坐标变量 */
+
+    /* 构建点 ID 到变量索引的映射 */
+    int *point_ids = lv00_malloc((size_t) num_point_nodes * sizeof(int));
+    bool *point_seen = lv00_calloc((size_t) num_point_nodes, sizeof(bool));
+    int *node_id_to_var_idx = lv00_malloc((size_t) graph->node_count * 2 * sizeof(int));
+    int *linear_constraint_indices = lv00_malloc((size_t) num_linear * sizeof(int));
+    if (!point_ids || !point_seen || !node_id_to_var_idx || !linear_constraint_indices) {
+        lv00_free((void **) &redundant);
+        lv00_free((void **) &point_ids);
+        lv00_free((void **) &point_seen);
+        lv00_free((void **) &node_id_to_var_idx);
+        lv00_free((void **) &linear_constraint_indices);
+        return NULL;
+    }
+    memset(node_id_to_var_idx, -1, (size_t) graph->node_count * 2 * sizeof(int));
+
+    int point_idx = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *n = graph->nodes[i];
+        if (n && n->type == GEOM_POINT) {
+            point_ids[point_idx] = n->id;
+            if (n->id >= 0 && n->id < graph->node_count * 2) {
+                node_id_to_var_idx[n->id * 2] = point_idx * 2;
+                node_id_to_var_idx[n->id * 2 + 1] = point_idx * 2 + 1;
+            }
+            point_idx++;
+        }
+    }
+
+    /* 收集线性约束索引 */
+    int lin_idx = 0;
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (c && c->is_active && c->type == INCIDENCE) {
+            linear_constraint_indices[lin_idx++] = i;
+        }
+    }
+
+    /* 构建增广矩阵 */
+    mpq_t *matrix = lv00_malloc((size_t) num_linear * (size_t)(num_vars + 1) * sizeof(mpq_t));
+    int *pivot_row = lv00_malloc((size_t) num_linear * sizeof(int));
+    if (!matrix || !pivot_row) {
+        lv00_free((void **) &redundant);
+        lv00_free((void **) &point_ids);
+        lv00_free((void **) &point_seen);
+        lv00_free((void **) &node_id_to_var_idx);
+        lv00_free((void **) &linear_constraint_indices);
+        lv00_free((void **) &matrix);
+        lv00_free((void **) &pivot_row);
+        return NULL;
+    }
+
+    for (int i = 0; i < num_linear * (num_vars + 1); i++)
+        mpq_init(matrix[i]);
+
+    /* 填充矩阵（简化：将约束方程写入矩阵行） */
+    for (int li = 0; li < num_linear; li++) {
+        Constraint *c = graph->constraints[linear_constraint_indices[li]];
+        if (c && c->participant_count >= 2) {
+            int n1 = c->participants[0];
+            int n2 = c->participants[1];
+            int v1x = (n1 >= 0 && n1 < graph->node_count * 2) ? node_id_to_var_idx[n1 * 2] : -1;
+            int v1y = (n1 >= 0 && n1 < graph->node_count * 2) ? node_id_to_var_idx[n1 * 2 + 1] : -1;
+            int v2x = (n2 >= 0 && n2 < graph->node_count * 2) ? node_id_to_var_idx[n2 * 2] : -1;
+            int v2y = (n2 >= 0 && n2 < graph->node_count * 2) ? node_id_to_var_idx[n2 * 2 + 1] : -1;
+            if (v1x >= 0 && v2x >= 0) {
+                mpq_set_si(matrix[li * (num_vars + 1) + v1x], 1, 1);
+                mpq_set_si(matrix[li * (num_vars + 1) + v2x], -1, 1);
+            }
+            if (v1y >= 0 && v2y >= 0) {
+                mpq_set_si(matrix[li * (num_vars + 1) + v1y], 1, 1);
+                mpq_set_si(matrix[li * (num_vars + 1) + v2y], -1, 1);
+            }
+        }
+    }
+
+    /* 高斯消元 */
+    int rank = 0;
+    for (int col = 0; col < num_vars && rank < num_linear; col++) {
+        int pivot = -1;
+        for (int row = rank; row < num_linear; row++) {
+            if (mpq_sgn(matrix[row * (num_vars + 1) + col]) != 0) {
+                pivot = row;
+                break;
+            }
+        }
+        if (pivot < 0)
+            continue;
+        /* 交换行 */
+        if (pivot != rank) {
+            for (int c2 = 0; c2 <= num_vars; c2++) {
+                mpq_t tmp;
+                mpq_init(tmp);
+                mpq_set(tmp, matrix[rank * (num_vars + 1) + c2]);
+                mpq_set(matrix[rank * (num_vars + 1) + c2], matrix[pivot * (num_vars + 1) + c2]);
+                mpq_set(matrix[pivot * (num_vars + 1) + c2], tmp);
+                mpq_clear(tmp);
+            }
+        }
+        pivot_row[rank] = linear_constraint_indices[pivot < num_linear ? pivot : rank];
+        /* 消元 */
+        mpq_t lead;
+        mpq_init(lead);
+        mpq_set(lead, matrix[rank * (num_vars + 1) + col]);
+        for (int c2 = col; c2 <= num_vars; c2++)
+            mpq_div(matrix[rank * (num_vars + 1) + c2], matrix[rank * (num_vars + 1) + c2], lead);
+        mpq_clear(lead);
+        for (int row = 0; row < num_linear; row++) {
+            if (row == rank) continue;
+            mpq_t factor;
+            mpq_init(factor);
+            mpq_set(factor, matrix[row * (num_vars + 1) + col]);
+            for (int c2 = col; c2 <= num_vars; c2++) {
+                mpq_t prod;
+                mpq_init(prod);
+                mpq_mul(prod, factor, matrix[rank * (num_vars + 1) + c2]);
+                mpq_sub(matrix[row * (num_vars + 1) + c2], matrix[row * (num_vars + 1) + c2], prod);
+                mpq_clear(prod);
+            }
+            mpq_clear(factor);
+        }
+        rank++;
+    }
+
     }
 
     /* Also check among the rank rows: if two rows have identical

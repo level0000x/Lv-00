@@ -698,3 +698,8 @@ static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, 
  * @return true 表示转换成功，false 表示失败（非 RATIONAL 类型）
  */
 static bool symbolic_coord_to_mpq(const SymbolicCoord *c, mpq_t out) {
+    if (!c || c->type != RATIONAL || !c->data.rational)
+        return false;
+    mpq_set(out, c->data.rational->value);
+    return true;
+}

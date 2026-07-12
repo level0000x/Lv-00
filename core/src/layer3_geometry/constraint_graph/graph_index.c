@@ -19,6 +19,25 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+/**
+ * 验证函数块的跨边界约束引用是否合法。
+ * 检查命名空间深度和父块关系。
+ *
+ * @param func_block         函数块节点
+ * @param internal_ids       内部节点 ID 数组
+ * @param internal_count     内部节点数量
+ * @param external_namespace 外部引用的命名空间深度
+ * @param external_parent    外部引用的父块 ID
+ * @param has_internal       是否有内部节点
+ * @param has_external       是否有外部引用
+ * @return true 表示引用合法，false 表示违反作用域规则
+ */
+static bool validate_cross_boundary_refs(GeomNode *func_block,
+                                          int *internal_ids, int internal_count,
+                                          int external_namespace, int external_parent,
+                                          bool has_internal, bool has_external) {
+    (void)internal_count; /* 未使用参数 */
+
         if (has_internal && has_external) {
             /* 检查作用域规则：
              * - 子块可以引用父块的公共节点

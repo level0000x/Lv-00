@@ -565,3 +565,187 @@ void formula_node_destroy(FormulaNode *node) {
 }
 
 FormulaNode *formula_node_copy(const FormulaNode *node) {
+    if (!node)
+        return NULL;
+
+    FormulaNode *copy = lv00_calloc(1, sizeof(FormulaNode));
+    if (!copy)
+        return NULL;
+
+    copy->type = node->type;
+    copy->line = node->line;
+    copy->column = node->column;
+    copy->refcount = 1;
+
+    switch (node->type) {
+        case NODE_NUMBER:
+            copy->data.number.numerator = node->data.number.numerator;
+            copy->data.number.denominator = node->data.number.denominator;
+            copy->data.number.is_integer = node->data.number.is_integer;
+            break;
+
+        case NODE_VARIABLE:
+            if (node->data.variable.name)
+                copy->data.variable.name = lv00_strdup(node->data.variable.name);
+            break;
+
+        case NODE_IDENTIFIER:
+            if (node->data.identifier.name)
+                copy->data.identifier.name = lv00_strdup(node->data.identifier.name);
+            break;
+
+        case NODE_BINARY_OP_ADD:
+        case NODE_BINARY_OP_SUB:
+        case NODE_BINARY_OP_MUL:
+        case NODE_BINARY_OP_DIV:
+        case NODE_BINARY_OP_POW:
+            copy->data.binary_op.left = formula_node_copy(node->data.binary_op.left);
+            copy->data.binary_op.right = formula_node_copy(node->data.binary_op.right);
+            break;
+
+        case NODE_UNARY_OP_NEG:
+        case NODE_UNARY_OP_SQRT:
+        case NODE_UNARY_OP_SIN:
+        case NODE_UNARY_OP_COS:
+        case NODE_UNARY_OP_TAN:
+        case NODE_UNARY_OP_ABS:
+        case NODE_UNARY_OP_LN:
+        case NODE_UNARY_OP_LOG:
+            copy->data.unary_op.operand = formula_node_copy(node->data.unary_op.operand);
+            break;
+
+        case NODE_EQUATION:
+            copy->data.equation.lhs = formula_node_copy(node->data.equation.lhs);
+            copy->data.equation.rhs = formula_node_copy(node->data.equation.rhs);
+            break;
+
+        case NODE_COORDINATE_LIST:
+            copy->data.coord_list.coord_count = node->data.coord_list.coord_count;
+            if (node->data.coord_list.coord_count > 0 && node->data.coord_list.coords) {
+                copy->data.coord_list.coords = lv00_malloc(
+                    (size_t) node->data.coord_list.coord_count * sizeof(FormulaNode *));
+                if (copy->data.coord_list.coords) {
+                    for (int i = 0; i < node->data.coord_list.coord_count; i++)
+                        copy->data.coord_list.coords[i] = formula_node_copy(node->data.coord_list.coords[i]);
+                }
+            }
+            break;
+
+        case NODE_GEOM_POINT:
+            if (node->data.geom_point.name)
+                copy->data.geom_point.name = lv00_strdup(node->data.geom_point.name);
+            copy->data.geom_point.coords = formula_node_copy(node->data.geom_point.coords);
+            break;
+
+        case NODE_GEOM_SEGMENT:
+            if (node->data.geom_segment.name)
+                copy->data.geom_segment.name = lv00_strdup(node->data.geom_segment.name);
+            copy->data.geom_segment.endpoint1 = formula_node_copy(node->data.geom_segment.endpoint1);
+            copy->data.geom_segment.endpoint2 = formula_node_copy(node->data.geom_segment.endpoint2);
+            break;
+
+        case NODE_GEOM_LINE:
+            if (node->data.geom_line.name)
+                copy->data.geom_line.name = lv00_strdup(node->data.geom_line.name);
+            copy->data.geom_line.point1 = formula_node_copy(node->data.geom_line.point1);
+            copy->data.geom_line.point2 = formula_node_copy(node->data.geom_line.point2);
+            copy->data.geom_line.equation = formula_node_copy(node->data.geom_line.equation);
+            break;
+
+        case NODE_GEOM_CIRCLE:
+            if (node->data.geom_circle.name)
+                copy->data.geom_circle.name = lv00_strdup(node->data.geom_circle.name);
+            copy->data.geom_circle.center = formula_node_copy(node->data.geom_circle.center);
+            copy->data.geom_circle.radius = formula_node_copy(node->data.geom_circle.radius);
+            copy->data.geom_circle.equation = formula_node_copy(node->data.geom_circle.equation);
+            break;
+
+        case NODE_GEOM_TRIANGLE:
+            if (node->data.geom_triangle.name)
+                copy->data.geom_triangle.name = lv00_strdup(node->data.geom_triangle.name);
+            copy->data.geom_triangle.vertex1 = formula_node_copy(node->data.geom_triangle.vertex1);
+            copy->data.geom_triangle.vertex2 = formula_node_copy(node->data.geom_triangle.vertex2);
+            copy->data.geom_triangle.vertex3 = formula_node_copy(node->data.geom_triangle.vertex3);
+            break;
+
+        case NODE_GEOM_POLYGON:
+            if (node->data.geom_polygon.name)
+                copy->data.geom_polygon.name = lv00_strdup(node->data.geom_polygon.name);
+            copy->data.geom_polygon.vertex_count = node->data.geom_polygon.vertex_count;
+            if (node->data.geom_polygon.vertex_count > 0 && node->data.geom_polygon.vertices) {
+                copy->data.geom_polygon.vertices = lv00_malloc(
+                    (size_t) node->data.geom_polygon.vertex_count * sizeof(FormulaNode *));
+                if (copy->data.geom_polygon.vertices) {
+                    for (int i = 0; i < node->data.geom_polygon.vertex_count; i++)
+                        copy->data.geom_polygon.vertices[i] = formula_node_copy(node->data.geom_polygon.vertices[i]);
+                }
+            }
+            break;
+
+        case NODE_GEOM_REGION:
+            if (node->data.geom_region.name)
+                copy->data.geom_region.name = lv00_strdup(node->data.geom_region.name);
+            copy->data.geom_region.segment_count = node->data.geom_region.segment_count;
+            if (node->data.geom_region.segment_count > 0 && node->data.geom_region.boundary_segments) {
+                copy->data.geom_region.boundary_segments = lv00_malloc(
+                    (size_t) node->data.geom_region.segment_count * sizeof(FormulaNode *));
+                if (copy->data.geom_region.boundary_segments) {
+                    for (int i = 0; i < node->data.geom_region.segment_count; i++)
+                        copy->data.geom_region.boundary_segments[i] = formula_node_copy(node->data.geom_region.boundary_segments[i]);
+                }
+            }
+            break;
+
+        case NODE_GEOM_ARC:
+            if (node->data.geom_arc.name)
+                copy->data.geom_arc.name = lv00_strdup(node->data.geom_arc.name);
+            copy->data.geom_arc.center = formula_node_copy(node->data.geom_arc.center);
+            copy->data.geom_arc.radius = formula_node_copy(node->data.geom_arc.radius);
+            copy->data.geom_arc.start_angle = formula_node_copy(node->data.geom_arc.start_angle);
+            copy->data.geom_arc.end_angle = formula_node_copy(node->data.geom_arc.end_angle);
+            break;
+
+        case NODE_GEOM_VECTOR:
+            if (node->data.geom_vector.name)
+                copy->data.geom_vector.name = lv00_strdup(node->data.geom_vector.name);
+            copy->data.geom_vector.start = formula_node_copy(node->data.geom_vector.start);
+            copy->data.geom_vector.end = formula_node_copy(node->data.geom_vector.end);
+            break;
+
+        case NODE_CONSTRAINT_PERPENDICULAR:
+        case NODE_CONSTRAINT_PARALLEL:
+        case NODE_CONSTRAINT_MIDPOINT:
+        case NODE_CONSTRAINT_BISECTOR:
+        case NODE_CONSTRAINT_COLLINEAR:
+        case NODE_CONSTRAINT_TANGENT:
+        case NODE_CONSTRAINT_CONGRUENT:
+        case NODE_CONSTRAINT_ANGLE:
+            copy->data.constraint.participant_count = node->data.constraint.participant_count;
+            if (node->data.constraint.participant_count > 0 && node->data.constraint.participants) {
+                copy->data.constraint.participants = lv00_malloc(
+                    (size_t) node->data.constraint.participant_count * sizeof(FormulaNode *));
+                if (copy->data.constraint.participants) {
+                    for (int i = 0; i < node->data.constraint.participant_count; i++)
+                        copy->data.constraint.participants[i] = formula_node_copy(node->data.constraint.participants[i]);
+                }
+            }
+            break;
+
+        case NODE_COMPOUND:
+            copy->data.compound.statement_count = node->data.compound.statement_count;
+            if (node->data.compound.statement_count > 0 && node->data.compound.statements) {
+                copy->data.compound.statements = lv00_malloc(
+                    (size_t) node->data.compound.statement_count * sizeof(FormulaNode *));
+                if (copy->data.compound.statements) {
+                    for (int i = 0; i < node->data.compound.statement_count; i++)
+                        copy->data.compound.statements[i] = formula_node_copy(node->data.compound.statements[i]);
+                }
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    return copy;
+}
