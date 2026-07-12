@@ -23,8 +23,40 @@
 
 LV00_DECLARE_STREAM_CTX(proof);
 
-/* 前向声明 */
-static int json_escape(char *dst, size_t dst_size, const char *src);
+/**
+ * @brief 将 src 中的特殊 JSON 字符转义后写入 dst
+ *
+ * 转义双引号、反斜杠和控制字符。如果 dst 不够大，结果会被截断。
+ *
+ * @param dst      目标缓冲区
+ * @param dst_size 目标缓冲区大小
+ * @param src      源字符串（可为 NULL）
+ * @return 写入 dst 的字符数（不含终止符）
+ */
+static int json_escape(char *dst, size_t dst_size, const char *src) {
+    if (!dst || dst_size == 0) return 0;
+    if (!src) { dst[0] = '\0'; return 0; }
+    size_t j = 0;
+    for (size_t i = 0; src[i] && j < dst_size - 2; i++) {
+        switch (src[i]) {
+            case '"':  if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = '"'; } break;
+            case '\\': if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = '\\'; } break;
+            case '\n': if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = 'n'; } break;
+            case '\r': if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = 'r'; } break;
+            case '\t': if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = 't'; } break;
+            default:
+                if ((unsigned char)src[i] < 0x20) {
+                    if (j + 6 < dst_size)
+                        j += (size_t)snprintf(dst + j, dst_size - j, "\\u%04x", (unsigned char)src[i]);
+                } else {
+                    dst[j++] = src[i];
+                }
+                break;
+        }
+    }
+    dst[j] = '\0';
+    return (int)j;
+}
 
 /**
  * 深拷贝命题并替换函数块输出端口 ID。

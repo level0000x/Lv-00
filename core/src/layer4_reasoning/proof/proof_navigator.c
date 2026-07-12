@@ -2198,3 +2198,49 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
 
     return UNCONSTRUCT_MAYBE_POSSIBLE;
 }
+
+/* ===========================================================================
+ * 存根实现：proof_navigator_search / smtsolver_set_timeout / constraint_solver_get_proposition
+ *
+ * 这些函数在 proof.h 中声明，供 proof_version.c 等模块调用。
+ * 完整实现将随后续版本逐步完善，当前以最小存根保证链接通过。
+ * =========================================================================== */
+
+/**
+ * @brief 在证明导航器中执行搜索（存根实现）
+ *
+ * @param nav 证明导航器指针（ProofNavigator *）
+ * @return 搜索结果（当前存根返回 NULL 表示未找到）
+ */
+void *proof_navigator_search(void *nav) {
+    if (!nav)
+        return NULL;
+    /* 存根：完整实现应调用导航器的搜索策略 */
+    return NULL;
+}
+
+/**
+ * @brief 设置 SMT 求解器超时时间（存根实现）
+ *
+ * @param s   SMT 求解器句柄
+ * @param ms  超时时间（毫秒）
+ */
+void smtsolver_set_timeout(SMTSolver s, int ms) {
+    (void)s;
+    (void)ms;
+    /* 存根：完整实现应将超时设置传递给底层求解器 */
+}
+
+/**
+ * @brief 从约束求解器获取几何对象的命题描述（存根实现）
+ *
+ * @param solver    约束求解器指针
+ * @param geom_obj  几何对象指针
+ * @return 命题字符串描述（当前存根返回 NULL）
+ */
+const char *constraint_solver_get_proposition(void *solver, void *geom_obj) {
+    (void)solver;
+    (void)geom_obj;
+    /* 存根：完整实现应从求解器的类型注册表中查询命题 */
+    return NULL;
+}

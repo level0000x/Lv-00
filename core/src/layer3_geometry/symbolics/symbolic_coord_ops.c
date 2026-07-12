@@ -28,7 +28,7 @@
 #define SYM_COORD_AMB_MIN_SIGFIGS 3
 #define COORD_SEVEN_OVER_FIVE_N 32
 /* ── 前向声明 ── */
-static mpz_t *mpz_perfect_sqrt(mpz_t n);
+mpz_t *mpz_perfect_sqrt(mpz_t n);
 static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double precision);
 double algebraic_to_double(const Algebraic *a);
 double quadratic_to_double(const Quadratic *q);
@@ -2000,8 +2000,31 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
  * Power and Square Root Operations
  * ============================================================ */
 
-/* Forward declaration: mpz_perfect_sqrt is defined in the nested sqrt section below */
-static mpz_t *mpz_perfect_sqrt(mpz_t n);
+/* Forward declaration: mpz_perfect_sqrt is defined below */
+mpz_t *mpz_perfect_sqrt(mpz_t n);
+
+/**
+ * @brief 计算大整数的精确平方根（如果它是完全平方数）
+ *
+ * 使用 GMP 的 mpz_perfect_square_p() 检查 n 是否为完全平方数，
+ * 如果是则分配一个新的 mpz_t 并计算其整数平方根。
+ *
+ * @param n 输入大整数
+ * @return 如果 n 是完全平方数，返回新分配的 mpz_t*（调用者负责释放）；
+ *         否则返回 NULL
+ */
+mpz_t *mpz_perfect_sqrt(mpz_t n) {
+    if (mpz_sgn(n) < 0)
+        return NULL;
+    if (!mpz_perfect_square_p(n))
+        return NULL;
+    mpz_t *result = (mpz_t *)lv00_malloc(sizeof(mpz_t));
+    if (!result)
+        return NULL;
+    mpz_init(*result);
+    mpz_sqrt(*result, n);
+    return result;
+}
 
 /*
  * Compute base^exponent where exponent is a non-negative integer.

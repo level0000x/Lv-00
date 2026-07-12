@@ -313,7 +313,7 @@ static uint64_t *wl_refine_labels(ConstraintGraph *graph,
 
 /* 计算 WL 图核哈希（2 轮迭代，基于拓扑结构，忽略坐标值）。
  * 将所有节点标签聚合为一个 64 位图哈希。 */
-static uint64_t compute_wl_graph_hash(ConstraintGraph *graph) {
+uint64_t compute_wl_graph_hash(ConstraintGraph *graph) {
     if (!graph || graph->node_count == 0)
         return 0;
 
@@ -376,7 +376,7 @@ RewriteStatus detect_rewrite_loop_wl(ConstraintGraph *graph, WLHashHistory *hist
  * 如果规则没有设置前置条件（condition_func 为 NULL），
  * 默认返回 true（通过）。
  * 前置条件在匹配成功后、替换前调用。 */
-static bool evaluate_precondition(ConstraintGraph *graph,
+bool evaluate_precondition(ConstraintGraph *graph,
                                    RewriteRule *rule,
                                    RewriteMatch *match)
 {

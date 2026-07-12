@@ -20,7 +20,7 @@
 #include "lv00_utils.h"
 #include "mpz_poly.h"
 
-static uint64_t compute_wl_graph_hash(ConstraintGraph *graph);
+extern uint64_t compute_wl_graph_hash(ConstraintGraph *graph);
 uint32_t compute_graph_hash(ConstraintGraph *graph);
 
 /* ---------------------------------------------------------------------------
@@ -28,7 +28,7 @@ uint32_t compute_graph_hash(ConstraintGraph *graph);
  * ------------------------------------------------------------------------- */
 
 /* 前向声明 */
-static bool evaluate_precondition(ConstraintGraph *graph,
+extern bool evaluate_precondition(ConstraintGraph *graph,
                                    RewriteRule *rule,
                                    RewriteMatch *match);
 

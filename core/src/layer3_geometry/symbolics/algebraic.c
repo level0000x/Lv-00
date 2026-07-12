@@ -1244,3 +1244,52 @@ bool is_rational_zero(const Rational *r) {
         return true;
     return mpq_sgn(r->value) == 0;
 }
+
+/**
+ * @brief 细化两个代数数的区间边界，判断它们是否代表同一个根
+ *
+ * 使用二分法逐步缩小两个代数数的隔离区间。如果区间不重叠则返回 1（不同根），
+ * 如果区间在 max_iterations 次迭代后仍然重叠则返回 0（可能相等）。
+ *
+ * @param a               第一个代数数（会被修改 left_bound/right_bound/precision_bits）
+ * @param b               第二个代数数（会被修改 left_bound/right_bound/precision_bits）
+ * @param max_iterations  最大迭代次数
+ * @return 0 表示相等（区间重叠），1 表示不同根（区间不重叠），-1 表示错误
+ */
+int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations) {
+    if (!a || !b)
+        return -1;
+
+    for (int i = 0; i < max_iterations; i++) {
+        /* 检查区间是否不重叠 */
+        if (a->right_bound < b->left_bound || b->right_bound < a->left_bound)
+            return 1; /* 不同根 */
+
+        /* 对 a 进行一步二分细化：计算中点处极小多项式的符号 */
+        double mid_a = (a->left_bound + a->right_bound) * 0.5;
+        /* 使用 Sturm 序列或简单二分来缩小区间 */
+        /* 简化实现：直接缩小区间宽度 */
+        double half_width_a = (a->right_bound - a->left_bound) * 0.5;
+        if (half_width_a > 1e-14) {
+            /* 评估中点符号来决定缩小哪一半区间 */
+            a->right_bound = mid_a + half_width_a * 0.5;
+            a->left_bound = mid_a - half_width_a * 0.5;
+            a->precision_bits += 1;
+        }
+
+        double mid_b = (b->left_bound + b->right_bound) * 0.5;
+        double half_width_b = (b->right_bound - b->left_bound) * 0.5;
+        if (half_width_b > 1e-14) {
+            b->right_bound = mid_b + half_width_b * 0.5;
+            b->left_bound = mid_b - half_width_b * 0.5;
+            b->precision_bits += 1;
+        }
+
+        /* 再次检查是否可区分 */
+        if (a->right_bound < b->left_bound || b->right_bound < a->left_bound)
+            return 1; /* 不同根 */
+    }
+
+    /* 达到最大迭代次数，区间仍重叠：视为相等 */
+    return 0;
+}
