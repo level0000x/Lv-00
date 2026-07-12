@@ -24,6 +24,20 @@
 #include "smt_bitvector.h"
 #include "test_helpers.h"
 
+/* ── Convenience aliases for test readability ── */
+#define bv_create(w)         lv00_bv_create((w), 0)
+#define bv_destroy(bv)       lv00_bv_free(bv)
+#define bv_and(a, b)         lv00_bv_and(a, b)
+#define bv_or(a, b)          lv00_bv_or(a, b)
+#define bv_xor(a, b)         lv00_bv_xor(a, b)
+#define bv_not(a)            lv00_bv_not(a)
+#define bv_add(a, b)         lv00_bv_add(a, b)
+#define bv_mul(a, b)         lv00_bv_mul(a, b)
+#define bv_eq(a, b)          lv00_bv_equals(a, b)
+#define bv_extract(bv, h, l) lv00_bv_extract(bv, h, l)
+#define bv_concat(a, b)      lv00_bv_concat(a, b)
+#define bv_to_int(bv)        lv00_bv_to_int(bv)
+
 /* Global test counters (required by test framework) */
 int g_pass_count = 0;
 int g_fail_count = 0;
