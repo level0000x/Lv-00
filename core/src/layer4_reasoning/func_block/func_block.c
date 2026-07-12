@@ -164,22 +164,7 @@ FuncBlock *func_block_create(int id) {
     return fb;
 }
 
-/**
- * @brief 销毁选择器
- *
- * 释放 SolutionSelector 结构体及其所有动态分配的成员。
- * 参数为 NULL 时安全返回（no-op）。
- */
-static void selector_destroy(SolutionSelector *sel) {
-    if (!sel)
-        return;
-    lv00_free((void **) &sel->name);
-    lv00_free((void **) &sel->solution_values);
-    if (sel->free_user_data && sel->user_data) {
-        sel->free_user_data(sel->user_data);
-    }
-    lv00_free((void **) &sel);
-}
+/* selector_destroy() 实现在 func_block_selector.c 中，通过 func_block.h 声明可见 */
 
 /**
  * @brief 销毁函数块
