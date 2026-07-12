@@ -56,26 +56,6 @@ typedef struct EquationSystem {
 LV00_DECLARE_STREAM_CTX(solver);
 
 /**
- * @brief 内部结构：一元多项式方程的内部表示
- *
- * 将单个几何约束编码为一元多项式，关联到节点和坐标维度。
- * 求解器以此结构为基本单位构建方程组并执行代数消元。
- */
-/* ------------------------------------------------------------------ */
-
-typedef struct {
-    mpz_poly_t poly; /* 一元多项式，coeffs[0]..coeffs[degree] */
-    int var_node_id; /* 该方程约束的几何节点ID（坐标索引单独存储） */
-    int coord_index; /* 0 = x, 1 = y */
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
-
-/**
  * @brief 初始化方程系统
  *
  * 将方程系统结构体清零，设置初始状态（无方程、无容量）。
@@ -155,5 +135,12 @@ static int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_no
  * @param sys 方程系统指针
  */
 static void equation_system_clear(EquationSystem *sys) {
+    if (!sys) return;
     for (int i = 0; i < sys->count; i++) {
         mpz_poly_clear(&sys->eqs[i].poly);
+    }
+    lv00_free((void **) &sys->eqs);
+    sys->eqs = NULL;
+    sys->count = 0;
+    sys->capacity = 0;
+}

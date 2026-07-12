@@ -20,6 +20,8 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+LV00_DECLARE_STREAM_CTX(interop);
+
 /* ── 导出模块 ── */
 
 static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, double *min_y, double *max_x,

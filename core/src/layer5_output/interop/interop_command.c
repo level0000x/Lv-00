@@ -21,6 +21,19 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+LV00_DECLARE_STREAM_CTX(interop);
+
+/**
+ * 安全解析整数，失败时返回默认值。
+ */
+static int safe_parse_int(const char *str, int default_val) {
+    if (!str || str[0] == '\0') return default_val;
+    char *end = NULL;
+    long val = strtol(str, &end, 10);
+    if (end == str || *end != '\0') return default_val;
+    return (int) val;
+}
+
 /* ── 命令解析与执行 ── */
 
 int interop_parse_command(const char *input, InteropCommand *cmd) {

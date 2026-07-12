@@ -20,6 +20,8 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+LV00_DECLARE_STREAM_CTX(interop);
+
 /* ── 服务器核心 ── */
 
 static int safe_parse_int(const char *str, int default_val) {

@@ -83,7 +83,7 @@ static bool safe_transition(Lv00Context *ctx, Lv00ContextState new_state,
  * @return -3   解析阶段失败
  * @return -4   推理阶段失败（矛盾、超时或熔断）
  */
-int lv00_prove(LV00Context *ctx, const char *goal) {
+int lv00_prove(Lv00Context *ctx, const char *goal) {
     /* ---- 参数校验 ---- */
     if (!ctx) {
         return -1;
@@ -171,7 +171,7 @@ int lv00_prove(LV00Context *ctx, const char *goal) {
  * @return -3  指定名称的预设不存在
  * @return -4  内存分配失败
  */
-int lv00_preset_load(LV00Context *ctx, const char *name) {
+int lv00_preset_load(Lv00Context *ctx, const char *name) {
     /* ---- 参数校验 ---- */
     if (!ctx || !name || name[0] == '\0') {
         return -1;
@@ -226,7 +226,7 @@ int lv00_preset_load(LV00Context *ctx, const char *name) {
  * @return -1  参数无效（ctx 或 name 为 NULL）
  * @return -3  上下文中未找到该预设的加载记录
  */
-int lv00_preset_unload(LV00Context *ctx, const char *name) {
+int lv00_preset_unload(Lv00Context *ctx, const char *name) {
     /* ---- 参数校验 ---- */
     if (!ctx || !name || name[0] == '\0') {
         return -1;
@@ -280,7 +280,7 @@ int lv00_preset_unload(LV00Context *ctx, const char *name) {
  * @return -3  指定预设未加载
  * @return -4  实例化失败
  */
-int lv00_preset_apply(LV00Context *ctx, const char *name) {
+int lv00_preset_apply(Lv00Context *ctx, const char *name) {
     /* ---- 参数校验 ---- */
     if (!ctx || !name || name[0] == '\0') {
         return -1;

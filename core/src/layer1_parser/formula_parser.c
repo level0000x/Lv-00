@@ -59,18 +59,6 @@ const char *formula_parser_get_last_error(void) {
     return lv00_get_last_error_message();
 }
 
-typedef struct {
-    const char *input;                   /* 输入字符串 */
-    size_t pos;                          /* 当前位置 */
-    size_t length;                       /* 输入长度 */
-    char error_message[LV00_MAX_BUFFER_SIZE]; /* 错误消息缓冲区 */
-    bool has_error;                      /* 是否有错误 */
-    int line;                            /* 当前行号 */
-    int column;                          /* 当前列号 */
-    int node_count;                      /* AST节点计数（安全限制用） */
-    int current_depth;                   /* 当前解析递归深度 */
-} ParserContext;
-
 /* ============================================================
  * DSL 关键字表
  * ============================================================ */

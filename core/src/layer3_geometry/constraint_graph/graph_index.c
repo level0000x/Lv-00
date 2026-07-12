@@ -69,7 +69,6 @@ static bool validate_cross_boundary_refs(GeomNode *func_block,
                 return false;
             }
         }
-    }
 
     lv00_free((void **) &internal_ids);
     return true;

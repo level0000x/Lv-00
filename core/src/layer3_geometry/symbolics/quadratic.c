@@ -326,3 +326,107 @@ char *quadratic_serialize(const Quadratic *q) {
  * @return 新创建的超越数对象，解析失败时返回 NULL；调用者需负责释放
  */
 Transcendental *transcendental_create(const char *name) {
+    if (!name || name[0] == '\0')
+        return NULL;
+
+    Transcendental *t = lv00_calloc(1, sizeof(Transcendental));
+    if (!t)
+        return NULL;
+
+    t->name = lv00_strdup(name);
+    if (!t->name) {
+        lv00_free((void **) &t);
+        return NULL;
+    }
+
+    /* 尝试解析表达式形式 */
+    t->expr = transcendental_expr_parse(name);
+    t->cache_valid = false;
+    t->cached_value = 0.0;
+
+    return t;
+}
+
+/**
+ * 销毁超越数对象。
+ */
+void transcendental_destroy(Transcendental *t) {
+    if (!t)
+        return;
+    if (t->expr)
+        transcendental_expr_destroy(t->expr);
+    lv00_free((void **) &t->name);
+    lv00_free((void **) &t);
+}
+
+/**
+ * 获取超越数的 double 近似值。
+ */
+double transcendental_to_double(const Transcendental *t) {
+    if (!t)
+        return 0.0;
+    if (t->cache_valid)
+        return t->cached_value;
+
+    double val = 0.0;
+    const char *base = t->expr ? t->expr->base_name : t->name;
+
+    if (strcmp(base, "pi") == 0) {
+        val = M_PI;
+    } else if (strcmp(base, "e") == 0) {
+        val = M_E;
+    }
+
+    if (t->expr && t->expr->rational_operand) {
+        double k = rational_to_double(t->expr->rational_operand);
+        switch (t->expr->expr_type) {
+            case TRANS_EXPR_MUL_RATIONAL:
+                val *= k;
+                break;
+            case TRANS_EXPR_ADD_RATIONAL:
+                val += k;
+                break;
+            default:
+                break;
+        }
+    }
+
+    return val;
+}
+
+/**
+ * 比较两个超越数是否相等。
+ */
+int transcendental_compare(const Transcendental *a, const Transcendental *b) {
+    if (a == b) return 0;
+    if (!a) return -1;
+    if (!b) return 1;
+    return strcmp(a->name, b->name);
+}
+
+/**
+ * 复制超越数对象。
+ */
+Transcendental *transcendental_copy(const Transcendental *t) {
+    if (!t)
+        return NULL;
+    return transcendental_create(t->name);
+}
+
+/**
+ * 移除平方因子。
+ *
+ * @param n 输入整数
+ * @return 移除平方因子后的结果
+ */
+int remove_square_factors(int n) {
+    if (n == 0) return 0;
+    int result = 1;
+    int temp = (n < 0) ? -n : n;
+    for (int i = 2; i * i <= temp; i++) {
+        while (temp % (i * i) == 0) {
+            temp /= (i * i);
+        }
+    }
+    return (n < 0) ? -temp : temp;
+}

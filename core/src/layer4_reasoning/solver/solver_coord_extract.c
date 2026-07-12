@@ -40,6 +40,14 @@
 
 /* ── 坐标提取与方程提取 ── */
 
+/**
+ * 清除方程系统并释放所有资源。
+ *
+ * @param sys 方程系统指针
+ */
+void equation_system_clear(EquationSystem *sys) {
+    if (!sys || !sys->eqs) return;
+    for (int i = 0; i < sys->count; i++) {
         mpz_poly_clear(&sys->eqs[i].poly);
     }
     lv00_free((void **) &sys->eqs);

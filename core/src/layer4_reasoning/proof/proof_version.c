@@ -19,16 +19,40 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
-        }
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+LV00_DECLARE_STREAM_CTX(proof);
+
+/**
+ * 将证明步骤格式化为自然语言文本。
+ *
+ * @param step 证明步骤指针
+ * @param lang 目标语言（中文/英文）
+ * @return 格式化后的字符串（lv00_malloc 分配），调用者负责释放；失败返回 NULL
+ */
+static char *format_proof_step_nl(ProofStep *step, ProofNaturalLanguage lang) {
+    if (!step)
+        return NULL;
+
+    char result[4096];
+    result[0] = '\0';
+
+    /* 步骤编号 */
+    if (lang == PROOF_NL_LANG_ZH_CN) {
+        snprintf(result, sizeof(result), "步骤 %d", step->id);
+    } else {
+        snprintf(result, sizeof(result), "Step %d", step->id);
     }
 
     /* 附加用户注释 */
     if (step->note && step->note[0] != '\0') {
         size_t len = strlen(result);
         if (lang == PROOF_NL_LANG_ZH_CN) {
-            snprintf(result + len, sizeof(result) - len, "\n  —— 注释：%s", step->note);
+            snprintf(result + len, sizeof(result) - len, "  —— 注释：%s", step->note);
         } else {
-            snprintf(result + len, sizeof(result) - len, "\n  -- Note: %s", step->note);
+            snprintf(result + len, sizeof(result) - len, "  -- Note: %s", step->note);
         }
     }
 

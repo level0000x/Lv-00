@@ -31,6 +31,7 @@
 #define LV00_THREE_VALUED_LOGIC_H
 
 #include <stdbool.h>
+#include "config.h"
 
 #ifdef __cplusplus
 extern "C" {

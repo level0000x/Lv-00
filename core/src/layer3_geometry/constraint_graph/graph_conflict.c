@@ -182,8 +182,6 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
         rank++;
     }
 
-    }
-
     /* Also check among the rank rows: if two rows have identical
      * coefficient patterns, one is redundant */
     for (int i = 0; i < rank; i++) {

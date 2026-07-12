@@ -20,6 +20,8 @@
 #include "lv00_utils.h"
 #include "mpz_poly.h"
 
+LV00_DECLARE_STREAM_CTX(rewrite);
+
 /* 解析后的重写规则结构体 */
 typedef struct {
     char name[256];
@@ -48,7 +50,7 @@ typedef struct {
     } *node_bindings;
     int node_binding_count;
     /* 新节点 */
-    int *new_node_ids;
+    int *new_nodes;
     int new_node_count;
     GeomType *new_node_types;     /* 新节点的几何类型 */
 } ParsedRule;

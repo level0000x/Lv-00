@@ -33,6 +33,16 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
 
 /* ── SymbolicCoord 操作 ── */
 
+/**
+ * 将超越数转换为 double 近似值。
+ *
+ * @param t 超越数对象
+ * @return double 近似值
+ */
+static double transcendental_expr_to_double(const Transcendental *t) {
+    if (!t)
+        return 0.0;
+
     /* Get base constant value */
     const char *base = t->expr ? t->expr->base_name : t->name;
     double base_val;

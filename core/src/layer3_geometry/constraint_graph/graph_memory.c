@@ -19,6 +19,8 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+/**
+ * 获取约束图中最后添加的节点索引。
  * 注意：此 ID 是数组索引而非节点的逻辑 ID。
  *
  * @param graph 约束图指针

@@ -19,6 +19,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+/**
  * @brief 销毁命题并递归释放所有资源
  *
  * 释放端口ID数组、前提/后件区域ID数组、模式约束图，

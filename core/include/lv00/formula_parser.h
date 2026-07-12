@@ -239,6 +239,23 @@ struct FormulaNode {
 const char *formula_detect_syntax(const char *input);
 
 /**
+ * @brief 解析器上下文结构体
+ *
+ * 用于在解析过程中维护状态信息，包括输入位置、错误处理等。
+ */
+typedef struct {
+    const char *input;                   /* 输入字符串 */
+    size_t pos;                          /* 当前位置 */
+    size_t length;                       /* 输入长度 */
+    char error_message[256];             /* 错误消息缓冲区 */
+    bool has_error;                      /* 是否有错误 */
+    int line;                            /* 当前行号 */
+    int column;                          /* 当前列号 */
+    int node_count;                      /* AST节点计数（安全限制用） */
+    int current_depth;                   /* 当前解析递归深度 */
+} ParserContext;
+
+/**
  * @brief 解析公式字符串，构建 AST
  *
  * @param[in] input  输入的公式字符串

@@ -474,3 +474,12 @@ AlgebraicGeom *algebra_restore(AlgebraicGeom *geom, int snapshot_index);
  *
  * @param geom  代数几何体
  * @param plane 新的工作平面
+ * @return geom 自身，无效平面时返回 NULL
+ */
+AlgebraicGeom *algebra_set_work_plane(AlgebraicGeom *geom, int plane);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* LV00_ALGEBRA_MODE_H */

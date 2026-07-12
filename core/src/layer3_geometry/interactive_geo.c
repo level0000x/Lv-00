@@ -20,6 +20,9 @@
 #define ZOOM_FACT   1.15
 #define SNAP_LEN    (LV00_GEO_STATE_BUFFER_SIZE)
 
+/* 前向声明 */
+static void interactive_geo_snapshot(Lv00InteractiveGeo *g, const char *label);
+
 /* ── 内部辅助 ── */
 
 static bool is_active(const Lv00InteractiveGeo *g, int id)

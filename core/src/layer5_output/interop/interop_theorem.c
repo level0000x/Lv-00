@@ -20,6 +20,8 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+LV00_DECLARE_STREAM_CTX(interop);
+
 /* ── 定理系统 ── */
 
 InteropTheoremContext *interop_theorem_context_create(const char *trust_base_name, const char *trust_base_version) {

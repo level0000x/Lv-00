@@ -9,6 +9,7 @@
 
 #include "lv00/symbolic_coord.h"
 #include <float.h>
+#include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>

@@ -20,6 +20,8 @@
 #include "lv00_utils.h"
 #include "mpz_poly.h"
 
+LV00_DECLARE_STREAM_CTX(rewrite);
+
 /**
  * 执行带坐标验证的子图同构匹配。
  * 在 VF2 匹配基础上增加坐标相等性检查。

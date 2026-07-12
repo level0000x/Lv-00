@@ -20,6 +20,14 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+/* ── GeoGebra ZIP 解析常量 ── */
+
+#define GGB_EOCD_MIN_SIZE   22
+#define GGB_EOCD_SIG        0x06054b50
+#define GGB_CENTRAL_DIR_MIN 46
+#define GGB_LOCAL_FILE_SIG  0x04034b50
+#define GGB_CENTRAL_DIR_SIG 0x02014b50
+
 /* ── GeoGebra ZIP 解析器 ── */
 
 static uint32_t ggb_read_u32_le(const uint8_t *buf, size_t offset) {

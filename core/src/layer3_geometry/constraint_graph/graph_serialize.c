@@ -9,6 +9,7 @@
 
 #include <float.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +19,10 @@
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+
+/* 前向声明 */
+static bool segments_intersect(double x1, double y1, double x2, double y2,
+                                double x3, double y3, double x4, double y4);
 
 bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) {
     lv00_clear_error();

@@ -21,17 +21,97 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
-                if (replacement >= 0) {
-                    node->data.func_block.output_port_ids[j] = replacement;
+LV00_DECLARE_STREAM_CTX(proof);
+
+/* 前向声明 */
+static int json_escape(char *dst, size_t dst_size, const char *src);
+
+/**
+ * 深拷贝命题并替换函数块输出端口 ID。
+ * 用于实例化命题时更新内部引用。
+ *
+ * @param prop 源命题指针
+ * @param id_map 旧 ID 到新 ID 的映射数组
+ * @param map_size 映射数组大小
+ * @return 深拷贝后的命题，调用者负责释放；失败返回 NULL
+ */
+static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
+                                                       const int *id_map, int map_size) {
+    if (!prop)
+        return NULL;
+
+    Proposition *inst = lv00_calloc(1, sizeof(Proposition));
+    if (!inst)
+        return NULL;
+
+    /* 复制基本信息 */
+    inst->id = prop->id;
+    inst->type = prop->type;
+    inst->color = prop->color;
+
+    /* 复制标签 */
+    if (prop->label) {
+        inst->label = lv00_strdup(prop->label);
+    }
+    if (prop->name) {
+        inst->name = lv00_strdup(prop->name);
+    }
+    if (prop->description) {
+        inst->description = lv00_strdup(prop->description);
+    }
+
+    /* 替换输出端口 ID */
+    if (prop->output_port_ids && prop->output_count > 0) {
+        inst->output_port_ids = lv00_malloc((size_t) prop->output_count * sizeof(int));
+        if (inst->output_port_ids) {
+            inst->output_count = prop->output_count;
+            inst->output_port_count = prop->output_port_count;
+            for (int j = 0; j < prop->output_count; j++) {
+                int old_id = prop->output_port_ids[j];
+                int replacement = -1;
+                if (old_id >= 0 && old_id < map_size) {
+                    replacement = id_map[old_id];
                 }
+                inst->output_port_ids[j] = (replacement >= 0) ? replacement : old_id;
+            }
+        }
+    }
+
+    /* 替换输入端口 ID */
+    if (prop->input_port_ids && prop->input_count > 0) {
+        inst->input_port_ids = lv00_malloc((size_t) prop->input_count * sizeof(int));
+        if (inst->input_port_ids) {
+            inst->input_count = prop->input_count;
+            for (int j = 0; j < prop->input_count; j++) {
+                int old_id = prop->input_port_ids[j];
+                int replacement = -1;
+                if (old_id >= 0 && old_id < map_size) {
+                    replacement = id_map[old_id];
+                }
+                inst->input_port_ids[j] = (replacement >= 0) ? replacement : old_id;
+            }
+        }
+    }
+
+    /* 替换后置条件约束 ID */
+    if (prop->postcondition_constraint_ids && prop->postcondition_count > 0) {
+        inst->postcondition_constraint_ids = lv00_malloc(
+            (size_t) prop->postcondition_count * sizeof(int));
+        if (inst->postcondition_constraint_ids) {
+            inst->postcondition_count = prop->postcondition_count;
+            for (int j = 0; j < prop->postcondition_count; j++) {
+                int old_id = prop->postcondition_constraint_ids[j];
+                int replacement = -1;
+                if (old_id >= 0 && old_id < map_size) {
+                    replacement = id_map[old_id];
+                }
+                inst->postcondition_constraint_ids[j] = (replacement >= 0) ? replacement : old_id;
             }
         }
     }
 
     /* ---- 5. 清除缓存状态 ---- */
-    /* 深拷贝产生的新命题没有缓存状态（全部由 calloc/malloc 初始化为零），
-     * 因此无需额外清除操作。 */
-
+    inst->ref_count = 1;
     return inst;
 }
 
