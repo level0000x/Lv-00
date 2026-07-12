@@ -22,10 +22,25 @@ typedef Lv00BitVec Lv00BitVector;
 
 /** Create bitvector. */
 Lv00BitVec *lv00_bv_create(size_t width, unsigned long long value);
-/** Bitvector operations. */
+
+/** Bitwise operations. */
+Lv00BitVec *lv00_bv_and(const Lv00BitVec *a, const Lv00BitVec *b);
+Lv00BitVec *lv00_bv_or(const Lv00BitVec *a, const Lv00BitVec *b);
+Lv00BitVec *lv00_bv_xor(const Lv00BitVec *a, const Lv00BitVec *b);
+
+/** Shift operations. */
+Lv00BitVec *lv00_bv_shift_left(const Lv00BitVec *a, int shift);
+Lv00BitVec *lv00_bv_shift_right(const Lv00BitVec *a, int shift);
+
+/** Extraction and concatenation. */
+Lv00BitVec *lv00_bv_extract(const Lv00BitVec *bv, int high, int low);
+Lv00BitVec *lv00_bv_concat(const Lv00BitVec *a, const Lv00BitVec *b);
+
+/** Arithmetic operations (modular). */
 Lv00BitVec *lv00_bv_add(const Lv00BitVec *a, const Lv00BitVec *b);
 Lv00BitVec *lv00_bv_mul(const Lv00BitVec *a, const Lv00BitVec *b);
-Lv00BitVec *lv00_bv_and(const Lv00BitVec *a, const Lv00BitVec *b);
+
+/** Comparison operations. */
 int lv00_bv_equals(const Lv00BitVec *a, const Lv00BitVec *b);
 
 void lv00_bv_free(Lv00BitVec *bv);

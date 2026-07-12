@@ -488,3 +488,958 @@ bool lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot) {
 
     return true;
 }
+
+/* ============================================================
+ * 第七部分：状态机管理 API（辅助函数）
+ * ============================================================ */
+
+/**
+ * @brief 获取状态机的可读字符串名称
+ */
+const char *lv00_context_state_name(Lv00ContextState state) {
+    switch (state) {
+        case LV00_CONTEXT_IDLE:      return "IDLE（空闲）";
+        case LV00_CONTEXT_PARSING:   return "PARSING（解析中）";
+        case LV00_CONTEXT_REASONING: return "REASONING（推理中）";
+        case LV00_CONTEXT_ERROR:     return "ERROR（错误）";
+        case LV00_CONTEXT_COMPLETE:  return "COMPLETE（完成）";
+        default:                     return "UNKNOWN（未知）";
+    }
+}
+
+/**
+ * @brief 检查状态转移是否合法
+ *
+ * 状态转移规则：
+ *   IDLE      → PARSING | ERROR
+ *   PARSING   → REASONING | ERROR | IDLE
+ *   REASONING → COMPLETE | ERROR | IDLE
+ *   COMPLETE  → IDLE
+ *   ERROR     → IDLE
+ */
+bool lv00_context_state_transition_valid(Lv00ContextState from, Lv00ContextState to) {
+    switch (from) {
+        case LV00_CONTEXT_IDLE:
+            return (to == LV00_CONTEXT_PARSING || to == LV00_CONTEXT_ERROR);
+        case LV00_CONTEXT_PARSING:
+            return (to == LV00_CONTEXT_REASONING || to == LV00_CONTEXT_ERROR ||
+                    to == LV00_CONTEXT_IDLE);
+        case LV00_CONTEXT_REASONING:
+            return (to == LV00_CONTEXT_COMPLETE || to == LV00_CONTEXT_ERROR ||
+                    to == LV00_CONTEXT_IDLE);
+        case LV00_CONTEXT_COMPLETE:
+            return (to == LV00_CONTEXT_IDLE);
+        case LV00_CONTEXT_ERROR:
+            return (to == LV00_CONTEXT_IDLE);
+        default:
+            return false;
+    }
+}
+
+/**
+ * @brief 获取上下文当前状态
+ */
+Lv00ContextState lv00_context_get_state(const Lv00Context *ctx) {
+    if (!ctx) {
+        return LV00_CONTEXT_IDLE;
+    }
+    return ctx->state;
+}
+
+/**
+ * @brief 尝试将上下文转移到指定状态
+ */
+Lv00ErrorCode lv00_context_set_state(Lv00Context *ctx, Lv00ContextState new_state) {
+    if (!ctx) {
+        return LV00_ERROR_NULL_POINTER;
+    }
+
+    /* 验证转移合法性 */
+    if (!lv00_context_state_transition_valid(ctx->state, new_state)) {
+        lv00_context_set_error(ctx, LV00_ERROR_INVALID_STATE,
+                               "非法状态转移: %s → %s",
+                               lv00_context_state_name(ctx->state),
+                               lv00_context_state_name(new_state));
+        return LV00_ERROR_INVALID_STATE;
+    }
+
+    ctx->previous_state = ctx->state;
+    ctx->state = new_state;
+    ctx->state_transition_count++;
+
+    return LV00_OK;
+}
+/* ============================================================
+ * 第八部分：推理栈 API
+ * ============================================================ */
+
+/**
+ * @brief 确保推理栈有足够容量（内部辅助函数）
+ *
+ * 如果当前容量不足，按 2 倍因子扩容，但不超过 max_depth。
+ */
+static Lv00ErrorCode reasoning_stack_ensure_capacity(ReasoningStack *stack) {
+    if (!stack) {
+        return LV00_ERROR_NULL_POINTER;
+    }
+
+    /* 栈未满，无需扩容 */
+    if (stack->top + 1 < stack->capacity) {
+        return LV00_OK;
+    }
+
+    /* 已达最大深度限制 */
+    if (stack->capacity >= stack->max_depth) {
+        return LV00_ERROR_RESOURCE_EXHAUSTED;
+    }
+
+    int new_capacity;
+    if (stack->capacity == 0) {
+        new_capacity = LV00_CONTEXT_REASONING_STACK_DEFAULT_CAPACITY;
+    } else {
+        new_capacity = stack->capacity * 2;
+    }
+
+    /* 不超过最大深度 */
+    if (new_capacity > stack->max_depth) {
+        new_capacity = stack->max_depth;
+    }
+
+    ReasoningFrame *new_frames = (ReasoningFrame *)lv00_realloc(
+        stack->frames, (size_t)new_capacity * sizeof(ReasoningFrame));
+    if (!new_frames) {
+        return LV00_ERROR_OUT_OF_MEMORY;
+    }
+
+    /* 清零新增部分 */
+    size_t old_size = (size_t)stack->capacity * sizeof(ReasoningFrame);
+    size_t new_size = (size_t)new_capacity * sizeof(ReasoningFrame);
+    memset((char *)new_frames + old_size, 0, new_size - old_size);
+
+    stack->frames = new_frames;
+    stack->capacity = new_capacity;
+
+    return LV00_OK;
+}
+
+/**
+ * @brief 在当前推理栈上压入一个新分支帧
+ */
+Lv00ErrorCode lv00_context_push_reasoning(Lv00Context *ctx,
+                                          ReasoningBranchType branch_type,
+                                          uint64_t timeout_ms) {
+    if (!ctx) {
+        return LV00_ERROR_NULL_POINTER;
+    }
+
+    /* 检查熔断器 */
+    if (lv00_context_is_circuit_open(ctx)) {
+        return LV00_ERROR_INVALID_STATE;
+    }
+
+    /* 检查深度限制 */
+    if (ctx->reasoning_stack.top + 1 >= ctx->reasoning_stack.max_depth) {
+        lv00_context_set_error(ctx, LV00_ERROR_RESOURCE_EXHAUSTED,
+                               "推理栈深度超限: 当前 %d, 最大 %d",
+                               ctx->reasoning_stack.top + 1,
+                               ctx->reasoning_stack.max_depth);
+        return LV00_ERROR_RESOURCE_EXHAUSTED;
+    }
+
+    /* 确保栈有足够容量 */
+    Lv00ErrorCode err = reasoning_stack_ensure_capacity(&ctx->reasoning_stack);
+    if (err != LV00_OK) {
+        lv00_context_set_error(ctx, err, "推理栈扩容失败");
+        return err;
+    }
+
+    /* 压入新帧 */
+    ctx->reasoning_stack.top++;
+    ReasoningFrame *frame = &ctx->reasoning_stack.frames[ctx->reasoning_stack.top];
+
+    /* 初始化帧字段 */
+    memset(frame, 0, sizeof(ReasoningFrame));
+    frame->branch_type = branch_type;
+    frame->status = BRANCH_ACTIVE;
+    frame->depth = ctx->reasoning_stack.top;
+    frame->step_count = 0;
+    frame->timeout_ms = timeout_ms;
+    frame->created_at_us = lv00_get_time_us();
+    frame->ast_root_ref = ctx->ast_root;
+
+    /* 创建约束图快照 */
+    if (ctx->main_graph) {
+        frame->graph_snapshot = graph_create();
+        /* 完整版应深拷贝约束图的节点和约束 */
+    }
+
+    /* 递增熔断器深度 */
+    ctx->circuit_breaker.current_depth = ctx->reasoning_stack.top + 1;
+
+    return LV00_OK;
+}
+
+/**
+ * @brief 从推理栈弹出栈顶帧（分支闭合）
+ */
+Lv00ErrorCode lv00_context_pop_reasoning(Lv00Context *ctx) {
+    if (!ctx) {
+        return LV00_ERROR_NULL_POINTER;
+    }
+
+    if (ctx->reasoning_stack.top < 0) {
+        lv00_context_set_error(ctx, LV00_ERROR_INVALID_STATE,
+                               "推理栈为空，无法弹出");
+        return LV00_ERROR_INVALID_STATE;
+    }
+
+    ReasoningFrame *frame = &ctx->reasoning_stack.frames[ctx->reasoning_stack.top];
+
+    /* 释放帧内资源 */
+    if (frame->graph_snapshot) {
+        graph_destroy((ConstraintGraph *)frame->graph_snapshot);
+        frame->graph_snapshot = NULL;
+    }
+    if (frame->assumption_node_ids) {
+        lv00_free((void **)&frame->assumption_node_ids);
+    }
+    if (frame->target_node_ids) {
+        lv00_free((void **)&frame->target_node_ids);
+    }
+
+    /* 清零帧 */
+    memset(frame, 0, sizeof(ReasoningFrame));
+
+    /* 弹出 */
+    ctx->reasoning_stack.top--;
+
+    /* 更新熔断器深度 */
+    ctx->circuit_breaker.current_depth =
+        (ctx->reasoning_stack.top >= 0) ? ctx->reasoning_stack.top + 1 : 0;
+
+    return LV00_OK;
+}
+
+/**
+ * @brief 获取当前推理栈深度
+ */
+int lv00_context_get_reasoning_depth(const Lv00Context *ctx) {
+    if (!ctx) {
+        return 0;
+    }
+    return ctx->reasoning_stack.top + 1;
+}
+
+/**
+ * @brief 获取当前活跃的推理分支帧（栈顶）
+ */
+ReasoningFrame *lv00_context_get_current_reasoning_frame(Lv00Context *ctx) {
+    if (!ctx) {
+        return NULL;
+    }
+    if (ctx->reasoning_stack.top < 0 || !ctx->reasoning_stack.frames) {
+        return NULL;
+    }
+    return &ctx->reasoning_stack.frames[ctx->reasoning_stack.top];
+}
+/* ============================================================
+ * 第九部分：熔断器 API
+ * ============================================================ */
+
+/**
+ * @brief 检查熔断器是否已触发
+ *
+ * 检查逻辑：
+ * 1. 熔断器状态为 OPEN → 熔断
+ * 2. 总运行时间超限（total_timeout_ms > 0）→ 熔断
+ * 3. 深度超限 → 熔断
+ * 4. 步数超限 → 熔断
+ *
+ * 半开态（HALF_OPEN）下允许试探性执行，不算熔断。
+ */
+bool lv00_context_is_circuit_open(const Lv00Context *ctx) {
+    if (!ctx) {
+        return true; /* 无上下文视为熔断 */
+    }
+
+    /* 检查熔断器状态 */
+    if (ctx->circuit_breaker.state == CIRCUIT_BREAKER_OPEN) {
+        /* 检查冷却时间，自动转入半开态 */
+        uint64_t now = lv00_get_time_us();
+        uint64_t elapsed_ms = (now - ctx->circuit_breaker.tripped_at_us) / 1000;
+        if (elapsed_ms >= ctx->circuit_breaker.cooldown_ms) {
+            /* 冷却期已过，允许半开态（但不修改 const 指针的字段）。
+               实际的 HALF_OPEN 转换应在 begin_operation 中进行。 */
+            return false;
+        }
+        return true;
+    }
+
+    /* 检查总运行时间超限 */
+    if (ctx->circuit_breaker.total_timeout_ms > 0) {
+        uint64_t now = lv00_get_time_us();
+        uint64_t uptime_ms = (now - ctx->circuit_breaker.start_time_us) / 1000;
+        if (uptime_ms >= ctx->circuit_breaker.total_timeout_ms) {
+            return true;
+        }
+    }
+
+    /* 深度超限 */
+    if (ctx->circuit_breaker.max_depth > 0 &&
+        ctx->circuit_breaker.current_depth > ctx->circuit_breaker.max_depth) {
+        return true;
+    }
+
+    /* 步数超限 */
+    if (ctx->circuit_breaker.max_steps > 0 &&
+        ctx->circuit_breaker.total_steps >= ctx->circuit_breaker.max_steps) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * @brief 开始一次可熔断操作
+ *
+ * 记录操作开始时间，如果熔断器处于半开态则恢复为关闭态。
+ */
+void lv00_context_begin_operation(Lv00Context *ctx) {
+    if (!ctx) {
+        return;
+    }
+
+    /* 半开态 → 关闭态（试探成功） */
+    if (ctx->circuit_breaker.state == CIRCUIT_BREAKER_HALF_OPEN) {
+        ctx->circuit_breaker.state = CIRCUIT_BREAKER_CLOSED;
+        ctx->circuit_breaker.consecutive_errors = 0;
+    }
+
+    ctx->circuit_breaker.operation_start_us = lv00_get_time_us();
+}
+
+/**
+ * @brief 检查当前操作是否超时
+ *
+ * 比较当前时间与操作开始时间，超时则触发熔断器。
+ * 在不可取消区域中不触发超时熔断。
+ */
+bool lv00_context_check_timeout(Lv00Context *ctx) {
+    if (!ctx) {
+        return true;
+    }
+
+    /* 不可取消区域中不检查超时 */
+    if (ctx->circuit_breaker.uncancellable_refcount > 0) {
+        return false;
+    }
+
+    /* 未设置超时或未开始操作 */
+    if (ctx->circuit_breaker.timeout_ms == 0 ||
+        ctx->circuit_breaker.operation_start_us == 0) {
+        return false;
+    }
+
+    uint64_t now = lv00_get_time_us();
+    uint64_t elapsed_ms = (now - ctx->circuit_breaker.operation_start_us) / 1000;
+
+    if (elapsed_ms >= ctx->circuit_breaker.timeout_ms) {
+        /* 触发熔断 */
+        ctx->circuit_breaker.state = CIRCUIT_BREAKER_OPEN;
+        ctx->circuit_breaker.tripped_at_us = now;
+        ctx->circuit_breaker.trip_count++;
+
+        /* 记录熔断原因 */
+        if (ctx->circuit_breaker.trip_reason) {
+            lv00_free((void **)&ctx->circuit_breaker.trip_reason);
+        }
+        ctx->circuit_breaker.trip_reason =
+            lv00_strdup_safe("操作超时熔断");
+
+        /* 转入错误状态 */
+        ctx->previous_state = ctx->state;
+        ctx->state = LV00_CONTEXT_ERROR;
+        ctx->state_transition_count++;
+
+        lv00_context_set_error(ctx, LV00_ERROR_TIMEOUT,
+                               "操作超时: 已用 %llu ms, 限制 %llu ms",
+                               (unsigned long long)elapsed_ms,
+                               (unsigned long long)ctx->circuit_breaker.timeout_ms);
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * @brief 进入不可取消区域
+ */
+void lv00_context_enter_uncancellable(Lv00Context *ctx) {
+    if (!ctx) {
+        return;
+    }
+    ctx->circuit_breaker.uncancellable_refcount++;
+}
+
+/**
+ * @brief 离开不可取消区域
+ */
+void lv00_context_leave_uncancellable(Lv00Context *ctx) {
+    if (!ctx) {
+        return;
+    }
+    if (ctx->circuit_breaker.uncancellable_refcount > 0) {
+        ctx->circuit_breaker.uncancellable_refcount--;
+    }
+}
+
+/**
+ * @brief 记录一次推理步骤
+ *
+ * 递增步骤计数，超过上限则触发熔断。
+ * @return true 步骤在限制内，false 超限触发熔断
+ */
+bool lv00_context_record_step(Lv00Context *ctx) {
+    if (!ctx) {
+        return false;
+    }
+
+    ctx->circuit_breaker.total_steps++;
+
+    /* 递增推理栈顶帧的步骤计数 */
+    if (ctx->reasoning_stack.top >= 0 && ctx->reasoning_stack.frames) {
+        ctx->reasoning_stack.frames[ctx->reasoning_stack.top].step_count++;
+    }
+
+    /* 检查步数限制 */
+    if (ctx->circuit_breaker.max_steps > 0 &&
+        ctx->circuit_breaker.total_steps >= ctx->circuit_breaker.max_steps) {
+        /* 触发熔断 */
+        ctx->circuit_breaker.state = CIRCUIT_BREAKER_OPEN;
+        ctx->circuit_breaker.tripped_at_us = lv00_get_time_us();
+        ctx->circuit_breaker.trip_count++;
+
+        if (ctx->circuit_breaker.trip_reason) {
+            lv00_free((void **)&ctx->circuit_breaker.trip_reason);
+        }
+        ctx->circuit_breaker.trip_reason =
+            lv00_strdup_safe("推理步数超限熔断");
+
+        ctx->previous_state = ctx->state;
+        ctx->state = LV00_CONTEXT_ERROR;
+        ctx->state_transition_count++;
+
+        lv00_context_set_error(ctx, LV00_ERROR_RESOURCE_EXHAUSTED,
+                               "推理步数超限: %lld / %lld",
+                               (long long)ctx->circuit_breaker.total_steps,
+                               (long long)ctx->circuit_breaker.max_steps);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief 记录一次成功操作（重置连续错误计数）
+ */
+void lv00_context_record_success(Lv00Context *ctx) {
+    if (!ctx) {
+        return;
+    }
+    ctx->circuit_breaker.consecutive_errors = 0;
+}
+
+/**
+ * @brief 记录一次错误操作（递增连续错误计数）
+ *
+ * 连续错误超过上限则触发熔断。
+ * @return true 正常，false 连续错误超限触发熔断
+ */
+bool lv00_context_record_error(Lv00Context *ctx) {
+    if (!ctx) {
+        return false;
+    }
+
+    ctx->circuit_breaker.consecutive_errors++;
+
+    if (ctx->circuit_breaker.consecutive_errors >=
+        ctx->circuit_breaker.max_consecutive_errors) {
+        /* 触发熔断 */
+        ctx->circuit_breaker.state = CIRCUIT_BREAKER_OPEN;
+        ctx->circuit_breaker.tripped_at_us = lv00_get_time_us();
+        ctx->circuit_breaker.trip_count++;
+
+        if (ctx->circuit_breaker.trip_reason) {
+            lv00_free((void **)&ctx->circuit_breaker.trip_reason);
+        }
+        ctx->circuit_breaker.trip_reason =
+            lv00_strdup_safe("连续错误超限熔断");
+
+        ctx->previous_state = ctx->state;
+        ctx->state = LV00_CONTEXT_ERROR;
+        ctx->state_transition_count++;
+
+        lv00_context_set_error(ctx, LV00_ERROR_RESOURCE_EXHAUSTED,
+                               "连续错误次数超限: %d / %d",
+                               ctx->circuit_breaker.consecutive_errors,
+                               ctx->circuit_breaker.max_consecutive_errors);
+        return false;
+    }
+
+    return true;
+}
+/* ============================================================
+ * 第十部分：参数配置 API
+ * ============================================================ */
+
+/**
+ * @brief 设置上下文超时时间
+ */
+void lv00_context_set_timeout(Lv00Context *ctx, uint64_t timeout_ms) {
+    if (!ctx) {
+        return;
+    }
+    ctx->circuit_breaker.timeout_ms = timeout_ms;
+}
+
+/**
+ * @brief 获取上下文超时时间
+ */
+uint64_t lv00_context_get_timeout(const Lv00Context *ctx) {
+    if (!ctx) {
+        return 0;
+    }
+    return ctx->circuit_breaker.timeout_ms;
+}
+
+/**
+ * @brief 设置递归/推理深度上限
+ */
+void lv00_context_set_max_depth(Lv00Context *ctx, int max_depth) {
+    if (!ctx) {
+        return;
+    }
+    /* 限制在合理范围内 */
+    if (max_depth < 1) {
+        max_depth = 1;
+    }
+    if (max_depth > LV00_CONTEXT_MAX_RECURSION_DEPTH) {
+        max_depth = LV00_CONTEXT_MAX_RECURSION_DEPTH;
+    }
+    ctx->circuit_breaker.max_depth = max_depth;
+    ctx->max_recursion_depth = max_depth;
+    ctx->reasoning_stack.max_depth = max_depth;
+}
+
+/**
+ * @brief 获取递归/推理深度上限
+ */
+int lv00_context_get_max_depth(const Lv00Context *ctx) {
+    if (!ctx) {
+        return LV00_CONTEXT_DEFAULT_MAX_DEPTH;
+    }
+    return ctx->circuit_breaker.max_depth;
+}
+
+/**
+ * @brief 设置最大推理步骤数
+ */
+void lv00_context_set_max_steps(Lv00Context *ctx, int64_t max_steps) {
+    if (!ctx) {
+        return;
+    }
+    ctx->circuit_breaker.max_steps = max_steps;
+}
+
+/**
+ * @brief 获取最大推理步骤数
+ */
+int64_t lv00_context_get_max_steps(const Lv00Context *ctx) {
+    if (!ctx) {
+        return 0;
+    }
+    return ctx->circuit_breaker.max_steps;
+}
+
+/**
+ * @brief 设置上下文名称（内部复制）
+ */
+void lv00_context_set_name(Lv00Context *ctx, const char *name) {
+    if (!ctx) {
+        return;
+    }
+
+    /* 释放旧名称 */
+    if (ctx->name) {
+        lv00_free((void **)&ctx->name);
+        ctx->name = NULL;
+    }
+
+    /* 复制新名称 */
+    if (name) {
+        ctx->name = lv00_strdup_safe(name);
+    }
+}
+
+/**
+ * @brief 获取上下文名称
+ */
+const char *lv00_context_get_name(const Lv00Context *ctx) {
+    if (!ctx) {
+        return "null";
+    }
+    return ctx->name ? ctx->name : "";
+}
+
+/**
+ * @brief 获取上下文 ID
+ */
+uint64_t lv00_context_get_id(const Lv00Context *ctx) {
+    if (!ctx) {
+        return 0;
+    }
+    return ctx->context_id;
+}
+
+/* ============================================================
+ * 第十一部分：缓存管理 API
+ * ============================================================ */
+
+/**
+ * @brief 标记所有缓存为无效
+ */
+void lv00_context_invalidate_cache(Lv00Context *ctx) {
+    if (!ctx) {
+        return;
+    }
+    ctx->cache_valid = false;
+}
+
+/**
+ * @brief 检查缓存是否有效
+ */
+bool lv00_context_is_cache_valid(const Lv00Context *ctx) {
+    if (!ctx) {
+        return false;
+    }
+    return ctx->cache_valid;
+}
+
+/**
+ * @brief 清除所有缓存内容（释放内存但保留缓存结构）
+ */
+void lv00_context_clear_cache(Lv00Context *ctx) {
+    if (!ctx) {
+        return;
+    }
+
+    if (ctx->groebner_cache) {
+        lv00_free((void **)&ctx->groebner_cache);
+    }
+    if (ctx->symbolic_cache) {
+        lv00_free((void **)&ctx->symbolic_cache);
+    }
+    if (ctx->numeric_cache) {
+        lv00_free((void **)&ctx->numeric_cache);
+    }
+    if (ctx->unification_cache) {
+        lv00_free((void **)&ctx->unification_cache);
+    }
+
+    ctx->cache_valid = false;
+}
+
+/* ============================================================
+ * 第十二部分：错误管理 API（补充函数）
+ * ============================================================ */
+
+/**
+ * @brief 清除上下文的错误状态
+ */
+void lv00_context_clear_error(Lv00Context *ctx) {
+    if (!ctx) {
+        return;
+    }
+    ctx->error_code = LV00_OK;
+    ctx->error_message[0] = '\0';
+    ctx->last_status = 0;
+}
+
+/**
+ * @brief 获取上下文的错误码
+ */
+Lv00ErrorCode lv00_context_get_error_code(const Lv00Context *ctx) {
+    if (!ctx) {
+        return LV00_ERROR_NULL_POINTER;
+    }
+    return ctx->error_code;
+}
+
+/**
+ * @brief 获取上下文的错误消息
+ */
+const char *lv00_context_get_error_message(const Lv00Context *ctx) {
+    if (!ctx) {
+        return "null context";
+    }
+    return ctx->error_message;
+}
+/* ============================================================
+ * 第十三部分：流式输出 API
+ * ============================================================ */
+
+/**
+ * @brief 获取上下文的流式输出上下文
+ *
+ * 如果上下文没有关联的 StreamContext，自动创建一个。
+ * 后续调用将返回同一个 StreamContext 实例。
+ */
+struct StreamContext *lv00_context_get_stream(Lv00Context *ctx) {
+    if (!ctx) {
+        return NULL;
+    }
+
+    /* 惰性初始化：首次调用时自动创建 */
+    if (!ctx->stream_ctx) {
+        ctx->stream_ctx = stream_context_create();
+    }
+
+    return ctx->stream_ctx;
+}
+
+/**
+ * @brief 设置流式输出的启用状态
+ *
+ * 启用时如果 stream_ctx 为 NULL 则自动创建。
+ * 禁用时销毁已有的 stream_ctx 并置 NULL。
+ */
+void lv00_context_set_streaming_enabled(Lv00Context *ctx, bool enabled) {
+    if (!ctx) {
+        return;
+    }
+
+    if (enabled) {
+        /* 启用：如果尚未创建则创建 StreamContext */
+        if (!ctx->stream_ctx) {
+            ctx->stream_ctx = stream_context_create();
+        }
+    } else {
+        /* 禁用：销毁已有的 StreamContext */
+        if (ctx->stream_ctx) {
+            stream_context_destroy(ctx->stream_ctx);
+            ctx->stream_ctx = NULL;
+        }
+    }
+}
+
+/**
+ * @brief 检查流式输出是否启用
+ *
+ * 通过 stream_ctx 是否为 NULL 判断。
+ */
+bool lv00_context_is_streaming_enabled(const Lv00Context *ctx) {
+    if (!ctx) {
+        return false;
+    }
+    return (ctx->stream_ctx != NULL);
+}
+
+/* ============================================================
+ * 第十四部分：统计与调试 API
+ * ============================================================ */
+
+/**
+ * @brief 获取上下文统计信息的可读摘要
+ *
+ * 将关键统计指标格式化为可读字符串。
+ */
+int lv00_context_get_stats(const Lv00Context *ctx, char *buf, size_t buf_size) {
+    if (!ctx || !buf || buf_size == 0) {
+        return 0;
+    }
+
+    /* 计算运行时间 */
+    uint64_t uptime_us = 0;
+    if (ctx->circuit_breaker.start_time_us > 0) {
+        uptime_us = lv00_get_time_us() - ctx->circuit_breaker.start_time_us;
+    }
+    uint64_t uptime_ms = uptime_us / 1000;
+
+    /* 计算缓存命中率 */
+    int64_t total_cache_access = ctx->cache_hits + ctx->cache_misses;
+    double cache_hit_rate = 0.0;
+    if (total_cache_access > 0) {
+        cache_hit_rate = (double)ctx->cache_hits / (double)total_cache_access * 100.0;
+    }
+
+    /* 格式化统计信息 */
+    int written = snprintf(buf, buf_size,
+        "=== Lv00Context 统计信息 ===\n"
+        "上下文 ID:        %llu\n"
+        "名称:             %s\n"
+        "当前状态:         %s\n"
+        "推理栈深度:       %d / %d\n"
+        "已执行步数:       %lld / %lld\n"
+        "缓存命中率:       %.1f%% (%lld 次命中 / %lld 次访问)\n"
+        "熔断器状态:       %s\n"
+        "熔断次数:         %d\n"
+        "连续错误:         %d / %d\n"
+        "已处理问题数:     %d\n"
+        "状态转移次数:     %lld\n"
+        "运行时间:         %llu ms\n",
+        (unsigned long long)ctx->context_id,
+        ctx->name ? ctx->name : "(无名)",
+        lv00_context_state_name(ctx->state),
+        ctx->reasoning_stack.top + 1,
+        ctx->reasoning_stack.max_depth,
+        (long long)ctx->circuit_breaker.total_steps,
+        (long long)ctx->circuit_breaker.max_steps,
+        cache_hit_rate,
+        (long long)ctx->cache_hits,
+        (long long)total_cache_access,
+        ctx->circuit_breaker.state == CIRCUIT_BREAKER_CLOSED ? "关闭（正常）" :
+        ctx->circuit_breaker.state == CIRCUIT_BREAKER_HALF_OPEN ? "半开（试探）" :
+        "打开（熔断）",
+        ctx->circuit_breaker.trip_count,
+        ctx->circuit_breaker.consecutive_errors,
+        ctx->circuit_breaker.max_consecutive_errors,
+        ctx->problems_processed,
+        (long long)ctx->state_transition_count,
+        (unsigned long long)uptime_ms);
+
+    /* 确保字符串终止 */
+    if (written > 0 && (size_t)written >= buf_size) {
+        buf[buf_size - 1] = '\0';
+        return (int)(buf_size - 1);
+    }
+
+    return written;
+}
+
+/**
+ * @brief 获取上下文的运行时间（微秒）
+ */
+uint64_t lv00_context_get_uptime_us(const Lv00Context *ctx) {
+    if (!ctx) {
+        return 0;
+    }
+    if (ctx->circuit_breaker.start_time_us == 0) {
+        return 0;
+    }
+    return lv00_get_time_us() - ctx->circuit_breaker.start_time_us;
+}
+
+/* ============================================================
+ * 第六部分（补充）：生命周期管理 API
+ * ============================================================ */
+
+/**
+ * @brief 重置上下文，清除所有问题特定状态
+ *
+ * 将上下文恢复到刚创建时的"干净"状态。
+ * 保留 context_id、模块引用、流式上下文、用户扩展和 trip_count。
+ */
+void lv00_context_reset(Lv00Context *ctx) {
+    if (!ctx) {
+        return;
+    }
+
+    /* 进入不可取消区域，防止重置过程中被超时熔断 */
+    lv00_context_enter_uncancellable(ctx);
+
+    /* 1. 释放推理栈帧 */
+    if (ctx->reasoning_stack.frames) {
+        for (int i = 0; i <= ctx->reasoning_stack.top && i < ctx->reasoning_stack.capacity; i++) {
+            ReasoningFrame *frame = &ctx->reasoning_stack.frames[i];
+            if (frame->graph_snapshot) {
+                graph_destroy((ConstraintGraph *)frame->graph_snapshot);
+                frame->graph_snapshot = NULL;
+            }
+            if (frame->assumption_node_ids) {
+                lv00_free((void **)&frame->assumption_node_ids);
+            }
+            if (frame->target_node_ids) {
+                lv00_free((void **)&frame->target_node_ids);
+            }
+        }
+        lv00_free((void **)&ctx->reasoning_stack.frames);
+    }
+    ctx->reasoning_stack.frames = NULL;
+    ctx->reasoning_stack.top = -1;
+    ctx->reasoning_stack.capacity = 0;
+    ctx->reasoning_stack.max_depth = LV00_CONTEXT_REASONING_STACK_MAX_DEPTH;
+
+    /* 2. 清除缓存 */
+    lv00_context_clear_cache(ctx);
+    ctx->cache_hits = 0;
+    ctx->cache_misses = 0;
+
+    /* 3. 重建主约束图 */
+    if (ctx->main_graph) {
+        graph_destroy((ConstraintGraph *)ctx->main_graph);
+    }
+    ctx->main_graph = graph_create();
+
+    /* 4. 释放规范化结果 */
+    if (ctx->last_normalization) {
+        normalization_result_destroy(ctx->last_normalization);
+        ctx->last_normalization = NULL;
+    }
+
+    /* 5. 释放父快照链 */
+    if (ctx->parent_snapshot) {
+        ctx->parent_snapshot->snapshot_refcount--;
+        if (ctx->parent_snapshot->snapshot_refcount <= 0) {
+            lv00_context_destroy(ctx->parent_snapshot);
+        }
+        ctx->parent_snapshot = NULL;
+    }
+    ctx->snapshot_refcount = 0;
+    ctx->snapshot_depth = 0;
+
+    /* 6. 重置状态机 */
+    ctx->state = LV00_CONTEXT_IDLE;
+    ctx->previous_state = LV00_CONTEXT_IDLE;
+    ctx->state_transition_count = 0;
+
+    /* 7. 重置错误状态 */
+    ctx->error_code = LV00_OK;
+    ctx->error_message[0] = '\0';
+    ctx->last_status = 0;
+
+    /* 8. 重置递归深度 */
+    ctx->recursion_depth = 0;
+    ctx->recursion_policy = LV00_RECURSION_POLICY_ERROR;
+
+    /* 9. 重置熔断器（保留 trip_count） */
+    int preserved_trip_count = ctx->circuit_breaker.trip_count;
+    ctx->circuit_breaker.state = CIRCUIT_BREAKER_CLOSED;
+    ctx->circuit_breaker.uncancellable_refcount = 0;
+    ctx->circuit_breaker.current_depth = 0;
+    ctx->circuit_breaker.total_steps = 0;
+    ctx->circuit_breaker.consecutive_errors = 0;
+    ctx->circuit_breaker.start_time_us = lv00_get_time_us();
+    ctx->circuit_breaker.operation_start_us = 0;
+    ctx->circuit_breaker.tripped_at_us = 0;
+    ctx->circuit_breaker.trip_count = preserved_trip_count;
+    if (ctx->circuit_breaker.trip_reason) {
+        lv00_free((void **)&ctx->circuit_breaker.trip_reason);
+        ctx->circuit_breaker.trip_reason = NULL;
+    }
+
+    /* 10. 重置 AST */
+    ctx->ast_root = NULL;
+
+    /* 11. 释放名称 */
+    if (ctx->name) {
+        lv00_free((void **)&ctx->name);
+    }
+
+    /* 12. 更新统计 */
+    if (ctx->previous_state == LV00_CONTEXT_COMPLETE) {
+        ctx->problems_processed++;
+    }
+
+    /* 离开不可取消区域 */
+    lv00_context_leave_uncancellable(ctx);
+}

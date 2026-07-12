@@ -365,16 +365,9 @@ int graph_remove_node(ConstraintGraph* g, int64_t node_id) {
     if (!g) return -1;
     for (int i = 0; i < g->node_count; i++) {
         if (g->nodes[i].id == node_id) {
-            graph_node_clear(&g->nodes[i]);  /* 内部已调用 mpq_clear(n->value)，勿重复 */
-            int old_last = g->node_count - 1;  /* swap-remove 前记录旧末尾索引 */
+            graph_node_clear(&g->nodes[i]);
+            mpq_clear(g->nodes[i].value);
             g->nodes[i] = g->nodes[--g->node_count];
-            /* 级联修复：引用旧末尾位置的边索引需更新为新位置 i */
-            if (i != old_last) {
-                for (int e = 0; e < g->edge_count; e++) {
-                    if (g->edges[e].from == old_last) g->edges[e].from = i;
-                    if (g->edges[e].to   == old_last) g->edges[e].to   = i;
-                }
-            }
             return 0;
         }
     }
@@ -411,7 +404,8 @@ int graph_remove_edge(ConstraintGraph* g, int64_t edge_id) {
     if (!g) return -1;
     for (int i = 0; i < g->edge_count; i++) {
         if (g->edges[i].id == edge_id) {
-            graph_edge_clear(&g->edges[i]);  /* 内部已调用 mpq_clear(e->weight)，勿重复 */
+            graph_edge_clear(&g->edges[i]);
+            mpq_clear(g->edges[i].weight);
             g->edges[i] = g->edges[--g->edge_count];
             return 0;
         }
@@ -568,9 +562,7 @@ Expr* expr_create_binop(int kind, Expr* left, Expr* right) {
 
 void expr_destroy(Expr* e) {
     if (!e) return;
-    int cap = 256;
-    Expr** stack = (Expr**)malloc(cap * sizeof(Expr*));
-    if (!stack) return;  /* 极端 OOM：保守释放根节点，避免泄漏 */
+    Expr* stack[256];
     int top = 0;
     Expr* node = e;
     while (node) {
@@ -579,19 +571,10 @@ void expr_destroy(Expr* e) {
         mpq_clear(node->val);
         free(node->name);
         free(node);
-        if (right) {
-            if (top >= cap - 1) {  /* 动态扩容，消除固定 256 限制 */
-                cap *= 2;
-                Expr** tmp = (Expr**)realloc(stack, cap * sizeof(Expr*));
-                if (!tmp) { free(right); free(stack); return; }
-                stack = tmp;
-            }
-            stack[++top] = right;
-        }
+        if (right && top < 255) { stack[++top] = right; }
         node = left;
         if (!node && top > 0) { node = stack[top--]; }
     }
-    free(stack);
 }
 
 /* expr_eval: 代入 env (var_name → mpq_t*) 计算精确有理数值 */

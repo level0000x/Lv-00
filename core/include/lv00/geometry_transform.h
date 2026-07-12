@@ -1,4 +1,4 @@
-#ifndef LV00_GEOMETRY_TRANSFORM_H
+﻿#ifndef LV00_GEOMETRY_TRANSFORM_H
 #define LV00_GEOMETRY_TRANSFORM_H
 
 #ifdef __cplusplus
@@ -9,7 +9,11 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 
-/* ── Transform type enum ── */
+/* -- 前向声明 -- */
+struct ConstraintGraph;
+typedef struct ConstraintGraph ConstraintGraph;
+
+/* -- Transform type enum -- */
 typedef enum {
     TRANSFORM_IDENTITY    = 0,
     TRANSFORM_TRANSLATION,
@@ -24,7 +28,7 @@ typedef enum {
     TRANSFORM_COMPOSITE
 } Lv00TransformType;
 
-/* ── 2x3 affine matrix (rational) ── */
+/* -- 2x3 affine matrix (rational) -- */
 typedef struct {
     mpq_t a;
     mpq_t b;
@@ -34,13 +38,13 @@ typedef struct {
     mpq_t ty;
 } Lv00AffineMatrix;
 
-/* ── Translation params ── */
+/* -- Translation params -- */
 typedef struct {
     mpq_t dx;
     mpq_t dy;
 } Lv00TranslationParams;
 
-/* ── Rotation params ── */
+/* -- Rotation params -- */
 typedef struct {
     mpq_t cx;
     mpq_t cy;
@@ -56,13 +60,13 @@ typedef struct {
     int    angle_denominator;
 } Lv00RotationParams;
 
-/* ── Scale params ── */
+/* -- Scale params -- */
 typedef struct {
     mpq_t sx;
     mpq_t sy;
 } Lv00ScaleParams;
 
-/* ── Scaling params ── */
+/* -- Scaling params -- */
 typedef struct {
     mpq_t sx;
     mpq_t sy;
@@ -71,7 +75,7 @@ typedef struct {
     mpq_t scale;
 } Lv00ScalingParams;
 
-/* ── Reflection params ── */
+/* -- Reflection params -- */
 typedef struct {
     mpq_t ax;
     mpq_t ay;
@@ -82,7 +86,7 @@ typedef struct {
     mpq_t line_c;
 } Lv00ReflectionParams;
 
-/* ── Transform params union ── */
+/* -- Transform params union -- */
 typedef union {
     Lv00TranslationParams translation;
     Lv00RotationParams    rotation;
@@ -95,7 +99,7 @@ typedef struct {
     Lv00TransformParamsUnion params;
 } Lv00TransformParams;
 
-/* ── Main transform struct ── */
+/* -- Main transform struct -- */
 typedef struct Lv00Transform {
     Lv00TransformType   type;
     Lv00AffineMatrix    matrix;
@@ -106,7 +110,7 @@ typedef struct Lv00Transform {
     int                 ref_count;
 } Lv00Transform;
 
-/* ── Transform sequence ── */
+/* -- Transform sequence -- */
 typedef struct {
     Lv00Transform **transforms;
     int             count;
@@ -114,7 +118,7 @@ typedef struct {
     bool            composite_valid;
 } Lv00TransformSequence;
 
-/* ── Transform group ── */
+/* -- Transform group -- */
 #define GROUP_MAX_GENERATORS 16
 typedef struct {
     char            *group_name;
@@ -124,10 +128,10 @@ typedef struct {
     bool             is_abelian;
 } Lv00TransformGroup;
 
-/* ── Transform matrix (output type, uses mpq_t) ── */
+/* -- Transform matrix (output type, uses mpq_t) -- */
 typedef Lv00AffineMatrix Lv00TransformMatrix;
 
-/* ── API ── */
+/* ==== API ==== */
 Lv00Transform *lv00_transform_identity(void);
 Lv00Transform *lv00_transform_translation(const mpq_t dx, const mpq_t dy);
 Lv00Transform *lv00_transform_rotation(const mpq_t cx, const mpq_t cy,
@@ -155,24 +159,51 @@ bool lv00_reflect_point(const mpq_t ax, const mpq_t ay,
                          const mpq_t px, const mpq_t py,
                          mpq_t rx, mpq_t ry);
 
-/* ── Sequence API ── */
+/* -- Sequence API -- */
 Lv00TransformSequence *lv00_transform_sequence_create(void);
 void lv00_transform_sequence_destroy(Lv00TransformSequence *seq);
 bool lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t);
 Lv00Transform *lv00_transform_sequence_compose_all(const Lv00TransformSequence *seq);
 
-/* ── Group API ── */
+/* -- Group API -- */
 Lv00TransformGroup *lv00_transform_group_create(const char *name);
 void lv00_transform_group_destroy(Lv00TransformGroup *group);
 bool lv00_transform_group_add_generator(Lv00TransformGroup *group, Lv00Transform *generator);
 Lv00TransformGroup *lv00_transform_group_create_preset(const char *type);
 
-/* ── Double convenience API ── */
+/* -- Double convenience API -- */
 void lv00_transform_identity_double(double out[16]);
 void lv00_transform_translate_double(double out[16], double x, double y, double z);
 void lv00_transform_rotate_double(double out[16], double angle_rad, double x, double y, double z);
 void lv00_transform_scale_double(double out[16], double sx, double sy, double sz);
 void lv00_transform_apply_double4x4(const double t[16], const double *in, double *out, size_t count);
+
+/* -- 变换阶与对称性分析 -- */
+
+/**
+ * @brief 计算变换的阶
+ *
+ * 返回满足 T^n = I（恒等变换）的最小正整数 n。
+ * 无限阶变换返回 0，参数无效返回 -1。
+ *
+ * @param t 变换指针
+ * @return 阶数（1=恒等，0=无限阶，-1=错误）
+ */
+int lv00_transform_order(const Lv00Transform *t);
+
+/**
+ * @brief 分析约束图的对称变换
+ *
+ * 检测约束图中的几何对称性，包括轴反射、中心对称、旋转对称等。
+ *
+ * @param graph           约束图（const，不会修改）
+ * @param out_transforms  输出数组（调用者负责逐个 destroy 并 free）
+ * @param max_count       数组最大容量
+ * @return 找到的对称变换数量
+ */
+int lv00_transform_identify_symmetries(const ConstraintGraph *graph,
+                                        Lv00Transform **out_transforms,
+                                        int max_count);
 
 #ifdef __cplusplus
 }
