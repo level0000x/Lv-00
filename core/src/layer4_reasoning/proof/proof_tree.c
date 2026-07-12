@@ -130,9 +130,8 @@ void lv00_proof_tree_add_premise(void *tree, int idx, const char *name, bool neg
     (void)tree; (void)idx; (void)name; (void)negated;
 }
 
-bool lv00_proof_tree_mark_contradiction(Lv00ProofTree *tree, Lv00ProofTreeNode *node) {
+bool lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node) {
     if (!node) return false;
-    (void)tree;
     node->is_contradiction = true;
     node->is_contradiction_branch = true;
     /* Propagate to ancestors */
