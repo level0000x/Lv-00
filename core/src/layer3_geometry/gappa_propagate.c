@@ -339,19 +339,17 @@ void gappa_pred_set_init(Lv00GappaPredSet *set) {
     set->capacity = 0;
 }
 
-void gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
-    if (!set || !pred) return;
+bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
+    if (!set || !pred) return false;
     if (set->count >= set->capacity) {
         int new_cap = set->capacity > 0 ? set->capacity * 2 : 8;
-        Lv00GappaPredicate **p = (Lv00GappaPredicate **)realloc(set->preds, (size_t)new_cap * sizeof(Lv00GappaPredicate *));
-        if (!p) return;
+        Lv00GappaPredicate *p = (Lv00GappaPredicate *)realloc(set->preds, (size_t)new_cap * sizeof(Lv00GappaPredicate));
+        if (!p) return false;
         set->preds = p;
         set->capacity = new_cap;
     }
-    Lv00GappaPredicate *copy = (Lv00GappaPredicate *)malloc(sizeof(Lv00GappaPredicate));
-    if (!copy) return;
-    *copy = *pred;
-    set->preds[set->count++] = copy;
+    set->preds[set->count++] = *pred;
+    return true;
 }
 
 bool gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00GappaPredicate *found) {
@@ -361,7 +359,6 @@ bool gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00Gapp
 
 void gappa_pred_set_clear(Lv00GappaPredSet *set) {
     if (!set) return;
-    for (int i = 0; i < set->count; i++) free(set->preds[i]);
     free(set->preds);
     set->preds = NULL;
     set->count = 0;
@@ -381,7 +378,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
     return 0;
 }
 
-int gappa_propagate_backward(const Lv00GappaPredSet *goal, const Lv00GappaPredSet *known,
+int gappa_propagate_backward(const Lv00GappaPredicate *goal, const Lv00GappaPredSet *known,
                               Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg) {
     (void)goal; (void)known; (void)output; (void)cfg;
     return 0;

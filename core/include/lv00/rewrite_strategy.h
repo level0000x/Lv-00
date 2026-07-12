@@ -80,6 +80,21 @@ typedef struct Lv00RewriteContext {
 /** 修复：原宏不接受参数，但实现需要参数 */
 Lv00RewriteEngineEx *rewrite_engine_ex_create(Lv00RewriteStrategyType strategy, int max_iterations);
 
+/** 销毁重写引擎（NULL 安全） */
+void rewrite_engine_ex_destroy(Lv00RewriteEngineEx *engine);
+
+/** 添加重写规则（按优先级排序） */
+bool rewrite_engine_ex_add_rule(Lv00RewriteEngineEx *engine,
+    const char *name, const char *pattern, const char *replacement,
+    int priority, Lv00RewriteConditionFn condition);
+
+/** 执行重写引擎 */
+bool rewrite_engine_ex_apply(Lv00RewriteEngineEx *engine,
+    const char *input, Lv00RewriteResultEx *result);
+
+/** 销毁重写结果（NULL 安全） */
+void rewrite_engine_result_ex_destroy(Lv00RewriteResultEx *result);
+
 /* ============== 函数声明 ============== */
 
 /** 应用重写策略 */

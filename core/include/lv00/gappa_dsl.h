@@ -49,6 +49,7 @@ typedef struct Lv00GappaPredicate {
 
 /** Gappa proof goal */
 typedef struct {
+    Lv00GappaPredicate predicate;
     char target_expr[256];
     double bound_lo;
     double bound_hi;

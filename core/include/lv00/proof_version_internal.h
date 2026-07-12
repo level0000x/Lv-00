@@ -27,6 +27,10 @@ extern "C" {
 #define LV00_MAX_BRANCHES 16
 #endif
 
+#ifndef LV00_LOG_MAX_ENTRIES
+#define LV00_LOG_MAX_ENTRIES 256
+#endif
+
 /* ============== 提交结构体 ============== */
 
 typedef struct {
@@ -69,9 +73,12 @@ Lv00ProofRepo *proof_repo_open(const char *path);
 void proof_repo_destroy(Lv00ProofRepo *repo);
 bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
     const char **files, const char **contents, size_t file_count);
+size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_count);
 bool proof_repo_diff(Lv00ProofRepo *repo, const char *oid_a, const char *oid_b,
     Lv00ProofDiff *diff);
 void proof_repo_diff_destroy(Lv00ProofDiff *diff);
+bool proof_repo_branch(Lv00ProofRepo *repo, const char *name);
+bool proof_repo_checkout(Lv00ProofRepo *repo, const char *name);
 
 #ifdef __cplusplus
 }

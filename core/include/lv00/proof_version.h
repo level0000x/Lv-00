@@ -1,14 +1,15 @@
+/**
+ * @file proof_version.h
+ * @brief Proof version control system public API.
+ *
+ * This header provides the public interface for the proof repository
+ * version control system. It delegates to proof_version_internal.h
+ * for all type definitions and function declarations.
+ */
+
 #ifndef LV00_PROOF_VERSION_H
 #define LV00_PROOF_VERSION_H
-#include <stdbool.h>
+
 #include "proof_version_internal.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-typedef struct ProofVersion { int major, minor, patch; } ProofVersion;
-ProofVersion lv00_proof_version_get(void);
-bool lv00_proof_version_compatible(ProofVersion v);
-#ifdef __cplusplus
-}
-#endif
-#endif
+
+#endif /* LV00_PROOF_VERSION_H */

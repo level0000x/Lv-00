@@ -14,7 +14,7 @@ int lv00_gappa_propagate(const char *expr, double *lo, double *hi);
 typedef struct Lv00GappaPredicate Lv00GappaPredicate;
 
 typedef struct {
-    Lv00GappaPredicate **preds;
+    Lv00GappaPredicate *preds;
     int count;
     int capacity;
 } Lv00GappaPredSet;
@@ -28,13 +28,13 @@ typedef struct {
 
 /** Propagation API */
 void gappa_pred_set_init(Lv00GappaPredSet *set);
-void gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred);
+bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred);
 bool gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00GappaPredicate *found);
 void gappa_pred_set_clear(Lv00GappaPredSet *set);
 
 Lv00GappaPropagateConfig gappa_propagate_config_default(void);
 int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg);
-int gappa_propagate_backward(const Lv00GappaPredSet *goal, const Lv00GappaPredSet *known,
+int gappa_propagate_backward(const Lv00GappaPredicate *goal, const Lv00GappaPredSet *known,
                               Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg);
 
 #ifdef __cplusplus
