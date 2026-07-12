@@ -435,7 +435,7 @@ bool preset_group_theory_register(void)
 
     /* -------------------- 四元数群 -------------------- */
     {
-        PresetType inputs[] = {};
+        PresetType inputs[1] = {0};
         if (register_group_theory_preset(
                 PRESET_QUATERNION_GROUP,
                 "构造四元数群 Q_8",
