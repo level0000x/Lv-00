@@ -21,14 +21,7 @@ static inline GeoResult geo_err(GeoStatus s, const char *m) { GeoResult r = {s, 
 static inline GeoResult geo_ok(void *d) { GeoResult r = {GEO_STATUS_OK, d, NULL}; return r; }
 static int *geo_dup_int(int v) { int *p = (int *)malloc(sizeof(int)); if (p) *p = v; return p; }
 
-/* ================================================================
- * 原语 1: geo_create_node -- 创建几何节点
- * POINT: ids = 坐标整数数组，隐式 Rational(n,1)
- * LINE_SEGMENT: ids[0]=端点1, ids[1]=端点2
- * REGION: ids = 边界线段 ID 数组
- * PORT: ids[0]=方向, ids[1]=命名空间深度, ids[2]=父块ID
- * FUNCTION_BLOCK: 请使用 geo_pack
- * ================================================================ */
+/* 原语 1: geo_create_node -- 创建几何节点（POINT/LINE/REGION/PORT） */
 GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type,
                           const int *ids, int count)
 {
@@ -72,14 +65,7 @@ GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type,
     return out ? geo_ok(out) : geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
 }
 
-/* ================================================================
- * 原语 2: geo_create_constraint -- 创建约束关系
- * INCIDENCE: participants = [point, line/region]
- * BETWEENNESS: participants = [p1, p2, p3]
- * INTERSECTION: participants = [line1, line2, point]
- * CONTAINMENT: participants = [inner, outer]
- * CONNECTION: participants = [src_port, dst_port]
- * ================================================================ */
+/* 原语 2: geo_create_constraint -- 创建约束关系 */
 GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type,
                                 const int *p, int n)
 {
@@ -108,9 +94,7 @@ GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type,
     return s_ok;
 }
 
-/* ================================================================
- * 原语 3: geo_solve -- 求解约束系统
- * ================================================================ */
+/* 原语 3: geo_solve -- 求解约束系统 */
 GeoResult geo_solve(LV00Engine *engine)
 {
     CHECK_ENGINE(engine);
@@ -122,10 +106,7 @@ GeoResult geo_solve(LV00Engine *engine)
     }
 }
 
-/* ================================================================
- * 原语 4: geo_normalize -- 约束图归一化
- * 返回: data 指向 int（合并节点数，调用者需 free）
- * ================================================================ */
+/* 原语 4: geo_normalize -- 约束图归一化 */
 GeoResult geo_normalize(ConstraintGraph *graph, bool scope_aware)
 {
     CHECK_GRAPH(graph);
@@ -137,11 +118,7 @@ GeoResult geo_normalize(ConstraintGraph *graph, bool scope_aware)
     return merged ? geo_ok(merged) : geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
 }
 
-/* ================================================================
- * 原语 5: geo_rewrite -- 应用重写规则
- * rules: RewriteRule** 以 void** 传递；step_limit <=0 用默认值
- * 返回: data 指向 int（重写状态码，调用者需 free）
- * ================================================================ */
+/* 原语 5: geo_rewrite -- 应用重写规则 */
 GeoResult geo_rewrite(ConstraintGraph *graph, void **rules,
                       int rule_count, int step_limit)
 {
@@ -164,9 +141,7 @@ GeoResult geo_rewrite(ConstraintGraph *graph, void **rules,
     }
 }
 
-/* ================================================================
- * 原语 6: geo_unify -- 统一构造与命题
- * ================================================================ */
+/* 原语 6: geo_unify -- 统一构造与命题 */
 GeoResult geo_unify(const ConstraintGraph *construction,
                     const ConstraintGraph *proposition)
 {
@@ -185,10 +160,7 @@ GeoResult geo_unify(const ConstraintGraph *construction,
     }
 }
 
-/* ================================================================
- * 原语 7: geo_pack -- 打包为函数块
- * 返回: data 指向 int（函数块 ID，调用者需 free）
- * ================================================================ */
+/* 原语 7: geo_pack -- 打包为函数块 */
 GeoResult geo_pack(ConstraintGraph *graph, const int *internal_ids,
                    int internal_count, const int *in_ports, int in_count,
                    const int *out_ports, int out_count)
@@ -218,10 +190,7 @@ GeoResult geo_pack(ConstraintGraph *graph, const int *internal_ids,
     }
 }
 
-/* ================================================================
- * 原语 8: geo_instantiate -- 实例化函数块
- * 返回: data 指向 int*（首元素=长度，后续=新节点 ID；调用者需 free）
- * ================================================================ */
+/* 原语 8: geo_instantiate -- 实例化函数块 */
 GeoResult geo_instantiate(ConstraintGraph *graph, LV00Engine *engine,
                           int func_block_id, const int *args, int arg_count)
 {
@@ -251,10 +220,7 @@ GeoResult geo_instantiate(ConstraintGraph *graph, LV00Engine *engine,
     return geo_ok(out);
 }
 
-/* ================================================================
- * 原语 9: geo_prove -- 执行证明搜索
- * strategy: ProofStrategyType 索引；max_steps <=0 用默认值
- * ================================================================ */
+/* 原语 9: geo_prove -- 执行证明搜索 */
 GeoResult geo_prove(ProofNavigator *nav, int strategy, int max_steps)
 {
     if (!nav) return geo_err(GEO_STATUS_NULL_ARG, "导航器 NULL");
@@ -264,10 +230,7 @@ GeoResult geo_prove(ProofNavigator *nav, int strategy, int max_steps)
         ? s_ok : geo_err(GEO_STATUS_NO_SOLUTION, "证明搜索失败");
 }
 
-/* ================================================================
- * 原语 10: geo_export -- 导出结果
- * format: "html" / "latex" / "coq"
- * ================================================================ */
+/* 原语 10: geo_export -- 导出结果 (html/latex/coq) */
 GeoResult geo_export(ProofNavigator *nav, const char *format, const char *path)
 {
     if (!nav)    return geo_err(GEO_STATUS_NULL_ARG, "导航器 NULL");
@@ -283,10 +246,7 @@ GeoResult geo_export(ProofNavigator *nav, const char *format, const char *path)
     return ok ? s_ok : geo_err(GEO_STATUS_IO_ERROR, "导出写入失败");
 }
 
-/* ================================================================
- * 原语 11: geo_serialize -- 序列化约束图为 JSON
- * 返回: data 指向 JSON 字符串（调用者需 free）
- * ================================================================ */
+/* 原语 11: geo_serialize -- 序列化约束图为 JSON */
 GeoResult geo_serialize(const ConstraintGraph *graph)
 {
     if (!graph) return geo_err(GEO_STATUS_NULL_ARG, "约束图 NULL");
@@ -297,10 +257,7 @@ GeoResult geo_serialize(const ConstraintGraph *graph)
     return geo_ok(json);
 }
 
-/* ================================================================
- * 原语 12: geo_deserialize -- 从 JSON 反序列化约束图
- * 返回: data 指向 ConstraintGraph*（调用者需 graph_destroy）
- * ================================================================ */
+/* 原语 12: geo_deserialize -- 从 JSON 反序列化约束图 */
 GeoResult geo_deserialize(const char *json)
 {
     if (!json) return geo_err(GEO_STATUS_NULL_ARG, "JSON NULL");
@@ -310,12 +267,7 @@ GeoResult geo_deserialize(const char *json)
     return geo_ok(g);
 }
 
-/* ================================================================
- * 原语 13: geo_query -- 查询约束图
- * query: "node" -> data = GeomNode*(只读引用)
- *        "constraint" -> data = Constraint*(只读引用)
- *        "count" -> data = int[2]{节点数,约束数}(调用者需free)
- * ================================================================ */
+/* 原语 13: geo_query -- 查询约束图 (node/constraint/count) */
 GeoResult geo_query(const ConstraintGraph *graph, const char *query,
                     int target_id)
 {
