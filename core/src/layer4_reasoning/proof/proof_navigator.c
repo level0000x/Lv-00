@@ -13,6 +13,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "lv00/proof.h"
 #include "lv00/engine.h"
 #include "lv00/axiom_pkg.h"
@@ -20,6 +25,37 @@
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "stream.h"
+#include "stream_context_util.h"
+
+/* 流式上下文声明 */
+LV00_DECLARE_STREAM_CTX(proof);
+
+/* 证明树 API 占位（与 proof.c 保持一致） */
+#ifndef LV00_DEFAULT_MAX_STEPS
+#define LV00_DEFAULT_MAX_STEPS 10000
+#endif
+
+typedef struct Lv00ProofTree Lv00ProofTree;
+typedef struct Lv00ProofTreeNode Lv00ProofTreeNode;
+static inline Lv00ProofTree *lv00_proof_tree_create(const char *name, const char *strategy) { (void)name; (void)strategy; return NULL; }
+static inline Lv00ProofTreeNode *lv00_proof_tree_add_step(Lv00ProofTree *tree, Lv00ProofTreeNode *parent, const char *desc, const char *detail, int id) { (void)tree; (void)parent; (void)desc; (void)detail; (void)id; return NULL; }
+static inline void lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node) { (void)node; }
+static inline void lv00_proof_tree_destroy(Lv00ProofTree *tree) { (void)tree; }
+
+/* deep_copy_graph 占位函数（与 proof_proposition.c 保持一致） */
+static inline ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) { (void)src; return NULL; }
+
+/**
+ * @brief 计算证明导航器的最终颜色
+ *
+ * 遍历所有证明步骤，根据颜色优先级计算最终信任颜色。
+ * 颜色优先级：深橙色 > 橙黄色 > 浅橙色 > 黄色 > 蓝色 > 绿色
+ */
+ProofColor proof_navigator_compute_final_color(ProofNavigator *nav) {
+    if (!nav) return PROOF_COLOR_GREEN;
+
+    ProofColor final_color = PROOF_COLOR_GREEN;
 
     for (int i = 0; i < nav->step_count; i++) {
         ProofStep *step = nav->steps[i];

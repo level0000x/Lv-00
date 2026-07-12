@@ -7,6 +7,7 @@
  * @version 3.3.0
  */
 
+#include <ctype.h>
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -19,6 +20,14 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "module_helpers.h"
+
+/* LVZ 格式版本（与 module.c 保持一致） */
+#ifndef LVZ_VERSION_MAJOR
+#define LVZ_VERSION_MAJOR 1
+#endif
+#ifndef LVZ_VERSION_MINOR
+#define LVZ_VERSION_MINOR 0
+#endif
 
 void lvz_lexer_init(LvzLexer *lex, const char *source) {
     lv00_lexer_init(lex, source);
@@ -203,7 +212,7 @@ bool lvz_parser_expect_number(LvzParser *p, int *value) {
     return true;
 }
 
-static bool lvz_parser_expect_string(LvzParser *p, char **out) {
+bool lvz_parser_expect_string(LvzParser *p, char **out) {
     if (p->current.type != TOK_STRING) {
         lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望字符串",
                   p->current.line, p->current.col);
@@ -599,7 +608,7 @@ static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod) {
 }
 
 /* 主解析函数 */
-static bool lvz_parse(LvzParser *p, Module *mod) {
+bool lvz_parse(LvzParser *p, Module *mod) {
     /* 获取第一个 token */
     lvz_parser_advance(p);
     
@@ -680,7 +689,7 @@ static bool lvz_parse(LvzParser *p, Module *mod) {
     return !p->has_error;
 }
 
-static bool dependency_exists(Module **visited, int count, Module *mod) {
+bool dependency_exists(Module **visited, int count, Module *mod) {
     for (int i = 0; i < count; i++) {
         if (visited[i] == mod) return true;
     }

@@ -36,7 +36,7 @@
 /* ============== 模块实例结构体定义 ============== */
 #include "lv00/module_internal.h"
 
-static LV00_THREAD_LOCAL StreamContext *module_stream_ctx = NULL;
+LV00_THREAD_LOCAL StreamContext *module_stream_ctx = NULL;
 
 void module_set_stream_context(StreamContext *ctx) {
     module_stream_ctx = ctx;

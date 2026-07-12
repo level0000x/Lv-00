@@ -18,6 +18,7 @@
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "module_helpers.h"
 
 void module_set_autosave_config(Module *mod, const AutoSaveConfig *config) {
     if (!mod || !config) return;

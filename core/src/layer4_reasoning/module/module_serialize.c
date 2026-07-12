@@ -18,6 +18,7 @@
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "module_helpers.h"
 
 
 Module *module_create(const char *name, const char *version) {
@@ -1543,14 +1544,9 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
 /*  JSON 序列化 / 反序列化                                             */
 /* ================================================================== */
 
-/* 最小化 JSON 写入辅助函数 */
-typedef struct {
-    char *buffer;
-    size_t capacity;
-    size_t pos;
-} JsonWriter;
+/* JSON 写入器类型定义已提取至 module_helpers.h */
 
-static bool json_writer_init(JsonWriter *w, size_t initial_capacity) {
+bool json_writer_init(JsonWriter *w, size_t initial_capacity) {
     w->buffer = (char *)lv00_malloc(initial_capacity);
     if (!w->buffer) return false;
     w->capacity = initial_capacity;
@@ -1559,7 +1555,7 @@ static bool json_writer_init(JsonWriter *w, size_t initial_capacity) {
     return true;
 }
 
-static void json_writer_ensure(JsonWriter *w, size_t extra) {
+void json_writer_ensure(JsonWriter *w, size_t extra) {
     while (w->pos + extra >= w->capacity) {
         size_t new_cap = w->capacity * 2;
         char *new_buf = (char *)lv00_realloc(w->buffer, new_cap);
@@ -1569,13 +1565,13 @@ static void json_writer_ensure(JsonWriter *w, size_t extra) {
     }
 }
 
-static void json_writer_putc(JsonWriter *w, char c) {
+void json_writer_putc(JsonWriter *w, char c) {
     json_writer_ensure(w, 2);
     w->buffer[w->pos++] = c;
     w->buffer[w->pos] = '\0';
 }
 
-static void json_writer_puts(JsonWriter *w, const char *s) {
+void json_writer_puts(JsonWriter *w, const char *s) {
     size_t len = strlen(s);
     json_writer_ensure(w, len + 1);
     memcpy(w->buffer + w->pos, s, len);
@@ -1584,7 +1580,7 @@ static void json_writer_puts(JsonWriter *w, const char *s) {
 }
 
 /* 写入 JSON 转义字符串 */
-static void json_writer_write_escaped_str(JsonWriter *w, const char *s) {
+void json_writer_write_escaped_str(JsonWriter *w, const char *s) {
     if (!s) {
         json_writer_puts(w, "null");
         return;
@@ -1611,7 +1607,7 @@ static void json_writer_write_escaped_str(JsonWriter *w, const char *s) {
     json_writer_putc(w, '"');
 }
 
-static void json_writer_destroy(JsonWriter *w) {
+void json_writer_destroy(JsonWriter *w) {
     lv00_free((void**)&w->buffer);
     w->buffer = NULL;
 }
@@ -1742,21 +1738,15 @@ bool module_deserialize_graph_from_json(Module *mod, const char *json) {
     return true;
 }
 
-/* ---------- 最小化 JSON 解析器 ---------- */
+/* ---------- JSON 解析器类型定义已提取至 module_helpers.h ---------- */
 
-typedef struct {
-    const char *data;
-    size_t size;
-    size_t pos;
-} JsonReader;
-
-static void json_reader_init(JsonReader *r, const char *data, size_t size) {
+void json_reader_init(JsonReader *r, const char *data, size_t size) {
     r->data = data;
     r->size = size;
     r->pos = 0;
 }
 
-static void json_reader_skip_whitespace(JsonReader *r) {
+void json_reader_skip_whitespace(JsonReader *r) {
     while (r->pos < r->size) {
         char c = r->data[r->pos];
         if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
@@ -1767,23 +1757,23 @@ static void json_reader_skip_whitespace(JsonReader *r) {
     }
 }
 
-static char json_reader_peek(JsonReader *r) {
+char json_reader_peek(JsonReader *r) {
     json_reader_skip_whitespace(r);
     return r->pos < r->size ? r->data[r->pos] : '\0';
 }
 
-static char json_reader_next(JsonReader *r) {
+char json_reader_next(JsonReader *r) {
     json_reader_skip_whitespace(r);
     return r->pos < r->size ? r->data[r->pos++] : '\0';
 }
 
-static bool json_reader_expect_char(JsonReader *r, char c) {
+bool json_reader_expect_char(JsonReader *r, char c) {
     char got = json_reader_next(r);
     return got == c;
 }
 
 /* 读取 JSON 字符串（返回 malloc 分配的字符串） */
-static char *json_reader_read_string(JsonReader *r) {
+char *json_reader_read_string(JsonReader *r) {
     if (!json_reader_expect_char(r, '"')) return NULL;
 
     size_t start = r->pos;
@@ -1832,7 +1822,7 @@ static char *json_reader_read_string(JsonReader *r) {
 }
 
 /* 读取 JSON 整数 */
-static bool json_reader_read_int(JsonReader *r, int64_t *out) {
+bool json_reader_read_int(JsonReader *r, int64_t *out) {
     json_reader_skip_whitespace(r);
     size_t start = r->pos;
     bool negative = false;
@@ -1857,7 +1847,7 @@ static bool json_reader_read_int(JsonReader *r, int64_t *out) {
 }
 
 /* 读取 JSON 数组长度（仅计数，不解析内容） */
-static int json_reader_count_array_elements(JsonReader *r) {
+int json_reader_count_array_elements(JsonReader *r) {
     if (!json_reader_expect_char(r, '[')) return -1;
 
     int count = 0;
@@ -2211,4 +2201,4 @@ AutoSaveConfig *get_or_create_autosave_config(const char *module_name) {
     return &g_autosave_entries[g_autosave_entry_count - 1].config;
 }
 
-void module_set_autosave_config(Module *mod, const AutoSaveConfig *config) {
+/* module_set_autosave_config 已在 module_delta.c 中实现 */

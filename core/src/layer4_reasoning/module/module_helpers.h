@@ -114,6 +114,7 @@ char json_reader_next(JsonReader *r);
 bool json_reader_expect_char(JsonReader *r, char c);
 char *json_reader_read_string(JsonReader *r);
 bool json_reader_read_int(JsonReader *r, int64_t *out);
+int json_reader_count_array_elements(JsonReader *r);
 
 /* ============== LVZ 辅助词法分析函数 ============== */
 /* 这些函数在 lexer_shared.c 中实现，此处声明以便模块文件使用 */
@@ -121,6 +122,19 @@ void lvz_lexer_init(LvzLexer *lex, const char *source);
 void lvz_lexer_skip_whitespace_and_comments(LvzLexer *lex);
 char *lvz_lexer_extract_string(LvzLexer *lex);
 LvzToken lvz_lexer_next_token(LvzLexer *lex);
+
+/* ============== 模块内部辅助函数 ============== */
+
+/**
+ * @brief 检查模块是否已在已访问列表中
+ */
+bool dependency_exists(Module **visited, int count, Module *mod);
+
+/**
+ * @brief 模块流式上下文（在 module.c 中定义，模块子文件共享使用）
+ */
+#include "stream.h"
+extern LV00_THREAD_LOCAL StreamContext *module_stream_ctx;
 
 #ifdef __cplusplus
 }
