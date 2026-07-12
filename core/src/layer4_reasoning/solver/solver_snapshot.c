@@ -39,16 +39,7 @@
         } \
     } while (0)
 
-/* ── SolverSnapshot ── */
-
-typedef struct SolverSnapshot {
-    int *node_ids;
-    SymbolicCoord **copies;
-    int node_count;
-    int coord_count;
-} SolverSnapshot;
-
-void solver_snapshot_free(SolverSnapshot *snapshot);
+/* ── SolverSnapshot 定义见 ../solver_snapshot.h ── */
 
 bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot) {
     if (!graph || !snapshot)

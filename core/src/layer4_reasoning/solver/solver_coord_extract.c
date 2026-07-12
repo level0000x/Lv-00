@@ -63,10 +63,7 @@ static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int v
     return 0;
 }
 
-/* 使用宏包装以保持一致性 */
-static int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
-    return equation_system_push_impl(sys, poly, var_node_id, coord_index);
-}
+/* equation_system_push 实现在 solver_eq_system.c 中，通过前向声明可见 */
 
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
     do { \
