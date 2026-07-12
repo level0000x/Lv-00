@@ -42,7 +42,7 @@ static int test_is_id_in_array_edge_cases(void) {
     assert(is_id_in_array(42, NULL, 0) == false);
     assert(is_id_in_array(42, NULL, 5) == false);
 
-    int empty_arr[] = {};
+    int empty_arr[1] = {0};
     assert(is_id_in_array(42, empty_arr, 0) == false);
 
     int single[] = {100};

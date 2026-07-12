@@ -227,7 +227,7 @@ void test_high_dim_transform() {
     assert(scale.m[1][1] == 3.0);
     printf("  Create scale transform: PASSED\n");
 
-    HighDimProjectedCoord coord = {1.0, 2.0, true, ""};
+    HighDimProjectedCoord coord = {1.0, 2.0, "", true};
     HighDimProjectedCoord result_coord;
     result = high_dim_apply_transform(&coord, &scale, &result_coord);
     assert(result == LV00_OK);
