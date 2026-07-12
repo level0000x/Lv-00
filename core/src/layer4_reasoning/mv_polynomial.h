@@ -41,7 +41,7 @@ int  mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents);
 void mv_poly_sort(MVPolynomial *p);
 void mv_poly_remove_zeros(MVPolynomial *p);
 void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p,
-                          const int *mono_exp, int var_count);
+                          const int *mono_exp, const mpz_t mono_coeff, int var_count);
 
 /* ---- 算术 ---- */
 void mv_poly_sub(MVPolynomial *result, const MVPolynomial *a, const MVPolynomial *b);

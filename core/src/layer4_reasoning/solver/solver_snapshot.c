@@ -48,9 +48,9 @@ typedef struct SolverSnapshot {
     int coord_count;
 } SolverSnapshot;
 
-static void solver_snapshot_free(SolverSnapshot *snapshot);
+void solver_snapshot_free(SolverSnapshot *snapshot);
 
-static bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot) {
+bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot) {
     if (!graph || !snapshot)
         return false;
 
@@ -100,7 +100,7 @@ static bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *s
  * @param graph    约束图指针
  * @param snapshot 先前通过 solver_snapshot_save 保存的快照
  */
-static void solver_snapshot_restore(ConstraintGraph *graph, const SolverSnapshot *snapshot) {
+void solver_snapshot_restore(ConstraintGraph *graph, const SolverSnapshot *snapshot) {
     if (!graph || !snapshot || snapshot->node_count <= 0)
         return;
 
@@ -129,7 +129,7 @@ static void solver_snapshot_restore(ConstraintGraph *graph, const SolverSnapshot
  *
  * @param snapshot 待释放的快照（调用后置零）
  */
-static void solver_snapshot_free(SolverSnapshot *snapshot) {
+void solver_snapshot_free(SolverSnapshot *snapshot) {
     if (!snapshot)
         return;
 

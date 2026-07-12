@@ -980,3 +980,5 @@ ProofStep *proof_navigator_current_step(ProofNavigator *nav) {
     if (!nav || nav->current_step < 0 || nav->current_step >= nav->step_count) {
         return NULL;
     }
+    return nav->steps[nav->current_step];
+}

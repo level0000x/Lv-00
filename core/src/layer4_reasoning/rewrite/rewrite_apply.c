@@ -15,6 +15,7 @@
 #include <string.h>
 #include "lv00/rewrite.h"
 #include "lv00/constraint_graph.h"
+#include "lv00/normalization.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
@@ -1224,3 +1225,11 @@ done:
  * @return true 表示检测到循环，false 表示未检测到
  */
 static bool detect_rewrite_loop(ConstraintGraph *graph, int *history_hashes, int history_count) {
+    uint32_t current_hash = compute_graph_hash(graph);
+    for (int i = 0; i < history_count; i++) {
+        if (history_hashes[i] == current_hash) {
+            return true;
+        }
+    }
+    return false;
+}

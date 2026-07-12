@@ -787,7 +787,6 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
             }
         }
         match->binding_count = pattern->var_count;
-        match->constraint_binding_count = constraint_match_count;
     }
 
     vf2_state_destroy(&state);

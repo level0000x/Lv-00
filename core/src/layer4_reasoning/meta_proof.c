@@ -262,10 +262,10 @@ MetaProofResult meta_prove_propagation_contradiction(MetaProofContext *ctx,
     PropagationResult result = propagation_run_with_assignment(
         ctx->prop_ctx, node_id, candidate, ctx->max_propagation_steps);
 
-    if (result == PROPAGATION_CONTRADICTION) {
+    if (result == PROP_RESULT_CONTRADICTION) {
         ctx->l2_proofs++;
         return META_PROVE_VALID;
-    } else if (result == PROPAGATION_TIMEOUT) {
+    } else if (result == PROP_RESULT_TIMEOUT) {
         return META_PROVE_TIMEOUT;
     }
 
@@ -571,7 +571,7 @@ static PropagationResult propagation_run_with_assignment(
     PropagationContext *ctx, int node_id,
     const SymbolicCoord *coord, int max_steps)
 {
-    if (!ctx) return PROPAGATION_CONTRADICTION;
+    if (!ctx) return PROP_RESULT_CONTRADICTION;
     (void)node_id;
     (void)coord;
     (void)max_steps;
