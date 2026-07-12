@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+#include "lv00/engine.h"
 #include "lv00/constraint_graph.h"
 #include "debug.h"
 #include "lv00_internal.h"
@@ -801,3 +802,43 @@ static const char *constraint_type_name(ConstraintType type) {
  * @param max_y [out] 输出最大 y 坐标
  */
 static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, double *min_y, double *max_x,
+                                 double *max_y) {
+    /* 默认边界框 */
+    *min_x = 0.0; *min_y = 0.0;
+    *max_x = 100.0; *max_y = 100.0;
+
+    if (!graph || graph->node_count == 0)
+        return;
+
+    bool first = true;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->symbolic_coords)
+            continue;
+
+        for (int c = 0; c < node->coord_count; c++) {
+            if (!node->symbolic_coords[c])
+                continue;
+
+            double val = symbolic_coord_to_double(node->symbolic_coords[c]);
+            if (first) {
+                if (c == 0) { *min_x = val; *max_x = val; }
+                else        { *min_y = val; *max_y = val; }
+                first = false;
+            } else {
+                if (c == 0) {
+                    if (val < *min_x) *min_x = val;
+                    if (val > *max_x) *max_x = val;
+                } else {
+                    if (val < *min_y) *min_y = val;
+                    if (val > *max_y) *max_y = val;
+                }
+            }
+        }
+    }
+
+    /* 添加边距 */
+    double margin = 10.0;
+    *min_x -= margin; *min_y -= margin;
+    *max_x += margin; *max_y += margin;
+}

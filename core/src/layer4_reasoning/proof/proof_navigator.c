@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lv00/proof.h"
+#include "lv00/engine.h"
+#include "lv00/axiom_pkg.h"
 #include "lv00/constraint_graph.h"
 #include "debug.h"
 #include "lv00_internal.h"
@@ -2140,3 +2142,23 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
             info->result = UNCONSTRUCT_PROVED;
             info->matched_problem = "命题矛盾";
             info->matched_theory = "命题系统";
+            info->proof_strategy = "命题类型为矛盾（不可构造）";
+            info->reduction_steps = 0;
+
+            char report[256];
+            snprintf(report, sizeof(report), "命题已被标记为矛盾类型（BOTTOM），表示不可构造");
+            info->detailed_report = lv00_strdup(report);
+
+            return UNCONSTRUCT_PROVED;
+        }
+    }
+
+    /* 未找到匹配 */
+    info->proof_strategy = "已搜索所有已知不可构造问题，未找到匹配";
+
+    if (proof_stream_ctx) {
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "不可构造性检查完成: 未匹配已知问题", 0);
+    }
+
+    return UNCONSTRUCT_MAYBE_POSSIBLE;
+}

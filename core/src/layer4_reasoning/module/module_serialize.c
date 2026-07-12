@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lv00/module.h"
+#include "lv00/module_internal.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
@@ -2186,7 +2187,7 @@ typedef struct {
 static AutoSaveEntry g_autosave_entries[MAX_AUTOSAVE_ENTRIES];
 static int g_autosave_entry_count = 0;
 
-static AutoSaveConfig *find_autosave_config(const char *module_name) {
+AutoSaveConfig *find_autosave_config(const char *module_name) {
     for (int i = 0; i < g_autosave_entry_count; i++) {
         if (strcmp(g_autosave_entries[i].module_name, module_name) == 0) {
             return &g_autosave_entries[i].config;
@@ -2195,7 +2196,7 @@ static AutoSaveConfig *find_autosave_config(const char *module_name) {
     return NULL;
 }
 
-static AutoSaveConfig *get_or_create_autosave_config(const char *module_name) {
+AutoSaveConfig *get_or_create_autosave_config(const char *module_name) {
     AutoSaveConfig *existing = find_autosave_config(module_name);
     if (existing) return existing;
 

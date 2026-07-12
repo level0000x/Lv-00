@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver.c
  * @brief 符号代数求解器实现
  *
@@ -80,6 +80,13 @@
  */
 #define LV00_SOLVER_QUADRATIC_COEFF_COUNT 3
 
+/**
+ * SOLVER_DETAIL_BUF_SIZE - 流式输出 detail JSON 缓冲区大小
+ *
+ * 用于 stream_emit 中 detail_json 字段的临时栈缓冲区。
+ */
+#define SOLVER_DETAIL_BUF_SIZE 512
+
 /* ------------------------------------------------------------------ */
 /*  SolverSnapshot — 求解回滚机制                                       */
 /* ------------------------------------------------------------------ */
@@ -105,6 +112,50 @@ typedef struct EquationSystem {
 } EquationSystem;
 
 LV00_DECLARE_STREAM_CTX(solver);
+
+/* ------------------------------------------------------------------ */
+/*  前向声明：solver 子模块（solver_eq_system / solver_coord_extract /  */
+/*  solver_symbolic / solver_snapshot / solver_linear）中定义的 static  */
+/*  函数。这些函数在对应的 .c 文件中实现，solver.c 通过 unity build      */
+/*  或链接时可见。                                                      */
+/* ------------------------------------------------------------------ */
+
+/* solver_eq_system.c */
+static void equation_system_init(EquationSystem *sys);
+static int  equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+static void equation_system_clear(EquationSystem *sys);
+
+/* solver_coord_extract.c */
+static bool coord_to_double(const SymbolicCoord *c, double *out);
+static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale);
+static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
+static bool point_coord(const GeomNode *pt, int idx, double *out);
+static void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
+
+/* 直线方程结构体 ax + by + c = 0 */
+typedef struct { double a, b, c; } LineEquation;
+static bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out);
+
+/* solver_linear.c */
+static bool solve_linear(const mpz_poly_t *poly, double *x_out);
+
+/* solver_symbolic.c */
+static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value);
+static void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, double value);
+static bool is_out_of_scope(const mpz_poly_t *poly);
+static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2);
+static bool check_incompatible_distances(const ConstraintGraph *graph);
+static bool check_contradiction_after_substitution(EquationSystem *sys);
+static int  constraint_weight(const Constraint *c);
+static int  count_point_variables(const ConstraintGraph *graph, int **out_ids);
+static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count,
+                                 int *multiple_solutions, bool *no_solution, bool do_substitute);
+static void cleanup_groebner_result(GroebnerResult *result);
+
+/* solver_snapshot.c */
+static bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot);
+static void solver_snapshot_restore(ConstraintGraph *graph, const SolverSnapshot *snapshot);
+static void solver_snapshot_free(SolverSnapshot *snapshot);
 
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
     do { \
@@ -765,7 +816,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                 substitute_solved(&sys, eid, sys.eqs[i].coord_index, val);
 
                 /* Also update the node's symbolic coordinate */
-                GeomNode *node = find_node(graph, eid);
+                GeomNode *node = graph_get_node(graph, eid);
                 if (node && node->coord_count > sys.eqs[i].coord_index) {
                     if (fabs(val) > 9.2e12) {
                         /* Value too large for exact rational representation, skip */
@@ -799,8 +850,8 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                     /* Betweenness gives us a ratio constraint:
                        p2 = p1 + t*(p3-p1), 0 <= t <= 1
                        This is linear in p2's coordinates. */
-                    GeomNode *p1 = find_node(graph, c->participants[0]);
-                    GeomNode *p3 = find_node(graph, c->participants[2]);
+                    GeomNode *p1 = graph_get_node(graph, c->participants[0]);
+                    GeomNode *p3 = graph_get_node(graph, c->participants[2]);
                     if (p1 && p3 && p1->coord_count >= 2 && p3->coord_count >= 2) {
                         double x1, y1, x3, y3;
                         if (point_coord(p1, 0, &x1) && point_coord(p1, 1, &y1) && point_coord(p3, 0, &x3) &&
@@ -810,7 +861,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                                but we can narrow the range. */
                             /* Store the constraint info on the node's
                                numeric_assumption_declaration */
-                            GeomNode *target = find_node(graph, eid);
+                            GeomNode *target = graph_get_node(graph, eid);
                             if (target) {
                                 lv00_free((void **) &target->numeric_assumption_declaration);
                                 char buf[SOLVER_DETAIL_BUF_SIZE];
@@ -857,7 +908,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
 
                     double val;
                     if (solve_linear(&tmpl_sys.eqs[i].poly, &val)) {
-                        GeomNode *node = find_node(graph, eid);
+                        GeomNode *node = graph_get_node(graph, eid);
                         if (node && node->coord_count > tmpl_sys.eqs[i].coord_index) {
                             if (fabs(val) > 9.2e12) {
                                 /* Value too large for exact rational representation, skip */
@@ -1181,7 +1232,7 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
         int point_participants = 0;
         int first_pt_idx = -1;
         for (int j = 0; j < c->participant_count; j++) {
-            GeomNode *n = find_node(graph, c->participants[j]);
+            GeomNode *n = graph_get_node(graph, c->participants[j]);
             if (n && n->type == GEOM_POINT) {
                 for (int k = 0; k < pt_count; k++) {
                     if (pt_ids[k] == n->id) {
@@ -1198,7 +1249,7 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
             int per_point = weight / point_participants;
             int remainder = weight % point_participants;
             for (int j = 0; j < c->participant_count; j++) {
-                GeomNode *n = find_node(graph, c->participants[j]);
+                GeomNode *n = graph_get_node(graph, c->participants[j]);
                 if (n && n->type == GEOM_POINT) {
                     for (int k = 0; k < pt_count; k++) {
                         if (pt_ids[k] == n->id) {
@@ -1387,7 +1438,7 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
             Constraint *c = graph->constraints[i];
             for (int j = 0; j < c->participant_count; j++) {
                 int pid = c->participants[j];
-                GeomNode *n = find_node(graph, pid);
+                GeomNode *n = graph_get_node(graph, pid);
                 if (n && n->type == GEOM_POINT && pid <= max_id) {
                     eq_count_per_point[pid] += constraint_weight(c) / c->participant_count;
                 }
@@ -2517,9 +2568,9 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
                  * 如果有两条边有距离约束, 可以推断第三条边。
                  * 这里我们生成比例方程作为额外的代数约束。 */
 
-                GeomNode *nodeA = find_node(graph, pa);
-                GeomNode *nodeB = find_node(graph, pb);
-                GeomNode *nodeC = find_node(graph, pc);
+                GeomNode *nodeA = graph_get_node(graph, pa);
+                GeomNode *nodeB = graph_get_node(graph, pb);
+                GeomNode *nodeC = graph_get_node(graph, pc);
                 if (!nodeA || !nodeB || !nodeC)
                     continue;
 
@@ -2657,9 +2708,9 @@ static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
                 if (!has_ab || !has_bc || !has_ac)
                     continue;
 
-                GeomNode *nodeA = find_node(graph, pa);
-                GeomNode *nodeB = find_node(graph, pb);
-                GeomNode *nodeC = find_node(graph, pc);
+                GeomNode *nodeA = graph_get_node(graph, pa);
+                GeomNode *nodeB = graph_get_node(graph, pb);
+                GeomNode *nodeC = graph_get_node(graph, pc);
                 if (!nodeA || !nodeB || !nodeC)
                     continue;
 
@@ -2831,8 +2882,8 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
                     continue;
 
                 /* Check if this incidence involves a point on line i */
-                GeomNode *pt = find_node((ConstraintGraph *) graph, c->participants[0]);
-                GeomNode *seg = find_node((ConstraintGraph *) graph, c->participants[1]);
+                GeomNode *pt = graph_get_node(graph, c->participants[0]);
+                GeomNode *seg = graph_get_node(graph, c->participants[1]);
                 if (!pt || pt->type != GEOM_POINT)
                     continue;
 
@@ -2849,8 +2900,8 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
                         if (c2->type != INCIDENCE || c2->participant_count < 2)
                             continue;
 
-                        GeomNode *pt2 = find_node((ConstraintGraph *) graph, c2->participants[0]);
-                        GeomNode *seg2 = find_node((ConstraintGraph *) graph, c2->participants[1]);
+                        GeomNode *pt2 = graph_get_node(graph, c2->participants[0]);
+                        GeomNode *seg2 = graph_get_node(graph, c2->participants[1]);
                         if (!pt2 || pt2->type != GEOM_POINT || pt2->coord_count < 2)
                             continue;
                         if (!seg2 || seg2->id != lj->id)
@@ -2983,8 +3034,8 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
     for (int s = 0; s < seg_count; s++) {
         if (segs[s].p1 < 0 || segs[s].p2 < 0)
             continue;
-        GeomNode *n1 = find_node(graph, segs[s].p1);
-        GeomNode *n2 = find_node(graph, segs[s].p2);
+        GeomNode *n1 = graph_get_node(graph, segs[s].p1);
+        GeomNode *n2 = graph_get_node(graph, segs[s].p2);
         if (!n1 || !n2)
             continue;
         double x1, y1, x2, y2;
@@ -3023,8 +3074,8 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
                     /* 简化: 检查截线的端点是否分别在两条平行线上 */
                     /* 更精确的做法是检查线段相交, 这里用简化版本 */
 
-                    GeomNode *kp1 = find_node(graph, segs[k].p1);
-                    GeomNode *kp2 = find_node(graph, segs[k].p2);
+                    GeomNode *kp1 = graph_get_node(graph, segs[k].p1);
+                    GeomNode *kp2 = graph_get_node(graph, segs[k].p2);
                     if (!kp1 || !kp2)
                         continue;
 
@@ -4142,8 +4193,8 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
              * 如果未来需要更强的精度保证，可参考 BETWEENNESS 的实现模式添加
              * coord_to_mpz_scaled 精确路径。
              */
-                GeomNode *pt = find_node((ConstraintGraph *) graph, c->participants[0]);
-                GeomNode *line = find_node((ConstraintGraph *) graph, c->participants[1]);
+                GeomNode *pt = graph_get_node(graph, c->participants[0]);
+                GeomNode *line = graph_get_node(graph, c->participants[1]);
                 if (!pt || !line)
                     break;
                 if (line->type == GEOM_LINE_SEGMENT) {
@@ -4164,7 +4215,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                             if (c2->type != INCIDENCE || c2->participant_count < 2)
                                 continue;
                             if (c2->participants[1] == line->id) {
-                                GeomNode *candidate = find_node((ConstraintGraph *) graph, c2->participants[0]);
+                                GeomNode *candidate = graph_get_node(graph, c2->participants[0]);
                                 if (candidate && candidate->type == GEOM_POINT) {
                                     if (!ep1)
                                         ep1 = candidate;
@@ -4250,9 +4301,9 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
              */
                 if (c->participant_count < 3)
                     break;
-                GeomNode *line1 = find_node((ConstraintGraph *) graph, c->participants[0]);
-                GeomNode *line2 = find_node((ConstraintGraph *) graph, c->participants[1]);
-                GeomNode *rpt = find_node((ConstraintGraph *) graph, c->participants[2]);
+                GeomNode *line1 = graph_get_node(graph, c->participants[0]);
+                GeomNode *line2 = graph_get_node(graph, c->participants[1]);
+                GeomNode *rpt = graph_get_node(graph, c->participants[2]);
                 if (!line1 || !line2 || !rpt)
                     break;
 
@@ -4353,8 +4404,8 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
              */
                 if (c->participant_count < 2)
                     break;
-                GeomNode *inner = find_node((ConstraintGraph *) graph, c->participants[0]);
-                GeomNode *outer = find_node((ConstraintGraph *) graph, c->participants[1]);
+                GeomNode *inner = graph_get_node(graph, c->participants[0]);
+                GeomNode *outer = graph_get_node(graph, c->participants[1]);
                 if (!inner || !outer)
                     break;
 
@@ -4543,9 +4594,9 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
              */
                 if (c->participant_count < 3)
                     break;
-                GeomNode *p1 = find_node((ConstraintGraph *) graph, c->participants[0]);
-                GeomNode *p2 = find_node((ConstraintGraph *) graph, c->participants[1]);
-                GeomNode *p3 = find_node((ConstraintGraph *) graph, c->participants[2]);
+                GeomNode *p1 = graph_get_node(graph, c->participants[0]);
+                GeomNode *p2 = graph_get_node(graph, c->participants[1]);
+                GeomNode *p3 = graph_get_node(graph, c->participants[2]);
                 if (!p1 || !p2 || !p3)
                     break;
 
@@ -4742,8 +4793,8 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
              */
                 if (c->participant_count < 2)
                     break;
-                GeomNode *nodeA = find_node((ConstraintGraph *) graph, c->participants[0]);
-                GeomNode *nodeB = find_node((ConstraintGraph *) graph, c->participants[1]);
+                GeomNode *nodeA = graph_get_node(graph, c->participants[0]);
+                GeomNode *nodeB = graph_get_node(graph, c->participants[1]);
                 if (!nodeA || !nodeB)
                     break;
 

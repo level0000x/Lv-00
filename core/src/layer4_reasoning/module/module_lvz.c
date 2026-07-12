@@ -14,19 +14,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lv00/module.h"
+#include "lv00/module_internal.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "module_helpers.h"
 
-static void lvz_lexer_init(LvzLexer *lex, const char *source) {
+void lvz_lexer_init(LvzLexer *lex, const char *source) {
     lv00_lexer_init(lex, source);
 }
 
-static void lvz_lexer_skip_whitespace_and_comments(LvzLexer *lex) {
+void lvz_lexer_skip_whitespace_and_comments(LvzLexer *lex) {
     lv00_lexer_skip_whitespace_and_comments(lex);
 }
 
-static LvzToken lvz_lexer_next_token(LvzLexer *lex) {
+LvzToken lvz_lexer_next_token(LvzLexer *lex) {
     LvzToken tok = {0};
     tok.line = lex->line;
     tok.col = lex->col;
@@ -138,7 +140,7 @@ static LvzToken lvz_lexer_next_token(LvzLexer *lex) {
     return tok;
 }
 
-static void lvz_token_free(LvzToken *tok) {
+void lvz_token_free(LvzToken *tok) {
     if (tok->str_value) {
         lv00_free((void**)&tok->str_value);
         tok->str_value = NULL;
@@ -147,21 +149,16 @@ static void lvz_token_free(LvzToken *tok) {
 
 /* ============== 递归下降解析器 ============== */
 
-typedef struct {
-    LvzLexer lexer;
-    LvzToken current;
-    bool has_error;
-    char *module_dir;  /* 模块文件所在目录，用于解析依赖路径 */
-} LvzParser;
+/* LvzParser 类型定义已提取至 module_helpers.h */
 
-static void lvz_parser_init(LvzParser *p, const char *source) {
+void lvz_parser_init(LvzParser *p, const char *source) {
     lvz_lexer_init(&p->lexer, source);
     p->has_error = false;
     p->module_dir = NULL;
     memset(&p->current, 0, sizeof(LvzToken));
 }
 
-static void lvz_parser_cleanup(LvzParser *p) {
+void lvz_parser_cleanup(LvzParser *p) {
     lvz_token_free(&p->current);
     if (p->module_dir) {
         lv00_free((void**)&p->module_dir);
@@ -169,12 +166,12 @@ static void lvz_parser_cleanup(LvzParser *p) {
     }
 }
 
-static void lvz_parser_advance(LvzParser *p) {
+void lvz_parser_advance(LvzParser *p) {
     lvz_token_free(&p->current);
     p->current = lvz_lexer_next_token(&p->lexer);
 }
 
-static bool lvz_parser_expect(LvzParser *p, LvzTokenType type) {
+bool lvz_parser_expect(LvzParser *p, LvzTokenType type) {
     if (p->current.type != type) {
         lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望 token 类型 %d, 得到 %d",
                   p->current.line, p->current.col, type, p->current.type);
@@ -184,7 +181,7 @@ static bool lvz_parser_expect(LvzParser *p, LvzTokenType type) {
     return true;
 }
 
-static bool lvz_parser_expect_identifier(LvzParser *p, const char *name) {
+bool lvz_parser_expect_identifier(LvzParser *p, const char *name) {
     if (p->current.type != TOK_IDENTIFIER || 
         strcmp(p->current.str_value, name) != 0) {
         lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'",
@@ -195,7 +192,7 @@ static bool lvz_parser_expect_identifier(LvzParser *p, const char *name) {
     return true;
 }
 
-static bool lvz_parser_expect_number(LvzParser *p, int *value) {
+bool lvz_parser_expect_number(LvzParser *p, int *value) {
     if (p->current.type != TOK_NUMBER) {
         lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望数字",
                   p->current.line, p->current.col);

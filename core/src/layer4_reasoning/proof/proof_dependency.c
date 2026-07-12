@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lv00/proof.h"
+#include "lv00/engine.h"
+#include "lv00/axiom_pkg.h"
 #include "lv00/constraint_graph.h"
 #include "debug.h"
 #include "lv00_internal.h"
@@ -1120,3 +1122,7 @@ char *proof_step_get_natural_language(const ProofStep *step, ProofNaturalLanguag
                      "  -- Trust status: %s",
                      step->id, verb, why, color_name);
         }
+    }
+
+    return lv00_strdup(result);
+}

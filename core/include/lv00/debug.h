@@ -48,9 +48,15 @@ typedef struct ConstraintGraph ConstraintGraph;
 #define LV00_NAME "Lv-00 Geometry Metalanguage"
 
 /* 日志轮转设置 */
+#ifndef LV00_LOG_MAX_FILES
 #define LV00_LOG_MAX_FILES 5
+#endif
+#ifndef LV00_LOG_MAX_SIZE
 #define LV00_LOG_MAX_SIZE (10 * 1024 * 1024) /* 10MB */
+#endif
+#ifndef LV00_LOG_PATH_MAX
 #define LV00_LOG_PATH_MAX 256
+#endif
 
 /* 日志级别: TRACE < DEBUG < INFO < WARN < ERROR < FATAL
  *

@@ -34,17 +34,7 @@
 #include "symbolic_coord.h"
 
 /* ============== 模块实例结构体定义 ============== */
-
-struct Module {
-    char *name;
-    char *version;
-    ModuleDependency *dependencies;
-    int dependency_count;
-    ModuleExport *exports;
-    AxiomPackage **axiom_packages;
-    int axiom_package_count;
-    ConstraintGraph *graph;
-};
+#include "lv00/module_internal.h"
 
 static LV00_THREAD_LOCAL StreamContext *module_stream_ctx = NULL;
 
@@ -96,27 +86,7 @@ void module_set_graph(Module *mod, ConstraintGraph *graph) {
 }
 
 /* ============== 词法分析器 (Lexer) ============== */
-
-typedef enum {
-    TOK_EOF,
-    TOK_STRING,         /* "..." */
-    TOK_NUMBER,         /* 整数或浮点数 */
-    TOK_IDENTIFIER,     /* 标识符 */
-    TOK_LBRACE,         /* { */
-    TOK_RBRACE,         /* } */
-    TOK_ERROR
-} LvzTokenType;
-
-typedef struct {
-    LvzTokenType type;
-    char *str_value;
-    double num_value;
-    int line;
-    int col;
-} LvzToken;
-
-/* LvzLexer 结构体：使用共享的词法分析器基础设施 */
-typedef Lv00Lexer LvzLexer;
-
+/* 类型定义已提取至 module/module_helpers.h */
+#include "module/module_helpers.h"
 
 /* ── 子模块已拆分至 module/ ── */

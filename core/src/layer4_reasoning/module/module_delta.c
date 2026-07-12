@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lv00/module.h"
+#include "lv00/module_internal.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"

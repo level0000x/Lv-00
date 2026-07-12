@@ -180,11 +180,11 @@ void lv00_config_set_max_plugins(int val)               { cfg_mut()->max_plugins
 
 /* ---- 通用 key-value setter ---- */
 
-int lv00_config_set_int(const char *key, int val) {
-    if (!key) return -1;
+bool lv00_config_set_int(const char *key, int val) {
+    if (!key) return false;
     Lv00Config *c = cfg_mut();
 
-    #define SET_IF(k, f) if (strcmp(key, k) == 0) { c->f = val; return 0; }
+    #define SET_IF(k, f) if (strcmp(key, k) == 0) { c->f = val; return true; }
     SET_IF("solver_max_var_id",              solver_max_var_id)
     SET_IF("solver_max_iterations",          solver_max_iterations)
     SET_IF("default_rewrite_limit",          default_rewrite_limit)
@@ -254,14 +254,14 @@ int lv00_config_set_int(const char *key, int val) {
     SET_IF("downgrade_denominator",          downgrade_denominator)
     SET_IF("default_memory_limit_mb",        default_memory_limit_mb)
     #undef SET_IF
-    return -1;
+    return false;
 }
 
-int lv00_config_set_double(const char *key, double val) {
-    if (!key) return -1;
+bool lv00_config_set_double(const char *key, double val) {
+    if (!key) return false;
     Lv00Config *c = cfg_mut();
 
-    #define SET_IF(k, f) if (strcmp(key, k) == 0) { c->f = val; return 0; }
+    #define SET_IF(k, f) if (strcmp(key, k) == 0) { c->f = val; return true; }
     SET_IF("geo_min_zoom",              geo_min_zoom)
     SET_IF("geo_max_zoom",              geo_max_zoom)
     SET_IF("geoevol_min_step",          geoevol_min_step)
@@ -270,7 +270,7 @@ int lv00_config_set_double(const char *key, double val) {
     SET_IF("health_memory_usage_ratio", health_memory_usage_ratio)
     SET_IF("health_memory_leak_ratio",  health_memory_leak_ratio)
     #undef SET_IF
-    return -1;
+    return false;
 }
 
 /* ---- 重置 ---- */
