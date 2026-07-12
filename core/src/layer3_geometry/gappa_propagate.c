@@ -14,6 +14,7 @@
  */
 
 #include "lv00/gappa_propagate.h"
+#include "lv00/gappa_dsl.h"
 #include "lv00/lv00_internal.h"
 
 #include <stdlib.h>

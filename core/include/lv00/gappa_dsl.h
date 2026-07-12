@@ -37,7 +37,7 @@ typedef enum {
 } Lv00PredType;
 
 /** Gappa predicate */
-typedef struct {
+typedef struct Lv00GappaPredicate {
     Lv00PredType type;
     char expr_lhs[256];
     char expr_rhs[256];
