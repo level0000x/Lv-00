@@ -173,7 +173,7 @@ static bool cache_is_full(const Lv00ReasoningCache *cache) {
  * 公开 API 实现
  * ================================================================ */
 
-Lv00ReasoningCache *lv00_reasoning_cache_create(size_t capacity) {
+static Lv00ReasoningCache *lv00_reasoning_cache_create(size_t capacity) {
     Lv00ReasoningCache *cache = (Lv00ReasoningCache *)calloc(1, sizeof(Lv00ReasoningCache));
     if (!cache) {
         return NULL;
@@ -194,7 +194,7 @@ Lv00ReasoningCache *lv00_reasoning_cache_create(size_t capacity) {
     return cache;
 }
 
-void lv00_reasoning_cache_destroy(Lv00ReasoningCache *cache) {
+static void lv00_reasoning_cache_destroy(Lv00ReasoningCache *cache) {
     if (!cache) {
         return;
     }
@@ -203,7 +203,7 @@ void lv00_reasoning_cache_destroy(Lv00ReasoningCache *cache) {
     free(cache);
 }
 
-bool lv00_reasoning_cache_has(Lv00ReasoningCache *cache, uint64_t key) {
+static bool lv00_reasoning_cache_has(Lv00ReasoningCache *cache, uint64_t key) {
     if (!cache) {
         return false;
     }
@@ -218,7 +218,7 @@ bool lv00_reasoning_cache_has(Lv00ReasoningCache *cache, uint64_t key) {
     return found;
 }
 
-void lv00_reasoning_cache_put(Lv00ReasoningCache *cache, uint64_t key, int result) {
+static void lv00_reasoning_cache_put(Lv00ReasoningCache *cache, uint64_t key, int result) {
     if (!cache) {
         return;
     }
@@ -260,7 +260,7 @@ void lv00_reasoning_cache_put(Lv00ReasoningCache *cache, uint64_t key, int resul
     }
 }
 
-int lv00_reasoning_cache_get(Lv00ReasoningCache *cache, uint64_t key) {
+static int lv00_reasoning_cache_get(Lv00ReasoningCache *cache, uint64_t key) {
     if (!cache) {
         return 0;
     }
@@ -280,7 +280,7 @@ int lv00_reasoning_cache_get(Lv00ReasoningCache *cache, uint64_t key) {
     return 0;
 }
 
-void lv00_reasoning_cache_clear(Lv00ReasoningCache *cache) {
+static void lv00_reasoning_cache_clear(Lv00ReasoningCache *cache) {
     if (!cache) {
         return;
     }
@@ -292,7 +292,7 @@ void lv00_reasoning_cache_clear(Lv00ReasoningCache *cache) {
     cache->misses = 0;
 }
 
-void lv00_reasoning_cache_get_stats(const Lv00ReasoningCache *cache,
+static void lv00_reasoning_cache_get_stats(const Lv00ReasoningCache *cache,
                                      size_t *hits, size_t *misses, size_t *size) {
     if (!cache) {
         if (hits) *hits = 0;
