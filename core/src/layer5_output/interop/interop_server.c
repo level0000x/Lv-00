@@ -846,9 +846,4 @@ int interop_server_run(InteropServer *server) {
  * @param cmd   输出参数，接收解析后的命令
  * @return LV00_OK 成功，错误码表示失败原因
  */
-int interop_parse_command(const char *input, InteropCommand *cmd) {
-    if (!input || !cmd) return LV00_ERROR_INVALID_PARAM;
-    (void)input; (void)cmd;
-    /* TODO: 实现命令解析 */
-    return LV00_ERROR_UNSUPPORTED;
-}
+/* interop_parse_command: 实现在 interop_command.c 中，通过 interop.h 声明可见 */
