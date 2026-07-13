@@ -754,6 +754,7 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
     default:
         break;
     }
+    }
 
     /* 保存选中的坐标，释放其余 */
     SymbolicCoord *selected = ss->possible_coords[selected_index];
@@ -978,4 +979,3 @@ bool propagation_is_fully_collapsed(const PropagationContext *ctx) {
     }
     return true;
 }
-} /* bracing fix */
