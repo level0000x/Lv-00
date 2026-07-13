@@ -230,8 +230,9 @@ static void queue_clear(PropagationContext *ctx) {
 PropagationContext *propagation_context_create(ConstraintGraph *graph) {
     if (!graph) return NULL;
 
-    PropagationContext *ctx = (PropagationContext *)calloc(1, sizeof(PropagationContext));
+    PropagationContext *ctx = (PropagationContext *)lv00_malloc(sizeof(PropagationContext));
     if (!ctx) return NULL;
+    memset(ctx, 0, sizeof(PropagationContext));
 
     ctx->graph = graph;
     ctx->strategy = PROP_STRATEGY_MIN_ENTROPY;
@@ -241,11 +242,12 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
 
     /* 初始化状态空间数组 */
     ctx->state_count = graph->node_count;
-    ctx->state_spaces = (NodeStateSpace *)calloc((size_t)ctx->state_count, sizeof(NodeStateSpace));
+    ctx->state_spaces = (NodeStateSpace *)lv00_malloc((size_t)ctx->state_count * sizeof(NodeStateSpace));
     if (!ctx->state_spaces && ctx->state_count > 0) {
         lv00_free((void **)&ctx);
         return NULL;
     }
+    if (ctx->state_spaces) memset(ctx->state_spaces, 0, (size_t)ctx->state_count * sizeof(NodeStateSpace));
 
     /* 初始化传播队列 */
     if (!queue_init(ctx)) {
@@ -256,7 +258,7 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
 
     /* 初始化快照栈 */
     ctx->snapshot_capacity = PROP_DEFAULT_SNAPSHOT_CAPACITY;
-    ctx->snapshot_stack = (PropagationSnapshot **)calloc((size_t)ctx->snapshot_capacity,
+    ctx->snapshot_stack = (PropagationSnapshot **)lv00_malloc((size_t)ctx->snapshot_capacity *
                                                           sizeof(PropagationSnapshot *));
     if (!ctx->snapshot_stack) {
         queue_destroy(ctx);
@@ -264,6 +266,7 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
         lv00_free((void **)&ctx);
         return NULL;
     }
+    memset(ctx->snapshot_stack, 0, (size_t)ctx->snapshot_capacity * sizeof(PropagationSnapshot *));
 
     return ctx;
 }
