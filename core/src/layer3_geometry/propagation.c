@@ -78,7 +78,7 @@ static void state_destroy(NodeStateSpace *s) {
     }
     lv00_free((void **)&s->coord_dims);
     s->coord_dims = NULL;
-    lv00_free((void **)&s);
+    /* 注意：不释放 s 本身，因为它指向 state_spaces 数组的元素 */
 }
 
 /** @brief 深拷贝节点状态空间 */
