@@ -273,41 +273,45 @@ Lv00MultiVector *ga_mv_outer_product(const Lv00MultiVector *a,
     Lv00MultiVector *result = ga_mv_zero();
     if (!result) return NULL;
 
-    /*
-     * General outer product for Cl(3,0,1).
-     *
-     * Each basis index (0..15) is a bitmask over generators {e0,e1,e2,e3}.
-     * The outer product of basis elements with masks i and j is:
-     *   - 0 if i & j != 0 (shared generators)
-     *   - sign(i,j) * e(i|j) otherwise
-     *
-     * sign(i,j) = (-1)^crossings, where crossings counts pairs (bj, ai)
-     * with bj a bit in j, ai a bit in i, and bj < ai.
-     */
-    for (int bi = 0; bi < 16; bi++) {
-        if (fabs(a->c[bi]) < 1e-15) continue;
-        for (int bj = 0; bj < 16; bj++) {
-            if (fabs(b->c[bj]) < 1e-15) continue;
-
-            /* Disjoint check: no shared generators */
-            if (bi & bj) continue;
-
-            int target = bi | bj;
-
-            /* Compute sign: count (bit_j < bit_i) crossings */
-            int crossings = 0;
-            for (int bit_j = 0; bit_j < 4; bit_j++) {
-                if (!(bj & (1 << bit_j))) continue;
-                for (int bit_i = 0; bit_i < 4; bit_i++) {
-                    if (!(bi & (1 << bit_i))) continue;
-                    if (bit_j < bit_i) crossings++;
-                }
-            }
-
-            double sign = (crossings % 2 == 0) ? 1.0 : -1.0;
-            result->c[target] += sign * a->c[bi] * b->c[bj];
-        }
+    /* scalar * anything */
+    for (int i = 0; i < 16; i++) {
+        result->c[i] += a->c[GA_S] * b->c[i] + a->c[i] * b->c[GA_S];
     }
+    /* subtract double-counted scalar*scalar */
+    result->c[GA_S] = a->c[GA_S] * b->c[GA_S];
+
+    /* grade-1 ^ grade-1 → grade-2 */
+    result->c[GA_E01] += a->c[GA_E0]*b->c[GA_E1] - a->c[GA_E1]*b->c[GA_E0];
+    result->c[GA_E02] += a->c[GA_E0]*b->c[GA_E2] - a->c[GA_E2]*b->c[GA_E0];
+    result->c[GA_E03] += a->c[GA_E0]*b->c[GA_E3] - a->c[GA_E3]*b->c[GA_E0];
+    result->c[GA_E12] += a->c[GA_E1]*b->c[GA_E2] - a->c[GA_E2]*b->c[GA_E1];
+    result->c[GA_E13] += a->c[GA_E1]*b->c[GA_E3] - a->c[GA_E3]*b->c[GA_E1];
+    result->c[GA_E23] += a->c[GA_E2]*b->c[GA_E3] - a->c[GA_E3]*b->c[GA_E2];
+
+    /* grade-1 ^ grade-2 → grade-3 */
+    result->c[GA_E012] += a->c[GA_E0]*b->c[GA_E12] - a->c[GA_E1]*b->c[GA_E02] + a->c[GA_E2]*b->c[GA_E01];
+    result->c[GA_E013] += a->c[GA_E0]*b->c[GA_E13] - a->c[GA_E1]*b->c[GA_E03] + a->c[GA_E3]*b->c[GA_E01];
+    result->c[GA_E023] += a->c[GA_E0]*b->c[GA_E23] - a->c[GA_E2]*b->c[GA_E03] + a->c[GA_E3]*b->c[GA_E02];
+    result->c[GA_E123] += a->c[GA_E1]*b->c[GA_E23] - a->c[GA_E2]*b->c[GA_E13] + a->c[GA_E3]*b->c[GA_E12];
+
+    /* grade-2 ^ grade-1 → grade-3 */
+    result->c[GA_E012] += a->c[GA_E01]*b->c[GA_E2] - a->c[GA_E02]*b->c[GA_E1] + a->c[GA_E12]*b->c[GA_E0];
+    result->c[GA_E013] += a->c[GA_E01]*b->c[GA_E3] - a->c[GA_E03]*b->c[GA_E1] + a->c[GA_E13]*b->c[GA_E0];
+    result->c[GA_E023] += a->c[GA_E02]*b->c[GA_E3] - a->c[GA_E03]*b->c[GA_E2] + a->c[GA_E23]*b->c[GA_E0];
+    result->c[GA_E123] += a->c[GA_E12]*b->c[GA_E3] - a->c[GA_E13]*b->c[GA_E2] + a->c[GA_E23]*b->c[GA_E1];
+
+    /* grade-2 ^ grade-2 → grade-4 */
+    result->c[GA_E0123] += a->c[GA_E01]*b->c[GA_E23] - a->c[GA_E02]*b->c[GA_E13]
+                         + a->c[GA_E03]*b->c[GA_E12] + a->c[GA_E12]*b->c[GA_E03]
+                         - a->c[GA_E13]*b->c[GA_E02] + a->c[GA_E23]*b->c[GA_E01];
+
+    /* grade-1 ^ grade-3 → grade-4 */
+    result->c[GA_E0123] += a->c[GA_E0]*b->c[GA_E123] - a->c[GA_E1]*b->c[GA_E023]
+                         + a->c[GA_E2]*b->c[GA_E013] - a->c[GA_E3]*b->c[GA_E012];
+
+    /* grade-3 ^ grade-1 → grade-4 */
+    result->c[GA_E0123] += a->c[GA_E012]*b->c[GA_E3] - a->c[GA_E013]*b->c[GA_E2]
+                         + a->c[GA_E023]*b->c[GA_E1] - a->c[GA_E123]*b->c[GA_E0];
 
     return result;
 }

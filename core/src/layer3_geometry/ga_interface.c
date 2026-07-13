@@ -255,19 +255,16 @@ bool ga_three_points_collinear(const Lv00MultiVector *p1,
                                 const Lv00MultiVector *p3) {
     if (!p1 || !p2 || !p3) return false;
 
-    /* Three points collinear iff P1 ^ P2 ^ P3 = 0 */
-    Lv00MultiVector *temp = ga_mv_outer_product(p1, p2);
-    if (!temp) return false;
+    /* PGA points are grade-3 trivectors; outer product of grade-3 in 4D = 0.
+     * Use determinant of coordinate matrix instead. */
+    double x1, y1, z1, x2, y2, z2, x3, y3, z3;
+    if (ga_extract_point(p1, &x1, &y1, &z1) < 0) return false;
+    if (ga_extract_point(p2, &x2, &y2, &z2) < 0) return false;
+    if (ga_extract_point(p3, &x3, &y3, &z3) < 0) return false;
 
-    Lv00MultiVector *result = ga_mv_outer_product(temp, p3);
-    ga_mv_free(temp);
-
-    if (!result) return false;
-
-    bool is_zero = ga_mv_is_zero(result, 1e-6);
-    ga_mv_free(result);
-
-    return is_zero;
+    /* 3x3 determinant (last column is all 1s for homogeneous) */
+    double det = x1*(y2 - y3) - y1*(x2 - x3) + (x2*y3 - x3*y2);
+    return fabs(det) < 1e-6;
 }
 
 bool ga_four_points_coplanar(const Lv00MultiVector *p1,
@@ -276,22 +273,18 @@ bool ga_four_points_coplanar(const Lv00MultiVector *p1,
                               const Lv00MultiVector *p4) {
     if (!p1 || !p2 || !p3 || !p4) return false;
 
-    /* Four points coplanar iff P1 ^ P2 ^ P3 ^ P4 = 0 */
-    Lv00MultiVector *t1 = ga_mv_outer_product(p1, p2);
-    if (!t1) return false;
+    double x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4;
+    if (ga_extract_point(p1, &x1, &y1, &z1) < 0) return false;
+    if (ga_extract_point(p2, &x2, &y2, &z2) < 0) return false;
+    if (ga_extract_point(p3, &x3, &y3, &z3) < 0) return false;
+    if (ga_extract_point(p4, &x4, &y4, &z4) < 0) return false;
 
-    Lv00MultiVector *t2 = ga_mv_outer_product(t1, p3);
-    ga_mv_free(t1);
-    if (!t2) return false;
-
-    Lv00MultiVector *result = ga_mv_outer_product(t2, p4);
-    ga_mv_free(t2);
-    if (!result) return false;
-
-    bool is_zero = ga_mv_is_zero(result, 1e-6);
-    ga_mv_free(result);
-
-    return is_zero;
+    /* 4x4 determinant (last column all 1s) */
+    double det = x1*(y2*(z3 - z4) - y3*(z2 - z4) + y4*(z2 - z3))
+               - y1*(x2*(z3 - z4) - x3*(z2 - z4) + x4*(z2 - z3))
+               + z1*(x2*(y3 - y4) - x3*(y2 - y4) + x4*(y2 - y3))
+               - (x2*(y3*z4 - y4*z3) - x3*(y2*z4 - y4*z2) + x4*(y2*z3 - y3*z2));
+    return fabs(det) < 1e-6;
 }
 
 Lv00MultiVector *ga_plane_from_three_points(const Lv00MultiVector *p1,

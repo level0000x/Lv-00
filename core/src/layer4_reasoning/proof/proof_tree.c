@@ -84,6 +84,7 @@ Lv00ProofTree *lv00_proof_tree_create(const char *name, const char *strategy) {
 
     tree->root = root;
     root->step_index = -1;  /* Root node has no step index */
+    root->conclusion = name ? lv00_strdup(name) : NULL;
     tree->all_nodes[0] = root;
     tree->node_count = 1;
     tree->next_id = 1;
