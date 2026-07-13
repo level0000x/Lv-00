@@ -29,7 +29,7 @@
 #define COORD_SEVEN_OVER_FIVE_N 32
 
 /* ── 前向声明 ── */
-int remove_square_factors(int n);
+static int remove_square_factors(int n);
 static TranscendentalExpr *transcendental_expr_parse(const char *name);
 static void transcendental_expr_destroy(TranscendentalExpr *expr);
 static void q_transcendental_destroy(Transcendental *t);
@@ -168,7 +168,7 @@ int quadratic_compare(const Quadratic *a, const Quadratic *b) {
  * @param q 二次根式对象（不能为 NULL）
  * @return 二次根式的双精度浮点数近似值
  */
-double quadratic_to_double(const Quadratic *q) {
+static double quadratic_to_double(const Quadratic *q) {
     return rational_to_double(q->a) + rational_to_double(q->b) * sqrt((double) q->n);
 }
 
@@ -378,7 +378,7 @@ static void q_transcendental_destroy(Transcendental *t) {
  * @param n 输入整数
  * @return 移除平方因子后的结果
  */
-int remove_square_factors(int n) {
+static int remove_square_factors(int n) {
     if (n == 0) return 0;
     int result = 1;
     int temp = (n < 0) ? -n : n;

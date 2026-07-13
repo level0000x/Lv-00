@@ -272,7 +272,7 @@ char *transcendental_serialize(const Transcendental *t) {
  * @param t 超越数对象（不能为 NULL）
  * @return double 近似值；如果无法解析则返回 0.0
  */
-double transcendental_to_double(const Transcendental *t) {
+static double transcendental_to_double(const Transcendental *t) {
     /* Get base constant value */
     double base_val = 0.0;
     if (strcmp(t->name, "pi") == 0) {

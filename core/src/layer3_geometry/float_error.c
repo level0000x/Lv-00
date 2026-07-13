@@ -111,7 +111,7 @@ static double round_up(double x) {
  * @param is_exact 是否为精确值
  * @return 区间结构体
  */
-FloatInterval interval_make(double lo, double hi, bool is_exact) {
+static FloatInterval interval_make(double lo, double hi, bool is_exact) {
     FloatInterval iv;
     iv.lo = lo;
     iv.hi = hi;
@@ -125,7 +125,7 @@ FloatInterval interval_make(double lo, double hi, bool is_exact) {
  * @param b 右操作数区间
  * @return 结果区间
  */
-FloatInterval float_interval_add(FloatInterval a, FloatInterval b) {
+static FloatInterval float_interval_add(FloatInterval a, FloatInterval b) {
     FloatInterval result;
     result.lo = round_down(a.lo + b.lo);
     result.hi = round_up(a.hi + b.hi);
@@ -139,7 +139,7 @@ FloatInterval float_interval_add(FloatInterval a, FloatInterval b) {
  * @param b 减数区间
  * @return 结果区间
  */
-FloatInterval float_interval_sub(FloatInterval a, FloatInterval b) {
+static FloatInterval float_interval_sub(FloatInterval a, FloatInterval b) {
     FloatInterval result;
     /* a - b: 下界 = a.lo - b.hi, 上界 = a.hi - b.lo */
     result.lo = round_down(a.lo - b.hi);
@@ -154,7 +154,7 @@ FloatInterval float_interval_sub(FloatInterval a, FloatInterval b) {
  * @param b 右操作数区间
  * @return 结果区间
  */
-FloatInterval float_interval_mul(FloatInterval a, FloatInterval b) {
+static FloatInterval float_interval_mul(FloatInterval a, FloatInterval b) {
     /* 计算四个角点 */
     double p1 = a.lo * b.lo;
     double p2 = a.lo * b.hi;
@@ -177,7 +177,7 @@ FloatInterval float_interval_mul(FloatInterval a, FloatInterval b) {
  * @param b 除数区间
  * @return 结果区间；若除数跨越零点则返回 [-HUGE_VAL, HUGE_VAL]
  */
-FloatInterval float_interval_div(FloatInterval a, FloatInterval b) {
+static FloatInterval float_interval_div(FloatInterval a, FloatInterval b) {
     FloatInterval result;
 
     /* 检查分母是否跨越零点 */
@@ -212,7 +212,7 @@ FloatInterval float_interval_div(FloatInterval a, FloatInterval b) {
  * @param a 输入区间
  * @return 结果区间
  */
-FloatInterval float_interval_sqrt(FloatInterval a) {
+static FloatInterval float_interval_sqrt(FloatInterval a) {
     FloatInterval result;
     if (a.lo < 0.0) {
         /* 负数部分无实数定义，截断到 0 */
@@ -230,7 +230,7 @@ FloatInterval float_interval_sqrt(FloatInterval a) {
  * @param a 输入区间（弧度）
  * @return 结果区间，范围 [-1, 1]
  */
-FloatInterval float_interval_sin(FloatInterval a) {
+static FloatInterval float_interval_sin(FloatInterval a) {
     /* sin 在 [-1, 1] 之间，需要处理非单调区间 */
     double sin_lo = sin(a.lo);
     double sin_hi = sin(a.hi);
@@ -273,7 +273,7 @@ FloatInterval float_interval_sin(FloatInterval a) {
  * @param a 输入区间（弧度）
  * @return 结果区间，范围 [-1, 1]
  */
-FloatInterval float_interval_cos(FloatInterval a) {
+static FloatInterval float_interval_cos(FloatInterval a) {
     /* cos 性质类似 sin，偏移 pi/2 */
     double cos_lo = cos(a.lo);
     double cos_hi = cos(a.hi);
@@ -313,7 +313,7 @@ FloatInterval float_interval_cos(FloatInterval a) {
  * @param a 输入区间
  * @return 结果区间
  */
-FloatInterval float_interval_exp(FloatInterval a) {
+static FloatInterval float_interval_exp(FloatInterval a) {
     /* exp 单调递增 */
     FloatInterval result;
     result.lo = round_down(exp(a.lo));
@@ -327,7 +327,7 @@ FloatInterval float_interval_exp(FloatInterval a) {
  * @param a 输入区间
  * @return 结果区间；若下界 <= 0 则返回 [-HUGE_VAL, ...]
  */
-FloatInterval float_interval_log(FloatInterval a) {
+static FloatInterval float_interval_log(FloatInterval a) {
     FloatInterval result;
     if (a.lo <= 0.0) {
         /* log 在非正区间无定义 */
@@ -944,7 +944,7 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
  * @param out    输出误差界
  * @return 成功返回 true，失败返回 false
  */
-bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out) {
+static bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out) {
     if (!graph || !out)
         return false;
 
@@ -1049,7 +1049,7 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
  * @param out        输出误差界
  * @return 成功返回 true，失败返回 false
  */
-bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, int var_count, const FPTaylorConfig *cfg,
+static bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, int var_count, const FPTaylorConfig *cfg,
                             ErrorBound *out) {
     if (!expr || !var_bounds || var_count <= 0 || !out)
         return false;
@@ -1163,7 +1163,7 @@ FPTaylorConfig fptaylor_config_default(void) {
  * @brief 释放误差界中的证明文本资源
  * @param bound 误差界指针
  */
-void error_bound_free(ErrorBound *bound) {
+static void error_bound_free(ErrorBound *bound) {
     if (!bound)
         return;
     if (bound->proof_text) {
