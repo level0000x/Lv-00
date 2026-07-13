@@ -17,6 +17,7 @@
 #include "lv00/context.h"
 #include "lv00/lv00_internal.h"
 #include "lv00/lv00_utils.h"
+#include "lv00/recursion.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -239,4 +240,45 @@ int lv00_circuit_breaker_summary(Lv00Context *ctx, char *buf, size_t buf_size) {
         cb->trip_count,
         cb->trip_reason ? " | 原因：" : "",
         cb->trip_reason ? cb->trip_reason : "");
+}
+
+/* ============================================================
+ * 全局递归深度保护（轻量级熔断器）
+ *
+ * 与 Lv00Context 内的 CircuitBreaker 不同，此处提供
+ * 无上下文依赖的全局递归深度保护，供递归调用链中的
+ * 任意位置快速检查。LV00_MAX_RECURSION_DEPTH (128)
+ * 定义在 recursion.h 中。
+ * ============================================================ */
+
+/** 当前全局递归深度（进程级） */
+static int g_recursion_depth = 0;
+
+/** 全局熔断器是否已触发 */
+static bool g_circuit_breaker_triggered = false;
+
+bool lv00_recursion_enter(void) {
+    if (g_recursion_depth >= LV00_MAX_RECURSION_DEPTH) {
+        g_circuit_breaker_triggered = true;
+        return false;
+    }
+    g_recursion_depth++;
+    return true;
+}
+
+void lv00_recursion_leave(void) {
+    if (g_recursion_depth > 0) g_recursion_depth--;
+}
+
+bool lv00_recursion_circuit_breaker_triggered(void) {
+    return g_circuit_breaker_triggered;
+}
+
+void lv00_recursion_reset(void) {
+    g_recursion_depth = 0;
+    g_circuit_breaker_triggered = false;
+}
+
+int lv00_recursion_get_depth(void) {
+    return g_recursion_depth;
 }
