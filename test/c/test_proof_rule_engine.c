@@ -332,7 +332,7 @@ static void test_proof_session_submit_step(void) {
 
     /* Cannot submit steps after abandonment */
     ok = proof_session_submit_step(session, "exact S", &result);
-    TEST_ASSERT(ok, "submit_step should return false for abandoned session");
+    TEST_ASSERT(!ok, "submit_step should return false for abandoned session");
     TEST_ASSERT_EQ(result, STEP_RESULT_ERROR);
 
     proof_session_destroy(session);

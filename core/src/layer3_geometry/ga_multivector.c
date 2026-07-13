@@ -289,6 +289,9 @@ Lv00MultiVector *ga_mv_outer_product(const Lv00MultiVector *a,
 
     /* Vector ^ Vector = bivector */
     if (ga_mv_grade(a) == 1 && ga_mv_grade(b) == 1) {
+        result->c[GA_E01] = a->c[GA_E0] * b->c[GA_E1] - a->c[GA_E1] * b->c[GA_E0];
+        result->c[GA_E02] = a->c[GA_E0] * b->c[GA_E2] - a->c[GA_E2] * b->c[GA_E0];
+        result->c[GA_E03] = a->c[GA_E0] * b->c[GA_E3] - a->c[GA_E3] * b->c[GA_E0];
         result->c[GA_E12] = a->c[GA_E1] * b->c[GA_E2] - a->c[GA_E2] * b->c[GA_E1];
         result->c[GA_E13] = a->c[GA_E1] * b->c[GA_E3] - a->c[GA_E3] * b->c[GA_E1];
         result->c[GA_E23] = a->c[GA_E2] * b->c[GA_E3] - a->c[GA_E3] * b->c[GA_E2];

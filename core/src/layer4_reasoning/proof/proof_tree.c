@@ -41,8 +41,8 @@ static void free_node_recursive(Lv00ProofTreeNode *n) {
     }
     free(n->children);
     free(n->premises);
-    free(n->axiom_used);
-    free(n->conclusion);
+    lv00_free((void**)&n->axiom_used);
+    lv00_free((void**)&n->conclusion);
     free(n);
 }
 
@@ -96,8 +96,8 @@ void lv00_proof_tree_destroy(Lv00ProofTree *tree) {
     if (!tree) return;
     free_node_recursive(tree->root);
     free(tree->all_nodes);
-    free(tree->theorem_name);
-    free(tree->proof_strategy);
+    lv00_free((void**)&tree->theorem_name);
+    lv00_free((void**)&tree->proof_strategy);
     free(tree);
 }
 

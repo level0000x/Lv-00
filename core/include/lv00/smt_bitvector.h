@@ -18,7 +18,7 @@ typedef struct Lv00BitVec {
 /** Compatibility typedef for test code. */
 typedef Lv00BitVec Lv00BitVector;
 
-#define bv_from_int(w, v) lv00_bv_create((w), (unsigned long long)(v))
+#define bv_from_int(v, w) lv00_bv_create((w), (unsigned long long)(v))
 
 /** Create bitvector. */
 Lv00BitVec *lv00_bv_create(size_t width, unsigned long long value);

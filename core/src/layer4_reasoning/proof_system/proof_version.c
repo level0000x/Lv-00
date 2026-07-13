@@ -396,11 +396,11 @@ static void compute_commit_oid(const char *message, const char *parent_oid,
  * @brief Write commit metadata to a file.
  */
 static bool write_commit_file(const char *repo_path, const Lv00ProofCommit *commit) {
-    char dir[1024], path[1024];
+    char dir[1024], tmp[1024], path[1024];
 
     repo_dir_path(repo_path, dir, sizeof(dir));
-    build_path(dir, "commits", dir, sizeof(dir));
-    build_path(dir, commit->oid, path, sizeof(path));
+    build_path(dir, "commits", tmp, sizeof(tmp));
+    build_path(tmp, commit->oid, path, sizeof(path));
 
     FILE *f = fopen(path, "w");
     if (!f) return false;
@@ -505,9 +505,9 @@ Lv00ProofRepo *proof_repo_init(const char *path) {
     repo->branch_count = 1;
 
     /* Write branch file */
-    char branch_path[1024];
-    build_path(dir, "branches", dir, sizeof(dir));
-    build_path(dir, "main", branch_path, sizeof(branch_path));
+    char branch_path[1024], branches_dir_init[1024];
+    build_path(dir, "branches", branches_dir_init, sizeof(branches_dir_init));
+    build_path(branches_dir_init, "main", branch_path, sizeof(branch_path));
     write_file(branch_path, root.oid);
 
     return repo;
@@ -676,12 +676,12 @@ size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_
     memset(current_oid, 0, sizeof(current_oid));
     safe_strncpy(current_oid, repo->head_commit, LV00_OID_LENGTH);
 
-    char dir[1024], commit_path[1024];
+    char dir[1024], commits_dir[1024], commit_path[1024];
     repo_dir_path(repo->path, dir, sizeof(dir));
-    build_path(dir, "commits", dir, sizeof(dir));
+    build_path(dir, "commits", commits_dir, sizeof(commits_dir));
 
     while (count < max_count && current_oid[0] != '\0') {
-        build_path(dir, current_oid, commit_path, sizeof(commit_path));
+        build_path(commits_dir, current_oid, commit_path, sizeof(commit_path));
 
         if (!read_commit_file(commit_path, &commits[count])) {
             break;
@@ -775,10 +775,10 @@ bool proof_repo_branch(Lv00ProofRepo *repo, const char *name) {
     repo->branch_count++;
 
     /* Write branch file */
-    char dir[1024], branch_path[1024];
+    char dir[1024], branch_path[1024], branches_dir[1024];
     repo_dir_path(repo->path, dir, sizeof(dir));
-    build_path(dir, "branches", dir, sizeof(dir));
-    build_path(dir, name, branch_path, sizeof(branch_path));
+    build_path(dir, "branches", branches_dir, sizeof(branches_dir));
+    build_path(branches_dir, name, branch_path, sizeof(branch_path));
     write_file(branch_path, repo->head_commit);
 
     return true;
