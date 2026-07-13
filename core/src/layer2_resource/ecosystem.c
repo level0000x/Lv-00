@@ -10,7 +10,7 @@ static int lv00_ecosystem_initialized = 0;
 static int lv00_ecosystem_count = 0;
 static char lv00_ecosystem_names[LV00_ECOSYSTEM_MAX_MODULES][64];
 
-int lv00_ecosystem_init(void)
+static int lv00_ecosystem_init(void)
 {
     if (lv00_ecosystem_initialized) return 0;
     lv00_ecosystem_initialized = 1;
@@ -18,13 +18,13 @@ int lv00_ecosystem_init(void)
     return 0;
 }
 
-void lv00_ecosystem_shutdown(void)
+static void lv00_ecosystem_shutdown(void)
 {
     lv00_ecosystem_initialized = 0;
     lv00_ecosystem_count = 0;
 }
 
-int lv00_ecosystem_register_module(const char *name, int layer)
+static int lv00_ecosystem_register_module(const char *name, int layer)
 {
     (void)layer;
     if (!name || !lv00_ecosystem_initialized) return -1;
@@ -35,12 +35,12 @@ int lv00_ecosystem_register_module(const char *name, int layer)
     return 0;
 }
 
-int lv00_ecosystem_module_count(void)
+static int lv00_ecosystem_module_count(void)
 {
     return lv00_ecosystem_count;
 }
 
-const char *lv00_ecosystem_module_name(int idx)
+static const char *lv00_ecosystem_module_name(int idx)
 {
     if (idx < 0 || idx >= lv00_ecosystem_count) return NULL;
     return lv00_ecosystem_names[idx];

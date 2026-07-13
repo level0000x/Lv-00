@@ -1139,7 +1139,7 @@ static const char *trace_event_type_string(TraceEventType type) {
  * @return 新创建的追踪会话指针，内存分配失败时返回 NULL
  * @note 初始事件容量为 LV00_DEBUG_TRACE_INITIAL_CAPACITY（64），会话创建后默认处于活跃状态
  */
-TraceSession *trace_session_create(void) {
+static TraceSession *trace_session_create(void) {
     TraceSession *session = (TraceSession *) lv00_calloc(1, sizeof(TraceSession));
     if (!session)
         return NULL;
@@ -1161,7 +1161,7 @@ TraceSession *trace_session_create(void) {
  * @param session 追踪会话指针，传入 NULL 时安全返回
  * @note 会释放会话中所有事件的 description 和 details 字符串
  */
-void trace_session_destroy(TraceSession *session) {
+static void trace_session_destroy(TraceSession *session) {
     if (!session)
         return;
 
@@ -1199,7 +1199,7 @@ static void trace_session_ensure_capacity(TraceSession *session) {
  * @param details     事件详细信息字符串，可为 NULL
  * @note 如果会话未处于活跃状态或容量不足，事件将被丢弃。description 和 details 会被复制
  */
-void trace_record_event(TraceSession *session, TraceEventType type, int step, const char *description,
+static void trace_record_event(TraceSession *session, TraceEventType type, int step, const char *description,
                         const char *details) {
     if (!session || !session->active)
         return;
@@ -1428,7 +1428,7 @@ char *trace_session_export_json(const TraceSession *session) {
     return json;
 }
 
-TraceSession *debug_get_trace_session(void) {
+static TraceSession *debug_get_trace_session(void) {
     if (!g_trace_session) {
         g_trace_session = trace_session_create();
     }

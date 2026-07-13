@@ -17,7 +17,7 @@
 
 /* ============ 计时器 ============ */
 
-Lv00Timer lv00_timer_create(void) {
+static Lv00Timer lv00_timer_create(void) {
     Lv00Timer timer;
     timer.start = 0;
     timer.end = 0;
@@ -25,26 +25,26 @@ Lv00Timer lv00_timer_create(void) {
     return timer;
 }
 
-void lv00_timer_start(Lv00Timer *timer) {
+static void lv00_timer_start(Lv00Timer *timer) {
     if (!timer) return;
     timer->start = lv00_get_time_us();
     timer->running = true;
 }
 
-void lv00_timer_stop(Lv00Timer *timer) {
+static void lv00_timer_stop(Lv00Timer *timer) {
     if (!timer || !timer->running) return;
     timer->end = lv00_get_time_us();
     timer->running = false;
 }
 
-void lv00_timer_reset(Lv00Timer *timer) {
+static void lv00_timer_reset(Lv00Timer *timer) {
     if (!timer) return;
     timer->start = 0;
     timer->end = 0;
     timer->running = false;
 }
 
-uint64_t lv00_timer_elapsed_us(const Lv00Timer *timer) {
+static uint64_t lv00_timer_elapsed_us(const Lv00Timer *timer) {
     if (!timer) return 0;
     if (timer->running) {
         return lv00_get_time_us() - timer->start;
@@ -52,11 +52,11 @@ uint64_t lv00_timer_elapsed_us(const Lv00Timer *timer) {
     return timer->end - timer->start;
 }
 
-double lv00_timer_elapsed_ms(const Lv00Timer *timer) {
+static double lv00_timer_elapsed_ms(const Lv00Timer *timer) {
     return (double)lv00_timer_elapsed_us(timer) / 1000.0;
 }
 
-double lv00_timer_elapsed_sec(const Lv00Timer *timer) {
+static double lv00_timer_elapsed_sec(const Lv00Timer *timer) {
     return (double)lv00_timer_elapsed_us(timer) / 1000000.0;
 }
 

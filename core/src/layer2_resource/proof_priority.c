@@ -7,7 +7,7 @@ struct Lv00ProofPriority {
     int count;
 };
 
-Lv00ProofPriority *lv00_proof_priority_create(int capacity)
+static Lv00ProofPriority *lv00_proof_priority_create(int capacity)
 {
     Lv00ProofPriority *pq = (Lv00ProofPriority *)malloc(sizeof(Lv00ProofPriority));
     if (!pq) return NULL;
@@ -16,26 +16,26 @@ Lv00ProofPriority *lv00_proof_priority_create(int capacity)
     return pq;
 }
 
-void lv00_proof_priority_destroy(Lv00ProofPriority *pq)
+static void lv00_proof_priority_destroy(Lv00ProofPriority *pq)
 {
     free(pq);
 }
 
-int lv00_proof_priority_push(Lv00ProofPriority *pq, int node_id, double score)
+static int lv00_proof_priority_push(Lv00ProofPriority *pq, int node_id, double score)
 {
     (void)node_id; (void)score;
     if (!pq) return -1;
     return 0;
 }
 
-int lv00_proof_priority_pop(Lv00ProofPriority *pq, int *node_id, double *score)
+static int lv00_proof_priority_pop(Lv00ProofPriority *pq, int *node_id, double *score)
 {
     (void)node_id; (void)score;
     if (!pq) return -1;
     return -1;
 }
 
-int lv00_proof_priority_empty(const Lv00ProofPriority *pq)
+static int lv00_proof_priority_empty(const Lv00ProofPriority *pq)
 {
     if (!pq) return 1;
     return pq->count == 0 ? 1 : 0;

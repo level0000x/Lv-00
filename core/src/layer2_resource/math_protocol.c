@@ -189,7 +189,7 @@ static char *proto_write_escaped_string(char *out, const char *buf_end, const ch
  * @param buf_size  输出缓冲区大小
  * @return 写入的字符数（不含终止符），失败返回 -1
  */
-int lv00_math_protocol_encode(void *data, char *out, size_t buf_size)
+static int lv00_math_protocol_encode(void *data, char *out, size_t buf_size)
 {
     const char *buf_end;
     char *p;
@@ -235,7 +235,7 @@ int lv00_math_protocol_encode(void *data, char *out, size_t buf_size)
  * @param out  输出数据指针（当前预留接口，传 NULL 有效）
  * @return 0 解码成功，-1 参数错误或解码失败
  */
-int lv00_math_protocol_decode(const char *in, void *out)
+static int lv00_math_protocol_decode(const char *in, void *out)
 {
     const char *p;
     char key[64];

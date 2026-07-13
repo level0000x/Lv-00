@@ -967,7 +967,7 @@ void preset_search_result_free(PresetSearchResult *result)
  * 预设组合操作实现
  * ================================================================ */
 
-bool preset_compose(const char *preset_a,
+static bool preset_compose(const char *preset_a,
                      const char *preset_b,
                      PresetComposeMode mode,
                      char **out_composed_name)
