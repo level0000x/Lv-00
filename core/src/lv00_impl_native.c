@@ -330,7 +330,7 @@ static ConstraintGraph* graph_create(void) {
     return g;
 }
 
-void graph_destroy(ConstraintGraph* g) {
+static void graph_destroy(ConstraintGraph* g) {
     if (!g) return;
     for (int i = 0; i < g->node_count; i++) graph_node_clear(&g->nodes[i]);
     for (int i = 0; i < g->edge_count; i++) graph_edge_clear(&g->edges[i]);

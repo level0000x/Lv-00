@@ -23,19 +23,6 @@
 void node_destroy(GeomNode *node);
 
 /**
- * 获取约束图中最后添加的节点索引。
- * 注意：此 ID 是数组索引而非节点的逻辑 ID。
- *
- * @param graph 约束图指针
- * @return 最后添加的节点索引，图为空或无效时返回 -1
- */
-int graph_get_last_added_node_id(const ConstraintGraph *graph) {
-    if (!graph || graph->node_count == 0)
-        return -1;
-    return graph->node_count - 1;
-}
-
-/**
  * @brief 销毁约束图并释放所有资源
  *
  * 依次销毁所有节点（调用 node_destroy）、释放所有约束的参与者数组和约束本身、
