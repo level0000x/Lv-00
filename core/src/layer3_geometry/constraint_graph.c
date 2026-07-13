@@ -165,7 +165,7 @@ static Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType
 }
 
 /* 带指定ID添加节点（用于反序列化） */
-GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType type, SymbolicCoord **coords,
+static GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType type, SymbolicCoord **coords,
                                  int coord_count) {
     if (!graph)
         return NULL;

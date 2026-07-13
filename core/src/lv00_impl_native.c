@@ -224,11 +224,11 @@ Rational* rational_from_int(long n) {
     return rational_create_si(n, 1);
 }
 
-void rational_destroy(Rational* r) {
+static void rational_destroy(Rational* r) {
     if (r) { mpq_clear(r->val); free(r); }
 }
 
-Rational* rational_add(const Rational* a, const Rational* b) {
+static Rational* rational_add(const Rational* a, const Rational* b) {
     if (!a || !b) return NULL;
     Rational* r = (Rational*)malloc(sizeof(Rational));
     if (!r) return NULL;
@@ -319,7 +319,7 @@ typedef struct {
 static void graph_node_clear(GraphNode* n) { if (n) mpq_clear(n->value); }
 static void graph_edge_clear(GraphEdge* e) { if (e) mpq_clear(e->weight); }
 
-ConstraintGraph* graph_create(void) {
+static ConstraintGraph* graph_create(void) {
     ConstraintGraph* g = (ConstraintGraph*)calloc(1, sizeof(ConstraintGraph));
     if (!g) return NULL;
     g->id       = native_id_alloc();
@@ -361,7 +361,7 @@ int64_t graph_add_node_si(ConstraintGraph* g, long num, long den, int pinned) {
     return id;
 }
 
-int graph_remove_node(ConstraintGraph* g, int64_t node_id) {
+static int graph_remove_node(ConstraintGraph* g, int64_t node_id) {
     if (!g) return -1;
     for (int i = 0; i < g->node_count; i++) {
         if (g->nodes[i].id == node_id) {
@@ -413,7 +413,7 @@ int graph_remove_edge(ConstraintGraph* g, int64_t edge_id) {
     return -1;
 }
 
-const GraphNode* graph_get_node(const ConstraintGraph* g, int index) {
+static const GraphNode* graph_get_node(const ConstraintGraph* g, int index) {
     if (!g || index < 0 || index >= g->node_count) return NULL;
     return &g->nodes[index];
 }

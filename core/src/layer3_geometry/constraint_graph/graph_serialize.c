@@ -33,7 +33,7 @@ static bool segments_intersect_nodes(const GeomNode *s1, const GeomNode *s2) {
     return false;
 }
 
-bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) {
+static bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) {
     lv00_clear_error();
 
     if (!graph) {

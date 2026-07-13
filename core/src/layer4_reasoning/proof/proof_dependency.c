@@ -163,7 +163,7 @@ static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
  * @param info   输出信息
  * @return 检查结果
  */
-UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const ConstraintGraph *graph,
+static UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const ConstraintGraph *graph,
                                                  const Proposition *prop, UnconstructInfo *info) {
     if (!nav || !graph || !info) {
         if (info)

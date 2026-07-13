@@ -73,7 +73,7 @@ static void transcendental_expr_destroy(TranscendentalExpr *expr) {
 
 /* ── Quadratic type ── */
 
-bool is_rational_zero(const Rational *r) {
+static bool is_rational_zero(const Rational *r) {
     return mpq_cmp_ui(r->value, 0, 1) == 0;
 }
 
