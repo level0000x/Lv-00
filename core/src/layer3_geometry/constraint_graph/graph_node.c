@@ -1086,18 +1086,21 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
     }
 
     int active_geometry_nodes = 0;
+    int segment_constraint_bonus = 0;
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
         if (!node)
             continue;
         if (node->type == GEOM_LINE_SEGMENT) {
-            active_geometry_nodes++;
             if (graph_segment_is_degenerate(node)) {
                 out_result->status = LV00_CONSTRAINT_STATUS_INCONSISTENT;
                 out_result->conflicting_constraint_id = node->id;
                 out_result->diagnostic = "检测到由重合端点构成的退化线段";
                 return true;
             }
+            /* 线段不是独立几何实体，不计入几何节点，但提供约束：
+             * 每条线段连接两个端点，完全确定其相对位置（4 DOF） */
+            segment_constraint_bonus += 4;
         } else if (node->type == GEOM_POINT || node->type == GEOM_REGION) {
             active_geometry_nodes++;
         }
@@ -1123,7 +1126,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
 
     /* 计算自由度：每个点 2 自由度，每条线段 4 自由度（两个端点） */
     int total_dof = active_geometry_nodes * 2;
-    int active_constraint_count = 0;
+    int active_constraint_count = segment_constraint_bonus;
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *con = graph->constraints[i];
         if (con && con->is_active)

@@ -1228,7 +1228,7 @@ int func_block_preset_list(
     for (int i = 0; i < g_preset_library.count && count < max_count; i++) {
         if (!g_preset_library.entries[i].is_active) continue;
         
-        if (category < 0 || g_preset_library.entries[i].metadata.category == category) {
+        if ((int)category < 0 || g_preset_library.entries[i].metadata.category == category) {
             out_names[count++] = g_preset_library.entries[i].metadata.name;
         }
     }

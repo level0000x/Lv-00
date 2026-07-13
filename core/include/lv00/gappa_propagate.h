@@ -29,7 +29,7 @@ typedef struct {
 /** Propagation API */
 void gappa_pred_set_init(Lv00GappaPredSet *set);
 bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred);
-bool gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00GappaPredicate *found);
+int gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00GappaPredicate *found);
 void gappa_pred_set_clear(Lv00GappaPredSet *set);
 
 Lv00GappaPropagateConfig gappa_propagate_config_default(void);

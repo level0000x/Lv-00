@@ -352,9 +352,15 @@ bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
     return true;
 }
 
-bool gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00GappaPredicate *found) {
-    (void)set; (void)name; (void)found;
-    return false;
+int gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00GappaPredicate *found) {
+    if (!set || !name) return -1;
+    for (int i = 0; i < set->count; i++) {
+        if (strcmp(set->preds[i].expr_lhs, name) == 0) {
+            if (found) *found = set->preds[i];
+            return i;
+        }
+    }
+    return -1;
 }
 
 void gappa_pred_set_clear(Lv00GappaPredSet *set) {
@@ -374,14 +380,106 @@ Lv00GappaPropagateConfig gappa_propagate_config_default(void) {
 }
 
 int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg) {
-    (void)input; (void)output; (void)cfg;
-    return 0;
+    (void)cfg;
+    if (!input || !output) return 0;
+
+    gappa_pred_set_init(output);
+
+    /* 复制所有输入谓词到输出 */
+    for (int i = 0; i < input->count; i++) {
+        gappa_pred_set_add(output, &input->preds[i]);
+    }
+
+    int derived = 0;
+
+    /* 对每对 BND 谓词，推导其和与差 */
+    for (int i = 0; i < input->count; i++) {
+        if (input->preds[i].type != LV00_PRED_BND) continue;
+        for (int j = i + 1; j < input->count; j++) {
+            if (input->preds[j].type != LV00_PRED_BND) continue;
+
+            /* 推导和: x + y in [lo_x + lo_y, hi_x + hi_y] */
+            Lv00GappaPredicate sum_pred;
+            memset(&sum_pred, 0, sizeof(sum_pred));
+            sum_pred.type = LV00_PRED_BND;
+            snprintf(sum_pred.expr_lhs, sizeof(sum_pred.expr_lhs), "%s + %s",
+                     input->preds[i].expr_lhs, input->preds[j].expr_lhs);
+            sum_pred.bound_lo = input->preds[i].bound_lo + input->preds[j].bound_lo;
+            sum_pred.bound_hi = input->preds[i].bound_hi + input->preds[j].bound_hi;
+            sum_pred.is_hypothesis = input->preds[i].is_hypothesis;
+            if (gappa_pred_set_add(output, &sum_pred)) derived++;
+
+            /* 推导差: x - y in [lo_x - hi_y, hi_x - lo_y] */
+            Lv00GappaPredicate diff_pred;
+            memset(&diff_pred, 0, sizeof(diff_pred));
+            diff_pred.type = LV00_PRED_BND;
+            snprintf(diff_pred.expr_lhs, sizeof(diff_pred.expr_lhs), "%s - %s",
+                     input->preds[i].expr_lhs, input->preds[j].expr_lhs);
+            diff_pred.bound_lo = input->preds[i].bound_lo - input->preds[j].bound_hi;
+            diff_pred.bound_hi = input->preds[i].bound_hi - input->preds[j].bound_lo;
+            diff_pred.is_hypothesis = input->preds[i].is_hypothesis;
+            if (gappa_pred_set_add(output, &diff_pred)) derived++;
+        }
+    }
+
+    return derived > 0 ? derived : (input->count > 0 ? 1 : 0);
 }
 
 int gappa_propagate_backward(const Lv00GappaPredicate *goal, const Lv00GappaPredSet *known,
                               Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg) {
-    (void)goal; (void)known; (void)output; (void)cfg;
-    return 0;
+    (void)cfg;
+    if (!goal || !output) return 0;
+
+    gappa_pred_set_init(output);
+
+    /* 复制已知谓词 */
+    if (known) {
+        for (int i = 0; i < known->count; i++) {
+            gappa_pred_set_add(output, &known->preds[i]);
+        }
+    }
+
+    int needed = 0;
+
+    if (goal->type == LV00_PRED_ABS) {
+        /* ABS 目标: |x - c| <= bound → x in [c - bound, c + bound] */
+        double center = atof(goal->expr_lhs + 2); /* 跳过 "|x" ... 但实际是 "x" */
+        /* 尝试从 expr_rhs 获取中心值 */
+        center = atof(goal->expr_rhs);
+
+        Lv00GappaPredicate derived;
+        memset(&derived, 0, sizeof(derived));
+        derived.type = LV00_PRED_BND;
+        /* 提取变量名：从 expr_lhs 中获取（可能是 "x - 0.5" 格式，取第一个标识符） */
+        const char *src = goal->expr_lhs;
+        int k = 0;
+        while (src[k] && (isalpha((unsigned char)src[k]) || isdigit((unsigned char)src[k]) || src[k] == '_')) {
+            k++;
+        }
+        size_t name_len = (size_t)k;
+        if (name_len >= sizeof(derived.expr_lhs)) name_len = sizeof(derived.expr_lhs) - 1;
+        memcpy(derived.expr_lhs, src, name_len);
+        derived.expr_lhs[name_len] = '\0';
+
+        derived.bound_lo = center - goal->bound_abs;
+        derived.bound_hi = center + goal->bound_abs;
+        derived.is_hypothesis = true;
+
+        if (gappa_pred_set_add(output, &derived)) needed++;
+    } else if (goal->type == LV00_PRED_BND) {
+        /* BND 目标: 直接使用目标区间作为所需假设 */
+        Lv00GappaPredicate derived;
+        memset(&derived, 0, sizeof(derived));
+        derived.type = LV00_PRED_BND;
+        strncpy(derived.expr_lhs, goal->expr_lhs, sizeof(derived.expr_lhs) - 1);
+        derived.bound_lo = goal->bound_lo;
+        derived.bound_hi = goal->bound_hi;
+        derived.is_hypothesis = true;
+
+        if (gappa_pred_set_add(output, &derived)) needed++;
+    }
+
+    return needed;
 }
 
 /**
