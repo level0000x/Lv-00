@@ -12,7 +12,7 @@ extern "C" {
 /* ============== 常量定义 ============== */
 
 #ifndef LV00_OID_LENGTH
-#define LV00_OID_LENGTH 64
+#define LV00_OID_LENGTH 65  /* 64 hex chars + null terminator */
 #endif
 
 #ifndef LV00_COMMIT_MSG_MAX

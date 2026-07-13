@@ -190,10 +190,10 @@ void test_prop_ac3_collapsed(void) {
                 "传播结果为 SATISFIED 或 STABLE");
 
     propagation_context_destroy(ctx);
-    for (int i = 0; i < 3; i++) {
-        symbolic_coord_destroy(c0[i % 2]);
-        symbolic_coord_destroy(c1[i % 2]);
-        symbolic_coord_destroy(c2[i % 2]);
+    for (int i = 0; i < 2; i++) {
+        symbolic_coord_destroy(c0[i]);
+        symbolic_coord_destroy(c1[i]);
+        symbolic_coord_destroy(c2[i]);
     }
     graph_destroy(graph);
     printf("  PASS: PROP-T03\n");
