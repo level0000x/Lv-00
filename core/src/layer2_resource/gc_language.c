@@ -159,7 +159,7 @@ static const char *gc_parse_identifier(const char *p, char *buf, int bufsz)
  * @param engine 引擎句柄（当前预留接口，传 NULL 有效）
  * @return 0 解析成功，-1 参数错误或解析失败
  */
-static int lv00_gc_parse(const char *source, void *engine)
+int lv00_gc_parse(const char *source, void *engine)
 {
     const char *p;
     char ident[128];
@@ -267,7 +267,7 @@ static int lv00_gc_parse(const char *source, void *engine)
  *
  * @return 错误信息字符串（内部存储，勿释放），无错误返回 NULL
  */
-static const char *lv00_gc_error(void)
+const char *lv00_gc_error(void)
 {
     if (g_gc_has_error) {
         return g_gc_error_buf;
@@ -280,7 +280,7 @@ static const char *lv00_gc_error(void)
  *
  * @return 命令计数（即遇到的关键字数量）
  */
-static int lv00_gc_command_count(void)
+int lv00_gc_command_count(void)
 {
     return g_gc_cmd_count;
 }

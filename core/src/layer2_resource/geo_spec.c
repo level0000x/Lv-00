@@ -213,7 +213,7 @@ static Lv00GeoSpecPolygon *parse_polygon(const char *json)
  * @param out  输出指针地址（解析结果写入 *out）
  * @return 0 成功解析为点，1 成功解析为多边形，-1 失败
  */
-static int lv00_geo_spec_parse(const char *json, void *out)
+int lv00_geo_spec_parse(const char *json, void *out)
 {
     if (!json || !out) {
         return -1;
@@ -247,7 +247,7 @@ static int lv00_geo_spec_parse(const char *json, void *out)
  *
  * @param spec 要释放的结构指针
  */
-static void lv00_geo_spec_free(void *spec)
+void lv00_geo_spec_free(void *spec)
 {
     Lv00GeoSpecPolygon *poly;
 
