@@ -79,8 +79,9 @@ Lv00AdaptiveConfig lv00_default_adaptive_config(void) {
 /* ── Pruner Lifecycle ── */
 
 Lv00AdaptivePruner *lv00_pruner_create(const Lv00AdaptiveConfig *config) {
-    Lv00AdaptivePruner *pruner = calloc(1, sizeof(Lv00AdaptivePruner));
+    Lv00AdaptivePruner *pruner = lv00_malloc(sizeof(Lv00AdaptivePruner));
     if (!pruner) return NULL;
+    memset(pruner, 0, sizeof(Lv00AdaptivePruner));
     pruner->config = config ? *config : lv00_default_adaptive_config();
     pruner->max_iterations = LV00_DEFAULT_MAX_ITERATIONS;
     pruner->max_time_ms = pruner->config.time_budget_ms;

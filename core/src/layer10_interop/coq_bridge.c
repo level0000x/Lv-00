@@ -153,7 +153,7 @@ static int coq_import_proof(const char *input, void **proof) {
     int reverse_count = (int)(sizeof(reverse_map) / sizeof(reverse_map[0]));
 
     /* 分配证明结构体 */
-    Lv00CoqProof *p = (Lv00CoqProof *)calloc(1, sizeof(Lv00CoqProof));
+    Lv00CoqProof *p = (Lv00CoqProof *)lv00_calloc(1, sizeof(Lv00CoqProof));
     if (!p) return -1;
 
     /* 保存定理名 */
@@ -166,7 +166,7 @@ static int coq_import_proof(const char *input, void **proof) {
 
     /* 初始化步骤数组 */
     p->step_capacity = 16;
-    p->steps = (Lv00ProofStep *)calloc(p->step_capacity, sizeof(Lv00ProofStep));
+    p->steps = (Lv00ProofStep *)lv00_calloc(p->step_capacity, sizeof(Lv00ProofStep));
     if (!p->steps) { lv00_free((void **)&p); return -1; }
 
     /* 逐行解析 tactic 脚本 */

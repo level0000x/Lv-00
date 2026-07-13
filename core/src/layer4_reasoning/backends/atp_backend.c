@@ -483,7 +483,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     exec_argv[argc++] = (char *)executable;
     if (extra_args && extra_args[0] != '\0') {
         /* 简单参数切分（空格分隔） */
-        extra_copy = strdup(extra_args);
+        extra_copy = lv00_strdup(extra_args);
         if (extra_copy) {
             char *save_ptr = NULL;
             char *token = strtok_s(extra_copy, " ", &save_ptr);
@@ -524,7 +524,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     }
 
     /* 父进程：关闭写端，读取管道输出 */
-    free(extra_copy);
+    lv00_free((void **)&extra_copy);
     close(pipefd[1]);
 
     size_t out_size = 65536;
