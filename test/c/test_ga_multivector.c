@@ -366,6 +366,321 @@ void test_ga_norm_squared(void) {
 }
 
 /* ========================================================================
+ * Test: Outer product comprehensive - all grade combinations
+ * ======================================================================== */
+
+void test_ga_outer_product_comprehensive(void) {
+    printf("Testing ga_outer_product comprehensive (all grade combinations)...\n");
+
+    /* ---- grade-1 ^ grade-1 -> grade-2: e1 ^ e2 = e12 ---- */
+    {
+        Lv00MultiVector *e1 = ga_mv_zero();
+        Lv00MultiVector *e2 = ga_mv_zero();
+        ga_mv_set(e1, GA_BLADE_E1, 1.0);
+        ga_mv_set(e2, GA_BLADE_E2, 1.0);
+
+        Lv00MultiVector *r = ga_outer_product(e1, e2);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E12), 1.0),
+                    "e1 ^ e2: e12 component should be 1");
+
+        /* Verify all other components are zero */
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E12) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e1 ^ e2: non-e12 components should be zero");
+        }
+
+        ga_mv_free(e1); ga_mv_free(e2); ga_mv_free(r);
+    }
+
+    /* ---- grade-1 ^ grade-2 -> grade-3: e0 ^ e12 = e012 ---- */
+    {
+        Lv00MultiVector *e0 = ga_mv_zero();
+        Lv00MultiVector *e12 = ga_mv_zero();
+        ga_mv_set(e0, GA_BLADE_E0, 1.0);
+        ga_mv_set(e12, GA_BLADE_E12, 1.0);
+
+        Lv00MultiVector *r = ga_outer_product(e0, e12);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E012), 1.0),
+                    "e0 ^ e12: e012 component should be 1");
+
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E012) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e0 ^ e12: non-e012 components should be zero");
+        }
+
+        ga_mv_free(e0); ga_mv_free(e12); ga_mv_free(r);
+    }
+
+    /* ---- grade-2 ^ grade-1 -> grade-3: e12 ^ e3 = e123 ---- */
+    {
+        Lv00MultiVector *e12 = ga_mv_zero();
+        Lv00MultiVector *e3 = ga_mv_zero();
+        ga_mv_set(e12, GA_BLADE_E12, 1.0);
+        ga_mv_set(e3, GA_BLADE_E3, 1.0);
+
+        Lv00MultiVector *r = ga_outer_product(e12, e3);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E123), 1.0),
+                    "e12 ^ e3: e123 component should be 1");
+
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E123) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e12 ^ e3: non-e123 components should be zero");
+        }
+
+        ga_mv_free(e12); ga_mv_free(e3); ga_mv_free(r);
+    }
+
+    /* ---- grade-2 ^ grade-2 -> grade-4: e01 ^ e23 = e0123 ---- */
+    {
+        Lv00MultiVector *e01 = ga_mv_zero();
+        Lv00MultiVector *e23 = ga_mv_zero();
+        ga_mv_set(e01, GA_BLADE_E01, 1.0);
+        ga_mv_set(e23, GA_BLADE_E23, 1.0);
+
+        Lv00MultiVector *r = ga_outer_product(e01, e23);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E0123), 1.0),
+                    "e01 ^ e23: e0123 component should be 1");
+
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E0123) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e01 ^ e23: non-e0123 components should be zero");
+        }
+
+        ga_mv_free(e01); ga_mv_free(e23); ga_mv_free(r);
+    }
+
+    /* ---- scalar ^ anything = anything: 3.0 ^ e1 = 3*e1 ---- */
+    {
+        Lv00MultiVector *s = ga_mv_scalar(3.0);
+        Lv00MultiVector *e1 = ga_mv_zero();
+        ga_mv_set(e1, GA_BLADE_E1, 1.0);
+
+        Lv00MultiVector *r = ga_outer_product(s, e1);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E1), 3.0),
+                    "3.0 ^ e1: e1 component should be 3.0");
+
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E1) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "3.0 ^ e1: non-e1 components should be zero");
+        }
+
+        ga_mv_free(s); ga_mv_free(e1); ga_mv_free(r);
+    }
+
+    /* ---- anything ^ scalar = anything: e1 ^ 3.0 = 3*e1 ---- */
+    {
+        Lv00MultiVector *e1 = ga_mv_zero();
+        ga_mv_set(e1, GA_BLADE_E1, 1.0);
+        Lv00MultiVector *s = ga_mv_scalar(3.0);
+
+        Lv00MultiVector *r = ga_outer_product(e1, s);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E1), 3.0),
+                    "e1 ^ 3.0: e1 component should be 3.0");
+
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E1) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e1 ^ 3.0: non-e1 components should be zero");
+        }
+
+        ga_mv_free(e1); ga_mv_free(s); ga_mv_free(r);
+    }
+
+    /* ---- same basis element ^ itself = 0: e1 ^ e1 = 0 ---- */
+    {
+        Lv00MultiVector *e1a = ga_mv_zero();
+        Lv00MultiVector *e1b = ga_mv_zero();
+        ga_mv_set(e1a, GA_BLADE_E1, 1.0);
+        ga_mv_set(e1b, GA_BLADE_E1, 1.0);
+
+        Lv00MultiVector *r = ga_outer_product(e1a, e1b);
+        TEST_ASSERT_NOT_NULL(r);
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e1 ^ e1: all components should be zero");
+        }
+
+        ga_mv_free(e1a); ga_mv_free(e1b); ga_mv_free(r);
+    }
+
+    /* ---- additional: e2 ^ e2 = 0 ---- */
+    {
+        Lv00MultiVector *e2a = ga_mv_zero();
+        Lv00MultiVector *e2b = ga_mv_zero();
+        ga_mv_set(e2a, GA_BLADE_E2, 1.0);
+        ga_mv_set(e2b, GA_BLADE_E2, 1.0);
+
+        Lv00MultiVector *r = ga_outer_product(e2a, e2b);
+        TEST_ASSERT_NOT_NULL(r);
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e2 ^ e2: all components should be zero");
+        }
+
+        ga_mv_free(e2a); ga_mv_free(e2b); ga_mv_free(r);
+    }
+
+    /* ---- additional: e0 ^ e0 = 0 (null basis) ---- */
+    {
+        Lv00MultiVector *e0a = ga_mv_zero();
+        Lv00MultiVector *e0b = ga_mv_zero();
+        ga_mv_set(e0a, GA_BLADE_E0, 1.0);
+        ga_mv_set(e0b, GA_BLADE_E0, 1.0);
+
+        Lv00MultiVector *r = ga_outer_product(e0a, e0b);
+        TEST_ASSERT_NOT_NULL(r);
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e0 ^ e0: all components should be zero");
+        }
+
+        ga_mv_free(e0a); ga_mv_free(e0b); ga_mv_free(r);
+    }
+
+    printf("  PASSED\n");
+}
+
+/* ========================================================================
+ * Test: Outer product anticommutativity
+ * ======================================================================== */
+
+void test_ga_outer_product_anticommutativity(void) {
+    printf("Testing ga_outer_product anticommutativity...\n");
+
+    /* e1 ^ e2 = -(e2 ^ e1) */
+    Lv00MultiVector *e1 = ga_mv_zero();
+    Lv00MultiVector *e2 = ga_mv_zero();
+    ga_mv_set(e1, GA_BLADE_E1, 1.0);
+    ga_mv_set(e2, GA_BLADE_E2, 1.0);
+
+    Lv00MultiVector *r12 = ga_outer_product(e1, e2);
+    Lv00MultiVector *r21 = ga_outer_product(e2, e1);
+    TEST_ASSERT_NOT_NULL(r12);
+    TEST_ASSERT_NOT_NULL(r21);
+
+    /* r12 + r21 should be zero for all components */
+    for (int i = 0; i < GA_MV_DIM; i++) {
+        double sum = ga_mv_get(r12, i) + ga_mv_get(r21, i);
+        TEST_ASSERT(approx_eq(sum, 0.0),
+                    "e1^e2 + e2^e1: all components should sum to zero (anticommutativity)");
+    }
+
+    /* Specifically check e12: e1^e2 = +e12, e2^e1 = -e12 */
+    TEST_ASSERT(approx_eq(ga_mv_get(r12, GA_BLADE_E12), 1.0),
+                "e1 ^ e2: e12 should be +1");
+    TEST_ASSERT(approx_eq(ga_mv_get(r21, GA_BLADE_E12), -1.0),
+                "e2 ^ e1: e12 should be -1");
+
+    /* Also test with e0 and e3 to cover more pairs */
+    Lv00MultiVector *e0 = ga_mv_zero();
+    Lv00MultiVector *e3 = ga_mv_zero();
+    ga_mv_set(e0, GA_BLADE_E0, 1.0);
+    ga_mv_set(e3, GA_BLADE_E3, 1.0);
+
+    Lv00MultiVector *r03 = ga_outer_product(e0, e3);
+    Lv00MultiVector *r30 = ga_outer_product(e3, e0);
+    TEST_ASSERT_NOT_NULL(r03);
+    TEST_ASSERT_NOT_NULL(r30);
+
+    TEST_ASSERT(approx_eq(ga_mv_get(r03, GA_BLADE_E03), 1.0),
+                "e0 ^ e3: e03 should be +1");
+    TEST_ASSERT(approx_eq(ga_mv_get(r30, GA_BLADE_E03), -1.0),
+                "e3 ^ e0: e03 should be -1");
+
+    for (int i = 0; i < GA_MV_DIM; i++) {
+        double sum = ga_mv_get(r03, i) + ga_mv_get(r30, i);
+        TEST_ASSERT(approx_eq(sum, 0.0),
+                    "e0^e3 + e3^e0: all components should sum to zero (anticommutativity)");
+    }
+
+    ga_mv_free(e1); ga_mv_free(e2);
+    ga_mv_free(r12); ga_mv_free(r21);
+    ga_mv_free(e0); ga_mv_free(e3);
+    ga_mv_free(r03); ga_mv_free(r30);
+    printf("  PASSED\n");
+}
+
+/* ========================================================================
+ * Test: Outer product associativity: (a^b)^c = a^(b^c)
+ * ======================================================================== */
+
+void test_ga_outer_product_associativity(void) {
+    printf("Testing ga_outer_product associativity...\n");
+
+    /* Use three grade-1 elements: e0, e1, e2
+     * (e0 ^ e1) ^ e2 should equal e0 ^ (e1 ^ e2) = e012 */
+    Lv00MultiVector *e0 = ga_mv_zero();
+    Lv00MultiVector *e1 = ga_mv_zero();
+    Lv00MultiVector *e2 = ga_mv_zero();
+    ga_mv_set(e0, GA_BLADE_E0, 1.0);
+    ga_mv_set(e1, GA_BLADE_E1, 1.0);
+    ga_mv_set(e2, GA_BLADE_E2, 1.0);
+
+    /* Left association: (e0 ^ e1) ^ e2 */
+    Lv00MultiVector *e01 = ga_outer_product(e0, e1);
+    TEST_ASSERT_NOT_NULL(e01);
+    Lv00MultiVector *left = ga_outer_product(e01, e2);
+    TEST_ASSERT_NOT_NULL(left);
+
+    /* Right association: e0 ^ (e1 ^ e2) */
+    Lv00MultiVector *e12 = ga_outer_product(e1, e2);
+    TEST_ASSERT_NOT_NULL(e12);
+    Lv00MultiVector *right = ga_outer_product(e0, e12);
+    TEST_ASSERT_NOT_NULL(right);
+
+    /* Both should equal e012 */
+    TEST_ASSERT(approx_eq(ga_mv_get(left, GA_BLADE_E012), 1.0),
+                "(e0^e1)^e2: e012 should be 1");
+    TEST_ASSERT(approx_eq(ga_mv_get(right, GA_BLADE_E012), 1.0),
+                "e0^(e1^e2): e012 should be 1");
+
+    /* All components of left and right should be equal */
+    for (int i = 0; i < GA_MV_DIM; i++) {
+        TEST_ASSERT(approx_eq(ga_mv_get(left, i), ga_mv_get(right, i)),
+                    "(a^b)^c = a^(b^c): all components should match (associativity)");
+    }
+
+    /* Also test with different elements: e1, e2, e3
+     * (e1 ^ e2) ^ e3 should equal e1 ^ (e2 ^ e3) = e123 */
+    Lv00MultiVector *e3 = ga_mv_zero();
+    ga_mv_set(e3, GA_BLADE_E3, 1.0);
+
+    Lv00MultiVector *e12_v2 = ga_outer_product(e1, e2);
+    Lv00MultiVector *left2 = ga_outer_product(e12_v2, e3);
+    TEST_ASSERT_NOT_NULL(left2);
+
+    Lv00MultiVector *e23 = ga_outer_product(e2, e3);
+    Lv00MultiVector *right2 = ga_outer_product(e1, e23);
+    TEST_ASSERT_NOT_NULL(right2);
+
+    TEST_ASSERT(approx_eq(ga_mv_get(left2, GA_BLADE_E123), 1.0),
+                "(e1^e2)^e3: e123 should be 1");
+    TEST_ASSERT(approx_eq(ga_mv_get(right2, GA_BLADE_E123), 1.0),
+                "e1^(e2^e3): e123 should be 1");
+
+    for (int i = 0; i < GA_MV_DIM; i++) {
+        TEST_ASSERT(approx_eq(ga_mv_get(left2, i), ga_mv_get(right2, i)),
+                    "(a^b)^c = a^(b^c): all components should match (e1,e2,e3 case)");
+    }
+
+    ga_mv_free(e0); ga_mv_free(e1); ga_mv_free(e2); ga_mv_free(e3);
+    ga_mv_free(e01); ga_mv_free(e12); ga_mv_free(left); ga_mv_free(right);
+    ga_mv_free(e12_v2); ga_mv_free(e23); ga_mv_free(left2); ga_mv_free(right2);
+    printf("  PASSED\n");
+}
+
+/* ========================================================================
  * Main
  * ======================================================================== */
 
@@ -376,6 +691,9 @@ int main(void) {
     TEST_RUN(test_ga_mv_scalar);
     TEST_RUN(test_ga_geometric_product);
     TEST_RUN(test_ga_outer_product);
+    TEST_RUN(test_ga_outer_product_comprehensive);
+    TEST_RUN(test_ga_outer_product_anticommutativity);
+    TEST_RUN(test_ga_outer_product_associativity);
     TEST_RUN(test_ga_reverse);
     TEST_RUN(test_ga_embed_point_extract);
     TEST_RUN(test_ga_three_points_collinear);

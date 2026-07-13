@@ -1067,6 +1067,36 @@ static bool graph_segments_have_same_endpoints(const GeomNode *a, const GeomNode
     return same_direction || reverse_direction;
 }
 
+/**
+ * @brief 计算约束的自由度 (DOF) 消耗量
+ *
+ * 根据约束类型返回该约束消耗的自由度数：
+ *   - INCIDENCE (关联): 点在线段/区域上 → 1 DOF
+ *   - BETWEENNESS (介于): 点在两点之间 → 1 DOF
+ *   - INTERSECTION (相交): 两线在交点相交 → 1 DOF
+ *   - CONTAINMENT (包含): 对象在另一对象内 → 1 DOF
+ *   - CONNECTION (连接): 端口间数据流 → 0 DOF（非几何约束）
+ *
+ * @param con 约束指针
+ * @return 该约束消耗的自由度数
+ */
+static int constraint_dof_cost(const Constraint *con) {
+    if (!con)
+        return 0;
+    switch (con->type) {
+        case INCIDENCE:     /* 关联约束：点在线段/区域上 */
+        case BETWEENNESS:   /* 之间约束：三点共线有序 */
+        case INTERSECTION:  /* 相交约束：两线交于一点 */
+        case CONTAINMENT:   /* 包含约束：对象在另一对象内 */
+            return 1;
+        case CONNECTION:    /* 连接约束：数据流连接，非几何约束 */
+            return 0;
+        default:
+            /* 未知约束类型：保守按 1 DOF 消耗计 */
+            return 1;
+    }
+}
+
 bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result) {
     if (out_result) {
         out_result->status = LV00_CONSTRAINT_STATUS_INVALID;
@@ -1085,11 +1115,26 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
         return true;
     }
 
+    /* ================================================================
+     * 阶段 1: 统计活跃几何节点并检测退化线段
+     *
+     * DOF 模型：
+     *   - 每个点节点 (GEOM_POINT):   2 DOF (x, y)
+     *   - 每个区域节点 (GEOM_REGION): 2 DOF (位置)
+     *   - 每条线段 (GEOM_LINE_SEGMENT): 不增加 DOF，但提供 4 DOF 约束
+     *     （两个端点 x 2 坐标，固定线段后两端点相对位置完全确定）
+     *   - 每条线段的长度是固有属性（已隐含），线段体可平移（2 DOF 刚体运动）
+     *     但端点坐标作为约束消耗 4 DOF
+     * ================================================================ */
     int active_geometry_nodes = 0;
+    int active_segment_count = 0;
     int segment_constraint_bonus = 0;
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
         if (!node)
+            continue;
+        /* v3.6.0: 跳过已废弃（不活跃）的节点 */
+        if (!node->is_active)
             continue;
         if (node->type == GEOM_LINE_SEGMENT) {
             if (graph_segment_is_degenerate(node)) {
@@ -1098,21 +1143,34 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
                 out_result->diagnostic = "检测到由重合端点构成的退化线段";
                 return true;
             }
-            /* 线段不是独立几何实体，不计入几何节点，但提供约束：
-             * 每条线段连接两个端点，完全确定其相对位置（4 DOF） */
+            active_segment_count++;
+            /* 每条线段连接两个端点，完全确定其相对位置（4 DOF 约束） */
             segment_constraint_bonus += 4;
         } else if (node->type == GEOM_POINT || node->type == GEOM_REGION) {
             active_geometry_nodes++;
         }
     }
 
+    /* 边界情况：所有节点均不活跃 */
+    if (active_geometry_nodes == 0 && active_segment_count == 0) {
+        out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
+        out_result->free_degree_count = 1;
+        out_result->diagnostic = "约束图中无活跃几何节点";
+        return true;
+    }
+
+    /* ================================================================
+     * 阶段 2: 检测重复线段（退化冗余）
+     * ================================================================ */
     int redundant_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *left = graph->nodes[i];
-        if (!left || left->type != GEOM_LINE_SEGMENT)
+        if (!left || !left->is_active || left->type != GEOM_LINE_SEGMENT)
             continue;
         for (int j = i + 1; j < graph->node_count; j++) {
             GeomNode *right = graph->nodes[j];
+            if (!right || !right->is_active)
+                continue;
             if (graph_segments_have_same_endpoints(left, right))
                 redundant_count++;
         }
@@ -1124,15 +1182,47 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
         return true;
     }
 
-    /* 计算自由度：每个点 2 自由度，每条线段 4 自由度（两个端点） */
+    /* ================================================================
+     * 阶段 3: 自由度 (DOF) 计算
+     *
+     * 总自由度 = 活跃点/区域节点 × 2
+     * 约束消耗  = 线段约束奖励 + 各类型几何约束消耗
+     * 剩余自由度 = 总自由度 - 约束消耗
+     *
+     * 约束类型 DOF 消耗：
+     *   INCIDENCE (关联):    1 DOF  -- 点在线上
+     *   BETWEENNESS (介于):  1 DOF  -- 三点共线
+     *   INTERSECTION (相交): 1 DOF  -- 两线交于一点
+     *   CONTAINMENT (包含):  1 DOF  -- 对象在内
+     *   CONNECTION (连接):   0 DOF  -- 数据流，非几何
+     *   DISTANCE (距离):     1 DOF  -- (通过 template_id >= 100 识别)
+     *   ANGLE (角度):        1 DOF  -- (通过 template_id >= 100 识别)
+     *   PERPENDICULAR (垂直): 1 DOF -- (通过 template_id >= 100 识别)
+     *   PARALLEL (平行):     1 DOF  -- (通过 template_id >= 100 识别)
+     * ================================================================ */
     int total_dof = active_geometry_nodes * 2;
     int active_constraint_count = segment_constraint_bonus;
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *con = graph->constraints[i];
-        if (con && con->is_active)
-            active_constraint_count++;
+        if (!con || !con->is_active)
+            continue;
+        active_constraint_count += constraint_dof_cost(con);
     }
     int free_dof = total_dof - active_constraint_count;
+
+    /* ================================================================
+     * 阶段 4: 根据剩余自由度判定约束状态
+     *   - free_dof <  0  → 过约束 (OVER_CONSTRAINED)
+     *   - free_dof == 0  → 恰好约束 (CONSISTENT)
+     *   - free_dof >  0  → 欠约束 (UNDER_CONSTRAINED)
+     * ================================================================ */
+    if (free_dof < 0) {
+        out_result->status = LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED;
+        out_result->free_degree_count = free_dof;
+        out_result->diagnostic = "约束过多导致过约束";
+        return true;
+    }
+
     if (free_dof > 0) {
         out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
         out_result->free_degree_count = free_dof;
@@ -1140,6 +1230,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
         return true;
     }
 
+    /* free_dof == 0: 恰好约束 */
     out_result->status = LV00_CONSTRAINT_STATUS_CONSISTENT;
     out_result->free_degree_count = 0;
     out_result->diagnostic = "约束图状态良好";

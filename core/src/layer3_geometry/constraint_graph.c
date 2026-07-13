@@ -70,98 +70,12 @@ void graph_set_stream_context(StreamContext *ctx) {
     graph_stream_ctx = ctx;
 }
 
-/* Forward declarations for hash index functions
- * graph_node_index_insert 和 graph_constraint_index_insert 已公开为公共接口，
- * 供 func_block.c 在例化时将新节点/约束注册到哈希索引 */
-void graph_node_index_insert(ConstraintGraph *graph, GeomNode *node);
-static void node_index_remove(ConstraintGraph *graph, int node_id);
-void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
-
-/**
- * @brief 安全数组扩容辅助函数（委托给统一的 lv00_ensure_capacity）
- * @param arr 当前数组指针
- * @param count 当前元素数量
- * @param capacity 当前容量指针
- * @param elem_size 单个元素大小
- * @param min_growth 最小增长量
- * @return 扩容后的数组指针，失败返回 NULL
- * @note 内部委托给 lv00_ensure_capacity
+/* ── 子模块已拆分至 constraint_graph/ 子目录 ──
+ *
+ * graph_ensure_capacity / graph_alloc_node / graph_alloc_constraint
+ * 已迁移至 constraint_graph/graph_node.c（canonical 版本），
+ * 本文件仅保留 graph_set_stream_context。
+ *
+ * graph_node_index_insert / graph_constraint_index_insert 的前向声明
+ * 亦不再需要，因为调用它们的函数已迁移。
  */
-static void *graph_ensure_capacity(void *arr, int count, int *capacity,
-                                    size_t elem_size, int min_growth) {
-    void *arr_ptr = arr;
-    if (!lv00_ensure_capacity(&arr_ptr, count, capacity, elem_size, min_growth))
-        return NULL;
-    return arr_ptr;
-}
-
-/**
- * @brief 在约束图中分配并初始化一个新的几何节点
- *
- * 分配 GeomNode 内存（lv00_malloc + memset），设置唯一 ID、类型、
- * 默认信任等级和命名空间深度。若节点数组容量不足，自动扩容
- * （按 LV00_ARRAY_GROWTH_FACTOR 倍增长），扩容失败时释放已分配节点并返回 NULL。
- *
- * @param graph 约束图指针
- * @param type  几何节点类型（GEOM_POINT / GEOM_SEGMENT / GEOM_REGION / GEOM_PORT / GEOM_FUNCTION_BLOCK）
- * @return 新分配的 GeomNode 指针，失败返回 NULL
- */
-static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
-    GeomNode *node = lv00_malloc(sizeof(GeomNode));
-    if (!node)
-        return NULL;
-    memset(node, 0, sizeof(GeomNode));
-    /* v3.4.1: 使用原子操作分配节点ID，确保多线程安全 */
-    node->id = GRAPH_ATOMIC_NODE_ID_INCREMENT(graph);
-    node->type = type;
-    node->trust = TRUST_GREEN;
-    node->is_active = true;  /* v3.6.0: 新节点默认活跃 */
-    node->namespace_depth = 0;
-    node->parent_block_id = -1;
-    GeomNode **new_nodes = (GeomNode **)graph_ensure_capacity(
-        graph->nodes, graph->node_count, &graph->node_capacity,
-        sizeof(GeomNode *), 1);
-    if (!new_nodes) {
-        lv00_free((void **) &node);
-        return NULL;
-    }
-    graph->nodes = new_nodes;
-    graph->nodes[graph->node_count++] = node;
-    graph_node_index_insert(graph, node);
-    return node;
-}
-
-/**
- * @brief 在约束图中分配并初始化一个新的约束
- *
- * 分配 Constraint 内存（lv00_malloc + memset），设置唯一 ID 和约束类型。
- * 若约束数组容量不足，自动按 LV00_ARRAY_GROWTH_FACTOR 倍扩容，
- * 扩容失败时释放已分配约束并返回 NULL。
- *
- * @param graph 约束图指针
- * @param type  约束类型（INCIDENCE / BETWEENNESS / INTERSECTION / CONTAINMENT / CONNECTION）
- * @return 新分配的 Constraint 指针，失败返回 NULL
- */
-static Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) {
-    Constraint *con = lv00_malloc(sizeof(Constraint));
-    if (!con)
-        return NULL;
-    memset(con, 0, sizeof(Constraint));
-    /* v3.4.1: 使用原子操作分配约束ID，确保多线程安全 */
-    con->id = GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph);
-    con->type = type;
-    con->is_active = true;   /* v3.5.0: 新约束默认活跃 */
-    Constraint **new_constraints = (Constraint **)graph_ensure_capacity(
-        graph->constraints, graph->constraint_count, &graph->constraint_capacity,
-        sizeof(Constraint *), 1);
-    if (!new_constraints) {
-        lv00_free((void **) &con);
-        return NULL;
-    }
-    graph->constraints = new_constraints;
-    graph->constraints[graph->constraint_count++] = con;
-    graph_constraint_index_insert(graph, con);
-    return con;
-}
-
-/* ── 子模块已拆分至 constraint_graph/ ── */
