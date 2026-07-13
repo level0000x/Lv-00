@@ -341,6 +341,14 @@ void gappa_pred_set_init(Lv00GappaPredSet *set) {
 
 bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
     if (!set || !pred) return false;
+
+    /* Check for duplicate expr_lhs */
+    for (int i = 0; i < set->count; i++) {
+        if (strcmp(set->preds[i].expr_lhs, pred->expr_lhs) == 0) {
+            return false;  /* Duplicate: a predicate with this name already exists */
+        }
+    }
+
     if (set->count >= set->capacity) {
         int new_cap = set->capacity > 0 ? set->capacity * 2 : 8;
         Lv00GappaPredicate *p = (Lv00GappaPredicate *)realloc(set->preds, (size_t)new_cap * sizeof(Lv00GappaPredicate));

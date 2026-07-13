@@ -83,6 +83,7 @@ Lv00ProofTree *lv00_proof_tree_create(const char *name, const char *strategy) {
     if (!root) { free(tree->all_nodes); free(tree); return NULL; }
 
     tree->root = root;
+    root->step_index = -1;  /* Root node has no step index */
     tree->all_nodes[0] = root;
     tree->node_count = 1;
     tree->next_id = 1;
@@ -127,7 +128,29 @@ Lv00ProofTreeNode *lv00_proof_tree_add_step(Lv00ProofTree *tree, Lv00ProofTreeNo
 }
 
 void lv00_proof_tree_add_premise(void *tree, int idx, const char *name, bool negated) {
-    (void)tree; (void)idx; (void)name; (void)negated;
+    if (!tree) return;
+    Lv00ProofTreeNode *node = (Lv00ProofTreeNode *)tree;
+
+    /* Ensure capacity */
+    if (node->premise_count >= node->premise_capacity) {
+        int new_cap = node->premise_capacity > 0 ? node->premise_capacity * 2 : 4;
+        Lv00ProofPremise *p = (Lv00ProofPremise *)realloc(node->premises,
+            (size_t)new_cap * sizeof(Lv00ProofPremise));
+        if (!p) return;
+        node->premises = p;
+        node->premise_capacity = new_cap;
+    }
+
+    Lv00ProofPremise *premise = &node->premises[node->premise_count];
+    premise->premise_id = idx;
+    if (name) {
+        strncpy(premise->description, name, sizeof(premise->description) - 1);
+        premise->description[sizeof(premise->description) - 1] = '\0';
+    } else {
+        premise->description[0] = '\0';
+    }
+    premise->is_axiom = negated;
+    node->premise_count++;
 }
 
 bool lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node) {

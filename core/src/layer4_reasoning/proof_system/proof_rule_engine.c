@@ -140,6 +140,7 @@ static Lv00SearchResultStatus search_best_first(Lv00RuleEngine *engine,
     sort_rules_by_weight(applicable, count);
 
     /* Try each rule in weight order */
+    bool hit_depth_limit = false;
     for (i = 0; i < count; i++) {
         Lv00ProofRule *rule = applicable[i];
 
@@ -170,6 +171,11 @@ static Lv00SearchResultStatus search_best_first(Lv00RuleEngine *engine,
                 return SEARCH_RESULT_TIMEOUT;
             }
 
+            /* Track if any rule hit depth limit */
+            if (result == SEARCH_RESULT_DEPTH_LIMIT) {
+                hit_depth_limit = true;
+            }
+
             /* Backtrack: restore goal stack, hypotheses, and rule history */
             /* Free any goals/hypotheses that were added during the failed branch */
             while (state->goal_stack_top > saved_goal_top) {
@@ -197,7 +203,7 @@ static Lv00SearchResultStatus search_best_first(Lv00RuleEngine *engine,
         }
     }
 
-    return SEARCH_RESULT_EXHAUSTED;
+    return hit_depth_limit ? SEARCH_RESULT_DEPTH_LIMIT : SEARCH_RESULT_EXHAUSTED;
 }
 
 /**
@@ -228,6 +234,7 @@ static Lv00SearchResultStatus search_depth_first(Lv00RuleEngine *engine,
         return SEARCH_RESULT_EXHAUSTED;
     }
 
+    bool hit_depth_limit = false;
     for (i = 0; i < count; i++) {
         Lv00ProofRule *rule = applicable[i];
         int saved_depth = state->current_depth;
@@ -250,6 +257,11 @@ static Lv00SearchResultStatus search_depth_first(Lv00RuleEngine *engine,
             /* 超时结果需要向上传播，不进行回溯 */
             if (result == SEARCH_RESULT_TIMEOUT) {
                 return SEARCH_RESULT_TIMEOUT;
+            }
+
+            /* Track if any rule hit depth limit */
+            if (result == SEARCH_RESULT_DEPTH_LIMIT) {
+                hit_depth_limit = true;
             }
 
             /* Backtrack */
@@ -278,7 +290,7 @@ static Lv00SearchResultStatus search_depth_first(Lv00RuleEngine *engine,
         }
     }
 
-    return SEARCH_RESULT_EXHAUSTED;
+    return hit_depth_limit ? SEARCH_RESULT_DEPTH_LIMIT : SEARCH_RESULT_EXHAUSTED;
 }
 
 /**
