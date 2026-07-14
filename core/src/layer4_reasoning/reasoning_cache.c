@@ -173,7 +173,7 @@ static bool cache_is_full(const Lv00ReasoningCache *cache) {
  * 公开 API 实现
  * ================================================================ */
 
-static Lv00ReasoningCache *lv00_reasoning_cache_create(size_t capacity) {
+Lv00ReasoningCache *lv00_reasoning_cache_create(size_t capacity) {
     Lv00ReasoningCache *cache = (Lv00ReasoningCache *)calloc(1, sizeof(Lv00ReasoningCache));
     if (!cache) {
         return NULL;

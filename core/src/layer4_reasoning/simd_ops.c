@@ -100,7 +100,7 @@ static bool lv00_simd_has_capability(Lv00SimdCapability cap) {
     return (atomic_load(&g_simd_capabilities) & cap) != 0;
 }
 
-static const char *lv00_simd_capability_name(Lv00SimdCapability cap) {
+const char *lv00_simd_capability_name(Lv00SimdCapability cap) {
     switch (cap) {
         case LV00_SIMD_NONE:    return "None (Scalar)";
         case LV00_SIMD_SSE2:    return "SSE2";
@@ -117,11 +117,11 @@ static const char *lv00_simd_capability_name(Lv00SimdCapability cap) {
 
 static Lv00SimdStats g_simd_stats = {0};
 
-static void lv00_simd_get_stats(Lv00SimdStats *stats) {
+void lv00_simd_get_stats(Lv00SimdStats *stats) {
     if (stats) *stats = g_simd_stats;
 }
 
-static void lv00_simd_reset_stats(void) {
+void lv00_simd_reset_stats(void) {
     memset(&g_simd_stats, 0, sizeof(g_simd_stats));
 }
 
@@ -179,31 +179,31 @@ static inline uint64_t get_time_us(void) {
 
 /* ============== 4x double 向量操作 ============== */
 
-static Lv00Vec4d lv00_vec4d_zero(void) {
+Lv00Vec4d lv00_vec4d_zero(void) {
     Lv00Vec4d v = {{0.0, 0.0, 0.0, 0.0}};
     g_simd_stats.vec4_ops++;
     return v;
 }
 
-static Lv00Vec4d lv00_vec4d_one(void) {
+Lv00Vec4d lv00_vec4d_one(void) {
     Lv00Vec4d v = {{1.0, 1.0, 1.0, 1.0}};
     g_simd_stats.vec4_ops++;
     return v;
 }
 
-static Lv00Vec4d lv00_vec4d_set1(double val) {
+Lv00Vec4d lv00_vec4d_set1(double val) {
     Lv00Vec4d v = {{val, val, val, val}};
     g_simd_stats.vec4_ops++;
     return v;
 }
 
-static Lv00Vec4d lv00_vec4d_set(double x, double y, double z, double w) {
+Lv00Vec4d lv00_vec4d_set(double x, double y, double z, double w) {
     Lv00Vec4d v = {{x, y, z, w}};
     g_simd_stats.vec4_ops++;
     return v;
 }
 
-static Lv00Vec4d lv00_vec4d_load(const double *ptr) {
+Lv00Vec4d lv00_vec4d_load(const double *ptr) {
     Lv00Vec4d v;
     v.v[0] = ptr[0];
     v.v[1] = ptr[1];
@@ -213,7 +213,7 @@ static Lv00Vec4d lv00_vec4d_load(const double *ptr) {
     return v;
 }
 
-static Lv00Vec4d lv00_vec4d_loadu(const double *ptr) {
+Lv00Vec4d lv00_vec4d_loadu(const double *ptr) {
     return lv00_vec4d_load(ptr);
 }
 
@@ -228,7 +228,7 @@ static void lv00_vec4d_storeu(double *ptr, Lv00Vec4d vec) {
     lv00_vec4d_store(ptr, vec);
 }
 
-static Lv00Vec4d lv00_vec4d_add(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_add(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = a.v[0] + b.v[0];
     r.v[1] = a.v[1] + b.v[1];
@@ -238,7 +238,7 @@ static Lv00Vec4d lv00_vec4d_add(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_sub(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_sub(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = a.v[0] - b.v[0];
     r.v[1] = a.v[1] - b.v[1];
@@ -248,7 +248,7 @@ static Lv00Vec4d lv00_vec4d_sub(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_mul(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_mul(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = a.v[0] * b.v[0];
     r.v[1] = a.v[1] * b.v[1];
@@ -258,7 +258,7 @@ static Lv00Vec4d lv00_vec4d_mul(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_div(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_div(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = a.v[0] / b.v[0];
     r.v[1] = a.v[1] / b.v[1];
@@ -268,7 +268,7 @@ static Lv00Vec4d lv00_vec4d_div(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_neg(Lv00Vec4d a) {
+Lv00Vec4d lv00_vec4d_neg(Lv00Vec4d a) {
     Lv00Vec4d r;
     r.v[0] = -a.v[0];
     r.v[1] = -a.v[1];
@@ -278,7 +278,7 @@ static Lv00Vec4d lv00_vec4d_neg(Lv00Vec4d a) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_sqrt(Lv00Vec4d a) {
+Lv00Vec4d lv00_vec4d_sqrt(Lv00Vec4d a) {
     Lv00Vec4d r;
     r.v[0] = sqrt(a.v[0]);
     r.v[1] = sqrt(a.v[1]);
@@ -288,7 +288,7 @@ static Lv00Vec4d lv00_vec4d_sqrt(Lv00Vec4d a) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_abs(Lv00Vec4d a) {
+Lv00Vec4d lv00_vec4d_abs(Lv00Vec4d a) {
     Lv00Vec4d r;
     r.v[0] = fabs(a.v[0]);
     r.v[1] = fabs(a.v[1]);
@@ -298,7 +298,7 @@ static Lv00Vec4d lv00_vec4d_abs(Lv00Vec4d a) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_max(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_max(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = (a.v[0] > b.v[0]) ? a.v[0] : b.v[0];
     r.v[1] = (a.v[1] > b.v[1]) ? a.v[1] : b.v[1];
@@ -308,7 +308,7 @@ static Lv00Vec4d lv00_vec4d_max(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_min(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_min(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = (a.v[0] < b.v[0]) ? a.v[0] : b.v[0];
     r.v[1] = (a.v[1] < b.v[1]) ? a.v[1] : b.v[1];
@@ -318,7 +318,7 @@ static Lv00Vec4d lv00_vec4d_min(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_fmadd(Lv00Vec4d a, Lv00Vec4d x, Lv00Vec4d y) {
+Lv00Vec4d lv00_vec4d_fmadd(Lv00Vec4d a, Lv00Vec4d x, Lv00Vec4d y) {
     Lv00Vec4d r;
     r.v[0] = a.v[0] * x.v[0] + y.v[0];
     r.v[1] = a.v[1] * x.v[1] + y.v[1];
@@ -329,7 +329,7 @@ static Lv00Vec4d lv00_vec4d_fmadd(Lv00Vec4d a, Lv00Vec4d x, Lv00Vec4d y) {
 }
 
 /* 比较操作 */
-static Lv00Vec4d lv00_vec4d_cmpeq(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_cmpeq(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = (a.v[0] == b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] == b.v[1]) ? -1.0 : 0.0;
@@ -338,7 +338,7 @@ static Lv00Vec4d lv00_vec4d_cmpeq(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_cmplt(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_cmplt(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = (a.v[0] < b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] < b.v[1]) ? -1.0 : 0.0;
@@ -347,7 +347,7 @@ static Lv00Vec4d lv00_vec4d_cmplt(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_cmple(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_cmple(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = (a.v[0] <= b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] <= b.v[1]) ? -1.0 : 0.0;
@@ -356,7 +356,7 @@ static Lv00Vec4d lv00_vec4d_cmple(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_cmpgt(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_cmpgt(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = (a.v[0] > b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] > b.v[1]) ? -1.0 : 0.0;
@@ -365,7 +365,7 @@ static Lv00Vec4d lv00_vec4d_cmpgt(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_cmpge(Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_cmpge(Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     r.v[0] = (a.v[0] >= b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] >= b.v[1]) ? -1.0 : 0.0;
@@ -374,7 +374,7 @@ static Lv00Vec4d lv00_vec4d_cmpge(Lv00Vec4d a, Lv00Vec4d b) {
     return r;
 }
 
-static Lv00Vec4d lv00_vec4d_select(Lv00Vec4d mask, Lv00Vec4d a, Lv00Vec4d b) {
+Lv00Vec4d lv00_vec4d_select(Lv00Vec4d mask, Lv00Vec4d a, Lv00Vec4d b) {
     Lv00Vec4d r;
     /* 使用位操作实现选择 */
     union { double d; uint64_t u; } m, va, vb, vr;
@@ -416,19 +416,19 @@ static double lv00_vec4d_dot(Lv00Vec4d a, Lv00Vec4d b) {
 
 /* ============== 4x float 向量操作 ============== */
 
-static Lv00Vec4f lv00_vec4f_zero(void) {
+Lv00Vec4f lv00_vec4f_zero(void) {
     Lv00Vec4f v = {{0.0f, 0.0f, 0.0f, 0.0f}};
     g_simd_stats.vec4_ops++;
     return v;
 }
 
-static Lv00Vec4f lv00_vec4f_set1(float val) {
+Lv00Vec4f lv00_vec4f_set1(float val) {
     Lv00Vec4f v = {{val, val, val, val}};
     g_simd_stats.vec4_ops++;
     return v;
 }
 
-static Lv00Vec4f lv00_vec4f_load(const float *ptr) {
+Lv00Vec4f lv00_vec4f_load(const float *ptr) {
     Lv00Vec4f v;
     v.v[0] = ptr[0];
     v.v[1] = ptr[1];
@@ -445,7 +445,7 @@ static void lv00_vec4f_store(float *ptr, Lv00Vec4f vec) {
     ptr[3] = vec.v[3];
 }
 
-static Lv00Vec4f lv00_vec4f_add(Lv00Vec4f a, Lv00Vec4f b) {
+Lv00Vec4f lv00_vec4f_add(Lv00Vec4f a, Lv00Vec4f b) {
     Lv00Vec4f r;
     r.v[0] = a.v[0] + b.v[0];
     r.v[1] = a.v[1] + b.v[1];
@@ -455,7 +455,7 @@ static Lv00Vec4f lv00_vec4f_add(Lv00Vec4f a, Lv00Vec4f b) {
     return r;
 }
 
-static Lv00Vec4f lv00_vec4f_sub(Lv00Vec4f a, Lv00Vec4f b) {
+Lv00Vec4f lv00_vec4f_sub(Lv00Vec4f a, Lv00Vec4f b) {
     Lv00Vec4f r;
     r.v[0] = a.v[0] - b.v[0];
     r.v[1] = a.v[1] - b.v[1];
@@ -465,7 +465,7 @@ static Lv00Vec4f lv00_vec4f_sub(Lv00Vec4f a, Lv00Vec4f b) {
     return r;
 }
 
-static Lv00Vec4f lv00_vec4f_mul(Lv00Vec4f a, Lv00Vec4f b) {
+Lv00Vec4f lv00_vec4f_mul(Lv00Vec4f a, Lv00Vec4f b) {
     Lv00Vec4f r;
     r.v[0] = a.v[0] * b.v[0];
     r.v[1] = a.v[1] * b.v[1];
@@ -475,7 +475,7 @@ static Lv00Vec4f lv00_vec4f_mul(Lv00Vec4f a, Lv00Vec4f b) {
     return r;
 }
 
-static Lv00Vec4f lv00_vec4f_div(Lv00Vec4f a, Lv00Vec4f b) {
+Lv00Vec4f lv00_vec4f_div(Lv00Vec4f a, Lv00Vec4f b) {
     Lv00Vec4f r;
     r.v[0] = a.v[0] / b.v[0];
     r.v[1] = a.v[1] / b.v[1];
@@ -485,7 +485,7 @@ static Lv00Vec4f lv00_vec4f_div(Lv00Vec4f a, Lv00Vec4f b) {
     return r;
 }
 
-static Lv00Vec4f lv00_vec4f_sqrt(Lv00Vec4f a) {
+Lv00Vec4f lv00_vec4f_sqrt(Lv00Vec4f a) {
     Lv00Vec4f r;
     r.v[0] = sqrtf(a.v[0]);
     r.v[1] = sqrtf(a.v[1]);
@@ -505,20 +505,20 @@ static float lv00_vec4f_dot(Lv00Vec4f a, Lv00Vec4f b) {
 
 /* ============== 8x float 向量操作 ============== */
 
-static Lv00Vec8f lv00_vec8f_zero(void) {
+Lv00Vec8f lv00_vec8f_zero(void) {
     Lv00Vec8f v = {{0}};
     g_simd_stats.vec8_ops++;
     return v;
 }
 
-static Lv00Vec8f lv00_vec8f_set1(float val) {
+Lv00Vec8f lv00_vec8f_set1(float val) {
     Lv00Vec8f v;
     for (int i = 0; i < 8; i++) v.v[i] = val;
     g_simd_stats.vec8_ops++;
     return v;
 }
 
-static Lv00Vec8f lv00_vec8f_load(const float *ptr) {
+Lv00Vec8f lv00_vec8f_load(const float *ptr) {
     Lv00Vec8f v;
     for (int i = 0; i < 8; i++) v.v[i] = ptr[i];
     g_simd_stats.vec8_ops++;
@@ -529,28 +529,28 @@ static void lv00_vec8f_store(float *ptr, Lv00Vec8f vec) {
     for (int i = 0; i < 8; i++) ptr[i] = vec.v[i];
 }
 
-static Lv00Vec8f lv00_vec8f_add(Lv00Vec8f a, Lv00Vec8f b) {
+Lv00Vec8f lv00_vec8f_add(Lv00Vec8f a, Lv00Vec8f b) {
     Lv00Vec8f r;
     for (int i = 0; i < 8; i++) r.v[i] = a.v[i] + b.v[i];
     g_simd_stats.vec8_ops++;
     return r;
 }
 
-static Lv00Vec8f lv00_vec8f_sub(Lv00Vec8f a, Lv00Vec8f b) {
+Lv00Vec8f lv00_vec8f_sub(Lv00Vec8f a, Lv00Vec8f b) {
     Lv00Vec8f r;
     for (int i = 0; i < 8; i++) r.v[i] = a.v[i] - b.v[i];
     g_simd_stats.vec8_ops++;
     return r;
 }
 
-static Lv00Vec8f lv00_vec8f_mul(Lv00Vec8f a, Lv00Vec8f b) {
+Lv00Vec8f lv00_vec8f_mul(Lv00Vec8f a, Lv00Vec8f b) {
     Lv00Vec8f r;
     for (int i = 0; i < 8; i++) r.v[i] = a.v[i] * b.v[i];
     g_simd_stats.vec8_ops++;
     return r;
 }
 
-static Lv00Vec8f lv00_vec8f_div(Lv00Vec8f a, Lv00Vec8f b) {
+Lv00Vec8f lv00_vec8f_div(Lv00Vec8f a, Lv00Vec8f b) {
     Lv00Vec8f r;
     for (int i = 0; i < 8; i++) r.v[i] = a.v[i] / b.v[i];
     g_simd_stats.vec8_ops++;
@@ -817,7 +817,7 @@ static void lv00_simd_point_in_circle_array(const double *px, const double *py,
 
 /* ============== 矩阵运算 ============== */
 
-static Lv00Vec4d lv00_simd_mat4x4_vec4_mul(const double mat[16], Lv00Vec4d vec) {
+Lv00Vec4d lv00_simd_mat4x4_vec4_mul(const double mat[16], Lv00Vec4d vec) {
     Lv00Vec4d result;
 
     result.v[0] = mat[0] * vec.v[0] + mat[1] * vec.v[1] + mat[2] * vec.v[2] + mat[3] * vec.v[3];
