@@ -738,7 +738,7 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
  * @note 此为占位实现。当 proof_multi_strategy.c 模块可用时，
  *       链接器将使用该模块中的完整实现替换此函数。
  */
-static bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategyType strategy_type) {
+bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategyType strategy_type) {
     if (!mse) return false;
     if (strategy_type < 0 || strategy_type >= PROOF_STRATEGY_COUNT)
         return false;
@@ -746,7 +746,7 @@ static bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategy
     return true;
 }
 
-static bool proof_multi_strategy_execute(ProofMultiStrategy *mse) {
+bool proof_multi_strategy_execute(ProofMultiStrategy *mse) {
     if (!mse || mse->active_strategy_index < 0)
         return false;
     /* 委托给证明导航器的核心搜索 */

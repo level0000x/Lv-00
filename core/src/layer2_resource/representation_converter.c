@@ -60,7 +60,7 @@ static Lv00ConvertResult make_success_result(void *output) {
 
 /* ============ 转换 API ============ */
 
-static Lv00ConvertResult lv00_convert_to_geometry(Lv00RepresentationConverter *conv, void *block) {
+Lv00ConvertResult lv00_convert_to_geometry(Lv00RepresentationConverter *conv, void *block) {
     if (!conv) return make_error_result("转换器为 NULL");
     if (!block) return make_error_result("输入块为 NULL");
     if (conv->forward.to_geometry && conv->forward.to_geometry->convert_forward) {
@@ -69,7 +69,7 @@ static Lv00ConvertResult lv00_convert_to_geometry(Lv00RepresentationConverter *c
     return make_error_result("几何转换器未注册");
 }
 
-static Lv00ConvertResult lv00_convert_to_node_graph(Lv00RepresentationConverter *conv, void *block) {
+Lv00ConvertResult lv00_convert_to_node_graph(Lv00RepresentationConverter *conv, void *block) {
     if (!conv) return make_error_result("转换器为 NULL");
     if (!block) return make_error_result("输入块为 NULL");
     if (conv->forward.to_node && conv->forward.to_node->convert_forward) {
@@ -78,7 +78,7 @@ static Lv00ConvertResult lv00_convert_to_node_graph(Lv00RepresentationConverter 
     return make_error_result("节点图转换器未注册");
 }
 
-static Lv00ConvertResult lv00_convert_to_text(Lv00RepresentationConverter *conv, void *block) {
+Lv00ConvertResult lv00_convert_to_text(Lv00RepresentationConverter *conv, void *block) {
     if (!conv) return make_error_result("转换器为 NULL");
     if (!block) return make_error_result("输入块为 NULL");
     if (conv->forward.to_text && conv->forward.to_text->convert_forward) {
@@ -87,7 +87,7 @@ static Lv00ConvertResult lv00_convert_to_text(Lv00RepresentationConverter *conv,
     return make_error_result("文本转换器未注册");
 }
 
-static Lv00ConvertResult lv00_convert_from_text(Lv00RepresentationConverter *conv, const char *code) {
+Lv00ConvertResult lv00_convert_from_text(Lv00RepresentationConverter *conv, const char *code) {
     if (!conv) return make_error_result("转换器为 NULL");
     if (!code) return make_error_result("代码为 NULL");
     if (conv->reverse.from_text && conv->reverse.from_text->convert_backward) {
@@ -120,33 +120,33 @@ int lv00_converter_verify_roundtrip(Lv00RepresentationConverter *conv,
 
 /* ============ Legacy 直接转换 API（桩实现） ============ */
 
-static Lv00ConvertResult lv00_convert_block_to_text(void *block) {
+Lv00ConvertResult lv00_convert_block_to_text(void *block) {
     if (!block) return make_error_result("输入块为 NULL");
     /* 简化实现：返回成功但无实际输出 */
     return make_success_result(NULL);
 }
 
-static Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
+Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
     if (!code) return make_error_result("代码为 NULL");
     return make_success_result(NULL);
 }
 
-static Lv00ConvertResult lv00_convert_block_to_node(void *block) {
+Lv00ConvertResult lv00_convert_block_to_node(void *block) {
     if (!block) return make_error_result("输入块为 NULL");
     return make_success_result(NULL);
 }
 
-static Lv00ConvertResult lv00_convert_node_to_block(void *node) {
+Lv00ConvertResult lv00_convert_node_to_block(void *node) {
     if (!node) return make_error_result("节点为 NULL");
     return make_success_result(NULL);
 }
 
-static Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
+Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
     if (!block) return make_error_result("输入块为 NULL");
     return make_success_result(NULL);
 }
 
-static Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
+Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
     if (!entity) return make_error_result("实体为 NULL");
     return make_success_result(NULL);
 }

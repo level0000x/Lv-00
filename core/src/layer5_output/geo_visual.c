@@ -29,7 +29,7 @@ static void write_output_to_file(const char *path, const char *content) {
 
 /* ============ 构造器实现 ============ */
 
-static Lv00VisualObject* lv00_visual_point_create(float x, float y) {
+Lv00VisualObject* lv00_visual_point_create(float x, float y) {
     Lv00VisualObject* obj = (Lv00VisualObject*)lv00_malloc(sizeof(Lv00VisualObject));
     if (!obj) return NULL;
     
@@ -55,7 +55,7 @@ static Lv00VisualObject* lv00_visual_point_create(float x, float y) {
     return obj;
 }
 
-static Lv00VisualObject* lv00_visual_line_create(float x1, float y1, float x2, float y2) {
+Lv00VisualObject* lv00_visual_line_create(float x1, float y1, float x2, float y2) {
     Lv00VisualObject* obj = (Lv00VisualObject*)lv00_malloc(sizeof(Lv00VisualObject));
     if (!obj) return NULL;
     
@@ -86,7 +86,7 @@ static Lv00VisualObject* lv00_visual_line_create(float x1, float y1, float x2, f
     return obj;
 }
 
-static Lv00VisualObject* lv00_visual_circle_create(float cx, float cy, float r) {
+Lv00VisualObject* lv00_visual_circle_create(float cx, float cy, float r) {
     Lv00VisualObject* obj = (Lv00VisualObject*)lv00_malloc(sizeof(Lv00VisualObject));
     if (!obj) return NULL;
     
@@ -120,7 +120,7 @@ static Lv00VisualObject* lv00_visual_circle_create(float cx, float cy, float r) 
     return obj;
 }
 
-static Lv00VisualObject* lv00_visual_group_create(Lv00VisualObject** objs, size_t n) {
+Lv00VisualObject* lv00_visual_group_create(Lv00VisualObject** objs, size_t n) {
     Lv00VisualObject* obj = (Lv00VisualObject*)lv00_malloc(sizeof(Lv00VisualObject));
     if (!obj) return NULL;
     
@@ -151,13 +151,13 @@ static Lv00VisualObject* lv00_visual_group_create(Lv00VisualObject** objs, size_
 
 /* ============ 样式设置 ============ */
 
-static void lv00_visual_set_style(Lv00VisualObject* obj, const Lv00VisualStyle* style) {
+void lv00_visual_set_style(Lv00VisualObject* obj, const Lv00VisualStyle* style) {
     if (obj && style) {
         obj->style = *style;
     }
 }
 
-static void lv00_visual_set_color(Lv00VisualObject* obj, float r, float g, float b, float a) {
+void lv00_visual_set_color(Lv00VisualObject* obj, float r, float g, float b, float a) {
     if (obj) {
         obj->style.stroke_color[0] = r;
         obj->style.stroke_color[1] = g;
@@ -166,7 +166,7 @@ static void lv00_visual_set_color(Lv00VisualObject* obj, float r, float g, float
     }
 }
 
-static void lv00_visual_set_dashed(Lv00VisualObject* obj, int dashed) {
+void lv00_visual_set_dashed(Lv00VisualObject* obj, int dashed) {
     if (obj) {
         obj->style.dashed = dashed;
     }
@@ -174,20 +174,20 @@ static void lv00_visual_set_dashed(Lv00VisualObject* obj, int dashed) {
 
 /* ============ 变换 ============ */
 
-static void lv00_visual_translate(Lv00VisualObject* obj, float dx, float dy, float dz) {
+void lv00_visual_translate(Lv00VisualObject* obj, float dx, float dy, float dz) {
     if (!obj) return;
     obj->transform[12] += dx;
     obj->transform[13] += dy;
     obj->transform[14] += dz;
 }
 
-static void lv00_visual_scale(Lv00VisualObject* obj, float sx, float sy) {
+void lv00_visual_scale(Lv00VisualObject* obj, float sx, float sy) {
     if (!obj) return;
     obj->transform[0] *= sx;
     obj->transform[5] *= sy;
 }
 
-static void lv00_visual_rotate(Lv00VisualObject* obj, float angle, float axis[3]) {
+void lv00_visual_rotate(Lv00VisualObject* obj, float angle, float axis[3]) {
     if (!obj) return;
 
     /* 判断是否需要使用任意轴旋转（Rodrigues 旋转公式） */
@@ -255,7 +255,7 @@ static void lv00_visual_rotate(Lv00VisualObject* obj, float angle, float axis[3]
 
 /* ============ 场景管理 ============ */
 
-static Lv00VisualScene* lv00_visual_scene_create(void) {
+Lv00VisualScene* lv00_visual_scene_create(void) {
     Lv00VisualScene* scene = (Lv00VisualScene*)lv00_malloc(sizeof(Lv00VisualScene));
     if (!scene) return NULL;
     
@@ -270,7 +270,7 @@ static Lv00VisualScene* lv00_visual_scene_create(void) {
     return scene;
 }
 
-static void lv00_visual_scene_add(Lv00VisualScene* scene, Lv00VisualObject* obj) {
+void lv00_visual_scene_add(Lv00VisualScene* scene, Lv00VisualObject* obj) {
     if (!scene || !obj) return;
     
     size_t new_count = scene->object_count + 1;
@@ -287,7 +287,7 @@ static void lv00_visual_scene_add(Lv00VisualScene* scene, Lv00VisualObject* obj)
     scene->object_count = new_count;
 }
 
-static void lv00_visual_scene_clear(Lv00VisualScene* scene) {
+void lv00_visual_scene_clear(Lv00VisualScene* scene) {
     if (!scene) return;
     
     for (size_t i = 0; i < scene->object_count; i++) {
@@ -299,7 +299,7 @@ static void lv00_visual_scene_clear(Lv00VisualScene* scene) {
     scene->object_count = 0;
 }
 
-static void lv00_visual_scene_set_camera(Lv00VisualScene* scene, float cx, float cy, float cz, float zoom) {
+void lv00_visual_scene_set_camera(Lv00VisualScene* scene, float cx, float cy, float cz, float zoom) {
     if (!scene) return;
     scene->camera_center[0] = cx;
     scene->camera_center[1] = cy;
@@ -952,7 +952,7 @@ static void rasterize_object_ppm(Lv00VisualObject* obj, unsigned char* pixels, i
 
 /* ============ 渲染器 ============ */
 
-static Lv00VisualRenderer* lv00_visual_renderer_create(Lv00RenderBackend backend, int width, int height) {
+Lv00VisualRenderer* lv00_visual_renderer_create(Lv00RenderBackend backend, int width, int height) {
     Lv00VisualRenderer* renderer = (Lv00VisualRenderer*)lv00_malloc(sizeof(Lv00VisualRenderer));
     if (!renderer) return NULL;
     
@@ -965,7 +965,7 @@ static Lv00VisualRenderer* lv00_visual_renderer_create(Lv00RenderBackend backend
     return renderer;
 }
 
-static void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, const char* output_path) {
+void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, const char* output_path) {
     if (!renderer || !scene || !output_path) return;
 
     /* 根据 backend 选择渲染方式 */
@@ -1124,7 +1124,7 @@ static void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* sc
 
 /* ============ 清理 ============ */
 
-static void lv00_visual_object_destroy(Lv00VisualObject* obj) {
+void lv00_visual_object_destroy(Lv00VisualObject* obj) {
     if (!obj) return;
     
     if (obj->render_cache) {
@@ -1141,7 +1141,7 @@ static void lv00_visual_object_destroy(Lv00VisualObject* obj) {
     lv00_free_ptr(obj);
 }
 
-static void lv00_visual_scene_destroy(Lv00VisualScene* scene) {
+void lv00_visual_scene_destroy(Lv00VisualScene* scene) {
     if (!scene) return;
 
     for (size_t i = 0; i < scene->object_count; i++) {
@@ -1151,7 +1151,7 @@ static void lv00_visual_scene_destroy(Lv00VisualScene* scene) {
     lv00_free_ptr(scene);
 }
 
-static void lv00_visual_renderer_destroy(Lv00VisualRenderer* renderer) {
+void lv00_visual_renderer_destroy(Lv00VisualRenderer* renderer) {
     if (!renderer) return;
     lv00_free_ptr(renderer);
 }
