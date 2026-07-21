@@ -117,6 +117,7 @@ static size_t hash_index(uint64_t key, size_t capacity) {
 static bool cache_find_slot(const Lv00ReasoningCache *cache, uint64_t key, size_t *out_index) {
     size_t idx = hash_index(key, cache->capacity);
     size_t first_deleted = cache->capacity; /* 记录第一个已删除槽位，用于插入优化 */
+    (void)first_deleted; /* 预留给未来插入优化使用 */
 
     for (size_t probe = 0; probe < cache->capacity; probe++) {
         size_t i = (idx + probe) & (cache->capacity - 1);

@@ -173,7 +173,7 @@ Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
     
     /* 检查是否已加载 */
     for (size_t i = 0; i < system->plugin_count; i++) {
-        if (!system->plugins[i]->path) continue;
+        if (system->plugins[i]->path[0] == '\0') continue;
         if (strcmp(system->plugins[i]->path, path) == 0) {
             set_error(system, "Plugin already loaded: %s", path);
             return NULL;
@@ -331,7 +331,7 @@ int lv00_plugin_unload(Lv00PluginSystem* system, Lv00Plugin* plugin) {
 
 int lv00_plugin_reload(Lv00PluginSystem* system, Lv00Plugin* plugin) {
     if (!system || !plugin) return -1;
-    if (!plugin->path) return -1;
+    if (plugin->path[0] == '\0') return -1;
     
     char path[LV00_PLUGIN_PATH_MAX];
     strncpy(path, plugin->path, sizeof(path) - 1);

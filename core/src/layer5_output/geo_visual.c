@@ -327,6 +327,8 @@ static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, si
     if (!obj) return;
 
     /* 辅助宏：向缓冲区追加字符串（先检查容量再写入） */
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
     #define SVG_APPEND(fmt, ...) do { \
         int needed = snprintf(NULL, 0, fmt, ##__VA_ARGS__); \
         if (needed > 0) { \
@@ -420,6 +422,8 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
     if (!obj) return;
 
     /* 辅助宏：向缓冲区追加字符串 */
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
     #define CAIRO_APPEND(fmt, ...) do { \
         size_t _avail = *cap - *pos; \
         if (*pos >= *cap) { \
@@ -547,6 +551,8 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
     if (!obj) return;
 
     /* 辅助宏：向缓冲区追加字符串 */
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
     #define THREEJS_APPEND(fmt, ...) do { \
         size_t _avail = *cap - *pos; \
         if (*pos >= *cap) { \
@@ -696,6 +702,8 @@ static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, s
     if (!obj) return;
 
     /* 辅助宏：向缓冲区追加字符串 */
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
     #define TIKZ_APPEND(fmt, ...) do { \
         size_t _avail = *cap - *pos; \
         if (*pos >= *cap) { \

@@ -17,16 +17,18 @@
 | master/main 分支同步 | ✅ |
 | GitHub 推送 (9 标签) | ✅ |
 
-## 二、待完成
+## 二、待完成 ✅
 
-| 任务 | 优先级 | 预估 |
-|:---|:--:|:---|
-| lv00-formal/ 29 sorry → 0 (Hilbert 几何证明) | P1 | 4-6h |
-| CMake 构建验证 + 修复编译错误 | P2 | 1-2h |
-| `lake build` 类型检查 | P2 | 30min |
-| Python `pip install -e .` 验证 | P3 | 30min |
-| web/ 幽灵目录删除 (需 chkdsk) | P3 | 10min |
-| GitHub Actions CI/CD | P3 | 1h |
+**全部任务已完成（2026-07-21）。**
+
+| 任务 | 优先级 | 状态 |
+|:---|:--:|:--:|
+| lv00-formal/ 29 sorry → 0 (Hilbert 几何证明) | P1 | ✅ |
+| CMake 构建验证 + 修复编译错误 | P2 | ✅ |
+| `lake build` 类型检查 | P2 | ✅ |
+| Python `pip install -e .` 验证 | P3 | ✅ |
+| web/ 幽灵目录删除 | P3 | ✅ |
+| GitHub Actions CI/CD | P3 | ✅ |
 
 ## 三、当前指标
 
@@ -39,7 +41,7 @@
 | .lvz | 57 |
 | Git tracked | 845 |
 | formal/ sorry | **0** ✅ |
-| lv00-formal/ sorry | 29 |
+| lv00-formal/ sorry | **0** ✅ |
 
 ## 四、下一步提示词
 

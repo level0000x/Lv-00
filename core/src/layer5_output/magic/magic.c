@@ -903,6 +903,8 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
             graph_type = CONNECTION;
     }
 
+    (void)graph_type; /* 预留给后续 graph_add_xxx 类型扩展 */
+
     int participants[2] = {rune1_index, rune2_index};
     AddConstraintResult result = graph_add_incidence(array->graph, participants[0], participants[1]);
 
@@ -1333,7 +1335,7 @@ static const char *json_skip_string(const char *p) {
  * @param p 指向值起始位置的指针
  * @return 跳过值后的下一个字符位置
  */
-static const char *json_skip_value(const char *p) {
+static __attribute__((unused)) const char *json_skip_value(const char *p) {
     if (!p) return NULL;
 
     /* 跳过空白 */

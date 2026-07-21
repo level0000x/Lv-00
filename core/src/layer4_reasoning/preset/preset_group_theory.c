@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_group_theory.c
  * @brief 群论预设函数块 - 实现
  *
@@ -31,11 +31,6 @@
 #include "lv00_utils.h"
 
 #include <string.h>
-
-/* ==================== 预设函数块数量 ==================== */
-
-/** 群论模块预设函数块总数 */
-#define GROUP_THEORY_PRESET_COUNT 39
 
 /* ==================== 内部辅助函数 ==================== */
 
@@ -712,7 +707,7 @@ PresetCategory preset_group_theory_category(void)
  * @brief 获取群论模块所有预设名称列表
  * @return 以 NULL 结尾的名称数组，调用者需使用 lv00_free 释放
  */
-static char** get_group_theory_names(void)
+static __attribute__((unused)) char** get_group_theory_names(void)
 {
     static const char* names[] = {
         PRESET_GROUP_OPERATION,

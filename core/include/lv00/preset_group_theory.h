@@ -14,7 +14,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define GROUP_THEORY_PRESET_COUNT 16
+#define GROUP_THEORY_PRESET_COUNT 39
 bool preset_group_theory_register(void);
 
 #ifdef __cplusplus

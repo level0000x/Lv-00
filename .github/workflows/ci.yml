@@ -62,7 +62,7 @@ jobs:
       - name: Setup Lean 4
         uses: leanprover/lean4-action@v1
         with:
-          toolchain: 'stable'
+          toolchain: 'v4.32.0'
 
       - name: Lake build (lv00-formal/)
         run: |
@@ -78,6 +78,8 @@ jobs:
           python-version: '3.10'
       - name: Compile check Python
         run: |
+          python -m py_compile module/python/lv00/__init__.py
+          python -m py_compile module/python/lv00/_ctypes_binding.py
           python -m py_compile module/python/lv00/_stream_types.py
           python -m py_compile module/python/lv00/ws_server.py
           python -m py_compile module/python/lv00/stream_bridge.py

@@ -196,8 +196,8 @@ extern "C" {
 #define LV00_PATH_SEPARATOR LV00_PATH_SEPARATOR_CHAR
 
 /* ---- 版本信息（统一版本号 v3.3.0，所有模块引用此宏） ---- */
-#define LV00_VERSION_MAJOR 5
-#define LV00_VERSION_MINOR 0
+#define LV00_VERSION_MAJOR 1
+#define LV00_VERSION_MINOR 1
 #define LV00_VERSION_PATCH 0
 #define LV00_VERSION_STRING_EXPAND(maj, min, pat) #maj "." #min "." #pat
 #define LV00_VERSION_STRING_MACRO(maj, min, pat) LV00_VERSION_STRING_EXPAND(maj, min, pat)
@@ -805,7 +805,7 @@ LV00_PUBLIC_API bool lv00_are_assertions_enabled(void);
  * 确保 lv00.h 中的版本宏与 CMakeLists.txt 的 project(VERSION ...)
  * 保持一致。版本不匹配时触发编译错误，防止 API 兼容性问题。
  * ============================================================ */
-#if LV00_VERSION_MAJOR != 5 || LV00_VERSION_MINOR != 0 || LV00_VERSION_PATCH != 0
+#if LV00_VERSION_MAJOR != 1 || LV00_VERSION_MINOR != 1 || LV00_VERSION_PATCH != 0
 #error "[Lv-00] 版本宏不匹配：lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 与 CMakeLists.txt 的 project(VERSION ...) 不一致，请同步后重新编译。"
 #endif
 

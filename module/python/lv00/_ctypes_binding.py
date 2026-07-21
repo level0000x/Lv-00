@@ -836,8 +836,8 @@ _lib.recursion_context_reset.restype = None
 _lib.recursion_check_mutual.argtypes = [POINTER(c_int), c_int, POINTER(_MeasureSystem)]
 _lib.recursion_check_mutual.restype = c_bool
 
-_lib.recursion_run_builtin_test/c.argtypes = [POINTER(_MeasureSystem), POINTER(POINTER(c_void_p)), POINTER(c_int)]
-_lib.recursion_run_builtin_test/c.restype = c_int
+getattr(_lib, 'recursion_run_builtin_test/c').argtypes = [POINTER(_MeasureSystem), POINTER(POINTER(c_void_p)), POINTER(c_int)]
+getattr(_lib, 'recursion_run_builtin_test/c').restype = c_int
 
 # ============================================================
 # Engine 函数签名

@@ -4,6 +4,35 @@
 
 ---
 
+## Phase 7: 构建修复 + 占位桩填充 (✅ 2026-07-21)
+
+| 任务 | 状态 |
+|:---|:--:|
+| 版本号统一 lv00.h 5.0.0 → 1.1.0 | ✅ |
+| GROUP_THEORY_PRESET_COUNT 宏重定义修复 | ✅ |
+| variadic macro -Wpedantic 警告消除 | ✅ |
+| 未使用变量/函数警告消除 | ✅ |
+| 6 占位桩模块实现 | ✅ |
+| preset_abstract_algebra.c 创建（40 个抽象代数预设） | ✅ |
+| 文档同步更新 | ✅ |
+
+## Phase 8: lake build 类型检查 (✅ 2026-07-21)
+
+| 目标 | 结果 |
+|:---|:--:|
+| lv00-formal/ lake build | ✅ 16/16 通过 (Lean 4.32.0) |
+| formal/ lake build | ✅ 通过 |
+
+## Phase 9: P3 收尾 (✅ 2026-07-21)
+
+| 任务 | 结果 |
+|:---|:--:|
+| Python `pip install -e .` | ✅ 修复 pyproject.toml + _ctypes_binding.py，安装成功导入成功 |
+| web/ 幽灵目录 | ✅ 已不存在 |
+| GitHub Actions CI/CD | ✅ 已完善 (Python 覆盖全文件 + Lean 版本锁定 4.32.0) |
+
+---
+
 ## 一、项目最终基线
 
 | 指标 | 值 |
