@@ -847,3 +847,19 @@ int interop_server_run(InteropServer *server) {
  * @return LV00_OK 成功，错误码表示失败原因
  */
 /* interop_parse_command: 实现在 interop_command.c 中，通过 interop.h 声明可见 */
+
+/* ==================== 插件注册 ==================== */
+
+#define MAX_PLUGINS 32
+
+static Lv00Plugin g_plugins[MAX_PLUGINS];
+static int g_plugin_count = 0;
+
+int lv00_interop_register_plugin(Lv00InteropManager *mgr, const Lv00Plugin *plugin) {
+    if (!plugin) return -1;
+    (void)mgr; /* 管理器参数保留供未来扩展 */
+    if (g_plugin_count >= MAX_PLUGINS) return -1;
+    memcpy(&g_plugins[g_plugin_count], plugin, sizeof(Lv00Plugin));
+    g_plugin_count++;
+    return 0;
+}

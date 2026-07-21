@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_preset.c
  * @brief 预设函数块系统实现
  *
@@ -1599,6 +1599,10 @@ bool func_block_preset_register_custom(
     g_preset_library.entries[idx].is_active = true;
     
     return true;
+}
+
+int func_block_preset_count(void) {
+    return func_block_registry_get_count();
 }
 
 /* ============================================================

@@ -500,6 +500,9 @@ set(LV00_HEADERS
     core/include/lv00/preset_topology.h
     core/include/lv00/preset_transformations.h
     core/include/lv00/preset_trigonometry.h
+    # v1.2.0 新增：关键对计算引擎 + 类型等价探索器
+    core/include/lv00/critical_pair.h
+    core/include/lv00/type_equiv_explorer.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -675,6 +678,7 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/model/recursion.c
     # 类型与属性
     core/src/layer4_reasoning/type_logic/type_system.c
+    core/src/layer4_reasoning/type_logic/type_equiv_explorer.c
     core/src/layer4_reasoning/proof_system/prop_verifier.c
     # 后端求解引擎
     core/src/layer4_reasoning/backends/groebner_engine.c
@@ -834,6 +838,7 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/rewrite/rewrite_match.c
     core/src/layer4_reasoning/rewrite/rewrite_vf2.c
     core/src/layer4_reasoning/rewrite/rewrite_wl.c
+    core/src/layer4_reasoning/rewrite/critical_pair.c
     # 引擎调度
     core/src/layer4_reasoning/engine/engine_scheduler.c
     # 精确算术

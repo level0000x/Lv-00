@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_registry.c
  * @brief 预设函数块注册系统实现
  *
@@ -457,6 +457,27 @@ void func_block_registry_cleanup(void)
     g_registry.count       = 0;
     g_registry.capacity    = 0;
     g_registry.initialized = false;
+}
+
+int func_block_registry_unregister(const char *name) {
+    if (!name || !g_registry.initialized) return -1;
+
+    for (int i = 0; i < g_registry.count; i++) {
+        if (g_registry.entries[i].name &&
+            strcmp(g_registry.entries[i].name, name) == 0) {
+            /* 释放条目资源 */
+            free_preset_entry(&g_registry.entries[i]);
+            /* 将后面的条目前移 */
+            if (i < g_registry.count - 1) {
+                memmove(&g_registry.entries[i],
+                        &g_registry.entries[i + 1],
+                        (size_t)(g_registry.count - i - 1) * sizeof(PresetEntry));
+            }
+            g_registry.count--;
+            return 0;
+        }
+    }
+    return -1; /* 未找到 */
 }
 
 bool func_block_register(const char *name, const char *description,
