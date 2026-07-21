@@ -11,6 +11,7 @@
  */
 
 #include "lv00/geo_halfedge_mesh.h"
+#include "lv00/lv00_utils.h"
 
 
 #include <stdlib.h>
@@ -47,14 +48,14 @@ static bool ensure_capacity(Lv00HeMesh *mesh)
     int new_cap = mesh->vertex_capacity * 2;
     if (new_cap < INITIAL_CAPACITY) new_cap = INITIAL_CAPACITY;
 
-    Lv00VertexData *new_vdata = (Lv00VertexData *)realloc(
+    Lv00VertexData *new_vdata = (Lv00VertexData *)lv00_realloc(
         mesh->vertex_data, new_cap * sizeof(Lv00VertexData));
-    Lv00Halfedge *new_vhe = (Lv00Halfedge *)realloc(
+    Lv00Halfedge *new_vhe = (Lv00Halfedge *)lv00_realloc(
         mesh->vertex_out_he, new_cap * sizeof(Lv00Halfedge));
 
     if (!new_vdata || !new_vhe) {
-        if (new_vdata) free(new_vdata);
-        if (new_vhe) free(new_vhe);
+        if (new_vdata) lv00_free((void **)&(new_vdata));
+        if (new_vhe) lv00_free((void **)&(new_vhe));
         return false;
     }
 
@@ -86,23 +87,23 @@ Lv00HeMesh *lv00_he_mesh_create(const Lv00HeMeshConfig *config)
     mesh->vertex_out_he = (Lv00Halfedge *)calloc(
         mesh->vertex_capacity, sizeof(Lv00Halfedge));
 
-    mesh->he_twin = (Lv00Halfedge *)malloc(
+    mesh->he_twin = (Lv00Halfedge *)lv00_malloc(
         mesh->halfedge_capacity * sizeof(Lv00Halfedge));
-    mesh->he_next = (Lv00Halfedge *)malloc(
+    mesh->he_next = (Lv00Halfedge *)lv00_malloc(
         mesh->halfedge_capacity * sizeof(Lv00Halfedge));
-    mesh->he_prev = (Lv00Halfedge *)malloc(
+    mesh->he_prev = (Lv00Halfedge *)lv00_malloc(
         mesh->halfedge_capacity * sizeof(Lv00Halfedge));
-    mesh->he_face = (Lv00Face *)malloc(
+    mesh->he_face = (Lv00Face *)lv00_malloc(
         mesh->halfedge_capacity * sizeof(Lv00Face));
-    mesh->he_vertex = (Lv00Vertex *)malloc(
+    mesh->he_vertex = (Lv00Vertex *)lv00_malloc(
         mesh->halfedge_capacity * sizeof(Lv00Vertex));
     mesh->he_data = (Lv00HalfedgeData *)calloc(
         mesh->halfedge_capacity, sizeof(Lv00HalfedgeData));
 
-    mesh->edge_he = (Lv00Halfedge *)malloc(
+    mesh->edge_he = (Lv00Halfedge *)lv00_malloc(
         mesh->edge_capacity * sizeof(Lv00Halfedge));
 
-    mesh->face_he = (Lv00Halfedge *)malloc(
+    mesh->face_he = (Lv00Halfedge *)lv00_malloc(
         mesh->face_capacity * sizeof(Lv00Halfedge));
     mesh->face_data = (Lv00FaceData *)calloc(
         mesh->face_capacity, sizeof(Lv00FaceData));
@@ -132,18 +133,18 @@ void lv00_he_mesh_destroy(Lv00HeMesh *mesh)
 {
     if (!mesh) return;
 
-    free(mesh->vertex_data);
-    free(mesh->vertex_out_he);
-    free(mesh->he_twin);
-    free(mesh->he_next);
-    free(mesh->he_prev);
-    free(mesh->he_face);
-    free(mesh->he_vertex);
-    free(mesh->he_data);
-    free(mesh->edge_he);
-    free(mesh->face_he);
-    free(mesh->face_data);
-    free(mesh);
+    lv00_free((void **)&(mesh->vertex_data));
+    lv00_free((void **)&(mesh->vertex_out_he));
+    lv00_free((void **)&(mesh->he_twin));
+    lv00_free((void **)&(mesh->he_next));
+    lv00_free((void **)&(mesh->he_prev));
+    lv00_free((void **)&(mesh->he_face));
+    lv00_free((void **)&(mesh->he_vertex));
+    lv00_free((void **)&(mesh->he_data));
+    lv00_free((void **)&(mesh->edge_he));
+    lv00_free((void **)&(mesh->face_he));
+    lv00_free((void **)&(mesh->face_data));
+    lv00_free((void **)&(mesh));
 }
 
 void lv00_he_mesh_clear(Lv00HeMesh *mesh)
@@ -332,7 +333,7 @@ static Lv00Halfedge add_halfedge_pair(Lv00HeMesh *mesh, Lv00Vertex v1, Lv00Verte
     /* 创建新边 */
     if (mesh->edge_count >= mesh->edge_capacity) {
         int new_cap = mesh->edge_capacity * 2;
-        Lv00Halfedge *new_edge_he = (Lv00Halfedge *)realloc(
+        Lv00Halfedge *new_edge_he = (Lv00Halfedge *)lv00_realloc(
             mesh->edge_he, new_cap * sizeof(Lv00Halfedge));
         if (!new_edge_he) return LV00_HE_INVALID;
         mesh->edge_he = new_edge_he;
@@ -344,11 +345,11 @@ static Lv00Halfedge add_halfedge_pair(Lv00HeMesh *mesh, Lv00Vertex v1, Lv00Verte
     /* 创建两个半边 */
     if (mesh->halfedge_count + 1 >= mesh->halfedge_capacity) {
         int new_cap = mesh->halfedge_capacity * 2;
-        Lv00Halfedge *new_twin = (Lv00Halfedge *)realloc(mesh->he_twin, new_cap * sizeof(Lv00Halfedge));
-        Lv00Halfedge *new_next = (Lv00Halfedge *)realloc(mesh->he_next, new_cap * sizeof(Lv00Halfedge));
-        Lv00Halfedge *new_prev = (Lv00Halfedge *)realloc(mesh->he_prev, new_cap * sizeof(Lv00Halfedge));
-        Lv00Face *new_face = (Lv00Face *)realloc(mesh->he_face, new_cap * sizeof(Lv00Face));
-        Lv00Vertex *new_vertex = (Lv00Vertex *)realloc(mesh->he_vertex, new_cap * sizeof(Lv00Vertex));
+        Lv00Halfedge *new_twin = (Lv00Halfedge *)lv00_realloc(mesh->he_twin, new_cap * sizeof(Lv00Halfedge));
+        Lv00Halfedge *new_next = (Lv00Halfedge *)lv00_realloc(mesh->he_next, new_cap * sizeof(Lv00Halfedge));
+        Lv00Halfedge *new_prev = (Lv00Halfedge *)lv00_realloc(mesh->he_prev, new_cap * sizeof(Lv00Halfedge));
+        Lv00Face *new_face = (Lv00Face *)lv00_realloc(mesh->he_face, new_cap * sizeof(Lv00Face));
+        Lv00Vertex *new_vertex = (Lv00Vertex *)lv00_realloc(mesh->he_vertex, new_cap * sizeof(Lv00Vertex));
 
         if (!new_twin || !new_next || !new_prev || !new_face || !new_vertex) {
             mesh->edge_count--;
@@ -410,14 +411,14 @@ Lv00Face lv00_he_mesh_add_face_triangle(Lv00HeMesh *mesh, Lv00Vertex v1, Lv00Ver
     /* 创建面 */
     if (mesh->face_count >= mesh->face_capacity) {
         int new_cap = mesh->face_capacity * 2;
-        Lv00Halfedge *new_face_he = (Lv00Halfedge *)realloc(
+        Lv00Halfedge *new_face_he = (Lv00Halfedge *)lv00_realloc(
             mesh->face_he, new_cap * sizeof(Lv00Halfedge));
-        Lv00FaceData *new_face_data = (Lv00FaceData *)realloc(
+        Lv00FaceData *new_face_data = (Lv00FaceData *)lv00_realloc(
             mesh->face_data, new_cap * sizeof(Lv00FaceData));
 
         if (!new_face_he || !new_face_data) {
-            if (new_face_he) free(new_face_he);
-            if (new_face_data) free(new_face_data);
+            if (new_face_he) lv00_free((void **)&(new_face_he));
+            if (new_face_data) lv00_free((void **)&(new_face_data));
             return LV00_HE_INVALID;
         }
 

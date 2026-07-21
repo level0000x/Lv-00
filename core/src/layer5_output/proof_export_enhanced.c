@@ -31,7 +31,7 @@ typedef struct {
 } DStr;
 
 static int dstr_init(DStr *d, size_t cap) {
-    d->data = (char *)malloc(cap);
+    d->data = (char *)lv00_malloc(cap);
     if (!d->data) return -1;
     d->data[0] = '\0';
     d->len = 0;
@@ -81,7 +81,7 @@ static int dstr_append_str(DStr *d, const char *s) {
 
 static void dstr_free(DStr *d) {
     if (d->data) {
-        free(d->data);
+        lv00_free((void **)&(d->data));
         d->data = NULL;
     }
     d->len = 0;
@@ -93,12 +93,12 @@ static void dstr_free(DStr *d) {
  * ================================================================ */
 
 static Lv00ExportResult *make_error(const char *msg) {
-    Lv00ExportResult *r = (Lv00ExportResult *)malloc(sizeof(Lv00ExportResult));
+    Lv00ExportResult *r = (Lv00ExportResult *)lv00_malloc(sizeof(Lv00ExportResult));
     if (!r) return NULL;
     const char *src = msg ? msg : "Unknown error";
     size_t len = strlen(src);
     r->success     = false;
-    r->output      = (char *)malloc(len + 1);
+    r->output      = (char *)lv00_malloc(len + 1);
     if (r->output) {
         memcpy(r->output, src, len + 1);
         r->output_size = len;
@@ -109,7 +109,7 @@ static Lv00ExportResult *make_error(const char *msg) {
 }
 
 static Lv00ExportResult *make_success(DStr *d) {
-    Lv00ExportResult *r = (Lv00ExportResult *)malloc(sizeof(Lv00ExportResult));
+    Lv00ExportResult *r = (Lv00ExportResult *)lv00_malloc(sizeof(Lv00ExportResult));
     if (!r) {
         dstr_free(d);
         return NULL;
@@ -523,8 +523,8 @@ Lv00ExportResult *proof_export_from_navigator(const char *theorem_name,
 void proof_export_result_destroy(Lv00ExportResult *result) {
     if (!result) return;
     if (result->output) {
-        free(result->output);
+        lv00_free((void **)&(result->output));
         result->output = NULL;
     }
-    free(result);
+    lv00_free((void **)&(result));
 }

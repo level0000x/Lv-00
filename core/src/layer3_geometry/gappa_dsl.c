@@ -187,7 +187,7 @@ int gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                 double lo = 0.0, hi = 0.0;
                 if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
                     sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
-                    Lv00GappaPredicate *tmp = (Lv00GappaPredicate *)realloc(h_arr, (size_t)(h_count + 1) * sizeof(Lv00GappaPredicate));
+                    Lv00GappaPredicate *tmp = (Lv00GappaPredicate *)lv00_realloc(h_arr, (size_t)(h_count + 1) * sizeof(Lv00GappaPredicate));
                     if (tmp) {
                         h_arr = tmp;
                         memset(&h_arr[h_count], 0, sizeof(Lv00GappaPredicate));
@@ -227,7 +227,7 @@ int gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                     if (expr_len < sizeof(inner_expr)) {
                         memcpy(inner_expr, abs_start + 1, expr_len);
                     }
-                    Lv00GappaProofGoal *tmp = (Lv00GappaProofGoal *)realloc(g_arr, (size_t)(g_count + 1) * sizeof(Lv00GappaProofGoal));
+                    Lv00GappaProofGoal *tmp = (Lv00GappaProofGoal *)lv00_realloc(g_arr, (size_t)(g_count + 1) * sizeof(Lv00GappaProofGoal));
                     if (tmp) {
                         g_arr = tmp;
                         memset(&g_arr[g_count], 0, sizeof(Lv00GappaProofGoal));
@@ -243,7 +243,7 @@ int gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                     double lo = 0.0, hi = 0.0;
                     if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
                         sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
-                        Lv00GappaProofGoal *tmp = (Lv00GappaProofGoal *)realloc(g_arr, (size_t)(g_count + 1) * sizeof(Lv00GappaProofGoal));
+                        Lv00GappaProofGoal *tmp = (Lv00GappaProofGoal *)lv00_realloc(g_arr, (size_t)(g_count + 1) * sizeof(Lv00GappaProofGoal));
                         if (tmp) {
                             g_arr = tmp;
                             memset(&g_arr[g_count], 0, sizeof(Lv00GappaProofGoal));
@@ -276,7 +276,7 @@ int gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
  */
 void gappa_predicates_free(Lv00GappaPredicate *preds, int count) {
     (void)count;
-    free(preds);
+    lv00_free((void **)&(preds));
 }
 
 /**
@@ -287,7 +287,7 @@ void gappa_predicates_free(Lv00GappaPredicate *preds, int count) {
  */
 void gappa_goals_free(Lv00GappaProofGoal *goals, int count) {
     (void)count;
-    free(goals);
+    lv00_free((void **)&(goals));
 }
 
 /**
@@ -361,7 +361,7 @@ Lv00GappaProofResult gappa_prove(const Lv00GappaPredicate *hyp, int hyp_count,
  */
 void gappa_result_free(Lv00GappaProofResult *result) {
     if (result) {
-        free(result->goals);
+        lv00_free((void **)&(result->goals));
         result->goals = NULL;
         result->goals_total = 0;
     }

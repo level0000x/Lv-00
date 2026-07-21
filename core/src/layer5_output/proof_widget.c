@@ -422,11 +422,11 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
     /* 设置步骤备注 */
     if (tactic_args && tactic_args[0]) {
         int buf_size = (int)strlen(tactic_name) + (int)strlen(tactic_args) + 4;
-        char *note = (char *)malloc((size_t)buf_size);
+        char *note = (char *)lv00_malloc((size_t)buf_size);
         if (note) {
             snprintf(note, (size_t)buf_size, "%s %s", tactic_name, tactic_args);
             proof_step_set_note(step, note);
-            free(note);
+            lv00_free((void **)&(note));
         }
     } else {
         proof_step_set_note(step, tactic_name);

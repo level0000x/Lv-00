@@ -38,7 +38,9 @@ extern "C" {
 
 #include "constraint_graph.h"
 #include "graph_hash.h"
-#include "stream.h"
+
+/* 前向声明：仅用于指针类型，减少编译依赖 */
+typedef struct StreamContext StreamContext;
 
 /**
  * @brief 设置重写引擎的流式输出上下文

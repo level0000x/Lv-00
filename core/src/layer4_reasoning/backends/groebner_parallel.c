@@ -256,7 +256,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     int *mult_i_exp = NULL;
     if (var_count > 0) {
         mult_i_exp = (int *)calloc((size_t)var_count, sizeof(int));
-        if (!mult_i_exp) { free(lcm_exp); return result; }
+        if (!mult_i_exp) { lv00_free((void **)&(lcm_exp)); return result; }
         for (int v = 0; v < var_count; v++) {
             int ei = (v < gi->terms[0].var_count) ? gi->terms[0].exponents[v] : 0;
             mult_i_exp[v] = lcm_exp[v] - ei;
@@ -267,7 +267,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     int *mult_j_exp = NULL;
     if (var_count > 0) {
         mult_j_exp = (int *)calloc((size_t)var_count, sizeof(int));
-        if (!mult_j_exp) { free(lcm_exp); free(mult_i_exp); return result; }
+        if (!mult_j_exp) { lv00_free((void **)&(lcm_exp)); lv00_free((void **)&(mult_i_exp)); return result; }
         for (int v = 0; v < var_count; v++) {
             int ej = (v < gj->terms[0].var_count) ? gj->terms[0].exponents[v] : 0;
             mult_j_exp[v] = lcm_exp[v] - ej;

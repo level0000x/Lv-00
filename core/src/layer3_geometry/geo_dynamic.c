@@ -11,6 +11,7 @@
  */
 
 #include "lv00/geo_dynamic.h"
+#include "lv00/lv00_utils.h"
 
 
 #include <stdlib.h>
@@ -55,7 +56,7 @@ typedef struct {
  */
 static void init_id_map(Lv00DynGraph *graph)
 {
-    graph->id_to_index = (int *)malloc(graph->node_capacity * sizeof(int));
+    graph->id_to_index = (int *)lv00_malloc(graph->node_capacity * sizeof(int));
     if (!graph->id_to_index) return; /* OOM: caller should check graph->id_to_index */
     for (int i = 0; i < graph->node_capacity; i++) {
         graph->id_to_index[i] = LV00_DYN_INVALID;
@@ -69,7 +70,7 @@ static bool ensure_id_map_capacity(Lv00DynGraph *graph, int new_capacity)
 {
     if (new_capacity <= graph->node_capacity) return true;
 
-    int *new_map = (int *)realloc(graph->id_to_index, new_capacity * sizeof(int));
+    int *new_map = (int *)lv00_realloc(graph->id_to_index, new_capacity * sizeof(int));
     if (!new_map) return false;
 
     for (int i = graph->node_capacity; i < new_capacity; i++) {
@@ -112,10 +113,10 @@ static int get_node_index(const Lv00DynGraph *graph, int node_id)
  */
 static void init_adjacency(Lv00DynGraph *graph)
 {
-    graph->parent_adj = (int *)malloc(INITIAL_ADJ_CAPACITY * sizeof(int));
-    graph->parent_adj_offsets = (int *)malloc((graph->node_capacity + 1) * sizeof(int));
-    graph->child_adj = (int *)malloc(INITIAL_ADJ_CAPACITY * sizeof(int));
-    graph->child_adj_offsets = (int *)malloc((graph->node_capacity + 1) * sizeof(int));
+    graph->parent_adj = (int *)lv00_malloc(INITIAL_ADJ_CAPACITY * sizeof(int));
+    graph->parent_adj_offsets = (int *)lv00_malloc((graph->node_capacity + 1) * sizeof(int));
+    graph->child_adj = (int *)lv00_malloc(INITIAL_ADJ_CAPACITY * sizeof(int));
+    graph->child_adj_offsets = (int *)lv00_malloc((graph->node_capacity + 1) * sizeof(int));
 
     if (!graph->parent_adj || !graph->parent_adj_offsets || !graph->child_adj || !graph->child_adj_offsets) {
         /* OOM: caller should check these pointers */
@@ -140,12 +141,12 @@ static bool ensure_adj_capacity(Lv00DynGraph *graph, int needed)
     int new_cap = graph->adj_capacity * 2;
     while (new_cap < needed) new_cap *= 2;
 
-    int *new_parent = (int *)realloc(graph->parent_adj, new_cap * sizeof(int));
-    int *new_child = (int *)realloc(graph->child_adj, new_cap * sizeof(int));
+    int *new_parent = (int *)lv00_realloc(graph->parent_adj, new_cap * sizeof(int));
+    int *new_child = (int *)lv00_realloc(graph->child_adj, new_cap * sizeof(int));
 
     if (!new_parent || !new_child) {
-        if (new_parent) free(new_parent);
-        if (new_child) free(new_child);
+        if (new_parent) lv00_free((void **)&(new_parent));
+        if (new_child) lv00_free((void **)&(new_child));
         return false;
     }
 
@@ -264,13 +265,13 @@ void lv00_dyn_graph_destroy(Lv00DynGraph *graph)
 {
     if (!graph) return;
 
-    free(graph->nodes);
-    free(graph->id_to_index);
-    free(graph->parent_adj);
-    free(graph->parent_adj_offsets);
-    free(graph->child_adj);
-    free(graph->child_adj_offsets);
-    free(graph);
+    lv00_free((void **)&(graph->nodes));
+    lv00_free((void **)&(graph->id_to_index));
+    lv00_free((void **)&(graph->parent_adj));
+    lv00_free((void **)&(graph->parent_adj_offsets));
+    lv00_free((void **)&(graph->child_adj));
+    lv00_free((void **)&(graph->child_adj_offsets));
+    lv00_free((void **)&(graph));
 }
 
 /* ========================================================================
@@ -295,18 +296,18 @@ int lv00_dyn_graph_add_node(
     /* 扩容节点数组 */
     if (graph->node_count >= graph->node_capacity) {
         int new_cap = graph->node_capacity * 2;
-        Lv00DynNode *new_nodes = (Lv00DynNode *)realloc(
+        Lv00DynNode *new_nodes = (Lv00DynNode *)lv00_realloc(
             graph->nodes, new_cap * sizeof(Lv00DynNode));
         if (!new_nodes) return LV00_DYN_INVALID;
 
-        int *new_parent_offsets = (int *)realloc(
+        int *new_parent_offsets = (int *)lv00_realloc(
             graph->parent_adj_offsets, (new_cap + 1) * sizeof(int));
-        int *new_child_offsets = (int *)realloc(
+        int *new_child_offsets = (int *)lv00_realloc(
             graph->child_adj_offsets, (new_cap + 1) * sizeof(int));
 
         if (!new_parent_offsets || !new_child_offsets) {
-            if (new_parent_offsets) free(new_parent_offsets);
-            if (new_child_offsets) free(new_child_offsets);
+            if (new_parent_offsets) lv00_free((void **)&(new_parent_offsets));
+            if (new_child_offsets) lv00_free((void **)&(new_child_offsets));
             return LV00_DYN_INVALID;
         }
 
@@ -755,7 +756,7 @@ int lv00_dyn_graph_topological_sort(
         }
     }
 
-    free(in_degree);
+    lv00_free((void **)&(in_degree));
 
     /* 如果排序的节点数不等于总节点数，说明存在循环 */
     if (sorted_count != graph->node_count) {

@@ -35,13 +35,12 @@
 #include <stdbool.h>
 #include <time.h>
 
-/* 前向声明 */
-typedef struct ConstraintGraph ConstraintGraph;
-typedef struct StreamContext StreamContext;
-typedef struct TypeRegion TypeRegion;
-
 #include "exact_arithmetic.h" /* LV00_TOLERATED_FLOAT for proof timing/thresholds */
 #include "unify.h"
+
+/* 前向声明：仅用于指针类型，减少编译依赖 */
+typedef struct ConstraintGraph ConstraintGraph;
+typedef struct StreamContext StreamContext;
 
 #ifdef __cplusplus
 extern "C" {
@@ -288,9 +287,7 @@ void *proof_navigator_search(void *nav);
 
 const char *html_escape(const char *s);
 
-/* 前向声明 */
-typedef struct Lv00ThreadTask Lv00ThreadTask;
-typedef struct Lv00WaitGroup Lv00WaitGroup;
+#include "thread_pool.h"
 
 typedef Lv00ThreadTask Lv00Task;
 typedef Lv00WaitGroup Lv00TaskGroup;

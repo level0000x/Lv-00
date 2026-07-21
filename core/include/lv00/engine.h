@@ -28,14 +28,13 @@ extern "C" {
 
 #include "config.h"
 #include "axiom_pkg.h"
-#include "constraint_graph.h"
-#include "func_block.h"
 #include "module.h"
-#include "normalization.h"
-#include "rewrite.h"
-#include "solver.h"
 #include "stream.h"
 #include "unify.h"
+
+/* 前向声明：仅用于指针类型，减少编译依赖 */
+typedef struct ConstraintGraph ConstraintGraph;
+typedef struct RewriteRule RewriteRule;
 
 /* ============================================================
  * 五层架构层级标识（v3.3）

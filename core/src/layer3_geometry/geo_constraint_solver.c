@@ -22,6 +22,7 @@
 
 #include "lv00/geo_constraint_solver.h"
 #include "lv00/config.h"
+#include "lv00/lv00_utils.h"
 
 
 #include <math.h>
@@ -402,21 +403,21 @@ LV00_PUBLIC_API Lv00SolverConfig lv00_solver_default_config(void)
  */
 LV00_PUBLIC_API Lv00SolverSystem *lv00_solver_create(const Lv00SolverConfig *config)
 {
-    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)malloc(sizeof(Lv00SolverSystemEx));
+    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)lv00_malloc(sizeof(Lv00SolverSystemEx));
     if (!sys_ex) return NULL;
 
     Lv00SolverSystem *sys = &sys_ex->base;
 
-    sys->entities = (Lv00Entity *)malloc(INITIAL_CAPACITY * sizeof(Lv00Entity));
+    sys->entities = (Lv00Entity *)lv00_malloc(INITIAL_CAPACITY * sizeof(Lv00Entity));
     if (!sys->entities) {
-        free(sys_ex);
+        lv00_free((void **)&(sys_ex));
         return NULL;
     }
 
-    sys->constraints = (Lv00Constraint *)malloc(INITIAL_CAPACITY * sizeof(Lv00Constraint));
+    sys->constraints = (Lv00Constraint *)lv00_malloc(INITIAL_CAPACITY * sizeof(Lv00Constraint));
     if (!sys->constraints) {
-        free(sys->entities);
-        free(sys_ex);
+        lv00_free((void **)&(sys->entities));
+        lv00_free((void **)&(sys_ex));
         return NULL;
     }
 
@@ -451,10 +452,10 @@ LV00_PUBLIC_API Lv00SolverSystem *lv00_solver_create(const Lv00SolverConfig *con
 LV00_PUBLIC_API void lv00_solver_destroy(Lv00SolverSystem *sys)
 {
     if (!sys) return;
-    free(sys->entities);
-    free(sys->constraints);
+    lv00_free((void **)&(sys->entities));
+    lv00_free((void **)&(sys->constraints));
     /* sys 实际指向 Lv00SolverSystemEx.base，直接 free 即可释放整个 Ex 结构体 */
-    free(sys);
+    lv00_free((void **)&(sys));
 }
 
 /* ========================================================================
@@ -490,7 +491,7 @@ LV00_PUBLIC_API int lv00_solver_add_entity(Lv00SolverSystem *sys, const Lv00Enti
     /* 扩容 */
     if (sys->entity_count >= sys->entity_capacity) {
         int new_cap = sys->entity_capacity * 2;
-        Lv00Entity *tmp = (Lv00Entity *)realloc(sys->entities, new_cap * sizeof(Lv00Entity));
+        Lv00Entity *tmp = (Lv00Entity *)lv00_realloc(sys->entities, new_cap * sizeof(Lv00Entity));
         if (!tmp) return -1;
         sys->entities        = tmp;
         sys->entity_capacity = new_cap;
@@ -567,7 +568,7 @@ LV00_PUBLIC_API int lv00_solver_add_constraint(Lv00SolverSystem *sys, const Lv00
     /* 扩容 */
     if (sys->constraint_count >= sys->constraint_capacity) {
         int new_cap = sys->constraint_capacity * 2;
-        Lv00Constraint *tmp = (Lv00Constraint *)realloc(
+        Lv00Constraint *tmp = (Lv00Constraint *)lv00_realloc(
             sys->constraints, new_cap * sizeof(Lv00Constraint));
         if (!tmp) return -1;
         sys->constraints        = tmp;
@@ -1108,7 +1109,7 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
         sys->entities[ent_idx].params[param_offset] = orig + eps;
 
         row = 0;
-        double *F_plus = (double *)malloc(nrows * sizeof(double));
+        double *F_plus = (double *)lv00_malloc(nrows * sizeof(double));
         for (int ci = 0; ci < sys->constraint_count; ci++) {
             const Lv00Constraint *c = &sys->constraints[ci];
             if (!c->is_active) continue;
@@ -1134,7 +1135,7 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
         sys->entities[ent_idx].params[param_offset] = orig - eps;
 
         row = 0;
-        double *F_minus = (double *)malloc(nrows * sizeof(double));
+        double *F_minus = (double *)lv00_malloc(nrows * sizeof(double));
         for (int ci = 0; ci < sys->constraint_count; ci++) {
             const Lv00Constraint *c = &sys->constraints[ci];
             if (!c->is_active) continue;
@@ -1164,8 +1165,8 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
             J[i * ncols + j] = (F_plus[i] - F_minus[i]) / (2.0 * eps);
         }
 
-        free(F_plus);
-        free(F_minus);
+        lv00_free((void **)&(F_plus));
+        lv00_free((void **)&(F_minus));
     }
 }
 
@@ -1230,7 +1231,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
     double *J_copy = (double *)calloc(nrows * ncols, sizeof(double));
 
     if (!J || !F || !delta || !rhs || !J_copy) {
-        free(J); free(F); free(delta); free(rhs); free(J_copy);
+        lv00_free((void **)&(J)); lv00_free((void **)&(F)); lv00_free((void **)&(delta)); lv00_free((void **)&(rhs)); lv00_free((void **)&(J_copy));
         sys->last_result = LV00_SOLVE_FAILED;
         return LV00_SOLVE_FAILED;
     }
@@ -1279,7 +1280,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
             double *JtJ = (double *)calloc(ncols * ncols, sizeof(double));
             double *JtF = (double *)calloc(ncols, sizeof(double));
             if (!JtJ || !JtF) {
-                free(JtJ); free(JtF);
+                lv00_free((void **)&(JtJ)); lv00_free((void **)&(JtF));
                 result = LV00_SOLVE_FAILED;
                 break;
             }
@@ -1303,8 +1304,8 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
             memcpy(delta, JtF, ncols * sizeof(double));
 
             int ret = gauss_eliminate(J_copy, delta, ncols);
-            free(JtJ);
-            free(JtF);
+            lv00_free((void **)&(JtJ));
+            lv00_free((void **)&(JtF));
 
             if (ret != 0) {
                 result = LV00_SOLVE_INCONSISTENT;
@@ -1354,7 +1355,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
             double *JJt = (double *)calloc(nrows * nrows, sizeof(double));
             double *neg_F = (double *)calloc(nrows, sizeof(double));
             if (!JJt || !neg_F) {
-                free(JJt); free(neg_F);
+                lv00_free((void **)&(JJt)); lv00_free((void **)&(neg_F));
                 result = LV00_SOLVE_FAILED;
                 break;
             }
@@ -1372,7 +1373,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
 
             int ret = gauss_eliminate(JJt, neg_F, nrows);
             if (ret != 0) {
-                free(JJt); free(neg_F);
+                lv00_free((void **)&(JJt)); lv00_free((void **)&(neg_F));
                 result = LV00_SOLVE_FAILED;
                 break;
             }
@@ -1387,8 +1388,8 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
                 delta[i] = sum;
             }
 
-            free(JJt);
-            free(neg_F);
+            lv00_free((void **)&(JJt));
+            lv00_free((void **)&(neg_F));
 
             /* 更新参数 */
             int pidx = 0;
@@ -1405,12 +1406,12 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
     }
 
     /* 清理 */
-    free(J);
-    free(F);
-    free(delta);
-    free(rhs);
-    free(J_copy);
-    free(param_map);
+    lv00_free((void **)&(J));
+    lv00_free((void **)&(F));
+    lv00_free((void **)&(delta));
+    lv00_free((void **)&(rhs));
+    lv00_free((void **)&(J_copy));
+    lv00_free((void **)&(param_map));
 
     sys->last_result = result;
     return result;
@@ -1470,7 +1471,7 @@ LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem 
 
     /* 确定自由实体 */
     int free_cap = sys->entity_count;
-    analysis->free_entity_ids = (int *)malloc(free_cap * sizeof(int));
+    analysis->free_entity_ids = (int *)lv00_malloc(free_cap * sizeof(int));
     analysis->free_entity_count = 0;
 
     if (analysis->free_entity_ids) {
@@ -1501,8 +1502,8 @@ LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem 
 LV00_PUBLIC_API void lv00_dof_analysis_destroy(Lv00DOFAnalysis *analysis)
 {
     if (!analysis) return;
-    free(analysis->free_entity_ids);
-    free(analysis);
+    lv00_free((void **)&(analysis->free_entity_ids));
+    lv00_free((void **)&(analysis));
 }
 
 /* ========================================================================
