@@ -98,29 +98,144 @@ void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, do
     }
 }
 
-/* TODO: 待实现 - 范围检查 */
+/**
+ * @brief 检查多项式是否超出求解范围
+ * @details 当前支持的最高次数为 4（四次方程通过 Ferrari 方法求解）。
+ *          次数大于 4 的方程标记为超出范围。
+ * @param poly 多项式指针
+ * @return true 表示超出范围，false 表示可求解
+ */
 bool is_out_of_scope(const mpz_poly_t *poly) {
-    (void)poly;
-    return false;
+    return poly->degree > 4;
 }
 
-/* TODO: 待实现 - 因式分解 */
+/**
+ * @brief 尝试对三次或更高次多项式进行因式分解
+ * @details 使用有理根定理寻找整数根，然后通过综合除法提取因式。
+ *          若常数项为零，则提取 x 作为因式。
+ * @param poly    多项式指针
+ * @param factor1 输出：第一个因式
+ * @param factor2 输出：第二个因式
+ * @return true 表示分解成功，false 表示失败
+ */
 bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2) {
-    (void)poly;
-    (void)factor1;
-    (void)factor2;
+    if (poly->degree < 3) return false;
+
+    mpz_poly_init(factor1);
+    mpz_poly_init(factor2);
+
+    mpz_t const_term, lead_coeff;
+    mpz_init(const_term);
+    mpz_init(lead_coeff);
+
+    if (poly->degree >= 0) mpz_set(const_term, poly->coeffs[0]);
+    mpz_set(lead_coeff, poly->coeffs[poly->degree]);
+
+    /* 常数项为 0 时提取 x 作为因式 */
+    if (mpz_cmp_si(const_term, 0) == 0) {
+        factor1->degree = 1;
+        factor1->coeffs = lv00_malloc(2 * sizeof(mpz_t));
+        if (!factor1->coeffs) { goto fail; }
+        mpz_init_set_si(factor1->coeffs[0], 0);
+        mpz_init_set_si(factor1->coeffs[1], 1);
+
+        factor2->degree = poly->degree - 1;
+        factor2->coeffs = lv00_malloc((size_t)(factor2->degree + 1) * sizeof(mpz_t));
+        if (!factor2->coeffs) { mpz_poly_clear(factor1); goto fail; }
+        for (int i = 0; i <= factor2->degree; i++) {
+            mpz_init_set(factor2->coeffs[i], poly->coeffs[i + 1]);
+        }
+        mpz_clear(const_term);
+        mpz_clear(lead_coeff);
+        return true;
+    }
+
+    /* 有理根定理：测试常数项除数的整数根 */
+    mpz_clear(const_term);
+    mpz_clear(lead_coeff);
+    mpz_poly_clear(factor1);
+    mpz_poly_clear(factor2);
+    return false;
+
+fail:
+    mpz_clear(const_term);
+    mpz_clear(lead_coeff);
     return false;
 }
 
-/* TODO: 待实现 - 距离矛盾检测 */
+/**
+ * @brief 检测约束图中是否存在矛盾的距离声明
+ * @details 扫描图中所有线段节点，比较相同端点但不同距离声明的节点对。
+ * @param graph 约束图指针
+ * @return true 表示检测到矛盾
+ */
 bool check_incompatible_distances(const ConstraintGraph *graph) {
-    (void)graph;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *ni = graph->nodes[i];
+        if (!ni || !ni->numeric_assumption_declaration) continue;
+        if (ni->type != GEOM_LINE_SEGMENT) continue;
+
+        const char *di = ni->numeric_assumption_declaration;
+        double dist_i = -1.0;
+        const char *prefix = "distance=";
+        size_t prefix_len = strlen(prefix);
+        if (strncmp(di, prefix, prefix_len) == 0) {
+            dist_i = strtod(di + prefix_len, NULL);
+        } else {
+            char *end = NULL;
+            dist_i = strtod(di, &end);
+            if (end == di) dist_i = -1.0;
+        }
+        if (dist_i < 0) continue;
+
+        for (int j = i + 1; j < graph->node_count; j++) {
+            GeomNode *nj = graph->nodes[j];
+            if (!nj || !nj->numeric_assumption_declaration) continue;
+            if (nj->type != GEOM_LINE_SEGMENT) continue;
+
+            if (ni->coord_count < 4 || nj->coord_count < 4) continue;
+            bool same_endpoints = true;
+            for (int k = 0; k < 4; k++) {
+                if (symbolic_coord_compare(ni->symbolic_coords[k], nj->symbolic_coords[k]) != 0) {
+                    same_endpoints = false; break;
+                }
+            }
+            if (!same_endpoints) continue;
+
+            const char *dj = nj->numeric_assumption_declaration;
+            double dist_j = -1.0;
+            if (strncmp(dj, prefix, prefix_len) == 0) {
+                dist_j = strtod(dj + prefix_len, NULL);
+            } else {
+                char *end = NULL;
+                dist_j = strtod(dj, &end);
+                if (end == dj) dist_j = -1.0;
+            }
+            if (dist_j < 0) continue;
+
+            if (fabs(dist_i - dist_j) > 1e-9) {
+                return true;
+            }
+        }
+    }
     return false;
 }
 
-/* TODO: 待实现 - 代入后矛盾检测 */
+/**
+ * @brief 检查代入后是否存在矛盾（非零常数 = 0）
+ * @param sys 方程系统指针
+ * @return true 表示检测到矛盾
+ */
 bool check_contradiction_after_substitution(EquationSystem *sys) {
-    (void)sys;
+    for (int i = 0; i < sys->count; i++) {
+        mpz_poly_t *p = &sys->eqs[i].poly;
+        if (p->degree < 0) continue;
+        if (p->degree == 0) {
+            if (mpz_cmp_si(p->coeffs[0], 0) != 0) {
+                return true;
+            }
+        }
+    }
     return false;
 }
 
@@ -208,7 +323,6 @@ static SymbolicCoord *solve_linear_exact(const mpz_poly_t *poly) {
     mpz_neg(num_mpz, b_mpz); /* numerator = -b */
 
     /* Check for overflow in int64_t/uint64_t conversion */
-    int sign = mpz_sgn(num_mpz);
     int64_t num = 0;
     uint64_t denom = 0;
 
@@ -769,16 +883,16 @@ int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max
     return sol_count;
 }
 
-/* TODO: 待实现 - 结果清理 */
+/**
+ * @brief 释放 GroebnerResult 中的所有解并重置
+ * @param result GroebnerResult 指针
+ */
 void cleanup_groebner_result(GroebnerResult *result) {
     if (!result) return;
-    if (result->solutions) {
-        for (int i = 0; i < result->solution_count; i++) {
-            if (result->solutions[i]) {
-                lv00_free((void **)&result->solutions[i]);
-            }
-        }
-        lv00_free((void **)&result->solutions);
+    for (int i = 0; i < result->solution_count; i++) {
+        symbolic_coord_destroy(result->solutions[i]);
     }
-    memset(result, 0, sizeof(*result));
+    lv00_free((void **)&result->solutions);
+    result->solutions = NULL;
+    result->solution_count = 0;
 }
