@@ -33,6 +33,11 @@ typedef struct {
     Lv00ProofStep *steps;        /* 步骤数组 */
 } Lv00Lean4Proof;
 
+/* 映射表大小常量 */
+#define LEAN4_TACTIC_MAP_COUNT   9
+#define LEAN4_REVERSE_MAP_COUNT 35
+#define LEAN4_VALID_TACTICS_COUNT 31
+
 /* Lean 4 proof export: 遍历 Lv-00 证明树并生成 Lean 4 tactic 脚本 */
 static int lean4_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0) return -1;
@@ -54,7 +59,7 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
         { LV00_STEP_NORMALIZATION,   "simp" },
         { LV00_STEP_ORACLE,          "sorry" }
     };
-    int tactic_count = (int)(sizeof(tactic_map) / sizeof(tactic_map[0]));
+    int tactic_count = LEAN4_TACTIC_MAP_COUNT;
 
     /* 输出头 */
     const char *header =
@@ -115,7 +120,7 @@ static int lean4_add_step(Lv00Lean4Proof *p, int step_type,
     if (!p || step_type < 0) return -1;
     if (p->step_count >= p->step_capacity) {
         int new_cap = p->step_capacity * 2;
-        Lv00ProofStep *new_steps = (Lv00ProofStep *)realloc(
+        Lv00ProofStep *new_steps = (Lv00ProofStep *)lv00_realloc(
             p->steps, new_cap * sizeof(Lv00ProofStep));
         if (!new_steps) return -1;
         p->steps = new_steps;
@@ -180,7 +185,7 @@ static int lean4_lookup_tactic(const char *name, int name_len) {
         { "let",         LV00_STEP_HAVE },
         { "from",        LV00_STEP_FUNCTION_APP },
     };
-    int count = (int)(sizeof(reverse_map) / sizeof(reverse_map[0]));
+    int count = LEAN4_REVERSE_MAP_COUNT;
     for (int j = 0; j < count; j++) {
         if ((int)strlen(reverse_map[j].tactic) == name_len &&
             strncmp(name, reverse_map[j].tactic, name_len) == 0) {
@@ -489,7 +494,7 @@ static int lean4_validate(const char *input) {
         "fun", "let", "show", "from", "obtain", "suffices",
         "at", "left", "right", "split", "first", "skip", "done"
     };
-    int valid_count = (int)(sizeof(valid_tactics) / sizeof(valid_tactics[0]));
+    int valid_count = LEAN4_VALID_TACTICS_COUNT;
 
     /* 如果包含 ":= by"，检查 by 后是否有已知 tactic */
     const char *by_kw = strstr(input, ":= by");

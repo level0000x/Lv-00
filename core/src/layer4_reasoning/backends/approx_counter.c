@@ -89,8 +89,8 @@ static void cnf_add_clause(CNFBuilder *cnf, const int *literals, int count) {
 
     if (cnf->clause_count >= cnf->clause_capacity) {
         int new_cap = cnf->clause_capacity * 2;
-        int **new_clauses = (int **)realloc(cnf->clauses, (size_t)new_cap * sizeof(int *));
-        int *new_sizes = (int *)realloc(cnf->clause_sizes, (size_t)new_cap * sizeof(int));
+        int **new_clauses = (int **)lv00_realloc(cnf->clauses, (size_t)new_cap * sizeof(int *));
+        int *new_sizes = (int *)lv00_realloc(cnf->clause_sizes, (size_t)new_cap * sizeof(int));
         if (!new_clauses || !new_sizes) return;
         cnf->clauses = new_clauses;
         cnf->clause_sizes = new_sizes;

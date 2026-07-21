@@ -1239,6 +1239,8 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
                             case TRANSCENDENTAL:
                                 transcendental_destroy(overflow_coord->data.transcendental);
                                 break;
+                            default:
+                                break;
                         }
                         overflow_coord->type = new_coord->type;
                         overflow_coord->data = new_coord->data;

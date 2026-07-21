@@ -15,6 +15,7 @@
  */
 
 #include "smt_theory_combiner.h"
+#include "lv00/lv00_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,7 +73,7 @@ static bool ensure_capacity(Lv00TheoryCombiner *combiner) {
     if (new_capacity < DEFAULT_CAPACITY)
         new_capacity = DEFAULT_CAPACITY;
 
-    Lv00TheoryEntry *new_entries = (Lv00TheoryEntry *) realloc(
+    Lv00TheoryEntry *new_entries = (Lv00TheoryEntry *) lv00_realloc(
         combiner->entries, (size_t) new_capacity * sizeof(Lv00TheoryEntry));
     if (!new_entries)
         return false;

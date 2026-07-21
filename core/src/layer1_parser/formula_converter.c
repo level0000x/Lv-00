@@ -1750,6 +1750,7 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             if (node->data.number.is_integer) {
                 return (double)node->data.number.numerator;
             } else {
+                if (node->data.number.denominator == 0) return 0.0;
                 return (double)node->data.number.numerator /
                        (double)node->data.number.denominator;
             }
@@ -2378,6 +2379,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
         if (node->data.number.is_integer) {
             val = (double)node->data.number.numerator;
         } else {
+            if (node->data.number.denominator == 0) return false;
             val = (double)node->data.number.numerator / (double)node->data.number.denominator;
         }
         coeffs[0] = val;
@@ -2656,6 +2658,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
             if (operand->data.number.is_integer) {
                 val = (double)operand->data.number.numerator;
             } else {
+                if (operand->data.number.denominator == 0) return false;
                 val = (double)operand->data.number.numerator / (double)operand->data.number.denominator;
             }
             if (val >= 0.0) {

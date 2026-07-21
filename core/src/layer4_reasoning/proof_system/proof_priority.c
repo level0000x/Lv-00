@@ -104,7 +104,7 @@ static int pq_ensure_capacity(Lv00ProofPriority *pq)
     if (pq->count < pq->capacity) return 0;
 
     new_cap = pq->capacity > 0 ? pq->capacity * 2 : 64;
-    new_entries = (PQEntry *)realloc(pq->entries, (size_t)new_cap * sizeof(PQEntry));
+    new_entries = (PQEntry *)lv00_realloc(pq->entries, (size_t)new_cap * sizeof(PQEntry));
     if (!new_entries) return -1;
 
     pq->entries = new_entries;

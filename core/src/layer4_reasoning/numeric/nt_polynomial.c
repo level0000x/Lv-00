@@ -42,7 +42,7 @@ static int nt_poly_ensure_capacity(Lv00Poly *p, int deg) {
         new_cap *= 2;
     }
 
-    mpz_t *new_coeffs = (mpz_t *)realloc(p->coeffs, (size_t)new_cap * sizeof(mpz_t));
+    mpz_t *new_coeffs = (mpz_t *)lv00_realloc(p->coeffs, (size_t)new_cap * sizeof(mpz_t));
     if (!new_coeffs) return -1;
 
     p->coeffs = new_coeffs;

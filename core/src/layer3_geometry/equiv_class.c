@@ -88,7 +88,7 @@ static void uf_union(EquivClassManager *mgr, int x, int y) {
 static bool equiv_ensure_class_capacity(EquivClassManager *mgr) {
     if (mgr->class_count < mgr->class_capacity) return true;
     int new_cap = mgr->class_capacity < 8 ? 8 : mgr->class_capacity * 2;
-    EquivClass *new_classes = (EquivClass *)realloc(mgr->classes,
+    EquivClass *new_classes = (EquivClass *)lv00_realloc(mgr->classes,
                                                       (size_t)new_cap * sizeof(EquivClass));
     if (!new_classes) return false;
     mgr->classes = new_classes;
@@ -103,7 +103,7 @@ static bool equiv_ensure_node_mapping(EquivClassManager *mgr, int node_id) {
         if (new_cap > INT_MAX / 2) return false;
         new_cap *= 2;
     }
-    int *new_map = (int *)realloc(mgr->node_to_class, (size_t)new_cap * sizeof(int));
+    int *new_map = (int *)lv00_realloc(mgr->node_to_class, (size_t)new_cap * sizeof(int));
     if (!new_map) return false;
     for (int i = mgr->node_to_class_capacity; i < new_cap; i++) {
         new_map[i] = -1;
@@ -116,7 +116,7 @@ static bool equiv_ensure_node_mapping(EquivClassManager *mgr, int node_id) {
 static bool equiv_ensure_proof_log(EquivClassManager *mgr) {
     if (mgr->proof_log_count < mgr->proof_log_capacity) return true;
     int new_cap = mgr->proof_log_capacity < 16 ? 16 : mgr->proof_log_capacity * 2;
-    EquivProof *new_log = (EquivProof *)realloc(mgr->proof_log,
+    EquivProof *new_log = (EquivProof *)lv00_realloc(mgr->proof_log,
                                                    (size_t)new_cap * sizeof(EquivProof));
     if (!new_log) return false;
     mgr->proof_log = new_log;
@@ -128,7 +128,7 @@ static bool equiv_ensure_class_members(EquivClass *ec, int needed) {
     if (needed <= ec->capacity) return true;
     int new_cap = ec->capacity < 4 ? 4 : ec->capacity * 2;
     while (new_cap < needed) new_cap *= 2;
-    int *new_members = (int *)realloc(ec->member_ids, (size_t)new_cap * sizeof(int));
+    int *new_members = (int *)lv00_realloc(ec->member_ids, (size_t)new_cap * sizeof(int));
     if (!new_members) return false;
     ec->member_ids = new_members;
     ec->capacity = new_cap;
@@ -139,7 +139,7 @@ static bool equiv_ensure_class_proofs(EquivClass *ec, int needed) {
     if (needed <= ec->proof_capacity) return true;
     int new_cap = ec->proof_capacity < 4 ? 4 : ec->proof_capacity * 2;
     while (new_cap < needed) new_cap *= 2;
-    EquivProof *new_proofs = (EquivProof *)realloc(ec->proofs,
+    EquivProof *new_proofs = (EquivProof *)lv00_realloc(ec->proofs,
                                                       (size_t)new_cap * sizeof(EquivProof));
     if (!new_proofs) return false;
     ec->proofs = new_proofs;

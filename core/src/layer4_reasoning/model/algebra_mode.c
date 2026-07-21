@@ -45,7 +45,7 @@ static void history_push(AlgebraicGeom *geom, int step) {
     if (!geom) return;
     if (geom->history_count >= geom->history_capacity) {
         int new_cap = geom->history_capacity ? geom->history_capacity * 2 : HISTORY_INIT_CAPACITY;
-        int *h = (int *)realloc(geom->history, (size_t)new_cap * sizeof(int));
+        int *h = (int *)lv00_realloc(geom->history, (size_t)new_cap * sizeof(int));
         if (!h) return;
         geom->history = h;
         geom->history_capacity = new_cap;
@@ -512,7 +512,7 @@ AlgebraicGeom *algebra_undo(AlgebraicGeom *geom) {
     /* 弹出最后一步并推入 redo 栈 */
     if (geom->redo_count >= geom->redo_capacity) {
         int new_cap = geom->redo_capacity ? geom->redo_capacity * 2 : REDO_INIT_CAPACITY;
-        int *r = (int *)realloc(geom->redo_stack, (size_t)new_cap * sizeof(int));
+        int *r = (int *)lv00_realloc(geom->redo_stack, (size_t)new_cap * sizeof(int));
         if (!r) return NULL;
         geom->redo_stack = r;
         geom->redo_capacity = new_cap;
@@ -544,7 +544,7 @@ int algebra_snapshot(AlgebraicGeom *geom) {
     /* 扩容快照栈 */
     if (geom->snapshot_count >= geom->snapshot_capacity) {
         int new_cap = geom->snapshot_capacity ? geom->snapshot_capacity * 2 : SNAPSHOT_INIT_CAPACITY;
-        struct AlgebraicGeom **s = (struct AlgebraicGeom **)realloc(
+        struct AlgebraicGeom **s = (struct AlgebraicGeom **)lv00_realloc(
             geom->snapshots, (size_t)new_cap * sizeof(struct AlgebraicGeom *));
         if (!s) return -1;
         geom->snapshots = s;

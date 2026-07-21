@@ -9,6 +9,7 @@
  */
 
 #include "lv00/geo_visual.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -257,7 +258,7 @@ void lv00_visual_scene_add(Lv00VisualScene *scene, Lv00VisualObject *obj)
     if (scene == NULL || obj == NULL) return;
 
     size_t new_count = scene->object_count + 1;
-    Lv00VisualObject **new_arr = (Lv00VisualObject **)realloc(
+    Lv00VisualObject **new_arr = (Lv00VisualObject **)lv00_realloc(
         scene->objects, new_count * sizeof(Lv00VisualObject *));
     if (new_arr == NULL) return;
 

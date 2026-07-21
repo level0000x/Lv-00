@@ -205,7 +205,7 @@ bool lv00_modal_world_assert(Lv00ModalWorld *world, Proposition *prop)
     /* 扩容 */
     if (world->true_prop_count >= world->true_prop_capacity) {
         int new_cap = world->true_prop_capacity > 0 ? world->true_prop_capacity * 2 : 8;
-        Proposition **new_arr = (Proposition **)realloc(world->true_props,
+        Proposition **new_arr = (Proposition **)lv00_realloc(world->true_props,
                                                          (size_t)new_cap * sizeof(Proposition *));
         if (!new_arr) return false;
         world->true_props = new_arr;
@@ -265,7 +265,7 @@ bool lv00_modal_frame_add_world(Lv00ModalFrame *frame, Lv00ModalWorld *world)
 
     if (frame->world_count >= frame->world_capacity) {
         int new_cap = frame->world_capacity > 0 ? frame->world_capacity * 2 : MODAL_INITIAL_CAPACITY;
-        Lv00ModalWorld **new_arr = (Lv00ModalWorld **)realloc(frame->worlds,
+        Lv00ModalWorld **new_arr = (Lv00ModalWorld **)lv00_realloc(frame->worlds,
                                                                (size_t)new_cap * sizeof(Lv00ModalWorld *));
         if (!new_arr) return false;
         frame->worlds = new_arr;

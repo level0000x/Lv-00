@@ -314,7 +314,6 @@ static const char *get_trig_latex(const char *name) {
     }
     return name;
 }
-
 static bool is_greek_letter(const char *name) {
     if (!name)
         return false;
@@ -326,7 +325,6 @@ static bool is_greek_letter(const char *name) {
     }
     return false;
 }
-
 static bool needs_parentheses(const FormulaNode *node, NodeType parent_op, bool is_right) {
     if (!node)
         return false;
@@ -963,8 +961,12 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
                     written = snprintf(buffer, size, "Fraction(%lld, %llu)", (long long) node->data.number.numerator,
                                        (unsigned long long) node->data.number.denominator);
                 } else {
-                    double val = (double) node->data.number.numerator / (double) node->data.number.denominator;
-                    written = snprintf(buffer, size, "%.*f", options ? options->precision : 6, val);
+                    if (node->data.number.denominator == 0) {
+                        written = snprintf(buffer, size, "NaN");
+                    } else {
+                        double val = (double) node->data.number.numerator / (double) node->data.number.denominator;
+                        written = snprintf(buffer, size, "%.*f", options ? options->precision : 6, val);
+                    }
                 }
             }
             break;

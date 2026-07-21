@@ -190,17 +190,14 @@ static void alg_set_error_rational(AlgRationalError *err, AlgRationalError code)
 {
     if (err) *err = code;
 }
-
 static void alg_set_error_quadratic(AlgQuadraticError *err, AlgQuadraticError code)
 {
     if (err) *err = code;
 }
-
 static void alg_set_error_interval(AlgIntervalError *err, AlgIntervalError code)
 {
     if (err) *err = code;
 }
-
 static void alg_set_error_poly(AlgPolyError *err, AlgPolyError code)
 {
     if (err) *err = code;

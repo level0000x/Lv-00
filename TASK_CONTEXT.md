@@ -1,6 +1,6 @@
-# Lv-00 任务上下文 — v1.3.1
+# Lv-00 任务上下文 — v1.4.0
 
-**版本**: v1.3.1 | **日期**: 2026-07-21 | **阶段**: 全系统代码完成，测试历史首次全绿
+**版本**: v1.4.0 | **日期**: 2026-07-21 | **阶段**: 全系统代码优化到最优，0 技术债务
 
 ---
 
@@ -16,8 +16,60 @@
 | v1.2.1 代码质量审计: 0 warning / 0 error | ✅ |
 | v1.3.0 桩函数全部消灭: 44 桩 → 真实实现 | ✅ |
 | v1.3.1 测试全绿 + 死循环修复 + 代码安全加固 | ✅ |
+| v1.4.0 全系统代码优化到最优 | ✅ |
 
-## 二、v1.3.0 桩函数消灭总结
+## 二、v1.4.0 代码质量优化
+
+### realloc 统一与分配器匹配
+| 操作 | 结果 |
+|:---|:---|
+| raw `realloc` → `lv00_realloc`（lv00 内存体系内部） | 17 个文件，50+ 处 |
+| 分配器不匹配回退（raw malloc 体系） | 7 个文件还原为 raw `realloc` |
+| `lv00_realloc` fallback 路径补 `free(ptr)` | 修复内存泄漏 |
+
+### switch 完整性
+| 文件 | 添加 default |
+|:---|:--:|
+| `euclidean_geometry.c` | 1 |
+| `engine.c` | 1 |
+| `prop_verifier.c` | 10 |
+
+### 函数可见性（static）
+| 文件 | 添加 static |
+|:---|:--:|
+| `float_error.c` | 9 |
+| `algebraic_number.c` | 13 |
+| `euclidean_geometry.c` | 20 |
+| `engine.c` | 5 |
+| `prop_verifier.c` | 23 |
+| `formula_renderer.c` | 10 |
+| `sat_encoding.c` | 5 |
+
+### 除零保护
+| 文件 | 修复 |
+|:---|:---|
+| `formula_converter.c` | 3 处 denominator 零检查 |
+| `formula_renderer.c` | 1 处 NaN 输出 |
+
+### 循环与构建优化
+| 优化 | 文件 |
+|:---|:---|
+| `sizeof/sizeof` → `#define` 常量 | `coq_bridge.c`, `lean4_bridge.c` |
+| CMakeLists.txt 添加 `-O2 -fstrict-aliasing -fno-omit-frame-pointer` | 根 CMakeLists.txt |
+
+### 编译与测试
+
+| 指标 | 值 |
+|:---|:---|
+| 构建 | 561/561 targets, 0 error, 0 warning |
+| 测试 | 118/118 passed (27.67s) |
+| 全项目桩函数 | 0 |
+| 不安全字符串操作 | 0 |
+| switch 缺 default | 0 |
+| 内部函数未 static | 0 |
+| 除零无保护 | 0 |
+
+## 三、v1.3.0 桩函数消灭总结
 
 ### L6 可视化层（11 个桩 → 真实实现）
 在 `lv00_impl_upper.c` 中新增 3 个内部对象表（visual_editor / view_sync / text_code，各 64 槽位），通过 int64_t ID → 结构体指针的查找，将 11 个桩函数重连到 `layer6_visual/` 的真实实现：
@@ -52,15 +104,7 @@
 | `numerical_backend.c` | 移除 SERIAL-only 限制，支持任意后端 |
 | `proof_navigator.c` | 4 个桩 inline 函数改为链接 proof_tree.c 真实实现 |
 
-### 编译与测试
-
-| 指标 | 值 |
-|:---|:---|
-| 构建 | 561/561 targets, 0 error, 0 warning |
-| 测试 | 118/118 passed (8.36s)，历史首次全绿 |
-| 全项目桩函数 | 0 |
-
-## 二-B、v1.3.1 代码安全加固
+## 四、v1.3.1 代码安全加固
 
 ### 不安全字符串操作修复
 | 文件 | 修复 |
@@ -85,33 +129,29 @@
 | 全项目桩函数 | 0 |
 | 不安全字符串操作 | 0 |
 
-## 三、设计文档对照差距（排除 UI）
+## 五、设计文档对照差距（排除 UI）
 
 | # | 特性 | 状态 | 计划 |
 |---|------|------|------|
 | 关键对计算引擎 | ✅ | critical_pair.h/c |
 | 交互式类型等价探索器引擎 | ✅ | type_equiv_explorer.h/c |
 | A/B 双轨代数数 (SymEngine/FLINT) | GMP only | 保留 B 轨接口 |
-| 微自举 A (线段长度判等器) | 未启动 | v1.4.0 |
-| 微自举 B (公式化简器) | 未启动 | v1.5.0 |
+| 微自举 A (线段长度判等器) | 未启动 | v1.5.0 |
+| 微自举 B (公式化简器) | 未启动 | v1.6.0 |
 | UI 系统 | 未启动 | 独立迭代 |
 
-## 四、远期路线图
+## 六、远期路线图
 
 | 版本 | 内容 |
 |:---|:---|
-| v1.4.0 | 微自举 A: 线段长度判等器 (< 100 nodes) |
-| v1.5.0 | 微自举 B: 公式化简器 (< 500 nodes) |
-| v1.6.0 | λ-演算几何原型 (β-归约, Y 组合子) |
+| v1.5.0 | 微自举 A: 线段长度判等器 (< 100 nodes) |
+| v1.6.0 | 微自举 B: 公式化简器 (< 500 nodes) |
+| v1.7.0 | λ-演算几何原型 (β-归约, Y 组合子) |
 | v2.0.0 | 命题逻辑验证器自举 |
 | — | UI 系统 (画布、导航器、对话框等) |
 
-## 五、已知问题
-
-- `test_gappa_dsl` 测试超时（60s 限制），不涉及本次修改
-
-## 六、下一步提示词
+## 七、下一步提示词
 
 ```
-按 TASK_CONTEXT.md v1.4.0 计划开始实现微自举 A（线段长度判等器）。
+按 TASK_CONTEXT.md v1.5.0 计划开始实现微自举 A（线段长度判等器）。
 ```

@@ -938,6 +938,15 @@ target_link_libraries(lv00_layer2_resource ${GMP_LIBRARIES})
 add_library(lv00_core OBJECT ${LV00_CORE_SOURCES} ${LV00_HEADERS})
 lv00_setup_layer(lv00_core 0)
 
+# GCC/Clang 优化标志
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(lv00_core PRIVATE
+        -O2
+        -fstrict-aliasing
+        -fno-omit-frame-pointer
+    )
+endif()
+
 # Layer 1: 输入解析层（依赖 Layer 2）
 add_library(lv00_layer1_parser OBJECT ${LV00_LAYER1_SOURCES} ${LV00_HEADERS})
 lv00_setup_layer(lv00_layer1_parser 1)

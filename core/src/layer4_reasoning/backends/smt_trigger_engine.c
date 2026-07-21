@@ -22,6 +22,7 @@
  */
 
 #include "smt_trigger_engine.h"
+#include "lv00/lv00_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,7 +101,7 @@ static bool ensure_trigger_capacity(Lv00TriggerEngine *engine) {
     if (new_capacity < DEFAULT_TRIGGER_CAPACITY)
         new_capacity = DEFAULT_TRIGGER_CAPACITY;
 
-    Lv00Trigger *new_triggers = (Lv00Trigger *) realloc(
+    Lv00Trigger *new_triggers = (Lv00Trigger *) lv00_realloc(
         engine->triggers, (size_t) new_capacity * sizeof(Lv00Trigger));
     if (!new_triggers)
         return false;
@@ -124,7 +125,7 @@ static bool ensure_cache_capacity(Lv00TriggerEngine *engine) {
     if (new_capacity < DEFAULT_CACHE_CAPACITY)
         new_capacity = DEFAULT_CACHE_CAPACITY;
 
-    Lv00InstanceEntry *new_cache = (Lv00InstanceEntry *) realloc(
+    Lv00InstanceEntry *new_cache = (Lv00InstanceEntry *) lv00_realloc(
         engine->instance_cache, (size_t) new_capacity * sizeof(Lv00InstanceEntry));
     if (!new_cache)
         return false;

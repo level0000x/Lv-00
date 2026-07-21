@@ -114,7 +114,7 @@ static int work_queue_push(WorkQueue *q, int i, int j) {
         /* 溢出检查：确保 capacity * 2 不超过 INT_MAX */
         if (q->capacity > INT_MAX / 2) return -1;
         int new_cap = q->capacity * 2;
-        SPair *new_pairs = (SPair *)realloc(q->pairs, (size_t)new_cap * sizeof(SPair));
+        SPair *new_pairs = (SPair *)lv00_realloc(q->pairs, (size_t)new_cap * sizeof(SPair));
         if (!new_pairs) return -1;
         q->pairs = new_pairs;
         /* 环形缓冲区扩容：将数据从 head 到 tail 复制到开头 */
@@ -183,7 +183,7 @@ static void simple_poly_destroy(SimplePoly *p) {
 static int simple_poly_add_term(SimplePoly *p, double coeff, const int *exponents, int var_count) {
     if (p->term_count >= p->term_capacity) {
         int new_cap = (p->term_capacity == 0) ? 8 : p->term_capacity * 2;
-        PolyTerm *new_terms = (PolyTerm *)realloc(p->terms, (size_t)new_cap * sizeof(PolyTerm));
+        PolyTerm *new_terms = (PolyTerm *)lv00_realloc(p->terms, (size_t)new_cap * sizeof(PolyTerm));
         if (!new_terms) return -1;
         p->terms = new_terms;
         p->term_capacity = new_cap;
@@ -524,7 +524,7 @@ static void worker_process(WorkerArg *arg) {
             int new_idx = basis_size;
 
             /* 扩展基数组 */
-            SimplePoly *new_basis = (SimplePoly *)realloc(
+            SimplePoly *new_basis = (SimplePoly *)lv00_realloc(
                 basis, (size_t)(basis_size + 1) * sizeof(SimplePoly));
             if (new_basis) {
                 basis = new_basis;

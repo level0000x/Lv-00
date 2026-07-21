@@ -12,6 +12,7 @@
  */
 
 #include "lv00/proof_export_enhanced.h"
+#include "lv00/lv00_utils.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,7 +44,7 @@ static int dstr_grow(DStr *d, size_t extra) {
     if (needed <= d->cap) return 0;
     size_t new_cap = d->cap * 2;
     while (new_cap < needed) new_cap *= 2;
-    char *nd = (char *)realloc(d->data, new_cap);
+    char *nd = (char *)lv00_realloc(d->data, new_cap);
     if (!nd) return -1;
     d->data = nd;
     d->cap  = new_cap;

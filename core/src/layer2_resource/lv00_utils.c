@@ -382,6 +382,10 @@ void *lv00_realloc(void *ptr, size_t size) {
         }
         /* 注意：若平台不支持获取旧大小（old_usable_size == 0），
          * 则不复制旧数据。调用者应尽量使用 lv00_malloc/lv00_free 配对。 */
+
+        /* 释放旧指针（由 raw malloc/calloc 分配，用 raw free 释放） */
+        free(ptr);
+
         return new_ptr;
     }
 

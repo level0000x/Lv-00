@@ -373,7 +373,7 @@ int64_t graph_add_node(ConstraintGraph* g, const mpq_t value, int pinned) {
     if (!g) return -1;
     if (g->node_count >= g->node_cap) {
         size_t new_cap = g->node_cap * 2;
-        GraphNode* tmp = (GraphNode*)realloc(g->nodes, new_cap * sizeof(GraphNode));
+        GraphNode* tmp = (GraphNode*)lv00_realloc(g->nodes, new_cap * sizeof(GraphNode));
         if (!tmp) return -1;               /* realloc 失败, 原内存保留, 安全返回 */
         g->node_cap = (int)new_cap;
         g->nodes = tmp;
@@ -414,7 +414,7 @@ int64_t graph_add_edge(ConstraintGraph* g, int from_idx, int to_idx, const mpq_t
     if (from_idx >= g->node_count || to_idx >= g->node_count) return -1;
     if (g->edge_count >= g->edge_cap) {
         size_t new_cap = g->edge_cap * 2;
-        GraphEdge* tmp = (GraphEdge*)realloc(g->edges, new_cap * sizeof(GraphEdge));
+        GraphEdge* tmp = (GraphEdge*)lv00_realloc(g->edges, new_cap * sizeof(GraphEdge));
         if (!tmp) return -1;               /* realloc 失败, 原内存保留, 安全返回 */
         g->edge_cap = (int)new_cap;
         g->edges = tmp;

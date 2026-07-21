@@ -751,7 +751,7 @@ char *lv00_expr_canonical_to_string(const Lv00ExprCanonical *expr) {
         size_t piece_len = strlen(piece);
         while (buf_len + piece_len + 1 > buf_cap) {
             buf_cap *= 2;
-            char *new_buf = (char *) realloc(buf, buf_cap);
+            char *new_buf = (char *) lv00_realloc(buf, buf_cap);
             if (!new_buf) {
                 free(buf);
                 return NULL;

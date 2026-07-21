@@ -33,6 +33,11 @@ typedef struct {
     Lv00ProofStep *steps;        /* 步骤数组 */
 } Lv00CoqProof;
 
+/* 映射表大小常量 */
+#define COQ_TACTIC_MAP_COUNT  8
+#define COQ_REVERSE_MAP_COUNT 8
+#define COQ_VALID_TACTICS_COUNT 35
+
 /**
  * @brief Coq 证明导出
  */
@@ -55,7 +60,7 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
         { LV00_STEP_EX_FALSO,        "contradiction" },
         { LV00_STEP_ORACLE,          "admit (* oracle *)" }
     };
-    int tactic_count = (int)(sizeof(tactic_map) / sizeof(tactic_map[0]));
+    int tactic_count = COQ_TACTIC_MAP_COUNT;
 
     /* 输出头 */
     const char *header =
@@ -154,7 +159,7 @@ static int coq_import_proof(const char *input, void **proof) {
         { "contradiction", LV00_STEP_EX_FALSO },
         { "admit",         LV00_STEP_ORACLE }
     };
-    int reverse_count = (int)(sizeof(reverse_map) / sizeof(reverse_map[0]));
+    int reverse_count = COQ_REVERSE_MAP_COUNT;
 
     /* 分配证明结构体 */
     Lv00CoqProof *p = (Lv00CoqProof *)lv00_calloc(1, sizeof(Lv00CoqProof));
@@ -281,7 +286,7 @@ static int coq_validate(const char *input) {
         "inversion", "injection", "discriminate", "subst",
         "symmetry", "transitivity", "f_equal", "congruence"
     };
-    int valid_count = (int)(sizeof(valid_tactics) / sizeof(valid_tactics[0]));
+    int valid_count = COQ_VALID_TACTICS_COUNT;
 
     int found_tactic = 0;
     for (int i = 0; i < valid_count; i++) {

@@ -274,6 +274,8 @@ bool euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem syst
         break;
     case EUCLID_CUSTOM:
         break;
+    default:
+        break;
     }
 
     return true;
@@ -321,7 +323,7 @@ void euclidean_bind_graph(EuclideanContext *ctx, ConstraintGraph *graph)
  * @param enabled  true 启用，false 禁用
  * @return true 操作成功，false 参数无效
  */
-bool euclidean_toggle_axiom(EuclideanContext *ctx, int group, int axiom_id, bool enabled)
+static bool euclidean_toggle_axiom(EuclideanContext *ctx, int group, int axiom_id, bool enabled)
 {
     if (!ctx) {
         return false;
@@ -668,7 +670,7 @@ bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int
  * @param proof_out   输出：验证过程中产生的证明步骤数量（可为 NULL）
  * @return true 定理在当前公理体系下成立，false 不成立或无法判定
  */
-bool euclidean_verify_theorem(EuclideanContext *ctx, const void *proposition, int *proof_out)
+static bool euclidean_verify_theorem(EuclideanContext *ctx, const void *proposition, int *proof_out)
 {
     if (!ctx || !proposition) {
         if (proof_out) *proof_out = 0;
@@ -936,7 +938,7 @@ void euclidean_destroy_equivalence_chain(EquivalenceProofChain *chain)
  *         EQUIV_STATUS_FAILED 如果有方向失败，
  *         EQUIV_STATUS_INCOMPLETE 如果缺少必要的引理
  */
-EquivVerificationStatus euclidean_verify_equivalence(EuclideanContext *ctx,
+static EquivVerificationStatus euclidean_verify_equivalence(EuclideanContext *ctx,
                                                       EquivalenceProofChain *chain)
 {
     if (!ctx || !chain) return EQUIV_STATUS_FAILED;

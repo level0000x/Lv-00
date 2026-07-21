@@ -239,6 +239,8 @@ static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
             return prop_formula_create_bottom();
         case PROP_TRUE:
             return prop_formula_create_true();
+        default:
+            break;
     }
     return NULL;
 }
@@ -395,6 +397,8 @@ static bool formula_equal(const PropFormula *a, const PropFormula *b) {
         case PROP_BOTTOM:
         case PROP_TRUE:
             return true;
+        default:
+            break;
     }
     return false;
 }
@@ -418,6 +422,8 @@ static int formula_precedence(const PropFormula *f) {
         case PROP_IMPLICATION: return PROP_PREC_IMPLICATION;
         case PROP_BOTTOM:   return PROP_PREC_ATOM;
         case PROP_TRUE:     return PROP_PREC_ATOM;
+        default:
+            break;
     }
     return PROP_PREC_DEFAULT;
 }
@@ -461,6 +467,8 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
             break;
         case PROP_TRUE:
             strncat(buf, "T", size - strlen(buf) - 1);
+            break;
+        default:
             break;
     }
 
@@ -523,6 +531,8 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size,
         case PROP_TRUE:
             strncat(buf, "\\top", size - strlen(buf) - 1);
             break;
+        default:
+            break;
     }
 
     if (need_parens) {
@@ -583,7 +593,6 @@ typedef struct {
  * @return 当前时间的毫秒级数值
  */
 #include <time.h>
-
 static uint64_t get_time_ms(void) {
     return (uint64_t)time(NULL) * PROP_TIME_MS_PER_SEC;
 }
@@ -633,6 +642,8 @@ static uint64_t formula_hash(const PropFormula *f) {
             break;
         case PROP_BOTTOM:
         case PROP_TRUE:
+            break;
+        default:
             break;
     }
     return h;
@@ -1093,9 +1104,11 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
             prop_formula_destroy(bot);
             break;
         }
+        default:
+            break;
     }
 
-    /* ��ըԭ�������ǰ������ �ͣ��κ�Ŀ�궼��֤ */
+    /* 爆炸原理：如果前提包含��ըԭ�������ǰ������ �ͣ��κ�Ŀ�궼��֤ */
     if (!result && ctx->config->enable_ex_falso) {
         /* ���ǰ�����Ƿ���� �ͣ����ⳣ��"��"�� */
         for (int i = 0; i < premise_count; i++) {
@@ -1494,6 +1507,8 @@ static int collect_atoms(const PropFormula *f, char atoms[][PROP_ATOM_NAME_MAX_L
         case PROP_BOTTOM:
         case PROP_TRUE:
             return 0;
+        default:
+            break;
     }
     return 0;
 }
@@ -1749,6 +1764,8 @@ static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
                      "�� ? ��֤����ƽ�����죨��λ���ͣ���"
                      "��Ӧ�����еĵ�������");
             break;
+        default:
+            break;
     }
 }
 
@@ -1777,7 +1794,9 @@ static void get_geometric_mapping(const PropFormula *f, char *buf, size_t size) 
             snprintf(buf, size, "��ģʽ���޶˿ڣ�������䣩");
             break;
         case PROP_TRUE:
-            snprintf(buf, size, "�������򣨵�λ����֤�");
+            snprintf(buf, size, "平凡构造（单位类型证明）");
+            break;
+        default:
             break;
     }
 }

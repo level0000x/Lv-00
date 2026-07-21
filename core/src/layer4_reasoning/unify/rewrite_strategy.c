@@ -322,7 +322,7 @@ bool rewrite_engine_ex_add_rule(Lv00RewriteEngineEx *engine,
     /* Grow array if needed */
     if (engine->rule_count >= engine->rule_capacity) {
         size_t new_cap = engine->rule_capacity * 2;
-        Lv00RewriteRuleEx *new_rules = (Lv00RewriteRuleEx *)realloc(
+        Lv00RewriteRuleEx *new_rules = (Lv00RewriteRuleEx *)lv00_realloc(
             engine->rules, new_cap * sizeof(Lv00RewriteRuleEx));
         if (!new_rules) return false;
         engine->rules = new_rules;
