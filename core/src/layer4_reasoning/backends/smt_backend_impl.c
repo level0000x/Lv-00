@@ -1516,6 +1516,7 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
         }
         return singular_result;
     }
+    return SMT_RESULT_ERROR;
 }
 
 /**

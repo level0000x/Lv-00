@@ -104,11 +104,7 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
                     TranscendentalExpr *dst_expr = lv00_malloc(sizeof(TranscendentalExpr));
                     if (dst_expr) {
                         dst_expr->expr_type = src_expr->expr_type;
-                        if (src_expr->base_name) {
-                            lv00_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
-                        } else {
-                            dst_expr->base_name[0] = '\0';
-                        }
+                        lv00_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
                         dst_expr->rational_operand =
                             src_expr->rational_operand ? rational_copy(src_expr->rational_operand) : NULL;
                         dst_expr->out_of_scope = src_expr->out_of_scope;

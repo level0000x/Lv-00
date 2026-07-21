@@ -25,17 +25,6 @@ LV00_DECLARE_STREAM_CTX(interop);
 
 /* ── 服务器核心 ── */
 
-#if 0
-static int safe_parse_int(const char *str, int default_val) {
-    if (!str) return default_val;
-    char *endptr;
-    long val = strtol(str, &endptr, 10);
-    if (endptr == str || *endptr != '\0') return default_val;
-    if (val < INT_MIN || val > INT_MAX) return default_val;
-    return (int)val;
-}
-#endif
-
 /* ==================== 条件编译：套接字支持 ==================== */
 
 /**

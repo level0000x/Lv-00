@@ -309,27 +309,6 @@ static const char *json_find_key(const char *obj_start, const char *key) {
 /**
  * @brief 提取 JSON 数组中的所有字符串值
  */
-#if 0
-static int json_extract_string_array(const char *arr_start, char **out, int max_count, int max_len) {
-    if (!arr_start || *arr_start != '[') return 0;
-    arr_start++; /* 跳过 [ */
-    int count = 0;
-    const char *p = arr_start;
-    while (p && *p && *p != ']' && count < max_count) {
-        p = json_skip_ws(p);
-        if (*p == '"') {
-            out[count] = (char *)lv00_calloc(1, max_len);
-            if (!out[count]) break;
-            p = json_extract_string(p, out[count], max_len);
-            if (p) count++;
-        } else {
-            p++;
-        }
-    }
-    return count;
-}
-#endif /* 0 */
-
 /**
  * @brief 解析嵌套 JSON 对象并返回结束位置
  */

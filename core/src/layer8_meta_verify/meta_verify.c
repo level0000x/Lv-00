@@ -479,13 +479,6 @@ static const check_func_t g_check_funcs[LV00_CHECK_COUNT] = {
     check_roundtrip          /* LV00_CHECK_ROUNDTRIP */
 };
 
-#if 0
-static const char *g_check_names[LV00_CHECK_COUNT] = {
-    "Structural", "Type consistency", "Completeness",
-    "Soundness", "Nontriviality", "Roundtrip"
-};
-#endif
-
 /* ============================================================
  * 公共接口实现
  * ============================================================ */

@@ -46,14 +46,6 @@ static void buf_appendf(TextBuf *b, const char *fmt, ...) {
     buf_append(b, tmp);
 }
 
-#if 0
-static void buf_free(TextBuf *b) {
-    lv00_free((void **)&b->data);
-    b->data = NULL;
-    b->len = b->cap = 0;
-}
-#endif
-
 /* 内部辅助：生成缩进字符串 */
 static void append_indent(TextBuf *buf, int level) {
     for (int i = 0; i < level; i++) {

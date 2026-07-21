@@ -34,10 +34,12 @@ int g_fail_count = 0;
  * ============================================================ */
 
 /** 安全释放 lv00_expr_canonical_to_string 返回的字符串 */
+#ifndef SAFE_FREE_STR
 #define SAFE_FREE_STR(s)  \
     do {                  \
         if (s) free((s)); \
     } while (0)
+#endif
 
 /* ============================================================
  * 测试用例

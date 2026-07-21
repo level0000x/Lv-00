@@ -53,21 +53,6 @@ static void capture_callback(const StreamEvent *event, void *user_data) {
  *  @param event     流式事件指针
  *  @param user_data 用户数据指针（未使用）
  */
-#if 0
-static void jsonrpc_callback(const StreamEvent *event, void *user_data) {
-    (void) user_data;
-    if (!event)
-        return;
-
-    char buf[STREAM_JSON_BUFFER_DEFAULT_SIZE + 256];
-    int len = stream_event_to_jsonrpc(event, buf, sizeof(buf));
-    if (len > 0) {
-        printf("%s\n", buf);
-        fflush(stdout);
-    }
-}
-#endif /* 0 */
-
 /** @brief 错误专用回调：仅捕获 ERROR 和 WARNING 事件并输出到 stderr
  *  @param event     流式事件指针
  *  @param user_data 用户数据指针（未使用）

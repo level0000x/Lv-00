@@ -347,7 +347,7 @@ static int test_determinism_static_quadratic(void) {
     assert(pack_result == PACK_RESULT_OK);
 
     /* 闈欐€佺‘瀹氭€ф鏌?*/
-    DeterminismCheckResult det_result = func_block_determinism_check_static(fb, g);
+    DeterminismCheckResult det_result = (DeterminismCheckResult)func_block_determinism_check_static(fb, g);
 
     /* 浜屾绾︽潫鍙兘瀵艰嚧澶氱缁撴灉锛堝敮涓€瑙ｃ€佸瑙ｃ€佹棤瑙ｃ€佽秴鏃舵垨瓒呭嚭鑼冨洿锛?*/
     (void) det_result; /* 鎺ュ彈浠讳綍缁撴灉 */

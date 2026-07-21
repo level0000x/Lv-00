@@ -136,52 +136,6 @@ static void svg_escape_string(const char *src, char *dst, size_t dst_size) {
  * @param dst      输出缓冲区，用于存储转义后的字符串
  * @param dst_size 输出缓冲区大小（字节）
  */
-#if 0
-static void tikz_escape_string(const char *src, char *dst, size_t dst_size) {
-    size_t j = 0;
-    for (size_t i = 0; src[i] && j < dst_size - 16; i++) {
-        switch (src[i]) {
-            case '\\':
-                memcpy(dst + j, "\\textbackslash{}", 16);
-                j += 16;
-                break;
-            case '{':
-                memcpy(dst + j, "\\{", 2);
-                j += 2;
-                break;
-            case '}':
-                memcpy(dst + j, "\\}", 2);
-                j += 2;
-                break;
-            case '$':
-                memcpy(dst + j, "\\$", 2);
-                j += 2;
-                break;
-            case '#':
-                memcpy(dst + j, "\\#", 2);
-                j += 2;
-                break;
-            case '%':
-                memcpy(dst + j, "\\%", 2);
-                j += 2;
-                break;
-            case '_':
-                memcpy(dst + j, "\\_", 2);
-                j += 2;
-                break;
-            case '&':
-                memcpy(dst + j, "\\&", 2);
-                j += 2;
-                break;
-            default:
-                dst[j++] = src[i];
-                break;
-        }
-    }
-    dst[j] = '\0';
-}
-#endif /* 0 */
-
 /* ==================== 导出功能 ==================== */
 
 int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *config) {
@@ -2887,10 +2841,3 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 #define GGB_COMPRESSION_STORE 0             /**< 无压缩（STORE） */
 #define GGB_COMPRESSION_DEFLATE 8           /**< Deflate 压缩 */
 
-#if 0
-/** @brief 从字节缓冲区读取小端序 uint32 */
-static uint32_t ggb_read_u32_le(const uint8_t *buf, size_t offset) {
-    return (uint32_t)buf[offset] | ((uint32_t)buf[offset + 1] << 8) |
-           ((uint32_t)buf[offset + 2] << 16) | ((uint32_t)buf[offset + 3] << 24);
-}
-#endif

@@ -76,6 +76,7 @@ void equation_system_init(EquationSystem *sys) {
  * 当 push 失败（OOM）时，设置错误状态并跳转到指定的清理标签。
  * 用于避免在37个调用点重复相同的错误检查代码。
  */
+#ifndef EQUATION_PUSH_OR_GOTO
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
     do { \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \

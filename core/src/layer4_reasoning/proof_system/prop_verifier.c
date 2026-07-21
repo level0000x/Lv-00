@@ -600,16 +600,6 @@ static uint64_t get_time_ms(void) {
  * @param p 待哈希的指针
  * @return 64 位哈希值
  */
-#if 0
-static uint64_t hash_ptr(const void *p) {
-    uint64_t x = (uint64_t)(uintptr_t)p;
-    x = ((x >> PROP_HASH_BIT_SHIFT) ^ x) * PROP_HASH_PTR_MULTIPLIER;
-    x = ((x >> PROP_HASH_BIT_SHIFT) ^ x) * PROP_HASH_PTR_MULTIPLIER;
-    x = (x >> PROP_HASH_BIT_SHIFT) ^ x;
-    return x;
-}
-#endif
-
 /**
  * @brief 计算公式结构的哈希值（递归）
  *
