@@ -82,7 +82,7 @@ static void test_export_html(void) {
     /* Check for expected HTML elements */
     TEST_ASSERT(strstr(result->output, "<!DOCTYPE html>") != NULL,
                 "HTML should contain DOCTYPE");
-    TEST_ASSERT(strstr(result->output, "<html>") != NULL,
+    TEST_ASSERT(strstr(result->output, "<html") != NULL,
                 "HTML should contain html tag");
     TEST_ASSERT(strstr(result->output, "Modus Ponens") != NULL,
                 "HTML should contain theorem name");
