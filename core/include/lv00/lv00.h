@@ -167,10 +167,12 @@ extern "C" {
 #endif /* LV00_STRDUP_AS_FUNCTION */
 
 /* localtime 线程安全包装 */
+#ifndef LV00_LOCALTIME
 #if defined(_WIN32)
 #define LV00_LOCALTIME(time_ptr, tm_buf) localtime_s(tm_buf, time_ptr)
 #else
 #define LV00_LOCALTIME(time_ptr, tm_buf) localtime_r(time_ptr, tm_buf)
+#endif
 #endif
 
 /* 函数废弃标记（跨编译器统一） */
@@ -193,7 +195,9 @@ extern "C" {
 #define LV00_PATH_SEPARATOR_STR "/"
 #endif
 /* 向后兼容：旧宏名 LV00_PATH_SEPARATOR 保留 */
+#ifndef LV00_PATH_SEPARATOR
 #define LV00_PATH_SEPARATOR LV00_PATH_SEPARATOR_CHAR
+#endif
 
 /* ---- 版本信息（统一版本号 v3.3.0，所有模块引用此宏） ---- */
 #define LV00_VERSION_MAJOR 1
@@ -217,6 +221,7 @@ extern "C" {
 #include "graph_hash.h"       /* 图结构哈希 */
 #include "normalization.h"    /* 图规范化遍引擎 */
 #include "rewrite.h"          /* 图重写引擎 */
+#include "critical_pair.h"   /* 关键对计算引擎 */
 #include "solver.h"           /* 符号代数求解器 */
 #include "symbolic_coord.h"   /* 符号坐标系统 */
 #include "unify.h"            /* 合一检查 */
@@ -243,6 +248,7 @@ extern "C" {
 #include "proof_engine_enhanced.h"  /* 增强证明引擎 */
 #include "recursion.h"              /* 递归与条件 */
 #include "type_system.h"            /* 类型系统 */
+#include "type_equiv_explorer.h"    /* 类型等价探索器 */
 #include "quantifier.h"             /* 量词系统 */
 
 /* 引擎 */

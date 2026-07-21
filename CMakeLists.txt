@@ -548,19 +548,15 @@ set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/math_theory_guide_cn.c
     core/src/layer2_resource/error_messages_cn.c
     core/src/layer2_resource/result_messages_cn.c
-    # v3.5.0 stub→real: 12 new resource modules
-    core/src/layer2_resource/ecosystem.c
+    # v3.5.0 stub→real: 8 new resource modules
     core/src/layer2_resource/fast_index.c
     core/src/layer2_resource/gc_language.c
     core/src/layer2_resource/geo_spec.c
-    core/src/layer2_resource/logic_check.c
     core/src/layer2_resource/math_input.c
     core/src/layer2_resource/math_protocol.c
     core/src/layer2_resource/proof_priority.c
     core/src/layer2_resource/proof_score.c
-    core/src/layer2_resource/sparse_linear_algebra.c
     core/src/layer2_resource/status_codes.c
-    core/src/layer2_resource/tikz_export.c
     # v1.1.0 补全遗漏：运行时守卫、基准测试、性能分析、表示转换、自适应阈值、元表示
     core/src/layer2_resource/runtime_guard.c
     core/src/layer2_resource/benchmark.c
@@ -865,7 +861,6 @@ set(LV00_LAYER4_SOURCES
 # 依赖：Layer 4，Layer 3，Layer 2
 set(LV00_LAYER5_SOURCES
     core/src/layer5_output/proof_widget.c
-    core/src/layer5_output/tikz_export.c
     core/src/layer5_output/proof_export_enhanced.c
     core/src/layer5_output/interop/interop.c
     # Magic 模拟器模块
@@ -1163,8 +1158,12 @@ if(BUILD_TESTS)
         test/c/test_solver_enhanced.c solver_enhanced_test)
     add_lv00_test_and_register(test_rewrite
         test/c/test_rewrite.c rewrite_test)
+    add_lv00_test_and_register(test_critical_pair
+        test/c/test_critical_pair.c critical_pair_test)
     add_lv00_test_and_register(test_type_system
         test/c/test_type_system.c type_system_test)
+    add_lv00_test_and_register(test_type_equiv_explorer
+        test/c/test_type_equiv_explorer.c type_equiv_explorer_test)
     add_lv00_test_and_register(test_proof
         test/c/test_proof.c proof_test)
     add_lv00_test_and_register(test_axiom_pkg

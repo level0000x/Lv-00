@@ -1,18 +1,21 @@
-/* ========================================================================
+/* ============================================================================
  * 交互式类型等价探索器引擎实现
  *
  * 核心算法：BFS 双向搜索
- *   1. 将左右两侧原始类型入队
- *   2. 每步出队一个节点，检查左右两侧是否通过 type_check_equivalence 等价
- *   3. 若等价 → 回溯路径，返回成功
- *   4. 若不等价 → 对所有匹配左/右类型种类的规则各生成一个后继节点入队
- *   5. 重复直到找到等价或达到步数/节点上限
+ *   1. 将左右两侧原始类型深拷贝后入队作为搜索根节点
+ *   2. 每步出队一个节点，调用 type_check_equivalence 检查左右是否等价
+ *   3. 等价 → 沿父链回溯构造 TypeRewritePath 证明路径，返回成功
+ *   4. 不等价 → 枚举 TypeSystem 中所有匹配左侧或右侧类型种类的规则，
+ *      各生成一个后继节点（替换对应侧为规则应用结果）并入队
+ *   5. 重复直到找到等价证明或耗尽步数预算 / 节点上限
  *
- * 规则匹配：仅基于类型种类（TypeKind）——若规则的 pattern.kind 等于
- * 当前类型区域的 kind，则认为该规则可应用。应用规则时通过
- * type_normalize 变换类型结构。
+ * 规则匹配：仅基于 TypeKind —— 若规则的 pattern.kind 等于当前类型区域
+ * 的 kind 或为 TYPE_KIND_VARIABLE（通配），则认为该规则可应用。
+ * 应用时通过 type_normalize 变换类型结构。
  *
- * ======================================================================== */
+ * 设计文档参考：§3.6 用户交互式路径探索 · 类型等价双向搜索
+ *
+ * ============================================================================ */
 
 #include "lv00/type_equiv_explorer.h"
 #include "lv00/rewrite.h"
@@ -20,42 +23,49 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ---- 内部常量 --------------------------------------------------------- */
+/* ---- 外部函数声明（type_system.c 内部函数） ---- */
+extern TypeRegion *type_region_deep_copy(const TypeRegion *src);
+extern void        type_region_deep_free(TypeRegion *tr);
+extern bool        type_normalize(TypeSystem *ts, TypeRegion *type,
+                                  TypeRegion **out_normalized);
 
-#define INITIAL_QUEUE_CAPACITY 64
-#define DEFAULT_MAX_DEPTH      20
-#define DEFAULT_MAX_NODES      10000
+/* ---- 内部常量 ------------------------------------------------------------- */
 
-/* ---- 内部辅助 --------------------------------------------------------- */
+/** @brief BFS 搜索队列初始容量 */
+#define INITIAL_QUEUE_CAPACITY  64
+/** @brief 默认最大搜索深度 */
+#define DEFAULT_MAX_DEPTH       20
+/** @brief 默认最大探索节点数 */
+#define DEFAULT_MAX_NODES       10000
 
-/**
- * @brief 深拷贝一个 TypeRegion
- *
- * 封装 type_region_deep_copy（若存在）或回退到简单字段拷贝。
- */
-static TypeRegion *type_copy(const TypeRegion *src)
-{
-    if (!src) return NULL;
-    /* 使用 type_system.c 中定义的内部深拷贝 */
-    extern TypeRegion *type_region_deep_copy(const TypeRegion *src);
+/* ---- 类型局部别名 --------------------------------------------------------- */
+
+/** 为外部深拷贝取的本地别名，避免每次写 extern 声明 */
+static inline TypeRegion *type_copy(const TypeRegion *src) {
     return type_region_deep_copy(src);
 }
 
-/**
- * @brief 释放深拷贝的 TypeRegion
- */
-static void type_free(TypeRegion *tr)
-{
-    if (!tr) return;
-    extern void type_region_deep_free(TypeRegion *tr);
+/** 为外部深释放取的本地别名 */
+static inline void type_free_op(TypeRegion *tr) {
     type_region_deep_free(tr);
 }
 
+#define type_free type_free_op
+
+/* ============================================================================
+ * 内部辅助函数
+ * ============================================================================ */
+
 /**
- * @brief 检查某条重写规则是否匹配给定类型
+ * @brief 检查某条重写规则是否匹配给定类型区域
  *
- * 匹配条件：规则的 pattern.kind 等于类型的 kind，
- *          或规则模式为类型变量（匹配一切）。
+ * 匹配条件：
+ *   1. 规则模式的 kind 为 TYPE_KIND_VARIABLE → 通配，匹配一切
+ *   2. 规则模式的 kind 等于类型的 kind → 精确匹配
+ *
+ * @param rule  待检查的重写规则
+ * @param type  待匹配的类型区域
+ * @return true 规则可应用于该类型
  */
 static bool rule_matches_type(const RewriteRule *rule, const TypeRegion *type)
 {
@@ -65,12 +75,13 @@ static bool rule_matches_type(const RewriteRule *rule, const TypeRegion *type)
 }
 
 /**
- * @brief 应用指定的重写规则到类型区域
+ * @brief 对类型区域应用一条匹配的规则
  *
- * 策略：尝试 type_normalize 变换类型结构。
- * 成功时 inout_type 被原地修改。
+ * 调用 type_normalize 尝试变换类型结构。
+ * 若 type_normalize 返回了不同于 inout_type 的新对象，
+ * 则将新对象内容移入 inout_type 后释放新对象。
  *
- * @param ts         类型系统
+ * @param ts         类型系统上下文
  * @param inout_type 要变换的类型区域（原地修改）
  * @return true 变换成功
  */
@@ -78,78 +89,146 @@ static bool apply_rule_to_type(TypeSystem *ts, TypeRegion *inout_type)
 {
     if (!ts || !inout_type) return false;
 
-    /* 使用 type_normalize 尝试规范化类型 */
-    extern bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized);
     TypeRegion *normalized = NULL;
-    if (type_normalize(ts, inout_type, &normalized)) {
-        if (normalized && normalized != inout_type) {
-            /* 用规范化结果替换 */
-            type_free(inout_type);
-            /* 将 normalized 的内容移到 inout_type 的位置 */
-            memcpy(inout_type, normalized, sizeof(TypeRegion));
-            free(normalized);
-        }
-        return true;
+    if (!type_normalize(ts, inout_type, &normalized)) return false;
+
+    if (normalized && normalized != inout_type) {
+        /*
+         * type_normalize 分配了新对象 → 用深拷贝方式把新内容迁移到原地，
+         * 避免 memcpy 浅拷贝破坏指针成员。
+         */
+        type_free(inout_type);
+        *inout_type = *normalized;        /* 浅拷贝结构体字段（kind、constraint_graph 指针等） */
+        lv00_free(normalized);            /* 只释放壳，不释放其内部资源（已转移） */
     }
-    return false;
+    return true;
 }
 
 /**
- * @brief 重建从根到解节点的路径
+ * @brief 扩展 BFS 搜索队列容量（翻倍）
+ *
+ * @return true 扩展成功；false 内存不足，队列不变
+ */
+static bool expand_queue(TypeEquivExplorer *explorer)
+{
+    int new_cap = explorer->queue_capacity * 2;
+    TypeEquivNode **new_q = lv00_realloc(explorer->queue,
+        (size_t)new_cap * sizeof(TypeEquivNode *));
+    if (!new_q) return false;
+    explorer->queue = new_q;
+    explorer->queue_capacity = new_cap;
+    return true;
+}
+
+/**
+ * @brief 创建一个搜索子节点（深拷贝父节点的左右类型）
+ *
+ * @param parent        父搜索节点
+ * @param parent_idx    父节点在队列中的索引
+ * @param rule          应用的规则
+ * @param rule_idx      规则在 TypeSystem 中的索引
+ * @param apply_to_left 规则应用到左侧（true）还是右侧（false）
+ * @return 新分配的搜索节点，调用者负责入队并在销毁时释放
+ */
+static TypeEquivNode *create_child_node(const TypeEquivNode *parent,
+                                         int parent_idx,
+                                         const RewriteRule *rule,
+                                         int rule_idx,
+                                         bool apply_to_left)
+{
+    TypeEquivNode *child = lv00_calloc(1, sizeof(TypeEquivNode));
+    if (!child) return NULL;
+
+    child->left  = type_copy(parent->left);
+    child->right = type_copy(parent->right);
+    if (!child->left || !child->right) {
+        type_free(child->left);
+        type_free(child->right);
+        lv00_free(child);
+        return NULL;
+    }
+
+    child->depth            = parent->depth + 1;
+    child->parent_index     = parent_idx;
+    child->applied_rule_index = rule_idx;
+    child->applied_to_left  = apply_to_left;
+    snprintf(child->applied_rule_name, sizeof(child->applied_rule_name),
+             "%s", rule->name);
+
+    /* 规则应用由调用者在正确的 ts 上下文中执行 */
+    return child;
+}
+
+/**
+ * @brief 释放一个搜索节点及其持有的类型资源
+ */
+static void free_search_node(TypeEquivNode *node)
+{
+    if (!node) return;
+    type_free(node->left);
+    type_free(node->right);
+    lv00_free(node);
+}
+
+/**
+ * @brief 沿父链回溯，从解节点构造 TypeRewritePath 证明路径
  *
  * @param explorer  探索器
  * @param node_idx  解节点在队列中的索引
  */
 static void reconstruct_path(TypeEquivExplorer *explorer, int node_idx)
 {
-    /* 从解节点回溯到根，收集步骤 */
     int max_steps = explorer->queue[node_idx]->depth + 1;
-    int *reverse_path = lv00_malloc((size_t)max_steps * sizeof(int));
-    int *reverse_side = lv00_malloc((size_t)max_steps * sizeof(int));
+
+    /* 分配回溯数组 */
+    int   *reverse_path  = lv00_malloc((size_t)max_steps * sizeof(int));
+    int   *reverse_side  = lv00_malloc((size_t)max_steps * sizeof(int));
     char **reverse_names = lv00_malloc((size_t)max_steps * sizeof(char *));
     if (!reverse_path || !reverse_side || !reverse_names) {
-        free(reverse_path);
-        free(reverse_side);
-        free(reverse_names);
+        lv00_free(reverse_path);
+        lv00_free(reverse_side);
+        lv00_free(reverse_names);
         return;
     }
 
+    /* 从解节点回溯到根，收集每一步的规则信息 */
     int step = 0;
-    int cur = node_idx;
+    int cur  = node_idx;
     while (cur >= 0 && step < max_steps) {
         TypeEquivNode *node = explorer->queue[cur];
-        reverse_path[step] = node->applied_rule_index;
-        reverse_side[step] = node->applied_to_left ? 0 : 1;
+        reverse_path[step]  = node->applied_rule_index;
+        reverse_side[step]  = node->applied_to_left ? 0 : 1;
         reverse_names[step] = node->applied_rule_name;
         cur = node->parent_index;
         step++;
     }
 
-    /* 从根到解正向构建 TypeRewritePath */
+    /* 创建正向路径并依序记录步骤 */
     TypeRewritePath *path = type_rewrite_path_create();
     if (!path) {
-        free(reverse_path);
-        free(reverse_side);
-        free(reverse_names);
+        lv00_free(reverse_path);
+        lv00_free(reverse_side);
+        lv00_free(reverse_names);
         return;
     }
 
     for (int i = step - 1; i >= 0; i--) {
-        if (reverse_path[i] < 0) continue;
-        /* 记录步骤：我们简化记录规则名称 */
+        if (reverse_path[i] < 0) continue; /* 跳过根节点（无规则） */
         type_rewrite_path_record(path, reverse_names[i], NULL, NULL);
     }
 
-    explorer->proved_path = path;
-    explorer->found_equivalence = true;
+    explorer->proved_path        = path;
+    explorer->found_equivalence  = true;
     explorer->solution_node_index = node_idx;
 
-    free(reverse_path);
-    free(reverse_side);
-    free(reverse_names);
+    lv00_free(reverse_path);
+    lv00_free(reverse_side);
+    lv00_free(reverse_names);
 }
 
-/* ---- 公共 API ---------------------------------------------------------- */
+/* ============================================================================
+ * 公共 API
+ * ============================================================================ */
 
 TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts,
                                               const TypeRegion *left,
@@ -161,49 +240,48 @@ TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts,
     if (!exp) return NULL;
 
     exp->ts = ts;
-    exp->left_original = type_copy(left);
+    exp->left_original  = type_copy(left);
     exp->right_original = type_copy(right);
     if (!exp->left_original || !exp->right_original) {
         type_free(exp->left_original);
         type_free(exp->right_original);
-        free(exp);
+        lv00_free(exp);
         return NULL;
     }
 
+    /* 初始化搜索队列 */
     exp->queue_capacity = INITIAL_QUEUE_CAPACITY;
     exp->queue = lv00_calloc((size_t)exp->queue_capacity, sizeof(TypeEquivNode *));
     if (!exp->queue) {
         type_free(exp->left_original);
         type_free(exp->right_original);
-        free(exp);
+        lv00_free(exp);
         return NULL;
     }
     exp->queue_head = 0;
     exp->queue_tail = 0;
-    exp->max_depth = DEFAULT_MAX_DEPTH;
-    exp->max_nodes = DEFAULT_MAX_NODES;
-    exp->nodes_explored = 0;
-    exp->found_equivalence = false;
+    exp->max_depth  = DEFAULT_MAX_DEPTH;
+    exp->max_nodes  = DEFAULT_MAX_NODES;
+    exp->nodes_explored     = 0;
+    exp->found_equivalence  = false;
     exp->solution_node_index = -1;
     exp->proved_path = NULL;
-    exp->exhausted = false;
+    exp->exhausted   = false;
 
-    /* 创建根节点并入队 */
+    /* 创建搜索根节点并入队 */
     TypeEquivNode *root = lv00_calloc(1, sizeof(TypeEquivNode));
     if (!root) {
         type_equiv_explore_destroy(exp);
         return NULL;
     }
-    root->left = type_copy(left);
+    root->left  = type_copy(left);
     root->right = type_copy(right);
     root->depth = 0;
     root->parent_index = -1;
     root->applied_rule_index = -1;
-    root->applied_to_left = false;
     snprintf(root->applied_rule_name, sizeof(root->applied_rule_name), "(root)");
 
     exp->queue[exp->queue_tail++] = root;
-
     return exp;
 }
 
@@ -213,128 +291,75 @@ bool type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps)
 
     int steps = 0;
     while (explorer->queue_head < explorer->queue_tail && steps < max_steps) {
-        /* 检查节点上限 */
+
+        /* 节点数达到上限 → 搜索空间耗尽 */
         if (explorer->nodes_explored >= explorer->max_nodes) {
             explorer->exhausted = true;
             return false;
         }
 
+        /* 出队当前节点 */
         TypeEquivNode *node = explorer->queue[explorer->queue_head++];
         explorer->nodes_explored++;
 
-        /* 检查深度限制 */
+        /* 深度超限 → 跳过（不生成更深的后继） */
         if (node->depth > explorer->max_depth) {
-            type_free(node->left);
-            type_free(node->right);
-            free(node);
+            free_search_node(node);
             continue;
         }
 
-        /* 检查当前左右两侧是否等价 */
-        TypeEquivResult eq = type_check_equivalence(explorer->ts,
-                                                     node->left, node->right, true);
-        if (eq == TYPE_EQUIV_OK) {
-            /* 找到等价！重建路径 */
+        /* 检查左右两侧是否等价 */
+        if (type_check_equivalence(explorer->ts, node->left, node->right, true)
+            == TYPE_EQUIV_OK) {
             reconstruct_path(explorer, (int)(explorer->queue_head - 1));
-            type_free(node->left);
-            type_free(node->right);
-            free(node);
+            free_search_node(node);
             return true;
         }
 
-        /* 生成后继：对左侧应用规则 */
-        for (int r = 0; r < explorer->ts->rewrite_rule_count; r++) {
-            RewriteRule *rule = explorer->ts->rewrite_rules[r];
-            if (!rule || !rule->name) continue;
-            if (!rule_matches_type(rule, node->left)) continue;
+        /*
+         * 生成后继：
+         * 对左右两侧各枚举所有匹配规则，每个规则生成一个子节点。
+         * 子节点继承父节点的类型副本并对其对应侧应用规则。
+         */
+        for (int side = 0; side < 2; side++) {
+            bool apply_to_left = (side == 0);
+            for (int r = 0; r < explorer->ts->rewrite_rule_count; r++) {
+                RewriteRule *rule = explorer->ts->rewrite_rules[r];
+                if (!rule || !rule->name) continue;
 
-            /* 扩展队列容量 */
-            if (explorer->queue_tail >= explorer->queue_capacity) {
-                int new_cap = explorer->queue_capacity * 2;
-                TypeEquivNode **new_q = lv00_realloc(explorer->queue,
-                    (size_t)new_cap * sizeof(TypeEquivNode *));
-                if (!new_q) {
-                    explorer->exhausted = true;
-                    type_free(node->left);
-                    type_free(node->right);
-                    free(node);
-                    return false;
+                TypeRegion *target = apply_to_left ? node->left : node->right;
+                if (!rule_matches_type(rule, target)) continue;
+
+                /* 队列满 → 扩容 */
+                if (explorer->queue_tail >= explorer->queue_capacity) {
+                    if (!expand_queue(explorer)) {
+                        explorer->exhausted = true;
+                        free_search_node(node);
+                        return false;
+                    }
                 }
-                explorer->queue = new_q;
-                explorer->queue_capacity = new_cap;
+
+                TypeEquivNode *child = create_child_node(
+                    node, (int)(explorer->queue_head - 1),
+                    rule, r, apply_to_left);
+                if (!child) continue;
+
+                /* 对子节点的目标侧应用规则 */
+                apply_rule_to_type(explorer->ts,
+                    apply_to_left ? child->left : child->right);
+
+                explorer->queue[explorer->queue_tail++] = child;
+                steps++;
+                if (steps >= max_steps) goto exhausted;
             }
-
-            TypeEquivNode *child = lv00_calloc(1, sizeof(TypeEquivNode));
-            if (!child) continue;
-
-            child->left = type_copy(node->left);
-            child->right = type_copy(node->right);
-            child->depth = node->depth + 1;
-            child->parent_index = (int)(explorer->queue_head - 1);
-            child->applied_rule_index = r;
-            child->applied_to_left = true;
-            snprintf(child->applied_rule_name, sizeof(child->applied_rule_name),
-                     "%s", rule->name);
-
-            /* 对左侧应用规则 */
-            (void)apply_rule_to_type(explorer->ts, child->left);
-            explorer->queue[explorer->queue_tail++] = child;
-            steps++;
-            if (steps >= max_steps) break;
         }
 
-        if (steps >= max_steps) {
-            type_free(node->left);
-            type_free(node->right);
-            free(node);
-            break;
-        }
+        free_search_node(node);
+        continue;
 
-        /* 生成后继：对右侧应用规则 */
-        for (int r = 0; r < explorer->ts->rewrite_rule_count; r++) {
-            RewriteRule *rule = explorer->ts->rewrite_rules[r];
-            if (!rule || !rule->name) continue;
-            if (!rule_matches_type(rule, node->right)) continue;
-
-            /* 扩展队列容量 */
-            if (explorer->queue_tail >= explorer->queue_capacity) {
-                int new_cap = explorer->queue_capacity * 2;
-                TypeEquivNode **new_q = lv00_realloc(explorer->queue,
-                    (size_t)new_cap * sizeof(TypeEquivNode *));
-                if (!new_q) {
-                    explorer->exhausted = true;
-                    type_free(node->left);
-                    type_free(node->right);
-                    free(node);
-                    return false;
-                }
-                explorer->queue = new_q;
-                explorer->queue_capacity = new_cap;
-            }
-
-            TypeEquivNode *child = lv00_calloc(1, sizeof(TypeEquivNode));
-            if (!child) continue;
-
-            child->left = type_copy(node->left);
-            child->right = type_copy(node->right);
-            child->depth = node->depth + 1;
-            child->parent_index = (int)(explorer->queue_head - 1);
-            child->applied_rule_index = r;
-            child->applied_to_left = false;
-            snprintf(child->applied_rule_name, sizeof(child->applied_rule_name),
-                     "%s", rule->name);
-
-            /* 对右侧应用规则 */
-            (void)apply_rule_to_type(explorer->ts, child->right);
-            explorer->queue[explorer->queue_tail++] = child;
-            steps++;
-            if (steps >= max_steps) break;
-        }
-
-        /* 当前节点不再需要（其副本已在子节点中） */
-        type_free(node->left);
-        type_free(node->right);
-        free(node);
+    exhausted:
+        free_search_node(node);
+        break;
     }
 
     explorer->exhausted = (explorer->queue_head >= explorer->queue_tail);
@@ -343,32 +368,31 @@ bool type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps)
 
 const TypeRewritePath *type_equiv_explore_get_path(const TypeEquivExplorer *explorer)
 {
-    if (!explorer || !explorer->found_equivalence) return NULL;
-    return explorer->proved_path;
+    return (explorer && explorer->found_equivalence) ? explorer->proved_path : NULL;
 }
 
 void type_equiv_explore_destroy(TypeEquivExplorer *explorer)
 {
     if (!explorer) return;
 
-    /* 释放队列中所有剩余节点 */
+    /* 释放队列中剩余的所有搜索节点 */
     for (int i = explorer->queue_head; i < explorer->queue_tail; i++) {
         if (explorer->queue[i]) {
             type_free(explorer->queue[i]->left);
             type_free(explorer->queue[i]->right);
-            free(explorer->queue[i]);
+            lv00_free(explorer->queue[i]);
         }
     }
-    free(explorer->queue);
+    lv00_free(explorer->queue);
 
+    /* 释放原始类型副本和证明路径 */
     type_free(explorer->left_original);
     type_free(explorer->right_original);
-
     if (explorer->proved_path) {
         type_rewrite_path_destroy(explorer->proved_path);
     }
 
-    free(explorer);
+    lv00_free(explorer);
 }
 
 void type_equiv_explore_get_stats(const TypeEquivExplorer *explorer,
@@ -377,18 +401,22 @@ void type_equiv_explore_get_stats(const TypeEquivExplorer *explorer,
                                   bool *out_found,
                                   bool *out_exhausted)
 {
+    /* 默认值：explorer 为 NULL 时各项均为零/false */
     if (out_nodes)     *out_nodes     = explorer ? explorer->nodes_explored : 0;
-    if (out_max_depth) *out_max_depth = 0;
     if (out_found)     *out_found     = explorer ? explorer->found_equivalence : false;
     if (out_exhausted) *out_exhausted = explorer ? explorer->exhausted : false;
 
-    if (explorer && out_max_depth) {
-        int md = 0;
-        for (int i = explorer->queue_head; i < explorer->queue_tail; i++) {
-            if (explorer->queue[i] && explorer->queue[i]->depth > md) {
-                md = explorer->queue[i]->depth;
+    /* 计算搜索队列中达到的最大深度 */
+    if (out_max_depth) {
+        *out_max_depth = 0;
+        if (explorer) {
+            int md = 0;
+            for (int i = explorer->queue_head; i < explorer->queue_tail; i++) {
+                if (explorer->queue[i] && explorer->queue[i]->depth > md) {
+                    md = explorer->queue[i]->depth;
+                }
             }
+            *out_max_depth = md;
         }
-        *out_max_depth = md;
     }
 }

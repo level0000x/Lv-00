@@ -435,13 +435,6 @@ size_t lv00_get_peak_memory_usage(void) {
     return stats.peak_used;
 }
 
-/**
- * @brief 重置内存统计计数器
- */
-void lv00_reset_memory_stats(void) {
-    /* 委托给 lv00_utils 的实现 */
-}
-
 /* ============ 内置基准测试（桩实现） ============ */
 
 /**

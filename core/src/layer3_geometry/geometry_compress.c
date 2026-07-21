@@ -1,28 +1,28 @@
-/**
- * @file geometry_compress.c
- * @brief Draco-style geometry data compression - Edgebreaker topology encoding + predictive coding
+/* ============================================================================
+ * 模块名称：几何数据压缩引擎 (geometry_compress)
  *
- * @details Implements Edgebreaker CLERS algorithm-based mesh topology compression,
- *          parallelogram predictive coding, and .lvzd binary I/O.
+ * 功能概述：
+ *   类 Draco 风格的几何网格数据压缩——基于 Edgebreaker CLERS 算法的
+ *   拓扑编码 + 平行四边形预测编码 + 熵编码 + .lvzd 二进制文件 I/O。
  *
- *          Core modules:
- *          - geometry_compress: full compression pipeline
- *          - geometry_decompress: full decompression pipeline
- *          - edgebreaker_encode: CLERS symbol sequence generation
- *          - predictive_encode_coords: parallelogram coordinate prediction
- *          - .lvzd I/O: binary file read/write
+ * 核心流水线：
+ *   geometry_compress()   压缩流水线：拓扑编码 → 坐标预测 → 熵编码 → 二进制打包
+ *   geometry_decompress()  解压流水线：二进制解析 → 熵解码 → 坐标还原 → 拓扑重建
  *
- * @author Lv-00 Project
- * @version 3.3.0
+ * 内部模块：
+ *   - edgebreaker_encode()           CLERS 符号序列生成（网格拓扑编码）
+ *   - predictive_encode_coords()     坐标预测编码（平行四边形 / 多平行四边形 / 增量）
+ *   - 熵编码器                         Huffman + RLE 自适应选择
+ *   - .lvzd I/O                       二进制文件读写（小端序）
  *
- * @dependencies
- *   - geometry_compress.h  : compression pipeline public interface
- *   - constraint_graph.h   : constraint graph data structure
- *   - symbolic_coord.h     : symbolic coordinate system
- *   - lv00_utils.h         : unified memory allocator
- *   - lv00_internal.h      : internal constants and utilities
- *   - node_deep_copy.h     : node deep copy utilities
- */
+ * 数据结构：
+ *   - TriangleFace                    三角面片（从约束图中提取 3-participant 约束）
+ *   - HuffmanNode/MinHeap/HuffmanCode  Huffman 编码基础设施
+ *   - BitWriter/BitReader             位级 I/O 工具
+ *
+ * 设计文档参考：§3.5 几何内核 · 网格压缩
+ *
+ * ============================================================================ */
 
 #include "geometry_compress.h"
 
@@ -139,7 +139,10 @@ static CompressConfig compress_config_default(void) {
 }
 
 /* ========================================================================
- * Triangle face extraction helpers
+ * 三角面片提取（Triangle Face Extraction）
+ *
+ * 从约束图中识别 3-participant 约束作为三角面片，
+ * 支持邻接面查找和面积计算。
  * ======================================================================== */
 
 /**
@@ -285,7 +288,13 @@ static double triangle_face_area(const ConstraintGraph *graph, const TriangleFac
 }
 
 /* ========================================================================
- * Predictive encoding implementation
+ * 预测编码（Predictive Encoding）
+ *
+ * 平行四边形预测：利用相邻三角面片对目标顶点坐标进行预测，
+ * 存储预测残差以减小数据量。支持三种模式：
+ *   - PREDICT_PARALLELOGRAM       标准平行四边形预测
+ *   - PREDICT_MULTI_PARALLELOGRAM  多面片加权平均预测
+ *   - PREDICT_DELTA                简单增量预测
  * ======================================================================== */
 
 /**
@@ -745,7 +754,10 @@ bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode) {
 }
 
 /* ========================================================================
- * Edgebreaker encoding implementation
+ * Edgebreaker CLERS 拓扑编码
+ *
+ * Rossignac 算法：将三角网格拓扑压缩为 C/L/E/R/S 五符号序列，
+ * 通过边界栈遍历面片，根据邻接状态输出对应符号。
  * ======================================================================== */
 
 /**
@@ -1837,6 +1849,8 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
 
 /* ========================================================================
  * Geometry compression main API
+ *
+ * 完整压缩流水线：graph_clone → edgebreaker → predict → entropy → pack
  * ======================================================================== */
 
 /**
@@ -2045,6 +2059,8 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
 
 /* ========================================================================
  * Geometry decompression main API
+ *
+ * 完整解压流水线：unpack → entropy decode → clers decode → coords restore
  * ======================================================================== */
 
 /**
@@ -2219,7 +2235,9 @@ bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out
 }
 
 /* ========================================================================
- * .lvzd format I/O
+ * .lvzd 二进制文件 I/O
+ *
+ * 小端序二进制格式：Magic(4B) + Header + Payload + Checksum
  * ======================================================================== */
 
 static void write_uint32_le(uint8_t *buf, uint32_t val) {

@@ -90,14 +90,28 @@ static uint32_t next_trace_node_id(void) {
     return g_trace_node_id_counter++;
 }
 
-/**
- * @brief 重置节点 ID 计数器（仅用于测试）
- */
-static void reset_trace_node_id_counter(void) {
-    g_trace_node_id_counter = 1;
-}
-
 /* ============== 内部辅助函数 ============== */
+
+/**
+ * @brief 在访问映射表中检查节点是否已访问（线性探测）
+ *
+ * 用于 lv00_trace_tree_find_path 中的 DFS 路径搜索，
+ * 替代 GNU statement-expression 宏以避免 -Wpedantic 警告。
+ *
+ * @param visited_map  访问映射表（0 = 未占用）
+ * @param map_size     映射表大小
+ * @param node_id      待检查的节点 ID
+ * @return true 已访问，false 未访问
+ */
+static inline bool _visit_check(uint32_t *visited_map, uint32_t map_size,
+                                 uint32_t node_id) {
+    uint32_t idx = node_id % map_size;
+    while (visited_map[idx] != 0) {
+        if (visited_map[idx] == node_id) return true;
+        idx = (idx + 1) % map_size;
+    }
+    return false;
+}
 
 /**
  * @brief 获取当前时间戳（纳秒级）
@@ -109,7 +123,7 @@ static int64_t get_time_ns(void) {
     LARGE_INTEGER freq, count;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&count);
-    return (int64_t)((double)count.QuadPart / freq.QuadPart * 1e9);
+    return (int64_t)((count.QuadPart * 1000000000ULL) / freq.QuadPart);
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -644,15 +658,12 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
         while (visited_map[idx] != 0) { idx = (idx + 1) % map_size; } \
         visited_map[idx] = (uint32_t)(node_id); \
     } while(0)
-    #define VISIT_CHECK(node_id) ({ \
-        uint32_t _idx = (uint32_t)(node_id) % map_size; \
-        bool _found = false; \
-        while (visited_map[_idx] != 0) { \
-            if (visited_map[_idx] == (uint32_t)(node_id)) { _found = true; break; } \
-            _idx = (_idx + 1) % map_size; \
-        } \
-        _found; \
-    })
+
+    /* 内联函数：检查节点是否已访问（避免 GNU statement-expression 扩展） */
+    uint32_t *__vm = visited_map;
+    uint32_t __ms = map_size;
+
+    #define VISIT_CHECK(node_id) _visit_check(__vm, __ms, (uint32_t)(node_id))
 
     uint32_t top = 0;
     stack[top].node = start;
@@ -1605,22 +1616,6 @@ bool lv00_proof_engine_register_strategy(Lv00ProofEngine *engine,
 /* ============== 内部策略实现 ============== */
 
 /**
- * @brief 策略名称映射表
- */
-static const char *g_strategy_names[] = {
-    "Direct Proof",           /* STRATEGY_DIRECT */
-    "Proof by Contradiction", /* STRATEGY_CONTRADICTION */
-    "Contrapositive Proof",   /* STRATEGY_CONTRAPOSITIVE */
-    "Mathematical Induction", /* STRATEGY_INDUCTION */
-    "Proof by Cases",         /* STRATEGY_CASES */
-    "Constructive Proof",     /* STRATEGY_CONSTRUCTION */
-    "Definition Unfolding",   /* STRATEGY_UNFOLDING */
-    "Backward Reasoning",     /* STRATEGY_BACKWARD */
-    "Forward Reasoning",      /* STRATEGY_FORWARD */
-    "Hybrid Strategy"         /* STRATEGY_HYBRID */
-};
-
-/**
  * @brief 策略中文名称映射表
  */
 static const char *g_strategy_names_zh[] = {
@@ -1635,34 +1630,6 @@ static const char *g_strategy_names_zh[] = {
     "正向推理",       /* STRATEGY_FORWARD */
     "混合策略"        /* STRATEGY_HYBRID */
 };
-
-/**
- * @brief 策略描述映射表
- */
-static const char *g_strategy_descriptions[] = {
-    "From premises, directly derive the conclusion through logical steps",
-    "Assume the negation of the goal, derive a contradiction",
-    "Prove the contrapositive: if NOT Q then NOT P",
-    "Prove for base case, then show inductive step holds",
-    "Divide into exhaustive cases, prove each independently",
-    "Construct an explicit witness satisfying the goal",
-    "Unfold definitions to reduce the goal to simpler terms",
-    "Work backward from the goal to known facts",
-    "Apply rules forward from premises toward the goal",
-    "Combine multiple strategies adaptively"
-};
-
-/**
- * @brief 获取策略名称
- * @param type 策略类型
- * @return 策略名称字符串
- */
-static const char *get_strategy_name(Lv00StrategyType type) {
-    if (type >= 0 && type <= STRATEGY_HYBRID) {
-        return g_strategy_names[type];
-    }
-    return "Unknown Strategy";
-}
 
 /**
  * @brief 获取策略中文名称
@@ -2596,6 +2563,7 @@ void lv00_proof_engine_get_stats(const Lv00ProofEngine *engine,
 }
 
 /* ============== 证明验证 ============== */
+/* 独立验证证明正确性，检查每步合法性（公理引用、推理规则使用、变量绑定） */
 
 /**
  * @brief 验证证明的正确性
@@ -2740,6 +2708,7 @@ Lv00VerifyResult lv00_verify_proof_step(const ProofStep *step,
 }
 
 /* ============== 证明优化 ============== */
+/* 消除冗余推导步骤，计算证明复杂度评分 */
 
 /**
  * @brief 内部函数：检查节点是否为冗余节点
@@ -2840,6 +2809,7 @@ bool lv00_optimize_proof(const Lv00ProofTraceTree *trace,
     trace_tree_update_stats(optimized);
 
     *out_optimized = optimized;
+    (void)removed_count; /* 统计已消除的冗余节点数，供调试使用 */
     return true;
 }
 
@@ -2926,6 +2896,7 @@ uint32_t lv00_simplify_proof(Lv00ProofTraceTree *trace) {
 }
 
 /* ============== 证明导出 ============== */
+/* 自然语言、LaTeX、Coq、Isar 格式输出 */
 
 /**
  * @brief 导出证明为自然语言文本

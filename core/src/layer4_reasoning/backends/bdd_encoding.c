@@ -654,7 +654,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
     if (n <= 0)
         return bdd_true(mgr);
 
-    /* Phase 1: 为每个节点的坐标分配 BDD 变量范围 */
+    /* 阶段 1: 为每个节点的坐标分配 BDD 变量范围 */
     int *node_base_var = (int *) lv00_malloc((size_t) n * sizeof(int));
     if (!node_base_var)
         return NULL;
@@ -685,7 +685,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
         _result; \
     })
 
-    /* Phase 2: 遍历所有活跃约束，按类型编码 BDD 子公式 */
+    /* 阶段 2: 遍历所有活跃约束，按类型编码 BDD 子公式 */
     BDDNode *constraint_bdd = bdd_true(mgr);
 
     for (int ci = 0; ci < graph->constraint_count; ci++) {
@@ -697,7 +697,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
 
         switch (con->type) {
         case INCIDENCE:
-            /* INCIDENCE(point, line): point is ON the line */
+            /* 关联(point, line): 点在线上 */
             if (con->participant_count >= 2) {
                 int p_id = con->participants[0];
                 int l_id = con->participants[1];
@@ -714,7 +714,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
             break;
 
         case BETWEENNESS:
-            /* BETWEENNESS(p1, p2, p3): p2 is between p1 and p3 */
+            /* 介于(p1, p2, p3): p2 在 p1 与 p3 之间 */
             if (con->participant_count >= 3) {
                 int p1_var = (con->participants[0] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[0]) : -1;
                 int p2_var = (con->participants[1] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[1]) : -1;
@@ -734,7 +734,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
             break;
 
         case INTERSECTION:
-            /* INTERSECTION(line1, line2, point): lines intersect at point */
+            /* 相交(line1, line2, point): 两线交于一点 */
             if (con->participant_count >= 3) {
                 int l1_var = (con->participants[0] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[0]) : -1;
                 int l2_var = (con->participants[1] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[1]) : -1;
@@ -754,7 +754,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
             break;
 
         case CONTAINMENT:
-            /* CONTAINMENT(region, point): point is inside region */
+            /* 包含(region, point): 点在区域内 */
             if (con->participant_count >= 2) {
                 int r_var = (con->participants[0] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[0]) : -1;
                 int p_var = (con->participants[1] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[1]) : -1;
@@ -769,7 +769,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
             break;
 
         case CONNECTION:
-            /* CONNECTION: 端口连接 — 此处跳过（端口编码需单独处理） */
+            /* 连接: 端口连接 —— 此处跳过（端口编码需单独处理） */
             break;
 
         default:

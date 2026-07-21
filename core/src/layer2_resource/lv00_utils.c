@@ -1885,31 +1885,6 @@ static int g_log_level = LV00_LOG_LEVEL_INFO;
 static FILE *g_log_file = NULL;
 
 /**
- * @brief 设置运行时日志级别
- * @param level 日志级别（1=ERROR, 2=WARNING, 3=INFO, 4=DEBUG）
- */
-static void lv00_log_set_level(int level) {
-    if (level >= LV00_LOG_LEVEL_ERROR && level <= LV00_LOG_LEVEL_DEBUG) {
-        g_log_level = level;
-    }
-}
-
-/**
- * @brief 设置日志文件输出路径（传入 NULL 关闭文件输出）
- * @param path 日志文件路径，NULL 则关闭文件输出
- * @return 0 成功，-1 失败
- */
-static int lv00_log_set_file(const char *path) {
-    if (g_log_file) {
-        fclose(g_log_file);
-        g_log_file = NULL;
-    }
-    if (!path) return 0;
-    g_log_file = fopen(path, "a");
-    return g_log_file ? 0 : -1;
-}
-
-/**
  * @brief 日志级别名称映射
  */
 static const char *log_level_name(int level) {
