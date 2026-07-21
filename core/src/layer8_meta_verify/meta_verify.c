@@ -5,6 +5,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
+#include <limits.h>
+
+/* ============================================================
+ * 内部辅助：安全数值解析
+ * ============================================================ */
+
+static int safe_parse_int(const char *str, int *out)
+{
+    if (!str || !*str) return -1;
+    char *end = NULL;
+    errno = 0;
+    long val = strtol(str, &end, 10);
+    if (errno != 0 || end == str || *end != '\0') return -1;
+    if (val > INT_MAX || val < INT_MIN) return -1;
+    *out = (int)val;
+    return 0;
+}
 
 /* ============================================================
  * 内部验证检查函数
@@ -307,7 +325,7 @@ static int check_nontriviality(const Lv00Session *session, char *desc, int desc_
         while (num_start > reasoning_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
             num_start--;
         if (num_start < attempt_str) {
-            strategy_attempts = atoi(num_start);
+            safe_parse_int(num_start, &strategy_attempts);
         }
     }
 
@@ -329,7 +347,8 @@ static int check_nontriviality(const Lv00Session *session, char *desc, int desc_
             while (num_start > parse_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
                 num_start--;
             if (num_start < token_str) {
-                int tokens = atoi(num_start);
+                int tokens = 0;
+                safe_parse_int(num_start, &tokens);
                 if (tokens < 2) {
                     snprintf(desc, desc_size,
                              "非平凡性失败：输入仅含 %d 个标记（不足 2 个）", tokens);
@@ -348,7 +367,8 @@ static int check_nontriviality(const Lv00Session *session, char *desc, int desc_
             while (num_start > geo_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
                 num_start--;
             if (num_start < obj_str) {
-                int objs = atoi(num_start);
+                int objs = 0;
+                safe_parse_int(num_start, &objs);
                 if (objs < 1) {
                     snprintf(desc, desc_size, "非平凡性失败：无几何对象被识别");
                     return 0;
@@ -415,7 +435,8 @@ static int check_roundtrip(const Lv00Session *session, char *desc, int desc_size
         while (num_start > output_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
             num_start--;
         if (num_start < byte_str) {
-            int bytes = atoi(num_start);
+            int bytes = 0;
+            safe_parse_int(num_start, &bytes);
             if (bytes <= 0) {
                 snprintf(desc, desc_size,
                          "往返验证失败：输出字节数无效 (%d)", bytes);

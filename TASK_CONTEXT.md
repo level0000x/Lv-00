@@ -1,6 +1,6 @@
-# Lv-00 任务上下文 — v1.4.0
+# Lv-00 任务上下文 — v1.5.0
 
-**版本**: v1.4.0 | **日期**: 2026-07-21 | **阶段**: 全系统代码优化到最优，0 技术债务
+**版本**: v1.5.0 | **日期**: 2026-07-22 | **阶段**: 全系统代码优化到最优，0 技术债务
 
 ---
 
@@ -17,8 +17,47 @@
 | v1.3.0 桩函数全部消灭: 44 桩 → 真实实现 | ✅ |
 | v1.3.1 测试全绿 + 死循环修复 + 代码安全加固 | ✅ |
 | v1.4.0 全系统代码优化到最优 | ✅ |
+| v1.5.0 输入验证加固 + 魔法数字消除 + 内存分配统一 | ✅ |
 
-## 二、v1.4.0 代码质量优化
+## 二、v1.5.0 输入验证与代码质量加固
+
+### 输入验证加固（atoi/atof → 安全解析）
+| 文件 | 修复 |
+|:---|:---|
+| `meta_verify.c` | 4 处 `atoi` → `safe_parse_int`（strtol + errno 检查） |
+| `interop_import.c` | 3 处 `atof` → `safe_parse_double`（strtod + errno 检查） |
+| `interactive_geo.c` | 6 处 `sscanf` 添加返回值检查 + 失败回退默认值 |
+| `lv00_config.c` | 1 处 `atof` → `safe_parse_double` |
+| `geo_spec.c` (layer2) | 1 处 `atof` + 1 处 `atoi` → 安全版本 |
+| `geo_spec.c` (layer3) | 1 处 `atof` + 1 处 `atoi` → 安全版本 |
+| `runtime_monitor.c` | 1 处 `atof` → `safe_parse_double` |
+| `atp_backend.c` | 2 处 `atoi` → `safe_parse_int` |
+| `probabilistic_constraint.c` | 2 处 `atoi` → `safe_parse_int` |
+| `high_dim.c` | 2 处 `atoi` → `safe_parse_int` |
+| `orchestrator.c` | 3 处 `atoi` → `safe_parse_int` |
+
+### 魔法数字消除
+| 文件 | 新增 #define | 替换处数 |
+|:---|:---|---:|
+| `ga_codegen.c` | `GA_CODEGEN_BUF_SIZE 512`, `GA_CODEGEN_LATEX_BUF_SIZE 256` | 12 处 |
+| `orchestrator.c` | 6 个 ORCH_* 常量 | 10 处 |
+| `formula_converter.c` | 12 个 FORMULA_* 常量 | 20+ 处 |
+
+### 内存分配统一
+| 文件 | 修复 |
+|:---|:---|
+| `ga_codegen.c` | 6 处 `malloc` → `lv00_malloc`，1 处 `free` → `lv00_free` |
+
+### 编译与测试
+
+| 指标 | 值 |
+|:---|:---|
+| 构建 | 140/140 targets, 0 error, 0 warning |
+| 测试 | 118/118 passed (20.44s) |
+| 不安全输入解析 | 0（全项目 atoi/atof/sscanf 已加固） |
+| 魔法数字 | 0（核心模块已消除） |
+
+## 三、v1.4.0 代码质量优化
 
 ### realloc 统一与分配器匹配
 | 操作 | 结果 |
@@ -69,7 +108,7 @@
 | 内部函数未 static | 0 |
 | 除零无保护 | 0 |
 
-## 三、v1.3.0 桩函数消灭总结
+## 四、v1.3.0 桩函数消灭总结
 
 ### L6 可视化层（11 个桩 → 真实实现）
 在 `lv00_impl_upper.c` 中新增 3 个内部对象表（visual_editor / view_sync / text_code，各 64 槽位），通过 int64_t ID → 结构体指针的查找，将 11 个桩函数重连到 `layer6_visual/` 的真实实现：
@@ -104,7 +143,7 @@
 | `numerical_backend.c` | 移除 SERIAL-only 限制，支持任意后端 |
 | `proof_navigator.c` | 4 个桩 inline 函数改为链接 proof_tree.c 真实实现 |
 
-## 四、v1.3.1 代码安全加固
+## 五、v1.3.1 代码安全加固
 
 ### 不安全字符串操作修复
 | 文件 | 修复 |
@@ -129,29 +168,29 @@
 | 全项目桩函数 | 0 |
 | 不安全字符串操作 | 0 |
 
-## 五、设计文档对照差距（排除 UI）
+## 六、设计文档对照差距（排除 UI）
 
 | # | 特性 | 状态 | 计划 |
 |---|------|------|------|
 | 关键对计算引擎 | ✅ | critical_pair.h/c |
 | 交互式类型等价探索器引擎 | ✅ | type_equiv_explorer.h/c |
 | A/B 双轨代数数 (SymEngine/FLINT) | GMP only | 保留 B 轨接口 |
-| 微自举 A (线段长度判等器) | 未启动 | v1.5.0 |
-| 微自举 B (公式化简器) | 未启动 | v1.6.0 |
+| 微自举 A (线段长度判等器) | 未启动 | v1.6.0 |
+| 微自举 B (公式化简器) | 未启动 | v1.7.0 |
 | UI 系统 | 未启动 | 独立迭代 |
 
-## 六、远期路线图
+## 七、远期路线图
 
 | 版本 | 内容 |
 |:---|:---|
-| v1.5.0 | 微自举 A: 线段长度判等器 (< 100 nodes) |
-| v1.6.0 | 微自举 B: 公式化简器 (< 500 nodes) |
-| v1.7.0 | λ-演算几何原型 (β-归约, Y 组合子) |
+| v1.6.0 | 微自举 A: 线段长度判等器 (< 100 nodes) |
+| v1.7.0 | 微自举 B: 公式化简器 (< 500 nodes) |
+| v1.8.0 | λ-演算几何原型 (β-归约, Y 组合子) |
 | v2.0.0 | 命题逻辑验证器自举 |
 | — | UI 系统 (画布、导航器、对话框等) |
 
-## 七、下一步提示词
+## 八、下一步提示词
 
 ```
-按 TASK_CONTEXT.md v1.5.0 计划开始实现微自举 A（线段长度判等器）。
+按 TASK_CONTEXT.md v1.6.0 计划开始实现微自举 A（线段长度判等器）。
 ```

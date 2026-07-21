@@ -13,6 +13,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <limits.h>
+
+/* ========================================================================
+ * 内部辅助：安全数值解析
+ * ======================================================================== */
+
+static int safe_parse_double(const char *str, double *out)
+{
+    if (!str || !*str) return -1;
+    char *end = NULL;
+    errno = 0;
+    double val = strtod(str, &end);
+    if (errno != 0 || end == str) return -1;
+    *out = val;
+    return 0;
+}
+
+static int safe_parse_int(const char *str, int *out)
+{
+    if (!str || !*str) return -1;
+    char *end = NULL;
+    errno = 0;
+    long val = strtol(str, &end, 10);
+    if (errno != 0 || end == str || *end != '\0') return -1;
+    if (val > INT_MAX || val < INT_MIN) return -1;
+    *out = (int)val;
+    return 0;
+}
 
 /* ========================================================================
  * 内部辅助：简易 JSON 解析（提取数值字段）
@@ -45,7 +74,7 @@ static int json_get_double(const char *json, const char *field, double *out)
         pos++;
     }
 
-    *out = atof(pos);
+    safe_parse_double(pos, out);
     return 0;
 }
 
@@ -69,7 +98,7 @@ static int json_get_int(const char *json, const char *field, int *out)
         pos++;
     }
 
-    *out = atoi(pos);
+    safe_parse_int(pos, out);
     return 0;
 }
 

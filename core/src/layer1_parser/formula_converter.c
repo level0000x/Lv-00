@@ -33,6 +33,20 @@
 #define MAX_VAR_MAP_SIZE 256
 #define MAX_NAME_LENGTH 64
 
+/* 公式转换器内部缓冲区大小常量 */
+#define FORMULA_BUF_SIZE         256
+#define FORMULA_LATEX_BUF_SIZE   512
+#define FORMULA_PYTHON_BUF_SIZE  512
+#define FORMULA_DSL_BUF_SIZE     512
+#define FORMULA_EXPORT_BUF_SIZE  4096
+#define FORMULA_SEG_LIST_SIZE    256
+#define FORMULA_SEG_NAME_SIZE    64
+#define FORMULA_EXPR_BUF_SIZE    128
+#define FORMULA_RESULT_BUF_SIZE  64
+#define FORMULA_LARGE_BUF_SIZE   1024
+#define FORMULA_NODE_IDS_SIZE    64
+#define FORMULA_VAR_MAP_SIZE     64
+
 /**
  * 有理数近似精度缩放因子
  *
@@ -585,7 +599,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         }
 
         vertex_ids[i] = v_id;
-        if (v_id >= 0 && *out_count < 64) {
+        if (v_id >= 0 && *out_count < FORMULA_VAR_MAP_SIZE) {
             out_node_ids[(*out_count)++] = v_id;
         }
     }
@@ -606,7 +620,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
             GeomNode *n = graph_get_node_by_id(graph, seg_id);
             if (n) seg_id = n->id;
             segment_ids[seg_count++] = seg_id;
-            if (*out_count < 64) {
+            if (*out_count < FORMULA_VAR_MAP_SIZE) {
                 out_node_ids[(*out_count)++] = seg_id;
             }
         }
@@ -619,7 +633,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
             int region_id = graph_get_node_count(graph) - 1;
             GeomNode *n = graph_get_node_by_id(graph, region_id);
             if (n) region_id = n->id;
-            if (*out_count < 64) {
+            if (*out_count < FORMULA_VAR_MAP_SIZE) {
                 out_node_ids[(*out_count)++] = region_id;
             }
             /* 记录变量名映射 */
@@ -1158,7 +1172,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
                  * 格式: ANGLE_CONSTRAINT:A_id:B_id:C_id:angle_rad:cos:sin
                  * 求解器可解析此字符串获取完整的角度约束信息。
                  */
-                char buf[256];
+                char buf[FORMULA_BUF_SIZE];
                 snprintf(buf, sizeof(buf),
                          "ANGLE_CONSTRAINT:%d:%d:%d:%.10g:%.10g:%.10g",
                          a_id, b_id, c_id, angle_rad, cos_theta, sin_theta);
@@ -1256,7 +1270,7 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
 
         case NODE_GEOM_POLYGON:
             {
-                int node_ids[64];
+                int node_ids[FORMULA_NODE_IDS_SIZE];
                 int count = 0;
                 if (formula_convert_polygon(stmt, graph, node_ids, &count)) {
                     for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
@@ -1316,8 +1330,8 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
     }
     
     /* 分配节点和约束 ID 数组 */
-    result->created_node_ids = (int *)lv00_malloc(sizeof(int) * 256);          /* 统一内存分配器 */
-    result->created_constraint_ids = (int *)lv00_malloc(sizeof(int) * 64);     /* 统一内存分配器 */
+    result->created_node_ids = (int *)lv00_malloc(sizeof(int) * MAX_CREATED_NODES);          /* 统一内存分配器 */
+    result->created_constraint_ids = (int *)lv00_malloc(sizeof(int) * MAX_CREATED_CONSTRAINTS);     /* 统一内存分配器 */
 
     if (!result->created_node_ids || !result->created_constraint_ids) {
         /* 修复：分配失败时释放已成功分配的数组，避免内存泄漏 */
@@ -1375,9 +1389,9 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
     }
     
     /* 计算所需缓冲区大小 */
-    size_t latex_size = 4096;
-    size_t python_size = 4096;
-    size_t dsl_size = 4096;
+    size_t latex_size = FORMULA_EXPORT_BUF_SIZE;
+    size_t python_size = FORMULA_EXPORT_BUF_SIZE;
+    size_t dsl_size = FORMULA_EXPORT_BUF_SIZE;
     
     result->latex_output = (char *)lv00_malloc(latex_size);  /* 统一内存分配器 */
     result->python_output = (char *)lv00_malloc(python_size); /* 统一内存分配器 */
@@ -1398,16 +1412,16 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
     size_t python_len = 0;
     size_t dsl_len = 0;
     
-    char latex_buf[512];
-    char python_buf[512];
-    char dsl_buf[512];
+    char latex_buf[FORMULA_LATEX_BUF_SIZE];
+    char python_buf[FORMULA_PYTHON_BUF_SIZE];
+    char dsl_buf[FORMULA_DSL_BUF_SIZE];
     
     /* 遍历所有节点 */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
         if (!node) continue;
         
-        char name[64];
+        char name[MAX_NAME_LENGTH];
         formula_node_to_name(node, name, sizeof(name));
         
         switch (node->type) {
@@ -1484,10 +1498,10 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
                 {
                     /* 获取边界线段信息 */
                     int seg_count = node->data.region.segment_count;
-                    char seg_list[256] = "";
+                    char seg_list[FORMULA_SEG_LIST_SIZE] = "";
                     size_t seg_list_len = 0;
                     for (int j = 0; j < seg_count && j < 10; j++) {
-                        char seg_name[64];
+                        char seg_name[FORMULA_SEG_NAME_SIZE];
                         if (node->data.region.boundary_segments &&
                             node->data.region.boundary_segments[j]) {
                             formula_node_to_name(node->data.region.boundary_segments[j],
@@ -2032,7 +2046,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
 
         case NODE_BINARY_OP_ADD: {
-            char left[128], right[128];
+            char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s + %s)", left, right);
@@ -2044,7 +2058,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
         }
 
         case NODE_BINARY_OP_SUB: {
-            char left[128], right[128];
+            char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s - %s)", left, right);
@@ -2055,7 +2069,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
         }
 
         case NODE_BINARY_OP_MUL: {
-            char left[128], right[128];
+            char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s * %s)", left, right);
@@ -2066,7 +2080,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
         }
 
         case NODE_BINARY_OP_DIV: {
-            char left[128], right[128];
+            char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s / %s)", left, right);
@@ -2077,7 +2091,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
         }
 
         case NODE_BINARY_OP_POW: {
-            char left[128], right[128];
+            char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s ^ %s)", left, right);
@@ -2088,7 +2102,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
         }
 
         case NODE_EQUATION: {
-            char left[128], right[128];
+            char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.equation.lhs, left, sizeof(left));
             node_to_string(node->data.equation.rhs, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s = %s)", left, right);
@@ -2118,7 +2132,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
 
         case NODE_GEOM_CIRCLE: {
             const char *name = node->data.geom_circle.name ? node->data.geom_circle.name : "?";
-            char r[64] = "?";
+            char r[FORMULA_RESULT_BUF_SIZE] = "?";
             if (node->data.geom_circle.radius) {
                 node_to_string(node->data.geom_circle.radius, r, sizeof(r));
             }
@@ -2160,7 +2174,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
 
         case NODE_GEOM_ARC: {
             const char *name = node->data.geom_arc.name ? node->data.geom_arc.name : "?";
-            char r[64] = "?", t1[64] = "?", t2[64] = "?";
+            char r[FORMULA_RESULT_BUF_SIZE] = "?", t1[FORMULA_RESULT_BUF_SIZE] = "?", t2[FORMULA_RESULT_BUF_SIZE] = "?";
             if (node->data.geom_arc.radius) {
                 node_to_string(node->data.geom_arc.radius, r, sizeof(r));
             }
@@ -2861,7 +2875,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
                 node->numeric_assumption_declaration = NULL;
             }
             if (node) {
-                char buf[256];
+                char buf[FORMULA_BUF_SIZE];
                 int n = snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:CIRCLE:%.6f:%.6f:%.6f", cx, cy, r);
                 /* 检查snprintf返回值：尺寸安全（CIRCLE格式最大约60字节），但防御性检查不可省略 */
                 if (n < 0 || (size_t)n >= sizeof(buf)) {
@@ -2927,7 +2941,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
                 node->numeric_assumption_declaration = NULL;
             }
             if (node) {
-                char buf[256];
+                char buf[FORMULA_BUF_SIZE];
                 int n = snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:LINE:%.6f:%.6f:%.6f", a, b, c);
                 /* 防御性检查：确保snprintf输出零终止 */
                 if (n < 0 || (size_t)n >= sizeof(buf)) {
@@ -2978,7 +2992,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
             }
 
             /* 格式: IMPLICIT_CURVE:max_degree:c00:c01:c10:... */
-            char buf[1024];
+            char buf[FORMULA_LARGE_BUF_SIZE];
             int offset = snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:%d", max_total_deg);
             /* 检查初始snprintf返回值：确保后续写入有有效起点 */
             if (offset < 0) {

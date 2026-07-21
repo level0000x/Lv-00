@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <zlib.h>
 #include "lv00/constraint_graph.h"
 #include "lv00/engine.h"
@@ -180,6 +181,17 @@ static bool ggb_extract_attr(const char *tag_start, size_t tag_len, const char *
     return false;
 }
 
+static int safe_parse_double(const char *str, double *out)
+{
+    if (!str || !*str) return -1;
+    char *end = NULL;
+    errno = 0;
+    double val = strtod(str, &end);
+    if (errno != 0 || end == str) return -1;
+    *out = val;
+    return 0;
+}
+
 /**
  * @brief 从 XML 文本中提取两个 double 坐标（x, y）
  *
@@ -202,15 +214,16 @@ static bool ggb_extract_coord_double(const char *text, const char *name, double 
     /* 检查分数格式 "a/b" */
     const char *slash = strchr(val_buf, '/');
     if (slash && slash != val_buf && *(slash + 1) != '\0') {
-        double num = atof(val_buf);
-        double den = atof(slash + 1);
+        double num = 0.0, den = 0.0;
+        safe_parse_double(val_buf, &num);
+        safe_parse_double(slash + 1, &den);
         if (den == 0.0)
             return false;
         *value = num / den;
         return true;
     }
 
-    *value = atof(val_buf);
+    safe_parse_double(val_buf, value);
     return true;
 }
 

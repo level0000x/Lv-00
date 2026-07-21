@@ -14,6 +14,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define GA_CODEGEN_BUF_SIZE       512
+#define GA_CODEGEN_LATEX_BUF_SIZE 256
+
 /* ========================================================================
  * 内部辅助：计算字符串行数
  * ======================================================================== */
@@ -36,7 +39,7 @@ static char *generate_c_code(const Lv00MultiVector *mv,
                              const GACodegenOptions *opts)
 {
     (void)mv;
-    char *buf = (char *)malloc(512);
+    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     const char *var = (opts->variable_name != NULL) ? opts->variable_name : "result";
@@ -45,7 +48,7 @@ static char *generate_c_code(const Lv00MultiVector *mv,
     if (opts->include_header) {
         hdr = "/* Auto-generated GA code (C target) */\n";
     }
-    snprintf(buf, 512,
+    snprintf(buf, GA_CODEGEN_BUF_SIZE,
              "%s/* 多重向量初始化 */\n"
              "%sdouble %s[GA_MV_DIM];\n"
              "%sfor (int i = 0; i < GA_MV_DIM; i++)\n"
@@ -59,7 +62,7 @@ static char *generate_cpp_code(const Lv00MultiVector *mv,
                                const GACodegenOptions *opts)
 {
     (void)mv;
-    char *buf = (char *)malloc(512);
+    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     const char *var = (opts->variable_name != NULL) ? opts->variable_name : "result";
@@ -68,7 +71,7 @@ static char *generate_cpp_code(const Lv00MultiVector *mv,
     if (opts->include_header) {
         hdr = "// Auto-generated GA code (C++ target)\n";
     }
-    snprintf(buf, 512,
+    snprintf(buf, GA_CODEGEN_BUF_SIZE,
              "%s// 多重向量初始化\n"
              "%sstd::array<double, GA_MV_DIM> %s{};\n",
              hdr, ind, var);
@@ -80,7 +83,7 @@ static char *generate_cuda_code(const Lv00MultiVector *mv,
                                 const GACodegenOptions *opts)
 {
     (void)mv;
-    char *buf = (char *)malloc(512);
+    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     const char *var = (opts->variable_name != NULL) ? opts->variable_name : "result";
@@ -89,7 +92,7 @@ static char *generate_cuda_code(const Lv00MultiVector *mv,
     if (opts->include_header) {
         hdr = "// Auto-generated GA code (CUDA target)\n";
     }
-    snprintf(buf, 512,
+    snprintf(buf, GA_CODEGEN_BUF_SIZE,
              "%s__global__ void ga_compute(double *%s) {\n"
              "%s%sfor (int i = 0; i < GA_MV_DIM; i++)\n"
              "%s%s%s%s[i] = 0.0;\n"
@@ -103,7 +106,7 @@ static char *generate_python_code(const Lv00MultiVector *mv,
                                   const GACodegenOptions *opts)
 {
     (void)mv;
-    char *buf = (char *)malloc(512);
+    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     const char *var = (opts->variable_name != NULL) ? opts->variable_name : "result";
@@ -112,7 +115,7 @@ static char *generate_python_code(const Lv00MultiVector *mv,
     if (opts->include_header) {
         hdr = "# Auto-generated GA code (Python target)\nimport numpy as np\n\n";
     }
-    snprintf(buf, 512,
+    snprintf(buf, GA_CODEGEN_BUF_SIZE,
              "%s# 多重向量初始化\n"
              "%s%s = np.zeros(GA_MV_DIM)\n",
              hdr, ind, var);
@@ -183,7 +186,7 @@ void ga_codegen_result_destroy(GACodegenResult *result)
     if (result->error_msg != NULL) {
         lv00_free_ptr(result->error_msg);
     }
-    free(result);
+    lv00_free(result);
 }
 
 /* ========================================================================
@@ -194,14 +197,14 @@ char *ga_render_latex(const Lv00MultiVector *mv)
 {
     if (mv == NULL) return NULL;
 
-    char *buf = (char *)malloc(256);
+    char *buf = (char *)lv00_malloc(GA_CODEGEN_LATEX_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     /* 简化渲染：多重向量为零时输出 "0"，否则输出占位表达式 */
     if (ga_mv_zero() == NULL || mv == NULL) {
-        snprintf(buf, 256, "0");
+        snprintf(buf, GA_CODEGEN_LATEX_BUF_SIZE, "0");
     } else {
-        snprintf(buf, 256, "\\mathbf{mv}_{%d\\text{ blades}}", GA_MV_DIM);
+        snprintf(buf, GA_CODEGEN_LATEX_BUF_SIZE, "\\mathbf{mv}_{%d\\text{ blades}}", GA_MV_DIM);
     }
     return buf;
 }
@@ -210,11 +213,11 @@ char *ga_render_dot(const Lv00MultiVector *mv)
 {
     if (mv == NULL) return NULL;
 
-    char *buf = (char *)malloc(512);
+    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     /* 生成 Graphviz DOT 格式的多重向量分量图 */
-    snprintf(buf, 512,
+    snprintf(buf, GA_CODEGEN_BUF_SIZE,
              "digraph GA_Multivector {\n"
              "  rankdir=LR;\n"
              "  node [shape=circle];\n"

@@ -4,6 +4,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
+#include <limits.h>
+
+static int safe_parse_int(const char *str, int *out)
+{
+    if (!str || !*str) return -1;
+    char *end = NULL;
+    errno = 0;
+    long val = strtol(str, &end, 10);
+    if (errno != 0 || end == str || *end != '\0') return -1;
+    if (val > INT_MAX || val < INT_MIN) return -1;
+    *out = (int)val;
+    return 0;
+}
 
 /* 内部辅助：追加字符串到动态缓冲区 */
 typedef struct {
@@ -193,7 +207,8 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
                         int port_id = 0;
                         if (strncmp(p, "port", 4) == 0) {
                             p += 4;
-                            port_id = atoi(p);
+                            port_id = 0;
+                            safe_parse_int(p, &port_id);
                         }
                         if (in_cnt < 64) inputs[in_cnt++] = port_id;
                         /* 跳到行尾 */
@@ -205,7 +220,8 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
                         int port_id = 0;
                         if (strncmp(p, "port", 4) == 0) {
                             p += 4;
-                            port_id = atoi(p);
+                            port_id = 0;
+                            safe_parse_int(p, &port_id);
                         }
                         if (out_cnt < MAX_BLOCK_PORTS) outputs[out_cnt++] = port_id;
                         /* 跳到行尾 */

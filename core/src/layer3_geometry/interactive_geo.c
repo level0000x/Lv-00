@@ -414,12 +414,12 @@ int interactive_geo_restore(Lv00InteractiveGeo *g, int idx)
     int mv = (int)cs->current_mode, di = -1, sc = 0;
     double dx = 0, dy = 0, zm = 1, ox = 0, oy = 0;
     const char *p;
-    if ((p = strstr(j, "\"mode\":"))) sscanf(p + 7, "%d", &mv);
-    if ((p = strstr(j, "\"drag_target\":"))) sscanf(p + 14, "%d", &di);
-    if ((p = strstr(j, "\"drag_pos\":["))) sscanf(p + 12, "%lf,%lf", &dx, &dy);
-    if ((p = strstr(j, "\"zoom\":"))) sscanf(p + 7, "%lf", &zm);
-    if ((p = strstr(j, "\"offset\":["))) sscanf(p + 10, "%lf,%lf", &ox, &oy);
-    if ((p = strstr(j, "\"selected_count\":"))) sscanf(p + 17, "%d", &sc);
+    if ((p = strstr(j, "\"mode\":")) && sscanf(p + 7, "%d", &mv) != 1) mv = 0;
+    if ((p = strstr(j, "\"drag_target\":")) && sscanf(p + 14, "%d", &di) != 1) di = -1;
+    if ((p = strstr(j, "\"drag_pos\":[")) && sscanf(p + 12, "%lf,%lf", &dx, &dy) != 2) { dx = 0; dy = 0; }
+    if ((p = strstr(j, "\"zoom\":")) && sscanf(p + 7, "%lf", &zm) != 1) zm = 1;
+    if ((p = strstr(j, "\"offset\":[")) && sscanf(p + 10, "%lf,%lf", &ox, &oy) != 2) { ox = 0; oy = 0; }
+    if ((p = strstr(j, "\"selected_count\":")) && sscanf(p + 17, "%d", &sc) != 1) sc = 0;
     cs->current_mode = (InteractiveGeoMode)mv; cs->drag_target_id = di;
     cs->drag_current_x = dx; cs->drag_current_y = dy;
     cs->zoom_level = zm; cs->viewport_offset_x = ox; cs->viewport_offset_y = oy;

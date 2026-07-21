@@ -17,8 +17,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <limits.h>
 
 #include "lv00_utils.h"
+
+static int safe_parse_int(const char *str, int *out)
+{
+    if (!str || !*str) return -1;
+    char *end = NULL;
+    errno = 0;
+    long val = strtol(str, &end, 10);
+    if (errno != 0 || end == str || *end != '\0') return -1;
+    if (val > INT_MAX || val < INT_MIN) return -1;
+    *out = (int)val;
+    return 0;
+}
 
 /* ---- 内部常量 ---- */
 
@@ -321,7 +335,8 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
 
     /* "state_N" 格式 */
     if (strncmp(predicate, "state_", 6) == 0) {
-        int target = atoi(predicate + 6);
+        int target = 0;
+        safe_parse_int(predicate + 6, &target);
         return (state_id == target);
     }
 
@@ -378,7 +393,8 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
     }
 
     /* 默认：尝试解析为状态 ID */
-    int target = atoi(predicate);
+    int target = 0;
+    safe_parse_int(predicate, &target);
     return (state_id == target);
 }
 

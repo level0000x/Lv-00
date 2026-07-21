@@ -14,17 +14,47 @@
 #include "lv00/orchestrator.h"
 #include "lv00/lv00_internal.h"
 #include "lv00/proof.h"
+#include <errno.h>
+#include <limits.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
 
+#define ORCH_OUTPUT_BASE_PROOF   256
+#define ORCH_OUTPUT_BASE_LATEX   512
+#define ORCH_OUTPUT_BASE_HTML   1024
+#define ORCH_OUTPUT_BASE_DEFAULT 256
+#define ORCH_CANVAS_DEFAULT_W    800
+#define ORCH_CANVAS_DEFAULT_H    600
+
 /*
  * [QA] Uses double for timing/layout — not geometric computation. Acceptable.
  */
 
 static atomic_int session_counter = 0;
+
+/**
+ * @brief 安全地将字符串解析为整数
+ *
+ * 使用 strtol 并检查 errno 和溢出，替代 atoi 以避免未定义行为。
+ *
+ * @param str          要解析的字符串
+ * @param default_value 解析失败时返回的默认值
+ * @return 解析后的整数值，或 default_value
+ */
+static int safe_parse_int(const char *str, int default_value)
+{
+    if (str == NULL || *str == '\0') return default_value;
+    char *endptr = NULL;
+    errno = 0;
+    long val = strtol(str, &endptr, 10);
+    if (errno == ERANGE || val > INT_MAX || val < INT_MIN || endptr == str) {
+        return default_value;
+    }
+    return (int)val;
+}
 
 /**
  * @brief 获取默认会话配置
@@ -324,13 +354,13 @@ int lv00_session_run(Lv00Session *session, const char *input) {
         int output_len = 0;
         const char *format = session->config.output_format;
         if (strcmp(format, "proof") == 0) {
-            output_len = 256 + session->config.max_reasoning_depth;
+            output_len = ORCH_OUTPUT_BASE_PROOF + session->config.max_reasoning_depth;
         } else if (strcmp(format, "latex") == 0) {
-            output_len = 512 + session->config.max_reasoning_depth * 2;
+            output_len = ORCH_OUTPUT_BASE_LATEX + session->config.max_reasoning_depth * 2;
         } else if (strcmp(format, "html") == 0) {
-            output_len = 1024 + session->config.max_reasoning_depth * 4;
+            output_len = ORCH_OUTPUT_BASE_HTML + session->config.max_reasoning_depth * 4;
         } else {
-            output_len = 256;
+            output_len = ORCH_OUTPUT_BASE_DEFAULT;
         }
 
         clock_t t1 = clock();
@@ -362,8 +392,8 @@ int lv00_session_run(Lv00Session *session, const char *input) {
             }
 
             /* 模拟可视化设置：计算画布参数 */
-            int canvas_w = 800;
-            int canvas_h = 600;
+            int canvas_w = ORCH_CANVAS_DEFAULT_W;
+            int canvas_h = ORCH_CANVAS_DEFAULT_H;
             int obj_count = 0;
             /* 从几何阶段消息中提取对象数 */
             const char *geo_msg = session->stages[LV00_STAGE_GEOMETRY].error_msg;
@@ -375,7 +405,7 @@ int lv00_session_run(Lv00Session *session, const char *input) {
                     while (num_start > geo_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
                         num_start--;
                     if (num_start < p) {
-                        obj_count = atoi(num_start);
+                        obj_count = safe_parse_int(num_start, 0);
                     }
                 }
             }
@@ -498,7 +528,7 @@ int lv00_session_run_stage(Lv00Session *session, Lv00PipelineStage stage) {
                 while (num_start > parse_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
                     num_start--;
                 if (num_start < p) {
-                    int tokens = atoi(num_start);
+                    int tokens = safe_parse_int(num_start, 0);
                     geo_obj_count = tokens > 0 ? (tokens + 2) / 3 : 1;
                 }
             }
@@ -600,13 +630,13 @@ int lv00_session_run_stage(Lv00Session *session, Lv00PipelineStage stage) {
         int output_len = 0;
         const char *format = session->config.output_format;
         if (strcmp(format, "proof") == 0)
-            output_len = 256 + session->config.max_reasoning_depth;
+            output_len = ORCH_OUTPUT_BASE_PROOF + session->config.max_reasoning_depth;
         else if (strcmp(format, "latex") == 0)
-            output_len = 512 + session->config.max_reasoning_depth * 2;
+            output_len = ORCH_OUTPUT_BASE_LATEX + session->config.max_reasoning_depth * 2;
         else if (strcmp(format, "html") == 0)
-            output_len = 1024 + session->config.max_reasoning_depth * 4;
+            output_len = ORCH_OUTPUT_BASE_HTML + session->config.max_reasoning_depth * 4;
         else
-            output_len = 256;
+            output_len = ORCH_OUTPUT_BASE_DEFAULT;
 
         clock_t t1 = clock();
         double elapsed = (double)(t1 - t0) / CLOCKS_PER_SEC * 1000.0;
@@ -634,7 +664,7 @@ int lv00_session_run_stage(Lv00Session *session, Lv00PipelineStage stage) {
                     const char *num_start = p;
                     while (num_start > geo_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
                         num_start--;
-                    if (num_start < p) obj_count = atoi(num_start);
+                    if (num_start < p) obj_count = safe_parse_int(num_start, 0);
                 }
             }
             if (obj_count <= 0) obj_count = 1;
@@ -645,7 +675,8 @@ int lv00_session_run_stage(Lv00Session *session, Lv00PipelineStage stage) {
 
             snprintf(session->stages[stage].error_msg,
                      sizeof(session->stages[stage].error_msg),
-                     "可视化就绪(单阶段): 画布 800x600, %d 个对象", obj_count);
+                     "可视化就绪(单阶段): 画布 %dx%d, %d 个对象",
+                     ORCH_CANVAS_DEFAULT_W, ORCH_CANVAS_DEFAULT_H, obj_count);
             session->stages[stage].elapsed_ms = elapsed;
             session->stages[stage].status = LV00_STAGE_COMPLETED;
         } else {
