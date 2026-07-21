@@ -959,3 +959,34 @@ bool lv00_he_mesh_validate(const Lv00HeMesh *mesh)
 
     return true;
 }
+
+/* ── _mesh_ 前缀迭代器（委托给短名实现）── */
+
+Lv00HeVertexIterator lv00_he_mesh_vertex_iter_begin(Lv00HeMesh *mesh, int flags) {
+    (void)flags;
+    return lv00_he_vertex_iter_begin(mesh, 0);
+}
+
+Lv00HeVertexIterator lv00_he_mesh_vertex_out_iter_begin(Lv00HeMesh *mesh, Lv00Vertex v) {
+    return lv00_he_vertex_iter_begin(mesh, v);
+}
+
+Lv00Vertex lv00_he_mesh_vertex_out_iter_next(Lv00HeVertexIterator *iter) {
+    lv00_he_vertex_iter_next(iter);
+    return iter->current;
+}
+
+bool lv00_he_mesh_vertex_iter_next(Lv00HeVertexIterator *iter) {
+    lv00_he_vertex_iter_next(iter);
+    return iter->current != LV00_HE_INVALID;
+}
+
+Lv00HeFaceIterator lv00_he_mesh_face_iter_begin(Lv00HeMesh *mesh, int flags) {
+    (void)flags;
+    return lv00_he_face_iter_begin(mesh, 0);
+}
+
+bool lv00_he_mesh_face_iter_next(Lv00HeFaceIterator *iter) {
+    lv00_he_face_iter_next(iter);
+    return iter->current != LV00_HE_INVALID;
+}

@@ -1247,6 +1247,11 @@ bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loade
             ConstraintTemplate *dep_template = find_template_in_packages(
                 loaded_packages, package_count, dep);
             
+            /* 回退：在当前包中查找模板 */
+            if (!dep_template) {
+                dep_template = axiom_package_get_template(pkg, dep);
+            }
+            
             if (!dep_problem && !dep_template) {
                 lv00_set_error(LV00_ERROR_NOT_FOUND, "依赖验证失败: 问题 '%s' 的依赖 '%s' 未在任何已加载的包中找到",
                           uc->name, dep);

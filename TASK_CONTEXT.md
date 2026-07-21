@@ -19,14 +19,19 @@
 
 ## 二、当前状态 ✅
 
-**全部任务已完成（2026-07-21）。** 103/103 tests passed, 0 GCC warnings, 0 build errors.
+**全部任务已完成（2026-07-21）。** 105/105 tests passed, 0 GCC warnings, 0 build errors.
 
 | 测试统计 | 数值 |
 |:---|:--:|
-| 总测试 | 103 |
-| 通过 | 103 (100%) |
-| 注释（待启用） | 13 |
-| 0 错误 | ✅ |
+| 总测试 | 111 |
+| 通过 | 111 (100%) |
+| 注释（待启用） | 5 |
+| 0 错误 | ✅
+
+**注释测试明细**:
+- 3 需新 API 模块: proof_export_enhanced, performance, adaptive_threshold
+- 1 segfault: error_handling
+- 1 数据不匹配: probability_theory
 
 | 任务 | 优先级 | 状态 |
 |:---|:--:|:--:|

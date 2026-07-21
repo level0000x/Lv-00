@@ -11,6 +11,10 @@ Lv00GeometryConfig lv00_geometry_config_default(void)
     cfg.dimensions = 3;
     cfg.collinear_epsilon = 1e-9;
     cfg.distance_epsilon = 1e-9;
+    cfg.perpendicular_epsilon = 1e-8;
+    cfg.parallel_epsilon = 1e-8;
+    cfg.angle_epsilon = 1e-6;
+    cfg.singular_threshold = 1e-12;
     return cfg;
 }
 

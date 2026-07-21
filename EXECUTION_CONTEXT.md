@@ -19,19 +19,19 @@
 
 | 指标 | 数值 |
 |:---|:--:|
-| 总测试数 | 103 |
+| 总测试数 | 111（当前） |
 | 通过率 | 100% |
 | 0 错误 | ✅ |
-| 注释的测试 | 13（待 API/数据完善后启用） |
-| 新增启用测试 | 16 |
+| 注释的测试 | 5（待 API/数据完善后启用） |
+| 新增启用测试 | 24 |
 
 ### 启用测试明细
-- 几何求解/ODE/拓扑/谓词/AABB/冲突检测：8 个
-- 公理理论：peano, order, nwf_set, measure, linear_algebra, cartesian_closed, second_order, robin：8 个
+- 几何求解/ODE/拓扑/谓词/AABB/冲突检测/内存管理/halfedge_mesh：10 个
+- 公理理论：peano, order, nwf_set, measure, linear_algebra, cartesian_closed, second_order, robin, topos, synthetic, quantum, graph, galois, ergodic：14 个
 
 ### 注释测试明细
-- 需 API 实现：proof_export_enhanced, performance, memory_management, adaptive_threshold, error_handling, geo_halfedge_mesh
-- 需公理数据：topos, synthetic_diff_geom, quantum_info, probability, graph, galois, ergodic
+- 需 API 实现：proof_export_enhanced, performance, adaptive_threshold（3 个）
+- segfault/数据不匹配：error_handling, probability_theory（2 个）
 
 ---
 
@@ -182,3 +182,19 @@ Lv-00/
 ├── CHANGELOG.md       v1.0→v1.1 完整变更
 └── README.md          展示版
 ```
+
+## 六、Phase 13 完成 (2026-07-21)
+
+**solver stubs + halfedge_mesh + 6 axiom tests 启用**
+
+### 完成项
+- `solver_symbolic.c`: `poly_eval_symbolic` 逐项求值，`compute_algebraic_resultant` 委托 mpz_poly_resultant
+- `geo_halfedge_mesh.h`: 添加 30+ 缺失函数声明（访问器/查询/构造/迭代器）
+- `geo_halfedge_mesh.c`: 添加 6 个 _mesh_ 前缀迭代器 wrapper
+- `axiom_pkg.c`: 依赖验证增加当前包模板回退查找
+- 启用 6 个公理测试: topos (81), synthetic, quantum (106), graph (70), galois (61), ergodic (49)
+- `CMakeLists.txt`: 新增 8 个测试注册
+
+### 测试统计
+- **111/111 全部通过**
+- 剩余注释 5 个: proof_export_enhanced, performance, adaptive_threshold (需新模块), error_handling (segfault), probability_theory (数据不匹配)

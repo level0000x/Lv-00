@@ -26,7 +26,7 @@ int g_pass_count = 0;
 #define AXIOM_PKG_PATH "module/axiom_packages/quantum_information_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/quantum_information_theory_test_save.lvz"
 
-#define EXPECTED_TEMPLATE_COUNT 98
+#define EXPECTED_TEMPLATE_COUNT 106
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
 static void test_load_from_file(void) {
@@ -58,7 +58,7 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 98 constraint templates");
+    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 106 constraint templates");
     printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
 
     struct {

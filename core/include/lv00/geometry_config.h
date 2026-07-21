@@ -17,6 +17,10 @@ typedef struct {
     int dimensions;
     double collinear_epsilon;
     double distance_epsilon;
+    double perpendicular_epsilon;
+    double parallel_epsilon;
+    double angle_epsilon;
+    double singular_threshold;
 } Lv00GeometryConfig;
 
 /** Default geometry config. */

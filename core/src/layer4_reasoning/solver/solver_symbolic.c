@@ -57,21 +57,62 @@ void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
     mpz_set_ui(result, 0);
 }
 
-/* TODO: 待实现 - 精确二次方程求解 */
+/**
+ * @brief 在符号坐标上求值多项式
+ * @details 将多项式系数在 SymbolicCoord 值上逐项求值并累加。
+ *          多项式 p(x) = Σ coeffs[i] * x^i，每项用 symbolic_coord_pow 和
+ *          symbolic_coord_multiply 计算，最后用 symbolic_coord_add 累加。
+ * @param poly  整数系数多项式
+ * @param value 求值点（符号坐标）
+ * @return 求值结果（新分配的 SymbolicCoord），失败返回 NULL
+ */
 SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value) {
-    (void)poly;
-    (void)value;
-    return NULL;
+    if (!poly || !value || poly->degree < 0) return NULL;
+
+    SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
+    if (!result) return NULL;
+
+    for (int i = 0; i <= poly->degree; i++) {
+        if (mpz_cmp_si(poly->coeffs[i], 0) == 0) continue;
+
+        /* coeff_i * value^i */
+        SymbolicCoord *coeff = symbolic_coord_create_rational(
+            mpz_get_si(poly->coeffs[i]), 1);
+        if (!coeff) { symbolic_coord_destroy(result); return NULL; }
+
+        SymbolicCoord *power = symbolic_coord_pow(value, (unsigned int)i);
+        if (!power) { symbolic_coord_destroy(coeff); symbolic_coord_destroy(result); return NULL; }
+
+        SymbolicCoord *term = symbolic_coord_multiply(coeff, power);
+        symbolic_coord_destroy(coeff);
+        symbolic_coord_destroy(power);
+        if (!term) { symbolic_coord_destroy(result); return NULL; }
+
+        SymbolicCoord *new_result = symbolic_coord_add(result, term);
+        symbolic_coord_destroy(term);
+        if (!new_result) { symbolic_coord_destroy(result); return NULL; }
+
+        symbolic_coord_destroy(result);
+        result = new_result;
+    }
+    return result;
 }
 
-/* TODO: 待实现 - 代数消元 */
+/**
+ * @brief 计算两个多项式的代数结式
+ * @details 委托给 mpz_poly_resultant 执行 Sylvester 结式计算。
+ *          支持的运算类型：
+ *          - ALG_OP_SUM：计算 Res_y(p(y), q(x-y)) 得到 α+β 的最小多项式
+ *          - ALG_OP_PRODUCT：计算 Res_y(p(y), y^n*q(x/y)) 得到 α·β 的最小多项式
+ * @param p      α 的最小多项式
+ * @param q      β 的最小多项式
+ * @param op     运算类型（和/积）
+ * @param result 输出：结果多项式
+ * @return true 成功，false 失败
+ */
 bool compute_algebraic_resultant(const mpz_poly_t *p, const mpz_poly_t *q,
                                   AlgebraicOp op, mpz_poly_t *result) {
-    (void)p;
-    (void)q;
-    (void)op;
-    (void)result;
-    return false;
+    return mpz_poly_resultant(p, q, op, result);
 }
 
 /**

@@ -117,12 +117,45 @@ int  lv00_he_mesh_vertex_count(const Lv00HeMesh *mesh);
 bool lv00_he_mesh_is_valid(const Lv00HeMesh *mesh);
 void lv00_he_mesh_get_stats(const Lv00HeMesh *mesh, Lv00HeMeshStats *s);
 
+/* ── 高级几何查询 ── */
+Lv00Halfedge lv00_he_mesh_vertex_out_halfedge(const Lv00HeMesh *mesh, Lv00Vertex v);
+Lv00Vertex   lv00_he_mesh_halfedge_vertex(const Lv00HeMesh *mesh, Lv00Halfedge he);
+Lv00Halfedge lv00_he_mesh_halfedge_twin(const Lv00HeMesh *mesh, Lv00Halfedge he);
+Lv00Halfedge lv00_he_mesh_halfedge_next(const Lv00HeMesh *mesh, Lv00Halfedge he);
+Lv00Face     lv00_he_mesh_halfedge_face(const Lv00HeMesh *mesh, Lv00Halfedge he);
+Lv00Halfedge lv00_he_mesh_face_halfedge(const Lv00HeMesh *mesh, Lv00Face f);
+Lv00Point3D  lv00_he_mesh_face_normal(const Lv00HeMesh *mesh, Lv00Face f);
+double       lv00_he_mesh_face_area(const Lv00HeMesh *mesh, Lv00Face f);
+int          lv00_he_mesh_face_valence(const Lv00HeMesh *mesh, Lv00Face f);
+int          lv00_he_mesh_face_vertices(const Lv00HeMesh *mesh, Lv00Face f, Lv00Vertex *out_vertices);
+double       lv00_he_mesh_vertex_angle(const Lv00HeMesh *mesh, Lv00Vertex v);
+double       lv00_he_mesh_vertex_curvature(const Lv00HeMesh *mesh, Lv00Vertex v);
+Lv00Point3D  lv00_he_mesh_vertex_normal(const Lv00HeMesh *mesh, Lv00Vertex v);
+double       lv00_he_mesh_halfedge_angle(const Lv00HeMesh *mesh, Lv00Halfedge he1, Lv00Halfedge he2);
+double       lv00_he_mesh_halfedge_corner_angle(const Lv00HeMesh *mesh, Lv00Halfedge he);
+Lv00Vertex   lv00_he_mesh_nearest_vertex(const Lv00HeMesh *mesh, Lv00Point3D point, double *out_distance);
+double       lv00_he_mesh_total_area(const Lv00HeMesh *mesh);
+int          lv00_he_mesh_euler_characteristic(const Lv00HeMesh *mesh);
+
+/* ── 快捷构造 ── */
+Lv00Face lv00_he_mesh_add_face_triangle(Lv00HeMesh *mesh, Lv00Vertex v0, Lv00Vertex v1, Lv00Vertex v2);
+Lv00Face lv00_he_mesh_add_face_quad(Lv00HeMesh *mesh, Lv00Vertex v0, Lv00Vertex v1, Lv00Vertex v2, Lv00Vertex v3);
+
+/* ── 短名迭代器 ── */
+Lv00HeVertexIterator lv00_he_vertex_iter_begin(const Lv00HeMesh *mesh, Lv00Vertex v);
+Lv00HeFaceIterator   lv00_he_face_iter_begin(const Lv00HeMesh *mesh, Lv00Face f);
+Lv00Halfedge         lv00_he_vertex_iter_get(const Lv00HeVertexIterator *iter);
+bool                 lv00_he_vertex_iter_valid(const Lv00HeVertexIterator *iter);
+void                 lv00_he_vertex_iter_next(Lv00HeVertexIterator *iter);
+Lv00Halfedge         lv00_he_face_iter_get(const Lv00HeFaceIterator *iter);
+bool                 lv00_he_face_iter_valid(const Lv00HeFaceIterator *iter);
+void                 lv00_he_face_iter_next(Lv00HeFaceIterator *iter);
+
+/* ── _mesh_ 前缀迭代器 ── */
 Lv00HeVertexIterator lv00_he_mesh_vertex_iter_begin(Lv00HeMesh *mesh, int flags);
 Lv00HeVertexIterator lv00_he_mesh_vertex_out_iter_begin(Lv00HeMesh *mesh, Lv00Vertex v);
 Lv00Vertex           lv00_he_mesh_vertex_out_iter_next(Lv00HeVertexIterator *iter);
-Lv00Halfedge         lv00_he_vertex_iter_get(const Lv00HeVertexIterator *iter);
 bool lv00_he_mesh_vertex_iter_next(Lv00HeVertexIterator *iter);
-
 Lv00HeFaceIterator lv00_he_mesh_face_iter_begin(Lv00HeMesh *mesh, int flags);
 bool lv00_he_mesh_face_iter_next(Lv00HeFaceIterator *iter);
 

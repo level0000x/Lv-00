@@ -1349,9 +1349,9 @@ if(BUILD_TESTS)
     # 性能基准测试（需要 Lv00PerfSession/Lv00PerfBenchResult API）
     # add_lv00_test_and_register(test_performance
     #     test/c/test_performance.c performance_test)
-    # 内存管理综合测试（需要 lv00_geometry_default_config / Lv00GeometryConfig 字段）
-    # add_lv00_test_and_register(test_memory_management
-    #     test/c/test_memory_management.c memory_management_test)
+    # 内存管理综合测试
+    add_lv00_test_and_register(test_memory_management
+        test/c/test_memory_management.c memory_management_test)
     # 最小化群论公理加载测试
     add_lv00_test_and_register(test_group_minimal
         test/c/test_group_minimal.c group_minimal_test)
@@ -1361,16 +1361,16 @@ if(BUILD_TESTS)
     # 几何谓词模块测试
     add_lv00_test_and_register(test_geo_predicate
         test/c/test_geo_predicate.c geo_predicate_test)
-    # Halfedge 网格拓扑模块测试（函数名与 API 不匹配）
-    # add_lv00_test_and_register(test_geo_halfedge_mesh
-    #     test/c/test_geo_halfedge_mesh.c geo_halfedge_mesh_test)
+    # Halfedge 网格拓扑模块测试
+    add_lv00_test_and_register(test_geo_halfedge_mesh
+        test/c/test_geo_halfedge_mesh.c geo_halfedge_mesh_test)
     # 动态几何依赖图模块测试
     add_lv00_test_and_register(test_geo_dynamic
         test/c/test_geo_dynamic.c geo_dynamic_test)
     # AABB 树空间索引模块测试
     add_lv00_test_and_register(test_geo_aabb_tree
         test/c/test_geo_aabb_tree.c geo_aabb_tree_test)
-    # 错误处理与边界条件测试（与 API 不匹配）
+    # 错误处理与边界条件测试（segfault，待修复测试用例）
     # add_lv00_test_and_register(test_error_handling
     #     test/c/test_error_handling.c error_handling_test)
     # 矛盾约束检测器测试
@@ -1380,13 +1380,18 @@ if(BUILD_TESTS)
     # add_lv00_test_and_register(test_adaptive_threshold
     #     test/c/test_adaptive_threshold.c adaptive_threshold_test)
 
-    # 新增公理包测试（部分因数据不完整注释）
+    # 新增公理包测试
+    add_lv00_test_and_register(test_axiom_topos_theory
+        test/c/test_axiom_topos_theory.c topos_theory_axiom_test)
+    add_lv00_test_and_register(test_axiom_synthetic_differential_geometry
+        test/c/test_axiom_synthetic_differential_geometry.c synthetic_differential_geometry_axiom_test)
     add_lv00_test_and_register(test_axiom_second_order_arithmetic
         test/c/test_axiom_second_order_arithmetic.c second_order_arithmetic_axiom_test)
     add_lv00_test_and_register(test_axiom_robin_arithmetic
         test/c/test_axiom_robin_arithmetic.c robin_arithmetic_axiom_test)
-    # add_lv00_test_and_register(test_axiom_quantum_information_theory
-    #     test/c/test_axiom_quantum_information_theory.c quantum_information_theory_axiom_test)
+    add_lv00_test_and_register(test_axiom_quantum_information_theory
+        test/c/test_axiom_quantum_information_theory.c quantum_information_theory_axiom_test)
+    # 模板名称与 .lvz 数据不匹配（差异 > 50 个模板名）
     # add_lv00_test_and_register(test_axiom_probability_theory
     #     test/c/test_axiom_probability_theory.c probability_theory_axiom_test)
     add_lv00_test_and_register(test_axiom_peano_arithmetic
@@ -1399,12 +1404,12 @@ if(BUILD_TESTS)
         test/c/test_axiom_measure_theory.c measure_theory_axiom_test)
     add_lv00_test_and_register(test_axiom_linear_algebra
         test/c/test_axiom_linear_algebra.c linear_algebra_axiom_test)
-    # add_lv00_test_and_register(test_axiom_graph_theory
-    #     test/c/test_axiom_graph_theory.c graph_theory_axiom_test)
-    # add_lv00_test_and_register(test_axiom_galois_theory
-    #     test/c/test_axiom_galois_theory.c galois_theory_axiom_test)
-    # add_lv00_test_and_register(test_axiom_ergodic_theory
-    #     test/c/test_axiom_ergodic_theory.c ergodic_theory_axiom_test)
+    add_lv00_test_and_register(test_axiom_graph_theory
+        test/c/test_axiom_graph_theory.c graph_theory_axiom_test)
+    add_lv00_test_and_register(test_axiom_galois_theory
+        test/c/test_axiom_galois_theory.c galois_theory_axiom_test)
+    add_lv00_test_and_register(test_axiom_ergodic_theory
+        test/c/test_axiom_ergodic_theory.c ergodic_theory_axiom_test)
     add_lv00_test_and_register(test_axiom_cartesian_closed_category
         test/c/test_axiom_cartesian_closed_category.c cartesian_closed_category_axiom_test)
 

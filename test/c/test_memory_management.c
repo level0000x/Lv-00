@@ -362,9 +362,10 @@ static void test_linear_allocator(void) {
 
 static void test_geometry_config_sequential(void) {
     /* 获取默认配置 */
-    const Lv00GeometryConfig *def = lv00_geometry_default_config();
+    Lv00GeometryConfig def_cfg = lv00_geometry_config_default();
+    const Lv00GeometryConfig *def = &def_cfg;
     TEST_ASSERT_NOT_NULL(def);
-    TEST_ASSERT(def->collinear_epsilon > 0, "默认共线容差应大于 0");
+    TEST_ASSERT(def_cfg.collinear_epsilon > 0, "默认共线容差应大于 0");
 
     /* 获取当前配置 */
     const Lv00GeometryConfig *cur = lv00_geometry_get_config();
