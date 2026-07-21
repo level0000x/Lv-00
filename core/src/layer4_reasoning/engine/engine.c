@@ -877,9 +877,10 @@ static EngineSolveResult run_solver_on_graph(LV00Engine *engine, const char *con
  */
 EngineSolveResult engine_solve(LV00Engine *engine) {
     /* P2修复: 迁移到 engine 实例变量，移除全局 TLS 状态依赖 */
-    if (!engine || !engine->main_graph) {
+    if (!engine) return ENGINE_SOLVE_ERROR;
+    if (!engine->main_graph) {
         engine->last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(engine->last_error, sizeof(engine->last_error), "求解失败: 引擎实例或约束图为空 (engine=%p)", (void *) engine);
+        snprintf(engine->last_error, sizeof(engine->last_error), "求解失败: 约束图为空");
         return ENGINE_SOLVE_ERROR;
     }
 

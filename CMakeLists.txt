@@ -1370,9 +1370,9 @@ if(BUILD_TESTS)
     # AABB 树空间索引模块测试
     add_lv00_test_and_register(test_geo_aabb_tree
         test/c/test_geo_aabb_tree.c geo_aabb_tree_test)
-    # 错误处理与边界条件测试（segfault，待修复测试用例）
-    # add_lv00_test_and_register(test_error_handling
-    #     test/c/test_error_handling.c error_handling_test)
+    # 错误处理与边界条件测试
+    add_lv00_test_and_register(test_error_handling
+        test/c/test_error_handling.c error_handling_test)
     # 矛盾约束检测器测试
     add_lv00_test_and_register(test_conflict_detector
         test/c/test_conflict_detector.c conflict_detector_test)
@@ -1391,9 +1391,8 @@ if(BUILD_TESTS)
         test/c/test_axiom_robin_arithmetic.c robin_arithmetic_axiom_test)
     add_lv00_test_and_register(test_axiom_quantum_information_theory
         test/c/test_axiom_quantum_information_theory.c quantum_information_theory_axiom_test)
-    # 模板名称与 .lvz 数据不匹配（差异 > 50 个模板名）
-    # add_lv00_test_and_register(test_axiom_probability_theory
-    #     test/c/test_axiom_probability_theory.c probability_theory_axiom_test)
+    add_lv00_test_and_register(test_axiom_probability_theory
+        test/c/test_axiom_probability_theory.c probability_theory_axiom_test)
     add_lv00_test_and_register(test_axiom_peano_arithmetic
         test/c/test_axiom_peano_arithmetic.c peano_arithmetic_axiom_test)
     add_lv00_test_and_register(test_axiom_order_theory
