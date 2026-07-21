@@ -38,9 +38,10 @@
 #include "exact_arithmetic.h" /* LV00_TOLERATED_FLOAT for proof timing/thresholds */
 #include "unify.h"
 
-/* 前向声明：仅用于指针类型，减少编译依赖 */
+/* 前向声明 */
 typedef struct ConstraintGraph ConstraintGraph;
 typedef struct StreamContext StreamContext;
+typedef struct TypeRegion TypeRegion;
 
 #ifdef __cplusplus
 extern "C" {
@@ -287,7 +288,9 @@ void *proof_navigator_search(void *nav);
 
 const char *html_escape(const char *s);
 
-#include "thread_pool.h"
+/* 前向声明 —— thread_pool.h 类型（仅需指针） */
+typedef struct Lv00ThreadTask Lv00ThreadTask;
+typedef struct Lv00WaitGroup Lv00WaitGroup;
 
 typedef Lv00ThreadTask Lv00Task;
 typedef Lv00WaitGroup Lv00TaskGroup;

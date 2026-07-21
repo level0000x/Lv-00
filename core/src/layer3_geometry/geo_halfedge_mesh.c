@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_halfedge_mesh.c
  * @brief Halfedge 网格拓扑数据结构实现
  *
@@ -17,6 +17,7 @@
 #include <string.h>
 #include <math.h>
 #include <float.h>
+#include "lv00/lv00_utils.h"
 
 #include "lv00/lv00_utils.h"
 
@@ -67,9 +68,12 @@ static bool ensure_capacity(Lv00HeMesh *mesh)
     return true;
 }
 
+/* 前向声明（lv00_he_mesh_destroy 在 lv00_he_mesh_create 之后定义） */
+void lv00_he_mesh_destroy(Lv00HeMesh *mesh);
+
 Lv00HeMesh *lv00_he_mesh_create(const Lv00HeMeshConfig *config)
 {
-    Lv00HeMesh *mesh = (Lv00HeMesh *)calloc(1, sizeof(Lv00HeMesh));
+    Lv00HeMesh *mesh = (Lv00HeMesh *)lv00_calloc(1, sizeof(Lv00HeMesh));
     if (!mesh) return NULL;
 
     if (config) {
@@ -83,9 +87,9 @@ Lv00HeMesh *lv00_he_mesh_create(const Lv00HeMeshConfig *config)
     mesh->edge_capacity = INITIAL_CAPACITY * 3;
     mesh->face_capacity = INITIAL_CAPACITY * 2;
 
-    mesh->vertex_data = (Lv00VertexData *)calloc(
+    mesh->vertex_data = (Lv00VertexData *)lv00_calloc(
         mesh->vertex_capacity, sizeof(Lv00VertexData));
-    mesh->vertex_out_he = (Lv00Halfedge *)calloc(
+    mesh->vertex_out_he = (Lv00Halfedge *)lv00_calloc(
         mesh->vertex_capacity, sizeof(Lv00Halfedge));
 
     mesh->he_twin = (Lv00Halfedge *)lv00_malloc(
@@ -98,7 +102,7 @@ Lv00HeMesh *lv00_he_mesh_create(const Lv00HeMeshConfig *config)
         mesh->halfedge_capacity * sizeof(Lv00Face));
     mesh->he_vertex = (Lv00Vertex *)lv00_malloc(
         mesh->halfedge_capacity * sizeof(Lv00Vertex));
-    mesh->he_data = (Lv00HalfedgeData *)calloc(
+    mesh->he_data = (Lv00HalfedgeData *)lv00_calloc(
         mesh->halfedge_capacity, sizeof(Lv00HalfedgeData));
 
     mesh->edge_he = (Lv00Halfedge *)lv00_malloc(
@@ -106,7 +110,7 @@ Lv00HeMesh *lv00_he_mesh_create(const Lv00HeMeshConfig *config)
 
     mesh->face_he = (Lv00Halfedge *)lv00_malloc(
         mesh->face_capacity * sizeof(Lv00Halfedge));
-    mesh->face_data = (Lv00FaceData *)calloc(
+    mesh->face_data = (Lv00FaceData *)lv00_calloc(
         mesh->face_capacity, sizeof(Lv00FaceData));
 
     if (!mesh->vertex_data || !mesh->vertex_out_he ||

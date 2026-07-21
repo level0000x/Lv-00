@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_spec.c
  * @brief 几何规范描述实现
  *

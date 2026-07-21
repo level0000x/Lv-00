@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_constraint_solver.c
  * @brief 几何约束求解器实现 —— Newton-Raphson 迭代求解
  *
@@ -32,6 +32,7 @@
 #include "lv00/lv00_utils.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include "lv00/lv00_utils.h"
 
 /* ========================================================================
  * LV00_PUBLIC_API 兼容处理
@@ -1225,11 +1226,11 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
     int ncols = total_params;
 
     /* 分配工作内存 */
-    double *J     = (double *)calloc(nrows * ncols, sizeof(double));
-    double *F     = (double *)calloc(nrows, sizeof(double));
-    double *delta = (double *)calloc(ncols > nrows ? ncols : nrows, sizeof(double));
-    double *rhs   = (double *)calloc(nrows, sizeof(double));
-    double *J_copy = (double *)calloc(nrows * ncols, sizeof(double));
+    double *J     = (double *)lv00_calloc(nrows * ncols, sizeof(double));
+    double *F     = (double *)lv00_calloc(nrows, sizeof(double));
+    double *delta = (double *)lv00_calloc(ncols > nrows ? ncols : nrows, sizeof(double));
+    double *rhs   = (double *)lv00_calloc(nrows, sizeof(double));
+    double *J_copy = (double *)lv00_calloc(nrows * ncols, sizeof(double));
 
     if (!J || !F || !delta || !rhs || !J_copy) {
         lv00_free((void **)&J); lv00_free((void **)&F); lv00_free((void **)&delta); lv00_free((void **)&rhs); lv00_free((void **)&J_copy);
@@ -1238,7 +1239,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
     }
 
     /* 构建参数映射表 */
-    int *param_map = (int *)calloc(ncols, sizeof(int));
+    int *param_map = (int *)lv00_calloc(ncols, sizeof(int));
     int acc = 0;
     for (int fi = 0; fi < free_count; fi++) {
         int ei = free_entities[fi];
@@ -1278,8 +1279,8 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
         if (nrows > ncols) {
             /* 超定系统：使用 J^T * J * delta = -J^T * F（正规方程） */
             /* J^T * J (ncols x ncols) */
-            double *JtJ = (double *)calloc(ncols * ncols, sizeof(double));
-            double *JtF = (double *)calloc(ncols, sizeof(double));
+            double *JtJ = (double *)lv00_calloc(ncols * ncols, sizeof(double));
+            double *JtF = (double *)lv00_calloc(ncols, sizeof(double));
             if (!JtJ || !JtF) {
                 lv00_free((void **)&JtJ); lv00_free((void **)&JtF);
                 result = LV00_SOLVE_FAILED;
@@ -1353,8 +1354,8 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
         } else {
             /* 欠定系统： nrows < ncols，使用最小范数解 */
             /* J * delta = -F，取 delta = J^T * (J * J^T)^{-1} * (-F) */
-            double *JJt = (double *)calloc(nrows * nrows, sizeof(double));
-            double *neg_F = (double *)calloc(nrows, sizeof(double));
+            double *JJt = (double *)lv00_calloc(nrows * nrows, sizeof(double));
+            double *neg_F = (double *)lv00_calloc(nrows, sizeof(double));
             if (!JJt || !neg_F) {
                 lv00_free((void **)&JJt); lv00_free((void **)&neg_F);
                 result = LV00_SOLVE_FAILED;
@@ -1434,7 +1435,7 @@ LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem 
 {
     if (!sys) return NULL;
 
-    Lv00DOFAnalysis *analysis = (Lv00DOFAnalysis *)calloc(1, sizeof(Lv00DOFAnalysis));
+    Lv00DOFAnalysis *analysis = (Lv00DOFAnalysis *)lv00_calloc(1, sizeof(Lv00DOFAnalysis));
     if (!analysis) return NULL;
 
     /* 统计总自由度 */

@@ -1,4 +1,4 @@
-#ifndef LV00_GEO_CONSTRAINT_SOLVER_H
+﻿#ifndef LV00_GEO_CONSTRAINT_SOLVER_H
 #define LV00_GEO_CONSTRAINT_SOLVER_H
 
 #ifdef __cplusplus

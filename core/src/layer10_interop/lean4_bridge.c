@@ -1,10 +1,9 @@
-#include "lv00/interop.h"
+﻿#include "lv00/interop.h"
 #include "lv00/lv00_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-
 #include "lv00/lv00_utils.h"
 
 /* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */
@@ -432,7 +431,7 @@ static int lean4_import_proof(const char *input, void **proof) {
     while (*script_start && isspace((unsigned char)*script_start)) script_start++;
 
     /* 分配证明结构体 */
-    Lv00Lean4Proof *p = (Lv00Lean4Proof *)calloc(1, sizeof(Lv00Lean4Proof));
+    Lv00Lean4Proof *p = (Lv00Lean4Proof *)lv00_calloc(1, sizeof(Lv00Lean4Proof));
     if (!p) return -1;
 
     /* 保存定理名 */
@@ -445,7 +444,7 @@ static int lean4_import_proof(const char *input, void **proof) {
 
     /* 初始化步骤数组 */
     p->step_capacity = 16;
-    p->steps = (Lv00ProofStep *)calloc(p->step_capacity, sizeof(Lv00ProofStep));
+    p->steps = (Lv00ProofStep *)lv00_calloc(p->step_capacity, sizeof(Lv00ProofStep));
     if (!p->steps) { lv00_free((void **)&p); return -1; }
 
     /* 确定脚本结束位置（到下一个顶层关键字或文件末尾） */

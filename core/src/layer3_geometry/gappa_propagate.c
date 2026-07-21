@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gappa_propagate.c
  * @brief Gappa 浮点误差传播引擎
  *
@@ -25,6 +25,7 @@
 #include "lv00/lv00_utils.h"
 #include <ctype.h>
 #include <float.h>
+#include "lv00/lv00_utils.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_spec.c
  * @brief 几何规范描述解析与释放 —— Layer2 资源管理层
  *

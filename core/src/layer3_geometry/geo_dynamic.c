@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_dynamic.c
  * @brief 动态几何依赖图实现 — 借鉴 GeoGebra 动态几何系统
  *
@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <float.h>
 #include <math.h>
+#include "lv00/lv00_utils.h"
 
 #include "lv00/lv00_utils.h"
 
@@ -242,7 +243,7 @@ Lv00DynGraphConfig lv00_dyn_graph_default_config(void)
 
 Lv00DynGraph *lv00_dyn_graph_create(const Lv00DynGraphConfig *config)
 {
-    Lv00DynGraph *graph = (Lv00DynGraph *)calloc(1, sizeof(Lv00DynGraph));
+    Lv00DynGraph *graph = (Lv00DynGraph *)lv00_calloc(1, sizeof(Lv00DynGraph));
     if (!graph) return NULL;
 
     if (config) {
@@ -254,7 +255,7 @@ Lv00DynGraph *lv00_dyn_graph_create(const Lv00DynGraphConfig *config)
     graph->node_capacity = INITIAL_NODE_CAPACITY;
     graph->node_count = 0;
 
-    graph->nodes = (Lv00DynNode *)calloc(graph->node_capacity, sizeof(Lv00DynNode));
+    graph->nodes = (Lv00DynNode *)lv00_calloc(graph->node_capacity, sizeof(Lv00DynNode));
 
     init_id_map(graph);
     init_adjacency(graph);
@@ -721,7 +722,7 @@ int lv00_dyn_graph_topological_sort(
     if (!graph || !out_order) return -1;
 
     /* Kahn 算法 */
-    int *in_degree = (int *)calloc(graph->node_count, sizeof(int));
+    int *in_degree = (int *)lv00_calloc(graph->node_count, sizeof(int));
     if (!in_degree) return -1;
 
     /* 计算入度 */

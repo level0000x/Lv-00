@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gappa_dsl.c
  * @brief Gappa DSL parsing and proof generation (stub implementations)
  */
@@ -309,7 +309,7 @@ Lv00GappaProofResult gappa_prove(const Lv00GappaPredicate *hyp, int hyp_count,
     result.goals_total = goal_count;
 
     if (goal_count > 0) {
-        result.goals = (Lv00GappaProofGoal *)calloc((size_t)goal_count, sizeof(Lv00GappaProofGoal));
+        result.goals = (Lv00GappaProofGoal *)lv00_calloc((size_t)goal_count, sizeof(Lv00GappaProofGoal));
         if (result.goals) {
             for (int i = 0; i < goal_count; i++) {
                 result.goals[i] = goals[i];

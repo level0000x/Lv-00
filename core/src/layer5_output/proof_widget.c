@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_widget.c
  * @brief 证明交互可视化组件实现 -- Widget 生命周期、布局管理、证明状态查询与策略推荐
  *
@@ -13,6 +13,7 @@
 #include "lv00/proof_widget.h"
 #include "lv00/proof.h"
 #include "lv00/lv00_internal.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

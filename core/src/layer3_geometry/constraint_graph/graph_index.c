@@ -17,6 +17,7 @@
 #include "lv00/constraint_graph.h"
 #include "lv00/stream.h"
 #include "lv00/symbolic_coord.h"
+#include "lv00/stream.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"

@@ -43,7 +43,7 @@ extern "C" {
 #include "error_codes.h"
 #include "symbolic_coord.h"
 
-/* 前向声明：仅用于指针类型，减少编译依赖 */
+/* 前向声明 */
 typedef struct StreamContext StreamContext;
 
 /* ================================================================

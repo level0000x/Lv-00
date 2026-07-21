@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_ga_multivector.c
  * @brief Tests for the PGA multivector module
  *

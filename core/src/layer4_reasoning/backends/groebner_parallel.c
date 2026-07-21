@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file groebner_parallel.c
  * @brief 并行 Groebner 基计算引擎 —— 基于 Buchberger 算法的多线程实现
  *
@@ -81,7 +81,7 @@ typedef struct {
 
 /** 初始化工作队列，成功返回0，失败返回-1 */
 static int work_queue_init(WorkQueue *q, int initial_capacity) {
-    q->pairs = (SPair *)calloc((size_t)initial_capacity, sizeof(SPair));
+    q->pairs = (SPair *)lv00_calloc((size_t)initial_capacity, sizeof(SPair));
     if (!q->pairs) {
         q->size = 0;
         q->capacity = 0;
@@ -156,7 +156,7 @@ static int work_queue_steal(WorkQueue *q, SPair *out) {
 
 /** 创建空多项式，成功返回true */
 static bool simple_poly_create(SimplePoly *out, int initial_capacity) {
-    out->terms = (PolyTerm *)calloc((size_t)initial_capacity, sizeof(PolyTerm));
+    out->terms = (PolyTerm *)lv00_calloc((size_t)initial_capacity, sizeof(PolyTerm));
     if (!out->terms) {
         out->term_count = 0;
         out->term_capacity = 0;
@@ -242,7 +242,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
 
     int *lcm_exp = NULL;
     if (var_count > 0) {
-        lcm_exp = (int *)calloc((size_t)var_count, sizeof(int));
+        lcm_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
         if (!lcm_exp) return result;
 
         for (int v = 0; v < var_count; v++) {
@@ -255,7 +255,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     /* 计算 multiplier_i = LCM / LT(gi) 的指数部分 */
     int *mult_i_exp = NULL;
     if (var_count > 0) {
-        mult_i_exp = (int *)calloc((size_t)var_count, sizeof(int));
+        mult_i_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
         if (!mult_i_exp) { lv00_free((void **)&lcm_exp); return result; }
         for (int v = 0; v < var_count; v++) {
             int ei = (v < gi->terms[0].var_count) ? gi->terms[0].exponents[v] : 0;
@@ -266,7 +266,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     /* 计算 multiplier_j = LCM / LT(gj) 的指数部分 */
     int *mult_j_exp = NULL;
     if (var_count > 0) {
-        mult_j_exp = (int *)calloc((size_t)var_count, sizeof(int));
+        mult_j_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
         if (!mult_j_exp) { lv00_free((void **)&lcm_exp); lv00_free((void **)&mult_i_exp); return result; }
         for (int v = 0; v < var_count; v++) {
             int ej = (v < gj->terms[0].var_count) ? gj->terms[0].exponents[v] : 0;
@@ -283,7 +283,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     for (int t = 0; t < gi->term_count; t++) {
         int *new_exp = NULL;
         if (var_count > 0) {
-            new_exp = (int *)calloc((size_t)var_count, sizeof(int));
+            new_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
             if (!new_exp) break;
             for (int v = 0; v < var_count; v++) {
                 int et = (v < gi->terms[t].var_count) ? gi->terms[t].exponents[v] : 0;
@@ -308,7 +308,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     for (int t = 0; t < gj->term_count; t++) {
         int *new_exp = NULL;
         if (var_count > 0) {
-            new_exp = (int *)calloc((size_t)var_count, sizeof(int));
+            new_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
             if (!new_exp) break;
             for (int v = 0; v < var_count; v++) {
                 int et = (v < gj->terms[t].var_count) ? gj->terms[t].exponents[v] : 0;
@@ -385,7 +385,7 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
             for (int t = 0; t < basis[b].term_count; t++) {
                 int *new_exp = NULL;
                 if (vars > 0) {
-                    new_exp = (int *)calloc((size_t)vars, sizeof(int));
+                    new_exp = (int *)lv00_calloc((size_t)vars, sizeof(int));
                     if (!new_exp) break;
                     for (int v = 0; v < vars; v++) {
                         int fe = (v < f_vars) ? f.terms[0].exponents[v] : 0;
@@ -566,7 +566,7 @@ Lv00GroebnerConfig lv00_groebner_default_config(void) {
 }
 
 Lv00GroebnerParallel *lv00_groebner_parallel_create(const Lv00GroebnerConfig *config) {
-    Lv00GroebnerParallel *engine = (Lv00GroebnerParallel *)calloc(1, sizeof(Lv00GroebnerParallel));
+    Lv00GroebnerParallel *engine = (Lv00GroebnerParallel *)lv00_calloc(1, sizeof(Lv00GroebnerParallel));
     if (!engine) return NULL;
     engine->config = config ? *config : lv00_groebner_default_config();
     return engine;
@@ -651,7 +651,7 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
 
     /* 从输入子句构造初始基（简化多项式） */
     int **clauses = (int **)polynomials;
-    SimplePoly *basis = (SimplePoly *)calloc((size_t)poly_count, sizeof(SimplePoly));
+    SimplePoly *basis = (SimplePoly *)lv00_calloc((size_t)poly_count, sizeof(SimplePoly));
     if (!basis) return -1;
 
     for (int i = 0; i < poly_count; i++) {
@@ -689,8 +689,8 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
     volatile int global_completed = 0;
     volatile int global_total = engine->state.total_pairs;
 
-    WorkerArg *args = (WorkerArg *)calloc((size_t)num_threads, sizeof(WorkerArg));
-    WorkQueue **all_queues = (WorkQueue **)calloc((size_t)num_threads, sizeof(WorkQueue *));
+    WorkerArg *args = (WorkerArg *)lv00_calloc((size_t)num_threads, sizeof(WorkerArg));
+    WorkQueue **all_queues = (WorkQueue **)lv00_calloc((size_t)num_threads, sizeof(WorkQueue *));
     if (!args || !all_queues) {
         for (int i = 0; i < poly_count; i++) simple_poly_destroy(&basis[i]);
         lv00_free((void **)&basis);
@@ -701,7 +701,7 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
 
     /* 创建每个线程的本地工作队列 */
     for (int t = 0; t < num_threads; t++) {
-        all_queues[t] = (WorkQueue *)calloc(1, sizeof(WorkQueue));
+        all_queues[t] = (WorkQueue *)lv00_calloc(1, sizeof(WorkQueue));
         if (!all_queues[t] || work_queue_init(all_queues[t], engine->config.chunk_size) != 0) {
             /* 清理已分配的队列 */
             for (int k = 0; k < t; k++) {

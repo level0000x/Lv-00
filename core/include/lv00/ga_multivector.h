@@ -1,4 +1,4 @@
-#ifndef LV00_GA_MULTIVECTOR_H
+﻿#ifndef LV00_GA_MULTIVECTOR_H
 #define LV00_GA_MULTIVECTOR_H
 /**
  * @file ga_multivector.h

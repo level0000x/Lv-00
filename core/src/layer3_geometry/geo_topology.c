@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_topology.c
  * @brief Implementation of the geometric topology module.
  *
@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "lv00/lv00_utils.h"
 
 #include "lv00/lv00_utils.h"
 
@@ -114,7 +115,7 @@ static void uf_union(int *parent, int *rank, int x, int y) {
 Lv00SimplicialComplex *geo_simplicial_create(int n_vertices) {
     if (n_vertices < 0) return NULL;
 
-    Lv00SimplicialComplex *sc = (Lv00SimplicialComplex *)calloc(1, sizeof(Lv00SimplicialComplex));
+    Lv00SimplicialComplex *sc = (Lv00SimplicialComplex *)lv00_calloc(1, sizeof(Lv00SimplicialComplex));
     if (!sc) return NULL;
 
     sc->n_vertices  = n_vertices;
@@ -223,10 +224,10 @@ Lv00Boundary *geo_simplicial_boundary(const Lv00SimplicialComplex *sc,
 
     if (!tri) return NULL;
 
-    Lv00Boundary *bnd = (Lv00Boundary *)calloc(1, sizeof(Lv00Boundary));
+    Lv00Boundary *bnd = (Lv00Boundary *)lv00_calloc(1, sizeof(Lv00Boundary));
     if (!bnd) return NULL;
 
-    bnd->edges = (Lv00Edge *)calloc(3, sizeof(Lv00Edge));
+    bnd->edges = (Lv00Edge *)lv00_calloc(3, sizeof(Lv00Edge));
     if (!bnd->edges) {
         lv00_free((void **)&bnd);
         return NULL;
@@ -264,8 +265,8 @@ int geo_simplicial_connected_components(const Lv00SimplicialComplex *sc) {
     int n = sc->n_vertices;
 
     /* Initialize union-find */
-    int *parent = (int *)calloc((size_t)n, sizeof(int));
-    int *rank   = (int *)calloc((size_t)n, sizeof(int));
+    int *parent = (int *)lv00_calloc((size_t)n, sizeof(int));
+    int *rank   = (int *)lv00_calloc((size_t)n, sizeof(int));
     if (!parent || !rank) {
         lv00_free((void **)&parent);
         lv00_free((void **)&rank);
