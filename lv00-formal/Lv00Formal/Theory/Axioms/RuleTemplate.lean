@@ -1,3 +1,6 @@
+import Lv00Formal.Theory.Axioms.Primitive
+import Lv00Formal.Theory.Constraint.Graph
+
 /-
 Lv-00 Core: Executable Rule Templates
 
@@ -16,9 +19,6 @@ constraint graphs are well-formed, then the conclusions produced by rule
 application are also well-formed predicates and can be absorbed into the
 Lv-00 constraint graph.
 -/
-
-import Lv00Formal.Theory.Axioms.Primitive
-import Lv00Formal.Theory.Constraint.Graph
 
 namespace Lv00Formal
 namespace Theory

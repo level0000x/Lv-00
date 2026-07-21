@@ -1,7 +1,9 @@
+import Lv00Formal.Theory.Predicates.Defs
+
 /-
 Lv-00 自有理论核心：八条基础规则的形式接口
 
-这里的“基础规则”不是 Hilbert、Tarski 或欧氏公理的翻译，而是根据论文初稿
+这里的"基础规则"不是 Hilbert、Tarski 或欧氏公理的翻译，而是根据论文初稿
 对 Lv-00 自有体系的描述建立的内部规则模板。它们服务于三元本体、六条本原
 谓词、约束图、归一化和多策略推理之间的闭环。
 
@@ -12,12 +14,10 @@ Lv-00 自有理论核心：八条基础规则的形式接口
 4. 支撑冲突检测；
 5. 保证推理结论可被约束图与归一化内核吸收。
 
-因此本文件采用“语义化八规则接口”：每条规则先对应一个独立职责，后续可继续
+因此本文件采用"语义化八规则接口"：每条规则先对应一个独立职责，后续可继续
 依据 primitive_axioms、AxiomRule、axiom_package 与 constraint_graph 源码细化为
 具体可执行规则。
 -/
-
-import Lv00Formal.Theory.Predicates.Defs
 
 namespace Lv00Formal
 namespace Theory
