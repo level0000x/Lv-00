@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop.h
  * @brief 外部互操作模块头文件
  *
@@ -10,7 +10,7 @@
  *          - 规范表示导出
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_INTEROP_H

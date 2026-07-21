@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lexer_shared.h
  * @brief 共享词法分析器基础设施
  *
@@ -18,7 +18,7 @@
  *          - lexer_next_token()（数字解析和标识符规则不同）
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 #ifndef LV00_LEXER_SHARED_H
 #define LV00_LEXER_SHARED_H

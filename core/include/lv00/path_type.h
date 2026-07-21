@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file path_type.h
  * @brief 路径类型系统 —— 借鉴 Arend 同伦类型论（HoTT）的路径类型设计
  *
@@ -17,7 +17,7 @@
  *          使得每个几何构造步骤都是一条路径，路径拼接对应构造组合，
  *          路径消去（coe）对应沿路径传输属性。
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_PATH_TYPE_H

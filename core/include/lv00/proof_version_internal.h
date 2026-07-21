@@ -68,16 +68,79 @@ typedef struct {
 
 /* ============== API 函数声明 ============== */
 
+/**
+ * @brief 初始化证明版本仓库，在指定路径创建新的仓库结构
+ *
+ * @param path 仓库存储路径
+ * @return 成功返回 Lv00ProofRepo 指针，失败返回 NULL
+ */
 Lv00ProofRepo *proof_repo_init(const char *path);
+/**
+ * @brief 打开已存在的证明版本仓库
+ *
+ * @param path 仓库存储路径
+ * @return 成功返回 Lv00ProofRepo 指针，失败返回 NULL
+ */
 Lv00ProofRepo *proof_repo_open(const char *path);
+/**
+ * @brief 销毁证明版本仓库，释放所有占用的资源
+ *
+ * @param repo 仓库指针
+ */
 void proof_repo_destroy(Lv00ProofRepo *repo);
+/**
+ * @brief 提交证明快照到仓库，记录当前文件状态并生成提交哈希
+ *
+ * @param repo 仓库指针
+ * @param message 提交信息
+ * @param files 文件路径数组
+ * @param contents 文件内容数组，与 files 一一对应
+ * @param file_count 文件数量
+ * @return 提交成功返回 true，失败返回 false
+ */
 bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
     const char **files, const char **contents, size_t file_count);
+/**
+ * @brief 获取提交历史日志，按时间倒序返回提交记录
+ *
+ * @param repo 仓库指针
+ * @param commits 输出缓冲区，用于存储提交记录数组
+ * @param max_count 最多返回的提交记录数量
+ * @return 实际返回的提交记录数量
+ */
 size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_count);
+/**
+ * @brief 比较两个提交之间的差异，生成差异条目列表
+ *
+ * @param repo 仓库指针
+ * @param oid_a 基准提交的 OID
+ * @param oid_b 比较目标的 OID
+ * @param diff 输出参数，存储差异结果
+ * @return 比较成功返回 true，失败返回 false
+ */
 bool proof_repo_diff(Lv00ProofRepo *repo, const char *oid_a, const char *oid_b,
     Lv00ProofDiff *diff);
+/**
+ * @brief 销毁差异对象，释放差异条目占用的内存
+ *
+ * @param diff 差异对象指针
+ */
 void proof_repo_diff_destroy(Lv00ProofDiff *diff);
+/**
+ * @brief 在仓库中创建新分支
+ *
+ * @param repo 仓库指针
+ * @param name 分支名称
+ * @return 创建成功返回 true，失败（如重名或容量已满）返回 false
+ */
 bool proof_repo_branch(Lv00ProofRepo *repo, const char *name);
+/**
+ * @brief 切换到指定分支，更新 HEAD 到该分支的最新提交
+ *
+ * @param repo 仓库指针
+ * @param name 目标分支名称
+ * @return 切换成功返回 true，失败返回 false
+ */
 bool proof_repo_checkout(Lv00ProofRepo *repo, const char *name);
 
 #ifdef __cplusplus

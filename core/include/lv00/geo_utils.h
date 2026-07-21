@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_utils.h
  * @brief 几何工具函数 —— 便捷聚合头文件
  *
@@ -7,7 +7,7 @@
  * - symbolic_coord.h：符号坐标类型定义与操作（比较、转换等）
  * - constraint_graph.h：约束图数据结构（几何节点、约束等）
  *
- * @version 3.5.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_GEO_UTILS_H

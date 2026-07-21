@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file inequality_reasoning.h
  * @brief 不等式推理系统 —— 纯符号不等式证明
  *
@@ -14,7 +14,7 @@
  *   - 支持不等式的符号证明
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_INEQUALITY_REASONING_H

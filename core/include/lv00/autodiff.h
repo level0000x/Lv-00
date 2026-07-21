@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file autodiff.h
  * @brief Automatic differentiation engine (forward and reverse mode)
  *
@@ -18,7 +18,7 @@
  *          backwards (efficient for functions with many inputs and few outputs).
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  * @date   2026-05-25
  */
 #ifndef LV00_AUTODIFF_H

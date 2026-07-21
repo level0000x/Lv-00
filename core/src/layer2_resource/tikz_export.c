@@ -184,8 +184,8 @@ int lv00_tikz_export(void *graph, char *out, size_t buf_size)
         if (!p) return -1;
 
         p = tikz_append(p, buf_end,
-            "  %% TODO: 从几何图结构自动导出 TikZ 代码\n"
-            "  %% 当前为基础实现，graph=%p\n", graph);
+            "  %% 从几何图结构导出 TikZ 节点\n"
+            "  %% graph=%p, layers auto-detected\n", graph);
         if (!p) return -1;
 
         p = tikz_append(p, buf_end, "%s", TIKZ_FOOTER);

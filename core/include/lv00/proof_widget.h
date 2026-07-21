@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_widget.h
  * @brief 证明交互可视化组件 —— 借鉴 ProofWidgets4 的 React 组件嵌入证明环境设计
  *
@@ -14,7 +14,7 @@
  *          本头文件定义的是 C 端的数据结构和接口——
  *          前端通过 JSON 序列化与本层通信，实现证明状态的双向同步。
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_PROOF_WIDGET_H

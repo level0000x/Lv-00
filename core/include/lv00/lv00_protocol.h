@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv00_protocol.h
  * @brief Lv-00 UI-Kernel 通信协议 —— UI 与内核的唯一接口
  *
@@ -32,7 +32,7 @@
  * ```
  *
  * @author Lv-00 Project
- * @version 3.0.0
+ * @version 1.1.0
  */
 #ifndef LV00_PROTOCOL_H
 #define LV00_PROTOCOL_H

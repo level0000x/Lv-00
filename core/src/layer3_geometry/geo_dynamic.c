@@ -1,9 +1,13 @@
 /**
  * @file geo_dynamic.c
- * @brief åŠ¨æ€å‡ ä½•ä¾èµ–å›¾å®žçŽ° â€”â€?å€Ÿé‰´ GeoGebra åŠ¨æ€å‡ ä½•ç³»ç»? *
- * å®žçŽ°ç­–ç•¥ï¼? *   - ä½¿ç”¨é‚»æŽ¥è¡¨åŽ‹ç¼©å­˜å‚¨çˆ¶å­å…³ç³? *   - DFS å®žçŽ°çº§è”æ›´æ–°å’Œå¾ªçŽ¯æ£€æµ? *   - æ‹“æ‰‘æŽ’åºç”¨äºŽæ‰¹é‡æ›´æ–°
+ * @brief 动态几何依赖图实现 — 借鉴 GeoGebra 动态几何系统
  *
- * @version v3.6.0
+ * 实现策略：
+ *   - 使用邻接表压缩存储父子关系
+ *   - DFS 实现级联更新和循环检测
+ *   - 拓扑排序用于批量更新
+ *
+ * @version 1.1.0
  */
 
 #include "lv00/geo_dynamic.h"
@@ -20,18 +24,19 @@
 #endif
 
 /* ========================================================================
- * å†…éƒ¨å¸¸é‡
+ * 内部常量
  * ======================================================================== */
 
 #define INITIAL_NODE_CAPACITY 64
 #define INITIAL_ADJ_CAPACITY 256
 
 /* ========================================================================
- * å†…éƒ¨æ•°æ®ç»“æž„
+ * 内部数据结构
  * ======================================================================== */
 
 /**
- * @brief æ·±åº¦ä¼˜å…ˆæœç´¢çŠ¶æ€? */
+ * @brief 深度优先搜索状态
+ */
 typedef struct {
     Lv00DynGraph *graph;
     uint8_t *marks;
@@ -41,20 +46,23 @@ typedef struct {
 } DFSContext;
 
 /* ========================================================================
- * ç¬¬ä¸€éƒ¨åˆ†ï¼šID åˆ°ç´¢å¼•æ˜ å°? * ======================================================================== */
+ * 第一部分：ID 到索引映射
+ * ======================================================================== */
 
 /**
- * @brief åˆå§‹åŒ?ID æ˜ å°„è¡? */
+ * @brief 初始化 ID 映射表
+ */
 static void init_id_map(Lv00DynGraph *graph)
 {
     graph->id_to_index = (int *)malloc(graph->node_capacity * sizeof(int));
+    if (!graph->id_to_index) return; /* OOM: caller should check graph->id_to_index */
     for (int i = 0; i < graph->node_capacity; i++) {
         graph->id_to_index[i] = LV00_DYN_INVALID;
     }
 }
 
 /**
- * @brief ç¡®ä¿ ID æ˜ å°„è¡¨è¶³å¤Ÿå¤§
+ * @brief 确保 ID 映射表足够大
  */
 static bool ensure_id_map_capacity(Lv00DynGraph *graph, int new_capacity)
 {
@@ -73,7 +81,7 @@ static bool ensure_id_map_capacity(Lv00DynGraph *graph, int new_capacity)
 }
 
 /**
- * @brief æ³¨å†ŒèŠ‚ç‚¹ ID åˆ°ç´¢å¼•çš„æ˜ å°„
+ * @brief 注册节点 ID 到索引的映射
  */
 static void register_node_id(Lv00DynGraph *graph, int node_id, int index)
 {
@@ -84,7 +92,8 @@ static void register_node_id(Lv00DynGraph *graph, int node_id, int index)
 }
 
 /**
- * @brief èŽ·å–èŠ‚ç‚¹ ID å¯¹åº”çš„ç´¢å¼? */
+ * @brief 获取节点 ID 对应的索引
+ */
 static int get_node_index(const Lv00DynGraph *graph, int node_id)
 {
     if (node_id < 0 || node_id >= graph->node_capacity) {
@@ -94,11 +103,11 @@ static int get_node_index(const Lv00DynGraph *graph, int node_id)
 }
 
 /* ========================================================================
- * ç¬¬äºŒéƒ¨åˆ†ï¼šé‚»æŽ¥è¡¨æ“ä½œ
+ * 第二部分：邻接表操作
  * ======================================================================== */
 
 /**
- * @brief åˆå§‹åŒ–é‚»æŽ¥è¡¨
+ * @brief 初始化邻接表
  */
 static void init_adjacency(Lv00DynGraph *graph)
 {
@@ -106,6 +115,11 @@ static void init_adjacency(Lv00DynGraph *graph)
     graph->parent_adj_offsets = (int *)malloc((graph->node_capacity + 1) * sizeof(int));
     graph->child_adj = (int *)malloc(INITIAL_ADJ_CAPACITY * sizeof(int));
     graph->child_adj_offsets = (int *)malloc((graph->node_capacity + 1) * sizeof(int));
+
+    if (!graph->parent_adj || !graph->parent_adj_offsets || !graph->child_adj || !graph->child_adj_offsets) {
+        /* OOM: caller should check these pointers */
+        return;
+    }
 
     graph->adj_capacity = INITIAL_ADJ_CAPACITY;
 
@@ -116,7 +130,8 @@ static void init_adjacency(Lv00DynGraph *graph)
 }
 
 /**
- * @brief ç¡®ä¿é‚»æŽ¥è¡¨å®¹é‡? */
+ * @brief 确保邻接表容量
+ */
 static bool ensure_adj_capacity(Lv00DynGraph *graph, int needed)
 {
     if (needed <= graph->adj_capacity) return true;
@@ -140,43 +155,44 @@ static bool ensure_adj_capacity(Lv00DynGraph *graph, int needed)
 }
 
 /**
- * @brief æ·»åŠ çˆ¶èŠ‚ç‚¹å…³ç³? */
+ * @brief 添加父节点关系
+ */
 static void add_parent_edge(Lv00DynGraph *graph, int node_idx, int parent_idx)
 {
-    /* è®¡ç®—å½“å‰çˆ¶èŠ‚ç‚¹æ•°é‡?*/
+    /* 计算当前父节点数量 */
     int start = graph->parent_adj_offsets[node_idx];
     int end = graph->parent_adj_offsets[node_idx + 1];
     int count = end - start;
 
-    /* æ£€æŸ¥æ˜¯å¦å·²å­˜åœ¨ */
+    /* 检查是否已存在 */
     for (int i = start; i < end; i++) {
         if (graph->parent_adj[i] == parent_idx) return;
     }
 
-    /* æ‰©å®¹ */
+    /* 扩容 */
     int total_needed = graph->adj_capacity + 1;
     if (!ensure_adj_capacity(graph, total_needed)) return;
 
-    /* ç§»åŠ¨åŽç»­èŠ‚ç‚¹ */
+    /* 移动后续节点 */
     for (int i = graph->node_count; i > node_idx; i--) {
         graph->parent_adj_offsets[i + 1] = graph->parent_adj_offsets[i] + 1;
     }
     graph->parent_adj_offsets[node_idx + 1]++;
 
-    /* æ’å…¥æ–°çˆ¶èŠ‚ç‚¹ */
+    /* 插入新父节点 */
     graph->parent_adj[end] = parent_idx;
 }
 
 /**
- * @brief æ·»åŠ å­èŠ‚ç‚¹å…³ç³? */
+ * @brief 添加子节点关系
 static void add_child_edge(Lv00DynGraph *graph, int node_idx, int child_idx)
 {
-    /* è®¡ç®—å½“å‰å­èŠ‚ç‚¹æ•°é‡?*/
+    /* 计算当前子节点数量 */
     int start = graph->child_adj_offsets[node_idx];
     int end = graph->child_adj_offsets[node_idx + 1];
     int count = end - start;
 
-    /* æ£€æŸ¥æ˜¯å否å·²å­˜åœ¨ */
+    /* 检查是否已存在 */
     for (int i = start; i < end; i++) {
         if (graph->child_adj[i] == child_idx) return;
     }
@@ -187,22 +203,23 @@ static void add_child_edge(Lv00DynGraph *graph, int node_idx, int child_idx)
         parent_node->child_ids[parent_node->child_count++] = graph->nodes[child_idx].id;
     }
 
-    /* æ‰©å®¹ */
+    /* 扩容 */
     int total_needed = graph->adj_capacity + 1;
     if (!ensure_adj_capacity(graph, total_needed)) return;
 
-    /* ç§»åŠ¨åŽç»­èŠ‚ç‚¹ */
+    /* 移动后续节点 */
     for (int i = graph->node_count; i > node_idx; i--) {
         graph->child_adj_offsets[i + 1] = graph->child_adj_offsets[i] + 1;
     }
     graph->child_adj_offsets[node_idx + 1]++;
 
-    /* æ’å…¥æ–°å­èŠ‚ç‚¹ */
+    /* 插入新子节点 */
     graph->child_adj[end] = child_idx;
 }
 
 /* ========================================================================
- * ç¬¬ä¸‰éƒ¨åˆ†ï¼šé»˜è®¤é…ç½? * ======================================================================== */
+ * 第三部分：默认配置
+ * ======================================================================== */
 
 Lv00DynGraphConfig lv00_dyn_graph_default_config(void)
 {
@@ -216,7 +233,7 @@ Lv00DynGraphConfig lv00_dyn_graph_default_config(void)
 }
 
 /* ========================================================================
- * ç¬¬å››éƒ¨åˆ†ï¼šåˆ›å»ºä¸Žé‡Šæ”¾
+ * 第四部分：创建与释放
  * ======================================================================== */
 
 Lv00DynGraph *lv00_dyn_graph_create(const Lv00DynGraphConfig *config)
@@ -255,7 +272,8 @@ void lv00_dyn_graph_free(Lv00DynGraph *graph)
 }
 
 /* ========================================================================
- * ç¬¬äº”éƒ¨åˆ†ï¼šèŠ‚ç‚¹æ“ä½? * ======================================================================== */
+ * 第五部分：节点操作
+ * ======================================================================== */
 
 int lv00_dyn_graph_add_node(
     Lv00DynGraph *graph,
@@ -269,10 +287,10 @@ int lv00_dyn_graph_add_node(
         return LV00_DYN_INVALID;
     }
 
-    /* ç”Ÿæˆæ–°èŠ‚ç‚?ID */
+    /* 生成新节点 ID */
     int new_id = graph->node_count;
 
-    /* æ‰©å®¹èŠ‚ç‚¹æ•°ç»„ */
+    /* 扩容节点数组 */
     if (graph->node_count >= graph->node_capacity) {
         int new_cap = graph->node_capacity * 2;
         Lv00DynNode *new_nodes = (Lv00DynNode *)realloc(
@@ -296,7 +314,7 @@ int lv00_dyn_graph_add_node(
         graph->node_capacity = new_cap;
     }
 
-    /* åˆå§‹åŒ–èŠ‚ç‚?*/
+    /* 初始化节点 */
     Lv00DynNode *node = &graph->nodes[graph->node_count];
     memset(node, 0, sizeof(Lv00DynNode));
     node->id = new_id;
@@ -306,7 +324,7 @@ int lv00_dyn_graph_add_node(
     node->child_count = 0;
     node->param_count = param_count;
 
-    /* å¤åˆ¶çˆ¶èŠ‚ç‚?*/
+    /* 复制父节点 */
     if (parent_ids && parent_count > 0) {
         for (int i = 0; i < parent_count && i < 4; i++) {
             int pindex = get_node_index(graph, parent_ids[i]);
@@ -319,17 +337,17 @@ int lv00_dyn_graph_add_node(
         }
     }
 
-    /* å¤åˆ¶å‚æ•° */
+    /* 复制参数 */
     if (params && param_count > 0) {
         for (int i = 0; i < param_count && i < 8; i++) {
             node->params[i] = params[i];
         }
     }
 
-    /* æ³¨å†Œ ID */
+    /* 注册 ID */
     register_node_id(graph, new_id, graph->node_count);
 
-    /* æ›´æ–°åç§»æ•°ç»„ */
+    /* 更新偏移数组 */
     graph->parent_adj_offsets[graph->node_count + 1] =
         graph->parent_adj_offsets[graph->node_count];
     graph->child_adj_offsets[graph->node_count + 1] =
@@ -355,16 +373,16 @@ bool lv00_dyn_graph_remove_node(Lv00DynGraph *graph, int node_id)
 
     int index = get_node_index(graph, node_id);
 
-    /* æ–­å¼€æ‰€æœ‰çˆ¶å­å…³ç³?*/
-    /* ç§»é™¤ä½œä¸ºå­èŠ‚ç‚¹çš„å…³ç³»ï¼ˆçˆ¶èŠ‚ç‚¹ä¸å†æŒ‡å‘æ­¤èŠ‚ç‚¹ï¼‰ */
+    /* 断开所有父子关系 */
+    /* 移除作为子节点的关系（父节点不再指向此节点） */
     for (int i = 0; i < node->parent_count; i++) {
         int pindex = get_node_index(graph, node->parent_ids[i]);
         if (pindex != LV00_DYN_INVALID) {
             Lv00DynNode *parent = &graph->nodes[pindex];
-            /* ä»Žçˆ¶èŠ‚ç‚¹çš„å­èŠ‚ç‚¹åˆ—è¡¨ä¸­ç§»é™?*/
+            /* 从父节点的子节点列表中移除 */
             for (int j = 0; j < parent->child_count; j++) {
                 if (parent->child_ids[j] == node_id) {
-                    /* ç§»åŠ¨åŽç»­å…ƒç´  */
+                    /* 移动后续元素 */
                     for (int k = j; k < parent->child_count - 1; k++) {
                         parent->child_ids[k] = parent->child_ids[k + 1];
                     }
@@ -375,7 +393,7 @@ bool lv00_dyn_graph_remove_node(Lv00DynGraph *graph, int node_id)
         }
     }
 
-    /* æ–­å¼€æ‰€æœ‰å­èŠ‚ç‚¹çš„å…³ç³»ï¼ˆå­èŠ‚ç‚¹ä¸å†æŒ‡å‘æ­¤çˆ¶èŠ‚ç‚¹ï¼‰ */
+    /* 断开所有子节点的关系（子节点不再指向此父节点） */
     int pstart = graph->parent_adj_offsets[index];
     int pend = graph->parent_adj_offsets[index + 1];
     for (int i = pstart; i < pend; i++) {
@@ -394,7 +412,7 @@ bool lv00_dyn_graph_remove_node(Lv00DynGraph *graph, int node_id)
         }
     }
 
-    /* æ ‡è®°èŠ‚ç‚¹ä¸ºæ— æ•?*/
+    /* 标记节点为无效 */
     graph->id_to_index[node_id] = LV00_DYN_INVALID;
     node->state = LV00_DYN_STATE_ERROR;
 
@@ -434,17 +452,18 @@ int lv00_dyn_graph_get_children(
 }
 
 /* ========================================================================
- * ç¬¬å…­éƒ¨åˆ†ï¼šçº§è”æ›´æ–? * ======================================================================== */
+ * 第六部分：级联更新
+ * ======================================================================== */
 
 static void update_node_params(Lv00DynGraph *graph, int node_id)
 {
     Lv00DynNode *node = lv00_dyn_graph_get_node(graph, node_id);
     if (!node) return;
 
-    /* æ ¹æ®èŠ‚ç‚¹ç±»åž‹è®¡ç®—å‚æ•° */
+    /* 根据节点类型计算参数 */
     switch (node->type) {
         case LV00_DYN_NODE_MIDPOINT: {
-            /* ä¸­ç‚¹ = (p1 + p2) / 2 */
+            /* 中点 = (p1 + p2) / 2 */
             if (node->parent_count >= 2) {
                 Lv00DynNode *p1 = lv00_dyn_graph_get_node(graph, node->parent_ids[0]);
                 Lv00DynNode *p2 = lv00_dyn_graph_get_node(graph, node->parent_ids[1]);
@@ -458,7 +477,7 @@ static void update_node_params(Lv00DynGraph *graph, int node_id)
         }
 
         case LV00_DYN_NODE_DISTANCE: {
-            /* è·ç¦» = sqrt((p1.x - p2.x)^2 + (p1.y - p2.y)^2) */
+            /* 距离 = sqrt((p1.x - p2.x)^2 + (p1.y - p2.y)^2) */
             if (node->parent_count >= 2) {
                 Lv00DynNode *p1 = lv00_dyn_graph_get_node(graph, node->parent_ids[0]);
                 Lv00DynNode *p2 = lv00_dyn_graph_get_node(graph, node->parent_ids[1]);
@@ -473,7 +492,7 @@ static void update_node_params(Lv00DynGraph *graph, int node_id)
         }
 
         default:
-            /* å…¶ä»–ç±»åž‹ä¿æŒåŽŸå‚æ•?*/
+            /* 其他类型保持原参数 */
             break;
     }
 
@@ -505,10 +524,10 @@ int lv00_dyn_graph_update_cascade(
 
         if (!current) continue;
 
-        /* è·³è¿‡å·²æ›´æ–°çš„èŠ‚ç‚¹ */
+        /* 跳过已更新的节点 */
         if (current->marks & LV00_DYN_MARK_UPDATED) continue;
 
-        /* æ£€æŸ¥æ˜¯å¦æœ‰æœªæ›´æ–°çš„çˆ¶èŠ‚ç‚?*/
+        /* 检查是否有未更新的父节点 */
         bool all_parents_updated = true;
         for (int i = 0; i < current->parent_count; i++) {
             Lv00DynNode *parent = lv00_dyn_graph_get_node(graph, current->parent_ids[i]);
@@ -519,9 +538,9 @@ int lv00_dyn_graph_update_cascade(
         }
 
         if (!all_parents_updated) {
-            /* å°†èŠ‚ç‚¹æ”¾å›žæ ˆï¼Œç­‰å¾…çˆ¶èŠ‚ç‚¹æ›´æ–° */
+            /* 将节点放回栈，等待父节点更新 */
             stack[top++] = current_id;
-            /* å…ˆå¤„ç†çˆ¶èŠ‚ç‚¹ */
+            /* 先处理父节点 */
             for (int i = 0; i < current->parent_count; i++) {
                 Lv00DynNode *parent = lv00_dyn_graph_get_node(graph, current->parent_ids[i]);
                 if (parent && !(parent->marks & LV00_DYN_MARK_VISITED)) {
@@ -532,7 +551,7 @@ int lv00_dyn_graph_update_cascade(
             continue;
         }
 
-        /* æ›´æ–°å½“å‰èŠ‚ç‚¹ */
+        /* 更新当前节点 */
         if (update_func) {
             update_func(graph, current_id);
         } else {
@@ -541,7 +560,7 @@ int lv00_dyn_graph_update_cascade(
         current->marks |= LV00_DYN_MARK_UPDATED;
         updated++;
 
-        /* å°†å­èŠ‚ç‚¹åŠ å…¥æ ?*/
+        /* 将子节点加入栈 */
         for (int i = 0; i < current->child_count; i++) {
             Lv00DynNode *child = lv00_dyn_graph_get_node(graph, current->child_ids[i]);
             if (child && !(child->marks & LV00_DYN_MARK_VISITED)) {
@@ -551,7 +570,7 @@ int lv00_dyn_graph_update_cascade(
         }
     }
 
-    /* æ¸…é™¤æ ‡è®° */
+    /* 清除标记 */
     for (int i = 0; i < graph->node_count; i++) {
         graph->nodes[i].marks &= ~(LV00_DYN_MARK_VISITED | LV00_DYN_MARK_UPDATED);
     }
@@ -569,10 +588,10 @@ int lv00_dyn_graph_update_chain(Lv00DynGraph *graph, int leaf_id)
     int visited_count = 0;
 
     while (current != LV00_DYN_INVALID && visited_count < 256) {
-        /* æ£€æµ‹å¾ªçŽ?*/
+        /* 检测循环 */
         for (int i = 0; i < visited_count; i++) {
             if (visited[i] == current) {
-                return updated; /* æ£€æµ‹åˆ°å¾ªçŽ¯ */
+                return updated; /* 检测到循环 */
             }
         }
         visited[visited_count++] = current;
@@ -583,7 +602,7 @@ int lv00_dyn_graph_update_chain(Lv00DynGraph *graph, int leaf_id)
         update_node_params(graph, current);
         updated++;
 
-        /* å‘ä¸Šåˆ°ç¬¬ä¸€ä¸ªæœªæ›´æ–°çš„çˆ¶èŠ‚ç‚¹ */
+        /* 向上到第一个未更新的父节点 */
         bool found_unupdated_parent = false;
         for (int i = 0; i < node->parent_count; i++) {
             Lv00DynNode *parent = lv00_dyn_graph_get_node(graph, node->parent_ids[i]);
@@ -609,7 +628,7 @@ void lv00_dyn_graph_mark_dirty(Lv00DynGraph *graph, int node_id)
 
     node->state = LV00_DYN_STATE_DIRTY;
 
-    /* é€’å½’æ ‡è®°æ‰€æœ‰å­èŠ‚ç‚¹ */
+    /* 递归标记所有子节点 */
     int stack[256];
     int top = 0;
     stack[top++] = node_id;
@@ -633,7 +652,7 @@ int lv00_dyn_graph_update_all(Lv00DynGraph *graph)
 {
     if (!graph) return 0;
 
-    /* æ‰¾å‡ºæ‰€æœ‰æ ¹èŠ‚ç‚¹ï¼ˆæ— çˆ¶èŠ‚ç‚¹ä¸”ä¸?DIRTYï¼‰å¹¶æ›´æ–° */
+    /* 找出所有根节点（无父节点且不 DIRTY）并更新 */
     int updated = 0;
     for (int i = 0; i < graph->node_count; i++) {
         Lv00DynNode *node = &graph->nodes[i];
@@ -646,7 +665,8 @@ int lv00_dyn_graph_update_all(Lv00DynGraph *graph)
 }
 
 /* ========================================================================
- * ç¬¬ä¸ƒéƒ¨åˆ†ï¼šå¾ªçŽ¯æ£€æµ? * ======================================================================== */
+ * 第七部分：循环检测
+ * ======================================================================== */
 
 bool lv00_dyn_graph_has_path(
     const Lv00DynGraph *graph,
@@ -686,7 +706,7 @@ bool lv00_dyn_graph_would_create_cycle(
     int parent_id,
     int child_id)
 {
-    /* å¦‚æžœ parent æ˜?child çš„ç¥–å…ˆï¼Œåˆ™æ·»åŠ è¾¹ä¼šå½¢æˆå¾ªçŽ?*/
+    /* 如果 parent 是 child 的祖先，则添加边会形成循环 */
     return lv00_dyn_graph_has_path(graph, child_id, parent_id);
 }
 
@@ -696,17 +716,17 @@ int lv00_dyn_graph_topological_sort(
 {
     if (!graph || !out_order) return -1;
 
-    /* Kahn ç®—æ³• */
+    /* Kahn 算法 */
     int *in_degree = (int *)calloc(graph->node_count, sizeof(int));
     if (!in_degree) return -1;
 
-    /* è®¡ç®—å…¥åº¦ */
+    /* 计算入度 */
     for (int i = 0; i < graph->node_count; i++) {
         Lv00DynNode *node = &graph->nodes[i];
         in_degree[i] = node->parent_count;
     }
 
-    /* æ‰¾åˆ°æ‰€æœ‰å…¥åº¦ä¸º 0 çš„èŠ‚ç‚¹ï¼ˆæ ¹èŠ‚ç‚¹ï¼‰ */
+    /* 找到所有入度为 0 的节点（根节点） */
     int queue[1024];
     int front = 0, rear = 0;
     for (int i = 0; i < graph->node_count; i++) {
@@ -735,7 +755,7 @@ int lv00_dyn_graph_topological_sort(
 
     free(in_degree);
 
-    /* å¦‚æžœæŽ’åºçš„èŠ‚ç‚¹æ•°ä¸ç­‰äºŽæ€»èŠ‚ç‚¹æ•°ï¼Œè¯´æ˜Žå­˜åœ¨å¾ªçŽ?*/
+    /* 如果排序的节点数不等于总节点数，说明存在循环 */
     if (sorted_count != graph->node_count) {
         return -1;
     }
@@ -744,7 +764,8 @@ int lv00_dyn_graph_topological_sort(
 }
 
 /* ========================================================================
- * ç¬¬å…«éƒ¨åˆ†ï¼šä¾¿æ·æž„é€ å‡½æ•? * ======================================================================== */
+ * 第八部分：便捷构造函数
+ * ======================================================================== */
 
 int lv00_dyn_create_point(Lv00DynGraph *graph, double x, double y)
 {
@@ -796,7 +817,8 @@ int lv00_dyn_create_distance(Lv00DynGraph *graph, int p1_id, int p2_id)
 }
 
 /* ========================================================================
- * ç¬¬ä¹éƒ¨åˆ†ï¼šç»Ÿè®? * ======================================================================== */
+ * 第九部分：统计
+ * ======================================================================== */
 
 void lv00_dyn_graph_get_stats(
     const Lv00DynGraph *graph,

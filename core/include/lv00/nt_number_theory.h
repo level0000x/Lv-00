@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file nt_number_theory.h
  * @brief Number theory algorithms -- modular arithmetic, primality testing, factorization
  *
@@ -8,7 +8,7 @@
  * Reference: NTL (Victor Shoup), GMP mpz documentation
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 #ifndef LV00_NT_NUMBER_THEORY_H
 #define LV00_NT_NUMBER_THEORY_H

@@ -104,6 +104,16 @@ static int insert_by_priority(const char *name, int priority) {
  * 公共 API 实现
  * ============================================================ */
 
+/**
+ * @brief 向引擎调度器提交新任务
+ *
+ * 将任务按优先级插入内部队列。优先级数值越小，任务越优先执行。
+ * 队列最大容量为 MAX_TASK_QUEUE_SIZE，超出时返回 -1。
+ *
+ * @param task_name 任务名称（如 "parse"、"geometry"、"reasoning" 等）
+ * @param priority  优先级（0 ~ 100，数值越小优先级越高，超出范围会自动裁剪）
+ * @return 成功返回 0，队列满或无效任务名返回 -1
+ */
 int lv00_engine_schedule(const char *task_name, int priority) {
     if (!task_name || task_name[0] == '\0') {
         return -1;  /* 无效任务名 */
@@ -123,6 +133,13 @@ int lv00_engine_schedule(const char *task_name, int priority) {
     return 0;  /* 成功 */
 }
 
+/**
+ * @brief 执行所有待处理的任务
+ *
+ * 按优先级顺序依次执行队列中的所有待处理任务，执行完毕后清理已完成的任务条目。
+ *
+ * @return 全部任务执行成功返回 true，任一任务失败返回 false；队列为空时返回 true
+ */
 bool lv00_engine_execute_pending(void) {
     ensure_initialized();
 
@@ -179,6 +196,11 @@ bool lv00_engine_execute_pending(void) {
     return all_success;
 }
 
+/**
+ * @brief 获取待处理任务的数量
+ *
+ * @return 当前队列中待处理任务的个数
+ */
 int lv00_engine_pending_count(void) {
     ensure_initialized();
     return g_scheduler.count;

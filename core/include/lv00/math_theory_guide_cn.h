@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file math_theory_guide_cn.h
  * @brief 理论数学研究中文指南
  *
@@ -14,7 +14,7 @@
  * - 同调代数计算
  *
  * @author Lv-00 Project
- * @version 3.5.0
+ * @version 1.1.0
  */
 #ifndef LV00_MATH_THEORY_GUIDE_CN_H
 #define LV00_MATH_THEORY_GUIDE_CN_H

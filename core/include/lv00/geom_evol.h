@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geom_evol.h
  * @brief 几何演化引擎 —— 借鉴 SUNDIALS CVODE 自适应步长与误差控制
  *
@@ -16,7 +16,7 @@
  *          - 统计信息收集（步数/被拒步数/函数求值次数）
  *
  * @author Lv-00 Project
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 

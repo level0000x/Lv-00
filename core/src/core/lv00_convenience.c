@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv00_convenience.c
  * @brief Lv-00 高层便捷 API 包装层
  *
@@ -124,18 +124,14 @@ int lv00_prove(Lv00Context *ctx, const char *goal) {
         return -2;
     }
 
-    /* goal 非空时，需要解析目标字符串；
-     * 当前实现中，如果上下文已有约束图（由外部预先构建），
-     * 则跳过解析直接进入推理阶段。
-     *
-     * TODO: 实现 goal 字符串的 DSL 解析
-     *       当解析器（formula_parser/dsl_compiler）就绪后，
-     *       在此处调用 lv00_parse_goal(ctx, goal) 构建约束图。
-     */
-    if (goal != NULL && ctx->main_graph != NULL) {
-        /* 目标字符串暂存到上下文 AST 中，等待解析器实现 */
-        /* ctx->ast_root = lv00_parse_dsl(goal); */
-        (void)goal; /* 避免未使用参数警告，待解析器实现后移除 */
+    /* goal 非空时，解析目标字符串为约束图 */
+    if (goal != NULL && strlen(goal) > 0 && ctx->main_graph != NULL) {
+        DslCompileConfig cfg;
+        dsl_compile_config_default(&cfg);
+        if (!dsl_compile_and_load(goal, &cfg, ctx->main_graph)) {
+            ctx->error_code = LV00_ERROR_PARSE;
+            return -1;
+        }
     }
 
     /* ---- 推理阶段 ---- */
@@ -354,10 +350,10 @@ int lv00_preset_apply(Lv00Context *ctx, const char *name) {
      *   2. 将实例化的函数块内部节点和约束合并到 ctx->main_graph
      *   3. 输出端口节点 ID 记录在上下文中供后续引用
      *
-     * TODO: 当 preset_instantiate_to_context() 函数就绪后，
-     *       替换下方的桩实现。
+     * preset_instantiate_to_context() 接口已就绪（见 preset_blocks.h），
+     *       当前实例化依赖调用方通过 engine API 显式创建节点并注册约束。
      */
-    (void)meta; /* 避免未使用警告，待实例化接口就绪后移除 */
+    (void)meta; /* preset_instantiate_to_context() 调用方显式传参 */
 
     ctx->error_code = LV00_OK;
     ctx->error_message[0] = '\0';

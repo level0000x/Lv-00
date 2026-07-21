@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file bdd_encoding.h
  * @brief CUDD 二叉决策图（BDD/ADD）编码 —— 约束图符号化表示
  *
@@ -17,7 +17,7 @@
  * - BDD → CNF 转换（供 SAT 求解器使用）
  * - 坐标 bit-blasting（IEEE 754 位表示）
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_BDD_ENCODING_H

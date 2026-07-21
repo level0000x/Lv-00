@@ -677,8 +677,10 @@ MemPool* pool_create(void) {
     if (!p) return NULL;
     p->id = native_id_alloc();
     p->head = (MemChunk*)calloc(1, sizeof(MemChunk));
+    if (!p->head) { lv00_free((void **)&p); return NULL; }
     p->head->cap = 65536;  /* 64KB chunk */
     p->head->data = (char*)malloc(p->head->cap);
+    if (!p->head->data) { lv00_free((void **)&p->head); lv00_free((void **)&p); return NULL; }
     return p;
 }
 
@@ -686,8 +688,10 @@ void* pool_alloc(MemPool* p, size_t sz) {
     if (!p || !p->head) return NULL;
     if (p->head->used + sz > p->head->cap) {
         MemChunk* c = (MemChunk*)calloc(1, sizeof(MemChunk));
+        if (!c) return NULL;
         c->cap = sz > 65536 ? sz : 65536;
         c->data = (char*)malloc(c->cap);
+        if (!c->data) { lv00_free((void **)&c); return NULL; }
         c->next = p->head;
         p->head = c;
     }

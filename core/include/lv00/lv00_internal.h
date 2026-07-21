@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv00_internal.h
  * @brief Lv-00 项目内部头文件 —— 内部工具宏与常量
  *
@@ -17,7 +17,7 @@
  * @note 本头文件会自动包含 error_codes.h 和 lv00_utils.h，
  *       因此使用本头文件的 .c 文件无需再单独包含它们。
  *
- * @version 3.5.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_INTERNAL_H

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mpz_poly.h
  * @brief 多精度整数多项式 —— 初始化、四则运算、结式计算
  *
@@ -7,7 +7,7 @@
  *          代数数运算所需的结式（resultant）计算功能。
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_MPZ_POLY_H

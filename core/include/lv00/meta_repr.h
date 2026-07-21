@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file meta_repr.h
  * @brief Lv-00 元表示层公共接口
  *
@@ -12,7 +12,7 @@
  *          4. 几何表示同构比较
  *
  * @author Lv-00 Project
- * @version 1.0.0
+ * @version 1.1.0
  * @date 2026-05-29
  */
 #ifndef LV00_META_REPR_H

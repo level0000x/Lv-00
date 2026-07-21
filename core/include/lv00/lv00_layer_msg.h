@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv00_layer_msg.h
  * @brief 层间通信消息格式
  *
@@ -7,7 +7,7 @@
  *            Lv00Result lv00_lN_handle_message(Lv00LayerMessage *msg);
  *
  * @author Lv-00 Project
- * @version 3.0.0
+ * @version 1.1.0
  */
 #ifndef LV00_LAYER_MSG_H
 #define LV00_LAYER_MSG_H

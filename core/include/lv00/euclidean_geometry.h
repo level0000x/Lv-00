@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file euclidean_geometry.h
  * @brief 欧几里得几何公理体系 —— Birkhoff/Tarski 双公理系统及其等价性验证
  *
@@ -15,7 +15,7 @@
  *   - 公理一致性检查与自动降级
  *   - 导出 Birkhoff/Tarski 形式化约束图以供外部求解器消费
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_EUCLIDEAN_GEOMETRY_H

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file conflict_detector.h
  * @brief 矛盾约束检测器 —— 多层次冲突检测 API
  *
@@ -8,7 +8,7 @@
  * - 传递检测：基于图的约束传播推导间接矛盾（传递等式、循环依赖）
  * - 代数检测：方程组无解、过约束验证
  *
- * @version 3.5.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_CONFLICT_DETECTOR_H

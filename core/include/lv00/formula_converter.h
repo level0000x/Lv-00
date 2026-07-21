@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_converter.h
  * @brief 公式与约束图之间的双向转换
  *
@@ -6,7 +6,7 @@
  *          这是 Lv-00 几何元语言系统中公式编辑器与图形系统之间的桥梁。
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 #ifndef LV00_FORMULA_CONVERTER_H
 #define LV00_FORMULA_CONVERTER_H

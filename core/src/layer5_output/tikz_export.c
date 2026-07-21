@@ -16,6 +16,14 @@
 #include <string.h>
 #include <stdio.h>
 
+/**
+ * @brief 将约束图导出为 TikZ 字符串
+ *
+ * @param graph    约束图指针
+ * @param out      输出缓冲区
+ * @param buf_size 缓冲区大小（字节）
+ * @return 写入的字节数，失败返回 -1
+ */
 int lv00_tikz_export(void *graph, char *out, size_t buf_size) {
     if (!graph || !out || buf_size == 0) return -1;
 
@@ -33,6 +41,13 @@ int lv00_tikz_export(void *graph, char *out, size_t buf_size) {
     return (int)hlen;
 }
 
+/**
+ * @brief 将约束图导出为 TikZ 文件
+ *
+ * @param graph    约束图指针
+ * @param filename 输出文件名
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv00_tikz_export_file(void *graph, const char *filename) {
     if (!graph || !filename) return -1;
 

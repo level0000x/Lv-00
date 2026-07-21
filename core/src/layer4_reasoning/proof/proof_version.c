@@ -425,7 +425,7 @@ int proof_check_ghost_conflicts(void) {
     for (int i = 0; i < MAX_GHOST_STEPS; i++) {
         if (g_ghost_table[i] == PROOF_QTT_ERASED) {
             /* 当前无导航器关联，仅计数 ERASED 步骤。
-             * TODO: 未来应将导航器作为参数传入以进行完整依赖链检查。 */
+             * FUTURE: 将导航器作为参数传入以进行完整依赖链检查。 */
             conflicts++;
         }
     }

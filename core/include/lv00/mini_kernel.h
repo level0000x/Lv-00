@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mini_kernel.h
  * @brief 极简验证内核 —— 借鉴 mm0/Metamath 的超小型可信计算基（TCB）
  *
@@ -15,7 +15,7 @@
  * 设计目标：Lv-00 的 TCB 应被压缩到最低限度——
  *          只验证约束图替换的一致性，其余全部委托给上层引擎。
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_MINI_KERNEL_H

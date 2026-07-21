@@ -1,3 +1,16 @@
+/**
+ * @file orchestrator.c
+ * @brief 会话编排器实现
+ *
+ * @details 实现会话生命周期管理与多阶段流水线编排，包含：
+ *          - 会话创建/销毁/配置
+ *          - 完整流水线运行（解析→资源→几何→推理→输出→可视化）
+ *          - 单阶段执行、从指定阶段开始执行
+ *          - 阶段结果查询、成功状态检查、错误信息获取、总耗时统计
+ *
+ * @version 5.0.0
+ */
+
 #include "lv00/orchestrator.h"
 #include "lv00/lv00_internal.h"
 #include "lv00/proof.h"
@@ -13,6 +26,11 @@
 
 static atomic_int session_counter = 0;
 
+/**
+ * @brief 获取默认会话配置
+ *
+ * @return 填充了默认值的 Lv00SessionConfig 结构体（最大推理深度 100、默认超时、DSL 输入、proof 输出）
+ */
 Lv00SessionConfig lv00_default_session_config(void) {
     Lv00SessionConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
@@ -24,6 +42,14 @@ Lv00SessionConfig lv00_default_session_config(void) {
     return cfg;
 }
 
+/**
+ * @brief 创建新的会话实例
+ *
+ * 分配并初始化会话结构体，分配唯一会话 ID，初始化所有流水线阶段为 PENDING 状态。
+ *
+ * @param name 会话名称
+ * @return 成功返回会话指针，内存分配失败返回 NULL
+ */
 Lv00Session *lv00_session_create(const char *name) {
     Lv00Session *session = lv00_calloc(1, sizeof(Lv00Session));
     if (!session) return NULL;
@@ -37,16 +63,40 @@ Lv00Session *lv00_session_create(const char *name) {
     return session;
 }
 
+/**
+ * @brief 销毁会话并释放资源
+ *
+ * @param session 要销毁的会话实例
+ */
 void lv00_session_destroy(Lv00Session *session) {
     lv00_free((void **)&session);
 }
 
+/**
+ * @brief 配置会话参数
+ *
+ * 将会话配置覆盖为指定的配置值。
+ *
+ * @param session 会话实例
+ * @param config  新的会话配置
+ * @return 成功返回 0，session 或 config 为 NULL 返回 -1
+ */
 int lv00_session_configure(Lv00Session *session, const Lv00SessionConfig *config) {
     if (!session || !config) return -1;
     session->config = *config;
     return 0;
 }
 
+/**
+ * @brief 运行完整的会话流水线
+ *
+ * 依次执行解析、资源、几何、推理、输出、可视化（可选）六个阶段。
+ * 每个阶段依赖前置阶段的成功完成，任一步失败则终止流水线。
+ *
+ * @param session 会话实例
+ * @param input   输入字符串（DSL 格式的几何证明描述）
+ * @return 成功返回 0，session 或 input 为 NULL 返回 -1，流水线失败返回非零值
+ */
 int lv00_session_run(Lv00Session *session, const char *input) {
     if (!session || !input) return -1;
     session->success = 0;
@@ -356,6 +406,15 @@ int lv00_session_run(Lv00Session *session, const char *input) {
     return 0;
 }
 
+/**
+ * @brief 运行会话的指定阶段
+ *
+ * 单独执行流水线中的某一个阶段。非首阶段会检查前置阶段是否已完成。
+ *
+ * @param session 会话实例
+ * @param stage   要执行的流水线阶段
+ * @return 成功返回 0，参数无效或阶段执行失败返回 -1
+ */
 int lv00_session_run_stage(Lv00Session *session, Lv00PipelineStage stage) {
     if (!session || stage < 0 || stage >= LV00_STAGE_COUNT) return -1;
     session->stages[stage].status = LV00_STAGE_RUNNING;
@@ -614,6 +673,15 @@ int lv00_session_run_stage(Lv00Session *session, Lv00PipelineStage stage) {
     return rc;
 }
 
+/**
+ * @brief 从指定阶段开始运行会话
+ *
+ * 从 from_stage 开始依次执行后续所有流水线阶段，直到最后一个阶段。
+ *
+ * @param session    会话实例
+ * @param from_stage 起始阶段
+ * @return 全部阶段成功返回 0，参数无效或某阶段失败返回非零值
+ */
 int lv00_session_run_from(Lv00Session *session, Lv00PipelineStage from_stage) {
     if (!session || from_stage < 0 || from_stage >= LV00_STAGE_COUNT) return -1;
     for (int i = from_stage; i < LV00_STAGE_COUNT; i++) {
@@ -623,18 +691,45 @@ int lv00_session_run_from(Lv00Session *session, Lv00PipelineStage from_stage) {
     return 0;
 }
 
+/**
+ * @brief 获取指定阶段的执行结果
+ *
+ * @param session 会话实例（只读）
+ * @param stage   流水线阶段
+ * @return 阶段结果指针，session 为 NULL 或 stage 越界返回 NULL
+ */
 const Lv00StageResult *lv00_session_stage_result(const Lv00Session *session, Lv00PipelineStage stage) {
     return (session && stage >= 0 && stage < LV00_STAGE_COUNT) ? &session->stages[stage] : NULL;
 }
 
+/**
+ * @brief 检查会话是否全部阶段成功完成
+ *
+ * @param session 会话实例（只读）
+ * @return 全部阶段成功返回 1，否则返回 0；session 为 NULL 返回 0
+ */
 int lv00_session_success(const Lv00Session *session) {
     return session ? session->success : 0;
 }
 
+/**
+ * @brief 获取最近一次错误信息
+ *
+ * @param session 会话实例（只读）
+ * @return 错误信息字符串，无错误或 session 为 NULL 返回 NULL
+ */
 const char *lv00_session_error(const Lv00Session *session) {
     return (session && !session->success) ? session->final_error : NULL;
 }
 
+/**
+ * @brief 获取会话总执行时间（毫秒）
+ *
+ * 累加所有已执行流水线阶段的耗时。
+ *
+ * @param session 会话实例（只读）
+ * @return 总执行时间（毫秒），session 为 NULL 返回 0.0
+ */
 double lv00_session_total_time(const Lv00Session *session) {
     if (!session) return 0.0;
     double total = 0.0;

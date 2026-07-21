@@ -1,10 +1,10 @@
-/**
+﻿/**
  * @file layer_validation.h
  * @brief Lv-00 六层架构编译时边界验证
  * @details 提供编译时层级边界检查，确保下层模块不依赖上层模块。
  *          通过宏和静态断言实现编译时验证。
  *
- * @version 4.0.0
+ * @version 1.1.0
  * @author Lv-00 Project
  *
  * @par 验证规则

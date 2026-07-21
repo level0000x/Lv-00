@@ -961,7 +961,7 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
              *   - 步可能会被不必要地拒绝（保守但安全）
              *   - 但绝不会接受不正确的步（保证正确性）
              *
-             * TODO: 未来应改用 Adams/BDF 自身的预测-校正残差或嵌入式低阶公式
+             * FUTURE: 改用 Adams/BDF 的预测-校正残差或嵌入式低阶公式
              *       来获得更精确的误差估计，减少不必要的步拒绝。
              */
             ret = geoevol_step_euler(evol, h, y_save, y_half);

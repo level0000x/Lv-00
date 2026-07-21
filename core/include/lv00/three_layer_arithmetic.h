@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file three_layer_arithmetic.h
  * @brief 三层算术编译标志与安全算术宏
  *
@@ -12,7 +12,7 @@
  *
  * @see doc/docs/THREE_LAYER_ARITHMETIC_SPEC.md
  * @author Lv-00 Project
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_THREE_LAYER_ARITHMETIC_H

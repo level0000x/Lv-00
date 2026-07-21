@@ -1,4 +1,4 @@
-#define LV00_RUNTIME_MONITOR_LOGLEVEL_SEEN 1
+﻿#define LV00_RUNTIME_MONITOR_LOGLEVEL_SEEN 1
 
 /**
  * @file runtime_monitor.h
@@ -11,7 +11,7 @@
  *   4. 诊断报告：自动生成诊断信息
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_RUNTIME_MONITOR_H

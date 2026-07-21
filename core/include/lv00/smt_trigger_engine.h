@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_trigger_engine.h
  * @brief Quantifier instantiation engine based on pattern-matching triggers
  *
@@ -6,7 +6,7 @@
  * maintains a set of triggers (patterns) and an instance cache to
  * avoid duplicate instantiations of quantified formulas.
  *
- * @version v3.4.2
+ * @version 1.1.0
  * @date 2026-05-25
  */
 

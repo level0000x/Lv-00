@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file axiom_rule_engine.h
  * @brief 公理规则引擎 —— 可配置规则库与难度分级
  *
@@ -10,7 +10,7 @@
  *   5. 规则推荐：根据上下文推荐适用规则
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 #ifndef LV00_AXIOM_RULE_ENGINE_H
 #define LV00_AXIOM_RULE_ENGINE_H

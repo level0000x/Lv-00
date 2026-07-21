@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file nt_polynomial.h
  * @brief Polynomial arithmetic with arbitrary-precision integer coefficients
  *
@@ -9,7 +9,7 @@
  * Reference: NTL ZZ_pX, FLINT nmod_poly
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 #ifndef LV00_NT_POLYNOMIAL_H
 #define LV00_NT_POLYNOMIAL_H

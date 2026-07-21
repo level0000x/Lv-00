@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file context.h
  * @brief Lv-00 隔离上下文系统 —— 统一状态容器、分支推理与熔断机制
  *
@@ -28,7 +28,7 @@
  *   - Souffle (souffle_datalog_engine.md)：Datalog 引擎的增量计算缓存
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  * @date   2026-05-24
  */
 

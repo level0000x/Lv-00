@@ -1,9 +1,9 @@
-﻿/**
+/**
  * @file preset_measurements.c
- * @brief ���ζ�������Ԥ�躯���� - ʵ��
+ * @brief 几何测量模块预设函数库 - 实现
  *
- * ʵ�ּ��ζ�������ģ�������Ԥ�躯���顣
- * �������롢�Ƕȡ����������ȶ������㡣
+ * 实现几何测量模块的所有预设函数库。
+ * 涵盖距离、角度、面积、长度等多种测量计算。
  *
  * @module Measurements
  * @category PRESET_CATEGORY_MEASUREMENT
@@ -15,210 +15,210 @@
 
 #include <string.h>
 
-/* ==================== Ԥ�躯�������� ==================== */
+/* ==================== 预设函数注册表 ==================== */
 
-/** ��������ģ��Ԥ�躯�������� */
+/** 几何测量模块预设函数总数 */
 #define MEASUREMENTS_PRESET_COUNT 20
 
-/* ==================== ģ��ע��ʵ�� ==================== */
+/* ==================== 模块注册实现 ==================== */
 
 bool preset_measurements_register(void)
 {
     int success_count = 0;
 
-    /* -------------------- ������� -------------------- */
+    /* -------------------- 距离测量 -------------------- */
 
-    /* ŷ����þ��� */
+    /* 欧几里得距离 */
     if (preset_blocks_register_by_category(
             "distance_euclidean",
-            "����������ŷ����þ���",
+            "计算两点间的欧几里得距离",
             PRESET_EXT_MEASUREMENT,
             2, 1)) {
         success_count++;
     }
 
-    /* ŷ����þ���ƽ�� */
+    /* 欧几里得距离平方 */
     if (preset_blocks_register_by_category(
             "distance_squared",
-            "�������������ƽ�������⿪����",
+            "计算两点距离的平方（避免开根号）",
             PRESET_EXT_MEASUREMENT,
             2, 1)) {
         success_count++;
     }
 
-    /* �����پ��� */
+    /* 曼哈顿距离 */
     if (preset_blocks_register_by_category(
             "distance_manhattan",
-            "���������������پ��루L1������",
+            "计算两点间的曼哈顿距离（L1范数）",
             PRESET_EXT_MEASUREMENT,
             2, 1)) {
         success_count++;
     }
 
-    /* �б�ѩ����� */
+    /* 切比雪夫距离 */
     if (preset_blocks_register_by_category(
             "distance_chebyshev",
-            "�����������б�ѩ����루L�޷�����",
+            "计算两点间的切比雪夫距离（L∞范数）",
             PRESET_EXT_MEASUREMENT,
             2, 1)) {
         success_count++;
     }
 
-    /* �㵽ֱ�߾��� */
+    /* 点到直线距离 */
     if (preset_blocks_register_by_category(
             "distance_point_to_line",
-            "����㵽ֱ�ߵ���̾���",
+            "计算点到直线的最短距离",
             PRESET_EXT_MEASUREMENT,
             3, 1)) {
         success_count++;
     }
 
-    /* �㵽�߶ξ��� */
+    /* 点到线段距离 */
     if (preset_blocks_register_by_category(
             "distance_point_to_segment",
-            "����㵽�߶ε���̾���",
+            "计算点到线段的最短距离",
             PRESET_EXT_MEASUREMENT,
             3, 1)) {
         success_count++;
     }
 
-    /* -------------------- �Ƕȶ��� -------------------- */
+    /* -------------------- 角度测量 -------------------- */
 
-    /* ����Ƕ� */
+    /* 三点角度 */
     if (preset_blocks_register_by_category(
             "angle_three_points",
-            "���������γɵĽǶ�",
+            "计算三点形成的角度",
             PRESET_EXT_MEASUREMENT,
             3, 1)) {
         success_count++;
     }
 
-    /* ��ֱ�߼н� */
+    /* 两直线夹角 */
     if (preset_blocks_register_by_category(
             "angle_two_lines",
-            "������ֱ�ߵļн�",
+            "计算两条直线的夹角",
             PRESET_EXT_MEASUREMENT,
             4, 1)) {
         success_count++;
     }
 
-    /* ����� */
+    /* 有向角 */
     if (preset_blocks_register_by_category(
             "directed_angle",
-            "��������ǣ������ţ�",
+            "计算有向角（带符号）",
             PRESET_EXT_MEASUREMENT,
             3, 1)) {
         success_count++;
     }
 
-    /* -------------------- ������� -------------------- */
+    /* -------------------- 面积测量 -------------------- */
 
-    /* ��������������깫ʽ�� */
+    /* 三角形面积（鞋带公式） */
     if (preset_blocks_register_by_category(
             "triangle_area",
-            "ʹ�����깫ʽ�������������",
+            "使用鞋带公式计算三角形面积",
             PRESET_EXT_MEASUREMENT,
             3, 1)) {
         success_count++;
     }
 
-    /* ���׹�ʽ */
+    /* 海伦公式 */
     if (preset_blocks_register_by_category(
             "triangle_area_heron",
-            "ʹ�ú��׹�ʽ�������������",
+            "使用海伦公式计算三角形面积",
             PRESET_EXT_MEASUREMENT,
             3, 1)) {
         success_count++;
     }
 
-    /* Բ��� */
+    /* 圆面积 */
     if (preset_blocks_register_by_category(
             "circle_area",
-            "����Բ�����",
+            "计算圆的面积",
             PRESET_EXT_MEASUREMENT,
             2, 1)) {
         success_count++;
     }
 
-    /* ������� */
+    /* 扇形面积 */
     if (preset_blocks_register_by_category(
             "sector_area",
-            "�����������",
+            "计算扇形的面积",
             PRESET_EXT_MEASUREMENT,
             3, 1)) {
         success_count++;
     }
 
-    /* -------------------- ���ȼ��� -------------------- */
+    /* -------------------- 长度计算 -------------------- */
 
-    /* �߶γ��� */
+    /* 线段长度 */
     if (preset_blocks_register_by_category(
             "segment_length",
-            "�����߶γ���",
+            "计算线段长度",
             PRESET_EXT_MEASUREMENT,
             2, 1)) {
         success_count++;
     }
 
-    /* Բ�ܳ� */
+    /* 圆周长 */
     if (preset_blocks_register_by_category(
             "circle_circumference",
-            "����Բ���ܳ�",
+            "计算圆的周长",
             PRESET_EXT_MEASUREMENT,
             2, 1)) {
         success_count++;
     }
 
-    /* -------------------- �������� -------------------- */
+    /* -------------------- 向量计算 -------------------- */
 
-    /* ����ģ�� */
+    /* 向量模长 */
     if (preset_blocks_register_by_category(
             "vector_magnitude",
-            "��������ģ��",
+            "计算向量的模长",
             PRESET_EXT_MEASUREMENT,
             2, 1)) {
         success_count++;
     }
 
-    /* ������� */
+    /* 向量点积 */
     if (preset_blocks_register_by_category(
             "vector_dot_product",
-            "�������������ĵ��",
+            "计算两个向量的点积",
             PRESET_EXT_MEASUREMENT,
             4, 1)) {
         success_count++;
     }
 
-    /* ������� */
+    /* 向量叉积 */
     if (preset_blocks_register_by_category(
             "vector_cross_product",
-            "�������������Ĳ������ά��",
+            "计算两个向量的叉积（二维）",
             PRESET_EXT_MEASUREMENT,
             4, 1)) {
         success_count++;
     }
 
-    /* �����н� */
+    /* 向量夹角 */
     if (preset_blocks_register_by_category(
             "vector_angle",
-            "�������������ļн�",
+            "计算两个向量的夹角",
             PRESET_EXT_MEASUREMENT,
             4, 1)) {
         success_count++;
     }
 
-    /* -------------------- ���ʼ��� -------------------- */
+    /* -------------------- 曲率计算 -------------------- */
 
-    /* Բ������ */
+    /* 圆曲率 */
     if (preset_blocks_register_by_category(
             "circle_curvature",
-            "����Բ������",
+            "计算圆的曲率",
             PRESET_EXT_MEASUREMENT,
             2, 1)) {
         success_count++;
     }
 
-    /* ����Ƿ�����Ԥ�趼ע��ɹ� */
+    /* 检查是否所有预设都注册成功 */
     return success_count == MEASUREMENTS_PRESET_COUNT;
 }
 

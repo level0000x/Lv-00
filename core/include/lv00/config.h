@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file config.h
  * @brief Lv-00 集中化配置
  *
@@ -13,7 +13,7 @@
  *   // JSON 文件改配置，重启即生效
  *   lv00_config_load_json("lv00.config.json"); lv00_init();
  *
- * @version 3.5.0
+ * @version 1.1.0
  */
 #ifndef LV00_CONFIG_H
 #define LV00_CONFIG_H

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file algebra_mode.h
  * @brief 代数模式构造引擎 —— 借鉴 build123d 代数模式 + CadQuery Fluent API
  *
@@ -13,7 +13,7 @@
  *
  * 设计目标："构造即运算"——每个几何操作既创建新对象也记录构造历史
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_ALGEBRA_MODE_H

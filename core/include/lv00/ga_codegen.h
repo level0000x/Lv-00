@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ga_codegen.h
  * @brief Geometric Algebra code generator
  *
@@ -14,7 +14,7 @@
  *   - PYTHON: Python / NumPy code
  *   - DOT:   Graphviz DOT graph for expression trees
  *
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_GA_CODEGEN_H

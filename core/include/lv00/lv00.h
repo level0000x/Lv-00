@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @mainpage Lv-00 几何元语言系统
  *
  * @section intro_sec 简介
@@ -64,7 +64,7 @@
  * 详见 docs/ARCHITECTURE_v3.3.md
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  * @copyright Copyright (c) 2024-2026 Lv-00 Project
  */
 

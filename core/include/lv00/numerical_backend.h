@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file numerical_backend.h
  * @brief 多后端数值抽象层 —— 借鉴 SUNDIALS N_Vector/SUNMatrix/SUNLinearSolver 架构
  *
@@ -16,7 +16,7 @@
  *          - 支持 SERIAL、OpenMP、CUDA、HIP 和自定义后端
  *
  * @author Lv-00 Project
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_NUMERICAL_BACKEND_H

@@ -1,10 +1,10 @@
-/**
+﻿/**
  * @file cache_manager.h
  * @brief Lv-00 缓存隔离层管理器
  * @details 实现上下文状态隔离，避免多次连续运算造成上下文状态污染。
  *          提供缓存LRU淘汰机制，支持大容量数据存储和复杂拓扑数据收纳。
  *
- * @version 4.0.0
+ * @version 1.1.0
  * @author Lv-00 Project
  *
  * @par 设计原则

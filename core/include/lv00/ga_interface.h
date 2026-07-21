@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ga_interface.h
  * @brief Geometric quantity embedding and extraction interface for PGA
  *
@@ -14,7 +14,7 @@
  *   - Rotor:       even-grade multivector (scalar + bivector)
  *   - Motor:       even-grade multivector (scalar + bivector + pseudoscalar)
  *
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_GA_INTERFACE_H

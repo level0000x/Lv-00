@@ -29,6 +29,7 @@
 | Python `pip install -e .` 验证 | P3 | ✅ |
 | web/ 幽灵目录删除 | P3 | ✅ |
 | GitHub Actions CI/CD | P3 | ✅ |
+| 18 处 TODO 清理与实现 | P2 | ✅ |
 
 ## 三、当前指标
 
@@ -42,6 +43,8 @@
 | Git tracked | 845 |
 | formal/ sorry | **0** ✅ |
 | lv00-formal/ sorry | **0** ✅ |
+| 构建状态 | 编译通过 |
+| TODO 残留 | **0** ✅ |
 
 ## 四、下一步提示词
 

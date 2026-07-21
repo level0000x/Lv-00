@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_converter.c
  * @brief 公式转换器实现
  *
@@ -250,7 +250,10 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
             }
             lv00_free((void **)&coords);  /* 统一内存释放器 */
         }
-        coords = (SymbolicCoord **)lv00_malloc(sizeof(SymbolicCoord *) * 2);  /* 统一内存分配器 */
+        coords = (SymbolicCoord **)lv00_malloc(sizeof(SymbolicCoord *) * 2);
+        if (!coords) {
+            return -1; /* 内存分配失败 */
+        }
         coords[0] = symbolic_coord_create_rational(0, 1);
         coords[1] = symbolic_coord_create_rational(0, 1);
         coord_count = 2;

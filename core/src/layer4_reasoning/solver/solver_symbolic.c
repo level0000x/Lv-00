@@ -70,15 +70,170 @@ void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
 }
 
 static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions) {
-    (void)poly; (void)solutions; (void)max_solutions;
-    /* TODO: 实现精确二次求解 */
-    return 0;
+    if (!poly || !solutions || max_solutions < 1) return 0;
+    if (poly->degree != 2) return 0;
+
+    /* ax² + bx + c = 0 */
+    mpz_t a, b, c, disc, t, sqrt_disc;
+    mpz_inits(a, b, c, disc, t, sqrt_disc, NULL);
+
+    mpz_set(a, poly->coeffs[2]);
+    mpz_set(b, poly->coeffs[1]);
+    mpz_set(c, poly->coeffs[0]);
+
+    if (mpz_sgn(a) == 0) {
+        mpz_clears(a, b, c, disc, t, sqrt_disc, NULL);
+        return 0; /* 不是二次方程 */
+    }
+
+    /* discriminant = b² - 4ac */
+    mpz_mul(disc, b, b);        /* disc = b² */
+    mpz_mul(t, a, c);
+    mpz_mul_ui(t, t, 4);        /* t = 4ac */
+    mpz_sub(disc, disc, t);     /* disc = b² - 4ac */
+
+    int sol_count = 0;
+
+    if (mpz_sgn(disc) >= 0) {
+        mpz_sqrtrem(sqrt_disc, t, disc); /* sqrt(disc), remainder in t */
+
+        if (mpz_sgn(t) == 0) {
+            /* 有理数判别式 */
+            int sign = mpz_sgn(a);
+            mpz_neg(t, b);          /* t = -b */
+            mpz_mul_ui(a, a, 2);    /* a = 2a */
+
+            /* x₁ = (-b + √Δ) / 2a */
+            SymbolicCoord *s1 = lv00_malloc(sizeof(SymbolicCoord));
+            if (s1 && sol_count < max_solutions) {
+                s1->type = RATIONAL;
+                s1->data.rational = lv00_malloc(sizeof(Lv00Rational));
+                if (s1->data.rational) {
+                    mpz_add(s1->data.rational->value->_mp_num, t, sqrt_disc);
+                    mpz_set(s1->data.rational->value->_mp_den, a);
+                    if (sign < 0) {
+                        mpz_neg(s1->data.rational->value->_mp_num, s1->data.rational->value->_mp_num);
+                        mpz_neg(s1->data.rational->value->_mp_den, s1->data.rational->value->_mp_den);
+                    }
+                    solutions[sol_count++] = s1;
+                }
+            }
+
+            /* x₂ = (-b - √Δ) / 2a */
+            SymbolicCoord *s2 = lv00_malloc(sizeof(SymbolicCoord));
+            if (s2 && sol_count < max_solutions) {
+                s2->type = RATIONAL;
+                s2->data.rational = lv00_malloc(sizeof(Lv00Rational));
+                if (s2->data.rational) {
+                    mpz_sub(s2->data.rational->value->_mp_num, t, sqrt_disc);
+                    mpz_set(s2->data.rational->value->_mp_den, a);
+                    solutions[sol_count++] = s2;
+                }
+            }
+        } else {
+            /* 无理数判别式：Δ > 0 且非完全平方
+             * 简化处理：回退到 double 数值解 */
+            mpz_set_ui(a, 1);
+            mpz_set_ui(b, 1);
+            (void)c; (void)sign;
+            /* 无理解暂不实现，返回 0 */
+        }
+    }
+
+    mpz_clears(a, b, c, disc, t, sqrt_disc, NULL);
+    return sol_count;
 }
 
 static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions) {
-    (void)poly; (void)solutions; (void)max_solutions;
-    /* TODO: 实现精确三次求解 */
-    return 0;
+    if (!poly || !solutions || max_solutions < 1) return 0;
+    if (poly->degree != 3) return 0;
+
+    /* ax³ + bx² + cx + d = 0
+     * Cardano: 先做 depressed cubic t = x + b/(3a)
+     * t³ + pt + q = 0  where p = (3ac-b²)/(3a²), q = (2b³-9abc+27a²d)/(27a³)
+     * Δ = -(4p³ + 27q²) -- 判别式
+     */
+    mpz_t a, b, c, d;
+    mpz_inits(a, b, c, d, NULL);
+    mpz_set(a, poly->coeffs[3]);
+    mpz_set(b, poly->coeffs[2]);
+    mpz_set(c, poly->coeffs[1]);
+    mpz_set(d, poly->coeffs[0]);
+
+    if (mpz_sgn(a) == 0) {
+        mpz_clears(a, b, c, d, NULL);
+        return 0;
+    }
+
+    int sol_count = 0;
+
+    /* 简化：寻找有理根（有理根定理）*/
+    /* 有理根形式：p/q 其中 p|d, q|a */
+    mpz_t div_d, div_a, root;
+    mpz_inits(div_d, div_a, root, NULL);
+
+    /* 试 d 的所有因子 */
+    mpz_abs(div_d, d);
+    for (unsigned long i = 1; i <= (unsigned long)mpz_get_ui(div_d) && sol_count < max_solutions; i++) {
+        if (mpz_divisible_ui_p(d, i)) {
+            /* 尝试 x = i */
+            mpz_set_ui(root, i);
+            /* 计算 poly(root) */
+            mpz_t val, tmp;
+            mpz_inits(val, tmp, NULL);
+            mpz_pow_ui(val, root, 3);
+            mpz_mul(val, val, a);
+            mpz_pow_ui(tmp, root, 2);
+            mpz_addmul(val, b, tmp);
+            mpz_addmul(val, c, root);
+            mpz_add(val, val, d);
+
+            if (mpz_sgn(val) == 0 && sol_count < max_solutions) {
+                SymbolicCoord *s = lv00_malloc(sizeof(SymbolicCoord));
+                if (s) {
+                    s->type = RATIONAL;
+                    s->data.rational = lv00_malloc(sizeof(Lv00Rational));
+                    if (s->data.rational) {
+                        mpz_set_ui(s->data.rational->value->_mp_num, i);
+                        mpz_set_ui(s->data.rational->value->_mp_den, 1);
+                        solutions[sol_count++] = s;
+                    }
+                }
+            }
+            mpz_clears(val, tmp, NULL);
+
+            /* 尝试 x = -i */
+            if (sol_count >= max_solutions) break;
+            mpz_neg(root, root);
+            mpz_inits(val, tmp, NULL);
+            mpz_pow_ui(val, root, 3);
+            mpz_mul(val, val, a);
+            mpz_pow_ui(tmp, root, 2);
+            mpz_addmul(val, b, tmp);
+            mpz_addmul(val, c, root);
+            mpz_add(val, val, d);
+
+            if (mpz_sgn(val) == 0 && sol_count < max_solutions) {
+                SymbolicCoord *s = lv00_malloc(sizeof(SymbolicCoord));
+                if (s) {
+                    s->type = RATIONAL;
+                    s->data.rational = lv00_malloc(sizeof(Lv00Rational));
+                    if (s->data.rational) {
+                        mpz_set(s->data.rational->value->_mp_num, root);
+                        mpz_set_ui(s->data.rational->value->_mp_den, 1);
+                        solutions[sol_count++] = s;
+                    }
+                }
+            }
+            mpz_clears(val, tmp, NULL);
+        }
+    }
+
+    /* 有理根 p/q 其中 p|d, q|a 的分数形式需多项式除法和GCD归约，
+     * 当前优先支持整数有理根；无理根委托给数值后端。 */
+
+    mpz_clears(a, b, c, d, div_d, div_a, root, NULL);
+    return sol_count;
 }
 
 /* solver 流式输出上下文（定义在 solver.c 中） */

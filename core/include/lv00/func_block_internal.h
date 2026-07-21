@@ -29,16 +29,44 @@ extern LV00_THREAD_LOCAL StreamContext *func_block_stream_ctx;
 
 /* ============== 内部共享函数 ============== */
 
+/**
+ * @brief 收集功能块中所有子块的 ID 列表
+ *
+ * @param fb 功能块指针
+ * @param out_ids 输出参数，指向 ID 数组的指针（调用方负责释放）
+ * @param out_count 输出参数，ID 数量
+ * @return 收集成功返回 true，失败返回 false
+ */
 bool collect_all_block_ids(const FuncBlock *fb, int **out_ids, int *out_count);
 
+/**
+ * @brief 收集约束图中的确定性统计信息，分析线性/二次约束与自由度分布
+ *
+ * @param fb 功能块指针
+ * @param graph 约束图指针
+ * @param step_limit 分析的最大步数限制
+ * @param stats 输出参数，存储确定性统计结果
+ * @return 返回收集到的约束统计项数量，失败返回负数
+ */
 int *determinism_collect_constraint_stats(
     const FuncBlock *fb,
     const ConstraintGraph *graph,
     int step_limit,
     DeterminismStaticStats *stats);
 
+/**
+ * @brief 根据自由度数评估线性系统的确定性程度
+ *
+ * @param free_dof 剩余自由度数
+ * @return 确定性评估值：0 表示完全确定，正数表示存在自由度，负数表示过约束
+ */
 int determinism_evaluate_linear_dof(int free_dof);
 
+/**
+ * @brief 清理 Gröbner 基计算结果，释放占用的内存
+ *
+ * @param gresult Gröbner 基结果指针
+ */
 void determinism_cleanup_groebner(void *gresult);
 
 /* ============== 兼容宏（旧命名 → 新命名） ============== */

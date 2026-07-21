@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file atp_backend.h
  * @brief 一阶逻辑自动定理证明器（FOL ATP）后端抽象层
  *
@@ -15,7 +15,7 @@
  * - E Prover (github.com/eprover/eprover) — clause evaluation heuristics
  * - iProver (github.com/iprover/iprover) — Inst-Gen instantiation for quantifier-heavy problems
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_ATP_BACKEND_H

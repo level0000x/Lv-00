@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv00_api_spec.h
  * @brief Lv-00 API 版式规范 —— 命名 / 可见性 / 生命周期 约定
  *
@@ -6,7 +6,7 @@
  *          所有新增代码必须遵守本规范；存量代码逐步迁移。
  *
  * @author Lv-00 Project
- * @version 3.0.0
+ * @version 1.1.0
  */
 #ifndef LV00_API_SPEC_H
 #define LV00_API_SPEC_H

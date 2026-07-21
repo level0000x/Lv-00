@@ -1,19 +1,19 @@
 /**
  * @file prop_verifier.c
- * @brief �����߼���֤��ʵ�� ���� ��Ȼ����֤������
+ * @brief 命题逻辑验证器实现 —— 自然演绎证明引擎
  *
- * @details ʵ�ֻ�����Ȼ������������֤�������㷨��
- *          ֧��ֱ�������߼��;����߼�ģʽ��
+ * @details 实现基于自然演绎的命题逻辑验证算法。
+ *          支持直觉主义逻辑和经典逻辑模式。
  *
- *          ������������
- *            - ��ȡ��ȥ���Ӻ�ȡ�Ƴ�����
- *            - ��ȡ���룺�ӷ����Ƴ���ȡ
- *            - �̺���ȥ��modus ponens�������̺���ǰ���Ƴ����
- *            - ����ȥ���ӷ񶨺�ԭ�����Ƴ�ì��
- *            - ��ըԭ���������ã���ì���Ƴ���������
+ *          核心推理规则：
+ *            - 合取消除：从合取推导其分项
+ *            - 析取引入：从分项推导析取
+ *            - 蕴含消除（modus ponens）：从蕴含和前件推导后件
+ *            - 否定消除：从否定和原命题推导矛盾
+ *            - 爆炸原理（可选）：从矛盾推导任意命题
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 1.1.0
  */
 
 #include "lv00/prop_verifier.h"
@@ -30,69 +30,69 @@
 LV00_DECLARE_STREAM_CTX(prop_verifier)
 
 /* ============================================================
- * �ڲ�����
+ * 内部常量
  * ============================================================ */
 
-#define MAX_PREMISES     64    /**< ���ǰ���� */
-#define MAX_GOALS        64    /**< �����Ŀ���� */
-#define MAX_MEMO_ENTRIES 1024  /**< ���仯����С */
-#define MAX_FORMULA_STR  2048  /**< ��ʽ�ַ�����󳤶� */
-#define MAX_COPY_DEPTH   200   /**< ��ʽ������ݹ���ȣ���ֹջ����� */
-#define MAX_DESTROY_DEPTH 200  /**< ��ʽ�������ݹ���ȣ���ֹջ����� */
+#define MAX_PREMISES     64    /**< 最大前提数 */
+#define MAX_GOALS        64    /**< 最大目标数 */
+#define MAX_MEMO_ENTRIES 1024  /**< 记忆化条目数 */
+#define MAX_FORMULA_STR  2048  /**< 公式字符串最大长度 */
+#define MAX_COPY_DEPTH   200   /**< 公式深拷贝递归深度（防止栈溢出） */
+#define MAX_DESTROY_DEPTH 200  /**< 公式销毁递归深度（防止栈溢出） */
 
-/* ---- ����ջ���� ---- */
-#define PROP_DESTROY_STACK_INIT_CAP   64   /* ����ʱջ�ĳ�ʼ���� */
-#define PROP_DESTROY_STACK_GROWTH     2    /* ����ջ���ݱ��� */
+/* ---- 销毁栈配置 ---- */
+#define PROP_DESTROY_STACK_INIT_CAP   64   /* 销毁时栈的初始容量 */
+#define PROP_DESTROY_STACK_GROWTH     2    /* 销毁栈扩容倍数 */
 
-/* ---- ��������ȼ� ---- */
-#define PROP_PREC_ATOM          100   /* ԭ���������ȼ� */
-#define PROP_PREC_NEGATION      80    /* ����������ȼ� */
-#define PROP_PREC_CONJUNCTION   60    /* ��ȡ��������ȼ� */
-#define PROP_PREC_DISJUNCTION   50    /* ��ȡ��������ȼ� */
-#define PROP_PREC_IMPLICATION   40    /* �̺���������ȼ� */
-#define PROP_PREC_DEFAULT       0     /* Ĭ��������ȼ� */
+/* ---- 运算符优先级 ---- */
+#define PROP_PREC_ATOM          100   /* 原子命题优先级 */
+#define PROP_PREC_NEGATION      80    /* 否定运算符优先级 */
+#define PROP_PREC_CONJUNCTION   60    /* 合取运算符优先级 */
+#define PROP_PREC_DISJUNCTION   50    /* 析取运算符优先级 */
+#define PROP_PREC_IMPLICATION   40    /* 蕴含运算符优先级 */
+#define PROP_PREC_DEFAULT       0     /* 默认运算符优先级 */
 
-/* ---- ��ϣ�������� ---- */
-#define PROP_HASH_TYPE_MULTIPLIER      2654435761U  /* �ƽ����������Knuth�Ƽ��� */
-#define PROP_HASH_STRING_MULTIPLIER    31           /* �ַ�����ϣ���� */
-#define PROP_HASH_LEFT_MULTIPLIER      0x9e3779b9U  /* ���ӹ�ʽ��ϣ���� */
-#define PROP_HASH_RIGHT_MULTIPLIER     0x517cc1b7U  /* ���ӹ�ʽ��ϣ���� */
-#define PROP_HASH_PTR_MULTIPLIER       0x45d9f3bU   /* ָ���ϣ���� */
-#define PROP_HASH_BIT_SHIFT            16           /* ��ϣλ���ƫ���� */
-#define PROP_HASH_PREMISES_MULTIPLIER  31           /* ǰ�Ἧ�Ϲ�ϣ���� */
+/* ---- 哈希常量定义 ---- */
+#define PROP_HASH_TYPE_MULTIPLIER      2654435761U  /* 黄金比例乘数（Knuth推荐） */
+#define PROP_HASH_STRING_MULTIPLIER    31           /* 字符串哈希乘数 */
+#define PROP_HASH_LEFT_MULTIPLIER      0x9e3779b9U  /* 左子公式哈希乘数 */
+#define PROP_HASH_RIGHT_MULTIPLIER     0x517cc1b7U  /* 右子公式哈希乘数 */
+#define PROP_HASH_PTR_MULTIPLIER       0x45d9f3bU   /* 指针哈希乘数 */
+#define PROP_HASH_BIT_SHIFT            16           /* 哈希位移偏移量 */
+#define PROP_HASH_PREMISES_MULTIPLIER  31           /* 前提集合哈希乘数 */
 
-/* ---- ʱ��ת�� ---- */
-#define PROP_TIME_MS_PER_SEC           1000         /* �뵽�����ת������ */
+/* ---- 时间转换 ---- */
+#define PROP_TIME_MS_PER_SEC           1000         /* 秒到毫秒的转换常数 */
 
-/* ---- �̲��뻺�������� ---- */
-#define PROP_SMOKE_TEST_COUNT          13           /* �����̲����� */
-#define PROP_SMOKE_MAX_PREM_PTRS       8            /* �̲���ǰ��ָ����ʱ�����С */
-#define PROP_SMOKE_CLEANUP_MAX_PTRS    16           /* �̲�����ʱ�������ָ���� */
-#define PROP_ATOM_NAME_MAX_LEN         64           /* ԭ������������󳤶� */
-#define PROP_ATOM_COLLECT_MAX          32           /* �ռ�ԭ����������� */
-#define PROP_PATTERN_DESC_BUFSIZE      256          /* ģʽ������������С */
-#define PROP_ANALYSIS_DESC_BUFSIZE     512          /* ����������������С */
-#define PROP_MISSING_LIST_BUFSIZE      512          /* ȱʧ�б���������С */
-#define PROP_STREAM_EVENT_BUFSIZE      256          /* ��ʽ�¼�������������С */
-#define PROP_JSON_DETAIL_BUFSIZE       192          /* JSON���黺������С */
+/* ---- 冒烟测试与缓冲区常量 ---- */
+#define PROP_SMOKE_TEST_COUNT          13           /* 内置冒烟测试数 */
+#define PROP_SMOKE_MAX_PREM_PTRS       8            /* 冒烟测试前提指针临时数组大小 */
+#define PROP_SMOKE_CLEANUP_MAX_PTRS    16           /* 冒烟测试清理时临时收集指针数 */
+#define PROP_ATOM_NAME_MAX_LEN         64           /* 原子命题名称最大长度 */
+#define PROP_ATOM_COLLECT_MAX          32           /* 收集原子命题最大数量 */
+#define PROP_PATTERN_DESC_BUFSIZE      256          /* 模式描述缓冲区大小 */
+#define PROP_ANALYSIS_DESC_BUFSIZE     512          /* 分析描述缓冲区大小 */
+#define PROP_MISSING_LIST_BUFSIZE      512          /* 缺失列表缓冲区大小 */
+#define PROP_STREAM_EVENT_BUFSIZE      256          /* 公式事件描述缓冲区大小 */
+#define PROP_JSON_DETAIL_BUFSIZE       192          /* JSON详情缓冲区大小 */
 
-/* ---- ������ɫ�ж���ֵ ---- */
-#define PROP_TRUST_YELLOW_THRESHOLD    2            /* ��ɫ���ε�ȱʧ�������� */
-#define PROP_TRUST_AMBER_MIN           3            /* ����ɫ���ε�ȱʧ�������� */
+/* ---- 信任颜色判定阈值 ---- */
+#define PROP_TRUST_YELLOW_THRESHOLD    2            /* 黄色信任的缺失构造上限 */
+#define PROP_TRUST_AMBER_MIN           3            /* 琥珀色信任的缺失构造下限 */
 
 /* ============================================================
- * ��ʽ����/����
+ * 公式创建/销毁
  * ============================================================ */
 
 /**
- * @brief ����ԭ�����⹫ʽ
+ * @brief 创建原子命题公式
  *
- * @param name ԭ����������
- * @return �·���Ĺ�ʽָ�룬ʧ�ܷ��� NULL
+ * @param name 原子命题名称
+ * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_atom(const char *name) {
     if (!name) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* ���ʼ������ */
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_ATOM;
     snprintf(f->data.atom.name, sizeof(f->data.atom.name), "%s", name);
@@ -100,15 +100,15 @@ PropFormula *prop_formula_create_atom(const char *name) {
 }
 
 /**
- * @brief ������ȡ��ʽ��A AND B��
+ * @brief 创建合取公式（A AND B）
  *
- * @param left  �������
- * @param right �Ҳ�����
- * @return �·���Ĺ�ʽָ�룬ʧ�ܷ��� NULL
+ * @param left  左侧操作数
+ * @param right 右侧操作数
+ * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *right) {
     if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* ���ʼ������ */
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_CONJUNCTION;
     f->data.binary.left = left;
@@ -117,15 +117,15 @@ PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *rig
 }
 
 /**
- * @brief ������ȡ��ʽ��A OR B��
+ * @brief 创建析取公式（A OR B）
  *
- * @param left  �������
- * @param right �Ҳ�����
- * @return �·���Ĺ�ʽָ�룬ʧ�ܷ��� NULL
+ * @param left  左侧操作数
+ * @param right 右侧操作数
+ * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *right) {
     if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* ���ʼ������ */
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_DISJUNCTION;
     f->data.binary.left = left;
@@ -134,15 +134,15 @@ PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *rig
 }
 
 /**
- * @brief �����̺���ʽ��A IMPLIES B��
+ * @brief 创建蕴含公式（A IMPLIES B）
  *
- * @param left  ǰ��
- * @param right ���
- * @return �·���Ĺ�ʽָ�룬ʧ�ܷ��� NULL
+ * @param left  前件
+ * @param right 后件
+ * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *right) {
     if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* ���ʼ������ */
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_IMPLICATION;
     f->data.binary.left = left;
@@ -151,14 +151,14 @@ PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *rig
 }
 
 /**
- * @brief �����񶨹�ʽ��NOT A��
+ * @brief 创建否定公式（NOT A）
  *
- * @param operand ������
- * @return �·���Ĺ�ʽָ�룬ʧ�ܷ��� NULL
+ * @param operand 操作数
+ * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_negation(PropFormula *operand) {
     if (!operand) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* ���ʼ������ */
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_NEGATION;
     f->data.unary.operand = operand;
@@ -166,55 +166,55 @@ PropFormula *prop_formula_create_negation(PropFormula *operand) {
 }
 
 /**
- * @brief ���������͹�ʽ��ì��/�٣�
+ * @brief 创建底类型公式（矛盾/假）
  *
- * @return �·���Ĺ�ʽָ�룬ʧ�ܷ��� NULL
+ * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_bottom(void) {
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* ���ʼ������ */
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_BOTTOM;
     return f;
 }
 
 /**
- * @brief ������ֵ��ʽ��������/�棩
+ * @brief 创建真值公式（永真/真）
  *
- * @return �·���Ĺ�ʽָ�룬ʧ�ܷ��� NULL
+ * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_true(void) {
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* ���ʼ������ */
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_TRUE;
     return f;
 }
 
-/* �ڲ�����ǰ��������static ��������ʹ��ǰ������ */
+/* 内部前置声明（static 函数使用前置声明） */
 static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth);
 static void prop_formula_destroy_depth(PropFormula *f, int depth);
 
-/* �����ʽ�����ݹ���ȱ�������ֹջ����� */
+/* 深拷贝公式（带递归深度保护，防止栈溢出） */
 /**
- * @brief ������⹫ʽ
+ * @brief 深拷贝命题公式
  *
- * @param f Դ��ʽָ��
- * @return ������ʽָ�룬ʧ�ܷ��� NULL
+ * @param f 源公式指针
+ * @return 副本公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_copy(const PropFormula *f) {
     return prop_formula_copy_depth(f, 0);
 }
 
 /**
- * @brief �����ʽ���ڲ�ʵ�֣����ݹ���ȱ�����
+ * @brief 深拷贝公式（内部实现，带递归深度保护）
  *
- * @param f     Դ��ʽ
- * @param depth ��ǰ�ݹ����
- * @return ������ʽָ�룬����ȷ��� NULL
+ * @param f     源公式
+ * @param depth 当前递归深度
+ * @return 副本公式指针，超深度返回 NULL
  */
 static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
     if (!f) return NULL;
     if (depth > MAX_COPY_DEPTH) {
-        /* �ݹ���ȳ��ޣ���ֹջ��� */
+        /* 递归深度超限，防止栈溢出 */
         return NULL;
     }
     switch (f->type) {
@@ -243,36 +243,36 @@ static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
     return NULL;
 }
 
-/* �ݹ����ٹ�ʽ�����ݹ���ȱ�������ֹջ����� */
+/* 递归销毁公式（带递归深度保护，防止栈溢出） */
 /**
- * @brief �������⹫ʽ���ݹ��ͷ�������Դ
+ * @brief 销毁命题公式（递归释放所有资源）
  *
- * @param f ��ʽָ�루��Ϊ NULL��
+ * @param f 公式指针（可为 NULL）
  */
 void prop_formula_destroy(PropFormula *f) {
     prop_formula_destroy_depth(f, 0);
 }
 
 /**
- * @brief ��ȫ�������⹫ʽ������ʵ�֣���ֹջ�����
+ * @brief 安全销毁命题公式（迭代实现，防止栈溢出）
  *
- * ʹ����ʽջ����ݹ�������������Ƕ�׹�ʽ���µ���ջ�����
- * ͬʱȷ�������ӹ�ʽ�ڵ㶼����ȷ�ͷţ����ڴ�й©��
+ * 使用显式栈代替递归，避免深层嵌套公式导致的调用栈溢出。
+ * 同时确保所有子公式节点都被正确释放，无内存泄漏。
  *
- * @param f     �����ٵ����⹫ʽָ��
- * @param depth δʹ�ã����������Լ��ݺ���ǩ����
+ * @param f     待销毁的命题公式指针
+ * @param depth 未使用，保留以兼容递归函数签名
  */
 static void prop_formula_destroy_depth(PropFormula *f, int depth) {
-    (void)depth; /* ����ʵ�ֲ�ʹ����Ȳ��� */
+    (void)depth; /* 迭代实现不使用深度参数 */
     if (!f) return;
 
-    /* ��ʽջ���洢�����ٵĹ�ʽ�ڵ� */
+    /* 显式栈存储待销毁的公式节点 */
     int stack_capacity = PROP_DESTROY_STACK_INIT_CAP;
     int stack_top = 0;
     PropFormula **stack = (PropFormula **)lv00_malloc(
         (size_t)stack_capacity * sizeof(PropFormula *));
     if (!stack) {
-        /* �ڴ����ʧ�ܣ����˵��򵥵ݹ飨ǳ�㹫ʽ�Կ���ȷ���٣� */
+        /* 内存分配失败，退化为简单递归（浅层公式仍可正确销毁） */
         prop_formula_destroy(f);
         return;
     }
@@ -281,20 +281,20 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
     while (stack_top > 0) {
         PropFormula *current = stack[--stack_top];
 
-        /* ���ӽڵ�ѹջ������ȳ�����֤����˳�� */
+        /* 将子节点压栈（后进先出保证销毁顺序） */
         switch (current->type) {
             case PROP_CONJUNCTION:
             case PROP_DISJUNCTION:
             case PROP_IMPLICATION:
-                /* ��Ԫ�ڵ㣺��ѹ���ӽڵ㣬��ѹ���ӽڵ� */
+                /* 二元节点：先压右子节点，再压左子节点 */
                 if (current->data.binary.right) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity) break; /* ������� */
+                        if (new_cap <= stack_capacity) break; /* 溢出保护 */
                         PropFormula **new_stack = (PropFormula **)lv00_realloc(
                             stack, (size_t)new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
-                            /* ջ����ʧ�ܣ�����ֱ�ӵݹ�����ʣ���ӽڵ� */
+                            /* 栈扩容失败，改用直接递归销毁剩余子节点 */
                             if (current->data.binary.left)
                                 prop_formula_destroy(current->data.binary.left);
                             if (current->data.binary.right)
@@ -329,7 +329,7 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 current->data.binary.right = NULL;
                 break;
             case PROP_NEGATION:
-                /* һԪ�ڵ㣺ѹ�������ӽڵ� */
+                /* 一元节点：压入其子节点 */
                 if (current->data.unary.operand) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
@@ -350,34 +350,34 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 current->data.unary.operand = NULL;
                 break;
             default:
-                /* Ҷ�ӽڵ㣨ATOM, BOTTOM, TRUE�������ӽڵ� */
+                /* 叶子节点（ATOM, BOTTOM, TRUE）：无子节点 */
                 break;
         }
 
-        /* �ͷŵ�ǰ�ڵ� */
+        /* 释放当前节点 */
         lv00_free((void **)&current);
     }
 
-    /* �ͷ�ջ */
+    /* 释放栈 */
     lv00_free((void **)&stack);
 }
 
 /* ============================================================
- * ��ʽ�Ƚϣ����ڼ��仯��ǰ��ƥ�䣩
+ * 公式比较（用于记忆化和前提匹配）
  * ============================================================ */
 
 /**
- * @brief ��ʽ�ṹ����ԱȽϣ��ݹ飩
+ * @brief 公式结构深度比较（递归）
  *
- * �ݹ�Ƚ��������⹫ʽ�Ľṹ����ԣ�
- * - ATOM���Ƚ������ַ���
- * - ��Ԫ����ʣ�CONJ/DISJ/IMPL�����ݹ�Ƚ������ӹ�ʽ
- * - һԪ����ʣ�NEG�����ݹ�Ƚϲ�����
- * - BOTTOM/TRUE��������ƥ�伴���
+ * 递归比较两个命题公式的结构相等性：
+ * - ATOM：比较名称字符串
+ * - 二元运算符（CONJ/DISJ/IMPL）：递归比较左右子公式
+ * - 一元运算符（NEG）：递归比较操作数
+ * - BOTTOM/TRUE：类型匹配即相等
  *
- * @param a ��һ����ʽָ�루��Ϊ NULL��
- * @param b �ڶ�����ʽָ�루��Ϊ NULL��
- * @return true ��ʾ�ṹ��ȣ�false ��ʾ��ͬ
+ * @param a 第一个公式指针（可为 NULL）
+ * @param b 第二个公式指针（可为 NULL）
+ * @return true 表示结构相等，false 表示不同
  */
 static bool formula_equal(const PropFormula *a, const PropFormula *b) {
     if (!a || !b) return a == b;
@@ -400,14 +400,14 @@ static bool formula_equal(const PropFormula *a, const PropFormula *b) {
 }
 
 /* ============================================================
- * ��ʽ���л�
+ * 公式序列化
  * ============================================================ */
 
 /**
- * @brief ��ȡ��������ʵ���������ȼ����������л����Ż���
+ * @brief 获取运算符实例的优先级（用于序列化括号优化）
  *
- * @param f ��ʽָ��
- * @return ���ȼ���ֵ��Խ�߰�Խ����
+ * @param f 公式指针
+ * @return 优先级数值，越高绑定越紧
  */
 static int formula_precedence(const PropFormula *f) {
     switch (f->type) {
@@ -422,7 +422,7 @@ static int formula_precedence(const PropFormula *f) {
     return PROP_PREC_DEFAULT;
 }
 
-/* �ڲ��ݹ����л� */
+/* 内部递归序列化 */
 static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
                                    int parent_prec) {
     if (!f || size == 0) return;
@@ -470,20 +470,20 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
 }
 
 /**
- * @brief �����⹫ʽ���л�Ϊ�ַ���
+ * @brief 将命题公式序列化为字符串
  *
- * @param f ��ʽָ��
- * @return �·�����ַ���ָ�룬ʧ�ܷ��� NULL
+ * @param f 公式指针
+ * @return 新分配的字符串指针，失败返回 NULL
  */
 char *prop_formula_to_string(const PropFormula *f) {
     if (!f) return NULL;
-    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* ���ʼ������ */
+    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
     if (!buf) return NULL;
     formula_to_string_buf(f, buf, MAX_FORMULA_STR, 0);
     return buf;
 }
 
-/* LaTeX ���л� */
+/* LaTeX 序列化 */
 static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size,
                                   int parent_prec) {
     if (!f || size == 0) return;
@@ -531,56 +531,56 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size,
 }
 
 /**
- * @brief �����⹫ʽ���л�Ϊ LaTeX �ַ���
+ * @brief 将命题公式序列化为 LaTeX 字符串
  *
- * @param f ��ʽָ��
- * @return �·���� LaTeX �ַ���ָ�룬ʧ�ܷ��� NULL
+ * @param f 公式指针
+ * @return 新分配的 LaTeX 字符串指针，失败返回 NULL
  */
 char *prop_formula_to_latex(const PropFormula *f) {
     if (!f) return NULL;
-    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* ���ʼ������ */
+    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
     if (!buf) return NULL;
     formula_to_latex_buf(f, buf, MAX_FORMULA_STR, 0);
     return buf;
 }
 
 /* ============================================================
- * ֤���������� - �ڲ����ݽṹ
+ * 证明用上下文 - 内部数据结构
  * ============================================================ */
 
-/* ���仯��Ŀ����¼���������� (Ŀ��, ǰ�Ἧ��) �Ƿ��֤ */
+/* 记忆化条目：记录某 (目标, 前提集) 是否可证 */
 typedef struct {
     const PropFormula *goal;
-    /* ��ǰ�Ἧ�ϵ�λͼ����ʶ���򻯰棺��ǰ��ָ�������ϣ�� */
+    /* 对前提集的位置标识（简化版：前提指针数组的哈希） */
     uint64_t premises_hash;
-    bool proven;         /* ������Ƿ���֤�� */
-    bool searched;       /* �Ƿ��������� */
+    bool proven;         /* 该条目是否已证明 */
+    bool searched;       /* 是否已搜索过 */
 } MemoEntry;
 
-/* ֤������������ */
+/* 证明用上下文 */
 typedef struct {
-    const PropFormula **premises;   /* ԭʼǰ�� */
+    const PropFormula **premises;   /* 原始前提 */
     int premise_count;
     const VerifierConfig *config;
-    int steps;                       /* ���ò��� */
+    int steps;                       /* 已用步数 */
     bool timed_out;
-    /* ��ʱ��׼ʱ�� */
+    /* 计时基准时刻 */
     uint64_t start_time_ms;
-    /* ���仯�� */
+    /* 记忆化表 */
     MemoEntry memo[MAX_MEMO_ENTRIES];
     int memo_count;
-    /* �ݹ���ȼ���������ֹջ����� */
+    /* 递归深度计数器（防止栈溢出） */
     int recursion_depth;
 } ProofContext;
 
 /**
- * @brief ��ȡǽ��ʱ��ʱ�䣨���룩
+ * @brief 获取墙上时钟时间（毫秒）
  *
- * ʹ�� C ��׼ time() ��ȡǽ��ʱ��ʱ�䣬���� clock() ��ȡ������ʱ�䡣
- * clock() �ڶ��̻߳� I/O �ȴ������²�׼ȷ������ CPU ʱ�������ʵʱ�䣩��
- * ����ֵ�����ڼ������ʱ������ֵ�����塣
+ * 使用 C 标准 time() 获取墙上时钟时间，而非 clock() 获取处理器时间。
+ * clock() 在多线程或 I/O 等待场景下不准确（仅计 CPU 时间而非实时时间）。
+ * 返回值仅用于计算超时时差，绝对值无意义。
  *
- * @return ��ǰʱ��ĺ��뼶����ֵ
+ * @return 当前时间的毫秒级数值
  */
 #include <time.h>
 
@@ -589,16 +589,16 @@ static uint64_t get_time_ms(void) {
 }
 
 /* ============================================================
- * ��ϣ���������ڼ��仯��
+ * 哈希函数（用于记忆化）
  * ============================================================ */
 
 /**
- * @brief �򵥵�ָ���ϣ����
+ * @brief 简单的指针哈希函数
  *
- * ʹ��ָ���ַ���� 64 λ��ϣֵ��ͨ��λ�ƺͳ�����ϡ�
+ * 使用指针地址生成 64 位哈希值，通过位移和乘法混合。
  *
- * @param p ����ϣ��ָ��
- * @return 64 λ��ϣֵ
+ * @param p 待哈希的指针
+ * @return 64 位哈希值
  */
 static uint64_t hash_ptr(const void *p) {
     uint64_t x = (uint64_t)(uintptr_t)p;
@@ -609,17 +609,17 @@ static uint64_t hash_ptr(const void *p) {
 }
 
 /**
- * @brief ���㹫ʽ�ṹ�Ĺ�ϣֵ���ݹ飩
+ * @brief 计算公式结构的哈希值（递归）
  *
- * ���ڹ�ʽ�ṹ���� 64 λ��ϣֵ��
- * - ATOM���������ַ������ַ���ϣ
- * - ��Ԫ����ʣ��ݹ���������ӹ�ʽ��ϣ
- * - һԪ����ʣ��ݹ���ϲ�������ϣ
- * - BOTTOM/TRUE�������͹�ϣ
- * ʹ�ûƽ���������Ͳ�ͬ�����Ա����ͻ��
+ * 对公式结构生成 64 位哈希值：
+ * - ATOM：基于名称字符串的字符串哈希
+ * - 二元运算符：递归哈希左右子公式
+ * - 一元运算符：递归哈希操作数
+ * - BOTTOM/TRUE：仅类型哈希
+ * 使用黄金比例乘数区分不同类型以避免冲突。
  *
- * @param f ��ʽָ�루��Ϊ NULL��
- * @return 64 λ��ϣֵ��NULL ��ʽ���� 0��
+ * @param f 公式指针（可为 NULL）
+ * @return 64 位哈希值，NULL 公式返回 0
  */
 static uint64_t formula_hash(const PropFormula *f) {
     if (!f) return 0;
@@ -647,13 +647,13 @@ static uint64_t formula_hash(const PropFormula *f) {
 }
 
 /**
- * @brief ����ǰ�Ἧ�ϵĹ�ϣֵ
+ * @brief 计算前提集合的哈希值
  *
- * ���ÿ��ǰ�ṫʽ�Ĺ�ϣֵ���� 64 λ���Ϲ�ϣ��
+ * 对每个前提公式的哈希值进行 64 位聚合哈希。
  *
- * @param premises ǰ�ṫʽ����
- * @param count    ǰ������
- * @return 64 λ��ϣֵ
+ * @param premises 前提公式数组
+ * @param count    前提数量
+ * @return 64 位哈希值
  */
 static uint64_t premises_hash(const PropFormula **premises, int count) {
     uint64_t h = 0;
@@ -664,10 +664,10 @@ static uint64_t premises_hash(const PropFormula **premises, int count) {
 }
 
 /* ============================================================
- * ���仯����
+ * 记忆化操作
  * ============================================================ */
 
-/* �ڼ��仯���в��� */
+/* 在记忆化表中查找 */
 static int memo_find(ProofContext *ctx, const PropFormula *goal,
                       uint64_t phash) {
     uint64_t ghash = formula_hash(goal);
@@ -680,7 +680,7 @@ static int memo_find(ProofContext *ctx, const PropFormula *goal,
     return -1;
 }
 
-/* ���Ӽ��仯��Ŀ */
+/* 添加记忆化条目 */
 static void memo_add(ProofContext *ctx, const PropFormula *goal,
                       uint64_t phash, bool proven) {
     if (ctx->memo_count >= MAX_MEMO_ENTRIES) return;
@@ -692,10 +692,10 @@ static void memo_add(ProofContext *ctx, const PropFormula *goal,
 }
 
 /* ============================================================
- * ǰ�����
+ * 前提搜索
  * ============================================================ */
 
-/* ��ǰ���б��в��ҹ�ʽ */
+/* 在前提列表中查找公式 */
 static bool premise_contains(const PropFormula **premises, int count,
                               const PropFormula *f) {
     for (int i = 0; i < count; i++) {
@@ -705,37 +705,37 @@ static bool premise_contains(const PropFormula **premises, int count,
 }
 
 /* ============================================================
- * ǰ��������ǰ������ȡ����Ϣ
+ * 前向链接：合取前提展开及信息
  * ============================================================ */
 
 /**
- * @brief ǰ����չ����ȡǰ��
+ * @brief 前向链接展开合取前提
  *
- * ������ǰ�Ἧ����չ�����к�ȡ��ʽ��A /\ B����
- * �������ӹ�ʽ�ֱ�������ǰ���б���ȥ�أ���
- * ��������ֱ��û���µĺ�ȡ��չ����
+ * 将前提集合中的合取公式（A /\ B）展开，
+ * 将其子公式分别添加到前提列表中（去重），
+ * 迭代执行直到没有新的合取可展开。
  *
- * @param input      ����ǰ�ṫʽ����
- * @param input_count ��������
- * @param output     ���ǰ�ṫʽ���飨������Ԥ���䣩
- * @param max_output ��������������
- * @return �����ǰ�ṫʽ����
+ * @param input       输入前提公式数组
+ * @param input_count 输入数量
+ * @param output      输出前提公式数组（调用者预分配）
+ * @param max_output  输出数组最大容量
+ * @return 输出前提公式数量
  */
 static int forward_chain_conjunctions(const PropFormula **input, int input_count,
                                        const PropFormula **output, int max_output) {
     int out_count = 0;
-    /* �ȸ����������� */
+    /* 先复制输入 */
     for (int i = 0; i < input_count && out_count < max_output; i++) {
         output[out_count++] = input[i];
     }
-    /* չ����ȡ */
+    /* 展开合取 */
     bool changed = true;
     while (changed) {
         changed = false;
         for (int i = 0; i < out_count && out_count < max_output; i++) {
             const PropFormula *p = output[i];
             if (p->type == PROP_CONJUNCTION) {
-                /* ��������Ƿ������б��� */
+                /* 检查是否已在列表中 */
                 if (!premise_contains(output, out_count, p->data.binary.left)) {
                     output[out_count++] = p->data.binary.left;
                     changed = true;
@@ -751,14 +751,14 @@ static int forward_chain_conjunctions(const PropFormula **input, int input_count
 }
 
 /* ============================================================
- * ����֤���������ݹ飬������ӣ�
+ * 核心证明引擎（递归回溯，有剪枝）
  * ============================================================ */
 
-/* ǰ������ */
+/* 前置声明 */
 static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count,
                    const PropFormula *goal);
 
-/* ����Ƿ�ʱ�򳬲��� */
+/* 检查是否超时或超步数 */
 static bool check_limits(ProofContext *ctx) {
     if (ctx->steps >= ctx->config->max_steps) return true;
     if (ctx->config->timeout_ms > 0) {
@@ -771,7 +771,7 @@ static bool check_limits(ProofContext *ctx) {
     return false;
 }
 
-/* ���� modus ponens����ǰ�����ҵ� A��B �� A���Ƴ� B */
+/* 尝试 modus ponens：在前提中找到 A→B 且 A，推导出 B */
 static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises,
                               int premise_count, const PropFormula *goal) {
     for (int i = 0; i < premise_count; i++) {
@@ -780,14 +780,14 @@ static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises,
             const PropFormula *antecedent = impl->data.binary.left;
             const PropFormula *consequent = impl->data.binary.right;
 
-            /* ����̺��Ľ�����Ŀ��ƥ�� */
+            /* 如果蕴含的后件与目标匹配 */
             if (formula_equal(consequent, goal)) {
-                /* ���ǰ���Ƿ���ǰ���� */
+                /* 检查前件是否在前提中 */
                 if (premise_contains(premises, premise_count, antecedent)) {
                     ctx->steps++;
                     return true;
                 }
-                /* �ݹ�֤��ǰ�� */
+                /* 递归证明前件 */
                 ctx->steps++;
                 if (prove(ctx, premises, premise_count, antecedent)) {
                     return true;

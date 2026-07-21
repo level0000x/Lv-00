@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_theory_combiner.h
  * @brief SMT theory combination dispatcher
  *
@@ -6,7 +6,7 @@
  * a priority-sorted array and tried one at a time until a definitive
  * SAT/UNSAT result is obtained or all theories have been exhausted.
  *
- * @version v3.4.2
+ * @version 1.1.0
  * @date 2026-05-25
  */
 

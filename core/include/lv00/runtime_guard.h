@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file runtime_guard.h
  * @brief 运行时数据保护 —— 读写锁宏、原子操作与数据完整性校验
  *
@@ -17,7 +17,7 @@
  *          - Zig 语言的编译期零开销抽象理念
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  * @date   2026-05-24
  */
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_engine_enhanced.h
  * @brief 增强证明引擎 —— 反证法完善与逻辑溯源树
  *
@@ -10,7 +10,7 @@
  *   5. 证明优化：简化证明步骤
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_PROOF_ENGINE_ENHANCED_H

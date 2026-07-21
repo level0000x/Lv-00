@@ -40,6 +40,11 @@ static BOOL CALLBACK qpc_init_callback(PINIT_ONCE init_once, PVOID param, PVOID 
 }
 #endif
 
+/**
+ * @brief 获取当前高精度时间戳（毫秒）
+ *
+ * @return 当前时间戳，包含秒和纳秒分量
+ */
 Lv00Timestamp lv00_timestamp_now(void) {
     Lv00Timestamp ts;
     ts.seconds = 0;
@@ -95,6 +100,11 @@ Lv00Timestamp lv00_timestamp_now(void) {
 
 /**
  * @brief 安全乘法 —— a * b，检测溢出
+ *
+ * @param a   第一个乘数
+ * @param b   第二个乘数
+ * @param out 输出乘积（仅在无溢出时写入）
+ * @return true 表示无溢出，false 表示溢出或参数无效
  */
 bool lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
     if (!out) return false;

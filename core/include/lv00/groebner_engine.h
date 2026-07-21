@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file groebner_engine.h
  * @brief Groebner 基计算引擎 —— 借鉴 Singular/Macaulay2 的多项式理想与 Gröbner 基计算
  *
@@ -16,7 +16,7 @@
  * 设计目标：为 Lv-00 提供多项式方程组求解的代数引擎，
  *          将构造图约束转化为多项式理想，通过 Gröbner 基消去求解。
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_GROEBNER_ENGINE_H

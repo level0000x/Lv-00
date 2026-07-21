@@ -25,11 +25,25 @@ static char *lv00_strtok_r(char *str, const char *delim, char **saveptr) {
 
 /* ── Original API ── */
 
+/**
+ * @brief 解析 Gappa DSL 输入
+ *
+ * @param input Gappa DSL 输入字符串
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv00_gappa_parse(const char *input) {
     if (!input) return -1;
     return 0;
 }
 
+/**
+ * @brief 在上下文中求值 Gappa 表达式
+ *
+ * @param expr Gappa 表达式
+ * @param lo   输出下界
+ * @param hi   输出上界
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv00_gappa_eval(const char *expr, double *lo, double *hi) {
     if (!expr || !lo || !hi) return -1;
     *lo = -1.0;
@@ -37,6 +51,12 @@ int lv00_gappa_eval(const char *expr, double *lo, double *hi) {
     return 0;
 }
 
+/**
+ * @brief 使用 Gappa 证明目标
+ *
+ * @param script Gappa 证明脚本
+ * @return 证明结果字符串（调用者负责释放），失败返回 NULL
+ */
 char *lv00_gappa_prove(const char *script) {
     if (!script) return NULL;
     return lv00_strdup("proof placeholder");
@@ -44,6 +64,13 @@ char *lv00_gappa_prove(const char *script) {
 
 /* ── Structured API ── */
 
+/**
+ * @brief 格式化预定义的 Gappa 模板
+ *
+ * @param name 格式名称（如 "binary32", "binary64" 等；NULL 使用默认格式）
+ * @param out  输出格式描述
+ * @return true 表示成功识别并填充格式
+ */
 bool gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
     if (!out) return false;
     memset(out, 0, sizeof(Lv00GappaFormat));
@@ -81,6 +108,16 @@ bool gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
     return true;
 }
 
+/**
+ * @brief 解析 Gappa 表达式，提取假设与目标
+ *
+ * @param input      Gappa 表达式输入（以 "->" 分隔假设与目标）
+ * @param hyp        输出假设谓词数组（调用者负责释放）
+ * @param hyp_count  输出假设数量
+ * @param goals      输出证明目标数组（调用者负责释放）
+ * @param goal_count 输出目标数量
+ * @return true 表示解析成功
+ */
 bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                  Lv00GappaProofGoal **goals, int *goal_count) {
     if (!input) return false;
@@ -200,16 +237,38 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
     return true;
 }
 
+/**
+ * @brief 释放谓词数组
+ *
+ * @param preds 谓词数组
+ * @param count 谓词数量（保留参数，未使用）
+ */
 void gappa_predicates_free(Lv00GappaPredicate *preds, int count) {
     (void)count;
     free(preds);
 }
 
+/**
+ * @brief 释放目标数组
+ *
+ * @param goals 目标数组
+ * @param count 目标数量（保留参数，未使用）
+ */
 void gappa_goals_free(Lv00GappaProofGoal *goals, int count) {
     (void)count;
     free(goals);
 }
 
+/**
+ * @brief 在给定谓词下证明目标
+ *
+ * @param hyp       假设谓词数组
+ * @param hyp_count 假设数量
+ * @param goals     证明目标数组
+ * @param goal_count 目标数量
+ * @param config    配置参数（预留，可为 NULL）
+ * @return 证明结果结构体
+ */
 Lv00GappaProofResult gappa_prove(const Lv00GappaPredicate *hyp, int hyp_count,
                                   const Lv00GappaProofGoal *goals, int goal_count,
                                   const void *config) {
@@ -264,6 +323,11 @@ Lv00GappaProofResult gappa_prove(const Lv00GappaPredicate *hyp, int hyp_count,
     return result;
 }
 
+/**
+ * @brief 释放证明结果
+ *
+ * @param result 证明结果（内部 goals 数组将被释放并置 NULL）
+ */
 void gappa_result_free(Lv00GappaProofResult *result) {
     if (result) {
         free(result->goals);
@@ -272,6 +336,13 @@ void gappa_result_free(Lv00GappaProofResult *result) {
     }
 }
 
+/**
+ * @brief 注册重写规则
+ *
+ * @param rules 重写规则数组
+ * @param count 规则数量（保留参数，未使用）
+ * @return true 表示注册成功
+ */
 bool gappa_register_rewrite_rules(const Lv00GappaRewriteRule *rules, int count) {
     (void)rules; (void)count;
     return true;

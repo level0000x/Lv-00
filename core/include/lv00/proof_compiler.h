@@ -1,11 +1,11 @@
-/**
+﻿/**
  * @file proof_compiler.h
  * @brief 证明编译层
  *
  * 实现证明对象（Proof Object）、证明跟踪（Proof Trace）和
  * 证明编译器（Proof Compiler），支持多种输出格式。
  *
- * @version 4.0.0
+ * @version 1.1.0
  */
 #ifndef LV00_PROOF_COMPILER_H
 #define LV00_PROOF_COMPILER_H

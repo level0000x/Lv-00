@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file relation_model.h
  * @brief 关系模型层公共接口 —— Alloy 风格的"关系即一切"统一建模范式
  *
@@ -12,7 +12,7 @@
  *   - 有限范围配置（SmallScopeConfig）
  *   - SAT 编码相关类型（SatVarEntry / SatLiteral / SatEncoding / SatModel / SatResult）
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_abstract_algebra.h
  * @brief 抽象代数预设函数块 - 头文件
  *
@@ -7,7 +7,7 @@
  *
  * @module AbstractAlgebra
  * @category PRESET_CATEGORY_ALGEBRA
- * @version 13.0.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_PRESET_ABSTRACT_ALGEBRA_H

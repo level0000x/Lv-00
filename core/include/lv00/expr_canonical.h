@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file expr_canonical.h
  * @brief 符号表达式规范表示 —— Lv00Expr 类型定义与构造/操作 API
  *
@@ -11,7 +11,7 @@
  *   - 函数应用 (EXPR_TYPE_FUNCTION): f(x)
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_EXPR_CANONICAL_H

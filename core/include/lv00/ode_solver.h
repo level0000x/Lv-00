@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ode_solver.h
  * @brief Ordinary Differential Equation (ODE) solver module.
  *
@@ -15,7 +15,7 @@
  *          maximum step counts to prevent runaway integration.
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  * @date   2026-05-25
  */
 #ifndef LV00_ODE_SOLVER_H

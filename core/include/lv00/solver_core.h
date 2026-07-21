@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_core.h
  * @brief CDCL SAT 求解器核心 —— 不透明句柄与公共 API
  *
@@ -11,7 +11,7 @@
  * - CDCL 状态机访问（状态查询、统计信息）
  * - 求解器克隆和重置
  *
- * @version v3.3.0
+ * @version 1.1.0
  */
 
 #ifndef LV00_SOLVER_CORE_H

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file cross_platform.h
  * @brief Lv-00 跨平台类型系统 —— 可移植的固定宽度类型、平台/编译器/架构检测
  *
@@ -18,7 +18,7 @@
  *       // Windows 特定代码
  *   #endif
  *
- * @version 3.3.0
+ * @version 1.1.0
  * @date   2026-05-24
  */
 

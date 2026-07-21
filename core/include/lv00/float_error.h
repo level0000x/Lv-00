@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file float_error.h
  * @brief FPTaylor 风格浮点误差验证 —— 泰勒展开 + 区间算术误差界分析
  *
@@ -28,7 +28,7 @@
  *          - Gappa (gappa.gitlabpages.inria.fr) — 形式化浮点证明
  *          - FLUCTUAT (CEA LIST) — 基于抽象解释的浮点误差分析
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 

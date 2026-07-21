@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_contradiction.h
  * @brief 反证法与矛盾推演系统
  *
@@ -9,7 +9,7 @@
  * - 局部矛盾闭包（LocalContradictionClosure）：限定矛盾推导范围
  * - 矛盾传播断点（ContradictionBreakpoint）：自动检测推导断点
  *
- * @version 4.0.0
+ * @version 1.1.0
  */
 #ifndef LV00_PROOF_CONTRADICTION_H
 #define LV00_PROOF_CONTRADICTION_H

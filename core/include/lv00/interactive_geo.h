@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interactive_geo.h
  * @brief 交互几何系统 —— 借鉴 Cinderella 与 Dr. Geo 的交互几何 UX 设计
  *
@@ -22,7 +22,7 @@
  *          - 约束实时维护，确保拖拽操作不破坏几何一致性
  *
  * @author Lv-00 Project
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_INTERACTIVE_GEO_H

@@ -52,6 +52,11 @@ struct ProofTrace {
  * 公共 API 实现
  * ============================================================ */
 
+/**
+ * @brief 创建新的证明轨迹
+ *
+ * @return 新创建的证明轨迹指针，失败返回 NULL
+ */
 ProofTrace *lv00_proof_trace_create(void) {
     ProofTrace *trace = lv00_calloc(1, sizeof(ProofTrace));
     if (!trace) return NULL;
@@ -70,12 +75,25 @@ ProofTrace *lv00_proof_trace_create(void) {
     return trace;
 }
 
+/**
+ * @brief 销毁证明轨迹
+ *
+ * @param trace 要销毁的证明轨迹
+ */
 void lv00_proof_trace_destroy(ProofTrace *trace) {
     if (!trace) return;
     lv00_free((void **)&trace->steps);
     lv00_free((void **)&trace);
 }
 
+/**
+ * @brief 向轨迹添加证明步骤
+ *
+ * @param trace 证明轨迹
+ * @param rule  推理规则名称
+ * @param state 步骤状态（可为 NULL）
+ * @return 新步骤的索引，失败返回 -1
+ */
 int lv00_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *state) {
     if (!trace || !rule) return -1;
 
@@ -110,10 +128,21 @@ int lv00_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *s
     return trace->step_count++;
 }
 
+/**
+ * @brief 检查证明是否完整
+ *
+ * @param trace 证明轨迹
+ * @return true 表示证明已完成
+ */
 bool lv00_proof_trace_is_complete(const ProofTrace *trace) {
     return trace ? trace->complete : false;
 }
 
+/**
+ * @brief 标记证明完成状态
+ *
+ * @param trace 证明轨迹
+ */
 void lv00_proof_trace_mark_complete(ProofTrace *trace) {
     if (trace) {
         trace->complete = true;
@@ -121,10 +150,23 @@ void lv00_proof_trace_mark_complete(ProofTrace *trace) {
     }
 }
 
+/**
+ * @brief 获取轨迹中的步骤数
+ *
+ * @param trace 证明轨迹
+ * @return 步骤数量，若 trace 为 NULL 则返回 0
+ */
 int lv00_proof_trace_get_step_count(const ProofTrace *trace) {
     return trace ? trace->step_count : 0;
 }
 
+/**
+ * @brief 获取指定步骤的推理规则
+ *
+ * @param trace      证明轨迹
+ * @param step_index 步骤索引
+ * @return 规则名称字符串，若索引无效则返回 NULL
+ */
 const char *lv00_proof_trace_get_rule(const ProofTrace *trace, int step_index) {
     if (!trace || step_index < 0 || step_index >= trace->step_count) {
         return NULL;
@@ -132,6 +174,12 @@ const char *lv00_proof_trace_get_rule(const ProofTrace *trace, int step_index) {
     return trace->steps[step_index].rule;
 }
 
+/**
+ * @brief 将证明轨迹导出为字符串
+ *
+ * @param trace 证明轨迹
+ * @return 格式化后的证明轨迹字符串（调用者负责释放），失败返回 NULL
+ */
 char *lv00_proof_trace_export(const ProofTrace *trace) {
     if (!trace) return NULL;
 

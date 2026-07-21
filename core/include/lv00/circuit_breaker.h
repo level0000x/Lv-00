@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file circuit_breaker.h
  * @brief 熔断器模块 —— 独立于上下文的熔断器操作函数
  *
@@ -20,7 +20,7 @@
  *          - 分布式系统中的 bulkhead 模式
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  * @date   2026-05-24
  */
 #ifndef LV00_CIRCUIT_BREAKER_H

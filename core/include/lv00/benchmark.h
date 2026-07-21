@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file benchmark.h
  * @brief 性能基准测试框架
  *
@@ -10,7 +10,7 @@
  *   5. 结果比较与回归检测
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 #ifndef LV00_BENCHMARK_H
 #define LV00_BENCHMARK_H

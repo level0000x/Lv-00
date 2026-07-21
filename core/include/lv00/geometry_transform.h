@@ -1,4 +1,4 @@
-﻿#ifndef LV00_GEOMETRY_TRANSFORM_H
+#ifndef LV00_GEOMETRY_TRANSFORM_H
 #define LV00_GEOMETRY_TRANSFORM_H
 
 #ifdef __cplusplus
@@ -132,16 +132,70 @@ typedef struct {
 typedef Lv00AffineMatrix Lv00TransformMatrix;
 
 /* ==== API ==== */
+/**
+ * @brief 创建恒等变换
+ * @return 成功返回恒等变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_identity(void);
+/**
+ * @brief 创建平移变换
+ * @param dx X 轴平移量（有理数）
+ * @param dy Y 轴平移量（有理数）
+ * @return 成功返回平移变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_translation(const mpq_t dx, const mpq_t dy);
+/**
+ * @brief 创建旋转变换（有理数角度）
+ * @param cx 旋转中心 X 坐标（有理数）
+ * @param cy 旋转中心 Y 坐标（有理数）
+ * @param angle_num 旋转角度分子
+ * @param angle_denom 旋转角度分母
+ * @return 成功返回旋转变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_rotation(const mpq_t cx, const mpq_t cy,
                                         int angle_num, int angle_denom);
+/**
+ * @brief 创建旋转变换（任意有理余弦/正弦值）
+ * @param cx 旋转中心 X 坐标（有理数）
+ * @param cy 旋转中心 Y 坐标（有理数）
+ * @param cos_a 旋转角余弦值（有理数）
+ * @param sin_a 旋转角正弦值（有理数）
+ * @return 成功返回旋转变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_rotation_arbitrary(const mpq_t cx, const mpq_t cy,
                                                   const mpq_t cos_a, const mpq_t sin_a);
+/**
+ * @brief 创建旋转变换（浮点角度）
+ * @param cx 旋转中心 X 坐标
+ * @param cy 旋转中心 Y 坐标
+ * @param angle_rad 旋转角度（弧度）
+ * @return 成功返回旋转变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_rotation_double(double cx, double cy, double angle_rad);
+/**
+ * @brief 创建缩放变换（沿坐标轴）
+ * @param sx X 轴缩放因子（有理数）
+ * @param sy Y 轴缩放因子（有理数）
+ * @return 成功返回缩放变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_scale(const mpq_t sx, const mpq_t sy);
+/**
+ * @brief 创建反射变换（通过线上两点定义反射轴）
+ * @param ax 反射轴上点 A 的 X 坐标（有理数）
+ * @param ay 反射轴上点 A 的 Y 坐标（有理数）
+ * @param bx 反射轴上点 B 的 X 坐标（有理数）
+ * @param by 反射轴上点 B 的 Y 坐标（有理数）
+ * @return 成功返回反射变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_reflection(const mpq_t ax, const mpq_t ay,
                                           const mpq_t bx, const mpq_t by);
+/**
+ * @brief 创建反射变换（通过直线方程定义反射轴）
+ * @param a 直线方程系数 a（有理数）
+ * @param b 直线方程系数 b（有理数）
+ * @param c 直线方程系数 c（有理数）
+ * @return 成功返回反射变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_reflection_line(const mpq_t a, const mpq_t b, const mpq_t c);
 void lv00_transform_destroy(Lv00Transform *t);
 void lv00_transform_ref(Lv00Transform *t);

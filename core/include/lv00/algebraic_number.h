@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file algebraic_number.h
  * @brief 代数数域封装 —— 有理数、二次代数数、区间运算、多项式系统
  *
@@ -18,7 +18,7 @@
  *
  * @note   本模块不引用 Proposition 类型，避免与 proof.h 的循环依赖。
  *
- * @version 3.5.0
+ * @version 1.1.0
  * @copyright Copyright (c) 2024-2026 Lv-00 Project
  */
 

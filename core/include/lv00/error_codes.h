@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file error_codes.h
  * @brief Lv-00 统一错误码系统
  *
@@ -27,7 +27,7 @@
  * - 错误码反向查找（lv00_error_code_from_string）
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 1.1.0
  */
 #ifndef LV00_ERROR_CODES_H
 #define LV00_ERROR_CODES_H

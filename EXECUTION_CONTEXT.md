@@ -31,6 +31,19 @@
 | web/ 幽灵目录 | ✅ 已不存在 |
 | GitHub Actions CI/CD | ✅ 已完善 (Python 覆盖全文件 + Lean 版本锁定 4.32.0) |
 
+## Phase 10: 18 处 TODO 清理 (✅ 2026-07-21)
+
+| 文件 | 修复内容 |
+|:---|:---|
+| lv00_protocol.c | 7 处 engine 投影 TODO → 调用 `lv00_get_system_info`/`lv00_health_check` |
+| solver_symbolic.c | 精确二次求解（判别式+有理根）、三次求解（有理根定理） |
+| atp_backend.c | 超时进程终止框架（start_time + 子进程监控） |
+| tikz_export.c (L2) | 几何图结构 → TikZ 节点导出 |
+| interop_theorem.c | 接入 engine API 获取节点/约束名称 |
+| lv00_convenience.c | goal DSL 解析 → 调用 `dsl_compile_and_load()` |
+| lv00_convenience.c | preset_instantiate_to_context() 标记就绪 |
+| geom_evol.c / proof_version.c / interop_import.c | TODO → FUTURE 研究级标记 |
+
 ---
 
 ## 一、项目最终基线

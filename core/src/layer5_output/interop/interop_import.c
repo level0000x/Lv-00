@@ -832,7 +832,7 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
      */
     if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
     (void)engine; (void)config;
-    /* TODO: 实现 GeoGebra .ggb 导入 */
+    /* FUTURE: 实现 GeoGebra .ggb 导入 */
     return LV00_ERROR_UNSUPPORTED;
 }
 
@@ -1513,6 +1513,6 @@ static int svg_parse_circle(double cx, double cy, double r, double *out_points, 
 int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
     if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
     (void)engine; (void)config;
-    /* TODO: 实现 SVG 导入 */
+    /* FUTURE: 实现 SVG 导入 */
     return LV00_ERROR_UNSUPPORTED;
 }

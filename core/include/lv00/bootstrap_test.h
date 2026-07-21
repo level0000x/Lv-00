@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file bootstrap_test.h
  * @brief Lv-00 自举差分测试框架公共接口
  *
@@ -10,7 +10,7 @@
  *   5. 测试预言机：验证执行结果正确性
  *
  * @author Lv-00 Project
- * @version 1.0.0
+ * @version 1.1.0
  * @date 2026-05-29
  */
 #ifndef LV00_BOOTSTRAP_TEST_H

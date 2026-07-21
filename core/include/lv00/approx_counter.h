@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file approx_counter.h
  * @brief ApproxMC 近似模型计数 —— PAC 保证的 #SAT 近似求解
  *
@@ -14,7 +14,7 @@
  * 将约束图编码为 CNF，对每个约束的可满足赋值进行统计。
  * 使用 ApproxMC 的 `cell_sol_count * 2^hash_count` 公式进行估计。
  *
- * @version v3.3.0
+ * @version 1.1.0
  * @date 2026-05-24
  */
 #ifndef LV00_APPROX_COUNTER_H
