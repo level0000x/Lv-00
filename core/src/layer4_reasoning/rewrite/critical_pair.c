@@ -148,13 +148,13 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
                 node_map_i = lv00_malloc((size_t)pat_i->var_count * sizeof(int));
                 if (!node_map_i) { graph_destroy(tmp); continue; }
                 /* 为 pat_i 的每个变量节点在 tmp 中创建占位节点 */
+                int id_counter = 0;
                 for (int k = 0; k < pat_i->var_count; k++) {
-                    int vid = pat_i->variable_node_ids ? pat_i->variable_node_ids[k] : k;
                     AddNodeResult res = graph_add_point(tmp, NULL, 0);
-                    if (res.result != ADD_NODE_SUCCESS) {
+                    if (res != ADD_NODE_OK) {
                         node_map_i[k] = -1;
                     } else {
-                        node_map_i[k] = res.new_node_id;
+                        node_map_i[k] = id_counter++;
                     }
                 }
                 node_map_i_count = pat_i->var_count;
@@ -170,12 +170,13 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
                     graph_destroy(tmp);
                     continue;
                 }
+                int id_counter_j = 0;
                 for (int k = 0; k < pat_j->var_count; k++) {
                     AddNodeResult res = graph_add_point(tmp, NULL, 0);
-                    if (res.result != ADD_NODE_SUCCESS) {
+                    if (res != ADD_NODE_OK) {
                         node_map_j[k] = -1;
                     } else {
-                        node_map_j[k] = res.new_node_id;
+                        node_map_j[k] = id_counter_j++;
                     }
                 }
                 node_map_j_count = pat_j->var_count;
@@ -199,7 +200,6 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
 
             /* 选择较大模式作为 overlap 的基础 */
             bool use_j_as_base = (pat_j->var_count >= pat_i->var_count);
-            int *base_node_map = use_j_as_base ? node_map_j : node_map_i;
             int base_count = use_j_as_base ? node_map_j_count : node_map_i_count;
 
             /* 在 overlap 中创建与 pat 变量对应的节点 */
@@ -212,9 +212,9 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
             for (int k = 0; k < base_pat->pattern_constraint_count; k++) {
                 Constraint *c = base_pat->pattern_constraints[k];
                 if (!c) continue;
-                int *parts = lv00_malloc((size_t)c->n_parts * sizeof(int));
+                int *parts = lv00_malloc((size_t)c->participant_count * sizeof(int));
                 if (!parts) continue;
-                for (int p = 0; p < c->n_parts; p++) {
+                for (int p = 0; p < c->participant_count; p++) {
                     /* 映射到 overlap 中的节点ID */
                     int orig_id = c->participants[p];
                     int mapped = 0;
@@ -226,7 +226,7 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
                     }
                     parts[p] = mapped;
                 }
-                graph_add_constraint_with_id(overlap, -1, c->type, parts, c->n_parts);
+                graph_add_constraint_with_id(overlap, -1, c->type, parts, c->participant_count);
                 free(parts);
             }
 
@@ -407,7 +407,7 @@ bool critical_pair_export_text(const CriticalPair *cp, const char *filepath)
             Constraint *c = g->constraints[i];
             if (!c) continue;
             fprintf(f, "EDGE %d", (int)c->type);
-            for (int j = 0; j < c->n_parts; j++) {
+            for (int j = 0; j < c->participant_count; j++) {
                 fprintf(f, " %d", c->participants[j]);
             }
             fprintf(f, "\n");
@@ -433,7 +433,7 @@ bool critical_pair_export_text(const CriticalPair *cp, const char *filepath)
             Constraint *c = g->constraints[i];
             if (!c) continue;
             fprintf(f, "EDGE %d", (int)c->type);
-            for (int j = 0; j < c->n_parts; j++) {
+            for (int j = 0; j < c->participant_count; j++) {
                 fprintf(f, " %d", c->participants[j]);
             }
             fprintf(f, "\n");

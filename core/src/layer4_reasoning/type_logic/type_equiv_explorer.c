@@ -61,7 +61,7 @@ static bool rule_matches_type(const RewriteRule *rule, const TypeRegion *type)
 {
     if (!rule || !rule->pattern || !type) return false;
     if (rule->pattern->kind == TYPE_KIND_VARIABLE) return true;
-    return rule->pattern->kind == type->kind;
+    return (TypeKind)rule->pattern->kind == type->kind;
 }
 
 /**
@@ -103,7 +103,7 @@ static bool apply_rule_to_type(TypeSystem *ts, TypeRegion *inout_type)
 static void reconstruct_path(TypeEquivExplorer *explorer, int node_idx)
 {
     /* 从解节点回溯到根，收集步骤 */
-    int max_steps = explorer->queue[node_idx].depth + 1;
+    int max_steps = explorer->queue[node_idx]->depth + 1;
     int *reverse_path = lv00_malloc((size_t)max_steps * sizeof(int));
     int *reverse_side = lv00_malloc((size_t)max_steps * sizeof(int));
     char **reverse_names = lv00_malloc((size_t)max_steps * sizeof(char *));
@@ -117,7 +117,7 @@ static void reconstruct_path(TypeEquivExplorer *explorer, int node_idx)
     int step = 0;
     int cur = node_idx;
     while (cur >= 0 && step < max_steps) {
-        TypeEquivNode *node = &explorer->queue[cur];
+        TypeEquivNode *node = explorer->queue[cur];
         reverse_path[step] = node->applied_rule_index;
         reverse_side[step] = node->applied_to_left ? 0 : 1;
         reverse_names[step] = node->applied_rule_name;
@@ -137,8 +137,7 @@ static void reconstruct_path(TypeEquivExplorer *explorer, int node_idx)
     for (int i = step - 1; i >= 0; i--) {
         if (reverse_path[i] < 0) continue;
         /* 记录步骤：我们简化记录规则名称 */
-        type_rewrite_path_record(path, reverse_names[i],
-                                 NULL, NULL);
+        type_rewrite_path_record(path, reverse_names[i], NULL, NULL);
     }
 
     explorer->proved_path = path;
