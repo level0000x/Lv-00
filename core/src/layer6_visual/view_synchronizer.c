@@ -3,28 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* View synchronizer - keeps all 4 views in sync */
-
-typedef struct Lv00ViewSynchronizer {
-    int sync_enabled;
-    void *source_graph;
-    int conflict_count;
-    char last_conflict[512];
-
-    /* 脏视图追踪 */
-    int *dirty_views;       /* 脏视图ID数组 */
-    int dirty_count;
-    int dirty_capacity;
-
-    /* 待处理的变更记录 */
-    struct {
-        int source_view_id;
-        char change_type[128];
-    } *pending_changes;
-    int pending_count;
-    int pending_capacity;
-} Lv00ViewSynchronizer;
-
 Lv00ViewSynchronizer *lv00_view_sync_create(void) {
     Lv00ViewSynchronizer *sync = lv00_calloc(1, sizeof(Lv00ViewSynchronizer));
     if (!sync) return NULL;

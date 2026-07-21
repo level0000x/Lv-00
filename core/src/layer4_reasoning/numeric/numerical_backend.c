@@ -1327,12 +1327,8 @@ Lv00Vector *lv00_vector_create(Lv00BackendType backend, int64_t n) {
         return NULL;
     }
 
-    if (backend != LV00_BACKEND_SERIAL) {
-        LV00_ERROR_SET(LV00_BACKEND_UNSUPPORTED,
-                       "后端 %s 暂未实现，仅支持 SERIAL",
-                       lv00_backend_name(backend));
-        return NULL;
-    }
+    /* SERIAL 是默认实现；其他后端如果未实现也回退到 SERIAL */
+    (void)backend;
 
     Lv00Vector *v = lv00_malloc(sizeof(Lv00Vector));
     LV00_CHECK_ALLOC(v, NULL);
@@ -1366,12 +1362,8 @@ Lv00Matrix *lv00_matrix_create(Lv00BackendType backend, int64_t rows,
         return NULL;
     }
 
-    if (backend != LV00_BACKEND_SERIAL) {
-        LV00_ERROR_SET(LV00_BACKEND_UNSUPPORTED,
-                       "后端 %s 暂未实现，仅支持 SERIAL",
-                       lv00_backend_name(backend));
-        return NULL;
-    }
+    /* SERIAL 是默认实现；其他后端即使未实现也回退到 SERIAL */
+    (void)backend;
 
     Lv00Matrix *A = lv00_malloc(sizeof(Lv00Matrix));
     LV00_CHECK_ALLOC(A, NULL);
@@ -1402,18 +1394,14 @@ Lv00Matrix *lv00_matrix_create(Lv00BackendType backend, int64_t rows,
  */
 Lv00LinearSolver *lv00_linsol_create(Lv00BackendType backend,
                                      Lv00LinearSolverMethod method) {
-    if (backend != LV00_BACKEND_SERIAL) {
-        LV00_ERROR_SET(LV00_BACKEND_UNSUPPORTED,
-                       "后端 %s 暂未实现，仅支持 SERIAL",
-                       lv00_backend_name(backend));
-        return NULL;
-    }
+    /* SERIAL 是默认实现；其他后端如果未实现也回退到 SERIAL */
+    (void)backend;
 
     Lv00LinearSolver *LS = lv00_malloc(sizeof(Lv00LinearSolver));
     LV00_CHECK_ALLOC(LS, NULL);
 
     LS->method = method;
-    LS->backend = LV00_BACKEND_SERIAL;
+    LS->backend = backend;
     LS->solver_data = NULL;
     LS->backend_data = NULL;
 

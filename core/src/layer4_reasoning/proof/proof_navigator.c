@@ -19,6 +19,7 @@
 #endif
 
 #include "lv00/proof.h"
+#include "lv00/proof_trace.h"
 #include "lv00/engine.h"
 #include "lv00/axiom_pkg.h"
 #include "lv00/constraint_graph.h"
@@ -36,15 +37,18 @@ LV00_DECLARE_STREAM_CTX(proof);
 #define LV00_DEFAULT_MAX_STEPS 10000
 #endif
 
-typedef struct Lv00ProofTree Lv00ProofTree;
-typedef struct Lv00ProofTreeNode Lv00ProofTreeNode;
-static inline Lv00ProofTree *lv00_proof_tree_create(const char *name, const char *strategy) { (void)name; (void)strategy; return NULL; }
-static inline Lv00ProofTreeNode *lv00_proof_tree_add_step(Lv00ProofTree *tree, Lv00ProofTreeNode *parent, const char *desc, const char *detail, int id) { (void)tree; (void)parent; (void)desc; (void)detail; (void)id; return NULL; }
-static inline void lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node) { (void)node; }
-static inline void lv00_proof_tree_destroy(Lv00ProofTree *tree) { (void)tree; }
+/* lv00_proof_tree_* 函数实现在 proof_tree.c 中，通过链接解析 */
 
-/* deep_copy_graph 占位函数（与 proof_proposition.c 保持一致） */
-static inline ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) { (void)src; return NULL; }
+/** 深拷贝约束图（用于证明句柄内部复制） */
+static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
+    if (!src) return NULL;
+    /* 通过 JSON 序列化/反序列化实现深拷贝 */
+    char *json = graph_serialize_to_json(src);
+    if (!json) return NULL;
+    ConstraintGraph *copy = graph_deserialize_from_json(json);
+    lv00_free((void**)&json);
+    return copy;
+}
 
 /**
  * @brief 计算证明导航器的最终颜色

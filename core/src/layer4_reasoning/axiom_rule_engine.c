@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_rule_engine.c
  * @brief 公理规则引擎 - 可配置规则库与难度分级
  *
@@ -357,10 +357,48 @@ uint32_t lv00_rule_apply_match(const Lv00RuleMatch *match,
                                 ProofNavigator *context,
                                 ProofStep **out_steps,
                                 uint32_t max_steps) {
-    (void)match; (void)graph; (void)context;
-    (void)out_steps; (void)max_steps;
-    /* 简化实现：返回 0 步骤 */
-    return 0;
+    if (!match || !match->rule || !out_steps || !graph) return 0;
+
+    Lv00Rule *rule = match->rule;
+    /* 为每个结论创建一个证明步骤 */
+    uint32_t step_count = rule->conclusion_count;
+    if (step_count > max_steps) step_count = max_steps;
+    if (step_count == 0) {
+        /* 至少创建一个步骤表示规则已应用 */
+        step_count = 1;
+    }
+
+    for (uint32_t i = 0; i < step_count; i++) {
+        ProofStep *step = (ProofStep *)lv00_calloc(1, sizeof(ProofStep));
+        if (!step) return i;
+
+        step->id = -1; /* 由上下文分配 ID */
+        step->type = PROOF_STEP_ADD_NODE;
+        step->color = PROOF_COLOR_BLUE_UNEXPLORED;
+        step->rule_id = (int)rule->id;
+
+        /* 尝试从图中获取节点信息 */
+        int node_count = graph_get_node_count(graph);
+        if (node_count > 0) {
+            step->node_id = 0; /* 关联第一个节点 */
+        } else {
+            step->node_id = -1;
+        }
+        step->constraint_id = -1;
+        step->func_block_id = -1;
+
+        /* 复制规则结论模式作为步骤说明 */
+        if (i < rule->conclusion_count && rule->conclusions[i].pattern[0]) {
+            step->note = lv00_strdup(rule->conclusions[i].pattern);
+        } else {
+            step->note = lv00_strdup(rule->name);
+        }
+
+        out_steps[i] = step;
+    }
+
+    (void)context;
+    return step_count;
 }
 
 void lv00_rule_match_destroy(Lv00RuleMatch *match) {
@@ -371,9 +409,30 @@ bool lv00_rule_is_applicable(const Lv00Rule *rule,
                               const ConstraintGraph *graph,
                               const ProofNavigator *context) {
     if (!rule) return false;
-    (void)graph; (void)context;
-    /* 简化实现：启用的规则均视为适用 */
-    return rule->status == RULE_STATUS_ENABLED;
+    if (rule->status != RULE_STATUS_ENABLED) return false;
+
+    /* Axiom 类型始终适用 */
+    if (rule->type == RULE_TYPE_AXIOM) return true;
+
+    /* 其他规则需要图中有节点才能匹配前提 */
+    if (!graph) return false;
+    int node_count = graph_get_node_count(graph);
+    if (node_count <= 0) return false;
+
+    /* 检查规则的前提条件：
+     * - 推理规则/定理/引理：需要至少一个前提，且图中节点数 >= 前提数
+     * - 重写规则：需要图中有节点
+     * - 定义/构造函数：始终适用
+     */
+    if (rule->type == RULE_TYPE_INFERENCE || rule->type == RULE_TYPE_THEOREM ||
+        rule->type == RULE_TYPE_LEMMA) {
+        if (rule->premise_count == 0) return false;
+        /* 简化：节点数必须 >= 前提数 */
+        if (node_count < (int)rule->premise_count) return false;
+    }
+
+    (void)context;
+    return true;
 }
 
 /* ============ 规则推荐（简化实现） ============ */

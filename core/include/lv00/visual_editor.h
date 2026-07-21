@@ -35,10 +35,48 @@ typedef struct Lv00BlockCanvasView Lv00BlockCanvasView;
 typedef struct Lv00TextCodeView Lv00TextCodeView;
 typedef struct Lv00ViewSynchronizer Lv00ViewSynchronizer;
 
+/* View synchronizer - keeps all 4 views in sync */
+struct Lv00ViewSynchronizer {
+    /* Unique sync ID for external API tracking */
+    int sync_id;
+
+    int sync_enabled;
+    void *source_graph;
+    int conflict_count;
+    char last_conflict[512];
+
+    /* 脏视图追踪 */
+    int *dirty_views;
+    int dirty_count;
+    int dirty_capacity;
+
+    /* 待处理的变更记录 */
+    struct {
+        int source_view_id;
+        char change_type[128];
+    } *pending_changes;
+    int pending_count;
+    int pending_capacity;
+};
+
+/* Text code view - bidirectional sync with function block graph */
+struct Lv00TextCodeView {
+    /* Unique view ID for external API tracking */
+    int view_id;
+
+    int view_type;
+    char *code_buffer;
+    int buffer_size;
+    int cursor_pos;
+};
+
 /* Visual editor (top-level container) */
 struct Lv00VisualEditor {
     /* Layer 6 identifier */
     int layer_id;
+
+    /* Unique editor ID for external API tracking */
+    int editor_id;
 
     /* Active view */
     Lv00ViewType active_view;
@@ -79,6 +117,25 @@ int lv00_visual_editor_execute_incremental(Lv00VisualEditor *editor);
 /* State query */
 Lv00EditorState lv00_visual_editor_state(const Lv00VisualEditor *editor);
 const char *lv00_visual_editor_last_error(const Lv00VisualEditor *editor);
+
+/* ---- View Synchronizer API ---- */
+Lv00ViewSynchronizer *lv00_view_sync_create(void);
+void lv00_view_sync_destroy(Lv00ViewSynchronizer *sync);
+int lv00_view_sync_enable(Lv00ViewSynchronizer *sync);
+int lv00_view_sync_disable(Lv00ViewSynchronizer *sync);
+int lv00_view_sync_conflicts(const Lv00ViewSynchronizer *sync);
+int lv00_view_sync_propagate(Lv00ViewSynchronizer *sync, int source_view_id,
+                             const char *change_type);
+int lv00_view_sync_flush(Lv00ViewSynchronizer *sync);
+
+/* ---- Text Code View API ---- */
+Lv00TextCodeView *lv00_text_code_create(void);
+void lv00_text_code_destroy(Lv00TextCodeView *view);
+int lv00_text_code_set_text(Lv00TextCodeView *view, const char *text);
+const char *lv00_text_code_get_text(const Lv00TextCodeView *view);
+int lv00_text_code_insert(Lv00TextCodeView *view, int pos, const char *text);
+int lv00_text_code_delete(Lv00TextCodeView *view, int pos, int len);
+int lv00_text_code_render(const Lv00TextCodeView *view, char *buffer, size_t size);
 
 #ifdef __cplusplus
 }

@@ -3,15 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Text code view - bidirectional sync with function block graph */
-
-typedef struct Lv00TextCodeView {
-    int view_type;
-    char *code_buffer;
-    int buffer_size;
-    int cursor_pos;
-} Lv00TextCodeView;
-
 Lv00TextCodeView *lv00_text_code_create(void) {
     Lv00TextCodeView *view = lv00_calloc(1, sizeof(Lv00TextCodeView));
     if (!view) return NULL;

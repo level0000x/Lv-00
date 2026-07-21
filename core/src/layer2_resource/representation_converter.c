@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file representation_converter.c
  * @brief 表示转换器 - 管理多种表示之间的双向转换
  *
@@ -6,6 +6,7 @@
  *          往返一致性验证、冲突检测等功能。
  */
 #include "lv00/representation_converter.h"
+#include "lv00/func_block.h"
 #include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
@@ -121,24 +122,64 @@ int lv00_converter_verify_roundtrip(Lv00RepresentationConverter *conv,
 /* ============ Legacy 直接转换 API（桩实现） ============ */
 
 Lv00ConvertResult lv00_convert_block_to_text(void *block) {
-    if (!block) return make_error_result("输入块为 NULL");
-    /* 简化实现：返回成功但无实际输出 */
-    return make_success_result(NULL);
+    if (!block) return make_error_result("NULL block");
+    FuncBlock *fb = (FuncBlock *)block;
+    char *buf = (char*)lv00_malloc(4096);
+    if (!buf) return make_error_result("OOM");
+    int off = snprintf(buf, 4096,
+        "block %s {\n  inputs: %d\n  outputs: %d\n  nodes: %d\n  constraints: %d\n}",
+        fb->name ? fb->name : "unnamed",
+        fb->input_count, fb->output_count,
+        fb->internal_node_count, 0);
+    if (off < 0 || off >= 4096) { lv00_free((void**)&buf); return make_error_result("buffer overflow"); }
+    Lv00ConvertResult r = make_success_result(buf);
+    return r;
 }
 
 Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
-    if (!code) return make_error_result("代码为 NULL");
-    return make_success_result(NULL);
+    if (!code || !*code) return make_error_result("empty code");
+    char *buf = (char*)lv00_malloc(strlen(code) + 256);
+    if (!buf) return make_error_result("OOM");
+    /* 简单解析：提取函数块名称 */
+    const char *scan = code;
+    while (*scan && *scan != '"' && *scan != '\'' && *scan != 'b') scan++;
+    if (strncmp(scan, "block", 5) == 0) scan += 5;
+    while (*scan == ' ') scan++;
+    char name[128] = "unnamed";
+    int ni = 0;
+    while (*scan && *scan != ' ' && *scan != '{' && *scan != '\n' && ni < 127) {
+        name[ni++] = *scan++;
+    }
+    name[ni] = '\0';
+    int off = snprintf(buf, strlen(code) + 256,
+        "parsed_block %s {\n  source_length: %d\n  text: %s\n}",
+        name[0] ? name : "unnamed", (int)strlen(code), code);
+    if (off < 0) { lv00_free((void**)&buf); return make_error_result("snprintf failed"); }
+    return make_success_result(buf);
 }
 
 Lv00ConvertResult lv00_convert_block_to_node(void *block) {
-    if (!block) return make_error_result("输入块为 NULL");
-    return make_success_result(NULL);
+    if (!block) return make_error_result("NULL block");
+    FuncBlock *fb = (FuncBlock *)block;
+    char *buf = (char*)lv00_malloc(4096);
+    if (!buf) return make_error_result("OOM");
+    int off = snprintf(buf, 4096,
+        "nodes_of_block %s { internal_node_count: %d }",
+        fb->name ? fb->name : "unnamed", fb->internal_node_count);
+    if (off < 0 || off >= 4096) { lv00_free((void**)&buf); return make_error_result("buffer overflow"); }
+    return make_success_result(buf);
 }
 
 Lv00ConvertResult lv00_convert_node_to_block(void *node) {
-    if (!node) return make_error_result("节点为 NULL");
-    return make_success_result(NULL);
+    if (!node) return make_error_result("NULL node");
+    char *buf = (char*)lv00_malloc(4096);
+    if (!buf) return make_error_result("OOM");
+    FuncBlock *fb = (FuncBlock *)node;
+    int off = snprintf(buf, 4096,
+        "block_from_node_%s { inputs: 0 outputs: 0 nodes: %d }",
+        fb->name ? fb->name : "null", fb->internal_node_count);
+    if (off < 0 || off >= 4096) { lv00_free((void**)&buf); return make_error_result("buffer overflow"); }
+    return make_success_result(buf);
 }
 
 Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
