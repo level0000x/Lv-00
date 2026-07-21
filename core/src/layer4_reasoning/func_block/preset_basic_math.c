@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_basic_math.c
  * @brief 基础数学计算预设函数块 - 实现
  *
@@ -21,7 +21,9 @@
 /* ==================== 预设函数块数量 ==================== */
 
 /** 基础数学模块预设函数块总数 */
+#ifndef BASIC_MATH_PRESET_COUNT
 #define BASIC_MATH_PRESET_COUNT 30
+#endif
 
 /* ==================== 内部辅助函数 ==================== */
 

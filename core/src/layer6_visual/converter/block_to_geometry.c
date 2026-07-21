@@ -249,7 +249,6 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
     }
 
     /* 根据端口依赖生成连接线段 */
-    int port_offset = 0;
     for (int i = 0; i < bg->count; i++) {
         FuncBlock *fb = bg->blocks[i];
         if (!fb) continue;
@@ -299,7 +298,6 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
             }
         }
 
-        port_offset += in_count + out_count;
     }
 
     result.output = enc;

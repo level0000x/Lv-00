@@ -175,8 +175,8 @@ static int test_func_block_pack_performance(void) {
         }
 
         /* 创建输入输出端口 */
-        int in_port = add_point(g, -1, 1, -1, 1);
-        int out_port = add_point(g, -2, 1, -2, 1);
+        add_point(g, -1, 1, -1, 1);
+        add_point(g, -2, 1, -2, 1);
 
         /* 将端口转换为实际的端口节点 */
         graph_add_port(g, PORT_INPUT, -1, -1);

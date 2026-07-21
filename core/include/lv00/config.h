@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file config.h
  * @brief Lv-00 集中化配置
  *
@@ -50,7 +50,7 @@ extern "C" {
 #define LV00_CONFIG_INDEX_LOAD_FACTOR            0.75
 #define LV00_FNV64_OFFSET_BASIS          14695981039346656037ULL
 #define LV00_FNV64_PRIME                  1099511628211ULL
-#define LV00_ARRAY_COUNT(arr) ((arr) ? sizeof(arr) / sizeof((arr)[0]) : 0)
+#define LV00_ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 /* ---- 缓冲区 / 字符串长度（影响 char buf[N] 声明） ---- */
 #define LV00_CONFIG_GRAPH_ERROR_BUFFER_SIZE        256

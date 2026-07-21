@@ -1,6 +1,13 @@
 #ifndef LV00_TEST_FRAMEWORK_H
 #define LV00_TEST_FRAMEWORK_H
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -183,4 +190,9 @@ uint32_t lv00_test_get_data_index(void);
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
 #endif

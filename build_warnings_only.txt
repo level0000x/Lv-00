@@ -1,0 +1,1 @@
+﻿C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c/test_geo_dynamic.c:187:13: warning: unused variable 'dist' [-Wunused-variable]

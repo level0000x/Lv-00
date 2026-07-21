@@ -61,11 +61,14 @@ static void unload_library(void* handle) {
 
 static void* get_symbol(void* handle, const char* name) {
     if (!handle || !name) return NULL;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 #ifdef _WIN32
     return (void*)GetProcAddress((HMODULE)handle, name);
 #else
     return dlsym(handle, name);
 #endif
+#pragma GCC diagnostic pop
 }
 
 static void set_error(Lv00PluginSystem* system, const char* format, ...) {
@@ -201,8 +204,11 @@ Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
     plugin->load_time = get_timestamp();
     
     /* 获取入口函数 */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
     typedef int (*PluginEntryFunc)(Lv00PluginContext* ctx);
     PluginEntryFunc entry = (PluginEntryFunc)get_symbol(handle, "lv00_plugin_load_entry");
+#pragma GCC diagnostic pop
     
     if (!entry) {
         set_error(system, "Plugin entry point not found: %s", path);
@@ -728,7 +734,10 @@ int lv00_plugin_config_load(Lv00PluginConfig* config, const char* filepath) {
             /* 如果有节名，添加节前缀: "section.key" */
             if (current_section[0] != '\0') {
                 char full_key[512];
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
                 snprintf(full_key, sizeof(full_key), "%s.%s", current_section, key);
+#pragma GCC diagnostic pop
                 lv00_plugin_config_set(config, full_key, value, 0);
             } else {
                 lv00_plugin_config_set(config, key, value, 0);
@@ -1024,7 +1033,10 @@ int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory)
 
         /* 构造完整路径 */
         char full_path[MAX_PATH];
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
         snprintf(full_path, sizeof(full_path), "%s\\%s", directory, find_data.cFileName);
+#pragma GCC diagnostic pop
 
         /* 尝试加载为插件 */
         Lv00Plugin* plugin = lv00_plugin_load(system, full_path);

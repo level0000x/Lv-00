@@ -111,7 +111,7 @@ static int hash_idx_compare_asc(const void *a, const void *b) {
 /*  Stream context (线程局部)                                          */
 /* ------------------------------------------------------------------ */
 
-LV00_DECLARE_STREAM_CTX(normalization)
+LV00_DECLARE_STREAM_CTX(normalization);
 
 void normalization_set_stream_context(StreamContext *ctx) {
     normalization_stream_ctx = ctx;

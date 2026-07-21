@@ -42,7 +42,7 @@
  */
 #define LV00_RATIONAL_APPROX_SCALE 1000
 
-LV00_DECLARE_STREAM_CTX(formula_converter)
+LV00_DECLARE_STREAM_CTX(formula_converter);
 
 /* ============================================================
  * 变量名到节点ID映射

@@ -55,7 +55,9 @@
 #define GEOEVOL_ERROR_THRESHOLD 1.0
 
 /** @brief Adams 方法最大历史步数 */
+#ifndef GEOEVOL_ADAMS_MAX_ORDER
 #define GEOEVOL_ADAMS_MAX_ORDER 5
+#endif
 
 /* ========================================================================
  * 静态辅助函数的前向声明

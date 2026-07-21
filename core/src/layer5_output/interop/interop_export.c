@@ -136,6 +136,7 @@ static void svg_escape_string(const char *src, char *dst, size_t dst_size) {
  * @param dst      输出缓冲区，用于存储转义后的字符串
  * @param dst_size 输出缓冲区大小（字节）
  */
+#if 0
 static void tikz_escape_string(const char *src, char *dst, size_t dst_size) {
     size_t j = 0;
     for (size_t i = 0; src[i] && j < dst_size - 16; i++) {
@@ -179,6 +180,7 @@ static void tikz_escape_string(const char *src, char *dst, size_t dst_size) {
     }
     dst[j] = '\0';
 }
+#endif /* 0 */
 
 /* ==================== 导出功能 ==================== */
 
@@ -2386,6 +2388,8 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
     }
 
     /* 内容流辅助：追加字符串到缓冲区 */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 #define BUF_APPEND(fmt, ...)                                                         \
     do {                                                                             \
         int _need = snprintf(NULL, 0, fmt, ##__VA_ARGS__) + 1;                       \
@@ -2541,7 +2545,6 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
          * 当前方法：用极短线段模拟点（line cap round + 粗线宽）。
          * 改进方法（后续版本）: 使用 Bezier 曲线构造圆。
          */
-        double r = 3.0;
         BUF_APPEND("%.2f w\n", 6.0);
         BUF_APPEND("1 J\n"); /* 圆头线端 */
         BUF_APPEND("%.2f %.2f m\n", GX(px), GY(py));
@@ -2709,6 +2712,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
     BUF_APPEND("Q\n"); /* 恢复图形状态 */
 
 #undef BUF_APPEND
+#pragma GCC diagnostic pop
 #undef GX
 #undef GY
 
@@ -2883,8 +2887,10 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 #define GGB_COMPRESSION_STORE 0             /**< 无压缩（STORE） */
 #define GGB_COMPRESSION_DEFLATE 8           /**< Deflate 压缩 */
 
+#if 0
 /** @brief 从字节缓冲区读取小端序 uint32 */
 static uint32_t ggb_read_u32_le(const uint8_t *buf, size_t offset) {
     return (uint32_t)buf[offset] | ((uint32_t)buf[offset + 1] << 8) |
            ((uint32_t)buf[offset + 2] << 16) | ((uint32_t)buf[offset + 3] << 24);
 }
+#endif

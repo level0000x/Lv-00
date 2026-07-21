@@ -279,8 +279,8 @@ static void demo_stream_stats(void) {
     /* 输出统计 */
     if (sctx) {
         fprintf(stderr, "\n  事件统计:\n");
-        fprintf(stderr, "    总事件数: %ld\n", stream_get_total_event_count(sctx));
-        fprintf(stderr, "    丢弃数:   %ld\n", stream_get_dropped_count(sctx));
+        fprintf(stderr, "    总事件数: %lld\n", (long long)stream_get_total_event_count(sctx));
+        fprintf(stderr, "    丢弃数:   %lld\n", (long long)stream_get_dropped_count(sctx));
 
         const StreamEventType stats_types[] = {STREAM_EVENT_ENGINE_START,    STREAM_EVENT_ENGINE_DONE,
                                                STREAM_EVENT_NODE_ADDED,      STREAM_EVENT_CONSTRAINT_ADDED,
@@ -288,9 +288,9 @@ static void demo_stream_stats(void) {
                                                STREAM_EVENT_NORMALIZE_MERGE, STREAM_EVENT_SOLVE_START,
                                                STREAM_EVENT_SOLVE_DONE,      STREAM_EVENT_CONFLICT_DETECTED};
         for (int i = 0; i < 10; i++) {
-            long count = stream_get_event_count(sctx, stats_types[i]);
+            long long count = (long long)stream_get_event_count(sctx, stats_types[i]);
             if (count > 0) {
-                fprintf(stderr, "    %s: %ld\n", stream_event_type_name(stats_types[i]), count);
+                fprintf(stderr, "    %s: %lld\n", stream_event_type_name(stats_types[i]), count);
             }
         }
     }

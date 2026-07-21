@@ -41,7 +41,7 @@ static void capture_callback(const StreamEvent *event, void *user_data) {
     CallbackCapture *cap = (CallbackCapture *) user_data;
     cap->call_count++;
     cap->last_type = (int) event->type;
-    cap->last_timestamp = event->timestamp_ms;
+    cap->last_timestamp = (long)(event->timestamp_ms);
     if (event->description) {
         snprintf(cap->last_description, sizeof(cap->last_description), "%s", event->description);
     } else {
@@ -53,6 +53,7 @@ static void capture_callback(const StreamEvent *event, void *user_data) {
  *  @param event     流式事件指针
  *  @param user_data 用户数据指针（未使用）
  */
+#if 0
 static void jsonrpc_callback(const StreamEvent *event, void *user_data) {
     (void) user_data;
     if (!event)
@@ -65,6 +66,7 @@ static void jsonrpc_callback(const StreamEvent *event, void *user_data) {
         fflush(stdout);
     }
 }
+#endif /* 0 */
 
 /** @brief 错误专用回调：仅捕获 ERROR 和 WARNING 事件并输出到 stderr
  *  @param event     流式事件指针
@@ -296,8 +298,8 @@ static void demo_event_stats(void) {
     stream_emit_simple(ctx, STREAM_EVENT_ERROR, "错误", 12);
     stream_emit_simple(ctx, STREAM_EVENT_ENGINE_DONE, "完成", 13);
 
-    fprintf(stderr, "  总事件数: %ld\n", stream_get_total_event_count(ctx));
-    fprintf(stderr, "  丢弃事件数: %ld\n", stream_get_dropped_count(ctx));
+    fprintf(stderr, "  总事件数: %lld\n", (long long)stream_get_total_event_count(ctx));
+    fprintf(stderr, "  丢弃事件数: %lld\n", (long long)stream_get_dropped_count(ctx));
 
     /* 按类型统计 */
     fprintf(stderr, "  按类型统计:\n");
@@ -313,15 +315,15 @@ static void demo_event_stats(void) {
                                           STREAM_EVENT_SOLVE_DONE,
                                           STREAM_EVENT_ERROR};
     for (int i = 0; i < (int) (sizeof(stat_types) / sizeof(stat_types[0])); i++) {
-        long count = stream_get_event_count(ctx, stat_types[i]);
+        long long count = (long long)stream_get_event_count(ctx, stat_types[i]);
         if (count > 0) {
-            fprintf(stderr, "    %-30s: %ld\n", stream_event_type_name(stat_types[i]), count);
+            fprintf(stderr, "    %-30s: %lld\n", stream_event_type_name(stat_types[i]), count);
         }
     }
 
     /* 重置统计 */
     stream_reset_stats(ctx);
-    fprintf(stderr, "  重置后总事件数: %ld (预期: 0)\n", stream_get_total_event_count(ctx));
+    fprintf(stderr, "  重置后总事件数: %lld (预期: 0)\n", (long long)stream_get_total_event_count(ctx));
 
     stream_context_destroy(ctx);
 

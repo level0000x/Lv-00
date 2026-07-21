@@ -63,7 +63,7 @@
 /** 哈希计算批次大小（用于 WL 图核哈希的增量计算） */
 #define REWRITE_HASH_BATCH_SIZE 64
 
-LV00_DECLARE_STREAM_CTX(rewrite)
+LV00_DECLARE_STREAM_CTX(rewrite);
 
 void rewrite_set_stream_context(StreamContext *ctx) {
     rewrite_stream_ctx = ctx;

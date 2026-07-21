@@ -27,7 +27,7 @@
 #include <string.h>
 #include <time.h>
 
-LV00_DECLARE_STREAM_CTX(prop_verifier)
+LV00_DECLARE_STREAM_CTX(prop_verifier);
 
 /* ============================================================
  * 内部常量
@@ -600,6 +600,7 @@ static uint64_t get_time_ms(void) {
  * @param p 待哈希的指针
  * @return 64 位哈希值
  */
+#if 0
 static uint64_t hash_ptr(const void *p) {
     uint64_t x = (uint64_t)(uintptr_t)p;
     x = ((x >> PROP_HASH_BIT_SHIFT) ^ x) * PROP_HASH_PTR_MULTIPLIER;
@@ -607,6 +608,7 @@ static uint64_t hash_ptr(const void *p) {
     x = (x >> PROP_HASH_BIT_SHIFT) ^ x;
     return x;
 }
+#endif
 
 /**
  * @brief 计算公式结构的哈希值（递归）
@@ -670,7 +672,6 @@ static uint64_t premises_hash(const PropFormula **premises, int count) {
 /* 在记忆化表中查找 */
 static int memo_find(ProofContext *ctx, const PropFormula *goal,
                       uint64_t phash) {
-    uint64_t ghash = formula_hash(goal);
     for (int i = 0; i < ctx->memo_count; i++) {
         if (ctx->memo[i].goal == goal &&
             ctx->memo[i].premises_hash == phash) {
@@ -845,6 +846,8 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                    const PropFormula *goal) {
     /* ���ݹ�������ƣ���ֹջ��� */
     ++ctx->recursion_depth;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wjump-misses-init"
     if (ctx->recursion_depth > MAX_MEMO_ENTRIES) {  /* ���ݹ���� = ���仯������ */
         goto prove_depth_exceeded;
     }
@@ -1134,6 +1137,7 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
     return result;
 
 prove_depth_exceeded:
+#pragma GCC diagnostic pop
     /* �ݹ���ȳ��޻���/ʱ�䳬�ޣ�ͳһ�ڴ˵ݼ������� */
     ctx->recursion_depth--;
     return false;
@@ -1659,6 +1663,8 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
         }
 
         if (missing_count > 0) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
             snprintf(analysis.reason, sizeof(analysis.reason),
                      "ȱ�ٹ���: Ŀ����Ҫԭ������ [%s] �Ĺ��죬"
                      "����ǰǰ����δ�ṩ���� BHK �����£�"
@@ -1670,6 +1676,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
                      "��������������ϳ�Ŀ�ꡣ������Ҫ������̺�ǰ��"
                      "������ӵĹ��첽�衣��ʹ�� %d ��������",
                      detail.steps_used);
+#pragma GCC diagnostic pop
         }
     }
 

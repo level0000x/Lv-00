@@ -208,7 +208,7 @@ static void check_determinism(FuncBlock *fb, ConstraintGraph *g) {
      * 1000 是经验值：在大多数几何构造中，迭代次数超过此值意味着
      * 存在多解或循环依赖，应终止检查并报告超时。
      */
-    DeterminismCheckResult result = func_block_determinism_check_static(fb, g);
+    DeterminismCheckResult result = (DeterminismCheckResult)func_block_determinism_check_static(fb, g);
 
     printf("  检查结果: ");
     switch (result) {

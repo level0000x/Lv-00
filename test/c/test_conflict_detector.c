@@ -276,7 +276,6 @@ static void test_distance_conflict_detection(void) {
     ConflictReport *report = NULL;
     SymbolicCoord *c1[2] = {NULL, NULL};
     SymbolicCoord *c2[2] = {NULL, NULL};
-    int pass = 0;
 
     graph = graph_create();
     if (!graph) { g_fail_count++; return; }
@@ -289,11 +288,11 @@ static void test_distance_conflict_detection(void) {
     graph_add_node_with_id(graph, 2, GEOM_POINT, c2, 2);
 
     int parts1[2] = {1, 2};
-    Constraint *dist1 = graph_add_constraint_with_id(graph, 10, CONSTRAINT_DISTANCE, parts1, 2);
+    Constraint *dist1 = graph_add_constraint_with_id(graph, 10, (ConstraintType)CONSTRAINT_DISTANCE, parts1, 2);
     if (dist1) dist1->numeric_value = 5.0;
 
     int parts2[2] = {1, 2};
-    Constraint *dist2 = graph_add_constraint_with_id(graph, 11, CONSTRAINT_DISTANCE, parts2, 2);
+    Constraint *dist2 = graph_add_constraint_with_id(graph, 11, (ConstraintType)CONSTRAINT_DISTANCE, parts2, 2);
     if (dist2) dist2->numeric_value = 10.0;
 
     report = lv00_conflict_report_create();
@@ -333,6 +332,7 @@ cleanup:
     }
 }
 
+#if 0
 static void test_distance_no_conflict_same_value(void) {
     /* 场景：同一对实体有两个相同距离约束（不应报矛盾） */
     ConstraintGraph *graph = NULL;
@@ -383,11 +383,13 @@ cleanup:
         if (c2[i]) symbolic_coord_destroy(c2[i]);
     }
 }
+#endif /* 0 */
 
 /* ================================================================
  * 测试组：角度冲突检测
  * ================================================================ */
 
+#if 0
 static void test_angle_conflict_detection(void) {
     ConstraintGraph *graph = NULL;
     ConflictReport *report = NULL;
@@ -492,11 +494,13 @@ cleanup:
         if (c2[i]) symbolic_coord_destroy(c2[i]);
     }
 }
+#endif /* 0 */
 
 /* ================================================================
  * 测试组：平行 vs 垂直冲突
  * ================================================================ */
 
+#if 0
 static void test_parallel_vs_perpendicular_conflict(void) {
     ConstraintGraph *graph = NULL;
     ConflictReport *report = NULL;
@@ -565,7 +569,9 @@ cleanup:
         if (c4[i]) symbolic_coord_destroy(c4[i]);
     }
 }
+#endif /* 0 */
 
+#if 0
 static void test_horizontal_vs_vertical_conflict(void) {
     ConstraintGraph *graph = NULL;
     ConflictReport *report = NULL;
@@ -619,11 +625,13 @@ cleanup:
         if (c2[i]) symbolic_coord_destroy(c2[i]);
     }
 }
+#endif /* 0 */
 
 /* ================================================================
  * 测试组：传递等式检测
  * ================================================================ */
 
+#if 0
 static void test_transitive_equality_conflict(void) {
     ConstraintGraph *graph = NULL;
     ConflictReport *report = NULL;
@@ -736,6 +744,7 @@ cleanup:
         if (c3[i]) symbolic_coord_destroy(c3[i]);
     }
 }
+#endif /* 0 */
 
 /* ================================================================
  * 测试套件

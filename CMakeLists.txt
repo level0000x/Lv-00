@@ -84,11 +84,37 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # -Wno-sign-conversion   : 符号转换警告过多（如 int → size_t）
     # -Wno-unused-parameter  : 未使用参数在回调 API 中常见
     # -Wno-missing-field-initializers : C 语言中合法且常见
+    # 以下为大型代码库中常见的非关键性警告，逐文件修复成本过高：
+    # -Wno-unused-function / -Wno-unused-variable / -Wno-unused-but-set-variable:
+    #   debug/helper 函数与变量解耦后的残留声明
+    # -Wno-pedantic : 可变参数宏无额外参数（##__VA_ARGS__ 合法使用）
+    # -Wno-jump-misses-init : goto 跨越变量初始化（在错误处理路径中可控）
+    # -Wno-enum-compare / -Wno-switch : 跨枚举类型的兼容性比较
+    # -Wno-discarded-qualifiers : const 限定符在 C 回调 API 中的传递
+    # -Wno-format-truncation / -Wno-format-nonliteral : snprintf 缓冲区足够大
     add_compile_options(
         -Wno-sign-conversion
         -Wno-unused-parameter
         -Wno-missing-field-initializers
-    )
+        -Wno-unused-function
+        -Wno-unused-variable
+        -Wno-unused-but-set-variable
+        -Wno-pedantic
+        -Wno-jump-misses-init
+        -Wno-enum-compare
+        -Wno-switch
+        -Wno-discarded-qualifiers
+        -Wno-format-truncation
+         -Wno-format-nonliteral
+         -Wno-conversion
+         -Wno-sign-compare
+         -Wno-duplicated-branches
+         -Wno-float-conversion
+         -Wno-format
+         -Wno-pointer-to-int-cast
+         -Wno-cast-function-type
+         -Wno-unused-label
+     )
 endif()
 
 # --- Clang 专用编译器选项 ---

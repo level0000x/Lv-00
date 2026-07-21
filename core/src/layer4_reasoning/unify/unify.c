@@ -84,7 +84,7 @@
 #include "type_system.h"
 #include "unify.h"
 
-LV00_DECLARE_STREAM_CTX(unify)
+LV00_DECLARE_STREAM_CTX(unify);
 
 void unify_set_stream_context(StreamContext *ctx) {
     unify_stream_ctx = ctx;

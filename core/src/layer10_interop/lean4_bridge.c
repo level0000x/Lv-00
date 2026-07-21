@@ -227,7 +227,6 @@ static void lean4_parse_tactics(const char *start, const char *end,
 
         /* 计算当前缩进级别 */
         int cur_indent = 0;
-        const char *line_start = pos;
         while (pos < end && *pos == ' ') { cur_indent++; pos++; }
         if (pos >= end) break;
 

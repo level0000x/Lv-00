@@ -624,7 +624,7 @@ bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
         }
         strncat(hash_buf, hash, LV00_OID_LENGTH - 1);
         if (i + 1 < file_count) {
-            strncat(hash_buf, " ", 1);
+            strcat(hash_buf, " ");
         }
     }
 

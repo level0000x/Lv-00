@@ -64,6 +64,7 @@
 #define PRESET_SYSTEM_VERSION_PATCH 0
 #endif
 
+#ifndef PRESET_CHECK_NULL
 #define PRESET_CHECK_NULL(ptr, label) \
     do { \
         if ((ptr) == NULL) { \
@@ -71,6 +72,7 @@
             goto label; \
         } \
     } while (0)
+#endif
 
 #define PRESET_CHECK_STRING(str, label) \
     do { \

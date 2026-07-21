@@ -48,7 +48,7 @@
  * 解析器上下文结构
  * ============================================================ */
 
-LV00_DECLARE_STREAM_CTX(formula_parser)
+LV00_DECLARE_STREAM_CTX(formula_parser);
 
 /**
  * @brief 获取解析器最近一次错误信息

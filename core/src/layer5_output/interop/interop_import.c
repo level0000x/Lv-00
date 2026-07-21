@@ -58,6 +58,7 @@ static uint16_t ggb_read_u16_le(const uint8_t *buf, size_t offset) {
  * @param eocd_offset [out] 输出 EOCD 的字节偏移
  * @return true 找到 EOCD，false 未找到
  */
+#if 0
 static bool ggb_find_eocd(const uint8_t *data, size_t data_size, size_t *eocd_offset) {
     if (data_size < GGB_EOCD_MIN_SIZE)
         return false;
@@ -69,11 +70,10 @@ static bool ggb_find_eocd(const uint8_t *data, size_t data_size, size_t *eocd_of
         }
         if (i == search_start)
             break;
-        if (i == 0)
-            break;
     }
     return false;
 }
+#endif /* 0 */
 
 /**
  * @brief 从中央目录中查找指定文件名的条目
@@ -89,6 +89,7 @@ static bool ggb_find_eocd(const uint8_t *data, size_t data_size, size_t *eocd_of
  * @param comp_method   [out] 输出压缩方法
  * @return true 找到，false 未找到
  */
+#if 0
 static bool ggb_find_central_entry(const uint8_t *data, size_t eocd_offset, const char *target_name,
                                    size_t *entry_offset, size_t *comp_size, size_t *uncomp_size,
                                    uint16_t *comp_method) {
@@ -121,6 +122,7 @@ static bool ggb_find_central_entry(const uint8_t *data, size_t eocd_offset, cons
     }
     return false;
 }
+#endif /* 0 */
 
 /**
  * @brief 从本地文件头中提取文件数据偏移
@@ -136,6 +138,7 @@ static bool ggb_find_central_entry(const uint8_t *data, size_t eocd_offset, cons
  * @param data_offset    [out] 输出实际文件数据偏移
  * @return true 成功，false 失败
  */
+#if 0
 static bool ggb_get_local_data_offset(const uint8_t *data, size_t local_offset, size_t *data_offset) {
     if (ggb_read_u32_le(data, local_offset) != GGB_LOCAL_FILE_SIG)
         return false;
@@ -144,6 +147,7 @@ static bool ggb_get_local_data_offset(const uint8_t *data, size_t local_offset, 
     *data_offset = local_offset + GGB_LOCAL_HEADER_MIN + name_len + extra_len;
     return true;
 }
+#endif /* 0 */
 
 /* ==================== Deflate 解压器 ==================== */
 
@@ -174,6 +178,7 @@ static bool ggb_get_local_data_offset(const uint8_t *data, size_t local_offset, 
  * @param out_len    [out] 实际解压长度
  * @return true 成功，false 失败（不支持的格式或数据损坏）
  */
+#if 0
 static bool ggb_inflate(const uint8_t *src, size_t src_len, uint8_t *dst, size_t dst_cap, size_t *out_len) {
     /* ---- 位读取状态 ---- */
     size_t bit_pos = 0; /* 当前位位置（全局） */
@@ -642,6 +647,7 @@ static bool ggb_inflate(const uint8_t *src, size_t src_len, uint8_t *dst, size_t
     *out_len = dst_pos;
     return true;
 }
+#endif /* 0 */
 
 /* ==================== GeoGebra XML 解析辅助函数 ==================== */
 
@@ -659,6 +665,7 @@ static bool ggb_inflate(const uint8_t *src, size_t src_len, uint8_t *dst, size_t
  * @param tag_content_end [out] 输出标签内容结束偏移（'<' 之前）
  * @return true 找到，false 未找到
  */
+#if 0
 static bool ggb_find_xml_tag(const char *xml, size_t xml_len, const char *tag_name, size_t start, size_t *tag_start,
                              size_t *tag_content_start, size_t *tag_content_end) {
     char open_tag[128];
@@ -720,6 +727,7 @@ static bool ggb_find_xml_tag(const char *xml, size_t xml_len, const char *tag_na
     }
     return false;
 }
+#endif /* 0 */
 
 /**
  * @brief 从 XML 开标签中提取属性值

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file numerical_backend.h
  * @brief 多后端数值抽象层 —— 借鉴 SUNDIALS N_Vector/SUNMatrix/SUNLinearSolver 架构
  *
@@ -30,7 +30,9 @@ extern "C" {
 #endif
 /* ==================== 常量定义 ==================== */
 /** 后端名称最大长度 */
+#ifndef LV00_BACKEND_NAME_MAX
 #define LV00_BACKEND_NAME_MAX 64
+#endif
 /** 向量/矩阵数据对齐（字节，便于 SIMD） */
 #define LV00_BACKEND_ALIGNMENT 32
 /* ==================== 后端类型枚举 ==================== */

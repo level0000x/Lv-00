@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：内存池系统 (memory_pool)
  * 功能概述：提供三种高性能内存管理策略：固定大小对象池、线性分配器
  *          和 LRU 对象缓存。旨在减少内存碎片、提高分配速度，
@@ -40,16 +40,24 @@ extern "C" {
 /* ============== 配置常量 ============== */
 
 /** 对象池默认容量 */
+#ifndef LV00_POOL_DEFAULT_CAPACITY
 #define LV00_POOL_DEFAULT_CAPACITY 1024
+#endif
 
 /** 线性分配器默认块大小 (64KB) */
+#ifndef LV00_LINEAR_ALLOCATOR_BLOCK_SIZE
 #define LV00_LINEAR_ALLOCATOR_BLOCK_SIZE (64 * 1024)
+#endif
 
 /** LRU 缓存默认容量 */
+#ifndef LV00_LRU_CACHE_DEFAULT_CAPACITY
 #define LV00_LRU_CACHE_DEFAULT_CAPACITY 256
+#endif
 
 /** 内存统计最大追踪类型数 */
+#ifndef LV00_MEM_STAT_MAX_TYPES
 #define LV00_MEM_STAT_MAX_TYPES 64
+#endif
 
 /* ============== 前向声明 ============== */
 

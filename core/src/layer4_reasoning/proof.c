@@ -69,7 +69,7 @@
 #include "lv00/type_system.h"
 #include "lv00/unify.h"
 
-LV00_DECLARE_STREAM_CTX(proof)
+LV00_DECLARE_STREAM_CTX(proof);
 
 void proof_set_stream_context(StreamContext *ctx) {
     proof_stream_ctx = ctx;

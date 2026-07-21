@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_calculus.c
  * @brief 微积分预设函数块 - 实现
  *
@@ -21,7 +21,9 @@
 /* ==================== 预设函数块数量 ==================== */
 
 /** 微积分模块预设函数块总数 */
+#ifndef CALCULUS_PRESET_COUNT
 #define CALCULUS_PRESET_COUNT 30
+#endif
 
 /* ==================== 内部辅助函数 ==================== */
 

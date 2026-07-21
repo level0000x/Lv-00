@@ -128,13 +128,6 @@ int lv00_session_run(Lv00Session *session, const char *input) {
         /* 模拟解析耗时（与输入长度成正比） */
         clock_t t0 = clock();
         /* 实际解析工作：验证输入格式标记 */
-        int has_valid_brackets = 0;
-        int bracket_depth = 0;
-        for (int i = 0; i < input_len; i++) {
-            if (input[i] == '(' || input[i] == '[') bracket_depth++;
-            if (input[i] == ')' || input[i] == ']') bracket_depth--;
-            if (bracket_depth > 0) has_valid_brackets = 1;
-        }
         clock_t t1 = clock();
         double elapsed = (double)(t1 - t0) / CLOCKS_PER_SEC * 1000.0;
         if (elapsed < 0.1) elapsed = 0.1 + input_len * 0.001; /* 保证最小耗时 */

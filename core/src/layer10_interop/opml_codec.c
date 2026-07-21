@@ -309,6 +309,7 @@ static const char *json_find_key(const char *obj_start, const char *key) {
 /**
  * @brief 提取 JSON 数组中的所有字符串值
  */
+#if 0
 static int json_extract_string_array(const char *arr_start, char **out, int max_count, int max_len) {
     if (!arr_start || *arr_start != '[') return 0;
     arr_start++; /* 跳过 [ */
@@ -327,6 +328,7 @@ static int json_extract_string_array(const char *arr_start, char **out, int max_
     }
     return count;
 }
+#endif /* 0 */
 
 /**
  * @brief 解析嵌套 JSON 对象并返回结束位置

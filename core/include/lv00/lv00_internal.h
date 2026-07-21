@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv00_internal.h
  * @brief Lv-00 项目内部头文件 —— 内部工具宏与常量
  *
@@ -120,14 +120,25 @@ extern "C" {
 extern void lv00_log_message(int level, const char *file, int line,
                              const char *fmt, ...);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#ifndef LV00_LOG_WARNING
 #define LV00_LOG_WARNING(fmt, ...) \
     lv00_log_message(LV00_LOG_LEVEL_WARNING, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#endif
+#ifndef LV00_LOG_ERROR
 #define LV00_LOG_ERROR(fmt, ...) \
     lv00_log_message(LV00_LOG_LEVEL_ERROR, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#endif
+#ifndef LV00_LOG_INFO
 #define LV00_LOG_INFO(fmt, ...) \
     lv00_log_message(LV00_LOG_LEVEL_INFO, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#endif
+#ifndef LV00_LOG_DEBUG
 #define LV00_LOG_DEBUG(fmt, ...) \
     lv00_log_message(LV00_LOG_LEVEL_DEBUG, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#endif
+#pragma GCC diagnostic pop
 
 /* ================================================================
  * 安全字符串格式化宏
@@ -163,8 +174,13 @@ extern void lv00_log_message(int level, const char *file, int line,
  *
  * @param module  模块名称（用于构造变量名）
  */
+#ifdef __GNUC__
+#define LV00_UNUSED_ATTR __attribute__((unused))
+#else
+#define LV00_UNUSED_ATTR
+#endif
 #define LV00_DECLARE_STREAM_CTX(module) \
-    static LV00_THREAD_LOCAL StreamContext *module##_stream_ctx = NULL;
+    LV00_UNUSED_ATTR static LV00_THREAD_LOCAL StreamContext *module##_stream_ctx = NULL
 
 /* ================================================================
  * 错误返回宏

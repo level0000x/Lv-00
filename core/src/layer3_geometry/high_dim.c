@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file high_dim.c
  * @brief 高维结构表示与交互模块实现
  *
@@ -48,9 +48,11 @@
 
 /* ==================== 内部常量 ==================== */
 
+#ifndef HIGH_DIM_INITIAL_CAPACITY
 #define HIGH_DIM_INITIAL_CAPACITY 16
+#endif
 
-LV00_DECLARE_STREAM_CTX(high_dim)
+LV00_DECLARE_STREAM_CTX(high_dim);
 
 /**
  * 圆周率常量 π
@@ -919,7 +921,9 @@ int high_dim_get_current_depth(const HighDimManager *manager) {
  * 在 C 层维护每个多投影视图的状态，包括关联的高维块、投影预设和
  * 当前高亮元素列表。视图ID由 create 函数生成，通过静态数组统一管理。
  */
+#ifndef HIGH_DIM_MAX_ACTIVE_VIEWS
 #define HIGH_DIM_MAX_ACTIVE_VIEWS 32
+#endif
 
 typedef struct {
     int view_id;                                /**< 唯一视图标识符 */

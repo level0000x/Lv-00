@@ -43,7 +43,7 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
-LV00_DECLARE_STREAM_CTX(recursion)
+LV00_DECLARE_STREAM_CTX(recursion);
 
 void recursion_set_stream_context(StreamContext *ctx) {
     recursion_stream_ctx = ctx;

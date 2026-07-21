@@ -25,6 +25,7 @@ LV00_DECLARE_STREAM_CTX(interop);
 
 /* ── 服务器核心 ── */
 
+#if 0
 static int safe_parse_int(const char *str, int default_val) {
     if (!str) return default_val;
     char *endptr;
@@ -33,6 +34,7 @@ static int safe_parse_int(const char *str, int default_val) {
     if (val < INT_MIN || val > INT_MAX) return default_val;
     return (int)val;
 }
+#endif
 
 /* ==================== 条件编译：套接字支持 ==================== */
 
@@ -505,7 +507,6 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
      *     持久化引擎生命周期，提供上下文管理器支持
      */
     LV00Engine *engine = NULL;
-    bool engine_was_created = false;
 
     if (server->persistent_engine) {
         /* 复用已有的持久化引擎 */
@@ -515,7 +516,6 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
         engine = engine_create();
         if (engine) {
             server->persistent_engine = engine;
-            engine_was_created = true;
         }
     }
 
@@ -548,9 +548,12 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
 
         /* 命令失败时回滚引擎状态，成功时更新快照 */
         if (result != LV00_OK && frozen) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
             if (!engine_restore_frozen_point(engine, frozen)) {
                 LV00_LOG_WARNING("interop: 命令失败后引擎状态回滚失败");
             }
+#pragma GCC diagnostic pop
         } else if (frozen) {
             /* 命令成功：释放旧快照（引擎状态已更新，下次命令将基于当前状态） */
             /* 注意：engine_destroy_frozen_point 的具体 API 取决于 engine 模块 */

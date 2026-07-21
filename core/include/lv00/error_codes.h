@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file error_codes.h
  * @brief Lv-00 统一错误码系统
  *
@@ -253,7 +253,7 @@ LV00_PUBLIC_API Lv00ErrorCode lv00_error_code_from_string(const char *name);
  * 此宏仅设置错误状态，不执行 return/goto 等控制流操作，
  * 适用于需要在设置错误后继续执行清理逻辑的场景。
  */
-#define LV00_ERROR_SET(code, fmt, ...) lv00_set_error_ctx((code), __FILE__, __LINE__, __func__, (fmt), ##__VA_ARGS__)
+#define LV00_ERROR_SET(code, fmt, ...) lv00_set_error_ctx((Lv00ErrorCode)(code), __FILE__, __LINE__, __func__, (fmt), ##__VA_ARGS__)
 /**
  * @brief 检查指针是否为NULL，如果是则设置错误并返回
  * @param ptr 要检查的指针

@@ -92,7 +92,7 @@ extern int g_fail_count;
  * @param yd  Y坐标分母
  * @return    新添加节点的ID（g->next_node_id - 1）
  */
-static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
+static inline int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
     /* NULL检查：防止传入空图指针导致崩溃 */
     if (g == NULL) {
         fprintf(stderr, "  [ERROR] add_point: graph is NULL\n");
