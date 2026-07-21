@@ -798,7 +798,12 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph)
     memset(buf, 0, est_size);
 
     char *p = buf;
-    p += sprintf(p, "{\n  \"nodes\": [\n");
+    size_t remaining = est_size;
+    int written = 0;
+
+    written = snprintf(p, remaining, "{\n  \"nodes\": [\n");
+    if (written < 0 || (size_t)written >= remaining) goto overflow;
+    p += written; remaining -= (size_t)written;
 
     /* 序列化节点 */
     for (int i = 0; i < encoded_graph->node_count; i++) {
@@ -810,31 +815,42 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph)
             tname = type_names[(int)node->type];
         }
 
-        p += sprintf(p, "    {\"id\": %d, \"type\": \"%s\", \"coord_count\": %d}",
+        written = snprintf(p, remaining, "    {\"id\": %d, \"type\": \"%s\", \"coord_count\": %d}",
                      node->id, tname, node->coord_count);
+        if (written < 0 || (size_t)written >= remaining) goto overflow;
+        p += written; remaining -= (size_t)written;
 
         if (i < encoded_graph->node_count - 1) {
-            /* 检查下一个有效节点 */
             int has_next = 0;
             for (int j = i + 1; j < encoded_graph->node_count; j++) {
                 if (encoded_graph->nodes[j] && encoded_graph->nodes[j]->is_active) {
                     has_next = 1; break;
                 }
             }
-            if (has_next) p += sprintf(p, ",");
+            if (has_next) {
+                written = snprintf(p, remaining, ",");
+                if (written < 0 || (size_t)written >= remaining) goto overflow;
+                p += written; remaining -= (size_t)written;
+            }
         }
-        p += sprintf(p, "\n");
+        written = snprintf(p, remaining, "\n");
+        if (written < 0 || (size_t)written >= remaining) goto overflow;
+        p += written; remaining -= (size_t)written;
     }
 
-    p += sprintf(p, "  ],\n  \"constraints\": [\n");
+    written = snprintf(p, remaining, "  ],\n  \"constraints\": [\n");
+    if (written < 0 || (size_t)written >= remaining) goto overflow;
+    p += written; remaining -= (size_t)written;
 
     /* 序列化约束 */
     for (int i = 0; i < encoded_graph->constraint_count; i++) {
         Constraint *con = encoded_graph->constraints[i];
         if (!con || !con->is_active) continue;
 
-        p += sprintf(p, "    {\"id\": %d, \"type\": %d, \"participant_count\": %d}",
+        written = snprintf(p, remaining, "    {\"id\": %d, \"type\": %d, \"participant_count\": %d}",
                      con->id, (int)con->type, con->participant_count);
+        if (written < 0 || (size_t)written >= remaining) goto overflow;
+        p += written; remaining -= (size_t)written;
 
         if (i < encoded_graph->constraint_count - 1) {
             int has_next = 0;
@@ -843,15 +859,32 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph)
                     has_next = 1; break;
                 }
             }
-            if (has_next) p += sprintf(p, ",");
+            if (has_next) {
+                written = snprintf(p, remaining, ",");
+                if (written < 0 || (size_t)written >= remaining) goto overflow;
+                p += written; remaining -= (size_t)written;
+            }
         }
-        p += sprintf(p, "\n");
+        written = snprintf(p, remaining, "\n");
+        if (written < 0 || (size_t)written >= remaining) goto overflow;
+        p += written; remaining -= (size_t)written;
     }
 
-    p += sprintf(p, "  ],\n  \"metadata\": {\n");
-    p += sprintf(p, "    \"node_count\": %d,\n", encoded_graph->node_count);
-    p += sprintf(p, "    \"constraint_count\": %d\n", encoded_graph->constraint_count);
-    p += sprintf(p, "  }\n}\n");
+    written = snprintf(p, remaining, "  ],\n  \"metadata\": {\n");
+    if (written < 0 || (size_t)written >= remaining) goto overflow;
+    p += written; remaining -= (size_t)written;
+    written = snprintf(p, remaining, "    \"node_count\": %d,\n", encoded_graph->node_count);
+    if (written < 0 || (size_t)written >= remaining) goto overflow;
+    p += written; remaining -= (size_t)written;
+    written = snprintf(p, remaining, "    \"constraint_count\": %d\n", encoded_graph->constraint_count);
+    if (written < 0 || (size_t)written >= remaining) goto overflow;
+    p += written; remaining -= (size_t)written;
+    written = snprintf(p, remaining, "  }\n}\n");
+    if (written < 0 || (size_t)written >= remaining) goto overflow;
 
     return buf;
+
+overflow:
+    lv00_free((void **)&buf);
+    return NULL;
 }

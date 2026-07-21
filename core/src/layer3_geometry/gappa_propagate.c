@@ -381,7 +381,7 @@ void gappa_pred_set_clear(Lv00GappaPredSet *set) {
 
 Lv00GappaPropagateConfig gappa_propagate_config_default(void) {
     Lv00GappaPropagateConfig cfg;
-    cfg.max_iterations = 100;
+    cfg.max_iterations = 1;
     cfg.precision = 1e-15;
     cfg.backward = false;
     return cfg;
@@ -536,9 +536,10 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
          * ============================================================ */
 
         /* 对每对 BND 谓词，推导其和与差 */
-        for (int i = 0; i < output->count; i++) {
+        int saved_count = output->count;
+        for (int i = 0; i < saved_count; i++) {
             if (output->preds[i].type != LV00_PRED_BND) continue;
-            for (int j = i + 1; j < output->count; j++) {
+            for (int j = i + 1; j < saved_count; j++) {
                 if (output->preds[j].type != LV00_PRED_BND) continue;
 
                 /* 推导和: x + y in [lo_x + lo_y, hi_x + hi_y] */
@@ -577,9 +578,10 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
         }
 
         /* 乘法推导：x * y，取四个角点的 min/max */
-        for (int i = 0; i < output->count; i++) {
+        saved_count = output->count;
+        for (int i = 0; i < saved_count; i++) {
             if (output->preds[i].type != LV00_PRED_BND) continue;
-            for (int j = i + 1; j < output->count; j++) {
+            for (int j = i + 1; j < saved_count; j++) {
                 if (output->preds[j].type != LV00_PRED_BND) continue;
 
                 PropInterval a = { output->preds[i].bound_lo, output->preds[i].bound_hi };
@@ -599,9 +601,9 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
         }
 
         /* 除法推导：x / y，处理分母跨零（返回无穷区间则跳过） */
-        for (int i = 0; i < output->count; i++) {
+        for (int i = 0; i < saved_count; i++) {
             if (output->preds[i].type != LV00_PRED_BND) continue;
-            for (int j = 0; j < output->count; j++) {
+            for (int j = 0; j < saved_count; j++) {
                 if (i == j || output->preds[j].type != LV00_PRED_BND) continue;
 
                 PropInterval a = { output->preds[i].bound_lo, output->preds[i].bound_hi };
@@ -626,7 +628,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
         }
 
         /* 平方推导：x²，利用单调性精确计算 */
-        for (int i = 0; i < output->count; i++) {
+        for (int i = 0; i < saved_count; i++) {
             if (output->preds[i].type != LV00_PRED_BND) continue;
 
             double x_lo = output->preds[i].bound_lo;
@@ -660,7 +662,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
         /* ============================================================
          * Refinement pass：利用 sum/diff 关系收紧已有边界
          * ============================================================ */
-        for (int i = 0; i < output->count; i++) {
+        for (int i = 0; i < saved_count; i++) {
             if (output->preds[i].type != LV00_PRED_BND) continue;
             backward_refine_pred(output, i, output->preds[i].expr_lhs,
                                   precision, &changed);
@@ -670,8 +672,9 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
          * 后向传播（可选）：额外反向推导 BND 和 ABS 谓词
          * ============================================================ */
         if (do_backward) {
+            int bw_count = output->count;
             /* ABS → BND 转换：|x - c| ≤ eps → x ∈ [c - eps, c + eps] */
-            for (int i = 0; i < output->count; i++) {
+            for (int i = 0; i < bw_count; i++) {
                 if (output->preds[i].type != LV00_PRED_ABS) continue;
 
                 double center = atof(output->preds[i].expr_rhs);
@@ -689,7 +692,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
             }
 
             /* 利用 ABS 谓词的约束能力：对刚转换出的 BND 再跑一次 refinement */
-            for (int i = 0; i < output->count; i++) {
+            for (int i = 0; i < bw_count; i++) {
                 if (output->preds[i].type != LV00_PRED_BND) continue;
                 backward_refine_pred(output, i, output->preds[i].expr_lhs,
                                       precision, &changed);
@@ -698,11 +701,11 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
             /* 反向传播：对乘除关系进行反向收紧
              *   - 若已知 x*y 和 x 的区间，收紧 y
              *   - 若已知 x/y 和 y 的区间，收紧 x */
-            for (int i = 0; i < output->count; i++) {
+            for (int i = 0; i < bw_count; i++) {
                 if (output->preds[i].type != LV00_PRED_BND) continue;
                 size_t ilen = strlen(output->preds[i].expr_lhs);
 
-                for (int p = 0; p < output->count; p++) {
+                for (int p = 0; p < bw_count; p++) {
                     if (p == i || output->preds[p].type != LV00_PRED_BND) continue;
                     size_t plen = strlen(output->preds[p].expr_lhs);
                     const char *pexpr = output->preds[p].expr_lhs;
@@ -712,7 +715,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                         strncmp(pexpr, output->preds[i].expr_lhs, ilen) == 0 &&
                         strncmp(pexpr + ilen, " * ", 3) == 0) {
                         const char *rest = pexpr + ilen + 3;
-                        for (int r = 0; r < output->count; r++) {
+                        for (int r = 0; r < bw_count; r++) {
                             if (r == i || r == p || output->preds[r].type != LV00_PRED_BND) continue;
                             if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
                             if (output->preds[r].bound_lo <= 0.0 && output->preds[r].bound_hi >= 0.0) continue;
@@ -738,7 +741,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                         strncmp(pexpr, output->preds[i].expr_lhs, ilen) == 0 &&
                         strncmp(pexpr + ilen, " / ", 3) == 0) {
                         const char *rest = pexpr + ilen + 3;
-                        for (int r = 0; r < output->count; r++) {
+                        for (int r = 0; r < bw_count; r++) {
                             if (r == i || r == p || output->preds[r].type != LV00_PRED_BND) continue;
                             if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
 
