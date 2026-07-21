@@ -200,8 +200,14 @@ static void test_connection_constraint_zero_dof(void) {
     TEST_ASSERT(b >= 0, "点 B 应成功创建");
     TEST_ASSERT_EQ(graph_add_line_segment(graph, a, b), ADD_NODE_OK);
 
+    /* 创建端口节点（graph_add_connection 要求两端均为 GEOM_PORT） */
+    TEST_ASSERT_EQ(graph_add_port(graph, PORT_OUTPUT, 0, -1), ADD_NODE_OK);
+    int src_port = graph_get_last_added_node_id(graph);
+    TEST_ASSERT_EQ(graph_add_port(graph, PORT_INPUT, 0, -1), ADD_NODE_OK);
+    int dst_port = graph_get_last_added_node_id(graph);
+
     /* 添加连接约束（数据流，非几何约束） */
-    AddConstraintResult cr = graph_add_connection(graph, a, b);
+    AddConstraintResult cr = graph_add_connection(graph, src_port, dst_port);
     TEST_ASSERT_EQ(cr, ADD_CONSTRAINT_OK);
 
     Lv00ConstraintCompatibilityResult result;
