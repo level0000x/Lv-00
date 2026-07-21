@@ -130,7 +130,7 @@ int main(void) {
         else { FAIL("统计信息不正确"); tests_failed++; }
 
         TEST("aabb2d_free: 释放成功");
-        lv00_aabb2d_free(tree);
+        lv00_aabb2d_destroy(tree);
         PASS(); tests_passed++;
     }
 
@@ -156,7 +156,7 @@ int main(void) {
         if (!hit2.hit) { PASS(); tests_passed++; }
         else { FAIL("期望未命中"); tests_failed++; }
 
-        lv00_aabb2d_free(tree);
+        lv00_aabb2d_destroy(tree);
     }
 
     /* 5. 最近邻查询测试 */
@@ -179,7 +179,7 @@ int main(void) {
         if (nr2.primitive_id == 2) { PASS(); tests_passed++; }
         else { FAIL("期望 ID=2"); tests_failed++; }
 
-        lv00_aabb2d_free(tree);
+        lv00_aabb2d_destroy(tree);
     }
 
     /* 6. 默认配置测试 */
@@ -354,7 +354,7 @@ int main(void) {
 
         /* 释放 3D 树 */
         TEST("3d_free: 释放成功");
-        lv00_aabb3d_free(tree3d);
+        lv00_aabb3d_destroy(tree3d);
         PASS(); tests_passed++;
     }
 

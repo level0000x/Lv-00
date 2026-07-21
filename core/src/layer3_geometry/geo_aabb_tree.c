@@ -1346,7 +1346,7 @@ static int aabb_tree_leaf_count(const Lv00AABBNode *nodes, int root)
  * @param bboxes    几何体包围盒数组
  * @param count     几何体数量
  * @param config    配置（NULL 使用默认配置）
- * @return AABB 树指针（需用 lv00_aabb2d_free 释放）
+ * @return AABB 树指针（需用 lv00_aabb2d_destroy 释放）
  */
 LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
     const Lv00AABB2D *bboxes, int count,
@@ -1413,7 +1413,7 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
  *
  * 释放树结构、节点数组和几何体包围盒数组。
  */
-LV00_PUBLIC_API void lv00_aabb2d_free(Lv00AABBTree2D *tree)
+LV00_PUBLIC_API void lv00_aabb2d_destroy(Lv00AABBTree2D *tree)
 {
     if (!tree) return;
     free(tree->leaf_prim_ids);
@@ -1557,7 +1557,7 @@ LV00_PUBLIC_API void lv00_aabb2d_stats(const Lv00AABBTree2D *tree,
  * @param bboxes    几何体包围盒数组
  * @param count     几何体数量
  * @param config    配置（NULL 使用默认配置）
- * @return AABB 树指针（需用 lv00_aabb3d_free 释放）
+ * @return AABB 树指针（需用 lv00_aabb3d_destroy 释放）
  */
 LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
     const Lv00AABB3D *bboxes, int count,
@@ -1620,7 +1620,7 @@ LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
 /**
  * @brief 释放 3D AABB 树
  */
-LV00_PUBLIC_API void lv00_aabb3d_free(Lv00AABBTree3D *tree)
+LV00_PUBLIC_API void lv00_aabb3d_destroy(Lv00AABBTree3D *tree)
 {
     if (!tree) return;
     free(tree->nodes);

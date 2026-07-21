@@ -336,7 +336,7 @@ void approx_count_reset(ApproxCounter *counter) {
  * 辅助：释放计数结果
  * ============================================================ */
 
-void approx_count_result_free(ApproxCountResult *res) {
+void approx_count_result_destroy(ApproxCountResult *res) {
     if (!res) return;
     if (res->status_msg) {
         lv00_free((void **)&res->status_msg);
@@ -557,6 +557,6 @@ bool is_approximately_constructible(const ConstraintGraph *graph, double min_pro
 
     bool constructible = (result.total_count > 0);
 
-    approx_count_result_free(&result);
+    approx_count_result_destroy(&result);
     return constructible;
 }

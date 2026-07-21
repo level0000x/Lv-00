@@ -556,7 +556,7 @@ bool preset_batch_apply(const char *preset_name,
  *
  * @param preset_name 预设名称
  * @return 验证结果结构体（包含各检查项的状态和错误信息），
- *         调用者需通过 preset_validation_result_free 释放 error_message
+ *         调用者需通过 preset_validation_result_destroy 释放 error_message
  */
 PresetValidationResult preset_validate(const char *preset_name)
 {
@@ -616,7 +616,7 @@ PresetValidationResult preset_validate(const char *preset_name)
     return result;
 }
 
-void preset_validation_result_free(PresetValidationResult *result)
+void preset_validation_result_destroy(PresetValidationResult *result)
 {
     if (!result) return;
     lv00_free((void **)&result->error_message);
@@ -704,7 +704,7 @@ bool preset_create_bindings(const char *preset_name,
     return true;
 }
 
-void preset_bindings_free(PresetParamBinding *bindings)
+void preset_bindings_destroy(PresetParamBinding *bindings)
 {
     lv00_free((void **)&bindings);
 }
@@ -948,7 +948,7 @@ int preset_recommend_related(const char *preset_name,
     return count;
 }
 
-void preset_search_result_free(PresetSearchResult *result)
+void preset_search_result_destroy(PresetSearchResult *result)
 {
     if (!result) return;
 

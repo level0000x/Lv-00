@@ -97,7 +97,7 @@ typedef Lv00HalfedgeMesh Lv00HeMesh;
 /* ── API ── */
 Lv00HeMeshConfig lv00_he_mesh_default_config(void);
 Lv00HeMesh      *lv00_he_mesh_create(const Lv00HeMeshConfig *config);
-void             lv00_he_mesh_free(Lv00HeMesh *mesh);
+void             lv00_he_mesh_destroy(Lv00HeMesh *mesh);
 
 Lv00Vertex       lv00_he_mesh_add_vertex(Lv00HeMesh *mesh, double x, double y, double z);
 Lv00Point3D      lv00_he_mesh_get_vertex_position(const Lv00HeMesh *mesh, Lv00Vertex v);

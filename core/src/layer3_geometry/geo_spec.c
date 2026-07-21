@@ -160,7 +160,7 @@ int lv00_geo_spec_parse(const char *json, void *out)
     return -1;
 }
 
-void lv00_geo_spec_free(void *spec)
+void lv00_geo_spec_destroy(void *spec)
 {
     if (spec == NULL) return;
 

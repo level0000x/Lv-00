@@ -1542,7 +1542,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                     }
                 }
 
-                atp_result_free(&result);
+                atp_result_destroy(&result);
             }
             atp_solver_destroy(solver);
         }

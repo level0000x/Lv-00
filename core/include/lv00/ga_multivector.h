@@ -33,7 +33,7 @@ LV00_PUBLIC_API Lv00MultiVector *ga_mv_create(void);
  * @brief Free a multivector and set pointer to NULL.
  * @param mv 要释放的 multivector 指针
  */
-LV00_PUBLIC_API void ga_mv_free(Lv00MultiVector *mv);
+LV00_PUBLIC_API void ga_mv_destroy(Lv00MultiVector *mv);
 
 /**
  * @brief Deep copy a multivector.

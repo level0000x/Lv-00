@@ -28,7 +28,7 @@ int lv00_geo_spec_parse(const char *json, void *out);
  * @brief 释放几何规范结构体占用的内存
  * @param spec 指向待释放的几何规范结构体的指针
  */
-void lv00_geo_spec_free(void *spec);
+void lv00_geo_spec_destroy(void *spec);
 
 #ifdef __cplusplus
 }

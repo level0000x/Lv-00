@@ -326,7 +326,7 @@ FloatInterval interval_make(double lo, double hi, bool is_exact) {
 /**
  * @brief 释放 ErrorBound 内部资源
  */
-void error_bound_free(ErrorBound *bound) {
+void error_bound_destroy(ErrorBound *bound) {
     if (!bound) return;
     if (bound->proof_text) {
         lv00_free((void **)&bound->proof_text);

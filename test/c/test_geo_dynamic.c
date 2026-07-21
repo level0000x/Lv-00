@@ -30,7 +30,7 @@ int main(void) {
         else { FAIL("初始节点数不为 0"); tests_failed++; }
 
         TEST("free: 释放依赖图");
-        lv00_dyn_graph_free(graph);
+        lv00_dyn_graph_destroy(graph);
         PASS(); tests_passed++;
     }
 
@@ -80,7 +80,7 @@ int main(void) {
         if (count >= 1) { PASS(); tests_passed++; }
         else { FAIL("子节点数量不正确"); tests_failed++; }
 
-        lv00_dyn_graph_free(graph);
+        lv00_dyn_graph_destroy(graph);
     }
 
     /* 3. 派生节点创建测试 */
@@ -112,7 +112,7 @@ int main(void) {
         if (perp >= 0) { PASS(); tests_passed++; }
         else { FAIL("创建失败"); tests_failed++; }
 
-        lv00_dyn_graph_free(graph);
+        lv00_dyn_graph_destroy(graph);
     }
 
     /* 4. 级联更新测试 */
@@ -142,7 +142,7 @@ int main(void) {
         if (dirty && dirty->state == LV00_DYN_STATE_DIRTY) { PASS(); tests_passed++; }
         else { FAIL("状态未标记为 DIRTY"); tests_failed++; }
 
-        lv00_dyn_graph_free(graph);
+        lv00_dyn_graph_destroy(graph);
     }
 
     /* 5. 循环检测测试 */
@@ -173,7 +173,7 @@ int main(void) {
             PASS(); tests_passed++;
         } else { FAIL("不应形成循环"); tests_failed++; }
 
-        lv00_dyn_graph_free(graph);
+        lv00_dyn_graph_destroy(graph);
     }
 
     /* 6. 拓扑排序测试 */
@@ -215,7 +215,7 @@ int main(void) {
         if (order_correct) { PASS(); tests_passed++; }
         else { FAIL("排序顺序不正确"); tests_failed++; }
 
-        lv00_dyn_graph_free(graph);
+        lv00_dyn_graph_destroy(graph);
     }
 
     /* 7. 统计信息测试 */
@@ -241,7 +241,7 @@ int main(void) {
         if (clean && clean->state != LV00_DYN_STATE_DIRTY) { PASS(); tests_passed++; }
         else { FAIL("脏标记未清除"); tests_failed++; }
 
-        lv00_dyn_graph_free(graph);
+        lv00_dyn_graph_destroy(graph);
     }
 
     /* 8. 更新链测试 */
@@ -263,7 +263,7 @@ int main(void) {
         if (dist_node && dist_node->update_count > 0) { PASS(); tests_passed++; }
         else { FAIL("更新失败"); tests_failed++; }
 
-        lv00_dyn_graph_free(graph);
+        lv00_dyn_graph_destroy(graph);
     }
 
     printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", tests_passed, tests_failed);

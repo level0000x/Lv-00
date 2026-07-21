@@ -948,7 +948,7 @@ void atp_result_init(ATPResultInfo *result) {
 /**
  * @brief 释放 ATP 求解结果中的动态资源
  */
-void atp_result_free(ATPResultInfo *result) {
+void atp_result_destroy(ATPResultInfo *result) {
     if (!result) {
         return;
     }

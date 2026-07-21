@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file atp_backend.h
  * @brief 一阶逻辑自动定理证明器（FOL ATP）后端抽象层
  *
@@ -192,7 +192,7 @@ int atp_solver_load(ATPBackendSolver *solver, const char *tptp_text);
 /**
  * @brief 执行求解
  * @param solver 求解器
- * @param result 输出结果（调用者用 atp_result_free 释放）
+ * @param result 输出结果（调用者用 atp_result_destroy 释放）
  * @return LV00_OK 成功
  */
 int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result);
@@ -222,7 +222,7 @@ int atp_solver_solve_graph(ATPBackendSolver *solver, const ConstraintGraph *grap
 /**
  * @brief 释放 ATP 求解结果
  */
-void atp_result_free(ATPResultInfo *result);
+void atp_result_destroy(ATPResultInfo *result);
 /**
  * @brief 初始化 ATP 求解结果
  */

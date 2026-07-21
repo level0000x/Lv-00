@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file float_error.h
  * @brief FPTaylor 风格浮点误差验证 —— 泰勒展开 + 区间算术误差界分析
  *
@@ -326,7 +326,7 @@ FloatInterval interval_make(double lo, double hi, bool is_exact);
  *
  * @param[in,out] bound 误差界
  */
-void error_bound_free(ErrorBound *bound);
+void error_bound_destroy(ErrorBound *bound);
 
 #ifdef __cplusplus
 }

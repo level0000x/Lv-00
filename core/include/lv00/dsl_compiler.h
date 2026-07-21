@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：DSL 编译器 (dsl_compiler)
  * 功能概述：借鉴 Ganja.js 的 AST 转译和 GCLC 几何构造语言，提供从
  *          DSL 源码到约束图的完整编译管线。包含词法分析、语法解析、
@@ -325,7 +325,7 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count);
  * @param tokens token 数组
  * @param count  token 数量
  */
-void dsl_tokens_free(DslToken *tokens, int count);
+void dsl_tokens_destroy(DslToken *tokens, int count);
 
 /**
  * @brief 将 token 序列解析为抽象语法树
@@ -334,7 +334,7 @@ void dsl_tokens_free(DslToken *tokens, int count);
  *
  * @param tokens   token 数组
  * @param count    token 数量
- * @param out_ast  输出：AST 根节点（调用者通过 dsl_ast_free 释放）
+ * @param out_ast  输出：AST 根节点（调用者通过 dsl_ast_destroy 释放）
  * @return true 成功，false 语法错误
  */
 bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast);
@@ -347,7 +347,7 @@ bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast);
  *
  * @param ast       输入 AST 根节点
  * @param config    编译配置
- * @param out_ir    输出：编译生成的 IR（调用者通过 dsl_ir_free 释放）
+ * @param out_ir    输出：编译生成的 IR（调用者通过 dsl_ir_destroy 释放）
  * @return true 成功，false 语义错误
  */
 bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir);
@@ -394,7 +394,7 @@ void dsl_compile_config_default(DslCompileConfig *out_config);
  *
  * @param ast AST 根节点（可为 NULL）
  */
-void dsl_ast_free(DslAST *ast);
+void dsl_ast_destroy(DslAST *ast);
 
 /**
  * @brief 释放中间表示
@@ -403,7 +403,7 @@ void dsl_ast_free(DslAST *ast);
  *
  * @param ir IR 对象（可为 NULL）
  */
-void dsl_ir_free(DslIR *ir);
+void dsl_ir_destroy(DslIR *ir);
 
 /**
  * @brief 将 AST 以可读格式输出到文件描述符

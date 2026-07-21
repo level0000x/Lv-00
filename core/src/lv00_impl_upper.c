@@ -336,7 +336,7 @@ int64_t proof_tptp_verify(LV00Engine *ctx, const char *tptp_input) {
         g_atp_task_table[slot].result_info = result;
         g_atp_task_table[slot].completed = 1;
     } else {
-        atp_result_free(&result);
+        atp_result_destroy(&result);
     }
 
     return report_id;

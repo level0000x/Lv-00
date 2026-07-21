@@ -111,7 +111,7 @@ Lv00HeMesh *lv00_he_mesh_create(const Lv00HeMeshConfig *config)
         !mesh->he_twin || !mesh->he_next || !mesh->he_prev ||
         !mesh->he_face || !mesh->he_vertex || !mesh->edge_he ||
         !mesh->face_he) {
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
         return NULL;
     }
 
@@ -128,7 +128,7 @@ Lv00HeMesh *lv00_he_mesh_create(const Lv00HeMeshConfig *config)
     return mesh;
 }
 
-void lv00_he_mesh_free(Lv00HeMesh *mesh)
+void lv00_he_mesh_destroy(Lv00HeMesh *mesh)
 {
     if (!mesh) return;
 

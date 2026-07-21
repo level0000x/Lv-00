@@ -260,7 +260,7 @@ Lv00DynGraph *lv00_dyn_graph_create(const Lv00DynGraphConfig *config)
     return graph;
 }
 
-void lv00_dyn_graph_free(Lv00DynGraph *graph)
+void lv00_dyn_graph_destroy(Lv00DynGraph *graph)
 {
     if (!graph) return;
 

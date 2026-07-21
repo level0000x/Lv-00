@@ -248,7 +248,7 @@ int lv00_geo_spec_parse(const char *json, void *out)
  *
  * @param spec 要释放的结构指针
  */
-void lv00_geo_spec_free(void *spec)
+void lv00_geo_spec_destroy(void *spec)
 {
     Lv00GeoSpecPolygon *poly;
 

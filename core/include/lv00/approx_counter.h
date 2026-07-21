@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file approx_counter.h
  * @brief ApproxMC 近似模型计数 —— PAC 保证的 #SAT 近似求解
  *
@@ -78,7 +78,7 @@ typedef struct {
  *
  * @param[in]  graph  约束图（非 NULL）
  * @param[in]  cfg    PAC 配置（非 NULL）
- * @param[out] out    计数结果（非 NULL，调用者用 approx_count_result_free 释放）
+ * @param[out] out    计数结果（非 NULL，调用者用 approx_count_result_destroy 释放）
  * @return true 计数成功，false 失败（参数错误或内存不足）
  */
 bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, ApproxCountResult *out);
@@ -128,7 +128,7 @@ double approx_count_get_pac_bound(const PacConfig *cfg, const ApproxCountResult 
  *
  * @param[in,out] res 计数结果
  */
-void approx_count_result_free(ApproxCountResult *res);
+void approx_count_result_destroy(ApproxCountResult *res);
 /* ========================================================================
  * 近似构造性判断
  * ======================================================================== */

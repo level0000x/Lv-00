@@ -84,7 +84,7 @@ int main(void) {
         else { FAIL("约束添加不正确"); tests_failed++; }
 
         TEST("solver_free: 释放求解系统");
-        lv00_solver_free(sys);
+        lv00_solver_destroy(sys);
         PASS(); tests_passed++;
     }
 
@@ -107,7 +107,7 @@ int main(void) {
             dof->status == LV00_SYSTEM_UNDER_CONSTRAINED) {
             PASS(); tests_passed++;
         } else { FAIL("期望欠约束，剩余 3 DOF"); tests_failed++; }
-        lv00_dof_analysis_free(dof);
+        lv00_dof_analysis_destroy(dof);
 
         /* 添加固定约束：4 DOF - 1 (distance) - 2 (fixed p1) = 1 DOF（仍欠约束） */
         Lv00Constraint _c2 = lv00_constraint_fixed(1, 0);
@@ -118,7 +118,7 @@ int main(void) {
             dof->status == LV00_SYSTEM_UNDER_CONSTRAINED) {
             PASS(); tests_passed++;
         } else { FAIL("期望欠约束，剩余 1 DOF"); tests_failed++; }
-        lv00_dof_analysis_free(dof);
+        lv00_dof_analysis_destroy(dof);
 
         /* 再固定 p2：2 DOF (p2) - 1 (distance) = 1 → 过约束（distance 约束冗余） */
         Lv00Constraint _c3 = lv00_constraint_fixed(2, 1);
@@ -129,9 +129,9 @@ int main(void) {
             dof->status == LV00_SYSTEM_OVER_CONSTRAINED) {
             PASS(); tests_passed++;
         } else { FAIL("期望过约束"); tests_failed++; }
-        lv00_dof_analysis_free(dof);
+        lv00_dof_analysis_destroy(dof);
 
-        lv00_solver_free(sys);
+        lv00_solver_destroy(sys);
     }
 
     /* 5. 求解测试：两点距离约束 */
@@ -166,7 +166,7 @@ int main(void) {
             printf("(距离=%.4f) ", dist);
         }
 
-        lv00_solver_free(sys);
+        lv00_solver_destroy(sys);
     }
 
     /* 6. 求解测试：三角形约束 */
@@ -203,7 +203,7 @@ int main(void) {
             PASS(); tests_passed++;
         } else { FAIL("求解失败"); tests_failed++; }
 
-        lv00_solver_free(sys);
+        lv00_solver_destroy(sys);
     }
 
     /* 7. 系统状态测试 */
@@ -225,7 +225,7 @@ int main(void) {
             PASS(); tests_passed++;
         } else { FAIL("期望恰好约束"); tests_failed++; }
 
-        lv00_solver_free(sys);
+        lv00_solver_destroy(sys);
     }
 
     /* 8. 拖拽交互测试 */
@@ -254,7 +254,7 @@ int main(void) {
         else { FAIL("期望 x=3.0"); tests_failed++; }
 
         lv00_solver_set_dragged(sys, 1, false);
-        lv00_solver_free(sys);
+        lv00_solver_destroy(sys);
     }
 
     /* 9. 哈希索引性能验证 */
@@ -366,7 +366,7 @@ int main(void) {
                 PASS(); tests_passed++;
             } else { FAIL("swap-and-pop 后索引不一致"); tests_failed++; }
 
-            lv00_solver_free(sys);
+            lv00_solver_destroy(sys);
         }
     }
 

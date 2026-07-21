@@ -448,7 +448,7 @@ LV00_PUBLIC_API Lv00SolverSystem *lv00_solver_create(const Lv00SolverConfig *con
  * 以释放哈希索引资源。由于 create 分配的是 Lv00SolverSystemEx，
  * 此处必须使用相同的指针进行释放。
  */
-LV00_PUBLIC_API void lv00_solver_free(Lv00SolverSystem *sys)
+LV00_PUBLIC_API void lv00_solver_destroy(Lv00SolverSystem *sys)
 {
     if (!sys) return;
     free(sys->entities);
@@ -1426,7 +1426,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
  * 统计所有实体的自由度之和，减去约束消耗的自由度。
  * FIXED 约束特殊处理：消除对应实体的全部自由度。
  *
- * @return DOF 分析结果（需用 lv00_dof_analysis_free 释放）
+ * @return DOF 分析结果（需用 lv00_dof_analysis_destroy 释放）
  */
 LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem *sys)
 {
@@ -1498,7 +1498,7 @@ LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem 
 /**
  * @brief 释放 DOF 分析结果
  */
-LV00_PUBLIC_API void lv00_dof_analysis_free(Lv00DOFAnalysis *analysis)
+LV00_PUBLIC_API void lv00_dof_analysis_destroy(Lv00DOFAnalysis *analysis)
 {
     if (!analysis) return;
     free(analysis->free_entity_ids);
@@ -1520,7 +1520,7 @@ LV00_PUBLIC_API Lv00SystemStatus lv00_solver_get_status(const Lv00SolverSystem *
     if (!analysis) return LV00_SYSTEM_UNDER_CONSTRAINED;
 
     Lv00SystemStatus status = analysis->status;
-    lv00_dof_analysis_free(analysis);
+    lv00_dof_analysis_destroy(analysis);
     return status;
 }
 

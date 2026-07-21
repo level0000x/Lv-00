@@ -104,7 +104,7 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
     return true;
 }
 
-void dsl_tokens_free(DslToken *tokens, int count) {
+void dsl_tokens_destroy(DslToken *tokens, int count) {
     (void)count;
     if (tokens) lv00_free(tokens);
 }
@@ -208,15 +208,15 @@ bool dsl_compile_and_load(const char *source, const DslCompileConfig *config, Co
     if (!dsl_tokenize(source, &tokens, &token_count)) return false;
 
     DslAST *ast = NULL;
-    if (!dsl_parse(tokens, token_count, &ast)) { dsl_tokens_free(tokens, token_count); return false; }
+    if (!dsl_parse(tokens, token_count, &ast)) { dsl_tokens_destroy(tokens, token_count); return false; }
 
     DslIR *ir = NULL;
-    if (!dsl_compile(ast, config, &ir)) { dsl_ast_free(ast); dsl_tokens_free(tokens, token_count); return false; }
+    if (!dsl_compile(ast, config, &ir)) { dsl_ast_destroy(ast); dsl_tokens_destroy(tokens, token_count); return false; }
 
     bool ok = dsl_ir_to_constraint_graph(ir, graph);
-    dsl_ir_free(ir);
-    dsl_ast_free(ast);
-    dsl_tokens_free(tokens, token_count);
+    dsl_ir_destroy(ir);
+    dsl_ast_destroy(ast);
+    dsl_tokens_destroy(tokens, token_count);
     return ok;
 }
 
@@ -228,15 +228,15 @@ void dsl_compile_config_default(DslCompileConfig *out_config) {
     out_config->debug_ast = false;
 }
 
-void dsl_ast_free(DslAST *ast) {
+void dsl_ast_destroy(DslAST *ast) {
     if (!ast) return;
-    for (int i = 0; i < ast->child_count; i++) dsl_ast_free(ast->children[i]);
+    for (int i = 0; i < ast->child_count; i++) dsl_ast_destroy(ast->children[i]);
     lv00_free(ast->children);
     lv00_free(ast->name);
     lv00_free(ast);
 }
 
-void dsl_ir_free(DslIR *ir) {
+void dsl_ir_destroy(DslIR *ir) {
     if (!ir) return;
     for (int i = 0; i < ir->op_count; i++) lv00_free(ir->operations[i].operands);
     lv00_free(ir->operations);

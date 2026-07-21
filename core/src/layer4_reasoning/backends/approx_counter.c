@@ -635,7 +635,7 @@ double approx_count_get_pac_bound(const PacConfig *cfg,
     return bound;
 }
 
-void approx_count_result_free(ApproxCountResult *res) {
+void approx_count_result_destroy(ApproxCountResult *res) {
     if (!res) return;
     memset(res, 0, sizeof(*res));
 }

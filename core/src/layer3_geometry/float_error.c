@@ -1163,7 +1163,7 @@ FPTaylorConfig fptaylor_config_default(void) {
  * @brief 释放误差界中的证明文本资源
  * @param bound 误差界指针
  */
-void error_bound_free(ErrorBound *bound) {
+void error_bound_destroy(ErrorBound *bound) {
     if (!bound)
         return;
     if (bound->proof_text) {

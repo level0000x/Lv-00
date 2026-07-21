@@ -53,7 +53,7 @@ Lv00MultiVector *ga_mv_create(void) {
     return mv;
 }
 
-void ga_mv_free(Lv00MultiVector *mv) {
+void ga_mv_destroy(Lv00MultiVector *mv) {
     lv00_free((void **)&mv);
 }
 
@@ -428,14 +428,14 @@ Lv00MultiVector *ga_mv_sandwich(const Lv00MultiVector *rotor,
 
     Lv00MultiVector *temp = ga_mv_geometric_product(rotor, mv);
     if (!temp) {
-        ga_mv_free(r_rev);
+        ga_mv_destroy(r_rev);
         return NULL;
     }
 
     Lv00MultiVector *result = ga_mv_geometric_product(temp, r_rev);
 
-    ga_mv_free(r_rev);
-    ga_mv_free(temp);
+    ga_mv_destroy(r_rev);
+    ga_mv_destroy(temp);
 
     return result;
 }

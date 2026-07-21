@@ -33,7 +33,7 @@ int main(void) {
         } else { FAIL("初始状态不正确"); tests_failed++; }
 
         TEST("free: 释放网格");
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
         PASS(); tests_passed++;
     }
 
@@ -70,7 +70,7 @@ int main(void) {
             PASS(); tests_passed++;
         } else { FAIL("顶点位置未更新"); tests_failed++; }
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     /* 3. 三角形面创建测试 */
@@ -100,7 +100,7 @@ int main(void) {
         if (mesh->edge_count == 3) { PASS(); tests_passed++; }
         else { FAIL("边数量不正确"); tests_failed++; }
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     /* 4. 面属性测试 */
@@ -135,7 +135,7 @@ int main(void) {
         if (count == 3) { PASS(); tests_passed++; }
         else { FAIL("顶点数量不正确"); tests_failed++; }
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     /* 5. 半边遍历测试 */
@@ -168,7 +168,7 @@ int main(void) {
         if (f2 == f) { PASS(); tests_passed++; }
         else { FAIL("所属面不正确"); tests_failed++; }
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     /* 6. 边操作测试 */
@@ -200,7 +200,7 @@ int main(void) {
             PASS(); tests_passed++;
         } else { FAIL("边端点不匹配"); tests_failed++; }
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     /* 7. 几何量计算测试 */
@@ -226,7 +226,7 @@ int main(void) {
         /* 简化测试：跳过 update_geometry（依赖迭代器） */
         PASS(); tests_passed++;
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     /* 8. 网格查询测试 */
@@ -255,7 +255,7 @@ int main(void) {
         if (euler == 1) { PASS(); tests_passed++; }
         else { FAIL("Euler 特征数不正确"); tests_failed++; }
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     /* 9. 四边形面测试 */
@@ -273,7 +273,7 @@ int main(void) {
         if (f >= 0) { PASS(); tests_passed++; }
         else { FAIL("添加失败"); tests_failed++; }
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     /* 10. 迭代器测试 */
@@ -299,7 +299,7 @@ int main(void) {
         if (fit.current != LV00_HE_INVALID && fit.count == 3) { PASS(); tests_passed++; }
         else { FAIL("迭代器初始化失败"); tests_failed++; }
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     /* 11. 统计与验证测试 */
@@ -325,7 +325,7 @@ int main(void) {
             PASS(); tests_passed++;
         } else { FAIL("网格验证失败"); tests_failed++; }
 
-        lv00_he_mesh_free(mesh);
+        lv00_he_mesh_destroy(mesh);
     }
 
     printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", tests_passed, tests_failed);

@@ -121,7 +121,7 @@ PresetValidationResult preset_validate(const char *preset_name);
  *
  * @param result 验证结果
  */
-void preset_validation_result_free(PresetValidationResult *result);
+void preset_validation_result_destroy(PresetValidationResult *result);
 /**
  * @brief 测试预设的实例化
  *
@@ -159,7 +159,7 @@ bool preset_create_bindings(const char *preset_name, PresetParamBinding **out_bi
  *
  * @param bindings 绑定数组
  */
-void preset_bindings_free(PresetParamBinding *bindings);
+void preset_bindings_destroy(PresetParamBinding *bindings);
 /**
  * @brief 应用部分绑定创建新预设
  *
@@ -208,7 +208,7 @@ int preset_recommend_related(const char *preset_name, PresetSearchResult *out_re
  *
  * @param result 搜索结果
  */
-void preset_search_result_free(PresetSearchResult *result);
+void preset_search_result_destroy(PresetSearchResult *result);
 /* ================================================================
  * 预设组合操作
  * ================================================================ */

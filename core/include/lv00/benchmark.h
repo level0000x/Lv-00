@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file benchmark.h
  * @brief 性能基准测试框架
  *
@@ -287,7 +287,7 @@ void lv00_perf_record_alloc(Lv00PerfMonitor *monitor, size_t size);
 /**
  * @brief 记录内存释放
  */
-void lv00_perf_record_free(Lv00PerfMonitor *monitor, size_t size);
+void lv00_perf_record_destroy(Lv00PerfMonitor *monitor, size_t size);
 /**
  * @brief 获取平均操作时间
  */

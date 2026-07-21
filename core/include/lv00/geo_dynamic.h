@@ -80,7 +80,7 @@ typedef void (*Lv00DynUpdateFunc)(Lv00DynGraph *graph, int node_id);
 Lv00DynGraphConfig lv00_dyn_graph_default_config(void);
 
 Lv00DynGraph *lv00_dyn_graph_create(const Lv00DynGraphConfig *config);
-void lv00_dyn_graph_free(Lv00DynGraph *graph);
+void lv00_dyn_graph_destroy(Lv00DynGraph *graph);
 
 int lv00_dyn_graph_add_node(
     Lv00DynGraph *graph,

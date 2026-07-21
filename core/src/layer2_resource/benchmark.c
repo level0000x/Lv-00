@@ -379,7 +379,7 @@ void lv00_perf_record_alloc(Lv00PerfMonitor *monitor, size_t size) {
  * @param monitor 监控器指针
  * @param size 释放的内存大小（字节）
  */
-void lv00_perf_record_free(Lv00PerfMonitor *monitor, size_t size) {
+void lv00_perf_record_destroy(Lv00PerfMonitor *monitor, size_t size) {
     if (!monitor) return;
     monitor->memory_freed += size;
     if (monitor->memory_current >= size) {

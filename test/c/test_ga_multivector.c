@@ -68,7 +68,7 @@ void test_ga_mv_zero(void) {
                     "All components of zero multivector should be zero");
     }
 
-    ga_mv_free(mv);
+    ga_mv_destroy(mv);
     printf("  PASSED\n");
 }
 
@@ -92,7 +92,7 @@ void test_ga_mv_scalar(void) {
                     "Non-scalar components should be zero");
     }
 
-    ga_mv_free(mv);
+    ga_mv_destroy(mv);
     printf("  PASSED\n");
 }
 
@@ -144,13 +144,13 @@ void test_ga_geometric_product(void) {
                     "e0 * e0 should be zero");
     }
 
-    ga_mv_free(e1);
-    ga_mv_free(e2);
-    ga_mv_free(e0);
-    ga_mv_free(e1_sq);
-    ga_mv_free(e1_e2);
-    ga_mv_free(e2_e1);
-    ga_mv_free(e0_sq);
+    ga_mv_destroy(e1);
+    ga_mv_destroy(e2);
+    ga_mv_destroy(e0);
+    ga_mv_destroy(e1_sq);
+    ga_mv_destroy(e1_e2);
+    ga_mv_destroy(e2_e1);
+    ga_mv_destroy(e0_sq);
     printf("  PASSED\n");
 }
 
@@ -181,10 +181,10 @@ void test_ga_outer_product(void) {
                     "e1 ^ e1 should be zero");
     }
 
-    ga_mv_free(e1);
-    ga_mv_free(e2);
-    ga_mv_free(wedge);
-    ga_mv_free(self_wedge);
+    ga_mv_destroy(e1);
+    ga_mv_destroy(e2);
+    ga_mv_destroy(wedge);
+    ga_mv_destroy(self_wedge);
     printf("  PASSED\n");
 }
 
@@ -226,14 +226,14 @@ void test_ga_reverse(void) {
     TEST_ASSERT(approx_eq(ga_mv_get(e123_rev, GA_BLADE_E123), -1.0),
                 "Reverse of e123 should be -e123");
 
-    ga_mv_free(s);
-    ga_mv_free(s_rev);
-    ga_mv_free(e1);
-    ga_mv_free(e1_rev);
-    ga_mv_free(e12);
-    ga_mv_free(e12_rev);
-    ga_mv_free(e123);
-    ga_mv_free(e123_rev);
+    ga_mv_destroy(s);
+    ga_mv_destroy(s_rev);
+    ga_mv_destroy(e1);
+    ga_mv_destroy(e1_rev);
+    ga_mv_destroy(e12);
+    ga_mv_destroy(e12_rev);
+    ga_mv_destroy(e123);
+    ga_mv_destroy(e123_rev);
     printf("  PASSED\n");
 }
 
@@ -266,8 +266,8 @@ void test_ga_embed_point_extract(void) {
     TEST_ASSERT(approx_eq(oy2, 0.0), "Origin Y should be 0");
     TEST_ASSERT(approx_eq(oz2, 0.0), "Origin Z should be 0");
 
-    ga_mv_free(p);
-    ga_mv_free(origin);
+    ga_mv_destroy(p);
+    ga_mv_destroy(origin);
     printf("  PASSED\n");
 }
 
@@ -294,8 +294,8 @@ void test_ga_three_points_collinear(void) {
     bool not_collinear = ga_three_points_collinear(q1, q2, q3);
     TEST_ASSERT(!not_collinear, "Points (0,0,0), (1,0,0), (0,1,0) should not be collinear");
 
-    ga_mv_free(p1); ga_mv_free(p2); ga_mv_free(p3);
-    ga_mv_free(q1); ga_mv_free(q2); ga_mv_free(q3);
+    ga_mv_destroy(p1); ga_mv_destroy(p2); ga_mv_destroy(p3);
+    ga_mv_destroy(q1); ga_mv_destroy(q2); ga_mv_destroy(q3);
     printf("  PASSED\n");
 }
 
@@ -324,8 +324,8 @@ void test_ga_four_points_coplanar(void) {
     bool not_coplanar = ga_four_points_coplanar(q1, q2, q3, q4);
     TEST_ASSERT(!not_coplanar, "Points forming a tetrahedron should not be coplanar");
 
-    ga_mv_free(p1); ga_mv_free(p2); ga_mv_free(p3); ga_mv_free(p4);
-    ga_mv_free(q1); ga_mv_free(q2); ga_mv_free(q3); ga_mv_free(q4);
+    ga_mv_destroy(p1); ga_mv_destroy(p2); ga_mv_destroy(p3); ga_mv_destroy(p4);
+    ga_mv_destroy(q1); ga_mv_destroy(q2); ga_mv_destroy(q3); ga_mv_destroy(q4);
     printf("  PASSED\n");
 }
 
@@ -358,10 +358,10 @@ void test_ga_norm_squared(void) {
     double n2e1 = ga_norm_squared(two_e1);
     TEST_ASSERT(approx_eq(n2e1, 4.0), "||2*e1||^2 should be 4.0");
 
-    ga_mv_free(s);
-    ga_mv_free(z);
-    ga_mv_free(e1);
-    ga_mv_free(two_e1);
+    ga_mv_destroy(s);
+    ga_mv_destroy(z);
+    ga_mv_destroy(e1);
+    ga_mv_destroy(two_e1);
     printf("  PASSED\n");
 }
 
@@ -391,7 +391,7 @@ void test_ga_outer_product_comprehensive(void) {
                         "e1 ^ e2: non-e12 components should be zero");
         }
 
-        ga_mv_free(e1); ga_mv_free(e2); ga_mv_free(r);
+        ga_mv_destroy(e1); ga_mv_destroy(e2); ga_mv_destroy(r);
     }
 
     /* ---- grade-1 ^ grade-2 -> grade-3: e0 ^ e12 = e012 ---- */
@@ -412,7 +412,7 @@ void test_ga_outer_product_comprehensive(void) {
                         "e0 ^ e12: non-e012 components should be zero");
         }
 
-        ga_mv_free(e0); ga_mv_free(e12); ga_mv_free(r);
+        ga_mv_destroy(e0); ga_mv_destroy(e12); ga_mv_destroy(r);
     }
 
     /* ---- grade-2 ^ grade-1 -> grade-3: e12 ^ e3 = e123 ---- */
@@ -433,7 +433,7 @@ void test_ga_outer_product_comprehensive(void) {
                         "e12 ^ e3: non-e123 components should be zero");
         }
 
-        ga_mv_free(e12); ga_mv_free(e3); ga_mv_free(r);
+        ga_mv_destroy(e12); ga_mv_destroy(e3); ga_mv_destroy(r);
     }
 
     /* ---- grade-2 ^ grade-2 -> grade-4: e01 ^ e23 = e0123 ---- */
@@ -454,7 +454,7 @@ void test_ga_outer_product_comprehensive(void) {
                         "e01 ^ e23: non-e0123 components should be zero");
         }
 
-        ga_mv_free(e01); ga_mv_free(e23); ga_mv_free(r);
+        ga_mv_destroy(e01); ga_mv_destroy(e23); ga_mv_destroy(r);
     }
 
     /* ---- scalar ^ anything = anything: 3.0 ^ e1 = 3*e1 ---- */
@@ -474,7 +474,7 @@ void test_ga_outer_product_comprehensive(void) {
                         "3.0 ^ e1: non-e1 components should be zero");
         }
 
-        ga_mv_free(s); ga_mv_free(e1); ga_mv_free(r);
+        ga_mv_destroy(s); ga_mv_destroy(e1); ga_mv_destroy(r);
     }
 
     /* ---- anything ^ scalar = anything: e1 ^ 3.0 = 3*e1 ---- */
@@ -494,7 +494,7 @@ void test_ga_outer_product_comprehensive(void) {
                         "e1 ^ 3.0: non-e1 components should be zero");
         }
 
-        ga_mv_free(e1); ga_mv_free(s); ga_mv_free(r);
+        ga_mv_destroy(e1); ga_mv_destroy(s); ga_mv_destroy(r);
     }
 
     /* ---- same basis element ^ itself = 0: e1 ^ e1 = 0 ---- */
@@ -511,7 +511,7 @@ void test_ga_outer_product_comprehensive(void) {
                         "e1 ^ e1: all components should be zero");
         }
 
-        ga_mv_free(e1a); ga_mv_free(e1b); ga_mv_free(r);
+        ga_mv_destroy(e1a); ga_mv_destroy(e1b); ga_mv_destroy(r);
     }
 
     /* ---- additional: e2 ^ e2 = 0 ---- */
@@ -528,7 +528,7 @@ void test_ga_outer_product_comprehensive(void) {
                         "e2 ^ e2: all components should be zero");
         }
 
-        ga_mv_free(e2a); ga_mv_free(e2b); ga_mv_free(r);
+        ga_mv_destroy(e2a); ga_mv_destroy(e2b); ga_mv_destroy(r);
     }
 
     /* ---- additional: e0 ^ e0 = 0 (null basis) ---- */
@@ -545,7 +545,7 @@ void test_ga_outer_product_comprehensive(void) {
                         "e0 ^ e0: all components should be zero");
         }
 
-        ga_mv_free(e0a); ga_mv_free(e0b); ga_mv_free(r);
+        ga_mv_destroy(e0a); ga_mv_destroy(e0b); ga_mv_destroy(r);
     }
 
     printf("  PASSED\n");
@@ -604,10 +604,10 @@ void test_ga_outer_product_anticommutativity(void) {
                     "e0^e3 + e3^e0: all components should sum to zero (anticommutativity)");
     }
 
-    ga_mv_free(e1); ga_mv_free(e2);
-    ga_mv_free(r12); ga_mv_free(r21);
-    ga_mv_free(e0); ga_mv_free(e3);
-    ga_mv_free(r03); ga_mv_free(r30);
+    ga_mv_destroy(e1); ga_mv_destroy(e2);
+    ga_mv_destroy(r12); ga_mv_destroy(r21);
+    ga_mv_destroy(e0); ga_mv_destroy(e3);
+    ga_mv_destroy(r03); ga_mv_destroy(r30);
     printf("  PASSED\n");
 }
 
@@ -674,9 +674,9 @@ void test_ga_outer_product_associativity(void) {
                     "(a^b)^c = a^(b^c): all components should match (e1,e2,e3 case)");
     }
 
-    ga_mv_free(e0); ga_mv_free(e1); ga_mv_free(e2); ga_mv_free(e3);
-    ga_mv_free(e01); ga_mv_free(e12); ga_mv_free(left); ga_mv_free(right);
-    ga_mv_free(e12_v2); ga_mv_free(e23); ga_mv_free(left2); ga_mv_free(right2);
+    ga_mv_destroy(e0); ga_mv_destroy(e1); ga_mv_destroy(e2); ga_mv_destroy(e3);
+    ga_mv_destroy(e01); ga_mv_destroy(e12); ga_mv_destroy(left); ga_mv_destroy(right);
+    ga_mv_destroy(e12_v2); ga_mv_destroy(e23); ga_mv_destroy(left2); ga_mv_destroy(right2);
     printf("  PASSED\n");
 }
 

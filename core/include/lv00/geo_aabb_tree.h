@@ -171,7 +171,7 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
     const Lv00AABB2D *bboxes, int count,
     const Lv00AABBTreeConfig *config);
 
-LV00_PUBLIC_API void lv00_aabb2d_free(Lv00AABBTree2D *tree);
+LV00_PUBLIC_API void lv00_aabb2d_destroy(Lv00AABBTree2D *tree);
 
 LV00_PUBLIC_API Lv00AABBRayHit lv00_aabb2d_ray_query(
     const Lv00AABBTree2D *tree, Lv00AABBRay2D ray);
@@ -200,7 +200,7 @@ LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
     const Lv00AABB3D *bboxes, int count,
     const Lv00AABBTreeConfig *config);
 
-LV00_PUBLIC_API void lv00_aabb3d_free(Lv00AABBTree3D *tree);
+LV00_PUBLIC_API void lv00_aabb3d_destroy(Lv00AABBTree3D *tree);
 
 LV00_PUBLIC_API Lv00AABBRayHit lv00_aabb3d_ray_query(
     const Lv00AABBTree3D *tree, Lv00AABBRay3D ray);

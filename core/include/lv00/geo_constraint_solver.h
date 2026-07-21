@@ -163,7 +163,7 @@ LV00_PUBLIC_API Lv00SolverConfig lv00_solver_default_config(void);
 
 /* 求解器系统创建与释放 */
 LV00_PUBLIC_API Lv00SolverSystem *lv00_solver_create(const Lv00SolverConfig *config);
-LV00_PUBLIC_API void lv00_solver_free(Lv00SolverSystem *sys);
+LV00_PUBLIC_API void lv00_solver_destroy(Lv00SolverSystem *sys);
 
 /* 实体管理 */
 LV00_PUBLIC_API int lv00_solver_add_entity(Lv00SolverSystem *sys, const Lv00Entity *entity);
@@ -179,7 +179,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys);
 
 /* DOF 分析 */
 LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem *sys);
-LV00_PUBLIC_API void lv00_dof_analysis_free(Lv00DOFAnalysis *analysis);
+LV00_PUBLIC_API void lv00_dof_analysis_destroy(Lv00DOFAnalysis *analysis);
 
 /* 系统状态查询 */
 LV00_PUBLIC_API Lv00SystemStatus lv00_solver_get_status(const Lv00SolverSystem *sys);

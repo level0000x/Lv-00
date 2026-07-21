@@ -1,6 +1,6 @@
-# Lv-00 任务上下文 — v1.6.0
+# Lv-00 任务上下文 — v1.7.0
 
-**版本**: v1.6.0 | **日期**: 2026-07-22 | **阶段**: 全系统代码优化到最优，0 技术债务
+**版本**: v1.7.0 | **日期**: 2026-07-22 | **阶段**: 全系统代码优化到最优，0 技术债务
 
 ---
 
@@ -19,8 +19,55 @@
 | v1.4.0 全系统代码优化到最优 | ✅ |
 | v1.5.0 输入验证加固 + 魔法数字消除 + 内存分配统一 | ✅ |
 | v1.6.0 架构重构：消除代码重复 + 共享基础设施 | ✅ |
+| v1.7.0 架构重构：资源释放命名统一 (_free → _destroy) | ✅ |
 
-## 二、v1.6.0 架构重构：消除代码重复
+## 二、v1.7.0 架构重构：资源释放命名统一
+
+### 命名规范
+| 后缀 | 语义 | 适用范围 |
+|:---|:---|:---|
+| `_destroy` | 释放对象本身及其所有资源 | 结构体、类实例 |
+| `_free` | 仅释放数组/缓冲区 | 裸数组、token 列表 |
+| `_cleanup` | 清理全局状态/单例 | 模块级状态 |
+| `_clear` | 清空内容但保留容器 | 缓存、集合 |
+
+### 重命名清单（18 个函数，28 个文件）
+
+| 旧名称 | 新名称 | 模块 |
+|:---|:---|:---|
+| `ga_mv_free` | `ga_mv_destroy` | 几何代数 |
+| `lv00_he_mesh_free` | `lv00_he_mesh_destroy` | 半边网格 |
+| `lv00_aabb2d_free` | `lv00_aabb2d_destroy` | AABB 树 |
+| `lv00_aabb3d_free` | `lv00_aabb3d_destroy` | AABB 树 |
+| `lv00_dyn_graph_free` | `lv00_dyn_graph_destroy` | 动态图 |
+| `lv00_geo_spec_free` | `lv00_geo_spec_destroy` | 几何规格 |
+| `lv00_solver_free` | `lv00_solver_destroy` | 约束求解器 |
+| `lv00_dof_analysis_free` | `lv00_dof_analysis_destroy` | 自由度分析 |
+| `dsl_tokens_free` | `dsl_tokens_destroy` | DSL 编译器 |
+| `dsl_ast_free` | `dsl_ast_destroy` | DSL 编译器 |
+| `dsl_ir_free` | `dsl_ir_destroy` | DSL 编译器 |
+| `error_bound_free` | `error_bound_destroy` | 浮点误差 |
+| `lv00_perf_record_free` | `lv00_perf_record_destroy` | 性能监控 |
+| `approx_count_result_free` | `approx_count_result_destroy` | 近似计数 |
+| `atp_result_free` | `atp_result_destroy` | ATP 后端 |
+| `preset_validation_result_free` | `preset_validation_result_destroy` | 预设操作 |
+| `preset_bindings_free` | `preset_bindings_destroy` | 预设操作 |
+| `preset_search_result_free` | `preset_search_result_destroy` | 预设操作 |
+
+### 按规则保留 `_free`（不修改）
+- `gappa_predicates_free` / `gappa_goals_free` / `gappa_result_free` — 释放数组
+- `lv00_aabb_query_result_free` — 释放查询结果数组
+- `mem_pool_free` — 释放单个内存块
+
+### 编译与测试
+
+| 指标 | 值 |
+|:---|:---|
+| 构建 | 151/151 targets, 0 error, 0 warning |
+| 测试 | 118/118 passed (21.56s) |
+| 涉及文件 | 28（15 .h + 13 .c + 5 test） |
+
+## 三、v1.6.0 架构重构：消除代码重复
 
 ### safe_parse 提取到共享头文件
 | 操作 | 数量 |
@@ -40,7 +87,7 @@
 | 测试 | 118/118 passed (21.48s) |
 | 代码重复（safe_parse） | 0（14 处 → 1 个共享头文件） |
 
-## 三、v1.5.0 输入验证与代码质量加固
+## 四、v1.5.0 输入验证与代码质量加固
 
 ### 输入验证加固（atoi/atof → 安全解析）
 | 文件 | 修复 |
@@ -78,7 +125,7 @@
 | 不安全输入解析 | 0（全项目 atoi/atof/sscanf 已加固） |
 | 魔法数字 | 0（核心模块已消除） |
 
-## 四、v1.4.0 代码质量优化
+## 五、v1.4.0 代码质量优化
 
 ### realloc 统一与分配器匹配
 | 操作 | 结果 |
@@ -129,7 +176,7 @@
 | 内部函数未 static | 0 |
 | 除零无保护 | 0 |
 
-## 五、v1.3.0 桩函数消灭总结
+## 六、v1.3.0 桩函数消灭总结
 
 ### L6 可视化层（11 个桩 → 真实实现）
 在 `lv00_impl_upper.c` 中新增 3 个内部对象表（visual_editor / view_sync / text_code，各 64 槽位），通过 int64_t ID → 结构体指针的查找，将 11 个桩函数重连到 `layer6_visual/` 的真实实现：
@@ -164,7 +211,7 @@
 | `numerical_backend.c` | 移除 SERIAL-only 限制，支持任意后端 |
 | `proof_navigator.c` | 4 个桩 inline 函数改为链接 proof_tree.c 真实实现 |
 
-## 六、v1.3.1 代码安全加固
+## 七、v1.3.1 代码安全加固
 
 ### 不安全字符串操作修复
 | 文件 | 修复 |
@@ -189,29 +236,29 @@
 | 全项目桩函数 | 0 |
 | 不安全字符串操作 | 0 |
 
-## 七、设计文档对照差距（排除 UI）
+## 八、设计文档对照差距（排除 UI）
 
 | # | 特性 | 状态 | 计划 |
 |---|------|------|------|
 | 关键对计算引擎 | ✅ | critical_pair.h/c |
 | 交互式类型等价探索器引擎 | ✅ | type_equiv_explorer.h/c |
 | A/B 双轨代数数 (SymEngine/FLINT) | GMP only | 保留 B 轨接口 |
-| 微自举 A (线段长度判等器) | 未启动 | v1.7.0 |
-| 微自举 B (公式化简器) | 未启动 | v1.8.0 |
+| 微自举 A (线段长度判等器) | 未启动 | v1.8.0 |
+| 微自举 B (公式化简器) | 未启动 | v1.9.0 |
 | UI 系统 | 未启动 | 独立迭代 |
 
-## 八、远期路线图
+## 九、远期路线图
 
 | 版本 | 内容 |
 |:---|:---|
-| v1.7.0 | 微自举 A: 线段长度判等器 (< 100 nodes) |
-| v1.8.0 | 微自举 B: 公式化简器 (< 500 nodes) |
-| v1.9.0 | λ-演算几何原型 (β-归约, Y 组合子) |
-| v2.0.0 | 命题逻辑验证器自举 |
+| v1.8.0 | 微自举 A: 线段长度判等器 (< 100 nodes) |
+| v1.9.0 | 微自举 B: 公式化简器 (< 500 nodes) |
+| v2.0.0 | λ-演算几何原型 (β-归约, Y 组合子) |
+| v2.1.0 | 命题逻辑验证器自举 |
 | — | UI 系统 (画布、导航器、对话框等) |
 
-## 九、下一步提示词
+## 十、下一步提示词
 
 ```
-按 TASK_CONTEXT.md v1.7.0 计划开始实现微自举 A（线段长度判等器）。
+按 TASK_CONTEXT.md v1.8.0 计划开始实现微自举 A（线段长度判等器）。
 ```

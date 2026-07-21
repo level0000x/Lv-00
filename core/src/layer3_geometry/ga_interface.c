@@ -144,8 +144,8 @@ int ga_extract_ray(const Lv00MultiVector *mv,
     *out_dir = ga_mv_create();
 
     if (!*out_origin || !*out_dir) {
-        ga_mv_free(*out_origin);
-        ga_mv_free(*out_dir);
+        ga_mv_destroy(*out_origin);
+        ga_mv_destroy(*out_dir);
         return -1;
     }
 
@@ -297,7 +297,7 @@ Lv00MultiVector *ga_plane_from_three_points(const Lv00MultiVector *p1,
     if (!temp) return NULL;
 
     Lv00MultiVector *result = ga_mv_outer_product(temp, p3);
-    ga_mv_free(temp);
+    ga_mv_destroy(temp);
 
     return result;
 }
