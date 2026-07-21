@@ -192,7 +192,7 @@ void lv00_curve_destroy(Lv00ParametricCurve *curve) {
  * @return true  成功
  * @return false 失败（参数无效）
  */
-bool lv00_curve_evaluate(const Lv00ParametricCurve *curve, double t,
+int lv00_curve_evaluate(const Lv00ParametricCurve *curve, double t,
                           Lv00Point2D *out) {
     if (!curve || !curve->eval_func || !out) {
         return false;
@@ -211,7 +211,7 @@ bool lv00_curve_evaluate(const Lv00ParametricCurve *curve, double t,
  * @return true  成功
  * @return false 失败（无导数函数）
  */
-bool lv00_curve_tangent(const Lv00ParametricCurve *curve, double t,
+int lv00_curve_tangent(const Lv00ParametricCurve *curve, double t,
                          double *out_dx, double *out_dy) {
     if (!curve || !curve->deriv_func || !out_dx || !out_dy) {
         return false;
@@ -273,7 +273,7 @@ double lv00_curve_arc_length(const Lv00ParametricCurve *curve, int n_steps) {
  * @param out_t_max 输出参数上界
  * @return true 成功，false 参数无效
  */
-bool lv00_curve_get_domain(const Lv00ParametricCurve *curve,
+int lv00_curve_get_domain(const Lv00ParametricCurve *curve,
                             double *out_t_min, double *out_t_max) {
     if (!curve || !out_t_min || !out_t_max) return false;
     *out_t_min = curve->domain.t_min;
@@ -351,7 +351,7 @@ void lv00_surface_destroy(Lv00ParametricSurface *surf) {
  * @param out   输出：曲面上对应点
  * @return true 成功，false 参数无效
  */
-bool lv00_surface_evaluate(const Lv00ParametricSurface *surf,
+int lv00_surface_evaluate(const Lv00ParametricSurface *surf,
                             double u, double v, Lv00Point3D *out) {
     if (!surf || !surf->eval_func || !out) {
         return false;
@@ -374,7 +374,7 @@ bool lv00_surface_evaluate(const Lv00ParametricSurface *surf,
  * @return true   成功
  * @return false  失败（无偏导数函数）
  */
-bool lv00_surface_normal(const Lv00ParametricSurface *surf,
+int lv00_surface_normal(const Lv00ParametricSurface *surf,
                           double u, double v,
                           double *out_nx, double *out_ny, double *out_nz) {
     if (!surf || !surf->deriv_func || !out_nx || !out_ny || !out_nz) {
@@ -456,7 +456,7 @@ double lv00_surface_area(const Lv00ParametricSurface *surf,
  * @param out 输出参数域
  * @return true 成功，false 参数无效
  */
-bool lv00_surface_get_domain(const Lv00ParametricSurface *surf,
+int lv00_surface_get_domain(const Lv00ParametricSurface *surf,
                               Lv00ParametricDomain2D *out) {
     if (!surf || !out) return false;
     *out = surf->domain;

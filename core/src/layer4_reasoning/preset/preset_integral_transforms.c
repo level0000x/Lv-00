@@ -115,7 +115,7 @@ static const IntegralTransformPresetMeta s_integral_transforms_meta[INTEGRAL_TRA
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_integral_transforms_register(void)
+int preset_integral_transforms_register(void)
 {
     int success_count = 0;
 

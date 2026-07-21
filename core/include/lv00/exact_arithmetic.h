@@ -1,4 +1,4 @@
-﻿#ifndef LV00_EXACT_ARITHMETIC_H
+#ifndef LV00_EXACT_ARITHMETIC_H
 #define LV00_EXACT_ARITHMETIC_H
 
 #include <stdbool.h>
@@ -18,9 +18,9 @@ typedef struct {
 
 Lv00Timestamp lv00_timestamp_now(void);
 bool lv00_safe_pow(int64_t a, int64_t b, int64_t *result);
-bool lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
-bool lv00_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
-bool lv00_safe_sub_impl(int64_t a, int64_t b, int64_t *out);
+int lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
+int lv00_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
+int lv00_safe_sub_impl(int64_t a, int64_t b, int64_t *out);
 
 #endif /* LV00_EXACT_ARITHMETIC_H */
 

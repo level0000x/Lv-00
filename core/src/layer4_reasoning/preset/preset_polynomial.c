@@ -80,7 +80,7 @@ static bool register_polynomial_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_polynomial_register(void)
+int preset_polynomial_register(void)
 {
     int success_count = 0;
 

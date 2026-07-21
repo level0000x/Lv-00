@@ -63,7 +63,7 @@ static bool register_matrix_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_matrix_register(void)
+int preset_matrix_register(void)
 {
     int success_count = 0;
 

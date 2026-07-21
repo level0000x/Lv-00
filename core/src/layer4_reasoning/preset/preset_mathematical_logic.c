@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_mathematical_logic.c
  * @brief 数理逻辑预设函数块模块 - 实现
  *
@@ -89,7 +89,7 @@ static bool register_logic_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_mathematical_logic_register(void)
+int preset_mathematical_logic_register(void)
 {
     int success_count = 0;
 

@@ -840,7 +840,7 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath)
     return import_count;
 }
 
-bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath)
+int mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath)
 {
     LV00_CHECK_NULL(kernel, false);
     LV00_CHECK_NULL(filepath, false);
@@ -981,7 +981,7 @@ void mini_kernel_stats(const MiniKernel *kernel,
  * 第十部分：约束图集成
  * ======================================================================== */
 
-bool mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id)
+int mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id)
 {
     LV00_CHECK_NULL(kernel, false);
     if (stmt_id < 0 || stmt_id >= kernel->statement_count) {

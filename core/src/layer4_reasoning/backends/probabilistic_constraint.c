@@ -1250,7 +1250,7 @@ bool pctl_check_constructibility(const ConstraintGraph *graph, double confidence
  * prob_constraint_infer —— 概率约束推理
  * ======================================================================== */
 
-bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbConstraintNode **constraints, int n,
+int prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbConstraintNode **constraints, int n,
                            double *out_conf) {
     if (!graph || !constraints || n <= 0 || !out_conf)
         return false;

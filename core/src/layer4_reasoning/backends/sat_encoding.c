@@ -1261,7 +1261,7 @@ int *sat_get_unsat_core(const SatEncoding *enc, int *out_count) {
     return core;
 }
 
-bool sat_encoding_export_dimacs(const SatEncoding *enc, const char *filepath) {
+int sat_encoding_export_dimacs(const SatEncoding *enc, const char *filepath) {
     LV00_CHECK_NULL(enc, false);
     LV00_CHECK_NULL(filepath, false);
 

@@ -221,11 +221,11 @@ bool lv00_expr_is_constant(const Lv00Expr *expr) {
     return expr && expr->type == EXPR_TYPE_RATIONAL;
 }
 
-bool lv00_expr_get_integer(const Lv00Expr *expr, int64_t *out_val) {
+int lv00_expr_get_integer(const Lv00Expr *expr, int64_t *out_val) {
     if (!expr || expr->type != EXPR_TYPE_RATIONAL || !out_val)
-        return false;
+        return -1;
     if (mpz_cmp_ui(mpq_denref(expr->data.rational.value), 1) != 0)
-        return false;
+        return -1;
     *out_val = mpz_get_si(mpq_numref(expr->data.rational.value));
-    return true;
+    return 0;
 }

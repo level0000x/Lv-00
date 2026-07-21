@@ -92,7 +92,7 @@ static bool register_at_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_algebraic_topology_register(void)
+int preset_algebraic_topology_register(void)
 {
     int success_count = 0;
 

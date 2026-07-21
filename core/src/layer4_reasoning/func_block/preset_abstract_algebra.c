@@ -127,7 +127,7 @@
  * @return true 所有预设注册成功
  * @return false 部分失败（记录错误日志但继续）
  */
-bool preset_abstract_algebra_register(void) {
+int preset_abstract_algebra_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -804,7 +804,7 @@ PresetCategory preset_abstract_algebra_category(void) {
  * @return true 获取成功
  * @return false 参数无效或内存不足
  */
-bool preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
+int preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
     if (!out_names || !out_count)
         return false;
 

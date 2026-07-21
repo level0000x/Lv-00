@@ -60,7 +60,7 @@ static bool register_graph_theory_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_graph_theory_register(void)
+int preset_graph_theory_register(void)
 {
     int success_count = 0;
 

@@ -55,7 +55,7 @@ static bool register_mt_preset(
  * 模块注册实现
  * ============================================================ */
 
-bool preset_measure_theory_register(void)
+int preset_measure_theory_register(void)
 {
     int success_count = 0;
 

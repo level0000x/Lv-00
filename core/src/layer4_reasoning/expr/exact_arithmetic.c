@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file exact_arithmetic.c
  * @brief 精确算术基础设施实现 —— 时间戳、安全幂运算
  *
@@ -106,7 +106,7 @@ Lv00Timestamp lv00_timestamp_now(void) {
  * @param out 输出乘积（仅在无溢出时写入）
  * @return true 表示无溢出，false 表示溢出或参数无效
  */
-bool lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
+int lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
     if (!out) return false;
     if (a == 0 || b == 0) { *out = 0; return true; }
     /* 检查是否会溢出: |a * b| > INT64_MAX */

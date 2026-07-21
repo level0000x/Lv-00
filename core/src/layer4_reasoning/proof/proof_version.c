@@ -15,6 +15,7 @@
 #include <string.h>
 #include "lv00/proof.h"
 #include "lv00/constraint_graph.h"
+#include "lv00/thread_pool.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"

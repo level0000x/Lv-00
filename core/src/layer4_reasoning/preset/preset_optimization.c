@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_optimization.c
  * @brief 优化理论预设函数块 - 实现
  *
@@ -63,7 +63,7 @@ static bool register_optimization_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_optimization_register(void)
+int preset_optimization_register(void)
 {
     int success_count = 0;
 

@@ -92,7 +92,7 @@ static bool register_rt_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_representation_theory_register(void)
+int preset_representation_theory_register(void)
 {
     int success_count = 0;
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_tree.c
  * @brief Lv00ProofTree / Lv00ProofTreeNode implementation
  */
@@ -47,23 +47,23 @@ static void free_node_recursive(Lv00ProofTreeNode *n) {
 }
 
 static bool ensure_node_capacity(Lv00ProofTree *tree) {
-    if (tree->node_count < tree->node_capacity) return true;
+    if (tree->node_count < tree->node_capacity) return 0;
     int new_cap = tree->node_capacity * 2;
     Lv00ProofTreeNode **p = (Lv00ProofTreeNode **)realloc(tree->all_nodes, (size_t)new_cap * sizeof(Lv00ProofTreeNode *));
-    if (!p) return false;
+    if (!p) return -1;
     tree->all_nodes = p;
     tree->node_capacity = new_cap;
-    return true;
+    return 0;
 }
 
 static bool ensure_child_capacity(Lv00ProofTreeNode *parent) {
-    if (parent->child_count < parent->child_capacity) return true;
+    if (parent->child_count < parent->child_capacity) return 0;
     int new_cap = parent->child_capacity > 0 ? parent->child_capacity * 2 : INITIAL_CHILD_CAPACITY;
     Lv00ProofTreeNode **p = (Lv00ProofTreeNode **)realloc(parent->children, (size_t)new_cap * sizeof(Lv00ProofTreeNode *));
-    if (!p) return false;
+    if (!p) return -1;
     parent->children = p;
     parent->child_capacity = new_cap;
-    return true;
+    return 0;
 }
 
 Lv00ProofTree *lv00_proof_tree_create(const char *name, const char *strategy) {
@@ -154,8 +154,8 @@ void lv00_proof_tree_add_premise(void *tree, int idx, const char *name, bool neg
     node->premise_count++;
 }
 
-bool lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node) {
-    if (!node) return false;
+int lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node) {
+    if (!node) return -1;
     node->is_contradiction = true;
     node->is_contradiction_branch = true;
     /* Propagate to ancestors */
@@ -164,7 +164,7 @@ bool lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node) {
         p->is_contradiction_branch = true;
         p = p->parent;
     }
-    return true;
+    return 0;
 }
 
 static void export_node(const Lv00ProofTreeNode *n, int indent, char **buf, size_t *len, size_t *cap) {

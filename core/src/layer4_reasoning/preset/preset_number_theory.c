@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_number_theory.c
  * @brief 数论预设函数块 - 实现
  *
@@ -77,7 +77,7 @@ static bool register_number_theory_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_number_theory_register(void)
+int preset_number_theory_register(void)
 {
     int success_count = 0;
 

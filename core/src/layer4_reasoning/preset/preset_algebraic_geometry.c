@@ -23,7 +23,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_algebraic_geometry_register(void)
+int preset_algebraic_geometry_register(void)
 {
     int success_count = 0;
 

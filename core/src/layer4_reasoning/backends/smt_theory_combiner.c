@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_theory_combiner.c
  * @brief SMT theory combination dispatcher implementation
  *
@@ -126,7 +126,7 @@ void smt_combiner_destroy(Lv00TheoryCombiner *combiner) {
  * Theory registration
  * ======================================================================== */
 
-bool smt_combiner_add_theory(Lv00TheoryCombiner *combiner,
+int smt_combiner_add_theory(Lv00TheoryCombiner *combiner,
                              Lv00TheoryId theory_id,
                              int priority,
                              Lv00TheorySolverFn solver_fn,
@@ -168,7 +168,7 @@ bool smt_combiner_add_theory(Lv00TheoryCombiner *combiner,
     return true;
 }
 
-bool smt_combiner_set_enabled(Lv00TheoryCombiner *combiner,
+int smt_combiner_set_enabled(Lv00TheoryCombiner *combiner,
                               Lv00TheoryId theory_id,
                               bool enabled) {
     if (!combiner)

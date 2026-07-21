@@ -63,7 +63,7 @@ static bool register_calculus_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_calculus_register(void)
+int preset_calculus_register(void)
 {
     int success_count = 0;
 

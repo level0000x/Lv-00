@@ -1156,7 +1156,7 @@ fail:
 
 /* ==================== 内部共享函数 ==================== */
 
-bool collect_all_block_ids(const FuncBlock *fb, int **out_ids, int *out_count) {
+int collect_all_block_ids(const FuncBlock *fb, int **out_ids, int *out_count) {
     if (!fb || !out_ids || !out_count)
         return false;
 

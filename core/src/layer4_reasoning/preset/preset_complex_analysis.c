@@ -76,7 +76,7 @@ static bool register_complex_analysis_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_complex_analysis_register(void)
+int preset_complex_analysis_register(void)
 {
     int success_count = 0;
 

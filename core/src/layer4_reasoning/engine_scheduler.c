@@ -140,7 +140,7 @@ int lv00_engine_schedule(const char *task_name, int priority) {
  *
  * @return 全部任务执行成功返回 true，任一任务失败返回 false；队列为空时返回 true
  */
-bool lv00_engine_execute_pending(void) {
+int lv00_engine_execute_pending(void) {
     ensure_initialized();
 
     if (g_scheduler.count == 0) {

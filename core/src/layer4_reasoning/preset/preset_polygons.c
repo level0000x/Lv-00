@@ -21,7 +21,7 @@
 
 /* ==================== ģ��ע��ʵ�� ==================== */
 
-bool preset_polygons_register(void)
+int preset_polygons_register(void)
 {
     int success_count = 0;
 

@@ -79,14 +79,14 @@ void lv00_rule_library_destroy(Lv00RuleLibrary *library) {
     lv00_free((void **)&library);
 }
 
-bool lv00_rule_library_add(Lv00RuleLibrary *library, Lv00Rule *rule) {
+int lv00_rule_library_add(Lv00RuleLibrary *library, Lv00Rule *rule) {
     if (!library || !rule) return false;
     if (library->rule_count >= library->rule_capacity) return false;
     library->rules[library->rule_count++] = rule;
     return true;
 }
 
-bool lv00_rule_library_remove(Lv00RuleLibrary *library, uint32_t rule_id) {
+int lv00_rule_library_remove(Lv00RuleLibrary *library, uint32_t rule_id) {
     if (!library) return false;
     for (uint32_t i = 0; i < library->rule_count; i++) {
         if (library->rules[i] && library->rules[i]->id == rule_id) {
@@ -191,13 +191,13 @@ void lv00_rule_destroy(Lv00Rule *rule) {
     lv00_free((void **)&rule);
 }
 
-bool lv00_rule_set_description(Lv00Rule *rule, const char *description) {
+int lv00_rule_set_description(Lv00Rule *rule, const char *description) {
     if (!rule || !description) return false;
     lv00_strlcpy(rule->description, description, LV00_RULE_DESC_MAX_LEN);
     return true;
 }
 
-bool lv00_rule_add_variable(Lv00Rule *rule, const char *name, const char *type) {
+int lv00_rule_add_variable(Lv00Rule *rule, const char *name, const char *type) {
     if (!rule || !name || !type) return false;
     if (rule->var_count >= LV00_RULE_MAX_VARIABLES) return false;
     Lv00RuleVariable *v = &rule->variables[rule->var_count++];
@@ -208,7 +208,7 @@ bool lv00_rule_add_variable(Lv00Rule *rule, const char *name, const char *type) 
     return true;
 }
 
-bool lv00_rule_add_premise(Lv00Rule *rule, const char *pattern, bool is_optional) {
+int lv00_rule_add_premise(Lv00Rule *rule, const char *pattern, bool is_optional) {
     if (!rule || !pattern) return false;
     if (rule->premise_count >= LV00_RULE_MAX_PREMISES) return false;
     Lv00RulePremise *p = &rule->premises[rule->premise_count++];
@@ -219,7 +219,7 @@ bool lv00_rule_add_premise(Lv00Rule *rule, const char *pattern, bool is_optional
     return true;
 }
 
-bool lv00_rule_add_conclusion(Lv00Rule *rule, const char *pattern, TrustColor trust_color) {
+int lv00_rule_add_conclusion(Lv00Rule *rule, const char *pattern, TrustColor trust_color) {
     if (!rule || !pattern) return false;
     if (rule->conclusion_count >= LV00_RULE_MAX_CONCLUSIONS) return false;
     Lv00RuleConclusion *c = &rule->conclusions[rule->conclusion_count++];
@@ -228,7 +228,7 @@ bool lv00_rule_add_conclusion(Lv00Rule *rule, const char *pattern, TrustColor tr
     return true;
 }
 
-bool lv00_rule_add_tag(Lv00Rule *rule, const char *tag) {
+int lv00_rule_add_tag(Lv00Rule *rule, const char *tag) {
     if (!rule || !tag) return false;
     char **new_tags = lv00_realloc(rule->tags, (rule->tag_count + 1) * sizeof(char *));
     if (!new_tags) return false;
@@ -513,7 +513,7 @@ Lv00Rule *lv00_rule_copy(const Lv00Rule *rule) {
     return copy;
 }
 
-bool lv00_rule_library_save(const Lv00RuleLibrary *library, const char *path) {
+int lv00_rule_library_save(const Lv00RuleLibrary *library, const char *path) {
     if (!library || !path) return false;
     FILE *f = fopen(path, "w");
     if (!f) return false;

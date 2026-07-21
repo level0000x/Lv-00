@@ -74,7 +74,7 @@ static bool register_topology_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_topology_register(void)
+int preset_topology_register(void)
 {
     int success_count = 0;
 

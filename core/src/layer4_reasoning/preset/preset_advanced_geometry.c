@@ -82,7 +82,7 @@ static bool register_advanced_geometry_preset(
  * 模块注册实现
  * ============================================================ */
 
-bool preset_advanced_geometry_register(void)
+int preset_advanced_geometry_register(void)
 {
     int success_count = 0;
 

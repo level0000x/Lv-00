@@ -397,7 +397,7 @@ int preset_properties_to_string(PresetProperty properties, char *buffer, size_t 
     return (int) pos;
 }
 
-bool preset_properties_from_string(const char *str, PresetProperty *properties) {
+int preset_properties_from_string(const char *str, PresetProperty *properties) {
     if (str == NULL || properties == NULL) {
         return false;
     }
@@ -505,7 +505,7 @@ bool preset_module_get_names(const char *const *names, int count,
  *
  * @return true 注册成功，false 注册失败（如预设已存在或内存不足）
  */
-bool preset_common_register(void)
+int preset_common_register(void)
 {
     return preset_blocks_register_simple(
         "common",

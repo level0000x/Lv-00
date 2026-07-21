@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file conflict_detector.c
  * @brief 矛盾约束检测器实现
  *
@@ -1021,7 +1021,7 @@ int lv00_conflict_detect_all(const ConstraintGraph *graph,
     return 0;
 }
 
-bool lv00_conflict_detect_quick(const ConstraintGraph *graph) {
+int lv00_conflict_detect_quick(const ConstraintGraph *graph) {
     if (!graph) return false;
     
     ConflictReport *report = lv00_conflict_report_create();

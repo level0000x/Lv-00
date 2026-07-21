@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_set_theory.c
  * @brief 集合论预设函数块模块 - 实现
  *
@@ -84,7 +84,7 @@ static bool register_set_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_set_theory_register(void)
+int preset_set_theory_register(void)
 {
     int success_count = 0;
 

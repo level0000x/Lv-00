@@ -294,7 +294,7 @@ static int find_preset_index(const char *name) {
 
 /* ==================== 公共 API 实现 ==================== */
 
-bool preset_blocks_init(void) {
+int preset_blocks_init(void) {
     /* 幂等操作：已初始化则直接返回 */
     if (g_preset_registry.initialized) {
         return true;
@@ -888,7 +888,7 @@ static PresetExtendedCategory map_category_to_extended(PresetCategory category) 
 
 /* ==================== 通用简化注册 ==================== */
 
-bool preset_blocks_register_simple(const char *name, const char *description, PresetCategory category,
+int preset_blocks_register_simple(const char *name, const char *description, PresetCategory category,
                                    const PresetType *input_types, int input_count, PresetType output_type,
                                    const char *mathematical_definition, const char *complexity, bool is_constructive,
                                    bool is_reversible) {
@@ -1064,7 +1064,7 @@ static bool register_preset_internal(const char *name, const char *description, 
     return true;
 }
 
-bool preset_blocks_register_by_category(const char *name, const char *description, PresetExtendedCategory category,
+int preset_blocks_register_by_category(const char *name, const char *description, PresetExtendedCategory category,
                                         int input_count, int output_count) {
     return register_preset_internal(name, description, category, input_count, output_count);
 }

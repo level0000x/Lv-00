@@ -50,7 +50,7 @@ static bool register_ring_theory_preset(const char *name, const char *descriptio
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_ring_theory_register(void) {
+int preset_ring_theory_register(void) {
     int success_count = 0;
 
     /* ============================================================

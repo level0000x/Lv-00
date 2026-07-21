@@ -70,7 +70,7 @@ static bool register_trig_preset(
  * 模块注册实现
  * ============================================================ */
 
-bool preset_trigonometry_register(void)
+int preset_trigonometry_register(void)
 {
     int success_count = 0;
 

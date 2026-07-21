@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_contradiction.c
  * @brief 反证法与矛盾推演系统实现
  *
@@ -177,7 +177,7 @@ void lv00_contradiction_closure_destroy(Lv00ContradictionClosure *closure) {
     lv00_free((void **)&closure);
 }
 
-bool lv00_contradiction_closure_close(Lv00ContradictionClosure *closure) {
+int lv00_contradiction_closure_close(Lv00ContradictionClosure *closure) {
     if (!closure) return false;
     if (closure->is_closed) return false;
 
@@ -352,7 +352,7 @@ Lv00ProofScopeId lv00_proof_begin_contradiction(Lv00ProofNavigatorEx *navigator,
     return scope_id;
 }
 
-bool lv00_proof_end_contradiction(Lv00ProofNavigatorEx *navigator,
+int lv00_proof_end_contradiction(Lv00ProofNavigatorEx *navigator,
                                    Lv00ProofScopeId scope_id,
                                    Lv00ContradictionClosure **out_closure) {
     if (!navigator) return false;

@@ -41,7 +41,7 @@ static bool register_comb_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_combinatorics_register(void)
+int preset_combinatorics_register(void)
 {
     int success_count = 0;
 

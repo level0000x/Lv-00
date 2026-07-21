@@ -23,7 +23,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_coding_theory_register(void)
+int preset_coding_theory_register(void)
 {
     int success_count = 0;
 

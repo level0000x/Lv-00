@@ -21,7 +21,7 @@
 
 /* ==================== ģ��ע��ʵ�� ==================== */
 
-bool preset_transformations_register(void)
+int preset_transformations_register(void)
 {
     int success_count = 0;
 

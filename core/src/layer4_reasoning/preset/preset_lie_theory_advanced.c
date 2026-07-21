@@ -23,7 +23,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_lie_theory_advanced_register(void)
+int preset_lie_theory_advanced_register(void)
 {
     int success_count = 0;
 

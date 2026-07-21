@@ -74,7 +74,7 @@ static bool register_analysis_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_analysis_register(void)
+int preset_analysis_register(void)
 {
     int success_count = 0;
 

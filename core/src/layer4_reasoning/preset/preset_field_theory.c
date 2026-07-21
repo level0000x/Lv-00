@@ -85,7 +85,7 @@ static bool register_field_theory_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_field_theory_register(void)
+int preset_field_theory_register(void)
 {
     int success_count = 0;
 

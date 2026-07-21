@@ -60,7 +60,7 @@ static const PresetType TYPES_SCALAR_MODULE[] = {PRESET_TYPE_FIELD, PRESET_TYPE_
 
 /* ---- 公共 API ---- */
 
-bool preset_abstract_algebra_register(void) {
+int preset_abstract_algebra_register(void) {
     int success_count = 0;
 
     /* ============ 群论 (9) ============ */
@@ -200,7 +200,7 @@ int preset_abstract_algebra_count(void) {
     return ABSTRACT_ALGEBRA_PRESET_COUNT;
 }
 
-bool preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
+int preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
     if (!out_names || !out_count) return false;
 
     static const char *names[] = {

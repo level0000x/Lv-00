@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_logic_advanced.c
  * @brief 高级逻辑预设函数块 - 实现
  *
@@ -64,7 +64,7 @@ static bool register_logic_advanced_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_logic_advanced_register(void)
+int preset_logic_advanced_register(void)
 {
     int success_count = 0;
 

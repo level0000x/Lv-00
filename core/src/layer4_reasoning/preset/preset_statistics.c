@@ -55,7 +55,7 @@ static bool register_stat_preset(
  * 模块注册实现
  * ============================================================ */
 
-bool preset_statistics_register(void)
+int preset_statistics_register(void)
 {
     int success_count = 0;
 
