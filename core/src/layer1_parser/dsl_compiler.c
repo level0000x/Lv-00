@@ -87,8 +87,8 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
                 if (!tokens) return false;
             }
             tokens[count].line = line;
-            tokens[count].type = (c == '=') ? DSL_TOK_EQ : (c == '(') ? DSL_TOK_LPAREN :
-                                 (c == ')') ? DSL_TOK_RPAREN : (c == ',') ? DSL_TOK_COMMA : DSL_TOK_SEMICOLON;
+            tokens[count].type = (c == '=') ? DSL_TOK_ASSIGN : (c == '(') ? DSL_TOK_LPAREN :
+                                 (c == ')') ? DSL_TOK_RPAREN : (c == ',') ? DSL_TOK_COMMA : DSL_TOK_SEMI;
             tokens[count].lexeme = (c == '=') ? "=" : (c == '(') ? "(" :
                                    (c == ')') ? ")" : (c == ',') ? "," : ";";
             count++;
@@ -121,8 +121,8 @@ bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
     memset(root, 0, sizeof(*root));
     root->type = DSL_AST_PROGRAM;
     root->name = NULL;
-    root->children_capacity = 4;
-    root->children = lv00_malloc(sizeof(DslAST *) * root->children_capacity);
+    root->child_capacity = 4;
+    root->children = lv00_malloc(sizeof(DslAST *) * root->child_capacity);
     if (!root->children) { lv00_free(root); return false; }
 
     /* 简单解析：每个顶层语句作为一个子节点 */
@@ -142,9 +142,9 @@ bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
             }
             stmt->num_value = 0.0;
 
-            if (root->child_count >= root->children_capacity) {
-                root->children_capacity *= 2;
-                root->children = lv00_realloc(root->children, sizeof(DslAST *) * root->children_capacity);
+            if (root->child_count >= root->child_capacity) {
+                root->child_capacity *= 2;
+                root->children = lv00_realloc(root->children, sizeof(DslAST *) * root->child_capacity);
                 if (!root->children) continue;
             }
             root->children[root->child_count++] = stmt;

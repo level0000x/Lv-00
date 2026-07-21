@@ -185,6 +185,7 @@ static void add_parent_edge(Lv00DynGraph *graph, int node_idx, int parent_idx)
 
 /**
  * @brief 添加子节点关系
+ */
 static void add_child_edge(Lv00DynGraph *graph, int node_idx, int child_idx)
 {
     /* 计算当前子节点数量 */

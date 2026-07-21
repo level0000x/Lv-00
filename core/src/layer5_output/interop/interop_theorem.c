@@ -552,13 +552,8 @@ char **interop_get_command_completions(LV00Engine *engine, const char *prefix, i
     }
 
     /* 当前图中的节点名称和约束名称补全 */
-    /* 从 engine 获取实时节点/约束名称列表 */
-    if (engine) {
-        LV00SystemInfo info;
-        if (lv00_get_system_info((LV00Engine *)engine, &info)) {
-            /* 引擎中有活跃节点时，节点名称已通过 graph_add_node 注册 */
-        }
-    }
+    /* 从 engine 获取实时节点/约束名称列表（暂未实现） */
+    (void)engine;
 
     if (count == 0) {
         free(result);

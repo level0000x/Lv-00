@@ -36,8 +36,8 @@ bool approx_count_solutions(const ConstraintGraph *graph,
 
     memset(out, 0, sizeof(*out));
     out->cell_sol_count = 1;   /* 最小实现：返回 1 个解 */
-    out->hash_levels = 1;
-    out->total_estimate = 1;
+    out->hash_count = 1;
+    out->total_count = 1;
 
     (void)cfg;
     return true;
@@ -51,8 +51,8 @@ bool approx_count_projected(const ConstraintGraph *graph,
 
     memset(out, 0, sizeof(*out));
     out->cell_sol_count = 1;
-    out->hash_levels = 1;
-    out->total_estimate = 1;
+    out->hash_count = 1;
+    out->total_count = 1;
 
     (void)proj_vars;
     (void)proj_count;
@@ -77,7 +77,7 @@ double approx_count_get_pac_bound(const PacConfig *cfg,
     if (!cfg || !res) return 0.0;
 
     /* PAC 误差界：epsilon × estimate */
-    return cfg->epsilon * (double)res->total_estimate;
+    return cfg->epsilon * (double)res->total_count;
 }
 
 void approx_count_result_free(ApproxCountResult *res) {
@@ -97,6 +97,6 @@ bool is_approximately_constructible(const ConstraintGraph *graph,
 
     if (!approx_count_solutions(graph, &cfg, &result)) return false;
 
-    double prob = (double)result.total_estimate / (1.0 + (double)result.total_estimate);
+    double prob = (double)result.total_count / (1.0 + (double)result.total_count);
     return prob >= min_prob;
 }

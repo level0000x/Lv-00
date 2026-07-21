@@ -304,3 +304,54 @@ bool circuit_has_frozen_point(void) {
 void *circuit_get_frozen_point(void) {
     return g_overflow_context.frozen_point;
 }
+
+/* ============================================================
+ * 桩实现：symbolics/ 子目录中的内部函数
+ *
+ * 这些函数定义在 core/src/layer3_geometry/symbolics/ 下的
+ * algebraic.c / rational.c / quadratic.c / transcendental.c 中，
+ * 但当前构建系统未编译这些文件。此处提供简单桩实现以确保链接。
+ * 后续完整实现时应移除这些桩并编译 symbolics/ 子目录。
+ * ============================================================ */
+
+double algebraic_to_double(const Algebraic *a) {
+    (void)a;
+    return 0.0;
+}
+
+double quadratic_to_double(const Quadratic *q) {
+    (void)q;
+    return 0.0;
+}
+
+double transcendental_to_double(const Transcendental *t) {
+    (void)t;
+    return 0.0;
+}
+
+bool is_rational_zero(const Rational *r) {
+    if (!r) return true;
+    return mpq_sgn(r->value) == 0;
+}
+
+void refine_algebraic_bounds(Algebraic *a, int iterations) {
+    (void)a;
+    (void)iterations;
+}
+
+int remove_square_factors(int n) {
+    if (n <= 1) return n;
+    int result = 1;
+    for (int d = 2; d * d <= n; d++) {
+        int count = 0;
+        while (n % d == 0) {
+            n /= d;
+            count++;
+        }
+        if (count % 2 != 0) {
+            result *= d;
+        }
+    }
+    if (n > 1) result *= n;
+    return result;
+}

@@ -28,7 +28,7 @@ int lv00_tikz_export(void *graph, char *out, size_t buf_size) {
     if (!graph || !out || buf_size == 0) return -1;
 
     const char *header =
-        "%% Lv-00 TikZ Export v" LV00_VERSION_STR "\n"
+        "%% Lv-00 TikZ Export v" LV00_VERSION_STRING "\n"
         "\\begin{tikzpicture}[scale=1.0, every node/.style={font=\\small}]\n"
         "  %% Geometry content\n"
         "  %% (Full export requires Layer 2 tikz_export backend)\n"

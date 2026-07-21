@@ -18,6 +18,7 @@
 
 #include "lv00/engine.h"
 #include "lv00/context.h"
+#include "lv00/dsl_compiler.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "func_block_preset.h"

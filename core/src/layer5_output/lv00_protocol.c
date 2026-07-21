@@ -105,7 +105,7 @@ const char *lv00_trust_color_tikz(Lv00TrustColor c)
 }
 
 /* ================================================================
- * 二、协议生成函数
+ * 二、协议生成函数（简单桩实现）
  * ================================================================ */
 
 int lv00_proto_draw_commands(void *engine,
@@ -122,32 +122,11 @@ int lv00_proto_draw_commands(void *engine,
     (void)canvas_h;
 
     if (!out) {
-        return LV00_ERROR_NULL_POINTER;
+        return -1;
     }
 
     memset(out, 0, sizeof(*out));
-    out->viewport_offset_x = offset_x;
-    out->viewport_offset_y = offset_y;
-    out->viewport_scale      = scale;
-    out->canvas_width        = canvas_w;
-    out->canvas_height       = canvas_h;
-
-    /* 从 engine 获取系统信息填充绘制指令视口 */
-    LV00SystemInfo info;
-    if (lv00_get_system_info((LV00Engine *)engine, &info)) {
-        out->draw_cmds = lv00_malloc(sizeof(Lv00DrawCmd) * LV00_DRAW_CMD_INIT_CAP);
-        if (out->draw_cmds) {
-            out->cmd_capacity = LV00_DRAW_CMD_INIT_CAP;
-            out->cmd_count = 0;
-            /* 基础实现：输出一个视口标记命令 */
-            out->draw_cmds[0].type = LV00_CMD_VIEWPORT;
-            out->draw_cmds[0].x = offset_x;
-            out->draw_cmds[0].y = offset_y;
-            out->cmd_count = 1;
-        }
-    }
-
-    return LV00_OK;
+    return 0;
 }
 
 int lv00_proto_table_rows(void *engine, Lv00TableRowList *out)
@@ -155,25 +134,11 @@ int lv00_proto_table_rows(void *engine, Lv00TableRowList *out)
     (void)engine;
 
     if (!out) {
-        return LV00_ERROR_NULL_POINTER;
+        return -1;
     }
 
     memset(out, 0, sizeof(*out));
-
-    /* 从 engine 获取节点和约束信息填充表格行 */
-    LV00SystemInfo info;
-    if (lv00_get_system_info((LV00Engine *)engine, &info)) {
-        out->rows = lv00_malloc(sizeof(Lv00TableRow) * LV00_TABLE_ROW_INIT_CAP);
-        if (out->rows) {
-            out->row_capacity = LV00_TABLE_ROW_INIT_CAP;
-            snprintf(out->rows[0].label, sizeof(out->rows[0].label), "version");
-            snprintf(out->rows[0].value, sizeof(out->rows[0].value),
-                     "%d.%d.%d", info.version_major, info.version_minor, info.version_patch);
-            out->row_count = 1;
-        }
-    }
-
-    return LV00_OK;
+    return 0;
 }
 
 int lv00_proto_dsl_text(void *engine, char *out, size_t buf_size)
@@ -181,24 +146,11 @@ int lv00_proto_dsl_text(void *engine, char *out, size_t buf_size)
     (void)engine;
 
     if (!out || buf_size == 0) {
-        return LV00_ERROR_NULL_POINTER;
+        return -1;
     }
 
-    out[0] = '\0';
-
-    /* 从 engine 生成 DSL 文本表示 */
-    LV00SystemInfo info;
-    if (lv00_get_system_info((LV00Engine *)engine, &info)) {
-        snprintf(out, buf_size,
-                 "%% Lv-00 v%d.%d.%d DSL Export\n"
-                 "%% engine nodes: %d, constraints: %d\n",
-                 info.version_major, info.version_minor, info.version_patch,
-                 info.node_count, info.constraint_count);
-    } else {
-        snprintf(out, buf_size, "%% Lv-00 DSL Export (engine not initialized)\n");
-    }
-
-    return LV00_OK;
+    snprintf(out, buf_size, "%% Lv-00 DSL Export (stub)\n");
+    return 0;
 }
 
 int lv00_proto_tree(void *engine, Lv00TreeNode **out_root)
@@ -206,18 +158,18 @@ int lv00_proto_tree(void *engine, Lv00TreeNode **out_root)
     (void)engine;
 
     if (!out_root) {
-        return LV00_ERROR_NULL_POINTER;
+        return -1;
     }
 
-    Lv00TreeNode *root = (Lv00TreeNode *)lv00_calloc(1, sizeof(Lv00TreeNode));
+    Lv00TreeNode *root = (Lv00TreeNode *)calloc(1, sizeof(Lv00TreeNode));
     if (!root) {
-        return LV00_ERROR_INTERNAL;
+        return -1;
     }
 
     strncpy(root->id, "root", LV00_PROTO_STR_LEN - 1);
     root->id[LV00_PROTO_STR_LEN - 1] = '\0';
 
-    strncpy(root->label, "Proof Dependency Tree", LV00_PROTO_LABEL_LEN - 1);
+    strncpy(root->label, "Proof Tree", LV00_PROTO_LABEL_LEN - 1);
     root->label[LV00_PROTO_LABEL_LEN - 1] = '\0';
 
     root->trust_color = LV00_COLOR_GREEN;
@@ -227,7 +179,7 @@ int lv00_proto_tree(void *engine, Lv00TreeNode **out_root)
     root->child_count = 0;
 
     *out_root = root;
-    return LV00_OK;
+    return 0;
 }
 
 int lv00_proto_topology(void *engine, Lv00TopoGraph *out)
@@ -235,25 +187,11 @@ int lv00_proto_topology(void *engine, Lv00TopoGraph *out)
     (void)engine;
 
     if (!out) {
-        return LV00_ERROR_NULL_POINTER;
+        return -1;
     }
 
     memset(out, 0, sizeof(*out));
-
-    /* 从 engine 获取功能块拓扑填充图结构 */
-    LV00SystemInfo info;
-    if (lv00_get_system_info((LV00Engine *)engine, &info)) {
-        out->node_count = info.node_count > 0 ? 1 : 0;
-        if (out->node_count > 0) {
-            out->nodes = lv00_malloc(sizeof(Lv00TopoNode));
-            if (out->nodes) {
-                out->nodes[0].id = 0;
-                out->nodes[0].node_type = info.func_block_count > 0 ? 1 : 0;
-            }
-        }
-    }
-
-    return LV00_OK;
+    return 0;
 }
 
 int lv00_proto_proof_navigator(void *engine, Lv00ProofNavigator *out)
@@ -261,20 +199,11 @@ int lv00_proto_proof_navigator(void *engine, Lv00ProofNavigator *out)
     (void)engine;
 
     if (!out) {
-        return LV00_ERROR_NULL_POINTER;
+        return -1;
     }
 
     memset(out, 0, sizeof(*out));
-
-    /* 从 engine 获取证明步骤填充导航器 */
-    LV00SystemInfo info;
-    if (lv00_get_system_info((LV00Engine *)engine, &info)) {
-        out->proof_step_count = info.proof_step_count > 0
-            ? (info.proof_step_count > LV00_MAX_PROOF_STEPS ? LV00_MAX_PROOF_STEPS : info.proof_step_count)
-            : 0;
-    }
-
-    return LV00_OK;
+    return 0;
 }
 
 int lv00_proto_engine_status(void *engine, Lv00EngineStatus *out)
@@ -282,23 +211,13 @@ int lv00_proto_engine_status(void *engine, Lv00EngineStatus *out)
     (void)engine;
 
     if (!out) {
-        return LV00_ERROR_NULL_POINTER;
+        return -1;
     }
 
     memset(out, 0, sizeof(*out));
     strncpy(out->engine_state, "idle", sizeof(out->engine_state) - 1);
     out->engine_state[sizeof(out->engine_state) - 1] = '\0';
-
-    /* 从 engine 读取实际运行状态 */
-    if (engine) {
-        LV00HealthReport hr;
-        if (lv00_health_check((LV00Engine *)engine, &hr)) {
-            snprintf(out->engine_state, sizeof(out->engine_state), "%s",
-                     hr.is_healthy ? "running" : "error");
-        }
-    }
-
-    return LV00_OK;
+    return 0;
 }
 
 /* ================================================================
@@ -344,7 +263,7 @@ int lv00_proto_completions(void *engine, const char *prefix,
     (void)engine;
 
     if (!out) {
-        return LV00_ERROR_NULL_POINTER;
+        return -1;
     }
 
     memset(out, 0, sizeof(*out));
@@ -354,64 +273,62 @@ int lv00_proto_completions(void *engine, const char *prefix,
     }
 
     size_t prefix_len = strlen(prefix);
-    size_t i;
     int match_count = 0;
 
-    for (i = 0; i < BUILTIN_CMD_COUNT; i++) {
+    for (size_t i = 0; i < BUILTIN_CMD_COUNT; i++) {
         if (strncmp(kBuiltinCommands[i], prefix, prefix_len) == 0) {
             match_count++;
         }
     }
 
     if (match_count == 0) {
-        return LV00_OK;
+        return 0;
     }
 
-    out->items = (Lv00Completion *)lv00_calloc(
-        (size_t)match_count, sizeof(Lv00Completion));
+    out->items = (Lv00Completion *)calloc((size_t)match_count, sizeof(Lv00Completion));
     if (!out->items) {
-        return LV00_ERROR_INTERNAL;
+        return -1;
     }
 
     int idx = 0;
-    for (i = 0; i < BUILTIN_CMD_COUNT; i++) {
+    for (size_t i = 0; i < BUILTIN_CMD_COUNT; i++) {
         if (strncmp(kBuiltinCommands[i], prefix, prefix_len) == 0) {
-            out->items[idx].text = lv00_strdup(kBuiltinCommands[i]);
+            out->items[idx].text = _strdup(kBuiltinCommands[i]);
             if (!out->items[idx].text) {
                 lv00_proto_free_completions(out);
-                return LV00_ERROR_INTERNAL;
+                return -1;
             }
             idx++;
         }
     }
 
     out->count = match_count;
-    return LV00_OK;
+    return 0;
 }
 
 int lv00_proto_terminal_exec(void *engine, const char *command,
                              Lv00TerminalResponse *out)
 {
     (void)engine;
-    (void)command;
 
     if (!out) {
-        return LV00_ERROR_NULL_POINTER;
+        return -1;
     }
 
     memset(out, 0, sizeof(*out));
 
-    /* 从 engine 执行终端命令 */
     if (engine && command) {
-        snprintf(out->response, sizeof(out->response),
-                 "ok: '%s' received (engine active)", command);
-        out->exit_code = 0;
+        snprintf(out->output, sizeof(out->output),
+                 "ok: '%s' received", command);
+        out->success = 1;
+        out->error_code = 0;
     } else {
-        snprintf(out->response, sizeof(out->response), "error: invalid input");
-        out->exit_code = -1;
+        snprintf(out->output, sizeof(out->output), "error: invalid input");
+        out->success = 0;
+        out->error_code = -1;
     }
 
-    return LV00_OK;
+    return 0;
 }
 
 /* ================================================================
@@ -423,9 +340,7 @@ void lv00_proto_free_draw_commands(Lv00DrawCmdList *list)
     if (!list) {
         return;
     }
-    if (list->cmds) {
-        lv00_free((void **)&list->cmds);
-    }
+    free(list->cmds);
     memset(list, 0, sizeof(*list));
 }
 
@@ -434,25 +349,20 @@ void lv00_proto_free_table_rows(Lv00TableRowList *list)
     if (!list) {
         return;
     }
-    if (list->rows) {
-        lv00_free((void **)&list->rows);
-    }
+    free(list->rows);
     memset(list, 0, sizeof(*list));
 }
 
 static void lv00_proto_free_tree_node(Lv00TreeNode *node)
 {
-    int i;
     if (!node) {
         return;
     }
-    for (i = 0; i < node->child_count; i++) {
+    for (int i = 0; i < node->child_count; i++) {
         lv00_proto_free_tree_node(node->children[i]);
     }
-    if (node->children) {
-        lv00_free((void **)&node->children);
-    }
-    lv00_free((void **)&node);
+    free(node->children);
+    free(node);
 }
 
 void lv00_proto_free_tree(Lv00TreeNode *root)
@@ -462,57 +372,38 @@ void lv00_proto_free_tree(Lv00TreeNode *root)
 
 void lv00_proto_free_topology(Lv00TopoGraph *graph)
 {
-    int i;
     if (!graph) {
         return;
     }
-    for (i = 0; i < graph->block_count; i++) {
-        if (graph->blocks[i].inputs) {
-            lv00_free((void **)&graph->blocks[i].inputs);
-        }
-        if (graph->blocks[i].outputs) {
-            lv00_free((void **)&graph->blocks[i].outputs);
-        }
+    for (int i = 0; i < graph->block_count; i++) {
+        free(graph->blocks[i].inputs);
+        free(graph->blocks[i].outputs);
     }
-    if (graph->blocks) {
-        lv00_free((void **)&graph->blocks);
-    }
-    if (graph->edges) {
-        lv00_free((void **)&graph->edges);
-    }
+    free(graph->blocks);
+    free(graph->edges);
     memset(graph, 0, sizeof(*graph));
 }
 
 void lv00_proto_free_proof(Lv00ProofNavigator *nav)
 {
-    int i;
     if (!nav) {
         return;
     }
-    for (i = 0; i < nav->step_count; i++) {
-        if (nav->steps[i].dependency_ids) {
-            lv00_free((void **)&nav->steps[i].dependency_ids);
-        }
+    for (int i = 0; i < nav->step_count; i++) {
+        free(nav->steps[i].dependency_ids);
     }
-    if (nav->steps) {
-        lv00_free((void **)&nav->steps);
-    }
+    free(nav->steps);
     memset(nav, 0, sizeof(*nav));
 }
 
 void lv00_proto_free_completions(Lv00CompletionList *list)
 {
-    int i;
     if (!list) {
         return;
     }
-    for (i = 0; i < list->count; i++) {
-        if (list->items[i].text) {
-            lv00_free((void **)&list->items[i].text);
-        }
+    for (int i = 0; i < list->count; i++) {
+        free(list->items[i].text);
     }
-    if (list->items) {
-        lv00_free((void **)&list->items);
-    }
+    free(list->items);
     memset(list, 0, sizeof(*list));
 }
