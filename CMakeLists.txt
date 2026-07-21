@@ -525,6 +525,7 @@ set(LV00_LAYER1_SOURCES
 # 依赖：GMP，C 标准库（仅 Layer 2 能直接依赖 GMP 链接）
 set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/lv00_utils.c
+    core/src/layer2_resource/lv00_numeric.c
     core/src/layer2_resource/lv00_config.c
     core/src/layer2_resource/lv00.c
     core/src/layer2_resource/context.c

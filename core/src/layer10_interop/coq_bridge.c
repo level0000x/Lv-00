@@ -33,7 +33,9 @@ typedef struct {
     Lv00ProofStep *steps;        /* 步骤数组 */
 } Lv00CoqProof;
 
-/* Coq proof export: 将 Lv-00 证明转换为 Coq vernacular */
+/**
+ * @brief Coq 证明导出
+ */
 static int coq_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0) return -1;
 
@@ -107,7 +109,9 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
     return 0;
 }
 
-/* Coq proof import: 解析 Coq vernacular 并转换为 Lv-00 证明 */
+/**
+ * @brief Coq 证明导入
+ */
 static int coq_import_proof(const char *input, void **proof) {
     if (!input || !proof) return -1;
     *proof = NULL;
@@ -234,7 +238,9 @@ static int coq_import_proof(const char *input, void **proof) {
     return 0;
 }
 
-/* Coq validation: 校验 Coq 输入的基本语法 */
+/**
+ * @brief Coq 输入校验
+ */
 static int coq_validate(const char *input) {
     if (!input) return 0;
     if (strlen(input) == 0) return 0;

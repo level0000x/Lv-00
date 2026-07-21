@@ -5,7 +5,9 @@
 #include <string.h>
 #include <stdio.h>
 
-/* JSON 字符串转义：将原始字符串写入输出缓冲区，转义 " \ 和控制字符 */
+/**
+ * @brief JSON 字符串转义
+ */
 static int json_escape_string(const char *src, char *dst, int dst_size) {
     int pos = 0;
     if (!src || !dst || dst_size <= 0) return 0;
@@ -63,7 +65,9 @@ typedef struct {
     char axioms[1024];           /* 公理列表（逗号分隔） */
 } Lv00OpmlProof;
 
-/* 步骤类型名称映射（用于 JSON 输出） */
+/**
+ * @brief 将步骤类型枚举映射为字符串名称
+ */
 static const char *step_type_name(int type) {
     switch (type) {
         case LV00_STEP_ADD_NODE:        return "add_node";
@@ -79,7 +83,9 @@ static const char *step_type_name(int type) {
     }
 }
 
-/* OPML JSON export: 将 Lv-00 证明转换为 OPML JSON 格式 */
+/**
+ * @brief OPML JSON 导出
+ */
 static int opml_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0) return -1;
 
@@ -226,13 +232,17 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
 /* OPML JSON 导入 —— 解析 OPML JSON 并构建 Lv-00 证明树 */
 
-/* 辅助：跳过 JSON 空白字符 */
+/**
+ * @brief 跳过 JSON 空白字符
+ */
 static const char *json_skip_ws(const char *p) {
     while (p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')) p++;
     return p;
 }
 
-/* 辅助：提取 JSON 字符串值（从 " 开始到下一个 "），返回值写入 buf */
+/**
+ * @brief 提取 JSON 字符串值并写入缓冲区
+ */
 static const char *json_extract_string(const char *p, char *buf, int buf_size) {
     if (!p || *p != '"') return NULL;
     p++; /* 跳过开头 " */
@@ -274,7 +284,9 @@ static const char *json_extract_string(const char *p, char *buf, int buf_size) {
     return p;
 }
 
-/* 辅助：在 JSON 对象中查找指定键，返回键对应的值位置 */
+/**
+ * @brief 在 JSON 对象中查找指定键的值位置
+ */
 static const char *json_find_key(const char *obj_start, const char *key) {
     if (!obj_start || !key) return NULL;
     char search[256];
@@ -294,7 +306,9 @@ static const char *json_find_key(const char *obj_start, const char *key) {
     return NULL;
 }
 
-/* 辅助：提取 JSON 数组中的所有字符串值 */
+/**
+ * @brief 提取 JSON 数组中的所有字符串值
+ */
 static int json_extract_string_array(const char *arr_start, char **out, int max_count, int max_len) {
     if (!arr_start || *arr_start != '[') return 0;
     arr_start++; /* 跳过 [ */
@@ -314,7 +328,9 @@ static int json_extract_string_array(const char *arr_start, char **out, int max_
     return count;
 }
 
-/* 辅助：解析嵌套 JSON 对象（花括号匹配），返回对象结束后的位置 */
+/**
+ * @brief 解析嵌套 JSON 对象并返回结束位置
+ */
 static const char *json_skip_object(const char *p) {
     if (!p || *p != '{') return p;
     int depth = 0;
@@ -329,7 +345,9 @@ static const char *json_skip_object(const char *p) {
     return p;
 }
 
-/* 辅助：从 theory JSON 中提取 axiom 名称列表和 definition 名称列表 */
+/**
+ * @brief 从 theory 段提取公理和定义名称列表
+ */
 static void parse_theory_section(const char *theory_json,
                                   char axioms[][256], int *axiom_count, int max_axioms,
                                   char definitions[][256], int *def_count, int max_defs) {
@@ -372,7 +390,9 @@ static void parse_theory_section(const char *theory_json,
     }
 }
 
-/* 辅助：从 proof JSON 中提取 proof steps（name + type） */
+/**
+ * @brief 从 proof 段提取证明步骤
+ */
 static void parse_proof_steps(const char *proof_json,
                                Lv00OpmlProof *proof, int max_steps) {
     if (!proof_json || !proof) return;
@@ -418,6 +438,9 @@ static void parse_proof_steps(const char *proof_json,
     }
 }
 
+/**
+ * @brief OPML JSON 导入
+ */
 static int opml_import_proof(const char *input, void **proof) {
     if (!input || !proof) return -1;
 
@@ -518,7 +541,9 @@ static int opml_import_proof(const char *input, void **proof) {
     return 0;
 }
 
-/* OPML 校验 */
+/**
+ * @brief OPML 输入校验
+ */
 static int opml_validate(const char *input) {
     if (!input) return 0;
     /* 检查 OPML 版本头 */

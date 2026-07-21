@@ -1882,6 +1882,9 @@ static double univar_eval(double x, void *ctx) {
     return result;
 }
 
+/**
+ * @brief 单变量多项式求导
+ */
 static double univar_deriv(double x, void *ctx) {
     UnivariatePolyCtx *uc = (UnivariatePolyCtx *)ctx;
     double result = 0.0;

@@ -20,6 +20,9 @@
 
 static int64_t g_native_id = 2000000;
 
+/**
+ * @brief 分配全局原生ID
+ */
 static int64_t native_id_alloc(void) {
     return g_native_id++;
 }
@@ -34,16 +37,25 @@ typedef struct {
     mpq_t   y;
 } Coord;
 
+/**
+ * @brief 用字符串坐标初始化坐标对象
+ */
 static void coord_init(Coord* c, const char* x_str, const char* y_str) {
     mpq_init(c->x); mpq_set_str(c->x, x_str, 10);
     mpq_init(c->y); mpq_set_str(c->y, y_str, 10);
 }
 
+/**
+ * @brief 用整数坐标初始化坐标对象
+ */
 static void coord_init_si(Coord* c, long x_num, long y_num) {
     mpq_init(c->x); mpq_set_si(c->x, x_num, 1);
     mpq_init(c->y); mpq_set_si(c->y, y_num, 1);
 }
 
+/**
+ * @brief 释放坐标对象的GMP内存
+ */
 static void coord_clear(Coord* c) {
     if (c) { mpq_clear(c->x); mpq_clear(c->y); }
 }
@@ -224,10 +236,16 @@ Rational* rational_from_int(long n) {
     return rational_create_si(n, 1);
 }
 
+/**
+ * @brief 销毁有理数对象并释放内存
+ */
 static void rational_destroy(Rational* r) {
     if (r) { mpq_clear(r->val); free(r); }
 }
 
+/**
+ * @brief GMP精确有理数加法
+ */
 static Rational* rational_add(const Rational* a, const Rational* b) {
     if (!a || !b) return NULL;
     Rational* r = (Rational*)malloc(sizeof(Rational));
@@ -316,9 +334,18 @@ typedef struct {
     int        edge_cap;
 } ConstraintGraph;
 
+/**
+ * @brief 释放图节点的GMP值内存
+ */
 static void graph_node_clear(GraphNode* n) { if (n) mpq_clear(n->value); }
+/**
+ * @brief 释放图边的GMP权重内存
+ */
 static void graph_edge_clear(GraphEdge* e) { if (e) mpq_clear(e->weight); }
 
+/**
+ * @brief 创建约束图并分配初始缓冲区
+ */
 static ConstraintGraph* graph_create(void) {
     ConstraintGraph* g = (ConstraintGraph*)calloc(1, sizeof(ConstraintGraph));
     if (!g) return NULL;
@@ -330,6 +357,9 @@ static ConstraintGraph* graph_create(void) {
     return g;
 }
 
+/**
+ * @brief 销毁约束图并释放所有内存
+ */
 static void graph_destroy(ConstraintGraph* g) {
     if (!g) return;
     for (int i = 0; i < g->node_count; i++) graph_node_clear(&g->nodes[i]);
@@ -361,6 +391,9 @@ int64_t graph_add_node_si(ConstraintGraph* g, long num, long den, int pinned) {
     return id;
 }
 
+/**
+ * @brief 按ID删除约束图节点
+ */
 static int graph_remove_node(ConstraintGraph* g, int64_t node_id) {
     if (!g) return -1;
     for (int i = 0; i < g->node_count; i++) {
@@ -413,6 +446,9 @@ int graph_remove_edge(ConstraintGraph* g, int64_t edge_id) {
     return -1;
 }
 
+/**
+ * @brief 按索引获取约束图节点
+ */
 static const GraphNode* graph_get_node(const ConstraintGraph* g, int index) {
     if (!g || index < 0 || index >= g->node_count) return NULL;
     return &g->nodes[index];
@@ -450,6 +486,9 @@ int graph_solve(ConstraintGraph* g) {
     return 0;
 }
 
+/**
+ * @brief 将约束图中的值平移至非负
+ */
 static void graph_normalize(ConstraintGraph* g) {
     if (!g || g->node_count == 0) return;
     int min_idx = 0;
@@ -531,6 +570,9 @@ typedef struct ExprNode {
     int             exp;   /* exponent (if pow) */
 } Expr;
 
+/**
+ * @brief 创建表达式树的叶子节点
+ */
 static Expr* expr_new_leaf(int kind) {
     Expr* e = (Expr*)calloc(1, sizeof(Expr));
     if (!e) return NULL;
