@@ -182,16 +182,23 @@ int main(void) {
             lv00_he_mesh_add_vertex(mesh, 0, 1, 0));
 
         TEST("find_edge: 查找边");
-        /* 简化测试：边查找功能需要更完善的实现，暂时跳过 */
-        PASS(); tests_passed++;
+        Lv00Edge e01 = lv00_he_mesh_find_edge(mesh, v0, v1);
+        if (e01 != LV00_HE_INVALID) {
+            PASS(); tests_passed++;
+        } else { FAIL("find_edge 未能找到 v0-v1 的边"); tests_failed++; }
 
         TEST("edge_length: 计算边长（3-4-5 直角三角形）");
-        /* 简化测试：依赖边查找，暂时跳过 */
-        PASS(); tests_passed++;
+        double len = lv00_he_mesh_edge_length(mesh, e01);
+        if (len >= 4.9 && len <= 5.1) {
+            PASS(); tests_passed++;
+        } else { FAIL("边长应为 5.0"); tests_failed++; }
 
         TEST("edge_vertices: 获取边端点");
-        /* 简化测试：依赖边查找，暂时跳过 */
-        PASS(); tests_passed++;
+        Lv00Vertex ev1, ev2;
+        lv00_he_mesh_edge_vertices(mesh, e01, &ev1, &ev2);
+        if ((ev1 == v0 && ev2 == v1) || (ev1 == v1 && ev2 == v0)) {
+            PASS(); tests_passed++;
+        } else { FAIL("边端点不匹配"); tests_failed++; }
 
         lv00_he_mesh_free(mesh);
     }
@@ -314,8 +321,9 @@ int main(void) {
         } else { FAIL("统计信息不正确"); tests_failed++; }
 
         TEST("validate: 验证网格一致性");
-        /* 简化测试：验证逻辑过于严格，暂时跳过 */
-        PASS(); tests_passed++;
+        if (lv00_he_mesh_validate(mesh)) {
+            PASS(); tests_passed++;
+        } else { FAIL("网格验证失败"); tests_failed++; }
 
         lv00_he_mesh_free(mesh);
     }

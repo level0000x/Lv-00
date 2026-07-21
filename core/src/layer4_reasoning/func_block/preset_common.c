@@ -491,3 +491,31 @@ bool preset_module_get_names(const char *const *names, int count,
     *out_count = count;
     return true;
 }
+
+/* ============================================================
+ * 通用预设注册实现
+ * ============================================================ */
+
+/**
+ * @brief 注册通用 "common" 预设
+ *
+ * 将名为 "common" 的通用占位预设注册到预设系统中。
+ * 该预设接受任意类型输入（0 个输入端口），产生任意类型输出，
+ * 属于 Custom 类别，构造性操作，不可逆。
+ *
+ * @return true 注册成功，false 注册失败（如预设已存在或内存不足）
+ */
+bool preset_common_register(void)
+{
+    return preset_blocks_register_simple(
+        "common",
+        "通用预设块：默认占位符，接受任意输入并产生任意输出",
+        PRESET_CATEGORY_CUSTOM,
+        NULL, 0,
+        PRESET_TYPE_ANY,
+        "\\text{通用数学运算占位符}",
+        "O(1)",
+        true,
+        false
+    );
+}

@@ -33,7 +33,13 @@ static char *lv00_strtok_r(char *str, const char *delim, char **saveptr) {
  */
 int lv00_gappa_parse(const char *input) {
     if (!input) return -1;
-    return 0;
+    Lv00GappaPredicate *hyp = NULL;
+    Lv00GappaProofGoal *goals = NULL;
+    int hyp_count = 0, goal_count = 0;
+    bool ok = gappa_parse(input, &hyp, &hyp_count, &goals, &goal_count);
+    gappa_predicates_free(hyp, hyp_count);
+    gappa_goals_free(goals, goal_count);
+    return ok ? 0 : -1;
 }
 
 /**
@@ -46,9 +52,7 @@ int lv00_gappa_parse(const char *input) {
  */
 int lv00_gappa_eval(const char *expr, double *lo, double *hi) {
     if (!expr || !lo || !hi) return -1;
-    *lo = -1.0;
-    *hi =  1.0;
-    return 0;
+    return lv00_gappa_propagate(expr, lo, hi);
 }
 
 /**
@@ -59,7 +63,34 @@ int lv00_gappa_eval(const char *expr, double *lo, double *hi) {
  */
 char *lv00_gappa_prove(const char *script) {
     if (!script) return NULL;
-    return lv00_strdup("proof placeholder");
+
+    Lv00GappaPredicate *hyp = NULL;
+    Lv00GappaProofGoal *goals = NULL;
+    int hyp_count = 0, goal_count = 0;
+
+    if (!gappa_parse(script, &hyp, &hyp_count, &goals, &goal_count)) {
+        return lv00_strdup("proof result: parse error");
+    }
+
+    Lv00GappaProofResult result = gappa_prove(hyp, hyp_count, goals, goal_count, NULL);
+
+    char buf[512];
+    if (result.goals_total == 0) {
+        snprintf(buf, sizeof(buf), "proof result: no goals, %d hypotheses parsed",
+                 hyp_count);
+    } else if (result.success) {
+        snprintf(buf, sizeof(buf), "proof succeeded: all %d/%d goals proven",
+                 result.goals_proven, result.goals_total);
+    } else {
+        snprintf(buf, sizeof(buf), "proof result: %d/%d goals proven, %d failed",
+                 result.goals_proven, result.goals_total, result.goals_failed);
+    }
+
+    gappa_result_free(&result);
+    gappa_predicates_free(hyp, hyp_count);
+    gappa_goals_free(goals, goal_count);
+
+    return lv00_strdup(buf);
 }
 
 /* ── Structured API ── */

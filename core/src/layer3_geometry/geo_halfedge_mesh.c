@@ -941,10 +941,15 @@ bool lv00_he_mesh_validate(const Lv00HeMesh *mesh)
         if (mesh->he_vertex[he] < 0 || mesh->he_vertex[he] >= mesh->vertex_count) {
             return false;
         }
-        if (mesh->he_twin[he] >= mesh->halfedge_count) {
+        if (mesh->he_twin[he] < 0 || mesh->he_twin[he] >= mesh->halfedge_count) {
             return false;
         }
+        /* 边界半边允许 he_next / he_prev 为 -1 */
+        if (mesh->he_face[he] < 0) continue;
         if (mesh->he_next[he] < 0 || mesh->he_next[he] >= mesh->halfedge_count) {
+            return false;
+        }
+        if (mesh->he_prev[he] < 0 || mesh->he_prev[he] >= mesh->halfedge_count) {
             return false;
         }
     }

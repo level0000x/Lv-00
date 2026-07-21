@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_widget.c
  * @brief 证明交互可视化组件实现 -- Widget 生命周期、布局管理、证明状态查询与策略推荐
  *
@@ -11,6 +11,7 @@
  */
 
 #include "lv00/proof_widget.h"
+#include "lv00/proof.h"
 #include "lv00/lv00_internal.h"
 #include <stdlib.h>
 #include <string.h>
@@ -389,12 +390,58 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
     *out_success = false;
     *out_feedback = NULL;
 
-    /* 实际项目中应调用证明引擎执行策略；
-     * 此处返回待实现提示 */
-    *out_feedback = lv00_strdup("tactic application: pending engine integration");
-    if (!*out_feedback) return -1;
+    /* 策略名到步骤类型的映射 */
+    ProofStepType step_type;
+    if (strcmp(tactic_name, "intro") == 0) {
+        step_type = PROOF_STEP_ADD_NODE;
+    } else if (strcmp(tactic_name, "apply") == 0) {
+        step_type = PROOF_STEP_FUNCTION_APP;
+    } else if (strcmp(tactic_name, "rewrite") == 0) {
+        step_type = PROOF_STEP_REWRITE;
+    } else if (strcmp(tactic_name, "destruct") == 0) {
+        step_type = PROOF_STEP_NORMALIZATION;
+    } else if (strcmp(tactic_name, "reflexivity") == 0 ||
+               strcmp(tactic_name, "assumption") == 0) {
+        step_type = PROOF_STEP_UNIFY;
+    } else if (strcmp(tactic_name, "exfalso") == 0) {
+        step_type = PROOF_STEP_EX_FALSO;
+    } else if (strcmp(tactic_name, "auto") == 0) {
+        step_type = PROOF_STEP_NORMALIZATION;
+    } else {
+        *out_feedback = lv00_strdup("unknown tactic");
+        return (*out_feedback) ? 0 : -1;
+    }
 
-    return 0;
+    /* 创建证明步骤 */
+    ProofStep *step = proof_step_create(step_type);
+    if (!step) {
+        *out_feedback = lv00_strdup("failed to create proof step");
+        return (*out_feedback) ? 0 : -1;
+    }
+
+    /* 设置步骤备注 */
+    if (tactic_args && tactic_args[0]) {
+        int buf_size = (int)strlen(tactic_name) + (int)strlen(tactic_args) + 4;
+        char *note = (char *)malloc((size_t)buf_size);
+        if (note) {
+            snprintf(note, (size_t)buf_size, "%s %s", tactic_name, tactic_args);
+            proof_step_set_note(step, note);
+            free(note);
+        }
+    } else {
+        proof_step_set_note(step, tactic_name);
+    }
+
+    /* 添加到导航器 */
+    if (!proof_navigator_add_step(navigator, step)) {
+        proof_step_destroy(step);
+        *out_feedback = lv00_strdup("failed to add step to navigator");
+        return (*out_feedback) ? 0 : -1;
+    }
+
+    *out_success = true;
+    *out_feedback = lv00_strdup("tactic applied successfully");
+    return (*out_feedback) ? 0 : -1;
 }
 
 /* ================================================================

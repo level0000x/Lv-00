@@ -75,14 +75,9 @@ void proof_set_stream_context(StreamContext *ctx) {
     proof_stream_ctx = ctx;
 }
 
-/* 占位：证明树 API（待实现） */
+/* 证明树 API 的完整实现在 proof/proof_tree.c 中；
+ * proof_trace.h 中提供了 Lv00ProofTree / Lv00ProofTreeNode 的完整定义 */
 #define LV00_DEFAULT_MAX_STEPS 10000
-typedef struct Lv00ProofTree Lv00ProofTree;
-typedef struct Lv00ProofTreeNode Lv00ProofTreeNode;
-static inline Lv00ProofTree *lv00_proof_tree_create(const char *name, const char *strategy) { return NULL; }
-static inline Lv00ProofTreeNode *lv00_proof_tree_add_step(Lv00ProofTree *tree, Lv00ProofTreeNode *parent, const char *desc, const char *detail, int id) { return NULL; }
-static inline void lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node) {}
-static inline void lv00_proof_tree_destroy(Lv00ProofTree *tree) {}
 
 /** 命题销毁时迭代栈的初始容量 */
 #define PROOF_DESTROY_STACK_INITIAL_CAPACITY 128

@@ -20,6 +20,8 @@
 #include "lv00/lv00.h"
 #include "lv00/error_codes.h"
 #include "lv00/lv00_utils.h"
+#include "lv00/constraint_graph.h"
+#include "lv00/func_block.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,15 +116,15 @@ void meta_repr_encoder_reset(MetaReprEncoder *encoder)
 /**
  * @brief 内部辅助：分配几何节点
  *
- * 为编码过程创建新的 GeomNode 占位结构。
- * 实际项目中应使用 GeomNode 的工厂函数，此处为自举桩实现。
+ * 为编码过程创建新的 GeomNode 结构。
+ * 使用 graph 上下文分配以确保与约束图兼容。
  */
 static GeomNode *alloc_geom_node_stub(void)
 {
-    /* 桩实现：分配占位内存 */
     GeomNode *node = (GeomNode *)lv00_malloc(sizeof(GeomNode));
     if (node) {
         memset(node, 0, sizeof(GeomNode));
+        node->type = GEOM_POINT;
     }
     return node;
 }
@@ -130,27 +132,21 @@ static GeomNode *alloc_geom_node_stub(void)
 /**
  * @brief 内部辅助：分配约束图
  *
- * 为编码/解码过程创建新的 ConstraintGraph 占位结构。
+ * 使用 graph_create() 工厂函数创建完整初始化的 ConstraintGraph。
  */
 static ConstraintGraph *alloc_constraint_graph_stub(void)
 {
-    ConstraintGraph *graph = (ConstraintGraph *)lv00_malloc(sizeof(ConstraintGraph));
-    if (graph) {
-        memset(graph, 0, sizeof(ConstraintGraph));
-    }
-    return graph;
+    return graph_create();
 }
 
 /**
  * @brief 内部辅助：分配函数块
+ *
+ * 使用 func_block_create() 工厂函数创建完整初始化的 FuncBlock。
  */
 static FuncBlock *alloc_func_block_stub(void)
 {
-    FuncBlock *block = (FuncBlock *)lv00_malloc(sizeof(FuncBlock));
-    if (block) {
-        memset(block, 0, sizeof(FuncBlock));
-    }
-    return block;
+    return func_block_create(0);
 }
 
 ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder,
