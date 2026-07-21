@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ga_interface.h
  * @brief Geometric quantity embedding and extraction interface for PGA
  *
@@ -137,8 +137,8 @@ LV00_PUBLIC_API Lv00MultiVector *ga_embed_ray(const Lv00MultiVector *origin,
  * @brief Extract ray parameters from a PGA ray
  *
  * @param mv       Ray multivector (bivector)
- * @param out_origin  Output origin point (caller owns, free with ga_mv_free)
- * @param out_dir     Output direction vector (caller owns, free with ga_mv_free)
+ * @param out_origin  Output origin point (caller owns, free with ga_mv_destroy)
+ * @param out_dir     Output direction vector (caller owns, free with ga_mv_destroy)
  * @return 0 on success, -1 if mv is NULL or not a valid ray
  */
 LV00_PUBLIC_API int ga_extract_ray(const Lv00MultiVector *mv,

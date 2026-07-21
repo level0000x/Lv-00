@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file dsl_compiler.c
  * @brief Lv-00 DSL 编译器 —— 词法分析 → 语法分析 → IR 生成 → 约束图加载
  *
@@ -17,18 +17,18 @@
  *  Tokenizer
  * ================================================================ */
 
-int dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
-    if (!source || !out_tokens || !out_count) return -1;
+bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
+    if (!source || !out_tokens || !out_count) return false;
 
     *out_tokens = NULL;
     *out_count = 0;
 
-    if (strlen(source) == 0) return 0;
+    if (strlen(source) == 0) return true;
 
     size_t src_len = strlen(source);
     int capacity = 64;
     DslToken *tokens = lv00_malloc(sizeof(DslToken) * capacity);
-    if (!tokens) return -1;
+    if (!tokens) return false;
 
     int count = 0;
     size_t pos = 0;
@@ -56,7 +56,7 @@ int dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
             if (count >= capacity) {
                 capacity *= 2;
                 tokens = lv00_realloc(tokens, sizeof(DslToken) * capacity);
-                if (!tokens) return -1;
+                if (!tokens) return false;
             }
 
             /* 关键字匹配 */
@@ -84,7 +84,7 @@ int dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
             if (count >= capacity) {
                 capacity *= 2;
                 tokens = lv00_realloc(tokens, sizeof(DslToken) * capacity);
-                if (!tokens) return -1;
+                if (!tokens) return false;
             }
             tokens[count].line = line;
             tokens[count].type = (c == '=') ? DSL_TOK_ASSIGN : (c == '(') ? DSL_TOK_LPAREN :
@@ -101,7 +101,7 @@ int dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
 
     *out_tokens = tokens;
     *out_count = count;
-    return 0;
+    return true;
 }
 
 void dsl_tokens_destroy(DslToken *tokens, int count) {
@@ -113,17 +113,17 @@ void dsl_tokens_destroy(DslToken *tokens, int count) {
  *  Parser
  * ================================================================ */
 
-int dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
-    if (!tokens || count <= 0 || !out_ast) return -1;
+bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
+    if (!tokens || count <= 0 || !out_ast) return false;
 
     DslAST *root = lv00_malloc(sizeof(DslAST));
-    if (!root) return -1;
+    if (!root) return false;
     memset(root, 0, sizeof(*root));
     root->type = DSL_AST_PROGRAM;
     root->name = NULL;
     root->child_capacity = 4;
     root->children = lv00_malloc(sizeof(DslAST *) * root->child_capacity);
-    if (!root->children) { lv00_free(root); return -1; }
+    if (!root->children) { lv00_free(root); return false; }
 
     /* 简单解析：每个顶层语句作为一个子节点 */
     for (int i = 0; i < count; i++) {
@@ -152,18 +152,18 @@ int dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
     }
 
     *out_ast = root;
-    return 0;
+    return true;
 }
 
-int dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir) {
-    if (!ast || !out_ir) return -1;
+bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir) {
+    if (!ast || !out_ir) return false;
 
     DslIR *ir = lv00_malloc(sizeof(DslIR));
-    if (!ir) return -1;
+    if (!ir) return false;
     memset(ir, 0, sizeof(*ir));
     ir->op_capacity = (ast->child_count > 0) ? ast->child_count * 4 : 8;
     ir->operations = lv00_malloc(sizeof(DslIROperation) * ir->op_capacity);
-    if (!ir->operations) { lv00_free(ir); return -1; }
+    if (!ir->operations) { lv00_free(ir); return false; }
 
     /* 遍历 AST 子节点生成 IR 操作 */
     for (int i = 0; i < ast->child_count; i++) {
@@ -187,31 +187,31 @@ int dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_i
 
     *out_ir = ir;
     (void)config;
-    return 0;
+    return true;
 }
 
-int dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph) {
-    if (!ir || !graph) return -1;
+bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph) {
+    if (!ir || !graph) return false;
     /* 遍历 IR 操作，在约束图中创建对应节点 */
     for (int i = 0; i < ir->op_count; i++) {
         /* 每个创建操作在图中新增一个节点 */
     }
     (void)ir;
-    return 0;
+    return true;
 }
 
-int dsl_compile_and_load(const char *source, const DslCompileConfig *config, ConstraintGraph *graph) {
-    if (!source || !graph) return -1;
+bool dsl_compile_and_load(const char *source, const DslCompileConfig *config, ConstraintGraph *graph) {
+    if (!source || !graph) return false;
 
     DslToken *tokens = NULL;
     int token_count = 0;
-    if (!dsl_tokenize(source, &tokens, &token_count)) return -1;
+    if (!dsl_tokenize(source, &tokens, &token_count)) return false;
 
     DslAST *ast = NULL;
-    if (!dsl_parse(tokens, token_count, &ast)) { dsl_tokens_destroy(tokens, token_count); return -1; }
+    if (!dsl_parse(tokens, token_count, &ast)) { dsl_tokens_destroy(tokens, token_count); return false; }
 
     DslIR *ir = NULL;
-    if (!dsl_compile(ast, config, &ir)) { dsl_ast_destroy(ast); dsl_tokens_destroy(tokens, token_count); return -1; }
+    if (!dsl_compile(ast, config, &ir)) { dsl_ast_destroy(ast); dsl_tokens_destroy(tokens, token_count); return false; }
 
     bool ok = dsl_ir_to_constraint_graph(ir, graph);
     dsl_ir_destroy(ir);
