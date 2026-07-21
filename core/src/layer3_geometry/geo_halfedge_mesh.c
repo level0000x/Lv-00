@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_halfedge_mesh.c
  * @brief Halfedge 网格拓扑数据结构实现
  *
@@ -11,13 +11,14 @@
  */
 
 #include "lv00/geo_halfedge_mesh.h"
-#include "lv00/lv00_utils.h"
 
 
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <float.h>
+
+#include "lv00/lv00_utils.h"
 
 #ifndef LV00_PUBLIC_API
 #define LV00_PUBLIC_API
@@ -54,8 +55,8 @@ static bool ensure_capacity(Lv00HeMesh *mesh)
         mesh->vertex_out_he, new_cap * sizeof(Lv00Halfedge));
 
     if (!new_vdata || !new_vhe) {
-        if (new_vdata) lv00_free((void **)&(new_vdata));
-        if (new_vhe) lv00_free((void **)&(new_vhe));
+        if (new_vdata) lv00_free((void **)&new_vdata);
+        if (new_vhe) lv00_free((void **)&new_vhe);
         return false;
     }
 
@@ -133,18 +134,18 @@ void lv00_he_mesh_destroy(Lv00HeMesh *mesh)
 {
     if (!mesh) return;
 
-    lv00_free((void **)&(mesh->vertex_data));
-    lv00_free((void **)&(mesh->vertex_out_he));
-    lv00_free((void **)&(mesh->he_twin));
-    lv00_free((void **)&(mesh->he_next));
-    lv00_free((void **)&(mesh->he_prev));
-    lv00_free((void **)&(mesh->he_face));
-    lv00_free((void **)&(mesh->he_vertex));
-    lv00_free((void **)&(mesh->he_data));
-    lv00_free((void **)&(mesh->edge_he));
-    lv00_free((void **)&(mesh->face_he));
-    lv00_free((void **)&(mesh->face_data));
-    lv00_free((void **)&(mesh));
+    lv00_free((void **)&mesh->vertex_data);
+    lv00_free((void **)&mesh->vertex_out_he);
+    lv00_free((void **)&mesh->he_twin);
+    lv00_free((void **)&mesh->he_next);
+    lv00_free((void **)&mesh->he_prev);
+    lv00_free((void **)&mesh->he_face);
+    lv00_free((void **)&mesh->he_vertex);
+    lv00_free((void **)&mesh->he_data);
+    lv00_free((void **)&mesh->edge_he);
+    lv00_free((void **)&mesh->face_he);
+    lv00_free((void **)&mesh->face_data);
+    lv00_free((void **)&mesh);
 }
 
 void lv00_he_mesh_clear(Lv00HeMesh *mesh)
@@ -417,8 +418,8 @@ Lv00Face lv00_he_mesh_add_face_triangle(Lv00HeMesh *mesh, Lv00Vertex v1, Lv00Ver
             mesh->face_data, new_cap * sizeof(Lv00FaceData));
 
         if (!new_face_he || !new_face_data) {
-            if (new_face_he) lv00_free((void **)&(new_face_he));
-            if (new_face_data) lv00_free((void **)&(new_face_data));
+            if (new_face_he) lv00_free((void **)&new_face_he);
+            if (new_face_data) lv00_free((void **)&new_face_data);
             return LV00_HE_INVALID;
         }
 
@@ -653,7 +654,7 @@ static Lv00Point3D vector_sub(Lv00Point3D a, Lv00Point3D b)
 
 double lv00_he_mesh_vertex_angle(const Lv00HeMesh *mesh, Lv00Vertex v)
 {
-    if (!mesh || v < 0 || v >= mesh->vertex_count) return true;
+    if (!mesh || v < 0 || v >= mesh->vertex_count) return 0;
 
     double total_angle = 0;
     int count = 0;
@@ -693,7 +694,7 @@ double lv00_he_mesh_vertex_angle(const Lv00HeMesh *mesh, Lv00Vertex v)
 
 double lv00_he_mesh_vertex_curvature(const Lv00HeMesh *mesh, Lv00Vertex v)
 {
-    if (!mesh || v < 0 || v >= mesh->vertex_count) return true;
+    if (!mesh || v < 0 || v >= mesh->vertex_count) return 0;
 
     /* 简化的离散曲率：2π - 邻接角和 */
     double angle_sum = lv00_he_mesh_vertex_angle(mesh, v);
@@ -745,7 +746,7 @@ Lv00Point3D lv00_he_mesh_vertex_normal(const Lv00HeMesh *mesh, Lv00Vertex v)
 
 double lv00_he_mesh_halfedge_angle(const Lv00HeMesh *mesh, Lv00Halfedge he1, Lv00Halfedge he2)
 {
-    if (!mesh || he1 == LV00_HE_INVALID || he2 == LV00_HE_INVALID) return true;
+    if (!mesh || he1 == LV00_HE_INVALID || he2 == LV00_HE_INVALID) return 0;
 
     Lv00Vertex v = mesh->he_vertex[he1];
     Lv00Vertex v0 = mesh->he_vertex[mesh->he_twin[he1]];
@@ -762,7 +763,7 @@ double lv00_he_mesh_halfedge_angle(const Lv00HeMesh *mesh, Lv00Halfedge he1, Lv0
     double len_a = sqrt(vector_dot(a, a));
     double len_b = sqrt(vector_dot(b, b));
 
-    if (len_a == 0 || len_b == 0) return true;
+    if (len_a == 0 || len_b == 0) return 0;
 
     double cos_angle = dot / (len_a * len_b);
     if (cos_angle > 1) cos_angle = 1;
@@ -773,7 +774,7 @@ double lv00_he_mesh_halfedge_angle(const Lv00HeMesh *mesh, Lv00Halfedge he1, Lv0
 
 double lv00_he_mesh_halfedge_corner_angle(const Lv00HeMesh *mesh, Lv00Halfedge he)
 {
-    if (!mesh || he == LV00_HE_INVALID) return true;
+    if (!mesh || he == LV00_HE_INVALID) return 0;
 
     Lv00Halfedge prev_he = mesh->he_prev[he];
     return lv00_he_mesh_halfedge_angle(mesh, prev_he, he);
@@ -889,7 +890,7 @@ Lv00Face lv00_he_mesh_point_in_face(const Lv00HeMesh *mesh, Lv00Point3D point, d
 
 double lv00_he_mesh_total_area(const Lv00HeMesh *mesh)
 {
-    if (!mesh) return true;
+    if (!mesh) return 0;
 
     double total = 0;
     for (Lv00Face f = 0; f < mesh->face_count; f++) {
@@ -934,25 +935,25 @@ void lv00_he_mesh_get_stats(const Lv00HeMesh *mesh, Lv00HeMeshStats *out_stats)
     }
 }
 
-int lv00_he_mesh_validate(const Lv00HeMesh *mesh)
+bool lv00_he_mesh_validate(const Lv00HeMesh *mesh)
 {
-    if (!mesh) return -1;
+    if (!mesh) return false;
 
     /* 检查半边有效性 */
     for (Lv00Halfedge he = 0; he < mesh->halfedge_count; he++) {
         if (mesh->he_vertex[he] < 0 || mesh->he_vertex[he] >= mesh->vertex_count) {
-            return -1;
+            return false;
         }
         if (mesh->he_twin[he] < 0 || mesh->he_twin[he] >= mesh->halfedge_count) {
-            return -1;
+            return false;
         }
         /* 边界半边允许 he_next / he_prev 为 -1 */
         if (mesh->he_face[he] < 0) continue;
         if (mesh->he_next[he] < 0 || mesh->he_next[he] >= mesh->halfedge_count) {
-            return -1;
+            return false;
         }
         if (mesh->he_prev[he] < 0 || mesh->he_prev[he] >= mesh->halfedge_count) {
-            return -1;
+            return false;
         }
     }
 
@@ -960,11 +961,11 @@ int lv00_he_mesh_validate(const Lv00HeMesh *mesh)
     for (Lv00Face f = 0; f < mesh->face_count; f++) {
         Lv00Halfedge he = mesh->face_he[f];
         if (he < 0 || he >= mesh->halfedge_count) {
-            return -1;
+            return false;
         }
     }
 
-    return 0;
+    return true;
 }
 
 /* ── _mesh_ 前缀迭代器（委托给短名实现）── */

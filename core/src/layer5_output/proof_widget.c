@@ -17,6 +17,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "lv00/lv00_utils.h"
+
 /* ================================================================
  * 内部常量
  * ================================================================ */
@@ -426,7 +428,7 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
         if (note) {
             snprintf(note, (size_t)buf_size, "%s %s", tactic_name, tactic_args);
             proof_step_set_note(step, note);
-            lv00_free((void **)&(note));
+            lv00_free((void **)&note);
         }
     } else {
         proof_step_set_note(step, tactic_name);

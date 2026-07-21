@@ -249,7 +249,7 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars);
 ```c
 double approx_count_get_pac_bound(const PacConfig *cfg,
                                   const ApproxCountResult *res);
-void approx_count_result_free(ApproxCountResult *res);
+void approx_count_result_destroy(ApproxCountResult *res);
 ```
 
 ### 29.4.5 近似构造性判断

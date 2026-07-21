@@ -17,7 +17,6 @@
 
 #include "lv00/geo_aabb_tree.h"
 #include "lv00/geometry_config.h"
-#include "lv00/lv00_utils.h"
 
 
 #include <math.h>
@@ -25,6 +24,8 @@
 #include <string.h>
 #include <float.h>
 #include <stdbool.h>
+
+#include "lv00/lv00_utils.h"
 
 /* 如果 geometry_config.h 中没有定义 LV00_PUBLIC_API，则定义空宏 */
 #ifndef LV00_PUBLIC_API
@@ -366,7 +367,7 @@ LV00_PUBLIC_API void lv00_aabb_query_result_init(Lv00AABBQueryResult *result)
 LV00_PUBLIC_API void lv00_aabb_query_result_free(Lv00AABBQueryResult *result)
 {
     if (!result) return;
-    lv00_free((void **)&(result->ids));
+    lv00_free((void **)&result->ids);
     result->ids      = NULL;
     result->count    = 0;
     result->capacity = 0;
@@ -1378,7 +1379,7 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
     /* 拷贝几何体包围盒 */
     tree->primitives = (Lv00AABB2D *)lv00_malloc((size_t)count * sizeof(Lv00AABB2D));
     if (!tree->primitives) {
-        lv00_free((void **)&(tree));
+        lv00_free((void **)&tree);
         return NULL;
     }
     memcpy(tree->primitives, bboxes, (size_t)count * sizeof(Lv00AABB2D));
@@ -1386,8 +1387,8 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
     /* 创建几何体索引数组 */
     int *prim_indices = (int *)lv00_malloc((size_t)count * sizeof(int));
     if (!prim_indices) {
-        lv00_free((void **)&(tree->primitives));
-        lv00_free((void **)&(tree));
+        lv00_free((void **)&tree->primitives);
+        lv00_free((void **)&tree);
         return NULL;
     }
     for (int i = 0; i < count; i++) {
@@ -1397,12 +1398,12 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
     /* 递归构建 */
     tree->root = aabb2d_build_recursive(tree, prim_indices, count, 0);
 
-    lv00_free((void **)&(prim_indices));
+    lv00_free((void **)&prim_indices);
 
     if (tree->root == AABB_INVALID_NODE) {
-        lv00_free((void **)&(tree->primitives));
-        lv00_free((void **)&(tree->nodes));
-        lv00_free((void **)&(tree));
+        lv00_free((void **)&tree->primitives);
+        lv00_free((void **)&tree->nodes);
+        lv00_free((void **)&tree);
         return NULL;
     }
 
@@ -1417,10 +1418,10 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
 LV00_PUBLIC_API void lv00_aabb2d_destroy(Lv00AABBTree2D *tree)
 {
     if (!tree) return;
-    lv00_free((void **)&(tree->leaf_prim_ids));
-    lv00_free((void **)&(tree->nodes));
-    lv00_free((void **)&(tree->primitives));
-    lv00_free((void **)&(tree));
+    lv00_free((void **)&tree->leaf_prim_ids);
+    lv00_free((void **)&tree->nodes);
+    lv00_free((void **)&tree->primitives);
+    lv00_free((void **)&tree);
 }
 
 /**
@@ -1587,7 +1588,7 @@ LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
     /* 拷贝几何体包围盒 */
     tree->primitives = (Lv00AABB3D *)lv00_malloc((size_t)count * sizeof(Lv00AABB3D));
     if (!tree->primitives) {
-        lv00_free((void **)&(tree));
+        lv00_free((void **)&tree);
         return NULL;
     }
     memcpy(tree->primitives, bboxes, (size_t)count * sizeof(Lv00AABB3D));
@@ -1595,8 +1596,8 @@ LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
     /* 创建几何体索引数组 */
     int *prim_indices = (int *)lv00_malloc((size_t)count * sizeof(int));
     if (!prim_indices) {
-        lv00_free((void **)&(tree->primitives));
-        lv00_free((void **)&(tree));
+        lv00_free((void **)&tree->primitives);
+        lv00_free((void **)&tree);
         return NULL;
     }
     for (int i = 0; i < count; i++) {
@@ -1606,12 +1607,12 @@ LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
     /* 递归构建 */
     tree->root = aabb3d_build_recursive(tree, prim_indices, count, 0);
 
-    lv00_free((void **)&(prim_indices));
+    lv00_free((void **)&prim_indices);
 
     if (tree->root == AABB_INVALID_NODE) {
-        lv00_free((void **)&(tree->primitives));
-        lv00_free((void **)&(tree->nodes));
-        lv00_free((void **)&(tree));
+        lv00_free((void **)&tree->primitives);
+        lv00_free((void **)&tree->nodes);
+        lv00_free((void **)&tree);
         return NULL;
     }
 
@@ -1624,9 +1625,9 @@ LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
 LV00_PUBLIC_API void lv00_aabb3d_destroy(Lv00AABBTree3D *tree)
 {
     if (!tree) return;
-    lv00_free((void **)&(tree->nodes));
-    lv00_free((void **)&(tree->primitives));
-    lv00_free((void **)&(tree));
+    lv00_free((void **)&tree->nodes);
+    lv00_free((void **)&tree->primitives);
+    lv00_free((void **)&tree);
 }
 
 /**

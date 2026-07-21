@@ -1,0 +1,1 @@
+﻿-bool type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps);

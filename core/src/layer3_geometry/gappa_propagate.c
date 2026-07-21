@@ -16,12 +16,13 @@
 #include "lv00/gappa_propagate.h"
 #include "lv00/gappa_dsl.h"
 #include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+
+#include "lv00/lv00_utils.h"
 #include <ctype.h>
 #include <float.h>
 
@@ -374,7 +375,7 @@ int gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00Gappa
 
 void gappa_pred_set_clear(Lv00GappaPredSet *set) {
     if (!set) return;
-    lv00_free((void **)&(set->preds));
+    lv00_free((void **)&set->preds);
     set->preds = NULL;
     set->count = 0;
     set->capacity = 0;
