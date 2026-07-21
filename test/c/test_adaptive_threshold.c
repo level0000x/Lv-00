@@ -14,80 +14,79 @@
 #include <math.h>
 #include <stdio.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <time.h>
+#endif
+
+int g_pass_count = 0;
+int g_fail_count = 0;
+
 /* ==================== 测试辅助函数 ==================== */
 
 /**
  * @brief 创建简单测试图（三角形）
  */
-static Lv00ConstraintGraph* create_triangle_graph(void) {
-    Lv00ConstraintGraph* graph = lv00_constraint_graph_create();
-    TEST_ASSERT_NOT_NULL(graph);
-    
-    /* 添加三个点 */
-    Lv00SymbolicCoord* coord_a = lv00_symbolic_coord_create_rational(0, 1);
-    Lv00SymbolicCoord* coord_b = lv00_symbolic_coord_create_rational(1, 1);
-    Lv00SymbolicCoord* coord_c = lv00_symbolic_coord_create_rational(0, 1);
-    lv00_symbolic_coord_set_y(coord_c, lv00_rational_create(1, 1));
-    
-    int32_t id_a = lv00_graph_add_point(graph, coord_a, "A");
-    int32_t id_b = lv00_graph_add_point(graph, coord_b, "B");
-    int32_t id_c = lv00_graph_add_point(graph, coord_c, "C");
-    
-    TEST_ASSERT_EQ_MSG(id_a, 0, "Point A ID should be 0");
-    TEST_ASSERT_EQ_MSG(id_b, 1, "Point B ID should be 1");
-    TEST_ASSERT_EQ_MSG(id_c, 2, "Point C ID should be 2");
-    
-    /* 添加三条边 */
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE, 
-                              (int32_t[]){id_a, id_b}, 2);
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){id_b, id_c}, 2);
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){id_c, id_a}, 2);
-    
+static ConstraintGraph* create_triangle_graph(void) {
+    ConstraintGraph* graph = graph_create();
+    if (!graph) return NULL;
+
+    SymbolicCoord *coords0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    graph_add_point(graph, (SymbolicCoord *const *)coords0, 2);
+    int a = graph_get_last_added_node_id(graph);
+
+    SymbolicCoord *coords1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
+    graph_add_point(graph, (SymbolicCoord *const *)coords1, 2);
+    int b = graph_get_last_added_node_id(graph);
+
+    SymbolicCoord *coords2[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(1, 1)};
+    graph_add_point(graph, (SymbolicCoord *const *)coords2, 2);
+    int c = graph_get_last_added_node_id(graph);
+
+    graph_add_containment(graph, a, b);
+    graph_add_containment(graph, b, c);
+    graph_add_containment(graph, c, a);
+
     return graph;
 }
 
 /**
  * @brief 创建复杂测试图（多个连通分量）
  */
-static Lv00ConstraintGraph* create_complex_graph(void) {
-    Lv00ConstraintGraph* graph = lv00_constraint_graph_create();
-    TEST_ASSERT_NOT_NULL(graph);
-    
-    /* 第一个连通分量：四边形 */
+static ConstraintGraph* create_complex_graph(void) {
+    ConstraintGraph* graph = graph_create();
+    if (!graph) return NULL;
+
+    int ids[7];
+
+    /* 第一个连通分量：四边形 + 对角线（4个点） */
     for (int i = 0; i < 4; i++) {
-        Lv00SymbolicCoord* coord = lv00_symbolic_coord_create_rational(i, 1);
-        lv00_graph_add_point(graph, coord, NULL);
+        SymbolicCoord *coords[2] = {symbolic_coord_create_rational(i, 1), symbolic_coord_create_rational(0, 1)};
+        graph_add_point(graph, (SymbolicCoord *const *)coords, 2);
+        ids[i] = graph_get_last_added_node_id(graph);
     }
-    
+
     /* 四边形边 */
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){0, 1}, 2);
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){1, 2}, 2);
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){2, 3}, 2);
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){3, 0}, 2);
-    
+    graph_add_containment(graph, ids[0], ids[1]);
+    graph_add_containment(graph, ids[1], ids[2]);
+    graph_add_containment(graph, ids[2], ids[3]);
+    graph_add_containment(graph, ids[3], ids[0]);
+
     /* 对角线 */
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){0, 2}, 2);
-    
-    /* 第二个连通分量：三角形 */
+    graph_add_containment(graph, ids[0], ids[2]);
+
+    /* 第二个连通分量：三角形（3个点） */
     for (int i = 0; i < 3; i++) {
-        Lv00SymbolicCoord* coord = lv00_symbolic_coord_create_rational(i + 10, 1);
-        lv00_graph_add_point(graph, coord, NULL);
+        SymbolicCoord *coords[2] = {symbolic_coord_create_rational(i + 10, 1), symbolic_coord_create_rational(0, 1)};
+        graph_add_point(graph, (SymbolicCoord *const *)coords, 2);
+        ids[4 + i] = graph_get_last_added_node_id(graph);
     }
-    
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){4, 5}, 2);
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){5, 6}, 2);
-    lv00_graph_add_constraint(graph, LV00_CONSTRAINT_INCIDENCE,
-                              (int32_t[]){6, 4}, 2);
-    
+
+    graph_add_containment(graph, ids[4], ids[5]);
+    graph_add_containment(graph, ids[5], ids[6]);
+    graph_add_containment(graph, ids[6], ids[4]);
+
     return graph;
 }
 
@@ -99,13 +98,13 @@ static Lv00ConstraintGraph* create_complex_graph(void) {
 void test_init_cleanup(void) {
     Lv00Error err = lv00_adaptive_threshold_init();
     TEST_ASSERT_EQ_MSG(err, LV00_OK, "Init should succeed");
-    
+
     /* 重复初始化应该成功 */
     err = lv00_adaptive_threshold_init();
     TEST_ASSERT_EQ_MSG(err, LV00_OK, "Repeated init should succeed");
-    
+
     lv00_adaptive_threshold_cleanup();
-    
+
     /* 重新初始化 */
     err = lv00_adaptive_threshold_init();
     TEST_ASSERT_EQ_MSG(err, LV00_OK, "Init after cleanup should succeed");
@@ -116,31 +115,31 @@ void test_init_cleanup(void) {
  */
 void test_complexity_computation(void) {
     lv00_adaptive_threshold_init();
-    
+
     /* 测试简单图 */
-    Lv00ConstraintGraph* simple = create_triangle_graph();
+    ConstraintGraph* simple = create_triangle_graph();
     Lv00ProblemComplexity complexity;
-    
+
     Lv00Error err = lv00_compute_complexity(simple, &complexity);
     TEST_ASSERT_EQ_MSG(err, LV00_OK, "Complexity computation should succeed");
-    
+
     TEST_ASSERT_EQ_MSG(complexity.node_count, 3, "Should have 3 nodes");
     TEST_ASSERT_EQ_MSG(complexity.constraint_count, 3, "Should have 3 constraints");
-    TEST_ASSERT(complexity.edge_count >= 3);
-    TEST_ASSERT(complexity.density > 0.0 && complexity.density <= 1.0);
+    TEST_ASSERT(complexity.edge_count >= 3, "Should have at least 3 edges");
+    TEST_ASSERT(complexity.density > 0.0 && complexity.density <= 1.0, "Density should be in (0,1]");
     TEST_ASSERT_EQ_MSG(complexity.connected_components, 1, "Should be 1 component");
-    
-    lv00_constraint_graph_destroy(simple);
-    
+
+    graph_destroy(simple);
+
     /* 测试复杂图 */
-    Lv00ConstraintGraph* complex = create_complex_graph();
+    ConstraintGraph* complex = create_complex_graph();
     err = lv00_compute_complexity(complex, &complexity);
     TEST_ASSERT_EQ_MSG(err, LV00_OK, "Complexity computation should succeed");
-    
+
     TEST_ASSERT_EQ_MSG(complexity.node_count, 7, "Should have 7 nodes");
     TEST_ASSERT_EQ_MSG(complexity.connected_components, 2, "Should have 2 components");
-    
-    lv00_constraint_graph_destroy(complex);
+
+    graph_destroy(complex);
 }
 
 /**
@@ -148,10 +147,10 @@ void test_complexity_computation(void) {
  */
 void test_vf2_threshold_computation(void) {
     lv00_adaptive_threshold_init();
-    
-    Lv00ConstraintGraph* graph = create_triangle_graph();
+
+    ConstraintGraph* graph = create_triangle_graph();
     Lv00AdaptiveThresholdCtx* ctx = NULL;
-    
+
     Lv00Error err = lv00_adaptive_threshold_create(
         LV00_ALGO_VF2_MATCH,
         graph,
@@ -160,22 +159,22 @@ void test_vf2_threshold_computation(void) {
     );
     TEST_ASSERT_EQ_MSG(err, LV00_OK, "Context creation should succeed");
     TEST_ASSERT_NOT_NULL(ctx);
-    
+
     /* 计算阈值 */
     size_t threshold = lv00_adaptive_threshold_compute(ctx);
-    
+
     /* 验证阈值在合理范围内 */
     Lv00ThresholdConfig config;
     lv00_adaptive_threshold_default_config(LV00_ALGO_VF2_MATCH, &config);
-    
-    TEST_ASSERT(threshold >= (size_t)config.min_threshold);
-    TEST_ASSERT(threshold <= (size_t)config.max_threshold);
-    
+
+    TEST_ASSERT(threshold >= (size_t)config.min_threshold, "Threshold should be >= min_threshold");
+    TEST_ASSERT(threshold <= (size_t)config.max_threshold, "Threshold should be <= max_threshold");
+
     /* 对于3个节点的简单图，阈值应该相对较小 */
-    TEST_ASSERT(threshold < 500);
-    
+    TEST_ASSERT(threshold < 500, "Small graph threshold should be < 500");
+
     lv00_adaptive_threshold_destroy(&ctx);
-    lv00_constraint_graph_destroy(graph);
+    graph_destroy(graph);
 }
 
 /**
@@ -183,10 +182,10 @@ void test_vf2_threshold_computation(void) {
  */
 void test_buchberger_threshold_computation(void) {
     lv00_adaptive_threshold_init();
-    
-    Lv00ConstraintGraph* graph = create_triangle_graph();
+
+    ConstraintGraph* graph = create_triangle_graph();
     Lv00AdaptiveThresholdCtx* ctx = NULL;
-    
+
     Lv00Error err = lv00_adaptive_threshold_create(
         LV00_ALGO_BUCHBERGER,
         graph,
@@ -194,20 +193,20 @@ void test_buchberger_threshold_computation(void) {
         &ctx
     );
     TEST_ASSERT_EQ_MSG(err, LV00_OK, "Context creation should succeed");
-    
+
     size_t threshold = lv00_adaptive_threshold_compute(ctx);
-    
+
     Lv00ThresholdConfig config;
     lv00_adaptive_threshold_default_config(LV00_ALGO_BUCHBERGER, &config);
-    
-    TEST_ASSERT(threshold >= (size_t)config.min_threshold);
-    TEST_ASSERT(threshold <= (size_t)config.max_threshold);
-    
+
+    TEST_ASSERT(threshold >= (size_t)config.min_threshold, "Threshold should be >= min_threshold");
+    TEST_ASSERT(threshold <= (size_t)config.max_threshold, "Threshold should be <= max_threshold");
+
     /* Buchberger阈值应该比VF2大 */
-    TEST_ASSERT(threshold > 10000);
-    
+    TEST_ASSERT(threshold > 10000, "Buchberger threshold should be > 10000");
+
     lv00_adaptive_threshold_destroy(&ctx);
-    lv00_constraint_graph_destroy(graph);
+    graph_destroy(graph);
 }
 
 /**
@@ -215,27 +214,27 @@ void test_buchberger_threshold_computation(void) {
  */
 void test_threshold_scaling(void) {
     lv00_adaptive_threshold_init();
-    
+
     /* 创建不同复杂度的图 */
-    Lv00ConstraintGraph* small = create_triangle_graph();
-    Lv00ConstraintGraph* large = create_complex_graph();
-    
+    ConstraintGraph* small = create_triangle_graph();
+    ConstraintGraph* large = create_complex_graph();
+
     Lv00AdaptiveThresholdCtx* ctx_small = NULL;
     Lv00AdaptiveThresholdCtx* ctx_large = NULL;
-    
+
     lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, small, NULL, &ctx_small);
     lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, large, NULL, &ctx_large);
-    
+
     size_t threshold_small = lv00_adaptive_threshold_compute(ctx_small);
     size_t threshold_large = lv00_adaptive_threshold_compute(ctx_large);
-    
+
     /* 复杂图的阈值应该大于简单图 */
-    TEST_ASSERT(threshold_large > threshold_small);
-    
+    TEST_ASSERT(threshold_large > threshold_small, "Large graph threshold should be greater than small graph");
+
     lv00_adaptive_threshold_destroy(&ctx_small);
     lv00_adaptive_threshold_destroy(&ctx_large);
-    lv00_constraint_graph_destroy(small);
-    lv00_constraint_graph_destroy(large);
+    graph_destroy(small);
+    graph_destroy(large);
 }
 
 /**
@@ -243,42 +242,42 @@ void test_threshold_scaling(void) {
  */
 void test_progress_tracking_and_pruning(void) {
     lv00_adaptive_threshold_init();
-    
-    Lv00ConstraintGraph* graph = create_triangle_graph();
+
+    ConstraintGraph* graph = create_triangle_graph();
     Lv00AdaptiveThresholdCtx* ctx = NULL;
-    
+
     /* 使用很短的超时时间以便测试剪枝 */
     Lv00ThresholdConfig config;
     lv00_adaptive_threshold_default_config(LV00_ALGO_VF2_MATCH, &config);
     config.time_budget_ms = 1.0;  /* 1毫秒超时 */
     config.enable_progress_tracking = true;
-    
+
     lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, graph, &config, &ctx);
-    
+
     /* 模拟一些迭代 */
     for (int i = 0; i < 10; i++) {
         lv00_adaptive_threshold_update_progress(ctx, (size_t)i, 0);
-        
+
         bool should_prune = false;
         lv00_adaptive_threshold_should_prune(ctx, &should_prune);
-        
+
         /* 在1ms超时后应该触发剪枝 */
         if (i > 5) {
             /* 注意：由于时间依赖，这个测试可能不稳定 */
             /* 这里主要测试API不崩溃 */
         }
     }
-    
+
     /* 测试高回溯率剪枝 */
     lv00_adaptive_threshold_update_progress(ctx, 200, 190);  /* 95%回溯率 */
-    
+
     bool should_prune = false;
     lv00_adaptive_threshold_should_prune(ctx, &should_prune);
     /* 高回溯率应该触发剪枝 */
-    TEST_ASSERT(should_prune);
-    
+    TEST_ASSERT(should_prune, "High backtrack rate should trigger pruning");
+
     lv00_adaptive_threshold_destroy(&ctx);
-    lv00_constraint_graph_destroy(graph);
+    graph_destroy(graph);
 }
 
 /**
@@ -286,7 +285,7 @@ void test_progress_tracking_and_pruning(void) {
  */
 void test_custom_config(void) {
     lv00_adaptive_threshold_init();
-    
+
     Lv00ThresholdConfig custom_config = {
         .base_threshold = 50.0,
         .scale_factor = 1.0,
@@ -296,29 +295,29 @@ void test_custom_config(void) {
         .enable_time_based = false,
         .enable_progress_tracking = false
     };
-    
+
     /* 设置全局配置 */
     Lv00Error err = lv00_adaptive_threshold_set_global_config(
         LV00_ALGO_VF2_MATCH,
         &custom_config
     );
     TEST_ASSERT_EQ_MSG(err, LV00_OK, "Setting global config should succeed");
-    
+
     /* 创建上下文，应该使用全局配置 */
-    Lv00ConstraintGraph* graph = create_triangle_graph();
+    ConstraintGraph* graph = create_triangle_graph();
     Lv00AdaptiveThresholdCtx* ctx = NULL;
-    
+
     err = lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, graph, NULL, &ctx);
     TEST_ASSERT_EQ_MSG(err, LV00_OK, "Context creation should succeed");
-    
+
     size_t threshold = lv00_adaptive_threshold_compute(ctx);
-    
+
     /* 使用自定义配置，阈值应该在更小的范围内 */
-    TEST_ASSERT(threshold >= 10);
-    TEST_ASSERT(threshold <= 200);
-    
+    TEST_ASSERT(threshold >= 10, "Threshold should be >= 10");
+    TEST_ASSERT(threshold <= 200, "Threshold should be <= 200");
+
     lv00_adaptive_threshold_destroy(&ctx);
-    lv00_constraint_graph_destroy(graph);
+    graph_destroy(graph);
 }
 
 /**
@@ -326,20 +325,20 @@ void test_custom_config(void) {
  */
 void test_backward_compatibility(void) {
     lv00_adaptive_threshold_init();
-    
-    Lv00ConstraintGraph* graph = create_triangle_graph();
-    
+
+    ConstraintGraph* graph = create_triangle_graph();
+
     /* 测试向后兼容函数 */
     size_t vf2_depth = lv00_get_vf2_max_depth(graph);
     size_t buchberger_steps = lv00_get_buchberger_max_steps(graph);
     size_t rewrite_iterations = lv00_get_rewrite_solve_max_iterations(graph);
-    
+
     /* 验证返回的值在合理范围内 */
-    TEST_ASSERT(vf2_depth >= 50 && vf2_depth <= 1000);
-    TEST_ASSERT(buchberger_steps >= 10000 && buchberger_steps <= 200000);
-    TEST_ASSERT(rewrite_iterations >= 5000 && rewrite_iterations <= 50000);
-    
-    lv00_constraint_graph_destroy(graph);
+    TEST_ASSERT(vf2_depth >= 50 && vf2_depth <= 1000, "VF2 depth should be in range [50,1000]");
+    TEST_ASSERT(buchberger_steps >= 10000 && buchberger_steps <= 200000, "Buchberger steps should be in range [10000,200000]");
+    TEST_ASSERT(rewrite_iterations >= 5000 && rewrite_iterations <= 50000, "Rewrite iterations should be in range [5000,50000]");
+
+    graph_destroy(graph);
 }
 
 /**
@@ -347,11 +346,11 @@ void test_backward_compatibility(void) {
  */
 void test_error_handling(void) {
     lv00_adaptive_threshold_init();
-    
+
     /* 测试NULL参数 */
     Lv00Error err = lv00_compute_complexity(NULL, NULL);
-    TEST_ASSERT(err != LV00_OK);
-    
+    TEST_ASSERT(err != LV00_OK, "NULL parameters should return error");
+
     /* 测试无效算法类型 */
     Lv00AdaptiveThresholdCtx* ctx = NULL;
     err = lv00_adaptive_threshold_create(
@@ -360,12 +359,12 @@ void test_error_handling(void) {
         NULL,
         &ctx
     );
-    TEST_ASSERT(err != LV00_OK);
-    
+    TEST_ASSERT(err != LV00_OK, "Invalid algorithm type should return error");
+
     /* 测试无效算法类型的默认配置 */
     Lv00ThresholdConfig config;
     err = lv00_adaptive_threshold_default_config((Lv00AlgorithmType)999, &config);
-    TEST_ASSERT(err != LV00_OK);
+    TEST_ASSERT(err != LV00_OK, "Invalid algorithm type default config should return error");
 }
 
 /**
@@ -373,44 +372,61 @@ void test_error_handling(void) {
  */
 void test_performance_overhead(void) {
     lv00_adaptive_threshold_init();
-    
-    Lv00ConstraintGraph* graph = create_complex_graph();
-    
+
+    ConstraintGraph* graph = create_complex_graph();
+
     /* 测量多次阈值计算的时间 */
     const int iterations = 1000;
-    
-    /* 使用clock_gettime进行精确计时 */
-    struct timespec start, end;
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    
+
+    /* 使用高精度计时 */
+#ifdef _WIN32
+    LARGE_INTEGER freq, qpc_start, qpc_end;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&qpc_start);
+
     for (int i = 0; i < iterations; i++) {
         Lv00AdaptiveThresholdCtx* ctx = NULL;
         lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, graph, NULL, &ctx);
         lv00_adaptive_threshold_compute(ctx);
         lv00_adaptive_threshold_destroy(&ctx);
     }
-    
+
+    QueryPerformanceCounter(&qpc_end);
+
+    double elapsed_ms = (double)(qpc_end.QuadPart - qpc_start.QuadPart) * 1000.0 / (double)freq.QuadPart;
+#else
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    for (int i = 0; i < iterations; i++) {
+        Lv00AdaptiveThresholdCtx* ctx = NULL;
+        lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, graph, NULL, &ctx);
+        lv00_adaptive_threshold_compute(ctx);
+        lv00_adaptive_threshold_destroy(&ctx);
+    }
+
     clock_gettime(CLOCK_MONOTONIC, &end);
-    
+
     double elapsed_ms = (end.tv_sec - start.tv_sec) * 1000.0 +
                         (end.tv_nsec - start.tv_nsec) / 1000000.0;
+#endif
     double avg_ms = elapsed_ms / iterations;
-    
+
     printf("  Average threshold computation time: %.3f ms\n", avg_ms);
-    
+
     /* 每次阈值计算应该非常快（< 1ms） */
-    TEST_ASSERT(avg_ms < 1.0);
-    
-    lv00_constraint_graph_destroy(graph);
+    TEST_ASSERT(avg_ms < 1.0, "Average threshold computation should be < 1ms");
+
+    graph_destroy(graph);
 }
 
 /* ==================== 测试套件入口 ==================== */
 
 int main(void) {
     printf("Running adaptive threshold tests...\n\n");
-    
-    TEST_SUITE_BEGIN();
-    
+
+    TEST_SUITE_BEGIN("AdaptiveThreshold");
+
     TEST_RUN(test_init_cleanup);
     TEST_RUN(test_complexity_computation);
     TEST_RUN(test_vf2_threshold_computation);
@@ -421,9 +437,8 @@ int main(void) {
     TEST_RUN(test_backward_compatibility);
     TEST_RUN(test_error_handling);
     TEST_RUN(test_performance_overhead);
-    
+
     TEST_SUITE_END();
-    TEST_SUMMARY();
-    
+
     return g_fail_count > 0 ? 1 : 0;
 }

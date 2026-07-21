@@ -1343,12 +1343,10 @@ if(BUILD_TESTS)
     # ODE 求解器模块测试
     add_lv00_test_and_register(test_ode_solver
         test/c/test_ode_solver.c ode_solver_test)
-    # 增强证明导出模块测试（需要 Lv00Proof/Lv00ExportConfig API）
-    # add_lv00_test_and_register(test_proof_export_enhanced
-    #     test/c/test_proof_export_enhanced.c proof_export_enhanced_test)
-    # 性能基准测试（需要 Lv00PerfSession/Lv00PerfBenchResult API）
-    # add_lv00_test_and_register(test_performance
-    #     test/c/test_performance.c performance_test)
+    add_lv00_test_and_register(test_proof_export_enhanced
+        test/c/test_proof_export_enhanced.c proof_export_enhanced_test)
+    add_lv00_test_and_register(test_performance
+        test/c/test_performance.c performance_test)
     # 内存管理综合测试
     add_lv00_test_and_register(test_memory_management
         test/c/test_memory_management.c memory_management_test)
@@ -1376,9 +1374,8 @@ if(BUILD_TESTS)
     # 矛盾约束检测器测试
     add_lv00_test_and_register(test_conflict_detector
         test/c/test_conflict_detector.c conflict_detector_test)
-    # 自适应阈值框架测试（需要 adaptive_pruning.h API）
-    # add_lv00_test_and_register(test_adaptive_threshold
-    #     test/c/test_adaptive_threshold.c adaptive_threshold_test)
+    add_lv00_test_and_register(test_adaptive_threshold
+        test/c/test_adaptive_threshold.c adaptive_threshold_test)
 
     # 新增公理包测试
     add_lv00_test_and_register(test_axiom_topos_theory

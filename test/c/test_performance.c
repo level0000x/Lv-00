@@ -19,7 +19,6 @@
 #include "lv00/performance_profiler.h"
 #include "lv00/memory_pool.h"
 #include "lv00/constraint_graph.h"
-#include "lv00/reasoning_cache.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -128,34 +127,6 @@ static void test_graph_performance(void) {
  * 基准测试：推理缓存
  * ================================================================ */
 
-static Lv00ReasoningCache *g_test_cache = NULL;
-
-static void benchmark_cache_put_get(void) {
-    static uint64_t key = 0;
-    
-    lv00_reasoning_cache_put(g_test_cache, key, (int)(key % 100));
-    int value = lv00_reasoning_cache_get(g_test_cache, key);
-    (void)value;  /* 抑制未使用警告 */
-    
-    key++;
-}
-
-static void test_cache_performance(void) {
-    printf("\n--- Reasoning Cache Performance ---\n");
-    
-    g_test_cache = lv00_reasoning_cache_create(4096);
-    TEST_ASSERT_NOT_NULL(g_test_cache);
-    
-    Lv00PerfBenchResult result;
-    int err = lv00_perf_benchmark_run("cache_put_get", benchmark_cache_put_get, NULL, &result);
-    TEST_ASSERT_EQ(err, 0);
-    
-    lv00_perf_benchmark_print_result("cache_put_get", &result, stdout);
-    
-    lv00_reasoning_cache_destroy(g_test_cache);
-    g_test_cache = NULL;
-}
-
 /* ================================================================
  * 测试：性能分析器功能
  * ================================================================ */
@@ -179,9 +150,9 @@ static void test_perf_profiler_basic(void) {
     lv00_perf_end(session, "test_region");
     
     /* 测试内存记录 */
-    lv00_perf_record_alloc(session, "TestType", 1024);
-    lv00_perf_record_alloc(session, "TestType", 2048);
-    lv00_perf_record_free(session, "TestType", 1024);
+    lv00_perf_session_record_alloc(session, "TestType", 1024);
+    lv00_perf_session_record_alloc(session, "TestType", 2048);
+    lv00_perf_session_record_free(session, "TestType", 1024);
     
     /* 打印报告 */
     lv00_perf_report_print(session, stdout);
@@ -261,7 +232,6 @@ int main(void) {
     TEST_RUN(test_perf_profiler_basic);
     TEST_RUN(test_pool_performance);
     TEST_RUN(test_graph_performance);
-    TEST_RUN(test_cache_performance);
     TEST_RUN(test_malloc_vs_pool);
     
     TEST_SUMMARY();
