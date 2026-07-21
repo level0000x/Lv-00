@@ -44,6 +44,46 @@
 | lv00_convenience.c | preset_instantiate_to_context() 标记就绪 |
 | geom_evol.c / proof_version.c / interop_import.c | TODO → FUTURE 研究级标记 |
 
+## Phase 11: 代码质量与注释补全 (✅ 2026-07-21)
+
+| 类别 | 数量 | 详情 |
+|:---|:--:|:---|
+| **UTF-8 编码修复** | 3 文件 | geo_dynamic.c, prop_verifier.c, preset_measurements.c 中文注释乱码恢复 |
+| **Doxygen 文档补全** | 241 函数 | 79 源文件函数 + 162 头文件函数声明 |
+| **@version 统一** | 67 头文件 | 全部统一为 1.1.0 |
+| **NULL 检查** | 5 处 | geo_dynamic.c (4), formula_converter.c (1), lv00_impl_native.c (2) |
+| **死代码清理** | 1 文件 | graph_node.c 合并重复 include + 删除 6 个未使用宏 |
+
+### Phase 11 详细文件清单
+
+**编码修复 (3):**
+- `core/src/layer3_geometry/geo_dynamic.c` — 50+ 行中文注释恢复
+- `core/src/layer4_reasoning/proof_system/prop_verifier.c` — 全文中英文注释恢复
+- `core/src/layer4_reasoning/preset/preset_measurements.c` — 模块描述及 20 个预设说明恢复
+
+**Doxygen 源文件 (8):**
+- `layer9_application/application.c` — 9 函数
+- `layer7_orchestration/orchestrator.c` — 11 函数 + @file 头
+- `layer2_resource/benchmark.c` — 31 函数
+- `layer3_geometry/gappa_dsl.c` — 10 函数
+- `layer4_reasoning/engine_scheduler.c` — 3 函数
+- `layer4_reasoning/proof_trace.c` — 8 函数
+- `layer4_reasoning/expr/exact_arithmetic.c` — 2 函数
+- `layer5_output/tikz_export.c` — 2 函数
+
+**Doxygen 头文件 (11):**
+- `plugin_system.h` — 45 函数 (完整 @brief/@param/@return)
+- `geometry_transform.h` — 34 函数 (补全)
+- `ga_multivector.h` — 24 函数 (@param/@return)
+- `orchestrator.h` — 11 函数 (@param/@return)
+- `meta_verify.h` — 10 函数 (@param/@return)
+- `effect_system.h` — 10 函数 (完整)
+- `extended_types.h` — 9 函数 (完整)
+- `proof_version_internal.h` — 9 函数 (完整)
+- `geo_invariant_type.h` — 7 函数 (完整)
+- `func_block_internal.h` — 4 函数 (完整)
+- `geo_spec.h` — 2 函数 (完整)
+
 ---
 
 ## 一、项目最终基线

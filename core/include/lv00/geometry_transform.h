@@ -197,42 +197,193 @@ Lv00Transform *lv00_transform_reflection(const mpq_t ax, const mpq_t ay,
  * @return 成功返回反射变换指针，失败返回 NULL
  */
 Lv00Transform *lv00_transform_reflection_line(const mpq_t a, const mpq_t b, const mpq_t c);
+/**
+ * @brief 释放变换内存
+ * @param t 变换指针
+ */
 void lv00_transform_destroy(Lv00Transform *t);
+/**
+ * @brief 增加变换引用计数
+ * @param t 变换指针
+ */
 void lv00_transform_ref(Lv00Transform *t);
+/**
+ * @brief 减少变换引用计数（计数归零时释放）
+ * @param t 变换指针
+ */
 void lv00_transform_unref(Lv00Transform *t);
+/**
+ * @brief 使用变换平移点（原地修改有理数坐标）
+ * @param t 变换指针
+ * @param x 点的 X 坐标（输入/输出，有理数）
+ * @param y 点的 Y 坐标（输入/输出，有理数）
+ * @return 成功返回 true，失败返回 false
+ */
 bool lv00_transform_apply_point(const Lv00Transform *t, mpq_t x, mpq_t y);
+/**
+ * @brief 使用变换平移点（有理数坐标，输出到目标坐标）
+ * @param t 变换指针
+ * @param src_x 源点 X 坐标（有理数）
+ * @param src_y 源点 Y 坐标（有理数）
+ * @param dst_x 目标 X 坐标（输出，有理数）
+ * @param dst_y 目标 Y 坐标（输出，有理数）
+ */
 void lv00_transform_apply_mpq(const Lv00Transform *t, const mpq_t src_x, const mpq_t src_y,
                                 mpq_t dst_x, mpq_t dst_y);
+/**
+ * @brief 使用变换平移点（浮点坐标）
+ * @param t 变换指针
+ * @param src_x 源点 X 坐标
+ * @param src_y 源点 Y 坐标
+ * @param dst_x 目标 X 坐标（输出）
+ * @param dst_y 目标 Y 坐标（输出）
+ */
 void lv00_transform_apply_double(const Lv00Transform *t, double src_x, double src_y,
                                    double *dst_x, double *dst_y);
+/**
+ * @brief 组合两个变换（先应用 a 再应用 b）
+ * @param a 第一个变换指针
+ * @param b 第二个变换指针
+ * @return 成功返回组合变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_compose(const Lv00Transform *a, const Lv00Transform *b);
+/**
+ * @brief 获取变换的仿射矩阵
+ * @param t 变换指针
+ * @param matrix 输出矩阵指针
+ * @return 成功返回 true，失败返回 false
+ */
 bool lv00_transform_get_matrix(Lv00Transform *t, Lv00TransformMatrix *matrix);
+/**
+ * @brief 获取变换类型的名称字符串
+ * @param type 变换类型枚举
+ * @return 返回类型名称字符串
+ */
 const char *lv00_transform_type_name(Lv00TransformType type);
+/**
+ * @brief 判断变换是否为等距变换
+ * @param t 变换指针
+ * @return 是等距变换返回 true，否则返回 false
+ */
 bool lv00_transform_is_isometry(const Lv00Transform *t);
+/**
+ * @brief 判断变换是否保持定向
+ * @param t 变换指针
+ * @return 保持定向返回 true，否则返回 false
+ */
 bool lv00_transform_is_orientation_preserving(const Lv00Transform *t);
+/**
+ * @brief 计算逆变换
+ * @param t 变换指针
+ * @return 成功返回逆变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_inverse(const Lv00Transform *t);
+/**
+ * @brief 计算点关于直线的反射
+ * @param ax 直线上点 A 的 X 坐标（有理数）
+ * @param ay 直线上点 A 的 Y 坐标（有理数）
+ * @param bx 直线上点 B 的 X 坐标（有理数）
+ * @param by 直线上点 B 的 Y 坐标（有理数）
+ * @param px 被反射点 P 的 X 坐标（有理数）
+ * @param py 被反射点 P 的 Y 坐标（有理数）
+ * @param rx 反射结果 X 坐标（输出，有理数）
+ * @param ry 反射结果 Y 坐标（输出，有理数）
+ * @return 成功返回 true，失败返回 false
+ */
 bool lv00_reflect_point(const mpq_t ax, const mpq_t ay,
                          const mpq_t bx, const mpq_t by,
                          const mpq_t px, const mpq_t py,
                          mpq_t rx, mpq_t ry);
 
 /* -- Sequence API -- */
+/**
+ * @brief 创建变换序列
+ * @return 成功返回序列指针，失败返回 NULL
+ */
 Lv00TransformSequence *lv00_transform_sequence_create(void);
+/**
+ * @brief 销毁变换序列
+ * @param seq 变换序列指针
+ */
 void lv00_transform_sequence_destroy(Lv00TransformSequence *seq);
+/**
+ * @brief 向变换序列添加一个变换
+ * @param seq 变换序列指针
+ * @param t 要添加的变换指针
+ * @return 成功返回 true，失败返回 false
+ */
 bool lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t);
+/**
+ * @brief 将序列中所有变换合成为一个变换
+ * @param seq 变换序列指针
+ * @return 成功返回合成变换指针，失败返回 NULL
+ */
 Lv00Transform *lv00_transform_sequence_compose_all(const Lv00TransformSequence *seq);
 
 /* -- Group API -- */
+/**
+ * @brief 创建变换群
+ * @param name 群名称
+ * @return 成功返回变换群指针，失败返回 NULL
+ */
 Lv00TransformGroup *lv00_transform_group_create(const char *name);
+/**
+ * @brief 销毁变换群
+ * @param group 变换群指针
+ */
 void lv00_transform_group_destroy(Lv00TransformGroup *group);
+/**
+ * @brief 向变换群添加生成元
+ * @param group 变换群指针
+ * @param generator 生成元变换指针
+ * @return 成功返回 true，失败返回 false
+ */
 bool lv00_transform_group_add_generator(Lv00TransformGroup *group, Lv00Transform *generator);
+/**
+ * @brief 创建预设变换群
+ * @param type 预设类型字符串
+ * @return 成功返回变换群指针，失败返回 NULL
+ */
 Lv00TransformGroup *lv00_transform_group_create_preset(const char *type);
 
 /* -- Double convenience API -- */
+/**
+ * @brief 创建恒等 4x4 矩阵（双精度）
+ * @param out 输出的 4x4 矩阵（16 元素数组）
+ */
 void lv00_transform_identity_double(double out[16]);
+/**
+ * @brief 创建平移 4x4 矩阵（双精度）
+ * @param out 输出的 4x4 矩阵（16 元素数组）
+ * @param x X 轴平移量
+ * @param y Y 轴平移量
+ * @param z Z 轴平移量
+ */
 void lv00_transform_translate_double(double out[16], double x, double y, double z);
+/**
+ * @brief 创建旋转 4x4 矩阵（双精度）
+ * @param out 输出的 4x4 矩阵（16 元素数组）
+ * @param angle_rad 旋转角度（弧度）
+ * @param x 旋转轴 X 分量
+ * @param y 旋转轴 Y 分量
+ * @param z 旋转轴 Z 分量
+ */
 void lv00_transform_rotate_double(double out[16], double angle_rad, double x, double y, double z);
+/**
+ * @brief 创建缩放 4x4 矩阵（双精度）
+ * @param out 输出的 4x4 矩阵（16 元素数组）
+ * @param sx X 轴缩放因子
+ * @param sy Y 轴缩放因子
+ * @param sz Z 轴缩放因子
+ */
 void lv00_transform_scale_double(double out[16], double sx, double sy, double sz);
+/**
+ * @brief 应用 4x4 变换到顶点数组（双精度）
+ * @param t 4x4 变换矩阵（16 元素数组）
+ * @param in 输入顶点数组（每 3 个元素为一个顶点）
+ * @param out 输出顶点数组
+ * @param count 顶点数量
+ */
 void lv00_transform_apply_double4x4(const double t[16], const double *in, double *out, size_t count);
 
 /* -- 变换阶与对称性分析 -- */
