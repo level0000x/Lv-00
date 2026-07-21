@@ -48,7 +48,7 @@
  * 解析器上下文结构
  * ============================================================ */
 
-LV00_DECLARE_STREAM_CTX(formula_parser);
+LV00_DECLARE_STREAM_CTX(formula_parser)
 
 /**
  * @brief 获取解析器最近一次错误信息
@@ -87,16 +87,6 @@ const char *formula_python_features[] = {"**",    "==",   "!=",     "<=",      "
                                         "None",  "pi",   "e)",     "import ", "from ",   "def ", "if ",  "else ",
                                         "elif ", "for ", "while ", "return ", "lambda ", NULL};
 
-/* ============================================================
- * 希腊字母表
- * ============================================================ */
-
-static const char *GREEK_LETTERS[] = {
-    "alpha",  "beta",  "gamma", "delta",   "epsilon", "zeta", "eta",   "theta", "iota",    "kappa",
-    "lambda", "mu",    "nu",    "xi",      "omicron", "pi",   "rho",   "sigma", "tau",     "upsilon",
-    "phi",    "chi",   "psi",   "omega",   "Alpha",   "Beta", "Gamma", "Delta", "Epsilon", "Zeta",
-    "Eta",    "Theta", "Iota",  "Kappa",   "Lambda",  "Mu",   "Nu",    "Xi",    "Omicron", "Pi",
-    "Rho",    "Sigma", "Tau",   "Upsilon", "Phi",     "Chi",  "Psi",   "Omega", NULL};
 
 /* ============================================================
  * 辅助函数实现

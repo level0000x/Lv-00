@@ -529,7 +529,7 @@ SatResult constraint_graph_to_sat(const ConstraintGraph *graph, SatEncoding *enc
     LV00_CHECK_NULL(graph, SAT_ERROR);
     LV00_CHECK_NULL(enc, SAT_ERROR);
 
-    enc->graph = graph;
+    enc->graph = (ConstraintGraph *)graph;
 
     /* 遍历所有约束，逐个编码 */
     for (int i = 0; i < graph->constraint_count; i++) {
@@ -983,16 +983,14 @@ ConstraintGraph *sat_model_to_graph(const SatModel *model) {
 
                 /* 根据关系名称推断约束类型 */
                 ConstraintType ctype = CONNECTION;
-                if (rel->name) {
-                    if (strstr(rel->name, "incidence") || strstr(rel->name, "on"))
-                        ctype = INCIDENCE;
-                    else if (strstr(rel->name, "between"))
-                        ctype = BETWEENNESS;
-                    else if (strstr(rel->name, "intersect"))
-                        ctype = INTERSECTION;
-                    else if (strstr(rel->name, "contain"))
-                        ctype = CONTAINMENT;
-                }
+                if (strstr(rel->name, "incidence") || strstr(rel->name, "on"))
+                    ctype = INCIDENCE;
+                else if (strstr(rel->name, "between"))
+                    ctype = BETWEENNESS;
+                else if (strstr(rel->name, "intersect"))
+                    ctype = INTERSECTION;
+                else if (strstr(rel->name, "contain"))
+                    ctype = CONTAINMENT;
 
                 int parts[2] = { n1_id, n2_id };
                 graph_add_constraint_with_id(graph, ti + 1, ctype, parts, 2);
@@ -1077,7 +1075,7 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         Relation *binding = (Relation *)lv00_malloc(sizeof(Relation));
                         if (!binding) continue;
                         memset(binding, 0, sizeof(Relation));
-                        strncpy(binding->name, rel->name ? rel->name : "", sizeof(binding->name) - 1);
+                        strncpy(binding->name, rel->name, sizeof(binding->name) - 1);
                         binding->arity = rel->arity;
                         for (int d = 0; d < rel->arity && d < 8; d++) {
                             binding->domains[d] = rel->domains[d];
@@ -1160,8 +1158,6 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         bool found = false;
                         for (int bi = 0; bi < inst->binding_count; bi++) {
                             if (inst->rel_bindings[bi] &&
-                                inst->rel_bindings[bi]->name &&
-                                assert_rel->name &&
                                 strcmp(inst->rel_bindings[bi]->name, assert_rel->name) == 0) {
                                 found = true;
                                 break;

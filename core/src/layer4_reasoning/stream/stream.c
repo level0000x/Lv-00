@@ -1030,7 +1030,7 @@ void stream_emit_preset_validate(StreamContext *ctx, const char *name, bool is_v
     ev.detail_json = detail; /* 复用 detail_json 字段存储验证详情 */
 
     static __thread char desc[512];
-    snprintf(desc, sizeof(desc), "预设 '%s' 验证%s%s", name, is_valid ? "通过" : "失败", detail ? "" : "");
+    snprintf(desc, sizeof(desc), "预设 '%s' 验证%s", name, is_valid ? "通过" : "失败");
     ev.description = desc;
 
     stream_emit(ctx, &ev);

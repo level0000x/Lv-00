@@ -69,7 +69,7 @@
 #include "lv00/type_system.h"
 #include "lv00/unify.h"
 
-LV00_DECLARE_STREAM_CTX(proof);
+LV00_DECLARE_STREAM_CTX(proof)
 
 void proof_set_stream_context(StreamContext *ctx) {
     proof_stream_ctx = ctx;
@@ -115,6 +115,7 @@ Proposition *proposition_create(int id, PropositionType type) {
     return prop;
 }
 
+
 /**
  * 增加命题引用计数
  */
@@ -135,6 +136,6 @@ void proposition_unref(Proposition *prop) {
         proposition_destroy(prop);
 }
 
-/**
+/** */
 
-/* ── 子模块已拆分至 proof/ ── */
+// ── 子模块已拆分至 proof/ ──

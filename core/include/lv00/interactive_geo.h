@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interactive_geo.h
  * @brief 交互几何系统 —— 借鉴 Cinderella 与 Dr. Geo 的交互几何 UX 设计
  *
@@ -47,9 +47,13 @@ typedef struct LV00Engine LV00Engine;
 /** 快照历史最大保留数量 */
 #define LV00_GEO_MAX_SNAPSHOTS 32
 /** 构造脚本缓冲区大小 */
+#ifndef LV00_GEO_SCRIPT_BUFFER_SIZE
 #define LV00_GEO_SCRIPT_BUFFER_SIZE 65536
+#endif
 /** 状态导出 JSON 缓冲区大小 */
+#ifndef LV00_GEO_STATE_BUFFER_SIZE
 #define LV00_GEO_STATE_BUFFER_SIZE 131072
+#endif
 /** 随机化验证默认采样次数 */
 #define LV00_GEO_DEFAULT_SAMPLE_COUNT 10000
 /** 随机化验证默认容差 */

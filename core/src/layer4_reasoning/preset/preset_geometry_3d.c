@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_geometry_3d.c
  * @brief 三维几何预设函数块 - 实现
  *
@@ -37,7 +37,6 @@
  * ============================================================ */
 
 /** 三维几何模块预设函数块总数 */
-#define GEOMETRY_3D_PRESET_COUNT 65
 
 /* ============================================================
  * 内部辅助函数
@@ -1013,7 +1012,7 @@ bool preset_geometry_3d_get_names(char ***out_names, int *out_count)
     *out_names = names;
     *out_count = count;
     return true;
-    
+
 error:
     return false;
 }

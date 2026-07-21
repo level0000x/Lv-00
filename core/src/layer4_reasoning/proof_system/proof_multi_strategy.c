@@ -837,7 +837,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                     DEDUCT_ADD_FACT("connection:%d,%d", c->participants[0], c->participants[1]);
                 break;
             default:
-                LV00_LOG_WARNING("Unknown constraint type in deduct_extract_facts");
+                /* LV00_LOG_WARNING("Unknown constraint type in deduct_extract_facts"); */
                 break;
         }
     }
@@ -1036,6 +1036,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                             double edges2[3];
                             int e2_found = 0;
                             int e2_pairs[3][2];
+                            (void)e2_pairs; /* suppress unused warning */
 
                             int t2verts[3] = {va, vb, vc};
                             for (int e = 0; e < 3; e++) {
@@ -1437,6 +1438,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
     /* 尝试使用 ATP 后端编码约束图 */
     /* 检查是否有可用的 ATP 后端 */
     bool atp_available = false;
+    (void)atp_available; /* suppress unused warning */
     ATPBackendType atp_types[] = {ATP_BACKEND_VAMPIRE, ATP_BACKEND_EPROVER, ATP_BACKEND_IPROVER};
     const char *atp_names[] = {"Vampire", "E Prover", "iProver"};
 

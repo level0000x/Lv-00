@@ -113,42 +113,6 @@ void meta_repr_encoder_reset(MetaReprEncoder *encoder)
     encoder->constraint_count = 0;
 }
 
-/**
- * @brief 内部辅助：分配几何节点
- *
- * 为编码过程创建新的 GeomNode 结构。
- * 使用 graph 上下文分配以确保与约束图兼容。
- */
-static GeomNode *alloc_geom_node_stub(void)
-{
-    GeomNode *node = (GeomNode *)lv00_malloc(sizeof(GeomNode));
-    if (node) {
-        memset(node, 0, sizeof(GeomNode));
-        node->type = GEOM_POINT;
-    }
-    return node;
-}
-
-/**
- * @brief 内部辅助：分配约束图
- *
- * 使用 graph_create() 工厂函数创建完整初始化的 ConstraintGraph。
- */
-static ConstraintGraph *alloc_constraint_graph_stub(void)
-{
-    return graph_create();
-}
-
-/**
- * @brief 内部辅助：分配函数块
- *
- * 使用 func_block_create() 工厂函数创建完整初始化的 FuncBlock。
- */
-static FuncBlock *alloc_func_block_stub(void)
-{
-    return func_block_create(0);
-}
-
 ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder,
                                          const ConstraintGraph *graph)
 {
@@ -479,7 +443,6 @@ ConstraintGraph *meta_repr_decode_graph(MetaReprDecoder *decoder,
     const double id_spacing  = 10.0;
     const double type_spacing = 100.0;
 
-    /* 1. 从几何坐标反推节点 */
     for (int i = 0; i < encoded_graph->node_count; i++) {
         GeomNode *enc_node = encoded_graph->nodes[i];
         if (!enc_node || !enc_node->symbolic_coords || enc_node->coord_count < 2) continue;
@@ -567,9 +530,7 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
     if (!decoder || !decoder->is_initialized || !encoded_block) return NULL;
 
     const double base_x      = 0.0;
-    const double base_y      = 0.0;
     const double id_spacing  = 10.0;
-    const double type_spacing = 100.0;
 
     int block_id = encoded_block->id;
 

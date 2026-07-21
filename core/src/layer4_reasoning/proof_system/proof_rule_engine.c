@@ -51,15 +51,6 @@ static char *safe_strdup(const char *s) {
 }
 
 /**
- * @brief Swap two proof rule pointers (for sorting)
- */
-static void swap_rules(Lv00ProofRule **a, Lv00ProofRule **b) {
-    Lv00ProofRule *tmp = *a;
-    *a = *b;
-    *b = tmp;
-}
-
-/**
  * @brief Sort rules by weight in descending order (insertion sort)
  *
  * Uses insertion sort since the rule set is typically small.

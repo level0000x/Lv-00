@@ -1,21 +1,21 @@
 /* ============================================================================
- * 模块名称：Lv-00 上层统一实现 (lv00_impl_upper)
+ * 模块名称:Lv-00 上层统一实现 (lv00_impl_upper)
  *
- * 功能概述：
+ * 功能概述:
  *   为 L3-L10 各层级提供统一的外部 API 实现入口。
- *   本文件汇聚了跨层级调用的 API 函数，通过内部静态表管理
- *   L3 几何演化引擎、ATP 后端、L6 可视化、L7 编排器、
- *   L8 元验证、L9 应用入口、L10 互操作等子系统的实例。
+ *   本文件汇聚了跨层级调用的 API 函数,通过内部静态表管理
+ *   L3 几何演化引擎,ATP 后端,L6 可视化,L7 编排器,
+ *   L8 元验证,L9 应用入口,L10 互操作等子系统的实例。
  *
- * 架构说明：
- *   各层的领域逻辑实现在对应的 layer*/ 子目录中，
+ * 架构说明:
+ *   各层的领域逻辑实现在对应的 layer/ 子目录中,
  *   本文件仅提供跨层 API 的注册/调度/生命周期管理。
- *   新功能应优先在对应层的 .c 文件中实现，
- *   仅当确实需要跨层统一入口时，才在此文件中注册。
+ *   新功能应优先在对应层的 .c 文件中实现,
+ *   仅当确实需要跨层统一入口时,才在此文件中注册。
  *
- * 内部结构（14 部分）：
+ * 内部结构(14 部分):
  *   第 1 部分   全局状态与内部表
- *   第 2-7 部分 L3-L4 几何与推理预设（geom_evol/atp/presets）
+ *   第 2-7 部分 L3-L4 几何与推理预设(geom_evol/atp/presets)
  *   第 8 部分   L6 可视化层封装
  *   第 9 部分   L7 编排层
  *   第 10 部分  L8 元验证层
@@ -24,12 +24,12 @@
  *   第 13 部分  func_block_preset 统一封装
  *   第 14 部分  综合工具函数
  *
- * 设计文档参考：§四 分层架构
+ * 设计文档参考:第四章 分层架构
  *
  * ============================================================================ */
 
 /* ============================================================
- * 第1部分：头部与全局状态
+ * 第1部分:头部与全局状态
  * ============================================================ */
 #include <gmp.h>
 #include <stdlib.h>
@@ -55,14 +55,14 @@
 #include "lv00/conflict_detector.h"
 #include "lv00/lv00_utils.h"
 
-/** 全局唯一 ID 计数器 —— 从一百万起步，避免与内部 ID 冲突 */
+/** 全局唯一 ID 计数器 -- 从一百万起步,避免与内部 ID 冲突 */
 static int64_t g_upper_id = 1000000;
 
-/** 前向声明 —— 本文件内部使用的轻量级编配器 */
+/** 前向声明 -- 本文件内部使用的轻量级编配器 */
 typedef struct Lv00Orchestrator Lv00Orchestrator;
 
 /* ============================================================
- * 文件级静态内部表 —— 用于 L3 实现中的 ID→object 映射
+ * 文件级静态内部表 -- 用于 L3 实现中的 ID→object 映射
  * ============================================================ */
 
 /** 几何演化引擎表 */
@@ -78,7 +78,7 @@ static int g_atp_backend_count = 0;
 /** ATP 任务跟踪结构 */
 typedef struct {
     int64_t task_id;            /**< 任务唯一 ID */
-    int64_t backend_id;         /**< 关联的后端 ID（在 g_atp_backend_table 中的索引） */
+    int64_t backend_id;         /**< 关联的后端 ID(在 g_atp_backend_table 中的索引) */
     ATPResultInfo result_info;  /**< 求解结果 */
     int8_t  completed;          /**< 0=待处理, 1=已完成 */
 } ATPTask;
@@ -89,18 +89,18 @@ static ATPTask g_atp_task_table[MAX_ATP_TASK_TABLE];
 static int g_atp_task_count = 0;
 
 /* ============================================================
- * 第2部分：L3 几何扩展（geom_evol / atp_backend / proof_tptp）
+ * 第2部分:L3 几何扩展(geom_evol / atp_backend / proof_tptp)
  * ============================================================ */
 
 /* ---- geom_evol: 几何演化引擎 ---- */
 
-/** 创建几何演化引擎，分配参数向量 */
+/** 创建几何演化引擎,分配参数向量 */
 int64_t geom_evol_create(LV00Engine *ctx, int64_t dim) {
     (void)ctx;
     if (dim <= 0 || dim > GEOEVOL_MAX_PARAM_DIM) return -1;
     if (g_evol_count >= MAX_EVOL_TABLE) return -1;
 
-    /* 使用默认 RHS 函数创建演化引擎（调用方需后续设置实际 RHS） */
+    /* 使用默认 RHS 函数创建演化引擎(调用方需后续设置实际 RHS) */
     Lv00GeomEvol *evol = geoevol_create((int)dim, LV00_EVOL_RK4, NULL);
     if (!evol) return -1;
 
@@ -115,20 +115,20 @@ int64_t geom_evol_create(LV00Engine *ctx, int64_t dim) {
     return id;
 }
 
-/** 执行单步几何演化，返回步数计数 */
+/** 执行单步几何演化,返回步数计数 */
 int64_t geom_evol_step(LV00Engine *ctx, int64_t evol_id, int64_t steps) {
     (void)ctx;
     /* 在内部表中查找对应的演化引擎 */
     Lv00GeomEvol *evol = NULL;
     for (int i = 0; i < MAX_EVOL_TABLE; i++) {
         if (g_evol_table[i]) {
-            /* 用 ID 做近似匹配 —— 实际实现应有正式 ID→slot 映射 */
+            /* 用 ID 做近似匹配 -- 实际实现应有正式 ID→slot 映射 */
             evol = g_evol_table[i];
             break;
         }
     }
     if (!evol) {
-        /* 未找到引擎，返回模拟值 */
+        /* 未找到引擎,返回模拟值 */
         return steps + 1;
     }
 
@@ -170,7 +170,7 @@ static ATPBackendType atp_parse_solver_name(const char *solver_name) {
     return ATP_BACKEND_VAMPIRE; /* 默认 */
 }
 
-/** 创建ATP后端，返回后端句柄ID */
+/** 创建ATP后端,返回后端句柄ID */
 int64_t atp_backend_create(LV00Engine *ctx, const char *solver_name) {
     (void)ctx;
     if (g_atp_backend_count >= MAX_ATP_BACKEND_TABLE) return -1;
@@ -194,7 +194,7 @@ int64_t atp_backend_create(LV00Engine *ctx, const char *solver_name) {
     return g_upper_id++;
 }
 
-/** 向ATP后端提交证明任务，返回任务ID */
+/** 向ATP后端提交证明任务,返回任务ID */
 int64_t atp_backend_submit(LV00Engine *ctx, int64_t backend_id, const char *conjecture) {
     (void)ctx; (void)backend_id;
     if (!conjecture || conjecture[0] == '\0') return -1;
@@ -226,7 +226,7 @@ int64_t atp_backend_submit(LV00Engine *ctx, int64_t backend_id, const char *conj
     return task_id;
 }
 
-/** 获取ATP任务结果：0=待处理, 1=已证明, -1=反例, -2=超时 */
+/** 获取ATP任务结果:0=待处理, 1=已证明, -1=反例, -2=超时 */
 int64_t atp_backend_result(LV00Engine *ctx, int64_t task_id) {
     (void)ctx;
     for (int i = 0; i < g_atp_task_count; i++) {
@@ -260,7 +260,7 @@ int64_t atp_backend_destroy(LV00Engine *ctx, int64_t backend_id) {
 
 /* ---- proof_tptp: TPTP格式证明处理 ---- */
 
-/** 将证明导出为TPTP格式，返回写入的字符数 */
+/** 将证明导出为TPTP格式,返回写入的字符数 */
 int64_t proof_tptp_export(LV00Engine *ctx, int64_t proof_id, char *buf, int64_t buf_size) {
     (void)proof_id;
     if (!ctx || !buf || buf_size <= 0) return -1;
@@ -283,7 +283,7 @@ int64_t proof_tptp_export(LV00Engine *ctx, int64_t proof_id, char *buf, int64_t 
     return (int64_t)(n >= 0 ? n : -1);
 }
 
-/** 从TPTP输入验证证明，返回验证报告ID */
+/** 从TPTP输入验证证明,返回验证报告ID */
 int64_t proof_tptp_verify(LV00Engine *ctx, const char *tptp_input) {
     (void)ctx;
     if (!tptp_input || tptp_input[0] == '\0') return -1;
@@ -306,7 +306,7 @@ int64_t proof_tptp_verify(LV00Engine *ctx, const char *tptp_input) {
 
     atp_solver_destroy(solver);
 
-    /* 返回验证报告 ID（存储结果供后续查询） */
+    /* 返回验证报告 ID(存储结果供后续查询) */
     int64_t report_id = g_upper_id++;
 
     /* 将验证结果存入任务表作为记录 */
@@ -324,7 +324,7 @@ int64_t proof_tptp_verify(LV00Engine *ctx, const char *tptp_input) {
 }
 
 /* ============================================================
- * 第3部分：L4 推理预设 —— preset_basic_geometry（21函数）
+ * 第3部分:L4 推理预设 -- preset_basic_geometry(21函数)
  * ============================================================ */
 
 /** 求线段中点 */
@@ -364,7 +364,7 @@ int64_t preset_circumcenter(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3)
     if (graph_add_point(graph, (SymbolicCoord *const *)coords, 2) != ADD_NODE_OK) return -1;
     int center_id = graph_get_last_added_node_id(graph);
 
-    /* 外心到三顶点等距：通过 incidence 关联三边 */
+    /* 外心到三顶点等距:通过 incidence 关联三边 */
     if (graph_add_line_segment(graph, (int)p1, (int)p2) != ADD_NODE_OK) return -1;
     int ab = graph_get_last_added_node_id(graph);
     graph_add_incidence(graph, center_id, ab);
@@ -428,7 +428,7 @@ int64_t preset_orthocenter(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3) 
     if (graph_add_point(graph, (SymbolicCoord *const *)coords, 2) != ADD_NODE_OK) return -1;
     int h_id = graph_get_last_added_node_id(graph);
 
-    /* 垂心关联三条边（垂足约束由求解器处理） */
+    /* 垂心关联三条边(垂足约束由求解器处理) */
     if (graph_add_line_segment(graph, (int)p1, (int)p2) != ADD_NODE_OK) return -1;
     int ab = graph_get_last_added_node_id(graph);
     graph_add_incidence(graph, h_id, ab);
@@ -476,7 +476,7 @@ int64_t preset_incenter(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3) {
     return (int64_t)i_id;
 }
 
-/** 求三角形旁心（excenter） */
+/** 求三角形旁心(excenter) */
 int64_t preset_excenter(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3) {
     if (!ctx) return -1;
     ConstraintGraph *graph = ctx->main_graph;
@@ -550,7 +550,7 @@ int64_t preset_angle_bisector(LV00Engine *ctx, int64_t p_vertex, int64_t p1, int
     if (graph_add_point(graph, (SymbolicCoord *const *)coords, 2) != ADD_NODE_OK) return -1;
     int aux_id = graph_get_last_added_node_id(graph);
 
-    /* 角平分线：从顶点到辅助点 */
+    /* 角平分线:从顶点到辅助点 */
     if (graph_add_line_segment(graph, (int)p_vertex, aux_id) != ADD_NODE_OK) return -1;
     int bisector_id = graph_get_last_added_node_id(graph);
 
@@ -609,7 +609,7 @@ int64_t preset_tangent_from_point(LV00Engine *ctx, int64_t circle_id, int64_t po
     /* 切点在圆上 */
     graph_add_incidence(graph, touch_id, (int)circle_id);
 
-    /* 切线：从外部点到切点 */
+    /* 切线:从外部点到切点 */
     if (graph_add_line_segment(graph, (int)point_id, touch_id) != ADD_NODE_OK) return -1;
     int tangent_id = graph_get_last_added_node_id(graph);
 
@@ -626,7 +626,7 @@ int64_t preset_circle_through_points(LV00Engine *ctx, int64_t p1, int64_t p2, in
     GeomNode *c = graph_get_node(graph, (int)p3);
     if (!a || !b || !c || a->type != GEOM_POINT || b->type != GEOM_POINT || c->type != GEOM_POINT) return -1;
 
-    /* 以 a->b 线段表示圆（圆心到圆周点） */
+    /* 以 a->b 线段表示圆(圆心到圆周点) */
     if (graph_add_line_segment(graph, (int)p1, (int)p2) != ADD_NODE_OK) return -1;
     int circle_id = graph_get_last_added_node_id(graph);
 
@@ -759,7 +759,7 @@ int64_t preset_pedal_triangle(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p
     if (graph_add_line_segment(graph, foot3, foot1) != ADD_NODE_OK) return -1;
     int s3 = graph_get_last_added_node_id(graph);
 
-    /* 返回区域（垂足三角形） */
+    /* 返回区域(垂足三角形) */
     int tri_sides[3] = { s1, s2, s3 };
     if (graph_add_region(graph, tri_sides, 3) != ADD_NODE_OK) return -1;
     return (int64_t)graph_get_last_added_node_id(graph);
@@ -813,7 +813,7 @@ int64_t preset_euler_line(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3) {
     return (int64_t)euler_id;
 }
 
-/** 求类似中线（symmedian） */
+/** 求类似中线(symmedian) */
 int64_t preset_symmedian(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3) {
     if (!ctx) return -1;
     ConstraintGraph *graph = ctx->main_graph;
@@ -825,7 +825,7 @@ int64_t preset_symmedian(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3) {
     if (!a->symbolic_coords || !b->symbolic_coords || !c->symbolic_coords) return -1;
     if (a->coord_count < 2 || b->coord_count < 2 || c->coord_count < 2) return -1;
 
-    /* 类似中线：过顶点 A 与对边 BC 的辅助点 */
+    /* 类似中线:过顶点 A 与对边 BC 的辅助点 */
     SymbolicCoord *coords[2] = { b->symbolic_coords[0], c->symbolic_coords[1] };
     if (graph_add_point(graph, (SymbolicCoord *const *)coords, 2) != ADD_NODE_OK) return -1;
     int aux_id = graph_get_last_added_node_id(graph);
@@ -862,7 +862,7 @@ int64_t preset_nine_point_circle(LV00Engine *ctx, int64_t p1, int64_t p2, int64_
     if (graph_add_point(graph, (SymbolicCoord *const *)m3, 2) != ADD_NODE_OK) return -1;
     int mid_ca = graph_get_last_added_node_id(graph);
 
-    /* 九点圆：以 mid_ab 到 mid_bc 的线段表示 */
+    /* 九点圆:以 mid_ab 到 mid_bc 的线段表示 */
     if (graph_add_line_segment(graph, mid_ab, mid_bc) != ADD_NODE_OK) return -1;
     int nine_circle = graph_get_last_added_node_id(graph);
 
@@ -909,7 +909,7 @@ int64_t preset_incircle(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3) {
 }
 
 /* ============================================================
- * 第4部分：预设变换 —— preset_transformations（17函数）
+ * 第4部分:预设变换 -- preset_transformations(17函数)
  * ============================================================ */
 
 /** 平移变换 */
@@ -925,7 +925,7 @@ int64_t preset_translate(LV00Engine *ctx, int64_t obj_id, int64_t dx, int64_t dy
     return (int64_t)result_id;
 }
 
-/** 旋转变换（绕原点） */
+/** 旋转变换(绕原点) */
 int64_t preset_rotate(LV00Engine *ctx, int64_t obj_id, int64_t angle_mrad) {
     ConstraintGraph *graph = ctx->main_graph;
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
@@ -1005,7 +1005,7 @@ int64_t preset_shear_y(LV00Engine *ctx, int64_t obj_id, int64_t factor, int64_t 
     return (int64_t)result_id;
 }
 
-/** 仿射变换（6参数矩阵） */
+/** 仿射变换(6参数矩阵) */
 int64_t preset_affine(LV00Engine *ctx, int64_t obj_id,
         int64_t a11, int64_t a12, int64_t a21, int64_t a22,
         int64_t tx, int64_t ty, int64_t denom) {
@@ -1056,7 +1056,7 @@ int64_t preset_identity_transform(LV00Engine *ctx) {
     return (int64_t)result_id;
 }
 
-/** 位似变换（dilatation） */
+/** 位似变换(dilatation) */
 int64_t preset_dilate(LV00Engine *ctx, int64_t obj_id, int64_t center_id, int64_t ratio_num, int64_t ratio_den) {
     ConstraintGraph *graph = ctx->main_graph;
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
@@ -1144,17 +1144,17 @@ int64_t preset_inversion(LV00Engine *ctx, int64_t obj_id, int64_t circle_id) {
 }
 
 /* ============================================================
- * 第5部分：预设测量 —— preset_measurements（17函数）
+ * 第5部分:预设测量 -- preset_measurements(17函数)
  * ============================================================ */
 
-/** 两点间距（以整数有理数分子表示） */
+/** 两点间距(以整数有理数分子表示) */
 int64_t preset_distance(LV00Engine *ctx, int64_t p1, int64_t p2) {
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph) return -1;
     GeomNode *n1 = graph_get_node(graph, (int)p1);
     GeomNode *n2 = graph_get_node(graph, (int)p2);
     if (!n1 || !n2 || n1->type != GEOM_POINT || n2->type != GEOM_POINT) return -1;
-    /* 创建测量结果节点，锚定在 n2 的坐标上。
+    /* 创建测量结果节点,锚定在 n2 的坐标上。
      * 实际距离值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, n2->symbolic_coords, n2->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1164,7 +1164,7 @@ int64_t preset_distance(LV00Engine *ctx, int64_t p1, int64_t p2) {
     return (int64_t)result_id;
 }
 
-/** 三点所成角度（毫弧度） */
+/** 三点所成角度(毫弧度) */
 int64_t preset_angle(LV00Engine *ctx, int64_t p_vertex, int64_t p1, int64_t p2) {
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph) return -1;
@@ -1173,7 +1173,7 @@ int64_t preset_angle(LV00Engine *ctx, int64_t p_vertex, int64_t p1, int64_t p2) 
     GeomNode *nb = graph_get_node(graph, (int)p2);
     if (!nv || !na || !nb) return -1;
     if (nv->type != GEOM_POINT || na->type != GEOM_POINT || nb->type != GEOM_POINT) return -1;
-    /* 创建测量结果节点，锚定在顶点坐标上。
+    /* 创建测量结果节点,锚定在顶点坐标上。
      * 实际角度值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, nv->symbolic_coords, nv->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1192,7 +1192,7 @@ int64_t preset_area_triangle(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3
     GeomNode *n3 = graph_get_node(graph, (int)p3);
     if (!n1 || !n2 || !n3) return -1;
     if (n1->type != GEOM_POINT || n2->type != GEOM_POINT || n3->type != GEOM_POINT) return -1;
-    /* 创建测量结果节点，锚定在 n3 的坐标上。
+    /* 创建测量结果节点,锚定在 n3 的坐标上。
      * 实际面积值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, n3->symbolic_coords, n3->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1202,7 +1202,7 @@ int64_t preset_area_triangle(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p3
     return (int64_t)result_id;
 }
 
-/** 多边形面积（Shoelace公式） */
+/** 多边形面积(Shoelace公式) */
 int64_t preset_area_polygon(LV00Engine *ctx, int64_t *point_ids, int64_t count) {
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph || !point_ids || count < 3) return -1;
@@ -1213,7 +1213,7 @@ int64_t preset_area_polygon(LV00Engine *ctx, int64_t *point_ids, int64_t count) 
     }
     int64_t last_idx = count - 1;
     GeomNode *last_pt = graph_get_node(graph, (int)point_ids[last_idx]);
-    /* 创建测量结果节点，锚定在最后一个顶点的坐标上。
+    /* 创建测量结果节点,锚定在最后一个顶点的坐标上。
      * 实际面积值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, last_pt->symbolic_coords, last_pt->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1233,7 +1233,7 @@ int64_t preset_perimeter(LV00Engine *ctx, int64_t *point_ids, int64_t count) {
     }
     int64_t last_idx = count - 1;
     GeomNode *last_pt = graph_get_node(graph, (int)point_ids[last_idx]);
-    /* 创建测量结果节点，锚定在最后一个顶点的坐标上。
+    /* 创建测量结果节点,锚定在最后一个顶点的坐标上。
      * 实际周长值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, last_pt->symbolic_coords, last_pt->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1243,14 +1243,14 @@ int64_t preset_perimeter(LV00Engine *ctx, int64_t *point_ids, int64_t count) {
     return (int64_t)result_id;
 }
 
-/** 曲率（给定向量的离散曲率近似） */
+/** 曲率(给定向量的离散曲率近似) */
 int64_t preset_curvature(LV00Engine *ctx, int64_t curve_id, int64_t t_param) {
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph) return -1;
     GeomNode *curve = graph_get_node(graph, (int)curve_id);
     if (!curve) return -1;
-    /* 创建测量结果节点，锚定在曲线节点的坐标上。
-     * t_param 为参数值，实际曲率由约束求解器计算得出。 */
+    /* 创建测量结果节点,锚定在曲线节点的坐标上。
+     * t_param 为参数值,实际曲率由约束求解器计算得出。 */
     AddNodeResult res = graph_add_point(graph, curve->symbolic_coords, curve->coord_count);
     if (res != ADD_NODE_OK) return -1;
     int result_id = graph_get_last_added_node_id(graph);
@@ -1268,7 +1268,7 @@ int64_t preset_ratio(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p_div) {
     GeomNode *nd = graph_get_node(graph, (int)p_div);
     if (!n1 || !n2 || !nd) return -1;
     if (n1->type != GEOM_POINT || n2->type != GEOM_POINT || nd->type != GEOM_POINT) return -1;
-    /* 创建测量结果节点，锚定在分割点的坐标上。
+    /* 创建测量结果节点,锚定在分割点的坐标上。
      * 实际比率由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, nd->symbolic_coords, nd->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1278,7 +1278,7 @@ int64_t preset_ratio(LV00Engine *ctx, int64_t p1, int64_t p2, int64_t p_div) {
     return (int64_t)result_id;
 }
 
-/** 调和比（共线四点 a,b,c,d 的调和分割） */
+/** 调和比(共线四点 a,b,c,d 的调和分割) */
 int64_t preset_harmonic_ratio(LV00Engine *ctx, int64_t a, int64_t b, int64_t c, int64_t d) {
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph) return -1;
@@ -1289,7 +1289,7 @@ int64_t preset_harmonic_ratio(LV00Engine *ctx, int64_t a, int64_t b, int64_t c, 
     if (!na || !nb || !nc || !nd) return -1;
     if (na->type != GEOM_POINT || nb->type != GEOM_POINT ||
         nc->type != GEOM_POINT || nd->type != GEOM_POINT) return -1;
-    /* 创建测量结果节点，锚定在 d 的坐标上。
+    /* 创建测量结果节点,锚定在 d 的坐标上。
      * 实际调和比值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, nd->symbolic_coords, nd->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1299,7 +1299,7 @@ int64_t preset_harmonic_ratio(LV00Engine *ctx, int64_t a, int64_t b, int64_t c, 
     return (int64_t)result_id;
 }
 
-/** 交比（cross ratio，共线四点 a,b,c,d） */
+/** 交比(cross ratio,共线四点 a,b,c,d) */
 int64_t preset_cross_ratio(LV00Engine *ctx, int64_t a, int64_t b, int64_t c, int64_t d) {
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph) return -1;
@@ -1310,7 +1310,7 @@ int64_t preset_cross_ratio(LV00Engine *ctx, int64_t a, int64_t b, int64_t c, int
     if (!na || !nb || !nc || !nd) return -1;
     if (na->type != GEOM_POINT || nb->type != GEOM_POINT ||
         nc->type != GEOM_POINT || nd->type != GEOM_POINT) return -1;
-    /* 创建测量结果节点，锚定在 d 的坐标上。
+    /* 创建测量结果节点,锚定在 d 的坐标上。
      * 实际交比值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, nd->symbolic_coords, nd->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1320,13 +1320,13 @@ int64_t preset_cross_ratio(LV00Engine *ctx, int64_t a, int64_t b, int64_t c, int
     return (int64_t)result_id;
 }
 
-/** 直线斜率（有理数表示） */
+/** 直线斜率(有理数表示) */
 int64_t preset_slope(LV00Engine *ctx, int64_t line_id) {
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph) return -1;
     GeomNode *line = graph_get_node(graph, (int)line_id);
     if (!line) return -1;
-    /* 创建测量结果节点，锚定在直线节点的坐标上。
+    /* 创建测量结果节点,锚定在直线节点的坐标上。
      * 实际斜率值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, line->symbolic_coords, line->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1342,7 +1342,7 @@ int64_t preset_intercept(LV00Engine *ctx, int64_t line_id) {
     if (!graph) return -1;
     GeomNode *line = graph_get_node(graph, (int)line_id);
     if (!line) return -1;
-    /* 创建测量结果节点，锚定在直线节点的坐标上。
+    /* 创建测量结果节点,锚定在直线节点的坐标上。
      * 实际截距值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, line->symbolic_coords, line->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1358,7 +1358,7 @@ int64_t preset_length_segment(LV00Engine *ctx, int64_t seg_id) {
     if (!graph) return -1;
     GeomNode *seg = graph_get_node(graph, (int)seg_id);
     if (!seg) return -1;
-    /* 创建测量结果节点，锚定在线段节点的坐标上。
+    /* 创建测量结果节点,锚定在线段节点的坐标上。
      * 实际长度值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, seg->symbolic_coords, seg->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1374,7 +1374,7 @@ int64_t preset_arc_length(LV00Engine *ctx, int64_t arc_id) {
     if (!graph) return -1;
     GeomNode *arc = graph_get_node(graph, (int)arc_id);
     if (!arc) return -1;
-    /* 创建测量结果节点，锚定在弧节点的坐标上。
+    /* 创建测量结果节点,锚定在弧节点的坐标上。
      * 实际弧长值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, arc->symbolic_coords, arc->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1390,8 +1390,8 @@ int64_t preset_diagonal_length(LV00Engine *ctx, int64_t poly_id, int64_t diag_id
     if (!graph) return -1;
     GeomNode *poly = graph_get_node(graph, (int)poly_id);
     if (!poly) return -1;
-    /* 创建测量结果节点，锚定在多边形节点的坐标上。
-     * diag_idx 为对角线索引，实际长度由约束求解器计算得出。 */
+    /* 创建测量结果节点,锚定在多边形节点的坐标上。
+     * diag_idx 为对角线索引,实际长度由约束求解器计算得出。 */
     AddNodeResult res = graph_add_point(graph, poly->symbolic_coords, poly->coord_count);
     if (res != ADD_NODE_OK) return -1;
     int result_id = graph_get_last_added_node_id(graph);
@@ -1406,7 +1406,7 @@ int64_t preset_radius(LV00Engine *ctx, int64_t circle_id) {
     if (!graph) return -1;
     GeomNode *circle = graph_get_node(graph, (int)circle_id);
     if (!circle) return -1;
-    /* 创建测量结果节点，锚定在圆节点的坐标上。
+    /* 创建测量结果节点,锚定在圆节点的坐标上。
      * 实际半径值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, circle->symbolic_coords, circle->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1422,7 +1422,7 @@ int64_t preset_diameter(LV00Engine *ctx, int64_t circle_id) {
     if (!graph) return -1;
     GeomNode *circle = graph_get_node(graph, (int)circle_id);
     if (!circle) return -1;
-    /* 创建测量结果节点，锚定在圆节点的坐标上。
+    /* 创建测量结果节点,锚定在圆节点的坐标上。
      * 实际直径值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, circle->symbolic_coords, circle->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1441,7 +1441,7 @@ int64_t preset_chord_length(LV00Engine *ctx, int64_t circle_id, int64_t p1, int6
     GeomNode *np2 = graph_get_node(graph, (int)p2);
     if (!circle || !np1 || !np2) return -1;
     if (np1->type != GEOM_POINT || np2->type != GEOM_POINT) return -1;
-    /* 创建测量结果节点，锚定在 p2 的坐标上。
+    /* 创建测量结果节点,锚定在 p2 的坐标上。
      * 实际弦长值由约束求解器在解析约束后计算得出。 */
     AddNodeResult res = graph_add_point(graph, np2->symbolic_coords, np2->coord_count);
     if (res != ADD_NODE_OK) return -1;
@@ -1452,7 +1452,7 @@ int64_t preset_chord_length(LV00Engine *ctx, int64_t circle_id, int64_t p1, int6
 }
 
 /* ============================================================
- * 第6部分：预设多边形 —— preset_polygons（15函数）
+ * 第6部分:预设多边形 -- preset_polygons(15函数)
  * ============================================================ */
 
 /** SSS构造三角形 */
@@ -1681,9 +1681,9 @@ int64_t preset_regular_polygon(LV00Engine *ctx, int64_t center_id, int64_t radiu
     if (!nc || !nr || n_sides < 3) return -1;
 
     int n = (int)n_sides;
-    /* 创建 n 个顶点，均匀分布在以 center 为中心的圆周上 */
-    /* 使用有理坐标近似：顶点 i 的坐标为 (center + radius*cos(2πi/n), center + radius*sin(2πi/n)) */
-    /* 由于没有三角函数，使用符号坐标编码：每个顶点的坐标 = center.coords + radius.coords * 方向因子 */
+    /* 创建 n 个顶点,均匀分布在以 center 为中心的圆周上 */
+    /* 使用有理坐标近似:顶点 i 的坐标为 (center + radius*cos(2πi/n), center + radius*sin(2πi/n)) */
+    /* 由于没有三角函数,使用符号坐标编码:每个顶点的坐标 = center.coords + radius.coords * 方向因子 */
     int vertex_ids[128]; /* 安全边界 */
 
     SymbolicCoord *cx = (nc->coord_count > 0) ? symbolic_coord_copy(nc->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
@@ -1692,7 +1692,7 @@ int64_t preset_regular_polygon(LV00Engine *ctx, int64_t center_id, int64_t radiu
     SymbolicCoord *ry = (nr->coord_count > 1) ? symbolic_coord_copy(nr->symbolic_coords[1]) : symbolic_coord_copy(rx);
 
     for (int i = 0; i < n; i++) {
-        /* 方向因子：用有理近似 (i/n) 编码角度 */
+        /* 方向因子:用有理近似 (i/n) 编码角度 */
         SymbolicCoord *vx = symbolic_coord_add(cx, symbolic_coord_multiply(rx,
             symbolic_coord_create_rational(i, (uint64_t)n)));
         SymbolicCoord *vy = symbolic_coord_add(cy, symbolic_coord_multiply(ry,
@@ -1704,7 +1704,7 @@ int64_t preset_regular_polygon(LV00Engine *ctx, int64_t center_id, int64_t radiu
         vertex_ids[i] = graph_get_last_added_node_id(g);
     }
 
-    /* 连接相邻顶点，形成 n 条边 */
+    /* 连接相邻顶点,形成 n 条边 */
     int edge_ids[128];
     for (int i = 0; i < n; i++) {
         graph_add_line_segment(g, vertex_ids[i], vertex_ids[(i + 1) % n]);
@@ -1721,7 +1721,7 @@ int64_t preset_convex_hull(LV00Engine *ctx, int64_t *point_ids, int64_t count) {
     if (!point_ids || count < 3) return -1;
 
     int n = (int)count;
-    /* 用输入点构建多边形环边，生成凸包区域 */
+    /* 用输入点构建多边形环边,生成凸包区域 */
     int *seg_ids = (int *)malloc((size_t)n * sizeof(int));
     if (!seg_ids) return -1;
 
@@ -1742,7 +1742,7 @@ int64_t preset_centroid_polygon(LV00Engine *ctx, int64_t poly_id) {
     GeomNode *poly = graph_get_node(g, (int)poly_id);
     if (!poly) return -1;
 
-    /* 创建重心节点，用多边形的符号坐标编码重心位置 */
+    /* 创建重心节点,用多边形的符号坐标编码重心位置 */
     SymbolicCoord *cx = (poly->coord_count > 0)
         ? symbolic_coord_copy(poly->symbolic_coords[0])
         : symbolic_coord_create_rational(0, 1);
@@ -1750,7 +1750,7 @@ int64_t preset_centroid_polygon(LV00Engine *ctx, int64_t poly_id) {
         ? symbolic_coord_copy(poly->symbolic_coords[1])
         : symbolic_coord_create_rational(0, 1);
 
-    /* 重心 = 顶点坐标均值，此处用多边形坐标近似 */
+    /* 重心 = 顶点坐标均值,此处用多边形坐标近似 */
     SymbolicCoord *coords_C[2];
     coords_C[0] = symbolic_coord_divide(cx, symbolic_coord_create_rational(3, 1));
     coords_C[1] = symbolic_coord_divide(cy, symbolic_coord_create_rational(3, 1));
@@ -1764,7 +1764,7 @@ int64_t preset_is_convex(LV00Engine *ctx, int64_t poly_id) {
     GeomNode *poly = graph_get_node(g, (int)poly_id);
     if (!poly) return -1;
 
-    /* 创建判定结果节点：存储 1（凸）或 0（非凸） */
+    /* 创建判定结果节点:存储 1(凸)或 0(非凸) */
     SymbolicCoord *coords[1];
     coords[0] = symbolic_coord_create_rational(1, 1); /* 默认 1=是凸多边形 */
     graph_add_point(g, coords, 1);
@@ -1777,7 +1777,7 @@ int64_t preset_is_regular(LV00Engine *ctx, int64_t poly_id) {
     GeomNode *poly = graph_get_node(g, (int)poly_id);
     if (!poly) return -1;
 
-    /* 创建判定结果节点：存储 0（非正）或 1（正） */
+    /* 创建判定结果节点:存储 0(非正)或 1(正) */
     SymbolicCoord *coords[1];
     coords[0] = symbolic_coord_create_rational(0, 1); /* 默认 0=非正多边形 */
     graph_add_point(g, coords, 1);
@@ -1793,7 +1793,7 @@ int64_t preset_triangulate(LV00Engine *ctx, int64_t poly_id) {
     int seg_count = poly->data.region.segment_count;
     if (seg_count < 3) return -1;
 
-    /* 扇状三角剖分：从第一个顶点出发，连接所有非相邻顶点 */
+    /* 扇状三角剖分:从第一个顶点出发,连接所有非相邻顶点 */
     /* 三角剖分结果用区域节点编码 */
     SymbolicCoord *coords_T[2];
     coords_T[0] = symbolic_coord_create_rational((int64_t)poly_id, 1);
@@ -1802,7 +1802,7 @@ int64_t preset_triangulate(LV00Engine *ctx, int64_t poly_id) {
     return (int64_t)graph_get_last_added_node_id(g);
 }
 
-/** Shoelace公式求面积（返回精确有理值） */
+/** Shoelace公式求面积(返回精确有理值) */
 int64_t preset_area_by_shoelace(LV00Engine *ctx, int64_t *point_ids, int64_t count) {
     ConstraintGraph *g = ctx->main_graph;
     if (!point_ids || count < 3) return -1;
@@ -1854,7 +1854,7 @@ int64_t preset_circumscribed(LV00Engine *ctx, int64_t poly_id) {
     GeomNode *poly = graph_get_node(g, (int)poly_id);
     if (!poly) return -1;
 
-    /* 创建外接圆节点：用多边形坐标编码圆心和半径 */
+    /* 创建外接圆节点:用多边形坐标编码圆心和半径 */
     SymbolicCoord *cx = (poly->coord_count > 0)
         ? symbolic_coord_copy(poly->symbolic_coords[0])
         : symbolic_coord_create_rational(0, 1);
@@ -1862,7 +1862,7 @@ int64_t preset_circumscribed(LV00Engine *ctx, int64_t poly_id) {
         ? symbolic_coord_copy(poly->symbolic_coords[1])
         : symbolic_coord_create_rational(0, 1);
 
-    /* 外接圆：圆心 = 多边形中心近似，半径 = 顶点到中心距离 */
+    /* 外接圆:圆心 = 多边形中心近似,半径 = 顶点到中心距离 */
     SymbolicCoord *coords[3];
     coords[0] = cx;
     coords[1] = cy;
@@ -1877,7 +1877,7 @@ int64_t preset_inscribed(LV00Engine *ctx, int64_t poly_id) {
     GeomNode *poly = graph_get_node(g, (int)poly_id);
     if (!poly) return -1;
 
-    /* 创建内切圆节点：圆心和半径由多边形决定 */
+    /* 创建内切圆节点:圆心和半径由多边形决定 */
     SymbolicCoord *cx = (poly->coord_count > 0)
         ? symbolic_coord_copy(poly->symbolic_coords[0])
         : symbolic_coord_create_rational(0, 1);
@@ -1888,7 +1888,7 @@ int64_t preset_inscribed(LV00Engine *ctx, int64_t poly_id) {
     SymbolicCoord *coords[3];
     coords[0] = cx;
     coords[1] = cy;
-    coords[2] = symbolic_coord_create_rational(1, 2); /* 半径占位：内切 < 外接 */
+    coords[2] = symbolic_coord_create_rational(1, 2); /* 半径占位:内切 < 外接 */
     graph_add_point(g, coords, 3);
     return (int64_t)graph_get_last_added_node_id(g);
 }
@@ -1902,7 +1902,7 @@ int64_t preset_dual_polygon(LV00Engine *ctx, int64_t poly_id) {
     int seg_count = poly->data.region.segment_count;
     if (seg_count < 3) return -1;
 
-    /* 对偶多边形：以原多边形各边中点为顶点构造新多边形 */
+    /* 对偶多边形:以原多边形各边中点为顶点构造新多边形 */
     /* 创建 seg_count 个中点顶点 */
     int *mid_ids = (int *)malloc((size_t)seg_count * sizeof(int));
     if (!mid_ids) return -1;
@@ -1941,10 +1941,10 @@ int64_t preset_dual_polygon(LV00Engine *ctx, int64_t poly_id) {
 }
 
 /* ============================================================
- * 第7部分：预设代数 —— preset_algebraic（14函数）
+ * 第7部分:预设代数 -- preset_algebraic(14函数)
  * ============================================================ */
 
-/** 创建多项式对象（系数数组）—— 创建 GEOM_FUNCTION_BLOCK 类型节点存储多项式系数 */
+/** 创建多项式对象(系数数组)-- 创建 GEOM_FUNCTION_BLOCK 类型节点存储多项式系数 */
 int64_t preset_polynomial_create(LV00Engine *ctx, int64_t *coeffs, int64_t degree) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph || !coeffs || degree < 0) return g_upper_id++;
@@ -1969,7 +1969,7 @@ int64_t preset_polynomial_create(LV00Engine *ctx, int64_t *coeffs, int64_t degre
     return (int64_t)result_id;
 }
 
-/** 在指定点求多项式值（使用GMP精确整数/有理数） */
+/** 在指定点求多项式值(使用GMP精确整数/有理数) */
 int64_t preset_polynomial_evaluate(LV00Engine *ctx, int64_t poly_id, int64_t x_num, int64_t x_den) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -1978,7 +1978,7 @@ int64_t preset_polynomial_evaluate(LV00Engine *ctx, int64_t poly_id, int64_t x_n
     GeomNode *poly_node = graph_get_node(graph, (int)poly_id);
     if (!poly_node) return g_upper_id++;
 
-    /* 创建计算点坐标：x = x_num / x_den，以及占位结果坐标 */
+    /* 创建计算点坐标:x = x_num / x_den,以及占位结果坐标 */
     SymbolicCoord *point_coord = symbolic_coord_create_rational(x_num, (uint64_t)(x_den ? x_den : 1));
     if (!point_coord) return g_upper_id++;
     SymbolicCoord *result_coord = symbolic_coord_create_rational(0, 1);
@@ -1995,7 +1995,7 @@ int64_t preset_polynomial_evaluate(LV00Engine *ctx, int64_t poly_id, int64_t x_n
     return (int64_t)result_id;
 }
 
-/** 多项式求根（返回根节点组ID）—— 创建结果节点，实际求根由求解器完成 */
+/** 多项式求根(返回根节点组ID)-- 创建结果节点,实际求根由求解器完成 */
 int64_t preset_polynomial_roots(LV00Engine *ctx, int64_t poly_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -2016,7 +2016,7 @@ int64_t preset_polynomial_roots(LV00Engine *ctx, int64_t poly_id) {
     return (int64_t)result_id;
 }
 
-/** 多项式加法 —— 创建新多项式节点表示加法结果 */
+/** 多项式加法 -- 创建新多项式节点表示加法结果 */
 int64_t preset_polynomial_add(LV00Engine *ctx, int64_t p1_id, int64_t p2_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -2025,7 +2025,7 @@ int64_t preset_polynomial_add(LV00Engine *ctx, int64_t p1_id, int64_t p2_id) {
     GeomNode *p2_node = graph_get_node(graph, (int)p2_id);
     if (!p1_node || !p2_node) return g_upper_id++;
 
-    /* 创建结果节点：coord[0]=p1_id标记, coord[1]=p2_id标记 */
+    /* 创建结果节点:coord[0]=p1_id标记, coord[1]=p2_id标记 */
     SymbolicCoord *op1 = symbolic_coord_create_rational(p1_id, 1);
     SymbolicCoord *op2 = symbolic_coord_create_rational(p2_id, 1);
     if (!op1 || !op2) {
@@ -2045,7 +2045,7 @@ int64_t preset_polynomial_add(LV00Engine *ctx, int64_t p1_id, int64_t p2_id) {
     return (int64_t)result_id;
 }
 
-/** 多项式乘法 —— 创建新多项式节点表示乘法结果 */
+/** 多项式乘法 -- 创建新多项式节点表示乘法结果 */
 int64_t preset_polynomial_mul(LV00Engine *ctx, int64_t p1_id, int64_t p2_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -2054,7 +2054,7 @@ int64_t preset_polynomial_mul(LV00Engine *ctx, int64_t p1_id, int64_t p2_id) {
     GeomNode *p2_node = graph_get_node(graph, (int)p2_id);
     if (!p1_node || !p2_node) return g_upper_id++;
 
-    /* 创建结果节点：coord[0]=p1_id标记, coord[1]=p2_id标记 */
+    /* 创建结果节点:coord[0]=p1_id标记, coord[1]=p2_id标记 */
     SymbolicCoord *op1 = symbolic_coord_create_rational(p1_id, 1);
     SymbolicCoord *op2 = symbolic_coord_create_rational(p2_id, 1);
     if (!op1 || !op2) {
@@ -2074,7 +2074,7 @@ int64_t preset_polynomial_mul(LV00Engine *ctx, int64_t p1_id, int64_t p2_id) {
     return (int64_t)result_id;
 }
 
-/** 方程求解 —— 创建结果节点表示解 */
+/** 方程求解 -- 创建结果节点表示解 */
 int64_t preset_equation_solve(LV00Engine *ctx, int64_t equation_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -2095,7 +2095,7 @@ int64_t preset_equation_solve(LV00Engine *ctx, int64_t equation_id) {
     return (int64_t)result_id;
 }
 
-/** 不等式检查 —— 创建结果节点表示真/假（1=成立, 0=不成立） */
+/** 不等式检查 -- 创建结果节点表示真/假(1=成立, 0=不成立) */
 int64_t preset_inequality_check(LV00Engine *ctx, int64_t expr_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return 1; /* 默认成立 */
@@ -2103,7 +2103,7 @@ int64_t preset_inequality_check(LV00Engine *ctx, int64_t expr_id) {
     GeomNode *expr_node = graph_get_node(graph, (int)expr_id);
     if (!expr_node) return 1;
 
-    /* 创建结果节点：coord value = 1（成立），实际验证由求解器完成 */
+    /* 创建结果节点:coord value = 1(成立),实际验证由求解器完成 */
     SymbolicCoord *result_coord = symbolic_coord_create_rational(1, 1);
     if (!result_coord) return 1;
 
@@ -2116,7 +2116,7 @@ int64_t preset_inequality_check(LV00Engine *ctx, int64_t expr_id) {
     return (int64_t)result_id;
 }
 
-/** Groebner基计算 —— 创建结果节点表示Groebner基 */
+/** Groebner基计算 -- 创建结果节点表示Groebner基 */
 int64_t preset_groebner_basis(LV00Engine *ctx, int64_t *poly_ids, int64_t count) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph || !poly_ids || count <= 0) return g_upper_id++;
@@ -2126,7 +2126,7 @@ int64_t preset_groebner_basis(LV00Engine *ctx, int64_t *poly_ids, int64_t count)
         if (!graph_get_node(graph, (int)poly_ids[i])) return g_upper_id++;
     }
 
-    /* 创建结果节点：coord[0]=count标记 */
+    /* 创建结果节点:coord[0]=count标记 */
     SymbolicCoord *cnt_coord = symbolic_coord_create_rational(count, 1);
     if (!cnt_coord) return g_upper_id++;
 
@@ -2139,7 +2139,7 @@ int64_t preset_groebner_basis(LV00Engine *ctx, int64_t *poly_ids, int64_t count)
     return (int64_t)result_id;
 }
 
-/** 获取多项式次数 —— 返回度数节点 */
+/** 获取多项式次数 -- 返回度数节点 */
 int64_t preset_polynomial_degree(LV00Engine *ctx, int64_t poly_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -2147,7 +2147,7 @@ int64_t preset_polynomial_degree(LV00Engine *ctx, int64_t poly_id) {
     GeomNode *poly_node = graph_get_node(graph, (int)poly_id);
     if (!poly_node) return g_upper_id++;
 
-    /* 查找节点坐标获取度数：若节点有coord_count，则度数为coord_count-1 */
+    /* 查找节点坐标获取度数:若节点有coord_count,则度数为coord_count-1 */
     int degree = (poly_node->coord_count > 1) ? (poly_node->coord_count - 1) : 0;
 
     /* 创建结果节点存储度数值 */
@@ -2163,7 +2163,7 @@ int64_t preset_polynomial_degree(LV00Engine *ctx, int64_t poly_id) {
     return (int64_t)result_id;
 }
 
-/** 多项式求导 —— 创建导数多项式节点 */
+/** 多项式求导 -- 创建导数多项式节点 */
 int64_t preset_polynomial_derivative(LV00Engine *ctx, int64_t poly_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -2171,7 +2171,7 @@ int64_t preset_polynomial_derivative(LV00Engine *ctx, int64_t poly_id) {
     GeomNode *poly_node = graph_get_node(graph, (int)poly_id);
     if (!poly_node) return g_upper_id++;
 
-    /* 创建导数节点：coord[0]=原多项式ID标记, coord[1]=导数标记(-1) */
+    /* 创建导数节点:coord[0]=原多项式ID标记, coord[1]=导数标记(-1) */
     SymbolicCoord *src_coord = symbolic_coord_create_rational(poly_id, 1);
     SymbolicCoord *op_coord  = symbolic_coord_create_rational(-1, 1);
     if (!src_coord || !op_coord) {
@@ -2191,7 +2191,7 @@ int64_t preset_polynomial_derivative(LV00Engine *ctx, int64_t poly_id) {
     return (int64_t)result_id;
 }
 
-/** 多项式积分 —— 创建积分多项式节点 */
+/** 多项式积分 -- 创建积分多项式节点 */
 int64_t preset_polynomial_integral(LV00Engine *ctx, int64_t poly_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -2199,7 +2199,7 @@ int64_t preset_polynomial_integral(LV00Engine *ctx, int64_t poly_id) {
     GeomNode *poly_node = graph_get_node(graph, (int)poly_id);
     if (!poly_node) return g_upper_id++;
 
-    /* 创建积分节点：coord[0]=原多项式ID标记, coord[1]=积分标记(+1) */
+    /* 创建积分节点:coord[0]=原多项式ID标记, coord[1]=积分标记(+1) */
     SymbolicCoord *src_coord = symbolic_coord_create_rational(poly_id, 1);
     SymbolicCoord *op_coord  = symbolic_coord_create_rational(1, 1);
     if (!src_coord || !op_coord) {
@@ -2219,7 +2219,7 @@ int64_t preset_polynomial_integral(LV00Engine *ctx, int64_t poly_id) {
     return (int64_t)result_id;
 }
 
-/** 方程组求解 —— 创建结果节点组 */
+/** 方程组求解 -- 创建结果节点组 */
 int64_t preset_system_solve(LV00Engine *ctx, int64_t *equation_ids, int64_t count) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph || !equation_ids || count <= 0) return g_upper_id++;
@@ -2229,7 +2229,7 @@ int64_t preset_system_solve(LV00Engine *ctx, int64_t *equation_ids, int64_t coun
         if (!graph_get_node(graph, (int)equation_ids[i])) return g_upper_id++;
     }
 
-    /* 创建结果节点：coord[0]=方程组数量标记 */
+    /* 创建结果节点:coord[0]=方程组数量标记 */
     SymbolicCoord *cnt_coord = symbolic_coord_create_rational(count, 1);
     if (!cnt_coord) return g_upper_id++;
 
@@ -2242,7 +2242,7 @@ int64_t preset_system_solve(LV00Engine *ctx, int64_t *equation_ids, int64_t coun
     return (int64_t)result_id;
 }
 
-/** 有理表达式化简 —— 创建化简结果节点 */
+/** 有理表达式化简 -- 创建化简结果节点 */
 int64_t preset_rational_simplify(LV00Engine *ctx, int64_t expr_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -2250,7 +2250,7 @@ int64_t preset_rational_simplify(LV00Engine *ctx, int64_t expr_id) {
     GeomNode *expr_node = graph_get_node(graph, (int)expr_id);
     if (!expr_node) return g_upper_id++;
 
-    /* 创建化简结果节点：coord[0]=原表达式ID，实际化简由求解器完成 */
+    /* 创建化简结果节点:coord[0]=原表达式ID,实际化简由求解器完成 */
     SymbolicCoord *result_coord = symbolic_coord_create_rational(expr_id, 1);
     if (!result_coord) return g_upper_id++;
 
@@ -2263,7 +2263,7 @@ int64_t preset_rational_simplify(LV00Engine *ctx, int64_t expr_id) {
     return (int64_t)result_id;
 }
 
-/** 表达式化简 —— 创建化简结果节点 */
+/** 表达式化简 -- 创建化简结果节点 */
 int64_t preset_expression_simplify(LV00Engine *ctx, int64_t expr_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) return g_upper_id++;
@@ -2271,7 +2271,7 @@ int64_t preset_expression_simplify(LV00Engine *ctx, int64_t expr_id) {
     GeomNode *expr_node = graph_get_node(graph, (int)expr_id);
     if (!expr_node) return g_upper_id++;
 
-    /* 创建化简结果节点：coord[0]=原表达式ID，实际化简由求解器完成 */
+    /* 创建化简结果节点:coord[0]=原表达式ID,实际化简由求解器完成 */
     SymbolicCoord *result_coord = symbolic_coord_create_rational(expr_id, 1);
     if (!result_coord) return g_upper_id++;
 
@@ -2285,10 +2285,10 @@ int64_t preset_expression_simplify(LV00Engine *ctx, int64_t expr_id) {
 }
 
 /* ============================================================
- * 第8部分：L6 可视化层（visual_editor 5 + view_synchronizer 3 + text_code 3）
+ * 第8部分:L6 可视化层(visual_editor 5 + view_synchronizer 3 + text_code 3)
  * ============================================================ */
 
-/* ---- visual_editor: 可视化编辑器（5函数）---- */
+/* ---- visual_editor: 可视化编辑器(5函数)---- */
 
 /** 创建可视化编辑器实例 */
 int64_t visual_editor_create(LV00Engine *ctx) {
@@ -2321,7 +2321,7 @@ int64_t visual_editor_destroy(LV00Engine *ctx, int64_t editor_id) {
     return 0;
 }
 
-/* ---- view_synchronizer: 视图同步器（3函数）---- */
+/* ---- view_synchronizer: 视图同步器(3函数)---- */
 
 /** 创建视图同步器 */
 int64_t view_synchronizer_create(LV00Engine *ctx) {
@@ -2329,7 +2329,7 @@ int64_t view_synchronizer_create(LV00Engine *ctx) {
     return g_upper_id++;
 }
 
-/** 同步两个视图（如文本视图与图形视图） */
+/** 同步两个视图(如文本视图与图形视图) */
 int64_t view_synchronizer_sync(LV00Engine *ctx, int64_t sync_id, int64_t src_view, int64_t dst_view) {
     (void)ctx; (void)sync_id; (void)src_view; (void)dst_view;
     return 0;
@@ -2341,7 +2341,7 @@ int64_t view_synchronizer_destroy(LV00Engine *ctx, int64_t sync_id) {
     return 0;
 }
 
-/* ---- text_code: 文本代码视图（3函数）---- */
+/* ---- text_code: 文本代码视图(3函数)---- */
 
 /** 创建文本代码视图 */
 int64_t text_code_create(LV00Engine *ctx) {
@@ -2366,15 +2366,15 @@ const char *text_code_get_text(LV00Engine *ctx, int64_t view_id) {
 }
 
 /* ============================================================
- * 第9部分：L7 编排层（orchestrator: struct + 6函数，calloc/malloc）
+ * 第9部分:L7 编排层(orchestrator: struct + 6函数,calloc/malloc)
  * ============================================================ */
 
 /** 轻量级编排器结构 */
 struct Lv00Orchestrator {
     int64_t orch_id;          /** 编排器唯一ID */
     int64_t current_stage;    /** 当前阶段 (0-5, 对应 Lv00PipelineStage) */
-    int64_t status;           /** 整体状态：0=空闲,1=运行中,2=完成,3=失败 */
-    char   *input_data;       /** 输入数据（堆分配副本） */
+    int64_t status;           /** 整体状态:0=空闲,1=运行中,2=完成,3=失败 */
+    char   *input_data;       /** 输入数据(堆分配副本) */
     int64_t stage_count;      /** 阶段总数 */
     int64_t *stage_status;    /** 各阶段状态数组 */
 };
@@ -2396,7 +2396,7 @@ Lv00Orchestrator *lv00_orchestrator_create(LV00Engine *ctx) {
     return orch;
 }
 
-/** 管道阶段名称（与 Lv00PipelineStage 对齐） */
+/** 管道阶段名称(与 Lv00PipelineStage 对齐) */
 static const char *g_stage_names[] = {
     "PARSE", "RESOURCE", "GEOMETRY", "REASONING", "OUTPUT", "VISUAL"
 };
@@ -2426,7 +2426,7 @@ int64_t lv00_orchestrator_run(Lv00Orchestrator *orch, LV00Engine *ctx, const cha
             stream_emit_simple(stream, STREAM_EVENT_INFO, desc, (int)i);
         }
 
-        /* 对 REASONING 阶段，若引擎有约束图则尝试求解 */
+        /* 对 REASONING 阶段,若引擎有约束图则尝试求解 */
         if (i == 3 && ctx && ctx->main_graph) {
             if (stream) {
                 stream_emit_simple(stream, STREAM_EVENT_SOLVE_START,
@@ -2472,7 +2472,7 @@ int64_t lv00_orchestrator_get_status(const Lv00Orchestrator *orch) {
     return orch ? orch->status : -1;
 }
 
-/** 获取阶段报告（格式化为字符串） */
+/** 获取阶段报告(格式化为字符串) */
 int64_t lv00_orchestrator_get_report(const Lv00Orchestrator *orch, char *buf, int64_t buf_size) {
     if (!orch || !buf || buf_size <= 0) return -1;
     return (int64_t)snprintf(buf, (size_t)buf_size,
@@ -2491,30 +2491,30 @@ void lv00_orchestrator_destroy(Lv00Orchestrator *orch) {
 }
 
 /* ============================================================
- * 第10部分：L8 元验证层（meta_verify: 5个检查）
+ * 第10部分:L8 元验证层(meta_verify: 5个检查)
  * ============================================================ */
 
-/** 一致性检查：遍历约束图节点并检查无矛盾 */
+/** 一致性检查:遍历约束图节点并检查无矛盾 */
 int64_t meta_verify_consistency(LV00Engine *ctx) {
     if (!ctx) return -1;
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph) return 1; /* 空图视为一致 */
 
-    /* 快速冲突检测（使用 conflict_detector 模块） */
+    /* 快速冲突检测(使用 conflict_detector 模块) */
     bool has_conflict = lv00_conflict_detect_quick(graph);
     if (has_conflict) return 0; /* 0=不一致 */
 
     /* 全量冲突检测并生成详细报告 */
     ConflictReport *report = lv00_conflict_report_create();
-    if (!report) return 1; /* 无法创建报告，保守返回一致 */
+    if (!report) return 1; /* 无法创建报告,保守返回一致 */
 
     int detect_ret = lv00_conflict_detect_all(graph, NULL, report);
-    int result = 1; /* 默认：一致 */
+    int result = 1; /* 默认:一致 */
     if (detect_ret == 0 && report->conflict_count > 0) {
         result = 0; /* 存在冲突 */
     }
 
-    /* 若引擎有流式上下文，推送冲突事件 */
+    /* 若引擎有流式上下文,推送冲突事件 */
     if (result == 0 && ctx->stream_ctx) {
         for (int i = 0; i < report->conflict_count; i++) {
             stream_emit_simple(ctx->stream_ctx, STREAM_EVENT_CONFLICT_DETECTED,
@@ -2527,19 +2527,19 @@ int64_t meta_verify_consistency(LV00Engine *ctx) {
     return result;
 }
 
-/** 完备性检查：验证所有推理分支均已覆盖 */
+/** 完备性检查:验证所有推理分支均已覆盖 */
 int64_t meta_verify_completeness(LV00Engine *ctx) {
     (void)ctx;
     return 1; /* 1=完备 */
 }
 
-/** 可靠性检查：验证证明链无漏洞 */
+/** 可靠性检查:验证证明链无漏洞 */
 int64_t meta_verify_soundness(LV00Engine *ctx) {
     (void)ctx;
     return 1; /* 1=可靠 */
 }
 
-/** 差分验证：对比两次求解结果的差异 */
+/** 差分验证:对比两次求解结果的差异 */
 int64_t meta_verify_differential(LV00Engine *ctx, int64_t session_a, int64_t session_b) {
     (void)ctx; (void)session_a; (void)session_b;
     return 0; /* 0=无差异 */
@@ -2548,15 +2548,15 @@ int64_t meta_verify_differential(LV00Engine *ctx, int64_t session_a, int64_t ses
 /** 综合元验证报告 */
 int64_t meta_verify_report(LV00Engine *ctx, int64_t *out_overall_pass) {
     (void)ctx;
-    if (out_overall_pass) *out_overall_pass = 1; /* 模拟：全部通过 */
+    if (out_overall_pass) *out_overall_pass = 1; /* 模拟:全部通过 */
     return g_upper_id++; /* 返回报告ID */
 }
 
 /* ============================================================
- * 第11部分：L9 应用层（application: run/quick_verify/batch/get_version/destroy）
+ * 第11部分:L9 应用层(application: run/quick_verify/batch/get_version/destroy)
  * ============================================================ */
 
-/** 应用层结构（前向声明 + 定义） */
+/** 应用层结构(前向声明 + 定义) */
 typedef struct Lv00Application {
     int64_t app_id;
     char *app_name;
@@ -2581,7 +2581,7 @@ Lv00Application *lv00_application_run(LV00Engine *ctx, const char *app_name) {
     return app;
 }
 
-/** 快速验证：检查输入是否合法（无内存分配） */
+/** 快速验证:检查输入是否合法(无内存分配) */
 int64_t lv00_application_quick_verify(LV00Engine *ctx, const char *input) {
     (void)ctx;
     if (!input || input[0] == '\0') return -1; /* 空输入非法 */
@@ -2624,7 +2624,7 @@ void lv00_application_destroy(Lv00Application *app) {
 }
 
 /* ============================================================
- * 第12部分：L10 互操作层（interop: 6种导出，含 malloc/snprintf）
+ * 第12部分:L10 互操作层(interop: 6种导出,含 malloc/snprintf)
  * ============================================================ */
 
 /** 导出为Coq格式 */
@@ -2643,7 +2643,7 @@ int64_t interop_export_lean4(LV00Engine *ctx, int64_t proof_id, char *buf, int64
         "-- Auto-generated by Lv-00\ntheorem auto_gen : True :=\n  trivial\n");
 }
 
-/** 导出为OPML（大纲标记语言） */
+/** 导出为OPML(大纲标记语言) */
 int64_t interop_export_opml(LV00Engine *ctx, int64_t session_id, char *buf, int64_t buf_size) {
     (void)ctx; (void)session_id;
     if (!buf || buf_size <= 0) return -1;
@@ -2684,29 +2684,29 @@ int64_t upper_interop_export_tikz(LV00Engine *ctx, int64_t graph_id, char *buf, 
 }
 
 /* ============================================================
- * 第13部分：func_block_preset（40 API函数的统一封装）
+ * 第13部分:func_block_preset(40 API函数的统一封装)
  *
  * 分为 24 个元数据/属性函数 + 16 个操作函数。
- * 所有函数使用 LV00Engine* 上下文，通过 func_block_registry_*
- * API 与注册表交互，或通过 g_upper_id++ 生成ID。
+ * 所有函数使用 LV00Engine* 上下文,通过 func_block_registry_*
+ * API 与注册表交互,或通过 g_upper_id++ 生成ID。
  * ============================================================ */
 
-/* ---- 13a. 元数据与属性函数（24个）---- */
+/* ---- 13a. 元数据与属性函数(24个)---- */
 
-/** 获取预设总数 —— 调用注册表获取计数 */
+/** 获取预设总数 -- 调用注册表获取计数 */
 int64_t upper_func_block_preset_count(LV00Engine *ctx) {
     (void)ctx;
     return (int64_t)func_block_registry_get_count();
 }
 
-/** 检查预设是否存在 —— 通过注册表查找 */
+/** 检查预设是否存在 -- 通过注册表查找 */
 int64_t upper_func_block_preset_exists(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return 0;
     return (func_block_registry_find(name) != NULL) ? 1 : 0;
 }
 
-/** 获取预设输入参数数量 —— 从注册表条目获取元数据 */
+/** 获取预设输入参数数量 -- 从注册表条目获取元数据 */
 int64_t func_block_preset_input_count(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return -1;
@@ -2715,7 +2715,7 @@ int64_t func_block_preset_input_count(LV00Engine *ctx, const char *name) {
     return (int64_t)entry->metadata.input_count;
 }
 
-/** 获取预设输出参数数量 —— 从注册表条目获取元数据 */
+/** 获取预设输出参数数量 -- 从注册表条目获取元数据 */
 int64_t func_block_preset_output_count(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return -1;
@@ -2770,7 +2770,7 @@ const char *func_block_preset_complexity_name(LV00Engine *ctx, int64_t complexit
     }
 }
 
-/** 获取预设的版本信息（从 metadata 组装版本字符串） */
+/** 获取预设的版本信息(从 metadata 组装版本字符串) */
 const char *func_block_preset_version(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return "0.0.0";
@@ -2785,7 +2785,7 @@ const char *func_block_preset_version(LV00Engine *ctx, const char *name) {
     return version_buf;
 }
 
-/** 获取预设描述文本 —— 从 metadata 获取 */
+/** 获取预设描述文本 -- 从 metadata 获取 */
 const char *func_block_preset_description(LV00Engine *ctx, const char *name) {
     (void)ctx;
     static const char fallback[] = "Standard preset function block";
@@ -2795,7 +2795,7 @@ const char *func_block_preset_description(LV00Engine *ctx, const char *name) {
     return entry->metadata.description ? entry->metadata.description : fallback;
 }
 
-/** 获取预设数学定义（LaTeX）—— 从 metadata 获取 */
+/** 获取预设数学定义(LaTeX)-- 从 metadata 获取 */
 const char *func_block_preset_definition(LV00Engine *ctx, const char *name) {
     (void)ctx;
     static const char fallback[] = "\\text{No explicit definition available}";
@@ -2805,7 +2805,7 @@ const char *func_block_preset_definition(LV00Engine *ctx, const char *name) {
     return entry->metadata.mathematical_def ? entry->metadata.mathematical_def : fallback;
 }
 
-/** 获取预设前置条件数量 —— 从 metadata 获取 */
+/** 获取预设前置条件数量 -- 从 metadata 获取 */
 int64_t func_block_preset_precondition_count(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return 0;
@@ -2814,7 +2814,7 @@ int64_t func_block_preset_precondition_count(LV00Engine *ctx, const char *name) 
     return (int64_t)entry->metadata.precondition_count;
 }
 
-/** 获取预设后置条件数量 —— 从 metadata 获取 */
+/** 获取预设后置条件数量 -- 从 metadata 获取 */
 int64_t func_block_preset_postcondition_count(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return 0;
@@ -2823,7 +2823,7 @@ int64_t func_block_preset_postcondition_count(LV00Engine *ctx, const char *name)
     return (int64_t)entry->metadata.postcondition_count;
 }
 
-/** 获取预设关联的预设列表 —— 从 metadata 读取 related_presets 数组 */
+/** 获取预设关联的预设列表 -- 从 metadata 读取 related_presets 数组 */
 int64_t func_block_preset_related(LV00Engine *ctx, const char *name, char *buf, int64_t buf_size) {
     (void)ctx;
     if (!buf || buf_size <= 0) return 0;
@@ -2852,7 +2852,7 @@ int64_t func_block_preset_related(LV00Engine *ctx, const char *name, char *buf, 
     return written;
 }
 
-/** 获取预设性质位掩码 —— 从 metadata 获取 */
+/** 获取预设性质位掩码 -- 从 metadata 获取 */
 int64_t func_block_preset_properties(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return 0;
@@ -2869,7 +2869,7 @@ int64_t func_block_preset_has_property(LV00Engine *ctx, const char *name, int64_
     return (props & property) ? 1 : 0;
 }
 
-/** 获取预设的参数定义索引 —— 在 input_params 中按名称搜索 */
+/** 获取预设的参数定义索引 -- 在 input_params 中按名称搜索 */
 int64_t func_block_preset_param_index(LV00Engine *ctx, const char *name, const char *param_name) {
     (void)ctx;
     if (!name || !param_name) return -1;
@@ -2884,12 +2884,12 @@ int64_t func_block_preset_param_index(LV00Engine *ctx, const char *name, const c
     return -1;
 }
 
-/** 判断预设是否可逆 —— 检查 properties 中的 REVERSIBLE 位 */
+/** 判断预设是否可逆 -- 检查 properties 中的 REVERSIBLE 位 */
 int64_t func_block_preset_is_reversible(LV00Engine *ctx, const char *name) {
     return func_block_preset_has_property(ctx, name, (int64_t)PRESET_PROPERTY_REVERSIBLE);
 }
 
-/** 获取预设的逆预设名称（模拟：返回 "inverse_<name>"） */
+/** 获取预设的逆预设名称(模拟:返回 "inverse_<name>") */
 const char *func_block_preset_inverse_name(LV00Engine *ctx, const char *name) {
     (void)ctx;
     static char inv_buf[128];
@@ -2898,7 +2898,7 @@ const char *func_block_preset_inverse_name(LV00Engine *ctx, const char *name) {
     return inv_buf;
 }
 
-/** 获取预设的复杂度等级枚举值 —— 从 metadata 获取 */
+/** 获取预设的复杂度等级枚举值 -- 从 metadata 获取 */
 int64_t func_block_preset_complexity_enum(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return (int64_t)COMPLEXITY_UNKNOWN;
@@ -2907,7 +2907,7 @@ int64_t func_block_preset_complexity_enum(LV00Engine *ctx, const char *name) {
     return (int64_t)entry->metadata.complexity;
 }
 
-/** 获取预设参数是否为可选参数 —— 从 input_params 数组中按索引查询 */
+/** 获取预设参数是否为可选参数 -- 从 input_params 数组中按索引查询 */
 int64_t func_block_preset_is_optional(LV00Engine *ctx, const char *name, int64_t param_idx) {
     (void)ctx;
     if (!name || param_idx < 0) return 0;
@@ -2917,13 +2917,13 @@ int64_t func_block_preset_is_optional(LV00Engine *ctx, const char *name, int64_t
     return entry->metadata.input_params[param_idx].is_optional ? 1 : 0;
 }
 
-/** 获取预设参数默认值描述 —— 返回 "N/A"（预设参数无默认值） */
+/** 获取预设参数默认值描述 -- 返回 "N/A"(预设参数无默认值) */
 const char *func_block_preset_default_value(LV00Engine *ctx, const char *name, int64_t param_idx) {
     (void)ctx; (void)name; (void)param_idx;
     return "N/A";
 }
 
-/** 获取参数约束总数 —— 遍历所有输入参数的约束数量求和 */
+/** 获取参数约束总数 -- 遍历所有输入参数的约束数量求和 */
 int64_t func_block_preset_constraint_count(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return 0;
@@ -2936,29 +2936,29 @@ int64_t func_block_preset_constraint_count(LV00Engine *ctx, const char *name) {
     return total;
 }
 
-/** 获取注册时间戳（固定值 1700000000000LL，模拟系统时间） */
+/** 获取注册时间戳(固定值 1700000000000LL,模拟系统时间) */
 int64_t func_block_preset_registration_time(LV00Engine *ctx, const char *name) {
     (void)ctx; (void)name;
     return 1700000000000LL;
 }
 
-/** 获取预设名称是否保留关键字 —— 名称以 "_" 开头为保留 */
+/** 获取预设名称是否保留关键字 -- 名称以 "_" 开头为保留 */
 int64_t func_block_preset_is_reserved(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return 0;
     return (name[0] == '_') ? 1 : 0;
 }
 
-/* ---- 13b. 操作函数（16个）---- */
+/* ---- 13b. 操作函数(16个)---- */
 
-/** 初始化预设函数块库 —— 委托注册表初始化 */
+/** 初始化预设函数块库 -- 委托注册表初始化 */
 int64_t func_block_preset_init(LV00Engine *ctx) {
     (void)ctx;
     if (!func_block_registry_init()) return -1;
     return 0;
 }
 
-/** 获取预设元数据（返回 JSON 序列化字符串） */
+/** 获取预设元数据(返回 JSON 序列化字符串) */
 int64_t func_block_preset_metadata(LV00Engine *ctx, const char *name, char *buf, int64_t buf_size) {
     (void)ctx;
     if (!buf || buf_size <= 0) return -1;
@@ -2996,26 +2996,26 @@ int64_t func_block_preset_metadata(LV00Engine *ctx, const char *name, char *buf,
         (int)m->complexity);
 }
 
-/** 实例化预设函数块 —— 查找预设，拷贝模板函数块，分配新ID */
+/** 实例化预设函数块 -- 查找预设,拷贝模板函数块,分配新ID */
 int64_t upper_func_block_preset_instantiate(LV00Engine *ctx, const char *name,
         int64_t *input_ids, int64_t input_count) {
     (void)input_ids; (void)input_count;
     if (!name) return -1;
     FuncBlock *template_fb = func_block_registry_lookup(name);
     if (!template_fb) return -1;
-    /* lookup 返回深拷贝，直接分配实例ID */
+    /* lookup 返回深拷贝,直接分配实例ID */
     int64_t instance_id = g_upper_id++;
     template_fb->id = (int)instance_id;
     (void)ctx;
     return instance_id;
 }
 
-/** 列举所有预设名称 —— 遍历注册表生成逗号分隔列表 */
+/** 列举所有预设名称 -- 遍历注册表生成逗号分隔列表 */
 int64_t upper_func_block_preset_list(LV00Engine *ctx, char *buf, int64_t buf_size) {
     (void)ctx;
     if (!buf || buf_size <= 0) return -1;
     int64_t written = 0;
-    /* 通过查找分类来遍历注册表条目，这里采用简便方式：
+    /* 通过查找分类来遍历注册表条目,这里采用简便方式:
      * 直接从 PRESET_CATEGORY_CONSTRUCTION 到 PRESET_CATEGORY_CUSTOM 收集 */
     const int max_categories = (int)(PRESET_CATEGORY_COUNT);
     bool first = true;
@@ -3040,7 +3040,7 @@ int64_t upper_func_block_preset_list(LV00Engine *ctx, char *buf, int64_t buf_siz
     return written;
 }
 
-/** 组合两个预设 —— 通过注册表查找两个预设并组合成新预设 */
+/** 组合两个预设 -- 通过注册表查找两个预设并组合成新预设 */
 int64_t upper_func_block_preset_compose(LV00Engine *ctx, const char *name_a, const char *name_b,
         const char *new_name) {
     if (!name_a || !name_b) return -1;
@@ -3054,7 +3054,7 @@ int64_t upper_func_block_preset_compose(LV00Engine *ctx, const char *name_a, con
     return new_entry ? (int64_t)g_upper_id++ : -1;
 }
 
-/** 生成预设文档 —— 从 metadata 生成 Markdown 格式文档 */
+/** 生成预设文档 -- 从 metadata 生成 Markdown 格式文档 */
 int64_t func_block_preset_doc(LV00Engine *ctx, const char *name, char *buf, int64_t buf_size) {
     (void)ctx;
     if (!buf || buf_size <= 0) return -1;
@@ -3109,7 +3109,7 @@ int64_t func_block_preset_doc(LV00Engine *ctx, const char *name, char *buf, int6
     return written;
 }
 
-/** 链式调用多个预设 —— 依次实例化每个预设，输出与前一级联 */
+/** 链式调用多个预设 -- 依次实例化每个预设,输出与前一级联 */
 int64_t func_block_preset_chain(LV00Engine *ctx, const char **names, int64_t count) {
     (void)ctx;
     int64_t last_id = -1;
@@ -3124,7 +3124,7 @@ int64_t func_block_preset_chain(LV00Engine *ctx, const char **names, int64_t cou
     return last_id;
 }
 
-/** 批量实例化预设 —— 一次性批量实例化多个预设 */
+/** 批量实例化预设 -- 一次性批量实例化多个预设 */
 int64_t func_block_preset_batch(LV00Engine *ctx, const char **names, int64_t count,
         int64_t *out_ids) {
     (void)ctx;
@@ -3146,7 +3146,7 @@ int64_t func_block_preset_batch(LV00Engine *ctx, const char **names, int64_t cou
     return valid;
 }
 
-/** 验证参数类型是否匹配 —— 通过注册表获取输入参数定义，进行节点类型匹配 */
+/** 验证参数类型是否匹配 -- 通过注册表获取输入参数定义,进行节点类型匹配 */
 int64_t func_block_preset_validate(LV00Engine *ctx, const char *name,
         int64_t *input_ids, int64_t input_count) {
     if (!name) return 0;
@@ -3157,13 +3157,13 @@ int64_t func_block_preset_validate(LV00Engine *ctx, const char *name,
     if (input_count != (int64_t)entry->metadata.input_count) return 0;
     /* 使用引擎的约束图验证每个输入节点的类型 */
     if (!ctx || !ctx->main_graph) {
-        /* 无图可用时，仅做数量检查，假设类型正确 */
+        /* 无图可用时,仅做数量检查,假设类型正确 */
         return 1;
     }
     for (int64_t i = 0; i < input_count; i++) {
         GeomNode *node = graph_get_node(ctx->main_graph, (int)input_ids[i]);
         if (!node) return 0;
-        /* 基本类型匹配：检查节点类型是否与预设参数的几何类型兼容 */
+        /* 基本类型匹配:检查节点类型是否与预设参数的几何类型兼容 */
         PresetParamType expected = entry->metadata.input_params[i].type;
         switch (expected) {
             case PARAM_TYPE_POINT:
@@ -3190,7 +3190,7 @@ int64_t func_block_preset_validate(LV00Engine *ctx, const char *name,
     return 1;
 }
 
-/** 获取函数块绑定信息 —— 返回 JSON 格式的实例绑定数据 */
+/** 获取函数块绑定信息 -- 返回 JSON 格式的实例绑定数据 */
 int64_t func_block_preset_bindings(LV00Engine *ctx, int64_t instance_id,
         char *buf, int64_t buf_size) {
     (void)ctx;
@@ -3199,7 +3199,7 @@ int64_t func_block_preset_bindings(LV00Engine *ctx, int64_t instance_id,
         "{\"instance\":%lld,\"bindings\":[]}", (long long)instance_id);
 }
 
-/** 按名称模糊搜索预设 —— 遍历注册表，将名称匹配的条目列出 */
+/** 按名称模糊搜索预设 -- 遍历注册表,将名称匹配的条目列出 */
 int64_t func_block_preset_search(LV00Engine *ctx, const char *query,
         char *buf, int64_t buf_size) {
     (void)ctx;
@@ -3240,24 +3240,24 @@ int64_t func_block_preset_search(LV00Engine *ctx, const char *query,
     return written;
 }
 
-/** 递归展开预设组合 —— 通过 depth 控制展开深度，返回叶节点预设ID */
+/** 递归展开预设组合 -- 通过 depth 控制展开深度,返回叶节点预设ID */
 int64_t func_block_preset_recursive(LV00Engine *ctx, int64_t preset_id, int64_t depth) {
     (void)ctx; (void)preset_id;
     if (depth <= 0) return preset_id;
     /* 超出深度时直接返回 */
     if (depth > 100) return preset_id;
-    /* 模拟：展开一层后返回新的预设ID */
+    /* 模拟:展开一层后返回新的预设ID */
     return g_upper_id++;
 }
 
-/** 注销指定预设 —— 委托注册表注销 */
+/** 注销指定预设 -- 委托注册表注销 */
 int64_t upper_func_block_preset_unregister(LV00Engine *ctx, const char *name) {
     (void)ctx;
     if (!name) return -1;
     return (int64_t)func_block_registry_unregister(name);
 }
 
-/** 注册自定义预设 —— 创建 FuncBlock 并注册到全局注册表 */
+/** 注册自定义预设 -- 创建 FuncBlock 并注册到全局注册表 */
 int64_t func_block_preset_register(LV00Engine *ctx, const char *name,
         int64_t input_count, int64_t output_count) {
     (void)ctx;
@@ -3275,14 +3275,14 @@ int64_t func_block_preset_register(LV00Engine *ctx, const char *name,
     return (int64_t)new_id;
 }
 
-/** 获取预设库初始化状态 —— 通过检查注册表是否初始化判断 */
+/** 获取预设库初始化状态 -- 通过检查注册表是否初始化判断 */
 int64_t func_block_preset_initialized(LV00Engine *ctx) {
     (void)ctx;
-    /* 注册表初始化是幂等的，检查是否有已注册条目 */
+    /* 注册表初始化是幂等的,检查是否有已注册条目 */
     return (func_block_registry_get_count() > 0) ? 1 : 0;
 }
 
-/** 清理预设库并释放资源 —— 委托注册表清理 */
+/** 清理预设库并释放资源 -- 委托注册表清理 */
 int64_t func_block_preset_cleanup(LV00Engine *ctx) {
     (void)ctx;
     func_block_registry_cleanup();
@@ -3290,13 +3290,13 @@ int64_t func_block_preset_cleanup(LV00Engine *ctx) {
 }
 
 /* ============================================================
- * 第14部分：综合工具函数 —— 为上层提供便捷入口
+ * 第14部分:综合工具函数 -- 为上层提供便捷入口
  * ============================================================ */
 
 /**
  * @brief 从引擎获取全局唯一ID
  *
- * 每次调用递增 g_upper_id，返回新ID。
+ * 每次调用递增 g_upper_id,返回新ID。
  * 供所有需要唯一标识的上层API使用。
  */
 int64_t lv00_upper_alloc_id(LV00Engine *ctx) {
@@ -3305,7 +3305,7 @@ int64_t lv00_upper_alloc_id(LV00Engine *ctx) {
 }
 
 /**
- * @brief 获取当前全局ID计数器的值（只读）
+ * @brief 获取当前全局ID计数器的值(只读)
  */
 int64_t lv00_upper_get_id_counter(LV00Engine *ctx) {
     (void)ctx;
@@ -3313,10 +3313,10 @@ int64_t lv00_upper_get_id_counter(LV00Engine *ctx) {
 }
 
 /**
- * @brief 执行完整验证流水线（元验证综合入口）
+ * @brief 执行完整验证流水线(元验证综合入口)
  *
  * 依次调用 consistency / completeness / soundness / differential /
- * 四个检查，返回 AND 结果。
+ * 四个检查,返回 AND 结果。
  */
 int64_t lv00_upper_full_verify(LV00Engine *ctx) {
     int64_t c = meta_verify_consistency(ctx);
@@ -3327,9 +3327,9 @@ int64_t lv00_upper_full_verify(LV00Engine *ctx) {
 }
 
 /**
- * @brief 综合导出 —— 将证明结果同时导出为 Coq / Lean4 / SVG
+ * @brief 综合导出 -- 将证明结果同时导出为 Coq / Lean4 / SVG
  *
- * 分别调用三个导出函数，将结果写入对应缓冲区，
+ * 分别调用三个导出函数,将结果写入对应缓冲区,
  * 返回成功导出的格式数量。
  */
 int64_t lv00_upper_export_all(LV00Engine *ctx, int64_t proof_id,
@@ -3346,7 +3346,7 @@ int64_t lv00_upper_export_all(LV00Engine *ctx, int64_t proof_id,
 /* ============================================================
  * 文件结束
  *
- * 总计覆盖：
+ * 总计覆盖:
  *   L3 几何扩展        7 函数
  *   L4 预设基础几何   21 函数
  *   预设变换          17 函数

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_mathematical_logic.c
  * @brief 数理逻辑预设函数块模块 - 实现
  *
@@ -31,10 +31,12 @@
 #include "preset_common.h"
 #include <string.h>
 
+/* 内部别名：与 preset_mathematical_logic.h 中 MATHEMATICAL_LOGIC_PRESET_COUNT 一致 */
+#define MATH_LOGIC_PRESET_COUNT MATHEMATICAL_LOGIC_PRESET_COUNT
+
 /* ==================== 预设函数块数量 ==================== */
 
 /** 数理逻辑模块预设函数块总数 */
-#define MATH_LOGIC_PRESET_COUNT 40
 
 /* ==================== 内部辅助函数与宏 ==================== */
 

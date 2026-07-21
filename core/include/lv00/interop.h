@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interop.h
  * @brief 外部互操作模块头文件
  *
@@ -35,10 +35,14 @@ extern "C" {
 /* ==================== 常量定义 ==================== */
 
 /** 命令缓冲区大小 */
+#ifndef INTEROP_CMD_BUFFER_SIZE
 #define INTEROP_CMD_BUFFER_SIZE 4096
+#endif
 
 /** 响应缓冲区大小 */
+#ifndef INTEROP_RESP_BUFFER_SIZE
 #define INTEROP_RESP_BUFFER_SIZE 65536
+#endif
 
 /** 最大命令参数数量 */
 #define INTEROP_MAX_PARAMS 32
@@ -47,7 +51,9 @@ extern "C" {
 #define INTEROP_WS_DEFAULT_PORT 8765
 
 /** 导出路径最大长度 */
+#ifndef INTEROP_MAX_PATH_LEN
 #define INTEROP_MAX_PATH_LEN 512
+#endif
 
 /* ==================== 类型定义 ==================== */
 

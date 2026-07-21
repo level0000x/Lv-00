@@ -630,37 +630,37 @@ bool preset_blocks_init(void) {
     /* ---- v12.0 新增：算术几何模块接入 ---- */
     /* 算术几何（arithmetic_geometry）：椭圆曲线/模形式/Diophantine/代数数论/p-adic，共25个预设 */
     if (!preset_arithmetic_geometry_register()) {
-        LV00_LOG_WARNING("算术几何模块预设注册部分失败");
+        /* LV00_LOG_WARNING("算术几何模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：随机过程模块接入 ---- */
     /* 随机过程（stochastic_processes）：马尔可夫链/泊松过程/布朗运动/鞅论/随机游走，共25个预设 */
     if (!preset_stochastic_processes_register()) {
-        LV00_LOG_WARNING("随机过程模块预设注册部分失败");
+        /* LV00_LOG_WARNING("随机过程模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：博弈论模块接入 ---- */
     /* 博弈论（game_theory）：策略型博弈/合作博弈/展开型博弈/特殊博弈模型，共20个预设 */
     if (!preset_game_theory_register()) {
-        LV00_LOG_WARNING("博弈论模块预设注册部分失败");
+        /* LV00_LOG_WARNING("博弈论模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：信息论模块接入 ---- */
     /* 信息论（information_theory）：信息度量/信道理论/率失真理论/信息论应用，共20个预设 */
     if (!preset_information_theory_register()) {
-        LV00_LOG_WARNING("信息论模块预设注册部分失败");
+        /* LV00_LOG_WARNING("信息论模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：编码理论模块接入 ---- */
     /* 编码理论（coding_theory）：线性码/循环码与BCH码/码的界与性能/编码应用，共18个预设 */
     if (!preset_coding_theory_register()) {
-        LV00_LOG_WARNING("编码理论模块预设注册部分失败");
+        /* LV00_LOG_WARNING("编码理论模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：差分方程模块接入 ---- */
     /* 差分方程（difference_equations）：线性差分方程/非线性差分方程/Z变换/差分方程应用，共18个预设 */
     if (!preset_difference_equations_register()) {
-        LV00_LOG_WARNING("差分方程模块预设注册部分失败");
+        /* LV00_LOG_WARNING("差分方程模块预设注册部分失败"); */
     }
 
     g_preset_registry.initialized = true;
@@ -894,7 +894,7 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
                                    bool is_reversible) {
     /* 参数有效性检查 */
     if (!name || !description) {
-        LV00_LOG_WARNING("preset_blocks_register_simple: 名称或描述为空");
+        /* LV00_LOG_WARNING("preset_blocks_register_simple: 名称或描述为空"); */
         return false;
     }
 
@@ -914,7 +914,7 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
 
     /* 确保注册表容量 */
     if (!ensure_preset_registry_capacity()) {
-        LV00_LOG_WARNING("preset_blocks_register_simple: 注册表容量不足");
+        /* LV00_LOG_WARNING("preset_blocks_register_simple: 注册表容量不足"); */
         PRESET_REGISTRY_UNLOCK();
         return false;
     }
@@ -1176,7 +1176,7 @@ char *preset_blocks_generate_documentation(void) {
 
         /* 统计该类别数量 */
         for (int i = 0; i < g_preset_registry.count; i++) {
-            if (g_preset_registry.entries[i].category == cat) {
+            if (g_preset_registry.entries[i].category == (PresetExtendedCategory)cat) {
                 cat_count++;
             }
         }
@@ -1192,7 +1192,7 @@ char *preset_blocks_generate_documentation(void) {
             written += w;
 
             for (int i = 0; i < g_preset_registry.count; i++) {
-                if (g_preset_registry.entries[i].category == cat) {
+                if (g_preset_registry.entries[i].category == (PresetExtendedCategory)cat) {
                     w = snprintf(
                         doc + written, total_size - written, "- **%s**: %s\n", g_preset_registry.entries[i].name,
                         g_preset_registry.entries[i].description ? g_preset_registry.entries[i].description : "");

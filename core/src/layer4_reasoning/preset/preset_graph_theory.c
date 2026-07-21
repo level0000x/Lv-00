@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_graph_theory.c
  * @brief 图论预设函数块 - 实现
  *
@@ -21,7 +21,6 @@
 /* ==================== 预设函数块数量 ==================== */
 
 /** 图论模块预设函数块总数 */
-#define GRAPH_THEORY_PRESET_COUNT 31
 
 /* ==================== 内部辅助函数 ==================== */
 
@@ -577,63 +576,3 @@ PresetCategory preset_graph_theory_category(void)
     return PRESET_CATEGORY_GRAPH_THEORY;
 }
 
-/**
- * @brief 获取图论模块所有预设名称列表
- * @return 以 NULL 结尾的名称数组，调用者需使用 lv00_free 释放
- */
-static char** get_graph_theory_names(void)
-{
-    static const char* names[] = {
-        /* 第一部分：图基础 */
-        PRESET_GRAPH_CONSTRUCT,
-        PRESET_GRAPH_ADJACENCY_MATRIX,
-        PRESET_GRAPH_DEGREE_SEQUENCE,
-        PRESET_GRAPH_SUBGRAPH_TEST,
-        PRESET_GRAPH_COMPLEMENT,
-        /* 第二部分：连通性 */
-        PRESET_GRAPH_CONNECTED_COMPONENTS,
-        PRESET_GRAPH_CONNECTIVITY_TEST,
-        PRESET_GRAPH_SCC,
-        PRESET_GRAPH_ARTICULATION_POINTS,
-        PRESET_GRAPH_BRIDGES,
-        /* 第三部分：路径与环 */
-        PRESET_GRAPH_SHORTEST_PATH,
-        PRESET_GRAPH_MST,
-        PRESET_GRAPH_EULER_PATH_TEST,
-        PRESET_GRAPH_HAMILTONIAN_TEST,
-        PRESET_GRAPH_CYCLE_DETECT,
-        /* 第四部分：图着色 */
-        PRESET_GRAPH_CHROMATIC_NUMBER,
-        PRESET_GRAPH_VERTEX_COLORING,
-        PRESET_GRAPH_EDGE_COLORING,
-        PRESET_GRAPH_PLANARITY_TEST,
-        PRESET_GRAPH_FOUR_COLOR_VERIFY,
-        /* 第五部分：匹配与覆盖 */
-        PRESET_GRAPH_MAXIMUM_MATCHING,
-        PRESET_GRAPH_PERFECT_MATCHING_TEST,
-        PRESET_GRAPH_INDEPENDENT_SET,
-        PRESET_GRAPH_VERTEX_COVER,
-        PRESET_GRAPH_DOMINATING_SET,
-        /* 第六部分：特殊图 */
-        PRESET_GRAPH_COMPLETE,
-        PRESET_GRAPH_BIPARTITE_TEST,
-        PRESET_GRAPH_TREE_TEST,
-        PRESET_GRAPH_DUAL,
-        /* 第七部分：图同构 */
-        PRESET_GRAPH_ISOMORPHISM_TEST,
-        PRESET_GRAPH_AUTOMORPHISM_GROUP,
-    };
-    const int count = sizeof(names) / sizeof(names[0]);
-    char** result = (char**)lv00_malloc((count + 1) * sizeof(char*));
-    if (!result) return NULL;
-    for (int i = 0; i < count; i++) {
-        result[i] = lv00_strdup(names[i]);
-        if (!result[i]) {
-            for (int j = 0; j < i; j++) { void *tmp = result[j]; lv00_free(&tmp); }
-            { void *tmp = result; lv00_free(&tmp); }
-            return NULL;
-        }
-    }
-    result[count] = NULL;
-    return result;
-}

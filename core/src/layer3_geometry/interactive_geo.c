@@ -336,7 +336,9 @@ int interactive_geo_get_object_position(const Lv00InteractiveGeo *g,
         GeomNode *nd = graph_get_node(g->engine_handle->main_graph, id);
         if (nd && nd->type == GEOM_POINT && nd->symbolic_coords && nd->coord_count >= 2) {
             /* 从符号坐标提取数值（完整实现需解析 SymbolicCoord） */
-            if (wx) *wx = 0.0; if (wy) *wy = 0.0; return 0;
+            if (wx) *wx = 0.0;
+            if (wy) *wy = 0.0;
+            return 0;
         }
     }
     if (wx) *wx = g->canvas_state.viewport_offset_x;

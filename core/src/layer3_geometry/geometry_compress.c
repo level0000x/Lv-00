@@ -20,7 +20,7 @@
  *   - HuffmanNode/MinHeap/HuffmanCode  Huffman 编码基础设施
  *   - BitWriter/BitReader             位级 I/O 工具
  *
- * 设计文档参考：§3.5 几何内核 · 网格压缩
+ * 设计文档参考：Section 3.5 几何内核 · 网格压缩
  *
  * ============================================================================ */
 
@@ -1051,21 +1051,6 @@ typedef struct {
     int bit_pos;        /**< Current bit position within byte (7=MSB, 0=LSB) */
 } BitReader;
 
-/* ========================================================================
- * Bit writer operations
- * ======================================================================== */
-
-static bool bitwriter_init(BitWriter *bw, size_t initial_capacity) {
-    bw->buf = (uint8_t *) lv00_malloc(initial_capacity);
-    if (!bw->buf)
-        return false;
-    bw->capacity = initial_capacity;
-    bw->byte_pos = 0;
-    bw->bit_pos = 7;
-    bw->buf[0] = 0;
-    return true;
-}
-
 static bool bitwriter_write_bit(BitWriter *bw, int bit) {
     if (bit) {
         bw->buf[bw->byte_pos] |= (uint8_t) (1 << bw->bit_pos);
@@ -2043,8 +2028,8 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
 
     /* Fill metadata */
     if (out_meta) {
-        out_meta->original_size = original_sz;
-        out_meta->compressed_size = encoded_size;
+        out_meta->original_size = (int)original_sz;
+        out_meta->compressed_size = (int)encoded_size;
         out_meta->compression_ratio = (encoded_size > 0) ? (double) original_sz / (double) encoded_size : 1.0;
         out_meta->node_count = graph->node_count;
         out_meta->constraint_count = graph->constraint_count;

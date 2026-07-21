@@ -32,6 +32,10 @@
 #include <pthread.h>
 #endif
 
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wjump-misses-init"
+#endif
+
 /* ============================================================
  * 预设系统常量与宏
  * ============================================================ */
@@ -1276,10 +1280,6 @@ bool preset_bind_parameter(const char *preset_name,
     PresetMetadata bound_meta = entry->metadata;
     bound_meta.name = new_name;
 
-    /* 使用 func_block_preset_partial 实现偏应用 */
-    int fixed_indices[1] = { param_index };
-    FuncBlock *partial_fb = NULL;
-
     /* 直接在本管理器内实现简化版的参数绑定：
      * 复制模板，然后从输入端口中移除指定索引的端口 */
     FuncBlock *template_copy = NULL;
@@ -1626,7 +1626,6 @@ bool preset_generate_library_documentation(const char *format,
         return false;
     }
 
-    const char *fmt = format ? format : "markdown";
     char *doc = NULL;
 
     /* 使用动态缓冲区构建文档 */

@@ -202,13 +202,18 @@ void *lv00_malloc_tracked(size_t size, const char *file, int line) {
     }
 
     /* 检查溢出：头部大小 + 用户请求大小 + 尾部魔数大小 */
+    AllocHeader *hdr = NULL;
     size_t total = ALLOC_HEADER_SIZE;
-    if (total > SIZE_MAX - alloc_size) goto overflow;
+    if (total > SIZE_MAX - alloc_size ||
+        total + alloc_size > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) {
+        lv00_set_error(LV00_ERROR_OVERFLOW, "malloc 溢出: header=%zu + size=%zu + tail=%zu",
+                       (size_t)ALLOC_HEADER_SIZE, alloc_size, (size_t)ALLOC_TAIL_MAGIC_SIZE);
+        return NULL;
+    }
     total += alloc_size;
-    if (total > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto overflow;
     total += ALLOC_TAIL_MAGIC_SIZE;
 
-    AllocHeader *hdr = (AllocHeader *)malloc(total);
+    hdr = (AllocHeader *)malloc(total);
     if (!hdr)
         return NULL;
 
@@ -232,11 +237,6 @@ void *lv00_malloc_tracked(size_t size, const char *file, int line) {
         g_memory_stats.peak_used = g_memory_stats.current_used;
 
     return hdr->data;
-
-overflow:
-    lv00_set_error(LV00_ERROR_OVERFLOW, "malloc 溢出: header=%zu + size=%zu + tail=%zu",
-                   (size_t)ALLOC_HEADER_SIZE, alloc_size, (size_t)ALLOC_TAIL_MAGIC_SIZE);
-    return NULL;
 }
 
 void *lv00_calloc(size_t nmemb, size_t size) {
@@ -621,7 +621,7 @@ int lv00_memory_leak_report(FILE *output) {
             snprintf(location, sizeof(location), "<未记录>");
         }
 
-        fprintf(output, "0x%018p %-12zu %-30s [泄漏]\n",
+        fprintf(output, "0x%p %-12zu %-30s [泄漏]\n",
                 (const void *)curr->data, curr->size, location);
 
         curr = curr->track_next;

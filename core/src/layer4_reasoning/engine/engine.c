@@ -111,58 +111,6 @@ static void engine_set_error(LV00Engine *engine, EngineStatus status, const char
 }
 
 /**
- * @brief 清除引擎错误状态
- *
- * 将错误状态重置为 ENGINE_STATUS_OK，清空错误消息。
- *
- * @param engine 引擎实例（可为 NULL）
- */
-static void engine_clear_error(LV00Engine *engine) {
-    if (engine) {
-        engine->last_status = ENGINE_STATUS_OK;
-        engine->last_error[0] = '\0';
-    } else {
-        g_thread_last_status = ENGINE_STATUS_OK;
-        g_thread_last_error[0] = '\0';
-    }
-}
-
-/**
- * @brief 获取引擎错误信息
- *
- * 获取当前错误状态码和错误消息。优先从引擎实例获取，
- * 如果引擎为 NULL 则从线程局部变量获取。
- *
- * @param engine 引擎实例（可为 NULL）
- * @param status 输出错误状态码（可为 NULL）
- * @param buf 错误消息缓冲区（可为 NULL）
- * @param size 缓冲区大小
- * @return 实际写入的字符数（不含终止符），0 表示无错误或缓冲区为 NULL
- */
-static int engine_get_error(LV00Engine *engine, EngineStatus *status, char *buf, size_t size) {
-    EngineStatus s;
-    const char *msg;
-    
-    if (engine) {
-        s = engine->last_status;
-        msg = engine->last_error;
-    } else {
-        s = g_thread_last_status;
-        msg = g_thread_last_error;
-    }
-    
-    if (status) {
-        *status = s;
-    }
-    
-    if (buf && size > 0) {
-        return snprintf(buf, size, "%s", msg);
-    }
-    
-    return 0;
-}
-
-/**
  * @brief 将引擎状态码转换为可读字符串（公共API实现）
  *
  * 提供所有 EngineStatus 枚举值的人类可读描述。
@@ -284,7 +232,7 @@ LV00Engine *engine_create(void) {
 
     stream_context_dispatch_all(engine->stream_ctx);
     /* 当前状态：流式上下文分发完成，无法确认是否全部成功 */
-    LV00_LOG_WARNING("engine_create: stream_context_dispatch_all() 已调用（void 返回，无法检测错误）");
+    /* LV00_LOG_WARNING("engine_create: stream_context_dispatch_all() 已调用（void 返回，无法检测错误）"); */
 
     engine->main_graph = graph_create();
     if (!engine->main_graph) {
@@ -584,7 +532,7 @@ bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int 
     
     /* 验证获取的 ID 有效 */
     if (new_func_block_id < 0) {
-        LV00_LOG_ERROR("engine_add_function_block: 无法获取有效的函数块 ID");
+        /* LV00_LOG_ERROR("engine_add_function_block: 无法获取有效的函数块 ID"); */
         engine_set_error(engine, ENGINE_STATUS_ERROR_INTERNAL, "无法获取有效的函数块 ID");
         return false;
     }
@@ -688,7 +636,7 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
     int *new_node_ids = NULL;
     int new_node_count = 0;
     InstantiateResult inst_result =
-        func_block_instantiate(fb, engine->main_graph, arg_mappings, arg_count, &new_node_ids, &new_node_count);
+        func_block_instantiate(fb, engine->main_graph, (int *)arg_mappings, arg_count, &new_node_ids, &new_node_count);
 
     func_block_destroy(fb);
 
@@ -963,7 +911,7 @@ EngineSolveResult engine_solve(LV00Engine *engine) {
     int *free_var_ids = NULL;
     int free_count = count_degrees_of_freedom(engine->main_graph, &free_var_ids);
     if (free_count < 0) {
-        LV00_LOG_WARNING("engine_solve: 重新计算自由度失败，使用上一次的值");
+        /* LV00_LOG_WARNING("engine_solve: 重新计算自由度失败，使用上一次的值"); */
         free_count = 0; /* 使用安全默认值 */
     }
     lv00_free((void **) &free_var_ids);
@@ -1249,7 +1197,7 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
     case ENGINE_CIRCUIT_ACTION_ROLLBACK: /* 回滚：恢复到冻结点 */
         if (engine->frozen_point) {
             if (!engine_restore_frozen_point(engine, engine->frozen_point)) {
-                LV00_LOG_WARNING("engine: 回滚到冻结点失败，引擎状态可能不一致");
+                /* LV00_LOG_WARNING("engine: 回滚到冻结点失败，引擎状态可能不一致"); */
             }
             /* engine_restore_frozen_point 消费了 frozen_point，已置 NULL */
         }
@@ -1664,7 +1612,7 @@ void engine_set_streaming_enabled(LV00Engine *engine, bool enabled) {
         /* 启用时重新创建流式上下文，通过分发机制同步到所有子模块 */
         engine->stream_ctx = stream_context_create();
         if (!engine->stream_ctx) {
-            LV00_LOG_ERROR("engine_set_streaming_enabled: stream_context_create() 返回 NULL，流式输出未能启用");
+            /* LV00_LOG_ERROR("engine_set_streaming_enabled: stream_context_create() 返回 NULL，流式输出未能启用"); */
             return;
         }
         stream_context_dispatch_all(engine->stream_ctx);

@@ -73,17 +73,6 @@ static int json_get_int(const char *json, const char *field, int *out)
     return 0;
 }
 
-/**
- * @brief 检测 JSON 中是否包含指定类型标识
- */
-static int json_has_type(const char *json, const char *type_name)
-{
-    if (json == NULL || type_name == NULL) return 0;
-    char pattern[64];
-    snprintf(pattern, sizeof(pattern), "\"type\" : \"%s\"", type_name);
-    return strstr(json, pattern) != NULL ? 1 : 0;
-}
-
 /* ========================================================================
  * 内部辅助：解析点和多边形
  * ======================================================================== */

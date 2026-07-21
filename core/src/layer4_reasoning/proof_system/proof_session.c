@@ -281,7 +281,7 @@ char *proof_session_get_state_json(const Lv00ProofSession *session) {
     json = (char *)lv00_malloc(LV00_SESSION_JSON_MAX);
     if (!json) return NULL;
 
-    snprintf(json, LV00_SESSION_JSON_MAX,
+    (void)snprintf(json, LV00_SESSION_JSON_MAX,
              "{\n"
              "  \"session_id\": \"%s\",\n"
              "  \"status\": \"%s\",\n"
