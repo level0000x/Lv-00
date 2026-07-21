@@ -31,8 +31,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <errno.h>
-#include <limits.h>
+
+#include "lv00/lv00_parse_utils.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -54,21 +54,6 @@
 /* ============================================================
  * 模块级常量
  * ============================================================ */
-
-static int safe_parse_int(const char *str, int *out)
-{
-    if (!str || !*str) return -1;
-    char *end = NULL;
-    errno = 0;
-    long val = strtol(str, &end, 10);
-    if (errno != 0 || end == str || *end != '\0') return -1;
-    if (val > INT_MAX || val < INT_MIN) return -1;
-    *out = (int)val;
-    return 0;
-}
-
-/* ============================================================
- * 模块级常量 (continued)
 
 /** @brief 默认求解超时（秒） */
 #define ATP_DEFAULT_TIMEOUT 30.0
@@ -690,7 +675,7 @@ static int atp_extract_proof_steps(const char *output,
 
         /* 提取步骤 ID */
         int step_id = 0;
-        safe_parse_int(line, &step_id);
+        lv00_parse_int(line, &step_id);
 
         /* 提取子句内容（到行尾） */
         const char *clause_start = line;
@@ -1087,7 +1072,7 @@ int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count
                 if (!*p) break;
 
                 int parent_id = 0;
-                safe_parse_int(p, &parent_id);
+                lv00_parse_int(p, &parent_id);
                 /* 查找该父步骤在我们的映射中的位置 */
                 for (int j = 0; j < result->proof_step_count; j++) {
                     if (result->proof_steps[j].step_id == parent_id &&

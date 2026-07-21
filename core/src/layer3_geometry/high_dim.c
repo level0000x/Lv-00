@@ -45,20 +45,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <errno.h>
-#include <limits.h>
 
-static int safe_parse_int(const char *str, int *out)
-{
-    if (!str || !*str) return -1;
-    char *end = NULL;
-    errno = 0;
-    long val = strtol(str, &end, 10);
-    if (errno != 0 || end == str || *end != '\0') return -1;
-    if (val > INT_MAX || val < INT_MIN) return -1;
-    *out = (int)val;
-    return 0;
-}
+#include "lv00/lv00_parse_utils.h"
 
 /* ==================== 内部常量 ==================== */
 
@@ -1533,7 +1521,7 @@ static bool hd_json_extract_int(const char *json, const char *key, int *out_val)
     pos++;
     pos = hd_json_skip_ws(pos);
     *out_val = 0;
-    safe_parse_int(pos, out_val);
+    lv00_parse_int(pos, out_val);
     return true;
 }
 
@@ -1619,7 +1607,7 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
                                     ai_val++;
                                     ai_val = hd_json_skip_ws(ai_val);
                                     axis_index = 0;
-                                    safe_parse_int(ai_val, &axis_index);
+                                    lv00_parse_int(ai_val, &axis_index);
                                 }
                             }
                         }

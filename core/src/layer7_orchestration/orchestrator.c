@@ -14,8 +14,7 @@
 #include "lv00/orchestrator.h"
 #include "lv00/lv00_internal.h"
 #include "lv00/proof.h"
-#include <errno.h>
-#include <limits.h>
+#include "lv00/lv00_parse_utils.h"
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,27 +33,6 @@
  */
 
 static atomic_int session_counter = 0;
-
-/**
- * @brief 安全地将字符串解析为整数
- *
- * 使用 strtol 并检查 errno 和溢出，替代 atoi 以避免未定义行为。
- *
- * @param str          要解析的字符串
- * @param default_value 解析失败时返回的默认值
- * @return 解析后的整数值，或 default_value
- */
-static int safe_parse_int(const char *str, int default_value)
-{
-    if (str == NULL || *str == '\0') return default_value;
-    char *endptr = NULL;
-    errno = 0;
-    long val = strtol(str, &endptr, 10);
-    if (errno == ERANGE || val > INT_MAX || val < INT_MIN || endptr == str) {
-        return default_value;
-    }
-    return (int)val;
-}
 
 /**
  * @brief 获取默认会话配置
@@ -405,7 +383,7 @@ int lv00_session_run(Lv00Session *session, const char *input) {
                     while (num_start > geo_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
                         num_start--;
                     if (num_start < p) {
-                        obj_count = safe_parse_int(num_start, 0);
+                        obj_count = lv00_parse_int_default(num_start, 0);
                     }
                 }
             }
@@ -528,7 +506,7 @@ int lv00_session_run_stage(Lv00Session *session, Lv00PipelineStage stage) {
                 while (num_start > parse_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
                     num_start--;
                 if (num_start < p) {
-                    int tokens = safe_parse_int(num_start, 0);
+                    int tokens = lv00_parse_int_default(num_start, 0);
                     geo_obj_count = tokens > 0 ? (tokens + 2) / 3 : 1;
                 }
             }
@@ -664,7 +642,7 @@ int lv00_session_run_stage(Lv00Session *session, Lv00PipelineStage stage) {
                     const char *num_start = p;
                     while (num_start > geo_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
                         num_start--;
-                    if (num_start < p) obj_count = safe_parse_int(num_start, 0);
+                    if (num_start < p) obj_count = lv00_parse_int_default(num_start, 0);
                 }
             }
             if (obj_count <= 0) obj_count = 1;

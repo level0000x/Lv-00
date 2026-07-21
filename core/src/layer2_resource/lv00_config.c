@@ -5,11 +5,11 @@
 
 #include "lv00/lv00.h"
 #include "lv00/lv00_utils.h"
+#include "lv00/lv00_parse_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <errno.h>
 
 static Lv00Config g_active_config;
 static int g_config_applied = 0;
@@ -299,24 +299,13 @@ static int json_parse_int(const char **p, int *out) {
     return 0;
 }
 
-static int safe_parse_double(const char *str, double *out)
-{
-    if (!str || !*str) return -1;
-    char *end = NULL;
-    errno = 0;
-    double val = strtod(str, &end);
-    if (errno != 0 || end == str) return -1;
-    *out = val;
-    return 0;
-}
-
 static int json_parse_double(const char **p, double *out) {
     *p = json_skip_ws(*p);
     char buf[64]; int i = 0;
     while (**p && (isdigit((unsigned char)**p)||**p=='.'||**p=='-'||**p=='e'||**p=='E'||**p=='+') && i<63)
         buf[i++] = *(*p)++;
     buf[i] = '\0';
-    safe_parse_double(buf, out);
+    lv00_parse_double(buf, out);
     return 0;
 }
 

@@ -21,6 +21,7 @@
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "lv00/lv00_parse_utils.h"
 
 /* ── GeoGebra ZIP 解析常量 ── */
 
@@ -181,17 +182,6 @@ static bool ggb_extract_attr(const char *tag_start, size_t tag_len, const char *
     return false;
 }
 
-static int safe_parse_double(const char *str, double *out)
-{
-    if (!str || !*str) return -1;
-    char *end = NULL;
-    errno = 0;
-    double val = strtod(str, &end);
-    if (errno != 0 || end == str) return -1;
-    *out = val;
-    return 0;
-}
-
 /**
  * @brief 从 XML 文本中提取两个 double 坐标（x, y）
  *
@@ -215,15 +205,15 @@ static bool ggb_extract_coord_double(const char *text, const char *name, double 
     const char *slash = strchr(val_buf, '/');
     if (slash && slash != val_buf && *(slash + 1) != '\0') {
         double num = 0.0, den = 0.0;
-        safe_parse_double(val_buf, &num);
-        safe_parse_double(slash + 1, &den);
+        lv00_parse_double(val_buf, &num);
+        lv00_parse_double(slash + 1, &den);
         if (den == 0.0)
             return false;
         *value = num / den;
         return true;
     }
 
-    safe_parse_double(val_buf, value);
+    lv00_parse_double(val_buf, value);
     return true;
 }
 

@@ -10,6 +10,7 @@
 #include "config.h"         /* LV00_LOCALTIME */
 
 #include "lv00_utils.h"
+#include "lv00/lv00_parse_utils.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -17,7 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <errno.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -777,17 +777,6 @@ static double get_cpu_usage_percent(void) {
 }
 #endif
 
-static int safe_parse_double(const char *str, double *out)
-{
-    if (!str || !*str) return -1;
-    char *end = NULL;
-    errno = 0;
-    double val = strtod(str, &end);
-    if (errno != 0 || end == str) return -1;
-    *out = val;
-    return 0;
-}
-
 Lv00HealthReport *lv00_runtime_health_check(void) {
     Lv00HealthReport *report = (Lv00HealthReport *)lv00_calloc(1, sizeof(Lv00HealthReport));
     if (!report) {
@@ -821,7 +810,7 @@ Lv00HealthReport *lv00_runtime_health_check(void) {
         char line[256];
         while (fgets(line, sizeof(line), fp)) {
             if (strncmp(line, "VmRSS:", 6) == 0) {
-                check->value = safe_parse_double(line + 6, &check->value);
+                check->value = lv00_parse_double(line + 6, &check->value);
                 break;
             }
         }

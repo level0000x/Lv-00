@@ -20,19 +20,9 @@
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "lv00/lv00_parse_utils.h"
 
 LV00_DECLARE_STREAM_CTX(interop);
-
-/**
- * 安全解析整数，失败时返回默认值。
- */
-static int safe_parse_int(const char *str, int default_val) {
-    if (!str || str[0] == '\0') return default_val;
-    char *end = NULL;
-    long val = strtol(str, &end, 10);
-    if (end == str || *end != '\0') return default_val;
-    return (int) val;
-}
 
 /* ── 命令解析与执行 ── */
 
@@ -254,8 +244,8 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                     lv00_strlcpy(resp->data, "Usage: AddNode LineSegment <endpoint1_id> <endpoint2_id>", sizeof(resp->data));
                     break;
                 }
-                int ep1 = safe_parse_int(cmd->params[1], 0);
-                int ep2 = safe_parse_int(cmd->params[2], 0);
+                int ep1 = lv00_parse_int_default(cmd->params[1], 0);
+                int ep2 = lv00_parse_int_default(cmd->params[2], 0);
                 AddNodeResult result = graph_add_line_segment(engine->main_graph, ep1, ep2);
                 if (result == ADD_NODE_OK) {
                     snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"line_segment\"}",
@@ -271,8 +261,8 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                     lv00_strlcpy(resp->data, "Usage: AddNode Circle <center_id> <radius_point_id>", sizeof(resp->data));
                     break;
                 }
-                int center_id = safe_parse_int(cmd->params[1], 0);
-                int radius_pt_id = safe_parse_int(cmd->params[2], 0);
+                int center_id = lv00_parse_int_default(cmd->params[1], 0);
+                int radius_pt_id = lv00_parse_int_default(cmd->params[2], 0);
                 AddNodeResult result = graph_add_line_segment(engine->main_graph, center_id, radius_pt_id);
                 if (result == ADD_NODE_OK) {
                     snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"circle\"}",
@@ -291,7 +281,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 int seg_ids[INTEROP_MAX_PARAMS];
                 int seg_count = 0;
                 for (int i = 1; i < cmd->param_count && i < INTEROP_MAX_PARAMS; i++) {
-                    seg_ids[seg_count++] = safe_parse_int(cmd->params[i], 0);
+                    seg_ids[seg_count++] = lv00_parse_int_default(cmd->params[i], 0);
                 }
                 AddNodeResult result = graph_add_region(engine->main_graph, seg_ids, seg_count);
                 if (result == ADD_NODE_OK) {
@@ -320,7 +310,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 lv00_strlcpy(resp->data, "No graph initialized", sizeof(resp->data));
                 break;
             }
-            int node_id = safe_parse_int(cmd->params[0], 0);
+            int node_id = lv00_parse_int_default(cmd->params[0], 0);
             RemoveNodeResult result = graph_remove_node(engine->main_graph, node_id);
             if (result == REMOVE_NODE_OK) {
                 snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"removed_node_id\": %d}", node_id);
@@ -348,7 +338,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
             int participants[4] = {0};
             int pcount = 0;
             for (int i = 1; i < cmd->param_count && i < 5; i++) {
-                participants[i - 1] = safe_parse_int(cmd->params[i], 0);
+                participants[i - 1] = lv00_parse_int_default(cmd->params[i], 0);
                 pcount++;
             }
             int ok = 0;
@@ -410,7 +400,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 lv00_strlcpy(resp->data, "No graph initialized", sizeof(resp->data));
                 break;
             }
-            int cidx = safe_parse_int(cmd->params[0], 0);
+            int cidx = lv00_parse_int_default(cmd->params[0], 0);
             RemoveConstraintResult rc = graph_remove_constraint(engine->main_graph, cidx);
             if (rc == REMOVE_CONSTRAINT_OK) {
                 snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"removed_index\": %d}", cidx);
@@ -441,7 +431,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 lv00_strlcpy(resp->data, "Usage: Instantiate <func_block_id> <arg1_id> ...", sizeof(resp->data));
                 break;
             }
-            int fb_id = safe_parse_int(cmd->params[0], 0);
+            int fb_id = lv00_parse_int_default(cmd->params[0], 0);
             int *arg_mappings = (int *) lv00_malloc(sizeof(int) * (cmd->param_count - 1));
             if (!arg_mappings) {
                 resp->status_code = LV00_ERROR_OUT_OF_MEMORY;
@@ -449,7 +439,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 break;
             }
             for (int i = 1; i < cmd->param_count; i++) {
-                arg_mappings[i - 1] = safe_parse_int(cmd->params[i], 0);
+                arg_mappings[i - 1] = lv00_parse_int_default(cmd->params[i], 0);
             }
             int result_count = 0;
             int *results =
