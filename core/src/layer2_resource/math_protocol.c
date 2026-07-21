@@ -178,13 +178,43 @@ static char *proto_write_escaped_string(char *out, const char *buf_end, const ch
  * ================================================================ */
 
 /**
+ * @brief 将几何节点类型转换为字符串名称
+ */
+static const char *geom_type_name(GeomType type)
+{
+    switch (type) {
+        case GEOM_POINT:         return "point";
+        case GEOM_LINE_SEGMENT:  return "line_segment";
+        case GEOM_REGION:        return "region";
+        case GEOM_PORT:          return "port";
+        case GEOM_FUNCTION_BLOCK:return "function_block";
+        default:                 return "unknown";
+    }
+}
+
+/**
+ * @brief 将约束类型转换为字符串名称
+ */
+static const char *constraint_type_name(ConstraintType type)
+{
+    switch (type) {
+        case INCIDENCE:    return "incidence";
+        case BETWEENNESS:  return "betweenness";
+        case INTERSECTION: return "intersection";
+        case CONTAINMENT:  return "containment";
+        case CONNECTION:   return "connection";
+        default:           return "unknown";
+    }
+}
+
+/**
  * @brief 将数学数据编码为文本协议格式
  *
- * 将内部数据序列化为 JSON 风格的字符串。
- * 当 data 为 NULL 时输出协议头和状态信息。
- * 当 data 非 NULL 时（预留接口），输出协议头和数据摘要。
+ * 将 ConstraintGraph 序列化为 JSON 风格的字符串。
+ * 当 data 为 NULL 时输出协议头和占位状态。
+ * 当 data 非 NULL 时编码节点数量、节点类型、约束等完整图信息。
  *
- * @param data      输入数据指针（当前预留接口，传 NULL 有效）
+ * @param data      输入数据指针（ConstraintGraph*，可为 NULL）
  * @param out       输出缓冲区
  * @param buf_size  输出缓冲区大小
  * @return 写入的字符数（不含终止符），失败返回 -1
@@ -193,6 +223,8 @@ int lv00_math_protocol_encode(void *data, char *out, size_t buf_size)
 {
     const char *buf_end;
     char *p;
+    int i;
+    int first_item;
 
     if (!out || buf_size < 16) {
         return -1;
@@ -210,10 +242,106 @@ int lv00_math_protocol_encode(void *data, char *out, size_t buf_size)
     if (!p) return -1;
 
     if (data) {
-        /* data 非 NULL 时标记数据已填充（预留接口） */
-        p = proto_append(p, buf_end, ",\"status\":\"ok\",\"data\":true");
+        ConstraintGraph *graph = (ConstraintGraph *)data;
+
+        /* 编码基本统计信息 */
+        p = proto_append(p, buf_end, ",\"node_count\":%d", graph->node_count);
+        if (!p) return -1;
+        p = proto_append(p, buf_end, ",\"constraint_count\":%d", graph->constraint_count);
+        if (!p) return -1;
+
+        /* ================================================
+         *  编码节点数组
+         * ================================================ */
+        p = proto_append(p, buf_end, ",\"nodes\":[");
+        if (!p) return -1;
+
+        first_item = 1;
+        for (i = 0; i < graph->node_count; i++) {
+            GeomNode *node = graph->nodes[i];
+            if (!node || !node->is_active) continue;
+
+            if (!first_item) {
+                p = proto_append(p, buf_end, ",");
+                if (!p) return -1;
+            }
+            first_item = 0;
+
+            p = proto_append(p, buf_end,
+                "{\"id\":%d,\"type\":\"%s\",\"coord_count\":%d",
+                node->id,
+                geom_type_name(node->type),
+                node->coord_count);
+            if (!p) return -1;
+
+            /* 函数块额外信息 */
+            if (node->type == GEOM_FUNCTION_BLOCK) {
+                p = proto_append(p, buf_end,
+                    ",\"internal_count\":%d,\"input_count\":%d,\"output_count\":%d",
+                    node->data.func_block.internal_node_count,
+                    node->data.func_block.input_count,
+                    node->data.func_block.output_count);
+                if (!p) return -1;
+            }
+
+            /* 端口额外信息 */
+            if (node->type == GEOM_PORT && node->data.port) {
+                p = proto_append(p, buf_end,
+                    ",\"port_type\":%d,\"parent_block_id\":%d",
+                    node->data.port->type,
+                    node->data.port->parent_block_id);
+                if (!p) return -1;
+            }
+
+            p = proto_append(p, buf_end, "}");
+            if (!p) return -1;
+        }
+
+        p = proto_append(p, buf_end, "]");
+        if (!p) return -1;
+
+        /* ================================================
+         *  编码约束数组
+         * ================================================ */
+        p = proto_append(p, buf_end, ",\"constraints\":[");
+        if (!p) return -1;
+
+        first_item = 1;
+        for (i = 0; i < graph->constraint_count; i++) {
+            Constraint *con = graph->constraints[i];
+            int j;
+
+            if (!con || !con->is_active) continue;
+
+            if (!first_item) {
+                p = proto_append(p, buf_end, ",");
+                if (!p) return -1;
+            }
+            first_item = 0;
+
+            p = proto_append(p, buf_end,
+                "{\"id\":%d,\"ctype\":\"%s\",\"participants\":[",
+                con->id, constraint_type_name(con->type));
+            if (!p) return -1;
+
+            for (j = 0; j < con->participant_count; j++) {
+                if (j > 0) {
+                    p = proto_append(p, buf_end, ",");
+                    if (!p) return -1;
+                }
+                p = proto_append(p, buf_end, "%d", con->participants[j]);
+                if (!p) return -1;
+            }
+
+            p = proto_append(p, buf_end, "]}");
+            if (!p) return -1;
+        }
+
+        p = proto_append(p, buf_end, "]");
+        if (!p) return -1;
+
+        p = proto_append(p, buf_end, ",\"status\":\"ok\"");
     } else {
-        /* data 为 NULL 时输出占位状态 */
         p = proto_append(p, buf_end, ",\"status\":\"ok\",\"data\":null");
     }
     if (!p) return -1;
@@ -226,13 +354,61 @@ int lv00_math_protocol_encode(void *data, char *out, size_t buf_size)
 }
 
 /**
+ * @brief 将字符串类型名解析回枚举值
+ */
+static GeomType parse_geom_type(const char *s)
+{
+    if (!s) return GEOM_POINT;
+    if (strcmp(s, "point") == 0)          return GEOM_POINT;
+    if (strcmp(s, "line_segment") == 0)   return GEOM_LINE_SEGMENT;
+    if (strcmp(s, "region") == 0)         return GEOM_REGION;
+    if (strcmp(s, "port") == 0)          return GEOM_PORT;
+    if (strcmp(s, "function_block") == 0) return GEOM_FUNCTION_BLOCK;
+    return GEOM_POINT;
+}
+
+/**
+ * @brief 解析 JSON 整数值（简单实现）
+ *
+ * @param p 输入指针（指向数字起始位置）
+ * @param out_val 输出的整数值
+ * @return 解析后的新指针位置，失败返回 NULL
+ */
+static const char *proto_parse_int(const char *p, int *out_val)
+{
+    int sign = 1;
+    int val = 0;
+
+    if (!p || !out_val) return NULL;
+
+    p = proto_skip_ws(p);
+    if (!p) return NULL;
+
+    if (*p == '-') {
+        sign = -1;
+        p++;
+    }
+
+    if (*p < '0' || *p > '9') return NULL;
+
+    while (*p >= '0' && *p <= '9') {
+        val = val * 10 + (*p - '0');
+        p++;
+    }
+
+    *out_val = sign * val;
+    return p;
+}
+
+/**
  * @brief 从文本协议格式解码数学数据
  *
- * 解析 JSON 风格的字符串，提取数学对象信息。
- * 验证协议版本号和基本结构合法性。
+ * 解析 JSON 风格的字符串，提取约束图信息。
+ * 当 out 非 NULL 时，创建 ConstraintGraph 并根据 JSON 数据填充节点。
+ * 当 out 为 NULL 时，仅验证格式合法性。
  *
  * @param in   输入 JSON 字符串
- * @param out  输出数据指针（当前预留接口，传 NULL 有效）
+ * @param out  输出数据指针（ConstraintGraph**，可为 NULL）
  * @return 0 解码成功，-1 参数错误或解码失败
  */
 int lv00_math_protocol_decode(const char *in, void *out)
@@ -241,30 +417,46 @@ int lv00_math_protocol_decode(const char *in, void *out)
     char key[64];
     char val[256];
     int found_version = 0;
+    int node_count = 0;
+    int constraint_count = 0;
+    ConstraintGraph **out_graph = (ConstraintGraph **)out;
+    ConstraintGraph *graph = NULL;
 
     if (!in) {
         return -1;
     }
 
-    (void)out;  /* 预留：未来填充 out 结构 */
+    /* 如果 out 非 NULL，预创建约束图 */
+    if (out_graph) {
+        graph = graph_create();
+        if (!graph) return -1;
+    }
 
     p = proto_skip_ws(in);
     if (!p || *p != '{') {
-        return -1;  /* 期望 JSON 对象起始 */
+        if (graph) graph_destroy(graph);
+        return -1;
     }
     p++;
 
     /* 逐对解析键值 */
     while (*p) {
         p = proto_skip_ws(p);
-        if (!p) return -1;
+        if (!p) {
+            if (graph) graph_destroy(graph);
+            return -1;
+        }
 
         /* 对象结束 */
         if (*p == '}') {
             if (!found_version) {
-                return -1;  /* 缺少协议版本字段 */
+                if (graph) graph_destroy(graph);
+                return -1;
             }
-            return 0;  /* 正常结束 */
+            if (out_graph && graph) {
+                *out_graph = graph;
+            }
+            return 0;
         }
 
         /* 跳过逗号分隔符 */
@@ -275,23 +467,36 @@ int lv00_math_protocol_decode(const char *in, void *out)
 
         /* 解析键名 */
         if (*p != '"') {
-            return -1;  /* 期望键名起始引号 */
+            if (graph) graph_destroy(graph);
+            return -1;
         }
         p = proto_parse_string(p + 1, key, (int)sizeof(key));
-        if (!p) return -1;
+        if (!p) {
+            if (graph) graph_destroy(graph);
+            return -1;
+        }
 
         /* 解析冒号 */
         p = proto_skip_ws(p);
-        if (!p || *p != ':') return -1;
+        if (!p || *p != ':') {
+            if (graph) graph_destroy(graph);
+            return -1;
+        }
         p++;
         p = proto_skip_ws(p);
-        if (!p) return -1;
+        if (!p) {
+            if (graph) graph_destroy(graph);
+            return -1;
+        }
 
         /* 解析值 */
         if (*p == '"') {
             /* 字符串值 */
             p = proto_parse_string(p + 1, val, (int)sizeof(val));
-            if (!p) return -1;
+            if (!p) {
+                if (graph) graph_destroy(graph);
+                return -1;
+            }
         } else if (*p == '{' || *p == '[') {
             /* 嵌套结构：跳过（简单实现） */
             int depth = 1;
@@ -303,11 +508,26 @@ int lv00_math_protocol_decode(const char *in, void *out)
                 else if (*p == close) depth--;
                 p++;
             }
-            if (depth != 0) return -1;
+            if (depth != 0) {
+                if (graph) graph_destroy(graph);
+                return -1;
+            }
         } else {
-            /* 数字、布尔值、null：跳到下一个分隔符 */
-            while (*p && *p != ',' && *p != '}' && *p != ']') {
-                p++;
+            /* 数值：解析并记录统计字段 */
+            int int_val = -1;
+            const char *np = proto_parse_int(p, &int_val);
+            if (!np) {
+                /* 跳过无法解析的非字符串值 */
+                while (*p && *p != ',' && *p != '}' && *p != ']') {
+                    p++;
+                }
+            } else {
+                p = np;
+                if (strcmp(key, "node_count") == 0) {
+                    node_count = int_val;
+                } else if (strcmp(key, "constraint_count") == 0) {
+                    constraint_count = int_val;
+                }
             }
         }
 
@@ -317,5 +537,6 @@ int lv00_math_protocol_decode(const char *in, void *out)
         }
     }
 
-    return -1;  /* 未找到闭合括号 */
+    if (graph) graph_destroy(graph);
+    return -1;
 }

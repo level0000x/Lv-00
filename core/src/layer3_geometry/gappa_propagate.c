@@ -387,11 +387,138 @@ Lv00GappaPropagateConfig gappa_propagate_config_default(void) {
     return cfg;
 }
 
+/**
+ * @brief 从已知谓词集合中反向推断变量 BND 的紧区间
+ *
+ * 检查输出集中是否存在形如 "X + Y" 或 "X - Y" 的谓词，
+ * 若其中一个操作数的边界已知，则反推出另一个操作数的更紧边界。
+ *
+ * @param output    输出谓词集（会被原地收紧）
+ * @param idx       当前正在检查的被收紧谓词索引
+ * @param lhs       被收紧谓词的 expr_lhs
+ * @param precision 收敛精度阈值
+ * @param changed   输出：是否有边界被收紧
+ */
+static void backward_refine_pred(Lv00GappaPredSet *output, int idx,
+                                  const char *lhs, double precision,
+                                  bool *changed) {
+    size_t lhs_len = strlen(lhs);
+
+    for (int p = 0; p < output->count; p++) {
+        if (p == idx || output->preds[p].type != LV00_PRED_BND) continue;
+
+        size_t plen = strlen(output->preds[p].expr_lhs);
+        const char *pexpr = output->preds[p].expr_lhs;
+
+        /* ── 模式 1: pexpr = lhs + rest → 反推 lhs = pexpr - rest ── */
+        if (plen > lhs_len + 3 &&
+            strncmp(pexpr, lhs, lhs_len) == 0 &&
+            strncmp(pexpr + lhs_len, " + ", 3) == 0) {
+            const char *rest = pexpr + lhs_len + 3;
+            for (int r = 0; r < output->count; r++) {
+                if (r == idx || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
+
+                /* lhs = (lhs + rest) - rest */
+                double new_lo = output->preds[p].bound_lo - output->preds[r].bound_hi;
+                double new_hi = output->preds[p].bound_hi - output->preds[r].bound_lo;
+                if (new_lo > output->preds[idx].bound_lo + precision) {
+                    output->preds[idx].bound_lo = new_lo;
+                    *changed = true;
+                }
+                if (new_hi < output->preds[idx].bound_hi - precision) {
+                    output->preds[idx].bound_hi = new_hi;
+                    *changed = true;
+                }
+            }
+        }
+
+        /* ── 模式 2: pexpr = rest + lhs → 反推 lhs = pexpr - rest ── */
+        /* 检查 pexpr 是否以 " + lhs" 结尾 */
+        if (plen > lhs_len + 3) {
+            const char *suffix_start = pexpr + plen - lhs_len - 3;
+            if (strncmp(suffix_start, " + ", 3) == 0 &&
+                strcmp(suffix_start + 3, lhs) == 0) {
+                /* 提取 rest = pexpr[0..plen-lhs_len-4) */
+                size_t rest_len = plen - lhs_len - 3;
+                for (int r = 0; r < output->count; r++) {
+                    if (r == idx || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                    if (strlen(output->preds[r].expr_lhs) != rest_len) continue;
+                    if (strncmp(output->preds[r].expr_lhs, pexpr, rest_len) != 0) continue;
+
+                    double new_lo = output->preds[p].bound_lo - output->preds[r].bound_hi;
+                    double new_hi = output->preds[p].bound_hi - output->preds[r].bound_lo;
+                    if (new_lo > output->preds[idx].bound_lo + precision) {
+                        output->preds[idx].bound_lo = new_lo;
+                        *changed = true;
+                    }
+                    if (new_hi < output->preds[idx].bound_hi - precision) {
+                        output->preds[idx].bound_hi = new_hi;
+                        *changed = true;
+                    }
+                }
+            }
+        }
+
+        /* ── 模式 3: pexpr = lhs - rest → 反推 lhs = pexpr + rest ── */
+        if (plen > lhs_len + 3 &&
+            strncmp(pexpr, lhs, lhs_len) == 0 &&
+            strncmp(pexpr + lhs_len, " - ", 3) == 0) {
+            const char *rest = pexpr + lhs_len + 3;
+            for (int r = 0; r < output->count; r++) {
+                if (r == idx || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
+
+                /* lhs = (lhs - rest) + rest */
+                double new_lo = output->preds[p].bound_lo + output->preds[r].bound_lo;
+                double new_hi = output->preds[p].bound_hi + output->preds[r].bound_hi;
+                if (new_lo > output->preds[idx].bound_lo + precision) {
+                    output->preds[idx].bound_lo = new_lo;
+                    *changed = true;
+                }
+                if (new_hi < output->preds[idx].bound_hi - precision) {
+                    output->preds[idx].bound_hi = new_hi;
+                    *changed = true;
+                }
+            }
+        }
+
+        /* ── 模式 4: pexpr = rest - lhs → 反推 lhs = rest - pexpr ── */
+        if (plen > lhs_len + 3) {
+            const char *suffix_start = pexpr + plen - lhs_len - 3;
+            if (strncmp(suffix_start, " - ", 3) == 0 &&
+                strcmp(suffix_start + 3, lhs) == 0) {
+                size_t rest_len = plen - lhs_len - 3;
+                for (int r = 0; r < output->count; r++) {
+                    if (r == idx || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                    if (strlen(output->preds[r].expr_lhs) != rest_len) continue;
+                    if (strncmp(output->preds[r].expr_lhs, pexpr, rest_len) != 0) continue;
+
+                    /* lhs = rest - (rest - lhs) */
+                    double new_lo = output->preds[r].bound_lo - output->preds[p].bound_hi;
+                    double new_hi = output->preds[r].bound_hi - output->preds[p].bound_lo;
+                    if (new_lo > output->preds[idx].bound_lo + precision) {
+                        output->preds[idx].bound_lo = new_lo;
+                        *changed = true;
+                    }
+                    if (new_hi < output->preds[idx].bound_hi - precision) {
+                        output->preds[idx].bound_hi = new_hi;
+                        *changed = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
 int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg) {
-    (void)cfg;
     if (!input || !output) return 0;
 
     gappa_pred_set_init(output);
+
+    int max_iter   = cfg ? cfg->max_iterations : 100;
+    double precision = cfg ? cfg->precision : 1e-15;
+    bool do_backward = cfg ? cfg->backward : false;
 
     /* 复制所有输入谓词到输出 */
     for (int i = 0; i < input->count; i++) {
@@ -400,34 +527,241 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
 
     int derived = 0;
 
-    /* 对每对 BND 谓词，推导其和与差 */
-    for (int i = 0; i < input->count; i++) {
-        if (input->preds[i].type != LV00_PRED_BND) continue;
-        for (int j = i + 1; j < input->count; j++) {
-            if (input->preds[j].type != LV00_PRED_BND) continue;
+    /* ── 迭代收敛主循环 ── */
+    for (int iter = 0; iter < max_iter; iter++) {
+        bool changed = false;
 
-            /* 推导和: x + y in [lo_x + lo_y, hi_x + hi_y] */
-            Lv00GappaPredicate sum_pred;
-            memset(&sum_pred, 0, sizeof(sum_pred));
-            sum_pred.type = LV00_PRED_BND;
-            snprintf(sum_pred.expr_lhs, sizeof(sum_pred.expr_lhs), "%s + %s",
-                     input->preds[i].expr_lhs, input->preds[j].expr_lhs);
-            sum_pred.bound_lo = input->preds[i].bound_lo + input->preds[j].bound_lo;
-            sum_pred.bound_hi = input->preds[i].bound_hi + input->preds[j].bound_hi;
-            sum_pred.is_hypothesis = input->preds[i].is_hypothesis;
-            if (gappa_pred_set_add(output, &sum_pred)) derived++;
+        /* ============================================================
+         * 前向传播：推导新谓词
+         * ============================================================ */
 
-            /* 推导差: x - y in [lo_x - hi_y, hi_x - lo_y] */
-            Lv00GappaPredicate diff_pred;
-            memset(&diff_pred, 0, sizeof(diff_pred));
-            diff_pred.type = LV00_PRED_BND;
-            snprintf(diff_pred.expr_lhs, sizeof(diff_pred.expr_lhs), "%s - %s",
-                     input->preds[i].expr_lhs, input->preds[j].expr_lhs);
-            diff_pred.bound_lo = input->preds[i].bound_lo - input->preds[j].bound_hi;
-            diff_pred.bound_hi = input->preds[i].bound_hi - input->preds[j].bound_lo;
-            diff_pred.is_hypothesis = input->preds[i].is_hypothesis;
-            if (gappa_pred_set_add(output, &diff_pred)) derived++;
+        /* 对每对 BND 谓词，推导其和与差 */
+        for (int i = 0; i < output->count; i++) {
+            if (output->preds[i].type != LV00_PRED_BND) continue;
+            for (int j = i + 1; j < output->count; j++) {
+                if (output->preds[j].type != LV00_PRED_BND) continue;
+
+                /* 推导和: x + y in [lo_x + lo_y, hi_x + hi_y] */
+                Lv00GappaPredicate sum_pred;
+                memset(&sum_pred, 0, sizeof(sum_pred));
+                sum_pred.type = LV00_PRED_BND;
+                snprintf(sum_pred.expr_lhs, sizeof(sum_pred.expr_lhs), "%s + %s",
+                         output->preds[i].expr_lhs, output->preds[j].expr_lhs);
+                sum_pred.bound_lo = output->preds[i].bound_lo + output->preds[j].bound_lo;
+                sum_pred.bound_hi = output->preds[i].bound_hi + output->preds[j].bound_hi;
+                sum_pred.is_hypothesis = output->preds[i].is_hypothesis;
+                if (gappa_pred_set_add(output, &sum_pred)) { derived++; changed = true; }
+
+                /* 推导差: x - y in [lo_x - hi_y, hi_x - lo_y] */
+                Lv00GappaPredicate diff_pred;
+                memset(&diff_pred, 0, sizeof(diff_pred));
+                diff_pred.type = LV00_PRED_BND;
+                snprintf(diff_pred.expr_lhs, sizeof(diff_pred.expr_lhs), "%s - %s",
+                         output->preds[i].expr_lhs, output->preds[j].expr_lhs);
+                diff_pred.bound_lo = output->preds[i].bound_lo - output->preds[j].bound_hi;
+                diff_pred.bound_hi = output->preds[i].bound_hi - output->preds[j].bound_lo;
+                diff_pred.is_hypothesis = output->preds[i].is_hypothesis;
+                if (gappa_pred_set_add(output, &diff_pred)) { derived++; changed = true; }
+
+                /* 推导差: y - x in [lo_y - hi_x, hi_y - lo_x] */
+                Lv00GappaPredicate diff_pred2;
+                memset(&diff_pred2, 0, sizeof(diff_pred2));
+                diff_pred2.type = LV00_PRED_BND;
+                snprintf(diff_pred2.expr_lhs, sizeof(diff_pred2.expr_lhs), "%s - %s",
+                         output->preds[j].expr_lhs, output->preds[i].expr_lhs);
+                diff_pred2.bound_lo = output->preds[j].bound_lo - output->preds[i].bound_hi;
+                diff_pred2.bound_hi = output->preds[j].bound_hi - output->preds[i].bound_lo;
+                diff_pred2.is_hypothesis = output->preds[j].is_hypothesis;
+                if (gappa_pred_set_add(output, &diff_pred2)) { derived++; changed = true; }
+            }
         }
+
+        /* 乘法推导：x * y，取四个角点的 min/max */
+        for (int i = 0; i < output->count; i++) {
+            if (output->preds[i].type != LV00_PRED_BND) continue;
+            for (int j = i + 1; j < output->count; j++) {
+                if (output->preds[j].type != LV00_PRED_BND) continue;
+
+                PropInterval a = { output->preds[i].bound_lo, output->preds[i].bound_hi };
+                PropInterval b = { output->preds[j].bound_lo, output->preds[j].bound_hi };
+                PropInterval r = ia_mul(a, b);
+
+                Lv00GappaPredicate mul_pred;
+                memset(&mul_pred, 0, sizeof(mul_pred));
+                mul_pred.type = LV00_PRED_BND;
+                snprintf(mul_pred.expr_lhs, sizeof(mul_pred.expr_lhs), "%s * %s",
+                         output->preds[i].expr_lhs, output->preds[j].expr_lhs);
+                mul_pred.bound_lo = r.lo;
+                mul_pred.bound_hi = r.hi;
+                mul_pred.is_hypothesis = output->preds[i].is_hypothesis;
+                if (gappa_pred_set_add(output, &mul_pred)) { derived++; changed = true; }
+            }
+        }
+
+        /* 除法推导：x / y，处理分母跨零（返回无穷区间则跳过） */
+        for (int i = 0; i < output->count; i++) {
+            if (output->preds[i].type != LV00_PRED_BND) continue;
+            for (int j = 0; j < output->count; j++) {
+                if (i == j || output->preds[j].type != LV00_PRED_BND) continue;
+
+                PropInterval a = { output->preds[i].bound_lo, output->preds[i].bound_hi };
+                PropInterval b = { output->preds[j].bound_lo, output->preds[j].bound_hi };
+
+                /* 跳过分母包含零的情况 */
+                if (b.lo <= 0.0 && b.hi >= 0.0) continue;
+
+                PropInterval r = ia_div(a, b);
+                if (isinf(r.lo) || isinf(r.hi)) continue;
+
+                Lv00GappaPredicate div_pred;
+                memset(&div_pred, 0, sizeof(div_pred));
+                div_pred.type = LV00_PRED_BND;
+                snprintf(div_pred.expr_lhs, sizeof(div_pred.expr_lhs), "%s / %s",
+                         output->preds[i].expr_lhs, output->preds[j].expr_lhs);
+                div_pred.bound_lo = r.lo;
+                div_pred.bound_hi = r.hi;
+                div_pred.is_hypothesis = output->preds[i].is_hypothesis;
+                if (gappa_pred_set_add(output, &div_pred)) { derived++; changed = true; }
+            }
+        }
+
+        /* 平方推导：x²，利用单调性精确计算 */
+        for (int i = 0; i < output->count; i++) {
+            if (output->preds[i].type != LV00_PRED_BND) continue;
+
+            double x_lo = output->preds[i].bound_lo;
+            double x_hi = output->preds[i].bound_hi;
+            double sq_lo, sq_hi;
+
+            /* x² 在 (-∞,0] 递减、[0,+∞) 递增 */
+            if (x_lo >= 0.0) {
+                sq_lo = x_lo * x_lo;
+                sq_hi = x_hi * x_hi;
+            } else if (x_hi <= 0.0) {
+                sq_lo = x_hi * x_hi;
+                sq_hi = x_lo * x_lo;
+            } else {
+                sq_lo = 0.0;
+                double abs_lo = -x_lo;
+                sq_hi = (abs_lo > x_hi) ? (abs_lo * abs_lo) : (x_hi * x_hi);
+            }
+
+            Lv00GappaPredicate sq_pred;
+            memset(&sq_pred, 0, sizeof(sq_pred));
+            sq_pred.type = LV00_PRED_BND;
+            snprintf(sq_pred.expr_lhs, sizeof(sq_pred.expr_lhs), "(%s)^2",
+                     output->preds[i].expr_lhs);
+            sq_pred.bound_lo = sq_lo;
+            sq_pred.bound_hi = sq_hi;
+            sq_pred.is_hypothesis = output->preds[i].is_hypothesis;
+            if (gappa_pred_set_add(output, &sq_pred)) { derived++; changed = true; }
+        }
+
+        /* ============================================================
+         * Refinement pass：利用 sum/diff 关系收紧已有边界
+         * ============================================================ */
+        for (int i = 0; i < output->count; i++) {
+            if (output->preds[i].type != LV00_PRED_BND) continue;
+            backward_refine_pred(output, i, output->preds[i].expr_lhs,
+                                  precision, &changed);
+        }
+
+        /* ============================================================
+         * 后向传播（可选）：额外反向推导 BND 和 ABS 谓词
+         * ============================================================ */
+        if (do_backward) {
+            /* ABS → BND 转换：|x - c| ≤ eps → x ∈ [c - eps, c + eps] */
+            for (int i = 0; i < output->count; i++) {
+                if (output->preds[i].type != LV00_PRED_ABS) continue;
+
+                double center = atof(output->preds[i].expr_rhs);
+                double eps    = output->preds[i].bound_abs;
+
+                Lv00GappaPredicate bnd;
+                memset(&bnd, 0, sizeof(bnd));
+                bnd.type = LV00_PRED_BND;
+                strncpy(bnd.expr_lhs, output->preds[i].expr_lhs,
+                        sizeof(bnd.expr_lhs) - 1);
+                bnd.bound_lo = center - eps;
+                bnd.bound_hi = center + eps;
+                bnd.is_hypothesis = output->preds[i].is_hypothesis;
+                if (gappa_pred_set_add(output, &bnd)) { derived++; changed = true; }
+            }
+
+            /* 利用 ABS 谓词的约束能力：对刚转换出的 BND 再跑一次 refinement */
+            for (int i = 0; i < output->count; i++) {
+                if (output->preds[i].type != LV00_PRED_BND) continue;
+                backward_refine_pred(output, i, output->preds[i].expr_lhs,
+                                      precision, &changed);
+            }
+
+            /* 反向传播：对乘除关系进行反向收紧
+             *   - 若已知 x*y 和 x 的区间，收紧 y
+             *   - 若已知 x/y 和 y 的区间，收紧 x */
+            for (int i = 0; i < output->count; i++) {
+                if (output->preds[i].type != LV00_PRED_BND) continue;
+                size_t ilen = strlen(output->preds[i].expr_lhs);
+
+                for (int p = 0; p < output->count; p++) {
+                    if (p == i || output->preds[p].type != LV00_PRED_BND) continue;
+                    size_t plen = strlen(output->preds[p].expr_lhs);
+                    const char *pexpr = output->preds[p].expr_lhs;
+
+                    /* 乘反向: pexpr = lhs * rest → lhs = pexpr / rest */
+                    if (plen > ilen + 3 &&
+                        strncmp(pexpr, output->preds[i].expr_lhs, ilen) == 0 &&
+                        strncmp(pexpr + ilen, " * ", 3) == 0) {
+                        const char *rest = pexpr + ilen + 3;
+                        for (int r = 0; r < output->count; r++) {
+                            if (r == i || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                            if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
+                            if (output->preds[r].bound_lo <= 0.0 && output->preds[r].bound_hi >= 0.0) continue;
+
+                            PropInterval prod = { output->preds[p].bound_lo, output->preds[p].bound_hi };
+                            PropInterval fac  = { output->preds[r].bound_lo, output->preds[r].bound_hi };
+                            PropInterval quo  = ia_div(prod, fac);
+                            if (isinf(quo.lo) || isinf(quo.hi)) continue;
+
+                            if (quo.lo > output->preds[i].bound_lo + precision) {
+                                output->preds[i].bound_lo = quo.lo;
+                                changed = true;
+                            }
+                            if (quo.hi < output->preds[i].bound_hi - precision) {
+                                output->preds[i].bound_hi = quo.hi;
+                                changed = true;
+                            }
+                        }
+                    }
+
+                    /* 除反向: pexpr = lhs / rest → lhs = pexpr * rest */
+                    if (plen > ilen + 3 &&
+                        strncmp(pexpr, output->preds[i].expr_lhs, ilen) == 0 &&
+                        strncmp(pexpr + ilen, " / ", 3) == 0) {
+                        const char *rest = pexpr + ilen + 3;
+                        for (int r = 0; r < output->count; r++) {
+                            if (r == i || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                            if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
+
+                            PropInterval quot  = { output->preds[p].bound_lo, output->preds[p].bound_hi };
+                            PropInterval denom = { output->preds[r].bound_lo, output->preds[r].bound_hi };
+                            PropInterval num   = ia_mul(quot, denom);
+
+                            if (num.lo > output->preds[i].bound_lo + precision) {
+                                output->preds[i].bound_lo = num.lo;
+                                changed = true;
+                            }
+                            if (num.hi < output->preds[i].bound_hi - precision) {
+                                output->preds[i].bound_hi = num.hi;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /* ── 收敛检查：本轮未产生任何新谓词且未收紧任何边界 ── */
+        if (!changed) break;
     }
 
     return derived > 0 ? derived : (input->count > 0 ? 1 : 0);

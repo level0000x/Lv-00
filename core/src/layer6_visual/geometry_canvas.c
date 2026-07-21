@@ -71,8 +71,7 @@ Lv00GeometryCanvas *lv00_geometry_canvas_create(void) {
     if (!canvas->constraints) { lv00_free((void **)&canvas->entities); lv00_free((void **)&canvas); return NULL; }
     canvas->next_entity_id = 1;
     canvas->next_constraint_id = 1;
-    /* 默认颜色 */
-    strncpy(canvas->entities ? "" : "", "", 0); /* 占位 */
+    /* 画布结构体无全局颜色字段；实体和约束在添加时各自设置默认样式 */
     return canvas;
 }
 

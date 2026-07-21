@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：预设函数块系统 (func_block_preset)
  * 功能概述：提供理论数学研究的标准化函数块库，包含完整的预设函数块
  *          定义、参数规范和实例化接口。所有预设都有明确的输入/输出
@@ -54,6 +54,8 @@ extern "C" {
  * 预设函数块参数类型系统
  * ============================================================ */
 
+#ifndef LV00_PRESET_PARAM_TYPE_ENUM_DEFINED
+#define LV00_PRESET_PARAM_TYPE_ENUM_DEFINED
 /**
  * @brief 几何参数类型枚举
  *
@@ -77,7 +79,10 @@ typedef enum {
     PARAM_TYPE_ANY,     /**< 任意类型（多态） */
     PARAM_TYPE_VARIADIC /**< 可变参数 */
 } PresetParamType;
+#endif /* LV00_PRESET_PARAM_TYPE_ENUM_DEFINED */
 
+#ifndef LV00_PARAM_CONSTRAINT_TYPE_ENUM_DEFINED
+#define LV00_PARAM_CONSTRAINT_TYPE_ENUM_DEFINED
 /**
  * @brief 参数约束类型
  */
@@ -91,7 +96,10 @@ typedef enum {
     PARAM_CONSTRAINT_UNIT,          /**< 单位长度 */
     PARAM_CONSTRAINT_IN_RANGE       /**< 在范围内 */
 } ParamConstraintType;
+#endif
 
+#ifndef LV00_PARAM_CONSTRAINT_DEFINED
+#define LV00_PARAM_CONSTRAINT_DEFINED
 /**
  * @brief 参数约束定义
  */
@@ -101,7 +109,10 @@ typedef struct {
     double max_val;           /**< 最大值（用于IN_RANGE） */
     const char *description;  /**< 约束描述 */
 } ParamConstraint;
+#endif
 
+#ifndef LV00_PRESET_PARAM_DEF_DEFINED
+#define LV00_PRESET_PARAM_DEF_DEFINED
 /**
  * @brief 预设函数块参数定义
  */
@@ -115,11 +126,14 @@ typedef struct {
     ParamConstraint *constraints; /**< 约束数组 */
     int constraint_count;         /**< 约束数量 */
 } PresetParamDef;
+#endif
 
 /* ============================================================
  * 预设函数块元数据
  * ============================================================ */
 
+#ifndef LV00_PRESET_PROPERTY_ENUM_DEFINED
+#define LV00_PRESET_PROPERTY_ENUM_DEFINED
 /**
  * @brief 预设函数块数学性质
  */
@@ -135,7 +149,10 @@ typedef enum {
     PRESET_PROPERTY_CONSTRUCTIVE = 1 << 7,  /**< 构造性 */
     PRESET_PROPERTY_REVERSIBLE = 1 << 8     /**< 可逆性 */
 } PresetProperty;
+#endif
 
+#ifndef LV00_PRESET_COMPLEXITY_ENUM_DEFINED
+#define LV00_PRESET_COMPLEXITY_ENUM_DEFINED
 /**
  * @brief 预设函数块复杂度等级
  */
@@ -148,7 +165,10 @@ typedef enum {
     COMPLEXITY_ON3,    /**< 立方时间 */
     COMPLEXITY_UNKNOWN /**< 未知 */
 } PresetComplexity;
+#endif
 
+#ifndef LV00_PRESET_METADATA_DEFINED
+#define LV00_PRESET_METADATA_DEFINED
 /**
  * @brief 预设函数块完整元数据
  */
@@ -183,6 +203,7 @@ typedef struct {
     int version_minor; /**< 次版本 */
     int version_patch; /**< 补丁版本 */
 } PresetMetadata;
+#endif
 
 /* ============================================================
  * 预设函数块实例化上下文

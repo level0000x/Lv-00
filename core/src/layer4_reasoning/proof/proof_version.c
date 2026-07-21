@@ -708,28 +708,108 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
 }
 
 /* ============================================================================
- * Task stubs - TODO: implement task module
+ * Task 模块 — 内部结构体定义
+ *
+ * Lv00TaskGroup = Lv00WaitGroup（在 proof.h 中 typedef）
+ * Lv00Task      = Lv00ThreadTask（在 proof.h 中 typedef）
+ *
+ * 此处定义其实际结构体布局（与 thread_pool.c 保持一致）。
+ * ============================================================================ */
+
+/* ---- 平台相关同步原语（与 thread_pool.c 保持一致） ---- */
+#ifdef _WIN32
+typedef CONDITION_VARIABLE Lv00CondVar;
+#else
+#include <pthread.h>
+typedef pthread_mutex_t Lv00Mutex;
+typedef pthread_cond_t  Lv00CondVar;
+#define MUTEX_INIT(m)    pthread_mutex_init(&(m), NULL)
+#define MUTEX_LOCK(m)    pthread_mutex_lock(&(m))
+#define MUTEX_UNLOCK(m)  pthread_mutex_unlock(&(m))
+#define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
+#define COND_INIT(c)     pthread_cond_init(&(c), NULL)
+#define COND_DESTROY(c)  pthread_cond_destroy(&(c))
+#endif
+
+#ifndef Lv00Mutex
+#ifdef _WIN32
+typedef CRITICAL_SECTION Lv00Mutex;
+#define MUTEX_INIT(m)    InitializeCriticalSection(&(m))
+#define MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
+#else
+typedef pthread_mutex_t Lv00Mutex;
+#define MUTEX_INIT(m)    pthread_mutex_init(&(m), NULL)
+#define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
+#endif
+#endif
+
+#ifndef MUTEX_LOCK
+#ifdef _WIN32
+#define MUTEX_LOCK(m)    EnterCriticalSection(&(m))
+#define MUTEX_UNLOCK(m)  LeaveCriticalSection(&(m))
+#endif
+#endif
+
+#ifndef COND_INIT
+#ifdef _WIN32
+#define COND_INIT(c)     InitializeConditionVariable(&(c))
+#define COND_DESTROY(c)  ((void)0)
+#endif
+#endif
+
+/** @brief 等待组（与 thread_pool.c 保持一致） */
+struct Lv00WaitGroup {
+    int pending;
+    Lv00Mutex mutex;
+    Lv00CondVar cond;
+};
+
+/** @brief 线程任务（与 thread_pool.c 保持一致） */
+struct Lv00ThreadTask {
+    void (*func)(void *arg);
+    void *arg;
+    Lv00WaitGroup *group;
+    struct Lv00ThreadTask *next;
+};
+
+/* ============================================================================
+ * Task stubs — 实现
  * ============================================================================ */
 
 Lv00TaskGroup *lv00_task_group_create(const char *name) {
     (void)name;
-    return NULL;
+    Lv00TaskGroup *g = (Lv00TaskGroup *)lv00_calloc(1, sizeof(Lv00TaskGroup));
+    if (!g) return NULL;
+    MUTEX_INIT(g->mutex);
+    COND_INIT(g->cond);
+    g->pending = 0;
+    return g;
 }
 
 Lv00Task *lv00_task_create(int (*fn)(void*), void *arg, const char *name) {
-    (void)fn;
-    (void)arg;
     (void)name;
-    return NULL;
+    Lv00Task *t = (Lv00Task *)lv00_calloc(1, sizeof(Lv00Task));
+    if (!t) return NULL;
+    t->func = (void (*)(void*))fn;
+    t->arg = arg;
+    t->group = NULL;
+    t->next = NULL;
+    return t;
 }
 
 void lv00_task_group_add(Lv00TaskGroup *group, Lv00Task *task) {
-    (void)group;
-    (void)task;
+    if (!group || !task) return;
+    MUTEX_LOCK(group->mutex);
+    group->pending++;
+    task->group = group;
+    MUTEX_UNLOCK(group->mutex);
 }
 
 void lv00_task_group_destroy(Lv00TaskGroup *group) {
-    (void)group;
+    if (!group) return;
+    MUTEX_DESTROY(group->mutex);
+    COND_DESTROY(group->cond);
+    lv00_free((void**)&group);
 }
 
 /* ================================================================

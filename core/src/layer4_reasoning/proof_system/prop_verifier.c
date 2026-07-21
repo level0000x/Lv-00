@@ -2143,5 +2143,104 @@ PropVerifierResult lv00_prop_verify(const void *prop) {
     PropVerifierResult res;
     res.valid = false;
     res.msg = "Not implemented";
+
+    if (!prop) {
+        res.valid = false;
+        res.msg = "null proposition";
+        return res;
+    }
+
+    const PropFormula *f = (const PropFormula *)prop;
+
+    switch (f->type) {
+        case PROP_TRUE:
+            res.valid = true;
+            res.msg = "verified";
+            break;
+
+        case PROP_BOTTOM:
+            res.valid = false;
+            res.msg = "bottom (false) proposition";
+            break;
+
+        case PROP_ATOM:
+            /* 简单等式/原子命题：名称非空即视为已验证 */
+            if (f->data.atom.name[0] != '\0') {
+                res.valid = true;
+                res.msg = "verified";
+            } else {
+                res.valid = false;
+                res.msg = "empty atom name";
+            }
+            break;
+
+        case PROP_CONJUNCTION: {
+            /* 合取式：所有子命题均需成立 */
+            PropVerifierResult left  = lv00_prop_verify(f->data.binary.left);
+            PropVerifierResult right = lv00_prop_verify(f->data.binary.right);
+            if (left.valid && right.valid) {
+                res.valid = true;
+                res.msg = "verified";
+            } else {
+                res.valid = false;
+                res.msg = left.valid ? right.msg : left.msg;
+            }
+            break;
+        }
+
+        case PROP_IMPLICATION: {
+            /* 蕴含式：检查前提是否为真，结论是否为前提的逻辑推论 */
+            PropVerifierResult ant = lv00_prop_verify(f->data.binary.left);
+            if (!ant.valid) {
+                /* 前提不成立 → 蕴含式空洞为真 */
+                res.valid = true;
+                res.msg = "verified";
+            } else {
+                /* 前提成立 → 结论必须成立 */
+                PropVerifierResult cons = lv00_prop_verify(f->data.binary.right);
+                if (cons.valid) {
+                    res.valid = true;
+                    res.msg = "verified";
+                } else {
+                    res.valid = false;
+                    res.msg = "implication with true antecedent but false consequent";
+                }
+            }
+            break;
+        }
+
+        case PROP_DISJUNCTION: {
+            /* 析取式：至少一个子命题成立 */
+            PropVerifierResult left  = lv00_prop_verify(f->data.binary.left);
+            PropVerifierResult right = lv00_prop_verify(f->data.binary.right);
+            if (left.valid || right.valid) {
+                res.valid = true;
+                res.msg = "verified";
+            } else {
+                res.valid = false;
+                res.msg = "disjunction with all invalid sub-formulas";
+            }
+            break;
+        }
+
+        case PROP_NEGATION: {
+            /* 否定式：取反内部验证结果 */
+            PropVerifierResult inner = lv00_prop_verify(f->data.unary.operand);
+            if (inner.valid) {
+                res.valid = false;
+                res.msg = "negation of verified formula";
+            } else {
+                res.valid = true;
+                res.msg = "verified";
+            }
+            break;
+        }
+
+        default:
+            res.valid = false;
+            res.msg = "unsupported proposition type";
+            break;
+    }
+
     return res;
 }

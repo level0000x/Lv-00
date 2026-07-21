@@ -154,17 +154,61 @@ ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder,
 {
     if (!encoder || !encoder->is_initialized || !graph) return NULL;
 
-    ConstraintGraph *encoded = alloc_constraint_graph_stub();
+    ConstraintGraph *encoded = graph_create();
     if (!encoded) return NULL;
 
-    /* 编码逻辑：
-     * 1. 遍历原图的所有节点
-     * 2. 为每个节点计算符号坐标 (id * spacing, type_offset)
-     * 3. 编码约束关系为几何关系
-     * 4. 如果启用元数据编码，添加 count/capacity 节点
-     */
-    encoder->node_count++;
-    encoder->constraint_count++;
+    double base_x = encoder->config.coordinate_scheme.base_x;
+    double base_y = encoder->config.coordinate_scheme.base_y;
+    double id_spacing   = encoder->config.coordinate_scheme.id_spacing;
+    double type_spacing = encoder->config.coordinate_scheme.type_spacing;
+
+    /* 1. 遍历原图的所有节点，编码为几何点 */
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *src_node = graph->nodes[i];
+        if (!src_node) continue;
+
+        double x_val = base_x + (double)src_node->id * id_spacing;
+        double y_val = base_y + (double)src_node->type * type_spacing;
+
+        SymbolicCoord *coords[2];
+        coords[0] = symbolic_coord_create_rational((int64_t)x_val, 1);
+        coords[1] = symbolic_coord_create_rational((int64_t)y_val, 1);
+        if (!coords[0] || !coords[1]) {
+            if (coords[0]) symbolic_coord_destroy(coords[0]);
+            if (coords[1]) symbolic_coord_destroy(coords[1]);
+            continue;
+        }
+
+        GeomNode *new_node = graph_add_node_with_id(encoded, src_node->id,
+                                                     GEOM_POINT, coords, 2);
+        if (!new_node) {
+            symbolic_coord_destroy(coords[0]);
+            symbolic_coord_destroy(coords[1]);
+            continue;
+        }
+        new_node->trust     = src_node->trust;
+        new_node->is_active = src_node->is_active;
+
+        encoder->node_count++;
+    }
+
+    /* 2. 编码约束关系 */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *src_con = graph->constraints[i];
+        if (!src_con || !src_con->is_active) continue;
+
+        int n_parts = src_con->participant_count;
+        if (n_parts < 2) continue;
+
+        Constraint *new_con = graph_add_constraint_with_id(
+            encoded, src_con->id, src_con->type,
+            src_con->participants, n_parts);
+        if (new_con) {
+            new_con->is_active = src_con->is_active;
+            new_con->template_id = src_con->template_id;
+            encoder->constraint_count++;
+        }
+    }
 
     return encoded;
 }
@@ -174,15 +218,35 @@ GeomNode *meta_repr_encode_node(MetaReprEncoder *encoder,
 {
     if (!encoder || !encoder->is_initialized || !node) return NULL;
 
-    GeomNode *encoded = alloc_geom_node_stub();
+    GeomNode *encoded = (GeomNode *)lv00_malloc(sizeof(GeomNode));
     if (!encoded) return NULL;
+    memset(encoded, 0, sizeof(GeomNode));
 
-    /* 编码逻辑：
-     * 将 GeomNode 映射为几何点
-     * 坐标基于节点 ID 和类型的线性映射：
-     *   x = base_x + node_id * id_spacing
-     *   y = base_y + type_index * type_spacing
-     */
+    /* 坐标编码：将节点 ID 和类型线性映射到几何坐标 */
+    double x_val = encoder->config.coordinate_scheme.base_x
+                 + (double)node->id * encoder->config.coordinate_scheme.id_spacing;
+    double y_val = encoder->config.coordinate_scheme.base_y
+                 + (double)node->type * encoder->config.coordinate_scheme.type_spacing;
+
+    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
+    if (!coords) { lv00_free((void **)&encoded); return NULL; }
+    coords[0] = symbolic_coord_create_rational((int64_t)x_val, 1);
+    coords[1] = symbolic_coord_create_rational((int64_t)y_val, 1);
+    if (!coords[0] || !coords[1]) {
+        if (coords[0]) symbolic_coord_destroy(coords[0]);
+        if (coords[1]) symbolic_coord_destroy(coords[1]);
+        lv00_free((void **)&coords);
+        lv00_free((void **)&encoded);
+        return NULL;
+    }
+
+    encoded->id              = node->id;
+    encoded->type            = GEOM_POINT;
+    encoded->symbolic_coords = coords;
+    encoded->coord_count     = 2;
+    encoded->trust           = node->trust;
+    encoded->is_active       = true;
+
     encoder->node_count++;
 
     return encoded;
@@ -193,15 +257,103 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder,
 {
     if (!encoder || !encoder->is_initialized || !block) return NULL;
 
-    GeomNode *encoded_region = alloc_geom_node_stub();
+    GeomNode *encoded_region = (GeomNode *)lv00_malloc(sizeof(GeomNode));
     if (!encoded_region) return NULL;
+    memset(encoded_region, 0, sizeof(GeomNode));
 
-    /* 编码逻辑：
-     * 1. 将 FuncBlock 编码为 REGION 类型的 GeomNode
-     * 2. 区域边界由 padding 参数确定
-     * 3. 输入/输出端口编码为边界上的等距点
-     * 4. 函数块内部逻辑编码为区域内的子约束
-     */
+    double base_x = encoder->config.coordinate_scheme.base_x;
+    double base_y = encoder->config.coordinate_scheme.base_y;
+    double id_spacing   = encoder->config.coordinate_scheme.id_spacing;
+    double type_spacing = encoder->config.coordinate_scheme.type_spacing;
+    double padding      = encoder->config.region_scheme.padding;
+    double port_spacing = encoder->config.region_scheme.port_spacing;
+
+    /* 函数块编码为 GEOM_REGION，坐标编码块 ID 和类型 */
+    double x_val = base_x + (double)block->id * id_spacing;
+    double y_val = base_y + (double)GEOM_FUNCTION_BLOCK * type_spacing;
+
+    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
+    if (!coords) { lv00_free((void **)&encoded_region); return NULL; }
+    coords[0] = symbolic_coord_create_rational((int64_t)x_val, 1);
+    coords[1] = symbolic_coord_create_rational((int64_t)y_val, 1);
+
+    encoded_region->id              = block->id;
+    encoded_region->type            = GEOM_REGION;
+    encoded_region->symbolic_coords = coords;
+    encoded_region->coord_count     = 2;
+    encoded_region->is_active       = true;
+
+    /* 输入端口：在区域上边界创建点 */
+    encoded_region->data.region.segment_count = 0;
+    encoded_region->data.region.boundary_segments = NULL;
+
+    /* 为每个输入/输出端口编码子节点 */
+    int total_ports = block->input_count + block->output_count;
+    if (total_ports > 0) {
+        encoded_region->data.region.boundary_segments =
+            (GeomNode **)lv00_malloc((size_t)total_ports * sizeof(GeomNode *));
+        if (encoded_region->data.region.boundary_segments) {
+            for (int i = 0; i < block->input_count; i++) {
+                double px = x_val;
+                double py = (double)padding - (double)i * port_spacing;
+                SymbolicCoord **pcoords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
+                if (!pcoords) continue;
+                pcoords[0] = symbolic_coord_create_rational((int64_t)px, 1);
+                pcoords[1] = symbolic_coord_create_rational((int64_t)py, 1);
+                if (!pcoords[0] || !pcoords[1]) {
+                    if (pcoords[0]) symbolic_coord_destroy(pcoords[0]);
+                    if (pcoords[1]) symbolic_coord_destroy(pcoords[1]);
+                    lv00_free((void **)&pcoords);
+                    continue;
+                }
+                GeomNode *port_node = (GeomNode *)lv00_malloc(sizeof(GeomNode));
+                if (!port_node) {
+                    symbolic_coord_destroy(pcoords[0]);
+                    symbolic_coord_destroy(pcoords[1]);
+                    lv00_free((void **)&pcoords);
+                    continue;
+                }
+                memset(port_node, 0, sizeof(GeomNode));
+                port_node->id              = block->input_port_ids[i];
+                port_node->type            = GEOM_PORT;
+                port_node->symbolic_coords = pcoords;
+                port_node->coord_count     = 2;
+                port_node->is_active       = true;
+                encoded_region->data.region.boundary_segments[
+                    encoded_region->data.region.segment_count++] = port_node;
+            }
+            for (int i = 0; i < block->output_count; i++) {
+                double px = x_val;
+                double py = (double)(-(int64_t)padding) + (double)i * port_spacing;
+                SymbolicCoord **pcoords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
+                if (!pcoords) continue;
+                pcoords[0] = symbolic_coord_create_rational((int64_t)px, 1);
+                pcoords[1] = symbolic_coord_create_rational((int64_t)py, 1);
+                if (!pcoords[0] || !pcoords[1]) {
+                    if (pcoords[0]) symbolic_coord_destroy(pcoords[0]);
+                    if (pcoords[1]) symbolic_coord_destroy(pcoords[1]);
+                    lv00_free((void **)&pcoords);
+                    continue;
+                }
+                GeomNode *port_node = (GeomNode *)lv00_malloc(sizeof(GeomNode));
+                if (!port_node) {
+                    symbolic_coord_destroy(pcoords[0]);
+                    symbolic_coord_destroy(pcoords[1]);
+                    lv00_free((void **)&pcoords);
+                    continue;
+                }
+                memset(port_node, 0, sizeof(GeomNode));
+                port_node->id              = block->output_port_ids[i];
+                port_node->type            = GEOM_PORT;
+                port_node->symbolic_coords = pcoords;
+                port_node->coord_count     = 2;
+                port_node->is_active       = true;
+                encoded_region->data.region.boundary_segments[
+                    encoded_region->data.region.segment_count++] = port_node;
+            }
+        }
+    }
+
     encoder->node_count++;
     encoder->constraint_count++;
 
@@ -213,14 +365,38 @@ GeomNode *meta_repr_encode_type_region(MetaReprEncoder *encoder,
 {
     if (!encoder || !encoder->is_initialized || !type_region) return NULL;
 
-    GeomNode *encoded_region = alloc_geom_node_stub();
+    GeomNode *encoded_region = (GeomNode *)lv00_malloc(sizeof(GeomNode));
     if (!encoded_region) return NULL;
+    memset(encoded_region, 0, sizeof(GeomNode));
 
-    /* 编码逻辑：
-     * 1. 将 TypeRegion 编码为几何区域
-     * 2. 区域形状反映类型结构
-     * 3. 类型层级编码为嵌套区域
-     */
+    double base_x = encoder->config.coordinate_scheme.base_x;
+    double base_y = encoder->config.coordinate_scheme.base_y;
+    double id_spacing   = encoder->config.coordinate_scheme.id_spacing;
+    double type_spacing = encoder->config.coordinate_scheme.type_spacing;
+
+    /* 将 type_region->id 映射到 x 坐标，kind 映射到 y 坐标 */
+    double x_val = base_x + (double)type_region->id * id_spacing;
+    double y_val = base_y + (double)((int)type_region->kind + 1) * type_spacing;
+
+    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
+    if (!coords) { lv00_free((void **)&encoded_region); return NULL; }
+    coords[0] = symbolic_coord_create_rational((int64_t)x_val, 1);
+    coords[1] = symbolic_coord_create_rational((int64_t)y_val, 1);
+    if (!coords[0] || !coords[1]) {
+        if (coords[0]) symbolic_coord_destroy(coords[0]);
+        if (coords[1]) symbolic_coord_destroy(coords[1]);
+        lv00_free((void **)&coords);
+        lv00_free((void **)&encoded_region);
+        return NULL;
+    }
+
+    encoded_region->id              = type_region->id;
+    encoded_region->type            = GEOM_REGION;
+    encoded_region->symbolic_coords = coords;
+    encoded_region->coord_count     = 2;
+    encoded_region->is_active       = true;
+    encoded_region->namespace_depth = (int)type_region->level;
+
     encoder->node_count++;
 
     return encoded_region;
@@ -231,14 +407,38 @@ GeomNode *meta_repr_encode_proposition(MetaReprEncoder *encoder,
 {
     if (!encoder || !encoder->is_initialized || !proposition) return NULL;
 
-    GeomNode *encoded_node = alloc_geom_node_stub();
+    GeomNode *encoded_node = (GeomNode *)lv00_malloc(sizeof(GeomNode));
     if (!encoded_node) return NULL;
+    memset(encoded_node, 0, sizeof(GeomNode));
 
-    /* 编码逻辑：
-     * 1. 将 Proposition 编码为几何节点
-     * 2. 命题结构映射为节点属性
-     * 3. 真值编码为节点的几何属性
-     */
+    double base_x = encoder->config.coordinate_scheme.base_x;
+    double base_y = encoder->config.coordinate_scheme.base_y;
+    double id_spacing   = encoder->config.coordinate_scheme.id_spacing;
+    double type_spacing = encoder->config.coordinate_scheme.type_spacing;
+
+    /* proposition->id 映射到 x，proposition->type 映射到 y */
+    double x_val = base_x + (double)proposition->id * id_spacing;
+    double y_val = base_y + (double)proposition->type * type_spacing;
+
+    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
+    if (!coords) { lv00_free((void **)&encoded_node); return NULL; }
+    coords[0] = symbolic_coord_create_rational((int64_t)x_val, 1);
+    coords[1] = symbolic_coord_create_rational((int64_t)y_val, 1);
+    if (!coords[0] || !coords[1]) {
+        if (coords[0]) symbolic_coord_destroy(coords[0]);
+        if (coords[1]) symbolic_coord_destroy(coords[1]);
+        lv00_free((void **)&coords);
+        lv00_free((void **)&encoded_node);
+        return NULL;
+    }
+
+    encoded_node->id              = proposition->id;
+    encoded_node->type            = GEOM_POINT;
+    encoded_node->symbolic_coords = coords;
+    encoded_node->coord_count     = 2;
+    encoded_node->trust           = (TrustColor)proposition->color;
+    encoded_node->is_active       = true;
+
     encoder->node_count++;
 
     return encoded_node;
@@ -270,15 +470,55 @@ ConstraintGraph *meta_repr_decode_graph(MetaReprDecoder *decoder,
 {
     if (!decoder || !decoder->is_initialized || !encoded_graph) return NULL;
 
-    ConstraintGraph *decoded = alloc_constraint_graph_stub();
+    ConstraintGraph *decoded = graph_create();
     if (!decoded) return NULL;
 
-    /* 解码逻辑：
-     * 1. 从几何坐标的线性映射反推节点 ID
-     * 2. 从几何关系恢复约束结构
-     * 3. 验证解码结果的一致性
-     */
-    decoder->decode_count++;
+    /* 使用默认编码方案的逆映射 */
+    const double base_x      = 0.0;
+    const double base_y      = 0.0;
+    const double id_spacing  = 10.0;
+    const double type_spacing = 100.0;
+
+    /* 1. 从几何坐标反推节点 */
+    for (int i = 0; i < encoded_graph->node_count; i++) {
+        GeomNode *enc_node = encoded_graph->nodes[i];
+        if (!enc_node || !enc_node->symbolic_coords || enc_node->coord_count < 2) continue;
+
+        double x = symbolic_coord_to_double(enc_node->symbolic_coords[0]);
+        double y = symbolic_coord_to_double(enc_node->symbolic_coords[1]);
+
+        int node_id = (int)((x - base_x) / id_spacing + 0.5);
+        int type_idx = (int)((y - base_y) / type_spacing + 0.5);
+        if (type_idx < 0) type_idx = 0;
+        if (type_idx > GEOM_FUNCTION_BLOCK) type_idx = GEOM_POINT;
+
+        GeomNode *new_node = graph_add_node_with_id(decoded, node_id,
+                                                     (GeomType)type_idx, enc_node->symbolic_coords,
+                                                     enc_node->coord_count);
+        if (new_node) {
+            new_node->trust     = enc_node->trust;
+            new_node->is_active = enc_node->is_active;
+        }
+
+        decoder->decode_count++;
+    }
+
+    /* 2. 恢复约束关系 */
+    for (int i = 0; i < encoded_graph->constraint_count; i++) {
+        Constraint *enc_con = encoded_graph->constraints[i];
+        if (!enc_con || !enc_con->is_active) continue;
+
+        int n_parts = enc_con->participant_count;
+        if (n_parts < 2) continue;
+
+        Constraint *new_con = graph_add_constraint_with_id(
+            decoded, enc_con->id, enc_con->type,
+            enc_con->participants, n_parts);
+        if (new_con) {
+            new_con->is_active   = enc_con->is_active;
+            new_con->template_id = enc_con->template_id;
+        }
+    }
 
     return decoded;
 }
@@ -288,15 +528,34 @@ GeomNode *meta_repr_decode_node(MetaReprDecoder *decoder,
 {
     if (!decoder || !decoder->is_initialized || !encoded_node) return NULL;
 
-    GeomNode *decoded = alloc_geom_node_stub();
+    GeomNode *decoded = (GeomNode *)lv00_malloc(sizeof(GeomNode));
     if (!decoded) return NULL;
+    memset(decoded, 0, sizeof(GeomNode));
 
-    /* 解码逻辑：
-     * 1. 从几何坐标反推节点 ID 和类型
-     *   node_id = (x - base_x) / id_spacing
-     *   type_index = (y - base_y) / type_spacing
-     * 2. 重建节点属性
-     */
+    const double base_x      = 0.0;
+    const double base_y      = 0.0;
+    const double id_spacing  = 10.0;
+    const double type_spacing = 100.0;
+
+    if (encoded_node->symbolic_coords && encoded_node->coord_count >= 2) {
+        double x = symbolic_coord_to_double(encoded_node->symbolic_coords[0]);
+        double y = symbolic_coord_to_double(encoded_node->symbolic_coords[1]);
+
+        int node_id  = (int)((x - base_x) / id_spacing + 0.5);
+        int type_idx = (int)((y - base_y) / type_spacing + 0.5);
+        if (type_idx < 0) type_idx = 0;
+        if (type_idx > GEOM_FUNCTION_BLOCK) type_idx = GEOM_POINT;
+
+        decoded->id   = node_id;
+        decoded->type = (GeomType)type_idx;
+    } else {
+        decoded->id   = encoded_node->id;
+        decoded->type = encoded_node->type;
+    }
+
+    decoded->trust     = encoded_node->trust;
+    decoded->is_active = encoded_node->is_active;
+
     decoder->decode_count++;
 
     return decoded;
@@ -307,14 +566,68 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
 {
     if (!decoder || !decoder->is_initialized || !encoded_block) return NULL;
 
-    FuncBlock *decoded = alloc_func_block_stub();
+    const double base_x      = 0.0;
+    const double base_y      = 0.0;
+    const double id_spacing  = 10.0;
+    const double type_spacing = 100.0;
+
+    int block_id = encoded_block->id;
+
+    if (encoded_block->symbolic_coords && encoded_block->coord_count >= 2) {
+        double x = symbolic_coord_to_double(encoded_block->symbolic_coords[0]);
+        block_id = (int)((x - base_x) / id_spacing + 0.5);
+    }
+
+    FuncBlock *decoded = func_block_create(block_id);
     if (!decoded) return NULL;
 
-    /* 解码逻辑：
-     * 1. 从 REGION 类型 GeomNode 恢复 FuncBlock
-     * 2. 从边界端口点恢复输入/输出签名
-     * 3. 从区域内部约束恢复函数逻辑
-     */
+    /* 从边界端口点恢复输入/输出端口 */
+    int seg_count = encoded_block->data.region.segment_count;
+    GeomNode **segments = encoded_block->data.region.boundary_segments;
+
+    if (segments && seg_count > 0) {
+        /* 统计输入/输出端口数（通过 y 坐标符号判断） */
+        int input_count  = 0;
+        int output_count = 0;
+        for (int i = 0; i < seg_count; i++) {
+            if (!segments[i] || !segments[i]->symbolic_coords) continue;
+            double y = symbolic_coord_to_double(segments[i]->symbolic_coords[1]);
+            if (y > 0.0) input_count++;
+            else output_count++;
+        }
+
+        if (input_count > 0) {
+            int *in_ids = (int *)lv00_malloc((size_t)input_count * sizeof(int));
+            if (in_ids) {
+                int idx = 0;
+                for (int i = 0; i < seg_count && idx < input_count; i++) {
+                    if (!segments[i] || !segments[i]->symbolic_coords) continue;
+                    double y = symbolic_coord_to_double(segments[i]->symbolic_coords[1]);
+                    if (y > 0.0) in_ids[idx++] = segments[i]->id;
+                }
+                func_block_set_input_ports(decoded, in_ids, input_count);
+                lv00_free((void **)&in_ids);
+            }
+        }
+        if (output_count > 0) {
+            int *out_ids = (int *)lv00_malloc((size_t)output_count * sizeof(int));
+            if (out_ids) {
+                int idx = 0;
+                for (int i = 0; i < seg_count && idx < output_count; i++) {
+                    if (!segments[i] || !segments[i]->symbolic_coords) continue;
+                    double y = symbolic_coord_to_double(segments[i]->symbolic_coords[1]);
+                    if (y <= 0.0) out_ids[idx++] = segments[i]->id;
+                }
+                func_block_set_output_ports(decoded, out_ids, output_count);
+                lv00_free((void **)&out_ids);
+            }
+        }
+    }
+
+    if (encoded_block->namespace_depth > 0) {
+        decoded->determinism = (DeterminismState)encoded_block->namespace_depth;
+    }
+
     decoder->decode_count++;
 
     return decoded;
@@ -356,15 +669,34 @@ bool meta_repr_graph_equivalent(const ConstraintGraph *a,
     if (!a || !b) return false;
     if (a == b) return true;
 
-    /* 图等价性判定：
-     * 1. 节点数和约束数相等
-     * 2. 存在节点之间的双射映射
-     * 3. 映射保持所有约束关系
-     *
-     * 简化实现：使用 Weisfeiler-Lehman 风格的迭代标签
-     */
+    /* 节点数和约束数必须相等 */
+    if (a->node_count != b->node_count) return false;
+    if (a->constraint_count != b->constraint_count) return false;
 
-    return false; /* 需要完整的图同构算法 */
+    /* 检查相同 ID 的节点类型是否一致 */
+    for (int i = 0; i < a->node_count; i++) {
+        GeomNode *na = a->nodes[i];
+        if (!na) continue;
+        GeomNode *nb = graph_get_node(b, na->id);
+        if (!nb) return false;
+        if (na->type != nb->type) return false;
+        if (na->is_active != nb->is_active) return false;
+    }
+
+    /* 检查相同 ID 的约束关系是否对应 */
+    for (int i = 0; i < a->constraint_count; i++) {
+        Constraint *ca = a->constraints[i];
+        if (!ca || !ca->is_active) continue;
+        Constraint *cb = graph_get_constraint(b, ca->id);
+        if (!cb || !cb->is_active) return false;
+        if (ca->type != cb->type) return false;
+        if (ca->participant_count != cb->participant_count) return false;
+        for (int j = 0; j < ca->participant_count; j++) {
+            if (ca->participants[j] != cb->participants[j]) return false;
+        }
+    }
+
+    return true;
 }
 
 bool meta_repr_isomorphic(const ConstraintGraph *a,
@@ -373,14 +705,30 @@ bool meta_repr_isomorphic(const ConstraintGraph *a,
     if (!a || !b) return false;
     if (a == b) return true;
 
-    /* 同构判定：
-     * 比 meta_repr_graph_equivalent 更严格的判定，
-     * 要求节点类型和属性也完全匹配。
-     *
-     * 使用 VF2 算法或 Nauty 风格的规范标号。
-     */
+    /* 先检查基本等价性 */
+    if (!meta_repr_graph_equivalent(a, b)) return false;
 
-    return false; /* 需要完整的图同构算法 */
+    /* 在等价基础上，进一步检查每个节点坐标完全匹配 */
+    for (int i = 0; i < a->node_count; i++) {
+        GeomNode *na = a->nodes[i];
+        if (!na) continue;
+        GeomNode *nb = graph_get_node(b, na->id);
+        if (!nb) return false;
+
+        /* 坐标数量必须相同 */
+        if (na->coord_count != nb->coord_count) return false;
+
+        /* 每个坐标必须完全匹配 */
+        for (int c = 0; c < na->coord_count; c++) {
+            if (!na->symbolic_coords || !nb->symbolic_coords) return false;
+            if (!na->symbolic_coords[c] || !nb->symbolic_coords[c]) return false;
+            if (symbolic_coord_compare(na->symbolic_coords[c],
+                                       nb->symbolic_coords[c]) != 0)
+                return false;
+        }
+    }
+
+    return true;
 }
 
 /* ============== 工具 API 实现 ============== */
@@ -404,25 +752,70 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph,
 {
     if (!encoded_graph || !filepath) return false;
 
-    /* DOT 导出逻辑：
-     * 1. 打开输出文件
-     * 2. 写入 "digraph MetaRepr {"
-     * 3. 遍历编码图的节点，输出为 DOT 节点
-     * 4. 遍历编码图的边/约束，输出为 DOT 边
-     * 5. 写入 "}"
-     * 6. 关闭文件
-     */
     FILE *fp = fopen(filepath, "w");
     if (!fp) return false;
 
     fprintf(fp, "digraph MetaRepr {\n");
-    fprintf(fp, "    rankdir=LR;\n");
-    fprintf(fp, "    node [shape=box, style=filled, fillcolor=lightblue];\n");
-    fprintf(fp, "\n");
-    fprintf(fp, "    /* 注：完整实现需遍历 encoded_graph 的节点和边 */\n");
-    fprintf(fp, "    placeholder [label=\"Encoded Graph\"];\n");
-    fprintf(fp, "}\n");
+    fprintf(fp, "    rankdir=LR;\n\n");
 
+    /* GeomType -> DOT shape 映射 */
+    static const char *type_shapes[] = {
+        "ellipse",  /* GEOM_POINT */
+        "diamond",  /* GEOM_LINE_SEGMENT */
+        "box",      /* GEOM_REGION */
+        "circle",   /* GEOM_PORT */
+        "box"       /* GEOM_FUNCTION_BLOCK */
+    };
+    static const char *type_names[] = {
+        "POINT", "LINE_SEGMENT", "REGION", "PORT", "FUNC_BLOCK"
+    };
+
+    /* 输出节点 */
+    for (int i = 0; i < encoded_graph->node_count; i++) {
+        GeomNode *node = encoded_graph->nodes[i];
+        if (!node || !node->is_active) continue;
+
+        const char *shape = "ellipse";
+        const char *tname = "POINT";
+        if (node->type >= 0 && node->type <= GEOM_FUNCTION_BLOCK) {
+            shape = type_shapes[(int)node->type];
+            tname = type_names[(int)node->type];
+        }
+
+        fprintf(fp, "    node%d [shape=%s, label=\"%s #%d\"];\n",
+                node->id, shape, tname, node->id);
+    }
+
+    fprintf(fp, "\n");
+
+    /* 输出约束为边 */
+    for (int i = 0; i < encoded_graph->constraint_count; i++) {
+        Constraint *con = encoded_graph->constraints[i];
+        if (!con || !con->is_active) continue;
+
+        static const char *con_labels[] = {
+            "INCIDENCE", "BETWEENNESS", "INTERSECTION",
+            "CONTAINMENT", "CONNECTION"
+        };
+
+        const char *label = "?";
+        if (con->type >= 0 && con->type <= CONNECTION) {
+            label = con_labels[(int)con->type];
+        }
+
+        int n = con->participant_count;
+        if (n >= 2) {
+            for (int j = 0; j < n - 1; j++) {
+                fprintf(fp, "    node%d -> node%d [label=\"%s\"];\n",
+                        con->participants[j], con->participants[j + 1], label);
+            }
+        } else if (n == 1) {
+            fprintf(fp, "    node%d [label=\"%s(#%d)\"];\n",
+                    con->participants[0], label, con->id);
+        }
+    }
+
+    fprintf(fp, "}\n");
     fclose(fp);
     return true;
 }
@@ -431,34 +824,73 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph)
 {
     if (!encoded_graph) return NULL;
 
-    /* JSON 导出逻辑：
-     * 1. 序列化节点数组为 JSON 数组
-     * 2. 序列化约束/边为 JSON 数组
-     * 3. 包含元数据（节点数、约束数等）
-     *
-     * 返回格式：
-     * {
-     *   "nodes": [...],
-     *   "constraints": [...],
-     *   "metadata": { "node_count": N, "constraint_count": M }
-     * }
-     */
+    static const char *type_names[] = {
+        "GEOM_POINT", "GEOM_LINE_SEGMENT", "GEOM_REGION",
+        "GEOM_PORT", "GEOM_FUNCTION_BLOCK"
+    };
 
-    /* 预估 JSON 大小并分配缓冲区 */
-    const char *template =
-        "{\n"
-        "  \"nodes\": [],\n"
-        "  \"constraints\": [],\n"
-        "  \"metadata\": {\n"
-        "    \"node_count\": 0,\n"
-        "    \"constraint_count\": 0\n"
-        "  }\n"
-        "}";
+    /* 预估缓冲区大小 */
+    size_t est_size = 512 + (size_t)encoded_graph->node_count * 128
+                     + (size_t)encoded_graph->constraint_count * 64;
+    char *buf = (char *)lv00_malloc(est_size);
+    if (!buf) return NULL;
+    memset(buf, 0, est_size);
 
-    size_t len = strlen(template) + 1;
-    char *json = (char *)lv00_malloc(len);
-    if (!json) return NULL;
+    char *p = buf;
+    p += sprintf(p, "{\n  \"nodes\": [\n");
 
-    memcpy(json, template, len);
-    return json;
+    /* 序列化节点 */
+    for (int i = 0; i < encoded_graph->node_count; i++) {
+        GeomNode *node = encoded_graph->nodes[i];
+        if (!node || !node->is_active) continue;
+
+        const char *tname = "GEOM_POINT";
+        if (node->type >= 0 && node->type <= GEOM_FUNCTION_BLOCK) {
+            tname = type_names[(int)node->type];
+        }
+
+        p += sprintf(p, "    {\"id\": %d, \"type\": \"%s\", \"coord_count\": %d}",
+                     node->id, tname, node->coord_count);
+
+        if (i < encoded_graph->node_count - 1) {
+            /* 检查下一个有效节点 */
+            int has_next = 0;
+            for (int j = i + 1; j < encoded_graph->node_count; j++) {
+                if (encoded_graph->nodes[j] && encoded_graph->nodes[j]->is_active) {
+                    has_next = 1; break;
+                }
+            }
+            if (has_next) p += sprintf(p, ",");
+        }
+        p += sprintf(p, "\n");
+    }
+
+    p += sprintf(p, "  ],\n  \"constraints\": [\n");
+
+    /* 序列化约束 */
+    for (int i = 0; i < encoded_graph->constraint_count; i++) {
+        Constraint *con = encoded_graph->constraints[i];
+        if (!con || !con->is_active) continue;
+
+        p += sprintf(p, "    {\"id\": %d, \"type\": %d, \"participant_count\": %d}",
+                     con->id, (int)con->type, con->participant_count);
+
+        if (i < encoded_graph->constraint_count - 1) {
+            int has_next = 0;
+            for (int j = i + 1; j < encoded_graph->constraint_count; j++) {
+                if (encoded_graph->constraints[j] && encoded_graph->constraints[j]->is_active) {
+                    has_next = 1; break;
+                }
+            }
+            if (has_next) p += sprintf(p, ",");
+        }
+        p += sprintf(p, "\n");
+    }
+
+    p += sprintf(p, "  ],\n  \"metadata\": {\n");
+    p += sprintf(p, "    \"node_count\": %d,\n", encoded_graph->node_count);
+    p += sprintf(p, "    \"constraint_count\": %d\n", encoded_graph->constraint_count);
+    p += sprintf(p, "  }\n}\n");
+
+    return buf;
 }

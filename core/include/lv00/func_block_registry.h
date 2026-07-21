@@ -33,6 +33,97 @@
 extern "C" {
 #endif
 
+/* ============== 预设函数块参数类型系统（前置声明，正式定义在 func_block_preset.h） ============== */
+
+#ifndef LV00_PRESET_PARAM_TYPE_ENUM_DEFINED
+#define LV00_PRESET_PARAM_TYPE_ENUM_DEFINED
+typedef enum {
+    PARAM_TYPE_POINT,
+    PARAM_TYPE_LINE,
+    PARAM_TYPE_SEGMENT,
+    PARAM_TYPE_RAY,
+    PARAM_TYPE_CIRCLE,
+    PARAM_TYPE_ARC,
+    PARAM_TYPE_POLYGON,
+    PARAM_TYPE_REGION,
+    PARAM_TYPE_ANGLE,
+    PARAM_TYPE_VECTOR,
+    PARAM_TYPE_SCALAR,
+    PARAM_TYPE_BOOLEAN,
+    PARAM_TYPE_CURVE,
+    PARAM_TYPE_SURFACE,
+    PARAM_TYPE_ANY,
+    PARAM_TYPE_VARIADIC
+} PresetParamType;
+#endif
+
+#ifndef LV00_PARAM_CONSTRAINT_TYPE_ENUM_DEFINED
+#define LV00_PARAM_CONSTRAINT_TYPE_ENUM_DEFINED
+typedef enum {
+    PARAM_CONSTRAINT_NONE,
+    PARAM_CONSTRAINT_NON_COLLINEAR,
+    PARAM_CONSTRAINT_NON_COPLANAR,
+    PARAM_CONSTRAINT_DISTINCT,
+    PARAM_CONSTRAINT_POSITIVE,
+    PARAM_CONSTRAINT_NON_ZERO,
+    PARAM_CONSTRAINT_UNIT,
+    PARAM_CONSTRAINT_IN_RANGE
+} ParamConstraintType;
+#endif
+
+#ifndef LV00_PARAM_CONSTRAINT_DEFINED
+#define LV00_PARAM_CONSTRAINT_DEFINED
+typedef struct {
+    ParamConstraintType type;
+    double min_val;
+    double max_val;
+    const char *description;
+} ParamConstraint;
+#endif
+
+#ifndef LV00_PRESET_PARAM_DEF_DEFINED
+#define LV00_PRESET_PARAM_DEF_DEFINED
+typedef struct {
+    const char *name;
+    const char *description;
+    PresetParamType type;
+    bool is_optional;
+    bool is_output;
+    int index;
+    ParamConstraint *constraints;
+    int constraint_count;
+} PresetParamDef;
+#endif
+
+#ifndef LV00_PRESET_PROPERTY_ENUM_DEFINED
+#define LV00_PRESET_PROPERTY_ENUM_DEFINED
+typedef enum {
+    PRESET_PROPERTY_NONE = 0,
+    PRESET_PROPERTY_IDEMPOTENT = 1 << 0,
+    PRESET_PROPERTY_INVOLUTIVE = 1 << 1,
+    PRESET_PROPERTY_COMMUTATIVE = 1 << 2,
+    PRESET_PROPERTY_ASSOCIATIVE = 1 << 3,
+    PRESET_PROPERTY_LINEAR = 1 << 4,
+    PRESET_PROPERTY_CONTINUOUS = 1 << 5,
+    PRESET_PROPERTY_DETERMINISTIC = 1 << 6,
+    PRESET_PROPERTY_CONSTRUCTIVE = 1 << 7,
+    PRESET_PROPERTY_REVERSIBLE = 1 << 8
+} PresetProperty;
+#endif
+
+#ifndef LV00_PRESET_COMPLEXITY_ENUM_DEFINED
+#define LV00_PRESET_COMPLEXITY_ENUM_DEFINED
+typedef enum {
+    COMPLEXITY_O1,
+    COMPLEXITY_OLOGN,
+    COMPLEXITY_ON,
+    COMPLEXITY_ONLOGN,
+    COMPLEXITY_ON2,
+    COMPLEXITY_ON3,
+    COMPLEXITY_UNKNOWN
+} PresetComplexity;
+#endif
+
 /* ============== 预设函数块类别 ============== */
 
 /**
@@ -69,6 +160,36 @@ typedef enum {
     PRESET_CATEGORY_COUNT                  /* 类别总数（哨兵值） */
 } PresetCategory;
 
+#ifndef LV00_PRESET_METADATA_DEFINED
+#define LV00_PRESET_METADATA_DEFINED
+typedef struct {
+    const char *name;
+    const char *description;
+    const char *mathematical_def;
+    PresetCategory category;
+    PresetProperty properties;
+    PresetComplexity complexity;
+
+    PresetParamDef *input_params;
+    int input_count;
+    PresetParamDef *output_params;
+    int output_count;
+
+    const char **preconditions;
+    int precondition_count;
+
+    const char **postconditions;
+    int postcondition_count;
+
+    const char **related_presets;
+    int related_count;
+
+    int version_major;
+    int version_minor;
+    int version_patch;
+} PresetMetadata;
+#endif
+
 /* ============== 预设函数块条目 ============== */
 
 /**
@@ -96,6 +217,8 @@ typedef struct {
     PresetCategory category; /* 类别 */
     FuncBlock *template_fb;  /* 模板函数块（只读） */
     int ref_count;           /* 引用计数 (v3.4.1)：模板函数块的引用数量 */
+    PresetMetadata metadata; /* 预设元数据 */
+    PresetParamDef *input_params; /* 输入参数定义数组 */
 } PresetEntry;
 
 /* ============== 注册表结构 ============== */

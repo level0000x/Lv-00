@@ -29,7 +29,18 @@
 
 /* graph_add_distance_constraint 兼容 stub */
 static inline AddConstraintResult graph_add_distance_constraint(ConstraintGraph *g, int a, int b, double dist) {
-    (void)dist;
+    /* 创建辅助距离节点：symbolic_coords 编码距离值 */
+    SymbolicCoord *dist_coord = symbolic_coord_create_rational((long long)(dist * 1000000), 1000000);
+    SymbolicCoord *coords[1];
+    coords[0] = dist_coord;
+    graph_add_point(g, coords, 1);
+    symbolic_coord_destroy(dist_coord);
+
+    /* 获取辅助节点ID并将距离关联到端点a */
+    int aux_id = graph_get_last_added_node_id(g);
+    graph_add_containment(g, aux_id, a);
+
+    /* 向后兼容：保留 incidence 约束 */
     return graph_add_incidence(g, a, b);
 }
 
