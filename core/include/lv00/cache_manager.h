@@ -163,21 +163,21 @@ LV00_PUBLIC_API Lv00ErrorCode lv00_cache_manager_reset(Lv00CacheManager *manager
 /**
  * @brief 存储数据到缓存
  */
-LV00_PUBLIC_API bool lv00_cache_put(Lv00CacheManager *manager,
+LV00_PUBLIC_API int lv00_cache_put(Lv00CacheManager *manager,
                                      const char *key,
                                      const void *data,
                                      size_t size);
 /**
  * @brief 从缓存获取数据
  */
-LV00_PUBLIC_API bool lv00_cache_mgr_get(Lv00CacheManager *manager,
+LV00_PUBLIC_API int lv00_cache_mgr_get(Lv00CacheManager *manager,
                                      const char *key,
                                      void **out_data,
                                      size_t *out_size);
 /**
  * @brief 从缓存移除数据
  */
-LV00_PUBLIC_API bool lv00_cache_mgr_remove(Lv00CacheManager *manager,
+LV00_PUBLIC_API int lv00_cache_mgr_remove(Lv00CacheManager *manager,
                                         const char *key);
 /**
  * @brief 检查键是否存在
@@ -193,7 +193,7 @@ LV00_PUBLIC_API uint32_t lv00_cache_context_create(Lv00CacheManager *manager,
 /**
  * @brief 切换当前活跃上下文
  */
-LV00_PUBLIC_API bool lv00_cache_context_switch(Lv00CacheManager *manager,
+LV00_PUBLIC_API int lv00_cache_context_switch(Lv00CacheManager *manager,
                                                  uint32_t context_id);
 /**
  * @brief 获取当前活跃上下文ID
@@ -202,7 +202,7 @@ LV00_PUBLIC_API uint32_t lv00_cache_context_current(const Lv00CacheManager *mana
 /**
  * @brief 销毁缓存上下文
  */
-LV00_PUBLIC_API bool lv00_cache_context_destroy(Lv00CacheManager *manager,
+LV00_PUBLIC_API int lv00_cache_context_destroy(Lv00CacheManager *manager,
                                                   uint32_t context_id);
 /**
  * @brief 获取全局统计信息

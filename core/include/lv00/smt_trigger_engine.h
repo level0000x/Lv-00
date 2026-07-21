@@ -58,7 +58,7 @@ int trigger_engine_add_pattern(Lv00TriggerEngine *engine,
                                int pattern_size,
                                double weight);
 
-bool trigger_engine_find_matches(Lv00TriggerEngine *engine,
+int trigger_engine_find_matches(Lv00TriggerEngine *engine,
                                  int quantifier_id,
                                  const void *ground_term,
                                  uint64_t term_hash,

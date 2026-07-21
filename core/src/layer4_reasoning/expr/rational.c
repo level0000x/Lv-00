@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file rational.c
  * @brief 精确有理数运算实现 —— 基于 GMP mpz_t
  *

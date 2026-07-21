@@ -3015,7 +3015,7 @@ static uint64_t fnv1a_update(uint64_t hash, const char *data, size_t len) {
 
 uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
     if (!coord)
-        return 0;
+        return true;
 
     uint64_t hash = LV00_FNV64_OFFSET_BASIS;
 
@@ -3165,21 +3165,21 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
  * 
  * Returns: true if rationalization succeeded, false otherwise
  */
-bool algebraic_try_rationalize(Algebraic *a) {
+int algebraic_try_rationalize(Algebraic *a) {
     if (!a)
-        return false;
+        return -1;
 
     /* 计算精度 = (right_bound - left_bound) / 4 */
     double span = a->right_bound - a->left_bound;
     if (span <= 0.0)
-        return false;
+        return -1;
 
     double precision = span / 4.0;
 
     /* 生成连分数近似 */
     Rational *candidate = algebraic_continued_fraction_approx(a, precision);
     if (!candidate)
-        return false;
+        return -1;
 
     /* 在有理候选上精确计算最小多项式值 */
     int deg = a->minimal_poly.degree;
@@ -3193,7 +3193,7 @@ bool algebraic_try_rationalize(Algebraic *a) {
     if (!result) {
         mpz_clear(mpz_one);
         rational_destroy(candidate);
-        return false;
+        return -1;
     }
 
     /* power = candidate^0 = 1 */
@@ -3202,7 +3202,7 @@ bool algebraic_try_rationalize(Algebraic *a) {
         mpz_clear(mpz_one);
         rational_destroy(result);
         rational_destroy(candidate);
-        return false;
+        return -1;
     }
 
     for (int i = 1; i <= deg; i++) {
@@ -3233,10 +3233,10 @@ bool algebraic_try_rationalize(Algebraic *a) {
             rational_destroy(a->cached_rational);
         a->cached_rational = candidate;
         rational_destroy(result);
-        return true;
+        return 0;
     }
 
     rational_destroy(result);
     rational_destroy(candidate);
-    return false;
+    return -1;
 }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file normalization.c
  * @brief 图规范化引擎实现
  * @details 实现约束图的规范化处理，包括并查集合并、哈希预分组 O(n) 优化。
@@ -545,9 +545,9 @@ int merge_line_segments(ConstraintGraph *graph, NormalizationLog *log) {
 /* 辅助函数：比较两个已排序的整数数组是否相等 */
 static bool int_arrays_equal(const int *a, const int *b, int count) {
     for (int i = 0; i < count; i++) {
-        if (a[i] != b[i]) return false;
+        if (a[i] != b[i]) return -1;
     }
-    return true;
+    return 0;
 }
 
 /**

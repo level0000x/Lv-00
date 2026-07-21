@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_multi_strategy.c
  * @brief 多证明方法并存引擎实现（借鉴 JGEX/GEX 架构）
  *

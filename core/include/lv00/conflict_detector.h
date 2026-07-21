@@ -208,7 +208,7 @@ LV00_PUBLIC_API int lv00_conflict_detect_all(const ConstraintGraph *graph,
  * @param graph 约束图
  * @return true 表示存在冲突
  */
-LV00_PUBLIC_API bool lv00_conflict_detect_quick(const ConstraintGraph *graph);
+LV00_PUBLIC_API int lv00_conflict_detect_quick(const ConstraintGraph *graph);
 
 /**
  * @brief 针对特定节点检测冲突

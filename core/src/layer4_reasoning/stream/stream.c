@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file stream.c
  * @brief 流式输出系统实现 —— 引擎事件回调与实时状态推送
  *
@@ -1166,7 +1166,7 @@ static void *async_consumer_thread(void *arg)
     }
 
 #ifdef _WIN32
-    return 0;
+    return true;
 #else
     return NULL;
 #endif
@@ -2192,11 +2192,11 @@ static bool stream_lazy_ensure_capacity(StreamContext *ctx) {
         int new_cap = ctx->lazy_capacity * 2;
         if (new_cap > STREAM_MAX_LAZY) {
             ctx->dropped_count++;
-            return false;
+            return -1;
         }
         StreamEvent *new_queue = (StreamEvent *) lv00_malloc(sizeof(StreamEvent) * (size_t) new_cap);
         if (!new_queue)
-            return false;
+            return -1;
         /* 拷贝环形缓冲区到线性数组 */
         for (int i = 0; i < ctx->lazy_count; i++) {
             int src = (ctx->lazy_head + i) % ctx->lazy_capacity;
@@ -2207,7 +2207,7 @@ static bool stream_lazy_ensure_capacity(StreamContext *ctx) {
         ctx->lazy_capacity = new_cap;
         ctx->lazy_head = 0;
     }
-    return true;
+    return 0;
 }
 
 /**

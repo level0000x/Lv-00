@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_wfc_modules.c
  * @brief WFC 范式三模块集成测试
  *
@@ -379,7 +379,7 @@ void test_equiv_non_equivalent(void) {
     EquivClassManager *mgr = equiv_manager_create(graph);
     equiv_merge_by_coord(mgr);
 
-    TEST_ASSERT(!equiv_are_equivalent(mgr, 0, 1), "不同坐标的节点不等价");
+    TEST_ASSERT(equiv_are_equivalent(mgr, 0, 1 == 0), "不同坐标的节点不等价" != 0);
 
     equiv_manager_destroy(mgr);
     symbolic_coord_destroy(c0[0]);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_parser.c
  * @brief 公式解析器实现
  *
@@ -187,12 +187,12 @@ char formula_consume(ParserContext *ctx) {
  * @return true 当前位置匹配给定字符串
  * @return false 当前位置不匹配或输入长度不足
  */
-bool formula_match_string(ParserContext *ctx, const char *str) {
+int formula_match_string(ParserContext *ctx, const char *str) {
     size_t len = strlen(str);
     if (ctx->pos + len > ctx->length) {
-        return false;
+        return -1;
     }
-    return strncmp(ctx->input + ctx->pos, str, len) == 0;
+    return strncmp(ctx->input + ctx->pos, str, len) == 0 ? 0 : -1;
 }
 
 /**
@@ -206,15 +206,15 @@ bool formula_match_string(ParserContext *ctx, const char *str) {
  * @return true 成功匹配并消费字符串
  * @return false 匹配失败，解析位置不变
  */
-bool formula_match_and_consume(ParserContext *ctx, const char *str) {
-    if (!formula_match_string(ctx, str)) {
-        return false;
+int formula_match_and_consume(ParserContext *ctx, const char *str) {
+    if (formula_match_string(ctx, str) != 0) {
+        return -1;
     }
     size_t len = strlen(str);
     for (size_t i = 0; i < len; i++) {
         consume(ctx);
     }
-    return true;
+    return 0;
 }
 
 /**
@@ -228,17 +228,17 @@ bool formula_match_and_consume(ParserContext *ctx, const char *str) {
  * @return true 成功匹配并消费字符
  * @return false 字符不匹配或已到达末尾，错误状态已设置
  */
-bool formula_expect_char(ParserContext *ctx, char c) {
+int formula_expect_char(ParserContext *ctx, char c) {
     if (formula_peek(ctx) != c) {
         char msg[LV00_MAX_TEMP_MSG_SIZE];
         snprintf(msg, sizeof(msg), "Expected '%c' but got '%s'", c, peek(ctx) ? "unexpected char" : "EOF");
         /* 使用 lv00_strlcpy 替代不安全的 strncpy */
         lv00_strlcpy(ctx->error_message, msg, sizeof(ctx->error_message));
         ctx->has_error = true;
-        return false;
+        return -1;
     }
     consume(ctx);
-    return true;
+    return 0;
 }
 
 /**

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_topology.c
  * @brief Implementation of the geometric topology module.
  *
@@ -51,10 +51,10 @@ static void canonicalize_triangle(int *v0, int *v1, int *v2) {
 static bool edge_exists(const Lv00Edge *edges, size_t n_edges, int v0, int v1) {
     for (size_t i = 0; i < n_edges; i++) {
         if (edges[i].v0 == v0 && edges[i].v1 == v1) {
-            return true;
+            return 0;
         }
     }
-    return false;
+    return -1;
 }
 
 /**
@@ -64,10 +64,10 @@ static bool triangle_exists(const Lv00Triangle *triangles, size_t n_triangles,
                             int v0, int v1, int v2) {
     for (size_t i = 0; i < n_triangles; i++) {
         if (triangles[i].v0 == v0 && triangles[i].v1 == v1 && triangles[i].v2 == v2) {
-            return true;
+            return 0;
         }
     }
-    return false;
+    return -1;
 }
 
 /* ============================================================
@@ -139,52 +139,52 @@ void geo_simplicial_destroy(Lv00SimplicialComplex *sc) {
  * API: Add edge
  * ============================================================ */
 
-bool geo_simplicial_add_edge(Lv00SimplicialComplex *sc, int v0, int v1) {
-    if (!sc) return false;
-    if (v0 < 0 || v1 < 0 || v0 == v1) return false;
-    if (v0 >= sc->n_vertices || v1 >= sc->n_vertices) return false;
+int geo_simplicial_add_edge(Lv00SimplicialComplex *sc, int v0, int v1) {
+    if (!sc) return -1;
+    if (v0 < 0 || v1 < 0 || v0 == v1) return -1;
+    if (v0 >= sc->n_vertices || v1 >= sc->n_vertices) return -1;
 
     canonicalize_edge(&v0, &v1);
 
     /* Check for duplicates */
     if (edge_exists(sc->edges, sc->n_edges, v0, v1)) {
-        return true; /* Already exists, not an error */
+        return 0; /* Already exists, not an error */
     }
 
     /* Grow edge array */
     size_t new_size = (sc->n_edges + 1) * sizeof(Lv00Edge);
     Lv00Edge *new_edges = (Lv00Edge *)realloc(sc->edges, new_size);
-    if (!new_edges) return false;
+    if (!new_edges) return -1;
 
     sc->edges = new_edges;
     sc->edges[sc->n_edges].v0 = v0;
     sc->edges[sc->n_edges].v1 = v1;
     sc->n_edges++;
 
-    return true;
+    return 0;
 }
 
 /* ============================================================
  * API: Add triangle
  * ============================================================ */
 
-bool geo_simplicial_add_triangle(Lv00SimplicialComplex *sc, int v0, int v1, int v2) {
-    if (!sc) return false;
-    if (v0 < 0 || v1 < 0 || v2 < 0) return false;
-    if (v0 == v1 || v1 == v2 || v0 == v2) return false;
-    if (v0 >= sc->n_vertices || v1 >= sc->n_vertices || v2 >= sc->n_vertices) return false;
+int geo_simplicial_add_triangle(Lv00SimplicialComplex *sc, int v0, int v1, int v2) {
+    if (!sc) return -1;
+    if (v0 < 0 || v1 < 0 || v2 < 0) return -1;
+    if (v0 == v1 || v1 == v2 || v0 == v2) return -1;
+    if (v0 >= sc->n_vertices || v1 >= sc->n_vertices || v2 >= sc->n_vertices) return -1;
 
     canonicalize_triangle(&v0, &v1, &v2);
 
     /* Check for duplicates */
     if (triangle_exists(sc->triangles, sc->n_triangles, v0, v1, v2)) {
-        return true;
+        return 0;
     }
 
     /* Grow triangle array */
     size_t new_size = (sc->n_triangles + 1) * sizeof(Lv00Triangle);
     Lv00Triangle *new_triangles = (Lv00Triangle *)realloc(sc->triangles, new_size);
-    if (!new_triangles) return false;
+    if (!new_triangles) return -1;
 
     sc->triangles = new_triangles;
     sc->triangles[sc->n_triangles].v0 = v0;
@@ -197,7 +197,7 @@ bool geo_simplicial_add_triangle(Lv00SimplicialComplex *sc, int v0, int v1, int 
     geo_simplicial_add_edge(sc, v1, v2);
     geo_simplicial_add_edge(sc, v0, v2);
 
-    return true;
+    return 0;
 }
 
 /* ============================================================

@@ -101,7 +101,7 @@ void equiv_get_statistics(const EquivClassManager *mgr,
 
 int  equiv_manager_get_class_size(EquivClassManager *mgr, int node_id);
 int  equiv_manager_get_representative(EquivClassManager *mgr, int node_id);
-bool equiv_manager_sync_from_graph(EquivClassManager *mgr);
+int equiv_manager_sync_from_graph(EquivClassManager *mgr);
 
 /* Legacy aliases */
 Lv00EquivClass *lv00_equiv_class_create(size_t n_elements);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file rewrite_match.c
  * @brief 匹配查找（WL散列 + 图快照）
  *
@@ -1285,7 +1285,7 @@ static int match_quality_cmp(const void *a, const void *b) {
     if (ma->binding_count != mb->binding_count) {
         return (mb->binding_count > ma->binding_count) ? 1 : -1;
     }
-    return 0;
+    return true;
 }
 
     /* 检查匹配是否与已使用的节点集合重叠。

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_preset_ops.c
  * @brief 预设函数块操作接口实现
  *
@@ -972,7 +972,7 @@ static bool preset_compose(const char *preset_a,
                      PresetComposeMode mode,
                      char **out_composed_name)
 {
-    if (!preset_a || !preset_b || !out_composed_name) return false;
+    if (!preset_a || !preset_b || !out_composed_name) return -1;
 
     /* 查找预设 */
     FuncBlock *fb_a = func_block_registry_lookup(preset_a);
@@ -981,7 +981,7 @@ static bool preset_compose(const char *preset_a,
     if (!fb_a || !fb_b) {
         if (fb_a) func_block_destroy(fb_a);
         if (fb_b) func_block_destroy(fb_b);
-        return false;
+        return -1;
     }
 
     /* 生成新名称 */
@@ -1003,7 +1003,7 @@ static bool preset_compose(const char *preset_a,
         default:
             func_block_destroy(fb_a);
             func_block_destroy(fb_b);
-            return false;
+            return -1;
     }
 
     /* 使用现有的组合函数 */
@@ -1022,7 +1022,7 @@ static bool preset_compose(const char *preset_a,
     if (!temp_graph) {
         func_block_destroy(fb_a);
         func_block_destroy(fb_b);
-        return false;
+        return -1;
     }
 
     switch (mode) {
@@ -1062,11 +1062,11 @@ static bool preset_compose(const char *preset_a,
 
         if (registered) {
             *out_composed_name = lv00_strdup(new_name);
-            return true;
+            return 0;
         }
     }
 
-    return false;
+    return -1;
 }
 
 bool preset_make_recursive(const char *base_preset,

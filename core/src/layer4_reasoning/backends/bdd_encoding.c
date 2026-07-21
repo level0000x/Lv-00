@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file bdd_encoding.c
  * @brief CUDD 二阶策略图编码 —— 真实实现
  *
@@ -968,16 +968,16 @@ static int bdd_collect_nodes(BDDNode *root, BDDVisitEntry *entries, int max_entr
  * 根节点的辅助变量必须为 true（单位子句）。
  * ======================================================================== */
 
-bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
+int bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
     if (!bdd || !out_cnf)
-        return false;
+        return -1;
 
     /* 终端节点特例 */
     if (bdd->var_id < 0) {
         size_t buf_size = 128;
         char *buf = (char *) lv00_malloc(buf_size);
         if (!buf)
-            return false;
+            return -1;
         if (bdd->complemented) {
             /* False 节点 -> 空 CNF（不可满足） */
             snprintf(buf, buf_size, "c BDD is FALSE\np cnf 1 1\n1 0\n-1 0\n");
@@ -986,14 +986,14 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
             snprintf(buf, buf_size, "c BDD is TRUE\np cnf 1 1\n1 0\n");
         }
         *out_cnf = buf;
-        return true;
+        return 0;
     }
 
     /* 收集所有非终端节点 */
     BDDVisitEntry *entries = (BDDVisitEntry *) lv00_malloc(
         (size_t) BDD_TRAVERSE_MAX * sizeof(BDDVisitEntry));
     if (!entries)
-        return false;
+        return -1;
 
     int node_count = bdd_collect_nodes(bdd, entries, BDD_TRAVERSE_MAX);
 
@@ -1024,7 +1024,7 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
     char *buf = (char *) lv00_malloc(buf_size);
     if (!buf) {
         lv00_free((void **) &entries);
-        return false;
+        return -1;
     }
 
     int offset = 0;
@@ -1158,7 +1158,7 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
     lv00_free((void **) &entries);
 
     *out_cnf = buf;
-    return true;
+    return 0;
 }
 
 /* ========================================================================

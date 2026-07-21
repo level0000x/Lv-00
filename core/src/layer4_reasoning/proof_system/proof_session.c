@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_session.c
  * @brief Proof session management implementation
  *

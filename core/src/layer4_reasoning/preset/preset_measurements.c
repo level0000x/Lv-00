@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_measurements.c
  * @brief 几何测量模块预设函数库 - 实现
  *
@@ -32,7 +32,7 @@ bool preset_measurements_register(void)
             "distance_euclidean",
             "计算两点间的欧几里得距离",
             PRESET_EXT_MEASUREMENT,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -41,7 +41,7 @@ bool preset_measurements_register(void)
             "distance_squared",
             "计算两点距离的平方（避免开根号）",
             PRESET_EXT_MEASUREMENT,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -50,7 +50,7 @@ bool preset_measurements_register(void)
             "distance_manhattan",
             "计算两点间的曼哈顿距离（L1范数）",
             PRESET_EXT_MEASUREMENT,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -59,7 +59,7 @@ bool preset_measurements_register(void)
             "distance_chebyshev",
             "计算两点间的切比雪夫距离（L∞范数）",
             PRESET_EXT_MEASUREMENT,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -68,7 +68,7 @@ bool preset_measurements_register(void)
             "distance_point_to_line",
             "计算点到直线的最短距离",
             PRESET_EXT_MEASUREMENT,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -77,7 +77,7 @@ bool preset_measurements_register(void)
             "distance_point_to_segment",
             "计算点到线段的最短距离",
             PRESET_EXT_MEASUREMENT,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -88,7 +88,7 @@ bool preset_measurements_register(void)
             "angle_three_points",
             "计算三点形成的角度",
             PRESET_EXT_MEASUREMENT,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -97,7 +97,7 @@ bool preset_measurements_register(void)
             "angle_two_lines",
             "计算两条直线的夹角",
             PRESET_EXT_MEASUREMENT,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -106,7 +106,7 @@ bool preset_measurements_register(void)
             "directed_angle",
             "计算有向角（带符号）",
             PRESET_EXT_MEASUREMENT,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -117,7 +117,7 @@ bool preset_measurements_register(void)
             "triangle_area",
             "使用鞋带公式计算三角形面积",
             PRESET_EXT_MEASUREMENT,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -126,7 +126,7 @@ bool preset_measurements_register(void)
             "triangle_area_heron",
             "使用海伦公式计算三角形面积",
             PRESET_EXT_MEASUREMENT,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -135,7 +135,7 @@ bool preset_measurements_register(void)
             "circle_area",
             "计算圆的面积",
             PRESET_EXT_MEASUREMENT,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -144,7 +144,7 @@ bool preset_measurements_register(void)
             "sector_area",
             "计算扇形的面积",
             PRESET_EXT_MEASUREMENT,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -155,7 +155,7 @@ bool preset_measurements_register(void)
             "segment_length",
             "计算线段长度",
             PRESET_EXT_MEASUREMENT,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -164,7 +164,7 @@ bool preset_measurements_register(void)
             "circle_circumference",
             "计算圆的周长",
             PRESET_EXT_MEASUREMENT,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -175,7 +175,7 @@ bool preset_measurements_register(void)
             "vector_magnitude",
             "计算向量的模长",
             PRESET_EXT_MEASUREMENT,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -184,7 +184,7 @@ bool preset_measurements_register(void)
             "vector_dot_product",
             "计算两个向量的点积",
             PRESET_EXT_MEASUREMENT,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -193,7 +193,7 @@ bool preset_measurements_register(void)
             "vector_cross_product",
             "计算两个向量的叉积（二维）",
             PRESET_EXT_MEASUREMENT,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -202,7 +202,7 @@ bool preset_measurements_register(void)
             "vector_angle",
             "计算两个向量的夹角",
             PRESET_EXT_MEASUREMENT,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -213,7 +213,7 @@ bool preset_measurements_register(void)
             "circle_curvature",
             "计算圆的曲率",
             PRESET_EXT_MEASUREMENT,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 

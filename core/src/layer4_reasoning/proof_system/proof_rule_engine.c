@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_rule_engine.c
  * @brief Proof rule search engine implementation
  *

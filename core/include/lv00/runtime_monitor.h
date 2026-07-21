@@ -137,7 +137,7 @@ typedef struct {
  * @param config 配置（NULL 使用默认配置）
  * @return 是否成功
  */
-bool lv00_log_init(const Lv00LogConfig *config);
+int lv00_log_init(const Lv00LogConfig *config);
 
 /**
  * @brief 关闭日志系统
@@ -161,7 +161,7 @@ void lv00_log_set_targets(Lv00LogTarget targets);
  * @param path 文件路径
  * @return 是否成功
  */
-bool lv00_log_set_file(const char *path);
+int lv00_log_set_file(const char *path);
 
 /**
  * @brief 设置日志回调
@@ -247,7 +247,7 @@ typedef struct {
  * @brief 初始化性能监控
  * @return 是否成功
  */
-bool lv00_perf_init(void);
+int lv00_perf_init(void);
 
 /**
  * @brief 关闭性能监控
@@ -401,7 +401,7 @@ typedef struct {
  * @brief 初始化健康检查
  * @return 是否成功
  */
-bool lv00_health_init(void);
+int lv00_health_init(void);
 
 /**
  * @brief 关闭健康检查
@@ -490,7 +490,7 @@ void lv00_diagnostics_destroy(Lv00Diagnostics *diag);
  * @param path 文件路径
  * @return 是否成功
  */
-bool lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path);
+int lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path);
 
 /**
  * @brief 将诊断报告转换为 JSON
@@ -535,7 +535,7 @@ typedef struct {
  * @param max_events 最大事件数
  * @return 是否成功
  */
-bool lv00_event_trace_init(uint32_t max_events);
+int lv00_event_trace_init(uint32_t max_events);
 
 /**
  * @brief 关闭事件追踪
@@ -583,7 +583,7 @@ void lv00_event_trace_clear(void);
  * @param path 输出文件路径
  * @return 是否成功
  */
-bool lv00_event_trace_export_chrome(const char *path);
+int lv00_event_trace_export_chrome(const char *path);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_category_theory_adv.c
  * @brief 范畴论进阶预设函数块 - 实现
  *
@@ -36,7 +36,7 @@ bool preset_category_theory_adv_register(void)
             "adjunction_construct",
             "构造伴随函子对 F ⊣ G（F左伴随G）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ bool preset_category_theory_adv_register(void)
             "adjunction_test",
             "判定函子对是否构成伴随关系",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ bool preset_category_theory_adv_register(void)
             "adjunction_unit_counit",
             "从伴随函子对提取单位 η: Id → GF 和余单位 ε: FG → Id",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -67,7 +67,7 @@ bool preset_category_theory_adv_register(void)
             "limit_compute",
             "计算图表的极限（锥的终对象）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ bool preset_category_theory_adv_register(void)
             "colimit_compute",
             "计算图表的余极限（余锥的始对象）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -89,7 +89,7 @@ bool preset_category_theory_adv_register(void)
             "left_kan_extension",
             "计算函子沿另一函子的左Kan扩张 Lan_K F",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ bool preset_category_theory_adv_register(void)
             "right_kan_extension",
             "计算函子沿另一函子的右Kan扩张 Ran_K F",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -111,7 +111,7 @@ bool preset_category_theory_adv_register(void)
             "yoneda_embedding",
             "Yoneda嵌入 C → [C^op, Set] 将对象映到Hom(-, A)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 

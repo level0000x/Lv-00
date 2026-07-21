@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_version.c
  * @brief 证明版本管理与序列化
  *
@@ -1060,12 +1060,12 @@ static bool has_equality_pattern(const char *s) {
  * @return 左侧长度，-1 表示无等号
  */
 static int extract_eq_lhs(const char *eq_str, char *buf, int buf_size) {
-    if (!eq_str || !buf || buf_size <= 0) return -1;
+    if (!eq_str || !buf || buf_size <= 0) return false;
     const char *eq = strchr(eq_str, '=');
-    if (!eq) return -1;
+    if (!eq) return false;
     /* 跳过 ==, !=, <=, >= */
-    if (eq > eq_str && (*(eq - 1) == '!' || *(eq - 1) == '<')) return -1;
-    if (*(eq + 1) == '=' || *(eq + 1) == '>') return -1;
+    if (eq > eq_str && (*(eq - 1) == '!' || *(eq - 1) == '<')) return false;
+    if (*(eq + 1) == '=' || *(eq + 1) == '>') return false;
     int len = (int) (eq - eq_str);
     if (len >= buf_size) len = buf_size - 1;
     memcpy(buf, eq_str, (size_t) len);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_special_functions.c
  * @brief 特殊函数预设函数块 - 实现
  *
@@ -36,7 +36,7 @@ bool preset_special_functions_register(void)
             "gamma_function",
             "计算Gamma函数 Γ(z) = ∫_0^∞ t^{z-1} e^{-t} dt",
             PRESET_EXT_ANALYSIS,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ bool preset_special_functions_register(void)
             "beta_function",
             "计算Beta函数 B(a,b) = Γ(a)Γ(b)/Γ(a+b)",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ bool preset_special_functions_register(void)
             "incomplete_gamma",
             "计算不完全Gamma函数 γ(s,x) 和 Γ(s,x)",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -63,7 +63,7 @@ bool preset_special_functions_register(void)
             "error_function",
             "计算误差函数 erf(x) = (2/√π) ∫_0^x e^{-t²} dt",
             PRESET_EXT_ANALYSIS,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ bool preset_special_functions_register(void)
             "bessel_j",
             "计算第一类Bessel函数 J_ν(x)",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -85,7 +85,7 @@ bool preset_special_functions_register(void)
             "bessel_y",
             "计算第二类Bessel函数 Y_ν(x)（Neumann函数）",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -94,7 +94,7 @@ bool preset_special_functions_register(void)
             "bessel_i",
             "计算第一类修正Bessel函数 I_ν(x)",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -107,7 +107,7 @@ bool preset_special_functions_register(void)
             "hypergeometric_2f1",
             "计算Gauss超几何函数 _2F_1(a,b;c;z)",
             PRESET_EXT_ANALYSIS,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -116,7 +116,7 @@ bool preset_special_functions_register(void)
             "confluent_hypergeometric",
             "计算合流超几何函数 _1F_1(a;b;z)（Kummer函数）",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ bool preset_special_functions_register(void)
             "legendre_polynomial",
             "计算Legendre多项式 P_n(x)",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -138,7 +138,7 @@ bool preset_special_functions_register(void)
             "chebyshev_polynomial",
             "计算Chebyshev多项式 T_n(x) 和 U_n(x)",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -147,7 +147,7 @@ bool preset_special_functions_register(void)
             "hermite_polynomial",
             "计算Hermite多项式 H_n(x)",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -156,7 +156,7 @@ bool preset_special_functions_register(void)
             "laguerre_polynomial",
             "计算Laguerre多项式 L_n(x)",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -169,7 +169,7 @@ bool preset_special_functions_register(void)
             "elliptic_integral",
             "计算第一类和第二类椭圆积分 F(φ,k), E(φ,k)",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -178,7 +178,7 @@ bool preset_special_functions_register(void)
             "riemann_zeta",
             "计算Riemann Zeta函数 ζ(s) = Σ n^{-s}",
             PRESET_EXT_ANALYSIS,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -187,7 +187,7 @@ bool preset_special_functions_register(void)
             "digamma_function",
             "计算Digamma函数 ψ(z) = Γ'(z)/Γ(z)",
             PRESET_EXT_ANALYSIS,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 

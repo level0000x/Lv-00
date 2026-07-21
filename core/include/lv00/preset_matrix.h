@@ -1,4 +1,4 @@
-#ifndef LV00_PRESET_MATRIX_H
+﻿#ifndef LV00_PRESET_MATRIX_H
 #define LV00_PRESET_MATRIX_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define MATRIX_PRESET_COUNT 16
-bool preset_matrix_register(void);
+int preset_matrix_register(void);
 
 #ifdef __cplusplus
 }

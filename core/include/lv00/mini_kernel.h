@@ -337,7 +337,7 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath);
  * @param filepath 输出文件路径
  * @return 导出成功返回 true
  */
-bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath);
+int mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath);
 /* ============== 内核自检 ============== */
 /**
  * @brief 内核自检 —— 验证验证器自身的逻辑一致性
@@ -384,7 +384,7 @@ void mini_kernel_stats(const MiniKernel *kernel, int *out_total_stmts, int *out_
  * @param node_id 约束图节点 ID
  * @return 映射成功返回 true
  */
-bool mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id);
+int mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id);
 /**
  * @brief 根据约束图节点查找对应的验证语句
  *

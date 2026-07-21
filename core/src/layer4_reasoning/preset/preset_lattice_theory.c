@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_lattice_theory.c
  * @brief 格论预设函数块模块 - 实现（v2统一宏模式）
  *

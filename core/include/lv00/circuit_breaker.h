@@ -93,7 +93,7 @@ void lv00_circuit_breaker_record_success(struct Lv00Context *ctx);
  * @return true  熔断器仍在 CLOSED 态（正常）
  *         false 熔断器已跳闸（错误次数超限）
  */
-bool lv00_circuit_breaker_record_failure(struct Lv00Context *ctx);
+int lv00_circuit_breaker_record_failure(struct Lv00Context *ctx);
 /**
  * @brief 获取熔断器当前状态的可读名称
  *

@@ -305,7 +305,7 @@ LV00_PUBLIC_API void lv00_trace_node_destroy(Lv00ProofTraceNode *node);
  * @param child 子节点
  * @return 是否成功
  */
-LV00_PUBLIC_API bool lv00_trace_node_add_child(Lv00ProofTraceNode *parent, Lv00ProofTraceNode *child);
+LV00_PUBLIC_API int lv00_trace_node_add_child(Lv00ProofTraceNode *parent, Lv00ProofTraceNode *child);
 
 /**
  * @brief 设置节点状态
@@ -341,7 +341,7 @@ LV00_PUBLIC_API uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tre
  * @param path 输出文件路径
  * @return 是否成功
  */
-LV00_PUBLIC_API bool lv00_trace_tree_export_dot(const Lv00ProofTraceTree *tree, const char *path);
+LV00_PUBLIC_API int lv00_trace_tree_export_dot(const Lv00ProofTraceTree *tree, const char *path);
 
 /**
  * @brief 导出溯源树为 JSON
@@ -360,7 +360,7 @@ LV00_PUBLIC_API char *lv00_trace_tree_to_json(const Lv00ProofTraceTree *tree);
  * @param out_path 输出矛盾路径
  * @return 是否成功
  */
-LV00_PUBLIC_API bool lv00_engine_proof_by_contradiction(Lv00ProofEngine *engine,
+LV00_PUBLIC_API int lv00_engine_proof_by_contradiction(Lv00ProofEngine *engine,
                                   const Proposition *goal,
                                   uint32_t max_steps,
                                   Lv00ContradictionPath **out_path);
@@ -398,7 +398,7 @@ LV00_PUBLIC_API uint32_t lv00_contradiction_path_add_node(Lv00ContradictionPath 
  * @param out_desc 输出矛盾描述
  * @return 是否检测到矛盾
  */
-LV00_PUBLIC_API bool lv00_detect_contradiction(const ConstraintGraph *graph,
+LV00_PUBLIC_API int lv00_detect_contradiction(const ConstraintGraph *graph,
                                 const ProofNavigator *nav,
                                 Lv00ContradictionType *out_type,
                                 char *out_desc);
@@ -408,7 +408,7 @@ LV00_PUBLIC_API bool lv00_detect_contradiction(const ConstraintGraph *graph,
  * @param path 矛盾路径
  * @return 是否有效
  */
-LV00_PUBLIC_API bool lv00_contradiction_path_validate(Lv00ContradictionPath *path);
+LV00_PUBLIC_API int lv00_contradiction_path_validate(Lv00ContradictionPath *path);
 
 /* ============== 证明引擎 ============== */
 
@@ -439,7 +439,7 @@ LV00_PUBLIC_API void lv00_proof_engine_set_rule_library(Lv00ProofEngine *engine,
  * @param strategy 策略
  * @return 是否成功
  */
-LV00_PUBLIC_API bool lv00_proof_engine_register_strategy(Lv00ProofEngine *engine,
+LV00_PUBLIC_API int lv00_proof_engine_register_strategy(Lv00ProofEngine *engine,
                                           const Lv00ProofStrategy *strategy);
 
 /**
@@ -450,7 +450,7 @@ LV00_PUBLIC_API bool lv00_proof_engine_register_strategy(Lv00ProofEngine *engine
  * @param out_trace 输出溯源树
  * @return 是否成功
  */
-LV00_PUBLIC_API bool lv00_proof_engine_prove(Lv00ProofEngine *engine,
+LV00_PUBLIC_API int lv00_proof_engine_prove(Lv00ProofEngine *engine,
                               const Proposition *goal,
                               ConstraintGraph *graph,
                               Lv00ProofTraceTree **out_trace);
@@ -464,7 +464,7 @@ LV00_PUBLIC_API bool lv00_proof_engine_prove(Lv00ProofEngine *engine,
  * @param out_strategy 输出使用的策略
  * @return 是否成功
  */
-LV00_PUBLIC_API bool lv00_proof_engine_auto_prove(Lv00ProofEngine *engine,
+LV00_PUBLIC_API int lv00_proof_engine_auto_prove(Lv00ProofEngine *engine,
                                    const Proposition *goal,
                                    ConstraintGraph *graph,
                                    Lv00ProofTraceTree **out_trace,
@@ -479,7 +479,7 @@ LV00_PUBLIC_API bool lv00_proof_engine_auto_prove(Lv00ProofEngine *engine,
  * @param out_trace 输出溯源树
  * @return 是否成功
  */
-LV00_PUBLIC_API bool lv00_proof_engine_prove_with_strategy(Lv00ProofEngine *engine,
+LV00_PUBLIC_API int lv00_proof_engine_prove_with_strategy(Lv00ProofEngine *engine,
                                             const Proposition *goal,
                                             ConstraintGraph *graph,
                                             Lv00StrategyType strategy_type,
@@ -537,7 +537,7 @@ LV00_PUBLIC_API Lv00VerifyResult lv00_verify_proof_step(const ProofStep *step,
  * @param out_optimized 输出优化后的溯源树
  * @return 是否成功优化
  */
-LV00_PUBLIC_API bool lv00_optimize_proof(const Lv00ProofTraceTree *trace,
+LV00_PUBLIC_API int lv00_optimize_proof(const Lv00ProofTraceTree *trace,
                           Lv00ProofTraceTree **out_optimized);
 
 /**

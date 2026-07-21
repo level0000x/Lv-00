@@ -110,7 +110,7 @@ struct PrimitiveTestResult {
  * @brief 初始化自举测试框架
  * @return 是否成功
  */
-bool bootstrap_test_framework_init(void);
+int bootstrap_test_framework_init(void);
 /**
  * @brief 清理自举测试框架
  */
@@ -229,7 +229,7 @@ void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
  * @param graph_b 图 B
  * @return 是否同构
  */
-bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
+int graph_isomorphism_compare(GraphIsomorphismComparator *comp,
                                 const void *graph_a,
                                 const void *graph_b);
 /**
@@ -247,7 +247,7 @@ uint64_t graph_isomorphism_hash(const void *graph);
  * @param out_constraint_mapping 输出约束映射
  * @return 是否找到映射
  */
-bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
+int graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
                                      const void *graph_a,
                                      const void *graph_b,
                                      int **out_node_mapping,
@@ -257,7 +257,7 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
  * @brief 初始化原语包装器
  * @return 是否成功
  */
-bool primitive_wrapper_init(void);
+int primitive_wrapper_init(void);
 /**
  * @brief 清理原语包装器
  */
@@ -271,7 +271,7 @@ void primitive_wrapper_cleanup(void);
  * @param return_type 返回类型
  * @return 是否成功
  */
-bool primitive_wrapper_register(const char *name,
+int primitive_wrapper_register(const char *name,
                                  void *c_api_func,
                                  const char **param_types,
                                  uint32_t param_count,
@@ -325,7 +325,7 @@ void test_oracle_destroy(TestOracle *oracle);
  * @param graph 约束图
  * @return 是否幂等
  */
-bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
+int test_oracle_verify_normalization_idempotent(TestOracle *oracle,
                                                   void *graph);
 /**
  * @brief 验证求解正确性
@@ -334,7 +334,7 @@ bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
  * @param solution 求解结果
  * @return 是否正确
  */
-bool test_oracle_verify_solution_correct(TestOracle *oracle,
+int test_oracle_verify_solution_correct(TestOracle *oracle,
                                           const void *graph,
                                           const void *solution);
 /**
@@ -343,7 +343,7 @@ bool test_oracle_verify_solution_correct(TestOracle *oracle,
  * @param trace 证明追踪
  * @return 是否有效
  */
-bool test_oracle_verify_proof_valid(TestOracle *oracle,
+int test_oracle_verify_proof_valid(TestOracle *oracle,
                                      const void *trace);
 /**
  * @brief 验证序列化往返正确性
@@ -353,7 +353,7 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle,
  * @param deserialized 反序列化图
  * @return 是否正确
  */
-bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
+int test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
                                              const void *graph,
                                              const char *serialized,
                                              const void *deserialized);
@@ -376,7 +376,7 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
  * @param format 格式
  * @return 是否成功
  */
-bool bootstrap_test_write_report(BootstrapDiffTestResult **results,
+int bootstrap_test_write_report(BootstrapDiffTestResult **results,
                                   uint32_t count,
                                   const char *filepath,
                                   const char *format);

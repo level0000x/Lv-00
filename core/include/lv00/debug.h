@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file debug.h
  * @brief 调试子系统 —— 日志、性能计数器、断言、内存池与追踪
  * @details 提供分级日志系统（DEBUG/INFO/WARN/ERROR）、全局性能计数器、
@@ -355,7 +355,7 @@ LV00_PUBLIC_API void lv00_log_ring_buffer_clear(Lv00LogRingBuffer *rb);
  * @param capacity 新容量（>= 1）
  * @return true 成功，false 失败（内存不足）
  */
-LV00_PUBLIC_API bool lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity);
+LV00_PUBLIC_API int lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity);
 
 /* ============================================================
  * 带上下文的日志函数（v3.3.0 新增）
@@ -513,7 +513,7 @@ LV00_PUBLIC_API void ref_count_inc(void *obj);
 /**
  * @brief 减少引用计数，到0时自动销毁
  */
-LV00_PUBLIC_API bool ref_count_dec(void *obj);
+LV00_PUBLIC_API int ref_count_dec(void *obj);
 
 /**
  * @brief 获取当前引用计数
@@ -538,7 +538,7 @@ typedef struct {
 /**
  * @brief 执行紧急保存
  */
-LV00_PUBLIC_API bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *config);
+LV00_PUBLIC_API int debug_emergency_save(const char *filepath, const EmergencySaveConfig *config);
 
 /**
  * @brief 设置紧急保存回调（在信号处理程序中调用）

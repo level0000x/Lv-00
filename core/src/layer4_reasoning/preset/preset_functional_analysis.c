@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_functional_analysis.c
  * @brief 泛函分析预设函数块 - 实现
  *

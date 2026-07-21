@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_determinism.c
  * @brief 函数块确定性检查模块
  * @details 实现函数块的静态/动态确定性检查、确定性验证流水线。
@@ -26,6 +26,7 @@
 #include "stream.h"
 #include "stream_context_util.h"
 #include "func_block_internal.h"
+#include "func_block_utils.h"
 
 /* ==================== 命名常量 ==================== */
 
@@ -61,7 +62,7 @@ int* determinism_collect_constraint_stats(
     /* 第1步：使用共享辅助函数收集所有内部相关节点ID */
     int *all_ids = NULL;
     int total_count = 0;
-    if (!collect_all_block_ids(fb, &all_ids, &total_count)) {
+    if (collect_all_block_ids(fb, &all_ids, &total_count) != 0) {
         return NULL;
     }
 
@@ -375,7 +376,7 @@ DeterminismCheckResult func_block_check_determinism_dynamic(
     /* 收集所有内部相关节点ID（使用共享辅助函数） */
     int *all_ids = NULL;
     int all_count = 0;
-    if (!collect_all_block_ids(fb, &all_ids, &all_count)) {
+    if (collect_all_block_ids(fb, &all_ids, &all_count) != 0) {
         fb->determinism = DETERMINISM_VERIFIED;
         retval = DETERMINISM_CHECK_UNIQUE;
         goto dynamic_cleanup;
@@ -651,7 +652,7 @@ DeterminismStatus func_block_determinism_check_dynamic(
     /* 收集所有内部相关节点ID（使用共享辅助函数） */
     int *all_ids = NULL;
     int all_count = 0;
-    if (!collect_all_block_ids(fb, &all_ids, &all_count)) {
+    if (collect_all_block_ids(fb, &all_ids, &all_count) != 0) {
         fb->determinism = DETERMINISM_VERIFIED;
         dynamic_result = DETERMINISM_VERIFIED;
         goto dynamic_done;

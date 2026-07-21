@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_navigator.c
  * @brief ProofNavigator 证明导航
  *
@@ -1755,13 +1755,13 @@ const char *unify_result_to_string(UnifyStatus result) {
  */
 static int find_concrete_replacement(const int *type_var_to_concrete, int mapping_count, int type_var_node_id) {
     if (!type_var_to_concrete || mapping_count <= 0)
-        return -1;
+        return false;
     for (int i = 0; i < mapping_count; i++) {
         if (type_var_to_concrete[i * 2] == type_var_node_id) {
             return type_var_to_concrete[i * 2 + 1];
         }
     }
-    return -1;
+    return false;
 }
 
 /**

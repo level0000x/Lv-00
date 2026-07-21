@@ -1,4 +1,4 @@
-#ifndef LV00_PRESET_CODING_THEORY_H
+﻿#ifndef LV00_PRESET_CODING_THEORY_H
 #define LV00_PRESET_CODING_THEORY_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
 #define CODING_THEORY_PRESET_COUNT 10
-bool preset_coding_theory_register(void);
+int preset_coding_theory_register(void);
 
 #ifdef __cplusplus
 }

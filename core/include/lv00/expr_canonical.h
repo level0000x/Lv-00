@@ -175,7 +175,7 @@ bool lv00_expr_is_constant(const Lv00Expr *expr);
  * @param out_val 输出整数值
  * @return 是否成功
  */
-bool lv00_expr_get_integer(const Lv00Expr *expr, int64_t *out_val);
+int lv00_expr_get_integer(const Lv00Expr *expr, int64_t *out_val);
 
 #ifdef __cplusplus
 }

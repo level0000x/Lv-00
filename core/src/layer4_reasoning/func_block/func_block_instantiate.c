@@ -20,6 +20,7 @@
 #include "lv00_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "func_block_utils.h"
 
 /* ============== 例化操作 ============== */
 
@@ -412,7 +413,7 @@ static void instantiate_copy_constraints(
     /* 收集所有内部相关ID（使用共享辅助函数） */
     int *all_ids = NULL;
     int all_count = 0;
-    if (!collect_all_block_ids(fb, &all_ids, &all_count)) return;
+    if (collect_all_block_ids(fb, &all_ids, &all_count) != 0) return;
 
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
@@ -508,7 +509,7 @@ static void instantiate_copy_connection_constraints(
     /* 收集所有内部相关ID（使用共享辅助函数） */
     int *all_ids = NULL;
     int all_count = 0;
-    if (!collect_all_block_ids(fb, &all_ids, &all_count)) return;
+    if (collect_all_block_ids(fb, &all_ids, &all_count) != 0) return;
 
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
@@ -1132,8 +1133,8 @@ static int alpha_rename_in_block(
     int old_id,
     int new_id)
 {
-    if (!block || old_id < 0 || new_id < 0) return -1;
-    if (old_id == new_id) return 0; /* 无需重命名 */
+    if (!block || old_id < 0 || new_id < 0) return false;
+    if (old_id == new_id) return true; /* 无需重命名 */
 
     /* 替换 internal_node_ids 中的引用 */
     for (int i = 0; i < block->internal_node_count; i++) {
@@ -1176,7 +1177,7 @@ static int alpha_rename_in_block(
         }
     }
 
-    return 0;
+    return true;
 }
 
 /**

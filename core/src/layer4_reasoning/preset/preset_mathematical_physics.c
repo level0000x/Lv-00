@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_mathematical_physics.c
  * @brief 数学物理预设函数块 - 实现
  *
@@ -36,7 +36,7 @@ bool preset_mathematical_physics_register(void)
             "functional_extremum",
             "求解泛函 J[y] = ∫ L(x, y, y') dx 的极值",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ bool preset_mathematical_physics_register(void)
             "euler_lagrange_equation",
             "建立并求解Euler-Lagrange方程 ∂L/∂y - d/dx(∂L/∂y') = 0",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ bool preset_mathematical_physics_register(void)
             "isoperimetric_problem",
             "求解带约束的变分问题（等周问题）",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -67,7 +67,7 @@ bool preset_mathematical_physics_register(void)
             "lagrangian_construct",
             "构造Lagrange函数 L = T - V（动能减势能）",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ bool preset_mathematical_physics_register(void)
             "lagrange_equation",
             "建立Lagrange运动方程 d/dt(∂L/∂q') - ∂L/∂q = Q",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -89,7 +89,7 @@ bool preset_mathematical_physics_register(void)
             "hamiltonian_construct",
             "由Lagrange函数通过Legendre变换构造Hamilton函数 H",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ bool preset_mathematical_physics_register(void)
             "hamilton_equation",
             "建立Hamilton正则方程 dq/dt = ∂H/∂p, dp/dt = -∂H/∂q",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -107,7 +107,7 @@ bool preset_mathematical_physics_register(void)
             "poisson_bracket",
             "计算Poisson括号 {f, g} = Σ(∂f/∂q·∂g/∂p - ∂f/∂p·∂g/∂q)",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -120,7 +120,7 @@ bool preset_mathematical_physics_register(void)
             "noether_theorem",
             "应用Noether定理：连续对称性对应守恒量",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ bool preset_mathematical_physics_register(void)
             "conserved_quantity",
             "计算运动方程的守恒量（能量、动量、角动量等）",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -142,7 +142,7 @@ bool preset_mathematical_physics_register(void)
             "field_equation",
             "由场的Lagrangian密度推导场的运动方程",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -151,7 +151,7 @@ bool preset_mathematical_physics_register(void)
             "action_principle",
             "计算作用量 S = ∫ L dt 并应用最小作用量原理",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 

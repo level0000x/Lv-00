@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_coding_theory.c
  * @brief 编码理论预设函数块 - 实现
  *
@@ -36,7 +36,7 @@ bool preset_coding_theory_register(void)
             "linear_code_construct",
             "由生成矩阵G构造 [n,k] 线性码 C",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ bool preset_coding_theory_register(void)
             "parity_check_matrix",
             "由生成矩阵计算校验矩阵 H（GH^T = 0）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ bool preset_coding_theory_register(void)
             "minimum_distance",
             "计算线性码的最小汉明距离 d(C)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -63,7 +63,7 @@ bool preset_coding_theory_register(void)
             "encode_message",
             "将信息字编码为码字 c = mG",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ bool preset_coding_theory_register(void)
             "hamming_code_construct",
             "构造 [2^r-1, 2^r-1-r] Hamming码",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -85,7 +85,7 @@ bool preset_coding_theory_register(void)
             "hamming_decode",
             "Hamming码伴随式译码（纠正单比特错误）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ bool preset_coding_theory_register(void)
             "reed_solomon_construct",
             "构造 [n, k, n-k+1] Reed-Solomon码（最大距离可分码）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -107,7 +107,7 @@ bool preset_coding_theory_register(void)
             "reed_solomon_encode",
             "Reed-Solomon编码（多项式求值）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -120,7 +120,7 @@ bool preset_coding_theory_register(void)
             "cyclic_code_construct",
             "由生成多项式g(x)构造循环码",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ bool preset_coding_theory_register(void)
             "crc_check",
             "循环冗余校验（CRC）检测传输错误",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 

@@ -596,11 +596,11 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
 
 /* ============== 验证 API 实现 ============== */
 
-bool meta_repr_verify_roundtrip(const void *original,
+int meta_repr_verify_roundtrip(const void *original,
                                  const void *decoded,
                                  const char *type_name)
 {
-    if (!original || !decoded) return false;
+    if (!original || !decoded) return -1;
 
     /* 往返验证逻辑：
      * 对原始结构体进行编码再解码，比较解码结果与原始结构体。
@@ -609,19 +609,19 @@ bool meta_repr_verify_roundtrip(const void *original,
      * 2. 内存内容逐字节比较（深比较）
      * 3. 语义等价性检查（根据类型名称选择比较策略）
      */
-    if (original == decoded) return true;
+    if (original == decoded) return 0;
 
     if (type_name) {
         /* 根据类型名称选择合适的比较策略 */
         if (strcmp(type_name, "ConstraintGraph") == 0) {
             return meta_repr_graph_equivalent(
                 (const ConstraintGraph *)original,
-                (const ConstraintGraph *)decoded);
+                (const ConstraintGraph *)decoded) ? 0 : -1;
         }
     }
 
     /* 默认使用内存比较（兜底策略） */
-    return memcmp(original, decoded, sizeof(void *)) == 0;
+    return memcmp(original, decoded, sizeof(void *)) == 0 ? 0 : -1;
 }
 
 bool meta_repr_graph_equivalent(const ConstraintGraph *a,
@@ -708,13 +708,13 @@ void meta_repr_get_stats(MetaReprEncoder *encoder,
     if (out_constraint_count) *out_constraint_count = encoder->constraint_count;
 }
 
-bool meta_repr_export_dot(const ConstraintGraph *encoded_graph,
+int meta_repr_export_dot(const ConstraintGraph *encoded_graph,
                            const char *filepath)
 {
-    if (!encoded_graph || !filepath) return false;
+    if (!encoded_graph || !filepath) return -1;
 
     FILE *fp = fopen(filepath, "w");
-    if (!fp) return false;
+    if (!fp) return -1;
 
     fprintf(fp, "digraph MetaRepr {\n");
     fprintf(fp, "    rankdir=LR;\n\n");
@@ -778,7 +778,7 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph,
 
     fprintf(fp, "}\n");
     fclose(fp);
-    return true;
+    return 0;
 }
 
 char *meta_repr_export_json(const ConstraintGraph *encoded_graph)

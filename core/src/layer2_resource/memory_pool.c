@@ -332,9 +332,9 @@ void *lv00_pool_alloc(Lv00ObjectPool *pool) {
     return node;
 }
 
-bool lv00_pool_free(Lv00ObjectPool *pool, void *obj) {
+int lv00_pool_free(Lv00ObjectPool *pool, void *obj) {
     if (!pool || !obj) {
-        return false;
+        return -1;
     }
 
     if (pool->thread_safe) {
@@ -352,7 +352,7 @@ bool lv00_pool_free(Lv00ObjectPool *pool, void *obj) {
         LV00_MUTEX_UNLOCK(pool->mutex);
     }
 
-    return true;
+    return 0;
 }
 
 void lv00_pool_get_stats(Lv00ObjectPool *pool,
@@ -784,9 +784,9 @@ void *lv00_cache_get(Lv00ObjectCache *cache, Lv00CacheKey key) {
     return value;
 }
 
-bool lv00_cache_remove(Lv00ObjectCache *cache, Lv00CacheKey key) {
+int lv00_cache_remove(Lv00ObjectCache *cache, Lv00CacheKey key) {
     if (!cache) {
-        return false;
+        return -1;
     }
 
     /* 查找 */
@@ -816,12 +816,12 @@ bool lv00_cache_remove(Lv00ObjectCache *cache, Lv00CacheKey key) {
             lv00_free((void **)&entry);
             cache->current_size--;
 
-            return true;
+            return 0;
         }
         pp = &(*pp)->hash_next;
     }
 
-    return false;
+    return -1;
 }
 
 void lv00_cache_clear(Lv00ObjectCache *cache) {
@@ -1025,7 +1025,7 @@ static Lv00ObjectPool *g_constraint_pool = NULL;
 static Lv00ObjectPool *g_symbolic_coord_pool = NULL;
 static Lv00ObjectPool *g_proof_step_pool = NULL;
 
-bool lv00_init_preset_pools(void) {
+int lv00_init_preset_pools(void) {
     Lv00PoolConfig config = {
         .object_size = 0,
         .capacity = LV00_POOL_DEFAULT_CAPACITY,
@@ -1039,7 +1039,7 @@ bool lv00_init_preset_pools(void) {
     config.name = "ConstraintNode";
     g_node_pool = lv00_pool_create(&config);
     if (!g_node_pool) {
-        return false;
+        return -1;
     }
 
     /* Constraint 池 */
@@ -1049,7 +1049,7 @@ bool lv00_init_preset_pools(void) {
     if (!g_constraint_pool) {
         lv00_pool_destroy(g_node_pool);
         g_node_pool = NULL;
-        return false;
+        return -1;
     }
 
     /* SymbolicCoord 池 */
@@ -1061,7 +1061,7 @@ bool lv00_init_preset_pools(void) {
         lv00_pool_destroy(g_constraint_pool);
         g_node_pool = NULL;
         g_constraint_pool = NULL;
-        return false;
+        return -1;
     }
 
     /* ProofStep 池 */
@@ -1075,10 +1075,10 @@ bool lv00_init_preset_pools(void) {
         g_node_pool = NULL;
         g_constraint_pool = NULL;
         g_symbolic_coord_pool = NULL;
-        return false;
+        return -1;
     }
 
-    return true;
+    return 0;
 }
 
 void lv00_cleanup_preset_pools(void) {

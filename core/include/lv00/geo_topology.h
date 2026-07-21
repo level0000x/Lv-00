@@ -1,4 +1,4 @@
-#ifndef LV00_GEO_TOPOLOGY_H
+﻿#ifndef LV00_GEO_TOPOLOGY_H
 #define LV00_GEO_TOPOLOGY_H
 
 #ifdef __cplusplus
@@ -53,8 +53,8 @@ typedef enum {
 /* ── API ── */
 Lv00SimplicialComplex *geo_simplicial_create(int n_vertices);
 void geo_simplicial_destroy(Lv00SimplicialComplex *sc);
-bool geo_simplicial_add_edge(Lv00SimplicialComplex *sc, int v0, int v1);
-bool geo_simplicial_add_triangle(Lv00SimplicialComplex *sc, int v0, int v1, int v2);
+int geo_simplicial_add_edge(Lv00SimplicialComplex *sc, int v0, int v1);
+int geo_simplicial_add_triangle(Lv00SimplicialComplex *sc, int v0, int v1, int v2);
 int  geo_simplicial_euler_characteristic(const Lv00SimplicialComplex *sc);
 Lv00Boundary *geo_simplicial_boundary(const Lv00SimplicialComplex *sc,
                                        const Lv00Triangle *tri);

@@ -1,4 +1,4 @@
-#ifndef LV00_GEOMETRY_TRANSFORM_H
+﻿#ifndef LV00_GEOMETRY_TRANSFORM_H
 #define LV00_GEOMETRY_TRANSFORM_H
 
 #ifdef __cplusplus
@@ -219,7 +219,7 @@ void lv00_transform_unref(Lv00Transform *t);
  * @param y 点的 Y 坐标（输入/输出，有理数）
  * @return 成功返回 true，失败返回 false
  */
-bool lv00_transform_apply_point(const Lv00Transform *t, mpq_t x, mpq_t y);
+int lv00_transform_apply_point(const Lv00Transform *t, mpq_t x, mpq_t y);
 /**
  * @brief 使用变换平移点（有理数坐标，输出到目标坐标）
  * @param t 变换指针
@@ -253,7 +253,7 @@ Lv00Transform *lv00_transform_compose(const Lv00Transform *a, const Lv00Transfor
  * @param matrix 输出矩阵指针
  * @return 成功返回 true，失败返回 false
  */
-bool lv00_transform_get_matrix(Lv00Transform *t, Lv00TransformMatrix *matrix);
+int lv00_transform_get_matrix(Lv00Transform *t, Lv00TransformMatrix *matrix);
 /**
  * @brief 获取变换类型的名称字符串
  * @param type 变换类型枚举
@@ -290,7 +290,7 @@ Lv00Transform *lv00_transform_inverse(const Lv00Transform *t);
  * @param ry 反射结果 Y 坐标（输出，有理数）
  * @return 成功返回 true，失败返回 false
  */
-bool lv00_reflect_point(const mpq_t ax, const mpq_t ay,
+int lv00_reflect_point(const mpq_t ax, const mpq_t ay,
                          const mpq_t bx, const mpq_t by,
                          const mpq_t px, const mpq_t py,
                          mpq_t rx, mpq_t ry);
@@ -312,7 +312,7 @@ void lv00_transform_sequence_destroy(Lv00TransformSequence *seq);
  * @param t 要添加的变换指针
  * @return 成功返回 true，失败返回 false
  */
-bool lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t);
+int lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t);
 /**
  * @brief 将序列中所有变换合成为一个变换
  * @param seq 变换序列指针
@@ -338,7 +338,7 @@ void lv00_transform_group_destroy(Lv00TransformGroup *group);
  * @param generator 生成元变换指针
  * @return 成功返回 true，失败返回 false
  */
-bool lv00_transform_group_add_generator(Lv00TransformGroup *group, Lv00Transform *generator);
+int lv00_transform_group_add_generator(Lv00TransformGroup *group, Lv00Transform *generator);
 /**
  * @brief 创建预设变换群
  * @param type 预设类型字符串

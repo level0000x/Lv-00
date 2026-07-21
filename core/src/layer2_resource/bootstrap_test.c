@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file bootstrap_test.c
  * @brief Lv-00 自举差分测试框架实现骨架
  *
@@ -53,23 +53,23 @@ static uint64_t g_fail_count = 0;
 
 /* ============== 框架初始化 ============== */
 
-bool bootstrap_test_framework_init(void)
+int bootstrap_test_framework_init(void)
 {
     if (g_initialized) {
-        return true;
+        return 0;
     }
 
     /* 初始化 Lv-00 核心系统 */
     if (!lv00_init()) {
         fprintf(stderr, "[BootstrapTest] Failed to initialize Lv-00 core\n");
-        return false;
+        return -1;
     }
 
     /* 初始化原语包装器 */
-    if (!primitive_wrapper_init()) {
+    if (primitive_wrapper_init() != 0) {
         fprintf(stderr, "[BootstrapTest] Failed to initialize primitive wrapper\n");
         lv00_cleanup();
-        return false;
+        return -1;
     }
 
     g_initialized = true;
@@ -78,7 +78,7 @@ bool bootstrap_test_framework_init(void)
     g_fail_count = 0;
 
     printf("[BootstrapTest] Framework initialized successfully\n");
-    return true;
+    return 0;
 }
 
 void bootstrap_test_framework_cleanup(void)
@@ -435,12 +435,12 @@ void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
     }
 }
 
-bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
+int graph_isomorphism_compare(GraphIsomorphismComparator *comp,
                                 const void *graph_a,
                                 const void *graph_b)
 {
     if (!comp || !graph_a || !graph_b) {
-        return false;
+        return -1;
     }
 
     /* VF2 同构检测（基于度数序列和邻域签名匹配，完整版需支持回溯搜索） */
@@ -448,19 +448,19 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
     const ConstraintGraph *gb = (const ConstraintGraph *)graph_b;
 
     if (graph_get_node_count(ga) != graph_get_node_count(gb)) {
-        return false;
+        return -1;
     }
     if (graph_get_constraint_count(ga) != graph_get_constraint_count(gb)) {
-        return false;
+        return -1;
     }
 
     int n = graph_get_node_count(ga);
-    if (n == 0) return true;
+    if (n == 0) return 0;
 
     /* 计算度数序列 */
     int *deg_a = (int *)calloc((size_t)n, sizeof(int));
     int *deg_b = (int *)calloc((size_t)n, sizeof(int));
-    if (!deg_a || !deg_b) { free(deg_a); free(deg_b); return false; }
+    if (!deg_a || !deg_b) { free(deg_a); free(deg_b); return -1; }
 
     for (int i = 0; i < n; i++) {
         int cids[64];
@@ -484,14 +484,14 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
     if (!same_degree) {
         free(deg_a);
         free(deg_b);
-        return false;
+        return -1;
     }
 
     /* VF2 邻域签名比较：对每个节点，收集其邻居的度数并排序后比较 */
     /* 重新计算度数（因为上面的已排序） */
     int *deg_a_raw = (int *)calloc((size_t)n, sizeof(int));
     int *deg_b_raw = (int *)calloc((size_t)n, sizeof(int));
-    if (!deg_a_raw || !deg_b_raw) { free(deg_a); free(deg_b); free(deg_a_raw); free(deg_b_raw); return false; }
+    if (!deg_a_raw || !deg_b_raw) { free(deg_a); free(deg_b); free(deg_a_raw); free(deg_b_raw); return -1; }
 
     for (int i = 0; i < n; i++) {
         int cids[64];
@@ -509,7 +509,7 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
         free(deg_a); free(deg_b); free(deg_a_raw); free(deg_b_raw);
         free(neighbor_sigs_a); free(neighbor_sigs_b);
         free(neighbor_counts_a); free(neighbor_counts_b);
-        return false;
+        return -1;
     }
 
     for (int i = 0; i < n; i++) {
@@ -678,14 +678,14 @@ uint64_t graph_isomorphism_hash(const void *graph)
     return final_hash;
 }
 
-bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
+int graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
                                      const void *graph_a,
                                      const void *graph_b,
                                      int **out_node_mapping,
                                      int **out_constraint_mapping)
 {
     if (!comp || !graph_a || !graph_b) {
-        return false;
+        return -1;
     }
 
     /* 映射查找（基于度数匹配的贪心算法，完整版需支持回溯和约束传播） */
@@ -694,17 +694,17 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
 
     int na = graph_get_node_count(ga);
     int nb = graph_get_node_count(gb);
-    if (na != nb) return false;
+    if (na != nb) return -1;
 
     if (out_node_mapping) {
         int *mapping = (int *)calloc((size_t)na, sizeof(int));
-        if (!mapping) return false;
+        if (!mapping) return -1;
 
         /* 计算度数 */
         int *deg_a = (int *)calloc((size_t)na, sizeof(int));
         int *deg_b = (int *)calloc((size_t)nb, sizeof(int));
         if (!deg_a || !deg_b) {
-            free(mapping); free(deg_a); free(deg_b); return false;
+            free(mapping); free(deg_a); free(deg_b); return -1;
         }
 
         for (int i = 0; i < na; i++) {
@@ -718,7 +718,7 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
 
         /* 贪心匹配：按度数排序后逐个匹配 */
         bool *used = (bool *)calloc((size_t)nb, sizeof(bool));
-        if (!used) { free(mapping); free(deg_a); free(deg_b); return false; }
+        if (!used) { free(mapping); free(deg_a); free(deg_b); return -1; }
 
         for (int i = 0; i < na; i++) {
             mapping[i] = -1;
@@ -796,7 +796,7 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
         *out_constraint_mapping = NULL;
     }
 
-    return true;
+    return 0;
 }
 
 /* ============== 原语包装器 ============== */
@@ -813,7 +813,7 @@ static struct {
 
 static uint32_t g_primitive_count = 0;
 
-bool primitive_wrapper_init(void)
+int primitive_wrapper_init(void)
 {
     g_primitive_count = 0;
 
@@ -829,7 +829,7 @@ bool primitive_wrapper_init(void)
         primitive_wrapper_register(primitives[i], NULL, NULL, 0, "void");
     }
 
-    return true;
+    return 0;
 }
 
 void primitive_wrapper_cleanup(void)
@@ -837,7 +837,7 @@ void primitive_wrapper_cleanup(void)
     g_primitive_count = 0;
 }
 
-bool primitive_wrapper_register(const char *name,
+int primitive_wrapper_register(const char *name,
                                  void *c_api_func,
                                  const char **param_types,
                                  uint32_t param_count,
@@ -847,7 +847,7 @@ bool primitive_wrapper_register(const char *name,
     LV00_UNUSED(param_count);
     LV00_UNUSED(return_type);
     if (!name || g_primitive_count >= MAX_PRIMITIVES) {
-        return false;
+        return -1;
     }
 
     g_primitives[g_primitive_count].name = name;
@@ -858,7 +858,7 @@ bool primitive_wrapper_register(const char *name,
 
     g_primitive_count++;
 
-    return true;
+    return 0;
 }
 
 PrimitiveTestResult *primitive_wrapper_test(const char *name,
@@ -1058,11 +1058,11 @@ void test_oracle_destroy(TestOracle *oracle)
     lv00_free((void**)&oracle);
 }
 
-bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
+int test_oracle_verify_normalization_idempotent(TestOracle *oracle,
                                                   void *graph)
 {
     if (!oracle || !graph) {
-        return false;
+        return -1;
     }
 
     /* 幂等性验证：执行两次归一化并比较结果 */
@@ -1071,13 +1071,13 @@ bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
     /* 使用现有 API */
     NormalizationResult *result1 = graph_normalize(g, false);
     if (!result1) {
-        return false;
+        return -1;
     }
 
     NormalizationResult *result2 = graph_normalize(g, false);
     if (!result2) {
         normalization_result_destroy(result1);
-        return false;
+        return -1;
     }
 
     /* 比较合并数量 */
@@ -1089,12 +1089,12 @@ bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
     return idempotent;
 }
 
-bool test_oracle_verify_solution_correct(TestOracle *oracle,
+int test_oracle_verify_solution_correct(TestOracle *oracle,
                                           const void *graph,
                                           const void *solution)
 {
     if (!oracle || !graph || !solution) {
-        return false;
+        return -1;
     }
 
     /* 求解正确性验证：检查解是否满足所有约束 */
@@ -1102,7 +1102,7 @@ bool test_oracle_verify_solution_correct(TestOracle *oracle,
     const ConstraintGraph *sol = (const ConstraintGraph *)solution;
 
     if (graph_get_node_count(g) != graph_get_node_count(sol)) {
-        return false;
+        return -1;
     }
 
     /* 验证每个节点的坐标是否满足约束 */
@@ -1123,49 +1123,49 @@ bool test_oracle_verify_solution_correct(TestOracle *oracle,
             double dist = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
 
             if (fabs(dist - c->numeric_value) > 1e-6) {
-                return false;
+                return -1;
             }
         }
     }
 
-    return true;
+    return 0;
 }
 
-bool test_oracle_verify_proof_valid(TestOracle *oracle,
+int test_oracle_verify_proof_valid(TestOracle *oracle,
                                      const void *trace)
 {
     if (!oracle || !trace) {
-        return false;
+        return -1;
     }
 
     /* 证明有效性验证：检查证明轨迹的基本结构 */
     int step_count = lv00_proof_trace_get_step_count(trace);
 
     if (step_count == 0) {
-        return false;
+        return -1;
     }
 
     /* 简化实现：仅检查基本结构，详细验证留待后续实现 */
 
-    return true;
+    return 0;
 }
 
-bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
+int test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
                                              const void *graph,
                                              const char *serialized,
                                              const void *deserialized)
 {
     if (!oracle || !graph || !serialized || !deserialized) {
-        return false;
+        return -1;
     }
 
     /* 使用图同构比较器验证 */
     GraphIsomorphismComparator *comp = graph_isomorphism_create();
     if (!comp) {
-        return false;
+        return -1;
     }
 
-    bool isomorphic = graph_isomorphism_compare(comp, graph, deserialized);
+    int isomorphic = graph_isomorphism_compare(comp, graph, deserialized);
 
     graph_isomorphism_destroy(comp);
 
@@ -1237,29 +1237,29 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
     return report;
 }
 
-bool bootstrap_test_write_report(BootstrapDiffTestResult **results,
+int bootstrap_test_write_report(BootstrapDiffTestResult **results,
                                   uint32_t count,
                                   const char *filepath,
                                   const char *format)
 {
     if (!filepath) {
-        return false;
+        return -1;
     }
 
     char *report = bootstrap_test_generate_report(results, count, format);
     if (!report) {
-        return false;
+        return -1;
     }
 
     FILE *fp = fopen(filepath, "w");
     if (!fp) {
         lv00_free((void**)&report);
-        return false;
+        return -1;
     }
 
     fprintf(fp, "%s", report);
     fclose(fp);
 
     lv00_free((void**)&report);
-    return true;
+    return 0;
 }

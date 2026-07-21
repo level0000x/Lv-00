@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mv_polynomial.c
  * @brief 多变量多项式实现 — 从 solver.c 拆分
  *

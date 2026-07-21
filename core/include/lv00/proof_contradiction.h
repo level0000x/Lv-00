@@ -111,15 +111,15 @@ LV00_PUBLIC_API Lv00AssumptionEntry *lv00_assumption_stack_find(Lv00AssumptionSt
 LV00_PUBLIC_API int lv00_assumption_stack_get_by_scope(Lv00AssumptionStack *stack, Lv00ProofScopeId scope_id, Lv00AssumptionEntry **out, int max_out);
 LV00_PUBLIC_API Lv00ContradictionClosure *lv00_contradiction_closure_create(Lv00ProofScopeId scope_id, Lv00ContradictionType type, Proposition *prop);
 LV00_PUBLIC_API void lv00_contradiction_closure_destroy(Lv00ContradictionClosure *closure);
-LV00_PUBLIC_API bool lv00_contradiction_closure_close(Lv00ContradictionClosure *closure);
-LV00_PUBLIC_API bool lv00_contradiction_propagation_detect(Lv00ProofScopeId scope, Lv00ContradictionClosure **closures, int closure_count);
+LV00_PUBLIC_API int lv00_contradiction_closure_close(Lv00ContradictionClosure *closure);
+LV00_PUBLIC_API int lv00_contradiction_propagation_detect(Lv00ProofScopeId scope, Lv00ContradictionClosure **closures, int closure_count);
 LV00_PUBLIC_API Lv00ContradictionBreakpoint *lv00_contradiction_breakpoint_create(Lv00BreakpointType type, Lv00ProofScopeId scope_id, int step_id, const char *description);
 LV00_PUBLIC_API void lv00_contradiction_breakpoint_destroy(Lv00ContradictionBreakpoint *bp);
 LV00_PUBLIC_API int lv00_contradiction_detect_breakpoints(Lv00ProofNavigatorEx *navigator, Lv00ContradictionBreakpoint **breakpoints, int max_breakpoints);
 LV00_PUBLIC_API Lv00ProofNavigatorEx *lv00_proof_navigator_ex_create(void);
 LV00_PUBLIC_API void lv00_proof_navigator_ex_destroy(Lv00ProofNavigatorEx *navigator);
 LV00_PUBLIC_API Lv00ProofScopeId lv00_proof_begin_contradiction(Lv00ProofNavigatorEx *navigator, Proposition *negation_prop);
-LV00_PUBLIC_API bool lv00_proof_end_contradiction(Lv00ProofNavigatorEx *navigator, Lv00ProofScopeId scope_id, Lv00ContradictionClosure **out_closure);
+LV00_PUBLIC_API int lv00_proof_end_contradiction(Lv00ProofNavigatorEx *navigator, Lv00ProofScopeId scope_id, Lv00ContradictionClosure **out_closure);
 LV00_PUBLIC_API bool lv00_proof_scope_is_valid(Lv00ProofNavigatorEx *navigator, Lv00ProofScopeId scope_id);
 LV00_PUBLIC_API char *lv00_proof_export_contradiction_trace(Lv00ProofNavigatorEx *navigator, Lv00ProofScopeId scope_id);
 #endif /* LV00_PROOF_CONTRADICTION_H */

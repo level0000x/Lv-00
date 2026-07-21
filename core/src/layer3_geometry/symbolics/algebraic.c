@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file algebraic.c
  * @brief Algebraic 代数数类型
  *
@@ -797,7 +797,7 @@ static mpz_poly_t *compute_sum_minimal_poly(const Algebraic *a, const Algebraic 
 
     /* Use exact resultant computation */
     mpz_poly_t resultant;
-    if (!mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_SUM, &resultant)) {
+    if (mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_SUM, &resultant) != 0) {
         /* Fallback: return empty polynomial on failure */
         return result;
     }
@@ -830,7 +830,7 @@ static mpz_poly_t *compute_product_minimal_poly(const Algebraic *a, const Algebr
 
     /* Use exact resultant computation */
     mpz_poly_t resultant;
-    if (!mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_PRODUCT, &resultant)) {
+    if (mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_PRODUCT, &resultant) != 0) {
         /* Fallback: return empty polynomial on failure */
         return result;
     }
@@ -998,7 +998,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
     }
     mpz_poly_init(diff_poly);
     mpz_poly_t resultant;
-    if (mpz_poly_resultant(&a->minimal_poly, &neg_b_poly, ALG_OP_SUM, &resultant)) {
+    if (mpz_poly_resultant(&a->minimal_poly, &neg_b_poly, ALG_OP_SUM, &resultant) != 0) {
         mpz_poly_set(diff_poly, &resultant);
         mpz_poly_clear(&resultant);
     }
@@ -1241,7 +1241,7 @@ static unsigned int remove_square_factors(unsigned int n) {
  */
 static bool is_rational_zero(const Rational *r) {
     if (!r)
-        return true;
+        return 0;
     return mpq_sgn(r->value) == 0;
 }
 

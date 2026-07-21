@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_transformations.c
  * @brief ���α任Ԥ�躯���� - ʵ��
  *
@@ -32,7 +32,7 @@ bool preset_transformations_register(void)
             "translation",
             "����������ƽ��",
             PRESET_EXT_TRANSFORMATION_BASIC,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -43,7 +43,7 @@ bool preset_transformations_register(void)
             "rotation",
             "������������תָ���Ƕ�",
             PRESET_EXT_TRANSFORMATION_BASIC,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -52,7 +52,7 @@ bool preset_transformations_register(void)
             "rotation_by_reference",
             "ͨ���ο���ȷ����ת�Ƕ�",
             PRESET_EXT_TRANSFORMATION_BASIC,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -63,7 +63,7 @@ bool preset_transformations_register(void)
             "reflection_line",
             "�����ֱ�ߵķ���",
             PRESET_EXT_TRANSFORMATION_BASIC,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -72,7 +72,7 @@ bool preset_transformations_register(void)
             "reflection_point",
             "����ڵ�����ķ���",
             PRESET_EXT_TRANSFORMATION_BASIC,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -81,7 +81,7 @@ bool preset_transformations_register(void)
             "glide_reflection",
             "������ط����᷽��ƽ��",
             PRESET_EXT_TRANSFORMATION_ADVANCED,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -92,7 +92,7 @@ bool preset_transformations_register(void)
             "homothety",
             "�������ĵ�λ�Ʊ任�����ţ�",
             PRESET_EXT_TRANSFORMATION_BASIC,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -101,7 +101,7 @@ bool preset_transformations_register(void)
             "homothety_by_reference",
             "ͨ���ο���ȷ������ϵ��",
             PRESET_EXT_TRANSFORMATION_BASIC,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -110,7 +110,7 @@ bool preset_transformations_register(void)
             "scale",
             "��ԭ��Ϊ���ĵľ�������",
             PRESET_EXT_TRANSFORMATION_BASIC,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -121,7 +121,7 @@ bool preset_transformations_register(void)
             "shear",
             "��ָ������Ĵ��б任",
             PRESET_EXT_TRANSFORMATION_ADVANCED,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -132,7 +132,7 @@ bool preset_transformations_register(void)
             "transform_compose",
             "�����任�ĸ��� g �� f",
             PRESET_EXT_TRANSFORMATION_ADVANCED,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -141,7 +141,7 @@ bool preset_transformations_register(void)
             "transform_inverse",
             "��任����",
             PRESET_EXT_TRANSFORMATION_ADVANCED,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -150,7 +150,7 @@ bool preset_transformations_register(void)
             "identity_transform",
             "��ȱ任",
             PRESET_EXT_TRANSFORMATION_BASIC,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -161,7 +161,7 @@ bool preset_transformations_register(void)
             "inversion",
             "����Բ�ķ��ݱ任",
             PRESET_EXT_TRANSFORMATION_ADVANCED,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -170,7 +170,7 @@ bool preset_transformations_register(void)
             "spiral_similarity",
             "��ת�����ŵĸ���",
             PRESET_EXT_TRANSFORMATION_ADVANCED,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 

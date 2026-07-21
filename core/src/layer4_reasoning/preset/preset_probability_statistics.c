@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_probability_statistics.c
  * @brief 概率统计预设函数块 - 实现
  *
@@ -36,7 +36,7 @@ bool preset_probability_statistics_register(void)
             "normal_distribution",
             "构造正态分布 N(μ, σ²) 及其PDF/CDF计算",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ bool preset_probability_statistics_register(void)
             "binomial_distribution",
             "构造二项分布 B(n, p) 及概率计算",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ bool preset_probability_statistics_register(void)
             "poisson_distribution",
             "构造Poisson分布 P(λ) 及概率计算",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -63,7 +63,7 @@ bool preset_probability_statistics_register(void)
             "expectation_variance",
             "计算随机变量的期望 E[X] 和方差 Var(X)",
             PRESET_EXT_ANALYSIS,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ bool preset_probability_statistics_register(void)
             "z_test",
             "单样本Z检验（已知总体方差的均值检验）",
             PRESET_EXT_ANALYSIS,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -85,7 +85,7 @@ bool preset_probability_statistics_register(void)
             "t_test",
             "单样本/双样本t检验（未知总体方差的均值检验）",
             PRESET_EXT_ANALYSIS,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -94,7 +94,7 @@ bool preset_probability_statistics_register(void)
             "chi_square_test",
             "卡方拟合优度检验（观测频数与期望频数比较）",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -107,7 +107,7 @@ bool preset_probability_statistics_register(void)
             "bayes_theorem",
             "应用贝叶斯定理 P(A|B) = P(B|A)P(A)/P(B)",
             PRESET_EXT_ANALYSIS,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -116,7 +116,7 @@ bool preset_probability_statistics_register(void)
             "bayesian_estimation",
             "贝叶斯参数估计：后验 ∝ 似然 x 先验",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ bool preset_probability_statistics_register(void)
             "least_squares_regression",
             "最小二乘法线性回归 y = a + bx",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -138,7 +138,7 @@ bool preset_probability_statistics_register(void)
             "confidence_interval",
             "计算总体均值的置信区间",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -147,7 +147,7 @@ bool preset_probability_statistics_register(void)
             "maximum_likelihood_estimation",
             "极大似然估计（MLE）求参数估计值",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -160,7 +160,7 @@ bool preset_probability_statistics_register(void)
             "correlation_coefficient",
             "计算Pearson相关系数 r = Cov(X,Y)/(σ_X σ_Y)",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -169,7 +169,7 @@ bool preset_probability_statistics_register(void)
             "central_limit_theorem",
             "中心极限定理应用：样本均值的近似分布",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_dynamic.c
  * @brief 动态几何依赖图实现 — 借鉴 GeoGebra 动态几何系统
  *
@@ -368,10 +368,10 @@ Lv00DynNode *lv00_dyn_graph_get_node(Lv00DynGraph *graph, int node_id)
     return &graph->nodes[index];
 }
 
-bool lv00_dyn_graph_remove_node(Lv00DynGraph *graph, int node_id)
+int lv00_dyn_graph_remove_node(Lv00DynGraph *graph, int node_id)
 {
     Lv00DynNode *node = lv00_dyn_graph_get_node(graph, node_id);
-    if (!node) return false;
+    if (!node) return -1;
 
     int index = get_node_index(graph, node_id);
 
@@ -418,7 +418,7 @@ bool lv00_dyn_graph_remove_node(Lv00DynGraph *graph, int node_id)
     graph->id_to_index[node_id] = LV00_DYN_INVALID;
     node->state = LV00_DYN_STATE_ERROR;
 
-    return true;
+    return 0;
 }
 
 int lv00_dyn_graph_get_parents(

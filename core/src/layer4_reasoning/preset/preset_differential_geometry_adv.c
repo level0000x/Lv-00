@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_differential_geometry_adv.c
  * @brief 微分几何进阶预设函数块 - 实现
  *
@@ -36,7 +36,7 @@ bool preset_differential_geometry_adv_register(void)
             "levi_civita_connection",
             "计算Riemann流形上的Levi-Civita联络",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ bool preset_differential_geometry_adv_register(void)
             "covariant_derivative",
             "计算向量场沿另一向量场的协变导数 ∇_X Y",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ bool preset_differential_geometry_adv_register(void)
             "christoffel_symbols",
             "由度量张量计算Christoffel符号 Γ^k_{ij}",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -67,7 +67,7 @@ bool preset_differential_geometry_adv_register(void)
             "riemann_curvature_tensor",
             "计算Riemann曲率张量 R^l_{ijk}",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ bool preset_differential_geometry_adv_register(void)
             "ricci_curvature",
             "计算Ricci曲率张量 R_{ij} = R^k_{ikj}",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -85,7 +85,7 @@ bool preset_differential_geometry_adv_register(void)
             "scalar_curvature",
             "计算标量曲率 S = g^{ij} R_{ij}",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -94,7 +94,7 @@ bool preset_differential_geometry_adv_register(void)
             "sectional_curvature",
             "计算二维截面的截面曲率 K(σ)",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -107,7 +107,7 @@ bool preset_differential_geometry_adv_register(void)
             "geodesic_equation",
             "建立测地线方程 d²x^k/dt² + Γ^k_{ij} dx^i/dt dx^j/dt = 0",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -116,7 +116,7 @@ bool preset_differential_geometry_adv_register(void)
             "exponential_map",
             "计算Riemann流形上的指数映射 exp_p(v)",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ bool preset_differential_geometry_adv_register(void)
             "tensor_contraction",
             "计算张量的缩并运算",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -138,7 +138,7 @@ bool preset_differential_geometry_adv_register(void)
             "lie_derivative",
             "计算张量场沿向量场的李导数 L_X T",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -147,7 +147,7 @@ bool preset_differential_geometry_adv_register(void)
             "geodesic_deviation",
             "计算测地线偏离方程（Jacobi方程）",
             PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 

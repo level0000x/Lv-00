@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file atp_backend.h
  * @brief 一阶逻辑自动定理证明器（FOL ATP）后端抽象层
  *
@@ -278,7 +278,7 @@ const char *atp_backend_type_name(ATPBackendType type);
  * @brief 从名称字符串解析后端类型
  * @return 成功返回 true，失败返回 false
  */
-bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type);
+int atp_backend_type_from_name(const char *name, ATPBackendType *out_type);
 /* ========================================================================
  * 引擎调度器集成
  *

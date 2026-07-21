@@ -48,7 +48,7 @@ LV00_PUBLIC_API void axiom_package_destroy(AxiomPackage *pkg);
 /* 流式上下文设置（由 LV00_DECLARE_STREAM_CTX(axiom) 宏生成） */
 LV00_PUBLIC_API void axiom_set_stream_context(StreamContext *ctx);
 
-LV00_PUBLIC_API bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructible *item);
+LV00_PUBLIC_API int axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructible *item);
 LV00_PUBLIC_API KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, const char *name);
 
 typedef enum {
@@ -82,7 +82,7 @@ LV00_PUBLIC_API AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, cons
  *         如果 pkg 为 NULL 或内存分配失败，返回 NULL。
  */
 LV00_PUBLIC_API char *axiom_package_compute_content_hash(AxiomPackage *pkg);
-LV00_PUBLIC_API bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loaded_packages, int package_count);
+LV00_PUBLIC_API int axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loaded_packages, int package_count);
 
 /* ============== ConstraintTemplate 增强 ============== */
 
@@ -121,10 +121,10 @@ typedef struct ConstraintTemplate {
     NormalFormDesc normal_form; /* 正则形式描述 */
 } ConstraintTemplate;
 
-LV00_PUBLIC_API bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl);
+LV00_PUBLIC_API int axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl);
 LV00_PUBLIC_API ConstraintTemplate *axiom_package_get_template(AxiomPackage *pkg, const char *name);
 
-LV00_PUBLIC_API bool axiom_template_validate_normal_form(const ConstraintTemplate *tmpl, const ConstraintGraph *expanded_graph,
+LV00_PUBLIC_API int axiom_template_validate_normal_form(const ConstraintTemplate *tmpl, const ConstraintGraph *expanded_graph,
                                          const char *canonical_form);
 
 /* ============== 双层测试集 ============== */
@@ -189,7 +189,7 @@ LV00_PUBLIC_API ConstraintGraph *axiom_package_lookup_expansion_cache(AxiomPacka
 /**
  * @brief 将展开结果存入缓存
  */
-LV00_PUBLIC_API bool axiom_package_store_expansion_cache(AxiomPackage *pkg, const char *template_name, SymbolicCoord **params,
+LV00_PUBLIC_API int axiom_package_store_expansion_cache(AxiomPackage *pkg, const char *template_name, SymbolicCoord **params,
                                          int param_count, ConstraintGraph *expanded_graph);
 
 /**

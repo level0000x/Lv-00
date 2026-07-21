@@ -1,4 +1,4 @@
-#ifndef LV00_PRESET_TRANSFORMATIONS_H
+﻿#ifndef LV00_PRESET_TRANSFORMATIONS_H
 #define LV00_PRESET_TRANSFORMATIONS_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define TRANSFORMATIONS_PRESET_COUNT 18
-bool preset_transformations_register(void);
+int preset_transformations_register(void);
 
 #ifdef __cplusplus
 }

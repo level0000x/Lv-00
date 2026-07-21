@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file engine.h
  * @brief Lv-00 主引擎 —— 工作流编排、模块/公理加载、重写与求解
  *
@@ -405,7 +405,7 @@ LV00_PUBLIC_API void engine_destroy(LV00Engine *engine);
  * @param rule   要注册的重写规则指针（所有权转移给引擎，调用者不应再释放）。
  * @return true 成功，false 失败（内存不足或参数无效）。
  */
-LV00_PUBLIC_API bool engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule);
+LV00_PUBLIC_API int engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule);
 
 /**
  * @brief 从指定文件路径加载一个模块到引擎。
@@ -447,7 +447,7 @@ LV00_PUBLIC_API AxiomLoadStatus engine_load_axiom_package(LV00Engine *engine, co
  * @param[out] out_func_block_id 输出：新创建的函数块 ID
  * @return true 成功，false 失败（参数无效或内存不足）
  */
-LV00_PUBLIC_API bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
+LV00_PUBLIC_API int engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
                           int input_count, const int *output_port_ids, int output_count, int *out_func_block_id);
 
 /**
@@ -612,7 +612,7 @@ LV00_PUBLIC_API void *engine_create_frozen_point(LV00Engine *engine);
  * @param frozen_point  由 engine_create_frozen_point() 返回的快照。
  * @return true 成功，false 失败。
  */
-LV00_PUBLIC_API bool engine_restore_frozen_point(LV00Engine *engine, void *frozen_point);
+LV00_PUBLIC_API int engine_restore_frozen_point(LV00Engine *engine, void *frozen_point);
 
 /**
  * @brief 销毁冻结点快照，释放其内存。

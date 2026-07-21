@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_game_theory.c
  * @brief 博弈论预设函数块 - 实现
  *
@@ -36,7 +36,7 @@ bool preset_game_theory_register(void)
             "normal_form_game",
             "构造标准型（策略型）博弈 G = (N, S, u)",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ bool preset_game_theory_register(void)
             "extensive_form_game",
             "构造扩展型博弈（博弈树）",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -58,7 +58,7 @@ bool preset_game_theory_register(void)
             "pure_nash_equilibrium",
             "求解纯策略Nash均衡",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -67,7 +67,7 @@ bool preset_game_theory_register(void)
             "mixed_nash_equilibrium",
             "求解双人博弈的混合策略Nash均衡",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ bool preset_game_theory_register(void)
             "nash_equilibrium_existence",
             "判定Nash均衡的存在性",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -89,7 +89,7 @@ bool preset_game_theory_register(void)
             "dominant_strategy_analysis",
             "分析占优策略并进行策略删除（迭代删除被占优策略）",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ bool preset_game_theory_register(void)
             "maxmin_strategy",
             "计算玩家的最大最小策略（最坏情况下的最优策略）",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -111,7 +111,7 @@ bool preset_game_theory_register(void)
             "shapley_value",
             "计算合作博弈的Shapley值（公平分配）",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -120,7 +120,7 @@ bool preset_game_theory_register(void)
             "coalition_core",
             "计算合作博弈的核心（稳定分配集）",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            1, 1)) {
+            1, 1) == 0) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ bool preset_game_theory_register(void)
             "nash_bargaining_solution",
             "计算纳什讨价还价问题的解",
             PRESET_EXT_OPTIMIZATION_THEORY,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 

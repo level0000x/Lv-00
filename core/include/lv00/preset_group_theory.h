@@ -1,4 +1,4 @@
-#ifndef LV00_PRESET_GROUP_THEORY_H
+﻿#ifndef LV00_PRESET_GROUP_THEORY_H
 #define LV00_PRESET_GROUP_THEORY_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define GROUP_THEORY_PRESET_COUNT 39
-bool preset_group_theory_register(void);
+int preset_group_theory_register(void);
 
 #ifdef __cplusplus
 }

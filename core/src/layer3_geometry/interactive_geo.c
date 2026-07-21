@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interactive_geo.c
  * @brief 交互几何系统实现 —— 借鉴 Cinderella 与 Dr. Geo
  * @see interactive_geo.h
@@ -27,10 +27,10 @@ int interactive_geo_snapshot(Lv00InteractiveGeo *g);
 
 static bool is_active(const Lv00InteractiveGeo *g, int id)
 {
-    if (!g || !g->canvas_state.active_object_ids) return false;
+    if (!g || !g->canvas_state.active_object_ids) return -1;
     for (int i = 0; i < g->canvas_state.active_object_count; i++)
-        if (g->canvas_state.active_object_ids[i] == id) return true;
-    return false;
+        if (g->canvas_state.active_object_ids[i] == id) return 0;
+    return -1;
 }
 
 static void sync_matrix(Lv00GeoCanvasState *s)

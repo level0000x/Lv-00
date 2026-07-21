@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gappa_dsl.c
  * @brief Gappa DSL parsing and proof generation (stub implementations)
  */
@@ -102,8 +102,8 @@ char *lv00_gappa_prove(const char *script) {
  * @param out  输出格式描述
  * @return true 表示成功识别并填充格式
  */
-bool gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
-    if (!out) return false;
+int gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
+    if (!out) return -1;
     memset(out, 0, sizeof(Lv00GappaFormat));
     if (name) {
         if (strcmp(name, "binary32") == 0) {
@@ -127,7 +127,7 @@ bool gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
             out->precision_bits = 113;
             out->exponent_bits = 15;
         } else {
-            return false;
+            return -1;
         }
     } else {
         out->format_id = 0;
@@ -136,7 +136,7 @@ bool gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
         out->exponent_bits = 11;
     }
     out->rounding = LV00_ROUND_NE;
-    return true;
+    return 0;
 }
 
 /**
@@ -149,9 +149,9 @@ bool gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
  * @param goal_count 输出目标数量
  * @return true 表示解析成功
  */
-bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
+int gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                  Lv00GappaProofGoal **goals, int *goal_count) {
-    if (!input) return false;
+    if (!input) return -1;
     if (hyp) *hyp = NULL;
     if (hyp_count) *hyp_count = 0;
     if (goals) *goals = NULL;
@@ -265,7 +265,7 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
     if (hyp_count) *hyp_count = h_count;
     if (goals) *goals = g_arr;
     if (goal_count) *goal_count = g_count;
-    return true;
+    return 0;
 }
 
 /**
@@ -374,7 +374,7 @@ void gappa_result_free(Lv00GappaProofResult *result) {
  * @param count 规则数量（保留参数，未使用）
  * @return true 表示注册成功
  */
-bool gappa_register_rewrite_rules(const Lv00GappaRewriteRule *rules, int count) {
+int gappa_register_rewrite_rules(const Lv00GappaRewriteRule *rules, int count) {
     (void)rules; (void)count;
-    return true;
+    return 0;
 }

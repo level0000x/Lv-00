@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_geo_topology.c
  * @brief Tests for the geometric topology module.
  *
@@ -65,43 +65,43 @@ static void test_add_edge(void) {
     TEST_ASSERT_NOT_NULL(sc);
 
     /* Add edge 0-1 */
-    bool ok = geo_simplicial_add_edge(sc, 0, 1);
-    TEST_ASSERT(ok, "add edge 0-1 should succeed");
+    int ok = geo_simplicial_add_edge(sc, 0, 1);
+    TEST_ASSERT(ok == 0, "add edge 0-1 should succeed");
     TEST_ASSERT_EQ(sc->n_edges, 1);
     TEST_ASSERT_EQ(sc->edges[0].v0, 0);
     TEST_ASSERT_EQ(sc->edges[0].v1, 1);
 
     /* Add edge 1-2 */
     ok = geo_simplicial_add_edge(sc, 1, 2);
-    TEST_ASSERT(ok, "add edge 1-2 should succeed");
+    TEST_ASSERT(ok == 0, "add edge 1-2 should succeed");
     TEST_ASSERT_EQ(sc->n_edges, 2);
 
     /* Add edge 2-0 */
     ok = geo_simplicial_add_edge(sc, 2, 0);
-    TEST_ASSERT(ok, "add edge 2-0 should succeed");
+    TEST_ASSERT(ok == 0, "add edge 2-0 should succeed");
     TEST_ASSERT_EQ(sc->n_edges, 3);
 
     /* Duplicate edge should not increase count */
     ok = geo_simplicial_add_edge(sc, 0, 1);
-    TEST_ASSERT(ok, "duplicate edge should not fail");
+    TEST_ASSERT(ok == 0, "duplicate edge should not fail");
     TEST_ASSERT_EQ(sc->n_edges, 3);
 
     /* Reverse order should also be detected as duplicate */
     ok = geo_simplicial_add_edge(sc, 1, 0);
-    TEST_ASSERT(ok, "reverse edge should not fail");
+    TEST_ASSERT(ok == 0, "reverse edge should not fail");
     TEST_ASSERT_EQ(sc->n_edges, 3);
 
     /* Self-loop should fail */
     ok = geo_simplicial_add_edge(sc, 0, 0);
-    TEST_ASSERT(!ok, "self-loop should fail");
+    TEST_ASSERT(ok != 0, "self-loop should fail");
 
     /* Out-of-range vertex should fail */
     ok = geo_simplicial_add_edge(sc, 0, 10);
-    TEST_ASSERT(!ok, "out-of-range vertex should fail");
+    TEST_ASSERT(ok != 0, "out-of-range vertex should fail");
 
     /* NULL complex should fail */
     ok = geo_simplicial_add_edge(NULL, 0, 1);
-    TEST_ASSERT(!ok, "NULL complex should fail");
+    TEST_ASSERT(ok != 0, "NULL complex should fail");
 
     geo_simplicial_destroy(sc);
 }
@@ -115,24 +115,24 @@ static void test_add_triangle(void) {
     TEST_ASSERT_NOT_NULL(sc);
 
     /* Add triangle 0-1-2 */
-    bool ok = geo_simplicial_add_triangle(sc, 0, 1, 2);
-    TEST_ASSERT(ok, "add triangle 0-1-2 should succeed");
+    int ok = geo_simplicial_add_triangle(sc, 0, 1, 2);
+    TEST_ASSERT(ok == 0, "add triangle 0-1-2 should succeed");
     TEST_ASSERT_EQ(sc->n_triangles, 1);
     /* Adding a triangle should also add its 3 boundary edges */
     TEST_ASSERT_EQ(sc->n_edges, 3);
 
     /* Duplicate triangle should not increase count */
     ok = geo_simplicial_add_triangle(sc, 2, 1, 0);
-    TEST_ASSERT(ok, "duplicate triangle should not fail");
+    TEST_ASSERT(ok == 0, "duplicate triangle should not fail");
     TEST_ASSERT_EQ(sc->n_triangles, 1);
 
     /* Degenerate triangle (two same vertices) should fail */
     ok = geo_simplicial_add_triangle(sc, 0, 0, 1);
-    TEST_ASSERT(!ok, "degenerate triangle should fail");
+    TEST_ASSERT(ok != 0, "degenerate triangle should fail");
 
     /* Out-of-range triangle should fail */
     ok = geo_simplicial_add_triangle(sc, 0, 1, 10);
-    TEST_ASSERT(!ok, "out-of-range triangle should fail");
+    TEST_ASSERT(ok != 0, "out-of-range triangle should fail");
 
     geo_simplicial_destroy(sc);
 }

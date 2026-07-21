@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file euclidean_geometry.c
  * @brief 欧几里得几何公理体系实现 —— Hilbert 五大公理组 + Birkhoff/Tarski 等价性
  *
@@ -243,14 +243,14 @@ void euclidean_destroy(EuclideanContext *ctx)
  * @param system 目标公理体系
  * @return true 切换成功，false 存在不一致
  */
-bool euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem system)
+int euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem system)
 {
     if (!ctx) {
-        return false;
+        return -1;
     }
 
     if (ctx->active_axiom_system == system) {
-        return true;
+        return 0;
     }
 
     EuclideanAxiomSystem old_system = ctx->active_axiom_system;
@@ -258,7 +258,7 @@ bool euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem syst
 
     if (!euclidean_check_consistency(ctx)) {
         ctx->active_axiom_system = old_system;
-        return false;
+        return -1;
     }
 
     /* 根据新体系调整公理默认启用状态 */
@@ -278,7 +278,7 @@ bool euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem syst
         break;
     }
 
-    return true;
+    return 0;
 }
 
 /**
@@ -326,12 +326,12 @@ void euclidean_bind_graph(EuclideanContext *ctx, ConstraintGraph *graph)
 static bool euclidean_toggle_axiom(EuclideanContext *ctx, int group, int axiom_id, bool enabled)
 {
     if (!ctx) {
-        return false;
+        return -1;
     }
 
     int offset = euclidean_axiom_mask_offset(group, axiom_id);
     if (offset < 0) {
-        return false;
+        return -1;
     }
 
     if (enabled) {
@@ -341,7 +341,7 @@ static bool euclidean_toggle_axiom(EuclideanContext *ctx, int group, int axiom_i
     }
 
     euclidean_check_consistency(ctx);
-    return true;
+    return 0;
 }
 
 /* ========================================================================
@@ -515,17 +515,17 @@ int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord
  * @param count     点数量（必须 >= 3）
  * @return true 断言成功且一致，false 冲突
  */
-bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int count)
+int euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int count)
 {
     if (!ctx || !point_ids || count < 3) {
-        return false;
+        return -1;
     }
 
     for (int i = 0; i < count; i++) {
         if (!euclidean_point_is_registered(ctx, point_ids[i])) {
             euclidean_set_inconsistency(ctx, point_ids[i],
                 "Collinearity assertion failed: unregistered point");
-            return false;
+            return -1;
         }
     }
 
@@ -535,7 +535,7 @@ bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int
         if (line_result != ADD_NODE_OK) {
             euclidean_set_inconsistency(ctx, -1,
                 "Collinearity assertion failed: cannot create reference line");
-            return false;
+            return -1;
         }
         int line_id = graph_get_last_added_node_id(ctx->constraint_graph);
 
@@ -545,12 +545,12 @@ bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int
             if (con_result == ADD_CONSTRAINT_CONFLICT) {
                 euclidean_set_inconsistency(ctx, point_ids[i],
                     "Collinearity assertion failed: constraint conflict");
-                return false;
+                return -1;
             }
         }
     }
 
-    return true;
+    return 0;
 }
 
 /**
@@ -565,16 +565,16 @@ bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int
  * @param c_id 点 C 的 ID
  * @return true 断言成功且一致，false 冲突
  */
-bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_id)
+int euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_id)
 {
     if (!ctx) {
-        return false;
+        return -1;
     }
 
     if (a_id == b_id || b_id == c_id || a_id == c_id) {
         euclidean_set_inconsistency(ctx, b_id,
             "Betweenness assertion failed: points must be distinct");
-        return false;
+        return -1;
     }
 
     if (!euclidean_point_is_registered(ctx, a_id) ||
@@ -582,7 +582,7 @@ bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_i
         !euclidean_point_is_registered(ctx, c_id)) {
         euclidean_set_inconsistency(ctx, b_id,
             "Betweenness assertion failed: unregistered point");
-        return false;
+        return -1;
     }
 
     if (ctx->constraint_graph) {
@@ -591,11 +591,11 @@ bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_i
         if (result == ADD_CONSTRAINT_CONFLICT) {
             euclidean_set_inconsistency(ctx, b_id,
                 "Betweenness assertion failed: constraint conflict");
-            return false;
+            return -1;
         }
     }
 
-    return true;
+    return 0;
 }
 
 /**
@@ -610,16 +610,16 @@ bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_i
  * @param b2_id 第二条线段的第二个端点 ID
  * @return true 断言成功且一致，false 冲突
  */
-bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int b1_id, int b2_id)
+int euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int b1_id, int b2_id)
 {
     if (!ctx) {
-        return false;
+        return -1;
     }
 
     if (a1_id == a2_id || b1_id == b2_id) {
         euclidean_set_inconsistency(ctx, a1_id,
             "Congruence assertion failed: segment endpoints must be distinct");
-        return false;
+        return -1;
     }
 
     if (!euclidean_point_is_registered(ctx, a1_id) ||
@@ -628,21 +628,21 @@ bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int
         !euclidean_point_is_registered(ctx, b2_id)) {
         euclidean_set_inconsistency(ctx, a1_id,
             "Congruence assertion failed: unregistered point");
-        return false;
+        return -1;
     }
 
     if (ctx->constraint_graph) {
         AddNodeResult seg_a_result = graph_add_line_segment(
             ctx->constraint_graph, a1_id, a2_id);
         if (seg_a_result != ADD_NODE_OK) {
-            return false;
+            return -1;
         }
         int seg_a_id = graph_get_last_added_node_id(ctx->constraint_graph);
 
         AddNodeResult seg_b_result = graph_add_line_segment(
             ctx->constraint_graph, b1_id, b2_id);
         if (seg_b_result != ADD_NODE_OK) {
-            return false;
+            return -1;
         }
         int seg_b_id = graph_get_last_added_node_id(ctx->constraint_graph);
 
@@ -651,11 +651,11 @@ bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int
         if (con_result == ADD_CONSTRAINT_CONFLICT) {
             euclidean_set_inconsistency(ctx, a1_id,
                 "Congruence assertion failed: constraint conflict");
-            return false;
+            return -1;
         }
     }
 
-    return true;
+    return 0;
 }
 
 /* ========================================================================
@@ -674,7 +674,7 @@ static bool euclidean_verify_theorem(EuclideanContext *ctx, const void *proposit
 {
     if (!ctx || !proposition) {
         if (proof_out) *proof_out = 0;
-        return false;
+        return -1;
     }
 
     int result = false;
@@ -704,27 +704,27 @@ static bool euclidean_verify_theorem(EuclideanContext *ctx, const void *proposit
  * @param ctx 欧几里得上下文
  * @return true 一致，false 存在矛盾
  */
-bool euclidean_check_consistency(EuclideanContext *ctx)
+int euclidean_check_consistency(EuclideanContext *ctx)
 {
     if (!ctx) {
-        return false;
+        return -1;
     }
 
     euclidean_clear_inconsistency(ctx);
 
     if (ctx->point_count == 0) {
         ctx->is_consistent = true;
-        return true;
+        return 0;
     }
 
     if (!ctx->constraint_graph) {
         ctx->is_consistent = true;
-        return true;
+        return 0;
     }
 
     if (!euclidean_verify_axiom_inconsistency(ctx)) {
         ctx->is_consistent = false;
-        return false;
+        return -1;
     }
 
     int conflict_count = 0;
@@ -746,14 +746,14 @@ bool euclidean_check_consistency(EuclideanContext *ctx)
         lv00_free((void **)&conflicts);
         if (conflict_sizes) lv00_free((void **)&conflict_sizes);
 
-        return false;
+        return -1;
     }
 
     if (conflicts) lv00_free((void **)&conflicts);
     if (conflict_sizes) lv00_free((void **)&conflict_sizes);
 
     ctx->is_consistent = true;
-    return true;
+    return 0;
 }
 
 /* ========================================================================
@@ -1031,11 +1031,11 @@ static int euclidean_axiom_mask_offset(int group, int axiom_id)
  */
 static bool euclidean_point_is_registered(const EuclideanContext *ctx, int point_id)
 {
-    if (!ctx || ctx->point_count == 0) return false;
+    if (!ctx || ctx->point_count == 0) return -1;
     for (int i = 0; i < ctx->point_count; i++) {
-        if (ctx->registered_points[i] == point_id) return true;
+        if (ctx->registered_points[i] == point_id) return 0;
     }
-    return false;
+    return -1;
 }
 
 /**
@@ -1043,11 +1043,11 @@ static bool euclidean_point_is_registered(const EuclideanContext *ctx, int point
  */
 static bool euclidean_line_is_registered(const EuclideanContext *ctx, int line_id)
 {
-    if (!ctx || ctx->line_count == 0) return false;
+    if (!ctx || ctx->line_count == 0) return -1;
     for (int i = 0; i < ctx->line_count; i++) {
-        if (ctx->registered_lines[i] == line_id) return true;
+        if (ctx->registered_lines[i] == line_id) return 0;
     }
-    return false;
+    return -1;
 }
 
 /**
@@ -1055,11 +1055,11 @@ static bool euclidean_line_is_registered(const EuclideanContext *ctx, int line_i
  */
 static bool euclidean_circle_is_registered(const EuclideanContext *ctx, int circle_id)
 {
-    if (!ctx || ctx->circle_count == 0) return false;
+    if (!ctx || ctx->circle_count == 0) return -1;
     for (int i = 0; i < ctx->circle_count; i++) {
-        if (ctx->registered_circles[i] == circle_id) return true;
+        if (ctx->registered_circles[i] == circle_id) return 0;
     }
-    return false;
+    return -1;
 }
 
 /**
@@ -1068,7 +1068,7 @@ static bool euclidean_circle_is_registered(const EuclideanContext *ctx, int circ
 static bool graph_find_collinear_constraint(const ConstraintGraph *graph,
                                              int p1_id, int p2_id, int p3_id)
 {
-    if (!graph) return false;
+    if (!graph) return -1;
 
     int indices1[256];
     int indices2[256];
@@ -1085,14 +1085,14 @@ static bool graph_find_collinear_constraint(const ConstraintGraph *graph,
                 for (int pj = 0; pj < c2->participant_count; pj++) {
                     if (c1->participants[pi] == c2->participants[pj]) {
                         for (int pk = 0; pk < c1->participant_count; pk++) {
-                            if (c1->participants[pk] == p2_id) return true;
+                            if (c1->participants[pk] == p2_id) return 0;
                         }
                     }
                 }
             }
         }
     }
-    return false;
+    return -1;
 }
 
 /**
@@ -1102,7 +1102,7 @@ static bool graph_find_congruence_constraint(const ConstraintGraph *graph,
                                               int a1_id, int a2_id,
                                               int b1_id, int b2_id)
 {
-    if (!graph) return false;
+    if (!graph) return -1;
 
     int max_constraints = graph_get_constraint_count(graph);
     for (int i = 0; i < max_constraints && i < 1000; i++) {
@@ -1115,9 +1115,9 @@ static bool graph_find_congruence_constraint(const ConstraintGraph *graph,
             if (c->participants[p] == b1_id || c->participants[p] == b2_id)
                 found_b = true;
         }
-        if (found_a && found_b) return true;
+        if (found_a && found_b) return 0;
     }
-    return false;
+    return -1;
 }
 
 /**
@@ -1125,18 +1125,18 @@ static bool graph_find_congruence_constraint(const ConstraintGraph *graph,
  */
 static bool euclidean_register_point_id(EuclideanContext *ctx, int point_id)
 {
-    if (!ctx) return false;
+    if (!ctx) return -1;
 
     if (ctx->point_count >= ctx->point_capacity) {
         int new_capacity = ctx->point_capacity * LV00_ARRAY_GROWTH_FACTOR;
         int *new_array = lv00_realloc(ctx->registered_points,
                                        (size_t)new_capacity * sizeof(int));
-        if (!new_array) return false;
+        if (!new_array) return -1;
         ctx->registered_points = new_array;
         ctx->point_capacity = new_capacity;
     }
     ctx->registered_points[ctx->point_count++] = point_id;
-    return true;
+    return 0;
 }
 
 /**
@@ -1144,18 +1144,18 @@ static bool euclidean_register_point_id(EuclideanContext *ctx, int point_id)
  */
 static bool euclidean_register_line_id(EuclideanContext *ctx, int line_id)
 {
-    if (!ctx) return false;
+    if (!ctx) return -1;
 
     if (ctx->line_count >= ctx->line_capacity) {
         int new_capacity = ctx->line_capacity * LV00_ARRAY_GROWTH_FACTOR;
         int *new_array = lv00_realloc(ctx->registered_lines,
                                        (size_t)new_capacity * sizeof(int));
-        if (!new_array) return false;
+        if (!new_array) return -1;
         ctx->registered_lines = new_array;
         ctx->line_capacity = new_capacity;
     }
     ctx->registered_lines[ctx->line_count++] = line_id;
-    return true;
+    return 0;
 }
 
 /**
@@ -1163,18 +1163,18 @@ static bool euclidean_register_line_id(EuclideanContext *ctx, int line_id)
  */
 static bool euclidean_register_circle_id(EuclideanContext *ctx, int circle_id)
 {
-    if (!ctx) return false;
+    if (!ctx) return -1;
 
     if (ctx->circle_count >= ctx->circle_capacity) {
         int new_capacity = ctx->circle_capacity * LV00_ARRAY_GROWTH_FACTOR;
         int *new_array = lv00_realloc(ctx->registered_circles,
                                        (size_t)new_capacity * sizeof(int));
-        if (!new_array) return false;
+        if (!new_array) return -1;
         ctx->registered_circles = new_array;
         ctx->circle_capacity = new_capacity;
     }
     ctx->registered_circles[ctx->circle_count++] = circle_id;
-    return true;
+    return 0;
 }
 
 /**
@@ -1188,20 +1188,20 @@ static bool symbolic_check_collinear(SymbolicCoord *ax, SymbolicCoord *ay,
                                       SymbolicCoord *bx, SymbolicCoord *by,
                                       SymbolicCoord *cx, SymbolicCoord *cy)
 {
-    if (!ax || !ay || !bx || !by || !cx || !cy) return false;
+    if (!ax || !ay || !bx || !by || !cx || !cy) return -1;
 
     SymbolicCoord *dx1 = symbolic_coord_subtract(bx, ax);
     SymbolicCoord *dy1 = symbolic_coord_subtract(cy, ay);
     if (!dx1 || !dy1) {
         if (dx1) symbolic_coord_destroy(dx1);
         if (dy1) symbolic_coord_destroy(dy1);
-        return false;
+        return -1;
     }
 
     SymbolicCoord *term1 = symbolic_coord_multiply(dx1, dy1);
     symbolic_coord_destroy(dx1);
     symbolic_coord_destroy(dy1);
-    if (!term1) return false;
+    if (!term1) return -1;
 
     SymbolicCoord *dx2 = symbolic_coord_subtract(by, ay);
     SymbolicCoord *dy2 = symbolic_coord_subtract(cx, ax);
@@ -1209,7 +1209,7 @@ static bool symbolic_check_collinear(SymbolicCoord *ax, SymbolicCoord *ay,
         if (dx2) symbolic_coord_destroy(dx2);
         if (dy2) symbolic_coord_destroy(dy2);
         symbolic_coord_destroy(term1);
-        return false;
+        return -1;
     }
 
     SymbolicCoord *term2 = symbolic_coord_multiply(dx2, dy2);
@@ -1217,13 +1217,13 @@ static bool symbolic_check_collinear(SymbolicCoord *ax, SymbolicCoord *ay,
     symbolic_coord_destroy(dy2);
     if (!term2) {
         symbolic_coord_destroy(term1);
-        return false;
+        return -1;
     }
 
     SymbolicCoord *diff = symbolic_coord_subtract(term1, term2);
     symbolic_coord_destroy(term1);
     symbolic_coord_destroy(term2);
-    if (!diff) return false;
+    if (!diff) return -1;
 
     bool result = symbolic_coord_is_zero(diff);
     symbolic_coord_destroy(diff);
@@ -1243,13 +1243,13 @@ static bool symbolic_check_between(SymbolicCoord *ax, SymbolicCoord *ay,
 {
     if (!ax || !ay || !bx || !by || !cx || !cy) {
         if (out_ratio) *out_ratio = -1.0;
-        return false;
+        return -1;
     }
 
     /* 首先确认三点共线 */
     if (!symbolic_check_collinear(ax, ay, bx, by, cx, cy)) {
         if (out_ratio) *out_ratio = -1.0;
-        return false;
+        return -1;
     }
 
     SymbolicCoord *ab_x = symbolic_coord_subtract(bx, ax);
@@ -1267,7 +1267,7 @@ static bool symbolic_check_between(SymbolicCoord *ax, SymbolicCoord *ay,
         if (ac_x) symbolic_coord_destroy(ac_x);
         if (ac_y) symbolic_coord_destroy(ac_y);
         if (out_ratio) *out_ratio = -1.0;
-        return false;
+        return -1;
     }
 
     double ab_len2 = symbolic_coord_to_double(ab_x) *
@@ -1313,14 +1313,14 @@ static bool symbolic_check_segment_congruent(SymbolicCoord *a1x, SymbolicCoord *
                                               double tolerance)
 {
     if (!a1x || !a1y || !a2x || !a2y ||
-        !b1x || !b1y || !b2x || !b2y) return false;
+        !b1x || !b1y || !b2x || !b2y) return -1;
 
     SymbolicCoord *dx_a = symbolic_coord_subtract(a2x, a1x);
     SymbolicCoord *dy_a = symbolic_coord_subtract(a2y, a1y);
     if (!dx_a || !dy_a) {
         if (dx_a) symbolic_coord_destroy(dx_a);
         if (dy_a) symbolic_coord_destroy(dy_a);
-        return false;
+        return -1;
     }
 
     SymbolicCoord *sq_dx_a = symbolic_coord_multiply(dx_a, dx_a);
@@ -1330,13 +1330,13 @@ static bool symbolic_check_segment_congruent(SymbolicCoord *a1x, SymbolicCoord *
     if (!sq_dx_a || !sq_dy_a) {
         if (sq_dx_a) symbolic_coord_destroy(sq_dx_a);
         if (sq_dy_a) symbolic_coord_destroy(sq_dy_a);
-        return false;
+        return -1;
     }
 
     SymbolicCoord *len2_a = symbolic_coord_add(sq_dx_a, sq_dy_a);
     symbolic_coord_destroy(sq_dx_a);
     symbolic_coord_destroy(sq_dy_a);
-    if (!len2_a) return false;
+    if (!len2_a) return -1;
 
     SymbolicCoord *dx_b = symbolic_coord_subtract(b2x, b1x);
     SymbolicCoord *dy_b = symbolic_coord_subtract(b2y, b1y);
@@ -1344,7 +1344,7 @@ static bool symbolic_check_segment_congruent(SymbolicCoord *a1x, SymbolicCoord *
         if (dx_b) symbolic_coord_destroy(dx_b);
         if (dy_b) symbolic_coord_destroy(dy_b);
         symbolic_coord_destroy(len2_a);
-        return false;
+        return -1;
     }
 
     SymbolicCoord *sq_dx_b = symbolic_coord_multiply(dx_b, dx_b);
@@ -1355,7 +1355,7 @@ static bool symbolic_check_segment_congruent(SymbolicCoord *a1x, SymbolicCoord *
         if (sq_dx_b) symbolic_coord_destroy(sq_dx_b);
         if (sq_dy_b) symbolic_coord_destroy(sq_dy_b);
         symbolic_coord_destroy(len2_a);
-        return false;
+        return -1;
     }
 
     SymbolicCoord *len2_b = symbolic_coord_add(sq_dx_b, sq_dy_b);
@@ -1363,7 +1363,7 @@ static bool symbolic_check_segment_congruent(SymbolicCoord *a1x, SymbolicCoord *
     symbolic_coord_destroy(sq_dy_b);
     if (!len2_b) {
         symbolic_coord_destroy(len2_a);
-        return false;
+        return -1;
     }
 
     double val_a = symbolic_coord_to_double(len2_a);
@@ -1394,7 +1394,7 @@ static bool symbolic_check_segment_congruent(SymbolicCoord *a1x, SymbolicCoord *
  */
 static bool euclidean_verify_axiom_inconsistency(EuclideanContext *ctx)
 {
-    if (!ctx) return false;
+    if (!ctx) return -1;
 
     /* 关联公理 I.1 验证：任意两点确定唯一直线 */
     if (ctx->enabled_axioms_mask &
@@ -1421,7 +1421,7 @@ static bool euclidean_verify_axiom_inconsistency(EuclideanContext *ctx)
                         euclidean_set_inconsistency(ctx, pi,
                             "Incidence axiom I.1 violation: "
                             "two points share multiple distinct lines");
-                        return false;
+                        return -1;
                     }
                 }
             }
@@ -1462,7 +1462,7 @@ static bool euclidean_verify_axiom_inconsistency(EuclideanContext *ctx)
                                 "Order axiom II.3 violation: "
                                 "two distinct points claimed between "
                                 "the same endpoints");
-                            return false;
+                            return -1;
                         }
                     }
                 }
@@ -1513,7 +1513,7 @@ static bool euclidean_verify_axiom_inconsistency(EuclideanContext *ctx)
         }
     }
 
-    return true;
+    return 0;
 }
 
 /**
@@ -1530,7 +1530,7 @@ static bool euclidean_verify_axiom_inconsistency(EuclideanContext *ctx)
  */
 static bool euclidean_build_birkhoff_to_tarski_map(EquivalenceProofChain *chain)
 {
-    if (!chain || !chain->axiom_translation_map) return false;
+    if (!chain || !chain->axiom_translation_map) return -1;
 
     static const int birkhoff_to_tarski[] = {
         0,  /* Birkhoff 0 (Ruler) → Tarski 0 (标识公理) */
@@ -1557,7 +1557,7 @@ static bool euclidean_build_birkhoff_to_tarski_map(EquivalenceProofChain *chain)
     }
     chain->translation_count = count;
 
-    return true;
+    return 0;
 }
 
 /**
@@ -1570,7 +1570,7 @@ static bool euclidean_build_birkhoff_to_tarski_map(EquivalenceProofChain *chain)
  */
 static bool euclidean_build_tarski_to_birkhoff_map(EquivalenceProofChain *chain)
 {
-    if (!chain || !chain->axiom_translation_map) return false;
+    if (!chain || !chain->axiom_translation_map) return -1;
 
     static const int tarski_to_birkhoff[] = {
         0,  /* Tarski 0 → Birkhoff 0 */
@@ -1592,12 +1592,12 @@ static bool euclidean_build_tarski_to_birkhoff_map(EquivalenceProofChain *chain)
     }
 
     for (int i = 0; i < count; i++) {
-        if (tarski_to_birkhoff[i] < 0) return false;
+        if (tarski_to_birkhoff[i] < 0) return -1;
     }
 
     chain->tarski_implies_birkhoff = true;
 
-    return true;
+    return 0;
 }
 
 /**

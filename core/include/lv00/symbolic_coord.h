@@ -181,7 +181,7 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b);
-bool       algebraic_try_rationalize(Algebraic *a);
+int        algebraic_try_rationalize(Algebraic *a);
 int        algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations);
 Algebraic *algebraic_from_rational(const Rational *r);
 Algebraic *algebraic_from_quadratic(const Quadratic *q);

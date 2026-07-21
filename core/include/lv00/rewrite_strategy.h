@@ -1,4 +1,4 @@
-#ifndef LV00_REWRITE_STRATEGY_H
+﻿#ifndef LV00_REWRITE_STRATEGY_H
 #define LV00_REWRITE_STRATEGY_H
 
 #include "lv00/rewrite.h"
@@ -84,12 +84,12 @@ Lv00RewriteEngineEx *rewrite_engine_ex_create(Lv00RewriteStrategyType strategy, 
 void rewrite_engine_ex_destroy(Lv00RewriteEngineEx *engine);
 
 /** 添加重写规则（按优先级排序） */
-bool rewrite_engine_ex_add_rule(Lv00RewriteEngineEx *engine,
+int rewrite_engine_ex_add_rule(Lv00RewriteEngineEx *engine,
     const char *name, const char *pattern, const char *replacement,
     int priority, Lv00RewriteConditionFn condition);
 
 /** 执行重写引擎 */
-bool rewrite_engine_ex_apply(Lv00RewriteEngineEx *engine,
+int rewrite_engine_ex_apply(Lv00RewriteEngineEx *engine,
     const char *input, Lv00RewriteResultEx *result);
 
 /** 销毁重写结果（NULL 安全） */

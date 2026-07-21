@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file approx_counter.c
  * @brief 近似计数器 —— ApproxMC 风格的 SAT 解近似计数
  *
@@ -510,16 +510,16 @@ static int count_solutions(CNFBuilder *cnf, int max_count) {
  * 公共 API
  * ============================================================ */
 
-bool approx_count_solutions(const ConstraintGraph *graph,
+int approx_count_solutions(const ConstraintGraph *graph,
                             const PacConfig *cfg,
                             ApproxCountResult *out) {
-    if (!graph || !out) return false;
+    if (!graph || !out) return -1;
 
     memset(out, 0, sizeof(*out));
 
     /* 步骤 1：编码约束图为 CNF */
     CNFBuilder *base = encode_constraint_graph(graph);
-    if (!base) return false;
+    if (!base) return -1;
 
     /* 步骤 2：确定哈希层级数 */
     /* 每个 XOR 约束将解空间减半 */
@@ -579,14 +579,14 @@ bool approx_count_solutions(const ConstraintGraph *graph,
     if (out->total_count == 0) out->confidence = 0.0;
 
     cnf_destroy(base);
-    return true;
+    return 0;
 }
 
-bool approx_count_projected(const ConstraintGraph *graph,
+int approx_count_projected(const ConstraintGraph *graph,
                             int *proj_vars, int proj_count,
                             const PacConfig *cfg,
                             ApproxCountResult *out) {
-    if (!graph || !out) return false;
+    if (!graph || !out) return -1;
 
     /* 投影计数：仅对投影变量进行哈希 */
     /* 简化实现：与全计数相同，
@@ -594,7 +594,7 @@ bool approx_count_projected(const ConstraintGraph *graph,
     memset(out, 0, sizeof(*out));
 
     CNFBuilder *base = encode_constraint_graph(graph);
-    if (!base) return false;
+    if (!base) return -1;
 
     int direct_count = count_solutions(base, 256);
     out->cell_sol_count = (uint64_t)direct_count;
@@ -606,7 +606,7 @@ bool approx_count_projected(const ConstraintGraph *graph,
     (void)proj_count;
 
     cnf_destroy(base);
-    return true;
+    return 0;
 }
 
 char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
@@ -650,7 +650,7 @@ bool is_approximately_constructible(const ConstraintGraph *graph,
     cfg.epsilon = 0.1;
     cfg.delta = 0.05;
 
-    if (!approx_count_solutions(graph, &cfg, &result)) return false;
+    if (approx_count_solutions(graph, &cfg, &result) != 0) return false;
 
     if (result.total_count == 0) return false;
 

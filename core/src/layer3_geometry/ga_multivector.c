@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ga_multivector.c
  * @brief Projective Geometric Algebra (PGA) multivector implementation
  *

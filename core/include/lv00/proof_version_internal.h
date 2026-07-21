@@ -1,4 +1,4 @@
-#ifndef LV00_PROOF_VERSION_INTERNAL_H
+﻿#ifndef LV00_PROOF_VERSION_INTERNAL_H
 #define LV00_PROOF_VERSION_INTERNAL_H
 
 #ifdef __cplusplus
@@ -98,7 +98,7 @@ void proof_repo_destroy(Lv00ProofRepo *repo);
  * @param file_count 文件数量
  * @return 提交成功返回 true，失败返回 false
  */
-bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
+int proof_repo_commit(Lv00ProofRepo *repo, const char *message,
     const char **files, const char **contents, size_t file_count);
 /**
  * @brief 获取提交历史日志，按时间倒序返回提交记录
@@ -118,7 +118,7 @@ size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_
  * @param diff 输出参数，存储差异结果
  * @return 比较成功返回 true，失败返回 false
  */
-bool proof_repo_diff(Lv00ProofRepo *repo, const char *oid_a, const char *oid_b,
+int proof_repo_diff(Lv00ProofRepo *repo, const char *oid_a, const char *oid_b,
     Lv00ProofDiff *diff);
 /**
  * @brief 销毁差异对象，释放差异条目占用的内存
@@ -133,7 +133,7 @@ void proof_repo_diff_destroy(Lv00ProofDiff *diff);
  * @param name 分支名称
  * @return 创建成功返回 true，失败（如重名或容量已满）返回 false
  */
-bool proof_repo_branch(Lv00ProofRepo *repo, const char *name);
+int proof_repo_branch(Lv00ProofRepo *repo, const char *name);
 /**
  * @brief 切换到指定分支，更新 HEAD 到该分支的最新提交
  *
@@ -141,7 +141,7 @@ bool proof_repo_branch(Lv00ProofRepo *repo, const char *name);
  * @param name 目标分支名称
  * @return 切换成功返回 true，失败返回 false
  */
-bool proof_repo_checkout(Lv00ProofRepo *repo, const char *name);
+int proof_repo_checkout(Lv00ProofRepo *repo, const char *name);
 
 #ifdef __cplusplus
 }

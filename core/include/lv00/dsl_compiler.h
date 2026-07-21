@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * 模块名称：DSL 编译器 (dsl_compiler)
  * 功能概述：借鉴 Ganja.js 的 AST 转译和 GCLC 几何构造语言，提供从
  *          DSL 源码到约束图的完整编译管线。包含词法分析、语法解析、
@@ -317,7 +317,7 @@ typedef struct DslCompileConfig {
  * @param out_count   输出：token 数量
  * @return true 成功，false 遇到致命词法错误
  */
-bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count);
+int dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count);
 
 /**
  * @brief 释放词法分析产生的 token 数组
@@ -337,7 +337,7 @@ void dsl_tokens_destroy(DslToken *tokens, int count);
  * @param out_ast  输出：AST 根节点（调用者通过 dsl_ast_destroy 释放）
  * @return true 成功，false 语法错误
  */
-bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast);
+int dsl_parse(const DslToken *tokens, int count, DslAST **out_ast);
 
 /**
  * @brief 将 AST 编译为中间表示（IR）
@@ -350,7 +350,7 @@ bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast);
  * @param out_ir    输出：编译生成的 IR（调用者通过 dsl_ir_destroy 释放）
  * @return true 成功，false 语义错误
  */
-bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir);
+int dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir);
 
 /**
  * @brief 将 IR 转换为约束图
@@ -362,7 +362,7 @@ bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_
  * @param graph 输出：填充好的约束图（调用者已有所有权）
  * @return true 成功，false IR 中存在无法解析的引用
  */
-bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph);
+int dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph);
 
 /**
  * @brief 一键编译并加载：DSL 源码直接生成约束图
@@ -375,7 +375,7 @@ bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph);
  * @param graph   输出：填充好的约束图
  * @return true 成功，false 编译或加载过程中出错
  */
-bool dsl_compile_and_load(const char *source, const DslCompileConfig *config, ConstraintGraph *graph);
+int dsl_compile_and_load(const char *source, const DslCompileConfig *config, ConstraintGraph *graph);
 
 /**
  * @brief 获取默认编译配置

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * propagation.c — 约束传播引擎实现
  *
  * WFC 风格的动态约束传播，包含：
@@ -445,7 +445,7 @@ static bool check_constraint_compatible(const SymbolicCoord *candidate,
     return true;
 }
 
-bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id) {
+int propagation_arc_reduce(PropagationContext *ctx, int constraint_id) {
     if (!ctx || !ctx->graph) return false;
 
     Constraint *c = graph_get_constraint(ctx->graph, constraint_id);
@@ -708,7 +708,7 @@ int propagation_select_node(PropagationContext *ctx) {
     return best_node;
 }
 
-bool propagation_collapse(PropagationContext *ctx, int node_id) {
+int propagation_collapse(PropagationContext *ctx, int node_id) {
     if (!ctx || node_id < 0 || node_id >= ctx->state_count) return false;
 
     NodeStateSpace *ss = &ctx->state_spaces[node_id];

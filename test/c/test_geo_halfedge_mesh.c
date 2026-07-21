@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_geo_halfedge_mesh.c
  * @brief Halfedge 网格拓扑模块测试（第十三梯队 geometry-central 落地验证）
  */
@@ -321,7 +321,7 @@ int main(void) {
         } else { FAIL("统计信息不正确"); tests_failed++; }
 
         TEST("validate: 验证网格一致性");
-        if (lv00_he_mesh_validate(mesh)) {
+        if (lv00_he_mesh_validate(mesh) == 0) {
             PASS(); tests_passed++;
         } else { FAIL("网格验证失败"); tests_failed++; }
 

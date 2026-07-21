@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_preset_ops.h
  * @brief 预设函数块操作接口 - 提供高级预设操作功能
  *
@@ -50,7 +50,7 @@ void preset_chain_destroy(PresetChain *chain);
  * @param input_mapping 输入映射（指定前一输出到本输入的对应关系）
  * @return true 添加成功
  */
-bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *input_mapping);
+int preset_chain_add(PresetChain *chain, const char *preset_name, const int *input_mapping);
 /**
  * @brief 执行预设链
  *
@@ -62,7 +62,7 @@ bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *in
  * @param out_output_count 输出结果数量
  * @return true 执行成功
  */
-bool preset_chain_execute(PresetChain *chain, ConstraintGraph *graph, const int *initial_args, int arg_count,
+int preset_chain_execute(PresetChain *chain, ConstraintGraph *graph, const int *initial_args, int arg_count,
                           int **out_final_outputs, int *out_output_count);
 /* ================================================================
  * 预设批量操作
@@ -80,7 +80,7 @@ bool preset_chain_execute(PresetChain *chain, ConstraintGraph *graph, const int 
  * @param out_results 输出结果数组（每个实例的输出节点ID）
  * @return true 批量实例化成功
  */
-bool preset_batch_instantiate(const char *preset_name, ConstraintGraph *graph, const int **arg_sets, int set_count,
+int preset_batch_instantiate(const char *preset_name, ConstraintGraph *graph, const int **arg_sets, int set_count,
                               int args_per_set, int ***out_results);
 /**
  * @brief 批量应用预设到节点集合
@@ -94,7 +94,7 @@ bool preset_batch_instantiate(const char *preset_name, ConstraintGraph *graph, c
  * @param out_results 输出结果数组
  * @return true 批量应用成功
  */
-bool preset_batch_apply(const char *preset_name, ConstraintGraph *graph, const int *target_nodes, int node_count,
+int preset_batch_apply(const char *preset_name, ConstraintGraph *graph, const int *target_nodes, int node_count,
                         int ***out_results);
 /* ================================================================
  * 预设验证与测试
@@ -133,7 +133,7 @@ void preset_validation_result_destroy(PresetValidationResult *result);
  * @param arg_count 参数数量
  * @return true 测试通过
  */
-bool preset_test_instantiation(const char *preset_name, ConstraintGraph *graph, const int *test_args, int arg_count);
+int preset_test_instantiation(const char *preset_name, ConstraintGraph *graph, const int *test_args, int arg_count);
 /* ================================================================
  * 预设参数操作
  * ================================================================ */
@@ -153,7 +153,7 @@ typedef struct {
  * @param out_count 输出绑定数量
  * @return true 创建成功
  */
-bool preset_create_bindings(const char *preset_name, PresetParamBinding **out_bindings, int *out_count);
+int preset_create_bindings(const char *preset_name, PresetParamBinding **out_bindings, int *out_count);
 /**
  * @brief 释放参数绑定数组
  *
@@ -169,7 +169,7 @@ void preset_bindings_destroy(PresetParamBinding *bindings);
  * @param out_new_preset_name 输出新预设名称（自动生成）
  * @return true 创建成功
  */
-bool preset_partial_bind(const char *preset_name, const PresetParamBinding *bindings, int binding_count,
+int preset_partial_bind(const char *preset_name, const PresetParamBinding *bindings, int binding_count,
                          char **out_new_preset_name);
 /* ================================================================
  * 预设搜索与推荐
@@ -248,7 +248,7 @@ typedef enum {
  * @param out_recursive_name 输出递归预设名称
  * @return true 创建成功
  */
-bool preset_make_recursive(const char *base_preset, int max_iterations, char **out_recursive_name);
+int preset_make_recursive(const char *base_preset, int max_iterations, char **out_recursive_name);
 #ifdef __cplusplus
 }
 #endif

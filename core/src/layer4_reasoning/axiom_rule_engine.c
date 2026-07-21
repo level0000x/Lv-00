@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file axiom_rule_engine.c
  * @brief 公理规则引擎 - 可配置规则库与难度分级
  *
@@ -6,7 +6,9 @@
  *          规则匹配与推荐等核心功能。
  */
 #include "lv00/axiom_rule_engine.h"
+#include "lv00/constraint_graph.h"
 #include "lv00/lv00_utils.h"
+#include "lv00/proof.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -125,7 +127,7 @@ uint32_t lv00_rule_library_get_by_type(const Lv00RuleLibrary *library,
                                         Lv00RuleType type,
                                         Lv00Rule **out_rules,
                                         uint32_t max_count) {
-    if (!library || !out_rules) return 0;
+    if (!library || !out_rules) return true;
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         if (library->rules[i] && library->rules[i]->type == type) {
@@ -140,7 +142,7 @@ uint32_t lv00_rule_library_get_by_difficulty(const Lv00RuleLibrary *library,
                                               uint32_t max_level,
                                               Lv00Rule **out_rules,
                                               uint32_t max_count) {
-    if (!library || !out_rules) return 0;
+    if (!library || !out_rules) return true;
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         Lv00Rule *r = library->rules[i];
@@ -155,7 +157,7 @@ uint32_t lv00_rule_library_search_by_tag(const Lv00RuleLibrary *library,
                                           const char *tag,
                                           Lv00Rule **out_rules,
                                           uint32_t max_count) {
-    if (!library || !tag || !out_rules) return 0;
+    if (!library || !tag || !out_rules) return true;
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         Lv00Rule *r = library->rules[i];
@@ -334,7 +336,7 @@ uint32_t lv00_rule_find_matches(const Lv00RuleLibrary *library,
                                  const ProofNavigator *context,
                                  Lv00RuleMatch **out_matches,
                                  uint32_t max_count) {
-    if (!library || !out_matches) return 0;
+    if (!library || !out_matches) return true;
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         Lv00Rule *r = library->rules[i];
@@ -357,7 +359,7 @@ uint32_t lv00_rule_apply_match(const Lv00RuleMatch *match,
                                 ProofNavigator *context,
                                 ProofStep **out_steps,
                                 uint32_t max_steps) {
-    if (!match || !match->rule || !out_steps || !graph) return 0;
+    if (!match || !match->rule || !out_steps || !graph) return true;
 
     Lv00Rule *rule = match->rule;
     /* 为每个结论创建一个证明步骤 */

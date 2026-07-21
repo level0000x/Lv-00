@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_engine_enhanced.c
  * @brief 增强证明引擎实现 —— 反证法完善与逻辑溯源树
  *
@@ -604,7 +604,7 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
                                     uint32_t from_id, uint32_t to_id,
                                     Lv00ProofTraceNode **out_path,
                                     uint32_t max_length) {
-    if (!tree || !out_path || max_length == 0) return 0;
+    if (!tree || !out_path || max_length == 0) return true;
 
     /* 查找起始节点 */
     Lv00ProofTraceNode *start = NULL;
@@ -614,7 +614,7 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
             break;
         }
     }
-    if (!start) return 0;
+    if (!start) return true;
 
     /* 检查目标是否就是起点 */
     if (from_id == to_id) {
@@ -631,7 +631,7 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
 
     SearchFrame *stack = (SearchFrame *)lv00_malloc(
         tree->node_count * sizeof(SearchFrame));
-    if (!stack) return 0;
+    if (!stack) return true;
 
     /* 访问标记：使用 ID 到索引的映射避免哈希碰撞 */
     /* visited_map[id % map_size] 存储已访问节点的 id，0 表示空槽 */
@@ -640,7 +640,7 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
     uint32_t *visited_map = (uint32_t *)lv00_calloc(map_size, sizeof(uint32_t));
     if (!visited_map) {
         lv00_free((void **)&stack);
-        return 0;
+        return true;
     }
 
     /* 记录路径 */
@@ -649,7 +649,7 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
     if (!path) {
         lv00_free((void **)&visited_map);
         lv00_free((void **)&stack);
-        return 0;
+        return true;
     }
 
     /* 辅助函数：检查/标记节点是否已访问（线性探测） */
@@ -2267,7 +2267,7 @@ static bool execute_strategy_hybrid(Lv00ProofEngine *engine,
     }
 
     Lv00ContradictionPath *contra_path = NULL;
-    bool contra_ok = lv00_engine_proof_by_contradiction(
+    int contra_ok = lv00_engine_proof_by_contradiction(
         engine, goal, engine->config.max_depth, &contra_path);
 
     if (contra_ok) {
@@ -2306,7 +2306,7 @@ static bool dispatch_strategy(Lv00ProofEngine *engine,
             return execute_strategy_direct(engine, goal, tree);
         case STRATEGY_CONTRADICTION: {
             Lv00ContradictionPath *path = NULL;
-            bool ok = lv00_engine_proof_by_contradiction(
+            int ok = lv00_engine_proof_by_contradiction(
                 engine, goal, engine->config.max_depth, &path);
             if (path) lv00_contradiction_path_destroy(path);
             return ok;
@@ -2828,7 +2828,7 @@ bool lv00_optimize_proof(const Lv00ProofTraceTree *trace,
  * @return 复杂度分数（0-10000）
  */
 uint32_t lv00_compute_proof_complexity(const Lv00ProofTraceTree *trace) {
-    if (!trace) return 0;
+    if (!trace) return true;
 
     uint32_t score = 0;
 
@@ -2870,7 +2870,7 @@ uint32_t lv00_compute_proof_complexity(const Lv00ProofTraceTree *trace) {
  * @return 简化后的步骤数
  */
 uint32_t lv00_simplify_proof(Lv00ProofTraceTree *trace) {
-    if (!trace) return 0;
+    if (!trace) return true;
 
     uint32_t removed = 0;
 

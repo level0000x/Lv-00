@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_dynamical_systems.c
  * @brief 动力系统预设函数块 - 实现
  *
@@ -36,7 +36,7 @@ bool preset_dynamical_systems_register(void)
             "fixed_point_compute",
             "计算离散动力系统 x_{n+1} = f(x_n) 的不动点",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ bool preset_dynamical_systems_register(void)
             "fixed_point_stability",
             "判定不动点的稳定性（|f'(x*)| 与1的关系）",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ bool preset_dynamical_systems_register(void)
             "periodic_point",
             "计算周期为n的周期点 f^n(x) = x",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -67,7 +67,7 @@ bool preset_dynamical_systems_register(void)
             "bifurcation_detection",
             "检测参数化系统 dx/dt = f(x,μ) 的分岔点",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ bool preset_dynamical_systems_register(void)
             "bifurcation_diagram",
             "构造离散动力系统的分岔图（参数扫描）",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -85,7 +85,7 @@ bool preset_dynamical_systems_register(void)
             "hopf_bifurcation_test",
             "判定连续动力系统是否发生Hopf分岔",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ bool preset_dynamical_systems_register(void)
             "lyapunov_exponent",
             "计算一维映射的Lyapunov指数 λ = lim (1/n) Σ ln|f'(x_i)|",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -107,7 +107,7 @@ bool preset_dynamical_systems_register(void)
             "chaos_detection",
             "基于Lyapunov指数判定系统是否混沌（λ > 0）",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -120,7 +120,7 @@ bool preset_dynamical_systems_register(void)
             "attractor_compute",
             "计算动力系统的吸引子",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ bool preset_dynamical_systems_register(void)
             "strange_attractor_test",
             "检测系统是否具有奇异吸引子",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -142,7 +142,7 @@ bool preset_dynamical_systems_register(void)
             "phase_plane_analysis",
             "二维自治系统的相平面分析",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -151,7 +151,7 @@ bool preset_dynamical_systems_register(void)
             "limit_cycle_detection",
             "检测二维系统是否存在极限环",
             PRESET_EXT_ANALYSIS,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -160,7 +160,7 @@ bool preset_dynamical_systems_register(void)
             "poincare_map",
             "构造Poincaré截面映射",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -169,7 +169,7 @@ bool preset_dynamical_systems_register(void)
             "sensitivity_analysis",
             "分析初始条件的敏感依赖性",
             PRESET_EXT_ANALYSIS,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 

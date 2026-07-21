@@ -1,4 +1,4 @@
-#ifndef LV00_RATIONAL_H
+﻿#ifndef LV00_RATIONAL_H
 #define LV00_RATIONAL_H
 
 #ifdef __cplusplus
@@ -38,7 +38,7 @@ void          lv00_rational_destroy(Lv00Rational **r);
 void lv00_rational_set(Lv00Rational *dst, const Lv00Rational *src);
 void lv00_rational_set_zero(Lv00Rational *r);
 void lv00_rational_set_one(Lv00Rational *r);
-bool lv00_rational_set_mpz(Lv00Rational *r, const mpz_t num, const mpz_t den);
+int lv00_rational_set_mpz(Lv00Rational *r, const mpz_t num, const mpz_t den);
 
 /* ========================================================================
  * 规范化
@@ -65,7 +65,7 @@ Lv00Rational *lv00_rational_abs(const Lv00Rational *a);
 void lv00_rational_add_inplace(Lv00Rational *a, const Lv00Rational *b);
 void lv00_rational_sub_inplace(Lv00Rational *a, const Lv00Rational *b);
 void lv00_rational_mul_inplace(Lv00Rational *a, const Lv00Rational *b);
-bool lv00_rational_div_inplace(Lv00Rational *a, const Lv00Rational *b);
+int lv00_rational_div_inplace(Lv00Rational *a, const Lv00Rational *b);
 void lv00_rational_neg_inplace(Lv00Rational *a);
 
 /* ========================================================================
@@ -83,7 +83,7 @@ int  lv00_rational_sgn(const Lv00Rational *a);
  * 与 double 的转换
  * ======================================================================== */
 
-bool lv00_rational_to_double(const Lv00Rational *r, double *out_lossy, int *out_loss_bits);
+int lv00_rational_to_double(const Lv00Rational *r, double *out_lossy, int *out_loss_bits);
 int  lv00_rational_estimate_loss(const Lv00Rational *r);
 
 /* ========================================================================

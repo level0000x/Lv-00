@@ -495,7 +495,7 @@ char formula_peek_next(ParserContext *ctx);
 /** @brief 消费当前字符 */
 char formula_consume(ParserContext *ctx);
 /** @brief 期望并消费指定字符 */
-bool formula_expect_char(ParserContext *ctx, char c);
+int formula_expect_char(ParserContext *ctx, char c);
 /** @brief 设置解析错误信息 */
 void formula_set_error(ParserContext *ctx, const char *msg);
 /** @brief 检查是否到达输入末尾 */
@@ -507,9 +507,9 @@ bool formula_is_alnum(char c);
 /** @brief 检查字符是否为十进制数字 */
 bool formula_is_digit(char c);
 /** @brief 检查当前位置是否匹配字符串（不消费） */
-bool formula_match_string(ParserContext *ctx, const char *str);
+int formula_match_string(ParserContext *ctx, const char *str);
 /** @brief 匹配并消费字符串 */
-bool formula_match_and_consume(ParserContext *ctx, const char *str);
+int formula_match_and_consume(ParserContext *ctx, const char *str);
 /** @brief 跟踪节点（设置行列号、引用计数） */
 FormulaNode *formula_track_node(ParserContext *ctx, FormulaNode *node);
 /** @brief 解析数字字面量 */

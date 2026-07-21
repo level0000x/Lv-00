@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file groebner_parallel.c
  * @brief 并行 Groebner 基计算引擎 —— 基于 Buchberger 算法的多线程实现
  *

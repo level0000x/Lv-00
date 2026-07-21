@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file expr_canon.c
  * @brief 代数表达式规范形式实现
  *
@@ -239,19 +239,19 @@ Lv00ExprCanonical *lv00_expr_canonical_clone(const Lv00ExprCanonical *src) {
  */
 static bool ensure_capacity(Lv00ExprCanonical *expr, int needed) {
     if (expr->term_count + needed <= expr->term_capacity)
-        return true;
+        return 0;
 
     /* 计算新容量 */
     int new_cap = expr->term_capacity;
     while (new_cap < expr->term_count + needed) {
         if (new_cap > INT_MAX / 2)
-            return false;
+            return -1;
         new_cap *= 2;
     }
 
     Lv00ExprTerm *new_terms = (Lv00ExprTerm *) lv00_realloc(expr->terms, (size_t) new_cap * sizeof(Lv00ExprTerm));
     if (!new_terms)
-        return false;
+        return -1;
 
     /* 初始化新槽位 */
     for (int i = expr->term_capacity; i < new_cap; i++) {
@@ -262,7 +262,7 @@ static bool ensure_capacity(Lv00ExprCanonical *expr, int needed) {
 
     expr->terms = new_terms;
     expr->term_capacity = new_cap;
-    return true;
+    return 0;
 }
 
 bool lv00_expr_canonical_add_term(Lv00ExprCanonical *expr, const Lv00Rational *coeff, const int *exponents) {

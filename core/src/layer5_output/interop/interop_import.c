@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop_import.c
  * @brief 导入（GeoGebra/SVG）
  *
@@ -708,14 +708,14 @@ typedef struct {
 static bool svg_parse_double(const char **s, double *val) {
     SVG_SKIP_WS(*s);
     if (**s == '\0')
-        return false;
+        return -1;
     char *end;
     *val = strtod(*s, &end);
     if (end == *s)
-        return false;
+        return -1;
     *s = end;
     SVG_SKIP_WS(*s);
-    return true;
+    return 0;
 }
 
 /** @brief 读取两个浮点数（坐标对） */
@@ -749,7 +749,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
         case 'm': {
             /* moveto：移动到绝对位置 */
             if (!svg_parse_coord(s, &abs_x, &abs_y))
-                return false;
+                return -1;
             if (is_relative) {
                 abs_x += state->cx;
                 abs_y += state->cy;
@@ -763,14 +763,14 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             state->cy = abs_y;
             state->start_x = abs_x;
             state->start_y = abs_y;
-            return true;
+            return 0;
         }
 
         case 'L':
         case 'l': {
             /* lineto：直线段 */
             if (!svg_parse_coord(s, &abs_x, &abs_y))
-                return false;
+                return -1;
             if (is_relative) {
                 abs_x += state->cx;
                 abs_y += state->cy;
@@ -782,7 +782,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             }
             state->cx = abs_x;
             state->cy = abs_y;
-            return true;
+            return 0;
         }
 
         case 'C':
@@ -790,7 +790,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             /* cubic Bezier: C x1,y1 x2,y2 x,y */
             double x1, y1, x2, y2;
             if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &x2, &y2) || !svg_parse_coord(s, &abs_x, &abs_y))
-                return false;
+                return -1;
             if (is_relative) {
                 x1 += state->cx;
                 y1 += state->cy;
@@ -813,7 +813,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             }
             state->cx = abs_x;
             state->cy = abs_y;
-            return true;
+            return 0;
         }
 
         case 'Q':
@@ -821,7 +821,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             /* quadratic Bezier: Q x1,y1 x,y */
             double x1, y1;
             if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &abs_x, &abs_y))
-                return false;
+                return -1;
             if (is_relative) {
                 x1 += state->cx;
                 y1 += state->cy;
@@ -840,7 +840,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             }
             state->cx = abs_x;
             state->cy = abs_y;
-            return true;
+            return 0;
         }
 
         case 'A':
@@ -850,7 +850,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             double laf_d, sf_d;
             if (!svg_parse_double(s, &rx) || !svg_parse_double(s, &ry) || !svg_parse_double(s, &rot) ||
                 !svg_parse_double(s, &laf_d) || !svg_parse_double(s, &sf_d) || !svg_parse_coord(s, &dx, &dy))
-                return false;
+                return -1;
             LV00_UNUSED(ry); LV00_UNUSED(rot); LV00_UNUSED(laf_d); /* parsed for future SVG arc implementation */
             int sf = (int) (sf_d + 0.5);
             if (is_relative) {
@@ -889,7 +889,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             }
             state->cx = dx;
             state->cy = dy;
-            return true;
+            return 0;
         }
 
         case 'Z':
@@ -902,11 +902,11 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             }
             state->cx = state->start_x;
             state->cy = state->start_y;
-            return true;
+            return 0;
         }
 
         default:
-            return false;
+            return -1;
     }
 }
 

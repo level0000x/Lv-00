@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_contradiction.c
  * @brief 反证法与矛盾推演系统实现
  *

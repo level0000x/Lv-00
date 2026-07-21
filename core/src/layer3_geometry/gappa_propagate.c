@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gappa_propagate.c
  * @brief Gappa 浮点误差传播引擎
  *
@@ -339,25 +339,25 @@ void gappa_pred_set_init(Lv00GappaPredSet *set) {
     set->capacity = 0;
 }
 
-bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
-    if (!set || !pred) return false;
+int gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
+    if (!set || !pred) return -1;
 
     /* Check for duplicate expr_lhs */
     for (int i = 0; i < set->count; i++) {
         if (strcmp(set->preds[i].expr_lhs, pred->expr_lhs) == 0) {
-            return false;  /* Duplicate: a predicate with this name already exists */
+            return -1;  /* Duplicate: a predicate with this name already exists */
         }
     }
 
     if (set->count >= set->capacity) {
         int new_cap = set->capacity > 0 ? set->capacity * 2 : 8;
         Lv00GappaPredicate *p = (Lv00GappaPredicate *)realloc(set->preds, (size_t)new_cap * sizeof(Lv00GappaPredicate));
-        if (!p) return false;
+        if (!p) return -1;
         set->preds = p;
         set->capacity = new_cap;
     }
     set->preds[set->count++] = *pred;
-    return true;
+    return 0;
 }
 
 int gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00GappaPredicate *found) {
@@ -551,7 +551,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 sum_pred.bound_lo = output->preds[i].bound_lo + output->preds[j].bound_lo;
                 sum_pred.bound_hi = output->preds[i].bound_hi + output->preds[j].bound_hi;
                 sum_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (gappa_pred_set_add(output, &sum_pred)) { derived++; changed = true; }
+                if (gappa_pred_set_add(output, &sum_pred) == 0) { derived++; changed = true; }
 
                 /* 推导差: x - y in [lo_x - hi_y, hi_x - lo_y] */
                 Lv00GappaPredicate diff_pred;
@@ -562,7 +562,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 diff_pred.bound_lo = output->preds[i].bound_lo - output->preds[j].bound_hi;
                 diff_pred.bound_hi = output->preds[i].bound_hi - output->preds[j].bound_lo;
                 diff_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (gappa_pred_set_add(output, &diff_pred)) { derived++; changed = true; }
+                if (gappa_pred_set_add(output, &diff_pred) == 0) { derived++; changed = true; }
 
                 /* 推导差: y - x in [lo_y - hi_x, hi_y - lo_x] */
                 Lv00GappaPredicate diff_pred2;
@@ -573,7 +573,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 diff_pred2.bound_lo = output->preds[j].bound_lo - output->preds[i].bound_hi;
                 diff_pred2.bound_hi = output->preds[j].bound_hi - output->preds[i].bound_lo;
                 diff_pred2.is_hypothesis = output->preds[j].is_hypothesis;
-                if (gappa_pred_set_add(output, &diff_pred2)) { derived++; changed = true; }
+                if (gappa_pred_set_add(output, &diff_pred2) == 0) { derived++; changed = true; }
             }
         }
 
@@ -596,7 +596,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 mul_pred.bound_lo = r.lo;
                 mul_pred.bound_hi = r.hi;
                 mul_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (gappa_pred_set_add(output, &mul_pred)) { derived++; changed = true; }
+                if (gappa_pred_set_add(output, &mul_pred) == 0) { derived++; changed = true; }
             }
         }
 
@@ -623,7 +623,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 div_pred.bound_lo = r.lo;
                 div_pred.bound_hi = r.hi;
                 div_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (gappa_pred_set_add(output, &div_pred)) { derived++; changed = true; }
+                if (gappa_pred_set_add(output, &div_pred) == 0) { derived++; changed = true; }
             }
         }
 
@@ -656,7 +656,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
             sq_pred.bound_lo = sq_lo;
             sq_pred.bound_hi = sq_hi;
             sq_pred.is_hypothesis = output->preds[i].is_hypothesis;
-            if (gappa_pred_set_add(output, &sq_pred)) { derived++; changed = true; }
+            if (gappa_pred_set_add(output, &sq_pred) == 0) { derived++; changed = true; }
         }
 
         /* ============================================================
@@ -688,7 +688,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 bnd.bound_lo = center - eps;
                 bnd.bound_hi = center + eps;
                 bnd.is_hypothesis = output->preds[i].is_hypothesis;
-                if (gappa_pred_set_add(output, &bnd)) { derived++; changed = true; }
+                if (gappa_pred_set_add(output, &bnd) == 0) { derived++; changed = true; }
             }
 
             /* 利用 ABS 谓词的约束能力：对刚转换出的 BND 再跑一次 refinement */

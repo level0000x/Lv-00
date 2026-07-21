@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file prop_verifier.c
  * @brief 命题逻辑验证器实现 —— 自然演绎证明引擎
  *
@@ -1522,7 +1522,7 @@ static int collect_atoms(const PropFormula *f, char atoms[][PROP_ATOM_NAME_MAX_L
  *   - ��֤����RAA����(~A �� ��) �� A
  */
 static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size_t desc_size) {
-    if (!f) return false;
+    if (!f) return -1;
 
     /* ��������ɣ�A �� ~A �� ~A �� A */
     if (f->type == PROP_DISJUNCTION) {
@@ -1536,7 +1536,7 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
                      "������ (LEM): %s \\/ ~%s��ֱ�������߼��в���֤��",
                      s, s);
             lv00_free((void **)&s);
-            return true;
+            return 0;
         }
         /* ~A �� A */
         if (right->type == PROP_NEGATION &&
@@ -1546,7 +1546,7 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
                      "������ (LEM): ~%s \\/ %s��ֱ�������߼��в���֤��",
                      s, s);
             lv00_free((void **)&s);
-            return true;
+            return 0;
         }
     }
 
@@ -1562,7 +1562,7 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
                      "˫�ط���ȥ: ~~%s �� %s��ֱ�������߼��в���֤��",
                      s, s);
             lv00_free((void **)&s);
-            return true;
+            return 0;
         }
         /* ��֤�� (RAA): (~A �� ��) �� A */
         if (antecedent->type == PROP_IMPLICATION &&
@@ -1574,7 +1574,7 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
                      "��֤�� (RAA): (~%s �� _|_) �� %s��ֱ�������߼��в���֤��",
                      s, s);
             lv00_free((void **)&s);
-            return true;
+            return 0;
         }
     }
 
@@ -1586,23 +1586,23 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
         case PROP_IMPLICATION:
             if (has_classical_pattern(f->data.binary.left, sub_desc, sizeof(sub_desc))) {
                 snprintf(pattern_desc, desc_size, "%s", sub_desc);
-                return true;
+                return 0;
             }
             if (has_classical_pattern(f->data.binary.right, sub_desc, sizeof(sub_desc))) {
                 snprintf(pattern_desc, desc_size, "%s", sub_desc);
-                return true;
+                return 0;
             }
             break;
         case PROP_NEGATION:
             if (has_classical_pattern(f->data.unary.operand, sub_desc, sizeof(sub_desc))) {
                 snprintf(pattern_desc, desc_size, "%s", sub_desc);
-                return true;
+                return 0;
             }
             break;
         default:
             break;
     }
-    return false;
+    return -1;
 }
 
 InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(

@@ -81,7 +81,7 @@ typedef struct {
  * @param[out] out    计数结果（非 NULL，调用者用 approx_count_result_destroy 释放）
  * @return true 计数成功，false 失败（参数错误或内存不足）
  */
-bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, ApproxCountResult *out);
+int approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, ApproxCountResult *out);
 /**
  * @brief 投影模型计数（只计指定变量的不同赋值）
  *
@@ -95,7 +95,7 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, 
  * @param[out] out          计数结果
  * @return true 成功，false 失败
  */
-bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int proj_count, const PacConfig *cfg,
+int approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int proj_count, const PacConfig *cfg,
                             ApproxCountResult *out);
 /**
  * @brief 将约束图编码为 DIMACS CNF 格式字符串

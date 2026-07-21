@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_converter.c
  * @brief 公式转换器实现
  *
@@ -201,9 +201,9 @@ SymbolicCoord **formula_coords_to_symbolic(const FormulaNode *coord_list, int *o
  * @param buf_size 缓冲区大小
  * @return true 成功，false 失败
  */
-bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size) {
+int formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size) {
     if (!node || !out_name || buf_size == 0) {
-        return false;
+        return -1;
     }
     
     /* 根据节点类型生成名称 */
@@ -228,7 +228,7 @@ bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size)
             break;
     }
     
-    return true;
+    return 0;
 }
 
 /* ============================================================
@@ -243,9 +243,9 @@ bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size)
  * @param out_node_id 输出参数，接收创建的节点 ID
  * @return true 成功，false 失败
  */
-bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph, int *out_node_id) {
+int formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph, int *out_node_id) {
     if (!point_node || point_node->type != NODE_GEOM_POINT || !graph || !out_node_id) {
-        return false;
+        return -1;
     }
     
     /* 获取坐标 */
@@ -283,7 +283,7 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
     lv00_free((void **)&coords);  /* 统一内存释放器 */
     
     if (result != ADD_NODE_OK) {
-        return false;
+        return -1;
     }
     
     /* 获取新创建的节点 ID */
@@ -298,7 +298,7 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
         formula_set_node_id(point_node->data.geom_point.name, *out_node_id);
     }
     
-    return true;
+    return 0;
 }
 
 /**
@@ -309,9 +309,9 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
  * @param out_node_id  输出参数，接收创建的节点 ID
  * @return true 成功，false 失败
  */
-bool formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *graph, int *out_node_id) {
+int formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *graph, int *out_node_id) {
     if (!segment_node || segment_node->type != NODE_GEOM_SEGMENT || !graph || !out_node_id) {
-        return false;
+        return -1;
     }
     
     /* 获取端点 ID */
@@ -341,14 +341,14 @@ bool formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *g
     }
     
     if (ep1_id < 0 || ep2_id < 0) {
-        return false;
+        return -1;
     }
     
     /* 添加线段到图 */
     AddNodeResult result = graph_add_line_segment(graph, ep1_id, ep2_id);
     
     if (result != ADD_NODE_OK) {
-        return false;
+        return -1;
     }
     
     /* 获取新创建的节点 ID */
@@ -363,7 +363,7 @@ bool formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *g
         formula_set_node_id(segment_node->data.geom_segment.name, *out_node_id);
     }
     
-    return true;
+    return 0;
 }
 
 /**
@@ -374,9 +374,9 @@ bool formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *g
  * @param out_node_id 输出参数，接收创建的节点 ID
  * @return true 成功，false 失败
  */
-bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *graph, int *out_node_id) {
+int formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *graph, int *out_node_id) {
     if (!circle_node || circle_node->type != NODE_GEOM_CIRCLE || !graph || !out_node_id) {
-        return false;
+        return -1;
     }
     
     /* 获取圆心 ID */
@@ -404,7 +404,7 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
         symbolic_coord_destroy(coords[1]);
         
         if (result != ADD_NODE_OK) {
-            return false;
+            return -1;
         }
         
         center_id = graph_get_node_count(graph) - 1;
@@ -438,7 +438,7 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
     
     if (result != ADD_NODE_OK) {
         *out_node_id = center_id;  /* 至少返回圆心 */
-        return true;
+        return 0;
     }
     
     int radius_point_id = graph_get_node_count(graph) - 1;
@@ -457,7 +457,7 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
         formula_set_node_id(circle_node->data.geom_circle.name, center_id);
     }
     
-    return true;
+    return 0;
 }
 
 /**
@@ -469,11 +469,11 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
  * @param[out] out_count    输出参数，接收节点数量
  * @return true 成功，false 失败
  */
-bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph *graph,
+int formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph *graph,
                               int *out_node_ids, int *out_count) {
     if (!triangle_node || triangle_node->type != NODE_GEOM_TRIANGLE || !graph || 
         !out_node_ids || !out_count) {
-        return false;
+        return -1;
     }
     
     /* 获取三个顶点 ID */
@@ -507,7 +507,7 @@ bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph 
     }
     
     if (v1_id < 0 || v2_id < 0 || v3_id < 0) {
-        return false;
+        return -1;
     }
     
     /* 记录顶点 */
@@ -534,7 +534,7 @@ bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph 
         out_node_ids[(*out_count)++] = graph_get_node_count(graph) - 1;
     }
     
-    return true;
+    return 0;
 }
 
 /* ============================================================
@@ -557,19 +557,19 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
                               int *out_node_ids, int *out_count) {
     if (!polygon_node || polygon_node->type != NODE_GEOM_POLYGON || !graph ||
         !out_node_ids || !out_count) {
-        return false;
+        return -1;
     }
 
     *out_count = 0;
 
     int vert_count = polygon_node->data.geom_polygon.vertex_count;
     if (vert_count < 3) {
-        return false;  /* 多边形至少需要3个顶点 */
+        return -1;  /* 多边形至少需要3个顶点 */
     }
 
     /* 第一步：创建所有顶点 */
     int *vertex_ids = (int *)lv00_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
-    if (!vertex_ids) return false;
+    if (!vertex_ids) return -1;
 
     for (int i = 0; i < vert_count; i++) {
         FormulaNode *v = polygon_node->data.geom_polygon.vertices[i];
@@ -608,7 +608,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
     int *segment_ids = (int *)lv00_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
     if (!segment_ids) {
         lv00_free((void **)&vertex_ids);  /* 统一内存释放器 */
-        return false;
+        return -1;
     }
     int seg_count = 0;
 
@@ -645,7 +645,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
 
     lv00_free((void **)&vertex_ids);   /* 统一内存释放器 */
     lv00_free((void **)&segment_ids);  /* 统一内存释放器 */
-    return true;
+    return 0;
 }
 
 /**
@@ -662,19 +662,19 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
 bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *graph,
                              int *out_node_id) {
     if (!region_node || region_node->type != NODE_GEOM_REGION || !graph || !out_node_id) {
-        return false;
+        return -1;
     }
 
     *out_node_id = -1;
 
     int seg_count = region_node->data.geom_region.segment_count;
     if (seg_count < 3) {
-        return false;  /* 区域至少需要3条边界线段 */
+        return -1;  /* 区域至少需要3条边界线段 */
     }
 
     /* 从子节点中提取边界线段 ID */
     int *segment_ids = (int *)lv00_malloc(sizeof(int) * seg_count);  /* 统一内存分配器 */
-    if (!segment_ids) return false;
+    if (!segment_ids) return -1;
 
     int valid_count = 0;
     for (int i = 0; i < seg_count; i++) {
@@ -696,7 +696,7 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
 
     if (valid_count < 3) {
         lv00_free((void **)&segment_ids);  /* 统一内存释放器 */
-        return false;
+        return -1;
     }
 
     /* 创建区域节点 */
@@ -737,7 +737,7 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
                           int *out_node_ids, int *out_count) {
     if (!arc_node || arc_node->type != NODE_GEOM_ARC || !graph ||
         !out_node_ids || !out_count) {
-        return false;
+        return -1;
     }
 
     *out_count = 0;
@@ -767,7 +767,7 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
         }
     }
 
-    if (center_id < 0) return false;
+    if (center_id < 0) return -1;
     out_node_ids[(*out_count)++] = center_id;
 
     /* 获取半径 */
@@ -843,22 +843,22 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
         formula_set_node_id(arc_node->data.geom_arc.name, center_id);
     }
 
-    return true;
+    return 0;
 }
 
 /* ============================================================
  * 约束转换
  * ============================================================ */
 
-bool formula_convert_perpendicular(const FormulaNode *constraint_node, ConstraintGraph *graph,
+int formula_convert_perpendicular(const FormulaNode *constraint_node, ConstraintGraph *graph,
                                    int *out_constraint_id) {
     if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_PERPENDICULAR || 
         !graph || !out_constraint_id) {
-        return false;
+        return -1;
     }
     
     if (constraint_node->data.constraint.participant_count < 3) {
-        return false;
+        return -1;
     }
     
     /* 获取三个点 ID */
@@ -875,30 +875,30 @@ bool formula_convert_perpendicular(const FormulaNode *constraint_node, Constrain
     }
     
     if (p1_id < 0 || p2_id < 0 || p3_id < 0) {
-        return false;
+        return -1;
     }
     
     /* 添加 betweenness 约束（简化处理） */
     AddConstraintResult result = graph_add_betweenness(graph, p1_id, p2_id, p3_id);
     
     if (result != ADD_CONSTRAINT_OK) {
-        return false;
+        return -1;
     }
     
     *out_constraint_id = graph_get_constraint_count(graph) - 1;
     
-    return true;
+    return 0;
 }
 
-bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGraph *graph,
+int formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGraph *graph,
                               int *out_constraint_id) {
     if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_PARALLEL || 
         !graph || !out_constraint_id) {
-        return false;
+        return -1;
     }
     
     if (constraint_node->data.constraint.participant_count < 2) {
-        return false;
+        return -1;
     }
     
     /* 获取两条线 ID */
@@ -912,7 +912,7 @@ bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGrap
     }
     
     if (l1_id < 0 || l2_id < 0) {
-        return false;
+        return -1;
     }
     
     /* 平行约束目前使用 containment 简化表示 */
@@ -920,23 +920,23 @@ bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGrap
     AddConstraintResult result = graph_add_containment(graph, l1_id, l2_id);
     
     if (result != ADD_CONSTRAINT_OK) {
-        return false;
+        return -1;
     }
     
     *out_constraint_id = graph_get_constraint_count(graph) - 1;
     
-    return true;
+    return 0;
 }
 
-bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGraph *graph,
+int formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGraph *graph,
                               int *out_node_id) {
     if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_MIDPOINT || 
         !graph || !out_node_id) {
-        return false;
+        return -1;
     }
     
     if (constraint_node->data.constraint.participant_count < 3) {
-        return false;
+        return -1;
     }
     
     /* 获取中点 M 和端点 A, B */
@@ -953,7 +953,7 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
     }
     
     if (a_id < 0 || b_id < 0) {
-        return false;
+        return -1;
     }
     
     /* 获取 A 和 B 的坐标，计算中点 */
@@ -961,7 +961,7 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
     GeomNode *node_b = graph_get_node_by_id(graph, b_id);
     
     if (!node_a || !node_b) {
-        return false;
+        return -1;
     }
     
     /* 计算中点坐标 */
@@ -1034,7 +1034,7 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
         symbolic_coord_destroy(mid_coords[1]);
     }
     
-    return true;
+    return 0;
 }
 
 /**
@@ -1053,11 +1053,11 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
  * @param[out] out_constraint_id 输出约束ID
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *graph,
+int formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *graph,
                            int *out_constraint_id) {
     if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_ANGLE ||
         !graph || !out_constraint_id) {
-        return false;
+        return -1;
     }
 
     /*
@@ -1069,7 +1069,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
      */
 
     if (constraint_node->data.constraint.participant_count < 3) {
-        return false;
+        return -1;
     }
 
     /* 获取三个点 ID */
@@ -1089,7 +1089,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
     }
 
     if (a_id < 0 || b_id < 0 || c_id < 0) {
-        return false;
+        return -1;
     }
 
     /* 提取角度值（弧度） */
@@ -1129,7 +1129,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
     AddConstraintResult result = graph_add_betweenness(graph, a_id, b_id, c_id);
 
     if (result != ADD_CONSTRAINT_OK) {
-        return false;
+        return -1;
     }
 
     *out_constraint_id = graph_get_constraint_count(graph) - 1;
@@ -1181,7 +1181,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
         }
     }
 
-    return true;
+    return 0;
 }
 
 /* ============================================================
@@ -1216,49 +1216,49 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
                 if (result->created_node_count < MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
-            return true;
+            return 0;
 
         case NODE_GEOM_SEGMENT:
             if (formula_convert_segment(stmt, graph, &node_id)) {
                 if (result->created_node_count < MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
-            return true;
+            return 0;
 
         case NODE_GEOM_CIRCLE:
             if (formula_convert_circle(stmt, graph, &node_id)) {
                 if (result->created_node_count < MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
-            return true;
+            return 0;
 
         case NODE_CONSTRAINT_PERPENDICULAR:
             if (formula_convert_perpendicular(stmt, graph, &constraint_id)) {
                 if (result->created_constraint_count < MAX_CREATED_CONSTRAINTS)
                     result->created_constraint_ids[result->created_constraint_count++] = constraint_id;
             }
-            return true;
+            return 0;
 
         case NODE_CONSTRAINT_PARALLEL:
             if (formula_convert_parallel(stmt, graph, &constraint_id)) {
                 if (result->created_constraint_count < MAX_CREATED_CONSTRAINTS)
                     result->created_constraint_ids[result->created_constraint_count++] = constraint_id;
             }
-            return true;
+            return 0;
 
         case NODE_CONSTRAINT_MIDPOINT:
             if (formula_convert_midpoint(stmt, graph, &node_id)) {
                 if (result->created_node_count < MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
-            return true;
+            return 0;
 
         case NODE_CONSTRAINT_ANGLE:
             if (formula_convert_angle(stmt, graph, &constraint_id)) {
                 if (result->created_constraint_count < MAX_CREATED_CONSTRAINTS)
                     result->created_constraint_ids[result->created_constraint_count++] = constraint_id;
             }
-            return true;
+            return 0;
 
         case NODE_EQUATION:
             /* 代数方程：转换为约束图中的隐式曲线 */
@@ -1266,7 +1266,7 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
                 if (result->created_node_count < MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
-            return true;
+            return 0;
 
         case NODE_GEOM_POLYGON:
             {
@@ -1278,14 +1278,14 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
                     }
                 }
             }
-            return true;
+            return 0;
 
         case NODE_GEOM_REGION:
             if (formula_convert_region(stmt, graph, &node_id)) {
                 if (result->created_node_count < MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
-            return true;
+            return 0;
 
         case NODE_GEOM_ARC:
             {
@@ -1297,10 +1297,10 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
                     }
                 }
             }
-            return true;
+            return 0;
 
         default:
-            return false;
+            return -1;
     }
 }
 
@@ -2352,7 +2352,7 @@ EquationCurveResult *formula_convert_equation_to_curve(
 
 static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
                                   int coeffs_size, int max_deg) {
-    if (!node) return false;
+    if (!node) return -1;
 
     memset(coeffs, 0, sizeof(double) * coeffs_size);
 
@@ -2393,50 +2393,50 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
         if (node->data.number.is_integer) {
             val = (double)node->data.number.numerator;
         } else {
-            if (node->data.number.denominator == 0) return false;
+            if (node->data.number.denominator == 0) return -1;
             val = (double)node->data.number.numerator / (double)node->data.number.denominator;
         }
         coeffs[0] = val;
-        return true;
+        return 0;
     }
 
     case NODE_VARIABLE: {
         if (node->data.variable.name) {
             if (strcmp(node->data.variable.name, "x") == 0) {
                 if (max_deg >= 1) coeffs[1 * max_deg + 0] = 1.0; /* x^1 * y^0 */
-                return true;
+                return 0;
             } else if (strcmp(node->data.variable.name, "y") == 0) {
                 if (max_deg >= 1) coeffs[0 * max_deg + 1] = 1.0; /* x^0 * y^1 */
-                return true;
+                return 0;
             }
         }
         /* 未知变量视为常量 0（或可扩展为参数） */
-        return false;
+        return -1;
     }
 
     case NODE_BINARY_OP_ADD: {
         if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
-            return false;
+            return -1;
         if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
-            return false;
+            return -1;
         for (int i = 0; i < coeffs_size; i++) coeffs[i] = lhs[i] + rhs[i];
-        return true;
+        return 0;
     }
 
     case NODE_BINARY_OP_SUB: {
         if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
-            return false;
+            return -1;
         if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
-            return false;
+            return -1;
         for (int i = 0; i < coeffs_size; i++) coeffs[i] = lhs[i] - rhs[i];
-        return true;
+        return 0;
     }
 
     case NODE_BINARY_OP_MUL: {
         if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
-            return false;
+            return -1;
         if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
-            return false;
+            return -1;
         /* 多项式乘法（卷积），截断到 max_deg */
         memset(coeffs, 0, sizeof(double) * coeffs_size);
         for (int i = 0; i < max_deg; i++) {
@@ -2453,12 +2453,12 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
                 }
             }
         }
-        return true;
+        return 0;
     }
 
     case NODE_BINARY_OP_POW: {
         if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
-            return false;
+            return -1;
         /* 指数必须为非负整数 */
         int exp_val = 0;
         if (node->data.binary_op.right && node->data.binary_op.right->type == NODE_NUMBER) {
@@ -2466,7 +2466,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
                 exp_val = (int)node->data.binary_op.right->data.number.numerator;
             }
         }
-        if (exp_val < 0) return false;
+        if (exp_val < 0) return -1;
 
         /* 初始化结果为 1（即 x^0*y^0 = 1） */
         memset(coeffs, 0, sizeof(double) * coeffs_size);
@@ -2490,14 +2490,14 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
             }
             memcpy(coeffs, tmp, sizeof(double) * coeffs_size);
         }
-        return true;
+        return 0;
     }
 
     case NODE_UNARY_OP_NEG: {
         if (!flatten_to_polynomial(node->data.unary_op.operand, coeffs, coeffs_size, max_deg))
-            return false;
+            return -1;
         for (int i = 0; i < coeffs_size; i++) coeffs[i] = -coeffs[i];
-        return true;
+        return 0;
     }
 
     case NODE_UNARY_OP_SIN: {
@@ -2505,7 +2505,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
          * 先递归展开操作数为多项式 P(x)，然后计算 P - P^3/6 + P^5/120
          * 注意：这是近似多项式，仅在小范围 |x| < pi/2 内有效 */
         if (!flatten_to_polynomial(node->data.unary_op.operand, lhs, coeffs_size, max_deg))
-            return false;
+            return -1;
         /* coeffs = P(x) */
         memcpy(coeffs, lhs, sizeof(double) * coeffs_size);
 
@@ -2592,14 +2592,14 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
         /* coeffs = P - P^3/6 + P^5/120 */
         for (int i = 0; i < coeffs_size; i++) coeffs[i] += p5[i];
 
-        return true;
+        return 0;
     }
 
     case NODE_UNARY_OP_COS: {
         /* 泰勒展开 cos(x) ≈ 1 - x^2/2! + x^4/4!
          * 先递归展开操作数为多项式 P(x)，然后计算 1 - P^2/2 + P^4/24 */
         if (!flatten_to_polynomial(node->data.unary_op.operand, lhs, coeffs_size, max_deg))
-            return false;
+            return -1;
         /* coeffs = 1 (常数项) */
         memset(coeffs, 0, sizeof(double) * coeffs_size);
         coeffs[0] = 1.0;
@@ -2661,7 +2661,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
         /* coeffs = 1 - P^2/2 + P^4/24 */
         for (int i = 0; i < coeffs_size; i++) coeffs[i] += p4[i] / 24.0;
 
-        return true;
+        return 0;
     }
 
     case NODE_UNARY_OP_SQRT: {
@@ -2672,21 +2672,21 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
             if (operand->data.number.is_integer) {
                 val = (double)operand->data.number.numerator;
             } else {
-                if (operand->data.number.denominator == 0) return false;
+                if (operand->data.number.denominator == 0) return -1;
                 val = (double)operand->data.number.numerator / (double)operand->data.number.denominator;
             }
             if (val >= 0.0) {
                 memset(coeffs, 0, sizeof(double) * coeffs_size);
                 coeffs[0] = sqrt(val);
-                return true;
+                return 0;
             }
         }
         /* 非常数参数的 sqrt 不支持多项式展开 */
-        return false;
+        return -1;
     }
 
     default:
-        return false;
+        return -1;
     }
 }
 
@@ -2723,7 +2723,7 @@ static bool identify_circle(const double *coeffs, double *cx, double *cy, double
 
     /* 检查：x^2 和 y^2 系数相同且非零，xy 系数为零 */
     if (fabs(c_x2 - c_y2) > 1e-9 || fabs(c_x2) < 1e-9 || fabs(c_xy) > 1e-9) {
-        return false;
+        return -1;
     }
 
     /* 从 x^2 + y^2 + Dx + Ey + F = 0 提取参数 */
@@ -2736,9 +2736,9 @@ static bool identify_circle(const double *coeffs, double *cx, double *cy, double
     *cy = -E / 2.0;
     double r_sq = (D * D + E * E) / 4.0 - F;
 
-    if (r_sq < 0) return false; /* 半径为虚数，不是有效的圆 */
+    if (r_sq < 0) return -1; /* 半径为虚数，不是有效的圆 */
     *r = sqrt(r_sq);
-    return true;
+    return 0;
 }
 
 /**
@@ -2758,7 +2758,7 @@ static bool identify_line(const double *coeffs, double *a, double *b, double *c)
         int deg_x = i / IMPLICIT_MAX_DEG;
         int deg_y = i % IMPLICIT_MAX_DEG;
         if (deg_x + deg_y >= 2 && fabs(coeffs[i]) > 1e-9) {
-            return false;
+            return -1;
         }
     }
 
@@ -2768,25 +2768,25 @@ static bool identify_line(const double *coeffs, double *a, double *b, double *c)
 
     /* a 和 b 不能同时为零 */
     if (fabs(*a) < 1e-9 && fabs(*b) < 1e-9) {
-        return false;
+        return -1;
     }
 
-    return true;
+    return 0;
 }
 
 /**
  * 将代数方程节点添加到约束图
  * 创建隐式曲线表示
  */
-bool formula_convert_equation(const FormulaNode *equation_node,
+int formula_convert_equation(const FormulaNode *equation_node,
                               ConstraintGraph *graph,
                               int *out_node_id) {
     if (!equation_node || !graph || !out_node_id) {
-        return false;
+        return -1;
     }
 
     if (equation_node->type != NODE_EQUATION) {
-        return false;
+        return -1;
     }
 
     /*
@@ -2802,7 +2802,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
     const FormulaNode *rhs = equation_node->data.equation.rhs;
 
     if (!lhs) {
-        return false;
+        return -1;
     }
 
     /*
@@ -2847,7 +2847,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
             symbolic_coord_destroy(center_coords[1]);
 
             if (add_result != ADD_NODE_OK) {
-                return false;
+                return -1;
             }
 
             *out_node_id = graph->next_node_id - 1;
@@ -2884,7 +2884,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
                 node->numeric_assumption_declaration = lv00_strdup_safe(buf);
             }
 
-            return true;
+            return 0;
         }
 
         /* 尝试识别为直线方程 Ax + By + C = 0 */
@@ -2916,7 +2916,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
             symbolic_coord_destroy(p1_coords[1]);
 
             if (add_result != ADD_NODE_OK) {
-                return false;
+                return -1;
             }
             int p1_id = graph->next_node_id - 1;
 
@@ -2925,7 +2925,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
             symbolic_coord_destroy(p2_coords[1]);
 
             if (add_result != ADD_NODE_OK) {
-                return false;
+                return -1;
             }
             int p2_id = graph->next_node_id - 1;
 
@@ -2950,7 +2950,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
                 node->numeric_assumption_declaration = lv00_strdup_safe(buf);
             }
 
-            return true;
+            return 0;
         }
     }
 
@@ -2968,7 +2968,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
     symbolic_coord_destroy(coords[1]);
 
     if (add_result != ADD_NODE_OK) {
-        return false;
+        return -1;
     }
 
     *out_node_id = graph->next_node_id - 1;
@@ -3016,5 +3016,5 @@ bool formula_convert_equation(const FormulaNode *equation_node,
         }
     }
 
-    return true;
+    return 0;
 }

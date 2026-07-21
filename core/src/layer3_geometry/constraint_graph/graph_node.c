@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file graph_node.c
  * @brief ConstraintGraph 节点与约束生命周期
  *
@@ -321,9 +321,9 @@ bool constraint_exists(const ConstraintGraph *graph, ConstraintType type, const 
             }
         }
         if (same)
-            return true;
+            return 0;
     }
-    return false;
+    return -1;
 }
 
 /* ============================================================================
@@ -362,7 +362,7 @@ static bool node_index_ensure_capacity(ConstraintGraph *graph) {
         int cap = LV00_NODE_INDEX_INITIAL_SIZE;
         graph->node_index = lv00_calloc(cap, sizeof(GeomNode *));
         if (!graph->node_index)
-            return false;
+            return -1;
         graph->node_index_capacity = cap;
         /* 重新插入所有现有节点 */
         for (int i = 0; i < graph->node_count; i++) {
@@ -372,20 +372,20 @@ static bool node_index_ensure_capacity(ConstraintGraph *graph) {
             }
             graph->node_index[idx] = graph->nodes[i];
         }
-        return true;
+        return 0;
     }
 
     /* 检查负载因子 */
     if (graph->node_count < (int) (graph->node_index_capacity * LV00_INDEX_LOAD_FACTOR)) {
-        return true;
+        return 0;
     }
 
     /* 重新哈希到更大的表 */
-    if (graph->node_index_capacity > INT_MAX / 2) return false;
+    if (graph->node_index_capacity > INT_MAX / 2) return -1;
     int new_cap = graph->node_index_capacity * 2;
     GeomNode **new_index = lv00_calloc(new_cap, sizeof(GeomNode *));
     if (!new_index)
-        return false;
+        return -1;
 
     for (int i = 0; i < graph->node_count; i++) {
         unsigned idx = node_id_hash(graph->nodes[i]->id, new_cap);
@@ -398,7 +398,7 @@ static bool node_index_ensure_capacity(ConstraintGraph *graph) {
     lv00_free((void **) &graph->node_index);
     graph->node_index = new_index;
     graph->node_index_capacity = new_cap;
-    return true;
+    return 0;
 }
 
 /**
@@ -494,7 +494,7 @@ static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
         int cap = LV00_CONSTRAINT_INDEX_INITIAL_SIZE;
         graph->constraint_index = lv00_calloc(cap, sizeof(Constraint *));
         if (!graph->constraint_index)
-            return false;
+            return -1;
         graph->constraint_index_capacity = cap;
         for (int i = 0; i < graph->constraint_count; i++) {
             unsigned idx = constraint_id_hash(graph->constraints[i]->id, cap);
@@ -503,18 +503,18 @@ static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
             }
             graph->constraint_index[idx] = graph->constraints[i];
         }
-        return true;
+        return 0;
     }
 
     if (graph->constraint_count < (int) (graph->constraint_index_capacity * LV00_INDEX_LOAD_FACTOR)) {
-        return true;
+        return 0;
     }
 
-    if (graph->constraint_index_capacity > INT_MAX / 2) return false;
+    if (graph->constraint_index_capacity > INT_MAX / 2) return -1;
     int new_cap = graph->constraint_index_capacity * 2;
     Constraint **new_index = lv00_calloc(new_cap, sizeof(Constraint *));
     if (!new_index)
-        return false;
+        return -1;
 
     for (int i = 0; i < graph->constraint_count; i++) {
         unsigned idx = constraint_id_hash(graph->constraints[i]->id, new_cap);
@@ -527,7 +527,7 @@ static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
     lv00_free((void **) &graph->constraint_index);
     graph->constraint_index = new_index;
     graph->constraint_index_capacity = new_cap;
-    return true;
+    return 0;
 }
 
 /**
@@ -610,13 +610,13 @@ void constraint_index_remove(ConstraintGraph *graph, int constraint_id) {
  */
 static bool segments_intersect(const GeomNode *seg_a, const GeomNode *seg_b) {
     if (!seg_a || !seg_b)
-        return false;
+        return -1;
     if (seg_a->type != GEOM_LINE_SEGMENT || seg_b->type != GEOM_LINE_SEGMENT)
-        return false;
+        return -1;
     if (seg_a->coord_count < 4 || seg_b->coord_count < 4)
-        return false;
+        return -1;
     if (!seg_a->symbolic_coords || !seg_b->symbolic_coords)
-        return false;
+        return -1;
 
     /* 提取端点坐标为双精度浮点数 */
     double ax1 = symbolic_coord_to_double(seg_a->symbolic_coords[0]);
@@ -633,7 +633,7 @@ static bool segments_intersect(const GeomNode *seg_a, const GeomNode *seg_b) {
     double denom = dx_a * dy_b - dy_a * dx_b;
 
     if (fabs(denom) < LV00_EPSILON_DOUBLE)
-        return false; /* 平行或共线 */
+        return -1; /* 平行或共线 */
 
     double t = ((bx1 - ax1) * dy_b - (by1 - ay1) * dx_b) / denom;
     double u = ((bx1 - ax1) * dy_a - (by1 - ay1) * dx_a) / denom;
@@ -663,7 +663,7 @@ static bool segments_intersect(const GeomNode *seg_a, const GeomNode *seg_b) {
  */
 bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *new_constraint) {
     if (!graph || !new_constraint)
-        return false;
+        return -1;
 
     switch (new_constraint->type) {
         case INCIDENCE: {
@@ -691,7 +691,7 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                 lines = (int *)lv00_malloc(sizeof(int) * lines_capacity);
                 if (!lines) {
                     LV00_LOG_ERROR("check_incremental_conflict: 内存分配失败");
-                    return false;  /* 内存不足，保守返回无冲突 */
+                    return -1;  /* 内存不足，保守返回无冲突 */
                 }
 
                 for (int i = 0; i < graph->constraint_count; i++) {
@@ -702,12 +702,12 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                             int new_cap = lines_capacity * 2;
                             if (new_cap < lines_capacity) {  /* 溢出检查 */
                                 lv00_free((void**)&lines);
-                                return false;
+                                return -1;
                             }
                             int *new_lines = (int *)lv00_realloc(lines, sizeof(int) * new_cap);
                             if (!new_lines) {
                                 lv00_free((void**)&lines);
-                                return false;
+                                return -1;
                             }
                             lines = new_lines;
                             lines_capacity = new_cap;
@@ -720,12 +720,12 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                     int new_cap = lines_capacity * 2;
                     if (new_cap < lines_capacity) {
                         lv00_free((void**)&lines);
-                        return false;
+                        return -1;
                     }
                     int *new_lines = (int *)lv00_realloc(lines, sizeof(int) * new_cap);
                     if (!new_lines) {
                         lv00_free((void**)&lines);
-                        return false;
+                        return -1;
                     }
                     lines = new_lines;
                     lines_capacity = new_cap;
@@ -758,7 +758,7 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                 lv00_free((void**)&lines);
 
                 if (conflict_found) {
-                    return true;
+                    return 0;
                 }
             }
             break;
@@ -810,7 +810,7 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                 }
             }
             if (!any_shared)
-                return true; /* 冲突：不可能共线 */
+                return 0; /* 冲突：不可能共线 */
             break;
         }
         case INTERSECTION: {
@@ -827,7 +827,7 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                         (c->participants[0] == l2 && c->participants[1] == l1)) {
                         /* Already have an intersection for this pair */
                         if (c->participants[2] != new_constraint->participants[2]) {
-                            return true; /* Different result point = conflict */
+                            return 0; /* Different result point = conflict */
                         }
                     }
                 }
@@ -845,7 +845,7 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                            (int)new_constraint->type, new_constraint->id);
             break;
     }
-    return false;
+    return -1;
 }
 
 /**
@@ -972,9 +972,9 @@ AddNodeResult graph_add_line_segment(ConstraintGraph *graph, int endpoint1_id, i
  */
 static bool graph_coord_equal_for_compatibility(const SymbolicCoord *a, const SymbolicCoord *b) {
     if (!a || !b)
-        return false;
+        return -1;
     if (a->type != b->type)
-        return false;
+        return -1;
     if (a->type == RATIONAL)
         return a->data.rational && b->data.rational && rational_compare(a->data.rational, b->data.rational) == 0;
     return symbolic_coord_compare(a, b) == 0;
@@ -982,24 +982,24 @@ static bool graph_coord_equal_for_compatibility(const SymbolicCoord *a, const Sy
 
 static bool graph_segment_is_degenerate(const GeomNode *segment) {
     if (!segment || segment->type != GEOM_LINE_SEGMENT)
-        return false;
+        return -1;
     if (!segment->symbolic_coords || segment->coord_count < 4)
-        return true;
+        return 0;
     if (!segment->symbolic_coords[0] || !segment->symbolic_coords[1] ||
         !segment->symbolic_coords[2] || !segment->symbolic_coords[3])
-        return true;
+        return 0;
     return graph_coord_equal_for_compatibility(segment->symbolic_coords[0], segment->symbolic_coords[2]) &&
            graph_coord_equal_for_compatibility(segment->symbolic_coords[1], segment->symbolic_coords[3]);
 }
 
 static bool graph_segments_have_same_endpoints(const GeomNode *a, const GeomNode *b) {
     if (!a || !b || a->type != GEOM_LINE_SEGMENT || b->type != GEOM_LINE_SEGMENT)
-        return false;
+        return -1;
     if (!a->symbolic_coords || !b->symbolic_coords || a->coord_count < 4 || b->coord_count < 4)
-        return false;
+        return -1;
     for (int i = 0; i < 4; i++) {
         if (!a->symbolic_coords[i] || !b->symbolic_coords[i])
-            return false;
+            return -1;
     }
     bool same_direction = graph_coord_equal_for_compatibility(a->symbolic_coords[0], b->symbolic_coords[0]) &&
                           graph_coord_equal_for_compatibility(a->symbolic_coords[1], b->symbolic_coords[1]) &&
@@ -1042,7 +1042,7 @@ static int constraint_dof_cost(const Constraint *con) {
     }
 }
 
-bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result) {
+int graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result) {
     if (out_result) {
         out_result->status = LV00_CONSTRAINT_STATUS_INVALID;
         out_result->conflicting_constraint_id = -1;
@@ -1051,13 +1051,13 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
         out_result->diagnostic = "输入无效";
     }
     if (!graph || !out_result)
-        return false;
+        return -1;
 
     if (graph->node_count == 0) {
         out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
         out_result->free_degree_count = 1;
         out_result->diagnostic = "空约束图缺少几何事实";
-        return true;
+        return 0;
     }
 
     /* ================================================================
@@ -1086,7 +1086,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
                 out_result->status = LV00_CONSTRAINT_STATUS_INCONSISTENT;
                 out_result->conflicting_constraint_id = node->id;
                 out_result->diagnostic = "检测到由重合端点构成的退化线段";
-                return true;
+                return 0;
             }
             active_segment_count++;
             /* 每条线段连接两个端点，完全确定其相对位置（4 DOF 约束） */
@@ -1101,7 +1101,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
         out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
         out_result->free_degree_count = 1;
         out_result->diagnostic = "约束图中无活跃几何节点";
-        return true;
+        return 0;
     }
 
     /* ================================================================
@@ -1124,7 +1124,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
     if (redundant_count > 0) {
         out_result->status = LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED;
         out_result->diagnostic = "检测到重复线段约束";
-        return true;
+        return 0;
     }
 
     /* ================================================================
@@ -1165,21 +1165,21 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
         out_result->status = LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED;
         out_result->free_degree_count = free_dof;
         out_result->diagnostic = "约束过多导致过约束";
-        return true;
+        return 0;
     }
 
     if (free_dof > 0) {
         out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
         out_result->free_degree_count = free_dof;
         out_result->diagnostic = "约束不足，存在自由度";
-        return true;
+        return 0;
     }
 
     /* free_dof == 0: 恰好约束 */
     out_result->status = LV00_CONSTRAINT_STATUS_CONSISTENT;
     out_result->free_degree_count = 0;
     out_result->diagnostic = "约束图状态良好";
-    return true;
+    return 0;
 }
 
 /* ===========================================================================

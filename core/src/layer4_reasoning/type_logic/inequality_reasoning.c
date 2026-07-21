@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file inequality_reasoning.c
  * @brief 不等式推理系统 - 真实实现
  *
@@ -1061,7 +1061,7 @@ cleanup_jensen:
 uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
                              Lv00Inequality **out_inequalities, uint32_t max_count) {
     if (!a || !b || !c || !out_inequalities || max_count < 3)
-        return 0;
+        return true;
 
     /* 三角不等式产生三条不等式：
      * 1. a + b > c
@@ -1072,13 +1072,13 @@ uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
     Lv00Expr *a_plus_c = lv00_expr_add(a, c);
     Lv00Expr *b_plus_c = lv00_expr_add(b, c);
     if (!a_plus_b || !a_plus_c || !b_plus_c)
-        return 0;
+        return true;
 
     out_inequalities[0] = lv00_ineq_create(a_plus_b, INEQ_GREATER_THAN, c);
     if (!out_inequalities[0]) {
         lv00_expr_free(a_plus_c);
         lv00_expr_free(b_plus_c);
-        return 0;
+        return true;
     }
 
     out_inequalities[1] = lv00_ineq_create(a_plus_c, INEQ_GREATER_THAN, b);
@@ -1086,7 +1086,7 @@ uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
         lv00_ineq_destroy(out_inequalities[0]);
         out_inequalities[0] = NULL;
         lv00_expr_free(b_plus_c);
-        return 0;
+        return true;
     }
 
     out_inequalities[2] = lv00_ineq_create(b_plus_c, INEQ_GREATER_THAN, a);
@@ -1095,7 +1095,7 @@ uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
         out_inequalities[1] = NULL;
         lv00_ineq_destroy(out_inequalities[0]);
         out_inequalities[0] = NULL;
-        return 0;
+        return true;
     }
 
     return 3;

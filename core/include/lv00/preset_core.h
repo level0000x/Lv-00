@@ -1,4 +1,4 @@
-#ifndef LV00_PRESET_CORE_H
+﻿#ifndef LV00_PRESET_CORE_H
 #define LV00_PRESET_CORE_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -39,7 +39,7 @@ extern "C" {
  * ======================================================================== */
 
 #define CORE_PRESET_COUNT 1
-bool preset_core_register(void);
+int preset_core_register(void);
 
 #ifdef __cplusplus
 }

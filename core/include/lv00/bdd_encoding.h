@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file bdd_encoding.h
  * @brief CUDD 二叉决策图（BDD/ADD）编码 —— 约束图符号化表示
  *
@@ -224,7 +224,7 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var);
  * @param[out] out_cnf  输出的 CNF 字符串（DIMACS 格式，调用者负责 free）
  * @return true 成功，false 失败
  */
-bool bdd_to_cnf(BDDNode *bdd, char **out_cnf);
+int bdd_to_cnf(BDDNode *bdd, char **out_cnf);
 /* ========================================================================
  * ADD 管理器生命周期
  * ======================================================================== */

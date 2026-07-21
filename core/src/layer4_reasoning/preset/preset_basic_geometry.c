@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_basic_geometry.c
  * @brief �������ι���Ԥ�躯���� - ʵ��
  *
@@ -33,7 +33,7 @@ bool preset_basic_geometry_register(void)
             "point_from_coords",
             "ͨ���ѿ������깹��� P(x, y)",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -42,7 +42,7 @@ bool preset_basic_geometry_register(void)
             "midpoint",
             "��������֮����е� M = (A+B)/2",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -51,7 +51,7 @@ bool preset_basic_geometry_register(void)
             "centroid",
             "���������ε����� G = (A+B+C)/3",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -60,7 +60,7 @@ bool preset_basic_geometry_register(void)
             "circumcenter",
             "���������ε����ģ����ԲԲ�ģ�",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -69,7 +69,7 @@ bool preset_basic_geometry_register(void)
             "incenter",
             "���������ε����ģ�����ԲԲ�ģ�",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -78,7 +78,7 @@ bool preset_basic_geometry_register(void)
             "orthocenter",
             "���������εĴ��ģ������ߵĽ��㣩",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -89,7 +89,7 @@ bool preset_basic_geometry_register(void)
             "segment_from_points",
             "ͨ�����㹹���߶� AB",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ bool preset_basic_geometry_register(void)
             "perpendicular_bisector",
             "�����߶εĴ�ֱƽ����",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -107,7 +107,7 @@ bool preset_basic_geometry_register(void)
             "point_on_perp_bisector",
             "���д����Ϲ�������е�Ϊ d �ĵ�",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -118,7 +118,7 @@ bool preset_basic_geometry_register(void)
             "line_from_points",
             "ͨ�����㹹������ֱ��",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -127,7 +127,7 @@ bool preset_basic_geometry_register(void)
             "parallel_line",
             "������ƽ���ڸ����߶ε�ֱ��",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -136,7 +136,7 @@ bool preset_basic_geometry_register(void)
             "perpendicular_line",
             "��������ֱ�ڸ����߶ε�ֱ��",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -145,7 +145,7 @@ bool preset_basic_geometry_register(void)
             "ray_from_points",
             "ͨ�����ͷ���㹹������",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -156,7 +156,7 @@ bool preset_basic_geometry_register(void)
             "circle_center_radius",
             "ͨ��Բ�ĺͰ뾶�㹹��Բ",
             PRESET_EXT_CIRCLE,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -165,7 +165,7 @@ bool preset_basic_geometry_register(void)
             "circle_three_points",
             "ͨ�����㹹�����Բ",
             PRESET_EXT_CIRCLE,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -174,7 +174,7 @@ bool preset_basic_geometry_register(void)
             "tangent_from_point",
             "���ⲿ����Բ������",
             PRESET_EXT_CIRCLE,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -185,7 +185,7 @@ bool preset_basic_geometry_register(void)
             "line_intersection",
             "������ֱ�ߵĽ���",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -194,7 +194,7 @@ bool preset_basic_geometry_register(void)
             "line_circle_intersection",
             "����ֱ����Բ�Ľ���",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -203,7 +203,7 @@ bool preset_basic_geometry_register(void)
             "circle_circle_intersection",
             "������Բ�Ľ���",
             PRESET_EXT_CIRCLE,
-            4, 1)) {
+            4, 1) == 0) {
         success_count++;
     }
 
@@ -214,7 +214,7 @@ bool preset_basic_geometry_register(void)
             "reflect_point_over_line",
             "�����ֱ�ߵķ��䣨�ԳƵ㣩",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -223,7 +223,7 @@ bool preset_basic_geometry_register(void)
             "reflect_point_over_point",
             "����ڵ�����ĶԳ�",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            2, 1)) {
+            2, 1) == 0) {
         success_count++;
     }
 
@@ -234,7 +234,7 @@ bool preset_basic_geometry_register(void)
             "point_divide_segment",
             "�������ָ��߶εĵ�",
             PRESET_EXT_BASIC_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 
@@ -243,7 +243,7 @@ bool preset_basic_geometry_register(void)
             "harmonic_conjugate",
             "������͹����",
             PRESET_EXT_ADVANCED_CONSTRUCTION,
-            3, 1)) {
+            3, 1) == 0) {
         success_count++;
     }
 

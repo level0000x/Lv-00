@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_version.c
  * @brief Implementation of the proof version control system.
  *
@@ -669,7 +669,7 @@ bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
  * ============================================================ */
 
 size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_count) {
-    if (!repo || !commits || max_count == 0) return 0;
+    if (!repo || !commits || max_count == 0) return true;
 
     size_t count = 0;
     char current_oid[LV00_OID_LENGTH];

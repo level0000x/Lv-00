@@ -1,4 +1,4 @@
-#ifndef LV00_GEO_HALFEDGE_MESH_H
+﻿#ifndef LV00_GEO_HALFEDGE_MESH_H
 #define LV00_GEO_HALFEDGE_MESH_H
 
 #ifdef __cplusplus
@@ -115,7 +115,7 @@ int  lv00_he_mesh_edge_count(const Lv00HeMesh *mesh);
 int  lv00_he_mesh_face_count(const Lv00HeMesh *mesh);
 int  lv00_he_mesh_vertex_count(const Lv00HeMesh *mesh);
 bool lv00_he_mesh_is_valid(const Lv00HeMesh *mesh);
-bool lv00_he_mesh_validate(const Lv00HeMesh *mesh);
+int lv00_he_mesh_validate(const Lv00HeMesh *mesh);
 void lv00_he_mesh_edge_vertices(const Lv00HeMesh *mesh, Lv00Edge e, Lv00Vertex *out_v1, Lv00Vertex *out_v2);
 void lv00_he_mesh_get_stats(const Lv00HeMesh *mesh, Lv00HeMeshStats *s);
 

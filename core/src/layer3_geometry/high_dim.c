@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file high_dim.c
  * @brief 高维结构表示与交互模块实现
  *
@@ -1477,14 +1477,14 @@ static bool hd_json_extract_string(const char *json, const char *key,
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
     const char *pos = strstr(json, search);
-    if (!pos) return false;
+    if (!pos) return -1;
 
     pos += strlen(search);
     pos = hd_json_skip_ws(pos);
-    if (*pos != ':') return false;
+    if (*pos != ':') return -1;
     pos++;
     pos = hd_json_skip_ws(pos);
-    if (*pos != '"') return false;
+    if (*pos != '"') return -1;
     pos++;
 
     size_t i = 0;
@@ -1505,7 +1505,7 @@ static bool hd_json_extract_string(const char *json, const char *key,
         pos++;
     }
     buf[i] = '\0';
-    return true;
+    return 0;
 }
 
 /** 在 JSON 文本中查找 "key": 并提取其后的整数值 */
@@ -1513,16 +1513,16 @@ static bool hd_json_extract_int(const char *json, const char *key, int *out_val)
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
     const char *pos = strstr(json, search);
-    if (!pos) return false;
+    if (!pos) return -1;
 
     pos += strlen(search);
     pos = hd_json_skip_ws(pos);
-    if (*pos != ':') return false;
+    if (*pos != ':') return -1;
     pos++;
     pos = hd_json_skip_ws(pos);
     *out_val = 0;
     lv00_parse_int(pos, out_val);
-    return true;
+    return 0;
 }
 
 /** 在 JSON 文本中查找 "key": 并提取其后的布尔值 */
@@ -1530,21 +1530,21 @@ static bool hd_json_extract_bool(const char *json, const char *key, bool *out_va
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
     const char *pos = strstr(json, search);
-    if (!pos) return false;
+    if (!pos) return -1;
 
     pos += strlen(search);
     pos = hd_json_skip_ws(pos);
-    if (*pos != ':') return false;
+    if (*pos != ':') return -1;
     pos++;
     pos = hd_json_skip_ws(pos);
     if (strncmp(pos, "true", 4) == 0) {
         *out_val = true;
-        return true;
+        return 0;
     } else if (strncmp(pos, "false", 5) == 0) {
         *out_val = false;
-        return true;
+        return 0;
     }
-    return false;
+    return -1;
 }
 
 int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *preset) {

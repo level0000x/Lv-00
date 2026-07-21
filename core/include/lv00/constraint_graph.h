@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * 模块名称：约束图 (constraint_graph)
  * 功能概述：Lv-00 系统的核心数据结构，提供几何节点（点、线段、区域、
  *          端口、函数块）和约束（关联、之间、相交、包含、连接）的
@@ -41,8 +41,10 @@ extern "C" {
 #include <stdatomic.h> /* v3.4.1: 原子操作支持多线程安全 */
 
 #include "error_codes.h"
-#include "stream.h"
 #include "symbolic_coord.h"
+
+/* 前向声明 */
+typedef struct StreamContext StreamContext;
 
 /* ================================================================
  * v3.4.1: 多线程安全原子操作宏
@@ -496,7 +498,7 @@ LV00_PUBLIC_API int graph_find_constraints_involving(const ConstraintGraph *grap
  * @param[out] out_result 相容性诊断结果
  * @return true 表示成功写入诊断；false 表示输入无效
  */
-LV00_PUBLIC_API bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result);
+LV00_PUBLIC_API int graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result);
 
 /**
  * @brief 检测指定约束是否冗余
@@ -677,7 +679,7 @@ LV00_PUBLIC_API int **graph_detect_conflicts(const ConstraintGraph *graph, int *
  * @param[in] region_id 区域节点 ID
  * @return true 区域闭合，false 区域不闭合或出错
  */
-LV00_PUBLIC_API bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id);
+LV00_PUBLIC_API int graph_validate_region_closure(const ConstraintGraph *graph, int region_id);
 
 /* ============== 图序列化与反序列化 ============== */
 

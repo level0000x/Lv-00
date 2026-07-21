@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv00_utils.c
  * @brief Lv-00 工具函数库实现
  *
@@ -905,12 +905,12 @@ void lv00_array_destroy(LV00Array *arr, bool free_elements) {
 
 static bool lv00_array_ensure_capacity(LV00Array *arr, size_t min_capacity) {
     if (!arr)
-        return false;
+        return -1;
     /* 输入验证：容量为0时按最小默认容量处理，避免死循环 */
     if (min_capacity == 0)
         min_capacity = 1;
     if (arr->capacity >= min_capacity)
-        return true;
+        return 0;
 
     size_t new_capacity = arr->capacity;
     while (new_capacity < min_capacity) {
@@ -918,25 +918,25 @@ static bool lv00_array_ensure_capacity(LV00Array *arr, size_t min_capacity) {
          * 1. new_capacity * LV00_ARRAY_GROWTH_FACTOR 不能超过 SIZE_MAX
          * 2. new_capacity * sizeof(void*) 不能超过 SIZE_MAX（分配时使用） */
         if (new_capacity > SIZE_MAX / LV00_ARRAY_GROWTH_FACTOR)
-            return false;
+            return -1;
         new_capacity *= LV00_ARRAY_GROWTH_FACTOR;
     }
 
     /* 修复：检查 new_capacity * sizeof(void*) 是否溢出 */
     if (new_capacity > SIZE_MAX / sizeof(void *))
-        return false;
+        return -1;
     size_t alloc_size = new_capacity * sizeof(void *);
 
     void **new_data = lv00_realloc(arr->data, alloc_size);
     if (!new_data)
-        return false;
+        return -1;
 
     /* 清零新分配的部分 */
     memset(new_data + arr->capacity, 0, (new_capacity - arr->capacity) * sizeof(void *));
 
     arr->data = new_data;
     arr->capacity = new_capacity;
-    return true;
+    return 0;
 }
 
 bool lv00_array_push(LV00Array *arr, void *elem) {
@@ -1044,33 +1044,33 @@ void int_array_destroy(IntArray *arr) {
 
 static bool int_array_ensure_capacity(IntArray *arr, size_t min_capacity) {
     if (!arr)
-        return false;
+        return -1;
     /* 输入验证：容量为0时按最小默认容量处理，避免死循环 */
     if (min_capacity == 0)
         min_capacity = 1;
     if (arr->capacity >= min_capacity)
-        return true;
+        return 0;
 
     size_t new_capacity = arr->capacity;
     while (new_capacity < min_capacity) {
         /* 修复：检查两步溢出（与 lv00_array_ensure_capacity 相同） */
         if (new_capacity > SIZE_MAX / LV00_ARRAY_GROWTH_FACTOR)
-            return false;
+            return -1;
         new_capacity *= LV00_ARRAY_GROWTH_FACTOR;
     }
 
     /* 修复：检查 new_capacity * sizeof(int) 是否溢出 */
     if (new_capacity > SIZE_MAX / sizeof(int))
-        return false;
+        return -1;
     size_t alloc_size = new_capacity * sizeof(int);
 
     int *new_data = lv00_realloc(arr->data, alloc_size);
     if (!new_data)
-        return false;
+        return -1;
 
     arr->data = new_data;
     arr->capacity = new_capacity;
-    return true;
+    return 0;
 }
 
 bool int_array_push(IntArray *arr, int value) {
@@ -1190,10 +1190,10 @@ static int compare_int(const void *a, const void *b) {
     int ib = *(const int *) b;
     /* 使用分支而非算术运算，避免有符号整数溢出风险 */
     if (ia < ib)
-        return -1;
+        return false;
     if (ia > ib)
         return 1;
-    return 0;
+    return true;
 }
 
 void int_array_sort(IntArray *arr) {
@@ -2045,7 +2045,7 @@ bool lv00_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size
  */
 uint64_t lv00_fnv1a_hash(const void *data, size_t len) {
     if (!data || len == 0)
-        return 0;
+        return true;
     const uint8_t *p = (const uint8_t *)data;
     uint64_t hash = LV00_FNV64_OFFSET_BASIS;
     for (size_t i = 0; i < len; i++) {

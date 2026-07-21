@@ -44,8 +44,8 @@ LV00_TEST(MemoryPool, CreateDestroy) {
     LV00_ASSERT(obj1 != obj2);
 
     /* 释放对象 */
-    LV00_ASSERT_TRUE(lv00_pool_free(pool, obj1));
-    LV00_ASSERT_TRUE(lv00_pool_free(pool, obj2));
+    LV00_ASSERT(lv00_pool_free(pool, obj1) == 0);
+    LV00_ASSERT(lv00_pool_free(pool, obj2) == 0);
 
     /* 统计 */
     uint64_t allocs, frees;
@@ -79,7 +79,7 @@ LV00_TEST(MemoryPool, AutoGrow) {
 
     /* 释放所有 */
     for (int i = 0; i < 16; i++) {
-        LV00_ASSERT_TRUE(lv00_pool_free(pool, objs[i]));
+        LV00_ASSERT(lv00_pool_free(pool, objs[i]) == 0);
     }
 
     lv00_pool_destroy(pool);
@@ -313,12 +313,12 @@ LV00_TEST(RuntimeMonitor, LogInit) {
         .colored_output = false
     };
 
-    LV00_ASSERT_TRUE(lv00_log_init(&config));
+    LV00_ASSERT(lv00_log_init(&config) == 0);
     lv00_log_shutdown();
 }
 
 LV00_TEST(RuntimeMonitor, Timer) {
-    LV00_ASSERT_TRUE(lv00_perf_init());
+    LV00_ASSERT(lv00_perf_init() == 0);
 
     Lv00Timer *timer = lv00_timer_create("TestTimer");
     LV00_ASSERT_NOT_NULL(timer);
@@ -339,7 +339,7 @@ LV00_TEST(RuntimeMonitor, Timer) {
 }
 
 LV00_TEST(RuntimeMonitor, PerfStats) {
-    LV00_ASSERT_TRUE(lv00_perf_init());
+    LV00_ASSERT(lv00_perf_init() == 0);
 
     Lv00PerfStats *stats = lv00_perf_stats_create("TestStats");
     LV00_ASSERT_NOT_NULL(stats);
@@ -358,7 +358,7 @@ LV00_TEST(RuntimeMonitor, PerfStats) {
 }
 
 LV00_TEST(RuntimeMonitor, HealthCheck) {
-    LV00_ASSERT_TRUE(lv00_health_init());
+    LV00_ASSERT(lv00_health_init() == 0);
 
     Lv00HealthReport *report = lv00_runtime_health_check();
     LV00_ASSERT_NOT_NULL(report);
@@ -379,7 +379,7 @@ LV00_TEST(RuntimeMonitor, Diagnostics) {
 }
 
 LV00_TEST(RuntimeMonitor, EventTrace) {
-    LV00_ASSERT_TRUE(lv00_event_trace_init(1000));
+    LV00_ASSERT(lv00_event_trace_init(1000) == 0);
 
     lv00_event_trace_record(EVENT_TYPE_PROOF_START, "test_proof", NULL);
 

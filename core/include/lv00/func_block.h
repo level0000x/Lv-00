@@ -42,10 +42,11 @@
 #include <stdbool.h>
 #include <stdint.h>  /* v3.4.2: 添加 uint16_t 支持 */
 
+/* 前向声明 */
+typedef struct StreamContext StreamContext;
+typedef struct SymbolicCoord SymbolicCoord;
+
 #include "constraint_graph.h"
-#include "func_block_utils.h"
-#include "stream.h"
-#include "symbolic_coord.h"
 
 #ifdef __cplusplus
 extern "C" {

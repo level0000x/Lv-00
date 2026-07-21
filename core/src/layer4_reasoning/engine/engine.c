@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file engine.c
  * @brief 主引擎实现
  * @details 实现工作流编排，协调规范化、重写、求解和冲突检查。
@@ -326,16 +326,16 @@ static bool engine_ensure_capacity(void **arr, int count, int *capacity, size_t 
  * @param rule   待添加的重写规则（指针所有权转移至引擎，调用者不应再释放）
  * @return true 添加成功，false 参数为 NULL 或内存不足
  */
-bool engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule) {
+int engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule) {
     if (!engine || !rule)
-        return false;
+        return -1;
 
     if (!engine_ensure_capacity((void **) &engine->rewrite_rules, engine->rewrite_rule_count,
                                 &engine->rewrite_rule_capacity, sizeof(RewriteRule *)))
-        return false;
+        return -1;
 
     engine->rewrite_rules[engine->rewrite_rule_count++] = (RewriteRule *)rule;
-    return true;
+    return 0;
 }
 
 /**
@@ -488,7 +488,7 @@ static void update_port_namespace_depth(GeomNode *n, int new_func_block_id,
  *                         若为 NULL 则跳过赋值。
  * @return true 成功，false 失败（错误信息存入 last_error）
  */
-bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
+int engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
                           int input_count, const int *output_port_ids, int output_count, int *out_func_block_id) {
     if (!engine || !engine->main_graph || (internal_count > 0 && !internal_node_ids) || (input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids)) {
         engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "引擎或主图为空");
@@ -769,9 +769,9 @@ static int check_and_report_conflicts(LV00Engine *engine, const char *context) {
     if (conflict_count > 0) {
         engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
         snprintf(engine->last_error, sizeof(engine->last_error), "%s: 检测到 %d 个冲突", context, conflict_count);
-        return -1;
+        return false;
     }
-    return 0;
+    return true;
 }
 
 /**
@@ -1560,7 +1560,7 @@ void *engine_create_frozen_point(LV00Engine *engine) {
 }
 
 /** @brief 恢复引擎状态到指定冻结点 @param engine 引擎实例 @param frozen_point 冻结点句柄 @return true 成功 */
-bool engine_restore_frozen_point(LV00Engine *engine, void *frozen_point) {
+int engine_restore_frozen_point(LV00Engine *engine, void *frozen_point) {
     if (!engine || !frozen_point)
         return false;
 

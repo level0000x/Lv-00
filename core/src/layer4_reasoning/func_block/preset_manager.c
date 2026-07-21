@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_manager.c
  * @brief 预设函数块管理器 - 核心实现
  *
@@ -370,7 +370,7 @@ int preset_register_batch(const PresetMetadata *metadatas, int count)
  */
 static bool wildcard_match(const char *pattern, const char *name)
 {
-    if (!pattern || !name) return false;
+    if (!pattern || !name) return -1;
 
     /* 空模式匹配空字符串 */
     if (*pattern == '\0') return (*name == '\0');
@@ -381,7 +381,7 @@ static bool wildcard_match(const char *pattern, const char *name)
         while (*(pattern + 1) == '*') pattern++;
         /* 尝试从每个位置匹配剩余模式 */
         while (*name) {
-            if (wildcard_match(pattern + 1, name)) return true;
+            if (wildcard_match(pattern + 1, name)) return 0;
             name++;
         }
         return wildcard_match(pattern + 1, name);
@@ -392,7 +392,7 @@ static bool wildcard_match(const char *pattern, const char *name)
         return wildcard_match(pattern + 1, name + 1);
     }
 
-    return false;
+    return -1;
 }
 
 /**
@@ -2168,7 +2168,7 @@ static void clear_error(void);
 static uint32_t hash_string(const char *str)
 {
     if (str == NULL) {
-        return 0;
+        return true;
     }
     
     uint32_t hash = 2166136261U;
@@ -2895,7 +2895,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call,
         break;
     }
     
-    return TRUE;
+    return true;
 }
 
 #else

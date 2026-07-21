@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file atp_backend.c
  * @brief 一阶逻辑自动定理证明器（FOL ATP）后端抽象层实现
  *
@@ -1194,28 +1194,28 @@ const char *atp_backend_type_name(ATPBackendType type) {
 /**
  * @brief 从名称字符串解析后端类型
  */
-bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type) {
+int atp_backend_type_from_name(const char *name, ATPBackendType *out_type) {
     if (!name || !out_type) {
-        return false;
+        return -1;
     }
 
     if (strcasecmp(name, "vampire") == 0) {
         *out_type = ATP_BACKEND_VAMPIRE;
-        return true;
+        return 0;
     }
     if (strcasecmp(name, "eprover") == 0 || strcasecmp(name, "e") == 0) {
         *out_type = ATP_BACKEND_EPROVER;
-        return true;
+        return 0;
     }
     if (strcasecmp(name, "iprover") == 0) {
         *out_type = ATP_BACKEND_IPROVER;
-        return true;
+        return 0;
     }
     if (strcasecmp(name, "custom") == 0) {
         *out_type = ATP_BACKEND_CUSTOM;
-        return true;
+        return 0;
     }
-    return false;
+    return -1;
 }
 
 /* ============================================================

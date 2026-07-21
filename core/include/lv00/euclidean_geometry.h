@@ -299,7 +299,7 @@ void euclidean_destroy(EuclideanContext *ctx);
  * @param system 目标公理体系
  * @return true 切换成功，false 存在不一致
  */
-bool euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem system);
+int euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem system);
 /**
  * @brief 获取当前活跃的公理体系
  *
@@ -368,7 +368,7 @@ int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord
  * @param count     点数量（必须 >= 3）
  * @return true 断言成功且一致，false 冲突
  */
-bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int count);
+int euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int count);
 /**
  * @brief 断言点 B 在点 A 和点 C 之间
  *
@@ -380,7 +380,7 @@ bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int
  * @param c_id 点 C 的 ID
  * @return true 断言成功且一致，false 冲突
  */
-bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_id);
+int euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_id);
 /**
  * @brief 断言两条线段全等
  *
@@ -393,11 +393,11 @@ bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_i
  * @param b2_id  第二条线段的第二个端点 ID
  * @return true 断言成功且一致，false 冲突
  */
-bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int b1_id, int b2_id);
+int euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int b1_id, int b2_id);
 
 /* ── forward decls for .c internal functions ── */
 void euclidean_destroy_equivalence_chain(EquivalenceProofChain *chain);
-bool euclidean_check_consistency(EuclideanContext *ctx);
+int euclidean_check_consistency(EuclideanContext *ctx);
 
 #ifdef __cplusplus
 }

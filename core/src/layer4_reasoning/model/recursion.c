@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file recursion.c
  * @brief 递归与条件系统实现 —— 良基递归与测度递减验证
  *
@@ -1211,7 +1211,7 @@ static bool point_on_segment_symbolic(SymbolicCoord *px, SymbolicCoord *py,
         symbolic_coord_destroy(pay);
         symbolic_coord_destroy(bax);
         symbolic_coord_destroy(bay);
-        return false;
+        return -1;
     }
 
     /* 检查叉积是否为零（三点共线）：(P-A) × (B-A) = 0 */
@@ -1237,7 +1237,7 @@ static bool point_on_segment_symbolic(SymbolicCoord *px, SymbolicCoord *py,
         symbolic_coord_destroy(pay);
         symbolic_coord_destroy(bax);
         symbolic_coord_destroy(bay);
-        return false;
+        return -1;
     }
 
     /* 检查点是否在线段范围内：0 <= t <= 1，其中 P = A + t*(B-A) */
@@ -1301,9 +1301,9 @@ static int compute_winding_number(double px, double py, GeomNode **segments, int
 
 /* 辅助函数：检查点是否在区域边界上 */
 static bool point_on_region_boundary(GeomNode *point, GeomNode *region) {
-    if (!point || !region || region->type != GEOM_REGION) return false;
-    if (!region->data.region.boundary_segments || region->data.region.segment_count <= 0) return false;
-    if (point->coord_count < 2) return false;
+    if (!point || !region || region->type != GEOM_REGION) return -1;
+    if (!region->data.region.boundary_segments || region->data.region.segment_count <= 0) return -1;
+    if (point->coord_count < 2) return -1;
 
     SymbolicCoord *px = point->symbolic_coords[0];
     SymbolicCoord *py = point->symbolic_coords[1];
@@ -1315,11 +1315,11 @@ static bool point_on_region_boundary(GeomNode *point, GeomNode *region) {
         if (point_on_segment_symbolic(px, py,
                 seg->symbolic_coords[0], seg->symbolic_coords[1],
                 seg->symbolic_coords[2], seg->symbolic_coords[3])) {
-            return true;
+            return 0;
         }
     }
 
-    return false;
+    return -1;
 }
 
 /* 辅助函数：射线法判断点是否在区域内（改进版） */
@@ -2113,10 +2113,10 @@ static void destroy_test_graph(ConstraintGraph *graph) {
  */
 static int test_non_symbolic_compare(GeomNode *a, GeomNode *b, void *user_data) {
     (void)user_data;
-    if (!a || !b) return 0;
-    if (a->namespace_depth < b->namespace_depth) return -1;
+    if (!a || !b) return true;
+    if (a->namespace_depth < b->namespace_depth) return false;
     if (a->namespace_depth > b->namespace_depth) return 1;
-    return 0;
+    return true;
 }
 
 int recursion_run_builtin_tests(

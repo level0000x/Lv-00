@@ -473,20 +473,20 @@ void ad_expr_destroy(Lv00ADExpr *expr) {
  * API implementation: Differentiation
  * ============================================================ */
 
-bool ad_forward_diff(Lv00ADExpr *expr, int var_index,
+int ad_forward_diff(Lv00ADExpr *expr, int var_index,
     double var_value, double *value, double *derivative) {
-    if (!expr || !value || !derivative) return false;
+    if (!expr || !value || !derivative) return -1;
 
     ForwardResult result = forward_eval(expr, var_index, var_value);
     *value = result.value;
     *derivative = result.tangent;
-    return true;
+    return 0;
 }
 
-bool ad_reverse_diff(Lv00ADExpr *expr,
+int ad_reverse_diff(Lv00ADExpr *expr,
     const double *var_values, size_t var_count,
     double *value, double *gradients) {
-    if (!expr || !var_values || !value || !gradients) return false;
+    if (!expr || !var_values || !value || !gradients) return -1;
 
     /* Reset all gradients */
     reset_gradients(expr);
@@ -536,18 +536,18 @@ bool ad_reverse_diff(Lv00ADExpr *expr,
      * read their gradient field */
     /* We implement this with a separate traversal */
 
-    return true;
+    return 0;
 }
 
 /* ============================================================
  * API implementation: Evaluation and gradient query
  * ============================================================ */
 
-bool ad_eval(Lv00ADExpr *expr,
+int ad_eval(Lv00ADExpr *expr,
     const double *var_values, size_t var_count, double *result) {
-    if (!expr || !var_values || !result) return false;
+    if (!expr || !var_values || !result) return -1;
     *result = reverse_forward_pass(expr, var_values, var_count);
-    return true;
+    return 0;
 }
 
 double ad_grad(Lv00ADExpr *expr, int var_index) {

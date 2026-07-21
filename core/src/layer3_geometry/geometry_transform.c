@@ -528,9 +528,9 @@ void lv00_transform_unref(Lv00Transform *t) {
 
 /* ============== 变换应用实现 ============== */
 
-bool lv00_transform_apply_point(const Lv00Transform *t, mpq_t x, mpq_t y) {
+int lv00_transform_apply_point(const Lv00Transform *t, mpq_t x, mpq_t y) {
     if (!t || !t->matrix_valid) {
-        return false;
+        return -1;
     }
 
     mpq_t new_x, new_y;
@@ -559,16 +559,16 @@ bool lv00_transform_apply_point(const Lv00Transform *t, mpq_t x, mpq_t y) {
     mpq_clear(new_y);
     mpq_clear(temp);
 
-    return true;
+    return 0;
 }
 
-bool lv00_transform_get_matrix(Lv00Transform *t, Lv00TransformMatrix *matrix) {
+int lv00_transform_get_matrix(Lv00Transform *t, Lv00TransformMatrix *matrix) {
     if (!t || !matrix) {
-        return false;
+        return -1;
     }
 
     if (!t->matrix_valid) {
-        return false;
+        return -1;
     }
 
     mpq_init(matrix->a);
@@ -585,7 +585,7 @@ bool lv00_transform_get_matrix(Lv00Transform *t, Lv00TransformMatrix *matrix) {
     mpq_set(matrix->d, t->matrix.d);
     mpq_set(matrix->ty, t->matrix.ty);
 
-    return true;
+    return 0;
 }
 
 /* ============== 变换复合实现 ============== */
@@ -620,9 +620,9 @@ void lv00_transform_sequence_destroy(Lv00TransformSequence *seq) {
     lv00_free((void **) &seq);
 }
 
-bool lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t) {
+int lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t) {
     if (!seq || !t) {
-        return false;
+        return -1;
     }
 
     if (seq->count >= seq->capacity) {
@@ -630,7 +630,7 @@ bool lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t) {
         Lv00Transform **new_arr = (Lv00Transform **)lv00_realloc(seq->transforms,
                                                              new_cap * sizeof(Lv00Transform *));
         if (!new_arr) {
-            return false;
+            return -1;
         }
         seq->transforms = new_arr;
         seq->capacity = new_cap;
@@ -640,7 +640,7 @@ bool lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t) {
     seq->transforms[seq->count++] = t;
     seq->composite_valid = false;
 
-    return true;
+    return 0;
 }
 
 Lv00Transform *lv00_transform_compose(const Lv00Transform *t1, const Lv00Transform *t2) {
@@ -734,16 +734,16 @@ Lv00Transform *lv00_transform_sequence_composite(const Lv00TransformSequence *se
 
 bool lv00_transform_sequence_apply(const Lv00TransformSequence *seq, mpq_t x, mpq_t y) {
     if (!seq) {
-        return false;
+        return -1;
     }
 
     for (uint32_t i = 0; i < seq->count; i++) {
-        if (!lv00_transform_apply_point(seq->transforms[i], x, y)) {
-            return false;
+        if (lv00_transform_apply_point(seq->transforms[i], x, y) != 0) {
+            return -1;
         }
     }
 
-    return true;
+    return 0;
 }
 
 /* ============== 变换性质分析实现 ============== */
@@ -758,7 +758,7 @@ bool lv00_transform_is_orientation_preserving(const Lv00Transform *t) {
 
 bool lv00_transform_find_fixed_point(const Lv00Transform *t, mpq_t out_x, mpq_t out_y) {
     if (!t || !t->matrix_valid) {
-        return false;
+        return -1;
     }
 
     /* 求解 (x, y) = M * (x, y) */
@@ -791,7 +791,7 @@ bool lv00_transform_find_fixed_point(const Lv00Transform *t, mpq_t out_x, mpq_t 
         mpq_clear(one_minus_a);
         mpq_clear(one_minus_d);
         mpq_clear(temp);
-        return false;
+        return -1;
     }
 
     /* x = (tx*(1-d) + b*ty) / det */
@@ -811,7 +811,7 @@ bool lv00_transform_find_fixed_point(const Lv00Transform *t, mpq_t out_x, mpq_t 
     mpq_clear(one_minus_d);
     mpq_clear(temp);
 
-    return true;
+    return 0;
 }
 
 Lv00Transform *lv00_transform_inverse(const Lv00Transform *t) {
@@ -884,15 +884,15 @@ Lv00Transform *lv00_transform_inverse(const Lv00Transform *t) {
 
 bool lv00_transform_equal(const Lv00Transform *t1, const Lv00Transform *t2) {
     if (!t1 || !t2) {
-        return false;
+        return -1;
     }
 
     if (t1->type != t2->type) {
-        return false;
+        return -1;
     }
 
     if (!t1->matrix_valid || !t2->matrix_valid) {
-        return false;
+        return -1;
     }
 
     return (mpq_equal(t1->matrix.a, t2->matrix.a) &&
@@ -923,7 +923,7 @@ bool lv00_points_are_symmetric(const mpq_t px, const mpq_t py,
     return result;
 }
 
-bool lv00_reflect_point(const mpq_t px, const mpq_t py,
+int lv00_reflect_point(const mpq_t px, const mpq_t py,
                          const mpq_t ax, const mpq_t ay,
                          const mpq_t bx, const mpq_t by,
                          mpq_t out_x, mpq_t out_y) {
@@ -994,7 +994,7 @@ bool lv00_reflect_point(const mpq_t px, const mpq_t py,
     mpq_clear(hx);
     mpq_clear(hy);
 
-    return true;
+    return 0;
 }
 
 bool lv00_rotate_point(const mpq_t px, const mpq_t py,
@@ -1003,13 +1003,13 @@ bool lv00_rotate_point(const mpq_t px, const mpq_t py,
                         mpq_t out_x, mpq_t out_y) {
     Lv00Transform *rot = lv00_transform_rotation(cx, cy, angle_num, angle_denom);
     if (!rot) {
-        return false;
+        return -1;
     }
 
     mpq_set(out_x, px);
     mpq_set(out_y, py);
 
-    bool result = lv00_transform_apply_point(rot, out_x, out_y);
+    int result = lv00_transform_apply_point(rot, out_x, out_y);
 
     lv00_transform_destroy(rot);
 
@@ -1140,15 +1140,15 @@ void lv00_transform_group_destroy(Lv00TransformGroup *group) {
     lv00_free((void **) &group);
 }
 
-bool lv00_transform_group_add_generator(Lv00TransformGroup *group, Lv00Transform *generator) {
+int lv00_transform_group_add_generator(Lv00TransformGroup *group, Lv00Transform *generator) {
     if (!group || !generator || group->generator_count >= GROUP_MAX_GENERATORS) {
-        return false;
+        return -1;
     }
 
     lv00_transform_ref(generator);
     group->generators[group->generator_count++] = generator;
 
-    return true;
+    return 0;
 }
 
 Lv00TransformGroup *lv00_transform_group_create_preset(const char *type) {

@@ -169,7 +169,7 @@ void lv00_ineq_system_destroy(Lv00InequalitySystem *sys);
  * @param ineq 不等式
  * @return 是否成功
  */
-bool lv00_ineq_system_add(Lv00InequalitySystem *sys, Lv00Inequality *ineq);
+int lv00_ineq_system_add(Lv00InequalitySystem *sys, Lv00Inequality *ineq);
 
 /**
  * @brief 添加变量约束（如 x > 0）
@@ -179,7 +179,7 @@ bool lv00_ineq_system_add(Lv00InequalitySystem *sys, Lv00Inequality *ineq);
  * @param value 约束值（通常为 0）
  * @return 是否成功
  */
-bool lv00_ineq_system_add_var_constraint(Lv00InequalitySystem *sys,
+int lv00_ineq_system_add_var_constraint(Lv00InequalitySystem *sys,
                                           Lv00Expr *var,
                                           Lv00InequalityType type,
                                           const mpq_t value);
@@ -230,7 +230,7 @@ Lv00InequalityStatus lv00_ineq_prove_with_method(Lv00Inequality *ineq,
  * @param out_upper_bound 输出上界（几何平均）
  * @return 是否成功
  */
-bool lv00_ineq_am_gm(Lv00Expr **expressions, uint32_t count,
+int lv00_ineq_am_gm(Lv00Expr **expressions, uint32_t count,
                      Lv00Expr **out_lower_bound, Lv00Expr **out_upper_bound);
 
 /**
@@ -244,7 +244,7 @@ bool lv00_ineq_am_gm(Lv00Expr **expressions, uint32_t count,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
+int lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
                                Lv00Inequality **out_ineq);
 
 /**
@@ -260,7 +260,7 @@ bool lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
  * @param out_max 输出最大和
  * @return 是否成功
  */
-bool lv00_ineq_rearrangement(Lv00Expr **a, Lv00Expr **b, uint32_t count,
+int lv00_ineq_rearrangement(Lv00Expr **a, Lv00Expr **b, uint32_t count,
                               Lv00Expr **out_min, Lv00Expr **out_max);
 
 /**
@@ -276,7 +276,7 @@ bool lv00_ineq_rearrangement(Lv00Expr **a, Lv00Expr **b, uint32_t count,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv00_ineq_schur(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c, uint32_t r,
+int lv00_ineq_schur(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c, uint32_t r,
                      Lv00Inequality **out_ineq);
 
 /**
@@ -292,7 +292,7 @@ bool lv00_ineq_schur(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c, uint32_t r,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv00_ineq_jensen(const char *func, Lv00Expr **points, mpq_t *weights,
+int lv00_ineq_jensen(const char *func, Lv00Expr **points, mpq_t *weights,
                        uint32_t count, bool is_convex, Lv00Inequality **out_ineq);
 
 /**
@@ -344,7 +344,7 @@ Lv00Inequality *lv00_ineq_negate(Lv00Inequality *ineq);
  * @param out_result 输出结果不等式
  * @return 是否可以传递
  */
-bool lv00_ineq_transitive(Lv00Inequality **ineqs, uint32_t count,
+int lv00_ineq_transitive(Lv00Inequality **ineqs, uint32_t count,
                           Lv00Inequality **out_result);
 
 /**
@@ -354,7 +354,7 @@ bool lv00_ineq_transitive(Lv00Inequality **ineqs, uint32_t count,
  * @param out_result 输出结果不等式
  * @return 是否可以合并
  */
-bool lv00_ineq_merge(Lv00Inequality **ineqs, uint32_t count,
+int lv00_ineq_merge(Lv00Inequality **ineqs, uint32_t count,
                      Lv00Inequality **out_result);
 
 /* ============== 表达式符号判定 ============== */
@@ -417,7 +417,7 @@ typedef struct {
  * @param out_sos 输出分解结果
  * @return 是否成功分解
  */
-bool lv00_expr_sos_decompose(Lv00Expr *poly, Lv00SOSDecomposition **out_sos);
+int lv00_expr_sos_decompose(Lv00Expr *poly, Lv00SOSDecomposition **out_sos);
 
 /**
  * @brief 销毁平方和分解
@@ -440,7 +440,7 @@ void lv00_sos_destroy(Lv00SOSDecomposition *sos);
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv00_ineq_triangle_area(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
+int lv00_ineq_triangle_area(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
                               Lv00Expr *area, Lv00Inequality **out_ineq);
 
 /**
@@ -456,7 +456,7 @@ bool lv00_ineq_triangle_area(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv00_ineq_weitzenbock(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
+int lv00_ineq_weitzenbock(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
                             Lv00Expr *area, Lv00Inequality **out_ineq);
 
 /**
@@ -474,7 +474,7 @@ bool lv00_ineq_weitzenbock(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv00_ineq_erdos_mordell(Lv00Expr *pa, Lv00Expr *pb, Lv00Expr *pc,
+int lv00_ineq_erdos_mordell(Lv00Expr *pa, Lv00Expr *pb, Lv00Expr *pc,
                               Lv00Expr *p, Lv00Expr *q, Lv00Expr *r,
                               Lv00Inequality **out_ineq);
 
