@@ -831,7 +831,9 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
      *   6. 按 type 属性（point/segment/circle/line/polygon）映射到约束图
      */
     if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
-    (void)engine; (void)config;
+    if (!config->input_path || config->input_path[0] == '\0')
+        return LV00_ERROR_INVALID_PARAM;
+    (void)engine;
     /* FUTURE: 实现 GeoGebra .ggb 导入 */
     return LV00_ERROR_UNSUPPORTED;
 }
@@ -1512,7 +1514,9 @@ static int svg_parse_circle(double cx, double cy, double r, double *out_points, 
 
 int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
     if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
-    (void)engine; (void)config;
+    if (!config->input_path || config->input_path[0] == '\0')
+        return LV00_ERROR_INVALID_PARAM;
+    (void)engine;
     /* FUTURE: 实现 SVG 导入 */
     return LV00_ERROR_UNSUPPORTED;
 }

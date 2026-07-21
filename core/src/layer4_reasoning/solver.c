@@ -260,10 +260,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         }
         /* Might be redundant but not conflicting; continue */
     }
-    fprintf(stderr, "[TRACE solve] after check_conflict_equations, sys.count=%d\n", sys.count);
 
     /* Step 3: Check for out-of-scope (degree > 3) */
-    fprintf(stderr, "[TRACE solve] step 3 start\n");
     bool has_out_of_scope = false;
     for (int i = 0; i < sys.count; i++) {
         if (is_out_of_scope(&sys.eqs[i].poly)) {
@@ -271,7 +269,6 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
             break;
         }
     }
-    fprintf(stderr, "[TRACE solve] step 3 done, has_out_of_scope=%d\n", has_out_of_scope);
     if (has_out_of_scope) {
         equation_system_clear(&sys);
         *out_result = result;
@@ -285,7 +282,6 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     /* Step 4: Order variables by dependency (topological sort).
      * 被依赖的变量排在前面，优先求解。这确保在消元过程中，
      * 已知值可以尽早代入，减少后续方程的复杂度。 */
-    fprintf(stderr, "[TRACE solve] step 4 start\n");
     {
         /* 收集方程系统中的所有唯一变量 ID */
         int *all_var_ids = lv00_malloc((size_t) sys.count * sizeof(int));
@@ -333,10 +329,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
             }
 
             int ordered_count = 0;
-            fprintf(stderr, "[TRACE solve] calling order_variables_by_dependency, all_var_count=%d dirty_count=%d\n", all_var_count, dirty_count);
             int *ordered_ids = order_variables_by_dependency(graph, all_var_ids, all_var_count, dirty_variable_ids,
                                                              dirty_count, &ordered_count);
-            fprintf(stderr, "[TRACE solve] order_variables_by_dependency done, ordered_count=%d\n", ordered_count);
 
             if (ordered_ids && ordered_count > 0) {
                 /* 按拓扑排序重排方程系统中的方程顺序。
@@ -403,7 +397,6 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         }
         lv00_free((void **) &all_var_ids);
     }
-    fprintf(stderr, "[TRACE solve] step 4 done, about to solve_equations_pass\n");
 
     /* 流式事件: 拓扑排序完成，开始方程消元 */
     if (solver_stream_ctx) {
@@ -422,12 +415,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     bool no_solution = false;
 
     solve_equations_pass(&sys, result, &solved_count, &multiple_solutions, &no_solution, true);
-    fprintf(stderr, "[TRACE solve] after solve_equations_pass, solved=%d multi=%d no_sol=%d\n", solved_count, multiple_solutions, no_solution);
-    fflush(stderr);
 
     /* Step 6: After elimination, check for contradictions */
-    fprintf(stderr, "[TRACE solve] step 6 start, calling check_contradiction_after_substitution\n");
-    fflush(stderr);
     if (no_solution) {
         /* Clean up solutions */
         cleanup_groebner_result(result);
@@ -439,24 +428,16 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         solver_snapshot_free(&snapshot);
         return SOLVER_STATUS_NO_SOLUTION;
     }
-    fprintf(stderr, "[TRACE solve] step 6 done\n");
-    fflush(stderr);
 
     /* Step 7: Gröbner basis elimination for remaining unsolved equations.
      * When simple per-equation solving leaves unsolved equations, use
      * Buchberger's algorithm for system-level elimination. */
-    fprintf(stderr, "[TRACE solve] step 7 start\n");
-    fflush(stderr);
     {
         int remaining_before_gb = 0;
-        fprintf(stderr, "[TRACE solve] step 7 counting remaining equations, sys.count=%d sys.eqs=%p\n", sys.count, (void*)sys.eqs);
-        fflush(stderr);
         for (int i = 0; i < sys.count; i++) {
             if (sys.eqs[i].poly.degree >= 0)
                 remaining_before_gb++;
         }
-        fprintf(stderr, "[TRACE solve] step 7 remaining_before_gb=%d\n", remaining_before_gb);
-        fflush(stderr);
 
         if (remaining_before_gb > 0) {
             /* 流式事件: 消元后有剩余方程，进入 Gröbner 基阶段 */
@@ -505,12 +486,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
             }
 
             /* Attempt Gröbner basis computation */
-            fprintf(stderr, "[TRACE solve] step 7 calling groebner_basis_compute, sys.eqs=%p sys.count=%d\n",
-                    (void*)sys.eqs, sys.count);
-            fflush(stderr);
             SolverStatus gb_status = groebner_basis_compute(&sys);
-            fprintf(stderr, "[TRACE solve] step 7 groebner_basis_compute done, status=%d\n", gb_status);
-            fflush(stderr);
 
             if (gb_status == SOLVER_STATUS_OUT_OF_SCOPE) {
                 /* Gröbner basis computation found degree > 4 */
@@ -1388,12 +1364,9 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
     }
 
     /* Check 2: Extract equations and look for contradictions */
-    fprintf(stderr, "[TRACE check] init sys\n");
     EquationSystem sys;
     equation_system_init(&sys);
-    fprintf(stderr, "[TRACE check] extract start\n");
     extract_equations_from_constraints(graph, &sys);
-    fprintf(stderr, "[TRACE check] extract done count=%d\n", sys.count);
 
     /* Check for 0 = nonzero (constant contradictions) */
     for (int i = 0; i < sys.count; i++) {
@@ -1520,9 +1493,7 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
         }
     }
 
-    fprintf(stderr, "[TRACE check] clear sys\n");
     equation_system_clear(&sys);
-    fprintf(stderr, "[TRACE check] return false\n");
     return false;
 }
 
@@ -1720,17 +1691,9 @@ static bool mv_monomial_divisible_lcm(const MVMonomial *d, const int *lcm_exp, i
 /* 多变量多项式乘以单项式 (in-place: result = p * monomial) */
 static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, const int *mono_exp,
                                  const mpz_t mono_coeff, int var_count) {
-    fprintf(stderr, "[TRACE mpm] entry, result=%p p=%p p->term_count=%d\n", (void*)result, (void*)p, p->term_count);
-    fflush(stderr);
     mv_poly_clear(result);
-    fprintf(stderr, "[TRACE mpm] after clear\n");
-    fflush(stderr);
     mv_poly_init(result, var_count);
-    fprintf(stderr, "[TRACE mpm] after init, looping term_count=%d\n", p->term_count);
-    fflush(stderr);
     for (int i = 0; i < p->term_count; i++) {
-        fprintf(stderr, "[TRACE mpm] term %d\n", i);
-        fflush(stderr);
         mpz_t new_coeff;
         mpz_init(new_coeff);
         mpz_mul(new_coeff, p->terms[i].coeff, mono_coeff);
@@ -1748,15 +1711,10 @@ static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, co
         lv00_free((void **) &new_exp);
     }
     mv_poly_sort(result);
-    fprintf(stderr, "[TRACE mpm] sort done, result->term_count=%d\n", result->term_count);
-    fflush(stderr);
 }
 
 /* 多变量多项式减法: result = a - b */
 static void mv_poly_sub(MVPolynomial *result, const MVPolynomial *a, const MVPolynomial *b) {
-    fprintf(stderr, "[TRACE mps] entry, result=%p a=%p b=%p a->term_count=%d b->term_count=%d\n",
-            (void*)result, (void*)a, (void*)b, a->term_count, b->term_count);
-    fflush(stderr);
     mv_poly_clear(result);
     mv_poly_init(result, a->var_count);
     for (int i = 0; i < a->term_count; i++) {
@@ -1798,14 +1756,10 @@ static bool mv_poly_is_zero(const MVPolynomial *p) {
  * 限制: 只处理全次数 <= 2 的多项式系统。
  */
 static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g, int var_count, MVPolynomial *result) {
-    fprintf(stderr, "[TRACE sp] entry\n");
-    fflush(stderr);
     mv_poly_init(result, var_count);
 
     const MVMonomial *lt_f = mv_poly_leading_term(f);
     const MVMonomial *lt_g = mv_poly_leading_term(g);
-    fprintf(stderr, "[TRACE sp] lt_f=%p lt_g=%p\n", (void*)lt_f, (void*)lt_g);
-    fflush(stderr);
     if (!lt_f || !lt_g)
         return;
 
@@ -1826,8 +1780,6 @@ static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g, int var_c
     }
 
     mv_monomial_lcm(lt_f, lt_g, var_count, lcm_exp);
-    fprintf(stderr, "[TRACE sp] lcm done\n");
-    fflush(stderr);
 
     /* 计算 lcm / lt_f 的单项式 */
     for (int v = 0; v < var_count; v++) {
@@ -1846,14 +1798,8 @@ static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g, int var_c
     MVPolynomial term1, term2;
     memset(&term1, 0, sizeof(term1));
     memset(&term2, 0, sizeof(term2));
-    fprintf(stderr, "[TRACE sp] calling mv_poly_mul_monomial term1\n");
-    fflush(stderr);
     mv_poly_mul_monomial(&term1, f, quo_f_exp, lt_g->coeff, var_count);
-    fprintf(stderr, "[TRACE sp] mv_poly_mul_monomial term2\n");
-    fflush(stderr);
     mv_poly_mul_monomial(&term2, g, quo_g_exp, lt_f->coeff, var_count);
-    fprintf(stderr, "[TRACE sp] mv_poly_sub\n");
-    fflush(stderr);
     mv_poly_sub(result, &term1, &term2);
 
     mv_poly_clear(&term1);
@@ -1919,14 +1865,9 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                     MVPolynomial sub_term;
                     mv_poly_init(&sub_term, G[i]->var_count);
                     mv_poly_mul_monomial(&sub_term, G[i], quo_exp, remainder->terms[j].coeff, remainder->var_count);
-                    fprintf(stderr, "[TRACE pr] after mpm, sub_term.term_count=%d\n", sub_term.term_count);
-                    fflush(stderr);
 
                     MVPolynomial new_remainder;
                     mv_poly_init(&new_remainder, remainder->var_count);
-                    fprintf(stderr, "[TRACE pr] new_remainder init'd, filling from remainder(term_count=%d) sub_term(term_count=%d)\n",
-                            remainder->term_count, sub_term.term_count);
-                    fflush(stderr);
 
                     /* new_remainder = lt_g->coeff * remainder - coeff_j * sub_term */
                     /*
@@ -1953,14 +1894,8 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                     }
 
                     mv_poly_sort(&new_remainder);
-                    fprintf(stderr, "[TRACE pr] sort done, new_remainder.term_count=%d\n", new_remainder.term_count);
-                    fflush(stderr);
                     mv_poly_remove_zeros(&new_remainder);
-                    fprintf(stderr, "[TRACE pr] remove_zeros done, new_remainder.term_count=%d\n", new_remainder.term_count);
-                    fflush(stderr);
                     mv_poly_clear(remainder);
-                    fprintf(stderr, "[TRACE pr] remainder cleared, copying new_remainder\n");
-                    fflush(stderr);
                     *remainder = new_remainder;
                     mv_poly_clear(&sub_term);
                     lv00_free((void **) &quo_exp);
@@ -2026,8 +1961,6 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
  */
 static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynomial ***out_G, int *out_g_count,
                                         int step_limit) {
-    fprintf(stderr, "[TRACE bg] entry, f_count=%d\n", f_count);
-    fflush(stderr);
     if (f_count == 0 || !F || !out_G || !out_g_count) {
         *out_G = NULL;
         *out_g_count = 0;
@@ -2035,8 +1968,6 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     }
 
     int var_count = F[0]->var_count;
-    fprintf(stderr, "[TRACE bg] var_count=%d\n", var_count);
-    fflush(stderr);
 
     /* 检查输入多项式次数限制：degree ≤ 4 */
     for (int i = 0; i < f_count; i++) {
@@ -2048,16 +1979,10 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             }
         }
     }
-    fprintf(stderr, "[TRACE bg] degree check passed\n");
-    fflush(stderr);
 
     /* 初始化 G = F (复制) */
     int g_capacity = f_count + 16;
-    fprintf(stderr, "[TRACE bg] copying F to G, f_count=%d g_capacity=%d\n", f_count, g_capacity);
-    fflush(stderr);
     MVPolynomial **G = lv00_malloc((size_t) g_capacity * sizeof(MVPolynomial *));
-    fprintf(stderr, "[TRACE bg] G alloc done, G=%p\n", (void*)G);
-    fflush(stderr);
     if (!G) {
         *out_G = NULL;
         *out_g_count = 0;
@@ -2065,8 +1990,6 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     }
     int g_count = f_count;
     for (int i = 0; i < f_count; i++) {
-        fprintf(stderr, "[TRACE bg] copy i=%d, F[%d]->term_count=%d\n", i, i, F[i]->term_count);
-        fflush(stderr);
         G[i] = lv00_malloc(sizeof(MVPolynomial));
         if (!G[i]) {
             /* 清理已分配的资源 */
@@ -2082,8 +2005,6 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
         mv_poly_init(G[i], var_count);
         mv_poly_copy(G[i], F[i]);
     }
-    fprintf(stderr, "[TRACE bg] copy done, g_count=%d\n", g_count);
-    fflush(stderr);
 
     /* Buchberger 链式判据: 跟踪已处理的配对。
      * pair_processed[i][j] = true 表示配对 (i,j) 已经处理过。
@@ -2100,8 +2021,6 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
         return SOLVER_STATUS_OUT_OF_MEMORY;
     }
     bool *pair_data = lv00_malloc((size_t) (g_capacity * g_capacity) * sizeof(bool));
-    fprintf(stderr, "[TRACE bg] pair_data=%p\n", (void*)pair_data);
-    fflush(stderr);
     if (!pair_data) {
         for (int i = 0; i < g_count; i++) {
             mv_poly_clear(G[i]);
@@ -2113,8 +2032,6 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
         return SOLVER_STATUS_OUT_OF_MEMORY;
     }
     memset(pair_data, 0, (size_t) (g_capacity * g_capacity) * sizeof(bool));
-    fprintf(stderr, "[TRACE bg] memset done\n");
-    fflush(stderr);
 
     int steps = 0;
 
@@ -2123,22 +2040,14 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     const int gb_max_stalled = 8;
     int prev_g_count = g_count;
     long double prev_total_terms = 0; /* 多项式项数累加，监控微小误差累积 */
-    fprintf(stderr, "[TRACE bg] counting prev_total_terms, g_count=%d\n", g_count);
-    fflush(stderr);
     for (int ti = 0; ti < g_count; ti++) {
         prev_total_terms += (long double) G[ti]->term_count;
     }
-    fprintf(stderr, "[TRACE bg] prev_total_terms done\n");
-    fflush(stderr);
 
     /* Buchberger 主循环 */
     bool changed = true;
-    fprintf(stderr, "[TRACE bg] entering main loop, g_count=%d\n", g_count);
-    fflush(stderr);
     while (changed && steps < step_limit) {
         changed = false;
-        fprintf(stderr, "[TRACE bg] loop iteration, g_count=%d\n", g_count);
-        fflush(stderr);
 
         /* 对所有多项式对 (i, j), i < j, 计算 S-多项式 */
         for (int i = 0; i < g_count && steps < step_limit; i++) {
@@ -2173,23 +2082,13 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
 
                 /* Buchberger 第一判据: 如果首项的 LCM 等于其中一个首项,
                  * 则 S-多项式约化为零, 跳过 */
-                fprintf(stderr, "[TRACE bg] about to get lt_i from G[%d]=%p\n", i, (void*)G[i]);
-                fflush(stderr);
                 const MVMonomial *lt_i = mv_poly_leading_term(G[i]);
-                fprintf(stderr, "[TRACE bg] lt_i=%p, about to get lt_j from G[%d]=%p\n", (void*)lt_i, j, (void*)G[j]);
-                fflush(stderr);
                 const MVMonomial *lt_j = mv_poly_leading_term(G[j]);
-                fprintf(stderr, "[TRACE bg] lt_j=%p\n", (void*)lt_j);
-                fflush(stderr);
                 if (!lt_i || !lt_j)
                     continue;
 
                 int *lcm_exp = lv00_malloc((size_t) var_count * sizeof(int));
-                fprintf(stderr, "[TRACE bg] lcm_exp=%p, var_count=%d, calling mv_monomial_lcm\n", (void*)lcm_exp, var_count);
-                fflush(stderr);
                 mv_monomial_lcm(lt_i, lt_j, var_count, lcm_exp);
-                fprintf(stderr, "[TRACE bg] mv_monomial_lcm done\n");
-                fflush(stderr);
 
                 bool lcm_is_lt_i = true, lcm_is_lt_j = true;
                 for (int v = 0; v < var_count; v++) {
@@ -2198,11 +2097,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                     if (lcm_exp[v] != lt_j->exponents[v])
                         lcm_is_lt_j = false;
                 }
-                fprintf(stderr, "[TRACE bg] lcm comparison done, lcm_is_lt_i=%d lcm_is_lt_j=%d\n", lcm_is_lt_i, lcm_is_lt_j);
-                fflush(stderr);
                 lv00_free((void **) &lcm_exp);
-                fprintf(stderr, "[TRACE bg] lcm_exp freed\n");
-                fflush(stderr);
 
                 if (lcm_is_lt_i || lcm_is_lt_j) {
                     /* 标记为已处理（虽然跳过，但配对已检查） */
@@ -2249,11 +2144,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
 
                 /* 计算 S-多项式 */
                 MVPolynomial s_poly;
-                fprintf(stderr, "[TRACE bg] calling s_polynomial\n");
-                fflush(stderr);
                 s_polynomial(G[i], G[j], var_count, &s_poly);
-                fprintf(stderr, "[TRACE bg] s_polynomial done\n");
-                fflush(stderr);
 
                 if (mv_poly_is_zero(&s_poly)) {
                     mv_poly_clear(&s_poly);
@@ -2499,8 +2390,6 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
  */
 static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map, int **out_coord_map,
                                           int *out_var_count) {
-    fprintf(stderr, "[TRACE bmp] entry, sys=%p sys->count=%d sys->eqs=%p\n", (void*)sys, sys->count, (void*)sys->eqs);
-    fflush(stderr);
     /* 收集所有唯一的 (var_node_id, coord_index) 对 */
     int *vids = lv00_malloc((size_t) sys->count * 2 * sizeof(int));
     if (!vids)
@@ -2534,8 +2423,6 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
     *var_id_map = vids;
     *out_coord_map = cids;
     *out_var_count = vcount;
-    fprintf(stderr, "[TRACE bmp] vcount=%d, building polys for sys->count=%d\n", vcount, sys->count);
-    fflush(stderr);
 
     /* 为每个方程构建多变量多项式 */
     MVPolynomial *polys = lv00_malloc((size_t) sys->count * sizeof(MVPolynomial));
@@ -2545,14 +2432,7 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
         return NULL;
     }
     for (int i = 0; i < sys->count; i++) {
-        fprintf(stderr, "[TRACE bmp] poly[%d]: eqs[%d].poly.degree=%d var_node_id=%d coord_index=%d\n",
-                i, i, sys->eqs[i].poly.degree, sys->eqs[i].var_node_id, sys->eqs[i].coord_index);
-        fflush(stderr);
-        fprintf(stderr, "[TRACE bmp] poly[%d]: calling mv_poly_init\n", i);
-        fflush(stderr);
         mv_poly_init(&polys[i], vcount);
-        fprintf(stderr, "[TRACE bmp] poly[%d]: mv_poly_init done\n", i);
-        fflush(stderr);
 
         if (sys->eqs[i].poly.degree < 0)
             continue;
@@ -2565,15 +2445,11 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
                 break;
             }
         }
-        fprintf(stderr, "[TRACE bmp] poly[%d]: var_idx=%d vcount=%d\n", i, var_idx, vcount);
-        fflush(stderr);
         if (var_idx < 0)
             continue;
 
         /* 将单变量多项式转换为多变量形式 */
         mpz_poly_t *p = &sys->eqs[i].poly;
-        fprintf(stderr, "[TRACE bmp] poly[%d]: degree=%d coeffs=%p\n", i, p->degree, (void*)p->coeffs);
-        fflush(stderr);
         for (int d = 0; d <= p->degree; d++) {
             int *exponents = lv00_malloc((size_t) vcount * sizeof(int));
             if (!exponents) {
@@ -5107,63 +4983,37 @@ push_error:
  *         SOLVER_STATUS_TIMEOUT 表示计算超出步数限制
  */
 SolverStatus groebner_basis_compute(EquationSystem *system) {
-    fprintf(stderr, "[TRACE gb] entry, system=%p count=%d eqs=%p\n",
-            (void*)system, system ? system->count : -1, system ? (void*)system->eqs : NULL);
-    fflush(stderr);
     if (!system || system->count == 0)
         return SOLVER_STATUS_OK;
-    fprintf(stderr, "[TRACE gb] checking eqs[0] poly=%p\n", (void*)&system->eqs[0].poly);
-    fflush(stderr);
-    fprintf(stderr, "[TRACE gb] eqs[0].poly.degree=%d\n", system->eqs[0].poly.degree);
-    fflush(stderr);
 
     /* Step 1: Check degree limit first (fast path) */
-    fprintf(stderr, "[TRACE gb] step 1 degree check\n");
-    fflush(stderr);
     for (int i = 0; i < system->count; i++) {
         if (system->eqs[i].poly.degree > 4) {
             return SOLVER_STATUS_OUT_OF_SCOPE;
         }
     }
-    fprintf(stderr, "[TRACE gb] step 1 done, degrees ok\n");
-    fflush(stderr);
 
     /* Step 2: Build multivariate polynomial representation */
-    fprintf(stderr, "[TRACE gb] step 2 calling build_mv_polynomials\n");
-    fflush(stderr);
     int *var_id_map = NULL;
     int *coord_map = NULL;
     int var_count = 0;
     MVPolynomial *mv_polys = build_mv_polynomials(system, &var_id_map, &coord_map, &var_count);
-    fprintf(stderr, "[TRACE gb] step 2 done, mv_polys=%p var_count=%d system=%p system->count=%d\n",
-            (void*)mv_polys, var_count, (void*)system, system ? system->count : -1);
-    fflush(stderr);
 
     if (var_count == 0 || !mv_polys) {
         lv00_free((void **) &var_id_map);
         lv00_free((void **) &coord_map);
         return SOLVER_STATUS_OK;
     }
-    fprintf(stderr, "[TRACE gb] past null check, system->count=%d\n", system->count);
-    fflush(stderr);
 
     /* Step 3: Filter out zero polynomials and collect non-trivial ones */
-    fprintf(stderr, "[TRACE gb] step 3 counting active\n");
-    fflush(stderr);
     int active_count = 0;
     if (system->count > 0) {
-        fprintf(stderr, "[TRACE gb] step 3 accessing mv_polys[0]=%p\n", (void*)&mv_polys[0]);
-        fflush(stderr);
     }
     for (int i = 0; i < system->count; i++) {
-        fprintf(stderr, "[TRACE gb] step 3 i=%d mv_polys[%d].term_count=%d\n", i, i, mv_polys[i].term_count);
-        fflush(stderr);
         if (!mv_poly_is_zero(&mv_polys[i])) {
             active_count++;
         }
     }
-    fprintf(stderr, "[TRACE gb] step 3 done, active_count=%d\n", active_count);
-    fflush(stderr);
 
     if (active_count == 0) {
         for (int i = 0; i < system->count; i++) {
@@ -5176,8 +5026,6 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     }
 
     MVPolynomial **active = lv00_malloc((size_t) active_count * sizeof(MVPolynomial *));
-    fprintf(stderr, "[TRACE gb] active alloc done, active=%p\n", (void*)active);
-    fflush(stderr);
     if (!active) {
         for (int i = 0; i < system->count; i++)
             mv_poly_clear(&mv_polys[i]);
@@ -5194,13 +5042,9 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     }
 
     /* Step 4: Run Buchberger's algorithm */
-    fprintf(stderr, "[TRACE gb] step 4 calling buchberger_groebner, active_count=%d\n", active_count);
-    fflush(stderr);
     MVPolynomial **G = NULL;
     int g_count = 0;
     SolverStatus status = buchberger_groebner(active, active_count, &G, &g_count, 10000);
-    fprintf(stderr, "[TRACE gb] step 4 buchberger_groebner done, status=%d g_count=%d\n", status, g_count);
-    fflush(stderr);
 
     /* 流式输出: Groebner 基计算步骤完成（含详细统计） */
     if (solver_stream_ctx) {

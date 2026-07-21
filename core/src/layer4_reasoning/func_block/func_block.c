@@ -482,9 +482,9 @@ bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
             new_cap = min_required;
         }
 
-        /* v3.4.2: 检查 size_t 溢出 */
+        /* 检查 size_t 溢出 */
         size_t alloc_size;
-        if (new_cap > (int)(SIZE_MAX / sizeof(PortDependency))) {
+        if ((size_t)new_cap > SIZE_MAX / sizeof(PortDependency)) {
             LV00_LOG_ERROR("func_block_add_port_dependency: 分配大小溢出 (new_cap=%d)",
                            new_cap);
             return false;
@@ -1063,11 +1063,15 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
             goto fail;
         
         /* 复制基本字段 */
+        dst->selector->type = src->selector->type;
+        dst->selector->reference_node_id = src->selector->reference_node_id;
+        dst->selector->custom_func = src->selector->custom_func;
         dst->selector->solution_count = src->selector->solution_count;
         dst->selector->current_index = src->selector->current_index;
         dst->selector->compare = src->selector->compare;
         dst->selector->on_select = src->selector->on_select;
         dst->selector->on_change = src->selector->on_change;
+        dst->selector->graph = src->selector->graph;
         
         /* 深拷贝选择器名称 */
         if (src->selector->name) {

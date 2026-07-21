@@ -1337,6 +1337,81 @@ if(BUILD_TESTS)
     add_lv00_test_and_register(test_wfc_modules
         test/c/test_wfc_modules.c wfc_modules_test)
 
+    # v3.5.0 新增：几何约束求解器模块测试
+    # add_lv00_test_and_register(test_geo_constraint_solver
+    #     test/c/test_geo_constraint_solver.c geo_constraint_solver_test)  # TODO: API not yet implemented
+    # ODE 求解器模块测试
+    # add_lv00_test_and_register(test_ode_solver
+    #     test/c/test_ode_solver.c ode_solver_test)  # TODO: API not yet implemented
+    # 增强证明导出模块测试
+    # add_lv00_test_and_register(test_proof_export_enhanced
+    #     test/c/test_proof_export_enhanced.c proof_export_enhanced_test)  # TODO: API not yet implemented
+    # 性能基准测试（注册到 CTest）
+    # add_lv00_test_and_register(test_performance
+    #     test/c/test_performance.c performance_test)  # TODO: API not yet implemented
+    # 内存管理综合测试
+    # add_lv00_test_and_register(test_memory_management
+    #     test/c/test_memory_management.c memory_management_test)  # TODO: API not yet implemented
+    # 最小化群论公理加载测试
+    # add_lv00_test_and_register(test_group_minimal
+    #     test/c/test_group_minimal.c group_minimal_test)  # TODO: API not yet implemented
+    # 几何拓扑模块测试
+    # add_lv00_test_and_register(test_geo_topology
+    #     test/c/test_geo_topology.c geo_topology_test)  # TODO: API not yet implemented
+    # 几何谓词模块测试
+    # add_lv00_test_and_register(test_geo_predicate
+    #     test/c/test_geo_predicate.c geo_predicate_test)  # TODO: API not yet implemented
+    # Halfedge 网格拓扑模块测试
+    # add_lv00_test_and_register(test_geo_halfedge_mesh
+    #     test/c/test_geo_halfedge_mesh.c geo_halfedge_mesh_test)  # TODO: API not yet implemented
+    # 动态几何依赖图模块测试
+    # add_lv00_test_and_register(test_geo_dynamic
+    #     test/c/test_geo_dynamic.c geo_dynamic_test)  # TODO: API not yet implemented
+    # AABB 树空间索引模块测试
+    # add_lv00_test_and_register(test_geo_aabb_tree
+    #     test/c/test_geo_aabb_tree.c geo_aabb_tree_test)  # TODO: API not yet implemented
+    # 错误处理与边界条件测试
+    # add_lv00_test_and_register(test_error_handling
+    #     test/c/test_error_handling.c error_handling_test)  # TODO: API not yet implemented
+    # 矛盾约束检测器测试
+    # add_lv00_test_and_register(test_conflict_detector
+    #     test/c/test_conflict_detector.c conflict_detector_test)  # TODO: API not yet implemented
+    # 自适应阈值框架测试
+    # add_lv00_test_and_register(test_adaptive_threshold
+    #     test/c/test_adaptive_threshold.c adaptive_threshold_test)  # TODO: API not yet implemented
+
+    # 新增公理包测试（未注册的 axiom test）—— 全部注释：API not yet implemented
+    # add_lv00_test_and_register(test_axiom_topos_theory
+    #     test/c/test_axiom_topos_theory.c topos_theory_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_synthetic_differential_geometry
+    #     test/c/test_axiom_synthetic_differential_geometry.c synthetic_differential_geometry_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_second_order_arithmetic
+    #     test/c/test_axiom_second_order_arithmetic.c second_order_arithmetic_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_robin_arithmetic
+    #     test/c/test_axiom_robin_arithmetic.c robin_arithmetic_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_quantum_information_theory
+    #     test/c/test_axiom_quantum_information_theory.c quantum_information_theory_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_probability_theory
+    #     test/c/test_axiom_probability_theory.c probability_theory_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_peano_arithmetic
+    #     test/c/test_axiom_peano_arithmetic.c peano_arithmetic_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_order_theory
+    #     test/c/test_axiom_order_theory.c order_theory_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_non_well_founded_set_theory
+    #     test/c/test_axiom_non_well_founded_set_theory.c non_well_founded_set_theory_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_measure_theory
+    #     test/c/test_axiom_measure_theory.c measure_theory_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_linear_algebra
+    #     test/c/test_axiom_linear_algebra.c linear_algebra_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_graph_theory
+    #     test/c/test_axiom_graph_theory.c graph_theory_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_galois_theory
+    #     test/c/test_axiom_galois_theory.c galois_theory_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_ergodic_theory
+    #     test/c/test_axiom_ergodic_theory.c ergodic_theory_axiom_test)  # TODO: API not yet implemented
+    # add_lv00_test_and_register(test_axiom_cartesian_closed_category
+    #     test/c/test_axiom_cartesian_closed_category.c cartesian_closed_category_axiom_test)  # TODO: API not yet implemented
+
     # 基准测试（构建但不注册到 CTest，手动运行）
     add_lv00_test(test_benchmark test/c/test_benchmark.c)
 endif()

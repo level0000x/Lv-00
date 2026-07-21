@@ -1888,7 +1888,7 @@ static FILE *g_log_file = NULL;
  * @brief 设置运行时日志级别
  * @param level 日志级别（1=ERROR, 2=WARNING, 3=INFO, 4=DEBUG）
  */
-void lv00_log_set_level(int level) {
+static void lv00_log_set_level(int level) {
     if (level >= LV00_LOG_LEVEL_ERROR && level <= LV00_LOG_LEVEL_DEBUG) {
         g_log_level = level;
     }
@@ -1899,7 +1899,7 @@ void lv00_log_set_level(int level) {
  * @param path 日志文件路径，NULL 则关闭文件输出
  * @return 0 成功，-1 失败
  */
-int lv00_log_set_file(const char *path) {
+static int lv00_log_set_file(const char *path) {
     if (g_log_file) {
         fclose(g_log_file);
         g_log_file = NULL;

@@ -1359,7 +1359,7 @@ static int test_registry_new_presets(void) {
     {
         const char *cat_str = preset_category_to_string(PRESET_CATEGORY_ANALYSIS);
         assert(cat_str != NULL);
-        assert(strcmp(cat_str, "鍒嗘瀽杩愮畻") == 0);
+        assert(strcmp(cat_str, "分析运算") == 0);
     }
 
     /* 楠岃瘉 lookup 杩斿洖娣辨嫹璐?*/

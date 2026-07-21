@@ -304,7 +304,9 @@ static void test_version_management(void) {
     assert(version_compatible(&req, &act2) == false);
 
     /* 测试系统版本检查 */
-    assert(lv00_check_version("3.0.0") == true);
+    assert(lv00_check_version("1.0.0") == true);
+    assert(lv00_check_version("1.1.0") == true);
+    assert(lv00_check_version("2.0.0") == false);
     assert(lv00_check_version("4.0.0") == false);
     assert(lv00_check_version("10.0.0") == false);
 

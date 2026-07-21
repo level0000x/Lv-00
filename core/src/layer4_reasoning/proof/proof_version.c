@@ -707,6 +707,31 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
     lv00_free((void**)&report);
 }
 
+/* ============================================================================
+ * Task stubs - TODO: implement task module
+ * ============================================================================ */
+
+Lv00TaskGroup *lv00_task_group_create(const char *name) {
+    (void)name;
+    return NULL;
+}
+
+Lv00Task *lv00_task_create(int (*fn)(void*), void *arg, const char *name) {
+    (void)fn;
+    (void)arg;
+    (void)name;
+    return NULL;
+}
+
+void lv00_task_group_add(Lv00TaskGroup *group, Lv00Task *task) {
+    (void)group;
+    (void)task;
+}
+
+void lv00_task_group_destroy(Lv00TaskGroup *group) {
+    (void)group;
+}
+
 /* ================================================================
  * 占位实现 — proof_multi_strategy.c 和 proof_optimize.c 被排除时的备选
  *
