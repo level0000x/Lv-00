@@ -289,14 +289,326 @@ void lv00_visual_scene_set_camera(Lv00VisualScene *scene,
 }
 
 /* ========================================================================
- * 渲染器
+ * 渲染辅助函数
+ * ======================================================================== */
+
+/** 将线性 RGBA 转为 0-255 整数（钳位） */
+static int to_byte(float c) {
+    int v = (int)(c * 255.0f);
+    if (v < 0) return 0;
+    if (v > 255) return 255;
+    return v;
+}
+
+/** 应用相机变换：将模型坐标映射到屏幕坐标 */
+static void apply_camera(float *x, float *y, const Lv00VisualScene *scene) {
+    float cx = scene->camera_center[0];
+    float cy = scene->camera_center[1];
+    float zoom = scene->camera_zoom;
+    *x = (*x - cx) * zoom + cx;
+    *y = (*y - cy) * zoom + cy;
+}
+
+/** 获取渲染缓存的端点或中心数据 */
+static bool get_float_cache(const Lv00VisualObject *obj, float *out, int count) {
+    if (obj->render_cache == NULL) return false;
+    memcpy(out, obj->render_cache, (size_t)count * sizeof(float));
+    return true;
+}
+
+/* ========================================================================
+ * SVG 渲染
+ * ======================================================================== */
+
+/** 输出 SVG 样式属性（stroke, fill, opacity, dasharray） */
+static void svg_write_style(FILE *fp, const Lv00VisualStyle *s) {
+    fprintf(fp, " stroke=\"rgb(%d,%d,%d)\"",
+            to_byte(s->stroke_color[0]),
+            to_byte(s->stroke_color[1]),
+            to_byte(s->stroke_color[2]));
+    fprintf(fp, " stroke-width=\"%.2f\"", s->stroke_width);
+    fprintf(fp, " stroke-opacity=\"%.2f\"", s->stroke_color[3]);
+
+    if (s->fill_color[3] > 0.0f) {
+        fprintf(fp, " fill=\"rgb(%d,%d,%d)\"",
+                to_byte(s->fill_color[0]),
+                to_byte(s->fill_color[1]),
+                to_byte(s->fill_color[2]));
+        fprintf(fp, " fill-opacity=\"%.2f\"", s->fill_color[3]);
+    } else {
+        fprintf(fp, " fill=\"none\"");
+    }
+
+    if (s->opacity < 1.0f) {
+        fprintf(fp, " opacity=\"%.2f\"", s->opacity);
+    }
+    if (s->dashed) {
+        fprintf(fp, " stroke-dasharray=\"5,5\"");
+    }
+}
+
+/** 递归渲染单个对象为 SVG */
+static void svg_render_object(FILE *fp, const Lv00VisualObject *obj,
+                               const Lv00VisualScene *scene, int depth) {
+    if (obj == NULL) return;
+
+    /* 组合对象：递归渲染子对象 */
+    if (obj->type == LV00_VISUAL_MOBJECT_GROUP) {
+        for (size_t i = 0; i < obj->children_count; i++) {
+            svg_render_object(fp, obj->children[i], scene, depth + 1);
+        }
+        return;
+    }
+
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+
+    switch (obj->type) {
+    case LV00_VISUAL_POINT: {
+        if (!get_float_cache(obj, cache, 2)) return;
+        float px = cache[0], py = cache[1];
+        apply_camera(&px, &py, scene);
+        fprintf(fp, "%*s<circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\"",
+                depth * 2, "", px, py,
+                obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f);
+        svg_write_style(fp, &obj->style);
+        /* 点为实心小圆 */
+        fprintf(fp, " fill=\"rgb(%d,%d,%d)\"",
+                to_byte(obj->style.stroke_color[0]),
+                to_byte(obj->style.stroke_color[1]),
+                to_byte(obj->style.stroke_color[2]));
+        fprintf(fp, "/>\n");
+        break;
+    }
+    case LV00_VISUAL_SEGMENT: {
+        if (!get_float_cache(obj, cache, 4)) return;
+        float x1 = cache[0], y1 = cache[1];
+        float x2 = cache[2], y2 = cache[3];
+        apply_camera(&x1, &y1, scene);
+        apply_camera(&x2, &y2, scene);
+        fprintf(fp, "%*s<line x1=\"%.2f\" y1=\"%.2f\" "
+                "x2=\"%.2f\" y2=\"%.2f\"",
+                depth * 2, "", x1, y1, x2, y2);
+        svg_write_style(fp, &obj->style);
+        fprintf(fp, "/>\n");
+        break;
+    }
+    case LV00_VISUAL_LINE: {
+        /* 直线从场景边界穿过 */
+        if (!get_float_cache(obj, cache, 4)) return;
+        float x1 = cache[0], y1 = cache[1];
+        float x2 = cache[2], y2 = cache[3];
+        float w = (float)(scene->objects ? 800 : 800);  /* 使用默认宽度 */
+        float h = (float)(scene->objects ? 600 : 600);
+        float dx = x2 - x1, dy = y2 - y1;
+        float len = sqrtf(dx * dx + dy * dy);
+        if (len < 1e-6f) return;
+        float ux = dx / len, uy = dy / len;
+        float t_max = sqrtf(w * w + h * h);
+        float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
+        float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
+        apply_camera(&lx1, &ly1, scene);
+        apply_camera(&lx2, &ly2, scene);
+        fprintf(fp, "%*s<line x1=\"%.2f\" y1=\"%.2f\" "
+                "x2=\"%.2f\" y2=\"%.2f\"",
+                depth * 2, "", lx1, ly1, lx2, ly2);
+        svg_write_style(fp, &obj->style);
+        fprintf(fp, "/>\n");
+        break;
+    }
+    case LV00_VISUAL_CIRCLE: {
+        if (!get_float_cache(obj, cache, 3)) return;
+        float cx = cache[0], cy = cache[1], r = cache[2];
+        apply_camera(&cx, &cy, scene);
+        fprintf(fp, "%*s<circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\"",
+                depth * 2, "", cx, cy, r);
+        svg_write_style(fp, &obj->style);
+        fprintf(fp, "/>\n");
+        break;
+    }
+    case LV00_VISUAL_POLYGON: {
+        /* 多边形缓存格式: [count, x0, y0, x1, y1, ...] */
+        if (obj->render_cache == NULL) return;
+        int   pcount = ((int *)obj->render_cache)[0];
+        float *verts = (float *)((int *)obj->render_cache + 1);
+        if (pcount < 3) return;
+        fprintf(fp, "%*s<polygon points=\"", depth * 2, "");
+        for (int j = 0; j < pcount; j++) {
+            float vx = verts[j * 2], vy = verts[j * 2 + 1];
+            apply_camera(&vx, &vy, scene);
+            fprintf(fp, "%.2f,%.2f ", vx, vy);
+        }
+        fprintf(fp, "\"");
+        svg_write_style(fp, &obj->style);
+        fprintf(fp, "/>\n");
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+/** SVG 渲染入口 */
+static void svg_render_scene(FILE *fp, const Lv00VisualRenderer *renderer,
+                              const Lv00VisualScene *scene) {
+    fprintf(fp, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    fprintf(fp, "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+            "width=\"%d\" height=\"%d\" "
+            "viewBox=\"0 0 %d %d\">\n",
+            renderer->width, renderer->height,
+            renderer->width, renderer->height);
+    fprintf(fp, "  <rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
+
+    for (size_t i = 0; i < scene->object_count; i++) {
+        svg_render_object(fp, scene->objects[i], scene, 1);
+    }
+
+    fprintf(fp, "</svg>\n");
+}
+
+/* ========================================================================
+ * TikZ / LaTeX 渲染
+ * ======================================================================== */
+
+/** 输出 TikZ 颜色定义 */
+static void tikz_write_color(FILE *fp, const Lv00VisualStyle *s, const char *prefix) {
+    fprintf(fp, "%scolor={rgb,1:red,%.3f;green,%.3f;blue,%.3f}",
+            prefix,
+            s->stroke_color[0], s->stroke_color[1], s->stroke_color[2]);
+}
+
+/** 输出 TikZ 通用样式选项 */
+static void tikz_write_style(FILE *fp, const Lv00VisualStyle *s, bool is_fill) {
+    tikz_write_color(fp, s, is_fill ? "" : "draw=");
+    if (is_fill) {
+        if (s->fill_color[3] > 0.0f) {
+            fprintf(fp, ", fill={rgb,1:red,%.3f;green,%.3f;blue,%.3f}",
+                    s->fill_color[0], s->fill_color[1], s->fill_color[2]);
+            fprintf(fp, ", fill opacity=%.2f", s->fill_color[3]);
+        }
+    } else {
+        fprintf(fp, ", draw opacity=%.2f", s->stroke_color[3]);
+    }
+    fprintf(fp, ", line width=%.2fpt", s->stroke_width);
+    if (s->opacity < 1.0f) {
+        fprintf(fp, ", opacity=%.2f", s->opacity);
+    }
+    if (s->dashed) {
+        fprintf(fp, ", dashed");
+    }
+}
+
+/** 递归渲染单个对象为 TikZ */
+static void tikz_render_object(FILE *fp, const Lv00VisualObject *obj,
+                                const Lv00VisualScene *scene, int depth) {
+    if (obj == NULL) return;
+
+    if (obj->type == LV00_VISUAL_MOBJECT_GROUP) {
+        for (size_t i = 0; i < obj->children_count; i++) {
+            tikz_render_object(fp, obj->children[i], scene, depth + 1);
+        }
+        return;
+    }
+
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    const char *indent = "  ";
+
+    switch (obj->type) {
+    case LV00_VISUAL_POINT: {
+        if (!get_float_cache(obj, cache, 2)) return;
+        float px = cache[0], py = cache[1];
+        apply_camera(&px, &py, scene);
+        float r = obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f;
+        fprintf(fp, "  \\fill[");
+        tikz_write_color(fp, &obj->style, "");
+        fprintf(fp, "] (%.2f,%.2f) circle (%.2fpt);\n", px, py, r);
+        break;
+    }
+    case LV00_VISUAL_SEGMENT: {
+        if (!get_float_cache(obj, cache, 4)) return;
+        float x1 = cache[0], y1 = cache[1];
+        float x2 = cache[2], y2 = cache[3];
+        apply_camera(&x1, &y1, scene);
+        apply_camera(&x2, &y2, scene);
+        fprintf(fp, "  \\draw[");
+        tikz_write_style(fp, &obj->style, false);
+        fprintf(fp, "] (%.2f,%.2f) -- (%.2f,%.2f);\n", x1, y1, x2, y2);
+        break;
+    }
+    case LV00_VISUAL_LINE: {
+        if (!get_float_cache(obj, cache, 4)) return;
+        float x1 = cache[0], y1 = cache[1];
+        float x2 = cache[2], y2 = cache[3];
+        float dx = x2 - x1, dy = y2 - y1;
+        float len = sqrtf(dx * dx + dy * dy);
+        if (len < 1e-6f) return;
+        float ux = dx / len, uy = dy / len;
+        float t_max = 1000.0f;
+        float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
+        float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
+        apply_camera(&lx1, &ly1, scene);
+        apply_camera(&lx2, &ly2, scene);
+        fprintf(fp, "  \\draw[");
+        tikz_write_style(fp, &obj->style, false);
+        fprintf(fp, "] (%.2f,%.2f) -- (%.2f,%.2f);\n", lx1, ly1, lx2, ly2);
+        break;
+    }
+    case LV00_VISUAL_CIRCLE: {
+        if (!get_float_cache(obj, cache, 3)) return;
+        float cx = cache[0], cy = cache[1], r = cache[2];
+        apply_camera(&cx, &cy, scene);
+        fprintf(fp, "  \\draw[");
+        tikz_write_style(fp, &obj->style, false);
+        fprintf(fp, "] (%.2f,%.2f) circle (%.2f);\n", cx, cy, r);
+        break;
+    }
+    case LV00_VISUAL_POLYGON: {
+        if (obj->render_cache == NULL) return;
+        int   pcount = ((int *)obj->render_cache)[0];
+        float *verts = (float *)((int *)obj->render_cache + 1);
+        if (pcount < 3) return;
+        fprintf(fp, "  \\draw[");
+        tikz_write_style(fp, &obj->style, false);
+        fprintf(fp, "] ");
+        for (int j = 0; j < pcount; j++) {
+            float vx = verts[j * 2], vy = verts[j * 2 + 1];
+            apply_camera(&vx, &vy, scene);
+            fprintf(fp, "(%.2f,%.2f)", vx, vy);
+            if (j < pcount - 1) fprintf(fp, " -- ");
+        }
+        fprintf(fp, " -- cycle;\n");
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+/** TikZ 渲染入口 */
+static void tikz_render_scene(FILE *fp, const Lv00VisualRenderer *renderer,
+                               const Lv00VisualScene *scene) {
+    (void)renderer;
+    fprintf(fp, "%% Generated by Lv-00 Geometry Visualizer\n");
+    fprintf(fp, "\\begin{tikzpicture}[scale=1.0]\n");
+
+    for (size_t i = 0; i < scene->object_count; i++) {
+        tikz_render_object(fp, scene->objects[i], scene, 1);
+    }
+
+    fprintf(fp, "\\end{tikzpicture}\n");
+}
+
+/* ========================================================================
+ * 渲染器（公共 API）
  * ======================================================================== */
 
 Lv00VisualRenderer *lv00_visual_renderer_create(Lv00RenderBackend backend,
                                                   int width, int height)
 {
-    Lv00VisualRenderer *renderer = (Lv00VisualRenderer *)calloc(1, sizeof(Lv00VisualRenderer));
+    Lv00VisualRenderer *renderer = (Lv00VisualRenderer *)lv00_malloc(sizeof(Lv00VisualRenderer));
     if (renderer == NULL) return NULL;
+    memset(renderer, 0, sizeof(Lv00VisualRenderer));
 
     renderer->backend = backend;
     renderer->backend_ctx = NULL;
@@ -313,32 +625,31 @@ void lv00_visual_render(Lv00VisualRenderer *renderer,
 {
     if (renderer == NULL || scene == NULL || output_path == NULL) return;
 
-    /* 根据后端类型输出文件 */
     FILE *fp = fopen(output_path, "w");
     if (fp == NULL) return;
 
     switch (renderer->backend) {
     case LV00_RENDER_SVG:
-        fprintf(fp, "<svg xmlns=\"http://www.w3.org/2000/svg\" "
-                "width=\"%d\" height=\"%d\">\n",
-                renderer->width, renderer->height);
-        /* 遍历场景对象输出 SVG 元素 */
-        for (size_t i = 0; i < scene->object_count; i++) {
-            fprintf(fp, "  <!-- object %zu -->\n", i);
-        }
-        fprintf(fp, "</svg>\n");
+        svg_render_scene(fp, renderer, scene);
         break;
-
     case LV00_RENDER_TIKZ:
-        fprintf(fp, "\\begin{tikzpicture}\n");
-        for (size_t i = 0; i < scene->object_count; i++) {
-            fprintf(fp, "  %% object %zu\n", i);
-        }
-        fprintf(fp, "\\end{tikzpicture}\n");
+        tikz_render_scene(fp, renderer, scene);
         break;
-
+    case LV00_RENDER_PNG:
+        fprintf(fp, "P3\n# Lv-00 PNG placeholder (backend=%d)\n"
+                "%d %d\n255\n", LV00_RENDER_PNG,
+                renderer->width, renderer->height);
+        /* 输出白色背景 */
+        for (int y = 0; y < renderer->height; y++) {
+            for (int x = 0; x < renderer->width; x++) {
+                fprintf(fp, "255 255 255 ");
+            }
+            fprintf(fp, "\n");
+        }
+        break;
     default:
-        fprintf(fp, "// Render output placeholder (backend=%d)\n", renderer->backend);
+        fprintf(fp, "// Lv-00 render output (backend=%d, %dx%d)\n",
+                (int)renderer->backend, renderer->width, renderer->height);
         break;
     }
 
