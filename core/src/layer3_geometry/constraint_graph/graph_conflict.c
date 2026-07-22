@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file graph_conflict.c
  * @brief 冲突检测与兼容性验证
  *
@@ -248,7 +248,7 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
  */
 static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_con) {
     if (!graph || !new_con)
-        return -1;
+        return false;
 
     /* 使用求解器模块检查约束系统是否有解 */
     int *dirty_vars = NULL;
@@ -259,7 +259,7 @@ static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_
     int max_vars = new_con->participant_count * 2;
     dirty_vars = lv00_malloc((size_t) max_vars * sizeof(int));
     if (!dirty_vars)
-        return -1;
+        return false;
 
     /* 将新约束的参与者添加为脏变量 */
     for (int i = 0; i < new_con->participant_count && i < max_vars; i++) {
@@ -334,7 +334,7 @@ static int count_point_constraints(const ConstraintGraph *graph, int point_id, C
 static bool constraints_are_independent(const Constraint *c1, const Constraint *c2) {
     /* Two constraints are dependent if they involve the exact same participants */
     if (c1->participant_count != c2->participant_count)
-        return 0;
+        return true;
 
     int match_count = 0;
     for (int i = 0; i < c1->participant_count; i++) {
@@ -357,20 +357,20 @@ static bool constraints_are_independent(const Constraint *c1, const Constraint *
  */
 static bool parse_distance_value(const char *decl, double *out_value) {
     if (!decl || !out_value)
-        return -1;
+        return false;
 
     /* 查找等号模式 */
     const char *eq = strchr(decl, '=');
     if (!eq)
-        return -1;
+        return false;
 
     char *endptr;
     double val = strtod(eq + 1, &endptr);
     if (endptr == eq + 1)
-        return -1; /* 未找到有效数字 */
+        return false; /* 未找到有效数字 */
 
     *out_value = val;
-    return 0;
+    return true;
 }
 
 /**
@@ -386,11 +386,11 @@ static bool point_on_segment(const ConstraintGraph *graph, int point_id, int seg
         if (c->type == INCIDENCE && c->participant_count == 2) {
             if ((c->participants[0] == point_id && c->participants[1] == segment_id) ||
                 (c->participants[1] == point_id && c->participants[0] == segment_id)) {
-                return 0;
+                return true;
             }
         }
     }
-    return -1;
+    return false;
 }
 
 /**
@@ -504,10 +504,10 @@ static bool has_connection_cycle(ConstraintGraph *graph, int start_port_id, bool
                 /* 自环路（罕见但需检测） */
                 path[0] = start_port_id;
                 add_conflict_group(conflicts, conflict_count, conflict_sizes, path, 1);
-                return 0;
+                return true;
             }
         }
-        return -1;
+        return false;
     }
 
     int stack_top = 0; /* 栈顶索引：-1 = 空栈 */
@@ -640,7 +640,7 @@ static bool segments_can_intersect(const ConstraintGraph *graph, int seg1_id, in
         /* Check for parallel constraint between these segments */
         /* This would require a PARALLEL constraint type - for now assume they can intersect */
     }
-    return 0;
+    return true;
 }
 
 int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_count, int **out_conflict_sizes) {
@@ -1040,31 +1040,31 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
  * @param region_id 区域节点 ID
  * @return true 表示区域边界闭合，false 表示不闭合或参数无效
  */
-int graph_validate_region_closure(const ConstraintGraph *graph, int region_id) {
+bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) {
     lv00_clear_error();
 
     if (!graph) {
         lv00_set_error(LV00_ERROR_NULL_POINTER, __func__, "graph is NULL");
-        return -1;
+        return false;
     }
 
     const GeomNode *region = graph_get_node(graph, region_id);
     if (!region || region->type != GEOM_REGION) {
-        return -1;
+        return false;
     }
 
     int segment_count = region->data.region.segment_count;
     if (segment_count < 3) {
-        return -1; /* 至少需要 3 条边才能闭合 */
+        return false; /* 至少需要 3 条边才能闭合 */
     }
 
     /* 验证所有边界线段是有效的 GEOM_LINE_SEGMENT 且活跃 */
     for (int i = 0; i < segment_count; i++) {
         const GeomNode *seg = region->data.region.boundary_segments[i];
         if (!seg || seg->type != GEOM_LINE_SEGMENT || !seg->is_active) {
-            return -1;
+            return false;
         }
     }
 
-    return 0;
+    return true;
 }

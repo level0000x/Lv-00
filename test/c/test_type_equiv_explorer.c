@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_type_equiv_explorer.c
  * @brief 交互式类型等价探索器测试（简化版）
  *
@@ -28,7 +28,7 @@ static void test_null_inputs(void) {
     TEST_ASSERT_NULL(type_equiv_explore_create(NULL, NULL, NULL));
 
     /* NULL explorer → search */
-    TEST_ASSERT_EQ(type_equiv_explore_search(NULL, 10), -1);
+    TEST_ASSERT_EQ(type_equiv_explore_search(NULL, 10), false);
 
     /* NULL explorer → get_path */
     TEST_ASSERT_NULL(type_equiv_explore_get_path(NULL));

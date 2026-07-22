@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file parser_safety.c
  * @brief 解析器安全加固实现
  *
@@ -169,7 +169,7 @@ Lv00ErrorCode lv00_input_validate(const char *input, size_t len) {
  * @return 净化后的字符串长度
  */
 size_t lv00_input_sanitize(char *input, size_t max_len) {
-    if (!input || max_len == 0) return true;
+    if (!input || max_len == 0) return 0;
 
     size_t read = 0;
     size_t write = 0;

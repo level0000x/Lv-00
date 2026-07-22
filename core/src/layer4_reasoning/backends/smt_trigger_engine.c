@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file smt_trigger_engine.c
  * @brief Quantifier instantiation engine based on pattern-matching triggers
  *
@@ -224,7 +224,7 @@ int trigger_engine_add_pattern(Lv00TriggerEngine *engine,
  * Matching and instantiation
  * ======================================================================== */
 
-int trigger_engine_find_matches(Lv00TriggerEngine *engine,
+bool trigger_engine_find_matches(Lv00TriggerEngine *engine,
                                  int quantifier_id,
                                  const void *ground_term,
                                  uint64_t term_hash,

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_core.c
  * @brief CDCL SAT 求解器核心实现 —— 借鉴 CaDiCaL 的 CDCL 极简内核
  *
@@ -467,9 +467,9 @@ bool lv00_solver_remove_constraint(Lv00Solver *solver, Lv00ConstraintId constrai
  */
 static int lit_value(const CDCLContext *ctx, int lit) {
     int var = (lit < 0) ? -lit : lit;
-    if (var < 1 || var > ctx->var_count) return true;
+    if (var < 1 || var > ctx->var_count) return 0;
     int a = ctx->assigns[var];
-    if (a == 0) return true;
+    if (a == 0) return 0;
     return (a == lit) ? 1 : -1;
 }
 

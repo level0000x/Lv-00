@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_algebraic.c
  * @brief ��������Ԥ�躯���� - ʵ��
  *
@@ -21,7 +21,7 @@
 
 /* ==================== ģ��ע��ʵ�� ==================== */
 
-int preset_algebraic_register(void)
+bool preset_algebraic_register(void)
 {
     int success_count = 0;
 
@@ -32,7 +32,7 @@ int preset_algebraic_register(void)
             "vector_add",
             "�����ӷ���OA + OB = OC",
             PRESET_EXT_ALGEBRA_BASIC,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -41,7 +41,7 @@ int preset_algebraic_register(void)
             "vector_sub",
             "����������OA - OB = OC",
             PRESET_EXT_ALGEBRA_BASIC,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -50,7 +50,7 @@ int preset_algebraic_register(void)
             "vector_scale",
             "�������ˣ�k * OA = OB",
             PRESET_EXT_ALGEBRA_BASIC,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -59,7 +59,7 @@ int preset_algebraic_register(void)
             "vector_linear_combination",
             "����������ϣ�k1*OA1 + k2*OA2 = OB",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            5, 1) == 0) {
+            5, 1)) {
         success_count++;
     }
 
@@ -68,7 +68,7 @@ int preset_algebraic_register(void)
             "vector_normalize",
             "���쵥λ����",
             PRESET_EXT_ALGEBRA_BASIC,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -77,7 +77,7 @@ int preset_algebraic_register(void)
             "vector_project",
             "�����ڷ����ϵ�ͶӰ",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -88,7 +88,7 @@ int preset_algebraic_register(void)
             "standard_basis",
             "�����׼������",
             PRESET_EXT_COORDINATE,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -97,7 +97,7 @@ int preset_algebraic_register(void)
             "coordinate_transform",
             "�����һ����任����һ���",
             PRESET_EXT_COORDINATE,
-            5, 1) == 0) {
+            5, 1)) {
         success_count++;
     }
 
@@ -106,7 +106,7 @@ int preset_algebraic_register(void)
             "polar_to_cartesian",
             "������ת��Ϊֱ������",
             PRESET_EXT_COORDINATE,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -117,7 +117,7 @@ int preset_algebraic_register(void)
             "complex_multiply",
             "�����˷��ļ��α�ʾ",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -126,7 +126,7 @@ int preset_algebraic_register(void)
             "complex_divide",
             "���������ļ��α�ʾ",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -135,7 +135,7 @@ int preset_algebraic_register(void)
             "complex_power",
             "������ n ����",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -144,7 +144,7 @@ int preset_algebraic_register(void)
             "complex_root",
             "������ n �η���",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -155,7 +155,7 @@ int preset_algebraic_register(void)
             "parabola_point",
             "�����������ϵĵ�",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            4, 1) == 0) {
+            4, 1)) {
         success_count++;
     }
 
@@ -164,7 +164,7 @@ int preset_algebraic_register(void)
             "ellipse_point",
             "������Բ�ϵĵ�",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            4, 1) == 0) {
+            4, 1)) {
         success_count++;
     }
 

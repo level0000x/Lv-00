@@ -755,9 +755,9 @@ void ref_count_inc(void *obj) {
  * @return false 表示对象仍然存活（ref_count > 0），或 obj 为 NULL，
  *               或 ref_count 已经为 0（无效调用，不执行任何操作）
  */
-int ref_count_dec(void *obj) {
+bool ref_count_dec(void *obj) {
     if (!obj)
-        return -1;
+        return false;
     RefCounted *rc = (RefCounted *) obj;
 
     /* 使用互斥锁保护引用计数操作，防止多线程竞态条件。
@@ -770,7 +770,7 @@ int ref_count_dec(void *obj) {
     debug_lock_refcount();
     if (rc->ref_count <= 0) {
         debug_unlock_refcount();
-        return -1;
+        return false;
     }
     rc->ref_count--;
     if (rc->ref_count <= 0) {
@@ -782,10 +782,10 @@ int ref_count_dec(void *obj) {
         if (destructor) {
             destructor(obj);
         }
-        return 0; /* 对象已销毁 */
+        return true; /* 对象已销毁 */
     }
     debug_unlock_refcount();
-    return -1;
+    return false;
 }
 
 /**
@@ -842,9 +842,9 @@ void debug_set_emergency_handler(EmergencySaveHandler handler) {
     g_emergency_handler = handler;
 }
 
-int debug_emergency_save(const char *filepath, const EmergencySaveConfig *config) {
+bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *config) {
     if (!filepath)
-        return -1;
+        return false;
 
     if (debug_stream_ctx) {
         stream_emit_error(debug_stream_ctx, "紧急保存触发", 0);
@@ -852,7 +852,7 @@ int debug_emergency_save(const char *filepath, const EmergencySaveConfig *config
 
     FILE *f = fopen(filepath, "w");
     if (!f)
-        return -1;
+        return false;
 
     /* 写入时间戳 */
     time_t now = time(NULL);
@@ -917,7 +917,7 @@ int debug_emergency_save(const char *filepath, const EmergencySaveConfig *config
 
     fprintf(f, "=== End of Emergency Save ===\n");
     fclose(f);
-    return 0;
+    return true;
 }
 
 /* ================================================================== */
@@ -939,16 +939,16 @@ int debug_emergency_save(const char *filepath, const EmergencySaveConfig *config
 static int check_port_type_deep_compatible(const ConstraintGraph *graph, int port_node_id, int connected_node_id,
                                            TypeSystem *ts) {
     if (!graph)
-        return false;
+        return -1;
 
     GeomNode *port_node = graph_get_node((ConstraintGraph *) graph, port_node_id);
     if (!port_node || port_node->type != GEOM_PORT || !port_node->data.port) {
-        return false;
+        return -1;
     }
 
     GeomNode *connected_node = graph_get_node((ConstraintGraph *) graph, connected_node_id);
     if (!connected_node) {
-        return false;
+        return -1;
     }
 
     Port *port = port_node->data.port;
@@ -962,7 +962,7 @@ static int check_port_type_deep_compatible(const ConstraintGraph *graph, int por
 
     /* 如果任一方没有类型信息，返回 0（无类型信息 = 默认兼容） */
     if (!port_type || !connected_type) {
-        return true;
+        return 0;
     }
 
     /* 如果类型系统不可用，回退到基本指针比较。
@@ -976,15 +976,15 @@ static int check_port_type_deep_compatible(const ConstraintGraph *graph, int por
 
     switch (equiv) {
         case TYPE_EQUIV_OK:
-            return true; /* 兼容 */
+            return 0; /* 兼容 */
         case TYPE_EQUIV_NOT_EQUIV:
             return 1; /* 不兼容 */
         case TYPE_EQUIV_UNKNOWN:
         case TYPE_EQUIV_NEEDS_INTERACTION:
-            return true; /* 无法证明不兼容，视为兼容 */
+            return 0; /* 无法证明不兼容，视为兼容 */
         case TYPE_EQUIV_ERROR:
         default:
-            return false; /* 错误 */
+            return -1; /* 错误 */
     }
 }
 
@@ -1935,12 +1935,12 @@ void lv00_log_ring_buffer_clear(Lv00LogRingBuffer *rb) {
  * @param capacity 新容量（>= 1）
  * @return true 成功，false 失败（内存不足）
  */
-int lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
+bool lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
     if (!rb || capacity < 1) {
-        return -1;
+        return false;
     }
     if (capacity == rb->capacity) {
-        return 0; /* 无需改变 */
+        return true; /* 无需改变 */
     }
 
     log_lock();
@@ -1948,7 +1948,7 @@ int lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
     Lv00LogEntry *new_entries = lv00_malloc((size_t)capacity * sizeof(Lv00LogEntry));
     if (!new_entries) {
         log_unlock();
-        return -1;
+        return false;
     }
     memset(new_entries, 0, (size_t)capacity * sizeof(Lv00LogEntry));
 
@@ -1982,7 +1982,7 @@ int lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
     rb->wrapped = (keep_count >= capacity);
 
     log_unlock();
-    return 0;
+    return true;
 }
 
 /* ============================================================

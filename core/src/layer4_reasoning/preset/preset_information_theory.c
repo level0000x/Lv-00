@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_information_theory.c
  * @brief 信息论预设函数块 - 实现
  *
@@ -23,7 +23,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_information_theory_register(void)
+bool preset_information_theory_register(void)
 {
     int success_count = 0;
 
@@ -36,7 +36,7 @@ int preset_information_theory_register(void)
             "shannon_entropy",
             "计算离散随机变量的Shannon熵 H(X) = -Σ p(x) log p(x)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ int preset_information_theory_register(void)
             "conditional_entropy",
             "计算条件熵 H(Y|X) = -Σ p(x,y) log p(y|x)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ int preset_information_theory_register(void)
             "joint_entropy",
             "计算联合熵 H(X,Y) = -Σ p(x,y) log p(x,y)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 
@@ -67,7 +67,7 @@ int preset_information_theory_register(void)
             "mutual_information",
             "计算互信息 I(X;Y) = H(X) - H(X|Y)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ int preset_information_theory_register(void)
             "channel_capacity",
             "计算离散无记忆信道的信道容量 C = max I(X;Y)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 
@@ -89,7 +89,7 @@ int preset_information_theory_register(void)
             "shannon_source_coding",
             "香农源编码定理：最优码长 l* >= H(X)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ int preset_information_theory_register(void)
             "shannon_channel_coding",
             "香农信道编码定理：可靠传输率 R <= C",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -111,7 +111,7 @@ int preset_information_theory_register(void)
             "rate_distortion",
             "计算率失真函数 R(D) = min I(X;X') subject to E[d(X,X')] <= D",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -120,7 +120,7 @@ int preset_information_theory_register(void)
             "kl_divergence",
             "计算Kullback-Leibler散度 D_KL(P||Q) = Σ p(x) log(p(x)/q(x))",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ int preset_information_theory_register(void)
             "huffman_coding",
             "构造最优Huffman编码（最小冗余编码）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 

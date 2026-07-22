@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_blocks.h
  * @brief 预设函数块扩展系统 - 为理论数学研究提供丰富的预设函数块
  *
@@ -214,7 +214,7 @@ typedef struct {
  *
  * @return true 初始化成功，false 内存不足
  */
-int preset_blocks_init(void);
+bool preset_blocks_init(void);
 
 /**
  * @brief 清理扩展预设函数块系统
@@ -276,7 +276,7 @@ const char *preset_extended_category_to_string(PresetExtendedCategory cat);
  * @return true 注册成功
  * @return false 注册失败
  */
-int preset_blocks_register_simple(const char *name, const char *description, PresetCategory category,
+bool preset_blocks_register_simple(const char *name, const char *description, PresetCategory category,
                                    const PresetType *input_types, int input_count, PresetType output_type,
                                    const char *mathematical_definition, const char *complexity, bool is_constructive,
                                    bool is_reversible);
@@ -298,7 +298,7 @@ int preset_blocks_register_simple(const char *name, const char *description, Pre
  * @param output_count 输出端口数
  * @return true 注册成功
  */
-int preset_blocks_register_by_category(const char *name, const char *description, PresetExtendedCategory category,
+bool preset_blocks_register_by_category(const char *name, const char *description, PresetExtendedCategory category,
                                         int input_count, int output_count);
 
 /* 向后兼容宏：旧的分类注册接口映射到统一接口 */

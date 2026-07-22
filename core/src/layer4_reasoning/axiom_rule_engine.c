@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_rule_engine.c
  * @brief 公理规则引擎 - 可配置规则库与难度分级
  *
@@ -6,9 +6,7 @@
  *          规则匹配与推荐等核心功能。
  */
 #include "lv00/axiom_rule_engine.h"
-#include "lv00/constraint_graph.h"
 #include "lv00/lv00_utils.h"
-#include "lv00/proof.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -79,14 +77,14 @@ void lv00_rule_library_destroy(Lv00RuleLibrary *library) {
     lv00_free((void **)&library);
 }
 
-int lv00_rule_library_add(Lv00RuleLibrary *library, Lv00Rule *rule) {
+bool lv00_rule_library_add(Lv00RuleLibrary *library, Lv00Rule *rule) {
     if (!library || !rule) return false;
     if (library->rule_count >= library->rule_capacity) return false;
     library->rules[library->rule_count++] = rule;
     return true;
 }
 
-int lv00_rule_library_remove(Lv00RuleLibrary *library, uint32_t rule_id) {
+bool lv00_rule_library_remove(Lv00RuleLibrary *library, uint32_t rule_id) {
     if (!library) return false;
     for (uint32_t i = 0; i < library->rule_count; i++) {
         if (library->rules[i] && library->rules[i]->id == rule_id) {
@@ -127,7 +125,7 @@ uint32_t lv00_rule_library_get_by_type(const Lv00RuleLibrary *library,
                                         Lv00RuleType type,
                                         Lv00Rule **out_rules,
                                         uint32_t max_count) {
-    if (!library || !out_rules) return true;
+    if (!library || !out_rules) return 0;
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         if (library->rules[i] && library->rules[i]->type == type) {
@@ -142,7 +140,7 @@ uint32_t lv00_rule_library_get_by_difficulty(const Lv00RuleLibrary *library,
                                               uint32_t max_level,
                                               Lv00Rule **out_rules,
                                               uint32_t max_count) {
-    if (!library || !out_rules) return true;
+    if (!library || !out_rules) return 0;
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         Lv00Rule *r = library->rules[i];
@@ -157,7 +155,7 @@ uint32_t lv00_rule_library_search_by_tag(const Lv00RuleLibrary *library,
                                           const char *tag,
                                           Lv00Rule **out_rules,
                                           uint32_t max_count) {
-    if (!library || !tag || !out_rules) return true;
+    if (!library || !tag || !out_rules) return 0;
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         Lv00Rule *r = library->rules[i];
@@ -191,13 +189,13 @@ void lv00_rule_destroy(Lv00Rule *rule) {
     lv00_free((void **)&rule);
 }
 
-int lv00_rule_set_description(Lv00Rule *rule, const char *description) {
+bool lv00_rule_set_description(Lv00Rule *rule, const char *description) {
     if (!rule || !description) return false;
     lv00_strlcpy(rule->description, description, LV00_RULE_DESC_MAX_LEN);
     return true;
 }
 
-int lv00_rule_add_variable(Lv00Rule *rule, const char *name, const char *type) {
+bool lv00_rule_add_variable(Lv00Rule *rule, const char *name, const char *type) {
     if (!rule || !name || !type) return false;
     if (rule->var_count >= LV00_RULE_MAX_VARIABLES) return false;
     Lv00RuleVariable *v = &rule->variables[rule->var_count++];
@@ -208,7 +206,7 @@ int lv00_rule_add_variable(Lv00Rule *rule, const char *name, const char *type) {
     return true;
 }
 
-int lv00_rule_add_premise(Lv00Rule *rule, const char *pattern, bool is_optional) {
+bool lv00_rule_add_premise(Lv00Rule *rule, const char *pattern, bool is_optional) {
     if (!rule || !pattern) return false;
     if (rule->premise_count >= LV00_RULE_MAX_PREMISES) return false;
     Lv00RulePremise *p = &rule->premises[rule->premise_count++];
@@ -219,7 +217,7 @@ int lv00_rule_add_premise(Lv00Rule *rule, const char *pattern, bool is_optional)
     return true;
 }
 
-int lv00_rule_add_conclusion(Lv00Rule *rule, const char *pattern, TrustColor trust_color) {
+bool lv00_rule_add_conclusion(Lv00Rule *rule, const char *pattern, TrustColor trust_color) {
     if (!rule || !pattern) return false;
     if (rule->conclusion_count >= LV00_RULE_MAX_CONCLUSIONS) return false;
     Lv00RuleConclusion *c = &rule->conclusions[rule->conclusion_count++];
@@ -228,7 +226,7 @@ int lv00_rule_add_conclusion(Lv00Rule *rule, const char *pattern, TrustColor tru
     return true;
 }
 
-int lv00_rule_add_tag(Lv00Rule *rule, const char *tag) {
+bool lv00_rule_add_tag(Lv00Rule *rule, const char *tag) {
     if (!rule || !tag) return false;
     char **new_tags = lv00_realloc(rule->tags, (rule->tag_count + 1) * sizeof(char *));
     if (!new_tags) return false;
@@ -336,7 +334,7 @@ uint32_t lv00_rule_find_matches(const Lv00RuleLibrary *library,
                                  const ProofNavigator *context,
                                  Lv00RuleMatch **out_matches,
                                  uint32_t max_count) {
-    if (!library || !out_matches) return true;
+    if (!library || !out_matches) return 0;
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         Lv00Rule *r = library->rules[i];
@@ -359,7 +357,7 @@ uint32_t lv00_rule_apply_match(const Lv00RuleMatch *match,
                                 ProofNavigator *context,
                                 ProofStep **out_steps,
                                 uint32_t max_steps) {
-    if (!match || !match->rule || !out_steps || !graph) return true;
+    if (!match || !match->rule || !out_steps || !graph) return 0;
 
     Lv00Rule *rule = match->rule;
     /* 为每个结论创建一个证明步骤 */
@@ -513,7 +511,7 @@ Lv00Rule *lv00_rule_copy(const Lv00Rule *rule) {
     return copy;
 }
 
-int lv00_rule_library_save(const Lv00RuleLibrary *library, const char *path) {
+bool lv00_rule_library_save(const Lv00RuleLibrary *library, const char *path) {
     if (!library || !path) return false;
     FILE *f = fopen(path, "w");
     if (!f) return false;

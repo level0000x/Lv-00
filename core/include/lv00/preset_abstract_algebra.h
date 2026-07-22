@@ -21,9 +21,9 @@ extern "C" {
 
 #define ABSTRACT_ALGEBRA_PRESET_COUNT 40
 
-int preset_abstract_algebra_register(void);
+bool preset_abstract_algebra_register(void);
 int preset_abstract_algebra_count(void);
-int preset_abstract_algebra_get_names(char ***out_names, int *out_count);
+bool preset_abstract_algebra_get_names(char ***out_names, int *out_count);
 
 #ifdef __cplusplus
 }

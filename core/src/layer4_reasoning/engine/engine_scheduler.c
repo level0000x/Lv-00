@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file engine_scheduler.c
  * @brief 引擎调度器 —— 管理多后端求解引擎的任务调度
  *
@@ -60,7 +60,7 @@ int lv00_engine_schedule(const char *task_name, int priority) {
     return g_task_count - 1;
 }
 
-int lv00_engine_execute_pending(void) {
+bool lv00_engine_execute_pending(void) {
     bool any_executed = false;
 
     for (int i = 0; i < g_task_count; i++) {

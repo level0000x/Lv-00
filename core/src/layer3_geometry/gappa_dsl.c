@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file gappa_dsl.c
  * @brief Gappa DSL parsing and proof generation (stub implementations)
  */
@@ -276,7 +276,7 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
  */
 void gappa_predicates_free(Lv00GappaPredicate *preds, int count) {
     (void)count;
-    lv00_free((void **)&preds);
+    lv00_free((void **)&(preds));
 }
 
 /**
@@ -287,7 +287,7 @@ void gappa_predicates_free(Lv00GappaPredicate *preds, int count) {
  */
 void gappa_goals_free(Lv00GappaProofGoal *goals, int count) {
     (void)count;
-    lv00_free((void **)&goals);
+    lv00_free((void **)&(goals));
 }
 
 /**
@@ -361,7 +361,7 @@ Lv00GappaProofResult gappa_prove(const Lv00GappaPredicate *hyp, int hyp_count,
  */
 void gappa_result_free(Lv00GappaProofResult *result) {
     if (result) {
-        lv00_free((void **)&result->goals);
+        lv00_free((void **)&(result->goals));
         result->goals = NULL;
         result->goals_total = 0;
     }

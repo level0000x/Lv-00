@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file autodiff.h
  * @brief Automatic differentiation engine (forward and reverse mode)
  *
@@ -187,7 +187,7 @@ LV00_PUBLIC_API void ad_expr_destroy(Lv00ADExpr *expr);
  * @param[out] derivative The computed derivative
  * @return true on success, false on failure
  */
-LV00_PUBLIC_API int ad_forward_diff(Lv00ADExpr *expr, int var_index,
+LV00_PUBLIC_API bool ad_forward_diff(Lv00ADExpr *expr, int var_index,
     double var_value, double *value, double *derivative);
 /**
  * @brief Compute gradients using reverse mode (backpropagation).
@@ -202,7 +202,7 @@ LV00_PUBLIC_API int ad_forward_diff(Lv00ADExpr *expr, int var_index,
  * @param[out] gradients Array of gradients (caller-allocated, size >= var_count)
  * @return true on success, false on failure
  */
-LV00_PUBLIC_API int ad_reverse_diff(Lv00ADExpr *expr,
+LV00_PUBLIC_API bool ad_reverse_diff(Lv00ADExpr *expr,
     const double *var_values, size_t var_count,
     double *value, double *gradients);
 /* ============================================================
@@ -217,7 +217,7 @@ LV00_PUBLIC_API int ad_reverse_diff(Lv00ADExpr *expr,
  * @param[out] result  The evaluated result
  * @return true on success, false on failure
  */
-LV00_PUBLIC_API int ad_eval(Lv00ADExpr *expr,
+LV00_PUBLIC_API bool ad_eval(Lv00ADExpr *expr,
     const double *var_values, size_t var_count, double *result);
 /**
  * @brief Get the gradient of a specific variable after reverse differentiation.

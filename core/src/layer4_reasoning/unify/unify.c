@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file unify.c
  * @brief 合一检查实现
  * @details 实现构造与命题之间的合一检查，包括约束匹配、坐标判等、
@@ -1138,11 +1138,11 @@ static bool id_mapping_init(IdMappingTable *table, int initial_capacity) {
     if (!table->entries) {
         table->capacity = 0;
         table->count = 0;
-        return -1;
+        return false;
     }
     table->count = 0;
     table->capacity = initial_capacity;
-    return 0;
+    return true;
 }
 
 /**
@@ -1167,12 +1167,12 @@ static void id_mapping_destroy(IdMappingTable *table) {
  */
 static bool id_mapping_add(IdMappingTable *table, int old_id, int new_id) {
     /* 检查表是否已初始化（init 失败时 entries 为 NULL） */
-    if (!table->entries) return -1;
+    if (!table->entries) return false;
     if (table->count >= table->capacity) {
         int new_capacity = table->capacity * 2;
         IdMappingEntry *new_entries = lv00_realloc(table->entries,
                                               new_capacity * sizeof(IdMappingEntry));
-        if (!new_entries) return -1;
+        if (!new_entries) return false;
         table->entries = new_entries;
         table->capacity = new_capacity;
     }
@@ -1180,7 +1180,7 @@ static bool id_mapping_add(IdMappingTable *table, int old_id, int new_id) {
     table->entries[table->count].old_id = old_id;
     table->entries[table->count].new_id = new_id;
     table->count++;
-    return 0;
+    return true;
 }
 
 /**

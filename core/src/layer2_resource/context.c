@@ -379,9 +379,9 @@ Lv00Context *lv00_context_snapshot(Lv00Context *ctx) {
  * 保留 context_id、problems_processed、trip_count。
  * 回滚后原始上下文的 snapshot_refcount 递减。
  */
-int lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot) {
+bool lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot) {
     if (!ctx || !snapshot) {
-        return -1;
+        return false;
     }
 
     /* 保存需要保留的字段 */
@@ -486,7 +486,7 @@ int lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot) {
         snapshot->parent_snapshot->snapshot_refcount--;
     }
 
-    return 0;
+    return true;
 }
 
 /* ============================================================
@@ -899,9 +899,9 @@ void lv00_context_leave_uncancellable(Lv00Context *ctx) {
  * 递增步骤计数，超过上限则触发熔断。
  * @return true 步骤在限制内，false 超限触发熔断
  */
-int lv00_context_record_step(Lv00Context *ctx) {
+bool lv00_context_record_step(Lv00Context *ctx) {
     if (!ctx) {
-        return -1;
+        return false;
     }
 
     ctx->circuit_breaker.total_steps++;
@@ -933,10 +933,10 @@ int lv00_context_record_step(Lv00Context *ctx) {
                                "推理步数超限: %lld / %lld",
                                (long long)ctx->circuit_breaker.total_steps,
                                (long long)ctx->circuit_breaker.max_steps);
-        return -1;
+        return false;
     }
 
-    return 0;
+    return true;
 }
 
 /**
@@ -955,9 +955,9 @@ void lv00_context_record_success(Lv00Context *ctx) {
  * 连续错误超过上限则触发熔断。
  * @return true 正常，false 连续错误超限触发熔断
  */
-int lv00_context_record_error(Lv00Context *ctx) {
+bool lv00_context_record_error(Lv00Context *ctx) {
     if (!ctx) {
-        return -1;
+        return false;
     }
 
     ctx->circuit_breaker.consecutive_errors++;
@@ -983,10 +983,10 @@ int lv00_context_record_error(Lv00Context *ctx) {
                                "连续错误次数超限: %d / %d",
                                ctx->circuit_breaker.consecutive_errors,
                                ctx->circuit_breaker.max_consecutive_errors);
-        return -1;
+        return false;
     }
 
-    return 0;
+    return true;
 }
 /* ============================================================
  * 第十部分：参数配置 API
@@ -1007,7 +1007,7 @@ void lv00_context_set_timeout(Lv00Context *ctx, uint64_t timeout_ms) {
  */
 uint64_t lv00_context_get_timeout(const Lv00Context *ctx) {
     if (!ctx) {
-        return true;
+        return 0;
     }
     return ctx->circuit_breaker.timeout_ms;
 }

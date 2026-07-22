@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PROOF_TRACE_H
+#ifndef LV00_PROOF_TRACE_H
 #define LV00_PROOF_TRACE_H
 #include <stdbool.h>
 #ifdef __cplusplus
@@ -59,7 +59,7 @@ Lv00ProofTree *lv00_proof_tree_create(const char *name, const char *strategy);
 void lv00_proof_tree_destroy(Lv00ProofTree *tree);
 Lv00ProofTreeNode *lv00_proof_tree_add_step(Lv00ProofTree *tree, Lv00ProofTreeNode *parent,
                                              const char *desc, const char *detail, int id);
-int lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node);
+bool lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node);
 char *lv00_proof_tree_export_text(const Lv00ProofTree *tree, const char *opts);
 
 #ifdef __cplusplus

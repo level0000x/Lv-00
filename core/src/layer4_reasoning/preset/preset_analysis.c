@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_analysis.c
  * @brief 分析学预设函数块 - 实现
  *
@@ -74,7 +74,7 @@ static bool register_analysis_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_analysis_register(void)
+bool preset_analysis_register(void)
 {
     int success_count = 0;
 

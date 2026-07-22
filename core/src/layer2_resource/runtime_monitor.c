@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file runtime_monitor.c
  * @brief 运行时监控与日志系统实现
  *
@@ -105,7 +105,7 @@ static const char *level_colors[] = {
 static Lv00Mutex g_log_init_mutex;
 static volatile int g_log_init_mutex_initialized = 0;
 
-int lv00_log_init(const Lv00LogConfig *config) {
+bool lv00_log_init(const Lv00LogConfig *config) {
 #ifdef _WIN32
     if (InterlockedCompareExchange((LONG volatile*)&g_log_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_log_init_mutex);
@@ -121,7 +121,7 @@ int lv00_log_init(const Lv00LogConfig *config) {
 #else
         pthread_mutex_unlock(&g_log_init_mutex);
 #endif
-        return 0;
+        return true;
     }
 
     memset(&g_log_system, 0, sizeof(g_log_system));
@@ -156,7 +156,7 @@ int lv00_log_init(const Lv00LogConfig *config) {
 #else
     pthread_mutex_unlock(&g_log_init_mutex);
 #endif
-    return 0;
+    return true;
 }
 
 void lv00_log_shutdown(void) {
@@ -188,9 +188,9 @@ void lv00_log_set_targets(Lv00LogTarget targets) {
     MUTEX_UNLOCK(g_log_system.mutex);
 }
 
-int lv00_log_set_file(const char *path) {
+bool lv00_log_set_file(const char *path) {
     if (!path) {
-        return -1;
+        return false;
     }
 
     MUTEX_LOCK(g_log_system.mutex);
@@ -199,7 +199,7 @@ int lv00_log_set_file(const char *path) {
     FILE *new_file = fopen(path, "a");
     if (!new_file) {
         MUTEX_UNLOCK(g_log_system.mutex);
-        return -1;
+        return false;
     }
 
     /* 新文件打开成功，关闭旧文件 */
@@ -213,7 +213,7 @@ int lv00_log_set_file(const char *path) {
 
     MUTEX_UNLOCK(g_log_system.mutex);
 
-    return 0;
+    return true;
 }
 
 void lv00_log_set_callback(Lv00LogCallback callback, void *user_data) {
@@ -385,7 +385,7 @@ static struct {
 static Lv00Mutex g_perf_init_mutex;
 static volatile int g_perf_init_mutex_initialized = 0;
 
-int lv00_perf_init(void) {
+bool lv00_perf_init(void) {
 #ifdef _WIN32
     if (InterlockedCompareExchange((LONG volatile*)&g_perf_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_perf_init_mutex);
@@ -401,7 +401,7 @@ int lv00_perf_init(void) {
 #else
         pthread_mutex_unlock(&g_perf_init_mutex);
 #endif
-        return 0;
+        return true;
     }
 
     memset(&g_perf_system, 0, sizeof(g_perf_system));
@@ -412,7 +412,7 @@ int lv00_perf_init(void) {
 #else
     pthread_mutex_unlock(&g_perf_init_mutex);
 #endif
-    return 0;
+    return true;
 }
 
 void lv00_perf_shutdown(void) {
@@ -485,7 +485,7 @@ void lv00_timer_start(Lv00Timer *timer) {
 
 int64_t lv00_timer_stop(Lv00Timer *timer) {
     if (!timer || timer->state != TIMER_RUNNING) {
-        return true;
+        return 0;
     }
 
     timer->elapsed_ns = get_time_ns() - timer->start_time_ns;
@@ -526,7 +526,7 @@ void lv00_timer_reset(Lv00Timer *timer) {
 
 int64_t lv00_timer_elapsed_ms(const Lv00Timer *timer) {
     if (!timer) {
-        return true;
+        return 0;
     }
 
     if (timer->state == TIMER_RUNNING) {
@@ -537,7 +537,7 @@ int64_t lv00_timer_elapsed_ms(const Lv00Timer *timer) {
 
 int64_t lv00_timer_elapsed_ns(const Lv00Timer *timer) {
     if (!timer) {
-        return true;
+        return 0;
     }
 
     if (timer->state == TIMER_RUNNING) {
@@ -638,7 +638,7 @@ static struct {
 static Lv00Mutex g_health_init_mutex;
 static volatile int g_health_init_mutex_initialized = 0;
 
-int lv00_health_init(void) {
+bool lv00_health_init(void) {
 #ifdef _WIN32
     if (InterlockedCompareExchange((LONG volatile*)&g_health_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_health_init_mutex);
@@ -654,7 +654,7 @@ int lv00_health_init(void) {
 #else
         pthread_mutex_unlock(&g_health_init_mutex);
 #endif
-        return 0;
+        return true;
     }
 
     memset(&g_health_system, 0, sizeof(g_health_system));
@@ -672,7 +672,7 @@ int lv00_health_init(void) {
 #else
     pthread_mutex_unlock(&g_health_init_mutex);
 #endif
-    return 0;
+    return true;
 }
 
 void lv00_health_shutdown(void) {
@@ -957,14 +957,14 @@ void lv00_diagnostics_destroy(Lv00Diagnostics *diag) {
     lv00_free((void **) &diag);
 }
 
-int lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path) {
+bool lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path) {
     if (!diag || !path) {
-        return -1;
+        return false;
     }
 
     FILE *fp = fopen(path, "w");
     if (!fp) {
-        return -1;
+        return false;
     }
 
     fprintf(fp, "========== Lv-00 Diagnostics Report ==========\n\n");
@@ -994,7 +994,7 @@ int lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path) {
     fprintf(fp, "\n==============================================\n");
 
     fclose(fp);
-    return 0;
+    return true;
 }
 
 char *lv00_diagnostics_to_json(const Lv00Diagnostics *diag) {
@@ -1069,7 +1069,7 @@ static struct {
 static Lv00Mutex g_event_init_mutex;
 static volatile int g_event_init_mutex_initialized = 0;
 
-int lv00_event_trace_init(uint32_t max_events) {
+bool lv00_event_trace_init(uint32_t max_events) {
 #ifdef _WIN32
     if (InterlockedCompareExchange((LONG volatile*)&g_event_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_event_init_mutex);
@@ -1085,7 +1085,7 @@ int lv00_event_trace_init(uint32_t max_events) {
 #else
         pthread_mutex_unlock(&g_event_init_mutex);
 #endif
-        return 0;
+        return true;
     }
 
     /* 使用请求的大小，最小为 MAX_EVENTS */
@@ -1099,7 +1099,7 @@ int lv00_event_trace_init(uint32_t max_events) {
 #else
         pthread_mutex_unlock(&g_event_init_mutex);
 #endif
-        return -1;
+        return false;
     }
     g_event_system.max_events = actual_max;
     MUTEX_INIT(g_event_system.mutex);
@@ -1109,7 +1109,7 @@ int lv00_event_trace_init(uint32_t max_events) {
 #else
     pthread_mutex_unlock(&g_event_init_mutex);
 #endif
-    return 0;
+    return true;
 }
 
 void lv00_event_trace_shutdown(void) {
@@ -1212,14 +1212,14 @@ void lv00_event_trace_clear(void) {
     MUTEX_UNLOCK(g_event_system.mutex);
 }
 
-int lv00_event_trace_export_chrome(const char *path) {
+bool lv00_event_trace_export_chrome(const char *path) {
     if (!g_event_system.initialized || !path) {
-        return -1;
+        return false;
     }
 
     FILE *fp = fopen(path, "w");
     if (!fp) {
-        return -1;
+        return false;
     }
 
     fprintf(fp, "[\n");
@@ -1265,5 +1265,5 @@ int lv00_event_trace_export_chrome(const char *path) {
     fprintf(fp, "]\n");
     fclose(fp);
 
-    return 0;
+    return true;
 }

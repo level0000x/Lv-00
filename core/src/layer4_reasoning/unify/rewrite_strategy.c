@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite_strategy.c
  * @brief Implementation of the extended rewrite strategy engine.
  *
@@ -314,7 +314,7 @@ void rewrite_engine_ex_destroy(Lv00RewriteEngineEx *engine) {
  * API implementation: Rule management
  * ============================================================ */
 
-int rewrite_engine_ex_add_rule(Lv00RewriteEngineEx *engine,
+bool rewrite_engine_ex_add_rule(Lv00RewriteEngineEx *engine,
     const char *name, const char *pattern, const char *replacement,
     int priority, Lv00RewriteConditionFn condition) {
     if (!engine || !name || !pattern || !replacement) return false;
@@ -355,7 +355,7 @@ int rewrite_engine_ex_add_rule(Lv00RewriteEngineEx *engine,
  * API implementation: Rewrite execution
  * ============================================================ */
 
-int rewrite_engine_ex_apply(Lv00RewriteEngineEx *engine,
+bool rewrite_engine_ex_apply(Lv00RewriteEngineEx *engine,
     const char *input, Lv00RewriteResultEx *result) {
     if (!engine || !input || !result) return false;
 

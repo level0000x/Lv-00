@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PRESET_POLYGONS_H
+#ifndef LV00_PRESET_POLYGONS_H
 #define LV00_PRESET_POLYGONS_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define POLYGONS_PRESET_COUNT 16
-int preset_polygons_register(void);
+bool preset_polygons_register(void);
 
 #ifdef __cplusplus
 }

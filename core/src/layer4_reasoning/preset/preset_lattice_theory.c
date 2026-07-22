@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_lattice_theory.c
  * @brief 格论预设函数块模块 - 实现（v2统一宏模式）
  *
@@ -86,7 +86,7 @@ static bool register_lattice_theory_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_lattice_theory_register(void)
+bool preset_lattice_theory_register(void)
 {
     int success_count = 0;
 

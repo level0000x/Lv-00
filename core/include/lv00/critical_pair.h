@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 模块名称：关键对计算引擎 (critical_pair)
  *
  * 功能概述：
@@ -147,7 +147,7 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
  * @return true 比较成功执行（不代表汇合——汇合性见 cp->is_confluent）；
  *         false 表示 cp 为 NULL 或无重叠图
  */
-int critical_pair_compare(CriticalPair *cp);
+bool critical_pair_compare(CriticalPair *cp);
 
 /**
  * @brief 批量比较关键对集合中的所有条目
@@ -173,7 +173,7 @@ int critical_pair_compare_all(CriticalPairSet *set);
  * @param filepath  输出文件路径（已存在则覆盖）
  * @return true 导出成功，false 表示 cp 或 filepath 为 NULL
  */
-int critical_pair_export_text(const CriticalPair *cp, const char *filepath);
+bool critical_pair_export_text(const CriticalPair *cp, const char *filepath);
 
 /**
  * @brief 销毁关键对集合并释放所有资源

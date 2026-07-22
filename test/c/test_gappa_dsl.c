@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_gappa_dsl.c
  * @brief Test suite for the Gappa DSL module
  *
@@ -36,7 +36,7 @@ static void test_gappa_format_predefined(void) {
     Lv00GappaFormat fmt;
 
     /* binary32 */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary32", &fmt) == 0,
+    TEST_ASSERT_MSG(gappa_format_predefined("binary32", &fmt) == true,
                     "binary32 should be recognized");
     TEST_ASSERT_EQ(fmt.precision_bits, 24);
     TEST_ASSERT_EQ(fmt.exponent_bits, 8);
@@ -44,23 +44,23 @@ static void test_gappa_format_predefined(void) {
     TEST_ASSERT_MSG(strcmp(fmt.name, "binary32") == 0, "name should be binary32");
 
     /* binary64 */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary64", &fmt) == 0,
+    TEST_ASSERT_MSG(gappa_format_predefined("binary64", &fmt) == true,
                     "binary64 should be recognized");
     TEST_ASSERT_EQ(fmt.precision_bits, 53);
     TEST_ASSERT_EQ(fmt.exponent_bits, 11);
 
     /* binary16 */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary16", &fmt) == 0,
+    TEST_ASSERT_MSG(gappa_format_predefined("binary16", &fmt) == true,
                     "binary16 should be recognized");
     TEST_ASSERT_EQ(fmt.precision_bits, 11);
 
     /* binary128 */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary128", &fmt) == 0,
+    TEST_ASSERT_MSG(gappa_format_predefined("binary128", &fmt) == true,
                     "binary128 should be recognized");
     TEST_ASSERT_EQ(fmt.precision_bits, 113);
 
     /* Unknown format */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary256", &fmt) != 0,
+    TEST_ASSERT_MSG(gappa_format_predefined("binary256", &fmt) == false,
                     "binary256 should not be recognized");
 }
 
@@ -224,7 +224,7 @@ static void test_gappa_pred_set(void) {
     pred.bound_lo = 0.0;
     pred.bound_hi = 1.0;
 
-    TEST_ASSERT_MSG(gappa_pred_set_add(&set, &pred) == 0, "add should succeed");
+    TEST_ASSERT_MSG(gappa_pred_set_add(&set, &pred) == true, "add should succeed");
     TEST_ASSERT_EQ(set.count, 1);
 
     /* Find existing */
@@ -238,7 +238,7 @@ static void test_gappa_pred_set(void) {
     TEST_ASSERT_MSG(idx < 0, "should not find y");
 
     /* Duplicate add should not increase count */
-    TEST_ASSERT_MSG(gappa_pred_set_add(&set, &pred) != 0, "duplicate add should fail");
+    TEST_ASSERT_MSG(gappa_pred_set_add(&set, &pred) == false, "duplicate add should fail");
     TEST_ASSERT_EQ(set.count, 1);
 
     gappa_pred_set_clear(&set);
@@ -333,7 +333,7 @@ static void test_gappa_rewrite_rules(void) {
     strncpy(rules[1].replace_pattern, "x", sizeof(rules[1].replace_pattern) - 1);
     strncpy(rules[1].description, "identity addition", sizeof(rules[1].description) - 1);
 
-    TEST_ASSERT_MSG(gappa_register_rewrite_rules(rules, 2) == 0,
+    TEST_ASSERT_MSG(gappa_register_rewrite_rules(rules, 2) == true,
                     "registering rewrite rules should succeed");
 }
 

@@ -1,4 +1,4 @@
-﻿#ifndef LV00_GEO_DYNAMIC_H
+#ifndef LV00_GEO_DYNAMIC_H
 #define LV00_GEO_DYNAMIC_H
 
 #ifdef __cplusplus
@@ -91,7 +91,7 @@ int lv00_dyn_graph_add_node(
     int param_count);
 
 Lv00DynNode *lv00_dyn_graph_get_node(Lv00DynGraph *graph, int node_id);
-int lv00_dyn_graph_remove_node(Lv00DynGraph *graph, int node_id);
+bool lv00_dyn_graph_remove_node(Lv00DynGraph *graph, int node_id);
 
 int lv00_dyn_graph_get_parents(
     const Lv00DynGraph *graph,

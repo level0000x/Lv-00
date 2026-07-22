@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：内存池系统 (memory_pool)
  * 功能概述：提供三种高性能内存管理策略：固定大小对象池、线性分配器
  *          和 LRU 对象缓存。旨在减少内存碎片、提高分配速度，
@@ -105,7 +105,7 @@ void *lv00_pool_alloc(Lv00ObjectPool *pool);
  * @param obj 对象指针
  * @return 是否成功
  */
-int lv00_pool_free(Lv00ObjectPool *pool, void *obj);
+bool lv00_pool_free(Lv00ObjectPool *pool, void *obj);
 
 /**
  * @brief 获取对象池统计信息
@@ -222,7 +222,7 @@ void *lv00_cache_get(Lv00ObjectCache *cache, Lv00CacheKey key);
  * @param key 对象键
  * @return 是否成功移除
  */
-int lv00_cache_remove(Lv00ObjectCache *cache, Lv00CacheKey key);
+bool lv00_cache_remove(Lv00ObjectCache *cache, Lv00CacheKey key);
 
 /**
  * @brief 清空缓存
@@ -406,7 +406,7 @@ void lv00_free(void **ptr);
  *
  * @return 是否成功
  */
-int lv00_init_preset_pools(void);
+bool lv00_init_preset_pools(void);
 
 /**
  * @brief 清理预定义对象池

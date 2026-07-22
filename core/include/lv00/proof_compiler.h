@@ -186,8 +186,8 @@ struct Lv00ProofCompiler {
 LV00_PUBLIC_API Lv00ProofObject *lv00_proof_object_create(void);
 LV00_PUBLIC_API void lv00_proof_object_destroy(Lv00ProofObject *obj);
 LV00_PUBLIC_API int lv00_proof_object_add_step(Lv00ProofObject *obj, Lv00ProofStepRecord *step);
-LV00_PUBLIC_API int lv00_proof_object_add_axiom(Lv00ProofObject *obj, int axiom_id);
-LV00_PUBLIC_API int lv00_proof_object_add_assumption(Lv00ProofObject *obj, int assumption_id);
+LV00_PUBLIC_API bool lv00_proof_object_add_axiom(Lv00ProofObject *obj, int axiom_id);
+LV00_PUBLIC_API bool lv00_proof_object_add_assumption(Lv00ProofObject *obj, int assumption_id);
 LV00_PUBLIC_API int lv00_proof_object_get_step_count(const Lv00ProofObject *obj);
 LV00_PUBLIC_API bool lv00_proof_object_is_valid(const Lv00ProofObject *obj);
 LV00_PUBLIC_API bool lv00_proof_object_verify(const Lv00ProofObject *obj);
@@ -218,5 +218,5 @@ LV00_PUBLIC_API void lv00_proof_step_record_destroy(Lv00ProofStepRecord *record)
 LV00_PUBLIC_API Lv00TraceEvent *lv00_trace_event_create(Lv00TraceEventType type);
 LV00_PUBLIC_API void lv00_trace_event_destroy(Lv00TraceEvent *event);
 LV00_PUBLIC_API Lv00CompilerConfig lv00_compiler_config_default(void);
-LV00_PUBLIC_API int lv00_proof_export_to_file(const Lv00ProofObject *proof, const Lv00ProofTrace *trace, Lv00OutputFormat format, const char *filename);
+LV00_PUBLIC_API bool lv00_proof_export_to_file(const Lv00ProofObject *proof, const Lv00ProofTrace *trace, Lv00OutputFormat format, const char *filename);
 #endif /* LV00_PROOF_COMPILER_H */

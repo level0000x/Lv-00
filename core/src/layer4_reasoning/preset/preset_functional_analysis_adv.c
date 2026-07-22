@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_functional_analysis_adv.c
  * @brief 泛函分析进阶预设函数块模块 - 实现（v2统一宏模式）
  *
@@ -85,7 +85,7 @@ static bool register_fa_adv_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_functional_analysis_adv_register(void)
+bool preset_functional_analysis_adv_register(void)
 {
     int success_count = 0;
 

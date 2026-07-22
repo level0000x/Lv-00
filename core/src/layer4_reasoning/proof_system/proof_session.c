@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_session.c
  * @brief Proof session management implementation
  *
@@ -158,7 +158,7 @@ void proof_session_destroy(Lv00ProofSession *session) {
     lv00_free((void **) &session);
 }
 
-int proof_session_submit_step(Lv00ProofSession *session,
+bool proof_session_submit_step(Lv00ProofSession *session,
                                 const char *tactic,
                                 Lv00StepResult *result) {
     Lv00StepResult local_result;
@@ -329,7 +329,7 @@ int proof_session_get_step_count(const Lv00ProofSession *session) {
     return session->step_count;
 }
 
-int proof_session_abandon(Lv00ProofSession *session) {
+bool proof_session_abandon(Lv00ProofSession *session) {
     if (!session) return false;
     if (session->status != SESSION_STATUS_ACTIVE) return false;
 
@@ -338,7 +338,7 @@ int proof_session_abandon(Lv00ProofSession *session) {
     return true;
 }
 
-int proof_session_reset(Lv00ProofSession *session) {
+bool proof_session_reset(Lv00ProofSession *session) {
     if (!session) return false;
 
     /* Destroy current proof state */

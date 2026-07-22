@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PRESET_INTEGRAL_TRANSFORMS_H
+#ifndef LV00_PRESET_INTEGRAL_TRANSFORMS_H
 #define LV00_PRESET_INTEGRAL_TRANSFORMS_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define INTEGRAL_TRANSFORMS_PRESET_COUNT 14
-int preset_integral_transforms_register(void);
+bool preset_integral_transforms_register(void);
 
 #ifdef __cplusplus
 }

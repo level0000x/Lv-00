@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_export_enhanced.c
  * @brief 增强的证明导出功能实现
  *
@@ -81,7 +81,7 @@ static int dstr_append_str(DStr *d, const char *s) {
 
 static void dstr_free(DStr *d) {
     if (d->data) {
-        lv00_free((void **)&d->data);
+        lv00_free((void **)&(d->data));
         d->data = NULL;
     }
     d->len = 0;
@@ -523,8 +523,8 @@ Lv00ExportResult *proof_export_from_navigator(const char *theorem_name,
 void proof_export_result_destroy(Lv00ExportResult *result) {
     if (!result) return;
     if (result->output) {
-        lv00_free((void **)&result->output);
+        lv00_free((void **)&(result->output));
         result->output = NULL;
     }
-    lv00_free((void **)&result);
+    lv00_free((void **)&(result));
 }

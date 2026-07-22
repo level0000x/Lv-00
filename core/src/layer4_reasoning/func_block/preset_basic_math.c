@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_basic_math.c
  * @brief 基础数学计算预设函数块 - 实现
  *
@@ -66,7 +66,7 @@ static bool register_basic_math_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_basic_math_register(void)
+bool preset_basic_math_register(void)
 {
     int success_count = 0;
 

@@ -1021,7 +1021,7 @@ int lv00_conflict_detect_all(const ConstraintGraph *graph,
     return 0;
 }
 
-int lv00_conflict_detect_quick(const ConstraintGraph *graph) {
+bool lv00_conflict_detect_quick(const ConstraintGraph *graph) {
     if (!graph) return false;
     
     ConflictReport *report = lv00_conflict_report_create();

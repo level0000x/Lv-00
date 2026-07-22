@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_pkg.c
  * @brief 公理系统包实现
  * @details 实现公理包的加载、验证和展开功能。支持约束模板、
@@ -342,12 +342,12 @@ void axiom_package_destroy(AxiomPackage *pkg) {
 
 /* ============== 不可构造问题管理 ============== */
 
-int axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructible *item) {
-    if (!pkg || !item) return -1;
+bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructible *item) {
+    if (!pkg || !item) return false;
     
     KnownUnconstructible *new_arr = lv00_realloc(pkg->known_unconstructibles,
         (pkg->unconstructible_count + 1) * sizeof(KnownUnconstructible));
-    if (!new_arr) return -1;
+    if (!new_arr) return false;
     
     pkg->known_unconstructibles = new_arr;
     KnownUnconstructible *target = &pkg->known_unconstructibles[pkg->unconstructible_count];
@@ -371,7 +371,7 @@ int axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructi
             lv00_free((void**)&target->reduces_to);
             lv00_free((void**)&target->external_ref);
             memset(target, 0, sizeof(KnownUnconstructible));
-            return -1;
+            return false;
         }
         for (int i = 0; i < item->dependency_count; i++) {
             target->dependency_chain[i] = safe_lv00_strdup_safe(item->dependency_chain[i]);
@@ -384,7 +384,7 @@ int axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructi
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册不可构造问题", 0);
     }
     
-    return 0;
+    return true;
 }
 
 KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, const char *name) {
@@ -400,12 +400,12 @@ KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, co
 
 /* ============== 模板管理 ============== */
 
-int axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl) {
-    if (!pkg || !tmpl) return -1;
+bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl) {
+    if (!pkg || !tmpl) return false;
     
     ConstraintTemplate *new_arr = lv00_realloc(pkg->templates,
         (pkg->template_count + 1) * sizeof(ConstraintTemplate));
-    if (!new_arr) return -1;
+    if (!new_arr) return false;
     
     pkg->templates = new_arr;
     ConstraintTemplate *slot = &pkg->templates[pkg->template_count];
@@ -426,7 +426,7 @@ int axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl)
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册约束模板", 0);
     }
     
-    return 0;
+    return true;
 }
 
 ConstraintTemplate *axiom_package_get_template(AxiomPackage *pkg, const char *name) {
@@ -630,9 +630,9 @@ static bool parser_expect(Parser *p, TokenType type) {
         lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望 %d, 得到 %d",
                   p->current.line, p->current.col, type, p->current.type);
         p->has_error = true;
-        return -1;
+        return false;
     }
-    return 0;
+    return true;
 }
 
 static bool parser_expect_identifier(Parser *p, const char *name) {
@@ -641,9 +641,9 @@ static bool parser_expect_identifier(Parser *p, const char *name) {
         lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'",
                   p->current.line, p->current.col, name);
         p->has_error = true;
-        return -1;
+        return false;
     }
-    return 0;
+    return true;
 }
 
 /* 前向声明 */
@@ -673,7 +673,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
     parser_advance(p); /* 跳过 'unconstructible' */
     
     /* 期望字符串 (问题名称) */
-    if (!parser_expect(p, TOK_STRING)) return -1;
+    if (!parser_expect(p, TOK_STRING)) return false;
     
     KnownUnconstructible uc = {0};
     uc.name = safe_lv00_strdup_safe(p->current.str_value);
@@ -684,7 +684,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
     /* 期望左大括号 */
     if (!parser_expect(p, TOK_LBRACE)) {
         lv00_free((void**)&uc.name);
-        return -1;
+        return false;
     }
     parser_advance(p);
     
@@ -754,24 +754,24 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
     
     if (p->has_error) {
         unconstructible_desc_cleanup(&uc);
-        return -1;
+        return false;
     }
     
     /* 期望右大括号 */
     if (!parser_expect(p, TOK_RBRACE)) {
         unconstructible_desc_cleanup(&uc);
-        return -1;
+        return false;
     }
     
     /* 添加到包 */
     if (!axiom_package_add_known_unconstructible(pkg, &uc)) {
         lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存分配失败");
         unconstructible_desc_cleanup(&uc);
-        return -1;
+        return false;
     }
     
     parser_advance(p);
-    return 0;
+    return true;
 }
 
 /* 解析模板声明 */
@@ -779,7 +779,7 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
     parser_advance(p); /* 跳过 'template' */
     
     /* 期望字符串 (模板名称) */
-    if (!parser_expect(p, TOK_STRING)) return -1;
+    if (!parser_expect(p, TOK_STRING)) return false;
     
     ConstraintTemplate tmpl = {0};
     tmpl.name = safe_lv00_strdup_safe(p->current.str_value);
@@ -790,7 +790,7 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
     /* 期望参数数量 (数字) */
     if (!parser_expect(p, TOK_NUMBER)) {
         lv00_free((void**)&tmpl.name);
-        return -1;
+        return false;
     }
     tmpl.param_count = p->current.int_value;
     
@@ -800,10 +800,10 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
     if (!axiom_package_register_template(pkg, &tmpl)) {
         lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存分配失败");
         lv00_free((void**)&tmpl.name);
-        return -1;
+        return false;
     }
     
-    return 0;
+    return true;
 }
 
 /* 解析包体 */
@@ -1135,31 +1135,31 @@ char *axiom_package_compute_content_hash(AxiomPackage *pkg) {
 
 /* 检查字符串是否为有效的URL格式 */
 static bool is_valid_url(const char *str) {
-    if (!str || !*str) return -1;
+    if (!str || !*str) return false;
     
     /* 检查常见URL协议 */
-    if (strncmp(str, "http://", 7) == 0) return 0;
-    if (strncmp(str, "https://", 8) == 0) return 0;
-    if (strncmp(str, "ftp://", 6) == 0) return 0;
-    if (strncmp(str, "file://", 7) == 0) return 0;
+    if (strncmp(str, "http://", 7) == 0) return true;
+    if (strncmp(str, "https://", 8) == 0) return true;
+    if (strncmp(str, "ftp://", 6) == 0) return true;
+    if (strncmp(str, "file://", 7) == 0) return true;
     
     /* 检查DOI格式 */
-    if (strncmp(str, "doi:", 4) == 0) return 0;
+    if (strncmp(str, "doi:", 4) == 0) return true;
     
     /* 检查arXiv格式 */
-    if (strncmp(str, "arXiv:", 6) == 0) return 0;
+    if (strncmp(str, "arXiv:", 6) == 0) return true;
     
     /* 检查标识符格式 (字母开头，只包含字母数字、下划线、连字符、点) */
     if (isalpha((unsigned char)str[0])) {
         for (const char *p = str + 1; *p; p++) {
             if (!isalnum((unsigned char)*p) && *p != '_' && *p != '-' && *p != '.') {
-                return -1;
+                return false;
             }
         }
-        return 0;
+        return true;
     }
     
-    return -1;
+    return false;
 }
 
 /* 在已加载的包中查找问题 */
@@ -1200,10 +1200,10 @@ static ConstraintTemplate *find_template_in_packages(
     return NULL;
 }
 
-int axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loaded_packages, int package_count) {
+bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loaded_packages, int package_count) {
     if (!pkg) {
         lv00_set_error(LV00_ERROR_INVALID_PARAM, "无效参数: 包为空");
-        return -1;
+        return false;
     }
     
     lv00_clear_error();
@@ -1290,27 +1290,27 @@ int axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loaded
  * @param canonical_form 规范形式描述字符串
  * @return 验证通过返回 true，否则返回 false
  */
-int axiom_template_validate_normal_form(
+bool axiom_template_validate_normal_form(
     const ConstraintTemplate *tmpl,
     const ConstraintGraph *expanded_graph,
     const char *canonical_form)
 {
     (void)tmpl;
-    if (!expanded_graph || !canonical_form) return -1;
+    if (!expanded_graph || !canonical_form) return false;
 
     /* 解析规范形式以提取期望的约束类型和参与者节点类型
      * 格式："CONSTRAINT_TYPE(NODE_TYPE,NODE_TYPE,...)+" */
 
     /* 查找约束类型名称（在第一个 '(' 之前） */
     const char *paren = strchr(canonical_form, '(');
-    if (!paren) return -1;
+    if (!paren) return false;
 
     size_t type_name_len = (size_t)(paren - canonical_form);
-    if (type_name_len == 0) return -1;
+    if (type_name_len == 0) return false;
 
     /* 查找闭括号 ')' */
     const char *close_paren = strchr(paren, ')');
-    if (!close_paren) return -1;
+    if (!close_paren) return false;
 
     /* 提取 '(' 和 ')' 之间的参与者节点类型 */
     /* 解析逗号分隔的节点类型名称 */
@@ -1335,7 +1335,7 @@ int axiom_template_validate_normal_form(
         }
     }
 
-    if (participant_type_count == 0) return -1;
+    if (participant_type_count == 0) return false;
 
     /* Helper: map type name string to GeomType enum */
     /* We only check that the constraint type prefix matches */
@@ -1349,23 +1349,23 @@ int axiom_template_validate_normal_form(
 
         /* 检查参与者数量是否与规范形式匹配 */
         if (c->participant_count != participant_type_count) {
-            return -1;
+            return false;
         }
 
         /* 检查所有参与者是否引用了有效的节点 */
         for (int k = 0; k < c->participant_count; k++) {
             GeomNode *node = graph_get_node((ConstraintGraph *)expanded_graph,
                                              c->participants[k]);
-            if (!node) return -1;
+            if (!node) return false;
         }
     }
 
     /* 如果展开图没有约束但规范形式期望有约束，则为违规 */
     if (expanded_graph->constraint_count == 0) {
-        return -1;
+        return false;
     }
 
-    return 0;
+    return true;
 }
 
 /* ============== 双层测试集 ============== */
@@ -1379,14 +1379,14 @@ static bool run_single_test_case(
     const ConstraintTemplate *tmpl,
     const TemplateTestCase *tc)
 {
-    if (!tmpl || !tc) return -1;
+    if (!tmpl || !tc) return false;
 
     /* 如果模板没有 expand 函数，无法运行测试 */
-    if (!tmpl->expand) return -1;
+    if (!tmpl->expand) return false;
 
     /* 创建目标图 */
     ConstraintGraph *target = graph_create();
-    if (!target) return -1;
+    if (!target) return false;
 
     /* 调用模板展开函数 */
     tmpl->expand(tc->param_values, target);
@@ -1547,21 +1547,21 @@ ConstraintGraph *axiom_package_lookup_expansion_cache(
 /**
  * @brief 将展开结果存入缓存
  */
-int axiom_package_store_expansion_cache(
+bool axiom_package_store_expansion_cache(
     AxiomPackage *pkg,
     const char *template_name,
     SymbolicCoord **params,
     int param_count,
     ConstraintGraph *expanded_graph)
 {
-    if (!pkg) return -1;
+    if (!pkg) return false;
 
     /* 扩容 */
     if (pkg->expansion_cache_count >= pkg->expansion_cache_capacity) {
         int new_cap = pkg->expansion_cache_capacity == 0 ? AXIOM_EXPANSION_CACHE_CAP : pkg->expansion_cache_capacity * 2;
         TemplateExpansionCache *new_arr = lv00_realloc(pkg->expansion_cache,
             new_cap * sizeof(TemplateExpansionCache));
-        if (!new_arr) return -1;
+        if (!new_arr) return false;
         pkg->expansion_cache = new_arr;
         pkg->expansion_cache_capacity = new_cap;
     }
@@ -1573,7 +1573,7 @@ int axiom_package_store_expansion_cache(
     pkg->expansion_cache[pkg->expansion_cache_count].expanded_graph = expanded_graph;
     pkg->expansion_cache_count++;
 
-    return 0;
+    return true;
 }
 
 /**

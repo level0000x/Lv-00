@@ -1194,28 +1194,28 @@ const char *atp_backend_type_name(ATPBackendType type) {
 /**
  * @brief 从名称字符串解析后端类型
  */
-int atp_backend_type_from_name(const char *name, ATPBackendType *out_type) {
+bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type) {
     if (!name || !out_type) {
-        return -1;
+        return false;
     }
 
     if (strcasecmp(name, "vampire") == 0) {
         *out_type = ATP_BACKEND_VAMPIRE;
-        return 0;
+        return true;
     }
     if (strcasecmp(name, "eprover") == 0 || strcasecmp(name, "e") == 0) {
         *out_type = ATP_BACKEND_EPROVER;
-        return 0;
+        return true;
     }
     if (strcasecmp(name, "iprover") == 0) {
         *out_type = ATP_BACKEND_IPROVER;
-        return 0;
+        return true;
     }
     if (strcasecmp(name, "custom") == 0) {
         *out_type = ATP_BACKEND_CUSTOM;
-        return 0;
+        return true;
     }
-    return -1;
+    return false;
 }
 
 /* ============================================================

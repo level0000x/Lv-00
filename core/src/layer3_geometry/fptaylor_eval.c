@@ -244,7 +244,7 @@ static bool compute_taylor_coefficients(const char *expr,
                                          int var_count,
                                          double *out_center,
                                          double *out_derivs) {
-    if (!expr || !var_values || !out_center || !out_derivs) return -1;
+    if (!expr || !var_values || !out_center || !out_derivs) return false;
 
     /* 简化实现：使用符号微分和求值 */
     /* 对于简单表达式 "x0 + x1*x2" 等，解析结构并计算导数 */
@@ -288,7 +288,7 @@ static bool compute_taylor_coefficients(const char *expr,
         lv00_free((void **)&x_plus);
         lv00_free((void **)&x_minus);
     }
-    return 0;
+    return true;
 }
 
 /* ============================================================
@@ -353,10 +353,10 @@ void error_bound_destroy(ErrorBound *bound) {
  * @param[out] out        输出的误差界
  * @return true 成功，false 失败
  */
-int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
+bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
                              int var_count, const FPTaylorConfig *cfg,
                              ErrorBound *out) {
-    if (!expr || !var_bounds || var_count <= 0 || !out) return -1;
+    if (!expr || !var_bounds || var_count <= 0 || !out) return false;
 
     /* 使用默认配置（若未提供） */
     FPTaylorConfig default_cfg = fptaylor_config_default();
@@ -375,7 +375,7 @@ int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
     if (!centers || !ranges) {
         lv00_free((void **)&centers);
         lv00_free((void **)&ranges);
-        return -1;
+        return false;
     }
 
     for (int i = 0; i < var_count; i++) {
@@ -389,7 +389,7 @@ int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
     if (!abs_derivs) {
         lv00_free((void **)&centers);
         lv00_free((void **)&ranges);
-        return -1;
+        return false;
     }
 
     bool ok = compute_taylor_coefficients(expr, centers, var_count,
@@ -398,7 +398,7 @@ int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
         lv00_free((void **)&centers);
         lv00_free((void **)&ranges);
         lv00_free((void **)&abs_derivs);
-        return -1;
+        return false;
     }
 
     /* 计算绝对误差上界 */
@@ -434,7 +434,7 @@ int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
     lv00_free((void **)&centers);
     lv00_free((void **)&ranges);
     lv00_free((void **)&abs_derivs);
-    return 0;
+    return true;
 }
 
 /**
@@ -452,9 +452,9 @@ int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
  * @param[out] out     输出的误差界
  * @return true 成功，false 失败
  */
-int fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id,
+bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id,
                               const FPTaylorConfig *cfg, ErrorBound *out) {
-    if (!graph || !out) return -1;
+    if (!graph || !out) return false;
 
     /* 简化实现：使用默认变量区间进行单变量误差分析 */
     memset(out, 0, sizeof(ErrorBound));

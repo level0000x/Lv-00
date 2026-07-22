@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_trigonometry.c
  * @brief 三角函数预设函数块 - 实现
  *
@@ -70,7 +70,7 @@ static bool register_trig_preset(
  * 模块注册实现
  * ============================================================ */
 
-int preset_trigonometry_register(void)
+bool preset_trigonometry_register(void)
 {
     int success_count = 0;
 

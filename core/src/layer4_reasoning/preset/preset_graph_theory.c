@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_graph_theory.c
  * @brief 图论预设函数块 - 实现
  *
@@ -60,7 +60,7 @@ static bool register_graph_theory_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_graph_theory_register(void)
+bool preset_graph_theory_register(void)
 {
     int success_count = 0;
 
@@ -575,3 +575,4 @@ PresetCategory preset_graph_theory_category(void)
 {
     return PRESET_CATEGORY_GRAPH_THEORY;
 }
+

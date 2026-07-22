@@ -321,7 +321,7 @@ int main(void) {
         } else { FAIL("统计信息不正确"); tests_failed++; }
 
         TEST("validate: 验证网格一致性");
-        if (lv00_he_mesh_validate(mesh) == 0) {
+        if (lv00_he_mesh_validate(mesh)) {
             PASS(); tests_passed++;
         } else { FAIL("网格验证失败"); tests_failed++; }
 

@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PRESET_LATTICE_THEORY_H
+#ifndef LV00_PRESET_LATTICE_THEORY_H
 #define LV00_PRESET_LATTICE_THEORY_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define LATTICE_THEORY_PRESET_COUNT 10
-int preset_lattice_theory_register(void);
+bool preset_lattice_theory_register(void);
 
 #ifdef __cplusplus
 }

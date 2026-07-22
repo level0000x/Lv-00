@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_differential_geometry.c
  * @brief 微分几何预设函数块 - 实现
  *
@@ -91,7 +91,7 @@ static bool register_dg_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_differential_geometry_register(void)
+bool preset_differential_geometry_register(void)
 {
     int success_count = 0;
 

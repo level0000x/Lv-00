@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_ring_theory.c
  * @brief 环论预设函数块 - 实现
  *
@@ -50,7 +50,7 @@ static bool register_ring_theory_preset(const char *name, const char *descriptio
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_ring_theory_register(void) {
+bool preset_ring_theory_register(void) {
     int success_count = 0;
 
     /* ============================================================

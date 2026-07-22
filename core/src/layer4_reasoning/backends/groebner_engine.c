@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file groebner_engine.c
  * @brief Groebner 基计算引擎实现 —— Buchberger 算法、理想操作与代数簇求解
  *

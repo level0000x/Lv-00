@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PRESET_MEASUREMENTS_H
+#ifndef LV00_PRESET_MEASUREMENTS_H
 #define LV00_PRESET_MEASUREMENTS_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define MEASUREMENTS_PRESET_COUNT 15
-int preset_measurements_register(void);
+bool preset_measurements_register(void);
 
 #ifdef __cplusplus
 }

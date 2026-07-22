@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_polynomial.c
  * @brief 多项式理论预设函数块 - 实现
  *
@@ -80,7 +80,7 @@ static bool register_polynomial_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_polynomial_register(void)
+bool preset_polynomial_register(void)
 {
     int success_count = 0;
 

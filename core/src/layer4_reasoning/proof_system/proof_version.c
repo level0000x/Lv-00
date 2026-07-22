@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_version.c
  * @brief Implementation of the proof version control system.
  *
@@ -594,7 +594,7 @@ void proof_repo_destroy(Lv00ProofRepo *repo) {
  * API implementation: Commits
  * ============================================================ */
 
-int proof_repo_commit(Lv00ProofRepo *repo, const char *message,
+bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
     const char **files, const char **contents, size_t file_count) {
     if (!repo || !message) return false;
 
@@ -669,7 +669,7 @@ int proof_repo_commit(Lv00ProofRepo *repo, const char *message,
  * ============================================================ */
 
 size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_count) {
-    if (!repo || !commits || max_count == 0) return true;
+    if (!repo || !commits || max_count == 0) return 0;
 
     size_t count = 0;
     char current_oid[LV00_OID_LENGTH];
@@ -699,7 +699,7 @@ size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_
  * API implementation: Diff
  * ============================================================ */
 
-int proof_repo_diff(Lv00ProofRepo *repo, const char *oid_a, const char *oid_b,
+bool proof_repo_diff(Lv00ProofRepo *repo, const char *oid_a, const char *oid_b,
     Lv00ProofDiff *diff) {
     if (!repo || !diff) return false;
 
@@ -757,7 +757,7 @@ void proof_repo_diff_destroy(Lv00ProofDiff *diff) {
  * API implementation: Branches
  * ============================================================ */
 
-int proof_repo_branch(Lv00ProofRepo *repo, const char *name) {
+bool proof_repo_branch(Lv00ProofRepo *repo, const char *name) {
     if (!repo || !name) return false;
     if (repo->branch_count >= LV00_MAX_BRANCHES) return false;
 
@@ -784,7 +784,7 @@ int proof_repo_branch(Lv00ProofRepo *repo, const char *name) {
     return true;
 }
 
-int proof_repo_checkout(Lv00ProofRepo *repo, const char *name) {
+bool proof_repo_checkout(Lv00ProofRepo *repo, const char *name) {
     if (!repo || !name) return false;
 
     /* Find branch */

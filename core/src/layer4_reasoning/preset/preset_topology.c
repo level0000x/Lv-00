@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_topology.c
  * @brief 拓扑学预设函数块 - 实现
  *
@@ -74,7 +74,7 @@ static bool register_topology_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_topology_register(void)
+bool preset_topology_register(void)
 {
     int success_count = 0;
 

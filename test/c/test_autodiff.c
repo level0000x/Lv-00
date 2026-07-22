@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_autodiff.c
  * @brief Tests for the automatic differentiation engine.
  *
@@ -155,20 +155,20 @@ static void test_forward_diff_x_squared(void) {
     double value, deriv;
 
     /* At x = 3.0: f(3) = 9, f'(3) = 6 */
-    int ok = ad_forward_diff(x2, 0, 3.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    bool ok = ad_forward_diff(x2, 0, 3.0, &value, &deriv);
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, 9.0, AD_TOLERANCE, "x^2 at x=3 should be 9");
     TEST_ASSERT_NEAR(deriv, 6.0, AD_TOLERANCE, "d/dx(x^2) at x=3 should be 6");
 
     /* At x = 0.0: f(0) = 0, f'(0) = 0 */
     ok = ad_forward_diff(x2, 0, 0.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, 0.0, AD_TOLERANCE, "x^2 at x=0 should be 0");
     TEST_ASSERT_NEAR(deriv, 0.0, AD_TOLERANCE, "d/dx(x^2) at x=0 should be 0");
 
     /* At x = -2.0: f(-2) = 4, f'(-2) = -4 */
     ok = ad_forward_diff(x2, 0, -2.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, 4.0, AD_TOLERANCE, "x^2 at x=-2 should be 4");
     TEST_ASSERT_NEAR(deriv, -4.0, AD_TOLERANCE, "d/dx(x^2) at x=-2 should be -4");
 
@@ -188,8 +188,8 @@ static void test_reverse_diff_x_squared(void) {
     double gradients[1];
 
     /* At x = 3.0: f(3) = 9, grad = 6 */
-    int ok = ad_reverse_diff(x2, (double[]){3.0}, 1, &value, gradients);
-    TEST_ASSERT(ok == 0, "reverse_diff should succeed");
+    bool ok = ad_reverse_diff(x2, (double[]){3.0}, 1, &value, gradients);
+    TEST_ASSERT(ok, "reverse_diff should succeed");
     TEST_ASSERT_NEAR(value, 9.0, AD_TOLERANCE, "x^2 at x=3 should be 9");
 
     /* Query gradient for variable 0 */
@@ -198,7 +198,7 @@ static void test_reverse_diff_x_squared(void) {
 
     /* At x = 5.0: f(5) = 25, grad = 10 */
     ok = ad_reverse_diff(x2, (double[]){5.0}, 1, &value, gradients);
-    TEST_ASSERT(ok == 0, "reverse_diff should succeed");
+    TEST_ASSERT(ok, "reverse_diff should succeed");
     TEST_ASSERT_NEAR(value, 25.0, AD_TOLERANCE, "x^2 at x=5 should be 25");
     grad = ad_grad(x2, 0);
     TEST_ASSERT_NEAR(grad, 10.0, AD_TOLERANCE, "d/dx(x^2) at x=5 should be 10");
@@ -218,20 +218,20 @@ static void test_forward_diff_sin(void) {
     double value, deriv;
 
     /* At x = 0.0: sin(0) = 0, cos(0) = 1 */
-    int ok = ad_forward_diff(s, 0, 0.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    bool ok = ad_forward_diff(s, 0, 0.0, &value, &deriv);
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, 0.0, AD_TOLERANCE, "sin(0) should be 0");
     TEST_ASSERT_NEAR(deriv, 1.0, AD_TOLERANCE, "d/dx(sin(x)) at x=0 should be 1");
 
     /* At x = PI/2: sin(PI/2) = 1, cos(PI/2) = 0 */
     ok = ad_forward_diff(s, 0, M_PI / 2.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, 1.0, AD_TOLERANCE, "sin(PI/2) should be 1");
     TEST_ASSERT_NEAR(deriv, 0.0, AD_TOLERANCE, "d/dx(sin(x)) at x=PI/2 should be 0");
 
     /* At x = PI: sin(PI) = 0, cos(PI) = -1 */
     ok = ad_forward_diff(s, 0, M_PI, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, sin(M_PI), AD_TOLERANCE, "sin(PI) should be ~0");
     TEST_ASSERT_NEAR(deriv, cos(M_PI), AD_TOLERANCE, "d/dx(sin(x)) at x=PI should be -1");
 
@@ -251,22 +251,22 @@ static void test_chain_rule(void) {
     double value, deriv;
 
     /* At x = 1.0: sin(1) = sin(1), d/dx = 2*1*cos(1) = 2*cos(1) */
-    int ok = ad_forward_diff(expr, 0, 1.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    bool ok = ad_forward_diff(expr, 0, 1.0, &value, &deriv);
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, sin(1.0), AD_TOLERANCE, "sin(x^2) at x=1 should be sin(1)");
     TEST_ASSERT_NEAR(deriv, 2.0 * cos(1.0), AD_TOLERANCE,
         "d/dx(sin(x^2)) at x=1 should be 2*cos(1)");
 
     /* At x = 0.0: sin(0) = 0, d/dx = 2*0*cos(0) = 0 */
     ok = ad_forward_diff(expr, 0, 0.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, 0.0, AD_TOLERANCE, "sin(x^2) at x=0 should be 0");
     TEST_ASSERT_NEAR(deriv, 0.0, AD_TOLERANCE,
         "d/dx(sin(x^2)) at x=0 should be 0");
 
     /* At x = 2.0: sin(4), d/dx = 2*2*cos(4) = 4*cos(4) */
     ok = ad_forward_diff(expr, 0, 2.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, sin(4.0), AD_TOLERANCE, "sin(x^2) at x=2 should be sin(4)");
     TEST_ASSERT_NEAR(deriv, 4.0 * cos(4.0), AD_TOLERANCE,
         "d/dx(sin(x^2)) at x=2 should be 4*cos(4)");
@@ -274,7 +274,7 @@ static void test_chain_rule(void) {
     /* Also test with reverse mode */
     double grad_val;
     ok = ad_reverse_diff(expr, (double[]){1.0}, 1, &value, &grad_val);
-    TEST_ASSERT(ok == 0, "reverse_diff should succeed");
+    TEST_ASSERT(ok, "reverse_diff should succeed");
     TEST_ASSERT_NEAR(value, sin(1.0), AD_TOLERANCE, "sin(x^2) at x=1 (reverse)");
     double grad = ad_grad(expr, 0);
     TEST_ASSERT_NEAR(grad, 2.0 * cos(1.0), AD_TOLERANCE,
@@ -296,12 +296,12 @@ static void test_ad_eval(void) {
     Lv00ADExpr *add = ad_expr_add(mul, three);
 
     double result;
-    int ok = ad_eval(add, (double[]){5.0}, 1, &result);
-    TEST_ASSERT(ok == 0, "eval should succeed");
+    bool ok = ad_eval(add, (double[]){5.0}, 1, &result);
+    TEST_ASSERT(ok, "eval should succeed");
     TEST_ASSERT_NEAR(result, 13.0, AD_TOLERANCE, "2*5+3 should be 13");
 
     ok = ad_eval(add, (double[]){-1.0}, 1, &result);
-    TEST_ASSERT(ok == 0, "eval should succeed");
+    TEST_ASSERT(ok, "eval should succeed");
     TEST_ASSERT_NEAR(result, 1.0, AD_TOLERANCE, "2*(-1)+3 should be 1");
 
     ad_expr_destroy(add);
@@ -319,14 +319,14 @@ static void test_forward_diff_cos(void) {
     double value, deriv;
 
     /* At x = 0.0: cos(0) = 1, -sin(0) = 0 */
-    int ok = ad_forward_diff(c, 0, 0.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    bool ok = ad_forward_diff(c, 0, 0.0, &value, &deriv);
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, 1.0, AD_TOLERANCE, "cos(0) should be 1");
     TEST_ASSERT_NEAR(deriv, 0.0, AD_TOLERANCE, "d/dx(cos(x)) at x=0 should be 0");
 
     /* At x = PI: cos(PI) = -1, -sin(PI) = 0 */
     ok = ad_forward_diff(c, 0, M_PI, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, cos(M_PI), AD_TOLERANCE, "cos(PI) should be -1");
     TEST_ASSERT_NEAR(deriv, -sin(M_PI), AD_TOLERANCE,
         "d/dx(cos(x)) at x=PI should be ~0");
@@ -347,8 +347,8 @@ static void test_forward_diff_pow(void) {
     double value, deriv;
 
     /* At x = 2.0: 2^3 = 8, d/dx(x^3) = 3*x^2 = 12 */
-    int ok = ad_forward_diff(p, 0, 2.0, &value, &deriv);
-    TEST_ASSERT(ok == 0, "forward_diff should succeed");
+    bool ok = ad_forward_diff(p, 0, 2.0, &value, &deriv);
+    TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, 8.0, AD_TOLERANCE, "x^3 at x=2 should be 8");
     TEST_ASSERT_NEAR(deriv, 12.0, AD_TOLERANCE, "d/dx(x^3) at x=2 should be 12");
 
@@ -370,8 +370,8 @@ static void test_reverse_diff_multi_var(void) {
 
     /* At x=3, y=4: f = 12, df/dx = 4, df/dy = 3 */
     double vars[] = {3.0, 4.0};
-    int ok = ad_reverse_diff(mul, vars, 2, &value, gradients);
-    TEST_ASSERT(ok == 0, "reverse_diff should succeed");
+    bool ok = ad_reverse_diff(mul, vars, 2, &value, gradients);
+    TEST_ASSERT(ok, "reverse_diff should succeed");
     TEST_ASSERT_NEAR(value, 12.0, AD_TOLERANCE, "x*y at (3,4) should be 12");
 
     double gx = ad_grad(mul, 0);
@@ -395,19 +395,19 @@ static void test_ad_null_safety(void) {
     ad_engine_destroy(engine);
 
     /* NULL forward diff */
-    int ok = ad_forward_diff(NULL, 0, 1.0, &value, &deriv);
-    TEST_ASSERT(ok != 0, "forward_diff with NULL expr should fail");
+    bool ok = ad_forward_diff(NULL, 0, 1.0, &value, &deriv);
+    TEST_ASSERT(!ok, "forward_diff with NULL expr should fail");
 
     ok = ad_forward_diff(NULL, 0, 1.0, NULL, &deriv);
-    TEST_ASSERT(ok != 0, "forward_diff with NULL value should fail");
+    TEST_ASSERT(!ok, "forward_diff with NULL value should fail");
 
     /* NULL reverse diff */
     ok = ad_reverse_diff(NULL, NULL, 0, NULL, NULL);
-    TEST_ASSERT(ok != 0, "reverse_diff with NULL expr should fail");
+    TEST_ASSERT(!ok, "reverse_diff with NULL expr should fail");
 
     /* NULL eval */
     ok = ad_eval(NULL, NULL, 0, NULL);
-    TEST_ASSERT(ok != 0, "eval with NULL expr should fail");
+    TEST_ASSERT(!ok, "eval with NULL expr should fail");
 
     /* NULL grad */
     double g = ad_grad(NULL, 0);

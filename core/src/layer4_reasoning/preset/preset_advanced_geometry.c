@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_advanced_geometry.c
  * @brief 高级几何预设函数块 - 实现
  *
@@ -82,7 +82,7 @@ static bool register_advanced_geometry_preset(
  * 模块注册实现
  * ============================================================ */
 
-int preset_advanced_geometry_register(void)
+bool preset_advanced_geometry_register(void)
 {
     int success_count = 0;
 

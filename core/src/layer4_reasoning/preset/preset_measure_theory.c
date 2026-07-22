@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_measure_theory.c
  * @brief 测度论预设函数块 - 实现
  *
@@ -55,7 +55,7 @@ static bool register_mt_preset(
  * 模块注册实现
  * ============================================================ */
 
-int preset_measure_theory_register(void)
+bool preset_measure_theory_register(void)
 {
     int success_count = 0;
 

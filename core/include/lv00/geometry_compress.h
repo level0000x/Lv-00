@@ -1,4 +1,4 @@
-﻿#ifndef LV00_GEOMETRY_COMPRESS_H
+#ifndef LV00_GEOMETRY_COMPRESS_H
 #define LV00_GEOMETRY_COMPRESS_H
 
 #ifdef __cplusplus
@@ -68,13 +68,13 @@ typedef struct {
 } CompressMetadata;
 
 /* ── API ── */
-int geometry_compress(const ConstraintGraph *graph, const CompressConfig *config,
+bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *config,
                         uint8_t **out_data, size_t *out_size,
                         CompressMetadata *out_meta);
-int geometry_decompress(const uint8_t *data, size_t size,
+bool geometry_decompress(const uint8_t *data, size_t size,
                           ConstraintGraph **out_graph);
-int predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode);
-int edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, int *seq_len);
+bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode);
+bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, int *seq_len);
 
 #ifdef __cplusplus
 }

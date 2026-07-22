@@ -1,10 +1,10 @@
-﻿#include "lv00/interop.h"
+#include "lv00/interop.h"
+#include "lv00_utils.h"
 #include "lv00/lv00_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include "lv00/lv00_utils.h"
 
 /* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */
 typedef enum {
@@ -445,7 +445,7 @@ static int lean4_import_proof(const char *input, void **proof) {
     /* 初始化步骤数组 */
     p->step_capacity = 16;
     p->steps = (Lv00ProofStep *)lv00_calloc(p->step_capacity, sizeof(Lv00ProofStep));
-    if (!p->steps) { lv00_free((void **)&p); return -1; }
+    if (!p->steps) { lv00_free((void **)&(p)); return -1; }
 
     /* 确定脚本结束位置（到下一个顶层关键字或文件末尾） */
     const char *script_end = script_start + strlen(script_start);

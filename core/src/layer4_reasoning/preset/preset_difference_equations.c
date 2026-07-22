@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_difference_equations.c
  * @brief 差分方程预设函数块 - 实现
  *
@@ -23,7 +23,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_difference_equations_register(void)
+bool preset_difference_equations_register(void)
 {
     int success_count = 0;
 
@@ -36,7 +36,7 @@ int preset_difference_equations_register(void)
             "homogeneous_first_order",
             "求解一阶齐次差分方程 a_n = r * a_{n-1}",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ int preset_difference_equations_register(void)
             "homogeneous_second_order",
             "求解二阶齐次差分方程 a_n = p*a_{n-1} + q*a_{n-2}",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ int preset_difference_equations_register(void)
             "homogeneous_kth_order",
             "求解k阶齐次线性差分方程（特征方程法）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -67,7 +67,7 @@ int preset_difference_equations_register(void)
             "nonhomogeneous_solve",
             "求解非齐次差分方程 a_n = p*a_{n-1} + f(n)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ int preset_difference_equations_register(void)
             "particular_solution",
             "待定系数法构造非齐次差分方程的特解",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -89,7 +89,7 @@ int preset_difference_equations_register(void)
             "z_transform",
             "计算序列 {a_n} 的Z变换 A(z) = Σ a_n * z^{-n}",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ int preset_difference_equations_register(void)
             "inverse_z_transform",
             "计算Z变换 A(z) 的逆变换得到序列 {a_n}",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -107,7 +107,7 @@ int preset_difference_equations_register(void)
             "z_transform_solve",
             "利用Z变换求解线性常系数差分方程",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -120,7 +120,7 @@ int preset_difference_equations_register(void)
             "equilibrium_point",
             "计算差分方程的平衡点（不动点）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ int preset_difference_equations_register(void)
             "stability_test",
             "判定差分方程平衡点的稳定性",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -138,7 +138,7 @@ int preset_difference_equations_register(void)
             "asymptotic_behavior",
             "分析差分方程解的渐近行为",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -147,7 +147,7 @@ int preset_difference_equations_register(void)
             "generating_function_solve",
             "利用生成函数求解递推关系",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 

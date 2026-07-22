@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PRESET_POLYNOMIAL_H
+#ifndef LV00_PRESET_POLYNOMIAL_H
 #define LV00_PRESET_POLYNOMIAL_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define POLYNOMIAL_PRESET_COUNT 14
-int preset_polynomial_register(void);
+bool preset_polynomial_register(void);
 
 #ifdef __cplusplus
 }

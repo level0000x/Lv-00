@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file path_type.c
  * @brief HoTT 路径类型实现
  *

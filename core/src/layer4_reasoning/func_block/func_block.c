@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block.c
  * @brief 函数块核心实现
  * @details 实现函数块的创建、销毁、打包、深拷贝等核心管理 API。
@@ -24,7 +24,6 @@
 #include <string.h>
 
 #include "func_block_internal.h"
-#include "func_block_utils.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "lv00/solver.h"
@@ -1156,7 +1155,7 @@ fail:
 
 /* ==================== 内部共享函数 ==================== */
 
-int collect_all_block_ids(const FuncBlock *fb, int **out_ids, int *out_count) {
+bool collect_all_block_ids(const FuncBlock *fb, int **out_ids, int *out_count) {
     if (!fb || !out_ids || !out_count)
         return false;
 

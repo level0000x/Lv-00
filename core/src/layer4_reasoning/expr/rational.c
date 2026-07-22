@@ -190,16 +190,16 @@ void lv00_rational_set_one(Lv00Rational *r) {
  * @brief 用 GMP 整数设置有理数的分子和分母
  * @return true 成功，false 分母为 0
  */
-int lv00_rational_set_mpz(Lv00Rational *r, const mpz_t num, const mpz_t den) {
+bool lv00_rational_set_mpz(Lv00Rational *r, const mpz_t num, const mpz_t den) {
     if (!r)
-        return -1;
+        return false;
     if (mpz_sgn(den) == 0)
-        return -1;
+        return false;
 
     mpz_set(r->num, num);
     mpz_set(r->den, den);
     lv00_rational_simplify(r);
-    return 0;
+    return true;
 }
 
 /* ========================================================================
@@ -465,17 +465,17 @@ void lv00_rational_mul_inplace(Lv00Rational *a, const Lv00Rational *b) {
  * @brief 有理数原地除法：a /= b（b 不得为 0）
  * @return true 成功，false b 为 0
  */
-int lv00_rational_div_inplace(Lv00Rational *a, const Lv00Rational *b) {
+bool lv00_rational_div_inplace(Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
-        return -1;
+        return false;
     if (lv00_rational_is_zero(b))
-        return -1;
+        return false;
 
     mpz_mul(a->num, a->num, b->den);
     mpz_mul(a->den, a->den, b->num);
 
     lv00_rational_simplify(a);
-    return 0;
+    return true;
 }
 
 /**
@@ -558,9 +558,9 @@ int lv00_rational_sgn(const Lv00Rational *a) {
  * @param out_loss_bits [输出] 精度损失位数（NULL 可忽略）
  * @return true 转换成功，false 参数无效
  */
-int lv00_rational_to_double(const Lv00Rational *r, double *out_lossy, int *out_loss_bits) {
+bool lv00_rational_to_double(const Lv00Rational *r, double *out_lossy, int *out_loss_bits) {
     if (!r || !out_lossy)
-        return -1;
+        return false;
 
     /* 使用 GMP 的 mpz_get_d 获取最佳近似 */
     double num_d = mpz_get_d(r->num);
@@ -568,7 +568,7 @@ int lv00_rational_to_double(const Lv00Rational *r, double *out_lossy, int *out_l
 
     if (den_d == 0.0) {
         /* 分母为 0（不应发生，但此处防御） */
-        return -1;
+        return false;
     }
 
     *out_lossy = num_d / den_d;
@@ -577,7 +577,7 @@ int lv00_rational_to_double(const Lv00Rational *r, double *out_lossy, int *out_l
         *out_loss_bits = lv00_rational_estimate_loss(r);
     }
 
-    return 0;
+    return true;
 }
 
 /**

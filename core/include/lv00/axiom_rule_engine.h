@@ -20,14 +20,8 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-/* 前向声明 */
-typedef struct ConstraintGraph ConstraintGraph;
-typedef struct ProofStep ProofStep;
-typedef struct Proposition Proposition;
-typedef struct ProofNavigator ProofNavigator;
-
-#include "symbolic_coord.h" /* TrustColor */
+#include "constraint_graph.h"
+#include "proof.h"
 /* ============== 配置常量 ============== */
 /** 规则名称最大长度 */
 #define LV00_RULE_NAME_MAX_LEN 128
@@ -246,14 +240,14 @@ void lv00_rule_library_destroy(Lv00RuleLibrary *library);
  * @param rule 规则
  * @return 是否成功
  */
-int lv00_rule_library_add(Lv00RuleLibrary *library, Lv00Rule *rule);
+bool lv00_rule_library_add(Lv00RuleLibrary *library, Lv00Rule *rule);
 /**
  * @brief 从规则库移除规则
  * @param library 规则库
  * @param rule_id 规则 ID
  * @return 是否成功
  */
-int lv00_rule_library_remove(Lv00RuleLibrary *library, uint32_t rule_id);
+bool lv00_rule_library_remove(Lv00RuleLibrary *library, uint32_t rule_id);
 /**
  * @brief 根据 ID 获取规则
  * @param library 规则库
@@ -331,7 +325,7 @@ Lv00Rule *lv00_rule_copy(const Lv00Rule *rule);
  * @param description 描述
  * @return 是否成功
  */
-int lv00_rule_set_description(Lv00Rule *rule, const char *description);
+bool lv00_rule_set_description(Lv00Rule *rule, const char *description);
 /**
  * @brief 添加变量
  * @param rule 规则
@@ -339,7 +333,7 @@ int lv00_rule_set_description(Lv00Rule *rule, const char *description);
  * @param type 类型约束
  * @return 是否成功
  */
-int lv00_rule_add_variable(Lv00Rule *rule, const char *name, const char *type);
+bool lv00_rule_add_variable(Lv00Rule *rule, const char *name, const char *type);
 /**
  * @brief 添加前提
  * @param rule 规则
@@ -347,7 +341,7 @@ int lv00_rule_add_variable(Lv00Rule *rule, const char *name, const char *type);
  * @param is_optional 是否可选
  * @return 是否成功
  */
-int lv00_rule_add_premise(Lv00Rule *rule, const char *pattern, bool is_optional);
+bool lv00_rule_add_premise(Lv00Rule *rule, const char *pattern, bool is_optional);
 /**
  * @brief 添加结论
  * @param rule 规则
@@ -355,14 +349,14 @@ int lv00_rule_add_premise(Lv00Rule *rule, const char *pattern, bool is_optional)
  * @param trust_color 信任颜色
  * @return 是否成功
  */
-int lv00_rule_add_conclusion(Lv00Rule *rule, const char *pattern, TrustColor trust_color);
+bool lv00_rule_add_conclusion(Lv00Rule *rule, const char *pattern, TrustColor trust_color);
 /**
  * @brief 添加标签
  * @param rule 规则
  * @param tag 标签
  * @return 是否成功
  */
-int lv00_rule_add_tag(Lv00Rule *rule, const char *tag);
+bool lv00_rule_add_tag(Lv00Rule *rule, const char *tag);
 /**
  * @brief 设置规则优先级
  * @param rule 规则
@@ -503,7 +497,7 @@ Lv00Rule *lv00_rule_from_json(const char *json);
  * @param path 文件路径
  * @return 是否成功
  */
-int lv00_rule_library_save(const Lv00RuleLibrary *library, const char *path);
+bool lv00_rule_library_save(const Lv00RuleLibrary *library, const char *path);
 
 #ifdef __cplusplus
 }

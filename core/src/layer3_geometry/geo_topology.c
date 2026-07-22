@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_topology.c
  * @brief Implementation of the geometric topology module.
  *
@@ -17,11 +17,10 @@
 #include "lv00/geo_topology.h"
 
 
+#include "lv00_utils.h"
+
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/lv00_utils.h"
-
-#include "lv00/lv00_utils.h"
 
 /* ============================================================
  * Internal helpers
@@ -133,9 +132,9 @@ Lv00SimplicialComplex *geo_simplicial_create(int n_vertices) {
 
 void geo_simplicial_destroy(Lv00SimplicialComplex *sc) {
     if (!sc) return;
-    lv00_free((void **)&sc->edges);
-    lv00_free((void **)&sc->triangles);
-    lv00_free((void **)&sc);
+    lv00_free((void **)&(sc->edges));
+    lv00_free((void **)&(sc->triangles));
+    lv00_free((void **)&(sc));
 }
 
 /* ============================================================
@@ -229,7 +228,7 @@ Lv00Boundary *geo_simplicial_boundary(const Lv00SimplicialComplex *sc,
 
     bnd->edges = (Lv00Edge *)lv00_calloc(3, sizeof(Lv00Edge));
     if (!bnd->edges) {
-        lv00_free((void **)&bnd);
+        lv00_free((void **)&(bnd));
         return NULL;
     }
     bnd->n_edges = 3;
@@ -250,9 +249,9 @@ Lv00Boundary *geo_simplicial_boundary(const Lv00SimplicialComplex *sc,
 
 void geo_simplicial_boundary_destroy(Lv00Boundary *boundary) {
     if (!boundary) return;
-    lv00_free((void **)&boundary->edges);
-    lv00_free((void **)&boundary->vertices);
-    lv00_free((void **)&boundary);
+    lv00_free((void **)&(boundary->edges));
+    lv00_free((void **)&(boundary->vertices));
+    lv00_free((void **)&(boundary));
 }
 
 /* ============================================================
@@ -268,8 +267,8 @@ int geo_simplicial_connected_components(const Lv00SimplicialComplex *sc) {
     int *parent = (int *)lv00_calloc((size_t)n, sizeof(int));
     int *rank   = (int *)lv00_calloc((size_t)n, sizeof(int));
     if (!parent || !rank) {
-        lv00_free((void **)&parent);
-        lv00_free((void **)&rank);
+        lv00_free((void **)&(parent));
+        lv00_free((void **)&(rank));
         return 0;
     }
 
@@ -291,7 +290,7 @@ int geo_simplicial_connected_components(const Lv00SimplicialComplex *sc) {
         }
     }
 
-    lv00_free((void **)&parent);
-    lv00_free((void **)&rank);
+    lv00_free((void **)&(parent));
+    lv00_free((void **)&(rank));
     return components;
 }

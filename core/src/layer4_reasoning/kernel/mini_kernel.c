@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file mini_kernel.c
  * @brief 极简验证内核实现 —— 借鉴 mm0/Metamath 的超小型可信计算基（TCB）
  *
@@ -558,10 +558,10 @@ static void mini_verifier_reset(MiniProofVerifier *verifier)
 static bool mini_verifier_push_hypothesis(MiniProofVerifier *verifier, int hyp_id)
 {
     if (!verifier || verifier->stack_top + 1 >= verifier->stack_capacity) {
-        return -1;
+        return false;
     }
     verifier->hypothesis_stack[++verifier->stack_top] = hyp_id;
-    return 0;
+    return true;
 }
 
 static int mini_verifier_pop_stack(MiniProofVerifier *verifier)
@@ -717,7 +717,7 @@ static bool mini_read_file_content(const char *filepath, char **out_content,
     if (!fp) {
         lv00_set_error_ctx(LV00_ERROR_IO, __FILE__, __LINE__, __func__,
                            "无法打开文件: %s", filepath);
-        return -1;
+        return false;
     }
     fseek(fp, 0, SEEK_END);
     long fsize = ftell(fp);
@@ -725,13 +725,13 @@ static bool mini_read_file_content(const char *filepath, char **out_content,
 
     if (fsize < 0) {
         fclose(fp);
-        return -1;
+        return false;
     }
 
     char *buf = lv00_malloc((size_t)fsize + 1);
     if (!buf) {
         fclose(fp);
-        return -1;
+        return false;
     }
     size_t read_len = fread(buf, 1, (size_t)fsize, fp);
     fclose(fp);
@@ -739,7 +739,7 @@ static bool mini_read_file_content(const char *filepath, char **out_content,
 
     *out_content = buf;
     *out_len     = read_len;
-    return 0;
+    return true;
 }
 
 int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath)
@@ -840,7 +840,7 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath)
     return import_count;
 }
 
-int mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath)
+bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath)
 {
     LV00_CHECK_NULL(kernel, false);
     LV00_CHECK_NULL(filepath, false);
@@ -981,7 +981,7 @@ void mini_kernel_stats(const MiniKernel *kernel,
  * 第十部分：约束图集成
  * ======================================================================== */
 
-int mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id)
+bool mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id)
 {
     LV00_CHECK_NULL(kernel, false);
     if (stmt_id < 0 || stmt_id >= kernel->statement_count) {

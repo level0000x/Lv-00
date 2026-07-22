@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 模块名称：交互式类型等价探索器引擎 (type_equiv_explorer)
  *
  * 功能概述：
@@ -152,7 +152,7 @@ TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts,
  * @param max_steps  最大步数限制（设得越小越快但越容易漏解）
  * @return true 找到合一路径，false 未能在限制内找到
  */
-int type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps);
+bool type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps);
 
 /**
  * @brief 获取已找到的证明路径（只读）

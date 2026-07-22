@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_complex_analysis.c
  * @brief 复分析预设函数块模块 - 实现
  *
@@ -76,7 +76,7 @@ static bool register_complex_analysis_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_complex_analysis_register(void)
+bool preset_complex_analysis_register(void)
 {
     int success_count = 0;
 

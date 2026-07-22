@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_rule_engine.c
  * @brief Proof rule search engine implementation
  *
@@ -632,7 +632,7 @@ void rule_engine_destroy(Lv00RuleEngine *engine) {
     lv00_free((void **) &engine);
 }
 
-int rule_engine_add_rule(Lv00RuleEngine *engine, Lv00ProofRule *rule) {
+bool rule_engine_add_rule(Lv00RuleEngine *engine, Lv00ProofRule *rule) {
     if (!engine || !rule) return false;
     if (engine->rule_count >= engine->rule_capacity) return false;
 
@@ -640,7 +640,7 @@ int rule_engine_add_rule(Lv00RuleEngine *engine, Lv00ProofRule *rule) {
     return true;
 }
 
-int rule_engine_remove_rule(Lv00RuleEngine *engine, const char *name) {
+bool rule_engine_remove_rule(Lv00RuleEngine *engine, const char *name) {
     int i;
     if (!engine || !name) return false;
 
@@ -761,7 +761,7 @@ void proof_state_destroy(Lv00ProofState *state) {
     lv00_free((void **) &state);
 }
 
-int proof_state_push_goal(Lv00ProofState *state, const char *goal) {
+bool proof_state_push_goal(Lv00ProofState *state, const char *goal) {
     if (!state || !goal) return false;
     if (state->goal_stack_top + 1 >= LV00_GOAL_STACK_MAX) return false;
 
@@ -772,7 +772,7 @@ int proof_state_push_goal(Lv00ProofState *state, const char *goal) {
     return state->goal_stack[state->goal_stack_top] != NULL;
 }
 
-int proof_state_pop_goal(Lv00ProofState *state) {
+bool proof_state_pop_goal(Lv00ProofState *state) {
     if (!state) return false;
     if (state->goal_stack_top < 0) return false;
 
@@ -792,7 +792,7 @@ int proof_state_pop_goal(Lv00ProofState *state) {
     return true;
 }
 
-int proof_state_add_hypothesis(Lv00ProofState *state, const char *hypothesis) {
+bool proof_state_add_hypothesis(Lv00ProofState *state, const char *hypothesis) {
     if (!state || !hypothesis) return false;
     if (state->hypothesis_count >= LV00_HYPOTHESIS_MAX) return false;
 
@@ -803,7 +803,7 @@ int proof_state_add_hypothesis(Lv00ProofState *state, const char *hypothesis) {
     return true;
 }
 
-int proof_state_record_rule(Lv00ProofState *state, const char *name) {
+bool proof_state_record_rule(Lv00ProofState *state, const char *name) {
     if (!state || !name) return false;
     if (state->applied_rule_count >= LV00_APPLIED_RULES_MAX) return false;
 

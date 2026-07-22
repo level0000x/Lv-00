@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_linear_algebra.c
  * @brief 线性代数预设函数块 - 实现
  *
@@ -61,7 +61,7 @@ static bool register_linalg_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_linear_algebra_register(void)
+bool preset_linear_algebra_register(void)
 {
     int success_count = 0;
 

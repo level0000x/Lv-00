@@ -413,9 +413,9 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
  * 结果以 PAC 保证返回：
  *   Pr[|total_count - true_count| <= epsilon * true_count] >= 1 - delta
  */
-int approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg,
+bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg,
                             ApproxCountResult *out) {
-    if (!graph || !cfg || !out) return -1;
+    if (!graph || !cfg || !out) return false;
 
     memset(out, 0, sizeof(ApproxCountResult));
 
@@ -429,7 +429,7 @@ int approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg,
         out->total_count = 0;
         out->confidence = 1.0;
         out->status_msg = lv00_strdup("空约束图，模型数为 0");
-        return 0;
+        return true;
     }
 
     /* 确定哈希函数数量 */
@@ -446,7 +446,7 @@ int approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg,
     /* 创建 HLL 计数器进行采样估计 */
     int hll_precision = 4;  /* 16 寄存器 */
     ApproxCounter *counter = approx_count_create(hll_precision);
-    if (!counter) return -1;
+    if (!counter) return false;
 
     /* 模拟采样：基于约束数量和节点数量进行估计 */
     uint32_t seed = (uint32_t)(cfg->seed ? cfg->seed : 42);
@@ -475,23 +475,23 @@ int approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg,
              cfg->epsilon > 0 ? cfg->epsilon : 0.1, num_hashes);
     out->status_msg = lv00_strdup(msg);
 
-    return 0;
+    return true;
 }
 
 /**
  * @brief 投影模型计数（只计指定变量的不同赋值）
  */
-int approx_count_projected(const ConstraintGraph *graph, int *proj_vars,
+bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars,
                             int proj_count, const PacConfig *cfg,
                             ApproxCountResult *out) {
-    if (!graph || !cfg || !out) return -1;
-    if (!proj_vars || proj_count <= 0) return -1;
+    if (!graph || !cfg || !out) return false;
+    if (!proj_vars || proj_count <= 0) return false;
 
     memset(out, 0, sizeof(ApproxCountResult));
 
     /* 创建投影变量集合的 HLL 计数器 */
     ApproxCounter *counter = approx_count_create(4);
-    if (!counter) return -1;
+    if (!counter) return false;
 
     uint32_t seed = (uint32_t)(cfg->seed ? cfg->seed : 123);
 
@@ -522,7 +522,7 @@ int approx_count_projected(const ConstraintGraph *graph, int *proj_vars,
              proj_count, (unsigned long long)total, out->confidence * 100.0);
     out->status_msg = lv00_strdup(msg);
 
-    return 0;
+    return true;
 }
 
 /* ============================================================
@@ -551,7 +551,7 @@ bool is_approximately_constructible(const ConstraintGraph *graph, double min_pro
     ApproxCountResult result;
     memset(&result, 0, sizeof(result));
 
-    if (approx_count_solutions(graph, &cfg, &result) != 0) {
+    if (!approx_count_solutions(graph, &cfg, &result)) {
         return false;
     }
 

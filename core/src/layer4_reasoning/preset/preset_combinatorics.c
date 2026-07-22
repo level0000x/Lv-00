@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_combinatorics.c
  * @brief 组合数学预设函数块 - 实现
  *
@@ -41,7 +41,7 @@ static bool register_comb_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_combinatorics_register(void)
+bool preset_combinatorics_register(void)
 {
     int success_count = 0;
 

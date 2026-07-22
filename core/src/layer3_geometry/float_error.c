@@ -789,7 +789,7 @@ static double finite_difference_partial(const char *expr, const FloatInterval *v
  */
 static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bounds, int var_count, TaylorForm *tf) {
     if (!expr || !var_bounds || var_count <= 0 || !tf)
-        return -1;
+        return false;
 
     tf->deriv_count = var_count;
     tf->order = 1;
@@ -799,7 +799,7 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
     if (!tf->first_derivs || !tf->deriv_var_ids) {
         lv00_free((void **)&tf->first_derivs);
         lv00_free((void **)&tf->deriv_var_ids);
-        return -1;
+        return false;
     }
 
     /* 计算中心点值：取每个变量区间的中点 */
@@ -839,7 +839,7 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
     tf->interval_lo = tf->center_val + delta_lo;
     tf->interval_hi = tf->center_val + delta_hi;
 
-    return 0;
+    return true;
 }
 
 /* ========================================================================
@@ -860,19 +860,19 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
  */
 static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***equations, int *eq_count) {
     if (!graph || !equations || !eq_count)
-        return -1;
+        return false;
 
     *eq_count = 0;
     *equations = NULL;
 
     if (graph->constraint_count == 0)
-        return 0;
+        return true;
 
     /* 分配表达式数组 */
     int alloc_count = (graph->constraint_count < MAX_EQUATIONS) ? graph->constraint_count : MAX_EQUATIONS;
     char **eqs = (char **) lv00_malloc((size_t)alloc_count * sizeof(char *));
     if (!eqs)
-        return -1;
+        return false;
 
     for (int ci = 0; ci < graph->constraint_count && *eq_count < alloc_count; ci++) {
         Constraint *c = graph->constraints[ci];
@@ -928,7 +928,7 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
     }
 
     *equations = eqs;
-    return 0;
+    return true;
 }
 
 /**
@@ -944,20 +944,20 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
  * @param out    输出误差界
  * @return 成功返回 true，失败返回 false
  */
-int fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out) {
+bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out) {
     if (!graph || !out)
-        return -1;
+        return false;
 
     /* 验证 var_id 是否有效 */
     GeomNode *target_node = graph_get_node(graph, var_id);
     if (!target_node)
-        return -1;
+        return false;
 
     /* 步骤 1: 从约束图中提取涉及 var_id 的方程 */
     char **equations = NULL;
     int eq_count = 0;
     if (!extract_equations(graph, var_id, &equations, &eq_count)) {
-        return -1;
+        return false;
     }
 
     /* 步骤 2: 构造变量区间边界
@@ -1030,7 +1030,7 @@ int fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTa
     }
     lv00_free((void **)&equations);
 
-    return 0;
+    return true;
 }
 
 /* ========================================================================
@@ -1049,10 +1049,10 @@ int fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTa
  * @param out        输出误差界
  * @return 成功返回 true，失败返回 false
  */
-int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, int var_count, const FPTaylorConfig *cfg,
+bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, int var_count, const FPTaylorConfig *cfg,
                             ErrorBound *out) {
     if (!expr || !var_bounds || var_count <= 0 || !out)
-        return -1;
+        return false;
 
     FPTaylorConfig config = cfg ? *cfg : fptaylor_config_default();
 
@@ -1061,7 +1061,7 @@ int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, in
     memset(&tf, 0, sizeof(TaylorForm));
 
     if (!basic_taylor_expand(expr, var_bounds, var_count, &tf)) {
-        return -1;
+        return false;
     }
 
     /* 计算误差界 */
@@ -1084,7 +1084,7 @@ int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, in
     lv00_free((void **)&tf.first_derivs);
     lv00_free((void **)&tf.deriv_var_ids);
 
-    return 0;
+    return true;
 }
 
 /* ========================================================================

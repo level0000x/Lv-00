@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file engine.c
  * @brief 主引擎实现
  * @details 实现工作流编排，协调规范化、重写、求解和冲突检查。
@@ -326,16 +326,16 @@ static bool engine_ensure_capacity(void **arr, int count, int *capacity, size_t 
  * @param rule   待添加的重写规则（指针所有权转移至引擎，调用者不应再释放）
  * @return true 添加成功，false 参数为 NULL 或内存不足
  */
-int engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule) {
+bool engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule) {
     if (!engine || !rule)
-        return -1;
+        return false;
 
     if (!engine_ensure_capacity((void **) &engine->rewrite_rules, engine->rewrite_rule_count,
                                 &engine->rewrite_rule_capacity, sizeof(RewriteRule *)))
-        return -1;
+        return false;
 
     engine->rewrite_rules[engine->rewrite_rule_count++] = (RewriteRule *)rule;
-    return 0;
+    return true;
 }
 
 /**
@@ -488,17 +488,17 @@ static void update_port_namespace_depth(GeomNode *n, int new_func_block_id,
  *                         若为 NULL 则跳过赋值。
  * @return true 成功，false 失败（错误信息存入 last_error）
  */
-int engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
+bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
                           int input_count, const int *output_port_ids, int output_count, int *out_func_block_id) {
     if (!engine || !engine->main_graph || (internal_count > 0 && !internal_node_ids) || (input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids)) {
         engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "引擎或主图为空");
-        return -1;
+        return false;
     }
     for (int i = 0; i < internal_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, internal_node_ids[i]);
         if (!n) {
             engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 内部节点 %d 不存在", internal_node_ids[i]);
-            return -1;
+            return false;
         }
     }
     for (int i = 0; i < input_count; i++) {
@@ -506,7 +506,7 @@ int engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int i
         if (!n || n->type != GEOM_PORT) {
             engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 输入端口 %d 不存在或不是端口类型",
                      input_port_ids[i]);
-            return -1;
+            return false;
         }
     }
     for (int i = 0; i < output_count; i++) {
@@ -514,7 +514,7 @@ int engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int i
         if (!n || n->type != GEOM_PORT) {
             engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 输出端口 %d 不存在或不是端口类型",
                      output_port_ids[i]);
-            return -1;
+            return false;
         }
     }
     /* v3.4.1 改进：使用 graph_get_last_added_node_id() 安全获取新节点 ID，
@@ -524,7 +524,7 @@ int engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int i
                                                     input_port_ids, input_count, output_port_ids, output_count);
     if (result != ADD_NODE_OK) {
         engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "创建函数块失败（图操作返回错误: %d）", result);
-        return -1;
+        return false;
     }
     
     /* 安全获取新创建的函数块 ID */
@@ -534,7 +534,7 @@ int engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int i
     if (new_func_block_id < 0) {
         /* LV00_LOG_ERROR("engine_add_function_block: 无法获取有效的函数块 ID"); */
         engine_set_error(engine, ENGINE_STATUS_ERROR_INTERNAL, "无法获取有效的函数块 ID");
-        return -1;
+        return false;
     }
     
     /* 二次验证：确保 ID 对应的节点存在且类型正确 */
@@ -542,7 +542,7 @@ int engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int i
     if (!new_fb_node || new_fb_node->type != GEOM_FUNCTION_BLOCK) {
         LV00_LOG_ERROR("engine_add_function_block: ID=%d 对应的节点不存在或类型不是函数块", new_func_block_id);
         engine_set_error(engine, ENGINE_STATUS_ERROR_INTERNAL, "函数块节点验证失败");
-        return -1;
+        return false;
     }
     if (out_func_block_id) {
         *out_func_block_id = new_func_block_id;
@@ -565,7 +565,7 @@ int engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int i
         GeomNode *n = graph_get_node(engine->main_graph, output_port_ids[i]);
         update_port_namespace_depth(n, new_func_block_id, context_depth, false);
     }
-    return 0;
+    return true;
 }
 
 int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const int *arg_mappings, int arg_count,
@@ -769,9 +769,9 @@ static int check_and_report_conflicts(LV00Engine *engine, const char *context) {
     if (conflict_count > 0) {
         engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
         snprintf(engine->last_error, sizeof(engine->last_error), "%s: 检测到 %d 个冲突", context, conflict_count);
-        return false;
+        return -1;
     }
-    return true;
+    return 0;
 }
 
 /**
@@ -1560,9 +1560,9 @@ void *engine_create_frozen_point(LV00Engine *engine) {
 }
 
 /** @brief 恢复引擎状态到指定冻结点 @param engine 引擎实例 @param frozen_point 冻结点句柄 @return true 成功 */
-int engine_restore_frozen_point(LV00Engine *engine, void *frozen_point) {
+bool engine_restore_frozen_point(LV00Engine *engine, void *frozen_point) {
     if (!engine || !frozen_point)
-        return -1;
+        return false;
 
     ConstraintGraph *snapshot = (ConstraintGraph *) frozen_point;
 
@@ -1578,7 +1578,7 @@ int engine_restore_frozen_point(LV00Engine *engine, void *frozen_point) {
     circuit_set_frozen_point(NULL);
     engine->frozen_point = NULL;
 
-    return 0;
+    return true;
 }
 
 /** @brief 销毁冻结点并释放关联资源 @param frozen_point 冻结点句柄 */

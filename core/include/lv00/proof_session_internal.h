@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PROOF_SESSION_INTERNAL_H
+#ifndef LV00_PROOF_SESSION_INTERNAL_H
 #define LV00_PROOF_SESSION_INTERNAL_H
 
 #ifdef __cplusplus
@@ -66,10 +66,10 @@ const char *step_result_to_string(Lv00StepResult result);
 /* 证明状态创建函数（被会话调用） */
 Lv00ProofState *proof_state_create(const char *goal);
 void proof_state_destroy(Lv00ProofState *state);
-int proof_state_pop_goal(Lv00ProofState *state);
+bool proof_state_pop_goal(Lv00ProofState *state);
 bool proof_state_is_complete(const Lv00ProofState *state);
-int proof_state_record_rule(Lv00ProofState *state, const char *name);
-int proof_state_add_hypothesis(Lv00ProofState *state, const char *hypothesis);
+bool proof_state_record_rule(Lv00ProofState *state, const char *name);
+bool proof_state_add_hypothesis(Lv00ProofState *state, const char *hypothesis);
 const char *proof_state_current_goal(const Lv00ProofState *state);
 
 /* Session management functions (used by test_proof_rule_engine.c) */
@@ -80,9 +80,9 @@ const char *proof_session_get_target(const Lv00ProofSession *session);
 int proof_session_get_step_count(const Lv00ProofSession *session);
 bool proof_session_is_complete(const Lv00ProofSession *session);
 Lv00SessionStatus proof_session_get_status(const Lv00ProofSession *session);
-int proof_session_submit_step(Lv00ProofSession *session, const char *step, Lv00StepResult *result);
-int proof_session_reset(Lv00ProofSession *session);
-int proof_session_abandon(Lv00ProofSession *session);
+bool proof_session_submit_step(Lv00ProofSession *session, const char *step, Lv00StepResult *result);
+bool proof_session_reset(Lv00ProofSession *session);
+bool proof_session_abandon(Lv00ProofSession *session);
 char *proof_session_get_state_json(const Lv00ProofSession *session);
 
 #ifdef __cplusplus

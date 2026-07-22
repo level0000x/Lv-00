@@ -1,4 +1,4 @@
-﻿#ifndef LV00_TEST_FRAMEWORK_H
+#ifndef LV00_TEST_FRAMEWORK_H
 #define LV00_TEST_FRAMEWORK_H
 
 #ifdef __GNUC__
@@ -118,20 +118,20 @@ struct Lv00Benchmark {
 Lv00TestSuite *lv00_test_suite_create(const char *name);
 void lv00_test_suite_destroy(Lv00TestSuite *suite);
 
-int lv00_test_register(const char *suite_name, const char *test_name,
+bool lv00_test_register(const char *suite_name, const char *test_name,
                         Lv00TestFunc func);
-int lv00_test_register_with_fixture(const char *suite_name, const char *test_name,
+bool lv00_test_register_with_fixture(const char *suite_name, const char *test_name,
                                      Lv00TestFunc func,
                                      Lv00TestSetupFunc setup,
                                      Lv00TestTeardownFunc teardown);
-int lv00_test_register_suite_fixture(const char *suite_name,
+bool lv00_test_register_suite_fixture(const char *suite_name,
                                       Lv00TestSetupFunc setup,
                                       Lv00TestTeardownFunc teardown);
-int lv00_test_register_data_driven(const char *suite_name, const char *test_name,
+bool lv00_test_register_data_driven(const char *suite_name, const char *test_name,
                                     Lv00TestFunc func,
                                     Lv00TestDataGenerator generator,
                                     int data_count);
-int lv00_test_register_tag(const char *suite_name, const char *test_name,
+bool lv00_test_register_tag(const char *suite_name, const char *test_name,
                             const char *tag);
 
 Lv00TestReport *lv00_test_run_all(void);
@@ -142,10 +142,10 @@ void lv00_test_result_destroy(Lv00TestResult *result);
 void lv00_test_report_destroy(Lv00TestReport *report);
 void lv00_test_report_print(const Lv00TestReport *report, FILE *stream);
 char *lv00_test_report_to_json(const Lv00TestReport *report);
-int lv00_test_report_write_file(const Lv00TestReport *report,
+bool lv00_test_report_write_file(const Lv00TestReport *report,
                                  const char *path, const char *format);
 
-int lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func,
+bool lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func,
                              uint64_t iterations);
 Lv00Benchmark *lv00_benchmark_run(const char *name);
 void lv00_benchmark_destroy(Lv00Benchmark *bench);

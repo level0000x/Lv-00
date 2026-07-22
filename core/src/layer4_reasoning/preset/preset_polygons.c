@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_polygons.c
  * @brief ����ι���Ԥ�躯���� - ʵ��
  *
@@ -21,7 +21,7 @@
 
 /* ==================== ģ��ע��ʵ�� ==================== */
 
-int preset_polygons_register(void)
+bool preset_polygons_register(void)
 {
     int success_count = 0;
 
@@ -32,7 +32,7 @@ int preset_polygons_register(void)
             "equilateral_triangle",
             "�����߹����������εĵ���������",
             PRESET_EXT_POLYGON,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -41,7 +41,7 @@ int preset_polygons_register(void)
             "square",
             "�����߹��������ε�������������",
             PRESET_EXT_POLYGON,
-            2, 2) == 0) {
+            2, 2)) {
         success_count++;
     }
 
@@ -50,7 +50,7 @@ int preset_polygons_register(void)
             "regular_polygon",
             "�����߹�����n����",
             PRESET_EXT_POLYGON,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -59,7 +59,7 @@ int preset_polygons_register(void)
             "regular_pentagon",
             "�����߹����������",
             PRESET_EXT_POLYGON,
-            2, 5) == 0) {
+            2, 5)) {
         success_count++;
     }
 
@@ -68,7 +68,7 @@ int preset_polygons_register(void)
             "regular_hexagon",
             "�����߹�����������",
             PRESET_EXT_POLYGON,
-            2, 6) == 0) {
+            2, 6)) {
         success_count++;
     }
 
@@ -79,7 +79,7 @@ int preset_polygons_register(void)
             "isosceles_triangle",
             "�����ױߺ͸߹������������",
             PRESET_EXT_POLYGON,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -88,7 +88,7 @@ int preset_polygons_register(void)
             "right_triangle",
             "����ֱ�Ƕ����һֱ�Ǳ߹���ֱ��������",
             PRESET_EXT_POLYGON,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -97,7 +97,7 @@ int preset_polygons_register(void)
             "triangle_sss",
             "�������߳�����������",
             PRESET_EXT_POLYGON,
-            4, 1) == 0) {
+            4, 1)) {
         success_count++;
     }
 
@@ -106,7 +106,7 @@ int preset_polygons_register(void)
             "triangle_sas",
             "�������߼��нǹ���������",
             PRESET_EXT_POLYGON,
-            4, 1) == 0) {
+            4, 1)) {
         success_count++;
     }
 
@@ -115,7 +115,7 @@ int preset_polygons_register(void)
             "triangle_asa",
             "�������Ǽ��б߹���������",
             PRESET_EXT_POLYGON,
-            4, 1) == 0) {
+            4, 1)) {
         success_count++;
     }
 
@@ -126,7 +126,7 @@ int preset_polygons_register(void)
             "rectangle",
             "���������㹹�����",
             PRESET_EXT_POLYGON,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -135,7 +135,7 @@ int preset_polygons_register(void)
             "parallelogram",
             "���������㹹��ƽ���ı���",
             PRESET_EXT_POLYGON,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -144,7 +144,7 @@ int preset_polygons_register(void)
             "rhombus",
             "�����Խ��߹�������",
             PRESET_EXT_POLYGON,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -153,7 +153,7 @@ int preset_polygons_register(void)
             "trapezoid",
             "�����ױߺ͵׽ǹ�������",
             PRESET_EXT_POLYGON,
-            4, 1) == 0) {
+            4, 1)) {
         success_count++;
     }
 
@@ -162,7 +162,7 @@ int preset_polygons_register(void)
             "kite",
             "�����Խ��ߺͶ��㹹������",
             PRESET_EXT_POLYGON,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -173,7 +173,7 @@ int preset_polygons_register(void)
             "star_polygon",
             "�������ζ���� {n/k}",
             PRESET_EXT_POLYGON,
-            4, 1) == 0) {
+            4, 1)) {
         success_count++;
     }
 
@@ -182,7 +182,7 @@ int preset_polygons_register(void)
             "pentagram",
             "�����������",
             PRESET_EXT_POLYGON,
-            2, 5) == 0) {
+            2, 5)) {
         success_count++;
     }
 

@@ -278,7 +278,7 @@ const char *atp_backend_type_name(ATPBackendType type);
  * @brief 从名称字符串解析后端类型
  * @return 成功返回 true，失败返回 false
  */
-int atp_backend_type_from_name(const char *name, ATPBackendType *out_type);
+bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type);
 /* ========================================================================
  * 引擎调度器集成
  *

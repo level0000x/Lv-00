@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_matrix.c
  * @brief 矩阵运算预设函数块 - 实现
  *
@@ -63,7 +63,7 @@ static bool register_matrix_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_matrix_register(void)
+bool preset_matrix_register(void)
 {
     int success_count = 0;
 

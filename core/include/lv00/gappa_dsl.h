@@ -1,4 +1,4 @@
-﻿#ifndef LV00_GAPPA_DSL_H
+#ifndef LV00_GAPPA_DSL_H
 #define LV00_GAPPA_DSL_H
 #include "lv00/gappa_propagate.h"
 #include <stdbool.h>
@@ -18,7 +18,7 @@ typedef struct {
 } Lv00GappaFormat;
 
 /** Predefined format helper */
-int gappa_format_predefined(const char *name, Lv00GappaFormat *out);
+bool gappa_format_predefined(const char *name, Lv00GappaFormat *out);
 
 /** Rounding modes */
 typedef enum {
@@ -76,7 +76,7 @@ typedef struct {
 int lv00_gappa_parse(const char *input);
 
 /** Parse with structured output */
-int gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
+bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                  Lv00GappaProofGoal **goals, int *goal_count);
 
 /** Free parsed results */
@@ -98,7 +98,7 @@ Lv00GappaProofResult gappa_prove(const Lv00GappaPredicate *hyp, int hyp_count,
 void gappa_result_free(Lv00GappaProofResult *result);
 
 /** Register rewrite rules */
-int gappa_register_rewrite_rules(const Lv00GappaRewriteRule *rules, int count);
+bool gappa_register_rewrite_rules(const Lv00GappaRewriteRule *rules, int count);
 
 #ifdef __cplusplus
 }

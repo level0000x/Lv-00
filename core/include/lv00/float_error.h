@@ -252,7 +252,7 @@ typedef struct {
  * @param[out] out        输出的误差界
  * @return true 成功，false 失败
  */
-int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, int var_count, const FPTaylorConfig *cfg,
+bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, int var_count, const FPTaylorConfig *cfg,
                             ErrorBound *out);
 
 /**
@@ -276,7 +276,7 @@ int fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, in
  * @param[out] out     输出的误差界
  * @return true 成功，false 失败
  */
-int fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out);
+bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out);
 
 /**
  * @brief 验证误差界是否在安全容差范围内

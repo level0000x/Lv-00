@@ -161,7 +161,7 @@ static bool ensure_chain_capacity(PresetChain *chain)
     return true;
 }
 
-int preset_chain_add(PresetChain *chain,
+bool preset_chain_add(PresetChain *chain,
                        const char *preset_name,
                        const int *input_mapping)
 {
@@ -234,7 +234,7 @@ int preset_chain_add(PresetChain *chain,
  * @param out_output_count 输出：最终输出节点数量
  * @return true 执行成功，false 参数无效或任一步骤实例化失败
  */
-int preset_chain_execute(PresetChain *chain,
+bool preset_chain_execute(PresetChain *chain,
                            ConstraintGraph *graph,
                            const int *initial_args,
                            int arg_count,
@@ -344,7 +344,7 @@ int preset_chain_execute(PresetChain *chain,
  * 预设批量操作实现
  * ================================================================ */
 
-int preset_batch_instantiate(const char *preset_name,
+bool preset_batch_instantiate(const char *preset_name,
                                ConstraintGraph *graph,
                                const int **arg_sets,
                                int set_count,
@@ -441,7 +441,7 @@ int preset_batch_instantiate(const char *preset_name,
     return true;
 }
 
-int preset_batch_apply(const char *preset_name,
+bool preset_batch_apply(const char *preset_name,
                          ConstraintGraph *graph,
                          const int *target_nodes,
                          int node_count,
@@ -622,7 +622,7 @@ void preset_validation_result_destroy(PresetValidationResult *result)
     lv00_free((void **)&result->error_message);
 }
 
-int preset_test_instantiation(const char *preset_name,
+bool preset_test_instantiation(const char *preset_name,
                                 ConstraintGraph *graph,
                                 const int *test_args,
                                 int arg_count)
@@ -673,7 +673,7 @@ int preset_test_instantiation(const char *preset_name,
  * 预设参数操作实现
  * ================================================================ */
 
-int preset_create_bindings(const char *preset_name,
+bool preset_create_bindings(const char *preset_name,
                              PresetParamBinding **out_bindings,
                              int *out_count)
 {
@@ -709,7 +709,7 @@ void preset_bindings_destroy(PresetParamBinding *bindings)
     lv00_free((void **)&bindings);
 }
 
-int preset_partial_bind(const char *preset_name,
+bool preset_partial_bind(const char *preset_name,
                           const PresetParamBinding *bindings,
                           int binding_count,
                           char **out_new_preset_name)
@@ -972,7 +972,7 @@ static bool preset_compose(const char *preset_a,
                      PresetComposeMode mode,
                      char **out_composed_name)
 {
-    if (!preset_a || !preset_b || !out_composed_name) return -1;
+    if (!preset_a || !preset_b || !out_composed_name) return false;
 
     /* 查找预设 */
     FuncBlock *fb_a = func_block_registry_lookup(preset_a);
@@ -981,7 +981,7 @@ static bool preset_compose(const char *preset_a,
     if (!fb_a || !fb_b) {
         if (fb_a) func_block_destroy(fb_a);
         if (fb_b) func_block_destroy(fb_b);
-        return -1;
+        return false;
     }
 
     /* 生成新名称 */
@@ -1003,7 +1003,7 @@ static bool preset_compose(const char *preset_a,
         default:
             func_block_destroy(fb_a);
             func_block_destroy(fb_b);
-            return -1;
+            return false;
     }
 
     /* 使用现有的组合函数 */
@@ -1022,7 +1022,7 @@ static bool preset_compose(const char *preset_a,
     if (!temp_graph) {
         func_block_destroy(fb_a);
         func_block_destroy(fb_b);
-        return -1;
+        return false;
     }
 
     switch (mode) {
@@ -1062,14 +1062,14 @@ static bool preset_compose(const char *preset_a,
 
         if (registered) {
             *out_composed_name = lv00_strdup(new_name);
-            return 0;
+            return true;
         }
     }
 
-    return -1;
+    return false;
 }
 
-int preset_make_recursive(const char *base_preset,
+bool preset_make_recursive(const char *base_preset,
                             int max_iterations,
                             char **out_recursive_name)
 {

@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PRESET_ALGEBRAIC_TOPOLOGY_H
+#ifndef LV00_PRESET_ALGEBRAIC_TOPOLOGY_H
 #define LV00_PRESET_ALGEBRAIC_TOPOLOGY_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define ALGEBRAIC_TOPOLOGY_PRESET_COUNT 12
-int preset_algebraic_topology_register(void);
+bool preset_algebraic_topology_register(void);
 
 #ifdef __cplusplus
 }

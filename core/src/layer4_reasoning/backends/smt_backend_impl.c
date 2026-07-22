@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file smt_backend_impl.c
  * @brief SMT 后端抽象层实现 —— 多引擎 SMT 求解器框架（含 Groebner 基真实求解）
  *

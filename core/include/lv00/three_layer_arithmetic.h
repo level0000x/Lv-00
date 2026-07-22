@@ -181,7 +181,7 @@ extern "C" {
  * @param result 输出：a * b 的结果
  * @return int   1 = 成功（无溢出），0 = 溢出或 result 为 NULL
  */
-int lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
+bool lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
 
 /**
  * @brief 安全加法实现（带溢出检测）
@@ -191,7 +191,7 @@ int lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
  * @param result 输出：a + b 的结果
  * @return int   1 = 成功（无溢出），0 = 溢出或 result 为 NULL
  */
-int lv00_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
+bool lv00_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
 
 /**
  * @brief 安全减法实现（带溢出检测）
@@ -201,7 +201,7 @@ int lv00_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
  * @param result 输出：a - b 的结果
  * @return int   1 = 成功（无溢出），0 = 溢出或 result 为 NULL
  */
-int lv00_safe_sub_impl(int64_t a, int64_t b, int64_t *out);
+bool lv00_safe_sub_impl(int64_t a, int64_t b, int64_t *out);
 
 #ifdef __cplusplus
 }

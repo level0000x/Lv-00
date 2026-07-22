@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file probabilistic_constraint.c
  * @brief PRISM 概率模型检验 —— 真实实现
  *
@@ -1250,7 +1250,7 @@ bool pctl_check_constructibility(const ConstraintGraph *graph, double confidence
  * prob_constraint_infer —— 概率约束推理
  * ======================================================================== */
 
-int prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbConstraintNode **constraints, int n,
+bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbConstraintNode **constraints, int n,
                            double *out_conf) {
     if (!graph || !constraints || n <= 0 || !out_conf)
         return false;

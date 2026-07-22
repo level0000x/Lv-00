@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PROBABILISTIC_CONSTRAINT_H
+#ifndef LV00_PROBABILISTIC_CONSTRAINT_H
 #define LV00_PROBABILISTIC_CONSTRAINT_H
 
 #ifdef __cplusplus
@@ -77,7 +77,7 @@ ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist);
 void prob_constraint_destroy(ProbConstraintNode *node);
 int prob_constraint_sample(ProbConstraintNode *node, int n_samples, double **out_samples);
 
-int prob_constraint_infer(const ConstraintGraph *graph, int target_var,
+bool prob_constraint_infer(const ConstraintGraph *graph, int target_var,
                             ProbConstraintNode **constraints, int n, double *out_prob);
 
 #ifdef __cplusplus

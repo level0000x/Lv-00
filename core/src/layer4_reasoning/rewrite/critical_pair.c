@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 关键对计算引擎实现
  *
  * 核心算法：
@@ -347,7 +347,7 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
     return set;
 }
 
-int critical_pair_compare(CriticalPair *cp)
+bool critical_pair_compare(CriticalPair *cp)
 {
     if (!cp || !cp->overlap) return false;
     if (cp->compared) return true; /* 幂等：已比较则直接返回 */
@@ -453,7 +453,7 @@ int critical_pair_compare_all(CriticalPairSet *set)
     return confluent;
 }
 
-int critical_pair_export_text(const CriticalPair *cp, const char *filepath)
+bool critical_pair_export_text(const CriticalPair *cp, const char *filepath)
 {
     if (!cp || !filepath) return false;
 

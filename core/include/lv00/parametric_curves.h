@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file parametric_curves.h
  * @brief 参数曲线曲面模块 -- 参数化几何对象的创建、求值与分析
  *
@@ -60,13 +60,13 @@ struct Lv00ParametricCurve *lv00_curve_create(
     void *user_data, bool is_closed);
 
 void  lv00_curve_destroy(struct Lv00ParametricCurve *curve);
-int  lv00_curve_evaluate(const struct Lv00ParametricCurve *curve,
+bool  lv00_curve_evaluate(const struct Lv00ParametricCurve *curve,
                           double t, Lv00Point2D *out);
-int  lv00_curve_tangent(const struct Lv00ParametricCurve *curve,
+bool  lv00_curve_tangent(const struct Lv00ParametricCurve *curve,
                          double t, double *out_dx, double *out_dy);
 double lv00_curve_arc_length(const struct Lv00ParametricCurve *curve,
                              int n_steps);
-int  lv00_curve_get_domain(const struct Lv00ParametricCurve *curve,
+bool  lv00_curve_get_domain(const struct Lv00ParametricCurve *curve,
                             double *out_t_min, double *out_t_max);
 bool  lv00_curve_is_closed(const struct Lv00ParametricCurve *curve);
 
@@ -80,14 +80,14 @@ struct Lv00ParametricSurface *lv00_surface_create(
     void *user_data);
 
 void  lv00_surface_destroy(struct Lv00ParametricSurface *surf);
-int  lv00_surface_evaluate(const struct Lv00ParametricSurface *surf,
+bool  lv00_surface_evaluate(const struct Lv00ParametricSurface *surf,
                             double u, double v, Lv00Point3D *out);
-int  lv00_surface_normal(const struct Lv00ParametricSurface *surf,
+bool  lv00_surface_normal(const struct Lv00ParametricSurface *surf,
                           double u, double v,
                           double *out_nx, double *out_ny, double *out_nz);
 double lv00_surface_area(const struct Lv00ParametricSurface *surf,
                          int n_u, int n_v);
-int  lv00_surface_get_domain(const struct Lv00ParametricSurface *surf,
+bool  lv00_surface_get_domain(const struct Lv00ParametricSurface *surf,
                               Lv00ParametricDomain2D *out);
 
 #ifdef __cplusplus

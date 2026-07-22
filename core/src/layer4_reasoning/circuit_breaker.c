@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file circuit_breaker.c
  * @brief 熔断器模块实现
  *
@@ -176,15 +176,15 @@ void lv00_circuit_breaker_record_success(Lv00Context *ctx) {
     cb->consecutive_errors = 0;
 }
 
-int lv00_circuit_breaker_record_failure(Lv00Context *ctx) {
-    if (!ctx) return -1;
+bool lv00_circuit_breaker_record_failure(Lv00Context *ctx) {
+    if (!ctx) return false;
 
     CircuitBreaker *cb = &ctx->circuit_breaker;
 
     /* 在半开态下，失败意味着重新打开熔断器 */
     if (cb->state == CIRCUIT_BREAKER_HALF_OPEN) {
         lv00_circuit_breaker_trip(ctx, "半开态试探失败");
-        return -1;
+        return false;
     }
 
     /* 在关闭态下，递增连续错误计数 */
@@ -192,10 +192,10 @@ int lv00_circuit_breaker_record_failure(Lv00Context *ctx) {
     if (cb->max_consecutive_errors > 0 &&
         cb->consecutive_errors >= cb->max_consecutive_errors) {
         lv00_circuit_breaker_trip(ctx, "连续错误数超限");
-        return -1;
+        return false;
     }
 
-    return 0;  /* 仍在关闭态 */
+    return true;  /* 仍在关闭态 */
 }
 
 const char *lv00_circuit_breaker_state_name(Lv00Context *ctx) {

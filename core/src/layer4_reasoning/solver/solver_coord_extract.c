@@ -109,9 +109,9 @@ static void equation_system_clear(EquationSystem *sys) {
  * 通过序列化为字符串再解析为浮点数实现，精度受限于 strtod。
  */
 static bool coord_to_double_via_serialize(const SymbolicCoord *c, double *out) {
-    if (!c || !out) return -1;
+    if (!c || !out) return false;
     char *str = symbolic_coord_serialize(c);
-    if (!str) return -1;
+    if (!str) return false;
     char *endptr = NULL;
     *out = strtod(str, &endptr);
     lv00_free((void **) &str);
@@ -120,17 +120,17 @@ static bool coord_to_double_via_serialize(const SymbolicCoord *c, double *out) {
 
 static bool coord_to_double(const SymbolicCoord *c, double *out) {
     if (!c)
-        return -1;
+        return false;
     switch (c->type) {
         case RATIONAL: {
             if (c->data.rational) {
                 *out = mpq_get_d(c->data.rational->value);
-                return 0;
+                return true;
             }
             /* 数据不一致：RATIONAL 类型但 rational 指针为空 */
             LV00_LOG_WARNING("coord_to_double: RATIONAL 类型但 data.rational 为 NULL");
             *out = 0.0;
-            return -1;
+            return false;
         }
         case QUADRATIC:
         case ALGEBRAIC:
@@ -141,7 +141,7 @@ static bool coord_to_double(const SymbolicCoord *c, double *out) {
             return (fabs(*out) > LV00_EPSILON_DOUBLE || c->data.transcendental != NULL);
         }
         default:
-            return -1;
+            return false;
     }
 }
 
@@ -291,7 +291,7 @@ static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, 
                 return true;
             }
             /* 尝试运行有理化 */
-            if (a && algebraic_try_rationalize(a) == 0 && a->cached_rational) {
+            if (a && algebraic_try_rationalize(a) && a->cached_rational) {
                 rational_to_mpz_scaled(a->cached_rational->value, result, scale);
                 return true;
             }

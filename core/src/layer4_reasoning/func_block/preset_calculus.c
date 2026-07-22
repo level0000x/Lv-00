@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_calculus.c
  * @brief 微积分预设函数块 - 实现
  *
@@ -63,7 +63,7 @@ static bool register_calculus_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_calculus_register(void)
+bool preset_calculus_register(void)
 {
     int success_count = 0;
 

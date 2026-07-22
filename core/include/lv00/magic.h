@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file magic.h
  * @brief 编程魔法系统 - 基于 Lv-00 的咒语编程模拟器
  *
@@ -199,7 +199,7 @@ LV00_PUBLIC_API void spell_destroy(Spell *spell);
 LV00_PUBLIC_API bool spell_set_input_count(Spell *spell, int count);
 LV00_PUBLIC_API bool spell_set_output_count(Spell *spell, int count);
 LV00_PUBLIC_API bool spell_set_description(Spell *spell, const char *desc);
-int spell_set_difficulty(Spell *spell, int difficulty); /* 1-10 */
+bool spell_set_difficulty(Spell *spell, int difficulty); /* 1-10 */
 
 /* 符文序列配置 */
 LV00_PUBLIC_API bool spell_configure_molding(Spell *spell, const RuneSequence *seq);

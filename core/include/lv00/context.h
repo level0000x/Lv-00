@@ -846,7 +846,7 @@ LV00_PUBLIC_API Lv00Context *lv00_context_snapshot(Lv00Context *ctx);
  *          回滚可能导致不一致状态。调用者应确保 snapshot 是
  *          ctx 或 ctx 祖先的直接快照。
  */
-LV00_PUBLIC_API int lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot);
+LV00_PUBLIC_API bool lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot);
 
 /**
  * @brief 重置上下文，清除所有问题特定状态
@@ -998,7 +998,7 @@ LV00_PUBLIC_API void lv00_context_leave_uncancellable(Lv00Context *ctx);
  * @param ctx 上下文（非 NULL）
  * @return true 步骤在限制内，false 超限触发熔断
  */
-LV00_PUBLIC_API int lv00_context_record_step(Lv00Context *ctx);
+LV00_PUBLIC_API bool lv00_context_record_step(Lv00Context *ctx);
 
 /**
  * @brief 记录一次成功操作（重置连续错误计数）
@@ -1014,7 +1014,7 @@ LV00_PUBLIC_API void lv00_context_record_success(Lv00Context *ctx);
  * @param ctx 上下文（非 NULL）
  * @return true 正常，false 连续错误超限触发熔断
  */
-LV00_PUBLIC_API int lv00_context_record_error(Lv00Context *ctx);
+LV00_PUBLIC_API bool lv00_context_record_error(Lv00Context *ctx);
 
 /* ============================================================
  * 第十部分：参数配置 API

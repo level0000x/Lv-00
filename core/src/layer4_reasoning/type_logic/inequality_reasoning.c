@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file inequality_reasoning.c
  * @brief 不等式推理系统 - 真实实现
  *
@@ -193,7 +193,7 @@ void lv00_ineq_system_destroy(Lv00InequalitySystem *sys) {
     lv00_free((void **) &sys);
 }
 
-int lv00_ineq_system_add(Lv00InequalitySystem *sys, Lv00Inequality *ineq) {
+bool lv00_ineq_system_add(Lv00InequalitySystem *sys, Lv00Inequality *ineq) {
     if (!sys || !ineq)
         return false;
 
@@ -212,7 +212,7 @@ int lv00_ineq_system_add(Lv00InequalitySystem *sys, Lv00Inequality *ineq) {
     return true;
 }
 
-int lv00_ineq_system_add_var_constraint(Lv00InequalitySystem *sys,
+bool lv00_ineq_system_add_var_constraint(Lv00InequalitySystem *sys,
                                           Lv00Expr *var,
                                           Lv00InequalityType type,
                                           const mpq_t value) {
@@ -576,7 +576,7 @@ Lv00InequalityStatus lv00_ineq_prove_with_method(Lv00Inequality *ineq,
  * - 验证输入有效性（count >= 1，所有表达式非 NULL）
  * - 创建算术平均和几何平均的约束不等式
  */
-int lv00_ineq_am_gm(Lv00Expr **expressions, uint32_t count,
+bool lv00_ineq_am_gm(Lv00Expr **expressions, uint32_t count,
                      Lv00Expr **out_lower_bound, Lv00Expr **out_upper_bound) {
     if (!expressions || count == 0)
         return false;
@@ -649,7 +649,7 @@ cleanup:
  * Cauchy-Schwarz 不等式：
  * (sum ai^2)(sum bi^2) >= (sum ai*bi)^2
  */
-int lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
+bool lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
                                Lv00Inequality **out_ineq) {
     if (!a || !b || count == 0)
         return false;
@@ -745,7 +745,7 @@ cleanup:
  * 对于递增序列 a1<=...<=an 和 b1<=...<=bn：
  * sum ai*b(n-i+1) <= sum ai*b_sigma(i) <= sum ai*bi
  */
-int lv00_ineq_rearrangement(Lv00Expr **a, Lv00Expr **b, uint32_t count,
+bool lv00_ineq_rearrangement(Lv00Expr **a, Lv00Expr **b, uint32_t count,
                               Lv00Expr **out_min, Lv00Expr **out_max) {
     if (!a || !b || count == 0)
         return false;
@@ -799,7 +799,7 @@ int lv00_ineq_rearrangement(Lv00Expr **a, Lv00Expr **b, uint32_t count,
  * a^r(a-b)(a-c) + b^r(b-c)(b-a) + c^r(c-a)(c-b) >= 0
  * 其中 a, b, c >= 0, r >= 0
  */
-int lv00_ineq_schur(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c, uint32_t r,
+bool lv00_ineq_schur(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c, uint32_t r,
                      Lv00Inequality **out_ineq) {
     if (!a || !b || !c)
         return false;
@@ -910,7 +910,7 @@ cleanup:
  * 凸函数: f(sum wi*xi) <= sum wi*f(xi)
  * 凹函数: f(sum wi*xi) >= sum wi*f(xi)
  */
-int lv00_ineq_jensen(const char *func, Lv00Expr **points, mpq_t *weights,
+bool lv00_ineq_jensen(const char *func, Lv00Expr **points, mpq_t *weights,
                        uint32_t count, bool is_convex, Lv00Inequality **out_ineq) {
     if (!func || !points || count == 0)
         return false;
@@ -1061,7 +1061,7 @@ cleanup_jensen:
 uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
                              Lv00Inequality **out_inequalities, uint32_t max_count) {
     if (!a || !b || !c || !out_inequalities || max_count < 3)
-        return true;
+        return 0;
 
     /* 三角不等式产生三条不等式：
      * 1. a + b > c
@@ -1072,13 +1072,13 @@ uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
     Lv00Expr *a_plus_c = lv00_expr_add(a, c);
     Lv00Expr *b_plus_c = lv00_expr_add(b, c);
     if (!a_plus_b || !a_plus_c || !b_plus_c)
-        return true;
+        return 0;
 
     out_inequalities[0] = lv00_ineq_create(a_plus_b, INEQ_GREATER_THAN, c);
     if (!out_inequalities[0]) {
         lv00_expr_free(a_plus_c);
         lv00_expr_free(b_plus_c);
-        return true;
+        return 0;
     }
 
     out_inequalities[1] = lv00_ineq_create(a_plus_c, INEQ_GREATER_THAN, b);
@@ -1086,7 +1086,7 @@ uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
         lv00_ineq_destroy(out_inequalities[0]);
         out_inequalities[0] = NULL;
         lv00_expr_free(b_plus_c);
-        return true;
+        return 0;
     }
 
     out_inequalities[2] = lv00_ineq_create(b_plus_c, INEQ_GREATER_THAN, a);
@@ -1095,7 +1095,7 @@ uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
         out_inequalities[1] = NULL;
         lv00_ineq_destroy(out_inequalities[0]);
         out_inequalities[0] = NULL;
-        return true;
+        return 0;
     }
 
     return 3;
@@ -1195,7 +1195,7 @@ Lv00Inequality *lv00_ineq_negate(Lv00Inequality *ineq) {
  * a < b, b <= c => a < c
  * a <= b, b < c => a < c
  */
-int lv00_ineq_transitive(Lv00Inequality **ineqs, uint32_t count,
+bool lv00_ineq_transitive(Lv00Inequality **ineqs, uint32_t count,
                           Lv00Inequality **out_result) {
     if (!ineqs || count < 2 || !out_result)
         return false;
@@ -1236,7 +1236,7 @@ int lv00_ineq_transitive(Lv00Inequality **ineqs, uint32_t count,
  * 合并同向不等式：
  * a < c, b < d => a + b < c + d
  */
-int lv00_ineq_merge(Lv00Inequality **ineqs, uint32_t count,
+bool lv00_ineq_merge(Lv00Inequality **ineqs, uint32_t count,
                      Lv00Inequality **out_result) {
     if (!ineqs || count < 2 || !out_result)
         return false;
@@ -1406,7 +1406,7 @@ static bool expr_is_cross_term(const Lv00Expr *e,
  * - 尝试完成平方（completing the square）对二次型
  * - 对于无法分解的情况，返回明确的失败原因
  */
-int lv00_expr_sos_decompose(Lv00Expr *poly, Lv00SOSDecomposition **out_sos) {
+bool lv00_expr_sos_decompose(Lv00Expr *poly, Lv00SOSDecomposition **out_sos) {
     if (!poly || !out_sos)
         return false;
 
@@ -1639,7 +1639,7 @@ void lv00_sos_destroy(Lv00SOSDecomposition *sos) {
  * 对于三角形三边 a, b, c，半周长 p = (a+b+c)/2：
  * area² = p(p-a)(p-b)(p-c)（Heron公式精确相等，构造为不等式关系）
  */
-int lv00_ineq_triangle_area(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
+bool lv00_ineq_triangle_area(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
                               Lv00Expr *area, Lv00Inequality **out_ineq) {
     if (!a || !b || !c || !area)
         return false;
@@ -1704,7 +1704,7 @@ int lv00_ineq_triangle_area(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
  * （注：由于 GMP 仅支持有理数，4√3 不可精确表示为有理数。
  *  此处构造符号形式的右端，实际 sqrt(3) 因子由调用者在更高层验证。）
  */
-int lv00_ineq_weitzenbock(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
+bool lv00_ineq_weitzenbock(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
                             Lv00Expr *area, Lv00Inequality **out_ineq) {
     if (!a || !b || !c || !area)
         return false;
@@ -1758,7 +1758,7 @@ int lv00_ineq_weitzenbock(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
  * 对于三角形 ABC 内点 P，设 P 到三边距离为 p, q, r：
  * PA + PB + PC >= 2(p + q + r)
  */
-int lv00_ineq_erdos_mordell(Lv00Expr *pa, Lv00Expr *pb, Lv00Expr *pc,
+bool lv00_ineq_erdos_mordell(Lv00Expr *pa, Lv00Expr *pb, Lv00Expr *pc,
                               Lv00Expr *p, Lv00Expr *q, Lv00Expr *r,
                               Lv00Inequality **out_ineq) {
     if (!pa || !pb || !pc || !p || !q || !r)

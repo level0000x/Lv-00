@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file cache_manager.c
  * @brief 缓存管理器实现
  *
@@ -177,10 +177,10 @@ bool lv00_cache_manager_is_valid(const Lv00CacheManager *manager)
  * 缓存存取操作
  * ======================================================================== */
 
-int lv00_cache_put(Lv00CacheManager *manager, const char *key,
+bool lv00_cache_put(Lv00CacheManager *manager, const char *key,
                      const void *data, size_t size)
 {
-    if (!lv00_cache_manager_is_valid(manager) || key == NULL || data == NULL) return -1;
+    if (!lv00_cache_manager_is_valid(manager) || key == NULL || data == NULL) return false;
 
     /* 自动淘汰 */
     while (manager->config.enable_auto_evict &&
@@ -198,26 +198,26 @@ int lv00_cache_put(Lv00CacheManager *manager, const char *key,
             /* 更新现有条目 */
             free(existing->data);
             existing->data = malloc(size);
-            if (existing->data == NULL) return -1;
+            if (existing->data == NULL) return false;
             memcpy(existing->data, data, size);
             existing->data_size = size;
             existing->access_count++;
             existing->context_id = manager->current_context_id;
             lru_touch(manager, existing);
-            return 0;
+            return true;
         }
         existing = existing->hash_next;
     }
 
     /* 创建新条目 */
     Lv00CacheEntry *entry = (Lv00CacheEntry *)calloc(1, sizeof(Lv00CacheEntry));
-    if (entry == NULL) return -1;
+    if (entry == NULL) return false;
 
     strncpy(entry->key, key, sizeof(entry->key) - 1);
     entry->data = malloc(size);
     if (entry->data == NULL) {
         free(entry);
-        return -1;
+        return false;
     }
     memcpy(entry->data, data, size);
     entry->data_size = size;
@@ -234,13 +234,13 @@ int lv00_cache_put(Lv00CacheManager *manager, const char *key,
     manager->entry_count++;
     manager->current_size += size;
 
-    return 0;
+    return true;
 }
 
-int lv00_cache_mgr_get(Lv00CacheManager *manager, const char *key,
+bool lv00_cache_mgr_get(Lv00CacheManager *manager, const char *key,
                           void **out_data, size_t *out_size)
 {
-    if (!lv00_cache_manager_is_valid(manager) || key == NULL) return -1;
+    if (!lv00_cache_manager_is_valid(manager) || key == NULL) return false;
 
     uint32_t idx = hash_key(key, manager->bucket_count);
     Lv00CacheEntry *entry = manager->buckets[idx];
@@ -253,19 +253,19 @@ int lv00_cache_mgr_get(Lv00CacheManager *manager, const char *key,
             manager->total_hits++;
             if (out_data) *out_data = entry->data;
             if (out_size) *out_size = entry->data_size;
-            return 0;
+            return true;
         }
         entry = entry->hash_next;
     }
 
     /* 未命中 */
     manager->total_misses++;
-    return -1;
+    return false;
 }
 
-int lv00_cache_mgr_remove(Lv00CacheManager *manager, const char *key)
+bool lv00_cache_mgr_remove(Lv00CacheManager *manager, const char *key)
 {
-    if (!lv00_cache_manager_is_valid(manager) || key == NULL) return -1;
+    if (!lv00_cache_manager_is_valid(manager) || key == NULL) return false;
 
     uint32_t idx = hash_key(key, manager->bucket_count);
     Lv00CacheEntry *entry = manager->buckets[idx];
@@ -275,12 +275,12 @@ int lv00_cache_mgr_remove(Lv00CacheManager *manager, const char *key)
             manager->current_size -= entry->data_size;
             manager->entry_count--;
             remove_entry(manager, entry);
-            return 0;
+            return true;
         }
         entry = entry->hash_next;
     }
 
-    return -1;
+    return false;
 }
 
 bool lv00_cache_contains(Lv00CacheManager *manager, const char *key)
@@ -306,8 +306,8 @@ bool lv00_cache_contains(Lv00CacheManager *manager, const char *key)
 uint32_t lv00_cache_context_create(Lv00CacheManager *manager, const char *name,
                                     uint32_t parent_id)
 {
-    if (!lv00_cache_manager_is_valid(manager) || name == NULL) return true;
-    if (manager->context_count >= manager->context_capacity) return true;
+    if (!lv00_cache_manager_is_valid(manager) || name == NULL) return 0;
+    if (manager->context_count >= manager->context_capacity) return 0;
 
     Lv00CacheContext *ctx = &manager->contexts[manager->context_count];
     ctx->context_id = manager->next_context_id++;
@@ -320,17 +320,17 @@ uint32_t lv00_cache_context_create(Lv00CacheManager *manager, const char *name,
     return ctx->context_id;
 }
 
-int lv00_cache_context_switch(Lv00CacheManager *manager, uint32_t context_id)
+bool lv00_cache_context_switch(Lv00CacheManager *manager, uint32_t context_id)
 {
-    if (!lv00_cache_manager_is_valid(manager)) return -1;
+    if (!lv00_cache_manager_is_valid(manager)) return false;
 
     for (int i = 0; i < manager->context_count; i++) {
         if (manager->contexts[i].context_id == context_id) {
             manager->current_context_id = context_id;
-            return 0;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
 uint32_t lv00_cache_context_current(const Lv00CacheManager *manager)
@@ -339,10 +339,10 @@ uint32_t lv00_cache_context_current(const Lv00CacheManager *manager)
     return manager->current_context_id;
 }
 
-int lv00_cache_context_destroy(Lv00CacheManager *manager, uint32_t context_id)
+bool lv00_cache_context_destroy(Lv00CacheManager *manager, uint32_t context_id)
 {
-    if (!lv00_cache_manager_is_valid(manager)) return -1;
-    if (context_id == 1) return -1; /* 不允许销毁默认上下文 */
+    if (!lv00_cache_manager_is_valid(manager)) return false;
+    if (context_id == 1) return false; /* 不允许销毁默认上下文 */
 
     for (int i = 0; i < manager->context_count; i++) {
         if (manager->contexts[i].context_id == context_id) {
@@ -351,10 +351,10 @@ int lv00_cache_context_destroy(Lv00CacheManager *manager, uint32_t context_id)
             if (manager->current_context_id == context_id) {
                 manager->current_context_id = 1;
             }
-            return 0;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
 /* ========================================================================

@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PROOF_RULE_ENGINE_INTERNAL_H
+#ifndef LV00_PROOF_RULE_ENGINE_INTERNAL_H
 #define LV00_PROOF_RULE_ENGINE_INTERNAL_H
 
 #ifdef __cplusplus
@@ -123,18 +123,18 @@ typedef struct Lv00RuleEngine {
 Lv00RuleEngine *rule_engine_create(void);
 Lv00RuleEngine *rule_engine_create_ex(Lv00SearchStrategy strategy, int max_depth, uint64_t timeout_ms);
 void rule_engine_destroy(Lv00RuleEngine *engine);
-int rule_engine_add_rule(Lv00RuleEngine *engine, Lv00ProofRule *rule);
-int rule_engine_remove_rule(Lv00RuleEngine *engine, const char *name);
+bool rule_engine_add_rule(Lv00RuleEngine *engine, Lv00ProofRule *rule);
+bool rule_engine_remove_rule(Lv00RuleEngine *engine, const char *name);
 const Lv00ProofRule *rule_engine_find_rule(const Lv00RuleEngine *engine, const char *name);
 Lv00SearchResultStatus rule_engine_search(Lv00RuleEngine *engine, Lv00ProofState *state);
 int rule_engine_rule_count(const Lv00RuleEngine *engine);
 
 Lv00ProofState *proof_state_create(const char *initial_goal);
 void proof_state_destroy(Lv00ProofState *state);
-int proof_state_push_goal(Lv00ProofState *state, const char *goal);
-int proof_state_pop_goal(Lv00ProofState *state);
-int proof_state_add_hypothesis(Lv00ProofState *state, const char *hypothesis);
-int proof_state_record_rule(Lv00ProofState *state, const char *name);
+bool proof_state_push_goal(Lv00ProofState *state, const char *goal);
+bool proof_state_pop_goal(Lv00ProofState *state);
+bool proof_state_add_hypothesis(Lv00ProofState *state, const char *hypothesis);
+bool proof_state_record_rule(Lv00ProofState *state, const char *name);
 bool proof_state_is_complete(const Lv00ProofState *state);
 const char *proof_state_current_goal(const Lv00ProofState *state);
 

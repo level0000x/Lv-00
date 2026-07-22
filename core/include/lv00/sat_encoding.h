@@ -1,4 +1,4 @@
-﻿#ifndef LV00_SAT_ENCODING_H
+#ifndef LV00_SAT_ENCODING_H
 #define LV00_SAT_ENCODING_H
 
 #ifdef __cplusplus
@@ -225,7 +225,7 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
 void sat_model_destroy(SatModel *model);
 void relation_instance_destroy(RelInstance *inst);
 int *sat_get_unsat_core(const SatEncoding *enc, int *out_count);
-int sat_encoding_export_dimacs(const SatEncoding *enc, const char *filepath);
+bool sat_encoding_export_dimacs(const SatEncoding *enc, const char *filepath);
 void sat_encoding_get_stats(const SatEncoding *enc, int *out_vars, int *out_clauses);
 
 #ifdef __cplusplus

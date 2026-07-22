@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PRESET_MATHEMATICAL_LOGIC_H
+#ifndef LV00_PRESET_MATHEMATICAL_LOGIC_H
 #define LV00_PRESET_MATHEMATICAL_LOGIC_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define MATHEMATICAL_LOGIC_PRESET_COUNT 14
-int preset_mathematical_logic_register(void);
+bool preset_mathematical_logic_register(void);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PRESET_COMMON_H
+#ifndef LV00_PRESET_COMMON_H
 #define LV00_PRESET_COMMON_H
 #include <stdbool.h>
 #include <stdint.h>
@@ -79,13 +79,13 @@ extern "C" {
  * ======================================================================== */
 
 #define COMMON_PRESET_COUNT 1
-int preset_common_register(void);
+bool preset_common_register(void);
 
 size_t lv00_safe_strncpy(char *dest, const char *src, size_t dest_size);
 size_t lv00_safe_strncat(char *dest, const char *src, size_t dest_size);
 int lv00_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...);
 int preset_properties_to_string(PresetProperty properties, char *buffer, size_t buffer_size);
-int preset_properties_from_string(const char *str, PresetProperty *properties);
+bool preset_properties_from_string(const char *str, PresetProperty *properties);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_numerical.c
  * @brief 数值分析预设函数块 - 实现
  *
@@ -63,7 +63,7 @@ static bool register_numerical_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_numerical_register(void)
+bool preset_numerical_register(void)
 {
     int success_count = 0;
 

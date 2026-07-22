@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_homological_algebra.c
  * @brief 同调代数预设函数块 - 实现
  *
@@ -23,7 +23,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_homological_algebra_register(void)
+bool preset_homological_algebra_register(void)
 {
     int success_count = 0;
 
@@ -36,7 +36,7 @@ int preset_homological_algebra_register(void)
             "chain_complex_construct",
             "构造链复形 ... → C_{n+1} → C_n → C_{n-1} → ...",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ int preset_homological_algebra_register(void)
             "cochain_complex_construct",
             "构造上链复形 ... ← C^{n+1} ← C^n ← C^{n-1} ← ...",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -58,7 +58,7 @@ int preset_homological_algebra_register(void)
             "homology_group_compute",
             "计算链复形的第n个同调群 H_n = Ker d_n / Im d_{n+1}",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -67,7 +67,7 @@ int preset_homological_algebra_register(void)
             "cohomology_group_compute",
             "计算上链复形的第n个上同调群 H^n = Ker d^n / Im d^{n-1}",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ int preset_homological_algebra_register(void)
             "exact_sequence_test",
             "判定序列 0 → A → B → C → 0 是否正合",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -89,7 +89,7 @@ int preset_homological_algebra_register(void)
             "left_derived_functor",
             "计算右正合函子F的左导出函子 L_n F",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ int preset_homological_algebra_register(void)
             "right_derived_functor",
             "计算左正合函子F的右导出函子 R^n F",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -111,7 +111,7 @@ int preset_homological_algebra_register(void)
             "ext_functor",
             "计算Ext^n_R(A, B)（Hom的右导出函子）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -120,7 +120,7 @@ int preset_homological_algebra_register(void)
             "tor_functor",
             "计算Tor_n^R(A, B)（张量积的左导出函子）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -129,7 +129,7 @@ int preset_homological_algebra_register(void)
             "projective_resolution",
             "构造模M的投射分解 ... → P_1 → P_0 → M → 0",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 

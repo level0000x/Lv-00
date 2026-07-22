@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file algebraic.c
  * @brief Algebraic 代数数类型
  *
@@ -49,7 +49,7 @@ static double evaluate_poly_at_double(const mpz_poly_t *poly, double x) {
  * @param a         代数数对象
  * @param iterations 迭代次数
  */
-static void refine_algebraic_bounds(Algebraic *a, int iterations) {
+void refine_algebraic_bounds(Algebraic *a, int iterations) {
     if (a->minimal_poly.degree < 1)
         return;
 
@@ -766,7 +766,7 @@ int algebraic_compare(const Algebraic *a, const Algebraic *b) {
  * @param a 代数数对象（不能为 NULL）
  * @return 代数数的双精度浮点数近似值
  */
-static double algebraic_to_double(const Algebraic *a) {
+double algebraic_to_double(const Algebraic *a) {
     if (a->cached_rational) {
         return rational_to_double(a->cached_rational);
     }
@@ -797,7 +797,7 @@ static mpz_poly_t *compute_sum_minimal_poly(const Algebraic *a, const Algebraic 
 
     /* Use exact resultant computation */
     mpz_poly_t resultant;
-    if (mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_SUM, &resultant) != 0) {
+    if (!mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_SUM, &resultant)) {
         /* Fallback: return empty polynomial on failure */
         return result;
     }
@@ -830,7 +830,7 @@ static mpz_poly_t *compute_product_minimal_poly(const Algebraic *a, const Algebr
 
     /* Use exact resultant computation */
     mpz_poly_t resultant;
-    if (mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_PRODUCT, &resultant) != 0) {
+    if (!mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_PRODUCT, &resultant)) {
         /* Fallback: return empty polynomial on failure */
         return result;
     }
@@ -998,7 +998,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
     }
     mpz_poly_init(diff_poly);
     mpz_poly_t resultant;
-    if (mpz_poly_resultant(&a->minimal_poly, &neg_b_poly, ALG_OP_SUM, &resultant) != 0) {
+    if (mpz_poly_resultant(&a->minimal_poly, &neg_b_poly, ALG_OP_SUM, &resultant)) {
         mpz_poly_set(diff_poly, &resultant);
         mpz_poly_clear(&resultant);
     }
@@ -1241,7 +1241,7 @@ static unsigned int remove_square_factors(unsigned int n) {
  */
 static bool is_rational_zero(const Rational *r) {
     if (!r)
-        return 0;
+        return true;
     return mpq_sgn(r->value) == 0;
 }
 

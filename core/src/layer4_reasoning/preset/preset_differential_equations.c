@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_differential_equations.c
  * @brief 微分方程预设函数块 - 实现
  *
@@ -67,7 +67,7 @@ static bool register_de_preset(
  * 模块注册实现
  * ============================================================ */
 
-int preset_differential_equations_register(void)
+bool preset_differential_equations_register(void)
 {
     int success_count = 0;
 

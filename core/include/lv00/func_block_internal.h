@@ -1,4 +1,4 @@
-﻿#ifndef LV00_FUNC_BLOCK_INTERNAL_H
+#ifndef LV00_FUNC_BLOCK_INTERNAL_H
 #define LV00_FUNC_BLOCK_INTERNAL_H
 
 #ifdef __cplusplus
@@ -37,7 +37,7 @@ extern LV00_THREAD_LOCAL StreamContext *func_block_stream_ctx;
  * @param out_count 输出参数，ID 数量
  * @return 收集成功返回 true，失败返回 false
  */
-int collect_all_block_ids(const FuncBlock *fb, int **out_ids, int *out_count);
+bool collect_all_block_ids(const FuncBlock *fb, int **out_ids, int *out_count);
 
 /**
  * @brief 收集约束图中的确定性统计信息，分析线性/二次约束与自由度分布

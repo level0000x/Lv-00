@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_order_theory.c
  * @brief 序理论预设函数块模块 - 实现
  *
@@ -79,7 +79,7 @@ static bool register_order_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_order_theory_register(void)
+bool preset_order_theory_register(void)
 {
     int success_count = 0;
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_geometry_3d.c
  * @brief 三维几何预设函数块 - 实现
  *
@@ -96,7 +96,7 @@ static bool register_geometry_3d_preset(
  * 模块注册实现
  * ============================================================ */
 
-int preset_geometry_3d_register(void)
+bool preset_geometry_3d_register(void)
 {
     int success_count = 0;
 

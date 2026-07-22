@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_linear.c
  * @brief 数值求解器（线性/二次/三次）
  *
@@ -132,7 +132,7 @@ static bool solve_quadratic(mpz_poly_t *poly, QuadraticRoots *out) {
  */
 static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions) {
     if (!poly || poly->degree != 2 || !solutions || max_solutions <= 0)
-        return true;
+        return 0;
 
     /* 提取系数 a, b, c (使用 GMP 精确整数) */
     /* 多项式: a*x^2 + b*x + c = 0 */
@@ -148,7 +148,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
             mpz_clear(a_mpz);
             mpz_clear(b_mpz);
             mpz_clear(c_mpz);
-            return true;
+            return 0;
         }
         /* x = -c/b，用 RATIONAL 表示 */
         mpq_t x_val;
@@ -166,7 +166,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
             mpz_clear(a_mpz);
             mpz_clear(b_mpz);
             mpz_clear(c_mpz);
-            return true;
+            return 0;
         }
 
         mpq_clear(x_val);
@@ -197,7 +197,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
         mpz_clear(b_mpz);
         mpz_clear(c_mpz);
         mpz_clear(D);
-        return true;
+        return 0;
     }
 
     if (D_sign == 0) {
@@ -218,7 +218,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
             mpz_clear(b_mpz);
             mpz_clear(c_mpz);
             mpz_clear(D);
-            return true;
+            return 0;
         }
 
         mpq_clear(x_val);
@@ -278,7 +278,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
             mpz_clear(c_mpz);
             mpz_clear(D);
             mpz_clear(sqrt_D);
-            return true;
+            return 0;
         }
         mpq_clear(x1);
 
@@ -456,7 +456,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
         mpz_clear(a_mpz);
         mpz_clear(b_mpz);
         mpz_clear(c_mpz);
-        return true;
+        return 0;
     }
 
     /* 解1: a + (-sqrt_coeff)*sqrt(n) -- 负的 sqrt 系数 */
@@ -477,7 +477,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
             mpz_clear(a_mpz);
             mpz_clear(b_mpz);
             mpz_clear(c_mpz);
-            return true;
+            return 0;
         }
 
         /* solutions[0] 获取 qa 的所有权 */
@@ -572,7 +572,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
  */
 static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions) {
     if (!poly || poly->degree != 3 || !solutions || max_solutions <= 0)
-        return true;
+        return 0;
 
     /* 提取系数: a*x^3 + b*x^2 + c*x + d = 0 */
     mpz_t a_mpz, b_mpz, c_mpz, d_mpz;
@@ -587,7 +587,7 @@ static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, 
         mpz_clear(b_mpz);
         mpz_clear(c_mpz);
         mpz_clear(d_mpz);
-        return true;
+        return 0;
     }
 
     /* Step 1: 转为 double 计算（大整数系数可能超出 double 范围，但在几何构造中通常合理） */
@@ -602,7 +602,7 @@ static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, 
         mpz_clear(b_mpz);
         mpz_clear(c_mpz);
         mpz_clear(d_mpz);
-        return true;
+        return 0;
     }
     double p_val = b_val / a_val;
     double q_val = c_val / a_val;

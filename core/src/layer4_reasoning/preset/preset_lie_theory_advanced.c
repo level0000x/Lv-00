@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_lie_theory_advanced.c
  * @brief 李理论进阶预设函数块 - 实现
  *
@@ -23,7 +23,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_lie_theory_advanced_register(void)
+bool preset_lie_theory_advanced_register(void)
 {
     int success_count = 0;
 
@@ -36,7 +36,7 @@ int preset_lie_theory_advanced_register(void)
             "lie_algebra_construct",
             "由生成元和李括号关系构造李代数 g",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ int preset_lie_theory_advanced_register(void)
             "lie_bracket",
             "计算李代数中两个元素的李括号 [X, Y]",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -58,7 +58,7 @@ int preset_lie_theory_advanced_register(void)
             "root_system_compute",
             "计算半单李代数的根系 Φ",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 
@@ -67,7 +67,7 @@ int preset_lie_theory_advanced_register(void)
             "weyl_group",
             "计算根系对应的Weyl群 W(Φ)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ int preset_lie_theory_advanced_register(void)
             "cartan_matrix",
             "由根系计算Cartan矩阵 A_{ij} = <α_i, α_j>",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 
@@ -89,7 +89,7 @@ int preset_lie_theory_advanced_register(void)
             "irreducible_representations",
             "构造李代数的最高权不可约表示 V(λ)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -98,7 +98,7 @@ int preset_lie_theory_advanced_register(void)
             "weight_space_decomposition",
             "计算表示的权空间分解 V = ⊕ V_μ",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -107,7 +107,7 @@ int preset_lie_theory_advanced_register(void)
             "weyl_character_formula",
             "用Weyl特征公式计算不可约表示的特征 ch V(λ)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_dynamic.c
  * @brief 动态几何依赖图实现 — 借鉴 GeoGebra 动态几何系统
  *
@@ -13,15 +13,13 @@
 #include "lv00/geo_dynamic.h"
 
 
+#include "lv00_utils.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
 #include <float.h>
 #include <math.h>
-#include "lv00/lv00_utils.h"
-
-#include "lv00/lv00_utils.h"
 
 #ifndef LV00_PUBLIC_API
 #define LV00_PUBLIC_API
@@ -147,8 +145,8 @@ static bool ensure_adj_capacity(Lv00DynGraph *graph, int needed)
     int *new_child = (int *)lv00_realloc(graph->child_adj, new_cap * sizeof(int));
 
     if (!new_parent || !new_child) {
-        if (new_parent) lv00_free((void **)&new_parent);
-        if (new_child) lv00_free((void **)&new_child);
+        if (new_parent) lv00_free((void **)&(new_parent));
+        if (new_child) lv00_free((void **)&(new_child));
         return false;
     }
 
@@ -267,13 +265,13 @@ void lv00_dyn_graph_destroy(Lv00DynGraph *graph)
 {
     if (!graph) return;
 
-    lv00_free((void **)&graph->nodes);
-    lv00_free((void **)&graph->id_to_index);
-    lv00_free((void **)&graph->parent_adj);
-    lv00_free((void **)&graph->parent_adj_offsets);
-    lv00_free((void **)&graph->child_adj);
-    lv00_free((void **)&graph->child_adj_offsets);
-    lv00_free((void **)&graph);
+    lv00_free((void **)&(graph->nodes));
+    lv00_free((void **)&(graph->id_to_index));
+    lv00_free((void **)&(graph->parent_adj));
+    lv00_free((void **)&(graph->parent_adj_offsets));
+    lv00_free((void **)&(graph->child_adj));
+    lv00_free((void **)&(graph->child_adj_offsets));
+    lv00_free((void **)&(graph));
 }
 
 /* ========================================================================
@@ -308,8 +306,8 @@ int lv00_dyn_graph_add_node(
             graph->child_adj_offsets, (new_cap + 1) * sizeof(int));
 
         if (!new_parent_offsets || !new_child_offsets) {
-            if (new_parent_offsets) lv00_free((void **)&new_parent_offsets);
-            if (new_child_offsets) lv00_free((void **)&new_child_offsets);
+            if (new_parent_offsets) lv00_free((void **)&(new_parent_offsets));
+            if (new_child_offsets) lv00_free((void **)&(new_child_offsets));
             return LV00_DYN_INVALID;
         }
 
@@ -758,7 +756,7 @@ int lv00_dyn_graph_topological_sort(
         }
     }
 
-    lv00_free((void **)&in_degree);
+    lv00_free((void **)&(in_degree));
 
     /* 如果排序的节点数不等于总节点数，说明存在循环 */
     if (sorted_count != graph->node_count) {

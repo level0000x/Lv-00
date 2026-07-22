@@ -162,7 +162,7 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
  * @param type_name 结构体类型名称（用于日志）
  * @return 是否等价
  */
-int meta_repr_verify_roundtrip(const void *original,
+bool meta_repr_verify_roundtrip(const void *original,
                                  const void *decoded,
                                  const char *type_name);
 /**
@@ -197,7 +197,7 @@ void meta_repr_get_stats(MetaReprEncoder *encoder,
  * @param filepath 输出文件路径
  * @return 是否成功
  */
-int meta_repr_export_dot(const ConstraintGraph *encoded_graph,
+bool meta_repr_export_dot(const ConstraintGraph *encoded_graph,
                            const char *filepath);
 /**
  * @brief 导出几何表示为 JSON 格式

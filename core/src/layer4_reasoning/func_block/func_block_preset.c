@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_preset.c
  * @brief 预设函数块系统实现
  *

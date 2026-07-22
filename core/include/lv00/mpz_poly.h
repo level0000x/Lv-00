@@ -278,7 +278,7 @@ typedef enum {
  * @param[out] result 结果多项式（调用者需用 mpz_poly_clear 释放）
  * @return true 成功，false 失败（度数超过 4 或其他错误）
  */
-int mpz_poly_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op, mpz_poly_t *result);
+bool mpz_poly_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op, mpz_poly_t *result);
 
 #ifdef __cplusplus
 }

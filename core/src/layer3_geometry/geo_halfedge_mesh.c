@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_halfedge_mesh.c
  * @brief Halfedge 网格拓扑数据结构实现
  *
@@ -13,13 +13,11 @@
 #include "lv00/geo_halfedge_mesh.h"
 
 
+#include "lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <float.h>
-#include "lv00/lv00_utils.h"
-
-#include "lv00/lv00_utils.h"
 
 #ifndef LV00_PUBLIC_API
 #define LV00_PUBLIC_API
@@ -56,8 +54,8 @@ static bool ensure_capacity(Lv00HeMesh *mesh)
         mesh->vertex_out_he, new_cap * sizeof(Lv00Halfedge));
 
     if (!new_vdata || !new_vhe) {
-        if (new_vdata) lv00_free((void **)&new_vdata);
-        if (new_vhe) lv00_free((void **)&new_vhe);
+        if (new_vdata) lv00_free((void **)&(new_vdata));
+        if (new_vhe) lv00_free((void **)&(new_vhe));
         return false;
     }
 
@@ -67,9 +65,6 @@ static bool ensure_capacity(Lv00HeMesh *mesh)
 
     return true;
 }
-
-/* 前向声明（lv00_he_mesh_destroy 在 lv00_he_mesh_create 之后定义） */
-void lv00_he_mesh_destroy(Lv00HeMesh *mesh);
 
 Lv00HeMesh *lv00_he_mesh_create(const Lv00HeMeshConfig *config)
 {
@@ -138,18 +133,18 @@ void lv00_he_mesh_destroy(Lv00HeMesh *mesh)
 {
     if (!mesh) return;
 
-    lv00_free((void **)&mesh->vertex_data);
-    lv00_free((void **)&mesh->vertex_out_he);
-    lv00_free((void **)&mesh->he_twin);
-    lv00_free((void **)&mesh->he_next);
-    lv00_free((void **)&mesh->he_prev);
-    lv00_free((void **)&mesh->he_face);
-    lv00_free((void **)&mesh->he_vertex);
-    lv00_free((void **)&mesh->he_data);
-    lv00_free((void **)&mesh->edge_he);
-    lv00_free((void **)&mesh->face_he);
-    lv00_free((void **)&mesh->face_data);
-    lv00_free((void **)&mesh);
+    lv00_free((void **)&(mesh->vertex_data));
+    lv00_free((void **)&(mesh->vertex_out_he));
+    lv00_free((void **)&(mesh->he_twin));
+    lv00_free((void **)&(mesh->he_next));
+    lv00_free((void **)&(mesh->he_prev));
+    lv00_free((void **)&(mesh->he_face));
+    lv00_free((void **)&(mesh->he_vertex));
+    lv00_free((void **)&(mesh->he_data));
+    lv00_free((void **)&(mesh->edge_he));
+    lv00_free((void **)&(mesh->face_he));
+    lv00_free((void **)&(mesh->face_data));
+    lv00_free((void **)&(mesh));
 }
 
 void lv00_he_mesh_clear(Lv00HeMesh *mesh)
@@ -422,8 +417,8 @@ Lv00Face lv00_he_mesh_add_face_triangle(Lv00HeMesh *mesh, Lv00Vertex v1, Lv00Ver
             mesh->face_data, new_cap * sizeof(Lv00FaceData));
 
         if (!new_face_he || !new_face_data) {
-            if (new_face_he) lv00_free((void **)&new_face_he);
-            if (new_face_data) lv00_free((void **)&new_face_data);
+            if (new_face_he) lv00_free((void **)&(new_face_he));
+            if (new_face_data) lv00_free((void **)&(new_face_data));
             return LV00_HE_INVALID;
         }
 

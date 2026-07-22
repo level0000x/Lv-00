@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file magic.c
  * @brief 编程魔法系统实现 —— 基于 Lv-00 的咒语编程模拟器
  *
@@ -1692,7 +1692,7 @@ bool spell_set_description(Spell *spell, const char *desc) {
  * @param difficulty 目标难度等级（超出范围会被截断）
  * @return 设置成功返回 true，spell 为 NULL 返回 false
  */
-int spell_set_difficulty(Spell *spell, int difficulty) {
+bool spell_set_difficulty(Spell *spell, int difficulty) {
     if (!spell)
         return false;
     spell->difficulty = difficulty > MAGIC_SPELL_DIFFICULTY_MAX

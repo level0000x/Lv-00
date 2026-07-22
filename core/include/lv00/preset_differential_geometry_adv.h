@@ -1,4 +1,4 @@
-﻿#ifndef LV00_PRESET_DIFFERENTIAL_GEOMETRY_ADV_H
+#ifndef LV00_PRESET_DIFFERENTIAL_GEOMETRY_ADV_H
 #define LV00_PRESET_DIFFERENTIAL_GEOMETRY_ADV_H
 #include <stdbool.h>
 #include "func_block_registry.h"
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define DIFFERENTIAL_GEOMETRY_ADV_PRESET_COUNT 12
-int preset_differential_geometry_adv_register(void);
+bool preset_differential_geometry_adv_register(void);
 
 #ifdef __cplusplus
 }

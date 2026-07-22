@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_probability.c
  * @brief 概率论与统计预设函数块 - 实现
  *
@@ -41,7 +41,7 @@ static bool register_prob_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_probability_register(void)
+bool preset_probability_register(void)
 {
     int success_count = 0;
 

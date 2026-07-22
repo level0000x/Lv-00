@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module_serialize.c
  * @brief 模块序列化（MsgPack/JSON）
  *

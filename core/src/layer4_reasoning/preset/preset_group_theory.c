@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_group_theory.c
  * @brief 群论预设函数块 - 实现
  *
@@ -70,7 +70,7 @@ static bool register_group_theory_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_group_theory_register(void)
+bool preset_group_theory_register(void)
 {
     int success_count = 0;
 

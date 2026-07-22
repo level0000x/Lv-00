@@ -1,4 +1,4 @@
-﻿#ifndef LV00_GEO_SPEC_H
+#ifndef LV00_GEO_SPEC_H
 #define LV00_GEO_SPEC_H
 
 #ifdef __cplusplus

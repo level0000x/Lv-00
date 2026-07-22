@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_algebraic_topology.c
  * @brief 代数拓扑预设函数块 - 实现
  *
@@ -92,7 +92,7 @@ static bool register_at_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_algebraic_topology_register(void)
+bool preset_algebraic_topology_register(void)
 {
     int success_count = 0;
 

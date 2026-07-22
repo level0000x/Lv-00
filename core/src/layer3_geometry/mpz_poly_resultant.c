@@ -239,18 +239,18 @@ static inline const mpz_t* mpz_matrix_at_const(const MPZMatrix *m, int row, int 
 static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
     if (m->rows != m->cols) {
         mpz_set_si(result, 0);
-        return -1;
+        return false;
     }
 
     int n = m->rows;
-    if (n == 0) { mpz_set_ui(result, MPZ_RES_EMPTY_DETERMINANT); return 0; }
-    if (n == 1) { mpz_set(result, *mpz_matrix_at_const(m, 0, 0)); return 0; }
+    if (n == 0) { mpz_set_ui(result, MPZ_RES_EMPTY_DETERMINANT); return true; }
+    if (n == 1) { mpz_set(result, *mpz_matrix_at_const(m, 0, 0)); return true; }
 
     /* 创建工作副本 */
     mpz_t *a = lv00_malloc((size_t)n * (size_t)n * sizeof(mpz_t));
     if (!a) {
         mpz_set_si(result, 0);
-        return -1;
+        return false;
     }
     for (int i = 0; i < n * n; i++) mpz_init_set(a[i], m->data[i]);
 
@@ -296,7 +296,7 @@ cleanup:
     mpz_clears(pivot, temp, prev_pivot, NULL);
     for (int i = 0; i < n * n; i++) mpz_clear(a[i]);
     lv00_free((void**)&a);
-    return 0;
+    return true;
 }
 
 /**
@@ -397,7 +397,7 @@ static bool compute_bivariate_resultant(
     if (deg_f_y < 0 || deg_g_y < 0) {
         mpz_poly_init(resultant);
         resultant->degree = -1;
-        return -1;
+        return false;
     }
 
     int m = deg_f_y;
@@ -411,10 +411,10 @@ static bool compute_bivariate_resultant(
         resultant->coeffs = lv00_malloc(sizeof(mpz_t));
         if (!resultant->coeffs) {
             resultant->degree = -1;
-            return -1;
+            return false;
         }
         mpz_init_set_si(resultant->coeffs[0], MPZ_RES_EMPTY_DETERMINANT);
-        return 0;
+        return true;
     }
 
     /* 结式关于 x 的次数最多为 deg_x(f)*deg_y(g) + deg_y(f)*deg_x(g) */
@@ -425,7 +425,7 @@ static bool compute_bivariate_resultant(
     if (res_deg_bound > MPZ_RES_RESULT_DEGREE_CAP) {
         mpz_poly_init(resultant);
         resultant->degree = -1;
-        return -1;
+        return false;
     }
 
     /* 在多个 x 取值处计算结式，然后进行插值 */
@@ -436,7 +436,7 @@ static bool compute_bivariate_resultant(
         lv00_free((void**)&y_vals);
         mpz_poly_init(resultant);
         resultant->degree = -1;
-        return -1;
+        return false;
     }
     for (int i = 0; i < res_deg_bound; i++) {
         mpz_init(x_vals[i]);
@@ -775,19 +775,19 @@ cleanup_x_y_vals:
  *   计算 Res_y(p(y), y^n * q(x/y))，其中 n = deg(q)
  */
 
-int mpz_poly_resultant(
+bool mpz_poly_resultant(
     const mpz_poly_t *p,       /* Minimal polynomial of alpha (in y) */
     const mpz_poly_t *q,       /* Minimal polynomial of beta (in y) */
     AlgebraicOp op,            /* SUM or PRODUCT */
     mpz_poly_t *result         /* Output: minimal polynomial of result */
 ) {
-    if (!p || !q || !result) return -1;
-    if (p->degree < 0 || q->degree < 0) return -1;
+    if (!p || !q || !result) return false;
+    if (p->degree < 0 || q->degree < 0) return false;
     if (p->degree > MPZ_RES_INPUT_DEGREE_MAX || q->degree > MPZ_RES_INPUT_DEGREE_MAX) {
         /* Out of scope for our simple implementation */
         mpz_poly_init(result);
         result->degree = -1;
-        return -1;
+        return false;
     }
 
     int n = q->degree;
@@ -811,7 +811,7 @@ int mpz_poly_resultant(
     if (bivariate_poly_init(&f, 0) < 0) {
         mpz_poly_init(result);
         result->degree = -1;
-        return -1;
+        return false;
     }
     f.coeffs[0].degree = m;
     f.coeffs[0].coeffs = lv00_malloc((m + 1) * sizeof(mpz_t));
@@ -819,7 +819,7 @@ int mpz_poly_resultant(
         bivariate_poly_clear(&f);
         mpz_poly_init(result);
         result->degree = -1;
-        return -1;
+        return false;
     }
     for (int i = 0; i <= m; i++) {
         mpz_init_set(f.coeffs[0].coeffs[i], p->coeffs[i]);
@@ -832,7 +832,7 @@ int mpz_poly_resultant(
             bivariate_poly_clear(&f);
             mpz_poly_init(result);
             result->degree = -1;
-            return -1;
+            return false;
         }
 
         /* Initialize all coefficients to 0 */
@@ -844,7 +844,7 @@ int mpz_poly_resultant(
                 bivariate_poly_clear(&f);
                 mpz_poly_init(result);
                 result->degree = -1;
-                return -1;
+                return false;
             }
             for (int yi = 0; yi <= n; yi++) {
                 mpz_init_set_si(g.coeffs[xi].coeffs[yi], 0);
@@ -894,7 +894,7 @@ int mpz_poly_resultant(
             bivariate_poly_clear(&f);
             mpz_poly_init(result);
             result->degree = -1;
-            return -1;
+            return false;
         }
 
         for (int xi = 0; xi <= n; xi++) {
@@ -905,7 +905,7 @@ int mpz_poly_resultant(
                 bivariate_poly_clear(&f);
                 mpz_poly_init(result);
                 result->degree = -1;
-                return -1;
+                return false;
             }
             for (int yi = 0; yi <= n; yi++) {
                 mpz_init_set_si(g.coeffs[xi].coeffs[yi], 0);

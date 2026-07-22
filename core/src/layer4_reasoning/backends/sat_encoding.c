@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file sat_encoding.c
  * @brief SAT 编码管线实现 —— 借鉴 Alloy Kodkod 的关系逻辑到 SAT 编码管道
  *
@@ -1261,7 +1261,7 @@ int *sat_get_unsat_core(const SatEncoding *enc, int *out_count) {
     return core;
 }
 
-int sat_encoding_export_dimacs(const SatEncoding *enc, const char *filepath) {
+bool sat_encoding_export_dimacs(const SatEncoding *enc, const char *filepath) {
     LV00_CHECK_NULL(enc, false);
     LV00_CHECK_NULL(filepath, false);
 

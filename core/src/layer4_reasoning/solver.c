@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver.c
  * @brief 符号代数求解器实现
  *
@@ -1544,7 +1544,7 @@ static void mv_poly_clear(MVPolynomial *p) {
  * @return 0 成功，-1 失败（内存不足） */
 static int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
     if (mpz_cmp_si(coeff, 0) == 0)
-        return true;
+        return 0;
 
     /* 检查是否已有同类项 */
     for (int i = 0; i < p->term_count; i++) {
@@ -1567,7 +1567,7 @@ static int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expon
                 }
                 p->term_count--;
             }
-            return true;
+            return 0;
         }
     }
 
@@ -1577,14 +1577,14 @@ static int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expon
         int new_cap = p->capacity == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
         if (new_cap > 0 && new_cap > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
             lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
-            return false;
+            return -1;
         }
         new_cap = new_cap == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : new_cap * LV00_ARRAY_GROWTH_FACTOR;
         p->capacity = new_cap;
         MVMonomial *new_terms = lv00_realloc(p->terms, p->capacity * sizeof(MVMonomial));
         if (!new_terms) {
             lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
-            return false;
+            return -1;
         }
         p->terms = new_terms;
     }
@@ -1592,14 +1592,14 @@ static int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expon
     m->exponents = lv00_malloc((size_t) p->var_count * sizeof(int));
     if (!m->exponents) {
         lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
-        return false;
+        return -1;
     }
     for (int v = 0; v < p->var_count; v++) {
         m->exponents[v] = exponents[v];
     }
     mpz_init_set(m->coeff, coeff);
     p->term_count++;
-    return true;
+    return 0;
 }
 
 /* 计算单项式的全次数 (所有变量幂次之和) */
@@ -1623,7 +1623,7 @@ static int mv_monomial_compare_grlex(const MVMonomial *a, const MVMonomial *b, i
             return b->exponents[v] - a->exponents[v]; /* 降序 */
         }
     }
-    return true;
+    return 0;
 }
 
 /* 对多项式的单项式按 grlex 序排序 */
@@ -2495,7 +2495,7 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
  */
 static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
     if (!graph || !sys)
-        return true;
+        return 0;
     int added = 0;
 
     /* 收集所有点 */
@@ -2511,7 +2511,7 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
     SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
     if (!segs) {
         lv00_free((void **) &point_ids);
-        return true;
+        return 0;
     }
     int seg_count = 0;
 
@@ -2642,7 +2642,7 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
  */
 static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
     if (!graph || !sys)
-        return true;
+        return 0;
     int added = 0;
 
     /* 收集所有点 */
@@ -2658,7 +2658,7 @@ static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
     SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
     if (!segs) {
         lv00_free((void **) &point_ids);
-        return true;
+        return 0;
     }
     int seg_count = 0;
 
@@ -2965,7 +2965,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
 
     return added;
 push_error:
-    return false;
+    return -1;
 }
 
 /* ================================================================== */
@@ -2987,7 +2987,7 @@ push_error:
  */
 static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *sys) {
     if (!graph || !sys)
-        return true;
+        return 0;
     int added = 0;
 
     /* 收集所有线段 */
@@ -2998,7 +2998,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
     } SegInfo;
     SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
     if (!segs)
-        return true;
+        return 0;
     int seg_count = 0;
 
     for (int i = 0; i < graph->node_count; i++) {
@@ -3155,7 +3155,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
  */
 static int apply_geometry_templates(ConstraintGraph *graph, EquationSystem *sys) {
     if (!graph || !sys)
-        return true;
+        return 0;
     int total = 0;
 
     /* 1. 相似三角形比例模板 */

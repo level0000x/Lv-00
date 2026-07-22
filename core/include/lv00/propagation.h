@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：约束传播引擎 (propagation)
  * 功能概述：WFC（Wave Function Collapse）风格的约束传播引擎，
  *          通过动态约束传播、熵最小化节点选择和死路恢复机制，
@@ -218,7 +218,7 @@ NodeStateSpace *propagation_get_state_space(PropagationContext *ctx, int node_id
  * @param constraint_id   约束 ID
  * @return true = 状态空间被收缩（有值被移除），false = 无变化
  */
-int propagation_arc_reduce(PropagationContext *ctx, int constraint_id);
+bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id);
 /**
  * @brief 运行 AC-3 约束传播
  *
@@ -266,7 +266,7 @@ double propagation_compute_entropy(const NodeStateSpace *state);
  * @param node_id  要坍缩的节点 ID
  * @return true = 成功坍缩, false = 状态空间为空或已坍缩
  */
-int propagation_collapse(PropagationContext *ctx, int node_id);
+bool propagation_collapse(PropagationContext *ctx, int node_id);
 /* ================================================================
  * 完整 WFC 求解循环
  * ================================================================ */

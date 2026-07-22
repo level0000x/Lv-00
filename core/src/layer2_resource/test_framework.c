@@ -147,18 +147,18 @@ static void init_test_system(void) {
 
 /* ============== 测试注册实现 ============== */
 
-int lv00_test_register(const char *suite_name, const char *test_name, Lv00TestFunc func) {
+bool lv00_test_register(const char *suite_name, const char *test_name, Lv00TestFunc func) {
     return lv00_test_register_with_fixture(suite_name, test_name, func, NULL, NULL);
 }
 
-int lv00_test_register_with_fixture(const char *suite_name, const char *test_name,
+bool lv00_test_register_with_fixture(const char *suite_name, const char *test_name,
                                       Lv00TestFunc func,
                                       Lv00TestSetupFunc setup,
                                       Lv00TestTeardownFunc teardown) {
     init_test_system();
 
     if (!suite_name || !test_name || !func) {
-        return -1;
+        return false;
     }
 
     MUTEX_LOCK(g_test_system.mutex);
@@ -166,14 +166,14 @@ int lv00_test_register_with_fixture(const char *suite_name, const char *test_nam
     Lv00TestSuite *suite = find_or_create_suite(suite_name);
     if (!suite) {
         MUTEX_UNLOCK(g_test_system.mutex);
-        return -1;
+        return false;
     }
 
     /* 检查是否已存在 */
     for (uint32_t i = 0; i < suite->case_count; i++) {
         if (strcmp(suite->cases[i].name, test_name) == 0) {
             MUTEX_UNLOCK(g_test_system.mutex);
-            return -1;
+            return false;
         }
     }
 
@@ -184,7 +184,7 @@ int lv00_test_register_with_fixture(const char *suite_name, const char *test_nam
                                                           new_cap * sizeof(Lv00TestCase));
         if (!new_cases) {
             MUTEX_UNLOCK(g_test_system.mutex);
-            return -1;
+            return false;
         }
         suite->cases = new_cases;
         suite->case_capacity = new_cap;
@@ -202,16 +202,16 @@ int lv00_test_register_with_fixture(const char *suite_name, const char *test_nam
     test_case->status = TEST_STATUS_PENDING;
 
     MUTEX_UNLOCK(g_test_system.mutex);
-    return 0;
+    return true;
 }
 
-int lv00_test_register_suite_fixture(const char *suite_name,
+bool lv00_test_register_suite_fixture(const char *suite_name,
                                        Lv00TestSetupFunc setup,
                                        Lv00TestTeardownFunc teardown) {
     init_test_system();
 
     if (!suite_name) {
-        return -1;
+        return false;
     }
 
     MUTEX_LOCK(g_test_system.mutex);
@@ -219,14 +219,14 @@ int lv00_test_register_suite_fixture(const char *suite_name,
     Lv00TestSuite *suite = find_or_create_suite(suite_name);
     if (!suite) {
         MUTEX_UNLOCK(g_test_system.mutex);
-        return -1;
+        return false;
     }
 
     suite->suite_setup = setup;
     suite->suite_teardown = teardown;
 
     MUTEX_UNLOCK(g_test_system.mutex);
-    return 0;
+    return true;
 }
 
 bool lv00_test_add_tag(const char *suite_name, const char *test_name, const char *tag) {
@@ -664,7 +664,7 @@ bool lv00_test_register_parameterized(const char *suite_name, const char *test_n
         char name[LV00_TEST_NAME_MAX_LEN];
         snprintf(name, sizeof(name), "%s/%u", test_name, i);
 
-        if (lv00_test_register(suite_name, name, func) != 0) {
+        if (!lv00_test_register(suite_name, name, func)) {
             return false;
         }
 
@@ -694,13 +694,13 @@ static struct {
     uint32_t count;
 } g_benchmarks = {0};
 
-int lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func, uint64_t iterations) {
+bool lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func, uint64_t iterations) {
     if (!name || !func || g_benchmarks.count >= LV00_TEST_MAX_CASES) {
-        return -1;
+        return false;
     }
     if (iterations == 0) {
         fprintf(stderr, "Error: benchmark '%s' registered with zero iterations\n", name);
-        return -1;
+        return false;
     }
 
     Lv00Benchmark *bench = &g_benchmarks.benchmarks[g_benchmarks.count++];
@@ -710,7 +710,7 @@ int lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func, uint64_t i
     /* 运行基准测试 */
     int64_t *times = (int64_t *)lv00_malloc((size_t)iterations * sizeof(int64_t));
     if (!times) {
-        return -1;
+        return false;
     }
 
     int64_t total_ns = 0;
@@ -743,7 +743,7 @@ int lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func, uint64_t i
     bench->std_dev_ns = sqrt(sum_sq / iterations);
 
     lv00_free((void **) &times);
-    return 0;
+    return true;
 }
 
 Lv00Benchmark *lv00_benchmark_run(const char *name) {
@@ -757,7 +757,7 @@ Lv00Benchmark *lv00_benchmark_run(const char *name) {
 
 uint32_t lv00_benchmark_run_all(Lv00Benchmark **out_results, uint32_t max_count) {
     if (!out_results) {
-        return true;
+        return 0;
     }
 
     uint32_t count = g_benchmarks.count < max_count ? g_benchmarks.count : max_count;
@@ -970,16 +970,16 @@ char *lv00_test_report_to_html(const Lv00TestReport *report) {
     return html;
 }
 
-int lv00_test_report_write_file(const Lv00TestReport *report,
+bool lv00_test_report_write_file(const Lv00TestReport *report,
                                   const char *path,
                                   const char *format) {
     if (!report || !path || !format) {
-        return -1;
+        return false;
     }
 
     FILE *fp = fopen(path, "w");
     if (!fp) {
-        return -1;
+        return false;
     }
 
     char *content = NULL;
@@ -997,7 +997,7 @@ int lv00_test_report_write_file(const Lv00TestReport *report,
     }
 
     fclose(fp);
-    return content ? 0 : -1;
+    return content != NULL;
 }
 
 /* ============== 主函数实现 ============== */

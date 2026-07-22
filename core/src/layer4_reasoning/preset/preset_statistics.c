@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_statistics.c
  * @brief 统计学预设函数块 - 实现
  *
@@ -55,7 +55,7 @@ static bool register_stat_preset(
  * 模块注册实现
  * ============================================================ */
 
-int preset_statistics_register(void)
+bool preset_statistics_register(void)
 {
     int success_count = 0;
 

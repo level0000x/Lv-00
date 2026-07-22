@@ -181,10 +181,11 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b);
-int        algebraic_try_rationalize(Algebraic *a);
+bool       algebraic_try_rationalize(Algebraic *a);
 int        algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations);
 Algebraic *algebraic_from_rational(const Rational *r);
 Algebraic *algebraic_from_quadratic(const Quadratic *q);
+double     algebraic_to_double(const Algebraic *a);
 
 /* ── Quadratic functions ── */
 Quadratic *quadratic_create(Rational *a, Rational *b, unsigned int n);
@@ -194,12 +195,14 @@ Quadratic *quadratic_add(const Quadratic *a, const Quadratic *b);
 Quadratic *quadratic_subtract(const Quadratic *a, const Quadratic *b);
 Quadratic *quadratic_multiply(const Quadratic *a, const Quadratic *b);
 Quadratic *quadratic_divide(const Quadratic *a, const Quadratic *b);
+double     quadratic_to_double(const Quadratic *q);
 
 /* ── Transcendental functions ── */
 Transcendental *transcendental_create(const char *name);
 void            transcendental_destroy(Transcendental *t);
 int             transcendental_compare(const Transcendental *a, const Transcendental *b);
 char           *transcendental_serialize(const Transcendental *t);
+double          transcendental_to_double(const Transcendental *t);
 
 /* ── SymbolicCoord core ── */
 SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom);

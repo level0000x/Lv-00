@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file config.h
  * @brief Lv-00 集中化配置
  *
@@ -396,8 +396,8 @@ void lv00_config_set_stream_max_callbacks(int val);
 void lv00_config_set_max_plugins(int val);
 
 /* ---- 通用 key-value setter（低频字段用，一次调用不改编译） ---- */
-int lv00_config_set_int(const char *key, int val);
-int lv00_config_set_double(const char *key, double val);
+bool lv00_config_set_int(const char *key, int val);
+bool lv00_config_set_double(const char *key, double val);
 
 /* ---- 重置 ---- */
 void lv00_config_reset(void);

@@ -44,17 +44,29 @@ typedef struct EquationSystem {
 
 /* ── 符号求解器桩实现 ── */
 
-bool coord_to_double(const SymbolicCoord *c, double *out) {
-    (void)c;
-    if (!out) return false;
-    *out = 0.0;
-    return false;
+int coord_to_double(const SymbolicCoord *c, double *out) {
+    if (!c || !out) return 0;
+    switch (c->type) {
+        case RATIONAL:
+            *out = mpq_get_d(c->data.rational->value);
+            return 1;
+        case ALGEBRAIC:
+            *out = algebraic_to_double(c->data.algebraic);
+            return 1;
+        case QUADRATIC:
+            *out = quadratic_to_double(c->data.quadratic);
+            return 1;
+        case TRANSCENDENTAL:
+            *out = transcendental_to_double(c->data.transcendental);
+            return 1;
+        default:
+            return 0;
+    }
 }
 
 void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
-    (void)val;
-    (void)scale;
-    mpz_set_ui(result, 0);
+    double scaled = val * (double)scale;
+    mpz_set_d(result, scaled);
 }
 
 /**

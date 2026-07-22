@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_algebraic_geometry.c
  * @brief 代数几何预设函数块 - 实现
  *
@@ -23,7 +23,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_algebraic_geometry_register(void)
+bool preset_algebraic_geometry_register(void)
 {
     int success_count = 0;
 
@@ -36,7 +36,7 @@ int preset_algebraic_geometry_register(void)
             "affine_variety",
             "由多项式零点集定义仿射代数簇 V(I) = {p : f(p)=0, f in I}",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -45,7 +45,7 @@ int preset_algebraic_geometry_register(void)
             "affine_variety_test",
             "判定点是否在仿射代数簇上",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -54,7 +54,7 @@ int preset_algebraic_geometry_register(void)
             "variety_dimension",
             "计算代数簇的维数（Krull维数）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 
@@ -63,7 +63,7 @@ int preset_algebraic_geometry_register(void)
             "irreducible_variety_test",
             "判定代数簇是否不可约",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 
@@ -76,7 +76,7 @@ int preset_algebraic_geometry_register(void)
             "ideal_construct",
             "由多项式集合生成的理想 I = (f1, f2, ..., fn)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -85,7 +85,7 @@ int preset_algebraic_geometry_register(void)
             "groebner_basis",
             "计算多项式理想的Gröbner基（Buchberger算法）",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            1, 1) == 0) {
+            1, 1)) {
         success_count++;
     }
 
@@ -94,7 +94,7 @@ int preset_algebraic_geometry_register(void)
             "ideal_intersection",
             "计算两个理想的交集 I ∩ J",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -103,7 +103,7 @@ int preset_algebraic_geometry_register(void)
             "ideal_quotient",
             "计算理想商 I : J = {f : fJ ⊆ I}",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -116,7 +116,7 @@ int preset_algebraic_geometry_register(void)
             "projective_space",
             "构造n维射影空间 P^n(k)",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -125,7 +125,7 @@ int preset_algebraic_geometry_register(void)
             "projective_variety",
             "由齐次多项式定义射影代数簇",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -138,7 +138,7 @@ int preset_algebraic_geometry_register(void)
             "rational_map",
             "构造代数簇之间的有理映射",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -147,7 +147,7 @@ int preset_algebraic_geometry_register(void)
             "morphism_test",
             "判定映射是否为代数簇间的态射",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1) == 0) {
+            3, 1)) {
         success_count++;
     }
 
@@ -156,7 +156,7 @@ int preset_algebraic_geometry_register(void)
             "birational_equivalence",
             "判定两个代数簇是否双有理等价",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 
@@ -165,7 +165,7 @@ int preset_algebraic_geometry_register(void)
             "singularity_detection",
             "检测代数簇上的奇异点",
             PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1) == 0) {
+            2, 1)) {
         success_count++;
     }
 

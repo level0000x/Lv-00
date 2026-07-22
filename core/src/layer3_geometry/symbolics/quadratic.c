@@ -168,7 +168,7 @@ int quadratic_compare(const Quadratic *a, const Quadratic *b) {
  * @param q 二次根式对象（不能为 NULL）
  * @return 二次根式的双精度浮点数近似值
  */
-static double quadratic_to_double(const Quadratic *q) {
+double quadratic_to_double(const Quadratic *q) {
     return rational_to_double(q->a) + rational_to_double(q->b) * sqrt((double) q->n);
 }
 

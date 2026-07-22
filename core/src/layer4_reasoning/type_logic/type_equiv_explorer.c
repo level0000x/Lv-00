@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 交互式类型等价探索器引擎实现
  *
  * 核心算法：BFS 双向搜索
@@ -69,8 +69,8 @@ static inline void type_free_op(TypeRegion *tr) {
  */
 static bool rule_matches_type(const RewriteRule *rule, const TypeRegion *type)
 {
-    if (!rule || !rule->pattern || !type) return -1;
-    if (rule->pattern->kind == TYPE_KIND_VARIABLE) return 0;
+    if (!rule || !rule->pattern || !type) return false;
+    if (rule->pattern->kind == TYPE_KIND_VARIABLE) return true;
     return (TypeKind)rule->pattern->kind == type->kind;
 }
 
@@ -87,10 +87,10 @@ static bool rule_matches_type(const RewriteRule *rule, const TypeRegion *type)
  */
 static bool apply_rule_to_type(TypeSystem *ts, TypeRegion *inout_type)
 {
-    if (!ts || !inout_type) return -1;
+    if (!ts || !inout_type) return false;
 
     TypeRegion *normalized = NULL;
-    if (!type_normalize(ts, inout_type, &normalized)) return -1;
+    if (!type_normalize(ts, inout_type, &normalized)) return false;
 
     if (normalized && normalized != inout_type) {
         /*
@@ -101,7 +101,7 @@ static bool apply_rule_to_type(TypeSystem *ts, TypeRegion *inout_type)
         *inout_type = *normalized;        /* 浅拷贝结构体字段（kind、constraint_graph 指针等） */
         lv00_free(normalized);            /* 只释放壳，不释放其内部资源（已转移） */
     }
-    return 0;
+    return true;
 }
 
 /**
@@ -114,10 +114,10 @@ static bool expand_queue(TypeEquivExplorer *explorer)
     int new_cap = explorer->queue_capacity * 2;
     TypeEquivNode **new_q = lv00_realloc(explorer->queue,
         (size_t)new_cap * sizeof(TypeEquivNode *));
-    if (!new_q) return -1;
+    if (!new_q) return false;
     explorer->queue = new_q;
     explorer->queue_capacity = new_cap;
-    return 0;
+    return true;
 }
 
 /**
@@ -285,9 +285,9 @@ TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts,
     return exp;
 }
 
-int type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps)
+bool type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps)
 {
-    if (!explorer) return -1;
+    if (!explorer) return false;
 
     int steps = 0;
     while (explorer->queue_head < explorer->queue_tail && steps < max_steps) {
@@ -295,7 +295,7 @@ int type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps)
         /* 节点数达到上限 → 搜索空间耗尽 */
         if (explorer->nodes_explored >= explorer->max_nodes) {
             explorer->exhausted = true;
-            return -1;
+            return false;
         }
 
         /* 出队当前节点 */
@@ -313,7 +313,7 @@ int type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps)
             == TYPE_EQUIV_OK) {
             reconstruct_path(explorer, (int)(explorer->queue_head - 1));
             free_search_node(node);
-            return 0;
+            return true;
         }
 
         /*
@@ -335,7 +335,7 @@ int type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps)
                     if (!expand_queue(explorer)) {
                         explorer->exhausted = true;
                         free_search_node(node);
-                        return -1;
+                        return false;
                     }
                 }
 
@@ -363,7 +363,7 @@ int type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps)
     }
 
     explorer->exhausted = (explorer->queue_head >= explorer->queue_tail);
-    return -1;
+    return false;
 }
 
 const TypeRewritePath *type_equiv_explore_get_path(const TypeEquivExplorer *explorer)

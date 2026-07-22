@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_representation_theory.c
  * @brief 表示论预设函数块 - 实现
  *
@@ -92,7 +92,7 @@ static bool register_rt_preset(
 
 /* ==================== 模块注册实现 ==================== */
 
-int preset_representation_theory_register(void)
+bool preset_representation_theory_register(void)
 {
     int success_count = 0;
 

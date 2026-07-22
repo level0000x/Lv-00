@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ga_interface.h
  * @brief Geometric quantity embedding and extraction interface for PGA
  *
