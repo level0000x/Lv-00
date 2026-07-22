@@ -7,6 +7,10 @@
  */
 #include "lv00/benchmark.h"
 #include "lv00/lv00_utils.h"
+#include "lv00/symbolic_coord.h"
+#include "lv00/constraint_graph.h"
+#include "lv00/simd_ops.h"
+#include "lv00/thread_pool.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -435,40 +439,542 @@ size_t lv00_get_peak_memory_usage(void) {
     return stats.peak_used;
 }
 
-/* ============ 内置基准测试（桩实现） ============ */
+/* ============ 内置基准测试 ============ */
+
+/* ================================================================
+ * 核心模块基准测试函数
+ * ================================================================ */
+
+static uint64_t bench_core_symbolic_coord(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        SymbolicCoord *c = symbolic_coord_create_rational(i % 100, 100);
+        symbolic_coord_destroy(c);
+    }
+    lv00_timer_stop(&timer);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+static uint64_t bench_core_constraint_graph(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        ConstraintGraph *g = graph_create();
+        if (g) {
+            SymbolicCoord *coord = symbolic_coord_create_rational(i % 100, 100);
+            SymbolicCoord *coords[] = { coord };
+            (void)graph_add_point(g, coords, 1);
+            symbolic_coord_destroy(coord);
+            graph_destroy(g);
+        }
+    }
+    lv00_timer_stop(&timer);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+static uint64_t bench_core_memory_pool(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        void *p = lv00_malloc(64);
+        lv00_free((void **)&p);
+    }
+    lv00_timer_stop(&timer);
+    return lv00_timer_elapsed_us(&timer);
+}
 
 /**
- * @brief 运行核心模块的基准测试套件（桩实现）
+ * @brief 运行核心模块的基准测试套件
  *
- * @return 返回名称为 "core" 的空测试套件指针
+ * 包括：符号坐标创建/销毁、约束图节点添加、内存池分配/释放
+ *
+ * @return 返回名称为 "core" 的测试套件指针
  */
 Lv00BenchSuite *lv00_bench_run_core_tests(void) {
-    return lv00_bench_suite_create("core");
+    Lv00BenchSuite *suite = lv00_bench_suite_create("core");
+    if (!suite) return NULL;
+
+    Lv00BenchCase cases[] = {
+        { "symbolic_coord_create_destroy", bench_core_symbolic_coord,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "constraint_graph_add_node", bench_core_constraint_graph,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "memory_pool_alloc_free", bench_core_memory_pool,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+    };
+
+    int n = (int)(sizeof(cases) / sizeof(cases[0]));
+    for (int i = 0; i < n; i++) {
+        lv00_bench_suite_add(suite, &cases[i]);
+    }
+
+    return suite;
+}
+
+/* ================================================================
+ * 内存模块基准测试函数
+ * ================================================================ */
+
+static uint64_t bench_memory_malloc_small(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        void *p1 = lv00_malloc(64);
+        void *p2 = lv00_malloc(256);
+        lv00_free((void **)&p2);
+        lv00_free((void **)&p1);
+    }
+    lv00_timer_stop(&timer);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+static uint64_t bench_memory_malloc_large(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        void *p1 = lv00_malloc(1024 * 1024);
+        void *p2 = lv00_malloc(4 * 1024 * 1024);
+        lv00_free((void **)&p2);
+        lv00_free((void **)&p1);
+    }
+    lv00_timer_stop(&timer);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+static uint64_t bench_memory_realloc_growth(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        int *arr = (int *)lv00_malloc(sizeof(int));
+        if (!arr) continue;
+        arr[0] = 0;
+        for (int j = 2; j <= 10000; j++) {
+            int *new_arr = (int *)lv00_realloc(arr, (size_t)j * sizeof(int));
+            if (!new_arr) {
+                lv00_free((void **)&arr);
+                arr = NULL;
+                break;
+            }
+            arr = new_arr;
+            arr[j - 1] = j;
+        }
+        if (arr) lv00_free((void **)&arr);
+    }
+    lv00_timer_stop(&timer);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+static uint64_t bench_memory_alloc_free_stress(int iterations, void *user_data) {
+    (void)user_data;
+#define STRESS_BLOCK_COUNT 20
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        void *blocks[STRESS_BLOCK_COUNT];
+        for (int k = 0; k < STRESS_BLOCK_COUNT; k++) {
+            size_t sz = (size_t)(64 << (k % 6)); /* 64, 128, 256, 512, 1024, 2048 */
+            blocks[k] = lv00_malloc(sz);
+        }
+        for (int k = STRESS_BLOCK_COUNT - 1; k >= 0; k--) {
+            lv00_free((void **)&blocks[k]);
+        }
+    }
+    lv00_timer_stop(&timer);
+    return lv00_timer_elapsed_us(&timer);
+#undef STRESS_BLOCK_COUNT
 }
 
 /**
- * @brief 运行内存模块的基准测试套件（桩实现）
+ * @brief 运行内存模块的基准测试套件
  *
- * @return 返回名称为 "memory" 的空测试套件指针
+ * 包括：小对象分配、大对象分配、realloc 增长、交错分配压力测试
+ *
+ * @return 返回名称为 "memory" 的测试套件指针
  */
 Lv00BenchSuite *lv00_bench_run_memory_tests(void) {
-    return lv00_bench_suite_create("memory");
+    Lv00BenchSuite *suite = lv00_bench_suite_create("memory");
+    if (!suite) return NULL;
+
+    Lv00BenchCase cases[] = {
+        { "lv00_malloc_small", bench_memory_malloc_small,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "lv00_malloc_large", bench_memory_malloc_large,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "lv00_realloc_growth", bench_memory_realloc_growth,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "lv00_alloc_free_stress", bench_memory_alloc_free_stress,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+    };
+
+    int n = (int)(sizeof(cases) / sizeof(cases[0]));
+    for (int i = 0; i < n; i++) {
+        lv00_bench_suite_add(suite, &cases[i]);
+    }
+
+    return suite;
 }
 
+/* ================================================================
+ * SIMD 模块基准测试函数
+ * ================================================================ */
+
+#define SIMD_VECTOR_DIM 4000
+
+static uint64_t bench_simd_vector_dot(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+
+    /* 分配并初始化向量 */
+    int dim = SIMD_VECTOR_DIM;
+    double *va = (double *)lv00_malloc((size_t)dim * sizeof(double));
+    double *vb = (double *)lv00_malloc((size_t)dim * sizeof(double));
+    if (!va || !vb) {
+        lv00_free((void **)&va);
+        lv00_free((void **)&vb);
+        return 0;
+    }
+    for (int i = 0; i < dim; i++) {
+        va[i] = (double)(i + 1);
+        vb[i] = (double)(dim - i);
+    }
+
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        double dot = 0.0;
+        for (int j = 0; j < dim; j += 4) {
+            Lv00Vec4d a = lv00_vec4d_load(&va[j]);
+            Lv00Vec4d b = lv00_vec4d_load(&vb[j]);
+            Lv00Vec4d m = lv00_vec4d_mul(a, b);
+            dot += m.v[0] + m.v[1] + m.v[2] + m.v[3];
+        }
+        /* 防止编译器优化掉结果 */
+        if (dot < -1e30) (void)dot;
+    }
+    lv00_timer_stop(&timer);
+
+    lv00_free((void **)&va);
+    lv00_free((void **)&vb);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+static uint64_t bench_simd_vector_add(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+
+    int dim = SIMD_VECTOR_DIM;
+    double *va = (double *)lv00_malloc((size_t)dim * sizeof(double));
+    double *vb = (double *)lv00_malloc((size_t)dim * sizeof(double));
+    double *vr = (double *)lv00_malloc((size_t)dim * sizeof(double));
+    if (!va || !vb || !vr) {
+        lv00_free((void **)&va);
+        lv00_free((void **)&vb);
+        lv00_free((void **)&vr);
+        return 0;
+    }
+    for (int i = 0; i < dim; i++) {
+        va[i] = (double)(i + 1);
+        vb[i] = (double)(dim - i);
+    }
+
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        for (int j = 0; j < dim; j += 4) {
+            Lv00Vec4d a = lv00_vec4d_load(&va[j]);
+            Lv00Vec4d b = lv00_vec4d_load(&vb[j]);
+            Lv00Vec4d r = lv00_vec4d_add(a, b);
+            vr[j]     = r.v[0];
+            vr[j + 1] = r.v[1];
+            vr[j + 2] = r.v[2];
+            vr[j + 3] = r.v[3];
+        }
+    }
+    lv00_timer_stop(&timer);
+
+    lv00_free((void **)&va);
+    lv00_free((void **)&vb);
+    lv00_free((void **)&vr);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+static uint64_t bench_simd_vector_scale(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+
+    int dim = SIMD_VECTOR_DIM;
+    double *va = (double *)lv00_malloc((size_t)dim * sizeof(double));
+    double *vr = (double *)lv00_malloc((size_t)dim * sizeof(double));
+    if (!va || !vr) {
+        lv00_free((void **)&va);
+        lv00_free((void **)&vr);
+        return 0;
+    }
+    for (int i = 0; i < dim; i++) {
+        va[i] = (double)(i + 1);
+    }
+
+    Lv00Vec4d scalar = lv00_vec4d_set1(2.5);
+
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        for (int j = 0; j < dim; j += 4) {
+            Lv00Vec4d a = lv00_vec4d_load(&va[j]);
+            Lv00Vec4d r = lv00_vec4d_mul(a, scalar);
+            vr[j]     = r.v[0];
+            vr[j + 1] = r.v[1];
+            vr[j + 2] = r.v[2];
+            vr[j + 3] = r.v[3];
+        }
+    }
+    lv00_timer_stop(&timer);
+
+    lv00_free((void **)&va);
+    lv00_free((void **)&vr);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+static uint64_t bench_simd_matrix_vector(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+
+    /* 4x4 矩阵（列主序）*/
+    double mat[16] = {
+        1.0, 0.0, 0.0, 0.0,
+        0.0, 2.0, 0.0, 0.0,
+        0.0, 0.0, 3.0, 0.0,
+        1.0, 2.0, 3.0, 1.0
+    };
+
+    Lv00Vec4d vec = lv00_vec4d_set(1.0, 2.0, 3.0, 1.0);
+
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        Lv00Vec4d result = lv00_simd_mat4x4_vec4_mul(mat, vec);
+        /* 防止编译器优化掉 */
+        if (result.v[0] < -1e30) (void)result;
+    }
+    lv00_timer_stop(&timer);
+
+    return lv00_timer_elapsed_us(&timer);
+}
+
+#undef SIMD_VECTOR_DIM
+
 /**
- * @brief 运行 SIMD 优化模块的基准测试套件（桩实现）
+ * @brief 运行 SIMD 优化模块的基准测试套件
  *
- * @return 返回名称为 "simd" 的空测试套件指针
+ * 包括：向量点积、向量加法、向量标量乘法、矩阵-向量乘法
+ *
+ * @return 返回名称为 "simd" 的测试套件指针
  */
 Lv00BenchSuite *lv00_bench_run_simd_tests(void) {
-    return lv00_bench_suite_create("simd");
+    Lv00BenchSuite *suite = lv00_bench_suite_create("simd");
+    if (!suite) return NULL;
+
+    Lv00BenchCase cases[] = {
+        { "simd_vector_dot", bench_simd_vector_dot,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "simd_vector_add", bench_simd_vector_add,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "simd_vector_scale", bench_simd_vector_scale,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "simd_matrix_vector", bench_simd_matrix_vector,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+    };
+
+    int n = (int)(sizeof(cases) / sizeof(cases[0]));
+    for (int i = 0; i < n; i++) {
+        lv00_bench_suite_add(suite, &cases[i]);
+    }
+
+    return suite;
+}
+
+/* ================================================================
+ * 多线程模块基准测试函数
+ * ================================================================ */
+
+/* 线程池内部函数的前向声明（不在公开头文件中） */
+extern Lv00ThreadPool *lv00_thread_pool_create(int num_threads);
+extern void lv00_thread_pool_destroy(Lv00ThreadPool *pool);
+
+/* 与 thread_pool.c 中 Lv00ThreadTask 布局匹配的本地结构 */
+typedef struct {
+    void (*func)(void *arg);
+    void *arg;
+    Lv00WaitGroup *group;
+    void *next;
+} BenchTask;
+
+/* 占位任务函数 */
+static void bench_thread_dummy_task(void *arg) {
+    (void)arg;
+}
+
+/* 并行求和任务参数 */
+typedef struct {
+    const double *array;
+    int start;
+    int end;
+    double partial_sum;
+} BenchSumArg;
+
+static void bench_thread_sum_task(void *arg) {
+    BenchSumArg *sa = (BenchSumArg *)arg;
+    double sum = 0.0;
+    for (int i = sa->start; i < sa->end; i++) {
+        sum += sa->array[i];
+    }
+    sa->partial_sum = sum;
+}
+
+static uint64_t bench_thread_submit(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00ThreadPool *pool = lv00_get_global_thread_pool();
+    if (!pool) return 0;
+
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        BenchTask *task = (BenchTask *)lv00_calloc(1, sizeof(BenchTask));
+        if (!task) continue;
+        task->func = bench_thread_dummy_task;
+        task->arg = NULL;
+        Lv00WaitGroup *wg = lv00_thread_pool_submit(pool, (Lv00ThreadTask *)task);
+        if (!wg) {
+            lv00_free((void **)&task);
+            continue;
+        }
+        lv00_thread_pool_wait_group(pool, wg, -1);
+    }
+    lv00_timer_stop(&timer);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+#define THREAD_PARALLEL_SIZE 100000
+#define THREAD_PARALLEL_CHUNKS 4
+
+static uint64_t bench_thread_parallel_sum(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00ThreadPool *pool = lv00_get_global_thread_pool();
+    if (!pool) return 0;
+
+    double *array = (double *)lv00_malloc(THREAD_PARALLEL_SIZE * sizeof(double));
+    if (!array) return 0;
+    for (int k = 0; k < THREAD_PARALLEL_SIZE; k++) {
+        array[k] = (double)(k + 1);
+    }
+
+    int chunk_size = THREAD_PARALLEL_SIZE / THREAD_PARALLEL_CHUNKS;
+
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        BenchSumArg args[THREAD_PARALLEL_CHUNKS];
+        BenchTask *tasks[THREAD_PARALLEL_CHUNKS];
+        Lv00WaitGroup *groups[THREAD_PARALLEL_CHUNKS];
+        int submitted = 0;
+
+        for (int c = 0; c < THREAD_PARALLEL_CHUNKS; c++) {
+            args[c].array = array;
+            args[c].start = c * chunk_size;
+            args[c].end = (c == THREAD_PARALLEL_CHUNKS - 1)
+                              ? THREAD_PARALLEL_SIZE
+                              : (c + 1) * chunk_size;
+            args[c].partial_sum = 0.0;
+
+            tasks[c] = (BenchTask *)lv00_calloc(1, sizeof(BenchTask));
+            if (!tasks[c]) break;
+            tasks[c]->func = bench_thread_sum_task;
+            tasks[c]->arg = &args[c];
+
+            groups[c] = lv00_thread_pool_submit(pool, (Lv00ThreadTask *)tasks[c]);
+            if (!groups[c]) {
+                lv00_free((void **)&tasks[c]);
+                break;
+            }
+            submitted++;
+        }
+
+        /* 等待所有提交的任务完成 */
+        for (int c = 0; c < submitted; c++) {
+            lv00_thread_pool_wait_group(pool, groups[c], -1);
+        }
+
+        /* 汇总 */
+        double total = 0.0;
+        for (int c = 0; c < submitted; c++) {
+            total += args[c].partial_sum;
+        }
+        if (total < -1e30) (void)total;
+    }
+    lv00_timer_stop(&timer);
+
+    lv00_free((void **)&array);
+    return lv00_timer_elapsed_us(&timer);
+}
+
+#undef THREAD_PARALLEL_SIZE
+#undef THREAD_PARALLEL_CHUNKS
+
+static uint64_t bench_thread_create_destroy(int iterations, void *user_data) {
+    (void)user_data;
+    Lv00Timer timer = lv00_timer_create();
+    lv00_timer_start(&timer);
+    for (int i = 0; i < iterations; i++) {
+        Lv00ThreadPool *pool = lv00_thread_pool_create(2);
+        if (pool) {
+            lv00_thread_pool_destroy(pool);
+        }
+    }
+    lv00_timer_stop(&timer);
+    return lv00_timer_elapsed_us(&timer);
 }
 
 /**
- * @brief 运行多线程模块的基准测试套件（桩实现）
+ * @brief 运行多线程模块的基准测试套件
  *
- * @return 返回名称为 "thread" 的空测试套件指针
+ * 包括：任务提交吞吐量、并行数组求和、线程池创建/销毁延迟
+ *
+ * @return 返回名称为 "thread" 的测试套件指针
  */
 Lv00BenchSuite *lv00_bench_run_thread_tests(void) {
-    return lv00_bench_suite_create("thread");
+    Lv00BenchSuite *suite = lv00_bench_suite_create("thread");
+    if (!suite) return NULL;
+
+    Lv00BenchCase cases[] = {
+        { "thread_pool_submit", bench_thread_submit,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "thread_pool_parallel_sum", bench_thread_parallel_sum,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+        { "thread_pool_create_destroy", bench_thread_create_destroy,
+          NULL, NULL, NULL,
+          LV00_BENCH_MIN_ITERATIONS, LV00_BENCH_MAX_ITERATIONS, LV00_BENCH_TARGET_TIME_SEC },
+    };
+
+    int n = (int)(sizeof(cases) / sizeof(cases[0]));
+    for (int i = 0; i < n; i++) {
+        lv00_bench_suite_add(suite, &cases[i]);
+    }
+
+    return suite;
 }
