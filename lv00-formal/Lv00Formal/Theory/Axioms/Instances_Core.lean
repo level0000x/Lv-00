@@ -170,20 +170,23 @@ def TemplateParamCountReasonable (t : PackageTemplate) : Prop :=
   t.paramCount ≤ 4
 
 /-- 当前 proof_theory 包中所有模板参数个数均合理。 -/
-axiom proofTheoryTemplates_param_reasonable :
-    ∀ t ∈ proofTheoryTemplates, TemplateParamCountReasonable t 
+theorem proofTheoryTemplates_param_reasonable :
+    ∀ t ∈ proofTheoryTemplates, TemplateParamCountReasonable t := by
+  decide
 
 /-- 不可构造问题具有外部引用。 -/
 def HasExternalReference (u : UnconstructibleProblem) : Prop :=
   u.externalRef ≠ ""
 
 /-- 当前 proof_theory 包中的不可构造问题均有外部引用。 -/
-axiom proofTheoryUnconstructibles_have_refs :
-    ∀ u ∈ proofTheoryUnconstructibles, HasExternalReference u 
+theorem proofTheoryUnconstructibles_have_refs :
+    ∀ u ∈ proofTheoryUnconstructibles, HasExternalReference u := by
+  decide
 
 /-- 不可构造问题均标记为 green_verified。 -/
-axiom proofTheoryUnconstructibles_green_verified :
-    ∀ u ∈ proofTheoryUnconstructibles, u.greenVerified = true
+theorem proofTheoryUnconstructibles_green_verified :
+    ∀ u ∈ proofTheoryUnconstructibles, u.greenVerified = true := by
+  decide
 
 
 /-- 关键模板：Sequent Calculus 核心。 -/
@@ -199,13 +202,14 @@ def templateNames (ts : List PackageTemplate) : List String :=
   ts.map (fun t => t.name)
 
 /-- Sequent Calculus 核心模板存在。 -/
-axiom sequentCoreTemplates_exist :
-    ∀ n ∈ sequentCoreTemplates, n ∈ templateNames proofTheoryTemplates
-
+theorem sequentCoreTemplates_exist :
+    ∀ n ∈ sequentCoreTemplates, n ∈ templateNames proofTheoryTemplates := by
+  decide
 
 /-- 逻辑规则核心模板存在。 -/
-axiom logicCoreTemplates_exist :
-    ∀ n ∈ logicCoreTemplates, n ∈ templateNames proofTheoryTemplates
+theorem logicCoreTemplates_exist :
+    ∀ n ∈ logicCoreTemplates, n ∈ templateNames proofTheoryTemplates := by
+  decide
 
 
 /-- 由模板生成一个 Lv-00 可执行规则的保守映射。
@@ -236,8 +240,25 @@ theorem proofTheoryExecutableRules_length : proofTheoryExecutableRules.length = 
 
 /-- 模板生成的规则实例均良构。
     由于模板阶段尚未携带具体前提/结论，良构性主要来自规则种类属于规范八规则集合。 -/
-axiom proofTheoryExecutableRules_wellformed :
-    ∀ r ∈ proofTheoryExecutableRules, WellFormedExecutableRule r
+theorem proofTheoryExecutableRules_wellformed :
+    ∀ r ∈ proofTheoryExecutableRules, WellFormedExecutableRule r := by
+  -- 所有规则具有相同形状（baseKind=predicateTyping，premises=[], conclusions=[]），
+  -- 且 predicateTyping ∈ canonicalKinds，空前提/结论平凡满足 WellFormedPremise/Conclusion。
+  have h_shape : ∀ r ∈ proofTheoryExecutableRules,
+      r.baseKind = BaseAxiomKind.predicateTyping ∧ r.premises = [] ∧ r.conclusions = [] := by
+    native_decide
+  intro r hr
+  rcases h_shape r hr with ⟨hk, hp, hc⟩
+  have hk_canonical : r.baseKind ∈ canonicalKinds := by
+    rw [hk]
+    simp [canonicalKinds]
+  have h_premises : ∀ p ∈ r.premises, WellFormedPremise p := by
+    rw [hp]
+    simp
+  have h_conclusions : ∀ c ∈ r.conclusions, WellFormedConclusion c := by
+    rw [hc]
+    simp
+  exact ⟨hk_canonical, h_premises, h_conclusions⟩
 
 
 end Instances

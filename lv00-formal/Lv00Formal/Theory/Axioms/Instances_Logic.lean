@@ -136,10 +136,11 @@ theorem linearLogicPackage_unconstructible_count : linearLogicPackage.unconstruc
   decide
 
 /-- MELL 可判定性被标记为开放问题，且 greenVerified=false。 -/
-axiom linearLogic_MELL_open_problem :
+theorem linearLogic_MELL_open_problem :
     (linearLogicUnconstructibles[1]!).name = "provability_MELL" ∧
     (linearLogicUnconstructibles[1]!).reducesTo = "open_problem" ∧
-    (linearLogicUnconstructibles[1]!).greenVerified = false
+    (linearLogicUnconstructibles[1]!).greenVerified = false := by
+  decide
 
 /-- 由全部 Linear Logic 模板生成的规则实例。 -/
 def linearLogicExecutableRules : List ExecutableRule :=
@@ -230,7 +231,9 @@ theorem galoisTheoryTemplates_length : galoisTheoryTemplates.length = 61 := by
   decide
 
 /-- C 测试要求模板数量至少为 60。 -/
-axiom galoisTheoryTemplates_at_least_60 : 60 ≤ galoisTheoryTemplates.length
+theorem galoisTheoryTemplates_at_least_60 : 60 ≤ galoisTheoryTemplates.length := by
+  rw [galoisTheoryTemplates_length]
+  omega
 
 
 /-- Galois Theory 包中的 8 个不可构造/未解/不可判定问题。 -/
@@ -276,16 +279,18 @@ def galoisTheoryPackage : AxiomPackageInstance :=
     contradictionBehavior := "explosion_principle" }
 
 /-- Galois Theory 逻辑框架字段与 C 测试一致。 -/
-axiom galoisTheory_logical_framework :
+theorem galoisTheory_logical_framework :
     galoisTheoryPackage.bottomGeometry = "galois_theory_field_extension" ∧
     galoisTheoryPackage.negationEncoding = "classical_equality" ∧
-    galoisTheoryPackage.contradictionBehavior = "explosion_principle"
+    galoisTheoryPackage.contradictionBehavior = "explosion_principle" := by
+  decide
 
 /-- inverse_galois_problem 是未解问题，greenVerified=false。 -/
-axiom galoisTheory_inverse_problem_unsolved :
+theorem galoisTheory_inverse_problem_unsolved :
     (galoisTheoryUnconstructibles[0]!).name = "inverse_galois_problem" ∧
     (galoisTheoryUnconstructibles[0]!).reducesTo = "unsolved" ∧
-    (galoisTheoryUnconstructibles[0]!).greenVerified = false
+    (galoisTheoryUnconstructibles[0]!).greenVerified = false := by
+  decide
 
 /-- 由全部 Galois Theory 模板生成的规则实例。 -/
 def galoisTheoryExecutableRules : List ExecutableRule :=

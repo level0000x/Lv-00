@@ -329,21 +329,47 @@ Specification for the Foreign Function Interface between Lean and C.
 This defines how Lean can call C functions and vice versa. -/
 section FFIBridge
 
-/-- FFI function: C point to Lean point -/
+/-- FFI function: C point to Lean point
+
+[FFI 桥接公理 — 保留]
+此 axiom 声明了 C 核心函数 `lv00_point_t → Lean Point` 的运行时表示。
+由于 Lean 无法从 C 源码自动推导此类跨语言的类型映射，
+必须保留为 axiom 作为 FFI 边界规范。
+-/
 axiom c_point_to_lean : (ℝ × ℝ × ℝ) → Point
 
-/-- FFI function: Lean point to C point -/
+/-- FFI function: Lean point to C point
+
+[FFI 桥接公理 — 保留]
+此 axiom 声明了 Lean Point → C `lv00_point_t` 的逆向映射。
+这是 FFI 双向绑定的必需组成部分。
+-/
 axiom lean_point_to_c : Point → (ℝ × ℝ × ℝ)
 
-/-- Round-trip property: converting to C and back preserves the point -/
+/-- Round-trip property: converting to C and back preserves the point
+
+[FFI 桥接公理 — 保留]
+此公理断言 Lean → C → Lean 往返恒等性质。
+这是 FFI 数据保真度的规范，无法从 Lean 侧证明，
+因为涉及外部 C 内存布局与浮点表示的实现细节。
+-/
 axiom point_roundtrip :
     ∀ (p : Point), c_point_to_lean (lean_point_to_c p) = p
 
-/-- Round-trip property: converting to Lean and back preserves the C point -/
+/-- Round-trip property: converting to Lean and back preserves the C point
+
+[FFI 桥接公理 — 保留]
+此公理断言 C → Lean → C 往返恒等性质，同样涉及 C 侧的运行时表示。
+-/
 axiom c_point_roundtrip :
     ∀ (c : ℝ × ℝ × ℝ), lean_point_to_c (c_point_to_lean c) = c
 
-/-- Correspondence preservation under round-trip -/
+/-- Correspondence preservation under round-trip
+
+[FFI 桥接公理 — 保留]
+此公理将 PointCorrespondence 关系与 FFI 函数映射联系起来。
+它是验证 C 实现与 Lean 形式化等价性的核心规范公理。
+-/
 axiom correspondence_preserved :
     ∀ (c : ℝ × ℝ × ℝ) (l : Point),
     PointCorrespondence c l ↔ c_point_to_lean c = l

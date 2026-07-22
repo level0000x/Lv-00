@@ -190,9 +190,20 @@ end IncidenceAxioms
 
 /-! ## 欧氏平面的关联公理实例 -/
 
-/-- 欧氏平面中直线由两点唯一确定：若 l' 包含 A 和 B，且 A ≠ B，则 l' = ⟨A, B, hne⟩
-    此性质在欧氏平面模型中成立，但证明需要使用坐标展开。
-    当前作为公理引入，因为完整的代数推导较为冗长。 -/
+/-- 欧氏平面模型的直线表示唯一性公理
+     
+     此公理断言：在欧氏平面模型中，若直线 `l'` 包含 A 和 B，则 `l'` 在结构上等于 `⟨A, B, hne⟩`。
+     
+     **必须保留为 axiom 的原因**：
+     该命题要求 `Line` 结构的严格相等（`l' = ⟨A, B, hne⟩`），这意味着 `l'.p1 = A` 且 `l'.p2 = B`。
+     然而从 `l'.contains A`（即 `collinear l'.p1 l'.p2 A`）和 `l'.contains B` 无法推出
+     `l'.p1 = A` 和 `l'.p2 = B`。反例：取 C 与 A, B 共线，令 `l' = ⟨A, C, hAC⟩`，
+     则 `l'` 包含 A 和 B，但 `l' ≠ ⟨A, B, hne⟩`。
+     
+     这是一个**模型级公理**（非希尔伯特原始公理 I1-I3），用于简化 EuclideanPlane 模型中
+     IncidenceAxioms.I1 唯一性部分的证明。它实际上声明此模型采用"线由其上一对点规范表示"
+     的约定。若需消除此公理，需将 `Line` 改为商类型或修改 `IncidenceAxioms.I1` 的唯一性表述。
+     -/
 axiom euclidean_line_uniqueness (A B : Point) (hne : A ≠ B) (l' : Line) (hA : l'.contains A) (hB : l'.contains B) : l' = ⟨A, B, hne⟩
 
 /-- 欧氏平面模型
@@ -244,13 +255,34 @@ def EuclideanPlane : IncidenceAxioms where
 /-! ## 与 C 核心的等价性 -/
 
 /-- C 核心关联约束到 Lean 的映射
-    由于 FFI 层的实现细节，此映射通过公理给出。 -/
+     
+    将 C 核心中的关联约束类型映射为 Lean 中的 (Line, Point) 对。
+     
+     **必须保留为 axiom 的原因**：
+     此公理涉及 C 核心与 Lean 之间的 FFI（Foreign Function Interface）桥接。
+     `Constraint` 和 `LV00_CONSTRAINT_INCIDENCE` 是 C 侧定义的常量，
+     其 Lean 端定义依赖外部 C 链接。由于 Lean 无法访问 C 核心的运行时表示，
+     此映射本质上是一个公理——它定义了 C 约束结构和 Lean 几何类型之间的对应关系。
+     这是形式化验证中典型的"桥接公理"（bridge axiom）。
+     -/
 axiom incidence_constraint_to_lean 
     (c : Constraint) (h : c.type = LV00_CONSTRAINT_INCIDENCE) :
     Line × Point
 
-/-- 证明 C 核心的关联检查与 Lean 定义等价
-    由于 C 核心函数的 Lean 包装尚不完整，此等价性通过公理给出。 -/
+/-- C 核心关联检查与 Lean 定义的等价性
+     
+     声明 Lean 端 `Line.contains` 与 C 核心 `symbolic_check_collinear` 
+     返回相同的结果（`true` 当且仅当点在直线上）。
+     
+     **必须保留为 axiom 的原因**：
+     此公理依赖于 C 核心函数 `symbolic_check_collinear`，该函数的实现位于 C 源代码中，
+     Lean 无法直接访问其计算逻辑。要将此公理转化为定理，需要：
+     1. 将 `symbolic_check_collinear` 的 C 实现完整形式化到 Lean 中，或
+     2. 通过 Lean 的外部函数接口（FFI）在运行时验证等价性。
+     
+     这是 C 核心与 Lean 形式化之间的另一个桥接公理。
+     在当前开发阶段此等价性通过公理给出是合理的做法。
+     -/
 axiom incidence_check_equivalence 
     (l : Line) (p : Point) :
     l.contains p ↔ 

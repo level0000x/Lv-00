@@ -90,14 +90,16 @@ def euclideanPlanePackage : AxiomPackageInstance :=
     contradictionBehavior := "explosion_principle" }
 
 /-- Euclidean Plane 逻辑框架字段与 C 测试一致。 -/
-axiom euclideanPlane_logical_framework :
+theorem euclideanPlane_logical_framework :
     euclideanPlanePackage.bottomGeometry = "euclidean_plane" ∧
     euclideanPlanePackage.negationEncoding = "classical_material_implication" ∧
-    euclideanPlanePackage.contradictionBehavior = "explosion_principle"
+    euclideanPlanePackage.contradictionBehavior = "explosion_principle" := by
+  decide
 
 /-- Euclidean Plane 全部 6 个不可构造问题均标记为 green_verified=true。 -/
-axiom euclideanPlaneUnconstructibles_green_verified :
-    ∀ u ∈ euclideanPlaneUnconstructibles, u.greenVerified = true
+theorem euclideanPlaneUnconstructibles_green_verified :
+    ∀ u ∈ euclideanPlaneUnconstructibles, u.greenVerified = true := by
+  decide
 
 
 /-- 由全部 Euclidean Plane 模板生成的规则实例。 -/
@@ -237,10 +239,11 @@ def categoryTheoryPackage : AxiomPackageInstance :=
     contradictionBehavior := "explosion_principle" }
 
 /-- Category Theory 逻辑框架字段与 C 测试一致。 -/
-axiom categoryTheory_logical_framework :
+theorem categoryTheory_logical_framework :
     categoryTheoryPackage.bottomGeometry = "directed_multigraph_with_composition" ∧
     categoryTheoryPackage.negationEncoding = "categorical_subobject_complement" ∧
-    categoryTheoryPackage.contradictionBehavior = "explosion_principle"
+    categoryTheoryPackage.contradictionBehavior = "explosion_principle" := by
+  decide
 
 /-- 由全部 Category Theory 模板生成的规则实例。 -/
 def categoryTheoryExecutableRules : List ExecutableRule :=
@@ -341,10 +344,11 @@ def hyperbolicGeometryPackage : AxiomPackageInstance :=
     contradictionBehavior := "explosion_principle" }
 
 /-- Hyperbolic Geometry 逻辑框架字段与 C 测试一致。 -/
-axiom hyperbolicGeometry_logical_framework :
+theorem hyperbolicGeometry_logical_framework :
     hyperbolicGeometryPackage.bottomGeometry = "hyperbolic_plane" ∧
     hyperbolicGeometryPackage.negationEncoding = "classical_material_implication" ∧
-    hyperbolicGeometryPackage.contradictionBehavior = "explosion_principle"
+    hyperbolicGeometryPackage.contradictionBehavior = "explosion_principle" := by
+  decide
 
 /-- 由全部 Hyperbolic Geometry 模板生成的规则实例。 -/
 def hyperbolicGeometryExecutableRules : List ExecutableRule :=

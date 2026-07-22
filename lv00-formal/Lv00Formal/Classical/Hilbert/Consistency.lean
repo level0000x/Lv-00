@@ -136,10 +136,24 @@ lemma consistent_of_has_model {T : Type} [Axioms T] :
 
 /-! ## 与 C 核心的对应关系 -/
 
-/-- C 核心公理掩码到 Lean 公理的映射 -/
+/-- C 核心公理掩码到 Lean 公理的映射
+
+[FFI 桥接公理 — 保留]
+此 axiom 建立了 C 侧 `UInt32` 公理掩码与 Lean 侧 `HilbertAxioms` 的映射关系。
+C 核心使用位掩码表示公理组合（即 `euclidean_verify_axiom_inconsistency` 的参数），
+在 Lean 侧无法自动推导这种跨语言的编码对应关系。
+必须保留为 axiom 以反映 C 接口的实际语义。
+-/
 axiom axiom_mask_to_lean (mask : UInt32) : HilbertAxioms → Prop
 
-/-- 证明 C 核心的公理检查与 Lean 形式化等价 -/
+/-- 证明 C 核心的公理检查与 Lean 形式化等价
+
+[FFI 桥接公理 — 保留]
+此 axiom 断言 C 侧 `euclidean_verify_axiom_inconsistency` 的返回值
+与 Lean 侧公理可满足性之间存在双向逻辑等价关系。
+这是 FFI 层面的核心一致性声明，涉及 C 运行时计算与 Lean 逻辑推导的对应，
+因此无法在 Lean 内构造证明，必须保留为公理。
+-/
 axiom axiom_check_equivalence 
     (mask : UInt32) (axioms : HilbertAxioms) :
     (euclidean_verify_axiom_inconsistency mask = true) ↔

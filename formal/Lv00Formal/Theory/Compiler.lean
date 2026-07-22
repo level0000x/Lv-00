@@ -102,17 +102,77 @@ def compile_stmt (c : Lv00Stmt) (ps : List Lv00Point) : List IRConstraint :=
   | .prove => []
   | .normalize => []
 
+/-- compile_program 的辅助递归函数：累积已见点列表并进行编译。
+    注意：compile_constraint 未使用 ps 参数，因此 compile_stmt 的结果与 pts 无关。
+    但为保持与原始定义的一致性，仍保留 pts 的传递链。 -/
+def compile_program_go (pts : List Lv00Point) (rest : Lv00Program) : ConstraintGraph :=
+  match rest with
+  | [] => []
+  | st :: sts =>
+    let newPts := match st with
+      | .point p => p :: pts
+      | _ => pts
+    compile_stmt st pts ++ compile_program_go newPts sts
+
 /-- 将 Lv00Program 编译为 IR ConstraintGraph -/
 def compile_program (prog : Lv00Program) : ConstraintGraph :=
-  let rec go (pts : List Lv00Point) (rest : Lv00Program) : ConstraintGraph :=
-    match rest with
-    | [] => []
-    | st :: sts =>
-      let newPts := match st with
-        | .point p => p :: pts
-        | _ => pts
-      compile_stmt st pts ++ go newPts sts
-  go [] prog
+  compile_program_go [] prog
+
+/-! ## 编译辅助引理 -/
+
+/-- compile_constraint 的结果不依赖于点列表参数（ps 在所有分支中均未被引用） -/
+lemma compile_constraint_ps_irrelevant (ps1 ps2 : List Lv00Point) :
+    compile_constraint ps1 = compile_constraint ps2 := by
+  funext c
+  unfold compile_constraint
+  rfl
+
+/-- compile_stmt 的结果不依赖于点列表参数 -/
+lemma compile_stmt_ps_irrelevant (ps1 ps2 : List Lv00Point) (st : Lv00Stmt) :
+    compile_stmt st ps1 = compile_stmt st ps2 := by
+  unfold compile_stmt
+  cases st
+  · rfl
+  · rename_i cst
+    rw [compile_constraint_ps_irrelevant ps1 ps2]
+  · rfl
+  · rfl
+
+/-- compile_program_go 的结果不依赖于初始点列表参数 -/
+lemma compile_program_go_ps_irrelevant (ps1 ps2 : List Lv00Point) (prog : Lv00Program) :
+    compile_program_go ps1 prog = compile_program_go ps2 prog := by
+  induction prog generalizing ps1 ps2 with
+  | nil => rfl
+  | cons st sts ih =>
+    unfold compile_program_go
+    have h_stmt : compile_stmt st ps1 = compile_stmt st ps2 :=
+      compile_stmt_ps_irrelevant ps1 ps2 st
+    rw [h_stmt]
+    cases st with
+    | point p => exact ih (p :: ps1) (p :: ps2)
+    | constraint _ => exact ih ps1 ps2
+    | prove => exact ih ps1 ps2
+    | normalize => exact ih ps1 ps2
+
+/-- compile_program_go 对程序拼接的分配律 -/
+lemma compile_program_go_append (ps : List Lv00Point) (p1 p2 : Lv00Program) :
+    compile_program_go ps (p1 ++ p2) = compile_program_go ps p1 ++ compile_program_go ps p2 := by
+  induction p1 generalizing ps with
+  | nil =>
+    unfold compile_program_go
+    simp
+  | cons st sts ih =>
+    unfold compile_program_go
+    let newPts := match st with
+      | .point p => p :: ps
+      | _ => ps
+    have h_go_pts : compile_program_go newPts p2 = compile_program_go ps p2 :=
+      compile_program_go_ps_irrelevant newPts ps p2
+    calc
+      compile_stmt st ps ++ compile_program_go newPts (sts ++ p2)
+          = compile_stmt st ps ++ (compile_program_go newPts sts ++ compile_program_go newPts p2) := by rw [ih]
+      _ = compile_stmt st ps ++ (compile_program_go newPts sts ++ compile_program_go ps p2) := by rw [h_go_pts]
+      _ = (compile_stmt st ps ++ compile_program_go newPts sts) ++ compile_program_go ps p2 := by simp
 
 /-! ## 编译器元理论性质 -/
 
@@ -137,9 +197,13 @@ theorem compile_constraint_single (c : Lv00Constraint) (ps : List Lv00Point)
   unfold compile_stmt
   simp [h]
 
-/-- 程序拼接的编译约束包含各自编译的约束（非相等，因点累积不同） -/
-axiom compile_program_append (p1 p2 : Lv00Program) :
-    compile_program (p1 ++ p2) = compile_program p1 ++ compile_program p2
+/-- 程序拼接的编译等于各自编译结果的拼接：
+    关键洞察：compile_constraint 未使用点列表参数，因此 go 中的 pts 累加
+    不影响 compile_stmt 的结果，分配律因此成立。 -/
+theorem compile_program_append (p1 p2 : Lv00Program) :
+    compile_program (p1 ++ p2) = compile_program p1 ++ compile_program p2 := by
+  unfold compile_program
+  apply compile_program_go_append [] p1 p2
 
 end Compiler
 end Theory

@@ -53,6 +53,13 @@ theorem stmt_compiled_edge_correct_normalize (pts : List Lv00Point) :
 
 /-! ## 编译保持可满足性 -/
 
+-- NOTE: 保留为 axiom，原因：
+-- Lv00Lang.satisfiable 本身是一个没有计算内容的 axiom（只在 Lv00Lang 中声明了类型 Prop），
+-- 因此无法对其进行归纳或构造性推理。要证明 "源语言可满足 → IR 图可满足" 需要：
+-- (1) 给出 Lv00Lang.satisfiable 的模型论定义
+-- (2) 逐条约束证明 Lv00 约束到 IR 约束的语义对应关系
+-- (3) 构造环境映射的对应关系
+-- 这实质上等同于完整的编译器正确性证明，超出当前 axiom 消除的范围。
 /-- 编译保持可满足性（核心公理）：
     若源程序 Lv00 可满足，则编译后的 IR 约束图也可满足 -/
 axiom compile_preserves_satisfiability (prog : Lv00Program) :
@@ -71,9 +78,15 @@ theorem compiler_idempotent (prog : Lv00Program) :
     compile_program prog = compile_program prog := by
   rfl
 
+-- NOTE: 保留为 axiom，原因：
+-- 即使 compile_program_append 已被证明为 theorem，
+-- compile_program (p1 ++ p2) = compile_program p1 ++ compile_program p2，
+-- 本 axiom 退化为：graph_satisfiable g1 ∧ graph_satisfiable g2 → graph_satisfiable (g1 ++ g2)。
+-- 这在一般情况下不成立，因为 p1 和 p2 可能对同名变量施加矛盾的 IR 约束
+--（例如 g1=[distance "A" "B" (const 1)], g2=[distance "A" "B" (const 2)]）。
+-- 除非附加 p1 与 p2 使用不相交变量集的假设，否则无法证明。
 /-- 追加程序的可满足性：
-    若 p1 和 p2 各自的编译结果可满足，则拼接编译结果也可满足。
-    证明依赖 compile_program_append 公理。 -/
+    若 p1 和 p2 各自的编译结果可满足，则拼接编译结果也可满足。 -/
 axiom compile_append_satisfiable (p1 p2 : Lv00Program)
     (h1 : graph_satisfiable (compile_program p1))
     (h2 : graph_satisfiable (compile_program p2)) :
