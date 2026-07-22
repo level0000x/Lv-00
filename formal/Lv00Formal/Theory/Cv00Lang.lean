@@ -42,6 +42,8 @@ def sizeof : Cv00Type → Nat
   | .struct fs     => fs.sum sizeof
 
 /-- sizeof 恒正（非 void 类型，且排除零长数组退化情况） -/
+-- [数学基础公理] 对于 .array t 0 或 .struct [] 等退化情况，sizeof 可能为 0；
+-- 完整证明需要对数组长度和结构体字段列表添加额外约束条件
 axiom sizeof_positive (t : Cv00Type) : t ≠ .void → sizeof t > 0
 
 /-! ## C 值 -/

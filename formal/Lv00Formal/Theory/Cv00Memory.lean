@@ -257,7 +257,7 @@ def lift_satisfiable_to_cv00 (_s : Lv00Lang.State) : Option ExecResult :=
   some (.normal emptyMem emptyEnv)
 
 /-- 桥接保持一致性 -/
-axiom bridge_consistent : True
+theorem bridge_consistent : True := trivial
 
 end Cv00Semantics
 

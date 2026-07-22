@@ -77,6 +77,7 @@ This axiom allows us to "transport" (copy) a segment to any location. -/
 def ray (A B : Point) (h : A ≠ B) : Set Point :=
   {P | P = A ∨ A ∗ B ∨ P ∗ A ∨ A ∗ P ∗ B}
 
+-- [希尔伯特几何基础公理 — 全等公理]
 /-- Congruence Axiom C1: Segment transport
     Given segment AB and ray from A', there exists unique B' on ray with A'B' ≅ AB -/
 axiom C1 : ∀ (A B A' B' B'' : Point),
@@ -84,6 +85,7 @@ axiom C1 : ∀ (A B A' B' B'' : Point),
   (A' ∗ B' ∨ B' ∗ A') → (A' ∗ B'' ∨ B'' ∗ A') →
   A' ≅ B' A B → A' ≅ B'' A B → B' = B''
 
+-- [希尔伯特几何基础公理 — 全等公理]
 /-- C1 existence part: Given a segment AB and a ray from A',
     there exists a point B' on the ray such that A'B' ≅ AB -/
 axiom C1_existence : ∀ (A B A' : Point) (hAB : A ≠ B) (hA' : A' ≠ A),
@@ -102,6 +104,7 @@ If AB ≅ A'B' and AB ≅ A''B'', then A'B' ≅ A''B''.
 
 Every segment is congruent to itself (reflexivity follows from this). -/
 
+-- [希尔伯特几何基础公理 — 全等公理]
 /-- Congruence Axiom C2: Segment transitivity -/
 axiom C2 : ∀ (A B A' B' A'' B'' : Point),
   A ≅ B A' B' → A ≅ B A'' B'' → A' ≅ B' A'' B''
@@ -130,6 +133,7 @@ then AC ≅ A'C'.
 
 This is the addition property for congruent segments. -/
 
+-- [希尔伯特几何基础公理 — 全等公理]
 /-- Congruence Axiom C3: Segment addition -/
 axiom C3 : ∀ (A B C A' B' C' : Point),
   A ∗ B ∗ C → A' ∗ B' ∗ C' →
@@ -210,6 +214,7 @@ This axiom allows us to "transport" (copy) an angle to any location. -/
 def half_plane (l : Line) : Set Point :=
   {P | ¬l.contains P}
 
+-- [希尔伯特几何基础公理 — 全等公理]
 /-- Congruence Axiom C4: Angle transport
     Given angle ABC and ray B'A', there exists unique ray B'C' such that
     ∠A'B'C' ≅ ∠ABC -/
@@ -219,6 +224,7 @@ axiom C4 : ∀ (A B C A' B' C' C'' : Point),
   (∠A' B' C' ≅ ∠A B C) → (∠A' B' C'' ≅ ∠A B C) →
   collinear C' B' C''
 
+-- [希尔伯特几何基础公理 — 全等公理]
 /-- C4 existence part -/
 axiom C4_existence : ∀ (A B C A' B' : Point),
   B ≠ A → B ≠ C → B' ≠ A' →
@@ -230,6 +236,7 @@ If ∠(h,k) ≅ ∠(h',k') and ∠(h,k) ≅ ∠(h'',k''), then ∠(h',k') ≅ �
 
 Every angle is congruent to itself. -/
 
+-- [希尔伯特几何基础公理 — 全等公理]
 /-- Congruence Axiom C5: Angle transitivity -/
 axiom C5 : ∀ (A B C A' B' C' A'' B'' C'' : Point),
   ∠A B C ≅ ∠A' B' C' → ∠A B C ≅ ∠A'' B'' C'' → ∠A' B' C' ≅ ∠A'' B'' C''
@@ -275,6 +282,7 @@ structure Triangle where
   non_collinear : ¬collinear A B C
   deriving Repr
 
+-- [希尔伯特几何基础公理 — 全等公理]
 /-- Congruence Axiom C6: SAS (Side-Angle-Side) -/
 axiom C6 : ∀ (A B C A' B' C' : Point),
   ¬collinear A B C → ¬collinear A' B' C' →
@@ -306,12 +314,23 @@ lemma congruent_segments_equal_length {A B C D : Point}
 lemma zero_segment_congruent (A : Point) : A ≅ A A A := by
   simp [segment_congruent, dist_self]
 
-/-- Isosceles triangle theorem: If AB ≅ AC, then ∠ABC ≅ ∠ACB
-    在欧氏几何中这可通过 SAS 证明，当前作为公理引入。 -/
-axiom isosceles_base_angles : ∀ (A B C : Point),
+/-- Isosceles triangle theorem: If AB ≅ AC, then ∠ABC ≅ ∠ACB.
+    Proved from C6 (SAS). -/
+theorem isosceles_base_angles : ∀ (A B C : Point),
   ¬collinear A B C →
   A ≅ B A C →
-  ∠A B C ≅ ∠A C B
+  ∠A B C ≅ ∠A C B := by
+  intro A B C hncol hseg
+  have hncol' : ¬collinear A C B := by
+    intro h
+    apply hncol
+    rcases h with ⟨h1, h2⟩
+    refine ⟨h1.symm, h2.symm⟩
+  have hseg' : A ≅ C A B := segment_congruent_symm hseg
+  have hangle : ∠B A C ≅ ∠C A B := by
+    simp [angle_congruent]
+  rcases C6 A B C A C B hncol hncol' hseg hseg' hangle with ⟨_, hbase, _⟩
+  exact hbase
 
 /-! ## Congruence Axioms Structure
 
@@ -368,16 +387,22 @@ Proof that the standard Euclidean plane satisfies all congruence axioms.
 
 由于完整的欧氏平面坐标证明较为冗长，以下通过公理桥接。 -/
 
+-- [希尔伯特几何基础公理 — 全等公理]
 axiom euclidean_segment_transport_unique (A B A' B' B'' : Point) (hAB : A ≠ B) (h1 : A' ≠ B') (h2 : A' ≠ B'') (h3 : A' ∗ B' ∨ B' ∗ A') (h4 : A' ∗ B'' ∨ B'' ∗ A') (hcong1 : A' ≅ B' A B) (hcong2 : A' ≅ B'' A B) : B' = B''
 
+-- [希尔伯特几何基础公理 — 全等公理]
 axiom euclidean_segment_transport_exists (A B A' : Point) (hAB : A ≠ B) (hA' : A' ≠ A) : ∃ B', (A' ∗ B' ∨ B' ∗ A') ∧ A' ≅ B' A B
 
+-- [希尔伯特几何基础公理 — 全等公理]
 axiom euclidean_segment_addition (A B C A' B' C' : Point) (hbet1 : A ∗ B ∗ C) (hbet2 : A' ∗ B' ∗ C') (hcong1 : A ≅ B A' B') (hcong2 : B ≅ C B' C') : A ≅ C A' C'
 
+-- [希尔伯特几何基础公理 — 全等公理]
 axiom euclidean_angle_transport_unique (A B C A' B' C' C'' : Point) (h1 : B ≠ A) (h2 : B ≠ C) (h3 : B' ≠ A') (h4 : B' ≠ C') (h5 : B' ≠ C'') (hncol1 : ¬collinear A' B' C') (hncol2 : ¬collinear A' B' C'') (hang1 : ∠A' B' C' ≅ ∠A B C) (hang2 : ∠A' B' C'' ≅ ∠A B C) : collinear C' B' C''
 
+-- [希尔伯特几何基础公理 — 全等公理]
 axiom euclidean_angle_transport_exists (A B C A' B' : Point) (h1 : B ≠ A) (h2 : B ≠ C) (h3 : B' ≠ A') : ∃ C', ¬collinear A' B' C' ∧ ∠A' B' C' ≅ ∠A B C
 
+-- [希尔伯特几何基础公理 — 全等公理]
 axiom euclidean_SAS (A B C A' B' C' : Point) (hncol1 : ¬collinear A B C) (hncol2 : ¬collinear A' B' C') (hcong1 : A ≅ B A' B') (hcong2 : A ≅ C A' C') (hang : ∠B A C ≅ ∠B' A' C') : B ≅ C B' C' ∧ ∠A B C ≅ ∠A' B' C' ∧ ∠A C B ≅ ∠A' C' B'
 
 /-- The Euclidean plane satisfies Hilbert's Congruence Axioms -/

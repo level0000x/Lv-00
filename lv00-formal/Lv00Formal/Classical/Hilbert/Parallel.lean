@@ -92,6 +92,7 @@ We formalize several of them here. -/
     angles on the same side less than two right angles, the two straight
     lines, if produced indefinitely, meet on that side on which are the
     angles less than two right angles. -/
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom Euclid_V : ∀ (l₁ l₂ l₃ : Line) (A B C D : Point),
   l₃.contains A → l₃.contains B →
   l₁.contains C → l₂.contains D →
@@ -100,6 +101,7 @@ axiom Euclid_V : ∀ (l₁ l₂ l₃ : Line) (A B C D : Point),
   -- Then l₁ and l₂ intersect on that side
   True  -- Placeholder for complex angle condition
 
+-- [希尔伯特几何基础公理 — 平行公理]
 /-- Playfair's Axiom (Most Common Modern Form):
     Through a point not on a given line, there is exactly one line
     parallel to the given line. -/
@@ -107,17 +109,24 @@ axiom Playfair : ∀ (l : Line) (P : Point),
   ¬l.contains P →
   ∃! l' : Line, l' ∥ l ∧ l'.contains P
 
+-- [希尔伯特几何基础公理 — 平行公理]
 /-- Playfair existence part: There exists a parallel line -/
 axiom Playfair_existence : ∀ (l : Line) (P : Point),
   ¬l.contains P →
   ∃ l' : Line, l' ∥ l ∧ l'.contains P
 
-/-- Playfair uniqueness part: The parallel line is unique -/
-axiom Playfair_uniqueness : ∀ (l : Line) (P : Point) (l₁ l₂ : Line),
+/-- Playfair uniqueness part: The parallel line is unique.
+    Proved from Playfair. -/
+theorem Playfair_uniqueness : ∀ (l : Line) (P : Point) (l₁ l₂ : Line),
   ¬l.contains P →
   l₁ ∥ l → l₂ ∥ l →
   l₁.contains P → l₂.contains P →
-  l₁ = l₂
+  l₁ = l₂ := by
+  intro l P l₁ l₂ hP h₁ h₂ hP₁ hP₂
+  rcases Playfair l P hP with ⟨l', _, huniq⟩
+  have h₁' := huniq l₁ ⟨h₁, hP₁⟩
+  have h₂' := huniq l₂ ⟨h₂, hP₂⟩
+  rw [h₁', h₂']
 
 /-! ### Hilbert's Parallel Axiom (Original Form)
 
@@ -132,6 +141,7 @@ a given angle α. If α is a right angle, this line is parallel to l. -/
     Let l be a line, A a point on l, and B a point not on l.
     Let α be an angle. There exists a ray from B such that the angle
     between this ray and BA equals α. -/
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom Hilbert_P : ∀ (l : Line) (A B : Point) (α : Angle),
   l.contains A → ¬l.contains B → A ≠ B →
   ∃ C : Point, ¬collinear A B C ∧ ∠A B C ≅ α
@@ -152,6 +162,7 @@ in the context of the other Hilbert axioms. -/
 
 /-- Proclus' Axiom: If a line intersects one of two parallel lines,
     it must also intersect the other (unless it is parallel to both). -/
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom Proclus : ∀ (l₁ l₂ l₃ : Line),
   l₁ ∥ l₂ →
   (∃ P, l₃.contains P ∧ l₁.contains P) →
@@ -210,12 +221,14 @@ lemma parallel_trans {l₁ l₂ l₃ : Line}
   exact h₁
 
 /-- Triangle angle sum is 180° (Euclidean property) -/
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom triangle_angle_sum_180 : ∀ (A B C : Point),
   ¬collinear A B C →
   -- ∠A + ∠B + ∠C = 180° (π radians)
   True  -- Placeholder for angle sum theorem
 
 /-- Alternate interior angles are equal when lines are parallel -/
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom alternate_interior_angles : ∀ (l₁ l₂ l₃ : Line) (A B C D : Point),
   l₁ ∥ l₂ →
   l₃.contains A → l₃.contains B →
@@ -226,6 +239,7 @@ axiom alternate_interior_angles : ∀ (l₁ l₂ l₃ : Line) (A B C D : Point),
   True  -- Placeholder for angle equality condition
 
 /-- Corresponding angles are equal when lines are parallel -/
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom corresponding_angles : ∀ (l₁ l₂ l₃ : Line) (A B C D E F : Point),
   l₁ ∥ l₂ →
   l₃.contains A → l₃.contains B →
@@ -274,8 +288,10 @@ Proof that the standard Euclidean plane satisfies the parallel axiom.
 
 由于完整的欧氏平面坐标证明较为冗长，以下通过公理桥接。 -/
 
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom euclidean_playfair_parallel (l : Line) (P : Point) (hP : ¬l.contains P) : ∃! l' : Line, l' ∥ l ∧ l'.contains P
 
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom euclidean_proclus (l₁ l₂ l₃ : Line) (hpar : l₁ ∥ l₂) (hint : ∃ P, l₃.contains P ∧ l₁.contains P) (hne : ¬(l₃ ∥ l₂)) : ∃ Q, l₃.contains Q ∧ l₂.contains Q
 
 /-- The Euclidean plane satisfies Hilbert's Parallel Axiom -/
@@ -318,6 +334,7 @@ To understand the significance of the parallel axiom, we show
 what happens in non-Euclidean geometries. -/
 
 /-- In hyperbolic geometry, there are infinitely many parallels -/
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom Hyperbolic_Parallel : ∀ (l : Line) (P : Point),
   ¬l.contains P →
   ∃ l₁ l₂ : Line, l₁ ∥ l ∧ l₂ ∥ l ∧ l₁ ≠ l₂ ∧
@@ -327,11 +344,13 @@ axiom Hyperbolic_Parallel : ∀ (l : Line) (P : Point),
       True  -- Placeholder for limiting parallels concept
 
 /-- In elliptic geometry, there are no parallels -/
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom Elliptic_NoParallel : ∀ (l₁ l₂ : Line),
   ¬l₁ ∥ l₂  -- Every two lines intersect
 
 /-- Euclidean geometry is characterized by exactly one parallel
     该等价关系在公理化框架中作为公理引入。 -/
+-- [希尔伯特几何基础公理 — 平行公理]
 axiom Euclidean_Characterization :
     (∀ (l : Line) (P : Point), ¬l.contains P →
       ∃! l' : Line, l' ∥ l ∧ l'.contains P) ↔

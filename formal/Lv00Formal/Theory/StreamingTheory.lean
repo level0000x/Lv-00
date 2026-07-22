@@ -36,8 +36,8 @@ theorem backpressure_bounded {α : Type} (s : Stream α) (cap : ℕ) (h : within
   unfold within_capacity; simp [hsz, h]
 
 -- [QA] placeholder: actual proof pending
-axiom stream_determinism {α β : Type} (f : α → β) (s : Stream α) :
-    process_stream f s = process_stream f s
+theorem stream_determinism {α β : Type} (f : α → β) (s : Stream α) :
+    process_stream f s = process_stream f s := rfl
 
 structure StreamContext (α : Type) where
   buffer : Stream α; offset : ℕ

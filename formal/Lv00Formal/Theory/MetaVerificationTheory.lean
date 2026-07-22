@@ -26,8 +26,7 @@ inductive MetaProof where
   | reflect (p : ProofTerm) : MetaProof
   deriving DecidableEq, Repr
 
--- [QA] placeholder: actual proof pending
-axiom meta_proof_completeness (p : ProofTerm) : MetaProof.reflect p = MetaProof.reflect p
+theorem meta_proof_completeness (p : ProofTerm) : MetaProof.reflect p = MetaProof.reflect p := rfl
 
 inductive DiffExpr where
   | dVar (v : ℚ) | dAdd (e1 e2 : DiffExpr)

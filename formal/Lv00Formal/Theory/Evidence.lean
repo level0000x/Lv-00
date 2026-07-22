@@ -209,9 +209,8 @@ theorem evidence_soundness (g : ConstraintGraph) (t : ProofTrace)
 
 /-- The evidence verifier is deterministic: same input always gives
     the same output. This is a basic sanity check for the evidence system. -/
--- [QA] placeholder: actual proof pending
-axiom evidence_verifier_deterministic (g : ConstraintGraph) (t : ProofTrace) :
-    evidence_check g t = evidence_check g t
+theorem evidence_verifier_deterministic (g : ConstraintGraph) (t : ProofTrace) :
+    evidence_check g t = evidence_check g t := rfl
 
 /-- Running the verifier on an empty trace against an empty graph succeeds -/
 theorem evidence_empty_trivially_satisfiable :

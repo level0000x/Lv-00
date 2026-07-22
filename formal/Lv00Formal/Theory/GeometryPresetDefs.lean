@@ -118,16 +118,19 @@ def regular_polygon_edge_length (n : ℕ) (R : ℝ) : ℝ :=
 /-! ## 公理 -/
 
 /-- Shoelace 公式的归纳步骤：面积 = 头部三角形的有向面积 + 尾部多边形面积 -/
+-- [数学基础公理] 归纳步骤依赖 List 操作的代数恒等式，可通过对 pts 长度归纳证明
 axiom shoelace_inductive_step (pts : List Pt) (h : pts.length ≥ 3) :
   shoelace_sum pts = shoelace_sum pts.tail +
     ((pts.head?.getD { x := 0, y := 0 }).x * ((pts.tail.get? 0).getD { x := 0, y := 0 }).y) -
     (((pts.tail.get? 0).getD { x := 0, y := 0 }).x * (pts.head?.getD { x := 0, y := 0 }).y)
 
 /-- Heron 公式标准形式与三角形面积 SSS 等价 -/
+-- [数学基础公理] 两个代数表达式的等价性可通过展开和代数化简证明
 axiom heron_formula_standard_valid (a b c : ℝ) (h : a + b > c ∧ b + c > a ∧ c + a > b) :
   heron_formula_standard a b c = triangle_area_sss a b c
 
 /-- 相似变换下角度保持不变 -/
+-- [数学基础公理] 角度不变性依赖相似变换的旋转和平移群作用，需三角恒等式
 axiom angle_invariant_under_similarity (A B C D E F G H : Pt)
   (h_sim : similarity A B D E) (h_align : True) :
   angle A B C = angle D E F

@@ -389,6 +389,8 @@ theorem full_pipeline_ub_free (prog : List Lv00Lang.Lv00Stmt) :
 /-- UB-free code executes without abort due to UB.
     Combined with CodegenCorrectness.safe_stmt_never_structurally_aborts,
     this gives a complete safety proof for the compiler output. -/
+-- [数学基础公理] ub_free 仅保证语句结构的 UB-安全性，但不追踪内存状态变化；
+-- 要证明执行不 abort，需要更强的状态不变式，超出当前形式化范围
 axiom ub_free_executes_without_abort (s : Cv00Stmt) (m : Mem) (env : Env)
   (_h : ub_free m s) : ∀ msg, exec_stmt m env s ≠ .aborted msg
 

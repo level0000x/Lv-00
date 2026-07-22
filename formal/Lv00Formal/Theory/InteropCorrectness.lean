@@ -187,29 +187,24 @@ theorem evidence_export_stable (g : ConstraintGraph) (t : ProofTrace) :
    =============================================================== -/
 
 /-- Repeated Coq export produces identical output -/
--- [QA] placeholder: actual proof pending
-axiom coq_export_idempotent (g : ConstraintGraph) :
-  export_coq g = export_coq g
+theorem coq_export_idempotent (g : ConstraintGraph) :
+  export_coq g = export_coq g := rfl
 
 /-- Repeated Lean4 export produces identical output -/
--- [QA] placeholder: actual proof pending
-axiom lean4_export_idempotent (g : ConstraintGraph) :
-  export_lean4 g = export_lean4 g
+theorem lean4_export_idempotent (g : ConstraintGraph) :
+  export_lean4 g = export_lean4 g := rfl
 
 /-- Repeated OPML export produces identical output -/
--- [QA] placeholder: actual proof pending
-axiom opml_export_idempotent (g : ConstraintGraph) :
-  export_opml g = export_opml g
+theorem opml_export_idempotent (g : ConstraintGraph) :
+  export_opml g = export_opml g := rfl
 
 /-- Repeated GeoJSON export produces identical output -/
--- [QA] placeholder: actual proof pending
-axiom geojson_export_idempotent (g : ConstraintGraph) :
-  export_geojson g = export_geojson g
+theorem geojson_export_idempotent (g : ConstraintGraph) :
+  export_geojson g = export_geojson g := rfl
 
 /-- Repeated SVG export produces identical output -/
--- [QA] placeholder: actual proof pending
-axiom svg_export_idempotent (g : ConstraintGraph) :
-  export_svg g = export_svg g
+theorem svg_export_idempotent (g : ConstraintGraph) :
+  export_svg g = export_svg g := rfl
 
 /- ===============================================================
    SVG bounding box correctness

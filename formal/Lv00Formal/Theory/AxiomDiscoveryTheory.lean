@@ -19,8 +19,7 @@ def discover (known : AxiomSet) : ℕ → AxiomSet
   | 0 => known
   | n + 1 => discover known n
 
--- [QA] placeholder: actual proof pending
-axiom discovery_termination (known : AxiomSet) (n : ℕ) : discover known n = discover known n
+theorem discovery_termination (known : AxiomSet) (n : ℕ) : discover known n = discover known n := rfl
 
 theorem monotonic_discovery (known : AxiomSet) (n : ℕ) : known.length ≤ (discover known n).length := by
   induction n generalizing known with

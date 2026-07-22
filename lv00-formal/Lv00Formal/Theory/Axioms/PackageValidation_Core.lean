@@ -33,34 +33,48 @@ def proofTheoryTemplateNames : List String :=
   templateNames proofTheoryTemplates
 
 /-- cut_elimination_complexity 的依赖满足。 -/
-axiom cut_elimination_complexity_deps :
-    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[0]!
+theorem cut_elimination_complexity_deps :
+    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[0]! := by
+  unfold DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 /-- proof_equality_problem 的依赖满足。 -/
-axiom proof_equality_problem_deps :
-    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[1]!
+theorem proof_equality_problem_deps :
+    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[1]! := by
+  unfold DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 /-- first_order_validity_proof 的依赖满足。 -/
-axiom first_order_validity_proof_deps :
-    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[2]!
+theorem first_order_validity_proof_deps :
+    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[2]! := by
+  unfold DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 /-- ordinal_computation 的依赖满足。 -/
-axiom ordinal_computation_deps :
-    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[3]!
+theorem ordinal_computation_deps :
+    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[3]! := by
+  unfold DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 /-- proof_length_optimal 的依赖满足。 -/
-axiom proof_length_optimal_deps :
-    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[4]!
+theorem proof_length_optimal_deps :
+    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[4]! := by
+  unfold DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 /-- subsystem_analysis 的依赖满足。 -/
-axiom subsystem_analysis_deps :
-    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[5]!
+theorem subsystem_analysis_deps :
+    DependenciesSatisfied proofTheoryTemplates proofTheoryUnconstructibles[5]! := by
+  unfold DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 /-- proof_theory 包的 6 个不可构造问题依赖均满足。
 
 这对应 C 测试中的 `test_dependency_validation`，但 Lean 版本给出了静态证明。 -/
-axiom proofTheoryPackage_dependencies_valid :
-    PackageDependenciesValid proofTheoryPackage
+theorem proofTheoryPackage_dependencies_valid :
+    PackageDependenciesValid proofTheoryPackage := by
+  unfold PackageDependenciesValid proofTheoryPackage DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 /-- 公理包验证结果。 -/
 structure PackageValidationResult where
@@ -78,10 +92,12 @@ def proofTheoryValidationResult : PackageValidationResult :=
     unconstructibleCount := proofTheoryPackage.unconstructibles.length }
 
 /-- 验证结果与已证明属性一致。 -/
-axiom proofTheoryValidationResult_correct :
+theorem proofTheoryValidationResult_correct :
     proofTheoryValidationResult.dependenciesValid = true ∧
     proofTheoryValidationResult.templateCount = 36 ∧
-    proofTheoryValidationResult.unconstructibleCount = 6
+    proofTheoryValidationResult.unconstructibleCount = 6 := by
+  unfold proofTheoryValidationResult
+  native_decide
 
 
 end PackageValidation

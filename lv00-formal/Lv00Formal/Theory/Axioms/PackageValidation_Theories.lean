@@ -1,4 +1,4 @@
-import Lv00Formal.Theory.Axioms.PackageValidation_Core
+﻿import Lv00Formal.Theory.Axioms.PackageValidation_Core
 import Lv00Formal.Theory.Axioms.Instances
 open Lv00Formal.Theory.Axioms.PackageValidation
 
@@ -10,12 +10,18 @@ namespace PackageValidation
 open Instances
 
 
-private axiom latticeTheory_dep_by_index (n : Nat) :
-    n < latticeTheoryUnconstructibles.length →
-    DependenciesSatisfied latticeTheoryTemplates latticeTheoryUnconstructibles[n]!
+private theorem latticeTheory_dep_by_index (n : Nat) (h : n < latticeTheoryUnconstructibles.length) :
+    DependenciesSatisfied latticeTheoryTemplates latticeTheoryUnconstructibles[n]! := by
+  have hall : ∀ u ∈ latticeTheoryUnconstructibles, DependenciesSatisfied latticeTheoryTemplates u := by
+    unfold DependenciesSatisfied TemplateNameAvailable
+    native_decide
+  have hmem : latticeTheoryUnconstructibles[n]! ∈ latticeTheoryUnconstructibles := List.get_mem _ _ _
+  exact hall _ hmem
 
-axiom latticeTheoryPackage_dependencies_valid :
-    PackageDependenciesValid latticeTheoryPackage
+theorem latticeTheoryPackage_dependencies_valid :
+    PackageDependenciesValid latticeTheoryPackage := by
+  unfold PackageDependenciesValid latticeTheoryPackage DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 def latticeTheoryValidationResult : PackageValidationResult :=
   { packageName := latticeTheoryPackage.name,
@@ -23,17 +29,25 @@ def latticeTheoryValidationResult : PackageValidationResult :=
     templateCount := latticeTheoryPackage.templates.length,
     unconstructibleCount := latticeTheoryPackage.unconstructibles.length }
 
-axiom latticeTheoryValidationResult_correct :
+theorem latticeTheoryValidationResult_correct :
     latticeTheoryValidationResult.dependenciesValid = true ∧
     latticeTheoryValidationResult.templateCount = 42 ∧
-    latticeTheoryValidationResult.unconstructibleCount = 7
+    latticeTheoryValidationResult.unconstructibleCount = 7 := by
+  unfold latticeTheoryValidationResult
+  native_decide
 
-private axiom lieTheory_dep_by_index (n : Nat) :
-    n < lieTheoryUnconstructibles.length →
-    DependenciesSatisfied lieTheoryTemplates lieTheoryUnconstructibles[n]!
+private theorem lieTheory_dep_by_index (n : Nat) (h : n < lieTheoryUnconstructibles.length) :
+    DependenciesSatisfied lieTheoryTemplates lieTheoryUnconstructibles[n]! := by
+  have hall : ∀ u ∈ lieTheoryUnconstructibles, DependenciesSatisfied lieTheoryTemplates u := by
+    unfold DependenciesSatisfied TemplateNameAvailable
+    native_decide
+  have hmem : lieTheoryUnconstructibles[n]! ∈ lieTheoryUnconstructibles := List.get_mem _ _ _
+  exact hall _ hmem
 
-axiom lieTheoryPackage_dependencies_valid :
-    PackageDependenciesValid lieTheoryPackage
+theorem lieTheoryPackage_dependencies_valid :
+    PackageDependenciesValid lieTheoryPackage := by
+  unfold PackageDependenciesValid lieTheoryPackage DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 def lieTheoryValidationResult : PackageValidationResult :=
   { packageName := lieTheoryPackage.name,
@@ -41,17 +55,25 @@ def lieTheoryValidationResult : PackageValidationResult :=
     templateCount := lieTheoryPackage.templates.length,
     unconstructibleCount := lieTheoryPackage.unconstructibles.length }
 
-axiom lieTheoryValidationResult_correct :
+theorem lieTheoryValidationResult_correct :
     lieTheoryValidationResult.dependenciesValid = true ∧
     lieTheoryValidationResult.templateCount = 70 ∧
-    lieTheoryValidationResult.unconstructibleCount = 7
+    lieTheoryValidationResult.unconstructibleCount = 7 := by
+  unfold lieTheoryValidationResult
+  native_decide
 
-private axiom modelTheory_dep_by_index (n : Nat) :
-    n < modelTheoryUnconstructibles.length →
-    DependenciesSatisfied modelTheoryTemplates modelTheoryUnconstructibles[n]!
+private theorem modelTheory_dep_by_index (n : Nat) (h : n < modelTheoryUnconstructibles.length) :
+    DependenciesSatisfied modelTheoryTemplates modelTheoryUnconstructibles[n]! := by
+  have hall : ∀ u ∈ modelTheoryUnconstructibles, DependenciesSatisfied modelTheoryTemplates u := by
+    unfold DependenciesSatisfied TemplateNameAvailable
+    native_decide
+  have hmem : modelTheoryUnconstructibles[n]! ∈ modelTheoryUnconstructibles := List.get_mem _ _ _
+  exact hall _ hmem
 
-axiom modelTheoryPackage_dependencies_valid :
-    PackageDependenciesValid modelTheoryPackage
+theorem modelTheoryPackage_dependencies_valid :
+    PackageDependenciesValid modelTheoryPackage := by
+  unfold PackageDependenciesValid modelTheoryPackage DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 def modelTheoryValidationResult : PackageValidationResult :=
   { packageName := modelTheoryPackage.name,
@@ -59,19 +81,27 @@ def modelTheoryValidationResult : PackageValidationResult :=
     templateCount := modelTheoryPackage.templates.length,
     unconstructibleCount := modelTheoryPackage.unconstructibles.length }
 
-axiom modelTheoryValidationResult_correct :
+theorem modelTheoryValidationResult_correct :
     modelTheoryValidationResult.dependenciesValid = true ∧
     modelTheoryValidationResult.templateCount = 35 ∧
-    modelTheoryValidationResult.unconstructibleCount = 6
+    modelTheoryValidationResult.unconstructibleCount = 6 := by
+  unfold modelTheoryValidationResult
+  native_decide
 
 /-! ## Classical Propositional Logic / Intuitionistic Logic / Topos Theory 包依赖验证 -/
 
-private axiom classicalPropositionalLogic_dep_by_index (n : Nat) :
-    n < classicalPropositionalLogicUnconstructibles.length →
-    DependenciesSatisfied classicalPropositionalLogicTemplates classicalPropositionalLogicUnconstructibles[n]!
+private theorem classicalPropositionalLogic_dep_by_index (n : Nat) (h : n < classicalPropositionalLogicUnconstructibles.length) :
+    DependenciesSatisfied classicalPropositionalLogicTemplates classicalPropositionalLogicUnconstructibles[n]! := by
+  have hall : ∀ u ∈ classicalPropositionalLogicUnconstructibles, DependenciesSatisfied classicalPropositionalLogicTemplates u := by
+    unfold DependenciesSatisfied TemplateNameAvailable
+    native_decide
+  have hmem : classicalPropositionalLogicUnconstructibles[n]! ∈ classicalPropositionalLogicUnconstructibles := List.get_mem _ _ _
+  exact hall _ hmem
 
-axiom classicalPropositionalLogicPackage_dependencies_valid :
-    PackageDependenciesValid classicalPropositionalLogicPackage
+theorem classicalPropositionalLogicPackage_dependencies_valid :
+    PackageDependenciesValid classicalPropositionalLogicPackage := by
+  unfold PackageDependenciesValid classicalPropositionalLogicPackage DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 def classicalPropositionalLogicValidationResult : PackageValidationResult :=
   { packageName := classicalPropositionalLogicPackage.name,
@@ -79,17 +109,25 @@ def classicalPropositionalLogicValidationResult : PackageValidationResult :=
     templateCount := classicalPropositionalLogicPackage.templates.length,
     unconstructibleCount := classicalPropositionalLogicPackage.unconstructibles.length }
 
-axiom classicalPropositionalLogicValidationResult_correct :
+theorem classicalPropositionalLogicValidationResult_correct :
     classicalPropositionalLogicValidationResult.dependenciesValid = true ∧
     classicalPropositionalLogicValidationResult.templateCount = 59 ∧
-    classicalPropositionalLogicValidationResult.unconstructibleCount = 6
+    classicalPropositionalLogicValidationResult.unconstructibleCount = 6 := by
+  unfold classicalPropositionalLogicValidationResult
+  native_decide
 
-private axiom intuitionisticLogic_dep_by_index (n : Nat) :
-    n < intuitionisticLogicUnconstructibles.length →
-    DependenciesSatisfied intuitionisticLogicTemplates intuitionisticLogicUnconstructibles[n]!
+private theorem intuitionisticLogic_dep_by_index (n : Nat) (h : n < intuitionisticLogicUnconstructibles.length) :
+    DependenciesSatisfied intuitionisticLogicTemplates intuitionisticLogicUnconstructibles[n]! := by
+  have hall : ∀ u ∈ intuitionisticLogicUnconstructibles, DependenciesSatisfied intuitionisticLogicTemplates u := by
+    unfold DependenciesSatisfied TemplateNameAvailable
+    native_decide
+  have hmem : intuitionisticLogicUnconstructibles[n]! ∈ intuitionisticLogicUnconstructibles := List.get_mem _ _ _
+  exact hall _ hmem
 
-axiom intuitionisticLogicPackage_dependencies_valid :
-    PackageDependenciesValid intuitionisticLogicPackage
+theorem intuitionisticLogicPackage_dependencies_valid :
+    PackageDependenciesValid intuitionisticLogicPackage := by
+  unfold PackageDependenciesValid intuitionisticLogicPackage DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 def intuitionisticLogicValidationResult : PackageValidationResult :=
   { packageName := intuitionisticLogicPackage.name,
@@ -97,17 +135,25 @@ def intuitionisticLogicValidationResult : PackageValidationResult :=
     templateCount := intuitionisticLogicPackage.templates.length,
     unconstructibleCount := intuitionisticLogicPackage.unconstructibles.length }
 
-axiom intuitionisticLogicValidationResult_correct :
+theorem intuitionisticLogicValidationResult_correct :
     intuitionisticLogicValidationResult.dependenciesValid = true ∧
     intuitionisticLogicValidationResult.templateCount = 50 ∧
-    intuitionisticLogicValidationResult.unconstructibleCount = 7
+    intuitionisticLogicValidationResult.unconstructibleCount = 7 := by
+  unfold intuitionisticLogicValidationResult
+  native_decide
 
-private axiom toposTheory_dep_by_index (n : Nat) :
-    n < toposTheoryUnconstructibles.length →
-    DependenciesSatisfied toposTheoryTemplates toposTheoryUnconstructibles[n]!
+private theorem toposTheory_dep_by_index (n : Nat) (h : n < toposTheoryUnconstructibles.length) :
+    DependenciesSatisfied toposTheoryTemplates toposTheoryUnconstructibles[n]! := by
+  have hall : ∀ u ∈ toposTheoryUnconstructibles, DependenciesSatisfied toposTheoryTemplates u := by
+    unfold DependenciesSatisfied TemplateNameAvailable
+    native_decide
+  have hmem : toposTheoryUnconstructibles[n]! ∈ toposTheoryUnconstructibles := List.get_mem _ _ _
+  exact hall _ hmem
 
-axiom toposTheoryPackage_dependencies_valid :
-    PackageDependenciesValid toposTheoryPackage
+theorem toposTheoryPackage_dependencies_valid :
+    PackageDependenciesValid toposTheoryPackage := by
+  unfold PackageDependenciesValid toposTheoryPackage DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 def toposTheoryValidationResult : PackageValidationResult :=
   { packageName := toposTheoryPackage.name,
@@ -115,10 +161,12 @@ def toposTheoryValidationResult : PackageValidationResult :=
     templateCount := toposTheoryPackage.templates.length,
     unconstructibleCount := toposTheoryPackage.unconstructibles.length }
 
-axiom toposTheoryValidationResult_correct :
+theorem toposTheoryValidationResult_correct :
     toposTheoryValidationResult.dependenciesValid = true ∧
     toposTheoryValidationResult.templateCount = 81 ∧
-    toposTheoryValidationResult.unconstructibleCount = 10
+    toposTheoryValidationResult.unconstructibleCount = 10 := by
+  unfold toposTheoryValidationResult
+  native_decide
 
 end PackageValidation
 end Axioms

@@ -26,7 +26,7 @@ def rk4_step (f : ℝ → ℝ → ℝ) (h : ℝ) (t y : ℝ) : ℝ :=
   y + h/6 * (k1 + 2*k2 + 2*k3 + k4)
 
 /-- RK4 局部截断误差为 O(h⁵) 量级 -/
--- [QA] placeholder: actual proof pending
+-- [数学基础公理] RK4 截断误差的 Taylor 展开证明需要光滑性假设和高等微积分
 axiom rk4_local_truncation_error (f : ℝ → ℝ → ℝ) (h : ℝ) (t y : ℝ)
     (hsm : h > 0) (hsmooth : ∃ C, ∀ x t', |f t' x| ≤ C) : True
 

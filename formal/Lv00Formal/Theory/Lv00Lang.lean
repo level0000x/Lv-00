@@ -131,6 +131,7 @@ def eval_program (s : State) : Lv00Program → State
 /-! ## 可满足性与无错误 -/
 
 /-- 程序可满足性（公理）：当且仅当约束系统有实数解时成立 -/
+-- [数学基础公理] satisfiable 是 Lv00 语言的元级语义概念，需要模型论定义
 axiom satisfiable (s : State) : Prop
 
 /-- 状态无错误 -/
@@ -149,6 +150,7 @@ theorem empty_state_no_errors : no_errors initialState := by
   rfl
 
 /-- 空状态可满足：空约束系统在任何域上都可满足 -/
+-- [数学基础公理] 依赖 satisfiable 的语义定义，空约束系统平凡可满足
 axiom empty_satisfiable : satisfiable initialState
 
 /-- 求值 point 语句将变量名加入状态 -/

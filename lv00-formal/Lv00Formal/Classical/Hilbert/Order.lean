@@ -53,6 +53,7 @@ following holds: A ∗ B ∗ C, or B ∗ A ∗ C, or A ∗ C ∗ B.
 
 This axiom establishes that betweenness is a total order on any line. -/
 
+-- [希尔伯特几何基础公理 — 顺序公理]
 /-- Order Axiom O1: Betweenness is a total order on any line -/
 axiom O1 : ∀ (A B C : Point),
   A ≠ B → B ≠ C → A ≠ C → collinear A B C →
@@ -60,13 +61,34 @@ axiom O1 : ∀ (A B C : Point),
   (B ∗ A ∗ C ∧ ¬(A ∗ B ∗ C) ∧ ¬(A ∗ C ∗ B)) ∨
   (A ∗ C ∗ B ∧ ¬(A ∗ B ∗ C) ∧ ¬(B ∗ A ∗ C))
 
-/-- Order Axiom O1': Exactly one of the three betweenness relations holds -/
-axiom O1' : ∀ (A B C : Point),
+/-- Order Theorem O1': Exactly one of the three betweenness relations holds.
+    Proved from O1. -/
+theorem O1' : ∀ (A B C : Point),
   A ≠ B → B ≠ C → A ≠ C → collinear A B C →
   (A ∗ B ∗ C ∨ B ∗ A ∗ C ∨ A ∗ C ∗ B) ∧
   (¬(A ∗ B ∗ C ∧ B ∗ A ∗ C)) ∧
   (¬(A ∗ B ∗ C ∧ A ∗ C ∗ B)) ∧
-  (¬(B ∗ A ∗ C ∧ A ∗ C ∗ B))
+  (¬(B ∗ A ∗ C ∧ A ∗ C ∗ B)) := by
+  intro A B C hAB hBC hAC hcol
+  rcases O1 A B C hAB hBC hAC hcol with (⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩)
+  · -- Case: A ∗ B ∗ C
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · left; exact h1
+    · intro h; rcases h with ⟨_, h'⟩; exact h2 h'
+    · intro h; rcases h with ⟨_, h'⟩; exact h3 h'
+    · intro h; rcases h with ⟨h', _⟩; exact h2 h'
+  · -- Case: B ∗ A ∗ C
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · right; left; exact h1
+    · intro h; rcases h with ⟨h', _⟩; exact h2 h'
+    · intro h; rcases h with ⟨h', _⟩; exact h2 h'
+    · intro h; rcases h with ⟨_, h'⟩; exact h3 h'
+  · -- Case: A ∗ C ∗ B
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · right; right; exact h1
+    · intro h; rcases h with ⟨h', _⟩; exact h2 h'
+    · intro h; rcases h with ⟨h', _⟩; exact h2 h'
+    · intro h; rcases h with ⟨h', _⟩; exact h3 h'
 
 /-! ### Order Axiom O2 (Symmetry)
 
@@ -75,6 +97,7 @@ If A ∗ B ∗ C, then C ∗ B ∗ A.
 Betweenness is symmetric: if B is between A and C, then B is also
 between C and A. -/
 
+-- [希尔伯特几何基础公理 — 顺序公理]
 /-- Order Axiom O2: Betweenness is symmetric -/
 axiom O2 : ∀ (A B C : Point), A ∗ B ∗ C → C ∗ B ∗ A
 
@@ -93,6 +116,7 @@ Given two distinct points A and B, there exists a point C such that A ∗ B ∗ 
 
 This axiom ensures that lines extend indefinitely beyond any point. -/
 
+-- [希尔伯特几何基础公理 — 顺序公理]
 /-- Order Axiom O3: Lines can be extended beyond any point -/
 axiom O3 : ∀ (A B : Point), A ≠ B → ∃ C, A ∗ B ∗ C
 
@@ -127,6 +151,7 @@ def extend_beyond (A B : Point) (h : A ≠ B) (d : ℝ) (hd : d > 0) : Point :=
 
 /-- Verify that the extended point satisfies the betweenness relation
     完整坐标验证较为冗长，当前作为公理引入。 -/
+-- [希尔伯特几何基础公理 — 顺序公理]
 axiom extend_beyond_between (A B : Point) (h : A ≠ B) (d : ℝ) (hd : d > 0) :
     A ∗ B ∗ (extend_beyond A B h d hd)
 
@@ -148,6 +173,7 @@ def segment (A B : Point) : Set Point :=
 /-- Notation for segment AB -/
 notation "⦃" A "‒" B "⦄" => segment A B
 
+-- [希尔伯特几何基础公理 — 顺序公理]
 /-- Order Axiom O4: Pasch's Axiom (Plane Separation) -/
 axiom O4 : ∀ (A B C : Point) (l : Line),
   ¬collinear A B C →
@@ -155,6 +181,7 @@ axiom O4 : ∀ (A B C : Point) (l : Line),
   (∃ P, P ∈ ⦃A‒B⦄ ∧ l.contains P) →
   (∃ Q, Q ∈ ⦃A‒C⦄ ∧ l.contains Q) ∨ (∃ R, R ∈ ⦃B‒C⦄ ∧ l.contains R)
 
+-- [希尔伯特几何基础公理 — 顺序公理]
 /-- Pasch's Axiom alternative formulation:
     A line intersecting one side of a triangle and not passing through
     any vertex must intersect one of the other two sides. -/
@@ -248,8 +275,10 @@ Proof that the standard Euclidean plane satisfies all order axioms.
 
 由于完整的欧氏平面坐标证明较为冗长，以下通过公理桥接。 -/
 
+-- [希尔伯特几何基础公理 — 顺序公理]
 axiom euclidean_order_total (A B C : Point) (hAB : A ≠ B) (hBC : B ≠ C) (hAC : A ≠ C) (hcol : collinear A B C) : (A ∗ B ∗ C ∧ ¬(B ∗ A ∗ C) ∧ ¬(A ∗ C ∗ B)) ∨ (B ∗ A ∗ C ∧ ¬(A ∗ B ∗ C) ∧ ¬(A ∗ C ∗ B)) ∨ (A ∗ C ∗ B ∧ ¬(A ∗ B ∗ C) ∧ ¬(B ∗ A ∗ C))
 
+-- [希尔伯特几何基础公理 — 顺序公理]
 axiom euclidean_pasch (A B C : Point) (l : Line) (hncol : ¬collinear A B C) (hA : ¬l.contains A) (hB : ¬l.contains B) (hC : ¬l.contains C) (hseg : ∃ P, P ∈ ⦃A‒B⦄ ∧ l.contains P) : (∃ Q, Q ∈ ⦃A‒C⦄ ∧ l.contains Q) ∨ (∃ R, R ∈ ⦃B‒C⦄ ∧ l.contains R)
 
 /-- The Euclidean plane satisfies Hilbert's Order Axioms -/

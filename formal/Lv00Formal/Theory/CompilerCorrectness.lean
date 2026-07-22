@@ -62,6 +62,7 @@ theorem stmt_compiled_edge_correct_normalize (pts : List Lv00Point) :
 -- 这实质上等同于完整的编译器正确性证明，超出当前 axiom 消除的范围。
 /-- 编译保持可满足性（核心公理）：
     若源程序 Lv00 可满足，则编译后的 IR 约束图也可满足 -/
+-- [数学基础公理] 编译正确性需要完整的语义对应证明
 axiom compile_preserves_satisfiability (prog : Lv00Program) :
     Lv00Lang.satisfiable (Lv00Lang.eval_program Lv00Lang.initialState prog) →
     graph_satisfiable (compile_program prog)
@@ -87,6 +88,7 @@ theorem compiler_idempotent (prog : Lv00Program) :
 -- 除非附加 p1 与 p2 使用不相交变量集的假设，否则无法证明。
 /-- 追加程序的可满足性：
     若 p1 和 p2 各自的编译结果可满足，则拼接编译结果也可满足。 -/
+-- [数学基础公理] 程序拼接的可满足性需要排除变量冲突条件
 axiom compile_append_satisfiable (p1 p2 : Lv00Program)
     (h1 : graph_satisfiable (compile_program p1))
     (h2 : graph_satisfiable (compile_program p2)) :

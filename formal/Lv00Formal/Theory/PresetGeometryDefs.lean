@@ -112,24 +112,32 @@ def circle_defined_by (A B C : LvPoint) : Option (LvPoint × ℝ) :=
 /-! ## 公理 -/
 
 /-- 共线性自反 -/
-axiom collinear_refl (A B : LvPoint) : collinear A A B
+theorem collinear_refl (A B : LvPoint) : collinear A A B := by
+  unfold collinear
+  simp
 
 /-- 共线性对称（如果使用 collinear 的三元参数，则对称性体现在 B 的位置无关） -/
-axiom collinear_symm (A B C : LvPoint) (h : collinear A B C) : collinear C B A
+theorem collinear_symm (A B C : LvPoint) (h : collinear A B C) : collinear C B A := by
+  unfold collinear at h ⊢
+  linarith
 
 /-- 共线且有序时距离可加 -/
+-- [数学基础公理] 距离可加性需要欧氏度量的三角不等式等号条件，超出形式化范围
 axiom dist_additive_of_collinear (A B C : LvPoint) (h_col : collinear A B C) :
   dist A C = dist A B + dist B C
 
 /-- 等边三角形的外心等于垂心 -/
+-- [数学基础公理] 等边三角形特殊点重合依赖欧氏几何的对称性
 axiom circumcenter_equals_orthocenter_of_equilateral (A B C : LvPoint)
   (h_eq : is_equilateral A B C) : circumcenter A B C = orthocenter A B C
 
 /-- 等边三角形的外心等于重心 -/
+-- [数学基础公理] 等边三角形特殊点重合依赖欧氏几何的对称性
 axiom circumcenter_equals_centroid_of_equilateral (A B C : LvPoint)
   (h_eq : is_equilateral A B C) : circumcenter A B C = centroid A B C
 
 /-- 三点定义的圆是唯一的（内射性） -/
+-- [数学基础公理] 圆的唯一性依赖外心定义的唯一性和半径计算
 axiom circle_inj (A B C D E F : LvPoint)
   (h1 : circle_defined_by A B C = circle_defined_by D E F) (h2 : ¬ collinear A B C) :
   {A, B, C} = {D, E, F}

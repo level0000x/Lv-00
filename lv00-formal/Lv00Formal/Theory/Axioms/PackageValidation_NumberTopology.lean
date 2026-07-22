@@ -11,12 +11,18 @@ open Instances
 
 /-! ## Field Theory / Order Theory / Point-Set Topology 包依赖验证 -/
 
-private axiom fieldTheory_dep_by_index (n : Nat) :
-    n < fieldTheoryUnconstructibles.length →
-    DependenciesSatisfied fieldTheoryTemplates fieldTheoryUnconstructibles[n]!
+private theorem fieldTheory_dep_by_index (n : Nat) (h : n < fieldTheoryUnconstructibles.length) :
+    DependenciesSatisfied fieldTheoryTemplates fieldTheoryUnconstructibles[n]! := by
+  have hall : ∀ u ∈ fieldTheoryUnconstructibles, DependenciesSatisfied fieldTheoryTemplates u := by
+    unfold DependenciesSatisfied TemplateNameAvailable
+    native_decide
+  have hmem : fieldTheoryUnconstructibles[n]! ∈ fieldTheoryUnconstructibles := List.get_mem _ _ _
+  exact hall _ hmem
 
-axiom fieldTheoryPackage_dependencies_valid :
-    PackageDependenciesValid fieldTheoryPackage
+theorem fieldTheoryPackage_dependencies_valid :
+    PackageDependenciesValid fieldTheoryPackage := by
+  unfold PackageDependenciesValid fieldTheoryPackage DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 def fieldTheoryValidationResult : PackageValidationResult :=
   { packageName := fieldTheoryPackage.name,
@@ -24,17 +30,20 @@ def fieldTheoryValidationResult : PackageValidationResult :=
     templateCount := fieldTheoryPackage.templates.length,
     unconstructibleCount := fieldTheoryPackage.unconstructibles.length }
 
-axiom fieldTheoryValidationResult_correct :
+theorem fieldTheoryValidationResult_correct :
     fieldTheoryValidationResult.dependenciesValid = true ∧
     fieldTheoryValidationResult.templateCount = 37 ∧
-    fieldTheoryValidationResult.unconstructibleCount = 7
+    fieldTheoryValidationResult.unconstructibleCount = 7 := by
+  unfold fieldTheoryValidationResult
+  native_decide
 
 /-- order_theory 包的依赖验证。
 
 order_theory 的不可构造问题大量引用了不在本包模板表中的外部名称
 （partial_order, realizer, topological_sort, graph_isomorphism, zfc_set_theory,
 group_theory, convex_geometry, poset_dimension, dilworth_theorem），
-整体验证使用 sorry，对应 C 测试中的预期行为。 -/
+因此此定理无法通过 native_decide 证明，保留为 axiom。 -/
+-- [需跨包语义证明 — 保留]
 axiom orderTheoryPackage_dependencies_valid :
     PackageDependenciesValid orderTheoryPackage
 
@@ -44,17 +53,25 @@ def orderTheoryValidationResult : PackageValidationResult :=
     templateCount := orderTheoryPackage.templates.length,
     unconstructibleCount := orderTheoryPackage.unconstructibles.length }
 
-axiom orderTheoryValidationResult_correct :
+theorem orderTheoryValidationResult_correct :
     orderTheoryValidationResult.dependenciesValid = true ∧
     orderTheoryValidationResult.templateCount = 32 ∧
-    orderTheoryValidationResult.unconstructibleCount = 8
+    orderTheoryValidationResult.unconstructibleCount = 8 := by
+  unfold orderTheoryValidationResult
+  native_decide
 
-private axiom pointSetTopology_dep_by_index (n : Nat) :
-    n < pointSetTopologyUnconstructibles.length →
-    DependenciesSatisfied pointSetTopologyTemplates pointSetTopologyUnconstructibles[n]!
+private theorem pointSetTopology_dep_by_index (n : Nat) (h : n < pointSetTopologyUnconstructibles.length) :
+    DependenciesSatisfied pointSetTopologyTemplates pointSetTopologyUnconstructibles[n]! := by
+  have hall : ∀ u ∈ pointSetTopologyUnconstructibles, DependenciesSatisfied pointSetTopologyTemplates u := by
+    unfold DependenciesSatisfied TemplateNameAvailable
+    native_decide
+  have hmem : pointSetTopologyUnconstructibles[n]! ∈ pointSetTopologyUnconstructibles := List.get_mem _ _ _
+  exact hall _ hmem
 
-axiom pointSetTopologyPackage_dependencies_valid :
-    PackageDependenciesValid pointSetTopologyPackage
+theorem pointSetTopologyPackage_dependencies_valid :
+    PackageDependenciesValid pointSetTopologyPackage := by
+  unfold PackageDependenciesValid pointSetTopologyPackage DependenciesSatisfied TemplateNameAvailable
+  native_decide
 
 def pointSetTopologyValidationResult : PackageValidationResult :=
   { packageName := pointSetTopologyPackage.name,
@@ -62,10 +79,12 @@ def pointSetTopologyValidationResult : PackageValidationResult :=
     templateCount := pointSetTopologyPackage.templates.length,
     unconstructibleCount := pointSetTopologyPackage.unconstructibles.length }
 
-axiom pointSetTopologyValidationResult_correct :
+theorem pointSetTopologyValidationResult_correct :
     pointSetTopologyValidationResult.dependenciesValid = true ∧
     pointSetTopologyValidationResult.templateCount = 43 ∧
-    pointSetTopologyValidationResult.unconstructibleCount = 7
+    pointSetTopologyValidationResult.unconstructibleCount = 7 := by
+  unfold pointSetTopologyValidationResult
+  native_decide
 
 
 end PackageValidation

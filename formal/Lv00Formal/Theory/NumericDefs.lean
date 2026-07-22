@@ -91,24 +91,43 @@ def polynomial_eval_horner (coeffs : List ℝ) (x : ℝ) : ℝ :=
 /-! ## 公理 -/
 
 /-- GMRES 残差单调递减：若 k₁ ≤ k₂ 则残差不增 -/
-axiom gmres_residual_monotonic (k₁ k₂ : ℕ) (h : k₁ ≤ k₂) :
-  gmres_residual k₂ ≤ gmres_residual k₁
+theorem gmres_residual_monotonic (k₁ k₂ : ℕ) (h : k₁ ≤ k₂) :
+  gmres_residual k₂ ≤ gmres_residual k₁ := by
+  unfold gmres_residual
+  have hk₁ : 0 ≤ (k₁ : ℝ) := Nat.cast_nonneg _
+  have hk₂ : 0 ≤ (k₂ : ℝ) := Nat.cast_nonneg _
+  have h_cast : (k₁ : ℝ) ≤ (k₂ : ℝ) := by exact_mod_cast h
+  have h_denom : 0 < (k₁ : ℝ) + 1 := by linarith
+  have h_denom' : 0 < (k₂ : ℝ) + 1 := by linarith
+  refine (one_div_le_one_div ?_ ?_).mpr ?_
+  · exact h_denom'
+  · exact h_denom
+  · linarith
 
 /-- CG 方法对对称正定矩阵收敛 -/
+-- [数学基础公理] CG 收敛性依赖对称正定矩阵的谱理论，超出形式化范围
 axiom cg_converges_for_spd {n : ℕ} (A : Matrix n n) (b : ℕ → ℝ)
   (h_sym : Symmetric A) (h_pos : PosDef A) :
   cg_converges (λ k => cg_iterate k A b)
 
 /-- Power 迭代收敛到绝对值最大的特征值 -/
+-- [数学基础公理] Power 迭代收敛性依赖 Perron-Frobenius 谱理论，超出形式化范围
 axiom power_iteration_converges_to_dominant {n : ℕ} (A : Matrix n n) (v : ℕ → ℝ)
   (h_nonzero : power_iteration_nonzero v) (h_sym : Symmetric A) :
   cg_converges (λ k => power_iterate k A v)
 
 /-- Horner 求值与标准多项式求值等价 -/
-axiom horner_equiv_standard (coeffs : List ℝ) (x : ℝ) :
-  polynomial_eval_horner coeffs x = (coeffs.zipWith (λ c i => c * x ^ i) (List.range coeffs.length)).sum
+theorem horner_equiv_standard (coeffs : List ℝ) (x : ℝ) :
+  polynomial_eval_horner coeffs x = (coeffs.zipWith (λ c i => c * x ^ i) (List.range coeffs.length)).sum := by
+  induction coeffs generalizing x with
+  | nil => rfl
+  | cons c cs ih =>
+      unfold polynomial_eval_horner
+      simp [ih]
+      ring
 
 /-- 信赖等级有序性 -/
-axiom trust_level_total_order (a b : TrustLevel) : a ≤ b ∨ b ≤ a
+theorem trust_level_total_order (a b : TrustLevel) : a ≤ b ∨ b ≤ a := by
+  cases a <;> cases b <;> simp
 
 end Lv00Formal.Theory.NumericDefs

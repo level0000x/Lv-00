@@ -82,28 +82,71 @@ def is_rotor (a : Multivector n) : Prop :=
 /-! ## 公理 -/
 
 /-- 几何积的 blade 结合律：任意 three blades 的几何积可结合 -/
-axiom gp_blade_assoc (a b c : Multivector n) : gp (gp a b) c = gp a (gp b c)
+theorem gp_blade_assoc (a b c : Multivector n) : gp (gp a b) c = gp a (gp b c) := by
+  ext
+  · -- scalar field
+    unfold gp
+    simp
+    ring
+  · -- vector field (first component)
+    unfold gp
+    simp
+    ring
+  · -- vector field (second component)
+    unfold gp
+    simp
+    ring
+  · -- vector field (third component)
+    unfold gp
+    simp
+    ring
+  · -- bivector field (first component)
+    unfold gp
+    simp
+  · -- bivector field (second component)
+    unfold gp
+    simp
+  · -- bivector field (third component)
+    unfold gp
+    simp
 
 /-- 纯向量的几何积等于其内积（标量）：v^2 = v·v -/
-axiom vector_gp_square (a : Multivector n) (h : is_vector a) :
-  gp a a = scalar_mv (a.vector.1^2 + a.vector.2.1^2 + a.vector.2.2^2)
+theorem vector_gp_square (a : Multivector n) (h : is_vector a) :
+  gp a a = scalar_mv (a.vector.1^2 + a.vector.2.1^2 + a.vector.2.2^2) := by
+  rcases h with ⟨hs, hb⟩
+  unfold gp scalar_mv is_vector at *
+  simp [hs, hb]
 
 /-- 标量部分与几何积可交换 -/
-axiom gp_commute_scalar_part (a b : Multivector n) :
-  scalar_part (gp a b) = scalar_part (gp b a)
+theorem gp_commute_scalar_part (a b : Multivector n) :
+  scalar_part (gp a b) = scalar_part (gp b a) := by
+  unfold scalar_part gp
+  simp
+  ring
 
 /-- 标量 1 多向量是几何积的单位元 -/
-axiom gp_scalar_one (a : Multivector n) : gp a (scalar_mv 1) = a
+theorem gp_scalar_one (a : Multivector n) : gp a (scalar_mv 1) = a := by
+  unfold gp scalar_mv
+  simp
+  ext <;> simp
 
 /-- 纯向量之间的外积反交换：u∧v = -v∧u -/
-axiom outer_anticomm (u v : Multivector n) (hu : is_vector u) (hv : is_vector v) :
-  outer u v = scale (-1) (outer v u)
+theorem outer_anticomm (u v : Multivector n) (hu : is_vector u) (hv : is_vector v) :
+  outer u v = scale (-1) (outer v u) := by
+  rcases hu with ⟨hus, hub⟩
+  rcases hv with ⟨hvs, hvb⟩
+  unfold outer scale
+  simp [hus, hvs, hub, hvb]
+  ext <;> simp <;> ring
 
 /-- 几何积右逆存在性 -/
+-- [数学基础公理] 逆元的存在性依赖于多向量的具体代数结构，
+-- 在当前简化的 gp 定义下，需要构造满足线性方程组的解
 axiom gp_inverse_right (a : Multivector n) (h : a.scalar ≠ 0) :
   ∃ b : Multivector n, gp a b = scalar_mv 1
 
 /-- 几何积左逆存在性 -/
+-- [数学基础公理] 同 gp_inverse_right，左逆存在性依赖代数结构
 axiom gp_inverse_left (a : Multivector n) (h : a.scalar ≠ 0) :
   ∃ b : Multivector n, gp b a = scalar_mv 1
 
