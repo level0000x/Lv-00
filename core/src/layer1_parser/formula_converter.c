@@ -1820,6 +1820,9 @@ static double eval_node(const FormulaNode *node, double x, double y) {
         case NODE_BINARY_OP_POW: {
             double l = eval_node(node->data.binary_op.left, x, y);
             double r = eval_node(node->data.binary_op.right, x, y);
+            /* Guard: pow(negative, non-integer) is undefined in reals.
+             * Return 0.0 for consistency with the SQRT handling below. */
+            if (l < 0.0 && fabs(r - round(r)) > 1e-12) return 0.0;
             return pow(l, r);
         }
 

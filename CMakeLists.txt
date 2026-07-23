@@ -1407,6 +1407,8 @@ if(BUILD_TESTS)
     # v3.5.0 新增：几何约束求解器模块测试
     add_lv_test_and_register(test_geo_constraint_solver
         test/c/test_geo_constraint_solver.c geo_constraint_solver_test)
+    add_lv_test_and_register(test_geo_constraint_solver_ext
+        test/c/test_geo_constraint_solver_ext.c geo_constraint_solver_ext_test)
     # ODE 求解器模块测试
     add_lv_test_and_register(test_ode_solver
         test/c/test_ode_solver.c ode_solver_test)

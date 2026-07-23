@@ -670,6 +670,12 @@ static double evaluate_expression(const char *expr, const double *var_values, in
                     break;
                 case RPN_OP_POW:
                     if (eval_top < 2) return NAN;
+                    /* Guard: pow(negative, non-integer) is undefined in reals */
+                    if (eval_stack[eval_top - 2] < 0.0 &&
+                        fabs(eval_stack[eval_top - 1] -
+                             round(eval_stack[eval_top - 1])) > 1e-12) {
+                        return NAN;
+                    }
                     eval_stack[eval_top - 2] =
                         pow(eval_stack[eval_top - 2], eval_stack[eval_top - 1]);
                     eval_top--;

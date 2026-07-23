@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file sym_expr.c
  * @brief Symbolic expression tree -- implementation
  *
@@ -324,7 +324,16 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
         }
         /* const^const -> const */
         if (sym_expr_is_const(base) && sym_expr_is_const(exp)) {
-            result = sym_expr_create_const(pow(base->value, exp->value));
+            /* Guard: pow(negative, non-integer) is undefined in reals.
+             * Check if exponent is effectively an integer; if not and base < 0,
+             * the result would be NaN. */
+            double val;
+            if (base->value < 0.0 && fabs(exp->value - round(exp->value)) > 1e-12) {
+                val = NAN;
+            } else {
+                val = pow(base->value, exp->value);
+            }
+            result = sym_expr_create_const(val);
             sym_expr_destroy(base);
             sym_expr_destroy(exp);
             free(simplified_children);
@@ -370,8 +379,8 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
             switch (expr->kind) {
             case lv_SYM_SIN:  val = sin(operand->value); break;
             case lv_SYM_COS:  val = cos(operand->value); break;
-            case lv_SYM_SQRT: val = sqrt(operand->value); break;
-            case lv_SYM_LOG:  val = log(operand->value); break;
+            case lv_SYM_SQRT: val = (operand->value >= 0.0) ? sqrt(operand->value) : NAN; break;
+            case lv_SYM_LOG:  val = (operand->value > 0.0)  ? log(operand->value)  : NAN; break;
             default: break;
             }
             result = sym_expr_create_const(val);
@@ -426,7 +435,10 @@ lv_PUBLIC_API double sym_expr_eval_double(const lvSymExpr *expr,
 
     case lv_SYM_POW: {
         double base = sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
-        double exp = sym_expr_eval_double(expr->children[1], var_names, var_values, var_count);
+        double exp  = sym_expr_eval_double(expr->children[1], var_names, var_values, var_count);
+        /* Guard: NaN propagation and domain check for negative base with non-integer exponent */
+        if (isnan(base) || isnan(exp)) return NAN;
+        if (base < 0.0 && fabs(exp - round(exp)) > 1e-12) return NAN;
         return pow(base, exp);
     }
 
@@ -439,11 +451,17 @@ lv_PUBLIC_API double sym_expr_eval_double(const lvSymExpr *expr,
     case lv_SYM_COS:
         return cos(sym_expr_eval_double(expr->children[0], var_names, var_values, var_count));
 
-    case lv_SYM_SQRT:
-        return sqrt(sym_expr_eval_double(expr->children[0], var_names, var_values, var_count));
+    case lv_SYM_SQRT: {
+        double val = sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
+        if (isnan(val) || val < 0.0) return NAN;
+        return sqrt(val);
+    }
 
-    case lv_SYM_LOG:
-        return log(sym_expr_eval_double(expr->children[0], var_names, var_values, var_count));
+    case lv_SYM_LOG: {
+        double val = sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
+        if (isnan(val) || val <= 0.0) return NAN;
+        return log(val);
+    }
 
     default:
         return NAN;
