@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file bootstrap_test.c
  * @brief Lv-00 自举差分测试框架实现骨架
  *
@@ -24,10 +24,21 @@
 
 /* ============== 兼容定义 ============== */
 
-/* 距离约束类型兼容 */
+/** 距离约束类型兼容宏 */
 #define CONSTRAINT_DISTANCE INCIDENCE
 
-/* graph_add_distance_constraint 兼容 stub */
+/**
+ * @brief graph_add_distance_constraint 兼容 stub
+ *
+ * 创建辅助距离节点，通过有理符号坐标编码距离值，
+ * 将距离约束降级为 containment + incidence 约束。
+ *
+ * @param g    约束图指针
+ * @param a    端点 A ID
+ * @param b    端点 B ID
+ * @param dist 距离值
+ * @return 添加结果
+ */
 static inline AddConstraintResult graph_add_distance_constraint(ConstraintGraph *g, int a, int b, double dist) {
     /* 创建辅助距离节点：symbolic_coords 编码距离值 */
     SymbolicCoord *dist_coord = symbolic_coord_create_rational((long long)(dist * 1000000), 1000000);
@@ -46,13 +57,25 @@ static inline AddConstraintResult graph_add_distance_constraint(ConstraintGraph 
 
 /* ============== 内部状态 ============== */
 
+/** 框架是否已初始化 */
 static bool g_initialized = false;
+/** 总测试计数 */
 static uint64_t g_test_count = 0;
+/** 通过测试计数 */
 static uint64_t g_pass_count = 0;
+/** 失败测试计数 */
 static uint64_t g_fail_count = 0;
 
 /* ============== 框架初始化 ============== */
 
+/**
+ * @brief 初始化自举测试框架
+ *
+ * 初始化 Lv-00 核心系统和原语包装器。
+ * 可重复调用（幂等），第二次调用直接返回 true。
+ *
+ * @return true 初始化成功，false 失败
+ */
 bool bootstrap_test_framework_init(void)
 {
     if (g_initialized) {
@@ -81,6 +104,12 @@ bool bootstrap_test_framework_init(void)
     return true;
 }
 
+/**
+ * @brief 清理自举测试框架
+ *
+ * 清理原语包装器和 Lv-00 核心系统。
+ * 幂等函数，多次调用安全。
+ */
 void bootstrap_test_framework_cleanup(void)
 {
     if (!g_initialized) {
@@ -94,6 +123,11 @@ void bootstrap_test_framework_cleanup(void)
     printf("[BootstrapTest] Framework cleaned up\n");
 }
 
+/**
+ * @brief 检查框架是否已初始化
+ *
+ * @return true 已初始化，false 未初始化
+ */
 bool bootstrap_test_framework_is_initialized(void)
 {
     return g_initialized;
@@ -101,12 +135,23 @@ bool bootstrap_test_framework_is_initialized(void)
 
 /* ============== 差分测试 ============== */
 
+/** @brief 差分测试结构体，包含测试名称、DSL 源码和输入图 */
 struct BootstrapDiffTest {
-    char *test_name;
-    char *dsl_source;
-    void *input_graph;
+    char *test_name;     /**< 测试名称 */
+    char *dsl_source;    /**< DSL 源码 */
+    void *input_graph;  /**< 输入图指针（由调用者管理） */
 };
 
+/**
+ * @brief 创建差分测试
+ *
+ * 分配并初始化 BootstrapDiffTest 结构体，
+ * 深拷贝 test_name 和 dsl_source。
+ *
+ * @param test_name  测试名称（可为 NULL，将使用 "unnamed"）
+ * @param dsl_source DSL 源码（可为 NULL）
+ * @return 新创建的 BootstrapDiffTest 指针，失败返回 NULL
+ */
 BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name,
                                                const char *dsl_source)
 {
@@ -122,6 +167,13 @@ BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name,
     return test;
 }
 
+/**
+ * @brief 销毁差分测试
+ *
+ * 释放 test_name 和 dsl_source（input_graph 由调用者管理）。
+ *
+ * @param test 待销毁的 BootstrapDiffTest 指针（可为 NULL）
+ */
 void bootstrap_diff_test_destroy(BootstrapDiffTest *test)
 {
     if (!test) {
@@ -134,6 +186,14 @@ void bootstrap_diff_test_destroy(BootstrapDiffTest *test)
     lv_free((void**)&test);
 }
 
+/**
+ * @brief 运行差分测试
+ *
+ * 执行 DSL 解析 -> C API 执行 -> 几何层执行 -> 结果比较的完整差分测试流程。
+ *
+ * @param test 待运行的测试
+ * @return 测试结果指针（调用者须通过 bootstrap_diff_test_result_destroy 释放），失败返回 NULL
+ */
 BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
 {
     if (!test || !g_initialized) {

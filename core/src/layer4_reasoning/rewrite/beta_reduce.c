@@ -107,7 +107,7 @@ static int duplicate_node(ConstraintGraph *graph, const GeomNode *source) {
         /* 复制 POINT 节点 */
         SymbolicCoord **coords = NULL;
         if (source->coord_count > 0 && source->symbolic_coords) {
-            coords = lv_malloc((size_t)source->coord_count * sizeof(SymbolicCoord *));
+            coords = lv_calloc((size_t)source->coord_count, sizeof(SymbolicCoord *));
             if (!coords) return -1;
             for (int c = 0; c < source->coord_count; c++) {
                 coords[c] = symbolic_coord_copy(source->symbolic_coords[c]);
@@ -303,7 +303,7 @@ static bool remap_internal_constraints(ConstraintGraph *graph,
     int affected_count = 0;
 
     /* 标记哪些旧 ID 需要映射 */
-    bool *needs_remap = lv_malloc((size_t)graph->next_node_id * sizeof(bool));
+    bool *needs_remap = lv_calloc((size_t)graph->next_node_id, sizeof(bool));
     if (!needs_remap) return false;
     memset(needs_remap, 0, (size_t)graph->next_node_id * sizeof(bool));
 
@@ -578,7 +578,7 @@ bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id,
               func_block_id, arg_node_id, internal_count);
 
     /* Step 1: 构建内部节点 ID 数组 */
-    int *internal_ids = lv_malloc((size_t)internal_count * sizeof(int));
+    int *internal_ids = lv_calloc((size_t)internal_count, sizeof(int));
     if (!internal_ids) return false;
     for (int i = 0; i < internal_count; i++) {
         internal_ids[i] = internal_nodes[i] ? internal_nodes[i]->id : -1;
@@ -587,7 +587,7 @@ bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id,
     /* Step 2: 分配 ID 映射表。
      * 使用 next_node_id + internal_count 作为安全大小。 */
     int map_size = graph->next_node_id + internal_count + 64;
-    int *id_map = lv_malloc((size_t)map_size * sizeof(int));
+    int *id_map = lv_calloc((size_t)map_size, sizeof(int));
     if (!id_map) {
         lv_free((void**)&internal_ids);
         return false;

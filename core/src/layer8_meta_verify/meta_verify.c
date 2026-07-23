@@ -1,4 +1,16 @@
-﻿#include "lv/meta_verify.h"
+/**
+ * @file meta_verify.c
+ * @brief 元验证系统实现
+ *
+ * @details 实现六项元验证检查（结构完整性、类型一致性、完备性、可靠性、
+ * 非平凡性、往返验证），用于验证证明流水线输出的正确性。提供会话级别
+ * (lv_meta_verify_session) 和证明对象级别 (lv_meta_verify_proof) 两套验证接口。
+ * 每个检查可通过掩码单独启用/禁用，支持严格模式（预留扩展）。
+ *
+ * @author Lv-00 Project
+ */
+
+#include "lv/meta_verify.h"
 #include "lv/proof.h"
 #include "lv/proof_compiler.h"
 #include "lv/lv_utils.h"
@@ -470,10 +482,19 @@ static int check_roundtrip(const lvSession *session, char *desc, int desc_size) 
 }
 
 /**
- * @brief 检查函数分发表
+ * @brief 检查函数分发表类型
+ *
+ * 所有内部检查函数遵循统一签名：接收只读会话指针、输出描述缓冲区及大小，
+ * 返回 1（通过）或 0（失败）。
  */
 typedef int (*check_func_t)(const lvSession *, char *, int);
 
+/** 
+ * @brief 六项检查函数的分发表
+ *
+ * 索引与 lvVerifyCheck 枚举值一一对应，通过 lv_meta_verify_session 遍历调用。
+ * 每个函数执行单一维度的验证，结果写入 lvMetaVerifyResult::description。
+ */
 static const check_func_t g_check_funcs[lv_CHECK_COUNT] = {
     check_structural,        /* lv_CHECK_STRUCTURAL */
     check_type_consistency,  /* lv_CHECK_TYPE */
@@ -487,6 +508,14 @@ static const check_func_t g_check_funcs[lv_CHECK_COUNT] = {
  * 公共接口实现
  * ============================================================ */
 
+/**
+ * @brief 创建元验证器实例
+ *
+ * 分配并初始化元验证器，所有六项检查默认全部启用，严格模式关闭。
+ * 验证器通过 check_mask 位掩码控制各项检查的启停。
+ *
+ * @return 成功返回元验证器指针，内存分配失败返回 NULL
+ */
 lvMetaVerifier *lv_meta_verifier_create(void) {
     lvMetaVerifier *v = lv_calloc(1, sizeof(lvMetaVerifier));
     if (!v) return NULL;
@@ -495,24 +524,65 @@ lvMetaVerifier *lv_meta_verifier_create(void) {
     return v;
 }
 
+/**
+ * @brief 销毁元验证器实例
+ *
+ * 释放元验证器占用的内存。传入 NULL 时安全返回。
+ *
+ * @param verifier 要销毁的元验证器指针
+ */
 void lv_meta_verifier_destroy(lvMetaVerifier *verifier) {
     lv_free((void **)&verifier);
 }
 
+/**
+ * @brief 启用指定验证检查项
+ *
+ * 通过设置 check_mask 中对应的位来启用某项检查。
+ *
+ * @param verifier 元验证器指针
+ * @param check    要启用的检查项枚举值
+ */
 void lv_meta_verifier_enable_check(lvMetaVerifier *verifier, lvVerifyCheck check) {
     if (verifier && check >= 0 && check < lv_CHECK_COUNT)
         verifier->check_mask |= (1 << check);
 }
 
+/**
+ * @brief 禁用指定验证检查项
+ *
+ * 通过清除 check_mask 中对应的位来跳过某项检查。
+ *
+ * @param verifier 元验证器指针
+ * @param check    要禁用的检查项枚举值
+ */
 void lv_meta_verifier_disable_check(lvMetaVerifier *verifier, lvVerifyCheck check) {
     if (verifier && check >= 0 && check < lv_CHECK_COUNT)
         verifier->check_mask &= ~(1 << check);
 }
 
+/**
+ * @brief 设置严格模式
+ *
+ * 启用严格模式后，验证失败将产生更严格的判定（预留扩展，当前仅存储标记）。
+ *
+ * @param verifier 元验证器指针
+ * @param strict   非零值启用严格模式，零值禁用
+ */
 void lv_meta_verifier_set_strict(lvMetaVerifier *verifier, int strict) {
     if (verifier) verifier->strict_mode = strict;
 }
 
+/**
+ * @brief 运行会话级元验证
+ *
+ * 对指定会话依次执行所有已启用的检查项。遍历 g_check_funcs 分发表，
+ * 为每项检查记录结果（通过/失败/跳过），并汇总生成验证报告。
+ *
+ * @param verifier 元验证器（决定哪些检查项启用）
+ * @param session  已验证的会话对象（只读）
+ * @return 包含每项检查结果和统计摘要的 lvVerifyReport 结构体
+ */
 lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession *session) {
     lvVerifyReport report;
     memset(&report, 0, sizeof(report));
@@ -548,6 +618,16 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
     return report;
 }
 
+/**
+ * @brief 运行证明对象级元验证
+ *
+ * 对 lvProofObject 结构体直接执行六项验证检查（非会话上下文）。
+ * 通过 switch-case 逐项检查步骤链完整性、循环依赖、结论匹配目标等。
+ *
+ * @param verifier 元验证器（决定哪些检查项启用）
+ * @param proof    证明对象指针（lvProofObject 类型）
+ * @return 包含每项检查结果和统计摘要的 lvVerifyReport 结构体
+ */
 lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
     lvVerifyReport report;
     memset(&report, 0, sizeof(report));

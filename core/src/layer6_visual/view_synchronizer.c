@@ -1,8 +1,26 @@
-﻿#include "lv/visual_editor.h"
+/**
+ * @file view_synchronizer.c
+ * @brief 视图同步器实现
+ *
+ * @details 实现多视图间的同步机制，支持视图脏标记传播、待处理变更
+ *          收集和批量刷新。同步器维护脏视图列表和待处理变更队列，
+ *          支持启用/禁用同步以控制传播行为。
+ *
+ * @author Lv-00 Project
+ */
+
+#include "lv/visual_editor.h"
 #include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * @brief 创建视图同步器
+ *
+ * 分配并初始化同步器，默认启用同步。预分配脏视图列表和待处理变更队列。
+ *
+ * @return 成功返回同步器指针，失败返回NULL
+ */
 lvViewSynchronizer *lv_view_sync_create(void) {
     lvViewSynchronizer *sync = lv_calloc(1, sizeof(lvViewSynchronizer));
     if (!sync) return NULL;
@@ -23,6 +41,13 @@ lvViewSynchronizer *lv_view_sync_create(void) {
     return sync;
 }
 
+/**
+ * @brief 销毁视图同步器
+ *
+ * 释放脏视图列表、待处理变更队列和同步器结构体。
+ *
+ * @param sync 同步器指针
+ */
 void lv_view_sync_destroy(lvViewSynchronizer *sync) {
     if (!sync) return;
     lv_free((void **)&sync->dirty_views);
@@ -30,23 +55,55 @@ void lv_view_sync_destroy(lvViewSynchronizer *sync) {
     lv_free((void **)&sync);
 }
 
+/**
+ * @brief 启用同步
+ *
+ * 开启视图同步功能，使脏标记传播生效。
+ *
+ * @param sync 同步器指针
+ * @return 成功返回0，失败返回-1
+ */
 int lv_view_sync_enable(lvViewSynchronizer *sync) {
     if (!sync) return -1;
     sync->sync_enabled = 1;
     return 0;
 }
 
+/**
+ * @brief 禁用同步
+ *
+ * 关闭视图同步功能，脏标记传播将被忽略。
+ *
+ * @param sync 同步器指针
+ * @return 成功返回0，失败返回-1
+ */
 int lv_view_sync_disable(lvViewSynchronizer *sync) {
     if (!sync) return -1;
     sync->sync_enabled = 0;
     return 0;
 }
 
+/**
+ * @brief 获取冲突计数
+ *
+ * @param sync 同步器指针（const）
+ * @return 冲突计数，sync为NULL时返回0
+ */
 int lv_view_sync_conflicts(const lvViewSynchronizer *sync) {
     return sync ? sync->conflict_count : 0;
 }
 
-/* 标记视图为脏并传播到依赖视图 */
+/**
+ * @brief 标记视图为脏并传播到依赖视图
+ *
+ * 将源视图标记为脏视图，并记录待处理变更。
+ * 如果脏视图列表或待处理变更队列已满，自动扩容。
+ *
+ * @param sync          同步器指针
+ * @param source_view_id 源视图ID
+ * @param change_type    变更类型描述字符串
+ * @return 成功返回0，失败返回-1
+ */
 int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id,
                               const char *change_type) {
     if (!sync || !change_type) return -1;
@@ -54,6 +111,8 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id,
 
     /* 添加待处理变更记录 */
     if (sync->pending_count >= sync->pending_capacity) {
+        /* [安全] 防止 pending_capacity * 2 整数溢出 */
+        if (sync->pending_capacity > INT_MAX / 2) return -1;
         int new_cap = sync->pending_capacity * 2;
         void *new_arr = lv_realloc(sync->pending_changes,
                                 new_cap * sizeof(sync->pending_changes[0]));
@@ -78,6 +137,8 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id,
     }
     if (!already_dirty) {
         if (sync->dirty_count >= sync->dirty_capacity) {
+            /* [安全] 防止 dirty_capacity * 2 整数溢出 */
+            if (sync->dirty_capacity > INT_MAX / 2) return -1;
             int new_cap = sync->dirty_capacity * 2;
             void *new_arr = lv_realloc(sync->dirty_views, new_cap * sizeof(int));
             if (!new_arr) return -1;
@@ -90,7 +151,15 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id,
     return 0;
 }
 
-/* 处理所有待处理的同步 */
+/**
+ * @brief 处理所有待处理的同步
+ *
+ * 按序处理所有待处理变更，清空脏视图列表和待处理队列。
+ * 返回本次处理的变更数量。
+ *
+ * @param sync 同步器指针
+ * @return 成功返回处理的变更数量，失败返回-1
+ */
 int lv_view_sync_flush(lvViewSynchronizer *sync) {
     if (!sync) return -1;
     if (!sync->sync_enabled) return 0;

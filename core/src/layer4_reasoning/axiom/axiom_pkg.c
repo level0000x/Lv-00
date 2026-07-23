@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
+#include "debug.h"
 #include "lexer_shared.h"
 #include "error_codes.h"
 #include "lv_internal.h"
@@ -1079,6 +1080,41 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
     return !p->has_error;
 }
 
+/**
+ * @brief 发出公理包加载提示
+ *
+ * 检查公理包是否包含非经典逻辑特征，向用户发出加载提示。
+ * 对应设计文档 5.3 节：非经典逻辑公理包加载提示机制。
+ */
+static void axiom_package_emit_load_hints(AxiomPackage *pkg) {
+    if (!pkg) return;
+
+    /* 1. 检查是否覆盖 ⊥ 定义或矛盾行为 —— 非标准否定语义 */
+    if (pkg->contradiction_behavior != CONSTRUCTIVE ||
+        (pkg->bottom_geometry && strcmp(pkg->bottom_geometry, "default") != 0)) {
+        LOG_WARN("axiom", "公理包 '%s' 使用了非标准否定语义", pkg->name ? pkg->name : "unnamed");
+        if (axiom_stream_ctx) {
+            stream_emit_warning(axiom_stream_ctx, "该公理包使用了非标准否定语义", 0);
+        }
+    }
+
+    /* 2. 检查是否包含非构造性 Oracle */
+    if (pkg->contradiction_behavior == NON_CONSTRUCTIVE_ORACLE) {
+        LOG_WARN("axiom", "公理包 '%s' 包含非构造性初始证物", pkg->name ? pkg->name : "unnamed");
+        if (axiom_stream_ctx) {
+            stream_emit_warning(axiom_stream_ctx, "该公理包包含非构造性初始证物", 0);
+        }
+    }
+
+    /* 3. 检查是否包含爆炸原理 */
+    if (pkg->contradiction_behavior == EXPLOSION_PRINCIPLE) {
+        LOG_WARN("axiom", "公理包 '%s' 包含从矛盾推导任意命题的规则", pkg->name ? pkg->name : "unnamed");
+        if (axiom_stream_ctx) {
+            stream_emit_warning(axiom_stream_ctx, "该公理包包含从矛盾推导任意命题的规则", 0);
+        }
+    }
+}
+
 /* 完整的包加载函数 */
 AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     if (!pkg || !filepath) {
@@ -1186,6 +1222,8 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "公理包加载成功", 0);
     }
+    
+    axiom_package_emit_load_hints(pkg);
     
     return AXIOM_LOAD_OK;
 }

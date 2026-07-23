@@ -1,4 +1,15 @@
-﻿#include "lv/visual_editor.h"
+/**
+ * @file geometry_canvas.c
+ * @brief 几何画布视图实现
+ *
+ * @details 实现几何画布视图，管理几何实体（点、线、圆、多边形）和约束可视化。
+ *          支持实体的添加/删除、约束的添加、包围盒计算、视图适配以及 SVG 输出渲染。
+ *          实体和约束使用动态数组管理，支持自动扩容。
+ *
+ * @author Lv-00 Project
+ */
+
+#include "lv/visual_editor.h"
 #include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
@@ -6,59 +17,71 @@
 
 /* 几何画布视图 - 完整实现 */
 
-/* 几何实体类型 */
+/** @brief 几何实体类型枚举 */
 typedef enum {
-    lv_GEOM_POINT,
-    lv_GEOM_LINE,
-    lv_GEOM_CIRCLE,
-    lv_GEOM_POLYGON
+    lv_GEOM_POINT,    /**< 点 */
+    lv_GEOM_LINE,     /**< 线 */
+    lv_GEOM_CIRCLE,   /**< 圆 */
+    lv_GEOM_POLYGON   /**< 多边形 */
 } lvGeomEntityType;
 
-/* 几何实体 */
+/** @brief 几何实体结构 */
 typedef struct lvGeomEntity {
-    int id;
-    lvGeomEntityType type;
-    char label[128];
+    int id;                  /**< 实体唯一标识 */
+    lvGeomEntityType type;   /**< 实体类型 */
+    char label[128];         /**< 实体标签 */
 
-    /* 坐标数据（统一存储） */
-    double *coords;   /* point: [x,y]; line: [x1,y1,x2,y2]; circle: [cx,cy,r]; polygon: [x1,y1,x2,y2,...] */
-    int coord_count;
+    /** 坐标数据（统一存储）
+     *  point: [x, y]
+     *  line: [x1, y1, x2, y2]
+     *  circle: [cx, cy, r]
+     *  polygon: [x1, y1, x2, y2, ...] */
+    double *coords;
+    int coord_count;         /**< 坐标数量 */
 
     /* 颜色 */
-    char stroke_color[32];
-    char fill_color[32];
-    double stroke_width;
+    char stroke_color[32];   /**< 描边颜色 */
+    char fill_color[32];     /**< 填充颜色 */
+    double stroke_width;     /**< 描边宽度 */
 } lvGeomEntity;
 
-/* 约束可视化 */
+/** @brief 约束可视化结构 */
 typedef struct lvGeomConstraint {
-    int id;
-    int entity_a_id;
-    int entity_b_id;
-    char label[128];
-    char color[32];
+    int id;                  /**< 约束唯一标识 */
+    int entity_a_id;         /**< 实体A的ID */
+    int entity_b_id;         /**< 实体B的ID */
+    char label[128];         /**< 约束标签 */
+    char color[32];          /**< 约束颜色 */
 } lvGeomConstraint;
 
-/* 视图边界 */
+/** @brief 视图边界结构 */
 typedef struct lvViewBounds {
-    double min_x, min_y, max_x, max_y;
-    int valid;
+    double min_x, min_y, max_x, max_y;  /**< 边界范围 */
+    int valid;                           /**< 边界是否有效 */
 } lvViewBounds;
 
+/** @brief 几何画布内部结构 */
 typedef struct lvGeometryCanvas {
-    int view_type;
-    lvGeomEntity *entities;
-    int entity_count;
-    int entity_capacity;
-    lvGeomConstraint *constraints;
-    int constraint_count;
-    int constraint_capacity;
-    lvViewBounds bounds;
-    void *proof_overlay;
-    int next_entity_id;
-    int next_constraint_id;
+    int view_type;                          /**< 视图类型标识 */
+    lvGeomEntity *entities;                 /**< 实体数组 */
+    int entity_count;                       /**< 实体数量 */
+    int entity_capacity;                    /**< 实体数组容量 */
+    lvGeomConstraint *constraints;          /**< 约束数组 */
+    int constraint_count;                   /**< 约束数量 */
+    int constraint_capacity;                /**< 约束数组容量 */
+    lvViewBounds bounds;                    /**< 视图边界缓存 */
+    void *proof_overlay;                    /**< 证明覆盖层（保留扩展） */
+    int next_entity_id;                     /**< 下一个实体ID */
+    int next_constraint_id;                 /**< 下一个约束ID */
 } lvGeometryCanvas;
 
+/**
+ * @brief 创建几何画布视图
+ *
+ * 分配并初始化几何画布，预分配实体和约束数组的初始容量。
+ *
+ * @return 成功返回几何画布指针，失败返回NULL
+ */
 lvGeometryCanvas *lv_geometry_canvas_create(void) {
     lvGeometryCanvas *canvas = lv_calloc(1, sizeof(lvGeometryCanvas));
     if (!canvas) return NULL;
@@ -75,6 +98,13 @@ lvGeometryCanvas *lv_geometry_canvas_create(void) {
     return canvas;
 }
 
+/**
+ * @brief 销毁几何画布视图
+ *
+ * 释放所有实体的坐标数据、实体数组、约束数组和画布结构体。
+ *
+ * @param canvas 几何画布指针
+ */
 void lv_geometry_canvas_destroy(lvGeometryCanvas *canvas) {
     if (!canvas) return;
     for (int i = 0; i < canvas->entity_count; i++) {
@@ -85,7 +115,19 @@ void lv_geometry_canvas_destroy(lvGeometryCanvas *canvas) {
     lv_free((void **)&canvas);
 }
 
-/* 添加几何实体 */
+/**
+ * @brief 添加几何实体
+ *
+ * 向画布中添加一个几何实体，自动复制坐标数据并设置默认样式。
+ * 如果实体数组已满，自动扩容为当前容量的2倍。
+ *
+ * @param canvas      几何画布指针
+ * @param type        实体类型
+ * @param label       实体标签（可为NULL）
+ * @param coords      坐标数组
+ * @param coord_count 坐标数量
+ * @return 成功返回实体ID，失败返回-1
+ */
 int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type,
                                      const char *label, const double *coords,
                                      int coord_count) {
@@ -93,6 +135,8 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type,
 
     /* 自动扩容 */
     if (canvas->entity_count >= canvas->entity_capacity) {
+        /* [安全] 防止 entity_capacity * 2 整数溢出 */
+        if (canvas->entity_capacity > INT_MAX / 2) return -1;
         int new_cap = canvas->entity_capacity * 2;
         lvGeomEntity *new_arr = lv_realloc(canvas->entities, new_cap * sizeof(lvGeomEntity));
         if (!new_arr) return -1;
@@ -122,7 +166,9 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type,
 
     /* 默认样式 */
     strncpy(ent->stroke_color, "#333333", sizeof(ent->stroke_color) - 1);
+    ent->stroke_color[sizeof(ent->stroke_color) - 1] = '\0';
     strncpy(ent->fill_color, "none", sizeof(ent->fill_color) - 1);
+    ent->fill_color[sizeof(ent->fill_color) - 1] = '\0';
     ent->stroke_width = 2.0;
 
     canvas->entity_count++;
@@ -131,7 +177,16 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type,
     return ent->id;
 }
 
-/* 移除几何实体 */
+/**
+ * @brief 移除几何实体
+ *
+ * 删除指定ID的实体，同时移除所有关联的约束。
+ * 释放实体的坐标数据，用最后一个元素填充空位。
+ *
+ * @param canvas 几何画布指针
+ * @param id     要移除的实体ID
+ * @return 成功返回0，失败返回-1
+ */
 int lv_geometry_canvas_remove_entity(lvGeometryCanvas *canvas, int id) {
     if (!canvas || id <= 0) return -1;
     int found = -1;
@@ -163,7 +218,17 @@ int lv_geometry_canvas_remove_entity(lvGeometryCanvas *canvas, int id) {
     return 0;
 }
 
-/* 添加约束可视化 */
+/**
+ * @brief 添加约束可视化
+ *
+ * 在两个几何实体之间添加一条约束可视化线。如果约束数组已满，自动扩容。
+ *
+ * @param canvas       几何画布指针
+ * @param entity_a_id  实体A的ID
+ * @param entity_b_id  实体B的ID
+ * @param label        约束标签（可为NULL）
+ * @return 成功返回约束ID，失败返回-1
+ */
 int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas,
                                         int entity_a_id, int entity_b_id,
                                         const char *label) {
@@ -171,6 +236,8 @@ int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas,
 
     /* 自动扩容 */
     if (canvas->constraint_count >= canvas->constraint_capacity) {
+        /* [安全] 防止 constraint_capacity * 2 整数溢出 */
+        if (canvas->constraint_capacity > INT_MAX / 2) return -1;
         int new_cap = canvas->constraint_capacity * 2;
         lvGeomConstraint *new_arr = lv_realloc(canvas->constraints,
                                                new_cap * sizeof(lvGeomConstraint));
@@ -190,12 +257,20 @@ int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas,
         c->label[0] = '\0';
     }
     strncpy(c->color, "#888888", sizeof(c->color) - 1);
+    c->color[sizeof(c->color) - 1] = '\0';
 
     canvas->constraint_count++;
     return c->id;
 }
 
-/* 计算包围盒 */
+/**
+ * @brief 计算包围盒
+ *
+ * 遍历所有实体，计算包含所有几何元素的最小包围盒。
+ * 对于圆形，额外考虑半径的扩展范围。计算结果缓存到 bounds 字段。
+ *
+ * @param canvas 几何画布指针（内部函数，入参非空由调用者保证）
+ */
 static void compute_bounds(lvGeometryCanvas *canvas) {
     if (canvas->entity_count == 0) {
         canvas->bounds.valid = 0;
@@ -230,14 +305,36 @@ static void compute_bounds(lvGeometryCanvas *canvas) {
     canvas->bounds.valid = 1;
 }
 
-/* 调整视图到包围盒 */
+/**
+ * @brief 调整视图到包围盒
+ *
+ * 计算当前所有实体的包围盒，使视图适配到包围盒范围。
+ *
+ * @param canvas 几何画布指针
+ * @return 成功返回0，边界无效返回-1
+ */
 int lv_geometry_canvas_fit_view(lvGeometryCanvas *canvas) {
     if (!canvas) return -1;
     compute_bounds(canvas);
     return canvas->bounds.valid ? 0 : -1;
 }
 
-/* 根据实体ID查找实体中心坐标 */
+/**
+ * @brief 查找实体中心坐标
+ *
+ * 根据实体ID查找几何实体的中心点坐标。
+ * 不同类型的实体有不同的中心计算方式：
+ *   - 点：直接使用坐标
+ *   - 线：两端点中点
+ *   - 圆：圆心
+ *   - 多边形：顶点平均位置
+ *
+ * @param canvas 几何画布指针
+ * @param id     实体ID
+ * @param cx     输出中心X坐标
+ * @param cy     输出中心Y坐标
+ * @return 成功返回0，失败返回-1
+ */
 static int find_entity_center(lvGeometryCanvas *canvas, int id,
                                 double *cx, double *cy) {
     for (int i = 0; i < canvas->entity_count; i++) {
@@ -267,7 +364,15 @@ static int find_entity_center(lvGeometryCanvas *canvas, int id,
     return -1;
 }
 
-/* 生成 SVG 输出 */
+/**
+ * @brief 生成 SVG 输出
+ *
+ * 将几何画布中的实体和约束渲染为 SVG 格式的 XML 字符串。
+ * 调用者负责释放返回的字符串。
+ *
+ * @param canvas 几何画布指针
+ * @return 成功返回分配的SVG字符串，失败返回NULL
+ */
 char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
     if (!canvas) return NULL;
 
@@ -280,8 +385,12 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
         canvas->bounds.valid = 1;
     }
 
-    /* 估算输出缓冲区大小 */
-    int buf_size = 4096 + canvas->entity_count * 512 + canvas->constraint_count * 256;
+    /* [安全] 估算输出缓冲区大小，防止整数溢出 */
+    size_t est_size = (size_t)canvas->entity_count * 512
+                    + (size_t)canvas->constraint_count * 256 + 4096;
+    /* 限制最大缓冲区大小防止过度分配 */
+    if (est_size > 1024 * 1024 * 16) est_size = 1024 * 1024 * 16;
+    int buf_size = (int)est_size;
     char *buf = lv_calloc(buf_size, sizeof(char));
     if (!buf) return NULL;
 

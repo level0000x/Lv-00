@@ -1,4 +1,16 @@
-﻿#include "lv/visual_editor.h"
+/**
+ * @file node_graph.c
+ * @brief 节点图视图实现
+ *
+ * @details 实现节点图视图，支持节点的添加/删除、连接的添加/删除、
+ *          节点查找以及基于 Fruchterman-Reingold 力导向算法的布局引擎。
+ *          节点和连接使用动态数组管理，支持自动扩容。
+ *
+ * @note 涉及 double 运算用于布局，不涉及几何精度计算
+ * @author Lv-00 Project
+ */
+
+#include "lv/visual_editor.h"
 #include "lv/lv_utils.h"
 #include <string.h>
 #include <math.h>
@@ -7,52 +19,60 @@
  * [QA] Uses double for timing/layout — not geometric computation. Acceptable.
  */
 
-/* 节点类型 */
+/** @brief 节点类型枚举 */
 typedef enum {
-    lv_NODE_TYPE_DEFAULT,
-    lv_NODE_TYPE_INPUT,
-    lv_NODE_TYPE_OUTPUT,
-    lv_NODE_TYPE_PROCESS,
-    lv_NODE_TYPE_CONSTRAINT
+    lv_NODE_TYPE_DEFAULT,    /**< 默认节点 */
+    lv_NODE_TYPE_INPUT,      /**< 输入节点 */
+    lv_NODE_TYPE_OUTPUT,     /**< 输出节点 */
+    lv_NODE_TYPE_PROCESS,    /**< 处理节点 */
+    lv_NODE_TYPE_CONSTRAINT  /**< 约束节点 */
 } lvNodeType;
 
-/* 图节点 */
+/** @brief 图节点结构 */
 typedef struct lvGraphNode {
-    int id;
-    char label[128];
-    double x, y;
-    lvNodeType type;
+    int id;                  /**< 节点唯一标识 */
+    char label[128];         /**< 节点标签 */
+    double x, y;             /**< 节点位置坐标 */
+    lvNodeType type;         /**< 节点类型 */
 } lvGraphNode;
 
-/* 图连接（边） */
+/** @brief 图连接（边）结构 */
 typedef struct lvGraphConnection {
-    int id;
-    int from_node_id;
-    int to_node_id;
-    char label[128];
+    int id;                  /**< 连接唯一标识 */
+    int from_node_id;        /**< 源节点ID */
+    int to_node_id;          /**< 目标节点ID */
+    char label[128];         /**< 连接标签 */
 } lvGraphConnection;
 
-/* 布局引擎状态 */
+/** @brief 布局引擎状态结构 */
 typedef struct lvLayoutEngine {
-    double area_width;
-    double area_height;
-    double temperature;
-    int iterations;
+    double area_width;       /**< 布局区域宽度 */
+    double area_height;      /**< 布局区域高度 */
+    double temperature;      /**< 当前温度（控制位移步长） */
+    int iterations;          /**< 迭代次数 */
 } lvLayoutEngine;
 
+/** @brief 节点图视图内部结构 */
 typedef struct lvNodeGraphView {
-    int view_type;
-    lvGraphNode *nodes;
-    int node_count;
-    int node_capacity;
-    lvGraphConnection *connections;
-    int connection_count;
-    int connection_capacity;
-    lvLayoutEngine layout_engine;
-    int next_node_id;
-    int next_connection_id;
+    int view_type;                         /**< 视图类型标识 */
+    lvGraphNode *nodes;                    /**< 节点数组 */
+    int node_count;                        /**< 节点数量 */
+    int node_capacity;                     /**< 节点数组容量 */
+    lvGraphConnection *connections;        /**< 连接数组 */
+    int connection_count;                  /**< 连接数量 */
+    int connection_capacity;               /**< 连接数组容量 */
+    lvLayoutEngine layout_engine;          /**< 布局引擎 */
+    int next_node_id;                      /**< 下一个节点ID */
+    int next_connection_id;                /**< 下一个连接ID */
 } lvNodeGraphView;
 
+/**
+ * @brief 创建节点图视图
+ *
+ * 分配并初始化节点图，预分配节点和连接数组的初始容量。
+ *
+ * @return 成功返回节点图指针，失败返回NULL
+ */
 lvNodeGraphView *lv_node_graph_create(void) {
     lvNodeGraphView *graph = lv_calloc(1, sizeof(lvNodeGraphView));
     if (!graph) return NULL;
@@ -71,6 +91,13 @@ lvNodeGraphView *lv_node_graph_create(void) {
     return graph;
 }
 
+/**
+ * @brief 销毁节点图视图
+ *
+ * 释放节点数组、连接数组和视图结构体占用的内存。
+ *
+ * @param graph 节点图指针
+ */
 void lv_node_graph_destroy(lvNodeGraphView *graph) {
     if (!graph) return;
     lv_free((void **)&graph->nodes);
@@ -78,13 +105,27 @@ void lv_node_graph_destroy(lvNodeGraphView *graph) {
     lv_free((void **)&graph);
 }
 
-/* 添加节点 */
+/**
+ * @brief 添加节点
+ *
+ * 向图中添加一个新节点。如果节点数组已满，自动扩容为当前容量的2倍。
+ *
+ * @param graph 节点图指针
+ * @param id    节点ID（<=0时自动分配）
+ * @param label 节点标签
+ * @param x     节点X坐标
+ * @param y     节点Y坐标
+ * @param type  节点类型
+ * @return 成功返回节点ID，失败返回-1
+ */
 int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label,
                              double x, double y, int type) {
     if (!graph || !label) return -1;
 
     /* 自动扩容 */
     if (graph->node_count >= graph->node_capacity) {
+        /* [安全] 防止 node_capacity * 2 整数溢出 */
+        if (graph->node_capacity > INT_MAX / 2) return -1;
         int new_cap = graph->node_capacity * 2;
         lvGraphNode *new_nodes = lv_realloc(graph->nodes, new_cap * sizeof(lvGraphNode));
         if (!new_nodes) return -1;
@@ -109,7 +150,16 @@ int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label,
     return node->id;
 }
 
-/* 移除节点及其所有连接 */
+/**
+ * @brief 移除节点及其所有连接
+ *
+ * 删除指定ID的节点，同时移除所有与该节点相关的连接。
+ * 使用最后一个元素填充空位以保持数组紧凑。
+ *
+ * @param graph 节点图指针
+ * @param id    要移除的节点ID
+ * @return 成功返回0，失败返回-1
+ */
 int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
     if (!graph || id <= 0) return -1;
     int found = -1;
@@ -137,13 +187,25 @@ int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
     return 0;
 }
 
-/* 添加连接（边） */
+/**
+ * @brief 添加连接（边）
+ *
+ * 在两个节点之间添加一条有向连接。如果连接数组已满，自动扩容。
+ *
+ * @param graph  节点图指针
+ * @param from_id 源节点ID
+ * @param to_id   目标节点ID
+ * @param label   连接标签（可为NULL）
+ * @return 成功返回连接ID，失败返回-1
+ */
 int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id,
                                     int to_id, const char *label) {
     if (!graph || from_id <= 0 || to_id <= 0) return -1;
 
     /* 自动扩容 */
     if (graph->connection_count >= graph->connection_capacity) {
+        /* [安全] 防止 connection_capacity * 2 整数溢出 */
+        if (graph->connection_capacity > INT_MAX / 2) return -1;
         int new_cap = graph->connection_capacity * 2;
         lvGraphConnection *new_conns = lv_realloc(graph->connections,
                                                   new_cap * sizeof(lvGraphConnection));
@@ -167,7 +229,15 @@ int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id,
     return conn->id;
 }
 
-/* 移除连接 */
+/**
+ * @brief 移除连接
+ *
+ * 删除指定ID的连接，使用最后一个元素填充空位。
+ *
+ * @param graph   节点图指针
+ * @param conn_id 要移除的连接ID
+ * @return 成功返回0，失败返回-1
+ */
 int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id) {
     if (!graph || conn_id <= 0) return -1;
     int found = -1;
@@ -181,7 +251,15 @@ int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id) {
     return 0;
 }
 
-/* 查找节点 */
+/**
+ * @brief 查找节点
+ *
+ * 根据节点ID在图中查找节点。
+ *
+ * @param graph 节点图指针
+ * @param id    要查找的节点ID
+ * @return 成功返回节点指针，失败返回NULL
+ */
 lvGraphNode *lv_node_graph_find_node(lvNodeGraphView *graph, int id) {
     if (!graph || id <= 0) return NULL;
     for (int i = 0; i < graph->node_count; i++) {
@@ -190,7 +268,15 @@ lvGraphNode *lv_node_graph_find_node(lvNodeGraphView *graph, int id) {
     return NULL;
 }
 
-/* Fruchterman-Reingold 力导向布局 */
+/**
+ * @brief Fruchterman-Reingold 力导向布局
+ *
+ * 对图中的节点应用力导向布局算法，计算排斥力（所有节点对之间）
+ * 和吸引力（沿边方向），通过温度衰减控制收敛。
+ *
+ * @param graph 节点图指针
+ * @return 成功返回0，失败返回-1
+ */
 int lv_node_graph_layout(lvNodeGraphView *graph) {
     if (!graph || graph->node_count <= 1) return 0;
 

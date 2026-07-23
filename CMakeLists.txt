@@ -877,7 +877,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/rewrite/rewrite_wl.c
     core/src/layer4_reasoning/rewrite/critical_pair.c
     core/src/layer4_reasoning/rewrite/beta_reduce.c
-    # λ-项编译：λ-项 ↔ 约束图
+    # λ-项：数据类型与编译
+    core/src/layer4_reasoning/lambda/lambda_term.c
     core/src/layer4_reasoning/lambda/lambda_to_graph.c
     # 引擎调度
     core/src/layer4_reasoning/engine/engine_scheduler.c
@@ -1456,6 +1457,10 @@ if(BUILD_TESTS)
     # v1.9.0 micro-bootstrap: 集成测试
     add_lv_test_and_register(test_lv_bootstrap
         test/c/test_lv_bootstrap.c lv_bootstrap_test)
+
+    # λ-演算端到端测试（Church 数字编码、β-归约、Y 组合子）
+    add_lv_test_and_register(test_lambda_church
+        test/c/test_lambda_church.c lambda_church_test)
 
     # 新增公理包测试
     add_lv_test_and_register(test_axiom_topos_theory

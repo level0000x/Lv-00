@@ -1,3 +1,22 @@
+/**
+ * @file lv_lexer.c
+ * @brief Lv-00 DSL 词法分析器实现
+ *
+ * @details 实现 .lv 源文件的词法分析功能，将源代码文本转换为 Token 流。
+ *          支持 75 种 Token 类型，包括关键字、运算符、字面量（整数、有理数、
+ *          小数、字符串、布尔值）和分隔符。使用三 Token 前瞻缓冲区实现
+ *          lookahead 解析支持。
+ *
+ *          主要特性：
+ *          - 整数、有理数（3/4）、小数（3.14）数字字面量
+ *          - 字符串字面量，含转义序列处理
+ *          - C 风格单行（//）和块注释（/* */）
+ *          - 关键字查找表
+ *          - 多字符运算符（->, ==, !=, <=, >=, =>, |-, |=）
+ *
+ * @author Lv-00 Project
+ */
+
 #include "lv/lv_lexer.h"
 #include "lv_utils.h"
 #include <string.h>
@@ -5,22 +24,38 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+/**
+ * @brief 词法分析器结构体
+ *
+ * 管理源代码字符串的扫描状态，包括当前位置、行号、列号
+ * 和一个三 Token 的 lookahead 缓冲区。
+ */
 struct LvLexer {
-    const char *source;
-    size_t      source_len;
-    size_t      pos;
-    int         line;
-    int         column;
-    LvToken     peek_buf[3];
-    int         peek_count;
+    const char *source;     /**< 源字符串指针（不拥有所有权） */
+    size_t      source_len; /**< 源字符串长度 */
+    size_t      pos;        /**< 当前扫描位置 */
+    int         line;       /**< 当前行号（从 1 开始） */
+    int         column;     /**< 当前列号（从 1 开始） */
+    LvToken     peek_buf[3];/**< 前瞻缓冲区 */
+    int         peek_count; /**< 前瞻缓冲区中有效 Token 数量 */
 };
 
 /* ── 关键字查找表 ── */
+
+/**
+ * @brief 关键字-类型映射条目
+ */
 typedef struct {
-    const char *word;
-    LvTokenType type;
+    const char *word;       /**< 关键字字符串 */
+    LvTokenType type;       /**< 对应的 Token 类型 */
 } KeywordEntry;
 
+/**
+ * @brief 关键字查找表
+ *
+ * 包含所有 Lv-00 DSL 保留关键字及其对应的 Token 类型。
+ * 按字母顺序排列以便于维护。
+ */
 static const KeywordEntry s_keywords[] = {
     {"Angle",        LV_TOKEN_KW_ANGLE},
     {"Assert",       LV_TOKEN_KW_ASSERT},
@@ -66,6 +101,13 @@ static const KeywordEntry s_keywords[] = {
     {"true",         LV_TOKEN_KW_TRUE},
 };
 
+/**
+ * @brief 在关键字表中查找单词
+ *
+ * @param word 指向单词起始位置的指针
+ * @param len  单词长度
+ * @return 匹配的关键字 Token 类型；若未匹配则返回 LV_TOKEN_IDENTIFIER
+ */
 static LvTokenType lookup_keyword(const char *word, size_t len) {
     for (size_t i = 0; i < sizeof(s_keywords) / sizeof(s_keywords[0]); i++) {
         if (strlen(s_keywords[i].word) == len &&
@@ -76,6 +118,17 @@ static LvTokenType lookup_keyword(const char *word, size_t len) {
     return LV_TOKEN_IDENTIFIER;
 }
 
+/**
+ * @brief 构造一个 LvToken 实例
+ *
+ * 根据当前词法分析器状态和识别出的 Token 信息填充 Token 结构体。
+ *
+ * @param lexer     词法分析器指针
+ * @param type      Token 类型
+ * @param start_pos Token 在源字符串中的起始偏移量
+ * @param length    Token 的长度（字节数）
+ * @return 填充完成的 LvToken
+ */
 static LvToken make_token(LvLexer *lexer, LvTokenType type, size_t start_pos, size_t length) {
     LvToken tok;
     tok.type = type;
@@ -87,6 +140,14 @@ static LvToken make_token(LvLexer *lexer, LvTokenType type, size_t start_pos, si
     return tok;
 }
 
+/**
+ * @brief 跳过空白字符和注释
+ *
+ * 扫描并跳过空格、制表符、换行符、回车符，以及 C 风格的单行（//）
+ * 和块注释（/* ... *​/）。跳过自动更新行号和列号。
+ *
+ * @param lexer 词法分析器指针
+ */
 static void skip_whitespace_and_comments(LvLexer *lexer) {
     while (lexer->pos < lexer->source_len) {
         char c = lexer->source[lexer->pos];
@@ -118,6 +179,16 @@ static void skip_whitespace_and_comments(LvLexer *lexer) {
     }
 }
 
+/**
+ * @brief 扫描并识别的下一个 Token（底层实现）
+ *
+ * 从当前位置开始识别一个完整的 Token，支持标识符/关键字、数字字面量
+ * （整数、有理数、小数）、字符串字面量、多字符运算符和单字符运算符/分隔符。
+ * 识别前自动跳过前置空白和注释。
+ *
+ * @param lexer 词法分析器指针
+ * @return 识别出的 LvToken
+ */
 static LvToken lex_raw(LvLexer *lexer) {
     skip_whitespace_and_comments(lexer);
 
@@ -240,6 +311,16 @@ static LvToken lex_raw(LvLexer *lexer) {
 
 /* ── 公共 API ── */
 
+/**
+ * @brief 创建词法分析器
+ *
+ * 分配并初始化一个新的词法分析器实例。分析器不拥有 source 字符串的所有权，
+ * 调用者需确保 source 在分析器使用期间保持有效。
+ *
+ * @param source     源字符串指针
+ * @param source_len 源字符串长度
+ * @return 词法分析器指针，失败返回 NULL
+ */
 LvLexer *lv_lexer_create(const char *source, size_t source_len) {
     LvLexer *lexer = (LvLexer *)lv_malloc(sizeof(LvLexer));
     if (!lexer) return NULL;
@@ -252,10 +333,27 @@ LvLexer *lv_lexer_create(const char *source, size_t source_len) {
     return lexer;
 }
 
+/**
+ * @brief 销毁词法分析器
+ *
+ * 释放词法分析器占用的内存。注意：不释放 source 字符串，因为
+ * 词法分析器不拥有 source 的所有权。
+ *
+ * @param lexer 词法分析器指针
+ */
 void lv_lexer_destroy(LvLexer *lexer) {
     lv_free((void **)&lexer);
 }
 
+/**
+ * @brief 获取下一个 Token
+ *
+ * 从词法分析器获取下一个 Token。如果前瞻缓冲区中有已缓存的 Token，
+ * 优先从缓冲区返回。
+ *
+ * @param lexer 词法分析器指针
+ * @return 下一个 LvToken
+ */
 LvToken lv_lexer_next(LvLexer *lexer) {
     if (lexer->peek_count > 0) {
         LvToken tok = lexer->peek_buf[0];
@@ -267,6 +365,16 @@ LvToken lv_lexer_next(LvLexer *lexer) {
     return lex_raw(lexer);
 }
 
+/**
+ * @brief 前瞻获取 Token
+ *
+ * 返回当前位置之后第 lookahead 个 Token，不消耗任何 Token。
+ * 前瞻缓冲区最多缓存 3 个 Token。
+ *
+ * @param lexer     词法分析器指针
+ * @param lookahead 前瞻偏移量（0 为下一个 Token）
+ * @return 前瞻位置的 LvToken
+ */
 LvToken lv_lexer_peek(LvLexer *lexer, int lookahead) {
     while (lexer->peek_count <= lookahead) {
         lexer->peek_buf[lexer->peek_count++] = lex_raw(lexer);
@@ -274,6 +382,12 @@ LvToken lv_lexer_peek(LvLexer *lexer, int lookahead) {
     return lexer->peek_buf[lookahead];
 }
 
+/**
+ * @brief 获取词法分析器当前位置
+ *
+ * @param lexer 词法分析器指针
+ * @return 当前源代码位置信息（行号、列号、偏移量）
+ */
 LvSourceLoc lv_lexer_get_loc(const LvLexer *lexer) {
     LvSourceLoc loc;
     loc.line = lexer->line;
@@ -282,6 +396,12 @@ LvSourceLoc lv_lexer_get_loc(const LvLexer *lexer) {
     return loc;
 }
 
+/**
+ * @brief 获取 Token 类型的字符串名称
+ *
+ * @param type Token 类型枚举值
+ * @return 类型名称字符串（静态存储，无需释放）
+ */
 const char *lv_token_type_name(LvTokenType type) {
     static const char *names[] = {
         "INTEGER", "RATIONAL", "DECIMAL", "STRING", "IDENTIFIER",
@@ -307,6 +427,17 @@ const char *lv_token_type_name(LvTokenType type) {
     return "UNKNOWN";
 }
 
+/**
+ * @brief 提取 Token 的文本内容
+ *
+ * 将 Token 的源文本复制到用户提供的缓冲区中，并确保 null 终止。
+ * 如果 Token 长度超过缓冲区容量，则截断。
+ *
+ * @param token    Token 指针
+ * @param buf      输出缓冲区
+ * @param buf_size 输出缓冲区大小
+ * @return 实际复制的字符数（不含 null 终止符）
+ */
 size_t lv_token_text(const LvToken *token, char *buf, size_t buf_size) {
     if (!token || !buf || buf_size == 0) return 0;
     size_t copy_len = token->length < buf_size - 1 ? token->length : buf_size - 1;

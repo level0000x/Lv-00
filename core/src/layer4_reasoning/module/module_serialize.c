@@ -22,7 +22,7 @@
 
 
 Module *module_create(const char *name, const char *version) {
-    Module *mod = lv_malloc(sizeof(Module));
+    Module *mod = lv_calloc(1, sizeof(Module));
     if (!mod) return NULL;
     mod->name = lv_strdup_safe(name ? name : "unnamed_module");
     mod->version = lv_strdup_safe(version ? version : "0.0.0");
@@ -34,7 +34,7 @@ Module *module_create(const char *name, const char *version) {
     }
     mod->dependencies = NULL;
     mod->dependency_count = 0;
-    mod->exports = lv_malloc(sizeof(ModuleExport));
+    mod->exports = lv_calloc(1, sizeof(ModuleExport));
     if (!mod->exports) {
         lv_free((void**)&mod->name);
         lv_free((void**)&mod->version);
@@ -78,7 +78,7 @@ void module_destroy(Module *mod) {
 bool module_add_dependency(Module *mod, const char *dep_name, const char *version_constraint) {
     if (!mod) return false;
     if (mod->dependency_count == 0) {
-        mod->dependencies = lv_malloc(sizeof(ModuleDependency));
+        mod->dependencies = lv_calloc(1, sizeof(ModuleDependency));
     } else {
         void *tmp = lv_realloc(mod->dependencies, (mod->dependency_count + 1) * sizeof(ModuleDependency));
         if (!tmp) return false;
@@ -107,7 +107,7 @@ bool module_add_dependency(Module *mod, const char *dep_name, const char *versio
 bool module_add_axiom_package(Module *mod, AxiomPackage *pkg) {
     if (!mod) return false;
     if (mod->axiom_package_count == 0) {
-        mod->axiom_packages = lv_malloc(sizeof(AxiomPackage*));
+        mod->axiom_packages = lv_calloc(1, sizeof(AxiomPackage*));
     } else {
         void *tmp = lv_realloc(mod->axiom_packages, (mod->axiom_package_count + 1) * sizeof(AxiomPackage*));
         if (!tmp) return false;
@@ -122,7 +122,7 @@ bool module_export_function_block(Module *mod, int func_block_id) {
     if (!mod) return false;
     if (!mod->exports) return false;
     if (mod->exports->function_count == 0) {
-        mod->exports->function_block_ids = lv_malloc(sizeof(int));
+        mod->exports->function_block_ids = lv_calloc(1, sizeof(int));
     } else {
         void *tmp = lv_realloc(mod->exports->function_block_ids,
             (mod->exports->function_count + 1) * sizeof(int));
@@ -137,7 +137,7 @@ bool module_export_function_block(Module *mod, int func_block_id) {
 bool module_export_type_region(Module *mod, int type_region_id) {
     if (!mod) return false;
     if (mod->exports->type_count == 0) {
-        mod->exports->type_region_ids = lv_malloc(sizeof(int));
+        mod->exports->type_region_ids = lv_calloc(1, sizeof(int));
     } else {
         void *tmp = lv_realloc(mod->exports->type_region_ids,
             (mod->exports->type_count + 1) * sizeof(int));
@@ -195,7 +195,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
         return false;
     }
     
-    char *buf = lv_malloc(len + 1);
+    char *buf = lv_calloc(len + 1, 1);
     if (!buf) {
         fclose(f);
         lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存分配失败");
@@ -374,7 +374,7 @@ static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
             char *str = symbolic_coord_serialize(coord);
             if (str) {
                 /* 安全：使用 snprintf 并分配足够大的缓冲区 */
-                result = lv_malloc(strlen(str) + 16);
+                result = lv_calloc(strlen(str) + 16, 1);
                 if (result) snprintf(result, strlen(str) + 16, "rational %s", str);
                 lv_free((void**)&str);
             }
@@ -384,7 +384,7 @@ static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
             /* 二次根式格式: "quadratic a,b,n" */
             char *str = symbolic_coord_serialize(coord);
             if (str) {
-                result = lv_malloc(strlen(str) + 16);
+                result = lv_calloc(strlen(str) + 16, 1);
                 if (result) snprintf(result, strlen(str) + 16, "quadratic %s", str);
                 lv_free((void**)&str);
             }
@@ -394,7 +394,7 @@ static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
             /* 代数数格式: "algebraic 多项式系数... 左边界 右边界" */
             char *str = symbolic_coord_serialize(coord);
             if (str) {
-                result = lv_malloc(strlen(str) + 16);
+                result = lv_calloc(strlen(str) + 16, 1);
                 if (result) snprintf(result, strlen(str) + 16, "algebraic %s", str);
                 lv_free((void**)&str);
             }
@@ -404,7 +404,7 @@ static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
             /* 超越常数格式: "transcendental pi" 或 "transcendental e" */
             char *str = symbolic_coord_serialize(coord);
             if (str) {
-                result = lv_malloc(strlen(str) + 20);
+                result = lv_calloc(strlen(str) + 20, 1);
                 if (result) snprintf(result, strlen(str) + 20, "transcendental %s", str);
                 lv_free((void**)&str);
             }
@@ -585,7 +585,7 @@ char *module_compute_version_hash(const Module *mod) {
     }
     
     /* 转换为十六进制字符串 (64位 = 16个十六进制字符) */
-    char *result = lv_malloc(17);
+    char *result = lv_calloc(17, 1);
     if (result) {
         snprintf(result, 17, "%016llx", (unsigned long long)hash);
     }
@@ -660,7 +660,7 @@ static bool dfs_detect_cycle(Module *mod, Module **modules, int count,
             }
             if (cycle_start >= 0) {
                 int cycle_len = *path_stack_len - cycle_start;
-                *out_path = (int *)lv_malloc((size_t)cycle_len * sizeof(int));
+                *out_path = (int *)lv_calloc((size_t)cycle_len, sizeof(int));
                 if (*out_path) {
                     memcpy(*out_path, path_stack + cycle_start, (size_t)cycle_len * sizeof(int));
                     *out_path_len = cycle_len;
@@ -754,7 +754,7 @@ bool module_detect_circular_dependency(Module *mod, Module **visited, int visite
 
     /* 构建完整模块数组：visited + mod */
     int total = visited_count + 1;
-    Module **all_modules = (Module **)lv_malloc((size_t)total * sizeof(Module *));
+    Module **all_modules = (Module **)lv_calloc((size_t)total, sizeof(Module *));
     if (!all_modules) return false;
 
     for (int i = 0; i < visited_count; i++) {
@@ -846,7 +846,7 @@ bool module_parse_version_constraint(const char *constraint, const char *version
     const char *dash = strstr(constraint, " - ");
     if (dash) {
         size_t lower_len = (size_t)(dash - constraint);
-        char *lower = lv_malloc(lower_len + 1);
+        char *lower = lv_calloc(lower_len + 1, 1);
         memcpy(lower, constraint, lower_len);
         lower[lower_len] = '\0';
         const char *upper = dash + 3;
@@ -907,7 +907,7 @@ typedef struct {
 /* ---------- 编码器辅助函数 ---------- */
 
 static bool mp_encoder_init(MsgPackEncoder *enc, size_t initial_capacity) {
-    enc->buffer = (uint8_t *)lv_malloc(initial_capacity);
+    enc->buffer = (uint8_t *)lv_calloc(initial_capacity, 1);
     if (!enc->buffer) return false;
     enc->capacity = initial_capacity;
     enc->pos = 0;
@@ -1201,7 +1201,7 @@ static bool mp_decoder_read_str(MsgPackDecoder *dec, char **out) {
 
     if (dec->pos + len > dec->size) return false;
 
-    char *str = (char *)lv_malloc(len + 1);
+    char *str = (char *)lv_calloc(len + 1, 1);
     if (!str) return false;
     memcpy(str, dec->data + dec->pos, len);
     str[len] = '\0';
@@ -1229,7 +1229,7 @@ static bool mp_decoder_read_bin(MsgPackDecoder *dec, uint8_t **out, size_t *out_
 
     if (dec->pos + len > dec->size) return false;
 
-    uint8_t *buf = (uint8_t *)lv_malloc(len);
+    uint8_t *buf = (uint8_t *)lv_calloc(len, 1);
     if (!buf) return false;
     memcpy(buf, dec->data + dec->pos, len);
     dec->pos += len;
@@ -1707,7 +1707,7 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
 /* JSON 写入器类型定义已提取至 module_helpers.h */
 
 bool json_writer_init(JsonWriter *w, size_t initial_capacity) {
-    w->buffer = (char *)lv_malloc(initial_capacity);
+    w->buffer = (char *)lv_calloc(initial_capacity, 1);
     if (!w->buffer) return false;
     w->capacity = initial_capacity;
     w->pos = 0;
@@ -1953,7 +1953,7 @@ char *json_reader_read_string(JsonReader *r) {
     r->pos++; /* 跳过结束引号 */
 
     /* 解码转义字符 */
-    char *result = (char *)lv_malloc(len + 1);
+    char *result = (char *)lv_calloc(len + 1, 1);
     if (!result) return NULL;
 
     const char *src = r->data + start;
@@ -2241,7 +2241,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                 
                 /* 创建 graph JSON 字符串的副本 */
                 size_t graph_len = r.pos - graph_start - 1;
-                char *graph_json = lv_malloc(graph_len + 1);
+                char *graph_json = lv_calloc(graph_len + 1, 1);
                 if (graph_json) {
                     /* 使用 memcpy 进行精确长度复制（已分配 graph_len+1，手动零终止更安全） */
                     memcpy(graph_json, r.data + graph_start, graph_len);

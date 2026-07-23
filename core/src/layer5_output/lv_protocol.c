@@ -1,4 +1,23 @@
-﻿#include "lv/lv.h"
+/**
+ * @file lv_protocol.c
+ * @brief Lv-00 协议层实现：颜色系统、协议数据生成与命令补全
+ *
+ * @details 本文件实现 lv_protocol.h 中声明的全部协议接口，包括：
+ *          - 信任颜色系统（名称/RGBA/SVG/TikZ 格式输出）
+ *          - M1 画布绘制指令（lv_proto_draw_commands）
+ *          - M2 DSL 文本输出（lv_proto_dsl_text）
+ *          - M3 表格行数据（lv_proto_table_rows）
+ *          - M4 证明树（lv_proto_tree）
+ *          - M6 拓扑图（lv_proto_topology）
+ *          - P4 证明导航（lv_proto_proof_navigator）
+ *          - P8 引擎状态（lv_proto_engine_status）
+ *          - 终端命令补全与执行（lv_proto_completions / lv_proto_terminal_exec）
+ *          - 各协议数据的资源释放函数
+ *
+ * @author Lv-00 Project
+ */
+
+#include "lv/lv.h"
 #include "lv/lv_protocol.h"
 #include "lv/lv_config.h"
 #include <inttypes.h>
@@ -13,6 +32,7 @@
  * 一、颜色系统实现
  * ================================================================ */
 
+/** 信任颜色名称表，与 lvTrustColor 枚举一一对应 */
 static const char *kTrustColorName[] = {
     "Green",
     "Blue",
@@ -28,6 +48,7 @@ static const char *kTrustColorName[] = {
     "Cyan",
 };
 
+/** 信任颜色 RGBA 值表（格式：0xAARRGGBB），与 lvTrustColor 枚举一一对应 */
 static const uint32_t kTrustColorRGBA[] = {
     0xFF3fb950,
     0xFF58a6ff,
@@ -43,6 +64,7 @@ static const uint32_t kTrustColorRGBA[] = {
     0xFF39c5cf,
 };
 
+/** 信任颜色 SVG/CSS 颜色字符串表，与 lvTrustColor 枚举一一对应 */
 static const char *kTrustColorSVG[] = {
     "#3fb950",
     "#58a6ff",
@@ -58,6 +80,7 @@ static const char *kTrustColorSVG[] = {
     "#39c5cf",
 };
 
+/** 信任颜色 TikZ/LaTeX 颜色字符串表，与 lvTrustColor 枚举一一对应 */
 static const char *kTrustColorTikZ[] = {
     "{HTML}{3FB950}",
     "{HTML}{58A6FF}",
@@ -73,6 +96,12 @@ static const char *kTrustColorTikZ[] = {
     "{HTML}{39C5CF}",
 };
 
+/**
+ * @brief 获取信任颜色的名称字符串
+ *
+ * @param c 信任颜色枚举值
+ * @return 颜色名称字符串（"Green"/"Blue"/...），越界时返回 "Unknown"
+ */
 const char *lv_trust_color_name(lvTrustColor c)
 {
     if (c < 0 || c > lv_COLOR_CYAN) {
@@ -81,6 +110,12 @@ const char *lv_trust_color_name(lvTrustColor c)
     return kTrustColorName[(int)c];
 }
 
+/**
+ * @brief 获取信任颜色的 RGBA 值（0xAARRGGBB 格式）
+ *
+ * @param c 信任颜色枚举值
+ * @return RGBA 颜色值，越界时返回 0xFF888888（灰色）
+ */
 uint32_t lv_trust_color_rgba(lvTrustColor c)
 {
     if (c < 0 || c > lv_COLOR_CYAN) {
@@ -89,6 +124,12 @@ uint32_t lv_trust_color_rgba(lvTrustColor c)
     return kTrustColorRGBA[(int)c];
 }
 
+/**
+ * @brief 获取信任颜色的 SVG/CSS 颜色字符串
+ *
+ * @param c 信任颜色枚举值
+ * @return SVG 颜色字符串（如 "#3fb950"），越界时返回 "#888888"
+ */
 const char *lv_trust_color_svg(lvTrustColor c)
 {
     if (c < 0 || c > lv_COLOR_CYAN) {
@@ -97,6 +138,12 @@ const char *lv_trust_color_svg(lvTrustColor c)
     return kTrustColorSVG[(int)c];
 }
 
+/**
+ * @brief 获取信任颜色的 TikZ/LaTeX 颜色字符串
+ *
+ * @param c 信任颜色枚举值
+ * @return TikZ 颜色字符串（如 "{HTML}{3FB950}"），越界时返回 "{HTML}{888888}"
+ */
 const char *lv_trust_color_tikz(lvTrustColor c)
 {
     if (c < 0 || c > lv_COLOR_CYAN) {
@@ -204,6 +251,22 @@ static int parse_sysinfo_memory(const char *info,
 
 /* ---- M1-Canvas：画布绘制指令 ---- */
 
+/**
+ * @brief 生成画布绘制指令列表
+ *
+ * @details 基于当前引擎状态生成一组绘制命令，包含：
+ *          - 引擎版本和健康评分文本（左上角）
+ *          - 画布视口元数据（偏移、缩放、尺寸）
+ *
+ * @param engine     引擎实例指针（可为 NULL，仅用于扩展）
+ * @param offset_x   视口 X 偏移
+ * @param offset_y   视口 Y 偏移
+ * @param scale      缩放比例
+ * @param canvas_w   画布宽度
+ * @param canvas_h   画布高度
+ * @param out        输出绘制命令列表（由调用者通过 lv_proto_free_draw_commands 释放）
+ * @return 0 成功，-1 参数无效
+ */
 int lv_proto_draw_commands(void *engine,
                              double offset_x, double offset_y,
                              double scale,
@@ -260,6 +323,17 @@ int lv_proto_draw_commands(void *engine,
 
 /* ---- M3-Table：表格行 ---- */
 
+/**
+ * @brief 生成引擎状态表格行数据
+ *
+ * @details 解析系统信息获取性能计数器（节点数、约束数、求解器调用数等），
+ *          生成最多 5 行的表格数据，包含健康状态、节点统计、约束统计、
+ *          求解器调用和重写步数。
+ *
+ * @param engine 引擎实例指针（可为 NULL）
+ * @param out    输出表格行列表（由调用者通过 lv_proto_free_table_rows 释放）
+ * @return 0 成功，-1 参数无效
+ */
 int lv_proto_table_rows(void *engine, lvTableRowList *out)
 {
     if (!out) return -1;
@@ -364,6 +438,17 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out)
 
 /* ---- M2-Text：DSL 文本 ---- */
 
+/**
+ * @brief 生成 DSL 注释格式的系统信息文本
+ *
+ * @details 将引擎健康评分和系统信息以 DSL 注释格式（%% 前缀）写入输出缓冲区。
+ *          逐行读取系统信息字符串，每行前添加 "%% " 前缀。
+ *
+ * @param engine   引擎实例指针（可为 NULL）
+ * @param out      输出缓冲区
+ * @param buf_size 输出缓冲区大小
+ * @return 0 成功，-1 参数无效
+ */
 int lv_proto_dsl_text(void *engine, char *out, size_t buf_size)
 {
     if (!out || buf_size == 0) return -1;

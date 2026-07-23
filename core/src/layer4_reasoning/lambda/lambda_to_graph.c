@@ -46,7 +46,7 @@ typedef struct {
  * @brief 初始化作用域栈
  */
 static void scope_init(LambdaScope *scope) {
-    scope->port_ids = lv_malloc((size_t)lv_SCOPE_INIT_CAPACITY * sizeof(int));
+    scope->port_ids = lv_calloc((size_t)lv_SCOPE_INIT_CAPACITY, sizeof(int));
     scope->depth = 0;
     scope->capacity = scope->port_ids ? lv_SCOPE_INIT_CAPACITY : 0;
 }
@@ -125,7 +125,7 @@ static int *collect_node_ids_since(const ConstraintGraph *graph, int start_index
         return NULL;
     }
 
-    int *ids = lv_malloc((size_t)count * sizeof(int));
+    int *ids = lv_calloc((size_t)count, sizeof(int));
     if (!ids) {
         *out_count = 0;
         return NULL;
@@ -570,7 +570,7 @@ static LvLambdaTerm *graph_to_lambda_internal(ConstraintGraph *graph, int node_i
 
         int *new_binders = NULL;
         if (new_cap > binder_capacity) {
-            new_binders = lv_malloc((size_t)new_cap * sizeof(int));
+            new_binders = lv_calloc((size_t)new_cap, sizeof(int));
             if (!new_binders) return NULL;
             if (binder_port_ids && binder_count > 0) {
                 memcpy(new_binders, binder_port_ids, (size_t)binder_count * sizeof(int));
