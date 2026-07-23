@@ -1,6 +1,6 @@
-﻿# Lv-00 任务上下文 — v1.8.0
+# Lv-00 任务上下文 — v1.9.0
 
-**版本**: v1.8.0 | **日期**: 2026-07-22 | **阶段**: 全系统代码优化到最优，0 技术债务
+**版本**: v1.9.0 | **日期**: 2026-07-23 | **阶段**: 微自举 A — lv 解析自身 .lv 文件
 
 ---
 
@@ -21,8 +21,62 @@
 | v1.6.0 架构重构：消除代码重复 + 共享基础设施 | ✅ |
 | v1.7.0 资源释放命名统一 (_free → _destroy) | ✅ |
 | v1.8.0 内存分配统一 + 头文件依赖精简 | ✅ |
+| v1.9.0 微自举 A：lv 解析自身 .lv 文件 | ✅ |
 
-## 二、v1.8.0 内存分配统一 + 头文件依赖精简
+## 二、v1.9.0 微自举 A — lv 解析自身 .lv 文件
+
+### 新增文件（14 个）
+
+| 文件 | 说明 |
+|:---|:---|
+| `core/include/lv/lv_lexer.h` | 词法分析器 API，75 种 Token 类型 |
+| `core/include/lv/lv_ast.h` | AST 节点定义，28 种节点类型，12 种实体类型 |
+| `core/include/lv/lv_parser.h` | 递归下降解析器 API |
+| `core/include/lv/lv_sema.h` | 语义分析 API（符号表 + 类型检查） |
+| `core/include/lv/lv_loader.h` | .lv 文件加载与引擎集成 API |
+| `core/src/layer1_parser/lv_lexer.c` | 词法分析器实现 |
+| `core/src/layer1_parser/lv_ast.c` | AST 节点内存管理 |
+| `core/src/layer1_parser/lv_parser.c` | 递归下降解析器实现 |
+| `core/src/layer1_parser/lv_sema.c` | 语义分析实现 |
+| `core/src/layer1_parser/lv_loader.c` | 文件加载与引擎集成 |
+| `test/c/test_lv_lexer.c` | 81 个词法测试 |
+| `test/c/test_lv_parser.c` | 33 个解析器测试 |
+| `test/c/test_lv_bootstrap.c` | 18 个端到端自举测试 |
+
+### 编译与测试
+
+| 指标 | 值 |
+|:---|:---|
+| 构建 | 全部 target 0 error / 0 warning |
+| 测试 | 126/126 passed（含新增 132 测试点） |
+| 覆盖率 | 词法 → 语法 → 语义 → 引擎集成全链路 |
+
+## 三、自举路线图（完整 6 步）
+
+根据 [docs/README.md 自举路线](doc/docs/README.md)，完整路线如下：
+
+| 步骤 | 版本 | 目标 | 状态 |
+|:---:|:---:|:---|:--:|
+| 1 | ✅ | C 实现内核 | ✅ |
+| 2 | — | 公理系统编辑器 | ⏳ |
+| 3 | **v1.9.0** | **微自举 A：lv 解析自身 .lv 文件** | ✅ |
+| 4 | v2.0.0 | λ-演算内核集成 | ⏳ |
+| 5 | v2.1.0 | 微自举 B：lv 验证自身证明 | ⏳ |
+| 6 | — | 首次自举：命题逻辑验证器 | ⏳ |
+
+### 各步详述
+
+**步骤 2 — 公理系统编辑器**: 实现图形化/交互式公理系统编辑器，使用户能可视化地定义和修改几何公理、预设规则。这是 C 内核到语言自举之间的过渡工具。
+
+**步骤 3 — 微自举 A** (v1.9.0 ✅): lv 系统能读取、解析、类型检查并加载 bootstrap 目录下的 .lv 规约文件。已完成完整的词法/语法/语义/引擎集成管线。
+
+**步骤 4 — λ-演算内核集成** (v2.0.0): 在推理层集成 λ-演算内核，使几何构造可以用 λ-项表达，构造即证明的基础设施。
+
+**步骤 5 — 微自举 B** (v2.1.0): lv 系统能验证自身的证明。基于微自举 A 的解析能力和 λ-演算内核，实现证明验证自举。
+
+**步骤 6 — 首次自举**: 用 lv 自身编写并验证一个命题逻辑验证器，实现完整的编译器自举闭环。
+
+## 四、v1.8.0 内存分配统一 + 头文件依赖精简
 
 ### 原始 malloc/realloc/free → lv_* 统一
 | 文件 | 转换内容 |
@@ -51,16 +105,16 @@
 
 **总计**: 4 个核心头文件，减少 12 个 #include，编译依赖链大幅缩短
 
-### 编译与测试
+### 编译与测试（v1.8.0 基线）
 
 | 指标 | 值 |
 |:---|:---|
 | 构建 | 137/137 targets, 0 error, 0 warning |
-| 测试 | 116/118 passed (2 个预存 flaky 测试) |
+| 测试 | 116/118 passed（2 个预存 flaky 测试） |
 | raw malloc/realloc/free | 0（layer3_geometry + layer4/layer5/layer10 全部统一） |
 | 头文件精简 | 4 个核心头文件，减少 12 个 #include |
 
-## 三、v1.7.0 资源释放命名统一
+## 五、v1.7.0 资源释放命名统一
 
 ### _free → _destroy 重命名（18 个函数）
 | # | 旧名称 | 新名称 | 涉及文件 |
@@ -85,11 +139,3 @@
 | 18 | `preset_search_result_free` | `preset_search_result_destroy` | func_block_preset_ops.h/.c |
 
 保留的 _free 函数（语义不同，无需重命名）：`gappa_predicates_free`, `gappa_goals_free`, `gappa_result_free`, `lv_aabb_query_result_free`, `mem_pool_free`
-
-## 四、远期路线图
-
-| 版本 | 目标 |
-|:---|:---|
-| v1.9.0 | 微自举 A：lv 解析自身 .lv 文件 |
-| v2.0.0 | λ-演算内核集成 |
-| v2.1.0 | 微自举 B：lv 验证自身证明 |

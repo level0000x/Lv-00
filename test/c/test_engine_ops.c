@@ -149,6 +149,140 @@ g4_end: ;
         if (engine_get_state(NULL) == ENGINE_STATE_IDLE) PASS(); else FAIL("!IDLE");
     }
 
+    /* ── 组 6: 基本求解 ── */
+    printf("[组 6] 基本求解\n");
+    {
+        lvEngine *e = lv_engine_create();
+        if (!e) { FAIL("create"); F = 99; goto g6_end; }
+
+        int p0 = lv_add_point(e, 0, 1, 0, 1);
+        int p1 = lv_add_point(e, 1, 1, 0, 1);
+        int p2 = lv_add_point(e, 0, 1, 1, 1);
+        if (p0 < 0 || p1 < 0 || p2 < 0) { FAIL("add_point"); goto g6_cleanup; }
+
+        lv_add_line_segment(e, p0, p1);
+        lv_add_line_segment(e, p1, p2);
+        lv_add_line_segment(e, p2, p0);
+
+        TEST("lv_solve 三角形");
+        EngineSolveResult sr = lv_solve(e);
+        if (sr == ENGINE_SOLVE_OK) PASS(); else { printf("  -> %d", (int)sr); FAIL("!OK"); }
+
+        lv_engine_destroy(e);
+
+        /* 正方形 */
+        e = lv_engine_create();
+        if (!e) { FAIL("create2"); F = 99; goto g6_end; }
+
+        p0 = lv_add_point(e, 0, 1, 0, 1);
+        p1 = lv_add_point(e, 1, 1, 0, 1);
+        p2 = lv_add_point(e, 1, 1, 1, 1);
+        int p3 = lv_add_point(e, 0, 1, 1, 1);
+        lv_add_line_segment(e, p0, p1);
+        lv_add_line_segment(e, p1, p2);
+        lv_add_line_segment(e, p2, p3);
+        lv_add_line_segment(e, p3, p0);
+
+        TEST("lv_solve 正方形");
+        sr = lv_solve(e);
+        if (sr == ENGINE_SOLVE_OK) PASS(); else { printf("  -> %d", (int)sr); FAIL("!OK"); }
+
+g6_cleanup:
+        lv_engine_destroy(e);
+g6_end: ;
+    }
+
+    /* ── 组 7: 带 INCIDENCE 约束的求解 ── */
+    printf("[组 7] 带 INCIDENCE 约束的求解\n");
+    {
+        lvEngine *e = lv_engine_create();
+        if (!e) { FAIL("create"); F = 99; goto g7_end; }
+
+        int p0 = lv_add_point(e, 0, 1, 0, 1);
+        int p1 = lv_add_point(e, 1, 1, 0, 1);
+        int p2 = lv_add_point(e, 0, 1, 1, 1);
+        int s1 = lv_add_line_segment(e, p0, p1);
+        int s2 = lv_add_line_segment(e, p1, p2);
+        int s3 = lv_add_line_segment(e, p2, p0);
+        lv_add_constraint_incidence(e, p0, s1);
+        lv_add_constraint_incidence(e, p1, s1);
+        lv_add_constraint_incidence(e, p1, s2);
+        lv_add_constraint_incidence(e, p2, s2);
+        lv_add_constraint_incidence(e, p2, s3);
+        lv_add_constraint_incidence(e, p0, s3);
+
+        TEST("lv_solve 三角形+incidence");
+        EngineSolveResult sr = lv_solve(e);
+        if (sr == ENGINE_SOLVE_OK) PASS(); else { printf("  -> %d", (int)sr); FAIL("!OK"); }
+
+        lv_engine_destroy(e);
+
+        /* 正方形 + incidence */
+        e = lv_engine_create();
+        if (!e) { FAIL("create2"); F = 99; goto g7_end; }
+
+        p0 = lv_add_point(e, 0, 1, 0, 1);
+        p1 = lv_add_point(e, 1, 1, 0, 1);
+        p2 = lv_add_point(e, 1, 1, 1, 1);
+        int p3 = lv_add_point(e, 0, 1, 1, 1);
+        s1 = lv_add_line_segment(e, p0, p1);
+        s2 = lv_add_line_segment(e, p1, p2);
+        s3 = lv_add_line_segment(e, p2, p3);
+        int s4 = lv_add_line_segment(e, p3, p0);
+        lv_add_constraint_incidence(e, p0, s1);
+        lv_add_constraint_incidence(e, p1, s1);
+        lv_add_constraint_incidence(e, p1, s2);
+        lv_add_constraint_incidence(e, p2, s2);
+        lv_add_constraint_incidence(e, p2, s3);
+        lv_add_constraint_incidence(e, p3, s3);
+        lv_add_constraint_incidence(e, p3, s4);
+        lv_add_constraint_incidence(e, p0, s4);
+
+        TEST("lv_solve 正方形+incidence");
+        sr = lv_solve(e);
+        if (sr == ENGINE_SOLVE_OK) PASS(); else { printf("  -> %d", (int)sr); FAIL("!OK"); }
+
+        lv_engine_destroy(e);
+g7_end: ;
+    }
+
+    /* ── 组 8: 求解边界条件 ── */
+    printf("[组 8] 求解边界条件\n");
+    {
+        /* 空图求解 */
+        lvEngine *e = lv_engine_create();
+        if (!e) { FAIL("create"); F = 99; goto g8_end; }
+
+        TEST("lv_solve 空图");
+        EngineSolveResult sr = lv_solve(e);
+        if (sr == ENGINE_SOLVE_OK) PASS(); else { printf("  -> %d", (int)sr); FAIL("!OK"); }
+
+        /* 多次求解 */
+        int p0 = lv_add_point(e, 0, 1, 0, 1);
+        int p1 = lv_add_point(e, 1, 1, 0, 1);
+        int p2 = lv_add_point(e, 0, 1, 1, 1);
+        lv_add_line_segment(e, p0, p1);
+        lv_add_line_segment(e, p1, p2);
+        lv_add_line_segment(e, p2, p0);
+
+        bool all_ok = true;
+        for (int i = 0; i < 5; i++) {
+            sr = lv_solve(e);
+            if (sr != ENGINE_SOLVE_OK) { all_ok = false; break; }
+        }
+        TEST("lv_solve 连续5次");
+        if (all_ok) PASS(); else FAIL("某次失败");
+
+        /* 多点无线段 */
+        lv_add_point(e, 2, 1, 2, 1); /* 额外点 */
+        TEST("lv_solve 4点3线段");
+        sr = lv_solve(e);
+        if (sr == ENGINE_SOLVE_OK) PASS(); else { printf("  -> %d", (int)sr); FAIL("!OK"); }
+
+        lv_engine_destroy(e);
+g8_end: ;
+    }
+
     lv_cleanup();
     printf("\n=== %d passed, %d failed ===\n", P, F);
     return F > 0 ? 1 : 0;

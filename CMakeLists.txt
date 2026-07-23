@@ -529,6 +529,9 @@ set(lv_HEADERS
     # v1.2.0 新增：关键对计算引擎 + 类型等价探索器
     core/include/lv/critical_pair.h
     core/include/lv/type_equiv_explorer.h
+    # v1.9.0 micro-bootstrap: 语义分析与加载器
+    core/include/lv/lv_sema.h
+    core/include/lv/lv_loader.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -547,6 +550,13 @@ set(lv_LAYER1_SOURCES
     core/src/layer1_parser/parser/formula_dsl.c
     core/src/layer1_parser/parser/formula_latex.c
     core/src/layer1_parser/parser/formula_python.c
+    # .lv 语言解析管线
+    core/src/layer1_parser/lv_lexer.c
+    core/src/layer1_parser/lv_ast.c
+    core/src/layer1_parser/lv_parser.c
+    # v1.9.0 micro-bootstrap: 语义分析与加载器
+    core/src/layer1_parser/lv_sema.c
+    core/src/layer1_parser/lv_loader.c
 )
 
 # ── Layer 2: 资源管理层 (Resource) ──
@@ -1424,6 +1434,20 @@ if(BUILD_TESTS)
     # Layer5 输出层操作测试
     add_lv_test_and_register(test_layer5_output_ops
         test/c/test_layer5_output_ops.c layer5_output_ops_test)
+    # 求解器调试测试
+    add_lv_test_and_register(test_solve_debug
+        test/c/test_solve_debug.c solve_debug_test)
+    # .lv 词法分析器测试
+    add_lv_test_and_register(test_lv_lexer
+        test/c/test_lv_lexer.c lv_lexer_test)
+
+    # .lv 解析器测试
+    add_lv_test_and_register(test_lv_parser
+        test/c/test_lv_parser.c lv_parser_test)
+
+    # v1.9.0 micro-bootstrap: 集成测试
+    add_lv_test_and_register(test_lv_bootstrap
+        test/c/test_lv_bootstrap.c lv_bootstrap_test)
 
     # 新增公理包测试
     add_lv_test_and_register(test_axiom_topos_theory

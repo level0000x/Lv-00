@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 模块名称:Lv-00 上层统一实现 (lv_impl_upper)
  *
  * 功能概述:
@@ -2766,7 +2766,7 @@ int64_t lv_application_batch(lvEngine *ctx, const char **inputs, int64_t count) 
 /** 获取版本号字符串 */
 const char *lv_application_get_version(lvEngine *ctx) {
     (void)ctx;
-    return "Lv-00 v3.3.0-unified (GMP exact arithmetic)";
+    return "Lv-00 v1.1.0 (GMP exact arithmetic)";
 }
 
 /** 销毁应用实例 */

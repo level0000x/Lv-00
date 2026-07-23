@@ -178,6 +178,75 @@ t4_cleanup:
 t4_end: ;
     }
 
+    /* ── 测试5: 多次求解调用 ── */
+    printf("[测试5] 多次 lv_solve 调用\n");
+    {
+        lvEngine *e = lv_engine_create();
+        if (!e) { FAIL("create"); goto t5_end; }
+
+        int p0 = lv_add_point(e, 0, 1, 0, 1);
+        int p1 = lv_add_point(e, 1, 1, 0, 1);
+        int p2 = lv_add_point(e, 0, 1, 1, 1);
+        lv_add_line_segment(e, p0, p1);
+        lv_add_line_segment(e, p1, p2);
+        lv_add_line_segment(e, p2, p0);
+
+        bool all_ok = true;
+        for (int i = 0; i < 5; i++) {
+            EngineSolveResult r = lv_solve(e);
+            if (r != ENGINE_SOLVE_OK) {
+                printf("    第%d次返回 %d\n", i+1, (int)r);
+                all_ok = false;
+                break;
+            }
+        }
+        TEST("lv_solve 5次连续调用");
+        if (all_ok) PASS(); else FAIL("某次失败");
+
+t5_cleanup:
+        lv_engine_destroy(e);
+t5_end: ;
+    }
+
+    /* ── 测试6: 空图求解 ── */
+    printf("[测试6] 空图/边界条件\n");
+    {
+        TEST("lv_solve(NULL)");
+        EngineSolveResult r = lv_solve(NULL);
+        if (r == ENGINE_SOLVE_ERROR) PASS(); else FAIL("应返回 ERROR");
+
+        lvEngine *e = lv_engine_create();
+        if (!e) { FAIL("create"); goto t6_end; }
+
+        TEST("lv_solve 空图");
+        r = lv_solve(e);
+        if (r == ENGINE_SOLVE_OK) PASS(); else { printf("  -> %d", (int)r); FAIL("应返回 OK"); }
+
+        lv_engine_destroy(e);
+t6_end: ;
+    }
+
+    /* ── 测试7: 多点无线段图 ── */
+    printf("[测试7] 多点无线段\n");
+    {
+        lvEngine *e = lv_engine_create();
+        if (!e) { FAIL("create"); goto t7_end; }
+
+        lv_add_point(e, 0, 1, 0, 1);
+        lv_add_point(e, 1, 1, 0, 1);
+        lv_add_point(e, 0, 1, 1, 1);
+        lv_add_point(e, 1, 1, 1, 1);
+
+        TEST("lv_solve 4点无线段");
+        timeout_flag = 0;
+        EngineSolveResult r = lv_solve(e);
+        if (timeout_flag) FAIL("超时");
+        else { printf("  -> solve 返回: %d\n", (int)r); PASS(); }
+
+        lv_engine_destroy(e);
+t7_end: ;
+    }
+
     printf("\n=== 结果: %d PASS, %d FAIL ===\n", P, F);
     lv_cleanup();
     return F > 0 ? 1 : 0;
