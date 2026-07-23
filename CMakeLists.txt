@@ -900,6 +900,7 @@ set(lv_LAYER5_SOURCES
     # v1.1.0 补全遗漏：插件系统、证明编译器
     core/src/layer5_output/plugin_system.c
     core/src/layer5_output/proof_compiler.c
+    core/src/layer5_output/tikz_export.c
     # 互操作子模块：命令、导出、导入、服务器、定理
     core/src/layer5_output/interop/interop_command.c
     core/src/layer5_output/interop/interop_export.c
@@ -1093,9 +1094,7 @@ target_include_directories(lv_static PUBLIC
 target_link_libraries(lv_static ${GMP_LIBRARIES} Threads::Threads)
 set_target_properties(lv_static PROPERTIES OUTPUT_NAME lv)
 
-# 跳过有深层依赖问题的预设注册（preset_differential_geometry, preset_functional_analysis）
-# 此定义对静态库始终生效，不依赖于 BUILD_SHARED_LIBS 选项
-target_compile_definitions(lv_static PRIVATE lv_EXCLUDE_BROKEN_PRESETS)
+# preset_differential_geometry, preset_functional_analysis 已修复，预设计数已同步
 
 if(BUILD_SHARED_LIBS)
     add_library(lv_shared SHARED
@@ -1419,6 +1418,12 @@ if(BUILD_TESTS)
         test/c/test_conflict_detector.c conflict_detector_test)
     add_lv_test_and_register(test_adaptive_threshold
         test/c/test_adaptive_threshold.c adaptive_threshold_test)
+    # 引擎核心操作测试
+    add_lv_test_and_register(test_engine_ops
+        test/c/test_engine_ops.c engine_ops_test)
+    # Layer5 输出层操作测试
+    add_lv_test_and_register(test_layer5_output_ops
+        test/c/test_layer5_output_ops.c layer5_output_ops_test)
 
     # 新增公理包测试
     add_lv_test_and_register(test_axiom_topos_theory
