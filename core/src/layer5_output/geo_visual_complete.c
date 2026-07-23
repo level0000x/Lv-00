@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_visual_complete.c
  * @brief 几何可视化完整版实现
  *
@@ -65,7 +65,7 @@ static void set_default_style(lvVisualStyle *style)
 
 lvVisualObject *lv_visual_point_create(float x, float y)
 {
-    lvVisualObject *obj = (lvVisualObject *)calloc(1, sizeof(lvVisualObject));
+    lvVisualObject *obj = (lvVisualObject *)lv_calloc(1, sizeof(lvVisualObject));
     if (obj == NULL) return NULL;
 
     obj->type = lv_VISUAL_POINT;
@@ -75,7 +75,7 @@ lvVisualObject *lv_visual_point_create(float x, float y)
     obj->children_count = 0;
 
     /* 缓存点坐标 */
-    float *cache = (float *)malloc(2 * sizeof(float));
+    float *cache = (float *)lv_malloc(2 * sizeof(float));
     if (cache != NULL) {
         cache[0] = x;
         cache[1] = y;
@@ -87,7 +87,7 @@ lvVisualObject *lv_visual_point_create(float x, float y)
 
 lvVisualObject *lv_visual_line_create(float x1, float y1, float x2, float y2)
 {
-    lvVisualObject *obj = (lvVisualObject *)calloc(1, sizeof(lvVisualObject));
+    lvVisualObject *obj = (lvVisualObject *)lv_calloc(1, sizeof(lvVisualObject));
     if (obj == NULL) return NULL;
 
     obj->type = lv_VISUAL_SEGMENT;
@@ -97,7 +97,7 @@ lvVisualObject *lv_visual_line_create(float x1, float y1, float x2, float y2)
     obj->children_count = 0;
 
     /* 缓存线段端点坐标 */
-    float *cache = (float *)malloc(4 * sizeof(float));
+    float *cache = (float *)lv_malloc(4 * sizeof(float));
     if (cache != NULL) {
         cache[0] = x1; cache[1] = y1;
         cache[2] = x2; cache[3] = y2;
@@ -109,7 +109,7 @@ lvVisualObject *lv_visual_line_create(float x1, float y1, float x2, float y2)
 
 lvVisualObject *lv_visual_circle_create(float cx, float cy, float r)
 {
-    lvVisualObject *obj = (lvVisualObject *)calloc(1, sizeof(lvVisualObject));
+    lvVisualObject *obj = (lvVisualObject *)lv_calloc(1, sizeof(lvVisualObject));
     if (obj == NULL) return NULL;
 
     obj->type = lv_VISUAL_CIRCLE;
@@ -119,7 +119,7 @@ lvVisualObject *lv_visual_circle_create(float cx, float cy, float r)
     obj->children_count = 0;
 
     /* 缓存圆心和半径 */
-    float *cache = (float *)malloc(3 * sizeof(float));
+    float *cache = (float *)lv_malloc(3 * sizeof(float));
     if (cache != NULL) {
         cache[0] = cx; cache[1] = cy; cache[2] = r;
     }
@@ -132,16 +132,16 @@ lvVisualObject *lv_visual_group_create(lvVisualObject **objs, size_t n)
 {
     if (objs == NULL || n == 0) return NULL;
 
-    lvVisualObject *obj = (lvVisualObject *)calloc(1, sizeof(lvVisualObject));
+    lvVisualObject *obj = (lvVisualObject *)lv_calloc(1, sizeof(lvVisualObject));
     if (obj == NULL) return NULL;
 
     obj->type = lv_VISUAL_MOBJECT_GROUP;
     set_default_style(&obj->style);
     identity_matrix(obj->transform);
 
-    obj->children = (lvVisualObject **)calloc(n, sizeof(lvVisualObject *));
+    obj->children = (lvVisualObject **)lv_calloc(n, sizeof(lvVisualObject *));
     if (obj->children == NULL) {
-        free(obj);
+        lv_free((void **)&obj);
         return NULL;
     }
     memcpy(obj->children, objs, n * sizeof(lvVisualObject *));
@@ -237,7 +237,7 @@ void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3])
 
 lvVisualScene *lv_visual_scene_create(void)
 {
-    lvVisualScene *scene = (lvVisualScene *)calloc(1, sizeof(lvVisualScene));
+    lvVisualScene *scene = (lvVisualScene *)lv_calloc(1, sizeof(lvVisualScene));
     if (scene == NULL) return NULL;
 
     scene->objects = NULL;
@@ -273,8 +273,7 @@ void lv_visual_scene_clear(lvVisualScene *scene)
     for (size_t i = 0; i < scene->object_count; i++) {
         lv_visual_object_destroy(scene->objects[i]);
     }
-    free(scene->objects);
-    scene->objects = NULL;
+    lv_free((void **)&scene->objects);
     scene->object_count = 0;
 }
 
@@ -669,22 +668,22 @@ void lv_visual_object_destroy(lvVisualObject *obj)
         for (size_t i = 0; i < obj->children_count; i++) {
             lv_visual_object_destroy(obj->children[i]);
         }
-        free(obj->children);
+        lv_free((void **)&obj->children);
     }
 
-    free(obj->render_cache);
-    free(obj);
+    lv_free((void **)&obj->render_cache);
+    lv_free((void **)&obj);
 }
 
 void lv_visual_scene_destroy(lvVisualScene *scene)
 {
     if (scene == NULL) return;
     lv_visual_scene_clear(scene);
-    free(scene);
+    lv_free((void **)&scene);
 }
 
 void lv_visual_renderer_destroy(lvVisualRenderer *renderer)
 {
     if (renderer == NULL) return;
-    free(renderer);
+    lv_free((void **)&renderer);
 }

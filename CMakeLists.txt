@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.15)
 project(lv VERSION 1.1.0 LANGUAGES C)  # 版本号与 lv.h 中 lv_VERSION_MAJOR/MINOR/PATCH 保持一致
 
 set(CMAKE_C_STANDARD 11)
@@ -891,8 +891,7 @@ set(lv_LAYER5_SOURCES
     core/src/layer5_output/interop/interop.c
     # Magic 模拟器模块
     core/src/layer5_output/magic/magic.c
-    # 补全遗漏文件：几何可视化（基础版 + 完整版）
-    core/src/layer5_output/geo_visual.c
+    # 几何可视化（完整版）
     core/src/layer5_output/geo_visual_complete.c
     # UI-Kernel 通信协议
     core/src/layer5_output/lv_protocol.c
@@ -1181,6 +1180,8 @@ if(BUILD_TESTS)
         test/c/test_complex_graph.c complex_graph_test)
     add_lv_test_and_register(test_normalization
         test/c/test_normalization.c normalization_test)
+    add_lv_test_and_register(test_constraint_graph_ops
+        test/c/test_constraint_graph_ops.c constraint_graph_ops_test)
     add_lv_test_and_register(test_constraint_compatibility
         test/c/test_constraint_compatibility.c constraint_compatibility_test)
     add_lv_test_and_register(test_unify
@@ -1404,6 +1405,9 @@ if(BUILD_TESTS)
     # 动态几何依赖图模块测试
     add_lv_test_and_register(test_geo_dynamic
         test/c/test_geo_dynamic.c geo_dynamic_test)
+    # 几何可视化渲染模块测试
+    add_lv_test_and_register(test_geo_visual
+        test/c/test_geo_visual.c geo_visual_test)
     # AABB 树空间索引模块测试
     add_lv_test_and_register(test_geo_aabb_tree
         test/c/test_geo_aabb_tree.c geo_aabb_tree_test)
