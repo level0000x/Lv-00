@@ -1934,8 +1934,11 @@ bool type_check_non_well_founded_compatibility(TypeSystem *ts, TypeRegion *type)
 
 /* ============== 类型规范化 ============== */
 
+/** @brief 类型规范化递归深度上限（防止循环引用导致无限递归） */
+#define TYPE_NORMALIZE_MAX_DEPTH 4096
+
 /**
- * @brief 规范化类型
+ * @brief 内部：规范化类型（带递归深度保护）
  *
  * 对类型进行规范化处理：展开类型别名、实例化类型变量、
  * 规范化复合类型的子类型。
@@ -1943,11 +1946,19 @@ bool type_check_non_well_founded_compatibility(TypeSystem *ts, TypeRegion *type)
  * @param ts             类型系统指针
  * @param type           待规范化的类型区域
  * @param out_normalized 输出参数，接收规范化后的类型
+ * @param depth          当前递归深度
  * @return true 规范化成功，false 参数无效或失败
  */
-bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized) {
+static bool type_normalize_internal(TypeSystem *ts, TypeRegion *type,
+                                     TypeRegion **out_normalized, int depth) {
     if (!ts || !type || !out_normalized)
         return false;
+
+    /* 递归深度保护：超过上限时直接返回原始类型 */
+    if (depth > TYPE_NORMALIZE_MAX_DEPTH) {
+        *out_normalized = type;
+        return true;
+    }
 
     /* 流式事件：规范化开始 */
     if (type_system_stream_ctx != NULL) {
@@ -1962,7 +1973,7 @@ bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalize
 
     /* 展开别名 */
     if (type->alias_name && type->aliased_type) {
-        return type_normalize(ts, type->aliased_type, out_normalized);
+        return type_normalize_internal(ts, type->aliased_type, out_normalized, depth + 1);
     }
 
     /* 实例化变量 */
@@ -1970,7 +1981,8 @@ bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalize
         for (int i = 0; i < ts->type_var_count; i++) {
             if (ts->type_vars[i] && ts->type_vars[i]->id == type->variable_id) {
                 if (ts->type_vars[i]->bound_type) {
-                    return type_normalize(ts, ts->type_vars[i]->bound_type, out_normalized);
+                    return type_normalize_internal(ts, ts->type_vars[i]->bound_type,
+                                                    out_normalized, depth + 1);
                 }
             }
         }
@@ -1983,10 +1995,10 @@ bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalize
             TypeRegion *norm_output = NULL;
 
             if (type->input_type) {
-                type_normalize(ts, type->input_type, &norm_input);
+                type_normalize_internal(ts, type->input_type, &norm_input, depth + 1);
             }
             if (type->output_type) {
-                type_normalize(ts, type->output_type, &norm_output);
+                type_normalize_internal(ts, type->output_type, &norm_output, depth + 1);
             }
 
             if (norm_input || norm_output) {
@@ -2005,10 +2017,10 @@ bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalize
                 TypeRegion *norm_right = NULL;
 
                 if (type->left_type) {
-                    type_normalize(ts, type->left_type, &norm_left);
+                    type_normalize_internal(ts, type->left_type, &norm_left, depth + 1);
                 }
                 if (type->right_type) {
-                    type_normalize(ts, type->right_type, &norm_right);
+                    type_normalize_internal(ts, type->right_type, &norm_right, depth + 1);
                 }
 
                 if (norm_left || norm_right) {
@@ -2026,7 +2038,7 @@ bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalize
                 TypeRegion *norm_body = NULL;
 
                 if (type->body_type) {
-                    type_normalize(ts, type->body_type, &norm_body);
+                    type_normalize_internal(ts, type->body_type, &norm_body, depth + 1);
                 }
 
                 if (norm_body) {
@@ -2041,6 +2053,21 @@ bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalize
             *out_normalized = type;
             return true;
     }
+}
+
+/**
+ * @brief 规范化类型（公开 API）
+ *
+ * 对类型进行规范化处理：展开类型别名、实例化类型变量、
+ * 规范化复合类型的子类型。添加递归深度保护防止循环引用导致无限递归。
+ *
+ * @param ts             类型系统指针
+ * @param type           待规范化的类型区域
+ * @param out_normalized 输出参数，接收规范化后的类型
+ * @return true 规范化成功，false 参数无效或失败
+ */
+bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized) {
+    return type_normalize_internal(ts, type, out_normalized, 0);
 }
 
 /* ============== 类型附加到节点 ============== */
