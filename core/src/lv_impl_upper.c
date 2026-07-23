@@ -66,14 +66,24 @@ typedef struct lvOrchestrator lvOrchestrator;
  * 文件级静态内部表 -- 用于 L3 实现中的 ID→object 映射
  * ============================================================ */
 
-/** 几何演化引擎表 */
+/** 几何演化引擎表条目 */
+typedef struct {
+    int64_t id;
+    lvGeomEvol *evol;
+} EvolEntry;
+
 #define MAX_EVOL_TABLE 256
-static lvGeomEvol *g_evol_table[MAX_EVOL_TABLE];
+static EvolEntry g_evol_table[MAX_EVOL_TABLE];
 static int g_evol_count = 0;
 
-/** ATP 后端求解器表 */
+/** ATP 后端求解器表条目 */
+typedef struct {
+    int64_t id;
+    ATPBackendSolver *solver;
+} ATPBackendSlot;
+
 #define MAX_ATP_BACKEND_TABLE 256
-static ATPBackendSolver *g_atp_backend_table[MAX_ATP_BACKEND_TABLE];
+static ATPBackendSlot g_atp_backend_table[MAX_ATP_BACKEND_TABLE];
 static int g_atp_backend_count = 0;
 
 /** ATP 任务跟踪结构 */
@@ -127,9 +137,10 @@ int64_t geom_evol_create(lvEngine *ctx, int64_t dim) {
     int slot = 0;
     /* 查找空闲槽位 */
     for (; slot < MAX_EVOL_TABLE; slot++) {
-        if (!g_evol_table[slot]) break;
+        if (!g_evol_table[slot].evol) break;
     }
-    g_evol_table[slot] = evol;
+    g_evol_table[slot].evol = evol;
+    g_evol_table[slot].id = id;
     g_evol_count++;
     return id;
 }
@@ -140,9 +151,8 @@ int64_t geom_evol_step(lvEngine *ctx, int64_t evol_id, int64_t steps) {
     /* 在内部表中查找对应的演化引擎 */
     lvGeomEvol *evol = NULL;
     for (int i = 0; i < MAX_EVOL_TABLE; i++) {
-        if (g_evol_table[i]) {
-            /* 用 ID 做近似匹配 -- 实际实现应有正式 ID→slot 映射 */
-            evol = g_evol_table[i];
+        if (g_evol_table[i].evol && g_evol_table[i].id == evol_id) {
+            evol = g_evol_table[i].evol;
             break;
         }
     }
@@ -165,12 +175,13 @@ int64_t geom_evol_step(lvEngine *ctx, int64_t evol_id, int64_t steps) {
 
 /** 销毁几何演化引擎实例 */
 int64_t geom_evol_destroy(lvEngine *ctx, int64_t evol_id) {
-    (void)ctx; (void)evol_id;
-    /* 查找并销毁演化引擎 */
+    (void)ctx;
+    /* 查找并销毁对应 ID 的演化引擎 */
     for (int i = 0; i < MAX_EVOL_TABLE; i++) {
-        if (g_evol_table[i]) {
-            geoevol_destroy(g_evol_table[i]);
-            g_evol_table[i] = NULL;
+        if (g_evol_table[i].evol && g_evol_table[i].id == evol_id) {
+            geoevol_destroy(g_evol_table[i].evol);
+            g_evol_table[i].evol = NULL;
+            g_evol_table[i].id = 0;
             g_evol_count--;
             return 0;
         }
@@ -202,27 +213,31 @@ int64_t atp_backend_create(lvEngine *ctx, const char *solver_name) {
     /* 查找空闲槽位 */
     int slot = 0;
     for (; slot < MAX_ATP_BACKEND_TABLE; slot++) {
-        if (!g_atp_backend_table[slot]) break;
+        if (!g_atp_backend_table[slot].solver) break;
     }
     if (slot >= MAX_ATP_BACKEND_TABLE) {
         atp_solver_destroy(solver);
         return -1;
     }
-    g_atp_backend_table[slot] = solver;
+    g_atp_backend_table[slot].solver = solver;
+    g_atp_backend_table[slot].id = g_upper_id++;
     g_atp_backend_count++;
-    return g_upper_id++;
+    return g_atp_backend_table[slot].id;
 }
 
 /** 向ATP后端提交证明任务,返回任务ID */
 int64_t atp_backend_submit(lvEngine *ctx, int64_t backend_id, const char *conjecture) {
-    (void)ctx; (void)backend_id;
+    (void)ctx;
     if (!conjecture || conjecture[0] == '\0') return -1;
     if (g_atp_task_count >= MAX_ATP_TASK_TABLE) return -1;
 
     /* 查找后端求解器 */
     ATPBackendSolver *solver = NULL;
     for (int i = 0; i < MAX_ATP_BACKEND_TABLE; i++) {
-        if (g_atp_backend_table[i]) { solver = g_atp_backend_table[i]; break; }
+        if (g_atp_backend_table[i].solver && g_atp_backend_table[i].id == backend_id) {
+            solver = g_atp_backend_table[i].solver;
+            break;
+        }
     }
     if (!solver) return -1;
 
@@ -265,11 +280,12 @@ int64_t atp_backend_result(lvEngine *ctx, int64_t task_id) {
 
 /** 销毁ATP后端实例 */
 int64_t atp_backend_destroy(lvEngine *ctx, int64_t backend_id) {
-    (void)ctx; (void)backend_id;
+    (void)ctx;
     for (int i = 0; i < MAX_ATP_BACKEND_TABLE; i++) {
-        if (g_atp_backend_table[i]) {
-            atp_solver_destroy(g_atp_backend_table[i]);
-            g_atp_backend_table[i] = NULL;
+        if (g_atp_backend_table[i].solver && g_atp_backend_table[i].id == backend_id) {
+            atp_solver_destroy(g_atp_backend_table[i].solver);
+            g_atp_backend_table[i].solver = NULL;
+            g_atp_backend_table[i].id = 0;
             g_atp_backend_count--;
             return 0;
         }
@@ -936,8 +952,54 @@ int64_t preset_translate(lvEngine *ctx, int64_t obj_id, int64_t dx, int64_t dy) 
     ConstraintGraph *graph = ctx->main_graph;
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
     if (!obj) return -1;
-    (void)dx; (void)dy;
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+
+    /* 如果 obj 没有坐标，回退到复制行为 */
+    if (obj->coord_count == 0) {
+        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+        int result_id = graph_get_last_added_node_id(graph);
+        if (result_id < 0) return -1;
+        graph_add_line_segment(graph, (int)obj_id, result_id);
+        return (int64_t)result_id;
+    }
+
+    /* 创建平移向量 */
+    SymbolicCoord *dx_r = symbolic_coord_create_rational(dx, 1);
+    SymbolicCoord *dy_r = symbolic_coord_create_rational(dy, 1);
+    if (!dx_r || !dy_r) {
+        if (dx_r) symbolic_coord_destroy(dx_r);
+        if (dy_r) symbolic_coord_destroy(dy_r);
+        return -1;
+    }
+
+    /* 计算新坐标: (x+dx, y+dy) */
+    int n = obj->coord_count;
+    SymbolicCoord **new_coords = lv_malloc((size_t)n * sizeof(SymbolicCoord *));
+    if (!new_coords) {
+        symbolic_coord_destroy(dx_r);
+        symbolic_coord_destroy(dy_r);
+        return -1;
+    }
+
+    for (int i = 0; i < n; i++) {
+        SymbolicCoord *delta = (i % 2 == 0) ? dx_r : dy_r;
+        new_coords[i] = symbolic_coord_add(obj->symbolic_coords[i], delta);
+        if (!new_coords[i]) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(dx_r);
+            symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+    }
+
+    symbolic_coord_destroy(dx_r);
+    symbolic_coord_destroy(dy_r);
+
+    /* 创建新点（graph_add_point 会深拷贝坐标，故可释放临时数组） */
+    graph_add_point(graph, new_coords, n);
+    for (int i = 0; i < n; i++) symbolic_coord_destroy(new_coords[i]);
+    lv_free((void**)&new_coords);
+
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0) return -1;
     graph_add_line_segment(graph, (int)obj_id, result_id);
@@ -949,8 +1011,103 @@ int64_t preset_rotate(lvEngine *ctx, int64_t obj_id, int64_t angle_mrad) {
     ConstraintGraph *graph = ctx->main_graph;
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
     if (!obj) return -1;
-    (void)angle_mrad;
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+
+    /* 如果 obj 没有坐标，回退到复制行为 */
+    if (obj->coord_count == 0) {
+        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+        int result_id = graph_get_last_added_node_id(graph);
+        if (result_id < 0) return -1;
+        graph_add_line_segment(graph, (int)obj_id, result_id);
+        return (int64_t)result_id;
+    }
+
+    /* 创建 sinθ 和 cosθ 超越数 */
+    SymbolicCoord *sin_theta = symbolic_coord_create_transcendental("sinθ_mrad");
+    SymbolicCoord *cos_theta = symbolic_coord_create_transcendental("cosθ_mrad");
+    if (!sin_theta || !cos_theta) {
+        if (sin_theta) symbolic_coord_destroy(sin_theta);
+        if (cos_theta) symbolic_coord_destroy(cos_theta);
+        return -1;
+    }
+
+    /* 旋转公式: x' = x*cosθ - y*sinθ, y' = x*sinθ + y*cosθ */
+    int n = obj->coord_count;
+    SymbolicCoord **new_coords = lv_malloc((size_t)n * sizeof(SymbolicCoord *));
+    if (!new_coords) {
+        symbolic_coord_destroy(sin_theta);
+        symbolic_coord_destroy(cos_theta);
+        return -1;
+    }
+
+    for (int i = 0; i + 1 < n; i += 2) {
+        /* x' = x*cosθ - y*sinθ */
+        SymbolicCoord *x_cos = symbolic_coord_multiply(obj->symbolic_coords[i],     cos_theta);
+        SymbolicCoord *y_sin = symbolic_coord_multiply(obj->symbolic_coords[i + 1], sin_theta);
+        if (!x_cos || !y_sin) {
+            if (x_cos) symbolic_coord_destroy(x_cos);
+            if (y_sin) symbolic_coord_destroy(y_sin);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta);
+            symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+        new_coords[i] = symbolic_coord_subtract(x_cos, y_sin);
+        symbolic_coord_destroy(x_cos);
+        symbolic_coord_destroy(y_sin);
+        if (!new_coords[i]) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta);
+            symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+
+        /* y' = x*sinθ + y*cosθ */
+        SymbolicCoord *x_sin = symbolic_coord_multiply(obj->symbolic_coords[i],     sin_theta);
+        SymbolicCoord *y_cos = symbolic_coord_multiply(obj->symbolic_coords[i + 1], cos_theta);
+        if (!x_sin || !y_cos) {
+            if (x_sin) symbolic_coord_destroy(x_sin);
+            if (y_cos) symbolic_coord_destroy(y_cos);
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta);
+            symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+        new_coords[i + 1] = symbolic_coord_add(x_sin, y_cos);
+        symbolic_coord_destroy(x_sin);
+        symbolic_coord_destroy(y_cos);
+        if (!new_coords[i + 1]) {
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta);
+            symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+    }
+
+    /* 处理奇数个坐标的情况（复制最后一个） */
+    if (n % 2 != 0) {
+        new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
+        if (!new_coords[n - 1]) {
+            for (int j = 0; j < n - 1; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta);
+            symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+    }
+
+    symbolic_coord_destroy(sin_theta);
+    symbolic_coord_destroy(cos_theta);
+
+    graph_add_point(graph, new_coords, n);
+    for (int i = 0; i < n; i++) symbolic_coord_destroy(new_coords[i]);
+    lv_free((void**)&new_coords);
+
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0) return -1;
     graph_add_line_segment(graph, (int)obj_id, result_id);
@@ -990,8 +1147,53 @@ int64_t preset_scale(lvEngine *ctx, int64_t obj_id, int64_t sx, int64_t sy, int6
     ConstraintGraph *graph = ctx->main_graph;
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
     if (!obj) return -1;
-    (void)sx; (void)sy; (void)denom;
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+
+    /* 如果 obj 没有坐标，回退到复制行为 */
+    if (obj->coord_count == 0) {
+        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+        int result_id = graph_get_last_added_node_id(graph);
+        if (result_id < 0) return -1;
+        graph_add_line_segment(graph, (int)obj_id, result_id);
+        return (int64_t)result_id;
+    }
+
+    /* 创建缩放因子 */
+    SymbolicCoord *sx_r = symbolic_coord_create_rational(sx, (uint64_t)denom);
+    SymbolicCoord *sy_r = symbolic_coord_create_rational(sy, (uint64_t)denom);
+    if (!sx_r || !sy_r) {
+        if (sx_r) symbolic_coord_destroy(sx_r);
+        if (sy_r) symbolic_coord_destroy(sy_r);
+        return -1;
+    }
+
+    /* 计算新坐标: (x*sx/denom, y*sy/denom) */
+    int n = obj->coord_count;
+    SymbolicCoord **new_coords = lv_malloc((size_t)n * sizeof(SymbolicCoord *));
+    if (!new_coords) {
+        symbolic_coord_destroy(sx_r);
+        symbolic_coord_destroy(sy_r);
+        return -1;
+    }
+
+    for (int i = 0; i < n; i++) {
+        SymbolicCoord *scale = (i % 2 == 0) ? sx_r : sy_r;
+        new_coords[i] = symbolic_coord_multiply(obj->symbolic_coords[i], scale);
+        if (!new_coords[i]) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sx_r);
+            symbolic_coord_destroy(sy_r);
+            return -1;
+        }
+    }
+
+    symbolic_coord_destroy(sx_r);
+    symbolic_coord_destroy(sy_r);
+
+    graph_add_point(graph, new_coords, n);
+    for (int i = 0; i < n; i++) symbolic_coord_destroy(new_coords[i]);
+    lv_free((void**)&new_coords);
+
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0) return -1;
     graph_add_line_segment(graph, (int)obj_id, result_id);
@@ -1003,8 +1205,74 @@ int64_t preset_shear_x(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
     ConstraintGraph *graph = ctx->main_graph;
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
     if (!obj) return -1;
-    (void)factor; (void)denom;
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+
+    /* 如果 obj 没有坐标，回退到复制行为 */
+    if (obj->coord_count == 0) {
+        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+        int result_id = graph_get_last_added_node_id(graph);
+        if (result_id < 0) return -1;
+        graph_add_line_segment(graph, (int)obj_id, result_id);
+        return (int64_t)result_id;
+    }
+
+    /* 创建剪切因子: factor/denom */
+    SymbolicCoord *ratio = symbolic_coord_create_rational(factor, (uint64_t)denom);
+    if (!ratio) return -1;
+
+    /* x' = x + y*factor/denom, y' = y */
+    int n = obj->coord_count;
+    SymbolicCoord **new_coords = lv_malloc((size_t)n * sizeof(SymbolicCoord *));
+    if (!new_coords) {
+        symbolic_coord_destroy(ratio);
+        return -1;
+    }
+
+    for (int i = 0; i + 1 < n; i += 2) {
+        /* x' = x + y * ratio */
+        SymbolicCoord *y_ratio = symbolic_coord_multiply(obj->symbolic_coords[i + 1], ratio);
+        if (!y_ratio) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+        new_coords[i] = symbolic_coord_add(obj->symbolic_coords[i], y_ratio);
+        symbolic_coord_destroy(y_ratio);
+        if (!new_coords[i]) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+
+        /* y' = y (不变) */
+        new_coords[i + 1] = symbolic_coord_copy(obj->symbolic_coords[i + 1]);
+        if (!new_coords[i + 1]) {
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+    }
+
+    /* 处理奇数个坐标的情况 */
+    if (n % 2 != 0) {
+        new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
+        if (!new_coords[n - 1]) {
+            for (int j = 0; j < n - 1; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+    }
+
+    symbolic_coord_destroy(ratio);
+
+    graph_add_point(graph, new_coords, n);
+    for (int i = 0; i < n; i++) symbolic_coord_destroy(new_coords[i]);
+    lv_free((void**)&new_coords);
+
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0) return -1;
     graph_add_line_segment(graph, (int)obj_id, result_id);
@@ -1016,8 +1284,75 @@ int64_t preset_shear_y(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
     ConstraintGraph *graph = ctx->main_graph;
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
     if (!obj) return -1;
-    (void)factor; (void)denom;
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+
+    /* 如果 obj 没有坐标，回退到复制行为 */
+    if (obj->coord_count == 0) {
+        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+        int result_id = graph_get_last_added_node_id(graph);
+        if (result_id < 0) return -1;
+        graph_add_line_segment(graph, (int)obj_id, result_id);
+        return (int64_t)result_id;
+    }
+
+    /* 创建剪切因子: factor/denom */
+    SymbolicCoord *ratio = symbolic_coord_create_rational(factor, (uint64_t)denom);
+    if (!ratio) return -1;
+
+    /* x' = x, y' = y + x*factor/denom */
+    int n = obj->coord_count;
+    SymbolicCoord **new_coords = lv_malloc((size_t)n * sizeof(SymbolicCoord *));
+    if (!new_coords) {
+        symbolic_coord_destroy(ratio);
+        return -1;
+    }
+
+    for (int i = 0; i + 1 < n; i += 2) {
+        /* x' = x (不变) */
+        new_coords[i] = symbolic_coord_copy(obj->symbolic_coords[i]);
+        if (!new_coords[i]) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+
+        /* y' = y + x * ratio */
+        SymbolicCoord *x_ratio = symbolic_coord_multiply(obj->symbolic_coords[i], ratio);
+        if (!x_ratio) {
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+        new_coords[i + 1] = symbolic_coord_add(obj->symbolic_coords[i + 1], x_ratio);
+        symbolic_coord_destroy(x_ratio);
+        if (!new_coords[i + 1]) {
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+    }
+
+    /* 处理奇数个坐标的情况 */
+    if (n % 2 != 0) {
+        new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
+        if (!new_coords[n - 1]) {
+            for (int j = 0; j < n - 1; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+    }
+
+    symbolic_coord_destroy(ratio);
+
+    graph_add_point(graph, new_coords, n);
+    for (int i = 0; i < n; i++) symbolic_coord_destroy(new_coords[i]);
+    lv_free((void**)&new_coords);
+
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0) return -1;
     graph_add_line_segment(graph, (int)obj_id, result_id);
@@ -1031,9 +1366,139 @@ int64_t preset_affine(lvEngine *ctx, int64_t obj_id,
     ConstraintGraph *graph = ctx->main_graph;
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
     if (!obj) return -1;
-    (void)a11; (void)a12; (void)a21; (void)a22;
-    (void)tx; (void)ty; (void)denom;
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+
+    /* 如果 obj 没有坐标，回退到复制行为 */
+    if (obj->coord_count == 0) {
+        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+        int result_id = graph_get_last_added_node_id(graph);
+        if (result_id < 0) return -1;
+        graph_add_line_segment(graph, (int)obj_id, result_id);
+        return (int64_t)result_id;
+    }
+
+    /* 创建矩阵元素和偏移量 */
+    SymbolicCoord *s_a11 = symbolic_coord_create_rational(a11, (uint64_t)denom);
+    SymbolicCoord *s_a12 = symbolic_coord_create_rational(a12, (uint64_t)denom);
+    SymbolicCoord *s_a21 = symbolic_coord_create_rational(a21, (uint64_t)denom);
+    SymbolicCoord *s_a22 = symbolic_coord_create_rational(a22, (uint64_t)denom);
+    SymbolicCoord *s_tx  = symbolic_coord_create_rational(tx,  (uint64_t)denom);
+    SymbolicCoord *s_ty  = symbolic_coord_create_rational(ty,  (uint64_t)denom);
+
+    if (!s_a11 || !s_a12 || !s_a21 || !s_a22 || !s_tx || !s_ty) {
+        if (s_a11) symbolic_coord_destroy(s_a11);
+        if (s_a12) symbolic_coord_destroy(s_a12);
+        if (s_a21) symbolic_coord_destroy(s_a21);
+        if (s_a22) symbolic_coord_destroy(s_a22);
+        if (s_tx)  symbolic_coord_destroy(s_tx);
+        if (s_ty)  symbolic_coord_destroy(s_ty);
+        return -1;
+    }
+
+    /* x' = (a11*x + a12*y + tx) / denom
+     * y' = (a21*x + a22*y + ty) / denom */
+    int n = obj->coord_count;
+    SymbolicCoord **new_coords = lv_malloc((size_t)n * sizeof(SymbolicCoord *));
+    if (!new_coords) {
+        symbolic_coord_destroy(s_a11); symbolic_coord_destroy(s_a12);
+        symbolic_coord_destroy(s_a21); symbolic_coord_destroy(s_a22);
+        symbolic_coord_destroy(s_tx);  symbolic_coord_destroy(s_ty);
+        return -1;
+    }
+
+    for (int i = 0; i + 1 < n; i += 2) {
+        /* x' = a11*x + a12*y + tx */
+        SymbolicCoord *a11x = symbolic_coord_multiply(obj->symbolic_coords[i],     s_a11);
+        SymbolicCoord *a12y = symbolic_coord_multiply(obj->symbolic_coords[i + 1], s_a12);
+        if (!a11x || !a12y) {
+            if (a11x) symbolic_coord_destroy(a11x);
+            if (a12y) symbolic_coord_destroy(a12y);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(s_a11); symbolic_coord_destroy(s_a12);
+            symbolic_coord_destroy(s_a21); symbolic_coord_destroy(s_a22);
+            symbolic_coord_destroy(s_tx);  symbolic_coord_destroy(s_ty);
+            return -1;
+        }
+        SymbolicCoord *sum1 = symbolic_coord_add(a11x, a12y);
+        symbolic_coord_destroy(a11x); symbolic_coord_destroy(a12y);
+        if (!sum1) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(s_a11); symbolic_coord_destroy(s_a12);
+            symbolic_coord_destroy(s_a21); symbolic_coord_destroy(s_a22);
+            symbolic_coord_destroy(s_tx);  symbolic_coord_destroy(s_ty);
+            return -1;
+        }
+        new_coords[i] = symbolic_coord_add(sum1, s_tx);
+        symbolic_coord_destroy(sum1);
+        if (!new_coords[i]) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(s_a11); symbolic_coord_destroy(s_a12);
+            symbolic_coord_destroy(s_a21); symbolic_coord_destroy(s_a22);
+            symbolic_coord_destroy(s_tx);  symbolic_coord_destroy(s_ty);
+            return -1;
+        }
+
+        /* y' = a21*x + a22*y + ty */
+        SymbolicCoord *a21x = symbolic_coord_multiply(obj->symbolic_coords[i],     s_a21);
+        SymbolicCoord *a22y = symbolic_coord_multiply(obj->symbolic_coords[i + 1], s_a22);
+        if (!a21x || !a22y) {
+            if (a21x) symbolic_coord_destroy(a21x);
+            if (a22y) symbolic_coord_destroy(a22y);
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(s_a11); symbolic_coord_destroy(s_a12);
+            symbolic_coord_destroy(s_a21); symbolic_coord_destroy(s_a22);
+            symbolic_coord_destroy(s_tx);  symbolic_coord_destroy(s_ty);
+            return -1;
+        }
+        SymbolicCoord *sum2 = symbolic_coord_add(a21x, a22y);
+        symbolic_coord_destroy(a21x); symbolic_coord_destroy(a22y);
+        if (!sum2) {
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(s_a11); symbolic_coord_destroy(s_a12);
+            symbolic_coord_destroy(s_a21); symbolic_coord_destroy(s_a22);
+            symbolic_coord_destroy(s_tx);  symbolic_coord_destroy(s_ty);
+            return -1;
+        }
+        new_coords[i + 1] = symbolic_coord_add(sum2, s_ty);
+        symbolic_coord_destroy(sum2);
+        if (!new_coords[i + 1]) {
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(s_a11); symbolic_coord_destroy(s_a12);
+            symbolic_coord_destroy(s_a21); symbolic_coord_destroy(s_a22);
+            symbolic_coord_destroy(s_tx);  symbolic_coord_destroy(s_ty);
+            return -1;
+        }
+    }
+
+    /* 处理奇数个坐标的情况 */
+    if (n % 2 != 0) {
+        new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
+        if (!new_coords[n - 1]) {
+            for (int j = 0; j < n - 1; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(s_a11); symbolic_coord_destroy(s_a12);
+            symbolic_coord_destroy(s_a21); symbolic_coord_destroy(s_a22);
+            symbolic_coord_destroy(s_tx);  symbolic_coord_destroy(s_ty);
+            return -1;
+        }
+    }
+
+    symbolic_coord_destroy(s_a11); symbolic_coord_destroy(s_a12);
+    symbolic_coord_destroy(s_a21); symbolic_coord_destroy(s_a22);
+    symbolic_coord_destroy(s_tx);  symbolic_coord_destroy(s_ty);
+
+    graph_add_point(graph, new_coords, n);
+    for (int i = 0; i < n; i++) symbolic_coord_destroy(new_coords[i]);
+    lv_free((void**)&new_coords);
+
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0) return -1;
     graph_add_line_segment(graph, (int)obj_id, result_id);
@@ -1081,8 +1546,106 @@ int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t 
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
     GeomNode *center = graph_get_node(graph, (int)center_id);
     if (!obj || !center) return -1;
-    (void)ratio_num; (void)ratio_den;
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+
+    /* 如果 obj 或 center 没有坐标，回退到复制行为 */
+    if (obj->coord_count == 0 || center->coord_count < 2) {
+        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+        int result_id = graph_get_last_added_node_id(graph);
+        if (result_id < 0) return -1;
+        graph_add_line_segment(graph, (int)obj_id, result_id);
+        graph_add_line_segment(graph, (int)center_id, result_id);
+        return (int64_t)result_id;
+    }
+
+    /* 创建缩放比率: ratio = ratio_num/ratio_den */
+    SymbolicCoord *ratio = symbolic_coord_create_rational(ratio_num, (uint64_t)ratio_den);
+    if (!ratio) return -1;
+
+    /* P' = C + (P-C) * ratio
+     * x' = cx + (x - cx) * ratio
+     * y' = cy + (y - cy) * ratio */
+    SymbolicCoord *cx = center->symbolic_coords[0];
+    SymbolicCoord *cy = center->symbolic_coords[1];
+    int n = obj->coord_count;
+    SymbolicCoord **new_coords = lv_malloc((size_t)n * sizeof(SymbolicCoord *));
+    if (!new_coords) {
+        symbolic_coord_destroy(ratio);
+        return -1;
+    }
+
+    for (int i = 0; i + 1 < n; i += 2) {
+        /* offset_x = x - cx */
+        SymbolicCoord *off_x = symbolic_coord_subtract(obj->symbolic_coords[i], cx);
+        if (!off_x) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+        /* offset_y = y - cy */
+        SymbolicCoord *off_y = symbolic_coord_subtract(obj->symbolic_coords[i + 1], cy);
+        if (!off_y) {
+            symbolic_coord_destroy(off_x);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+
+        /* off_x * ratio, off_y * ratio */
+        SymbolicCoord *scaled_x = symbolic_coord_multiply(off_x, ratio);
+        SymbolicCoord *scaled_y = symbolic_coord_multiply(off_y, ratio);
+        symbolic_coord_destroy(off_x);
+        symbolic_coord_destroy(off_y);
+        if (!scaled_x || !scaled_y) {
+            if (scaled_x) symbolic_coord_destroy(scaled_x);
+            if (scaled_y) symbolic_coord_destroy(scaled_y);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+
+        /* x' = cx + scaled_x */
+        new_coords[i] = symbolic_coord_add(cx, scaled_x);
+        symbolic_coord_destroy(scaled_x);
+        if (!new_coords[i]) {
+            symbolic_coord_destroy(scaled_y);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+
+        /* y' = cy + scaled_y */
+        new_coords[i + 1] = symbolic_coord_add(cy, scaled_y);
+        symbolic_coord_destroy(scaled_y);
+        if (!new_coords[i + 1]) {
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+    }
+
+    /* 处理奇数个坐标的情况 */
+    if (n % 2 != 0) {
+        new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
+        if (!new_coords[n - 1]) {
+            for (int j = 0; j < n - 1; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(ratio);
+            return -1;
+        }
+    }
+
+    symbolic_coord_destroy(ratio);
+
+    graph_add_point(graph, new_coords, n);
+    for (int i = 0; i < n; i++) symbolic_coord_destroy(new_coords[i]);
+    lv_free((void**)&new_coords);
+
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0) return -1;
     graph_add_line_segment(graph, (int)obj_id, result_id);
@@ -1096,8 +1659,206 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
     GeomNode *line = graph_get_node(graph, (int)line_id);
     if (!obj || !line) return -1;
-    (void)dx; (void)dy;
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+
+    /* 如果 obj 或 line 没有足够坐标，回退到复制+关联行为 */
+    if (obj->coord_count == 0 || line->coord_count < 4) {
+        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+        int result_id = graph_get_last_added_node_id(graph);
+        if (result_id < 0) return -1;
+        graph_add_line_segment(graph, (int)obj_id, result_id);
+        graph_add_incidence(graph, result_id, (int)line_id);
+        return (int64_t)result_id;
+    }
+
+    /* 获取直线端点坐标 */
+    SymbolicCoord *lx1 = line->symbolic_coords[0];
+    SymbolicCoord *ly1 = line->symbolic_coords[1];
+    SymbolicCoord *lx2 = line->symbolic_coords[2];
+    SymbolicCoord *ly2 = line->symbolic_coords[3];
+
+    /* 创建平移向量 */
+    SymbolicCoord *dx_r = symbolic_coord_create_rational(dx, 1);
+    SymbolicCoord *dy_r = symbolic_coord_create_rational(dy, 1);
+    if (!dx_r || !dy_r) {
+        if (dx_r) symbolic_coord_destroy(dx_r);
+        if (dy_r) symbolic_coord_destroy(dy_r);
+        return -1;
+    }
+
+    /* 计算方向向量 v = (lx2-lx1, ly2-ly1) */
+    SymbolicCoord *vx = symbolic_coord_subtract(lx2, lx1);
+    SymbolicCoord *vy = symbolic_coord_subtract(ly2, ly1);
+    if (!vx || !vy) {
+        if (vx) symbolic_coord_destroy(vx);
+        if (vy) symbolic_coord_destroy(vy);
+        symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+        return -1;
+    }
+
+    /* 计算 v·v = vx*vx + vy*vy */
+    SymbolicCoord *vx_sq = symbolic_coord_multiply(vx, vx);
+    SymbolicCoord *vy_sq = symbolic_coord_multiply(vy, vy);
+    if (!vx_sq || !vy_sq) {
+        if (vx_sq) symbolic_coord_destroy(vx_sq);
+        if (vy_sq) symbolic_coord_destroy(vy_sq);
+        symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+        symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+        return -1;
+    }
+    SymbolicCoord *v_dot_v = symbolic_coord_add(vx_sq, vy_sq);
+    symbolic_coord_destroy(vx_sq); symbolic_coord_destroy(vy_sq);
+    if (!v_dot_v) {
+        symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+        symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+        return -1;
+    }
+
+    int n = obj->coord_count;
+    SymbolicCoord **new_coords = lv_malloc((size_t)n * sizeof(SymbolicCoord *));
+    if (!new_coords) {
+        symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+        symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+        return -1;
+    }
+
+    for (int i = 0; i + 1 < n; i += 2) {
+        /* w = (x - lx1, y - ly1) */
+        SymbolicCoord *wx = symbolic_coord_subtract(obj->symbolic_coords[i],     lx1);
+        SymbolicCoord *wy = symbolic_coord_subtract(obj->symbolic_coords[i + 1], ly1);
+        if (!wx || !wy) {
+            if (wx) symbolic_coord_destroy(wx);
+            if (wy) symbolic_coord_destroy(wy);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+
+        /* w·v = wx*vx + wy*vy */
+        SymbolicCoord *wx_vx = symbolic_coord_multiply(wx, vx);
+        SymbolicCoord *wy_vy = symbolic_coord_multiply(wy, vy);
+        symbolic_coord_destroy(wx); symbolic_coord_destroy(wy);
+        if (!wx_vx || !wy_vy) {
+            if (wx_vx) symbolic_coord_destroy(wx_vx);
+            if (wy_vy) symbolic_coord_destroy(wy_vy);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+        SymbolicCoord *w_dot_v = symbolic_coord_add(wx_vx, wy_vy);
+        symbolic_coord_destroy(wx_vx); symbolic_coord_destroy(wy_vy);
+        if (!w_dot_v) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+
+        /* t = (w·v) / (v·v) */
+        SymbolicCoord *t = symbolic_coord_divide(w_dot_v, v_dot_v);
+        symbolic_coord_destroy(w_dot_v);
+        if (!t) {
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+
+        /* proj_x = lx1 + t*vx */
+        SymbolicCoord *t_vx = symbolic_coord_multiply(t, vx);
+        if (!t_vx) {
+            symbolic_coord_destroy(t);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+        SymbolicCoord *proj_x = symbolic_coord_add(lx1, t_vx);
+        symbolic_coord_destroy(t_vx);
+        if (!proj_x) {
+            symbolic_coord_destroy(t);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+
+        /* proj_y = ly1 + t*vy */
+        SymbolicCoord *t_vy = symbolic_coord_multiply(t, vy);
+        symbolic_coord_destroy(t);
+        if (!t_vy) {
+            symbolic_coord_destroy(proj_x);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+        SymbolicCoord *proj_y = symbolic_coord_add(ly1, t_vy);
+        symbolic_coord_destroy(t_vy);
+        if (!proj_y) {
+            symbolic_coord_destroy(proj_x);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+
+        /* new_x = proj_x + dx */
+        new_coords[i] = symbolic_coord_add(proj_x, dx_r);
+        symbolic_coord_destroy(proj_x);
+        if (!new_coords[i]) {
+            symbolic_coord_destroy(proj_y);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+
+        /* new_y = proj_y + dy */
+        new_coords[i + 1] = symbolic_coord_add(proj_y, dy_r);
+        symbolic_coord_destroy(proj_y);
+        if (!new_coords[i + 1]) {
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+    }
+
+    /* 处理奇数个坐标的情况 */
+    if (n % 2 != 0) {
+        new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
+        if (!new_coords[n - 1]) {
+            for (int j = 0; j < n - 1; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(v_dot_v); symbolic_coord_destroy(vx); symbolic_coord_destroy(vy);
+            symbolic_coord_destroy(dx_r); symbolic_coord_destroy(dy_r);
+            return -1;
+        }
+    }
+
+    symbolic_coord_destroy(v_dot_v);
+    symbolic_coord_destroy(vx);
+    symbolic_coord_destroy(vy);
+    symbolic_coord_destroy(dx_r);
+    symbolic_coord_destroy(dy_r);
+
+    graph_add_point(graph, new_coords, n);
+    for (int i = 0; i < n; i++) symbolic_coord_destroy(new_coords[i]);
+    lv_free((void**)&new_coords);
+
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0) return -1;
     graph_add_line_segment(graph, (int)obj_id, result_id);
@@ -1111,8 +1872,140 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
     GeomNode *obj = graph_get_node(graph, (int)obj_id);
     GeomNode *center = graph_get_node(graph, (int)center_id);
     if (!obj || !center) return -1;
-    (void)angle_mrad;
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+
+    /* 如果 obj 或 center 没有坐标，回退到复制行为 */
+    if (obj->coord_count == 0 || center->coord_count < 2) {
+        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
+        int result_id = graph_get_last_added_node_id(graph);
+        if (result_id < 0) return -1;
+        graph_add_line_segment(graph, (int)obj_id, result_id);
+        graph_add_line_segment(graph, (int)center_id, result_id);
+        return (int64_t)result_id;
+    }
+
+    /* 创建 sinθ 和 cosθ 超越数 */
+    SymbolicCoord *sin_theta = symbolic_coord_create_transcendental("sinθ_mrad");
+    SymbolicCoord *cos_theta = symbolic_coord_create_transcendental("cosθ_mrad");
+    if (!sin_theta || !cos_theta) {
+        if (sin_theta) symbolic_coord_destroy(sin_theta);
+        if (cos_theta) symbolic_coord_destroy(cos_theta);
+        return -1;
+    }
+
+    SymbolicCoord *cx = center->symbolic_coords[0];
+    SymbolicCoord *cy = center->symbolic_coords[1];
+    int n = obj->coord_count;
+    SymbolicCoord **new_coords = lv_malloc((size_t)n * sizeof(SymbolicCoord *));
+    if (!new_coords) {
+        symbolic_coord_destroy(sin_theta);
+        symbolic_coord_destroy(cos_theta);
+        return -1;
+    }
+
+    /* P' = C + rotate(P-C)
+     * 1. offset = P - C
+     * 2. rotated_x = offset_x*cosθ - offset_y*sinθ
+     *    rotated_y = offset_x*sinθ + offset_y*cosθ
+     * 3. new_x = cx + rotated_x, new_y = cy + rotated_y */
+    for (int i = 0; i + 1 < n; i += 2) {
+        /* offset_x = x - cx, offset_y = y - cy */
+        SymbolicCoord *off_x = symbolic_coord_subtract(obj->symbolic_coords[i],     cx);
+        SymbolicCoord *off_y = symbolic_coord_subtract(obj->symbolic_coords[i + 1], cy);
+        if (!off_x || !off_y) {
+            if (off_x) symbolic_coord_destroy(off_x);
+            if (off_y) symbolic_coord_destroy(off_y);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta); symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+
+        /* rotated_x = off_x*cosθ - off_y*sinθ */
+        SymbolicCoord *ox_cos = symbolic_coord_multiply(off_x, cos_theta);
+        SymbolicCoord *oy_sin = symbolic_coord_multiply(off_y, sin_theta);
+        if (!ox_cos || !oy_sin) {
+            if (ox_cos) symbolic_coord_destroy(ox_cos);
+            if (oy_sin) symbolic_coord_destroy(oy_sin);
+            symbolic_coord_destroy(off_x); symbolic_coord_destroy(off_y);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta); symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+        SymbolicCoord *rot_x = symbolic_coord_subtract(ox_cos, oy_sin);
+        symbolic_coord_destroy(ox_cos); symbolic_coord_destroy(oy_sin);
+        if (!rot_x) {
+            symbolic_coord_destroy(off_x); symbolic_coord_destroy(off_y);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta); symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+
+        /* rotated_y = off_x*sinθ + off_y*cosθ */
+        SymbolicCoord *ox_sin = symbolic_coord_multiply(off_x, sin_theta);
+        SymbolicCoord *oy_cos = symbolic_coord_multiply(off_y, cos_theta);
+        symbolic_coord_destroy(off_x); symbolic_coord_destroy(off_y);
+        if (!ox_sin || !oy_cos) {
+            if (ox_sin) symbolic_coord_destroy(ox_sin);
+            if (oy_cos) symbolic_coord_destroy(oy_cos);
+            symbolic_coord_destroy(rot_x);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta); symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+        SymbolicCoord *rot_y = symbolic_coord_add(ox_sin, oy_cos);
+        symbolic_coord_destroy(ox_sin); symbolic_coord_destroy(oy_cos);
+        if (!rot_y) {
+            symbolic_coord_destroy(rot_x);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta); symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+
+        /* new_x = cx + rot_x */
+        new_coords[i] = symbolic_coord_add(cx, rot_x);
+        symbolic_coord_destroy(rot_x);
+        if (!new_coords[i]) {
+            symbolic_coord_destroy(rot_y);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta); symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+
+        /* new_y = cy + rot_y */
+        new_coords[i + 1] = symbolic_coord_add(cy, rot_y);
+        symbolic_coord_destroy(rot_y);
+        if (!new_coords[i + 1]) {
+            symbolic_coord_destroy(new_coords[i]);
+            for (int j = 0; j < i; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta); symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+    }
+
+    /* 处理奇数个坐标的情况 */
+    if (n % 2 != 0) {
+        new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
+        if (!new_coords[n - 1]) {
+            for (int j = 0; j < n - 1; j++) symbolic_coord_destroy(new_coords[j]);
+            lv_free((void**)&new_coords);
+            symbolic_coord_destroy(sin_theta); symbolic_coord_destroy(cos_theta);
+            return -1;
+        }
+    }
+
+    symbolic_coord_destroy(sin_theta);
+    symbolic_coord_destroy(cos_theta);
+
+    graph_add_point(graph, new_coords, n);
+    for (int i = 0; i < n; i++) symbolic_coord_destroy(new_coords[i]);
+    lv_free((void**)&new_coords);
+
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0) return -1;
     graph_add_line_segment(graph, (int)obj_id, result_id);
