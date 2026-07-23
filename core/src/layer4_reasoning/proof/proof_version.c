@@ -780,7 +780,7 @@ struct lvThreadTask {
 };
 
 /* ============================================================================
- * Task stubs — 实现
+ * Task system functions — 实现
  * ============================================================================ */
 
 lvTaskGroup *lv_task_group_create(const char *name) {

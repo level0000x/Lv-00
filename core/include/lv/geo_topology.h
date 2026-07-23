@@ -1,4 +1,4 @@
-﻿#ifndef lv_GEO_TOPOLOGY_H
+#ifndef lv_GEO_TOPOLOGY_H
 #define lv_GEO_TOPOLOGY_H
 
 #ifdef __cplusplus
@@ -55,7 +55,7 @@ lvBoundary *geo_simplicial_boundary(const lvSimplicialComplex *sc, const lvTrian
 void geo_simplicial_boundary_destroy(lvBoundary *boundary);
 int geo_simplicial_connected_components(const lvSimplicialComplex *sc);
 
-/* ── Legacy stubs ── */
+/* ── Legacy compatibility wrappers (implemented in geo_topology.c) ── */
 int lv_euler_characteristic(int vertices, int edges, int faces);
 int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim);
 

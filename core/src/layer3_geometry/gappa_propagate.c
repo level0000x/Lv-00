@@ -337,7 +337,7 @@ static int forward_propagate(const char *expr, const PropInterval *vars, double 
     return 0;
 }
 
-/* ── Structured propagation API (stubs) ── */
+/* -- Structured propagation API -- */
 
 void lv_gappa_pred_set_init(lvGappaPredSet *set) {
     if (!set)

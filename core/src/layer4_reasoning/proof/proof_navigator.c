@@ -2309,10 +2309,7 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
 }
 
 /* ===========================================================================
- * 存根实现：proof_navigator_search / smtsolver_set_timeout / constraint_solver_get_proposition
- *
- * 这些函数在 proof.h 中声明，供 proof_version.c 等模块调用。
- * 完整实现将随后续版本逐步完善，当前以最小存根保证链接通过。
+ * proof_navigator_search / constraint_solver_get_proposition
  * =========================================================================== */
 
 /**

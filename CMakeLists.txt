@@ -392,6 +392,7 @@ set(lv_HEADERS
     core/include/lv/numerical_backend.h
     core/include/lv/geom_evol.h
     core/include/lv/geo_event_detect.h
+    core/include/lv/geo_visual.h
     core/include/lv/lv_numeric.h
     core/include/lv/probabilistic_constraint.h
     # v1.1.0 新增模块头文件（第三轮：几何构造与交互模块）
@@ -718,7 +719,7 @@ set(lv_LAYER4_SOURCES
     # 核心引擎与求解
     core/src/layer4_reasoning/engine/engine.c
     core/src/layer4_reasoning/solver.c
-    core/src/layer4_reasoning/solver_ext/solver_core.c
+    core/src/layer4_reasoning/solver/solver_core.c
     # 证明系统
     core/src/layer4_reasoning/proof.c
     core/src/layer4_reasoning/proof_system/proof_optimize.c
@@ -881,7 +882,8 @@ set(lv_LAYER4_SOURCES
     # v1.1.0 补全遗漏：公理规则引擎、推理缓存、SIMD 运算
     core/src/layer4_reasoning/axiom_rule_engine.c
     # reasoning_cache is in model/reasoning_cache.c (below)
-    core/src/layer4_reasoning/simd_ops.c
+    # simd_ops.c 在 unify/simd_ops.c（已统一）
+    # core/src/layer4_reasoning/simd_ops.c（已删除，使用 unify/ 版本）
     # 求解器子模块：坐标提取、方程组、线性、快照、符号
     core/src/layer4_reasoning/solver/solver_coord_extract.c
     core/src/layer4_reasoning/solver/solver_conflict.c

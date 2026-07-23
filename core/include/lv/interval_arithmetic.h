@@ -1,4 +1,4 @@
-﻿#ifndef lv_INTERVAL_ARITHMETIC_H
+#ifndef lv_INTERVAL_ARITHMETIC_H
 #define lv_INTERVAL_ARITHMETIC_H
 
 #ifdef __cplusplus
@@ -63,7 +63,7 @@ int interval_verify_solution(lvInterval f_interval, double tolerance);
 int interval_verify_adaptive(const char *expr_str, const char **var_names, lvInterval *var_intervals, int var_count,
                              int max_depth, double tolerance);
 
-/* ── Legacy stubs ── */
+/* ── Legacy lv_ prefix wrappers (implemented in interval_arithmetic.c) ── */
 lvInterval lv_interval_add(lvInterval a, lvInterval b);
 lvInterval lv_interval_sub(lvInterval a, lvInterval b);
 lvInterval lv_interval_mul(lvInterval a, lvInterval b);
