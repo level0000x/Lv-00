@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_dirty_set.h
  * @brief 脏变量追踪 — 增量求解支持
  *
@@ -8,8 +8,8 @@
  * 原位置: solver.c L6375-L6453
  */
 
-#ifndef LV00_SOLVER_DIRTY_SET_H
-#define LV00_SOLVER_DIRTY_SET_H
+#ifndef lv_SOLVER_DIRTY_SET_H
+#define lv_SOLVER_DIRTY_SET_H
 
 #include <stdbool.h>
 
@@ -43,4 +43,4 @@ void dirty_set_free(DirtyVariableSet *ds);
 }
 #endif
 
-#endif /* LV00_SOLVER_DIRTY_SET_H */
+#endif /* lv_SOLVER_DIRTY_SET_H */

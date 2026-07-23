@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_descriptive_set_theory.c
  * @brief Descriptive Set Theory Axiom Package Test
  *
@@ -16,7 +16,7 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/descriptive_set_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/descriptive_set_theory_test_save.lvz"
@@ -237,8 +237,8 @@ static void test_content_hash(void) {
     TEST_ASSERT(hash2 != NULL, "second hash should not be NULL");
     TEST_ASSERT(strcmp(hash1, hash2) == 0, "content hash should be deterministic");
 
-    lv00_free((void **) &hash1);
-    lv00_free((void **) &hash2);
+    lv_free((void **) &hash1);
+    lv_free((void **) &hash2);
     axiom_package_destroy(pkg);
 }
 
@@ -276,8 +276,8 @@ static void test_save_load_roundtrip(void) {
     TEST_ASSERT(hash_reload != NULL, "reloaded hash should be computable");
     TEST_ASSERT(strcmp(hash_orig, hash_reload) == 0, "content hash should survive round-trip");
 
-    lv00_free((void **) &hash_orig);
-    lv00_free((void **) &hash_reload);
+    lv_free((void **) &hash_orig);
+    lv_free((void **) &hash_reload);
     axiom_package_destroy(pkg2);
 }
 

@@ -1,4 +1,4 @@
-# Lv-00 几何元语言
+﻿# Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
@@ -45,7 +45,7 @@
 |---|:--:|---|---|
 | **符号坐标 / 有理数运算 (GMP)** | ✅ 完全实现 | 精确有理数、代数数、区间表示 | ~3KB |
 | **约束图 / 规范化** | ✅ 完全实现 | 节点管理、同构检测、合并算法 | ~6.5KB |
-| **引擎 API (`lv00_engine_*`)** | ✅ 完全实现 | 30+ 公共函数，已验证可用 | ~3KB |
+| **引擎 API (`lv_engine_*`)** | ✅ 完全实现 | 30+ 公共函数，已验证可用 | ~3KB |
 | **推理引擎（Groebner/SMT/SAT）** | ✅ 完全实现 | 237KB solver.c，包含 Buchberger、重写、证明 | 237KB |
 | **高维几何 / CSG / 变换** | ✅ 完全实现 | 所有主体实现，需复杂场景测试 | ~4KB |
 | **证明系统** | ✅ 90% 完整 | 合一、追踪、多策略搜索框架完成；部分搜索策略待优化 | ~8KB |
@@ -68,7 +68,7 @@
 
 > **图例**：✅ 完全实现 · 🚧 部分实现 · ⚠️ 配置完成，需验证
 
-当前代码库约：401 个 `.c`、229 个 `.h`、84 个 `.lean`、154 个 `.lv00` 语义规格、94 个 `.py`、41 个 `.tsx`、1011 个 `.ts`。其中核心推理引擎（`solver.c`）占 237KB，是最大单文件实现。
+当前代码库约：401 个 `.c`、229 个 `.h`、84 个 `.lean`、154 个 `.lv` 语义规格、94 个 `.py`、41 个 `.tsx`、1011 个 `.ts`。其中核心推理引擎（`solver.c`）占 237KB，是最大单文件实现。
 
 ---
 
@@ -137,11 +137,11 @@ Lv-00 项目的目标是探索一种**领域特定形式化语言**，尝试实�
 
 ### 函数块 (Function Block)
 
-可复用、可组合的计算单元，通过 `FuncBlock` 类型定义，支持预设注册和运行时组合。详见 `core/include/lv00/func_block.h`。
+可复用、可组合的计算单元，通过 `FuncBlock` 类型定义，支持预设注册和运行时组合。详见 `core/include/lv/func_block.h`。
 
 ### 引擎模型 (Engine)
 
-对外 API 围绕一个 `LV00Engine`：你向引擎添加几何元素与约束，调用归一化与求解，再读取结果。这是当前**真实可用**的编程入口（见下文）。
+对外 API 围绕一个 `lvEngine`：你向引擎添加几何元素与约束，调用归一化与求解，再读取结果。这是当前**真实可用**的编程入口（见下文）。
 
 ---
 
@@ -202,75 +202,75 @@ npm run build     # 生产构建 → dist/
 
 ## 快速开始
 
-下面的示例对应 `core/include/lv00/lv00.h` 中声明的**真实公共 API**（引擎模型）。一个 3-4-5 直角三角形的最小例子：
+下面的示例对应 `core/include/lv/lv.h` 中声明的**真实公共 API**（引擎模型）。一个 3-4-5 直角三角形的最小例子：
 
 ```c
-#include "lv00/lv00.h"
+#include "lv/lv.h"
 #include <stdio.h>
 
 int main(void) {
     // 1. 初始化系统
-    if (!lv00_init()) {
+    if (!lv_init()) {
         fprintf(stderr, "Failed to initialize Lv-00\n");
         return 1;
     }
 
     // 2. 创建引擎
-    LV00Engine *engine = lv00_engine_create();
+    lvEngine *engine = lv_engine_create();
     if (!engine) {
-        lv00_cleanup();
+        lv_cleanup();
         return 1;
     }
 
     // 3. 添加点（参数为有理数分子/分母：x = num/den, y = num/den）
-    int p1 = lv00_add_point(engine, 0, 1, 0, 1);   // (0, 0)
-    int p2 = lv00_add_point(engine, 3, 1, 0, 1);   // (3, 0)
-    int p3 = lv00_add_point(engine, 0, 1, 4, 1);   // (0, 4)
+    int p1 = lv_add_point(engine, 0, 1, 0, 1);   // (0, 0)
+    int p2 = lv_add_point(engine, 3, 1, 0, 1);   // (3, 0)
+    int p3 = lv_add_point(engine, 0, 1, 4, 1);   // (0, 4)
 
     // 4. 添加边
-    lv00_add_line_segment(engine, p1, p2);
-    lv00_add_line_segment(engine, p2, p3);
-    lv00_add_line_segment(engine, p3, p1);
+    lv_add_line_segment(engine, p1, p2);
+    lv_add_line_segment(engine, p2, p3);
+    lv_add_line_segment(engine, p3, p1);
 
     // 5. 归一化 + 求解
-    lv00_normalize(engine, true);
-    EngineSolveResult result = lv00_solve(engine);
+    lv_normalize(engine, true);
+    EngineSolveResult result = lv_solve(engine);
     (void)result;
 
     // 6. 读取结果
     char info[1024];
-    lv00_get_system_info(info, sizeof(info));
+    lv_get_system_info(info, sizeof(info));
     printf("Result: %s\n", info);
 
     // 7. 清理
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv_engine_destroy(engine);
+    lv_cleanup();
     return 0;
 }
 ```
 
-> **注意**：本仓库历史上的 README 出现过 `lv00_point()` / `lv00_distance()` / `lv00_prove()` / `lv00_context_create()` 等示例 API，以及 `Point` / `Segment` / `Circle` / `Expr` 等高级类型。这些是**旧设计**，已废弃。当前唯一的真实 API 入口是 `LV00Engine` 模型，见上文。
+> **注意**：本仓库历史上的 README 出现过 `lv_point()` / `lv_distance()` / `lv_prove()` / `lv_context_create()` 等示例 API，以及 `Point` / `Segment` / `Circle` / `Expr` 等高级类型。这些是**旧设计**，已废弃。当前唯一的真实 API 入口是 `lvEngine` 模型，见上文。
 
 ---
 
 ## 公共 API
 
-`core/include/lv00/lv00.h` 当前导出的主要函数（约 30 个）：
+`core/include/lv/lv.h` 当前导出的主要函数（约 30 个）：
 
 **生命周期与系统**
-`lv00_init` · `lv00_cleanup` · `lv00_is_initialized` · `lv00_health_check` · `lv00_get_system_info`
+`lv_init` · `lv_cleanup` · `lv_is_initialized` · `lv_health_check` · `lv_get_system_info`
 
 **版本**
-`lv00_get_version_string` · `lv00_get_version_info` · `lv00_check_version_compat`
+`lv_get_version_string` · `lv_get_version_info` · `lv_check_version_compat`
 
 **引擎与建模**
-`lv00_engine_create` · `lv00_engine_destroy` · `lv00_add_point` · `lv00_add_point_i` · `lv00_add_line_segment` · `lv00_add_constraint_incidence` · `lv00_normalize` · `lv00_solve`
+`lv_engine_create` · `lv_engine_destroy` · `lv_add_point` · `lv_add_point_i` · `lv_add_line_segment` · `lv_add_constraint_incidence` · `lv_normalize` · `lv_solve`
 
 **配置**
-`lv00_config_get_int` · `lv00_config_get_bool` · `lv00_config_get_double` · `lv00_config_get_string` · `lv00_config_set_int` · `lv00_config_set_bool` · `lv00_config_set_double` · `lv00_config_set_string`
+`lv_config_get_int` · `lv_config_get_bool` · `lv_config_get_double` · `lv_config_get_string` · `lv_config_set_int` · `lv_config_set_bool` · `lv_config_set_double` · `lv_config_set_string`
 
 **内存与诊断**
-`lv00_get_memory_stats_ex` · `lv00_get_memory_limit_ex` · `lv00_set_memory_limit_ex` · `lv00_set_log_level` · `lv00_get_log_level` · `lv00_set_assertions_enabled` · `lv00_are_assertions_enabled`
+`lv_get_memory_stats_ex` · `lv_get_memory_limit_ex` · `lv_set_memory_limit_ex` · `lv_set_log_level` · `lv_get_log_level` · `lv_set_assertions_enabled` · `lv_are_assertions_enabled`
 
 ---
 
@@ -332,8 +332,8 @@ Layer 1  │ Parser         │ 公式解析、DSL 编译
 ```
 Lv-00/
 ├── core/                    # 核心引擎（C11）
-│   ├── include/lv00/        # 公共 API 头文件 (229 个 .h)
-│   │   ├── lv00.h           # 主头文件 — 唯一公共入口
+│   ├── include/lv/        # 公共 API 头文件 (229 个 .h)
+│   │   ├── lv.h           # 主头文件 — 唯一公共入口
 │   │   ├── config.h         # 配置系统
 │   │   ├── proof.h          # 证明系统 (Proposition/Proof 类型)
 │   │   ├── func_block.h     # 函数块系统 (FuncBlock 类型)
@@ -357,9 +357,9 @@ Lv-00/
 │   ├── L5-core/             # 内核桥接与状态管理
 │   ├── L6-monitor/          # 运行监控
 │   └── shells/              # VS Code 扩展 / Qt 独立窗口
-├── bootstrap/               # .lv00 语义规格 + GMP 原语运行时
+├── bootstrap/               # .lv 语义规格 + GMP 原语运行时
 ├── formal/                  # Lean 4 形式化（编译器 pipeline + Hilbert 公理）
-├── lv00-formal/             # 经典几何形式化框架
+├── lv-formal/             # 经典几何形式化框架
 ├── module/                  # 扩展模块：Python 绑定、公理包(.lvz)、流桥接
 ├── cmake/                   # CMake 打包配置 (find_package / pkg-config)
 ├── doc/                     # 技术文档与报告
@@ -376,14 +376,14 @@ Lv-00/
 
 ## 形式化验证
 
-- `formal/`：编译器 pipeline（Lv00Lang → IR → C11 子集）的正确性证明，以及 Hilbert 公理框架。
-- `lv00-formal/`：Lv-00 自有几何元语言形式化验证的主体，包含三元本体、六条本原谓词、八条基础公理、约束图规范化、54 个数学理论包的依赖验证。
+- `formal/`：编译器 pipeline（lvLang → IR → C11 子集）的正确性证明，以及 Hilbert 公理框架。
+- `lv-formal/`：Lv-00 自有几何元语言形式化验证的主体，包含三元本体、六条本原谓词、八条基础公理、约束图规范化、54 个数学理论包的依赖验证。
 
 ### 形式化完成度
 
 | 模块 | 状态 | 说明 |
 |---|:--:|---|
-| **编译器 pipeline** | ✅ 已证 | Lv00Lang → IR → C11 的正确性已完全证明 |
+| **编译器 pipeline** | ✅ 已证 | lvLang → IR → C11 的正确性已完全证明 |
 | **54 个数学理论包** | ✅ 已验 | 所有跨包依赖已通过全局注册表验证 |
 | **约束图规范化** | ✅ 已证 | 幂等性、良构性保持已证明 |
 | **几何基础公理** | 🚧 部分 | 三元本体、六条本原谓词已定义；约 30 处几何部分仍为 `axiom` 假设（待证）|
@@ -400,7 +400,7 @@ Lv-00/
 |-----|---------|------|
 | 有理数 | GMP mpq_t | 任意精度 |
 | 代数数 | 最小多项式 + 隔离区间 | 符号精确 |
-| 区间算术 | Lv00Interval (lo/hi/is_exact) | 可验证精度 |
+| 区间算术 | lvInterval (lo/hi/is_exact) | 可验证精度 |
 
 ### 求解引擎
 
@@ -430,7 +430,7 @@ SVG、Cairo 脚本、Three.js HTML、TikZ LaTeX、PPM 光栅化
 
 ### SIMD 支持
 
-抽象 SIMD 层，运行时检测 SSE2/AVX/AVX2/AVX512F/NEON 能力，提供 `Lv00Vec4d`/`Lv00Vec4f`/`Lv00Vec8f` 向量类型。
+抽象 SIMD 层，运行时检测 SSE2/AVX/AVX2/AVX512F/NEON 能力，提供 `lvVec4d`/`lvVec4f`/`lvVec8f` 向量类型。
 
 ---
 
@@ -439,7 +439,7 @@ SVG、Cairo 脚本、Three.js HTML、TikZ LaTeX、PPM 光栅化
 - [完整技术文档](doc/DOCUMENTATION.md)
 - [实现完成度诚实审计](IMPLEMENTATION_STATUS_AUDIT.md) - **[NEW]** 代码审计报告
 - [API 快速入门](doc/docs/API_QUICKSTART.md)
-- [语言规范](doc/docs/LV00_LANGUAGE_SPEC.md)
+- [语言规范](doc/docs/lv_LANGUAGE_SPEC.md)
 - [架构手册](doc/docs/ARCHITECTURE_MANUAL.md)
 - [文档索引](doc/docs/INDEX.md)
 - [CHANGELOG.md](CHANGELOG.md) / [VERSION_LOG.md](VERSION_LOG.md)

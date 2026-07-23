@@ -1,4 +1,4 @@
-> **[历史文档]** 此文档为历史设计文档，当前架构已升级为十层。以下内容描述的是 v3.3 时代的五层架构整改计划，仅供参考。
+﻿> **[历史文档]** 此文档为历史设计文档，当前架构已升级为十层。以下内容描述的是 v3.3 时代的五层架构整改计划，仅供参考。
 
 # Lv-00 五层架构与学术化整改实施计划
 
@@ -34,7 +34,7 @@
 
 ```text
 core/
-  include/lv00/
+  include/lv/
     shared/                  # 公共基础类型、错误、诊断、内存接口
     language/                # 词法、BNF、AST、Typed AST、IR
     axiom/                   # 几何本体、公理、基础度量关系
@@ -59,7 +59,7 @@ core/
 | 3. 约束拓扑规约层 | 约束图、节点等价、冗余剔除、拓扑归一化 | `constraint_graph.c`、`normalization.c`、`geo_topology.c`、`symbolic_coord.c`、`geo_event_detect.c` |
 | 4. 多策略自动推理层 | 正向/反向/反证/代数/Groebner/SMT/ATP/调度 | `engine.c`、`engine_scheduler.c`、`solver.c`、`groebner_engine.c`、`smt_backend_impl.c`、`proof_multi_strategy.c`、`logic_check.c`、`rewrite.c`、`unify.c` |
 | 5. 输出证明编译层 | 命题格式化、证明链、溯源、TikZ、跨语言导出 | `proof_export_enhanced.c`、`proof_trace.c`、`proof_widget.c`、`tikz_export.c`、`stream.c`、`interop.c` |
-| shared | 内存、错误、日志、配置、工具，不承载数学推理 | `memory_pool.c`、`error_codes.c`、`debug.c`、`context.c`、`lv00_utils.c`、`runtime_monitor.c` |
+| shared | 内存、错误、日志、配置、工具，不承载数学推理 | `memory_pool.c`、`error_codes.c`、`debug.c`、`context.c`、`lv_utils.c`、`runtime_monitor.c` |
 
 ---
 
@@ -81,12 +81,12 @@ core/
 建议新增 target：
 
 ```cmake
-lv00_shared
-lv00_layer1_language
-lv00_layer2_axiom
-lv00_layer3_constraint
-lv00_layer4_reasoning
-lv00_layer5_proof
+lv_shared
+lv_layer1_language
+lv_layer2_axiom
+lv_layer3_constraint
+lv_layer4_reasoning
+lv_layer5_proof
 ```
 
 迁移原则：
@@ -100,13 +100,13 @@ lv00_layer5_proof
 
 ### 阶段 2：元语言学术规范化
 
-**目标**：补全完整 Lv00 元语言定义，形成可测试的 AST/Typed IR。
+**目标**：补全完整 lv 元语言定义，形成可测试的 AST/Typed IR。
 
 交付：
 
-- [ ] `doc/docs/LV00_LANGUAGE_SPEC.md`：BNF、语言属性、符号表、操作语义、指称语义。
-- [ ] `core/include/lv00/language/lv00_ast.h`：AST 节点定义。
-- [ ] `core/include/lv00/language/lv00_typed_ir.h`：Typed IR 定义。
+- [ ] `doc/docs/lv_LANGUAGE_SPEC.md`：BNF、语言属性、符号表、操作语义、指称语义。
+- [ ] `core/include/lv/language/lv_ast.h`：AST 节点定义。
+- [ ] `core/include/lv/language/lv_typed_ir.h`：Typed IR 定义。
 - [ ] `test/c/test_language_bnf.c`：声明、约束、逻辑判断、表达式解析测试。
 
 BNF 覆盖范围：
@@ -136,9 +136,9 @@ Factor         ::= Identifier | Number | MeasureExpr | "(" Expr ")"
 
 交付：
 
-- [ ] `core/include/lv00/axiom/geometry_ontology.h`
-- [ ] `core/include/lv00/axiom/metric_relations.h`
-- [ ] `core/include/lv00/axiom/euclidean_axioms.h`
+- [ ] `core/include/lv/axiom/geometry_ontology.h`
+- [ ] `core/include/lv/axiom/metric_relations.h`
+- [ ] `core/include/lv/axiom/euclidean_axioms.h`
 - [ ] `test/c/test_axiom_geometry_ontology.c`
 
 数学边界：
@@ -173,15 +173,15 @@ RemoveRedundant(C, G) 不改变 G 的可满足模型集合
 
 ```c
 typedef enum {
-    LV00_REASON_FORWARD_DEDUCTION,
-    LV00_REASON_GEOMETRIC_PROPERTY,
-    LV00_REASON_ALGEBRAIC_SIMPLIFY,
-    LV00_REASON_GROEBNER_ELIMINATION,
-    LV00_REASON_BOOLEAN_DECOMPOSITION,
-    LV00_REASON_REDUCTIO_AD_ABSURDUM,
-    LV00_REASON_CONTRADICTION_CLOSURE,
-    LV00_REASON_SMT_MODAL_CHECK
-} Lv00ReasoningStrategy;
+    lv_REASON_FORWARD_DEDUCTION,
+    lv_REASON_GEOMETRIC_PROPERTY,
+    lv_REASON_ALGEBRAIC_SIMPLIFY,
+    lv_REASON_GROEBNER_ELIMINATION,
+    lv_REASON_BOOLEAN_DECOMPOSITION,
+    lv_REASON_REDUCTIO_AD_ABSURDUM,
+    lv_REASON_CONTRADICTION_CLOSURE,
+    lv_REASON_SMT_MODAL_CHECK
+} lvReasoningStrategy;
 ```
 
 每种策略必须记录：
@@ -258,7 +258,7 @@ typedef enum {
 
 - 修改：`doc/docs/ARCHITECTURE_v3.3.md`
 - 修改：`CMakeLists.txt`
-- 新增：`doc/docs/LV00_LANGUAGE_SPEC.md`
+- 新增：`doc/docs/lv_LANGUAGE_SPEC.md`
 
 **步骤：**
 
@@ -271,7 +271,7 @@ typedef enum {
 
 **文件：**
 
-- 新增：`doc/docs/LV00_LANGUAGE_SPEC.md`
+- 新增：`doc/docs/lv_LANGUAGE_SPEC.md`
 - 测试：`test/c/test_minimal_parse.c` 或新增 `test/c/test_language_bnf.c`
 
 **步骤：**
@@ -285,14 +285,14 @@ typedef enum {
 
 **文件：**
 
-- 修改：`core/include/lv00/constraint_graph.h`
+- 修改：`core/include/lv/constraint_graph.h`
 - 修改：`core/src/core/constraint_graph.c`
 - 测试：`test/c/test_constraint_compatibility.c`
 
 **步骤：**
 
 - [ ] 先写失败测试：空图欠约束、重复等价约束相容、明显矛盾约束矛盾。
-- [ ] 新增 `Lv00ConstraintStatus` 枚举。
+- [ ] 新增 `lvConstraintStatus` 枚举。
 - [ ] 实现最小 `constraint_graph_check_compatibility`。
 - [ ] 通过测试后再扩展退化情况。
 
@@ -300,7 +300,7 @@ typedef enum {
 
 **文件：**
 
-- 修改：`core/include/lv00/proof.h`
+- 修改：`core/include/lv/proof.h`
 - 修改：`core/src/core/proof.c`
 - 测试：`test/c/test_proof_contradiction_scope.c`
 
@@ -318,7 +318,7 @@ typedef enum {
 1. 不建议现在一次性移动 `solver.c`、`proof.c`、`rewrite.c` 等大文件；应先拆接口，再迁移实现。
 2. 所有行为变化必须先写测试，再改实现。
 3. 文档、目录、CMake 可以先行；推理语义和内核逻辑必须分阶段落地。
-4. 对外 API 保持兼容，新增 API 优先使用 `lv00_` 前缀，旧 API 用适配层保留。
+4. 对外 API 保持兼容，新增 API 优先使用 `lv_` 前缀，旧 API 用适配层保留。
 5. “逻辑爆炸”不再作为无界机制公开，改成局部矛盾闭包。
 6. Groebner 与 SMT 是后端验证器，不应成为所有推理的默认第一路径。
 
@@ -338,7 +338,7 @@ typedef enum {
 
 建议立即执行：
 
-1. 先新增语言规范文档 `LV00_LANGUAGE_SPEC.md`。
+1. 先新增语言规范文档 `lv_LANGUAGE_SPEC.md`。
 2. 更新架构文档，使五层定义与本次目标一致。
 3. 新增约束相容状态接口测试。
 4. 新增反证作用域测试。

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Lv-00 流式输出示例
@@ -46,9 +46,9 @@ async def example_basic_iterator():
     print("=" * 60)
 
     try:
-        from lv00 import Engine, AsyncStreamIterator
+        from lv import Engine, AsyncStreamIterator
     except ImportError:
-        print("警告: lv00 模块未安装，使用模拟模式")
+        print("警告: lv 模块未安装，使用模拟模式")
         await _simulate_basic_iterator()
         return
 
@@ -71,7 +71,7 @@ async def example_basic_iterator():
 
 
 async def _simulate_basic_iterator():
-    """模拟基本迭代器（当 lv00 未安装时使用）。"""
+    """模拟基本迭代器（当 lv 未安装时使用）。"""
     print("  [模拟] 开始迭代事件...")
 
     for i in range(5):
@@ -96,9 +96,9 @@ async def example_event_filtering():
     print("=" * 60)
 
     try:
-        from lv00 import Engine, AsyncStreamIterator
+        from lv import Engine, AsyncStreamIterator
     except ImportError:
-        print("警告: lv00 模块未安装，使用模拟模式")
+        print("警告: lv 模块未安装，使用模拟模式")
         await _simulate_event_filtering()
         return
 
@@ -153,9 +153,9 @@ async def example_batch_processing():
     print("=" * 60)
 
     try:
-        from lv00 import Engine, BufferedStreamCollector
+        from lv import Engine, BufferedStreamCollector
     except ImportError:
-        print("警告: lv00 模块未安装，使用模拟模式")
+        print("警告: lv 模块未安装，使用模拟模式")
         await _simulate_batch_processing()
         return
 
@@ -210,10 +210,10 @@ async def example_convenience_functions():
     print("=" * 60)
 
     try:
-        from lv00 import stream_events, collect_events, wait_for_event
-        from lv00.stream_bridge import EngineBridge
+        from lv import stream_events, collect_events, wait_for_event
+        from lv.stream_bridge import EngineBridge
     except ImportError:
-        print("警告: lv00 模块未安装，使用模拟模式")
+        print("警告: lv 模块未安装，使用模拟模式")
         await _simulate_convenience_functions()
         return
 
@@ -278,9 +278,9 @@ async def example_complete_workflow():
     print("=" * 60)
 
     try:
-        from lv00 import Engine, Graph, AsyncStreamContext
+        from lv import Engine, Graph, AsyncStreamContext
     except ImportError:
-        print("警告: lv00 模块未安装，使用模拟模式")
+        print("警告: lv 模块未安装，使用模拟模式")
         await _simulate_complete_workflow()
         return
 
@@ -364,9 +364,9 @@ async def example_error_handling():
     print("=" * 60)
 
     try:
-        from lv00 import Engine, AsyncStreamIterator
+        from lv import Engine, AsyncStreamIterator
     except ImportError:
-        print("警告: lv00 模块未安装，使用模拟模式")
+        print("警告: lv 模块未安装，使用模拟模式")
         await _simulate_error_handling()
         return
 

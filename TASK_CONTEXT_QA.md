@@ -1,4 +1,4 @@
-# Lv-00 代码质量修复 — 最终报告
+﻿# Lv-00 代码质量修复 — 最终报告
 
 **版本**: v1.1.0 → v1.1.1-qa2 | **完成**: 2026-06-22 | **状态**: ✅ 全部修复完成
 
@@ -19,7 +19,7 @@
 ## 最终指标
 
 ```
-.lv00  138      0 double/float (spec only)
+.lv  138      0 double/float (spec only)
 .lean  81       0 sorry  0 admit
 .c     232      0 sprintf/gets/strcpy  0 realloc→g→bug
                  残留double: 8 stubs [QA] + 布局/计时 [QA]

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file circuit_breaker.c
  * @brief 熔断器模块实现
  *
@@ -13,11 +13,11 @@
  * @version 5.0.0
  */
 
-#include "lv00/circuit_breaker.h"
-#include "lv00/context.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
-#include "lv00/recursion.h"
+#include "lv/circuit_breaker.h"
+#include "lv/context.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/recursion.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -32,7 +32,7 @@
  * 时间工具
  * ============================================================ */
 
-uint64_t lv00_circuit_breaker_now_us(void) {
+uint64_t lv_circuit_breaker_now_us(void) {
 #ifdef _WIN32
     /* Windows: 使用 QueryPerformanceCounter */
     static LARGE_INTEGER freq = {0};
@@ -50,9 +50,9 @@ uint64_t lv00_circuit_breaker_now_us(void) {
 #endif
 }
 
-uint64_t lv00_circuit_breaker_uptime_us(const CircuitBreaker *cb) {
+uint64_t lv_circuit_breaker_uptime_us(const CircuitBreaker *cb) {
     if (!cb) return 0;
-    uint64_t now = lv00_circuit_breaker_now_us();
+    uint64_t now = lv_circuit_breaker_now_us();
     return (now > cb->start_time_us) ? (now - cb->start_time_us) : 0;
 }
 
@@ -60,37 +60,37 @@ uint64_t lv00_circuit_breaker_uptime_us(const CircuitBreaker *cb) {
  * 核心熔断器 API
  * ============================================================ */
 
-bool lv00_circuit_breaker_check(Lv00Context *ctx) {
+bool lv_circuit_breaker_check(lvContext *ctx) {
     if (!ctx) return false;
 
     CircuitBreaker *cb = &ctx->circuit_breaker;
-    uint64_t now_us = lv00_circuit_breaker_now_us();
+    uint64_t now_us = lv_circuit_breaker_now_us();
 
     /* 检查总运行时间超时 */
     if (cb->total_timeout_ms > 0) {
-        uint64_t uptime_ms = lv00_circuit_breaker_uptime_us(cb) / 1000;
+        uint64_t uptime_ms = lv_circuit_breaker_uptime_us(cb) / 1000;
         if (uptime_ms > cb->total_timeout_ms && cb->uncancellable_refcount == 0) {
-            lv00_circuit_breaker_trip(ctx, "总运行时间超时");
+            lv_circuit_breaker_trip(ctx, "总运行时间超时");
             return false;
         }
     }
 
     /* 检查深度限制 */
     if (cb->max_depth > 0 && cb->current_depth > cb->max_depth) {
-        lv00_circuit_breaker_trip(ctx, "推理深度超限");
+        lv_circuit_breaker_trip(ctx, "推理深度超限");
         return false;
     }
 
     /* 检查步骤数限制 */
     if (cb->max_steps > 0 && cb->total_steps > cb->max_steps) {
-        lv00_circuit_breaker_trip(ctx, "推理步骤数超限");
+        lv_circuit_breaker_trip(ctx, "推理步骤数超限");
         return false;
     }
 
     /* 检查连续错误数限制 */
     if (cb->max_consecutive_errors > 0 &&
         cb->consecutive_errors >= cb->max_consecutive_errors) {
-        lv00_circuit_breaker_trip(ctx, "连续错误数超限");
+        lv_circuit_breaker_trip(ctx, "连续错误数超限");
         return false;
     }
 
@@ -123,28 +123,28 @@ bool lv00_circuit_breaker_check(Lv00Context *ctx) {
     }
 }
 
-void lv00_circuit_breaker_trip(Lv00Context *ctx, const char *reason) {
+void lv_circuit_breaker_trip(lvContext *ctx, const char *reason) {
     if (!ctx) return;
 
     CircuitBreaker *cb = &ctx->circuit_breaker;
     cb->state = CIRCUIT_BREAKER_OPEN;
-    cb->tripped_at_us = lv00_circuit_breaker_now_us();
+    cb->tripped_at_us = lv_circuit_breaker_now_us();
     cb->trip_count++;
 
     /* 释放旧的跳闸原因 */
     if (cb->trip_reason) {
-        lv00_free((void **)&cb->trip_reason);
+        lv_free((void **)&cb->trip_reason);
     }
 
     /* 复制新的跳闸原因 */
     if (reason) {
-        cb->trip_reason = lv00_strdup(reason);
+        cb->trip_reason = lv_strdup(reason);
     } else {
-        cb->trip_reason = lv00_strdup("未知原因");
+        cb->trip_reason = lv_strdup("未知原因");
     }
 }
 
-void lv00_circuit_breaker_reset(Lv00Context *ctx) {
+void lv_circuit_breaker_reset(lvContext *ctx) {
     if (!ctx) return;
 
     CircuitBreaker *cb = &ctx->circuit_breaker;
@@ -155,14 +155,14 @@ void lv00_circuit_breaker_reset(Lv00Context *ctx) {
     cb->trip_count = 0;
 
     if (cb->trip_reason) {
-        lv00_free((void **)&cb->trip_reason);
+        lv_free((void **)&cb->trip_reason);
     }
 
-    cb->start_time_us = lv00_circuit_breaker_now_us();
+    cb->start_time_us = lv_circuit_breaker_now_us();
     cb->operation_start_us = cb->start_time_us;
 }
 
-void lv00_circuit_breaker_record_success(Lv00Context *ctx) {
+void lv_circuit_breaker_record_success(lvContext *ctx) {
     if (!ctx) return;
 
     CircuitBreaker *cb = &ctx->circuit_breaker;
@@ -176,14 +176,14 @@ void lv00_circuit_breaker_record_success(Lv00Context *ctx) {
     cb->consecutive_errors = 0;
 }
 
-bool lv00_circuit_breaker_record_failure(Lv00Context *ctx) {
+bool lv_circuit_breaker_record_failure(lvContext *ctx) {
     if (!ctx) return false;
 
     CircuitBreaker *cb = &ctx->circuit_breaker;
 
     /* 在半开态下，失败意味着重新打开熔断器 */
     if (cb->state == CIRCUIT_BREAKER_HALF_OPEN) {
-        lv00_circuit_breaker_trip(ctx, "半开态试探失败");
+        lv_circuit_breaker_trip(ctx, "半开态试探失败");
         return false;
     }
 
@@ -191,14 +191,14 @@ bool lv00_circuit_breaker_record_failure(Lv00Context *ctx) {
     cb->consecutive_errors++;
     if (cb->max_consecutive_errors > 0 &&
         cb->consecutive_errors >= cb->max_consecutive_errors) {
-        lv00_circuit_breaker_trip(ctx, "连续错误数超限");
+        lv_circuit_breaker_trip(ctx, "连续错误数超限");
         return false;
     }
 
     return true;  /* 仍在关闭态 */
 }
 
-const char *lv00_circuit_breaker_state_name(Lv00Context *ctx) {
+const char *lv_circuit_breaker_state_name(lvContext *ctx) {
     if (!ctx) return "无上下文";
 
     CircuitBreaker *cb = &ctx->circuit_breaker;
@@ -214,7 +214,7 @@ const char *lv00_circuit_breaker_state_name(Lv00Context *ctx) {
     }
 }
 
-int lv00_circuit_breaker_summary(Lv00Context *ctx, char *buf, size_t buf_size) {
+int lv_circuit_breaker_summary(lvContext *ctx, char *buf, size_t buf_size) {
     if (!buf || buf_size == 0) return 0;
 
     CircuitBreaker *cb = ctx ? &ctx->circuit_breaker : NULL;
@@ -222,8 +222,8 @@ int lv00_circuit_breaker_summary(Lv00Context *ctx, char *buf, size_t buf_size) {
         return snprintf(buf, buf_size, "熔断器：无上下文");
     }
 
-    const char *state_str = lv00_circuit_breaker_state_name(ctx);
-    uint64_t uptime_ms = lv00_circuit_breaker_uptime_us(cb) / 1000;
+    const char *state_str = lv_circuit_breaker_state_name(ctx);
+    uint64_t uptime_ms = lv_circuit_breaker_uptime_us(cb) / 1000;
 
     return snprintf(buf, buf_size,
         "熔断器状态：%s | "
@@ -245,9 +245,9 @@ int lv00_circuit_breaker_summary(Lv00Context *ctx, char *buf, size_t buf_size) {
 /* ============================================================
  * 全局递归深度保护（轻量级熔断器）
  *
- * 与 Lv00Context 内的 CircuitBreaker 不同，此处提供
+ * 与 lvContext 内的 CircuitBreaker 不同，此处提供
  * 无上下文依赖的全局递归深度保护，供递归调用链中的
- * 任意位置快速检查。LV00_MAX_RECURSION_DEPTH (128)
+ * 任意位置快速检查。lv_MAX_RECURSION_DEPTH (128)
  * 定义在 recursion.h 中。
  * ============================================================ */
 
@@ -257,8 +257,8 @@ static int g_recursion_depth = 0;
 /** 全局熔断器是否已触发 */
 static bool g_circuit_breaker_triggered = false;
 
-bool lv00_recursion_enter(void) {
-    if (g_recursion_depth >= LV00_MAX_RECURSION_DEPTH) {
+bool lv_recursion_enter(void) {
+    if (g_recursion_depth >= lv_MAX_RECURSION_DEPTH) {
         g_circuit_breaker_triggered = true;
         return false;
     }
@@ -266,19 +266,19 @@ bool lv00_recursion_enter(void) {
     return true;
 }
 
-void lv00_recursion_leave(void) {
+void lv_recursion_leave(void) {
     if (g_recursion_depth > 0) g_recursion_depth--;
 }
 
-bool lv00_recursion_circuit_breaker_triggered(void) {
+bool lv_recursion_circuit_breaker_triggered(void) {
     return g_circuit_breaker_triggered;
 }
 
-void lv00_recursion_reset(void) {
+void lv_recursion_reset(void) {
     g_recursion_depth = 0;
     g_circuit_breaker_triggered = false;
 }
 
-int lv00_recursion_get_depth(void) {
+int lv_recursion_get_depth(void) {
     return g_recursion_depth;
 }

@@ -16,8 +16,8 @@
 
 #include "func_block.h"
 #include "func_block_internal.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
 
@@ -52,11 +52,11 @@ static InstantiateResult instantiate_copy_internal_nodes(
     int *out_new_node_count)
 {
     /* 使用安全加法宏防止 capacity 计算整数溢出 */
-    int capacity = LV00_SAFE_ADD(fb->internal_node_count, fb->output_count, INT_MAX);
+    int capacity = lv_SAFE_ADD(fb->internal_node_count, fb->output_count, INT_MAX);
     if (capacity == INT_MAX) {
         return INSTANTIATE_OUT_OF_MEMORY;
     }
-    int *new_node_ids = lv00_malloc((size_t)capacity * sizeof(int));
+    int *new_node_ids = lv_malloc((size_t)capacity * sizeof(int));
     if (!new_node_ids) return INSTANTIATE_OUT_OF_MEMORY;
     int new_count = 0;
 
@@ -66,7 +66,7 @@ static InstantiateResult instantiate_copy_internal_nodes(
         int arg_id = arg_mappings[i];
         GeomNode *arg_node = graph_get_node(graph, arg_id);
         if (!arg_node) {
-            lv00_free((void **)&new_node_ids);
+            lv_free((void **)&new_node_ids);
             return INSTANTIATE_NO_SOLUTION;
         }
         /* O(1) 映射：形式参数 -> 实参 */
@@ -105,9 +105,9 @@ static InstantiateResult instantiate_copy_internal_nodes(
         }
 
         /* 情况3: 内部局部变量 - 创建深拷贝 */
-        GeomNode *copy = lv00_malloc(sizeof(GeomNode));
+        GeomNode *copy = lv_malloc(sizeof(GeomNode));
         if (!copy) {
-            lv00_free((void **)&new_node_ids);
+            lv_free((void **)&new_node_ids);
             return INSTANTIATE_OUT_OF_MEMORY;
         }
         memcpy(copy, orig, sizeof(GeomNode));
@@ -127,13 +127,13 @@ static InstantiateResult instantiate_copy_internal_nodes(
          * 否则后续释放 copy 时会 double-free orig 的坐标数组
          */
         if (orig->symbolic_coords && orig->coord_count > 0) {
-            copy->symbolic_coords = lv00_malloc((size_t)orig->coord_count * sizeof(SymbolicCoord *));
+            copy->symbolic_coords = lv_malloc((size_t)orig->coord_count * sizeof(SymbolicCoord *));
             if (!copy->symbolic_coords) {
                 /* 深拷贝分配失败：将 symbolic_coords 置为 NULL，避免 double-free */
                 copy->symbolic_coords = NULL;
                 copy->coord_count = 0;
-                lv00_free((void **)&copy);
-                lv00_free((void **)&new_node_ids);
+                lv_free((void **)&copy);
+                lv_free((void **)&new_node_ids);
                 return INSTANTIATE_OUT_OF_MEMORY;
             }
             for (int j = 0; j < orig->coord_count; j++) {
@@ -145,11 +145,11 @@ static InstantiateResult instantiate_copy_internal_nodes(
                         if (copy->symbolic_coords[k])
                             symbolic_coord_destroy(copy->symbolic_coords[k]);
                     }
-                    lv00_free((void **)&copy->symbolic_coords);
+                    lv_free((void **)&copy->symbolic_coords);
                     copy->symbolic_coords = NULL;
                     copy->coord_count = 0;
-                    lv00_free((void **)&copy);
-                    lv00_free((void **)&new_node_ids);
+                    lv_free((void **)&copy);
+                    lv_free((void **)&new_node_ids);
                     return INSTANTIATE_OUT_OF_MEMORY;
                 }
             }
@@ -157,7 +157,7 @@ static InstantiateResult instantiate_copy_internal_nodes(
 
         /* 深拷贝 numeric_assumption_declaration */
         if (orig->numeric_assumption_declaration) {
-            copy->numeric_assumption_declaration = lv00_strdup(orig->numeric_assumption_declaration);
+            copy->numeric_assumption_declaration = lv_strdup(orig->numeric_assumption_declaration);
         } else {
             copy->numeric_assumption_declaration = NULL;
         }
@@ -167,18 +167,18 @@ static InstantiateResult instantiate_copy_internal_nodes(
             case GEOM_PORT: {
                 /* 防止空指针解引用：确保 orig->data.port 不为 NULL */
                 if (!orig->data.port) {
-                    lv00_free((void **)&copy->symbolic_coords);
-                    lv00_free((void **)&copy->numeric_assumption_declaration);
-                    lv00_free((void **)&copy);
-                    lv00_free((void **)&new_node_ids);
+                    lv_free((void **)&copy->symbolic_coords);
+                    lv_free((void **)&copy->numeric_assumption_declaration);
+                    lv_free((void **)&copy);
+                    lv_free((void **)&new_node_ids);
                     return INSTANTIATE_NO_SOLUTION;
                 }
-                Port *port_copy = lv00_malloc(sizeof(Port));
+                Port *port_copy = lv_malloc(sizeof(Port));
                 if (!port_copy) {
-                    lv00_free((void **)&copy->symbolic_coords);
-                    lv00_free((void **)&copy->numeric_assumption_declaration);
-                    lv00_free((void **)&copy);
-                    lv00_free((void **)&new_node_ids);
+                    lv_free((void **)&copy->symbolic_coords);
+                    lv_free((void **)&copy->numeric_assumption_declaration);
+                    lv_free((void **)&copy);
+                    lv_free((void **)&new_node_ids);
                     return INSTANTIATE_OUT_OF_MEMORY;
                 }
                 memcpy(port_copy, orig->data.port, sizeof(Port));
@@ -191,13 +191,13 @@ static InstantiateResult instantiate_copy_internal_nodes(
             }
             case GEOM_REGION: {
                 if (orig->data.region.boundary_segments && orig->data.region.segment_count > 0) {
-                    copy->data.region.boundary_segments = lv00_malloc(
+                    copy->data.region.boundary_segments = lv_malloc(
                         (size_t)orig->data.region.segment_count * sizeof(GeomNode *));
                     if (!copy->data.region.boundary_segments) {
-                        lv00_free((void **)&copy->symbolic_coords);
-                        lv00_free((void **)&copy->numeric_assumption_declaration);
-                        lv00_free((void **)&copy);
-                        lv00_free((void **)&new_node_ids);
+                        lv_free((void **)&copy->symbolic_coords);
+                        lv_free((void **)&copy->numeric_assumption_declaration);
+                        lv_free((void **)&copy);
+                        lv_free((void **)&new_node_ids);
                         return INSTANTIATE_OUT_OF_MEMORY;
                     }
                     memcpy(copy->data.region.boundary_segments,
@@ -208,13 +208,13 @@ static InstantiateResult instantiate_copy_internal_nodes(
             }
             case GEOM_FUNCTION_BLOCK: {
                 if (orig->data.func_block.internal_nodes && orig->data.func_block.internal_node_count > 0) {
-                    copy->data.func_block.internal_nodes = lv00_malloc(
+                    copy->data.func_block.internal_nodes = lv_malloc(
                         (size_t)orig->data.func_block.internal_node_count * sizeof(GeomNode *));
                     if (!copy->data.func_block.internal_nodes) {
-                        lv00_free((void **)&copy->symbolic_coords);
-                        lv00_free((void **)&copy->numeric_assumption_declaration);
-                        lv00_free((void **)&copy);
-                        lv00_free((void **)&new_node_ids);
+                        lv_free((void **)&copy->symbolic_coords);
+                        lv_free((void **)&copy->numeric_assumption_declaration);
+                        lv_free((void **)&copy);
+                        lv_free((void **)&new_node_ids);
                         return INSTANTIATE_OUT_OF_MEMORY;
                     }
                     memcpy(copy->data.func_block.internal_nodes,
@@ -222,14 +222,14 @@ static InstantiateResult instantiate_copy_internal_nodes(
                            (size_t)orig->data.func_block.internal_node_count * sizeof(GeomNode *));
                 }
                 if (orig->data.func_block.input_port_ids && orig->data.func_block.input_count > 0) {
-                    copy->data.func_block.input_port_ids = lv00_malloc(
+                    copy->data.func_block.input_port_ids = lv_malloc(
                         (size_t)orig->data.func_block.input_count * sizeof(int));
                     if (!copy->data.func_block.input_port_ids) {
-                        lv00_free((void **)&copy->data.func_block.internal_nodes);
-                        lv00_free((void **)&copy->symbolic_coords);
-                        lv00_free((void **)&copy->numeric_assumption_declaration);
-                        lv00_free((void **)&copy);
-                        lv00_free((void **)&new_node_ids);
+                        lv_free((void **)&copy->data.func_block.internal_nodes);
+                        lv_free((void **)&copy->symbolic_coords);
+                        lv_free((void **)&copy->numeric_assumption_declaration);
+                        lv_free((void **)&copy);
+                        lv_free((void **)&new_node_ids);
                         return INSTANTIATE_OUT_OF_MEMORY;
                     }
                     memcpy(copy->data.func_block.input_port_ids,
@@ -237,15 +237,15 @@ static InstantiateResult instantiate_copy_internal_nodes(
                            (size_t)orig->data.func_block.input_count * sizeof(int));
                 }
                 if (orig->data.func_block.output_port_ids && orig->data.func_block.output_count > 0) {
-                    copy->data.func_block.output_port_ids = lv00_malloc(
+                    copy->data.func_block.output_port_ids = lv_malloc(
                         (size_t)orig->data.func_block.output_count * sizeof(int));
                     if (!copy->data.func_block.output_port_ids) {
-                        lv00_free((void **)&copy->data.func_block.input_port_ids);
-                        lv00_free((void **)&copy->data.func_block.internal_nodes);
-                        lv00_free((void **)&copy->symbolic_coords);
-                        lv00_free((void **)&copy->numeric_assumption_declaration);
-                        lv00_free((void **)&copy);
-                        lv00_free((void **)&new_node_ids);
+                        lv_free((void **)&copy->data.func_block.input_port_ids);
+                        lv_free((void **)&copy->data.func_block.internal_nodes);
+                        lv_free((void **)&copy->symbolic_coords);
+                        lv_free((void **)&copy->numeric_assumption_declaration);
+                        lv_free((void **)&copy);
+                        lv_free((void **)&new_node_ids);
                         return INSTANTIATE_OUT_OF_MEMORY;
                     }
                     memcpy(copy->data.func_block.output_port_ids,
@@ -264,21 +264,21 @@ static InstantiateResult instantiate_copy_internal_nodes(
             id_map[old_id] = copy->id;
         }
 
-        /* 使用 lv00_realloc 统一内存管理，确保内存追踪系统可以追踪此分配 */
-        GeomNode **new_nodes = lv00_realloc(graph->nodes,
+        /* 使用 lv_realloc 统一内存管理，确保内存追踪系统可以追踪此分配 */
+        GeomNode **new_nodes = lv_realloc(graph->nodes,
             (size_t)(graph->node_count + 1) * sizeof(GeomNode *));
         if (!new_nodes) {
-            if (copy->type == GEOM_PORT) lv00_free((void **)&copy->data.port);
-            if (copy->type == GEOM_REGION) lv00_free((void **)&copy->data.region.boundary_segments);
+            if (copy->type == GEOM_PORT) lv_free((void **)&copy->data.port);
+            if (copy->type == GEOM_REGION) lv_free((void **)&copy->data.region.boundary_segments);
             if (copy->type == GEOM_FUNCTION_BLOCK) {
-                lv00_free((void **)&copy->data.func_block.internal_nodes);
-                lv00_free((void **)&copy->data.func_block.input_port_ids);
-                lv00_free((void **)&copy->data.func_block.output_port_ids);
+                lv_free((void **)&copy->data.func_block.internal_nodes);
+                lv_free((void **)&copy->data.func_block.input_port_ids);
+                lv_free((void **)&copy->data.func_block.output_port_ids);
             }
-            lv00_free((void **)&copy->symbolic_coords);
-            lv00_free((void **)&copy->numeric_assumption_declaration);
-            lv00_free((void **)&copy);
-            lv00_free((void **)&new_node_ids);
+            lv_free((void **)&copy->symbolic_coords);
+            lv_free((void **)&copy->numeric_assumption_declaration);
+            lv_free((void **)&copy);
+            lv_free((void **)&new_node_ids);
             return INSTANTIATE_OUT_OF_MEMORY;
         }
         graph->nodes = new_nodes;
@@ -290,13 +290,13 @@ static InstantiateResult instantiate_copy_internal_nodes(
             /* 修复：防止 capacity *= 2 导致有符号整数溢出。
              * 当 capacity > INT_MAX / 2 时翻倍会溢出，此时应终止操作。 */
             if (capacity > INT_MAX / 2) {
-                lv00_free((void **)&new_node_ids);
+                lv_free((void **)&new_node_ids);
                 return INSTANTIATE_OUT_OF_MEMORY;
             }
             capacity *= 2;
-            int *tmp = lv00_realloc(new_node_ids, (size_t)capacity * sizeof(int));
+            int *tmp = lv_realloc(new_node_ids, (size_t)capacity * sizeof(int));
             if (!tmp) {
-                lv00_free((void **)&new_node_ids);
+                lv_free((void **)&new_node_ids);
                 return INSTANTIATE_OUT_OF_MEMORY;
             }
             new_node_ids = tmp;
@@ -436,16 +436,16 @@ static void instantiate_copy_constraints(
         if (!all_internal || !any_mapped) continue;
 
         /* 创建新约束，替换参与者ID */
-        Constraint *new_c = lv00_malloc(sizeof(Constraint));
+        Constraint *new_c = lv_malloc(sizeof(Constraint));
         if (!new_c) continue;
         memset(new_c, 0, sizeof(Constraint));
         new_c->id = graph->next_constraint_id++;
         new_c->type = c->type;
         new_c->template_id = c->template_id;
         new_c->participant_count = c->participant_count;
-        new_c->participants = lv00_malloc((size_t)c->participant_count * sizeof(int));
+        new_c->participants = lv_malloc((size_t)c->participant_count * sizeof(int));
         if (!new_c->participants) {
-            lv00_free((void **)&new_c);
+            lv_free((void **)&new_c);
             continue;
         }
         for (int j = 0; j < c->participant_count; j++) {
@@ -458,12 +458,12 @@ static void instantiate_copy_constraints(
         }
 
         /* 添加到图 */
-        /* 使用 lv00_realloc 统一内存管理 */
-        Constraint **new_constraints = lv00_realloc(graph->constraints,
+        /* 使用 lv_realloc 统一内存管理 */
+        Constraint **new_constraints = lv_realloc(graph->constraints,
             (size_t)(graph->constraint_count + 1) * sizeof(Constraint *));
         if (!new_constraints) {
-            lv00_free((void **)&new_c->participants);
-            lv00_free((void **)&new_c);
+            lv_free((void **)&new_c->participants);
+            lv_free((void **)&new_c);
             continue;
         }
         graph->constraints = new_constraints;
@@ -472,7 +472,7 @@ static void instantiate_copy_constraints(
         graph_constraint_index_insert(graph, new_c);
     }
 
-    lv00_free((void **)&all_ids);
+    lv_free((void **)&all_ids);
 }
 
 /**
@@ -592,28 +592,28 @@ static void instantiate_copy_connection_constraints(
         if (!any_changed) continue;
 
         /* 创建新的 CONNECTION 约束 */
-        Constraint *new_c = lv00_malloc(sizeof(Constraint));
+        Constraint *new_c = lv_malloc(sizeof(Constraint));
         if (!new_c) continue;
         memset(new_c, 0, sizeof(Constraint));
         new_c->id = graph->next_constraint_id++;
         new_c->type = CONNECTION;
         new_c->template_id = c->template_id;
         new_c->participant_count = 2;
-        new_c->participants = lv00_malloc(2 * sizeof(int));
+        new_c->participants = lv_malloc(2 * sizeof(int));
         if (!new_c->participants) {
-            lv00_free((void **)&new_c);
+            lv_free((void **)&new_c);
             continue;
         }
         new_c->participants[0] = new_src_id;
         new_c->participants[1] = new_dst_id;
 
         /* 添加到图 */
-        /* 使用 lv00_realloc 统一内存管理 */
-        Constraint **new_constraints = lv00_realloc(graph->constraints,
+        /* 使用 lv_realloc 统一内存管理 */
+        Constraint **new_constraints = lv_realloc(graph->constraints,
             (size_t)(graph->constraint_count + 1) * sizeof(Constraint *));
         if (!new_constraints) {
-            lv00_free((void **)&new_c->participants);
-            lv00_free((void **)&new_c);
+            lv_free((void **)&new_c->participants);
+            lv_free((void **)&new_c);
             continue;
         }
         graph->constraints = new_constraints;
@@ -622,7 +622,7 @@ static void instantiate_copy_connection_constraints(
         graph_constraint_index_insert(graph, new_c);
     }
 
-    lv00_free((void **)&all_ids);
+    lv_free((void **)&all_ids);
 }
 
 /**
@@ -703,7 +703,7 @@ InstantiateResult func_block_instantiate(
         if (fb->output_port_ids[i] > max_id) max_id = fb->output_port_ids[i];
     }
 
-    int *id_map = lv00_malloc((size_t)(max_id + 2) * sizeof(int));
+    int *id_map = lv_malloc((size_t)(max_id + 2) * sizeof(int));
     if (!id_map) {
         /* 流式事件：函数块例化失败 */
         if (func_block_stream_ctx) {
@@ -724,7 +724,7 @@ InstantiateResult func_block_instantiate(
         &new_node_ids, &new_count);
 
     if (result != INSTANTIATE_OK) {
-        lv00_free((void **)&id_map);
+        lv_free((void **)&id_map);
         return result;
     }
 
@@ -743,7 +743,7 @@ InstantiateResult func_block_instantiate(
             result == INSTANTIATE_OK ? "函数块例化完成" : "函数块例化失败", 1);
     }
 
-    lv00_free((void **)&id_map);
+    lv_free((void **)&id_map);
     *out_new_node_ids = new_node_ids;
     *out_new_node_count = new_count;
     return INSTANTIATE_OK;
@@ -780,7 +780,7 @@ bool func_block_partial_apply(
     }
 
     /* 创建新函数块 */
-    FuncBlock *new_fb = func_block_create(fb->id + LV00_FUNC_BLOCK_ID_OFFSET);
+    FuncBlock *new_fb = func_block_create(fb->id + lv_FUNC_BLOCK_ID_OFFSET);
     if (!new_fb) return false;
 
     /* 复制内部节点 */
@@ -792,7 +792,7 @@ bool func_block_partial_apply(
     /* 剩余的输入端口（未被固定的部分） */
     int remaining_count = fb->input_count - fixed_count;
     if (remaining_count > 0) {
-        int *remaining_ports = lv00_malloc((size_t)remaining_count * sizeof(int));
+        int *remaining_ports = lv_malloc((size_t)remaining_count * sizeof(int));
         if (!remaining_ports) {
             func_block_destroy(new_fb);
             return false;
@@ -801,7 +801,7 @@ bool func_block_partial_apply(
             remaining_ports[j] = fb->input_port_ids[i];
         }
         bool ok = func_block_set_input_ports(new_fb, remaining_ports, remaining_count);
-        lv00_free((void **)&remaining_ports);
+        lv_free((void **)&remaining_ports);
         if (!ok) {
             func_block_destroy(new_fb);
             return false;
@@ -857,10 +857,10 @@ bool func_block_partial_apply(
 
     /* 复制名称和描述 */
     if (fb->name) {
-        new_fb->name = lv00_strdup(fb->name);
+        new_fb->name = lv_strdup(fb->name);
     }
     if (fb->description) {
-        new_fb->description = lv00_strdup(fb->description);
+        new_fb->description = lv_strdup(fb->description);
     }
 
     new_fb->determinism = fb->determinism;
@@ -918,7 +918,7 @@ static bool collect_free_vars_for_node(
             int target_id = p->connected_to->id;
             /* 自由变量：连接目标不属于同一块 */
             if (p->parent_block_id != block_id || block_id < 0) {
-                *out_ids = lv00_malloc(sizeof(int));
+                *out_ids = lv_malloc(sizeof(int));
                 if (!*out_ids) return false;
                 (*out_ids)[0] = target_id;
                 *out_count = 1;
@@ -929,7 +929,7 @@ static bool collect_free_vars_for_node(
 
     /* 对于非 PORT 节点，如果它不属于任何块，它自身就是自由变量 */
     if (block_id < 0 || node->parent_block_id != block_id) {
-        *out_ids = lv00_malloc(sizeof(int));
+        *out_ids = lv_malloc(sizeof(int));
         if (!*out_ids) return false;
         (*out_ids)[0] = node_id;
         *out_count = 1;
@@ -962,7 +962,7 @@ static bool collect_bound_vars_in_block(
 
     if (block->input_count == 0) return true;
 
-    int *bound = lv00_malloc((size_t)block->input_count * sizeof(int));
+    int *bound = lv_malloc((size_t)block->input_count * sizeof(int));
     if (!bound) return false;
 
     int count = 0;
@@ -976,7 +976,7 @@ static bool collect_bound_vars_in_block(
     }
 
     if (count == 0) {
-        lv00_free((void **)&bound);
+        lv_free((void **)&bound);
         *out_ids = NULL;
         *out_count = 0;
     } else {
@@ -1035,7 +1035,7 @@ static bool detect_variable_capture(
     int *bound_ids = NULL;
     int bound_count = 0;
     /* 不传 graph，直接使用 block 的 input_port_ids 作为绑定变量集合 */
-    bound_ids = lv00_malloc((size_t)block->input_count * sizeof(int));
+    bound_ids = lv_malloc((size_t)block->input_count * sizeof(int));
     if (!bound_ids) return false;
     for (int i = 0; i < block->input_count; i++) {
         bound_ids[i] = block->input_port_ids[i];
@@ -1045,9 +1045,9 @@ static bool detect_variable_capture(
     /* 收集实参中的自由变量 ID */
     /* 自由变量 = 实参节点 ID 本身（因为它们来自外部作用域） */
     int free_capacity = arg_count * 2;
-    int *free_ids = lv00_malloc((size_t)free_capacity * sizeof(int));
+    int *free_ids = lv_malloc((size_t)free_capacity * sizeof(int));
     if (!free_ids) {
-        lv00_free((void **)&bound_ids);
+        lv_free((void **)&bound_ids);
         return false;
     }
     int free_count = 0;
@@ -1060,10 +1060,10 @@ static bool detect_variable_capture(
         if (!already) {
             if (free_count >= free_capacity) {
                 free_capacity *= 2;
-                int *tmp = lv00_realloc(free_ids, (size_t)free_capacity * sizeof(int));
+                int *tmp = lv_realloc(free_ids, (size_t)free_capacity * sizeof(int));
                 if (!tmp) {
-                    lv00_free((void **)&free_ids);
-                    lv00_free((void **)&bound_ids);
+                    lv_free((void **)&free_ids);
+                    lv_free((void **)&bound_ids);
                     return false;
                 }
                 free_ids = tmp;
@@ -1074,10 +1074,10 @@ static bool detect_variable_capture(
 
     /* 检查交集：自由变量中哪些 ID 也出现在绑定变量中 */
     int cap_capacity = 8;
-    int *captured = lv00_malloc((size_t)cap_capacity * sizeof(int));
+    int *captured = lv_malloc((size_t)cap_capacity * sizeof(int));
     if (!captured) {
-        lv00_free((void **)&free_ids);
-        lv00_free((void **)&bound_ids);
+        lv_free((void **)&free_ids);
+        lv_free((void **)&bound_ids);
         return false;
     }
     int cap_count = 0;
@@ -1086,11 +1086,11 @@ static bool detect_variable_capture(
         if (is_id_in_array(free_ids[i], bound_ids, bound_count)) {
             if (cap_count >= cap_capacity) {
                 cap_capacity *= 2;
-                int *tmp = lv00_realloc(captured, (size_t)cap_capacity * sizeof(int));
+                int *tmp = lv_realloc(captured, (size_t)cap_capacity * sizeof(int));
                 if (!tmp) {
-                    lv00_free((void **)&captured);
-                    lv00_free((void **)&free_ids);
-                    lv00_free((void **)&bound_ids);
+                    lv_free((void **)&captured);
+                    lv_free((void **)&free_ids);
+                    lv_free((void **)&bound_ids);
                     return false;
                 }
                 captured = tmp;
@@ -1099,8 +1099,8 @@ static bool detect_variable_capture(
         }
     }
 
-    lv00_free((void **)&free_ids);
-    lv00_free((void **)&bound_ids);
+    lv_free((void **)&free_ids);
+    lv_free((void **)&bound_ids);
 
     *captured_vars = captured;
     *captured_count = cap_count;
@@ -1221,7 +1221,7 @@ static bool collect_all_graph_node_ids(
         *out_ids = NULL;
         return true;
     }
-    *out_ids = lv00_malloc((size_t)graph->node_count * sizeof(int));
+    *out_ids = lv_malloc((size_t)graph->node_count * sizeof(int));
     if (!*out_ids) return false;
     for (int i = 0; i < graph->node_count; i++) {
         (*out_ids)[i] = graph->nodes[i]->id;
@@ -1298,7 +1298,7 @@ InstantiateResult func_block_instantiate_capture_avoiding(
         /* 同时将函数块自身的内部节点 ID 也加入占用集合 */
         int total_occupied = occupied_count + block->internal_node_count
                            + block->input_count + block->output_count;
-        int *all_occupied = lv00_malloc((size_t)total_occupied * sizeof(int));
+        int *all_occupied = lv_malloc((size_t)total_occupied * sizeof(int));
         if (all_occupied) {
             int idx = 0;
             for (int i = 0; i < occupied_count; i++)
@@ -1327,10 +1327,10 @@ InstantiateResult func_block_instantiate_capture_avoiding(
                     base = fresh_id + 1;
                 }
             }
-            lv00_free((void **)&all_occupied);
+            lv_free((void **)&all_occupied);
         }
-        lv00_free((void **)&occupied_ids);
-        lv00_free((void **)&captured_vars);
+        lv_free((void **)&occupied_ids);
+        lv_free((void **)&captured_vars);
     }
 
     /*
@@ -1342,7 +1342,7 @@ InstantiateResult func_block_instantiate_capture_avoiding(
      */
     int *arg_mappings = NULL;
     if (arg_count > 0 && actual_arg_nodes) {
-        arg_mappings = lv00_malloc((size_t)arg_count * sizeof(int));
+        arg_mappings = lv_malloc((size_t)arg_count * sizeof(int));
         if (!arg_mappings) return INSTANTIATE_OUT_OF_MEMORY;
         memcpy(arg_mappings, actual_arg_nodes, (size_t)arg_count * sizeof(int));
     }
@@ -1357,6 +1357,6 @@ InstantiateResult func_block_instantiate_capture_avoiding(
             result == INSTANTIATE_OK ? "捕获避免例化完成" : "捕获避免例化失败", 1);
     }
 
-    lv00_free((void **)&arg_mappings);
+    lv_free((void **)&arg_mappings);
     return result;
 }

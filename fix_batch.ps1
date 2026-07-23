@@ -1,4 +1,4 @@
-$file = (Get-Item "core\src\layer3_geometry\gappa_dsl.c").FullName
+﻿$file = (Get-Item "core\src\layer3_geometry\gappa_dsl.c").FullName
 $content = Get-Content $file -Raw -Encoding UTF8
 $content = $content -replace 'bool gappa_format_predefined\(', 'int gappa_format_predefined('
 $content = $content -replace 'bool gappa_parse\(', 'int gappa_parse('
@@ -24,7 +24,7 @@ Set-Content $file $content -NoNewline -Encoding UTF8
 
 $file = (Get-Item "core\src\layer3_geometry\geo_halfedge_mesh.c").FullName
 $content = Get-Content $file -Raw -Encoding UTF8
-$content = $content -replace 'bool lv00_he_mesh_validate\(', 'int lv00_he_mesh_validate('
+$content = $content -replace 'bool lv_he_mesh_validate\(', 'int lv_he_mesh_validate('
 Set-Content $file $content -NoNewline -Encoding UTF8
 
 $file = (Get-Item "core\src\layer3_geometry\propagation.c").FullName

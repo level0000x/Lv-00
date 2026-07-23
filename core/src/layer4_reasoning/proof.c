@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof.c
  * @brief 证明系统实现 —— 命题管理与证明工作流
  *
@@ -32,8 +32,8 @@
  *
  * @dependencies
  *   - proof.h              : 证明系统公共接口定义
- *   - lv00_internal.h      : 内部数据结构与常量
- *   - lv00_utils.h         : 统一内存分配器
+ *   - lv_internal.h      : 内部数据结构与常量
+ *   - lv_utils.h         : 统一内存分配器
  *   - type_system.h        : 类型系统（端口类型等价检查）
  *   - unify.h              : 合一检查器
  *   - solver.h             : 代数求解器
@@ -44,7 +44,7 @@
  *   - normalization.h      : 图规范化
  */
 
-#include "lv00/proof.h"
+#include "lv/proof.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,26 +58,26 @@
 #endif
 
 #include "axiom_pkg.h"
-#include "lv00/engine.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
-#include "lv00/node_deep_copy.h"
-#include "lv00/solver.h"
-#include "lv00/stream.h"
+#include "lv/engine.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "lv/node_deep_copy.h"
+#include "lv/solver.h"
+#include "lv/stream.h"
 #include "stream_context_util.h"
-#include "lv00/thread_pool.h"
-#include "lv00/type_system.h"
-#include "lv00/unify.h"
+#include "lv/thread_pool.h"
+#include "lv/type_system.h"
+#include "lv/unify.h"
 
-LV00_DECLARE_STREAM_CTX(proof);
+lv_DECLARE_STREAM_CTX(proof);
 
 void proof_set_stream_context(StreamContext *ctx) {
     proof_stream_ctx = ctx;
 }
 
 /* 证明树 API 的完整实现在 proof/proof_tree.c 中；
- * proof_trace.h 中提供了 Lv00ProofTree / Lv00ProofTreeNode 的完整定义 */
-#define LV00_DEFAULT_MAX_STEPS 10000
+ * proof_trace.h 中提供了 lvProofTree / lvProofTreeNode 的完整定义 */
+#define lv_DEFAULT_MAX_STEPS 10000
 
 /** 命题销毁时迭代栈的初始容量 */
 #define PROOF_DESTROY_STACK_INITIAL_CAPACITY 128
@@ -99,7 +99,7 @@ Proposition *proposition_create(int id, PropositionType type) {
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, "命题创建", 0);
     }
 
-    Proposition *prop = lv00_calloc(1, sizeof(Proposition));
+    Proposition *prop = lv_calloc(1, sizeof(Proposition));
     if (!prop)
         return NULL;
 

@@ -14,8 +14,8 @@
  */
 
 #include "lexer_shared.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -33,7 +33,7 @@
  * @param lex    词法分析器指针，不能为 NULL
  * @param source 源字符串指针，不能为 NULL
  */
-void lv00_lexer_init(Lv00Lexer *lex, const char *source) {
+void lv_lexer_init(lvLexer *lex, const char *source) {
     if (!lex || !source) return;
     lex->source = source;
     lex->pos = source;
@@ -54,7 +54,7 @@ void lv00_lexer_init(Lv00Lexer *lex, const char *source) {
  *
  * @param lex 词法分析器指针，不能为 NULL
  */
-void lv00_lexer_skip_whitespace_and_comments(Lv00Lexer *lex) {
+void lv_lexer_skip_whitespace_and_comments(lvLexer *lex) {
     if (!lex || !lex->pos) return;
     while (*lex->pos) {
         /* 跳过空白字符（空格、制表符、换行符、回车符等） */
@@ -85,7 +85,7 @@ void lv00_lexer_skip_whitespace_and_comments(Lv00Lexer *lex) {
  *  提取字符串字面量（含转义处理）
  * ================================================================ */
 
-char *lv00_lexer_extract_string(Lv00Lexer *lex) {
+char *lv_lexer_extract_string(lvLexer *lex) {
     if (!lex || !lex->pos) return NULL;
     const char *start = lex->pos;
     size_t len = 0;
@@ -112,9 +112,9 @@ char *lv00_lexer_extract_string(Lv00Lexer *lex) {
         goto extract_fail;
     }
 
-    /* 分配结果缓冲区（使用 lv00_malloc 统一内存管理） */
+    /* 分配结果缓冲区（使用 lv_malloc 统一内存管理） */
     char *result = NULL;  /* 修复：初始化为 NULL，使 extract_fail 中的释放操作安全 */
-    result = (char *)lv00_malloc(len + 1);
+    result = (char *)lv_malloc(len + 1);
     if (!result) {
         /* 修复：内存不足时设置错误信息并返回 NULL */
         goto extract_fail;
@@ -155,12 +155,12 @@ char *lv00_lexer_extract_string(Lv00Lexer *lex) {
 
 extract_fail:
     /* 修复：防御性清理——如果 result 已分配但未返回，则释放它防止内存泄漏。
-     * result 已初始化为 NULL，因此 lv00_free 对未分配的情况也是安全的。 */
-    lv00_free((void **)&result);
+     * result 已初始化为 NULL，因此 lv_free 对未分配的情况也是安全的。 */
+    lv_free((void **)&result);
 
-    /* 修复：使用 lv00_strdup_safe 分配错误信息字符串，避免将字符串字面量
+    /* 修复：使用 lv_strdup_safe 分配错误信息字符串，避免将字符串字面量
      * 直接赋值给 char*（字符串字面量存储在只读数据段，不应通过 char* 修改）。
      * 这与头文件注释"堆分配，调用者负责释放"保持一致。 */
-    lex->error_msg = lv00_strdup_safe("字符串字面量解析失败：未找到闭合引号或转义序列不完整");
+    lex->error_msg = lv_strdup_safe("字符串字面量解析失败：未找到闭合引号或转义序列不完整");
     return NULL;
 }

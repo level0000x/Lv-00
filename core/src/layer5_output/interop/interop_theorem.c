@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop_theorem.c
  * @brief 定理导入/导出与补全
  *
@@ -7,7 +7,7 @@
  * @version 3.3.0
  */
 
-#include "lv00/interop.h"
+#include "lv/interop.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -15,23 +15,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
-#include "lv00/constraint_graph.h"
-#include "lv00/engine.h"
+#include "lv/constraint_graph.h"
+#include "lv/engine.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
-LV00_DECLARE_STREAM_CTX(interop);
+lv_DECLARE_STREAM_CTX(interop);
 
 /* ── 定理系统 ── */
 
 InteropTheoremContext *interop_theorem_context_create(const char *trust_base_name, const char *trust_base_version) {
-    InteropTheoremContext *ctx = (InteropTheoremContext *) lv00_malloc(sizeof(InteropTheoremContext));
+    InteropTheoremContext *ctx = (InteropTheoremContext *) lv_malloc(sizeof(InteropTheoremContext));
     if (!ctx)
         return NULL;
 
-    lv00_strlcpy(ctx->trust_base_name, trust_base_name ? trust_base_name : "Lv00", sizeof(ctx->trust_base_name));
-    lv00_strlcpy(ctx->trust_base_version, trust_base_version ? trust_base_version : "3.0.0",
+    lv_strlcpy(ctx->trust_base_name, trust_base_name ? trust_base_name : "lv", sizeof(ctx->trust_base_name));
+    lv_strlcpy(ctx->trust_base_version, trust_base_version ? trust_base_version : "3.0.0",
                  sizeof(ctx->trust_base_version));
     ctx->exported_calls = NULL;
     ctx->calls_len = 0;
@@ -44,10 +44,10 @@ void interop_theorem_context_destroy(InteropTheoremContext *ctx) {
         return;
 
     if (ctx->exported_calls) {
-        lv00_free((void **) &ctx->exported_calls);
+        lv_free((void **) &ctx->exported_calls);
     }
 
-    lv00_free((void **) &ctx);
+    lv_free((void **) &ctx);
 }
 
 int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_name, const char **params,
@@ -60,25 +60,25 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
      *   "theorem_name;param1;param2;...\n"
      * 使用分号分隔字段，换行符分隔不同调用。
      *
-     * 缓冲区通过 lv00_realloc 动态扩展，支持任意数量的调用记录。
+     * 缓冲区通过 lv_realloc 动态扩展，支持任意数量的调用记录。
      * 如果当前缓冲区为空，则为其分配初始空间。
      *
      * @param ctx 定理交换上下文，其 exported_calls 和 calls_len 会被更新
      * @param theorem_name 被调用的定理名称（不可为空）
      * @param params 传递给定理的参数数组（可为 NULL，此时 param_count 必须为 0）
      * @param param_count 参数数量（>= 0）
-     * @return LV00_OK 调用记录成功添加
-     *         LV00_ERROR_INVALID_PARAM ctx 或 theorem_name 为 NULL
-     *         LV00_ERROR_OUT_OF_MEMORY 内存分配失败
+     * @return lv_OK 调用记录成功添加
+     *         lv_ERROR_INVALID_PARAM ctx 或 theorem_name 为 NULL
+     *         lv_ERROR_OUT_OF_MEMORY 内存分配失败
      */
     if (!ctx || !theorem_name)
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
 
     /* 参数数量验证 */
     if (param_count < 0)
         param_count = 0;
     if (param_count > 0 && !params)
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
 
     /* 计算新记录所需的总字符数 */
     /* 格式: theorem_name;param1;param2;...;paramN\n */
@@ -90,12 +90,12 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
 
     /* 分配或扩展缓冲区 */
     size_t new_len = ctx->calls_len + entry_len;
-    char *new_buf = (char *) lv00_realloc(ctx->exported_calls, new_len + 1);
+    char *new_buf = (char *) lv_realloc(ctx->exported_calls, new_len + 1);
     if (!new_buf) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY,
                        "定理调用记录失败：无法为%d个参数的调用\"%s\"分配缓冲区（需要%zu字节）", param_count,
                        theorem_name, new_len + 1);
-        return LV00_ERROR_OUT_OF_MEMORY;
+        return lv_ERROR_OUT_OF_MEMORY;
     }
     ctx->exported_calls = new_buf;
 
@@ -122,7 +122,7 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
 
     ctx->calls_len = new_len;
 
-    return LV00_OK;
+    return lv_OK;
 }
 
 int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExportFormat format, char *output,
@@ -153,13 +153,13 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
      * @param format 目标导出格式（INTEROP_EXPORT_COQ 或 INTEROP_EXPORT_LEAN）
      * @param output 输出缓冲区，用于存放生成的脚本代码
      * @param output_size 输出缓冲区大小（字节）
-     * @return LV00_OK 导出成功
-     *         LV00_ERROR_INVALID_PARAM ctx/output 为 NULL 或 output_size 为 0
-     *         LV00_ERROR_UNSUPPORTED format 不是 Coq/Lean
-     *         LV00_ERROR_BUFFER_TOO_SMALL 缓冲区不足
+     * @return lv_OK 导出成功
+     *         lv_ERROR_INVALID_PARAM ctx/output 为 NULL 或 output_size 为 0
+     *         lv_ERROR_UNSUPPORTED format 不是 Coq/Lean
+     *         lv_ERROR_BUFFER_TOO_SMALL 缓冲区不足
      */
     if (!ctx || !output || output_size == 0)
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
 
     /* 确定注释语法 */
     const char *comment_open;
@@ -195,8 +195,8 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
         line_end = ";";
         lean_style_params = false;
     } else {
-        lv00_set_error(LV00_ERROR_UNSUPPORTED, "定理导出仅支持 Coq、Lean、Isabelle/HOL 和 HOL Light 格式，当前格式=%d", format);
-        return LV00_ERROR_UNSUPPORTED;
+        lv_set_error(lv_ERROR_UNSUPPORTED, "定理导出仅支持 Coq、Lean、Isabelle/HOL 和 HOL Light 格式，当前格式=%d", format);
+        return lv_ERROR_UNSUPPORTED;
     }
 
     size_t offset = 0;
@@ -206,22 +206,22 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
     written = snprintf(output + offset, output_size - offset, "%sTheorem calls exported by Lv-00%s\n", comment_open,
                        comment_close);
     if (written < 0)
-        return LV00_ERROR_BUFFER_TOO_SMALL;
+        return lv_ERROR_BUFFER_TOO_SMALL;
     offset += written;
 
     written = snprintf(output + offset, output_size - offset, "%sTrust base: %s v%s%s\n\n", comment_open,
                        ctx->trust_base_name, ctx->trust_base_version, comment_close);
     if (written < 0)
-        return LV00_ERROR_BUFFER_TOO_SMALL;
+        return lv_ERROR_BUFFER_TOO_SMALL;
     offset += written;
 
     /* 解析调用记录并生成 apply 语句 */
     if (ctx->exported_calls && ctx->calls_len > 0) {
-        char *buf = (char *) lv00_malloc(ctx->calls_len + 1);
+        char *buf = (char *) lv_malloc(ctx->calls_len + 1);
         if (!buf) {
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "定理导出失败：无法分配%zu字节的临时解析缓冲区",
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "定理导出失败：无法分配%zu字节的临时解析缓冲区",
                            ctx->calls_len + 1);
-            return LV00_ERROR_OUT_OF_MEMORY;
+            return lv_ERROR_OUT_OF_MEMORY;
         }
         memcpy(buf, ctx->exported_calls, ctx->calls_len + 1);
 
@@ -237,8 +237,8 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
                 /* 生成 apply 语句 */
                 written = snprintf(output + offset, output_size - offset, "%s%s", apply_prefix, name);
                 if (written < 0) {
-                    lv00_free((void **) &buf);
-                    return LV00_ERROR_BUFFER_TOO_SMALL;
+                    lv_free((void **) &buf);
+                    return lv_ERROR_BUFFER_TOO_SMALL;
                 }
                 offset += written;
 
@@ -256,8 +256,8 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
                         written = snprintf(output + offset, output_size - offset, " with (%s := %s)", arg_label, param);
                     }
                     if (written < 0) {
-                        lv00_free((void **) &buf);
-                        return LV00_ERROR_BUFFER_TOO_SMALL;
+                        lv_free((void **) &buf);
+                        return lv_ERROR_BUFFER_TOO_SMALL;
                     }
                     offset += written;
                     param = strtok_s(NULL, ";", &save_ptr_line);
@@ -267,22 +267,22 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
                 /* 行尾 */
                 written = snprintf(output + offset, output_size - offset, "%s\n", line_end);
                 if (written < 0) {
-                    lv00_free((void **) &buf);
-                    return LV00_ERROR_BUFFER_TOO_SMALL;
+                    lv_free((void **) &buf);
+                    return lv_ERROR_BUFFER_TOO_SMALL;
                 }
                 offset += written;
                 call_index++;
             }
             line = strtok_s(NULL, "\n", &save_ptr_line);
         }
-        lv00_free((void **) &buf);
+        lv_free((void **) &buf);
 
         if (call_index == 0) {
             /* 没有解析到有效调用 */
             written = snprintf(output + offset, output_size - offset, "%s(no theorem calls recorded)%s\n", comment_open,
                                comment_close);
             if (written < 0)
-                return LV00_ERROR_BUFFER_TOO_SMALL;
+                return lv_ERROR_BUFFER_TOO_SMALL;
             offset += written;
         }
     } else {
@@ -290,14 +290,14 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
         written = snprintf(output + offset, output_size - offset, "%s(no theorem calls recorded)%s\n", comment_open,
                            comment_close);
         if (written < 0)
-            return LV00_ERROR_BUFFER_TOO_SMALL;
+            return lv_ERROR_BUFFER_TOO_SMALL;
         offset += written;
     }
 
-    return LV00_OK;
+    return lv_OK;
 }
 
-int interop_import_external_theorem(LV00Engine *engine, const char *trust_base_name, const char *content_hash,
+int interop_import_external_theorem(lvEngine *engine, const char *trust_base_name, const char *content_hash,
                                     const char *description, int *block_id) {
     /**
      * @brief 导入外部定理作为信任基块
@@ -322,12 +322,12 @@ int interop_import_external_theorem(LV00Engine *engine, const char *trust_base_n
      * @param content_hash 内容哈希值（十六进制字符串，如 "a1b2c3d4..."）
      * @param description 可选的描述文本（可为 NULL）
      * @param block_id 输出参数，接收新注册的块ID
-     * @return LV00_OK 信任基成功注册
-     *         LV00_ERROR_INVALID_PARAM 参数无效（空指针或格式不合法）
-     *         LV00_ERROR_UNSUPPORTED 引擎不支持信任基注册
+     * @return lv_OK 信任基成功注册
+     *         lv_ERROR_INVALID_PARAM 参数无效（空指针或格式不合法）
+     *         lv_ERROR_UNSUPPORTED 引擎不支持信任基注册
      */
     if (!engine || !trust_base_name || !content_hash || !block_id) {
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
     }
 
     /* ---- 流式事件：开始外部定理导入 ---- */
@@ -345,33 +345,33 @@ int interop_import_external_theorem(LV00Engine *engine, const char *trust_base_n
     /* ---- 信任基名称验证 ---- */
     size_t name_len = strlen(trust_base_name);
     if (name_len == 0) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：信任基名称为空");
-        return LV00_ERROR_INVALID_PARAM;
+        lv_set_error(lv_ERROR_INVALID_PARAM, "外部定理导入失败：信任基名称为空");
+        return lv_ERROR_INVALID_PARAM;
     }
     if (name_len > 63) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：信任基名称过长（%zu字符，最大63字符）", name_len);
-        return LV00_ERROR_INVALID_PARAM;
+        lv_set_error(lv_ERROR_INVALID_PARAM, "外部定理导入失败：信任基名称过长（%zu字符，最大63字符）", name_len);
+        return lv_ERROR_INVALID_PARAM;
     }
     for (size_t i = 0; i < name_len; i++) {
         char c = trust_base_name[i];
         if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-')) {
-            lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：信任基名称包含非法字符'%c'（位置=%zu）", c, i);
-            return LV00_ERROR_INVALID_PARAM;
+            lv_set_error(lv_ERROR_INVALID_PARAM, "外部定理导入失败：信任基名称包含非法字符'%c'（位置=%zu）", c, i);
+            return lv_ERROR_INVALID_PARAM;
         }
     }
 
     /* ---- 内容哈希验证 ---- */
     size_t hash_len = strlen(content_hash);
     if (hash_len < 8) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：内容哈希过短（%zu字符，最少8字符）", hash_len);
-        return LV00_ERROR_INVALID_PARAM;
+        lv_set_error(lv_ERROR_INVALID_PARAM, "外部定理导入失败：内容哈希过短（%zu字符，最少8字符）", hash_len);
+        return lv_ERROR_INVALID_PARAM;
     }
     for (size_t i = 0; i < hash_len; i++) {
         char c = content_hash[i];
         if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
-            lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：内容哈希包含非十六进制字符'%c'（位置=%zu）", c,
+            lv_set_error(lv_ERROR_INVALID_PARAM, "外部定理导入失败：内容哈希包含非十六进制字符'%c'（位置=%zu）", c,
                            i);
-            return LV00_ERROR_INVALID_PARAM;
+            return lv_ERROR_INVALID_PARAM;
         }
     }
 
@@ -404,7 +404,7 @@ int interop_import_external_theorem(LV00Engine *engine, const char *trust_base_n
             stream_emit_simple(sctx, STREAM_EVENT_INFO, msg, 0);
     }
 
-    return LV00_OK;
+    return lv_OK;
 }
 
 /* ==================== 工具函数 ==================== */
@@ -531,7 +531,7 @@ static int str_prefix_match(const char *str, const char *prefix) {
     return strncmp(str, prefix, plen) == 0;
 }
 
-char **interop_get_command_completions(LV00Engine *engine, const char *prefix, int *out_count) {
+char **interop_get_command_completions(lvEngine *engine, const char *prefix, int *out_count) {
     if (!out_count) return NULL;
     *out_count = 0;
 

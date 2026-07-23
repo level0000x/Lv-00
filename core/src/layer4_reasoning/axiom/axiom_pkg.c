@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file axiom_pkg.c
  * @brief 公理系统包实现
  * @details 实现公理包的加载、验证和展开功能。支持约束模板、
@@ -15,12 +15,12 @@
 #include "axiom_pkg.h"
 #include "lexer_shared.h"
 #include "error_codes.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "stream.h"
 
-/* 兼容性宏：set_error → lv00_set_error */
-#define set_error(fmt, ...)   lv00_set_error(LV00_ERROR_INVALID_PARAM, (fmt), ##__VA_ARGS__)
+/* 兼容性宏：set_error → lv_set_error */
+#define set_error(fmt, ...)   lv_set_error(lv_ERROR_INVALID_PARAM, (fmt), ##__VA_ARGS__)
 
 /* 兼容性宏：PropositionKind 短名 */
 #ifndef CONSTRUCTIVE
@@ -33,9 +33,9 @@
 #define EXPLOSION_PRINCIPLE PROPOSITION_KIND_EXPLOSION_PRINCIPLE
 #endif
 
-/* 线程局部存储用于错误消息（使用lv00_internal.h中定义的LV00_THREAD_LOCAL） */
+/* 线程局部存储用于错误消息（使用lv_internal.h中定义的lv_THREAD_LOCAL） */
 
-static LV00_THREAD_LOCAL StreamContext *axiom_stream_ctx = NULL;
+static lv_THREAD_LOCAL StreamContext *axiom_stream_ctx = NULL;
 
 void axiom_pkg_set_stream_context(StreamContext *ctx) {
     axiom_stream_ctx = ctx;
@@ -251,13 +251,13 @@ static void sha256_hash_data(SHA256Context *ctx, const void *data, size_t len) {
 /* ============== 辅助函数 ============== */
 
 const char *axiom_package_get_last_error(void) {
-    return lv00_get_last_error_message();
+    return lv_get_last_error_message();
 }
 
-static char *safe_lv00_strdup_safe(const char *s) {
+static char *safe_lv_strdup_safe(const char *s) {
     if (!s) return NULL;
     size_t len = strlen(s);
-    char *dup = lv00_malloc(len + 1);
+    char *dup = lv_malloc(len + 1);
     if (dup) {
         memcpy(dup, s, len + 1);  /* 使用 memcpy 替代 strcpy，确保安全 */
     }
@@ -267,11 +267,11 @@ static char *safe_lv00_strdup_safe(const char *s) {
 /* ============== 创建和销毁 ============== */
 
 AxiomPackage *axiom_package_create(const char *name, const char *version) {
-    AxiomPackage *pkg = lv00_calloc(1, sizeof(AxiomPackage));
+    AxiomPackage *pkg = lv_calloc(1, sizeof(AxiomPackage));
     if (!pkg) return NULL;
     
-    pkg->name = safe_lv00_strdup_safe(name);
-    pkg->version = safe_lv00_strdup_safe(version);
+    pkg->name = safe_lv_strdup_safe(name);
+    pkg->version = safe_lv_strdup_safe(version);
     pkg->templates = NULL;
     pkg->template_count = 0;
     pkg->known_unconstructibles = NULL;
@@ -297,47 +297,47 @@ AxiomPackage *axiom_package_create(const char *name, const char *version) {
 void axiom_package_destroy(AxiomPackage *pkg) {
     if (!pkg) return;
     
-    lv00_free((void**)&pkg->name);
-    lv00_free((void**)&pkg->version);
+    lv_free((void**)&pkg->name);
+    lv_free((void**)&pkg->version);
     
     /* 释放模板 */
     for (int i = 0; i < pkg->template_count; i++) {
-        lv00_free((void**)&pkg->templates[i].name);
-        lv00_free((void**)&pkg->templates[i].params);
+        lv_free((void**)&pkg->templates[i].name);
+        lv_free((void**)&pkg->templates[i].params);
     }
-    lv00_free((void**)&pkg->templates);
+    lv_free((void**)&pkg->templates);
     
     /* 释放不可构造问题 */
     for (int i = 0; i < pkg->unconstructible_count; i++) {
         KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
-        lv00_free((void**)&uc->name);
-        lv00_free((void**)&uc->reduces_to);
-        lv00_free((void**)&uc->external_ref);
+        lv_free((void**)&uc->name);
+        lv_free((void**)&uc->reduces_to);
+        lv_free((void**)&uc->external_ref);
         
         /* 释放依赖链 */
         for (int j = 0; j < uc->dependency_count; j++) {
-            lv00_free((void**)&uc->dependency_chain[j]);
+            lv_free((void**)&uc->dependency_chain[j]);
         }
-        lv00_free((void**)&uc->dependency_chain);
+        lv_free((void**)&uc->dependency_chain);
     }
-    lv00_free((void**)&pkg->known_unconstructibles);
+    lv_free((void**)&pkg->known_unconstructibles);
     
-    lv00_free((void**)&pkg->bottom_geometry);
-    lv00_free((void**)&pkg->negation_encoding);
+    lv_free((void**)&pkg->bottom_geometry);
+    lv_free((void**)&pkg->negation_encoding);
 
     /* 释放模板展开缓存 */
     for (int i = 0; i < pkg->expansion_cache_count; i++) {
-        lv00_free((void**)&pkg->expansion_cache[i].template_name);
+        lv_free((void**)&pkg->expansion_cache[i].template_name);
         if (pkg->expansion_cache[i].expanded_graph) {
             graph_destroy(pkg->expansion_cache[i].expanded_graph);
         }
     }
-    lv00_free((void**)&pkg->expansion_cache);
+    lv_free((void**)&pkg->expansion_cache);
     
     /* 释放依赖引用数组 */
-    lv00_free((void**)&pkg->dep_refs);
+    lv_free((void**)&pkg->dep_refs);
     
-    lv00_free((void**)&pkg);
+    lv_free((void**)&pkg);
 }
 
 /* ============== 不可构造问题管理 ============== */
@@ -345,7 +345,7 @@ void axiom_package_destroy(AxiomPackage *pkg) {
 bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructible *item) {
     if (!pkg || !item) return false;
     
-    KnownUnconstructible *new_arr = lv00_realloc(pkg->known_unconstructibles,
+    KnownUnconstructible *new_arr = lv_realloc(pkg->known_unconstructibles,
         (pkg->unconstructible_count + 1) * sizeof(KnownUnconstructible));
     if (!new_arr) return false;
     
@@ -356,25 +356,25 @@ bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstruct
      * 确保包内部持有独立的内存副本。
      * 调用者可以安全地释放或修改原始 item 的字符串字段。 */
     memset(target, 0, sizeof(KnownUnconstructible));
-    target->name = safe_lv00_strdup_safe(item->name);
-    target->reduces_to = safe_lv00_strdup_safe(item->reduces_to);
-    target->external_ref = safe_lv00_strdup_safe(item->external_ref);
+    target->name = safe_lv_strdup_safe(item->name);
+    target->reduces_to = safe_lv_strdup_safe(item->reduces_to);
+    target->external_ref = safe_lv_strdup_safe(item->external_ref);
     target->green_verified = item->green_verified;
     target->dependency_count = item->dependency_count;
     
     /* 深拷贝依赖链中的每个字符串 */
     if (item->dependency_count > 0 && item->dependency_chain) {
-        target->dependency_chain = lv00_calloc((size_t)item->dependency_count, sizeof(char *));
+        target->dependency_chain = lv_calloc((size_t)item->dependency_count, sizeof(char *));
         if (!target->dependency_chain) {
             /* 分配失败时回滚已拷贝的字段 */
-            lv00_free((void**)&target->name);
-            lv00_free((void**)&target->reduces_to);
-            lv00_free((void**)&target->external_ref);
+            lv_free((void**)&target->name);
+            lv_free((void**)&target->reduces_to);
+            lv_free((void**)&target->external_ref);
             memset(target, 0, sizeof(KnownUnconstructible));
             return false;
         }
         for (int i = 0; i < item->dependency_count; i++) {
-            target->dependency_chain[i] = safe_lv00_strdup_safe(item->dependency_chain[i]);
+            target->dependency_chain[i] = safe_lv_strdup_safe(item->dependency_chain[i]);
         }
     }
     
@@ -403,7 +403,7 @@ KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, co
 bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl) {
     if (!pkg || !tmpl) return false;
     
-    ConstraintTemplate *new_arr = lv00_realloc(pkg->templates,
+    ConstraintTemplate *new_arr = lv_realloc(pkg->templates,
         (pkg->template_count + 1) * sizeof(ConstraintTemplate));
     if (!new_arr) return false;
     
@@ -412,7 +412,7 @@ bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl
     *slot = *tmpl;
     /* 深拷贝 name（调用者可能释放原始字符串） */
     if (slot->name) {
-        slot->name = lv00_strdup_safe(slot->name);
+        slot->name = lv_strdup_safe(slot->name);
     }
     /* 安全初始化：浅拷贝后 params 指针指向调用者的内存（或未初始化），
      * pkg 不应持有该指针的所有权。无条件置 NULL 以避免 free() 未初始化
@@ -463,14 +463,14 @@ typedef struct {
 } Token;
 
 /* Lexer 结构体：使用共享的词法分析器基础设施 */
-typedef Lv00Lexer Lexer;
+typedef lvLexer Lexer;
 
 static void lexer_init(Lexer *lex, const char *source) {
-    lv00_lexer_init(lex, source);
+    lv_lexer_init(lex, source);
 }
 
 static void lexer_skip_whitespace_and_comments(Lexer *lex) {
-    lv00_lexer_skip_whitespace_and_comments(lex);
+    lv_lexer_skip_whitespace_and_comments(lex);
 }
 
 static Token lexer_next_token(Lexer *lex) {
@@ -505,7 +505,7 @@ static Token lexer_next_token(Lexer *lex) {
         lex->pos++;          /* 跳过开引号 */
         lex->col++;
 
-        tok.str_value = lv00_lexer_extract_string(lex);
+        tok.str_value = lv_lexer_extract_string(lex);
         if (!tok.str_value) {
             tok.type = TOK_ERROR;
             return tok;
@@ -564,7 +564,7 @@ static Token lexer_next_token(Lexer *lex) {
         }
         
         size_t len = lex->pos - start;
-        tok.str_value = lv00_malloc(len + 1);
+        tok.str_value = lv_malloc(len + 1);
         if (!tok.str_value) {
             tok.type = TOK_ERROR;
             return tok;
@@ -577,12 +577,12 @@ static Token lexer_next_token(Lexer *lex) {
         if (strcmp(tok.str_value, "true") == 0) {
             tok.type = TOK_BOOLEAN;
             tok.bool_value = true;
-            lv00_free((void**)&tok.str_value);
+            lv_free((void**)&tok.str_value);
             tok.str_value = NULL;
         } else if (strcmp(tok.str_value, "false") == 0) {
             tok.type = TOK_BOOLEAN;
             tok.bool_value = false;
-            lv00_free((void**)&tok.str_value);
+            lv_free((void**)&tok.str_value);
             tok.str_value = NULL;
         } else {
             tok.type = TOK_IDENTIFIER;
@@ -602,7 +602,7 @@ static Token lexer_next_token(Lexer *lex) {
 
 static void token_free(Token *tok) {
     if (tok->str_value) {
-        lv00_free((void**)&tok->str_value);
+        lv_free((void**)&tok->str_value);
         tok->str_value = NULL;
     }
 }
@@ -627,7 +627,7 @@ static void parser_advance(Parser *p) {
 
 static bool parser_expect(Parser *p, TokenType type) {
     if (p->current.type != type) {
-        lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望 %d, 得到 %d",
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望 %d, 得到 %d",
                   p->current.line, p->current.col, type, p->current.type);
         p->has_error = true;
         return false;
@@ -638,7 +638,7 @@ static bool parser_expect(Parser *p, TokenType type) {
 static bool parser_expect_identifier(Parser *p, const char *name) {
     if (p->current.type != TOK_IDENTIFIER || 
         strcmp(p->current.str_value, name) != 0) {
-        lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'",
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'",
                   p->current.line, p->current.col, name);
         p->has_error = true;
         return false;
@@ -654,13 +654,13 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg);
  */
 static void unconstructible_desc_cleanup(KnownUnconstructible *uc) {
     if (!uc) return;
-    lv00_free((void**)&uc->name);
-    lv00_free((void**)&uc->reduces_to);
-    lv00_free((void**)&uc->external_ref);
+    lv_free((void**)&uc->name);
+    lv_free((void**)&uc->reduces_to);
+    lv_free((void**)&uc->external_ref);
     for (int i = 0; i < uc->dependency_count; i++) {
-        lv00_free((void**)&uc->dependency_chain[i]);
+        lv_free((void**)&uc->dependency_chain[i]);
     }
-    lv00_free((void**)&uc->dependency_chain);
+    lv_free((void**)&uc->dependency_chain);
     uc->name = NULL;
     uc->reduces_to = NULL;
     uc->external_ref = NULL;
@@ -676,14 +676,14 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
     if (!parser_expect(p, TOK_STRING)) return false;
     
     KnownUnconstructible uc = {0};
-    uc.name = safe_lv00_strdup_safe(p->current.str_value);
+    uc.name = safe_lv_strdup_safe(p->current.str_value);
     uc.green_verified = false;
     
     parser_advance(p);
     
     /* 期望左大括号 */
     if (!parser_expect(p, TOK_LBRACE)) {
-        lv00_free((void**)&uc.name);
+        lv_free((void**)&uc.name);
         return false;
     }
     parser_advance(p);
@@ -691,52 +691,52 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
     /* 解析内容直到右大括号 */
     while (p->current.type != TOK_RBRACE && p->current.type != TOK_EOF && !p->has_error) {
         if (p->current.type != TOK_IDENTIFIER) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望属性名", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望属性名", p->current.line);
             p->has_error = true;
             break;
         }
         
-        const char *prop = safe_lv00_strdup_safe(p->current.str_value);
+        const char *prop = safe_lv_strdup_safe(p->current.str_value);
         parser_advance(p);
 
         if (strcmp(prop, "reduces_to") == 0) {
             if (!parser_expect(p, TOK_STRING)) {
-                lv00_free((void**)&prop);
+                lv_free((void**)&prop);
                 p->has_error = true;
                 break;
             }
-            uc.reduces_to = safe_lv00_strdup_safe(p->current.str_value);
+            uc.reduces_to = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         }
         else if (strcmp(prop, "dependency") == 0) {
             if (!parser_expect(p, TOK_STRING)) {
-                lv00_free((void**)&prop);
+                lv_free((void**)&prop);
                 p->has_error = true;
                 break;
             }
 
             /* 添加到依赖链 */
-            char **new_deps = lv00_realloc(uc.dependency_chain,
+            char **new_deps = lv_realloc(uc.dependency_chain,
                                       (uc.dependency_count + 1) * sizeof(char*));
             if (new_deps) {
                 uc.dependency_chain = new_deps;
-                uc.dependency_chain[uc.dependency_count] = safe_lv00_strdup_safe(p->current.str_value);
+                uc.dependency_chain[uc.dependency_count] = safe_lv_strdup_safe(p->current.str_value);
                 uc.dependency_count++;
             }
             parser_advance(p);
         }
         else if (strcmp(prop, "external_ref") == 0) {
             if (!parser_expect(p, TOK_STRING)) {
-                lv00_free((void**)&prop);
+                lv_free((void**)&prop);
                 p->has_error = true;
                 break;
             }
-            uc.external_ref = safe_lv00_strdup_safe(p->current.str_value);
+            uc.external_ref = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         }
         else if (strcmp(prop, "green_verified") == 0) {
             if (!parser_expect(p, TOK_BOOLEAN)) {
-                lv00_free((void**)&prop);
+                lv_free((void**)&prop);
                 p->has_error = true;
                 break;
             }
@@ -744,12 +744,12 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             parser_advance(p);
         }
         else {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 未知属性 '%s'", p->current.line, prop);
-            lv00_free((void**)&prop);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 未知属性 '%s'", p->current.line, prop);
+            lv_free((void**)&prop);
             p->has_error = true;
             break;
         }
-        lv00_free((void**)&prop);
+        lv_free((void**)&prop);
     }
     
     if (p->has_error) {
@@ -765,7 +765,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
     
     /* 添加到包 */
     if (!axiom_package_add_known_unconstructible(pkg, &uc)) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存分配失败");
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存分配失败");
         unconstructible_desc_cleanup(&uc);
         return false;
     }
@@ -782,14 +782,14 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
     if (!parser_expect(p, TOK_STRING)) return false;
     
     ConstraintTemplate tmpl = {0};
-    tmpl.name = safe_lv00_strdup_safe(p->current.str_value);
+    tmpl.name = safe_lv_strdup_safe(p->current.str_value);
     tmpl.verified = false;
     
     parser_advance(p);
     
     /* 期望参数数量 (数字) */
     if (!parser_expect(p, TOK_NUMBER)) {
-        lv00_free((void**)&tmpl.name);
+        lv_free((void**)&tmpl.name);
         return false;
     }
     tmpl.param_count = p->current.int_value;
@@ -798,8 +798,8 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
     
     /* 添加到包 */
     if (!axiom_package_register_template(pkg, &tmpl)) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存分配失败");
-        lv00_free((void**)&tmpl.name);
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存分配失败");
+        lv_free((void**)&tmpl.name);
         return false;
     }
     
@@ -810,7 +810,7 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
 static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
     while (p->current.type != TOK_RBRACE && p->current.type != TOK_EOF && !p->has_error) {
         if (p->current.type != TOK_IDENTIFIER) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望声明", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望声明", p->current.line);
             p->has_error = true;
             break;
         }
@@ -835,8 +835,8 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
                 p->has_error = true;
                 break;
             }
-            lv00_free((void**)&pkg->bottom_geometry);
-            pkg->bottom_geometry = safe_lv00_strdup_safe(p->current.str_value);
+            lv_free((void**)&pkg->bottom_geometry);
+            pkg->bottom_geometry = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         }
         else if (strcmp(keyword, "negation_encoding") == 0) {
@@ -845,8 +845,8 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
                 p->has_error = true;
                 break;
             }
-            lv00_free((void**)&pkg->negation_encoding);
-            pkg->negation_encoding = safe_lv00_strdup_safe(p->current.str_value);
+            lv_free((void**)&pkg->negation_encoding);
+            pkg->negation_encoding = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         }
         else if (strcmp(keyword, "contradiction_behavior") == 0) {
@@ -864,7 +864,7 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
             } else if (strcmp(behavior, "non_constructive_oracle") == 0) {
                 pkg->contradiction_behavior = NON_CONSTRUCTIVE_ORACLE;
             } else {
-                lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 未知的矛盾行为 '%s'",
+                lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 未知的矛盾行为 '%s'",
                           p->current.line, behavior);
                 p->has_error = true;
                 break;
@@ -872,7 +872,7 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
             parser_advance(p);
         }
         else {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 未知的关键字 '%s'",
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 未知的关键字 '%s'",
                       p->current.line, keyword);
             p->has_error = true;
             break;
@@ -885,17 +885,17 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
 /* 完整的包加载函数 */
 AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     if (!pkg || !filepath) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "无效参数");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "无效参数");
         return AXIOM_LOAD_PARSE_ERROR;
     }
     
     /* 清除之前的错误 */
-    lv00_clear_error();
+    lv_clear_error();
     
     /* 读取文件 */
     FILE *f = fopen(filepath, "r");
     if (!f) {
-        lv00_set_error(LV00_ERROR_IO, "无法打开文件: %s", filepath);
+        lv_set_error(lv_ERROR_IO, "无法打开文件: %s", filepath);
         return AXIOM_LOAD_FILE_NOT_FOUND;
     }
     
@@ -905,21 +905,21 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     
     if (len <= 0) {
         fclose(f);
-        lv00_set_error(LV00_ERROR_PARSE, "文件为空: %s", filepath);
+        lv_set_error(lv_ERROR_PARSE, "文件为空: %s", filepath);
         return AXIOM_LOAD_PARSE_ERROR;
     }
     
     /* 限制最大文件大小为64MB，防止内存耗尽 */
     if (len > AXIOM_MAX_FILE_SIZE) {
         fclose(f);
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "文件过大（超过64MB限制）: %s", filepath);
+        lv_set_error(lv_ERROR_INVALID_PARAM, "文件过大（超过64MB限制）: %s", filepath);
         return AXIOM_LOAD_PARSE_ERROR;
     }
     
-    char *buf = lv00_malloc((size_t)len + 1);
+    char *buf = lv_malloc((size_t)len + 1);
     if (!buf) {
         fclose(f);
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存分配失败");
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存分配失败");
         return AXIOM_LOAD_PARSE_ERROR;
     }
     
@@ -927,8 +927,8 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     int read_error = ferror(f);
     fclose(f);
     if (read_len != (size_t)len && read_error) {
-        lv00_free((void**)&buf);
-        lv00_set_error(LV00_ERROR_IO, "文件读取失败: %s", filepath);
+        lv_free((void**)&buf);
+        lv_set_error(lv_ERROR_IO, "文件读取失败: %s", filepath);
         return AXIOM_LOAD_PARSE_ERROR;
     }
     buf[read_len] = '\0';
@@ -942,49 +942,49 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     
     /* 期望 'axiom' 关键字 */
     if (!parser_expect_identifier(&parser, "axiom")) {
-        lv00_free((void**)&buf);
+        lv_free((void**)&buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }
     parser_advance(&parser);
     
     /* 期望包名 (字符串) */
     if (!parser_expect(&parser, TOK_STRING)) {
-        lv00_free((void**)&buf);
+        lv_free((void**)&buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }
-    lv00_free((void**)&pkg->name);
-    pkg->name = safe_lv00_strdup_safe(parser.current.str_value);
+    lv_free((void**)&pkg->name);
+    pkg->name = safe_lv_strdup_safe(parser.current.str_value);
     parser_advance(&parser);
     
     /* 期望版本 (字符串) */
     if (!parser_expect(&parser, TOK_STRING)) {
-        lv00_free((void**)&buf);
+        lv_free((void**)&buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }
-    lv00_free((void**)&pkg->version);
-    pkg->version = safe_lv00_strdup_safe(parser.current.str_value);
+    lv_free((void**)&pkg->version);
+    pkg->version = safe_lv_strdup_safe(parser.current.str_value);
     parser_advance(&parser);
     
     /* 期望左大括号 */
     if (!parser_expect(&parser, TOK_LBRACE)) {
-        lv00_free((void**)&buf);
+        lv_free((void**)&buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }
     parser_advance(&parser);
     
     /* 解析包体 */
     if (!parse_package_body(&parser, pkg)) {
-        lv00_free((void**)&buf);
+        lv_free((void**)&buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }
     
     /* 期望右大括号 */
     if (!parser_expect(&parser, TOK_RBRACE)) {
-        lv00_free((void**)&buf);
+        lv_free((void**)&buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }
     
-    lv00_free((void**)&buf);
+    lv_free((void**)&buf);
     
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "公理包加载成功", 0);
@@ -1009,7 +1009,7 @@ AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, const char *filepath
     
     FILE *f = fopen(filepath, "w");
     if (!f) {
-        lv00_set_error(LV00_ERROR_IO, "无法创建文件: %s", filepath);
+        lv_set_error(lv_ERROR_IO, "无法创建文件: %s", filepath);
         return AXIOM_SAVE_FILE_ERROR;
     }
     
@@ -1120,7 +1120,7 @@ char *axiom_package_compute_content_hash(AxiomPackage *pkg) {
     sha256_final(&ctx, hash);
     
     /* 转换为十六进制字符串（64个字符 + 空终止符） */
-    char *result = lv00_malloc(AXIOM_SHA256_HEX_SIZE);
+    char *result = lv_malloc(AXIOM_SHA256_HEX_SIZE);
     if (result) {
         for (int i = 0; i < AXIOM_SHA256_OUTPUT_SIZE; i++) {
             snprintf(result + i * 2, 3, "%02x", hash[i]);
@@ -1202,11 +1202,11 @@ static ConstraintTemplate *find_template_in_packages(
 
 bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loaded_packages, int package_count) {
     if (!pkg) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "无效参数: 包为空");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "无效参数: 包为空");
         return false;
     }
     
-    lv00_clear_error();
+    lv_clear_error();
     
     bool all_valid = true;
     
@@ -1224,7 +1224,7 @@ bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loade
             }
             
             if (!target) {
-                lv00_set_error(LV00_ERROR_NOT_FOUND, "依赖验证失败: 问题 '%s' 的 reduces_to '%s' 未找到",
+                lv_set_error(lv_ERROR_NOT_FOUND, "依赖验证失败: 问题 '%s' 的 reduces_to '%s' 未找到",
                           uc->name, uc->reduces_to);
                 all_valid = false;
                 /* 继续检查其他问题 */
@@ -1253,7 +1253,7 @@ bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loade
             }
             
             if (!dep_problem && !dep_template) {
-                lv00_set_error(LV00_ERROR_NOT_FOUND, "依赖验证失败: 问题 '%s' 的依赖 '%s' 未在任何已加载的包中找到",
+                lv_set_error(lv_ERROR_NOT_FOUND, "依赖验证失败: 问题 '%s' 的依赖 '%s' 未在任何已加载的包中找到",
                           uc->name, dep);
                 all_valid = false;
             }
@@ -1262,7 +1262,7 @@ bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loade
         /* 验证外部引用格式 */
         if (uc->external_ref && uc->external_ref[0] != '\0') {
             if (!is_valid_url(uc->external_ref)) {
-                lv00_set_error(LV00_ERROR_INVALID_PARAM, "依赖验证失败: 问题 '%s' 的 external_ref '%s' 不是有效的URL或标识符格式",
+                lv_set_error(lv_ERROR_INVALID_PARAM, "依赖验证失败: 问题 '%s' 的 external_ref '%s' 不是有效的URL或标识符格式",
                           uc->name, uc->external_ref);
                 all_valid = false;
             }
@@ -1424,7 +1424,7 @@ TemplateTestResult axiom_template_run_tests(
     if (total == 0) return result;
 
     /* 分配失败消息数组 */
-    result.failure_messages = lv00_calloc((size_t)total, sizeof(char *));
+    result.failure_messages = lv_calloc((size_t)total, sizeof(char *));
     if (!result.failure_messages) return result;
 
     result.total = total;
@@ -1445,7 +1445,7 @@ TemplateTestResult axiom_template_run_tests(
                          factory_tests[i].name,
                          factory_tests[i].expected_pass ? "pass" : "fail",
                          passed ? "pass" : "fail");
-                result.failure_messages[result.failed - 1] = lv00_strdup_safe(msg);
+                result.failure_messages[result.failed - 1] = lv_strdup_safe(msg);
             }
         }
     }
@@ -1466,7 +1466,7 @@ TemplateTestResult axiom_template_run_tests(
                          user_tests[i].name,
                          user_tests[i].expected_pass ? "pass" : "fail",
                          passed ? "pass" : "fail");
-                result.failure_messages[result.failed - 1] = lv00_strdup_safe(msg);
+                result.failure_messages[result.failed - 1] = lv_strdup_safe(msg);
             }
         }
     }
@@ -1479,9 +1479,9 @@ void axiom_template_test_result_destroy(TemplateTestResult *result) {
 
     if (result->failure_messages) {
         for (int i = 0; i < result->failed; i++) {
-            lv00_free((void**)&result->failure_messages[i]);
+            lv_free((void**)&result->failure_messages[i]);
         }
-        lv00_free((void**)&result->failure_messages);
+        lv_free((void**)&result->failure_messages);
     }
 
     result->total = 0;
@@ -1509,7 +1509,7 @@ static uint64_t compute_param_hash(SymbolicCoord **params, int param_count) {
                 hash ^= (uint64_t)(unsigned char)*p;
                 hash *= 1099511628211ULL; /* FNV prime */
             }
-            lv00_free((void**)&ser);
+            lv_free((void**)&ser);
         }
     }
 
@@ -1559,7 +1559,7 @@ bool axiom_package_store_expansion_cache(
     /* 扩容 */
     if (pkg->expansion_cache_count >= pkg->expansion_cache_capacity) {
         int new_cap = pkg->expansion_cache_capacity == 0 ? AXIOM_EXPANSION_CACHE_CAP : pkg->expansion_cache_capacity * 2;
-        TemplateExpansionCache *new_arr = lv00_realloc(pkg->expansion_cache,
+        TemplateExpansionCache *new_arr = lv_realloc(pkg->expansion_cache,
             new_cap * sizeof(TemplateExpansionCache));
         if (!new_arr) return false;
         pkg->expansion_cache = new_arr;
@@ -1569,7 +1569,7 @@ bool axiom_package_store_expansion_cache(
     pkg->expansion_cache[pkg->expansion_cache_count].param_hash =
         compute_param_hash(params, param_count);
     pkg->expansion_cache[pkg->expansion_cache_count].template_name =
-        template_name ? lv00_strdup_safe(template_name) : NULL;
+        template_name ? lv_strdup_safe(template_name) : NULL;
     pkg->expansion_cache[pkg->expansion_cache_count].expanded_graph = expanded_graph;
     pkg->expansion_cache_count++;
 
@@ -1609,7 +1609,7 @@ int axiom_package_register_dependency_ref(
     /* 扩容 */
     if (pkg->dep_ref_count >= pkg->dep_ref_capacity) {
         int new_cap = pkg->dep_ref_capacity == 0 ? AXIOM_DEP_REF_CACHE_CAP : pkg->dep_ref_capacity * 2;
-        DependencyRef *new_arr = lv00_realloc(pkg->dep_refs,
+        DependencyRef *new_arr = lv_realloc(pkg->dep_refs,
             (size_t)new_cap * sizeof(DependencyRef));
         if (!new_arr) return -2;
         pkg->dep_refs = new_arr;
@@ -1619,11 +1619,11 @@ int axiom_package_register_dependency_ref(
     DependencyRef *ref = &pkg->dep_refs[pkg->dep_ref_count];
     memset(ref, 0, sizeof(DependencyRef));
 
-    /* 安全复制 ref_id（使用 lv00_strlcpy 自动保证零终止） */
-    lv00_strlcpy(ref->ref_id, ref_id, sizeof(ref->ref_id));
+    /* 安全复制 ref_id（使用 lv_strlcpy 自动保证零终止） */
+    lv_strlcpy(ref->ref_id, ref_id, sizeof(ref->ref_id));
 
-    /* 安全复制 content_hash（使用 lv00_strlcpy 自动保证零终止） */
-    lv00_strlcpy(ref->content_hash, content_hash, sizeof(ref->content_hash));
+    /* 安全复制 content_hash（使用 lv_strlcpy 自动保证零终止） */
+    lv_strlcpy(ref->content_hash, content_hash, sizeof(ref->content_hash));
 
     ref->dependent_node_id = dependent_node_id;
 
@@ -1671,14 +1671,14 @@ int axiom_package_validate_dependencies_with_hashes(
     }
 
     if (fail_count == 0) {
-        lv00_free((void**)&current_hash);
+        lv_free((void**)&current_hash);
         return 0;
     }
 
     /* 分配输出数组 */
-    DependencyRef *output = lv00_malloc((size_t)fail_count * sizeof(DependencyRef));
+    DependencyRef *output = lv_malloc((size_t)fail_count * sizeof(DependencyRef));
     if (!output) {
-        lv00_free((void**)&current_hash);
+        lv_free((void**)&current_hash);
         return -1;
     }
 
@@ -1691,7 +1691,7 @@ int axiom_package_validate_dependencies_with_hashes(
         }
     }
 
-    lv00_free((void**)&current_hash);
+    lv_free((void**)&current_hash);
     *invalidated_refs = output;
     *invalidated_count = fail_count;
     return fail_count;
@@ -1754,7 +1754,7 @@ int axiom_package_auto_degrade_invalidated(
     }
 
     /* 释放验证结果数组 */
-    lv00_free((void**)&invalidated);
+    lv_free((void**)&invalidated);
 
     return degraded_count;
 }

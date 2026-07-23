@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file adaptive_threshold.c
  * @brief 自适应阈值框架 —— 动态阈值计算与启发式剪枝
  *
@@ -9,7 +9,7 @@
  *   - 时间预算超时检测
  */
 
-#include "lv00/adaptive_threshold.h"
+#include "lv/adaptive_threshold.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +46,7 @@
  * 模块级全局状态
  * ================================================================ */
 
-static Lv00ThresholdConfig g_global_configs[3]; /* VF2, Buchberger, Rewrite */
+static lvThresholdConfig g_global_configs[3]; /* VF2, Buchberger, Rewrite */
 static bool g_global_configs_set[3] = { false, false, false };
 static bool g_initialized = false;
 
@@ -61,11 +61,11 @@ static int s_is_adaptive = 0;
 /**
  * @brief 获取算法索引
  */
-static int algo_index(Lv00AlgorithmType algo) {
+static int algo_index(lvAlgorithmType algo) {
     switch (algo) {
-        case LV00_ALGO_VF2_MATCH:    return 0;
-        case LV00_ALGO_BUCHBERGER:   return 1;
-        case LV00_ALGO_REWRITE_SOLVE: return 2;
+        case lv_ALGO_VF2_MATCH:    return 0;
+        case lv_ALGO_BUCHBERGER:   return 1;
+        case lv_ALGO_REWRITE_SOLVE: return 2;
         default: return -1;
     }
 }
@@ -149,15 +149,15 @@ static int count_connected_components(const ConstraintGraph *graph) {
  * 公共 API
  * ================================================================ */
 
-Lv00Error lv00_adaptive_threshold_init(void) {
-    if (g_initialized) return LV00_OK;
+lvError lv_adaptive_threshold_init(void) {
+    if (g_initialized) return lv_OK;
 
     /* 初始化全局默认配置 */
     for (int i = 0; i < 3; i++) {
         if (!g_global_configs_set[i]) {
-            Lv00ThresholdConfig *cfg = &g_global_configs[i];
-            switch ((Lv00AlgorithmType)i) {
-                case LV00_ALGO_VF2_MATCH:
+            lvThresholdConfig *cfg = &g_global_configs[i];
+            switch ((lvAlgorithmType)i) {
+                case lv_ALGO_VF2_MATCH:
                     cfg->base_threshold    = VF2_BASE_THRESHOLD;
                     cfg->scale_factor      = VF2_SCALE_FACTOR;
                     cfg->time_budget_ms    = VF2_TIME_BUDGET_MS;
@@ -166,7 +166,7 @@ Lv00Error lv00_adaptive_threshold_init(void) {
                     cfg->enable_time_based = true;
                     cfg->enable_progress_tracking = true;
                     break;
-                case LV00_ALGO_BUCHBERGER:
+                case lv_ALGO_BUCHBERGER:
                     cfg->base_threshold    = BUCHBERGER_BASE_THRESHOLD;
                     cfg->scale_factor      = BUCHBERGER_SCALE_FACTOR;
                     cfg->time_budget_ms    = BUCHBERGER_TIME_BUDGET_MS;
@@ -175,7 +175,7 @@ Lv00Error lv00_adaptive_threshold_init(void) {
                     cfg->enable_time_based = true;
                     cfg->enable_progress_tracking = true;
                     break;
-                case LV00_ALGO_REWRITE_SOLVE:
+                case lv_ALGO_REWRITE_SOLVE:
                     cfg->base_threshold    = REWRITE_BASE_THRESHOLD;
                     cfg->scale_factor      = REWRITE_SCALE_FACTOR;
                     cfg->time_budget_ms    = REWRITE_TIME_BUDGET_MS;
@@ -191,19 +191,19 @@ Lv00Error lv00_adaptive_threshold_init(void) {
     }
 
     g_initialized = true;
-    return LV00_OK;
+    return lv_OK;
 }
 
-void lv00_adaptive_threshold_cleanup(void) {
+void lv_adaptive_threshold_cleanup(void) {
     for (int i = 0; i < 3; i++) {
         g_global_configs_set[i] = false;
     }
     g_initialized = false;
 }
 
-Lv00Error lv00_compute_complexity(const Lv00ConstraintGraph *graph,
-                                   Lv00ProblemComplexity *complexity) {
-    if (!graph || !complexity) return LV00_ERROR_INVALID_PARAM;
+lvError lv_compute_complexity(const lvConstraintGraph *graph,
+                                   lvProblemComplexity *complexity) {
+    if (!graph || !complexity) return lv_ERROR_INVALID_PARAM;
 
     const ConstraintGraph *g = (const ConstraintGraph *)graph;
 
@@ -235,23 +235,23 @@ Lv00Error lv00_compute_complexity(const Lv00ConstraintGraph *graph,
 
     complexity->connected_components = count_connected_components(g);
 
-    return LV00_OK;
+    return lv_OK;
 }
 
-Lv00Error lv00_adaptive_threshold_create(Lv00AlgorithmType algo,
-                                          const Lv00ConstraintGraph *graph,
-                                          const Lv00ThresholdConfig *config,
-                                          Lv00AdaptiveThresholdCtx **ctx) {
-    if (!graph || !ctx) return LV00_ERROR_INVALID_PARAM;
+lvError lv_adaptive_threshold_create(lvAlgorithmType algo,
+                                          const lvConstraintGraph *graph,
+                                          const lvThresholdConfig *config,
+                                          lvAdaptiveThresholdCtx **ctx) {
+    if (!graph || !ctx) return lv_ERROR_INVALID_PARAM;
 
     int idx = algo_index(algo);
-    if (idx < 0) return LV00_ERROR_INVALID_PARAM;
+    if (idx < 0) return lv_ERROR_INVALID_PARAM;
 
     /* 自动初始化 */
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
-    Lv00AdaptiveThresholdCtx *c = (Lv00AdaptiveThresholdCtx *)malloc(sizeof(Lv00AdaptiveThresholdCtx));
-    if (!c) return LV00_ERROR_OUT_OF_MEMORY;
+    lvAdaptiveThresholdCtx *c = (lvAdaptiveThresholdCtx *)malloc(sizeof(lvAdaptiveThresholdCtx));
+    if (!c) return lv_ERROR_OUT_OF_MEMORY;
 
     memset(c, 0, sizeof(*c));
     c->algo = algo;
@@ -260,8 +260,8 @@ Lv00Error lv00_adaptive_threshold_create(Lv00AlgorithmType algo,
     clock_gettime(CLOCK_MONOTONIC, &c->start_time);
 
     /* 分析复杂度 */
-    Lv00Error err = lv00_compute_complexity(graph, &c->complexity);
-    if (err != LV00_OK) {
+    lvError err = lv_compute_complexity(graph, &c->complexity);
+    if (err != lv_OK) {
         free(c);
         return err;
     }
@@ -275,15 +275,15 @@ Lv00Error lv00_adaptive_threshold_create(Lv00AlgorithmType algo,
 
     c->initialized = true;
     *ctx = c;
-    return LV00_OK;
+    return lv_OK;
 }
 
-size_t lv00_adaptive_threshold_compute(Lv00AdaptiveThresholdCtx *ctx) {
+size_t lv_adaptive_threshold_compute(lvAdaptiveThresholdCtx *ctx) {
     if (!ctx || !ctx->initialized) return 0;
 
     double density = ctx->complexity.density;
     int node_count = ctx->complexity.node_count;
-    const Lv00ThresholdConfig *cfg = &ctx->config;
+    const lvThresholdConfig *cfg = &ctx->config;
 
     /* 阈值公式：base + node_count * density * scale_factor */
     double threshold = cfg->base_threshold +
@@ -296,24 +296,24 @@ size_t lv00_adaptive_threshold_compute(Lv00AdaptiveThresholdCtx *ctx) {
     return (size_t)threshold;
 }
 
-Lv00Error lv00_adaptive_threshold_default_config(Lv00AlgorithmType algo,
-                                                   Lv00ThresholdConfig *config) {
+lvError lv_adaptive_threshold_default_config(lvAlgorithmType algo,
+                                                   lvThresholdConfig *config) {
     int idx = algo_index(algo);
-    if (idx < 0 || !config) return LV00_ERROR_INVALID_PARAM;
+    if (idx < 0 || !config) return lv_ERROR_INVALID_PARAM;
 
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
     *config = g_global_configs[idx];
-    return LV00_OK;
+    return lv_OK;
 }
 
-void lv00_adaptive_threshold_destroy(Lv00AdaptiveThresholdCtx **ctx) {
+void lv_adaptive_threshold_destroy(lvAdaptiveThresholdCtx **ctx) {
     if (!ctx || !*ctx) return;
     free(*ctx);
     *ctx = NULL;
 }
 
-void lv00_adaptive_threshold_update_progress(Lv00AdaptiveThresholdCtx *ctx,
+void lv_adaptive_threshold_update_progress(lvAdaptiveThresholdCtx *ctx,
                                                size_t current,
                                                size_t backtrack_count) {
     if (!ctx) return;
@@ -321,7 +321,7 @@ void lv00_adaptive_threshold_update_progress(Lv00AdaptiveThresholdCtx *ctx,
     ctx->backtrack_count = backtrack_count;
 }
 
-void lv00_adaptive_threshold_should_prune(Lv00AdaptiveThresholdCtx *ctx,
+void lv_adaptive_threshold_should_prune(lvAdaptiveThresholdCtx *ctx,
                                             bool *should_prune) {
     if (!ctx || !should_prune) {
         if (should_prune) *should_prune = false;
@@ -351,42 +351,42 @@ void lv00_adaptive_threshold_should_prune(Lv00AdaptiveThresholdCtx *ctx,
     }
 }
 
-Lv00Error lv00_adaptive_threshold_set_global_config(Lv00AlgorithmType algo,
-                                                      const Lv00ThresholdConfig *config) {
+lvError lv_adaptive_threshold_set_global_config(lvAlgorithmType algo,
+                                                      const lvThresholdConfig *config) {
     int idx = algo_index(algo);
-    if (idx < 0 || !config) return LV00_ERROR_INVALID_PARAM;
+    if (idx < 0 || !config) return lv_ERROR_INVALID_PARAM;
     g_global_configs[idx] = *config;
     g_global_configs_set[idx] = true;
-    return LV00_OK;
+    return lv_OK;
 }
 
-size_t lv00_get_vf2_max_depth(const Lv00ConstraintGraph *graph) {
-    Lv00AdaptiveThresholdCtx *ctx = NULL;
-    Lv00Error err = lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, graph, NULL, &ctx);
-    if (err != LV00_OK) return 100; /* fallback */
+size_t lv_get_vf2_max_depth(const lvConstraintGraph *graph) {
+    lvAdaptiveThresholdCtx *ctx = NULL;
+    lvError err = lv_adaptive_threshold_create(lv_ALGO_VF2_MATCH, graph, NULL, &ctx);
+    if (err != lv_OK) return 100; /* fallback */
 
-    size_t threshold = lv00_adaptive_threshold_compute(ctx);
-    lv00_adaptive_threshold_destroy(&ctx);
+    size_t threshold = lv_adaptive_threshold_compute(ctx);
+    lv_adaptive_threshold_destroy(&ctx);
     return threshold;
 }
 
-size_t lv00_get_buchberger_max_steps(const Lv00ConstraintGraph *graph) {
-    Lv00AdaptiveThresholdCtx *ctx = NULL;
-    Lv00Error err = lv00_adaptive_threshold_create(LV00_ALGO_BUCHBERGER, graph, NULL, &ctx);
-    if (err != LV00_OK) return 20000; /* fallback */
+size_t lv_get_buchberger_max_steps(const lvConstraintGraph *graph) {
+    lvAdaptiveThresholdCtx *ctx = NULL;
+    lvError err = lv_adaptive_threshold_create(lv_ALGO_BUCHBERGER, graph, NULL, &ctx);
+    if (err != lv_OK) return 20000; /* fallback */
 
-    size_t threshold = lv00_adaptive_threshold_compute(ctx);
-    lv00_adaptive_threshold_destroy(&ctx);
+    size_t threshold = lv_adaptive_threshold_compute(ctx);
+    lv_adaptive_threshold_destroy(&ctx);
     return threshold;
 }
 
-size_t lv00_get_rewrite_solve_max_iterations(const Lv00ConstraintGraph *graph) {
-    Lv00AdaptiveThresholdCtx *ctx = NULL;
-    Lv00Error err = lv00_adaptive_threshold_create(LV00_ALGO_REWRITE_SOLVE, graph, NULL, &ctx);
-    if (err != LV00_OK) return 10000; /* fallback */
+size_t lv_get_rewrite_solve_max_iterations(const lvConstraintGraph *graph) {
+    lvAdaptiveThresholdCtx *ctx = NULL;
+    lvError err = lv_adaptive_threshold_create(lv_ALGO_REWRITE_SOLVE, graph, NULL, &ctx);
+    if (err != lv_OK) return 10000; /* fallback */
 
-    size_t threshold = lv00_adaptive_threshold_compute(ctx);
-    lv00_adaptive_threshold_destroy(&ctx);
+    size_t threshold = lv_adaptive_threshold_compute(ctx);
+    lv_adaptive_threshold_destroy(&ctx);
     return threshold;
 }
 
@@ -394,17 +394,17 @@ size_t lv00_get_rewrite_solve_max_iterations(const Lv00ConstraintGraph *graph) {
  * 旧版兼容 API
  * ================================================================ */
 
-int lv00_threshold_is_adaptive(void) {
+int lv_threshold_is_adaptive(void) {
     return s_is_adaptive;
 }
 
-void lv00_set_adaptive_threshold(double value) {
+void lv_set_adaptive_threshold(double value) {
     if (value < 0.0) value = 0.0;
     if (value > 1.0) value = 1.0;
     s_threshold = value;
     s_is_adaptive = 1;
 }
 
-double lv00_get_adaptive_threshold(void) {
+double lv_get_adaptive_threshold(void) {
     return s_threshold;
 }

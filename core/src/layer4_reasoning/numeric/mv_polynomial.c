@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mv_polynomial.c
  * @brief 多变量多项式实现 — 从 solver.c 拆分
  *
@@ -6,18 +6,18 @@
  */
 
 #include "../mv_polynomial.h"
-#include "lv00/lv00.h"
+#include "lv/lv.h"
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
 /* 动态数组初始容量 */
-#ifndef LV00_SOLVER_DYNARRAY_INIT_CAP
-#define LV00_SOLVER_DYNARRAY_INIT_CAP 16
+#ifndef lv_SOLVER_DYNARRAY_INIT_CAP
+#define lv_SOLVER_DYNARRAY_INIT_CAP 16
 #endif
 
-#ifndef LV00_ARRAY_GROWTH_FACTOR
-#define LV00_ARRAY_GROWTH_FACTOR 2
+#ifndef lv_ARRAY_GROWTH_FACTOR
+#define lv_ARRAY_GROWTH_FACTOR 2
 #endif
 
 /* ---- 生命周期 ---- */
@@ -31,10 +31,10 @@ void mv_poly_init(MVPolynomial *p, int var_count) {
 
 void mv_poly_clear(MVPolynomial *p) {
     for (int i = 0; i < p->term_count; i++) {
-        lv00_free((void **) &p->terms[i].exponents);
+        lv_free((void **) &p->terms[i].exponents);
         mpz_clear(p->terms[i].coeff);
     }
-    lv00_free((void **) &p->terms);
+    lv_free((void **) &p->terms);
     p->terms = NULL;
     p->term_count = 0;
     p->capacity = 0;
@@ -72,24 +72,24 @@ int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
 
     /* 新单项式 */
     if (p->term_count >= p->capacity) {
-        int new_cap = p->capacity == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
-        if (new_cap > 0 && new_cap > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
+        int new_cap = p->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
+        if (new_cap > 0 && new_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
             return -1;
         }
-        new_cap = new_cap == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : new_cap * LV00_ARRAY_GROWTH_FACTOR;
+        new_cap = new_cap == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : new_cap * lv_ARRAY_GROWTH_FACTOR;
         p->capacity = new_cap;
-        MVMonomial *new_terms = lv00_realloc(p->terms, p->capacity * sizeof(MVMonomial));
+        MVMonomial *new_terms = lv_realloc(p->terms, p->capacity * sizeof(MVMonomial));
         if (!new_terms) {
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
             return -1;
         }
         p->terms = new_terms;
     }
     MVMonomial *m = &p->terms[p->term_count];
-    m->exponents = lv00_malloc((size_t) p->var_count * sizeof(int));
+    m->exponents = lv_malloc((size_t) p->var_count * sizeof(int));
     if (!m->exponents) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
         return -1;
     }
     for (int v = 0; v < p->var_count; v++) {
@@ -122,7 +122,7 @@ void mv_poly_remove_zeros(MVPolynomial *p) {
                 p->terms[write] = p->terms[i];
             write++;
         } else {
-            lv00_free((void **) &p->terms[i].exponents);
+            lv_free((void **) &p->terms[i].exponents);
             mpz_clear(p->terms[i].coeff);
         }
     }
@@ -138,7 +138,7 @@ void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p,
         mpz_init(new_coeff);
         mpz_mul(new_coeff, p->terms[i].coeff, mono_coeff);
 
-        int *new_exp = lv00_malloc((size_t) var_count * sizeof(int));
+        int *new_exp = lv_malloc((size_t) var_count * sizeof(int));
         if (!new_exp) {
             mpz_clear(new_coeff);
             continue;
@@ -148,7 +148,7 @@ void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p,
         }
         mv_poly_add_term(result, new_coeff, new_exp);
         mpz_clear(new_coeff);
-        lv00_free((void **) &new_exp);
+        lv_free((void **) &new_exp);
     }
     mv_poly_sort(result);
 }

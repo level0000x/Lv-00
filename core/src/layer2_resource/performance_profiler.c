@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file performance_profiler.c
  * @brief 性能分析器 —— 基准测试与会话级性能追踪
  *
@@ -13,7 +13,7 @@
  *   - POSIX:  clock_gettime(CLOCK_MONOTONIC, ...)
  */
 
-#include "lv00/performance_profiler.h"
+#include "lv/performance_profiler.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -96,7 +96,7 @@ typedef struct {
 /**
  * @brief 性能会话（不透明类型实现）
  */
-struct Lv00PerfSession {
+struct lvPerfSession {
     char        *name;            /**< 会话名称 */
     uint64_t     start_time_ns;   /**< 会话创建/重置时间 */
     PerfRegion   regions[MAX_REGIONS];
@@ -113,7 +113,7 @@ struct Lv00PerfSession {
  * @brief 在会话中查找计时区域
  * @return 索引，未找到返回 -1
  */
-static int find_region(const Lv00PerfSession *session, const char *name)
+static int find_region(const lvPerfSession *session, const char *name)
 {
     if (!session || !name) return -1;
     for (int i = 0; i < session->region_count; i++) {
@@ -128,7 +128,7 @@ static int find_region(const Lv00PerfSession *session, const char *name)
  * @brief 查找或创建计时区域
  * @return 索引，容量满返回 -1
  */
-static int get_or_create_region(Lv00PerfSession *session, const char *name)
+static int get_or_create_region(lvPerfSession *session, const char *name)
 {
     if (!session || !name) return -1;
     int idx = find_region(session, name);
@@ -149,7 +149,7 @@ static int get_or_create_region(Lv00PerfSession *session, const char *name)
  * @brief 在会话中查找内存统计条目
  * @return 索引，未找到返回 -1
  */
-static int find_mem_stat(const Lv00PerfSession *session, const char *type_name)
+static int find_mem_stat(const lvPerfSession *session, const char *type_name)
 {
     if (!session || !type_name) return -1;
     for (int i = 0; i < session->mem_count; i++) {
@@ -164,7 +164,7 @@ static int find_mem_stat(const Lv00PerfSession *session, const char *type_name)
  * @brief 查找或创建内存统计条目
  * @return 索引，容量满返回 -1
  */
-static int get_or_create_mem_stat(Lv00PerfSession *session, const char *type_name)
+static int get_or_create_mem_stat(lvPerfSession *session, const char *type_name)
 {
     if (!session || !type_name) return -1;
     int idx = find_mem_stat(session, type_name);
@@ -183,10 +183,10 @@ static int get_or_create_mem_stat(Lv00PerfSession *session, const char *type_nam
  * 基准测试 API
  * ================================================================ */
 
-int lv00_perf_benchmark_run(const char *name,
+int lv_perf_benchmark_run(const char *name,
                              void (*fn)(void),
                              void *setup_fn,
-                             Lv00PerfBenchResult *result)
+                             lvPerfBenchResult *result)
 {
     (void)setup_fn; /* 当前未使用 */
 
@@ -255,8 +255,8 @@ int lv00_perf_benchmark_run(const char *name,
     return 0;
 }
 
-void lv00_perf_benchmark_print_result(const char *name,
-                                       const Lv00PerfBenchResult *result,
+void lv_perf_benchmark_print_result(const char *name,
+                                       const lvPerfBenchResult *result,
                                        FILE *out)
 {
     if (!name) name = result ? result->name : "unknown";
@@ -280,9 +280,9 @@ void lv00_perf_benchmark_print_result(const char *name,
  * 性能会话 API
  * ================================================================ */
 
-Lv00PerfSession *lv00_perf_session_create(const char *name)
+lvPerfSession *lv_perf_session_create(const char *name)
 {
-    Lv00PerfSession *session = (Lv00PerfSession *)malloc(sizeof(Lv00PerfSession));
+    lvPerfSession *session = (lvPerfSession *)malloc(sizeof(lvPerfSession));
     if (!session) return NULL;
 
     memset(session, 0, sizeof(*session));
@@ -297,7 +297,7 @@ Lv00PerfSession *lv00_perf_session_create(const char *name)
     return session;
 }
 
-void lv00_perf_begin(Lv00PerfSession *session, const char *region_name)
+void lv_perf_begin(lvPerfSession *session, const char *region_name)
 {
     if (!session || !region_name) return;
 
@@ -308,7 +308,7 @@ void lv00_perf_begin(Lv00PerfSession *session, const char *region_name)
     session->regions[idx].active = 1;
 }
 
-void lv00_perf_end(Lv00PerfSession *session, const char *region_name)
+void lv_perf_end(lvPerfSession *session, const char *region_name)
 {
     if (!session || !region_name) return;
 
@@ -331,7 +331,7 @@ void lv00_perf_end(Lv00PerfSession *session, const char *region_name)
     }
 }
 
-void lv00_perf_session_record_alloc(Lv00PerfSession *session,
+void lv_perf_session_record_alloc(lvPerfSession *session,
                                      const char *type_name, size_t bytes)
 {
     if (!session || !type_name) return;
@@ -343,7 +343,7 @@ void lv00_perf_session_record_alloc(Lv00PerfSession *session,
     session->mem_stats[idx].alloc_count++;
 }
 
-void lv00_perf_session_record_free(Lv00PerfSession *session,
+void lv_perf_session_record_free(lvPerfSession *session,
                                     const char *type_name, size_t bytes)
 {
     if (!session || !type_name) return;
@@ -355,7 +355,7 @@ void lv00_perf_session_record_free(Lv00PerfSession *session,
     session->mem_stats[idx].free_count++;
 }
 
-void lv00_perf_report_print(const Lv00PerfSession *session, FILE *out)
+void lv_perf_report_print(const lvPerfSession *session, FILE *out)
 {
     if (!session || !out) return;
 
@@ -399,7 +399,7 @@ void lv00_perf_report_print(const Lv00PerfSession *session, FILE *out)
     fprintf(out, "\n");
 }
 
-int lv00_perf_report_to_json(const Lv00PerfSession *session,
+int lv_perf_report_to_json(const lvPerfSession *session,
                               char *buffer, size_t buffer_size)
 {
     if (!session || !buffer || buffer_size == 0) return -1;
@@ -471,7 +471,7 @@ int lv00_perf_report_to_json(const Lv00PerfSession *session,
     return written; /* 不含末尾 '\0' */
 }
 
-void lv00_perf_session_reset(Lv00PerfSession *session)
+void lv_perf_session_reset(lvPerfSession *session)
 {
     if (!session) return;
 
@@ -491,7 +491,7 @@ void lv00_perf_session_reset(Lv00PerfSession *session)
     session->start_time_ns = get_time_ns();
 }
 
-void lv00_perf_session_destroy(Lv00PerfSession *session)
+void lv_perf_session_destroy(lvPerfSession *session)
 {
     if (!session) return;
 

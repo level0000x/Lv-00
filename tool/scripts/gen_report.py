@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Lv-00 UI 系统全面优化任务汇报文档生成模块
 
 本模块用于生成 Lv-00 UI 系统全面优化任务的汇报文档（.docx 格式），
@@ -101,7 +101,7 @@ def generate_report(output_path: str) -> str:
     for f in ['web-gui/目录：index.html、vite.config.ts、Cargo.toml、main.rs、default.json（5个文件）',
               'web/目录：index.html、integrate-all.js、serve.py、help-panel.html、assistant-docs.html（5个文件）',
               'concurrent_monitor/目录：web_dashboard.py、monitor_engine.py（2个文件）',
-              'llm_coding_assistant/目录：api_server.py、main.py、lv00_knowledge.py（3个文件）',
+              'llm_coding_assistant/目录：api_server.py、main.py、lv_knowledge.py（3个文件）',
               'stream-monitor/目录：server.js（1个文件）',
               'stream_bridge/目录：stream_bridge.py（1个文件）',
               'branches/magic-simulator/目录：axiom_ui.html、index.html（2个文件）']:
@@ -164,7 +164,7 @@ def generate_report(output_path: str) -> str:
     bullet('default.json：新增窗口控制细粒度权限和log:default日志权限')
     bullet('server.js：streams从{}改为Map解决竞态条件；添加MAX_STREAMS=100上限')
     bullet('stream_bridge.py：HTTPServer→ThreadingHTTPServer支持多连接')
-    bullet('lv00_knowledge.py：缓存1小时自动失效；任务匹配升级为三级匹配')
+    bullet('lv_knowledge.py：缓存1小时自动失效；任务匹配升级为三级匹配')
     bullet('统一异常处理：stream_bridge.py、api_server.py、server.js中except:pass全部改为日志记录')
     doc.add_page_break()
 
@@ -196,7 +196,7 @@ def generate_report(output_path: str) -> str:
         ['🟢低','缺少加载进度','integrate-all.js','✅已添加'],
         ['🟢低','缺少切换动画','index.html','✅已添加'],
         ['🟢低','缺少搜索','help-panel/docs','✅已添加'],
-        ['🟢低','缓存不失效','lv00_knowledge.py','✅已修复'],
+        ['🟢低','缓存不失效','lv_knowledge.py','✅已修复'],
     ]
     for i,row in enumerate(data):
         for j,v in enumerate(row):
@@ -212,7 +212,7 @@ def generate_report(output_path: str) -> str:
     bullet('添加tauri-plugin-log日志插件')
     heading('中期（2-4周）', 2)
     bullet('统一流监控技术栈')
-    bullet('合并templates.py和lv00_knowledge.py')
+    bullet('合并templates.py和lv_knowledge.py')
     bullet('清理标注为废弃的文件')
     heading('长期（1-3月）', 2)
     bullet('添加API认证机制')

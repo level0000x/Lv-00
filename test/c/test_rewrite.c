@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_rewrite.c
  * @brief 重写系统测试 - 模式匹配、规则应用、重写策略
  *
@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* ============== 测试：重写规则生命周期 ============== */
@@ -96,9 +96,9 @@ static int test_pattern_matching(void) {
 
     if (match) {
         printf("  绑定数量: %d\n", match->binding_count);
-        lv00_free_ptr(match->node_bindings);
-        lv00_free_ptr(match->constraint_bindings);
-        lv00_free_ptr(match);
+        lv_free_ptr(match->node_bindings);
+        lv_free_ptr(match->constraint_bindings);
+        lv_free_ptr(match);
     }
 
     rewrite_rule_destroy(rule);
@@ -138,9 +138,9 @@ static int test_rule_application(void) {
         RewriteStatus status = apply_rewrite(g, rule, match);
         printf("  应用状态: %d\n", status);
 
-        lv00_free_ptr(match->node_bindings);
-        lv00_free_ptr(match->constraint_bindings);
-        lv00_free_ptr(match);
+        lv_free_ptr(match->node_bindings);
+        lv_free_ptr(match->constraint_bindings);
+        lv_free_ptr(match);
     }
 
     rewrite_rule_destroy(rule);

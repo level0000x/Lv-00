@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_stream.c
  * @brief 流式输出系统模块测试
  *
@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "stream.h"
 
 /* ============== 测试辅助结构 ============== */
@@ -43,7 +43,7 @@ static void capture_callback(const StreamEvent *event, void *user_data) {
     cap->constraint_id = event->constraint_id;
     cap->step_number = event->step_number;
     if (event->description) {
-        lv00_strlcpy(cap->description, event->description, sizeof(cap->description));
+        lv_strlcpy(cap->description, event->description, sizeof(cap->description));
     }
     cap->call_count++;
 }

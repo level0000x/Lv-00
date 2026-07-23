@@ -1,4 +1,4 @@
-# solver.c 拆分方案
+﻿# solver.c 拆分方案
 
 ## 现状
 
@@ -49,8 +49,8 @@
 
 ## 拆分注意事项
 
-1. 原 `static` 函数提取后需去掉 `static`，改为 `LV00_PUBLIC_API`（如需要）或模块内部可见
+1. 原 `static` 函数提取后需去掉 `static`，改为 `lv_PUBLIC_API`（如需要）或模块内部可见
 2. 结构体定义移至对应 .h 文件
-3. 每个新模块需包含 `lv00/lv00.h` 获取基础 API
+3. 每个新模块需包含 `lv/lv.h` 获取基础 API
 4. solver.c 保留 `#include "solver_xxx.h"` 聚合所有子模块
 5. CMakeLists.txt 需同步更新

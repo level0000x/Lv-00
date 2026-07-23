@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tests for Graph Python bindings.
 """
 
@@ -10,7 +10,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lv00 import Graph, NormalizationResult, Point, LineSegment, Lv00Error
+from lv import Graph, NormalizationResult, Point, LineSegment, lvError
 
 
 class TestGraphCreation:
@@ -90,13 +90,13 @@ class TestGraphAddLineSegment:
         assert len(g._segments) == 2
 
     def test_add_segment_requires_points_in_graph(self):
-        """测试使用未注册到图中的点创建线段时应抛出 Lv00Error"""
+        """测试使用未注册到图中的点创建线段时应抛出 lvError"""
         g = Graph()
         p1 = Point(0, 0)
         p2 = Point(1, 1)
 
         # Points not added to graph yet
-        with pytest.raises(Lv00Error):
+        with pytest.raises(lvError):
             g.add_line_segment(p1, p2)
 
 

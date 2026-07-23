@@ -1,9 +1,9 @@
-#include <assert.h>
+﻿#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 void test_trust_colors() {
     printf("Testing trust color system...\n");
@@ -27,7 +27,7 @@ void test_trust_colors() {
 
     printf("  Trust colors: PASSED\n");
 
-    lv00_free_ptr(node->numeric_assumption_declaration);
+    lv_free_ptr(node->numeric_assumption_declaration);
     graph_destroy(graph);
     printf("  PASSED\n");
 }
@@ -51,7 +51,7 @@ void test_merge_candidates() {
 
     printf("  Candidate detection: PASSED\n");
 
-    lv00_free_ptr(candidates);
+    lv_free_ptr(candidates);
     graph_destroy(graph);
     printf("  PASSED\n");
 }

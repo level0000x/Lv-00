@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gappa_propagate.c
  * @brief Gappa 浮点误差传播引擎
  *
@@ -13,10 +13,10 @@
  * @date 2026-05-24
  */
 
-#include "lv00/gappa_propagate.h"
-#include "lv00_utils.h"
-#include "lv00/gappa_dsl.h"
-#include "lv00/lv00_internal.h"
+#include "lv/gappa_propagate.h"
+#include "lv_utils.h"
+#include "lv/gappa_dsl.h"
+#include "lv/lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -333,14 +333,14 @@ static int forward_propagate(const char *expr, const PropInterval *vars,
 
 /* ── Structured propagation API (stubs) ── */
 
-void gappa_pred_set_init(Lv00GappaPredSet *set) {
+void gappa_pred_set_init(lvGappaPredSet *set) {
     if (!set) return;
     set->preds = NULL;
     set->count = 0;
     set->capacity = 0;
 }
 
-bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
+bool gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred) {
     if (!set || !pred) return false;
 
     /* Check for duplicate expr_lhs */
@@ -352,7 +352,7 @@ bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
 
     if (set->count >= set->capacity) {
         int new_cap = set->capacity > 0 ? set->capacity * 2 : 8;
-        Lv00GappaPredicate *p = (Lv00GappaPredicate *)lv00_realloc(set->preds, (size_t)new_cap * sizeof(Lv00GappaPredicate));
+        lvGappaPredicate *p = (lvGappaPredicate *)lv_realloc(set->preds, (size_t)new_cap * sizeof(lvGappaPredicate));
         if (!p) return false;
         set->preds = p;
         set->capacity = new_cap;
@@ -361,7 +361,7 @@ bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred) {
     return true;
 }
 
-int gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00GappaPredicate *found) {
+int gappa_pred_set_find(const lvGappaPredSet *set, const char *name, lvGappaPredicate *found) {
     if (!set || !name) return -1;
     for (int i = 0; i < set->count; i++) {
         if (strcmp(set->preds[i].expr_lhs, name) == 0) {
@@ -372,16 +372,16 @@ int gappa_pred_set_find(const Lv00GappaPredSet *set, const char *name, Lv00Gappa
     return -1;
 }
 
-void gappa_pred_set_clear(Lv00GappaPredSet *set) {
+void gappa_pred_set_clear(lvGappaPredSet *set) {
     if (!set) return;
-    lv00_free((void **)&(set->preds));
+    lv_free((void **)&(set->preds));
     set->preds = NULL;
     set->count = 0;
     set->capacity = 0;
 }
 
-Lv00GappaPropagateConfig gappa_propagate_config_default(void) {
-    Lv00GappaPropagateConfig cfg;
+lvGappaPropagateConfig gappa_propagate_config_default(void) {
+    lvGappaPropagateConfig cfg;
     cfg.max_iterations = 1;
     cfg.precision = 1e-15;
     cfg.backward = false;
@@ -400,13 +400,13 @@ Lv00GappaPropagateConfig gappa_propagate_config_default(void) {
  * @param precision 收敛精度阈值
  * @param changed   输出：是否有边界被收紧
  */
-static void backward_refine_pred(Lv00GappaPredSet *output, int idx,
+static void backward_refine_pred(lvGappaPredSet *output, int idx,
                                   const char *lhs, double precision,
                                   bool *changed) {
     size_t lhs_len = strlen(lhs);
 
     for (int p = 0; p < output->count; p++) {
-        if (p == idx || output->preds[p].type != LV00_PRED_BND) continue;
+        if (p == idx || output->preds[p].type != lv_PRED_BND) continue;
 
         size_t plen = strlen(output->preds[p].expr_lhs);
         const char *pexpr = output->preds[p].expr_lhs;
@@ -417,7 +417,7 @@ static void backward_refine_pred(Lv00GappaPredSet *output, int idx,
             strncmp(pexpr + lhs_len, " + ", 3) == 0) {
             const char *rest = pexpr + lhs_len + 3;
             for (int r = 0; r < output->count; r++) {
-                if (r == idx || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                if (r == idx || r == p || output->preds[r].type != lv_PRED_BND) continue;
                 if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
 
                 /* lhs = (lhs + rest) - rest */
@@ -443,7 +443,7 @@ static void backward_refine_pred(Lv00GappaPredSet *output, int idx,
                 /* 提取 rest = pexpr[0..plen-lhs_len-4) */
                 size_t rest_len = plen - lhs_len - 3;
                 for (int r = 0; r < output->count; r++) {
-                    if (r == idx || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                    if (r == idx || r == p || output->preds[r].type != lv_PRED_BND) continue;
                     if (strlen(output->preds[r].expr_lhs) != rest_len) continue;
                     if (strncmp(output->preds[r].expr_lhs, pexpr, rest_len) != 0) continue;
 
@@ -467,7 +467,7 @@ static void backward_refine_pred(Lv00GappaPredSet *output, int idx,
             strncmp(pexpr + lhs_len, " - ", 3) == 0) {
             const char *rest = pexpr + lhs_len + 3;
             for (int r = 0; r < output->count; r++) {
-                if (r == idx || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                if (r == idx || r == p || output->preds[r].type != lv_PRED_BND) continue;
                 if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
 
                 /* lhs = (lhs - rest) + rest */
@@ -491,7 +491,7 @@ static void backward_refine_pred(Lv00GappaPredSet *output, int idx,
                 strcmp(suffix_start + 3, lhs) == 0) {
                 size_t rest_len = plen - lhs_len - 3;
                 for (int r = 0; r < output->count; r++) {
-                    if (r == idx || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                    if (r == idx || r == p || output->preds[r].type != lv_PRED_BND) continue;
                     if (strlen(output->preds[r].expr_lhs) != rest_len) continue;
                     if (strncmp(output->preds[r].expr_lhs, pexpr, rest_len) != 0) continue;
 
@@ -512,7 +512,7 @@ static void backward_refine_pred(Lv00GappaPredSet *output, int idx,
     }
 }
 
-int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg) {
+int gappa_propagate(const lvGappaPredSet *input, lvGappaPredSet *output, const lvGappaPropagateConfig *cfg) {
     if (!input || !output) return 0;
 
     gappa_pred_set_init(output);
@@ -539,14 +539,14 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
         /* 对每对 BND 谓词，推导其和与差 */
         int saved_count = output->count;
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != LV00_PRED_BND) continue;
+            if (output->preds[i].type != lv_PRED_BND) continue;
             for (int j = i + 1; j < saved_count; j++) {
-                if (output->preds[j].type != LV00_PRED_BND) continue;
+                if (output->preds[j].type != lv_PRED_BND) continue;
 
                 /* 推导和: x + y in [lo_x + lo_y, hi_x + hi_y] */
-                Lv00GappaPredicate sum_pred;
+                lvGappaPredicate sum_pred;
                 memset(&sum_pred, 0, sizeof(sum_pred));
-                sum_pred.type = LV00_PRED_BND;
+                sum_pred.type = lv_PRED_BND;
                 snprintf(sum_pred.expr_lhs, sizeof(sum_pred.expr_lhs), "%s + %s",
                          output->preds[i].expr_lhs, output->preds[j].expr_lhs);
                 sum_pred.bound_lo = output->preds[i].bound_lo + output->preds[j].bound_lo;
@@ -555,9 +555,9 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 if (gappa_pred_set_add(output, &sum_pred)) { derived++; changed = true; }
 
                 /* 推导差: x - y in [lo_x - hi_y, hi_x - lo_y] */
-                Lv00GappaPredicate diff_pred;
+                lvGappaPredicate diff_pred;
                 memset(&diff_pred, 0, sizeof(diff_pred));
-                diff_pred.type = LV00_PRED_BND;
+                diff_pred.type = lv_PRED_BND;
                 snprintf(diff_pred.expr_lhs, sizeof(diff_pred.expr_lhs), "%s - %s",
                          output->preds[i].expr_lhs, output->preds[j].expr_lhs);
                 diff_pred.bound_lo = output->preds[i].bound_lo - output->preds[j].bound_hi;
@@ -566,9 +566,9 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 if (gappa_pred_set_add(output, &diff_pred)) { derived++; changed = true; }
 
                 /* 推导差: y - x in [lo_y - hi_x, hi_y - lo_x] */
-                Lv00GappaPredicate diff_pred2;
+                lvGappaPredicate diff_pred2;
                 memset(&diff_pred2, 0, sizeof(diff_pred2));
-                diff_pred2.type = LV00_PRED_BND;
+                diff_pred2.type = lv_PRED_BND;
                 snprintf(diff_pred2.expr_lhs, sizeof(diff_pred2.expr_lhs), "%s - %s",
                          output->preds[j].expr_lhs, output->preds[i].expr_lhs);
                 diff_pred2.bound_lo = output->preds[j].bound_lo - output->preds[i].bound_hi;
@@ -581,17 +581,17 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
         /* 乘法推导：x * y，取四个角点的 min/max */
         saved_count = output->count;
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != LV00_PRED_BND) continue;
+            if (output->preds[i].type != lv_PRED_BND) continue;
             for (int j = i + 1; j < saved_count; j++) {
-                if (output->preds[j].type != LV00_PRED_BND) continue;
+                if (output->preds[j].type != lv_PRED_BND) continue;
 
                 PropInterval a = { output->preds[i].bound_lo, output->preds[i].bound_hi };
                 PropInterval b = { output->preds[j].bound_lo, output->preds[j].bound_hi };
                 PropInterval r = ia_mul(a, b);
 
-                Lv00GappaPredicate mul_pred;
+                lvGappaPredicate mul_pred;
                 memset(&mul_pred, 0, sizeof(mul_pred));
-                mul_pred.type = LV00_PRED_BND;
+                mul_pred.type = lv_PRED_BND;
                 snprintf(mul_pred.expr_lhs, sizeof(mul_pred.expr_lhs), "%s * %s",
                          output->preds[i].expr_lhs, output->preds[j].expr_lhs);
                 mul_pred.bound_lo = r.lo;
@@ -603,9 +603,9 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
 
         /* 除法推导：x / y，处理分母跨零（返回无穷区间则跳过） */
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != LV00_PRED_BND) continue;
+            if (output->preds[i].type != lv_PRED_BND) continue;
             for (int j = 0; j < saved_count; j++) {
-                if (i == j || output->preds[j].type != LV00_PRED_BND) continue;
+                if (i == j || output->preds[j].type != lv_PRED_BND) continue;
 
                 PropInterval a = { output->preds[i].bound_lo, output->preds[i].bound_hi };
                 PropInterval b = { output->preds[j].bound_lo, output->preds[j].bound_hi };
@@ -616,9 +616,9 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 PropInterval r = ia_div(a, b);
                 if (isinf(r.lo) || isinf(r.hi)) continue;
 
-                Lv00GappaPredicate div_pred;
+                lvGappaPredicate div_pred;
                 memset(&div_pred, 0, sizeof(div_pred));
-                div_pred.type = LV00_PRED_BND;
+                div_pred.type = lv_PRED_BND;
                 snprintf(div_pred.expr_lhs, sizeof(div_pred.expr_lhs), "%s / %s",
                          output->preds[i].expr_lhs, output->preds[j].expr_lhs);
                 div_pred.bound_lo = r.lo;
@@ -630,7 +630,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
 
         /* 平方推导：x²，利用单调性精确计算 */
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != LV00_PRED_BND) continue;
+            if (output->preds[i].type != lv_PRED_BND) continue;
 
             double x_lo = output->preds[i].bound_lo;
             double x_hi = output->preds[i].bound_hi;
@@ -649,9 +649,9 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                 sq_hi = (abs_lo > x_hi) ? (abs_lo * abs_lo) : (x_hi * x_hi);
             }
 
-            Lv00GappaPredicate sq_pred;
+            lvGappaPredicate sq_pred;
             memset(&sq_pred, 0, sizeof(sq_pred));
-            sq_pred.type = LV00_PRED_BND;
+            sq_pred.type = lv_PRED_BND;
             snprintf(sq_pred.expr_lhs, sizeof(sq_pred.expr_lhs), "(%s)^2",
                      output->preds[i].expr_lhs);
             sq_pred.bound_lo = sq_lo;
@@ -664,7 +664,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
          * Refinement pass：利用 sum/diff 关系收紧已有边界
          * ============================================================ */
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != LV00_PRED_BND) continue;
+            if (output->preds[i].type != lv_PRED_BND) continue;
             backward_refine_pred(output, i, output->preds[i].expr_lhs,
                                   precision, &changed);
         }
@@ -676,14 +676,14 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
             int bw_count = output->count;
             /* ABS → BND 转换：|x - c| ≤ eps → x ∈ [c - eps, c + eps] */
             for (int i = 0; i < bw_count; i++) {
-                if (output->preds[i].type != LV00_PRED_ABS) continue;
+                if (output->preds[i].type != lv_PRED_ABS) continue;
 
                 double center = atof(output->preds[i].expr_rhs);
                 double eps    = output->preds[i].bound_abs;
 
-                Lv00GappaPredicate bnd;
+                lvGappaPredicate bnd;
                 memset(&bnd, 0, sizeof(bnd));
-                bnd.type = LV00_PRED_BND;
+                bnd.type = lv_PRED_BND;
                 strncpy(bnd.expr_lhs, output->preds[i].expr_lhs,
                         sizeof(bnd.expr_lhs) - 1);
                 bnd.bound_lo = center - eps;
@@ -694,7 +694,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
 
             /* 利用 ABS 谓词的约束能力：对刚转换出的 BND 再跑一次 refinement */
             for (int i = 0; i < bw_count; i++) {
-                if (output->preds[i].type != LV00_PRED_BND) continue;
+                if (output->preds[i].type != lv_PRED_BND) continue;
                 backward_refine_pred(output, i, output->preds[i].expr_lhs,
                                       precision, &changed);
             }
@@ -703,11 +703,11 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
              *   - 若已知 x*y 和 x 的区间，收紧 y
              *   - 若已知 x/y 和 y 的区间，收紧 x */
             for (int i = 0; i < bw_count; i++) {
-                if (output->preds[i].type != LV00_PRED_BND) continue;
+                if (output->preds[i].type != lv_PRED_BND) continue;
                 size_t ilen = strlen(output->preds[i].expr_lhs);
 
                 for (int p = 0; p < bw_count; p++) {
-                    if (p == i || output->preds[p].type != LV00_PRED_BND) continue;
+                    if (p == i || output->preds[p].type != lv_PRED_BND) continue;
                     size_t plen = strlen(output->preds[p].expr_lhs);
                     const char *pexpr = output->preds[p].expr_lhs;
 
@@ -717,7 +717,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                         strncmp(pexpr + ilen, " * ", 3) == 0) {
                         const char *rest = pexpr + ilen + 3;
                         for (int r = 0; r < bw_count; r++) {
-                            if (r == i || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                            if (r == i || r == p || output->preds[r].type != lv_PRED_BND) continue;
                             if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
                             if (output->preds[r].bound_lo <= 0.0 && output->preds[r].bound_hi >= 0.0) continue;
 
@@ -743,7 +743,7 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
                         strncmp(pexpr + ilen, " / ", 3) == 0) {
                         const char *rest = pexpr + ilen + 3;
                         for (int r = 0; r < bw_count; r++) {
-                            if (r == i || r == p || output->preds[r].type != LV00_PRED_BND) continue;
+                            if (r == i || r == p || output->preds[r].type != lv_PRED_BND) continue;
                             if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
 
                             PropInterval quot  = { output->preds[p].bound_lo, output->preds[p].bound_hi };
@@ -771,8 +771,8 @@ int gappa_propagate(const Lv00GappaPredSet *input, Lv00GappaPredSet *output, con
     return derived > 0 ? derived : (input->count > 0 ? 1 : 0);
 }
 
-int gappa_propagate_backward(const Lv00GappaPredicate *goal, const Lv00GappaPredSet *known,
-                              Lv00GappaPredSet *output, const Lv00GappaPropagateConfig *cfg) {
+int gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredSet *known,
+                              lvGappaPredSet *output, const lvGappaPropagateConfig *cfg) {
     (void)cfg;
     if (!goal || !output) return 0;
 
@@ -787,15 +787,15 @@ int gappa_propagate_backward(const Lv00GappaPredicate *goal, const Lv00GappaPred
 
     int needed = 0;
 
-    if (goal->type == LV00_PRED_ABS) {
+    if (goal->type == lv_PRED_ABS) {
         /* ABS 目标: |x - c| <= bound → x in [c - bound, c + bound] */
         double center = atof(goal->expr_lhs + 2); /* 跳过 "|x" ... 但实际是 "x" */
         /* 尝试从 expr_rhs 获取中心值 */
         center = atof(goal->expr_rhs);
 
-        Lv00GappaPredicate derived;
+        lvGappaPredicate derived;
         memset(&derived, 0, sizeof(derived));
-        derived.type = LV00_PRED_BND;
+        derived.type = lv_PRED_BND;
         /* 提取变量名：从 expr_lhs 中获取（可能是 "x - 0.5" 格式，取第一个标识符） */
         const char *src = goal->expr_lhs;
         int k = 0;
@@ -812,11 +812,11 @@ int gappa_propagate_backward(const Lv00GappaPredicate *goal, const Lv00GappaPred
         derived.is_hypothesis = true;
 
         if (gappa_pred_set_add(output, &derived)) needed++;
-    } else if (goal->type == LV00_PRED_BND) {
+    } else if (goal->type == lv_PRED_BND) {
         /* BND 目标: 直接使用目标区间作为所需假设 */
-        Lv00GappaPredicate derived;
+        lvGappaPredicate derived;
         memset(&derived, 0, sizeof(derived));
-        derived.type = LV00_PRED_BND;
+        derived.type = lv_PRED_BND;
         strncpy(derived.expr_lhs, goal->expr_lhs, sizeof(derived.expr_lhs) - 1);
         derived.bound_lo = goal->bound_lo;
         derived.bound_hi = goal->bound_hi;
@@ -920,7 +920,7 @@ static int apply_rewrite_rules(const char *expr, const PropInterval *vars,
  * @param[out] hi    输出区间的上界
  * @return 0 成功，-1 失败（参数无效或解析错误）
  */
-int lv00_gappa_propagate(const char *expr, double *lo, double *hi) {
+int lv_gappa_propagate(const char *expr, double *lo, double *hi) {
     if (!expr || !lo || !hi) return -1;
 
     /* 初始化默认变量区间 [-1, 1] */

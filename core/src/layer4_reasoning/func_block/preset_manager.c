@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_manager.c
  * @brief 预设函数块管理器 - 核心实现
  *
@@ -12,9 +12,9 @@
  * @author Lv-00 Project
  */
 
-#include "lv00_internal.h"
+#include "lv_internal.h"
 #include "error_codes.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "func_block_preset.h"
 #include "func_block_registry.h"
 #include "preset_core.h"
@@ -422,7 +422,7 @@ bool preset_query(const PresetQueryCriteria *criteria,
     }
 
     /* ── 第一步：分配结果结构 ── */
-    PresetQueryResult *result = (PresetQueryResult *)lv00_malloc(sizeof(PresetQueryResult));
+    PresetQueryResult *result = (PresetQueryResult *)lv_malloc(sizeof(PresetQueryResult));
     if (!result) {
         unlock_library();
         set_error("内存分配失败");
@@ -432,11 +432,11 @@ bool preset_query(const PresetQueryCriteria *criteria,
 
     /* 预分配名称数组（最多 entry_count 个） */
     int max_candidates = g_library.entry_count;
-    const char **candidate_names = (const char **)lv00_malloc(
+    const char **candidate_names = (const char **)lv_malloc(
         (size_t)max_candidates * sizeof(const char *));
     if (!candidate_names) {
         unlock_library();
-        lv00_free((void **)&result);
+        lv_free((void **)&result);
         set_error("内存分配失败");
         goto error;
     }
@@ -534,11 +534,11 @@ bool preset_query(const PresetQueryCriteria *criteria,
     result->count = match_count;
 
     if (match_count > 0) {
-        result->names = (const char **)lv00_malloc(
+        result->names = (const char **)lv_malloc(
             (size_t)match_count * sizeof(const char *));
         if (!result->names) {
-            lv00_free((void **)&candidate_names);
-            lv00_free((void **)&result);
+            lv_free((void **)&candidate_names);
+            lv_free((void **)&result);
             unlock_library();
             set_error("内存分配失败");
             goto error;
@@ -548,7 +548,7 @@ bool preset_query(const PresetQueryCriteria *criteria,
         }
     }
 
-    lv00_free((void **)&candidate_names);
+    lv_free((void **)&candidate_names);
     unlock_library();
 
     *out_result = result;
@@ -571,10 +571,10 @@ void preset_query_result_free(PresetQueryResult *result)
     if (!result) return;
 
     if (result->names) {
-        lv00_free((void **)&result->names);
+        lv_free((void **)&result->names);
     }
 
-    lv00_free((void **)&result);
+    lv_free((void **)&result);
 }
 
 /* ============================================================
@@ -585,7 +585,7 @@ void preset_query_result_free(PresetQueryResult *result)
  * @brief 按类别列出预设
  *
  * 收集指定类别的所有预设名称。
- * 返回的 out_names 和每个元素均由调用者通过 lv00_free 释放。
+ * 返回的 out_names 和每个元素均由调用者通过 lv_free 释放。
  *
  * @param category   目标类别
  * @param out_names  输出名称数组（调用者需释放每个元素和数组本身）
@@ -623,7 +623,7 @@ bool preset_list_by_category(PresetCategory category,
     /* 分配结果数组 */
     char **names = NULL;
     if (count > 0) {
-        names = (char **)lv00_malloc((size_t)count * sizeof(char *));
+        names = (char **)lv_malloc((size_t)count * sizeof(char *));
         if (!names) {
             unlock_library();
             set_error("内存分配失败");
@@ -638,15 +638,15 @@ bool preset_list_by_category(PresetCategory category,
             while (entry != NULL && idx < count) {
                 if (entry->is_active &&
                     entry->metadata.category == category) {
-                    names[idx] = lv00_strdup_safe(entry->metadata.name);
+                    names[idx] = lv_strdup_safe(entry->metadata.name);
                     if (!names[idx]) {
                         /* 部分分配失败，释放已分配的元素 */
                         unlock_library();
                         for (int j = 0; j < idx; j++) {
                             void *tmp = names[j];
-                            lv00_free(&tmp);
+                            lv_free(&tmp);
                         }
-                        lv00_free((void **)&names);
+                        lv_free((void **)&names);
                         set_error("内存分配失败");
                         return false;
                     }
@@ -692,7 +692,7 @@ bool preset_list_all(char ***out_names, int *out_count)
     char **names = NULL;
 
     if (count > 0) {
-        names = (char **)lv00_malloc((size_t)count * sizeof(char *));
+        names = (char **)lv_malloc((size_t)count * sizeof(char *));
         if (!names) {
             unlock_library();
             set_error("内存分配失败");
@@ -705,14 +705,14 @@ bool preset_list_all(char ***out_names, int *out_count)
             InternalPresetEntry *entry = g_library.hash_table[i];
             while (entry != NULL && idx < count) {
                 if (entry->is_active) {
-                    names[idx] = lv00_strdup_safe(entry->metadata.name);
+                    names[idx] = lv_strdup_safe(entry->metadata.name);
                     if (!names[idx]) {
                         unlock_library();
                         for (int j = 0; j < idx; j++) {
                             void *tmp = names[j];
-                            lv00_free(&tmp);
+                            lv_free(&tmp);
                         }
-                        lv00_free((void **)&names);
+                        lv_free((void **)&names);
                         set_error("内存分配失败");
                         return false;
                     }
@@ -790,7 +790,7 @@ bool preset_instantiate(const char *name,
     }
 
     /* 创建实例结构 */
-    PresetInstance *instance = (PresetInstance *)lv00_malloc(sizeof(PresetInstance));
+    PresetInstance *instance = (PresetInstance *)lv_malloc(sizeof(PresetInstance));
     if (!instance) {
         unlock_library();
         set_error("内存分配失败");
@@ -798,15 +798,15 @@ bool preset_instantiate(const char *name,
     }
     memset(instance, 0, sizeof(PresetInstance));
 
-    instance->preset_name = lv00_strdup_safe(name);
+    instance->preset_name = lv_strdup_safe(name);
 
     /* 复制模板函数块作为实例 */
     if (entry->template_fb) {
         instance->func_block = func_block_copy(entry->template_fb);
         if (!instance->func_block) {
             unlock_library();
-            lv00_free((void **)&instance->preset_name);
-            lv00_free((void **)&instance);
+            lv_free((void **)&instance->preset_name);
+            lv_free((void **)&instance);
             set_error("函数块复制失败");
             return false;
         }
@@ -819,7 +819,7 @@ bool preset_instantiate(const char *name,
         /* 设置输出端口为模板的输出 */
         instance->output_count = entry->template_fb->output_count;
         if (instance->output_count > 0 && entry->template_fb->output_port_ids) {
-            instance->output_node_ids = (int *)lv00_malloc(
+            instance->output_node_ids = (int *)lv_malloc(
                 (size_t)instance->output_count * sizeof(int));
             if (instance->output_node_ids) {
                 memcpy(instance->output_node_ids,
@@ -864,7 +864,7 @@ int preset_instantiate_batch(const char **names,
     if (!names || !input_counts || count <= 0 || !out_instances) return 0;
 
     /* 分配实例数组 */
-    PresetInstanceHandle *instances = (PresetInstanceHandle *)lv00_malloc(
+    PresetInstanceHandle *instances = (PresetInstanceHandle *)lv_malloc(
         (size_t)count * sizeof(PresetInstanceHandle));
     if (!instances) {
         set_error("内存分配失败");
@@ -913,16 +913,16 @@ void preset_instance_destroy(PresetInstanceHandle instance)
 
     /* 释放输出节点ID数组 */
     if (inst->output_node_ids) {
-        lv00_free((void **)&inst->output_node_ids);
+        lv_free((void **)&inst->output_node_ids);
     }
 
     /* 释放预设名称 */
     if (inst->preset_name) {
-        lv00_free((void **)&inst->preset_name);
+        lv_free((void **)&inst->preset_name);
     }
 
     /* 释放实例结构本身 */
-    lv00_free((void **)&instance);
+    lv_free((void **)&instance);
 }
 
 /**
@@ -943,7 +943,7 @@ const FuncBlock* preset_instance_get_func_block(PresetInstanceHandle instance)
  * @brief 获取实例的输出节点ID
  *
  * @param instance       实例句柄
- * @param out_output_ids 输出节点ID数组（调用者需使用 lv00_free 释放）
+ * @param out_output_ids 输出节点ID数组（调用者需使用 lv_free 释放）
  * @param out_count      输出数量
  * @return true 成功
  * @return false 失败
@@ -964,7 +964,7 @@ bool preset_instance_get_outputs(PresetInstanceHandle instance,
         return true;
     }
 
-    int *ids = (int *)lv00_malloc((size_t)inst->output_count * sizeof(int));
+    int *ids = (int *)lv_malloc((size_t)inst->output_count * sizeof(int));
     if (!ids) {
         set_error("内存分配失败");
         return false;
@@ -1041,7 +1041,7 @@ bool preset_instance_execute(PresetInstanceHandle instance,
  *
  * @param instance          实例句柄
  * @param out_is_valid      输出是否有效
- * @param out_error_message 错误消息（可选，调用者需使用 lv00_free 释放）
+ * @param out_error_message 错误消息（可选，调用者需使用 lv_free 释放）
  * @return true 验证流程完成
  * @return false 验证过程出错
  */
@@ -1058,7 +1058,7 @@ bool preset_instance_validate(PresetInstanceHandle instance,
     /* 验证1：函数块是否存在 */
     if (!inst->func_block) {
         if (out_error_message) {
-            *out_error_message = lv00_strdup_safe(
+            *out_error_message = lv_strdup_safe(
                 "验证失败: 实例没有关联的函数块");
         }
         return true;
@@ -1067,7 +1067,7 @@ bool preset_instance_validate(PresetInstanceHandle instance,
     /* 验证2：输入端口数量是否有效 */
     if (inst->func_block->input_count < 0) {
         if (out_error_message) {
-            *out_error_message = lv00_strdup_safe(
+            *out_error_message = lv_strdup_safe(
                 "验证失败: 输入端口数量无效");
         }
         return true;
@@ -1076,7 +1076,7 @@ bool preset_instance_validate(PresetInstanceHandle instance,
     /* 验证3：确定性状态检查 */
     if (inst->func_block->determinism == DETERMINISM_NON_DETERMINISTIC) {
         if (out_error_message) {
-            *out_error_message = lv00_strdup_safe(
+            *out_error_message = lv_strdup_safe(
                 "验证警告: 函数块存在多解歧义");
         }
         /* 多解歧义不视为失败，仅发出警告 */
@@ -1158,7 +1158,7 @@ bool preset_compose(const PresetComposition *composition,
     PresetMetadata composed_meta;
     memcpy(&composed_meta, &first_entry->metadata, sizeof(PresetMetadata));
     /* 注意：仅浅复制 name/description/math_def 等 const 指针，
-     * 在注册时 preset_register_custom 会通过 lv00_strdup 深拷贝。 */
+     * 在注册时 preset_register_custom 会通过 lv_strdup 深拷贝。 */
 
     /* 根据组合模式确定输出行为 */
     switch (composition->mode) {
@@ -1231,7 +1231,7 @@ error:
  * @param preset_name  原预设名称
  * @param param_index  参数索引
  * @param value        绑定的节点ID值
- * @param out_new_name 输出新预设名称（调用者需使用 lv00_free 释放）
+ * @param out_new_name 输出新预设名称（调用者需使用 lv_free 释放）
  * @return true 绑定成功
  * @return false 绑定失败
  */
@@ -1293,7 +1293,7 @@ bool preset_bind_parameter(const char *preset_name,
         int old_count = entry->template_fb->input_count;
         int new_count = old_count - 1;
 
-        int *new_inputs = (int *)lv00_malloc((size_t)new_count * sizeof(int));
+        int *new_inputs = (int *)lv_malloc((size_t)new_count * sizeof(int));
         if (new_inputs) {
             int dst = 0;
             for (int i = 0; i < old_count; i++) {
@@ -1302,7 +1302,7 @@ bool preset_bind_parameter(const char *preset_name,
                 }
             }
             func_block_set_input_ports(template_copy, new_inputs, new_count);
-            lv00_free((void **)&new_inputs);
+            lv_free((void **)&new_inputs);
         }
     } else if (template_copy && entry->template_fb->input_count == 1) {
         /* 绑定唯一输入后，输入数量变为0 */
@@ -1320,7 +1320,7 @@ bool preset_bind_parameter(const char *preset_name,
     unlock_library();
 
     if (success && out_new_name) {
-        *out_new_name = lv00_strdup_safe(new_name);
+        *out_new_name = lv_strdup_safe(new_name);
     }
 
     return success;
@@ -1339,7 +1339,7 @@ error:
  * 根据预设元数据生成标准化的使用示例代码文本。
  *
  * @param name        预设名称
- * @param out_example 输出示例代码（调用者需使用 lv00_free 释放）
+ * @param out_example 输出示例代码（调用者需使用 lv_free 释放）
  * @return true 成功
  * @return false 失败
  */
@@ -1366,7 +1366,7 @@ bool preset_get_usage_example(const char *name,
 
     const PresetMetadata *meta = &entry->metadata;
 
-    /* 使用 lv00_asprintf 动态分配缓冲区构建示例文本 */
+    /* 使用 lv_asprintf 动态分配缓冲区构建示例文本 */
     char *example = NULL;
 
     /* 构建输入参数说明 */
@@ -1398,14 +1398,14 @@ bool preset_get_usage_example(const char *name,
     }
 
     /* 构建完整示例 */
-    example = lv00_asprintf(
+    example = lv_asprintf(
         "/* ================================================================\n"
         " * 预设使用示例: %s\n"
         " * 类别: %s\n"
         " * 描述: %s\n"
         " * 复杂度: %s\n"
         " * ================================================================ */\n\n"
-        "#include \"lv00.h\"\n"
+        "#include \"lv.h\"\n"
         "#include \"preset_core.h\"\n\n"
         "void example_%s(void)\n"
         "{\n"
@@ -1436,7 +1436,7 @@ bool preset_get_usage_example(const char *name,
         "    preset_instance_get_outputs(instance, &output_ids, &output_count);\n"
         "    printf(\"输出节点数量: %%d\\n\", output_count);\n\n"
         "    /* 6. 清理 */\n"
-        "    if (output_ids) lv00_free((void **)&output_ids);\n"
+        "    if (output_ids) lv_free((void **)&output_ids);\n"
         "cleanup:\n"
         "    preset_instance_destroy(instance);\n"
         "    graph_destroy(graph);\n"
@@ -1478,7 +1478,7 @@ error:
  *
  * @param name          预设名称
  * @param format        格式（"text", "html", "markdown"）
- * @param out_document  输出文档（调用者需使用 lv00_free 释放）
+ * @param out_document  输出文档（调用者需使用 lv_free 释放）
  * @return true 生成成功
  * @return false 生成失败
  */
@@ -1510,7 +1510,7 @@ bool preset_generate_documentation(const char *name,
     char *doc = NULL;
 
     if (strcmp(fmt, "markdown") == 0) {
-        doc = lv00_asprintf(
+        doc = lv_asprintf(
             "# %s\n\n"
             "## 描述\n\n%s\n\n"
             "## 数学定义\n\n`%s`\n\n"
@@ -1538,7 +1538,7 @@ bool preset_generate_documentation(const char *name,
             meta->postcondition_count > 0 ? "（已定义）" : "（无）"
         );
     } else if (strcmp(fmt, "text") == 0) {
-        doc = lv00_asprintf(
+        doc = lv_asprintf(
             "预设: %s\n"
             "描述: %s\n"
             "数学定义: %s\n"
@@ -1557,7 +1557,7 @@ bool preset_generate_documentation(const char *name,
             meta->version_major, meta->version_minor, meta->version_patch
         );
     } else if (strcmp(fmt, "html") == 0) {
-        doc = lv00_asprintf(
+        doc = lv_asprintf(
             "<!DOCTYPE html>\n<html>\n<head>\n"
             "<meta charset=\"UTF-8\">\n"
             "<title>%s - 预设文档</title>\n"
@@ -1581,7 +1581,7 @@ bool preset_generate_documentation(const char *name,
         );
     } else {
         /* 未知格式，默认使用 markdown */
-        doc = lv00_asprintf(
+        doc = lv_asprintf(
             "# %s\n\n"
             "## 描述\n\n%s\n\n"
             "## 类别\n\n%s\n",
@@ -1611,7 +1611,7 @@ error:
  * 为整个预设库生成指定格式的索引文档。
  *
  * @param format        格式
- * @param out_document  输出文档（调用者需使用 lv00_free 释放）
+ * @param out_document  输出文档（调用者需使用 lv_free 释放）
  * @return true 生成成功
  * @return false 生成失败
  */
@@ -1632,7 +1632,7 @@ bool preset_generate_library_documentation(const char *format,
 
     /* 使用动态缓冲区构建文档 */
     size_t buf_capacity = PRESET_BUFFER_SIZE;
-    char *buffer = (char *)lv00_malloc(buf_capacity);
+    char *buffer = (char *)lv_malloc(buf_capacity);
     if (!buffer) {
         unlock_library();
         set_error("内存分配失败");
@@ -1695,13 +1695,13 @@ error:
  *
  * @param str    原始字符串
  * @param out_len 输出转义后长度（可选）
- * @return 新分配的转义后字符串，调用者需使用 lv00_free 释放
+ * @return 新分配的转义后字符串，调用者需使用 lv_free 释放
  */
 static char *json_escape_string(const char *str, size_t *out_len)
 {
     if (!str) {
         if (out_len) *out_len = 0;
-        return lv00_strdup_safe("");
+        return lv_strdup_safe("");
     }
 
     /* 预计算转义后长度 */
@@ -1715,7 +1715,7 @@ static char *json_escape_string(const char *str, size_t *out_len)
         }
     }
 
-    char *escaped = (char *)lv00_malloc(len + 1);
+    char *escaped = (char *)lv_malloc(len + 1);
     if (!escaped) return NULL;
 
     size_t pos = 0;
@@ -1753,7 +1753,7 @@ static char *json_escape_string(const char *str, size_t *out_len)
  * }
  *
  * @param entry     预设条目句柄
- * @param out_data  输出数据（调用者需使用 lv00_free 释放）
+ * @param out_data  输出数据（调用者需使用 lv_free 释放）
  * @param out_size  输出数据大小
  * @return true 成功
  * @return false 失败
@@ -1777,15 +1777,15 @@ bool preset_serialize(PresetEntryHandle entry,
         meta->mathematical_def ? meta->mathematical_def : "", NULL);
 
     if (!esc_name || !esc_desc || !esc_math) {
-        if (esc_name) lv00_free((void **)&esc_name);
-        if (esc_desc) lv00_free((void **)&esc_desc);
-        if (esc_math) lv00_free((void **)&esc_math);
+        if (esc_name) lv_free((void **)&esc_name);
+        if (esc_desc) lv_free((void **)&esc_desc);
+        if (esc_math) lv_free((void **)&esc_math);
         set_error("内存分配失败");
         return false;
     }
 
     /* 构建 JSON 字符串 */
-    char *json = lv00_asprintf(
+    char *json = lv_asprintf(
         "{\n"
         "  \"name\": \"%s\",\n"
         "  \"description\": \"%s\",\n"
@@ -1806,9 +1806,9 @@ bool preset_serialize(PresetEntryHandle entry,
         meta->version_major, meta->version_minor, meta->version_patch
     );
 
-    lv00_free((void **)&esc_name);
-    lv00_free((void **)&esc_desc);
-    lv00_free((void **)&esc_math);
+    lv_free((void **)&esc_name);
+    lv_free((void **)&esc_desc);
+    lv_free((void **)&esc_math);
 
     if (!json) {
         set_error("JSON 序列化失败：内存不足");
@@ -1830,7 +1830,7 @@ error:
  *
  * @param json JSON 字符串
  * @param key  键名（含引号，如 "\"name\""）
- * @param out_value 输出值（调用者需使用 lv00_free 释放）
+ * @param out_value 输出值（调用者需使用 lv_free 释放）
  * @return true 找到并成功提取
  */
 static bool json_extract_string(const char *json, const char *key,
@@ -1861,7 +1861,7 @@ static bool json_extract_string(const char *json, const char *key,
     if (!val_end) return false;
 
     size_t len = (size_t)(val_end - val_start);
-    char *value = (char *)lv00_malloc(len + 1);
+    char *value = (char *)lv_malloc(len + 1);
     if (!value) return false;
 
     memcpy(value, val_start, len);
@@ -1919,7 +1919,7 @@ bool preset_deserialize(const uint8_t *data,
     PRESET_CHECK_NULL(out_entry, error);
 
     /* 确保数据以空字符结尾 */
-    char *json_copy = (char *)lv00_malloc(size + 1);
+    char *json_copy = (char *)lv_malloc(size + 1);
     if (!json_copy) {
         set_error("内存分配失败");
         return false;
@@ -1946,11 +1946,11 @@ bool preset_deserialize(const uint8_t *data,
     ok = ok && json_extract_int(json_copy, "\"output_count\"", &meta.output_count);
 
     if (!ok) {
-        if (name)  lv00_free((void **)&name);
-        if (desc)  lv00_free((void **)&desc);
-        if (math_def) lv00_free((void **)&math_def);
-        if (cat_str) lv00_free((void **)&cat_str);
-        lv00_free((void **)&json_copy);
+        if (name)  lv_free((void **)&name);
+        if (desc)  lv_free((void **)&desc);
+        if (math_def) lv_free((void **)&math_def);
+        if (cat_str) lv_free((void **)&cat_str);
+        lv_free((void **)&json_copy);
         set_error("JSON 解析失败：缺少必要字段");
         return false;
     }
@@ -1983,18 +1983,18 @@ bool preset_deserialize(const uint8_t *data,
     meta.version_minor = 0;
     meta.version_patch = 0;
 
-    lv00_free((void **)&cat_str);
-    lv00_free((void **)&complexity_str);
-    lv00_free((void **)&json_copy);
+    lv_free((void **)&cat_str);
+    lv_free((void **)&complexity_str);
+    lv_free((void **)&json_copy);
 
     /* 注册到库中 */
     bool success = preset_register_custom(&meta, NULL, out_entry);
 
-    /* 注意：preset_register_custom 会通过 lv00_strdup 深拷贝 name/desc/math_def，
+    /* 注意：preset_register_custom 会通过 lv_strdup 深拷贝 name/desc/math_def，
      * 因此可以安全释放临时分配的字符串 */
-    lv00_free((void **)&name);
-    lv00_free((void **)&desc);
-    lv00_free((void **)&math_def);
+    lv_free((void **)&name);
+    lv_free((void **)&desc);
+    lv_free((void **)&math_def);
 
     if (!success) {
         return false;
@@ -2046,7 +2046,7 @@ bool preset_export_to_file(const char *name, const char *filepath)
     /* 写入文件 */
     FILE *fp = fopen(filepath, "w");
     if (!fp) {
-        lv00_free((void **)&data);
+        lv_free((void **)&data);
         set_error("无法打开文件 '%s' 进行写入", filepath);
         return false;
     }
@@ -2054,7 +2054,7 @@ bool preset_export_to_file(const char *name, const char *filepath)
     size_t written = fwrite(data, 1, size, fp);
     fclose(fp);
 
-    lv00_free((void **)&data);
+    lv_free((void **)&data);
 
     if (written != size) {
         set_error("文件写入不完整：期望 %zu 字节，实际写入 %zu 字节",
@@ -2075,7 +2075,7 @@ error:
  * 读取 JSON 格式的文件并反序列化为预设条目。
  *
  * @param filepath 文件路径
- * @param out_name 输出预设名称（可选，调用者需使用 lv00_free 释放）
+ * @param out_name 输出预设名称（可选，调用者需使用 lv_free 释放）
  * @return true 成功
  * @return false 失败
  */
@@ -2102,7 +2102,7 @@ bool preset_import_from_file(const char *filepath, char **out_name)
     }
 
     /* 读取文件内容 */
-    uint8_t *data = (uint8_t *)lv00_malloc((size_t)file_size + 1);
+    uint8_t *data = (uint8_t *)lv_malloc((size_t)file_size + 1);
     if (!data) {
         fclose(fp);
         set_error("内存分配失败");
@@ -2113,7 +2113,7 @@ bool preset_import_from_file(const char *filepath, char **out_name)
     fclose(fp);
 
     if (read_size != (size_t)file_size) {
-        lv00_free((void **)&data);
+        lv_free((void **)&data);
         set_error("文件读取不完整");
         return false;
     }
@@ -2123,7 +2123,7 @@ bool preset_import_from_file(const char *filepath, char **out_name)
     PresetEntryHandle entry = NULL;
     bool ok = preset_deserialize(data, (size_t)file_size, &entry);
 
-    lv00_free((void **)&data);
+    lv_free((void **)&data);
 
     if (!ok || !entry) {
         return false;
@@ -2132,7 +2132,7 @@ bool preset_import_from_file(const char *filepath, char **out_name)
     /* 获取导入的预设名称 */
     const PresetMetadata *meta = preset_get_metadata(entry);
     if (meta && out_name) {
-        *out_name = lv00_strdup_safe(meta->name);
+        *out_name = lv_strdup_safe(meta->name);
     }
 
     preset_release(entry);
@@ -2223,7 +2223,7 @@ static void set_error(const char *fmt, ...)
     va_end(args);
     
     /* 同步到统一错误系统 */
-    lv00_set_error(LV00_ERROR_INVALID_PARAM, "%s", g_library.last_error);
+    lv_set_error(lv_ERROR_INVALID_PARAM, "%s", g_library.last_error);
     
     /* 调用错误回调 */
     if (g_library.error_callback != NULL) {
@@ -2235,7 +2235,7 @@ static void set_error(const char *fmt, ...)
 static void clear_error(void)
 {
     g_library.last_error[0] = '\0';
-    lv00_clear_error();
+    lv_clear_error();
 }
 
 /* ============================================================
@@ -2362,46 +2362,46 @@ static void free_entry(InternalPresetEntry *entry)
     /* 注意：metadata 字段可能为 const 限定，需要通过非 const 中间变量释放 */
     if (entry->metadata.input_params != NULL) {
         void *tmp = (void *)entry->metadata.input_params;
-        lv00_free(&tmp);
+        lv_free(&tmp);
         entry->metadata.input_params = NULL;
     }
     if (entry->metadata.output_params != NULL) {
         void *tmp = (void *)entry->metadata.output_params;
-        lv00_free(&tmp);
+        lv_free(&tmp);
         entry->metadata.output_params = NULL;
     }
     if (entry->metadata.preconditions != NULL) {
         for (int i = 0; i < entry->metadata.precondition_count; i++) {
             void *tmp = (void *)entry->metadata.preconditions[i];
-            lv00_free(&tmp);
+            lv_free(&tmp);
         }
         void *tmp = (void *)entry->metadata.preconditions;
-        lv00_free(&tmp);
+        lv_free(&tmp);
         entry->metadata.preconditions = NULL;
     }
     if (entry->metadata.postconditions != NULL) {
         for (int i = 0; i < entry->metadata.postcondition_count; i++) {
             void *tmp = (void *)entry->metadata.postconditions[i];
-            lv00_free(&tmp);
+            lv_free(&tmp);
         }
         void *tmp = (void *)entry->metadata.postconditions;
-        lv00_free(&tmp);
+        lv_free(&tmp);
         entry->metadata.postconditions = NULL;
     }
     if (entry->metadata.related_presets != NULL) {
         for (int i = 0; i < entry->metadata.related_count; i++) {
             void *tmp = (void *)entry->metadata.related_presets[i];
-            lv00_free(&tmp);
+            lv_free(&tmp);
         }
         void *tmp = (void *)entry->metadata.related_presets;
-        lv00_free(&tmp);
+        lv_free(&tmp);
         entry->metadata.related_presets = NULL;
     }
 
     /* 释放条目本身 */
     {
         void *tmp = entry;
-        lv00_free(&tmp);
+        lv_free(&tmp);
     }
 }
 
@@ -2421,7 +2421,7 @@ bool preset_library_init(void)
     
     /* 初始化哈希表 */
     g_library.hash_table_size = 256;
-    g_library.hash_table = (InternalPresetEntry**)lv00_calloc(
+    g_library.hash_table = (InternalPresetEntry**)lv_calloc(
         g_library.hash_table_size, sizeof(InternalPresetEntry*));
     
     if (g_library.hash_table == NULL) {
@@ -2463,10 +2463,10 @@ bool preset_library_shutdown(void)
         }
     }
     
-    /* 释放哈希表（使用正确的双重指针方式调用 lv00_free） */
+    /* 释放哈希表（使用正确的双重指针方式调用 lv_free） */
     {
         void *tmp = g_library.hash_table;
-        lv00_free(&tmp);
+        lv_free(&tmp);
     }
     g_library.hash_table = NULL;
     g_library.hash_table_size = 0;
@@ -2620,7 +2620,7 @@ bool preset_register_custom(const PresetMetadata *metadata,
     }
     
     /* 创建新条目 */
-    InternalPresetEntry *entry = (InternalPresetEntry*)lv00_malloc(
+    InternalPresetEntry *entry = (InternalPresetEntry*)lv_malloc(
         sizeof(InternalPresetEntry));
     if (entry == NULL) {
         unlock_library();
@@ -2632,11 +2632,11 @@ bool preset_register_custom(const PresetMetadata *metadata,
     
     /* 复制元数据 */
     memcpy(&entry->metadata, metadata, sizeof(PresetMetadata));
-    entry->metadata.name = lv00_strdup(metadata->name);
+    entry->metadata.name = lv_strdup(metadata->name);
     entry->metadata.description = metadata->description ? 
-        lv00_strdup(metadata->description) : NULL;
+        lv_strdup(metadata->description) : NULL;
     entry->metadata.mathematical_def = metadata->mathematical_def ? 
-        lv00_strdup(metadata->mathematical_def) : NULL;
+        lv_strdup(metadata->mathematical_def) : NULL;
     
     /* 分配ID */
     entry->id = PRESET_ATOMIC_INC(g_library.next_id);
@@ -2837,7 +2837,7 @@ bool preset_is_builtin(const char *name)
 
 const char* preset_get_last_error(void)
 {
-    return lv00_get_last_error_message();
+    return lv_get_last_error_message();
 }
 
 void preset_clear_error(void)

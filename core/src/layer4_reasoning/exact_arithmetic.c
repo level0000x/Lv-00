@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file exact_arithmetic.c
  * @brief 精确算术基础设施实现 —— 时间戳、安全幂运算
  *
@@ -40,8 +40,8 @@ static BOOL CALLBACK qpc_init_callback(PINIT_ONCE init_once, PVOID param, PVOID 
 }
 #endif
 
-Lv00Timestamp lv00_timestamp_now(void) {
-    Lv00Timestamp ts;
+lvTimestamp lv_timestamp_now(void) {
+    lvTimestamp ts;
     ts.seconds = 0;
     ts.nanoseconds = 0;
 
@@ -96,7 +96,7 @@ Lv00Timestamp lv00_timestamp_now(void) {
 /**
  * @brief 安全乘法 —— a * b，检测溢出
  */
-bool lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
+bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
     if (!out) return false;
     if (a == 0 || b == 0) { *out = 0; return true; }
     /* 检查是否会溢出: |a * b| > INT64_MAX */
@@ -123,7 +123,7 @@ bool lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
  * @param result 输出 a^b
  * @return true 成功，false 溢出或 b < 0
  */
-bool lv00_safe_pow(int64_t a, int64_t b, int64_t *result) {
+bool lv_safe_pow(int64_t a, int64_t b, int64_t *result) {
     if (!result)
         return false;
     if (b < 0)
@@ -141,13 +141,13 @@ bool lv00_safe_pow(int64_t a, int64_t b, int64_t *result) {
     while (exp > 0) {
         if (exp & 1) {
             /* res *= base */
-            if (!lv00_safe_mul_impl(res, base, &res))
+            if (!lv_safe_mul_impl(res, base, &res))
                 return false;
         }
         exp >>= 1;
         if (exp > 0) {
             /* base *= base */
-            if (!lv00_safe_mul_impl(base, base, &base))
+            if (!lv_safe_mul_impl(base, base, &base))
                 return false;
         }
     }
@@ -168,7 +168,7 @@ bool lv00_safe_pow(int64_t a, int64_t b, int64_t *result) {
  * @param out 输出：a + b 的结果
  * @return true 成功（无溢出），false 溢出或 out 为 NULL
  */
-bool lv00_safe_add_check_impl(int64_t a, int64_t b, int64_t *out) {
+bool lv_safe_add_check_impl(int64_t a, int64_t b, int64_t *out) {
     if (!out) return false;
 
     /* 溢出条件检测：
@@ -193,7 +193,7 @@ bool lv00_safe_add_check_impl(int64_t a, int64_t b, int64_t *out) {
  * @param out 输出：a - b 的结果
  * @return true 成功（无溢出），false 溢出或 out 为 NULL
  */
-bool lv00_safe_sub_impl(int64_t a, int64_t b, int64_t *out) {
+bool lv_safe_sub_impl(int64_t a, int64_t b, int64_t *out) {
     if (!out) return false;
 
     /* 溢出条件检测：

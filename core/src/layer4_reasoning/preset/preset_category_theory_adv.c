@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_category_theory_adv.c
  * @brief 范畴论进阶预设函数块 - 实现
  *
@@ -11,8 +11,8 @@
 
 #include "preset_category_theory_adv.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 

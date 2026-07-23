@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file quadratic.c
  * @brief Quadratic 二次根式类型
  *
@@ -7,17 +7,17 @@
  * @version 3.3.0
  */
 
-#include "lv00/symbolic_coord.h"
+#include "lv/symbolic_coord.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
 
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
@@ -68,7 +68,7 @@ static void transcendental_expr_destroy(TranscendentalExpr *expr) {
         return;
     if (expr->rational_operand)
         rational_destroy(expr->rational_operand);
-    lv00_free((void **) &expr);
+    lv_free((void **) &expr);
 }
 
 /* ── Quadratic type ── */
@@ -92,7 +92,7 @@ Quadratic *quadratic_create(Rational *a, Rational *b, unsigned int n) {
     if (!a)
         return NULL;
 
-    Quadratic *q = lv00_malloc(sizeof(Quadratic));
+    Quadratic *q = lv_malloc(sizeof(Quadratic));
     if (!q)
         return NULL;
 
@@ -120,7 +120,7 @@ void quadratic_destroy(Quadratic *q) {
     if (q) {
         rational_destroy(q->a);
         rational_destroy(q->b);
-        lv00_free((void**)&q);  /* lv00_malloc分配 */
+        lv_free((void**)&q);  /* lv_malloc分配 */
     }
 }
 
@@ -152,9 +152,9 @@ int quadratic_compare(const Quadratic *a, const Quadratic *b) {
     double a_val = rational_to_double(a->a) + rational_to_double(a->b) * sqrt((double) a->n);
     double b_val = rational_to_double(b->a) + rational_to_double(b->b) * sqrt((double) b->n);
 
-    if (a_val < b_val - LV00_EPSILON_NUMERIC_COMPARE)
+    if (a_val < b_val - lv_EPSILON_NUMERIC_COMPARE)
         return -1;
-    if (a_val > b_val + LV00_EPSILON_NUMERIC_COMPARE)
+    if (a_val > b_val + lv_EPSILON_NUMERIC_COMPARE)
         return 1;
     return 0;
 }
@@ -339,20 +339,20 @@ char *quadratic_serialize(const Quadratic *q) {
     char *a_str = rational_serialize(q->a);
     char *b_str = rational_serialize(q->b);
     if (!a_str || !b_str) {
-        lv00_free((void**)&a_str); /* lv00_malloc分配 */
-        lv00_free((void**)&b_str); /* lv00_malloc分配 */
+        lv_free((void**)&a_str); /* lv_malloc分配 */
+        lv_free((void**)&b_str); /* lv_malloc分配 */
         return NULL;
     }
     size_t len = strlen(a_str) + strlen(b_str) + 32;
-    char *result = lv00_malloc(len);
+    char *result = lv_malloc(len);
     if (!result) {
-        lv00_free((void**)&a_str); /* lv00_malloc分配 */
-        lv00_free((void**)&b_str); /* lv00_malloc分配 */
+        lv_free((void**)&a_str); /* lv_malloc分配 */
+        lv_free((void**)&b_str); /* lv_malloc分配 */
         return NULL;
     }
     snprintf(result, len, "%s + %s*sqrt(%u)", a_str, b_str, q->n);
-    lv00_free((void**)&a_str); /* lv00_malloc分配 */
-    lv00_free((void**)&b_str); /* lv00_malloc分配 */
+    lv_free((void**)&a_str); /* lv_malloc分配 */
+    lv_free((void**)&b_str); /* lv_malloc分配 */
     return result;
 }
 
@@ -369,7 +369,7 @@ static void q_transcendental_destroy(Transcendental *t) {
     if (t->expr)
         transcendental_expr_destroy(t->expr);
     /* t->name 是 char[64] 固定数组，无需单独释放 */
-    lv00_free((void **) &t);
+    lv_free((void **) &t);
 }
 
 /**

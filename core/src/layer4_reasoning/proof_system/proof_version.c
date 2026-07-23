@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_version.c
  * @brief Implementation of the proof version control system.
  *
@@ -7,7 +7,7 @@
  *          is stored in a directory with the following structure:
  *
  *            <repo_path>/
- *              .lv00_repo/
+ *              .lv_repo/
  *                HEAD              - current commit OID
  *                commits/
  *                  <oid>           - commit metadata (JSON-like text)
@@ -34,11 +34,11 @@
 #ifdef _WIN32
 #include <direct.h>
 #include <windows.h>
-#define LV00_MKDIR(path) _mkdir(path)
+#define lv_MKDIR(path) _mkdir(path)
 #else
 #include <sys/stat.h>
 #include <sys/types.h>
-#define LV00_MKDIR(path) mkdir(path, 0755)
+#define lv_MKDIR(path) mkdir(path, 0755)
 #endif
 
 /* ============================================================
@@ -279,10 +279,10 @@ static bool build_path(const char *dir, const char *file, char *out, size_t out_
 }
 
 /**
- * @brief Build the .lv00_repo directory path.
+ * @brief Build the .lv_repo directory path.
  */
 static void repo_dir_path(const char *repo_path, char *out, size_t out_size) {
-    build_path(repo_path, ".lv00_repo", out, out_size);
+    build_path(repo_path, ".lv_repo", out, out_size);
 }
 
 /**
@@ -293,16 +293,16 @@ static bool create_repo_dirs(const char *repo_path) {
     char path[1024];
 
     repo_dir_path(repo_path, repo_dir, sizeof(repo_dir));
-    LV00_MKDIR(repo_dir);
+    lv_MKDIR(repo_dir);
 
     build_path(repo_dir, "commits", path, sizeof(path));
-    LV00_MKDIR(path);
+    lv_MKDIR(path);
 
     build_path(repo_dir, "objects", path, sizeof(path));
-    LV00_MKDIR(path);
+    lv_MKDIR(path);
 
     build_path(repo_dir, "branches", path, sizeof(path));
-    LV00_MKDIR(path);
+    lv_MKDIR(path);
 
     return true;
 }
@@ -364,8 +364,8 @@ static void compute_commit_oid(const char *message, const char *parent_oid,
 
     char *buf = (char *)malloc(total);
     if (!buf) {
-        memset(oid_out, '0', LV00_OID_LENGTH - 1);
-        oid_out[LV00_OID_LENGTH - 1] = '\0';
+        memset(oid_out, '0', lv_OID_LENGTH - 1);
+        oid_out[lv_OID_LENGTH - 1] = '\0';
         return;
     }
 
@@ -388,14 +388,14 @@ static void compute_commit_oid(const char *message, const char *parent_oid,
     memcpy(buf + pos, &timestamp, sizeof(int64_t));
     pos += sizeof(int64_t);
 
-    compute_sha256_hex(buf, pos, oid_out, LV00_OID_LENGTH);
+    compute_sha256_hex(buf, pos, oid_out, lv_OID_LENGTH);
     free(buf);
 }
 
 /**
  * @brief Write commit metadata to a file.
  */
-static bool write_commit_file(const char *repo_path, const Lv00ProofCommit *commit) {
+static bool write_commit_file(const char *repo_path, const lvProofCommit *commit) {
     char dir[1024], tmp[1024], path[1024];
 
     repo_dir_path(repo_path, dir, sizeof(dir));
@@ -417,20 +417,20 @@ static bool write_commit_file(const char *repo_path, const Lv00ProofCommit *comm
 /**
  * @brief Read commit metadata from a file.
  */
-static bool read_commit_file(const char *path, Lv00ProofCommit *commit) {
+static bool read_commit_file(const char *path, lvProofCommit *commit) {
     char *content = read_file(path);
     if (!content) return false;
 
-    memset(commit, 0, sizeof(Lv00ProofCommit));
+    memset(commit, 0, sizeof(lvProofCommit));
 
     char *line = strtok(content, "\n");
     while (line) {
         if (strncmp(line, "oid: ", 5) == 0) {
-            safe_strncpy(commit->oid, line + 5, LV00_OID_LENGTH);
+            safe_strncpy(commit->oid, line + 5, lv_OID_LENGTH);
         } else if (strncmp(line, "message: ", 9) == 0) {
-            safe_strncpy(commit->message, line + 9, LV00_COMMIT_MSG_MAX);
+            safe_strncpy(commit->message, line + 9, lv_COMMIT_MSG_MAX);
         } else if (strncmp(line, "parent: ", 8) == 0) {
-            safe_strncpy(commit->parent_oid, line + 8, LV00_OID_LENGTH);
+            safe_strncpy(commit->parent_oid, line + 8, lv_OID_LENGTH);
         } else if (strncmp(line, "timestamp: ", 11) == 0) {
             commit->timestamp = strtoll(line + 11, NULL, 10);
         }
@@ -461,10 +461,10 @@ static int64_t get_timestamp(void) {
  * API implementation: Repository lifecycle
  * ============================================================ */
 
-Lv00ProofRepo *proof_repo_init(const char *path) {
+lvProofRepo *proof_repo_init(const char *path) {
     if (!path) return NULL;
 
-    Lv00ProofRepo *repo = (Lv00ProofRepo *)calloc(1, sizeof(Lv00ProofRepo));
+    lvProofRepo *repo = (lvProofRepo *)calloc(1, sizeof(lvProofRepo));
     if (!repo) return NULL;
 
     strncpy(repo->path, path, sizeof(repo->path) - 1);
@@ -477,9 +477,9 @@ Lv00ProofRepo *proof_repo_init(const char *path) {
     }
 
     /* Create initial root commit */
-    Lv00ProofCommit root;
+    lvProofCommit root;
     memset(&root, 0, sizeof(root));
-    safe_strncpy(root.message, "Initial commit", LV00_COMMIT_MSG_MAX);
+    safe_strncpy(root.message, "Initial commit", lv_COMMIT_MSG_MAX);
     root.parent_oid[0] = '\0';
     root.timestamp = get_timestamp();
     compute_commit_oid(root.message, "", "", root.timestamp, root.oid);
@@ -490,7 +490,7 @@ Lv00ProofRepo *proof_repo_init(const char *path) {
     }
 
     /* Set HEAD to root commit */
-    safe_strncpy(repo->head_commit, root.oid, LV00_OID_LENGTH);
+    safe_strncpy(repo->head_commit, root.oid, lv_OID_LENGTH);
 
     /* Write HEAD file */
     char head_path[1024];
@@ -500,8 +500,8 @@ Lv00ProofRepo *proof_repo_init(const char *path) {
     write_file(head_path, root.oid);
 
     /* Create default 'main' branch */
-    safe_strncpy(repo->branches[0], "main", LV00_BRANCH_NAME_MAX);
-    safe_strncpy(repo->branch_heads[0], root.oid, LV00_OID_LENGTH);
+    safe_strncpy(repo->branches[0], "main", lv_BRANCH_NAME_MAX);
+    safe_strncpy(repo->branch_heads[0], root.oid, lv_OID_LENGTH);
     repo->branch_count = 1;
 
     /* Write branch file */
@@ -513,10 +513,10 @@ Lv00ProofRepo *proof_repo_init(const char *path) {
     return repo;
 }
 
-Lv00ProofRepo *proof_repo_open(const char *path) {
+lvProofRepo *proof_repo_open(const char *path) {
     if (!path) return NULL;
 
-    Lv00ProofRepo *repo = (Lv00ProofRepo *)calloc(1, sizeof(Lv00ProofRepo));
+    lvProofRepo *repo = (lvProofRepo *)calloc(1, sizeof(lvProofRepo));
     if (!repo) return NULL;
 
     strncpy(repo->path, path, sizeof(repo->path) - 1);
@@ -535,7 +535,7 @@ Lv00ProofRepo *proof_repo_open(const char *path) {
     /* Strip trailing newline */
     size_t hlen = strlen(head);
     if (hlen > 0 && head[hlen - 1] == '\n') head[hlen - 1] = '\0';
-    safe_strncpy(repo->head_commit, head, LV00_OID_LENGTH);
+    safe_strncpy(repo->head_commit, head, lv_OID_LENGTH);
     free(head);
 
     /* Read branches */
@@ -544,12 +544,12 @@ Lv00ProofRepo *proof_repo_open(const char *path) {
 
     /* Scan branch files */
     repo->branch_count = 0;
-    for (int i = 0; i < LV00_MAX_BRANCHES && repo->branch_count < LV00_MAX_BRANCHES; i++) {
+    for (int i = 0; i < lv_MAX_BRANCHES && repo->branch_count < lv_MAX_BRANCHES; i++) {
         /* Try common branch names */
         const char *known_branches[] = {"main", "master", "develop", "feature", "test"};
         int num_known = 5;
 
-        for (int j = 0; j < num_known && repo->branch_count < LV00_MAX_BRANCHES; j++) {
+        for (int j = 0; j < num_known && repo->branch_count < lv_MAX_BRANCHES; j++) {
             /* Check if already loaded */
             bool already = false;
             for (int k = 0; k < repo->branch_count; k++) {
@@ -565,11 +565,11 @@ Lv00ProofRepo *proof_repo_open(const char *path) {
             char *content = read_file(bp);
             if (content) {
                 safe_strncpy(repo->branches[repo->branch_count], known_branches[j],
-                    LV00_BRANCH_NAME_MAX);
+                    lv_BRANCH_NAME_MAX);
                 size_t clen = strlen(content);
                 if (clen > 0 && content[clen - 1] == '\n') content[clen - 1] = '\0';
                 safe_strncpy(repo->branch_heads[repo->branch_count], content,
-                    LV00_OID_LENGTH);
+                    lv_OID_LENGTH);
                 free(content);
                 repo->branch_count++;
             }
@@ -586,7 +586,7 @@ Lv00ProofRepo *proof_repo_open(const char *path) {
     return repo;
 }
 
-void proof_repo_destroy(Lv00ProofRepo *repo) {
+void proof_repo_destroy(lvProofRepo *repo) {
     free(repo);
 }
 
@@ -594,14 +594,14 @@ void proof_repo_destroy(Lv00ProofRepo *repo) {
  * API implementation: Commits
  * ============================================================ */
 
-bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
+bool proof_repo_commit(lvProofRepo *repo, const char *message,
     const char **files, const char **contents, size_t file_count) {
     if (!repo || !message) return false;
 
     /* Compute file hashes and store objects */
-    char *hash_buf = (char *)malloc(file_count * (LV00_OID_LENGTH + 1));
+    char *hash_buf = (char *)malloc(file_count * (lv_OID_LENGTH + 1));
     if (!hash_buf) return false;
-    memset(hash_buf, 0, file_count * (LV00_OID_LENGTH + 1));
+    memset(hash_buf, 0, file_count * (lv_OID_LENGTH + 1));
 
     char dir[1024], obj_dir[1024], obj_path[1024];
     repo_dir_path(repo->path, dir, sizeof(dir));
@@ -611,8 +611,8 @@ bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
         if (!files[i] || !contents[i]) continue;
 
         /* Compute content hash */
-        char hash[LV00_OID_LENGTH];
-        compute_sha256_hex(contents[i], strlen(contents[i]), hash, LV00_OID_LENGTH);
+        char hash[lv_OID_LENGTH];
+        compute_sha256_hex(contents[i], strlen(contents[i]), hash, lv_OID_LENGTH);
 
         /* Store object */
         build_path(obj_dir, hash, obj_path, sizeof(obj_path));
@@ -622,17 +622,17 @@ bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
         if (i > 0) {
             /* hash_buf already has separator space from memset */
         }
-        strncat(hash_buf, hash, LV00_OID_LENGTH - 1);
+        strncat(hash_buf, hash, lv_OID_LENGTH - 1);
         if (i + 1 < file_count) {
-            strncat(hash_buf, " ", LV00_OID_LENGTH - 1 - strlen(hash_buf));
+            strncat(hash_buf, " ", lv_OID_LENGTH - 1 - strlen(hash_buf));
         }
     }
 
     /* Create commit */
-    Lv00ProofCommit commit;
+    lvProofCommit commit;
     memset(&commit, 0, sizeof(commit));
-    safe_strncpy(commit.message, message, LV00_COMMIT_MSG_MAX);
-    safe_strncpy(commit.parent_oid, repo->head_commit, LV00_OID_LENGTH);
+    safe_strncpy(commit.message, message, lv_COMMIT_MSG_MAX);
+    safe_strncpy(commit.parent_oid, repo->head_commit, lv_OID_LENGTH);
     commit.timestamp = get_timestamp();
     compute_commit_oid(message, repo->head_commit, hash_buf, commit.timestamp, commit.oid);
 
@@ -644,7 +644,7 @@ bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
     }
 
     /* Update HEAD */
-    safe_strncpy(repo->head_commit, commit.oid, LV00_OID_LENGTH);
+    safe_strncpy(repo->head_commit, commit.oid, lv_OID_LENGTH);
     char head_path[1024];
     build_path(dir, "HEAD", head_path, sizeof(head_path));
     write_file(head_path, commit.oid);
@@ -652,7 +652,7 @@ bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
     /* Update current branch head */
     for (int i = 0; i < repo->branch_count; i++) {
         if (strcmp(repo->branch_heads[i], commit.parent_oid) == 0) {
-            safe_strncpy(repo->branch_heads[i], commit.oid, LV00_OID_LENGTH);
+            safe_strncpy(repo->branch_heads[i], commit.oid, lv_OID_LENGTH);
             char branch_path[1024], branches_dir[1024];
             build_path(dir, "branches", branches_dir, sizeof(branches_dir));
             build_path(branches_dir, repo->branches[i], branch_path, sizeof(branch_path));
@@ -668,13 +668,13 @@ bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
  * API implementation: History
  * ============================================================ */
 
-size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_count) {
+size_t proof_repo_log(lvProofRepo *repo, lvProofCommit *commits, size_t max_count) {
     if (!repo || !commits || max_count == 0) return 0;
 
     size_t count = 0;
-    char current_oid[LV00_OID_LENGTH];
+    char current_oid[lv_OID_LENGTH];
     memset(current_oid, 0, sizeof(current_oid));
-    safe_strncpy(current_oid, repo->head_commit, LV00_OID_LENGTH);
+    safe_strncpy(current_oid, repo->head_commit, lv_OID_LENGTH);
 
     char dir[1024], commits_dir[1024], commit_path[1024];
     repo_dir_path(repo->path, dir, sizeof(dir));
@@ -688,7 +688,7 @@ size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_
         }
 
         /* Move to parent */
-        safe_strncpy(current_oid, commits[count].parent_oid, LV00_OID_LENGTH);
+        safe_strncpy(current_oid, commits[count].parent_oid, lv_OID_LENGTH);
         count++;
     }
 
@@ -699,8 +699,8 @@ size_t proof_repo_log(Lv00ProofRepo *repo, Lv00ProofCommit *commits, size_t max_
  * API implementation: Diff
  * ============================================================ */
 
-bool proof_repo_diff(Lv00ProofRepo *repo, const char *oid_a, const char *oid_b,
-    Lv00ProofDiff *diff) {
+bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b,
+    lvProofDiff *diff) {
     if (!repo || !diff) return false;
 
     diff->entries = NULL;
@@ -709,44 +709,44 @@ bool proof_repo_diff(Lv00ProofRepo *repo, const char *oid_a, const char *oid_b,
     /* For this simple implementation, diff between two commits
      * compares their stored file objects. Since commits reference
      * file hashes, we report the commit-level difference. */
-    char target_b[LV00_OID_LENGTH];
+    char target_b[lv_OID_LENGTH];
     memset(target_b, 0, sizeof(target_b));
     if (oid_b) {
-        safe_strncpy(target_b, oid_b, LV00_OID_LENGTH);
+        safe_strncpy(target_b, oid_b, lv_OID_LENGTH);
     } else {
-        safe_strncpy(target_b, repo->head_commit, LV00_OID_LENGTH);
+        safe_strncpy(target_b, repo->head_commit, lv_OID_LENGTH);
     }
 
     /* If oid_a is NULL, treat as empty tree (all files added) */
     if (!oid_a || oid_a[0] == '\0') {
-        diff->entries = (Lv00ProofDiffEntry *)calloc(1, sizeof(Lv00ProofDiffEntry));
+        diff->entries = (lvProofDiffEntry *)calloc(1, sizeof(lvProofDiffEntry));
         if (!diff->entries) return false;
 
         strncpy(diff->entries[0].path, "(root)", sizeof(diff->entries[0].path) - 1);
         diff->entries[0].path[sizeof(diff->entries[0].path) - 1] = '\0';
-        memset(diff->entries[0].old_hash, '0', LV00_OID_LENGTH - 1);
-        diff->entries[0].old_hash[LV00_OID_LENGTH - 1] = '\0';
-        safe_strncpy(diff->entries[0].new_hash, target_b, LV00_OID_LENGTH);
+        memset(diff->entries[0].old_hash, '0', lv_OID_LENGTH - 1);
+        diff->entries[0].old_hash[lv_OID_LENGTH - 1] = '\0';
+        safe_strncpy(diff->entries[0].new_hash, target_b, lv_OID_LENGTH);
         diff->entries[0].change_type = 0; /* added */
         diff->count = 1;
         return true;
     }
 
     /* Compare two commits */
-    diff->entries = (Lv00ProofDiffEntry *)calloc(1, sizeof(Lv00ProofDiffEntry));
+    diff->entries = (lvProofDiffEntry *)calloc(1, sizeof(lvProofDiffEntry));
     if (!diff->entries) return false;
 
     strncpy(diff->entries[0].path, "(commit)", sizeof(diff->entries[0].path) - 1);
     diff->entries[0].path[sizeof(diff->entries[0].path) - 1] = '\0';
-    safe_strncpy(diff->entries[0].old_hash, oid_a, LV00_OID_LENGTH);
-    safe_strncpy(diff->entries[0].new_hash, target_b, LV00_OID_LENGTH);
+    safe_strncpy(diff->entries[0].old_hash, oid_a, lv_OID_LENGTH);
+    safe_strncpy(diff->entries[0].new_hash, target_b, lv_OID_LENGTH);
     diff->entries[0].change_type = 1; /* modified */
     diff->count = 1;
 
     return true;
 }
 
-void proof_repo_diff_destroy(Lv00ProofDiff *diff) {
+void proof_repo_diff_destroy(lvProofDiff *diff) {
     if (!diff) return;
     free(diff->entries);
     diff->entries = NULL;
@@ -757,9 +757,9 @@ void proof_repo_diff_destroy(Lv00ProofDiff *diff) {
  * API implementation: Branches
  * ============================================================ */
 
-bool proof_repo_branch(Lv00ProofRepo *repo, const char *name) {
+bool proof_repo_branch(lvProofRepo *repo, const char *name) {
     if (!repo || !name) return false;
-    if (repo->branch_count >= LV00_MAX_BRANCHES) return false;
+    if (repo->branch_count >= lv_MAX_BRANCHES) return false;
 
     /* Check if branch already exists */
     for (int i = 0; i < repo->branch_count; i++) {
@@ -770,8 +770,8 @@ bool proof_repo_branch(Lv00ProofRepo *repo, const char *name) {
 
     /* Create new branch pointing at HEAD */
     int idx = repo->branch_count;
-    safe_strncpy(repo->branches[idx], name, LV00_BRANCH_NAME_MAX);
-    safe_strncpy(repo->branch_heads[idx], repo->head_commit, LV00_OID_LENGTH);
+    safe_strncpy(repo->branches[idx], name, lv_BRANCH_NAME_MAX);
+    safe_strncpy(repo->branch_heads[idx], repo->head_commit, lv_OID_LENGTH);
     repo->branch_count++;
 
     /* Write branch file */
@@ -784,14 +784,14 @@ bool proof_repo_branch(Lv00ProofRepo *repo, const char *name) {
     return true;
 }
 
-bool proof_repo_checkout(Lv00ProofRepo *repo, const char *name) {
+bool proof_repo_checkout(lvProofRepo *repo, const char *name) {
     if (!repo || !name) return false;
 
     /* Find branch */
     for (int i = 0; i < repo->branch_count; i++) {
         if (strcmp(repo->branches[i], name) == 0) {
             /* Update HEAD */
-            safe_strncpy(repo->head_commit, repo->branch_heads[i], LV00_OID_LENGTH);
+            safe_strncpy(repo->head_commit, repo->branch_heads[i], lv_OID_LENGTH);
 
             /* Write HEAD file */
             char dir[1024], head_path[1024];

@@ -1,4 +1,4 @@
-name: Python Bindings
+﻿name: Python Bindings
 
 on:
   push:
@@ -90,21 +90,21 @@ jobs:
     - name: Set library path (Ubuntu/macOS)
       if: runner.os != 'Windows'
       run: |
-        echo "LV00_LIBRARY_PATH=$PWD/build/liblv00.so" >> $GITHUB_ENV
+        echo "lv_LIBRARY_PATH=$PWD/build/liblv.so" >> $GITHUB_ENV
         if [ "${{ runner.os }}" == "macOS" ]; then
-          echo "LV00_LIBRARY_PATH=$PWD/build/liblv00.dylib" >> $GITHUB_ENV
+          echo "lv_LIBRARY_PATH=$PWD/build/liblv.dylib" >> $GITHUB_ENV
         fi
 
     - name: Set library path (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        echo "LV00_LIBRARY_PATH=$PWD/build/liblv00.dll" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "lv_LIBRARY_PATH=$PWD/build/liblv.dll" | Out-File -FilePath $env:GITHUB_ENV -Append
 
     - name: Run Python tests
       working-directory: module/python
       run: |
-        pytest tests/ -v --cov=lv00 --cov-report=xml
+        pytest tests/ -v --cov=lv --cov-report=xml
 
     - name: Run concurrent_monitor tests
       working-directory: module/concurrent_monitor

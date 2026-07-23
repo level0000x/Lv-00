@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_registry.c
  * @brief 预设函数块注册系统实现
  *
@@ -7,14 +7,14 @@
  * 代数运算、逻辑推导和分析六大类别。
  *
  * 内存管理：
- * - 使用 lv00_malloc / lv00_free / lv00_strdup 进行内存管理
- * - 使用 lv00_realloc 进行数组扩容
+ * - 使用 lv_malloc / lv_free / lv_strdup 进行内存管理
+ * - 使用 lv_realloc 进行数组扩容
  * - cleanup 时释放所有条目及其模板函数块
  */
 
 #include "func_block_registry.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -29,8 +29,8 @@
 /** 数组扩容增长因子 */
 #define REGISTRY_GROWTH_FACTOR 2
 
-/** 预设函数块 ID 起始偏移（引用 lv00_internal.h 中的统一定义） */
-#define PRESET_FB_ID_OFFSET LV00_PRESET_ID_OFFSET
+/** 预设函数块 ID 起始偏移（引用 lv_internal.h 中的统一定义） */
+#define PRESET_FB_ID_OFFSET lv_PRESET_ID_OFFSET
 
 /* ==================== 全局注册表 ==================== */
 
@@ -80,10 +80,10 @@ static bool ensure_registry_capacity(void)
     }
 
     PresetEntry *old_entries = g_registry.entries;
-    PresetEntry *new_entries = lv00_realloc(
+    PresetEntry *new_entries = lv_realloc(
         g_registry.entries, (size_t)new_capacity * sizeof(PresetEntry));
     if (!new_entries) {
-        /* 【修复】如果 lv00_realloc 在失败时可能释放了原内存（非标准行为），
+        /* 【修复】如果 lv_realloc 在失败时可能释放了原内存（非标准行为），
          *         重置 entries 指针防止后续误用野指针 */
         if (g_registry.entries != old_entries) {
             g_registry.entries = NULL;
@@ -107,8 +107,8 @@ static bool ensure_registry_capacity(void)
 static void free_preset_entry(PresetEntry *entry)
 {
     if (!entry) return;
-    lv00_free((void **)&entry->name);
-    lv00_free((void **)&entry->description);
+    lv_free((void **)&entry->name);
+    lv_free((void **)&entry->description);
     if (entry->template_fb) {
         func_block_destroy(entry->template_fb);
         entry->template_fb = NULL;
@@ -138,7 +138,7 @@ static FuncBlock *create_preset_template(int id, const char *name,
     if (!fb) return NULL;
 
     if (name) {
-        fb->name = lv00_strdup(name);
+        fb->name = lv_strdup(name);
         if (!fb->name) {
             func_block_destroy(fb);
             return NULL;
@@ -146,7 +146,7 @@ static FuncBlock *create_preset_template(int id, const char *name,
     }
 
     if (description) {
-        fb->description = lv00_strdup(description);
+        fb->description = lv_strdup(description);
         if (!fb->description) {
             func_block_destroy(fb);
             return NULL;
@@ -167,8 +167,8 @@ static FuncBlock *create_preset_template(int id, const char *name,
  * 当 deep_copy 为 true 时，对 fb 做深拷贝（调用者仍持有 fb 所有权）；
  * 当 deep_copy 为 false 时，直接接管 fb 的所有权（失败时由本函数释放）。
  *
- * @param name            预设名称（将被 lv00_strdup 复制）
- * @param description     描述（将被 lv00_strdup 复制，可为 NULL）
+ * @param name            预设名称（将被 lv_strdup 复制）
+ * @param description     描述（将被 lv_strdup 复制，可为 NULL）
  * @param category        类别
  * @param fb              模板函数块
  * @param deep_copy       true 表示深拷贝 fb，false 表示直接接管 fb 所有权
@@ -201,13 +201,13 @@ static bool add_preset_entry_ex(const char *name, const char *description,
     PresetEntry *entry = &g_registry.entries[g_registry.count];
 
     /* 复制名称 */
-    entry->name = lv00_strdup(name);
+    entry->name = lv_strdup(name);
     if (!entry->name) {
         goto fail;  /* 名称复制失败，清理并返回 */
     }
 
     /* 复制描述（description 为 NULL 是允许的） */
-    entry->description = description ? lv00_strdup(description) : NULL;
+    entry->description = description ? lv_strdup(description) : NULL;
 
     entry->category = category;
 
@@ -226,8 +226,8 @@ static bool add_preset_entry_ex(const char *name, const char *description,
 
 fail:
     /* 错误路径：释放本条目已分配的资源，避免内存泄漏 */
-    lv00_free((void **)&entry->name);
-    lv00_free((void **)&entry->description);
+    lv_free((void **)&entry->name);
+    lv_free((void **)&entry->description);
     entry->template_fb = NULL;
     entry->category    = PRESET_CATEGORY_CONSTRUCTION;
     return false;
@@ -451,7 +451,7 @@ void func_block_registry_cleanup(void)
     }
 
     /* 释放条目数组本身 */
-    lv00_free((void **)&g_registry.entries);
+    lv_free((void **)&g_registry.entries);
 
     /* 重置注册表状态 */
     g_registry.count       = 0;

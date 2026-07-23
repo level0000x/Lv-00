@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_topos_theory.c
  * @brief Topos Theory Axiom Package Test
  *
@@ -19,7 +19,7 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "test_helpers.h"
 
 int g_fail_count = 0;
@@ -276,7 +276,7 @@ static void test_content_hash(void) {
 
     printf("  Content hash: %.16s...%s\n", hash, hash + 56);
 
-    lv00_free((void **) &hash);
+    lv_free((void **) &hash);
     axiom_package_destroy(pkg);
 }
 

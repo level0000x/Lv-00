@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file exact_arithmetic.c
  * @brief 精确算术基础设施实现 —— 时间戳、安全幂运算
  *
@@ -45,8 +45,8 @@ static BOOL CALLBACK qpc_init_callback(PINIT_ONCE init_once, PVOID param, PVOID 
  *
  * @return 当前时间戳，包含秒和纳秒分量
  */
-Lv00Timestamp lv00_timestamp_now(void) {
-    Lv00Timestamp ts;
+lvTimestamp lv_timestamp_now(void) {
+    lvTimestamp ts;
     ts.seconds = 0;
     ts.nanoseconds = 0;
 
@@ -106,7 +106,7 @@ Lv00Timestamp lv00_timestamp_now(void) {
  * @param out 输出乘积（仅在无溢出时写入）
  * @return true 表示无溢出，false 表示溢出或参数无效
  */
-bool lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
+bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
     if (!out) return false;
     if (a == 0 || b == 0) { *out = 0; return true; }
     /* 检查是否会溢出: |a * b| > INT64_MAX */
@@ -133,7 +133,7 @@ bool lv00_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
  * @param result 输出 a^b
  * @return true 成功，false 溢出或 b < 0
  */
-bool lv00_safe_pow(int64_t a, int64_t b, int64_t *result) {
+bool lv_safe_pow(int64_t a, int64_t b, int64_t *result) {
     if (!result)
         return false;
     if (b < 0)
@@ -151,13 +151,13 @@ bool lv00_safe_pow(int64_t a, int64_t b, int64_t *result) {
     while (exp > 0) {
         if (exp & 1) {
             /* res *= base */
-            if (!lv00_safe_mul_impl(res, base, &res))
+            if (!lv_safe_mul_impl(res, base, &res))
                 return false;
         }
         exp >>= 1;
         if (exp > 0) {
             /* base *= base */
-            if (!lv00_safe_mul_impl(base, base, &base))
+            if (!lv_safe_mul_impl(base, base, &base))
                 return false;
         }
     }

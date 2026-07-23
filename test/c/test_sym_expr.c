@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_sym_expr.c
  * @brief Test suite for the symbolic expression module
  *
@@ -40,17 +40,17 @@ static int approx_eq(double a, double b, double eps) {
  * ============================================================ */
 
 static void test_create_const(void) {
-    Lv00SymExpr *expr = sym_expr_create_const(3.14);
+    lvSymExpr *expr = sym_expr_create_const(3.14);
     TEST_ASSERT_NOT_NULL(expr);
-    TEST_ASSERT_MSG(expr->kind == LV00_SYM_CONST, "kind should be SYM_CONST");
+    TEST_ASSERT_MSG(expr->kind == lv_SYM_CONST, "kind should be SYM_CONST");
     TEST_ASSERT_MSG(approx_eq(expr->value, 3.14, 1e-15), "value should be 3.14");
     sym_expr_destroy(expr);
 }
 
 static void test_create_const_zero(void) {
-    Lv00SymExpr *expr = sym_expr_create_const(0.0);
+    lvSymExpr *expr = sym_expr_create_const(0.0);
     TEST_ASSERT_NOT_NULL(expr);
-    TEST_ASSERT_MSG(expr->kind == LV00_SYM_CONST, "kind should be SYM_CONST");
+    TEST_ASSERT_MSG(expr->kind == lv_SYM_CONST, "kind should be SYM_CONST");
     TEST_ASSERT_MSG(expr->value == 0.0, "value should be 0.0");
     sym_expr_destroy(expr);
 }
@@ -60,15 +60,15 @@ static void test_create_const_zero(void) {
  * ============================================================ */
 
 static void test_create_var(void) {
-    Lv00SymExpr *expr = sym_expr_create_var("x");
+    lvSymExpr *expr = sym_expr_create_var("x");
     TEST_ASSERT_NOT_NULL(expr);
-    TEST_ASSERT_MSG(expr->kind == LV00_SYM_VAR, "kind should be SYM_VAR");
+    TEST_ASSERT_MSG(expr->kind == lv_SYM_VAR, "kind should be SYM_VAR");
     TEST_ASSERT_STR_EQ(expr->var_name, "x");
     sym_expr_destroy(expr);
 }
 
 static void test_create_var_null(void) {
-    Lv00SymExpr *expr = sym_expr_create_var(NULL);
+    lvSymExpr *expr = sym_expr_create_var(NULL);
     TEST_ASSERT_NULL(expr);
 }
 
@@ -77,11 +77,11 @@ static void test_create_var_null(void) {
  * ============================================================ */
 
 static void test_add(void) {
-    Lv00SymExpr *a = sym_expr_create_const(2.0);
-    Lv00SymExpr *b = sym_expr_create_const(3.0);
-    Lv00SymExpr *sum = sym_expr_create_binary(LV00_SYM_ADD, a, b);
+    lvSymExpr *a = sym_expr_create_const(2.0);
+    lvSymExpr *b = sym_expr_create_const(3.0);
+    lvSymExpr *sum = sym_expr_create_binary(lv_SYM_ADD, a, b);
     TEST_ASSERT_NOT_NULL(sum);
-    TEST_ASSERT_MSG(sum->kind == LV00_SYM_ADD, "kind should be SYM_ADD");
+    TEST_ASSERT_MSG(sum->kind == lv_SYM_ADD, "kind should be SYM_ADD");
     TEST_ASSERT_MSG(sum->child_count == 2, "should have 2 children");
 
     const char *names[] = {"x"};
@@ -93,9 +93,9 @@ static void test_add(void) {
 }
 
 static void test_mul(void) {
-    Lv00SymExpr *a = sym_expr_create_const(4.0);
-    Lv00SymExpr *b = sym_expr_create_const(5.0);
-    Lv00SymExpr *prod = sym_expr_create_binary(LV00_SYM_MUL, a, b);
+    lvSymExpr *a = sym_expr_create_const(4.0);
+    lvSymExpr *b = sym_expr_create_const(5.0);
+    lvSymExpr *prod = sym_expr_create_binary(lv_SYM_MUL, a, b);
     TEST_ASSERT_NOT_NULL(prod);
 
     const char *names[] = {"x"};
@@ -107,9 +107,9 @@ static void test_mul(void) {
 }
 
 static void test_pow(void) {
-    Lv00SymExpr *base = sym_expr_create_const(2.0);
-    Lv00SymExpr *exp = sym_expr_create_const(10.0);
-    Lv00SymExpr *p = sym_expr_create_binary(LV00_SYM_POW, base, exp);
+    lvSymExpr *base = sym_expr_create_const(2.0);
+    lvSymExpr *exp = sym_expr_create_const(10.0);
+    lvSymExpr *p = sym_expr_create_binary(lv_SYM_POW, base, exp);
     TEST_ASSERT_NOT_NULL(p);
 
     const char *names[] = {"x"};
@@ -121,8 +121,8 @@ static void test_pow(void) {
 }
 
 static void test_unary_neg(void) {
-    Lv00SymExpr *a = sym_expr_create_const(7.0);
-    Lv00SymExpr *neg = sym_expr_create_unary(LV00_SYM_NEG, a);
+    lvSymExpr *a = sym_expr_create_const(7.0);
+    lvSymExpr *neg = sym_expr_create_unary(lv_SYM_NEG, a);
     TEST_ASSERT_NOT_NULL(neg);
 
     const char *names[] = {"x"};
@@ -134,8 +134,8 @@ static void test_unary_neg(void) {
 }
 
 static void test_unary_sin(void) {
-    Lv00SymExpr *a = sym_expr_create_const(0.0);
-    Lv00SymExpr *s = sym_expr_create_unary(LV00_SYM_SIN, a);
+    lvSymExpr *a = sym_expr_create_const(0.0);
+    lvSymExpr *s = sym_expr_create_unary(lv_SYM_SIN, a);
     TEST_ASSERT_NOT_NULL(s);
 
     const char *names[] = {"x"};
@@ -152,12 +152,12 @@ static void test_unary_sin(void) {
 
 static void test_simplify_const_add(void) {
     /* 2 + 3 -> 5 */
-    Lv00SymExpr *a = sym_expr_create_const(2.0);
-    Lv00SymExpr *b = sym_expr_create_const(3.0);
-    Lv00SymExpr *sum = sym_expr_create_binary(LV00_SYM_ADD, a, b);
-    Lv00SymExpr *s = sym_expr_simplify(sum);
+    lvSymExpr *a = sym_expr_create_const(2.0);
+    lvSymExpr *b = sym_expr_create_const(3.0);
+    lvSymExpr *sum = sym_expr_create_binary(lv_SYM_ADD, a, b);
+    lvSymExpr *s = sym_expr_simplify(sum);
     TEST_ASSERT_NOT_NULL(s);
-    TEST_ASSERT_MSG(s->kind == LV00_SYM_CONST, "simplified 2+3 should be const");
+    TEST_ASSERT_MSG(s->kind == lv_SYM_CONST, "simplified 2+3 should be const");
     TEST_ASSERT_MSG(approx_eq(s->value, 5.0, 1e-15), "simplified 2+3 should be 5");
     sym_expr_destroy(sum);
     sym_expr_destroy(s);
@@ -165,12 +165,12 @@ static void test_simplify_const_add(void) {
 
 static void test_simplify_add_zero(void) {
     /* x + 0 -> x */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *z = sym_expr_create_const(0.0);
-    Lv00SymExpr *sum = sym_expr_create_binary(LV00_SYM_ADD, x, z);
-    Lv00SymExpr *s = sym_expr_simplify(sum);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *z = sym_expr_create_const(0.0);
+    lvSymExpr *sum = sym_expr_create_binary(lv_SYM_ADD, x, z);
+    lvSymExpr *s = sym_expr_simplify(sum);
     TEST_ASSERT_NOT_NULL(s);
-    TEST_ASSERT_MSG(s->kind == LV00_SYM_VAR, "simplified x+0 should be var");
+    TEST_ASSERT_MSG(s->kind == lv_SYM_VAR, "simplified x+0 should be var");
     TEST_ASSERT_STR_EQ(s->var_name, "x");
     sym_expr_destroy(sum);
     sym_expr_destroy(s);
@@ -178,12 +178,12 @@ static void test_simplify_add_zero(void) {
 
 static void test_simplify_mul_zero(void) {
     /* x * 0 -> 0 */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *z = sym_expr_create_const(0.0);
-    Lv00SymExpr *prod = sym_expr_create_binary(LV00_SYM_MUL, x, z);
-    Lv00SymExpr *s = sym_expr_simplify(prod);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *z = sym_expr_create_const(0.0);
+    lvSymExpr *prod = sym_expr_create_binary(lv_SYM_MUL, x, z);
+    lvSymExpr *s = sym_expr_simplify(prod);
     TEST_ASSERT_NOT_NULL(s);
-    TEST_ASSERT_MSG(s->kind == LV00_SYM_CONST, "simplified x*0 should be const");
+    TEST_ASSERT_MSG(s->kind == lv_SYM_CONST, "simplified x*0 should be const");
     TEST_ASSERT_MSG(s->value == 0.0, "simplified x*0 should be 0");
     sym_expr_destroy(prod);
     sym_expr_destroy(s);
@@ -191,12 +191,12 @@ static void test_simplify_mul_zero(void) {
 
 static void test_simplify_mul_one(void) {
     /* x * 1 -> x */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *one = sym_expr_create_const(1.0);
-    Lv00SymExpr *prod = sym_expr_create_binary(LV00_SYM_MUL, x, one);
-    Lv00SymExpr *s = sym_expr_simplify(prod);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *one = sym_expr_create_const(1.0);
+    lvSymExpr *prod = sym_expr_create_binary(lv_SYM_MUL, x, one);
+    lvSymExpr *s = sym_expr_simplify(prod);
     TEST_ASSERT_NOT_NULL(s);
-    TEST_ASSERT_MSG(s->kind == LV00_SYM_VAR, "simplified x*1 should be var");
+    TEST_ASSERT_MSG(s->kind == lv_SYM_VAR, "simplified x*1 should be var");
     TEST_ASSERT_STR_EQ(s->var_name, "x");
     sym_expr_destroy(prod);
     sym_expr_destroy(s);
@@ -204,12 +204,12 @@ static void test_simplify_mul_one(void) {
 
 static void test_simplify_neg_neg(void) {
     /* -(-x) -> x */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *neg1 = sym_expr_create_unary(LV00_SYM_NEG, x);
-    Lv00SymExpr *neg2 = sym_expr_create_unary(LV00_SYM_NEG, neg1);
-    Lv00SymExpr *s = sym_expr_simplify(neg2);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *neg1 = sym_expr_create_unary(lv_SYM_NEG, x);
+    lvSymExpr *neg2 = sym_expr_create_unary(lv_SYM_NEG, neg1);
+    lvSymExpr *s = sym_expr_simplify(neg2);
     TEST_ASSERT_NOT_NULL(s);
-    TEST_ASSERT_MSG(s->kind == LV00_SYM_VAR, "simplified -(-x) should be var");
+    TEST_ASSERT_MSG(s->kind == lv_SYM_VAR, "simplified -(-x) should be var");
     TEST_ASSERT_STR_EQ(s->var_name, "x");
     sym_expr_destroy(neg2);
     sym_expr_destroy(s);
@@ -217,12 +217,12 @@ static void test_simplify_neg_neg(void) {
 
 static void test_simplify_pow_zero_exp(void) {
     /* x^0 -> 1 */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *z = sym_expr_create_const(0.0);
-    Lv00SymExpr *p = sym_expr_create_binary(LV00_SYM_POW, x, z);
-    Lv00SymExpr *s = sym_expr_simplify(p);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *z = sym_expr_create_const(0.0);
+    lvSymExpr *p = sym_expr_create_binary(lv_SYM_POW, x, z);
+    lvSymExpr *s = sym_expr_simplify(p);
     TEST_ASSERT_NOT_NULL(s);
-    TEST_ASSERT_MSG(s->kind == LV00_SYM_CONST, "simplified x^0 should be const");
+    TEST_ASSERT_MSG(s->kind == lv_SYM_CONST, "simplified x^0 should be const");
     TEST_ASSERT_MSG(approx_eq(s->value, 1.0, 1e-15), "simplified x^0 should be 1");
     sym_expr_destroy(p);
     sym_expr_destroy(s);
@@ -230,11 +230,11 @@ static void test_simplify_pow_zero_exp(void) {
 
 static void test_simplify_sin_const(void) {
     /* sin(0) -> 0 */
-    Lv00SymExpr *z = sym_expr_create_const(0.0);
-    Lv00SymExpr *s = sym_expr_create_unary(LV00_SYM_SIN, z);
-    Lv00SymExpr *simp = sym_expr_simplify(s);
+    lvSymExpr *z = sym_expr_create_const(0.0);
+    lvSymExpr *s = sym_expr_create_unary(lv_SYM_SIN, z);
+    lvSymExpr *simp = sym_expr_simplify(s);
     TEST_ASSERT_NOT_NULL(simp);
-    TEST_ASSERT_MSG(simp->kind == LV00_SYM_CONST, "simplified sin(0) should be const");
+    TEST_ASSERT_MSG(simp->kind == lv_SYM_CONST, "simplified sin(0) should be const");
     TEST_ASSERT_MSG(approx_eq(simp->value, 0.0, 1e-15), "simplified sin(0) should be 0");
     sym_expr_destroy(s);
     sym_expr_destroy(simp);
@@ -246,11 +246,11 @@ static void test_simplify_sin_const(void) {
 
 static void test_eval(void) {
     /* Build expression: 2*x + 3 */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *two = sym_expr_create_const(2.0);
-    Lv00SymExpr *mul = sym_expr_create_binary(LV00_SYM_MUL, two, x);
-    Lv00SymExpr *three = sym_expr_create_const(3.0);
-    Lv00SymExpr *expr = sym_expr_create_binary(LV00_SYM_ADD, mul, three);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *two = sym_expr_create_const(2.0);
+    lvSymExpr *mul = sym_expr_create_binary(lv_SYM_MUL, two, x);
+    lvSymExpr *three = sym_expr_create_const(3.0);
+    lvSymExpr *expr = sym_expr_create_binary(lv_SYM_ADD, mul, three);
 
     const char *names[] = {"x"};
     double vals[] = {5.0};
@@ -267,9 +267,9 @@ static void test_eval(void) {
 
 static void test_eval_missing_var(void) {
     /* Evaluate "x + 1" without providing x */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *one = sym_expr_create_const(1.0);
-    Lv00SymExpr *expr = sym_expr_create_binary(LV00_SYM_ADD, x, one);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *one = sym_expr_create_const(1.0);
+    lvSymExpr *expr = sym_expr_create_binary(lv_SYM_ADD, x, one);
 
     const char *names[] = {"y"};
     double vals[] = {1.0};
@@ -284,11 +284,11 @@ static void test_eval_missing_var(void) {
  * ============================================================ */
 
 static void test_to_string(void) {
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *two = sym_expr_create_const(2.0);
-    Lv00SymExpr *mul = sym_expr_create_binary(LV00_SYM_MUL, two, x);
-    Lv00SymExpr *three = sym_expr_create_const(3.0);
-    Lv00SymExpr *expr = sym_expr_create_binary(LV00_SYM_ADD, mul, three);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *two = sym_expr_create_const(2.0);
+    lvSymExpr *mul = sym_expr_create_binary(lv_SYM_MUL, two, x);
+    lvSymExpr *three = sym_expr_create_const(3.0);
+    lvSymExpr *expr = sym_expr_create_binary(lv_SYM_ADD, mul, three);
 
     char *s = sym_expr_to_string(expr);
     TEST_ASSERT_NOT_NULL(s);
@@ -307,10 +307,10 @@ static void test_to_string(void) {
 
 static void test_diff_const(void) {
     /* d/dx(5) = 0 */
-    Lv00SymExpr *c = sym_expr_create_const(5.0);
-    Lv00SymExpr *d = sym_expr_diff(c, "x");
+    lvSymExpr *c = sym_expr_create_const(5.0);
+    lvSymExpr *d = sym_expr_diff(c, "x");
     TEST_ASSERT_NOT_NULL(d);
-    TEST_ASSERT_MSG(d->kind == LV00_SYM_CONST, "d/dx(5) should be const");
+    TEST_ASSERT_MSG(d->kind == lv_SYM_CONST, "d/dx(5) should be const");
     TEST_ASSERT_MSG(approx_eq(d->value, 0.0, 1e-15), "d/dx(5) should be 0");
     sym_expr_destroy(c);
     sym_expr_destroy(d);
@@ -318,10 +318,10 @@ static void test_diff_const(void) {
 
 static void test_diff_var(void) {
     /* d/dx(x) = 1 */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *d = sym_expr_diff(x, "x");
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *d = sym_expr_diff(x, "x");
     TEST_ASSERT_NOT_NULL(d);
-    TEST_ASSERT_MSG(d->kind == LV00_SYM_CONST, "d/dx(x) should be const");
+    TEST_ASSERT_MSG(d->kind == lv_SYM_CONST, "d/dx(x) should be const");
     TEST_ASSERT_MSG(approx_eq(d->value, 1.0, 1e-15), "d/dx(x) should be 1");
     sym_expr_destroy(x);
     sym_expr_destroy(d);
@@ -329,10 +329,10 @@ static void test_diff_var(void) {
 
 static void test_diff_var_other(void) {
     /* d/dx(y) = 0 */
-    Lv00SymExpr *y = sym_expr_create_var("y");
-    Lv00SymExpr *d = sym_expr_diff(y, "x");
+    lvSymExpr *y = sym_expr_create_var("y");
+    lvSymExpr *d = sym_expr_diff(y, "x");
     TEST_ASSERT_NOT_NULL(d);
-    TEST_ASSERT_MSG(d->kind == LV00_SYM_CONST, "d/dx(y) should be const");
+    TEST_ASSERT_MSG(d->kind == lv_SYM_CONST, "d/dx(y) should be const");
     TEST_ASSERT_MSG(approx_eq(d->value, 0.0, 1e-15), "d/dx(y) should be 0");
     sym_expr_destroy(y);
     sym_expr_destroy(d);
@@ -340,10 +340,10 @@ static void test_diff_var_other(void) {
 
 static void test_diff_add(void) {
     /* d/dx(x + x) = 2 */
-    Lv00SymExpr *x1 = sym_expr_create_var("x");
-    Lv00SymExpr *x2 = sym_expr_create_var("x");
-    Lv00SymExpr *sum = sym_expr_create_binary(LV00_SYM_ADD, x1, x2);
-    Lv00SymExpr *d = sym_expr_diff(sum, "x");
+    lvSymExpr *x1 = sym_expr_create_var("x");
+    lvSymExpr *x2 = sym_expr_create_var("x");
+    lvSymExpr *sum = sym_expr_create_binary(lv_SYM_ADD, x1, x2);
+    lvSymExpr *d = sym_expr_diff(sum, "x");
     TEST_ASSERT_NOT_NULL(d);
 
     const char *names[] = {"x"};
@@ -357,10 +357,10 @@ static void test_diff_add(void) {
 
 static void test_diff_x_squared(void) {
     /* d/dx(x^2) = 2*x */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *two = sym_expr_create_const(2.0);
-    Lv00SymExpr *xsq = sym_expr_create_binary(LV00_SYM_POW, x, two);
-    Lv00SymExpr *d = sym_expr_diff(xsq, "x");
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *two = sym_expr_create_const(2.0);
+    lvSymExpr *xsq = sym_expr_create_binary(lv_SYM_POW, x, two);
+    lvSymExpr *d = sym_expr_diff(xsq, "x");
     TEST_ASSERT_NOT_NULL(d);
 
     /* Evaluate derivative at x=3: should be 2*3 = 6 */
@@ -375,9 +375,9 @@ static void test_diff_x_squared(void) {
 
 static void test_diff_sin(void) {
     /* d/dx(sin(x)) = cos(x) */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *sinx = sym_expr_create_unary(LV00_SYM_SIN, x);
-    Lv00SymExpr *d = sym_expr_diff(sinx, "x");
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *sinx = sym_expr_create_unary(lv_SYM_SIN, x);
+    lvSymExpr *d = sym_expr_diff(sinx, "x");
     TEST_ASSERT_NOT_NULL(d);
 
     /* Evaluate at x=0: cos(0) = 1 */
@@ -396,12 +396,12 @@ static void test_diff_sin(void) {
 
 static void test_substitute(void) {
     /* Substitute x=3 in expression x + 1, expect 4 */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *one = sym_expr_create_const(1.0);
-    Lv00SymExpr *expr = sym_expr_create_binary(LV00_SYM_ADD, x, one);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *one = sym_expr_create_const(1.0);
+    lvSymExpr *expr = sym_expr_create_binary(lv_SYM_ADD, x, one);
 
-    Lv00SymExpr *three = sym_expr_create_const(3.0);
-    Lv00SymExpr *sub = sym_expr_substitute(expr, "x", three);
+    lvSymExpr *three = sym_expr_create_const(3.0);
+    lvSymExpr *sub = sym_expr_substitute(expr, "x", three);
     TEST_ASSERT_NOT_NULL(sub);
 
     const char *names[] = {"x"};
@@ -416,12 +416,12 @@ static void test_substitute(void) {
 
 static void test_substitute_no_match(void) {
     /* Substitute y=5 in expression x + 1, should remain unchanged */
-    Lv00SymExpr *x = sym_expr_create_var("x");
-    Lv00SymExpr *one = sym_expr_create_const(1.0);
-    Lv00SymExpr *expr = sym_expr_create_binary(LV00_SYM_ADD, x, one);
+    lvSymExpr *x = sym_expr_create_var("x");
+    lvSymExpr *one = sym_expr_create_const(1.0);
+    lvSymExpr *expr = sym_expr_create_binary(lv_SYM_ADD, x, one);
 
-    Lv00SymExpr *five = sym_expr_create_const(5.0);
-    Lv00SymExpr *sub = sym_expr_substitute(expr, "y", five);
+    lvSymExpr *five = sym_expr_create_const(5.0);
+    lvSymExpr *sub = sym_expr_substitute(expr, "y", five);
     TEST_ASSERT_NOT_NULL(sub);
 
     const char *names[] = {"x"};

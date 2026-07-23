@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_navigator.c
  * @brief ProofNavigator 证明导航
  *
@@ -18,26 +18,26 @@
 #include <windows.h>
 #endif
 
-#include "lv00/proof.h"
-#include "lv00/proof_trace.h"
-#include "lv00/engine.h"
-#include "lv00/axiom_pkg.h"
-#include "lv00/constraint_graph.h"
+#include "lv/proof.h"
+#include "lv/proof_trace.h"
+#include "lv/engine.h"
+#include "lv/axiom_pkg.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
 
 /* 流式上下文声明 */
-LV00_DECLARE_STREAM_CTX(proof);
+lv_DECLARE_STREAM_CTX(proof);
 
 /* 证明树 API 占位（与 proof.c 保持一致） */
-#ifndef LV00_DEFAULT_MAX_STEPS
-#define LV00_DEFAULT_MAX_STEPS 10000
+#ifndef lv_DEFAULT_MAX_STEPS
+#define lv_DEFAULT_MAX_STEPS 10000
 #endif
 
-/* lv00_proof_tree_* 函数实现在 proof_tree.c 中，通过链接解析 */
+/* lv_proof_tree_* 函数实现在 proof_tree.c 中，通过链接解析 */
 
 /** 深拷贝约束图（用于证明句柄内部复制） */
 static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
@@ -46,7 +46,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
     char *json = graph_serialize_to_json(src);
     if (!json) return NULL;
     ConstraintGraph *copy = graph_deserialize_from_json(json);
-    lv00_free((void**)&json);
+    lv_free((void**)&json);
     return copy;
 }
 
@@ -112,7 +112,7 @@ ProofColor proof_navigator_compute_final_color(ProofNavigator *nav) {
  * @return 新分配的依赖节点指针，失败返回 NULL
  */
 ProofDependency *proof_dependency_create(ProofColor color) {
-    ProofDependency *dep = lv00_calloc(1, sizeof(ProofDependency));
+    ProofDependency *dep = lv_calloc(1, sizeof(ProofDependency));
     if (!dep)
         return NULL;
 
@@ -126,16 +126,16 @@ void proof_dependency_destroy(ProofDependency *dep) {
     if (!dep)
         return;
 
-    lv00_free((void **) &dep->content_hash);
-    lv00_free((void **) &dep->external_ref);
-    lv00_free((void **) &dep->numeric_declaration);
+    lv_free((void **) &dep->content_hash);
+    lv_free((void **) &dep->external_ref);
+    lv_free((void **) &dep->numeric_declaration);
 
     for (int i = 0; i < dep->sub_dep_count; i++) {
         proof_dependency_destroy(dep->sub_deps[i]);
     }
-    lv00_free((void **) &dep->sub_deps);
+    lv_free((void **) &dep->sub_deps);
 
-    lv00_free((void **) &dep);
+    lv_free((void **) &dep);
 }
 
 bool proof_dependency_add_sub(ProofDependency *parent, ProofDependency *child) {
@@ -143,7 +143,7 @@ bool proof_dependency_add_sub(ProofDependency *parent, ProofDependency *child) {
         return false;
 
     int new_count = parent->sub_dep_count + 1;
-    ProofDependency **new_arr = lv00_realloc(parent->sub_deps, (size_t) new_count * sizeof(ProofDependency *));
+    ProofDependency **new_arr = lv_realloc(parent->sub_deps, (size_t) new_count * sizeof(ProofDependency *));
     if (!new_arr)
         return false;
 
@@ -338,16 +338,16 @@ bool proof_apply_ex_falso(ProofNavigator *nav, ConstraintGraph *bottom_proof, Pr
  *
  * @param result  反证法结果（可为 NULL）
  */
-void lv00_contradiction_result_destroy(Lv00ContradictionResult *result) {
+void lv_contradiction_result_destroy(lvContradictionResult *result) {
     if (!result)
         return;
 
     if (result->proof_trace) {
-        lv00_proof_tree_destroy(result->proof_trace);
+        lv_proof_tree_destroy(result->proof_trace);
     }
-    lv00_free((void **) &result->contradiction_desc);
-    lv00_free((void **) &result->error_message);
-    lv00_free((void **) &result);
+    lv_free((void **) &result->contradiction_desc);
+    lv_free((void **) &result->error_message);
+    lv_free((void **) &result);
 }
 
 /**
@@ -372,7 +372,7 @@ void lv00_contradiction_result_destroy(Lv00ContradictionResult *result) {
  *    - 检查是否与已加载公理包中的不可构造问题冲突
  *
  * 5. 【结果记录】无论成功或失败，都将整个推导过程记录到
- *    Lv00ProofTree 中，以便：
+ *    lvProofTree 中，以便：
  *    - 成功时：生成人类可读的反证法证明
  *    - 失败时：帮助用户理解为何反证法不适用
  *
@@ -381,14 +381,14 @@ void lv00_contradiction_result_destroy(Lv00ContradictionResult *result) {
  * @param max_steps   最大正向推理步骤数
  * @return 反证法结果
  */
-Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const Proposition *goal_prop, int max_steps) {
+lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Proposition *goal_prop, int max_steps) {
     if (!nav || !goal_prop) {
         /* 参数无效：返回失败结果 */
-        Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
         if (result) {
             result->success = false;
             result->contradiction_step = -1;
-            result->error_message = lv00_strdup("无效参数：nav 或 goal_prop 为 NULL");
+            result->error_message = lv_strdup("无效参数：nav 或 goal_prop 为 NULL");
         }
         return result;
     }
@@ -398,17 +398,17 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_ADDED, "反证法证明开始", 0);
     }
 
-    int effective_max = max_steps > 0 ? max_steps : LV00_DEFAULT_MAX_STEPS;
+    int effective_max = max_steps > 0 ? max_steps : lv_DEFAULT_MAX_STEPS;
 
     /* ====== 阶段 1：创建隔离的证明环境 ====== */
     /* 深拷贝目标命题，避免修改原始数据 */
     Proposition *negated_goal = proposition_create(-1, PROPOSITION_TYPE_NEGATION);
     if (!negated_goal) {
-        Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
         if (result) {
             result->success = false;
             result->contradiction_step = -1;
-            result->error_message = lv00_strdup("内存分配失败：无法创建否定命题");
+            result->error_message = lv_strdup("内存分配失败：无法创建否定命题");
         }
         return result;
     }
@@ -418,19 +418,19 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
         char neg_name[256];
         const char *orig_name = goal_prop->name ? goal_prop->name : "(未命名命题)";
         snprintf(neg_name, sizeof(neg_name), "¬(%s)", orig_name);
-        negated_goal->name = lv00_strdup(neg_name);
+        negated_goal->name = lv_strdup(neg_name);
     }
-    negated_goal->description = lv00_strdup("反证法临时假设：目标命题的否定");
+    negated_goal->description = lv_strdup("反证法临时假设：目标命题的否定");
 
     /* 创建独立的证明导航器（隔离矛盾分支） */
     ProofNavigator *branch_nav = proof_navigator_create(negated_goal, nav->engine);
     if (!branch_nav) {
         proposition_destroy(negated_goal);
-        Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
         if (result) {
             result->success = false;
             result->contradiction_step = -1;
-            result->error_message = lv00_strdup("内存分配失败：无法创建分支证明导航器");
+            result->error_message = lv_strdup("内存分配失败：无法创建分支证明导航器");
         }
         return result;
     }
@@ -444,26 +444,26 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
     }
 
     /* ====== 阶段 2：创建证明追踪树 ====== */
-    Lv00ProofTree *trace_tree = lv00_proof_tree_create(
+    lvProofTree *trace_tree = lv_proof_tree_create(
         goal_prop->name ? goal_prop->name : "待证定理",
         "反证法（归谬法）");
 
     if (!trace_tree) {
         proof_navigator_destroy(branch_nav);
         proposition_destroy(negated_goal);
-        Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
         if (result) {
             result->success = false;
-            result->error_message = lv00_strdup("内存分配失败：无法创建证明追踪树");
+            result->error_message = lv_strdup("内存分配失败：无法创建证明追踪树");
         }
         return result;
     }
 
     /* 添加反证法假设步骤到追踪树 */
-    Lv00ProofTreeNode *assume_node = lv00_proof_tree_add_step(
+    lvProofTreeNode *assume_node = lv_proof_tree_add_step(
         trace_tree, NULL, "反证法假设", negated_goal->name ? negated_goal->name : "¬目标", -1);
     if (assume_node) {
-        lv00_proof_tree_mark_contradiction(assume_node);
+        lv_proof_tree_mark_contradiction(assume_node);
     }
 
     /* ====== 阶段 3：正向推理循环 ====== */
@@ -476,7 +476,7 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
     {
         ProofStep *init_step = proof_step_create(PROOF_STEP_ADD_NODE);
         if (init_step) {
-            init_step->note = lv00_strdup("反证法起始：假设目标命题的否定");
+            init_step->note = lv_strdup("反证法起始：假设目标命题的否定");
             /* 设置断点以便后续回溯 */
             init_step->is_breakpoint = true;
             if (!proof_navigator_add_step(branch_nav, init_step)) {
@@ -507,7 +507,7 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
 
         char step_label[64];
         snprintf(step_label, sizeof(step_label), "正向推理步骤 %d", i + 1);
-        fw_step->note = lv00_strdup(step_label);
+        fw_step->note = lv_strdup(step_label);
 
         /* 将步骤添加到分支导航器 */
         if (!proof_navigator_add_step(branch_nav, fw_step)) {
@@ -519,11 +519,11 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
         {
             char node_label[128];
             snprintf(node_label, sizeof(node_label), "从假设 ¬P 推导出中间结论（步骤 %d）", i + 1);
-            Lv00ProofTreeNode *fw_node = lv00_proof_tree_add_step(
+            lvProofTreeNode *fw_node = lv_proof_tree_add_step(
                 trace_tree, assume_node, "正向推理", node_label, fw_step->id);
             if (fw_node) {
-                lv00_proof_tree_mark_contradiction(fw_node);
-                lv00_proof_tree_add_premise(fw_node, 0,
+                lv_proof_tree_mark_contradiction(fw_node);
+                lv_proof_tree_add_premise(fw_node, 0,
                     negated_goal->name ? negated_goal->name : "¬P（反证法假设）", false);
             }
         }
@@ -535,8 +535,8 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
         /* 检查推导出的命题是否包含矛盾类型 */
         if (branch_nav->target_prop && branch_nav->target_prop->type == PROPOSITION_TYPE_BOTTOM) {
             has_contradiction = true;
-            lv00_free((void **) &contradiction_desc);
-            contradiction_desc = lv00_strdup("推导出矛盾 ⊥：假设 ¬P 导致矛盾，因此 P 成立");
+            lv_free((void **) &contradiction_desc);
+            contradiction_desc = lv_strdup("推导出矛盾 ⊥：假设 ¬P 导致矛盾，因此 P 成立");
         }
 
         /* 检查 2：颜色变化检测 —— 如果某步骤变为 ORANGE_EX_FALSO，
@@ -545,8 +545,8 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
             ProofStep *current = proof_navigator_current_step(branch_nav);
             if (current && current->color == PROOF_COLOR_ORANGE_EX_FALSO) {
                 has_contradiction = true;
-                lv00_free((void **) &contradiction_desc);
-                contradiction_desc = lv00_strdup("触发爆炸原理：从 ⊥ 可推出任意命题，表明原假设导致矛盾");
+                lv_free((void **) &contradiction_desc);
+                contradiction_desc = lv_strdup("触发爆炸原理：从 ⊥ 可推出任意命题，表明原假设导致矛盾");
             }
         }
 
@@ -557,8 +557,8 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
             if (final_color == PROOF_COLOR_ORANGE_EX_FALSO ||
                 final_color == PROOF_COLOR_DARK_ORANGE) {
                 has_contradiction = true;
-                lv00_free((void **) &contradiction_desc);
-                contradiction_desc = lv00_strdup("证明颜色变为橙色：存在不可构造性冲突，表明矛盾");
+                lv_free((void **) &contradiction_desc);
+                contradiction_desc = lv_strdup("证明颜色变为橙色：存在不可构造性冲突，表明矛盾");
             }
         }
 
@@ -570,10 +570,10 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
             {
                 char contra_label[128];
                 snprintf(contra_label, sizeof(contra_label), "矛盾! %s", contradiction_desc);
-                Lv00ProofTreeNode *contra_node = lv00_proof_tree_add_step(
+                lvProofTreeNode *contra_node = lv_proof_tree_add_step(
                     trace_tree, assume_node, "矛盾检测", contra_label, i);
                 if (contra_node) {
-                    lv00_proof_tree_mark_contradiction(contra_node);
+                    lv_proof_tree_mark_contradiction(contra_node);
                 }
             }
 
@@ -586,16 +586,16 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
     }
 
     /* ====== 阶段 4：组装结果 ====== */
-    Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+    lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
     if (!result) {
-        lv00_proof_tree_destroy(trace_tree);
+        lv_proof_tree_destroy(trace_tree);
         proof_navigator_destroy(branch_nav);
         proposition_destroy(negated_goal);
-        lv00_free((void **) &contradiction_desc);
-        Lv00ContradictionResult *err_result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        lv_free((void **) &contradiction_desc);
+        lvContradictionResult *err_result = lv_calloc(1, sizeof(lvContradictionResult));
         if (err_result) {
             err_result->success = false;
-            err_result->error_message = lv00_strdup("内存分配失败：无法创建反证法结果");
+            err_result->error_message = lv_strdup("内存分配失败：无法创建反证法结果");
         }
         return err_result;
     }
@@ -613,7 +613,7 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
         snprintf(err_buf, sizeof(err_buf),
                 "反证法失败：在 %d 步正向推理后未发现矛盾。假设 ¬P 未导出冲突。",
                 forward_step_count);
-        result->error_message = lv00_strdup(err_buf);
+        result->error_message = lv_strdup(err_buf);
     }
 
     /* ====== 清理 ====== */
@@ -1011,7 +1011,7 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
     (void)nav;
     (void)filepath;
     /* HTML 渲染已迁移至 UI 层（ui/L3-modules/P4-Proof/）。
-       内核通过 lv00_protocol.h 的 Lv00ProofNavigator 结构体提供数据。 */
+       内核通过 lv_protocol.h 的 lvProofNavigator 结构体提供数据。 */
     return false;
 }
 
@@ -1068,7 +1068,7 @@ bool proof_export_coq(ProofNavigator *nav, const char *filepath) {
     fprintf(f, "(* 自动生成的 Coq 证明代码 *)\n\n");
 
     /* 生成定理声明 */
-    fprintf(f, "Theorem lv00_proof : Prop :=\n");
+    fprintf(f, "Theorem lv_proof : Prop :=\n");
 
     for (int i = 0; i < nav->step_count; i++) {
         ProofStep *step = nav->steps[i];
@@ -1204,7 +1204,7 @@ void proof_declare_proposition_equivalence(ProofNavigator *nav, int prop_a_id, i
     /* 扩容 */
     if (nav->equivalence_count >= nav->equivalence_capacity) {
         int new_cap = nav->equivalence_capacity == 0 ? 8 : nav->equivalence_capacity * 2;
-        PropositionEquivalence *new_arr = lv00_realloc(nav->equivalences, new_cap * sizeof(PropositionEquivalence));
+        PropositionEquivalence *new_arr = lv_realloc(nav->equivalences, new_cap * sizeof(PropositionEquivalence));
         if (!new_arr)
             return;
         nav->equivalences = new_arr;
@@ -1254,7 +1254,7 @@ static void collect_dependencies(const ProofDependency *dep, int *dep_ids, char 
         return;
 
     dep_ids[*count] = dep->id;
-    dep_hashes[*count] = dep->content_hash ? lv00_strdup_safe(dep->content_hash) : NULL;
+    dep_hashes[*count] = dep->content_hash ? lv_strdup_safe(dep->content_hash) : NULL;
     (*count)++;
 
     for (int i = 0; i < dep->sub_dep_count; i++) {
@@ -1325,7 +1325,7 @@ int proof_validate_dependencies(ProofNavigator *nav, DependencyUpdateResult *res
 
     /* 释放临时哈希字符串 */
     for (int i = 0; i < dep_count; i++) {
-        lv00_free((void **) &dep_hashes[i]);
+        lv_free((void **) &dep_hashes[i]);
     }
 
     /* 重新计算最终颜色 */
@@ -1350,7 +1350,7 @@ void proof_set_bottom_definition(ProofNavigator *nav, const BottomDefinition *de
         return;
 
     if (!nav->bottom_def) {
-        nav->bottom_def = lv00_malloc(sizeof(BottomDefinition));
+        nav->bottom_def = lv_malloc(sizeof(BottomDefinition));
         if (!nav->bottom_def)
             return;
     }
@@ -1381,12 +1381,12 @@ void proof_set_lemma_view_state(ProofNavigator *nav, int step_id, LemmaViewState
     /* 扩容 */
     if (nav->lemma_view_count >= nav->lemma_view_capacity) {
         int new_cap = nav->lemma_view_capacity == 0 ? 16 : nav->lemma_view_capacity * 2;
-        int *new_ids = lv00_realloc(nav->lemma_view_step_ids, new_cap * sizeof(int));
+        int *new_ids = lv_realloc(nav->lemma_view_step_ids, new_cap * sizeof(int));
         if (!new_ids)
             return;
-        LemmaViewState *new_states = lv00_realloc(nav->lemma_view_states, new_cap * sizeof(LemmaViewState));
+        LemmaViewState *new_states = lv_realloc(nav->lemma_view_states, new_cap * sizeof(LemmaViewState));
         if (!new_states) {
-            lv00_free((void **) &new_ids);
+            lv_free((void **) &new_ids);
             return;
         }
         nav->lemma_view_step_ids = new_ids;
@@ -1569,7 +1569,7 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
     /* 先遍历一次计算祖先数量 */
     int capacity = 16;
     int count = 0;
-    int *ancestors = lv00_malloc((size_t)capacity * sizeof(int));
+    int *ancestors = lv_malloc((size_t)capacity * sizeof(int));
     if (!ancestors)
         return false;
 
@@ -1589,13 +1589,13 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
         /* 扩容 */
         if (count >= capacity) {
             if (capacity > INT_MAX / 2) {
-                lv00_free((void **)&ancestors);
+                lv_free((void **)&ancestors);
                 return false;
             }
             int new_cap = capacity * 2;
-            int *new_arr = lv00_realloc(ancestors, new_cap * sizeof(int));
+            int *new_arr = lv_realloc(ancestors, new_cap * sizeof(int));
             if (!new_arr) {
-                lv00_free((void **)&ancestors);
+                lv_free((void **)&ancestors);
                 return false;
             }
             ancestors = new_arr;
@@ -1871,7 +1871,7 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
     /* 深拷贝输入端口ID数组 */
     if (prop->input_count > 0 && prop->input_port_ids) {
-        inst->input_port_ids = lv00_malloc(prop->input_count * sizeof(int));
+        inst->input_port_ids = lv_malloc(prop->input_count * sizeof(int));
         if (!inst->input_port_ids) {
             proposition_destroy(inst);
             return NULL;
@@ -1882,7 +1882,7 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
     /* 深拷贝输出端口ID数组 */
     if (prop->output_count > 0 && prop->output_port_ids) {
-        inst->output_port_ids = lv00_malloc(prop->output_count * sizeof(int));
+        inst->output_port_ids = lv_malloc(prop->output_count * sizeof(int));
         if (!inst->output_port_ids) {
             proposition_destroy(inst);
             return NULL;
@@ -1893,7 +1893,7 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
     /* 深拷贝前置条件区域ID数组 */
     if (prop->precondition_count > 0 && prop->precondition_region_ids) {
-        inst->precondition_region_ids = lv00_malloc(prop->precondition_count * sizeof(int));
+        inst->precondition_region_ids = lv_malloc(prop->precondition_count * sizeof(int));
         if (!inst->precondition_region_ids) {
             proposition_destroy(inst);
             return NULL;
@@ -1904,7 +1904,7 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
     /* 深拷贝后置条件约束ID数组 */
     if (prop->postcondition_count > 0 && prop->postcondition_constraint_ids) {
-        inst->postcondition_constraint_ids = lv00_malloc(prop->postcondition_count * sizeof(int));
+        inst->postcondition_constraint_ids = lv_malloc(prop->postcondition_count * sizeof(int));
         if (!inst->postcondition_constraint_ids) {
             proposition_destroy(inst);
             return NULL;
@@ -1916,14 +1916,14 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
     /* 深拷贝元数据 */
     if (prop->name) {
-        inst->name = lv00_strdup_safe(prop->name);
+        inst->name = lv_strdup_safe(prop->name);
         if (!inst->name) {
             proposition_destroy(inst);
             return NULL;
         }
     }
     if (prop->description) {
-        inst->description = lv00_strdup_safe(prop->description);
+        inst->description = lv_strdup_safe(prop->description);
         if (!inst->description) {
             proposition_destroy(inst);
             return NULL;
@@ -2164,7 +2164,7 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
                     char report[512];
                     snprintf(report, sizeof(report), "构造匹配已知的不可构造问题 '%s'（来自公理包 '%s'）", ku->name,
                              pkg->name ? pkg->name : "未知");
-                    info->detailed_report = lv00_strdup(report);
+                    info->detailed_report = lv_strdup(report);
 
                     if (proof_stream_ctx) {
                         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "匹配已知不可构造问题", 1);
@@ -2187,7 +2187,7 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
 
             char report[256];
             snprintf(report, sizeof(report), "命题已被标记为矛盾类型（BOTTOM），表示不可构造");
-            info->detailed_report = lv00_strdup(report);
+            info->detailed_report = lv_strdup(report);
 
             return UNCONSTRUCT_PROVED;
         }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file reasoning_cache.c
  * @brief 推理结果缓存实现 —— 开放寻址哈希表 + 线性探测
  *
@@ -52,7 +52,7 @@ typedef struct {
 /**
  * @brief 推理结果缓存内部结构
  */
-struct Lv00ReasoningCache {
+struct lvReasoningCache {
     CacheSlot *slots;       /**< 哈希槽位数组 */
     size_t capacity;        /**< 槽位总数（2 的幂） */
     size_t size;            /**< 当前已占用槽位数 */
@@ -114,7 +114,7 @@ static size_t hash_index(uint64_t key, size_t capacity) {
  * @param out_index 输出：找到的槽位索引
  * @return true 找到，false 未找到
  */
-static bool cache_find_slot(const Lv00ReasoningCache *cache, uint64_t key, size_t *out_index) {
+static bool cache_find_slot(const lvReasoningCache *cache, uint64_t key, size_t *out_index) {
     size_t idx = hash_index(key, cache->capacity);
     size_t first_deleted = cache->capacity; /* 记录第一个已删除槽位，用于插入优化 */
     (void)first_deleted; /* 预留给未来插入优化使用 */
@@ -146,7 +146,7 @@ static bool cache_find_slot(const Lv00ReasoningCache *cache, uint64_t key, size_
  * @param cache 缓存
  * @return 最早插入的槽位索引
  */
-static size_t cache_find_oldest_slot(const Lv00ReasoningCache *cache) {
+static size_t cache_find_oldest_slot(const lvReasoningCache *cache) {
     size_t oldest_idx = 0;
     size_t oldest_order = cache->slots[0].insert_order;
 
@@ -165,7 +165,7 @@ static size_t cache_find_oldest_slot(const Lv00ReasoningCache *cache) {
 /**
  * @brief 检查缓存是否已达到最大负载
  */
-static bool cache_is_full(const Lv00ReasoningCache *cache) {
+static bool cache_is_full(const lvReasoningCache *cache) {
     return (cache->size * REASONING_CACHE_MAX_LOAD_DENOMINATOR) >=
            (cache->capacity * REASONING_CACHE_MAX_LOAD_NUMERATOR);
 }
@@ -174,8 +174,8 @@ static bool cache_is_full(const Lv00ReasoningCache *cache) {
  * 公开 API 实现
  * ================================================================ */
 
-Lv00ReasoningCache *lv00_reasoning_cache_create(size_t capacity) {
-    Lv00ReasoningCache *cache = (Lv00ReasoningCache *)calloc(1, sizeof(Lv00ReasoningCache));
+lvReasoningCache *lv_reasoning_cache_create(size_t capacity) {
+    lvReasoningCache *cache = (lvReasoningCache *)calloc(1, sizeof(lvReasoningCache));
     if (!cache) {
         return NULL;
     }
@@ -195,7 +195,7 @@ Lv00ReasoningCache *lv00_reasoning_cache_create(size_t capacity) {
     return cache;
 }
 
-static void lv00_reasoning_cache_destroy(Lv00ReasoningCache *cache) {
+static void lv_reasoning_cache_destroy(lvReasoningCache *cache) {
     if (!cache) {
         return;
     }
@@ -204,7 +204,7 @@ static void lv00_reasoning_cache_destroy(Lv00ReasoningCache *cache) {
     free(cache);
 }
 
-static bool lv00_reasoning_cache_has(Lv00ReasoningCache *cache, uint64_t key) {
+static bool lv_reasoning_cache_has(lvReasoningCache *cache, uint64_t key) {
     if (!cache) {
         return false;
     }
@@ -219,7 +219,7 @@ static bool lv00_reasoning_cache_has(Lv00ReasoningCache *cache, uint64_t key) {
     return found;
 }
 
-static void lv00_reasoning_cache_put(Lv00ReasoningCache *cache, uint64_t key, int result) {
+static void lv_reasoning_cache_put(lvReasoningCache *cache, uint64_t key, int result) {
     if (!cache) {
         return;
     }
@@ -261,7 +261,7 @@ static void lv00_reasoning_cache_put(Lv00ReasoningCache *cache, uint64_t key, in
     }
 }
 
-static int lv00_reasoning_cache_get(Lv00ReasoningCache *cache, uint64_t key) {
+static int lv_reasoning_cache_get(lvReasoningCache *cache, uint64_t key) {
     if (!cache) {
         return 0;
     }
@@ -281,7 +281,7 @@ static int lv00_reasoning_cache_get(Lv00ReasoningCache *cache, uint64_t key) {
     return 0;
 }
 
-static void lv00_reasoning_cache_clear(Lv00ReasoningCache *cache) {
+static void lv_reasoning_cache_clear(lvReasoningCache *cache) {
     if (!cache) {
         return;
     }
@@ -293,7 +293,7 @@ static void lv00_reasoning_cache_clear(Lv00ReasoningCache *cache) {
     cache->misses = 0;
 }
 
-static void lv00_reasoning_cache_get_stats(const Lv00ReasoningCache *cache,
+static void lv_reasoning_cache_get_stats(const lvReasoningCache *cache,
                                      size_t *hits, size_t *misses, size_t *size) {
     if (!cache) {
         if (hits) *hits = 0;

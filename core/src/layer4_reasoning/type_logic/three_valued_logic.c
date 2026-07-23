@@ -1,18 +1,18 @@
-/**
+﻿/**
  * @file three_valued_logic.c
  * @brief 三值逻辑系统实现（子目录版本）
  *
  * 实现 Kleene 强三值逻辑的完整运算，扩展 Lv-00 原有的
  * TRUE/FALSE 二值系统。支持三种真值：
- *   - LV00_TRUE   (0)：已证真
- *   - LV00_FALSE  (1)：已证伪
- *   - LV00_UNKNOWN (2)：未确定
+ *   - lv_TRUE   (0)：已证真
+ *   - lv_FALSE  (1)：已证伪
+ *   - lv_UNKNOWN (2)：未确定
  *
  * 提供基本逻辑运算（AND/OR/NOT/IMPLIES/EQUIV）、
  * 批量归约操作和字符串转换功能。
  */
 
-#include "lv00/three_valued_logic.h"
+#include "lv/three_valued_logic.h"
 
 #include <stddef.h>
 
@@ -28,10 +28,10 @@
  *   FALSE    | FALSE FALSE FALSE
  *   UNKNOWN  | UNKNOWN FALSE UNKNOWN
  */
-static const Lv00TruthValue tvl_and_table[3][3] = {
-    { LV00_TRUE,    LV00_FALSE, LV00_UNKNOWN },  /* TRUE  AND ... */
-    { LV00_FALSE,   LV00_FALSE, LV00_FALSE   },  /* FALSE AND ... */
-    { LV00_UNKNOWN, LV00_FALSE, LV00_UNKNOWN }   /* UNK   AND ... */
+static const lvTruthValue tvl_and_table[3][3] = {
+    { lv_TRUE,    lv_FALSE, lv_UNKNOWN },  /* TRUE  AND ... */
+    { lv_FALSE,   lv_FALSE, lv_FALSE   },  /* FALSE AND ... */
+    { lv_UNKNOWN, lv_FALSE, lv_UNKNOWN }   /* UNK   AND ... */
 };
 
 /**
@@ -42,10 +42,10 @@ static const Lv00TruthValue tvl_and_table[3][3] = {
  *   FALSE    | TRUE  FALSE UNKNOWN
  *   UNKNOWN  | TRUE  UNKNOWN UNKNOWN
  */
-static const Lv00TruthValue tvl_or_table[3][3] = {
-    { LV00_TRUE,  LV00_TRUE,    LV00_TRUE    },  /* TRUE  OR ... */
-    { LV00_TRUE,  LV00_FALSE,   LV00_UNKNOWN },  /* FALSE OR ... */
-    { LV00_TRUE,  LV00_UNKNOWN, LV00_UNKNOWN }   /* UNK   OR ... */
+static const lvTruthValue tvl_or_table[3][3] = {
+    { lv_TRUE,  lv_TRUE,    lv_TRUE    },  /* TRUE  OR ... */
+    { lv_TRUE,  lv_FALSE,   lv_UNKNOWN },  /* FALSE OR ... */
+    { lv_TRUE,  lv_UNKNOWN, lv_UNKNOWN }   /* UNK   OR ... */
 };
 
 /**
@@ -54,10 +54,10 @@ static const Lv00TruthValue tvl_or_table[3][3] = {
  *   NOT(FALSE)   = TRUE
  *   NOT(UNKNOWN) = UNKNOWN
  */
-static const Lv00TruthValue tvl_not_table[3] = {
-    LV00_FALSE,   /* NOT TRUE  = FALSE */
-    LV00_TRUE,    /* NOT FALSE = TRUE  */
-    LV00_UNKNOWN  /* NOT UNK   = UNK   */
+static const lvTruthValue tvl_not_table[3] = {
+    lv_FALSE,   /* NOT TRUE  = FALSE */
+    lv_TRUE,    /* NOT FALSE = TRUE  */
+    lv_UNKNOWN  /* NOT UNK   = UNK   */
 };
 
 /**
@@ -68,10 +68,10 @@ static const Lv00TruthValue tvl_not_table[3] = {
  *   FALSE    | TRUE  TRUE  TRUE
  *   UNKNOWN  | TRUE  UNKNOWN UNKNOWN
  */
-static const Lv00TruthValue tvl_implies_table[3][3] = {
-    { LV00_TRUE,    LV00_FALSE,   LV00_UNKNOWN },  /* TRUE  -> ... */
-    { LV00_TRUE,    LV00_TRUE,    LV00_TRUE    },  /* FALSE -> ... */
-    { LV00_TRUE,    LV00_UNKNOWN, LV00_UNKNOWN }   /* UNK   -> ... */
+static const lvTruthValue tvl_implies_table[3][3] = {
+    { lv_TRUE,    lv_FALSE,   lv_UNKNOWN },  /* TRUE  -> ... */
+    { lv_TRUE,    lv_TRUE,    lv_TRUE    },  /* FALSE -> ... */
+    { lv_TRUE,    lv_UNKNOWN, lv_UNKNOWN }   /* UNK   -> ... */
 };
 
 /* ================================================================
@@ -81,12 +81,12 @@ static const Lv00TruthValue tvl_implies_table[3][3] = {
 /**
  * @brief 验证真值是否合法 (0, 1, 2)
  */
-#define TVL_VALID(v) ((unsigned)(v) <= (unsigned)LV00_UNKNOWN)
+#define TVL_VALID(v) ((unsigned)(v) <= (unsigned)lv_UNKNOWN)
 
 /**
  * @brief 安全索引真值（非法值映射为 UNKNOWN）
  */
-#define TVL_IDX(v) (TVL_VALID(v) ? (int)(v) : (int)LV00_UNKNOWN)
+#define TVL_IDX(v) (TVL_VALID(v) ? (int)(v) : (int)lv_UNKNOWN)
 
 /* ================================================================
  *  基本逻辑运算
@@ -95,7 +95,7 @@ static const Lv00TruthValue tvl_implies_table[3][3] = {
 /**
  * @brief 三值与运算 AND
  */
-Lv00TruthValue lv00_tvl_and(Lv00TruthValue a, Lv00TruthValue b)
+lvTruthValue lv_tvl_and(lvTruthValue a, lvTruthValue b)
 {
     return tvl_and_table[TVL_IDX(a)][TVL_IDX(b)];
 }
@@ -103,7 +103,7 @@ Lv00TruthValue lv00_tvl_and(Lv00TruthValue a, Lv00TruthValue b)
 /**
  * @brief 三值或运算 OR
  */
-Lv00TruthValue lv00_tvl_or(Lv00TruthValue a, Lv00TruthValue b)
+lvTruthValue lv_tvl_or(lvTruthValue a, lvTruthValue b)
 {
     return tvl_or_table[TVL_IDX(a)][TVL_IDX(b)];
 }
@@ -111,7 +111,7 @@ Lv00TruthValue lv00_tvl_or(Lv00TruthValue a, Lv00TruthValue b)
 /**
  * @brief 三值非运算 NOT
  */
-Lv00TruthValue lv00_tvl_not(Lv00TruthValue v)
+lvTruthValue lv_tvl_not(lvTruthValue v)
 {
     return tvl_not_table[TVL_IDX(v)];
 }
@@ -119,7 +119,7 @@ Lv00TruthValue lv00_tvl_not(Lv00TruthValue v)
 /**
  * @brief 三值蕴涵运算 IMPLIES (A -> B)
  */
-Lv00TruthValue lv00_tvl_implies(Lv00TruthValue a, Lv00TruthValue b)
+lvTruthValue lv_tvl_implies(lvTruthValue a, lvTruthValue b)
 {
     return tvl_implies_table[TVL_IDX(a)][TVL_IDX(b)];
 }
@@ -129,11 +129,11 @@ Lv00TruthValue lv00_tvl_implies(Lv00TruthValue a, Lv00TruthValue b)
  *
  * 等价于 AND(IMPLIES(a, b), IMPLIES(b, a))
  */
-Lv00TruthValue lv00_tvl_equiv(Lv00TruthValue a, Lv00TruthValue b)
+lvTruthValue lv_tvl_equiv(lvTruthValue a, lvTruthValue b)
 {
-    Lv00TruthValue ab = lv00_tvl_implies(a, b);
-    Lv00TruthValue ba = lv00_tvl_implies(b, a);
-    return lv00_tvl_and(ab, ba);
+    lvTruthValue ab = lv_tvl_implies(a, b);
+    lvTruthValue ba = lv_tvl_implies(b, a);
+    return lv_tvl_and(ab, ba);
 }
 
 /* ================================================================
@@ -145,20 +145,20 @@ Lv00TruthValue lv00_tvl_equiv(Lv00TruthValue a, Lv00TruthValue b)
  *
  * 遇到 FALSE 立即返回 FALSE。
  */
-Lv00TruthValue lv00_tvl_and_all(const Lv00TruthValue *values, int count)
+lvTruthValue lv_tvl_and_all(const lvTruthValue *values, int count)
 {
-    Lv00TruthValue result;
+    lvTruthValue result;
     int i;
 
     if (!values || count <= 0) {
-        return LV00_TRUE;  /* 空归约的 AND 单位元为 TRUE */
+        return lv_TRUE;  /* 空归约的 AND 单位元为 TRUE */
     }
 
-    result = LV00_TRUE;
+    result = lv_TRUE;
     for (i = 0; i < count; i++) {
-        result = lv00_tvl_and(result, values[i]);
-        if (result == LV00_FALSE) {
-            return LV00_FALSE;  /* 短路 */
+        result = lv_tvl_and(result, values[i]);
+        if (result == lv_FALSE) {
+            return lv_FALSE;  /* 短路 */
         }
     }
     return result;
@@ -169,20 +169,20 @@ Lv00TruthValue lv00_tvl_and_all(const Lv00TruthValue *values, int count)
  *
  * 遇到 TRUE 立即返回 TRUE。
  */
-Lv00TruthValue lv00_tvl_or_all(const Lv00TruthValue *values, int count)
+lvTruthValue lv_tvl_or_all(const lvTruthValue *values, int count)
 {
-    Lv00TruthValue result;
+    lvTruthValue result;
     int i;
 
     if (!values || count <= 0) {
-        return LV00_FALSE;  /* 空归约的 OR 单位元为 FALSE */
+        return lv_FALSE;  /* 空归约的 OR 单位元为 FALSE */
     }
 
-    result = LV00_FALSE;
+    result = lv_FALSE;
     for (i = 0; i < count; i++) {
-        result = lv00_tvl_or(result, values[i]);
-        if (result == LV00_TRUE) {
-            return LV00_TRUE;  /* 短路 */
+        result = lv_tvl_or(result, values[i]);
+        if (result == lv_TRUE) {
+            return lv_TRUE;  /* 短路 */
         }
     }
     return result;
@@ -195,12 +195,12 @@ Lv00TruthValue lv00_tvl_or_all(const Lv00TruthValue *values, int count)
 /**
  * @brief 将三值真值转换为英文字符串
  */
-const char *lv00_tvl_to_string(Lv00TruthValue v)
+const char *lv_tvl_to_string(lvTruthValue v)
 {
     switch (v) {
-        case LV00_TRUE:    return "TRUE";
-        case LV00_FALSE:   return "FALSE";
-        case LV00_UNKNOWN: return "UNKNOWN";
+        case lv_TRUE:    return "TRUE";
+        case lv_FALSE:   return "FALSE";
+        case lv_UNKNOWN: return "UNKNOWN";
         default:           return "INVALID";
     }
 }
@@ -208,12 +208,12 @@ const char *lv00_tvl_to_string(Lv00TruthValue v)
 /**
  * @brief 将三值真值转换为中文字符串
  */
-const char *lv00_tvl_to_string_zh(Lv00TruthValue v)
+const char *lv_tvl_to_string_zh(lvTruthValue v)
 {
     switch (v) {
-        case LV00_TRUE:    return "\xe7\x9c\x9f";           /* "真" */
-        case LV00_FALSE:   return "\xe4\xbc\xaa";           /* "伪" */
-        case LV00_UNKNOWN: return "\xe6\x9c\xaa\xe7\x9f\xa5"; /* "未知" */
+        case lv_TRUE:    return "\xe7\x9c\x9f";           /* "真" */
+        case lv_FALSE:   return "\xe4\xbc\xaa";           /* "伪" */
+        case lv_UNKNOWN: return "\xe6\x9c\xaa\xe7\x9f\xa5"; /* "未知" */
         default:           return "\xe6\x97\xa0\xe6\x95\x88"; /* "无效" */
     }
 }

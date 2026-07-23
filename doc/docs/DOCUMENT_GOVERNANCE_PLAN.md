@@ -1,4 +1,4 @@
-# Lv-00 文档统一治理方案
+﻿# Lv-00 文档统一治理方案
 
 > **版本**: 1.0.0
 > **日期**: 2026-06-06
@@ -108,7 +108,7 @@
 | ID | 冲突 | 涉及文件 | 严重度 | 解决动作 |
 |----|------|----------|--------|----------|
 | C19 | WFC范式无独立设计文档 | propagation.h, meta_proof.h | 🟢低 | 代码定义一致，可选择性创建文档 |
-| C20 | 编译标志LV00_NO_FLOAT等不存在 | （之前文档描述） | 🟢低 | 从文档中移除不存在的标志引用 |
+| C20 | 编译标志lv_NO_FLOAT等不存在 | （之前文档描述） | 🟢低 | 从文档中移除不存在的标志引用 |
 | C21 | README文档链接列表需更新 | README.md | 🟢低 | 移除失效链接或创建对应文档 |
 
 ---
@@ -127,7 +127,7 @@
 | doc/docs/CODING_STANDARD_v3.4.2.md | README.md | 移除引用（统一为CODING_STANDARD.md） |
 | doc/docs/NAMING_CONVENTION.md | CONTRIBUTING.md | 创建或移除引用 |
 | doc/docs/ARCHITECTURE_v3.3.md | SECURITY.md, CONTRIBUTING.md | 移除引用（已过时） |
-| doc/docs/LV00_LANGUAGE_SPEC.md | README.md | 创建（基于lexer.h/parser.h） |
+| doc/docs/lv_LANGUAGE_SPEC.md | README.md | 创建（基于lexer.h/parser.h） |
 | doc/docs/INFERENCE_STRATEGIES_SPEC.md | （之前文档引用） | 创建（基于reasoning引擎代码） |
 | doc/docs/PERFORMANCE_OPTIMIZATION.md | （之前文档引用） | 创建（基于config.h+性能相关代码） |
 | doc/docs/OPML_SPECIFICATION.md | （之前文档引用） | 创建（基于opml_codec.c） |
@@ -148,10 +148,10 @@
 
 ### 5.2 API命名规范
 以 **README.md** 示例代码为准：
-- 上下文创建：`lv00_context_create()`
-- 上下文销毁：`lv00_context_destroy()`
-- 点构造：`lv00_point(ctx, x, y)`
-- 距离计算：`lv00_distance(ctx, A, B)`
+- 上下文创建：`lv_context_create()`
+- 上下文销毁：`lv_context_destroy()`
+- 点构造：`lv_point(ctx, x, y)`
+- 距离计算：`lv_distance(ctx, A, B)`
 
 ### 5.3 版本号规范
 | 类型 | 当前值 | 格式 |
@@ -256,8 +256,8 @@
 
 | 模块 | 当前位置 | 建议归属 | 理由 |
 |------|----------|----------|------|
-| meta_repr (MetaReprEncoder/Decoder) | core/include/lv00/meta_repr.h | L3 (Geometry) | 操作ConstraintGraph和GeomNode |
-| magic (Magic系统) | core/include/lv00/magic.h | L6 (Visual) | 教育性可视化映射，应用层功能 |
+| meta_repr (MetaReprEncoder/Decoder) | core/include/lv/meta_repr.h | L3 (Geometry) | 操作ConstraintGraph和GeomNode |
+| magic (Magic系统) | core/include/lv/magic.h | L6 (Visual) | 教育性可视化映射，应用层功能 |
 | bootstrap_test (差分测试) | core/src/layer2_resource/bootstrap_test.c | L2 (Resource) | 已在L2目录中，测试基础设施 |
 | opml_codec (OPML编解码) | core/src/layer10_interop/opml_codec.c | L10 (Interop) | 已在L10目录中，外部集成 |
 | 13个最小原语 | bootstrap_test.c中定义 | L3 (Geometry) | 几何基础操作 |
@@ -274,7 +274,7 @@
 ## 10. 状态机统一
 
 ### 10.1 正典状态机（5态）
-以 ctx.h 的 LV00EngineState 为正典：
+以 ctx.h 的 lvEngineState 为正典：
 
 ```
 IDLE → PARSING → REASONING → COMPLETE
@@ -291,7 +291,7 @@ ERROR → IDLE (reset)
 | ENGINE_STATE_COMPLETE | 求解完成 |
 | ENGINE_STATE_ERROR | 出错 |
 
-### 10.2 Lv00Context状态机
+### 10.2 lvContext状态机
 与Engine状态机语义对齐（context.h注释已说明）。
 标记为"过渡期共存设计"，长期计划合并到Context中。
 
@@ -322,7 +322,7 @@ ERROR → IDLE (reset)
 | 创建ARCHITECTURE_MANUAL.md | doc/docs/ | P2 |
 | 创建API_QUICKSTART.md | doc/docs/ | P2 |
 | 创建TUTORIAL.md | doc/docs/ | P2 |
-| 创建LV00_LANGUAGE_SPEC.md | doc/docs/ | P2 |
+| 创建lv_LANGUAGE_SPEC.md | doc/docs/ | P2 |
 | Python版本统一为3.10 | CONTRIBUTING.md | P2 |
 
 ### Phase 4: 低优先级（2天）
@@ -374,7 +374,7 @@ ERROR → IDLE (reset)
 ### .github/目录
 - .github/BRANCHING_STRATEGY.md [当前]
 
-### core/include/lv00/ (关键头文件)
+### core/include/lv/ (关键头文件)
 - ctx.h (5层枚举 + Engine状态机)
 - context.h (Context状态机)
 - layer_validation.h (6层枚举)
@@ -391,7 +391,7 @@ ERROR → IDLE (reset)
 |------|----------|------|
 | 十层架构定义 | README.md §系统架构 | 与VERSION_5.0.0.md一致 |
 | 层目录命名 | core/src/layer*_*/ | ctx.h枚举名 |
-| API风格 | README.md §使用示例 | lv00_context_create() |
+| API风格 | README.md §使用示例 | lv_context_create() |
 | 状态机 | ctx.h | 5态：IDLE/PARSING/REASONING/COMPLETE/ERROR |
 | 分支策略 | .github/BRANCHING_STRATEGY.md | 9种分支类型 |
 | 版本号 | README.md(v5.0.0) + CHANGELOG | DOC_VERSION=5.0.0, CODE_VERSION=0.5.0 |

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_visual_complete.c
  * @brief 几何可视化完整版实现
  *
@@ -8,8 +8,8 @@
  * @version 1.0.0
  */
 
-#include "lv00/geo_visual.h"
-#include "lv00/lv00_utils.h"
+#include "lv/geo_visual.h"
+#include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -43,7 +43,7 @@ static void matrix_multiply(float *out, const float *a, const float *b)
 }
 
 /** 设置默认样式 */
-static void set_default_style(Lv00VisualStyle *style)
+static void set_default_style(lvVisualStyle *style)
 {
     /* 默认黑色描边，无填充 */
     style->stroke_color[0] = 0.0f;
@@ -63,12 +63,12 @@ static void set_default_style(Lv00VisualStyle *style)
  * 对象构造器
  * ======================================================================== */
 
-Lv00VisualObject *lv00_visual_point_create(float x, float y)
+lvVisualObject *lv_visual_point_create(float x, float y)
 {
-    Lv00VisualObject *obj = (Lv00VisualObject *)calloc(1, sizeof(Lv00VisualObject));
+    lvVisualObject *obj = (lvVisualObject *)calloc(1, sizeof(lvVisualObject));
     if (obj == NULL) return NULL;
 
-    obj->type = LV00_VISUAL_POINT;
+    obj->type = lv_VISUAL_POINT;
     set_default_style(&obj->style);
     identity_matrix(obj->transform);
     obj->children = NULL;
@@ -85,12 +85,12 @@ Lv00VisualObject *lv00_visual_point_create(float x, float y)
     return obj;
 }
 
-Lv00VisualObject *lv00_visual_line_create(float x1, float y1, float x2, float y2)
+lvVisualObject *lv_visual_line_create(float x1, float y1, float x2, float y2)
 {
-    Lv00VisualObject *obj = (Lv00VisualObject *)calloc(1, sizeof(Lv00VisualObject));
+    lvVisualObject *obj = (lvVisualObject *)calloc(1, sizeof(lvVisualObject));
     if (obj == NULL) return NULL;
 
-    obj->type = LV00_VISUAL_SEGMENT;
+    obj->type = lv_VISUAL_SEGMENT;
     set_default_style(&obj->style);
     identity_matrix(obj->transform);
     obj->children = NULL;
@@ -107,12 +107,12 @@ Lv00VisualObject *lv00_visual_line_create(float x1, float y1, float x2, float y2
     return obj;
 }
 
-Lv00VisualObject *lv00_visual_circle_create(float cx, float cy, float r)
+lvVisualObject *lv_visual_circle_create(float cx, float cy, float r)
 {
-    Lv00VisualObject *obj = (Lv00VisualObject *)calloc(1, sizeof(Lv00VisualObject));
+    lvVisualObject *obj = (lvVisualObject *)calloc(1, sizeof(lvVisualObject));
     if (obj == NULL) return NULL;
 
-    obj->type = LV00_VISUAL_CIRCLE;
+    obj->type = lv_VISUAL_CIRCLE;
     set_default_style(&obj->style);
     identity_matrix(obj->transform);
     obj->children = NULL;
@@ -128,23 +128,23 @@ Lv00VisualObject *lv00_visual_circle_create(float cx, float cy, float r)
     return obj;
 }
 
-Lv00VisualObject *lv00_visual_group_create(Lv00VisualObject **objs, size_t n)
+lvVisualObject *lv_visual_group_create(lvVisualObject **objs, size_t n)
 {
     if (objs == NULL || n == 0) return NULL;
 
-    Lv00VisualObject *obj = (Lv00VisualObject *)calloc(1, sizeof(Lv00VisualObject));
+    lvVisualObject *obj = (lvVisualObject *)calloc(1, sizeof(lvVisualObject));
     if (obj == NULL) return NULL;
 
-    obj->type = LV00_VISUAL_MOBJECT_GROUP;
+    obj->type = lv_VISUAL_MOBJECT_GROUP;
     set_default_style(&obj->style);
     identity_matrix(obj->transform);
 
-    obj->children = (Lv00VisualObject **)calloc(n, sizeof(Lv00VisualObject *));
+    obj->children = (lvVisualObject **)calloc(n, sizeof(lvVisualObject *));
     if (obj->children == NULL) {
         free(obj);
         return NULL;
     }
-    memcpy(obj->children, objs, n * sizeof(Lv00VisualObject *));
+    memcpy(obj->children, objs, n * sizeof(lvVisualObject *));
     obj->children_count = n;
 
     return obj;
@@ -154,13 +154,13 @@ Lv00VisualObject *lv00_visual_group_create(Lv00VisualObject **objs, size_t n)
  * 样式设置
  * ======================================================================== */
 
-void lv00_visual_set_style(Lv00VisualObject *obj, const Lv00VisualStyle *style)
+void lv_visual_set_style(lvVisualObject *obj, const lvVisualStyle *style)
 {
     if (obj == NULL || style == NULL) return;
     obj->style = *style;
 }
 
-void lv00_visual_set_color(Lv00VisualObject *obj, float r, float g, float b, float a)
+void lv_visual_set_color(lvVisualObject *obj, float r, float g, float b, float a)
 {
     if (obj == NULL) return;
     obj->style.stroke_color[0] = r;
@@ -169,7 +169,7 @@ void lv00_visual_set_color(Lv00VisualObject *obj, float r, float g, float b, flo
     obj->style.stroke_color[3] = a;
 }
 
-void lv00_visual_set_dashed(Lv00VisualObject *obj, int dashed)
+void lv_visual_set_dashed(lvVisualObject *obj, int dashed)
 {
     if (obj == NULL) return;
     obj->style.dashed = dashed;
@@ -179,7 +179,7 @@ void lv00_visual_set_dashed(Lv00VisualObject *obj, int dashed)
  * 空间变换
  * ======================================================================== */
 
-void lv00_visual_translate(Lv00VisualObject *obj, float dx, float dy, float dz)
+void lv_visual_translate(lvVisualObject *obj, float dx, float dy, float dz)
 {
     if (obj == NULL) return;
     float t[16];
@@ -188,7 +188,7 @@ void lv00_visual_translate(Lv00VisualObject *obj, float dx, float dy, float dz)
     matrix_multiply(obj->transform, obj->transform, t);
 }
 
-void lv00_visual_scale(Lv00VisualObject *obj, float sx, float sy)
+void lv_visual_scale(lvVisualObject *obj, float sx, float sy)
 {
     if (obj == NULL) return;
     float s[16];
@@ -197,7 +197,7 @@ void lv00_visual_scale(Lv00VisualObject *obj, float sx, float sy)
     matrix_multiply(obj->transform, obj->transform, s);
 }
 
-void lv00_visual_rotate(Lv00VisualObject *obj, float angle, float axis[3])
+void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3])
 {
     if (obj == NULL) return;
 
@@ -235,9 +235,9 @@ void lv00_visual_rotate(Lv00VisualObject *obj, float angle, float axis[3])
  * 场景管理
  * ======================================================================== */
 
-Lv00VisualScene *lv00_visual_scene_create(void)
+lvVisualScene *lv_visual_scene_create(void)
 {
-    Lv00VisualScene *scene = (Lv00VisualScene *)calloc(1, sizeof(Lv00VisualScene));
+    lvVisualScene *scene = (lvVisualScene *)calloc(1, sizeof(lvVisualScene));
     if (scene == NULL) return NULL;
 
     scene->objects = NULL;
@@ -253,13 +253,13 @@ Lv00VisualScene *lv00_visual_scene_create(void)
     return scene;
 }
 
-void lv00_visual_scene_add(Lv00VisualScene *scene, Lv00VisualObject *obj)
+void lv_visual_scene_add(lvVisualScene *scene, lvVisualObject *obj)
 {
     if (scene == NULL || obj == NULL) return;
 
     size_t new_count = scene->object_count + 1;
-    Lv00VisualObject **new_arr = (Lv00VisualObject **)lv00_realloc(
-        scene->objects, new_count * sizeof(Lv00VisualObject *));
+    lvVisualObject **new_arr = (lvVisualObject **)lv_realloc(
+        scene->objects, new_count * sizeof(lvVisualObject *));
     if (new_arr == NULL) return;
 
     new_arr[scene->object_count] = obj;
@@ -267,18 +267,18 @@ void lv00_visual_scene_add(Lv00VisualScene *scene, Lv00VisualObject *obj)
     scene->object_count = new_count;
 }
 
-void lv00_visual_scene_clear(Lv00VisualScene *scene)
+void lv_visual_scene_clear(lvVisualScene *scene)
 {
     if (scene == NULL) return;
     for (size_t i = 0; i < scene->object_count; i++) {
-        lv00_visual_object_destroy(scene->objects[i]);
+        lv_visual_object_destroy(scene->objects[i]);
     }
     free(scene->objects);
     scene->objects = NULL;
     scene->object_count = 0;
 }
 
-void lv00_visual_scene_set_camera(Lv00VisualScene *scene,
+void lv_visual_scene_set_camera(lvVisualScene *scene,
                                    float cx, float cy, float cz, float zoom)
 {
     if (scene == NULL) return;
@@ -301,7 +301,7 @@ static int to_byte(float c) {
 }
 
 /** 应用相机变换：将模型坐标映射到屏幕坐标 */
-static void apply_camera(float *x, float *y, const Lv00VisualScene *scene) {
+static void apply_camera(float *x, float *y, const lvVisualScene *scene) {
     float cx = scene->camera_center[0];
     float cy = scene->camera_center[1];
     float zoom = scene->camera_zoom;
@@ -310,7 +310,7 @@ static void apply_camera(float *x, float *y, const Lv00VisualScene *scene) {
 }
 
 /** 获取渲染缓存的端点或中心数据 */
-static bool get_float_cache(const Lv00VisualObject *obj, float *out, int count) {
+static bool get_float_cache(const lvVisualObject *obj, float *out, int count) {
     if (obj->render_cache == NULL) return false;
     memcpy(out, obj->render_cache, (size_t)count * sizeof(float));
     return true;
@@ -321,7 +321,7 @@ static bool get_float_cache(const Lv00VisualObject *obj, float *out, int count) 
  * ======================================================================== */
 
 /** 输出 SVG 样式属性（stroke, fill, opacity, dasharray） */
-static void svg_write_style(FILE *fp, const Lv00VisualStyle *s) {
+static void svg_write_style(FILE *fp, const lvVisualStyle *s) {
     fprintf(fp, " stroke=\"rgb(%d,%d,%d)\"",
             to_byte(s->stroke_color[0]),
             to_byte(s->stroke_color[1]),
@@ -348,12 +348,12 @@ static void svg_write_style(FILE *fp, const Lv00VisualStyle *s) {
 }
 
 /** 递归渲染单个对象为 SVG */
-static void svg_render_object(FILE *fp, const Lv00VisualObject *obj,
-                               const Lv00VisualScene *scene, int depth) {
+static void svg_render_object(FILE *fp, const lvVisualObject *obj,
+                               const lvVisualScene *scene, int depth) {
     if (obj == NULL) return;
 
     /* 组合对象：递归渲染子对象 */
-    if (obj->type == LV00_VISUAL_MOBJECT_GROUP) {
+    if (obj->type == lv_VISUAL_MOBJECT_GROUP) {
         for (size_t i = 0; i < obj->children_count; i++) {
             svg_render_object(fp, obj->children[i], scene, depth + 1);
         }
@@ -364,7 +364,7 @@ static void svg_render_object(FILE *fp, const Lv00VisualObject *obj,
     memset(cache, 0, sizeof(cache));
 
     switch (obj->type) {
-    case LV00_VISUAL_POINT: {
+    case lv_VISUAL_POINT: {
         if (!get_float_cache(obj, cache, 2)) return;
         float px = cache[0], py = cache[1];
         apply_camera(&px, &py, scene);
@@ -380,7 +380,7 @@ static void svg_render_object(FILE *fp, const Lv00VisualObject *obj,
         fprintf(fp, "/>\n");
         break;
     }
-    case LV00_VISUAL_SEGMENT: {
+    case lv_VISUAL_SEGMENT: {
         if (!get_float_cache(obj, cache, 4)) return;
         float x1 = cache[0], y1 = cache[1];
         float x2 = cache[2], y2 = cache[3];
@@ -393,7 +393,7 @@ static void svg_render_object(FILE *fp, const Lv00VisualObject *obj,
         fprintf(fp, "/>\n");
         break;
     }
-    case LV00_VISUAL_LINE: {
+    case lv_VISUAL_LINE: {
         /* 直线从场景边界穿过 */
         if (!get_float_cache(obj, cache, 4)) return;
         float x1 = cache[0], y1 = cache[1];
@@ -416,7 +416,7 @@ static void svg_render_object(FILE *fp, const Lv00VisualObject *obj,
         fprintf(fp, "/>\n");
         break;
     }
-    case LV00_VISUAL_CIRCLE: {
+    case lv_VISUAL_CIRCLE: {
         if (!get_float_cache(obj, cache, 3)) return;
         float cx = cache[0], cy = cache[1], r = cache[2];
         apply_camera(&cx, &cy, scene);
@@ -426,7 +426,7 @@ static void svg_render_object(FILE *fp, const Lv00VisualObject *obj,
         fprintf(fp, "/>\n");
         break;
     }
-    case LV00_VISUAL_POLYGON: {
+    case lv_VISUAL_POLYGON: {
         /* 多边形缓存格式: [count, x0, y0, x1, y1, ...] */
         if (obj->render_cache == NULL) return;
         int   pcount = ((int *)obj->render_cache)[0];
@@ -449,8 +449,8 @@ static void svg_render_object(FILE *fp, const Lv00VisualObject *obj,
 }
 
 /** SVG 渲染入口 */
-static void svg_render_scene(FILE *fp, const Lv00VisualRenderer *renderer,
-                              const Lv00VisualScene *scene) {
+static void svg_render_scene(FILE *fp, const lvVisualRenderer *renderer,
+                              const lvVisualScene *scene) {
     fprintf(fp, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     fprintf(fp, "<svg xmlns=\"http://www.w3.org/2000/svg\" "
             "width=\"%d\" height=\"%d\" "
@@ -471,14 +471,14 @@ static void svg_render_scene(FILE *fp, const Lv00VisualRenderer *renderer,
  * ======================================================================== */
 
 /** 输出 TikZ 颜色定义 */
-static void tikz_write_color(FILE *fp, const Lv00VisualStyle *s, const char *prefix) {
+static void tikz_write_color(FILE *fp, const lvVisualStyle *s, const char *prefix) {
     fprintf(fp, "%scolor={rgb,1:red,%.3f;green,%.3f;blue,%.3f}",
             prefix,
             s->stroke_color[0], s->stroke_color[1], s->stroke_color[2]);
 }
 
 /** 输出 TikZ 通用样式选项 */
-static void tikz_write_style(FILE *fp, const Lv00VisualStyle *s, bool is_fill) {
+static void tikz_write_style(FILE *fp, const lvVisualStyle *s, bool is_fill) {
     tikz_write_color(fp, s, is_fill ? "" : "draw=");
     if (is_fill) {
         if (s->fill_color[3] > 0.0f) {
@@ -499,11 +499,11 @@ static void tikz_write_style(FILE *fp, const Lv00VisualStyle *s, bool is_fill) {
 }
 
 /** 递归渲染单个对象为 TikZ */
-static void tikz_render_object(FILE *fp, const Lv00VisualObject *obj,
-                                const Lv00VisualScene *scene, int depth) {
+static void tikz_render_object(FILE *fp, const lvVisualObject *obj,
+                                const lvVisualScene *scene, int depth) {
     if (obj == NULL) return;
 
-    if (obj->type == LV00_VISUAL_MOBJECT_GROUP) {
+    if (obj->type == lv_VISUAL_MOBJECT_GROUP) {
         for (size_t i = 0; i < obj->children_count; i++) {
             tikz_render_object(fp, obj->children[i], scene, depth + 1);
         }
@@ -515,7 +515,7 @@ static void tikz_render_object(FILE *fp, const Lv00VisualObject *obj,
     const char *indent = "  ";
 
     switch (obj->type) {
-    case LV00_VISUAL_POINT: {
+    case lv_VISUAL_POINT: {
         if (!get_float_cache(obj, cache, 2)) return;
         float px = cache[0], py = cache[1];
         apply_camera(&px, &py, scene);
@@ -525,7 +525,7 @@ static void tikz_render_object(FILE *fp, const Lv00VisualObject *obj,
         fprintf(fp, "] (%.2f,%.2f) circle (%.2fpt);\n", px, py, r);
         break;
     }
-    case LV00_VISUAL_SEGMENT: {
+    case lv_VISUAL_SEGMENT: {
         if (!get_float_cache(obj, cache, 4)) return;
         float x1 = cache[0], y1 = cache[1];
         float x2 = cache[2], y2 = cache[3];
@@ -536,7 +536,7 @@ static void tikz_render_object(FILE *fp, const Lv00VisualObject *obj,
         fprintf(fp, "] (%.2f,%.2f) -- (%.2f,%.2f);\n", x1, y1, x2, y2);
         break;
     }
-    case LV00_VISUAL_LINE: {
+    case lv_VISUAL_LINE: {
         if (!get_float_cache(obj, cache, 4)) return;
         float x1 = cache[0], y1 = cache[1];
         float x2 = cache[2], y2 = cache[3];
@@ -554,7 +554,7 @@ static void tikz_render_object(FILE *fp, const Lv00VisualObject *obj,
         fprintf(fp, "] (%.2f,%.2f) -- (%.2f,%.2f);\n", lx1, ly1, lx2, ly2);
         break;
     }
-    case LV00_VISUAL_CIRCLE: {
+    case lv_VISUAL_CIRCLE: {
         if (!get_float_cache(obj, cache, 3)) return;
         float cx = cache[0], cy = cache[1], r = cache[2];
         apply_camera(&cx, &cy, scene);
@@ -563,7 +563,7 @@ static void tikz_render_object(FILE *fp, const Lv00VisualObject *obj,
         fprintf(fp, "] (%.2f,%.2f) circle (%.2f);\n", cx, cy, r);
         break;
     }
-    case LV00_VISUAL_POLYGON: {
+    case lv_VISUAL_POLYGON: {
         if (obj->render_cache == NULL) return;
         int   pcount = ((int *)obj->render_cache)[0];
         float *verts = (float *)((int *)obj->render_cache + 1);
@@ -586,8 +586,8 @@ static void tikz_render_object(FILE *fp, const Lv00VisualObject *obj,
 }
 
 /** TikZ 渲染入口 */
-static void tikz_render_scene(FILE *fp, const Lv00VisualRenderer *renderer,
-                               const Lv00VisualScene *scene) {
+static void tikz_render_scene(FILE *fp, const lvVisualRenderer *renderer,
+                               const lvVisualScene *scene) {
     (void)renderer;
     fprintf(fp, "%% Generated by Lv-00 Geometry Visualizer\n");
     fprintf(fp, "\\begin{tikzpicture}[scale=1.0]\n");
@@ -603,12 +603,12 @@ static void tikz_render_scene(FILE *fp, const Lv00VisualRenderer *renderer,
  * 渲染器（公共 API）
  * ======================================================================== */
 
-Lv00VisualRenderer *lv00_visual_renderer_create(Lv00RenderBackend backend,
+lvVisualRenderer *lv_visual_renderer_create(lvRenderBackend backend,
                                                   int width, int height)
 {
-    Lv00VisualRenderer *renderer = (Lv00VisualRenderer *)lv00_malloc(sizeof(Lv00VisualRenderer));
+    lvVisualRenderer *renderer = (lvVisualRenderer *)lv_malloc(sizeof(lvVisualRenderer));
     if (renderer == NULL) return NULL;
-    memset(renderer, 0, sizeof(Lv00VisualRenderer));
+    memset(renderer, 0, sizeof(lvVisualRenderer));
 
     renderer->backend = backend;
     renderer->backend_ctx = NULL;
@@ -619,8 +619,8 @@ Lv00VisualRenderer *lv00_visual_renderer_create(Lv00RenderBackend backend,
     return renderer;
 }
 
-void lv00_visual_render(Lv00VisualRenderer *renderer,
-                         Lv00VisualScene *scene,
+void lv_visual_render(lvVisualRenderer *renderer,
+                         lvVisualScene *scene,
                          const char *output_path)
 {
     if (renderer == NULL || scene == NULL || output_path == NULL) return;
@@ -629,15 +629,15 @@ void lv00_visual_render(Lv00VisualRenderer *renderer,
     if (fp == NULL) return;
 
     switch (renderer->backend) {
-    case LV00_RENDER_SVG:
+    case lv_RENDER_SVG:
         svg_render_scene(fp, renderer, scene);
         break;
-    case LV00_RENDER_TIKZ:
+    case lv_RENDER_TIKZ:
         tikz_render_scene(fp, renderer, scene);
         break;
-    case LV00_RENDER_PNG:
+    case lv_RENDER_PNG:
         fprintf(fp, "P3\n# Lv-00 PNG placeholder (backend=%d)\n"
-                "%d %d\n255\n", LV00_RENDER_PNG,
+                "%d %d\n255\n", lv_RENDER_PNG,
                 renderer->width, renderer->height);
         /* 输出白色背景 */
         for (int y = 0; y < renderer->height; y++) {
@@ -660,14 +660,14 @@ void lv00_visual_render(Lv00VisualRenderer *renderer,
  * 资源释放
  * ======================================================================== */
 
-void lv00_visual_object_destroy(Lv00VisualObject *obj)
+void lv_visual_object_destroy(lvVisualObject *obj)
 {
     if (obj == NULL) return;
 
     /* 递归销毁子对象 */
     if (obj->children != NULL) {
         for (size_t i = 0; i < obj->children_count; i++) {
-            lv00_visual_object_destroy(obj->children[i]);
+            lv_visual_object_destroy(obj->children[i]);
         }
         free(obj->children);
     }
@@ -676,14 +676,14 @@ void lv00_visual_object_destroy(Lv00VisualObject *obj)
     free(obj);
 }
 
-void lv00_visual_scene_destroy(Lv00VisualScene *scene)
+void lv_visual_scene_destroy(lvVisualScene *scene)
 {
     if (scene == NULL) return;
-    lv00_visual_scene_clear(scene);
+    lv_visual_scene_clear(scene);
     free(scene);
 }
 
-void lv00_visual_renderer_destroy(Lv00VisualRenderer *renderer)
+void lv_visual_renderer_destroy(lvVisualRenderer *renderer)
 {
     if (renderer == NULL) return;
     free(renderer);

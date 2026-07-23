@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_analysis.c
  * @brief 分析学预设函数块 - 实现
  *
@@ -20,15 +20,15 @@
  * preset_common.h
  *   -> 提供 PRESET_REGISTER 等宏、preset_register_common() 内联函数
  *   -> 提供 PRESET_SAFE_MALLOC 等安全内存操作宏
- * lv00_internal.h / lv00_utils.h
- *   -> 提供 lv00_malloc、lv00_free、lv00_strdup、lv00_log_* 等
+ * lv_internal.h / lv_utils.h
+ *   -> 提供 lv_malloc、lv_free、lv_strdup、lv_log_* 等
  * ============================================================
  */
 #include "preset_analysis.h"
 #include "preset_blocks.h"
 #include "preset_common.h"     /* 预设公共宏与辅助函数（PRESET_ERROR_LOG 等） */
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 
@@ -779,7 +779,7 @@ bool preset_analysis_get_names(char ***out_names, int *out_count)
     if (!out_names || !out_count) return false;
 
     /* 分配名称数组 */
-    char **names = (char**)lv00_malloc(ANALYSIS_PRESET_COUNT * sizeof(char*));
+    char **names = (char**)lv_malloc(ANALYSIS_PRESET_COUNT * sizeof(char*));
     if (!names) return false;
 
     /* 填充预设名称列表 */
@@ -846,11 +846,11 @@ bool preset_analysis_get_names(char ***out_names, int *out_count)
     int count = (int)(sizeof(preset_names) / sizeof(preset_names[0]));
 
     for (int i = 0; i < count; i++) {
-        names[i] = lv00_strdup(preset_names[i]);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
-            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv00_free(&tmp); }
-            { void *tmp = names; lv00_free(&tmp); }
+            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv_free(&tmp); }
+            { void *tmp = names; lv_free(&tmp); }
             return false;
         }
     }

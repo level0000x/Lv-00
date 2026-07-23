@@ -1,5 +1,5 @@
-{
-  "$schema": "https://lv00.dev/schemas/package-index-v1.json",
+﻿{
+  "$schema": "https://lv.dev/schemas/package-index-v1.json",
   "registry_version": "1.0",
   "registry_name": "Lv-00 Axiom Package Registry",
   "last_updated": "2026-05-25",

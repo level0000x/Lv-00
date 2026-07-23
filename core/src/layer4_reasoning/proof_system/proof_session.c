@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_session.c
  * @brief Proof session management implementation
  *
@@ -21,8 +21,8 @@
 #include <string.h>
 #include <time.h>
 
-#include "lv00.h"
-#include "lv00_utils.h"
+#include "lv.h"
+#include "lv_utils.h"
 
 /* ============== Internal Helpers ============== */
 
@@ -41,7 +41,7 @@ static void generate_session_id(char *buf, size_t buf_size) {
  */
 static char *safe_strdup(const char *s) {
     if (!s) return NULL;
-    return lv00_strdup(s);
+    return lv_strdup(s);
 }
 
 /**
@@ -88,42 +88,42 @@ static void json_escape_string(char *dst, size_t dst_size, const char *src) {
 
 /* ============== Session API Implementation ============== */
 
-Lv00ProofSession *proof_session_create(const char *target_proposition,
-                                        Lv00RuleEngine *engine) {
-    char auto_id[LV00_SESSION_ID_MAX];
+lvProofSession *proof_session_create(const char *target_proposition,
+                                        lvRuleEngine *engine) {
+    char auto_id[lv_SESSION_ID_MAX];
     generate_session_id(auto_id, sizeof(auto_id));
     return proof_session_create_with_id(auto_id, target_proposition, engine);
 }
 
-Lv00ProofSession *proof_session_create_with_id(const char *session_id,
+lvProofSession *proof_session_create_with_id(const char *session_id,
                                                 const char *target_proposition,
-                                                Lv00RuleEngine *engine) {
-    Lv00ProofSession *session;
+                                                lvRuleEngine *engine) {
+    lvProofSession *session;
 
     if (!session_id || !target_proposition) return NULL;
 
-    session = (Lv00ProofSession *)lv00_malloc(sizeof(Lv00ProofSession));
+    session = (lvProofSession *)lv_malloc(sizeof(lvProofSession));
     if (!session) return NULL;
 
-    memset(session, 0, sizeof(Lv00ProofSession));
+    memset(session, 0, sizeof(lvProofSession));
 
     /* Set identity */
-    strncpy(session->session_id, session_id, LV00_SESSION_ID_MAX - 1);
-    session->session_id[LV00_SESSION_ID_MAX - 1] = '\0';
+    strncpy(session->session_id, session_id, lv_SESSION_ID_MAX - 1);
+    session->session_id[lv_SESSION_ID_MAX - 1] = '\0';
     session->created_at = (uint64_t)time(NULL);
 
     /* Set target proposition */
     session->target_proposition = safe_strdup(target_proposition);
     if (!session->target_proposition) {
-        lv00_free((void **) &session);
+        lv_free((void **) &session);
         return NULL;
     }
 
     /* Create proof state from target */
     session->state = proof_state_create(target_proposition);
     if (!session->state) {
-        lv00_free((void **) &session->target_proposition);
-        lv00_free((void **) &session);
+        lv_free((void **) &session->target_proposition);
+        lv_free((void **) &session);
         return NULL;
     }
 
@@ -138,12 +138,12 @@ Lv00ProofSession *proof_session_create_with_id(const char *session_id,
     return session;
 }
 
-void proof_session_destroy(Lv00ProofSession *session) {
+void proof_session_destroy(lvProofSession *session) {
     if (!session) return;
 
     /* Free target proposition */
     if (session->target_proposition) {
-        lv00_free((void **) &session->target_proposition);
+        lv_free((void **) &session->target_proposition);
         session->target_proposition = NULL;
     }
 
@@ -155,13 +155,13 @@ void proof_session_destroy(Lv00ProofSession *session) {
 
     /* Note: engine is NOT owned by session, do not free it */
 
-    lv00_free((void **) &session);
+    lv_free((void **) &session);
 }
 
-bool proof_session_submit_step(Lv00ProofSession *session,
+bool proof_session_submit_step(lvProofSession *session,
                                 const char *tactic,
-                                Lv00StepResult *result) {
-    Lv00StepResult local_result;
+                                lvStepResult *result) {
+    lvStepResult local_result;
 
     if (!session || !tactic) {
         if (result) *result = STEP_RESULT_ERROR;
@@ -249,11 +249,11 @@ bool proof_session_submit_step(Lv00ProofSession *session,
     return true;
 }
 
-char *proof_session_get_state_json(const Lv00ProofSession *session) {
+char *proof_session_get_state_json(const lvProofSession *session) {
     char *json;
-    char escaped_id[LV00_SESSION_ID_MAX * 2];
-    char escaped_target[LV00_PROPOSITION_MAX * 2];
-    char escaped_goal[LV00_PROPOSITION_MAX * 2];
+    char escaped_id[lv_SESSION_ID_MAX * 2];
+    char escaped_target[lv_PROPOSITION_MAX * 2];
+    char escaped_goal[lv_PROPOSITION_MAX * 2];
     const char *current_goal;
     int goal_depth;
     int hyp_count;
@@ -278,10 +278,10 @@ char *proof_session_get_state_json(const Lv00ProofSession *session) {
     status_str = session_status_to_string(session->status);
 
     /* Build JSON output */
-    json = (char *)lv00_malloc(LV00_SESSION_JSON_MAX);
+    json = (char *)lv_malloc(lv_SESSION_JSON_MAX);
     if (!json) return NULL;
 
-    (void)snprintf(json, LV00_SESSION_JSON_MAX,
+    (void)snprintf(json, lv_SESSION_JSON_MAX,
              "{\n"
              "  \"session_id\": \"%s\",\n"
              "  \"status\": \"%s\",\n"
@@ -304,32 +304,32 @@ char *proof_session_get_state_json(const Lv00ProofSession *session) {
     return json;
 }
 
-Lv00SessionStatus proof_session_get_status(const Lv00ProofSession *session) {
+lvSessionStatus proof_session_get_status(const lvProofSession *session) {
     if (!session) return SESSION_STATUS_ERROR;
     return session->status;
 }
 
-bool proof_session_is_complete(const Lv00ProofSession *session) {
+bool proof_session_is_complete(const lvProofSession *session) {
     if (!session) return false;
     return session->is_complete;
 }
 
-const char *proof_session_get_id(const Lv00ProofSession *session) {
+const char *proof_session_get_id(const lvProofSession *session) {
     if (!session) return NULL;
     return session->session_id;
 }
 
-const char *proof_session_get_target(const Lv00ProofSession *session) {
+const char *proof_session_get_target(const lvProofSession *session) {
     if (!session) return NULL;
     return session->target_proposition;
 }
 
-int proof_session_get_step_count(const Lv00ProofSession *session) {
+int proof_session_get_step_count(const lvProofSession *session) {
     if (!session) return -1;
     return session->step_count;
 }
 
-bool proof_session_abandon(Lv00ProofSession *session) {
+bool proof_session_abandon(lvProofSession *session) {
     if (!session) return false;
     if (session->status != SESSION_STATUS_ACTIVE) return false;
 
@@ -338,7 +338,7 @@ bool proof_session_abandon(Lv00ProofSession *session) {
     return true;
 }
 
-bool proof_session_reset(Lv00ProofSession *session) {
+bool proof_session_reset(lvProofSession *session) {
     if (!session) return false;
 
     /* Destroy current proof state */
@@ -361,7 +361,7 @@ bool proof_session_reset(Lv00ProofSession *session) {
 
 /* ============== Utility Functions ============== */
 
-const char *session_status_to_string(Lv00SessionStatus status) {
+const char *session_status_to_string(lvSessionStatus status) {
     switch (status) {
         case SESSION_STATUS_ACTIVE:    return "ACTIVE";
         case SESSION_STATUS_COMPLETE:  return "COMPLETE";
@@ -371,7 +371,7 @@ const char *session_status_to_string(Lv00SessionStatus status) {
     }
 }
 
-const char *step_result_to_string(Lv00StepResult result) {
+const char *step_result_to_string(lvStepResult result) {
     switch (result) {
         case STEP_RESULT_ACCEPTED:     return "ACCEPTED";
         case STEP_RESULT_REJECTED:     return "REJECTED";

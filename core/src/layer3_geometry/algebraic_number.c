@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file algebraic_number.c
  * @brief 代数数域封装 —— 有理数、二次代数数、区间运算、多项式系统
  *
@@ -9,7 +9,7 @@
  * @copyright Copyright (c) 2024-2026 Lv-00 Project
  */
 
-#include "lv00/algebraic_number.h"
+#include "lv/algebraic_number.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -207,7 +207,7 @@ static void alg_set_error_poly(AlgPolyError *err, AlgPolyError code)
  * 第一层：有理数域 Q —— 实现
  * ============================================================ */
 
-LV00_PUBLIC_API AlgRational alg_rational_create(int64_t p, int64_t q, AlgRationalError *err)
+lv_PUBLIC_API AlgRational alg_rational_create(int64_t p, int64_t q, AlgRationalError *err)
 {
     AlgRational result;
     if (q == 0) {
@@ -223,7 +223,7 @@ LV00_PUBLIC_API AlgRational alg_rational_create(int64_t p, int64_t q, AlgRationa
     return result;
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_zero(void)
+lv_PUBLIC_API AlgRational alg_rational_zero(void)
 {
     AlgRational r;
     r.num = 0;
@@ -231,7 +231,7 @@ LV00_PUBLIC_API AlgRational alg_rational_zero(void)
     return r;
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_one(void)
+lv_PUBLIC_API AlgRational alg_rational_one(void)
 {
     AlgRational r;
     r.num = 1;
@@ -239,7 +239,7 @@ LV00_PUBLIC_API AlgRational alg_rational_one(void)
     return r;
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_from_int(int64_t n)
+lv_PUBLIC_API AlgRational alg_rational_from_int(int64_t n)
 {
     AlgRational r;
     r.num = n;
@@ -247,7 +247,7 @@ LV00_PUBLIC_API AlgRational alg_rational_from_int(int64_t n)
     return r;
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRational *b,
+lv_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRational *b,
                                              AlgRationalError *err)
 {
     if (!a || !b) {
@@ -269,7 +269,7 @@ LV00_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRati
     return alg_rational_create(num1, denom, NULL);
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_sub(const AlgRational *a, const AlgRational *b,
+lv_PUBLIC_API AlgRational alg_rational_sub(const AlgRational *a, const AlgRational *b,
                                              AlgRationalError *err)
 {
     if (!a || !b) {
@@ -290,7 +290,7 @@ LV00_PUBLIC_API AlgRational alg_rational_sub(const AlgRational *a, const AlgRati
     return alg_rational_create(num1, denom, NULL);
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_mul(const AlgRational *a, const AlgRational *b,
+lv_PUBLIC_API AlgRational alg_rational_mul(const AlgRational *a, const AlgRational *b,
                                              AlgRationalError *err)
 {
     if (!a || !b) {
@@ -320,7 +320,7 @@ LV00_PUBLIC_API AlgRational alg_rational_mul(const AlgRational *a, const AlgRati
     return result;
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_div(const AlgRational *a, const AlgRational *b,
+lv_PUBLIC_API AlgRational alg_rational_div(const AlgRational *a, const AlgRational *b,
                                              AlgRationalError *err)
 {
     if (!a || !b) {
@@ -344,7 +344,7 @@ LV00_PUBLIC_API AlgRational alg_rational_div(const AlgRational *a, const AlgRati
     return alg_rational_mul(a, &inv_b, err);
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_neg(const AlgRational *a)
+lv_PUBLIC_API AlgRational alg_rational_neg(const AlgRational *a)
 {
     AlgRational r;
     r.num = -a->num;
@@ -352,7 +352,7 @@ LV00_PUBLIC_API AlgRational alg_rational_neg(const AlgRational *a)
     return r;
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_abs(const AlgRational *a)
+lv_PUBLIC_API AlgRational alg_rational_abs(const AlgRational *a)
 {
     AlgRational r;
     r.num = (a->num < 0) ? -a->num : a->num;
@@ -360,7 +360,7 @@ LV00_PUBLIC_API AlgRational alg_rational_abs(const AlgRational *a)
     return r;
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_inv(const AlgRational *a, AlgRationalError *err)
+lv_PUBLIC_API AlgRational alg_rational_inv(const AlgRational *a, AlgRationalError *err)
 {
     if (!a) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_NULL);
@@ -374,7 +374,7 @@ LV00_PUBLIC_API AlgRational alg_rational_inv(const AlgRational *a, AlgRationalEr
     return alg_rational_create(a->den, a->num, NULL);
 }
 
-LV00_PUBLIC_API AlgRational alg_rational_pow(const AlgRational *a, int n,
+lv_PUBLIC_API AlgRational alg_rational_pow(const AlgRational *a, int n,
                                              AlgRationalError *err)
 {
     if (!a) {
@@ -425,7 +425,7 @@ LV00_PUBLIC_API AlgRational alg_rational_pow(const AlgRational *a, int n,
     return result;
 }
 
-LV00_PUBLIC_API int alg_rational_cmp(const AlgRational *a, const AlgRational *b)
+lv_PUBLIC_API int alg_rational_cmp(const AlgRational *a, const AlgRational *b)
 {
     /* a.num/a.den - b.num/b.den = (a.num * b.den - b.num * a.den) / (a.den * b.den) */
     /* 由于 den > 0，只需比较分子 */
@@ -447,17 +447,17 @@ LV00_PUBLIC_API int alg_rational_cmp(const AlgRational *a, const AlgRational *b)
 #endif
 }
 
-LV00_PUBLIC_API bool alg_rational_eq(const AlgRational *a, const AlgRational *b)
+lv_PUBLIC_API bool alg_rational_eq(const AlgRational *a, const AlgRational *b)
 {
     return alg_rational_cmp(a, b) == 0;
 }
 
-LV00_PUBLIC_API double alg_rational_to_double(const AlgRational *r)
+lv_PUBLIC_API double alg_rational_to_double(const AlgRational *r)
 {
     return (double)r->num / (double)r->den;
 }
 
-LV00_PUBLIC_API int alg_rational_to_string(const AlgRational *r, char *buf, size_t size)
+lv_PUBLIC_API int alg_rational_to_string(const AlgRational *r, char *buf, size_t size)
 {
     if (r->den == 1) {
         return snprintf(buf, size, "%lld", (long long)r->num);
@@ -465,22 +465,22 @@ LV00_PUBLIC_API int alg_rational_to_string(const AlgRational *r, char *buf, size
     return snprintf(buf, size, "%lld/%lld", (long long)r->num, (long long)r->den);
 }
 
-LV00_PUBLIC_API bool alg_rational_is_zero(const AlgRational *r)
+lv_PUBLIC_API bool alg_rational_is_zero(const AlgRational *r)
 {
     return r->num == 0;
 }
 
-LV00_PUBLIC_API bool alg_rational_is_positive(const AlgRational *r)
+lv_PUBLIC_API bool alg_rational_is_positive(const AlgRational *r)
 {
     return r->num > 0;
 }
 
-LV00_PUBLIC_API bool alg_rational_is_negative(const AlgRational *r)
+lv_PUBLIC_API bool alg_rational_is_negative(const AlgRational *r)
 {
     return r->num < 0;
 }
 
-LV00_PUBLIC_API const char *alg_rational_error_string(AlgRationalError err)
+lv_PUBLIC_API const char *alg_rational_error_string(AlgRationalError err)
 {
     switch (err) {
         case ALG_RATIONAL_OK:          return "成功";
@@ -496,7 +496,7 @@ LV00_PUBLIC_API const char *alg_rational_error_string(AlgRationalError err)
  * 第二层：二次代数数域 Q(sqrt(d)) —— 实现
  * ============================================================ */
 
-LV00_PUBLIC_API AlgQuadratic alg_quadratic_create(int64_t a_val, int64_t a_den,
+lv_PUBLIC_API AlgQuadratic alg_quadratic_create(int64_t a_val, int64_t a_den,
                                                     int64_t b_val, int64_t b_den,
                                                     int64_t d,
                                                     AlgQuadraticError *err)
@@ -519,7 +519,7 @@ LV00_PUBLIC_API AlgQuadratic alg_quadratic_create(int64_t a_val, int64_t a_den,
     return result;
 }
 
-LV00_PUBLIC_API AlgQuadratic alg_quadratic_from_rational(const AlgRational *r, int64_t d)
+lv_PUBLIC_API AlgQuadratic alg_quadratic_from_rational(const AlgRational *r, int64_t d)
 {
     AlgQuadratic q;
     q.a = *r;
@@ -528,14 +528,14 @@ LV00_PUBLIC_API AlgQuadratic alg_quadratic_from_rational(const AlgRational *r, i
     return q;
 }
 
-LV00_PUBLIC_API AlgQuadratic alg_quadratic_sqrt(int64_t b_val, int64_t b_den,
+lv_PUBLIC_API AlgQuadratic alg_quadratic_sqrt(int64_t b_val, int64_t b_den,
                                                  int64_t d,
                                                  AlgQuadraticError *err)
 {
     return alg_quadratic_create(0, 1, b_val, b_den, d, err);
 }
 
-LV00_PUBLIC_API AlgQuadratic alg_quadratic_add(const AlgQuadratic *x, const AlgQuadratic *y,
+lv_PUBLIC_API AlgQuadratic alg_quadratic_add(const AlgQuadratic *x, const AlgQuadratic *y,
                                                 AlgQuadraticError *err)
 {
     if (!x || !y) {
@@ -559,7 +559,7 @@ LV00_PUBLIC_API AlgQuadratic alg_quadratic_add(const AlgQuadratic *x, const AlgQ
     return result;
 }
 
-LV00_PUBLIC_API AlgQuadratic alg_quadratic_sub(const AlgQuadratic *x, const AlgQuadratic *y,
+lv_PUBLIC_API AlgQuadratic alg_quadratic_sub(const AlgQuadratic *x, const AlgQuadratic *y,
                                                 AlgQuadraticError *err)
 {
     if (!x || !y) {
@@ -583,7 +583,7 @@ LV00_PUBLIC_API AlgQuadratic alg_quadratic_sub(const AlgQuadratic *x, const AlgQ
     return result;
 }
 
-LV00_PUBLIC_API AlgQuadratic alg_quadratic_mul(const AlgQuadratic *x, const AlgQuadratic *y,
+lv_PUBLIC_API AlgQuadratic alg_quadratic_mul(const AlgQuadratic *x, const AlgQuadratic *y,
                                                 AlgQuadraticError *err)
 {
     if (!x || !y) {
@@ -623,7 +623,7 @@ LV00_PUBLIC_API AlgQuadratic alg_quadratic_mul(const AlgQuadratic *x, const AlgQ
     return result;
 }
 
-LV00_PUBLIC_API AlgQuadratic alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y,
+lv_PUBLIC_API AlgQuadratic alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y,
                                                 AlgQuadraticError *err)
 {
     if (!x || !y) {
@@ -681,7 +681,7 @@ LV00_PUBLIC_API AlgQuadratic alg_quadratic_div(const AlgQuadratic *x, const AlgQ
     return numerator;
 }
 
-LV00_PUBLIC_API AlgQuadratic alg_quadratic_neg(const AlgQuadratic *x)
+lv_PUBLIC_API AlgQuadratic alg_quadratic_neg(const AlgQuadratic *x)
 {
     AlgQuadratic result;
     result.a = alg_rational_neg(&x->a);
@@ -690,7 +690,7 @@ LV00_PUBLIC_API AlgQuadratic alg_quadratic_neg(const AlgQuadratic *x)
     return result;
 }
 
-LV00_PUBLIC_API AlgQuadratic alg_quadratic_conj(const AlgQuadratic *x)
+lv_PUBLIC_API AlgQuadratic alg_quadratic_conj(const AlgQuadratic *x)
 {
     AlgQuadratic result;
     result.a = x->a;
@@ -699,7 +699,7 @@ LV00_PUBLIC_API AlgQuadratic alg_quadratic_conj(const AlgQuadratic *x)
     return result;
 }
 
-LV00_PUBLIC_API AlgRational alg_quadratic_norm(const AlgQuadratic *x,
+lv_PUBLIC_API AlgRational alg_quadratic_norm(const AlgQuadratic *x,
                                                 AlgQuadraticError *err)
 {
     if (!x) {
@@ -722,7 +722,7 @@ LV00_PUBLIC_API AlgRational alg_quadratic_norm(const AlgQuadratic *x,
     return norm;
 }
 
-LV00_PUBLIC_API int alg_quadratic_cmp(const AlgQuadratic *x, const AlgQuadratic *y)
+lv_PUBLIC_API int alg_quadratic_cmp(const AlgQuadratic *x, const AlgQuadratic *y)
 {
     double dx = alg_quadratic_to_double(x);
     double dy = alg_quadratic_to_double(y);
@@ -731,7 +731,7 @@ LV00_PUBLIC_API int alg_quadratic_cmp(const AlgQuadratic *x, const AlgQuadratic 
     return 0;
 }
 
-LV00_PUBLIC_API int alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadratic *y,
+lv_PUBLIC_API int alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadratic *y,
                                              AlgQuadraticError *err)
 {
     if (!x || !y) {
@@ -771,7 +771,7 @@ LV00_PUBLIC_API int alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuad
     return alg_quadratic_cmp(x, y);
 }
 
-LV00_PUBLIC_API double alg_quadratic_to_double(const AlgQuadratic *x)
+lv_PUBLIC_API double alg_quadratic_to_double(const AlgQuadratic *x)
 {
     double a = alg_rational_to_double(&x->a);
     double b = alg_rational_to_double(&x->b);
@@ -779,7 +779,7 @@ LV00_PUBLIC_API double alg_quadratic_to_double(const AlgQuadratic *x)
     return a + b * sqrt_d;
 }
 
-LV00_PUBLIC_API int alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size_t size)
+lv_PUBLIC_API int alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size_t size)
 {
     int written = 0;
     int n;
@@ -829,17 +829,17 @@ LV00_PUBLIC_API int alg_quadratic_to_string(const AlgQuadratic *x, char *buf, si
     return written;
 }
 
-LV00_PUBLIC_API bool alg_quadratic_is_rational(const AlgQuadratic *x)
+lv_PUBLIC_API bool alg_quadratic_is_rational(const AlgQuadratic *x)
 {
     return alg_rational_is_zero(&x->b);
 }
 
-LV00_PUBLIC_API AlgRational alg_quadratic_rational_part(const AlgQuadratic *x)
+lv_PUBLIC_API AlgRational alg_quadratic_rational_part(const AlgQuadratic *x)
 {
     return x->a;
 }
 
-LV00_PUBLIC_API const char *alg_quadratic_error_string(AlgQuadraticError err)
+lv_PUBLIC_API const char *alg_quadratic_error_string(AlgQuadraticError err)
 {
     switch (err) {
         case ALG_QUADRATIC_OK:        return "成功";
@@ -855,7 +855,7 @@ LV00_PUBLIC_API const char *alg_quadratic_error_string(AlgQuadraticError err)
  * 第三层：区间运算 —— 实现
  * ============================================================ */
 
-LV00_PUBLIC_API AlgInterval alg_interval_create(int64_t lo_val, int64_t lo_den,
+lv_PUBLIC_API AlgInterval alg_interval_create(int64_t lo_val, int64_t lo_den,
                                                 int64_t hi_val, int64_t hi_den,
                                                 AlgIntervalError *err)
 {
@@ -876,7 +876,7 @@ LV00_PUBLIC_API AlgInterval alg_interval_create(int64_t lo_val, int64_t lo_den,
     return result;
 }
 
-LV00_PUBLIC_API AlgInterval alg_interval_point(const AlgRational *r)
+lv_PUBLIC_API AlgInterval alg_interval_point(const AlgRational *r)
 {
     AlgInterval iv;
     iv.lo = *r;
@@ -884,7 +884,7 @@ LV00_PUBLIC_API AlgInterval alg_interval_point(const AlgRational *r)
     return iv;
 }
 
-LV00_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x,
+lv_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x,
                                                          AlgIntervalError *err)
 {
     if (!x) {
@@ -917,7 +917,7 @@ LV00_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x,
     return alg_interval_create(lo_int, 1, hi_int, 1, NULL);
 }
 
-LV00_PUBLIC_API AlgInterval alg_interval_add(const AlgInterval *x, const AlgInterval *y,
+lv_PUBLIC_API AlgInterval alg_interval_add(const AlgInterval *x, const AlgInterval *y,
                                              AlgIntervalError *err)
 {
     if (!x || !y) {
@@ -934,7 +934,7 @@ LV00_PUBLIC_API AlgInterval alg_interval_add(const AlgInterval *x, const AlgInte
     return result;
 }
 
-LV00_PUBLIC_API AlgInterval alg_interval_sub(const AlgInterval *x, const AlgInterval *y,
+lv_PUBLIC_API AlgInterval alg_interval_sub(const AlgInterval *x, const AlgInterval *y,
                                              AlgIntervalError *err)
 {
     if (!x || !y) {
@@ -951,7 +951,7 @@ LV00_PUBLIC_API AlgInterval alg_interval_sub(const AlgInterval *x, const AlgInte
     return result;
 }
 
-LV00_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInterval *y,
+lv_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInterval *y,
                                              AlgIntervalError *err)
 {
     if (!x || !y) {
@@ -982,7 +982,7 @@ LV00_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInte
     return result;
 }
 
-LV00_PUBLIC_API AlgInterval alg_interval_div(const AlgInterval *x, const AlgInterval *y,
+lv_PUBLIC_API AlgInterval alg_interval_div(const AlgInterval *x, const AlgInterval *y,
                                              AlgIntervalError *err)
 {
     if (!x || !y) {
@@ -1021,7 +1021,7 @@ LV00_PUBLIC_API AlgInterval alg_interval_div(const AlgInterval *x, const AlgInte
     return alg_interval_mul(x, &inv_y, err);
 }
 
-LV00_PUBLIC_API AlgInterval alg_interval_neg(const AlgInterval *x)
+lv_PUBLIC_API AlgInterval alg_interval_neg(const AlgInterval *x)
 {
     AlgInterval result;
     result.lo = alg_rational_neg(&x->hi);
@@ -1029,7 +1029,7 @@ LV00_PUBLIC_API AlgInterval alg_interval_neg(const AlgInterval *x)
     return result;
 }
 
-LV00_PUBLIC_API AlgInterval alg_interval_intersect(const AlgInterval *x, const AlgInterval *y,
+lv_PUBLIC_API AlgInterval alg_interval_intersect(const AlgInterval *x, const AlgInterval *y,
                                                     AlgIntervalError *err)
 {
     if (!x || !y) {
@@ -1059,7 +1059,7 @@ LV00_PUBLIC_API AlgInterval alg_interval_intersect(const AlgInterval *x, const A
     return result;
 }
 
-LV00_PUBLIC_API AlgInterval alg_interval_hull(const AlgInterval *x, const AlgInterval *y,
+lv_PUBLIC_API AlgInterval alg_interval_hull(const AlgInterval *x, const AlgInterval *y,
                                               AlgIntervalError *err)
 {
     if (!x || !y) {
@@ -1085,30 +1085,30 @@ LV00_PUBLIC_API AlgInterval alg_interval_hull(const AlgInterval *x, const AlgInt
     return result;
 }
 
-LV00_PUBLIC_API bool alg_interval_contains(const AlgInterval *x, const AlgInterval *y)
+lv_PUBLIC_API bool alg_interval_contains(const AlgInterval *x, const AlgInterval *y)
 {
     return alg_rational_cmp(&x->lo, &y->lo) <= 0 &&
            alg_rational_cmp(&x->hi, &y->hi) >= 0;
 }
 
-LV00_PUBLIC_API bool alg_interval_contains_rational(const AlgInterval *x,
+lv_PUBLIC_API bool alg_interval_contains_rational(const AlgInterval *x,
                                                      const AlgRational *r)
 {
     return alg_rational_cmp(&x->lo, r) <= 0 &&
            alg_rational_cmp(&x->hi, r) >= 0;
 }
 
-LV00_PUBLIC_API bool alg_interval_is_empty(const AlgInterval *x)
+lv_PUBLIC_API bool alg_interval_is_empty(const AlgInterval *x)
 {
     return alg_rational_cmp(&x->lo, &x->hi) > 0;
 }
 
-LV00_PUBLIC_API bool alg_interval_is_point(const AlgInterval *x)
+lv_PUBLIC_API bool alg_interval_is_point(const AlgInterval *x)
 {
     return alg_rational_eq(&x->lo, &x->hi);
 }
 
-LV00_PUBLIC_API AlgRational alg_interval_width(const AlgInterval *x,
+lv_PUBLIC_API AlgRational alg_interval_width(const AlgInterval *x,
                                                 AlgIntervalError *err)
 {
     if (!x) {
@@ -1119,7 +1119,7 @@ LV00_PUBLIC_API AlgRational alg_interval_width(const AlgInterval *x,
     return alg_rational_sub(&x->hi, &x->lo, NULL);
 }
 
-LV00_PUBLIC_API AlgRational alg_interval_midpoint(const AlgInterval *x,
+lv_PUBLIC_API AlgRational alg_interval_midpoint(const AlgInterval *x,
                                                    AlgIntervalError *err)
 {
     if (!x) {
@@ -1132,7 +1132,7 @@ LV00_PUBLIC_API AlgRational alg_interval_midpoint(const AlgInterval *x,
     return alg_rational_div(&sum, &two, NULL);
 }
 
-LV00_PUBLIC_API void alg_interval_bisect(const AlgInterval *x,
+lv_PUBLIC_API void alg_interval_bisect(const AlgInterval *x,
                                           AlgInterval *lower, AlgInterval *upper,
                                           AlgIntervalError *err)
 {
@@ -1156,7 +1156,7 @@ LV00_PUBLIC_API void alg_interval_bisect(const AlgInterval *x,
     alg_set_error_interval(err, ALG_INTERVAL_OK);
 }
 
-LV00_PUBLIC_API int alg_interval_to_string(const AlgInterval *x, char *buf, size_t size)
+lv_PUBLIC_API int alg_interval_to_string(const AlgInterval *x, char *buf, size_t size)
 {
     int written = 0;
     int n;
@@ -1183,7 +1183,7 @@ LV00_PUBLIC_API int alg_interval_to_string(const AlgInterval *x, char *buf, size
     return written;
 }
 
-LV00_PUBLIC_API const char *alg_interval_error_string(AlgIntervalError err)
+lv_PUBLIC_API const char *alg_interval_error_string(AlgIntervalError err)
 {
     switch (err) {
         case ALG_INTERVAL_OK:            return "成功";
@@ -1210,7 +1210,7 @@ static void alg_poly_normalize(AlgPoly *p)
     }
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_zero(void)
+lv_PUBLIC_API AlgPoly alg_poly_zero(void)
 {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
@@ -1218,7 +1218,7 @@ LV00_PUBLIC_API AlgPoly alg_poly_zero(void)
     return p;
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_const(int64_t c)
+lv_PUBLIC_API AlgPoly alg_poly_const(int64_t c)
 {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
@@ -1228,7 +1228,7 @@ LV00_PUBLIC_API AlgPoly alg_poly_const(int64_t c)
     return p;
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_linear(int64_t a, int64_t b)
+lv_PUBLIC_API AlgPoly alg_poly_linear(int64_t a, int64_t b)
 {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
@@ -1239,7 +1239,7 @@ LV00_PUBLIC_API AlgPoly alg_poly_linear(int64_t a, int64_t b)
     return p;
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_quadratic(int64_t a, int64_t b, int64_t c)
+lv_PUBLIC_API AlgPoly alg_poly_quadratic(int64_t a, int64_t b, int64_t c)
 {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
@@ -1251,12 +1251,12 @@ LV00_PUBLIC_API AlgPoly alg_poly_quadratic(int64_t a, int64_t b, int64_t c)
     return p;
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_x(void)
+lv_PUBLIC_API AlgPoly alg_poly_x(void)
 {
     return alg_poly_linear(1, 0);
 }
 
-LV00_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n,
+lv_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n,
                                            AlgPolyError *err)
 {
     if (!p) {
@@ -1285,7 +1285,7 @@ LV00_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n,
     return result;
 }
 
-LV00_PUBLIC_API AlgRational alg_poly_eval_rational(const AlgPoly *p, const AlgRational *r,
+lv_PUBLIC_API AlgRational alg_poly_eval_rational(const AlgPoly *p, const AlgRational *r,
                                                    AlgPolyError *err)
 {
     if (!p || !r) {
@@ -1307,7 +1307,7 @@ LV00_PUBLIC_API AlgRational alg_poly_eval_rational(const AlgPoly *p, const AlgRa
     return result;
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_add(const AlgPoly *p, const AlgPoly *q,
+lv_PUBLIC_API AlgPoly alg_poly_add(const AlgPoly *p, const AlgPoly *q,
                                       AlgPolyError *err)
 {
     if (!p || !q) {
@@ -1334,7 +1334,7 @@ LV00_PUBLIC_API AlgPoly alg_poly_add(const AlgPoly *p, const AlgPoly *q,
     return result;
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_sub(const AlgPoly *p, const AlgPoly *q,
+lv_PUBLIC_API AlgPoly alg_poly_sub(const AlgPoly *p, const AlgPoly *q,
                                       AlgPolyError *err)
 {
     if (!p || !q) {
@@ -1361,7 +1361,7 @@ LV00_PUBLIC_API AlgPoly alg_poly_sub(const AlgPoly *p, const AlgPoly *q,
     return result;
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_mul(const AlgPoly *p, const AlgPoly *q,
+lv_PUBLIC_API AlgPoly alg_poly_mul(const AlgPoly *p, const AlgPoly *q,
                                       AlgPolyError *err)
 {
     if (!p || !q) {
@@ -1400,7 +1400,7 @@ LV00_PUBLIC_API AlgPoly alg_poly_mul(const AlgPoly *p, const AlgPoly *q,
     return result;
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_neg(const AlgPoly *p)
+lv_PUBLIC_API AlgPoly alg_poly_neg(const AlgPoly *p)
 {
     AlgPoly result;
     for (int i = 0; i <= ALG_POLY_MAX_DEGREE; i++) {
@@ -1410,27 +1410,27 @@ LV00_PUBLIC_API AlgPoly alg_poly_neg(const AlgPoly *p)
     return result;
 }
 
-LV00_PUBLIC_API int64_t alg_poly_lead_coef(const AlgPoly *p)
+lv_PUBLIC_API int64_t alg_poly_lead_coef(const AlgPoly *p)
 {
     return p->coef[p->degree];
 }
 
-LV00_PUBLIC_API int64_t alg_poly_const_coef(const AlgPoly *p)
+lv_PUBLIC_API int64_t alg_poly_const_coef(const AlgPoly *p)
 {
     return p->coef[0];
 }
 
-LV00_PUBLIC_API bool alg_poly_is_zero(const AlgPoly *p)
+lv_PUBLIC_API bool alg_poly_is_zero(const AlgPoly *p)
 {
     return p->degree == 0 && p->coef[0] == 0;
 }
 
-LV00_PUBLIC_API bool alg_poly_is_const(const AlgPoly *p)
+lv_PUBLIC_API bool alg_poly_is_const(const AlgPoly *p)
 {
     return p->degree == 0;
 }
 
-LV00_PUBLIC_API int64_t alg_poly_discriminant(const AlgPoly *p, AlgPolyError *err)
+lv_PUBLIC_API int64_t alg_poly_discriminant(const AlgPoly *p, AlgPolyError *err)
 {
     if (!p) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
@@ -1464,7 +1464,7 @@ LV00_PUBLIC_API int64_t alg_poly_discriminant(const AlgPoly *p, AlgPolyError *er
     }
 }
 
-LV00_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots,
+lv_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots,
                                              int max_roots, AlgPolyError *err)
 {
     if (!p || !roots || max_roots <= 0) {
@@ -1604,7 +1604,7 @@ LV00_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots
     return found;
 }
 
-LV00_PUBLIC_API AlgPoly alg_poly_derivative(const AlgPoly *p, AlgPolyError *err)
+lv_PUBLIC_API AlgPoly alg_poly_derivative(const AlgPoly *p, AlgPolyError *err)
 {
     if (!p) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
@@ -1635,7 +1635,7 @@ LV00_PUBLIC_API AlgPoly alg_poly_derivative(const AlgPoly *p, AlgPolyError *err)
     return result;
 }
 
-LV00_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size)
+lv_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size)
 {
     if (!p) {
         return snprintf(buf, size, "(null)");
@@ -1692,7 +1692,7 @@ LV00_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size)
     return written;
 }
 
-LV00_PUBLIC_API const char *alg_poly_error_string(AlgPolyError err)
+lv_PUBLIC_API const char *alg_poly_error_string(AlgPolyError err)
 {
     switch (err) {
         case ALG_POLY_OK:          return "成功";
@@ -1709,18 +1709,18 @@ LV00_PUBLIC_API const char *alg_poly_error_string(AlgPolyError err)
  * 跨层数域转换工具 —— 实现
  * ============================================================ */
 
-LV00_PUBLIC_API AlgInterval alg_quadratic_to_interval(const AlgQuadratic *x,
+lv_PUBLIC_API AlgInterval alg_quadratic_to_interval(const AlgQuadratic *x,
                                                        AlgIntervalError *err)
 {
     return alg_interval_from_quadratic(x, err);
 }
 
-LV00_PUBLIC_API AlgInterval alg_rational_to_interval(const AlgRational *r)
+lv_PUBLIC_API AlgInterval alg_rational_to_interval(const AlgRational *r)
 {
     return alg_interval_point(r);
 }
 
-LV00_PUBLIC_API bool alg_has_real_roots(int64_t a, int64_t b, int64_t c)
+lv_PUBLIC_API bool alg_has_real_roots(int64_t a, int64_t b, int64_t c)
 {
     if (a == 0) {
         /* 退化为一次方程 bx + c = 0，总有实根（若 b != 0） */

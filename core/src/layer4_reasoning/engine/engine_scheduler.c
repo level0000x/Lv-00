@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file engine_scheduler.c
  * @brief 引擎调度器 —— 管理多后端求解引擎的任务调度
  *
@@ -10,7 +10,7 @@
  */
 
 #include "engine_scheduler.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -34,13 +34,13 @@ static int task_compare(const void *a, const void *b) {
     return tb->priority - ta->priority;
 }
 
-int lv00_engine_schedule(const char *task_name, int priority) {
+int lv_engine_schedule(const char *task_name, int priority) {
     if (!task_name) return -1;
 
     /* 扩容 */
     if (g_task_count >= g_task_capacity) {
         int new_cap = (g_task_capacity == 0) ? 16 : g_task_capacity * 2;
-        SchedulerTask *new_tasks = lv00_realloc(g_tasks, sizeof(SchedulerTask) * new_cap);
+        SchedulerTask *new_tasks = lv_realloc(g_tasks, sizeof(SchedulerTask) * new_cap);
         if (!new_tasks) return -1;
         g_tasks = new_tasks;
         g_task_capacity = new_cap;
@@ -60,7 +60,7 @@ int lv00_engine_schedule(const char *task_name, int priority) {
     return g_task_count - 1;
 }
 
-bool lv00_engine_execute_pending(void) {
+bool lv_engine_execute_pending(void) {
     bool any_executed = false;
 
     for (int i = 0; i < g_task_count; i++) {
@@ -74,7 +74,7 @@ bool lv00_engine_execute_pending(void) {
     return any_executed;
 }
 
-int lv00_engine_pending_count(void) {
+int lv_engine_pending_count(void) {
     int count = 0;
     for (int i = 0; i < g_task_count; i++) {
         if (g_tasks[i].pending) count++;

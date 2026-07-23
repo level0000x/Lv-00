@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_snapshot.c
  * @brief 求解快照/回滚实现 — 从 solver.c 拆分
  *
@@ -6,8 +6,8 @@
  */
 
 #include "../solver_snapshot.h"
-#include "lv00/lv00.h"
-#include "lv00/constraint_graph.h"
+#include "lv/lv.h"
+#include "lv/constraint_graph.h"
 #include <string.h>
 
 bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot) {
@@ -20,8 +20,8 @@ bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot
         return true;
 
     snapshot->coord_count = snapshot->node_count * 2;
-    snapshot->node_ids = lv00_malloc((size_t) snapshot->node_count * sizeof(int));
-    snapshot->copies = lv00_malloc((size_t) snapshot->coord_count * sizeof(SymbolicCoord *));
+    snapshot->node_ids = lv_malloc((size_t) snapshot->node_count * sizeof(int));
+    snapshot->copies = lv_malloc((size_t) snapshot->coord_count * sizeof(SymbolicCoord *));
 
     if (!snapshot->node_ids || !snapshot->copies) {
         solver_snapshot_free(snapshot);
@@ -80,9 +80,9 @@ void solver_snapshot_free(SolverSnapshot *snapshot) {
                 snapshot->copies[i] = NULL;
             }
         }
-        lv00_free((void **) &snapshot->copies);
+        lv_free((void **) &snapshot->copies);
     }
-    lv00_free((void **) &snapshot->node_ids);
+    lv_free((void **) &snapshot->node_ids);
     snapshot->node_count = 0;
     snapshot->coord_count = 0;
 }

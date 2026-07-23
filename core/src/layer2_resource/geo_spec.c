@@ -3,7 +3,7 @@
  * @brief 几何规范描述解析与释放 —— Layer2 资源管理层
  *
  * 提供几何构造规范（GeoSpec）的 JSON 解析与内存释放功能。
- * 当前支持点（Lv00GeoSpecPoint）和多边形（Lv00GeoSpecPolygon）的解析。
+ * 当前支持点（lvGeoSpecPoint）和多边形（lvGeoSpecPolygon）的解析。
  *
  * JSON 格式约定：
  *   点:    { "type": "point", "x": 1.0, "y": 2.0 }
@@ -12,8 +12,8 @@
  * @version 1.0.0
  */
 
-#include "lv00/geo_spec.h"
-#include "lv00/lv00_parse_utils.h"
+#include "lv/geo_spec.h"
+#include "lv/lv_parse_utils.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -60,7 +60,7 @@ static int json_get_double(const char *json, const char *field, double *out)
         return -1;
     }
 
-    lv00_parse_double(pos, out);
+    lv_parse_double(pos, out);
     return 0;
 }
 
@@ -95,7 +95,7 @@ static int json_get_int(const char *json, const char *field, int *out)
         return -1;
     }
 
-    lv00_parse_int(pos, out);
+    lv_parse_int(pos, out);
     return 0;
 }
 
@@ -128,15 +128,15 @@ static int json_has_type(const char *json, const char *type_name)
  * @brief 解析单个几何点
  *
  * @param json JSON 字符串（含 "x" 和 "y" 字段）
- * @return 分配的 Lv00GeoSpecPoint 指针，失败返回 NULL
+ * @return 分配的 lvGeoSpecPoint 指针，失败返回 NULL
  */
-static Lv00GeoSpecPoint *parse_point(const char *json)
+static lvGeoSpecPoint *parse_point(const char *json)
 {
-    Lv00GeoSpecPoint *pt;
+    lvGeoSpecPoint *pt;
 
     if (!json) return NULL;
 
-    pt = (Lv00GeoSpecPoint *)calloc(1, sizeof(Lv00GeoSpecPoint));
+    pt = (lvGeoSpecPoint *)calloc(1, sizeof(lvGeoSpecPoint));
     if (!pt) return NULL;
 
     /* 解析坐标，缺失时默认 (0, 0) */
@@ -154,17 +154,17 @@ static Lv00GeoSpecPoint *parse_point(const char *json)
  * @brief 解析多边形（含点数组）
  *
  * @param json JSON 字符串（含 "count" 和 "points" 数组）
- * @return 分配的 Lv00GeoSpecPolygon 指针，失败返回 NULL
+ * @return 分配的 lvGeoSpecPolygon 指针，失败返回 NULL
  */
-static Lv00GeoSpecPolygon *parse_polygon(const char *json)
+static lvGeoSpecPolygon *parse_polygon(const char *json)
 {
-    Lv00GeoSpecPolygon *poly;
+    lvGeoSpecPolygon *poly;
     int count;
     const char *pos;
 
     if (!json) return NULL;
 
-    poly = (Lv00GeoSpecPolygon *)calloc(1, sizeof(Lv00GeoSpecPolygon));
+    poly = (lvGeoSpecPolygon *)calloc(1, sizeof(lvGeoSpecPolygon));
     if (!poly) return NULL;
 
     /* 解析顶点数量，默认三角形 */
@@ -178,7 +178,7 @@ static Lv00GeoSpecPolygon *parse_polygon(const char *json)
     }
 
     poly->count = count;
-    poly->pts = (Lv00GeoSpecPoint *)calloc((size_t)count, sizeof(Lv00GeoSpecPoint));
+    poly->pts = (lvGeoSpecPoint *)calloc((size_t)count, sizeof(lvGeoSpecPoint));
     if (!poly->pts) {
         free(poly);
         return NULL;
@@ -214,7 +214,7 @@ static Lv00GeoSpecPolygon *parse_polygon(const char *json)
  * @param out  输出指针地址（解析结果写入 *out）
  * @return 0 成功解析为点，1 成功解析为多边形，-1 失败
  */
-int lv00_geo_spec_parse(const char *json, void *out)
+int lv_geo_spec_parse(const char *json, void *out)
 {
     if (!json || !out) {
         return -1;
@@ -222,17 +222,17 @@ int lv00_geo_spec_parse(const char *json, void *out)
 
     /* 检测点类型 */
     if (json_has_type(json, "point") || strstr(json, "Point") != NULL) {
-        Lv00GeoSpecPoint *pt = parse_point(json);
+        lvGeoSpecPoint *pt = parse_point(json);
         if (!pt) return -1;
-        *(Lv00GeoSpecPoint **)out = pt;
+        *(lvGeoSpecPoint **)out = pt;
         return 0;
     }
 
     /* 检测多边形类型 */
     if (json_has_type(json, "polygon") || strstr(json, "Polygon") != NULL) {
-        Lv00GeoSpecPolygon *poly = parse_polygon(json);
+        lvGeoSpecPolygon *poly = parse_polygon(json);
         if (!poly) return -1;
-        *(Lv00GeoSpecPolygon **)out = poly;
+        *(lvGeoSpecPolygon **)out = poly;
         return 1;
     }
 
@@ -248,14 +248,14 @@ int lv00_geo_spec_parse(const char *json, void *out)
  *
  * @param spec 要释放的结构指针
  */
-void lv00_geo_spec_destroy(void *spec)
+void lv_geo_spec_destroy(void *spec)
 {
-    Lv00GeoSpecPolygon *poly;
+    lvGeoSpecPolygon *poly;
 
     if (!spec) return;
 
     /* 尝试作为多边形释放（含动态点数组需要额外释放） */
-    poly = (Lv00GeoSpecPolygon *)spec;
+    poly = (lvGeoSpecPolygon *)spec;
     if (poly->pts != NULL && poly->count > 0) {
         free(poly->pts);
         poly->pts = NULL;

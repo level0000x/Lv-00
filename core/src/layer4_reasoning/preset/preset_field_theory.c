@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_field_theory.c
  * @brief 域论预设函数块模块 - 实现（v2统一宏模式）
  *
@@ -11,8 +11,8 @@
  * @version 5.0.0
  */
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "preset_field_theory.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
@@ -828,7 +828,7 @@ bool preset_field_theory_get_names(char ***out_names, int *out_count)
     *out_count = FIELD_THEORY_PRESET_COUNT;
 
     /* 分配名称数组 */
-    char **names = (char **)lv00_malloc(FIELD_THEORY_PRESET_COUNT * sizeof(char *));
+    char **names = (char **)lv_malloc(FIELD_THEORY_PRESET_COUNT * sizeof(char *));
     if (names == NULL) {
         return false;
     }
@@ -872,13 +872,13 @@ bool preset_field_theory_get_names(char ***out_names, int *out_count)
 
     for (int i = 0; i < FIELD_THEORY_PRESET_COUNT; i++) {
         size_t len = strlen(preset_names[i]) + 1;
-        names[i] = (char *)lv00_malloc(len);
+        names[i] = (char *)lv_malloc(len);
         if (names[i] == NULL) {
             /* 分配失败时释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                { void *tmp = names[j]; lv00_free(&tmp); }
+                { void *tmp = names[j]; lv_free(&tmp); }
             }
-            { void *tmp = names; lv00_free(&tmp); }
+            { void *tmp = names; lv_free(&tmp); }
             return false;
         }
         memcpy(names[i], preset_names[i], len);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file modal_operators.c
  * @brief 模态逻辑算子实现（子目录版本）
  *
@@ -7,7 +7,7 @@
  * 使用基本模态逻辑 K 系统。
  */
 
-#include "lv00/modal_operators.h"
+#include "lv/modal_operators.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +28,7 @@
  * @brief 在世界数组中按 ID 查找世界索引
  * @return 索引 (0-based)，未找到返回 -1
  */
-static int modal_find_world_index(const Lv00ModalFrame *frame, int world_id)
+static int modal_find_world_index(const lvModalFrame *frame, int world_id)
 {
     int i;
     if (!frame) return -1;
@@ -44,10 +44,10 @@ static int modal_find_world_index(const Lv00ModalFrame *frame, int world_id)
  * @brief 确保可达矩阵足够大
  * @return 0 成功，-1 失败
  */
-static int modal_ensure_reach_matrix(Lv00ModalFrame *frame, int needed_dim)
+static int modal_ensure_reach_matrix(lvModalFrame *frame, int needed_dim)
 {
     int i, j;
-    Lv00ReachabilityType **new_matrix;
+    lvReachabilityType **new_matrix;
 
     if (!frame) return -1;
     if (frame->reach_dimension >= needed_dim) return 0;
@@ -58,12 +58,12 @@ static int modal_ensure_reach_matrix(Lv00ModalFrame *frame, int needed_dim)
             new_dim *= 2;
         }
 
-        new_matrix = (Lv00ReachabilityType **)calloc((size_t)new_dim, sizeof(Lv00ReachabilityType *));
+        new_matrix = (lvReachabilityType **)calloc((size_t)new_dim, sizeof(lvReachabilityType *));
         if (!new_matrix) return -1;
 
         /* 复制旧数据 */
         for (i = 0; i < frame->reach_dimension; i++) {
-            new_matrix[i] = (Lv00ReachabilityType *)calloc((size_t)new_dim, sizeof(Lv00ReachabilityType));
+            new_matrix[i] = (lvReachabilityType *)calloc((size_t)new_dim, sizeof(lvReachabilityType));
             if (!new_matrix[i]) {
                 /* 回滚 */
                 for (j = 0; j < i; j++) free(new_matrix[j]);
@@ -72,13 +72,13 @@ static int modal_ensure_reach_matrix(Lv00ModalFrame *frame, int needed_dim)
             }
             if (frame->reach_matrix && frame->reach_matrix[i]) {
                 memcpy(new_matrix[i], frame->reach_matrix[i],
-                       (size_t)frame->reach_dimension * sizeof(Lv00ReachabilityType));
+                       (size_t)frame->reach_dimension * sizeof(lvReachabilityType));
                 free(frame->reach_matrix[i]);
             }
         }
         /* 分配新增行 */
         for (i = frame->reach_dimension; i < new_dim; i++) {
-            new_matrix[i] = (Lv00ReachabilityType *)calloc((size_t)new_dim, sizeof(Lv00ReachabilityType));
+            new_matrix[i] = (lvReachabilityType *)calloc((size_t)new_dim, sizeof(lvReachabilityType));
             if (!new_matrix[i]) {
                 for (j = 0; j < i; j++) free(new_matrix[j]);
                 free(new_matrix);
@@ -96,33 +96,33 @@ static int modal_ensure_reach_matrix(Lv00ModalFrame *frame, int needed_dim)
 /**
  * @brief 递归评估模态公式（内部）
  */
-static Lv00TruthValue modal_evaluate_internal(const Lv00ModalFrame *frame,
-                                               const Lv00ModalFormula *formula,
+static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame,
+                                               const lvModalFormula *formula,
                                                int world_id)
 {
     int from_idx, i;
-    Lv00TruthValue inner_truth;
+    lvTruthValue inner_truth;
 
-    if (!frame || !formula) return LV00_UNKNOWN;
+    if (!frame || !formula) return lv_UNKNOWN;
 
     from_idx = modal_find_world_index(frame, world_id);
-    if (from_idx < 0) return LV00_UNKNOWN;
+    if (from_idx < 0) return lv_UNKNOWN;
 
     /* 获取内层命题真值（如果有子公式则递归） */
     if (formula->sub) {
         /* 嵌套模态：先评估子公式 */
-        inner_truth = LV00_UNKNOWN;  /* 由下方逻辑处理 */
+        inner_truth = lv_UNKNOWN;  /* 由下方逻辑处理 */
     } else if (formula->inner_prop && frame->worlds[from_idx]) {
-        inner_truth = lv00_modal_world_holds(frame->worlds[from_idx], formula->inner_prop);
+        inner_truth = lv_modal_world_holds(frame->worlds[from_idx], formula->inner_prop);
     } else {
-        return LV00_UNKNOWN;
+        return lv_UNKNOWN;
     }
 
-    if (formula->op == LV00_MODALOP_NECESSARY) {
+    if (formula->op == lv_MODALOP_NECESSARY) {
         /* □P: 在所有可达世界中 P 为真 */
         for (i = 0; i < frame->world_count; i++) {
             int to_id;
-            Lv00TruthValue w_truth;
+            lvTruthValue w_truth;
 
             if (!frame->worlds[i]) continue;
             to_id = frame->worlds[i]->id;
@@ -133,21 +133,21 @@ static Lv00TruthValue modal_evaluate_internal(const Lv00ModalFrame *frame,
             if (formula->sub) {
                 w_truth = modal_evaluate_internal(frame, formula->sub, to_id);
             } else if (formula->inner_prop && frame->worlds[i]) {
-                w_truth = lv00_modal_world_holds(frame->worlds[i], formula->inner_prop);
+                w_truth = lv_modal_world_holds(frame->worlds[i], formula->inner_prop);
             } else {
-                w_truth = LV00_UNKNOWN;
+                w_truth = lv_UNKNOWN;
             }
 
-            if (w_truth == LV00_FALSE) return LV00_FALSE;
-            if (w_truth == LV00_UNKNOWN) inner_truth = LV00_UNKNOWN;
+            if (w_truth == lv_FALSE) return lv_FALSE;
+            if (w_truth == lv_UNKNOWN) inner_truth = lv_UNKNOWN;
         }
-        return (inner_truth == LV00_UNKNOWN) ? LV00_UNKNOWN : LV00_TRUE;
+        return (inner_truth == lv_UNKNOWN) ? lv_UNKNOWN : lv_TRUE;
     } else {
         /* ◇P: 在某个可达世界中 P 为真 */
-        Lv00TruthValue result = LV00_FALSE;
+        lvTruthValue result = lv_FALSE;
         for (i = 0; i < frame->world_count; i++) {
             int to_id;
-            Lv00TruthValue w_truth;
+            lvTruthValue w_truth;
 
             if (!frame->worlds[i]) continue;
             to_id = frame->worlds[i]->id;
@@ -158,13 +158,13 @@ static Lv00TruthValue modal_evaluate_internal(const Lv00ModalFrame *frame,
             if (formula->sub) {
                 w_truth = modal_evaluate_internal(frame, formula->sub, to_id);
             } else if (formula->inner_prop && frame->worlds[i]) {
-                w_truth = lv00_modal_world_holds(frame->worlds[i], formula->inner_prop);
+                w_truth = lv_modal_world_holds(frame->worlds[i], formula->inner_prop);
             } else {
-                w_truth = LV00_UNKNOWN;
+                w_truth = lv_UNKNOWN;
             }
 
-            if (w_truth == LV00_TRUE) return LV00_TRUE;
-            if (w_truth == LV00_UNKNOWN) result = LV00_UNKNOWN;
+            if (w_truth == lv_TRUE) return lv_TRUE;
+            if (w_truth == lv_UNKNOWN) result = lv_UNKNOWN;
         }
         return result;
     }
@@ -174,9 +174,9 @@ static Lv00TruthValue modal_evaluate_internal(const Lv00ModalFrame *frame,
  *  世界管理 API
  * ================================================================ */
 
-Lv00ModalWorld *lv00_modal_world_create(int id, const char *world_name, ConstraintGraph *configuration)
+lvModalWorld *lv_modal_world_create(int id, const char *world_name, ConstraintGraph *configuration)
 {
-    Lv00ModalWorld *w = (Lv00ModalWorld *)calloc(1, sizeof(Lv00ModalWorld));
+    lvModalWorld *w = (lvModalWorld *)calloc(1, sizeof(lvModalWorld));
     if (!w) return NULL;
     w->id = id;
     if (world_name) {
@@ -189,7 +189,7 @@ Lv00ModalWorld *lv00_modal_world_create(int id, const char *world_name, Constrai
     return w;
 }
 
-void lv00_modal_world_destroy(Lv00ModalWorld *world)
+void lv_modal_world_destroy(lvModalWorld *world)
 {
     if (!world) return;
     free(world->world_name);
@@ -198,14 +198,14 @@ void lv00_modal_world_destroy(Lv00ModalWorld *world)
     free(world);
 }
 
-bool lv00_modal_world_assert(Lv00ModalWorld *world, Proposition *prop)
+bool lv_modal_world_assert(lvModalWorld *world, Proposition *prop)
 {
     if (!world || !prop) return false;
 
     /* 扩容 */
     if (world->true_prop_count >= world->true_prop_capacity) {
         int new_cap = world->true_prop_capacity > 0 ? world->true_prop_capacity * 2 : 8;
-        Proposition **new_arr = (Proposition **)lv00_realloc(world->true_props,
+        Proposition **new_arr = (Proposition **)lv_realloc(world->true_props,
                                                          (size_t)new_cap * sizeof(Proposition *));
         if (!new_arr) return false;
         world->true_props = new_arr;
@@ -215,25 +215,25 @@ bool lv00_modal_world_assert(Lv00ModalWorld *world, Proposition *prop)
     return true;
 }
 
-Lv00TruthValue lv00_modal_world_holds(const Lv00ModalWorld *world, const Proposition *prop)
+lvTruthValue lv_modal_world_holds(const lvModalWorld *world, const Proposition *prop)
 {
     int i;
-    if (!world || !prop) return LV00_UNKNOWN;
+    if (!world || !prop) return lv_UNKNOWN;
     for (i = 0; i < world->true_prop_count; i++) {
         if (world->true_props[i] == prop) {
-            return LV00_TRUE;
+            return lv_TRUE;
         }
     }
-    return LV00_FALSE;
+    return lv_FALSE;
 }
 
 /* ================================================================
  *  模态框架 API
  * ================================================================ */
 
-Lv00ModalFrame *lv00_modal_frame_create(void)
+lvModalFrame *lv_modal_frame_create(void)
 {
-    Lv00ModalFrame *f = (Lv00ModalFrame *)calloc(1, sizeof(Lv00ModalFrame));
+    lvModalFrame *f = (lvModalFrame *)calloc(1, sizeof(lvModalFrame));
     if (!f) return NULL;
     f->worlds = NULL;
     f->world_count = 0;
@@ -244,12 +244,12 @@ Lv00ModalFrame *lv00_modal_frame_create(void)
     return f;
 }
 
-void lv00_modal_frame_destroy(Lv00ModalFrame *frame)
+void lv_modal_frame_destroy(lvModalFrame *frame)
 {
     int i;
     if (!frame) return;
     for (i = 0; i < frame->world_count; i++) {
-        lv00_modal_world_destroy(frame->worlds[i]);
+        lv_modal_world_destroy(frame->worlds[i]);
     }
     free(frame->worlds);
     for (i = 0; i < frame->reach_dimension; i++) {
@@ -259,14 +259,14 @@ void lv00_modal_frame_destroy(Lv00ModalFrame *frame)
     free(frame);
 }
 
-bool lv00_modal_frame_add_world(Lv00ModalFrame *frame, Lv00ModalWorld *world)
+bool lv_modal_frame_add_world(lvModalFrame *frame, lvModalWorld *world)
 {
     if (!frame || !world) return false;
 
     if (frame->world_count >= frame->world_capacity) {
         int new_cap = frame->world_capacity > 0 ? frame->world_capacity * 2 : MODAL_INITIAL_CAPACITY;
-        Lv00ModalWorld **new_arr = (Lv00ModalWorld **)lv00_realloc(frame->worlds,
-                                                               (size_t)new_cap * sizeof(Lv00ModalWorld *));
+        lvModalWorld **new_arr = (lvModalWorld **)lv_realloc(frame->worlds,
+                                                               (size_t)new_cap * sizeof(lvModalWorld *));
         if (!new_arr) return false;
         frame->worlds = new_arr;
         frame->world_capacity = new_cap;
@@ -275,8 +275,8 @@ bool lv00_modal_frame_add_world(Lv00ModalFrame *frame, Lv00ModalWorld *world)
     return true;
 }
 
-bool lv00_modal_frame_set_reachability(Lv00ModalFrame *frame, int from_world_id,
-                                         int to_world_id, Lv00ReachabilityType reach_type)
+bool lv_modal_frame_set_reachability(lvModalFrame *frame, int from_world_id,
+                                         int to_world_id, lvReachabilityType reach_type)
 {
     int from_idx, to_idx;
     if (!frame) return false;
@@ -294,7 +294,7 @@ bool lv00_modal_frame_set_reachability(Lv00ModalFrame *frame, int from_world_id,
     return true;
 }
 
-bool lv00_modal_frame_is_reachable(const Lv00ModalFrame *frame, int from_world_id, int to_world_id)
+bool lv_modal_frame_is_reachable(const lvModalFrame *frame, int from_world_id, int to_world_id)
 {
     int from_idx, to_idx;
     if (!frame) return false;
@@ -307,7 +307,7 @@ bool lv00_modal_frame_is_reachable(const Lv00ModalFrame *frame, int from_world_i
     return frame->reach_matrix[from_idx][to_idx] != 0 || from_idx == to_idx;
 }
 
-bool lv00_modal_frame_get_reachable_worlds(const Lv00ModalFrame *frame, int world_id,
+bool lv_modal_frame_get_reachable_worlds(const lvModalFrame *frame, int world_id,
                                              int **out_ids, int *out_count)
 {
     int from_idx, i, count;
@@ -340,9 +340,9 @@ bool lv00_modal_frame_get_reachable_worlds(const Lv00ModalFrame *frame, int worl
  *  模态公式 API
  * ================================================================ */
 
-Lv00ModalFormula *lv00_modal_formula_create(Lv00ModalOperator op, Proposition *inner_prop)
+lvModalFormula *lv_modal_formula_create(lvModalOperator op, Proposition *inner_prop)
 {
-    Lv00ModalFormula *f = (Lv00ModalFormula *)calloc(1, sizeof(Lv00ModalFormula));
+    lvModalFormula *f = (lvModalFormula *)calloc(1, sizeof(lvModalFormula));
     if (!f) return NULL;
     f->op = op;
     f->inner_prop = inner_prop;
@@ -350,9 +350,9 @@ Lv00ModalFormula *lv00_modal_formula_create(Lv00ModalOperator op, Proposition *i
     return f;
 }
 
-Lv00ModalFormula *lv00_modal_formula_create_nested(Lv00ModalOperator op, Lv00ModalFormula *sub)
+lvModalFormula *lv_modal_formula_create_nested(lvModalOperator op, lvModalFormula *sub)
 {
-    Lv00ModalFormula *f = (Lv00ModalFormula *)calloc(1, sizeof(Lv00ModalFormula));
+    lvModalFormula *f = (lvModalFormula *)calloc(1, sizeof(lvModalFormula));
     if (!f) return NULL;
     f->op = op;
     f->inner_prop = NULL;
@@ -360,10 +360,10 @@ Lv00ModalFormula *lv00_modal_formula_create_nested(Lv00ModalOperator op, Lv00Mod
     return f;
 }
 
-void lv00_modal_formula_destroy(Lv00ModalFormula *formula)
+void lv_modal_formula_destroy(lvModalFormula *formula)
 {
     if (!formula) return;
-    lv00_modal_formula_destroy(formula->sub);
+    lv_modal_formula_destroy(formula->sub);
     free(formula);
 }
 
@@ -371,102 +371,102 @@ void lv00_modal_formula_destroy(Lv00ModalFormula *formula)
  *  模态评估
  * ================================================================ */
 
-int lv00_modal_evaluate(const Lv00ModalFrame *frame, const Lv00ModalFormula *formula,
-                          int world_id, Lv00ModalEvalResult *result)
+int lv_modal_evaluate(const lvModalFrame *frame, const lvModalFormula *formula,
+                          int world_id, lvModalEvalResult *result)
 {
     if (!frame || !formula || !result) return -1;
 
-    memset(result, 0, sizeof(Lv00ModalEvalResult));
+    memset(result, 0, sizeof(lvModalEvalResult));
     result->truth_value = modal_evaluate_internal(frame, formula, world_id);
     result->witness_world_id = -1;
     result->explanation = NULL;
     return 0;
 }
 
-Lv00TruthValue lv00_modal_check_validity(const Lv00ModalFrame *frame, const Lv00ModalFormula *formula)
+lvTruthValue lv_modal_check_validity(const lvModalFrame *frame, const lvModalFormula *formula)
 {
     int i;
-    if (!frame || !formula) return LV00_UNKNOWN;
+    if (!frame || !formula) return lv_UNKNOWN;
 
     for (i = 0; i < frame->world_count; i++) {
-        Lv00ModalEvalResult result;
+        lvModalEvalResult result;
         if (!frame->worlds[i]) continue;
-        if (lv00_modal_evaluate(frame, formula, frame->worlds[i]->id, &result) != 0) {
-            return LV00_UNKNOWN;
+        if (lv_modal_evaluate(frame, formula, frame->worlds[i]->id, &result) != 0) {
+            return lv_UNKNOWN;
         }
-        if (result.truth_value != LV00_TRUE) {
+        if (result.truth_value != lv_TRUE) {
             return result.truth_value;
         }
     }
-    return LV00_TRUE;
+    return lv_TRUE;
 }
 
 /* ================================================================
  *  模态算子转换（对偶）
  * ================================================================ */
 
-Lv00ModalFormula *lv00_modal_possible_to_necessary_not(const Lv00ModalFormula *formula)
+lvModalFormula *lv_modal_possible_to_necessary_not(const lvModalFormula *formula)
 {
-    if (!formula || formula->op != LV00_MODALOP_POSSIBLE) return NULL;
+    if (!formula || formula->op != lv_MODALOP_POSSIBLE) return NULL;
     /* ◇A -> ¬□¬A: 创建 □¬A，然后外层取反由调用者处理 */
     /* 这里简化为返回等价的嵌套公式 */
-    return lv00_modal_formula_create_nested(LV00_MODALOP_NECESSARY,
-                                             (Lv00ModalFormula *)(size_t)formula->sub);
+    return lv_modal_formula_create_nested(lv_MODALOP_NECESSARY,
+                                             (lvModalFormula *)(size_t)formula->sub);
 }
 
-Lv00ModalFormula *lv00_modal_necessary_to_not_possible(const Lv00ModalFormula *formula)
+lvModalFormula *lv_modal_necessary_to_not_possible(const lvModalFormula *formula)
 {
-    if (!formula || formula->op != LV00_MODALOP_NECESSARY) return NULL;
+    if (!formula || formula->op != lv_MODALOP_NECESSARY) return NULL;
     /* □A -> ¬◇¬A */
-    return lv00_modal_formula_create_nested(LV00_MODALOP_POSSIBLE,
-                                             (Lv00ModalFormula *)(size_t)formula->sub);
+    return lv_modal_formula_create_nested(lv_MODALOP_POSSIBLE,
+                                             (lvModalFormula *)(size_t)formula->sub);
 }
 
 /* ================================================================
  *  几何应用辅助
  * ================================================================ */
 
-Lv00ModalFrame *lv00_modal_frame_create_geometric_default(void)
+lvModalFrame *lv_modal_frame_create_geometric_default(void)
 {
-    Lv00ModalFrame *frame = lv00_modal_frame_create();
-    Lv00ModalWorld *w1;
+    lvModalFrame *frame = lv_modal_frame_create();
+    lvModalWorld *w1;
     if (!frame) return NULL;
 
-    w1 = lv00_modal_world_create(1, "原始几何配置", NULL);
+    w1 = lv_modal_world_create(1, "原始几何配置", NULL);
     if (!w1) {
-        lv00_modal_frame_destroy(frame);
+        lv_modal_frame_destroy(frame);
         return NULL;
     }
-    if (!lv00_modal_frame_add_world(frame, w1)) {
-        lv00_modal_world_destroy(w1);
-        lv00_modal_frame_destroy(frame);
+    if (!lv_modal_frame_add_world(frame, w1)) {
+        lv_modal_world_destroy(w1);
+        lv_modal_frame_destroy(frame);
         return NULL;
     }
 
     /* 默认自可达（恒等变换） */
-    lv00_modal_frame_set_reachability(frame, 1, 1, LV00_REACH_GEOMETRIC_IDENTITY);
+    lv_modal_frame_set_reachability(frame, 1, 1, lv_REACH_GEOMETRIC_IDENTITY);
     return frame;
 }
 
-Lv00ModalFormula *lv00_modal_assert_point_must_on_line(Lv00ModalFrame *frame, int point_id, int line_id)
+lvModalFormula *lv_modal_assert_point_must_on_line(lvModalFrame *frame, int point_id, int line_id)
 {
     (void)frame; (void)point_id; (void)line_id;
     /* 简化实现：返回一个 □ 公式占位符 */
-    return lv00_modal_formula_create(LV00_MODALOP_NECESSARY, NULL);
+    return lv_modal_formula_create(lv_MODALOP_NECESSARY, NULL);
 }
 
-Lv00ModalFormula *lv00_modal_assert_point_can_on_line(Lv00ModalFrame *frame, int point_id, int line_id)
+lvModalFormula *lv_modal_assert_point_can_on_line(lvModalFrame *frame, int point_id, int line_id)
 {
     (void)frame; (void)point_id; (void)line_id;
     /* 简化实现：返回一个 ◇ 公式占位符 */
-    return lv00_modal_formula_create(LV00_MODALOP_POSSIBLE, NULL);
+    return lv_modal_formula_create(lv_MODALOP_POSSIBLE, NULL);
 }
 
 /* ================================================================
  *  释放评估结果
  * ================================================================ */
 
-void lv00_modal_eval_result_destroy(Lv00ModalEvalResult *result)
+void lv_modal_eval_result_destroy(lvModalEvalResult *result)
 {
     if (!result) return;
     free(result->explanation);
@@ -477,42 +477,42 @@ void lv00_modal_eval_result_destroy(Lv00ModalEvalResult *result)
  *  辅助函数
  * ================================================================ */
 
-const char *lv00_modal_op_to_string(Lv00ModalOperator op)
+const char *lv_modal_op_to_string(lvModalOperator op)
 {
     switch (op) {
-        case LV00_MODALOP_NECESSARY: return "\xe2\x96\xa1"; /* "□" */
-        case LV00_MODALOP_POSSIBLE:  return "\xe2\x9a\xa7"; /* "◇" */
+        case lv_MODALOP_NECESSARY: return "\xe2\x96\xa1"; /* "□" */
+        case lv_MODALOP_POSSIBLE:  return "\xe2\x9a\xa7"; /* "◇" */
         default: return "?";
     }
 }
 
-const char *lv00_reachability_type_to_string(Lv00ReachabilityType type)
+const char *lv_reachability_type_to_string(lvReachabilityType type)
 {
     switch (type) {
-        case LV00_REACH_GEOMETRIC_IDENTITY:   return "identity";
-        case LV00_REACH_RIGID_TRANSFORM:      return "rigid";
-        case LV00_REACH_SIMILARITY_TRANSFORM: return "similarity";
-        case LV00_REACH_AFFINE_TRANSFORM:     return "affine";
-        case LV00_REACH_PROJECTIVE_TRANSFORM: return "projective";
-        case LV00_REACH_CONSTRAINT_INHERIT:   return "inherit";
-        case LV00_REACH_CUSTOM:               return "custom";
+        case lv_REACH_GEOMETRIC_IDENTITY:   return "identity";
+        case lv_REACH_RIGID_TRANSFORM:      return "rigid";
+        case lv_REACH_SIMILARITY_TRANSFORM: return "similarity";
+        case lv_REACH_AFFINE_TRANSFORM:     return "affine";
+        case lv_REACH_PROJECTIVE_TRANSFORM: return "projective";
+        case lv_REACH_CONSTRAINT_INHERIT:   return "inherit";
+        case lv_REACH_CUSTOM:               return "custom";
         default: return "unknown";
     }
 }
 
-char *lv00_modal_formula_to_string(const Lv00ModalFormula *formula)
+char *lv_modal_formula_to_string(const lvModalFormula *formula)
 {
     char *buf;
     const char *op_str;
 
     if (!formula) return NULL;
 
-    op_str = lv00_modal_op_to_string(formula->op);
+    op_str = lv_modal_op_to_string(formula->op);
     buf = (char *)malloc(256);
     if (!buf) return NULL;
 
     if (formula->sub) {
-        char *sub_str = lv00_modal_formula_to_string(formula->sub);
+        char *sub_str = lv_modal_formula_to_string(formula->sub);
         if (sub_str) {
             snprintf(buf, 256, "%s(%s)", op_str, sub_str);
             free(sub_str);

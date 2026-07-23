@@ -1,6 +1,6 @@
-# Lv-00 项目 Python 依赖声明
+﻿# Lv-00 项目 Python 依赖声明
 # ==============================
-# 注意：核心 lv00 包使用 ctypes 加载 C 动态库，无需额外 Python 依赖
+# 注意：核心 lv 包使用 ctypes 加载 C 动态库，无需额外 Python 依赖
 # 以下依赖按子系统分组
 
 # -- 并发进程监控 (concurrent_monitor/) --

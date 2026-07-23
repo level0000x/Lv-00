@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_recursion.c
  * @brief 递归与条件系统测试 - 测度系统、选择器块、递归深度监控
  *
@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* ============== 测试：测度系统生命周期 ============== */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ga_codegen.c
  * @brief 几何代数代码生成器实现
  *
@@ -8,8 +8,8 @@
  * @version 1.0.0
  */
 
-#include "lv00/ga_codegen.h"
-#include "lv00/lv00_utils.h"
+#include "lv/ga_codegen.h"
+#include "lv/lv_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,11 +35,11 @@ static int count_lines(const char *str)
  * ======================================================================== */
 
 /** 生成 C 语言代码 */
-static char *generate_c_code(const Lv00MultiVector *mv,
+static char *generate_c_code(const lvMultiVector *mv,
                              const GACodegenOptions *opts)
 {
     (void)mv;
-    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
+    char *buf = (char *)lv_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     const char *var = (opts->variable_name != NULL) ? opts->variable_name : "result";
@@ -58,11 +58,11 @@ static char *generate_c_code(const Lv00MultiVector *mv,
 }
 
 /** 生成 C++ 代码 */
-static char *generate_cpp_code(const Lv00MultiVector *mv,
+static char *generate_cpp_code(const lvMultiVector *mv,
                                const GACodegenOptions *opts)
 {
     (void)mv;
-    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
+    char *buf = (char *)lv_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     const char *var = (opts->variable_name != NULL) ? opts->variable_name : "result";
@@ -79,11 +79,11 @@ static char *generate_cpp_code(const Lv00MultiVector *mv,
 }
 
 /** 生成 CUDA 内核代码 */
-static char *generate_cuda_code(const Lv00MultiVector *mv,
+static char *generate_cuda_code(const lvMultiVector *mv,
                                 const GACodegenOptions *opts)
 {
     (void)mv;
-    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
+    char *buf = (char *)lv_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     const char *var = (opts->variable_name != NULL) ? opts->variable_name : "result";
@@ -102,11 +102,11 @@ static char *generate_cuda_code(const Lv00MultiVector *mv,
 }
 
 /** 生成 Python 代码 */
-static char *generate_python_code(const Lv00MultiVector *mv,
+static char *generate_python_code(const lvMultiVector *mv,
                                   const GACodegenOptions *opts)
 {
     (void)mv;
-    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
+    char *buf = (char *)lv_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     const char *var = (opts->variable_name != NULL) ? opts->variable_name : "result";
@@ -126,7 +126,7 @@ static char *generate_python_code(const Lv00MultiVector *mv,
  * 公共 API 实现
  * ======================================================================== */
 
-GACodegenResult *ga_codegen_compile(const Lv00MultiVector *mv,
+GACodegenResult *ga_codegen_compile(const lvMultiVector *mv,
                                     const GACodegenOptions *options)
 {
     if (options == NULL) {
@@ -164,13 +164,13 @@ GACodegenResult *ga_codegen_compile(const Lv00MultiVector *mv,
         res->code = ga_render_dot(mv);
         break;
     default:
-        res->error_msg = lv00_strdup_safe("不支持的代码生成目标");
+        res->error_msg = lv_strdup_safe("不支持的代码生成目标");
         res->code = NULL;
         break;
     }
 
     if (res->code == NULL && res->error_msg == NULL) {
-        res->error_msg = lv00_strdup_safe("代码生成失败：内存不足");
+        res->error_msg = lv_strdup_safe("代码生成失败：内存不足");
     }
 
     res->line_count = count_lines(res->code);
@@ -181,23 +181,23 @@ void ga_codegen_result_destroy(GACodegenResult *result)
 {
     if (result == NULL) return;
     if (result->code != NULL) {
-        lv00_free_ptr(result->code);
+        lv_free_ptr(result->code);
     }
     if (result->error_msg != NULL) {
-        lv00_free_ptr(result->error_msg);
+        lv_free_ptr(result->error_msg);
     }
-    lv00_free(result);
+    lv_free(result);
 }
 
 /* ========================================================================
  * 渲染函数实现
  * ======================================================================== */
 
-char *ga_render_latex(const Lv00MultiVector *mv)
+char *ga_render_latex(const lvMultiVector *mv)
 {
     if (mv == NULL) return NULL;
 
-    char *buf = (char *)lv00_malloc(GA_CODEGEN_LATEX_BUF_SIZE);
+    char *buf = (char *)lv_malloc(GA_CODEGEN_LATEX_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     /* 简化渲染：多重向量为零时输出 "0"，否则输出占位表达式 */
@@ -209,11 +209,11 @@ char *ga_render_latex(const Lv00MultiVector *mv)
     return buf;
 }
 
-char *ga_render_dot(const Lv00MultiVector *mv)
+char *ga_render_dot(const lvMultiVector *mv)
 {
     if (mv == NULL) return NULL;
 
-    char *buf = (char *)lv00_malloc(GA_CODEGEN_BUF_SIZE);
+    char *buf = (char *)lv_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL) return NULL;
 
     /* 生成 Graphviz DOT 格式的多重向量分量图 */

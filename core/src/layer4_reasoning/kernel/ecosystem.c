@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ecosystem.c
  * @brief 插件生态系统管理模块（子目录版本）
  *
@@ -6,7 +6,7 @@
  * 提供简单的模块注册表，支持按名称和层级查询已注册模块。
  */
 
-#include "lv00/ecosystem.h"
+#include "lv/ecosystem.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -47,7 +47,7 @@ static EcosystemEntry  g_ecosystem_modules[ECOSYSTEM_MAX_MODULES]; /**< 模块�
  *
  * @return 0 成功
  */
-int lv00_ecosystem_init(void)
+int lv_ecosystem_init(void)
 {
     if (g_ecosystem_initialized) {
         return 0;  /* 已初始化，幂等返回 */
@@ -63,7 +63,7 @@ int lv00_ecosystem_init(void)
  *
  * 标记所有模块为非激活状态，重置计数器。
  */
-void lv00_ecosystem_shutdown(void)
+void lv_ecosystem_shutdown(void)
 {
     int i;
     for (i = 0; i < g_ecosystem_count; i++) {
@@ -80,7 +80,7 @@ void lv00_ecosystem_shutdown(void)
  * @param layer  所属层级 (1-10)
  * @return 0 成功，-1 参数错误或注册表已满
  */
-int lv00_ecosystem_register_module(const char *name, int layer)
+int lv_ecosystem_register_module(const char *name, int layer)
 {
     EcosystemEntry *entry;
 
@@ -119,7 +119,7 @@ int lv00_ecosystem_register_module(const char *name, int layer)
  *
  * @return 已注册模块数量
  */
-int lv00_ecosystem_module_count(void)
+int lv_ecosystem_module_count(void)
 {
     return g_ecosystem_count;
 }
@@ -130,7 +130,7 @@ int lv00_ecosystem_module_count(void)
  * @param idx 模块索引 (0-based)
  * @return 模块名称字符串（内部存储，勿释放），无效索引返回 NULL
  */
-const char *lv00_ecosystem_module_name(int idx)
+const char *lv_ecosystem_module_name(int idx)
 {
     if (idx < 0 || idx >= g_ecosystem_count) {
         return NULL;

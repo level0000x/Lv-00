@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file sat_encoding.c
  * @brief SAT 编码管线实现 —— 借鉴 Alloy Kodkod 的关系逻辑到 SAT 编码管道
  *
@@ -18,11 +18,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "lv00.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "error_codes.h"
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "sat_encoding.h"
 #include "solver_core.h"
 
@@ -79,16 +79,16 @@ static int find_var_entry(const SatEncoding *enc, int arity, const int *atom_ids
  */
 static bool ensure_clause_capacity(SatEncoding *enc) {
     if (enc->clause_count >= enc->clause_capacity) {
-        int new_cap = (enc->clause_capacity == 0) ? CLAUSE_INITIAL_CAP : enc->clause_capacity * LV00_ARRAY_GROWTH_FACTOR;
+        int new_cap = (enc->clause_capacity == 0) ? CLAUSE_INITIAL_CAP : enc->clause_capacity * lv_ARRAY_GROWTH_FACTOR;
         /* 整数溢出检查 */
         if (new_cap <= 0 || new_cap < enc->clause_capacity) {
             return false;
         }
-        int **new_clauses = (int **)lv00_realloc(enc->clauses, (size_t)new_cap * sizeof(int *));
-        int *new_sizes = (int *)lv00_realloc(enc->clause_sizes, (size_t)new_cap * sizeof(int));
+        int **new_clauses = (int **)lv_realloc(enc->clauses, (size_t)new_cap * sizeof(int *));
+        int *new_sizes = (int *)lv_realloc(enc->clause_sizes, (size_t)new_cap * sizeof(int));
         if (!new_clauses || !new_sizes) {
-            if (new_clauses) lv00_free((void **)&new_clauses);
-            if (new_sizes) lv00_free((void **)&new_sizes);
+            if (new_clauses) lv_free((void **)&new_clauses);
+            if (new_sizes) lv_free((void **)&new_sizes);
             return false;
         }
         enc->clauses = new_clauses;
@@ -103,12 +103,12 @@ static bool ensure_clause_capacity(SatEncoding *enc) {
  */
 static bool ensure_var_capacity(SatEncoding *enc) {
     if (enc->var_count >= enc->var_capacity) {
-        int new_cap = (enc->var_capacity == 0) ? VAR_MAP_INITIAL_CAP : enc->var_capacity * LV00_ARRAY_GROWTH_FACTOR;
+        int new_cap = (enc->var_capacity == 0) ? VAR_MAP_INITIAL_CAP : enc->var_capacity * lv_ARRAY_GROWTH_FACTOR;
         /* 整数溢出检查 */
         if (new_cap <= 0 || new_cap < enc->var_capacity) {
             return false;
         }
-        SatVarEntry *new_map = (SatVarEntry *)lv00_realloc(enc->var_map, (size_t)new_cap * sizeof(SatVarEntry));
+        SatVarEntry *new_map = (SatVarEntry *)lv_realloc(enc->var_map, (size_t)new_cap * sizeof(SatVarEntry));
         if (!new_map) return false;
         enc->var_map = new_map;
         enc->var_capacity = new_cap;
@@ -124,26 +124,26 @@ SatEncoding *sat_encoding_create(int initial_var_capacity, int initial_clause_ca
     if (initial_var_capacity <= 0) initial_var_capacity = VAR_MAP_INITIAL_CAP;
     if (initial_clause_capacity <= 0) initial_clause_capacity = CLAUSE_INITIAL_CAP;
 
-    SatEncoding *enc = (SatEncoding *)lv00_malloc(sizeof(SatEncoding));
-    LV00_CHECK_ALLOC(enc, NULL);
+    SatEncoding *enc = (SatEncoding *)lv_malloc(sizeof(SatEncoding));
+    lv_CHECK_ALLOC(enc, NULL);
     memset(enc, 0, sizeof(SatEncoding));
 
-    enc->var_map = (SatVarEntry *)lv00_malloc((size_t)initial_var_capacity * sizeof(SatVarEntry));
+    enc->var_map = (SatVarEntry *)lv_malloc((size_t)initial_var_capacity * sizeof(SatVarEntry));
     if (!enc->var_map) {
-        lv00_free((void **)&enc);
+        lv_free((void **)&enc);
         return NULL;
     }
     enc->var_capacity = initial_var_capacity;
     enc->var_count = 0;
     enc->next_var_id = 1;
 
-    enc->clauses = (int **)lv00_malloc((size_t)initial_clause_capacity * sizeof(int *));
-    enc->clause_sizes = (int *)lv00_malloc((size_t)initial_clause_capacity * sizeof(int));
+    enc->clauses = (int **)lv_malloc((size_t)initial_clause_capacity * sizeof(int *));
+    enc->clause_sizes = (int *)lv_malloc((size_t)initial_clause_capacity * sizeof(int));
     if (!enc->clauses || !enc->clause_sizes) {
-        lv00_free((void **)&enc->var_map);
-        if (enc->clauses) lv00_free((void **)&enc->clauses);
-        if (enc->clause_sizes) lv00_free((void **)&enc->clause_sizes);
-        lv00_free((void **)&enc);
+        lv_free((void **)&enc->var_map);
+        if (enc->clauses) lv_free((void **)&enc->clauses);
+        if (enc->clause_sizes) lv_free((void **)&enc->clause_sizes);
+        lv_free((void **)&enc);
         return NULL;
     }
     enc->clause_capacity = initial_clause_capacity;
@@ -161,13 +161,13 @@ SatEncoding *sat_encoding_create(int initial_var_capacity, int initial_clause_ca
 void sat_encoding_destroy(SatEncoding *enc) {
     if (!enc) return;
 
-    lv00_free((void **)&enc->var_map);
+    lv_free((void **)&enc->var_map);
     for (int i = 0; i < enc->clause_count; i++) {
-        lv00_free((void **)&enc->clauses[i]);
+        lv_free((void **)&enc->clauses[i]);
     }
-    lv00_free((void **)&enc->clauses);
-    lv00_free((void **)&enc->clause_sizes);
-    lv00_free((void **)&enc);
+    lv_free((void **)&enc->clauses);
+    lv_free((void **)&enc->clause_sizes);
+    lv_free((void **)&enc);
 }
 
 /* ========================================================================
@@ -175,10 +175,10 @@ void sat_encoding_destroy(SatEncoding *enc) {
  * ======================================================================== */
 
 int sat_encoding_register_var(SatEncoding *enc, int arity, const int *atom_ids) {
-    LV00_CHECK_NULL(enc, -1);
-    LV00_CHECK_NULL(atom_ids, -1);
+    lv_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(atom_ids, -1);
     if (arity <= 0 || arity > 8) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "无效元数: %d, 有效范围 [1, 8]", arity);
         return -1;
     }
@@ -204,8 +204,8 @@ int sat_encoding_register_var(SatEncoding *enc, int arity, const int *atom_ids) 
 }
 
 int sat_encoding_lookup_var(const SatEncoding *enc, int arity, const int *atom_ids) {
-    LV00_CHECK_NULL(enc, -1);
-    LV00_CHECK_NULL(atom_ids, -1);
+    lv_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(atom_ids, -1);
     if (arity <= 0 || arity > 8) return -1;
     return find_var_entry(enc, arity, atom_ids);
 }
@@ -215,19 +215,19 @@ int sat_encoding_lookup_var(const SatEncoding *enc, int arity, const int *atom_i
  * ======================================================================== */
 
 int sat_encoding_add_clause(SatEncoding *enc, const SatLiteral *literals, int count) {
-    LV00_CHECK_NULL(enc, -1);
-    LV00_CHECK_NULL(literals, -1);
+    lv_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(literals, -1);
     if (count <= 0) {
         /* 空白子句表示矛盾 */
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "子句文字数量必须 >= 1");
         return -1;
     }
 
     if (!ensure_clause_capacity(enc)) return -1;
 
-    int *clause = (int *)lv00_malloc((size_t)(count + 1) * sizeof(int));
-    LV00_CHECK_ALLOC(clause, -1);
+    int *clause = (int *)lv_malloc((size_t)(count + 1) * sizeof(int));
+    lv_CHECK_ALLOC(clause, -1);
     for (int i = 0; i < count; i++) {
         clause[i] = literals[i];
     }
@@ -276,7 +276,7 @@ static int register_pair_var(SatEncoding *enc, int n1_id, int n2_id, int *out_va
 /* ── 共线性约束编码 ── */
 
 int sat_encode_collinearity(SatEncoding *enc, int p1_id, int p2_id, int p3_id) {
-    LV00_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(enc, -1);
 
     int v12, v23, v13;
     if (register_pair_var(enc, p1_id, p2_id, &v12) < 0) return -1;
@@ -306,7 +306,7 @@ int sat_encode_collinearity(SatEncoding *enc, int p1_id, int p2_id, int p3_id) {
 /* ── 平行性约束编码 ── */
 
 int sat_encode_parallelism(SatEncoding *enc, int p1_id, int p2_id, int p3_id, int p4_id) {
-    LV00_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(enc, -1);
 
     int v12, v34, v_parallel;
     if (register_pair_var(enc, p1_id, p2_id, &v12) < 0) return -1;
@@ -338,7 +338,7 @@ int sat_encode_parallelism(SatEncoding *enc, int p1_id, int p2_id, int p3_id, in
 /* ── 垂直性约束编码 ── */
 
 int sat_encode_perpendicularity(SatEncoding *enc, int p1_id, int p2_id, int p3_id, int p4_id) {
-    LV00_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(enc, -1);
 
     int v12, v34, v_perp;
     if (register_pair_var(enc, p1_id, p2_id, &v12) < 0) return -1;
@@ -378,7 +378,7 @@ int sat_encode_perpendicularity(SatEncoding *enc, int p1_id, int p2_id, int p3_i
 /* ── 距离相等约束编码 ── */
 
 int sat_encode_distance_eq(SatEncoding *enc, int p1_id, int p2_id, int p3_id, int p4_id) {
-    LV00_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(enc, -1);
 
     int v12, v34, v_dist_eq;
     if (register_pair_var(enc, p1_id, p2_id, &v12) < 0) return -1;
@@ -410,7 +410,7 @@ int sat_encode_distance_eq(SatEncoding *enc, int p1_id, int p2_id, int p3_id, in
 /* ── 角度相等约束编码 ── */
 
 int sat_encode_angle_eq(SatEncoding *enc, int p1_id, int p2_id, int p3_id, int p4_id, int p5_id, int p6_id) {
-    LV00_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(enc, -1);
 
     int v12, v13, v45, v46, v_angle;
     if (register_pair_var(enc, p1_id, p2_id, &v12) < 0) return -1;
@@ -448,7 +448,7 @@ int sat_encode_angle_eq(SatEncoding *enc, int p1_id, int p2_id, int p3_id, int p
 /* ── 包含关系约束编码 ── */
 
 int sat_encode_containment(SatEncoding *enc, int p_id, int r_id) {
-    LV00_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(enc, -1);
 
     int var;
     if (register_pair_var(enc, p_id, r_id, &var) < 0) return -1;
@@ -462,16 +462,16 @@ int sat_encode_containment(SatEncoding *enc, int p_id, int r_id) {
 /* ── 通用约束编码（根据约束类型分发）── */
 
 int sat_encode_constraint(SatEncoding *enc, int constraint_id) {
-    LV00_CHECK_NULL(enc, -1);
+    lv_CHECK_NULL(enc, -1);
     if (!enc->graph) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "编码上下文中没有关联约束图");
         return -1;
     }
 
     const Constraint *con = graph_get_constraint(enc->graph, constraint_id);
     if (!con) {
-        lv00_set_error_ctx(LV00_ERROR_NOT_FOUND, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_NOT_FOUND, __FILE__, __LINE__, __func__,
                            "约束 ID=%d 未找到", constraint_id);
         return -1;
     }
@@ -514,7 +514,7 @@ int sat_encode_constraint(SatEncoding *enc, int constraint_id) {
             }
             break;
         default:
-            LV00_LOG_WARNING("Unknown constraint type %d in sat_encode_constraint", con->type);
+            lv_LOG_WARNING("Unknown constraint type %d in sat_encode_constraint", con->type);
             break;
     }
 
@@ -526,8 +526,8 @@ int sat_encode_constraint(SatEncoding *enc, int constraint_id) {
  * ======================================================================== */
 
 SatResult constraint_graph_to_sat(const ConstraintGraph *graph, SatEncoding *enc) {
-    LV00_CHECK_NULL(graph, SAT_ERROR);
-    LV00_CHECK_NULL(enc, SAT_ERROR);
+    lv_CHECK_NULL(graph, SAT_ERROR);
+    lv_CHECK_NULL(enc, SAT_ERROR);
 
     enc->graph = (ConstraintGraph *)graph;
 
@@ -536,7 +536,7 @@ SatResult constraint_graph_to_sat(const ConstraintGraph *graph, SatEncoding *enc
         if (!graph->constraints[i]) continue;
         int ret = sat_encode_constraint(enc, graph->constraints[i]->id);
         if (ret < 0) {
-            lv00_set_error_ctx(LV00_ERROR_INTERNAL, __FILE__, __LINE__, __func__,
+            lv_set_error_ctx(lv_ERROR_INTERNAL, __FILE__, __LINE__, __func__,
                                "约束 ID=%d 编码失败", graph->constraints[i]->id);
             return SAT_ERROR;
         }
@@ -550,10 +550,10 @@ SatResult constraint_graph_to_sat(const ConstraintGraph *graph, SatEncoding *enc
  * ======================================================================== */
 
 SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *scope, SatEncoding *enc) {
-    LV00_CHECK_NULL(model, SAT_ERROR);
-    LV00_CHECK_NULL(scope, SAT_ERROR);
-    LV00_CHECK_NULL(enc, SAT_ERROR);
-    LV00_UNUSED(scope);
+    lv_CHECK_NULL(model, SAT_ERROR);
+    lv_CHECK_NULL(scope, SAT_ERROR);
+    lv_CHECK_NULL(enc, SAT_ERROR);
+    lv_UNUSED(scope);
 
     enc->rel_model = model;
 
@@ -583,7 +583,7 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                     formula->expr->data.atomic.rel) {
                     Relation *rel = formula->expr->data.atomic.rel;
                     /* 为该关系的每个元组注册变量，然后添加"至少一个为真"的子句 */
-                    SatLiteral *disj = (SatLiteral *)lv00_malloc(
+                    SatLiteral *disj = (SatLiteral *)lv_malloc(
                         (size_t)rel->tuple_count * sizeof(SatLiteral));
                     if (!disj) { /* 内存不足，跳过此事实 */ break; }
                     int disj_count = 0;
@@ -596,7 +596,7 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                     if (disj_count > 0) {
                         sat_encoding_add_clause(enc, disj, disj_count);
                     }
-                    lv00_free((void **)&disj);
+                    lv_free((void **)&disj);
                 }
                 break;
             }
@@ -620,7 +620,7 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                 if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC &&
                     formula->expr->data.atomic.rel) {
                     Relation *rel = formula->expr->data.atomic.rel;
-                    int *vars = (int *)lv00_malloc(
+                    int *vars = (int *)lv_malloc(
                         (size_t)rel->tuple_count * sizeof(int));
                     if (!vars) break;
                     int var_count = 0;
@@ -632,12 +632,12 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                     }
                     /* 至少一个为真 */
                     if (var_count > 0) {
-                        SatLiteral *disj = (SatLiteral *)lv00_malloc(
+                        SatLiteral *disj = (SatLiteral *)lv_malloc(
                             (size_t)var_count * sizeof(SatLiteral));
                         if (disj) {
                             for (int vi = 0; vi < var_count; vi++) disj[vi] = vars[vi];
                             sat_encoding_add_clause(enc, disj, var_count);
-                            lv00_free((void **)&disj);
+                            lv_free((void **)&disj);
                         }
                     }
                     /* 至多一个为真：任意两个不同元组不能同时为真 */
@@ -647,7 +647,7 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                             sat_encoding_add_clause(enc, pair, 2);
                         }
                     }
-                    lv00_free((void **)&vars);
+                    lv_free((void **)&vars);
                 }
                 break;
             }
@@ -656,7 +656,7 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                 if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC &&
                     formula->expr->data.atomic.rel) {
                     Relation *rel = formula->expr->data.atomic.rel;
-                    int *vars = (int *)lv00_malloc(
+                    int *vars = (int *)lv_malloc(
                         (size_t)rel->tuple_count * sizeof(int));
                     if (!vars) break;
                     int var_count = 0;
@@ -672,7 +672,7 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                             sat_encoding_add_clause(enc, pair, 2);
                         }
                     }
-                    lv00_free((void **)&vars);
+                    lv_free((void **)&vars);
                 }
                 break;
             }
@@ -803,7 +803,7 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                         }
                     } else {
                         /* some x: S | F => 至少一个 x 使 F 成立 */
-                        SatLiteral *disj = (SatLiteral *)lv00_malloc(
+                        SatLiteral *disj = (SatLiteral *)lv_malloc(
                             (size_t)sub_rel->tuple_count * sizeof(SatLiteral));
                         if (disj) {
                             int dc = 0;
@@ -812,14 +812,14 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                                 if (var >= 1) disj[dc++] = var;
                             }
                             if (dc > 0) sat_encoding_add_clause(enc, disj, dc);
-                            lv00_free((void **)&disj);
+                            lv_free((void **)&disj);
                         }
                     }
                 }
                 break;
             }
             default:
-                LV00_LOG_WARNING("Unknown formula type %d in sat_encode_model_facts", formula->type);
+                lv_LOG_WARNING("Unknown formula type %d in sat_encode_model_facts", formula->type);
                 break;
         }
     }
@@ -832,50 +832,50 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
  * ======================================================================== */
 
 SatResult sat_solve_and_decode(SatEncoding *enc, SatModel **out_model) {
-    LV00_CHECK_NULL(enc, SAT_ERROR);
-    LV00_CHECK_NULL(out_model, SAT_ERROR);
+    lv_CHECK_NULL(enc, SAT_ERROR);
+    lv_CHECK_NULL(out_model, SAT_ERROR);
 
     /* 创建 CDCL 求解器，添加所有编码子句，求解并提取模型 */
-    Lv00Solver *solver = lv00_solver_create();
+    lvSolver *solver = lv_solver_create();
     if (!solver) return SAT_ERROR;
 
     /* 将编码的子句加入求解器 */
     for (int i = 0; i < enc->clause_count; i++) {
         int *clause = enc->clauses[i];
         int size = enc->clause_sizes[i];
-        Lv00SolverLit *lits = (Lv00SolverLit *)lv00_malloc((size_t)size * sizeof(Lv00SolverLit));
+        lvSolverLit *lits = (lvSolverLit *)lv_malloc((size_t)size * sizeof(lvSolverLit));
         if (!lits) {
-            lv00_solver_destroy(solver);
+            lv_solver_destroy(solver);
             return SAT_ERROR;
         }
         for (int j = 0; j < size; j++) {
             lits[j] = clause[j];
         }
-        lv00_solver_add_constraint(solver, lits, size);
-        lv00_free((void **)&lits);
+        lv_solver_add_constraint(solver, lits, size);
+        lv_free((void **)&lits);
     }
 
-    Lv00SolverResult result = lv00_solver_solve(solver);
+    lvSolverResult result = lv_solver_solve(solver);
 
-    if (result == LV00_SOLVER_SAT) {
-        SatModel *model = (SatModel *)lv00_malloc(sizeof(SatModel));
+    if (result == lv_SOLVER_SAT) {
+        SatModel *model = (SatModel *)lv_malloc(sizeof(SatModel));
         if (!model) {
-            lv00_solver_destroy(solver);
+            lv_solver_destroy(solver);
             return SAT_ERROR;
         }
         memset(model, 0, sizeof(SatModel));
         model->var_count = enc->total_vars;
         model->true_count = 0;
-        model->true_vars = (int *)lv00_malloc((size_t)enc->total_vars * sizeof(int));
+        model->true_vars = (int *)lv_malloc((size_t)enc->total_vars * sizeof(int));
         if (!model->true_vars) {
-            lv00_free((void **)&model);
-            lv00_solver_destroy(solver);
+            lv_free((void **)&model);
+            lv_solver_destroy(solver);
             return SAT_ERROR;
         }
 
         /* 收集赋值为真的变量 */
         for (int v = 1; v <= enc->next_var_id - 1; v++) {
-            int val = lv00_solver_get_value(solver, v);
+            int val = lv_solver_get_value(solver, v);
             if (val > 0) {
                 model->true_vars[model->true_count++] = v;
             }
@@ -886,17 +886,17 @@ SatResult sat_solve_and_decode(SatEncoding *enc, SatModel **out_model) {
         *out_model = model;
     }
 
-    lv00_solver_destroy(solver);
+    lv_solver_destroy(solver);
 
     switch (result) {
-        case LV00_SOLVER_SAT:  return SAT_OK;
-        case LV00_SOLVER_UNSAT: return SAT_UNSAT;
+        case lv_SOLVER_SAT:  return SAT_OK;
+        case lv_SOLVER_UNSAT: return SAT_UNSAT;
         default:                return SAT_UNKNOWN;
     }
 }
 
 SatResult sat_solve_incremental(SatEncoding *enc, const SatLiteral *literals, int count, SatModel **out_model) {
-    LV00_CHECK_NULL(enc, SAT_ERROR);
+    lv_CHECK_NULL(enc, SAT_ERROR);
 
     /* 追加假设 */
     for (int i = 0; i < count; i++) {
@@ -911,10 +911,10 @@ SatResult sat_solve_incremental(SatEncoding *enc, const SatLiteral *literals, in
  * ======================================================================== */
 
 ConstraintGraph *sat_model_to_graph(const SatModel *model) {
-    LV00_CHECK_NULL(model, NULL);
+    lv_CHECK_NULL(model, NULL);
 
     ConstraintGraph *graph = graph_create();
-    LV00_CHECK_ALLOC(graph, NULL);
+    lv_CHECK_ALLOC(graph, NULL);
 
     /* 如果模型已有解码后的实例，从中重建约束图 */
     if (model->decoded_instance && model->decoded_instance->model) {
@@ -954,7 +954,7 @@ ConstraintGraph *sat_model_to_graph(const SatModel *model) {
                         case REL_ATOM_PORT:      gtype = GEOM_PORT; break;
                         case REL_ATOM_FUNC_BLOCK: gtype = GEOM_FUNCTION_BLOCK; break;
                         default:
-                            LV00_LOG_WARNING("Unknown atom type %d in sat_decode_to_graph", atom->type);
+                            lv_LOG_WARNING("Unknown atom type %d in sat_decode_to_graph", atom->type);
                             gtype = GEOM_POINT;
                             break;
                     }
@@ -1002,11 +1002,11 @@ ConstraintGraph *sat_model_to_graph(const SatModel *model) {
 }
 
 RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model) {
-    LV00_CHECK_NULL(enc, NULL);
-    LV00_CHECK_NULL(model, NULL);
+    lv_CHECK_NULL(enc, NULL);
+    lv_CHECK_NULL(model, NULL);
 
-    RelInstance *inst = (RelInstance *)lv00_malloc(sizeof(RelInstance));
-    LV00_CHECK_ALLOC(inst, NULL);
+    RelInstance *inst = (RelInstance *)lv_malloc(sizeof(RelInstance));
+    lv_CHECK_ALLOC(inst, NULL);
     memset(inst, 0, sizeof(RelInstance));
 
     inst->model = (RelModel *)enc->rel_model;
@@ -1023,8 +1023,8 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
         /* 收集所有为真的变量对应的原子 ID 对 */
         int true_atom_count = 0;
         int true_atom_cap = (model->true_count > 0) ? model->true_count : 16;
-        int **true_atom_ids = (int **)lv00_malloc((size_t)true_atom_cap * sizeof(int *));
-        int *true_atom_arities = (int *)lv00_malloc((size_t)true_atom_cap * sizeof(int));
+        int **true_atom_ids = (int **)lv_malloc((size_t)true_atom_cap * sizeof(int *));
+        int *true_atom_arities = (int *)lv_malloc((size_t)true_atom_cap * sizeof(int));
         if (true_atom_ids && true_atom_arities) {
             for (int vi = 0; vi < model->true_count; vi++) {
                 int var_id = model->true_vars[vi];
@@ -1032,18 +1032,18 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                 for (int ei = 0; ei < enc->var_count; ei++) {
                     if (enc->var_map[ei].var_id == var_id) {
                         if (true_atom_count >= true_atom_cap) {
-                            int new_cap = true_atom_cap * LV00_ARRAY_GROWTH_FACTOR;
-                            int **new_ids = (int **)lv00_realloc(true_atom_ids,
+                            int new_cap = true_atom_cap * lv_ARRAY_GROWTH_FACTOR;
+                            int **new_ids = (int **)lv_realloc(true_atom_ids,
                                 (size_t)new_cap * sizeof(int *));
                             if (!new_ids) break;
                             true_atom_ids = new_ids;
-                            int *new_ar = (int *)lv00_realloc(true_atom_arities,
+                            int *new_ar = (int *)lv_realloc(true_atom_arities,
                                 (size_t)new_cap * sizeof(int));
                             if (!new_ar) break;
                             true_atom_arities = new_ar;
                             true_atom_cap = new_cap;
                         }
-                        int *ids_copy = (int *)lv00_malloc(
+                        int *ids_copy = (int *)lv_malloc(
                             (size_t)enc->var_map[ei].arity * sizeof(int));
                         if (ids_copy) {
                             for (int k = 0; k < enc->var_map[ei].arity; k++) {
@@ -1061,7 +1061,7 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
             /* 为关系模型中的每个关系创建绑定 */
             if (rel_model->relations && true_atom_count > 0) {
                 inst->binding_count = rel_model->relation_count;
-                inst->rel_bindings = (Relation **)lv00_malloc(
+                inst->rel_bindings = (Relation **)lv_malloc(
                     (size_t)inst->binding_count * sizeof(Relation *));
                 if (inst->rel_bindings) {
                     memset(inst->rel_bindings, 0,
@@ -1072,7 +1072,7 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         if (!rel) continue;
 
                         /* 创建新的关系，填充满足的元组 */
-                        Relation *binding = (Relation *)lv00_malloc(sizeof(Relation));
+                        Relation *binding = (Relation *)lv_malloc(sizeof(Relation));
                         if (!binding) continue;
                         memset(binding, 0, sizeof(Relation));
                         strncpy(binding->name, rel->name, sizeof(binding->name) - 1);
@@ -1081,11 +1081,11 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                             binding->domains[d] = rel->domains[d];
                         }
                         binding->tuple_capacity = 16;
-                        binding->tuples = (int **)lv00_malloc(
+                        binding->tuples = (int **)lv_malloc(
                             (size_t)binding->tuple_capacity * sizeof(int *));
                         if (!binding->tuples) {
-                            lv00_free((void **)&binding->name);
-                            lv00_free((void **)&binding);
+                            lv_free((void **)&binding->name);
+                            lv_free((void **)&binding);
                             continue;
                         }
 
@@ -1099,8 +1099,8 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                                     /* 扩容 */
                                     if (binding->tuple_count >= binding->tuple_capacity) {
                                         int new_cap = binding->tuple_capacity *
-                                            LV00_ARRAY_GROWTH_FACTOR;
-                                        int **new_tuples = (int **)lv00_realloc(
+                                            lv_ARRAY_GROWTH_FACTOR;
+                                        int **new_tuples = (int **)lv_realloc(
                                             binding->tuples,
                                             (size_t)new_cap * sizeof(int *));
                                         if (!new_tuples) break;
@@ -1128,7 +1128,7 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         total_atoms += rel_model->sigs[si]->atom_count;
                 }
                 inst->atom_count = total_atoms;
-                inst->atoms = (RelAtom **)lv00_malloc(
+                inst->atoms = (RelAtom **)lv_malloc(
                     (size_t)total_atoms * sizeof(RelAtom *));
                 if (inst->atoms) {
                     int idx = 0;
@@ -1173,13 +1173,13 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
 
             /* 释放临时数组 */
             for (int i = 0; i < true_atom_count; i++) {
-                if (true_atom_ids[i]) lv00_free((void **)&true_atom_ids[i]);
+                if (true_atom_ids[i]) lv_free((void **)&true_atom_ids[i]);
             }
-            lv00_free((void **)&true_atom_ids);
-            lv00_free((void **)&true_atom_arities);
+            lv_free((void **)&true_atom_ids);
+            lv_free((void **)&true_atom_arities);
         } else {
-            if (true_atom_ids) lv00_free((void **)&true_atom_ids);
-            if (true_atom_arities) lv00_free((void **)&true_atom_arities);
+            if (true_atom_ids) lv_free((void **)&true_atom_ids);
+            if (true_atom_arities) lv_free((void **)&true_atom_arities);
         }
     }
 
@@ -1188,10 +1188,10 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
 
 void sat_model_destroy(SatModel *model) {
     if (!model) return;
-    if (model->true_vars) lv00_free((void **)&model->true_vars);
+    if (model->true_vars) lv_free((void **)&model->true_vars);
     if (model->decoded_graph) graph_destroy(model->decoded_graph);
     if (model->decoded_instance) relation_instance_destroy(model->decoded_instance);
-    lv00_free((void **)&model);
+    lv_free((void **)&model);
 }
 
 /* ========================================================================
@@ -1199,8 +1199,8 @@ void sat_model_destroy(SatModel *model) {
  * ======================================================================== */
 
 int *sat_get_unsat_core(const SatEncoding *enc, int *out_count) {
-    LV00_CHECK_NULL(enc, NULL);
-    LV00_CHECK_NULL(out_count, NULL);
+    lv_CHECK_NULL(enc, NULL);
+    lv_CHECK_NULL(out_count, NULL);
 
     /* 提取不可满足核心 */
     /* 策略：优先使用约束图中的约束 ID 作为核心标识。
@@ -1219,12 +1219,12 @@ int *sat_get_unsat_core(const SatEncoding *enc, int *out_count) {
         if (core_count == 0) {
             /* 没有活跃约束，返回空核心 */
             *out_count = 0;
-            int *core = (int *)lv00_malloc(sizeof(int));
+            int *core = (int *)lv_malloc(sizeof(int));
             if (core) core[0] = -1;
             return core;
         }
 
-        int *core = (int *)lv00_malloc((size_t)core_count * sizeof(int));
+        int *core = (int *)lv_malloc((size_t)core_count * sizeof(int));
         if (!core) {
             *out_count = 0;
             return NULL;
@@ -1242,7 +1242,7 @@ int *sat_get_unsat_core(const SatEncoding *enc, int *out_count) {
 
     /* Fallback：没有约束图时，返回所有子句索引作为核心 */
     if (enc->clause_count > 0) {
-        int *core = (int *)lv00_malloc((size_t)enc->clause_count * sizeof(int));
+        int *core = (int *)lv_malloc((size_t)enc->clause_count * sizeof(int));
         if (!core) {
             *out_count = 0;
             return NULL;
@@ -1256,18 +1256,18 @@ int *sat_get_unsat_core(const SatEncoding *enc, int *out_count) {
 
     /* 完全无信息，返回空核心 */
     *out_count = 0;
-    int *core = (int *)lv00_malloc(sizeof(int));
+    int *core = (int *)lv_malloc(sizeof(int));
     if (core) core[0] = -1;
     return core;
 }
 
 bool sat_encoding_export_dimacs(const SatEncoding *enc, const char *filepath) {
-    LV00_CHECK_NULL(enc, false);
-    LV00_CHECK_NULL(filepath, false);
+    lv_CHECK_NULL(enc, false);
+    lv_CHECK_NULL(filepath, false);
 
     FILE *fp = fopen(filepath, "w");
     if (!fp) {
-        lv00_set_error_ctx(LV00_ERROR_IO, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_IO, __FILE__, __LINE__, __func__,
                            "无法打开文件: %s", filepath);
         return false;
     }

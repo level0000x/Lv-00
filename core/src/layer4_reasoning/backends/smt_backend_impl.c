@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_backend_impl.c
  * @brief SMT 后端抽象层实现 —— 多引擎 SMT 求解器框架（含 Groebner 基真实求解）
  *
@@ -26,8 +26,8 @@
  * @dependencies
  *   - smt_backend.h          : SMT 后端公共接口
  *   - groebner_engine.h      : Groebner 基计算引擎（内置求解核心）
- *   - lv00_internal.h        : 内部常量与工具宏
- *   - lv00_utils.h           : 统一内存分配器
+ *   - lv_internal.h        : 内部常量与工具宏
+ *   - lv_utils.h           : 统一内存分配器
  *   - error_codes.h          : 统一错误码系统
  */
 
@@ -47,8 +47,8 @@
 
 #include "error_codes.h"
 #include "groebner_engine.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ============================================================
  * 模块级常量
@@ -93,7 +93,7 @@ struct SMTSolver {
     bool has_assertions;              /**< 是否有待求解的断言 */
 
     /* ---- Groebner 后端专用字段 ---- */
-    Lv00RingRegistry *groebner_registry; /**< Groebner 环注册表（惰性创建） */
+    lvRingRegistry *groebner_registry; /**< Groebner 环注册表（惰性创建） */
     int groebner_ring_id;               /**< Groebner 多项式环 ID */
     int groebner_ideal_id;              /**< Groebner 理想 ID（约束转换结果） */
     int groebner_var_count;             /**< Groebner 环中的变量数量 */
@@ -207,7 +207,7 @@ const SMTSolverConfig *smtsolver_default_config(SolverBackendType type) {
  * 未链接的后端设置 SMT_ERROR_BACKEND_UNAVAILABLE 但不阻止创建句柄。
  */
 SMTSolver *smtsolver_create(SolverBackendType type, const SMTSolverConfig *config) {
-    SMTSolver *solver = (SMTSolver *)lv00_malloc(sizeof(SMTSolver));
+    SMTSolver *solver = (SMTSolver *)lv_malloc(sizeof(SMTSolver));
     if (!solver) {
         return NULL;
     }
@@ -260,13 +260,13 @@ void smtsolver_destroy(SMTSolver *solver) {
         return;
     }
     if (solver->encoded_formula) {
-        lv00_free((void **)&solver->encoded_formula);
+        lv_free((void **)&solver->encoded_formula);
     }
 
     /* 清理 Groebner 后端专用资源 */
     groebner_backend_cleanup(solver);
 
-    lv00_free((void **)&solver);
+    lv_free((void **)&solver);
 }
 
 /**
@@ -347,8 +347,8 @@ static const char *smtlib2_coord_var_name(int node_id, int coord_idx) {
  */
 int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic logic,
                                            bool produce_unsat_cores, char *out_smtlib2, size_t buffer_size) {
-    LV00_CHECK_NULL(graph, -1);
-    LV00_CHECK_NULL(out_smtlib2, -1);
+    lv_CHECK_NULL(graph, -1);
+    lv_CHECK_NULL(out_smtlib2, -1);
 
     if (buffer_size < 256) {
         return (int)buffer_size + 256; /* 返回所需大小 */
@@ -432,7 +432,7 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
             n = smtlib2_encode_connection(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
             break;
         default:
-            LV00_LOG_WARNING("Unknown constraint type %d in smtlib2_encode_constraints", c->type);
+            lv_LOG_WARNING("Unknown constraint type %d in smtlib2_encode_constraints", c->type);
             break;
         }
         if (n < 0 || n >= remaining) break;
@@ -877,8 +877,8 @@ void smtsolver_set_error(SMTSolver *solver, SMTErrorCode code, const char *msg) 
  * 实际求解通过直接操作约束图的多项式理想完成。
  */
 int smtsolver_encode(SMTSolver *solver, const char *smtlib2, int len) {
-    LV00_CHECK_NULL(solver, (int)-SMT_ERROR_ENCODING_FAILED);
-    LV00_CHECK_NULL(smtlib2, (int)-SMT_ERROR_ENCODING_FAILED);
+    lv_CHECK_NULL(solver, (int)-SMT_ERROR_ENCODING_FAILED);
+    lv_CHECK_NULL(smtlib2, (int)-SMT_ERROR_ENCODING_FAILED);
 
     if (!solver->is_initialized) {
         smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED, "Solver not initialized");
@@ -891,7 +891,7 @@ int smtsolver_encode(SMTSolver *solver, const char *smtlib2, int len) {
 
     /* 释放旧编码 */
     if (solver->encoded_formula) {
-        lv00_free((void **)&solver->encoded_formula);
+        lv_free((void **)&solver->encoded_formula);
     }
 
     int actual_len = (len <= 0) ? (int)strlen(smtlib2) : len;
@@ -900,7 +900,7 @@ int smtsolver_encode(SMTSolver *solver, const char *smtlib2, int len) {
         return (int)-SMT_ERROR_ENCODING_FAILED;
     }
 
-    solver->encoded_formula = (char *)lv00_malloc((size_t)(actual_len + 1));
+    solver->encoded_formula = (char *)lv_malloc((size_t)(actual_len + 1));
     if (!solver->encoded_formula) {
         smtsolver_set_error(solver, SMT_ERROR_MEMORY_EXHAUSTED, "Failed to allocate encoding buffer");
         return (int)-SMT_ERROR_MEMORY_EXHAUSTED;
@@ -951,7 +951,7 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
 
     if (point_count == 0) {
         /* 没有点节点，无法建立多项式系统 */
-        lv00_set_error(LV00_ERROR_SOLVER_NO_SOLUTION,
+        lv_set_error(lv_ERROR_SOLVER_NO_SOLUTION,
                        "Groebner 后端初始化失败：约束图中无点节点");
         return -1;
     }
@@ -959,16 +959,16 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
     /* 步骤 2：创建环注册表 */
     solver->groebner_registry = ring_registry_create(4);
     if (!solver->groebner_registry) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY,
                        "Groebner 后端初始化失败：无法创建环注册表");
         return -1;
     }
 
     /* 步骤 3：声明变量名（p0_x, p0_y, p1_x, p1_y, ...） */
     int var_count = point_count * 2;
-    char **var_names = (char **)lv00_calloc((size_t)var_count, sizeof(char *));
+    char **var_names = (char **)lv_calloc((size_t)var_count, sizeof(char *));
     if (!var_names) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY,
                        "Groebner 后端初始化失败：无法分配变量名数组");
         groebner_backend_cleanup(solver);
         return -1;
@@ -976,12 +976,12 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
 
     /* 建立节点 ID -> 变量索引的映射表 */
     int map_size = max_node_id + 1;
-    int *node_var_map = (int *)lv00_calloc((size_t)map_size, sizeof(int));
+    int *node_var_map = (int *)lv_calloc((size_t)map_size, sizeof(int));
     if (!node_var_map) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY,
                        "Groebner 后端初始化失败：无法分配节点映射表");
-        for (int i = 0; i < var_count; i++) lv00_free((void **)&var_names[i]);
-        lv00_free((void **)&var_names);
+        for (int i = 0; i < var_count; i++) lv_free((void **)&var_names[i]);
+        lv_free((void **)&var_names);
         groebner_backend_cleanup(solver);
         return -1;
     }
@@ -1000,13 +1000,13 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
         /* x 坐标变量 */
         char name_buf[GROEBNER_VAR_NAME_MAX];
         snprintf(name_buf, sizeof(name_buf), "p%d_x", node->id);
-        var_names[var_idx] = lv00_strdup_safe(name_buf);
+        var_names[var_idx] = lv_strdup_safe(name_buf);
         node_var_map[node->id] = var_idx;
         var_idx++;
 
         /* y 坐标变量 */
         snprintf(name_buf, sizeof(name_buf), "p%d_y", node->id);
-        var_names[var_idx] = lv00_strdup_safe(name_buf);
+        var_names[var_idx] = lv_strdup_safe(name_buf);
         var_idx++;
     }
 
@@ -1017,14 +1017,14 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
 
     /* 释放变量名数组（ring_create 已复制） */
     for (int i = 0; i < var_count; i++) {
-        if (var_names[i]) lv00_free((void **)&var_names[i]);
+        if (var_names[i]) lv_free((void **)&var_names[i]);
     }
-    lv00_free((void **)&var_names);
+    lv_free((void **)&var_names);
 
     if (solver->groebner_ring_id < 0) {
-        lv00_set_error(LV00_ERROR_GROEBNER_FAILED,
+        lv_set_error(lv_ERROR_GROEBNER_FAILED,
                        "Groebner 后端初始化失败：无法创建多项式环");
-        lv00_free((void **)&node_var_map);
+        lv_free((void **)&node_var_map);
         groebner_backend_cleanup(solver);
         return -1;
     }
@@ -1035,9 +1035,9 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
         "geometric_constraint_ideal");
 
     if (solver->groebner_ideal_id < 0) {
-        lv00_set_error(LV00_ERROR_GROEBNER_FAILED,
+        lv_set_error(lv_ERROR_GROEBNER_FAILED,
                        "Groebner 后端初始化失败：无法创建多项式理想");
-        lv00_free((void **)&node_var_map);
+        lv_free((void **)&node_var_map);
         groebner_backend_cleanup(solver);
         return -1;
     }
@@ -1047,7 +1047,7 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
     solver->groebner_node_var_map_size = map_size;
     solver->groebner_var_count = var_count;
 
-    LV00_LOG_INFO("Groebner 后端初始化完成: %d 个点节点, %d 个变量, ring_id=%d, ideal_id=%d",
+    lv_LOG_INFO("Groebner 后端初始化完成: %d 个点节点, %d 个变量, ring_id=%d, ideal_id=%d",
                   point_count, var_count, solver->groebner_ring_id, solver->groebner_ideal_id);
 
     return 0;
@@ -1089,7 +1089,7 @@ static void groebner_backend_cleanup(SMTSolver *solver) {
 
     /* 释放节点-变量映射表 */
     if (solver->groebner_node_var_map) {
-        lv00_free((void **)&solver->groebner_node_var_map);
+        lv_free((void **)&solver->groebner_node_var_map);
         solver->groebner_node_var_map = NULL;
     }
     solver->groebner_node_var_map_size = 0;
@@ -1121,13 +1121,13 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
         return SMT_RESULT_ERROR;
     }
 
-    Lv00RingRegistry *registry = solver->groebner_registry;
+    lvRingRegistry *registry = solver->groebner_registry;
     int ring_id = solver->groebner_ring_id;
     int ideal_id = solver->groebner_ideal_id;
 
     /* var_map 和 map_size 在手动编码回退路径中使用 */
-    LV00_UNUSED(solver->groebner_node_var_map);
-    LV00_UNUSED(solver->groebner_node_var_map_size);
+    lv_UNUSED(solver->groebner_node_var_map);
+    lv_UNUSED(solver->groebner_node_var_map_size);
 
     /* ---- 步骤 2：将约束转换为多项式生成元 ---- */
 
@@ -1147,7 +1147,7 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
     if (conv_id < 0) {
         /* constraint_graph_to_ideal 失败，尝试手动编码关键约束 */
 
-        LV00_LOG_WARNING("constraint_graph_to_ideal 失败，回退到手动约束编码");
+        lv_LOG_WARNING("constraint_graph_to_ideal 失败，回退到手动约束编码");
 
         /* 手动编码：遍历约束，为每个约束创建多项式 */
         for (int ci = 0; ci < graph->constraint_count; ci++) {
@@ -1224,31 +1224,31 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
                 break;
             }
             default:
-                LV00_LOG_WARNING("Unknown constraint type %d in constraint_graph_to_ideal fallback", c->type);
+                lv_LOG_WARNING("Unknown constraint type %d in constraint_graph_to_ideal fallback", c->type);
                 break;
             }
         }
     } else {
         /* constraint_graph_to_ideal 成功，使用转换后的理想 */
-        LV00_LOG_INFO("约束图成功转换为多项式理想 (ideal_id=%d)", conv_id);
+        lv_LOG_INFO("约束图成功转换为多项式理想 (ideal_id=%d)", conv_id);
         solver->groebner_ideal_id = conv_id;
         ideal_id = conv_id;
     }
 
     /* ---- 步骤 3：计算 Groebner 基 ---- */
-    LV00_LOG_INFO("开始计算 Groebner 基 (Buchberger 算法)...");
+    lv_LOG_INFO("开始计算 Groebner 基 (Buchberger 算法)...");
 
     int gb_rc = groebner_compute(registry, ideal_id, GROEBNER_AUTO);
     if (gb_rc < 0) {
-        LV00_LOG_ERROR("Groebner 基计算失败 (错误码=%d)", gb_rc);
-        lv00_set_error(LV00_ERROR_GROEBNER_FAILED,
+        lv_LOG_ERROR("Groebner 基计算失败 (错误码=%d)", gb_rc);
+        lv_set_error(lv_ERROR_GROEBNER_FAILED,
                        "Groebner 基计算失败: ideal_id=%d, rc=%d", ideal_id, gb_rc);
         smtsolver_set_error(solver, SMT_ERROR_SOLVER_CRASHED,
                             "Groebner basis computation failed");
         return SMT_RESULT_ERROR;
     }
 
-    LV00_LOG_INFO("Groebner 基计算完成");
+    lv_LOG_INFO("Groebner 基计算完成");
 
     /* ---- 步骤 4：通过理想成员关系判定可满足性 ---- */
 
@@ -1268,19 +1268,19 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
     /* 获取理想信息以检查 Groebner 基 */
     /* 如果理想为空（无约束），则平凡可满足 */
     if (graph->constraint_count == 0) {
-        LV00_LOG_INFO("约束图为空（无约束），返回 SAT");
+        lv_LOG_INFO("约束图为空（无约束），返回 SAT");
         return SMT_RESULT_SAT;
     }
 
     /* ---- 步骤 5：计算代数簇（求解多项式方程组） ---- */
-    LV00_LOG_INFO("开始计算代数簇 V(I)...");
+    lv_LOG_INFO("开始计算代数簇 V(I)...");
 
     int variety_id = variety_compute(registry, ideal_id, "constraint_variety");
     if (variety_id < 0) {
         /* 代数簇计算失败，可能是因为方程组过于复杂或维度过高。
          * 此时返回 UNKNOWN 而非错误，因为约束系统本身可能是有效的，
          * 只是超出了当前数值方法的处理能力。 */
-        LV00_LOG_WARNING("代数簇计算失败 (variety_id=%d)，返回 UNKNOWN", variety_id);
+        lv_LOG_WARNING("代数簇计算失败 (variety_id=%d)，返回 UNKNOWN", variety_id);
         smtsolver_set_error(solver, SMT_ERROR_UNSUPPORTED_THEORY,
                             "Variety computation failed; returning UNKNOWN");
         return SMT_RESULT_UNKNOWN;
@@ -1294,19 +1294,19 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
 
     if (is_zero_dim) {
         /* 零维簇：有限个离散解，约束系统可满足 */
-        LV00_LOG_INFO("代数簇为零维（有限解），返回 SAT (dimension=%d)", dim);
+        lv_LOG_INFO("代数簇为零维（有限解），返回 SAT (dimension=%d)", dim);
         return SMT_RESULT_SAT;
     } else if (dim < 0) {
         /* 维度计算失败 */
-        LV00_LOG_WARNING("无法确定代数簇维数，返回 UNKNOWN");
+        lv_LOG_WARNING("无法确定代数簇维数，返回 UNKNOWN");
         return SMT_RESULT_UNKNOWN;
     } else if (dim == 0) {
         /* 维度为 0 但 is_zero_dimensional 为 false（边界情况） */
-        LV00_LOG_INFO("代数簇维数为 0，返回 SAT");
+        lv_LOG_INFO("代数簇维数为 0，返回 SAT");
         return SMT_RESULT_SAT;
     } else {
         /* 正维簇：连续解空间（如欠约束系统），约束系统可满足 */
-        LV00_LOG_INFO("代数簇为正维（连续解空间，维度=%d），返回 SAT", dim);
+        lv_LOG_INFO("代数簇为正维（连续解空间，维度=%d），返回 SAT", dim);
         return SMT_RESULT_SAT;
     }
 }
@@ -1329,22 +1329,22 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
     }
 
     /* 注册表和簇 ID 在完整实现中将用于获取解点坐标 */
-    LV00_UNUSED(solver->groebner_registry);
-    LV00_UNUSED(solver->groebner_variety_id);
+    lv_UNUSED(solver->groebner_registry);
+    lv_UNUSED(solver->groebner_variety_id);
 
     /*
      * 从代数簇中获取解点。
-     * Lv00Variety 结构中 solution_points 是一个二维数组：
+     * lvVariety 结构中 solution_points 是一个二维数组：
      *   solution_points[i][j] 表示第 i 个解点的第 j 个变量值。
      *
      * 我们需要将解点坐标映射回约束图中的节点。
      */
 
     /* 获取代数簇信息 */
-    /* 注意：当前 Lv00Variety 通过注册表访问，需要通过 variety_id 查找 */
+    /* 注意：当前 lvVariety 通过注册表访问，需要通过 variety_id 查找 */
     /* 这里我们通过遍历注册表中的簇来获取 */
 
-    /* 由于 Lv00Variety 的直接访问 API 有限，我们通过环注册表的
+    /* 由于 lvVariety 的直接访问 API 有限，我们通过环注册表的
      * 内部数据来获取簇的解点信息。在实际集成中，应添加
      * variety_get_solution_points() 等 API。 */
 
@@ -1354,10 +1354,10 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
 
     if (max_assignments <= 0) return -1;
 
-    SMTVariableAssignment *assignments = (SMTVariableAssignment *)lv00_calloc(
+    SMTVariableAssignment *assignments = (SMTVariableAssignment *)lv_calloc(
         (size_t)max_assignments, sizeof(SMTVariableAssignment));
     if (!assignments) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY,
                        "Groebner 结果解码失败：无法分配赋值数组");
         return -1;
     }
@@ -1408,7 +1408,7 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
     out_result->assignments = assignments;
     out_result->assignment_count = assignment_count;
 
-    LV00_LOG_INFO("Groebner 结果解码完成: %d 个变量赋值", assignment_count);
+    lv_LOG_INFO("Groebner 结果解码完成: %d 个变量赋值", assignment_count);
 
     return 0;
 }
@@ -1421,7 +1421,7 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
  * - Z3/cvc5/Singular：通过子进程调用外部求解器
  */
 SMTSatResult smtsolver_check(SMTSolver *solver) {
-    LV00_CHECK_NULL(solver, SMT_RESULT_ERROR);
+    lv_CHECK_NULL(solver, SMT_RESULT_ERROR);
 
     if (!solver->is_initialized) {
         smtsolver_set_error(solver, SMT_ERROR_SOLVER_CRASHED, "Solver not initialized");
@@ -1466,13 +1466,13 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
                                 "No SMT-LIB2 formula encoded for Z3 backend");
             return SMT_RESULT_ERROR;
         }
-        LV00_LOG_INFO("Z3 后端: 通过子进程调用 z3 (输入长度=%d)", solver->encoded_len);
+        lv_LOG_INFO("Z3 后端: 通过子进程调用 z3 (输入长度=%d)", solver->encoded_len);
         SMTSatResult z3_result = smt_external_solver_check(
             solver, "z3",
             solver->encoded_formula, solver->encoded_len,
             NULL, 0);
         if (z3_result == SMT_RESULT_UNKNOWN) {
-            LV00_LOG_WARNING("Z3 后端: 求解器返回 UNKNOWN（可能未安装 z3），回退到内部求解");
+            lv_LOG_WARNING("Z3 后端: 求解器返回 UNKNOWN（可能未安装 z3），回退到内部求解");
         }
         return z3_result;
     }
@@ -1484,13 +1484,13 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
                                 "No SMT-LIB2 formula encoded for cvc5 backend");
             return SMT_RESULT_ERROR;
         }
-        LV00_LOG_INFO("cvc5 后端: 通过子进程调用 cvc5 (输入长度=%d)", solver->encoded_len);
+        lv_LOG_INFO("cvc5 后端: 通过子进程调用 cvc5 (输入长度=%d)", solver->encoded_len);
         SMTSatResult cvc5_result = smt_external_solver_check(
             solver, "cvc5",
             solver->encoded_formula, solver->encoded_len,
             NULL, 0);
         if (cvc5_result == SMT_RESULT_UNKNOWN) {
-            LV00_LOG_WARNING("cvc5 后端: 求解器返回 UNKNOWN（可能未安装 cvc5），回退到内部求解");
+            lv_LOG_WARNING("cvc5 后端: 求解器返回 UNKNOWN（可能未安装 cvc5），回退到内部求解");
         }
         return cvc5_result;
     }
@@ -1502,14 +1502,14 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
                                 "No Singular script encoded");
             return SMT_RESULT_ERROR;
         }
-        LV00_LOG_INFO("Singular 后端: 通过子进程调用 singular");
+        lv_LOG_INFO("Singular 后端: 通过子进程调用 singular");
         /* Singular 使用 -q 静默模式执行脚本 */
         SMTSatResult singular_result = smt_external_solver_check(
             solver, "singular",
             solver->encoded_formula, solver->encoded_len,
             NULL, 0);
         if (singular_result == SMT_RESULT_UNKNOWN) {
-            LV00_LOG_WARNING("Singular 后端: 求解器返回 UNKNOWN（可能未安装 Singular），回退到 Groebner 后端");
+            lv_LOG_WARNING("Singular 后端: 求解器返回 UNKNOWN（可能未安装 Singular），回退到 Groebner 后端");
             /* 回退到内部 Groebner 后端 */
             solver->type = SMT_GROEBNER;
             return smtsolver_check(solver);
@@ -1527,7 +1527,7 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
  */
 int smtsolver_decode_result(SMTSolver *solver, SMTSatResult sat_result,
                              SMTSolverResult *out_result) {
-    LV00_CHECK_NULL(solver, (int)-SMT_ERROR_PARSE_FAILED);
+    lv_CHECK_NULL(solver, (int)-SMT_ERROR_PARSE_FAILED);
 
     if (!out_result) {
         return 0; /* 允许跳过结果构造 */
@@ -1551,7 +1551,7 @@ int smtsolver_decode_result(SMTSolver *solver, SMTSatResult sat_result,
     if (solver->type == GROEBNER && sat_result == SMT_RESULT_SAT) {
         int rc = groebner_backend_decode(solver, out_result);
         if (rc < 0) {
-            LV00_LOG_WARNING("Groebner 结果解码失败，赋值数组为空");
+            lv_LOG_WARNING("Groebner 结果解码失败，赋值数组为空");
             /* 解码失败不影响 SAT 结论，只是没有具体赋值 */
         }
     }
@@ -1574,8 +1574,8 @@ int smtsolver_decode_result(SMTSolver *solver, SMTSatResult sat_result,
  */
 int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph,
                      SMTSolverResult *out_result) {
-    LV00_CHECK_NULL(solver, -1);
-    LV00_CHECK_NULL(graph, -1);
+    lv_CHECK_NULL(solver, -1);
+    lv_CHECK_NULL(graph, -1);
 
     if (!out_result) {
         return -1;
@@ -1585,7 +1585,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph,
 
     /* ---- Groebner 后端：直接通过多项式理想求解 ---- */
     if (solver->type == GROEBNER) {
-        LV00_LOG_INFO("Groebner 后端开始求解 (约束数=%d, 节点数=%d)",
+        lv_LOG_INFO("Groebner 后端开始求解 (约束数=%d, 节点数=%d)",
                       graph->constraint_count, graph->node_count);
 
         /* 调用 Groebner 后端求解 */
@@ -1596,7 +1596,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph,
         /* 解码结果 */
         smtsolver_decode_result(solver, sat_res, out_result);
 
-        LV00_LOG_INFO("Groebner 后端求解完成: 结果=%s",
+        lv_LOG_INFO("Groebner 后端求解完成: 结果=%s",
                       smtsolver_sat_result_name(sat_res));
 
         return (sat_res == SMT_RESULT_SAT) ? 0 : ((sat_res == SMT_RESULT_ERROR) ? -1 : 1);
@@ -1605,7 +1605,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph,
     /* ---- 其他后端：标准 SMT-LIB2 编码管线 ---- */
 
     /* 步骤 1：编码约束图为 SMT-LIB2 */
-    char *smtlib2_buf = (char *)lv00_malloc(SMTLIB2_DEFAULT_BUFFER);
+    char *smtlib2_buf = (char *)lv_malloc(SMTLIB2_DEFAULT_BUFFER);
     if (!smtlib2_buf) {
         out_result->sat_result = SMT_RESULT_ERROR;
         out_result->error_code = SMT_ERROR_MEMORY_EXHAUSTED;
@@ -1618,7 +1618,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph,
                                                           solver->config.produce_unsat_cores,
                                                           smtlib2_buf, SMTLIB2_DEFAULT_BUFFER);
     if (enc_len < 0) {
-        lv00_free((void **)&smtlib2_buf);
+        lv_free((void **)&smtlib2_buf);
         out_result->sat_result = SMT_RESULT_ERROR;
         out_result->error_code = SMT_ERROR_ENCODING_FAILED;
         snprintf(out_result->error_message, sizeof(out_result->error_message),
@@ -1628,7 +1628,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph,
 
     /* 步骤 2：加载到求解器 */
     int rc = smtsolver_encode(solver, smtlib2_buf, enc_len);
-    lv00_free((void **)&smtlib2_buf);
+    lv_free((void **)&smtlib2_buf);
 
     if (rc < 0) {
         out_result->sat_result = SMT_RESULT_ERROR;
@@ -1689,7 +1689,7 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver,
     /* 写入临时文件 */
     FILE *tmp = tmpfile();
     if (!tmp) {
-        LV00_LOG_WARNING("外部求解器 %s: 无法创建临时文件，回退到 UNKNOWN", executable);
+        lv_LOG_WARNING("外部求解器 %s: 无法创建临时文件，回退到 UNKNOWN", executable);
         return SMT_RESULT_UNKNOWN;
     }
     fputs(smt2_input, tmp);
@@ -1702,14 +1702,14 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver,
     char tmp_path[MAX_PATH];
     if (_get_osfhandle(fd) == -1 || tmpnam_s(tmp_path, MAX_PATH) != 0) {
         fclose(tmp);
-        LV00_LOG_WARNING("外部求解器 %s: 无法获取临时文件路径，回退到 UNKNOWN", executable);
+        lv_LOG_WARNING("外部求解器 %s: 无法获取临时文件路径，回退到 UNKNOWN", executable);
         return SMT_RESULT_UNKNOWN;
     }
     /* 将 tmpfile 内容复制到命名临时文件 */
     FILE *named_tmp = fopen(tmp_path, "w");
     if (!named_tmp) {
         fclose(tmp);
-        LV00_LOG_WARNING("外部求解器 %s: 无法创建命名临时文件，回退到 UNKNOWN", executable);
+        lv_LOG_WARNING("外部求解器 %s: 无法创建命名临时文件，回退到 UNKNOWN", executable);
         return SMT_RESULT_UNKNOWN;
     }
     rewind(tmp);
@@ -1718,7 +1718,7 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver,
     while ((n = fread(copy_buf, 1, sizeof(copy_buf), tmp)) > 0) {
         size_t written = fwrite(copy_buf, 1, n, named_tmp);
         if (written != n) {
-            LV00_LOG_WARNING("外部求解器 %s: 临时文件写入不完整（期望 %zu, 实际 %zu）",
+            lv_LOG_WARNING("外部求解器 %s: 临时文件写入不完整（期望 %zu, 实际 %zu）",
                              executable, n, written);
             break;
         }
@@ -1750,12 +1750,12 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver,
     }
 #endif
 
-    LV00_LOG_INFO("外部求解器 %s: 启动子进程: %s", executable, cmd);
+    lv_LOG_INFO("外部求解器 %s: 启动子进程: %s", executable, cmd);
 
     /* 通过 popen 启动子进程 */
     FILE *pipe = popen(cmd, "r");
     if (!pipe) {
-        LV00_LOG_WARNING("外部求解器 %s: popen 失败（求解器可能未安装），回退到 UNKNOWN", executable);
+        lv_LOG_WARNING("外部求解器 %s: popen 失败（求解器可能未安装），回退到 UNKNOWN", executable);
 #ifdef _WIN32
         _unlink(tmp_path);
 #else
@@ -1792,13 +1792,13 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver,
     if (WIFEXITED(status)) {
         int exit_code = WEXITSTATUS(status);
         if (exit_code != 0) {
-            LV00_LOG_WARNING("外部求解器 %s: 进程退出码=%d，回退到 UNKNOWN", executable, exit_code);
+            lv_LOG_WARNING("外部求解器 %s: 进程退出码=%d，回退到 UNKNOWN", executable, exit_code);
             return SMT_RESULT_UNKNOWN;
         }
     }
 #else
     if (status != 0) {
-        LV00_LOG_WARNING("外部求解器 %s: 进程退出码=%d，回退到 UNKNOWN", executable, status);
+        lv_LOG_WARNING("外部求解器 %s: 进程退出码=%d，回退到 UNKNOWN", executable, status);
         return SMT_RESULT_UNKNOWN;
     }
 #endif
@@ -1815,16 +1815,16 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver,
     SMTSatResult result;
     if (strncmp(trimmed, "sat", 3) == 0) {
         result = SMT_RESULT_SAT;
-        LV00_LOG_INFO("外部求解器 %s: 结果 = SAT", executable);
+        lv_LOG_INFO("外部求解器 %s: 结果 = SAT", executable);
     } else if (strncmp(trimmed, "unsat", 5) == 0) {
         result = SMT_RESULT_UNSAT;
-        LV00_LOG_INFO("外部求解器 %s: 结果 = UNSAT", executable);
+        lv_LOG_INFO("外部求解器 %s: 结果 = UNSAT", executable);
     } else if (strncmp(trimmed, "unknown", 7) == 0) {
         result = SMT_RESULT_UNKNOWN;
-        LV00_LOG_INFO("外部求解器 %s: 结果 = UNKNOWN", executable);
+        lv_LOG_INFO("外部求解器 %s: 结果 = UNKNOWN", executable);
     } else {
         result = SMT_RESULT_UNKNOWN;
-        LV00_LOG_WARNING("外部求解器 %s: 无法解析输出 \"%s\"，回退到 UNKNOWN", executable, trimmed);
+        lv_LOG_WARNING("外部求解器 %s: 无法解析输出 \"%s\"，回退到 UNKNOWN", executable, trimmed);
     }
 
     return result;
@@ -1854,11 +1854,11 @@ void smtsolver_result_free(SMTSolverResult *result) {
         return;
     }
     if (result->assignments) {
-        lv00_free((void **)&result->assignments);
+        lv_free((void **)&result->assignments);
     }
     result->assignment_count = 0;
     if (result->unsat_core_ids) {
-        lv00_free((void **)&result->unsat_core_ids);
+        lv_free((void **)&result->unsat_core_ids);
     }
     result->unsat_core_size = 0;
 }
@@ -2020,8 +2020,8 @@ SMTBackendRegistry *smtsolver_get_registry(void) {
  * @brief 向后端注册表注册一个后端
  */
 int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEntry *entry) {
-    LV00_CHECK_NULL(registry, -1);
-    LV00_CHECK_NULL(entry, -1);
+    lv_CHECK_NULL(registry, -1);
+    lv_CHECK_NULL(entry, -1);
 
     if (registry->count >= SMT_BACKEND_REGISTRY_CAPACITY) {
         return -1;

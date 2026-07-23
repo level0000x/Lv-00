@@ -1,4 +1,4 @@
-# Lv-00 几何元语言系统 v3.4-academic - 模块文档索引
+﻿# Lv-00 几何元语言系统 v3.4-academic - 模块文档索引
 
 ## 概述
 
@@ -92,7 +92,7 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 
 **上下文创建**:
 ```c
-LV00Context *ctx = engine_create();
+lvContext *ctx = engine_create();
 engine_load_axiom_package(ctx, "euclidean.lvz");
 ```
 
@@ -141,16 +141,16 @@ if (result == UNIFY_OK) {
 
 ```
 Lv-00/
-├── include/lv00/          # 头文件
+├── include/lv/          # 头文件
 │   │
 │   │  ── 公共API入口 ──────────────────────────────────
-│   ├── lv00.h                  # 主头文件
+│   ├── lv.h                  # 主头文件
 │   ├── config.h                # 编译配置
 │   ├── cross_platform.h        # 跨平台宏
 │   ├── error_codes.h           # 错误码定义
-│   ├── lv00_utils.h            # 通用工具
-│   ├── lv00_numeric.h          # 数值类型工具
-│   └── lv00_internal.h         # 内部接口
+│   ├── lv_utils.h            # 通用工具
+│   ├── lv_numeric.h          # 数值类型工具
+│   └── lv_internal.h         # 内部接口
 │   │
 │   │  ── 引擎与上下文 ────────────────────────────────
 │   ├── ctx.h                # 主引擎

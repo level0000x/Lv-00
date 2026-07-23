@@ -1,4 +1,4 @@
-# 33. Gappa 浮点验证与解析安全
+﻿# 33. Gappa 浮点验证与解析安全
 
 ## 33.1 模块概述
 
@@ -31,13 +31,13 @@ Lv-00 的证明系统以精确构造为核心，但工程实现必须面对浮�
 
 ```c
 typedef enum {
-    LV00_ROUND_NE = 0,
-    LV00_ROUND_NA,
-    LV00_ROUND_ZR,
-    LV00_ROUND_DN,
-    LV00_ROUND_UP,
-    LV00_ROUND_COUNT
-} Lv00GappaRounding;
+    lv_ROUND_NE = 0,
+    lv_ROUND_NA,
+    lv_ROUND_ZR,
+    lv_ROUND_DN,
+    lv_ROUND_UP,
+    lv_ROUND_COUNT
+} lvGappaRounding;
 ```
 
 这些模式对应 IEEE 754 舍入方向：最近偶数、最近远离零、向零、向负无穷、向正无穷。
@@ -48,30 +48,30 @@ typedef enum {
 typedef struct {
     int precision_bits;
     int exponent_bits;
-    Lv00GappaRounding rounding;
+    lvGappaRounding rounding;
     char name[64];
-} Lv00GappaFormat;
+} lvGappaFormat;
 ```
 
 预定义格式包括：`binary16`、`binary32`、`binary64`、`binary128`。
 
 ```c
-bool gappa_format_predefined(const char *name, Lv00GappaFormat *out);
+bool gappa_format_predefined(const char *name, lvGappaFormat *out);
 ```
 
 ### 33.3.3 谓词类型
 
 ```c
 typedef enum {
-    LV00_PRED_BND = 0,
-    LV00_PRED_ABS,
-    LV00_PRED_REL,
-    LV00_PRED_LIN,
-    LV00_PRED_FIX,
-    LV00_PRED_FLT,
-    LV00_PRED_NZR,
-    LV00_PRED_EQL
-} Lv00GappaPredType;
+    lv_PRED_BND = 0,
+    lv_PRED_ABS,
+    lv_PRED_REL,
+    lv_PRED_LIN,
+    lv_PRED_FIX,
+    lv_PRED_FLT,
+    lv_PRED_NZR,
+    lv_PRED_EQL
+} lvGappaPredType;
 ```
 
 | 类型 | 语义 |
@@ -89,7 +89,7 @@ typedef enum {
 
 ```c
 typedef struct {
-    Lv00GappaPredType type;
+    lvGappaPredType type;
     char expr_lhs[256];
     char expr_rhs[256];
     double bound_lo;
@@ -97,25 +97,25 @@ typedef struct {
     double bound_abs;
     double bound_rel;
     int is_hypothesis;
-} Lv00GappaPredicate;
+} lvGappaPredicate;
 ```
 
 ```c
 typedef struct {
-    Lv00GappaPredicate predicate;
+    lvGappaPredicate predicate;
     char description[256];
     int is_proven;
     char proof_method[128];
-} Lv00GappaProofGoal;
+} lvGappaProofGoal;
 ```
 
 ### 33.3.5 解析与证明 API
 
 ```c
 bool gappa_parse(const char *dsl_string,
-                 Lv00GappaPredicate **hypotheses,
+                 lvGappaPredicate **hypotheses,
                  int *hyp_count,
-                 Lv00GappaProofGoal **goals,
+                 lvGappaProofGoal **goals,
                  int *goal_count);
 ```
 
@@ -130,12 +130,12 @@ x in [0, 1] -> |x - 0.5| <= 0.5
 证明接口：
 
 ```c
-Lv00GappaProofResult gappa_prove(
-    const Lv00GappaPredicate *hypotheses,
+lvGappaProofResult gappa_prove(
+    const lvGappaPredicate *hypotheses,
     int hyp_count,
-    Lv00GappaProofGoal *goals,
+    lvGappaProofGoal *goals,
     int goal_count,
-    const Lv00GappaFormat *fmt);
+    const lvGappaFormat *fmt);
 ```
 
 证明结果：
@@ -147,8 +147,8 @@ typedef struct {
     int goals_proven;
     int goals_failed;
     char error_message[512];
-    Lv00GappaProofGoal *goals;
-} Lv00GappaProofResult;
+    lvGappaProofGoal *goals;
+} lvGappaProofResult;
 ```
 
 ---
@@ -158,22 +158,22 @@ typedef struct {
 ### 33.4.1 谓词集合
 
 ```c
-#define LV00_PRED_SET_MAX_SIZE 256
+#define lv_PRED_SET_MAX_SIZE 256
 
 typedef struct {
-    Lv00GappaPredicate preds[LV00_PRED_SET_MAX_SIZE];
+    lvGappaPredicate preds[lv_PRED_SET_MAX_SIZE];
     int count;
-} Lv00GappaPredSet;
+} lvGappaPredSet;
 ```
 
 API：
 
 ```c
-void gappa_pred_set_init(Lv00GappaPredSet *set);
-bool gappa_pred_set_add(Lv00GappaPredSet *set, const Lv00GappaPredicate *pred);
-int gappa_pred_set_find(Lv00GappaPredSet *set, const char *var_name, Lv00GappaPredicate *out);
-const Lv00GappaPredicate *gappa_pred_set_get(const Lv00GappaPredSet *set, int index);
-void gappa_pred_set_clear(Lv00GappaPredSet *set);
+void gappa_pred_set_init(lvGappaPredSet *set);
+bool gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred);
+int gappa_pred_set_find(lvGappaPredSet *set, const char *var_name, lvGappaPredicate *out);
+const lvGappaPredicate *gappa_pred_set_get(const lvGappaPredSet *set, int index);
+void gappa_pred_set_clear(lvGappaPredSet *set);
 ```
 
 ### 33.4.2 传播配置
@@ -184,13 +184,13 @@ typedef struct {
     int max_backward_depth;
     double contraction_eps;
     int enable_backward;
-} Lv00GappaPropagateConfig;
+} lvGappaPropagateConfig;
 ```
 
 默认配置由：
 
 ```c
-Lv00GappaPropagateConfig gappa_propagate_config_default(void);
+lvGappaPropagateConfig gappa_propagate_config_default(void);
 ```
 
 提供。
@@ -200,18 +200,18 @@ Lv00GappaPropagateConfig gappa_propagate_config_default(void);
 正向传播从已知假设推导新的区间谓词：
 
 ```c
-int gappa_propagate(const Lv00GappaPredSet *input_set,
-                    Lv00GappaPredSet *output_set,
-                    const Lv00GappaPropagateConfig *config);
+int gappa_propagate(const lvGappaPredSet *input_set,
+                    lvGappaPredSet *output_set,
+                    const lvGappaPropagateConfig *config);
 ```
 
 反向传播从目标倒推所需假设：
 
 ```c
-int gappa_propagate_backward(const Lv00GappaPredicate *goal,
-                             const Lv00GappaPredSet *known_facts,
-                             Lv00GappaPredSet *output_set,
-                             const Lv00GappaPropagateConfig *config);
+int gappa_propagate_backward(const lvGappaPredicate *goal,
+                             const lvGappaPredSet *known_facts,
+                             lvGappaPredSet *output_set,
+                             const lvGappaPropagateConfig *config);
 ```
 
 ### 33.4.4 重写规则
@@ -221,11 +221,11 @@ typedef struct {
     char match_pattern[256];
     char replace_pattern[256];
     char description[128];
-} Lv00GappaRewriteRule;
+} lvGappaRewriteRule;
 ```
 
 ```c
-bool gappa_register_rewrite_rules(const Lv00GappaRewriteRule *rules,
+bool gappa_register_rewrite_rules(const lvGappaRewriteRule *rules,
                                   int rule_count);
 ```
 
@@ -238,11 +238,11 @@ bool gappa_register_rewrite_rules(const Lv00GappaRewriteRule *rules,
 ### 33.5.1 安全边界常量
 
 ```c
-#define LV00_MAX_INPUT_LENGTH  65536
-#define LV00_MAX_TOKEN_LENGTH  512
-#define LV00_MAX_TOKEN_COUNT   10000
-#define LV00_MAX_AST_DEPTH     256
-#define LV00_MAX_AST_NODES     10000
+#define lv_MAX_INPUT_LENGTH  65536
+#define lv_MAX_TOKEN_LENGTH  512
+#define lv_MAX_TOKEN_COUNT   10000
+#define lv_MAX_AST_DEPTH     256
+#define lv_MAX_AST_NODES     10000
 ```
 
 这些限制防止超大输入、token 爆炸、深层嵌套 AST 和内存耗尽。
@@ -250,23 +250,23 @@ bool gappa_register_rewrite_rules(const Lv00GappaRewriteRule *rules,
 ### 33.5.2 解析器安全错误码
 
 ```c
-#define LV00_ERROR_PARSER_NULL_INPUT        130
-#define LV00_ERROR_PARSER_EMPTY_INPUT       131
-#define LV00_ERROR_PARSER_INPUT_TOO_LONG    132
-#define LV00_ERROR_PARSER_ILLEGAL_CHARS     133
-#define LV00_ERROR_PARSER_TOO_MANY_TOKENS   134
-#define LV00_ERROR_PARSER_DEPTH_EXCEEDED    135
-#define LV00_ERROR_PARSER_NODE_LIMIT        136
-#define LV00_ERROR_PARSER_TOKEN_TOO_LONG    137
-#define LV00_ERROR_PARSER_POOL_EXHAUSTED    138
+#define lv_ERROR_PARSER_NULL_INPUT        130
+#define lv_ERROR_PARSER_EMPTY_INPUT       131
+#define lv_ERROR_PARSER_INPUT_TOO_LONG    132
+#define lv_ERROR_PARSER_ILLEGAL_CHARS     133
+#define lv_ERROR_PARSER_TOO_MANY_TOKENS   134
+#define lv_ERROR_PARSER_DEPTH_EXCEEDED    135
+#define lv_ERROR_PARSER_NODE_LIMIT        136
+#define lv_ERROR_PARSER_TOKEN_TOO_LONG    137
+#define lv_ERROR_PARSER_POOL_EXHAUSTED    138
 ```
 
 ### 33.5.3 输入校验与净化
 
 ```c
-Lv00ErrorCode lv00_input_validate(const char *input, size_t len);
-size_t lv00_input_sanitize(char *input, size_t max_len);
-bool lv00_char_is_safe_ctrl(unsigned char c);
+lvErrorCode lv_input_validate(const char *input, size_t len);
+size_t lv_input_sanitize(char *input, size_t max_len);
+bool lv_char_is_safe_ctrl(unsigned char c);
 ```
 
 净化操作包括：
@@ -279,9 +279,9 @@ bool lv00_char_is_safe_ctrl(unsigned char c);
 ### 33.5.4 AST 与 token 检查
 
 ```c
-Lv00ErrorCode lv00_check_ast_depth(int depth);
-Lv00ErrorCode lv00_check_ast_node_count(int count);
-Lv00ErrorCode lv00_check_token_length(size_t len);
+lvErrorCode lv_check_ast_depth(int depth);
+lvErrorCode lv_check_ast_node_count(int count);
+lvErrorCode lv_check_token_length(size_t len);
 ```
 
 这些接口应在解析器递归下降、AST 构造和词法扫描阶段持续调用。
@@ -307,7 +307,7 @@ Lv-00 将几何构造步骤解释为路径，路径拼接对应构造组合，�
 typedef enum {
     DIRECTION_FORWARD = 0,
     DIRECTION_BACKWARD = 1
-} Lv00PathDirection;
+} lvPathDirection;
 ```
 
 ```c
@@ -318,13 +318,13 @@ typedef enum {
     PATH_INVERSE = 3,
     PATH_TRANSPORT = 4,
     PATH_EQUIVALENCE = 5
-} Lv00PathType;
+} lvPathType;
 ```
 
 ### 33.6.3 区间与路径结构
 
 ```c
-struct Lv00Interval {
+struct lvInterval {
     int interval_id;
     double left;
     double right;
@@ -334,10 +334,10 @@ struct Lv00Interval {
 ```
 
 ```c
-struct Lv00Path {
+struct lvPath {
     int path_id;
-    Lv00PathType type;
-    Lv00PathDirection direction;
+    lvPathType type;
+    lvPathDirection direction;
     int endpoint_a;
     int endpoint_b;
     int interval_id;
@@ -354,20 +354,20 @@ struct Lv00Path {
 ### 33.6.4 关键 API
 
 ```c
-Lv00PathSystem *path_system_create(int path_capacity, int interval_capacity);
-void path_system_destroy(Lv00PathSystem *sys);
-int path_create(Lv00PathSystem *sys, int endpoint_a, int endpoint_b,
+lvPathSystem *path_system_create(int path_capacity, int interval_capacity);
+void path_system_destroy(lvPathSystem *sys);
+int path_create(lvPathSystem *sys, int endpoint_a, int endpoint_b,
                 const char *label,
                 double (*path_func)(double t, void *user_data),
                 void *user_data, int source_step);
-int path_create_identity(Lv00PathSystem *sys, int endpoint_a, const char *label);
-int path_create_inverse(Lv00PathSystem *sys, int path_id);
-int path_compose(Lv00PathSystem *sys, int path_id_p, int path_id_q, const char *label);
-int path_transport(Lv00PathSystem *sys, int path_id, int source_type_id,
-                   Lv00TransportMode mode, void **transported);
-int path_to_equality(Lv00PathSystem *sys, int path_id, ConstraintGraph **out_equality);
-int path_from_construction(Lv00PathSystem *sys, int step_index, const char *label);
-int path_to_constraint_graph(Lv00PathSystem *sys, int path_id, ConstraintGraph **out_constraint);
+int path_create_identity(lvPathSystem *sys, int endpoint_a, const char *label);
+int path_create_inverse(lvPathSystem *sys, int path_id);
+int path_compose(lvPathSystem *sys, int path_id_p, int path_id_q, const char *label);
+int path_transport(lvPathSystem *sys, int path_id, int source_type_id,
+                   lvTransportMode mode, void **transported);
+int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equality);
+int path_from_construction(lvPathSystem *sys, int step_index, const char *label);
+int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **out_constraint);
 ```
 
 ---
@@ -388,7 +388,7 @@ typedef enum {
     PLANE_XZ,
     PLANE_YZ,
     PLANE_CUSTOM
-} Lv00Plane;
+} lvPlane;
 ```
 
 ```c
@@ -398,7 +398,7 @@ typedef enum {
     TRANSFORM_SCALE,
     TRANSFORM_MIRROR,
     TRANSFORM_PROJECT
-} Lv00TransformOp;
+} lvTransformOp;
 ```
 
 ### 33.7.3 选择器系统
@@ -417,7 +417,7 @@ typedef enum {
     SELECTOR_AT_LOCATION,
     SELECTOR_BY_INDEX,
     SELECTOR_COMPOSITE
-} Lv00SelectorType;
+} lvSelectorType;
 ```
 
 方向选择符：
@@ -427,7 +427,7 @@ typedef enum {
     SEL_DIR_GREATER,
     SEL_DIR_LESS,
     SEL_DIR_PARALLEL
-} Lv00SelectorDirOp;
+} lvSelectorDirOp;
 ```
 
 示例语义：
@@ -480,15 +480,15 @@ typedef struct AlgebraicGeom {
 
 | 代码概念 | 理论/工程对应 | 说明 |
 |----------|----------------|------|
-| `Lv00GappaFormat` | IEEE 754 浮点格式 | 精度、指数位与舍入模式 |
-| `Lv00GappaPredicate` | 浮点误差谓词 | 范围、绝对误差、相对误差、等式 |
+| `lvGappaFormat` | IEEE 754 浮点格式 | 精度、指数位与舍入模式 |
+| `lvGappaPredicate` | 浮点误差谓词 | 范围、绝对误差、相对误差、等式 |
 | `gappa_propagate` | 抽象解释正向传播 | 从假设推出新事实 |
 | `gappa_propagate_backward` | 目标导向反向传播 | 从目标倒推所需假设 |
-| `lv00_input_validate` | 解析器安全前置条件 | 防止恶意输入与资源攻击 |
-| `Lv00Path` | HoTT 路径类型 | 等式证明即路径 |
+| `lv_input_validate` | 解析器安全前置条件 | 防止恶意输入与资源攻击 |
+| `lvPath` | HoTT 路径类型 | 等式证明即路径 |
 | `path_transport` | coe / 路径消去 | 沿路径传输属性 |
 | `AlgebraicGeom` | 代数模式构造对象 | 构造即运算，操作记录历史 |
-| `Lv00Selector` | Fluent Selector DSL | 子实体选择与组合筛选 |
+| `lvSelector` | Fluent Selector DSL | 子实体选择与组合筛选 |
 
 ---
 

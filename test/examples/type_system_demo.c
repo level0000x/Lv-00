@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file type_system_demo.c
  * @brief 类型系统演示 —— 展示类型创建、检查与推断
  *
@@ -19,7 +19,7 @@
  * - 依赖类型
  *
  * 编译方式：
- *   gcc -o type_system_demo type_system_demo.c -llv00 -lgmp
+ *   gcc -o type_system_demo type_system_demo.c -llv -lgmp
  *
  * @author Lv-00 Project
  * @version 3.3.0
@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /* ============================================================
  * 辅助函数：打印分隔线
@@ -400,7 +400,7 @@ int main(void) {
     printf("========================================\n");
 
     /* 初始化系统 */
-    printf("\n[初始化] Lv-00 系统版本: %s\n", lv00_get_version_string());
+    printf("\n[初始化] Lv-00 系统版本: %s\n", lv_get_version_string());
 
     /* 创建类型系统 */
     printf("[初始化] 创建类型系统上下文...\n");

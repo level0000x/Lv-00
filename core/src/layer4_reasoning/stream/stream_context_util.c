@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file stream_context_util.c
  * @brief 流式上下文注册/分发机制的实现
  *
@@ -24,14 +24,14 @@
  * 由于 StreamContextSetter 的签名就是 void (*)(StreamContext *)，各 setter
  * 函数与此类型完全兼容，无需强制转换。 */
 
-#include "lv00/constraint_graph.h" /* graph_set_stream_context   */
+#include "lv/constraint_graph.h" /* graph_set_stream_context   */
 #include "func_block.h"       /* func_block_set_stream_context */
 #include "normalization.h"    /* normalization_set_stream_context*/
-#include "lv00/proof.h"            /* proof_set_stream_context      */
+#include "lv/proof.h"            /* proof_set_stream_context      */
 #include "prop_verifier.h"    /* prop_verifier_set_stream_context*/
 #include "recursion.h"        /* recursion_set_stream_context  */
 #include "rewrite.h"          /* rewrite_set_stream_context    */
-#include "lv00/solver.h"           /* solver_set_stream_context     */
+#include "lv/solver.h"           /* solver_set_stream_context     */
 #include "type_system.h"      /* type_system_set_stream_context*/
 #include "unify.h"            /* unify_set_stream_context      */
 

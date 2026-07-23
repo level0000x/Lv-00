@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_integral_transforms.c
  * @brief 积分变换预设函数块模块 - 实现
  *
@@ -14,8 +14,8 @@
 #include "preset_integral_transforms.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 

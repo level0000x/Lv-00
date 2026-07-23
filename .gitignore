@@ -1,4 +1,4 @@
-# Build artifacts
+﻿# Build artifacts
 build/
 cmake-build-*/
 out/
@@ -100,7 +100,7 @@ temp/
 /build_output.txt
 
 # 日志文件（运行时产生）
-/lv00.log*
+/lv.log*
 
 # 测试输出归档
 test_outputs/
@@ -146,5 +146,5 @@ module/branches/
 .git-safe/
 
 # 已废弃/断裂的幽灵目录（目录存在但 Git 无法遍历 — 已清空无内容）
-lv00-ui/
+lv-ui/
 web/

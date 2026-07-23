@@ -1,4 +1,4 @@
-# Lv-00 理论数学研究系统 - 改进报告
+﻿# Lv-00 理论数学研究系统 - 改进报告
 
 ## 版本信息
 - **当前版本**: v5.0.0
@@ -28,26 +28,26 @@
 #### 1.1 错误信息系统 (`error_messages_cn.h/c`)
 
 **新增文件**:
-- `core/include/lv00/error_messages_cn.h` - 中文错误信息头文件
+- `core/include/lv/error_messages_cn.h` - 中文错误信息头文件
 - `core/src/layer2_resource/error_messages_cn.c` - 中文错误信息实现
 
 **功能特性**:
 ```c
 // 获取中文错误信息
-const char *msg = lv00_error_string_cn(code);
+const char *msg = lv_error_string_cn(code);
 
 // 获取中文错误名称
-const char *name = lv00_error_name_cn(code);
+const char *name = lv_error_name_cn(code);
 
 // 获取中文错误类别
-const char *category = lv00_error_category_cn(code);
+const char *category = lv_error_category_cn(code);
 
 // 格式化完整错误描述
 char buf[256];
-lv00_get_error_description_cn(code, buf, sizeof(buf));
+lv_get_error_description_cn(code, buf, sizeof(buf));
 
 // 获取最后错误的中文描述
-lv00_get_last_error_description_cn(buf, sizeof(buf));
+lv_get_last_error_description_cn(buf, sizeof(buf));
 ```
 
 **支持的错误类别**:
@@ -66,7 +66,7 @@ lv00_get_last_error_description_cn(buf, sizeof(buf));
 #### 1.2 结果信息转换系统 (`result_messages_cn.h/c`)
 
 **新增文件**:
-- `core/include/lv00/result_messages_cn.h` - 中文结果转换头文件
+- `core/include/lv/result_messages_cn.h` - 中文结果转换头文件
 - `core/src/layer2_resource/result_messages_cn.c` - 中文结果转换实现
 
 **功能特性**:
@@ -106,7 +106,7 @@ const char *constraint = constraint_type_to_string_cn(CONSTRAINT_INCIDENCE);
 #### 2.1 数学理论指南 (`math_theory_guide_cn.h/c`)
 
 **新增文件**:
-- `core/include/lv00/math_theory_guide_cn.h` - 数学指南头文件
+- `core/include/lv/math_theory_guide_cn.h` - 数学指南头文件
 - `core/src/layer2_resource/math_theory_guide_cn.c` - 数学指南实现
 
 **覆盖领域**:
@@ -157,7 +157,7 @@ guide_preset_math_definition_cn("midpoint", def, sizeof(def));
 #### 3.1 Preset中文辅助系统 (`preset_helper_cn.h/c`)
 
 **新增文件**:
-- `core/include/lv00/preset_helper_cn.h` - Preset中文辅助头文件
+- `core/include/lv/preset_helper_cn.h` - Preset中文辅助头文件
 - `core/src/layer2_resource/preset_helper_cn.c` - Preset中文辅助实现
 
 **功能特性**:
@@ -263,16 +263,16 @@ return success_count == MATH_LOGIC_PRESET_COUNT;
 #include "result_messages_cn.h"
 
 // 创建引擎
-LV00Engine *engine = lv00_engine_create();
+lvEngine *engine = lv_engine_create();
 if (!engine) {
     char err_desc[512];
-    lv00_get_last_error_description_cn(err_desc, sizeof(err_desc));
+    lv_get_last_error_description_cn(err_desc, sizeof(err_desc));
     printf("错误: %s\n", err_desc);
     return 1;
 }
 
 // 执行求解
-EngineSolveResult result = lv00_solve(engine);
+EngineSolveResult result = lv_solve(engine);
 
 // 使用中文结果描述
 printf("求解结果: %s\n", solver_result_to_string_cn(result));
@@ -280,7 +280,7 @@ printf("求解结果: %s\n", solver_result_to_string_cn(result));
 // 获取求解器状态
 printf("求解器状态: %s\n", solver_status_to_string_cn(engine->status));
 
-lv00_engine_destroy(engine);
+lv_engine_destroy(engine);
 ```
 
 ### 示例2: 理论数学研究
@@ -344,8 +344,8 @@ printf("%s\n", help);
 新增文件位于 `core/src/layer2_resource/` 目录，需要在 `CMakeLists.txt` 中添加：
 
 ```cmake
-# 在 LV00_LAYER2_SOURCES 中添加
-set(LV00_LAYER2_SOURCES
+# 在 lv_LAYER2_SOURCES 中添加
+set(lv_LAYER2_SOURCES
     ...
     core/src/layer2_resource/error_messages_cn.c
     core/src/layer2_resource/result_messages_cn.c
@@ -398,7 +398,7 @@ set(LV00_LAYER2_SOURCES
 
 如有问题或建议，请通过以下方式联系：
 
-- **项目主页**: https://github.com/lv00-project/lv00
+- **项目主页**: https://github.com/lv-project/lv
 - **问题反馈**: GitHub Issues
 - **文档Wiki**: 项目Wiki页面
 

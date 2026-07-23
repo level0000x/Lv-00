@@ -17,8 +17,8 @@
  */
 
 #include "approx_counter.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -89,8 +89,8 @@ static void cnf_add_clause(CNFBuilder *cnf, const int *literals, int count) {
 
     if (cnf->clause_count >= cnf->clause_capacity) {
         int new_cap = cnf->clause_capacity * 2;
-        int **new_clauses = (int **)lv00_realloc(cnf->clauses, (size_t)new_cap * sizeof(int *));
-        int *new_sizes = (int *)lv00_realloc(cnf->clause_sizes, (size_t)new_cap * sizeof(int));
+        int **new_clauses = (int **)lv_realloc(cnf->clauses, (size_t)new_cap * sizeof(int *));
+        int *new_sizes = (int *)lv_realloc(cnf->clause_sizes, (size_t)new_cap * sizeof(int));
         if (!new_clauses || !new_sizes) return;
         cnf->clauses = new_clauses;
         cnf->clause_sizes = new_sizes;
@@ -224,7 +224,7 @@ static char *cnf_to_dimacs(const CNFBuilder *cnf) {
         est_size += (size_t)(cnf->clause_sizes[i] * 16 + 2);
     }
 
-    char *buf = (char *)lv00_malloc(est_size);
+    char *buf = (char *)lv_malloc(est_size);
     if (!buf) return NULL;
 
     int offset = snprintf(buf, est_size, "p cnf %d %d\n", cnf->var_count, cnf->clause_count);

@@ -10,8 +10,8 @@
  */
 
 #include "mpz_poly.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -77,7 +77,7 @@ typedef struct {
 static int bivariate_poly_init(BivariatePoly *bp, int deg_x) {
     bp->deg_x = deg_x;
     if (deg_x >= 0) {
-        bp->coeffs = lv00_malloc((deg_x + 1) * sizeof(mpz_poly_t));
+        bp->coeffs = lv_malloc((deg_x + 1) * sizeof(mpz_poly_t));
         if (!bp->coeffs) {
             bp->deg_x = -1;
             return -1;
@@ -104,7 +104,7 @@ static void bivariate_poly_clear(BivariatePoly *bp) {
         for (int i = 0; i <= bp->deg_x; i++) {
             mpz_poly_clear(&bp->coeffs[i]);
         }
-        lv00_free((void**)&bp->coeffs);
+        lv_free((void**)&bp->coeffs);
     }
     bp->coeffs = NULL;
     bp->deg_x = -1;
@@ -171,7 +171,7 @@ static void mpz_matrix_init(MPZMatrix *m, int rows, int cols) {
     }
     m->rows = rows;
     m->cols = cols;
-    m->data = lv00_malloc(total * sizeof(mpz_t));
+    m->data = lv_malloc(total * sizeof(mpz_t));
     if (!m->data) {
         m->rows = m->cols = 0;
         return;
@@ -191,7 +191,7 @@ static void mpz_matrix_clear(MPZMatrix *m) {
     for (int i = 0; i < total; i++) {
         mpz_clear(m->data[i]);
     }
-    lv00_free((void**)&m->data);
+    lv_free((void**)&m->data);
     m->data = NULL;
 }
 
@@ -247,7 +247,7 @@ static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
     if (n == 1) { mpz_set(result, *mpz_matrix_at_const(m, 0, 0)); return true; }
 
     /* 创建工作副本 */
-    mpz_t *a = lv00_malloc((size_t)n * (size_t)n * sizeof(mpz_t));
+    mpz_t *a = lv_malloc((size_t)n * (size_t)n * sizeof(mpz_t));
     if (!a) {
         mpz_set_si(result, 0);
         return false;
@@ -295,7 +295,7 @@ static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
 cleanup:
     mpz_clears(pivot, temp, prev_pivot, NULL);
     for (int i = 0; i < n * n; i++) mpz_clear(a[i]);
-    lv00_free((void**)&a);
+    lv_free((void**)&a);
     return true;
 }
 
@@ -408,7 +408,7 @@ static bool compute_bivariate_resultant(
         /* 两者均为常数，结式 = 1 */
         mpz_poly_init(resultant);
         resultant->degree = 0;
-        resultant->coeffs = lv00_malloc(sizeof(mpz_t));
+        resultant->coeffs = lv_malloc(sizeof(mpz_t));
         if (!resultant->coeffs) {
             resultant->degree = -1;
             return false;
@@ -429,11 +429,11 @@ static bool compute_bivariate_resultant(
     }
 
     /* 在多个 x 取值处计算结式，然后进行插值 */
-    mpz_t *x_vals = lv00_malloc(res_deg_bound * sizeof(mpz_t));
-    mpz_t *y_vals = lv00_malloc(res_deg_bound * sizeof(mpz_t));
+    mpz_t *x_vals = lv_malloc(res_deg_bound * sizeof(mpz_t));
+    mpz_t *y_vals = lv_malloc(res_deg_bound * sizeof(mpz_t));
     if (!x_vals || !y_vals) {
-        lv00_free((void**)&x_vals);
-        lv00_free((void**)&y_vals);
+        lv_free((void**)&x_vals);
+        lv_free((void**)&y_vals);
         mpz_poly_init(resultant);
         resultant->degree = -1;
         return false;
@@ -557,7 +557,7 @@ static bool compute_bivariate_resultant(
     int actual_deg = res_deg_bound - 1;
 
     /* 分配系数数组 */
-    resultant->coeffs = lv00_malloc((actual_deg + 1) * sizeof(mpz_t));
+    resultant->coeffs = lv_malloc((actual_deg + 1) * sizeof(mpz_t));
     if (!resultant->coeffs) {
         resultant->degree = -1;
         goto cleanup_x_y_vals;
@@ -569,7 +569,7 @@ static bool compute_bivariate_resultant(
 
     /* 使用均差法进行插值 */
     mpz_t *div_diff = NULL;
-    div_diff = lv00_malloc((actual_deg + 1) * sizeof(mpz_t));
+    div_diff = lv_malloc((actual_deg + 1) * sizeof(mpz_t));
     if (!div_diff) {
         goto cleanup_resultant;
     }
@@ -622,7 +622,7 @@ static bool compute_bivariate_resultant(
 
     /* newton_term 初始化为 1（对应 d_0） */
     newton_term.degree = 0;
-    newton_term.coeffs = lv00_malloc(sizeof(mpz_t));
+    newton_term.coeffs = lv_malloc(sizeof(mpz_t));
     if (!newton_term.coeffs) {
         goto cleanup_resultant;
     }
@@ -633,7 +633,7 @@ static bool compute_bivariate_resultant(
         mpz_poly_t new_term;
         mpz_poly_init(&new_term);
         new_term.degree = newton_term.degree + 1;
-        new_term.coeffs = lv00_malloc((new_term.degree + 1) * sizeof(mpz_t));
+        new_term.coeffs = lv_malloc((new_term.degree + 1) * sizeof(mpz_t));
         if (!new_term.coeffs) {
             mpz_poly_clear(&new_term);
             mpz_poly_clear(&newton_term);
@@ -687,7 +687,7 @@ static bool compute_bivariate_resultant(
     for (int i = 0; i <= actual_deg; i++) {
         mpz_clear(div_diff[i]);
     }
-    lv00_free((void**)&div_diff);
+    lv_free((void**)&div_diff);
 
     ret = true;
 
@@ -698,13 +698,13 @@ cleanup_resultant:
             for (int i = 0; i <= actual_deg; i++) {
                 mpz_clear(div_diff[i]);
             }
-            lv00_free((void**)&div_diff);
+            lv_free((void**)&div_diff);
         }
         if (resultant->coeffs) {
             for (int i = 0; i <= resultant->degree; i++) {
                 mpz_clear(resultant->coeffs[i]);
             }
-            lv00_free((void**)&resultant->coeffs);
+            lv_free((void**)&resultant->coeffs);
             resultant->coeffs = NULL;
         }
         resultant->degree = -1;
@@ -715,8 +715,8 @@ cleanup_x_y_vals:
         mpz_clear(x_vals[i]);
         mpz_clear(y_vals[i]);
     }
-    lv00_free((void**)&x_vals);
-    lv00_free((void**)&y_vals);
+    lv_free((void**)&x_vals);
+    lv_free((void**)&y_vals);
 
     return ret;
 }
@@ -814,7 +814,7 @@ bool mpz_poly_resultant(
         return false;
     }
     f.coeffs[0].degree = m;
-    f.coeffs[0].coeffs = lv00_malloc((m + 1) * sizeof(mpz_t));
+    f.coeffs[0].coeffs = lv_malloc((m + 1) * sizeof(mpz_t));
     if (!f.coeffs[0].coeffs) {
         bivariate_poly_clear(&f);
         mpz_poly_init(result);
@@ -838,7 +838,7 @@ bool mpz_poly_resultant(
         /* Initialize all coefficients to 0 */
         for (int xi = 0; xi <= n; xi++) {
             g.coeffs[xi].degree = n;
-            g.coeffs[xi].coeffs = lv00_malloc((n + 1) * sizeof(mpz_t));
+            g.coeffs[xi].coeffs = lv_malloc((n + 1) * sizeof(mpz_t));
             if (!g.coeffs[xi].coeffs) {
                 bivariate_poly_clear(&g);
                 bivariate_poly_clear(&f);
@@ -899,7 +899,7 @@ bool mpz_poly_resultant(
 
         for (int xi = 0; xi <= n; xi++) {
             g.coeffs[xi].degree = n;
-            g.coeffs[xi].coeffs = lv00_malloc((n + 1) * sizeof(mpz_t));
+            g.coeffs[xi].coeffs = lv_malloc((n + 1) * sizeof(mpz_t));
             if (!g.coeffs[xi].coeffs) {
                 bivariate_poly_clear(&g);
                 bivariate_poly_clear(&f);

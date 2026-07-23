@@ -1,5 +1,5 @@
 ﻿$srcDir = "core\src"
-$includeDir = "core\include\lv00"
+$includeDir = "core\include\lv"
 $changed = @{}
 
 # Step 1: Find all bool function defs in .c files that have int in .h

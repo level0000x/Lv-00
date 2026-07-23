@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_geo_topology.c
  * @brief Tests for the geometric topology module.
  *
@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "geo_topology.h"
 #include "test_helpers.h"
 
@@ -34,7 +34,7 @@ int g_fail_count = 0;
  * ============================================================ */
 
 static void test_simplicial_create_destroy(void) {
-    Lv00SimplicialComplex *sc = geo_simplicial_create(5);
+    lvSimplicialComplex *sc = geo_simplicial_create(5);
     TEST_ASSERT_NOT_NULL(sc);
     TEST_ASSERT_EQ(sc->n_vertices, 5);
     TEST_ASSERT_EQ(sc->n_edges, 0);
@@ -61,7 +61,7 @@ static void test_simplicial_create_destroy(void) {
  * ============================================================ */
 
 static void test_add_edge(void) {
-    Lv00SimplicialComplex *sc = geo_simplicial_create(4);
+    lvSimplicialComplex *sc = geo_simplicial_create(4);
     TEST_ASSERT_NOT_NULL(sc);
 
     /* Add edge 0-1 */
@@ -111,7 +111,7 @@ static void test_add_edge(void) {
  * ============================================================ */
 
 static void test_add_triangle(void) {
-    Lv00SimplicialComplex *sc = geo_simplicial_create(4);
+    lvSimplicialComplex *sc = geo_simplicial_create(4);
     TEST_ASSERT_NOT_NULL(sc);
 
     /* Add triangle 0-1-2 */
@@ -143,7 +143,7 @@ static void test_add_triangle(void) {
 
 static void test_euler_single_triangle(void) {
     /* A single triangle: V=3, E=3, F=1 => chi = 3 - 3 + 1 = 1 */
-    Lv00SimplicialComplex *sc = geo_simplicial_create(3);
+    lvSimplicialComplex *sc = geo_simplicial_create(3);
     TEST_ASSERT_NOT_NULL(sc);
 
     geo_simplicial_add_triangle(sc, 0, 1, 2);
@@ -160,7 +160,7 @@ static void test_euler_single_triangle(void) {
 
 static void test_euler_tetrahedron(void) {
     /* Tetrahedron surface: V=4, E=6, F=4 => chi = 4 - 6 + 4 = 2 */
-    Lv00SimplicialComplex *sc = geo_simplicial_create(4);
+    lvSimplicialComplex *sc = geo_simplicial_create(4);
     TEST_ASSERT_NOT_NULL(sc);
 
     /* Four faces of a tetrahedron */
@@ -185,15 +185,15 @@ static void test_euler_tetrahedron(void) {
  * ============================================================ */
 
 static void test_boundary_triangle(void) {
-    Lv00SimplicialComplex *sc = geo_simplicial_create(3);
+    lvSimplicialComplex *sc = geo_simplicial_create(3);
     TEST_ASSERT_NOT_NULL(sc);
 
-    Lv00Triangle tri;
+    lvTriangle tri;
     tri.v0 = 0;
     tri.v1 = 1;
     tri.v2 = 2;
 
-    Lv00Boundary *bnd = geo_simplicial_boundary(sc, &tri);
+    lvBoundary *bnd = geo_simplicial_boundary(sc, &tri);
     TEST_ASSERT_NOT_NULL(bnd);
     TEST_ASSERT_EQ(bnd->n_edges, 3);
 
@@ -226,7 +226,7 @@ static void test_boundary_triangle(void) {
  * ============================================================ */
 
 static void test_connected_single(void) {
-    Lv00SimplicialComplex *sc = geo_simplicial_create(3);
+    lvSimplicialComplex *sc = geo_simplicial_create(3);
     TEST_ASSERT_NOT_NULL(sc);
 
     geo_simplicial_add_edge(sc, 0, 1);
@@ -244,7 +244,7 @@ static void test_connected_single(void) {
 
 static void test_connected_disconnected(void) {
     /* 5 vertices, 2 components: {0,1,2} and {3,4} */
-    Lv00SimplicialComplex *sc = geo_simplicial_create(5);
+    lvSimplicialComplex *sc = geo_simplicial_create(5);
     TEST_ASSERT_NOT_NULL(sc);
 
     geo_simplicial_add_edge(sc, 0, 1);
@@ -263,7 +263,7 @@ static void test_connected_disconnected(void) {
 
 static void test_connected_isolated(void) {
     /* 4 vertices, no edges => 4 components */
-    Lv00SimplicialComplex *sc = geo_simplicial_create(4);
+    lvSimplicialComplex *sc = geo_simplicial_create(4);
     TEST_ASSERT_NOT_NULL(sc);
 
     int cc = geo_simplicial_connected_components(sc);

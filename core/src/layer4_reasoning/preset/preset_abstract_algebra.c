@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_abstract_algebra.c
  * @brief 抽象代数预设函数块模块 - 实现
  *
@@ -23,8 +23,8 @@
 #include "preset_abstract_algebra.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 
@@ -222,14 +222,14 @@ bool preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
     };
 
     *out_count = ABSTRACT_ALGEBRA_PRESET_COUNT;
-    *out_names = lv00_malloc(sizeof(char *) * (*out_count));
+    *out_names = lv_malloc(sizeof(char *) * (*out_count));
     if (!*out_names) return false;
 
     for (int i = 0; i < *out_count; i++) {
-        (*out_names)[i] = lv00_strdup(names[i]);
+        (*out_names)[i] = lv_strdup(names[i]);
         if (!(*out_names)[i]) {
-            for (int j = 0; j < i; j++) lv00_free((*out_names)[j]);
-            lv00_free(*out_names);
+            for (int j = 0; j < i; j++) lv_free((*out_names)[j]);
+            lv_free(*out_names);
             *out_names = NULL;
             return false;
         }

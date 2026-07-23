@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file graph_index.c
  * @brief GIndex 空间索引
  *
@@ -13,17 +13,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/constraint_graph.h"
-#include "lv00/symbolic_coord.h"
-#include "lv00/stream.h"
+#include "lv/constraint_graph.h"
+#include "lv/symbolic_coord.h"
+#include "lv/stream.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
-#include "lv00/context.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "lv/context.h"
 #include <stdarg.h>
 
 /* ── 流上下文声明 ── */
-LV00_DECLARE_STREAM_CTX(graph);
+lv_DECLARE_STREAM_CTX(graph);
 
 /* ── 前向声明（graph_node.c 中定义） ── */
 bool constraint_exists(const ConstraintGraph *graph, ConstraintType type, const int *participants, int count);
@@ -65,27 +65,27 @@ static bool validate_cross_boundary_refs(GeomNode *func_block,
             /* 引用兄弟块内部节点是无效的 */
             if (external_namespace == block_namespace && external_parent != block_parent) {
                 /* 相同深度但不同父块 - 兄弟块引用 */
-                lv00_free((void **) &internal_ids);
-                lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references sibling block's private node");
+                lv_free((void **) &internal_ids);
+                lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references sibling block's private node");
                 return false;
             }
 
             /* 引用更深命名空间的节点是无效的 */
             if (external_namespace > block_namespace) {
-                lv00_free((void **) &internal_ids);
-                lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references node from deeper namespace");
+                lv_free((void **) &internal_ids);
+                lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references node from deeper namespace");
                 return false;
             }
 
             /* 命名空间深度差异 > 1 是无效的 */
             if (block_namespace - external_namespace > 1) {
-                lv00_free((void **) &internal_ids);
-                lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Cross-boundary constraint spans more than one namespace level");
+                lv_free((void **) &internal_ids);
+                lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint spans more than one namespace level");
                 return false;
             }
         }
 
-    lv00_free((void **) &internal_ids);
+    lv_free((void **) &internal_ids);
     return true;
 }
 
@@ -112,11 +112,11 @@ AddConstraintResult graph_add_incidence(ConstraintGraph *graph, int point_id, in
     Constraint *con = graph_alloc_constraint(graph, INCIDENCE);
     if (!con)
         return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv00_malloc(2 * sizeof(int));
+    con->participants = lv_malloc(2 * sizeof(int));
     if (!con->participants) {
         graph->constraint_count--;
         constraint_index_remove(graph, con->id);
-        lv00_free((void **) &con);
+        lv_free((void **) &con);
         return ADD_CONSTRAINT_CONFLICT;
     }
     con->participants[0] = point_id;
@@ -164,11 +164,11 @@ AddConstraintResult graph_add_betweenness(ConstraintGraph *graph, int p1_id, int
     Constraint *con = graph_alloc_constraint(graph, BETWEENNESS);
     if (!con)
         return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv00_malloc(3 * sizeof(int));
+    con->participants = lv_malloc(3 * sizeof(int));
     if (!con->participants) {
         graph->constraint_count--;
         constraint_index_remove(graph, con->id);
-        lv00_free((void **) &con);
+        lv_free((void **) &con);
         return ADD_CONSTRAINT_CONFLICT;
     }
     memcpy(con->participants, participants, 3 * sizeof(int));
@@ -211,11 +211,11 @@ AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id,
     Constraint *con = graph_alloc_constraint(graph, INTERSECTION);
     if (!con)
         return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv00_malloc(3 * sizeof(int));
+    con->participants = lv_malloc(3 * sizeof(int));
     if (!con->participants) {
         graph->constraint_count--;
         constraint_index_remove(graph, con->id);
-        lv00_free((void **) &con);
+        lv_free((void **) &con);
         return ADD_CONSTRAINT_CONFLICT;
     }
     memcpy(con->participants, participants, 3 * sizeof(int));
@@ -256,11 +256,11 @@ AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, 
     Constraint *con = graph_alloc_constraint(graph, CONTAINMENT);
     if (!con)
         return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv00_malloc(2 * sizeof(int));
+    con->participants = lv_malloc(2 * sizeof(int));
     if (!con->participants) {
         graph->constraint_count--;
         constraint_index_remove(graph, con->id);
-        lv00_free((void **) &con);
+        lv_free((void **) &con);
         return ADD_CONSTRAINT_CONFLICT;
     }
     con->participants[0] = inner_id;
@@ -302,11 +302,11 @@ AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id
     Constraint *con = graph_alloc_constraint(graph, CONNECTION);
     if (!con)
         return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv00_malloc(2 * sizeof(int));
+    con->participants = lv_malloc(2 * sizeof(int));
     if (!con->participants) {
         graph->constraint_count--;
         constraint_index_remove(graph, con->id);
-        lv00_free((void **) &con);
+        lv_free((void **) &con);
         return ADD_CONSTRAINT_CONFLICT;
     }
     con->participants[0] = src_port_id;
@@ -421,8 +421,8 @@ RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id) {
         }
         if (references_node) {
             int cid = con->id;
-            lv00_free((void **) &con->participants);
-            lv00_free((void **) &con);
+            lv_free((void **) &con->participants);
+            lv_free((void **) &con);
             constraint_index_remove(graph, cid);
             for (int k = i; k < graph->constraint_count - 1; k++) {
                 graph->constraints[k] = graph->constraints[k + 1];
@@ -478,8 +478,8 @@ RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int const
 
     /* 先从哈希索引中移除，再释放约束内存（避免 use-after-free） */
     constraint_index_remove(graph, cid);
-    lv00_free((void **) &con->participants);
-    lv00_free((void **) &con);
+    lv_free((void **) &con->participants);
+    lv_free((void **) &con);
     for (int i = constraint_index; i < graph->constraint_count - 1; i++) {
         graph->constraints[i] = graph->constraints[i + 1];
     }
@@ -551,7 +551,7 @@ void graph_sync_nodes(ConstraintGraph *graph) {
                     /* 拓扑约束允许较低的 trust */
                     break;
                 default:
-                    LV00_LOG_ERROR("graph_sync_nodes: 未知约束类型 %d (id=%d)",
+                    lv_LOG_ERROR("graph_sync_nodes: 未知约束类型 %d (id=%d)",
                                    (int)c->type, c->id);
                     break;
             }
@@ -569,22 +569,22 @@ void graph_sync_nodes(ConstraintGraph *graph) {
  *
  * @param graph         约束图指针
  * @param constraint_id 要废弃的约束 ID
- * @return LV00_OK 成功，其他错误码表示失败
+ * @return lv_OK 成功，其他错误码表示失败
  */
 int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id) {
     if (!graph)
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
 
     Constraint *con = graph_get_constraint(graph, constraint_id);
     if (!con) {
-        lv00_set_error(LV00_ERROR_NOT_FOUND,
+        lv_set_error(lv_ERROR_NOT_FOUND,
                        "graph_deactivate_constraint: 约束 #%d 未找到", constraint_id);
-        return LV00_ERROR_NOT_FOUND;
+        return lv_ERROR_NOT_FOUND;
     }
     if (!con->is_active) {
-        lv00_set_error(LV00_ERROR_UNKNOWN,
+        lv_set_error(lv_ERROR_UNKNOWN,
                        "graph_deactivate_constraint: 约束 #%d 已经是不活跃状态", constraint_id);
-        return LV00_ERROR_UNKNOWN;
+        return lv_ERROR_UNKNOWN;
     }
 
     /* 标记为不活跃 */
@@ -606,7 +606,7 @@ int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id) {
         stream_emit_constraint_event(graph_stream_ctx, STREAM_EVENT_INFO, constraint_id, buf, 0);
     }
 
-    return LV00_OK;
+    return lv_OK;
 }
 
 /**
@@ -754,7 +754,7 @@ Constraint *graph_get_constraint(const ConstraintGraph *graph, int constraint_id
  * @return 新创建的约束图，失败时返回 NULL；调用者需负责释放
  */
 ConstraintGraph *graph_create(void) {
-    ConstraintGraph *graph = lv00_malloc(sizeof(ConstraintGraph));
+    ConstraintGraph *graph = lv_malloc(sizeof(ConstraintGraph));
     if (!graph)
         return NULL;
     memset(graph, 0, sizeof(ConstraintGraph));
@@ -769,7 +769,7 @@ ConstraintGraph *graph_create(void) {
      * 用于替代旧版静态全局变量，提升并发安全性。
      *
      * 迁移计划 (v3.4.0):
-     * - 当 Lv00Context 统一错误系统完全就绪后，这些缓冲区将逐步迁移
+     * - 当 lvContext 统一错误系统完全就绪后，这些缓冲区将逐步迁移
      *   到 context->error_message[] 数组中统一管理。
      * - graph_set_error() / graph_get_error() 已优先使用 context 错误存储，
      *   这些缓冲区仅作为 fallback 保留。
@@ -777,13 +777,13 @@ ConstraintGraph *graph_create(void) {
      *
      * 风险评估: 无运行时风险，仅为架构演进预留的占位代码。
      * ============================================================================ */
-    graph->error_buffer = lv00_malloc(256);
-    graph->serialize_buffer = lv00_malloc(256);
+    graph->error_buffer = lv_malloc(256);
+    graph->serialize_buffer = lv_malloc(256);
     if (!graph->error_buffer || !graph->serialize_buffer) {
         /* 缓冲区分配失败：清理已分配资源，返回 NULL */
-        lv00_free((void **) &graph->error_buffer);
-        lv00_free((void **) &graph->serialize_buffer);
-        lv00_free((void **) &graph);
+        lv_free((void **) &graph->error_buffer);
+        lv_free((void **) &graph->serialize_buffer);
+        lv_free((void **) &graph);
         return NULL;
     }
     graph->error_buffer[0] = '\0';
@@ -796,16 +796,16 @@ ConstraintGraph *graph_create(void) {
  * 错误码转换函数
  * ============================================================ */
 
-Lv00ErrorCode lv00_add_node_result_to_error(AddNodeResult result) {
+lvErrorCode lv_add_node_result_to_error(AddNodeResult result) {
     switch (result) {
         case ADD_NODE_OK:
-            return LV00_OK;
+            return lv_OK;
         case ADD_NODE_CONFLICT:
-            return LV00_ERROR_NODE_CONFLICT;
+            return lv_ERROR_NODE_CONFLICT;
         case ADD_NODE_INVALID_REGION:
-            return LV00_ERROR_INVALID_REGION;
+            return lv_ERROR_INVALID_REGION;
         default:
-            return LV00_ERROR_UNKNOWN;
+            return lv_ERROR_UNKNOWN;
     }
 }
 
@@ -815,41 +815,41 @@ Lv00ErrorCode lv00_add_node_result_to_error(AddNodeResult result) {
  * @param result 添加约束结果
  * @return 对应的错误码
  */
-Lv00ErrorCode lv00_add_constraint_result_to_error(AddConstraintResult result) {
+lvErrorCode lv_add_constraint_result_to_error(AddConstraintResult result) {
     switch (result) {
         case ADD_CONSTRAINT_OK:
-            return LV00_OK;
+            return lv_OK;
         case ADD_CONSTRAINT_DUPLICATE:
-            return LV00_ERROR_CONSTRAINT_DUPLICATE;
+            return lv_ERROR_CONSTRAINT_DUPLICATE;
         case ADD_CONSTRAINT_CONFLICT:
-            return LV00_ERROR_CONSTRAINT_CONFLICT;
+            return lv_ERROR_CONSTRAINT_CONFLICT;
         default:
-            return LV00_ERROR_UNKNOWN;
+            return lv_ERROR_UNKNOWN;
     }
 }
 
-Lv00ErrorCode lv00_remove_node_result_to_error(RemoveNodeResult result) {
+lvErrorCode lv_remove_node_result_to_error(RemoveNodeResult result) {
     switch (result) {
         case REMOVE_NODE_OK:
-            return LV00_OK;
+            return lv_OK;
         case REMOVE_NODE_NOT_FOUND:
-            return LV00_ERROR_NODE_NOT_FOUND;
+            return lv_ERROR_NODE_NOT_FOUND;
         case REMOVE_NODE_ERROR:
-            return LV00_ERROR_GRAPH_CORRUPTED;
+            return lv_ERROR_GRAPH_CORRUPTED;
         default:
-            return LV00_ERROR_UNKNOWN;
+            return lv_ERROR_UNKNOWN;
     }
 }
 
 /* ============================================================
- * 统一错误系统实现 (v3.4.0: 迁移到 Lv00Context)
+ * 统一错误系统实现 (v3.4.0: 迁移到 lvContext)
  *
  * 优先使用 graph->context->error_message，fallback 到
  * graph->error_buffer。
  * ============================================================ */
 
 /**
- * @brief 设置约束图的错误信息 (v3.4.0: 支持 Lv00Context)
+ * @brief 设置约束图的错误信息 (v3.4.0: 支持 lvContext)
  *
  * 优先将错误信息存储到 graph->context->error_message 中
  * (如果有 context)，fallback 到 graph->error_buffer。
@@ -873,7 +873,7 @@ void graph_set_error(ConstraintGraph *graph, const char *fmt, ...) {
             /* 两者都不可用，记录到全局错误 API */
             char fallback[256];
             vsnprintf(fallback, sizeof(fallback), fmt, args);
-            lv00_set_error(LV00_ERROR_UNKNOWN, "%s", fallback);
+            lv_set_error(lv_ERROR_UNKNOWN, "%s", fallback);
         }
     }
 
@@ -881,7 +881,7 @@ void graph_set_error(ConstraintGraph *graph, const char *fmt, ...) {
 }
 
 /**
- * @brief 获取约束图的错误信息 (v3.4.0: 支持 Lv00Context)
+ * @brief 获取约束图的错误信息 (v3.4.0: 支持 lvContext)
  *
  * 优先从 graph->context->error_message 读取错误信息
  * (如果有 context 且有错误)，fallback 到 graph->error_buffer。
@@ -924,28 +924,28 @@ void node_destroy(GeomNode *node) {
         for (int i = 0; i < node->coord_count; i++) {
             symbolic_coord_destroy(node->symbolic_coords[i]);
         }
-        lv00_free((void **) &node->symbolic_coords);
+        lv_free((void **) &node->symbolic_coords);
     }
     if (node->numeric_assumption_declaration) {
-        lv00_free((void **) &node->numeric_assumption_declaration);
+        lv_free((void **) &node->numeric_assumption_declaration);
         node->numeric_assumption_declaration = NULL;
     }
     switch (node->type) {
         case GEOM_PORT:
-            lv00_free((void **) &node->data.port);
+            lv_free((void **) &node->data.port);
             break;
         case GEOM_REGION:
-            lv00_free((void **) &node->data.region.boundary_segments);
+            lv_free((void **) &node->data.region.boundary_segments);
             break;
         case GEOM_FUNCTION_BLOCK:
-            lv00_free((void **) &node->data.func_block.internal_nodes);
-            lv00_free((void **) &node->data.func_block.input_port_ids);
-            lv00_free((void **) &node->data.func_block.output_port_ids);
+            lv_free((void **) &node->data.func_block.internal_nodes);
+            lv_free((void **) &node->data.func_block.input_port_ids);
+            lv_free((void **) &node->data.func_block.output_port_ids);
             break;
         default:
             break;
     }
-    lv00_free((void **) &node);
+    lv_free((void **) &node);
 }
 
 /**

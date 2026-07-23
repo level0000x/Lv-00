@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file module.c
  * @brief 模块系统实现
  * @details 实现模块的加载、保存和依赖管理。支持 MessagePack 序列化、
@@ -24,25 +24,25 @@
 #include <time.h>
 
 #include "axiom_pkg.h"
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "lexer_shared.h"
 #include "error_codes.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "module.h"
 #include "stream.h"
 #include "symbolic_coord.h"
 
 /* ============== 模块实例结构体定义 ============== */
-#include "lv00/module_internal.h"
+#include "lv/module_internal.h"
 
-LV00_THREAD_LOCAL StreamContext *module_stream_ctx = NULL;
+lv_THREAD_LOCAL StreamContext *module_stream_ctx = NULL;
 
 void module_set_stream_context(StreamContext *ctx) {
     module_stream_ctx = ctx;
 }
 
-/* FNV-1a 哈希常量已在 lv00_internal.h 中统一定义为 LV00_FNV64_OFFSET_BASIS / LV00_FNV64_PRIME；
+/* FNV-1a 哈希常量已在 lv_internal.h 中统一定义为 lv_FNV64_OFFSET_BASIS / lv_FNV64_PRIME；
  * 移除重复的 #ifndef 回退定义，直接使用统一定义。 */
 
 /* LVZ 格式版本 */
@@ -52,10 +52,10 @@ void module_set_stream_context(StreamContext *ctx) {
 /* ============== 辅助函数 ============== */
 
 const char *module_get_last_error(void) {
-    return lv00_get_last_error_message();
+    return lv_get_last_error_message();
 }
 
-/* safe_strdup 已移除 —— 统一使用 lv00_utils.h 中的 lv00_strdup_safe */
+/* safe_strdup 已移除 —— 统一使用 lv_utils.h 中的 lv_strdup_safe */
 
 /* ============== 属性访问器实现 ============== */
 

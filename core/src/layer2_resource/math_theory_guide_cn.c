@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file math_theory_guide_cn.c
  * @brief 数学理论指南（中文版）
  *
@@ -100,7 +100,7 @@ static const MathTheoryEntry g_theory_table[] = {
  * @param topic_id 主题标识符
  * @return 中文标题，未找到返回 NULL
  */
-const char *lv00_math_theory_get_title(const char *topic_id)
+const char *lv_math_theory_get_title(const char *topic_id)
 {
     if (topic_id == NULL) return NULL;
 
@@ -117,7 +117,7 @@ const char *lv00_math_theory_get_title(const char *topic_id)
  * @param topic_id 主题标识符
  * @return 中文摘要，未找到返回 NULL
  */
-const char *lv00_math_theory_get_summary(const char *topic_id)
+const char *lv_math_theory_get_summary(const char *topic_id)
 {
     if (topic_id == NULL) return NULL;
 
@@ -134,7 +134,7 @@ const char *lv00_math_theory_get_summary(const char *topic_id)
  * @param topic_id 主题标识符
  * @return 中文关键词，未找到返回 NULL
  */
-const char *lv00_math_theory_get_keywords(const char *topic_id)
+const char *lv_math_theory_get_keywords(const char *topic_id)
 {
     if (topic_id == NULL) return NULL;
 
@@ -150,7 +150,7 @@ const char *lv00_math_theory_get_keywords(const char *topic_id)
  * @brief 获取理论主题的数量
  * @return 主题数量
  */
-int lv00_math_theory_count(void)
+int lv_math_theory_count(void)
 {
     return (int)THEORY_TABLE_SIZE;
 }
@@ -160,7 +160,7 @@ int lv00_math_theory_count(void)
  * @param index 索引（0 起始）
  * @return 主题标识符，索引越界返回 NULL
  */
-const char *lv00_math_theory_get_topic_id(int index)
+const char *lv_math_theory_get_topic_id(int index)
 {
     if (index < 0 || index >= (int)THEORY_TABLE_SIZE) return NULL;
     return g_theory_table[index].topic_id;

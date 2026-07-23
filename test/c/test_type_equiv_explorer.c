@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_type_equiv_explorer.c
  * @brief 交互式类型等价探索器测试（简化版）
  *
@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -56,13 +56,13 @@ static void test_partial_null_outputs(void) {
 /* ============== 测试入口 ============== */
 
 int main(void) {
-    lv00_init();
+    lv_init();
     TEST_SUITE_BEGIN("Type Equivalence Explorer");
 
     TEST_RUN(test_null_inputs);
     TEST_RUN(test_partial_null_outputs);
 
     TEST_SUITE_END();
-    lv00_cleanup();
+    lv_cleanup();
     return g_fail_count > 0 ? 1 : 0;
 }

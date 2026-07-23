@@ -1,4 +1,4 @@
-# Euclidean Plane Geometry -- 欧氏平面几何公理包
+﻿# Euclidean Plane Geometry -- 欧氏平面几何公理包
 
 ## 概述 / Overview
 
@@ -342,19 +342,19 @@ forall A : Point, l : Line,
 
 ```c
 // 加载欧氏几何完整包
-lv00_load_package("euclidean_plane");
+lv_load_package("euclidean_plane");
 
 // 仅加载绝对几何（前 3 层，不含连续性和平行公理）
-lv00_load_layer("euclidean_plane", "incidence");
-lv00_load_layer("euclidean_plane", "order");
-lv00_load_layer("euclidean_plane", "congruence");
+lv_load_layer("euclidean_plane", "incidence");
+lv_load_layer("euclidean_plane", "order");
+lv_load_layer("euclidean_plane", "congruence");
 
 // 检查是否加载了平行公理
-if (lv00_axiom_loaded("euclidean.Playfair")) {
+if (lv_axiom_loaded("euclidean.Playfair")) {
     // 在欧氏几何中推理
-    lv00_prove("triangle_angle_sum_180");
+    lv_prove("triangle_angle_sum_180");
 } else {
     // 在绝对几何中推理（三角形内角和 <= 180）
-    lv00_prove("saccheri_legendre");
+    lv_prove("saccheri_legendre");
 }
 ```

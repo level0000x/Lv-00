@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_parser.c
  * @brief 公式解析器实现
  *
@@ -10,23 +10,23 @@
  *
  * @dependencies
  *   - formula_parser.h : 解析器公共接口定义
- *   - lv00_internal.h  : 内部数据结构和常量
- *   - lv00_utils.h     : 统一内存分配器和工具函数
- *   - lv00.h           : 核心类型定义
+ *   - lv_internal.h  : 内部数据结构和常量
+ *   - lv_utils.h     : 统一内存分配器和工具函数
+ *   - lv.h           : 核心类型定义
  */
 
 /* ============================================================
  * 魔法数字常量定义
  * ============================================================ */
 
-#define LV00_MAX_COORDINATES 16      /**< 坐标列表最大元素数量 */
-#define LV00_MAX_VERTICES 32         /**< 顶点列表最大元素数量 */
-#define LV00_MAX_POLYGON_VERTICES 32 /**< 多边形顶点最大数量 */
-#define LV00_MAX_STATEMENTS 64       /**< 复合语句最大子语句数量 */
-#define LV00_MAX_ARGUMENTS 16        /**< 函数参数列表最大元素数量 */
-#define LV00_MAX_PARTICIPANTS 16     /**< 约束参与者最大数量 */
-#define LV00_MAX_BUFFER_SIZE 256     /**< 错误消息缓冲区大小 */
-#define LV00_MAX_TEMP_MSG_SIZE 128   /**< 临时错误消息/诊断缓冲区大小 */
+#define lv_MAX_COORDINATES 16      /**< 坐标列表最大元素数量 */
+#define lv_MAX_VERTICES 32         /**< 顶点列表最大元素数量 */
+#define lv_MAX_POLYGON_VERTICES 32 /**< 多边形顶点最大数量 */
+#define lv_MAX_STATEMENTS 64       /**< 复合语句最大子语句数量 */
+#define lv_MAX_ARGUMENTS 16        /**< 函数参数列表最大元素数量 */
+#define lv_MAX_PARTICIPANTS 16     /**< 约束参与者最大数量 */
+#define lv_MAX_BUFFER_SIZE 256     /**< 错误消息缓冲区大小 */
+#define lv_MAX_TEMP_MSG_SIZE 128   /**< 临时错误消息/诊断缓冲区大小 */
 
 #include "formula_parser.h"
 
@@ -37,9 +37,9 @@
 #include <string.h>
 
 #include "error_codes.h"
-#include "lv00.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "parser_safety.h"
 #include "stream.h"
 #include "stream_context_util.h"
@@ -48,7 +48,7 @@
  * 解析器上下文结构
  * ============================================================ */
 
-LV00_DECLARE_STREAM_CTX(formula_parser);
+lv_DECLARE_STREAM_CTX(formula_parser);
 
 /**
  * @brief 获取解析器最近一次错误信息
@@ -56,7 +56,7 @@ LV00_DECLARE_STREAM_CTX(formula_parser);
  * @return 错误信息字符串指针（内部缓冲区，无需释放），无错误时返回 NULL
  */
 const char *formula_parser_get_last_error(void) {
-    return lv00_get_last_error_message();
+    return lv_get_last_error_message();
 }
 
 /* ============================================================
@@ -230,10 +230,10 @@ bool formula_match_and_consume(ParserContext *ctx, const char *str) {
  */
 bool formula_expect_char(ParserContext *ctx, char c) {
     if (formula_peek(ctx) != c) {
-        char msg[LV00_MAX_TEMP_MSG_SIZE];
+        char msg[lv_MAX_TEMP_MSG_SIZE];
         snprintf(msg, sizeof(msg), "Expected '%c' but got '%s'", c, peek(ctx) ? "unexpected char" : "EOF");
-        /* 使用 lv00_strlcpy 替代不安全的 strncpy */
-        lv00_strlcpy(ctx->error_message, msg, sizeof(ctx->error_message));
+        /* 使用 lv_strlcpy 替代不安全的 strncpy */
+        lv_strlcpy(ctx->error_message, msg, sizeof(ctx->error_message));
         ctx->has_error = true;
         return false;
     }
@@ -256,7 +256,7 @@ void formula_set_error(ParserContext *ctx, const char *msg) {
         snprintf(ctx->error_message, sizeof(ctx->error_message), "Error at line %d, column %d: %s", ctx->line,
                  ctx->column, msg);
         ctx->has_error = true;
-        lv00_set_error(LV00_ERROR_PARSE, "%s", ctx->error_message);
+        lv_set_error(lv_ERROR_PARSE, "%s", ctx->error_message);
     }
 }
 
@@ -324,17 +324,17 @@ bool formula_is_digit(char c) {
  */
 FormulaNode *formula_parse(const char *input, const char *syntax) {
     if (!input) {
-        lv00_set_error(LV00_ERROR_NULL_POINTER, "Input is NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "Input is NULL");
         return NULL;
     }
 
-    lv00_clear_error();
+    lv_clear_error();
 
     /* ──── 安全加固：输入验证 ──── */
     size_t input_len = strlen(input);
-    Lv00ErrorCode validate_err = lv00_input_validate(input, input_len);
-    if (validate_err != LV00_OK) {
-        /* lv00_input_validate 已通过 lv00_set_error 设置详细错误信息 */
+    lvErrorCode validate_err = lv_input_validate(input, input_len);
+    if (validate_err != lv_OK) {
+        /* lv_input_validate 已通过 lv_set_error 设置详细错误信息 */
         return NULL;
     }
 
@@ -374,8 +374,8 @@ FormulaNode *formula_parse(const char *input, const char *syntax) {
     if (ctx.has_error) {
         /* 如果已通过安全函数设置了错误，保留原有错误码；
            否则使用通用解析错误码 */
-        if (lv00_get_last_error_code() == LV00_OK) {
-            lv00_set_error(LV00_ERROR_PARSE, "%s", ctx.error_message);
+        if (lv_get_last_error_code() == lv_OK) {
+            lv_set_error(lv_ERROR_PARSE, "%s", ctx.error_message);
         }
         if (formula_parser_stream_ctx) {
             stream_emit_error(formula_parser_stream_ctx, "公式解析错误", 0);

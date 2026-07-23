@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_solver_enhanced.c
  * @brief 求解器增强功能测试 - 自约化、增强流式输出、精确符号验证
  *
@@ -20,7 +20,7 @@
 
 #include "constraint_graph.h"
 #include "engine.h"
-#include "lv00.h"
+#include "lv.h"
 #include "solver.h"
 #include "stream.h"
 #include "symbolic_coord.h"
@@ -334,7 +334,7 @@ static int test_engine_solve_stream_integration(void) {
 
     reset_collector();
 
-    LV00Engine *engine = engine_create();
+    lvEngine *engine = engine_create();
     if (!engine) {
         printf("  FAILED: engine_create returned NULL\n");
         return 1;
@@ -557,7 +557,7 @@ static int test_stream_statistics_completeness(void) {
 
     reset_collector();
 
-    LV00Engine *engine = engine_create();
+    lvEngine *engine = engine_create();
     StreamContext *sctx = engine_get_stream_context(engine);
     if (sctx) {
         stream_register_callback_ex(sctx, collect_events_callback, NULL, STREAM_FILTER_ALL);

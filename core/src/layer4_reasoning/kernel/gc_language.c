@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gc_language.c
  * @brief GC 语言支持模块（子目录版本）
  *
@@ -6,7 +6,7 @@
  * GC 语言是一种用于描述几何构造和约束的 DSL。
  */
 
-#include "lv00/gc_language.h"
+#include "lv/gc_language.h"
 
 #include <ctype.h>
 #include <string.h>
@@ -125,7 +125,7 @@ static const char *gc_skip_line_comment(const char *p)
  * @param engine 引擎句柄（当前未使用，预留接口）
  * @return 0 解析成功，-1 参数错误或解析失败
  */
-int lv00_gc_parse(const char *source, void *engine)
+int lv_gc_parse(const char *source, void *engine)
 {
     const char *p;
     char ident[128];
@@ -221,7 +221,7 @@ int lv00_gc_parse(const char *source, void *engine)
  *
  * @return 错误信息字符串（内部存储，勿释放），无错误返回 NULL
  */
-const char *lv00_gc_error(void)
+const char *lv_gc_error(void)
 {
     if (g_gc_has_error) {
         return g_gc_error_buf;
@@ -234,7 +234,7 @@ const char *lv00_gc_error(void)
  *
  * @return 命令计数
  */
-int lv00_gc_command_count(void)
+int lv_gc_command_count(void)
 {
     return g_gc_cmd_count;
 }

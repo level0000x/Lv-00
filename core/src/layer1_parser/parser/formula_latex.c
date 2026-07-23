@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_latex.c
  * @brief LaTeX 语法解析器
  *
@@ -13,10 +13,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/formula_parser.h"
+#include "lv/formula_parser.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 FormulaNode *parse_latex_expression(ParserContext *ctx);
 static FormulaNode *parse_latex_term(ParserContext *ctx);
@@ -131,15 +131,15 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
     FormulaNode *result = NULL;
 
     if (strcmp(cmd, "frac") == 0) {
-        lv00_free((void **) &cmd);
+        lv_free((void **) &cmd);
         return parse_latex_frac(ctx);
     }
     if (strcmp(cmd, "sqrt") == 0) {
-        lv00_free((void **) &cmd);
+        lv_free((void **) &cmd);
         return parse_latex_sqrt(ctx);
     }
     if (strcmp(cmd, "sin") == 0) {
-        lv00_free((void **) &cmd);
+        lv_free((void **) &cmd);
         skip_whitespace(ctx);
         if (peek(ctx) == '{') {
             consume(ctx);
@@ -161,7 +161,7 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
         return result;
     }
     if (strcmp(cmd, "cos") == 0) {
-        lv00_free((void **) &cmd);
+        lv_free((void **) &cmd);
         skip_whitespace(ctx);
         if (peek(ctx) == '{') {
             consume(ctx);
@@ -183,7 +183,7 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
         return result;
     }
     if (strcmp(cmd, "tan") == 0) {
-        lv00_free((void **) &cmd);
+        lv_free((void **) &cmd);
         skip_whitespace(ctx);
         if (peek(ctx) == '{') {
             consume(ctx);
@@ -205,13 +205,13 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
         return result;
     }
     if (strcmp(cmd, "pi") == 0) {
-        lv00_free((void **) &cmd);
+        lv_free((void **) &cmd);
         return formula_create_variable("pi");
     }
 
     /* 其他命令作为变量 */
     result = formula_create_variable(cmd);
-    lv00_free((void **) &cmd);
+    lv_free((void **) &cmd);
     return result;
 }
 
@@ -296,7 +296,7 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
             return NULL;
 
         FormulaNode *node = track_node(ctx, formula_create_variable(ident));
-        lv00_free((void **) &ident);
+        lv_free((void **) &ident);
         return node;
     }
 

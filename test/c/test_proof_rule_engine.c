@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_proof_rule_engine.c
  * @brief Proof rule engine and proof session tests
  *
@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "proof_rule_engine.h"
 #include "proof_session.h"
 #include "test_helpers.h"
@@ -32,7 +32,7 @@ static void test_rule_engine_create(void) {
     printf("Testing rule engine creation...\n");
 
     /* Test default creation */
-    Lv00RuleEngine *engine = rule_engine_create();
+    lvRuleEngine *engine = rule_engine_create();
     TEST_ASSERT_NOT_NULL(engine);
     TEST_ASSERT_EQ(rule_engine_rule_count(engine), 0);
 
@@ -77,26 +77,26 @@ static bool sample_never_applicable(const void *rule, const void *state) {
 /* Sample apply function: pops the current goal (proves it) */
 static bool sample_pop_goal_apply(void *rule, void *state) {
     (void)rule;
-    return proof_state_pop_goal((Lv00ProofState *)state);
+    return proof_state_pop_goal((lvProofState *)state);
 }
 
 /* Sample apply function: pushes a sub-goal */
 static bool sample_push_subgoal_apply(void *rule, void *state) {
     (void)rule;
-    return proof_state_push_goal((Lv00ProofState *)state, "sub_goal_trivial");
+    return proof_state_push_goal((lvProofState *)state, "sub_goal_trivial");
 }
 
 static void test_rule_engine_add_rule(void) {
     printf("Testing rule engine add rule...\n");
 
-    Lv00RuleEngine *engine = rule_engine_create();
+    lvRuleEngine *engine = rule_engine_create();
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Create and add a rule */
-    Lv00ProofRule *rule = (Lv00ProofRule *)lv00_malloc(sizeof(Lv00ProofRule));
+    lvProofRule *rule = (lvProofRule *)lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(rule);
-    memset(rule, 0, sizeof(Lv00ProofRule));
-    strncpy(rule->name, "test_intro", LV00_PROOF_RULE_NAME_MAX - 1);
+    memset(rule, 0, sizeof(lvProofRule));
+    strncpy(rule->name, "test_intro", lv_PROOF_RULE_NAME_MAX - 1);
     rule->type = RULE_INTRO;
     rule->priority = 10;
     rule->weight = 0.8;
@@ -108,7 +108,7 @@ static void test_rule_engine_add_rule(void) {
     TEST_ASSERT_EQ(rule_engine_rule_count(engine), 1);
 
     /* Verify the rule can be found by name */
-    const Lv00ProofRule *found = rule_engine_find_rule(engine, "test_intro");
+    const lvProofRule *found = rule_engine_find_rule(engine, "test_intro");
     TEST_ASSERT_NOT_NULL(found);
     TEST_ASSERT_EQ(found->type, RULE_INTRO);
     TEST_ASSERT(found->weight > 0.7, "found rule weight should be greater than 0.7");
@@ -118,10 +118,10 @@ static void test_rule_engine_add_rule(void) {
     TEST_ASSERT_NULL(found);
 
     /* Add a second rule */
-    Lv00ProofRule *rule2 = (Lv00ProofRule *)lv00_malloc(sizeof(Lv00ProofRule));
+    lvProofRule *rule2 = (lvProofRule *)lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(rule2);
-    memset(rule2, 0, sizeof(Lv00ProofRule));
-    strncpy(rule2->name, "test_elim", LV00_PROOF_RULE_NAME_MAX - 1);
+    memset(rule2, 0, sizeof(lvProofRule));
+    strncpy(rule2->name, "test_elim", lv_PROOF_RULE_NAME_MAX - 1);
     rule2->type = RULE_ELIM;
     rule2->priority = 5;
     rule2->weight = 0.5;
@@ -160,14 +160,14 @@ static void test_rule_engine_add_rule(void) {
 static void test_rule_engine_search_simple(void) {
     printf("Testing rule engine simple search...\n");
 
-    Lv00RuleEngine *engine = rule_engine_create_ex(SEARCH_BEST_FIRST, 8, 0);
+    lvRuleEngine *engine = rule_engine_create_ex(SEARCH_BEST_FIRST, 8, 0);
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Add a rule that proves the current goal by popping it */
-    Lv00ProofRule *solve_rule = (Lv00ProofRule *)lv00_malloc(sizeof(Lv00ProofRule));
+    lvProofRule *solve_rule = (lvProofRule *)lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(solve_rule);
-    memset(solve_rule, 0, sizeof(Lv00ProofRule));
-    strncpy(solve_rule->name, "solve_trivial", LV00_PROOF_RULE_NAME_MAX - 1);
+    memset(solve_rule, 0, sizeof(lvProofRule));
+    strncpy(solve_rule->name, "solve_trivial", lv_PROOF_RULE_NAME_MAX - 1);
     solve_rule->type = RULE_INTRO;
     solve_rule->priority = 100;
     solve_rule->weight = 1.0;
@@ -177,13 +177,13 @@ static void test_rule_engine_search_simple(void) {
     rule_engine_add_rule(engine, solve_rule);
 
     /* Create a proof state with a single goal */
-    Lv00ProofState *state = proof_state_create("trivial_goal");
+    lvProofState *state = proof_state_create("trivial_goal");
     TEST_ASSERT_NOT_NULL(state);
     TEST_ASSERT(!proof_state_is_complete(state), "state should not be complete initially");
     TEST_ASSERT_STR_EQ(proof_state_current_goal(state), "trivial_goal");
 
     /* Run search -- should find proof immediately */
-    Lv00SearchResultStatus result = rule_engine_search(engine, state);
+    lvSearchResultStatus result = rule_engine_search(engine, state);
     TEST_ASSERT_EQ(result, SEARCH_RESULT_FOUND);
     TEST_ASSERT(proof_state_is_complete(state), "state should be complete");
 
@@ -193,10 +193,10 @@ static void test_rule_engine_search_simple(void) {
     proof_state_destroy(state);
 
     /* Test search with no applicable rules (exhausted) */
-    Lv00RuleEngine *empty_engine = rule_engine_create();
+    lvRuleEngine *empty_engine = rule_engine_create();
     TEST_ASSERT_NOT_NULL(empty_engine);
 
-    Lv00ProofState *state2 = proof_state_create("unsolvable_goal");
+    lvProofState *state2 = proof_state_create("unsolvable_goal");
     TEST_ASSERT_NOT_NULL(state2);
 
     result = rule_engine_search(empty_engine, state2);
@@ -207,14 +207,14 @@ static void test_rule_engine_search_simple(void) {
     rule_engine_destroy(empty_engine);
 
     /* Test search with depth limit */
-    Lv00RuleEngine *deep_engine = rule_engine_create_ex(SEARCH_BEST_FIRST, 1, 0);
+    lvRuleEngine *deep_engine = rule_engine_create_ex(SEARCH_BEST_FIRST, 1, 0);
     TEST_ASSERT_NOT_NULL(deep_engine);
 
     /* Add a rule that pushes a sub-goal instead of solving */
-    Lv00ProofRule *deep_rule = (Lv00ProofRule *)lv00_malloc(sizeof(Lv00ProofRule));
+    lvProofRule *deep_rule = (lvProofRule *)lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(deep_rule);
-    memset(deep_rule, 0, sizeof(Lv00ProofRule));
-    strncpy(deep_rule->name, "push_subgoal", LV00_PROOF_RULE_NAME_MAX - 1);
+    memset(deep_rule, 0, sizeof(lvProofRule));
+    strncpy(deep_rule->name, "push_subgoal", lv_PROOF_RULE_NAME_MAX - 1);
     deep_rule->type = RULE_CASE_SPLIT;
     deep_rule->priority = 50;
     deep_rule->weight = 0.9;
@@ -223,7 +223,7 @@ static void test_rule_engine_search_simple(void) {
 
     rule_engine_add_rule(deep_engine, deep_rule);
 
-    Lv00ProofState *state3 = proof_state_create("deep_goal");
+    lvProofState *state3 = proof_state_create("deep_goal");
     TEST_ASSERT_NOT_NULL(state3);
 
     result = rule_engine_search(deep_engine, state3);
@@ -246,7 +246,7 @@ static void test_proof_session_create(void) {
     printf("Testing proof session creation...\n");
 
     /* Create session without rule engine */
-    Lv00ProofSession *session = proof_session_create("forall x, P(x) -> P(x)", NULL);
+    lvProofSession *session = proof_session_create("forall x, P(x) -> P(x)", NULL);
     TEST_ASSERT_NOT_NULL(session);
     TEST_ASSERT_NOT_NULL(proof_session_get_id(session));
     TEST_ASSERT_STR_EQ(proof_session_get_target(session), "forall x, P(x) -> P(x)");
@@ -280,10 +280,10 @@ static void test_proof_session_create(void) {
 static void test_proof_session_submit_step(void) {
     printf("Testing proof session submit step...\n");
 
-    Lv00ProofSession *session = proof_session_create("P -> P", NULL);
+    lvProofSession *session = proof_session_create("P -> P", NULL);
     TEST_ASSERT_NOT_NULL(session);
 
-    Lv00StepResult result;
+    lvStepResult result;
 
     /* Submit an "exact" tactic to close the goal */
     bool ok = proof_session_submit_step(session, "exact P", &result);
@@ -345,7 +345,7 @@ static void test_proof_session_submit_step(void) {
 static void test_proof_session_get_state_json(void) {
     printf("Testing proof session get state JSON...\n");
 
-    Lv00ProofSession *session = proof_session_create("A -> A", NULL);
+    lvProofSession *session = proof_session_create("A -> A", NULL);
     TEST_ASSERT_NOT_NULL(session);
 
     char *json = proof_session_get_state_json(session);
@@ -364,7 +364,7 @@ static void test_proof_session_get_state_json(void) {
                 "JSON should show is_complete false");
 
     if (json) {
-        lv00_free((void **)&json);
+        lv_free((void **)&json);
     }
 
     /* Test NULL session */
@@ -380,7 +380,7 @@ static void test_proof_session_get_state_json(void) {
 static void test_proof_state_management(void) {
     printf("Testing proof state management...\n");
 
-    Lv00ProofState *state = proof_state_create("main_goal");
+    lvProofState *state = proof_state_create("main_goal");
     TEST_ASSERT_NOT_NULL(state);
     TEST_ASSERT(!proof_state_is_complete(state), "state should not be complete");
     TEST_ASSERT_STR_EQ(proof_state_current_goal(state), "main_goal");

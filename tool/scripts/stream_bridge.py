@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 [已废弃] 此文件为旧版独立脚本，功能已整合到 stream_bridge/stream_bridge.py。
 保留仅供参考和向后兼容。
@@ -79,7 +79,7 @@ EVENT_PANELS = {
 }
 
 
-class Lv00StreamBridge:
+class lvStreamBridge:
     """Lv-00 流式事件桥接器"""
 
     # WebSocket 重连配置
@@ -177,7 +177,7 @@ class Lv00StreamBridge:
             return self.panel_ids[category]
 
         # 使用类别名作为 stream_id
-        stream_id = f"lv00-{category.lower()}"
+        stream_id = f"lv-{category.lower()}"
         self.panel_ids[category] = stream_id
 
         if self.ws_connected:
@@ -301,7 +301,7 @@ class Lv00StreamBridge:
             msg = json.loads(line)
         except json.JSONDecodeError:
             # 非 JSON 行 —— 可能是普通日志，发送到 info 面板
-            self._send_to_ws("lv00-info", line)
+            self._send_to_ws("lv-info", line)
             return
 
         # JSON-RPC notification 格式: {"jsonrpc":"2.0","method":"stream.event","params":{...}}
@@ -311,7 +311,7 @@ class Lv00StreamBridge:
             self._process_event(msg.get("params", msg))
         else:
             # 其他 JSON 消息
-            self._send_to_ws("lv00-info", json.dumps(msg, ensure_ascii=False))
+            self._send_to_ws("lv-info", json.dumps(msg, ensure_ascii=False))
 
     def run_binary(self):
         """运行 Lv-00 二进制并捕获输出"""
@@ -368,7 +368,7 @@ class Lv00StreamBridge:
 
         self.process.wait()
         print(f"\n[BRIDGE] 进程退出 (exitcode={self.process.returncode})")
-        self._send_to_ws("lv00-info", f"═══ 引擎已完成 (退出码: {self.process.returncode}) ═══")
+        self._send_to_ws("lv-info", f"═══ 引擎已完成 (退出码: {self.process.returncode}) ═══")
         return True
 
     def stop(self):
@@ -441,7 +441,7 @@ def main():
     print(f"  WebSocket: {args.ws if not args.no_ws else '禁用'}")
     print()
 
-    bridge = Lv00StreamBridge(
+    bridge = lvStreamBridge(
         ws_url=args.ws,
         binary_path=binary_path,
         demo_num=args.demo,
@@ -452,7 +452,7 @@ def main():
     # 【修复 #4】使用非局部变量（nonlocal）而非类属性来设置关闭标志。
     # 原代码中 signal_handler() 内部设置 _shutdown_requested = True，
     # 但由于 Python 的作用域规则，这会在 signal_handler 函数内创建一个局部变量
-    # 而非修改外层的 _shutdown_requested。同时末尾引用 Lv00StreamBridge._shutdown_requested
+    # 而非修改外层的 _shutdown_requested。同时末尾引用 lvStreamBridge._shutdown_requested
     # 也是错误的，因为 _shutdown_requested 并非类属性。
     # 修复方案：使用 nonlocal 声明确保修改的是外层变量。
     _shutdown_requested = False

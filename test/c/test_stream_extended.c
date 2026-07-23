@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_stream_extended.c
  * @brief 流式输出系统扩展测试
  *
@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "stream.h"
 
 /** 仅计数的简单回调 */

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * test_unify.c - Lv-00 合一检查测试
  *
  * 测试合一检查系统：
@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* 创建简单构造：两点一线 */

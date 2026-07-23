@@ -12,8 +12,8 @@
  * @date 2026-05-24
  */
 
-#include "lv00/float_error.h"
-#include "lv00/lv00_internal.h"
+#include "lv/float_error.h"
+#include "lv/lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -261,11 +261,11 @@ static bool compute_taylor_coefficients(const char *expr,
 
     /* 数值偏导数近似 */
     for (int i = 0; i < var_count; i++) {
-        double *x_plus = lv00_calloc((size_t)var_count, sizeof(double));
-        double *x_minus = lv00_calloc((size_t)var_count, sizeof(double));
+        double *x_plus = lv_calloc((size_t)var_count, sizeof(double));
+        double *x_minus = lv_calloc((size_t)var_count, sizeof(double));
         if (!x_plus || !x_minus) {
-            lv00_free((void **)&x_plus);
-            lv00_free((void **)&x_minus);
+            lv_free((void **)&x_plus);
+            lv_free((void **)&x_minus);
             out_derivs[i] = 1.0; /* 保守默认值 */
             continue;
         }
@@ -285,8 +285,8 @@ static bool compute_taylor_coefficients(const char *expr,
         }
 
         out_derivs[i] = fabs((f_plus - f_minus) / (2.0 * h));
-        lv00_free((void **)&x_plus);
-        lv00_free((void **)&x_minus);
+        lv_free((void **)&x_plus);
+        lv_free((void **)&x_minus);
     }
     return true;
 }
@@ -329,7 +329,7 @@ FloatInterval interval_make(double lo, double hi, bool is_exact) {
 void error_bound_destroy(ErrorBound *bound) {
     if (!bound) return;
     if (bound->proof_text) {
-        lv00_free((void **)&bound->proof_text);
+        lv_free((void **)&bound->proof_text);
     }
     bound->absolute_error = 0.0;
     bound->relative_error = 0.0;
@@ -370,11 +370,11 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
     double eps = (config->taylor_order >= 2) ? fp32_epsilon() : fp64_epsilon();
 
     /* 计算变量中心值和区间宽度 */
-    double *centers = lv00_calloc((size_t)var_count, sizeof(double));
-    double *ranges = lv00_calloc((size_t)var_count, sizeof(double));
+    double *centers = lv_calloc((size_t)var_count, sizeof(double));
+    double *ranges = lv_calloc((size_t)var_count, sizeof(double));
     if (!centers || !ranges) {
-        lv00_free((void **)&centers);
-        lv00_free((void **)&ranges);
+        lv_free((void **)&centers);
+        lv_free((void **)&ranges);
         return false;
     }
 
@@ -385,19 +385,19 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
 
     /* 计算泰勒系数 */
     double center_val = 0.0;
-    double *abs_derivs = lv00_calloc((size_t)var_count, sizeof(double));
+    double *abs_derivs = lv_calloc((size_t)var_count, sizeof(double));
     if (!abs_derivs) {
-        lv00_free((void **)&centers);
-        lv00_free((void **)&ranges);
+        lv_free((void **)&centers);
+        lv_free((void **)&ranges);
         return false;
     }
 
     bool ok = compute_taylor_coefficients(expr, centers, var_count,
                                            &center_val, abs_derivs);
     if (!ok) {
-        lv00_free((void **)&centers);
-        lv00_free((void **)&ranges);
-        lv00_free((void **)&abs_derivs);
+        lv_free((void **)&centers);
+        lv_free((void **)&ranges);
+        lv_free((void **)&abs_derivs);
         return false;
     }
 
@@ -426,14 +426,14 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
              "  epsilon: %.15e\n",
              expr, center_val, abs_err, rel_err,
              config->taylor_order, eps);
-    out->proof_text = lv00_strdup(buf);
+    out->proof_text = lv_strdup(buf);
 
     /* 确定信任颜色等级 */
     out->trust_level = fptaylor_verify_safety(out, 1e-10);
 
-    lv00_free((void **)&centers);
-    lv00_free((void **)&ranges);
-    lv00_free((void **)&abs_derivs);
+    lv_free((void **)&centers);
+    lv_free((void **)&ranges);
+    lv_free((void **)&abs_derivs);
     return true;
 }
 

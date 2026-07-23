@@ -1,4 +1,4 @@
-# 31. 流处理与互操作系统
+﻿# 31. 流处理与互操作系统
 
 ## 31.1 模块概述
 
@@ -120,15 +120,15 @@ void stream_context_register_builtins(void);
 ### 31.4.3 模块宏
 
 ```c
-#define LV00_DECLARE_STREAM_CTX(prefix) \
-    static LV00_THREAD_LOCAL StreamContext *prefix##_stream_ctx = NULL; \
+#define lv_DECLARE_STREAM_CTX(prefix) \
+    static lv_THREAD_LOCAL StreamContext *prefix##_stream_ctx = NULL; \
     void prefix##_set_stream_context(StreamContext *ctx) { \
         prefix##_stream_ctx = ctx; \
     }
 ```
 
 ```c
-#define LV00_REGISTER_STREAM_CTX(prefix) \
+#define lv_REGISTER_STREAM_CTX(prefix) \
     stream_context_register_setter(prefix##_set_stream_context)
 ```
 

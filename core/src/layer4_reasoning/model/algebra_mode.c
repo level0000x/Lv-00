@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file algebra_mode.c
  * @brief 代数模式构造引擎 —— 完整实现
  *
@@ -7,9 +7,9 @@
  * 快照恢复和约束证明功能。
  */
 
-#include "lv00/algebra_mode.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/lv00_internal.h"
+#include "lv/algebra_mode.h"
+#include "lv/constraint_graph.h"
+#include "lv/lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +45,7 @@ static void history_push(AlgebraicGeom *geom, int step) {
     if (!geom) return;
     if (geom->history_count >= geom->history_capacity) {
         int new_cap = geom->history_capacity ? geom->history_capacity * 2 : HISTORY_INIT_CAPACITY;
-        int *h = (int *)lv00_realloc(geom->history, (size_t)new_cap * sizeof(int));
+        int *h = (int *)lv_realloc(geom->history, (size_t)new_cap * sizeof(int));
         if (!h) return;
         geom->history = h;
         geom->history_capacity = new_cap;
@@ -57,7 +57,7 @@ static void history_push(AlgebraicGeom *geom, int step) {
  * 生命周期
  * ================================================================ */
 
-AlgebraicGeom *algebra_create(Lv00Plane plane, const char *name) {
+AlgebraicGeom *algebra_create(lvPlane plane, const char *name) {
     AlgebraicGeom *geom = (AlgebraicGeom *)calloc(1, sizeof(AlgebraicGeom));
     if (!geom) return NULL;
 
@@ -308,7 +308,7 @@ AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point
  * 变换操作
  * ================================================================ */
 
-AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op,
+AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, lvTransformOp op,
                                   const double *params, int param_count) {
     if (!geom || !params || param_count < 1) return NULL;
     (void)op;
@@ -371,8 +371,8 @@ AlgebraicGeom *algebra_scale(AlgebraicGeom *geom, double sx, double sy, double s
  * 选择器操作
  * ================================================================ */
 
-Lv00Selector *algebra_selector_create(Lv00SelectorType type, const char *expr) {
-    Lv00Selector *sel = (Lv00Selector *)calloc(1, sizeof(Lv00Selector));
+lvSelector *algebra_selector_create(lvSelectorType type, const char *expr) {
+    lvSelector *sel = (lvSelector *)calloc(1, sizeof(lvSelector));
     if (!sel) return NULL;
 
     sel->type = type;
@@ -394,7 +394,7 @@ Lv00Selector *algebra_selector_create(Lv00SelectorType type, const char *expr) {
     return sel;
 }
 
-void algebra_selector_destroy(Lv00Selector *sel) {
+void algebra_selector_destroy(lvSelector *sel) {
     if (!sel) return;
 
     free(sel->expr);
@@ -410,7 +410,7 @@ void algebra_selector_destroy(Lv00Selector *sel) {
     free(sel);
 }
 
-AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const Lv00Selector *sel,
+AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const lvSelector *sel,
                                int **out_ids, int *out_count) {
     if (!geom || !sel || !out_ids || !out_count) return NULL;
 
@@ -512,7 +512,7 @@ AlgebraicGeom *algebra_undo(AlgebraicGeom *geom) {
     /* 弹出最后一步并推入 redo 栈 */
     if (geom->redo_count >= geom->redo_capacity) {
         int new_cap = geom->redo_capacity ? geom->redo_capacity * 2 : REDO_INIT_CAPACITY;
-        int *r = (int *)lv00_realloc(geom->redo_stack, (size_t)new_cap * sizeof(int));
+        int *r = (int *)lv_realloc(geom->redo_stack, (size_t)new_cap * sizeof(int));
         if (!r) return NULL;
         geom->redo_stack = r;
         geom->redo_capacity = new_cap;
@@ -544,7 +544,7 @@ int algebra_snapshot(AlgebraicGeom *geom) {
     /* 扩容快照栈 */
     if (geom->snapshot_count >= geom->snapshot_capacity) {
         int new_cap = geom->snapshot_capacity ? geom->snapshot_capacity * 2 : SNAPSHOT_INIT_CAPACITY;
-        struct AlgebraicGeom **s = (struct AlgebraicGeom **)lv00_realloc(
+        struct AlgebraicGeom **s = (struct AlgebraicGeom **)lv_realloc(
             geom->snapshots, (size_t)new_cap * sizeof(struct AlgebraicGeom *));
         if (!s) return -1;
         geom->snapshots = s;

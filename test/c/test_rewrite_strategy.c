@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_rewrite_strategy.c
  * @brief Tests for the extended rewrite strategy engine.
  *
@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "rewrite_strategy.h"
 #include "test_helpers.h"
 
@@ -35,7 +35,7 @@ int g_fail_count = 0;
  * ============================================================ */
 
 static void test_rewrite_engine_create_destroy(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
     TEST_ASSERT_NOT_NULL(engine);
     TEST_ASSERT_EQ(engine->strategy, REWRITE_INNERMOST);
     TEST_ASSERT_EQ(engine->max_iterations, 100);
@@ -57,7 +57,7 @@ static void test_rewrite_engine_create_destroy(void) {
  * ============================================================ */
 
 static void test_rewrite_engine_add_rule(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
     bool ok = rewrite_engine_ex_add_rule(engine, "simplify_add_0",
@@ -86,13 +86,13 @@ static void test_rewrite_engine_add_rule(void) {
  * ============================================================ */
 
 static void test_innermost_strategy(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Rule: replace "a" with "b" */
     rewrite_engine_ex_add_rule(engine, "a_to_b", "a", "b", 1, NULL);
 
-    Lv00RewriteResultEx result;
+    lvRewriteResultEx result;
     bool ok = rewrite_engine_ex_apply(engine, "aaa", &result);
     TEST_ASSERT(ok, "apply should succeed");
     TEST_ASSERT_NOT_NULL(result.output);
@@ -108,13 +108,13 @@ static void test_innermost_strategy(void) {
  * ============================================================ */
 
 static void test_outermost_strategy(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_OUTERMOST, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_OUTERMOST, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Rule: replace "ab" with "x" */
     rewrite_engine_ex_add_rule(engine, "ab_to_x", "ab", "x", 1, NULL);
 
-    Lv00RewriteResultEx result;
+    lvRewriteResultEx result;
     bool ok = rewrite_engine_ex_apply(engine, "abab", &result);
     TEST_ASSERT(ok, "apply should succeed");
     TEST_ASSERT_NOT_NULL(result.output);
@@ -130,14 +130,14 @@ static void test_outermost_strategy(void) {
  * ============================================================ */
 
 static void test_parallel_strategy(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_PARALLEL, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_PARALLEL, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Two independent rules */
     rewrite_engine_ex_add_rule(engine, "a_to_A", "a", "A", 1, NULL);
     rewrite_engine_ex_add_rule(engine, "b_to_B", "b", "B", 2, NULL);
 
-    Lv00RewriteResultEx result;
+    lvRewriteResultEx result;
     bool ok = rewrite_engine_ex_apply(engine, "abba", &result);
     TEST_ASSERT(ok, "apply should succeed");
     TEST_ASSERT_NOT_NULL(result.output);
@@ -153,13 +153,13 @@ static void test_parallel_strategy(void) {
  * ============================================================ */
 
 static void test_egraph_strategy(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_EGRAPH, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_EGRAPH, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Commutativity-like rule: "ab" <-> "ba" */
     rewrite_engine_ex_add_rule(engine, "commute", "ab", "ba", 1, NULL);
 
-    Lv00RewriteResultEx result;
+    lvRewriteResultEx result;
     bool ok = rewrite_engine_ex_apply(engine, "ab", &result);
     TEST_ASSERT(ok, "apply should succeed");
     TEST_ASSERT_NOT_NULL(result.output);
@@ -180,14 +180,14 @@ static bool condition_contains_safe(const char *term) {
 }
 
 static void test_conditional_rules(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Rule with condition */
     rewrite_engine_ex_add_rule(engine, "conditional",
         "x", "y", 1, condition_contains_safe);
 
-    Lv00RewriteResultEx result;
+    lvRewriteResultEx result;
 
     /* Condition satisfied: term contains "safe" */
     bool ok = rewrite_engine_ex_apply(engine, "safe_x", &result);
@@ -211,13 +211,13 @@ static void test_conditional_rules(void) {
  * ============================================================ */
 
 static void test_iteration_limit(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 3);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 3);
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Rule that expands: "a" -> "aa" (non-terminating) */
     rewrite_engine_ex_add_rule(engine, "expand", "a", "aa", 1, NULL);
 
-    Lv00RewriteResultEx result;
+    lvRewriteResultEx result;
     bool ok = rewrite_engine_ex_apply(engine, "a", &result);
     TEST_ASSERT(ok, "apply should succeed");
     TEST_ASSERT(result.hit_limit, "should hit iteration limit");
@@ -233,10 +233,10 @@ static void test_iteration_limit(void) {
  * ============================================================ */
 
 static void test_empty_engine(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
-    Lv00RewriteResultEx result;
+    lvRewriteResultEx result;
     bool ok = rewrite_engine_ex_apply(engine, "input_term", &result);
     TEST_ASSERT(ok, "apply should succeed");
     TEST_ASSERT_NOT_NULL(result.output);
@@ -252,7 +252,7 @@ static void test_empty_engine(void) {
  * ============================================================ */
 
 static void test_multi_step_simplification(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Simplification chain: "BIG" -> "big" -> "small" -> "tiny" */
@@ -260,7 +260,7 @@ static void test_multi_step_simplification(void) {
     rewrite_engine_ex_add_rule(engine, "step2", "big", "small", 2, NULL);
     rewrite_engine_ex_add_rule(engine, "step3", "small", "tiny", 3, NULL);
 
-    Lv00RewriteResultEx result;
+    lvRewriteResultEx result;
     bool ok = rewrite_engine_ex_apply(engine, "BIG", &result);
     TEST_ASSERT(ok, "apply should succeed");
     TEST_ASSERT_NOT_NULL(result.output);
@@ -285,10 +285,10 @@ static void test_result_destroy_null(void) {
  * ============================================================ */
 
 static void test_apply_null_params(void) {
-    Lv00RewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
-    Lv00RewriteResultEx result;
+    lvRewriteResultEx result;
     bool ok = rewrite_engine_ex_apply(NULL, "input", &result);
     TEST_ASSERT(!ok, "apply with NULL engine should fail");
 

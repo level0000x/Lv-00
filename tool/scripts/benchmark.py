@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Lv-00 性能基准测试脚本模块
 ============================
@@ -20,7 +20,7 @@ Lv-00 性能基准测试脚本模块
     python benchmark.py [--compare-with FILE] [--output-dir DIR] [--fail-on-regression]
 
 环境变量：
-    LV00_DEBUG=1: 启用调试输出
+    lv_DEBUG=1: 启用调试输出
 """
 
 import argparse
@@ -33,8 +33,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# 调试模式开关：通过环境变量 LV00_DEBUG=1 或 --debug 参数启用，默认关闭
-_DEBUG = os.environ.get('LV00_DEBUG', '0') == '1'
+# 调试模式开关：通过环境变量 lv_DEBUG=1 或 --debug 参数启用，默认关闭
+_DEBUG = os.environ.get('lv_DEBUG', '0') == '1'
 
 # 默认配置常量
 _DEFAULT_BUILD_DIR = "build"
@@ -400,7 +400,7 @@ def main() -> None:
     parser.add_argument("--fail-on-regression", action="store_true",
                        help="检测到性能回归时返回非零退出码")
     parser.add_argument("--debug", action="store_true",
-                       help="启用调试输出（也可通过环境变量 LV00_DEBUG=1 启用）")
+                       help="启用调试输出（也可通过环境变量 lv_DEBUG=1 启用）")
 
     args = parser.parse_args()
 

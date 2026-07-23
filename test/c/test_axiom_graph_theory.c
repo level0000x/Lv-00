@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_graph_theory.c
  * @brief Graph Theory Axiom Package Test
  *
@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "test_helpers.h"
 
 int g_fail_count = 0;
@@ -229,8 +229,8 @@ static void test_content_hash(void) {
 
     printf("  Hash: %s\n", hash1);
 
-    lv00_free((void **) &hash1);
-    lv00_free((void **) &hash2);
+    lv_free((void **) &hash1);
+    lv_free((void **) &hash2);
     axiom_package_destroy(pkg);
 }
 
@@ -266,8 +266,8 @@ static void test_roundtrip_save_load(void) {
     char *hash1 = axiom_package_compute_content_hash(pkg);
     char *hash2 = axiom_package_compute_content_hash(pkg2);
     TEST_ASSERT(hash1 && hash2 && strcmp(hash1, hash2) == 0, "content hashes should match after round-trip");
-    lv00_free((void **) &hash1);
-    lv00_free((void **) &hash2);
+    lv_free((void **) &hash1);
+    lv_free((void **) &hash2);
 
     printf("  Round-trip: %d templates, %d unconstructibles\n", pkg2->template_count, pkg2->unconstructible_count);
 

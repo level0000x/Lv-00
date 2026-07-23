@@ -1,5 +1,5 @@
-{
-  "$schema": "https://lv00.dev/schemas/package-manifest-v1.json",
+﻿{
+  "$schema": "https://lv.dev/schemas/package-manifest-v1.json",
   "name": "hyperbolic_geometry",
   "version": "1.0.0",
   "namespace": "hyperbolic",

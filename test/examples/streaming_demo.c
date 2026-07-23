@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file streaming_demo.c
  * @brief Lv-00 流式输出端到端演示
  *
@@ -23,7 +23,7 @@
 #include "engine.h"
 #include "error_codes.h"
 #include "interop.h"
-#include "lv00.h"
+#include "lv.h"
 #include "stream.h"
 #include "symbolic_coord.h"
 
@@ -80,7 +80,7 @@ static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64
 static void demo_triangle(void) {
     fprintf(stderr, "\n========== 演示1: 等边三角形构造 ==========\n");
 
-    LV00Engine *engine = engine_create();
+    lvEngine *engine = engine_create();
     if (!engine) {
         fprintf(stderr, "  engine_create 失败\n");
         return;
@@ -173,7 +173,7 @@ static void demo_triangle(void) {
 static void demo_circle_line(void) {
     fprintf(stderr, "\n========== 演示2: 圆与线交点测试 ==========\n");
 
-    LV00Engine *engine = engine_create();
+    lvEngine *engine = engine_create();
     if (!engine) {
         fprintf(stderr, "  engine_create 失败\n");
         return;
@@ -238,7 +238,7 @@ static void demo_circle_line(void) {
 static void demo_stream_stats(void) {
     fprintf(stderr, "\n========== 演示3: 流式事件统计 ==========\n");
 
-    LV00Engine *engine = engine_create();
+    lvEngine *engine = engine_create();
     if (!engine)
         return;
 

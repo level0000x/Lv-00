@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file unify.c
  * @brief 合一检查实现
  * @details 实现构造与命题之间的合一检查，包括约束匹配、坐标判等、
@@ -60,8 +60,8 @@
  * @dependencies
  *   - unify.h               : 合一检查器公共接口定义
  *   - constraint_graph.h    : 约束图接口
- *   - lv00_internal.h       : 内部数据结构与常量
- *   - lv00_utils.h          : 统一内存分配器和字符串工具
+ *   - lv_internal.h       : 内部数据结构与常量
+ *   - lv_utils.h          : 统一内存分配器和字符串工具
  *   - normalization.h       : 图规范化引擎
  *   - proof.h               : 证明系统接口（命题颜色更新）
  *   - type_system.h         : 类型系统（端口类型等价检查）
@@ -73,18 +73,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"       /* lv00_strdup_safe, lv00_malloc 等统一内存管理 */
+#include "lv_internal.h"
+#include "lv_utils.h"       /* lv_strdup_safe, lv_malloc 等统一内存管理 */
 #include "normalization.h"
-#include "lv00/proof.h"
+#include "lv/proof.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include "type_system.h"
 #include "unify.h"
 
-LV00_DECLARE_STREAM_CTX(unify);
+lv_DECLARE_STREAM_CTX(unify);
 
 void unify_set_stream_context(StreamContext *ctx) {
     unify_stream_ctx = ctx;
@@ -352,15 +352,15 @@ UnifyStatus unify_construction_with_proposition(const ConstraintGraph *construct
     for (int j = 0; j < construction->node_count; j++) {
         if (construction->nodes[j]->type == GEOM_PORT) construction_port_count++;
     }
-    /* 【安全性修复】避免 lv00_calloc(0, sizeof(int)) 的实现定义行为。
+    /* 【安全性修复】避免 lv_calloc(0, sizeof(int)) 的实现定义行为。
      * C标准规定 calloc(0, N) 可能返回 NULL 或一个不可解引用的非NULL指针。
      * 当 construction_port_count == 0 时：
      *   - 若返回 NULL：used_construction_ports 为 NULL，后续依赖其非NULL的代码存在隐患
-     *   - 若返回非NULL：该指针在函数退出时未被 lv00_free()，造成内存泄漏
+     *   - 若返回非NULL：该指针在函数退出时未被 lv_free()，造成内存泄漏
      * 修复方式：当 port_count 为 0 时分配最小单元（1个元素），确保行为统一且无泄漏。
      * 该额外分配的1个元素在后续循环中不会被使用（循环条件跳过无端口的图）。 */
     int alloc_count = construction_port_count > 0 ? construction_port_count : 1;
-    int *used_construction_ports = lv00_calloc(alloc_count, sizeof(int));
+    int *used_construction_ports = lv_calloc(alloc_count, sizeof(int));
     if (!used_construction_ports) {
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
@@ -371,7 +371,7 @@ UnifyStatus unify_construction_with_proposition(const ConstraintGraph *construct
     TypeSystem *ts = type_system_create();
 
     if (!match_ports(construction, proposition, used_construction_ports, ts)) {
-        lv00_free((void **)&used_construction_ports);
+        lv_free((void **)&used_construction_ports);
         if (ts) type_system_destroy(ts);
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
@@ -381,7 +381,7 @@ UnifyStatus unify_construction_with_proposition(const ConstraintGraph *construct
         }
         return UNIFY_STATUS_PORT_TYPE_MISMATCH;
     }
-    lv00_free((void **)&used_construction_ports);
+    lv_free((void **)&used_construction_ports);
     if (ts) type_system_destroy(ts);
     for (int i = 0; i < proposition->constraint_count; i++) {
         Constraint *pc = proposition->constraints[i];
@@ -467,20 +467,20 @@ UnifyStatus unify_construction_with_proposition_coord(const ConstraintGraph *con
     for (int j = 0; j < construction->node_count; j++) {
         if (construction->nodes[j]->type == GEOM_PORT) construction_port_count++;
     }
-    int *used_construction_ports = lv00_calloc(construction_port_count > 0 ? construction_port_count : 1, sizeof(int));
+    int *used_construction_ports = lv_calloc(construction_port_count > 0 ? construction_port_count : 1, sizeof(int));
 
     /* 创建 TypeSystem 用于端口类型等价检查 */
     TypeSystem *ts = type_system_create();
 
     /* 阶段B：端口类型匹配 —— 调用公共 match_ports() 辅助函数 */
     if (!match_ports(construction, proposition, used_construction_ports, ts)) {
-        lv00_free((void **)&used_construction_ports);
+        lv_free((void **)&used_construction_ports);
         if (ts) type_system_destroy(ts);
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
         return UNIFY_STATUS_PORT_TYPE_MISMATCH;
     }
-    lv00_free((void **)&used_construction_ports);
+    lv_free((void **)&used_construction_ports);
     if (ts) type_system_destroy(ts);
 
     /* 阶段C：约束匹配 + 坐标级别判等
@@ -557,7 +557,7 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
     }
 
     /* 计算命题图中所有节点的坐标哈希 */
-    uint64_t *prop_hashes = lv00_malloc((size_t)proposition->node_count * sizeof(uint64_t));
+    uint64_t *prop_hashes = lv_malloc((size_t)proposition->node_count * sizeof(uint64_t));
     if (!prop_hashes) {
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
@@ -568,9 +568,9 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
     }
 
     /* 计算构造图中所有节点的坐标哈希 */
-    uint64_t *con_hashes = lv00_malloc((size_t)construction->node_count * sizeof(uint64_t));
+    uint64_t *con_hashes = lv_malloc((size_t)construction->node_count * sizeof(uint64_t));
     if (!con_hashes) {
-        lv00_free((void **)&prop_hashes);
+        lv_free((void **)&prop_hashes);
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
         return UNIFY_STATUS_FAILED;
@@ -580,10 +580,10 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
     }
 
     /* 防止多个命题端口匹配到同一个构造端口 */
-    bool *used_construction_ports = lv00_calloc((size_t)construction->node_count, sizeof(bool));
+    bool *used_construction_ports = lv_calloc((size_t)construction->node_count, sizeof(bool));
     if (!used_construction_ports && construction->node_count > 0) {
-        lv00_free((void **)&prop_hashes);
-        lv00_free((void **)&con_hashes);
+        lv_free((void **)&prop_hashes);
+        lv_free((void **)&con_hashes);
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
         return UNIFY_STATUS_FAILED;
@@ -633,16 +633,16 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
             break;
         }
         if (!found_match) {
-            lv00_free((void **)&used_construction_ports);
+            lv_free((void **)&used_construction_ports);
             if (ts) type_system_destroy(ts);
-            lv00_free((void **)&prop_hashes);
-            lv00_free((void **)&con_hashes);
+            lv_free((void **)&prop_hashes);
+            lv_free((void **)&con_hashes);
             normalization_result_destroy(nc);
             normalization_result_destroy(np);
             return UNIFY_STATUS_PORT_TYPE_MISMATCH;
         }
     }
-    lv00_free((void **)&used_construction_ports);
+    lv_free((void **)&used_construction_ports);
     if (ts) type_system_destroy(ts);
 
     /* 约束匹配：使用哈希预过滤加速 */
@@ -689,16 +689,16 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
             }
         }
         if (!found_match) {
-            lv00_free((void **)&prop_hashes);
-            lv00_free((void **)&con_hashes);
+            lv_free((void **)&prop_hashes);
+            lv_free((void **)&con_hashes);
             normalization_result_destroy(nc);
             normalization_result_destroy(np);
             return UNIFY_STATUS_CONSTRAINT_MISMATCH;
         }
     }
 
-    lv00_free((void **)&prop_hashes);
-    lv00_free((void **)&con_hashes);
+    lv_free((void **)&prop_hashes);
+    lv_free((void **)&con_hashes);
     normalization_result_destroy(nc);
     normalization_result_destroy(np);
     return UNIFY_STATUS_OK;
@@ -710,22 +710,22 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
 
 SimpleProposition *simple_proposition_create(const char *name, int *input_port_ids, int input_count,
                                int *output_port_ids, int output_count) {
-    SimpleProposition *prop = lv00_malloc(sizeof(SimpleProposition));
+    SimpleProposition *prop = lv_malloc(sizeof(SimpleProposition));
     if (!prop) return NULL;
 
-    /* 使用 lv00_strdup_safe 替代裸 strdup，统一内存管理，
-     * 确保内存统计正确且避免混用标准 free 与 lv00_free。
+    /* 使用 lv_strdup_safe 替代裸 strdup，统一内存管理，
+     * 确保内存统计正确且避免混用标准 free 与 lv_free。
      * 当 name 为 NULL 时，使用空字符串作为默认值。 */
-    prop->name = name ? lv00_strdup_safe(name) : lv00_strdup_safe("");
+    prop->name = name ? lv_strdup_safe(name) : lv_strdup_safe("");
     if (!prop->name) {
-        lv00_free((void **)&prop);
+        lv_free((void **)&prop);
         return NULL;
     }
 
     prop->pattern = graph_create();
     if (!prop->pattern) {
-        lv00_free((void **)&prop->name);
-        lv00_free((void **)&prop);
+        lv_free((void **)&prop->name);
+        lv_free((void **)&prop);
         return NULL;
     }
 
@@ -733,16 +733,16 @@ SimpleProposition *simple_proposition_create(const char *name, int *input_port_i
      * 当 count > 0 但对应数组为 NULL 时，视为参数错误，返回 NULL。 */
     if ((input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids)) {
         graph_destroy(prop->pattern);
-        lv00_free((void **)&prop->name);
-        lv00_free((void **)&prop);
+        lv_free((void **)&prop->name);
+        lv_free((void **)&prop);
         return NULL;
     }
 
-    prop->input_port_ids = input_count > 0 ? lv00_malloc((size_t)input_count * sizeof(int)) : NULL;
+    prop->input_port_ids = input_count > 0 ? lv_malloc((size_t)input_count * sizeof(int)) : NULL;
     if (input_count > 0 && prop->input_port_ids) {
         memcpy(prop->input_port_ids, input_port_ids, (size_t)input_count * sizeof(int));
     }
-    prop->output_port_ids = output_count > 0 ? lv00_malloc((size_t)output_count * sizeof(int)) : NULL;
+    prop->output_port_ids = output_count > 0 ? lv_malloc((size_t)output_count * sizeof(int)) : NULL;
     if (output_count > 0 && prop->output_port_ids) {
         memcpy(prop->output_port_ids, output_port_ids, (size_t)output_count * sizeof(int));
     }
@@ -753,16 +753,16 @@ SimpleProposition *simple_proposition_create(const char *name, int *input_port_i
 
 void simple_proposition_destroy(SimpleProposition *prop) {
     if (prop) {
-        lv00_free((void **)&prop->name);
-        lv00_free((void **)&prop->input_port_ids);
-        lv00_free((void **)&prop->output_port_ids);
+        lv_free((void **)&prop->name);
+        lv_free((void **)&prop->input_port_ids);
+        lv_free((void **)&prop->output_port_ids);
         graph_destroy(prop->pattern);
-        lv00_free((void **)&prop);
+        lv_free((void **)&prop);
     }
 }
 
 SimpleProof *simple_proof_create(SimpleProposition *prop, ConstraintGraph *construction) {
-    SimpleProof *proof = lv00_malloc(sizeof(SimpleProof));
+    SimpleProof *proof = lv_malloc(sizeof(SimpleProof));
     if (!proof) return NULL;
     proof->proposition = prop;
     proof->construction = construction;
@@ -774,7 +774,7 @@ SimpleProof *simple_proof_create(SimpleProposition *prop, ConstraintGraph *const
 void simple_proof_destroy(SimpleProof *proof) {
     if (proof) {
         graph_destroy(proof->construction);
-        lv00_free((void **)&proof);
+        lv_free((void **)&proof);
     }
 }
 
@@ -816,7 +816,7 @@ void simple_proof_normalize(SimpleProof *proof) {
 
 void unify_failure_info_destroy(UnifyFailureInfo *info) {
     if (info) {
-        lv00_free((void **)&info->description);
+        lv_free((void **)&info->description);
     }
 }
 
@@ -855,7 +855,7 @@ static void failure_info_set(UnifyFailureInfo *info, UnifyStatus status,
     info->failed_node_id = node_id;
     info->failed_port_index = port_index;
     if (info->description) {
-        lv00_free((void **)&info->description);
+        lv_free((void **)&info->description);
     }
     if (fmt) {
         va_list args;
@@ -863,7 +863,7 @@ static void failure_info_set(UnifyFailureInfo *info, UnifyStatus status,
         int len = vsnprintf(NULL, 0, fmt, args);
         va_end(args);
         if (len > 0) {
-            info->description = lv00_malloc((size_t)len + 1);
+            info->description = lv_malloc((size_t)len + 1);
             if (info->description) {
                 va_start(args, fmt);
                 vsnprintf(info->description, (size_t)len + 1, fmt, args);
@@ -927,7 +927,7 @@ UnifyStatus unify_construction_with_proposition_detailed(
     for (int j = 0; j < construction->node_count; j++) {
         if (construction->nodes[j]->type == GEOM_PORT) construction_port_count++;
     }
-    int *used_construction_ports = lv00_calloc(
+    int *used_construction_ports = lv_calloc(
         construction_port_count > 0 ? (size_t)construction_port_count : 1,
         sizeof(int));
 
@@ -960,7 +960,7 @@ UnifyStatus unify_construction_with_proposition_detailed(
             break;
         }
         if (!found_match) {
-            lv00_free((void **)&used_construction_ports);
+            lv_free((void **)&used_construction_ports);
             if (ts) type_system_destroy(ts);
             normalization_result_destroy(nc);
             normalization_result_destroy(np);
@@ -977,7 +977,7 @@ UnifyStatus unify_construction_with_proposition_detailed(
         }
         prop_port_index++;
     }
-    lv00_free((void **)&used_construction_ports);
+    lv_free((void **)&used_construction_ports);
     if (ts) type_system_destroy(ts);
 
     /* 约束匹配（带详细失败报告） */
@@ -1032,8 +1032,8 @@ UnifyStatus unify_construction_with_proposition_detailed(
 /* 等价声明存储 */
 #define MAX_EQUIVALENCES 256
 
-static LV00_THREAD_LOCAL PropositionEquivalence g_equivalences[MAX_EQUIVALENCES];
-static LV00_THREAD_LOCAL int g_equivalence_count = 0;
+static lv_THREAD_LOCAL PropositionEquivalence g_equivalences[MAX_EQUIVALENCES];
+static lv_THREAD_LOCAL int g_equivalence_count = 0;
 
 bool unify_declare_proposition_equivalence(
     int prop_a_id,
@@ -1134,7 +1134,7 @@ typedef struct {
  * @return true 初始化成功，false 内存分配失败
  */
 static bool id_mapping_init(IdMappingTable *table, int initial_capacity) {
-    table->entries = (IdMappingEntry *)lv00_malloc((size_t)initial_capacity * sizeof(IdMappingEntry));
+    table->entries = (IdMappingEntry *)lv_malloc((size_t)initial_capacity * sizeof(IdMappingEntry));
     if (!table->entries) {
         table->capacity = 0;
         table->count = 0;
@@ -1151,7 +1151,7 @@ static bool id_mapping_init(IdMappingTable *table, int initial_capacity) {
  */
 static void id_mapping_destroy(IdMappingTable *table) {
     if (table->entries) {
-        lv00_free((void **)&table->entries);
+        lv_free((void **)&table->entries);
         table->entries = NULL;
     }
     table->count = 0;
@@ -1170,7 +1170,7 @@ static bool id_mapping_add(IdMappingTable *table, int old_id, int new_id) {
     if (!table->entries) return false;
     if (table->count >= table->capacity) {
         int new_capacity = table->capacity * 2;
-        IdMappingEntry *new_entries = lv00_realloc(table->entries,
+        IdMappingEntry *new_entries = lv_realloc(table->entries,
                                               new_capacity * sizeof(IdMappingEntry));
         if (!new_entries) return false;
         table->entries = new_entries;
@@ -1362,7 +1362,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
 
         if (src_node->data.region.boundary_segments &&
             src_node->data.region.segment_count > 0) {
-            new_boundary_ids = lv00_malloc(src_node->data.region.segment_count * sizeof(int));
+            new_boundary_ids = lv_malloc(src_node->data.region.segment_count * sizeof(int));
             if (!new_boundary_ids) goto fail;
 
             for (int j = 0; j < src_node->data.region.segment_count; j++) {
@@ -1375,7 +1375,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         }
 
         AddNodeResult r = graph_add_region(dst, new_boundary_ids, new_segment_count);
-        if (new_boundary_ids) lv00_free((void **)&new_boundary_ids);
+        if (new_boundary_ids) lv_free((void **)&new_boundary_ids);
         if (r != ADD_NODE_OK) goto fail;
 
         int new_id = dst->nodes[dst->node_count - 1]->id;
@@ -1403,7 +1403,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int new_internal_count = 0;
         if (src_node->data.func_block.internal_nodes &&
             src_node->data.func_block.internal_node_count > 0) {
-            new_internal_ids = lv00_malloc(src_node->data.func_block.internal_node_count * sizeof(int));
+            new_internal_ids = lv_malloc(src_node->data.func_block.internal_node_count * sizeof(int));
             if (!new_internal_ids) goto fail;
 
             for (int j = 0; j < src_node->data.func_block.internal_node_count; j++) {
@@ -1420,9 +1420,9 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int new_input_count = 0;
         if (src_node->data.func_block.input_port_ids &&
             src_node->data.func_block.input_count > 0) {
-            new_input_ids = lv00_malloc(src_node->data.func_block.input_count * sizeof(int));
+            new_input_ids = lv_malloc(src_node->data.func_block.input_count * sizeof(int));
             if (!new_input_ids) {
-                lv00_free((void **)&new_internal_ids);
+                lv_free((void **)&new_internal_ids);
                 goto fail;
             }
             for (int j = 0; j < src_node->data.func_block.input_count; j++) {
@@ -1438,10 +1438,10 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int new_output_count = 0;
         if (src_node->data.func_block.output_port_ids &&
             src_node->data.func_block.output_count > 0) {
-            new_output_ids = lv00_malloc(src_node->data.func_block.output_count * sizeof(int));
+            new_output_ids = lv_malloc(src_node->data.func_block.output_count * sizeof(int));
             if (!new_output_ids) {
-                lv00_free((void **)&new_internal_ids);
-                lv00_free((void **)&new_input_ids);
+                lv_free((void **)&new_internal_ids);
+                lv_free((void **)&new_input_ids);
                 goto fail;
             }
             for (int j = 0; j < src_node->data.func_block.output_count; j++) {
@@ -1458,9 +1458,9 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
             new_input_ids, new_input_count,
             new_output_ids, new_output_count);
 
-        lv00_free((void **)&new_internal_ids);
-        lv00_free((void **)&new_input_ids);
-        lv00_free((void **)&new_output_ids);
+        lv_free((void **)&new_internal_ids);
+        lv_free((void **)&new_input_ids);
+        lv_free((void **)&new_output_ids);
 
         if (r != ADD_NODE_OK) goto fail;
 
@@ -1491,7 +1491,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         AddConstraintResult r;
 
         /* 转换约束中的参与者ID */
-        int *new_participants = lv00_malloc(sc->participant_count * sizeof(int));
+        int *new_participants = lv_malloc(sc->participant_count * sizeof(int));
         if (!new_participants) goto fail;
         int new_participant_count = 0;
 
@@ -1543,7 +1543,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
                 break;
         }
         (void)r; /* 约束添加失败不视为致命错误 */
-        lv00_free((void **)&new_participants);
+        lv_free((void **)&new_participants);
     }
 
     /* 清理ID映射表 */
@@ -1722,7 +1722,7 @@ int unify_match_ports(const ConstraintGraph *construction,
     }
 
     /* 跟踪已匹配的构造端口 */
-    bool *used = lv00_calloc((size_t)construction->node_count, sizeof(bool));
+    bool *used = lv_calloc((size_t)construction->node_count, sizeof(bool));
     if (!used && construction->node_count > 0) return -1;
 
     /* 创建 TypeSystem 用于端口类型等价检查 */
@@ -1787,7 +1787,7 @@ int unify_match_ports(const ConstraintGraph *construction,
 
         if (!found) {
             /* 此命题端口没有匹配的 construction 端口 */
-            lv00_free((void **)&used);
+            lv_free((void **)&used);
             if (ts) type_system_destroy(ts);
             if (unify_stream_ctx) {
                 char msg[128];
@@ -1801,7 +1801,7 @@ int unify_match_ports(const ConstraintGraph *construction,
         }
     }
 
-    lv00_free((void **)&used);
+    lv_free((void **)&used);
     if (ts) type_system_destroy(ts);
 
     if (unify_stream_ctx) {
@@ -1835,7 +1835,7 @@ int unify_match_constraints(const ConstraintGraph *construction,
     int match_count = 0;
 
     /* 跟踪已匹配的构造约束 */
-    bool *used = lv00_calloc((size_t)construction->constraint_count, sizeof(bool));
+    bool *used = lv_calloc((size_t)construction->constraint_count, sizeof(bool));
     if (!used && construction->constraint_count > 0) return -1;
 
     for (int i = 0; i < proposition->constraint_count; i++) {
@@ -1893,7 +1893,7 @@ int unify_match_constraints(const ConstraintGraph *construction,
         }
 
         if (!found) {
-            lv00_free((void **)&used);
+            lv_free((void **)&used);
             if (unify_stream_ctx) {
                 char msg[128];
                 snprintf(msg, sizeof(msg),
@@ -1906,7 +1906,7 @@ int unify_match_constraints(const ConstraintGraph *construction,
         }
     }
 
-    lv00_free((void **)&used); /* 使用 lv00_calloc/lv00_free 统一内存管理 */
+    lv_free((void **)&used); /* 使用 lv_calloc/lv_free 统一内存管理 */
 
     if (unify_stream_ctx) {
         char msg[128];
@@ -1942,8 +1942,8 @@ int unify_match_coords(const SymbolicCoord *c1, const SymbolicCoord *c2)
                  "坐标不相等: \"%s\" vs \"%s\"",
                  s1 ? s1 : "(null)", s2 ? s2 : "(null)");
         stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, msg, 0);
-        lv00_free((void **)&s1);
-        lv00_free((void **)&s2);
+        lv_free((void **)&s1);
+        lv_free((void **)&s2);
     }
 
     return result;

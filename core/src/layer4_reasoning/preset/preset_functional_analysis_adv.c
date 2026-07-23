@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_functional_analysis_adv.c
  * @brief 泛函分析进阶预设函数块模块 - 实现（v2统一宏模式）
  *
@@ -11,8 +11,8 @@
  * @version 1.0.0
  */
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "preset_functional_analysis_adv.h"
 #include "preset_blocks.h"
 #include "preset_common.h"

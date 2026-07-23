@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_snapshot.h
  * @brief 求解快照/回滚 — 从 solver.c 拆分
  *
@@ -6,8 +6,8 @@
  * 原位置: solver.c L108-L222
  */
 
-#ifndef LV00_SOLVER_SNAPSHOT_H
-#define LV00_SOLVER_SNAPSHOT_H
+#ifndef lv_SOLVER_SNAPSHOT_H
+#define lv_SOLVER_SNAPSHOT_H
 
 #include <stdbool.h>
 
@@ -52,4 +52,4 @@ void solver_snapshot_free(SolverSnapshot *snapshot);
 }
 #endif
 
-#endif /* LV00_SOLVER_SNAPSHOT_H */
+#endif /* lv_SOLVER_SNAPSHOT_H */

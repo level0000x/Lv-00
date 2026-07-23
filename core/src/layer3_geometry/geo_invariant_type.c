@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_invariant_type.c
  * @brief Implementation of geometric invariant types
  *
@@ -9,7 +9,7 @@
  */
 
 #include "geo_invariant_type.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -107,7 +107,7 @@ GeoInvariant *geo_invariant_create(GeoInvariantKind kind,
                                     double trust,
                                     const int *entity_ids,
                                     int entity_count) {
-    GeoInvariant *inv = (GeoInvariant *)lv00_malloc(sizeof(GeoInvariant));
+    GeoInvariant *inv = (GeoInvariant *)lv_malloc(sizeof(GeoInvariant));
     if (!inv) return NULL;
     memset(inv, 0, sizeof(GeoInvariant));
 
@@ -122,7 +122,7 @@ GeoInvariant *geo_invariant_create(GeoInvariantKind kind,
     /* Copy name */
     if (name) {
         size_t name_len = strlen(name) + 1;
-        inv->name = (char *)lv00_malloc(name_len);
+        inv->name = (char *)lv_malloc(name_len);
         if (inv->name) {
             memcpy(inv->name, name, name_len);
         }
@@ -130,7 +130,7 @@ GeoInvariant *geo_invariant_create(GeoInvariantKind kind,
         /* Use default name from kind */
         const char *def = kind_default_name(kind);
         size_t def_len = strlen(def) + 1;
-        inv->name = (char *)lv00_malloc(def_len);
+        inv->name = (char *)lv_malloc(def_len);
         if (inv->name) {
             memcpy(inv->name, def, def_len);
         }
@@ -138,7 +138,7 @@ GeoInvariant *geo_invariant_create(GeoInvariantKind kind,
 
     /* Copy entity IDs */
     if (entity_ids && entity_count > 0) {
-        inv->entity_ids = (int *)lv00_malloc(sizeof(int) * (size_t)entity_count);
+        inv->entity_ids = (int *)lv_malloc(sizeof(int) * (size_t)entity_count);
         if (inv->entity_ids) {
             memcpy(inv->entity_ids, entity_ids, sizeof(int) * (size_t)entity_count);
             inv->entity_count = entity_count;
@@ -150,10 +150,10 @@ GeoInvariant *geo_invariant_create(GeoInvariantKind kind,
 
 void geo_invariant_destroy(GeoInvariant *inv) {
     if (!inv) return;
-    if (inv->name) lv00_free((void **)&inv->name);
-    if (inv->entity_ids) lv00_free((void **)&inv->entity_ids);
-    if (inv->metadata) lv00_free((void **)&inv->metadata);
-    lv00_free((void **)&inv);
+    if (inv->name) lv_free((void **)&inv->name);
+    if (inv->entity_ids) lv_free((void **)&inv->entity_ids);
+    if (inv->metadata) lv_free((void **)&inv->metadata);
+    lv_free((void **)&inv);
 }
 
 bool geo_invariant_check_consistency(const GeoInvariant *inv) {
@@ -188,7 +188,7 @@ int geo_invariant_attach_to_type(GeoInvariant *inv,
     /* Store the type attachment as JSON metadata */
     size_t region_len = strlen(region_name);
     size_t meta_capacity = 128 + region_len;
-    char *meta = (char *)lv00_malloc(meta_capacity);
+    char *meta = (char *)lv_malloc(meta_capacity);
     if (!meta) return -1;
 
     snprintf(meta, meta_capacity,
@@ -197,7 +197,7 @@ int geo_invariant_attach_to_type(GeoInvariant *inv,
 
     /* Free existing metadata if any */
     if (inv->metadata) {
-        lv00_free((void **)&inv->metadata);
+        lv_free((void **)&inv->metadata);
     }
 
     inv->metadata = meta;

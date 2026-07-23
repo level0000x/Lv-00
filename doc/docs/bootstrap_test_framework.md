@@ -1,4 +1,4 @@
-# Lv-00 自举差分测试框架设计规范
+﻿# Lv-00 自举差分测试框架设计规范
 
 > **版本**: 1.0.0-draft  
 > **日期**: 2026-05-29  
@@ -318,51 +318,51 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle,
 void bootstrap_test_register_suite(void);
 
 /* 测试套件定义 */
-LV00_TEST_SUITE(BootstrapCore)
+lv_TEST_SUITE(BootstrapCore)
 {
     /* 原语差分测试 */
-    LV00_TEST(BootstrapCore, geo_create_node_diff);
-    LV00_TEST(BootstrapCore, geo_create_constraint_diff);
-    LV00_TEST(BootstrapCore, geo_solve_diff);
-    LV00_TEST(BootstrapCore, geo_normalize_diff);
-    LV00_TEST(BootstrapCore, geo_rewrite_diff);
-    LV00_TEST(BootstrapCore, geo_unify_diff);
-    LV00_TEST(BootstrapCore, geo_pack_diff);
-    LV00_TEST(BootstrapCore, geo_instantiate_diff);
-    LV00_TEST(BootstrapCore, geo_prove_diff);
-    LV00_TEST(BootstrapCore, geo_export_diff);
-    LV00_TEST(BootstrapCore, geo_serialize_diff);
-    LV00_TEST(BootstrapCore, geo_deserialize_diff);
-    LV00_TEST(BootstrapCore, geo_query_diff);
+    lv_TEST(BootstrapCore, geo_create_node_diff);
+    lv_TEST(BootstrapCore, geo_create_constraint_diff);
+    lv_TEST(BootstrapCore, geo_solve_diff);
+    lv_TEST(BootstrapCore, geo_normalize_diff);
+    lv_TEST(BootstrapCore, geo_rewrite_diff);
+    lv_TEST(BootstrapCore, geo_unify_diff);
+    lv_TEST(BootstrapCore, geo_pack_diff);
+    lv_TEST(BootstrapCore, geo_instantiate_diff);
+    lv_TEST(BootstrapCore, geo_prove_diff);
+    lv_TEST(BootstrapCore, geo_export_diff);
+    lv_TEST(BootstrapCore, geo_serialize_diff);
+    lv_TEST(BootstrapCore, geo_deserialize_diff);
+    lv_TEST(BootstrapCore, geo_query_diff);
     
     /* 归一化幂等性测试 */
-    LV00_TEST(BootstrapCore, normalization_idempotent);
+    lv_TEST(BootstrapCore, normalization_idempotent);
     
     /* 序列化往返测试 */
-    LV00_TEST(BootstrapCore, serialize_roundtrip);
+    lv_TEST(BootstrapCore, serialize_roundtrip);
     
     /* 图同构测试 */
-    LV00_TEST(BootstrapCore, graph_isomorphism_basic);
-    LV00_TEST(BootstrapCore, graph_isomorphism_complex);
+    lv_TEST(BootstrapCore, graph_isomorphism_basic);
+    lv_TEST(BootstrapCore, graph_isomorphism_complex);
 }
 ```
 
 ### 8.2 随机测试套件
 
 ```c
-LV00_TEST_SUITE(BootstrapRandom)
+lv_TEST_SUITE(BootstrapRandom)
 {
     /* 随机生成测试 */
-    LV00_TEST(BootstrapRandom, random_graph_generation);
-    LV00_TEST(BootstrapRandom, random_dsl_generation);
+    lv_TEST(BootstrapRandom, random_graph_generation);
+    lv_TEST(BootstrapRandom, random_dsl_generation);
     
     /* 大规模差分测试 */
-    LV00_TEST_PARAMETERIZED(BootstrapRandom, large_scale_diff, 
+    lv_TEST_PARAMETERIZED(BootstrapRandom, large_scale_diff, 
                             random_graph_generator, 100);
     
     /* 压力测试 */
-    LV00_BENCHMARK(BootstrapRandom, solve_100_nodes, 1000);
-    LV00_BENCHMARK(BootstrapRandom, normalize_1000_constraints, 100);
+    lv_BENCHMARK(BootstrapRandom, solve_100_nodes, 1000);
+    lv_BENCHMARK(BootstrapRandom, normalize_1000_constraints, 100);
 }
 ```
 
@@ -373,7 +373,7 @@ LV00_TEST_SUITE(BootstrapRandom)
 ### 9.1 与现有测试框架集成
 
 ```c
-/* 在 lv00_test_main 中集成 */
+/* 在 lv_test_main 中集成 */
 int main(int argc, char **argv)
 {
     /* 初始化自举测试框架 */
@@ -383,14 +383,14 @@ int main(int argc, char **argv)
     bootstrap_test_register_suite();
     
     /* 运行所有测试 */
-    Lv00TestReport *report = lv00_test_run_all();
+    lvTestReport *report = lv_test_run_all();
     
     /* 输出报告 */
-    lv00_test_report_print(report, stdout);
-    lv00_test_report_write_file(report, "bootstrap_test_report.json", "json");
+    lv_test_report_print(report, stdout);
+    lv_test_report_write_file(report, "bootstrap_test_report.json", "json");
     
     /* 清理 */
-    lv00_test_report_destroy(report);
+    lv_test_report_destroy(report);
     bootstrap_test_framework_cleanup();
     
     return 0;
@@ -412,8 +412,8 @@ add_library(bootstrap_test_framework STATIC
 )
 
 target_link_libraries(bootstrap_test_framework
-    lv00_static
-    lv00_test_framework
+    lv_static
+    lv_test_framework
 )
 
 target_include_directories(bootstrap_test_framework PUBLIC
@@ -430,7 +430,7 @@ add_executable(bootstrap_test_runner
 
 target_link_libraries(bootstrap_test_runner
     bootstrap_test_framework
-    lv00_static
+    lv_static
 )
 
 add_test(NAME BootstrapTest COMMAND bootstrap_test_runner)

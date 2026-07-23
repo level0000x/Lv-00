@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_basic_geometry.c
  * @brief �������ι���Ԥ�躯���� - ʵ��
  *
@@ -11,8 +11,8 @@
 
 #include "preset_basic_geometry.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 

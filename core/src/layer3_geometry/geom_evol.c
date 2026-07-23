@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geom_evol.c
  * @brief 几何演化引擎 —— 自适应步长 ODE 求解器实现
  *
@@ -15,9 +15,9 @@
  *
  * @dependencies
  *   - geom_evol.h             : 演化引擎公共接口与类型定义
- *   - lv00_numeric.h          : 轻量数值基础设施
- *   - lv00_utils.h            : 统一内存分配器
- *   - lv00_internal.h         : 内部常量与工具宏
+ *   - lv_numeric.h          : 轻量数值基础设施
+ *   - lv_utils.h            : 统一内存分配器
+ *   - lv_internal.h         : 内部常量与工具宏
  *   - error_codes.h           : 统一错误码系统
  */
 
@@ -33,9 +33,9 @@
 #include <string.h>
 
 #include "error_codes.h"
-#include "lv00/config.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv/config.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "numerical_backend.h"
 
 /* ========================================================================
@@ -43,10 +43,10 @@
  * ======================================================================== */
 
 /** @brief 默认相对误差容限 */
-#define GEOEVOL_DEFAULT_REL_TOL LV00_EPSILON_LOW
+#define GEOEVOL_DEFAULT_REL_TOL lv_EPSILON_LOW
 
 /** @brief 默认绝对误差容限 */
-#define GEOEVOL_DEFAULT_ABS_TOL LV00_EPSILON_ULTRA
+#define GEOEVOL_DEFAULT_ABS_TOL lv_EPSILON_ULTRA
 
 /** @brief 默认初始步长 */
 #define GEOEVOL_DEFAULT_STEP 0.01
@@ -64,47 +64,47 @@
  * ======================================================================== */
 
 /** @brief 计算误差加权向量：w_i = rel_tol * |y_i| + abs_tol */
-static void geoevol_calc_error_weights(Lv00GeomEvol *evol);
+static void geoevol_calc_error_weights(lvGeomEvol *evol);
 
 /** @brief 计算局部截断误差估计（RK4 嵌入式 RK3 方法） */
-static double geoevol_error_estimate_rk4(Lv00GeomEvol *evol, const double *y1,
+static double geoevol_error_estimate_rk4(lvGeomEvol *evol, const double *y1,
                                          const double *y_trial);
 
 /** @brief Euler 法单步积分 */
-static int geoevol_step_euler(Lv00GeomEvol *evol, double h, const double *y,
+static int geoevol_step_euler(lvGeomEvol *evol, double h, const double *y,
                               double *y_out);
 
 /** @brief RK4 法单步积分 */
-static int geoevol_step_rk4(Lv00GeomEvol *evol, double h, const double *y,
+static int geoevol_step_rk4(lvGeomEvol *evol, double h, const double *y,
                             double *y_out);
 
 /** @brief Adams 法单步积分（变阶预测-校正） */
-static int geoevol_step_adams(Lv00GeomEvol *evol, double h, const double *y,
+static int geoevol_step_adams(lvGeomEvol *evol, double h, const double *y,
                               double *y_out);
 
 /** @brief BDF 法单步积分（变阶 Newton 迭代） */
-static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
+static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y,
                             double *y_out);
 
 /** @brief 求 RHS 并递增求值计数 */
-static int geoevol_rhs_eval(Lv00GeomEvol *evol, double t, const double *y,
+static int geoevol_rhs_eval(lvGeomEvol *evol, double t, const double *y,
                             double *dy);
 
 /** @brief 将当前状态存入多步法历史缓冲区 */
-static void geoevol_ms_history_push(Lv00GeomEvol *evol, double t, const double *y,
+static void geoevol_ms_history_push(lvGeomEvol *evol, double t, const double *y,
                                     const double *f);
 
 /** @brief 从循环缓冲区中按偏移量获取历史 y 指针（0=最近一步，1=上一步...） */
-static const double *geoevol_ms_hist_y(const Lv00GeomEvol *evol, int offset);
+static const double *geoevol_ms_hist_y(const lvGeomEvol *evol, int offset);
 
 /** @brief 从循环缓冲区中按偏移量获取历史 f 指针（0=最近一步，1=上一步...） */
-static const double *geoevol_ms_hist_f(const Lv00GeomEvol *evol, int offset);
+static const double *geoevol_ms_hist_f(const lvGeomEvol *evol, int offset);
 
 /** @brief 获取历史时间戳（0=最近一步，1=上一步...） */
-static double geoevol_ms_hist_t(const Lv00GeomEvol *evol, int offset);
+static double geoevol_ms_hist_t(const lvGeomEvol *evol, int offset);
 
 /** @brief 清空多步法历史缓冲区（重置启动阶段） */
-static void geoevol_ms_history_reset(Lv00GeomEvol *evol);
+static void geoevol_ms_history_reset(lvGeomEvol *evol);
 
 /* ========================================================================
  * 辅助函数实现
@@ -116,7 +116,7 @@ static void geoevol_ms_history_reset(Lv00GeomEvol *evol);
  * w_i = 1.0 / (rel_tol * |y_i| + abs_tol)
  * 借鉴 CVODE 的误差控制，混合使用相对和绝对容限。
  */
-static void geoevol_calc_error_weights(Lv00GeomEvol *evol) {
+static void geoevol_calc_error_weights(lvGeomEvol *evol) {
     if (!evol) {
         return;
     }
@@ -142,7 +142,7 @@ static void geoevol_calc_error_weights(Lv00GeomEvol *evol) {
  * 相比嵌入式 RK 方法，Richardson 外推不需要额外的低阶积分器，
  * 且能提供可靠的渐近误差估计。
  */
-static double geoevol_error_estimate_rk4(Lv00GeomEvol *evol, const double *y_h,
+static double geoevol_error_estimate_rk4(lvGeomEvol *evol, const double *y_h,
                                          const double *y_half_h) {
     int dim = evol->dim;
     double error = 0.0;
@@ -163,7 +163,7 @@ static double geoevol_error_estimate_rk4(Lv00GeomEvol *evol, const double *y_h,
 /**
  * @brief 安全求 RHS 并递增统计计数
  */
-static int geoevol_rhs_eval(Lv00GeomEvol *evol, double t, const double *y,
+static int geoevol_rhs_eval(lvGeomEvol *evol, double t, const double *y,
                             double *dy) {
     if (!evol || !evol->rhs_func || !y || !dy) {
         return -1;
@@ -181,7 +181,7 @@ static int geoevol_rhs_eval(Lv00GeomEvol *evol, double t, const double *y,
  *
  * 将历史计数归零、阶数归 1、写入索引归 0。
  */
-static void geoevol_ms_history_reset(Lv00GeomEvol *evol) {
+static void geoevol_ms_history_reset(lvGeomEvol *evol) {
     evol->ms_hist_count = 0;
     evol->ms_order = 1;
     evol->ms_hist_idx = 0;
@@ -194,7 +194,7 @@ static void geoevol_ms_history_reset(Lv00GeomEvol *evol) {
  * 写入后索引递增并对 GEOEVOL_ADAMS_MAX_ORDER 取模。
  * 同时递增历史计数（不超过最大容量）。
  */
-static void geoevol_ms_history_push(Lv00GeomEvol *evol, double t, const double *y,
+static void geoevol_ms_history_push(lvGeomEvol *evol, double t, const double *y,
                                     const double *f) {
     int idx = evol->ms_hist_idx;
     int dim = evol->dim;
@@ -226,7 +226,7 @@ static void geoevol_ms_history_push(Lv00GeomEvol *evol, double t, const double *
  * offset=0 表示最近存入的一步（当前步），offset=1 表示上一步，以此类推。
  * 调用者需确保 offset < ms_hist_count。
  */
-static const double *geoevol_ms_hist_y(const Lv00GeomEvol *evol, int offset) {
+static const double *geoevol_ms_hist_y(const lvGeomEvol *evol, int offset) {
     int max_ord = GEOEVOL_ADAMS_MAX_ORDER;
     /* ms_hist_idx 指向下一个写入位置，所以最近一步在 (idx - 1 + max_ord) % max_ord */
     int idx = (evol->ms_hist_idx - 1 - offset + max_ord) % max_ord;
@@ -238,7 +238,7 @@ static const double *geoevol_ms_hist_y(const Lv00GeomEvol *evol, int offset) {
  *
  * offset=0 表示最近存入的 RHS 求值，offset=1 表示上一步，以此类推。
  */
-static const double *geoevol_ms_hist_f(const Lv00GeomEvol *evol, int offset) {
+static const double *geoevol_ms_hist_f(const lvGeomEvol *evol, int offset) {
     int max_ord = GEOEVOL_ADAMS_MAX_ORDER;
     int idx = (evol->ms_hist_idx - 1 - offset + max_ord) % max_ord;
     return evol->ms_hist_f[idx];
@@ -249,7 +249,7 @@ static const double *geoevol_ms_hist_f(const Lv00GeomEvol *evol, int offset) {
  *
  * offset=0 表示最近一步的时间，offset=1 表示上一步的时间。
  */
-static double geoevol_ms_hist_t(const Lv00GeomEvol *evol, int offset) {
+static double geoevol_ms_hist_t(const lvGeomEvol *evol, int offset) {
     int max_ord = GEOEVOL_ADAMS_MAX_ORDER;
     int idx = (evol->ms_hist_idx - 1 - offset + max_ord) % max_ord;
     return evol->ms_hist_t[idx];
@@ -264,7 +264,7 @@ static double geoevol_ms_hist_t(const Lv00GeomEvol *evol, int offset) {
  *
  * y_{n+1} = y_n + h * f(t_n, y_n)
  */
-static int geoevol_step_euler(Lv00GeomEvol *evol, double h, const double *y,
+static int geoevol_step_euler(lvGeomEvol *evol, double h, const double *y,
                               double *y_out) {
     int dim = evol->dim;
     int ret = geoevol_rhs_eval(evol, evol->t, y, evol->dparam);
@@ -292,7 +292,7 @@ static int geoevol_step_euler(Lv00GeomEvol *evol, double h, const double *y,
  * k4 = f(t_n + h, y_n + h * k3)
  * y_{n+1} = y_n + h/6 * (k1 + 2*k2 + 2*k3 + k4)
  */
-static int geoevol_step_rk4(Lv00GeomEvol *evol, double h, const double *y,
+static int geoevol_step_rk4(lvGeomEvol *evol, double h, const double *y,
                             double *y_out) {
     int dim = evol->dim;
     double half_h = 0.5 * h;
@@ -300,17 +300,17 @@ static int geoevol_step_rk4(Lv00GeomEvol *evol, double h, const double *y,
     double *k1 = evol->dparam;
 
     /* 需要临时空间存放 k2/k3/k4 和中间值（复用 param 空间不安全） */
-    double *k2 = lv00_malloc((size_t) dim * sizeof(double));
-    double *k3 = lv00_malloc((size_t) dim * sizeof(double));
-    double *k4 = lv00_malloc((size_t) dim * sizeof(double));
-    double *tmp = lv00_malloc((size_t) dim * sizeof(double));
+    double *k2 = lv_malloc((size_t) dim * sizeof(double));
+    double *k3 = lv_malloc((size_t) dim * sizeof(double));
+    double *k4 = lv_malloc((size_t) dim * sizeof(double));
+    double *tmp = lv_malloc((size_t) dim * sizeof(double));
 
     if (!k2 || !k3 || !k4 || !tmp) {
-        if (k2) lv00_free((void **) &k2);
-        if (k3) lv00_free((void **) &k3);
-        if (k4) lv00_free((void **) &k4);
-        if (tmp) lv00_free((void **) &tmp);
-        LV00_ERROR_SET(LV00_ERROR_OUT_OF_MEMORY, "RK4临时空间分配失败，dim=%d", dim);
+        if (k2) lv_free((void **) &k2);
+        if (k3) lv_free((void **) &k3);
+        if (k4) lv_free((void **) &k4);
+        if (tmp) lv_free((void **) &tmp);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "RK4临时空间分配失败，dim=%d", dim);
         return -1;
     }
 
@@ -353,10 +353,10 @@ static int geoevol_step_rk4(Lv00GeomEvol *evol, double h, const double *y,
     }
 
 cleanup_rk4:
-    if (k2) lv00_free((void **) &k2);
-    if (k3) lv00_free((void **) &k3);
-    if (k4) lv00_free((void **) &k4);
-    if (tmp) lv00_free((void **) &tmp);
+    if (k2) lv_free((void **) &k2);
+    if (k3) lv_free((void **) &k3);
+    if (k4) lv_free((void **) &k4);
+    if (tmp) lv_free((void **) &tmp);
     return ret;
 }
 
@@ -390,7 +390,7 @@ cleanup_rk4:
  *   AM4: [9/24, 19/24, -5/24, 1/24]
  *   AM5: [251/720, 646/720, -264/720, 106/720, -19/720]
  */
-static int geoevol_step_adams(Lv00GeomEvol *evol, double h, const double *y,
+static int geoevol_step_adams(lvGeomEvol *evol, double h, const double *y,
                               double *y_out) {
     int dim = evol->dim;
     int max_ord = GEOEVOL_ADAMS_MAX_ORDER;
@@ -417,7 +417,7 @@ static int geoevol_step_adams(Lv00GeomEvol *evol, double h, const double *y,
 
     /* ── 启动阶段：历史不足时使用 RK4 生成初始历史点 ── */
     if (evol->ms_hist_count < max_ord - 1) {
-        LV00_LOG_DEBUG("Adams启动阶段：历史=%d/%d，使用RK4",
+        lv_LOG_DEBUG("Adams启动阶段：历史=%d/%d，使用RK4",
                        evol->ms_hist_count, max_ord - 1);
 
         /* 在执行 RK4 之前，先求当前点的 RHS 并存入历史 */
@@ -447,12 +447,12 @@ static int geoevol_step_adams(Lv00GeomEvol *evol, double h, const double *y,
     int order = evol->ms_order; /* 当前阶数 = 已有历史步数 */
 
     /* 分配临时空间：预测值和校正值的 RHS */
-    double *f_predict = lv00_malloc((size_t) dim * sizeof(double));
-    double *y_predict = lv00_malloc((size_t) dim * sizeof(double));
+    double *f_predict = lv_malloc((size_t) dim * sizeof(double));
+    double *y_predict = lv_malloc((size_t) dim * sizeof(double));
     if (!f_predict || !y_predict) {
-        if (f_predict) lv00_free((void **) &f_predict);
-        if (y_predict) lv00_free((void **) &y_predict);
-        LV00_ERROR_SET(LV00_ERROR_OUT_OF_MEMORY, "Adams临时空间分配失败");
+        if (f_predict) lv_free((void **) &f_predict);
+        if (y_predict) lv_free((void **) &y_predict);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "Adams临时空间分配失败");
         return -1;
     }
 
@@ -472,8 +472,8 @@ static int geoevol_step_adams(Lv00GeomEvol *evol, double h, const double *y,
     /* 计算 f(t_{n+1}, y_predict) */
     int ret = geoevol_rhs_eval(evol, evol->t + h, y_predict, f_predict);
     if (ret != 0) {
-        lv00_free((void **) &f_predict);
-        lv00_free((void **) &y_predict);
+        lv_free((void **) &f_predict);
+        lv_free((void **) &y_predict);
         return ret;
     }
 
@@ -493,8 +493,8 @@ static int geoevol_step_adams(Lv00GeomEvol *evol, double h, const double *y,
     /* 先将当前步 (y, f) 存入历史，再将校正后的结果也存入 */
     ret = geoevol_rhs_eval(evol, evol->t, y, evol->dparam);
     if (ret != 0) {
-        lv00_free((void **) &f_predict);
-        lv00_free((void **) &y_predict);
+        lv_free((void **) &f_predict);
+        lv_free((void **) &y_predict);
         return ret;
     }
     geoevol_ms_history_push(evol, evol->t, y, evol->dparam);
@@ -502,14 +502,14 @@ static int geoevol_step_adams(Lv00GeomEvol *evol, double h, const double *y,
     /* 将校正后的 y_out 的 RHS 存入历史 */
     ret = geoevol_rhs_eval(evol, evol->t + h, y_out, evol->dparam);
     if (ret != 0) {
-        lv00_free((void **) &f_predict);
-        lv00_free((void **) &y_predict);
+        lv_free((void **) &f_predict);
+        lv_free((void **) &y_predict);
         return ret;
     }
     geoevol_ms_history_push(evol, evol->t + h, y_out, evol->dparam);
 
-    lv00_free((void **) &f_predict);
-    lv00_free((void **) &y_predict);
+    lv_free((void **) &f_predict);
+    lv_free((void **) &y_predict);
     return 0;
 }
 
@@ -540,7 +540,7 @@ static int geoevol_step_adams(Lv00GeomEvol *evol, double h, const double *y,
  * Newton 迭代参数：最大 10 次，收敛容限 1e-10。
  * 若 Newton 不收敛，缩减步长并重试。
  */
-static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
+static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y,
                             double *y_out) {
     int dim = evol->dim;
     int max_ord = GEOEVOL_ADAMS_MAX_ORDER;
@@ -558,13 +558,13 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
 
     /* Newton 迭代参数 */
     const int newton_max_iter = 10;
-    const double newton_tol = LV00_EPSILON_HIGH;
+    const double newton_tol = lv_EPSILON_HIGH;
     /* 有限差分 Jacobian 的扰动步长 */
     const double fd_eps = 1e-8;
 
     /* ── 启动阶段：历史不足时使用 RK4 生成初始历史点 ── */
     if (evol->ms_hist_count < max_ord - 1) {
-        LV00_LOG_DEBUG("BDF启动阶段：历史=%d/%d，使用RK4",
+        lv_LOG_DEBUG("BDF启动阶段：历史=%d/%d，使用RK4",
                        evol->ms_hist_count, max_ord - 1);
 
         /* 先将当前点存入历史 */
@@ -588,20 +588,20 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
     double gamma0 = gamma[0];
 
     /* 分配临时空间 */
-    double *y_new = lv00_malloc((size_t) dim * sizeof(double));       /* Newton 迭代当前值 */
-    double *G = lv00_malloc((size_t) dim * sizeof(double));         /* 残差函数值 */
-    double *delta = lv00_malloc((size_t) dim * sizeof(double));     /* Newton 修正量 */
-    double *f_new = lv00_malloc((size_t) dim * sizeof(double));      /* f(t_{n+1}, y_new) */
-    double *f_pert = lv00_malloc((size_t) dim * sizeof(double));    /* 有限差分扰动 RHS */
-    double *rhs_sum = lv00_malloc((size_t) dim * sizeof(double));   /* 历史项累加 */
+    double *y_new = lv_malloc((size_t) dim * sizeof(double));       /* Newton 迭代当前值 */
+    double *G = lv_malloc((size_t) dim * sizeof(double));         /* 残差函数值 */
+    double *delta = lv_malloc((size_t) dim * sizeof(double));     /* Newton 修正量 */
+    double *f_new = lv_malloc((size_t) dim * sizeof(double));      /* f(t_{n+1}, y_new) */
+    double *f_pert = lv_malloc((size_t) dim * sizeof(double));    /* 有限差分扰动 RHS */
+    double *rhs_sum = lv_malloc((size_t) dim * sizeof(double));   /* 历史项累加 */
     if (!y_new || !G || !delta || !f_new || !f_pert || !rhs_sum) {
-        if (y_new) lv00_free((void **) &y_new);
-        if (G) lv00_free((void **) &G);
-        if (delta) lv00_free((void **) &delta);
-        if (f_new) lv00_free((void **) &f_new);
-        if (f_pert) lv00_free((void **) &f_pert);
-        if (rhs_sum) lv00_free((void **) &rhs_sum);
-        LV00_ERROR_SET(LV00_ERROR_OUT_OF_MEMORY, "BDF临时空间分配失败");
+        if (y_new) lv_free((void **) &y_new);
+        if (G) lv_free((void **) &G);
+        if (delta) lv_free((void **) &delta);
+        if (f_new) lv_free((void **) &f_new);
+        if (f_pert) lv_free((void **) &f_pert);
+        if (rhs_sum) lv_free((void **) &rhs_sum);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "BDF临时空间分配失败");
         return -1;
     }
 
@@ -654,7 +654,7 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
          * 当 dim 较大时，可替换为带状 LU 或稀疏直接求解器以提升性能。 */
         {
             /* 分配稠密 Jacobian 矩阵（行优先存储） */
-            double *J = lv00_malloc((size_t) dim * dim * sizeof(double));
+            double *J = lv_malloc((size_t) dim * dim * sizeof(double));
             if (!J) {
                 goto cleanup_bdf;
             }
@@ -668,7 +668,7 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
                 ret = geoevol_rhs_eval(evol, evol->t + h, y_new, f_pert);
                 if (ret != 0) {
                     y_new[j] = y_save_j;
-                    lv00_free((void **) &J);
+                    lv_free((void **) &J);
                     goto cleanup_bdf;
                 }
                 y_new[j] = y_save_j;
@@ -688,18 +688,18 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
             /* 部分选主元 LU 分解（原地分解，结果存回 J） */
             /* 使用紧凑存储：J 的上三角存 U，下三角存 L（对角线为 1），
              * piv 记录行交换信息 */
-            int *piv = lv00_malloc((size_t) dim * sizeof(int));
+            int *piv = lv_malloc((size_t) dim * sizeof(int));
             if (!piv) {
-                lv00_free((void **) &J);
+                lv_free((void **) &J);
                 goto cleanup_bdf;
             }
             for (int i = 0; i < dim; ++i) piv[i] = i;
 
             /* 在 LU 分解前保存原始对角线副本，用于分解失败时的对角回退 */
-            double *J_diag = lv00_malloc((size_t) dim * sizeof(double));
+            double *J_diag = lv_malloc((size_t) dim * sizeof(double));
             if (!J_diag) {
-                lv00_free((void **) &piv);
-                lv00_free((void **) &J);
+                lv_free((void **) &piv);
+                lv_free((void **) &J);
                 goto cleanup_bdf;
             }
             for (int i = 0; i < dim; ++i) J_diag[i] = J[i * dim + i];
@@ -765,7 +765,7 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
                 }
 
                 /* 将结果从 piv 顺序还原到自然顺序 */
-                double *delta_sorted = lv00_malloc((size_t) dim * sizeof(double));
+                double *delta_sorted = lv_malloc((size_t) dim * sizeof(double));
                 if (delta_sorted) {
                     for (int i = 0; i < dim; ++i) {
                         delta_sorted[i] = delta[piv[i]];
@@ -773,7 +773,7 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
                     for (int i = 0; i < dim; ++i) {
                         delta[i] = delta_sorted[i];
                     }
-                    lv00_free((void **) &delta_sorted);
+                    lv_free((void **) &delta_sorted);
                 }
             } else {
                 /* LU 分解失败（矩阵奇异），回退到对角近似 */
@@ -787,9 +787,9 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
                 }
             }
 
-            lv00_free((void **) &J_diag);
-            lv00_free((void **) &piv);
-            lv00_free((void **) &J);
+            lv_free((void **) &J_diag);
+            lv_free((void **) &piv);
+            lv_free((void **) &J);
         }
 
         /* 应用修正 */
@@ -800,7 +800,7 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
 
     if (!newton_converged) {
         evol->stats.num_convergence_fails++;
-        LV00_LOG_DEBUG("BDF Newton迭代未收敛（%d步，order=%d）",
+        lv_LOG_DEBUG("BDF Newton迭代未收敛（%d步，order=%d）",
                        newton_max_iter, order);
         /* 将初始猜测作为输出，让外层步长控制器缩减步长重试 */
         memcpy(y_out, y, (size_t) dim * sizeof(double));
@@ -816,12 +816,12 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
     geoevol_ms_history_push(evol, evol->t + h, y_out, NULL);
 
 cleanup_bdf:
-    if (y_new) lv00_free((void **) &y_new);
-    if (G) lv00_free((void **) &G);
-    if (delta) lv00_free((void **) &delta);
-    if (f_new) lv00_free((void **) &f_new);
-    if (f_pert) lv00_free((void **) &f_pert);
-    if (rhs_sum) lv00_free((void **) &rhs_sum);
+    if (y_new) lv_free((void **) &y_new);
+    if (G) lv_free((void **) &G);
+    if (delta) lv_free((void **) &delta);
+    if (f_new) lv_free((void **) &f_new);
+    if (f_pert) lv_free((void **) &f_pert);
+    if (rhs_sum) lv_free((void **) &rhs_sum);
     return newton_converged ? 0 : -1;
 }
 
@@ -838,35 +838,35 @@ cleanup_bdf:
  * 4. 进行误差测试：error <= 1.0 则接受步，否则缩减步长并重试
  * 5. 使用 PI 控制器预测下一步步长
  */
-Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
-    LV00_CHECK_NULL(evol, LV00_EVOL_STATUS_ERROR);
+lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
+    lv_CHECK_NULL(evol, lv_EVOL_STATUS_ERROR);
 
-    if (evol->status != LV00_EVOL_STATUS_RUNNING) {
-        LV00_ERROR_SET(LV00_BACKEND_INVALID_ARGS,
+    if (evol->status != lv_EVOL_STATUS_RUNNING) {
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
                        "演化引擎未处于运行状态，当前状态=%d", (int) evol->status);
-        return LV00_EVOL_STATUS_ERROR;
+        return lv_EVOL_STATUS_ERROR;
     }
 
-    LV00_CHECK_NULL(evol->rhs_func, LV00_EVOL_STATUS_ERROR);
+    lv_CHECK_NULL(evol->rhs_func, lv_EVOL_STATUS_ERROR);
 
     int dim = evol->dim;
     if (dim <= 0 || dim > GEOEVOL_MAX_PARAM_DIM) {
-        LV00_ERROR_SET(LV00_BACKEND_INVALID_ARGS, "无效的向量维度=%d", dim);
-        return LV00_EVOL_STATUS_ERROR;
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "无效的向量维度=%d", dim);
+        return lv_EVOL_STATUS_ERROR;
     }
 
     geoevol_calc_error_weights(evol);
 
     /* 需要临时数组：y_trial（试探步结果）、y_half（半步两步结果）、y_save（当前状态备份） */
-    double *y_trial = lv00_malloc((size_t) dim * sizeof(double));
-    double *y_half = lv00_malloc((size_t) dim * sizeof(double));
-    double *y_save = lv00_malloc((size_t) dim * sizeof(double));
+    double *y_trial = lv_malloc((size_t) dim * sizeof(double));
+    double *y_half = lv_malloc((size_t) dim * sizeof(double));
+    double *y_save = lv_malloc((size_t) dim * sizeof(double));
     if (!y_trial || !y_half || !y_save) {
-        if (y_trial) lv00_free((void **) &y_trial);
-        if (y_half) lv00_free((void **) &y_half);
-        if (y_save) lv00_free((void **) &y_save);
-        LV00_ERROR_SET(LV00_ERROR_OUT_OF_MEMORY, "单步演化临时空间分配失败");
-        return LV00_EVOL_STATUS_ERROR;
+        if (y_trial) lv_free((void **) &y_trial);
+        if (y_half) lv_free((void **) &y_half);
+        if (y_save) lv_free((void **) &y_save);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "单步演化临时空间分配失败");
+        return lv_EVOL_STATUS_ERROR;
     }
 
     /* 保存当前状态 */
@@ -874,7 +874,7 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
     double t_save = evol->t;
 
     double h = evol->step_size;
-    Lv00EvolMethod method = evol->method;
+    lvEvolMethod method = evol->method;
     int method_order;
 
     /* 循环：如果误差过大则缩减步长重试 */
@@ -882,63 +882,63 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
 
     for (;;) {
         if (reject_count >= GEOEVOL_MAX_REJECTIONS) {
-            LV00_ERROR_SET(LV00_ERROR_SOLVER_NOT_CONVERGED,
+            lv_ERROR_SET(lv_ERROR_SOLVER_NOT_CONVERGED,
                            "步长控制超过最大被拒次数 %d", GEOEVOL_MAX_REJECTIONS);
-            evol->status = LV00_EVOL_STATUS_ERROR;
+            evol->status = lv_EVOL_STATUS_ERROR;
             goto cleanup;
         }
 
         /* 选择积分方法和阶数 */
-        int (*stepper)(Lv00GeomEvol *, double, const double *, double *) = NULL;
+        int (*stepper)(lvGeomEvol *, double, const double *, double *) = NULL;
         switch (method) {
-            case LV00_EVOL_EULER:
+            case lv_EVOL_EULER:
                 stepper = geoevol_step_euler;
                 method_order = 1;
                 break;
-            case LV00_EVOL_RK4:
+            case lv_EVOL_RK4:
                 stepper = geoevol_step_rk4;
                 method_order = 4;
                 break;
-            case LV00_EVOL_ADAMS:
+            case lv_EVOL_ADAMS:
                 stepper = geoevol_step_adams;
                 method_order = evol->ms_order; /* 变阶：1~5 */
                 break;
-            case LV00_EVOL_BDF:
+            case lv_EVOL_BDF:
                 stepper = geoevol_step_bdf;
                 method_order = evol->ms_order; /* 变阶：1~5 */
                 break;
             default:
-                LV00_ERROR_SET(LV00_BACKEND_UNSUPPORTED,
+                lv_ERROR_SET(lv_BACKEND_UNSUPPORTED,
                                "不支持的演化方法=%d", (int) method);
-                evol->status = LV00_EVOL_STATUS_ERROR;
+                evol->status = lv_EVOL_STATUS_ERROR;
                 goto cleanup;
         }
 
         /* 执行试探步（全步长 h） */
         int ret = stepper(evol, h, y_save, y_trial);
         if (ret != 0) {
-            evol->status = LV00_EVOL_STATUS_ERROR;
+            evol->status = lv_EVOL_STATUS_ERROR;
             goto cleanup;
         }
 
         /* Richardson 外推误差估计（仅对 RK4 方法）：
          * 用步长 h/2 执行两步 RK4，与全步长结果比较。
          * 误差 = (y_{h/2} - y_h) / (2^p - 1)，p = 方法阶数 */
-        if (method == LV00_EVOL_RK4) {
+        if (method == lv_EVOL_RK4) {
             /* 半步长两步法：先走 h/2，再走 h/2 */
             double half_h = 0.5 * h;
-            double *y_mid = lv00_malloc((size_t) dim * sizeof(double));
+            double *y_mid = lv_malloc((size_t) dim * sizeof(double));
             if (!y_mid) {
-                evol->status = LV00_EVOL_STATUS_ERROR;
-                LV00_ERROR_SET(LV00_ERROR_OUT_OF_MEMORY, "Richardson外推临时空间分配失败");
+                evol->status = lv_EVOL_STATUS_ERROR;
+                lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "Richardson外推临时空间分配失败");
                 goto cleanup;
             }
 
             /* 第一步：从 y_save 出发，步长 half_h */
             ret = geoevol_step_rk4(evol, half_h, y_save, y_mid);
             if (ret != 0) {
-                lv00_free((void **) &y_mid);
-                evol->status = LV00_EVOL_STATUS_ERROR;
+                lv_free((void **) &y_mid);
+                evol->status = lv_EVOL_STATUS_ERROR;
                 goto cleanup;
             }
 
@@ -947,12 +947,12 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
             evol->t = t_saved + half_h;
             ret = geoevol_step_rk4(evol, half_h, y_mid, y_half);
             evol->t = t_saved; /* 恢复原时间 */
-            lv00_free((void **) &y_mid);
+            lv_free((void **) &y_mid);
             if (ret != 0) {
-                evol->status = LV00_EVOL_STATUS_ERROR;
+                evol->status = lv_EVOL_STATUS_ERROR;
                 goto cleanup;
             }
-        } else if (method == LV00_EVOL_EULER) {
+        } else if (method == lv_EVOL_EULER) {
             /* Euler 没有嵌入式估计，直接接受 */
             memcpy(y_half, y_trial, (size_t) dim * sizeof(double));
         } else {
@@ -968,7 +968,7 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
              */
             ret = geoevol_step_euler(evol, h, y_save, y_half);
             if (ret != 0) {
-                evol->status = LV00_EVOL_STATUS_ERROR;
+                evol->status = lv_EVOL_STATUS_ERROR;
                 goto cleanup;
             }
         }
@@ -1027,9 +1027,9 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
     }
 
 cleanup:
-    if (y_trial) lv00_free((void **) &y_trial);
-    if (y_half) lv00_free((void **) &y_half);
-    if (y_save) lv00_free((void **) &y_save);
+    if (y_trial) lv_free((void **) &y_trial);
+    if (y_half) lv_free((void **) &y_half);
+    if (y_save) lv_free((void **) &y_save);
     return evol->status;
 }
 
@@ -1043,31 +1043,31 @@ cleanup:
  * 从当前时间 evol->t 出发，持续调用 geoevol_step_once() 直到 t >= tout。
  * 借鉴 CVODE 的 CVode() 主循环设计。
  */
-Lv00EvolStatus geoevol_evolve(Lv00GeomEvol *evol, double tout) {
-    LV00_CHECK_NULL(evol, LV00_EVOL_STATUS_ERROR);
+lvEvolStatus geoevol_evolve(lvGeomEvol *evol, double tout) {
+    lv_CHECK_NULL(evol, lv_EVOL_STATUS_ERROR);
 
-    if (evol->status != LV00_EVOL_STATUS_RUNNING &&
-        evol->status != LV00_EVOL_STATUS_IDLE) {
+    if (evol->status != lv_EVOL_STATUS_RUNNING &&
+        evol->status != lv_EVOL_STATUS_IDLE) {
         return evol->status;
     }
 
     /* 首次调用从 IDLE 切换到 RUNNING */
-    if (evol->status == LV00_EVOL_STATUS_IDLE) {
-        evol->status = LV00_EVOL_STATUS_RUNNING;
+    if (evol->status == lv_EVOL_STATUS_IDLE) {
+        evol->status = lv_EVOL_STATUS_RUNNING;
         /* 初始化 RHS */
         int ret = geoevol_rhs_eval(evol, evol->t, evol->param, evol->dparam);
         if (ret != 0) {
-            evol->status = LV00_EVOL_STATUS_ERROR;
-            LV00_ERROR_SET(LV00_ERROR_SOLVER_NUMERIC, "初始RHS求值失败");
-            return LV00_EVOL_STATUS_ERROR;
+            evol->status = lv_EVOL_STATUS_ERROR;
+            lv_ERROR_SET(lv_ERROR_SOLVER_NUMERIC, "初始RHS求值失败");
+            return lv_EVOL_STATUS_ERROR;
         }
     }
 
     /* 检查 tout 是否有效 */
     if (tout <= evol->t) {
-        LV00_ERROR_SET(LV00_BACKEND_INVALID_ARGS,
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
                        "目标时间 tout=%g 必须大于当前时间 t=%g", tout, evol->t);
-        return LV00_EVOL_STATUS_ERROR;
+        return lv_EVOL_STATUS_ERROR;
     }
 
     /* 如果当前步长会越过 tout，缩减步长 */
@@ -1084,21 +1084,21 @@ Lv00EvolStatus geoevol_evolve(Lv00GeomEvol *evol, double tout) {
 
         /* 若步长过小，停止 */
         if (evol->step_size < evol->step_size_min) {
-            LV00_ERROR_SET(LV00_ERROR_SOLVER_NOT_CONVERGED,
+            lv_ERROR_SET(lv_ERROR_SOLVER_NOT_CONVERGED,
                            "步长过小: h=%g < h_min=%g", evol->step_size,
                            evol->step_size_min);
-            evol->status = LV00_EVOL_STATUS_ERROR;
-            return LV00_EVOL_STATUS_ERROR;
+            evol->status = lv_EVOL_STATUS_ERROR;
+            return lv_EVOL_STATUS_ERROR;
         }
 
-        Lv00EvolStatus stat = geoevol_step_once(evol);
-        if (stat != LV00_EVOL_STATUS_RUNNING) {
+        lvEvolStatus stat = geoevol_step_once(evol);
+        if (stat != lv_EVOL_STATUS_RUNNING) {
             return stat;
         }
     }
 
-    evol->status = LV00_EVOL_STATUS_STOPPED;
-    return LV00_EVOL_STATUS_STOPPED;
+    evol->status = lv_EVOL_STATUS_STOPPED;
+    return lv_EVOL_STATUS_STOPPED;
 }
 
 /* ========================================================================
@@ -1108,25 +1108,25 @@ Lv00EvolStatus geoevol_evolve(Lv00GeomEvol *evol, double tout) {
 /**
  * @brief 创建几何演化引擎
  */
-Lv00GeomEvol *geoevol_create(int dim, Lv00EvolMethod method,
-                             Lv00GeomEvolRHSFunc rhs) {
-    LV00_CHECK_NULL(rhs, NULL);
+lvGeomEvol *geoevol_create(int dim, lvEvolMethod method,
+                             lvGeomEvolRHSFunc rhs) {
+    lv_CHECK_NULL(rhs, NULL);
 
     if (dim <= 0 || dim > GEOEVOL_MAX_PARAM_DIM) {
-        LV00_ERROR_SET(LV00_BACKEND_INVALID_ARGS,
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
                        "参数维度必须满足 1 <= dim <= %d，当前 dim=%d",
                        GEOEVOL_MAX_PARAM_DIM, dim);
         return NULL;
     }
 
-    Lv00GeomEvol *evol = lv00_malloc(sizeof(Lv00GeomEvol));
-    LV00_CHECK_ALLOC(evol, NULL);
+    lvGeomEvol *evol = lv_malloc(sizeof(lvGeomEvol));
+    lv_CHECK_ALLOC(evol, NULL);
 
-    memset(evol, 0, sizeof(Lv00GeomEvol));
+    memset(evol, 0, sizeof(lvGeomEvol));
 
     evol->dim = dim;
     evol->method = method;
-    evol->status = LV00_EVOL_STATUS_IDLE;
+    evol->status = lv_EVOL_STATUS_IDLE;
     evol->t = 0.0;
     evol->step_size = GEOEVOL_DEFAULT_STEP;
     evol->step_size_min = GEOEVOL_MIN_STEP;
@@ -1155,17 +1155,17 @@ Lv00GeomEvol *geoevol_create(int dim, Lv00EvolMethod method,
 /**
  * @brief 销毁演化引擎并释放所有关联资源
  */
-void geoevol_destroy(Lv00GeomEvol *evol) {
+void geoevol_destroy(lvGeomEvol *evol) {
     if (!evol) {
         return;
     }
-    lv00_free((void **) &evol);
+    lv_free((void **) &evol);
 }
 
 /**
  * @brief 设置演化步长参数
  */
-void geoevol_set_step(Lv00GeomEvol *evol, double step_size, double step_min,
+void geoevol_set_step(lvGeomEvol *evol, double step_size, double step_min,
                       double step_max) {
     if (!evol) {
         return;

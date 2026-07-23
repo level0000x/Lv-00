@@ -1,4 +1,4 @@
-# 贡献指南
+﻿# 贡献指南
 
 感谢您对 Lv-00 几何元语言内核的关注！
 
@@ -40,9 +40,9 @@ cd build && ctest
 - 遵循项目 **[编码标准](docs/CODING_STANDARD.md)**
 - 遵循项目 **[命名规范](docs/NAMING_CONVENTION.md)**
 - 使用 4 空格缩进
-- 公共函数使用 `LV00_PUBLIC_API` 宏标记
+- 公共函数使用 `lv_PUBLIC_API` 宏标记
 - 所有公共 API 添加 Doxygen 风格注释
-- 内存分配统一使用 `lv00_malloc` / `lv00_free` / `lv00_calloc`
+- 内存分配统一使用 `lv_malloc` / `lv_free` / `lv_calloc`
 
 ### 十层架构规范
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_functional_analysis.c
  * @brief 泛函分析预设函数块 - 实现
  *
@@ -15,8 +15,8 @@
 
 #include "preset_functional_analysis.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 
@@ -403,7 +403,7 @@ bool preset_functional_analysis_get_names(char ***out_names, int *out_count)
 {
     if (!out_names || !out_count) return false;
 
-    char **names = (char**)lv00_malloc(FUNCTIONAL_ANALYSIS_PRESET_COUNT * sizeof(char*));
+    char **names = (char**)lv_malloc(FUNCTIONAL_ANALYSIS_PRESET_COUNT * sizeof(char*));
     if (!names) return false;
 
     const char *preset_names[] = {
@@ -442,12 +442,12 @@ bool preset_functional_analysis_get_names(char ***out_names, int *out_count)
     int count = (int)(sizeof(preset_names) / sizeof(preset_names[0]));
 
     for (int i = 0; i < count; i++) {
-        names[i] = lv00_strdup(preset_names[i]);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
             for (int j = 0; j < i; j++) {
-                { void *tmp = names[j]; lv00_free(&tmp); }
+                { void *tmp = names[j]; lv_free(&tmp); }
             }
-            { void *tmp = names; lv00_free(&tmp); }
+            { void *tmp = names; lv_free(&tmp); }
             return false;
         }
     }

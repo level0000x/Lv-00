@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file herbie_eval.c
  * @brief Herbie 浮点优化接口实现
  *
@@ -12,7 +12,7 @@
  * @date 2026-05-24
  */
 
-#include "lv00/lv00_internal.h"
+#include "lv/lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -132,7 +132,7 @@ static int add_entry(HerbieOptimizer *opt, const char *expr,
 
     if (opt->entry_count >= opt->entry_capacity) {
         int new_cap = opt->entry_capacity == 0 ? 8 : opt->entry_capacity * 2;
-        OptimizedEntry *new_arr = lv00_realloc(opt->entries,
+        OptimizedEntry *new_arr = lv_realloc(opt->entries,
                                                 (size_t)new_cap * sizeof(OptimizedEntry));
         if (!new_arr) return -1;
         opt->entries = new_arr;
@@ -140,16 +140,16 @@ static int add_entry(HerbieOptimizer *opt, const char *expr,
     }
 
     OptimizedEntry *e = &opt->entries[opt->entry_count];
-    e->expr = lv00_strdup(expr);
+    e->expr = lv_strdup(expr);
     e->error_bound = error;
-    e->description = lv00_strdup(desc ? desc : "");
+    e->description = lv_strdup(desc ? desc : "");
     if (!e->expr) return -1;
 
     /* 更新最优结果 */
     if (error < opt->best_error) {
         opt->best_error = error;
-        lv00_free((void **)&opt->best_expr);
-        opt->best_expr = lv00_strdup(expr);
+        lv_free((void **)&opt->best_expr);
+        opt->best_expr = lv_strdup(expr);
     }
 
     opt->entry_count++;
@@ -162,12 +162,12 @@ static int add_entry(HerbieOptimizer *opt, const char *expr,
 static void optimizer_clear(HerbieOptimizer *opt) {
     if (!opt) return;
     for (int i = 0; i < opt->entry_count; i++) {
-        lv00_free((void **)&opt->entries[i].expr);
-        lv00_free((void **)&opt->entries[i].description);
+        lv_free((void **)&opt->entries[i].expr);
+        lv_free((void **)&opt->entries[i].description);
     }
-    lv00_free((void **)&opt->entries);
-    lv00_free((void **)&opt->original_expr);
-    lv00_free((void **)&opt->best_expr);
+    lv_free((void **)&opt->entries);
+    lv_free((void **)&opt->original_expr);
+    lv_free((void **)&opt->best_expr);
     opt->entries = NULL;
     opt->entry_count = 0;
     opt->entry_capacity = 0;
@@ -245,12 +245,12 @@ static int parse_herbie_output(const char *herbie_output,
 
         size_t len = (size_t)(end - suggest);
         if (len > 0 && len < 1024) {
-            char *opt_expr = lv00_calloc(len + 1, sizeof(char));
+            char *opt_expr = lv_calloc(len + 1, sizeof(char));
             if (opt_expr) {
                 memcpy(opt_expr, suggest, len);
                 opt_expr[len] = '\0';
                 add_entry(opt, opt_expr, 1e-16, "Herbie 子进程优化");
-                lv00_free((void **)&opt_expr);
+                lv_free((void **)&opt_expr);
                 found++;
             }
         }
@@ -282,16 +282,16 @@ static int parse_herbie_output(const char *herbie_output,
  * @param[out] out_error   输出：优化后的误差上界（可为 NULL）
  * @return 优化后的表达式字符串（调用者负责释放），失败返回 NULL
  */
-char *lv00_herbie_optimize(const char *expression,
+char *lv_herbie_optimize(const char *expression,
                             double *out_value, double *out_error) {
     if (!expression) return NULL;
 
     HerbieOptimizer opt;
     memset(&opt, 0, sizeof(opt));
-    opt.original_expr = lv00_strdup(expression);
+    opt.original_expr = lv_strdup(expression);
     opt.original_error = estimate_relative_error(expression, 1.0, 2);
     opt.best_error = opt.original_error;
-    opt.best_expr = lv00_strdup(expression);
+    opt.best_expr = lv_strdup(expression);
 
     /* 步骤 1: 应用内置重写规则 */
     herbie_apply_builtin_rules(expression, &opt);
@@ -307,7 +307,7 @@ char *lv00_herbie_optimize(const char *expression,
     /* 步骤 3: 选择最优结果 */
     char *result = NULL;
     if (opt.best_expr) {
-        result = lv00_strdup(opt.best_expr);
+        result = lv_strdup(opt.best_expr);
     }
 
     /* 填充输出参数 */

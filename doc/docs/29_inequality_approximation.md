@@ -1,4 +1,4 @@
-# 29. 不等式推理与近似计算
+﻿# 29. 不等式推理与近似计算
 
 ## 29.1 模块概述
 
@@ -46,10 +46,10 @@ typedef enum {
     INEQ_GREATER_THAN,      // >
     INEQ_GREATER_EQUAL,     // ≥
     INEQ_NOT_EQUAL          // ≠
-} Lv00InequalityType;
+} lvInequalityType;
 ```
 
-这些关系作用于规范表达式 `Lv00Expr`，可表示长度、面积、角度、代数坐标差值等对象之间的大小关系。
+这些关系作用于规范表达式 `lvExpr`，可表示长度、面积、角度、代数坐标差值等对象之间的大小关系。
 
 ### 29.3.3 证明状态
 
@@ -60,7 +60,7 @@ typedef enum {
     INEQ_STATUS_DISPROVED,
     INEQ_STATUS_CONDITIONAL,
     INEQ_STATUS_UNKNOWN
-} Lv00InequalityStatus;
+} lvInequalityStatus;
 ```
 
 - `PROVED`：不等式已在给定前提下证明；
@@ -86,7 +86,7 @@ typedef enum {
     INEQ_METHOD_CONTRADICTION,
     INEQ_METHOD_SMART_SUM,
     INEQ_METHOD_SOS
-} Lv00InequalityMethod;
+} lvInequalityMethod;
 ```
 
 这些方法对应经典数学证明策略：
@@ -105,32 +105,32 @@ typedef enum {
 ### 29.3.5 核心结构
 
 ```c
-struct Lv00Inequality {
-    Lv00Expr *left;
-    Lv00Expr *right;
-    Lv00InequalityType type;
-    Lv00InequalityStatus status;
+struct lvInequality {
+    lvExpr *left;
+    lvExpr *right;
+    lvInequalityType type;
+    lvInequalityStatus status;
     char *label;
 };
 ```
 
 ```c
 typedef struct {
-    Lv00InequalityMethod method;
-    Lv00Inequality *ineq;
+    lvInequalityMethod method;
+    lvInequality *ineq;
     char *justification;
     int *premise_ids;
     int premise_count;
-} Lv00InequalityStep;
+} lvInequalityStep;
 ```
 
 ```c
-struct Lv00InequalityProof {
-    Lv00Inequality *target;
-    Lv00InequalityStep *steps;
+struct lvInequalityProof {
+    lvInequality *target;
+    lvInequalityStep *steps;
     int step_count;
     int step_capacity;
-    Lv00InequalityStatus status;
+    lvInequalityStatus status;
     char *error_message;
 };
 ```
@@ -140,29 +140,29 @@ struct Lv00InequalityProof {
 ### 29.3.6 核心 API
 
 ```c
-Lv00Inequality *lv00_ineq_create(Lv00Expr *left,
-                                 Lv00InequalityType type,
-                                 Lv00Expr *right);
-void lv00_ineq_destroy(Lv00Inequality *ineq);
-Lv00Inequality *lv00_ineq_copy(const Lv00Inequality *ineq);
+lvInequality *lv_ineq_create(lvExpr *left,
+                                 lvInequalityType type,
+                                 lvExpr *right);
+void lv_ineq_destroy(lvInequality *ineq);
+lvInequality *lv_ineq_copy(const lvInequality *ineq);
 ```
 
 ```c
-Lv00InequalitySystem *lv00_ineq_system_create(void);
-void lv00_ineq_system_destroy(Lv00InequalitySystem *sys);
-bool lv00_ineq_system_add(Lv00InequalitySystem *sys, Lv00Inequality *ineq);
+lvInequalitySystem *lv_ineq_system_create(void);
+void lv_ineq_system_destroy(lvInequalitySystem *sys);
+bool lv_ineq_system_add(lvInequalitySystem *sys, lvInequality *ineq);
 ```
 
 ```c
-Lv00InequalityStatus lv00_ineq_prove(Lv00Inequality *ineq,
-                                      const Lv00InequalitySystem *sys,
-                                      Lv00InequalityProof **proof);
+lvInequalityStatus lv_ineq_prove(lvInequality *ineq,
+                                      const lvInequalitySystem *sys,
+                                      lvInequalityProof **proof);
 
-Lv00InequalityStatus lv00_ineq_prove_with_method(
-    Lv00Inequality *ineq,
-    Lv00InequalityMethod method,
-    const Lv00InequalitySystem *sys,
-    Lv00InequalityProof **proof);
+lvInequalityStatus lv_ineq_prove_with_method(
+    lvInequality *ineq,
+    lvInequalityMethod method,
+    const lvInequalitySystem *sys,
+    lvInequalityProof **proof);
 ```
 
 ---
@@ -287,7 +287,7 @@ typedef struct {
     double amber_score;
     int sample_count;
     int valid_samples;
-} Lv00HerbieResult;
+} lvHerbieResult;
 ```
 
 AMBER 分数范围 `[0,1]`，越接近 1 表示数值精度越好。
@@ -296,19 +296,19 @@ AMBER 分数范围 `[0,1]`，越接近 1 表示数值精度越好。
 
 ```c
 typedef struct {
-    Lv00Interval bounds[LV00_TAYLOR_MAX_VARS];
+    lvInterval bounds[lv_TAYLOR_MAX_VARS];
     int var_count;
     double weight;
     char description[128];
-} Lv00HerbieRegime;
+} lvHerbieRegime;
 ```
 
 ```c
 typedef struct {
-    Lv00HerbieRegime regimes[LV00_HERBIE_MAX_REGIMES];
+    lvHerbieRegime regimes[lv_HERBIE_MAX_REGIMES];
     int regime_count;
     double total_weight;
-} Lv00HerbiePartitionResult;
+} lvHerbiePartitionResult;
 ```
 
 不同输入区间可能具有不同的稳定表达式形式，regime 分区用于记录这种局部稳定性差异。
@@ -323,43 +323,43 @@ typedef struct {
     double amber_beta;
     int enable_regime_detection;
     double regime_threshold;
-} Lv00HerbieConfig;
+} lvHerbieConfig;
 ```
 
 ```c
 bool herbie_evaluate(const char *expr,
                      const char **var_names,
-                     const Lv00Interval *var_bounds,
+                     const lvInterval *var_bounds,
                      int var_count,
-                     const Lv00HerbieConfig *config,
-                     Lv00HerbieResult *out);
+                     const lvHerbieConfig *config,
+                     lvHerbieResult *out);
 ```
 
 ```c
 bool herbie_compare(const char **exprs,
                     int expr_count,
                     const char **var_names,
-                    const Lv00Interval *var_bounds,
+                    const lvInterval *var_bounds,
                     int var_count,
-                    const Lv00HerbieConfig *config,
-                    Lv00HerbieResult *results,
+                    const lvHerbieConfig *config,
+                    lvHerbieResult *results,
                     int *best_index);
 ```
 
 ```c
 bool herbie_partition_regimes(const char *expr,
                               const char **var_names,
-                              const Lv00Interval *var_bounds,
+                              const lvInterval *var_bounds,
                               int var_count,
-                              const Lv00HerbieConfig *config,
-                              Lv00HerbiePartitionResult *out);
+                              const lvHerbieConfig *config,
+                              lvHerbiePartitionResult *out);
 
 bool herbie_select_path(const char **exprs,
                         int expr_count,
                         const char **var_names,
-                        const Lv00HerbiePartitionResult *partition,
+                        const lvHerbiePartitionResult *partition,
                         int var_count,
-                        const Lv00HerbieConfig *config,
+                        const lvHerbieConfig *config,
                         int *best_indices);
 ```
 
@@ -376,13 +376,13 @@ bool herbie_select_path(const char **exprs,
 ```c
 typedef struct {
     double center;
-    double vars_center[LV00_TAYLOR_MAX_VARS];
-    double derivs[LV00_TAYLOR_MAX_VARS];
+    double vars_center[lv_TAYLOR_MAX_VARS];
+    double derivs[lv_TAYLOR_MAX_VARS];
     int var_count;
     double rem_lo;
     double rem_hi;
     int order;
-} Lv00TaylorForm;
+} lvTaylorForm;
 ```
 
 形式上表示：
@@ -403,7 +403,7 @@ typedef struct {
     double truncation_error;
     int is_valid;
     char proof_text[1024];
-} Lv00ErrorBound;
+} lvErrorBound;
 ```
 
 该结构区分：
@@ -420,26 +420,26 @@ typedef struct {
     int max_bisections;
     int enable_optimization;
     double rounding_unit;
-} Lv00FPTaylorConfig;
+} lvFPTaylorConfig;
 ```
 
 ```c
 bool fptaylor_evaluate(const char *expr,
                        const char **var_names,
-                       const Lv00Interval *var_bounds,
+                       const lvInterval *var_bounds,
                        int var_count,
-                       const Lv00FPTaylorConfig *config,
-                       Lv00ErrorBound *out);
+                       const lvFPTaylorConfig *config,
+                       lvErrorBound *out);
 ```
 
 ```c
 bool fptaylor_analyze_expression(const char *expr,
                                  const char **var_names,
-                                 const Lv00Interval *var_bounds,
+                                 const lvInterval *var_bounds,
                                  int var_count,
-                                 const Lv00FPTaylorConfig *config,
-                                 Lv00ErrorBound *out,
-                                 Lv00TaylorForm *taylor_out);
+                                 const lvFPTaylorConfig *config,
+                                 lvErrorBound *out,
+                                 lvTaylorForm *taylor_out);
 ```
 
 ```c
@@ -448,7 +448,7 @@ bool fptaylor_taylor_form(const char *expr,
                           const double *var_centers,
                           int var_count,
                           int order,
-                          Lv00TaylorForm *out);
+                          lvTaylorForm *out);
 ```
 
 ---
@@ -457,15 +457,15 @@ bool fptaylor_taylor_form(const char *expr,
 
 | 代码概念 | 理论对应 | 说明 |
 |----------|----------|------|
-| `Lv00Inequality` | 形式不等式命题 | 左右表达式与关系符构成判断 |
-| `Lv00InequalityProof` | 可追踪证明对象 | 保存方法、步骤、前提引用 |
+| `lvInequality` | 形式不等式命题 | 左右表达式与关系符构成判断 |
+| `lvInequalityProof` | 可追踪证明对象 | 保存方法、步骤、前提引用 |
 | `INEQ_METHOD_SOS` | 平方和分解证明 | 用于多项式非负性证明 |
 | `PacConfig` | PAC 学习/估计参数 | epsilon 控制误差，delta 控制失败概率 |
 | `ApproxCountResult` | 近似模型计数结果 | `cell_sol_count * 2^hash_count` |
-| `Lv00HerbieResult` | 采样精度评估 | bit error、relative error、AMBER 分数 |
-| `Lv00HerbieRegime` | 输入域分区 | 局部选择最佳表达式路径 |
-| `Lv00TaylorForm` | Taylor 展开 | 中心值、一阶导、余项界 |
-| `Lv00ErrorBound` | 浮点误差上界 | 绝对误差、相对误差、舍入误差 |
+| `lvHerbieResult` | 采样精度评估 | bit error、relative error、AMBER 分数 |
+| `lvHerbieRegime` | 输入域分区 | 局部选择最佳表达式路径 |
+| `lvTaylorForm` | Taylor 展开 | 中心值、一阶导、余项界 |
+| `lvErrorBound` | 浮点误差上界 | 绝对误差、相对误差、舍入误差 |
 
 ---
 

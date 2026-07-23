@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_information_theory.c
  * @brief Information Theory Axiom Package Test
  *
@@ -19,7 +19,7 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/information_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/information_theory_test_save.lvz"
@@ -288,7 +288,7 @@ static void test_content_hash(void) {
 
     if (hash) {
         printf("  Content hash: %s\n", hash);
-        lv00_free((void **) &hash);
+        lv_free((void **) &hash);
     }
 
     axiom_package_destroy(pkg);
@@ -334,9 +334,9 @@ static void test_round_trip_save_load(void) {
         printf("  Hash match: %s\n", strcmp(hash1, hash2) == 0 ? "YES" : "NO");
     }
     if (hash1)
-        lv00_free((void **) &hash1);
+        lv_free((void **) &hash1);
     if (hash2)
-        lv00_free((void **) &hash2);
+        lv_free((void **) &hash2);
 
     axiom_package_destroy(pkg);
     axiom_package_destroy(pkg2);

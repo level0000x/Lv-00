@@ -1,4 +1,4 @@
-# 上下文系统与运行时安全基础设施 (Context System and Runtime Safety Infrastructure)
+﻿# 上下文系统与运行时安全基础设施 (Context System and Runtime Safety Infrastructure)
 
 ## 模块概述
 
@@ -28,17 +28,17 @@
 2. **资源保护**：多维熔断器防止单次计算失控，运行时守卫保障数据并发安全
 3. **状态可恢复**：完整的快照/回滚机制支持分支推理的任意回退
 4. **零开销抽象**：运行时保护通过编译期开关控制，禁用时所有宏展开为空操作
-5. **统一接口**：所有公共 API 返回标准化的 `Lv00Status` 类型
+5. **统一接口**：所有公共 API 返回标准化的 `lvStatus` 类型
 
 ---
 
 ## 1. context.h：隔离上下文系统
 
-`context.h` 是 Lv-00 项目的**最高优先级架构修复**，定义了 `Lv00Context` 结构体作为状态管理的中心容器。它将当前分散在全局/线程局部变量和 `LV00Context` 中的状态统一收容到一个隔离的上下文容器中。
+`context.h` 是 Lv-00 项目的**最高优先级架构修复**，定义了 `lvContext` 结构体作为状态管理的中心容器。它将当前分散在全局/线程局部变量和 `lvContext` 中的状态统一收容到一个隔离的上下文容器中。
 
 ### 1.1 上下文状态机
 
-`Lv00ContextState` 枚举定义了上下文从创建到销毁的完整生命周期：
+`lvContextState` 枚举定义了上下文从创建到销毁的完整生命周期：
 
 ```
 IDLE ──→ PARSING ──→ REASONING ──→ COMPLETE ──→ (reset) ──→ IDLE
@@ -50,12 +50,12 @@ IDLE ──→ PARSING ──→ REASONING ──→ COMPLETE ──→ (reset) 
 
 ```c
 typedef enum {
-    LV00_CONTEXT_IDLE = 0,       /* 空闲状态 */
-    LV00_CONTEXT_PARSING,        /* 解析状态 */
-    LV00_CONTEXT_REASONING,      /* 推理状态 */
-    LV00_CONTEXT_ERROR,          /* 错误状态 */
-    LV00_CONTEXT_COMPLETE        /* 完成状态 */
-} Lv00ContextState;
+    lv_CONTEXT_IDLE = 0,       /* 空闲状态 */
+    lv_CONTEXT_PARSING,        /* 解析状态 */
+    lv_CONTEXT_REASONING,      /* 推理状态 */
+    lv_CONTEXT_ERROR,          /* 错误状态 */
+    lv_CONTEXT_COMPLETE        /* 完成状态 */
+} lvContextState;
 ```
 
 状态转移规则（严格）：
@@ -73,9 +73,9 @@ typedef enum {
 | COMPLETE | IDLE | 通过 reset |
 | ERROR | IDLE | 通过 reset |
 
-### 1.2 Lv00Context 结构体（15 字段分组）
+### 1.2 lvContext 结构体（15 字段分组）
 
-`Lv00Context` 包含以下 15 个功能分组：
+`lvContext` 包含以下 15 个功能分组：
 
 | 编号 | 分组 | 字段 | 说明 |
 |------|------|------|------|
@@ -132,7 +132,7 @@ typedef struct ReasoningFrame {
 
 ### 1.4 CircuitBreaker 多维熔断器
 
-每个 `Lv00Context` 内建一个 `CircuitBreaker`，监控五个维度的资源指标：
+每个 `lvContext` 内建一个 `CircuitBreaker`，监控五个维度的资源指标：
 
 | 维度 | 字段 | 默认阈值 | 说明 |
 |------|------|---------|------|
@@ -156,14 +156,14 @@ CLOSED ── 错误次数超阈值 ──→ OPEN
 
 | 常量 | 值 | 说明 |
 |------|-----|------|
-| `LV00_CONTEXT_DEFAULT_TIMEOUT_MS` | 30000 | 默认熔断超时（30 秒） |
-| `LV00_CONTEXT_DEFAULT_MAX_DEPTH` | 100 | 默认递归/推理深度上限 |
-| `LV00_CONTEXT_MAX_RECURSION_DEPTH` | 10000 | 递归深度绝对硬上限 |
-| `LV00_CONTEXT_DEFAULT_MAX_STEPS` | 1000000 | 默认最大推理步骤数 |
-| `LV00_CONTEXT_DEFAULT_MAX_CONSECUTIVE_ERRORS` | 10 | 默认连续错误上限 |
-| `LV00_CONTEXT_DEFAULT_COOLDOWN_MS` | 5000 | 熔断器默认冷却时间 |
-| `LV00_CONTEXT_REASONING_STACK_DEFAULT_CAPACITY` | 8 | 推理栈默认初始容量 |
-| `LV00_CONTEXT_REASONING_STACK_MAX_DEPTH` | 1000 | 推理栈最大深度上限 |
+| `lv_CONTEXT_DEFAULT_TIMEOUT_MS` | 30000 | 默认熔断超时（30 秒） |
+| `lv_CONTEXT_DEFAULT_MAX_DEPTH` | 100 | 默认递归/推理深度上限 |
+| `lv_CONTEXT_MAX_RECURSION_DEPTH` | 10000 | 递归深度绝对硬上限 |
+| `lv_CONTEXT_DEFAULT_MAX_STEPS` | 1000000 | 默认最大推理步骤数 |
+| `lv_CONTEXT_DEFAULT_MAX_CONSECUTIVE_ERRORS` | 10 | 默认连续错误上限 |
+| `lv_CONTEXT_DEFAULT_COOLDOWN_MS` | 5000 | 熔断器默认冷却时间 |
+| `lv_CONTEXT_REASONING_STACK_DEFAULT_CAPACITY` | 8 | 推理栈默认初始容量 |
+| `lv_CONTEXT_REASONING_STACK_MAX_DEPTH` | 1000 | 推理栈最大深度上限 |
 
 ### 1.6 主要 API
 
@@ -171,78 +171,78 @@ CLOSED ── 错误次数超阈值 ──→ OPEN
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_context_create()` | 创建并初始化新的隔离上下文 |
-| `lv00_context_destroy(ctx)` | 销毁上下文，释放所有关联资源 |
-| `lv00_context_reset(ctx)` | 重置上下文到初始状态，准备下一个问题 |
-| `lv00_context_snapshot(ctx)` | 创建当前上下文的完整深拷贝快照 |
-| `lv00_context_rollback(ctx, snapshot)` | 将上下文状态回滚到指定快照 |
+| `lv_context_create()` | 创建并初始化新的隔离上下文 |
+| `lv_context_destroy(ctx)` | 销毁上下文，释放所有关联资源 |
+| `lv_context_reset(ctx)` | 重置上下文到初始状态，准备下一个问题 |
+| `lv_context_snapshot(ctx)` | 创建当前上下文的完整深拷贝快照 |
+| `lv_context_rollback(ctx, snapshot)` | 将上下文状态回滚到指定快照 |
 
 #### 状态机管理
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_context_get_state(ctx)` | 获取上下文当前状态 |
-| `lv00_context_set_state(ctx, new_state)` | 尝试转移到指定状态（验证合法性） |
-| `lv00_context_state_name(state)` | 获取状态的可读字符串名称 |
-| `lv00_context_state_transition_valid(from, to)` | 检查状态转移是否合法 |
+| `lv_context_get_state(ctx)` | 获取上下文当前状态 |
+| `lv_context_set_state(ctx, new_state)` | 尝试转移到指定状态（验证合法性） |
+| `lv_context_state_name(state)` | 获取状态的可读字符串名称 |
+| `lv_context_state_transition_valid(from, to)` | 检查状态转移是否合法 |
 
 #### 推理栈管理
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_context_push_reasoning(ctx, branch_type, timeout_ms)` | 压入推理分支帧 |
-| `lv00_context_pop_reasoning(ctx)` | 弹出栈顶帧（分支闭合） |
-| `lv00_context_get_reasoning_depth(ctx)` | 获取当前推理栈深度 |
-| `lv00_context_get_current_reasoning_frame(ctx)` | 获取当前活跃的推理分支帧 |
+| `lv_context_push_reasoning(ctx, branch_type, timeout_ms)` | 压入推理分支帧 |
+| `lv_context_pop_reasoning(ctx)` | 弹出栈顶帧（分支闭合） |
+| `lv_context_get_reasoning_depth(ctx)` | 获取当前推理栈深度 |
+| `lv_context_get_current_reasoning_frame(ctx)` | 获取当前活跃的推理分支帧 |
 
 #### 熔断器操作
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_context_is_circuit_open(ctx)` | 检查熔断器是否已触发 |
-| `lv00_context_begin_operation(ctx)` | 开始一次可熔断操作 |
-| `lv00_context_check_timeout(ctx)` | 检查当前操作是否超时 |
-| `lv00_context_enter_uncancellable(ctx)` | 进入不可取消区域 |
-| `lv00_context_leave_uncancellable(ctx)` | 离开不可取消区域 |
-| `lv00_context_record_step(ctx)` | 记录一次推理步骤 |
-| `lv00_context_record_success(ctx)` | 记录一次成功操作 |
-| `lv00_context_record_error(ctx)` | 记录一次错误操作 |
+| `lv_context_is_circuit_open(ctx)` | 检查熔断器是否已触发 |
+| `lv_context_begin_operation(ctx)` | 开始一次可熔断操作 |
+| `lv_context_check_timeout(ctx)` | 检查当前操作是否超时 |
+| `lv_context_enter_uncancellable(ctx)` | 进入不可取消区域 |
+| `lv_context_leave_uncancellable(ctx)` | 离开不可取消区域 |
+| `lv_context_record_step(ctx)` | 记录一次推理步骤 |
+| `lv_context_record_success(ctx)` | 记录一次成功操作 |
+| `lv_context_record_error(ctx)` | 记录一次错误操作 |
 
 #### 参数配置
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_context_set_timeout(ctx, timeout_ms)` | 设置超时时间 |
-| `lv00_context_set_max_depth(ctx, max_depth)` | 设置深度上限 |
-| `lv00_context_set_max_steps(ctx, max_steps)` | 设置最大步骤数 |
-| `lv00_context_set_name(ctx, name)` | 设置上下文名称 |
-| `lv00_context_get_id(ctx)` | 获取上下文唯一 ID |
+| `lv_context_set_timeout(ctx, timeout_ms)` | 设置超时时间 |
+| `lv_context_set_max_depth(ctx, max_depth)` | 设置深度上限 |
+| `lv_context_set_max_steps(ctx, max_steps)` | 设置最大步骤数 |
+| `lv_context_set_name(ctx, name)` | 设置上下文名称 |
+| `lv_context_get_id(ctx)` | 获取上下文唯一 ID |
 
 #### 缓存管理
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_context_invalidate_cache(ctx)` | 标记所有缓存为无效 |
-| `lv00_context_is_cache_valid(ctx)` | 检查缓存是否有效 |
-| `lv00_context_clear_cache(ctx)` | 清除所有缓存内容 |
+| `lv_context_invalidate_cache(ctx)` | 标记所有缓存为无效 |
+| `lv_context_is_cache_valid(ctx)` | 检查缓存是否有效 |
+| `lv_context_clear_cache(ctx)` | 清除所有缓存内容 |
 
 #### 错误管理
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_context_set_error(ctx, code, fmt, ...)` | 设置错误状态（变参格式） |
-| `lv00_context_clear_error(ctx)` | 清除错误状态 |
-| `lv00_context_get_error_code(ctx)` | 获取错误码 |
-| `lv00_context_get_error_message(ctx)` | 获取错误消息 |
+| `lv_context_set_error(ctx, code, fmt, ...)` | 设置错误状态（变参格式） |
+| `lv_context_clear_error(ctx)` | 清除错误状态 |
+| `lv_context_get_error_code(ctx)` | 获取错误码 |
+| `lv_context_get_error_message(ctx)` | 获取错误消息 |
 
 #### 流式输出与统计
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_context_get_stream(ctx)` | 获取流式输出上下文 |
-| `lv00_context_set_streaming_enabled(ctx, enabled)` | 设置流式输出启用状态 |
-| `lv00_context_get_stats(ctx, buf, buf_size)` | 获取统计信息摘要 |
-| `lv00_context_get_uptime_us(ctx)` | 获取运行时间（微秒） |
+| `lv_context_get_stream(ctx)` | 获取流式输出上下文 |
+| `lv_context_set_streaming_enabled(ctx, enabled)` | 设置流式输出启用状态 |
+| `lv_context_get_stats(ctx, buf, buf_size)` | 获取统计信息摘要 |
+| `lv_context_get_uptime_us(ctx)` | 获取运行时间（微秒） |
 
 ---
 
@@ -264,15 +264,15 @@ CLOSED ── 错误次数超阈值 ──→ OPEN
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_circuit_breaker_check(ctx)` | 检查熔断器状态，判断是否可执行操作。CLOSED 正常返回 true；OPEN 检查冷却时间，冷却完成自动进入 HALF_OPEN |
-| `lv00_circuit_breaker_trip(ctx, reason)` | 触发熔断器跳闸，状态设为 OPEN，记录原因和时间 |
-| `lv00_circuit_breaker_reset(ctx)` | 重置熔断器到 CLOSED 状态，清除所有错误计数 |
-| `lv00_circuit_breaker_record_success(ctx)` | 记录成功操作。HALF_OPEN 下恢复 CLOSED；CLOSED 下重置错误计数 |
-| `lv00_circuit_breaker_record_failure(ctx)` | 记录失败操作。HALF_OPEN 下重新设为 OPEN；CLOSED 下递增错误计数，超限则跳闸 |
-| `lv00_circuit_breaker_state_name(ctx)` | 获取熔断器状态的可读名称 |
-| `lv00_circuit_breaker_summary(ctx, buf, buf_size)` | 获取熔断器健康摘要 |
-| `lv00_circuit_breaker_uptime_us(cb)` | 获取运行时间（微秒） |
-| `lv00_circuit_breaker_now_us()` | 获取当前微秒级时间戳 |
+| `lv_circuit_breaker_check(ctx)` | 检查熔断器状态，判断是否可执行操作。CLOSED 正常返回 true；OPEN 检查冷却时间，冷却完成自动进入 HALF_OPEN |
+| `lv_circuit_breaker_trip(ctx, reason)` | 触发熔断器跳闸，状态设为 OPEN，记录原因和时间 |
+| `lv_circuit_breaker_reset(ctx)` | 重置熔断器到 CLOSED 状态，清除所有错误计数 |
+| `lv_circuit_breaker_record_success(ctx)` | 记录成功操作。HALF_OPEN 下恢复 CLOSED；CLOSED 下重置错误计数 |
+| `lv_circuit_breaker_record_failure(ctx)` | 记录失败操作。HALF_OPEN 下重新设为 OPEN；CLOSED 下递增错误计数，超限则跳闸 |
+| `lv_circuit_breaker_state_name(ctx)` | 获取熔断器状态的可读名称 |
+| `lv_circuit_breaker_summary(ctx, buf, buf_size)` | 获取熔断器健康摘要 |
+| `lv_circuit_breaker_uptime_us(cb)` | 获取运行时间（微秒） |
+| `lv_circuit_breaker_now_us()` | 获取当前微秒级时间戳 |
 
 ---
 
@@ -282,11 +282,11 @@ CLOSED ── 错误次数超阈值 ──→ OPEN
 
 ### 3.1 编译期开关
 
-通过 `LV00_ENABLE_RUNTIME_GUARDS` 宏控制启用/禁用：
+通过 `lv_ENABLE_RUNTIME_GUARDS` 宏控制启用/禁用：
 
 ```bash
-cmake -DLV00_ENABLE_RUNTIME_GUARDS=ON ..
-gcc -DLV00_ENABLE_RUNTIME_GUARDS ...
+cmake -Dlv_ENABLE_RUNTIME_GUARDS=ON ..
+gcc -Dlv_ENABLE_RUNTIME_GUARDS ...
 ```
 
 禁用时（默认），所有宏展开为空操作，零性能开销。
@@ -295,17 +295,17 @@ gcc -DLV00_ENABLE_RUNTIME_GUARDS ...
 
 | 常量 | 值 | 说明 |
 |------|-----|------|
-| `LV00_RUNTIME_GUARD_MAX_RECURSE` | 128 | 默认递归深度上限 |
-| `LV00_RUNTIME_GUARD_SPIN_ATTEMPTS` | 1024 | 自旋锁最大尝试次数 |
-| `LV00_RUNTIME_GUARD_READ_WARN_US` | 5000 | 读锁持有最大时间警告阈值（微秒） |
-| `LV00_RUNTIME_GUARD_WRITE_WARN_US` | 10000 | 写锁持有最大时间警告阈值（微秒） |
+| `lv_RUNTIME_GUARD_MAX_RECURSE` | 128 | 默认递归深度上限 |
+| `lv_RUNTIME_GUARD_SPIN_ATTEMPTS` | 1024 | 自旋锁最大尝试次数 |
+| `lv_RUNTIME_GUARD_READ_WARN_US` | 5000 | 读锁持有最大时间警告阈值（微秒） |
+| `lv_RUNTIME_GUARD_WRITE_WARN_US` | 10000 | 写锁持有最大时间警告阈值（微秒） |
 
 ### 3.3 数据结构
 
 **运行时保护统计**：
 
 ```c
-typedef struct Lv00GuardStats {
+typedef struct lvGuardStats {
     uint64_t lock_acquired_count;   /* 锁成功获取次数 */
     uint64_t lock_contention_count; /* 锁争用次数 */
     uint64_t lock_timeout_count;    /* 锁超时次数 */
@@ -316,52 +316,52 @@ typedef struct Lv00GuardStats {
     uint64_t deadlock_warnings;     /* 死锁警告次数 */
     uint64_t max_read_hold_us;      /* 最大读锁持有时间 */
     uint64_t max_write_hold_us;     /* 最大写锁持有时间 */
-} Lv00GuardStats;
+} lvGuardStats;
 ```
 
 **运行时守卫上下文**：
 
 ```c
-typedef struct Lv00GuardContext {
-    Lv00RwLock ctx_rwlock;      /* 上下文级读写锁 */
-    Lv00Mutex stat_mutex;       /* 统计信息互斥锁 */
-    Lv00GuardStats stats;       /* 运行时保护统计 */
+typedef struct lvGuardContext {
+    lvRwLock ctx_rwlock;      /* 上下文级读写锁 */
+    lvMutex stat_mutex;       /* 统计信息互斥锁 */
+    lvGuardStats stats;       /* 运行时保护统计 */
     bool initialized;           /* 是否已初始化 */
-} Lv00GuardContext;
+} lvGuardContext;
 ```
 
 ### 3.4 读写锁宏
 
 | 宏 | 说明 |
 |----|------|
-| `LV00_RUNTIME_LOCK(ctx)` | 获取上下文运行时写锁（独占） |
-| `LV00_RUNTIME_UNLOCK(ctx)` | 释放上下文运行时写锁 |
-| `LV00_READ_GUARD(ctx)` | 获取读守卫（共享读锁） |
-| `LV00_READ_UNGUARD(ctx)` | 释放读守卫 |
-| `LV00_WRITE_GUARD(ctx)` | 获取写守卫（独占写锁） |
-| `LV00_WRITE_UNGUARD(ctx)` | 释放写守卫 |
-| `LV00_GUARDED_SECTION(ctx)` | RAII 风格保护区入口 |
+| `lv_RUNTIME_LOCK(ctx)` | 获取上下文运行时写锁（独占） |
+| `lv_RUNTIME_UNLOCK(ctx)` | 释放上下文运行时写锁 |
+| `lv_READ_GUARD(ctx)` | 获取读守卫（共享读锁） |
+| `lv_READ_UNGUARD(ctx)` | 释放读守卫 |
+| `lv_WRITE_GUARD(ctx)` | 获取写守卫（独占写锁） |
+| `lv_WRITE_UNGUARD(ctx)` | 释放写守卫 |
+| `lv_GUARDED_SECTION(ctx)` | RAII 风格保护区入口 |
 
 ### 3.5 原子操作宏
 
 | 宏 | 说明 |
 |----|------|
-| `LV00_ATOMIC_INC(var)` | 原子递增（32 位） |
-| `LV00_ATOMIC_DEC(var)` | 原子递减（32 位） |
-| `LV00_ATOMIC_ADD(var, n)` | 原子加法（32 位） |
-| `LV00_ATOMIC_LOAD(var)` | 原子加载（32 位） |
-| `LV00_ATOMIC_STORE(var, n)` | 原子存储（32 位） |
-| `LV00_ATOMIC_CAS(var, expected, desired)` | 原子比较并交换（32 位） |
-| `LV00_ATOMIC_INC64(var)` | 原子递增（64 位） |
-| `LV00_ATOMIC_ADD64(var, n)` | 原子加法（64 位） |
+| `lv_ATOMIC_INC(var)` | 原子递增（32 位） |
+| `lv_ATOMIC_DEC(var)` | 原子递减（32 位） |
+| `lv_ATOMIC_ADD(var, n)` | 原子加法（32 位） |
+| `lv_ATOMIC_LOAD(var)` | 原子加载（32 位） |
+| `lv_ATOMIC_STORE(var, n)` | 原子存储（32 位） |
+| `lv_ATOMIC_CAS(var, expected, desired)` | 原子比较并交换（32 位） |
+| `lv_ATOMIC_INC64(var)` | 原子递增（64 位） |
+| `lv_ATOMIC_ADD64(var, n)` | 原子加法（64 位） |
 
 支持三种后端实现：C11 `<stdatomic.h>`、GCC/Clang 内建原子操作、MSVC `Interlocked*` 系列函数。
 
 ### 3.6 数据完整性校验
 
-`lv00_verify_data_integrity(ctx)` 执行以下检查：
+`lv_verify_data_integrity(ctx)` 执行以下检查：
 
-1. 上下文状态有效性（不超过 `LV00_CONTEXT_COMPLETE`）
+1. 上下文状态有效性（不超过 `lv_CONTEXT_COMPLETE`）
 2. 约束图主指针非空（若 state >= PARSING）
 3. 推理栈深度不超过上限
 4. 递归深度不超过上限
@@ -371,28 +371,28 @@ typedef struct Lv00GuardContext {
 
 | 宏 | 说明 |
 |----|------|
-| `LV00_ASSERT_RUNTIME(ctx, cond, retval)` | 运行时条件下断言：条件为假时记录错误并返回指定值 |
+| `lv_ASSERT_RUNTIME(ctx, cond, retval)` | 运行时条件下断言：条件为假时记录错误并返回指定值 |
 
 ### 3.8 核心 API
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_guard_init(guard)` | 初始化运行时守卫上下文 |
-| `lv00_guard_destroy(guard)` | 销毁运行时守卫上下文 |
-| `lv00_guard_get_stats(guard, stats)` | 获取统计信息快照 |
-| `lv00_guard_reset_stats(guard)` | 重置统计信息 |
-| `lv00_verify_data_integrity(ctx)` | 数据完整性校验 |
+| `lv_guard_init(guard)` | 初始化运行时守卫上下文 |
+| `lv_guard_destroy(guard)` | 销毁运行时守卫上下文 |
+| `lv_guard_get_stats(guard, stats)` | 获取统计信息快照 |
+| `lv_guard_reset_stats(guard)` | 重置统计信息 |
+| `lv_verify_data_integrity(ctx)` | 数据完整性校验 |
 
 ---
 
 ## 4. status_codes.h：统一返回状态码
 
-`status_codes.h` 提供标准化的函数返回类型 `Lv00Status` 及对应的状态码宏，确保所有公共 API 函数接口一致。
+`status_codes.h` 提供标准化的函数返回类型 `lvStatus` 及对应的状态码宏，确保所有公共 API 函数接口一致。
 
 ### 4.1 返回类型
 
 ```c
-typedef int Lv00Status;
+typedef int lvStatus;
 ```
 
 值为 0 表示成功，非 0 表示错误。
@@ -403,79 +403,79 @@ typedef int Lv00Status;
 
 | 状态码 | 值 | 说明 |
 |--------|-----|------|
-| `LV00_OK` | 0 | 操作成功 |
-| `LV00_ERR_MEMORY` | 1 | 内存分配失败 |
-| `LV00_ERR_INVALID_ARG` | 2 | 无效参数 |
-| `LV00_ERR_NOT_FOUND` | 3 | 未找到指定资源 |
-| `LV00_ERR_ALREADY_EXISTS` | 4 | 资源已存在 |
-| `LV00_ERR_UNSUPPORTED` | 5 | 操作不支持 |
-| `LV00_ERR_TIMEOUT` | 6 | 操作超时 |
-| `LV00_ERR_INTERNAL` | 7 | 内部错误 |
-| `LV00_ERR_INVALID_STATE` | 8 | 无效状态 |
-| `LV00_ERR_OVERFLOW` | 9 | 数值越界/溢出 |
-| `LV00_ERR_IO` | 10 | IO 错误 |
-| `LV00_ERR_PARSE` | 11 | 解析错误 |
+| `lv_OK` | 0 | 操作成功 |
+| `lv_ERR_MEMORY` | 1 | 内存分配失败 |
+| `lv_ERR_INVALID_ARG` | 2 | 无效参数 |
+| `lv_ERR_NOT_FOUND` | 3 | 未找到指定资源 |
+| `lv_ERR_ALREADY_EXISTS` | 4 | 资源已存在 |
+| `lv_ERR_UNSUPPORTED` | 5 | 操作不支持 |
+| `lv_ERR_TIMEOUT` | 6 | 操作超时 |
+| `lv_ERR_INTERNAL` | 7 | 内部错误 |
+| `lv_ERR_INVALID_STATE` | 8 | 无效状态 |
+| `lv_ERR_OVERFLOW` | 9 | 数值越界/溢出 |
+| `lv_ERR_IO` | 10 | IO 错误 |
+| `lv_ERR_PARSE` | 11 | 解析错误 |
 
 **约束图错误 (20-29)**：
 
 | 状态码 | 值 | 说明 |
 |--------|-----|------|
-| `LV00_ERR_NODE_CONFLICT` | 20 | 节点冲突 |
-| `LV00_ERR_CONSTRAINT_CONFLICT` | 21 | 约束冲突 |
-| `LV00_ERR_CONSTRAINT_DUPLICATE` | 22 | 重复约束 |
-| `LV00_ERR_INVALID_REGION` | 23 | 无效区域 |
-| `LV00_ERR_CYCLIC_DEPENDENCY` | 24 | 循环依赖 |
+| `lv_ERR_NODE_CONFLICT` | 20 | 节点冲突 |
+| `lv_ERR_CONSTRAINT_CONFLICT` | 21 | 约束冲突 |
+| `lv_ERR_CONSTRAINT_DUPLICATE` | 22 | 重复约束 |
+| `lv_ERR_INVALID_REGION` | 23 | 无效区域 |
+| `lv_ERR_CYCLIC_DEPENDENCY` | 24 | 循环依赖 |
 
 **求解器错误 (30-39)**：
 
 | 状态码 | 值 | 说明 |
 |--------|-----|------|
-| `LV00_ERR_SOLVER_NO_SOLUTION` | 30 | 无解 |
-| `LV00_ERR_SOLVER_INFINITE` | 31 | 无穷多解 |
-| `LV00_ERR_SOLVER_OVERCONSTRAINED` | 32 | 过度约束 |
-| `LV00_ERR_GROEBNER_FAILED` | 33 | Groebner 基计算失败 |
+| `lv_ERR_SOLVER_NO_SOLUTION` | 30 | 无解 |
+| `lv_ERR_SOLVER_INFINITE` | 31 | 无穷多解 |
+| `lv_ERR_SOLVER_OVERCONSTRAINED` | 32 | 过度约束 |
+| `lv_ERR_GROEBNER_FAILED` | 33 | Groebner 基计算失败 |
 
 **合一检查错误 (40-49)**：
 
 | 状态码 | 值 | 说明 |
 |--------|-----|------|
-| `LV00_ERR_UNIFY_FAILED` | 40 | 合一失败 |
-| `LV00_ERR_UNIFY_TYPE_MISMATCH` | 41 | 类型不匹配 |
+| `lv_ERR_UNIFY_FAILED` | 40 | 合一失败 |
+| `lv_ERR_UNIFY_TYPE_MISMATCH` | 41 | 类型不匹配 |
 
 **证明系统错误 (50-59)**：
 
 | 状态码 | 值 | 说明 |
 |--------|-----|------|
-| `LV00_ERR_PROOF_INVALID` | 50 | 无效证明 |
-| `LV00_ERR_PROOF_INCOMPLETE` | 51 | 证明不完整 |
-| `LV00_ERR_PROOF_VERIFY_FAILED` | 52 | 证明验证失败 |
+| `lv_ERR_PROOF_INVALID` | 50 | 无效证明 |
+| `lv_ERR_PROOF_INCOMPLETE` | 51 | 证明不完整 |
+| `lv_ERR_PROOF_VERIFY_FAILED` | 52 | 证明验证失败 |
 
 **函数块错误 (60-69)**：
 
 | 状态码 | 值 | 说明 |
 |--------|-----|------|
-| `LV00_ERR_FUNC_BLOCK_INVALID` | 60 | 无效函数块 |
-| `LV00_ERR_FUNC_BLOCK_NON_DET` | 61 | 非确定性函数块 |
+| `lv_ERR_FUNC_BLOCK_INVALID` | 60 | 无效函数块 |
+| `lv_ERR_FUNC_BLOCK_NON_DET` | 61 | 非确定性函数块 |
 
 **预设系统错误 (70-79)**：
 
 | 状态码 | 值 | 说明 |
 |--------|-----|------|
-| `LV00_ERR_PRESET_REGISTER` | 70 | 预设注册失败 |
-| `LV00_ERR_PRESET_INSTANTIATE` | 71 | 预设实例化失败 |
+| `lv_ERR_PRESET_REGISTER` | 70 | 预设注册失败 |
+| `lv_ERR_PRESET_INSTANTIATE` | 71 | 预设实例化失败 |
 
 ### 4.3 辅助函数
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_status_to_string(status)` | 获取状态码的描述字符串 |
-| `lv00_status_is_ok(status)` | 判断状态码是否表示成功 |
+| `lv_status_to_string(status)` | 获取状态码的描述字符串 |
+| `lv_status_is_ok(status)` | 判断状态码是否表示成功 |
 
 ### 4.4 与 error_codes.h 的关系
 
-- `error_codes.h` 定义了 `Lv00ErrorCode` 枚举（细粒度错误码，约 100+ 条目）
-- `status_codes.h` 定义了 `Lv00Status` 类型（统一的返回类型）和精简状态码宏
-- `Lv00ErrorCode` 可隐式转换为 `Lv00Status`（两者均为 `int`）
+- `error_codes.h` 定义了 `lvErrorCode` 枚举（细粒度错误码，约 100+ 条目）
+- `status_codes.h` 定义了 `lvStatus` 类型（统一的返回类型）和精简状态码宏
+- `lvErrorCode` 可隐式转换为 `lvStatus`（两者均为 `int`）
 
 ---
 
@@ -505,7 +505,7 @@ typedef int Lv00Status;
 
 ### 上下文隔离
 
-`Lv00Context` 将所有问题相关的状态封装在单一结构体中，实现：
+`lvContext` 将所有问题相关的状态封装在单一结构体中，实现：
 
 - **问题间隔离**：不同几何问题的求解过程互不干扰
 - **线程间隔离**：每个线程持有独立的上下文实例
@@ -523,7 +523,7 @@ typedef int Lv00Status;
 
 完整的状态保存与恢复机制：
 
-- **快照**：`lv00_context_snapshot()` 创建上下文的完整深拷贝
-- **回滚**：`lv00_context_rollback()` 恢复到任意快照状态
-- **重置**：`lv00_context_reset()` 清空状态准备下一个问题
+- **快照**：`lv_context_snapshot()` 创建上下文的完整深拷贝
+- **回滚**：`lv_context_rollback()` 恢复到任意快照状态
+- **重置**：`lv_context_reset()` 清空状态准备下一个问题
 - **不可取消区域**：关键路径中阻止超时熔断，确保状态一致性

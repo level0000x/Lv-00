@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file rewrite_strategy.c
  * @brief Implementation of the extended rewrite strategy engine.
  *
@@ -137,7 +137,7 @@ static char *apply_substitution(const char *text, const char *pattern,
  * @param use_last  If true, match innermost (last); otherwise outermost (first)
  * @return Newly allocated string with the rule applied, or NULL if no match
  */
-static char *apply_single_rule(const char *term, const Lv00RewriteRuleEx *rule,
+static char *apply_single_rule(const char *term, const lvRewriteRuleEx *rule,
     bool use_last) {
     if (!term || !rule || !rule->pattern) return NULL;
 
@@ -176,7 +176,7 @@ static char *apply_single_rule(const char *term, const Lv00RewriteRuleEx *rule,
  * @param count  Number of rules
  * @return Newly allocated string with all applicable rules applied, or NULL
  */
-static char *apply_parallel_rules(const char *term, const Lv00RewriteRuleEx *rules,
+static char *apply_parallel_rules(const char *term, const lvRewriteRuleEx *rules,
     size_t count) {
     if (!term) return NULL;
 
@@ -220,7 +220,7 @@ static char *apply_parallel_rules(const char *term, const Lv00RewriteRuleEx *rul
  * @param max_iter  Maximum iterations
  * @return Newly allocated string with the canonical form
  */
-static char *apply_egraph_rules(const char *term, const Lv00RewriteRuleEx *rules,
+static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules,
     size_t count, int max_iter) {
     if (!term) return NULL;
 
@@ -260,9 +260,9 @@ static char *apply_egraph_rules(const char *term, const Lv00RewriteRuleEx *rules
  * @param rules  Array of rules
  * @param count  Number of rules
  */
-static void sort_rules_by_priority(Lv00RewriteRuleEx *rules, size_t count) {
+static void sort_rules_by_priority(lvRewriteRuleEx *rules, size_t count) {
     for (size_t i = 1; i < count; i++) {
-        Lv00RewriteRuleEx key = rules[i];
+        lvRewriteRuleEx key = rules[i];
         size_t j = i;
         while (j > 0 && rules[j - 1].priority > key.priority) {
             rules[j] = rules[j - 1];
@@ -276,13 +276,13 @@ static void sort_rules_by_priority(Lv00RewriteRuleEx *rules, size_t count) {
  * API implementation: Engine lifecycle
  * ============================================================ */
 
-Lv00RewriteEngineEx *rewrite_engine_ex_create(Lv00RewriteStrategyEx strategy,
+lvRewriteEngineEx *rewrite_engine_ex_create(lvRewriteStrategyEx strategy,
     int max_iterations) {
-    Lv00RewriteEngineEx *engine = (Lv00RewriteEngineEx *)malloc(sizeof(Lv00RewriteEngineEx));
+    lvRewriteEngineEx *engine = (lvRewriteEngineEx *)malloc(sizeof(lvRewriteEngineEx));
     if (!engine) return NULL;
 
-    engine->rules = (Lv00RewriteRuleEx *)malloc(
-        INITIAL_RULE_CAPACITY * sizeof(Lv00RewriteRuleEx));
+    engine->rules = (lvRewriteRuleEx *)malloc(
+        INITIAL_RULE_CAPACITY * sizeof(lvRewriteRuleEx));
     if (!engine->rules) {
         free(engine);
         return NULL;
@@ -296,7 +296,7 @@ Lv00RewriteEngineEx *rewrite_engine_ex_create(Lv00RewriteStrategyEx strategy,
     return engine;
 }
 
-void rewrite_engine_ex_destroy(Lv00RewriteEngineEx *engine) {
+void rewrite_engine_ex_destroy(lvRewriteEngineEx *engine) {
     if (!engine) return;
 
     /* Free each rule's owned strings */
@@ -314,22 +314,22 @@ void rewrite_engine_ex_destroy(Lv00RewriteEngineEx *engine) {
  * API implementation: Rule management
  * ============================================================ */
 
-bool rewrite_engine_ex_add_rule(Lv00RewriteEngineEx *engine,
+bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine,
     const char *name, const char *pattern, const char *replacement,
-    int priority, Lv00RewriteConditionFn condition) {
+    int priority, lvRewriteConditionFn condition) {
     if (!engine || !name || !pattern || !replacement) return false;
 
     /* Grow array if needed */
     if (engine->rule_count >= engine->rule_capacity) {
         size_t new_cap = engine->rule_capacity * 2;
-        Lv00RewriteRuleEx *new_rules = (Lv00RewriteRuleEx *)lv00_realloc(
-            engine->rules, new_cap * sizeof(Lv00RewriteRuleEx));
+        lvRewriteRuleEx *new_rules = (lvRewriteRuleEx *)lv_realloc(
+            engine->rules, new_cap * sizeof(lvRewriteRuleEx));
         if (!new_rules) return false;
         engine->rules = new_rules;
         engine->rule_capacity = new_cap;
     }
 
-    Lv00RewriteRuleEx *rule = &engine->rules[engine->rule_count];
+    lvRewriteRuleEx *rule = &engine->rules[engine->rule_count];
     rule->name = str_dup(name);
     rule->pattern = str_dup(pattern);
     rule->replacement = str_dup(replacement);
@@ -355,8 +355,8 @@ bool rewrite_engine_ex_add_rule(Lv00RewriteEngineEx *engine,
  * API implementation: Rewrite execution
  * ============================================================ */
 
-bool rewrite_engine_ex_apply(Lv00RewriteEngineEx *engine,
-    const char *input, Lv00RewriteResultEx *result) {
+bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine,
+    const char *input, lvRewriteResultEx *result) {
     if (!engine || !input || !result) return false;
 
     result->output = NULL;
@@ -479,7 +479,7 @@ bool rewrite_engine_ex_apply(Lv00RewriteEngineEx *engine,
     }
 }
 
-void rewrite_engine_result_ex_destroy(Lv00RewriteResultEx *result) {
+void rewrite_engine_result_ex_destroy(lvRewriteResultEx *result) {
     if (!result) return;
     free(result->output);
     result->output = NULL;

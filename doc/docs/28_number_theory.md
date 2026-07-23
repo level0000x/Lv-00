@@ -1,4 +1,4 @@
-# 28. 数论与多项式系统
+﻿# 28. 数论与多项式系统
 
 ## 28.1 模块概述
 
@@ -37,10 +37,10 @@ Lv-00 的几何元语言不把数值视为独立于几何的外部对象，而�
 ### 28.3.2 模运算上下文
 
 ```c
-typedef struct Lv00ModContext {
+typedef struct lvModContext {
     mpz_t modulus;   // 模数，必须 > 0
     int   is_prime;  // 若已知模数为素数，则非零
-} Lv00ModContext;
+} lvModContext;
 ```
 
 该结构将模数与其素性缓存封装在一起。素性缓存可用于优化模逆计算和有限域运算路径。
@@ -48,24 +48,24 @@ typedef struct Lv00ModContext {
 生命周期 API：
 
 ```c
-void nt_mod_context_init(Lv00ModContext *ctx);
-void nt_mod_context_set(Lv00ModContext *ctx, const mpz_t modulus);
-void nt_mod_context_clear(Lv00ModContext *ctx);
+void nt_mod_context_init(lvModContext *ctx);
+void nt_mod_context_set(lvModContext *ctx, const mpz_t modulus);
+void nt_mod_context_clear(lvModContext *ctx);
 ```
 
 ### 28.3.3 模运算 API
 
 ```c
-void nt_mod_add(mpz_t result, const Lv00ModContext *ctx,
+void nt_mod_add(mpz_t result, const lvModContext *ctx,
                 const mpz_t a, const mpz_t b);
 
-void nt_mod_mul(mpz_t result, const Lv00ModContext *ctx,
+void nt_mod_mul(mpz_t result, const lvModContext *ctx,
                 const mpz_t a, const mpz_t b);
 
-int nt_mod_inv(mpz_t result, const Lv00ModContext *ctx,
+int nt_mod_inv(mpz_t result, const lvModContext *ctx,
                const mpz_t a);
 
-void nt_mod_pow(mpz_t result, const Lv00ModContext *ctx,
+void nt_mod_pow(mpz_t result, const lvModContext *ctx,
                 const mpz_t base, const mpz_t exp);
 ```
 
@@ -100,11 +100,11 @@ int nt_factorize_trial_div(const mpz_t n, mpz_t *factors,
 ### 28.4.1 数据结构
 
 ```c
-typedef struct Lv00Poly {
+typedef struct lvPoly {
     mpz_t *coeffs;   // 系数数组，按次数升序排列
     int    degree;   // 当前次数，-1 表示零多项式
     int    capacity; // 已分配容量
-} Lv00Poly;
+} lvPoly;
 ```
 
 系数排列约定：
@@ -119,11 +119,11 @@ coeffs[i] = x^i 的系数
 ### 28.4.2 生命周期与系数访问
 
 ```c
-Lv00Poly *nt_poly_create(void);
-void nt_poly_destroy(Lv00Poly *p);
+lvPoly *nt_poly_create(void);
+void nt_poly_destroy(lvPoly *p);
 
-int nt_poly_set_coeff(Lv00Poly *p, int deg, const mpz_t val);
-int nt_poly_get_coeff(const Lv00Poly *p, int deg, mpz_t out);
+int nt_poly_set_coeff(lvPoly *p, int deg, const mpz_t val);
+int nt_poly_get_coeff(const lvPoly *p, int deg, mpz_t out);
 ```
 
 `nt_poly_set_coeff` 在次数超过当前容量时自动扩容，并在非零系数出现时更新多项式次数。
@@ -131,10 +131,10 @@ int nt_poly_get_coeff(const Lv00Poly *p, int deg, mpz_t out);
 ### 28.4.3 多项式运算
 
 ```c
-int nt_poly_add(Lv00Poly *result, const Lv00Poly *a, const Lv00Poly *b);
-int nt_poly_mul(Lv00Poly *result, const Lv00Poly *a, const Lv00Poly *b);
-int nt_poly_mod(Lv00Poly *result, const Lv00Poly *f, const Lv00Poly *m);
-int nt_poly_gcd(Lv00Poly *result, const Lv00Poly *a, const Lv00Poly *b);
+int nt_poly_add(lvPoly *result, const lvPoly *a, const lvPoly *b);
+int nt_poly_mul(lvPoly *result, const lvPoly *a, const lvPoly *b);
+int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m);
+int nt_poly_gcd(lvPoly *result, const lvPoly *a, const lvPoly *b);
 ```
 
 - `nt_poly_mod` 使用多项式长除法，将 f 约化为次数小于 m 的余式。
@@ -143,8 +143,8 @@ int nt_poly_gcd(Lv00Poly *result, const Lv00Poly *a, const Lv00Poly *b);
 ### 28.4.4 求值与性质
 
 ```c
-int nt_poly_eval(const Lv00Poly *p, const mpz_t x, mpz_t out);
-int nt_poly_degree(const Lv00Poly *p);
+int nt_poly_eval(const lvPoly *p, const mpz_t x, mpz_t out);
+int nt_poly_degree(const lvPoly *p);
 ```
 
 `nt_poly_eval` 使用 Horner 方法，避免直接幂展开造成中间值膨胀。
@@ -218,7 +218,7 @@ alpha * beta:
 typedef struct {
     mpz_t num;  // 分子，可为负
     mpz_t den;  // 分母，始终 > 0
-} Lv00Rational;
+} lvRational;
 ```
 
 该类型保持以下不变量：
@@ -232,18 +232,18 @@ num 与 den 均已通过 mpz_init 初始化
 ### 28.6.2 创建与销毁
 
 ```c
-Lv00Rational *lv00_rational_create(void);
-Lv00Rational *lv00_rational_create_from_mpz(const mpz_t num, const mpz_t den);
-Lv00Rational *lv00_rational_create_from_si(long num, unsigned long den);
-Lv00Rational *lv00_rational_create_from_i64(int64_t num, uint64_t den);
-Lv00Rational *lv00_rational_clone(const Lv00Rational *src);
-void lv00_rational_destroy(Lv00Rational **r);
+lvRational *lv_rational_create(void);
+lvRational *lv_rational_create_from_mpz(const mpz_t num, const mpz_t den);
+lvRational *lv_rational_create_from_si(long num, unsigned long den);
+lvRational *lv_rational_create_from_i64(int64_t num, uint64_t den);
+lvRational *lv_rational_clone(const lvRational *src);
+void lv_rational_destroy(lvRational **r);
 ```
 
 ### 28.6.3 规范化
 
 ```c
-void lv00_rational_simplify(Lv00Rational *r);
+void lv_rational_simplify(lvRational *r);
 ```
 
 规范化执行：
@@ -254,33 +254,33 @@ void lv00_rational_simplify(Lv00Rational *r);
 ### 28.6.4 精确运算
 
 ```c
-Lv00Rational *lv00_rational_add(const Lv00Rational *a, const Lv00Rational *b);
-Lv00Rational *lv00_rational_sub(const Lv00Rational *a, const Lv00Rational *b);
-Lv00Rational *lv00_rational_mul(const Lv00Rational *a, const Lv00Rational *b);
-Lv00Rational *lv00_rational_div(const Lv00Rational *a, const Lv00Rational *b);
-Lv00Rational *lv00_rational_neg(const Lv00Rational *a);
-Lv00Rational *lv00_rational_inv(const Lv00Rational *a);
-Lv00Rational *lv00_rational_abs(const Lv00Rational *a);
+lvRational *lv_rational_add(const lvRational *a, const lvRational *b);
+lvRational *lv_rational_sub(const lvRational *a, const lvRational *b);
+lvRational *lv_rational_mul(const lvRational *a, const lvRational *b);
+lvRational *lv_rational_div(const lvRational *a, const lvRational *b);
+lvRational *lv_rational_neg(const lvRational *a);
+lvRational *lv_rational_inv(const lvRational *a);
+lvRational *lv_rational_abs(const lvRational *a);
 ```
 
 同时提供原地运算：
 
 ```c
-void lv00_rational_add_inplace(Lv00Rational *a, const Lv00Rational *b);
-void lv00_rational_sub_inplace(Lv00Rational *a, const Lv00Rational *b);
-void lv00_rational_mul_inplace(Lv00Rational *a, const Lv00Rational *b);
-bool lv00_rational_div_inplace(Lv00Rational *a, const Lv00Rational *b);
+void lv_rational_add_inplace(lvRational *a, const lvRational *b);
+void lv_rational_sub_inplace(lvRational *a, const lvRational *b);
+void lv_rational_mul_inplace(lvRational *a, const lvRational *b);
+bool lv_rational_div_inplace(lvRational *a, const lvRational *b);
 ```
 
 ### 28.6.5 精确比较
 
 ```c
-int  lv00_rational_cmp(const Lv00Rational *a, const Lv00Rational *b);
-bool lv00_rational_equal(const Lv00Rational *a, const Lv00Rational *b);
-bool lv00_rational_is_zero(const Lv00Rational *a);
-bool lv00_rational_is_one(const Lv00Rational *a);
-bool lv00_rational_is_integer(const Lv00Rational *a);
-int  lv00_rational_sgn(const Lv00Rational *a);
+int  lv_rational_cmp(const lvRational *a, const lvRational *b);
+bool lv_rational_equal(const lvRational *a, const lvRational *b);
+bool lv_rational_is_zero(const lvRational *a);
+bool lv_rational_is_one(const lvRational *a);
+bool lv_rational_is_integer(const lvRational *a);
+int  lv_rational_sgn(const lvRational *a);
 ```
 
 证明路径应优先使用这些精确比较接口，而不是转换为 double 后比较。
@@ -288,21 +288,21 @@ int  lv00_rational_sgn(const Lv00Rational *a);
 ### 28.6.6 非精确转换与安全边界
 
 ```c
-bool lv00_rational_to_double(const Lv00Rational *r,
+bool lv_rational_to_double(const lvRational *r,
                              double *out_lossy,
                              int *out_loss_bits);
-int lv00_rational_estimate_loss(const Lv00Rational *r);
+int lv_rational_estimate_loss(const lvRational *r);
 ```
 
-`lv00_rational_to_double` 明确标注精度损失，仅供显示或日志使用，不应参与代数证明计算。
+`lv_rational_to_double` 明确标注精度损失，仅供显示或日志使用，不应参与代数证明计算。
 
 安全检查：
 
 ```c
-bool lv00_rational_mul_is_safe(const Lv00Rational *a,
-                               const Lv00Rational *b,
+bool lv_rational_mul_is_safe(const lvRational *a,
+                               const lvRational *b,
                                uint64_t max_bits);
-bool lv00_rational_den_is_safe(const mpz_t den);
+bool lv_rational_den_is_safe(const mpz_t den);
 ```
 
 这些接口用于防止分母或中间项异常增长导致性能失控。
@@ -310,10 +310,10 @@ bool lv00_rational_den_is_safe(const mpz_t den);
 ### 28.6.7 序列化与互操作
 
 ```c
-char *lv00_rational_to_string(const Lv00Rational *r);
-Lv00Rational *lv00_rational_from_string(const char *s);
-Lv00Rational *lv00_rational_from_mpq(mpq_srcptr val);
-void lv00_rational_to_mpq(const Lv00Rational *r, mpq_t out);
+char *lv_rational_to_string(const lvRational *r);
+lvRational *lv_rational_from_string(const char *s);
+lvRational *lv_rational_from_mpq(mpq_srcptr val);
+void lv_rational_to_mpq(const lvRational *r, mpq_t out);
 ```
 
 支持格式：`"123"`, `"-456"`, `"3/4"`, `"-7/8"`。
@@ -324,14 +324,14 @@ void lv00_rational_to_mpq(const Lv00Rational *r, mpq_t out);
 
 | 代码概念 | 理论对应 | 说明 |
 |----------|----------|------|
-| `Lv00Rational` | 精确有理域 Q | 保持分母正、分子分母互质 |
-| `Lv00ModContext` | 剩余类环 Z/nZ | 封装模数与素性缓存 |
+| `lvRational` | 精确有理域 Q | 保持分母正、分子分母互质 |
+| `lvModContext` | 剩余类环 Z/nZ | 封装模数与素性缓存 |
 | `nt_mod_inv` | 单位元逆元 | 当 gcd(a,n)=1 时存在 |
 | `nt_is_prime_miller_rabin` | 概率素性判定 | 用于大整数素性快速筛选 |
-| `Lv00Poly` | Z[x] 多项式环 | 任意精度整数系数 |
+| `lvPoly` | Z[x] 多项式环 | 任意精度整数系数 |
 | `nt_poly_gcd` | 多项式欧几里得算法 | 求公共因子与约简 |
 | `mpz_poly_resultant` | 结式 Res | 推导代数数和、积的最小多项式候选 |
-| `lv00_rational_to_double` | 非精确投影 | 进入显示/日志路径，不进入证明核心 |
+| `lv_rational_to_double` | 非精确投影 | 进入显示/日志路径，不进入证明核心 |
 
 ---
 

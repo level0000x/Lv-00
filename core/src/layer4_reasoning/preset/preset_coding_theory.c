@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_coding_theory.c
  * @brief 编码理论预设函数块 - 实现
  *
@@ -11,8 +11,8 @@
 
 #include "preset_coding_theory.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 

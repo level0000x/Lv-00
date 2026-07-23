@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_mathematical_logic.c
  * @brief 数理逻辑预设函数块模块 - 实现
  *
@@ -24,8 +24,8 @@
  * @author Lv-00 开发团队
  */
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "preset_mathematical_logic.h"
 #include "preset_blocks.h"
 #include "preset_common.h"

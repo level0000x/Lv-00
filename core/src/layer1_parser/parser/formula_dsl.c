@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_dsl.c
  * @brief DSL 语法解析器
  *
@@ -14,10 +14,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/formula_parser.h"
+#include "lv/formula_parser.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* formula_node_copy 实现在 formula_ast.c 中 */
 
@@ -29,7 +29,7 @@
  * @brief 追踪AST节点创建并检查安全限制
  *
  * 每次创建AST节点时调用，递增节点计数器并检查是否超过
- * LV00_MAX_AST_NODES 上限。超限时设置错误状态并返回false。
+ * lv_MAX_AST_NODES 上限。超限时设置错误状态并返回false。
  *
  * @param[in,out] ctx 解析器上下文
  * @param[in]     node 新创建的AST节点
@@ -38,7 +38,7 @@
 FormulaNode *formula_track_node(ParserContext *ctx, FormulaNode *node) {
     if (!node) return NULL;
     ctx->node_count++;
-    if (ctx->node_count > LV00_MAX_AST_NODES) {
+    if (ctx->node_count > lv_MAX_AST_NODES) {
         set_error(ctx, "AST节点数超过安全上限");
         formula_node_destroy(node);
         return NULL;
@@ -104,7 +104,7 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
 
     /* 提取数字字符串 */
     size_t len = ctx->pos - start;
-    char *num_str = lv00_malloc(len + 1);
+    char *num_str = lv_malloc(len + 1);
     if (!num_str) {
         set_error(ctx, "Memory allocation failed");
         return NULL;
@@ -115,7 +115,7 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
 
     /* 转换为数值 */
     double value = strtod(num_str, NULL);
-    lv00_free((void **) &num_str);
+    lv_free((void **) &num_str);
 
     /* 创建节点 */
     FormulaNode *node = NULL;
@@ -313,12 +313,12 @@ char *formula_parse_identifier_str(ParserContext *ctx) {
     size_t len = ctx->pos - start;
 
     /* 安全加固：检查token长度限制 */
-    if (len > LV00_MAX_TOKEN_LENGTH) {
+    if (len > lv_MAX_TOKEN_LENGTH) {
         set_error(ctx, "Identifier too long");
         return NULL;
     }
 
-    char *ident = lv00_malloc(len + 1);
+    char *ident = lv_malloc(len + 1);
     if (!ident) {
         set_error(ctx, "Memory allocation failed");
         return NULL;
@@ -454,22 +454,22 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
     skip_whitespace(ctx);
 
     /* 解析坐标列表 */
-    FormulaNode *coords[LV00_MAX_COORDINATES] = {NULL};
+    FormulaNode *coords[lv_MAX_COORDINATES] = {NULL};
     int coord_count = 0;
 
     while (!is_at_end(ctx) && peek(ctx) != ')') {
         skip_whitespace(ctx);
 
-        if (coord_count >= LV00_MAX_COORDINATES) {
+        if (coord_count >= lv_MAX_COORDINATES) {
             set_error(ctx, "Too many coordinates");
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int i = 0; i < coord_count; i++)
                 formula_node_destroy(coords[i]);
             return NULL;
@@ -477,7 +477,7 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
 
         coords[coord_count] = parse_dsl_expression(ctx);
         if (!coords[coord_count]) {
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int i = 0; i < coord_count; i++)
                 formula_node_destroy(coords[i]);
             return NULL;
@@ -490,7 +490,7 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
             consume(ctx);
         } else if (peek(ctx) != ')') {
             set_error(ctx, "Expected ',' or ')'");
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int i = 0; i < coord_count; i++)
                 formula_node_destroy(coords[i]);
             return NULL;
@@ -499,7 +499,7 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         for (int i = 0; i < coord_count; i++)
             formula_node_destroy(coords[i]);
         return NULL;
@@ -510,7 +510,7 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
         formula_node_destroy(coords[i]);
 
     FormulaNode *node = formula_create_geom_point(name, coord_list);
-    lv00_free((void **) &name);
+    lv_free((void **) &name);
     return node;
 }
 
@@ -542,7 +542,7 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
@@ -551,7 +551,7 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
     /* 解析起点 */
     FormulaNode *ep1 = parse_dsl_atom(ctx);
     if (!ep1) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
@@ -559,7 +559,7 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(ep1);
         return NULL;
     }
@@ -569,7 +569,7 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
     /* 解析终点 */
     FormulaNode *ep2 = parse_dsl_atom(ctx);
     if (!ep2) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(ep1);
         return NULL;
     }
@@ -578,14 +578,14 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(ep1);
         formula_node_destroy(ep2);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_segment(name, ep1, ep2);
-    lv00_free((void **) &name);
+    lv_free((void **) &name);
     return node;
 }
 
@@ -618,7 +618,7 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
@@ -627,7 +627,7 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
     /* 解析圆心 */
     FormulaNode *center = parse_dsl_atom(ctx);
     if (!center) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
@@ -635,7 +635,7 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
@@ -645,7 +645,7 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
     /* 解析半径 */
     FormulaNode *radius = parse_dsl_expression(ctx);
     if (!radius) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
@@ -654,14 +654,14 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_circle(name, center, radius);
-    lv00_free((void **) &name);
+    lv_free((void **) &name);
     return node;
 }
 
@@ -693,7 +693,7 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
@@ -704,7 +704,7 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
     for (int i = 0; i < 3; i++) {
         vertices[i] = parse_dsl_atom(ctx);
         if (!vertices[i]) {
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int j = 0; j < i; j++)
                 formula_node_destroy(vertices[j]);
             set_error(ctx, "Expected vertex");
@@ -715,7 +715,7 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
 
         if (i < 2) {
             if (!expect_char(ctx, ',')) {
-                lv00_free((void **) &name);
+                lv_free((void **) &name);
                 for (int j = 0; j <= i; j++)
                     formula_node_destroy(vertices[j]);
                 return NULL;
@@ -726,14 +726,14 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         for (int i = 0; i < 3; i++)
             formula_node_destroy(vertices[i]);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_triangle(name, vertices[0], vertices[1], vertices[2]);
-    lv00_free((void **) &name);
+    lv_free((void **) &name);
     for (int i = 0; i < 3; i++)
         formula_node_destroy(vertices[i]);
     return node;
@@ -767,7 +767,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
@@ -776,7 +776,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     /* 解析圆心 */
     FormulaNode *center = parse_dsl_atom(ctx);
     if (!center) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
@@ -784,7 +784,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
@@ -794,7 +794,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     /* 解析半径 */
     FormulaNode *radius = parse_dsl_expression(ctx);
     if (!radius) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
@@ -803,7 +803,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         return NULL;
@@ -814,7 +814,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     /* 解析起始角度 */
     FormulaNode *start_angle = parse_dsl_expression(ctx);
     if (!start_angle) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         return NULL;
@@ -824,7 +824,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         formula_node_destroy(start_angle);
@@ -836,7 +836,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     /* 解析结束角度 */
     FormulaNode *end_angle = parse_dsl_expression(ctx);
     if (!end_angle) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         formula_node_destroy(start_angle);
@@ -847,7 +847,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         formula_node_destroy(start_angle);
@@ -856,7 +856,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     }
 
     FormulaNode *node = formula_create_geom_arc(name, center, radius, start_angle, end_angle);
-    lv00_free((void **) &name);
+    lv_free((void **) &name);
     formula_node_destroy(center);
     formula_node_destroy(radius);
     formula_node_destroy(start_angle);
@@ -892,7 +892,7 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
@@ -900,20 +900,20 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
 
     /* 期望 '[' */
     if (!expect_char(ctx, '[')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
     skip_whitespace(ctx);
 
     /* 解析顶点列表 */
-    FormulaNode *vertices[LV00_MAX_POLYGON_VERTICES] = {NULL};
+    FormulaNode *vertices[lv_MAX_POLYGON_VERTICES] = {NULL};
     int vertex_count = 0;
 
     while (!is_at_end(ctx) && peek(ctx) != ']') {
-        if (vertex_count >= LV00_MAX_POLYGON_VERTICES) {
+        if (vertex_count >= lv_MAX_POLYGON_VERTICES) {
             set_error(ctx, "Too many vertices in polygon");
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int i = 0; i < vertex_count; i++)
                 formula_node_destroy(vertices[i]);
             return NULL;
@@ -921,7 +921,7 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
 
         vertices[vertex_count] = parse_dsl_atom(ctx);
         if (!vertices[vertex_count]) {
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int i = 0; i < vertex_count; i++)
                 formula_node_destroy(vertices[i]);
             return NULL;
@@ -935,7 +935,7 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
             skip_whitespace(ctx);
         } else if (peek(ctx) != ']') {
             set_error(ctx, "Expected ',' or ']'");
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int i = 0; i < vertex_count; i++)
                 formula_node_destroy(vertices[i]);
             return NULL;
@@ -944,7 +944,7 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
 
     /* 期望 ']' */
     if (!expect_char(ctx, ']')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         for (int i = 0; i < vertex_count; i++)
             formula_node_destroy(vertices[i]);
         return NULL;
@@ -954,14 +954,14 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         for (int i = 0; i < vertex_count; i++)
             formula_node_destroy(vertices[i]);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_polygon(name, vertices, vertex_count);
-    lv00_free((void **) &name);
+    lv_free((void **) &name);
     for (int i = 0; i < vertex_count; i++)
         formula_node_destroy(vertices[i]);
     return node;
@@ -995,7 +995,7 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
@@ -1003,20 +1003,20 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
 
     /* 期望 '[' */
     if (!expect_char(ctx, '[')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         return NULL;
     }
 
     skip_whitespace(ctx);
 
     /* 解析边界线段列表 */
-    FormulaNode *segments[LV00_MAX_POLYGON_VERTICES] = {NULL};
+    FormulaNode *segments[lv_MAX_POLYGON_VERTICES] = {NULL};
     int segment_count = 0;
 
     while (!is_at_end(ctx) && peek(ctx) != ']') {
-        if (segment_count >= LV00_MAX_POLYGON_VERTICES) {
+        if (segment_count >= lv_MAX_POLYGON_VERTICES) {
             set_error(ctx, "Too many segments in region");
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int i = 0; i < segment_count; i++)
                 formula_node_destroy(segments[i]);
             return NULL;
@@ -1024,7 +1024,7 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
 
         segments[segment_count] = parse_dsl_atom(ctx);
         if (!segments[segment_count]) {
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int i = 0; i < segment_count; i++)
                 formula_node_destroy(segments[i]);
             return NULL;
@@ -1038,7 +1038,7 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
             skip_whitespace(ctx);
         } else if (peek(ctx) != ']') {
             set_error(ctx, "Expected ',' or ']'");
-            lv00_free((void **) &name);
+            lv_free((void **) &name);
             for (int i = 0; i < segment_count; i++)
                 formula_node_destroy(segments[i]);
             return NULL;
@@ -1047,7 +1047,7 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
 
     /* 期望 ']' */
     if (!expect_char(ctx, ']')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         for (int i = 0; i < segment_count; i++)
             formula_node_destroy(segments[i]);
         return NULL;
@@ -1057,14 +1057,14 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void **) &name);
+        lv_free((void **) &name);
         for (int i = 0; i < segment_count; i++)
             formula_node_destroy(segments[i]);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_region(name, segments, segment_count);
-    lv00_free((void **) &name);
+    lv_free((void **) &name);
     for (int i = 0; i < segment_count; i++)
         formula_node_destroy(segments[i]);
     return node;
@@ -1135,13 +1135,13 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
 
     NodeType constraint_type = get_constraint_type(constraint_name);
     if ((int) constraint_type < 0) {
-        char err_buf[LV00_MAX_TEMP_MSG_SIZE];
+        char err_buf[lv_MAX_TEMP_MSG_SIZE];
         snprintf(err_buf, sizeof(err_buf), "未知的约束类型: %s", constraint_name);
         set_error(ctx, err_buf);
-        lv00_free((void **) &constraint_name);
+        lv_free((void **) &constraint_name);
         return NULL;
     }
-    lv00_free((void **) &constraint_name);
+    lv_free((void **) &constraint_name);
 
     skip_whitespace(ctx);
 
@@ -1153,13 +1153,13 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
     skip_whitespace(ctx);
 
     /* 解析参数列表 */
-    FormulaNode *participants[LV00_MAX_PARTICIPANTS] = {NULL};
+    FormulaNode *participants[lv_MAX_PARTICIPANTS] = {NULL};
     int participant_count = 0;
 
     while (!is_at_end(ctx) && peek(ctx) != ')') {
         skip_whitespace(ctx);
 
-        if (participant_count >= LV00_MAX_PARTICIPANTS) {
+        if (participant_count >= lv_MAX_PARTICIPANTS) {
             set_error(ctx, "Too many participants");
             for (int i = 0; i < participant_count; i++)
                 formula_node_destroy(participants[i]);
@@ -1266,37 +1266,37 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
 
         /* 检查是否为关键字 */
         if (strcmp(ident, "point") == 0) {
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return parse_dsl_point(ctx);
         }
         if (strcmp(ident, "segment") == 0) {
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return parse_dsl_segment(ctx);
         }
         if (strcmp(ident, "circle") == 0) {
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return parse_dsl_circle(ctx);
         }
         if (strcmp(ident, "triangle") == 0) {
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return parse_dsl_triangle(ctx);
         }
         if (strcmp(ident, "arc") == 0) {
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return parse_dsl_arc(ctx);
         }
         if (strcmp(ident, "polygon") == 0) {
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return parse_dsl_polygon(ctx);
         }
         if (strcmp(ident, "region") == 0) {
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return parse_dsl_region(ctx);
         }
         if (is_dsl_keyword(ident)) {
             /* 其他约束关键字 */
             ctx->pos = start; /* 回退 */
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return parse_dsl_constraint(ctx);
         }
 
@@ -1306,12 +1306,12 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
             skip_whitespace(ctx);
 
             /* 解析参数 */
-            FormulaNode *args[LV00_MAX_ARGUMENTS] = {NULL};
+            FormulaNode *args[lv_MAX_ARGUMENTS] = {NULL};
             int arg_count = 0;
             while (!is_at_end(ctx) && peek(ctx) != ')') {
-                if (arg_count >= LV00_MAX_ARGUMENTS) {
+                if (arg_count >= lv_MAX_ARGUMENTS) {
                     set_error(ctx, "Too many arguments");
-                    lv00_free((void **) &ident);
+                    lv_free((void **) &ident);
                     for (int i = 0; i < arg_count; i++)
                         formula_node_destroy(args[i]);
                     return NULL;
@@ -1319,7 +1319,7 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
 
                 args[arg_count] = parse_dsl_expression(ctx);
                 if (!args[arg_count]) {
-                    lv00_free((void **) &ident);
+                    lv_free((void **) &ident);
                     for (int i = 0; i < arg_count; i++)
                         formula_node_destroy(args[i]);
                     return NULL;
@@ -1335,7 +1335,7 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
             }
 
             if (!expect_char(ctx, ')')) {
-                lv00_free((void **) &ident);
+                lv_free((void **) &ident);
                 for (int i = 0; i < arg_count; i++)
                     formula_node_destroy(args[i]);
                 return NULL;
@@ -1362,7 +1362,7 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
                 node = formula_create_identifier(ident);
             }
 
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             for (int i = 0; i < arg_count; i++)
                 formula_node_destroy(args[i]);
             return node;
@@ -1370,7 +1370,7 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
 
         /* 普通标识符 */
         FormulaNode *node = formula_create_identifier(ident);
-        lv00_free((void **) &ident);
+        lv_free((void **) &ident);
         return node;
     }
 
@@ -1560,7 +1560,7 @@ static FormulaNode *parse_dsl_statement(ParserContext *ctx) {
  * @return FormulaNode* 解析出的复合节点或单个语句节点，无语句返回 NULL
  */
 FormulaNode *parse_dsl_compound(ParserContext *ctx) {
-    FormulaNode *statements[LV00_MAX_STATEMENTS] = {NULL};
+    FormulaNode *statements[lv_MAX_STATEMENTS] = {NULL};
     int statement_count = 0;
 
     while (!is_at_end(ctx)) {
@@ -1568,7 +1568,7 @@ FormulaNode *parse_dsl_compound(ParserContext *ctx) {
         if (is_at_end(ctx))
             break;
 
-        if (statement_count >= LV00_MAX_STATEMENTS) {
+        if (statement_count >= lv_MAX_STATEMENTS) {
             set_error(ctx, "Too many statements");
             for (int i = 0; i < statement_count; i++)
                 formula_node_destroy(statements[i]);

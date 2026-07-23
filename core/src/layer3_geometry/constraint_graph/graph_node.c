@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file graph_node.c
  * @brief ConstraintGraph 节点与约束生命周期
  *
@@ -22,15 +22,15 @@
 #include "context.h"
 #include "debug.h"
 #include "error_codes.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/solver.h"
-#include "lv00/symbolic_coord.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "lv/constraint_graph.h"
+#include "lv/solver.h"
+#include "lv/symbolic_coord.h"
 #include "stream.h"
 #include "stream_context_util.h"
 
-LV00_DECLARE_STREAM_CTX(graph);
+lv_DECLARE_STREAM_CTX(graph);
 
 /* Forward declarations for hash index functions
  * graph_node_index_insert 和 graph_constraint_index_insert 已公开为公共接口，
@@ -40,19 +40,19 @@ void node_index_remove(ConstraintGraph *graph, int node_id);
 void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
 
 /**
- * @brief 安全数组扩容辅助函数（委托给统一的 lv00_ensure_capacity）
+ * @brief 安全数组扩容辅助函数（委托给统一的 lv_ensure_capacity）
  * @param arr 当前数组指针
  * @param count 当前元素数量
  * @param capacity 当前容量指针
  * @param elem_size 单个元素大小
  * @param min_growth 最小增长量
  * @return 扩容后的数组指针，失败返回 NULL
- * @note 内部委托给 lv00_ensure_capacity
+ * @note 内部委托给 lv_ensure_capacity
  */
 static void *graph_ensure_capacity(void *arr, int count, int *capacity,
                                     size_t elem_size, int min_growth) {
     void *arr_ptr = arr;
-    if (!lv00_ensure_capacity(&arr_ptr, count, capacity, elem_size, min_growth))
+    if (!lv_ensure_capacity(&arr_ptr, count, capacity, elem_size, min_growth))
         return NULL;
     return arr_ptr;
 }
@@ -60,16 +60,16 @@ static void *graph_ensure_capacity(void *arr, int count, int *capacity,
 /**
  * @brief 在约束图中分配并初始化一个新的几何节点
  *
- * 分配 GeomNode 内存（lv00_malloc + memset），设置唯一 ID、类型、
+ * 分配 GeomNode 内存（lv_malloc + memset），设置唯一 ID、类型、
  * 默认信任等级和命名空间深度。若节点数组容量不足，自动扩容
- * （按 LV00_ARRAY_GROWTH_FACTOR 倍增长），扩容失败时释放已分配节点并返回 NULL。
+ * （按 lv_ARRAY_GROWTH_FACTOR 倍增长），扩容失败时释放已分配节点并返回 NULL。
  *
  * @param graph 约束图指针
  * @param type  几何节点类型（GEOM_POINT / GEOM_SEGMENT / GEOM_REGION / GEOM_PORT / GEOM_FUNCTION_BLOCK）
  * @return 新分配的 GeomNode 指针，失败返回 NULL
  */
 static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
-    GeomNode *node = lv00_malloc(sizeof(GeomNode));
+    GeomNode *node = lv_malloc(sizeof(GeomNode));
     if (!node)
         return NULL;
     memset(node, 0, sizeof(GeomNode));
@@ -84,7 +84,7 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
         graph->nodes, graph->node_count, &graph->node_capacity,
         sizeof(GeomNode *), 1);
     if (!new_nodes) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     graph->nodes = new_nodes;
@@ -96,8 +96,8 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
 /**
  * @brief 在约束图中分配并初始化一个新的约束
  *
- * 分配 Constraint 内存（lv00_malloc + memset），设置唯一 ID 和约束类型。
- * 若约束数组容量不足，自动按 LV00_ARRAY_GROWTH_FACTOR 倍扩容，
+ * 分配 Constraint 内存（lv_malloc + memset），设置唯一 ID 和约束类型。
+ * 若约束数组容量不足，自动按 lv_ARRAY_GROWTH_FACTOR 倍扩容，
  * 扩容失败时释放已分配约束并返回 NULL。
  *
  * @param graph 约束图指针
@@ -105,7 +105,7 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
  * @return 新分配的 Constraint 指针，失败返回 NULL
  */
 Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) {
-    Constraint *con = lv00_malloc(sizeof(Constraint));
+    Constraint *con = lv_malloc(sizeof(Constraint));
     if (!con)
         return NULL;
     memset(con, 0, sizeof(Constraint));
@@ -117,7 +117,7 @@ Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) 
         graph->constraints, graph->constraint_count, &graph->constraint_capacity,
         sizeof(Constraint *), 1);
     if (!new_constraints) {
-        lv00_free((void **) &con);
+        lv_free((void **) &con);
         return NULL;
     }
     graph->constraints = new_constraints;
@@ -134,11 +134,11 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
 
     /* 检查ID是否已被使用 */
     if (graph_get_node(graph, node_id) != NULL) {
-        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Node ID already exists");
+        lv_set_error(lv_ERROR_UNKNOWN, "%s", "Node ID already exists");
         return NULL;
     }
 
-    GeomNode *node = lv00_malloc(sizeof(GeomNode));
+    GeomNode *node = lv_malloc(sizeof(GeomNode));
     if (!node)
         return NULL;
     memset(node, 0, sizeof(GeomNode));
@@ -152,9 +152,9 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
 
     /* 复制坐标 */
     if (coord_count > 0 && coords) {
-        node->symbolic_coords = lv00_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
+        node->symbolic_coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
         if (!node->symbolic_coords) {
-            lv00_free((void **) &node);
+            lv_free((void **) &node);
             return NULL;
         }
         for (int i = 0; i < coord_count; i++) {
@@ -164,8 +164,8 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
                 for (int j = 0; j < i; j++) {
                     symbolic_coord_destroy(node->symbolic_coords[j]);
                 }
-                lv00_free((void **) &node->symbolic_coords);
-                lv00_free((void **) &node);
+                lv_free((void **) &node->symbolic_coords);
+                lv_free((void **) &node);
                 return NULL;
             }
         }
@@ -174,21 +174,21 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
 
     /* 扩展数组 */
     if (graph->node_count >= graph->node_capacity) {
-        if (graph->node_capacity > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
-            lv00_free((void **) &node);
+        if (graph->node_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
+            lv_free((void **) &node);
             return NULL;
         }
         int new_capacity =
-            graph->node_capacity == 0 ? LV00_INITIAL_ARRAY_CAPACITY : graph->node_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        GeomNode **new_nodes = lv00_realloc(graph->nodes, (size_t) new_capacity * sizeof(GeomNode *));
+            graph->node_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY : graph->node_capacity * lv_ARRAY_GROWTH_FACTOR;
+        GeomNode **new_nodes = lv_realloc(graph->nodes, (size_t) new_capacity * sizeof(GeomNode *));
         if (!new_nodes) {
             /* 清理已分配的坐标 */
             for (int i = 0; i < coord_count; i++) {
                 if (node->symbolic_coords[i])
                     symbolic_coord_destroy(node->symbolic_coords[i]);
             }
-            lv00_free((void **) &node->symbolic_coords);
-            lv00_free((void **) &node);
+            lv_free((void **) &node->symbolic_coords);
+            lv_free((void **) &node);
             return NULL;
         }
         graph->nodes = new_nodes;
@@ -231,11 +231,11 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
 
     /* 检查ID是否已被使用 */
     if (graph_get_constraint(graph, constraint_id) != NULL) {
-        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Constraint ID already exists");
+        lv_set_error(lv_ERROR_UNKNOWN, "%s", "Constraint ID already exists");
         return NULL;
     }
 
-    Constraint *con = lv00_malloc(sizeof(Constraint));
+    Constraint *con = lv_malloc(sizeof(Constraint));
     if (!con)
         return NULL;
     memset(con, 0, sizeof(Constraint));
@@ -244,26 +244,26 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
     con->type = type;
     con->is_active = true;   /* v3.5.0: 新约束默认活跃 */
     con->participant_count = participant_count;
-    con->participants = lv00_malloc((size_t) participant_count * sizeof(int));
+    con->participants = lv_malloc((size_t) participant_count * sizeof(int));
     if (!con->participants) {
-        lv00_free((void **) &con);
+        lv_free((void **) &con);
         return NULL;
     }
     memcpy(con->participants, participants, participant_count * sizeof(int));
 
     /* 扩展数组 */
     if (graph->constraint_count >= graph->constraint_capacity) {
-        if (graph->constraint_capacity > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
-            lv00_free((void **) &con->participants);
-            lv00_free((void **) &con);
+        if (graph->constraint_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
+            lv_free((void **) &con->participants);
+            lv_free((void **) &con);
             return NULL;
         }
-        int new_capacity = graph->constraint_capacity == 0 ? LV00_INITIAL_ARRAY_CAPACITY
-                                                           : graph->constraint_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        Constraint **new_constraints = lv00_realloc(graph->constraints, (size_t) new_capacity * sizeof(Constraint *));
+        int new_capacity = graph->constraint_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY
+                                                           : graph->constraint_capacity * lv_ARRAY_GROWTH_FACTOR;
+        Constraint **new_constraints = lv_realloc(graph->constraints, (size_t) new_capacity * sizeof(Constraint *));
         if (!new_constraints) {
-            lv00_free((void **) &con->participants);
-            lv00_free((void **) &con);
+            lv_free((void **) &con->participants);
+            lv_free((void **) &con);
             return NULL;
         }
         graph->constraints = new_constraints;
@@ -328,7 +328,7 @@ bool constraint_exists(const ConstraintGraph *graph, ConstraintType type, const 
 
 /* ============================================================================
  * 节点哈希索引：用于 O(1) 节点查找
- * 初始大小和负载因子定义在 lv00_internal.h 中
+ * 初始大小和负载因子定义在 lv_internal.h 中
  * ============================================================================ */
 
 /**
@@ -338,8 +338,8 @@ bool constraint_exists(const ConstraintGraph *graph, ConstraintType type, const 
  * @return 哈希值
  */
 unsigned node_id_hash(int id, int capacity) {
-    /* FNV-1a-like hash，乘数定义在 lv00_internal.h 中 */
-    unsigned h = (unsigned) id * LV00_FNV_HASH_MULTIPLIER;
+    /* FNV-1a-like hash，乘数定义在 lv_internal.h 中 */
+    unsigned h = (unsigned) id * lv_FNV_HASH_MULTIPLIER;
     /*
      * 运行时检查：哈希表容量通常为 2 的幂，此时使用高效的位掩码取模。
      * 若容量不是 2 的幂（防御性场景），回退到安全的取模操作，
@@ -359,8 +359,8 @@ unsigned node_id_hash(int id, int capacity) {
  */
 static bool node_index_ensure_capacity(ConstraintGraph *graph) {
     if (!graph->node_index) {
-        int cap = LV00_NODE_INDEX_INITIAL_SIZE;
-        graph->node_index = lv00_calloc(cap, sizeof(GeomNode *));
+        int cap = lv_NODE_INDEX_INITIAL_SIZE;
+        graph->node_index = lv_calloc(cap, sizeof(GeomNode *));
         if (!graph->node_index)
             return false;
         graph->node_index_capacity = cap;
@@ -376,14 +376,14 @@ static bool node_index_ensure_capacity(ConstraintGraph *graph) {
     }
 
     /* 检查负载因子 */
-    if (graph->node_count < (int) (graph->node_index_capacity * LV00_INDEX_LOAD_FACTOR)) {
+    if (graph->node_count < (int) (graph->node_index_capacity * lv_INDEX_LOAD_FACTOR)) {
         return true;
     }
 
     /* 重新哈希到更大的表 */
     if (graph->node_index_capacity > INT_MAX / 2) return false;
     int new_cap = graph->node_index_capacity * 2;
-    GeomNode **new_index = lv00_calloc(new_cap, sizeof(GeomNode *));
+    GeomNode **new_index = lv_calloc(new_cap, sizeof(GeomNode *));
     if (!new_index)
         return false;
 
@@ -395,7 +395,7 @@ static bool node_index_ensure_capacity(ConstraintGraph *graph) {
         new_index[idx] = graph->nodes[i];
     }
 
-    lv00_free((void **) &graph->node_index);
+    lv_free((void **) &graph->node_index);
     graph->node_index = new_index;
     graph->node_index_capacity = new_cap;
     return true;
@@ -454,7 +454,7 @@ void node_index_remove(ConstraintGraph *graph, int node_id) {
                 j = (j + 1) & (unsigned) (graph->node_index_capacity - 1);
                 if (j == ideal) {
                     /* 哈希表探测绕回起点，条目无法重新插入 —— 记录错误 */
-                    lv00_set_error(LV00_ERROR_INTERNAL, "哈希表已满，无法重新插入条目（ID=%d）", entry->id);
+                    lv_set_error(lv_ERROR_INTERNAL, "哈希表已满，无法重新插入条目（ID=%d）", entry->id);
                     break;
                 }
             }
@@ -470,7 +470,7 @@ void node_index_remove(ConstraintGraph *graph, int node_id) {
 
 /* ================================================================
  *  约束哈希索引：用于 O(1) 按ID查找约束
- *  初始大小和负载因子定义在 lv00_internal.h 中
+ *  初始大小和负载因子定义在 lv_internal.h 中
  * ================================================================ */
 
 /**
@@ -480,7 +480,7 @@ void node_index_remove(ConstraintGraph *graph, int node_id) {
  * @return 哈希值
  */
 unsigned constraint_id_hash(int id, int capacity) {
-    unsigned h = (unsigned) id * LV00_FNV_HASH_MULTIPLIER;
+    unsigned h = (unsigned) id * lv_FNV_HASH_MULTIPLIER;
     return h & (unsigned) (capacity - 1);
 }
 
@@ -491,8 +491,8 @@ unsigned constraint_id_hash(int id, int capacity) {
  */
 static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
     if (!graph->constraint_index) {
-        int cap = LV00_CONSTRAINT_INDEX_INITIAL_SIZE;
-        graph->constraint_index = lv00_calloc(cap, sizeof(Constraint *));
+        int cap = lv_CONSTRAINT_INDEX_INITIAL_SIZE;
+        graph->constraint_index = lv_calloc(cap, sizeof(Constraint *));
         if (!graph->constraint_index)
             return false;
         graph->constraint_index_capacity = cap;
@@ -506,13 +506,13 @@ static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
         return true;
     }
 
-    if (graph->constraint_count < (int) (graph->constraint_index_capacity * LV00_INDEX_LOAD_FACTOR)) {
+    if (graph->constraint_count < (int) (graph->constraint_index_capacity * lv_INDEX_LOAD_FACTOR)) {
         return true;
     }
 
     if (graph->constraint_index_capacity > INT_MAX / 2) return false;
     int new_cap = graph->constraint_index_capacity * 2;
-    Constraint **new_index = lv00_calloc(new_cap, sizeof(Constraint *));
+    Constraint **new_index = lv_calloc(new_cap, sizeof(Constraint *));
     if (!new_index)
         return false;
 
@@ -524,7 +524,7 @@ static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
         new_index[idx] = graph->constraints[i];
     }
 
-    lv00_free((void **) &graph->constraint_index);
+    lv_free((void **) &graph->constraint_index);
     graph->constraint_index = new_index;
     graph->constraint_index_capacity = new_cap;
     return true;
@@ -632,15 +632,15 @@ static bool segments_intersect(const GeomNode *seg_a, const GeomNode *seg_b) {
     double dx_b = bx2 - bx1, dy_b = by2 - by1;
     double denom = dx_a * dy_b - dy_a * dx_b;
 
-    if (fabs(denom) < LV00_EPSILON_DOUBLE)
+    if (fabs(denom) < lv_EPSILON_DOUBLE)
         return false; /* 平行或共线 */
 
     double t = ((bx1 - ax1) * dy_b - (by1 - ay1) * dx_b) / denom;
     double u = ((bx1 - ax1) * dy_a - (by1 - ay1) * dx_a) / denom;
 
     /* 严格内部相交检查 */
-    return (t > LV00_EPSILON_SEGMENT_INTERIOR && t < 1.0 - LV00_EPSILON_SEGMENT_INTERIOR &&
-            u > LV00_EPSILON_SEGMENT_INTERIOR && u < 1.0 - LV00_EPSILON_SEGMENT_INTERIOR);
+    return (t > lv_EPSILON_SEGMENT_INTERIOR && t < 1.0 - lv_EPSILON_SEGMENT_INTERIOR &&
+            u > lv_EPSILON_SEGMENT_INTERIOR && u < 1.0 - lv_EPSILON_SEGMENT_INTERIOR);
 }
 
 /* ================================================================
@@ -688,9 +688,9 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                 int line_count = 0;
                 int lines_capacity = 8;  /* 初始容量 */
 
-                lines = (int *)lv00_malloc(sizeof(int) * lines_capacity);
+                lines = (int *)lv_malloc(sizeof(int) * lines_capacity);
                 if (!lines) {
-                    LV00_LOG_ERROR("check_incremental_conflict: 内存分配失败");
+                    lv_LOG_ERROR("check_incremental_conflict: 内存分配失败");
                     return false;  /* 内存不足，保守返回无冲突 */
                 }
 
@@ -701,12 +701,12 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                         if (line_count >= lines_capacity) {
                             int new_cap = lines_capacity * 2;
                             if (new_cap < lines_capacity) {  /* 溢出检查 */
-                                lv00_free((void**)&lines);
+                                lv_free((void**)&lines);
                                 return false;
                             }
-                            int *new_lines = (int *)lv00_realloc(lines, sizeof(int) * new_cap);
+                            int *new_lines = (int *)lv_realloc(lines, sizeof(int) * new_cap);
                             if (!new_lines) {
-                                lv00_free((void**)&lines);
+                                lv_free((void**)&lines);
                                 return false;
                             }
                             lines = new_lines;
@@ -719,12 +719,12 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                 if (line_count >= lines_capacity) {
                     int new_cap = lines_capacity * 2;
                     if (new_cap < lines_capacity) {
-                        lv00_free((void**)&lines);
+                        lv_free((void**)&lines);
                         return false;
                     }
-                    int *new_lines = (int *)lv00_realloc(lines, sizeof(int) * new_cap);
+                    int *new_lines = (int *)lv_realloc(lines, sizeof(int) * new_cap);
                     if (!new_lines) {
-                        lv00_free((void**)&lines);
+                        lv_free((void**)&lines);
                         return false;
                     }
                     lines = new_lines;
@@ -755,7 +755,7 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
                 }
 
                 /* v3.4.2: 释放动态分配的数组 */
-                lv00_free((void**)&lines);
+                lv_free((void**)&lines);
 
                 if (conflict_found) {
                     return true;
@@ -840,7 +840,7 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
             break;
         default:
             /* v3.5.0: 未知约束类型，记录错误 */
-            lv00_set_error(LV00_ERROR_UNKNOWN,
+            lv_set_error(lv_ERROR_UNKNOWN,
                            "check_incremental_conflict: 未知约束类型 %d (constraint id=%d)",
                            (int)new_constraint->type, new_constraint->id);
             break;
@@ -862,11 +862,11 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coor
     GeomNode *node = graph_alloc_node(graph, GEOM_POINT);
     if (!node)
         return ADD_NODE_CONFLICT;
-    node->symbolic_coords = lv00_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
+    node->symbolic_coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
     if (!node->symbolic_coords) {
         graph->node_count--;
         node_index_remove(graph, node->id);
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return ADD_NODE_CONFLICT;
     }
     /* 深拷贝坐标，使节点拥有这些坐标 */
@@ -877,12 +877,12 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coor
             for (int j = 0; j < i; j++) {
                 symbolic_coord_destroy(node->symbolic_coords[j]);
             }
-            lv00_free((void **) &node->symbolic_coords);
+            lv_free((void **) &node->symbolic_coords);
             node->symbolic_coords = NULL;
             node->coord_count = 0;
             graph->node_count--;
             node_index_remove(graph, node->id);
-            lv00_free((void **) &node);
+            lv_free((void **) &node);
             return ADD_NODE_CONFLICT;
         }
     }
@@ -922,11 +922,11 @@ AddNodeResult graph_add_line_segment(ConstraintGraph *graph, int endpoint1_id, i
     if (total_coords < 4)
         total_coords = 4;
 
-    node->symbolic_coords = lv00_malloc((size_t) total_coords * sizeof(SymbolicCoord *));
+    node->symbolic_coords = lv_malloc((size_t) total_coords * sizeof(SymbolicCoord *));
     if (!node->symbolic_coords) {
         graph->node_count--;
         node_index_remove(graph, node->id);
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return ADD_NODE_CONFLICT;
     }
 
@@ -1042,9 +1042,9 @@ static int constraint_dof_cost(const Constraint *con) {
     }
 }
 
-bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result) {
+bool graph_check_compatibility(const ConstraintGraph *graph, lvConstraintCompatibilityResult *out_result) {
     if (out_result) {
-        out_result->status = LV00_CONSTRAINT_STATUS_INVALID;
+        out_result->status = lv_CONSTRAINT_STATUS_INVALID;
         out_result->conflicting_constraint_id = -1;
         out_result->redundant_constraint_count = 0;
         out_result->free_degree_count = 0;
@@ -1054,7 +1054,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
         return false;
 
     if (graph->node_count == 0) {
-        out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
+        out_result->status = lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
         out_result->free_degree_count = 1;
         out_result->diagnostic = "空约束图缺少几何事实";
         return true;
@@ -1083,7 +1083,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
             continue;
         if (node->type == GEOM_LINE_SEGMENT) {
             if (graph_segment_is_degenerate(node)) {
-                out_result->status = LV00_CONSTRAINT_STATUS_INCONSISTENT;
+                out_result->status = lv_CONSTRAINT_STATUS_INCONSISTENT;
                 out_result->conflicting_constraint_id = node->id;
                 out_result->diagnostic = "检测到由重合端点构成的退化线段";
                 return true;
@@ -1098,7 +1098,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
 
     /* 边界情况：所有节点均不活跃 */
     if (active_geometry_nodes == 0 && active_segment_count == 0) {
-        out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
+        out_result->status = lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
         out_result->free_degree_count = 1;
         out_result->diagnostic = "约束图中无活跃几何节点";
         return true;
@@ -1122,7 +1122,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
     }
     out_result->redundant_constraint_count = redundant_count;
     if (redundant_count > 0) {
-        out_result->status = LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED;
+        out_result->status = lv_CONSTRAINT_STATUS_OVER_CONSTRAINED;
         out_result->diagnostic = "检测到重复线段约束";
         return true;
     }
@@ -1162,21 +1162,21 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
      *   - free_dof >  0  → 欠约束 (UNDER_CONSTRAINED)
      * ================================================================ */
     if (free_dof < 0) {
-        out_result->status = LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED;
+        out_result->status = lv_CONSTRAINT_STATUS_OVER_CONSTRAINED;
         out_result->free_degree_count = free_dof;
         out_result->diagnostic = "约束过多导致过约束";
         return true;
     }
 
     if (free_dof > 0) {
-        out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
+        out_result->status = lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
         out_result->free_degree_count = free_dof;
         out_result->diagnostic = "约束不足，存在自由度";
         return true;
     }
 
     /* free_dof == 0: 恰好约束 */
-    out_result->status = LV00_CONSTRAINT_STATUS_CONSISTENT;
+    out_result->status = lv_CONSTRAINT_STATUS_CONSISTENT;
     out_result->free_degree_count = 0;
     out_result->diagnostic = "约束图状态良好";
     return true;
@@ -1185,7 +1185,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompa
 /* ===========================================================================
  * 存根实现：graph_add_region / graph_add_port / graph_add_function_block
  *
- * 这些函数在 constraint_graph.h 中声明为 LV00_PUBLIC_API，供多个模块调用。
+ * 这些函数在 constraint_graph.h 中声明为 lv_PUBLIC_API，供多个模块调用。
  * 完整实现将随后续版本逐步完善，当前以最小存根保证链接通过。
  * =========================================================================== */
 
@@ -1236,7 +1236,7 @@ AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespac
     node->symbolic_coords = NULL;
     /* 设置端口类型 */
     if (!node->data.port) {
-        node->data.port = lv00_malloc(sizeof(Port));
+        node->data.port = lv_malloc(sizeof(Port));
         if (node->data.port)
             memset(node->data.port, 0, sizeof(Port));
     }
@@ -1275,21 +1275,21 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
     node->symbolic_coords = NULL;
     /* 初始化函数块数据 */
     if (!node->data.func_block.internal_nodes && internal_count > 0 && internal_node_ids) {
-        node->data.func_block.internal_nodes = lv00_malloc((size_t)internal_count * sizeof(GeomNode *));
+        node->data.func_block.internal_nodes = lv_malloc((size_t)internal_count * sizeof(GeomNode *));
         if (node->data.func_block.internal_nodes) {
             memset(node->data.func_block.internal_nodes, 0, (size_t)internal_count * sizeof(GeomNode *));
         }
         node->data.func_block.internal_node_count = internal_count;
     }
     if (input_count > 0 && input_port_ids) {
-        node->data.func_block.input_port_ids = lv00_malloc((size_t)input_count * sizeof(int));
+        node->data.func_block.input_port_ids = lv_malloc((size_t)input_count * sizeof(int));
         if (node->data.func_block.input_port_ids) {
             memcpy(node->data.func_block.input_port_ids, input_port_ids, (size_t)input_count * sizeof(int));
         }
         node->data.func_block.input_count = input_count;
     }
     if (output_count > 0 && output_port_ids) {
-        node->data.func_block.output_port_ids = lv00_malloc((size_t)output_count * sizeof(int));
+        node->data.func_block.output_port_ids = lv_malloc((size_t)output_count * sizeof(int));
         if (node->data.func_block.output_port_ids) {
             memcpy(node->data.func_block.output_port_ids, output_port_ids, (size_t)output_count * sizeof(int));
         }
@@ -1339,7 +1339,7 @@ CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
     /* 存根实现：遍历所有约束，检查是否引用了内部节点和外部节点 */
     int capacity = 16;
     int found = 0;
-    CrossBoundaryConstraint *results = lv00_malloc((size_t)capacity * sizeof(CrossBoundaryConstraint));
+    CrossBoundaryConstraint *results = lv_malloc((size_t)capacity * sizeof(CrossBoundaryConstraint));
     if (!results)
         return NULL;
 
@@ -1366,9 +1366,9 @@ CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
         if (has_internal && has_external) {
             if (found >= capacity) {
                 capacity *= 2;
-                CrossBoundaryConstraint *new_results = lv00_realloc(results, (size_t)capacity * sizeof(CrossBoundaryConstraint));
+                CrossBoundaryConstraint *new_results = lv_realloc(results, (size_t)capacity * sizeof(CrossBoundaryConstraint));
                 if (!new_results) {
-                    lv00_free((void**)&results);
+                    lv_free((void**)&results);
                     return NULL;
                 }
                 results = new_results;
@@ -1386,7 +1386,7 @@ CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
     (void)port_count;
 
     if (found == 0) {
-        lv00_free((void**)&results);
+        lv_free((void**)&results);
         if (out_count)
             *out_count = 0;
         return NULL;

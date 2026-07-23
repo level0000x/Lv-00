@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ode_solver.c
  * @brief Implementation of the ODE solver module.
  *
@@ -20,7 +20,7 @@
  * @date   2026-05-25
  */
 
-#include "lv00/ode_solver.h"
+#include "lv/ode_solver.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -33,8 +33,8 @@
 /**
  * @brief Compute the number of steps needed for the integration interval.
  */
-static size_t compute_num_steps(const Lv00ODEProblem *problem,
-                                const Lv00ODEConfig  *config) {
+static size_t compute_num_steps(const lvODEProblem *problem,
+                                const lvODEConfig  *config) {
     double t_start = problem->t_span[0];
     double t_end   = problem->t_span[1];
     double dt      = config->dt;
@@ -54,7 +54,7 @@ static size_t compute_num_steps(const Lv00ODEProblem *problem,
 /**
  * @brief Perform one step of the explicit Euler method.
  */
-static void euler_step(Lv00ODERhsFn rhs, double t, const double *y,
+static void euler_step(lvODERhsFn rhs, double t, const double *y,
                        double dt, size_t dim, void *params, double *y_next) {
     double *dydt = (double *)calloc(dim, sizeof(double));
     if (!dydt) return;
@@ -71,7 +71,7 @@ static void euler_step(Lv00ODERhsFn rhs, double t, const double *y,
 /**
  * @brief Perform one step of the classical RK4 method.
  */
-static void rk4_step(Lv00ODERhsFn rhs, double t, const double *y,
+static void rk4_step(lvODERhsFn rhs, double t, const double *y,
                      double dt, size_t dim, void *params, double *y_next) {
     double *k1 = (double *)calloc(dim, sizeof(double));
     double *k2 = (double *)calloc(dim, sizeof(double));
@@ -123,8 +123,8 @@ static void rk4_step(Lv00ODERhsFn rhs, double t, const double *y,
  * API: Solve
  * ============================================================ */
 
-Lv00ODESolution *ode_solve(const Lv00ODEProblem *problem,
-                           const Lv00ODEConfig  *config) {
+lvODESolution *ode_solve(const lvODEProblem *problem,
+                           const lvODEConfig  *config) {
     if (!problem || !config || !problem->rhs_fn || !problem->y0) {
         return NULL;
     }
@@ -140,7 +140,7 @@ Lv00ODESolution *ode_solve(const Lv00ODEProblem *problem,
     }
 
     /* Allocate solution */
-    Lv00ODESolution *sol = (Lv00ODESolution *)calloc(1, sizeof(Lv00ODESolution));
+    lvODESolution *sol = (lvODESolution *)calloc(1, sizeof(lvODESolution));
     if (!sol) return NULL;
 
     sol->n_steps = n_steps + 1; /* Include initial condition */
@@ -222,7 +222,7 @@ Lv00ODESolution *ode_solve(const Lv00ODEProblem *problem,
  * API: Destroy
  * ============================================================ */
 
-void ode_solution_destroy(Lv00ODESolution *sol) {
+void ode_solution_destroy(lvODESolution *sol) {
     if (!sol) return;
     free(sol->t_values);
     free(sol->y_values);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_domain_theory.c
  * @brief Domain Theory Axiom Package Test
  *
@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/domain_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/domain_theory_test_save.lvz"
@@ -230,7 +230,7 @@ static void test_content_hash(void) {
 
     if (hash) {
         printf("  SHA-256: %s\n", hash);
-        lv00_free_ptr(hash);
+        lv_free_ptr(hash);
     }
 
     axiom_package_destroy(pkg);

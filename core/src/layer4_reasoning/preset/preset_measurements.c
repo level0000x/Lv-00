@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_measurements.c
  * @brief 几何测量模块预设函数库 - 实现
  *
@@ -11,7 +11,7 @@
 
 #include "preset_measurements.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 
 #include <string.h>
 

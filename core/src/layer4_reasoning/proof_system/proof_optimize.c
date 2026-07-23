@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_optimize.c
  * @brief 证明优化模块（子目录版本）
  *
@@ -11,7 +11,7 @@
  * 优化后的证明保持逻辑等价性和可验证性。
  */
 
-#include "lv00/proof_trace.h"
+#include "lv/proof_trace.h"
 
 #include <stdbool.h>
 #include <stdlib.h>

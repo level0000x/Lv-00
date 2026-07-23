@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file function_composition.c
  * @brief 完整示例：函数块组合与类型系统
  *
@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /**
  * 辅助函数：添加一个点
@@ -77,10 +77,10 @@ static FuncBlock *create_midpoint_function(ConstraintGraph *g) {
 
     if (result == PACK_RESULT_OK && fb) {
         /*
-         * 注意：lv00_strdup_safe 分配的内存在 func_block_destroy 中释放。
+         * 注意：lv_strdup_safe 分配的内存在 func_block_destroy 中释放。
          * func_block_destroy 负责清理 fb->name 和 fb->description。
          */
-        fb->name = lv00_strdup_safe("Midpoint");
+        fb->name = lv_strdup_safe("Midpoint");
         printf("  中点函数块创建成功 (ID=%d)\n", fb->id);
     } else {
         printf("  中点函数块创建失败\n");
@@ -123,10 +123,10 @@ static FuncBlock *create_distance_function(ConstraintGraph *g) {
 
     if (result == PACK_RESULT_OK && fb) {
         /*
-         * 注意：lv00_strdup_safe 分配的内存在 func_block_destroy 中释放。
+         * 注意：lv_strdup_safe 分配的内存在 func_block_destroy 中释放。
          * func_block_destroy 负责清理 fb->name 和 fb->description。
          */
-        fb->name = lv00_strdup_safe("Distance");
+        fb->name = lv_strdup_safe("Distance");
         printf("  距离函数块创建成功 (ID=%d)\n", fb->id);
     } else {
         printf("  距离函数块创建失败\n");

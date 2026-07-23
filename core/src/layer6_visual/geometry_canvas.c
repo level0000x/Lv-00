@@ -1,5 +1,5 @@
-#include "lv00/visual_editor.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/visual_editor.h"
+#include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -8,16 +8,16 @@
 
 /* 几何实体类型 */
 typedef enum {
-    LV00_GEOM_POINT,
-    LV00_GEOM_LINE,
-    LV00_GEOM_CIRCLE,
-    LV00_GEOM_POLYGON
-} Lv00GeomEntityType;
+    lv_GEOM_POINT,
+    lv_GEOM_LINE,
+    lv_GEOM_CIRCLE,
+    lv_GEOM_POLYGON
+} lvGeomEntityType;
 
 /* 几何实体 */
-typedef struct Lv00GeomEntity {
+typedef struct lvGeomEntity {
     int id;
-    Lv00GeomEntityType type;
+    lvGeomEntityType type;
     char label[128];
 
     /* 坐标数据（统一存储） */
@@ -28,65 +28,65 @@ typedef struct Lv00GeomEntity {
     char stroke_color[32];
     char fill_color[32];
     double stroke_width;
-} Lv00GeomEntity;
+} lvGeomEntity;
 
 /* 约束可视化 */
-typedef struct Lv00GeomConstraint {
+typedef struct lvGeomConstraint {
     int id;
     int entity_a_id;
     int entity_b_id;
     char label[128];
     char color[32];
-} Lv00GeomConstraint;
+} lvGeomConstraint;
 
 /* 视图边界 */
-typedef struct Lv00ViewBounds {
+typedef struct lvViewBounds {
     double min_x, min_y, max_x, max_y;
     int valid;
-} Lv00ViewBounds;
+} lvViewBounds;
 
-typedef struct Lv00GeometryCanvas {
+typedef struct lvGeometryCanvas {
     int view_type;
-    Lv00GeomEntity *entities;
+    lvGeomEntity *entities;
     int entity_count;
     int entity_capacity;
-    Lv00GeomConstraint *constraints;
+    lvGeomConstraint *constraints;
     int constraint_count;
     int constraint_capacity;
-    Lv00ViewBounds bounds;
+    lvViewBounds bounds;
     void *proof_overlay;
     int next_entity_id;
     int next_constraint_id;
-} Lv00GeometryCanvas;
+} lvGeometryCanvas;
 
-Lv00GeometryCanvas *lv00_geometry_canvas_create(void) {
-    Lv00GeometryCanvas *canvas = lv00_calloc(1, sizeof(Lv00GeometryCanvas));
+lvGeometryCanvas *lv_geometry_canvas_create(void) {
+    lvGeometryCanvas *canvas = lv_calloc(1, sizeof(lvGeometryCanvas));
     if (!canvas) return NULL;
-    canvas->view_type = LV00_VIEW_GEOMETRY_CANVAS;
+    canvas->view_type = lv_VIEW_GEOMETRY_CANVAS;
     canvas->entity_capacity = 16;
-    canvas->entities = lv00_calloc(canvas->entity_capacity, sizeof(Lv00GeomEntity));
-    if (!canvas->entities) { lv00_free((void **)&canvas); return NULL; }
+    canvas->entities = lv_calloc(canvas->entity_capacity, sizeof(lvGeomEntity));
+    if (!canvas->entities) { lv_free((void **)&canvas); return NULL; }
     canvas->constraint_capacity = 16;
-    canvas->constraints = lv00_calloc(canvas->constraint_capacity, sizeof(Lv00GeomConstraint));
-    if (!canvas->constraints) { lv00_free((void **)&canvas->entities); lv00_free((void **)&canvas); return NULL; }
+    canvas->constraints = lv_calloc(canvas->constraint_capacity, sizeof(lvGeomConstraint));
+    if (!canvas->constraints) { lv_free((void **)&canvas->entities); lv_free((void **)&canvas); return NULL; }
     canvas->next_entity_id = 1;
     canvas->next_constraint_id = 1;
     /* 画布结构体无全局颜色字段；实体和约束在添加时各自设置默认样式 */
     return canvas;
 }
 
-void lv00_geometry_canvas_destroy(Lv00GeometryCanvas *canvas) {
+void lv_geometry_canvas_destroy(lvGeometryCanvas *canvas) {
     if (!canvas) return;
     for (int i = 0; i < canvas->entity_count; i++) {
-        lv00_free((void **)&canvas->entities[i].coords);
+        lv_free((void **)&canvas->entities[i].coords);
     }
-    lv00_free((void **)&canvas->entities);
-    lv00_free((void **)&canvas->constraints);
-    lv00_free((void **)&canvas);
+    lv_free((void **)&canvas->entities);
+    lv_free((void **)&canvas->constraints);
+    lv_free((void **)&canvas);
 }
 
 /* 添加几何实体 */
-int lv00_geometry_canvas_add_entity(Lv00GeometryCanvas *canvas, int type,
+int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type,
                                      const char *label, const double *coords,
                                      int coord_count) {
     if (!canvas || !coords || coord_count <= 0) return -1;
@@ -94,15 +94,15 @@ int lv00_geometry_canvas_add_entity(Lv00GeometryCanvas *canvas, int type,
     /* 自动扩容 */
     if (canvas->entity_count >= canvas->entity_capacity) {
         int new_cap = canvas->entity_capacity * 2;
-        Lv00GeomEntity *new_arr = lv00_realloc(canvas->entities, new_cap * sizeof(Lv00GeomEntity));
+        lvGeomEntity *new_arr = lv_realloc(canvas->entities, new_cap * sizeof(lvGeomEntity));
         if (!new_arr) return -1;
         canvas->entities = new_arr;
         canvas->entity_capacity = new_cap;
     }
 
-    Lv00GeomEntity *ent = &canvas->entities[canvas->entity_count];
+    lvGeomEntity *ent = &canvas->entities[canvas->entity_count];
     ent->id = canvas->next_entity_id++;
-    ent->type = (Lv00GeomEntityType)type;
+    ent->type = (lvGeomEntityType)type;
     if (label) {
         strncpy(ent->label, label, sizeof(ent->label) - 1);
         ent->label[sizeof(ent->label) - 1] = '\0';
@@ -111,10 +111,10 @@ int lv00_geometry_canvas_add_entity(Lv00GeometryCanvas *canvas, int type,
     }
 
     /* 复制坐标 */
-    ent->coords = lv00_calloc(coord_count, sizeof(double));
+    ent->coords = lv_calloc(coord_count, sizeof(double));
     if (!ent->coords) {
         /* calloc失败，清零该实体槽位防止半初始化数据残留 */
-        memset(ent, 0, sizeof(Lv00GeomEntity));
+        memset(ent, 0, sizeof(lvGeomEntity));
         return -1;
     }
     memcpy(ent->coords, coords, coord_count * sizeof(double));
@@ -132,7 +132,7 @@ int lv00_geometry_canvas_add_entity(Lv00GeometryCanvas *canvas, int type,
 }
 
 /* 移除几何实体 */
-int lv00_geometry_canvas_remove_entity(Lv00GeometryCanvas *canvas, int id) {
+int lv_geometry_canvas_remove_entity(lvGeometryCanvas *canvas, int id) {
     if (!canvas || id <= 0) return -1;
     int found = -1;
     for (int i = 0; i < canvas->entity_count; i++) {
@@ -141,7 +141,7 @@ int lv00_geometry_canvas_remove_entity(Lv00GeometryCanvas *canvas, int id) {
     if (found < 0) return -1;
 
     /* 释放坐标 */
-    lv00_free((void **)&canvas->entities[found].coords);
+    lv_free((void **)&canvas->entities[found].coords);
 
     /* 移除相关约束 */
     int new_c = 0;
@@ -164,7 +164,7 @@ int lv00_geometry_canvas_remove_entity(Lv00GeometryCanvas *canvas, int id) {
 }
 
 /* 添加约束可视化 */
-int lv00_geometry_canvas_add_constraint(Lv00GeometryCanvas *canvas,
+int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas,
                                         int entity_a_id, int entity_b_id,
                                         const char *label) {
     if (!canvas || entity_a_id <= 0 || entity_b_id <= 0) return -1;
@@ -172,14 +172,14 @@ int lv00_geometry_canvas_add_constraint(Lv00GeometryCanvas *canvas,
     /* 自动扩容 */
     if (canvas->constraint_count >= canvas->constraint_capacity) {
         int new_cap = canvas->constraint_capacity * 2;
-        Lv00GeomConstraint *new_arr = lv00_realloc(canvas->constraints,
-                                               new_cap * sizeof(Lv00GeomConstraint));
+        lvGeomConstraint *new_arr = lv_realloc(canvas->constraints,
+                                               new_cap * sizeof(lvGeomConstraint));
         if (!new_arr) return -1;
         canvas->constraints = new_arr;
         canvas->constraint_capacity = new_cap;
     }
 
-    Lv00GeomConstraint *c = &canvas->constraints[canvas->constraint_count];
+    lvGeomConstraint *c = &canvas->constraints[canvas->constraint_count];
     c->id = canvas->next_constraint_id++;
     c->entity_a_id = entity_a_id;
     c->entity_b_id = entity_b_id;
@@ -196,14 +196,14 @@ int lv00_geometry_canvas_add_constraint(Lv00GeometryCanvas *canvas,
 }
 
 /* 计算包围盒 */
-static void compute_bounds(Lv00GeometryCanvas *canvas) {
+static void compute_bounds(lvGeometryCanvas *canvas) {
     if (canvas->entity_count == 0) {
         canvas->bounds.valid = 0;
         return;
     }
     double min_x = 1e18, min_y = 1e18, max_x = -1e18, max_y = -1e18;
     for (int i = 0; i < canvas->entity_count; i++) {
-        Lv00GeomEntity *e = &canvas->entities[i];
+        lvGeomEntity *e = &canvas->entities[i];
         for (int j = 0; j < e->coord_count; j += 2) {
             double x = e->coords[j];
             double y = (j + 1 < e->coord_count) ? e->coords[j + 1] : 0;
@@ -213,7 +213,7 @@ static void compute_bounds(Lv00GeometryCanvas *canvas) {
             if (y > max_y) max_y = y;
         }
         /* 圆需要考虑半径 */
-        if (e->type == LV00_GEOM_CIRCLE && e->coord_count >= 3) {
+        if (e->type == lv_GEOM_CIRCLE && e->coord_count >= 3) {
             double r = e->coords[2];
             if (e->coords[0] - r < min_x) min_x = e->coords[0] - r;
             if (e->coords[1] - r < min_y) min_y = e->coords[1] - r;
@@ -231,24 +231,24 @@ static void compute_bounds(Lv00GeometryCanvas *canvas) {
 }
 
 /* 调整视图到包围盒 */
-int lv00_geometry_canvas_fit_view(Lv00GeometryCanvas *canvas) {
+int lv_geometry_canvas_fit_view(lvGeometryCanvas *canvas) {
     if (!canvas) return -1;
     compute_bounds(canvas);
     return canvas->bounds.valid ? 0 : -1;
 }
 
 /* 根据实体ID查找实体中心坐标 */
-static int find_entity_center(Lv00GeometryCanvas *canvas, int id,
+static int find_entity_center(lvGeometryCanvas *canvas, int id,
                                 double *cx, double *cy) {
     for (int i = 0; i < canvas->entity_count; i++) {
-        Lv00GeomEntity *e = &canvas->entities[i];
+        lvGeomEntity *e = &canvas->entities[i];
         if (e->id == id) {
-            if (e->type == LV00_GEOM_POINT && e->coord_count >= 2) {
+            if (e->type == lv_GEOM_POINT && e->coord_count >= 2) {
                 *cx = e->coords[0]; *cy = e->coords[1];
-            } else if (e->type == LV00_GEOM_LINE && e->coord_count >= 4) {
+            } else if (e->type == lv_GEOM_LINE && e->coord_count >= 4) {
                 *cx = (e->coords[0] + e->coords[2]) / 2.0;
                 *cy = (e->coords[1] + e->coords[3]) / 2.0;
-            } else if (e->type == LV00_GEOM_CIRCLE && e->coord_count >= 2) {
+            } else if (e->type == lv_GEOM_CIRCLE && e->coord_count >= 2) {
                 *cx = e->coords[0]; *cy = e->coords[1];
             } else if (e->coord_count >= 2) {
                 double sx = 0, sy = 0;
@@ -268,7 +268,7 @@ static int find_entity_center(Lv00GeometryCanvas *canvas, int id,
 }
 
 /* 生成 SVG 输出 */
-char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
+char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
     if (!canvas) return NULL;
 
     /* 确保边界已计算 */
@@ -282,7 +282,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
 
     /* 估算输出缓冲区大小 */
     int buf_size = 4096 + canvas->entity_count * 512 + canvas->constraint_count * 256;
-    char *buf = lv00_calloc(buf_size, sizeof(char));
+    char *buf = lv_calloc(buf_size, sizeof(char));
     if (!buf) return NULL;
 
     int pos = 0;
@@ -307,9 +307,9 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
 
     /* 绘制实体 */
     for (int i = 0; i < canvas->entity_count; i++) {
-        Lv00GeomEntity *e = &canvas->entities[i];
+        lvGeomEntity *e = &canvas->entities[i];
         switch (e->type) {
-        case LV00_GEOM_POINT:
+        case lv_GEOM_POINT:
             if (e->coord_count >= 2) {
                 SVG_SAFE_WRITE(
                     "  <circle cx=\"%g\" cy=\"%g\" r=\"4\" "
@@ -324,7 +324,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
                 }
             }
             break;
-        case LV00_GEOM_LINE:
+        case lv_GEOM_LINE:
             if (e->coord_count >= 4) {
                 SVG_SAFE_WRITE(
                     "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
@@ -342,7 +342,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
                 }
             }
             break;
-        case LV00_GEOM_CIRCLE:
+        case lv_GEOM_CIRCLE:
             if (e->coord_count >= 3) {
                 SVG_SAFE_WRITE(
                     "  <circle cx=\"%g\" cy=\"%g\" r=\"%g\" "
@@ -357,7 +357,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
                 }
             }
             break;
-        case LV00_GEOM_POLYGON:
+        case lv_GEOM_POLYGON:
             if (e->coord_count >= 6) {
                 SVG_SAFE_WRITE(
                     "  <polygon points=\"");
@@ -392,7 +392,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
 
     /* 绘制约束（虚线） */
     for (int i = 0; i < canvas->constraint_count; i++) {
-        Lv00GeomConstraint *c = &canvas->constraints[i];
+        lvGeomConstraint *c = &canvas->constraints[i];
         double ax, ay, bx, by;
         if (find_entity_center(canvas, c->entity_a_id, &ax, &ay) != 0) continue;
         if (find_entity_center(canvas, c->entity_b_id, &bx, &by) != 0) continue;

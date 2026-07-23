@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_presburger_arithmetic.c
  * @brief Presburger Arithmetic Axiom Package Test
  *
@@ -26,7 +26,7 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "test_helpers.h"
 
 int g_fail_count = 0;
@@ -267,7 +267,7 @@ static void test_content_hash(void) {
 
     if (hash) {
         printf("  SHA-256: %s\n", hash);
-        lv00_free((void **) &hash);
+        lv_free((void **) &hash);
     }
 
     axiom_package_destroy(pkg);
@@ -303,8 +303,8 @@ static void test_round_trip(void) {
     TEST_ASSERT(hash1 && hash2 && strcmp(hash1, hash2) == 0, "content hashes should match after round-trip");
     printf("  Hash match: %s\n", (hash1 && hash2 && strcmp(hash1, hash2) == 0) ? "YES" : "NO");
 
-    lv00_free((void **) &hash1);
-    lv00_free((void **) &hash2);
+    lv_free((void **) &hash1);
+    lv_free((void **) &hash2);
     axiom_package_destroy(pkg1);
     axiom_package_destroy(pkg2);
 }

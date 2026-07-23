@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file triangle_construction.c
  * @brief 完整示例：三角形构造与证明
  *
@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /**
  * 辅助函数：添加一个点
@@ -190,8 +190,8 @@ static FuncBlock *pack_triangle_constructor(ConstraintGraph *g, int a, int b, in
         return NULL;
     }
 
-    fb->name = lv00_strdup_safe("EquilateralTriangle");
-    fb->description = lv00_strdup_safe("构造一个等边三角形，给定边长");
+    fb->name = lv_strdup_safe("EquilateralTriangle");
+    fb->description = lv_strdup_safe("构造一个等边三角形，给定边长");
 
     printf("  函数块 '%s' 创建成功 (ID=%d)\n", fb->name, fb->id);
 

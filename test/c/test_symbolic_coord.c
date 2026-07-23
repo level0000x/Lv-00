@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_symbolic_coord.c
  * @brief 符号坐标模块测试 - 有理数运算、二次坐标、超越数、序列化
  *
@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "symbolic_coord.h"
 #include "test_helpers.h"
 
@@ -65,7 +65,7 @@ void test_rational_arithmetic() {
 
     char *ser = rational_serialize(sum);
     assert(strstr(ser, "5/6") != NULL);
-    lv00_free_ptr(ser);
+    lv_free_ptr(ser);
     printf("  Serialization: PASSED\n");
 
     Rational *parsed = rational_parse("3/4");
@@ -134,7 +134,7 @@ void test_symbolic_coord_rational() {
 
     char *ser = symbolic_coord_serialize(coord);
     assert(ser != NULL);
-    lv00_free_ptr(ser);
+    lv_free_ptr(ser);
     printf("  Serialization: PASSED\n");
 
     symbolic_coord_destroy(coord);
@@ -264,7 +264,7 @@ void test_transcendental() {
 
     char *ser = transcendental_serialize(pi);
     assert(ser != NULL);
-    lv00_free_ptr(ser);
+    lv_free_ptr(ser);
     printf("  Serialization: PASSED\n");
 
     transcendental_destroy(pi);

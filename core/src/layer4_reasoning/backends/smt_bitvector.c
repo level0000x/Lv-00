@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_bitvector.c
  * @brief Fixed-width bitvector arithmetic implementation
  *
@@ -46,7 +46,7 @@ static uint64_t last_word_mask(int width) {
 }
 
 /** Normalize a bitvector: zero out bits beyond width in the last word */
-static void bv_normalize(Lv00BitVector *bv) {
+static void bv_normalize(lvBitVector *bv) {
     if (!bv || !bv->words || bv->width <= 0)
         return;
     int wc = word_count(bv->width);
@@ -57,7 +57,7 @@ static void bv_normalize(Lv00BitVector *bv) {
 }
 
 /** Check that two bitvectors have the same width */
-static bool bv_same_width(const Lv00BitVector *a, const Lv00BitVector *b) {
+static bool bv_same_width(const lvBitVector *a, const lvBitVector *b) {
     return a && b && a->width == b->width && a->width > 0;
 }
 
@@ -65,11 +65,11 @@ static bool bv_same_width(const Lv00BitVector *a, const Lv00BitVector *b) {
  * Lifecycle
  * ======================================================================== */
 
-Lv00BitVector *bv_create(int width) {
+lvBitVector *bv_create(int width) {
     if (width <= 0)
         return NULL;
 
-    Lv00BitVector *bv = (Lv00BitVector *) malloc(sizeof(Lv00BitVector));
+    lvBitVector *bv = (lvBitVector *) malloc(sizeof(lvBitVector));
     if (!bv)
         return NULL;
 
@@ -84,7 +84,7 @@ Lv00BitVector *bv_create(int width) {
     return bv;
 }
 
-void bv_destroy(Lv00BitVector *bv) {
+void bv_destroy(lvBitVector *bv) {
     if (!bv)
         return;
     free(bv->words);
@@ -93,8 +93,8 @@ void bv_destroy(Lv00BitVector *bv) {
     free(bv);
 }
 
-Lv00BitVector *bv_from_int(uint64_t value, int width) {
-    Lv00BitVector *bv = bv_create(width);
+lvBitVector *bv_from_int(uint64_t value, int width) {
+    lvBitVector *bv = bv_create(width);
     if (!bv)
         return NULL;
 
@@ -103,7 +103,7 @@ Lv00BitVector *bv_from_int(uint64_t value, int width) {
     return bv;
 }
 
-uint64_t bv_to_int(const Lv00BitVector *bv) {
+uint64_t bv_to_int(const lvBitVector *bv) {
     if (!bv || !bv->words)
         return 0;
     return bv->words[0];
@@ -113,11 +113,11 @@ uint64_t bv_to_int(const Lv00BitVector *bv) {
  * Bitwise operations
  * ======================================================================== */
 
-Lv00BitVector *bv_not(const Lv00BitVector *a) {
+lvBitVector *bv_not(const lvBitVector *a) {
     if (!a)
         return NULL;
 
-    Lv00BitVector *result = bv_create(a->width);
+    lvBitVector *result = bv_create(a->width);
     if (!result)
         return NULL;
 
@@ -129,11 +129,11 @@ Lv00BitVector *bv_not(const Lv00BitVector *a) {
     return result;
 }
 
-Lv00BitVector *bv_and(const Lv00BitVector *a, const Lv00BitVector *b) {
+lvBitVector *bv_and(const lvBitVector *a, const lvBitVector *b) {
     if (!bv_same_width(a, b))
         return NULL;
 
-    Lv00BitVector *result = bv_create(a->width);
+    lvBitVector *result = bv_create(a->width);
     if (!result)
         return NULL;
 
@@ -144,11 +144,11 @@ Lv00BitVector *bv_and(const Lv00BitVector *a, const Lv00BitVector *b) {
     return result;
 }
 
-Lv00BitVector *bv_or(const Lv00BitVector *a, const Lv00BitVector *b) {
+lvBitVector *bv_or(const lvBitVector *a, const lvBitVector *b) {
     if (!bv_same_width(a, b))
         return NULL;
 
-    Lv00BitVector *result = bv_create(a->width);
+    lvBitVector *result = bv_create(a->width);
     if (!result)
         return NULL;
 
@@ -159,11 +159,11 @@ Lv00BitVector *bv_or(const Lv00BitVector *a, const Lv00BitVector *b) {
     return result;
 }
 
-Lv00BitVector *bv_xor(const Lv00BitVector *a, const Lv00BitVector *b) {
+lvBitVector *bv_xor(const lvBitVector *a, const lvBitVector *b) {
     if (!bv_same_width(a, b))
         return NULL;
 
-    Lv00BitVector *result = bv_create(a->width);
+    lvBitVector *result = bv_create(a->width);
     if (!result)
         return NULL;
 
@@ -178,11 +178,11 @@ Lv00BitVector *bv_xor(const Lv00BitVector *a, const Lv00BitVector *b) {
  * Shift operations
  * ======================================================================== */
 
-Lv00BitVector *bv_shift_left(const Lv00BitVector *a, int shift) {
+lvBitVector *bv_shift_left(const lvBitVector *a, int shift) {
     if (!a || shift < 0)
         return NULL;
 
-    Lv00BitVector *result = bv_create(a->width);
+    lvBitVector *result = bv_create(a->width);
     if (!result)
         return NULL;
 
@@ -221,11 +221,11 @@ Lv00BitVector *bv_shift_left(const Lv00BitVector *a, int shift) {
     return result;
 }
 
-Lv00BitVector *bv_shift_right(const Lv00BitVector *a, int shift) {
+lvBitVector *bv_shift_right(const lvBitVector *a, int shift) {
     if (!a || shift < 0)
         return NULL;
 
-    Lv00BitVector *result = bv_create(a->width);
+    lvBitVector *result = bv_create(a->width);
     if (!result)
         return NULL;
 
@@ -266,19 +266,19 @@ Lv00BitVector *bv_shift_right(const Lv00BitVector *a, int shift) {
  * Extraction and concatenation
  * ======================================================================== */
 
-Lv00BitVector *bv_extract(const Lv00BitVector *bv, int high, int low) {
+lvBitVector *bv_extract(const lvBitVector *bv, int high, int low) {
     if (!bv || low < 0 || high < low || high >= bv->width)
         return NULL;
 
     int result_width = high - low + 1;
-    Lv00BitVector *result = bv_create(result_width);
+    lvBitVector *result = bv_create(result_width);
     if (!result)
         return NULL;
 
     /* Copy bits [high:low] from source to result [result_width-1:0] */
     /* We shift the source right by `low` bits and take result_width bits */
 
-    Lv00BitVector *shifted = bv_shift_right(bv, low);
+    lvBitVector *shifted = bv_shift_right(bv, low);
     if (!shifted) {
         bv_destroy(result);
         return NULL;
@@ -294,12 +294,12 @@ Lv00BitVector *bv_extract(const Lv00BitVector *bv, int high, int low) {
     return result;
 }
 
-Lv00BitVector *bv_concat(const Lv00BitVector *a, const Lv00BitVector *b) {
+lvBitVector *bv_concat(const lvBitVector *a, const lvBitVector *b) {
     if (!a || !b)
         return NULL;
 
     int result_width = a->width + b->width;
-    Lv00BitVector *result = bv_create(result_width);
+    lvBitVector *result = bv_create(result_width);
     if (!result)
         return NULL;
 
@@ -338,11 +338,11 @@ Lv00BitVector *bv_concat(const Lv00BitVector *a, const Lv00BitVector *b) {
  * Arithmetic operations (modular)
  * ======================================================================== */
 
-Lv00BitVector *bv_add(const Lv00BitVector *a, const Lv00BitVector *b) {
+lvBitVector *bv_add(const lvBitVector *a, const lvBitVector *b) {
     if (!bv_same_width(a, b))
         return NULL;
 
-    Lv00BitVector *result = bv_create(a->width);
+    lvBitVector *result = bv_create(a->width);
     if (!result)
         return NULL;
 
@@ -361,11 +361,11 @@ Lv00BitVector *bv_add(const Lv00BitVector *a, const Lv00BitVector *b) {
     return result;
 }
 
-Lv00BitVector *bv_mul(const Lv00BitVector *a, const Lv00BitVector *b) {
+lvBitVector *bv_mul(const lvBitVector *a, const lvBitVector *b) {
     if (!bv_same_width(a, b))
         return NULL;
 
-    Lv00BitVector *result = bv_create(a->width);
+    lvBitVector *result = bv_create(a->width);
     if (!result)
         return NULL;
 
@@ -416,22 +416,22 @@ Lv00BitVector *bv_mul(const Lv00BitVector *a, const Lv00BitVector *b) {
     return result;
 }
 
-Lv00BitVector *bv_neg(const Lv00BitVector *a) {
+lvBitVector *bv_neg(const lvBitVector *a) {
     if (!a)
         return NULL;
 
     /* Two's complement: -a = ~a + 1 */
-    Lv00BitVector *inverted = bv_not(a);
+    lvBitVector *inverted = bv_not(a);
     if (!inverted)
         return NULL;
 
-    Lv00BitVector *one = bv_from_int(1, a->width);
+    lvBitVector *one = bv_from_int(1, a->width);
     if (!one) {
         bv_destroy(inverted);
         return NULL;
     }
 
-    Lv00BitVector *result = bv_add(inverted, one);
+    lvBitVector *result = bv_add(inverted, one);
     bv_destroy(inverted);
     bv_destroy(one);
     return result;
@@ -441,7 +441,7 @@ Lv00BitVector *bv_neg(const Lv00BitVector *a) {
  * Comparison operations
  * ======================================================================== */
 
-bool bv_eq(const Lv00BitVector *a, const Lv00BitVector *b) {
+bool bv_eq(const lvBitVector *a, const lvBitVector *b) {
     if (!a || !b)
         return false;
     if (a->width != b->width)
@@ -455,7 +455,7 @@ bool bv_eq(const Lv00BitVector *a, const Lv00BitVector *b) {
     return true;
 }
 
-bool bv_ult(const Lv00BitVector *a, const Lv00BitVector *b) {
+bool bv_ult(const lvBitVector *a, const lvBitVector *b) {
     if (!bv_same_width(a, b))
         return false;
 
@@ -471,7 +471,7 @@ bool bv_ult(const Lv00BitVector *a, const Lv00BitVector *b) {
     return false;
 }
 
-bool bv_slt(const Lv00BitVector *a, const Lv00BitVector *b) {
+bool bv_slt(const lvBitVector *a, const lvBitVector *b) {
     if (!bv_same_width(a, b))
         return false;
 
@@ -491,12 +491,12 @@ bool bv_slt(const Lv00BitVector *a, const Lv00BitVector *b) {
     return bv_ult(a, b);
 }
 
-/* ── lv00_bv_* public API wrappers ── */
+/* ── lv_bv_* public API wrappers ── */
 
-#include "lv00/smt_bitvector.h"
+#include "lv/smt_bitvector.h"
 
-Lv00BitVec *lv00_bv_create(size_t width, unsigned long long value) {
-    Lv00BitVec *bv = bv_create((int)width);
+lvBitVec *lv_bv_create(size_t width, unsigned long long value) {
+    lvBitVec *bv = bv_create((int)width);
     if (bv && value != 0 && bv->words) {
         bv->words[0] = value;
         bv_normalize(bv);
@@ -504,17 +504,17 @@ Lv00BitVec *lv00_bv_create(size_t width, unsigned long long value) {
     return bv;
 }
 
-void lv00_bv_free(Lv00BitVec *bv) { bv_destroy(bv); }
+void lv_bv_free(lvBitVec *bv) { bv_destroy(bv); }
 
-Lv00BitVec *lv00_bv_and(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_and(a, b); }
-Lv00BitVec *lv00_bv_or(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_or(a, b); }
-Lv00BitVec *lv00_bv_xor(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_xor(a, b); }
-Lv00BitVec *lv00_bv_not(const Lv00BitVec *a) { return bv_not(a); }
-Lv00BitVec *lv00_bv_shift_left(const Lv00BitVec *a, int shift) { return bv_shift_left(a, shift); }
-Lv00BitVec *lv00_bv_shift_right(const Lv00BitVec *a, int shift) { return bv_shift_right(a, shift); }
-Lv00BitVec *lv00_bv_extract(const Lv00BitVec *bv, int high, int low) { return bv_extract(bv, high, low); }
-Lv00BitVec *lv00_bv_concat(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_concat(a, b); }
-Lv00BitVec *lv00_bv_add(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_add(a, b); }
-Lv00BitVec *lv00_bv_mul(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_mul(a, b); }
-int lv00_bv_equals(const Lv00BitVec *a, const Lv00BitVec *b) { return bv_eq(a, b); }
-long long lv00_bv_to_int(const Lv00BitVec *bv) { return (long long)bv_to_int(bv); }
+lvBitVec *lv_bv_and(const lvBitVec *a, const lvBitVec *b) { return bv_and(a, b); }
+lvBitVec *lv_bv_or(const lvBitVec *a, const lvBitVec *b) { return bv_or(a, b); }
+lvBitVec *lv_bv_xor(const lvBitVec *a, const lvBitVec *b) { return bv_xor(a, b); }
+lvBitVec *lv_bv_not(const lvBitVec *a) { return bv_not(a); }
+lvBitVec *lv_bv_shift_left(const lvBitVec *a, int shift) { return bv_shift_left(a, shift); }
+lvBitVec *lv_bv_shift_right(const lvBitVec *a, int shift) { return bv_shift_right(a, shift); }
+lvBitVec *lv_bv_extract(const lvBitVec *bv, int high, int low) { return bv_extract(bv, high, low); }
+lvBitVec *lv_bv_concat(const lvBitVec *a, const lvBitVec *b) { return bv_concat(a, b); }
+lvBitVec *lv_bv_add(const lvBitVec *a, const lvBitVec *b) { return bv_add(a, b); }
+lvBitVec *lv_bv_mul(const lvBitVec *a, const lvBitVec *b) { return bv_mul(a, b); }
+int lv_bv_equals(const lvBitVec *a, const lvBitVec *b) { return bv_eq(a, b); }
+long long lv_bv_to_int(const lvBitVec *bv) { return (long long)bv_to_int(bv); }

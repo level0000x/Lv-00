@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file sparse_linear_algebra.c
  * @brief 稀疏线性代数 —— CSR 格式稀疏矩阵运算
  *
@@ -10,8 +10,8 @@
  */
 
 #include "sparse_linear_algebra.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +19,7 @@
 #include <stdbool.h>
 
 /* ---- CSR 矩阵内部结构 ---- */
-struct Lv00SparseMatrix {
+struct lvSparseMatrix {
     int      rows;
     int      cols;
     int      nnz;           /* 当前非零元素数 */
@@ -29,28 +29,28 @@ struct Lv00SparseMatrix {
     int     *row_ptr;       /* [rows+1] */
 };
 
-#define LV00_SPARSE_INIT_CAP 128
+#define lv_SPARSE_INIT_CAP 128
 
-Lv00SparseMatrix *lv00_sparse_create(int rows, int cols) {
+lvSparseMatrix *lv_sparse_create(int rows, int cols) {
     if (rows <= 0 || cols <= 0) return NULL;
 
-    Lv00SparseMatrix *m = lv00_malloc(sizeof(Lv00SparseMatrix));
+    lvSparseMatrix *m = lv_malloc(sizeof(lvSparseMatrix));
     if (!m) return NULL;
 
     m->rows = rows;
     m->cols = cols;
     m->nnz = 0;
-    m->nnz_cap = LV00_SPARSE_INIT_CAP;
+    m->nnz_cap = lv_SPARSE_INIT_CAP;
 
-    m->values   = lv00_malloc(sizeof(double) * m->nnz_cap);
-    m->col_idx  = lv00_malloc(sizeof(int)    * m->nnz_cap);
-    m->row_ptr  = lv00_malloc(sizeof(int)    * (rows + 1));
+    m->values   = lv_malloc(sizeof(double) * m->nnz_cap);
+    m->col_idx  = lv_malloc(sizeof(int)    * m->nnz_cap);
+    m->row_ptr  = lv_malloc(sizeof(int)    * (rows + 1));
 
     if (!m->values || !m->col_idx || !m->row_ptr) {
-        lv00_free(m->values);
-        lv00_free(m->col_idx);
-        lv00_free(m->row_ptr);
-        lv00_free(m);
+        lv_free(m->values);
+        lv_free(m->col_idx);
+        lv_free(m->row_ptr);
+        lv_free(m);
         return NULL;
     }
 
@@ -58,24 +58,24 @@ Lv00SparseMatrix *lv00_sparse_create(int rows, int cols) {
     return m;
 }
 
-void lv00_sparse_destroy(Lv00SparseMatrix *m) {
+void lv_sparse_destroy(lvSparseMatrix *m) {
     if (!m) return;
-    lv00_free(m->values);
-    lv00_free(m->col_idx);
-    lv00_free(m->row_ptr);
-    lv00_free(m);
+    lv_free(m->values);
+    lv_free(m->col_idx);
+    lv_free(m->row_ptr);
+    lv_free(m);
 }
 
-static bool sparse_grow(Lv00SparseMatrix *m, int needed) {
+static bool sparse_grow(lvSparseMatrix *m, int needed) {
     if (m->nnz + needed <= m->nnz_cap) return true;
 
     int new_cap = m->nnz_cap * 2;
     while (new_cap < m->nnz + needed) new_cap *= 2;
 
-    double *nv = lv00_realloc(m->values,  sizeof(double) * new_cap);
-    int    *nc = lv00_realloc(m->col_idx, sizeof(int)    * new_cap);
+    double *nv = lv_realloc(m->values,  sizeof(double) * new_cap);
+    int    *nc = lv_realloc(m->col_idx, sizeof(int)    * new_cap);
     if (!nv || !nc) {
-        lv00_free(nv); lv00_free(nc);
+        lv_free(nv); lv_free(nc);
         return false;
     }
     m->values  = nv;
@@ -84,7 +84,7 @@ static bool sparse_grow(Lv00SparseMatrix *m, int needed) {
     return true;
 }
 
-int lv00_sparse_set(Lv00SparseMatrix *m, int row, int col, double val) {
+int lv_sparse_set(lvSparseMatrix *m, int row, int col, double val) {
     if (!m || row < 0 || row >= m->rows || col < 0 || col >= m->cols)
         return -1;
 
@@ -105,7 +105,7 @@ int lv00_sparse_set(Lv00SparseMatrix *m, int row, int col, double val) {
     return 0;
 }
 
-double lv00_sparse_get(const Lv00SparseMatrix *m, int row, int col) {
+double lv_sparse_get(const lvSparseMatrix *m, int row, int col) {
     if (!m || row < 0 || row >= m->rows || col < 0 || col >= m->cols)
         return 0.0;
 
@@ -118,7 +118,7 @@ double lv00_sparse_get(const Lv00SparseMatrix *m, int row, int col) {
     return 0.0;
 }
 
-int lv00_sparse_solve(const Lv00SparseMatrix *A, const double *b, double *x) {
+int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
     if (!A || !b || !x) return -1;
     if (A->rows != A->cols) return -2; /* 仅支持方阵 */
 
@@ -128,7 +128,7 @@ int lv00_sparse_solve(const Lv00SparseMatrix *A, const double *b, double *x) {
     const int max_iter = 100;
     const double tol = 1e-6;
 
-    double *x_next = lv00_malloc(sizeof(double) * n);
+    double *x_next = lv_malloc(sizeof(double) * n);
     if (!x_next) return -1;
 
     /* 初始值 */
@@ -139,8 +139,8 @@ int lv00_sparse_solve(const Lv00SparseMatrix *A, const double *b, double *x) {
         double max_diff = 0.0;
 
         for (int i = 0; i < n; i++) {
-            double diag = lv00_sparse_get(A, i, i);
-            if (fabs(diag) < 1e-12) { lv00_free(x_next); return -3; } /* 零对角线 */
+            double diag = lv_sparse_get(A, i, i);
+            if (fabs(diag) < 1e-12) { lv_free(x_next); return -3; } /* 零对角线 */
 
             double sum = 0.0;
             int start = A->row_ptr[i];
@@ -160,6 +160,6 @@ int lv00_sparse_solve(const Lv00SparseMatrix *A, const double *b, double *x) {
         if (max_diff < tol) break;
     }
 
-    lv00_free(x_next);
+    lv_free(x_next);
     return iter + 1; /* 返回迭代次数 */
 }

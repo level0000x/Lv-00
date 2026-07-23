@@ -1,4 +1,4 @@
-# GAP ANALYSIS — Lv-00 深度审计
+﻿# GAP ANALYSIS — Lv-00 深度审计
 
 ## 对标: CompCert
 
@@ -9,8 +9,8 @@ CompCert 是 C 编译器形式化验证的黄金标准，提供从 Clight 到汇
 
 v1.0 以"自举"为核心目标，实现了：
 
-- Lv00Lang 语法与求值器
-- Lv00IR 中间表示
+- lvLang 语法与求值器
+- lvIR 中间表示
 - Compiler: 源码 → IR 编译
 - 基础定理: determinism、type_safety
 

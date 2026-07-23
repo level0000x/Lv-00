@@ -1,34 +1,34 @@
-#include "lv00/visual_editor.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/visual_editor.h"
+#include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
-Lv00TextCodeView *lv00_text_code_create(void) {
-    Lv00TextCodeView *view = lv00_calloc(1, sizeof(Lv00TextCodeView));
+lvTextCodeView *lv_text_code_create(void) {
+    lvTextCodeView *view = lv_calloc(1, sizeof(lvTextCodeView));
     if (!view) return NULL;
-    view->view_type = LV00_VIEW_TEXT_CODE;
+    view->view_type = lv_VIEW_TEXT_CODE;
     view->buffer_size = 4096;
-    view->code_buffer = lv00_calloc(1, view->buffer_size);
+    view->code_buffer = lv_calloc(1, view->buffer_size);
     if (!view->code_buffer) {
-        lv00_free((void **)&view);
+        lv_free((void **)&view);
         return NULL;
     }
     return view;
 }
 
-void lv00_text_code_destroy(Lv00TextCodeView *view) {
+void lv_text_code_destroy(lvTextCodeView *view) {
     if (!view) return;
-    lv00_free((void **)&view->code_buffer);
-    lv00_free((void **)&view);
+    lv_free((void **)&view->code_buffer);
+    lv_free((void **)&view);
 }
 
 /* 设置文本内容 */
-int lv00_text_code_set_text(Lv00TextCodeView *view, const char *text) {
+int lv_text_code_set_text(lvTextCodeView *view, const char *text) {
     if (!view || !text) return -1;
     size_t len = strlen(text);
     if (len + 1 > (size_t)view->buffer_size) {
         int new_size = ((int)len + 1 + 4095) / 4096 * 4096;
-        char *new_buf = lv00_realloc(view->code_buffer, new_size);
+        char *new_buf = lv_realloc(view->code_buffer, new_size);
         if (!new_buf) return -1;
         view->code_buffer = new_buf;
         view->buffer_size = new_size;
@@ -39,13 +39,13 @@ int lv00_text_code_set_text(Lv00TextCodeView *view, const char *text) {
 }
 
 /* 获取当前文本 */
-const char *lv00_text_code_get_text(const Lv00TextCodeView *view) {
+const char *lv_text_code_get_text(const lvTextCodeView *view) {
     if (!view) return NULL;
     return view->code_buffer;
 }
 
 /* 在指定位置插入文本 */
-int lv00_text_code_insert(Lv00TextCodeView *view, int pos, const char *text) {
+int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text) {
     if (!view || !text) return -1;
     int text_len = (int)strlen(text);
     int cur_len = view->code_buffer ? (int)strlen(view->code_buffer) : 0;
@@ -54,7 +54,7 @@ int lv00_text_code_insert(Lv00TextCodeView *view, int pos, const char *text) {
     int new_len = cur_len + text_len;
     if (new_len + 1 > view->buffer_size) {
         int new_size = ((new_len + 1 + 4095) / 4096) * 4096;
-        char *new_buf = lv00_realloc(view->code_buffer, new_size);
+        char *new_buf = lv_realloc(view->code_buffer, new_size);
         if (!new_buf) return -1;
         view->code_buffer = new_buf;
         view->buffer_size = new_size;
@@ -72,7 +72,7 @@ int lv00_text_code_insert(Lv00TextCodeView *view, int pos, const char *text) {
 }
 
 /* 删除指定范围的文本 */
-int lv00_text_code_delete(Lv00TextCodeView *view, int pos, int len) {
+int lv_text_code_delete(lvTextCodeView *view, int pos, int len) {
     if (!view || pos < 0 || len <= 0) return -1;
     int cur_len = view->code_buffer ? (int)strlen(view->code_buffer) : 0;
     if (pos >= cur_len) return -1;
@@ -88,7 +88,7 @@ int lv00_text_code_delete(Lv00TextCodeView *view, int pos, int len) {
 }
 
 /* 渲染文本到缓冲区 */
-int lv00_text_code_render(const Lv00TextCodeView *view, char *buffer, size_t size) {
+int lv_text_code_render(const lvTextCodeView *view, char *buffer, size_t size) {
     if (!view || !buffer || size == 0) return -1;
     const char *src = view->code_buffer ? view->code_buffer : "";
     size_t len = strlen(src);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_wfc_modules.c
  * @brief WFC 范式三模块集成测试
  *
@@ -25,7 +25,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "propagation.h"
 #include "equiv_class.h"
 #include "meta_proof.h"

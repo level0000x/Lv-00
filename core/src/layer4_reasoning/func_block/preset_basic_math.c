@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_basic_math.c
  * @brief 基础数学计算预设函数块 - 实现
  *
@@ -13,8 +13,8 @@
 #include "preset_basic_math.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 
@@ -520,7 +520,7 @@ bool preset_basic_math_get_names(char ***out_names, int *out_count)
     if (!out_names || !out_count) return false;
 
     /* 分配名称数组 */
-    char **names = (char**)lv00_malloc(BASIC_MATH_PRESET_COUNT * sizeof(char*));
+    char **names = (char**)lv_malloc(BASIC_MATH_PRESET_COUNT * sizeof(char*));
     if (!names) return false;
 
     /* 填充预设名称列表 */
@@ -565,13 +565,13 @@ bool preset_basic_math_get_names(char ***out_names, int *out_count)
     int count = (int)(sizeof(preset_names) / sizeof(preset_names[0]));
 
     for (int i = 0; i < count; i++) {
-        names[i] = lv00_strdup(preset_names[i]);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                { void *tmp = names[j]; lv00_free(&tmp); }
+                { void *tmp = names[j]; lv_free(&tmp); }
             }
-            { void *tmp = names; lv00_free(&tmp); }
+            { void *tmp = names; lv_free(&tmp); }
             return false;
         }
     }

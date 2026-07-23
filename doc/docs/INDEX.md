@@ -1,4 +1,4 @@
-# Lv-00 文档索引
+﻿# Lv-00 文档索引
 
 > 最后更新: 2026-06-27
 > 架构版本: v1.1.0 (十层架构)
@@ -18,7 +18,7 @@
 | 文档 | 说明 |
 |------|------|
 | [OPML_SPECIFICATION.md](OPML_SPECIFICATION.md) | OPML 开放证明交换格式规范 |
-| [LV00_LANGUAGE_SPEC.md](LV00_LANGUAGE_SPEC.md) | Lv-00 语言语法与语义定义 |
+| [lv_LANGUAGE_SPEC.md](lv_LANGUAGE_SPEC.md) | Lv-00 语言语法与语义定义 |
 | [THREE_LAYER_ARITHMETIC_SPEC.md](THREE_LAYER_ARITHMETIC_SPEC.md) | 三层数值算术规范 |
 
 ### 入门与 API

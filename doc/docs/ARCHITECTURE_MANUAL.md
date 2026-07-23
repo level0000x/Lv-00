@@ -1,4 +1,4 @@
-# Lv-00 架构手册
+﻿# Lv-00 架构手册
 
 > **版本**: 1.1.0  
 > **最后更新**: 2026-06-27  
@@ -79,25 +79,25 @@ Lv-00 采用**十层单向依赖学术架构**，核心设计原则包括：
 #### 2.1.2 关键数据结构
 
 ```c
-typedef struct Lv00Token {
+typedef struct lvToken {
     TokenType type;
     char *lexeme;
-    Lv00SourceSpan span;
-} Lv00Token;
+    lvSourceSpan span;
+} lvToken;
 
-typedef struct Lv00AstNode {
+typedef struct lvAstNode {
     AstNodeType type;
-    Lv00SourceSpan span;
-    struct Lv00AstNode **children;
+    lvSourceSpan span;
+    struct lvAstNode **children;
     size_t child_count;
     void *annotation;
-} Lv00AstNode;
+} lvAstNode;
 
-typedef struct Lv00TypedIR {
+typedef struct lvTypedIR {
     IRNodeType type;
     TypeInfo *type_info;
     void *data;
-} Lv00TypedIR;
+} lvTypedIR;
 ```
 
 #### 2.1.3 依赖规则
@@ -126,11 +126,11 @@ typedef struct Lv00TypedIR {
 #### 2.2.2 度量关系
 
 ```c
-typedef struct Lv00MetricRelation {
+typedef struct lvMetricRelation {
     MetricType type;           /* DISTANCE, ANGLE, AREA, RADIUS 等 */
     GeometryEntity *subject;   /* 度量主体 */
     SymbolicCoord *value;      /* 度量值（符号坐标） */
-} Lv00MetricRelation;
+} lvMetricRelation;
 ```
 
 #### 2.2.3 公理系统
@@ -169,21 +169,21 @@ typedef struct Lv00MetricRelation {
 #### 2.3.2 关键数据结构
 
 ```c
-typedef struct Lv00ConstraintGraph {
+typedef struct lvConstraintGraph {
     GraphNode **nodes;
     GraphEdge **edges;
     size_t node_count;
     size_t edge_count;
     EquivalenceClassManager *equiv_mgr;
-} Lv00ConstraintGraph;
+} lvConstraintGraph;
 
-typedef struct Lv00Constraint {
+typedef struct lvConstraint {
     ConstraintType type;
     GeometryEntity **entities;
     size_t entity_count;
     SymbolicCoord *value;      /* 可选的约束值 */
     ConstraintStatus status;
-} Lv00Constraint;
+} lvConstraint;
 ```
 
 #### 2.3.3 四态约束状态
@@ -246,22 +246,22 @@ typedef struct Lv00Constraint {
 #### 2.4.3 证明对象结构
 
 ```c
-typedef struct Lv00ProofObject {
+typedef struct lvProofObject {
     Proposition *goal;              /* 证明目标 */
     ProofStep **steps;              /* 证明步骤序列 */
     size_t step_count;
     AssumptionScope *assumptions;   /* 假设作用域 */
     ContradictionTrace *contradiction; /* 矛盾溯源（如适用） */
     ProofStatus status;             /* 证明状态 */
-} Lv00ProofObject;
+} lvProofObject;
 
-typedef struct Lv00ProofStep {
+typedef struct lvProofStep {
     size_t step_id;
     Proposition *proposition;
     ProofRule rule;                 /* 使用的证明规则 */
     size_t *premise_ids;            /* 前提步骤 ID */
-    Lv00SourceSpan source_span;     /* 来源位置 */
-} Lv00ProofStep;
+    lvSourceSpan source_span;     /* 来源位置 */
+} lvProofStep;
 ```
 
 #### 2.4.4 依赖规则
@@ -326,10 +326,10 @@ SMT 校验、证明格式化
 
 | 组件 | 功能 | 关键 API |
 |------|------|----------|
-| `error_codes` | 统一错误码系统 | `lv00_get_last_error()` |
-| `memory_pool` | 内存管理 | `lv00_malloc()`, `lv00_free()` |
+| `error_codes` | 统一错误码系统 | `lv_get_last_error()` |
+| `memory_pool` | 内存管理 | `lv_malloc()`, `lv_free()` |
 | `runtime_guard` | 运行时安全守卫 | 熔断机制、超时控制 |
-| `context` | 隔离上下文系统 | `LV00Context` |
+| `context` | 隔离上下文系统 | `lvContext` |
 | `cross_platform` | 跨平台抽象 | 平台检测、编译器适配 |
 
 ---
@@ -436,31 +436,31 @@ Lv-00 使用精确的符号表示而非浮点数：
 
 ```c
 // 加载预设模块
-lv00_preset_load(ctx, "euclidean_geometry");
+lv_preset_load(ctx, "euclidean_geometry");
 
 // 应用预设定理
-Proposition *prop = lv00_preset_apply(ctx, "pythagorean_theorem", A, B, C);
+Proposition *prop = lv_preset_apply(ctx, "pythagorean_theorem", A, B, C);
 ```
 
 ### 6.2 公理包系统
 
 ```c
 // 加载公理包
-AxiomPackage *pkg = lv00_axiom_pkg_load("algebraic_geometry");
+AxiomPackage *pkg = lv_axiom_pkg_load("algebraic_geometry");
 
 // 附加到引擎
-lv00_engine_attach_axiom_pkg(engine, pkg);
+lv_engine_attach_axiom_pkg(engine, pkg);
 ```
 
 ### 6.3 函数块系统
 
 ```c
 // 定义函数块
-FuncBlock *midpoint = lv00_fb_create("midpoint", 2);
-lv00_fb_define(midpoint, "return point((A.x+B.x)/2, (A.y+B.y)/2);");
+FuncBlock *midpoint = lv_fb_create("midpoint", 2);
+lv_fb_define(midpoint, "return point((A.x+B.x)/2, (A.y+B.y)/2);");
 
 // 实例化
-Point *M = lv00_fb_apply(midpoint, A, B);
+Point *M = lv_fb_apply(midpoint, A, B);
 ```
 
 ---
@@ -519,14 +519,14 @@ Point *M = lv00_fb_apply(midpoint, A, B);
 ```
 Lv-00/
 ├── core/
-│   ├── include/lv00/          # 公共 API 头文件
+│   ├── include/lv/          # 公共 API 头文件
 │   ├── src/layer1_parser/     # 词法语法解析层
 │   ├── src/layer2_axiom/      # 基础几何公理层
 │   ├── src/layer3_constraint/ # 约束拓扑规约层
 │   ├── src/layer4_reasoning/  # 多策略自动推理层
 │   ├── src/layer5_output/     # 输出证明编译层
 │   └── src/shared/            # 公共基础层
-├── lv00-formal/               # Lean 形式化验证
+├── lv-formal/               # Lean 形式化验证
 ├── doc/docs/                  # 技术文档
 ├── tests/                     # 测试套件
 └── module/axiom_packages/     # 公理包库
@@ -535,12 +535,12 @@ Lv-00/
 ### 9.2 CMake Target 规划
 
 ```cmake
-lv00_shared          # 公共基础层
-lv00_layer1_parser   # 词法语法解析层
-lv00_layer2_axiom    # 基础几何公理层
-lv00_layer3_constraint # 约束拓扑规约层
-lv00_layer4_reasoning  # 多策略自动推理层
-lv00_layer5_output     # 输出证明编译层
+lv_shared          # 公共基础层
+lv_layer1_parser   # 词法语法解析层
+lv_layer2_axiom    # 基础几何公理层
+lv_layer3_constraint # 约束拓扑规约层
+lv_layer4_reasoning  # 多策略自动推理层
+lv_layer5_output     # 输出证明编译层
 ```
 
 ### 9.3 构建检查
@@ -557,6 +557,6 @@ ctest --test-dir build_verify --output-on-failure
 
 - [API 快速入门](API_QUICKSTART.md)
 - [API 使用指南](API_USAGE_GUIDE.md)
-- [语言规范](LV00_LANGUAGE_SPEC.md)
+- [语言规范](lv_LANGUAGE_SPEC.md)
 - [编码标准](CODING_STANDARD_v3.4.2.md)
 - [贡献指南](../../CONTRIBUTING.md)

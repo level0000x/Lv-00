@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_game_theory.c
  * @brief Game Theory Axiom Package Test
  *
@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/game_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/game_theory_test_save.lvz"
@@ -240,7 +240,7 @@ static void test_content_hash(void) {
 
     if (hash) {
         printf("  SHA-256: %s\n", hash);
-        lv00_free((void **) &hash);
+        lv_free((void **) &hash);
     }
 
     axiom_package_destroy(pkg);
@@ -276,8 +276,8 @@ static void test_round_trip(void) {
     TEST_ASSERT(hash1 && hash2 && strcmp(hash1, hash2) == 0, "content hashes should match after round-trip");
     printf("  Hash match: %s\n", (hash1 && hash2 && strcmp(hash1, hash2) == 0) ? "YES" : "NO");
 
-    lv00_free((void **) &hash1);
-    lv00_free((void **) &hash2);
+    lv_free((void **) &hash1);
+    lv_free((void **) &hash2);
     axiom_package_destroy(pkg1);
     axiom_package_destroy(pkg2);
 }

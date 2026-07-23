@@ -1,5 +1,5 @@
 ﻿# 找到所有 .h 文件中声明为 int 的函数名
-$includeDir = "core\include\lv00"
+$includeDir = "core\include\lv"
 $intFuncs = @{}
 Get-ChildItem -Path $includeDir -Recurse -Filter *.h | ForEach-Object {
     $hc = Get-Content -Path $_.FullName -Raw -Encoding UTF8

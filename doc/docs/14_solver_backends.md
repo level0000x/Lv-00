@@ -1,4 +1,4 @@
-# 多后端求解器体系 (Multi-Backend Solver Architecture)
+﻿# 多后端求解器体系 (Multi-Backend Solver Architecture)
 
 ## 模块概述
 
@@ -114,23 +114,23 @@ typedef struct CDCLContext {
 
 ```c
 typedef enum {
-    LV00_SOLVER_SAT = 10,   /**< 可满足 */
-    LV00_SOLVER_UNSAT = 20, /**< 不可满足 */
-    LV00_SOLVER_UNKNOWN = 0 /**< 未知（资源耗尽） */
-} Lv00SolverResult;
+    lv_SOLVER_SAT = 10,   /**< 可满足 */
+    lv_SOLVER_UNSAT = 20, /**< 不可满足 */
+    lv_SOLVER_UNKNOWN = 0 /**< 未知（资源耗尽） */
+} lvSolverResult;
 ```
 
 ### 核心操作
 
 | 操作 | 函数 | 说明 |
 |------|------|------|
-| 创建 | `lv00_solver_create()` | 创建求解器实例 |
-| 添加约束 | `lv00_solver_add_constraint()` | 添加 CNF 子句 |
-| 求解 | `lv00_solver_solve()` | 执行 CDCL 搜索 |
-| 假设求解 | `lv00_solver_solve_under_assumptions()` | 在假设文字下求解 |
-| 冲突查询 | `lv00_solver_failed_assumption()` | 查询导致 UNSAT 的假设 |
-| 代数协同 | `lv00_solver_solve_algebraic()` | SAT 无解时回退 Gröbner 基 |
-| 克隆 | `lv00_solver_clone()` | 导出求解器状态副本 |
+| 创建 | `lv_solver_create()` | 创建求解器实例 |
+| 添加约束 | `lv_solver_add_constraint()` | 添加 CNF 子句 |
+| 求解 | `lv_solver_solve()` | 执行 CDCL 搜索 |
+| 假设求解 | `lv_solver_solve_under_assumptions()` | 在假设文字下求解 |
+| 冲突查询 | `lv_solver_failed_assumption()` | 查询导致 UNSAT 的假设 |
+| 代数协同 | `lv_solver_solve_algebraic()` | SAT 无解时回退 Gröbner 基 |
+| 克隆 | `lv_solver_clone()` | 导出求解器状态副本 |
 
 ### 双监视文字传播
 
@@ -226,10 +226,10 @@ typedef struct SMTBackendRegistry {
 基于 `uint64_t` 字数组的任意固定位宽位向量：
 
 ```c
-typedef struct Lv00BitVector {
+typedef struct lvBitVector {
     uint64_t *words; /**< 64 位字数组 */
     int width;       /**< 总位宽（必须 > 0） */
-} Lv00BitVector;
+} lvBitVector;
 ```
 
 位布局：`words[0]` 持有 bits [63:0]，`words[1]` 持有 bits [127:64]，以此类推。最高有效字的超出 `width` 部分恒为零。
@@ -263,7 +263,7 @@ typedef enum {
     THEORY_QF_AUFNIA = 3, /**< 数组+未解释函数+非线性整数算术 */
     THEORY_QF_AX = 4,     /**< 数组+外延性 */
     THEORY_COUNT = 5
-} Lv00TheoryId;
+} lvTheoryId;
 ```
 
 ### 组合策略
@@ -271,11 +271,11 @@ typedef enum {
 理论组合器维护一个按优先级排序的理论求解器列表，对给定的约束集依次尝试每个启用的理论，直到获得确定性结果（SAT/UNSAT）：
 
 ```c
-typedef struct Lv00TheoryCombiner {
-    Lv00TheoryEntry *entries;
+typedef struct lvTheoryCombiner {
+    lvTheoryEntry *entries;
     int entry_count;
     double timeout_ms;  /**< 每个理论的超时时间 */
-} Lv00TheoryCombiner;
+} lvTheoryCombiner;
 ```
 
 分发规则：优先级数值越低越先尝试。若所有理论均超时，返回最后一个结果并标记 `timeout=true`。
@@ -293,20 +293,20 @@ typedef struct Lv00TheoryCombiner {
 ### 触发器结构
 
 ```c
-typedef struct Lv00Trigger {
-    int pattern_ids[LV00_TRIGGER_MAX_PATTERNS]; /**< 子模式 ID 数组 */
+typedef struct lvTrigger {
+    int pattern_ids[lv_TRIGGER_MAX_PATTERNS]; /**< 子模式 ID 数组 */
     int pattern_size;
     double weight;  /**< 选择权重（越低越优先） */
-} Lv00Trigger;
+} lvTrigger;
 ```
 
 ### 实例缓存
 
 ```c
-typedef struct Lv00InstanceEntry {
+typedef struct lvInstanceEntry {
     int quantifier_id;    /**< 量化公式 ID */
     uint64_t binding_hash; /**< 替换的哈希值 */
-} Lv00InstanceEntry;
+} lvInstanceEntry;
 ```
 
 实例缓存通过 `(quantifier_id, binding_hash)` 二元组去重，避免重复实例化。
@@ -593,7 +593,7 @@ GroebnerResult *scheduler_convert_smt_to_groebner(
 
 ## 实现文件
 
-- **头文件**：`include/lv00/solver_core.h`, `include/lv00/smt_backend.h`, `include/lv00/smt_bitvector.h`, `include/lv00/smt_theory_combiner.h`, `include/lv00/smt_trigger_engine.h`, `include/lv00/atp_backend.h`, `include/lv00/bdd_encoding.h`, `include/lv00/sat_encoding.h`, `include/lv00/approx_counter.h`, `include/lv00/engine_scheduler.h`
+- **头文件**：`include/lv/solver_core.h`, `include/lv/smt_backend.h`, `include/lv/smt_bitvector.h`, `include/lv/smt_theory_combiner.h`, `include/lv/smt_trigger_engine.h`, `include/lv/atp_backend.h`, `include/lv/bdd_encoding.h`, `include/lv/sat_encoding.h`, `include/lv/approx_counter.h`, `include/lv/engine_scheduler.h`
 - **源文件**：`src/layer4_reasoning/` 和 `src/layer3_geometry/` 下的对应 .c 文件
 
 ## 依赖

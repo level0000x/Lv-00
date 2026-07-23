@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_galois_theory.c
  * @brief Test suite for Galois Theory axiom package
  *
@@ -14,7 +14,7 @@
 
 #include "axiom_pkg.h"
 
-#include "lv00_utils.h"
+#include "lv_utils.h"
 
 /* Test counters */
 static int tests_run = 0;
@@ -275,7 +275,7 @@ static void test_content_hash(void) {
 
     printf("(hash: %.16s...) ", hash);
 
-    lv00_free_ptr(hash);
+    lv_free_ptr(hash);
     axiom_package_destroy(pkg);
     TEST_PASS();
 }

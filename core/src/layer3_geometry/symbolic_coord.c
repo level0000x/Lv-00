@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file symbolic_coord.c
  * @brief 符号坐标系统实现
  * @details 实现有理数、代数数、二次根式和超越数的精确符号计算。
@@ -22,13 +22,13 @@
 #include <string.h>
 
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"  /* 提供 lv00_malloc/lv00_free/lv00_strdup */
+#include "lv_internal.h"
+#include "lv_utils.h"  /* 提供 lv_malloc/lv_free/lv_strdup */
 #include "mpz_poly.h"
 
 /*
- * BIT_CUTOFF_THRESHOLD 和 MAX_PRECISION_BITS 现在定义在 lv00_internal.h 中，
- * 通过 lv00_internal.h 统一管理所有项目级常量，此处不再重复定义。
+ * BIT_CUTOFF_THRESHOLD 和 MAX_PRECISION_BITS 现在定义在 lv_internal.h 中，
+ * 通过 lv_internal.h 统一管理所有项目级常量，此处不再重复定义。
  */
 
 /* ============================================================
@@ -43,7 +43,7 @@
  * @param b 第二个信任等级
  * @return 两者中较低的信任等级
  */
-#define LV00_MIN_TRUST(a, b) (((a) < (b)) ? (a) : (b))
+#define lv_MIN_TRUST(a, b) (((a) < (b)) ? (a) : (b))
 
 /**
  * 区间中点系数：用于计算隔离区间的中点值。
@@ -74,7 +74,7 @@
  * NOTE: 使用线程局部存储以保证多线程环境下的安全性。
  *       每个线程拥有独立的溢出上下文。
  * ============================================================ */
-LV00_THREAD_LOCAL struct OverflowContext g_overflow_context = {
+lv_THREAD_LOCAL struct OverflowContext g_overflow_context = {
     .last_result = NULL,
     .last_operation = NULL,
     .left_type = RATIONAL,
@@ -88,14 +88,14 @@ LV00_THREAD_LOCAL struct OverflowContext g_overflow_context = {
  * A/B Plan switching (Section 1.6 of design_v2.9.md)
  * NOTE: 线程局部存储，每个线程可独立设置计划
  * ============================================================ */
-static LV00_THREAD_LOCAL AlgebraicPlan g_algebraic_plan = PLAN_A_FULL_ALGEBRAIC;
+static lv_THREAD_LOCAL AlgebraicPlan g_algebraic_plan = PLAN_A_FULL_ALGEBRAIC;
 
 /* ============================================================
  * Digit circuit user interaction (Section 1.5 of design_v2.9.md)
  * NOTE: 线程局部存储，每个线程可独立设置回调
  * ============================================================ */
-static LV00_THREAD_LOCAL CircuitTripCallback g_circuit_callback = NULL;
-static LV00_THREAD_LOCAL void *g_circuit_user_data = NULL;
+static lv_THREAD_LOCAL CircuitTripCallback g_circuit_callback = NULL;
+static lv_THREAD_LOCAL void *g_circuit_user_data = NULL;
 
 /* ============================================================
  * Bit Circuit (Digit Cutoff) Implementation

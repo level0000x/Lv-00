@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop_import.c
  * @brief 导入（GeoGebra/SVG）
  *
@@ -7,7 +7,7 @@
  * @version 3.3.0
  */
 
-#include "lv00/interop.h"
+#include "lv/interop.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -16,12 +16,12 @@
 #include <string.h>
 #include <errno.h>
 #include <zlib.h>
-#include "lv00/constraint_graph.h"
-#include "lv00/engine.h"
+#include "lv/constraint_graph.h"
+#include "lv/engine.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
-#include "lv00/lv00_parse_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "lv/lv_parse_utils.h"
 
 /* ── GeoGebra ZIP 解析常量 ── */
 
@@ -205,15 +205,15 @@ static bool ggb_extract_coord_double(const char *text, const char *name, double 
     const char *slash = strchr(val_buf, '/');
     if (slash && slash != val_buf && *(slash + 1) != '\0') {
         double num = 0.0, den = 0.0;
-        lv00_parse_double(val_buf, &num);
-        lv00_parse_double(slash + 1, &den);
+        lv_parse_double(val_buf, &num);
+        lv_parse_double(slash + 1, &den);
         if (den == 0.0)
             return false;
         *value = num / den;
         return true;
     }
 
-    lv00_parse_double(val_buf, value);
+    lv_parse_double(val_buf, value);
     return true;
 }
 
@@ -233,7 +233,7 @@ static SymbolicCoord *ggb_double_to_rational(double value) {
 
 /* ==================== 导入功能 ==================== */
 
-int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *config) {
+int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config) {
     /**
      * @brief 从 GeoGebra .ggb 文件导入几何构造
      *
@@ -245,55 +245,55 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
      *   5. 手工 XML 解析，提取 <element> 标签
      *   6. 按 type 属性（point/segment/circle/line/polygon）映射到约束图
      */
-    if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!engine || !config) return lv_ERROR_INVALID_PARAM;
     if (config->input_path[0] == '\0')
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
     (void)engine;
     /* FUTURE: 实现 GeoGebra .ggb 导入 */
-    return LV00_ERROR_UNSUPPORTED;
+    return lv_ERROR_UNSUPPORTED;
 }
 
 /* ── SVG 解析器 ── */
 
-int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config) {
+int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) {
     if (!engine || !config)
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
     if (!engine->main_graph) {
-        lv00_set_error(LV00_ERROR_INVALID_STATE, "GeoJSON导入失败：引擎的约束图未初始化");
-        return LV00_ERROR_INVALID_STATE;
+        lv_set_error(lv_ERROR_INVALID_STATE, "GeoJSON导入失败：引擎的约束图未初始化");
+        return lv_ERROR_INVALID_STATE;
     }
     if (config->input_path[0] == '\0') {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "GeoJSON导入失败：未指定输入文件路径");
-        return LV00_ERROR_INVALID_PARAM;
+        lv_set_error(lv_ERROR_INVALID_PARAM, "GeoJSON导入失败：未指定输入文件路径");
+        return lv_ERROR_INVALID_PARAM;
     }
 
     /* --- 读取文件 --- */
     FILE *fp = fopen(config->input_path, "r");
     if (!fp) {
-        lv00_set_error(LV00_ERROR_IO, "GeoJSON导入失败：无法打开文件'%s'", config->input_path);
-        return LV00_ERROR_IO;
+        lv_set_error(lv_ERROR_IO, "GeoJSON导入失败：无法打开文件'%s'", config->input_path);
+        return lv_ERROR_IO;
     }
     fseek(fp, 0, SEEK_END);
     long fsize = ftell(fp);
     fseek(fp, 0, SEEK_SET);
     if (fsize <= 0) {
         fclose(fp);
-        lv00_set_error(LV00_ERROR_UNSUPPORTED, "GeoJSON文件'%s'为空", config->input_path);
-        return LV00_ERROR_UNSUPPORTED;
+        lv_set_error(lv_ERROR_UNSUPPORTED, "GeoJSON文件'%s'为空", config->input_path);
+        return lv_ERROR_UNSUPPORTED;
     }
 
-    char *json = (char *) lv00_malloc((size_t) fsize + 1);
+    char *json = (char *) lv_malloc((size_t) fsize + 1);
     if (!json) {
         fclose(fp);
-        return LV00_ERROR_OUT_OF_MEMORY;
+        return lv_ERROR_OUT_OF_MEMORY;
     }
     size_t read_size = fread(json, 1, (size_t) fsize, fp);
     if (read_size != (size_t) fsize) {
         fclose(fp);
-        lv00_free((void **) &json);
-        lv00_set_error(LV00_ERROR_IO, "GeoJSON文件'%s'读取不完整（期望 %ld, 实际 %zu）",
+        lv_free((void **) &json);
+        lv_set_error(lv_ERROR_IO, "GeoJSON文件'%s'读取不完整（期望 %ld, 实际 %zu）",
                        config->input_path, fsize, read_size);
-        return LV00_ERROR_IO;
+        return lv_ERROR_IO;
     }
     fclose(fp);
     json[read_size] = '\0';
@@ -327,17 +327,17 @@ int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config
     /* --- 解析顶层 FeatureCollection 或 Feature --- */
     GJ_SKIP_WS(s);
     if (*s != '{') {
-        lv00_free((void **) &json);
-        lv00_set_error(LV00_ERROR_PARSE, "GeoJSON导入失败：根元素不是JSON对象");
-        return LV00_ERROR_PARSE;
+        lv_free((void **) &json);
+        lv_set_error(lv_ERROR_PARSE, "GeoJSON导入失败：根元素不是JSON对象");
+        return lv_ERROR_PARSE;
     }
 
     /* 查找 "type" 字段来识别根类型 */
     const char *type_tag = strstr(s, "\"type\"");
     if (!type_tag) {
-        lv00_free((void **) &json);
-        lv00_set_error(LV00_ERROR_PARSE, "GeoJSON导入失败：缺少type字段");
-        return LV00_ERROR_PARSE;
+        lv_free((void **) &json);
+        lv_set_error(lv_ERROR_PARSE, "GeoJSON导入失败：缺少type字段");
+        return lv_ERROR_PARSE;
     }
     type_tag += 6;
     GJ_SKIP_WS(type_tag);
@@ -357,9 +357,9 @@ int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config
     if (is_feature_collection) {
         const char *features_tag = strstr(cursor, "\"features\"");
         if (!features_tag) {
-            lv00_free((void **) &json);
-            lv00_set_error(LV00_ERROR_PARSE, "GeoJSON导入失败：FeatureCollection缺少features数组");
-            return LV00_ERROR_PARSE;
+            lv_free((void **) &json);
+            lv_set_error(lv_ERROR_PARSE, "GeoJSON导入失败：FeatureCollection缺少features数组");
+            return lv_ERROR_PARSE;
         }
         features_tag += 10;
         GJ_SKIP_WS(features_tag);
@@ -367,9 +367,9 @@ int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config
             features_tag++;
         GJ_SKIP_WS(features_tag);
         if (*features_tag != '[') {
-            lv00_free((void **) &json);
-            lv00_set_error(LV00_ERROR_PARSE, "GeoJSON导入失败：features不是数组");
-            return LV00_ERROR_PARSE;
+            lv_free((void **) &json);
+            lv_set_error(lv_ERROR_PARSE, "GeoJSON导入失败：features不是数组");
+            return lv_ERROR_PARSE;
         }
         cursor = features_tag + 1; /* 进入features数组 */
     }
@@ -680,10 +680,10 @@ int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config
 #undef GJ_SKIP_STRING
 #undef GJ_SKIP_NUMBER
 
-    lv00_free((void **) &json);
+    lv_free((void **) &json);
 
     if (imported_count == 0) {
-        lv00_set_error(LV00_ERROR_PARSE,
+        lv_set_error(lv_ERROR_PARSE,
                        "GeoJSON导入完成但未找到任何有效的几何数据。"
                        "支持的类型：Point, LineString, Polygon, MultiPoint, MultiLineString");
     }
@@ -851,7 +851,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             if (!svg_parse_double(s, &rx) || !svg_parse_double(s, &ry) || !svg_parse_double(s, &rot) ||
                 !svg_parse_double(s, &laf_d) || !svg_parse_double(s, &sf_d) || !svg_parse_coord(s, &dx, &dy))
                 return false;
-            LV00_UNUSED(ry); LV00_UNUSED(rot); LV00_UNUSED(laf_d); /* parsed for future SVG arc implementation */
+            lv_UNUSED(ry); lv_UNUSED(rot); lv_UNUSED(laf_d); /* parsed for future SVG arc implementation */
             int sf = (int) (sf_d + 0.5);
             if (is_relative) {
                 dx += state->cx;
@@ -927,11 +927,11 @@ static int svg_parse_circle(double cx, double cy, double r, double *out_points, 
     return count;
 }
 
-int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
-    if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
+int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
+    if (!engine || !config) return lv_ERROR_INVALID_PARAM;
     if (config->input_path[0] == '\0')
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
     (void)engine;
     /* FUTURE: 实现 SVG 导入 */
-    return LV00_ERROR_UNSUPPORTED;
+    return lv_ERROR_UNSUPPORTED;
 }

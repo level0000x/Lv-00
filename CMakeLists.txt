@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.15)
-project(lv00 VERSION 1.1.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
+﻿cmake_minimum_required(VERSION 3.15)
+project(lv VERSION 1.1.0 LANGUAGES C)  # 版本号与 lv.h 中 lv_VERSION_MAJOR/MINOR/PATCH 保持一致
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -195,7 +195,7 @@ if(BUILD_WASM)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap']")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_FUNCTIONS=['_malloc','_free']")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s MODULARIZE=1")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORT_NAME='Lv00Module'")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORT_NAME='lvModule'")
     
     # ES6 模块支持
     if(WASM_ES6_MODULE)
@@ -228,8 +228,8 @@ if(BUILD_WASM)
     # WASM 不需要 GMP（使用 JavaScript 大整数或内置实现）
     set(GMP_INCLUDE_DIR "")
     set(GMP_LIBRARIES "")
-    add_definitions(-DLV00_WASM_BUILD=1)
-    add_definitions(-DLV00_NO_GMP=1)
+    add_definitions(-Dlv_WASM_BUILD=1)
+    add_definitions(-Dlv_NO_GMP=1)
 endif()
 
 # --- 安全相关编译选项（GCC / Clang）---
@@ -316,225 +316,225 @@ endif()
 #   1. 每层编译为 OBJECT 库，允许内部的函数调用
 #   2. 层间通过 target_link_libraries 控制依赖方向
 #   3. Layer 5 -> Layer 4 -> Layer 3 -> Layer 2 <- Layer 1
-#   4. lv00_static 聚合所有 OBJECT 库，保持向后兼容
+#   4. lv_static 聚合所有 OBJECT 库，保持向后兼容
 # 详见 doc/docs/ARCHITECTURE_v1.1.md
 # ============================================================
 
 # ── 共享头文件列表（所有层共用）──
-set(LV00_HEADERS
-    core/include/lv00/lv00.h
-    core/include/lv00/cross_platform.h
-    core/include/lv00/error_codes.h
-    core/include/lv00/symbolic_coord.h
-    core/include/lv00/constraint_graph.h
-    core/include/lv00/normalization.h
-    core/include/lv00/graph_hash.h
-    core/include/lv00/solver.h
-    core/include/lv00/rewrite.h
-    core/include/lv00/unify.h
+set(lv_HEADERS
+    core/include/lv/lv.h
+    core/include/lv/cross_platform.h
+    core/include/lv/error_codes.h
+    core/include/lv/symbolic_coord.h
+    core/include/lv/constraint_graph.h
+    core/include/lv/normalization.h
+    core/include/lv/graph_hash.h
+    core/include/lv/solver.h
+    core/include/lv/rewrite.h
+    core/include/lv/unify.h
     # v3.6.0 新增：WFC 范式头文件
-    core/include/lv00/propagation.h
-    core/include/lv00/equiv_class.h
-    core/include/lv00/meta_proof.h
-    core/include/lv00/axiom_pkg.h
-    core/include/lv00/module.h
-    core/include/lv00/engine.h
-    core/include/lv00/debug.h
-    core/include/lv00/mpz_poly.h
-    core/include/lv00/func_block.h
-    core/include/lv00/type_system.h
-    core/include/lv00/proof.h
-    core/include/lv00/recursion.h
-    core/include/lv00/lv00_utils.h
-    core/include/lv00/high_dim.h
-    core/include/lv00/interop.h
-    core/include/lv00/formula_parser.h
-    core/include/lv00/formula_renderer.h
-    core/include/lv00/formula_converter.h
-    core/include/lv00/prop_verifier.h
-    core/include/lv00/lexer_shared.h
-    core/include/lv00/stream.h
-    core/include/lv00/func_block_utils.h
-    core/include/lv00/stream_context_util.h
-    core/include/lv00/func_block_registry.h
-    core/include/lv00/func_block_preset_ops.h
+    core/include/lv/propagation.h
+    core/include/lv/equiv_class.h
+    core/include/lv/meta_proof.h
+    core/include/lv/axiom_pkg.h
+    core/include/lv/module.h
+    core/include/lv/engine.h
+    core/include/lv/debug.h
+    core/include/lv/mpz_poly.h
+    core/include/lv/func_block.h
+    core/include/lv/type_system.h
+    core/include/lv/proof.h
+    core/include/lv/recursion.h
+    core/include/lv/lv_utils.h
+    core/include/lv/high_dim.h
+    core/include/lv/interop.h
+    core/include/lv/formula_parser.h
+    core/include/lv/formula_renderer.h
+    core/include/lv/formula_converter.h
+    core/include/lv/prop_verifier.h
+    core/include/lv/lexer_shared.h
+    core/include/lv/stream.h
+    core/include/lv/func_block_utils.h
+    core/include/lv/stream_context_util.h
+    core/include/lv/func_block_registry.h
+    core/include/lv/func_block_preset_ops.h
     # v1.1.0 新增模块头文件（第一轮：核心计算模块）
-    core/include/lv00/groebner_engine.h
-    core/include/lv00/engine_scheduler.h
-    core/include/lv00/euclidean_geometry.h
-    core/include/lv00/geometry_compress.h
-    core/include/lv00/float_error.h
-    core/include/lv00/smt_backend.h
-    core/include/lv00/bdd_encoding.h
-    core/include/lv00/approx_counter.h
+    core/include/lv/groebner_engine.h
+    core/include/lv/engine_scheduler.h
+    core/include/lv/euclidean_geometry.h
+    core/include/lv/geometry_compress.h
+    core/include/lv/float_error.h
+    core/include/lv/smt_backend.h
+    core/include/lv/bdd_encoding.h
+    core/include/lv/approx_counter.h
     # v1.1.0 新增模块头文件（第二轮：计算后端与数值模块）
-    core/include/lv00/atp_backend.h
-    core/include/lv00/solver_core.h
-    core/include/lv00/sat_encoding.h
-    core/include/lv00/relation_model.h
-    core/include/lv00/numerical_backend.h
-    core/include/lv00/geom_evol.h
-    core/include/lv00/geo_event_detect.h
-    core/include/lv00/lv00_numeric.h
-    core/include/lv00/probabilistic_constraint.h
+    core/include/lv/atp_backend.h
+    core/include/lv/solver_core.h
+    core/include/lv/sat_encoding.h
+    core/include/lv/relation_model.h
+    core/include/lv/numerical_backend.h
+    core/include/lv/geom_evol.h
+    core/include/lv/geo_event_detect.h
+    core/include/lv/lv_numeric.h
+    core/include/lv/probabilistic_constraint.h
     # v1.1.0 新增模块头文件（第三轮：几何构造与交互模块）
-    core/include/lv00/algebra_mode.h
-    core/include/lv00/dsl_compiler.h
-    core/include/lv00/interactive_geo.h
+    core/include/lv/algebra_mode.h
+    core/include/lv/dsl_compiler.h
+    core/include/lv/interactive_geo.h
     # v1.1.0 新增模块头文件（第四轮：证明与规约模块）
-    core/include/lv00/mini_kernel.h
-    core/include/lv00/proof_widget.h
-    core/include/lv00/path_type.h
-    core/include/lv00/three_layer_arithmetic.h
-    core/include/lv00/geometric_primitives.h
+    core/include/lv/mini_kernel.h
+    core/include/lv/proof_widget.h
+    core/include/lv/path_type.h
+    core/include/lv/three_layer_arithmetic.h
+    core/include/lv/geometric_primitives.h
     # 模块化预设函数块系统
-    core/include/lv00/preset_blocks.h
+    core/include/lv/preset_blocks.h
     # v1.1.0 性能优化模块
-    core/include/lv00/thread_pool.h
-    core/include/lv00/simd_ops.h
-    core/include/lv00/benchmark.h
+    core/include/lv/thread_pool.h
+    core/include/lv/simd_ops.h
+    core/include/lv/benchmark.h
     # v1.1.0 新增核心模块（整改实施）
-    core/include/lv00/memory_pool.h
-    core/include/lv00/expr_canonical.h
-    core/include/lv00/geometry_transform.h
-    core/include/lv00/inequality_reasoning.h
-    core/include/lv00/runtime_monitor.h
-    core/include/lv00/axiom_rule_engine.h
-    core/include/lv00/proof_engine_enhanced.h
-    core/include/lv00/test_framework.h
+    core/include/lv/memory_pool.h
+    core/include/lv/expr_canonical.h
+    core/include/lv/geometry_transform.h
+    core/include/lv/inequality_reasoning.h
+    core/include/lv/runtime_monitor.h
+    core/include/lv/axiom_rule_engine.h
+    core/include/lv/proof_engine_enhanced.h
+    core/include/lv/test_framework.h
     # Magic 模拟器模块
-    core/include/lv00/magic.h
+    core/include/lv/magic.h
     # 内部/实现头文件（用于 IDE 索引和 OBJECT 库关联）
-    core/include/lv00/lv00_internal.h
-    core/include/lv00/config.h
-    core/include/lv00/context.h
-    core/include/lv00/geometry_types.h
-    core/include/lv00/node_deep_copy.h
-    core/include/lv00/parser_safety.h
-    core/include/lv00/func_block_internal.h
-    core/include/lv00/func_block_preset.h
-    core/include/lv00/expr_canon.h
-    core/include/lv00/modal_operators.h
-    core/include/lv00/circuit_breaker.h
-    core/include/lv00/axiom_grade.h
-    core/include/lv00/three_valued_logic.h
-    core/include/lv00/quantifier.h
-    core/include/lv00/rational.h
-    core/include/lv00/proof_trace.h
-    core/include/lv00/runtime_guard.h
-    core/include/lv00/exact_arithmetic.h
-    core/include/lv00/preset_blocks.h
+    core/include/lv/lv_internal.h
+    core/include/lv/config.h
+    core/include/lv/context.h
+    core/include/lv/geometry_types.h
+    core/include/lv/node_deep_copy.h
+    core/include/lv/parser_safety.h
+    core/include/lv/func_block_internal.h
+    core/include/lv/func_block_preset.h
+    core/include/lv/expr_canon.h
+    core/include/lv/modal_operators.h
+    core/include/lv/circuit_breaker.h
+    core/include/lv/axiom_grade.h
+    core/include/lv/three_valued_logic.h
+    core/include/lv/quantifier.h
+    core/include/lv/rational.h
+    core/include/lv/proof_trace.h
+    core/include/lv/runtime_guard.h
+    core/include/lv/exact_arithmetic.h
+    core/include/lv/preset_blocks.h
     # [QA] Pending header additions: adaptive_pruning, autodiff, cache_manager,
     # conflict_detector, ga_codegen, ga_interface, ga_multivector, groebner_parallel,
     # math_theory_guide_cn, meta_repr, nt_number_theory, nt_polynomial, ode_solver,
     # plugin_system, proof_compiler, proof_contradiction (see TASK_CONTEXT_QA.md R6)
     # v3.0.0 UI-Kernel 通信协议（替代 view_projection）
-    core/include/lv00/lv00_protocol.h
+    core/include/lv/lv_protocol.h
     # v3.0.0 API 版式规范 + 层间通信
-    core/include/lv00/lv00_api_spec.h
-    core/include/lv00/lv00_layer_msg.h
+    core/include/lv/lv_api_spec.h
+    core/include/lv/lv_layer_msg.h
     # stubs→headers: 17 semi-finished headers
-    core/include/lv00/adaptive_threshold.h
-    core/include/lv00/gappa_dsl.h
-    core/include/lv00/gappa_propagate.h
-    core/include/lv00/geo_aabb_tree.h
-    core/include/lv00/geo_constraint_solver.h
-    core/include/lv00/geo_dynamic.h
-    core/include/lv00/geo_predicate.h
-    core/include/lv00/geometry_config.h
-    core/include/lv00/performance_profiler.h
-    core/include/lv00/proof_export_enhanced.h
-    core/include/lv00/proof_rule_engine.h
-    core/include/lv00/proof_session.h
-    core/include/lv00/proof_version.h
-    core/include/lv00/reasoning_cache.h
-    core/include/lv00/rewrite_strategy.h
-    core/include/lv00/smt_bitvector.h
-    core/include/lv00/sym_expr.h
+    core/include/lv/adaptive_threshold.h
+    core/include/lv/gappa_dsl.h
+    core/include/lv/gappa_propagate.h
+    core/include/lv/geo_aabb_tree.h
+    core/include/lv/geo_constraint_solver.h
+    core/include/lv/geo_dynamic.h
+    core/include/lv/geo_predicate.h
+    core/include/lv/geometry_config.h
+    core/include/lv/performance_profiler.h
+    core/include/lv/proof_export_enhanced.h
+    core/include/lv/proof_rule_engine.h
+    core/include/lv/proof_session.h
+    core/include/lv/proof_version.h
+    core/include/lv/reasoning_cache.h
+    core/include/lv/rewrite_strategy.h
+    core/include/lv/smt_bitvector.h
+    core/include/lv/sym_expr.h
     # v3.5.0 stub→real: 12 non-preset modules
-    core/include/lv00/ecosystem.h
-    core/include/lv00/fast_index.h
-    core/include/lv00/gc_language.h
-    core/include/lv00/geo_spec.h
-    core/include/lv00/logic_check.h
-    core/include/lv00/math_input.h
-    core/include/lv00/math_protocol.h
-    core/include/lv00/proof_priority.h
-    core/include/lv00/proof_score.h
-    core/include/lv00/sparse_linear_algebra.h
-    core/include/lv00/status_codes.h
-    core/include/lv00/tikz_export.h
+    core/include/lv/ecosystem.h
+    core/include/lv/fast_index.h
+    core/include/lv/gc_language.h
+    core/include/lv/geo_spec.h
+    core/include/lv/logic_check.h
+    core/include/lv/math_input.h
+    core/include/lv/math_protocol.h
+    core/include/lv/proof_priority.h
+    core/include/lv/proof_score.h
+    core/include/lv/sparse_linear_algebra.h
+    core/include/lv/status_codes.h
+    core/include/lv/tikz_export.h
     # v3.5.0 stub→real: 61 preset module headers
-    core/include/lv00/preset_advanced_geometry.h
-    core/include/lv00/preset_algebraic.h
-    core/include/lv00/preset_algebraic_geometry.h
-    core/include/lv00/preset_algebraic_topology.h
-    core/include/lv00/preset_algebraic_topology_adv.h
-    core/include/lv00/preset_analysis.h
-    core/include/lv00/preset_arithmetic_geometry.h
-    core/include/lv00/preset_basic_geometry.h
-    core/include/lv00/preset_basic_math.h
-    core/include/lv00/preset_calculus.h
-    core/include/lv00/preset_category_theory.h
-    core/include/lv00/preset_category_theory_adv.h
-    core/include/lv00/preset_coding_theory.h
-    core/include/lv00/preset_combinatorics.h
-    core/include/lv00/preset_common.h
-    core/include/lv00/preset_complex_analysis.h
-    core/include/lv00/preset_core.h
-    core/include/lv00/preset_difference_equations.h
-    core/include/lv00/preset_differential_equations.h
-    core/include/lv00/preset_differential_geometry.h
-    core/include/lv00/preset_differential_geometry_adv.h
-    core/include/lv00/preset_dynamical_systems.h
-    core/include/lv00/preset_field_theory.h
-    core/include/lv00/preset_functional_analysis.h
-    core/include/lv00/preset_functional_analysis_adv.h
-    core/include/lv00/preset_game_theory.h
-    core/include/lv00/preset_geometry_3d.h
-    core/include/lv00/preset_graph_theory.h
-    core/include/lv00/preset_group_theory.h
-    core/include/lv00/preset_homological_algebra.h
-    core/include/lv00/preset_information_theory.h
-    core/include/lv00/preset_integral_transforms.h
-    core/include/lv00/preset_lattice_theory.h
-    core/include/lv00/preset_lie_theory_advanced.h
-    core/include/lv00/preset_linear_algebra.h
-    core/include/lv00/preset_logic_advanced.h
-    core/include/lv00/preset_math_logic.h
-    core/include/lv00/preset_mathematical_logic.h
-    core/include/lv00/preset_mathematical_physics.h
-    core/include/lv00/preset_matrix.h
-    core/include/lv00/preset_measure_theory.h
-    core/include/lv00/preset_measurements.h
-    core/include/lv00/preset_number_theory.h
-    core/include/lv00/preset_numerical.h
-    core/include/lv00/preset_numerical_analysis.h
-    core/include/lv00/preset_optimization.h
-    core/include/lv00/preset_order_theory.h
-    core/include/lv00/preset_polygons.h
-    core/include/lv00/preset_polynomial.h
-    core/include/lv00/preset_probability.h
-    core/include/lv00/preset_probability_statistics.h
-    core/include/lv00/preset_register_macros.h
-    core/include/lv00/preset_representation_theory.h
-    core/include/lv00/preset_ring_theory.h
-    core/include/lv00/preset_set_theory.h
-    core/include/lv00/preset_special_functions.h
-    core/include/lv00/preset_statistics.h
-    core/include/lv00/preset_stochastic_processes.h
-    core/include/lv00/preset_topology.h
-    core/include/lv00/preset_transformations.h
-    core/include/lv00/preset_trigonometry.h
+    core/include/lv/preset_advanced_geometry.h
+    core/include/lv/preset_algebraic.h
+    core/include/lv/preset_algebraic_geometry.h
+    core/include/lv/preset_algebraic_topology.h
+    core/include/lv/preset_algebraic_topology_adv.h
+    core/include/lv/preset_analysis.h
+    core/include/lv/preset_arithmetic_geometry.h
+    core/include/lv/preset_basic_geometry.h
+    core/include/lv/preset_basic_math.h
+    core/include/lv/preset_calculus.h
+    core/include/lv/preset_category_theory.h
+    core/include/lv/preset_category_theory_adv.h
+    core/include/lv/preset_coding_theory.h
+    core/include/lv/preset_combinatorics.h
+    core/include/lv/preset_common.h
+    core/include/lv/preset_complex_analysis.h
+    core/include/lv/preset_core.h
+    core/include/lv/preset_difference_equations.h
+    core/include/lv/preset_differential_equations.h
+    core/include/lv/preset_differential_geometry.h
+    core/include/lv/preset_differential_geometry_adv.h
+    core/include/lv/preset_dynamical_systems.h
+    core/include/lv/preset_field_theory.h
+    core/include/lv/preset_functional_analysis.h
+    core/include/lv/preset_functional_analysis_adv.h
+    core/include/lv/preset_game_theory.h
+    core/include/lv/preset_geometry_3d.h
+    core/include/lv/preset_graph_theory.h
+    core/include/lv/preset_group_theory.h
+    core/include/lv/preset_homological_algebra.h
+    core/include/lv/preset_information_theory.h
+    core/include/lv/preset_integral_transforms.h
+    core/include/lv/preset_lattice_theory.h
+    core/include/lv/preset_lie_theory_advanced.h
+    core/include/lv/preset_linear_algebra.h
+    core/include/lv/preset_logic_advanced.h
+    core/include/lv/preset_math_logic.h
+    core/include/lv/preset_mathematical_logic.h
+    core/include/lv/preset_mathematical_physics.h
+    core/include/lv/preset_matrix.h
+    core/include/lv/preset_measure_theory.h
+    core/include/lv/preset_measurements.h
+    core/include/lv/preset_number_theory.h
+    core/include/lv/preset_numerical.h
+    core/include/lv/preset_numerical_analysis.h
+    core/include/lv/preset_optimization.h
+    core/include/lv/preset_order_theory.h
+    core/include/lv/preset_polygons.h
+    core/include/lv/preset_polynomial.h
+    core/include/lv/preset_probability.h
+    core/include/lv/preset_probability_statistics.h
+    core/include/lv/preset_register_macros.h
+    core/include/lv/preset_representation_theory.h
+    core/include/lv/preset_ring_theory.h
+    core/include/lv/preset_set_theory.h
+    core/include/lv/preset_special_functions.h
+    core/include/lv/preset_statistics.h
+    core/include/lv/preset_stochastic_processes.h
+    core/include/lv/preset_topology.h
+    core/include/lv/preset_transformations.h
+    core/include/lv/preset_trigonometry.h
     # v1.2.0 新增：关键对计算引擎 + 类型等价探索器
-    core/include/lv00/critical_pair.h
-    core/include/lv00/type_equiv_explorer.h
+    core/include/lv/critical_pair.h
+    core/include/lv/type_equiv_explorer.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
 # 职责：词法分析、公式解析、DSL 编译
 # 依赖：Layer 2
-set(LV00_LAYER1_SOURCES
+set(lv_LAYER1_SOURCES
     core/src/layer1_parser/formula_parser.c
     core/src/layer1_parser/formula_converter.c
     core/src/layer1_parser/formula_renderer.c
@@ -552,11 +552,11 @@ set(LV00_LAYER1_SOURCES
 # ── Layer 2: 资源管理层 (Resource) ──
 # 职责：内存分配、错误码、调试、深拷贝、工具函数
 # 依赖：GMP，C 标准库（仅 Layer 2 能直接依赖 GMP 链接）
-set(LV00_LAYER2_SOURCES
-    core/src/layer2_resource/lv00_utils.c
-    core/src/layer2_resource/lv00_numeric.c
-    core/src/layer2_resource/lv00_config.c
-    core/src/layer2_resource/lv00.c
+set(lv_LAYER2_SOURCES
+    core/src/layer2_resource/lv_utils.c
+    core/src/layer2_resource/lv_numeric.c
+    core/src/layer2_resource/lv_config.c
+    core/src/layer2_resource/lv.c
     core/src/layer2_resource/context.c
     core/src/layer2_resource/error_codes.c
     core/src/layer2_resource/debug.c
@@ -596,18 +596,18 @@ set(LV00_LAYER2_SOURCES
 
 # ── Core: 核心便利层 (Core Convenience) ──
 # 职责：便捷 API、快捷函数、对外包装
-set(LV00_CORE_SOURCES
-    core/src/core/lv00_convenience.c
+set(lv_CORE_SOURCES
+    core/src/core/lv_convenience.c
     # 补全遗漏文件：原生实现
-    core/src/lv00_impl_native.c
+    core/src/lv_impl_native.c
     # 上层接口实现
-    core/src/lv00_impl_upper.c
+    core/src/lv_impl_upper.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
 # 职责：约束图、符号坐标、几何原语、高维结构
 # 依赖：Layer 2，GMP（通过 Layer 2 传递）
-set(LV00_LAYER3_SOURCES
+set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph.c
     core/src/layer3_geometry/symbolic_coord.c
     core/src/layer3_geometry/euclidean_geometry.c
@@ -672,7 +672,7 @@ set(LV00_LAYER3_SOURCES
 # ── Layer 4: 公理推理层 (Reasoning) ──
 # 职责：引擎、求解器、证明、重写、合一、规范化、类型系统、公理包
 # 依赖：Layer 3，Layer 2
-set(LV00_LAYER4_SOURCES
+set(lv_LAYER4_SOURCES
     # 核心引擎与求解
     core/src/layer4_reasoning/engine/engine.c
     core/src/layer4_reasoning/engine_scheduler.c
@@ -885,7 +885,7 @@ set(LV00_LAYER4_SOURCES
 # ── Layer 5: 结果输出层 (Output) ──
 # 职责：流式输出、TikZ 导出、证明可视化、模块、互操作
 # 依赖：Layer 4，Layer 3，Layer 2
-set(LV00_LAYER5_SOURCES
+set(lv_LAYER5_SOURCES
     core/src/layer5_output/proof_widget.c
     core/src/layer5_output/proof_export_enhanced.c
     core/src/layer5_output/interop/interop.c
@@ -895,9 +895,9 @@ set(LV00_LAYER5_SOURCES
     core/src/layer5_output/geo_visual.c
     core/src/layer5_output/geo_visual_complete.c
     # UI-Kernel 通信协议
-    core/src/layer5_output/lv00_protocol.c
+    core/src/layer5_output/lv_protocol.c
     # 层间通信消息
-    core/src/layer5_output/lv00_layer_msg.c
+    core/src/layer5_output/lv_layer_msg.c
     # v1.1.0 补全遗漏：插件系统、证明编译器
     core/src/layer5_output/plugin_system.c
     core/src/layer5_output/proof_compiler.c
@@ -914,33 +914,33 @@ set(LV00_LAYER5_SOURCES
 # ============================================================
 
 # ── 辅助宏：为每个层设置公共编译属性 ──
-macro(lv00_setup_layer target layer_id)
+macro(lv_setup_layer target layer_id)
     target_include_directories(${target} PUBLIC
         ${GMP_INCLUDE_DIR}
         ${CMAKE_SOURCE_DIR}/core/include
-        ${CMAKE_SOURCE_DIR}/core/include/lv00
+        ${CMAKE_SOURCE_DIR}/core/include/lv
         ${CMAKE_SOURCE_DIR}/core/src
         ${CMAKE_SOURCE_DIR}/core/src/preset
     )
     # 层级标识（用于编译时诊断和层级验证）
-    target_compile_definitions(${target} PRIVATE LV00_CURRENT_LAYER=${layer_id})
+    target_compile_definitions(${target} PRIVATE lv_CURRENT_LAYER=${layer_id})
     if(ENABLE_LAYER_VALIDATION)
-        target_compile_definitions(${target} PRIVATE LV00_ENABLE_LAYER_VALIDATION)
+        target_compile_definitions(${target} PRIVATE lv_ENABLE_LAYER_VALIDATION)
     endif()
 endmacro()
 
 # Layer 2: 资源管理层（基础层，不依赖任何上层）
-add_library(lv00_layer2_resource OBJECT ${LV00_LAYER2_SOURCES} ${LV00_HEADERS})
-lv00_setup_layer(lv00_layer2_resource 2)
-target_link_libraries(lv00_layer2_resource ${GMP_LIBRARIES})
+add_library(lv_layer2_resource OBJECT ${lv_LAYER2_SOURCES} ${lv_HEADERS})
+lv_setup_layer(lv_layer2_resource 2)
+target_link_libraries(lv_layer2_resource ${GMP_LIBRARIES})
 
 # Core: 核心便利层（基础层，不依赖任何上层）
-add_library(lv00_core OBJECT ${LV00_CORE_SOURCES} ${LV00_HEADERS})
-lv00_setup_layer(lv00_core 0)
+add_library(lv_core OBJECT ${lv_CORE_SOURCES} ${lv_HEADERS})
+lv_setup_layer(lv_core 0)
 
 # GCC/Clang 优化标志
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(lv00_core PRIVATE
+    target_compile_options(lv_core PRIVATE
         -O2
         -fstrict-aliasing
         -fno-omit-frame-pointer
@@ -948,33 +948,33 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # Layer 1: 输入解析层（依赖 Layer 2）
-add_library(lv00_layer1_parser OBJECT ${LV00_LAYER1_SOURCES} ${LV00_HEADERS})
-lv00_setup_layer(lv00_layer1_parser 1)
-target_link_libraries(lv00_layer1_parser lv00_layer2_resource)
+add_library(lv_layer1_parser OBJECT ${lv_LAYER1_SOURCES} ${lv_HEADERS})
+lv_setup_layer(lv_layer1_parser 1)
+target_link_libraries(lv_layer1_parser lv_layer2_resource)
 
 # Layer 3: 几何拓扑层（依赖 Layer 2）
-add_library(lv00_layer3_geometry OBJECT ${LV00_LAYER3_SOURCES} ${LV00_HEADERS})
-lv00_setup_layer(lv00_layer3_geometry 3)
-target_link_libraries(lv00_layer3_geometry lv00_layer2_resource)
+add_library(lv_layer3_geometry OBJECT ${lv_LAYER3_SOURCES} ${lv_HEADERS})
+lv_setup_layer(lv_layer3_geometry 3)
+target_link_libraries(lv_layer3_geometry lv_layer2_resource)
 # v1.1.0: 线程库链接（用于 thread_pool.c）
 find_package(Threads REQUIRED)
-target_link_libraries(lv00_layer3_geometry Threads::Threads)
+target_link_libraries(lv_layer3_geometry Threads::Threads)
 
 # Layer 4: 公理推理层（依赖 Layer 3，Layer 2）
-add_library(lv00_layer4_reasoning OBJECT ${LV00_LAYER4_SOURCES} ${LV00_HEADERS})
-lv00_setup_layer(lv00_layer4_reasoning 4)
-target_link_libraries(lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+add_library(lv_layer4_reasoning OBJECT ${lv_LAYER4_SOURCES} ${lv_HEADERS})
+lv_setup_layer(lv_layer4_reasoning 4)
+target_link_libraries(lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
 
 # Layer 5: 结果输出层（依赖 Layer 4，Layer 3，Layer 2）
-add_library(lv00_layer5_output OBJECT ${LV00_LAYER5_SOURCES} ${LV00_HEADERS})
-lv00_setup_layer(lv00_layer5_output 5)
-target_link_libraries(lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+add_library(lv_layer5_output OBJECT ${lv_LAYER5_SOURCES} ${lv_HEADERS})
+lv_setup_layer(lv_layer5_output 5)
+target_link_libraries(lv_layer5_output lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
 
 # ── Layer 6: 图形化编程层 (Visual Programming Layer) ──
 # 设计文档: doc/docs/35_layer6_visual_programming.md
 # 四大子系统: 可视化编辑器、函数块运行时扩展、类型系统扩展、表示转换层
 
-set(LV00_LAYER6_SOURCES
+set(lv_LAYER6_SOURCES
     # 核心视图
     core/src/layer6_visual/visual_editor.c
     core/src/layer6_visual/geometry_canvas.c
@@ -1009,130 +1009,130 @@ set(LV00_LAYER6_SOURCES
     core/src/layer6_visual/converter/sync_protocol.c
 )
 
-set(LV00_LAYER6_HEADERS
-    core/include/lv00/visual_editor.h
-    core/include/lv00/control_flow_blocks.h
-    core/include/lv00/io_blocks.h
-    core/include/lv00/data_structure_blocks.h
-    core/include/lv00/extended_types.h
-    core/include/lv00/effect_system.h
-    core/include/lv00/block_scheduler.h
-    core/include/lv00/representation_converter.h
+set(lv_LAYER6_HEADERS
+    core/include/lv/visual_editor.h
+    core/include/lv/control_flow_blocks.h
+    core/include/lv/io_blocks.h
+    core/include/lv/data_structure_blocks.h
+    core/include/lv/extended_types.h
+    core/include/lv/effect_system.h
+    core/include/lv/block_scheduler.h
+    core/include/lv/representation_converter.h
 )
 
-add_library(lv00_layer6_visual OBJECT ${LV00_LAYER6_SOURCES} ${LV00_LAYER6_HEADERS})
-lv00_setup_layer(lv00_layer6_visual 6)
-target_link_libraries(lv00_layer6_visual lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+add_library(lv_layer6_visual OBJECT ${lv_LAYER6_SOURCES} ${lv_LAYER6_HEADERS})
+lv_setup_layer(lv_layer6_visual 6)
+target_link_libraries(lv_layer6_visual lv_layer5_output lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
 
 # ── Layer 7: 编排调度层 (Orchestration Layer) ──
-set(LV00_LAYER7_SOURCES
+set(lv_LAYER7_SOURCES
     core/src/layer7_orchestration/orchestrator.c
 )
-set(LV00_LAYER7_HEADERS
-    core/include/lv00/orchestrator.h
+set(lv_LAYER7_HEADERS
+    core/include/lv/orchestrator.h
 )
-add_library(lv00_layer7_orchestration OBJECT ${LV00_LAYER7_SOURCES} ${LV00_LAYER7_HEADERS})
-lv00_setup_layer(lv00_layer7_orchestration 7)
-target_link_libraries(lv00_layer7_orchestration lv00_layer6_visual lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+add_library(lv_layer7_orchestration OBJECT ${lv_LAYER7_SOURCES} ${lv_LAYER7_HEADERS})
+lv_setup_layer(lv_layer7_orchestration 7)
+target_link_libraries(lv_layer7_orchestration lv_layer6_visual lv_layer5_output lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
 
 # ── Layer 8: 元验证层 (Meta-Verification Layer) ──
-set(LV00_LAYER8_SOURCES
+set(lv_LAYER8_SOURCES
     core/src/layer8_meta_verify/meta_verify.c
 )
-set(LV00_LAYER8_HEADERS
-    core/include/lv00/meta_verify.h
+set(lv_LAYER8_HEADERS
+    core/include/lv/meta_verify.h
 )
-add_library(lv00_layer8_meta_verify OBJECT ${LV00_LAYER8_SOURCES} ${LV00_LAYER8_HEADERS})
-lv00_setup_layer(lv00_layer8_meta_verify 8)
-target_link_libraries(lv00_layer8_meta_verify lv00_layer7_orchestration)
+add_library(lv_layer8_meta_verify OBJECT ${lv_LAYER8_SOURCES} ${lv_LAYER8_HEADERS})
+lv_setup_layer(lv_layer8_meta_verify 8)
+target_link_libraries(lv_layer8_meta_verify lv_layer7_orchestration)
 
 # ── Layer 9: 应用入口层 (Application Layer) ──
-set(LV00_LAYER9_SOURCES
+set(lv_LAYER9_SOURCES
     core/src/layer9_application/application.c
 )
-set(LV00_LAYER9_HEADERS
-    core/include/lv00/application.h
+set(lv_LAYER9_HEADERS
+    core/include/lv/application.h
 )
-add_library(lv00_layer9_application OBJECT ${LV00_LAYER9_SOURCES} ${LV00_LAYER9_HEADERS})
-lv00_setup_layer(lv00_layer9_application 9)
-target_link_libraries(lv00_layer9_application lv00_layer8_meta_verify)
+add_library(lv_layer9_application OBJECT ${lv_LAYER9_SOURCES} ${lv_LAYER9_HEADERS})
+lv_setup_layer(lv_layer9_application 9)
+target_link_libraries(lv_layer9_application lv_layer8_meta_verify)
 
 # ── Layer 10: 外部集成层 (Interop Layer) ──
-set(LV00_LAYER10_SOURCES
+set(lv_LAYER10_SOURCES
     core/src/layer10_interop/lean4_bridge.c
     core/src/layer10_interop/coq_bridge.c
     core/src/layer10_interop/opml_codec.c
 )
-set(LV00_LAYER10_HEADERS
-    core/include/lv00/interop.h
+set(lv_LAYER10_HEADERS
+    core/include/lv/interop.h
 )
-add_library(lv00_layer10_interop OBJECT ${LV00_LAYER10_SOURCES} ${LV00_LAYER10_HEADERS})
-lv00_setup_layer(lv00_layer10_interop 10)
-target_link_libraries(lv00_layer10_interop lv00_layer9_application)
+add_library(lv_layer10_interop OBJECT ${lv_LAYER10_SOURCES} ${lv_LAYER10_HEADERS})
+lv_setup_layer(lv_layer10_interop 10)
+target_link_libraries(lv_layer10_interop lv_layer9_application)
 
-# ── 聚合静态库（向后兼容 lv00_static）──
+# ── 聚合静态库（向后兼容 lv_static）──
 # 将所有层的 OBJECT 文件聚合到一个静态库中
-add_library(lv00_static STATIC
-    $<TARGET_OBJECTS:lv00_core>
-    $<TARGET_OBJECTS:lv00_layer1_parser>
-    $<TARGET_OBJECTS:lv00_layer2_resource>
-    $<TARGET_OBJECTS:lv00_layer3_geometry>
-    $<TARGET_OBJECTS:lv00_layer4_reasoning>
-    $<TARGET_OBJECTS:lv00_layer5_output>
-    $<TARGET_OBJECTS:lv00_layer6_visual>
-    $<TARGET_OBJECTS:lv00_layer7_orchestration>
-    $<TARGET_OBJECTS:lv00_layer8_meta_verify>
-    $<TARGET_OBJECTS:lv00_layer9_application>
-    $<TARGET_OBJECTS:lv00_layer10_interop>
+add_library(lv_static STATIC
+    $<TARGET_OBJECTS:lv_core>
+    $<TARGET_OBJECTS:lv_layer1_parser>
+    $<TARGET_OBJECTS:lv_layer2_resource>
+    $<TARGET_OBJECTS:lv_layer3_geometry>
+    $<TARGET_OBJECTS:lv_layer4_reasoning>
+    $<TARGET_OBJECTS:lv_layer5_output>
+    $<TARGET_OBJECTS:lv_layer6_visual>
+    $<TARGET_OBJECTS:lv_layer7_orchestration>
+    $<TARGET_OBJECTS:lv_layer8_meta_verify>
+    $<TARGET_OBJECTS:lv_layer9_application>
+    $<TARGET_OBJECTS:lv_layer10_interop>
 )
-target_include_directories(lv00_static PUBLIC
+target_include_directories(lv_static PUBLIC
     ${GMP_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include>
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include/lv00>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include/lv>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(lv00_static ${GMP_LIBRARIES} Threads::Threads)
-set_target_properties(lv00_static PROPERTIES OUTPUT_NAME lv00)
+target_link_libraries(lv_static ${GMP_LIBRARIES} Threads::Threads)
+set_target_properties(lv_static PROPERTIES OUTPUT_NAME lv)
 
 # 跳过有深层依赖问题的预设注册（preset_differential_geometry, preset_functional_analysis）
 # 此定义对静态库始终生效，不依赖于 BUILD_SHARED_LIBS 选项
-target_compile_definitions(lv00_static PRIVATE LV00_EXCLUDE_BROKEN_PRESETS)
+target_compile_definitions(lv_static PRIVATE lv_EXCLUDE_BROKEN_PRESETS)
 
 if(BUILD_SHARED_LIBS)
-    add_library(lv00_shared SHARED
-        $<TARGET_OBJECTS:lv00_core>
-        $<TARGET_OBJECTS:lv00_layer1_parser>
-        $<TARGET_OBJECTS:lv00_layer2_resource>
-        $<TARGET_OBJECTS:lv00_layer3_geometry>
-        $<TARGET_OBJECTS:lv00_layer4_reasoning>
-        $<TARGET_OBJECTS:lv00_layer5_output>
-        $<TARGET_OBJECTS:lv00_layer6_visual>
-        $<TARGET_OBJECTS:lv00_layer7_orchestration>
-        $<TARGET_OBJECTS:lv00_layer8_meta_verify>
-        $<TARGET_OBJECTS:lv00_layer9_application>
-        $<TARGET_OBJECTS:lv00_layer10_interop>
+    add_library(lv_shared SHARED
+        $<TARGET_OBJECTS:lv_core>
+        $<TARGET_OBJECTS:lv_layer1_parser>
+        $<TARGET_OBJECTS:lv_layer2_resource>
+        $<TARGET_OBJECTS:lv_layer3_geometry>
+        $<TARGET_OBJECTS:lv_layer4_reasoning>
+        $<TARGET_OBJECTS:lv_layer5_output>
+        $<TARGET_OBJECTS:lv_layer6_visual>
+        $<TARGET_OBJECTS:lv_layer7_orchestration>
+        $<TARGET_OBJECTS:lv_layer8_meta_verify>
+        $<TARGET_OBJECTS:lv_layer9_application>
+        $<TARGET_OBJECTS:lv_layer10_interop>
     )
-    target_include_directories(lv00_shared PUBLIC
+    target_include_directories(lv_shared PUBLIC
         ${GMP_INCLUDE_DIR}
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include>
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include/lv00>
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include/lv>
         $<INSTALL_INTERFACE:include>
     )
     # [P0 修复] 共享库也需要链接 Threads::Threads（与静态库保持一致）
-    target_link_libraries(lv00_shared ${GMP_LIBRARIES} Threads::Threads)
+    target_link_libraries(lv_shared ${GMP_LIBRARIES} Threads::Threads)
     if(WIN32)
-        target_link_libraries(lv00_shared ws2_32)
+        target_link_libraries(lv_shared ws2_32)
     endif()
-    # v1.1.0: 定义 LV00_BUILD_SHARED 以启用 lv00.h 中的 dllexport/visibility
-    target_compile_definitions(lv00_shared PRIVATE LV00_BUILD_SHARED)
+    # v1.1.0: 定义 lv_BUILD_SHARED 以启用 lv.h 中的 dllexport/visibility
+    target_compile_definitions(lv_shared PRIVATE lv_BUILD_SHARED)
 
-    set_target_properties(lv00_shared PROPERTIES
-        OUTPUT_NAME lv00
+    set_target_properties(lv_shared PROPERTIES
+        OUTPUT_NAME lv
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
     )
     if(WIN32)
-        set_target_properties(lv00_shared PROPERTIES
+        set_target_properties(lv_shared PROPERTIES
             WINDOWS_EXPORT_ALL_SYMBOLS ON
             RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
             ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -1140,28 +1140,28 @@ if(BUILD_SHARED_LIBS)
         # MSVC 运行时库处理：共享库应使用动态 CRT（/MD 或 /MDd）
         # 避免静态 CRT（/MT, /MTd）导致的跨模块内存管理问题
         if(MSVC)
-            set_target_properties(lv00_shared PROPERTIES
+            set_target_properties(lv_shared PROPERTIES
                 MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
             )
         endif()
     endif()
 endif()
 
-add_library(lv00 ALIAS lv00_static)
+add_library(lv ALIAS lv_static)
 
 # ============================================================
 # 辅助函数：添加测试可执行文件
 # ============================================================
-function(add_lv00_test name source)
+function(add_lv_test name source)
     add_executable(${name} ${source})
     target_include_directories(${name} PRIVATE
         ${CMAKE_SOURCE_DIR}/test/c
     )
-    target_link_libraries(${name} lv00 ${GMP_LIBRARIES})
+    target_link_libraries(${name} lv ${GMP_LIBRARIES})
 endfunction()
 
-function(add_lv00_test_and_register test_name source ctest_name)
-    add_lv00_test(${test_name} ${source})
+function(add_lv_test_and_register test_name source ctest_name)
+    add_lv_test(${test_name} ${source})
     add_test(NAME ${ctest_name} COMMAND ${test_name}
              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endfunction()
@@ -1173,283 +1173,283 @@ if(BUILD_TESTS)
     enable_testing()
 
     # 正式模块测试（注册到 CTest）
-    add_lv00_test_and_register(test_basic
+    add_lv_test_and_register(test_basic
         test/c/test_basic.c basic_test)
-    add_lv00_test_and_register(test_edge_cases
+    add_lv_test_and_register(test_edge_cases
         test/c/test_edge_cases.c edge_cases_test)
-    add_lv00_test_and_register(test_complex_graph
+    add_lv_test_and_register(test_complex_graph
         test/c/test_complex_graph.c complex_graph_test)
-    add_lv00_test_and_register(test_normalization
+    add_lv_test_and_register(test_normalization
         test/c/test_normalization.c normalization_test)
-    add_lv00_test_and_register(test_constraint_compatibility
+    add_lv_test_and_register(test_constraint_compatibility
         test/c/test_constraint_compatibility.c constraint_compatibility_test)
-    add_lv00_test_and_register(test_unify
+    add_lv_test_and_register(test_unify
         test/c/test_unify.c unify_test)
-    add_lv00_test_and_register(test_func_block
+    add_lv_test_and_register(test_func_block
         test/c/test_func_block.c func_block_test)
-    add_lv00_test_and_register(test_solver
+    add_lv_test_and_register(test_solver
         test/c/test_solver.c solver_test)
-    add_lv00_test_and_register(test_solver_enhanced
+    add_lv_test_and_register(test_solver_enhanced
         test/c/test_solver_enhanced.c solver_enhanced_test)
-    add_lv00_test_and_register(test_rewrite
+    add_lv_test_and_register(test_rewrite
         test/c/test_rewrite.c rewrite_test)
-    add_lv00_test_and_register(test_critical_pair
+    add_lv_test_and_register(test_critical_pair
         test/c/test_critical_pair.c critical_pair_test)
-    add_lv00_test_and_register(test_type_system
+    add_lv_test_and_register(test_type_system
         test/c/test_type_system.c type_system_test)
-    add_lv00_test_and_register(test_type_equiv_explorer
+    add_lv_test_and_register(test_type_equiv_explorer
         test/c/test_type_equiv_explorer.c type_equiv_explorer_test)
-    add_lv00_test_and_register(test_proof
+    add_lv_test_and_register(test_proof
         test/c/test_proof.c proof_test)
-    add_lv00_test_and_register(test_axiom_pkg
+    add_lv_test_and_register(test_axiom_pkg
         test/c/test_axiom_pkg.c axiom_pkg_test)
-    add_lv00_test_and_register(test_module
+    add_lv_test_and_register(test_module
         test/c/test_module.c module_test)
-    add_lv00_test_and_register(test_graph_serialize
+    add_lv_test_and_register(test_graph_serialize
         test/c/test_graph_serialize.c graph_serialize_test)
-    add_lv00_test_and_register(test_recursion
+    add_lv_test_and_register(test_recursion
         test/c/test_recursion.c recursion_test)
-    add_lv00_test_and_register(test_implementation
+    add_lv_test_and_register(test_implementation
         test/c/test_implementation.c implementation_test)
-    add_lv00_test_and_register(test_minimal_parse
+    add_lv_test_and_register(test_minimal_parse
         test/c/test_minimal_parse.c minimal_parse_test)
-    add_lv00_test_and_register(test_axiom_euclidean_plane
+    add_lv_test_and_register(test_axiom_euclidean_plane
         test/c/test_axiom_euclidean_plane.c euclidean_plane_axiom_test)
-    add_lv00_test_and_register(test_axiom_boolean_algebra
+    add_lv_test_and_register(test_axiom_boolean_algebra
         test/c/test_axiom_boolean_algebra.c boolean_algebra_axiom_test)
-    add_lv00_test_and_register(test_axiom_classical_propositional_logic
+    add_lv_test_and_register(test_axiom_classical_propositional_logic
         test/c/test_axiom_classical_propositional_logic.c classical_propositional_logic_axiom_test)
-    add_lv00_test_and_register(test_axiom_group_theory
+    add_lv_test_and_register(test_axiom_group_theory
         test/c/test_axiom_group_theory.c group_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_zfc_set_theory
+    add_lv_test_and_register(test_axiom_zfc_set_theory
         test/c/test_axiom_zfc_set_theory.c zfc_set_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_ring_theory
+    add_lv_test_and_register(test_axiom_ring_theory
         test/c/test_axiom_ring_theory.c ring_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_intuitionistic_logic
+    add_lv_test_and_register(test_axiom_intuitionistic_logic
         test/c/test_axiom_intuitionistic_logic.c intuitionistic_logic_axiom_test)
-    add_lv00_test_and_register(test_axiom_intuitionistic_propositional_logic
+    add_lv_test_and_register(test_axiom_intuitionistic_propositional_logic
         test/c/test_axiom_intuitionistic_propositional_logic.c intuitionistic_propositional_logic_axiom_test)
-    add_lv00_test_and_register(test_axiom_category_theory
+    add_lv_test_and_register(test_axiom_category_theory
         test/c/test_axiom_category_theory.c category_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_point_set_topology
+    add_lv_test_and_register(test_axiom_point_set_topology
         test/c/test_axiom_point_set_topology.c point_set_topology_axiom_test)
-    add_lv00_test_and_register(test_axiom_hyperbolic_geometry
+    add_lv_test_and_register(test_axiom_hyperbolic_geometry
         test/c/test_axiom_hyperbolic_geometry.c hyperbolic_geometry_axiom_test)
-    add_lv00_test_and_register(test_axiom_elliptic_geometry
+    add_lv_test_and_register(test_axiom_elliptic_geometry
         test/c/test_axiom_elliptic_geometry.c elliptic_geometry_axiom_test)
-    add_lv00_test_and_register(test_axiom_simple_type_theory
+    add_lv_test_and_register(test_axiom_simple_type_theory
         test/c/test_axiom_simple_type_theory.c simple_type_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_field_theory
+    add_lv_test_and_register(test_axiom_field_theory
         test/c/test_axiom_field_theory.c field_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_nbg_set_theory
+    add_lv_test_and_register(test_axiom_nbg_set_theory
         test/c/test_axiom_nbg_set_theory.c nbg_set_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_real_analysis
+    add_lv_test_and_register(test_axiom_real_analysis
         test/c/test_axiom_real_analysis.c real_analysis_axiom_test)
-    add_lv00_test_and_register(test_axiom_combinatorics
+    add_lv_test_and_register(test_axiom_combinatorics
         test/c/test_axiom_combinatorics.c combinatorics_axiom_test)
-    add_lv00_test_and_register(test_axiom_algebraic_topology
+    add_lv_test_and_register(test_axiom_algebraic_topology
         test/c/test_axiom_algebraic_topology.c algebraic_topology_axiom_test)
-    add_lv00_test_and_register(test_axiom_model_theory
+    add_lv_test_and_register(test_axiom_model_theory
         test/c/test_axiom_model_theory.c model_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_dependent_type_theory
+    add_lv_test_and_register(test_axiom_dependent_type_theory
         test/c/test_axiom_dependent_type_theory.c dependent_type_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_homological_algebra
+    add_lv_test_and_register(test_axiom_homological_algebra
         test/c/test_axiom_homological_algebra.c homological_algebra_axiom_test)
-    add_lv00_test_and_register(test_axiom_universal_algebra
+    add_lv_test_and_register(test_axiom_universal_algebra
         test/c/test_axiom_universal_algebra.c universal_algebra_axiom_test)
-    add_lv00_test_and_register(test_axiom_differential_geometry
+    add_lv_test_and_register(test_axiom_differential_geometry
         test/c/test_axiom_differential_geometry.c differential_geometry_axiom_test)
-    add_lv00_test_and_register(test_axiom_number_theory
+    add_lv_test_and_register(test_axiom_number_theory
         test/c/test_axiom_number_theory.c number_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_functional_analysis
+    add_lv_test_and_register(test_axiom_functional_analysis
         test/c/test_axiom_functional_analysis.c functional_analysis_axiom_test)
-    add_lv00_test_and_register(test_axiom_algebraic_geometry
+    add_lv_test_and_register(test_axiom_algebraic_geometry
         test/c/test_axiom_algebraic_geometry.c algebraic_geometry_axiom_test)
-    add_lv00_test_and_register(test_axiom_proof_theory
+    add_lv_test_and_register(test_axiom_proof_theory
         test/c/test_axiom_proof_theory.c proof_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_homotopy_type_theory
+    add_lv_test_and_register(test_axiom_homotopy_type_theory
         test/c/test_axiom_homotopy_type_theory.c homotopy_type_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_affine_geometry
+    add_lv_test_and_register(test_axiom_affine_geometry
         test/c/test_axiom_affine_geometry.c affine_geometry_axiom_test)
-    add_lv00_test_and_register(test_axiom_projective_geometry
+    add_lv_test_and_register(test_axiom_projective_geometry
         test/c/test_axiom_projective_geometry.c projective_geometry_axiom_test)
-    add_lv00_test_and_register(test_axiom_lattice_theory
+    add_lv_test_and_register(test_axiom_lattice_theory
         test/c/test_axiom_lattice_theory.c lattice_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_lie_theory
+    add_lv_test_and_register(test_axiom_lie_theory
         test/c/test_axiom_lie_theory.c lie_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_modal_logic
+    add_lv_test_and_register(test_axiom_modal_logic
         test/c/test_axiom_modal_logic.c modal_logic_axiom_test)
-    add_lv00_test_and_register(test_axiom_linear_logic
+    add_lv_test_and_register(test_axiom_linear_logic
         test/c/test_axiom_linear_logic.c linear_logic_axiom_test)
-    add_lv00_test_and_register(test_axiom_metric_space
+    add_lv_test_and_register(test_axiom_metric_space
         test/c/test_axiom_metric_space.c metric_space_axiom_test)
-    add_lv00_test_and_register(test_axiom_game_theory
+    add_lv_test_and_register(test_axiom_game_theory
         test/c/test_axiom_game_theory.c game_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_information_theory
+    add_lv_test_and_register(test_axiom_information_theory
         test/c/test_axiom_information_theory.c information_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_descriptive_set_theory
+    add_lv_test_and_register(test_axiom_descriptive_set_theory
         test/c/test_axiom_descriptive_set_theory.c descriptive_set_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_domain_theory
+    add_lv_test_and_register(test_axiom_domain_theory
         test/c/test_axiom_domain_theory.c domain_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_computability_theory
+    add_lv_test_and_register(test_axiom_computability_theory
         test/c/test_axiom_computability_theory.c computability_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_computational_complexity_theory
+    add_lv_test_and_register(test_axiom_computational_complexity_theory
         test/c/test_axiom_computational_complexity_theory.c computational_complexity_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_presburger_arithmetic
+    add_lv_test_and_register(test_axiom_presburger_arithmetic
         test/c/test_axiom_presburger_arithmetic.c presburger_arithmetic_axiom_test)
-    add_lv00_test_and_register(test_utils
+    add_lv_test_and_register(test_utils
         test/c/test_utils.c utils_test)
-    add_lv00_test_and_register(test_stream
+    add_lv_test_and_register(test_stream
         test/c/test_stream.c stream_test)
-    add_lv00_test_and_register(test_stream_extended
+    add_lv_test_and_register(test_stream_extended
         test/c/test_stream_extended.c stream_extended_test)
-    add_lv00_test_and_register(test_func_block_utils
+    add_lv_test_and_register(test_func_block_utils
         test/c/test_func_block_utils.c func_block_utils_test)
     # 恢复：preset_blocks.c 已加入 Layer 4 构建列表，依赖已满足
-    add_lv00_test_and_register(test_func_block_preset
+    add_lv_test_and_register(test_func_block_preset
         test/c/test_func_block_preset.c func_block_preset_test)
-    add_lv00_test_and_register(test_error_codes
+    add_lv_test_and_register(test_error_codes
         test/c/test_error_codes.c error_codes_test)
     # 恢复：interop.c 已在 Layer 5 构建列表中，依赖已满足
-    add_lv00_test_and_register(test_interop
+    add_lv_test_and_register(test_interop
         test/c/test_interop.c interop_test)
     if(WIN32)
         target_link_libraries(test_interop ws2_32)
     endif()
     # 新增：高维结构模块测试
-    add_lv00_test_and_register(test_high_dim
+    add_lv_test_and_register(test_high_dim
         test/c/test_high_dim.c high_dim_test)
     # 新增：符号坐标系统测试
-    add_lv00_test_and_register(test_symbolic_coord
+    add_lv_test_and_register(test_symbolic_coord
         test/c/test_symbolic_coord.c symbolic_coord_test)
     # 新增：v1.1.0 新模块集成测试
-    add_lv00_test_and_register(test_rational
+    add_lv_test_and_register(test_rational
         test/c/test_rational.c rational_test)
-    add_lv00_test_and_register(test_expr_canon
+    add_lv_test_and_register(test_expr_canon
         test/c/test_expr_canon.c expr_canon_test)
-    add_lv00_test_and_register(test_proof_trace
+    add_lv_test_and_register(test_proof_trace
         test/c/test_proof_trace.c proof_trace_test)
     # v1.1.0 新模块集成测试
-    add_lv00_test_and_register(test_new_modules
+    add_lv_test_and_register(test_new_modules
         test/c/test_new_modules.c new_modules_test)
-    add_lv00_test_and_register(test_circuit_breaker
+    add_lv_test_and_register(test_circuit_breaker
         test/c/test_circuit_breaker.c circuit_breaker_test)
     # v3.4.0 新增：几何代数模块测试
-    add_lv00_test_and_register(test_ga_multivector
+    add_lv_test_and_register(test_ga_multivector
         test/c/test_ga_multivector.c test_ga_multivector)
-    add_lv00_test_and_register(test_geo_invariant
+    add_lv_test_and_register(test_geo_invariant
         test/c/test_geo_invariant.c test_geo_invariant)
     # v3.4.0 新增：区间/数值验证模块测试
-    add_lv00_test_and_register(test_interval_arithmetic
+    add_lv_test_and_register(test_interval_arithmetic
         test/c/test_interval_arithmetic.c test_interval_arithmetic)
-    add_lv00_test_and_register(test_gappa_dsl
+    add_lv_test_and_register(test_gappa_dsl
         test/c/test_gappa_dsl.c test_gappa_dsl)
     # v3.4.0 新增：SMT/SAT 模块测试
-    add_lv00_test_and_register(test_smt_bitvector
+    add_lv_test_and_register(test_smt_bitvector
         test/c/test_smt_bitvector.c test_smt_bitvector)
     # v3.4.0 新增：证明策略模块测试
-    add_lv00_test_and_register(test_proof_rule_engine
+    add_lv_test_and_register(test_proof_rule_engine
         test/c/test_proof_rule_engine.c test_proof_rule_engine)
     # v3.4.0 新增：数论/代数模块测试
-    add_lv00_test_and_register(test_nt_number_theory
+    add_lv_test_and_register(test_nt_number_theory
         test/c/test_nt_number_theory.c test_nt_number_theory)
-    add_lv00_test_and_register(test_sym_expr
+    add_lv_test_and_register(test_sym_expr
         test/c/test_sym_expr.c test_sym_expr)
     # v3.4.0 新增：重写引擎测试
-    add_lv00_test_and_register(test_rewrite_strategy
+    add_lv_test_and_register(test_rewrite_strategy
         test/c/test_rewrite_strategy.c test_rewrite_strategy)
     # v3.4.0 新增：版本控制测试
-    add_lv00_test_and_register(test_proof_version
+    add_lv_test_and_register(test_proof_version
         test/c/test_proof_version.c test_proof_version)
     # v3.4.0 新增：自动微分测试
-    add_lv00_test_and_register(test_autodiff
+    add_lv_test_and_register(test_autodiff
         test/c/test_autodiff.c test_autodiff)
-    # prop_verifier 测试：链接 lv00 库以获取 lv00_malloc/lv00_free 等工具函数
-    # [QA] Also listed in LV00_LAYER4_SOURCES; test target requires separate compilation
+    # prop_verifier 测试：链接 lv 库以获取 lv_malloc/lv_free 等工具函数
+    # [QA] Also listed in lv_LAYER4_SOURCES; test target requires separate compilation
     add_executable(test_prop_verifier test/c/test_prop_verifier.c core/src/layer4_reasoning/proof_system/prop_verifier.c)
-    target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv00)
-    target_link_libraries(test_prop_verifier lv00 ${GMP_LIBRARIES})
+    target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv)
+    target_link_libraries(test_prop_verifier lv ${GMP_LIBRARIES})
     add_test(NAME prop_verifier_test COMMAND test_prop_verifier
              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     # v3.6.0 新增：WFC 范式三模块集成测试
-    add_lv00_test_and_register(test_wfc_modules
+    add_lv_test_and_register(test_wfc_modules
         test/c/test_wfc_modules.c wfc_modules_test)
 
     # v3.5.0 新增：几何约束求解器模块测试
-    add_lv00_test_and_register(test_geo_constraint_solver
+    add_lv_test_and_register(test_geo_constraint_solver
         test/c/test_geo_constraint_solver.c geo_constraint_solver_test)
     # ODE 求解器模块测试
-    add_lv00_test_and_register(test_ode_solver
+    add_lv_test_and_register(test_ode_solver
         test/c/test_ode_solver.c ode_solver_test)
-    add_lv00_test_and_register(test_proof_export_enhanced
+    add_lv_test_and_register(test_proof_export_enhanced
         test/c/test_proof_export_enhanced.c proof_export_enhanced_test)
-    add_lv00_test_and_register(test_performance
+    add_lv_test_and_register(test_performance
         test/c/test_performance.c performance_test)
     # 内存管理综合测试
-    add_lv00_test_and_register(test_memory_management
+    add_lv_test_and_register(test_memory_management
         test/c/test_memory_management.c memory_management_test)
     # 最小化群论公理加载测试
-    add_lv00_test_and_register(test_group_minimal
+    add_lv_test_and_register(test_group_minimal
         test/c/test_group_minimal.c group_minimal_test)
     # 几何拓扑模块测试
-    add_lv00_test_and_register(test_geo_topology
+    add_lv_test_and_register(test_geo_topology
         test/c/test_geo_topology.c geo_topology_test)
     # 几何谓词模块测试
-    add_lv00_test_and_register(test_geo_predicate
+    add_lv_test_and_register(test_geo_predicate
         test/c/test_geo_predicate.c geo_predicate_test)
     # Halfedge 网格拓扑模块测试
-    add_lv00_test_and_register(test_geo_halfedge_mesh
+    add_lv_test_and_register(test_geo_halfedge_mesh
         test/c/test_geo_halfedge_mesh.c geo_halfedge_mesh_test)
     # 动态几何依赖图模块测试
-    add_lv00_test_and_register(test_geo_dynamic
+    add_lv_test_and_register(test_geo_dynamic
         test/c/test_geo_dynamic.c geo_dynamic_test)
     # AABB 树空间索引模块测试
-    add_lv00_test_and_register(test_geo_aabb_tree
+    add_lv_test_and_register(test_geo_aabb_tree
         test/c/test_geo_aabb_tree.c geo_aabb_tree_test)
     # 错误处理与边界条件测试
-    add_lv00_test_and_register(test_error_handling
+    add_lv_test_and_register(test_error_handling
         test/c/test_error_handling.c error_handling_test)
     # 矛盾约束检测器测试
-    add_lv00_test_and_register(test_conflict_detector
+    add_lv_test_and_register(test_conflict_detector
         test/c/test_conflict_detector.c conflict_detector_test)
-    add_lv00_test_and_register(test_adaptive_threshold
+    add_lv_test_and_register(test_adaptive_threshold
         test/c/test_adaptive_threshold.c adaptive_threshold_test)
 
     # 新增公理包测试
-    add_lv00_test_and_register(test_axiom_topos_theory
+    add_lv_test_and_register(test_axiom_topos_theory
         test/c/test_axiom_topos_theory.c topos_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_synthetic_differential_geometry
+    add_lv_test_and_register(test_axiom_synthetic_differential_geometry
         test/c/test_axiom_synthetic_differential_geometry.c synthetic_differential_geometry_axiom_test)
-    add_lv00_test_and_register(test_axiom_second_order_arithmetic
+    add_lv_test_and_register(test_axiom_second_order_arithmetic
         test/c/test_axiom_second_order_arithmetic.c second_order_arithmetic_axiom_test)
-    add_lv00_test_and_register(test_axiom_robin_arithmetic
+    add_lv_test_and_register(test_axiom_robin_arithmetic
         test/c/test_axiom_robin_arithmetic.c robin_arithmetic_axiom_test)
-    add_lv00_test_and_register(test_axiom_quantum_information_theory
+    add_lv_test_and_register(test_axiom_quantum_information_theory
         test/c/test_axiom_quantum_information_theory.c quantum_information_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_probability_theory
+    add_lv_test_and_register(test_axiom_probability_theory
         test/c/test_axiom_probability_theory.c probability_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_peano_arithmetic
+    add_lv_test_and_register(test_axiom_peano_arithmetic
         test/c/test_axiom_peano_arithmetic.c peano_arithmetic_axiom_test)
-    add_lv00_test_and_register(test_axiom_order_theory
+    add_lv_test_and_register(test_axiom_order_theory
         test/c/test_axiom_order_theory.c order_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_non_well_founded_set_theory
+    add_lv_test_and_register(test_axiom_non_well_founded_set_theory
         test/c/test_axiom_non_well_founded_set_theory.c non_well_founded_set_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_measure_theory
+    add_lv_test_and_register(test_axiom_measure_theory
         test/c/test_axiom_measure_theory.c measure_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_linear_algebra
+    add_lv_test_and_register(test_axiom_linear_algebra
         test/c/test_axiom_linear_algebra.c linear_algebra_axiom_test)
-    add_lv00_test_and_register(test_axiom_graph_theory
+    add_lv_test_and_register(test_axiom_graph_theory
         test/c/test_axiom_graph_theory.c graph_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_galois_theory
+    add_lv_test_and_register(test_axiom_galois_theory
         test/c/test_axiom_galois_theory.c galois_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_ergodic_theory
+    add_lv_test_and_register(test_axiom_ergodic_theory
         test/c/test_axiom_ergodic_theory.c ergodic_theory_axiom_test)
-    add_lv00_test_and_register(test_axiom_cartesian_closed_category
+    add_lv_test_and_register(test_axiom_cartesian_closed_category
         test/c/test_axiom_cartesian_closed_category.c cartesian_closed_category_axiom_test)
 
     # 基准测试（构建但不注册到 CTest，手动运行）
-    add_lv00_test(test_benchmark test/c/test_benchmark.c)
+    add_lv_test(test_benchmark test/c/test_benchmark.c)
 endif()
 
 # ============================================================
@@ -1460,12 +1460,12 @@ if(BUILD_FUZZERS AND CMAKE_C_COMPILER_ID MATCHES "Clang")
         message(WARNING "BUILD_FUZZERS is enabled, but libFuzzer is not supported by this Windows Clang toolchain; skipping fuzz targets.")
     else()
         add_executable(fuzz_constraint_graph test/fuzz/fuzz_constraint_graph.c)
-        target_link_libraries(fuzz_constraint_graph lv00 ${GMP_LIBRARIES})
+        target_link_libraries(fuzz_constraint_graph lv ${GMP_LIBRARIES})
         target_compile_options(fuzz_constraint_graph PRIVATE -fsanitize=fuzzer,address)
         target_link_options(fuzz_constraint_graph PRIVATE -fsanitize=fuzzer,address)
 
         add_executable(fuzz_symbolic_coord test/fuzz/fuzz_symbolic_coord.c)
-        target_link_libraries(fuzz_symbolic_coord lv00 ${GMP_LIBRARIES})
+        target_link_libraries(fuzz_symbolic_coord lv ${GMP_LIBRARIES})
         target_compile_options(fuzz_symbolic_coord PRIVATE -fsanitize=fuzzer,address)
         target_link_options(fuzz_symbolic_coord PRIVATE -fsanitize=fuzzer,address)
     endif()
@@ -1475,83 +1475,83 @@ endif()
 # 示例程序
 # ============================================================
 if(BUILD_EXAMPLES)
-    function(add_lv00_example name source)
+    function(add_lv_example name source)
         add_executable(${name} ${source})
-        target_link_libraries(${name} lv00 ${GMP_LIBRARIES})
+        target_link_libraries(${name} lv ${GMP_LIBRARIES})
     endfunction()
 
-    add_lv00_example(example_triangle    test/examples/triangle_construction.c)
-    add_lv00_example(example_circle      test/examples/circle_intersection.c)
-    add_lv00_example(example_composition test/examples/function_composition.c)
-    add_lv00_example(example_high_dim    test/examples/high_dim_demo.c)
-    add_lv00_example(example_streaming      test/examples/streaming_demo.c)
-    add_lv00_example(example_stream_advanced test/examples/stream_advanced_demo.c)
+    add_lv_example(example_triangle    test/examples/triangle_construction.c)
+    add_lv_example(example_circle      test/examples/circle_intersection.c)
+    add_lv_example(example_composition test/examples/function_composition.c)
+    add_lv_example(example_high_dim    test/examples/high_dim_demo.c)
+    add_lv_example(example_streaming      test/examples/streaming_demo.c)
+    add_lv_example(example_stream_advanced test/examples/stream_advanced_demo.c)
 endif()
 
 # 修复 1：安装规则 —— 支持 cmake --install 将库文件和头文件安装到系统目录
 include(GNUInstallDirs)
 
-install(TARGETS lv00_static
-    EXPORT lv00-targets
+install(TARGETS lv_static
+    EXPORT lv-targets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-install(DIRECTORY core/include/lv00
+install(DIRECTORY core/include/lv
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.h"
     PATTERN ".gitkeep" EXCLUDE
 )
 
 if(BUILD_SHARED_LIBS)
-    install(TARGETS lv00_shared
-        EXPORT lv00-targets
+    install(TARGETS lv_shared
+        EXPORT lv-targets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 endif()
 
-# [P0 修复] 导出 CMake 目标文件，供 find_package(lv00) 使用
-install(EXPORT lv00-targets
-    FILE lv00-targets.cmake
-    NAMESPACE lv00::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/build/build/cmake/lv00
+# [P0 修复] 导出 CMake 目标文件，供 find_package(lv) 使用
+install(EXPORT lv-targets
+    FILE lv-targets.cmake
+    NAMESPACE lv::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/build/build/cmake/lv
 )
 
 # ============================================================
 # v1.1.0: pkg-config .pc 文件生成
 #
 # 安装后，使用者可以通过以下命令获取编译和链接标志:
-#   pkg-config --cflags lv00
-#   pkg-config --libs lv00
+#   pkg-config --cflags lv
+#   pkg-config --libs lv
 # ============================================================
 
 # 准备 pkg-config 变量
-set(LV00_PC_REQUIRES "gmp")            # 依赖的 pkg-config 包
+set(lv_PC_REQUIRES "gmp")            # 依赖的 pkg-config 包
 
 # 计算 libdir（相对于 prefix）
 # 若 CMAKE_INSTALL_LIBDIR 是绝对路径则使用，否则添加 ${prefix}/
 if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
-    set(LV00_PC_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
+    set(lv_PC_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
 else()
-    set(LV00_PC_LIBDIR "\${prefix}/${CMAKE_INSTALL_LIBDIR}")
+    set(lv_PC_LIBDIR "\${prefix}/${CMAKE_INSTALL_LIBDIR}")
 endif()
 
 if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
-    set(LV00_PC_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}")
+    set(lv_PC_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}")
 else()
-    set(LV00_PC_INCLUDEDIR "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+    set(lv_PC_INCLUDEDIR "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
 endif()
 
-# 生成 lv00.pc
+# 生成 lv.pc
 configure_file(
-    ${CMAKE_SOURCE_DIR}/cmake/lv00.pc.in
-    ${CMAKE_BINARY_DIR}/lv00.pc
+    ${CMAKE_SOURCE_DIR}/cmake/lv.pc.in
+    ${CMAKE_BINARY_DIR}/lv.pc
     @ONLY
 )
 
-install(FILES ${CMAKE_BINARY_DIR}/lv00.pc
+install(FILES ${CMAKE_BINARY_DIR}/lv.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
@@ -1559,33 +1559,33 @@ install(FILES ${CMAKE_BINARY_DIR}/lv00.pc
 # v1.1.0: CMake 包配置文件生成
 #
 # 安装后，其他 CMake 项目可以通过以下方式引用:
-#   find_package(lv00 1.1.0 REQUIRED)
-#   target_link_libraries(myapp lv00::lv00)
+#   find_package(lv 1.1.0 REQUIRED)
+#   target_link_libraries(myapp lv::lv)
 # ============================================================
 
 include(CMakePackageConfigHelpers)
 
 # 包安装路径
-set(LV00_CMAKE_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/lv00")
+set(lv_CMAKE_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/lv")
 
-# 生成 lv00-config.cmake 和 lv00-config-version.cmake
+# 生成 lv-config.cmake 和 lv-config-version.cmake
 configure_package_config_file(
-    ${CMAKE_SOURCE_DIR}/cmake/lv00-config.cmake.in
-    ${CMAKE_BINARY_DIR}/lv00-config.cmake
-    INSTALL_DESTINATION ${LV00_CMAKE_CONFIG_DIR}
+    ${CMAKE_SOURCE_DIR}/cmake/lv-config.cmake.in
+    ${CMAKE_BINARY_DIR}/lv-config.cmake
+    INSTALL_DESTINATION ${lv_CMAKE_CONFIG_DIR}
 )
 
 write_basic_package_version_file(
-    ${CMAKE_BINARY_DIR}/lv00-config-version.cmake
+    ${CMAKE_BINARY_DIR}/lv-config-version.cmake
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMajorVersion
 )
 
 # 安装 CMake 包配置文件
 install(FILES
-    ${CMAKE_BINARY_DIR}/lv00-config.cmake
-    ${CMAKE_BINARY_DIR}/lv00-config-version.cmake
-    DESTINATION ${LV00_CMAKE_CONFIG_DIR}
+    ${CMAKE_BINARY_DIR}/lv-config.cmake
+    ${CMAKE_BINARY_DIR}/lv-config-version.cmake
+    DESTINATION ${lv_CMAKE_CONFIG_DIR}
 )
 
 # ============================================================
@@ -1598,14 +1598,14 @@ install(FILES
 #   cmake --build . --target package_source   # 生成源码包
 # ============================================================
 
-set(CPACK_PACKAGE_NAME            "lv00")
+set(CPACK_PACKAGE_NAME            "lv")
 set(CPACK_PACKAGE_VENDOR          "Lv-00 Project")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Lv-00: A geometric metalanguage for dual-mode mathematics")
 set(CPACK_PACKAGE_VERSION_MAJOR   ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR   ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH   ${PROJECT_VERSION_PATCH})
 set(CPACK_PACKAGE_FILE_NAME       "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}")
-set(CPACK_PACKAGE_CONTACT         "Lv-00 Project <lv00@example.com>")
+set(CPACK_PACKAGE_CONTACT         "Lv-00 Project <lv@example.com>")
 set(CPACK_RESOURCE_FILE_LICENSE   "${CMAKE_SOURCE_DIR}/LICENSE")
 set(CPACK_RESOURCE_FILE_README    "${CMAKE_SOURCE_DIR}/README.md")
 
@@ -1628,13 +1628,13 @@ endif()
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Lv-00 Project")
 set(CPACK_DEBIAN_PACKAGE_SECTION     "libs")
 set(CPACK_DEBIAN_PACKAGE_DEPENDS     "libgmp10 (>= 6.0.0)")
-set(CPACK_DEBIAN_PACKAGE_HOMEPAGE    "https://github.com/example/lv00")
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE    "https://github.com/example/lv")
 
 # RPM 包特定设置
 set(CPACK_RPM_PACKAGE_LICENSE        "MIT")
 set(CPACK_RPM_PACKAGE_GROUP          "Development/Libraries")
 set(CPACK_RPM_PACKAGE_REQUIRES       "gmp >= 6.0.0")
-set(CPACK_RPM_PACKAGE_URL            "https://github.com/example/lv00")
+set(CPACK_RPM_PACKAGE_URL            "https://github.com/example/lv")
 
 # 排除不需要的文件
 set(CPACK_SOURCE_IGNORE_FILES

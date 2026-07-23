@@ -1,4 +1,4 @@
-# Lv-00 竞品分析与生态定位
+﻿# Lv-00 竞品分析与生态定位
 
 > 本文档记录了 Lv-00 项目在几何计算、形式化验证、自动证明等交叉领域的竞品调研结果，
 > 明确了 Lv-00 在生态中的独特定位，以及从各标杆项目中可借鉴的设计理念。
@@ -131,7 +131,7 @@
 
 - **GC 语言语法可直接映射到 Lv-00 DSL**：`point A 10 20`、`line a A B`、`circle k A B`、`intersection C a b`——每个命令同时是几何构造步骤和证明前提的声明。Lv-00 DSL 可设计为 `point A(10,20); line a(A,B); circle k(A,B); intersect C = a ∩ k` 的链式语法，保持 GC 语言"构造即声明"的精髓
 - **三种证明方法的热切换机制**：GCLC 用 `-a`（面积法）、`-w`（吴方法）、`-g`（Gröbner基法）命令行参数切换证明方法。Lv-00 已经实现了 `ProofMultiStrategy` 的多策略框架（`proof.h`），GCLC 的方法选择经验可直接映射——在 `ProofStrategyType` 枚举中新增 `PROOF_STRATEGY_AREA` 和 `PROOF_STRATEGY_WU`，通过配置切换
-- **WASM Web 移植的技术路线验证**：GCLC 2024年完成了 `C++ → Emscripten → WASM → TypeScript Web GUI` 的移植，前端用 CodeMirror 做代码编辑 + Lezer 做语法高亮。Lv-00 的 `web/lv00_web_bindings.c` + `web/lv00_web_bindings_v2.c` 已经为 WASM 绑定做好了准备，GCLC 的移植经验验证了这条技术路线的可行性
+- **WASM Web 移植的技术路线验证**：GCLC 2024年完成了 `C++ → Emscripten → WASM → TypeScript Web GUI` 的移植，前端用 CodeMirror 做代码编辑 + Lezer 做语法高亮。Lv-00 的 `web/lv_web_bindings.c` + `web/lv_web_bindings_v2.c` 已经为 WASM 绑定做好了准备，GCLC 的移植经验验证了这条技术路线的可行性
 - **LaTeX 证明输出的可读性设计**：GCLC 将证明步骤生成为完整的 LaTeX 文档（包含 `\begin{proof}` 环境），每个推理步骤附带引用的公理/定理编号。Lv-00 的 `proof_export_latex()` 可参考这个格式，增强可读性
 - **30年项目的生存经验**：GCLC 从 1995 年开发至今，历经多次代码重写（纯 C → C++），仍保持向后兼容。这种长期维护的设计智慧值得 Lv-00 关注
 
@@ -427,7 +427,7 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 | — | Solvespace | 交互式求解反馈 | `solver.h/c` + 流式输出 | ✅ |
 | — | FRONTIER | 约束图可视化 | `ConstraintGraphPanel.tsx` | ✅ |
 | — | Kingdon | 符号计算UX | `FormulaPanel.tsx` 实时预览 | ✅ |
-| — | PyEuclid | 高层Python API | `python/lv00/dsl.py` | ✅ |
+| — | PyEuclid | 高层Python API | `python/lv/dsl.py` | ✅ |
 | — | Penrose | 几何叙事生成 | `NarrativeExport.tsx` | ✅ |
 
 **总计：11 个竞品全部落地，新增约 11,000 行代码，18 个 C API，5 个 Web GUI 组件。**
@@ -436,29 +436,29 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 
 | 优先级 | 借鉴对象 | 借鉴内容 | 建议落地模块 | 状态 |
 |:---|:---|:---|:---|:---:|
-| P1 | Ganja.js | inline AST 转译 DSL | `include/lv00/dsl_compiler.h`（438行：37种Token/25种AST/30种IR操作码/13 API） | ✅ 落地 |
-| P1 | build123d | 代数模式无状态设计 | `include/lv00/algebra_mode.h`（575行：AlgebraicGeom/12种选择器/25+ API/链式调用） | ✅ 落地 |
-| P1 | CadQuery | Fluent API 链式调用 | 融入 `include/lv00/algebra_mode.h`（Lv00Selector/SelectorType/链式API） | ✅ 落地 |
-| P1 | **GCLC** | 几何构造语言语法 + WASM 移植 | `include/lv00/gc_language.h`（463行：42种命令/5种证明方法/WASM导出/12+ API） | ✅ 落地 |
-| P1 | **mm0 / Metamath** | 极简内核验证设计 | `include/lv00/mini_kernel.h`（513行：$f/$e/$a/$p四类语句/替换检查/极小TCB/15+ API） | ✅ 落地 |
-| P2 | JGEX | 多证明方法并存引擎 | `include/lv00/proof.h`（ProofMultiStrategy 已有8种证明方法枚举） | ✅ 已有 |
+| P1 | Ganja.js | inline AST 转译 DSL | `include/lv/dsl_compiler.h`（438行：37种Token/25种AST/30种IR操作码/13 API） | ✅ 落地 |
+| P1 | build123d | 代数模式无状态设计 | `include/lv/algebra_mode.h`（575行：AlgebraicGeom/12种选择器/25+ API/链式调用） | ✅ 落地 |
+| P1 | CadQuery | Fluent API 链式调用 | 融入 `include/lv/algebra_mode.h`（lvSelector/SelectorType/链式API） | ✅ 落地 |
+| P1 | **GCLC** | 几何构造语言语法 + WASM 移植 | `include/lv/gc_language.h`（463行：42种命令/5种证明方法/WASM导出/12+ API） | ✅ 落地 |
+| P1 | **mm0 / Metamath** | 极简内核验证设计 | `include/lv/mini_kernel.h`（513行：$f/$e/$a/$p四类语句/替换检查/极小TCB/15+ API） | ✅ 落地 |
+| P2 | JGEX | 多证明方法并存引擎 | `include/lv/proof.h`（ProofMultiStrategy 已有8种证明方法枚举） | ✅ 已有 |
 | P2 | OCCT | 7 模块分层架构 | `docs/architecture_v3.2.md` 已基于此重构 | ✅ 已有 |
-| P2 | GAlgebra | 操作符重载 API | Python binding 设计（`python/lv00/dsl.py` 已含操作符映射） | ✅ 已有 |
-| P2 | **Z3 / cvc5** | SMT 求解器作为后端引擎 | `include/lv00/smt_backend.h`（已含 Z3/cvc5 后端抽象） | ✅ 已有 |
-| P2 | **polymake** | 多后端引擎+统一客户端架构 | `include/lv00/engine_scheduler.h`（已含多后端调度框架） | ✅ 已有 |
-| P3 | Grassmann.jl | 编译期类型级代数 | `include/lv00/type_system.h`（已含宇宙层级+类型推断） | ✅ 已有 |
-| P3 | SymPy Geometry | GeometryEntity 继承层次 | `include/lv00/geometry_types.h`（已含完整 GeometryEntity 层次） | ✅ 已有 |
-| P3 | clifford | flat array 存储 | `include/lv00/geometry_types.h`（已借鉴 flat array 策略） | ✅ 已有 |
-| P3 | **mathlib4 EuclideanGeometry** | Lean 4 几何形式化最佳实践 | `include/lv00/euclidean_geometry.h`（441行：5公理组/5几何谓词/等价性验证/14 API） | ✅ 落地 |
-| P3 | **MathLive** | Web 数学公式输入 UX | `include/lv00/math_input.h`（391行：3输入模式/5键盘布局/20+几何宏/自动补全/18 API） | ✅ 落地 |
-| P3 | **CortexJS / MathJSON** | 结构性数学中间表示 | `include/lv00/math_protocol.h`（402行：32表达式类型/MathJSON序列化/可扩展字典/14 API） | ✅ 落地 |
-| P4 | OpenGeometry Group | 联盟共建生态 | `include/lv00/ecosystem.h`（527行：包注册表/兼容性矩阵/Docker一键体验/生态统计/16 API） | ✅ 落地 |
-| P4 | **Arend** | 路径类型语法 / HoTT 直觉 | `include/lv00/path_type.h`（341行：区间I/6路径类型/coe消去/路径拼接/15 API） | ✅ 落地 |
-| P4 | **Singular / Macaulay2** | Gröbner 基计算 / 环声明范式 | `include/lv00/groebner_engine.h`（461行：多项式环/F4-F5算法/理想/代数簇/24 API） | ✅ 落地 |
-| P4 | **Cinderella / Dr. Geo** | 交互几何 UX / 脚本绑定 | `include/lv00/interactive_geo.h`（481行：随机化验证/连续性保持/脚本绑定/约束维护/16 API） | ✅ 落地 |
-| P4 | **ProofWidgets4** | 证明可视化组件架构 | `include/lv00/proof_widget.h`（342行：8组件类型/目标显示/前提面板/策略推荐/16 API） | ✅ 落地 |
+| P2 | GAlgebra | 操作符重载 API | Python binding 设计（`python/lv/dsl.py` 已含操作符映射） | ✅ 已有 |
+| P2 | **Z3 / cvc5** | SMT 求解器作为后端引擎 | `include/lv/smt_backend.h`（已含 Z3/cvc5 后端抽象） | ✅ 已有 |
+| P2 | **polymake** | 多后端引擎+统一客户端架构 | `include/lv/engine_scheduler.h`（已含多后端调度框架） | ✅ 已有 |
+| P3 | Grassmann.jl | 编译期类型级代数 | `include/lv/type_system.h`（已含宇宙层级+类型推断） | ✅ 已有 |
+| P3 | SymPy Geometry | GeometryEntity 继承层次 | `include/lv/geometry_types.h`（已含完整 GeometryEntity 层次） | ✅ 已有 |
+| P3 | clifford | flat array 存储 | `include/lv/geometry_types.h`（已借鉴 flat array 策略） | ✅ 已有 |
+| P3 | **mathlib4 EuclideanGeometry** | Lean 4 几何形式化最佳实践 | `include/lv/euclidean_geometry.h`（441行：5公理组/5几何谓词/等价性验证/14 API） | ✅ 落地 |
+| P3 | **MathLive** | Web 数学公式输入 UX | `include/lv/math_input.h`（391行：3输入模式/5键盘布局/20+几何宏/自动补全/18 API） | ✅ 落地 |
+| P3 | **CortexJS / MathJSON** | 结构性数学中间表示 | `include/lv/math_protocol.h`（402行：32表达式类型/MathJSON序列化/可扩展字典/14 API） | ✅ 落地 |
+| P4 | OpenGeometry Group | 联盟共建生态 | `include/lv/ecosystem.h`（527行：包注册表/兼容性矩阵/Docker一键体验/生态统计/16 API） | ✅ 落地 |
+| P4 | **Arend** | 路径类型语法 / HoTT 直觉 | `include/lv/path_type.h`（341行：区间I/6路径类型/coe消去/路径拼接/15 API） | ✅ 落地 |
+| P4 | **Singular / Macaulay2** | Gröbner 基计算 / 环声明范式 | `include/lv/groebner_engine.h`（461行：多项式环/F4-F5算法/理想/代数簇/24 API） | ✅ 落地 |
+| P4 | **Cinderella / Dr. Geo** | 交互几何 UX / 脚本绑定 | `include/lv/interactive_geo.h`（481行：随机化验证/连续性保持/脚本绑定/约束维护/16 API） | ✅ 落地 |
+| P4 | **ProofWidgets4** | 证明可视化组件架构 | `include/lv/proof_widget.h`（342行：8组件类型/目标显示/前提面板/策略推荐/16 API） | ✅ 落地 |
 | P4 | **mai** | 极简"逻辑即代码"设计哲学 | 理念已融入 `mini_kernel.h` 极简TCB + `ecosystem.h` Docker一键体验 | ✅ 落地 |
-| P4 | **jsTikZ / TikZJax** | 前端 WASM 几何渲染管道 | `include/lv00/tikz_export.h`（536行：28元素类型/信任颜色映射/WASM渲染/增量编译/18 API） | ✅ 落地 |
+| P4 | **jsTikZ / TikZJax** | 前端 WASM 几何渲染管道 | `include/lv/tikz_export.h`（536行：28元素类型/信任颜色映射/WASM渲染/增量编译/18 API） | ✅ 落地 |
 
 ---
 
@@ -521,9 +521,9 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 | 优先级 | 借鉴对象 | 借鉴内容 | 落地模块 | 状态 |
 |:---|:---|:---|:---|:---:|
 | P0 | **egg** | e-graph 非破坏性重写范式 | `docs/reference/egg_egraph_rewriting.md`（627行）+ `rewrite.h` 设计方向 | ✅ |
-| P0 | **Graphviz DOT** | 声明式图描述语言 | `include/lv00/constraint_graph.h` 新增 `DOTLayoutEngine`/`DOTExportConfig`/`graph_export_dot()`/`graph_export_dot_file()`/`graph_export_dot_to_svg()`（~75行API）+ `docs/reference/dot_graphviz_visualization.md`（503行） | ✅ |
+| P0 | **Graphviz DOT** | 声明式图描述语言 | `include/lv/constraint_graph.h` 新增 `DOTLayoutEngine`/`DOTExportConfig`/`graph_export_dot()`/`graph_export_dot_file()`/`graph_export_dot_to_svg()`（~75行API）+ `docs/reference/dot_graphviz_visualization.md`（503行） | ✅ |
 | P1 | **Catlab.jl / GATlab.jl** | GAT 编译管线 + wiring diagram | `docs/reference/catlab_gat_compilation.md`（613行） | ✅ |
-| P1 | **Vampire / E Prover / iProver** | FOL ATP 后端集成 | `include/lv00/atp_backend.h`（388行新头文件：ATPBackendType/ATPConfig/ATPResultInfo/ATPBackendSolver/注册表/引擎调度集成）+ `docs/reference/vampire_eprover_atp_backend.md`（706行） | ✅ |
+| P1 | **Vampire / E Prover / iProver** | FOL ATP 后端集成 | `include/lv/atp_backend.h`（388行新头文件：ATPBackendType/ATPConfig/ATPResultInfo/ATPBackendSolver/注册表/引擎调度集成）+ `docs/reference/vampire_eprover_atp_backend.md`（706行） | ✅ |
 | P2 | **LeanDojo / Pantograph** | 证明树数据模型 + 证明交互协议 | `docs/reference/leandojo_proof_tree.md`（373行） | ✅ |
 | P2 | **Dafny** | ensures 子句 + auto-active verification + calc 证明 | `docs/reference/dafny_ensures_verification.md`（327行） | ✅ |
 | P2 | **Mermaid.js** | 文本→实时图表渲染管线 | `docs/reference/mermaidjs_diagram_rendering.md`（388行） | ✅ |
@@ -675,7 +675,7 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 
 | 项目 | 链接 | 最值得借鉴的地方 |
 |:---|:---|:---|
-| **Eigen** | [gitlab.com/libeigen/eigen](https://gitlab.com/libeigen/eigen) | 纯头文件零依赖 C++ 线性代数库，CGAL/ROS/Drake/TensorFlow 等千余项目的数值底层。**借鉴它的纯头文件分发模式——Lv-00 可提供单头文件 `lv00.h` 的轻量分发。表达式模板惰性求值对应 Lv-00 符号计算的延迟求值。Geometry 模块（Transform/Rotation/Quaternion）与 Lv-00 几何变换直接对应。固定大小矩阵栈分配为小几何体（2D/3D 点、线段）的零堆分配优化提供参考。SIMD 向量化（SSE/AVX/NEON）为 Lv-00 数值计算加速提供范例** |
+| **Eigen** | [gitlab.com/libeigen/eigen](https://gitlab.com/libeigen/eigen) | 纯头文件零依赖 C++ 线性代数库，CGAL/ROS/Drake/TensorFlow 等千余项目的数值底层。**借鉴它的纯头文件分发模式——Lv-00 可提供单头文件 `lv.h` 的轻量分发。表达式模板惰性求值对应 Lv-00 符号计算的延迟求值。Geometry 模块（Transform/Rotation/Quaternion）与 Lv-00 几何变换直接对应。固定大小矩阵栈分配为小几何体（2D/3D 点、线段）的零堆分配优化提供参考。SIMD 向量化（SSE/AVX/NEON）为 Lv-00 数值计算加速提供范例** |
 
 #### AK. 非线性优化
 
@@ -711,14 +711,14 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 
 | 优先级 | 借鉴对象 | 借鉴内容 | 落地模块 | 状态 |
 |:---|:---|:---|:---|:---:|
-| P1 | **TLA+** | 时序逻辑三段式规约 + TLC 模型检查 | `docs/reference/tlaplus_formal_specification.md` + `include/lv00/geo_spec.h`（238行：GeoConstructionSpec/GeoInvariant/StateSpaceExplorer/17 API） | ✅ |
-| P1 | **Alloy** | 关系模型统一范式 + SAT 编码管道 | `docs/reference/alloy_relational_model_finder.md` + `include/lv00/relation_model.h`（345行：原子/关系/公式/SmScope/18 API）+ `include/lv00/sat_encoding.h`（288行：SatEncoding/CNF编码/15 API） | ✅ |
-| P1 | **Eigen** | 纯头文件架构 + Geometry 模块 | `docs/reference/eigen_linear_algebra.md` + `include/lv00/lv00_numeric.h`（761行：Vec2-4/Mat3-4/Quat/Transform/SSE2加速/14个矩阵分解） | ✅ |
+| P1 | **TLA+** | 时序逻辑三段式规约 + TLC 模型检查 | `docs/reference/tlaplus_formal_specification.md` + `include/lv/geo_spec.h`（238行：GeoConstructionSpec/GeoInvariant/StateSpaceExplorer/17 API） | ✅ |
+| P1 | **Alloy** | 关系模型统一范式 + SAT 编码管道 | `docs/reference/alloy_relational_model_finder.md` + `include/lv/relation_model.h`（345行：原子/关系/公式/SmScope/18 API）+ `include/lv/sat_encoding.h`（288行：SatEncoding/CNF编码/15 API） | ✅ |
+| P1 | **Eigen** | 纯头文件架构 + Geometry 模块 | `docs/reference/eigen_linear_algebra.md` + `include/lv/lv_numeric.h`（761行：Vec2-4/Mat3-4/Quat/Transform/SSE2加速/14个矩阵分解） | ✅ |
 | P1 | **IPOPT** | 线性求解器抽象层 + 内点法 | `docs/reference/ipopt_nonlinear_optimization.md` + 求解器抽象架构已在 `solver_core.h`/`numerical_backend.h` 中体现 | ✅ |
 | P2 | **Gmsh** | .geo 声明式构造语法 + 几何离散化 | `docs/reference/gmsh_mesh_generation.md` + `geo_spec.h` 中 GeoStepType 覆蓋 Point/Line/Circle等声明式构造 | ✅ |
-| P2 | **CaDiCaL** | CDCL 极简内核 + LRAT 证明追踪 | `docs/reference/cadical_sat_solver.md` + `include/lv00/solver_core.h`（365行：Lv00Solver/10状态CDCL/21 API） | ✅ |
-| P2 | **SUNDIALS** | 三层后端抽象 + 自适应步长 + 事件检测 | `docs/reference/sundials_differential_equations.md` + `include/lv00/numerical_backend.h`（396行：Vector/Matrix/LinSol三层抽象）+ `include/lv00/geom_evol.h`（268行：PI步长控制）+ `include/lv00/geo_event_detect.h`（305行：Brent求根） | ✅ |
-| P3 | **Three.js** | Scene Graph + BufferGeometry + WebGPU | `docs/reference/threejs_web3d_rendering.md` + `lv00_numeric.h` 中 Mat4/Quat 支撑 Web 端 3D 数学（Web GUI 组件待后续实现） | ✅ |
+| P2 | **CaDiCaL** | CDCL 极简内核 + LRAT 证明追踪 | `docs/reference/cadical_sat_solver.md` + `include/lv/solver_core.h`（365行：lvSolver/10状态CDCL/21 API） | ✅ |
+| P2 | **SUNDIALS** | 三层后端抽象 + 自适应步长 + 事件检测 | `docs/reference/sundials_differential_equations.md` + `include/lv/numerical_backend.h`（396行：Vector/Matrix/LinSol三层抽象）+ `include/lv/geom_evol.h`（268行：PI步长控制）+ `include/lv/geo_event_detect.h`（305行：Brent求根） | ✅ |
+| P3 | **Three.js** | Scene Graph + BufferGeometry + WebGPU | `docs/reference/threejs_web3d_rendering.md` + `lv_numeric.h` 中 Mat4/Quat 支撑 Web 端 3D 数学（Web GUI 组件待后续实现） | ✅ |
 
 ### 第九梯队按类别汇总
 

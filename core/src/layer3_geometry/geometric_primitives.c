@@ -1,7 +1,7 @@
-/* geometric_primitives.c -- 13 个 geo_* 原语统一包装层实现
+﻿/* geometric_primitives.c -- 13 个 geo_* 原语统一包装层实现
  * C11 标准，NULL 指针安全，中文注释。 */
 
-#include "lv00/geometric_primitives.h"
+#include "lv/geometric_primitives.h"
 #include <stdlib.h>
 #include <string.h>
 #include "constraint_graph.h"
@@ -95,7 +95,7 @@ GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type,
 }
 
 /* 原语 3: geo_solve -- 求解约束系统 */
-GeoResult geo_solve(LV00Engine *engine)
+GeoResult geo_solve(lvEngine *engine)
 {
     CHECK_ENGINE(engine);
     switch (engine_solve(engine)) {
@@ -191,7 +191,7 @@ GeoResult geo_pack(ConstraintGraph *graph, const int *internal_ids,
 }
 
 /* 原语 8: geo_instantiate -- 实例化函数块 */
-GeoResult geo_instantiate(ConstraintGraph *graph, LV00Engine *engine,
+GeoResult geo_instantiate(ConstraintGraph *graph, lvEngine *engine,
                           int func_block_id, const int *args, int arg_count)
 {
     CHECK_GRAPH(graph);

@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
-Syntax-validation test runner for Lv00 (no C DLL required).
+Syntax-validation test runner for lv (no C DLL required).
 
 Walks the test directory, checks every ``test_*.py`` file for valid Python
 syntax, and optionally executes the test files.
@@ -30,7 +30,7 @@ from typing import Dict, List, Optional, Tuple
 # ---------------------------------------------------------------------------
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-TEST_DIR = os.environ.get("LV00_TEST_DIR", THIS_DIR)
+TEST_DIR = os.environ.get("lv_TEST_DIR", THIS_DIR)
 FILE_PATTERN = "test_*.py"
 
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_stochastic_processes.c
  * @brief 随机过程预设函数块 - 实现
  *
@@ -11,8 +11,8 @@
 
 #include "preset_stochastic_processes.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 

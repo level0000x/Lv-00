@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file meta_proof.c
  * @brief 剪枝合法性元证明实现
  *
@@ -11,13 +11,13 @@
  * @version 5.0.0
  */
 
-#include "lv00/meta_proof.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/conflict_detector.h"
-#include "lv00/propagation.h"
-#include "lv00/symbolic_coord.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
+#include "lv/meta_proof.h"
+#include "lv/constraint_graph.h"
+#include "lv/conflict_detector.h"
+#include "lv/propagation.h"
+#include "lv/symbolic_coord.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -47,13 +47,13 @@ static PropagationResult propagation_run_with_assignment(
 
 /** 创建剪枝记录 */
 static PruningRecord *create_pruning_record(void) {
-    PruningRecord *record = lv00_calloc(1, sizeof(PruningRecord));
+    PruningRecord *record = lv_calloc(1, sizeof(PruningRecord));
     if (!record) return NULL;
 
     record->capacity = 64;
-    record->operations = lv00_calloc((size_t)record->capacity, sizeof(PruningOperation));
+    record->operations = lv_calloc((size_t)record->capacity, sizeof(PruningOperation));
     if (!record->operations) {
-        lv00_free((void **)&record);
+        lv_free((void **)&record);
         return NULL;
     }
 
@@ -76,15 +76,15 @@ static void destroy_pruning_record(PruningRecord *record) {
                     symbolic_coord_destroy(op->removed_states[j]);
                 }
             }
-            lv00_free((void **)&op->removed_states);
+            lv_free((void **)&op->removed_states);
         }
         if (op->propagation_trace) {
-            lv00_free((void **)&op->propagation_trace);
+            lv_free((void **)&op->propagation_trace);
         }
     }
 
-    lv00_free((void **)&record->operations);
-    lv00_free((void **)&record);
+    lv_free((void **)&record->operations);
+    lv_free((void **)&record);
 }
 
 /** 添加剪枝操作到记录 */
@@ -94,7 +94,7 @@ static bool add_pruning_operation(PruningRecord *record,
 
     if (record->operation_count >= record->capacity) {
         int new_cap = record->capacity * 2;
-        PruningOperation *new_ops = lv00_realloc(
+        PruningOperation *new_ops = lv_realloc(
             record->operations, (size_t)new_cap * sizeof(PruningOperation));
         if (!new_ops) return false;
         record->operations = new_ops;
@@ -115,7 +115,7 @@ MetaProofContext *meta_proof_context_create(ConstraintGraph *graph,
                                              PropagationContext *prop_ctx) {
     if (!graph) return NULL;
 
-    MetaProofContext *ctx = lv00_calloc(1, sizeof(MetaProofContext));
+    MetaProofContext *ctx = lv_calloc(1, sizeof(MetaProofContext));
     if (!ctx) return NULL;
 
     ctx->graph = graph;
@@ -124,7 +124,7 @@ MetaProofContext *meta_proof_context_create(ConstraintGraph *graph,
     /* 创建剪枝记录 */
     ctx->record = create_pruning_record();
     if (!ctx->record) {
-        lv00_free((void **)&ctx);
+        lv_free((void **)&ctx);
         return NULL;
     }
 
@@ -145,7 +145,7 @@ void meta_proof_context_destroy(MetaProofContext *ctx) {
         destroy_pruning_record(ctx->record);
     }
 
-    lv00_free((void **)&ctx);
+    lv_free((void **)&ctx);
 }
 
 /* ============================================================
@@ -173,7 +173,7 @@ MetaProofResult meta_prove_direct_contradiction(MetaProofContext *ctx,
     }
 
     /* 分配约束 ID 数组 */
-    int *constraint_ids = lv00_malloc((size_t)constraint_count * sizeof(int));
+    int *constraint_ids = lv_malloc((size_t)constraint_count * sizeof(int));
     if (!constraint_ids) {
         return META_PROVE_INCONCLUSIVE;
     }
@@ -230,13 +230,13 @@ MetaProofResult meta_prove_direct_contradiction(MetaProofContext *ctx,
             if (out_conflicting_constraint) {
                 *out_conflicting_constraint = cid;
             }
-            lv00_free((void **)&constraint_ids);
+            lv_free((void **)&constraint_ids);
             ctx->l1_proofs++;
             return META_PROVE_VALID;
         }
     }
 
-    lv00_free((void **)&constraint_ids);
+    lv_free((void **)&constraint_ids);
     return META_PROVE_INCONCLUSIVE;
 }
 
@@ -355,7 +355,7 @@ CompletenessReport *meta_prove_completeness(MetaProofContext *ctx) {
         return NULL;
     }
 
-    CompletenessReport *report = lv00_calloc(1, sizeof(CompletenessReport));
+    CompletenessReport *report = lv_calloc(1, sizeof(CompletenessReport));
     if (!report) return NULL;
 
     /* 统计剪枝记录 */
@@ -406,7 +406,7 @@ CompletenessReport *meta_prove_completeness(MetaProofContext *ctx) {
 }
 
 void meta_proof_completeness_report_destroy(CompletenessReport *report) {
-    lv00_free((void **)&report);
+    lv_free((void **)&report);
 }
 
 /* ============================================================
@@ -430,7 +430,7 @@ void meta_proof_record_pruning(MetaProofContext *ctx,
     op.removed_count = count;
 
     /* 复制被移除的状态 */
-    op.removed_states = lv00_calloc((size_t)count, sizeof(SymbolicCoord *));
+    op.removed_states = lv_calloc((size_t)count, sizeof(SymbolicCoord *));
     if (op.removed_states) {
         for (int i = 0; i < count; i++) {
             if (removed[i]) {

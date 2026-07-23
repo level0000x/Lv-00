@@ -1,4 +1,4 @@
-# Lv-00 Axiom Package Progress
+﻿# Lv-00 Axiom Package Progress
 
 ## Completed Axiom Packages
 
@@ -129,7 +129,7 @@
 **File**: `axiom_packages/group_theory.lvz`
 **Test**: `tests/test_axiom_group_theory.c` (9 test functions, 107 assertions, all passing)
 **Test Results**: All 9 tests pass (load, templates, unconstructibles, logical framework, content hash, round-trip save/load, dependency validation, negative lookups, external refs). 107 assertions total, 0 failures.
-**Build Note**: Requires LLVM-MinGW (clang) toolchain; cannot be compiled with GCC due to ABI incompatibility with pre-built liblv00.a.
+**Build Note**: Requires LLVM-MinGW (clang) toolchain; cannot be compiled with GCC due to ABI incompatibility with pre-built liblv.a.
 
 ### 4. classical_propositional_logic v1.0.0
 

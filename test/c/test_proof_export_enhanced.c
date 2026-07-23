@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_proof_export_enhanced.c
  * @brief Tests for the enhanced proof export module.
  *
@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "proof_export_enhanced.h"
 #include "test_helpers.h"
 
@@ -32,8 +32,8 @@ int g_fail_count = 0;
  * Helper: create a simple test proof
  * ============================================================ */
 
-static Lv00Proof create_test_proof(void) {
-    static Lv00ProofStep steps[3];
+static lvProof create_test_proof(void) {
+    static lvProofStep steps[3];
 
     steps[0].step_id    = 1;
     steps[0].rule       = "assume";
@@ -53,7 +53,7 @@ static Lv00Proof create_test_proof(void) {
     steps[2].conclusion = "Q";
     steps[2].depth      = 1;
 
-    Lv00Proof proof;
+    lvProof proof;
     proof.steps   = steps;
     proof.n_steps = 3;
     proof.theorem = "Modus Ponens: P -> (P -> Q) -> Q";
@@ -65,15 +65,15 @@ static Lv00Proof create_test_proof(void) {
  * ============================================================ */
 
 static void test_export_html(void) {
-    Lv00Proof proof = create_test_proof();
+    lvProof proof = create_test_proof();
 
-    Lv00ExportConfig config;
+    lvExportConfig config;
     config.format              = EXPORT_HTML;
     config.include_proof_trace = true;
     config.include_geometry    = false;
     config.pretty_print        = true;
 
-    Lv00ExportResult *result = proof_export_enhanced(&proof, &config);
+    lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "HTML export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
@@ -95,15 +95,15 @@ static void test_export_html(void) {
  * ============================================================ */
 
 static void test_export_latex(void) {
-    Lv00Proof proof = create_test_proof();
+    lvProof proof = create_test_proof();
 
-    Lv00ExportConfig config;
+    lvExportConfig config;
     config.format              = EXPORT_LATEX;
     config.include_proof_trace = false;
     config.include_geometry    = false;
     config.pretty_print        = true;
 
-    Lv00ExportResult *result = proof_export_enhanced(&proof, &config);
+    lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "LaTeX export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
@@ -123,15 +123,15 @@ static void test_export_latex(void) {
  * ============================================================ */
 
 static void test_export_coq(void) {
-    Lv00Proof proof = create_test_proof();
+    lvProof proof = create_test_proof();
 
-    Lv00ExportConfig config;
+    lvExportConfig config;
     config.format              = EXPORT_COQ;
     config.include_proof_trace = false;
     config.include_geometry    = false;
     config.pretty_print        = true;
 
-    Lv00ExportResult *result = proof_export_enhanced(&proof, &config);
+    lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "Coq export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
@@ -149,15 +149,15 @@ static void test_export_coq(void) {
  * ============================================================ */
 
 static void test_export_lean4(void) {
-    Lv00Proof proof = create_test_proof();
+    lvProof proof = create_test_proof();
 
-    Lv00ExportConfig config;
+    lvExportConfig config;
     config.format              = EXPORT_LEAN4;
     config.include_proof_trace = false;
     config.include_geometry    = false;
     config.pretty_print        = true;
 
-    Lv00ExportResult *result = proof_export_enhanced(&proof, &config);
+    lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "Lean 4 export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
@@ -175,15 +175,15 @@ static void test_export_lean4(void) {
  * ============================================================ */
 
 static void test_export_json(void) {
-    Lv00Proof proof = create_test_proof();
+    lvProof proof = create_test_proof();
 
-    Lv00ExportConfig config;
+    lvExportConfig config;
     config.format              = EXPORT_JSON;
     config.include_proof_trace = true;
     config.include_geometry    = false;
     config.pretty_print        = true;
 
-    Lv00ExportResult *result = proof_export_enhanced(&proof, &config);
+    lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "JSON export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
@@ -207,15 +207,15 @@ static void test_export_json(void) {
  * ============================================================ */
 
 static void test_export_dot(void) {
-    Lv00Proof proof = create_test_proof();
+    lvProof proof = create_test_proof();
 
-    Lv00ExportConfig config;
+    lvExportConfig config;
     config.format              = EXPORT_DOT;
     config.include_proof_trace = false;
     config.include_geometry    = false;
     config.pretty_print        = true;
 
-    Lv00ExportResult *result = proof_export_enhanced(&proof, &config);
+    lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "DOT export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
@@ -235,7 +235,7 @@ static void test_export_dot(void) {
  * ============================================================ */
 
 static void test_export_from_navigator(void) {
-    Lv00ExportResult *result = proof_export_from_navigator("Test Theorem", EXPORT_HTML);
+    lvExportResult *result = proof_export_from_navigator("Test Theorem", EXPORT_HTML);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "Navigator export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
@@ -259,16 +259,16 @@ static void test_export_from_navigator(void) {
  * ============================================================ */
 
 static void test_export_null_safety(void) {
-    Lv00Proof proof = create_test_proof();
+    lvProof proof = create_test_proof();
 
-    Lv00ExportConfig config;
+    lvExportConfig config;
     config.format              = EXPORT_HTML;
     config.include_proof_trace = false;
     config.include_geometry    = false;
     config.pretty_print        = true;
 
     /* NULL proof */
-    Lv00ExportResult *result = proof_export_enhanced(NULL, &config);
+    lvExportResult *result = proof_export_enhanced(NULL, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(!result->success, "NULL proof should fail");
     proof_export_result_destroy(result);

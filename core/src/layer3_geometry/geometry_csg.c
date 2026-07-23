@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geometry_csg.c
  * @brief Lv-00 CSG 构造实体几何 — BSP 树布尔运算与 OpenSCAD 互操作
  *
@@ -34,8 +34,8 @@
 #include <string.h>
 
 #include "geometry_types.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ================================================================
  * 内部常量
@@ -198,7 +198,7 @@ static double csg_signed_distance(CSGVec3 plane_point, CSGVec3 plane_normal, CSG
 static void csg_trilist_init(CSGTriList *list, int init_cap) {
     list->count = 0;
     list->capacity = init_cap > 0 ? init_cap : CSG_MAX_TRI_BUFFER;
-    list->tris = (CSGTriangle *) lv00_calloc((size_t) list->capacity, sizeof(CSGTriangle));
+    list->tris = (CSGTriangle *) lv_calloc((size_t) list->capacity, sizeof(CSGTriangle));
     if (!list->tris) {
         list->capacity = 0;
     }
@@ -211,7 +211,7 @@ static void csg_trilist_append(CSGTriList *list, const CSGTriangle *tri) {
     if (list->count >= list->capacity) {
         if (list->capacity > INT_MAX / 2) return;
         int new_cap = list->capacity * 2;
-        CSGTriangle *new_tris = (CSGTriangle *) lv00_realloc(list->tris, (size_t) new_cap * sizeof(CSGTriangle));
+        CSGTriangle *new_tris = (CSGTriangle *) lv_realloc(list->tris, (size_t) new_cap * sizeof(CSGTriangle));
         if (!new_tris) return;
         list->tris = new_tris;
         list->capacity = new_cap;
@@ -225,7 +225,7 @@ static void csg_trilist_append(CSGTriList *list, const CSGTriangle *tri) {
  */
 static void csg_trilist_free(CSGTriList *list) {
     if (list->tris) {
-        lv00_free((void **) &list->tris);
+        lv_free((void **) &list->tris);
     }
     list->count = 0;
     list->capacity = 0;
@@ -245,7 +245,7 @@ static void csg_trilist_free(CSGTriList *list) {
  * @return 新分配的 CSGNode 指针，失败返回 NULL
  */
 CSGNode *csg_node_create(CSGNodeKind kind) {
-    CSGNode *node = (CSGNode *) lv00_calloc(1, sizeof(CSGNode));
+    CSGNode *node = (CSGNode *) lv_calloc(1, sizeof(CSGNode));
     if (!node)
         return NULL;
 
@@ -293,7 +293,7 @@ void csg_node_add_child(CSGNode *parent, CSGNode *child) {
     /* 首次分配子节点数组 */
     if (!parent->children) {
         parent->child_capacity = CSG_CHILD_CAPACITY_INIT;
-        parent->children = (CSGNode **) lv00_calloc((size_t) parent->child_capacity, sizeof(CSGNode *));
+        parent->children = (CSGNode **) lv_calloc((size_t) parent->child_capacity, sizeof(CSGNode *));
         if (!parent->children)
             return;
     }
@@ -304,7 +304,7 @@ void csg_node_add_child(CSGNode *parent, CSGNode *child) {
         if (parent->child_capacity > INT_MAX / CSG_CHILD_CAPACITY_GROW_FACTOR)
             return;
         int new_cap = parent->child_capacity * CSG_CHILD_CAPACITY_GROW_FACTOR;
-        CSGNode **new_arr = (CSGNode **) lv00_realloc(parent->children, (size_t) new_cap * sizeof(CSGNode *));
+        CSGNode **new_arr = (CSGNode **) lv_realloc(parent->children, (size_t) new_cap * sizeof(CSGNode *));
         if (!new_arr)
             return;
 
@@ -336,10 +336,10 @@ void csg_node_destroy(CSGNode *node) {
         for (int i = 0; i < node->child_count; i++) {
             csg_node_destroy(node->children[i]);
         }
-        lv00_free((void **) &node->children);
+        lv_free((void **) &node->children);
     }
 
-    lv00_free((void **) &node);
+    lv_free((void **) &node);
 }
 
 /* ================================================================
@@ -784,7 +784,7 @@ static void csg_bsp_union_tri(const CSGTriList *list_a, const CSGTriList *list_b
 static void csg_bsp_difference_tri(const CSGTriList *list_a, const CSGTriList *list_b, CSGTriList *out) {
     /* 概念级实现：对于每个 A 中的三角形，如果其中心在 B 的包围盒内部，
      * 则简单丢弃；否则保留。 */
-    LV00_UNUSED(list_b);
+    lv_UNUSED(list_b);
 
     for (int i = 0; i < list_a->count; i++) {
         const CSGTriangle *tri = &list_a->tris[i];
@@ -816,7 +816,7 @@ static void csg_bsp_intersection_tri(const CSGTriList *list_a, const CSGTriList 
     /* 概念级实现：仅保留同时出现在两个列表中三角形中心位于对方包围盒内的面。
      * 生产环境需要完整 BSP。 */
 
-    LV00_UNUSED(list_b);
+    lv_UNUSED(list_b);
 
     for (int i = 0; i < list_a->count; i++) {
         csg_trilist_append(out, &list_a->tris[i]);
@@ -962,7 +962,7 @@ static void csg_compute_convex_hull(const CSGVec3 *vertices, int vertex_count, C
 static void csg_extract_vertices(const CSGTriList *tris, CSGVec3 **out_verts, int *out_count) {
     /* 最坏情况：每个三角形 3 个顶点 */
     int max_verts = tris->count * 3;
-    CSGVec3 *verts = (CSGVec3 *) lv00_calloc((size_t) max_verts, sizeof(CSGVec3));
+    CSGVec3 *verts = (CSGVec3 *) lv_calloc((size_t) max_verts, sizeof(CSGVec3));
     if (!verts) {
         *out_verts = NULL;
         *out_count = 0;
@@ -1168,7 +1168,7 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
 
             /* 清理 */
             if (hull_verts) {
-                lv00_free((void **) &hull_verts);
+                lv_free((void **) &hull_verts);
             }
             csg_trilist_free(&all_tris);
             break;
@@ -1196,7 +1196,7 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                 /* 计算所有顶点对之和：v_sum = v_a + v_b */
                 if (count_a <= INT_MAX / count_b) {
                 int sum_count = count_a * count_b;
-                CSGVec3 *sum_verts = (CSGVec3 *) lv00_calloc((size_t) sum_count, sizeof(CSGVec3));
+                CSGVec3 *sum_verts = (CSGVec3 *) lv_calloc((size_t) sum_count, sizeof(CSGVec3));
                 if (sum_verts) {
                     int idx = 0;
                     for (int i = 0; i < count_a; i++) {
@@ -1209,14 +1209,14 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                     /* 对求和结果计算凸包，得到 Minkowski 和的近似 */
                     csg_compute_convex_hull(sum_verts, sum_count, out);
 
-                    lv00_free((void **) &sum_verts);
+                    lv_free((void **) &sum_verts);
                 }
                 } /* end if (count_a <= INT_MAX / count_b) */
             } /* end if (verts_a && verts_b) */
 
             /* 清理 */
-            if (verts_a) lv00_free((void **) &verts_a);
-            if (verts_b) lv00_free((void **) &verts_b);
+            if (verts_a) lv_free((void **) &verts_a);
+            if (verts_b) lv_free((void **) &verts_b);
             csg_trilist_free(&tris_a);
             csg_trilist_free(&tris_b);
             break;
@@ -1296,8 +1296,8 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             if (section_verts && section_vert_count >= 2) {
                 /* 收集所有边（顶点索引对），去重 */
                 int edge_cap = section_tris.count * 3;
-                int *edge_a = (int *) lv00_calloc((size_t) edge_cap, sizeof(int));
-                int *edge_b = (int *) lv00_calloc((size_t) edge_cap, sizeof(int));
+                int *edge_a = (int *) lv_calloc((size_t) edge_cap, sizeof(int));
+                int *edge_b = (int *) lv_calloc((size_t) edge_cap, sizeof(int));
                 int edge_count = 0;
 
                 if (edge_a && edge_b) {
@@ -1383,12 +1383,12 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                     }
                 }
 
-                if (edge_a) lv00_free((void **) &edge_a);
-                if (edge_b) lv00_free((void **) &edge_b);
+                if (edge_a) lv_free((void **) &edge_a);
+                if (edge_b) lv_free((void **) &edge_b);
             }
 
             /* 清理 */
-            if (section_verts) lv00_free((void **) &section_verts);
+            if (section_verts) lv_free((void **) &section_verts);
             csg_trilist_free(&section_tris);
             break;
         }
@@ -1440,7 +1440,7 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             csg_extract_vertices(&section_tris, &sec_verts, &sec_count);
 
             if (!sec_verts || sec_count < 2) {
-                if (sec_verts) lv00_free((void **) &sec_verts);
+                if (sec_verts) lv_free((void **) &sec_verts);
                 csg_trilist_free(&section_tris);
                 break;
             }
@@ -1556,7 +1556,7 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             }
 
             /* 清理 */
-            if (sec_verts) lv00_free((void **) &sec_verts);
+            if (sec_verts) lv_free((void **) &sec_verts);
             csg_trilist_free(&section_tris);
             break;
         }
@@ -1702,7 +1702,7 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
  * @brief 将 CSG 树导出为 OpenSCAD .scad 格式文本
  *
  * 递归遍历整棵 CSG 树，生成符合 OpenSCAD 语法的文本。
- * 调用者负责用 lv00_free() 释放返回的字符串。
+ * 调用者负责用 lv_free() 释放返回的字符串。
  *
  * @param root  CSG 树根节点
  * @return 以 '\0' 结尾的 OpenSCAD 脚本字符串，失败返回 NULL
@@ -1712,7 +1712,7 @@ char *csg_export_to_openscad(const CSGNode *root) {
         return NULL;
 
     int buf_size = CSG_EXPORT_BUF_INIT;
-    char *buf = (char *) lv00_calloc((size_t) buf_size, sizeof(char));
+    char *buf = (char *) lv_calloc((size_t) buf_size, sizeof(char));
     if (!buf)
         return NULL;
 
@@ -1723,13 +1723,13 @@ char *csg_export_to_openscad(const CSGNode *root) {
                            "// Engine: geometry_csg.c (BSP-based)\n"
                            "$fn = 64;\n\n");
     if (written < 0) {
-        lv00_free((void **) &buf);
+        lv_free((void **) &buf);
         return NULL;
     }
 
     written = csg_export_node(root, buf, buf_size, written, 0);
     if (written < 0) {
-        lv00_free((void **) &buf);
+        lv_free((void **) &buf);
         return NULL;
     }
 

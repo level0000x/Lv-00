@@ -1,0 +1,40 @@
+﻿@PACKAGE_INIT@
+
+# ---- Lv-00 CMake 包配置文件 ----
+# 由 CMake 的 configure_package_config_file() 自动生成
+# 使用方式：
+#   find_package(lv 3.5.0 REQUIRED)
+#   target_link_libraries(myapp lv::lv)
+
+include(CMakeFindDependencyMacro)
+
+# ---- 版本兼容性检查 ----
+set(PACKAGE_VERSION "@PROJECT_VERSION@")
+if(PACKAGE_VERSION VERSION_LESS PACKAGE_FIND_VERSION)
+    set(PACKAGE_VERSION_COMPATIBLE FALSE)
+    set(PACKAGE_VERSION_UNSUITABLE TRUE)
+else()
+    set(PACKAGE_VERSION_COMPATIBLE TRUE)
+endif()
+
+# ---- 提供导入目标 ----
+if(NOT TARGET lv::lv)
+    include("${CMAKE_CURRENT_LIST_DIR}/lv-targets.cmake" OPTIONAL RESULT_VARIABLE _lv_targets_file)
+    if(NOT _lv_targets_file)
+        # 回退：如果未找到 targets 文件，尝试直接链接库
+        add_library(lv::lv UNKNOWN IMPORTED)
+        set_target_properties(lv::lv PROPERTIES
+            IMPORTED_LOCATION "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_LIBDIR@/@CMAKE_STATIC_LIBRARY_PREFIX@lv@CMAKE_STATIC_LIBRARY_SUFFIX@"
+            INTERFACE_INCLUDE_DIRECTORIES "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_INCLUDEDIR@"
+        )
+    endif()
+endif()
+
+# ---- 检查 GMP 依赖 ----
+find_dependency(GMP QUIET)
+
+# ---- 设置全局变量（向后兼容） ----
+set(lv_FOUND TRUE)
+set(lv_VERSION "${PACKAGE_VERSION}")
+set(lv_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_INCLUDEDIR@")
+set(lv_LIBRARIES lv::lv)

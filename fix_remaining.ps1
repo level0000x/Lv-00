@@ -1,6 +1,6 @@
-$file = (Get-Item "core\src\layer3_geometry\geo_dynamic.c").FullName
+﻿$file = (Get-Item "core\src\layer3_geometry\geo_dynamic.c").FullName
 $content = Get-Content $file -Raw -Encoding UTF8
-$content = $content -replace 'bool lv00_dyn_graph_remove_node\(', 'int lv00_dyn_graph_remove_node('
+$content = $content -replace 'bool lv_dyn_graph_remove_node\(', 'int lv_dyn_graph_remove_node('
 Set-Content $file $content -NoNewline -Encoding UTF8
 
 $file = (Get-Item "core\src\layer3_geometry\constraint_graph\graph_conflict.c").FullName

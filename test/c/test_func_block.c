@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_func_block.c
  * @brief 鍑芥暟鍧楃郴缁熸祴璇?- 鎵撳寘銆佸疄渚嬪寲銆佺‘瀹氭€ф鏌ャ€佸瑙ｉ€夋嫨鍣?
  *
@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* ============== 杈呭姪鍑芥暟 ============== */
@@ -134,7 +134,7 @@ static int test_pack_cross_boundary_detect(void) {
     assert(conflict_count > 0);
     assert(conflicts != NULL);
 
-    lv00_free_ptr(conflicts);
+    lv_free_ptr(conflicts);
     graph_destroy(g);
     printf("  PASSED\n");
     return 0;
@@ -422,7 +422,7 @@ static int test_instantiate_basic(void) {
     assert(new_node_ids != NULL);
     assert(new_node_count > 0);
 
-    lv00_free_ptr(new_node_ids);
+    lv_free_ptr(new_node_ids);
     func_block_destroy(fb);
     graph_destroy(g);
     printf("  PASSED\n");
@@ -469,7 +469,7 @@ static int test_instantiate_beta_reduction(void) {
     /* 楠岃瘉鏂拌妭鐐硅鍒涘缓 */
     assert(new_node_count > 0);
 
-    lv00_free_ptr(new_node_ids);
+    lv_free_ptr(new_node_ids);
     func_block_destroy(fb);
     graph_destroy(g);
     printf("  PASSED\n");
@@ -1039,7 +1039,7 @@ static int test_instantiate_connection_beta_reduction(void) {
     /* 搴旇鑷冲皯鏈夋柊鐨?CONNECTION 绾︽潫琚垱寤?*/
     assert(connection_count_after >= 0); /* 鍙兘鍥犳儏鍐?B锛堣嚜鐢卞彉閲忥級涓嶅垱寤烘柊绾︽潫 */
 
-    lv00_free_ptr(new_node_ids);
+    lv_free_ptr(new_node_ids);
     func_block_destroy(fb);
     graph_destroy(g);
     printf("  PASSED\n");
@@ -1095,7 +1095,7 @@ static int test_instantiate_connection_case_b_free_variable(void) {
     /* 楠岃瘉涓嶄細宕╂簝鍗冲彲 */
     assert(new_node_count >= 0);
 
-    lv00_free_ptr(new_node_ids);
+    lv_free_ptr(new_node_ids);
     func_block_destroy(fb);
     graph_destroy(g);
     printf("  PASSED\n");
@@ -1293,7 +1293,7 @@ static int test_func_block_serialize_deserialize(void) {
         /* assert(fb2->determinism == states[i]); -- 寰呭紩鎿庣ǔ瀹氬悗鎭㈠ */
         (void) fb2; /* suppress warning */
 
-        lv00_free_ptr(data);
+        lv_free_ptr(data);
         func_block_destroy(fb);
         func_block_destroy(fb2);
     }

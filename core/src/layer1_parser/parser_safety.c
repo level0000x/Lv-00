@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file parser_safety.c
  * @brief 解析器安全加固实现
  *
@@ -9,12 +9,12 @@
  */
 
 #include "parser_safety.h"
-#include "config.h"          /* LV00_MAX_* macros */
+#include "config.h"          /* lv_MAX_* macros */
 
 #include <ctype.h>
 #include <string.h>
 
-#include "lv00_utils.h"
+#include "lv_utils.h"
 
 /* ============================================================
  * 内部辅助函数
@@ -96,7 +96,7 @@ static int is_unicode_whitespace_start(unsigned char c, unsigned char n2, unsign
  * @return true  字符安全（可打印或允许的控制字符）
  * @return false 字符不安全（不允许的控制字符）
  */
-bool lv00_char_is_safe_ctrl(unsigned char c) {
+bool lv_char_is_safe_ctrl(unsigned char c) {
     if (c >= 0x20) return true;  /* 可打印ASCII */
     if (c == 0x09) return true;  /* '\t' */
     if (c == 0x0A) return true;  /* '\n' */
@@ -112,25 +112,25 @@ bool lv00_char_is_safe_ctrl(unsigned char c) {
  *
  * @param input 输入字符串指针
  * @param len   输入字符串长度
- * @return LV00_OK 验证通过，其他值为具体错误码
+ * @return lv_OK 验证通过，其他值为具体错误码
  */
-Lv00ErrorCode lv00_input_validate(const char *input, size_t len) {
+lvErrorCode lv_input_validate(const char *input, size_t len) {
     /* 检查1：非NULL且非空 */
     if (!input) {
-        lv00_set_error(LV00_ERROR_PARSER_NULL_INPUT, "输入字符串为NULL");
-        return LV00_ERROR_PARSER_NULL_INPUT;
+        lv_set_error(lv_ERROR_PARSER_NULL_INPUT, "输入字符串为NULL");
+        return lv_ERROR_PARSER_NULL_INPUT;
     }
 
     if (len == 0) {
-        lv00_set_error(LV00_ERROR_PARSER_EMPTY_INPUT, "输入字符串为空");
-        return LV00_ERROR_PARSER_EMPTY_INPUT;
+        lv_set_error(lv_ERROR_PARSER_EMPTY_INPUT, "输入字符串为空");
+        return lv_ERROR_PARSER_EMPTY_INPUT;
     }
 
     /* 检查2：长度上限 */
-    if (len > LV00_MAX_INPUT_LENGTH) {
-        lv00_set_error(LV00_ERROR_PARSER_INPUT_TOO_LONG,
-                       "输入长度 %zu 超过上限 %d", len, LV00_MAX_INPUT_LENGTH);
-        return LV00_ERROR_PARSER_INPUT_TOO_LONG;
+    if (len > lv_MAX_INPUT_LENGTH) {
+        lv_set_error(lv_ERROR_PARSER_INPUT_TOO_LONG,
+                       "输入长度 %zu 超过上限 %d", len, lv_MAX_INPUT_LENGTH);
+        return lv_ERROR_PARSER_INPUT_TOO_LONG;
     }
 
     /* 检查3：扫描非法字符 */
@@ -139,20 +139,20 @@ Lv00ErrorCode lv00_input_validate(const char *input, size_t len) {
 
         /* null字节检查 */
         if (c == 0x00) {
-            lv00_set_error(LV00_ERROR_PARSER_ILLEGAL_CHARS,
+            lv_set_error(lv_ERROR_PARSER_ILLEGAL_CHARS,
                            "输入在位置 %zu 包含null字节", i);
-            return LV00_ERROR_PARSER_ILLEGAL_CHARS;
+            return lv_ERROR_PARSER_ILLEGAL_CHARS;
         }
 
         /* 不允许的控制字符检查 */
         if (is_disallowed_ctrl(c)) {
-            lv00_set_error(LV00_ERROR_PARSER_ILLEGAL_CHARS,
+            lv_set_error(lv_ERROR_PARSER_ILLEGAL_CHARS,
                            "输入在位置 %zu 包含非法控制字符 0x%02X", i, (unsigned int) c);
-            return LV00_ERROR_PARSER_ILLEGAL_CHARS;
+            return lv_ERROR_PARSER_ILLEGAL_CHARS;
         }
     }
 
-    return LV00_OK;
+    return lv_OK;
 }
 
 /**
@@ -168,7 +168,7 @@ Lv00ErrorCode lv00_input_validate(const char *input, size_t len) {
  * @param max_len 缓冲区最大长度
  * @return 净化后的字符串长度
  */
-size_t lv00_input_sanitize(char *input, size_t max_len) {
+size_t lv_input_sanitize(char *input, size_t max_len) {
     if (!input || max_len == 0) return 0;
 
     size_t read = 0;
@@ -227,43 +227,43 @@ size_t lv00_input_sanitize(char *input, size_t max_len) {
  * @brief 检查 AST 深度是否超过安全上限
  *
  * @param depth 当前 AST 深度
- * @return LV00_OK 深度在安全范围内，其他值为错误码
+ * @return lv_OK 深度在安全范围内，其他值为错误码
  */
-Lv00ErrorCode lv00_check_ast_depth(int depth) {
-    if (depth > LV00_MAX_AST_DEPTH) {
-        lv00_set_error(LV00_ERROR_PARSER_DEPTH_EXCEEDED,
-                       "AST深度 %d 超过上限 %d", depth, LV00_MAX_AST_DEPTH);
-        return LV00_ERROR_PARSER_DEPTH_EXCEEDED;
+lvErrorCode lv_check_ast_depth(int depth) {
+    if (depth > lv_MAX_AST_DEPTH) {
+        lv_set_error(lv_ERROR_PARSER_DEPTH_EXCEEDED,
+                       "AST深度 %d 超过上限 %d", depth, lv_MAX_AST_DEPTH);
+        return lv_ERROR_PARSER_DEPTH_EXCEEDED;
     }
-    return LV00_OK;
+    return lv_OK;
 }
 
 /**
  * @brief 检查 AST 节点数量是否超过安全上限
  *
  * @param count 当前 AST 节点数量
- * @return LV00_OK 节点数在安全范围内，其他值为错误码
+ * @return lv_OK 节点数在安全范围内，其他值为错误码
  */
-Lv00ErrorCode lv00_check_ast_node_count(int count) {
-    if (count > LV00_MAX_AST_NODES) {
-        lv00_set_error(LV00_ERROR_PARSER_NODE_LIMIT,
-                       "AST节点数 %d 超过上限 %d", count, LV00_MAX_AST_NODES);
-        return LV00_ERROR_PARSER_NODE_LIMIT;
+lvErrorCode lv_check_ast_node_count(int count) {
+    if (count > lv_MAX_AST_NODES) {
+        lv_set_error(lv_ERROR_PARSER_NODE_LIMIT,
+                       "AST节点数 %d 超过上限 %d", count, lv_MAX_AST_NODES);
+        return lv_ERROR_PARSER_NODE_LIMIT;
     }
-    return LV00_OK;
+    return lv_OK;
 }
 
 /**
  * @brief 检查 Token 长度是否超过安全上限
  *
  * @param len 当前 Token 长度
- * @return LV00_OK Token 长度在安全范围内，其他值为错误码
+ * @return lv_OK Token 长度在安全范围内，其他值为错误码
  */
-Lv00ErrorCode lv00_check_token_length(size_t len) {
-    if (len > LV00_MAX_TOKEN_LENGTH) {
-        lv00_set_error(LV00_ERROR_PARSER_TOKEN_TOO_LONG,
-                       "Token长度 %zu 超过上限 %d", len, LV00_MAX_TOKEN_LENGTH);
-        return LV00_ERROR_PARSER_TOKEN_TOO_LONG;
+lvErrorCode lv_check_token_length(size_t len) {
+    if (len > lv_MAX_TOKEN_LENGTH) {
+        lv_set_error(lv_ERROR_PARSER_TOKEN_TOO_LONG,
+                       "Token长度 %zu 超过上限 %d", len, lv_MAX_TOKEN_LENGTH);
+        return lv_ERROR_PARSER_TOKEN_TOO_LONG;
     }
-    return LV00_OK;
+    return lv_OK;
 }

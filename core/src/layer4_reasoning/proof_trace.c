@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_trace.c
  * @brief 证明追踪系统实现
  *
@@ -7,9 +7,9 @@
  * @version 5.0.0
  */
 
-#include "lv00/proof_trace.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
+#include "lv/proof_trace.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -57,14 +57,14 @@ struct ProofTrace {
  *
  * @return 新创建的证明轨迹指针，失败返回 NULL
  */
-ProofTrace *lv00_proof_trace_create(void) {
-    ProofTrace *trace = lv00_calloc(1, sizeof(ProofTrace));
+ProofTrace *lv_proof_trace_create(void) {
+    ProofTrace *trace = lv_calloc(1, sizeof(ProofTrace));
     if (!trace) return NULL;
 
     trace->capacity = 64;
-    trace->steps = lv00_calloc((size_t)trace->capacity, sizeof(ProofStep));
+    trace->steps = lv_calloc((size_t)trace->capacity, sizeof(ProofStep));
     if (!trace->steps) {
-        lv00_free((void **)&trace);
+        lv_free((void **)&trace);
         return NULL;
     }
 
@@ -80,10 +80,10 @@ ProofTrace *lv00_proof_trace_create(void) {
  *
  * @param trace 要销毁的证明轨迹
  */
-void lv00_proof_trace_destroy(ProofTrace *trace) {
+void lv_proof_trace_destroy(ProofTrace *trace) {
     if (!trace) return;
-    lv00_free((void **)&trace->steps);
-    lv00_free((void **)&trace);
+    lv_free((void **)&trace->steps);
+    lv_free((void **)&trace);
 }
 
 /**
@@ -94,13 +94,13 @@ void lv00_proof_trace_destroy(ProofTrace *trace) {
  * @param state 步骤状态（可为 NULL）
  * @return 新步骤的索引，失败返回 -1
  */
-int lv00_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *state) {
+int lv_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *state) {
     if (!trace || !rule) return -1;
 
     /* 扩容检查 */
     if (trace->step_count >= trace->capacity) {
         int new_cap = trace->capacity * 2;
-        ProofStep *new_steps = lv00_realloc(
+        ProofStep *new_steps = lv_realloc(
             trace->steps, (size_t)new_cap * sizeof(ProofStep));
         if (!new_steps) return -1;
         trace->steps = new_steps;
@@ -134,7 +134,7 @@ int lv00_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *s
  * @param trace 证明轨迹
  * @return true 表示证明已完成
  */
-bool lv00_proof_trace_is_complete(const ProofTrace *trace) {
+bool lv_proof_trace_is_complete(const ProofTrace *trace) {
     return trace ? trace->complete : false;
 }
 
@@ -143,7 +143,7 @@ bool lv00_proof_trace_is_complete(const ProofTrace *trace) {
  *
  * @param trace 证明轨迹
  */
-void lv00_proof_trace_mark_complete(ProofTrace *trace) {
+void lv_proof_trace_mark_complete(ProofTrace *trace) {
     if (trace) {
         trace->complete = true;
         trace->end_time = (int64_t)time(NULL);
@@ -156,7 +156,7 @@ void lv00_proof_trace_mark_complete(ProofTrace *trace) {
  * @param trace 证明轨迹
  * @return 步骤数量，若 trace 为 NULL 则返回 0
  */
-int lv00_proof_trace_get_step_count(const ProofTrace *trace) {
+int lv_proof_trace_get_step_count(const ProofTrace *trace) {
     return trace ? trace->step_count : 0;
 }
 
@@ -167,7 +167,7 @@ int lv00_proof_trace_get_step_count(const ProofTrace *trace) {
  * @param step_index 步骤索引
  * @return 规则名称字符串，若索引无效则返回 NULL
  */
-const char *lv00_proof_trace_get_rule(const ProofTrace *trace, int step_index) {
+const char *lv_proof_trace_get_rule(const ProofTrace *trace, int step_index) {
     if (!trace || step_index < 0 || step_index >= trace->step_count) {
         return NULL;
     }
@@ -180,12 +180,12 @@ const char *lv00_proof_trace_get_rule(const ProofTrace *trace, int step_index) {
  * @param trace 证明轨迹
  * @return 格式化后的证明轨迹字符串（调用者负责释放），失败返回 NULL
  */
-char *lv00_proof_trace_export(const ProofTrace *trace) {
+char *lv_proof_trace_export(const ProofTrace *trace) {
     if (!trace) return NULL;
 
     /* 分配输出缓冲区 */
     size_t buf_size = (size_t)(trace->step_count * 256 + 1024);
-    char *buf = lv00_malloc(buf_size);
+    char *buf = lv_malloc(buf_size);
     if (!buf) return NULL;
 
     int pos = 0;

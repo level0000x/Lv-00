@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_geometry_3d.c
  * @brief 三维几何预设函数块 - 实现
  *
@@ -20,12 +20,12 @@
  * preset_common.h
  *   -> 提供 PRESET_REGISTER 等宏、preset_register_common() 内联函数
  *   -> 提供 PRESET_SAFE_MALLOC 等安全内存操作宏
- * lv00_internal.h / lv00_utils.h
- *   -> 提供 lv00_malloc、lv00_free、lv00_strdup、lv00_log_* 等
+ * lv_internal.h / lv_utils.h
+ *   -> 提供 lv_malloc、lv_free、lv_strdup、lv_log_* 等
  * ============================================================
  */
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "preset_geometry_3d.h"
 #include "preset_blocks.h"
 #include "preset_common.h"  /* 预设公共宏与辅助函数（PRESET_ERROR_LOG 等日志宏） */
@@ -913,7 +913,7 @@ bool preset_geometry_3d_get_names(char ***out_names, int *out_count)
     PRESET_CHECK_NULL(out_count, error);
     
     /* 分配名称数组 */
-    char **names = (char**)lv00_malloc(GEOMETRY_3D_PRESET_COUNT * sizeof(char*));
+    char **names = (char**)lv_malloc(GEOMETRY_3D_PRESET_COUNT * sizeof(char*));
     PRESET_CHECK_NULL(names, error);
     
     /* 填充预设名称列表 */
@@ -998,13 +998,13 @@ bool preset_geometry_3d_get_names(char ***out_names, int *out_count)
     int count = sizeof(preset_names) / sizeof(preset_names[0]);
     
     for (int i = 0; i < count; i++) {
-        names[i] = lv00_strdup(preset_names[i]);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                lv00_free((void**)&names[j]);
+                lv_free((void**)&names[j]);
             }
-            { void *tmp = names; lv00_free(&tmp); }
+            { void *tmp = names; lv_free(&tmp); }
             return false;
         }
     }

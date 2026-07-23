@@ -1,4 +1,4 @@
-# Lv-00 十层架构优化方案（含完整补全清单）
+﻿# Lv-00 十层架构优化方案（含完整补全清单）
 
 > **版本**: 1.1.0
 > **日期**: 2026-06-05  
@@ -12,7 +12,7 @@
 将 Lv-00 项目中所有未纳入前5层框架的代码进行**合理化下沉**，使后5层变薄、职责更清晰。同时**完整列出所有需要补全的接口、机制、工具和文档**，确保架构可落地执行。
 
 ### 1.2 约束
-- **前5层目录结构不可变**：`core/src/layer1-5/` 和 `core/include/lv00/layer1-5/` 保持现状
+- **前5层目录结构不可变**：`core/src/layer1-5/` 和 `core/include/lv/layer1-5/` 保持现状
 - **允许在前5层内新增文件**：可以在现有目录中新增扩展接口和绑定代码
 - **追求清晰分层**：不刻意追求后5层最薄，但确保每个模块归属合理
 
@@ -31,7 +31,7 @@
 ```
 前5层（C核心 + 核心绑定）        后5层（纯语言工具 + 纯UI + 纯生态）
 +---------------------------+    +---------------------------+
-| C核心算法（liblv00）       |    |                           |
+| C核心算法（liblv）       |    |                           |
 | - 解析/公理/约束/推理/输出 |    |  第6层：纯交互可视化        |
 +---------------------------+    |  - React/tkinter前端       |
             |                    |  - 公式渲染器               |
@@ -76,36 +76,36 @@
 
 | 当前位置 | 模块 | 下沉位置 | 下沉理由 |
 |----------|------|----------|----------|
-| `module/python/lv00/_ctypes_binding.py` | C库ctypes绑定 | `core/src/python_binding/_ctypes_binding.py` | C头文件的Python镜像，FFI层 |
-| `module/python/lv00/core.py` (C委托部分) | 核心类型封装 | `core/src/python_binding/native_types.py` | SymbolicCoord/Graph等C结构体包装 |
-| `module/python/lv00/ctx.py` (Engine类) | 引擎封装 | `core/src/python_binding/ctx.py` | 直接调用C引擎函数 |
-| `module/python/lv00/groebner_engine.py` | Groebner引擎 | `core/src/python_binding/groebner.py` | C Groebner引擎的Python绑定 |
-| `module/python/lv00/sparse_la.py` | 稀疏线性代数 | `core/src/python_binding/sparse_la.py` | C稀疏LA的Python绑定 |
-| `module/python/lv00/type_system.py` | 类型系统 | `core/src/python_binding/type_system.py` | C类型系统的Python绑定 |
-| `module/python/lv00/func_block.py` | 函数块系统 | `core/src/python_binding/func_block.py` | C函数块系统的Python绑定 |
-| `module/python/lv00/formula.py` (C委托) | 公式节点 | `core/src/python_binding/formula_native.py` | FormulaNode的C指针管理 |
-| `module/python/lv00/proof_extras.py` (C委托) | 证明系统 | `core/src/python_binding/proof_native.py` | 证明导航/多策略/导出 |
-| `module/python/lv00/stream_bridge.py` (C操作) | 流式上下文 | `core/src/python_binding/stream_native.py` | C流式上下文操作 |
-| `module/python/lv00/interactive_geo.py` (C核心) | 交互几何核心 | `core/src/python_binding/interactive_geo_native.py` | 约束维护/奇点检测/随机化检查 |
+| `module/python/lv/_ctypes_binding.py` | C库ctypes绑定 | `core/src/python_binding/_ctypes_binding.py` | C头文件的Python镜像，FFI层 |
+| `module/python/lv/core.py` (C委托部分) | 核心类型封装 | `core/src/python_binding/native_types.py` | SymbolicCoord/Graph等C结构体包装 |
+| `module/python/lv/ctx.py` (Engine类) | 引擎封装 | `core/src/python_binding/ctx.py` | 直接调用C引擎函数 |
+| `module/python/lv/groebner_engine.py` | Groebner引擎 | `core/src/python_binding/groebner.py` | C Groebner引擎的Python绑定 |
+| `module/python/lv/sparse_la.py` | 稀疏线性代数 | `core/src/python_binding/sparse_la.py` | C稀疏LA的Python绑定 |
+| `module/python/lv/type_system.py` | 类型系统 | `core/src/python_binding/type_system.py` | C类型系统的Python绑定 |
+| `module/python/lv/func_block.py` | 函数块系统 | `core/src/python_binding/func_block.py` | C函数块系统的Python绑定 |
+| `module/python/lv/formula.py` (C委托) | 公式节点 | `core/src/python_binding/formula_native.py` | FormulaNode的C指针管理 |
+| `module/python/lv/proof_extras.py` (C委托) | 证明系统 | `core/src/python_binding/proof_native.py` | 证明导航/多策略/导出 |
+| `module/python/lv/stream_bridge.py` (C操作) | 流式上下文 | `core/src/python_binding/stream_native.py` | C流式上下文操作 |
+| `module/python/lv/interactive_geo.py` (C核心) | 交互几何核心 | `core/src/python_binding/interactive_geo_native.py` | 约束维护/奇点检测/随机化检查 |
 
 ### 3.2 应留在后5层的模块
 
 | 当前位置 | 模块 | 保留位置 | 保留理由 |
 |----------|------|----------|----------|
-| `module/python/lv00/py_euclid_style.py` | PyEuclid风格API | `layer7_binding/python/highlevel/` | 纯Python语法糖 |
-| `module/python/lv00/high_dim.py` | 高维几何 | `layer7_binding/python/highlevel/` | 纯Python算法 |
-| `module/python/lv00/preset_*.py` | 预设函数块 | `layer7_binding/python/presets/` | 纯Python扩展库 |
-| `module/python/lv00/math_presets.py` | 数学预设 | `layer7_binding/python/presets/` | 纯Python数学库 |
-| `module/python/lv00/dsl*.py` | DSL工具 | `layer7_binding/python/dsl/` | 纯Python语法分析 |
-| `module/python/lv00/async_stream.py` | 异步流式 | `layer7_binding/python/streaming/` | asyncio适配器 |
-| `module/python/lv00/ws_server.py` | WebSocket服务 | `layer6_interactive/websocket/` | 纯基础设施 |
-| `module/python/lv00/interactive_geo.py` (UI) | tkinter GUI | `layer6_interactive/python_gui/` | 纯UI代码 |
-| `module/python/lv00/formula.py` (渲染) | 公式渲染 | `layer6_interactive/renderers/` | SVG/LaTeX/ASCII渲染 |
-| `module/python/lv00/ctx.py` (辅助) | 引擎辅助 | `layer7_binding/python/helpers/` | 重试/安全求解等 |
+| `module/python/lv/py_euclid_style.py` | PyEuclid风格API | `layer7_binding/python/highlevel/` | 纯Python语法糖 |
+| `module/python/lv/high_dim.py` | 高维几何 | `layer7_binding/python/highlevel/` | 纯Python算法 |
+| `module/python/lv/preset_*.py` | 预设函数块 | `layer7_binding/python/presets/` | 纯Python扩展库 |
+| `module/python/lv/math_presets.py` | 数学预设 | `layer7_binding/python/presets/` | 纯Python数学库 |
+| `module/python/lv/dsl*.py` | DSL工具 | `layer7_binding/python/dsl/` | 纯Python语法分析 |
+| `module/python/lv/async_stream.py` | 异步流式 | `layer7_binding/python/streaming/` | asyncio适配器 |
+| `module/python/lv/ws_server.py` | WebSocket服务 | `layer6_interactive/websocket/` | 纯基础设施 |
+| `module/python/lv/interactive_geo.py` (UI) | tkinter GUI | `layer6_interactive/python_gui/` | 纯UI代码 |
+| `module/python/lv/formula.py` (渲染) | 公式渲染 | `layer6_interactive/renderers/` | SVG/LaTeX/ASCII渲染 |
+| `module/python/lv/ctx.py` (辅助) | 引擎辅助 | `layer7_binding/python/helpers/` | 重试/安全求解等 |
 | `web/gui/src/` | React前端 | `layer6_interactive/web_gui/` | 纯前端代码 |
 | `module/llm_coding_assistant/` | LLM辅助 | `layer8_ai_assistant/` | AI工具 |
 | `module/concurrent_monitor/` | 并发监控 | `layer9_monitoring/` | 运维工具 |
-| `formal/`, `lv00-formal/` | Lean形式化 | `layer10_ecosystem/formal_verification/` | 形式化验证 |
+| `formal/`, `lv-formal/` | Lean形式化 | `layer10_ecosystem/formal_verification/` | 形式化验证 |
 | `examples/`, `doc/`, `tool/` | 示例/文档/工具 | `layer10_ecosystem/` | 生态内容 |
 
 ---
@@ -116,14 +116,14 @@
 
 #### 4.1.1 插件系统头文件
 
-**当前状态**：`examples/plugin_example/sample_plugin.c` 引用了 `lv00/plugin_system.h`，但该头文件**不存在**。
+**当前状态**：`examples/plugin_example/sample_plugin.c` 引用了 `lv/plugin_system.h`，但该头文件**不存在**。
 
 **需要创建**：
 
 ```c
-// core/include/lv00/plugin_system.h
-#ifndef LV00_PLUGIN_SYSTEM_H
-#define LV00_PLUGIN_SYSTEM_H
+// core/include/lv/plugin_system.h
+#ifndef lv_PLUGIN_SYSTEM_H
+#define lv_PLUGIN_SYSTEM_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -134,23 +134,23 @@ extern "C" {
 
 /* 插件事件类型 */
 typedef enum {
-    LV00_PLUGIN_EVENT_LOAD = 0,
-    LV00_PLUGIN_EVENT_UNLOAD,
-    LV00_PLUGIN_EVENT_ACTIVATE,
-    LV00_PLUGIN_EVENT_DEACTIVATE,
-    LV00_PLUGIN_EVENT_MESSAGE,
-} Lv00PluginEventType;
+    lv_PLUGIN_EVENT_LOAD = 0,
+    lv_PLUGIN_EVENT_UNLOAD,
+    lv_PLUGIN_EVENT_ACTIVATE,
+    lv_PLUGIN_EVENT_DEACTIVATE,
+    lv_PLUGIN_EVENT_MESSAGE,
+} lvPluginEventType;
 
 /* 插件事件 */
 typedef struct {
-    Lv00PluginEventType type;
+    lvPluginEventType type;
     const char* message;
     void* data;
     size_t data_size;
-} Lv00PluginEvent;
+} lvPluginEvent;
 
 /* 插件配置 */
-typedef struct Lv00PluginConfig Lv00PluginConfig;
+typedef struct lvPluginConfig lvPluginConfig;
 
 /* 插件接口 */
 typedef struct {
@@ -160,70 +160,70 @@ typedef struct {
     const char* author;
     const char* license;
     void* vtable;  /* 虚函数表，用于扩展 */
-} Lv00PluginInterface;
+} lvPluginInterface;
 
 /* 插件上下文 */
 typedef struct {
     void* plugin_handle;
-    Lv00PluginConfig* config;
+    lvPluginConfig* config;
     void* user_data;
     void* engine_ctx;
-} Lv00PluginContext;
+} lvPluginContext;
 
 /* 插件生命周期回调 */
-typedef int (*lv00_plugin_on_load_fn)(Lv00PluginContext* ctx);
-typedef int (*lv00_plugin_on_unload_fn)(Lv00PluginContext* ctx);
-typedef int (*lv00_plugin_on_activate_fn)(Lv00PluginContext* ctx);
-typedef int (*lv00_plugin_on_deactivate_fn)(Lv00PluginContext* ctx);
-typedef int (*lv00_plugin_on_configure_fn)(Lv00PluginContext* ctx, const Lv00PluginConfig* config);
-typedef int (*lv00_plugin_on_event_fn)(Lv00PluginContext* ctx, const Lv00PluginEvent* event);
+typedef int (*lv_plugin_on_load_fn)(lvPluginContext* ctx);
+typedef int (*lv_plugin_on_unload_fn)(lvPluginContext* ctx);
+typedef int (*lv_plugin_on_activate_fn)(lvPluginContext* ctx);
+typedef int (*lv_plugin_on_deactivate_fn)(lvPluginContext* ctx);
+typedef int (*lv_plugin_on_configure_fn)(lvPluginContext* ctx, const lvPluginConfig* config);
+typedef int (*lv_plugin_on_event_fn)(lvPluginContext* ctx, const lvPluginEvent* event);
 
 /* 插件描述符 */
 typedef struct {
     const char* name;
     int version;
-    lv00_plugin_on_load_fn on_load;
-    lv00_plugin_on_unload_fn on_unload;
-    lv00_plugin_on_activate_fn on_activate;
-    lv00_plugin_on_deactivate_fn on_deactivate;
-    lv00_plugin_on_configure_fn on_configure;
-    lv00_plugin_on_event_fn on_event;
-} Lv00PluginDescriptor;
+    lv_plugin_on_load_fn on_load;
+    lv_plugin_on_unload_fn on_unload;
+    lv_plugin_on_activate_fn on_activate;
+    lv_plugin_on_deactivate_fn on_deactivate;
+    lv_plugin_on_configure_fn on_configure;
+    lv_plugin_on_event_fn on_event;
+} lvPluginDescriptor;
 
 /* 插件系统 API */
-typedef struct Lv00PluginSystem Lv00PluginSystem;
-typedef struct Lv00Plugin Lv00Plugin;
+typedef struct lvPluginSystem lvPluginSystem;
+typedef struct lvPlugin lvPlugin;
 
-Lv00PluginSystem* lv00_plugin_system_create(void* engine_ctx);
-void lv00_plugin_system_destroy(Lv00PluginSystem* system);
-void lv00_plugin_system_init(Lv00PluginSystem* system);
-void lv00_plugin_system_add_search_path(Lv00PluginSystem* system, const char* path);
+lvPluginSystem* lv_plugin_system_create(void* engine_ctx);
+void lv_plugin_system_destroy(lvPluginSystem* system);
+void lv_plugin_system_init(lvPluginSystem* system);
+void lv_plugin_system_add_search_path(lvPluginSystem* system, const char* path);
 
-Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path);
-bool lv00_plugin_activate(Lv00Plugin* plugin);
-bool lv00_plugin_deactivate(Lv00Plugin* plugin);
-void lv00_plugin_unload(Lv00PluginSystem* system, Lv00Plugin* plugin);
+lvPlugin* lv_plugin_load(lvPluginSystem* system, const char* path);
+bool lv_plugin_activate(lvPlugin* plugin);
+bool lv_plugin_deactivate(lvPlugin* plugin);
+void lv_plugin_unload(lvPluginSystem* system, lvPlugin* plugin);
 
-bool lv00_plugin_register_interface(Lv00Plugin* plugin, Lv00PluginInterface* interface);
-Lv00PluginInterface* lv00_plugin_query_interface(Lv00PluginSystem* system, const char* name, int version);
+bool lv_plugin_register_interface(lvPlugin* plugin, lvPluginInterface* interface);
+lvPluginInterface* lv_plugin_query_interface(lvPluginSystem* system, const char* name, int version);
 
 /* 配置 API */
-Lv00PluginConfig* lv00_plugin_config_create(void);
-void lv00_plugin_config_destroy(Lv00PluginConfig* config);
-bool lv00_plugin_config_set(Lv00PluginConfig* config, const char* key, const char* value);
-const char* lv00_plugin_config_get(Lv00PluginConfig* config, const char* key, const char* default_value);
+lvPluginConfig* lv_plugin_config_create(void);
+void lv_plugin_config_destroy(lvPluginConfig* config);
+bool lv_plugin_config_set(lvPluginConfig* config, const char* key, const char* value);
+const char* lv_plugin_config_get(lvPluginConfig* config, const char* key, const char* default_value);
 
 /* 入口宏 */
-#define LV00_PLUGIN_DECLARE(name) const char* lv00_plugin_name = name;
-#define LV00_PLUGIN_ENTRY() \
+#define lv_PLUGIN_DECLARE(name) const char* lv_plugin_name = name;
+#define lv_PLUGIN_ENTRY() \
     __attribute__((visibility("default"))) \
-    const Lv00PluginDescriptor* lv00_plugin_get_descriptor(void);
+    const lvPluginDescriptor* lv_plugin_get_descriptor(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* LV00_PLUGIN_SYSTEM_H */
+#endif /* lv_PLUGIN_SYSTEM_H */
 ```
 
 **需要实现**：
@@ -240,9 +240,9 @@ const char* lv00_plugin_config_get(Lv00PluginConfig* config, const char* key, co
 **需要创建**：
 
 ```c
-// core/include/lv00/func_block_custom.h
-#ifndef LV00_FUNC_BLOCK_CUSTOM_H
-#define LV00_FUNC_BLOCK_CUSTOM_H
+// core/include/lv/func_block_custom.h
+#ifndef lv_FUNC_BLOCK_CUSTOM_H
+#define lv_FUNC_BLOCK_CUSTOM_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -287,10 +287,10 @@ typedef struct {
 } CustomFunctionRegistration;
 
 /* 自定义函数管理 API */
-bool lv00_func_block_register_custom(const CustomFunctionRegistration* reg);
-bool lv00_func_block_unregister_custom(const char* name);
-bool lv00_func_block_is_custom_registered(const char* name);
-const CustomFunctionMeta* lv00_func_block_get_custom_meta(const char* name);
+bool lv_func_block_register_custom(const CustomFunctionRegistration* reg);
+bool lv_func_block_unregister_custom(const char* name);
+bool lv_func_block_is_custom_registered(const char* name);
+const CustomFunctionMeta* lv_func_block_get_custom_meta(const char* name);
 
 /* 批量注册 */
 typedef struct {
@@ -298,14 +298,14 @@ typedef struct {
     size_t count;
 } CustomFunctionRegistry;
 
-bool lv00_func_block_register_custom_batch(const CustomFunctionRegistry* registry);
-bool lv00_func_block_unregister_custom_batch(const char** names, size_t count);
+bool lv_func_block_register_custom_batch(const CustomFunctionRegistry* registry);
+bool lv_func_block_unregister_custom_batch(const char** names, size_t count);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* LV00_FUNC_BLOCK_CUSTOM_H */
+#endif /* lv_FUNC_BLOCK_CUSTOM_H */
 ```
 
 **需要实现**：
@@ -321,9 +321,9 @@ bool lv00_func_block_unregister_custom_batch(const char** names, size_t count);
 **需要创建**：
 
 ```c
-// core/include/lv00/func_block_template.h
-#ifndef LV00_FUNC_BLOCK_TEMPLATE_H
-#define LV00_FUNC_BLOCK_TEMPLATE_H
+// core/include/lv/func_block_template.h
+#ifndef lv_FUNC_BLOCK_TEMPLATE_H
+#define lv_FUNC_BLOCK_TEMPLATE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -345,19 +345,19 @@ typedef struct {
 typedef struct FuncBlockTemplate FuncBlockTemplate;
 
 /* 模板创建与销毁 */
-FuncBlockTemplate* lv00_fb_template_create(const char* name, const char* description);
-void lv00_fb_template_destroy(FuncBlockTemplate* tmpl);
+FuncBlockTemplate* lv_fb_template_create(const char* name, const char* description);
+void lv_fb_template_destroy(FuncBlockTemplate* tmpl);
 
 /* 参数管理 */
-bool lv00_fb_template_add_param(FuncBlockTemplate* tmpl, const FuncBlockTemplateParam* param);
-bool lv00_fb_template_set_script(FuncBlockTemplate* tmpl, const char* script);
-bool lv00_fb_template_set_version(FuncBlockTemplate* tmpl, const char* version);
-bool lv00_fb_template_add_dependency(FuncBlockTemplate* tmpl, const char* dep_name);
+bool lv_fb_template_add_param(FuncBlockTemplate* tmpl, const FuncBlockTemplateParam* param);
+bool lv_fb_template_set_script(FuncBlockTemplate* tmpl, const char* script);
+bool lv_fb_template_set_version(FuncBlockTemplate* tmpl, const char* version);
+bool lv_fb_template_add_dependency(FuncBlockTemplate* tmpl, const char* dep_name);
 
 /* 注册与查询 */
-bool lv00_fb_template_register(FuncBlockTemplate* tmpl);
-FuncBlockTemplate* lv00_fb_template_query(const char* name);
-bool lv00_fb_template_unregister(const char* name);
+bool lv_fb_template_register(FuncBlockTemplate* tmpl);
+FuncBlockTemplate* lv_fb_template_query(const char* name);
+bool lv_fb_template_unregister(const char* name);
 
 /* 实例化 */
 typedef struct {
@@ -367,7 +367,7 @@ typedef struct {
     int param_count;
 } FuncBlockInstantiationArgs;
 
-int lv00_fb_template_instantiate(
+int lv_fb_template_instantiate(
     const char* template_name,
     struct ConstraintGraph* graph,
     const FuncBlockInstantiationArgs* args
@@ -377,7 +377,7 @@ int lv00_fb_template_instantiate(
 }
 #endif
 
-#endif /* LV00_FUNC_BLOCK_TEMPLATE_H */
+#endif /* lv_FUNC_BLOCK_TEMPLATE_H */
 ```
 
 **需要实现**：
@@ -390,9 +390,9 @@ int lv00_fb_template_instantiate(
 **需要创建**（全新接口）：
 
 ```c
-// core/include/lv00/python_embed.h
-#ifndef LV00_PYTHON_EMBED_H
-#define LV00_PYTHON_EMBED_H
+// core/include/lv/python_embed.h
+#ifndef lv_PYTHON_EMBED_H
+#define lv_PYTHON_EMBED_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -402,19 +402,19 @@ extern "C" {
 #include <stddef.h>
 
 /* Python对象生命周期管理 */
-typedef void* (*lv00_py_incref_fn)(void* obj);
-typedef void (*lv00_py_decref_fn)(void* obj);
-typedef const char* (*lv00_py_str_fn)(void* obj);
+typedef void* (*lv_py_incref_fn)(void* obj);
+typedef void (*lv_py_decref_fn)(void* obj);
+typedef const char* (*lv_py_str_fn)(void* obj);
 
 /* 注册Python运行时钩子 */
-bool lv00_py_register_runtime_hooks(
-    lv00_py_incref_fn incref,
-    lv00_py_decref_fn decref,
-    lv00_py_str_fn to_string
+bool lv_py_register_runtime_hooks(
+    lv_py_incref_fn incref,
+    lv_py_decref_fn decref,
+    lv_py_str_fn to_string
 );
 
 /* 注册Python函数作为几何构造器 */
-typedef int (*lv00_py_constructor_fn)(
+typedef int (*lv_py_constructor_fn)(
     void* py_func,              /* Python可调用对象 */
     struct ConstraintGraph* graph,
     const int* input_ids,
@@ -423,28 +423,28 @@ typedef int (*lv00_py_constructor_fn)(
     int* output_count
 );
 
-bool lv00_py_register_constructor(
+bool lv_py_register_constructor(
     const char* name,
-    lv00_py_constructor_fn wrapper,
+    lv_py_constructor_fn wrapper,
     void* py_func
 );
 
 /* 注册Python求解器 */
-typedef bool (*lv00_py_solver_fn)(
+typedef bool (*lv_py_solver_fn)(
     void* py_func,
     struct ConstraintGraph* graph,
     double timeout_seconds,
     int* status
 );
 
-bool lv00_py_register_solver(
+bool lv_py_register_solver(
     const char* name,
-    lv00_py_solver_fn wrapper,
+    lv_py_solver_fn wrapper,
     void* py_func
 );
 
 /* 注册Python重写规则 */
-typedef bool (*lv00_py_rewrite_fn)(
+typedef bool (*lv_py_rewrite_fn)(
     void* py_func,
     struct ConstraintGraph* graph,
     int node_id,
@@ -452,30 +452,30 @@ typedef bool (*lv00_py_rewrite_fn)(
     int* replacement_count
 );
 
-bool lv00_py_register_rewrite_rule(
+bool lv_py_register_rewrite_rule(
     const char* name,
-    lv00_py_rewrite_fn wrapper,
+    lv_py_rewrite_fn wrapper,
     void* py_func
 );
 
 /* 从Python加载模块 */
-int lv00_py_load_module(struct LV00Context *ctx, const char* python_module_path);
+int lv_py_load_module(struct lvContext *ctx, const char* python_module_path);
 
 /* Python异常转换 */
 typedef struct {
     int error_code;
     char message[1024];
     char traceback[4096];
-} Lv00PythonError;
+} lvPythonError;
 
-bool lv00_py_get_last_error(Lv00PythonError* out_error);
-void lv00_py_clear_error(void);
+bool lv_py_get_last_error(lvPythonError* out_error);
+void lv_py_clear_error(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* LV00_PYTHON_EMBED_H */
+#endif /* lv_PYTHON_EMBED_H */
 ```
 
 **需要实现**：
@@ -490,9 +490,9 @@ void lv00_py_clear_error(void);
 **需要创建**：
 
 ```c
-// core/include/lv00/dsl_extension.h
-#ifndef LV00_DSL_EXTENSION_H
-#define LV00_DSL_EXTENSION_H
+// core/include/lv/dsl_extension.h
+#ifndef lv_DSL_EXTENSION_H
+#define lv_DSL_EXTENSION_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -533,13 +533,13 @@ typedef struct {
     void* user_data;
 } DslExtensionRegistration;
 
-bool lv00_dsl_register_extension(const DslExtensionRegistration* reg);
-bool lv00_dsl_unregister_extension(const char* name);
+bool lv_dsl_register_extension(const DslExtensionRegistration* reg);
+bool lv_dsl_unregister_extension(const char* name);
 
 /* 版本控制 */
-bool lv00_dsl_version_parse(const char* version_str, DslVersion* out_version);
-bool lv00_dsl_version_compare(const DslVersion* a, const DslVersion* b, int* out_result);
-bool lv00_dsl_syntax_transform(
+bool lv_dsl_version_parse(const char* version_str, DslVersion* out_version);
+bool lv_dsl_version_compare(const DslVersion* a, const DslVersion* b, int* out_result);
+bool lv_dsl_syntax_transform(
     const char* source,
     const DslVersion* from_version,
     const DslVersion* to_version,
@@ -550,7 +550,7 @@ bool lv00_dsl_syntax_transform(
 }
 #endif
 
-#endif /* LV00_DSL_EXTENSION_H */
+#endif /* lv_DSL_EXTENSION_H */
 ```
 
 **需要实现**：
@@ -564,9 +564,9 @@ bool lv00_dsl_syntax_transform(
 **需要创建**：
 
 ```c
-// core/include/lv00/error_messages.h
-#ifndef LV00_ERROR_MESSAGES_H
-#define LV00_ERROR_MESSAGES_H
+// core/include/lv/error_messages.h
+#ifndef lv_ERROR_MESSAGES_H
+#define lv_ERROR_MESSAGES_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -576,50 +576,50 @@ extern "C" {
 
 /* 错误类别 */
 typedef enum {
-    LV00_ERR_CATEGORY_SYNTAX = 0,
-    LV00_ERR_CATEGORY_TYPE,
-    LV00_ERR_CATEGORY_CONSTRAINT,
-    LV00_ERR_CATEGORY_REASONING,
-    LV00_ERR_CATEGORY_RUNTIME,
-    LV00_ERR_CATEGORY_PLUGIN,
-    LV00_ERR_CATEGORY_COUNT
-} Lv00ErrorCategory;
+    lv_ERR_CATEGORY_SYNTAX = 0,
+    lv_ERR_CATEGORY_TYPE,
+    lv_ERR_CATEGORY_CONSTRAINT,
+    lv_ERR_CATEGORY_REASONING,
+    lv_ERR_CATEGORY_RUNTIME,
+    lv_ERR_CATEGORY_PLUGIN,
+    lv_ERR_CATEGORY_COUNT
+} lvErrorCategory;
 
 /* 错误消息 */
 typedef struct {
     int code;
-    Lv00ErrorCategory category;
+    lvErrorCategory category;
     const char* message;        /* 英文 */
     const char* message_cn;     /* 中文 */
     const char* suggestion;     /* 修复建议 */
     const char* documentation;  /* 相关文档链接 */
-} Lv00ErrorMessage;
+} lvErrorMessage;
 
 /* 错误消息查询 */
-const Lv00ErrorMessage* lv00_get_error_message(int error_code);
-const char* lv00_error_category_name(Lv00ErrorCategory category);
-const char* lv00_error_category_name_cn(Lv00ErrorCategory category);
+const lvErrorMessage* lv_get_error_message(int error_code);
+const char* lv_error_category_name(lvErrorCategory category);
+const char* lv_error_category_name_cn(lvErrorCategory category);
 
 /* 错误消息注册（允许插件扩展） */
 typedef struct {
     int code;
-    Lv00ErrorCategory category;
+    lvErrorCategory category;
     const char* message;
     const char* message_cn;
     const char* suggestion;
-} Lv00ErrorMessageRegistration;
+} lvErrorMessageRegistration;
 
-bool lv00_register_error_message(const Lv00ErrorMessageRegistration* reg);
-bool lv00_unregister_error_message(int code);
+bool lv_register_error_message(const lvErrorMessageRegistration* reg);
+bool lv_unregister_error_message(int code);
 
 /* 格式化错误输出 */
-int lv00_format_error(char* buffer, size_t buffer_size, int error_code, const char* context);
+int lv_format_error(char* buffer, size_t buffer_size, int error_code, const char* context);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* LV00_ERROR_MESSAGES_H */
+#endif /* lv_ERROR_MESSAGES_H */
 ```
 
 **需要实现**：
@@ -687,7 +687,7 @@ int lv00_format_error(char* buffer, size_t buffer_size, int error_code, const ch
 | `layer7_binding/python/helpers/` | 引擎辅助（`ctx.py`辅助方法） | 中 |
 | `layer7_binding/js_ts/` | JavaScript/TypeScript绑定（从`web/gui/src/ctx/`迁移） | 高 |
 | `layer7_binding/wasm/` | WASM绑定 | 中 |
-| 包入口重构 | `lv00/__init__.py`重新设计，支持惰性加载 | 高 |
+| 包入口重构 | `lv/__init__.py`重新设计，支持惰性加载 | 高 |
 | 类型存根文件 | `.pyi`文件，支持IDE类型提示 | 中 |
 
 #### 4.3.3 第8层：智能辅助层
@@ -697,7 +697,7 @@ int lv00_format_error(char* buffer, size_t buffer_size, int error_code, const ch
 | `layer8_ai_assistant/core/ai_engine.py` | AI引擎核心（从`module/llm_coding_assistant/core/`迁移） | 高 |
 | `layer8_ai_assistant/core/code_analyzer.py` | 代码分析器（从`module/llm_coding_assistant/core/`迁移） | 高 |
 | `layer8_ai_assistant/api_server/` | FastAPI服务（从`module/llm_coding_assistant/api_server.py`迁移） | 高 |
-| `layer8_ai_assistant/knowledge_base/` | 领域知识库（从`module/llm_coding_assistant/lv00_knowledge.py`迁移） | 中 |
+| `layer8_ai_assistant/knowledge_base/` | 领域知识库（从`module/llm_coding_assistant/lv_knowledge.py`迁移） | 中 |
 | `layer8_ai_assistant/templates/` | 代码模板（从`module/llm_coding_assistant/templates.py`迁移） | 中 |
 | AI-核心通信协议 | 定义LLM与第7层绑定的通信契约 | 高 |
 | 提示词版本管理 | 提示词模板版本控制和A/B测试 | 低 |
@@ -717,7 +717,7 @@ int lv00_format_error(char* buffer, size_t buffer_size, int error_code, const ch
 
 | 缺失内容 | 说明 | 优先级 |
 |----------|------|--------|
-| `layer10_ecosystem/formal_verification/` | Lean形式化（从`formal/`、`lv00-formal/`迁移） | 中 |
+| `layer10_ecosystem/formal_verification/` | Lean形式化（从`formal/`、`lv-formal/`迁移） | 中 |
 | `layer10_ecosystem/examples/` | 示例库（从`examples/`迁移） | 高 |
 | `layer10_ecosystem/axiom_packages/` | 公理包库（从`module/axiom_packages/`迁移） | 高 |
 | `layer10_ecosystem/docs/` | 技术文档（从`doc/`迁移） | 高 |
@@ -778,7 +778,7 @@ int lv00_format_error(char* buffer, size_t buffer_size, int error_code, const ch
 ```
 Lv-00/
 ├── core/                                    # 前5层 + Shared（目录不变）
-│   ├── include/lv00/
+│   ├── include/lv/
 │   │   ├── shared/                          # Shared 公共基础层
 │   │   │   ├── error_codes.h
 │   │   │   ├── memory_pool.h
@@ -812,7 +812,7 @@ Lv-00/
 │   │   │   ├── cross_language_export.h
 │   │   │   └── visualization.h
 │   │   └── python_binding/                  # [新增] Python绑定头文件
-│   │       ├── lv00_python.h
+│   │       ├── lv_python.h
 │   │       └── native_objects.h
 │   └── src/
 │       ├── shared/
@@ -888,7 +888,7 @@ Lv-00/
 │   ├── api_server/                          # [迁移] API服务
 │   │   └── api_server.py
 │   ├── knowledge_base/                      # [迁移] 知识库
-│   │   └── lv00_knowledge.py
+│   │   └── lv_knowledge.py
 │   └── templates/                           # [迁移] 代码模板
 │       └── templates.py
 │
@@ -910,7 +910,7 @@ Lv-00/
 ├── layer10_ecosystem/                       # 第10层：形式化与生态
 │   ├── formal_verification/                 # [迁移] Lean形式化
 │   │   ├── formal/                          # 原formal/
-│   │   └── lv00_formal/                     # 原lv00-formal/
+│   │   └── lv_formal/                     # 原lv-formal/
 │   ├── examples/                            # [迁移] 示例库
 │   │   ├── library/
 │   │   ├── templates/
@@ -1010,29 +1010,29 @@ Lv-00/
 
 | 模块 | 当前位置 | 目标位置 | 操作 |
 |------|----------|----------|------|
-| C库ctypes绑定 | `module/python/lv00/_ctypes_binding.py` | `core/src/python_binding/` | 迁移 |
-| 核心类型封装 | `module/python/lv00/core.py` (部分) | `core/src/python_binding/native_types.py` | 拆分迁移 |
-| Engine类 | `module/python/lv00/ctx.py` (部分) | `core/src/python_binding/ctx.py` | 拆分迁移 |
-| Groebner引擎 | `module/python/lv00/groebner_engine.py` | `core/src/python_binding/groebner.py` | 迁移 |
-| 稀疏LA | `module/python/lv00/sparse_la.py` | `core/src/python_binding/sparse_la.py` | 迁移 |
-| 类型系统 | `module/python/lv00/type_system.py` | `core/src/python_binding/type_system.py` | 迁移 |
-| 函数块 | `module/python/lv00/func_block.py` | `core/src/python_binding/func_block.py` | 迁移 |
-| 公式C委托 | `module/python/lv00/formula.py` (部分) | `core/src/python_binding/formula_native.py` | 拆分迁移 |
-| 证明C委托 | `module/python/lv00/proof_extras.py` (部分) | `core/src/python_binding/proof_native.py` | 拆分迁移 |
-| 流式C操作 | `module/python/lv00/stream_bridge.py` (部分) | `core/src/python_binding/stream_native.py` | 拆分迁移 |
-| 交互几何核心 | `module/python/lv00/interactive_geo.py` (部分) | `core/src/python_binding/interactive_geo_native.py` | 拆分迁移 |
-| PyEuclid API | `module/python/lv00/py_euclid_style.py` | `layer7_binding/python/highlevel/` | 迁移 |
-| 高维几何 | `module/python/lv00/high_dim.py` | `layer7_binding/python/highlevel/` | 迁移 |
-| 预设库 | `module/python/lv00/preset_*.py` | `layer7_binding/python/presets/` | 迁移 |
-| DSL工具 | `module/python/lv00/dsl*.py` | `layer7_binding/python/dsl/` | 迁移 |
-| 异步流 | `module/python/lv00/async_stream.py` | `layer7_binding/python/streaming/` | 迁移 |
-| WebSocket | `module/python/lv00/ws_server.py` | `layer6_interactive/websocket/` | 迁移 |
-| tkinter GUI | `module/python/lv00/interactive_geo.py` (部分) | `layer6_interactive/python_gui/` | 拆分迁移 |
-| 公式渲染 | `module/python/lv00/formula.py` (部分) | `layer6_interactive/renderers/` | 拆分迁移 |
+| C库ctypes绑定 | `module/python/lv/_ctypes_binding.py` | `core/src/python_binding/` | 迁移 |
+| 核心类型封装 | `module/python/lv/core.py` (部分) | `core/src/python_binding/native_types.py` | 拆分迁移 |
+| Engine类 | `module/python/lv/ctx.py` (部分) | `core/src/python_binding/ctx.py` | 拆分迁移 |
+| Groebner引擎 | `module/python/lv/groebner_engine.py` | `core/src/python_binding/groebner.py` | 迁移 |
+| 稀疏LA | `module/python/lv/sparse_la.py` | `core/src/python_binding/sparse_la.py` | 迁移 |
+| 类型系统 | `module/python/lv/type_system.py` | `core/src/python_binding/type_system.py` | 迁移 |
+| 函数块 | `module/python/lv/func_block.py` | `core/src/python_binding/func_block.py` | 迁移 |
+| 公式C委托 | `module/python/lv/formula.py` (部分) | `core/src/python_binding/formula_native.py` | 拆分迁移 |
+| 证明C委托 | `module/python/lv/proof_extras.py` (部分) | `core/src/python_binding/proof_native.py` | 拆分迁移 |
+| 流式C操作 | `module/python/lv/stream_bridge.py` (部分) | `core/src/python_binding/stream_native.py` | 拆分迁移 |
+| 交互几何核心 | `module/python/lv/interactive_geo.py` (部分) | `core/src/python_binding/interactive_geo_native.py` | 拆分迁移 |
+| PyEuclid API | `module/python/lv/py_euclid_style.py` | `layer7_binding/python/highlevel/` | 迁移 |
+| 高维几何 | `module/python/lv/high_dim.py` | `layer7_binding/python/highlevel/` | 迁移 |
+| 预设库 | `module/python/lv/preset_*.py` | `layer7_binding/python/presets/` | 迁移 |
+| DSL工具 | `module/python/lv/dsl*.py` | `layer7_binding/python/dsl/` | 迁移 |
+| 异步流 | `module/python/lv/async_stream.py` | `layer7_binding/python/streaming/` | 迁移 |
+| WebSocket | `module/python/lv/ws_server.py` | `layer6_interactive/websocket/` | 迁移 |
+| tkinter GUI | `module/python/lv/interactive_geo.py` (部分) | `layer6_interactive/python_gui/` | 拆分迁移 |
+| 公式渲染 | `module/python/lv/formula.py` (部分) | `layer6_interactive/renderers/` | 拆分迁移 |
 | React前端 | `web/gui/src/` | `layer6_interactive/web_gui/` | 迁移 |
 | LLM辅助 | `module/llm_coding_assistant/` | `layer8_ai_assistant/` | 迁移 |
 | 并发监控 | `module/concurrent_monitor/` | `layer9_monitoring/` | 迁移 |
-| Lean形式化 | `formal/`, `lv00-formal/` | `layer10_ecosystem/formal_verification/` | 迁移 |
+| Lean形式化 | `formal/`, `lv-formal/` | `layer10_ecosystem/formal_verification/` | 迁移 |
 | 示例库 | `examples/` | `layer10_ecosystem/examples/` | 迁移 |
 | 公理包 | `module/axiom_packages/` | `layer10_ecosystem/axiom_packages/` | 迁移 |
 | 技术文档 | `doc/` | `layer10_ecosystem/docs/` | 迁移 |
@@ -1042,12 +1042,12 @@ Lv-00/
 
 | 头文件 | 路径 | 说明 |
 |--------|------|------|
-| `plugin_system.h` | `core/include/lv00/plugin_system.h` | 插件系统 |
-| `python_embed.h` | `core/include/lv00/python_embed.h` | Python嵌入桥接 |
-| `error_messages.h` | `core/include/lv00/error_messages.h` | 错误消息系统 |
-| `func_block_custom.h` | `core/include/lv00/func_block_custom.h` | 自定义函数注册 |
-| `func_block_template.h` | `core/include/lv00/func_block_template.h` | 函数块模板 |
-| `dsl_extension.h` | `core/include/lv00/dsl_extension.h` | DSL扩展接口 |
+| `plugin_system.h` | `core/include/lv/plugin_system.h` | 插件系统 |
+| `python_embed.h` | `core/include/lv/python_embed.h` | Python嵌入桥接 |
+| `error_messages.h` | `core/include/lv/error_messages.h` | 错误消息系统 |
+| `func_block_custom.h` | `core/include/lv/func_block_custom.h` | 自定义函数注册 |
+| `func_block_template.h` | `core/include/lv/func_block_template.h` | 函数块模板 |
+| `dsl_extension.h` | `core/include/lv/dsl_extension.h` | DSL扩展接口 |
 
 ### 8.3 需要新建的C实现文件清单
 
@@ -1123,7 +1123,7 @@ Lv-00/
 
 | # | 头文件 | 被引用次数 | 引用者 | 说明 | 工作量 |
 |---|--------|-----------|--------|------|--------|
-| H1 | `lv00_internal.h` | **40+个文件** | 几乎所有层源文件 | 内部数据结构、常量、工具宏。**最大单一阻塞点** | 5人天 |
+| H1 | `lv_internal.h` | **40+个文件** | 几乎所有层源文件 | 内部数据结构、常量、工具宏。**最大单一阻塞点** | 5人天 |
 | H2 | `stream_context_util.h` | 10个文件 | layer1/3/4/5多个源文件 | 流上下文工具 | 1人天 |
 | H3 | `solver_core.h` | 2个文件 | `solver_core.c`, `sat_encoding.c` | 求解器核心 | 0.5人天 |
 | H4 | `constraint_graph_safe.h` | 1个文件 | `layer3_geometry/constraint_graph.c` | 安全操作辅助 | 0.5人天 |
@@ -1179,9 +1179,9 @@ Lv-00/
 | E1 | `custom_syntax_extension.c` | `func_block_register_custom()` | 不存在 | 见4.1.2节 | 3人天 |
 | E2 | `custom_syntax_extension.c` | `FuncBlockTemplate`全套API | 不存在 | 见4.1.3节 | 5人天 |
 | E3 | `custom_syntax_extension.c` | `DslVersion`/`dsl_version_extract()`/`dsl_syntax_transform()` | 不存在 | 见4.1.5节 | 3人天 |
-| E4 | `custom_syntax_extension.c` | `Lv00ErrorMessage`/`lv00_get_error_message()` | 不存在 | 见4.1.6节 | 2人天 |
+| E4 | `custom_syntax_extension.c` | `lvErrorMessage`/`lv_get_error_message()` | 不存在 | 见4.1.6节 | 2人天 |
 | E5 | `custom_syntax_extension.c` | `#include "error_messages_cn.h"` | 不存在 | 合并到`error_messages.h` | 0.5人天 |
-| E6 | `sample_plugin.c` | `lv00/plugin_system.h` | **已存在**（426行），但需验证实现完整性 | 验证 | 1人天 |
+| E6 | `sample_plugin.c` | `lv/plugin_system.h` | **已存在**（426行），但需验证实现完整性 | 验证 | 1人天 |
 
 ### 9.5 C核心架构发现
 
@@ -1238,8 +1238,8 @@ Lv-00/
 
 | 周次 | 任务 | 产出 | 优先级 |
 |------|------|------|--------|
-| Week 1 | 创建`lv00_internal.h` | 从40+源文件逆向工程出内部结构体、常量、宏 | P0 |
-| Week 1 | 创建6个缺失的内部头文件 | `stream_context_util.h`, `solver_core.h`, `constraint_graph_safe.h`, `prop_verifier.h`, `parser_safety.h` + 修复`lv00_internal.h` | P0 |
+| Week 1 | 创建`lv_internal.h` | 从40+源文件逆向工程出内部结构体、常量、宏 | P0 |
+| Week 1 | 创建6个缺失的内部头文件 | `stream_context_util.h`, `solver_core.h`, `constraint_graph_safe.h`, `prop_verifier.h`, `parser_safety.h` + 修复`lv_internal.h` | P0 |
 | Week 2 | 创建`recursion.c`实现 | 17+个函数的完整实现 | P0 |
 | Week 2 | 创建7个缺失的模块头文件 | `smt_backend.h`, `conflict_detector.h`等 | P1 |
 | Week 3 | 修复selector API命名不匹配 | `selector_create`适配层 | P1 |
@@ -1305,7 +1305,7 @@ Lv-00/
 
 | 风险 | 影响 | 严重程度 | 缓解措施 |
 |------|------|----------|----------|
-| **`lv00_internal.h`逆向工程困难** | 40+文件无法编译，项目完全阻塞 | **致命** | 从引用文件中逐步提取所需定义；先创建最小可用版本 |
+| **`lv_internal.h`逆向工程困难** | 40+文件无法编译，项目完全阻塞 | **致命** | 从引用文件中逐步提取所需定义；先创建最小可用版本 |
 | **`recursion.c`实现复杂** | Python绑定断裂，测度系统不可用 | **高** | 参考`recursion.h`的声明和Python绑定的使用模式 |
 | **Graph双状态重写引入回归** | 现有用户代码依赖Python侧状态追踪 | **高** | 提供兼容性API；分阶段迁移 |
 | **精度重写改变计算结果** | 浮点→符号精度可能改变部分边界情况的行为 | **中** | 增加回归测试；提供精度配置选项 |
@@ -1319,15 +1319,15 @@ Lv-00/
 
 > 本章为第9章标记的每个C重写项提供详细的接口设计、数据结构和算法思路。
 
-### 12.1 H1 — lv00_internal.h 设计
+### 12.1 H1 — lv_internal.h 设计
 
 **设计目标**：为40+源文件提供统一的内部数据结构、常量和工具宏。
 
 **接口设计**：
 ```c
-// core/include/lv00/lv00_internal.h
-#ifndef LV00_INTERNAL_H
-#define LV00_INTERNAL_H
+// core/include/lv/lv_internal.h
+#ifndef lv_INTERNAL_H
+#define lv_INTERNAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -1338,12 +1338,12 @@ extern "C" {
 #include <stdbool.h>
 
 /* ===== 内部常量 ===== */
-#define LV00_MAX_NODES_PER_GRAPH 65536
-#define LV00_MAX_CONSTRAINTS_PER_GRAPH 16384
-#define LV00_MAX_SYMBOLIC_DEPTH 256
-#define LV00_DEFAULT_SOLVER_TIMEOUT 30.0
-#define LV00_MAX_PLUGIN_COUNT 64
-#define LV00_MAX_RECURSION_DEPTH 1024
+#define lv_MAX_NODES_PER_GRAPH 65536
+#define lv_MAX_CONSTRAINTS_PER_GRAPH 16384
+#define lv_MAX_SYMBOLIC_DEPTH 256
+#define lv_DEFAULT_SOLVER_TIMEOUT 30.0
+#define lv_MAX_PLUGIN_COUNT 64
+#define lv_MAX_RECURSION_DEPTH 1024
 
 /* ===== 内部数据结构 ===== */
 
@@ -1354,36 +1354,36 @@ typedef struct {
     size_t peak_usage;
     size_t block_count;
     size_t large_block_count;
-} Lv00MemPoolStats;
+} lvMemPoolStats;
 
 /* 图节点内部表示 */
-typedef struct Lv00GeomNodeInternal {
+typedef struct lvGeomNodeInternal {
     int id;
-    int type;  /* Lv00GeomType */
-    int status; /* Lv00NodeStatus */
+    int type;  /* lvGeomType */
+    int status; /* lvNodeStatus */
     void* symbolic_data;  /* SymbolicCoord* 或复合结构 */
     void* concrete_data;  /* 浮点近似值缓存 */
-    struct Lv00GeomNodeInternal** dependencies;
+    struct lvGeomNodeInternal** dependencies;
     int dependency_count;
     int ref_count;
-} Lv00GeomNodeInternal;
+} lvGeomNodeInternal;
 
 /* 约束图内部表示 */
 typedef struct {
-    Lv00GeomNodeInternal* nodes;
+    lvGeomNodeInternal* nodes;
     int node_count;
     int node_capacity;
-    void* constraints;  /* Lv00ConstraintInternal* */
+    void* constraints;  /* lvConstraintInternal* */
     int constraint_count;
     void* solver_state;
     void* measure_system;
     void* recursion_context;
-    Lv00MemPoolStats* mem_stats;
-} Lv00ConstraintGraphInternal;
+    lvMemPoolStats* mem_stats;
+} lvConstraintGraphInternal;
 
 /* 引擎内部状态 */
 typedef struct {
-    Lv00ConstraintGraphInternal* active_graph;
+    lvConstraintGraphInternal* active_graph;
     void* proof_context;
     void* strategy_context;
     void* plugin_system;
@@ -1391,25 +1391,25 @@ typedef struct {
     double solver_timeout;
     int max_recursion_depth;
     bool auto_normalize;
-} Lv00EngineInternal;
+} lvEngineInternal;
 
 /* ===== 内部工具宏 ===== */
-#define LV00_INTERNAL(graph) ((Lv00ConstraintGraphInternal*)(graph)->_internal)
-#define LV00_ENGINE_INTERNAL(ctx) ((Lv00EngineInternal*)(ctx)->_internal)
-#define LV00_RETURN_IF_NULL(ptr) do { if (!(ptr)) return LV00_ERROR_NULL_POINTER; } while(0)
-#define LV00_RETURN_IF_OOM(ptr) do { if (!(ptr)) return LV00_ERROR_OUT_OF_MEMORY; } while(0)
+#define lv_INTERNAL(graph) ((lvConstraintGraphInternal*)(graph)->_internal)
+#define lv_ENGINE_INTERNAL(ctx) ((lvEngineInternal*)(ctx)->_internal)
+#define lv_RETURN_IF_NULL(ptr) do { if (!(ptr)) return lv_ERROR_NULL_POINTER; } while(0)
+#define lv_RETURN_IF_OOM(ptr) do { if (!(ptr)) return lv_ERROR_OUT_OF_MEMORY; } while(0)
 
 /* ===== 内部API（仅core内部使用） ===== */
-Lv00GeomNodeInternal* lv00_internal_get_node(Lv00ConstraintGraphInternal* graph, int node_id);
-int lv00_internal_add_node(Lv00ConstraintGraphInternal* graph, int type, void* data);
-bool lv00_internal_remove_node(Lv00ConstraintGraphInternal* graph, int node_id);
-bool lv00_internal_update_dependency(Lv00GeomNodeInternal* node, int dep_id, bool add);
+lvGeomNodeInternal* lv_internal_get_node(lvConstraintGraphInternal* graph, int node_id);
+int lv_internal_add_node(lvConstraintGraphInternal* graph, int type, void* data);
+bool lv_internal_remove_node(lvConstraintGraphInternal* graph, int node_id);
+bool lv_internal_update_dependency(lvGeomNodeInternal* node, int dep_id, bool add);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* LV00_INTERNAL_H */
+#endif /* lv_INTERNAL_H */
 ```
 
 **实现要点**：
@@ -1434,25 +1434,25 @@ typedef struct {
         SymbolicCoord* symbolic;
         double numeric;
     } value;
-} Lv00MeasureValue;
+} lvMeasureValue;
 
 /* 测度定义 */
 typedef struct {
     char name[64];
     int id;
-    Lv00MeasureValue default_value;
-    Lv00MeasureValue current_value;
+    lvMeasureValue default_value;
+    lvMeasureValue current_value;
     bool is_computed;
-} Lv00Measure;
+} lvMeasure;
 
 /* 测度系统 */
 typedef struct {
-    Lv00Measure* measures;
+    lvMeasure* measures;
     int measure_count;
     int measure_capacity;
-    Lv00Measure* default_measure;
+    lvMeasure* default_measure;
     void* computation_cache;
-} Lv00MeasureSystem;
+} lvMeasureSystem;
 
 /* 递归上下文 */
 typedef struct {
@@ -1462,14 +1462,14 @@ typedef struct {
     int max_depth;
     void* depth_counters; /* 每节点深度计数 */
     bool in_recursion;
-} Lv00RecursionContext;
+} lvRecursionContext;
 ```
 
 **核心算法**：
 
 ```c
 /* 递归检测算法 */
-bool recursion_check_mutual(Lv00RecursionContext* ctx, int node_id) {
+bool recursion_check_mutual(lvRecursionContext* ctx, int node_id) {
     /* 检查当前调用栈中是否已存在node_id */
     for (int i = 0; i < ctx->stack_depth; i++) {
         if (ctx->call_stack[i] == node_id) {
@@ -1481,11 +1481,11 @@ bool recursion_check_mutual(Lv00RecursionContext* ctx, int node_id) {
 
 /* 测度值符号计算 */
 bool measure_compute_value_symbolic(
-    Lv00MeasureSystem* sys,
+    lvMeasureSystem* sys,
     int measure_id,
     SymbolicCoord** out_value
 ) {
-    Lv00Measure* m = find_measure(sys, measure_id);
+    lvMeasure* m = find_measure(sys, measure_id);
     if (!m) return false;
     
     if (m->is_computed) {
@@ -1517,24 +1517,24 @@ bool measure_compute_value_symbolic(
 
 **接口设计**：
 ```c
-/* core/include/lv00/geometry_ops.h（新增） */
+/* core/include/lv/geometry_ops.h（新增） */
 
 /* 两点距离平方（符号精度） */
-bool lv00_point_distance_sq(
+bool lv_point_distance_sq(
     const SymbolicCoord* a,
     const SymbolicCoord* b,
     SymbolicCoord** out_result
 );
 
 /* 中点计算（符号精度） */
-bool lv00_point_midpoint(
+bool lv_point_midpoint(
     const SymbolicCoord* a,
     const SymbolicCoord* b,
     SymbolicCoord** out_result
 );
 
 /* 共线性检测 */
-bool lv00_point_is_collinear(
+bool lv_point_is_collinear(
     const SymbolicCoord* a,
     const SymbolicCoord* b,
     const SymbolicCoord* c,
@@ -1554,18 +1554,18 @@ bool lv00_point_is_collinear(
 class Point:
     def distance_to(self, other):
         result = SymbolicCoord()
-        if not lib.lv00_point_distance_sq(self._coord, other._coord, byref(result._ptr)):
+        if not lib.lv_point_distance_sq(self._coord, other._coord, byref(result._ptr)):
             raise GeometryError("Failed to compute distance")
         return result
     
     def mid_point(self, other):
         result = SymbolicCoord()
-        lib.lv00_point_midpoint(self._coord, other._coord, byref(result._ptr))
+        lib.lv_point_midpoint(self._coord, other._coord, byref(result._ptr))
         return Point(result)
     
     def is_collinear_with(self, b, c):
         result = c_bool()
-        lib.lv00_point_is_collinear(self._coord, b._coord, c._coord, byref(result), 1e-10)
+        lib.lv_point_is_collinear(self._coord, b._coord, c._coord, byref(result), 1e-10)
         return result.value
 ```
 
@@ -1584,16 +1584,16 @@ class Point:
 
 ```c
 /* C层新增：节点变更通知机制 */
-typedef void (*Lv00NodeChangeCallback)(
+typedef void (*lvNodeChangeCallback)(
     int graph_id,
     int node_id,
     int change_type,  /* ADD/REMOVE/UPDATE */
     void* user_data
 );
 
-bool lv00_graph_register_change_callback(
-    Lv00ConstraintGraph* graph,
-    Lv00NodeChangeCallback callback,
+bool lv_graph_register_change_callback(
+    lvConstraintGraph* graph,
+    lvNodeChangeCallback callback,
     void* user_data
 );
 ```
@@ -1611,7 +1611,7 @@ class Graph:
         """惰性从C层查询所有点节点"""
         count = c_int()
         nodes_ptr = POINTER(c_int)()
-        lib.lv00_graph_get_nodes_by_type(
+        lib.lv_graph_get_nodes_by_type(
             self._c_graph, NODE_TYPE_POINT, 
             byref(nodes_ptr), byref(count)
         )
@@ -1619,7 +1619,7 @@ class Graph:
     
     def add_point(self, x, y):
         """直接调用C层，不维护Python侧缓存"""
-        node_id = lib.lv00_graph_add_point(self._c_graph, x, y)
+        node_id = lib.lv_graph_add_point(self._c_graph, x, y)
         return Point._from_id(node_id)
 ```
 
@@ -1636,7 +1636,7 @@ class Graph:
 **接口设计**：
 ```c
 /* 直线-直线交点（符号精度） */
-bool lv00_intersect_lines(
+bool lv_intersect_lines(
     const SymbolicCoord* p1, const SymbolicCoord* d1,  /* 点+方向 */
     const SymbolicCoord* p2, const SymbolicCoord* d2,
     SymbolicCoord** out_intersection,
@@ -1644,7 +1644,7 @@ bool lv00_intersect_lines(
 );
 
 /* 圆-圆交点（符号精度） */
-bool lv00_intersect_circles(
+bool lv_intersect_circles(
     const SymbolicCoord* c1, const SymbolicCoord* r1,  /* 圆心+半径平方 */
     const SymbolicCoord* c2, const SymbolicCoord* r2,
     SymbolicCoord** out_p1,
@@ -1653,7 +1653,7 @@ bool lv00_intersect_circles(
 );
 
 /* 直线-圆交点（符号精度） */
-bool lv00_intersect_line_circle(
+bool lv_intersect_line_circle(
     const SymbolicCoord* line_p, const SymbolicCoord* line_d,
     const SymbolicCoord* circle_c, const SymbolicCoord* circle_r2,
     SymbolicCoord** out_p1,
@@ -1676,7 +1676,7 @@ bool lv00_intersect_line_circle(
 **接口设计**：
 ```c
 /* 三角形面积（符号精度 - 海伦公式或叉积） */
-bool lv00_triangle_area(
+bool lv_triangle_area(
     const SymbolicCoord* a,
     const SymbolicCoord* b,
     const SymbolicCoord* c,
@@ -1684,31 +1684,31 @@ bool lv00_triangle_area(
 );
 
 /* 外心（符号精度） */
-bool lv00_triangle_circumcenter(
+bool lv_triangle_circumcenter(
     const SymbolicCoord* a, const SymbolicCoord* b, const SymbolicCoord* c,
     SymbolicCoord** out_center
 );
 
 /* 垂心 */
-bool lv00_triangle_orthocenter(...);
+bool lv_triangle_orthocenter(...);
 
 /* 内心 */
-bool lv00_triangle_incenter(...);
+bool lv_triangle_incenter(...);
 
 /* 重心 */
-bool lv00_triangle_centroid(...);
+bool lv_triangle_centroid(...);
 
 /* 九点圆心 */
-bool lv00_triangle_nine_point_center(...);
+bool lv_triangle_nine_point_center(...);
 
 /* 旁心 */
-bool lv00_triangle_excenter(...);
+bool lv_triangle_excenter(...);
 
 /* 内切圆半径 */
-bool lv00_triangle_inradius(...);
+bool lv_triangle_inradius(...);
 
 /* 外接圆半径 */
-bool lv00_triangle_circumradius(...);
+bool lv_triangle_circumradius(...);
 ```
 
 **算法要点**：
@@ -1724,16 +1724,16 @@ bool lv00_triangle_circumradius(...);
 
 **接口设计**：
 ```c
-bool lv00_segment_length_sq(const SymbolicCoord* a, const SymbolicCoord* b, SymbolicCoord** out);
-bool lv00_segment_midpoint(const SymbolicCoord* a, const SymbolicCoord* b, SymbolicCoord** out);
-bool lv00_segment_direction(const SymbolicCoord* a, const SymbolicCoord* b, SymbolicCoord** out);
-bool lv00_segment_is_parallel(const SymbolicCoord* a1, const SymbolicCoord* a2,
+bool lv_segment_length_sq(const SymbolicCoord* a, const SymbolicCoord* b, SymbolicCoord** out);
+bool lv_segment_midpoint(const SymbolicCoord* a, const SymbolicCoord* b, SymbolicCoord** out);
+bool lv_segment_direction(const SymbolicCoord* a, const SymbolicCoord* b, SymbolicCoord** out);
+bool lv_segment_is_parallel(const SymbolicCoord* a1, const SymbolicCoord* a2,
                                const SymbolicCoord* b1, const SymbolicCoord* b2,
                                bool* out, double tolerance);
-bool lv00_segment_is_perpendicular(...);
-bool lv00_segment_intersection(...);
-bool lv00_segment_contains_point(...);
-bool lv00_segment_distance_to_point(...);
+bool lv_segment_is_perpendicular(...);
+bool lv_segment_intersection(...);
+bool lv_segment_contains_point(...);
+bool lv_segment_distance_to_point(...);
 ```
 
 **工作量**：2人天
@@ -1752,39 +1752,39 @@ bool lv00_segment_distance_to_point(...);
 ```c
 /* C层：统一的约束类型系统 */
 typedef enum {
-    LV00_CONSTRAINT_EQUALITY = 0,
-    LV00_CONSTRAINT_INEQUALITY,
-    LV00_CONSTRAINT_PARALLEL,
-    LV00_CONSTRAINT_PERPENDICULAR,
-    LV00_CONSTRAINT_COLLINEAR,
-    LV00_CONSTRAINT_CONCENTRIC,
-    LV00_CONSTRAINT_TANGENT,
-    LV00_CONSTRAINT_ANGLE,
-    LV00_CONSTRAINT_DISTANCE,
-    LV00_CONSTRAINT_RATIO,
+    lv_CONSTRAINT_EQUALITY = 0,
+    lv_CONSTRAINT_INEQUALITY,
+    lv_CONSTRAINT_PARALLEL,
+    lv_CONSTRAINT_PERPENDICULAR,
+    lv_CONSTRAINT_COLLINEAR,
+    lv_CONSTRAINT_CONCENTRIC,
+    lv_CONSTRAINT_TANGENT,
+    lv_CONSTRAINT_ANGLE,
+    lv_CONSTRAINT_DISTANCE,
+    lv_CONSTRAINT_RATIO,
     /* ... */
-    LV00_CONSTRAINT_COUNT
-} Lv00ConstraintType;
+    lv_CONSTRAINT_COUNT
+} lvConstraintType;
 
 /* 约束元数据 */
 typedef struct {
-    Lv00ConstraintType type;
+    lvConstraintType type;
     const char* name;
     const char* python_class_name;
     int min_nodes;
     int max_nodes;
     bool requires_parameters;
     const char* parameter_schema;  /* JSON schema */
-} Lv00ConstraintMeta;
+} lvConstraintMeta;
 
 /* 约束注册表 */
-const Lv00ConstraintMeta* lv00_constraint_get_meta(Lv00ConstraintType type);
-Lv00ConstraintType lv00_constraint_type_from_name(const char* name);
-Lv00ConstraintType lv00_constraint_type_from_python_class(const char* class_name);
+const lvConstraintMeta* lv_constraint_get_meta(lvConstraintType type);
+lvConstraintType lv_constraint_type_from_name(const char* name);
+lvConstraintType lv_constraint_type_from_python_class(const char* class_name);
 
 /* 约束序列化 */
-bool lv00_constraint_to_json(const Lv00Constraint* constraint, char** out_json);
-bool lv00_constraint_from_json(const char* json, Lv00Constraint** out_constraint);
+bool lv_constraint_to_json(const lvConstraint* constraint, char** out_json);
+bool lv_constraint_from_json(const char* json, lvConstraint** out_constraint);
 ```
 
 ```python
@@ -1793,7 +1793,7 @@ class ConstraintMeta(type):
     """自动从C层约束元数据创建Python类"""
     def __new__(mcs, name, bases, namespace):
         # 查询C层元数据
-        c_meta = lib.lv00_constraint_type_from_python_class(name.encode())
+        c_meta = lib.lv_constraint_type_from_python_class(name.encode())
         namespace['_c_type'] = c_meta
         return super().__new__(mcs, name, bases, namespace)
 
@@ -1803,14 +1803,14 @@ class Constraint(metaclass=ConstraintMeta):
         """使用C层JSON解析"""
         c_constraint = c_void_p()
         json_str = json.dumps(data).encode()
-        if not lib.lv00_constraint_from_json(json_str, byref(c_constraint)):
+        if not lib.lv_constraint_from_json(json_str, byref(c_constraint)):
             raise ConstraintError(f"Invalid constraint: {data}")
         return cls._from_c(c_constraint)
     
     def to_dict(self):
         """使用C层JSON序列化"""
         json_ptr = c_char_p()
-        lib.lv00_constraint_to_json(self._c_constraint, byref(json_ptr))
+        lib.lv_constraint_to_json(self._c_constraint, byref(json_ptr))
         return json.loads(json_ptr.value.decode())
 ```
 
@@ -1822,7 +1822,7 @@ class Constraint(metaclass=ConstraintMeta):
 
 **接口设计**：
 ```c
-/* core/include/lv00/preset_blocks.h（新增） */
+/* core/include/lv/preset_blocks.h（新增） */
 
 /* 预设函数块注册 */
 typedef struct {
@@ -1831,21 +1831,21 @@ typedef struct {
     const char* description;
     int (*min_inputs)();
     int (*max_inputs)();
-    bool (*execute)(Lv00ConstraintGraph* graph, const int* inputs, int input_count, int** outputs, int* output_count);
-} Lv00PresetBlockDef;
+    bool (*execute)(lvConstraintGraph* graph, const int* inputs, int input_count, int** outputs, int* output_count);
+} lvPresetBlockDef;
 
-bool lv00_preset_register(const Lv00PresetBlockDef* def);
-bool lv00_preset_unregister(const char* name);
-const Lv00PresetBlockDef* lv00_preset_get(const char* name);
+bool lv_preset_register(const lvPresetBlockDef* def);
+bool lv_preset_unregister(const char* name);
+const lvPresetBlockDef* lv_preset_get(const char* name);
 
 /* 常用预设 */
-bool lv00_preset_create_midpoint(Lv00ConstraintGraph* graph, int p1, int p2, int* out_midpoint);
-bool lv00_preset_create_circumcenter(Lv00ConstraintGraph* graph, int a, int b, int c, int* out_center);
-bool lv00_preset_create_centroid(Lv00ConstraintGraph* graph, int a, int b, int c, int* out_centroid);
-bool lv00_preset_create_orthocenter(...);
-bool lv00_preset_create_incenter(...);
-bool lv00_preset_create_reflection(Lv00ConstraintGraph* graph, int point, int mirror, int* out_reflection);
-bool lv00_preset_create_translation(Lv00ConstraintGraph* graph, int point, int vector, int* out_translated);
+bool lv_preset_create_midpoint(lvConstraintGraph* graph, int p1, int p2, int* out_midpoint);
+bool lv_preset_create_circumcenter(lvConstraintGraph* graph, int a, int b, int c, int* out_center);
+bool lv_preset_create_centroid(lvConstraintGraph* graph, int a, int b, int c, int* out_centroid);
+bool lv_preset_create_orthocenter(...);
+bool lv_preset_create_incenter(...);
+bool lv_preset_create_reflection(lvConstraintGraph* graph, int point, int mirror, int* out_reflection);
+bool lv_preset_create_translation(lvConstraintGraph* graph, int point, int vector, int* out_translated);
 /* ... */
 ```
 
@@ -1864,25 +1864,25 @@ bool lv00_preset_create_translation(Lv00ConstraintGraph* graph, int point, int v
 
 **解决方案**：
 ```c
-/* core/include/lv00/symbolic_coord.h 扩展 */
+/* core/include/lv/symbolic_coord.h 扩展 */
 
 /* 常用常量预分配 */
-extern SymbolicCoord* LV00_SYM_ZERO;
-extern SymbolicCoord* LV00_SYM_ONE;
-extern SymbolicCoord* LV00_SYM_TWO;
-extern SymbolicCoord* LV00_SYM_THREE;
-extern SymbolicCoord* LV00_SYM_HALF;
-extern SymbolicCoord* LV00_SYM_NEG_ONE;
-extern SymbolicCoord* LV00_SYM_SQRT2;  /* √2 */
-extern SymbolicCoord* LV00_SYM_SQRT3;  /* √3 */
-extern SymbolicCoord* LV00_SYM_PI;     /* π（符号表示）*/
+extern SymbolicCoord* lv_SYM_ZERO;
+extern SymbolicCoord* lv_SYM_ONE;
+extern SymbolicCoord* lv_SYM_TWO;
+extern SymbolicCoord* lv_SYM_THREE;
+extern SymbolicCoord* lv_SYM_HALF;
+extern SymbolicCoord* lv_SYM_NEG_ONE;
+extern SymbolicCoord* lv_SYM_SQRT2;  /* √2 */
+extern SymbolicCoord* lv_SYM_SQRT3;  /* √3 */
+extern SymbolicCoord* lv_SYM_PI;     /* π（符号表示）*/
 
 /* 初始化常量池 */
-void lv00_symbolic_coord_init_constants(void);
-void lv00_symbolic_coord_free_constants(void);
+void lv_symbolic_coord_init_constants(void);
+void lv_symbolic_coord_free_constants(void);
 
 /* 快速创建（使用常量池） */
-SymbolicCoord* lv00_symbolic_coord_from_int_fast(int value);  /* 小整数直接用池 */
+SymbolicCoord* lv_symbolic_coord_from_int_fast(int value);  /* 小整数直接用池 */
 ```
 
 ```python
@@ -1896,10 +1896,10 @@ class SymbolicCoord:
     
     @classmethod
     def _init_constants(cls):
-        cls.ZERO = cls._from_ptr(lib.LV00_SYM_ZERO)
-        cls.ONE = cls._from_ptr(lib.LV00_SYM_ONE)
-        cls.TWO = cls._from_ptr(lib.LV00_SYM_TWO)
-        cls.HALF = cls._from_ptr(lib.LV00_SYM_HALF)
+        cls.ZERO = cls._from_ptr(lib.lv_SYM_ZERO)
+        cls.ONE = cls._from_ptr(lib.lv_SYM_ONE)
+        cls.TWO = cls._from_ptr(lib.lv_SYM_TWO)
+        cls.HALF = cls._from_ptr(lib.lv_SYM_HALF)
     
     @classmethod
     def from_rational(cls, num, den=1):
@@ -1908,7 +1908,7 @@ class SymbolicCoord:
             if num == 0: return cls.ZERO
             if num == 1: return cls.ONE
             if num == 2: return cls.TWO
-            if num == -1: return cls._from_ptr(lib.LV00_SYM_NEG_ONE)
+            if num == -1: return cls._from_ptr(lib.lv_SYM_NEG_ONE)
         return cls._from_ptr(lib.symbolic_coord_from_rational(num, den))
 ```
 
@@ -1952,7 +1952,7 @@ class SymbolicCoord:
 // layer6_interactive/proto/proof_visual.proto
 syntax = "proto3";
 
-package lv00.layer6;
+package lv.layer6;
 
 message ProofVisualModel {
   string proof_id = 1;
@@ -2029,9 +2029,9 @@ class ProofVisualModel:
         """从C层Proof指针构建可视化模型"""
         model = cls()
         # 遍历C层证明步骤，转换为VisualModel
-        step_count = lib.lv00_proof_get_step_count(c_proof_ptr)
+        step_count = lib.lv_proof_get_step_count(c_proof_ptr)
         for i in range(step_count):
-            c_step = lib.lv00_proof_get_step(c_proof_ptr, i)
+            c_step = lib.lv_proof_get_step(c_proof_ptr, i)
             model.steps.append(VisualStep.from_c(c_step))
         return model
 
@@ -2119,23 +2119,23 @@ UI事件 → InteractionEvent → 消息队列 → 推理工作线程 → C层�
 **契约定义**：Python调用C的参数/返回值规范
 
 ```c
-// core/include/lv00/python_binding/lv00_python.h
+// core/include/lv/python_binding/lv_python.h
 
 /* Python绑定契约版本 */
-#define LV00_PYTHON_BINDING_VERSION_MAJOR 1
-#define LV00_PYTHON_BINDING_VERSION_MINOR 0
-#define LV00_PYTHON_BINDING_VERSION_PATCH 0
+#define lv_PYTHON_BINDING_VERSION_MAJOR 1
+#define lv_PYTHON_BINDING_VERSION_MINOR 0
+#define lv_PYTHON_BINDING_VERSION_PATCH 0
 
 /* 参数传递规范 */
 typedef struct {
-    int type;           /* LV00_PY_ARG_INT, LV00_PY_ARG_FLOAT, LV00_PY_ARG_STRING, etc. */
+    int type;           /* lv_PY_ARG_INT, lv_PY_ARG_FLOAT, lv_PY_ARG_STRING, etc. */
     union {
         int64_t i;
         double f;
         const char* s;
         void* p;
     } value;
-} Lv00PythonArg;
+} lvPythonArg;
 
 /* 返回值规范 */
 typedef struct {
@@ -2147,20 +2147,20 @@ typedef struct {
         char* s;        /* 调用方负责释放 */
         void* p;
     } value;
-} Lv00PythonResult;
+} lvPythonResult;
 
 /* 批量调用接口（减少FFI开销） */
 typedef struct {
     const char* function_name;
-    Lv00PythonArg* args;
+    lvPythonArg* args;
     int arg_count;
-} Lv00PythonCall;
+} lvPythonCall;
 
-bool lv00_python_batch_call(
-    Lv00Engine* ctx,
-    Lv00PythonCall* calls,
+bool lv_python_batch_call(
+    lvEngine* ctx,
+    lvPythonCall* calls,
     int call_count,
-    Lv00PythonResult** out_results
+    lvPythonResult** out_results
 );
 ```
 
@@ -2185,7 +2185,7 @@ class BatchCallOptimizer:
         if not self._pending_calls:
             return
         # 一次性传递所有调用到C层
-        results = lib.lv00_python_batch_call(
+        results = lib.lv_python_batch_call(
             self.ctx._ptr,
             self._pending_calls
         )
@@ -2384,8 +2384,8 @@ class TestLayerDependencies:
 
 import pytest
 import ctypes
-from lv00 import __version__ as py_version
-from lv00._ctypes_binding import lib, get_binding_version
+from lv import __version__ as py_version
+from lv._ctypes_binding import lib, get_binding_version
 
 class TestBindingCompatibility:
     """验证Python绑定与C核心版本兼容"""
@@ -2400,13 +2400,13 @@ class TestBindingCompatibility:
     def test_all_functions_exported(self):
         """C库必须导出Python绑定所需的所有函数"""
         required_functions = [
-            "lv00_context_create",
-            "lv00_context_destroy",
-            "lv00_graph_create",
-            "lv00_graph_add_point",
-            "lv00_graph_add_line",
-            "lv00_proof_create",
-            "lv00_solver_solve",
+            "lv_context_create",
+            "lv_context_destroy",
+            "lv_graph_create",
+            "lv_graph_add_point",
+            "lv_graph_add_line",
+            "lv_proof_create",
+            "lv_solver_solve",
             # ... 完整列表
         ]
         for func_name in required_functions:
@@ -2419,8 +2419,8 @@ class TestBindingCompatibility:
 
     def test_error_code_consistency(self):
         """C错误码必须与Python异常映射一致"""
-        from lv00.exceptions import ERROR_CODE_MAP
-        c_error_count = lib.lv00_error_code_count()
+        from lv.exceptions import ERROR_CODE_MAP
+        c_error_count = lib.lv_error_code_count()
         assert len(ERROR_CODE_MAP) == c_error_count
 ```
 
@@ -2432,7 +2432,7 @@ class TestBindingCompatibility:
 import pytest
 import tempfile
 import os
-from lv00.plugin import PluginSystem
+from lv.plugin import PluginSystem
 
 class TestPluginLifecycle:
     """验证插件加载/激活/停用/卸载生命周期"""
@@ -2517,8 +2517,8 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: liblv00-${{ matrix.os }}-${{ matrix.compiler }}
-          path: build/liblv00.*
+          name: liblv-${{ matrix.os }}-${{ matrix.compiler }}
+          path: build/liblv.*
 
   build-python:
     name: Build Python Package
@@ -2536,8 +2536,8 @@ jobs:
       - name: Download C library
         uses: actions/download-artifact@v4
         with:
-          name: liblv00-ubuntu-latest-gcc
-          path: lv00/lib/
+          name: liblv-ubuntu-latest-gcc
+          path: lv/lib/
 
       - name: Install dependencies
         run: |
@@ -2545,7 +2545,7 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Run Python tests
-        run: pytest tests/ -v --cov=lv00 --cov-report=xml
+        run: pytest tests/ -v --cov=lv --cov-report=xml
 
       - name: Check layer dependencies
         run: python scripts/check_layer_deps.py
@@ -2571,7 +2571,7 @@ jobs:
       - name: Test cross-version compatibility
         run: |
           python scripts/test_binding_compat.py \
-            --c-lib artifacts/liblv00-ubuntu-latest-gcc/liblv00.so \
+            --c-lib artifacts/liblv-ubuntu-latest-gcc/liblv.so \
             --python-package .
 
   layer-dependency-check:
@@ -2610,13 +2610,13 @@ requires = ["setuptools>=61.0", "wheel", "cmake>=3.20"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lv00"
+name = "lv"
 version = "0.5.0"
 description = "Lv-00: A formalized geometric reasoning ctx"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Lv-00 Team", email = "team@lv00.dev"}
+    {name = "Lv-00 Team", email = "team@lv.dev"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -2658,22 +2658,22 @@ monitoring = [
     "prometheus-client>=0.17",
     "grafana-api>=1.0",
 ]
-all = ["lv00[dev,ui,ai,monitoring]"]
+all = ["lv[dev,ui,ai,monitoring]"]
 
 [project.urls]
-Homepage = "https://lv00.dev"
-Documentation = "https://docs.lv00.dev"
-Repository = "https://github.com/lv00/lv00"
-Issues = "https://github.com/lv00/lv00/issues"
+Homepage = "https://lv.dev"
+Documentation = "https://docs.lv.dev"
+Repository = "https://github.com/lv/lv"
+Issues = "https://github.com/lv/lv/issues"
 
 [tool.setuptools.packages.find]
 where = ["layer7_binding/python", "core/src/python_binding"]
 
 [tool.setuptools.package-data]
-lv00 = ["lib/*.so", "lib/*.dll", "lib/*.dylib"]
+lv = ["lib/*.so", "lib/*.dll", "lib/*.dylib"]
 
 # 版本锁定机制
-[tool.lv00]
+[tool.lv]
 c-core-version = "0.5.0"
 binding-version = "0.5.0"
 min-c-core-version = "0.4.0"
@@ -2702,19 +2702,19 @@ addopts = "-v --tb=short"
 # core/CMakeLists.txt（关键部分）
 
 cmake_minimum_required(VERSION 3.20)
-project(lv00_core VERSION 0.5.0 LANGUAGES C)
+project(lv_core VERSION 0.5.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # 版本信息
 configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/lv00/version.h.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/include/lv00/version.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/lv/version.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/lv/version.h"
 )
 
 # 源文件收集
-file(GLOB_RECURSE LV00_SOURCES
+file(GLOB_RECURSE lv_SOURCES
     "src/shared/*.c"
     "src/layer1_parser/*.c"
     "src/layer2_resource/*.c"
@@ -2724,34 +2724,34 @@ file(GLOB_RECURSE LV00_SOURCES
 )
 
 # Python绑定源文件（可选）
-option(LV00_BUILD_PYTHON_BINDING "Build Python binding" ON)
-if(LV00_BUILD_PYTHON_BINDING)
+option(lv_BUILD_PYTHON_BINDING "Build Python binding" ON)
+if(lv_BUILD_PYTHON_BINDING)
     file(GLOB PYTHON_BINDING_SOURCES "src/python_binding/*.c")
-    list(APPEND LV00_SOURCES ${PYTHON_BINDING_SOURCES})
+    list(APPEND lv_SOURCES ${PYTHON_BINDING_SOURCES})
     find_package(Python3 COMPONENTS Development REQUIRED)
 endif()
 
 # 共享库
-add_library(lv00 SHARED ${LV00_SOURCES})
-target_include_directories(lv00 PUBLIC
+add_library(lv SHARED ${lv_SOURCES})
+target_include_directories(lv PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
 
 # Python绑定包含
-if(LV00_BUILD_PYTHON_BINDING)
-    target_include_directories(lv00 PRIVATE ${Python3_INCLUDE_DIRS})
-    target_link_libraries(lv00 PRIVATE ${Python3_LIBRARIES})
+if(lv_BUILD_PYTHON_BINDING)
+    target_include_directories(lv PRIVATE ${Python3_INCLUDE_DIRS})
+    target_link_libraries(lv PRIVATE ${Python3_LIBRARIES})
 endif()
 
 # 平台特定
 if(WIN32)
-    target_compile_definitions(lv00 PRIVATE LV00_BUILD_DLL)
-    target_compile_options(lv00 PRIVATE /W4)
+    target_compile_definitions(lv PRIVATE lv_BUILD_DLL)
+    target_compile_options(lv PRIVATE /W4)
 elseif(APPLE)
-    target_compile_options(lv00 PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(lv PRIVATE -Wall -Wextra -Wpedantic)
 else()
-    target_compile_options(lv00 PRIVATE -Wall -Wextra -Wpedantic -fPIC)
+    target_compile_options(lv PRIVATE -Wall -Wextra -Wpedantic -fPIC)
 endif()
 
 # 测试
@@ -2759,12 +2759,12 @@ enable_testing()
 add_subdirectory(tests)
 
 # 安装
-install(TARGETS lv00
+install(TARGETS lv
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin
 )
-install(DIRECTORY include/lv00 DESTINATION include)
+install(DIRECTORY include/lv DESTINATION include)
 ```
 
 #### 13.3.4 版本锁定机制
@@ -2783,9 +2783,9 @@ MIN_C_CORE_VERSION = "0.4.0"
 def check_version_compatibility(lib):
     """检查Python绑定与C核心版本兼容"""
     try:
-        c_major = lib.lv00_version_major()
-        c_minor = lib.lv00_version_minor()
-        c_patch = lib.lv00_version_patch()
+        c_major = lib.lv_version_major()
+        c_minor = lib.lv_version_minor()
+        c_patch = lib.lv_version_patch()
         c_version = f"{c_major}.{c_minor}.{c_patch}"
     except AttributeError:
         raise RuntimeError(
@@ -2862,9 +2862,9 @@ def _wrap_c_function(func_name, arg_types, restype):
     func.restype = restype
     return func
 
-# 示例：包装 lv00_graph_add_point
-lv00_graph_add_point = _wrap_c_function(
-    "lv00_graph_add_point",
+# 示例：包装 lv_graph_add_point
+lv_graph_add_point = _wrap_c_function(
+    "lv_graph_add_point",
     [c_void_p, c_double, c_double],  # graph, x, y
     c_int  # 返回node_id
 )
@@ -2872,14 +2872,14 @@ lv00_graph_add_point = _wrap_c_function(
 class Graph:
     def add_point(self, x: float, y: float) -> "Point":
         """添加点到图中"""
-        node_id = lv00_graph_add_point(self._ptr, x, y)
+        node_id = lv_graph_add_point(self._ptr, x, y)
         if node_id < 0:
             raise check_error(node_id)  # 将负值错误码转为异常
         return Point._from_id(self, node_id)
 ```
 
 2. **内存管理规则**：
-   - C分配的内存必须由C释放（`lv00_free()`）
+   - C分配的内存必须由C释放（`lv_free()`）
    - Python对象持有C指针时，在`__del__`中释放
    - 使用`weakref`避免循环引用导致的内存泄漏
    - 所有C指针包装类必须继承`CObjectBase`
@@ -2909,18 +2909,18 @@ class CObjectBase:
 3. **错误处理模式**：
 ```python
 # exceptions.py
-class LV00Error(Exception):
+class lvError(Exception):
     """基础异常"""
     def __init__(self, code: int, message: str):
         self.code = code
         self.message = message
         super().__init__(f"[{code}] {message}")
 
-class GeometryError(LV00Error):
+class GeometryError(lvError):
     """几何操作错误"""
     pass
 
-class SolverError(LV00Error):
+class SolverError(lvError):
     """求解器错误"""
     pass
 
@@ -2928,7 +2928,7 @@ class SolverError(LV00Error):
 ERROR_CODE_MAP = {
     -1: (GeometryError, "Invalid geometry operation"),
     -2: (SolverError, "Solver failed to converge"),
-    -3: (LV00Error, "Out of memory"),
+    -3: (lvError, "Out of memory"),
     # ...
 }
 
@@ -2936,11 +2936,11 @@ def check_error(code: int):
     """将C错误码转为Python异常"""
     if code >= 0:
         return code  # 成功
-    exc_class, default_msg = ERROR_CODE_MAP.get(code, (LV00Error, f"Unknown error: {code}"))
+    exc_class, default_msg = ERROR_CODE_MAP.get(code, (lvError, f"Unknown error: {code}"))
     # 尝试从C层获取详细错误信息
     error_ptr = c_char_p()
-    if hasattr(lib, 'lv00_get_last_error'):
-        lib.lv00_get_last_error(byref(error_ptr))
+    if hasattr(lib, 'lv_get_last_error'):
+        lib.lv_get_last_error(byref(error_ptr))
         msg = error_ptr.value.decode() if error_ptr.value else default_msg
     else:
         msg = default_msg
@@ -2954,10 +2954,10 @@ def check_error(code: int):
 **插件结构**：
 ```c
 // my_plugin.c
-#include <lv00/plugin_system.h>
-#include <lv00/func_block_custom.h>
+#include <lv/plugin_system.h>
+#include <lv/func_block_custom.h>
 
-static int my_plugin_on_load(Lv00PluginContext* ctx) {
+static int my_plugin_on_load(lvPluginContext* ctx) {
     // 注册自定义函数
     CustomFunctionRegistration reg = {
         .meta = {
@@ -2969,18 +2969,18 @@ static int my_plugin_on_load(Lv00PluginContext* ctx) {
         },
         .callback = my_custom_op_callback,
     };
-    lv00_func_block_register_custom(&reg);
+    lv_func_block_register_custom(&reg);
     return 0;
 }
 
-static int my_plugin_on_unload(Lv00PluginContext* ctx) {
-    lv00_func_block_unregister_custom("my_custom_op");
+static int my_plugin_on_unload(lvPluginContext* ctx) {
+    lv_func_block_unregister_custom("my_custom_op");
     return 0;
 }
 
 // 插件入口
-LV00_PLUGIN_ENTRY() {
-    static Lv00PluginDescriptor desc = {
+lv_PLUGIN_ENTRY() {
+    static lvPluginDescriptor desc = {
         .name = "my_plugin",
         .version = 1,
         .on_load = my_plugin_on_load,
@@ -2994,18 +2994,18 @@ LV00_PLUGIN_ENTRY() {
 ```bash
 # Linux/macOS
 gcc -shared -fPIC -o my_plugin.so my_plugin.c \
-    -I/path/to/lv00/include \
-    -L/path/to/lv00/lib -llv00
+    -I/path/to/lv/include \
+    -L/path/to/lv/lib -llv
 
 # Windows
-cl /LD my_plugin.c /I C:\lv00\include \
-   /link C:\lv00\lib\lv00.lib /OUT:my_plugin.dll
+cl /LD my_plugin.c /I C:\lv\include \
+   /link C:\lv\lib\lv.lib /OUT:my_plugin.dll
 ```
 
 **Python插件（使用Python嵌入桥接）**：
 ```python
 # my_python_plugin.py
-from lv00.plugin import PythonPluginBase
+from lv.plugin import PythonPluginBase
 
 class MyPlugin(PythonPluginBase):
     name = "my_python_plugin"
@@ -3048,13 +3048,13 @@ mkdir -p core/src/python_binding
 3. **迁移文件（使用git mv保留历史）**：
 ```bash
 # Python绑定迁移
-git mv module/python/lv00/_ctypes_binding.py core/src/python_binding/
-git mv module/python/lv00/groebner_engine.py core/src/python_binding/groebner.py
-git mv module/python/lv00/sparse_la.py core/src/python_binding/
+git mv module/python/lv/_ctypes_binding.py core/src/python_binding/
+git mv module/python/lv/groebner_engine.py core/src/python_binding/groebner.py
+git mv module/python/lv/sparse_la.py core/src/python_binding/
 
 # 后5层迁移
 git mv web/gui/src layer6_interactive/web_gui/
-git mv module/python/lv00/ws_server.py layer6_interactive/websocket/
+git mv module/python/lv/ws_server.py layer6_interactive/websocket/
 git mv module/llm_coding_assistant layer8_ai_assistant/
 git mv module/concurrent_monitor layer9_monitoring/
 ```
@@ -3062,11 +3062,11 @@ git mv module/concurrent_monitor layer9_monitoring/
 4. **更新导入路径**：
 ```python
 # 兼容性shim（保留旧导入路径6个月）
-# module/python/lv00/__init__.py
+# module/python/lv/__init__.py
 import warnings
 warnings.warn(
-    "Importing from 'module.python.lv00' is deprecated. "
-    "Use 'lv00' instead.",
+    "Importing from 'module.python.lv' is deprecated. "
+    "Use 'lv' instead.",
     DeprecationWarning,
     stacklevel=2
 )
@@ -3095,16 +3095,16 @@ from typing import Any
 
 # 旧模块名 → 新模块名映射
 MODULE_REDIRECTS = {
-    "module.python.lv00.core": "lv00.core",
-    "module.python.lv00.ctx": "lv00.ctx",
-    "module.python.lv00.formula": "lv00.formula",
-    "module.python.lv00.proof_extras": "lv00.proof_extras",
-    "module.python.lv00.stream_bridge": "lv00.streaming",
-    "module.python.lv00.interactive_geo": "lv00.interactive",
-    "module.python.lv00.py_euclid_style": "lv00.highlevel",
-    "module.python.lv00.preset_basic": "lv00.presets.basic",
-    "module.python.lv00.preset_analysis": "lv00.presets.analysis",
-    "module.python.lv00.dsl": "lv00.dsl",
+    "module.python.lv.core": "lv.core",
+    "module.python.lv.ctx": "lv.ctx",
+    "module.python.lv.formula": "lv.formula",
+    "module.python.lv.proof_extras": "lv.proof_extras",
+    "module.python.lv.stream_bridge": "lv.streaming",
+    "module.python.lv.interactive_geo": "lv.interactive",
+    "module.python.lv.py_euclid_style": "lv.highlevel",
+    "module.python.lv.preset_basic": "lv.presets.basic",
+    "module.python.lv.preset_analysis": "lv.presets.analysis",
+    "module.python.lv.dsl": "lv.dsl",
 }
 
 class CompatibilityImporter:
@@ -3511,17 +3511,17 @@ import re
 # 迁移规则
 MIGRATION_RULES = {
     # 源路径 → 目标路径
-    "module/python/lv00/_ctypes_binding.py": "core/src/python_binding/_ctypes_binding.py",
-    "module/python/lv00/groebner_engine.py": "core/src/python_binding/groebner.py",
-    "module/python/lv00/sparse_la.py": "core/src/python_binding/sparse_la.py",
-    "module/python/lv00/type_system.py": "core/src/python_binding/type_system.py",
-    "module/python/lv00/func_block.py": "core/src/python_binding/func_block.py",
+    "module/python/lv/_ctypes_binding.py": "core/src/python_binding/_ctypes_binding.py",
+    "module/python/lv/groebner_engine.py": "core/src/python_binding/groebner.py",
+    "module/python/lv/sparse_la.py": "core/src/python_binding/sparse_la.py",
+    "module/python/lv/type_system.py": "core/src/python_binding/type_system.py",
+    "module/python/lv/func_block.py": "core/src/python_binding/func_block.py",
     "web/gui/src": "layer6_interactive/web_gui/src",
-    "module/python/lv00/ws_server.py": "layer6_interactive/websocket/ws_server.py",
+    "module/python/lv/ws_server.py": "layer6_interactive/websocket/ws_server.py",
     "module/llm_coding_assistant": "layer8_ai_assistant",
     "module/concurrent_monitor": "layer9_monitoring",
     "formal": "layer10_ecosystem/formal_verification/formal",
-    "lv00-formal": "layer10_ecosystem/formal_verification/lv00_formal",
+    "lv-formal": "layer10_ecosystem/formal_verification/lv_formal",
     "examples": "layer10_ecosystem/examples",
     "module/axiom_packages": "layer10_ecosystem/axiom_packages",
     "doc": "layer10_ecosystem/docs",
@@ -3577,8 +3577,8 @@ def main():
     
     if args.execute:
         # 更新导入路径
-        update_imports(root / "core/src/python_binding", "module.python", "lv00")
-        update_imports(root / "layer7_binding", "module.python", "lv00")
+        update_imports(root / "core/src/python_binding", "module.python", "lv")
+        update_imports(root / "layer7_binding", "module.python", "lv")
 
 if __name__ == "__main__":
     main()
@@ -3612,27 +3612,27 @@ if __name__ == "__main__":
 #### 15.1.1 批量调用接口
 
 ```c
-/* core/include/lv00/python_binding/lv00_python.h 扩展 */
+/* core/include/lv/python_binding/lv_python.h 扩展 */
 
 /* 批量调用参数 */
 typedef struct {
     const char* function_name;
-    Lv00PythonArg* args;
+    lvPythonArg* args;
     int arg_count;
-} Lv00PythonCall;
+} lvPythonCall;
 
 /* 批量调用结果 */
 typedef struct {
     int call_index;
-    Lv00PythonResult result;
-} Lv00PythonCallResult;
+    lvPythonResult result;
+} lvPythonCallResult;
 
 /* 批量调用接口 */
-bool lv00_python_batch_call(
-    Lv00Engine* ctx,
-    Lv00PythonCall* calls,
+bool lv_python_batch_call(
+    lvEngine* ctx,
+    lvPythonCall* calls,
     int call_count,
-    Lv00PythonCallResult** out_results
+    lvPythonCallResult** out_results
 );
 ```
 
@@ -3665,16 +3665,16 @@ class BatchCallOptimizer:
             return None
 
         # 构建C层批量调用结构
-        calls = (Lv00PythonCall * len(self._pending))()
+        calls = (lvPythonCall * len(self._pending))()
         for i, (name, args) in enumerate(self._pending):
             calls[i].function_name = name.encode()
             calls[i].args = self._pack_args(args)
             calls[i].arg_count = len(args)
 
         # 一次性传递到C层
-        results_ptr = ctypes.POINTER(Lv00PythonCallResult)()
+        results_ptr = ctypes.POINTER(lvPythonCallResult)()
         count = ctypes.c_int()
-        lib.lv00_python_batch_call(
+        lib.lv_python_batch_call(
             self._engine._ptr, calls, len(self._pending),
             ctypes.byref(results_ptr), ctypes.byref(count)
         )
@@ -3684,19 +3684,19 @@ class BatchCallOptimizer:
 
     def _pack_args(self, args: list) -> ctypes.Array:
         """将Python参数打包为C结构体数组。"""
-        packed = (Lv00PythonArg * len(args))()
+        packed = (lvPythonArg * len(args))()
         for i, arg in enumerate(args):
             if isinstance(arg, int):
-                packed[i].type = LV00_PY_ARG_INT
+                packed[i].type = lv_PY_ARG_INT
                 packed[i].value.i = arg
             elif isinstance(arg, float):
-                packed[i].type = LV00_PY_ARG_FLOAT
+                packed[i].type = lv_PY_ARG_FLOAT
                 packed[i].value.f = arg
             elif isinstance(arg, str):
-                packed[i].type = LV00_PY_ARG_STRING
+                packed[i].type = lv_PY_ARG_STRING
                 packed[i].value.s = arg.encode()
             else:
-                packed[i].type = LV00_PY_ARG_POINTER
+                packed[i].type = lv_PY_ARG_POINTER
                 packed[i].value.p = arg._ptr if hasattr(arg, '_ptr') else id(arg)
         return packed
 ```
@@ -3763,10 +3763,10 @@ class FFICallMonitor:
 #### 15.2.1 LRU缓存策略
 
 ```c
-/* core/include/lv00/symbolic_cache.h（新增） */
+/* core/include/lv/symbolic_cache.h（新增） */
 
-#ifndef LV00_SYMBOLIC_CACHE_H
-#define LV00_SYMBOLIC_CACHE_H
+#ifndef lv_SYMBOLIC_CACHE_H
+#define lv_SYMBOLIC_CACHE_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -3777,32 +3777,32 @@ typedef struct {
     SymbolicCoord* result;      /* 缓存的计算结果 */
     unsigned int access_count;  /* 访问计数（用于LRU淘汰） */
     bool is_valid;              /* 是否有效 */
-} Lv00CacheEntry;
+} lvCacheEntry;
 
 /* LRU缓存 */
 typedef struct {
-    Lv00CacheEntry* entries;
+    lvCacheEntry* entries;
     int capacity;
     int count;
     unsigned int hits;
     unsigned int misses;
-} Lv00SymbolicCache;
+} lvSymbolicCache;
 
 /* 缓存操作 */
-Lv00SymbolicCache* lv00_cache_create(int capacity);
-void lv00_cache_destroy(Lv00SymbolicCache* cache);
+lvSymbolicCache* lv_cache_create(int capacity);
+void lv_cache_destroy(lvSymbolicCache* cache);
 
 /* 查询缓存（命中返回缓存的SymbolicCoord，未命中返回NULL） */
-SymbolicCoord* lv00_cache_lookup(
-    Lv00SymbolicCache* cache,
+SymbolicCoord* lv_cache_lookup(
+    lvSymbolicCache* cache,
     const char* operation,
     const SymbolicCoord** inputs,
     int input_count
 );
 
 /* 插入缓存 */
-void lv00_cache_insert(
-    Lv00SymbolicCache* cache,
+void lv_cache_insert(
+    lvSymbolicCache* cache,
     const char* operation,
     const SymbolicCoord** inputs,
     int input_count,
@@ -3810,32 +3810,32 @@ void lv00_cache_insert(
 );
 
 /* 使缓存失效（图变更时调用） */
-void lv00_cache_invalidate(Lv00SymbolicCache* cache);
-void lv00_cache_invalidate_by_node(Lv00SymbolicCache* cache, int node_id);
+void lv_cache_invalidate(lvSymbolicCache* cache);
+void lv_cache_invalidate_by_node(lvSymbolicCache* cache, int node_id);
 
 /* 缓存统计 */
-double lv00_cache_hit_rate(const Lv00SymbolicCache* cache);
+double lv_cache_hit_rate(const lvSymbolicCache* cache);
 
-#endif /* LV00_SYMBOLIC_CACHE_H */
+#endif /* lv_SYMBOLIC_CACHE_H */
 ```
 
 #### 15.2.2 缓存失效策略
 
 ```c
 /* 图变更时自动清除关联缓存 */
-void lv00_graph_on_node_changed(
-    Lv00ConstraintGraph* graph,
+void lv_graph_on_node_changed(
+    lvConstraintGraph* graph,
     int node_id,
     int change_type  /* ADD/REMOVE/UPDATE */
 ) {
     /* 通知所有缓存清除与该节点相关的条目 */
     if (graph->symbolic_cache) {
-        lv00_cache_invalidate_by_node(graph->symbolic_cache, node_id);
+        lv_cache_invalidate_by_node(graph->symbolic_cache, node_id);
     }
     /* 通知下游节点清除缓存（级联失效） */
-    int* dependents = lv00_graph_get_dependents(graph, node_id);
+    int* dependents = lv_graph_get_dependents(graph, node_id);
     for (int i = 0; dependents[i] >= 0; i++) {
-        lv00_cache_invalidate_by_node(graph->symbolic_cache, dependents[i]);
+        lv_cache_invalidate_by_node(graph->symbolic_cache, dependents[i]);
     }
 }
 ```
@@ -3851,29 +3851,29 @@ void lv00_graph_on_node_changed(
 #### 15.3.1 分层内存池设计
 
 ```c
-/* core/include/lv00/memory_pool_enhanced.h（新增） */
+/* core/include/lv/memory_pool_enhanced.h（新增） */
 
 /* 内存池层级 */
 typedef enum {
-    LV00_POOL_TINY = 0,    /* 小对象池：< 64字节（SymbolicCoord等） */
-    LV00_POOL_SMALL,       /* 中对象池：64-512字节（节点、约束等） */
-    LV00_POOL_LARGE,        /* 大对象池：512-4096字节（矩阵、方程组等） */
-    LV00_POOL_HUGE,         /* 超大对象池：> 4096字节（AST、图结构等） */
-    LV00_POOL_TEMP,         /* 临时对象池：函数调用期间的临时分配 */
-} Lv00PoolTier;
+    lv_POOL_TINY = 0,    /* 小对象池：< 64字节（SymbolicCoord等） */
+    lv_POOL_SMALL,       /* 中对象池：64-512字节（节点、约束等） */
+    lv_POOL_LARGE,        /* 大对象池：512-4096字节（矩阵、方程组等） */
+    lv_POOL_HUGE,         /* 超大对象池：> 4096字节（AST、图结构等） */
+    lv_POOL_TEMP,         /* 临时对象池：函数调用期间的临时分配 */
+} lvPoolTier;
 
 /* 分层内存池 */
 typedef struct {
-    Lv00ObjectPool* tiny_pool;
-    Lv00ObjectPool* small_pool;
-    Lv00ObjectPool* large_pool;
-    Lv00ObjectPool* huge_pool;
-    Lv00LinearAllocator* temp_allocator;  /* 临时分配器（栈式释放） */
-    Lv00MemPoolStats stats;               /* 全局统计 */
-} Lv00TieredMemoryPool;
+    lvObjectPool* tiny_pool;
+    lvObjectPool* small_pool;
+    lvObjectPool* large_pool;
+    lvObjectPool* huge_pool;
+    lvLinearAllocator* temp_allocator;  /* 临时分配器（栈式释放） */
+    lvMemPoolStats stats;               /* 全局统计 */
+} lvTieredMemoryPool;
 
 /* 创建分层内存池 */
-Lv00TieredMemoryPool* lv00_tiered_pool_create(
+lvTieredMemoryPool* lv_tiered_pool_create(
     size_t tiny_size,    /* 小对象池总大小（字节） */
     size_t small_size,
     size_t large_size,
@@ -3881,18 +3881,18 @@ Lv00TieredMemoryPool* lv00_tiered_pool_create(
 );
 
 /* 按大小自动选择池层级的分配 */
-void* lv00_tiered_alloc(Lv00TieredMemoryPool* pool, size_t size);
-void lv00_tiered_free(Lv00TieredMemoryPool* pool, void* ptr, size_t size);
+void* lv_tiered_alloc(lvTieredMemoryPool* pool, size_t size);
+void lv_tiered_free(lvTieredMemoryPool* pool, void* ptr, size_t size);
 
 /* 临时分配（函数返回时自动释放） */
-void* lv00_temp_alloc(Lv00TieredMemoryPool* pool, size_t size);
-void lv00_temp_reset(Lv00TieredMemoryPool* pool);  /* 重置临时池 */
+void* lv_temp_alloc(lvTieredMemoryPool* pool, size_t size);
+void lv_temp_reset(lvTieredMemoryPool* pool);  /* 重置临时池 */
 ```
 
 #### 15.3.2 内存池统计与泄漏检测
 
 ```c
-/* 运行时内存统计（与第12章 Lv00MemPoolStats 一致） */
+/* 运行时内存统计（与第12章 lvMemPoolStats 一致） */
 typedef struct {
     size_t total_allocated;
     size_t total_freed;
@@ -3904,12 +3904,12 @@ typedef struct {
     size_t pool_large_usage;
     size_t pool_huge_usage;
     size_t pool_temp_usage;
-} Lv00MemPoolStatsDetailed;
+} lvMemPoolStatsDetailed;
 
-Lv00MemPoolStatsDetailed lv00_pool_get_stats(Lv00TieredMemoryPool* pool);
+lvMemPoolStatsDetailed lv_pool_get_stats(lvTieredMemoryPool* pool);
 
 /* 泄漏检测：检查 total_allocated != total_freed */
-bool lv00_pool_check_leak(Lv00TieredMemoryPool* pool);
+bool lv_pool_check_leak(lvTieredMemoryPool* pool);
 ```
 
 ---
@@ -3923,25 +3923,25 @@ bool lv00_pool_check_leak(Lv00TieredMemoryPool* pool);
 #### 15.4.1 增量求解
 
 ```c
-/* core/include/lv00/solver_incremental.h（新增） */
+/* core/include/lv/solver_incremental.h（新增） */
 
 /* 增量求解上下文 */
 typedef struct {
-    Lv00ConstraintGraph* graph;
+    lvConstraintGraph* graph;
     void* last_solution;       /* 上次求解结果缓存 */
     int* changed_nodes;        /* 自上次求解后变更的节点 */
     int changed_count;
     bool is_valid;              /* 缓存是否有效 */
-} Lv00IncrementalSolver;
+} lvIncrementalSolver;
 
 /* 增量求解（仅求解变更部分） */
-bool lv00_solve_incremental(
-    Lv00IncrementalSolver* solver,
-    Lv00ProofResult* out_result
+bool lv_solve_incremental(
+    lvIncrementalSolver* solver,
+    lvProofResult* out_result
 );
 
 /* 标记图变更（使增量缓存失效） */
-void lv00_incremental_solver_invalidate(Lv00IncrementalSolver* solver);
+void lv_incremental_solver_invalidate(lvIncrementalSolver* solver);
 ```
 
 #### 15.4.2 并行求解策略
@@ -3952,22 +3952,22 @@ typedef struct {
     int subgraph_id;
     int* node_ids;
     int node_count;
-    Lv00ProofResult partial_result;
-} Lv00SubgraphTask;
+    lvProofResult partial_result;
+} lvSubgraphTask;
 
 /* 将约束图分解为独立子图 */
-int lv00_graph_decompose(
-    const Lv00ConstraintGraph* graph,
-    Lv00SubgraphTask** out_tasks,
+int lv_graph_decompose(
+    const lvConstraintGraph* graph,
+    lvSubgraphTask** out_tasks,
     int* out_task_count
 );
 
 /* 并行求解多个子图 */
-bool lv00_solve_parallel(
-    Lv00SubgraphTask* tasks,
+bool lv_solve_parallel(
+    lvSubgraphTask* tasks,
     int task_count,
     int max_threads,
-    Lv00ProofResult* out_result
+    lvProofResult* out_result
 );
 ```
 
@@ -4201,32 +4201,32 @@ jobs:
 #### 16.1.1 插件签名验证
 
 ```c
-/* core/include/lv00/plugin_security.h（新增） */
+/* core/include/lv/plugin_security.h（新增） */
 
 typedef enum {
-    LV00_SIG_OK = 0,
-    LV00_SIG_NO_SIGNATURE,
-    LV00_SIG_INVALID_FORMAT,
-    LV00_SIG_HASH_MISMATCH,
-    LV00_SIG_KEY_UNTRUSTED,
-    LV00_SIG_EXPIRED,
-    LV00_SIG_INTERNAL_ERROR
-} Lv00SignatureResult;
+    lv_SIG_OK = 0,
+    lv_SIG_NO_SIGNATURE,
+    lv_SIG_INVALID_FORMAT,
+    lv_SIG_HASH_MISMATCH,
+    lv_SIG_KEY_UNTRUSTED,
+    lv_SIG_EXPIRED,
+    lv_SIG_INTERNAL_ERROR
+} lvSignatureResult;
 
 /* 验证插件签名 */
-Lv00SignatureResult lv00_plugin_verify_signature(
+lvSignatureResult lv_plugin_verify_signature(
     const char* plugin_path,
     const char* manifest_path
 );
 
 /* 添加可信公钥 */
-bool lv00_plugin_add_trusted_key(
+bool lv_plugin_add_trusted_key(
     const char* public_key_pem,
     const char* key_id
 );
 
 /* 设置签名验证策略 */
-void lv00_plugin_set_enforcement(bool enforce);
+void lv_plugin_set_enforcement(bool enforce);
 ```
 
 #### 16.1.2 插件沙箱机制
@@ -4241,11 +4241,11 @@ typedef struct {
     bool allow_fork;
     int max_open_fds;
     int max_threads;
-} Lv00SandboxConfig;
+} lvSandboxConfig;
 
 /* 默认只读沙箱 */
-static inline Lv00SandboxConfig lv00_sandbox_readonly(void) {
-    Lv00SandboxConfig cfg = {0};
+static inline lvSandboxConfig lv_sandbox_readonly(void) {
+    lvSandboxConfig cfg = {0};
     cfg.cpu_time_limit_seconds = 30;
     cfg.max_rss_bytes = 64 * 1024 * 1024;
     cfg.allow_network = false;
@@ -4256,28 +4256,28 @@ static inline Lv00SandboxConfig lv00_sandbox_readonly(void) {
 }
 
 /* 应用沙箱配置 */
-bool lv00_sandbox_apply(const Lv00SandboxConfig* config);
-bool lv00_sandbox_check(const Lv00SandboxConfig* config, char* violation, size_t len);
+bool lv_sandbox_apply(const lvSandboxConfig* config);
+bool lv_sandbox_check(const lvSandboxConfig* config, char* violation, size_t len);
 ```
 
 #### 16.1.3 插件权限模型
 
 ```c
 typedef enum {
-    LV00_PERM_READONLY = 0,
-    LV00_PERM_CONSTRUCTION = 1,
-    LV00_PERM_FULL = 2
-} Lv00PermissionLevel;
+    lv_PERM_READONLY = 0,
+    lv_PERM_CONSTRUCTION = 1,
+    lv_PERM_FULL = 2
+} lvPermissionLevel;
 
 /* 权限检查宏 */
-#define LV00_REQUIRE_PERMISSION(plugin, required_level, retval) do { \
+#define lv_REQUIRE_PERMISSION(plugin, required_level, retval) do { \
     if ((plugin) == NULL) return (retval); \
-    Lv00PermissionLevel _current = lv00_plugin_get_permission(plugin); \
+    lvPermissionLevel _current = lv_plugin_get_permission(plugin); \
     if (_current < (required_level)) { \
-        lv00_audit_log(plugin, LV00_AUDIT_PERMISSION_DENIED, \
+        lv_audit_log(plugin, lv_AUDIT_PERMISSION_DENIED, \
             "权限不足: 需要 %s, 当前 %s", \
-            lv00_perm_level_str(required_level), \
-            lv00_perm_level_str(_current)); \
+            lv_perm_level_str(required_level), \
+            lv_perm_level_str(_current)); \
         return (retval); \
     } \
 } while(0)
@@ -4287,17 +4287,17 @@ typedef enum {
 
 ```c
 typedef enum {
-    LV00_AUDIT_PLUGIN_LOAD = 0,
-    LV00_AUDIT_PLUGIN_UNLOAD,
-    LV00_AUDIT_PERMISSION_DENIED,
-    LV00_AUDIT_RESOURCE_VIOLATION,
-    LV00_AUDIT_SIGNATURE_FAILURE,
-    LV00_AUDIT_API_CALL,
-    LV00_AUDIT_SANDBOX_VIOLATION,
-} Lv00AuditEventType;
+    lv_AUDIT_PLUGIN_LOAD = 0,
+    lv_AUDIT_PLUGIN_UNLOAD,
+    lv_AUDIT_PERMISSION_DENIED,
+    lv_AUDIT_RESOURCE_VIOLATION,
+    lv_AUDIT_SIGNATURE_FAILURE,
+    lv_AUDIT_API_CALL,
+    lv_AUDIT_SANDBOX_VIOLATION,
+} lvAuditEventType;
 
 /* 审计日志格式：[ISO8601] [AUDIT] plugin="<name>" event=<type> msg="<message>" */
-void lv00_audit_log(const Lv00Plugin* plugin, Lv00AuditEventType type, const char* fmt, ...);
+void lv_audit_log(const lvPlugin* plugin, lvAuditEventType type, const char* fmt, ...);
 ```
 
 ---
@@ -4308,7 +4308,7 @@ void lv00_audit_log(const Lv00Plugin* plugin, Lv00AuditEventType type, const cha
 
 ```c
 /* 预定义注入检测模式 */
-static const Lv00InjectionPattern INJECTION_PATTERNS[] = {
+static const lvInjectionPattern INJECTION_PATTERNS[] = {
     { ";rm",     "可能的命令注入",     2 },
     { "|sh",     "可能的管道注入",     2 },
     { "../",     "路径遍历尝试",       2 },
@@ -4318,7 +4318,7 @@ static const Lv00InjectionPattern INJECTION_PATTERNS[] = {
 };
 
 /* DSL安全检查（组合检查） */
-Lv00ErrorCode lv00_dsl_security_check(
+lvErrorCode lv_dsl_security_check(
     const char* input, size_t len,
     char* error, size_t err_len
 );
@@ -4327,26 +4327,26 @@ Lv00ErrorCode lv00_dsl_security_check(
 #### 16.2.2 几何参数边界检查
 
 ```c
-#define LV00_COORD_MAX        1e15
-#define LV00_COORD_MIN        1e-10
-#define LV00_DISTANCE_EPSILON 1e-12
+#define lv_COORD_MAX        1e15
+#define lv_COORD_MIN        1e-10
+#define lv_DISTANCE_EPSILON 1e-12
 
 /* 安全坐标检查 */
-#define LV00_CHECK_COORD(x, retval) do { \
+#define lv_CHECK_COORD(x, retval) do { \
     double _v = (x); \
-    if (isnan(_v) || isinf(_v) || fabs(_v) > LV00_COORD_MAX) return (retval); \
+    if (isnan(_v) || isinf(_v) || fabs(_v) > lv_COORD_MAX) return (retval); \
 } while(0)
 
 /* 安全除法 */
-#define LV00_SAFE_DIV(num, den, default) \
-    (fabs(den) < LV00_DISTANCE_EPSILON ? (default) : ((num) / (den)))
+#define lv_SAFE_DIV(num, den, default) \
+    (fabs(den) < lv_DISTANCE_EPSILON ? (default) : ((num) / (den)))
 
 /* 三角形参数验证 */
-static inline bool lv00_validate_triangle(double a, double b, double c) {
+static inline bool lv_validate_triangle(double a, double b, double c) {
     if (a <= 0 || b <= 0 || c <= 0) return false;
-    if (a + b <= c + LV00_DISTANCE_EPSILON) return false;
-    if (a + c <= b + LV00_DISTANCE_EPSILON) return false;
-    if (b + c <= a + LV00_DISTANCE_EPSILON) return false;
+    if (a + b <= c + lv_DISTANCE_EPSILON) return false;
+    if (a + c <= b + lv_DISTANCE_EPSILON) return false;
+    if (b + c <= a + lv_DISTANCE_EPSILON) return false;
     return true;
 }
 ```
@@ -4354,25 +4354,25 @@ static inline bool lv00_validate_triangle(double a, double b, double c) {
 #### 16.2.3 约束图深度限制
 
 ```c
-#define LV00_PROPAGATION_MAX_DEPTH  1024
-#define LV00_PROOF_SEARCH_MAX_DEPTH 4096
-#define LV00_NODE_MAX_CONSTRAINTS   64
-#define LV00_GRAPH_MAX_NODES        100000
+#define lv_PROPAGATION_MAX_DEPTH  1024
+#define lv_PROOF_SEARCH_MAX_DEPTH 4096
+#define lv_NODE_MAX_CONSTRAINTS   64
+#define lv_GRAPH_MAX_NODES        100000
 
 /* 深度守卫 */
 typedef struct {
     int propagation_depth;
     int proof_search_depth;
     uint64_t total_steps;
-} Lv00DepthGuard;
+} lvDepthGuard;
 
-#define LV00_DEPTH_ENTER(guard, field, max_depth, retval) do { \
+#define lv_DEPTH_ENTER(guard, field, max_depth, retval) do { \
     (guard)->field##_depth++; \
     if ((guard)->field##_depth > (max_depth)) return (retval); \
     (guard)->total_steps++; \
 } while(0)
 
-#define LV00_DEPTH_LEAVE(guard, field) do { \
+#define lv_DEPTH_LEAVE(guard, field) do { \
     (guard)->field##_depth--; \
 } while(0)
 ```
@@ -4385,19 +4385,19 @@ typedef struct {
 
 ```c
 /* 替代 strcpy */
-#define LV00_STRCPY(dst, size, src) do { \
+#define lv_STRCPY(dst, size, src) do { \
     if ((size) > 0) { strncpy((dst), (src), (size) - 1); (dst)[(size) - 1] = '\0'; } \
 } while(0)
 
 /* 替代 strcat */
-#define LV00_STRCAT(dst, size, src) do { \
+#define lv_STRCAT(dst, size, src) do { \
     size_t _cl = strlen(dst); \
     size_t _rem = (size) > _cl ? (size) - _cl - 1 : 0; \
     if (_rem > 0) strncat((dst), (src), _rem); \
 } while(0)
 
 /* 替代 sprintf */
-static inline int lv00_safe_snprintf(char* buf, size_t size, const char* fmt, ...) {
+static inline int lv_safe_snprintf(char* buf, size_t size, const char* fmt, ...) {
     if (size == 0) return 0;
     va_list args; va_start(args, fmt);
     int ret = vsnprintf(buf, size, fmt, args);
@@ -4410,18 +4410,18 @@ static inline int lv00_safe_snprintf(char* buf, size_t size, const char* fmt, ..
 #### 16.3.2 引用计数与安全释放
 
 ```c
-#define LV00_REFCOUNT_HEADER \
+#define lv_REFCOUNT_HEADER \
     volatile int32_t _ref_count; \
     void (*_on_zero_ref)(void *self)
 
-#define LV00_REFCOUNT_INIT(obj, destructor) do { \
+#define lv_REFCOUNT_INIT(obj, destructor) do { \
     (obj)->_ref_count = 1; \
     (obj)->_on_zero_ref = (destructor); \
 } while(0)
 
 /* 安全释放（释放后置NULL） */
-#define LV00_SAFE_FREE(ptr) do { \
-    if ((ptr)) { lv00_free(ptr); (ptr) = NULL; } \
+#define lv_SAFE_FREE(ptr) do { \
+    if ((ptr)) { lv_free(ptr); (ptr) = NULL; } \
 } while(0)
 ```
 
@@ -4434,16 +4434,16 @@ typedef struct {
     const char* file;
     int line;
     int freed;
-} Lv00AllocRecord;
+} lvAllocRecord;
 
 /* 获取泄漏快照 */
-Lv00LeakSnapshot lv00_leak_detector_snapshot(void);
+lvLeakSnapshot lv_leak_detector_snapshot(void);
 
 /* 打印泄漏报告 */
-void lv00_leak_detector_report(const Lv00LeakSnapshot* snapshot);
+void lv_leak_detector_report(const lvLeakSnapshot* snapshot);
 
 /* 断言无泄漏（用于测试退出时） */
-int lv00_leak_detector_assert_clean(void);
+int lv_leak_detector_assert_clean(void);
 ```
 
 ---
@@ -4483,7 +4483,7 @@ def configure_cors(app: FastAPI, environment: str = "production"):
             allow_origins=["http://localhost:3000", "http://localhost:5173"],
             allow_methods=["GET", "POST", "OPTIONS"])
     else:
-        origins = os.environ.get("LV00_CORS_ORIGINS", "").split(",")
+        origins = os.environ.get("lv_CORS_ORIGINS", "").split(",")
         if not origins or "*" in origins:
             raise ValueError("生产环境禁止使用CORS通配符")
         app.add_middleware(CORSMiddleware, allow_origins=origins)
@@ -4640,22 +4640,22 @@ jobs:
 
 | 类别 | 规范 | 示例 |
 |------|------|------|
-| 公共函数 | `lv00_` 前缀 + 小写下划线 | `lv00_graph_add_node()` |
-| 类型/结构体 | `Lv00` 前缀 + PascalCase | `Lv00ConstraintGraph` |
-| 枚举值 | `LV00_` 前缀 + 全大写 | `LV00_ERROR_INVALID_ARG` |
-| 宏常量 | `LV00_` 前缀 + 全大写 | `LV00_MAX_TOKEN_COUNT` |
-| 内部函数 | `_lv00_` 前缀 | `_lv00_graph_validate_edge()` |
+| 公共函数 | `lv_` 前缀 + 小写下划线 | `lv_graph_add_node()` |
+| 类型/结构体 | `lv` 前缀 + PascalCase | `lvConstraintGraph` |
+| 枚举值 | `lv_` 前缀 + 全大写 | `lv_ERROR_INVALID_ARG` |
+| 宏常量 | `lv_` 前缀 + 全大写 | `lv_MAX_TOKEN_COUNT` |
+| 内部函数 | `_lv_` 前缀 | `_lv_graph_validate_edge()` |
 
 #### 17.2.2 错误处理模式
 
-- 返回值约定：`int` 类型，`LV00_OK`（0）表示成功
+- 返回值约定：`int` 类型，`lv_OK`（0）表示成功
 - 错误码分层：Layer N 错误码范围 `N*100 ~ N*100+99`
 - 所有公共函数必须检查 NULL 入参
 - 出错时必须释放已分配的中间资源
 
 #### 17.2.3 内存管理规则
 
-- 统一使用 `lv00_malloc()` / `lv00_free()`
+- 统一使用 `lv_malloc()` / `lv_free()`
 - 禁止混用裸 `malloc`/`free`
 - 释放后必须置 NULL
 - `_create`/`_alloc` 后缀表示调用者获得所有权
@@ -4670,8 +4670,8 @@ jobs:
  * @param[in]  ctx    引擎上下文（不可为NULL）
  * @param[in]  type   节点类型
  * @param[out] out_id 输出新节点的ID
- * @return LV00_OK 成功
- * @return LV00_ERROR_NULL_ARG ctx或out_id为NULL
+ * @return lv_OK 成功
+ * @return lv_ERROR_NULL_ARG ctx或out_id为NULL
  *
  * @par 线程安全
  * 调用者需持有ctx的写锁。
@@ -4686,11 +4686,11 @@ jobs:
 
 | 类别 | 规范 | 示例 |
 |------|------|------|
-| 模块名 | 小写下划线 | `lv00.binding.ctx` |
+| 模块名 | 小写下划线 | `lv.binding.ctx` |
 | 类名 | PascalCase | `GeometrySession` |
 | 函数/方法 | 小写下划线 | `add_point()` |
 | 常量 | 全大写下划线 | `MAX_RECURSION_DEPTH` |
-| ctypes绑定 | 双下划线前缀 | `__lv00_parser_tokenize` |
+| ctypes绑定 | 双下划线前缀 | `__lv_parser_tokenize` |
 
 #### 17.3.2 类型注解要求
 
@@ -4792,8 +4792,8 @@ def solve(
 #### 17.6.2 版本号同步清单
 
 版本号必须在以下位置完全一致：
-- `CMakeLists.txt` -> `project(lv00 VERSION X.Y.Z)`
-- `core/include/lv00/lv00.h` -> `LV00_VERSION_*` 宏
+- `CMakeLists.txt` -> `project(lv VERSION X.Y.Z)`
+- `core/include/lv/lv.h` -> `lv_VERSION_*` 宏
 - `pyproject.toml` -> `version = "X.Y.Z"`
 - `package.json` -> `"version": "X.Y.Z"`
 - `CHANGELOG.md` -> `## [X.Y.Z]`
@@ -4803,7 +4803,7 @@ def solve(
 def main():
     versions = {
         "CMakeLists.txt": extract_cmake_version(root),
-        "lv00.h": extract_lv00_h_version(root),
+        "lv.h": extract_lv_h_version(root),
         "pyproject.toml": extract_pyproject_version(root),
         "package.json": extract_package_json_version(root),
     }

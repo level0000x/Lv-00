@@ -1,4 +1,4 @@
-# Lv-00 几何层最小原语集
+﻿# Lv-00 几何层最小原语集
 
 > **版本**: 1.0.0-draft  
 > **日期**: 2026-05-29  
@@ -625,7 +625,7 @@
 | geo-unify | `unify_construction_with_proposition` | `unify_construction_with_proposition_detailed` |
 | geo-pack | `func_block_pack` | `func_block_pack_ex`, `func_block_detect_cross_boundary` |
 | geo-instantiate | `func_block_instantiate` | `func_block_instantiate_capture_avoiding`, `func_block_partial_apply` |
-| geo-prove | `proof_navigator_create`, `proof_multi_strategy_execute` | `proof_search_with_strategy`, `lv00_proof_engine_prove` |
+| geo-prove | `proof_navigator_create`, `proof_multi_strategy_execute` | `proof_search_with_strategy`, `lv_proof_engine_prove` |
 | geo-export | `proof_export_coq`, `proof_export_latex` | `proof_export_html`, `graph_export_dot` |
 | geo-serialize | `graph_serialize_to_json` | `graph_node_serialize_to_json` |
 | geo-deserialize | `graph_deserialize_from_json` | - |

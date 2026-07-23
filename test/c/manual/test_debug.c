@@ -1,10 +1,10 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <stdlib.h>
 
-// Direct GMP test without lv00
+// Direct GMP test without lv
 #include <gmp.h>
 
-#include "lv00_utils.h"
+#include "lv_utils.h"
 
 int main() {
     printf("=== Direct GMP Test ===\n\n");

@@ -1,22 +1,22 @@
-#include "lv00/adaptive_pruning.h"
-#include "lv00_utils.h"
+﻿#include "lv/adaptive_pruning.h"
+#include "lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
-#define LV00_DEFAULT_TIME_BUDGET_MS 30000.0
-#define LV00_DEFAULT_MAX_ITERATIONS 10000
+#define lv_DEFAULT_TIME_BUDGET_MS 30000.0
+#define lv_DEFAULT_MAX_ITERATIONS 10000
 
 /* ── Complexity Analysis ── */
 
-Lv00ProblemComplexity lv00_analyze_complexity(
+lvProblemComplexity lv_analyze_complexity(
     size_t node_count,
     size_t constraint_count,
     size_t edge_count,
     size_t max_poly_degree,
     size_t axiom_count)
 {
-    Lv00ProblemComplexity c;
+    lvProblemComplexity c;
     memset(&c, 0, sizeof(c));
     c.node_count = node_count;
     c.constraint_count = constraint_count;
@@ -36,7 +36,7 @@ Lv00ProblemComplexity lv00_analyze_complexity(
     return c;
 }
 
-size_t lv00_compute_adaptive_limit(const Lv00ProblemComplexity *complexity,
+size_t lv_compute_adaptive_limit(const lvProblemComplexity *complexity,
                                    double target_time_ms)
 {
     if (!complexity || complexity->node_count == 0) return 1000;
@@ -64,11 +64,11 @@ size_t lv00_compute_adaptive_limit(const Lv00ProblemComplexity *complexity,
 
 /* ── Default Configuration ── */
 
-Lv00AdaptiveConfig lv00_default_adaptive_config(void) {
-    Lv00AdaptiveConfig cfg;
+lvAdaptiveConfig lv_default_adaptive_config(void) {
+    lvAdaptiveConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.base_iterations = 100.0;
-    cfg.time_budget_ms = LV00_DEFAULT_TIME_BUDGET_MS;       /* 30 seconds */
+    cfg.time_budget_ms = lv_DEFAULT_TIME_BUDGET_MS;       /* 30 seconds */
     cfg.progress_threshold = 0.1;       /* 10% minimum progress */
     cfg.solution_likelihood_min = 0.01; /* 1% minimum probability */
     cfg.enable_heuristic_pruning = 1;
@@ -78,34 +78,34 @@ Lv00AdaptiveConfig lv00_default_adaptive_config(void) {
 
 /* ── Pruner Lifecycle ── */
 
-Lv00AdaptivePruner *lv00_pruner_create(const Lv00AdaptiveConfig *config) {
-    Lv00AdaptivePruner *pruner = lv00_malloc(sizeof(Lv00AdaptivePruner));
+lvAdaptivePruner *lv_pruner_create(const lvAdaptiveConfig *config) {
+    lvAdaptivePruner *pruner = lv_malloc(sizeof(lvAdaptivePruner));
     if (!pruner) return NULL;
-    memset(pruner, 0, sizeof(Lv00AdaptivePruner));
-    pruner->config = config ? *config : lv00_default_adaptive_config();
-    pruner->max_iterations = LV00_DEFAULT_MAX_ITERATIONS;
+    memset(pruner, 0, sizeof(lvAdaptivePruner));
+    pruner->config = config ? *config : lv_default_adaptive_config();
+    pruner->max_iterations = lv_DEFAULT_MAX_ITERATIONS;
     pruner->max_time_ms = pruner->config.time_budget_ms;
     return pruner;
 }
 
-void lv00_pruner_destroy(Lv00AdaptivePruner *pruner) {
-    lv00_free((void **)&pruner);
+void lv_pruner_destroy(lvAdaptivePruner *pruner) {
+    lv_free((void **)&pruner);
 }
 
-int lv00_pruner_set_problem(Lv00AdaptivePruner *pruner,
-                            const Lv00ProblemComplexity *complexity) {
+int lv_pruner_set_problem(lvAdaptivePruner *pruner,
+                            const lvProblemComplexity *complexity) {
     if (!pruner || !complexity) return -1;
     pruner->complexity = *complexity;
-    pruner->max_iterations = lv00_compute_adaptive_limit(complexity, pruner->config.time_budget_ms);
+    pruner->max_iterations = lv_compute_adaptive_limit(complexity, pruner->config.time_budget_ms);
     pruner->max_depth = (size_t)(log2((double)complexity->node_count + 1.0) * 3.0);
     return 0;
 }
 
 /* ── Pruning Decisions ── */
 
-Lv00PruningDecision lv00_pruner_evaluate(Lv00AdaptivePruner *pruner,
-                                           const Lv00SearchHeuristics *heuristics) {
-    Lv00PruningDecision decision = {0, 0.0, ""};
+lvPruningDecision lv_pruner_evaluate(lvAdaptivePruner *pruner,
+                                           const lvSearchHeuristics *heuristics) {
+    lvPruningDecision decision = {0, 0.0, ""};
 
     if (!pruner || !heuristics) {
         decision.should_prune = 0;
@@ -161,17 +161,17 @@ Lv00PruningDecision lv00_pruner_evaluate(Lv00AdaptivePruner *pruner,
     return decision;
 }
 
-int lv00_pruner_time_exceeded(const Lv00AdaptivePruner *pruner, double elapsed_ms) {
+int lv_pruner_time_exceeded(const lvAdaptivePruner *pruner, double elapsed_ms) {
     return pruner ? (elapsed_ms >= pruner->max_time_ms) : 0;
 }
 
-int lv00_pruner_iterations_exceeded(const Lv00AdaptivePruner *pruner, size_t iterations) {
+int lv_pruner_iterations_exceeded(const lvAdaptivePruner *pruner, size_t iterations) {
     return pruner ? (iterations >= pruner->max_iterations) : 0;
 }
 
 /* ── Heuristic Scoring ── */
 
-double lv00_estimate_progress(int branches_explored, int total_branches,
+double lv_estimate_progress(int branches_explored, int total_branches,
                                 double time_spent_ms, double time_budget_ms) {
     if (total_branches <= 0) return 0.0;
     if (time_budget_ms <= 0.0) return 0.0;
@@ -185,7 +185,7 @@ double lv00_estimate_progress(int branches_explored, int total_branches,
     return 0.6 * branch_progress + 0.4 * (1.0 - time_progress);
 }
 
-double lv00_estimate_solution_likelihood(const Lv00ProblemComplexity *complexity,
+double lv_estimate_solution_likelihood(const lvProblemComplexity *complexity,
                                            int depth, int conflicts_found) {
     if (!complexity) return 0.5;
 
@@ -209,10 +209,10 @@ double lv00_estimate_solution_likelihood(const Lv00ProblemComplexity *complexity
 
 /* ── Neural Suggestion (Heuristic-based) ── */
 
-Lv00NeuralSuggestion lv00_neural_suggest_strategy(
-    const Lv00ProblemComplexity *complexity)
+lvNeuralSuggestion lv_neural_suggest_strategy(
+    const lvProblemComplexity *complexity)
 {
-    Lv00NeuralSuggestion suggestion;
+    lvNeuralSuggestion suggestion;
     memset(&suggestion, 0, sizeof(suggestion));
 
     if (!complexity) return suggestion;
@@ -313,8 +313,8 @@ Lv00NeuralSuggestion lv00_neural_suggest_strategy(
 
 /* ── Statistics ── */
 
-Lv00PrunerStats lv00_pruner_get_stats(const Lv00AdaptivePruner *pruner) {
-    Lv00PrunerStats stats;
+lvPrunerStats lv_pruner_get_stats(const lvAdaptivePruner *pruner) {
+    lvPrunerStats stats;
     memset(&stats, 0, sizeof(stats));
     if (!pruner) return stats;
     stats.total_pruned = pruner->total_pruned;

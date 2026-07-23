@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file bootstrap_test.c
  * @brief Lv-00 自举差分测试框架实现骨架
  *
@@ -10,13 +10,13 @@
  * @date 2026-05-29
  */
 
-#include "lv00/bootstrap_test.h"
-#include "lv00/lv00_utils.h"
-#include "lv00/lv00.h"
-#include "lv00/cross_platform.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/engine.h"
-#include "lv00/proof_trace.h"
+#include "lv/bootstrap_test.h"
+#include "lv/lv_utils.h"
+#include "lv/lv.h"
+#include "lv/cross_platform.h"
+#include "lv/constraint_graph.h"
+#include "lv/engine.h"
+#include "lv/proof_trace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,7 +60,7 @@ bool bootstrap_test_framework_init(void)
     }
 
     /* 初始化 Lv-00 核心系统 */
-    if (!lv00_init()) {
+    if (!lv_init()) {
         fprintf(stderr, "[BootstrapTest] Failed to initialize Lv-00 core\n");
         return false;
     }
@@ -68,7 +68,7 @@ bool bootstrap_test_framework_init(void)
     /* 初始化原语包装器 */
     if (!primitive_wrapper_init()) {
         fprintf(stderr, "[BootstrapTest] Failed to initialize primitive wrapper\n");
-        lv00_cleanup();
+        lv_cleanup();
         return false;
     }
 
@@ -88,7 +88,7 @@ void bootstrap_test_framework_cleanup(void)
     }
 
     primitive_wrapper_cleanup();
-    lv00_cleanup();
+    lv_cleanup();
 
     g_initialized = false;
     printf("[BootstrapTest] Framework cleaned up\n");
@@ -110,13 +110,13 @@ struct BootstrapDiffTest {
 BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name,
                                                const char *dsl_source)
 {
-    BootstrapDiffTest *test = lv00_malloc(sizeof(BootstrapDiffTest));
+    BootstrapDiffTest *test = lv_malloc(sizeof(BootstrapDiffTest));
     if (!test) {
         return NULL;
     }
 
-    test->test_name = lv00_strdup_safe(test_name ? test_name : "unnamed");
-    test->dsl_source = dsl_source ? lv00_strdup_safe(dsl_source) : NULL;
+    test->test_name = lv_strdup_safe(test_name ? test_name : "unnamed");
+    test->dsl_source = dsl_source ? lv_strdup_safe(dsl_source) : NULL;
     test->input_graph = NULL;
 
     return test;
@@ -128,10 +128,10 @@ void bootstrap_diff_test_destroy(BootstrapDiffTest *test)
         return;
     }
 
-    lv00_free((void**)&test->test_name);
-    lv00_free((void**)&test->dsl_source);
+    lv_free((void**)&test->test_name);
+    lv_free((void**)&test->dsl_source);
     /* input_graph 由调用者管理 */
-    lv00_free((void**)&test);
+    lv_free((void**)&test);
 }
 
 BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
@@ -140,7 +140,7 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
         return NULL;
     }
 
-    BootstrapDiffTestResult *result = lv00_malloc(sizeof(BootstrapDiffTestResult));
+    BootstrapDiffTestResult *result = lv_malloc(sizeof(BootstrapDiffTestResult));
     if (!result) {
         return NULL;
     }
@@ -150,13 +150,13 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
     /* 差分测试逻辑：解析 DSL、通过 C API 执行、比较结果 */
     if (test->dsl_source) {
         /* 通过 DSL 解析器执行 */
-        result->c_api_output = lv00_strdup_safe(test->dsl_source);
+        result->c_api_output = lv_strdup_safe(test->dsl_source);
     }
 
     /* 通过几何层执行（如果有输入图） */
     if (test->input_graph) {
         ConstraintGraph *g = (ConstraintGraph *)test->input_graph;
-        result->geo_layer_output = lv00_asprintf(
+        result->geo_layer_output = lv_asprintf(
             "graph:nodes=%d,constraints=%d",
             graph_get_node_count(g), graph_get_constraint_count(g));
     }
@@ -170,13 +170,13 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
         } else {
             result->comparison = DIFF_RESULT_DIFFERENT;
             result->passed = false;
-            result->diff_description = lv00_strdup_safe("C API and geometry layer outputs differ");
+            result->diff_description = lv_strdup_safe("C API and geometry layer outputs differ");
             g_fail_count++;
         }
     } else {
         result->comparison = DIFF_RESULT_ERROR;
         result->passed = false;
-        result->error_message = lv00_strdup_safe("Incomplete differential test: missing output");
+        result->error_message = lv_strdup_safe("Incomplete differential test: missing output");
         g_fail_count++;
     }
 
@@ -191,11 +191,11 @@ void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result)
         return;
     }
 
-    lv00_free((void**)&result->c_api_output);
-    lv00_free((void**)&result->geo_layer_output);
-    lv00_free((void**)&result->diff_description);
-    lv00_free((void**)&result->error_message);
-    lv00_free((void**)&result);
+    lv_free((void**)&result->c_api_output);
+    lv_free((void**)&result->geo_layer_output);
+    lv_free((void**)&result->diff_description);
+    lv_free((void**)&result->error_message);
+    lv_free((void**)&result);
 }
 
 uint32_t bootstrap_diff_test_run_batch(BootstrapDiffTest **tests,
@@ -252,7 +252,7 @@ RandomGeneratorConfig random_generator_default_config(void)
 
 RandomGenerator *random_generator_create(const RandomGeneratorConfig *config)
 {
-    RandomGenerator *gen = lv00_malloc(sizeof(RandomGenerator));
+    RandomGenerator *gen = lv_malloc(sizeof(RandomGenerator));
     if (!gen) {
         return NULL;
     }
@@ -270,7 +270,7 @@ RandomGenerator *random_generator_create(const RandomGeneratorConfig *config)
 
 void random_generator_destroy(RandomGenerator *gen)
 {
-    lv00_free((void**)&gen);
+    lv_free((void**)&gen);
 }
 
 void *random_generator_generate_graph(RandomGenerator *gen)
@@ -287,14 +287,14 @@ void *random_generator_generate_graph(RandomGenerator *gen)
 
     /* 确定实体数量 */
     uint32_t point_count = gen->config.min_points +
-        (lv00_random_int(0, gen->config.max_points - gen->config.min_points));
+        (lv_random_int(0, gen->config.max_points - gen->config.min_points));
     uint32_t line_count = gen->config.min_lines +
-        (lv00_random_int(0, gen->config.max_lines - gen->config.min_lines));
+        (lv_random_int(0, gen->config.max_lines - gen->config.min_lines));
 
     /* 创建随机点（使用符号坐标） */
     for (uint32_t i = 0; i < point_count; i++) {
-        double x = lv00_random_double(gen->config.coord_min, gen->config.coord_max);
-        double y = lv00_random_double(gen->config.coord_min, gen->config.coord_max);
+        double x = lv_random_double(gen->config.coord_min, gen->config.coord_max);
+        double y = lv_random_double(gen->config.coord_min, gen->config.coord_max);
         SymbolicCoord *sx = symbolic_coord_create_rational((long long)(x * 1000), 1000);
         SymbolicCoord *sy = symbolic_coord_create_rational((long long)(y * 1000), 1000);
         SymbolicCoord *coords[] = {sx, sy};
@@ -305,8 +305,8 @@ void *random_generator_generate_graph(RandomGenerator *gen)
 
     /* 创建随机线段 */
     for (uint32_t i = 0; i < line_count; i++) {
-        int a = lv00_random_int(0, (int)point_count - 1);
-        int b = lv00_random_int(0, (int)point_count - 1);
+        int a = lv_random_int(0, (int)point_count - 1);
+        int b = lv_random_int(0, (int)point_count - 1);
         if (a != b) {
             graph_add_line_segment(graph, a, b);
         }
@@ -314,10 +314,10 @@ void *random_generator_generate_graph(RandomGenerator *gen)
 
     /* 添加随机约束 */
     for (uint32_t i = 0; i < point_count - 1; i++) {
-        if (lv00_random_double(0.0, 1.0) < gen->config.constraint_density) {
+        if (lv_random_double(0.0, 1.0) < gen->config.constraint_density) {
             int a = (int)i;
             int b = (int)i + 1;
-            double dist = lv00_random_double(0.1, 50.0);
+            double dist = lv_random_double(0.1, 50.0);
             graph_add_distance_constraint(graph, a, b, dist);
         }
     }
@@ -333,7 +333,7 @@ char *random_generator_generate_dsl(RandomGenerator *gen)
 
     /* 随机 DSL 生成：根据配置生成几何构造 DSL */
     uint32_t n_points = gen->config.min_points +
-        (lv00_random_int(0, gen->config.max_points - gen->config.min_points));
+        (lv_random_int(0, gen->config.max_points - gen->config.min_points));
 
     /* 构建 DSL 缓冲区 */
     char buf[4096];
@@ -342,8 +342,8 @@ char *random_generator_generate_dsl(RandomGenerator *gen)
 
     /* 生成点声明 */
     for (uint32_t i = 0; i < n_points; i++) {
-        double x = lv00_random_double(gen->config.coord_min, gen->config.coord_max);
-        double y = lv00_random_double(gen->config.coord_min, gen->config.coord_max);
+        double x = lv_random_double(gen->config.coord_min, gen->config.coord_max);
+        double y = lv_random_double(gen->config.coord_min, gen->config.coord_max);
         pos += snprintf(buf + pos, sizeof(buf) - (size_t)pos,
             "Point P%u = (%.2f, %.2f);\n", i, x, y);
     }
@@ -352,11 +352,11 @@ char *random_generator_generate_dsl(RandomGenerator *gen)
     const char *constraint_types[] = {
         "collinear", "distance", "parallel", "perpendicular"
     };
-    int n_constraints = lv00_random_int(1, (int)n_points / 2 + 1);
+    int n_constraints = lv_random_int(1, (int)n_points / 2 + 1);
     for (int c = 0; c < n_constraints; c++) {
-        int type_idx = lv00_random_int(0, 3);
-        int a = lv00_random_int(0, (int)n_points - 1);
-        int b = lv00_random_int(0, (int)n_points - 1);
+        int type_idx = lv_random_int(0, 3);
+        int a = lv_random_int(0, (int)n_points - 1);
+        int b = lv_random_int(0, (int)n_points - 1);
         if (a == b) b = (b + 1) % (int)n_points;
         pos += snprintf(buf + pos, sizeof(buf) - (size_t)pos,
             "Constraint %s(P%u, P%u);\n", constraint_types[type_idx], a, b);
@@ -364,7 +364,7 @@ char *random_generator_generate_dsl(RandomGenerator *gen)
 
     pos += snprintf(buf + pos, sizeof(buf) - (size_t)pos, "Prove;\n");
 
-    char *dsl = lv00_strdup_safe(buf);
+    char *dsl = lv_strdup_safe(buf);
 
     return dsl;
 }
@@ -392,7 +392,7 @@ void random_generator_reset_seed(RandomGenerator *gen, uint64_t seed)
 {
     if (gen) {
         gen->current_seed = seed;
-        lv00_random_init(seed);
+        lv_random_init(seed);
     }
 }
 
@@ -406,7 +406,7 @@ struct GraphIsomorphismComparator {
 
 GraphIsomorphismComparator *graph_isomorphism_create(void)
 {
-    GraphIsomorphismComparator *comp = lv00_malloc(sizeof(GraphIsomorphismComparator));
+    GraphIsomorphismComparator *comp = lv_malloc(sizeof(GraphIsomorphismComparator));
     if (!comp) {
         return NULL;
     }
@@ -420,7 +420,7 @@ GraphIsomorphismComparator *graph_isomorphism_create(void)
 
 void graph_isomorphism_destroy(GraphIsomorphismComparator *comp)
 {
-    lv00_free((void**)&comp);
+    lv_free((void**)&comp);
 }
 
 void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
@@ -843,9 +843,9 @@ bool primitive_wrapper_register(const char *name,
                                  uint32_t param_count,
                                  const char *return_type)
 {
-    LV00_UNUSED(param_types);
-    LV00_UNUSED(param_count);
-    LV00_UNUSED(return_type);
+    lv_UNUSED(param_types);
+    lv_UNUSED(param_count);
+    lv_UNUSED(return_type);
     if (!name || g_primitive_count >= MAX_PRIMITIVES) {
         return false;
     }
@@ -864,12 +864,12 @@ bool primitive_wrapper_register(const char *name,
 PrimitiveTestResult *primitive_wrapper_test(const char *name,
                                              void **params)
 {
-    LV00_UNUSED(params);
+    lv_UNUSED(params);
     if (!name || !g_initialized) {
         return NULL;
     }
 
-    PrimitiveTestResult *result = lv00_malloc(sizeof(PrimitiveTestResult));
+    PrimitiveTestResult *result = lv_malloc(sizeof(PrimitiveTestResult));
     if (!result) {
         return NULL;
     }
@@ -947,31 +947,31 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name,
             /* 检查 C API 函数是否已注册 */
             if (g_primitives[i].c_api_func) {
                 if (basic_test_ok) {
-                    result->c_api_result = lv00_strdup_safe("executed");
+                    result->c_api_result = lv_strdup_safe("executed");
                     result->comparison = DIFF_RESULT_EQUAL;
                     result->passed = true;
                     g_primitives[i].pass_count++;
                     g_pass_count++;
                 } else {
-                    result->c_api_result = lv00_strdup_safe("executed");
+                    result->c_api_result = lv_strdup_safe("executed");
                     result->comparison = DIFF_RESULT_ERROR;
                     result->passed = false;
-                    result->error_message = lv00_strdup_safe(basic_error);
+                    result->error_message = lv_strdup_safe(basic_error);
                     g_primitives[i].fail_count++;
                     g_fail_count++;
                 }
             } else {
                 if (basic_test_ok) {
-                    result->c_api_result = lv00_strdup_safe("skipped: no C API bound");
+                    result->c_api_result = lv_strdup_safe("skipped: no C API bound");
                     result->comparison = DIFF_RESULT_EQUAL;
                     result->passed = true;
                     g_primitives[i].pass_count++;
                     g_pass_count++;
                 } else {
-                    result->c_api_result = lv00_strdup_safe("skipped: no C API bound");
+                    result->c_api_result = lv_strdup_safe("skipped: no C API bound");
                     result->comparison = DIFF_RESULT_ERROR;
                     result->passed = false;
-                    result->error_message = lv00_strdup_safe(basic_error);
+                    result->error_message = lv_strdup_safe(basic_error);
                     g_primitives[i].fail_count++;
                     g_fail_count++;
                 }
@@ -981,7 +981,7 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name,
         }
     }
 
-    lv00_free((void**)&result);
+    lv_free((void**)&result);
     return NULL;
 }
 
@@ -991,10 +991,10 @@ void primitive_test_result_destroy(PrimitiveTestResult *result)
         return;
     }
 
-    lv00_free((void**)&result->input_description);
-    lv00_free((void**)&result->c_api_result);
-    lv00_free((void**)&result->geo_layer_result);
-    lv00_free((void**)&result);
+    lv_free((void**)&result->input_description);
+    lv_free((void**)&result->c_api_result);
+    lv_free((void**)&result->geo_layer_result);
+    lv_free((void**)&result);
 }
 
 uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results,
@@ -1043,7 +1043,7 @@ struct TestOracle {
 
 TestOracle *test_oracle_create(void)
 {
-    TestOracle *oracle = lv00_malloc(sizeof(TestOracle));
+    TestOracle *oracle = lv_malloc(sizeof(TestOracle));
     if (!oracle) {
         return NULL;
     }
@@ -1055,7 +1055,7 @@ TestOracle *test_oracle_create(void)
 
 void test_oracle_destroy(TestOracle *oracle)
 {
-    lv00_free((void**)&oracle);
+    lv_free((void**)&oracle);
 }
 
 bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
@@ -1139,7 +1139,7 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle,
     }
 
     /* 证明有效性验证：检查证明轨迹的基本结构 */
-    int step_count = lv00_proof_trace_get_step_count(trace);
+    int step_count = lv_proof_trace_get_step_count(trace);
 
     if (step_count == 0) {
         return false;
@@ -1178,7 +1178,7 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
                                       uint32_t count,
                                       const char *format)
 {
-    LV00_UNUSED(format);
+    lv_UNUSED(format);
     if (!results || count == 0) {
         return NULL;
     }
@@ -1193,7 +1193,7 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
 
     /* 计算报告所需缓冲区大小 */
     size_t buf_size = 1024 + (size_t)count * 128;
-    char *report = (char *)lv00_malloc(buf_size);
+    char *report = (char *)lv_malloc(buf_size);
     if (!report) return NULL;
 
     int pos = 0;
@@ -1253,13 +1253,13 @@ bool bootstrap_test_write_report(BootstrapDiffTestResult **results,
 
     FILE *fp = fopen(filepath, "w");
     if (!fp) {
-        lv00_free((void**)&report);
+        lv_free((void**)&report);
         return false;
     }
 
     fprintf(fp, "%s", report);
     fclose(fp);
 
-    lv00_free((void**)&report);
+    lv_free((void**)&report);
     return true;
 }

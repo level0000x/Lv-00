@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * propagation.c — 约束传播引擎实现
  *
  * WFC 风格的动态约束传播，包含：
@@ -16,7 +16,7 @@
 #include <string.h>
 
 #include "error_codes.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 
 #define MAX_CONSTRAINTS_PER_NODE 128
 #define MAX_NEIGHBOR_CONSTRAINTS 64
@@ -31,10 +31,10 @@ static bool state_ensure_capacity(NodeStateSpace *state, int needed) {
     int new_cap = state->capacity < 8 ? 8 : state->capacity;
     while (new_cap < needed) new_cap *= 2;
 
-    SymbolicCoord **new_coords = (SymbolicCoord **)lv00_realloc(state->possible_coords,
+    SymbolicCoord **new_coords = (SymbolicCoord **)lv_realloc(state->possible_coords,
                                                             (size_t)new_cap * sizeof(SymbolicCoord *));
     if (!new_coords) return false;
-    int *new_dims = (int *)lv00_realloc(state->coord_dims, (size_t)new_cap * sizeof(int));
+    int *new_dims = (int *)lv_realloc(state->coord_dims, (size_t)new_cap * sizeof(int));
     if (!new_dims) {
         free(new_coords);
         return false;
@@ -73,10 +73,10 @@ static void state_destroy(NodeStateSpace *s) {
                 symbolic_coord_destroy(s->possible_coords[i]);
             }
         }
-        lv00_free((void **)&s->possible_coords);
+        lv_free((void **)&s->possible_coords);
         s->possible_coords = NULL;
     }
-    lv00_free((void **)&s->coord_dims);
+    lv_free((void **)&s->coord_dims);
     s->coord_dims = NULL;
     /* 注意：不释放 s 本身，因为它指向 state_spaces 数组的元素 */
 }
@@ -173,7 +173,7 @@ static bool queue_init(PropagationContext *ctx) {
 }
 
 static void queue_destroy(PropagationContext *ctx) {
-    lv00_free((void **)&ctx->propagation_queue);
+    lv_free((void **)&ctx->propagation_queue);
     ctx->propagation_queue = NULL;
 }
 
@@ -181,7 +181,7 @@ static bool queue_ensure_capacity(PropagationContext *ctx) {
     if (ctx->queue_size < ctx->queue_capacity) return true;
     if (ctx->queue_capacity > INT_MAX / 2) return false;
     int new_cap = ctx->queue_capacity * 2;
-    int *new_q = (int *)lv00_realloc(ctx->propagation_queue, (size_t)new_cap * sizeof(int));
+    int *new_q = (int *)lv_realloc(ctx->propagation_queue, (size_t)new_cap * sizeof(int));
     if (!new_q) return false;
 
     /* 将数据从环形缓冲区展开到线性数组 */
@@ -230,7 +230,7 @@ static void queue_clear(PropagationContext *ctx) {
 PropagationContext *propagation_context_create(ConstraintGraph *graph) {
     if (!graph) return NULL;
 
-    PropagationContext *ctx = (PropagationContext *)lv00_malloc(sizeof(PropagationContext));
+    PropagationContext *ctx = (PropagationContext *)lv_malloc(sizeof(PropagationContext));
     if (!ctx) return NULL;
     memset(ctx, 0, sizeof(PropagationContext));
 
@@ -242,28 +242,28 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
 
     /* 初始化状态空间数组 */
     ctx->state_count = graph->node_count;
-    ctx->state_spaces = (NodeStateSpace *)lv00_malloc((size_t)ctx->state_count * sizeof(NodeStateSpace));
+    ctx->state_spaces = (NodeStateSpace *)lv_malloc((size_t)ctx->state_count * sizeof(NodeStateSpace));
     if (!ctx->state_spaces && ctx->state_count > 0) {
-        lv00_free((void **)&ctx);
+        lv_free((void **)&ctx);
         return NULL;
     }
     if (ctx->state_spaces) memset(ctx->state_spaces, 0, (size_t)ctx->state_count * sizeof(NodeStateSpace));
 
     /* 初始化传播队列 */
     if (!queue_init(ctx)) {
-        lv00_free((void **)&ctx->state_spaces);
-        lv00_free((void **)&ctx);
+        lv_free((void **)&ctx->state_spaces);
+        lv_free((void **)&ctx);
         return NULL;
     }
 
     /* 初始化快照栈 */
     ctx->snapshot_capacity = PROP_DEFAULT_SNAPSHOT_CAPACITY;
-    ctx->snapshot_stack = (PropagationSnapshot **)lv00_malloc((size_t)ctx->snapshot_capacity *
+    ctx->snapshot_stack = (PropagationSnapshot **)lv_malloc((size_t)ctx->snapshot_capacity *
                                                           sizeof(PropagationSnapshot *));
     if (!ctx->snapshot_stack) {
         queue_destroy(ctx);
-        lv00_free((void **)&ctx->state_spaces);
-        lv00_free((void **)&ctx);
+        lv_free((void **)&ctx->state_spaces);
+        lv_free((void **)&ctx);
         return NULL;
     }
     memset(ctx->snapshot_stack, 0, (size_t)ctx->snapshot_capacity * sizeof(PropagationSnapshot *));
@@ -278,7 +278,7 @@ void propagation_context_destroy(PropagationContext *ctx) {
     for (int i = 0; i < ctx->state_count; i++) {
         state_destroy(&ctx->state_spaces[i]);
     }
-    lv00_free((void **)&ctx->state_spaces);
+    lv_free((void **)&ctx->state_spaces);
 
     /* 销毁传播队列 */
     queue_destroy(ctx);
@@ -289,9 +289,9 @@ void propagation_context_destroy(PropagationContext *ctx) {
             propagation_snapshot_destroy(ctx->snapshot_stack[i]);
         }
     }
-    lv00_free((void **)&ctx->snapshot_stack);
+    lv_free((void **)&ctx->snapshot_stack);
 
-    lv00_free((void **)&ctx);
+    lv_free((void **)&ctx);
 }
 
 /* ================================================================
@@ -609,8 +609,8 @@ int propagation_select_node(PropagationContext *ctx) {
         case PROP_STRATEGY_BFS: {
             bool found_bfs = false;
             int bfs_cap = ctx->state_count > 256 ? ctx->state_count : 256;
-            int *bfs_queue = (int *)lv00_malloc((size_t)bfs_cap * sizeof(int));
-            bool *visited = bfs_queue ? (bool *)lv00_calloc((size_t)ctx->state_count, sizeof(bool)) : NULL;
+            int *bfs_queue = (int *)lv_malloc((size_t)bfs_cap * sizeof(int));
+            bool *visited = bfs_queue ? (bool *)lv_calloc((size_t)ctx->state_count, sizeof(bool)) : NULL;
             if (bfs_queue && visited) {
                 for (int start = 0; start < ctx->state_count && !found_bfs; start++) {
                     const NodeStateSpace *ss_start = &ctx->state_spaces[start];
@@ -655,8 +655,8 @@ int propagation_select_node(PropagationContext *ctx) {
                     }
                 }
             }
-            lv00_free((void **)&bfs_queue);
-            lv00_free((void **)&visited);
+            lv_free((void **)&bfs_queue);
+            lv_free((void **)&visited);
             /* 若 BFS 未找到（无已坍缩节点作为起点），回退到最小熵 */
             if (!found_bfs) {
                 if (entropy < min_entropy ||
@@ -744,14 +744,14 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
             for (int k = 0; k < ss->coord_count; k++) total += weights[k];
             /* 加权随机选择（轮盘赌算法） */
             if (total > 0.0) {
-                double r = lv00_random_double(0.0, total);
+                double r = lv_random_double(0.0, total);
                 double accum = 0.0;
                 for (int k = 0; k < ss->coord_count; k++) {
                     accum += weights[k];
                     if (r <= accum) { selected_index = k; break; }
                 }
             }
-            lv00_free((void **)&weights);
+            lv_free((void **)&weights);
         }
         break;
     default:
@@ -865,7 +865,7 @@ PropagationSnapshot *propagation_snapshot_save(PropagationContext *ctx) {
     snap->state_count = ctx->state_count;
     snap->states = (NodeStateSpace *)calloc((size_t)snap->state_count, sizeof(NodeStateSpace));
     if (!snap->states) {
-        lv00_free((void **)&snap);
+        lv_free((void **)&snap);
         return NULL;
     }
 
@@ -902,8 +902,8 @@ void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *
     ctx->prune_count = snap->prune_count;
 
     /* 销毁快照壳 */
-    lv00_free((void **)&snap->states);
-    lv00_free((void **)&snap);
+    lv_free((void **)&snap->states);
+    lv_free((void **)&snap);
 }
 
 void propagation_snapshot_destroy(PropagationSnapshot *snap) {
@@ -912,9 +912,9 @@ void propagation_snapshot_destroy(PropagationSnapshot *snap) {
         for (int i = 0; i < snap->state_count; i++) {
             state_destroy(&snap->states[i]);
         }
-        lv00_free((void **)&snap->states);
+        lv_free((void **)&snap->states);
     }
-    lv00_free((void **)&snap);
+    lv_free((void **)&snap);
 }
 
 /* ================================================================

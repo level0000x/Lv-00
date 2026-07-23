@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interval_arithmetic.c
  * @brief Implementation of unified interval arithmetic for Lv-00
  *
@@ -70,40 +70,40 @@ static double max4(double a, double b, double c, double d) {
  * Factory functions
  * ======================================================================== */
 
-Lv00Interval interval_create(double lo, double hi, int is_exact) {
-    Lv00Interval iv;
+lvInterval interval_create(double lo, double hi, int is_exact) {
+    lvInterval iv;
     iv.lo = lo;
     iv.hi = hi;
     iv.is_exact = is_exact;
     return iv;
 }
 
-Lv00Interval interval_point(double val) {
-    Lv00Interval iv;
+lvInterval interval_point(double val) {
+    lvInterval iv;
     iv.lo = val;
     iv.hi = val;
     iv.is_exact = 1;
     return iv;
 }
 
-Lv00Interval interval_empty(void) {
-    Lv00Interval iv;
+lvInterval interval_empty(void) {
+    lvInterval iv;
     iv.lo = 1.0;
     iv.hi = -1.0;
     iv.is_exact = 0;
     return iv;
 }
 
-Lv00Interval interval_entire(void) {
-    Lv00Interval iv;
+lvInterval interval_entire(void) {
+    lvInterval iv;
     iv.lo = -INFINITY;
     iv.hi = INFINITY;
     iv.is_exact = 0;
     return iv;
 }
 
-Lv00IntervalConfig interval_config_default(void) {
-    Lv00IntervalConfig cfg;
+lvIntervalConfig interval_config_default(void) {
+    lvIntervalConfig cfg;
     cfg.precision = 53;       /* double precision */
     cfg.rounding_eps = 0.0;   /* no extra rounding in double mode */
     return cfg;
@@ -113,33 +113,33 @@ Lv00IntervalConfig interval_config_default(void) {
  * Arithmetic operations
  * ======================================================================== */
 
-Lv00Interval interval_add(Lv00Interval a, Lv00Interval b) {
+lvInterval interval_add(lvInterval a, lvInterval b) {
     if (interval_is_empty(a) || interval_is_empty(b)) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     r.lo = round_down(a.lo + b.lo);
     r.hi = round_up(a.hi + b.hi);
     r.is_exact = a.is_exact && b.is_exact;
     return r;
 }
 
-Lv00Interval interval_sub(Lv00Interval a, Lv00Interval b) {
+lvInterval interval_sub(lvInterval a, lvInterval b) {
     if (interval_is_empty(a) || interval_is_empty(b)) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     r.lo = round_down(a.lo - b.hi);
     r.hi = round_up(a.hi - b.lo);
     r.is_exact = a.is_exact && b.is_exact;
     return r;
 }
 
-Lv00Interval interval_mul(Lv00Interval a, Lv00Interval b) {
+lvInterval interval_mul(lvInterval a, lvInterval b) {
     if (interval_is_empty(a) || interval_is_empty(b)) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     double p1 = a.lo * b.lo;
     double p2 = a.lo * b.hi;
     double p3 = a.hi * b.lo;
@@ -150,7 +150,7 @@ Lv00Interval interval_mul(Lv00Interval a, Lv00Interval b) {
     return r;
 }
 
-Lv00Interval interval_div(Lv00Interval a, Lv00Interval b) {
+lvInterval interval_div(lvInterval a, lvInterval b) {
     if (interval_is_empty(a) || interval_is_empty(b)) {
         return interval_empty();
     }
@@ -158,11 +158,11 @@ Lv00Interval interval_div(Lv00Interval a, Lv00Interval b) {
     if (b.lo <= 0.0 && b.hi >= 0.0) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     /* Reciprocal of b: [1/b.hi, 1/b.lo] (signs handled by min/max) */
     double inv_lo = 1.0 / b.hi;
     double inv_hi = 1.0 / b.lo;
-    Lv00Interval inv_b;
+    lvInterval inv_b;
     inv_b.lo = round_down((inv_lo < inv_hi) ? inv_lo : inv_hi);
     inv_b.hi = round_up((inv_lo < inv_hi) ? inv_hi : inv_lo);
     inv_b.is_exact = 0;
@@ -172,25 +172,25 @@ Lv00Interval interval_div(Lv00Interval a, Lv00Interval b) {
     return r;
 }
 
-Lv00Interval interval_sqrt(Lv00Interval a) {
+lvInterval interval_sqrt(lvInterval a) {
     if (interval_is_empty(a)) {
         return interval_empty();
     }
     if (a.lo < 0.0) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     r.lo = round_down(sqrt(a.lo));
     r.hi = round_up(sqrt(a.hi));
     r.is_exact = a.is_exact;
     return r;
 }
 
-Lv00Interval interval_sin(Lv00Interval a) {
+lvInterval interval_sin(lvInterval a) {
     if (interval_is_empty(a)) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
 
     /* Normalize the interval to [0, 2*pi) range */
     double lo = a.lo;
@@ -239,11 +239,11 @@ Lv00Interval interval_sin(Lv00Interval a) {
     return r;
 }
 
-Lv00Interval interval_cos(Lv00Interval a) {
+lvInterval interval_cos(lvInterval a) {
     if (interval_is_empty(a)) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
 
     double lo = a.lo;
     double hi = a.hi;
@@ -279,36 +279,36 @@ Lv00Interval interval_cos(Lv00Interval a) {
     return r;
 }
 
-Lv00Interval interval_exp(Lv00Interval a) {
+lvInterval interval_exp(lvInterval a) {
     if (interval_is_empty(a)) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     r.lo = round_down(exp(a.lo));
     r.hi = round_up(exp(a.hi));
     r.is_exact = 0;
     return r;
 }
 
-Lv00Interval interval_log(Lv00Interval a) {
+lvInterval interval_log(lvInterval a) {
     if (interval_is_empty(a)) {
         return interval_empty();
     }
     if (a.lo <= 0.0) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     r.lo = round_down(log(a.lo));
     r.hi = round_up(log(a.hi));
     r.is_exact = 0;
     return r;
 }
 
-Lv00Interval interval_abs(Lv00Interval a) {
+lvInterval interval_abs(lvInterval a) {
     if (interval_is_empty(a)) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     if (a.lo >= 0.0) {
         /* Entirely non-negative */
         r.lo = a.lo;
@@ -326,11 +326,11 @@ Lv00Interval interval_abs(Lv00Interval a) {
     return r;
 }
 
-Lv00Interval interval_neg(Lv00Interval a) {
+lvInterval interval_neg(lvInterval a) {
     if (interval_is_empty(a)) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     r.lo = -a.hi;
     r.hi = -a.lo;
     r.is_exact = a.is_exact;
@@ -341,32 +341,32 @@ Lv00Interval interval_neg(Lv00Interval a) {
  * Properties
  * ======================================================================== */
 
-double interval_diam(Lv00Interval a) {
+double interval_diam(lvInterval a) {
     if (interval_is_empty(a)) {
         return 0.0;
     }
     return a.hi - a.lo;
 }
 
-double interval_mid(Lv00Interval a) {
+double interval_mid(lvInterval a) {
     if (interval_is_empty(a)) {
         return NAN;
     }
     return (a.lo + a.hi) / 2.0;
 }
 
-int interval_is_empty(Lv00Interval a) {
+int interval_is_empty(lvInterval a) {
     return a.lo > a.hi;
 }
 
-int interval_contains(Lv00Interval a, double val) {
+int interval_contains(lvInterval a, double val) {
     if (interval_is_empty(a)) {
         return 0;
     }
     return val >= a.lo && val <= a.hi;
 }
 
-int interval_is_subset(Lv00Interval a, Lv00Interval b) {
+int interval_is_subset(lvInterval a, lvInterval b) {
     if (interval_is_empty(a)) {
         return 1; /* Empty set is a subset of any set */
     }
@@ -376,7 +376,7 @@ int interval_is_subset(Lv00Interval a, Lv00Interval b) {
     return a.lo >= b.lo && a.hi <= b.hi;
 }
 
-int interval_equals(Lv00Interval a, Lv00Interval b) {
+int interval_equals(lvInterval a, lvInterval b) {
     /* Two empty intervals are equal */
     if (interval_is_empty(a) && interval_is_empty(b)) {
         return 1;
@@ -391,11 +391,11 @@ int interval_equals(Lv00Interval a, Lv00Interval b) {
  * Set operations
  * ======================================================================== */
 
-Lv00Interval interval_intersect(Lv00Interval a, Lv00Interval b) {
+lvInterval interval_intersect(lvInterval a, lvInterval b) {
     if (interval_is_empty(a) || interval_is_empty(b)) {
         return interval_empty();
     }
-    Lv00Interval r;
+    lvInterval r;
     r.lo = (a.lo > b.lo) ? a.lo : b.lo;
     r.hi = (a.hi < b.hi) ? a.hi : b.hi;
     if (r.lo > r.hi) {
@@ -405,10 +405,10 @@ Lv00Interval interval_intersect(Lv00Interval a, Lv00Interval b) {
     return r;
 }
 
-Lv00Interval interval_union(Lv00Interval a, Lv00Interval b) {
+lvInterval interval_union(lvInterval a, lvInterval b) {
     if (interval_is_empty(a)) return b;
     if (interval_is_empty(b)) return a;
-    Lv00Interval r;
+    lvInterval r;
     r.lo = (a.lo < b.lo) ? a.lo : b.lo;
     r.hi = (a.hi > b.hi) ? a.hi : b.hi;
     r.is_exact = a.is_exact && b.is_exact && r.lo == r.hi;
@@ -429,7 +429,7 @@ Lv00Interval interval_union(Lv00Interval a, Lv00Interval b) {
 typedef struct {
     const char *pos;            /**< Current position in the expression string */
     const char **var_names;     /**< Variable names */
-    const Lv00Interval *var_intervals; /**< Variable intervals */
+    const lvInterval *var_intervals; /**< Variable intervals */
     int var_count;              /**< Number of variables */
     int error;                  /**< Nonzero if parsing error occurred */
 } ExprParser;
@@ -440,9 +440,9 @@ static void skip_whitespace(ExprParser *p) {
     }
 }
 
-static Lv00Interval parse_expr(ExprParser *p);
+static lvInterval parse_expr(ExprParser *p);
 
-static Lv00Interval parse_primary(ExprParser *p) {
+static lvInterval parse_primary(ExprParser *p) {
     skip_whitespace(p);
 
     /* Number literal */
@@ -456,7 +456,7 @@ static Lv00Interval parse_primary(ExprParser *p) {
     /* Parenthesized expression */
     if (*p->pos == '(') {
         p->pos++;
-        Lv00Interval r = parse_expr(p);
+        lvInterval r = parse_expr(p);
         skip_whitespace(p);
         if (*p->pos == ')') {
             p->pos++;
@@ -469,7 +469,7 @@ static Lv00Interval parse_primary(ExprParser *p) {
     /* Unary minus */
     if (*p->pos == '-') {
         p->pos++;
-        Lv00Interval r = parse_primary(p);
+        lvInterval r = parse_primary(p);
         return interval_neg(r);
     }
 
@@ -491,7 +491,7 @@ static Lv00Interval parse_primary(ExprParser *p) {
         /* Check for function call */
         if (*p->pos == '(') {
             p->pos++;
-            Lv00Interval arg = parse_expr(p);
+            lvInterval arg = parse_expr(p);
             skip_whitespace(p);
             if (*p->pos == ')') p->pos++;
             else p->error = 1;
@@ -524,17 +524,17 @@ static Lv00Interval parse_primary(ExprParser *p) {
     return interval_empty();
 }
 
-static Lv00Interval parse_mul_div(ExprParser *p) {
-    Lv00Interval left = parse_primary(p);
+static lvInterval parse_mul_div(ExprParser *p) {
+    lvInterval left = parse_primary(p);
     while (!p->error) {
         skip_whitespace(p);
         if (*p->pos == '*') {
             p->pos++;
-            Lv00Interval right = parse_primary(p);
+            lvInterval right = parse_primary(p);
             left = interval_mul(left, right);
         } else if (*p->pos == '/') {
             p->pos++;
-            Lv00Interval right = parse_primary(p);
+            lvInterval right = parse_primary(p);
             left = interval_div(left, right);
         } else {
             break;
@@ -543,17 +543,17 @@ static Lv00Interval parse_mul_div(ExprParser *p) {
     return left;
 }
 
-static Lv00Interval parse_expr(ExprParser *p) {
-    Lv00Interval left = parse_mul_div(p);
+static lvInterval parse_expr(ExprParser *p) {
+    lvInterval left = parse_mul_div(p);
     while (!p->error) {
         skip_whitespace(p);
         if (*p->pos == '+') {
             p->pos++;
-            Lv00Interval right = parse_mul_div(p);
+            lvInterval right = parse_mul_div(p);
             left = interval_add(left, right);
         } else if (*p->pos == '-') {
             p->pos++;
-            Lv00Interval right = parse_mul_div(p);
+            lvInterval right = parse_mul_div(p);
             left = interval_sub(left, right);
         } else {
             break;
@@ -562,10 +562,10 @@ static Lv00Interval parse_expr(ExprParser *p) {
     return left;
 }
 
-Lv00Interval interval_from_symbolic(
+lvInterval interval_from_symbolic(
     const char *expr_str,
     const char **var_names,
-    const Lv00Interval *var_intervals,
+    const lvInterval *var_intervals,
     int var_count)
 {
     if (!expr_str || !var_names || !var_intervals || var_count <= 0) {
@@ -579,7 +579,7 @@ Lv00Interval interval_from_symbolic(
     p.var_count = var_count;
     p.error = 0;
 
-    Lv00Interval result = parse_expr(&p);
+    lvInterval result = parse_expr(&p);
 
     if (p.error) {
         return interval_empty();
@@ -587,7 +587,7 @@ Lv00Interval interval_from_symbolic(
     return result;
 }
 
-int interval_to_symbolic(Lv00Interval a, char *buf, size_t buf_size) {
+int interval_to_symbolic(lvInterval a, char *buf, size_t buf_size) {
     if (!buf || buf_size == 0) {
         return -1;
     }
@@ -604,7 +604,7 @@ int interval_to_symbolic(Lv00Interval a, char *buf, size_t buf_size) {
  * Verification functions
  * ======================================================================== */
 
-int interval_verify_solution(Lv00Interval f_interval, double tolerance) {
+int interval_verify_solution(lvInterval f_interval, double tolerance) {
     if (interval_is_empty(f_interval)) {
         return -1;
     }
@@ -618,7 +618,7 @@ int interval_verify_solution(Lv00Interval f_interval, double tolerance) {
 int interval_verify_adaptive(
     const char *expr_str,
     const char **var_names,
-    Lv00Interval *var_intervals,
+    lvInterval *var_intervals,
     int var_count,
     int max_depth,
     double tolerance)
@@ -628,7 +628,7 @@ int interval_verify_adaptive(
     }
 
     /* Evaluate the expression on the current intervals */
-    Lv00Interval result = interval_from_symbolic(expr_str, var_names, var_intervals, var_count);
+    lvInterval result = interval_from_symbolic(expr_str, var_names, var_intervals, var_count);
 
     /* Check if 0 is in the result interval */
     if (interval_verify_solution(result, tolerance) == 1) {
@@ -658,7 +658,7 @@ int interval_verify_adaptive(
 
     /* Bisect the widest interval */
     double mid = interval_mid(var_intervals[widest]);
-    Lv00Interval saved = var_intervals[widest];
+    lvInterval saved = var_intervals[widest];
 
     /* Try lower half */
     var_intervals[widest] = interval_create(saved.lo, mid, 0);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_normalization.c
  * @brief Lv-00 图规范化测试 - 点合并、线段规范化、含约束图规范化
  *
@@ -16,7 +16,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* 测试基本的点合并 */

@@ -1,16 +1,16 @@
-#include "lv00/effect_system.h"
+﻿#include "lv/effect_system.h"
 #include <string.h>
 
-const char *lv00_effect_type_name(Lv00EffectType effect) {
+const char *lv_effect_type_name(lvEffectType effect) {
     switch (effect) {
-        case LV00_EFFECT_PURE: return "Pure";
-        case LV00_EFFECT_FILE_READ: return "FileRead";
-        case LV00_EFFECT_FILE_WRITE: return "FileWrite";
-        case LV00_EFFECT_NETWORK: return "Network";
-        case LV00_EFFECT_UI_RENDER: return "UIRender";
-        case LV00_EFFECT_UI_INPUT: return "UIInput";
-        case LV00_EFFECT_RANDOM: return "Random";
-        case LV00_EFFECT_TIME: return "Time";
+        case lv_EFFECT_PURE: return "Pure";
+        case lv_EFFECT_FILE_READ: return "FileRead";
+        case lv_EFFECT_FILE_WRITE: return "FileWrite";
+        case lv_EFFECT_NETWORK: return "Network";
+        case lv_EFFECT_UI_RENDER: return "UIRender";
+        case lv_EFFECT_UI_INPUT: return "UIInput";
+        case lv_EFFECT_RANDOM: return "Random";
+        case lv_EFFECT_TIME: return "Time";
         default: return "Unknown";
     }
 }

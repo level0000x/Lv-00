@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_edge_cases.c
  * @brief Lv-00 边界条件与鲁棒性测试套件
  *
@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -157,24 +157,24 @@ static void test_null_parameter_safety(void) {
     printf("PASS (no crash)\n");
     g_pass_count++;
 
-    /* lv00_free(NULL) —— 双重指针为 NULL */
-    printf("  lv00_free on NULL ptr-to-ptr ... ");
+    /* lv_free(NULL) —— 双重指针为 NULL */
+    printf("  lv_free on NULL ptr-to-ptr ... ");
     fflush(stdout);
     {
         void *null_ptr = NULL;
-        lv00_free(&null_ptr); /* 应安全，不崩溃 */
+        lv_free(&null_ptr); /* 应安全，不崩溃 */
     }
     printf("PASS (no crash)\n");
     g_pass_count++;
 
-    /* lv00_malloc(0) —— 零大小分配 */
-    printf("  lv00_malloc(0) ... ");
+    /* lv_malloc(0) —— 零大小分配 */
+    printf("  lv_malloc(0) ... ");
     fflush(stdout);
     {
-        void *p = lv00_malloc(0);
+        void *p = lv_malloc(0);
         if (p) {
             printf("PASS (returned non-NULL, which is acceptable)\n");
-            lv00_free(&p);
+            lv_free(&p);
         } else {
             printf("PASS (returned NULL)\n");
         }
@@ -673,7 +673,7 @@ static void test_symbolic_coord_types(void) {
 }
 
 /**
- * @brief T7: lv00_malloc/lv00_free 边界测试
+ * @brief T7: lv_malloc/lv_free 边界测试
  *
  * 测试统一内存分配器在边界条件下的行为。
  */
@@ -681,28 +681,28 @@ static void test_memory_boundaries(void) {
     printf("\n--- T7: Memory Allocator Boundaries ---\n");
 
     /* 超大分配 —— 应该优雅失败或成功 */
-    printf("  lv00_malloc(SIZE_MAX/2) [should fail gracefully] ... ");
+    printf("  lv_malloc(SIZE_MAX/2) [should fail gracefully] ... ");
     fflush(stdout);
     {
-        void *p = lv00_malloc(SIZE_MAX / 2);
+        void *p = lv_malloc(SIZE_MAX / 2);
         if (p == NULL) {
             printf("PASS (correctly returned NULL)\n");
             g_pass_count++;
         } else {
             printf("NOTE (surprisingly succeeded, freeing)\n");
-            lv00_free(&p);
+            lv_free(&p);
             g_pass_count++;
         }
     }
 
     /* 多次小分配 */
-    printf("  lv00_malloc(1) x1000 ... ");
+    printf("  lv_malloc(1) x1000 ... ");
     fflush(stdout);
     {
         void *ptrs[1000] = {NULL};
         int ok = 1;
         for (int i = 0; i < 1000; i++) {
-            ptrs[i] = lv00_malloc(1);
+            ptrs[i] = lv_malloc(1);
             if (!ptrs[i]) {
                 printf("FAIL (allocation %d failed)\n", i);
                 ok = 0;
@@ -711,7 +711,7 @@ static void test_memory_boundaries(void) {
             }
         }
         for (int i = 0; i < 1000 && ptrs[i]; i++) {
-            lv00_free(&ptrs[i]);
+            lv_free(&ptrs[i]);
         }
         if (ok) {
             printf("PASS\n");
@@ -720,43 +720,43 @@ static void test_memory_boundaries(void) {
     }
 
     /* calloc 零参数 */
-    printf("  lv00_calloc(0, 10) ... ");
+    printf("  lv_calloc(0, 10) ... ");
     fflush(stdout);
     {
-        void *p = lv00_calloc(0, 10);
+        void *p = lv_calloc(0, 10);
         if (p == NULL) {
             printf("PASS (returned NULL)\n");
             g_pass_count++;
         } else {
             printf("NOTE (returned non-NULL, expected NULL for zero count)\n");
-            lv00_free(&p);
+            lv_free(&p);
             g_pass_count++;
         }
     }
 
     /* calloc 溢出保护 */
-    printf("  lv00_calloc(SIZE_MAX, 2) [overflow check] ... ");
+    printf("  lv_calloc(SIZE_MAX, 2) [overflow check] ... ");
     fflush(stdout);
     {
-        void *p = lv00_calloc(SIZE_MAX, 2);
+        void *p = lv_calloc(SIZE_MAX, 2);
         if (p == NULL) {
             printf("PASS (overflow correctly detected)\n");
             g_pass_count++;
         } else {
             printf("FAIL (overflow not detected)\n");
-            lv00_free(&p);
+            lv_free(&p);
             g_fail_count++;
         }
     }
 
     /* realloc NULL 等同于 malloc */
-    printf("  lv00_realloc(NULL, 32) ... ");
+    printf("  lv_realloc(NULL, 32) ... ");
     fflush(stdout);
     {
-        void *p = lv00_realloc(NULL, 32);
+        void *p = lv_realloc(NULL, 32);
         if (p) {
             printf("PASS\n");
-            lv00_free(&p);
+            lv_free(&p);
             g_pass_count++;
         } else {
             printf("FAIL\n");
@@ -765,20 +765,20 @@ static void test_memory_boundaries(void) {
     }
 
     /* realloc size=0 */
-    printf("  lv00_realloc(ptr, 0) ... ");
+    printf("  lv_realloc(ptr, 0) ... ");
     fflush(stdout);
     {
-        void *p = lv00_malloc(16);
-        void *r = lv00_realloc(p, 0);
+        void *p = lv_malloc(16);
+        void *r = lv_realloc(p, 0);
         if (r == NULL) {
             printf("PASS (returned NULL as documented)\n");
             g_pass_count++;
         } else {
             printf("NOTE (returned non-NULL)\n");
-            lv00_free(&r);
+            lv_free(&r);
             g_pass_count++;
         }
-        lv00_free(&p); /* 原指针仍需手动释放 */
+        lv_free(&p); /* 原指针仍需手动释放 */
     }
 }
 
@@ -790,27 +790,27 @@ int main(void) {
     setbuf(stdout, NULL);
 
     printf("=== Lv-00 Edge Case Test Suite ===\n");
-    printf("Version: %s\n\n", lv00_get_version_string());
+    printf("Version: %s\n\n", lv_get_version_string());
 
     /* 步骤 0: 初始化系统 */
     printf("--- Initialization ---\n");
-    printf("Calling lv00_init() ... ");
+    printf("Calling lv_init() ... ");
     fflush(stdout);
 
-    if (!lv00_init()) {
-        fprintf(stderr, "\nFATAL: lv00_init() failed!\n");
+    if (!lv_init()) {
+        fprintf(stderr, "\nFATAL: lv_init() failed!\n");
         fprintf(stderr, "Last error: %s (code %d)\n",
-                lv00_get_last_error_message(),
-                (int)lv00_get_last_error_code());
+                lv_get_last_error_message(),
+                (int)lv_get_last_error_code());
         fprintf(stderr, "Cannot continue without system initialization.\n");
         return 1;
     }
     printf("OK\n");
     g_pass_count++;
 
-    printf("System initialized: %s\n", lv00_is_initialized() ? "YES" : "NO");
-    if (!lv00_is_initialized()) {
-        fprintf(stderr, "FATAL: System claims to be uninitialized after lv00_init() succeeded\n");
+    printf("System initialized: %s\n", lv_is_initialized() ? "YES" : "NO");
+    if (!lv_is_initialized()) {
+        fprintf(stderr, "FATAL: System claims to be uninitialized after lv_init() succeeded\n");
         return 1;
     }
 
@@ -829,9 +829,9 @@ int main(void) {
 
     /* 步骤 N: 清理系统 */
     printf("\n--- Cleanup ---\n");
-    printf("Calling lv00_cleanup() ... ");
+    printf("Calling lv_cleanup() ... ");
     fflush(stdout);
-    lv00_cleanup();
+    lv_cleanup();
     printf("OK\n");
 
     /* ================================================================

@@ -1,4 +1,4 @@
-# Lv-00 理论数学研究系统 - 完整任务汇报
+﻿# Lv-00 理论数学研究系统 - 完整任务汇报
 
 ## 📋 任务执行摘要
 
@@ -32,10 +32,10 @@
 
 | 文件路径 | 功能描述 | 依赖项 |
 |---------|---------|-------|
-| `core/include/lv00/error_messages_cn.h` | 中文错误信息系统接口 | error_codes.h |
-| `core/include/lv00/result_messages_cn.h` | 中文结果转换系统接口 | func_block.h, solver.h |
-| `core/include/lv00/preset_helper_cn.h` | Preset模块中文辅助接口 | preset_blocks.h |
-| `core/include/lv00/math_theory_guide_cn.h` | 理论数学研究指南接口 | 无外部依赖 |
+| `core/include/lv/error_messages_cn.h` | 中文错误信息系统接口 | error_codes.h |
+| `core/include/lv/result_messages_cn.h` | 中文结果转换系统接口 | func_block.h, solver.h |
+| `core/include/lv/preset_helper_cn.h` | Preset模块中文辅助接口 | preset_blocks.h |
+| `core/include/lv/math_theory_guide_cn.h` | 理论数学研究指南接口 | 无外部依赖 |
 
 #### 源文件 (4个)
 
@@ -78,11 +78,11 @@
 **a) 错误信息系统**
 ```c
 // 新增API函数
-const char *lv00_error_string_cn(Lv00ErrorCode code);
-const char *lv00_error_name_cn(Lv00ErrorCode code);
-const char *lv00_error_category_cn(Lv00ErrorCode code);
-int lv00_get_error_description_cn(Lv00ErrorCode code, char *buf, size_t buf_size);
-int lv00_get_last_error_description_cn(char *buf, size_t buf_size);
+const char *lv_error_string_cn(lvErrorCode code);
+const char *lv_error_name_cn(lvErrorCode code);
+const char *lv_error_category_cn(lvErrorCode code);
+int lv_get_error_description_cn(lvErrorCode code, char *buf, size_t buf_size);
+int lv_get_last_error_description_cn(char *buf, size_t buf_size);
 ```
 
 **支持的错误码范围**:
@@ -264,7 +264,7 @@ return success_count == MATH_LOGIC_PRESET_COUNT;
 
 **a) 新增源文件到构建系统**
 ```cmake
-set(LV00_LAYER2_SOURCES
+set(lv_LAYER2_SOURCES
     ...
     # v3.6.0 新增：中文本地化支持
     core/src/layer2_resource/error_messages_cn.c
@@ -277,10 +277,10 @@ set(LV00_LAYER2_SOURCES
 **b) 新增头文件到构建系统**
 ```cmake
 # v3.6.0 新增：中文本地化支持
-core/include/lv00/error_messages_cn.h
-core/include/lv00/result_messages_cn.h
-core/include/lv00/preset_helper_cn.h
-core/include/lv00/math_theory_guide_cn.h
+core/include/lv/error_messages_cn.h
+core/include/lv/result_messages_cn.h
+core/include/lv/preset_helper_cn.h
+core/include/lv/math_theory_guide_cn.h
 ```
 
 ---
@@ -304,7 +304,7 @@ core/include/lv00/math_theory_guide_cn.h
 Lv-00 项目改进后的文件结构：
 
 core/
-├── include/lv00/
+├── include/lv/
 │   ├── error_messages_cn.h          [新增 - 中文错误信息]
 │   ├── result_messages_cn.h         [新增 - 中文结果转换]
 │   ├── preset_helper_cn.h           [新增 - Preset辅助]
@@ -342,23 +342,23 @@ doc/
 #include "error_messages_cn.h"
 
 // 创建引擎
-LV00Engine *engine = lv00_engine_create();
+lvEngine *engine = lv_engine_create();
 if (!engine) {
     char err_desc[512];
-    lv00_get_last_error_description_cn(err_desc, sizeof(err_desc));
+    lv_get_last_error_description_cn(err_desc, sizeof(err_desc));
     printf("错误: %s\n", err_desc);
     // 输出类似: [系统错误] 未初始化：引擎创建失败
     return 1;
 }
 
 // 执行求解
-EngineSolveResult result = lv00_solve(engine);
+EngineSolveResult result = lv_solve(engine);
 
 // 使用中文结果描述
 printf("求解结果: %s\n", solver_result_to_string_cn(result));
 // 输出类似: 求解结果: 求解成功
 
-lv00_engine_destroy(engine);
+lv_engine_destroy(engine);
 ```
 
 ### 示例2: 理论数学研究
@@ -500,7 +500,7 @@ printf("%s\n", help);
 
 如有问题或建议，请通过以下方式联系：
 
-- **项目主页**: https://github.com/lv00-project/lv00
+- **项目主页**: https://github.com/lv-project/lv
 - **问题反馈**: GitHub Issues
 - **文档Wiki**: 项目Wiki页面
 
@@ -512,11 +512,11 @@ printf("%s\n", help);
 
 **中文错误信息系统** (5个函数)
 ```c
-const char *lv00_error_string_cn(Lv00ErrorCode code);
-const char *lv00_error_name_cn(Lv00ErrorCode code);
-const char *lv00_error_category_cn(Lv00ErrorCode code);
-int lv00_get_error_description_cn(Lv00ErrorCode code, char *buf, size_t buf_size);
-int lv00_get_last_error_description_cn(char *buf, size_t buf_size);
+const char *lv_error_string_cn(lvErrorCode code);
+const char *lv_error_name_cn(lvErrorCode code);
+const char *lv_error_category_cn(lvErrorCode code);
+int lv_get_error_description_cn(lvErrorCode code, char *buf, size_t buf_size);
+int lv_get_last_error_description_cn(char *buf, size_t buf_size);
 ```
 
 **中文结果转换系统** (12个函数)

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop.c
  * @brief 外部互操作模块实现
  *
@@ -16,7 +16,7 @@
  * @version 3.3.0
  */
 
-#include "lv00/interop.h"
+#include "lv/interop.h"
 
 #include <limits.h>
 #include <math.h>
@@ -26,12 +26,12 @@
 #include <string.h>
 #include <time.h>
 
-#include "lv00/constraint_graph.h"
-#include "lv00/engine.h"
+#include "lv/constraint_graph.h"
+#include "lv/engine.h"
 #include "error_codes.h"
-#include "lv00_internal.h" /* LV00_SAFE_SNPRINTF, M_PI 等内部宏 */
-#include "lv00_utils.h"
-#include "lv00/proof.h"
+#include "lv_internal.h" /* lv_SAFE_SNPRINTF, M_PI 等内部宏 */
+#include "lv_utils.h"
+#include "lv/proof.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include "symbolic_coord.h"

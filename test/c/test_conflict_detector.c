@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_conflict_detector.c
  * @brief 矛盾约束检测器单元测试
  *
@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/lv00.h"
-#include "lv00/conflict_detector.h"
+#include "lv/lv.h"
+#include "lv/conflict_detector.h"
 #include "test_helpers.h"
 
 /* 全局测试计数器 */
@@ -22,37 +22,37 @@ int g_fail_count = 0;
  * ================================================================ */
 
 static void test_null_graph(void) {
-    ConflictReport *report = lv00_conflict_report_create();
+    ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
     
     /* 检测 NULL 图应该返回错误 */
-    int err = lv00_conflict_detect_all(NULL, NULL, report);
+    int err = lv_conflict_detect_all(NULL, NULL, report);
     TEST_ASSERT(err != 0, "Should return error for NULL graph");
     
     /* 快速检测应该返回 false */
-    bool has_conflict = lv00_conflict_detect_quick(NULL);
+    bool has_conflict = lv_conflict_detect_quick(NULL);
     TEST_ASSERT(!has_conflict, "Quick detect on NULL should return false");
     
-    lv00_conflict_report_destroy(report);
+    lv_conflict_report_destroy(report);
 }
 
 static void test_empty_graph(void) {
     ConstraintGraph *graph = graph_create();
     TEST_ASSERT_NOT_NULL(graph);
     
-    ConflictReport *report = lv00_conflict_report_create();
+    ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
     
     /* 空图应该无矛盾 */
-    int err = lv00_conflict_detect_all(graph, NULL, report);
+    int err = lv_conflict_detect_all(graph, NULL, report);
     TEST_ASSERT_EQ(err, 0);
     TEST_ASSERT_EQ(report->conflict_count, 0);
     
     /* 快速检测 */
-    bool has_conflict = lv00_conflict_detect_quick(graph);
+    bool has_conflict = lv_conflict_detect_quick(graph);
     TEST_ASSERT(!has_conflict, "Quick detect on empty graph should return false");
     
-    lv00_conflict_report_destroy(report);
+    lv_conflict_report_destroy(report);
     graph_destroy(graph);
 }
 
@@ -61,7 +61,7 @@ static void test_empty_graph(void) {
  * ================================================================ */
 
 static void test_report_lifecycle(void) {
-    ConflictReport *report = lv00_conflict_report_create();
+    ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
     TEST_ASSERT_EQ(report->conflict_count, 0);
     TEST_ASSERT(!report->has_critical, "New report should not have critical");
@@ -69,13 +69,13 @@ static void test_report_lifecycle(void) {
     TEST_ASSERT(!report->has_warning, "New report should not have warning");
     
     /* 清空空报告应该安全 */
-    lv00_conflict_report_clear(report);
+    lv_conflict_report_clear(report);
     TEST_ASSERT_EQ(report->conflict_count, 0);
     
-    lv00_conflict_report_destroy(report);
+    lv_conflict_report_destroy(report);
     
     /* 销毁 NULL 应该安全 */
-    lv00_conflict_report_destroy(NULL);
+    lv_conflict_report_destroy(NULL);
 }
 
 /* ================================================================
@@ -83,7 +83,7 @@ static void test_report_lifecycle(void) {
  * ================================================================ */
 
 static void test_default_config(void) {
-    const ConflictDetectorConfig *config = lv00_conflict_detector_default_config();
+    const ConflictDetectorConfig *config = lv_conflict_detector_default_config();
     TEST_ASSERT_NOT_NULL(config);
     
     TEST_ASSERT(config->enable_basic_checks, "Basic checks should be enabled by default");
@@ -103,15 +103,15 @@ static void test_default_config(void) {
 static void test_type_names(void) {
     /* 测试所有类型名称不为 NULL */
     for (int i = 0; i <= CONFLICT_UNKNOWN; i++) {
-        const char *name = lv00_conflict_type_name((ConflictType)i);
+        const char *name = lv_conflict_type_name((ConflictType)i);
         TEST_ASSERT_NOT_NULL(name);
         TEST_ASSERT(strlen(name) > 0, "Type name should not be empty");
     }
     
     /* 测试严重程度名称 */
-    TEST_ASSERT_NOT_NULL(lv00_conflict_severity_name(CONFLICT_SEVERITY_WARNING));
-    TEST_ASSERT_NOT_NULL(lv00_conflict_severity_name(CONFLICT_SEVERITY_ERROR));
-    TEST_ASSERT_NOT_NULL(lv00_conflict_severity_name(CONFLICT_SEVERITY_CRITICAL));
+    TEST_ASSERT_NOT_NULL(lv_conflict_severity_name(CONFLICT_SEVERITY_WARNING));
+    TEST_ASSERT_NOT_NULL(lv_conflict_severity_name(CONFLICT_SEVERITY_ERROR));
+    TEST_ASSERT_NOT_NULL(lv_conflict_severity_name(CONFLICT_SEVERITY_CRITICAL));
 }
 
 /* ================================================================
@@ -152,14 +152,14 @@ static void test_simple_triangle_no_conflict(void) {
     TEST_ASSERT(line3 > 0, "Line 3 id should be valid");
     
     /* 检测矛盾 */
-    ConflictReport *report = lv00_conflict_report_create();
+    ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
     
-    int err = lv00_conflict_detect_all(graph, NULL, report);
+    int err = lv_conflict_detect_all(graph, NULL, report);
     TEST_ASSERT_EQ(err, 0);
     /* 注意：基础检测可能还无法检测所有情况，所以不强制要求 conflict_count == 0 */
     
-    lv00_conflict_report_destroy(report);
+    lv_conflict_report_destroy(report);
     graph_destroy(graph);
     
     /* 清理坐标 */
@@ -182,15 +182,15 @@ static void test_detects_missing_participant_node(void) {
     Constraint *constraint = graph_add_constraint_with_id(graph, 1, INCIDENCE, parts, 2);
     TEST_ASSERT_NOT_NULL(constraint);
 
-    ConflictReport *report = lv00_conflict_report_create();
+    ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
 
-    int err = lv00_conflict_detect_all(graph, NULL, report);
+    int err = lv_conflict_detect_all(graph, NULL, report);
     TEST_ASSERT_EQ(err, 0);
     TEST_ASSERT(report->conflict_count > 0, "Missing participant nodes should be reported as conflict");
     TEST_ASSERT(report->has_critical, "Missing participant node should be critical");
 
-    lv00_conflict_report_destroy(report);
+    lv_conflict_report_destroy(report);
     graph_destroy(graph);
 }
 
@@ -209,15 +209,15 @@ static void test_detects_degenerate_betweenness(void) {
     Constraint *constraint = graph_add_constraint_with_id(graph, 2, BETWEENNESS, parts, 3);
     TEST_ASSERT_NOT_NULL(constraint);
 
-    ConflictReport *report = lv00_conflict_report_create();
+    ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
 
-    int err = lv00_conflict_detect_all(graph, NULL, report);
+    int err = lv_conflict_detect_all(graph, NULL, report);
     TEST_ASSERT_EQ(err, 0);
     TEST_ASSERT(report->conflict_count > 0, "Degenerate betweenness should be reported");
     TEST_ASSERT(report->has_error || report->has_critical, "Degenerate betweenness should be error or critical");
 
-    lv00_conflict_report_destroy(report);
+    lv_conflict_report_destroy(report);
     graph_destroy(graph);
     for (int i = 0; i < 2; i++) {
         symbolic_coord_destroy(coords1[i]);
@@ -230,16 +230,16 @@ static void test_detects_degenerate_betweenness(void) {
  * ================================================================ */
 
 static void test_json_output(void) {
-    ConflictReport *report = lv00_conflict_report_create();
+    ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
     
     char buffer[1024];
-    int len = lv00_conflict_report_to_json(report, buffer, sizeof(buffer));
+    int len = lv_conflict_report_to_json(report, buffer, sizeof(buffer));
     TEST_ASSERT(len > 0, "JSON output should succeed");
     TEST_ASSERT(strstr(buffer, "conflict_count") != NULL, "JSON should contain conflict_count");
     TEST_ASSERT(strstr(buffer, "has_critical") != NULL, "JSON should contain has_critical");
     
-    lv00_conflict_report_destroy(report);
+    lv_conflict_report_destroy(report);
 }
 
 /* ================================================================
@@ -251,18 +251,18 @@ static void test_convenience_functions(void) {
     TEST_ASSERT_NOT_NULL(graph);
     
     /* 测试 has_conflicts 便捷函数 */
-    bool has_conflict = lv00_conflict_graph_has_conflicts(graph);
+    bool has_conflict = lv_conflict_graph_has_conflicts(graph);
     /* 空图应该无矛盾 */
     TEST_ASSERT(!has_conflict, "Empty graph should have no conflicts");
     
     /* 测试 get_worst_type */
-    ConflictReport *report = lv00_conflict_report_create();
+    ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
     
-    ConflictType worst = lv00_conflict_get_worst_type(report);
+    ConflictType worst = lv_conflict_get_worst_type(report);
     TEST_ASSERT_EQ(worst, CONFLICT_UNKNOWN);
     
-    lv00_conflict_report_destroy(report);
+    lv_conflict_report_destroy(report);
     graph_destroy(graph);
 }
 
@@ -295,11 +295,11 @@ static void test_distance_conflict_detection(void) {
     Constraint *dist2 = graph_add_constraint_with_id(graph, 11, (ConstraintType)CONSTRAINT_DISTANCE, parts2, 2);
     if (dist2) dist2->numeric_value = 10.0;
 
-    report = lv00_conflict_report_create();
+    report = lv_conflict_report_create();
     if (!report) goto cleanup;
 
     {
-        int err = lv00_conflict_detect_all(graph, NULL, report);
+        int err = lv_conflict_detect_all(graph, NULL, report);
         if (err != 0) { g_fail_count++; goto cleanup; }
 
         if (report->conflict_count <= 0) {
@@ -324,7 +324,7 @@ static void test_distance_conflict_detection(void) {
     }
 
 cleanup:
-    if (report) lv00_conflict_report_destroy(report);
+    if (report) lv_conflict_report_destroy(report);
     if (graph) graph_destroy(graph);
     for (int i = 0; i < 2; i++) {
         if (c1[i]) symbolic_coord_destroy(c1[i]);

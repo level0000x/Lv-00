@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file magic.c
  * @brief 编程魔法系统实现 —— 基于 Lv-00 的咒语编程模拟器
  *
@@ -18,8 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ============================================================
  * 模块级常量定义
@@ -147,13 +147,13 @@
  * @return 新创建的符文指针，失败返回 NULL
  */
 Rune *rune_create_rational(int64_t num, uint64_t denom, MagicElement element) {
-    Rune *rune = (Rune *) lv00_malloc(sizeof(Rune));
+    Rune *rune = (Rune *) lv_malloc(sizeof(Rune));
     if (!rune)
         return NULL;
 
     rune->coord = symbolic_coord_create_rational(num, denom);
     if (!rune->coord) {
-        lv00_free((void **) &rune);
+        lv_free((void **) &rune);
         return NULL;
     }
 
@@ -177,16 +177,16 @@ Rune *rune_create_rational(int64_t num, uint64_t denom, MagicElement element) {
  * @return 新创建的符文指针，失败返回 NULL
  */
 Rune *rune_create_algebraic(double value, MagicElement element) {
-    Rune *rune = (Rune *) lv00_malloc(sizeof(Rune));
+    Rune *rune = (Rune *) lv_malloc(sizeof(Rune));
     if (!rune)
         return NULL;
 
     /* 使用连分数近似创建代数数 */
     mpz_poly_t poly;
     poly.degree = MAGIC_POLY_DEGREE_QUADRATIC;
-    poly.coeffs = (mpz_t *) lv00_malloc(MAGIC_POLY_COEFF_COUNT * sizeof(mpz_t));
+    poly.coeffs = (mpz_t *) lv_malloc(MAGIC_POLY_COEFF_COUNT * sizeof(mpz_t));
     if (!poly.coeffs) {
-        lv00_free((void **) &rune);
+        lv_free((void **) &rune);
         return NULL;
     }
 
@@ -210,8 +210,8 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
         for (int i = 0; i < MAGIC_POLY_COEFF_COUNT; i++) {
             mpz_clear(poly.coeffs[i]);
         }
-        lv00_free((void **) &poly.coeffs);
-        lv00_free((void **) &rune);
+        lv_free((void **) &poly.coeffs);
+        lv_free((void **) &rune);
         return NULL;
     }
 
@@ -219,7 +219,7 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
     for (int i = 0; i < MAGIC_POLY_COEFF_COUNT; i++) {
         mpz_clear(poly.coeffs[i]);
     }
-    lv00_free((void **) &poly.coeffs);
+    lv_free((void **) &poly.coeffs);
     rune->element = element;
     rune->name = NULL;
     rune->symbol = NULL;
@@ -239,13 +239,13 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
  * @return 新创建的符文指针，失败返回 NULL
  */
 Rune *rune_create_transcendental(const char *name, MagicElement element) {
-    Rune *rune = (Rune *) lv00_malloc(sizeof(Rune));
+    Rune *rune = (Rune *) lv_malloc(sizeof(Rune));
     if (!rune)
         return NULL;
 
     rune->coord = symbolic_coord_create_transcendental(name);
     if (!rune->coord) {
-        lv00_free((void **) &rune);
+        lv_free((void **) &rune);
         return NULL;
     }
 
@@ -270,26 +270,26 @@ Rune *rune_copy(const Rune *src) {
     if (!src)
         return NULL;
 
-    Rune *rune = (Rune *) lv00_malloc(sizeof(Rune));
+    Rune *rune = (Rune *) lv_malloc(sizeof(Rune));
     if (!rune)
         return NULL;
 
     rune->coord = symbolic_coord_copy(src->coord);
     if (!rune->coord) {
-        lv00_free((void **)&rune);
+        lv_free((void **)&rune);
         return NULL;
     }
     rune->element = src->element;
     rune->power_level = src->power_level;
 
     if (src->name) {
-        rune->name = lv00_strdup_safe(src->name);
+        rune->name = lv_strdup_safe(src->name);
     } else {
         rune->name = NULL;
     }
 
     if (src->symbol) {
-        rune->symbol = lv00_strdup_safe(src->symbol);
+        rune->symbol = lv_strdup_safe(src->symbol);
     } else {
         rune->symbol = NULL;
     }
@@ -313,22 +313,22 @@ void rune_destroy(Rune *rune) {
         symbolic_coord_destroy(rune->coord);
     }
     if (rune->name) {
-        lv00_free((void **) &rune->name);
+        lv_free((void **) &rune->name);
     }
     if (rune->symbol) {
-        lv00_free((void **) &rune->symbol);
+        lv_free((void **) &rune->symbol);
     }
-    lv00_free((void **) &rune);
+    lv_free((void **) &rune);
 }
 
 /**
  * @brief 将符文序列化为 JSON 格式字符串（动态分配版本）
  *
  * 将符文的元素类型、威力等级和符号坐标序列化为紧凑的 JSON 字符串。
- * 返回的字符串由调用者负责释放（使用 lv00_free）。
+ * 返回的字符串由调用者负责释放（使用 lv_free）。
  *
  * **线程安全保证：**
- * 本函数使用 lv00_asprintf 动态分配缓冲区，每次调用返回独立的堆内存，
+ * 本函数使用 lv_asprintf 动态分配缓冲区，每次调用返回独立的堆内存，
  * 不存在静态缓冲区共享问题，可在多线程环境中安全并发调用。
  * 符号坐标的序列化也通过 symbolic_coord_serialize 返回动态分配字符串。
  *
@@ -343,13 +343,13 @@ char *rune_serialize(const Rune *rune) {
     if (!coord_str)
         return NULL;
 
-    /* 使用 lv00_asprintf 动态分配缓冲区，避免静态缓冲区的线程安全问题。
+    /* 使用 lv_asprintf 动态分配缓冲区，避免静态缓冲区的线程安全问题。
      * 不使用 static char buf[N] 模式，确保并发调用时不会互相覆盖。 */
     char *result =
-        lv00_asprintf("{\"element\":%d,\"power\":%d,\"coord\":%s}", rune->element, rune->power_level, coord_str);
+        lv_asprintf("{\"element\":%d,\"power\":%d,\"coord\":%s}", rune->element, rune->power_level, coord_str);
 
     /* 释放 coord_str，无论 result 是否成功都需要释放 */
-    lv00_free((void **) &coord_str);
+    lv_free((void **) &coord_str);
     return result;
 }
 
@@ -375,7 +375,7 @@ int rune_serialize_to_buffer(const Rune *rune, char *buf, int buf_size) {
     int written = snprintf(buf, (size_t) buf_size, "{\"element\":%d,\"power\":%d,\"coord\":%s}", rune->element,
                            rune->power_level, coord_str);
 
-    lv00_free((void **) &coord_str);
+    lv_free((void **) &coord_str);
 
     if (written < 0)
         return -1;
@@ -398,7 +398,7 @@ int rune_serialize_to_buffer(const Rune *rune, char *buf, int buf_size) {
  */
 Rune *rune_parse(const char *str) {
     if (!str || str[0] == '\0') {
-        LV00_LOG_WARNING("rune_parse: 输入字符串为空");
+        lv_LOG_WARNING("rune_parse: 输入字符串为空");
         return NULL;
     }
 
@@ -433,7 +433,7 @@ Rune *rune_parse(const char *str) {
         if (end != value_start && value_start != colon) {
             return rune_create_algebraic(value, element);
         }
-        LV00_LOG_WARNING("rune_parse: 无法解析代数数值 '%s'", value_start);
+        lv_LOG_WARNING("rune_parse: 无法解析代数数值 '%s'", value_start);
         return NULL;
     }
 
@@ -458,26 +458,26 @@ Rune *rune_parse(const char *str) {
         char num_buf[64];
         size_t num_len = (size_t) (slash - num_start);
         if (num_len >= sizeof(num_buf)) {
-            LV00_LOG_WARNING("rune_parse: 分子过长");
+            lv_LOG_WARNING("rune_parse: 分子过长");
             return NULL;
         }
-        /* [Bug修复] strncpy + 手动终止 → lv00_strlcpy，更安全简洁 */
-        lv00_strlcpy(num_buf, num_start, num_len + 1);
+        /* [Bug修复] strncpy + 手动终止 → lv_strlcpy，更安全简洁 */
+        lv_strlcpy(num_buf, num_start, num_len + 1);
         numerator = strtoll(num_buf, NULL, 10);
 
         /* 解析分母 */
         char denom_buf[64];
         size_t denom_len = (size_t) (num_end - slash - 1);
         if (denom_len >= sizeof(denom_buf)) {
-            LV00_LOG_WARNING("rune_parse: 分母过长");
+            lv_LOG_WARNING("rune_parse: 分母过长");
             return NULL;
         }
-        /* [Bug修复] strncpy + 手动终止 → lv00_strlcpy，更安全简洁 */
-        lv00_strlcpy(denom_buf, slash + 1, denom_len + 1);
+        /* [Bug修复] strncpy + 手动终止 → lv_strlcpy，更安全简洁 */
+        lv_strlcpy(denom_buf, slash + 1, denom_len + 1);
         denominator = strtoull(denom_buf, NULL, 10);
 
         if (denominator == 0) {
-            LV00_LOG_WARNING("rune_parse: 分母不能为零");
+            lv_LOG_WARNING("rune_parse: 分母不能为零");
             return NULL;
         }
     } else {
@@ -485,11 +485,11 @@ Rune *rune_parse(const char *str) {
         char num_buf[64];
         size_t num_len = (size_t) (num_end - num_start);
         if (num_len >= sizeof(num_buf)) {
-            LV00_LOG_WARNING("rune_parse: 数值过长");
+            lv_LOG_WARNING("rune_parse: 数值过长");
             return NULL;
         }
-        /* [Bug修复] strncpy + 手动终止 → lv00_strlcpy，更安全简洁 */
-        lv00_strlcpy(num_buf, num_start, num_len + 1);
+        /* [Bug修复] strncpy + 手动终止 → lv_strlcpy，更安全简洁 */
+        lv_strlcpy(num_buf, num_start, num_len + 1);
         numerator = strtoll(num_buf, NULL, 10);
     }
 
@@ -560,16 +560,16 @@ void rune_set_power(Rune *rune, int power) {
  * @return 新创建的符文序列指针，失败返回 NULL
  */
 RuneSequence *rune_sequence_create(void) {
-    RuneSequence *seq = (RuneSequence *) lv00_malloc(sizeof(RuneSequence));
+    RuneSequence *seq = (RuneSequence *) lv_malloc(sizeof(RuneSequence));
     if (!seq)
         return NULL;
 
     seq->capacity = MAGIC_RUNE_SEQUENCE_INIT_CAP;
     seq->rune_count = 0;
-    seq->runes = (Rune **) lv00_malloc(seq->capacity * sizeof(Rune *));
+    seq->runes = (Rune **) lv_malloc(seq->capacity * sizeof(Rune *));
 
     if (!seq->runes) {
-        lv00_free((void **) &seq);
+        lv_free((void **) &seq);
         return NULL;
     }
 
@@ -592,7 +592,7 @@ bool rune_sequence_add(RuneSequence *seq, Rune *rune) {
 
     if (seq->rune_count >= seq->capacity) {
         int new_capacity = seq->capacity * MAGIC_RUNE_SEQUENCE_GROWTH;
-        Rune **new_runes = (Rune **) lv00_realloc(seq->runes, new_capacity * sizeof(Rune *));
+        Rune **new_runes = (Rune **) lv_realloc(seq->runes, new_capacity * sizeof(Rune *));
         if (!new_runes)
             return false;
         seq->runes = new_runes;
@@ -643,8 +643,8 @@ void rune_sequence_destroy(RuneSequence *seq) {
     for (int i = 0; i < seq->rune_count; i++) {
         rune_destroy(seq->runes[i]);
     }
-    lv00_free((void **) &seq->runes);
-    lv00_free((void **) &seq);
+    lv_free((void **) &seq->runes);
+    lv_free((void **) &seq);
 }
 
 /* ============================================================
@@ -702,31 +702,31 @@ struct MagicArray {
  * @return 新创建的魔法阵指针，失败返回 NULL
  */
 MagicArray *magic_array_create(void) {
-    MagicArray *array = (MagicArray *) lv00_malloc(sizeof(MagicArray));
+    MagicArray *array = (MagicArray *) lv_malloc(sizeof(MagicArray));
     if (!array)
         return NULL;
 
     array->runes = rune_sequence_create();
     if (!array->runes) {
-        lv00_free((void **) &array);
+        lv_free((void **) &array);
         return NULL;
     }
 
     array->graph = graph_create();
     if (!array->graph) {
         rune_sequence_destroy(array->runes);
-        lv00_free((void **) &array);
+        lv_free((void **) &array);
         return NULL;
     }
 
     array->constraint_count = 0;
     array->constraint_capacity = MAGIC_ARRAY_CONSTRAINT_INIT_CAP;
-    array->constraints = (ArrayConstraintType *) lv00_malloc(array->constraint_capacity * sizeof(ArrayConstraintType));
+    array->constraints = (ArrayConstraintType *) lv_malloc(array->constraint_capacity * sizeof(ArrayConstraintType));
 
     if (!array->constraints) {
         graph_destroy(array->graph);
         rune_sequence_destroy(array->runes);
-        lv00_free((void **) &array);
+        lv_free((void **) &array);
         return NULL;
     }
 
@@ -752,9 +752,9 @@ void magic_array_destroy(MagicArray *array) {
         graph_destroy(array->graph);
     }
     if (array->constraints) {
-        lv00_free((void **) &array->constraints);
+        lv_free((void **) &array->constraints);
     }
-    lv00_free((void **) &array);
+    lv_free((void **) &array);
 }
 
 /**
@@ -876,7 +876,7 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
     if (array->constraint_count >= array->constraint_capacity) {
         int new_capacity = array->constraint_capacity * MAGIC_ARRAY_CONSTRAINT_GROWTH;
         ArrayConstraintType *new_constraints =
-            (ArrayConstraintType *) lv00_realloc(array->constraints, new_capacity * sizeof(ArrayConstraintType));
+            (ArrayConstraintType *) lv_realloc(array->constraints, new_capacity * sizeof(ArrayConstraintType));
         if (!new_constraints)
             return -1;
         array->constraints = new_constraints;
@@ -1106,7 +1106,7 @@ bool magic_array_merge(MagicArray *dest, const MagicArray *src) {
     for (int i = 0; i < src->runes->rune_count; i++) {
         int idx = magic_array_add_rune(dest, src->runes->runes[i]);
         if (idx < 0) {
-            LV00_LOG_WARNING("magic_array_merge: 合并符文失败，索引 %d", i);
+            lv_LOG_WARNING("magic_array_merge: 合并符文失败，索引 %d", i);
             return false;
         }
     }
@@ -1116,7 +1116,7 @@ bool magic_array_merge(MagicArray *dest, const MagicArray *src) {
         /* 约束索引需要映射到 dest 中的新索引 */
         int result = magic_array_add_constraint(dest, src->constraints[i], i, (i + 1) % src->runes->rune_count);
         if (result < 0) {
-            LV00_LOG_WARNING("magic_array_merge: 合并约束失败，索引 %d", i);
+            lv_LOG_WARNING("magic_array_merge: 合并约束失败，索引 %d", i);
             return false;
         }
     }
@@ -1131,7 +1131,7 @@ bool magic_array_merge(MagicArray *dest, const MagicArray *src) {
  * 序列化为 JSON 格式的字符串。
  *
  * @param array 魔法阵指针
- * @return 新分配的 JSON 字符串，失败返回 NULL（调用者需用 lv00_free 释放）
+ * @return 新分配的 JSON 字符串，失败返回 NULL（调用者需用 lv_free 释放）
  */
 char *magic_array_serialize(const MagicArray *array) {
     if (!array)
@@ -1143,7 +1143,7 @@ char *magic_array_serialize(const MagicArray *array) {
 
     /* 基础 JSON 结构 + 每个符文预估大小 */
     size_t buf_size = MAGIC_SERIALIZE_JSON_BASE_SIZE + (size_t) rune_count * MAGIC_SERIALIZE_PER_RUNE_SIZE;
-    char *json = (char *) lv00_malloc(buf_size);
+    char *json = (char *) lv_malloc(buf_size);
     if (!json)
         return NULL;
 
@@ -1385,7 +1385,7 @@ static __attribute__((unused)) const char *json_skip_value(const char *p) {
 
 MagicArray *magic_array_deserialize(const char *json) {
     if (!json || json[0] == '\0') {
-        LV00_LOG_WARNING("magic_array_deserialize: 输入 JSON 为空");
+        lv_LOG_WARNING("magic_array_deserialize: 输入 JSON 为空");
         return NULL;
     }
 
@@ -1395,14 +1395,14 @@ MagicArray *magic_array_deserialize(const char *json) {
 
     /* 检查 JSON 对象起始 */
     if (json[0] != '{') {
-        LV00_LOG_WARNING("magic_array_deserialize: JSON 格式无效，期望 '{'");
+        lv_LOG_WARNING("magic_array_deserialize: JSON 格式无效，期望 '{'");
         return NULL;
     }
 
     /* 创建空的魔法阵 */
     MagicArray *array = magic_array_create();
     if (!array) {
-        LV00_LOG_WARNING("magic_array_deserialize: 无法创建魔法阵");
+        lv_LOG_WARNING("magic_array_deserialize: 无法创建魔法阵");
         return NULL;
     }
 
@@ -1416,7 +1416,7 @@ MagicArray *magic_array_deserialize(const char *json) {
     /* 查找数组起始 */
     const char *array_start = strchr(runes_key, '[');
     if (!array_start) {
-        LV00_LOG_WARNING("magic_array_deserialize: runes 不是数组格式");
+        lv_LOG_WARNING("magic_array_deserialize: runes 不是数组格式");
         return array;
     }
 
@@ -1526,11 +1526,11 @@ MagicArray *magic_array_deserialize(const char *json) {
                 char name_buf[256];
                 int name_len = json_decode_string(name_start, name_buf, sizeof(name_buf));
                 if (name_len > 0) {
-                    char *name_copy = (char *) lv00_malloc((size_t) name_len + 1);
+                    char *name_copy = (char *) lv_malloc((size_t) name_len + 1);
                     if (name_copy) {
-                        lv00_strlcpy(name_copy, name_buf, (size_t) name_len + 1);
+                        lv_strlcpy(name_copy, name_buf, (size_t) name_len + 1);
                         if (array->name)
-                            lv00_free((void **) &array->name);
+                            lv_free((void **) &array->name);
                         array->name = name_copy;
                     }
                 }
@@ -1577,28 +1577,28 @@ struct Spell {
  * @return 新创建的咒语指针，失败返回 NULL
  */
 Spell *spell_create(const char *name) {
-    Spell *spell = (Spell *) lv00_malloc(sizeof(Spell));
+    Spell *spell = (Spell *) lv_malloc(sizeof(Spell));
     if (!spell)
         return NULL;
 
     memset(spell, 0, sizeof(Spell));
 
     if (name) {
-        spell->name = lv00_strdup_safe(name);
+        spell->name = lv_strdup_safe(name);
     } else {
-        spell->name = lv00_strdup_safe("Unnamed Spell");
+        spell->name = lv_strdup_safe("Unnamed Spell");
     }
 
     /* 检查名称分配是否成功 */
     if (!spell->name) {
-        lv00_free((void **) &spell);
+        lv_free((void **) &spell);
         return NULL;
     }
 
-    spell->description = lv00_strdup_safe("");
+    spell->description = lv_strdup_safe("");
     if (!spell->description) {
-        lv00_free((void **) &spell->name);
-        lv00_free((void **) &spell);
+        lv_free((void **) &spell->name);
+        lv_free((void **) &spell);
         return NULL;
     }
     spell->difficulty = MAGIC_SPELL_DIFFICULTY_DEFAULT;
@@ -1630,12 +1630,12 @@ void spell_destroy(Spell *spell) {
         return;
 
     if (spell->name)
-        lv00_free((void **) &spell->name);
+        lv_free((void **) &spell->name);
     if (spell->description)
-        lv00_free((void **) &spell->description);
+        lv_free((void **) &spell->description);
     if (spell->molding)
         rune_sequence_destroy(spell->molding);
-    lv00_free((void **) &spell);
+    lv_free((void **) &spell);
 }
 
 /**
@@ -1678,8 +1678,8 @@ bool spell_set_output_count(Spell *spell, int count) {
 bool spell_set_description(Spell *spell, const char *desc) {
     if (!spell || !desc)
         return false;
-    lv00_free((void **) &spell->description);
-    spell->description = lv00_strdup_safe(desc);
+    lv_free((void **) &spell->description);
+    spell->description = lv_strdup_safe(desc);
     return true;
 }
 
@@ -2084,16 +2084,16 @@ struct SpellBook {
  * @return 新创建的咒语书指针，失败返回 NULL
  */
 SpellBook *spellbook_create(void) {
-    SpellBook *book = (SpellBook *) lv00_malloc(sizeof(SpellBook));
+    SpellBook *book = (SpellBook *) lv_malloc(sizeof(SpellBook));
     if (!book)
         return NULL;
 
     book->capacity = MAGIC_SPELLBOOK_INIT_CAP;
     book->spell_count = 0;
-    book->spells = (Spell **) lv00_malloc(book->capacity * sizeof(Spell *));
+    book->spells = (Spell **) lv_malloc(book->capacity * sizeof(Spell *));
 
     if (!book->spells) {
-        lv00_free((void **) &book);
+        lv_free((void **) &book);
         return NULL;
     }
 
@@ -2115,8 +2115,8 @@ void spellbook_destroy(SpellBook *book) {
     for (int i = 0; i < book->spell_count; i++) {
         spell_destroy(book->spells[i]);
     }
-    lv00_free((void **) &book->spells);
-    lv00_free((void **) &book);
+    lv_free((void **) &book->spells);
+    lv_free((void **) &book);
 }
 
 /**
@@ -2135,7 +2135,7 @@ bool spellbook_add_spell(SpellBook *book, Spell *spell) {
 
     if (book->spell_count >= book->capacity) {
         int new_capacity = book->capacity * MAGIC_SPELLBOOK_GROWTH;
-        Spell **new_spells = (Spell **) lv00_realloc(book->spells, new_capacity * sizeof(Spell *));
+        Spell **new_spells = (Spell **) lv_realloc(book->spells, new_capacity * sizeof(Spell *));
         if (!new_spells)
             return false;
         book->spells = new_spells;
@@ -2218,7 +2218,7 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
         return NULL;
 
     *count = book->spell_count;
-    char **names = (char **) lv00_malloc(book->spell_count * sizeof(char *));
+    char **names = (char **) lv_malloc(book->spell_count * sizeof(char *));
 
     if (!names) {
         *count = 0;
@@ -2226,13 +2226,13 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
     }
 
     for (int i = 0; i < book->spell_count; i++) {
-        names[i] = lv00_strdup_safe(book->spells[i]->name);
+        names[i] = lv_strdup_safe(book->spells[i]->name);
         /* 如果某个名称复制失败，释放已分配的内存并返回 NULL */
         if (!names[i]) {
             for (int j = 0; j < i; j++) {
-                lv00_free((void **) &names[j]);
+                lv_free((void **) &names[j]);
             }
-            lv00_free((void **) &names);
+            lv_free((void **) &names);
             *count = 0;
             return NULL;
         }
@@ -2259,7 +2259,7 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
  * @return 优化后的咏唱配置
  */
 IncantationProfile incantation_optimize(const char *goal, double target_value) {
-    LV00_UNUSED(target_value);
+    lv_UNUSED(target_value);
     IncantationProfile profile = {INCANTATION_STANDARD, MAGIC_INCANTATION_PRECISION_DEFAULT,
                                   MAGIC_INCANTATION_SPEED_DEFAULT, MAGIC_INCANTATION_STEALTH_DEFAULT};
 
@@ -2403,14 +2403,14 @@ struct Domain {
  * @return 新创建的领域指针，失败返回 NULL
  */
 Domain *domain_create(const char *name, int range) {
-    Domain *domain = (Domain *) lv00_malloc(sizeof(Domain));
+    Domain *domain = (Domain *) lv_malloc(sizeof(Domain));
     if (!domain)
         return NULL;
 
     /* 分配领域名称，检查内存分配是否成功 */
-    domain->name = name ? lv00_strdup_safe(name) : lv00_strdup_safe("Unnamed Domain");
+    domain->name = name ? lv_strdup_safe(name) : lv_strdup_safe("Unnamed Domain");
     if (!domain->name) {
-        lv00_free((void **) &domain);
+        lv_free((void **) &domain);
         return NULL;
     }
 
@@ -2439,18 +2439,18 @@ void domain_destroy(Domain *domain) {
     if (!domain)
         return;
     if (domain->name)
-        lv00_free((void **) &domain->name);
+        lv_free((void **) &domain->name);
     if (domain->center)
         symbolic_coord_destroy(domain->center);
     /* 释放所有规则 */
     if (domain->rules) {
         for (int i = 0; i < domain->rule_count; i++) {
             if (domain->rules[i].pattern)
-                lv00_free((void **) &domain->rules[i].pattern);
+                lv_free((void **) &domain->rules[i].pattern);
         }
-        lv00_free((void **) &domain->rules);
+        lv_free((void **) &domain->rules);
     }
-    lv00_free((void **) &domain);
+    lv_free((void **) &domain);
 }
 
 /**
@@ -2479,7 +2479,7 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
     /* 扩容检查 */
     if (domain->rule_count >= domain->rule_capacity) {
         int new_cap = domain->rule_capacity == 0 ? 8 : domain->rule_capacity * 2;
-        DomainRule *new_rules = (DomainRule *) lv00_realloc(
+        DomainRule *new_rules = (DomainRule *) lv_realloc(
             domain->rules, new_cap * sizeof(DomainRule));
         if (!new_rules)
             return false;
@@ -2489,7 +2489,7 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
 
     /* 添加新规则 */
     int idx = domain->rule_count;
-    domain->rules[idx].pattern = lv00_strdup_safe(rule_name);
+    domain->rules[idx].pattern = lv_strdup_safe(rule_name);
     if (!domain->rules[idx].pattern)
         return false;
     domain->rules[idx].priority = priority;

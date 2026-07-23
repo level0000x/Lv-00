@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_representation_theory.c
  * @brief 表示论预设函数块 - 实现
  *
@@ -18,8 +18,8 @@
 #include "preset_representation_theory.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 
@@ -500,11 +500,11 @@ bool preset_representation_theory_register(void)
 
     /* 返回是否所有预设都注册成功 */
     if (success_count == RT_PRESET_COUNT) {
-        /* lv00_log_info("表示论模块注册成功：%d/%d 个预设", success_count, RT_PRESET_COUNT) */
+        /* lv_log_info("表示论模块注册成功：%d/%d 个预设", success_count, RT_PRESET_COUNT) */
         return true;
     }
 
-    /* lv00_log_info("表示论模块注册部分失败：%d/%d 个预设", success_count, RT_PRESET_COUNT) */
+    /* lv_log_info("表示论模块注册部分失败：%d/%d 个预设", success_count, RT_PRESET_COUNT) */
     return false;
 }
 
@@ -540,7 +540,7 @@ bool preset_representation_theory_get_names(char ***out_names, int *out_count)
 {
     if (!out_names || !out_count) return false;
 
-    char **names = (char**)lv00_malloc(RT_PRESET_COUNT * sizeof(char*));
+    char **names = (char**)lv_malloc(RT_PRESET_COUNT * sizeof(char*));
     if (!names) return false;
 
     const char *preset_names[] = {
@@ -572,10 +572,10 @@ bool preset_representation_theory_get_names(char ***out_names, int *out_count)
     int count = (int)(sizeof(preset_names) / sizeof(preset_names[0]));
 
     for (int i = 0; i < count; i++) {
-        names[i] = lv00_strdup(preset_names[i]);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
-            for (int j = 0; j < i; j++) lv00_free((void**)&names[j]);
-            lv00_free((void**)&names);
+            for (int j = 0; j < i; j++) lv_free((void**)&names[j]);
+            lv_free((void**)&names);
             return false;
         }
     }

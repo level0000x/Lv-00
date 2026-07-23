@@ -18,8 +18,8 @@
  *
  * @dependencies
  *   - atp_backend.h          : ATP 后端公共接口
- *   - lv00_internal.h        : 内部常量与工具宏
- *   - lv00_utils.h           : 统一内存分配器
+ *   - lv_internal.h        : 内部常量与工具宏
+ *   - lv_utils.h           : 统一内存分配器
  *   - error_codes.h          : 统一错误码系统
  *   - proof.h                : Lv-00 证明系统
  * [QA] Uses double for timing/layout — not geometric computation. Acceptable.
@@ -32,7 +32,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "lv00/lv00_parse_utils.h"
+#include "lv/lv_parse_utils.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -48,8 +48,8 @@
 #endif
 
 #include "error_codes.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ============================================================
  * 模块级常量
@@ -153,9 +153,9 @@ ATPConfig atp_config_default(void) {
 char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat format,
                                    const char *problem_name, bool include_proof_goal,
                                    const Proposition *target_prop) {
-    LV00_CHECK_NULL(graph, NULL);
+    lv_CHECK_NULL(graph, NULL);
 
-    char *buf = (char *)lv00_malloc(ATP_TPTP_BUFFER_SIZE);
+    char *buf = (char *)lv_malloc(ATP_TPTP_BUFFER_SIZE);
     if (!buf) {
         return NULL;
     }
@@ -281,7 +281,7 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
  *   - Z3: SMT 求解（通过 SMT-LIB 2 接口）
  */
 ATPBackendSolver *atp_solver_create(ATPBackendType type, const ATPConfig *config) {
-    ATPBackendSolver *solver = (ATPBackendSolver *)lv00_malloc(sizeof(ATPBackendSolver));
+    ATPBackendSolver *solver = (ATPBackendSolver *)lv_malloc(sizeof(ATPBackendSolver));
     if (!solver) {
         return NULL;
     }
@@ -308,9 +308,9 @@ void atp_solver_destroy(ATPBackendSolver *solver) {
         return;
     }
     if (solver->tptp_code) {
-        lv00_free((void **)&solver->tptp_code);
+        lv_free((void **)&solver->tptp_code);
     }
-    lv00_free((void **)&solver);
+    lv_free((void **)&solver);
 }
 
 /**
@@ -382,7 +382,7 @@ static bool atp_check_executable(const char *name) {
  * @param[in]  extra_args  额外命令行参数（可为 NULL）
  * @param[out] out_output  捕获的 stdout（调用者 free）
  * @param[out] out_exit_code 进程退出码
- * @return LV00_OK 成功
+ * @return lv_OK 成功
  */
 static int atp_run_subprocess(const char *executable, const char *tptp_text,
                                double timeout_sec, const char *extra_args,
@@ -397,7 +397,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     }
     (void)timeout_sec; /* 超时精确实现在子进程创建后生效 */
     if (!executable || !tptp_text || !out_output || !out_exit_code)
-        return (int)LV00_ERROR_NULL_POINTER;
+        return (int)lv_ERROR_NULL_POINTER;
 
     *out_output = NULL;
     *out_exit_code = -1;
@@ -414,11 +414,11 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     }
 
     /* 生成唯一临时文件名 */
-    snprintf(temp_path, sizeof(temp_path), "%slv00_atp_%d.p", temp_dir, (int)GetCurrentProcessId());
+    snprintf(temp_path, sizeof(temp_path), "%slv_atp_%d.p", temp_dir, (int)GetCurrentProcessId());
 
     FILE *tmp = fopen(temp_path, "w");
     if (!tmp)
-        return (int)LV00_ERROR_IO;
+        return (int)lv_ERROR_IO;
 
     fputs(tptp_text, tmp);
     fclose(tmp);
@@ -435,17 +435,17 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     FILE *fp = popen(cmd, "r");
     if (!fp) {
         remove(temp_path);
-        return (int)LV00_ERROR_IO;
+        return (int)lv_ERROR_IO;
     }
 
     /* 读取输出 */
     size_t out_size = 65536;
     size_t out_len = 0;
-    char *output = (char *) lv00_malloc(out_size);
+    char *output = (char *) lv_malloc(out_size);
     if (!output) {
         pclose(fp);
         remove(temp_path);
-        return (int)LV00_ERROR_OUT_OF_MEMORY;
+        return (int)lv_ERROR_OUT_OF_MEMORY;
     }
 
     char buffer[4096];
@@ -453,12 +453,12 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
         size_t chunk_len = strlen(buffer);
         while (out_len + chunk_len + 1 >= out_size) {
             out_size *= 2;
-            char *new_output = (char *) lv00_realloc(output, out_size);
+            char *new_output = (char *) lv_realloc(output, out_size);
             if (!new_output) {
-                lv00_free((void **)&output);
+                lv_free((void **)&output);
                 pclose(fp);
                 remove(temp_path);
-                return (int)LV00_ERROR_OUT_OF_MEMORY;
+                return (int)lv_ERROR_OUT_OF_MEMORY;
             }
             output = new_output;
         }
@@ -475,11 +475,11 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
 #else  /* POSIX: fork + execvp + pipe + dup2 */
     char temp_path[256];
     const char *tmpdir = getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp";
-    snprintf(temp_path, sizeof(temp_path), "%s/lv00_atp_%d.p", tmpdir, (int)getpid());
+    snprintf(temp_path, sizeof(temp_path), "%s/lv_atp_%d.p", tmpdir, (int)getpid());
 
     FILE *tmp = fopen(temp_path, "w");
     if (!tmp)
-        return (int)LV00_ERROR_IO;
+        return (int)lv_ERROR_IO;
 
     fputs(tptp_text, tmp);
     fclose(tmp);
@@ -491,7 +491,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     exec_argv[argc++] = (char *)executable;
     if (extra_args && extra_args[0] != '\0') {
         /* 简单参数切分（空格分隔） */
-        extra_copy = lv00_strdup(extra_args);
+        extra_copy = lv_strdup(extra_args);
         if (extra_copy) {
             char *save_ptr = NULL;
             char *token = strtok_s(extra_copy, " ", &save_ptr);
@@ -508,7 +508,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     int pipefd[2];
     if (pipe(pipefd) != 0) {
         remove(temp_path);
-        return (int)LV00_ERROR_IO;
+        return (int)lv_ERROR_IO;
     }
 
     pid_t pid = fork();
@@ -516,7 +516,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
         close(pipefd[0]);
         close(pipefd[1]);
         remove(temp_path);
-        return (int)LV00_ERROR_IO;
+        return (int)lv_ERROR_IO;
     }
 
     if (pid == 0) {
@@ -532,17 +532,17 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     }
 
     /* 父进程：关闭写端，读取管道输出 */
-    lv00_free((void **)&extra_copy);
+    lv_free((void **)&extra_copy);
     close(pipefd[1]);
 
     size_t out_size = 65536;
     size_t out_len = 0;
-    char *output = (char *) lv00_malloc(out_size);
+    char *output = (char *) lv_malloc(out_size);
     if (!output) {
         close(pipefd[0]);
         waitpid(pid, NULL, 0);
         remove(temp_path);
-        return (int)LV00_ERROR_OUT_OF_MEMORY;
+        return (int)lv_ERROR_OUT_OF_MEMORY;
     }
 
     ssize_t nread;
@@ -550,13 +550,13 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     while ((nread = read(pipefd[0], buffer, sizeof(buffer))) > 0) {
         while (out_len + (size_t)nread + 1 >= out_size) {
             out_size *= 2;
-            char *new_output = (char *) lv00_realloc(output, out_size);
+            char *new_output = (char *) lv_realloc(output, out_size);
             if (!new_output) {
-                lv00_free((void **)&output);
+                lv_free((void **)&output);
                 close(pipefd[0]);
                 waitpid(pid, NULL, 0);
                 remove(temp_path);
-                return (int)LV00_ERROR_OUT_OF_MEMORY;
+                return (int)lv_ERROR_OUT_OF_MEMORY;
             }
             output = new_output;
         }
@@ -582,7 +582,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
 
     *out_output = output;
     *out_exit_code = exit_code;
-    return (int)LV00_OK;
+    return (int)lv_OK;
 }
 
 /**
@@ -635,16 +635,16 @@ static int atp_extract_proof_steps(const char *output,
                                      ATPProofStep **out_steps,
                                      int *out_step_count) {
     if (!output || !out_steps || !out_step_count)
-        return (int)LV00_ERROR_NULL_POINTER;
+        return (int)lv_ERROR_NULL_POINTER;
 
     *out_steps = NULL;
     *out_step_count = 0;
 
     /* 计算证明步骤数（以行首数字+点开头的行） */
     int capacity = 64;
-    ATPProofStep *steps = (ATPProofStep *) lv00_calloc((size_t) capacity, sizeof(ATPProofStep));
+    ATPProofStep *steps = (ATPProofStep *) lv_calloc((size_t) capacity, sizeof(ATPProofStep));
     if (!steps)
-        return (int)LV00_ERROR_OUT_OF_MEMORY;
+        return (int)lv_ERROR_OUT_OF_MEMORY;
 
     int count = 0;
     const char *line = output;
@@ -675,7 +675,7 @@ static int atp_extract_proof_steps(const char *output,
 
         /* 提取步骤 ID */
         int step_id = 0;
-        lv00_parse_int(line, &step_id);
+        lv_parse_int(line, &step_id);
 
         /* 提取子句内容（到行尾） */
         const char *clause_start = line;
@@ -693,7 +693,7 @@ static int atp_extract_proof_steps(const char *output,
             steps[count].inference_rule = NULL;
             steps[count].justification = NULL;
 
-            steps[count].clause = (char *) lv00_malloc((size_t) clause_len + 1);
+            steps[count].clause = (char *) lv_malloc((size_t) clause_len + 1);
             if (steps[count].clause) {
                 memcpy(steps[count].clause, clause_start, (size_t) clause_len);
                 steps[count].clause[clause_len] = '\0';
@@ -706,7 +706,7 @@ static int atp_extract_proof_steps(const char *output,
                 const char *rule_end = strchr(rule_start, ',');
                 if (rule_end) {
                     int rule_len = (int)(rule_end - rule_start);
-                    steps[count].inference_rule = (char *) lv00_malloc((size_t) rule_len + 1);
+                    steps[count].inference_rule = (char *) lv_malloc((size_t) rule_len + 1);
                     if (steps[count].inference_rule) {
                         memcpy(steps[count].inference_rule, rule_start, (size_t) rule_len);
                         steps[count].inference_rule[rule_len] = '\0';
@@ -727,7 +727,7 @@ static int atp_extract_proof_steps(const char *output,
 
     *out_steps = steps;
     *out_step_count = count;
-    return (int)LV00_OK;
+    return (int)lv_OK;
 }
 
 /* ============================================================
@@ -738,33 +738,33 @@ static int atp_extract_proof_steps(const char *output,
  * @brief 将 TPTP 编码加载到求解器
  */
 int atp_solver_load(ATPBackendSolver *solver, const char *tptp_text) {
-    LV00_CHECK_NULL(solver, (int)LV00_ERROR_NULL_POINTER);
-    LV00_CHECK_NULL(tptp_text, (int)LV00_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(solver, (int)lv_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(tptp_text, (int)lv_ERROR_NULL_POINTER);
 
     if (!solver->is_initialized) {
-        return (int)LV00_ERROR_NOT_INITIALIZED;
+        return (int)lv_ERROR_NOT_INITIALIZED;
     }
 
     /* 释放旧编码 */
     if (solver->tptp_code) {
-        lv00_free((void **)&solver->tptp_code);
+        lv_free((void **)&solver->tptp_code);
     }
 
     int len = (int)strlen(tptp_text);
     if (len <= 0) {
-        return (int)LV00_ERROR_INVALID_PARAM;
+        return (int)lv_ERROR_INVALID_PARAM;
     }
 
-    solver->tptp_code = (char *)lv00_malloc((size_t)(len + 1));
+    solver->tptp_code = (char *)lv_malloc((size_t)(len + 1));
     if (!solver->tptp_code) {
-        return (int)LV00_ERROR_OUT_OF_MEMORY;
+        return (int)lv_ERROR_OUT_OF_MEMORY;
     }
 
     memcpy(solver->tptp_code, tptp_text, (size_t)(len + 1));
     solver->tptp_len = len;
     solver->has_problem = true;
 
-    return (int)LV00_OK;
+    return (int)lv_OK;
 }
 
 /**
@@ -774,25 +774,25 @@ int atp_solver_load(ATPBackendSolver *solver, const char *tptp_text) {
  * 如果 ATP 不可用，优雅降级返回 UNKNOWN。
  */
 int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
-    LV00_CHECK_NULL(solver, (int)LV00_ERROR_NULL_POINTER);
-    LV00_CHECK_NULL(result, (int)LV00_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(solver, (int)lv_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(result, (int)lv_ERROR_NULL_POINTER);
 
     atp_result_init(result);
 
     if (!solver->is_initialized) {
         result->result = ATP_RESULT_ERROR;
-        result->error_code = (int)LV00_ERROR_NOT_INITIALIZED;
+        result->error_code = (int)lv_ERROR_NOT_INITIALIZED;
         snprintf(result->error_message, sizeof(result->error_message),
                  "ATP solver not initialized");
-        return (int)LV00_ERROR_NOT_INITIALIZED;
+        return (int)lv_ERROR_NOT_INITIALIZED;
     }
 
     if (!solver->has_problem) {
         result->result = ATP_RESULT_ERROR;
-        result->error_code = (int)LV00_ERROR_INVALID_STATE;
+        result->error_code = (int)lv_ERROR_INVALID_STATE;
         snprintf(result->error_message, sizeof(result->error_message),
                  "No problem loaded");
-        return (int)LV00_ERROR_INVALID_STATE;
+        return (int)lv_ERROR_INVALID_STATE;
     }
 
     result->backend = solver->type;
@@ -803,7 +803,7 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
         result->result = ATP_RESULT_UNKNOWN;
         snprintf(result->error_message, sizeof(result->error_message),
                  "Unknown ATP backend type");
-        return (int)LV00_OK;
+        return (int)lv_OK;
     }
 
     /* 检查 ATP 是否可用 */
@@ -814,7 +814,7 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
         snprintf(result->error_message, sizeof(result->error_message),
                  "ATP backend '%s' not found in PATH; returning UNKNOWN (graceful degradation)",
                  atp_backend_type_name(solver->type));
-        return (int)LV00_OK;
+        return (int)lv_OK;
     }
 
     /* 构建额外参数 */
@@ -849,12 +849,12 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
     clock_t end_clock = clock();
     double elapsed_seconds = (double)(end_clock - start_clock) / (double)CLOCKS_PER_SEC;
 
-    if (rc != (int)LV00_OK) {
+    if (rc != (int)lv_OK) {
         result->result = ATP_RESULT_ERROR;
         result->error_code = rc;
         snprintf(result->error_message, sizeof(result->error_message),
                  "Failed to execute ATP subprocess: error %d", rc);
-        return (int)LV00_OK;
+        return (int)lv_OK;
     }
 
     /* 存储 raw output */
@@ -886,7 +886,7 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
         result->generated_clauses = lines;
     }
 
-    return (int)LV00_OK;
+    return (int)lv_OK;
 }
 
 /**
@@ -896,9 +896,9 @@ int atp_solver_solve_graph(ATPBackendSolver *solver, const ConstraintGraph *grap
                             ATPInputFormat format, const char *problem_name,
                             bool include_goal, const Proposition *target_prop,
                             ATPResultInfo *result) {
-    LV00_CHECK_NULL(solver, (int)LV00_ERROR_NULL_POINTER);
-    LV00_CHECK_NULL(graph, (int)LV00_ERROR_NULL_POINTER);
-    LV00_CHECK_NULL(result, (int)LV00_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(solver, (int)lv_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(graph, (int)lv_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(result, (int)lv_ERROR_NULL_POINTER);
 
     /* 步骤 1：编码 */
     char *tptp = atp_encode_constraint_graph(graph, format, problem_name,
@@ -906,17 +906,17 @@ int atp_solver_solve_graph(ATPBackendSolver *solver, const ConstraintGraph *grap
     if (!tptp) {
         atp_result_init(result);
         result->result = ATP_RESULT_ERROR;
-        result->error_code = (int)LV00_ERROR_OUT_OF_MEMORY;
+        result->error_code = (int)lv_ERROR_OUT_OF_MEMORY;
         snprintf(result->error_message, sizeof(result->error_message),
                  "TPTP encoding failed");
-        return (int)LV00_ERROR_OUT_OF_MEMORY;
+        return (int)lv_ERROR_OUT_OF_MEMORY;
     }
 
     /* 步骤 2：加载 */
     int rc = atp_solver_load(solver, tptp);
-    lv00_free((void **)&tptp);
+    lv_free((void **)&tptp);
 
-    if (rc != (int)LV00_OK) {
+    if (rc != (int)lv_OK) {
         atp_result_init(result);
         result->result = ATP_RESULT_ERROR;
         result->error_code = rc;
@@ -955,24 +955,24 @@ void atp_result_destroy(ATPResultInfo *result) {
     if (result->proof_steps) {
         for (int i = 0; i < result->proof_step_count; i++) {
             if (result->proof_steps[i].clause) {
-                lv00_free((void **)&result->proof_steps[i].clause);
+                lv_free((void **)&result->proof_steps[i].clause);
             }
             if (result->proof_steps[i].inference_rule) {
-                lv00_free((void **)&result->proof_steps[i].inference_rule);
+                lv_free((void **)&result->proof_steps[i].inference_rule);
             }
             if (result->proof_steps[i].justification) {
-                lv00_free((void **)&result->proof_steps[i].justification);
+                lv_free((void **)&result->proof_steps[i].justification);
             }
         }
-        lv00_free((void **)&result->proof_steps);
+        lv_free((void **)&result->proof_steps);
     }
     result->proof_step_count = 0;
     if (result->unsat_core_clause_ids) {
-        lv00_free((void **)&result->unsat_core_clause_ids);
+        lv_free((void **)&result->unsat_core_clause_ids);
     }
     result->unsat_core_count = 0;
     if (result->raw_output) {
-        lv00_free((void **)&result->raw_output);
+        lv_free((void **)&result->raw_output);
     }
     result->raw_output_length = 0;
 }
@@ -983,32 +983,32 @@ void atp_result_destroy(ATPResultInfo *result) {
  * 解析 TSTP 格式的 ATP 证明输出，转换为 Lv-00 证明步骤。
  * 实现基本的证明步骤转换：
  * - 解析每个证明步骤的推理规则（resolution/paramodulation/superposition等）
- * - 创建 LV00ProofStep 对象并设置适当的类型标签
+ * - 创建 lvProofStep 对象并设置适当的类型标签
  * - 将步骤链接到有向证明图中
  */
-int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count) {
-    LV00_CHECK_NULL(result, (int)LV00_ERROR_NULL_POINTER);
-    LV00_CHECK_NULL(proof, (int)LV00_ERROR_NULL_POINTER);
+int atp_proof_to_lv(const ATPResultInfo *result, Proof *proof, int *step_count) {
+    lv_CHECK_NULL(result, (int)lv_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(proof, (int)lv_ERROR_NULL_POINTER);
 
     if (step_count) {
         *step_count = 0;
     }
 
     if (result->result != ATP_RESULT_UNSAT) {
-        /* LV00_ERROR_SET(LV00_ERROR_INVALID_STATE,
+        /* lv_ERROR_SET(lv_ERROR_INVALID_STATE,
                         "Proof conversion requires UNSAT result"); */
-        return (int)LV00_ERROR_INVALID_STATE;
+        return (int)lv_ERROR_INVALID_STATE;
     }
 
     if (!result->proof_steps || result->proof_step_count == 0) {
-        return (int)LV00_ERROR_NOT_FOUND;
+        return (int)lv_ERROR_NOT_FOUND;
     }
 
     /* 第一步：为每个 ATP 步骤创建 Lv-00 ProofStep 并记录映射关系 */
     int count = 0;
-    int *lv00_step_ids = (int *)lv00_calloc((size_t)result->proof_step_count, sizeof(int));
-    if (!lv00_step_ids)
-        return (int)LV00_ERROR_OUT_OF_MEMORY;
+    int *lv_step_ids = (int *)lv_calloc((size_t)result->proof_step_count, sizeof(int));
+    if (!lv_step_ids)
+        return (int)lv_ERROR_OUT_OF_MEMORY;
 
     for (int i = 0; i < result->proof_step_count; i++) {
         const ATPProofStep *atp_step = &result->proof_steps[i];
@@ -1029,12 +1029,12 @@ int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count
         if (!lv_step) {
             /* 清理已创建的步骤 */
             for (int j = 0; j < i; j++) {
-                if (lv00_step_ids[j] >= 0) {
+                if (lv_step_ids[j] >= 0) {
                     /* 步骤已添加到 proof navigator，由 proof 负责生命周期 */
                 }
             }
-            lv00_free((void **)&lv00_step_ids);
-            return (int)LV00_ERROR_OUT_OF_MEMORY;
+            lv_free((void **)&lv_step_ids);
+            return (int)lv_ERROR_OUT_OF_MEMORY;
         }
 
         lv_step->id = atp_step->step_id;
@@ -1044,23 +1044,23 @@ int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count
         /* 添加到证明导航器 */
         if (!proof_navigator_add_step(proof, lv_step)) {
             proof_step_destroy(lv_step);
-            lv00_free((void **)&lv00_step_ids);
-            return (int)LV00_ERROR_INVALID_STATE;
+            lv_free((void **)&lv_step_ids);
+            return (int)lv_ERROR_INVALID_STATE;
         }
 
         /* 记录映射：ATP step_id -> Lv-00 proof step index */
         /* 使用 proof->step_count - 1 作为刚添加的步骤索引 */
-        lv00_step_ids[i] = proof->step_count - 1;
+        lv_step_ids[i] = proof->step_count - 1;
         count++;
     }
 
     /* 第二步：建立步骤之间的依赖关系（有向证明图） */
     for (int i = 0; i < result->proof_step_count; i++) {
-        if (lv00_step_ids[i] < 0)
+        if (lv_step_ids[i] < 0)
             continue;
 
         const ATPProofStep *atp_step = &result->proof_steps[i];
-        ProofStep *lv_step = proof->steps[lv00_step_ids[i]];
+        ProofStep *lv_step = proof->steps[lv_step_ids[i]];
 
         /* 解析 justification 以找到父步骤引用 */
         if (atp_step->justification) {
@@ -1072,11 +1072,11 @@ int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count
                 if (!*p) break;
 
                 int parent_id = 0;
-                lv00_parse_int(p, &parent_id);
+                lv_parse_int(p, &parent_id);
                 /* 查找该父步骤在我们的映射中的位置 */
                 for (int j = 0; j < result->proof_step_count; j++) {
                     if (result->proof_steps[j].step_id == parent_id &&
-                        lv00_step_ids[j] >= 0) {
+                        lv_step_ids[j] >= 0) {
                         proof_step_add_dependency(lv_step, result->proof_steps[j].step_id);
                         /* 设置第一个匹配的父步骤作为树结构中的父节点 */
                         if (lv_step->parent_step_id < 0) {
@@ -1091,13 +1091,13 @@ int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count
         }
     }
 
-    lv00_free((void **)&lv00_step_ids);
+    lv_free((void **)&lv_step_ids);
 
     if (step_count) {
         *step_count = count;
     }
 
-    return (int)LV00_OK;
+    return (int)lv_OK;
 }
 
 /* ============================================================
@@ -1122,7 +1122,7 @@ const ATPBackendRegistry *atp_get_registry(void) {
  * @brief 注册自定义 ATP 后端
  */
 int atp_register_backend(const ATPBackendEntry *entry) {
-    LV00_CHECK_NULL(entry, (int)LV00_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(entry, (int)lv_ERROR_NULL_POINTER);
 
     if (!g_atp_registry_initialized) {
         atp_get_registry(); /* 初始化 */
@@ -1134,20 +1134,20 @@ int atp_register_backend(const ATPBackendEntry *entry) {
     for (int i = 0; i < g_atp_registry.count; i++) {
         if (g_atp_registry.entries[i].type == entry->type) {
             ATP_REGISTRY_UNLOCK();
-            return (int)LV00_ERROR_ALREADY_EXISTS;
+            return (int)lv_ERROR_ALREADY_EXISTS;
         }
     }
 
     if (g_atp_registry.count >= ATP_BACKEND_COUNT) {
         ATP_REGISTRY_UNLOCK();
-        return (int)LV00_ERROR_RESOURCE_EXHAUSTED;
+        return (int)lv_ERROR_RESOURCE_EXHAUSTED;
     }
 
     g_atp_registry.entries[g_atp_registry.count] = *entry;
     g_atp_registry.count++;
 
     ATP_REGISTRY_UNLOCK();
-    return (int)LV00_OK;
+    return (int)lv_OK;
 }
 
 /**
@@ -1247,7 +1247,7 @@ int atp_register_all_to_scheduler(void) {
             entry.priority = (int)i + 1;
             entry.description = atp_backend_type_name(types[i]);
 
-            if (atp_register_backend(&entry) == (int)LV00_OK) {
+            if (atp_register_backend(&entry) == (int)lv_OK) {
                 registered++;
             }
         }
@@ -1268,8 +1268,8 @@ int atp_register_all_to_scheduler(void) {
  */
 int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config,
                     ATPResultInfo *result) {
-    LV00_CHECK_NULL(graph, (int)LV00_ERROR_NULL_POINTER);
-    LV00_CHECK_NULL(result, (int)LV00_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(graph, (int)lv_ERROR_NULL_POINTER);
+    lv_CHECK_NULL(result, (int)lv_ERROR_NULL_POINTER);
 
     atp_result_init(result);
 
@@ -1278,7 +1278,7 @@ int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config,
         ATPBackendSolver *solver = atp_solver_create(ATP_BACKEND_VAMPIRE, config);
         if (solver) {
             int rc = atp_solver_solve_graph(solver, graph, config ? config->input_format : ATP_FORMAT_TPTP_FOF,
-                                             "lv00_auto", false, NULL, result);
+                                             "lv_auto", false, NULL, result);
             atp_solver_destroy(solver);
             return rc;
         }
@@ -1289,7 +1289,7 @@ int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config,
         ATPBackendSolver *solver = atp_solver_create(ATP_BACKEND_EPROVER, config);
         if (solver) {
             int rc = atp_solver_solve_graph(solver, graph, config ? config->input_format : ATP_FORMAT_TPTP_FOF,
-                                             "lv00_auto", false, NULL, result);
+                                             "lv_auto", false, NULL, result);
             atp_solver_destroy(solver);
             return rc;
         }
@@ -1301,7 +1301,7 @@ int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config,
     snprintf(result->error_message, sizeof(result->error_message),
              "No ATP backend available; returning UNKNOWN");
 
-    return (int)LV00_OK;
+    return (int)lv_OK;
 }
 
 /* ============================================================

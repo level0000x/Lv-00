@@ -1,4 +1,4 @@
-# Lv-00 版本迭代日志
+﻿# Lv-00 版本迭代日志
 
 本文件用于记录 Lv-00 项目的正式版本演进、关键整改、兼容性变化与验收状态。
 
@@ -122,16 +122,16 @@
 
 ### C 内核头文件修复
 - 恢复 git 历史中的 63+ 源文件（版本 A `38310ea`、版本 B `e36f4b6`）
-- 重写 11+ 个头文件以匹配 .c 实现：`geo_halfedge_mesh.h`、`simd_ops.h`、`interval_arithmetic.h`、`geometry_transform.h`、`geo_event_detect.h`、`algebraic_number.h`、`geo_topology.h`、`geo_invariant_type.h`、`high_dim.h`、`geometry_compress.h`、`lv00_internal.h`、`euclidean_geometry.h`
-- 新增 8 个头文件：`lv00_config.h`、`preset_abstract_algebra.h`、`preset_name_defs.h`、`proof_rule_engine_internal.h`、`proof_session_internal.h`、`proof_version_internal.h`、`smt_theory_combiner.h`、`smt_trigger_engine.h`
-- 清理 `core/include/lv00/stubs/` 下的废弃预设桩文件
+- 重写 11+ 个头文件以匹配 .c 实现：`geo_halfedge_mesh.h`、`simd_ops.h`、`interval_arithmetic.h`、`geometry_transform.h`、`geo_event_detect.h`、`algebraic_number.h`、`geo_topology.h`、`geo_invariant_type.h`、`high_dim.h`、`geometry_compress.h`、`lv_internal.h`、`euclidean_geometry.h`
+- 新增 8 个头文件：`lv_config.h`、`preset_abstract_algebra.h`、`preset_name_defs.h`、`proof_rule_engine_internal.h`、`proof_session_internal.h`、`proof_version_internal.h`、`smt_theory_combiner.h`、`smt_trigger_engine.h`
+- 清理 `core/include/lv/stubs/` 下的废弃预设桩文件
 
 ### 内核新增源文件
-- `lv00_config.c` — 独立配置管理系统
+- `lv_config.c` — 独立配置管理系统
 - `sparse_linear_algebra.c`、`status_codes.c`、`tikz_export.c` — 新源码
 
 ### 构建与打包
-- 新增 `cmake/lv00-config.cmake.in` + `cmake/lv00.pc.in`，支持 `find_package(lv00)` 和 `pkg-config`
+- 新增 `cmake/lv-config.cmake.in` + `cmake/lv.pc.in`，支持 `find_package(lv)` 和 `pkg-config`
 - CMake 新增 UI 前端构建目标
 
 ### 验证记录

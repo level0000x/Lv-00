@@ -1,10 +1,10 @@
-/**
+﻿/**
  * @file gappa_dsl.c
  * @brief Gappa DSL parsing and proof generation (stub implementations)
  */
 
-#include "lv00/gappa_dsl.h"
-#include "lv00/lv00_utils.h"
+#include "lv/gappa_dsl.h"
+#include "lv/lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +13,7 @@
 #include <ctype.h>
 
 /** @brief 可移植的 strtok_r 实现 */
-static char *lv00_strtok_r(char *str, const char *delim, char **saveptr) {
+static char *lv_strtok_r(char *str, const char *delim, char **saveptr) {
     if (!str) str = *saveptr;
     str += strspn(str, delim);
     if (*str == '\0') { *saveptr = str; return NULL; }
@@ -31,10 +31,10 @@ static char *lv00_strtok_r(char *str, const char *delim, char **saveptr) {
  * @param input Gappa DSL 输入字符串
  * @return 成功返回 0，失败返回 -1
  */
-int lv00_gappa_parse(const char *input) {
+int lv_gappa_parse(const char *input) {
     if (!input) return -1;
-    Lv00GappaPredicate *hyp = NULL;
-    Lv00GappaProofGoal *goals = NULL;
+    lvGappaPredicate *hyp = NULL;
+    lvGappaProofGoal *goals = NULL;
     int hyp_count = 0, goal_count = 0;
     bool ok = gappa_parse(input, &hyp, &hyp_count, &goals, &goal_count);
     gappa_predicates_free(hyp, hyp_count);
@@ -50,9 +50,9 @@ int lv00_gappa_parse(const char *input) {
  * @param hi   输出上界
  * @return 成功返回 0，失败返回 -1
  */
-int lv00_gappa_eval(const char *expr, double *lo, double *hi) {
+int lv_gappa_eval(const char *expr, double *lo, double *hi) {
     if (!expr || !lo || !hi) return -1;
-    return lv00_gappa_propagate(expr, lo, hi);
+    return lv_gappa_propagate(expr, lo, hi);
 }
 
 /**
@@ -61,18 +61,18 @@ int lv00_gappa_eval(const char *expr, double *lo, double *hi) {
  * @param script Gappa 证明脚本
  * @return 证明结果字符串（调用者负责释放），失败返回 NULL
  */
-char *lv00_gappa_prove(const char *script) {
+char *lv_gappa_prove(const char *script) {
     if (!script) return NULL;
 
-    Lv00GappaPredicate *hyp = NULL;
-    Lv00GappaProofGoal *goals = NULL;
+    lvGappaPredicate *hyp = NULL;
+    lvGappaProofGoal *goals = NULL;
     int hyp_count = 0, goal_count = 0;
 
     if (!gappa_parse(script, &hyp, &hyp_count, &goals, &goal_count)) {
-        return lv00_strdup("proof result: parse error");
+        return lv_strdup("proof result: parse error");
     }
 
-    Lv00GappaProofResult result = gappa_prove(hyp, hyp_count, goals, goal_count, NULL);
+    lvGappaProofResult result = gappa_prove(hyp, hyp_count, goals, goal_count, NULL);
 
     char buf[512];
     if (result.goals_total == 0) {
@@ -90,7 +90,7 @@ char *lv00_gappa_prove(const char *script) {
     gappa_predicates_free(hyp, hyp_count);
     gappa_goals_free(goals, goal_count);
 
-    return lv00_strdup(buf);
+    return lv_strdup(buf);
 }
 
 /* ── Structured API ── */
@@ -102,9 +102,9 @@ char *lv00_gappa_prove(const char *script) {
  * @param out  输出格式描述
  * @return true 表示成功识别并填充格式
  */
-bool gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
+bool gappa_format_predefined(const char *name, lvGappaFormat *out) {
     if (!out) return false;
-    memset(out, 0, sizeof(Lv00GappaFormat));
+    memset(out, 0, sizeof(lvGappaFormat));
     if (name) {
         if (strcmp(name, "binary32") == 0) {
             out->format_id = 1;
@@ -135,7 +135,7 @@ bool gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
         out->precision_bits = 53;
         out->exponent_bits = 11;
     }
-    out->rounding = LV00_ROUND_NE;
+    out->rounding = lv_ROUND_NE;
     return true;
 }
 
@@ -149,8 +149,8 @@ bool gappa_format_predefined(const char *name, Lv00GappaFormat *out) {
  * @param goal_count 输出目标数量
  * @return true 表示解析成功
  */
-bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
-                 Lv00GappaProofGoal **goals, int *goal_count) {
+bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count,
+                 lvGappaProofGoal **goals, int *goal_count) {
     if (!input) return false;
     if (hyp) *hyp = NULL;
     if (hyp_count) *hyp_count = 0;
@@ -173,12 +173,12 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
 
     /* 解析假设：按 ";" 分割，每条 "var in [lo, hi]" */
     int h_count = 0;
-    Lv00GappaPredicate *h_arr = NULL;
+    lvGappaPredicate *h_arr = NULL;
     {
         char buf[1024];
         strncpy(buf, hyp_part, sizeof(buf) - 1);
         char *saveptr = NULL;
-        char *token = lv00_strtok_r(buf, ";", &saveptr);
+        char *token = lv_strtok_r(buf, ";", &saveptr);
         while (token) {
             /* 跳过空白 */
             while (*token && isspace((unsigned char)*token)) token++;
@@ -187,11 +187,11 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                 double lo = 0.0, hi = 0.0;
                 if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
                     sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
-                    Lv00GappaPredicate *tmp = (Lv00GappaPredicate *)lv00_realloc(h_arr, (size_t)(h_count + 1) * sizeof(Lv00GappaPredicate));
+                    lvGappaPredicate *tmp = (lvGappaPredicate *)lv_realloc(h_arr, (size_t)(h_count + 1) * sizeof(lvGappaPredicate));
                     if (tmp) {
                         h_arr = tmp;
-                        memset(&h_arr[h_count], 0, sizeof(Lv00GappaPredicate));
-                        h_arr[h_count].type = LV00_PRED_BND;
+                        memset(&h_arr[h_count], 0, sizeof(lvGappaPredicate));
+                        h_arr[h_count].type = lv_PRED_BND;
                         strncpy(h_arr[h_count].expr_lhs, varname, sizeof(h_arr[h_count].expr_lhs) - 1);
                         h_arr[h_count].bound_lo = lo;
                         h_arr[h_count].bound_hi = hi;
@@ -200,18 +200,18 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                     }
                 }
             }
-            token = lv00_strtok_r(NULL, ";", &saveptr);
+            token = lv_strtok_r(NULL, ";", &saveptr);
         }
     }
 
     /* 解析目标：按 ";" 分割，每条 "|expr| <= bound" */
     int g_count = 0;
-    Lv00GappaProofGoal *g_arr = NULL;
+    lvGappaProofGoal *g_arr = NULL;
     if (goal_part[0]) {
         char buf[1024];
         strncpy(buf, goal_part, sizeof(buf) - 1);
         char *saveptr = NULL;
-        char *token = lv00_strtok_r(buf, ";", &saveptr);
+        char *token = lv_strtok_r(buf, ";", &saveptr);
         while (token) {
             while (*token && isspace((unsigned char)*token)) token++;
             if (*token) {
@@ -227,11 +227,11 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                     if (expr_len < sizeof(inner_expr)) {
                         memcpy(inner_expr, abs_start + 1, expr_len);
                     }
-                    Lv00GappaProofGoal *tmp = (Lv00GappaProofGoal *)lv00_realloc(g_arr, (size_t)(g_count + 1) * sizeof(Lv00GappaProofGoal));
+                    lvGappaProofGoal *tmp = (lvGappaProofGoal *)lv_realloc(g_arr, (size_t)(g_count + 1) * sizeof(lvGappaProofGoal));
                     if (tmp) {
                         g_arr = tmp;
-                        memset(&g_arr[g_count], 0, sizeof(Lv00GappaProofGoal));
-                        g_arr[g_count].predicate.type = LV00_PRED_ABS;
+                        memset(&g_arr[g_count], 0, sizeof(lvGappaProofGoal));
+                        g_arr[g_count].predicate.type = lv_PRED_ABS;
                         strncpy(g_arr[g_count].predicate.expr_lhs, inner_expr, sizeof(g_arr[g_count].predicate.expr_lhs) - 1);
                         g_arr[g_count].predicate.bound_abs = bound;
                         g_arr[g_count].predicate.is_hypothesis = false;
@@ -243,11 +243,11 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                     double lo = 0.0, hi = 0.0;
                     if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
                         sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
-                        Lv00GappaProofGoal *tmp = (Lv00GappaProofGoal *)lv00_realloc(g_arr, (size_t)(g_count + 1) * sizeof(Lv00GappaProofGoal));
+                        lvGappaProofGoal *tmp = (lvGappaProofGoal *)lv_realloc(g_arr, (size_t)(g_count + 1) * sizeof(lvGappaProofGoal));
                         if (tmp) {
                             g_arr = tmp;
-                            memset(&g_arr[g_count], 0, sizeof(Lv00GappaProofGoal));
-                            g_arr[g_count].predicate.type = LV00_PRED_BND;
+                            memset(&g_arr[g_count], 0, sizeof(lvGappaProofGoal));
+                            g_arr[g_count].predicate.type = lv_PRED_BND;
                             strncpy(g_arr[g_count].predicate.expr_lhs, varname, sizeof(g_arr[g_count].predicate.expr_lhs) - 1);
                             g_arr[g_count].predicate.bound_lo = lo;
                             g_arr[g_count].predicate.bound_hi = hi;
@@ -257,7 +257,7 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
                     }
                 }
             }
-            token = lv00_strtok_r(NULL, ";", &saveptr);
+            token = lv_strtok_r(NULL, ";", &saveptr);
         }
     }
 
@@ -274,9 +274,9 @@ bool gappa_parse(const char *input, Lv00GappaPredicate **hyp, int *hyp_count,
  * @param preds 谓词数组
  * @param count 谓词数量（保留参数，未使用）
  */
-void gappa_predicates_free(Lv00GappaPredicate *preds, int count) {
+void gappa_predicates_free(lvGappaPredicate *preds, int count) {
     (void)count;
-    lv00_free((void **)&(preds));
+    lv_free((void **)&(preds));
 }
 
 /**
@@ -285,9 +285,9 @@ void gappa_predicates_free(Lv00GappaPredicate *preds, int count) {
  * @param goals 目标数组
  * @param count 目标数量（保留参数，未使用）
  */
-void gappa_goals_free(Lv00GappaProofGoal *goals, int count) {
+void gappa_goals_free(lvGappaProofGoal *goals, int count) {
     (void)count;
-    lv00_free((void **)&(goals));
+    lv_free((void **)&(goals));
 }
 
 /**
@@ -300,34 +300,34 @@ void gappa_goals_free(Lv00GappaProofGoal *goals, int count) {
  * @param config    配置参数（预留，可为 NULL）
  * @return 证明结果结构体
  */
-Lv00GappaProofResult gappa_prove(const Lv00GappaPredicate *hyp, int hyp_count,
-                                  const Lv00GappaProofGoal *goals, int goal_count,
+lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count,
+                                  const lvGappaProofGoal *goals, int goal_count,
                                   const void *config) {
     (void)config;
-    Lv00GappaProofResult result;
+    lvGappaProofResult result;
     memset(&result, 0, sizeof(result));
     result.goals_total = goal_count;
 
     if (goal_count > 0) {
-        result.goals = (Lv00GappaProofGoal *)lv00_calloc((size_t)goal_count, sizeof(Lv00GappaProofGoal));
+        result.goals = (lvGappaProofGoal *)lv_calloc((size_t)goal_count, sizeof(lvGappaProofGoal));
         if (result.goals) {
             for (int i = 0; i < goal_count; i++) {
                 result.goals[i] = goals[i];
-                Lv00GappaPredicate gpred = goals[i].predicate;
+                lvGappaPredicate gpred = goals[i].predicate;
                 bool proven = false;
 
                 /* 查找匹配的假设（按变量名匹配） */
                 for (int j = 0; j < hyp_count; j++) {
                     if (strcmp(hyp[j].expr_lhs, gpred.expr_lhs) != 0) continue;
 
-                    if (gpred.type == LV00_PRED_BND) {
+                    if (gpred.type == lv_PRED_BND) {
                         /* BND 目标：检查假设区间是否包含在目标区间内 */
                         if (hyp[j].bound_lo >= gpred.bound_lo &&
                             hyp[j].bound_hi <= gpred.bound_hi) {
                             proven = true;
                             break;
                         }
-                    } else if (gpred.type == LV00_PRED_ABS) {
+                    } else if (gpred.type == lv_PRED_ABS) {
                         /* ABS 目标：计算最大绝对偏差 */
                         double center = atof(gpred.expr_rhs);
                         double dev_lo = fabs(hyp[j].bound_lo - center);
@@ -359,9 +359,9 @@ Lv00GappaProofResult gappa_prove(const Lv00GappaPredicate *hyp, int hyp_count,
  *
  * @param result 证明结果（内部 goals 数组将被释放并置 NULL）
  */
-void gappa_result_free(Lv00GappaProofResult *result) {
+void gappa_result_free(lvGappaProofResult *result) {
     if (result) {
-        lv00_free((void **)&(result->goals));
+        lv_free((void **)&(result->goals));
         result->goals = NULL;
         result->goals_total = 0;
     }
@@ -374,7 +374,7 @@ void gappa_result_free(Lv00GappaProofResult *result) {
  * @param count 规则数量（保留参数，未使用）
  * @return true 表示注册成功
  */
-bool gappa_register_rewrite_rules(const Lv00GappaRewriteRule *rules, int count) {
+bool gappa_register_rewrite_rules(const lvGappaRewriteRule *rules, int count) {
     (void)rules; (void)count;
     return true;
 }

@@ -1,4 +1,4 @@
-# Lv-00 十层架构整合方案
+﻿# Lv-00 十层架构整合方案
 
 > **版本**: 1.0.0  
 > **日期**: 2026-06-05  
@@ -64,8 +64,8 @@
 
 | 当前位置 | 模块 | 功能 | 归属理由 |
 |----------|------|------|----------|
-| `module/python/lv00/interactive_geo.py` | 交互几何 | 画布状态管理、交互模式、拖拽约束维护 | 面向用户的交互功能 |
-| `module/python/lv00/high_dim.py` | 高维可视化 | 高维结构投影、多投影视图管理 | 可视化功能 |
+| `module/python/lv/interactive_geo.py` | 交互几何 | 画布状态管理、交互模式、拖拽约束维护 | 面向用户的交互功能 |
+| `module/python/lv/high_dim.py` | 高维可视化 | 高维结构投影、多投影视图管理 | 可视化功能 |
 | `web/gui/src/` | React前端 | Web GUI完整实现 | 用户交互界面 |
 | `web/gui/src/components/canvas/` | 几何画布 | Canvas渲染、工具栏 | 核心可视化组件 |
 | `web/gui/src/components/panels/` | 各种面板 | 约束图、证明、公式、调试面板 | 交互式信息展示 |
@@ -76,24 +76,24 @@
 
 | 当前位置 | 模块 | 功能 | 归属理由 |
 |----------|------|------|----------|
-| `module/python/lv00/_ctypes_binding.py` | C库绑定 | ctypes FFI绑定、结构体定义 | 基础语言绑定 |
-| `module/python/lv00/core.py` | Python核心封装 | C核心类的Python OO封装 | 语言绑定封装 |
-| `module/python/lv00/engine.py` | 引擎接口 | 引擎高级Python API | 推理层绑定 |
-| `module/python/lv00/formula.py` | 公式模块 | 公式解析、渲染、转换 | 解析层绑定扩展 |
-| `module/python/lv00/dsl*.py` | DSL模块 | PyEuclid风格链式语言 | 语言绑定层DSL |
-| `module/python/lv00/groebner_engine.py` | Groebner接口 | 多项式环、Gröbner基计算 | 推理层绑定 |
-| `module/python/lv00/type_system.py` | 类型系统接口 | 类型创建、依赖类型检查 | 推理层绑定 |
-| `module/python/lv00/sparse_la.py` | 稀疏线性代数 | 稀疏矩阵、约束传播 | 约束/推理层绑定 |
-| `module/python/lv00/proof_extras.py` | 扩展证明 | 证明树可视化、多策略引擎 | 证明层绑定 |
-| `module/python/lv00/stream_bridge.py` | 流式桥接 | C引擎与Web前端桥接 | 跨运行时绑定 |
-| `module/python/lv00/ws_server.py` | WebSocket服务器 | 实时事件推送 | 流式通信绑定 |
-| `module/python/lv00/async_stream.py` | 异步流式 | 异步迭代器接口 | 异步I/O绑定 |
-| `module/python/lv00/py_euclid_style.py` | PyEuclid API | 高层Pythonic API | 语言绑定高级封装 |
-| `module/python/lv00/preset*.py` | 预设函数块 | 常用几何构造预设 | 语言绑定预设库 |
-| `module/python/lv00/constraints.py` | 约束封装 | 约束类型Python接口 | 约束层绑定 |
-| `module/python/lv00/normalization.py` | 归一化接口 | 归一化结果处理 | 约束层绑定 |
-| `module/python/lv00/func_block.py` | 函数块接口 | 函数块系统Python接口 | 推理层绑定 |
-| `module/python/lv00/math_presets.py` | 数学预设 | 数学预设函数和常量 | 语言绑定预设 |
+| `module/python/lv/_ctypes_binding.py` | C库绑定 | ctypes FFI绑定、结构体定义 | 基础语言绑定 |
+| `module/python/lv/core.py` | Python核心封装 | C核心类的Python OO封装 | 语言绑定封装 |
+| `module/python/lv/engine.py` | 引擎接口 | 引擎高级Python API | 推理层绑定 |
+| `module/python/lv/formula.py` | 公式模块 | 公式解析、渲染、转换 | 解析层绑定扩展 |
+| `module/python/lv/dsl*.py` | DSL模块 | PyEuclid风格链式语言 | 语言绑定层DSL |
+| `module/python/lv/groebner_engine.py` | Groebner接口 | 多项式环、Gröbner基计算 | 推理层绑定 |
+| `module/python/lv/type_system.py` | 类型系统接口 | 类型创建、依赖类型检查 | 推理层绑定 |
+| `module/python/lv/sparse_la.py` | 稀疏线性代数 | 稀疏矩阵、约束传播 | 约束/推理层绑定 |
+| `module/python/lv/proof_extras.py` | 扩展证明 | 证明树可视化、多策略引擎 | 证明层绑定 |
+| `module/python/lv/stream_bridge.py` | 流式桥接 | C引擎与Web前端桥接 | 跨运行时绑定 |
+| `module/python/lv/ws_server.py` | WebSocket服务器 | 实时事件推送 | 流式通信绑定 |
+| `module/python/lv/async_stream.py` | 异步流式 | 异步迭代器接口 | 异步I/O绑定 |
+| `module/python/lv/py_euclid_style.py` | PyEuclid API | 高层Pythonic API | 语言绑定高级封装 |
+| `module/python/lv/preset*.py` | 预设函数块 | 常用几何构造预设 | 语言绑定预设库 |
+| `module/python/lv/constraints.py` | 约束封装 | 约束类型Python接口 | 约束层绑定 |
+| `module/python/lv/normalization.py` | 归一化接口 | 归一化结果处理 | 约束层绑定 |
+| `module/python/lv/func_block.py` | 函数块接口 | 函数块系统Python接口 | 推理层绑定 |
+| `module/python/lv/math_presets.py` | 数学预设 | 数学预设函数和常量 | 语言绑定预设 |
 | `web/gui/src/engine/` | 后端抽象 | WASM/JS后端切换 | JS/TS语言绑定 |
 | `web/gui/src/services/stream*.ts` | 流式客户端 | 引擎流式事件消费 | 前端流式绑定 |
 
@@ -103,7 +103,7 @@
 |----------|------|------|----------|
 | `module/llm_coding_assistant/` | LLM辅助完整系统 | 编程辅助、代码生成、AI对话 | AI辅助工具 |
 | `module/llm_coding_assistant/main.py` | 主程序 | 交互式命令行入口 | LLM辅助入口 |
-| `module/llm_coding_assistant/lv00_knowledge.py` | 领域知识库 | C API文档、代码模式、提示词引擎 | AI知识库 |
+| `module/llm_coding_assistant/lv_knowledge.py` | 领域知识库 | C API文档、代码模式、提示词引擎 | AI知识库 |
 | `module/llm_coding_assistant/api_server.py` | API服务器 | FastAPI RESTful/WebSocket接口 | AI服务暴露 |
 | `module/llm_coding_assistant/core/` | AI核心 | AI引擎、代码分析器 | AI核心组件 |
 | `module/llm_coding_assistant/templates.py` | 代码模板 | WASM绑定、Canvas渲染模板 | AI模板库 |
@@ -124,7 +124,7 @@
 | 当前位置 | 模块 | 功能 | 归属理由 |
 |----------|------|------|----------|
 | `formal/` | Lean形式化 | 基础几何定义、公理 | 形式化验证 |
-| `lv00-formal/` | Lean核心形式化 | 核心类型、等价性验证 | 形式化验证 |
+| `lv-formal/` | Lean核心形式化 | 核心类型、等价性验证 | 形式化验证 |
 | `examples/` | 示例库 | 几何示例、模板、插件示例 | 生态系统 |
 | `doc/generate_version_doc.js` | 文档生成器 | 版本文档自动生成 | 生态工具 |
 | `doc/docs/` | 技术文档 | 架构手册、API参考、教程 | 生态文档 |
@@ -138,7 +138,7 @@
 ```
 Lv-00/
 ├── core/
-│   ├── include/lv00/
+│   ├── include/lv/
 │   │   ├── shared/              # Shared 公共基础层
 │   │   ├── layer1_parser/       # 第1层：词法语法解析
 │   │   ├── layer2_axiom/        # 第2层：基础几何公理
@@ -233,7 +233,7 @@ mkdir -p layer10_ecosystem/{formal_verification,examples,axiom_packages,docs,too
 
 ### 7.2 阶段2：第7层迁移（Week 2）
 
-**目标**：将 `module/python/lv00/` 中的绑定代码迁移到 `layer7_binding/python/`
+**目标**：将 `module/python/lv/` 中的绑定代码迁移到 `layer7_binding/python/`
 
 **步骤**：
 1. 移动基础绑定文件（`_ctypes_binding.py`, `core.py`, `engine.py`）
@@ -252,8 +252,8 @@ mkdir -p layer10_ecosystem/{formal_verification,examples,axiom_packages,docs,too
 
 **步骤**：
 1. 移动 `web/gui/src/` → `layer6_interactive/web_gui/`
-2. 移动 `module/python/lv00/interactive_geo.py` → `layer6_interactive/python_interactive/`
-3. 移动 `module/python/lv00/high_dim.py` → `layer6_interactive/python_interactive/`
+2. 移动 `module/python/lv/interactive_geo.py` → `layer6_interactive/python_interactive/`
+3. 移动 `module/python/lv/high_dim.py` → `layer6_interactive/python_interactive/`
 4. 整合Penrose渲染器到 `layer6_interactive/penrose_renderer/`
 
 ### 7.4 阶段4：第8-9层迁移（Week 4）
@@ -271,7 +271,7 @@ mkdir -p layer10_ecosystem/{formal_verification,examples,axiom_packages,docs,too
 
 **步骤**：
 1. 移动 `formal/` → `layer10_ecosystem/formal_verification/`
-2. 移动 `lv00-formal/` → `layer10_ecosystem/formal_verification/`
+2. 移动 `lv-formal/` → `layer10_ecosystem/formal_verification/`
 3. 移动 `examples/` → `layer10_ecosystem/examples/`
 4. 移动 `module/axiom_packages/` → `layer10_ecosystem/axiom_packages/`
 5. 移动 `doc/` → `layer10_ecosystem/docs/`
@@ -313,13 +313,13 @@ mkdir -p layer10_ecosystem/{formal_verification,examples,axiom_packages,docs,too
 
 | 模块路径 | 当前位置 | 目标层级 | 目标位置 |
 |----------|----------|----------|----------|
-| Python绑定包 | `module/python/lv00/` | 第7层 | `layer7_binding/python/` |
-| 交互几何 | `module/python/lv00/interactive_geo.py` | 第6层 | `layer6_interactive/python_interactive/` |
-| 高维可视化 | `module/python/lv00/high_dim.py` | 第6层 | `layer6_interactive/python_interactive/` |
+| Python绑定包 | `module/python/lv/` | 第7层 | `layer7_binding/python/` |
+| 交互几何 | `module/python/lv/interactive_geo.py` | 第6层 | `layer6_interactive/python_interactive/` |
+| 高维可视化 | `module/python/lv/high_dim.py` | 第6层 | `layer6_interactive/python_interactive/` |
 | Web前端 | `web/gui/src/` | 第6层 | `layer6_interactive/web_gui/` |
 | LLM辅助 | `module/llm_coding_assistant/` | 第8层 | `layer8_ai_assistant/` |
 | 并发监控 | `module/concurrent_monitor/` | 第9层 | `layer9_monitoring/` |
-| Lean形式化 | `formal/`, `lv00-formal/` | 第10层 | `layer10_ecosystem/formal_verification/` |
+| Lean形式化 | `formal/`, `lv-formal/` | 第10层 | `layer10_ecosystem/formal_verification/` |
 | 示例库 | `examples/` | 第10层 | `layer10_ecosystem/examples/` |
 | 公理包 | `module/axiom_packages/` | 第10层 | `layer10_ecosystem/axiom_packages/` |
 | 技术文档 | `doc/` | 第10层 | `layer10_ecosystem/docs/` |

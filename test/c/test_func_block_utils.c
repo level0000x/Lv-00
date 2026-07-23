@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_func_block_utils.c
  * @brief func_block_utils 模块测试 - 整数数组工具函数
  *
@@ -17,7 +17,7 @@
 #include <string.h>
 
 #include "func_block_utils.h"
-#include "lv00.h"
+#include "lv.h"
 
 static int test_is_id_in_array_basic(void) {
     printf("Test: is_id_in_array basic...\n");
@@ -73,7 +73,7 @@ static int test_dup_int_array_basic(void) {
     memcpy(dst, src, 5 * sizeof(int));
     assert(dst[2] == 30);
 
-    lv00_free_ptr(dst);
+    lv_free_ptr(dst);
     printf("  PASSED\n");
     return 0;
 }
@@ -92,7 +92,7 @@ static int test_dup_int_array_edge_cases(void) {
     int *single_copy = dup_int_array(src, 1);
     assert(single_copy != NULL);
     assert(single_copy[0] == 1);
-    lv00_free_ptr(single_copy);
+    lv_free_ptr(single_copy);
 
     int *empty_copy = dup_int_array(src, 0);
     assert(empty_copy == NULL);
@@ -119,7 +119,7 @@ static int test_merge_int_arrays_basic(void) {
     assert(result[4] == 5);
     assert(result[5] == 6);
 
-    lv00_free_ptr(result);
+    lv_free_ptr(result);
     printf("  PASSED\n");
     return 0;
 }
@@ -147,7 +147,7 @@ static int test_merge_int_arrays_edge_cases(void) {
     assert(r3[0] == 4);
     assert(r3[1] == 5);
     assert(r3[2] == 6);
-    lv00_free_ptr(r3);
+    lv_free_ptr(r3);
 
     int *r4 = merge_int_arrays(a, 3, NULL, 0, &count);
     assert(r4 != NULL);
@@ -155,7 +155,7 @@ static int test_merge_int_arrays_edge_cases(void) {
     assert(r4[0] == 1);
     assert(r4[1] == 2);
     assert(r4[2] == 3);
-    lv00_free_ptr(r4);
+    lv_free_ptr(r4);
 
     int *r5 = merge_int_arrays(NULL, 0, b, 3, &count);
     assert(r5 != NULL);
@@ -163,7 +163,7 @@ static int test_merge_int_arrays_edge_cases(void) {
     assert(r5[0] == 4);
     assert(r5[1] == 5);
     assert(r5[2] == 6);
-    lv00_free_ptr(r5);
+    lv_free_ptr(r5);
 
     int *r6 = merge_int_arrays(a, 3, b, 3, &count);
     assert(r6 != NULL);
@@ -172,7 +172,7 @@ static int test_merge_int_arrays_edge_cases(void) {
     memcpy(r6, a, 3 * sizeof(int));
     memcpy(r6 + 3, b, 3 * sizeof(int));
     assert(r6[5] == 6);
-    lv00_free_ptr(r6);
+    lv_free_ptr(r6);
 
     printf("  PASSED\n");
     return 0;
@@ -189,7 +189,7 @@ static int test_memory_independence(void) {
     dst[0] = 999;
     assert(src[0] == 10);
 
-    lv00_free_ptr(dst);
+    lv_free_ptr(dst);
 
     int a[] = {1, 2};
     int b[] = {3, 4};
@@ -202,7 +202,7 @@ static int test_memory_independence(void) {
     assert(a[0] == 1);
     assert(b[0] == 3);
 
-    lv00_free_ptr(merged);
+    lv_free_ptr(merged);
 
     printf("  PASSED\n");
     return 0;
@@ -226,7 +226,7 @@ static int test_large_arrays(void) {
         assert(copy[i] == i * 2);
     }
 
-    lv00_free_ptr(copy);
+    lv_free_ptr(copy);
 
     int *half1 = malloc((SIZE / 2) * sizeof(int));
     int *half2 = malloc((SIZE / 2) * sizeof(int));
@@ -246,10 +246,10 @@ static int test_large_arrays(void) {
         assert(merged[i] == i);
     }
 
-    lv00_free_ptr(merged);
-    lv00_free_ptr(half1);
-    lv00_free_ptr(half2);
-    lv00_free_ptr(large);
+    lv_free_ptr(merged);
+    lv_free_ptr(half1);
+    lv_free_ptr(half2);
+    lv_free_ptr(large);
 
     printf("  PASSED\n");
     return 0;

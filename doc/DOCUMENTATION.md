@@ -1,4 +1,4 @@
-# Lv-00 几何元语言 -- 完整技术文档
+﻿# Lv-00 几何元语言 -- 完整技术文档
 
 > **版本**: 1.1.0
 > **架构版本**: 十层单向依赖架构
@@ -252,7 +252,7 @@ Lv-00 具有双重语言特性：
 | `cache_manager` | LRU 对象缓存 |
 | `global_state` | 全局状态管理 |
 | `debug_trace` | 调试追踪系统 |
-| `config` | 集中化配置系统（`LV00_CONFIG_*` 前缀） |
+| `config` | 集中化配置系统（`lv_CONFIG_*` 前缀） |
 | `error_messages_cn` | 中文错误消息本地化 |
 
 **禁止包含**: 几何公理、约束归一化、推理策略、Groebner 调度、SMT 校验、证明格式化。
@@ -474,7 +474,7 @@ Proof Object
 
 | 模式 | 描述 |
 |------|------|
-| 批处理 (Batch) | 读取 `.lv00` 文件，执行完整流水线，输出结果 |
+| 批处理 (Batch) | 读取 `.lv` 文件，执行完整流水线，输出结果 |
 | 交互式 REPL | 逐行输入 Lv-00 语句，即时反馈 |
 
 **REPL 特性**:
@@ -688,14 +688,14 @@ Weisfeiler-Lehman 图核迭代归一化，自动合并等价节点，保证幂�
 ```
 Lv-00/
 ├── core/                        # 核心引擎
-│   ├── include/lv00/            # 公共 API 头文件 (120+)
+│   ├── include/lv/            # 公共 API 头文件 (120+)
 │   └── src/                     # 源代码（十层架构）
 ├── formal/                      # Lean 4 形式化验证
-│   ├── Lv00/                    # 形式化理论
+│   ├── lv/                    # 形式化理论
 │   ├── tests/                   # 形式化测试
 │   ├── lakefile.lean            # Lake 构建文件
 │   └── lean-toolchain           # Lean 工具链
-├── lv00-formal/                 # 独立 Lean 4 项目
+├── lv-formal/                 # 独立 Lean 4 项目
 ├── doc/                         # 文档
 │   ├── docs/                    # 技术文档 (35+)
 │   ├── papers/                  # 学术论文
@@ -952,7 +952,7 @@ core/src/
 | `ENABLE_LAYER_VALIDATION` | ON | 层级边界验证 |
 | `ENABLE_COVERAGE` | OFF | 代码覆盖率 |
 | `ENABLE_SANITIZERS` | OFF | 内存错误检测 |
-| `LV00_EXCLUDE_BROKEN_PRESETS` | ON | 排除有依赖问题的预设 |
+| `lv_EXCLUDE_BROKEN_PRESETS` | ON | 排除有依赖问题的预设 |
 
 ---
 
@@ -969,8 +969,8 @@ sudo apt-get install cmake libgmp-dev
 brew install cmake gmp
 
 # 克隆仓库
-git clone https://github.com/lv00-project/lv00.git
-cd lv00
+git clone https://github.com/lv-project/lv.git
+cd lv
 
 # 构建
 mkdir build && cd build
@@ -1033,7 +1033,7 @@ ctest --test-dir build_verify --output-on-failure
 ### 10.1 C API 基本使用
 
 ```c
-#include "lv00.h"
+#include "lv.h"
 #include <stdio.h>
 
 int main() {
@@ -1069,31 +1069,31 @@ int main() {
 
 ```c
 // 定义中点函数块
-FuncBlock *midpoint = lv00_fb_create("midpoint", 2);
-lv00_fb_define(midpoint, "return point((A.x+B.x)/2, (A.y+B.y)/2);");
+FuncBlock *midpoint = lv_fb_create("midpoint", 2);
+lv_fb_define(midpoint, "return point((A.x+B.x)/2, (A.y+B.y)/2);");
 
 // 实例化
-Point *M = lv00_fb_apply(midpoint, A, B);
+Point *M = lv_fb_apply(midpoint, A, B);
 ```
 
 ### 10.3 预设模块加载
 
 ```c
 // 加载预设模块
-lv00_preset_load(ctx, "euclidean_geometry");
+lv_preset_load(ctx, "euclidean_geometry");
 
 // 应用预设定理
-Proposition *prop = lv00_preset_apply(ctx, "pythagorean_theorem", A, B, C);
+Proposition *prop = lv_preset_apply(ctx, "pythagorean_theorem", A, B, C);
 ```
 
 ### 10.4 公理包使用
 
 ```c
 // 加载公理包
-AxiomPackage *pkg = lv00_axiom_pkg_load("algebraic_geometry");
+AxiomPackage *pkg = lv_axiom_pkg_load("algebraic_geometry");
 
 // 附加到引擎
-lv00_engine_attach_axiom_pkg(engine, pkg);
+lv_engine_attach_axiom_pkg(engine, pkg);
 ```
 
 ### 10.5 Lv-00 DSL 示例
@@ -1114,7 +1114,7 @@ Prove triangle(A, B, C) is equilateral;
 ### 10.6 REPL 交互
 
 ```
-$ lv00 --repl
+$ lv --repl
 Lv-00 v5.0.0 REPL
 > Point A(0, 0), B(3, 4);
 Created: A = Point(0/1, 0/1), B = Point(3/1, 4/1)
@@ -1402,22 +1402,22 @@ typedef struct Proposition {
 ### 14.6 证明对象结构
 
 ```c
-typedef struct Lv00ProofObject {
+typedef struct lvProofObject {
     Proposition *goal;              // 证明目标
     ProofStep **steps;              // 证明步骤序列
     size_t step_count;
     AssumptionScope *assumptions;   // 假设作用域
     ContradictionTrace *contradiction; // 矛盾溯源
     ProofStatus status;             // 证明状态
-} Lv00ProofObject;
+} lvProofObject;
 
-typedef struct Lv00ProofStep {
+typedef struct lvProofStep {
     size_t step_id;
     Proposition *proposition;
     ProofRule rule;                 // 使用的证明规则
     size_t *premise_ids;            // 前提步骤 ID
-    Lv00SourceSpan source_span;     // 来源位置
-} Lv00ProofStep;
+    lvSourceSpan source_span;     // 来源位置
+} lvProofStep;
 ```
 
 ### 14.7 证明导出
@@ -1824,10 +1824,10 @@ Lv-00 预置了多种函数块组合子：
 
 ```c
 // 加载公理包
-AxiomPackage *pkg = lv00_axiom_pkg_load("algebraic_geometry");
+AxiomPackage *pkg = lv_axiom_pkg_load("algebraic_geometry");
 
 // 附加到引擎
-lv00_engine_attach_axiom_pkg(engine, pkg);
+lv_engine_attach_axiom_pkg(engine, pkg);
 ```
 
 ### 19.2 预设模块生态
@@ -1851,10 +1851,10 @@ Lv-00 提供 55+ 数学理论预设模块，涵盖广泛领域：
 
 ```c
 // 加载预设模块
-lv00_preset_load(ctx, "euclidean_geometry");
+lv_preset_load(ctx, "euclidean_geometry");
 
 // 应用预设定理
-Proposition *prop = lv00_preset_apply(ctx, "pythagorean_theorem", A, B, C);
+Proposition *prop = lv_preset_apply(ctx, "pythagorean_theorem", A, B, C);
 ```
 
 ### 19.4 公理包目录
@@ -1882,13 +1882,13 @@ Lv-00 v5.0.0 实现了插件系统，支持运行时加载外部扩展模块。
 
 ```c
 // 插件入口点
-typedef struct Lv00Plugin {
+typedef struct lvPlugin {
     const char *name;
     const char *version;
-    lv00_error_t (*init)(LV00Context *ctx);
-    lv00_error_t (*execute)(LV00Context *ctx, const char *input);
-    void (*cleanup)(LV00Context *ctx);
-} Lv00Plugin;
+    lv_error_t (*init)(lvContext *ctx);
+    lv_error_t (*execute)(lvContext *ctx, const char *input);
+    void (*cleanup)(lvContext *ctx);
+} lvPlugin;
 ```
 
 ### 20.4 插件配置
@@ -1898,7 +1898,7 @@ typedef struct Lv00Plugin {
     "name": "sample_plugin",
     "version": "1.0.0",
     "match": "*.lvz",
-    "scan_dirs": ["./plugins", "~/.lv00/plugins"]
+    "scan_dirs": ["./plugins", "~/.lv/plugins"]
 }
 ```
 
@@ -1921,7 +1921,7 @@ Lv-00 的形式化验证基于 Lean 4，使用 Lake 构建系统，依赖 mathli
 
 ```
 formal/
-├── Lv00/
+├── lv/
 │   ├── Basic.lean              # 基础定义
 │   ├── Incidence.lean          # 关联公理
 │   ├── Betweenness.lean        # 顺序公理
@@ -1931,7 +1931,7 @@ formal/
 │   ├── Continuity.lean         # 连续公理
 │   ├── HilbertAxioms.lean      # Hilbert 公理体系
 │   ├── EuclideanPlane.lean     # 欧氏平面
-│   └── Lv00Meta.lean           # 元理论
+│   └── lvMeta.lean           # 元理论
 ├── tests/
 │   └── all_tests.lean          # 形式化测试
 ├── lakefile.lean              # Lake 构建文件
@@ -2013,7 +2013,7 @@ OPML (Open Proof Markup Language) 是 Lv-00 的开放证明交换格式：
 ```json
 {
   "opml_version": "1.0.0",
-  "source_system": "lv00",
+  "source_system": "lv",
   "target_systems": ["lean4", "coq", "isabelle"],
   "metadata": {
     "title": "三角形内角和定理",
@@ -2070,11 +2070,11 @@ OPML 支持的系统：Lv-00、Lean 4、Coq、Isabelle/HOL、HOL4、Agda。
 ### 22.3 度量关系
 
 ```c
-typedef struct Lv00MetricRelation {
+typedef struct lvMetricRelation {
     MetricType type;           /* DISTANCE, ANGLE, AREA, RADIUS 等 */
     GeometryEntity *subject;   /* 度量主体 */
     SymbolicCoord *value;      /* 度量值（符号坐标） */
-} Lv00MetricRelation;
+} lvMetricRelation;
 ```
 
 ### 22.4 公理中立原则
@@ -2179,10 +2179,10 @@ Python DSL 借鉴了以下系统的设计：
 ### 24.4 DSL 使用示例
 
 ```python
-import lv00
+import lv
 
 # 创建工作平面
-wp = lv00.Workplane()
+wp = lv.Workplane()
 
 # 定义点
 A = wp.point(0, 0)
@@ -2295,7 +2295,7 @@ Layer 6 的交互式几何功能（`interactive_geo.c`）支持：
 
 ### 26.1 配置系统
 
-Lv-00 使用集中化配置系统，所有配置键以 `LV00_CONFIG_` 为前缀。
+Lv-00 使用集中化配置系统，所有配置键以 `lv_CONFIG_` 为前缀。
 
 ### 26.2 构建配置
 
@@ -2307,19 +2307,19 @@ Lv-00 使用集中化配置系统，所有配置键以 `LV00_CONFIG_` 为前缀�
 | `ENABLE_LAYER_VALIDATION` | BOOL | ON | 是否启用层级验证 |
 | `ENABLE_COVERAGE` | BOOL | OFF | 是否启用代码覆盖率 |
 | `ENABLE_SANITIZERS` | BOOL | OFF | 是否启用内存检测 |
-| `LV00_EXCLUDE_BROKEN_PRESETS` | BOOL | ON | 是否排除有问题的预设 |
+| `lv_EXCLUDE_BROKEN_PRESETS` | BOOL | ON | 是否排除有问题的预设 |
 
 ### 26.3 运行时配置
 
 | 配置键 | 类型 | 默认值 | 描述 |
 |--------|------|--------|------|
-| `LV00_CONFIG_MAX_PROOF_STEPS` | INT | 10000 | 证明最大步数 |
-| `LV00_CONFIG_MAX_REWRITE_ITER` | INT | 10000 | 重写最大迭代 |
-| `LV00_CONFIG_TIMEOUT_MS` | INT | 30000 | 计算超时（毫秒） |
-| `LV00_CONFIG_MEMORY_LIMIT_MB` | INT | 512 | 内存上限（MB） |
-| `LV00_CONFIG_THREAD_COUNT` | INT | 4 | 并行线程数 |
-| `LV00_CONFIG_LOG_LEVEL` | STRING | "INFO" | 日志级别 |
-| `LV00_CONFIG_LOG_FILE` | STRING | "" | 日志文件路径 |
+| `lv_CONFIG_MAX_PROOF_STEPS` | INT | 10000 | 证明最大步数 |
+| `lv_CONFIG_MAX_REWRITE_ITER` | INT | 10000 | 重写最大迭代 |
+| `lv_CONFIG_TIMEOUT_MS` | INT | 30000 | 计算超时（毫秒） |
+| `lv_CONFIG_MEMORY_LIMIT_MB` | INT | 512 | 内存上限（MB） |
+| `lv_CONFIG_THREAD_COUNT` | INT | 4 | 并行线程数 |
+| `lv_CONFIG_LOG_LEVEL` | STRING | "INFO" | 日志级别 |
+| `lv_CONFIG_LOG_FILE` | STRING | "" | 日志文件路径 |
 
 ### 26.4 硬编码阈值
 
@@ -2366,20 +2366,20 @@ Lv-00 使用分层 0-999 错误码体系：
 
 ```cmake
 # 十层架构 CMake Target
-lv00_layer2_resource        # Layer 2: 资源管理层
-lv00_layer1_parser           # Layer 1: 输入解析层
-lv00_layer3_geometry         # Layer 3: 几何拓扑层
-lv00_layer4_reasoning        # Layer 4: 公理推理层
-lv00_layer5_output           # Layer 5: 结果输出层
-lv00_layer6_visual           # Layer 6: 图形化编程层
-lv00_layer7_orchestration    # Layer 7: 编排调度层
-lv00_layer8_meta_verify      # Layer 8: 元验证层
-lv00_layer9_application      # Layer 9: 应用入口层
-lv00_layer10_interop         # Layer 10: 外部集成层
+lv_layer2_resource        # Layer 2: 资源管理层
+lv_layer1_parser           # Layer 1: 输入解析层
+lv_layer3_geometry         # Layer 3: 几何拓扑层
+lv_layer4_reasoning        # Layer 4: 公理推理层
+lv_layer5_output           # Layer 5: 结果输出层
+lv_layer6_visual           # Layer 6: 图形化编程层
+lv_layer7_orchestration    # Layer 7: 编排调度层
+lv_layer8_meta_verify      # Layer 8: 元验证层
+lv_layer9_application      # Layer 9: 应用入口层
+lv_layer10_interop         # Layer 10: 外部集成层
 
 # 聚合目标
-lv00_static                  # 静态库（包含所有层）
-lv00_shared                  # 共享库（可选）
+lv_static                  # 静态库（包含所有层）
+lv_shared                  # 共享库（可选）
 ```
 
 ## 附录 B: 关键词列表
@@ -2447,7 +2447,7 @@ length distance angle area midpoint center radius diameter intersect
 
 ### 模块依赖限制
 
-- `LV00_EXCLUDE_BROKEN_PRESETS` 排除了部分有深层依赖问题的预设模块
+- `lv_EXCLUDE_BROKEN_PRESETS` 排除了部分有深层依赖问题的预设模块
 - Windows Clang 工具链不支持 libFuzzer
 - 覆盖率与 Sanitizer 同时启用可能互相干扰
 
@@ -2562,22 +2562,22 @@ PropositionExpr     ::= Expr "is" Property
 
 | 文件 | 描述 | 目录 |
 |------|------|------|
-| `triangle_equilateral.lv00` | 等边三角形构造 | examples/library/ |
-| `triangle_right.lv00` | 直角三角形 | examples/library/ |
-| `circle_basic.lv00` | 基础圆操作 | examples/library/ |
-| `geometry_angle_bisector.lv00` | 角平分线 | examples/library/ |
-| `geometry_concyclic.lv00` | 四点共圆 | examples/library/ |
-| `geometry_parallel_lines.lv00` | 平行线 | examples/library/ |
-| `geometry_perpendicular.lv00` | 垂直 | examples/library/ |
-| `geometry_similar_triangles.lv00` | 相似三角形 | examples/library/ |
-| `geometry_midpoint_connector.lv00` | 中位线 | examples/library/ |
-| `polygon_square.lv00` | 正方形 | examples/library/ |
-| `polygon_regular_pentagon.lv00` | 正五边形 | examples/library/ |
-| `template_triangle.lv00` | 三角形模板 | examples/templates/ |
-| `template_circle.lv00` | 圆模板 | examples/templates/ |
-| `template_construction.lv00` | 构造模板 | examples/templates/ |
-| `template_proof.lv00` | 证明模板 | examples/templates/ |
-| `template_polygon.lv00` | 多边形模板 | examples/templates/ |
+| `triangle_equilateral.lv` | 等边三角形构造 | examples/library/ |
+| `triangle_right.lv` | 直角三角形 | examples/library/ |
+| `circle_basic.lv` | 基础圆操作 | examples/library/ |
+| `geometry_angle_bisector.lv` | 角平分线 | examples/library/ |
+| `geometry_concyclic.lv` | 四点共圆 | examples/library/ |
+| `geometry_parallel_lines.lv` | 平行线 | examples/library/ |
+| `geometry_perpendicular.lv` | 垂直 | examples/library/ |
+| `geometry_similar_triangles.lv` | 相似三角形 | examples/library/ |
+| `geometry_midpoint_connector.lv` | 中位线 | examples/library/ |
+| `polygon_square.lv` | 正方形 | examples/library/ |
+| `polygon_regular_pentagon.lv` | 正五边形 | examples/library/ |
+| `template_triangle.lv` | 三角形模板 | examples/templates/ |
+| `template_circle.lv` | 圆模板 | examples/templates/ |
+| `template_construction.lv` | 构造模板 | examples/templates/ |
+| `template_proof.lv` | 证明模板 | examples/templates/ |
+| `template_polygon.lv` | 多边形模板 | examples/templates/ |
 | `sample_plugin.c` | 插件示例 | examples/plugin_example/ |
 
 ## 附录 I: 参考项目

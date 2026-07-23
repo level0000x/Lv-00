@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file conflict_detector.c
  * @brief 矛盾约束检测器实现
  *
@@ -19,12 +19,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
 /* geometry_config.h 已合并到 constraint_graph.h，无需单独包含 */
 #include "geo_utils.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ================================================================
  * 内部常量
@@ -52,7 +52,7 @@ static const ConflictDetectorConfig g_default_config = {
     .angle_tolerance = 1e-6
 };
 
-const ConflictDetectorConfig *lv00_conflict_detector_default_config(void) {
+const ConflictDetectorConfig *lv_conflict_detector_default_config(void) {
     return &g_default_config;
 }
 
@@ -60,17 +60,17 @@ const ConflictDetectorConfig *lv00_conflict_detector_default_config(void) {
  * 报告管理
  * ================================================================ */
 
-ConflictReport *lv00_conflict_report_create(void) {
-    ConflictReport *report = (ConflictReport *)lv00_malloc(sizeof(ConflictReport));
+ConflictReport *lv_conflict_report_create(void) {
+    ConflictReport *report = (ConflictReport *)lv_malloc(sizeof(ConflictReport));
     if (!report) return NULL;
     
     memset(report, 0, sizeof(ConflictReport));
     report->capacity = CONFLICT_REPORT_INIT_CAPACITY;
-    report->conflicts = (ConflictRecord *)lv00_malloc(
+    report->conflicts = (ConflictRecord *)lv_malloc(
         sizeof(ConflictRecord) * report->capacity);
     
     if (!report->conflicts) {
-        lv00_free((void **)&report);
+        lv_free((void **)&report);
         return NULL;
     }
     
@@ -78,32 +78,32 @@ ConflictReport *lv00_conflict_report_create(void) {
     return report;
 }
 
-void lv00_conflict_report_destroy(ConflictReport *report) {
+void lv_conflict_report_destroy(ConflictReport *report) {
     if (!report) return;
     
     /* 释放每个矛盾记录的动态内存 */
     for (int i = 0; i < report->conflict_count; i++) {
         ConflictRecord *rec = &report->conflicts[i];
-        lv00_free((void **)&rec->node_ids);
-        lv00_free((void **)&rec->constraint_ids);
-        lv00_free((void **)&rec->description);
-        lv00_free((void **)&rec->suggestion);
+        lv_free((void **)&rec->node_ids);
+        lv_free((void **)&rec->constraint_ids);
+        lv_free((void **)&rec->description);
+        lv_free((void **)&rec->suggestion);
     }
     
-    lv00_free((void **)&report->conflicts);
-    lv00_free((void **)&report);
+    lv_free((void **)&report->conflicts);
+    lv_free((void **)&report);
 }
 
-void lv00_conflict_report_clear(ConflictReport *report) {
+void lv_conflict_report_clear(ConflictReport *report) {
     if (!report) return;
     
     /* 释放每个记录的动态内存但保留数组 */
     for (int i = 0; i < report->conflict_count; i++) {
         ConflictRecord *rec = &report->conflicts[i];
-        lv00_free((void **)&rec->node_ids);
-        lv00_free((void **)&rec->constraint_ids);
-        lv00_free((void **)&rec->description);
-        lv00_free((void **)&rec->suggestion);
+        lv_free((void **)&rec->node_ids);
+        lv_free((void **)&rec->constraint_ids);
+        lv_free((void **)&rec->description);
+        lv_free((void **)&rec->suggestion);
     }
     
     memset(report->conflicts, 0, sizeof(ConflictRecord) * report->capacity);
@@ -120,7 +120,7 @@ static bool conflict_report_ensure_capacity(ConflictReport *report) {
     
     if (report->capacity > INT_MAX / 2) return false;
     int new_capacity = report->capacity * 2;
-    ConflictRecord *new_conflicts = (ConflictRecord *)lv00_realloc(
+    ConflictRecord *new_conflicts = (ConflictRecord *)lv_realloc(
         report->conflicts, sizeof(ConflictRecord) * new_capacity);
     
     if (!new_conflicts) return false;
@@ -147,10 +147,10 @@ static bool conflict_report_add(ConflictReport *report,
     rec->severity = severity;
     
     if (description) {
-        rec->description = lv00_strdup(description);
+        rec->description = lv_strdup(description);
     }
     if (suggestion) {
-        rec->suggestion = lv00_strdup(suggestion);
+        rec->suggestion = lv_strdup(suggestion);
     }
     
     /* 更新统计 */
@@ -168,7 +168,7 @@ static bool conflict_report_add(ConflictReport *report,
  * 类型名称
  * ================================================================ */
 
-const char *lv00_conflict_type_name(ConflictType type) {
+const char *lv_conflict_type_name(ConflictType type) {
     switch (type) {
         case CONFLICT_POINT_POSITION: return "PointPositionConflict";
         case CONFLICT_DISTANCE_MISMATCH: return "DistanceMismatch";
@@ -188,7 +188,7 @@ const char *lv00_conflict_type_name(ConflictType type) {
     }
 }
 
-const char *lv00_conflict_severity_name(ConflictSeverity severity) {
+const char *lv_conflict_severity_name(ConflictSeverity severity) {
     switch (severity) {
         case CONFLICT_SEVERITY_WARNING: return "WARNING";
         case CONFLICT_SEVERITY_ERROR: return "ERROR";
@@ -225,13 +225,13 @@ static int expected_participant_count(ConstraintType type) {
 
 static void add_constraint_entity_ids(ConflictRecord *rec, const Constraint *constraint) {
     if (!rec || !constraint) return;
-    rec->constraint_ids = (int *)lv00_malloc(sizeof(int));
+    rec->constraint_ids = (int *)lv_malloc(sizeof(int));
     if (rec->constraint_ids) {
         rec->constraint_ids[0] = constraint->id;
         rec->constraint_count = 1;
     }
     if (constraint->participant_count > 0 && constraint->participants) {
-        rec->node_ids = (int *)lv00_malloc(sizeof(int) * (size_t)constraint->participant_count);
+        rec->node_ids = (int *)lv_malloc(sizeof(int) * (size_t)constraint->participant_count);
         if (rec->node_ids) {
             for (int i = 0; i < constraint->participant_count; i++) {
                 rec->node_ids[i] = constraint->participants[i];
@@ -272,7 +272,7 @@ static bool constraint_has_duplicate_participants(const Constraint *constraint) 
 static int detect_structural_constraint_conflicts(const ConstraintGraph *graph,
                                                   const ConflictDetectorConfig *config,
                                                   ConflictReport *report) {
-    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    if (!graph || !report) return lv_ERROR_NULL_POINTER;
 
     /* 使用 config 控制检测行为：若 enable_basic_checks 关闭则跳过 */
     if (config && !config->enable_basic_checks) {
@@ -362,7 +362,7 @@ static int detect_structural_constraint_conflicts(const ConstraintGraph *graph,
 static int detect_point_position_conflicts(const ConstraintGraph *graph,
                                             const ConflictDetectorConfig *config,
                                             ConflictReport *report) {
-    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    if (!graph || !report) return lv_ERROR_NULL_POINTER;
     
     const double eps = config ? config->position_tolerance : g_default_config.position_tolerance;
     
@@ -447,7 +447,7 @@ static int detect_point_position_conflicts(const ConstraintGraph *graph,
 static int detect_distance_conflicts(const ConstraintGraph *graph,
                                       const ConflictDetectorConfig *config,
                                       ConflictReport *report) {
-    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    if (!graph || !report) return lv_ERROR_NULL_POINTER;
     
     const double eps = config ? config->distance_tolerance : g_default_config.distance_tolerance;
     
@@ -651,7 +651,7 @@ static int check_constraint_pair_conflict(const ConstraintGraph *graph,
 static int detect_combination_conflicts(const ConstraintGraph *graph,
                                          const ConflictDetectorConfig *config,
                                          ConflictReport *report) {
-    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    if (!graph || !report) return lv_ERROR_NULL_POINTER;
     
     /* 检查所有约束对 */
     for (int i = 0; i < graph->constraint_count; i++) {
@@ -681,7 +681,7 @@ static int detect_combination_conflicts(const ConstraintGraph *graph,
 static int detect_transitive_equality_conflicts(const ConstraintGraph *graph,
                                                  const ConflictDetectorConfig *config,
                                                  ConflictReport *report) {
-    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    if (!graph || !report) return lv_ERROR_NULL_POINTER;
     
     const double dist_eps = config ? config->distance_tolerance : g_default_config.distance_tolerance;
     
@@ -697,8 +697,8 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph,
     
     /* 分配并查集数组（parent[i] 表示节点 i 的父节点） */
     int uf_size = max_node_id + 1;
-    int *parent = (int *)lv00_malloc(sizeof(int) * (size_t)uf_size);
-    if (!parent) return LV00_ERROR_NULL_POINTER;
+    int *parent = (int *)lv_malloc(sizeof(int) * (size_t)uf_size);
+    if (!parent) return lv_ERROR_NULL_POINTER;
     
     /* 初始化：每个节点的父节点是自己 */
     for (int i = 0; i < uf_size; i++) {
@@ -772,7 +772,7 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph,
     #undef UF_FIND
     #undef UF_UNION
     
-    lv00_free((void **)&parent);
+    lv_free((void **)&parent);
     return 0;
 }
 
@@ -783,7 +783,7 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
                                                const ConflictDetectorConfig *config,
                                                ConflictReport *report) {
     /* DFS 检测约束图中的环 */
-    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    if (!graph || !report) return lv_ERROR_NULL_POINTER;
 
     /* 使用 config 控制检测行为：若 enable_transitive_checks 关闭则跳过环检测 */
     if (config && !config->enable_transitive_checks) {
@@ -801,12 +801,12 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
     if (max_id <= 0) return 0;
 
     /* 0=白色(未访问), 1=灰色(在栈中), 2=黑色(已完成) */
-    int *color = (int *)lv00_malloc(sizeof(int) * (size_t)(max_id + 1));
-    int *parent_node = (int *)lv00_malloc(sizeof(int) * (size_t)(max_id + 1));
+    int *color = (int *)lv_malloc(sizeof(int) * (size_t)(max_id + 1));
+    int *parent_node = (int *)lv_malloc(sizeof(int) * (size_t)(max_id + 1));
     if (!color || !parent_node) {
-        lv00_free((void **)&color);
-        lv00_free((void **)&parent_node);
-        return LV00_ERROR_NULL_POINTER;
+        lv_free((void **)&color);
+        lv_free((void **)&parent_node);
+        return lv_ERROR_NULL_POINTER;
     }
     for (int i = 0; i <= max_id; i++) {
         color[i] = 0;
@@ -816,14 +816,14 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
     /* DFS 递归栈（手动实现避免栈溢出） */
     /* 栈大小为 max_id+1，但 DFS 深度可能超过此值，需要动态检查 */
     int stack_cap = max_id + 1;
-    int *stack = (int *)lv00_malloc(sizeof(int) * (size_t)stack_cap);
-    int *iter = (int *)lv00_malloc(sizeof(int) * (size_t)stack_cap);
+    int *stack = (int *)lv_malloc(sizeof(int) * (size_t)stack_cap);
+    int *iter = (int *)lv_malloc(sizeof(int) * (size_t)stack_cap);
     if (!stack || !iter) {
-        lv00_free((void **)&color);
-        lv00_free((void **)&parent_node);
-        lv00_free((void **)&stack);
-        lv00_free((void **)&iter);
-        return LV00_ERROR_NULL_POINTER;
+        lv_free((void **)&color);
+        lv_free((void **)&parent_node);
+        lv_free((void **)&stack);
+        lv_free((void **)&iter);
+        return lv_ERROR_NULL_POINTER;
     }
 
     for (int start = 0; start < graph->node_count; start++) {
@@ -873,12 +873,12 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
                         /* 动态扩容检查 */
                         if (sp >= stack_cap) {
                             stack_cap *= 2;
-                            int *new_stack = (int *)lv00_realloc(stack, sizeof(int) * (size_t)stack_cap);
+                            int *new_stack = (int *)lv_realloc(stack, sizeof(int) * (size_t)stack_cap);
                             if (!new_stack) {
                                 goto cycle_detect_done;
                             }
                             stack = new_stack;
-                            int *new_iter = (int *)lv00_realloc(iter, sizeof(int) * (size_t)stack_cap);
+                            int *new_iter = (int *)lv_realloc(iter, sizeof(int) * (size_t)stack_cap);
                             if (!new_iter) {
                                 goto cycle_detect_done;
                             }
@@ -901,10 +901,10 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
     }
 
 cycle_detect_done:
-    lv00_free((void **)&color);
-    lv00_free((void **)&parent_node);
-    lv00_free((void **)&stack);
-    lv00_free((void **)&iter);
+    lv_free((void **)&color);
+    lv_free((void **)&parent_node);
+    lv_free((void **)&stack);
+    lv_free((void **)&iter);
     return 0;
 }
 
@@ -929,16 +929,16 @@ static int detect_transitive_conflicts(const ConstraintGraph *graph,
  * 公共 API 实现
  * ================================================================ */
 
-int lv00_conflict_detect_all(const ConstraintGraph *graph,
+int lv_conflict_detect_all(const ConstraintGraph *graph,
                               const ConflictDetectorConfig *config,
                               ConflictReport *report) {
-    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    if (!graph || !report) return lv_ERROR_NULL_POINTER;
     
     const ConflictDetectorConfig *cfg = config ? config : &g_default_config;
     int err = 0;
     
     /* 清空之前的报告 */
-    lv00_conflict_report_clear(report);
+    lv_conflict_report_clear(report);
     
     /* 1. 基础检测 */
     if (cfg->enable_basic_checks) {
@@ -981,7 +981,7 @@ int lv00_conflict_detect_all(const ConstraintGraph *graph,
             if (pair_count > (long long)INT_MAX) {
                 /* 节点数过多，跳过此检测 */
             } else {
-                int *pair_constraint_count = (int *)lv00_calloc(
+                int *pair_constraint_count = (int *)lv_calloc(
                     sizeof(int), (size_t)pair_count);
             if (pair_constraint_count) {
                 for (int i = 0; i < graph->constraint_count; i++) {
@@ -1012,7 +1012,7 @@ int lv00_conflict_detect_all(const ConstraintGraph *graph,
                         }
                     }
                 }
-                lv00_free((void **)&pair_constraint_count);
+                lv_free((void **)&pair_constraint_count);
             }
             } /* end else: pair_count <= INT_MAX */
         }
@@ -1021,10 +1021,10 @@ int lv00_conflict_detect_all(const ConstraintGraph *graph,
     return 0;
 }
 
-bool lv00_conflict_detect_quick(const ConstraintGraph *graph) {
+bool lv_conflict_detect_quick(const ConstraintGraph *graph) {
     if (!graph) return false;
     
-    ConflictReport *report = lv00_conflict_report_create();
+    ConflictReport *report = lv_conflict_report_create();
     if (!report) return false;
     
     ConflictDetectorConfig quick_config = g_default_config;
@@ -1035,19 +1035,19 @@ bool lv00_conflict_detect_quick(const ConstraintGraph *graph) {
     int err = detect_basic_conflicts(graph, &quick_config, report);
     bool has_conflict = (err == 0 && report->conflict_count > 0);
     
-    lv00_conflict_report_destroy(report);
+    lv_conflict_report_destroy(report);
     return has_conflict;
 }
 
-int lv00_conflict_detect_for_node(const ConstraintGraph *graph,
+int lv_conflict_detect_for_node(const ConstraintGraph *graph,
                                    int node_id,
                                    ConflictReport *report) {
-    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    if (!graph || !report) return lv_ERROR_NULL_POINTER;
     
     /* 针对特定节点的检测：只检查涉及该节点的约束 */
     GeomNode *target = graph_get_node(graph, node_id);
     if (!target || !target->is_active) {
-        return LV00_ERROR_NULL_POINTER;
+        return lv_ERROR_NULL_POINTER;
     }
 
     /* 收集涉及该节点的所有约束 */
@@ -1084,15 +1084,15 @@ int lv00_conflict_detect_for_node(const ConstraintGraph *graph,
     return 0;
 }
 
-int lv00_conflict_detect_for_constraint(const ConstraintGraph *graph,
+int lv_conflict_detect_for_constraint(const ConstraintGraph *graph,
                                          int constraint_id,
                                          ConflictReport *report) {
-    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    if (!graph || !report) return lv_ERROR_NULL_POINTER;
     
     /* 针对特定约束的检测：检查该约束与其他所有约束的兼容性 */
     Constraint *target = graph_get_constraint(graph, constraint_id);
     if (!target || !target->is_active) {
-        return LV00_ERROR_NULL_POINTER;
+        return lv_ERROR_NULL_POINTER;
     }
 
     /* 与所有其他活跃约束两两检查 */
@@ -1132,7 +1132,7 @@ int lv00_conflict_detect_for_constraint(const ConstraintGraph *graph,
  * 报告输出
  * ================================================================ */
 
-void lv00_conflict_report_print(const ConflictReport *report,
+void lv_conflict_report_print(const ConflictReport *report,
                                  void *output,
                                  bool verbose) {
     if (!report) return;
@@ -1155,8 +1155,8 @@ void lv00_conflict_report_print(const ConflictReport *report,
     for (int i = 0; i < report->conflict_count; i++) {
         const ConflictRecord *rec = &report->conflicts[i];
         fprintf(out, "\n[%d] %s: %s\n", i + 1,
-                lv00_conflict_severity_name(rec->severity),
-                lv00_conflict_type_name(rec->type));
+                lv_conflict_severity_name(rec->severity),
+                lv_conflict_type_name(rec->type));
         
         if (rec->description) {
             fprintf(out, "    Description: %s\n", rec->description);
@@ -1174,7 +1174,7 @@ void lv00_conflict_report_print(const ConflictReport *report,
     }
 }
 
-int lv00_conflict_report_to_json(const ConflictReport *report,
+int lv_conflict_report_to_json(const ConflictReport *report,
                                   char *buffer,
                                   size_t buffer_size) {
     if (!report || !buffer || buffer_size == 0) return -1;
@@ -1197,8 +1197,8 @@ int lv00_conflict_report_to_json(const ConflictReport *report,
         int n = snprintf(buffer + pos, buffer_size - pos,
             "%s{\"type\":\"%s\",\"severity\":\"%s\"}",
             i > 0 ? "," : "",
-            lv00_conflict_type_name(rec->type),
-            lv00_conflict_severity_name(rec->severity));
+            lv_conflict_type_name(rec->type),
+            lv_conflict_severity_name(rec->severity));
         
         if (n < 0 || (size_t)n >= buffer_size - pos) return -1;
         pos += (size_t)n;
@@ -1216,11 +1216,11 @@ int lv00_conflict_report_to_json(const ConflictReport *report,
  * 便捷函数
  * ================================================================ */
 
-bool lv00_conflict_graph_has_conflicts(const ConstraintGraph *graph) {
-    return lv00_conflict_detect_quick(graph);
+bool lv_conflict_graph_has_conflicts(const ConstraintGraph *graph) {
+    return lv_conflict_detect_quick(graph);
 }
 
-ConflictType lv00_conflict_get_worst_type(const ConflictReport *report) {
+ConflictType lv_conflict_get_worst_type(const ConflictReport *report) {
     if (!report || report->conflict_count == 0) return CONFLICT_UNKNOWN;
     
     /* 按严重程度优先级返回 */

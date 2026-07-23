@@ -15,9 +15,9 @@
  * @version 5.0.0
  */
 
-#include "lv00/approx_counter.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
+#include "lv/approx_counter.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -111,7 +111,7 @@ static int count_leading_zeros(uint64_t value, int max_bits) {
 static void promote_to_dense(ApproxCounter *counter) {
     if (!counter || !counter->use_sparse) return;
 
-    counter->registers = (uint8_t *)lv00_calloc((size_t)counter->m, sizeof(uint8_t));
+    counter->registers = (uint8_t *)lv_calloc((size_t)counter->m, sizeof(uint8_t));
     if (!counter->registers) return;
 
     /* 将稀疏哈希值重放到寄存器 */
@@ -126,7 +126,7 @@ static void promote_to_dense(ApproxCounter *counter) {
     }
 
     /* 释放稀疏存储 */
-    lv00_free((void **)&counter->sparse_hashes);
+    lv_free((void **)&counter->sparse_hashes);
     counter->sparse_hashes = NULL;
     counter->sparse_count = 0;
     counter->sparse_capacity = 0;
@@ -196,17 +196,17 @@ ApproxCounter *approx_count_create(int precision) {
         precision = HLL_DEFAULT_P;
     }
 
-    ApproxCounter *counter = (ApproxCounter *)lv00_calloc(1, sizeof(ApproxCounter));
+    ApproxCounter *counter = (ApproxCounter *)lv_calloc(1, sizeof(ApproxCounter));
     if (!counter) return NULL;
 
     counter->p = precision;
     counter->m = 1 << precision;
     counter->use_sparse = true;
     counter->sparse_capacity = SPARSE_THRESHOLD;
-    counter->sparse_hashes = (uint64_t *)lv00_calloc(
+    counter->sparse_hashes = (uint64_t *)lv_calloc(
         (size_t)counter->sparse_capacity, sizeof(uint64_t));
     if (!counter->sparse_hashes) {
-        lv00_free((void **)&counter);
+        lv_free((void **)&counter);
         return NULL;
     }
 
@@ -225,9 +225,9 @@ ApproxCounter *approx_count_create(int precision) {
  */
 void approx_count_destroy(ApproxCounter *counter) {
     if (!counter) return;
-    lv00_free((void **)&counter->registers);
-    lv00_free((void **)&counter->sparse_hashes);
-    lv00_free((void **)&counter);
+    lv_free((void **)&counter->registers);
+    lv_free((void **)&counter->sparse_hashes);
+    lv_free((void **)&counter);
 }
 
 /**
@@ -339,7 +339,7 @@ void approx_count_reset(ApproxCounter *counter) {
 void approx_count_result_destroy(ApproxCountResult *res) {
     if (!res) return;
     if (res->status_msg) {
-        lv00_free((void **)&res->status_msg);
+        lv_free((void **)&res->status_msg);
     }
     memset(res, 0, sizeof(ApproxCountResult));
 }
@@ -379,7 +379,7 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
 
     /* 估算缓冲区大小 */
     size_t buf_size = (size_t)(cnf_vars * 20 + constraint_count * 50 + 256);
-    char *cnf = (char *)lv00_calloc(buf_size, 1);
+    char *cnf = (char *)lv_calloc(buf_size, 1);
     if (!cnf) return NULL;
 
     /* DIMACS CNF 头部 */
@@ -428,7 +428,7 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg,
         out->hash_count = 0;
         out->total_count = 0;
         out->confidence = 1.0;
-        out->status_msg = lv00_strdup("空约束图，模型数为 0");
+        out->status_msg = lv_strdup("空约束图，模型数为 0");
         return true;
     }
 
@@ -473,7 +473,7 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg,
              "Model count: ~%llu with %.1f%% confidence (epsilon=%.2f, hash_count=%d)",
              (unsigned long long)total, out->confidence * 100.0,
              cfg->epsilon > 0 ? cfg->epsilon : 0.1, num_hashes);
-    out->status_msg = lv00_strdup(msg);
+    out->status_msg = lv_strdup(msg);
 
     return true;
 }
@@ -520,7 +520,7 @@ bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars,
     snprintf(msg, sizeof(msg),
              "Projected count over %d variables: ~%llu with %.1f%% confidence",
              proj_count, (unsigned long long)total, out->confidence * 100.0);
-    out->status_msg = lv00_strdup(msg);
+    out->status_msg = lv_strdup(msg);
 
     return true;
 }

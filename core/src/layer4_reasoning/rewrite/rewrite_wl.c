@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file rewrite_wl.c
  * @brief WL 循环检测与度量验证
  *
@@ -13,15 +13,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/rewrite.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/stream.h"
+#include "lv/rewrite.h"
+#include "lv/constraint_graph.h"
+#include "lv/stream.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
 
-LV00_DECLARE_STREAM_CTX(rewrite);
+lv_DECLARE_STREAM_CTX(rewrite);
 
 /**
  * 执行带坐标验证的子图同构匹配。
@@ -100,9 +100,9 @@ static RewriteMatch *perform_coord_validated_match(
 
     /* 验证所有已添加到模式图的约束都匹配成功 */
     if (constraint_match_count != pattern_graph->constraint_count) {
-        lv00_free((void**)&match->node_bindings);
-        lv00_free((void**)&match->constraint_bindings);
-        lv00_free((void**)&match);
+        lv_free((void**)&match->node_bindings);
+        lv_free((void**)&match->constraint_bindings);
+        lv_free((void**)&match);
         match = NULL;
     }
 
@@ -120,7 +120,7 @@ static RewriteMatch *perform_coord_validated_match(
 
 /* 初始化 WL 哈希历史环形缓冲区 */
 void wl_history_init(WLHashHistory *hist) {
-    hist->hash_history = lv00_malloc(WL_HISTORY_SIZE * sizeof(uint64_t));
+    hist->hash_history = lv_malloc(WL_HISTORY_SIZE * sizeof(uint64_t));
     if (hist->hash_history) memset(hist->hash_history, 0, WL_HISTORY_SIZE * sizeof(uint64_t));
     hist->history_count = 0;
     hist->history_pos = 0;
@@ -137,7 +137,7 @@ static int uint64_compare(const void *a, const void *b) {
 
 /* 销毁 WL 哈希历史，释放内存 */
 void wl_history_destroy(WLHashHistory *hist) {
-    lv00_free((void**)&hist->hash_history);
+    lv_free((void**)&hist->hash_history);
     hist->hash_history = NULL;
     hist->history_count = 0;
     hist->history_pos = 0;
@@ -190,7 +190,7 @@ static bool wl_history_contains(WLHashHistory *hist, uint64_t hash) {
  * 标签基于节点类型和约束拓扑（不包含坐标值），
  * 确保结构相同但坐标不同的图具有相同的初始标签。 */
 static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_count) {
-    uint64_t *labels = lv00_malloc((size_t)node_count * sizeof(uint64_t));
+    uint64_t *labels = lv_malloc((size_t)node_count * sizeof(uint64_t));
     if (!labels) return NULL;
 
     for (int i = 0; i < node_count; i++) {
@@ -240,12 +240,12 @@ static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_coun
 static uint64_t *wl_refine_labels(ConstraintGraph *graph,
                                     uint64_t *labels, int node_count)
 {
-    uint64_t *new_labels = lv00_malloc((size_t)node_count * sizeof(uint64_t));
+    uint64_t *new_labels = lv_malloc((size_t)node_count * sizeof(uint64_t));
     if (!new_labels) return NULL;
 
     /* 构建节点 id -> 索引的映射 */
-    int *id_to_idx = lv00_malloc((size_t)node_count * sizeof(int));
-    if (!id_to_idx) { lv00_free((void**)&new_labels); return NULL; }
+    int *id_to_idx = lv_malloc((size_t)node_count * sizeof(int));
+    if (!id_to_idx) { lv_free((void**)&new_labels); return NULL; }
     for (int i = 0; i < node_count; i++) {
         id_to_idx[i] = -1;
     }
@@ -302,13 +302,13 @@ static uint64_t *wl_refine_labels(ConstraintGraph *graph,
 
         /* 将邻居标签混入精化标签 */
         for (int n = 0; n < neighbor_count; n++) {
-            refined = refined * LV00_REWRITE_WL_HASH_MULTIPLIER + neighbor_labels[n];
+            refined = refined * lv_REWRITE_WL_HASH_MULTIPLIER + neighbor_labels[n];
         }
 
         new_labels[i] = refined;
     }
 
-    lv00_free((void**)&id_to_idx);
+    lv_free((void**)&id_to_idx);
     return new_labels;
 }
 
@@ -327,7 +327,7 @@ uint64_t compute_wl_graph_hash(ConstraintGraph *graph) {
     /* 执行 WL_ITERATIONS 轮迭代 */
     for (int iter = 0; iter < WL_ITERATIONS; iter++) {
         uint64_t *new_labels = wl_refine_labels(graph, labels, node_count);
-        lv00_free((void**)&labels);
+        lv_free((void**)&labels);
         if (!new_labels) return 0;
         labels = new_labels;
     }
@@ -335,10 +335,10 @@ uint64_t compute_wl_graph_hash(ConstraintGraph *graph) {
     /* 聚合所有节点标签为图哈希 */
     uint64_t graph_hash = (uint64_t)graph->node_count;
     for (int i = 0; i < node_count; i++) {
-        graph_hash = graph_hash * LV00_REWRITE_WL_HASH_MULTIPLIER + labels[i];
+        graph_hash = graph_hash * lv_REWRITE_WL_HASH_MULTIPLIER + labels[i];
     }
 
-    lv00_free((void**)&labels);
+    lv_free((void**)&labels);
     return graph_hash;
 }
 
@@ -454,9 +454,9 @@ RewriteMatch *find_best_match(ConstraintGraph *graph,
 
     /* 评估前置条件 */
     if (!evaluate_precondition(graph, rule, match)) {
-        lv00_free((void**)&match->node_bindings);
-        lv00_free((void**)&match->constraint_bindings);
-        lv00_free((void**)&match);
+        lv_free((void**)&match->node_bindings);
+        lv_free((void**)&match->constraint_bindings);
+        lv_free((void**)&match);
         return NULL;
     }
 

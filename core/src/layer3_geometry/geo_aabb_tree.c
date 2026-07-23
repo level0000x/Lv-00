@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_aabb_tree.c
  * @brief AABB 树空间索引的完整 C 实现
  *
@@ -15,9 +15,9 @@
  * @version v3.6.0
  */
 
-#include "lv00/geo_aabb_tree.h"
-#include "lv00_utils.h"
-#include "lv00/geometry_config.h"
+#include "lv/geo_aabb_tree.h"
+#include "lv_utils.h"
+#include "lv/geometry_config.h"
 
 
 #include <math.h>
@@ -26,9 +26,9 @@
 #include <float.h>
 #include <stdbool.h>
 
-/* 如果 geometry_config.h 中没有定义 LV00_PUBLIC_API，则定义空宏 */
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
+/* 如果 geometry_config.h 中没有定义 lv_PUBLIC_API，则定义空宏 */
+#ifndef lv_PUBLIC_API
+#define lv_PUBLIC_API
 #endif
 
 /* ========================================================================
@@ -54,79 +54,79 @@
  * 内部辅助函数声明
  * ======================================================================== */
 
-static int aabb_node_alloc(Lv00AABBTree2D *tree);
-static int aabb3d_node_alloc(Lv00AABBTree3D *tree);
+static int aabb_node_alloc(lvAABBTree2D *tree);
+static int aabb3d_node_alloc(lvAABBTree3D *tree);
 
 /* 2D 内部构建 */
-static int aabb2d_build_recursive(Lv00AABBTree2D *tree,
+static int aabb2d_build_recursive(lvAABBTree2D *tree,
                                    int *prim_indices, int count, int depth);
 
 /* 3D 内部构建 */
-static int aabb3d_build_recursive(Lv00AABBTree3D *tree,
+static int aabb3d_build_recursive(lvAABBTree3D *tree,
                                    int *prim_indices, int count, int depth);
 
 /* 2D 射线-AABB 相交（slab method） */
-static bool aabb2d_ray_intersect(Lv00AABB2D bb, Lv00AABBRay2D ray,
+static bool aabb2d_ray_intersect(lvAABB2D bb, lvAABBRay2D ray,
                                   double tmin, double tmax);
 
 /* 3D 射线-AABB 相交（slab method） */
-static bool aabb3d_ray_intersect(Lv00AABB3D bb, Lv00AABBRay3D ray,
+static bool aabb3d_ray_intersect(lvAABB3D bb, lvAABBRay3D ray,
                                   double tmin, double tmax);
 
 /* 2D 点到 AABB 最近距离 */
-static double aabb2d_point_distance(Lv00AABB2D bb, double px, double py);
+static double aabb2d_point_distance(lvAABB2D bb, double px, double py);
 
 /* 3D 点到 AABB 最近距离 */
-static double aabb3d_point_distance(Lv00AABB3D bb, double px, double py,
+static double aabb3d_point_distance(lvAABB3D bb, double px, double py,
                                      double pz);
 
 /* 2D 射线递归查询 */
-static void aabb2d_ray_recursive(const Lv00AABBTree2D *tree, int node_idx,
-                                  Lv00AABBRay2D ray,
+static void aabb2d_ray_recursive(const lvAABBTree2D *tree, int node_idx,
+                                  lvAABBRay2D ray,
                                   double tmin, double tmax,
-                                  Lv00AABBRayHit *best);
+                                  lvAABBRayHit *best);
 
 /* 3D 射线递归查询 */
-static void aabb3d_ray_recursive(const Lv00AABBTree3D *tree, int node_idx,
-                                  Lv00AABBRay3D ray,
+static void aabb3d_ray_recursive(const lvAABBTree3D *tree, int node_idx,
+                                  lvAABBRay3D ray,
                                   double tmin, double tmax,
-                                  Lv00AABBRayHit *best);
+                                  lvAABBRayHit *best);
 
 /* 2D 最近邻递归查询 */
-static void aabb2d_nearest_recursive(const Lv00AABBTree2D *tree, int node_idx,
+static void aabb2d_nearest_recursive(const lvAABBTree2D *tree, int node_idx,
                                       double px, double py,
-                                      Lv00AABBNearestResult *best);
+                                      lvAABBNearestResult *best);
 
 /* 3D 最近邻递归查询 */
-static void aabb3d_nearest_recursive(const Lv00AABBTree3D *tree, int node_idx,
+static void aabb3d_nearest_recursive(const lvAABBTree3D *tree, int node_idx,
                                       double px, double py, double pz,
-                                      Lv00AABBNearestResult *best);
+                                      lvAABBNearestResult *best);
 
 /* 2D 范围查询递归 */
-static void aabb2d_range_recursive(const Lv00AABBTree2D *tree, int node_idx,
-                                    Lv00AABB2D query,
-                                    Lv00AABBQueryResult *result);
+static void aabb2d_range_recursive(const lvAABBTree2D *tree, int node_idx,
+                                    lvAABB2D query,
+                                    lvAABBQueryResult *result);
 
 /* 3D 范围查询递归 */
-static void aabb3d_range_recursive(const Lv00AABBTree3D *tree, int node_idx,
-                                    Lv00AABB3D query,
-                                    Lv00AABBQueryResult *result);
+static void aabb3d_range_recursive(const lvAABBTree3D *tree, int node_idx,
+                                    lvAABB3D query,
+                                    lvAABBQueryResult *result);
 
 /* 2D 点查询递归 */
-static void aabb2d_point_recursive(const Lv00AABBTree2D *tree, int node_idx,
+static void aabb2d_point_recursive(const lvAABBTree2D *tree, int node_idx,
                                     double px, double py,
-                                    Lv00AABBQueryResult *result);
+                                    lvAABBQueryResult *result);
 
 /* 3D 点查询递归 */
-static void aabb3d_point_recursive(const Lv00AABBTree3D *tree, int node_idx,
+static void aabb3d_point_recursive(const lvAABBTree3D *tree, int node_idx,
                                     double px, double py, double pz,
-                                    Lv00AABBQueryResult *result);
+                                    lvAABBQueryResult *result);
 
 /* 计算树深度 */
-static int aabb_tree_depth(const Lv00AABBNode *nodes, int root);
+static int aabb_tree_depth(const lvAABBNode *nodes, int root);
 
 /* 计算叶子节点数量 */
-static int aabb_tree_leaf_count(const Lv00AABBNode *nodes, int root);
+static int aabb_tree_leaf_count(const lvAABBNode *nodes, int root);
 
 /* ========================================================================
  * 第一部分：包围盒基础操作 —— 2D
@@ -137,9 +137,9 @@ static int aabb_tree_leaf_count(const Lv00AABBNode *nodes, int root);
  *
  * 空包围盒用 +INF / -INF 标记，表示不包含任何点。
  */
-LV00_PUBLIC_API Lv00AABB2D lv00_aabb2d_empty(void)
+lv_PUBLIC_API lvAABB2D lv_aabb2d_empty(void)
 {
-    Lv00AABB2D bb;
+    lvAABB2D bb;
     bb.xmin =  DBL_MAX;
     bb.ymin =  DBL_MAX;
     bb.xmax = -DBL_MAX;
@@ -150,9 +150,9 @@ LV00_PUBLIC_API Lv00AABB2D lv00_aabb2d_empty(void)
 /**
  * @brief 创建包含单个点的 2D 包围盒
  */
-LV00_PUBLIC_API Lv00AABB2D lv00_aabb2d_point(double x, double y)
+lv_PUBLIC_API lvAABB2D lv_aabb2d_point(double x, double y)
 {
-    Lv00AABB2D bb;
+    lvAABB2D bb;
     bb.xmin = bb.xmax = x;
     bb.ymin = bb.ymax = y;
     return bb;
@@ -164,9 +164,9 @@ LV00_PUBLIC_API Lv00AABB2D lv00_aabb2d_point(double x, double y)
  * 对每条轴分别取 min/max，返回能同时包含 a 和 b 的最小包围盒。
  * 如果 a 或 b 为空包围盒，返回非空的那个。
  */
-LV00_PUBLIC_API Lv00AABB2D lv00_aabb2d_merge(Lv00AABB2D a, Lv00AABB2D b)
+lv_PUBLIC_API lvAABB2D lv_aabb2d_merge(lvAABB2D a, lvAABB2D b)
 {
-    Lv00AABB2D result;
+    lvAABB2D result;
     result.xmin = (a.xmin < b.xmin) ? a.xmin : b.xmin;
     result.ymin = (a.ymin < b.ymin) ? a.ymin : b.ymin;
     result.xmax = (a.xmax > b.xmax) ? a.xmax : b.xmax;
@@ -179,7 +179,7 @@ LV00_PUBLIC_API Lv00AABB2D lv00_aabb2d_merge(Lv00AABB2D a, Lv00AABB2D b)
  *
  * 有效包围盒满足 xmin <= xmax 且 ymin <= ymax。
  */
-LV00_PUBLIC_API bool lv00_aabb2d_is_valid(Lv00AABB2D bb)
+lv_PUBLIC_API bool lv_aabb2d_is_valid(lvAABB2D bb)
 {
     return bb.xmin <= bb.xmax && bb.ymin <= bb.ymax;
 }
@@ -187,7 +187,7 @@ LV00_PUBLIC_API bool lv00_aabb2d_is_valid(Lv00AABB2D bb)
 /**
  * @brief 判定点是否在 2D 包围盒内（含边界）
  */
-LV00_PUBLIC_API bool lv00_aabb2d_contains(Lv00AABB2D bb, double x, double y)
+lv_PUBLIC_API bool lv_aabb2d_contains(lvAABB2D bb, double x, double y)
 {
     return x >= bb.xmin && x <= bb.xmax &&
            y >= bb.ymin && y <= bb.ymax;
@@ -198,7 +198,7 @@ LV00_PUBLIC_API bool lv00_aabb2d_contains(Lv00AABB2D bb, double x, double y)
  *
  * 两个 AABB 相交当且仅当它们在所有轴上都有重叠区间。
  */
-LV00_PUBLIC_API bool lv00_aabb2d_intersects(Lv00AABB2D a, Lv00AABB2D b)
+lv_PUBLIC_API bool lv_aabb2d_intersects(lvAABB2D a, lvAABB2D b)
 {
     return a.xmin <= b.xmax && a.xmax >= b.xmin &&
            a.ymin <= b.ymax && a.ymax >= b.ymin;
@@ -210,18 +210,18 @@ LV00_PUBLIC_API bool lv00_aabb2d_intersects(Lv00AABB2D a, Lv00AABB2D b)
  * 面积 = (xmax - xmin) * (ymax - ymin)
  * 空包围盒返回 0.0。
  */
-LV00_PUBLIC_API double lv00_aabb2d_area(Lv00AABB2D bb)
+lv_PUBLIC_API double lv_aabb2d_area(lvAABB2D bb)
 {
-    if (!lv00_aabb2d_is_valid(bb)) return 0.0;
+    if (!lv_aabb2d_is_valid(bb)) return 0.0;
     return (bb.xmax - bb.xmin) * (bb.ymax - bb.ymin);
 }
 
 /**
  * @brief 计算 2D 包围盒的中心点
  */
-LV00_PUBLIC_API Lv00AABBPoint2D lv00_aabb2d_center(Lv00AABB2D bb)
+lv_PUBLIC_API lvAABBPoint2D lv_aabb2d_center(lvAABB2D bb)
 {
-    Lv00AABBPoint2D pt;
+    lvAABBPoint2D pt;
     pt.x = (bb.xmin + bb.xmax) * 0.5;
     pt.y = (bb.ymin + bb.ymax) * 0.5;
     return pt;
@@ -234,9 +234,9 @@ LV00_PUBLIC_API Lv00AABBPoint2D lv00_aabb2d_center(Lv00AABB2D bb)
 /**
  * @brief 创建空的 3D 包围盒
  */
-LV00_PUBLIC_API Lv00AABB3D lv00_aabb3d_empty(void)
+lv_PUBLIC_API lvAABB3D lv_aabb3d_empty(void)
 {
-    Lv00AABB3D bb;
+    lvAABB3D bb;
     bb.xmin =  DBL_MAX;
     bb.ymin =  DBL_MAX;
     bb.zmin =  DBL_MAX;
@@ -249,9 +249,9 @@ LV00_PUBLIC_API Lv00AABB3D lv00_aabb3d_empty(void)
 /**
  * @brief 创建包含单个点的 3D 包围盒
  */
-LV00_PUBLIC_API Lv00AABB3D lv00_aabb3d_point(double x, double y, double z)
+lv_PUBLIC_API lvAABB3D lv_aabb3d_point(double x, double y, double z)
 {
-    Lv00AABB3D bb;
+    lvAABB3D bb;
     bb.xmin = bb.xmax = x;
     bb.ymin = bb.ymax = y;
     bb.zmin = bb.zmax = z;
@@ -261,9 +261,9 @@ LV00_PUBLIC_API Lv00AABB3D lv00_aabb3d_point(double x, double y, double z)
 /**
  * @brief 合并两个 3D 包围盒
  */
-LV00_PUBLIC_API Lv00AABB3D lv00_aabb3d_merge(Lv00AABB3D a, Lv00AABB3D b)
+lv_PUBLIC_API lvAABB3D lv_aabb3d_merge(lvAABB3D a, lvAABB3D b)
 {
-    Lv00AABB3D result;
+    lvAABB3D result;
     result.xmin = (a.xmin < b.xmin) ? a.xmin : b.xmin;
     result.ymin = (a.ymin < b.ymin) ? a.ymin : b.ymin;
     result.zmin = (a.zmin < b.zmin) ? a.zmin : b.zmin;
@@ -276,7 +276,7 @@ LV00_PUBLIC_API Lv00AABB3D lv00_aabb3d_merge(Lv00AABB3D a, Lv00AABB3D b)
 /**
  * @brief 判定 3D 包围盒是否有效
  */
-LV00_PUBLIC_API bool lv00_aabb3d_is_valid(Lv00AABB3D bb)
+lv_PUBLIC_API bool lv_aabb3d_is_valid(lvAABB3D bb)
 {
     return bb.xmin <= bb.xmax &&
            bb.ymin <= bb.ymax &&
@@ -286,7 +286,7 @@ LV00_PUBLIC_API bool lv00_aabb3d_is_valid(Lv00AABB3D bb)
 /**
  * @brief 判定点是否在 3D 包围盒内（含边界）
  */
-LV00_PUBLIC_API bool lv00_aabb3d_contains(Lv00AABB3D bb, double x, double y,
+lv_PUBLIC_API bool lv_aabb3d_contains(lvAABB3D bb, double x, double y,
                                             double z)
 {
     return x >= bb.xmin && x <= bb.xmax &&
@@ -297,7 +297,7 @@ LV00_PUBLIC_API bool lv00_aabb3d_contains(Lv00AABB3D bb, double x, double y,
 /**
  * @brief 判定两个 3D 包围盒是否相交
  */
-LV00_PUBLIC_API bool lv00_aabb3d_intersects(Lv00AABB3D a, Lv00AABB3D b)
+lv_PUBLIC_API bool lv_aabb3d_intersects(lvAABB3D a, lvAABB3D b)
 {
     return a.xmin <= b.xmax && a.xmax >= b.xmin &&
            a.ymin <= b.ymax && a.ymax >= b.ymin &&
@@ -309,9 +309,9 @@ LV00_PUBLIC_API bool lv00_aabb3d_intersects(Lv00AABB3D a, Lv00AABB3D b)
  *
  * 表面积 = 2 * (xy面 + yz面 + zx面)
  */
-LV00_PUBLIC_API double lv00_aabb3d_surface_area(Lv00AABB3D bb)
+lv_PUBLIC_API double lv_aabb3d_surface_area(lvAABB3D bb)
 {
-    if (!lv00_aabb3d_is_valid(bb)) return 0.0;
+    if (!lv_aabb3d_is_valid(bb)) return 0.0;
     double dx = bb.xmax - bb.xmin;
     double dy = bb.ymax - bb.ymin;
     double dz = bb.zmax - bb.zmin;
@@ -321,9 +321,9 @@ LV00_PUBLIC_API double lv00_aabb3d_surface_area(Lv00AABB3D bb)
 /**
  * @brief 计算 3D 包围盒的体积
  */
-LV00_PUBLIC_API double lv00_aabb3d_volume(Lv00AABB3D bb)
+lv_PUBLIC_API double lv_aabb3d_volume(lvAABB3D bb)
 {
-    if (!lv00_aabb3d_is_valid(bb)) return 0.0;
+    if (!lv_aabb3d_is_valid(bb)) return 0.0;
     return (bb.xmax - bb.xmin) *
            (bb.ymax - bb.ymin) *
            (bb.zmax - bb.zmin);
@@ -332,9 +332,9 @@ LV00_PUBLIC_API double lv00_aabb3d_volume(Lv00AABB3D bb)
 /**
  * @brief 计算 3D 包围盒的中心点
  */
-LV00_PUBLIC_API Lv00AABBPoint3D lv00_aabb3d_center(Lv00AABB3D bb)
+lv_PUBLIC_API lvAABBPoint3D lv_aabb3d_center(lvAABB3D bb)
 {
-    Lv00AABBPoint3D pt;
+    lvAABBPoint3D pt;
     pt.x = (bb.xmin + bb.xmax) * 0.5;
     pt.y = (bb.ymin + bb.ymax) * 0.5;
     pt.z = (bb.zmin + bb.zmax) * 0.5;
@@ -350,7 +350,7 @@ LV00_PUBLIC_API Lv00AABBPoint3D lv00_aabb3d_center(Lv00AABB3D bb)
  *
  * 将 ids 置 NULL，count 和 capacity 置 0。
  */
-LV00_PUBLIC_API void lv00_aabb_query_result_init(Lv00AABBQueryResult *result)
+lv_PUBLIC_API void lv_aabb_query_result_init(lvAABBQueryResult *result)
 {
     if (!result) return;
     result->ids      = NULL;
@@ -363,10 +363,10 @@ LV00_PUBLIC_API void lv00_aabb_query_result_init(Lv00AABBQueryResult *result)
  *
  * 释放 ids 数组并将结构体重置为初始状态。
  */
-LV00_PUBLIC_API void lv00_aabb_query_result_free(Lv00AABBQueryResult *result)
+lv_PUBLIC_API void lv_aabb_query_result_free(lvAABBQueryResult *result)
 {
     if (!result) return;
-    lv00_free((void **)&(result->ids));
+    lv_free((void **)&(result->ids));
     result->ids      = NULL;
     result->count    = 0;
     result->capacity = 0;
@@ -375,9 +375,9 @@ LV00_PUBLIC_API void lv00_aabb_query_result_free(Lv00AABBQueryResult *result)
 /**
  * @brief 获取默认 AABB 树配置
  */
-LV00_PUBLIC_API Lv00AABBTreeConfig lv00_aabb_tree_default_config(void)
+lv_PUBLIC_API lvAABBTreeConfig lv_aabb_tree_default_config(void)
 {
-    Lv00AABBTreeConfig cfg;
+    lvAABBTreeConfig cfg;
     cfg.max_leaf_size = AABB_DEFAULT_MAX_LEAF_SIZE;
     cfg.max_depth     = AABB_DEFAULT_MAX_DEPTH;
     cfg.use_sah       = AABB_DEFAULT_USE_SAH;
@@ -393,20 +393,20 @@ LV00_PUBLIC_API Lv00AABBTreeConfig lv00_aabb_tree_default_config(void)
  *
  * 如果容量不足，自动扩容为 2 倍。
  */
-static int aabb_node_alloc(Lv00AABBTree2D *tree)
+static int aabb_node_alloc(lvAABBTree2D *tree)
 {
     if (tree->node_count >= tree->node_capacity) {
         int new_cap = (tree->node_capacity > 0)
                           ? tree->node_capacity * 2
                           : AABB_INITIAL_CAPACITY;
-        Lv00AABBNode *new_nodes = (Lv00AABBNode *)lv00_realloc(
-            tree->nodes, (size_t)new_cap * sizeof(Lv00AABBNode));
+        lvAABBNode *new_nodes = (lvAABBNode *)lv_realloc(
+            tree->nodes, (size_t)new_cap * sizeof(lvAABBNode));
         if (!new_nodes) return AABB_INVALID_NODE;
         tree->nodes = new_nodes;
         tree->node_capacity = new_cap;
     }
     int idx = tree->node_count++;
-    memset(&tree->nodes[idx], 0, sizeof(Lv00AABBNode));
+    memset(&tree->nodes[idx], 0, sizeof(lvAABBNode));
     tree->nodes[idx].left  = AABB_INVALID_NODE;
     tree->nodes[idx].right = AABB_INVALID_NODE;
     tree->nodes[idx].primitive_id = AABB_INVALID_NODE;
@@ -417,20 +417,20 @@ static int aabb_node_alloc(Lv00AABBTree2D *tree)
 /**
  * @brief 为 3D 树分配一个新节点，返回节点索引
  */
-static int aabb3d_node_alloc(Lv00AABBTree3D *tree)
+static int aabb3d_node_alloc(lvAABBTree3D *tree)
 {
     if (tree->node_count >= tree->node_capacity) {
         int new_cap = (tree->node_capacity > 0)
                           ? tree->node_capacity * 2
                           : AABB_INITIAL_CAPACITY;
-        Lv00AABBNode *new_nodes = (Lv00AABBNode *)lv00_realloc(
-            tree->nodes, (size_t)new_cap * sizeof(Lv00AABBNode));
+        lvAABBNode *new_nodes = (lvAABBNode *)lv_realloc(
+            tree->nodes, (size_t)new_cap * sizeof(lvAABBNode));
         if (!new_nodes) return AABB_INVALID_NODE;
         tree->nodes = new_nodes;
         tree->node_capacity = new_cap;
     }
     int idx = tree->node_count++;
-    memset(&tree->nodes[idx], 0, sizeof(Lv00AABBNode));
+    memset(&tree->nodes[idx], 0, sizeof(lvAABBNode));
     tree->nodes[idx].left  = AABB_INVALID_NODE;
     tree->nodes[idx].right = AABB_INVALID_NODE;
     tree->nodes[idx].primitive_id = AABB_INVALID_NODE;
@@ -453,7 +453,7 @@ static int int_compare_asc(const void *a, const void *b)
 /**
  * @brief 将 2D 几何体索引数组按指定轴的中心坐标排序
  */
-static void sort_primitives_2d(const Lv00AABBTree2D *tree, int *indices,
+static void sort_primitives_2d(const lvAABBTree2D *tree, int *indices,
                                 int count, int axis)
 {
     /* 使用简单的选择排序（对小数组足够高效，避免 qsort 的函数指针开销） */
@@ -461,12 +461,12 @@ static void sort_primitives_2d(const Lv00AABBTree2D *tree, int *indices,
         int min_idx = i;
         double min_val = 0.0;
         {
-            const Lv00AABB2D *bb = &tree->primitives[indices[i]];
+            const lvAABB2D *bb = &tree->primitives[indices[i]];
             if (axis == 0) min_val = bb->xmin + bb->xmax;
             else           min_val = bb->ymin + bb->ymax;
         }
         for (int j = i + 1; j < count; j++) {
-            const Lv00AABB2D *bb = &tree->primitives[indices[j]];
+            const lvAABB2D *bb = &tree->primitives[indices[j]];
             double val = (axis == 0)
                              ? bb->xmin + bb->xmax
                              : bb->ymin + bb->ymax;
@@ -486,14 +486,14 @@ static void sort_primitives_2d(const Lv00AABBTree2D *tree, int *indices,
 /**
  * @brief 将 3D 几何体索引数组按指定轴的中心坐标排序
  */
-static void sort_primitives_3d(const Lv00AABBTree3D *tree, int *indices,
+static void sort_primitives_3d(const lvAABBTree3D *tree, int *indices,
                                 int count, int axis)
 {
     for (int i = 0; i < count - 1; i++) {
         int min_idx = i;
         double min_val = 0.0;
         {
-            const Lv00AABB3D *bb = &tree->primitives[indices[i]];
+            const lvAABB3D *bb = &tree->primitives[indices[i]];
             switch (axis) {
                 case 0: min_val = bb->xmin + bb->xmax; break;
                 case 1: min_val = bb->ymin + bb->ymax; break;
@@ -501,7 +501,7 @@ static void sort_primitives_3d(const Lv00AABBTree3D *tree, int *indices,
             }
         }
         for (int j = i + 1; j < count; j++) {
-            const Lv00AABB3D *bb = &tree->primitives[indices[j]];
+            const lvAABB3D *bb = &tree->primitives[indices[j]];
             double val;
             switch (axis) {
                 case 0:  val = bb->xmin + bb->xmax; break;
@@ -534,7 +534,7 @@ static void sort_primitives_3d(const Lv00AABBTree3D *tree, int *indices,
  * @param depth       当前递归深度
  * @return 新创建的节点索引
  */
-static int aabb2d_build_recursive(Lv00AABBTree2D *tree,
+static int aabb2d_build_recursive(lvAABBTree2D *tree,
                                    int *prim_indices, int count, int depth)
 {
     /* 分配当前节点 */
@@ -542,17 +542,17 @@ static int aabb2d_build_recursive(Lv00AABBTree2D *tree,
     if (node_idx == AABB_INVALID_NODE) return AABB_INVALID_NODE;
 
     /* 计算当前子集的包围盒 */
-    Lv00AABB3D node_bbox = lv00_aabb3d_empty();
+    lvAABB3D node_bbox = lv_aabb3d_empty();
     for (int i = 0; i < count; i++) {
-        const Lv00AABB2D *bb2d = &tree->primitives[prim_indices[i]];
-        Lv00AABB3D bb3d;
+        const lvAABB2D *bb2d = &tree->primitives[prim_indices[i]];
+        lvAABB3D bb3d;
         bb3d.xmin = bb2d->xmin;
         bb3d.ymin = bb2d->ymin;
         bb3d.zmin = 0.0;
         bb3d.xmax = bb2d->xmax;
         bb3d.ymax = bb2d->ymax;
         bb3d.zmax = 0.0;
-        node_bbox = lv00_aabb3d_merge(node_bbox, bb3d);
+        node_bbox = lv_aabb3d_merge(node_bbox, bb3d);
     }
     tree->nodes[node_idx].bbox = node_bbox;
 
@@ -574,7 +574,7 @@ static int aabb2d_build_recursive(Lv00AABBTree2D *tree,
                               ? tree->leaf_prim_capacity * 2
                               : AABB_INITIAL_CAPACITY;
             while (new_cap < needed) new_cap *= 2;
-            int *new_ids = (int *)lv00_realloc(tree->leaf_prim_ids,
+            int *new_ids = (int *)lv_realloc(tree->leaf_prim_ids,
                                        (size_t)new_cap * sizeof(int));
             if (!new_ids) return AABB_INVALID_NODE;
             tree->leaf_prim_ids = new_ids;
@@ -624,16 +624,16 @@ static int aabb2d_build_recursive(Lv00AABBTree2D *tree,
 /**
  * @brief 递归构建 3D AABB 树（自顶向下中位数分裂）
  */
-static int aabb3d_build_recursive(Lv00AABBTree3D *tree,
+static int aabb3d_build_recursive(lvAABBTree3D *tree,
                                    int *prim_indices, int count, int depth)
 {
     int node_idx = aabb3d_node_alloc(tree);
     if (node_idx == AABB_INVALID_NODE) return AABB_INVALID_NODE;
 
     /* 计算当前子集的包围盒 */
-    Lv00AABB3D node_bbox = lv00_aabb3d_empty();
+    lvAABB3D node_bbox = lv_aabb3d_empty();
     for (int i = 0; i < count; i++) {
-        node_bbox = lv00_aabb3d_merge(node_bbox,
+        node_bbox = lv_aabb3d_merge(node_bbox,
                                        tree->primitives[prim_indices[i]]);
     }
     tree->nodes[node_idx].bbox = node_bbox;
@@ -693,7 +693,7 @@ static int aabb3d_build_recursive(Lv00AABBTree3D *tree,
  * @param tmax  射线参数上界
  * @return 射线在 [tmin, tmax] 范围内是否与 bb 相交
  */
-static bool aabb2d_ray_intersect(Lv00AABB2D bb, Lv00AABBRay2D ray,
+static bool aabb2d_ray_intersect(lvAABB2D bb, lvAABBRay2D ray,
                                   double tmin, double tmax)
 {
     /* X 轴 slab */
@@ -729,7 +729,7 @@ static bool aabb2d_ray_intersect(Lv00AABB2D bb, Lv00AABBRay2D ray,
 /**
  * @brief 3D 射线与 AABB 相交检测（Slab Method）
  */
-static bool aabb3d_ray_intersect(Lv00AABB3D bb, Lv00AABBRay3D ray,
+static bool aabb3d_ray_intersect(lvAABB3D bb, lvAABBRay3D ray,
                                   double tmin, double tmax)
 {
     /* X 轴 slab */
@@ -784,7 +784,7 @@ static bool aabb3d_ray_intersect(Lv00AABB3D bb, Lv00AABBRay3D ray,
  * 如果点在 AABB 内部，返回 0。
  * 否则返回各轴上最近距离的平方和。
  */
-static double aabb2d_point_distance_sq(Lv00AABB2D bb, double px, double py)
+static double aabb2d_point_distance_sq(lvAABB2D bb, double px, double py)
 {
     double dx = 0.0, dy = 0.0;
 
@@ -800,7 +800,7 @@ static double aabb2d_point_distance_sq(Lv00AABB2D bb, double px, double py)
 /**
  * @brief 计算 3D 点到 AABB 的最近距离平方
  */
-static double aabb3d_point_distance_sq(Lv00AABB3D bb, double px, double py,
+static double aabb3d_point_distance_sq(lvAABB3D bb, double px, double py,
                                         double pz)
 {
     double dx = 0.0, dy = 0.0, dz = 0.0;
@@ -820,7 +820,7 @@ static double aabb3d_point_distance_sq(Lv00AABB3D bb, double px, double py,
 /**
  * @brief 计算 2D 点到 AABB 的最近距离
  */
-static double aabb2d_point_distance(Lv00AABB2D bb, double px, double py)
+static double aabb2d_point_distance(lvAABB2D bb, double px, double py)
 {
     return sqrt(aabb2d_point_distance_sq(bb, px, py));
 }
@@ -828,7 +828,7 @@ static double aabb2d_point_distance(Lv00AABB2D bb, double px, double py)
 /**
  * @brief 计算 3D 点到 AABB 的最近距离
  */
-static double aabb3d_point_distance(Lv00AABB3D bb, double px, double py,
+static double aabb3d_point_distance(lvAABB3D bb, double px, double py,
                                      double pz)
 {
     return sqrt(aabb3d_point_distance_sq(bb, px, py, pz));
@@ -841,9 +841,9 @@ static double aabb3d_point_distance(Lv00AABB3D bb, double px, double py,
 /**
  * @brief 计算 2D 点到 2D AABB 的最近点坐标
  */
-static Lv00AABBPoint2D aabb2d_closest_point(Lv00AABB2D bb, double px, double py)
+static lvAABBPoint2D aabb2d_closest_point(lvAABB2D bb, double px, double py)
 {
-    Lv00AABBPoint2D cp;
+    lvAABBPoint2D cp;
     cp.x = (px < bb.xmin) ? bb.xmin : (px > bb.xmax) ? bb.xmax : px;
     cp.y = (py < bb.ymin) ? bb.ymin : (py > bb.ymax) ? bb.ymax : py;
     return cp;
@@ -852,10 +852,10 @@ static Lv00AABBPoint2D aabb2d_closest_point(Lv00AABB2D bb, double px, double py)
 /**
  * @brief 计算 3D 点到 3D AABB 的最近点坐标
  */
-static Lv00AABBPoint3D aabb3d_closest_point(Lv00AABB3D bb, double px,
+static lvAABBPoint3D aabb3d_closest_point(lvAABB3D bb, double px,
                                               double py, double pz)
 {
-    Lv00AABBPoint3D cp;
+    lvAABBPoint3D cp;
     cp.x = (px < bb.xmin) ? bb.xmin : (px > bb.xmax) ? bb.xmax : px;
     cp.y = (py < bb.ymin) ? bb.ymin : (py > bb.ymax) ? bb.ymax : py;
     cp.z = (pz < bb.zmin) ? bb.zmin : (pz > bb.zmax) ? bb.zmax : pz;
@@ -872,21 +872,21 @@ static Lv00AABBPoint3D aabb3d_closest_point(Lv00AABB3D bb, double px,
  * 使用 slab method 检测射线与节点 AABB 的相交性，
  * 优先遍历更近的子树以实现提前终止。
  */
-static void aabb2d_ray_recursive(const Lv00AABBTree2D *tree, int node_idx,
-                                  Lv00AABBRay2D ray,
+static void aabb2d_ray_recursive(const lvAABBTree2D *tree, int node_idx,
+                                  lvAABBRay2D ray,
                                   double tmin, double tmax,
-                                  Lv00AABBRayHit *best)
+                                  lvAABBRayHit *best)
 {
     if (node_idx == AABB_INVALID_NODE) return;
     if (tmin > best->t) return; /* 剪枝：已有更近的命中 */
 
-    const Lv00AABBNode *node = &tree->nodes[node_idx];
+    const lvAABBNode *node = &tree->nodes[node_idx];
 
     /* 叶子节点：检测射线与几何体 AABB 的精确相交 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
 
-        const Lv00AABB2D *prim_bb = &tree->primitives[node->primitive_id];
+        const lvAABB2D *prim_bb = &tree->primitives[node->primitive_id];
         if (aabb2d_ray_intersect(*prim_bb, ray, tmin, tmax)) {
             /* 计算精确的 t 值 */
             double t_enter = tmin;
@@ -928,7 +928,7 @@ static void aabb2d_ray_recursive(const Lv00AABBTree2D *tree, int node_idx,
 
     /* 内部节点：检测射线与节点 AABB 的相交 */
     /* 将 3D bbox 转换为 2D 用于检测 */
-    Lv00AABB2D node_bb2d;
+    lvAABB2D node_bb2d;
     node_bb2d.xmin = node->bbox.xmin;
     node_bb2d.ymin = node->bbox.ymin;
     node_bb2d.xmax = node->bbox.xmax;
@@ -944,21 +944,21 @@ static void aabb2d_ray_recursive(const Lv00AABBTree2D *tree, int node_idx,
 /**
  * @brief 3D 射线递归查询
  */
-static void aabb3d_ray_recursive(const Lv00AABBTree3D *tree, int node_idx,
-                                  Lv00AABBRay3D ray,
+static void aabb3d_ray_recursive(const lvAABBTree3D *tree, int node_idx,
+                                  lvAABBRay3D ray,
                                   double tmin, double tmax,
-                                  Lv00AABBRayHit *best)
+                                  lvAABBRayHit *best)
 {
     if (node_idx == AABB_INVALID_NODE) return;
     if (tmin > best->t) return;
 
-    const Lv00AABBNode *node = &tree->nodes[node_idx];
+    const lvAABBNode *node = &tree->nodes[node_idx];
 
     /* 叶子节点 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
 
-        const Lv00AABB3D *prim_bb = &tree->primitives[node->primitive_id];
+        const lvAABB3D *prim_bb = &tree->primitives[node->primitive_id];
         if (aabb3d_ray_intersect(*prim_bb, ray, tmin, tmax)) {
             double t0 = 0.0, t1 = DBL_MAX;
 
@@ -1024,16 +1024,16 @@ static void aabb3d_ray_recursive(const Lv00AABBTree3D *tree, int node_idx,
  * 遍历所有叶子节点，计算查询点到几何体 AABB 的距离，
  * 利用查询点到内部节点 AABB 的距离进行剪枝。
  */
-static void aabb2d_nearest_recursive(const Lv00AABBTree2D *tree, int node_idx,
+static void aabb2d_nearest_recursive(const lvAABBTree2D *tree, int node_idx,
                                       double px, double py,
-                                      Lv00AABBNearestResult *best)
+                                      lvAABBNearestResult *best)
 {
     if (node_idx == AABB_INVALID_NODE) return;
 
-    const Lv00AABBNode *node = &tree->nodes[node_idx];
+    const lvAABBNode *node = &tree->nodes[node_idx];
 
     /* 剪枝：如果查询点到当前节点 AABB 的距离已经大于已知最近距离 */
-    Lv00AABB2D node_bb2d;
+    lvAABB2D node_bb2d;
     node_bb2d.xmin = node->bbox.xmin;
     node_bb2d.ymin = node->bbox.ymin;
     node_bb2d.xmax = node->bbox.xmax;
@@ -1053,8 +1053,8 @@ static void aabb2d_nearest_recursive(const Lv00AABBTree2D *tree, int node_idx,
                           : node->primitive_id;
             if (pid < 0 || pid >= tree->primitive_count) continue;
 
-            const Lv00AABB2D *prim_bb = &tree->primitives[pid];
-            Lv00AABBPoint2D cp = aabb2d_closest_point(*prim_bb, px, py);
+            const lvAABB2D *prim_bb = &tree->primitives[pid];
+            lvAABBPoint2D cp = aabb2d_closest_point(*prim_bb, px, py);
             double dx = px - cp.x;
             double dy = py - cp.y;
             double dist = sqrt(dx * dx + dy * dy);
@@ -1075,7 +1075,7 @@ static void aabb2d_nearest_recursive(const Lv00AABBTree2D *tree, int node_idx,
     int second = node->right;
 
     if (first != AABB_INVALID_NODE && second != AABB_INVALID_NODE) {
-        Lv00AABB2D left_bb2d, right_bb2d;
+        lvAABB2D left_bb2d, right_bb2d;
         left_bb2d.xmin  = tree->nodes[first].bbox.xmin;
         left_bb2d.ymin  = tree->nodes[first].bbox.ymin;
         left_bb2d.xmax  = tree->nodes[first].bbox.xmax;
@@ -1099,13 +1099,13 @@ static void aabb2d_nearest_recursive(const Lv00AABBTree2D *tree, int node_idx,
 /**
  * @brief 3D 最近邻递归查询
  */
-static void aabb3d_nearest_recursive(const Lv00AABBTree3D *tree, int node_idx,
+static void aabb3d_nearest_recursive(const lvAABBTree3D *tree, int node_idx,
                                       double px, double py, double pz,
-                                      Lv00AABBNearestResult *best)
+                                      lvAABBNearestResult *best)
 {
     if (node_idx == AABB_INVALID_NODE) return;
 
-    const Lv00AABBNode *node = &tree->nodes[node_idx];
+    const lvAABBNode *node = &tree->nodes[node_idx];
 
     /* 剪枝 */
     double dist_to_node = aabb3d_point_distance(node->bbox, px, py, pz);
@@ -1115,8 +1115,8 @@ static void aabb3d_nearest_recursive(const Lv00AABBTree3D *tree, int node_idx,
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
 
-        const Lv00AABB3D *prim_bb = &tree->primitives[node->primitive_id];
-        Lv00AABBPoint3D cp = aabb3d_closest_point(*prim_bb, px, py, pz);
+        const lvAABB3D *prim_bb = &tree->primitives[node->primitive_id];
+        lvAABBPoint3D cp = aabb3d_closest_point(*prim_bb, px, py, pz);
         double dx = px - cp.x;
         double dy = py - cp.y;
         double dz = pz - cp.z;
@@ -1157,13 +1157,13 @@ static void aabb3d_nearest_recursive(const Lv00AABBTree3D *tree, int node_idx,
 /**
  * @brief 向查询结果中添加一个 ID
  */
-static void result_push_back(Lv00AABBQueryResult *result, int id)
+static void result_push_back(lvAABBQueryResult *result, int id)
 {
     if (result->count >= result->capacity) {
         int new_cap = (result->capacity > 0)
                           ? result->capacity * 2
                           : 16;
-        int *new_ids = (int *)lv00_realloc(result->ids,
+        int *new_ids = (int *)lv_realloc(result->ids,
                                        (size_t)new_cap * sizeof(int));
         if (!new_ids) return;
         result->ids = new_ids;
@@ -1175,28 +1175,28 @@ static void result_push_back(Lv00AABBQueryResult *result, int id)
 /**
  * @brief 2D 范围查询递归
  */
-static void aabb2d_range_recursive(const Lv00AABBTree2D *tree, int node_idx,
-                                    Lv00AABB2D query,
-                                    Lv00AABBQueryResult *result)
+static void aabb2d_range_recursive(const lvAABBTree2D *tree, int node_idx,
+                                    lvAABB2D query,
+                                    lvAABBQueryResult *result)
 {
     if (node_idx == AABB_INVALID_NODE) return;
 
-    const Lv00AABBNode *node = &tree->nodes[node_idx];
+    const lvAABBNode *node = &tree->nodes[node_idx];
 
     /* 将节点 3D bbox 转换为 2D */
-    Lv00AABB2D node_bb2d;
+    lvAABB2D node_bb2d;
     node_bb2d.xmin = node->bbox.xmin;
     node_bb2d.ymin = node->bbox.ymin;
     node_bb2d.xmax = node->bbox.xmax;
     node_bb2d.ymax = node->bbox.ymax;
 
     /* 剪枝：节点 AABB 与查询 AABB 不相交则跳过 */
-    if (!lv00_aabb2d_intersects(node_bb2d, query)) return;
+    if (!lv_aabb2d_intersects(node_bb2d, query)) return;
 
     /* 叶子节点 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
-        if (lv00_aabb2d_intersects(tree->primitives[node->primitive_id],
+        if (lv_aabb2d_intersects(tree->primitives[node->primitive_id],
                                     query)) {
             result_push_back(result, node->primitive_id);
         }
@@ -1211,21 +1211,21 @@ static void aabb2d_range_recursive(const Lv00AABBTree2D *tree, int node_idx,
 /**
  * @brief 3D 范围查询递归
  */
-static void aabb3d_range_recursive(const Lv00AABBTree3D *tree, int node_idx,
-                                    Lv00AABB3D query,
-                                    Lv00AABBQueryResult *result)
+static void aabb3d_range_recursive(const lvAABBTree3D *tree, int node_idx,
+                                    lvAABB3D query,
+                                    lvAABBQueryResult *result)
 {
     if (node_idx == AABB_INVALID_NODE) return;
 
-    const Lv00AABBNode *node = &tree->nodes[node_idx];
+    const lvAABBNode *node = &tree->nodes[node_idx];
 
     /* 剪枝 */
-    if (!lv00_aabb3d_intersects(node->bbox, query)) return;
+    if (!lv_aabb3d_intersects(node->bbox, query)) return;
 
     /* 叶子节点 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
-        if (lv00_aabb3d_intersects(tree->primitives[node->primitive_id],
+        if (lv_aabb3d_intersects(tree->primitives[node->primitive_id],
                                     query)) {
             result_push_back(result, node->primitive_id);
         }
@@ -1244,28 +1244,28 @@ static void aabb3d_range_recursive(const Lv00AABBTree3D *tree, int node_idx,
 /**
  * @brief 2D 点查询递归
  */
-static void aabb2d_point_recursive(const Lv00AABBTree2D *tree, int node_idx,
+static void aabb2d_point_recursive(const lvAABBTree2D *tree, int node_idx,
                                     double px, double py,
-                                    Lv00AABBQueryResult *result)
+                                    lvAABBQueryResult *result)
 {
     if (node_idx == AABB_INVALID_NODE) return;
 
-    const Lv00AABBNode *node = &tree->nodes[node_idx];
+    const lvAABBNode *node = &tree->nodes[node_idx];
 
     /* 将节点 3D bbox 转换为 2D */
-    Lv00AABB2D node_bb2d;
+    lvAABB2D node_bb2d;
     node_bb2d.xmin = node->bbox.xmin;
     node_bb2d.ymin = node->bbox.ymin;
     node_bb2d.xmax = node->bbox.xmax;
     node_bb2d.ymax = node->bbox.ymax;
 
     /* 剪枝：点不在节点 AABB 内 */
-    if (!lv00_aabb2d_contains(node_bb2d, px, py)) return;
+    if (!lv_aabb2d_contains(node_bb2d, px, py)) return;
 
     /* 叶子节点 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
-        if (lv00_aabb2d_contains(tree->primitives[node->primitive_id],
+        if (lv_aabb2d_contains(tree->primitives[node->primitive_id],
                                   px, py)) {
             result_push_back(result, node->primitive_id);
         }
@@ -1280,21 +1280,21 @@ static void aabb2d_point_recursive(const Lv00AABBTree2D *tree, int node_idx,
 /**
  * @brief 3D 点查询递归
  */
-static void aabb3d_point_recursive(const Lv00AABBTree3D *tree, int node_idx,
+static void aabb3d_point_recursive(const lvAABBTree3D *tree, int node_idx,
                                     double px, double py, double pz,
-                                    Lv00AABBQueryResult *result)
+                                    lvAABBQueryResult *result)
 {
     if (node_idx == AABB_INVALID_NODE) return;
 
-    const Lv00AABBNode *node = &tree->nodes[node_idx];
+    const lvAABBNode *node = &tree->nodes[node_idx];
 
     /* 剪枝 */
-    if (!lv00_aabb3d_contains(node->bbox, px, py, pz)) return;
+    if (!lv_aabb3d_contains(node->bbox, px, py, pz)) return;
 
     /* 叶子节点 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
-        if (lv00_aabb3d_contains(tree->primitives[node->primitive_id],
+        if (lv_aabb3d_contains(tree->primitives[node->primitive_id],
                                   px, py, pz)) {
             result_push_back(result, node->primitive_id);
         }
@@ -1313,7 +1313,7 @@ static void aabb3d_point_recursive(const Lv00AABBTree3D *tree, int node_idx,
 /**
  * @brief 递归计算树深度
  */
-static int aabb_tree_depth(const Lv00AABBNode *nodes, int root)
+static int aabb_tree_depth(const lvAABBNode *nodes, int root)
 {
     if (root == AABB_INVALID_NODE) return 0;
     return nodes[root].height + 1;
@@ -1322,11 +1322,11 @@ static int aabb_tree_depth(const Lv00AABBNode *nodes, int root)
 /**
  * @brief 递归计算叶子节点数量
  */
-static int aabb_tree_leaf_count(const Lv00AABBNode *nodes, int root)
+static int aabb_tree_leaf_count(const lvAABBNode *nodes, int root)
 {
     if (root == AABB_INVALID_NODE) return 0;
 
-    const Lv00AABBNode *node = &nodes[root];
+    const lvAABBNode *node = &nodes[root];
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         return 1;
     }
@@ -1347,16 +1347,16 @@ static int aabb_tree_leaf_count(const Lv00AABBNode *nodes, int root)
  * @param bboxes    几何体包围盒数组
  * @param count     几何体数量
  * @param config    配置（NULL 使用默认配置）
- * @return AABB 树指针（需用 lv00_aabb2d_destroy 释放）
+ * @return AABB 树指针（需用 lv_aabb2d_destroy 释放）
  */
-LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
-    const Lv00AABB2D *bboxes, int count,
-    const Lv00AABBTreeConfig *config)
+lv_PUBLIC_API lvAABBTree2D *lv_aabb2d_build(
+    const lvAABB2D *bboxes, int count,
+    const lvAABBTreeConfig *config)
 {
     if (!bboxes || count <= 0) return NULL;
 
     /* 分配树结构 */
-    Lv00AABBTree2D *tree = (Lv00AABBTree2D *)lv00_malloc(sizeof(Lv00AABBTree2D));
+    lvAABBTree2D *tree = (lvAABBTree2D *)lv_malloc(sizeof(lvAABBTree2D));
     if (!tree) return NULL;
 
     /* 初始化 */
@@ -1372,22 +1372,22 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
     if (config) {
         tree->config = *config;
     } else {
-        tree->config = lv00_aabb_tree_default_config();
+        tree->config = lv_aabb_tree_default_config();
     }
 
     /* 拷贝几何体包围盒 */
-    tree->primitives = (Lv00AABB2D *)lv00_malloc((size_t)count * sizeof(Lv00AABB2D));
+    tree->primitives = (lvAABB2D *)lv_malloc((size_t)count * sizeof(lvAABB2D));
     if (!tree->primitives) {
-        lv00_free((void **)&(tree));
+        lv_free((void **)&(tree));
         return NULL;
     }
-    memcpy(tree->primitives, bboxes, (size_t)count * sizeof(Lv00AABB2D));
+    memcpy(tree->primitives, bboxes, (size_t)count * sizeof(lvAABB2D));
 
     /* 创建几何体索引数组 */
-    int *prim_indices = (int *)lv00_malloc((size_t)count * sizeof(int));
+    int *prim_indices = (int *)lv_malloc((size_t)count * sizeof(int));
     if (!prim_indices) {
-        lv00_free((void **)&(tree->primitives));
-        lv00_free((void **)&(tree));
+        lv_free((void **)&(tree->primitives));
+        lv_free((void **)&(tree));
         return NULL;
     }
     for (int i = 0; i < count; i++) {
@@ -1397,12 +1397,12 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
     /* 递归构建 */
     tree->root = aabb2d_build_recursive(tree, prim_indices, count, 0);
 
-    lv00_free((void **)&(prim_indices));
+    lv_free((void **)&(prim_indices));
 
     if (tree->root == AABB_INVALID_NODE) {
-        lv00_free((void **)&(tree->primitives));
-        lv00_free((void **)&(tree->nodes));
-        lv00_free((void **)&(tree));
+        lv_free((void **)&(tree->primitives));
+        lv_free((void **)&(tree->nodes));
+        lv_free((void **)&(tree));
         return NULL;
     }
 
@@ -1414,13 +1414,13 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
  *
  * 释放树结构、节点数组和几何体包围盒数组。
  */
-LV00_PUBLIC_API void lv00_aabb2d_destroy(Lv00AABBTree2D *tree)
+lv_PUBLIC_API void lv_aabb2d_destroy(lvAABBTree2D *tree)
 {
     if (!tree) return;
-    lv00_free((void **)&(tree->leaf_prim_ids));
-    lv00_free((void **)&(tree->nodes));
-    lv00_free((void **)&(tree->primitives));
-    lv00_free((void **)&(tree));
+    lv_free((void **)&(tree->leaf_prim_ids));
+    lv_free((void **)&(tree->nodes));
+    lv_free((void **)&(tree->primitives));
+    lv_free((void **)&(tree));
 }
 
 /**
@@ -1433,10 +1433,10 @@ LV00_PUBLIC_API void lv00_aabb2d_destroy(Lv00AABBTree2D *tree)
  * @param ray   射线
  * @return 射线命中结果（hit=false 表示未命中）
  */
-LV00_PUBLIC_API Lv00AABBRayHit lv00_aabb2d_ray_query(
-    const Lv00AABBTree2D *tree, Lv00AABBRay2D ray)
+lv_PUBLIC_API lvAABBRayHit lv_aabb2d_ray_query(
+    const lvAABBTree2D *tree, lvAABBRay2D ray)
 {
-    Lv00AABBRayHit result;
+    lvAABBRayHit result;
     result.hit = false;
     result.t = DBL_MAX;
     result.primitive_id = AABB_INVALID_NODE;
@@ -1457,10 +1457,10 @@ LV00_PUBLIC_API Lv00AABBRayHit lv00_aabb2d_ray_query(
  * @param px, py 查询点坐标
  * @return 最近邻结果（distance=DBL_MAX 表示树为空）
  */
-LV00_PUBLIC_API Lv00AABBNearestResult lv00_aabb2d_nearest(
-    const Lv00AABBTree2D *tree, double px, double py)
+lv_PUBLIC_API lvAABBNearestResult lv_aabb2d_nearest(
+    const lvAABBTree2D *tree, double px, double py)
 {
-    Lv00AABBNearestResult result;
+    lvAABBNearestResult result;
     result.primitive_id = AABB_INVALID_NODE;
     result.distance     = DBL_MAX;
     result.closest_x    = 0.0;
@@ -1478,11 +1478,11 @@ LV00_PUBLIC_API Lv00AABBNearestResult lv00_aabb2d_nearest(
  *
  * @param tree    AABB 树
  * @param query   查询包围盒
- * @param result  输出结果（需用 lv00_aabb_query_result_free 释放）
+ * @param result  输出结果（需用 lv_aabb_query_result_free 释放）
  */
-LV00_PUBLIC_API void lv00_aabb2d_range_query(
-    const Lv00AABBTree2D *tree, Lv00AABB2D query,
-    Lv00AABBQueryResult *result)
+lv_PUBLIC_API void lv_aabb2d_range_query(
+    const lvAABBTree2D *tree, lvAABB2D query,
+    lvAABBQueryResult *result)
 {
     if (!tree || !result || tree->root == AABB_INVALID_NODE) return;
 
@@ -1496,9 +1496,9 @@ LV00_PUBLIC_API void lv00_aabb2d_range_query(
  * @param px, py 查询点
  * @param result 输出结果
  */
-LV00_PUBLIC_API void lv00_aabb2d_point_query(
-    const Lv00AABBTree2D *tree, double px, double py,
-    Lv00AABBQueryResult *result)
+lv_PUBLIC_API void lv_aabb2d_point_query(
+    const lvAABBTree2D *tree, double px, double py,
+    lvAABBQueryResult *result)
 {
     if (!tree || !result || tree->root == AABB_INVALID_NODE) return;
 
@@ -1508,12 +1508,12 @@ LV00_PUBLIC_API void lv00_aabb2d_point_query(
 /**
  * @brief 获取 2D AABB 树的根包围盒
  */
-LV00_PUBLIC_API Lv00AABB2D lv00_aabb2d_root_bbox(const Lv00AABBTree2D *tree)
+lv_PUBLIC_API lvAABB2D lv_aabb2d_root_bbox(const lvAABBTree2D *tree)
 {
-    Lv00AABB2D bb = lv00_aabb2d_empty();
+    lvAABB2D bb = lv_aabb2d_empty();
     if (!tree || tree->root == AABB_INVALID_NODE) return bb;
 
-    const Lv00AABBNode *root = &tree->nodes[tree->root];
+    const lvAABBNode *root = &tree->nodes[tree->root];
     bb.xmin = root->bbox.xmin;
     bb.ymin = root->bbox.ymin;
     bb.xmax = root->bbox.xmax;
@@ -1529,7 +1529,7 @@ LV00_PUBLIC_API Lv00AABB2D lv00_aabb2d_root_bbox(const Lv00AABBTree2D *tree)
  * @param out_depth       输出树深度
  * @param out_leaf_count  输出叶子节点数
  */
-LV00_PUBLIC_API void lv00_aabb2d_stats(const Lv00AABBTree2D *tree,
+lv_PUBLIC_API void lv_aabb2d_stats(const lvAABBTree2D *tree,
     int *out_node_count, int *out_depth, int *out_leaf_count)
 {
     if (!tree) {
@@ -1558,16 +1558,16 @@ LV00_PUBLIC_API void lv00_aabb2d_stats(const Lv00AABBTree2D *tree,
  * @param bboxes    几何体包围盒数组
  * @param count     几何体数量
  * @param config    配置（NULL 使用默认配置）
- * @return AABB 树指针（需用 lv00_aabb3d_destroy 释放）
+ * @return AABB 树指针（需用 lv_aabb3d_destroy 释放）
  */
-LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
-    const Lv00AABB3D *bboxes, int count,
-    const Lv00AABBTreeConfig *config)
+lv_PUBLIC_API lvAABBTree3D *lv_aabb3d_build(
+    const lvAABB3D *bboxes, int count,
+    const lvAABBTreeConfig *config)
 {
     if (!bboxes || count <= 0) return NULL;
 
     /* 分配树结构 */
-    Lv00AABBTree3D *tree = (Lv00AABBTree3D *)lv00_malloc(sizeof(Lv00AABBTree3D));
+    lvAABBTree3D *tree = (lvAABBTree3D *)lv_malloc(sizeof(lvAABBTree3D));
     if (!tree) return NULL;
 
     /* 初始化 */
@@ -1581,22 +1581,22 @@ LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
     if (config) {
         tree->config = *config;
     } else {
-        tree->config = lv00_aabb_tree_default_config();
+        tree->config = lv_aabb_tree_default_config();
     }
 
     /* 拷贝几何体包围盒 */
-    tree->primitives = (Lv00AABB3D *)lv00_malloc((size_t)count * sizeof(Lv00AABB3D));
+    tree->primitives = (lvAABB3D *)lv_malloc((size_t)count * sizeof(lvAABB3D));
     if (!tree->primitives) {
-        lv00_free((void **)&(tree));
+        lv_free((void **)&(tree));
         return NULL;
     }
-    memcpy(tree->primitives, bboxes, (size_t)count * sizeof(Lv00AABB3D));
+    memcpy(tree->primitives, bboxes, (size_t)count * sizeof(lvAABB3D));
 
     /* 创建几何体索引数组 */
-    int *prim_indices = (int *)lv00_malloc((size_t)count * sizeof(int));
+    int *prim_indices = (int *)lv_malloc((size_t)count * sizeof(int));
     if (!prim_indices) {
-        lv00_free((void **)&(tree->primitives));
-        lv00_free((void **)&(tree));
+        lv_free((void **)&(tree->primitives));
+        lv_free((void **)&(tree));
         return NULL;
     }
     for (int i = 0; i < count; i++) {
@@ -1606,12 +1606,12 @@ LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
     /* 递归构建 */
     tree->root = aabb3d_build_recursive(tree, prim_indices, count, 0);
 
-    lv00_free((void **)&(prim_indices));
+    lv_free((void **)&(prim_indices));
 
     if (tree->root == AABB_INVALID_NODE) {
-        lv00_free((void **)&(tree->primitives));
-        lv00_free((void **)&(tree->nodes));
-        lv00_free((void **)&(tree));
+        lv_free((void **)&(tree->primitives));
+        lv_free((void **)&(tree->nodes));
+        lv_free((void **)&(tree));
         return NULL;
     }
 
@@ -1621,12 +1621,12 @@ LV00_PUBLIC_API Lv00AABBTree3D *lv00_aabb3d_build(
 /**
  * @brief 释放 3D AABB 树
  */
-LV00_PUBLIC_API void lv00_aabb3d_destroy(Lv00AABBTree3D *tree)
+lv_PUBLIC_API void lv_aabb3d_destroy(lvAABBTree3D *tree)
 {
     if (!tree) return;
-    lv00_free((void **)&(tree->nodes));
-    lv00_free((void **)&(tree->primitives));
-    lv00_free((void **)&(tree));
+    lv_free((void **)&(tree->nodes));
+    lv_free((void **)&(tree->primitives));
+    lv_free((void **)&(tree));
 }
 
 /**
@@ -1639,10 +1639,10 @@ LV00_PUBLIC_API void lv00_aabb3d_destroy(Lv00AABBTree3D *tree)
  * @param ray   射线
  * @return 射线命中结果
  */
-LV00_PUBLIC_API Lv00AABBRayHit lv00_aabb3d_ray_query(
-    const Lv00AABBTree3D *tree, Lv00AABBRay3D ray)
+lv_PUBLIC_API lvAABBRayHit lv_aabb3d_ray_query(
+    const lvAABBTree3D *tree, lvAABBRay3D ray)
 {
-    Lv00AABBRayHit result;
+    lvAABBRayHit result;
     result.hit = false;
     result.t = DBL_MAX;
     result.primitive_id = AABB_INVALID_NODE;
@@ -1660,10 +1660,10 @@ LV00_PUBLIC_API Lv00AABBRayHit lv00_aabb3d_ray_query(
  * @param px, py, pz 查询点坐标
  * @return 最近邻结果
  */
-LV00_PUBLIC_API Lv00AABBNearestResult lv00_aabb3d_nearest(
-    const Lv00AABBTree3D *tree, double px, double py, double pz)
+lv_PUBLIC_API lvAABBNearestResult lv_aabb3d_nearest(
+    const lvAABBTree3D *tree, double px, double py, double pz)
 {
-    Lv00AABBNearestResult result;
+    lvAABBNearestResult result;
     result.primitive_id = AABB_INVALID_NODE;
     result.distance     = DBL_MAX;
     result.closest_x    = 0.0;
@@ -1683,9 +1683,9 @@ LV00_PUBLIC_API Lv00AABBNearestResult lv00_aabb3d_nearest(
  * @param query   查询包围盒
  * @param result  输出结果
  */
-LV00_PUBLIC_API void lv00_aabb3d_range_query(
-    const Lv00AABBTree3D *tree, Lv00AABB3D query,
-    Lv00AABBQueryResult *result)
+lv_PUBLIC_API void lv_aabb3d_range_query(
+    const lvAABBTree3D *tree, lvAABB3D query,
+    lvAABBQueryResult *result)
 {
     if (!tree || !result || tree->root == AABB_INVALID_NODE) return;
 
@@ -1699,9 +1699,9 @@ LV00_PUBLIC_API void lv00_aabb3d_range_query(
  * @param px, py, pz 查询点
  * @param result 输出结果
  */
-LV00_PUBLIC_API void lv00_aabb3d_point_query(
-    const Lv00AABBTree3D *tree, double px, double py, double pz,
-    Lv00AABBQueryResult *result)
+lv_PUBLIC_API void lv_aabb3d_point_query(
+    const lvAABBTree3D *tree, double px, double py, double pz,
+    lvAABBQueryResult *result)
 {
     if (!tree || !result || tree->root == AABB_INVALID_NODE) return;
 
@@ -1711,9 +1711,9 @@ LV00_PUBLIC_API void lv00_aabb3d_point_query(
 /**
  * @brief 获取 3D AABB 树的根包围盒
  */
-LV00_PUBLIC_API Lv00AABB3D lv00_aabb3d_root_bbox(const Lv00AABBTree3D *tree)
+lv_PUBLIC_API lvAABB3D lv_aabb3d_root_bbox(const lvAABBTree3D *tree)
 {
-    Lv00AABB3D bb = lv00_aabb3d_empty();
+    lvAABB3D bb = lv_aabb3d_empty();
     if (!tree || tree->root == AABB_INVALID_NODE) return bb;
 
     return tree->nodes[tree->root].bbox;

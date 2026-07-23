@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Basic usage example of Lv-00 Python bindings.
 
@@ -18,7 +18,7 @@ def main():
     """主函数：演示 Lv-00 Python 绑定的基本用法。"""
     # 延迟导入，以便在 try/except 中捕获 C 库加载失败
     try:
-        from lv00 import Graph, SymbolicCoord, Lv00Error
+        from lv import Graph, SymbolicCoord, lvError
     except ImportError as e:
         print(f"错误：无法导入 Lv-00 模块。", file=sys.stderr)
         print(f"请确保已编译 Lv-00 C 库并正确设置环境变量。", file=sys.stderr)
@@ -79,7 +79,7 @@ def main():
         print("\n" + "=" * 50)
         print("Example completed successfully!")
 
-    except Lv00Error as e:
+    except lvError as e:
         # 捕获 Lv-00 运行时错误（如 C 库操作失败），提供友好提示
         print(f"\n错误：Lv-00 运行时错误 - {e}", file=sys.stderr)
         sys.exit(1)

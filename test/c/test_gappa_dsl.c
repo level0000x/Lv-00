@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_gappa_dsl.c
  * @brief Test suite for the Gappa DSL module
  *
@@ -33,14 +33,14 @@ int g_fail_count = 0;
  * ============================================================ */
 
 static void test_gappa_format_predefined(void) {
-    Lv00GappaFormat fmt;
+    lvGappaFormat fmt;
 
     /* binary32 */
     TEST_ASSERT_MSG(gappa_format_predefined("binary32", &fmt) == true,
                     "binary32 should be recognized");
     TEST_ASSERT_EQ(fmt.precision_bits, 24);
     TEST_ASSERT_EQ(fmt.exponent_bits, 8);
-    TEST_ASSERT_EQ(fmt.rounding, LV00_ROUND_NE);
+    TEST_ASSERT_EQ(fmt.rounding, lv_ROUND_NE);
     TEST_ASSERT_MSG(strcmp(fmt.name, "binary32") == 0, "name should be binary32");
 
     /* binary64 */
@@ -69,9 +69,9 @@ static void test_gappa_format_predefined(void) {
  * ============================================================ */
 
 static void test_gappa_parse_simple(void) {
-    Lv00GappaPredicate *hypotheses = NULL;
+    lvGappaPredicate *hypotheses = NULL;
     int hyp_count = 0;
-    Lv00GappaProofGoal *goals = NULL;
+    lvGappaProofGoal *goals = NULL;
     int goal_count = 0;
 
     /* Parse: "x in [0, 1] -> |x - 0.5| <= 0.5" */
@@ -85,14 +85,14 @@ static void test_gappa_parse_simple(void) {
     TEST_ASSERT_EQ(goal_count, 1);
 
     if (ok && hyp_count > 0) {
-        TEST_ASSERT_EQ(hypotheses[0].type, LV00_PRED_BND);
+        TEST_ASSERT_EQ(hypotheses[0].type, lv_PRED_BND);
         TEST_ASSERT_MSG(hypotheses[0].is_hypothesis == 1, "should be hypothesis");
         TEST_ASSERT_MSG(fabs(hypotheses[0].bound_lo - 0.0) < 1e-15, "lo should be 0");
         TEST_ASSERT_MSG(fabs(hypotheses[0].bound_hi - 1.0) < 1e-15, "hi should be 1");
     }
 
     if (ok && goal_count > 0) {
-        TEST_ASSERT_EQ(goals[0].predicate.type, LV00_PRED_ABS);
+        TEST_ASSERT_EQ(goals[0].predicate.type, lv_PRED_ABS);
         TEST_ASSERT_MSG(goals[0].predicate.is_hypothesis == 0, "should be goal");
         TEST_ASSERT_MSG(fabs(goals[0].predicate.bound_abs - 0.5) < 1e-15,
                         "bound should be 0.5");
@@ -104,9 +104,9 @@ static void test_gappa_parse_simple(void) {
 }
 
 static void test_gappa_parse_multiple(void) {
-    Lv00GappaPredicate *hypotheses = NULL;
+    lvGappaPredicate *hypotheses = NULL;
     int hyp_count = 0;
-    Lv00GappaProofGoal *goals = NULL;
+    lvGappaProofGoal *goals = NULL;
     int goal_count = 0;
 
     /* Parse multiple statements */
@@ -129,23 +129,23 @@ static void test_gappa_parse_multiple(void) {
 
 static void test_gappa_prove_simple(void) {
     /* Prove: x in [0,1] => |x - 0.5| <= 0.5 */
-    Lv00GappaPredicate hyp;
+    lvGappaPredicate hyp;
     memset(&hyp, 0, sizeof(hyp));
-    hyp.type = LV00_PRED_BND;
+    hyp.type = lv_PRED_BND;
     strncpy(hyp.expr_lhs, "x", sizeof(hyp.expr_lhs) - 1);
     hyp.bound_lo = 0.0;
     hyp.bound_hi = 1.0;
     hyp.is_hypothesis = 1;
 
-    Lv00GappaProofGoal goal;
+    lvGappaProofGoal goal;
     memset(&goal, 0, sizeof(goal));
-    goal.predicate.type = LV00_PRED_ABS;
+    goal.predicate.type = lv_PRED_ABS;
     strncpy(goal.predicate.expr_lhs, "x", sizeof(goal.predicate.expr_lhs) - 1);
     strncpy(goal.predicate.expr_rhs, "0.5", sizeof(goal.predicate.expr_rhs) - 1);
     goal.predicate.bound_abs = 0.5;
     goal.predicate.is_hypothesis = 0;
 
-    Lv00GappaProofResult result = gappa_prove(&hyp, 1, &goal, 1, NULL);
+    lvGappaProofResult result = gappa_prove(&hyp, 1, &goal, 1, NULL);
 
     TEST_ASSERT_MSG(result.success == 1, "simple proof should succeed");
     TEST_ASSERT_EQ(result.goals_total, 1);
@@ -157,23 +157,23 @@ static void test_gappa_prove_simple(void) {
 
 static void test_gappa_prove_bnd(void) {
     /* Prove: x in [1, 2] => x in [0, 3] */
-    Lv00GappaPredicate hyp;
+    lvGappaPredicate hyp;
     memset(&hyp, 0, sizeof(hyp));
-    hyp.type = LV00_PRED_BND;
+    hyp.type = lv_PRED_BND;
     strncpy(hyp.expr_lhs, "x", sizeof(hyp.expr_lhs) - 1);
     hyp.bound_lo = 1.0;
     hyp.bound_hi = 2.0;
     hyp.is_hypothesis = 1;
 
-    Lv00GappaProofGoal goal;
+    lvGappaProofGoal goal;
     memset(&goal, 0, sizeof(goal));
-    goal.predicate.type = LV00_PRED_BND;
+    goal.predicate.type = lv_PRED_BND;
     strncpy(goal.predicate.expr_lhs, "x", sizeof(goal.predicate.expr_lhs) - 1);
     goal.predicate.bound_lo = 0.0;
     goal.predicate.bound_hi = 3.0;
     goal.predicate.is_hypothesis = 0;
 
-    Lv00GappaProofResult result = gappa_prove(&hyp, 1, &goal, 1, NULL);
+    lvGappaProofResult result = gappa_prove(&hyp, 1, &goal, 1, NULL);
 
     TEST_ASSERT_MSG(result.success == 1, "BND proof should succeed");
     TEST_ASSERT_EQ(result.goals_proven, 1);
@@ -183,23 +183,23 @@ static void test_gappa_prove_bnd(void) {
 
 static void test_gappa_prove_fail(void) {
     /* Try to prove: x in [0,1] => |x - 0.5| <= 0.01 (should fail) */
-    Lv00GappaPredicate hyp;
+    lvGappaPredicate hyp;
     memset(&hyp, 0, sizeof(hyp));
-    hyp.type = LV00_PRED_BND;
+    hyp.type = lv_PRED_BND;
     strncpy(hyp.expr_lhs, "x", sizeof(hyp.expr_lhs) - 1);
     hyp.bound_lo = 0.0;
     hyp.bound_hi = 1.0;
     hyp.is_hypothesis = 1;
 
-    Lv00GappaProofGoal goal;
+    lvGappaProofGoal goal;
     memset(&goal, 0, sizeof(goal));
-    goal.predicate.type = LV00_PRED_ABS;
+    goal.predicate.type = lv_PRED_ABS;
     strncpy(goal.predicate.expr_lhs, "x", sizeof(goal.predicate.expr_lhs) - 1);
     strncpy(goal.predicate.expr_rhs, "0.5", sizeof(goal.predicate.expr_rhs) - 1);
     goal.predicate.bound_abs = 0.01;
     goal.predicate.is_hypothesis = 0;
 
-    Lv00GappaProofResult result = gappa_prove(&hyp, 1, &goal, 1, NULL);
+    lvGappaProofResult result = gappa_prove(&hyp, 1, &goal, 1, NULL);
 
     TEST_ASSERT_MSG(result.success == 0, "tight bound proof should fail");
     TEST_ASSERT_EQ(result.goals_failed, 1);
@@ -212,14 +212,14 @@ static void test_gappa_prove_fail(void) {
  * ============================================================ */
 
 static void test_gappa_pred_set(void) {
-    Lv00GappaPredSet set;
+    lvGappaPredSet set;
     gappa_pred_set_init(&set);
 
     TEST_ASSERT_EQ(set.count, 0);
 
-    Lv00GappaPredicate pred;
+    lvGappaPredicate pred;
     memset(&pred, 0, sizeof(pred));
-    pred.type = LV00_PRED_BND;
+    pred.type = lv_PRED_BND;
     strncpy(pred.expr_lhs, "x", sizeof(pred.expr_lhs) - 1);
     pred.bound_lo = 0.0;
     pred.bound_hi = 1.0;
@@ -228,10 +228,10 @@ static void test_gappa_pred_set(void) {
     TEST_ASSERT_EQ(set.count, 1);
 
     /* Find existing */
-    Lv00GappaPredicate found;
+    lvGappaPredicate found;
     int idx = gappa_pred_set_find(&set, "x", &found);
     TEST_ASSERT_MSG(idx >= 0, "should find x");
-    TEST_ASSERT_EQ(found.type, LV00_PRED_BND);
+    TEST_ASSERT_EQ(found.type, lv_PRED_BND);
 
     /* Find non-existing */
     idx = gappa_pred_set_find(&set, "y", &found);
@@ -246,28 +246,28 @@ static void test_gappa_pred_set(void) {
 }
 
 static void test_gappa_propagate_forward(void) {
-    Lv00GappaPredSet input;
+    lvGappaPredSet input;
     gappa_pred_set_init(&input);
 
     /* Add hypotheses: x in [1, 2], y in [3, 4] */
-    Lv00GappaPredicate px;
+    lvGappaPredicate px;
     memset(&px, 0, sizeof(px));
-    px.type = LV00_PRED_BND;
+    px.type = lv_PRED_BND;
     strncpy(px.expr_lhs, "x", sizeof(px.expr_lhs) - 1);
     px.bound_lo = 1.0;
     px.bound_hi = 2.0;
     gappa_pred_set_add(&input, &px);
 
-    Lv00GappaPredicate py;
+    lvGappaPredicate py;
     memset(&py, 0, sizeof(py));
-    py.type = LV00_PRED_BND;
+    py.type = lv_PRED_BND;
     strncpy(py.expr_lhs, "y", sizeof(py.expr_lhs) - 1);
     py.bound_lo = 3.0;
     py.bound_hi = 4.0;
     gappa_pred_set_add(&input, &py);
 
-    Lv00GappaPredSet output;
-    Lv00GappaPropagateConfig cfg = gappa_propagate_config_default();
+    lvGappaPredSet output;
+    lvGappaPropagateConfig cfg = gappa_propagate_config_default();
 
     int derived = gappa_propagate(&input, &output, &cfg);
 
@@ -286,19 +286,19 @@ static void test_gappa_propagate_forward(void) {
 }
 
 static void test_gappa_propagate_backward(void) {
-    Lv00GappaPredSet known;
+    lvGappaPredSet known;
     gappa_pred_set_init(&known);
 
     /* Goal: |x - 0.5| <= 0.3 */
-    Lv00GappaPredicate goal;
+    lvGappaPredicate goal;
     memset(&goal, 0, sizeof(goal));
-    goal.type = LV00_PRED_ABS;
+    goal.type = lv_PRED_ABS;
     strncpy(goal.expr_lhs, "x", sizeof(goal.expr_lhs) - 1);
     strncpy(goal.expr_rhs, "0.5", sizeof(goal.expr_rhs) - 1);
     goal.bound_abs = 0.3;
 
-    Lv00GappaPredSet output;
-    Lv00GappaPropagateConfig cfg = gappa_propagate_config_default();
+    lvGappaPredSet output;
+    lvGappaPropagateConfig cfg = gappa_propagate_config_default();
 
     int needed = gappa_propagate_backward(&goal, &known, &output, &cfg);
 
@@ -306,7 +306,7 @@ static void test_gappa_propagate_backward(void) {
 
     /* Should derive x in [0.2, 0.8] */
     if (needed > 0) {
-        Lv00GappaPredicate found;
+        lvGappaPredicate found;
         int idx = gappa_pred_set_find(&output, "x", &found);
         TEST_ASSERT_MSG(idx >= 0, "should find x hypothesis");
         if (idx >= 0) {
@@ -323,7 +323,7 @@ static void test_gappa_propagate_backward(void) {
  * ============================================================ */
 
 static void test_gappa_rewrite_rules(void) {
-    Lv00GappaRewriteRule rules[2];
+    lvGappaRewriteRule rules[2];
 
     strncpy(rules[0].match_pattern, "x * 1", sizeof(rules[0].match_pattern) - 1);
     strncpy(rules[0].replace_pattern, "x", sizeof(rules[0].replace_pattern) - 1);
@@ -342,9 +342,9 @@ static void test_gappa_rewrite_rules(void) {
  * ============================================================ */
 
 static void test_gappa_result_free(void) {
-    Lv00GappaProofResult result;
+    lvGappaProofResult result;
     memset(&result, 0, sizeof(result));
-    result.goals = (Lv00GappaProofGoal *)malloc(sizeof(Lv00GappaProofGoal));
+    result.goals = (lvGappaProofGoal *)malloc(sizeof(lvGappaProofGoal));
     result.goals_total = 1;
 
     gappa_result_free(&result);

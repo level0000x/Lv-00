@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file module_delta.c
  * @brief Delta 差分系统
  *
@@ -13,11 +13,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/module.h"
-#include "lv00/module_internal.h"
+#include "lv/module.h"
+#include "lv/module_internal.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "module_helpers.h"
 
 void module_set_autosave_config(Module *mod, const AutoSaveConfig *config) {
@@ -31,11 +31,11 @@ void module_set_autosave_config(Module *mod, const AutoSaveConfig *config) {
     stored->max_backups = config->max_backups;
 
     if (stored->backup_directory) {
-        lv00_free((void**)&stored->backup_directory);
+        lv_free((void**)&stored->backup_directory);
         stored->backup_directory = NULL;
     }
     if (config->backup_directory) {
-        stored->backup_directory = lv00_strdup_safe(config->backup_directory);
+        stored->backup_directory = lv_strdup_safe(config->backup_directory);
     }
 }
 
@@ -79,7 +79,7 @@ static void make_backup_binpath(char *buf, size_t buf_size,
 
 ModuleSaveStatus module_autosave(const Module *mod) {
     if (!mod) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "module_autosave: 无效参数");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "module_autosave: 无效参数");
         return MODULE_SAVE_WRITE_ERROR;
     }
 
@@ -128,7 +128,7 @@ ModuleSaveStatus module_autosave(const Module *mod) {
 
     ModuleSaveStatus status = module_save(mod, backup_path);
     if (status != MODULE_SAVE_OK) {
-        lv00_set_error(LV00_ERROR_IO, "module_autosave: 文本备份保存失败");
+        lv_set_error(lv_ERROR_IO, "module_autosave: 文本备份保存失败");
         return status;
     }
 
@@ -146,7 +146,7 @@ ModuleSaveStatus module_autosave(const Module *mod) {
             fwrite(bin_data, 1, bin_size, f);
             fclose(f);
         }
-        lv00_free((void**)&bin_data);
+        lv_free((void**)&bin_data);
     }
 
     return MODULE_SAVE_OK;
@@ -154,7 +154,7 @@ ModuleSaveStatus module_autosave(const Module *mod) {
 
 ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **out_module) {
     if (!module_name || !out_module) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "module_recover_from_backup: 无效参数");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "module_recover_from_backup: 无效参数");
         return MODULE_LOAD_PARSE_ERROR;
     }
 
@@ -178,13 +178,13 @@ ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **ou
             fseek(f, 0, SEEK_SET);
 
             if (fsize > 0) {
-                uint8_t *data = (uint8_t *)lv00_malloc((size_t)fsize);
+                uint8_t *data = (uint8_t *)lv_malloc((size_t)fsize);
                 if (data) {
                     size_t read_len = fread(data, 1, (size_t)fsize, f);
                     fclose(f);
 
                     ModuleLoadStatus status = module_load_from_binary(data, read_len, out_module);
-                    lv00_free((void**)&data);
+                    lv_free((void**)&data);
                     if (status == MODULE_LOAD_OK) {
                         return MODULE_LOAD_OK;
                     }
@@ -209,7 +209,7 @@ ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **ou
             fseek(f, 0, SEEK_SET);
 
             if (fsize > 0) {
-                char *data = (char *)lv00_malloc((size_t)fsize + 1);
+                char *data = (char *)lv_malloc((size_t)fsize + 1);
                 if (data) {
                     size_t read_len = fread(data, 1, (size_t)fsize, f);
                     data[read_len] = '\0';
@@ -224,7 +224,7 @@ ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **ou
                         lvz_parser_cleanup(&parser);
 
                         if (parse_ok) {
-                            lv00_free((void**)&data);
+                            lv_free((void**)&data);
                             *out_module = mod;
                             return MODULE_LOAD_OK;
                         }
@@ -233,7 +233,7 @@ ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **ou
 
                     /* 尝试作为 JSON 格式加载 */
                     ModuleLoadStatus json_status = module_deserialize_from_json(data, out_module);
-                    lv00_free((void**)&data);
+                    lv_free((void**)&data);
                     if (json_status == MODULE_LOAD_OK) {
                         return MODULE_LOAD_OK;
                     }
@@ -246,7 +246,7 @@ ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **ou
         }
     }
 
-    lv00_set_error(LV00_ERROR_NOT_FOUND, "module_recover_from_backup: 未找到可恢复的备份文件");
+    lv_set_error(lv_ERROR_NOT_FOUND, "module_recover_from_backup: 未找到可恢复的备份文件");
     return MODULE_LOAD_FILE_NOT_FOUND;
 }
 
@@ -291,7 +291,7 @@ static uint64_t hash_string_to_u64(const char *hex_str) {
 
 /* 将 uint64_t 转换为十六进制字符串 */
 static char *u64_to_hash_string(uint64_t val) {
-    char *result = (char *)lv00_malloc(17);
+    char *result = (char *)lv_malloc(17);
     if (result) {
         snprintf(result, 17, "%016llx", (unsigned long long)val);
     }
@@ -340,20 +340,20 @@ static DeltaBaseline *find_delta_baseline(const char *module_name) {
 
 static void free_delta_baseline(DeltaBaseline *bl) {
     if (!bl) return;
-    lv00_free((void**)&bl->module_name);
-    lv00_free((void**)&bl->name);
-    lv00_free((void**)&bl->version);
+    lv_free((void**)&bl->module_name);
+    lv_free((void**)&bl->name);
+    lv_free((void**)&bl->version);
     for (int i = 0; i < bl->dep_count; i++) {
-        lv00_free((void**)&bl->dep_names[i]);
-        lv00_free((void**)&bl->dep_versions[i]);
+        lv_free((void**)&bl->dep_names[i]);
+        lv_free((void**)&bl->dep_versions[i]);
     }
-    lv00_free((void**)&bl->dep_names);
-    lv00_free((void**)&bl->dep_versions);
-    lv00_free((void**)&bl->func_block_ids);
-    lv00_free((void**)&bl->type_region_ids);
-    lv00_free((void**)&bl->graph_node_ids);
-    lv00_free((void**)&bl->graph_constraint_ids);
-    lv00_free((void**)&bl->graph_node_coord_hashes);
+    lv_free((void**)&bl->dep_names);
+    lv_free((void**)&bl->dep_versions);
+    lv_free((void**)&bl->func_block_ids);
+    lv_free((void**)&bl->type_region_ids);
+    lv_free((void**)&bl->graph_node_ids);
+    lv_free((void**)&bl->graph_constraint_ids);
+    lv_free((void**)&bl->graph_node_coord_hashes);
     memset(bl, 0, sizeof(DeltaBaseline));
 }
 
@@ -376,32 +376,32 @@ static void store_baseline(const Module *mod, uint64_t hash) {
         free_delta_baseline(bl);
     }
 
-    bl->module_name = lv00_strdup_safe(mod->name);
+    bl->module_name = lv_strdup_safe(mod->name);
     bl->base_hash = hash;
-    bl->name = lv00_strdup_safe(mod->name);
-    bl->version = lv00_strdup_safe(mod->version);
+    bl->name = lv_strdup_safe(mod->name);
+    bl->version = lv_strdup_safe(mod->version);
 
     /* 复制依赖 */
     bl->dep_count = mod->dependency_count;
     if (bl->dep_count > 0) {
-        bl->dep_names = (char **)lv00_malloc(sizeof(char *) * bl->dep_count);
-        bl->dep_versions = (char **)lv00_malloc(sizeof(char *) * bl->dep_count);
+        bl->dep_names = (char **)lv_malloc(sizeof(char *) * bl->dep_count);
+        bl->dep_versions = (char **)lv_malloc(sizeof(char *) * bl->dep_count);
         for (int i = 0; i < bl->dep_count; i++) {
-            bl->dep_names[i] = lv00_strdup_safe(mod->dependencies[i].name);
-            bl->dep_versions[i] = lv00_strdup_safe(mod->dependencies[i].version_constraint);
+            bl->dep_names[i] = lv_strdup_safe(mod->dependencies[i].name);
+            bl->dep_versions[i] = lv_strdup_safe(mod->dependencies[i].version_constraint);
         }
     }
 
     /* 复制导出 */
     bl->func_count = mod->exports ? mod->exports->function_count : 0;
     if (bl->func_count > 0) {
-        bl->func_block_ids = (int *)lv00_malloc(sizeof(int) * bl->func_count);
+        bl->func_block_ids = (int *)lv_malloc(sizeof(int) * bl->func_count);
         memcpy(bl->func_block_ids, mod->exports->function_block_ids, sizeof(int) * bl->func_count);
     }
 
     bl->type_count = mod->exports ? mod->exports->type_count : 0;
     if (bl->type_count > 0) {
-        bl->type_region_ids = (int *)lv00_malloc(sizeof(int) * bl->type_count);
+        bl->type_region_ids = (int *)lv_malloc(sizeof(int) * bl->type_count);
         memcpy(bl->type_region_ids, mod->exports->type_region_ids, sizeof(int) * bl->type_count);
     }
 
@@ -411,8 +411,8 @@ static void store_baseline(const Module *mod, uint64_t hash) {
         bl->graph_constraint_count = mod->graph->constraint_count;
 
         if (bl->graph_node_count > 0) {
-            bl->graph_node_ids = (int *)lv00_malloc(sizeof(int) * bl->graph_node_count);
-            bl->graph_node_coord_hashes = (uint64_t *)lv00_malloc(sizeof(uint64_t) * bl->graph_node_count);
+            bl->graph_node_ids = (int *)lv_malloc(sizeof(int) * bl->graph_node_count);
+            bl->graph_node_coord_hashes = (uint64_t *)lv_malloc(sizeof(uint64_t) * bl->graph_node_count);
             for (int i = 0; i < bl->graph_node_count; i++) {
                 GeomNode *n = mod->graph->nodes[i];
                 bl->graph_node_ids[i] = n ? n->id : -1;
@@ -434,7 +434,7 @@ static void store_baseline(const Module *mod, uint64_t hash) {
         }
 
         if (bl->graph_constraint_count > 0) {
-            bl->graph_constraint_ids = (int *)lv00_malloc(sizeof(int) * bl->graph_constraint_count);
+            bl->graph_constraint_ids = (int *)lv_malloc(sizeof(int) * bl->graph_constraint_count);
             for (int i = 0; i < bl->graph_constraint_count; i++) {
                 Constraint *c = mod->graph->constraints[i];
                 bl->graph_constraint_ids[i] = c ? c->id : -1;
@@ -457,8 +457,8 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
         char *json = module_serialize_to_json(mod);
         if (!json) return NULL;
 
-        ModuleDelta *delta = (ModuleDelta *)lv00_malloc(sizeof(ModuleDelta));
-        if (!delta) { lv00_free((void**)&json); return NULL; }
+        ModuleDelta *delta = (ModuleDelta *)lv_malloc(sizeof(ModuleDelta));
+        if (!delta) { lv_free((void**)&json); return NULL; }
 
         delta->base_version_hash = base_hash;
         delta->delta_data = json;
@@ -477,7 +477,7 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
     char *hash_str = u64_to_hash_string(base_hash);
     if (hash_str) {
         json_writer_puts(&w, hash_str);
-        lv00_free((void**)&hash_str);
+        lv_free((void**)&hash_str);
     }
     json_writer_puts(&w, "\",");
 
@@ -597,8 +597,8 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
         int *cur_constraint_ids = NULL;
 
         if (cur_node_count > 0) {
-            cur_node_ids = (int *)lv00_malloc(sizeof(int) * cur_node_count);
-            cur_node_hashes = (uint64_t *)lv00_malloc(sizeof(uint64_t) * cur_node_count);
+            cur_node_ids = (int *)lv_malloc(sizeof(int) * cur_node_count);
+            cur_node_hashes = (uint64_t *)lv_malloc(sizeof(uint64_t) * cur_node_count);
             for (int i = 0; i < cur_node_count; i++) {
                 GeomNode *n = mod->graph->nodes[i];
                 cur_node_ids[i] = n ? n->id : -1;
@@ -618,7 +618,7 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
         }
 
         if (cur_constraint_count > 0) {
-            cur_constraint_ids = (int *)lv00_malloc(sizeof(int) * cur_constraint_count);
+            cur_constraint_ids = (int *)lv_malloc(sizeof(int) * cur_constraint_count);
             for (int i = 0; i < cur_constraint_count; i++) {
                 Constraint *c = mod->graph->constraints[i];
                 cur_constraint_ids[i] = c ? c->id : -1;
@@ -744,15 +744,15 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
 
         if (graph_changed) has_changes = true;
 
-        lv00_free((void**)&cur_node_ids);
-        lv00_free((void**)&cur_node_hashes);
-        lv00_free((void**)&cur_constraint_ids);
+        lv_free((void**)&cur_node_ids);
+        lv_free((void**)&cur_node_hashes);
+        lv_free((void**)&cur_constraint_ids);
     }
 
     json_writer_putc(&w, '}'); /* end changes */
     json_writer_putc(&w, '}'); /* end root */
 
-    ModuleDelta *delta = (ModuleDelta *)lv00_malloc(sizeof(ModuleDelta));
+    ModuleDelta *delta = (ModuleDelta *)lv_malloc(sizeof(ModuleDelta));
     if (!delta) { json_writer_destroy(&w); return NULL; }
 
     delta->base_version_hash = base_hash;
@@ -767,7 +767,7 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
 
 bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
     if (!mod || !delta || !delta->delta_data) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "module_apply_delta: 无效参数");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "module_apply_delta: 无效参数");
         return false;
     }
 
@@ -775,9 +775,9 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
     char *current_hash_str = module_compute_version_hash(mod);
     if (current_hash_str) {
         uint64_t current_hash = hash_string_to_u64(current_hash_str);
-        lv00_free((void**)&current_hash_str);
+        lv_free((void**)&current_hash_str);
         if (current_hash != delta->base_version_hash) {
-            lv00_set_error(LV00_ERROR_INVALID_PARAM, "module_apply_delta: 基线版本哈希不匹配");
+            lv_set_error(lv_ERROR_INVALID_PARAM, "module_apply_delta: 基线版本哈希不匹配");
             return false;
         }
     }
@@ -788,7 +788,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
     json_reader_init(&r, delta->delta_data, json_len);
 
     if (json_reader_peek(&r) != '{') {
-        lv00_set_error(LV00_ERROR_PARSE, "module_apply_delta: 无效的 delta 数据格式");
+        lv_set_error(lv_ERROR_PARSE, "module_apply_delta: 无效的 delta 数据格式");
         return false;
     }
     r.pos++;
@@ -796,16 +796,16 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
     while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
         char *key = json_reader_read_string(&r);
         if (!key) break;
-        if (!json_reader_expect_char(&r, ':')) { lv00_free((void**)&key); break; }
+        if (!json_reader_expect_char(&r, ':')) { lv_free((void**)&key); break; }
 
         if (strcmp(key, "changes") == 0) {
-            if (json_reader_peek(&r) != '{') { lv00_free((void**)&key); break; }
+            if (json_reader_peek(&r) != '{') { lv_free((void**)&key); break; }
             r.pos++;
 
             while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
                 char *ck = json_reader_read_string(&r);
                 if (!ck) break;
-                if (!json_reader_expect_char(&r, ':')) { lv00_free((void**)&ck); break; }
+                if (!json_reader_expect_char(&r, ':')) { lv_free((void**)&ck); break; }
 
                 if (strcmp(ck, "name") == 0) {
                     /* 应用名称变更 */
@@ -814,15 +814,15 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                         while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
                             char *fk = json_reader_read_string(&r);
                             if (!fk) break;
-                            if (!json_reader_expect_char(&r, ':')) { lv00_free((void**)&fk); break; }
+                            if (!json_reader_expect_char(&r, ':')) { lv_free((void**)&fk); break; }
                             char *val = json_reader_read_string(&r);
                             if (strcmp(fk, "new") == 0 && val) {
-                                lv00_free((void**)&mod->name);
+                                lv_free((void**)&mod->name);
                                 mod->name = val;
                                 val = NULL;
                             }
-                            lv00_free((void**)&val);
-                            lv00_free((void**)&fk);
+                            lv_free((void**)&val);
+                            lv_free((void**)&fk);
                             if (json_reader_peek(&r) == ',') r.pos++;
                         }
                         if (json_reader_peek(&r) == '}') r.pos++;
@@ -834,15 +834,15 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                         while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
                             char *fk = json_reader_read_string(&r);
                             if (!fk) break;
-                            if (!json_reader_expect_char(&r, ':')) { lv00_free((void**)&fk); break; }
+                            if (!json_reader_expect_char(&r, ':')) { lv_free((void**)&fk); break; }
                             char *val = json_reader_read_string(&r);
                             if (strcmp(fk, "new") == 0 && val) {
-                                lv00_free((void**)&mod->version);
+                                lv_free((void**)&mod->version);
                                 mod->version = val;
                                 val = NULL;
                             }
-                            lv00_free((void**)&val);
-                            lv00_free((void**)&fk);
+                            lv_free((void**)&val);
+                            lv_free((void**)&fk);
                             if (json_reader_peek(&r) == ',') r.pos++;
                         }
                         if (json_reader_peek(&r) == '}') r.pos++;
@@ -859,19 +859,19 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                 while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
                                     char *fk = json_reader_read_string(&r);
                                     if (!fk) break;
-                                    if (!json_reader_expect_char(&r, ':')) { lv00_free((void**)&fk); break; }
+                                    if (!json_reader_expect_char(&r, ':')) { lv_free((void**)&fk); break; }
                                     char *val = json_reader_read_string(&r);
-                                    if (strcmp(fk, "name") == 0) { lv00_free((void**)&dn); dn = val; }
-                                    else if (strcmp(fk, "version_constraint") == 0) { lv00_free((void**)&dv); dv = val; }
-                                    else lv00_free((void**)&val);
-                                    lv00_free((void**)&fk);
+                                    if (strcmp(fk, "name") == 0) { lv_free((void**)&dn); dn = val; }
+                                    else if (strcmp(fk, "version_constraint") == 0) { lv_free((void**)&dv); dv = val; }
+                                    else lv_free((void**)&val);
+                                    lv_free((void**)&fk);
                                     if (json_reader_peek(&r) == ',') r.pos++;
                                 }
                                 if (json_reader_peek(&r) == '}') r.pos++;
                                 if (dn) {
                                     module_add_dependency(mod, dn, dv ? dv : "");
                                 }
-                                lv00_free((void**)&dn); lv00_free((void**)&dv);
+                                lv_free((void**)&dn); lv_free((void**)&dv);
                             } else {
                                 r.pos++;
                             }
@@ -889,8 +889,8 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                 /* 查找并移除依赖 */
                                 for (int i = 0; i < mod->dependency_count; i++) {
                                     if (strcmp(mod->dependencies[i].name, dep_name) == 0) {
-                                        lv00_free((void**)&mod->dependencies[i].name);
-                                        lv00_free((void**)&mod->dependencies[i].version_constraint);
+                                        lv_free((void**)&mod->dependencies[i].name);
+                                        lv_free((void**)&mod->dependencies[i].version_constraint);
                                         /* 将最后一个元素移到当前位置 */
                                         if (i < mod->dependency_count - 1) {
                                             mod->dependencies[i] = mod->dependencies[mod->dependency_count - 1];
@@ -899,7 +899,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                         break;
                                     }
                                 }
-                                lv00_free((void**)&dep_name);
+                                lv_free((void**)&dep_name);
                             }
                         }
                         if (json_reader_peek(&r) == ']') r.pos++;
@@ -916,25 +916,25 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                 while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
                                     char *fk = json_reader_read_string(&r);
                                     if (!fk) break;
-                                    if (!json_reader_expect_char(&r, ':')) { lv00_free((void**)&fk); break; }
+                                    if (!json_reader_expect_char(&r, ':')) { lv_free((void**)&fk); break; }
                                     char *val = json_reader_read_string(&r);
-                                    if (strcmp(fk, "name") == 0) { lv00_free((void**)&dn); dn = val; }
-                                    else if (strcmp(fk, "new_version_constraint") == 0) { lv00_free((void**)&nv); nv = val; }
-                                    else lv00_free((void**)&val);
-                                    lv00_free((void**)&fk);
+                                    if (strcmp(fk, "name") == 0) { lv_free((void**)&dn); dn = val; }
+                                    else if (strcmp(fk, "new_version_constraint") == 0) { lv_free((void**)&nv); nv = val; }
+                                    else lv_free((void**)&val);
+                                    lv_free((void**)&fk);
                                     if (json_reader_peek(&r) == ',') r.pos++;
                                 }
                                 if (json_reader_peek(&r) == '}') r.pos++;
                                 if (dn && nv) {
                                     for (int i = 0; i < mod->dependency_count; i++) {
                                         if (strcmp(mod->dependencies[i].name, dn) == 0) {
-                                            lv00_free((void**)&mod->dependencies[i].version_constraint);
-                                            mod->dependencies[i].version_constraint = lv00_strdup_safe(nv);
+                                            lv_free((void**)&mod->dependencies[i].version_constraint);
+                                            mod->dependencies[i].version_constraint = lv_strdup_safe(nv);
                                             break;
                                         }
                                     }
                                 }
-                                lv00_free((void**)&dn); lv00_free((void**)&nv);
+                                lv_free((void**)&dn); lv_free((void**)&nv);
                             } else {
                                 r.pos++;
                             }
@@ -963,7 +963,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                     /* 跳过未知字段 */
                     if (json_reader_peek(&r) == '"') {
                         char *tmp = json_reader_read_string(&r);
-                        lv00_free((void**)&tmp);
+                        lv_free((void**)&tmp);
                     } else if (json_reader_peek(&r) == '[') {
                         int cnt = json_reader_count_array_elements(&r);
                         (void)cnt;
@@ -990,7 +990,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                     }
                 }
 
-                lv00_free((void**)&ck);
+                lv_free((void**)&ck);
                 if (json_reader_peek(&r) == ',') r.pos++;
             }
             if (json_reader_peek(&r) == '}') r.pos++;
@@ -999,7 +999,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
             /* 跳过 base_hash 等其他字段 */
             if (json_reader_peek(&r) == '"') {
                 char *tmp = json_reader_read_string(&r);
-                lv00_free((void**)&tmp);
+                lv_free((void**)&tmp);
             } else if (json_reader_peek(&r) == '{') {
                 r.pos++;
                 int depth = 1;
@@ -1023,7 +1023,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
             }
         }
 
-        lv00_free((void**)&key);
+        lv_free((void**)&key);
         if (json_reader_peek(&r) == ',') r.pos++;
     }
 
@@ -1032,7 +1032,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
 
 void module_delta_destroy(ModuleDelta *delta) {
     if (delta) {
-        lv00_free((void**)&delta->delta_data);
-        lv00_free((void**)&delta);
+        lv_free((void**)&delta->delta_data);
+        lv_free((void**)&delta);
     }
 }

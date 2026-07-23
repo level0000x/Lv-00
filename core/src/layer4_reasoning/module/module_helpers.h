@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file module_helpers.h
  * @brief 模块子系统共享内部类型和辅助函数声明
  *
@@ -9,8 +9,8 @@
  * 仅限模块子系统内部使用，外部代码不应包含此头文件。
  */
 
-#ifndef LV00_MODULE_HELPERS_H
-#define LV00_MODULE_HELPERS_H
+#ifndef lv_MODULE_HELPERS_H
+#define lv_MODULE_HELPERS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,7 +20,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
-#include "lv00/module.h"
+#include "lv/module.h"
 #include "lexer_shared.h"
 
 /* ============== LVZ 词法 Token 类型 ============== */
@@ -43,8 +43,8 @@ typedef struct {
     int col;
 } LvzToken;
 
-/* LvzLexer 是 Lv00Lexer 的别名 */
-typedef Lv00Lexer LvzLexer;
+/* LvzLexer 是 lvLexer 的别名 */
+typedef lvLexer LvzLexer;
 
 /* ============== LVZ 解析器 ============== */
 
@@ -134,10 +134,10 @@ bool dependency_exists(Module **visited, int count, Module *mod);
  * @brief 模块流式上下文（在 module.c 中定义，模块子文件共享使用）
  */
 #include "stream.h"
-extern LV00_THREAD_LOCAL StreamContext *module_stream_ctx;
+extern lv_THREAD_LOCAL StreamContext *module_stream_ctx;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* LV00_MODULE_HELPERS_H */
+#endif /* lv_MODULE_HELPERS_H */

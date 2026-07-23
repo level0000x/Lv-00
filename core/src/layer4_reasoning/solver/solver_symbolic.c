@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_symbolic.c
  * @brief 符号求解器（精确求解/回代/消元）—— 桩实现
  *
@@ -8,25 +8,25 @@
  * @version 3.3.0
  */
 
-#include "lv00/solver.h"
+#include "lv/solver.h"
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
-#include "lv00/stream.h"
+#include "lv/stream.h"
 #include "stream_context_util.h"
-#include "lv00/symbolic_coord.h"
+#include "lv/symbolic_coord.h"
 
 /* --- 共享宏 --- */
-#define LV00_SOLVER_DYNARRAY_INIT_CAP 16
-#define LV00_ZERO_EPSILON 1e-12
+#define lv_SOLVER_DYNARRAY_INIT_CAP 16
+#define lv_ZERO_EPSILON 1e-12
 
 /* ── PolyEquation + EquationSystem (required by solver_symbolic) ── */
 
@@ -187,13 +187,13 @@ bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly
     /* 常数项为 0 时提取 x 作为因式 */
     if (mpz_cmp_si(const_term, 0) == 0) {
         factor1->degree = 1;
-        factor1->coeffs = lv00_malloc(2 * sizeof(mpz_t));
+        factor1->coeffs = lv_malloc(2 * sizeof(mpz_t));
         if (!factor1->coeffs) { goto fail; }
         mpz_init_set_si(factor1->coeffs[0], 0);
         mpz_init_set_si(factor1->coeffs[1], 1);
 
         factor2->degree = poly->degree - 1;
-        factor2->coeffs = lv00_malloc((size_t)(factor2->degree + 1) * sizeof(mpz_t));
+        factor2->coeffs = lv_malloc((size_t)(factor2->degree + 1) * sizeof(mpz_t));
         if (!factor2->coeffs) { mpz_poly_clear(factor1); goto fail; }
         for (int i = 0; i <= factor2->degree; i++) {
             mpz_init_set(factor2->coeffs[i], poly->coeffs[i + 1]);
@@ -321,7 +321,7 @@ int count_point_variables(const ConstraintGraph *graph, int **out_ids) {
             count++;
     }
     if (out_ids) {
-        *out_ids = lv00_malloc((size_t)count * sizeof(int));
+        *out_ids = lv_malloc((size_t)count * sizeof(int));
         int idx = 0;
         for (int i = 0; i < graph->node_count; i++) {
             if (graph->nodes[i]->type == GEOM_POINT) {
@@ -341,10 +341,10 @@ int count_point_variables(const ConstraintGraph *graph, int **out_ids) {
  */
 static int append_solution(GroebnerResult *result, SymbolicCoord *sol) {
     if (!result || !sol) return -1;
-    SymbolicCoord **new_arr = lv00_realloc(result->solutions,
+    SymbolicCoord **new_arr = lv_realloc(result->solutions,
         (size_t)(result->solution_count + 1) * sizeof(SymbolicCoord *));
     if (!new_arr) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "append_solution: 扩容失败");
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "append_solution: 扩容失败");
         symbolic_coord_destroy(sol);
         return -1;
     }
@@ -748,13 +748,13 @@ int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int
             double approx2 = a_val + b_val * sqrt(n_d);
 
             solutions[0] = symbolic_coord_create_rational(
-                (int64_t)(approx1 * LV00_SOLVER_SCALE_FACTOR),
-                (uint64_t)LV00_SOLVER_SCALE_FACTOR);
+                (int64_t)(approx1 * lv_SOLVER_SCALE_FACTOR),
+                (uint64_t)lv_SOLVER_SCALE_FACTOR);
             int count = solutions[0] ? 1 : 0;
             if (count < max_solutions) {
                 solutions[count] = symbolic_coord_create_rational(
-                    (int64_t)(approx2 * LV00_SOLVER_SCALE_FACTOR),
-                    (uint64_t)LV00_SOLVER_SCALE_FACTOR);
+                    (int64_t)(approx2 * lv_SOLVER_SCALE_FACTOR),
+                    (uint64_t)lv_SOLVER_SCALE_FACTOR);
                 if (solutions[count]) count++;
             }
             mpz_clear(a_num); mpz_clear(a_den);
@@ -867,7 +867,7 @@ int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max
     double d_val = mpz_get_d(poly->coeffs[0]);
 
     /* 归一化: x^3 + px^2 + qx + r = 0 */
-    if (fabs(a_val) < LV00_EPSILON_NEWTON) {
+    if (fabs(a_val) < lv_EPSILON_NEWTON) {
         return 0;  /* 非三次方程 */
     }
     double p_val = b_val / a_val;
@@ -886,7 +886,7 @@ int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max
 
     int sol_count = 0;
 
-    if (D > LV00_EPSILON_DOUBLE) {
+    if (D > lv_EPSILON_DOUBLE) {
         /* 一个实根: y = cbrt(-Q/2 + √D) + cbrt(-Q/2 - √D) */
         double sqrt_D = sqrt(D);
         double u = -half_Q + sqrt_D;
@@ -894,10 +894,10 @@ int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max
         double y_root = cbrt(u) + cbrt(v);
         double x_root = y_root - p_over_3;
         solutions[0] = symbolic_coord_create_rational(
-            (int64_t)(x_root * LV00_SOLVER_SCALE_FACTOR),
-            (uint64_t)LV00_SOLVER_SCALE_FACTOR);
+            (int64_t)(x_root * lv_SOLVER_SCALE_FACTOR),
+            (uint64_t)lv_SOLVER_SCALE_FACTOR);
         if (solutions[0]) sol_count = 1;
-    } else if (fabs(D) < LV00_EPSILON_DOUBLE) {
+    } else if (fabs(D) < lv_EPSILON_DOUBLE) {
         /* 三个实根（至少两个相等）:
          * y1 = 2*cbrt(-Q/2), y2 = y3 = -cbrt(-Q/2) */
         double cbrt_val = cbrt(-half_Q);
@@ -905,14 +905,14 @@ int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max
         double x2 = -cbrt_val - p_over_3;
 
         solutions[sol_count] = symbolic_coord_create_rational(
-            (int64_t)(x1 * LV00_SOLVER_SCALE_FACTOR),
-            (uint64_t)LV00_SOLVER_SCALE_FACTOR);
+            (int64_t)(x1 * lv_SOLVER_SCALE_FACTOR),
+            (uint64_t)lv_SOLVER_SCALE_FACTOR);
         if (solutions[sol_count]) sol_count++;
 
-        if (sol_count < max_solutions && fabs(x1 - x2) > LV00_EPSILON_DOUBLE) {
+        if (sol_count < max_solutions && fabs(x1 - x2) > lv_EPSILON_DOUBLE) {
             solutions[sol_count] = symbolic_coord_create_rational(
-                (int64_t)(x2 * LV00_SOLVER_SCALE_FACTOR),
-                (uint64_t)LV00_SOLVER_SCALE_FACTOR);
+                (int64_t)(x2 * lv_SOLVER_SCALE_FACTOR),
+                (uint64_t)lv_SOLVER_SCALE_FACTOR);
             if (solutions[sol_count]) sol_count++;
         }
     } else {
@@ -927,8 +927,8 @@ int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max
             double angle = (phi + 2.0 * M_PI * k) / 3.0;
             double x_k = 2.0 * sqrt_term * cos(angle) - p_over_3;
             solutions[sol_count] = symbolic_coord_create_rational(
-                (int64_t)(x_k * LV00_SOLVER_SCALE_FACTOR),
-                (uint64_t)LV00_SOLVER_SCALE_FACTOR);
+                (int64_t)(x_k * lv_SOLVER_SCALE_FACTOR),
+                (uint64_t)lv_SOLVER_SCALE_FACTOR);
             if (solutions[sol_count]) sol_count++;
         }
     }
@@ -945,7 +945,7 @@ void cleanup_groebner_result(GroebnerResult *result) {
     for (int i = 0; i < result->solution_count; i++) {
         symbolic_coord_destroy(result->solutions[i]);
     }
-    lv00_free((void **)&result->solutions);
+    lv_free((void **)&result->solutions);
     result->solutions = NULL;
     result->solution_count = 0;
 }

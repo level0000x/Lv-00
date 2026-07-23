@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gc_language.c
  * @brief GC（几何构造）语言解析模块 —— Layer2 资源管理层
  *
@@ -9,7 +9,7 @@
  * @version 1.0.0
  */
 
-#include "lv00/gc_language.h"
+#include "lv/gc_language.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -20,13 +20,13 @@
  * ================================================================ */
 
 /** 最近一次解析错误信息缓冲区 */
-static LV00_THREAD_LOCAL char g_gc_error_buf[256];
+static lv_THREAD_LOCAL char g_gc_error_buf[256];
 
 /** 是否存在未清除的错误 */
-static LV00_THREAD_LOCAL int g_gc_has_error = 0;
+static lv_THREAD_LOCAL int g_gc_has_error = 0;
 
 /** 已解析的命令计数 */
-static LV00_THREAD_LOCAL int g_gc_cmd_count = 0;
+static lv_THREAD_LOCAL int g_gc_cmd_count = 0;
 
 /* ================================================================
  *  关键字定义
@@ -159,7 +159,7 @@ static const char *gc_parse_identifier(const char *p, char *buf, int bufsz)
  * @param engine 引擎句柄（当前预留接口，传 NULL 有效）
  * @return 0 解析成功，-1 参数错误或解析失败
  */
-int lv00_gc_parse(const char *source, void *engine)
+int lv_gc_parse(const char *source, void *engine)
 {
     const char *p;
     char ident[128];
@@ -267,7 +267,7 @@ int lv00_gc_parse(const char *source, void *engine)
  *
  * @return 错误信息字符串（内部存储，勿释放），无错误返回 NULL
  */
-const char *lv00_gc_error(void)
+const char *lv_gc_error(void)
 {
     if (g_gc_has_error) {
         return g_gc_error_buf;
@@ -280,7 +280,7 @@ const char *lv00_gc_error(void)
  *
  * @return 命令计数（即遇到的关键字数量）
  */
-int lv00_gc_command_count(void)
+int lv_gc_command_count(void)
 {
     return g_gc_cmd_count;
 }

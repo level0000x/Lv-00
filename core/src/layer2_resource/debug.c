@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file debug.c
  * @brief 调试工具实现
  * @details 实现日志系统、性能计数器、内存池、引用计数/GC、
@@ -20,53 +20,53 @@
 #include <windows.h>
 #define mkdir(path, mode) _mkdir(path)
 #define access _access
-#define LV00_DEBUG_F_OK 0
+#define lv_DEBUG_F_OK 0
 #else
 #include <pthread.h>
 #include <sys/types.h>
 #include <unistd.h>
-#define LV00_DEBUG_F_OK F_OK
+#define lv_DEBUG_F_OK F_OK
 #endif
 
 #include "debug.h"
-#include "context.h"      /* v3.3.0: 结构化日志需要 Lv00Context */
-#include "lv00/engine.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "context.h"      /* v3.3.0: 结构化日志需要 lvContext */
+#include "lv/engine.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include "type_system.h"
 
-LV00_DECLARE_STREAM_CTX(debug);
+lv_DECLARE_STREAM_CTX(debug);
 
 /* ==================== 命名常量（消除魔术数字） ==================== */
 
 /** 错误诊断消息缓冲区的默认大小 */
-#define LV00_DEBUG_MSG_BUF_SIZE 512
+#define lv_DEBUG_MSG_BUF_SIZE 512
 
 /** 时间戳格式化缓冲区大小 */
-#define LV00_DEBUG_TIMESTAMP_BUF_SIZE 32
+#define lv_DEBUG_TIMESTAMP_BUF_SIZE 32
 
 /** GC 及内存池的默认块大小 */
-#define LV00_DEBUG_GC_BLOCK_SIZE 2048
+#define lv_DEBUG_GC_BLOCK_SIZE 2048
 
 /** 默认日志文件基本名称 */
-#define LV00_DEBUG_LOG_BASENAME "lv00.log"
+#define lv_DEBUG_LOG_BASENAME "lv.log"
 
 /** 日志消息格式化缓冲区大小 */
-#define LV00_DEBUG_LOG_MESSAGE_BUF_SIZE 4096
+#define lv_DEBUG_LOG_MESSAGE_BUF_SIZE 4096
 
 /** 日志行拼接缓冲区大小（含时间戳、级别、模块名、消息） */
-#define LV00_DEBUG_LOG_LINE_BUF_SIZE 8192
+#define lv_DEBUG_LOG_LINE_BUF_SIZE 8192
 
 /** 追踪会话初始事件容量 */
-#define LV00_DEBUG_TRACE_INITIAL_CAPACITY 64
+#define lv_DEBUG_TRACE_INITIAL_CAPACITY 64
 
 /** 空 JSON 导出缓冲区大小 */
-#define LV00_DEBUG_EMPTY_JSON_BUF_SIZE 32
+#define lv_DEBUG_EMPTY_JSON_BUF_SIZE 32
 
 /** JSON 导出初始缓冲区容量 */
-#define LV00_DEBUG_JSON_INITIAL_CAPACITY 1024
+#define lv_DEBUG_JSON_INITIAL_CAPACITY 1024
 
 /*=== 线程安全策略 ===
  *
@@ -87,7 +87,7 @@ LV00_DECLARE_STREAM_CTX(debug);
  *    - 保护：g_counters（PerformanceCounters 结构体）
  *    - 所有计数器读写路径均通过 counter_lock()/counter_unlock() 获取此锁。
  *
- * 3. 线程局部变量（LV00_THREAD_LOCAL）：
+ * 3. 线程局部变量（lv_THREAD_LOCAL）：
  *    - g_log_level 和 g_debug_mode 为线程局部存储，
  *      每个线程有独立副本，无需锁保护。
  *
@@ -103,19 +103,19 @@ LV00_DECLARE_STREAM_CTX(debug);
 /*=== 内部状态 ===*/
 
 /* 全局日志级别（默认：普通模式下仅记录 INFO 及以上） */
-static LV00_THREAD_LOCAL LogLevel g_log_level = LOG_LEVEL_INFO;
+static lv_THREAD_LOCAL LogLevel g_log_level = LOG_LEVEL_INFO;
 
 /* 调试模式标志（启用 DEBUG 级别日志） */
-static LV00_THREAD_LOCAL bool g_debug_mode = false;
+static lv_THREAD_LOCAL bool g_debug_mode = false;
 
 /* 日志文件句柄（全局共享，所有线程写入同一日志文件，由 g_log_mutex 保护） */
 static FILE *g_log_file = NULL;
 
 /* 日志文件路径（全局共享，由 g_log_mutex 保护） */
-static char g_log_file_path[LV00_LOG_PATH_MAX] = {0};
+static char g_log_file_path[lv_LOG_PATH_MAX] = {0};
 
 /* 日志目录路径（全局共享，由 g_log_mutex 保护） */
-static char g_log_dir_path[LV00_LOG_PATH_MAX] = {0};
+static char g_log_dir_path[lv_LOG_PATH_MAX] = {0};
 
 /* 当前日志文件大小（全局共享，由 g_log_mutex 保护） */
 static size_t g_current_log_size = 0;
@@ -164,42 +164,42 @@ static pthread_mutex_t g_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 /*=== 环形日志缓冲区（v3.3.0 新增）===*/
 
 /** 全局环形日志缓冲区（线程安全，前置声明以支持所有函数访问） */
-static Lv00LogRingBuffer *g_log_ring_buffer = NULL;
+static lvLogRingBuffer *g_log_ring_buffer = NULL;
 
 /** 环形日志缓冲区容量（默认 256） */
-static int g_log_ring_buffer_capacity = LV00_LOG_RING_BUFFER_DEFAULT_CAPACITY;
+static int g_log_ring_buffer_capacity = lv_LOG_RING_BUFFER_DEFAULT_CAPACITY;
 
 /*=== 内部辅助函数 ===*/
 
 #ifdef _WIN32
 /** @brief 通用互斥锁加锁宏（Windows 下使用 InitOnceExecuteOnce 确保线程安全惰性初始化） */
-#define LV00_MUTEX_LOCK(mutex) do { \
+#define lv_MUTEX_LOCK(mutex) do { \
     EnterCriticalSection(&(mutex)); \
 } while (0)
 
 /** @brief 通用互斥锁解锁宏 */
-#define LV00_MUTEX_UNLOCK(mutex) do { \
+#define lv_MUTEX_UNLOCK(mutex) do { \
     LeaveCriticalSection(&(mutex)); \
 } while (0)
 #else
 /** @brief 通用互斥锁加锁宏（POSIX 版本） */
-#define LV00_MUTEX_LOCK(mutex) do { \
+#define lv_MUTEX_LOCK(mutex) do { \
     pthread_mutex_lock(&(mutex)); \
 } while (0)
 
 /** @brief 通用互斥锁解锁宏（POSIX 版本） */
-#define LV00_MUTEX_UNLOCK(mutex) do { \
+#define lv_MUTEX_UNLOCK(mutex) do { \
     pthread_mutex_unlock(&(mutex)); \
 } while (0)
 #endif
 
 /* 锁函数生成宏：消除 6 个锁函数的重复代码 */
-#define LV00_DEFINE_LOCK_FUNCS(name, mutex_var) \
+#define lv_DEFINE_LOCK_FUNCS(name, mutex_var) \
     static void name##_lock(void) { \
-        LV00_MUTEX_LOCK(mutex_var); \
+        lv_MUTEX_LOCK(mutex_var); \
     } \
     static void name##_unlock(void) { \
-        LV00_MUTEX_UNLOCK(mutex_var); \
+        lv_MUTEX_UNLOCK(mutex_var); \
     }
 
 /* 日志加锁（使用 InitOnceExecuteOnce 确保互斥锁初始化） */
@@ -207,11 +207,11 @@ static void log_lock(void) {
 #ifdef _WIN32
     log_ensure_mutex_init();
 #endif
-    LV00_MUTEX_LOCK(g_log_mutex);
+    lv_MUTEX_LOCK(g_log_mutex);
 }
 
 static void log_unlock(void) {
-    LV00_MUTEX_UNLOCK(g_log_mutex);
+    lv_MUTEX_UNLOCK(g_log_mutex);
 }
 
 /* 性能计数器加锁（使用 InitOnceExecuteOnce 确保互斥锁初始化） */
@@ -219,15 +219,15 @@ static void counter_lock(void) {
 #ifdef _WIN32
     counter_ensure_mutex_init();
 #endif
-    LV00_MUTEX_LOCK(g_counter_mutex);
+    lv_MUTEX_LOCK(g_counter_mutex);
 }
 
 static void counter_unlock(void) {
-    LV00_MUTEX_UNLOCK(g_counter_mutex);
+    lv_MUTEX_UNLOCK(g_counter_mutex);
 }
 
 /* 引用计数加锁/解锁（复用 counter_mutex） */
-LV00_DEFINE_LOCK_FUNCS(debug_refcount, g_counter_mutex)
+lv_DEFINE_LOCK_FUNCS(debug_refcount, g_counter_mutex)
 #define debug_lock_refcount debug_refcount_lock
 #define debug_unlock_refcount debug_refcount_unlock
 
@@ -257,8 +257,8 @@ static const char *get_home_dir(void) {
     static char home_path[MAX_PATH] = {0};
     if (home_path[0] == '\0') {
         if (getenv("USERPROFILE")) {
-            /* strncpy 不安全使用 → lv00_strlcpy，自动保证零终止 */
-            lv00_strlcpy(home_path, getenv("USERPROFILE"), sizeof(home_path));
+            /* strncpy 不安全使用 → lv_strlcpy，自动保证零终止 */
+            lv_strlcpy(home_path, getenv("USERPROFILE"), sizeof(home_path));
         } else if (getenv("HOMEDRIVE") && getenv("HOMEPATH")) {
             snprintf(home_path, MAX_PATH, "%s%s", getenv("HOMEDRIVE"), getenv("HOMEPATH"));
         }
@@ -275,26 +275,26 @@ static const char *get_home_dir(void) {
  * @return 0 成功，-1 失败
  */
 static int create_directory(const char *path) {
-    char tmp[LV00_LOG_PATH_MAX];
+    char tmp[lv_LOG_PATH_MAX];
     char *p = NULL;
     size_t len;
 
     /* 使用安全的字符串复制函数，确保零终止后再计算 strlen */
-    lv00_strlcpy(tmp, path, sizeof(tmp));
+    lv_strlcpy(tmp, path, sizeof(tmp));
     len = strlen(tmp);
-    if (len > 0 && tmp[len - 1] == LV00_PATH_SEPARATOR) {
+    if (len > 0 && tmp[len - 1] == lv_PATH_SEPARATOR) {
         tmp[len - 1] = '\0';
     }
 
     for (p = tmp + 1; *p; p++) {
-        if (*p == LV00_PATH_SEPARATOR) {
+        if (*p == lv_PATH_SEPARATOR) {
             *p = '\0';
             /* 直接尝试创建目录，处理 EEXIST（目录已存在）而非预先检查，
              * 避免 TOCTOU（检查时间-使用时间）竞争条件 */
             if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
                 return -1;
             }
-            *p = LV00_PATH_SEPARATOR;
+            *p = lv_PATH_SEPARATOR;
         }
     }
 
@@ -315,7 +315,7 @@ static int create_directory(const char *path) {
 static void get_timestamp(char *buf, size_t size) {
     time_t now = time(NULL);
     struct tm tm_buf;
-    LV00_LOCALTIME(&now, &tm_buf);
+    lv_LOCALTIME(&now, &tm_buf);
     strftime(buf, size, "%Y-%m-%d %H:%M:%S", &tm_buf);
 }
 
@@ -323,22 +323,22 @@ static void get_timestamp(char *buf, size_t size) {
  * @note 调用此函数前必须已持有 log_lock()，否则存在竞态条件风险。
  *       当前唯一调用点 check_rotation() 在 debug_log() 中被调用时已持有锁。 */
 static void rotate_logs(void) {
-    char old_path[LV00_LOG_PATH_MAX];
-    char new_path[LV00_LOG_PATH_MAX];
+    char old_path[lv_LOG_PATH_MAX];
+    char new_path[lv_LOG_PATH_MAX];
     int i;
 
     /* 如果存在则删除最旧的文件 */
-    snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME,
-             LV00_LOG_MAX_FILES);
-    if (access(old_path, LV00_DEBUG_F_OK) == 0) {
+    snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
+             lv_LOG_MAX_FILES);
+    if (access(old_path, lv_DEBUG_F_OK) == 0) {
         remove(old_path);
     }
 
     /* 重命名现有文件: .4 -> .5, .3 -> .4, 依此类推 */
-    for (i = LV00_LOG_MAX_FILES - 1; i >= 1; i--) {
-        snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME, i);
-        snprintf(new_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME, i + 1);
-        if (access(old_path, LV00_DEBUG_F_OK) == 0) {
+    for (i = lv_LOG_MAX_FILES - 1; i >= 1; i--) {
+        snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME, i);
+        snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME, i + 1);
+        if (access(old_path, lv_DEBUG_F_OK) == 0) {
             rename(old_path, new_path);
         }
     }
@@ -352,9 +352,9 @@ static void rotate_logs(void) {
     /* 重置日志大小计数器，因为旧文件已被关闭 */
     g_current_log_size = 0;
 
-    snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME);
-    snprintf(new_path, LV00_LOG_PATH_MAX, "%s%c%s.1", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME);
-    if (access(old_path, LV00_DEBUG_F_OK) == 0) {
+    snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
+    snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.1", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
+    if (access(old_path, lv_DEBUG_F_OK) == 0) {
         rename(old_path, new_path);
     }
 
@@ -384,11 +384,11 @@ static void rotate_logs(void) {
 
 /**
  * @brief 检查并在需要时执行日志文件轮转
- * @note 当当前日志文件大小达到 LV00_LOG_MAX_SIZE 时，自动执行轮转操作，
+ * @note 当当前日志文件大小达到 lv_LOG_MAX_SIZE 时，自动执行轮转操作，
  *       将旧日志文件重命名并创建新的日志文件
  */
 static void check_rotation(void) {
-    if (g_current_log_size >= LV00_LOG_MAX_SIZE) {
+    if (g_current_log_size >= lv_LOG_MAX_SIZE) {
         rotate_logs();
     }
 }
@@ -401,7 +401,7 @@ static void check_rotation(void) {
  * @note 调用者在使用完毕后需调用 debug_context_destroy() 释放资源
  */
 DebugContext *debug_context_create(void) {
-    DebugContext *ctx = lv00_malloc(sizeof(DebugContext));
+    DebugContext *ctx = lv_malloc(sizeof(DebugContext));
     if (!ctx)
         return NULL;
     ctx->normalization_assertions = false;
@@ -418,14 +418,14 @@ DebugContext *debug_context_create(void) {
  * @param ctx 要销毁的调试上下文指针，传入 NULL 时安全返回
  */
 void debug_context_destroy(DebugContext *ctx) {
-    lv00_free((void **) &ctx);
+    lv_free((void **) &ctx);
 }
 
 /*=== 端口不变量断言 ===*/
 
 static const char *port_invariant_description = "端口不变量检查";
 
-int debug_assert_port_invariants(const LV00Engine *engine, DebugContext *ctx) {
+int debug_assert_port_invariants(const lvEngine *engine, DebugContext *ctx) {
     if (!ctx || !ctx->port_invariant_checks)
         return 0;
     if (!engine || !engine->main_graph)
@@ -441,12 +441,12 @@ int debug_assert_port_invariants(const LV00Engine *engine, DebugContext *ctx) {
             if (port->is_formal_param && port->parent_block_id < 0) {
                 LOG_ERROR("port", "Node %d: Port is marked as formal param but has invalid parent_block_id (%d)",
                           node->id, port->parent_block_id);
-                lv00_set_error(LV00_ERROR_INVALID_STATE,
+                lv_set_error(lv_ERROR_INVALID_STATE,
                                "[PORT INVARIANT VIOLATION] Node %d: Port is marked as formal param but has invalid "
                                "parent_block_id (%d)",
                                node->id, port->parent_block_id);
                 violations++;
-                /* 在 release 构建中不应该 abort，而是使用 lv00_set_error
+                /* 在 release 构建中不应该 abort，而是使用 lv_set_error
                  * 记录错误后返回当前的 violations 计数。 */
                 if (ctx->abort_on_violation) {
                     return violations;
@@ -454,11 +454,11 @@ int debug_assert_port_invariants(const LV00Engine *engine, DebugContext *ctx) {
             }
             if (port->namespace_depth < 0) {
                 LOG_ERROR("port", "Node %d: Port has negative namespace_depth (%d)", node->id, port->namespace_depth);
-                lv00_set_error(LV00_ERROR_INVALID_STATE,
+                lv_set_error(lv_ERROR_INVALID_STATE,
                                "[PORT INVARIANT VIOLATION] Node %d: Port has negative namespace_depth (%d)", node->id,
                                port->namespace_depth);
                 violations++;
-                /* 在 release 构建中不应该 abort，而是使用 lv00_set_error
+                /* 在 release 构建中不应该 abort，而是使用 lv_set_error
                  * 记录错误后返回当前的 violations 计数。 */
                 if (ctx->abort_on_violation) {
                     return violations;
@@ -476,12 +476,12 @@ int debug_assert_port_invariants(const LV00Engine *engine, DebugContext *ctx) {
                                   "Function block %d input port %d: parent_block_id mismatch (expected %d, got %d) or "
                                   "is_formal_param is false",
                                   node->id, port_id, node->id, p->parent_block_id);
-                        lv00_set_error(LV00_ERROR_INVALID_STATE,
+                        lv_set_error(lv_ERROR_INVALID_STATE,
                                        "[PORT INVARIANT VIOLATION] Function block %d input port %d: parent_block_id "
                                        "mismatch (expected %d, got %d) or is_formal_param is false",
                                        node->id, port_id, node->id, p->parent_block_id);
                         violations++;
-                        /* 在 release 构建中不应该 abort，而是使用 lv00_set_error
+                        /* 在 release 构建中不应该 abort，而是使用 lv_set_error
                          * 记录错误后返回当前的 violations 计数。 */
                         if (ctx->abort_on_violation) {
                             return violations;
@@ -499,12 +499,12 @@ int debug_assert_port_invariants(const LV00Engine *engine, DebugContext *ctx) {
                                   "Function block %d output port %d: parent_block_id mismatch (expected %d, got %d) or "
                                   "is_formal_param is true",
                                   node->id, port_id, node->id, p->parent_block_id);
-                        lv00_set_error(LV00_ERROR_INVALID_STATE,
+                        lv_set_error(lv_ERROR_INVALID_STATE,
                                        "[PORT INVARIANT VIOLATION] Function block %d output port %d: parent_block_id "
                                        "mismatch (expected %d, got %d) or is_formal_param is true",
                                        node->id, port_id, node->id, p->parent_block_id);
                         violations++;
-                        /* 在 release 构建中不应该 abort，而是使用 lv00_set_error
+                        /* 在 release 构建中不应该 abort，而是使用 lv_set_error
                          * 记录错误后返回当前的 violations 计数。 */
                         if (ctx->abort_on_violation) {
                             return violations;
@@ -523,7 +523,7 @@ int debug_assert_port_invariants(const LV00Engine *engine, DebugContext *ctx) {
 /*  内存池实现                                                         */
 /* ================================================================== */
 
-struct Lv00MemPool {
+struct lvMemPool {
     uint8_t *blocks;   /* 连续内存块数组 */
     int *free_list;    /* 空闲块索引栈 */
     int free_count;    /* 空闲块数量 */
@@ -533,8 +533,8 @@ struct Lv00MemPool {
 };
 
 /* 向后兼容别名 */
-typedef struct Lv00MemPool Lv00MemPool;
-#define MemPool Lv00MemPool
+typedef struct lvMemPool lvMemPool;
+#define MemPool lvMemPool
 
 /**
  * @brief 创建固定块大小的内存池
@@ -547,7 +547,7 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
     if (block_size == 0 || initial_blocks <= 0)
         return NULL;
 
-    MemPool *pool = (MemPool *) lv00_malloc(sizeof(MemPool));
+    MemPool *pool = (MemPool *) lv_malloc(sizeof(MemPool));
     if (!pool)
         return NULL;
 
@@ -556,17 +556,17 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
     pool->free_count = initial_blocks;
 
     /* 分配连续内存块数组 */
-    pool->blocks = (uint8_t *) lv00_calloc((size_t) initial_blocks, block_size);
+    pool->blocks = (uint8_t *) lv_calloc((size_t) initial_blocks, block_size);
     if (!pool->blocks) {
-        lv00_free((void **) &pool);
+        lv_free((void **) &pool);
         return NULL;
     }
 
     /* 分配空闲块索引栈 */
-    pool->free_list = (int *) lv00_malloc(sizeof(int) * (size_t) initial_blocks);
+    pool->free_list = (int *) lv_malloc(sizeof(int) * (size_t) initial_blocks);
     if (!pool->free_list) {
-        lv00_free((void **) &pool->blocks);
-        lv00_free((void **) &pool);
+        lv_free((void **) &pool->blocks);
+        lv_free((void **) &pool);
         return NULL;
     }
 
@@ -576,11 +576,11 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
     }
 
     /* 分配使用标志位数组 */
-    pool->used = (uint8_t *) lv00_calloc((size_t) initial_blocks, sizeof(uint8_t));
+    pool->used = (uint8_t *) lv_calloc((size_t) initial_blocks, sizeof(uint8_t));
     if (!pool->used) {
-        lv00_free((void **) &pool->free_list);
-        lv00_free((void **) &pool->blocks);
-        lv00_free((void **) &pool);
+        lv_free((void **) &pool->free_list);
+        lv_free((void **) &pool->blocks);
+        lv_free((void **) &pool);
         return NULL;
     }
 
@@ -659,10 +659,10 @@ void mem_pool_free(MemPool *pool, void *block) {
 void mem_pool_destroy(MemPool *pool) {
     if (!pool)
         return;
-    lv00_free((void **) &pool->used);
-    lv00_free((void **) &pool->blocks);
-    lv00_free((void **) &pool->free_list);
-    lv00_free((void **) &pool);
+    lv_free((void **) &pool->used);
+    lv_free((void **) &pool->blocks);
+    lv_free((void **) &pool->free_list);
+    lv_free((void **) &pool);
 }
 
 /**
@@ -806,11 +806,11 @@ int ref_count_get(const void *obj) {
 /* ================================================================== */
 
 /* 全局紧急保存处理器 (线程局部) */
-static LV00_THREAD_LOCAL EmergencySaveHandler g_emergency_handler = NULL;
+static lv_THREAD_LOCAL EmergencySaveHandler g_emergency_handler = NULL;
 
 /* 日志缓冲区：保存最近的日志条目用于紧急保存 */
-#define LV00_EMERGENCY_LOG_BUFFER_SIZE 256
-static char *g_log_buffer[LV00_EMERGENCY_LOG_BUFFER_SIZE];
+#define lv_EMERGENCY_LOG_BUFFER_SIZE 256
+static char *g_log_buffer[lv_EMERGENCY_LOG_BUFFER_SIZE];
 static int g_log_buffer_head = 0;
 static int g_log_buffer_count = 0;
 
@@ -821,19 +821,19 @@ static int g_log_buffer_count = 0;
 static void log_buffer_append(const char *line) {
     if (!line)
         return;
-    /* 修复：使用 lv00_strdup_safe 替代 strdup，统一使用项目内存管理函数 */
-    char *copy = lv00_strdup_safe(line);
+    /* 修复：使用 lv_strdup_safe 替代 strdup，统一使用项目内存管理函数 */
+    char *copy = lv_strdup_safe(line);
     if (!copy)
         return;
 
     /* 环形缓冲区：覆盖最旧的条目 */
     if (g_log_buffer[g_log_buffer_head]) {
-        /* 修复：使用 lv00_free 替代 free，统一内存释放 */
-        lv00_free((void **) &g_log_buffer[g_log_buffer_head]);
+        /* 修复：使用 lv_free 替代 free，统一内存释放 */
+        lv_free((void **) &g_log_buffer[g_log_buffer_head]);
     }
     g_log_buffer[g_log_buffer_head] = copy;
-    g_log_buffer_head = (g_log_buffer_head + 1) % LV00_EMERGENCY_LOG_BUFFER_SIZE;
-    if (g_log_buffer_count < LV00_EMERGENCY_LOG_BUFFER_SIZE) {
+    g_log_buffer_head = (g_log_buffer_head + 1) % lv_EMERGENCY_LOG_BUFFER_SIZE;
+    if (g_log_buffer_count < lv_EMERGENCY_LOG_BUFFER_SIZE) {
         g_log_buffer_count++;
     }
 }
@@ -857,8 +857,8 @@ bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *confi
     /* 写入时间戳 */
     time_t now = time(NULL);
     struct tm tm_buf;
-    LV00_LOCALTIME(&now, &tm_buf);
-    char time_buf[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
+    lv_LOCALTIME(&now, &tm_buf);
+    char time_buf[lv_DEBUG_TIMESTAMP_BUF_SIZE];
     strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm_buf);
     fprintf(f, "=== Lv-00 Emergency Save ===\n");
     fprintf(f, "Timestamp: %s\n\n", time_buf);
@@ -888,9 +888,9 @@ bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *confi
     if (config && config->include_log_buffer) {
         fprintf(f, "[Recent Log Buffer (%d entries)]\n", g_log_buffer_count);
         /* 按时间顺序输出：从最旧到最新 */
-        int start = (g_log_buffer_head - g_log_buffer_count + LV00_EMERGENCY_LOG_BUFFER_SIZE) % LV00_EMERGENCY_LOG_BUFFER_SIZE;
+        int start = (g_log_buffer_head - g_log_buffer_count + lv_EMERGENCY_LOG_BUFFER_SIZE) % lv_EMERGENCY_LOG_BUFFER_SIZE;
         for (int i = 0; i < g_log_buffer_count; i++) {
-            int idx = (start + i) % LV00_EMERGENCY_LOG_BUFFER_SIZE;
+            int idx = (start + i) % lv_EMERGENCY_LOG_BUFFER_SIZE;
             if (g_log_buffer[idx]) {
                 fprintf(f, "%s", g_log_buffer[idx]);
             }
@@ -989,7 +989,7 @@ static int check_port_type_deep_compatible(const ConstraintGraph *graph, int por
 }
 
 PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
-    PortInvariantResult *result = (PortInvariantResult *) lv00_calloc(1, sizeof(PortInvariantResult));
+    PortInvariantResult *result = (PortInvariantResult *) lv_calloc(1, sizeof(PortInvariantResult));
     if (!result)
         return NULL;
 
@@ -1008,15 +1008,15 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
     }
 
     result->total_ports = total_ports;
-    result->invalid_port_ids = (int *) lv00_malloc(sizeof(int) * (total_ports > 0 ? (size_t) total_ports : 1));
-    result->error_messages = (char **) lv00_malloc(sizeof(char *) * (total_ports > 0 ? (size_t) total_ports : 1));
+    result->invalid_port_ids = (int *) lv_malloc(sizeof(int) * (total_ports > 0 ? (size_t) total_ports : 1));
+    result->error_messages = (char **) lv_malloc(sizeof(char *) * (total_ports > 0 ? (size_t) total_ports : 1));
     result->invalid_ports = 0;
     result->all_valid = true;
 
     if (!result->invalid_port_ids || !result->error_messages) {
-        lv00_free((void **) &result->invalid_port_ids);
-        lv00_free((void **) &result->error_messages);
-        lv00_free((void **) &result);
+        lv_free((void **) &result->invalid_port_ids);
+        lv_free((void **) &result->error_messages);
+        lv_free((void **) &result);
         return NULL;
     }
 
@@ -1041,13 +1041,13 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
                     int idx = result->invalid_ports;
                     result->invalid_port_ids[idx] = node->id;
                     const char *port_type_str = (port->type == PORT_INPUT) ? "INPUT" : "OUTPUT";
-                    char msg[LV00_DEBUG_MSG_BUF_SIZE];
+                    char msg[lv_DEBUG_MSG_BUF_SIZE];
                     snprintf(msg, sizeof(msg),
                              "Port %d (%s): namespace_depth (%d) > parent function block %d namespace_depth (%d)",
                              node->id, port_type_str, port->namespace_depth, port->parent_block_id,
                              parent->namespace_depth);
-                    lv00_free((void **) &result->error_messages[idx]);
-                    result->error_messages[idx] = lv00_strdup_safe(msg);
+                    lv_free((void **) &result->error_messages[idx]);
+                    result->error_messages[idx] = lv_strdup_safe(msg);
                     result->invalid_ports++;
                     port_valid = false;
                 }
@@ -1067,10 +1067,10 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
             if (!found) {
                 int idx = result->invalid_ports;
                 result->invalid_port_ids[idx] = node->id;
-                char msg[LV00_DEBUG_MSG_BUF_SIZE];
+                char msg[lv_DEBUG_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg), "Port %d: connected_to node does not exist in graph", node->id);
-                lv00_free((void **) &result->error_messages[idx]);
-                result->error_messages[idx] = lv00_strdup_safe(msg);
+                lv_free((void **) &result->error_messages[idx]);
+                result->error_messages[idx] = lv_strdup_safe(msg);
                 result->invalid_ports++;
                 port_valid = false;
             }
@@ -1083,11 +1083,11 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
                 /* 类型不兼容——记录违规 */
                 int idx = result->invalid_ports;
                 result->invalid_port_ids[idx] = node->id;
-                char msg[LV00_DEBUG_MSG_BUF_SIZE];
+                char msg[lv_DEBUG_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg), "Port %d: type incompatible with connected node %d", node->id,
                          port->connected_to->id);
-                lv00_free((void **) &result->error_messages[idx]);
-                result->error_messages[idx] = lv00_strdup_safe(msg);
+                lv_free((void **) &result->error_messages[idx]);
+                result->error_messages[idx] = lv_strdup_safe(msg);
                 result->invalid_ports++;
                 port_valid = false;
             }
@@ -1106,12 +1106,12 @@ void debug_port_invariant_result_destroy(PortInvariantResult *result) {
         return;
     if (result->error_messages) {
         for (int i = 0; i < result->invalid_ports; i++) {
-            lv00_free((void **) &result->error_messages[i]);
+            lv_free((void **) &result->error_messages[i]);
         }
-        lv00_free((void **) &result->error_messages);
+        lv_free((void **) &result->error_messages);
     }
-    lv00_free((void **) &result->invalid_port_ids);
-    lv00_free((void **) &result);
+    lv_free((void **) &result->invalid_port_ids);
+    lv_free((void **) &result);
 }
 
 /* ================================================================== */
@@ -1137,17 +1137,17 @@ static const char *trace_event_type_string(TraceEventType type) {
 /**
  * @brief 创建追踪会话
  * @return 新创建的追踪会话指针，内存分配失败时返回 NULL
- * @note 初始事件容量为 LV00_DEBUG_TRACE_INITIAL_CAPACITY（64），会话创建后默认处于活跃状态
+ * @note 初始事件容量为 lv_DEBUG_TRACE_INITIAL_CAPACITY（64），会话创建后默认处于活跃状态
  */
 TraceSession *trace_session_create(void) {
-    TraceSession *session = (TraceSession *) lv00_calloc(1, sizeof(TraceSession));
+    TraceSession *session = (TraceSession *) lv_calloc(1, sizeof(TraceSession));
     if (!session)
         return NULL;
 
-    session->capacity = LV00_DEBUG_TRACE_INITIAL_CAPACITY; /* 初始容量 */
-    session->events = (TraceEvent *) lv00_calloc((size_t) session->capacity, sizeof(TraceEvent));
+    session->capacity = lv_DEBUG_TRACE_INITIAL_CAPACITY; /* 初始容量 */
+    session->events = (TraceEvent *) lv_calloc((size_t) session->capacity, sizeof(TraceEvent));
     if (!session->events) {
-        lv00_free((void **) &session);
+        lv_free((void **) &session);
         return NULL;
     }
 
@@ -1167,11 +1167,11 @@ void trace_session_destroy(TraceSession *session) {
 
     /* 释放所有事件中的字符串 */
     for (int i = 0; i < session->event_count; i++) {
-        lv00_free((void **) &session->events[i].description);
-        lv00_free((void **) &session->events[i].details);
+        lv_free((void **) &session->events[i].description);
+        lv_free((void **) &session->events[i].details);
     }
-    lv00_free((void **) &session->events);
-    lv00_free((void **) &session);
+    lv_free((void **) &session->events);
+    lv_free((void **) &session);
 }
 
 static void trace_session_ensure_capacity(TraceSession *session) {
@@ -1180,7 +1180,7 @@ static void trace_session_ensure_capacity(TraceSession *session) {
             return; /* 防止溢出 */
         int new_capacity = session->capacity * 2;
         TraceEvent *new_events =
-            (TraceEvent *) lv00_realloc(session->events, sizeof(TraceEvent) * (size_t) new_capacity);
+            (TraceEvent *) lv_realloc(session->events, sizeof(TraceEvent) * (size_t) new_capacity);
         if (new_events) {
             /* 初始化新增部分为零 */
             memset(new_events + session->capacity, 0, sizeof(TraceEvent) * (size_t) (new_capacity - session->capacity));
@@ -1212,8 +1212,8 @@ void trace_record_event(TraceSession *session, TraceEventType type, int step, co
     ev->type = type;
     ev->timestamp = (double) time(NULL);
     ev->step_number = step;
-    ev->description = description ? lv00_strdup_safe(description) : NULL;
-    ev->details = details ? lv00_strdup_safe(details) : NULL;
+    ev->description = description ? lv_strdup_safe(description) : NULL;
+    ev->details = details ? lv_strdup_safe(details) : NULL;
     session->event_count++;
 }
 
@@ -1233,9 +1233,9 @@ void trace_record_event(TraceSession *session, TraceEventType type, int step, co
 static bool trace_ensure_space(char **json, size_t *capacity, size_t *pos, size_t needed) {
     while (*pos + needed >= *capacity) {
         *capacity *= 2;
-        char *new_json = lv00_realloc(*json, *capacity);
+        char *new_json = lv_realloc(*json, *capacity);
         if (!new_json) {
-            lv00_free((void **) json);
+            lv_free((void **) json);
             return false;
         }
         *json = new_json;
@@ -1348,17 +1348,17 @@ static bool trace_json_escape_string(char **json, size_t *capacity, size_t *pos,
 
 char *trace_session_export_json(const TraceSession *session) {
     if (!session) {
-        char *empty = lv00_malloc(LV00_DEBUG_EMPTY_JSON_BUF_SIZE);
+        char *empty = lv_malloc(lv_DEBUG_EMPTY_JSON_BUF_SIZE);
         if (!empty)
             return NULL;
-        snprintf(empty, LV00_DEBUG_EMPTY_JSON_BUF_SIZE, "{\"event_count\":0,\"active\":false}");
+        snprintf(empty, lv_DEBUG_EMPTY_JSON_BUF_SIZE, "{\"event_count\":0,\"active\":false}");
         return empty;
     }
 
     /* 动态增长缓冲区 */
-    size_t capacity = LV00_DEBUG_JSON_INITIAL_CAPACITY;
+    size_t capacity = lv_DEBUG_JSON_INITIAL_CAPACITY;
     size_t pos = 0;
-    char *json = lv00_malloc(capacity);
+    char *json = lv_malloc(capacity);
     if (!json)
         return NULL;
 
@@ -1369,7 +1369,7 @@ char *trace_session_export_json(const TraceSession *session) {
     do {                                                                     \
         int w = snprintf(json + pos, capacity - pos, fmt, ##__VA_ARGS__);    \
         if (w < 0) {                                                         \
-            lv00_free((void **) &json);                                      \
+            lv_free((void **) &json);                                      \
             return NULL;                                                     \
         }                                                                    \
         if ((size_t) w >= capacity - pos) {                                  \
@@ -1378,7 +1378,7 @@ char *trace_session_export_json(const TraceSession *session) {
                 return NULL;                                                 \
             w = snprintf(json + pos, capacity - pos, fmt, ##__VA_ARGS__);    \
             if (w < 0) {                                                     \
-                lv00_free((void **) &json);                                  \
+                lv_free((void **) &json);                                  \
                 return NULL;                                                 \
             }                                                                \
         }                                                                    \
@@ -1455,7 +1455,7 @@ static void debug_log_legacy_impl(const char *subsystem, const char *fmt, va_lis
 
     /* 同时输出到日志文件（如果已初始化） */
     if (g_log_file && g_initialized) {
-        char timestamp[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
+        char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
         get_timestamp(timestamp, sizeof(timestamp));
         fprintf(g_log_file, "[%s] [DEBUG] [%s] ", timestamp, subsystem);
         va_copy(args_copy, args);
@@ -1528,25 +1528,25 @@ int debug_log_init(void) {
     }
 #endif
 
-    /* 构建日志目录路径: ~/.lv00/logs
+    /* 构建日志目录路径: ~/.lv/logs
      * 以下对 g_log_dir_path 和 g_log_file_path 的写入在 g_log_mutex 保护内，
      * 防止与其他线程读取这些路径产生竞态条件 */
     const char *home = get_home_dir();
-    snprintf(g_log_dir_path, LV00_LOG_PATH_MAX, "%s%c.lv00%clogs", home, LV00_PATH_SEPARATOR, LV00_PATH_SEPARATOR);
+    snprintf(g_log_dir_path, lv_LOG_PATH_MAX, "%s%c.lv%clogs", home, lv_PATH_SEPARATOR, lv_PATH_SEPARATOR);
 
     /* 创建日志目录 */
     if (create_directory(g_log_dir_path) != 0) {
-        lv00_set_error(LV00_ERROR_IO, "[DEBUG] Warning: Could not create log directory: %s", g_log_dir_path);
+        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not create log directory: %s", g_log_dir_path);
         /* 继续运行，不使用文件日志 */
     }
 
     /* 构建日志文件路径 */
-    snprintf(g_log_file_path, LV00_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME);
+    snprintf(g_log_file_path, lv_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
 
     /* 打开日志文件 */
     g_log_file = fopen(g_log_file_path, "a");
     if (!g_log_file) {
-        lv00_set_error(LV00_ERROR_IO, "[DEBUG] Warning: Could not open log file: %s", g_log_file_path);
+        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not open log file: %s", g_log_file_path);
         /* 继续运行，不使用文件日志 */
     } else {
         /* 获取当前文件大小 */
@@ -1567,9 +1567,9 @@ int debug_log_init(void) {
 
     /* 【v3.3.0】创建全局环形日志缓冲区 */
     if (!g_log_ring_buffer) {
-        g_log_ring_buffer = lv00_log_ring_buffer_create(g_log_ring_buffer_capacity);
+        g_log_ring_buffer = lv_log_ring_buffer_create(g_log_ring_buffer_capacity);
         if (g_log_ring_buffer) {
-            lv00_log_ring_buffer_write(g_log_ring_buffer,
+            lv_log_ring_buffer_write(g_log_ring_buffer,
                                        LOG_LEVEL_INFO, "debug", "debug_log_init",
                                        __FILE__, __LINE__,
                                        "环形日志缓冲区已创建（容量: %d）",
@@ -1578,9 +1578,9 @@ int debug_log_init(void) {
     }
 
     /* 记录初始化日志 */
-    char timestamp[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
+    char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
     get_timestamp(timestamp, sizeof(timestamp));
-    LOG_INFO("debug", "=== Lv-00 v%s Logging System Initialized ===", LV00_VERSION_STRING);
+    LOG_INFO("debug", "=== Lv-00 v%s Logging System Initialized ===", lv_VERSION_STRING);
 
     return 0;
 }
@@ -1599,7 +1599,7 @@ void debug_log_shutdown(void) {
 
     /* 记录关闭日志 */
     if (g_log_file) {
-        char timestamp[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
+        char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
         get_timestamp(timestamp, sizeof(timestamp));
         fprintf(g_log_file, "[%s] [INFO] [debug] === Logging System Shutdown ===\n", timestamp);
         fclose(g_log_file);
@@ -1640,7 +1640,7 @@ void debug_log_shutdown(void) {
 
     /* 【v3.3.0】销毁全局环形日志缓冲区 */
     if (g_log_ring_buffer) {
-        lv00_log_ring_buffer_destroy(g_log_ring_buffer);
+        lv_log_ring_buffer_destroy(g_log_ring_buffer);
         g_log_ring_buffer = NULL;
     }
 }
@@ -1692,18 +1692,18 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
     check_rotation();
 
     /* 格式化消息 */
-    char timestamp[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
+    char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
     get_timestamp(timestamp, sizeof(timestamp));
 
     /* 格式化可变参数 */
-    char message[LV00_DEBUG_LOG_MESSAGE_BUF_SIZE];
+    char message[lv_DEBUG_LOG_MESSAGE_BUF_SIZE];
     va_list args;
     va_start(args, fmt);
     vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
 
     /* 构建日志行 */
-    char log_line[LV00_DEBUG_LOG_LINE_BUF_SIZE];
+    char log_line[lv_DEBUG_LOG_LINE_BUF_SIZE];
     int len = snprintf(log_line, sizeof(log_line), "[%s] [%s] [%s] %s\n", timestamp, log_level_string(level),
                        module ? module : "unknown", message);
 
@@ -1731,7 +1731,7 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
         /* FATAL 不在此处加锁/解锁，因为 emergency_save 会在内部自行加锁 */
         EmergencySaveConfig cfg;
         memset(&cfg, 0, sizeof(cfg));
-        cfg.filepath = "lv00_emergency_save.log";  /* 使用默认路径 */
+        cfg.filepath = "lv_emergency_save.log";  /* 使用默认路径 */
         cfg.include_graph = true;     /* 包含约束图快照 */
         cfg.include_counters = true;  /* 包含性能计数器 */
         cfg.include_log_buffer = true;/* 包含日志缓冲区 */
@@ -1777,23 +1777,23 @@ static uint64_t get_timestamp_us(void) {
  * @param capacity 缓冲区容量（条目数）
  * @return 新分配的缓冲区，失败返回 NULL
  */
-Lv00LogRingBuffer *lv00_log_ring_buffer_create(int capacity) {
+lvLogRingBuffer *lv_log_ring_buffer_create(int capacity) {
     if (capacity < 1) {
-        capacity = LV00_LOG_RING_BUFFER_DEFAULT_CAPACITY;
+        capacity = lv_LOG_RING_BUFFER_DEFAULT_CAPACITY;
     }
 
-    Lv00LogRingBuffer *rb = lv00_malloc(sizeof(Lv00LogRingBuffer));
+    lvLogRingBuffer *rb = lv_malloc(sizeof(lvLogRingBuffer));
     if (!rb) {
         return NULL;
     }
-    memset(rb, 0, sizeof(Lv00LogRingBuffer));
+    memset(rb, 0, sizeof(lvLogRingBuffer));
 
-    rb->entries = lv00_malloc((size_t)capacity * sizeof(Lv00LogEntry));
+    rb->entries = lv_malloc((size_t)capacity * sizeof(lvLogEntry));
     if (!rb->entries) {
-        lv00_free((void **)&rb);
+        lv_free((void **)&rb);
         return NULL;
     }
-    memset(rb->entries, 0, (size_t)capacity * sizeof(Lv00LogEntry));
+    memset(rb->entries, 0, (size_t)capacity * sizeof(lvLogEntry));
 
     rb->capacity = capacity;
     rb->head = 0;
@@ -1807,12 +1807,12 @@ Lv00LogRingBuffer *lv00_log_ring_buffer_create(int capacity) {
  * @brief 销毁环形日志缓冲区
  * @param rb 缓冲区指针（可为 NULL）
  */
-void lv00_log_ring_buffer_destroy(Lv00LogRingBuffer *rb) {
+void lv_log_ring_buffer_destroy(lvLogRingBuffer *rb) {
     if (!rb) {
         return;
     }
-    lv00_free((void **)&rb->entries);
-    lv00_free((void **)&rb);
+    lv_free((void **)&rb->entries);
+    lv_free((void **)&rb);
 }
 
 /**
@@ -1823,9 +1823,9 @@ void lv00_log_ring_buffer_destroy(Lv00LogRingBuffer *rb) {
  *
  * @note 此函数内部加锁（log_lock/log_unlock）以确保线程安全。
  *       如果在已持有 log_lock 的上下文中调用，请使用
- *       lv00_log_ring_buffer_write_unlocked() 内部版本。
+ *       lv_log_ring_buffer_write_unlocked() 内部版本。
  */
-void lv00_log_ring_buffer_write(Lv00LogRingBuffer *rb, LogLevel level,
+void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level,
                                 const char *module_name, const char *function_name,
                                 const char *file_name, int line_number,
                                 const char *fmt, ...) {
@@ -1837,7 +1837,7 @@ void lv00_log_ring_buffer_write(Lv00LogRingBuffer *rb, LogLevel level,
 
     /* 获取写入位置 */
     int idx = rb->head;
-    Lv00LogEntry *entry = &rb->entries[idx];
+    lvLogEntry *entry = &rb->entries[idx];
 
     /* 填充结构化字段 */
     entry->level = level;
@@ -1846,7 +1846,7 @@ void lv00_log_ring_buffer_write(Lv00LogRingBuffer *rb, LogLevel level,
     entry->function_name = function_name;
     entry->file_name = file_name;
     entry->line_number = line_number;
-    entry->context_id = 0; /* 默认全局日志，lv00_log_with_context 会覆盖 */
+    entry->context_id = 0; /* 默认全局日志，lv_log_with_context 会覆盖 */
 
     /* 格式化消息（定长缓冲区，防止 OOM） */
     va_list args;
@@ -1869,13 +1869,13 @@ void lv00_log_ring_buffer_write(Lv00LogRingBuffer *rb, LogLevel level,
  * @brief 导出环形缓冲区中的所有日志（按时间顺序）
  *
  * 以插入顺序导出所有条目（最旧的在前，最新的在后）。
- * 返回的数组由调用者负责释放（使用 lv00_free）。
+ * 返回的数组由调用者负责释放（使用 lv_free）。
  *
  * @param rb        环形缓冲区（非 NULL）
  * @param out_count 输出：实际导出的条目数量
  * @return 日志条目数组（按插入时间排序），count == 0 时返回 NULL
  */
-Lv00LogEntry *lv00_log_ring_buffer_export(const Lv00LogRingBuffer *rb, int *out_count) {
+lvLogEntry *lv_log_ring_buffer_export(const lvLogRingBuffer *rb, int *out_count) {
     if (!rb || !out_count) {
         if (out_count) *out_count = 0;
         return NULL;
@@ -1889,7 +1889,7 @@ Lv00LogEntry *lv00_log_ring_buffer_export(const Lv00LogRingBuffer *rb, int *out_
         return NULL;
     }
 
-    Lv00LogEntry *exported = lv00_malloc((size_t)rb->count * sizeof(Lv00LogEntry));
+    lvLogEntry *exported = lv_malloc((size_t)rb->count * sizeof(lvLogEntry));
     if (!exported) {
         *out_count = 0;
         log_unlock();
@@ -1901,7 +1901,7 @@ Lv00LogEntry *lv00_log_ring_buffer_export(const Lv00LogRingBuffer *rb, int *out_
 
     for (int i = 0; i < rb->count; i++) {
         int src_idx = (start + i) % rb->capacity;
-        memcpy(&exported[i], &rb->entries[src_idx], sizeof(Lv00LogEntry));
+        memcpy(&exported[i], &rb->entries[src_idx], sizeof(lvLogEntry));
     }
 
     *out_count = rb->count;
@@ -1913,7 +1913,7 @@ Lv00LogEntry *lv00_log_ring_buffer_export(const Lv00LogRingBuffer *rb, int *out_
  * @brief 清空环形缓冲区中的所有日志条目
  * @param rb 环形缓冲区（非 NULL）
  */
-void lv00_log_ring_buffer_clear(Lv00LogRingBuffer *rb) {
+void lv_log_ring_buffer_clear(lvLogRingBuffer *rb) {
     if (!rb) {
         return;
     }
@@ -1921,7 +1921,7 @@ void lv00_log_ring_buffer_clear(Lv00LogRingBuffer *rb) {
     rb->head = 0;
     rb->count = 0;
     rb->wrapped = false;
-    memset(rb->entries, 0, (size_t)rb->capacity * sizeof(Lv00LogEntry));
+    memset(rb->entries, 0, (size_t)rb->capacity * sizeof(lvLogEntry));
     log_unlock();
 }
 
@@ -1935,7 +1935,7 @@ void lv00_log_ring_buffer_clear(Lv00LogRingBuffer *rb) {
  * @param capacity 新容量（>= 1）
  * @return true 成功，false 失败（内存不足）
  */
-bool lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
+bool lv_log_ring_buffer_resize(lvLogRingBuffer *rb, int capacity) {
     if (!rb || capacity < 1) {
         return false;
     }
@@ -1945,12 +1945,12 @@ bool lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
 
     log_lock();
 
-    Lv00LogEntry *new_entries = lv00_malloc((size_t)capacity * sizeof(Lv00LogEntry));
+    lvLogEntry *new_entries = lv_malloc((size_t)capacity * sizeof(lvLogEntry));
     if (!new_entries) {
         log_unlock();
         return false;
     }
-    memset(new_entries, 0, (size_t)capacity * sizeof(Lv00LogEntry));
+    memset(new_entries, 0, (size_t)capacity * sizeof(lvLogEntry));
 
     /* 计算要保留的条目数量（保留最新的） */
     int keep_count = (rb->count < capacity) ? rb->count : capacity;
@@ -1969,12 +1969,12 @@ bool lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
 
         for (int i = 0; i < keep_count; i++) {
             int src_idx = (start + i) % rb->capacity;
-            memcpy(&new_entries[i], &rb->entries[src_idx], sizeof(Lv00LogEntry));
+            memcpy(&new_entries[i], &rb->entries[src_idx], sizeof(lvLogEntry));
         }
     }
 
     /* 替换旧的缓冲区 */
-    lv00_free((void **)&rb->entries);
+    lv_free((void **)&rb->entries);
     rb->entries = new_entries;
     rb->capacity = capacity;
     rb->head = keep_count % capacity;
@@ -1988,7 +1988,7 @@ bool lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
 /* ============================================================
  * 带上下文的日志函数实现（v3.3.0 新增）
  *
- * lv00_log_with_context() 是结构化日志的核心入口。
+ * lv_log_with_context() 是结构化日志的核心入口。
  * 它将日志同时写入标准日志流、文件日志和环形缓冲区。
  * ============================================================ */
 
@@ -2010,7 +2010,7 @@ bool lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
  * @param fmt           格式字符串
  * @param ...           格式参数
  */
-void lv00_log_with_context(struct Lv00Context *ctx, LogLevel level,
+void lv_log_with_context(struct lvContext *ctx, LogLevel level,
                            const char *module_name, const char *function_name,
                            const char *file_name, int line_number,
                            const char *fmt, ...) {
@@ -2026,7 +2026,7 @@ void lv00_log_with_context(struct Lv00Context *ctx, LogLevel level,
 
     /* 3. 写入全局环形缓冲区 */
     if (g_log_ring_buffer) {
-        lv00_log_ring_buffer_write(g_log_ring_buffer, level,
+        lv_log_ring_buffer_write(g_log_ring_buffer, level,
                                    module_name, function_name,
                                    file_name, line_number,
                                    "%s", message);
@@ -2220,14 +2220,14 @@ char *debug_counters_report(void) {
         return NULL;
 
     /* 分配精确大小的缓冲区（+1 用于终止符） */
-    char *report = lv00_malloc(needed + 1);
+    char *report = lv_malloc(needed + 1);
     if (!report)
         return NULL;
 
     /* 使用安全的 snprintf 替代裸 snprintf */
     {
         int _snw;
-        LV00_SAFE_SNPRINTF(
+        lv_SAFE_SNPRINTF(
             _snw, report, (size_t) needed + 1, report_format, (unsigned long long) counters.total_nodes_created,
             (unsigned long long) counters.current_nodes_alive, (unsigned long long) counters.total_constraints_created,
             (unsigned long long) counters.current_constraints_alive, (unsigned long long) counters.solver_call_count,
@@ -2248,8 +2248,8 @@ int debug_get_log_path(char *buf, size_t size) {
         return -1;
 
     log_lock();
-    /* 修复：使用 lv00_strlcpy 替代 strncpy，自动保证零终止且更安全 */
-    lv00_strlcpy(buf, g_log_file_path, size);
+    /* 修复：使用 lv_strlcpy 替代 strncpy，自动保证零终止且更安全 */
+    lv_strlcpy(buf, g_log_file_path, size);
     log_unlock();
 
     return 0;
@@ -2272,7 +2272,7 @@ int debug_get_log_path(char *buf, size_t size) {
  * @param ctx    调试上下文
  * @return 违规数量（0 = 全部通过）
  */
-int debug_assert_normalization_invariants(const LV00Engine *engine, DebugContext *ctx) {
+int debug_assert_normalization_invariants(const lvEngine *engine, DebugContext *ctx) {
     if (!ctx || !engine || !engine->main_graph)
         return 0;
 

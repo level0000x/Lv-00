@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_calculus.c
  * @brief 微积分预设函数块 - 实现
  *
@@ -13,8 +13,8 @@
 #include "preset_calculus.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 
@@ -527,7 +527,7 @@ bool preset_calculus_get_names(char ***out_names, int *out_count)
     PRESET_CHECK_NULL(out_count, error);
 
     /* 分配名称数组 */
-    char **names = (char **)lv00_malloc(CALCULUS_PRESET_COUNT * sizeof(char *));
+    char **names = (char **)lv_malloc(CALCULUS_PRESET_COUNT * sizeof(char *));
     PRESET_CHECK_NULL(names, error);
 
     /* 填充预设名称列表 */
@@ -571,13 +571,13 @@ bool preset_calculus_get_names(char ***out_names, int *out_count)
 
     /* 复制每个名称字符串 */
     for (int i = 0; i < CALCULUS_PRESET_COUNT; i++) {
-        names[i] = lv00_strdup(preset_names[i]);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 内存分配失败，释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                { void *tmp = names[j]; lv00_free(&tmp); }
+                { void *tmp = names[j]; lv_free(&tmp); }
             }
-            { void *tmp = names; lv00_free(&tmp); }
+            { void *tmp = names; lv_free(&tmp); }
             /* PRESET_ERROR_LOG("复制微积分预设名称失败: 索引 %d", i); */
             return false;
         }

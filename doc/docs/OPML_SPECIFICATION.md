@@ -1,4 +1,4 @@
-# OPML: Open Proof Markup Language
+﻿# OPML: Open Proof Markup Language
 
 **版本**: 1.0.0-draft
 **日期**: 2026-06-04
@@ -33,7 +33,7 @@ OPML (Open Proof Markup Language) 是 Lv-00 项目的开放证明交换格式，
 ```json
 {
   "opml_version": "1.0.0",
-  "source_system": "lv00",
+  "source_system": "lv",
   "target_systems": ["lean4", "coq", "isabelle"],
   "metadata": {
     "title": "三角形内角和定理",
@@ -135,7 +135,7 @@ OPML (Open Proof Markup Language) 是 Lv-00 项目的开放证明交换格式，
 ```json
 {
   "extensions": {
-    "lv00_specific": {
+    "lv_specific": {
       "constraint_graph": { ... },
       "symbolic_coords": { ... },
       "func_blocks": [ ... ]
@@ -183,7 +183,7 @@ Content-Type: `application/vnd.opml+msgpack`
 
 ### 4.3 LVZ（Lv-00 内部格式）
 
-Content-Type: `application/vnd.lv00.lvz`
+Content-Type: `application/vnd.lv.lvz`
 
 ## 5. 验证规则
 
@@ -212,7 +212,7 @@ Content-Type: `application/vnd.lv00.lvz`
 ```json
 {
   "opml_version": "1.0.0",
-  "source_system": "lv00",
+  "source_system": "lv",
   "metadata": {
     "title": "三角形内角和等于 180 度",
     "author": "Lv-00",

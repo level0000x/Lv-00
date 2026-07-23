@@ -1,5 +1,5 @@
-#include "lv00/visual_editor.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/visual_editor.h"
+#include "lv/lv_utils.h"
 #include <string.h>
 #include <math.h>
 
@@ -9,60 +9,60 @@
 
 /* 节点类型 */
 typedef enum {
-    LV00_NODE_TYPE_DEFAULT,
-    LV00_NODE_TYPE_INPUT,
-    LV00_NODE_TYPE_OUTPUT,
-    LV00_NODE_TYPE_PROCESS,
-    LV00_NODE_TYPE_CONSTRAINT
-} Lv00NodeType;
+    lv_NODE_TYPE_DEFAULT,
+    lv_NODE_TYPE_INPUT,
+    lv_NODE_TYPE_OUTPUT,
+    lv_NODE_TYPE_PROCESS,
+    lv_NODE_TYPE_CONSTRAINT
+} lvNodeType;
 
 /* 图节点 */
-typedef struct Lv00GraphNode {
+typedef struct lvGraphNode {
     int id;
     char label[128];
     double x, y;
-    Lv00NodeType type;
-} Lv00GraphNode;
+    lvNodeType type;
+} lvGraphNode;
 
 /* 图连接（边） */
-typedef struct Lv00GraphConnection {
+typedef struct lvGraphConnection {
     int id;
     int from_node_id;
     int to_node_id;
     char label[128];
-} Lv00GraphConnection;
+} lvGraphConnection;
 
 /* 布局引擎状态 */
-typedef struct Lv00LayoutEngine {
+typedef struct lvLayoutEngine {
     double area_width;
     double area_height;
     double temperature;
     int iterations;
-} Lv00LayoutEngine;
+} lvLayoutEngine;
 
-typedef struct Lv00NodeGraphView {
+typedef struct lvNodeGraphView {
     int view_type;
-    Lv00GraphNode *nodes;
+    lvGraphNode *nodes;
     int node_count;
     int node_capacity;
-    Lv00GraphConnection *connections;
+    lvGraphConnection *connections;
     int connection_count;
     int connection_capacity;
-    Lv00LayoutEngine layout_engine;
+    lvLayoutEngine layout_engine;
     int next_node_id;
     int next_connection_id;
-} Lv00NodeGraphView;
+} lvNodeGraphView;
 
-Lv00NodeGraphView *lv00_node_graph_create(void) {
-    Lv00NodeGraphView *graph = lv00_calloc(1, sizeof(Lv00NodeGraphView));
+lvNodeGraphView *lv_node_graph_create(void) {
+    lvNodeGraphView *graph = lv_calloc(1, sizeof(lvNodeGraphView));
     if (!graph) return NULL;
-    graph->view_type = LV00_VIEW_NODE_GRAPH;
+    graph->view_type = lv_VIEW_NODE_GRAPH;
     graph->node_capacity = 16;
-    graph->nodes = lv00_calloc(graph->node_capacity, sizeof(Lv00GraphNode));
-    if (!graph->nodes) { lv00_free((void **)&graph); return NULL; }
+    graph->nodes = lv_calloc(graph->node_capacity, sizeof(lvGraphNode));
+    if (!graph->nodes) { lv_free((void **)&graph); return NULL; }
     graph->connection_capacity = 16;
-    graph->connections = lv00_calloc(graph->connection_capacity, sizeof(Lv00GraphConnection));
-    if (!graph->connections) { lv00_free((void **)&graph->nodes); lv00_free((void **)&graph); return NULL; }
+    graph->connections = lv_calloc(graph->connection_capacity, sizeof(lvGraphConnection));
+    if (!graph->connections) { lv_free((void **)&graph->nodes); lv_free((void **)&graph); return NULL; }
     graph->layout_engine.area_width = 800.0;
     graph->layout_engine.area_height = 600.0;
     graph->layout_engine.iterations = 50;
@@ -71,32 +71,32 @@ Lv00NodeGraphView *lv00_node_graph_create(void) {
     return graph;
 }
 
-void lv00_node_graph_destroy(Lv00NodeGraphView *graph) {
+void lv_node_graph_destroy(lvNodeGraphView *graph) {
     if (!graph) return;
-    lv00_free((void **)&graph->nodes);
-    lv00_free((void **)&graph->connections);
-    lv00_free((void **)&graph);
+    lv_free((void **)&graph->nodes);
+    lv_free((void **)&graph->connections);
+    lv_free((void **)&graph);
 }
 
 /* 添加节点 */
-int lv00_node_graph_add_node(Lv00NodeGraphView *graph, int id, const char *label,
+int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label,
                              double x, double y, int type) {
     if (!graph || !label) return -1;
 
     /* 自动扩容 */
     if (graph->node_count >= graph->node_capacity) {
         int new_cap = graph->node_capacity * 2;
-        Lv00GraphNode *new_nodes = lv00_realloc(graph->nodes, new_cap * sizeof(Lv00GraphNode));
+        lvGraphNode *new_nodes = lv_realloc(graph->nodes, new_cap * sizeof(lvGraphNode));
         if (!new_nodes) return -1;
         graph->nodes = new_nodes;
         graph->node_capacity = new_cap;
     }
 
-    Lv00GraphNode *node = &graph->nodes[graph->node_count];
+    lvGraphNode *node = &graph->nodes[graph->node_count];
     node->id = (id > 0) ? id : graph->next_node_id++;
     node->x = x;
     node->y = y;
-    node->type = (Lv00NodeType)type;
+    node->type = (lvNodeType)type;
     strncpy(node->label, label, sizeof(node->label) - 1);
     node->label[sizeof(node->label) - 1] = '\0';
 
@@ -110,7 +110,7 @@ int lv00_node_graph_add_node(Lv00NodeGraphView *graph, int id, const char *label
 }
 
 /* 移除节点及其所有连接 */
-int lv00_node_graph_remove_node(Lv00NodeGraphView *graph, int id) {
+int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
     if (!graph || id <= 0) return -1;
     int found = -1;
     for (int i = 0; i < graph->node_count; i++) {
@@ -138,21 +138,21 @@ int lv00_node_graph_remove_node(Lv00NodeGraphView *graph, int id) {
 }
 
 /* 添加连接（边） */
-int lv00_node_graph_add_connection(Lv00NodeGraphView *graph, int from_id,
+int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id,
                                     int to_id, const char *label) {
     if (!graph || from_id <= 0 || to_id <= 0) return -1;
 
     /* 自动扩容 */
     if (graph->connection_count >= graph->connection_capacity) {
         int new_cap = graph->connection_capacity * 2;
-        Lv00GraphConnection *new_conns = lv00_realloc(graph->connections,
-                                                  new_cap * sizeof(Lv00GraphConnection));
+        lvGraphConnection *new_conns = lv_realloc(graph->connections,
+                                                  new_cap * sizeof(lvGraphConnection));
         if (!new_conns) return -1;
         graph->connections = new_conns;
         graph->connection_capacity = new_cap;
     }
 
-    Lv00GraphConnection *conn = &graph->connections[graph->connection_count];
+    lvGraphConnection *conn = &graph->connections[graph->connection_count];
     conn->id = graph->next_connection_id++;
     conn->from_node_id = from_id;
     conn->to_node_id = to_id;
@@ -168,7 +168,7 @@ int lv00_node_graph_add_connection(Lv00NodeGraphView *graph, int from_id,
 }
 
 /* 移除连接 */
-int lv00_node_graph_remove_connection(Lv00NodeGraphView *graph, int conn_id) {
+int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id) {
     if (!graph || conn_id <= 0) return -1;
     int found = -1;
     for (int i = 0; i < graph->connection_count; i++) {
@@ -182,7 +182,7 @@ int lv00_node_graph_remove_connection(Lv00NodeGraphView *graph, int conn_id) {
 }
 
 /* 查找节点 */
-Lv00GraphNode *lv00_node_graph_find_node(Lv00NodeGraphView *graph, int id) {
+lvGraphNode *lv_node_graph_find_node(lvNodeGraphView *graph, int id) {
     if (!graph || id <= 0) return NULL;
     for (int i = 0; i < graph->node_count; i++) {
         if (graph->nodes[i].id == id) return &graph->nodes[i];
@@ -191,7 +191,7 @@ Lv00GraphNode *lv00_node_graph_find_node(Lv00NodeGraphView *graph, int id) {
 }
 
 /* Fruchterman-Reingold 力导向布局 */
-int lv00_node_graph_layout(Lv00NodeGraphView *graph) {
+int lv_node_graph_layout(lvNodeGraphView *graph) {
     if (!graph || graph->node_count <= 1) return 0;
 
     const double C = 1.0; /* 常数因子 */
@@ -206,10 +206,10 @@ int lv00_node_graph_layout(Lv00NodeGraphView *graph) {
     double temperature = graph->layout_engine.area_width / 4.0;
 
     /* 临时位移数组 */
-    double *dx = lv00_calloc(n, sizeof(double));
-    double *dy = lv00_calloc(n, sizeof(double));
+    double *dx = lv_calloc(n, sizeof(double));
+    double *dy = lv_calloc(n, sizeof(double));
     if (!dx || !dy) {
-        lv00_free((void **)&dx); lv00_free((void **)&dy);
+        lv_free((void **)&dx); lv_free((void **)&dy);
         return -1;
     }
 
@@ -285,8 +285,8 @@ int lv00_node_graph_layout(Lv00NodeGraphView *graph) {
         temperature *= 0.95;
     }
 
-    lv00_free((void **)&dx);
-    lv00_free((void **)&dy);
+    lv_free((void **)&dx);
+    lv_free((void **)&dy);
     graph->layout_engine.temperature = temperature;
     return 0;
 }

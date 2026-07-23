@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_graph_serialize.c
  * @brief 测试约束图的序列化与反序列化
  */
@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 void test_point_serialization(void) {
     printf("=== 测试点序列化 ===\n");
@@ -36,7 +36,7 @@ void test_point_serialization(void) {
     assert(graph_get_node_count(restored) == 1);
 
     /* 清理 */
-    lv00_free_ptr(json);
+    lv_free_ptr(json);
     graph_destroy(restored);
     graph_destroy(graph);
 
@@ -71,7 +71,7 @@ void test_line_segment_serialization(void) {
     printf("恢复后节点数: %d\n", graph_get_node_count(restored));
     printf("恢复后约束数: %d\n", graph_get_constraint_count(restored));
 
-    lv00_free_ptr(json);
+    lv_free_ptr(json);
     graph_destroy(restored);
     graph_destroy(graph);
 
@@ -113,7 +113,7 @@ void test_constraint_serialization(void) {
     printf("恢复后节点数: %d\n", graph_get_node_count(restored));
     printf("恢复后约束数: %d\n", graph_get_constraint_count(restored));
 
-    lv00_free_ptr(json);
+    lv_free_ptr(json);
     graph_destroy(restored);
     graph_destroy(graph);
 
@@ -159,9 +159,9 @@ void test_module_graph_serialization(void) {
     char *graph_json = module_serialize_graph_to_json(mod);
     assert(graph_json != NULL);
     printf("独立图序列化:\n%s\n", graph_json);
-    lv00_free_ptr(graph_json);
+    lv_free_ptr(graph_json);
 
-    lv00_free_ptr(json);
+    lv_free_ptr(json);
     module_destroy(restored_mod);
     module_destroy(mod);
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file module_serialize.c
  * @brief 模块序列化（MsgPack/JSON）
  *
@@ -13,32 +13,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/module.h"
-#include "lv00/module_internal.h"
+#include "lv/module.h"
+#include "lv/module_internal.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "module_helpers.h"
 
 
 Module *module_create(const char *name, const char *version) {
-    Module *mod = lv00_malloc(sizeof(Module));
+    Module *mod = lv_malloc(sizeof(Module));
     if (!mod) return NULL;
-    mod->name = lv00_strdup_safe(name ? name : "unnamed_module");
-    mod->version = lv00_strdup_safe(version ? version : "0.0.0");
+    mod->name = lv_strdup_safe(name ? name : "unnamed_module");
+    mod->version = lv_strdup_safe(version ? version : "0.0.0");
     if (!mod->name || !mod->version) {
-        lv00_free((void**)&mod->name);
-        lv00_free((void**)&mod->version);
-        lv00_free((void**)&mod);
+        lv_free((void**)&mod->name);
+        lv_free((void**)&mod->version);
+        lv_free((void**)&mod);
         return NULL;
     }
     mod->dependencies = NULL;
     mod->dependency_count = 0;
-    mod->exports = lv00_malloc(sizeof(ModuleExport));
+    mod->exports = lv_malloc(sizeof(ModuleExport));
     if (!mod->exports) {
-        lv00_free((void**)&mod->name);
-        lv00_free((void**)&mod->version);
-        lv00_free((void**)&mod);
+        lv_free((void**)&mod->name);
+        lv_free((void**)&mod->version);
+        lv_free((void**)&mod);
         return NULL;
     }
     mod->exports->function_block_ids = NULL;
@@ -56,44 +56,44 @@ Module *module_create(const char *name, const char *version) {
 
 void module_destroy(Module *mod) {
     if (mod) {
-        lv00_free((void**)&mod->name);
-        lv00_free((void**)&mod->version);
+        lv_free((void**)&mod->name);
+        lv_free((void**)&mod->version);
         for (int i = 0; i < mod->dependency_count; i++) {
-            lv00_free((void**)&mod->dependencies[i].name);
-            lv00_free((void**)&mod->dependencies[i].version_constraint);
+            lv_free((void**)&mod->dependencies[i].name);
+            lv_free((void**)&mod->dependencies[i].version_constraint);
         }
-        lv00_free((void**)&mod->dependencies);
-        lv00_free((void**)&mod->exports->function_block_ids);
-        lv00_free((void**)&mod->exports->type_region_ids);
-        lv00_free((void**)&mod->exports);
+        lv_free((void**)&mod->dependencies);
+        lv_free((void**)&mod->exports->function_block_ids);
+        lv_free((void**)&mod->exports->type_region_ids);
+        lv_free((void**)&mod->exports);
         for (int i = 0; i < mod->axiom_package_count; i++) {
             axiom_package_destroy(mod->axiom_packages[i]);
         }
-        lv00_free((void**)&mod->axiom_packages);
+        lv_free((void**)&mod->axiom_packages);
         if (mod->graph) graph_destroy(mod->graph);
-        lv00_free((void**)&mod);
+        lv_free((void**)&mod);
     }
 }
 
 bool module_add_dependency(Module *mod, const char *dep_name, const char *version_constraint) {
     if (!mod) return false;
     if (mod->dependency_count == 0) {
-        mod->dependencies = lv00_malloc(sizeof(ModuleDependency));
+        mod->dependencies = lv_malloc(sizeof(ModuleDependency));
     } else {
-        void *tmp = lv00_realloc(mod->dependencies, (mod->dependency_count + 1) * sizeof(ModuleDependency));
+        void *tmp = lv_realloc(mod->dependencies, (mod->dependency_count + 1) * sizeof(ModuleDependency));
         if (!tmp) return false;
         mod->dependencies = tmp;
     }
     if (!mod->dependencies) return false;
 
     /* 安全复制依赖名称，检查 strdup 是否成功 */
-    char *name_copy = lv00_strdup_safe(dep_name);
+    char *name_copy = lv_strdup_safe(dep_name);
     if (!name_copy) {
         return false;
     }
-    char *version_copy = lv00_strdup_safe(version_constraint ? version_constraint : "");
+    char *version_copy = lv_strdup_safe(version_constraint ? version_constraint : "");
     if (!version_copy) {
-        lv00_free((void**)&name_copy);
+        lv_free((void**)&name_copy);
         return false;
     }
 
@@ -107,9 +107,9 @@ bool module_add_dependency(Module *mod, const char *dep_name, const char *versio
 bool module_add_axiom_package(Module *mod, AxiomPackage *pkg) {
     if (!mod) return false;
     if (mod->axiom_package_count == 0) {
-        mod->axiom_packages = lv00_malloc(sizeof(AxiomPackage*));
+        mod->axiom_packages = lv_malloc(sizeof(AxiomPackage*));
     } else {
-        void *tmp = lv00_realloc(mod->axiom_packages, (mod->axiom_package_count + 1) * sizeof(AxiomPackage*));
+        void *tmp = lv_realloc(mod->axiom_packages, (mod->axiom_package_count + 1) * sizeof(AxiomPackage*));
         if (!tmp) return false;
         mod->axiom_packages = tmp;
     }
@@ -122,9 +122,9 @@ bool module_export_function_block(Module *mod, int func_block_id) {
     if (!mod) return false;
     if (!mod->exports) return false;
     if (mod->exports->function_count == 0) {
-        mod->exports->function_block_ids = lv00_malloc(sizeof(int));
+        mod->exports->function_block_ids = lv_malloc(sizeof(int));
     } else {
-        void *tmp = lv00_realloc(mod->exports->function_block_ids,
+        void *tmp = lv_realloc(mod->exports->function_block_ids,
             (mod->exports->function_count + 1) * sizeof(int));
         if (!tmp) return false;
         mod->exports->function_block_ids = tmp;
@@ -137,9 +137,9 @@ bool module_export_function_block(Module *mod, int func_block_id) {
 bool module_export_type_region(Module *mod, int type_region_id) {
     if (!mod) return false;
     if (mod->exports->type_count == 0) {
-        mod->exports->type_region_ids = lv00_malloc(sizeof(int));
+        mod->exports->type_region_ids = lv_malloc(sizeof(int));
     } else {
-        void *tmp = lv00_realloc(mod->exports->type_region_ids,
+        void *tmp = lv_realloc(mod->exports->type_region_ids,
             (mod->exports->type_count + 1) * sizeof(int));
         if (!tmp) return false;
         mod->exports->type_region_ids = tmp;
@@ -152,7 +152,7 @@ bool module_export_type_region(Module *mod, int type_region_id) {
 static bool load_recursive(Module *mod, const char *filepath, Module **loaded, int *count, int depth, ModuleLoadStatus *status) {
     /* 检查递归深度 */
     if (depth > MAX_MODULE_DEPTH) {
-        lv00_set_error(LV00_ERROR_RESOURCE_EXHAUSTED, "模块加载深度超过最大限制 (%d)", MAX_MODULE_DEPTH);
+        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "模块加载深度超过最大限制 (%d)", MAX_MODULE_DEPTH);
         *status = MODULE_LOAD_DEPTH_EXCEEDED;
         return false;
     }
@@ -168,7 +168,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
     /* 将当前模块添加到已加载列表 */
     /* 边界检查：确保不超过 loaded 数组的最大容量 MAX_MODULE_DEPTH */
     if (*count >= MAX_MODULE_DEPTH) {
-        lv00_set_error(LV00_ERROR_RESOURCE_EXHAUSTED, "已加载模块数量超过最大限制 (%d)，无法继续加载模块 '%s'",
+        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "已加载模块数量超过最大限制 (%d)，无法继续加载模块 '%s'",
                   MAX_MODULE_DEPTH, mod->name);
         *status = MODULE_LOAD_DEPTH_EXCEEDED;
         return false;
@@ -179,7 +179,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
     /* 读取文件内容 */
     FILE *f = fopen(filepath, "r");
     if (!f) {
-        lv00_set_error(LV00_ERROR_IO, "无法打开文件: %s", filepath);
+        lv_set_error(lv_ERROR_IO, "无法打开文件: %s", filepath);
         *status = MODULE_LOAD_FILE_NOT_FOUND;
         return false;
     }
@@ -190,15 +190,15 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
     
     if (len <= 0) {
         fclose(f);
-        lv00_set_error(LV00_ERROR_IO, "文件为空: %s", filepath);
+        lv_set_error(lv_ERROR_IO, "文件为空: %s", filepath);
         *status = MODULE_LOAD_PARSE_ERROR;
         return false;
     }
     
-    char *buf = lv00_malloc(len + 1);
+    char *buf = lv_malloc(len + 1);
     if (!buf) {
         fclose(f);
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存分配失败");
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存分配失败");
         *status = MODULE_LOAD_PARSE_ERROR;
         return false;
     }
@@ -207,8 +207,8 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
     fclose(f);
     /* 检查 fread 是否完整读取了文件内容 */
     if (read_len != (size_t)len) {
-        lv00_free((void**)&buf);
-        lv00_set_error(LV00_ERROR_IO, "文件读取不完整: 期望 %ld 字节, 实际读取 %zu 字节 (%s)",
+        lv_free((void**)&buf);
+        lv_set_error(lv_ERROR_IO, "文件读取不完整: 期望 %ld 字节, 实际读取 %zu 字节 (%s)",
                   len, read_len, filepath);
         *status = MODULE_LOAD_PARSE_ERROR;
         return false;
@@ -222,7 +222,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
     bool parse_result = lvz_parse(&parser, mod);
     
     lvz_parser_cleanup(&parser);
-    lv00_free((void**)&buf);
+    lv_free((void**)&buf);
     
     if (!parse_result) {
         *status = MODULE_LOAD_PARSE_ERROR;
@@ -264,7 +264,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
             /* 创建依赖模块 */
             Module *dep_mod = module_create(dep->name, dep->version_constraint);
             if (!dep_mod) {
-                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "无法创建依赖模块: %s", dep->name);
+                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "无法创建依赖模块: %s", dep->name);
                 *status = MODULE_LOAD_PARSE_ERROR;
                 return false;
             }
@@ -287,10 +287,10 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
 
 ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_modules, int module_count) {
     /* 清除之前的错误 */
-    lv00_clear_error();
+    lv_clear_error();
     
     if (!mod || !filepath) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "无效参数");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "无效参数");
         return MODULE_LOAD_PARSE_ERROR;
     }
     
@@ -353,9 +353,9 @@ static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
             char *str = symbolic_coord_serialize(coord);
             if (str) {
                 /* 安全：使用 snprintf 并分配足够大的缓冲区 */
-                result = lv00_malloc(strlen(str) + 16);
+                result = lv_malloc(strlen(str) + 16);
                 if (result) snprintf(result, strlen(str) + 16, "rational %s", str);
-                lv00_free((void**)&str);
+                lv_free((void**)&str);
             }
             break;
         }
@@ -363,9 +363,9 @@ static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
             /* 二次根式格式: "quadratic a,b,n" */
             char *str = symbolic_coord_serialize(coord);
             if (str) {
-                result = lv00_malloc(strlen(str) + 16);
+                result = lv_malloc(strlen(str) + 16);
                 if (result) snprintf(result, strlen(str) + 16, "quadratic %s", str);
-                lv00_free((void**)&str);
+                lv_free((void**)&str);
             }
             break;
         }
@@ -373,9 +373,9 @@ static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
             /* 代数数格式: "algebraic 多项式系数... 左边界 右边界" */
             char *str = symbolic_coord_serialize(coord);
             if (str) {
-                result = lv00_malloc(strlen(str) + 16);
+                result = lv_malloc(strlen(str) + 16);
                 if (result) snprintf(result, strlen(str) + 16, "algebraic %s", str);
-                lv00_free((void**)&str);
+                lv_free((void**)&str);
             }
             break;
         }
@@ -383,17 +383,17 @@ static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
             /* 超越常数格式: "transcendental pi" 或 "transcendental e" */
             char *str = symbolic_coord_serialize(coord);
             if (str) {
-                result = lv00_malloc(strlen(str) + 20);
+                result = lv_malloc(strlen(str) + 20);
                 if (result) snprintf(result, strlen(str) + 20, "transcendental %s", str);
-                lv00_free((void**)&str);
+                lv_free((void**)&str);
             }
             break;
         }
         default:
-            result = lv00_strdup_safe("unknown");
+            result = lv_strdup_safe("unknown");
             break;
     }
-    return result ? result : lv00_strdup_safe("unknown");
+    return result ? result : lv_strdup_safe("unknown");
 }
 
 /* 序列化单个节点 */
@@ -419,7 +419,7 @@ static void serialize_node(FILE *f, const GeomNode *node) {
         char *coord_str = serialize_symbolic_coord(node->symbolic_coords[i]);
         if (coord_str) {
             fprintf(f, "      coord %s\n", coord_str);
-            lv00_free((void**)&coord_str);
+            lv_free((void**)&coord_str);
         }
     }
 }
@@ -564,7 +564,7 @@ char *module_compute_version_hash(const Module *mod) {
     }
     
     /* 转换为十六进制字符串 (64位 = 16个十六进制字符) */
-    char *result = lv00_malloc(17);
+    char *result = lv_malloc(17);
     if (result) {
         snprintf(result, 17, "%016llx", (unsigned long long)hash);
     }
@@ -686,14 +686,14 @@ bool module_parse_version_constraint(const char *constraint, const char *version
     const char *dash = strstr(constraint, " - ");
     if (dash) {
         size_t lower_len = (size_t)(dash - constraint);
-        char *lower = lv00_malloc(lower_len + 1);
+        char *lower = lv_malloc(lower_len + 1);
         memcpy(lower, constraint, lower_len);
         lower[lower_len] = '\0';
         const char *upper = dash + 3;
 
         bool result = (module_compare_versions(version, lower) >= 0 &&
                        module_compare_versions(version, upper) <= 0);
-        lv00_free((void**)&lower);
+        lv_free((void**)&lower);
         return result;
     }
 
@@ -747,7 +747,7 @@ typedef struct {
 /* ---------- 编码器辅助函数 ---------- */
 
 static bool mp_encoder_init(MsgPackEncoder *enc, size_t initial_capacity) {
-    enc->buffer = (uint8_t *)lv00_malloc(initial_capacity);
+    enc->buffer = (uint8_t *)lv_malloc(initial_capacity);
     if (!enc->buffer) return false;
     enc->capacity = initial_capacity;
     enc->pos = 0;
@@ -758,7 +758,7 @@ static bool mp_encoder_init(MsgPackEncoder *enc, size_t initial_capacity) {
 static bool mp_encoder_ensure(MsgPackEncoder *enc, size_t extra) {
     while (enc->pos + extra > enc->capacity) {
         size_t new_cap = enc->capacity * 2;
-        uint8_t *new_buf = (uint8_t *)lv00_realloc(enc->buffer, new_cap);
+        uint8_t *new_buf = (uint8_t *)lv_realloc(enc->buffer, new_cap);
         if (!new_buf) return false;
         enc->buffer = new_buf;
         enc->capacity = new_cap;
@@ -930,7 +930,7 @@ static void mp_encoder_write_map_header(MsgPackEncoder *enc, uint16_t count) {
 }
 
 static void mp_encoder_destroy(MsgPackEncoder *enc) {
-    lv00_free((void**)&enc->buffer);
+    lv_free((void**)&enc->buffer);
     enc->buffer = NULL;
     enc->capacity = 0;
     enc->pos = 0;
@@ -1041,7 +1041,7 @@ static bool mp_decoder_read_str(MsgPackDecoder *dec, char **out) {
 
     if (dec->pos + len > dec->size) return false;
 
-    char *str = (char *)lv00_malloc(len + 1);
+    char *str = (char *)lv_malloc(len + 1);
     if (!str) return false;
     memcpy(str, dec->data + dec->pos, len);
     str[len] = '\0';
@@ -1069,7 +1069,7 @@ static bool mp_decoder_read_bin(MsgPackDecoder *dec, uint8_t **out, size_t *out_
 
     if (dec->pos + len > dec->size) return false;
 
-    uint8_t *buf = (uint8_t *)lv00_malloc(len);
+    uint8_t *buf = (uint8_t *)lv_malloc(len);
     if (!buf) return false;
     memcpy(buf, dec->data + dec->pos, len);
     dec->pos += len;
@@ -1260,13 +1260,13 @@ static bool mp_decoder_skip_value(MsgPackDecoder *dec) {
 
 ModuleSaveStatus module_save_to_binary(const Module *mod, uint8_t **out_data, size_t *out_size) {
     if (!mod || !out_data || !out_size) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "module_save_to_binary: 无效参数");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "module_save_to_binary: 无效参数");
         return MODULE_SAVE_WRITE_ERROR;
     }
 
     MsgPackEncoder enc;
     if (!mp_encoder_init(&enc, 1024)) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "module_save_to_binary: 内存分配失败");
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "module_save_to_binary: 内存分配失败");
         return MODULE_SAVE_WRITE_ERROR;
     }
 
@@ -1327,8 +1327,8 @@ ModuleSaveStatus module_save_to_binary(const Module *mod, uint8_t **out_data, si
     *out_size = enc.pos;
     /* 注意：不调用 mp_encoder_destroy，因为 buffer 已转移给调用者 */
     if (enc.error) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "module_save_to_binary: 编码过程中内存不足");
-        lv00_free((void**)&enc.buffer);
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "module_save_to_binary: 编码过程中内存不足");
+        lv_free((void**)&enc.buffer);
         *out_data = NULL;
         *out_size = 0;
         return MODULE_SAVE_WRITE_ERROR;
@@ -1338,19 +1338,19 @@ ModuleSaveStatus module_save_to_binary(const Module *mod, uint8_t **out_data, si
 
 ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Module **out_module) {
     if (!data || size == 0 || !out_module) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "module_load_from_binary: 无效参数");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "module_load_from_binary: 无效参数");
         return MODULE_LOAD_PARSE_ERROR;
     }
 
     MsgPackDecoder dec;
     if (!mp_decoder_init(&dec, data, size)) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "module_load_from_binary: 无效数据");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "module_load_from_binary: 无效数据");
         return MODULE_LOAD_PARSE_ERROR;
     }
 
     uint16_t map_count = 0;
     if (!mp_decoder_read_map_header(&dec, &map_count)) {
-        lv00_set_error(LV00_ERROR_PARSE, "module_load_from_binary: 无法读取顶层 map");
+        lv_set_error(lv_ERROR_PARSE, "module_load_from_binary: 无法读取顶层 map");
         return MODULE_LOAD_PARSE_ERROR;
     }
 
@@ -1362,16 +1362,16 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
     for (uint16_t i = 0; i < map_count; i++) {
         char *key = NULL;
         if (!mp_decoder_read_str(&dec, &key)) {
-            lv00_set_error(LV00_ERROR_PARSE, "module_load_from_binary: 无法读取 map 键");
-            lv00_free((void**)&name); lv00_free((void**)&version);
+            lv_set_error(lv_ERROR_PARSE, "module_load_from_binary: 无法读取 map 键");
+            lv_free((void**)&name); lv_free((void**)&version);
             return MODULE_LOAD_PARSE_ERROR;
         }
 
         if (strcmp(key, "name") == 0) {
-            lv00_free((void**)&key);
+            lv_free((void**)&key);
             if (!mp_decoder_read_str(&dec, &name)) {
-                lv00_set_error(LV00_ERROR_PARSE, "module_load_from_binary: 无法读取 name");
-                lv00_free((void**)&name); lv00_free((void**)&version);
+                lv_set_error(lv_ERROR_PARSE, "module_load_from_binary: 无法读取 name");
+                lv_free((void**)&name); lv_free((void**)&version);
                 if (mod) module_destroy(mod);
                 return MODULE_LOAD_PARSE_ERROR;
             }
@@ -1379,38 +1379,38 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
             if (!mod && name) {
                 mod = module_create(name, version ? version : "0.0.0");
                 if (!mod) {
-                    lv00_free((void**)&name); lv00_free((void**)&version);
+                    lv_free((void**)&name); lv_free((void**)&version);
                     return MODULE_LOAD_PARSE_ERROR;
                 }
             }
         }
         else if (strcmp(key, "version") == 0) {
-            lv00_free((void**)&key);
+            lv_free((void**)&key);
             if (!mp_decoder_read_str(&dec, &version)) {
-                lv00_set_error(LV00_ERROR_PARSE, "module_load_from_binary: 无法读取 version");
-                lv00_free((void**)&name); lv00_free((void**)&version);
+                lv_set_error(lv_ERROR_PARSE, "module_load_from_binary: 无法读取 version");
+                lv_free((void**)&name); lv_free((void**)&version);
                 if (mod) module_destroy(mod);
                 return MODULE_LOAD_PARSE_ERROR;
             }
             /* 如果模块已创建，更新版本 */
             if (mod && version) {
-                lv00_free((void**)&mod->version);
-                mod->version = lv00_strdup_safe(version);
+                lv_free((void**)&mod->version);
+                mod->version = lv_strdup_safe(version);
             }
         }
         else if (strcmp(key, "dependencies") == 0) {
-            lv00_free((void**)&key);
+            lv_free((void**)&key);
             uint16_t dep_count = 0;
             if (!mp_decoder_read_array_header(&dec, &dep_count)) {
-                lv00_set_error(LV00_ERROR_PARSE, "module_load_from_binary: 无法读取 dependencies 数组");
-                lv00_free((void**)&name); lv00_free((void**)&version);
+                lv_set_error(lv_ERROR_PARSE, "module_load_from_binary: 无法读取 dependencies 数组");
+                lv_free((void**)&name); lv_free((void**)&version);
                 if (mod) module_destroy(mod);
                 return MODULE_LOAD_PARSE_ERROR;
             }
             for (uint16_t j = 0; j < dep_count; j++) {
                 uint16_t dep_map_count = 0;
                 if (!mp_decoder_read_map_header(&dec, &dep_map_count)) {
-                    lv00_free((void**)&name); lv00_free((void**)&version);
+                    lv_free((void**)&name); lv_free((void**)&version);
                     if (mod) module_destroy(mod);
                     return MODULE_LOAD_PARSE_ERROR;
                 }
@@ -1419,17 +1419,17 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                 for (uint16_t k = 0; k < dep_map_count; k++) {
                     char *dk = NULL;
                     if (!mp_decoder_read_str(&dec, &dk)) {
-                        lv00_free((void**)&name); lv00_free((void**)&version); lv00_free((void**)&dep_name); lv00_free((void**)&dep_ver); lv00_free((void**)&dk);
+                        lv_free((void**)&name); lv_free((void**)&version); lv_free((void**)&dep_name); lv_free((void**)&dep_ver); lv_free((void**)&dk);
                         return MODULE_LOAD_PARSE_ERROR;
                     }
                     if (strcmp(dk, "name") == 0) {
-                        lv00_free((void**)&dk);
+                        lv_free((void**)&dk);
                         mp_decoder_read_str(&dec, &dep_name);
                     } else if (strcmp(dk, "version_constraint") == 0) {
-                        lv00_free((void**)&dk);
+                        lv_free((void**)&dk);
                         mp_decoder_read_str(&dec, &dep_ver);
                     } else {
-                        lv00_free((void**)&dk);
+                        lv_free((void**)&dk);
                         /* 跳过未知值 */
                         mp_decoder_skip_value(&dec);
                     }
@@ -1437,30 +1437,30 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                 if (mod && dep_name) {
                     module_add_dependency(mod, dep_name, dep_ver ? dep_ver : "");
                 }
-                lv00_free((void**)&dep_name);
-                lv00_free((void**)&dep_ver);
+                lv_free((void**)&dep_name);
+                lv_free((void**)&dep_ver);
             }
         }
         else if (strcmp(key, "exports") == 0) {
-            lv00_free((void**)&key);
+            lv_free((void**)&key);
             uint16_t exp_map_count = 0;
             if (!mp_decoder_read_map_header(&dec, &exp_map_count)) {
-                lv00_free((void**)&name); lv00_free((void**)&version);
+                lv_free((void**)&name); lv_free((void**)&version);
                 if (mod) module_destroy(mod);
                 return MODULE_LOAD_PARSE_ERROR;
             }
             for (uint16_t j = 0; j < exp_map_count; j++) {
                 char *ek = NULL;
                 if (!mp_decoder_read_str(&dec, &ek)) {
-                    lv00_free((void**)&name); lv00_free((void**)&version);
+                    lv_free((void**)&name); lv_free((void**)&version);
                     if (mod) module_destroy(mod);
                     return MODULE_LOAD_PARSE_ERROR;
                 }
                 if (strcmp(ek, "function_blocks") == 0) {
-                    lv00_free((void**)&ek);
+                    lv_free((void**)&ek);
                     uint16_t fb_count = 0;
                     if (!mp_decoder_read_array_header(&dec, &fb_count)) {
-                        lv00_free((void**)&name); lv00_free((void**)&version);
+                        lv_free((void**)&name); lv_free((void**)&version);
                         if (mod) module_destroy(mod);
                         return MODULE_LOAD_PARSE_ERROR;
                     }
@@ -1472,10 +1472,10 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                     }
                 }
                 else if (strcmp(ek, "type_regions") == 0) {
-                    lv00_free((void**)&ek);
+                    lv_free((void**)&ek);
                     uint16_t tr_count = 0;
                     if (!mp_decoder_read_array_header(&dec, &tr_count)) {
-                        lv00_free((void**)&name); lv00_free((void**)&version);
+                        lv_free((void**)&name); lv_free((void**)&version);
                         if (mod) module_destroy(mod);
                         return MODULE_LOAD_PARSE_ERROR;
                     }
@@ -1487,17 +1487,17 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                     }
                 }
                 else {
-                    lv00_free((void**)&ek);
+                    lv_free((void**)&ek);
                     /* 跳过未知值 */
                     mp_decoder_skip_value(&dec);
                 }
             }
         }
         else if (strcmp(key, "axiom_packages") == 0) {
-            lv00_free((void**)&key);
+            lv_free((void**)&key);
             uint16_t pkg_count = 0;
             if (!mp_decoder_read_array_header(&dec, &pkg_count)) {
-                lv00_free((void**)&name); lv00_free((void**)&version);
+                lv_free((void**)&name); lv_free((void**)&version);
                 return MODULE_LOAD_PARSE_ERROR;
             }
             for (uint16_t j = 0; j < pkg_count; j++) {
@@ -1508,11 +1508,11 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                         module_add_axiom_package(mod, pkg);
                     }
                 }
-                lv00_free((void**)&pkg_name);
+                lv_free((void**)&pkg_name);
             }
         }
         else {
-            lv00_free((void**)&key);
+            lv_free((void**)&key);
             /* 跳过未知键的值 */
             mp_decoder_skip_value(&dec);
         }
@@ -1524,18 +1524,18 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
     }
 
     if (!mod) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "module_load_from_binary: 无法创建模块");
-        lv00_free((void**)&name); lv00_free((void**)&version);
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "module_load_from_binary: 无法创建模块");
+        lv_free((void**)&name); lv_free((void**)&version);
         return MODULE_LOAD_PARSE_ERROR;
     }
 
     /* 确保模块有名称（map 键顺序不可依赖） */
     if (!mod->name) {
-        mod->name = lv00_strdup_safe("unnamed_module");
+        mod->name = lv_strdup_safe("unnamed_module");
     }
 
-    lv00_free((void**)&name);
-    lv00_free((void**)&version);
+    lv_free((void**)&name);
+    lv_free((void**)&version);
     *out_module = mod;
     return MODULE_LOAD_OK;
 }
@@ -1547,7 +1547,7 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
 /* JSON 写入器类型定义已提取至 module_helpers.h */
 
 bool json_writer_init(JsonWriter *w, size_t initial_capacity) {
-    w->buffer = (char *)lv00_malloc(initial_capacity);
+    w->buffer = (char *)lv_malloc(initial_capacity);
     if (!w->buffer) return false;
     w->capacity = initial_capacity;
     w->pos = 0;
@@ -1558,7 +1558,7 @@ bool json_writer_init(JsonWriter *w, size_t initial_capacity) {
 void json_writer_ensure(JsonWriter *w, size_t extra) {
     while (w->pos + extra >= w->capacity) {
         size_t new_cap = w->capacity * 2;
-        char *new_buf = (char *)lv00_realloc(w->buffer, new_cap);
+        char *new_buf = (char *)lv_realloc(w->buffer, new_cap);
         if (!new_buf) return;
         w->buffer = new_buf;
         w->capacity = new_cap;
@@ -1608,7 +1608,7 @@ void json_writer_write_escaped_str(JsonWriter *w, const char *s) {
 }
 
 void json_writer_destroy(JsonWriter *w) {
-    lv00_free((void**)&w->buffer);
+    lv_free((void**)&w->buffer);
     w->buffer = NULL;
 }
 
@@ -1691,7 +1691,7 @@ char *module_serialize_to_json(const Module *mod) {
         char *graph_json = graph_serialize_to_json(mod->graph);
         if (graph_json) {
             json_writer_puts(&w, graph_json);
-            lv00_free((void**)&graph_json);
+            lv_free((void**)&graph_json);
         } else {
             json_writer_puts(&w, "null");
         }
@@ -1709,7 +1709,7 @@ char *module_serialize_to_json(const Module *mod) {
 
 char *module_serialize_graph_to_json(const Module *mod) {
     if (!mod || !mod->graph) {
-        lv00_set_error(LV00_ERROR_NULL_POINTER, "module_serialize_graph_to_json: 模块或图为空");
+        lv_set_error(lv_ERROR_NULL_POINTER, "module_serialize_graph_to_json: 模块或图为空");
         return NULL;
     }
     return graph_serialize_to_json(mod->graph);
@@ -1717,7 +1717,7 @@ char *module_serialize_graph_to_json(const Module *mod) {
 
 bool module_deserialize_graph_from_json(Module *mod, const char *json) {
     if (!mod || !json) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "module_deserialize_graph_from_json: 无效参数");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "module_deserialize_graph_from_json: 无效参数");
         return false;
     }
     
@@ -1730,7 +1730,7 @@ bool module_deserialize_graph_from_json(Module *mod, const char *json) {
     /* 反序列化图 */
     ConstraintGraph *graph = graph_deserialize_from_json(json);
     if (!graph) {
-        lv00_set_error(LV00_ERROR_PARSE, "module_deserialize_graph_from_json: 图反序列化失败");
+        lv_set_error(lv_ERROR_PARSE, "module_deserialize_graph_from_json: 图反序列化失败");
         return false;
     }
     
@@ -1793,7 +1793,7 @@ char *json_reader_read_string(JsonReader *r) {
     r->pos++; /* 跳过结束引号 */
 
     /* 解码转义字符 */
-    char *result = (char *)lv00_malloc(len + 1);
+    char *result = (char *)lv_malloc(len + 1);
     if (!result) return NULL;
 
     const char *src = r->data + start;
@@ -1891,7 +1891,7 @@ int json_reader_count_array_elements(JsonReader *r) {
 
 ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_module) {
     if (!json || !out_module) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "module_deserialize_from_json: 无效参数");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "module_deserialize_from_json: 无效参数");
         return MODULE_LOAD_PARSE_ERROR;
     }
 
@@ -1900,7 +1900,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
     json_reader_init(&r, json, json_len);
 
     if (json_reader_peek(&r) != '{') {
-        lv00_set_error(LV00_ERROR_PARSE, "module_deserialize_from_json: 期望 JSON 对象");
+        lv_set_error(lv_ERROR_PARSE, "module_deserialize_from_json: 期望 JSON 对象");
         return MODULE_LOAD_PARSE_ERROR;
     }
     r.pos++; /* 跳过 '{' */
@@ -1915,12 +1915,12 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
         if (!key) break;
 
         if (!json_reader_expect_char(&r, ':')) {
-            lv00_free((void**)&key);
+            lv_free((void**)&key);
             break;
         }
 
         if (strcmp(key, "name") == 0) {
-            lv00_free((void**)&name);
+            lv_free((void**)&name);
             name = json_reader_read_string(&r);
             /* 如果模块尚未创建且已有 name，立即创建 */
             if (!mod && name) {
@@ -1928,12 +1928,12 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
             }
         }
         else if (strcmp(key, "version") == 0) {
-            lv00_free((void**)&version);
+            lv_free((void**)&version);
             version = json_reader_read_string(&r);
             /* 如果模块已创建，更新版本 */
             if (mod && version) {
-                lv00_free((void**)&mod->version);
-                mod->version = lv00_strdup_safe(version);
+                lv_free((void**)&mod->version);
+                mod->version = lv_strdup_safe(version);
             }
         }
         else if (strcmp(key, "dependencies") == 0) {
@@ -1951,34 +1951,34 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                     while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
                         char *dk = json_reader_read_string(&r);
                         if (!dk) break;
-                        if (!json_reader_expect_char(&r, ':')) { lv00_free((void**)&dk); break; }
+                        if (!json_reader_expect_char(&r, ':')) { lv_free((void**)&dk); break; }
 
                         if (strcmp(dk, "name") == 0) {
-                            lv00_free((void**)&dep_name);
+                            lv_free((void**)&dep_name);
                             dep_name = json_reader_read_string(&r);
                         } else if (strcmp(dk, "version_constraint") == 0) {
-                            lv00_free((void**)&dep_ver);
+                            lv_free((void**)&dep_ver);
                             dep_ver = json_reader_read_string(&r);
                         } else {
                             /* 跳过未知值 */
                             if (json_reader_peek(&r) == '"') {
                                 char *tmp = json_reader_read_string(&r);
-                                lv00_free((void**)&tmp);
+                                lv_free((void**)&tmp);
                             } else {
                                 while (r.pos < r.size && json_reader_peek(&r) != ',' && json_reader_peek(&r) != '}') {
                                     r.pos++;
                                 }
                             }
                         }
-                        lv00_free((void**)&dk);
+                        lv_free((void**)&dk);
                     }
                     if (json_reader_peek(&r) == '}') r.pos++;
 
                     if (mod && dep_name) {
                         module_add_dependency(mod, dep_name, dep_ver ? dep_ver : "");
                     }
-                    lv00_free((void**)&dep_name);
-                    lv00_free((void**)&dep_ver);
+                    lv_free((void**)&dep_name);
+                    lv_free((void**)&dep_ver);
                 }
                 if (json_reader_peek(&r) == ']') r.pos++;
             }
@@ -1990,7 +1990,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                 while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
                     char *ek = json_reader_read_string(&r);
                     if (!ek) break;
-                    if (!json_reader_expect_char(&r, ':')) { lv00_free((void**)&ek); break; }
+                    if (!json_reader_expect_char(&r, ':')) { lv_free((void**)&ek); break; }
 
                     if (strcmp(ek, "function_blocks") == 0 && mod) {
                         if (json_reader_peek(&r) == '[') {
@@ -2026,7 +2026,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                         /* 跳过未知值 */
                         if (json_reader_peek(&r) == '"') {
                             char *tmp = json_reader_read_string(&r);
-                            lv00_free((void**)&tmp);
+                            lv_free((void**)&tmp);
                         } else if (json_reader_peek(&r) == '[') {
                             int count = json_reader_count_array_elements(&r);
                             (void)count;
@@ -2036,7 +2036,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                             }
                         }
                     }
-                    lv00_free((void**)&ek);
+                    lv_free((void**)&ek);
                 }
                 if (json_reader_peek(&r) == '}') r.pos++;
             }
@@ -2053,7 +2053,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                             module_add_axiom_package(mod, pkg);
                         }
                     }
-                    lv00_free((void**)&pkg_name);
+                    lv_free((void**)&pkg_name);
                 }
                 if (json_reader_peek(&r) == ']') r.pos++;
             }
@@ -2081,7 +2081,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                 
                 /* 创建 graph JSON 字符串的副本 */
                 size_t graph_len = r.pos - graph_start - 1;
-                char *graph_json = lv00_malloc(graph_len + 1);
+                char *graph_json = lv_malloc(graph_len + 1);
                 if (graph_json) {
                     /* 使用 memcpy 进行精确长度复制（已分配 graph_len+1，手动零终止更安全） */
                     memcpy(graph_json, r.data + graph_start, graph_len);
@@ -2094,7 +2094,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                             mod->graph = graph;
                         }
                     }
-                    lv00_free((void**)&graph_json);
+                    lv_free((void**)&graph_json);
                 }
             } else if (json_reader_peek(&r) == 'n') {
                 /* null - 跳过 "null" */
@@ -2105,7 +2105,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
             /* 跳过未知键的值 */
             if (json_reader_peek(&r) == '"') {
                 char *tmp = json_reader_read_string(&r);
-                lv00_free((void**)&tmp);
+                lv_free((void**)&tmp);
             } else if (json_reader_peek(&r) == '[') {
                 int count = json_reader_count_array_elements(&r);
                 (void)count;
@@ -2134,7 +2134,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
             }
         }
 
-        lv00_free((void**)&key);
+        lv_free((void**)&key);
 
         if (json_reader_peek(&r) == ',') r.pos++;
     }
@@ -2145,13 +2145,13 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
     }
 
     if (!mod) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "module_deserialize_from_json: 无法创建模块");
-        lv00_free((void**)&name); lv00_free((void**)&version);
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "module_deserialize_from_json: 无法创建模块");
+        lv_free((void**)&name); lv_free((void**)&version);
         return MODULE_LOAD_PARSE_ERROR;
     }
 
-    lv00_free((void**)&name);
-    lv00_free((void**)&version);
+    lv_free((void**)&name);
+    lv_free((void**)&version);
     *out_module = mod;
     return MODULE_LOAD_OK;
 }
@@ -2192,7 +2192,7 @@ AutoSaveConfig *get_or_create_autosave_config(const char *module_name) {
 
     if (g_autosave_entry_count >= MAX_AUTOSAVE_ENTRIES) return NULL;
 
-    g_autosave_entries[g_autosave_entry_count].module_name = lv00_strdup_safe(module_name);
+    g_autosave_entries[g_autosave_entry_count].module_name = lv_strdup_safe(module_name);
     g_autosave_entries[g_autosave_entry_count].config.enabled = false;
     g_autosave_entries[g_autosave_entry_count].config.interval_seconds = 60;
     g_autosave_entries[g_autosave_entry_count].config.backup_directory = NULL;

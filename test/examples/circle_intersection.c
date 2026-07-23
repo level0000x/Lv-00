@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file circle_intersection.c
  * @brief 完整示例：圆与线段的相交构造
  *
@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /**
  * @brief 辅助函数：添加一个有理数坐标点

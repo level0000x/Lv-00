@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_export_enhanced.c
  * @brief 增强的证明导出功能实现
  *
@@ -11,8 +11,8 @@
  * - DOT（Graphviz 图形化证明树）
  */
 
-#include "lv00/proof_export_enhanced.h"
-#include "lv00/lv00_utils.h"
+#include "lv/proof_export_enhanced.h"
+#include "lv/lv_utils.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,7 +31,7 @@ typedef struct {
 } DStr;
 
 static int dstr_init(DStr *d, size_t cap) {
-    d->data = (char *)lv00_malloc(cap);
+    d->data = (char *)lv_malloc(cap);
     if (!d->data) return -1;
     d->data[0] = '\0';
     d->len = 0;
@@ -44,7 +44,7 @@ static int dstr_grow(DStr *d, size_t extra) {
     if (needed <= d->cap) return 0;
     size_t new_cap = d->cap * 2;
     while (new_cap < needed) new_cap *= 2;
-    char *nd = (char *)lv00_realloc(d->data, new_cap);
+    char *nd = (char *)lv_realloc(d->data, new_cap);
     if (!nd) return -1;
     d->data = nd;
     d->cap  = new_cap;
@@ -81,7 +81,7 @@ static int dstr_append_str(DStr *d, const char *s) {
 
 static void dstr_free(DStr *d) {
     if (d->data) {
-        lv00_free((void **)&(d->data));
+        lv_free((void **)&(d->data));
         d->data = NULL;
     }
     d->len = 0;
@@ -92,13 +92,13 @@ static void dstr_free(DStr *d) {
  * 错误结果工厂
  * ================================================================ */
 
-static Lv00ExportResult *make_error(const char *msg) {
-    Lv00ExportResult *r = (Lv00ExportResult *)lv00_malloc(sizeof(Lv00ExportResult));
+static lvExportResult *make_error(const char *msg) {
+    lvExportResult *r = (lvExportResult *)lv_malloc(sizeof(lvExportResult));
     if (!r) return NULL;
     const char *src = msg ? msg : "Unknown error";
     size_t len = strlen(src);
     r->success     = false;
-    r->output      = (char *)lv00_malloc(len + 1);
+    r->output      = (char *)lv_malloc(len + 1);
     if (r->output) {
         memcpy(r->output, src, len + 1);
         r->output_size = len;
@@ -108,8 +108,8 @@ static Lv00ExportResult *make_error(const char *msg) {
     return r;
 }
 
-static Lv00ExportResult *make_success(DStr *d) {
-    Lv00ExportResult *r = (Lv00ExportResult *)lv00_malloc(sizeof(Lv00ExportResult));
+static lvExportResult *make_success(DStr *d) {
+    lvExportResult *r = (lvExportResult *)lv_malloc(sizeof(lvExportResult));
     if (!r) {
         dstr_free(d);
         return NULL;
@@ -179,8 +179,8 @@ static int dstr_append_json_string(DStr *d, const char *str) {
  * HTML 导出
  * ================================================================ */
 
-static Lv00ExportResult *export_html(const Lv00Proof *proof,
-                                     const Lv00ExportConfig *config) {
+static lvExportResult *export_html(const lvProof *proof,
+                                     const lvExportConfig *config) {
     DStr d;
     if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
 
@@ -216,7 +216,7 @@ static Lv00ExportResult *export_html(const Lv00Proof *proof,
                 indent2, indent);
     dstr_append(&d, "%s  <tbody>%s", indent2, indent);
     for (int i = 0; i < proof->n_steps; i++) {
-        const Lv00ProofStep *s = &proof->steps[i];
+        const lvProofStep *s = &proof->steps[i];
         dstr_append(&d, "%s    <tr>", indent2);
         dstr_append(&d, "<td>%d</td>", s->step_id);
         dstr_append(&d, "<td>%s</td>", safe_str(s->rule));
@@ -233,7 +233,7 @@ static Lv00ExportResult *export_html(const Lv00Proof *proof,
         dstr_append(&d, "%s  <h3>Proof Trace</h3>%s", indent2, indent);
         dstr_append(&d, "%s  <p>Total steps: %d</p>%s", indent2, proof->n_steps, indent);
         for (int i = 0; i < proof->n_steps; i++) {
-            const Lv00ProofStep *s = &proof->steps[i];
+            const lvProofStep *s = &proof->steps[i];
             dstr_append(&d, "%s  <p>[%d] %s", indent2, s->step_id, safe_str(s->rule));
             if (s->premise) dstr_append(&d, " (from %s)", s->premise);
             dstr_append(&d, " &rarr; %s</p>%s", safe_str(s->conclusion), indent);
@@ -251,8 +251,8 @@ static Lv00ExportResult *export_html(const Lv00Proof *proof,
  * LaTeX 导出
  * ================================================================ */
 
-static Lv00ExportResult *export_latex(const Lv00Proof *proof,
-                                      const Lv00ExportConfig *config) {
+static lvExportResult *export_latex(const lvProof *proof,
+                                      const lvExportConfig *config) {
     DStr d;
     if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
 
@@ -293,7 +293,7 @@ static Lv00ExportResult *export_latex(const Lv00Proof *proof,
     dstr_append(&d, "\\hline%s", nl);
     dstr_append(&d, "Step & Rule & Premise & Conclusion \\\\\\hline%s", nl);
     for (int i = 0; i < proof->n_steps; i++) {
-        const Lv00ProofStep *s = &proof->steps[i];
+        const lvProofStep *s = &proof->steps[i];
         dstr_append(&d, "%d & %s & %s & %s \\\\\\hline%s",
                     s->step_id,
                     safe_str(s->rule),
@@ -313,8 +313,8 @@ static Lv00ExportResult *export_latex(const Lv00Proof *proof,
  * Coq 导出
  * ================================================================ */
 
-static Lv00ExportResult *export_coq(const Lv00Proof *proof,
-                                    const Lv00ExportConfig *config) {
+static lvExportResult *export_coq(const lvProof *proof,
+                                    const lvExportConfig *config) {
     DStr d;
     if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
 
@@ -328,7 +328,7 @@ static Lv00ExportResult *export_coq(const Lv00Proof *proof,
     dstr_append(&d, "Theorem %s : True.%s", id, "\n");
     dstr_append(&d, "Proof.%s", "\n");
     for (int i = 0; i < proof->n_steps; i++) {
-        const Lv00ProofStep *s = &proof->steps[i];
+        const lvProofStep *s = &proof->steps[i];
         dstr_append(&d, "  (* Step %d: %s", s->step_id, safe_str(s->rule));
         if (s->premise) dstr_append(&d, " (premise: %s)", s->premise);
         dstr_append(&d, " → %s *)%s", safe_str(s->conclusion), "\n");
@@ -343,8 +343,8 @@ static Lv00ExportResult *export_coq(const Lv00Proof *proof,
  * Lean 4 导出
  * ================================================================ */
 
-static Lv00ExportResult *export_lean4(const Lv00Proof *proof,
-                                      const Lv00ExportConfig *config) {
+static lvExportResult *export_lean4(const lvProof *proof,
+                                      const lvExportConfig *config) {
     DStr d;
     if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
 
@@ -358,7 +358,7 @@ static Lv00ExportResult *export_lean4(const Lv00Proof *proof,
     dstr_append(&d, "/- Proof: %s -/%s", safe_str(proof->theorem), "\n");
     dstr_append(&d, "theorem %s : True := by%s", id, "\n");
     for (int i = 0; i < proof->n_steps; i++) {
-        const Lv00ProofStep *s = &proof->steps[i];
+        const lvProofStep *s = &proof->steps[i];
         dstr_append(&d, "  -- Step %d: %s", s->step_id, safe_str(s->rule));
         if (s->premise) dstr_append(&d, " (from %s)", s->premise);
         dstr_append(&d, " → %s%s", safe_str(s->conclusion), "\n");
@@ -373,8 +373,8 @@ static Lv00ExportResult *export_lean4(const Lv00Proof *proof,
  * JSON 导出
  * ================================================================ */
 
-static Lv00ExportResult *export_json(const Lv00Proof *proof,
-                                     const Lv00ExportConfig *config) {
+static lvExportResult *export_json(const lvProof *proof,
+                                     const lvExportConfig *config) {
     DStr d;
     if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
 
@@ -391,7 +391,7 @@ static Lv00ExportResult *export_json(const Lv00Proof *proof,
     dstr_append(&d, "%s\"steps\": [%s", sp, nl);
 
     for (int i = 0; i < proof->n_steps; i++) {
-        const Lv00ProofStep *s = &proof->steps[i];
+        const lvProofStep *s = &proof->steps[i];
         dstr_append(&d, "%s{%s", sp2, nl);
         dstr_append(&d, "%s\"id\": %d,%s", sp3, s->step_id, nl);
         dstr_append(&d, "%s\"rule\": ", sp3);
@@ -421,8 +421,8 @@ static Lv00ExportResult *export_json(const Lv00Proof *proof,
  * DOT（Graphviz）导出
  * ================================================================ */
 
-static Lv00ExportResult *export_dot(const Lv00Proof *proof,
-                                    const Lv00ExportConfig *config) {
+static lvExportResult *export_dot(const lvProof *proof,
+                                    const lvExportConfig *config) {
     DStr d;
     if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
 
@@ -438,7 +438,7 @@ static Lv00ExportResult *export_dot(const Lv00Proof *proof,
 
     /* 节点 */
     for (int i = 0; i < proof->n_steps; i++) {
-        const Lv00ProofStep *s = &proof->steps[i];
+        const lvProofStep *s = &proof->steps[i];
         dstr_append(&d, "%sstep%d[label=\"[%d] %s\\n%s",
                     sp, s->step_id, s->step_id,
                     safe_str(s->rule),
@@ -452,11 +452,11 @@ static Lv00ExportResult *export_dot(const Lv00Proof *proof,
     /* 边：如果步骤 i 的 premise 等于步骤 j 的 conclusion，则添加 j → i */
     dstr_append(&d, "%s%s", sp, nl);
     for (int i = 0; i < proof->n_steps; i++) {
-        const Lv00ProofStep *si = &proof->steps[i];
+        const lvProofStep *si = &proof->steps[i];
         if (!si->premise) continue;
         for (int j = 0; j < proof->n_steps; j++) {
             if (i == j) continue;
-            const Lv00ProofStep *sj = &proof->steps[j];
+            const lvProofStep *sj = &proof->steps[j];
             if (strcmp(si->premise, sj->conclusion) == 0) {
                 dstr_append(&d, "%sstep%d -> step%d;%s", sp, sj->step_id, si->step_id, nl);
             }
@@ -472,8 +472,8 @@ static Lv00ExportResult *export_dot(const Lv00Proof *proof,
  * 公共 API
  * ================================================================ */
 
-Lv00ExportResult *proof_export_enhanced(const Lv00Proof *proof,
-                                        const Lv00ExportConfig *config) {
+lvExportResult *proof_export_enhanced(const lvProof *proof,
+                                        const lvExportConfig *config) {
     if (!proof) {
         return make_error("proof_export_enhanced: proof is NULL");
     }
@@ -493,25 +493,25 @@ Lv00ExportResult *proof_export_enhanced(const Lv00Proof *proof,
     }
 }
 
-Lv00ExportResult *proof_export_from_navigator(const char *theorem_name,
-                                              Lv00ExportFormat format) {
+lvExportResult *proof_export_from_navigator(const char *theorem_name,
+                                              lvExportFormat format) {
     if (!theorem_name) {
         return make_error("proof_export_from_navigator: theorem_name is NULL");
     }
 
-    Lv00ProofStep step;
+    lvProofStep step;
     step.step_id    = 1;
     step.rule       = "given";
     step.premise    = NULL;
     step.conclusion = theorem_name;
     step.depth      = 0;
 
-    Lv00Proof proof;
+    lvProof proof;
     proof.steps   = &step;
     proof.n_steps = 1;
     proof.theorem = theorem_name;
 
-    Lv00ExportConfig config;
+    lvExportConfig config;
     config.format              = format;
     config.include_proof_trace = false;
     config.include_geometry    = false;
@@ -520,11 +520,11 @@ Lv00ExportResult *proof_export_from_navigator(const char *theorem_name,
     return proof_export_enhanced(&proof, &config);
 }
 
-void proof_export_result_destroy(Lv00ExportResult *result) {
+void proof_export_result_destroy(lvExportResult *result) {
     if (!result) return;
     if (result->output) {
-        lv00_free((void **)&(result->output));
+        lv_free((void **)&(result->output));
         result->output = NULL;
     }
-    lv00_free((void **)&(result));
+    lv_free((void **)&(result));
 }

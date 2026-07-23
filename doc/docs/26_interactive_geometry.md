@@ -1,4 +1,4 @@
-# 26. 交互式几何与事件系统
+﻿# 26. 交互式几何与事件系统
 
 ## 26.1 模块概述
 
@@ -41,10 +41,10 @@
 
 ### 26.2.3 核心数据结构
 
-#### 画布状态（Lv00GeoCanvasState）
+#### 画布状态（lvGeoCanvasState）
 
 ```c
-typedef struct Lv00GeoCanvasState {
+typedef struct lvGeoCanvasState {
     // 几何对象
     int *active_object_ids;   // 所有活跃几何对象 ID 列表
     int active_object_count;
@@ -74,15 +74,15 @@ typedef struct Lv00GeoCanvasState {
     bool snap_to_grid;
     double grid_spacing;
     bool modified;
-} Lv00GeoCanvasState;
+} lvGeoCanvasState;
 ```
 
-#### 随机化定理验证（Lv00RandomizedCheck）
+#### 随机化定理验证（lvRandomizedCheck）
 
 借鉴 Cinderella 的随机化定理验证：
 
 ```c
-typedef struct Lv00RandomizedCheck {
+typedef struct lvRandomizedCheck {
     int sample_count;      // 随机采样次数（默认 10000）
     double tolerance;      // 数值容差（默认 1e-9）
     
@@ -94,47 +94,47 @@ typedef struct Lv00RandomizedCheck {
     
     double *failed_sample_params;    // 失败样本的参数数组
     double elapsed_time_ms;          // 验证耗时
-} Lv00RandomizedCheck;
+} lvRandomizedCheck;
 ```
 
 **算法流程**：
 1. 生成 `sample_count` 组随机配置（遵守当前约束）
 2. 在每组配置下评估定理条件
 3. 统计通过率，返回概率真值判定
-4. 若 `confidence_level >= LV00_GEO_HIGH_CONFIDENCE (0.9999)`，判定为高概率成立
+4. 若 `confidence_level >= lv_GEO_HIGH_CONFIDENCE (0.9999)`，判定为高概率成立
 
-#### 几何脚本绑定（Lv00GeoScriptBinding）
+#### 几何脚本绑定（lvGeoScriptBinding）
 
 借鉴 Dr. Geo 的代码生成哲学：
 
 ```c
-typedef struct Lv00GeoScriptBinding {
+typedef struct lvGeoScriptBinding {
     // 对象→脚本映射表
     int *object_ids;
     char **script_snippets;  // 对应脚本代码片段
     int binding_count;
     
     // 脚本语言配置
-    ScriptLanguage current_language;  // LV00_DSL / PYTHON / LUA
+    ScriptLanguage current_language;  // lv_DSL / PYTHON / LUA
     bool auto_generate;
     
     // 脚本缓冲区
-    char full_script[LV00_GEO_SCRIPT_BUFFER_SIZE];
+    char full_script[lv_GEO_SCRIPT_BUFFER_SIZE];
     int script_length;
-} Lv00GeoScriptBinding;
+} lvGeoScriptBinding;
 ```
 
 **支持脚本语言**：
-- `SCRIPT_LANG_LV00_DSL` —— Lv-00 原生 DSL
+- `SCRIPT_LANG_lv_DSL` —— Lv-00 原生 DSL
 - `SCRIPT_LANG_PYTHON` —— Python 脚本
 - `SCRIPT_LANG_LUA` —— Lua 脚本
 
-#### 连续性跟踪器（Lv00ContinuityTracker）
+#### 连续性跟踪器（lvContinuityTracker）
 
 借鉴 Cinderella 的连续性机制：
 
 ```c
-typedef struct Lv00ContinuityTracker {
+typedef struct lvContinuityTracker {
     double *last_config;      // 上次配置的参数向量
     
     // 奇异检测
@@ -149,13 +149,13 @@ typedef struct Lv00ContinuityTracker {
     
     double singular_threshold;
     double degenerate_threshold;
-} Lv00ContinuityTracker;
+} lvContinuityTracker;
 ```
 
-#### 约束保持器（Lv00ConstraintMaintainer）
+#### 约束保持器（lvConstraintMaintainer）
 
 ```c
-typedef struct Lv00ConstraintMaintainer {
+typedef struct lvConstraintMaintainer {
     int *constraint_ids;
     int *constraint_subjects;
     int constraint_count;
@@ -167,7 +167,7 @@ typedef struct Lv00ConstraintMaintainer {
     bool use_projective_method;  // 使用投影几何方法
     double convergence_epsilon;
     int max_iterations;
-} Lv00ConstraintMaintainer;
+} lvConstraintMaintainer;
 ```
 
 ### 26.2.4 核心 API
@@ -175,30 +175,30 @@ typedef struct Lv00ConstraintMaintainer {
 #### 生命周期
 
 ```c
-Lv00InteractiveGeo *interactive_geo_init(LV00Context *ctx_handle);
-void interactive_geo_destroy(Lv00InteractiveGeo *geo);
+lvInteractiveGeo *interactive_geo_init(lvContext *ctx_handle);
+void interactive_geo_destroy(lvInteractiveGeo *geo);
 ```
 
 #### 模式管理
 
 ```c
-void interactive_geo_set_mode(Lv00InteractiveGeo *geo, InteractiveGeoMode mode);
-InteractiveGeoMode interactive_geo_get_mode(const Lv00InteractiveGeo *geo);
+void interactive_geo_set_mode(lvInteractiveGeo *geo, InteractiveGeoMode mode);
+InteractiveGeoMode interactive_geo_get_mode(const lvInteractiveGeo *geo);
 ```
 
 #### 选择管理
 
 ```c
-int interactive_geo_select(Lv00InteractiveGeo *geo, int object_id);
-void interactive_geo_deselect(Lv00InteractiveGeo *geo, int object_id);
+int interactive_geo_select(lvInteractiveGeo *geo, int object_id);
+void interactive_geo_deselect(lvInteractiveGeo *geo, int object_id);
 ```
 
 #### 拖拽交互
 
 ```c
-int interactive_geo_drag_start(Lv00InteractiveGeo *geo, int object_id, double x, double y);
-ConstraintMaintainStatus interactive_geo_drag_move(Lv00InteractiveGeo *geo, double x, double y);
-ConstraintMaintainStatus interactive_geo_drag_end(Lv00InteractiveGeo *geo, double x, double y);
+int interactive_geo_drag_start(lvInteractiveGeo *geo, int object_id, double x, double y);
+ConstraintMaintainStatus interactive_geo_drag_move(lvInteractiveGeo *geo, double x, double y);
+ConstraintMaintainStatus interactive_geo_drag_end(lvInteractiveGeo *geo, double x, double y);
 ```
 
 **约束维护流程**：
@@ -211,11 +211,11 @@ ConstraintMaintainStatus interactive_geo_drag_end(Lv00InteractiveGeo *geo, doubl
 
 ```c
 RandomizedCheckResult interactive_geo_randomized_check(
-    Lv00InteractiveGeo *geo,
+    lvInteractiveGeo *geo,
     int sample_count,           // 0 = 使用默认值 10000
     double tolerance,           // 0 = 使用默认值 1e-9
     const char *theorem_expr,   // Lv-00 DSL 格式
-    Lv00RandomizedCheck *result
+    lvRandomizedCheck *result
 );
 ```
 
@@ -223,7 +223,7 @@ RandomizedCheckResult interactive_geo_randomized_check(
 
 ```c
 int interactive_geo_generate_script(
-    Lv00InteractiveGeo *geo,
+    lvInteractiveGeo *geo,
     ScriptLanguage language,
     char **output
 );
@@ -232,29 +232,29 @@ int interactive_geo_generate_script(
 #### 状态导入/导出
 
 ```c
-char *interactive_geo_export_state(const Lv00InteractiveGeo *geo);
-int interactive_geo_import_state(Lv00InteractiveGeo *geo, const char *json);
+char *interactive_geo_export_state(const lvInteractiveGeo *geo);
+int interactive_geo_import_state(lvInteractiveGeo *geo, const char *json);
 ```
 
 #### 快照/恢复
 
 ```c
-int interactive_geo_snapshot(Lv00InteractiveGeo *geo);
-int interactive_geo_restore(Lv00InteractiveGeo *geo, int snapshot_index);
+int interactive_geo_snapshot(lvInteractiveGeo *geo);
+int interactive_geo_restore(lvInteractiveGeo *geo, int snapshot_index);
 ```
 
 ### 26.2.5 配置常量
 
 | 常量 | 默认值 | 说明 |
 |------|--------|------|
-| `LV00_GEO_MAX_OBJECTS` | 1024 | 最大同时活跃几何对象数量 |
-| `LV00_GEO_MAX_CONSTRAINTS` | 2048 | 最大约束数量 |
-| `LV00_GEO_MAX_DRAG_CHAIN` | 64 | 最大拖拽影响链深度 |
-| `LV00_GEO_MAX_SNAPSHOTS` | 32 | 快照历史最大保留数量 |
-| `LV00_GEO_SCRIPT_BUFFER_SIZE` | 65536 | 构造脚本缓冲区大小 |
-| `LV00_GEO_DEFAULT_SAMPLE_COUNT` | 10000 | 随机化验证默认采样次数 |
-| `LV00_GEO_DEFAULT_TOLERANCE` | 1e-9 | 随机化验证默认容差 |
-| `LV00_GEO_HIGH_CONFIDENCE` | 0.9999 | 随机化验证高置信度阈值 |
+| `lv_GEO_MAX_OBJECTS` | 1024 | 最大同时活跃几何对象数量 |
+| `lv_GEO_MAX_CONSTRAINTS` | 2048 | 最大约束数量 |
+| `lv_GEO_MAX_DRAG_CHAIN` | 64 | 最大拖拽影响链深度 |
+| `lv_GEO_MAX_SNAPSHOTS` | 32 | 快照历史最大保留数量 |
+| `lv_GEO_SCRIPT_BUFFER_SIZE` | 65536 | 构造脚本缓冲区大小 |
+| `lv_GEO_DEFAULT_SAMPLE_COUNT` | 10000 | 随机化验证默认采样次数 |
+| `lv_GEO_DEFAULT_TOLERANCE` | 1e-9 | 随机化验证默认容差 |
+| `lv_GEO_HIGH_CONFIDENCE` | 0.9999 | 随机化验证高置信度阈值 |
 
 ---
 
@@ -271,12 +271,12 @@ int interactive_geo_restore(Lv00InteractiveGeo *geo, int snapshot_index);
 
 | 类型 | 枚举值 | 说明 |
 |------|--------|------|
-| 交点事件 | `LV00_EVENT_INTERSECTION` | 两条曲线相交 |
-| 接触事件 | `LV00_EVENT_CONTACT` | 几何体发生接触 |
-| 穿越事件 | `LV00_EVENT_CROSSING` | 点/线穿越某个边界 |
-| 阈值事件 | `LV00_EVENT_THRESHOLD` | 某个量超过阈值 |
-| 周期性事件 | `LV00_EVENT_PERIODIC` | 在固定时间点触发 |
-| 自定义事件 | `LV00_EVENT_CUSTOM` | 用户定义事件 |
+| 交点事件 | `lv_EVENT_INTERSECTION` | 两条曲线相交 |
+| 接触事件 | `lv_EVENT_CONTACT` | 几何体发生接触 |
+| 穿越事件 | `lv_EVENT_CROSSING` | 点/线穿越某个边界 |
+| 阈值事件 | `lv_EVENT_THRESHOLD` | 某个量超过阈值 |
+| 周期性事件 | `lv_EVENT_PERIODIC` | 在固定时间点触发 |
+| 自定义事件 | `lv_EVENT_CUSTOM` | 用户定义事件 |
 
 ### 26.3.3 方向过滤
 
@@ -291,34 +291,34 @@ int interactive_geo_restore(Lv00InteractiveGeo *geo, int snapshot_index);
 
 | 方法 | 枚举值 | 特点 |
 |------|--------|------|
-| Brent 法 | `LV00_ROOTFIND_BRENT` | 结合二分、割线和逆二次插值（默认推荐） |
-| Illinois 法 | `LV00_ROOTFIND_ILLINOIS` | 改进试位法（SUNDIALS 默认） |
-| 二分法 | `LV00_ROOTFIND_BISECTION` | 最稳健，但收敛较慢（备选） |
+| Brent 法 | `lv_ROOTFIND_BRENT` | 结合二分、割线和逆二次插值（默认推荐） |
+| Illinois 法 | `lv_ROOTFIND_ILLINOIS` | 改进试位法（SUNDIALS 默认） |
+| 二分法 | `lv_ROOTFIND_BISECTION` | 最稳健，但收敛较慢（备选） |
 
 ### 26.3.5 核心数据结构
 
-#### 事件条目（Lv00EventEntry）
+#### 事件条目（lvEventEntry）
 
 ```c
-typedef struct Lv00EventEntry {
+typedef struct lvEventEntry {
     int event_id;           // 事件唯一 ID
-    Lv00EventType type;     // 事件类型
-    Lv00EventFunc func;     // 事件函数 g(t, param)
+    lvEventType type;     // 事件类型
+    lvEventFunc func;     // 事件函数 g(t, param)
     int direction;          // 方向过滤
     bool enabled;           // 是否活跃
     bool terminal;          // 是否为终止事件
-    Lv00EventCallback callback;  // 事件处理回调
-} Lv00EventEntry;
+    lvEventCallback callback;  // 事件处理回调
+} lvEventEntry;
 ```
 
-#### 事件检测器（Lv00EventDetector）
+#### 事件检测器（lvEventDetector）
 
 ```c
-typedef struct Lv00EventDetector {
-    Lv00EventEntry events[GEO_EVENT_MAX_EVENTS];
+typedef struct lvEventDetector {
+    lvEventEntry events[GEO_EVENT_MAX_EVENTS];
     int num_events;
     
-    Lv00RootfindMethod root_method;
+    lvRootfindMethod root_method;
     double root_tol;
     int max_root_iters;
     
@@ -326,7 +326,7 @@ typedef struct Lv00EventDetector {
     double g_prev[GEO_EVENT_MAX_EVENTS];  // 上一步的事件函数值
     
     void *user_data;
-} Lv00EventDetector;
+} lvEventDetector;
 ```
 
 ### 26.3.6 核心 API
@@ -334,29 +334,29 @@ typedef struct Lv00EventDetector {
 #### 生命周期
 
 ```c
-Lv00EventDetector *geo_event_detector_create(void);
-void geo_event_detector_destroy(Lv00EventDetector *detector);
+lvEventDetector *geo_event_detector_create(void);
+void geo_event_detector_destroy(lvEventDetector *detector);
 ```
 
 #### 事件注册
 
 ```c
 int geo_event_register(
-    Lv00EventDetector *detector,
+    lvEventDetector *detector,
     int event_id,
-    Lv00EventType type,
-    Lv00EventFunc func,        // 事件函数 g(t, param)
+    lvEventType type,
+    lvEventFunc func,        // 事件函数 g(t, param)
     int direction,             // 方向过滤
     bool terminal,             // 是否为终止事件
-    Lv00EventCallback callback // 事件处理回调
+    lvEventCallback callback // 事件处理回调
 );
 ```
 
 #### 事件检测
 
 ```c
-Lv00EventResult geo_event_detect(
-    Lv00EventDetector *detector,
+lvEventResult geo_event_detect(
+    lvEventDetector *detector,
     double t_prev, const double *param_prev,
     double t_curr, const double *param_curr,
     int dim,
@@ -374,7 +374,7 @@ Lv00EventResult geo_event_detect(
 
 ```c
 int geo_event_root_locate(
-    Lv00EventDetector *detector,
+    lvEventDetector *detector,
     int event_id,
     const double *param_a, const double *param_b,
     int dim,
@@ -407,21 +407,21 @@ int geo_event_root_locate(
 ### 26.4.2 单纯复形表示
 
 ```c
-typedef struct Lv00Edge {
+typedef struct lvEdge {
     int v0, v1;  // 顶点索引（v0 < v1）
-} Lv00Edge;
+} lvEdge;
 
-typedef struct Lv00Triangle {
+typedef struct lvTriangle {
     int v0, v1, v2;  // 顶点索引（v0 < v1 < v2）
-} Lv00Triangle;
+} lvTriangle;
 
-typedef struct Lv00SimplicialComplex {
+typedef struct lvSimplicialComplex {
     int n_vertices;           // 顶点数（0-单形）
-    Lv00Edge *edges;          // 边数组（1-单形）
+    lvEdge *edges;          // 边数组（1-单形）
     size_t n_edges;
-    Lv00Triangle *triangles;  // 三角形数组（2-单形）
+    lvTriangle *triangles;  // 三角形数组（2-单形）
     size_t n_triangles;
-} Lv00SimplicialComplex;
+} lvSimplicialComplex;
 ```
 
 ### 26.4.3 核心 API
@@ -429,21 +429,21 @@ typedef struct Lv00SimplicialComplex {
 #### 创建与销毁
 
 ```c
-Lv00SimplicialComplex *geo_simplicial_create(int n_vertices);
-void geo_simplicial_destroy(Lv00SimplicialComplex *sc);
+lvSimplicialComplex *geo_simplicial_create(int n_vertices);
+void geo_simplicial_destroy(lvSimplicialComplex *sc);
 ```
 
 #### 添加单形
 
 ```c
-bool geo_simplicial_add_edge(Lv00SimplicialComplex *sc, int v0, int v1);
-bool geo_simplicial_add_triangle(Lv00SimplicialComplex *sc, int v0, int v1, int v2);
+bool geo_simplicial_add_edge(lvSimplicialComplex *sc, int v0, int v1);
+bool geo_simplicial_add_triangle(lvSimplicialComplex *sc, int v0, int v1, int v2);
 ```
 
 #### 拓扑不变量
 
 ```c
-int geo_simplicial_euler_characteristic(const Lv00SimplicialComplex *sc);
+int geo_simplicial_euler_characteristic(const lvSimplicialComplex *sc);
 ```
 
 **欧拉示性数**：χ = V - E + F
@@ -451,7 +451,7 @@ int geo_simplicial_euler_characteristic(const Lv00SimplicialComplex *sc);
 #### 边界算子
 
 ```c
-Lv00Boundary *geo_simplicial_boundary(const Lv00SimplicialComplex *sc, const Lv00Triangle *tri);
+lvBoundary *geo_simplicial_boundary(const lvSimplicialComplex *sc, const lvTriangle *tri);
 ```
 
 三角形 (v0, v1, v2) 的边界是三边：(v0, v1), (v1, v2), (v0, v2)
@@ -459,7 +459,7 @@ Lv00Boundary *geo_simplicial_boundary(const Lv00SimplicialComplex *sc, const Lv0
 #### 连通分量
 
 ```c
-int geo_simplicial_connected_components(const Lv00SimplicialComplex *sc);
+int geo_simplicial_connected_components(const lvSimplicialComplex *sc);
 ```
 
 使用并查集（Union-Find）算法计算 1-骨架的连通分量数。
@@ -470,12 +470,12 @@ int geo_simplicial_connected_components(const Lv00SimplicialComplex *sc);
 
 | 代码概念 | 理论对应 | 文档位置 |
 |----------|----------|----------|
-| `Lv00RandomizedCheck` | 概率性定理验证 | 本文档 26.2.3 |
-| `Lv00ContinuityTracker` | 投影几何连续性 | 本文档 26.2.3 |
-| `Lv00ConstraintMaintainer` | 实时约束求解 | 本文档 26.2.3 |
-| `Lv00EventDetector` | 事件函数过零检测 | 本文档 26.3.5 |
+| `lvRandomizedCheck` | 概率性定理验证 | 本文档 26.2.3 |
+| `lvContinuityTracker` | 投影几何连续性 | 本文档 26.2.3 |
+| `lvConstraintMaintainer` | 实时约束求解 | 本文档 26.2.3 |
+| `lvEventDetector` | 事件函数过零检测 | 本文档 26.3.5 |
 | `geo_event_root_brent()` | Brent 求根算法 | 本文档 26.3.6 |
-| `Lv00SimplicialComplex` | 单纯复形 | 本文档 26.4.2 |
+| `lvSimplicialComplex` | 单纯复形 | 本文档 26.4.2 |
 | `geo_simplicial_euler_characteristic()` | 欧拉示性数 χ = V - E + F | 本文档 26.4.3 |
 
 ---

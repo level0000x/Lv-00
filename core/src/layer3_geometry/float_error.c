@@ -24,8 +24,8 @@
  *   - float_error.h        : 浮点误差分析公共接口
  *   - constraint_graph.h   : 约束图数据结构
  *   - symbolic_coord.h     : 符号坐标与 TrustColor
- *   - lv00_utils.h         : 统一内存分配器
- *   - lv00_internal.h      : 内部常量与工具宏
+ *   - lv_utils.h         : 统一内存分配器
+ *   - lv_internal.h      : 内部常量与工具宏
  */
 
 #include "float_error.h"
@@ -36,10 +36,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
-#include "lv00_internal.h"
-#include "lv00/config.h"
-#include "lv00_utils.h"
+#include "lv/constraint_graph.h"
+#include "lv_internal.h"
+#include "lv/config.h"
+#include "lv_utils.h"
 #include "symbolic_coord.h"
 
 /* ========================================================================
@@ -794,11 +794,11 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
     tf->deriv_count = var_count;
     tf->order = 1;
 
-    tf->first_derivs = (double *) lv00_malloc((size_t)var_count * sizeof(double));
-    tf->deriv_var_ids = (int *) lv00_malloc((size_t)var_count * sizeof(int));
+    tf->first_derivs = (double *) lv_malloc((size_t)var_count * sizeof(double));
+    tf->deriv_var_ids = (int *) lv_malloc((size_t)var_count * sizeof(int));
     if (!tf->first_derivs || !tf->deriv_var_ids) {
-        lv00_free((void **)&tf->first_derivs);
-        lv00_free((void **)&tf->deriv_var_ids);
+        lv_free((void **)&tf->first_derivs);
+        lv_free((void **)&tf->deriv_var_ids);
         return false;
     }
 
@@ -870,7 +870,7 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
 
     /* 分配表达式数组 */
     int alloc_count = (graph->constraint_count < MAX_EQUATIONS) ? graph->constraint_count : MAX_EQUATIONS;
-    char **eqs = (char **) lv00_malloc((size_t)alloc_count * sizeof(char *));
+    char **eqs = (char **) lv_malloc((size_t)alloc_count * sizeof(char *));
     if (!eqs)
         return false;
 
@@ -923,7 +923,7 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
         if (off >= 0)
             snprintf(buf + off, sizeof(buf) - off, "]");
 
-        eqs[*eq_count] = lv00_strdup(buf);
+        eqs[*eq_count] = lv_strdup(buf);
         (*eq_count)++;
     }
 
@@ -1002,8 +1002,8 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
                     max_rel_err = rel;
             }
 
-            lv00_free((void **)&tf.first_derivs);
-            lv00_free((void **)&tf.deriv_var_ids);
+            lv_free((void **)&tf.first_derivs);
+            lv_free((void **)&tf.deriv_var_ids);
         }
     }
 
@@ -1023,12 +1023,12 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
     out->absolute_error = max_abs_err;
     out->relative_error = max_rel_err;
     out->trust_level = (max_abs_err > 0.0) ? TRUST_BLUE : TRUST_GREEN;
-    out->proof_text = lv00_strdup(proof_buf);
+    out->proof_text = lv_strdup(proof_buf);
 
     for (int ei = 0; ei < eq_count; ei++) {
-        lv00_free((void **)&equations[ei]);
+        lv_free((void **)&equations[ei]);
     }
-    lv00_free((void **)&equations);
+    lv_free((void **)&equations);
 
     return true;
 }
@@ -1079,10 +1079,10 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, i
              "abs_err=%.6e, rel_err=%.6e",
              expr, config.taylor_order, tf.center_val, tf.interval_lo, tf.interval_hi, out->absolute_error,
              out->relative_error);
-    out->proof_text = lv00_strdup(proof_buf);
+    out->proof_text = lv_strdup(proof_buf);
 
-    lv00_free((void **)&tf.first_derivs);
-    lv00_free((void **)&tf.deriv_var_ids);
+    lv_free((void **)&tf.first_derivs);
+    lv_free((void **)&tf.deriv_var_ids);
 
     return true;
 }
@@ -1155,7 +1155,7 @@ FPTaylorConfig fptaylor_config_default(void) {
     cfg.taylor_order = 1;
     cfg.use_z3_opt = false;
     cfg.use_gelpia = false;
-    cfg.branch_bound_threshold = LV00_EPSILON_LOW;
+    cfg.branch_bound_threshold = lv_EPSILON_LOW;
     return cfg;
 }
 
@@ -1167,7 +1167,7 @@ void error_bound_destroy(ErrorBound *bound) {
     if (!bound)
         return;
     if (bound->proof_text) {
-        lv00_free((void **)&bound->proof_text);
+        lv_free((void **)&bound->proof_text);
         bound->proof_text = NULL;
     }
 }

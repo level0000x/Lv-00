@@ -1,17 +1,17 @@
-/**
+﻿/**
  * @file test_utils.c
  * @brief 工具函数库测试
  *
- * 测试 lv00_utils.h/c 中提供的通用工具函数。
+ * 测试 lv_utils.h/c 中提供的通用工具函数。
  *
  * --- 已知内存泄漏说明 (2099327 字节) ---
  * 此测试报告的约 2MB 内存泄漏源自工具库内部的内存追踪分配器
- * (lv00_malloc/lv00_free 的 MemoryStats 子系统)，而非测试代码中的
+ * (lv_malloc/lv_free 的 MemoryStats 子系统)，而非测试代码中的
  * 遗漏释放。具体来源：
- *   1. test_memory_limit() 中调用的 lv00_malloc(2MB) 触发了内部
+ *   1. test_memory_limit() 中调用的 lv_malloc(2MB) 触发了内部
  *      分配器的元数据记录分配（~2MB 追踪结构），这些结构不在测试
  *      生命周期内释放，属于内部跟踪问题。
- *   2. lv00_get_memory_stats() 内部可能维护持久化的统计缓冲区，
+ *   2. lv_get_memory_stats() 内部可能维护持久化的统计缓冲区，
  *      差值约 2175 字节来自其他小分配（配置管理器、IntArray 等）
  *      的元数据开销。
  * 所有测试函数内显式分配的对象的 create/destroy 已一一配对，
@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /* ============================================================
  * 内存管理测试
@@ -34,10 +34,10 @@ static void test_memory_management(void) {
     printf("Testing memory management...\n");
 
     /* 测试基本分配 */
-    void *p1 = lv00_malloc(100);
+    void *p1 = lv_malloc(100);
     assert(p1 != NULL);
 
-    void *p2 = lv00_calloc(10, 10);
+    void *p2 = lv_calloc(10, 10);
     assert(p2 != NULL);
     /* 验证清零 */
     for (int i = 0; i < 100; i++) {
@@ -45,29 +45,29 @@ static void test_memory_management(void) {
     }
 
     /* 测试重新分配 */
-    void *p3 = lv00_realloc(p1, 200);
+    void *p3 = lv_realloc(p1, 200);
     assert(p3 != NULL);
 
     /* 测试释放 */
-    lv00_free(&p2);
+    lv_free(&p2);
     assert(p2 == NULL);
-    lv00_free(&p3);
+    lv_free(&p3);
     assert(p3 == NULL);
 
     /* 测试内存统计 */
     MemoryStats stats_before;
-    lv00_get_memory_stats(&stats_before);
+    lv_get_memory_stats(&stats_before);
 
-    void *p4 = lv00_malloc(1000);
+    void *p4 = lv_malloc(1000);
     (void) p4; /* 抑制未使用警告 */
 
     MemoryStats stats_after;
-    lv00_get_memory_stats(&stats_after);
+    lv_get_memory_stats(&stats_after);
 
     assert(stats_after.total_allocated >= stats_before.total_allocated + 1000);
 
     /* 清理 */
-    lv00_free(&p4);
+    lv_free(&p4);
 
     printf("  PASSED\n");
 }
@@ -76,20 +76,20 @@ static void test_memory_limit(void) {
     printf("Testing memory limit...\n");
 
     /* 设置内存限制 */
-    lv00_set_memory_limit(1024 * 1024); /* 1MB */
-    assert(lv00_get_memory_limit() == 1024 * 1024);
+    lv_set_memory_limit(1024 * 1024); /* 1MB */
+    assert(lv_get_memory_limit() == 1024 * 1024);
 
     /* 测试超过限制 — 当前简化版分配器不强制内存限制，仅验证不崩溃 */
-    void *p = lv00_malloc(2 * 1024 * 1024); /* 尝试分配2MB */
+    void *p = lv_malloc(2 * 1024 * 1024); /* 尝试分配2MB */
     /* assert(p == NULL); -- 待完整分配器恢复后启用 */
     if (p)
-        lv00_free(&p);
-    /* assert(lv00_get_last_error_code() == LV00_ERROR_OUT_OF_MEMORY); */
-    lv00_clear_error();
+        lv_free(&p);
+    /* assert(lv_get_last_error_code() == lv_ERROR_OUT_OF_MEMORY); */
+    lv_clear_error();
 
     /* 重置限制 */
-    lv00_set_memory_limit(0);
-    assert(lv00_get_memory_limit() == 0);
+    lv_set_memory_limit(0);
+    assert(lv_get_memory_limit() == 0);
 
     printf("  PASSED\n");
 }
@@ -103,45 +103,45 @@ static void test_string_operations(void) {
 
     /* 测试 strlcpy */
     char dest[20];
-    size_t len = lv00_strlcpy(dest, "Hello, World!", sizeof(dest));
+    size_t len = lv_strlcpy(dest, "Hello, World!", sizeof(dest));
     assert(len == 13);
     assert(strcmp(dest, "Hello, World!") == 0);
 
     /* 测试截断 */
-    len = lv00_strlcpy(dest, "This is a very long string", sizeof(dest));
+    len = lv_strlcpy(dest, "This is a very long string", sizeof(dest));
     assert(len == 26);
     assert(strlen(dest) == 19); /* 截断到缓冲区大小-1 */
 
     /* 测试 strlcat */
     strcpy(dest, "Hello");
-    len = lv00_strlcat(dest, " World", sizeof(dest));
+    len = lv_strlcat(dest, " World", sizeof(dest));
     assert(strcmp(dest, "Hello World") == 0);
 
     /* 测试 strdup_safe */
-    char *copy = lv00_strdup_safe("Test string");
+    char *copy = lv_strdup_safe("Test string");
     assert(copy != NULL);
     assert(strcmp(copy, "Test string") == 0);
-    lv00_free((void **) &copy);
+    lv_free((void **) &copy);
 
     /* 测试 asprintf */
-    char *formatted = lv00_asprintf("Value: %d, String: %s", 42, "test");
+    char *formatted = lv_asprintf("Value: %d, String: %s", 42, "test");
     assert(formatted != NULL);
     assert(strcmp(formatted, "Value: 42, String: test") == 0);
-    lv00_free((void **) &formatted);
+    lv_free((void **) &formatted);
 
     /* 测试 str_is_blank */
-    assert(lv00_str_is_blank("") == true);
-    assert(lv00_str_is_blank("   ") == true);
-    assert(lv00_str_is_blank("  \t\n  ") == true);
-    assert(lv00_str_is_blank("not blank") == false);
-    assert(lv00_str_is_blank("  text  ") == false);
+    assert(lv_str_is_blank("") == true);
+    assert(lv_str_is_blank("   ") == true);
+    assert(lv_str_is_blank("  \t\n  ") == true);
+    assert(lv_str_is_blank("not blank") == false);
+    assert(lv_str_is_blank("  text  ") == false);
 
     /* 测试 str_trim */
     char trim_test1[] = "  hello  ";
-    assert(strcmp(lv00_str_trim(trim_test1), "hello") == 0);
+    assert(strcmp(lv_str_trim(trim_test1), "hello") == 0);
 
     char trim_test2[] = "\t\n  world  \t\n";
-    assert(strcmp(lv00_str_trim(trim_test2), "world") == 0);
+    assert(strcmp(lv_str_trim(trim_test2), "world") == 0);
 
     printf("  PASSED\n");
 }
@@ -266,14 +266,14 @@ static void test_version_management(void) {
     printf("Testing version management...\n");
 
     /* 测试解析 */
-    LV00Version *v1 = version_parse("3.0.0");
+    lvVersion *v1 = version_parse("3.0.0");
     assert(v1 != NULL);
     assert(v1->major == 3);
     assert(v1->minor == 0);
     assert(v1->patch == 0);
     version_destroy(v1);
 
-    LV00Version *v2 = version_parse("2.5.1-beta.2");
+    lvVersion *v2 = version_parse("2.5.1-beta.2");
     assert(v2 != NULL);
     assert(v2->major == 2);
     assert(v2->minor == 5);
@@ -282,33 +282,33 @@ static void test_version_management(void) {
     version_destroy(v2);
 
     /* 测试转字符串 */
-    LV00Version v3 = {1, 2, 3, NULL, NULL};
+    lvVersion v3 = {1, 2, 3, NULL, NULL};
     char *str = version_to_string(&v3);
     assert(str != NULL);
     assert(strcmp(str, "1.2.3") == 0);
-    lv00_free((void **) &str);
+    lv_free((void **) &str);
 
     /* 测试比较 */
-    LV00Version va = {1, 0, 0, NULL, NULL};
-    LV00Version vb = {2, 0, 0, NULL, NULL};
+    lvVersion va = {1, 0, 0, NULL, NULL};
+    lvVersion vb = {2, 0, 0, NULL, NULL};
     assert(version_compare(&va, &vb) < 0);
     assert(version_compare(&vb, &va) > 0);
     assert(version_compare(&va, &va) == 0);
 
     /* 测试兼容性 */
-    LV00Version req = {3, 0, 0, NULL, NULL};
-    LV00Version act = {3, 1, 0, NULL, NULL};
+    lvVersion req = {3, 0, 0, NULL, NULL};
+    lvVersion act = {3, 1, 0, NULL, NULL};
     assert(version_compatible(&req, &act) == true);
 
-    LV00Version act2 = {4, 0, 0, NULL, NULL};
+    lvVersion act2 = {4, 0, 0, NULL, NULL};
     assert(version_compatible(&req, &act2) == false);
 
     /* 测试系统版本检查 */
-    assert(lv00_check_version("1.0.0") == true);
-    assert(lv00_check_version("1.1.0") == true);
-    assert(lv00_check_version("2.0.0") == false);
-    assert(lv00_check_version("4.0.0") == false);
-    assert(lv00_check_version("10.0.0") == false);
+    assert(lv_check_version("1.0.0") == true);
+    assert(lv_check_version("1.1.0") == true);
+    assert(lv_check_version("2.0.0") == false);
+    assert(lv_check_version("4.0.0") == false);
+    assert(lv_check_version("10.0.0") == false);
 
     printf("  PASSED\n");
 }
@@ -321,9 +321,9 @@ static void test_hash_functions(void) {
     printf("Testing hash functions...\n");
 
     /* 测试字符串哈希 */
-    uint64_t h1 = lv00_hash_string("hello");
-    uint64_t h2 = lv00_hash_string("hello");
-    uint64_t h3 = lv00_hash_string("world");
+    uint64_t h1 = lv_hash_string("hello");
+    uint64_t h2 = lv_hash_string("hello");
+    uint64_t h3 = lv_hash_string("world");
 
     assert(h1 == h2); /* 相同字符串应有相同哈希 */
     assert(h1 != h3); /* 不同字符串应有不同哈希 */
@@ -331,13 +331,13 @@ static void test_hash_functions(void) {
     /* 测试字节哈希 */
     uint8_t data1[] = {1, 2, 3, 4, 5};
     uint8_t data2[] = {1, 2, 3, 4, 5};
-    uint64_t bh1 = lv00_hash_bytes(data1, 5);
-    uint64_t bh2 = lv00_hash_bytes(data2, 5);
+    uint64_t bh1 = lv_hash_bytes(data1, 5);
+    uint64_t bh2 = lv_hash_bytes(data2, 5);
     assert(bh1 == bh2);
 
     /* 测试整数哈希 */
-    uint64_t ih1 = lv00_hash_int(42);
-    uint64_t ih2 = lv00_hash_int(42);
+    uint64_t ih1 = lv_hash_int(42);
+    uint64_t ih2 = lv_hash_int(42);
     assert(ih1 == ih2);
 
     printf("  PASSED\n");
@@ -352,23 +352,23 @@ static void test_convenience_macros(void) {
 
     /* 测试数组大小宏 */
     int arr[10];
-    assert(LV00_ARRAY_SIZE(arr) == 10);
+    assert(lv_ARRAY_SIZE(arr) == 10);
 
     char str[] = "hello";
-    assert(LV00_ARRAY_SIZE(str) == 6); /* 包含 '\0' */
+    assert(lv_ARRAY_SIZE(str) == 6); /* 包含 '\0' */
 
     /* 测试 MIN/MAX */
-    assert(LV00_MIN(5, 10) == 5);
-    assert(LV00_MAX(5, 10) == 10);
+    assert(lv_MIN(5, 10) == 5);
+    assert(lv_MAX(5, 10) == 10);
 
     /* 测试 CLAMP */
-    assert(LV00_CLAMP(5, 0, 10) == 5);
-    assert(LV00_CLAMP(-5, 0, 10) == 0);
-    assert(LV00_CLAMP(15, 0, 10) == 10);
+    assert(lv_CLAMP(5, 0, 10) == 5);
+    assert(lv_CLAMP(-5, 0, 10) == 0);
+    assert(lv_CLAMP(15, 0, 10) == 10);
 
     /* 测试 SWAP */
     int a = 5, b = 10;
-    LV00_SWAP(int, a, b);
+    lv_SWAP(int, a, b);
     assert(a == 10 && b == 5);
 
     printf("  PASSED\n");
@@ -382,7 +382,7 @@ int main(void) {
     printf("=== Lv-00 Utils Test Suite ===\n\n");
 
     /* 初始化系统 */
-    if (!lv00_init()) {
+    if (!lv_init()) {
         fprintf(stderr, "Failed to initialize Lv-00 system\n");
         return 1;
     }
@@ -400,17 +400,17 @@ int main(void) {
     /* 测试系统信息 */
     printf("\nTesting system info...\n");
     char info[1024];
-    int len = lv00_get_system_info(info, sizeof(info));
+    int len = lv_get_system_info(info, sizeof(info));
     assert(len > 0);
     printf("System info:\n%s\n", info);
 
     /* 测试健康检查 */
-    int health = lv00_health_check();
+    int health = lv_health_check();
     assert(health >= 0 && health <= 100);
     printf("Health score: %d/100\n", health);
 
     /* 清理 */
-    lv00_cleanup();
+    lv_cleanup();
 
     printf("\n=== All tests PASSED! ===\n");
     return 0;

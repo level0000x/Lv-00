@@ -8,9 +8,9 @@
  * @version 1.0.0
  */
 
-#include "lv00/ga_multivector.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
+#include "lv/ga_multivector.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +40,7 @@
  * Internal structure
  * ============================================================ */
 
-struct Lv00MultiVector {
+struct lvMultiVector {
     double c[16];  /* Coefficients for each basis element */
 };
 
@@ -48,26 +48,26 @@ struct Lv00MultiVector {
  * Lifecycle
  * ============================================================ */
 
-Lv00MultiVector *ga_mv_create(void) {
-    Lv00MultiVector *mv = lv00_calloc(1, sizeof(Lv00MultiVector));
+lvMultiVector *ga_mv_create(void) {
+    lvMultiVector *mv = lv_calloc(1, sizeof(lvMultiVector));
     return mv;
 }
 
-void ga_mv_destroy(Lv00MultiVector *mv) {
-    lv00_free((void **)&mv);
+void ga_mv_destroy(lvMultiVector *mv) {
+    lv_free((void **)&mv);
 }
 
-Lv00MultiVector *ga_mv_copy(const Lv00MultiVector *src) {
+lvMultiVector *ga_mv_copy(const lvMultiVector *src) {
     if (!src) return NULL;
 
-    Lv00MultiVector *copy = ga_mv_create();
+    lvMultiVector *copy = ga_mv_create();
     if (!copy) return NULL;
 
     memcpy(copy->c, src->c, sizeof(copy->c));
     return copy;
 }
 
-Lv00MultiVector *ga_mv_zero(void) {
+lvMultiVector *ga_mv_zero(void) {
     return ga_mv_create();  /* calloc initializes to zero */
 }
 
@@ -75,12 +75,12 @@ Lv00MultiVector *ga_mv_zero(void) {
  * Coefficient access
  * ============================================================ */
 
-double ga_mv_get(const Lv00MultiVector *mv, int index) {
+double ga_mv_get(const lvMultiVector *mv, int index) {
     if (!mv || index < 0 || index >= 16) return 0.0;
     return mv->c[index];
 }
 
-void ga_mv_set(Lv00MultiVector *mv, int index, double value) {
+void ga_mv_set(lvMultiVector *mv, int index, double value) {
     if (!mv || index < 0 || index >= 16) return;
     mv->c[index] = value;
 }
@@ -89,7 +89,7 @@ void ga_mv_set(Lv00MultiVector *mv, int index, double value) {
  * Grade operations
  * ============================================================ */
 
-int ga_mv_grade(const Lv00MultiVector *mv) {
+int ga_mv_grade(const lvMultiVector *mv) {
     if (!mv) return -1;
 
     int max_grade = -1;
@@ -121,10 +121,10 @@ int ga_mv_grade(const Lv00MultiVector *mv) {
     return max_grade;
 }
 
-Lv00MultiVector *ga_mv_grade_project(const Lv00MultiVector *mv, int grade) {
+lvMultiVector *ga_mv_grade_project(const lvMultiVector *mv, int grade) {
     if (!mv) return NULL;
 
-    Lv00MultiVector *result = ga_mv_zero();
+    lvMultiVector *result = ga_mv_zero();
     if (!result) return NULL;
 
     switch (grade) {
@@ -163,10 +163,10 @@ Lv00MultiVector *ga_mv_grade_project(const Lv00MultiVector *mv, int grade) {
  * Arithmetic operations
  * ============================================================ */
 
-Lv00MultiVector *ga_mv_add(const Lv00MultiVector *a, const Lv00MultiVector *b) {
+lvMultiVector *ga_mv_add(const lvMultiVector *a, const lvMultiVector *b) {
     if (!a || !b) return NULL;
 
-    Lv00MultiVector *result = ga_mv_create();
+    lvMultiVector *result = ga_mv_create();
     if (!result) return NULL;
 
     for (int i = 0; i < 16; i++) {
@@ -176,10 +176,10 @@ Lv00MultiVector *ga_mv_add(const Lv00MultiVector *a, const Lv00MultiVector *b) {
     return result;
 }
 
-Lv00MultiVector *ga_mv_sub(const Lv00MultiVector *a, const Lv00MultiVector *b) {
+lvMultiVector *ga_mv_sub(const lvMultiVector *a, const lvMultiVector *b) {
     if (!a || !b) return NULL;
 
-    Lv00MultiVector *result = ga_mv_create();
+    lvMultiVector *result = ga_mv_create();
     if (!result) return NULL;
 
     for (int i = 0; i < 16; i++) {
@@ -189,10 +189,10 @@ Lv00MultiVector *ga_mv_sub(const Lv00MultiVector *a, const Lv00MultiVector *b) {
     return result;
 }
 
-Lv00MultiVector *ga_mv_scale(const Lv00MultiVector *mv, double scalar) {
+lvMultiVector *ga_mv_scale(const lvMultiVector *mv, double scalar) {
     if (!mv) return NULL;
 
-    Lv00MultiVector *result = ga_mv_create();
+    lvMultiVector *result = ga_mv_create();
     if (!result) return NULL;
 
     for (int i = 0; i < 16; i++) {
@@ -202,7 +202,7 @@ Lv00MultiVector *ga_mv_scale(const Lv00MultiVector *mv, double scalar) {
     return result;
 }
 
-Lv00MultiVector *ga_mv_negate(const Lv00MultiVector *mv) {
+lvMultiVector *ga_mv_negate(const lvMultiVector *mv) {
     return ga_mv_scale(mv, -1.0);
 }
 
@@ -210,11 +210,11 @@ Lv00MultiVector *ga_mv_negate(const Lv00MultiVector *mv) {
  * Geometric product (simplified)
  * ============================================================ */
 
-Lv00MultiVector *ga_mv_geometric_product(const Lv00MultiVector *a,
-                                          const Lv00MultiVector *b) {
+lvMultiVector *ga_mv_geometric_product(const lvMultiVector *a,
+                                          const lvMultiVector *b) {
     if (!a || !b) return NULL;
 
-    Lv00MultiVector *result = ga_mv_zero();
+    lvMultiVector *result = ga_mv_zero();
     if (!result) return NULL;
 
     /* Simplified: only handle common cases */
@@ -253,7 +253,7 @@ Lv00MultiVector *ga_mv_geometric_product(const Lv00MultiVector *a,
  * Inner product (dot product)
  * ============================================================ */
 
-double ga_mv_inner_product(const Lv00MultiVector *a, const Lv00MultiVector *b) {
+double ga_mv_inner_product(const lvMultiVector *a, const lvMultiVector *b) {
     if (!a || !b) return 0.0;
 
     /* For vectors: standard dot product */
@@ -266,11 +266,11 @@ double ga_mv_inner_product(const Lv00MultiVector *a, const Lv00MultiVector *b) {
  * Outer product (wedge product)
  * ============================================================ */
 
-Lv00MultiVector *ga_mv_outer_product(const Lv00MultiVector *a,
-                                      const Lv00MultiVector *b) {
+lvMultiVector *ga_mv_outer_product(const lvMultiVector *a,
+                                      const lvMultiVector *b) {
     if (!a || !b) return NULL;
 
-    Lv00MultiVector *result = ga_mv_zero();
+    lvMultiVector *result = ga_mv_zero();
     if (!result) return NULL;
 
     /* scalar * anything */
@@ -320,7 +320,7 @@ Lv00MultiVector *ga_mv_outer_product(const Lv00MultiVector *a,
  * Norm and reverse
  * ============================================================ */
 
-double ga_mv_norm(const Lv00MultiVector *mv) {
+double ga_mv_norm(const lvMultiVector *mv) {
     if (!mv) return 0.0;
 
     double sum = 0.0;
@@ -331,7 +331,7 @@ double ga_mv_norm(const Lv00MultiVector *mv) {
     return sqrt(sum);
 }
 
-double ga_mv_norm_squared(const Lv00MultiVector *mv) {
+double ga_mv_norm_squared(const lvMultiVector *mv) {
     if (!mv) return 0.0;
 
     double sum = 0.0;
@@ -342,10 +342,10 @@ double ga_mv_norm_squared(const Lv00MultiVector *mv) {
     return sum;
 }
 
-Lv00MultiVector *ga_mv_reverse(const Lv00MultiVector *mv) {
+lvMultiVector *ga_mv_reverse(const lvMultiVector *mv) {
     if (!mv) return NULL;
 
-    Lv00MultiVector *result = ga_mv_create();
+    lvMultiVector *result = ga_mv_create();
     if (!result) return NULL;
 
     /* Grade 0: unchanged */
@@ -377,7 +377,7 @@ Lv00MultiVector *ga_mv_reverse(const Lv00MultiVector *mv) {
     return result;
 }
 
-Lv00MultiVector *ga_mv_normalize(const Lv00MultiVector *mv) {
+lvMultiVector *ga_mv_normalize(const lvMultiVector *mv) {
     if (!mv) return NULL;
 
     double norm = ga_mv_norm(mv);
@@ -390,10 +390,10 @@ Lv00MultiVector *ga_mv_normalize(const Lv00MultiVector *mv) {
  * Dual and sandwich
  * ============================================================ */
 
-Lv00MultiVector *ga_mv_dual(const Lv00MultiVector *mv) {
+lvMultiVector *ga_mv_dual(const lvMultiVector *mv) {
     if (!mv) return NULL;
 
-    Lv00MultiVector *result = ga_mv_create();
+    lvMultiVector *result = ga_mv_create();
     if (!result) return NULL;
 
     /* Hodge dual: multiply by pseudoscalar inverse */
@@ -418,21 +418,21 @@ Lv00MultiVector *ga_mv_dual(const Lv00MultiVector *mv) {
     return result;
 }
 
-Lv00MultiVector *ga_mv_sandwich(const Lv00MultiVector *rotor,
-                                 const Lv00MultiVector *mv) {
+lvMultiVector *ga_mv_sandwich(const lvMultiVector *rotor,
+                                 const lvMultiVector *mv) {
     if (!rotor || !mv) return NULL;
 
     /* Sandwich product: R * mv * R~ */
-    Lv00MultiVector *r_rev = ga_mv_reverse(rotor);
+    lvMultiVector *r_rev = ga_mv_reverse(rotor);
     if (!r_rev) return NULL;
 
-    Lv00MultiVector *temp = ga_mv_geometric_product(rotor, mv);
+    lvMultiVector *temp = ga_mv_geometric_product(rotor, mv);
     if (!temp) {
         ga_mv_destroy(r_rev);
         return NULL;
     }
 
-    Lv00MultiVector *result = ga_mv_geometric_product(temp, r_rev);
+    lvMultiVector *result = ga_mv_geometric_product(temp, r_rev);
 
     ga_mv_destroy(r_rev);
     ga_mv_destroy(temp);
@@ -444,7 +444,7 @@ Lv00MultiVector *ga_mv_sandwich(const Lv00MultiVector *rotor,
  * Comparison
  * ============================================================ */
 
-bool ga_mv_equal(const Lv00MultiVector *a, const Lv00MultiVector *b, double eps) {
+bool ga_mv_equal(const lvMultiVector *a, const lvMultiVector *b, double eps) {
     if (!a || !b) return false;
 
     for (int i = 0; i < 16; i++) {
@@ -455,13 +455,13 @@ bool ga_mv_equal(const Lv00MultiVector *a, const Lv00MultiVector *b, double eps)
 }
 
 /* ── ga_mv_scalar: create scalar multivector ── */
-Lv00MultiVector *ga_mv_scalar(double value) {
-    Lv00MultiVector *mv = ga_mv_create();
+lvMultiVector *ga_mv_scalar(double value) {
+    lvMultiVector *mv = ga_mv_create();
     if (mv) mv->c[0] = value;
     return mv;
 }
 
-bool ga_mv_is_zero(const Lv00MultiVector *mv, double eps) {
+bool ga_mv_is_zero(const lvMultiVector *mv, double eps) {
     if (!mv) return true;
 
     for (int i = 0; i < 16; i++) {

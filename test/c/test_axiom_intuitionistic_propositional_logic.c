@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_intuitionistic_propositional_logic.c
  * @brief Intuitionistic Propositional Logic (Heyting 1930) Axiom Package Test
  *
@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_fail_count = 0;
@@ -235,7 +235,7 @@ static void test_content_hash(void) {
     TEST_ASSERT(hash && strlen(hash) == 64, "SHA-256 hash 64 hex chars");
     if (hash) {
         printf("  SHA-256: %s\n", hash);
-        lv00_free((void **) &hash);
+        lv_free((void **) &hash);
     }
     axiom_package_destroy(pkg);
 }
@@ -268,8 +268,8 @@ static void test_round_trip(void) {
     TEST_ASSERT(h1 && h2 && strcmp(h1, h2) == 0, "hash match after round-trip");
     printf("  Round-trip: templates=%d unconstructibles=%d hash_match=%s\n", pkg2->template_count,
            pkg2->unconstructible_count, (h1 && h2 && strcmp(h1, h2) == 0) ? "YES" : "NO");
-    lv00_free((void **) &h1);
-    lv00_free((void **) &h2);
+    lv_free((void **) &h1);
+    lv_free((void **) &h2);
     axiom_package_destroy(pkg1);
     axiom_package_destroy(pkg2);
 }

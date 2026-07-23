@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file euclidean_geometry.c
  * @brief 欧几里得几何公理体系实现 —— Hilbert 五大公理组 + Birkhoff/Tarski 等价性
  *
@@ -24,8 +24,8 @@
  *   - euclidean_geometry.h    : 公理体系公共接口
  *   - constraint_graph.h      : 约束图核心数据结构
  *   - symbolic_coord.h        : 符号坐标系统
- *   - lv00_utils.h            : 统一内存分配器
- *   - lv00_internal.h         : 内部常量与工具宏
+ *   - lv_utils.h            : 统一内存分配器
+ *   - lv_internal.h         : 内部常量与工具宏
  *   - error_codes.h           : 统一错误码系统
  *   - debug.h                 : 调试断言
  */
@@ -41,11 +41,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
 #include "error_codes.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "symbolic_coord.h"
 
 /* ========================================================================
@@ -142,7 +142,7 @@ static const char *euclidean_axiom_group_names[] = {
  */
 EuclideanContext *euclidean_init(ConstraintGraph *graph)
 {
-    EuclideanContext *ctx = lv00_malloc(sizeof(EuclideanContext));
+    EuclideanContext *ctx = lv_malloc(sizeof(EuclideanContext));
     if (!ctx) {
         return NULL;
     }
@@ -153,30 +153,30 @@ EuclideanContext *euclidean_init(ConstraintGraph *graph)
 
     /* 分配点注册数组 */
     ctx->point_capacity = EUCLID_INITIAL_CAPACITY;
-    ctx->registered_points = lv00_malloc((size_t)ctx->point_capacity * sizeof(int));
+    ctx->registered_points = lv_malloc((size_t)ctx->point_capacity * sizeof(int));
     if (!ctx->registered_points) {
-        lv00_free((void **)&ctx);
+        lv_free((void **)&ctx);
         return NULL;
     }
     ctx->point_count = 0;
 
     /* 分配线注册数组 */
     ctx->line_capacity = EUCLID_INITIAL_CAPACITY;
-    ctx->registered_lines = lv00_malloc((size_t)ctx->line_capacity * sizeof(int));
+    ctx->registered_lines = lv_malloc((size_t)ctx->line_capacity * sizeof(int));
     if (!ctx->registered_lines) {
-        lv00_free((void **)&ctx->registered_points);
-        lv00_free((void **)&ctx);
+        lv_free((void **)&ctx->registered_points);
+        lv_free((void **)&ctx);
         return NULL;
     }
     ctx->line_count = 0;
 
     /* 分配圆注册数组 */
     ctx->circle_capacity = EUCLID_INITIAL_CAPACITY;
-    ctx->registered_circles = lv00_malloc((size_t)ctx->circle_capacity * sizeof(int));
+    ctx->registered_circles = lv_malloc((size_t)ctx->circle_capacity * sizeof(int));
     if (!ctx->registered_circles) {
-        lv00_free((void **)&ctx->registered_lines);
-        lv00_free((void **)&ctx->registered_points);
-        lv00_free((void **)&ctx);
+        lv_free((void **)&ctx->registered_lines);
+        lv_free((void **)&ctx->registered_points);
+        lv_free((void **)&ctx);
         return NULL;
     }
     ctx->circle_count = 0;
@@ -213,19 +213,19 @@ void euclidean_destroy(EuclideanContext *ctx)
     }
 
     if (ctx->registered_points) {
-        lv00_free((void **)&ctx->registered_points);
+        lv_free((void **)&ctx->registered_points);
     }
     if (ctx->registered_lines) {
-        lv00_free((void **)&ctx->registered_lines);
+        lv_free((void **)&ctx->registered_lines);
     }
     if (ctx->registered_circles) {
-        lv00_free((void **)&ctx->registered_circles);
+        lv_free((void **)&ctx->registered_circles);
     }
     if (ctx->equivalence_chain) {
         euclidean_destroy_equivalence_chain(ctx->equivalence_chain);
         ctx->equivalence_chain = NULL;
     }
-    lv00_free((void **)&ctx);
+    lv_free((void **)&ctx);
 }
 
 /* ========================================================================
@@ -366,7 +366,7 @@ int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoo
         return -1;
     }
 
-    LV00_UNUSED(name);
+    lv_UNUSED(name);
 
     if (ctx->constraint_graph) {
         SymbolicCoord *coords[2] = { x, y };
@@ -736,21 +736,21 @@ bool euclidean_check_consistency(EuclideanContext *ctx)
         ctx->inconsistency_source = (conflicts[0] && conflict_sizes[0] > 0) ? conflicts[0][0] : -1;
 
         int written = 0;
-        LV00_SAFE_SNPRINTF(written, ctx->inconsistency_message,
+        lv_SAFE_SNPRINTF(written, ctx->inconsistency_message,
             sizeof(ctx->inconsistency_message),
             "Consistency check failed: %d conflict group(s) detected", conflict_count);
 
         for (int i = 0; i < conflict_count; i++) {
-            if (conflicts[i]) lv00_free((void **)&conflicts[i]);
+            if (conflicts[i]) lv_free((void **)&conflicts[i]);
         }
-        lv00_free((void **)&conflicts);
-        if (conflict_sizes) lv00_free((void **)&conflict_sizes);
+        lv_free((void **)&conflicts);
+        if (conflict_sizes) lv_free((void **)&conflict_sizes);
 
         return false;
     }
 
-    if (conflicts) lv00_free((void **)&conflicts);
-    if (conflict_sizes) lv00_free((void **)&conflict_sizes);
+    if (conflicts) lv_free((void **)&conflicts);
+    if (conflict_sizes) lv_free((void **)&conflict_sizes);
 
     ctx->is_consistent = true;
     return true;
@@ -849,7 +849,7 @@ EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx)
         ctx->equivalence_chain = NULL;
     }
 
-    EquivalenceProofChain *chain = lv00_malloc(sizeof(EquivalenceProofChain));
+    EquivalenceProofChain *chain = lv_malloc(sizeof(EquivalenceProofChain));
     if (!chain) return NULL;
     memset(chain, 0, sizeof(EquivalenceProofChain));
 
@@ -858,21 +858,21 @@ EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx)
     chain->status = EQUIV_STATUS_PENDING;
     chain->translation_count = 0;
 
-    chain->axiom_translation_map = lv00_malloc(
+    chain->axiom_translation_map = lv_malloc(
         (size_t)EUCLID_EQUIV_TRANSLATION_CAPACITY * sizeof(int));
     if (!chain->axiom_translation_map) {
-        lv00_free((void **)&chain);
+        lv_free((void **)&chain);
         return NULL;
     }
     for (int i = 0; i < EUCLID_EQUIV_TRANSLATION_CAPACITY; i++) {
         chain->axiom_translation_map[i] = -1;
     }
 
-    chain->lemma_ids = lv00_malloc(
+    chain->lemma_ids = lv_malloc(
         (size_t)EUCLID_EQUIV_TRANSLATION_CAPACITY * sizeof(int));
     if (!chain->lemma_ids) {
-        lv00_free((void **)&chain->axiom_translation_map);
-        lv00_free((void **)&chain);
+        lv_free((void **)&chain->axiom_translation_map);
+        lv_free((void **)&chain);
         return NULL;
     }
     chain->lemma_count = 0;
@@ -884,9 +884,9 @@ EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx)
 
     chain->verification_graph = graph_create();
     if (!chain->verification_graph) {
-        lv00_free((void **)&chain->lemma_ids);
-        lv00_free((void **)&chain->axiom_translation_map);
-        lv00_free((void **)&chain);
+        lv_free((void **)&chain->lemma_ids);
+        lv_free((void **)&chain->axiom_translation_map);
+        lv_free((void **)&chain);
         return NULL;
     }
 
@@ -913,16 +913,16 @@ void euclidean_destroy_equivalence_chain(EquivalenceProofChain *chain)
     if (!chain) return;
 
     if (chain->axiom_translation_map) {
-        lv00_free((void **)&chain->axiom_translation_map);
+        lv_free((void **)&chain->axiom_translation_map);
     }
     if (chain->lemma_ids) {
-        lv00_free((void **)&chain->lemma_ids);
+        lv_free((void **)&chain->lemma_ids);
     }
     if (chain->verification_graph) {
         graph_destroy(chain->verification_graph);
         chain->verification_graph = NULL;
     }
-    lv00_free((void **)&chain);
+    lv_free((void **)&chain);
 }
 
 /**
@@ -1128,8 +1128,8 @@ static bool euclidean_register_point_id(EuclideanContext *ctx, int point_id)
     if (!ctx) return false;
 
     if (ctx->point_count >= ctx->point_capacity) {
-        int new_capacity = ctx->point_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        int *new_array = lv00_realloc(ctx->registered_points,
+        int new_capacity = ctx->point_capacity * lv_ARRAY_GROWTH_FACTOR;
+        int *new_array = lv_realloc(ctx->registered_points,
                                        (size_t)new_capacity * sizeof(int));
         if (!new_array) return false;
         ctx->registered_points = new_array;
@@ -1147,8 +1147,8 @@ static bool euclidean_register_line_id(EuclideanContext *ctx, int line_id)
     if (!ctx) return false;
 
     if (ctx->line_count >= ctx->line_capacity) {
-        int new_capacity = ctx->line_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        int *new_array = lv00_realloc(ctx->registered_lines,
+        int new_capacity = ctx->line_capacity * lv_ARRAY_GROWTH_FACTOR;
+        int *new_array = lv_realloc(ctx->registered_lines,
                                        (size_t)new_capacity * sizeof(int));
         if (!new_array) return false;
         ctx->registered_lines = new_array;
@@ -1166,8 +1166,8 @@ static bool euclidean_register_circle_id(EuclideanContext *ctx, int circle_id)
     if (!ctx) return false;
 
     if (ctx->circle_count >= ctx->circle_capacity) {
-        int new_capacity = ctx->circle_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        int *new_array = lv00_realloc(ctx->registered_circles,
+        int new_capacity = ctx->circle_capacity * lv_ARRAY_GROWTH_FACTOR;
+        int *new_array = lv_realloc(ctx->registered_circles,
                                        (size_t)new_capacity * sizeof(int));
         if (!new_array) return false;
         ctx->registered_circles = new_array;

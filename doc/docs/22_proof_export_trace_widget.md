@@ -1,4 +1,4 @@
-# 22 证明导出、追踪树与交互可视化 (Proof Export, Trace Tree & Interactive Widgets)
+﻿# 22 证明导出、追踪树与交互可视化 (Proof Export, Trace Tree & Interactive Widgets)
 
 ## 1 模块概述
 
@@ -36,14 +36,14 @@ proof.h (核心证明系统)
 ### 2.2 导出格式枚举
 
 ```c
-typedef enum Lv00ExportFormat {
+typedef enum lvExportFormat {
     EXPORT_HTML   = 0, /**< HTML web page */
     EXPORT_LATEX  = 1, /**< LaTeX document */
     EXPORT_COQ    = 2, /**< Coq proof script */
     EXPORT_LEAN4  = 3, /**< Lean 4 proof script */
     EXPORT_JSON   = 4, /**< JSON structured data */
     EXPORT_DOT    = 5  /**< DOT (Graphviz) graph */
-} Lv00ExportFormat;
+} lvExportFormat;
 ```
 
 | 格式 | 用途 | 特征 |
@@ -58,23 +58,23 @@ typedef enum Lv00ExportFormat {
 ### 2.3 导出配置
 
 ```c
-typedef struct Lv00ExportConfig {
-    Lv00ExportFormat format;              /**< 目标导出格式 */
+typedef struct lvExportConfig {
+    lvExportFormat format;              /**< 目标导出格式 */
     bool             include_proof_trace; /**< 包含详细证明追踪 */
     bool             include_geometry;    /**< 包含几何构造数据 */
     bool             pretty_print;        /**< 启用美化输出/缩进 */
-} Lv00ExportConfig;
+} lvExportConfig;
 ```
 
 ### 2.4 导出结果
 
 ```c
-typedef struct Lv00ExportResult {
+typedef struct lvExportResult {
     char   *output;       /**< 导出内容（null-terminated） */
     size_t  output_size;  /**< 输出长度（字节） */
     bool    success;      /**< 是否成功 */
     char   *error_msg;    /**< 错误信息（失败时） */
-} Lv00ExportResult;
+} lvExportResult;
 ```
 
 调用者须通过 `proof_export_result_destroy()` 释放结果。
@@ -82,19 +82,19 @@ typedef struct Lv00ExportResult {
 ### 2.5 证明步骤结构
 
 ```c
-typedef struct Lv00ProofStep {
+typedef struct lvProofStep {
     int         step_id;    /**< 步骤唯一标识符 */
     const char *rule;       /**< 应用的规则名称 */
     const char *premise;    /**< 前提描述 */
     const char *conclusion; /**< 结论描述 */
     int         depth;      /**< 嵌套深度 */
-} Lv00ProofStep;
+} lvProofStep;
 
-typedef struct Lv00Proof {
-    Lv00ProofStep *steps;   /**< 步骤数组 */
+typedef struct lvProof {
+    lvProofStep *steps;   /**< 步骤数组 */
     size_t         n_steps; /**< 步骤数量 */
     const char    *theorem; /**< 定理陈述 */
-} Lv00Proof;
+} lvProof;
 ```
 
 ### 2.6 StringBuffer 内部结构
@@ -145,25 +145,25 @@ typedef struct {
     int   premise_id;    /**< 前提唯一标识符 */
     char *description;   /**< 前提文字描述（可为 NULL） */
     bool  is_axiom;      /**< 是否为公理 */
-} Lv00ProofPremise;
+} lvProofPremise;
 ```
 
-### 3.3 Lv00ProofTreeNode -- 证明树节点
+### 3.3 lvProofTreeNode -- 证明树节点
 
 ```c
-struct Lv00ProofTreeNode {
+struct lvProofTreeNode {
     int    id;                /**< 节点唯一标识符（树内自增） */
     int    step_index;        /**< 对应 ProofNavigator 中的步骤索引（-1=无关联） */
 
     char  *axiom_used;        /**< 使用的公理/规则名称 */
-    Lv00ProofPremise *premises; /**< 前提数组 */
+    lvProofPremise *premises; /**< 前提数组 */
     int    premise_count;
     int    premise_capacity;
 
     char  *conclusion;        /**< 推导出的结论描述 */
 
-    Lv00ProofTreeNode *parent;   /**< 父节点（根节点为 NULL） */
-    Lv00ProofTreeNode **children; /**< 子节点数组 */
+    lvProofTreeNode *parent;   /**< 父节点（根节点为 NULL） */
+    lvProofTreeNode **children; /**< 子节点数组 */
     int    child_count;
     int    child_capacity;
 
@@ -173,12 +173,12 @@ struct Lv00ProofTreeNode {
 };
 ```
 
-### 3.4 Lv00ProofTree -- 证明追踪树
+### 3.4 lvProofTree -- 证明追踪树
 
 ```c
-struct Lv00ProofTree {
-    Lv00ProofTreeNode *root;           /**< 树根节点 */
-    Lv00ProofTreeNode **all_nodes;     /**< 所有节点的线性数组（便于遍历） */
+struct lvProofTree {
+    lvProofTreeNode *root;           /**< 树根节点 */
+    lvProofTreeNode **all_nodes;     /**< 所有节点的线性数组（便于遍历） */
     int    node_count;
     int    node_capacity;
 
@@ -246,15 +246,15 @@ end;
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_proof_tree_create(theorem_name, strategy)` | 创建证明追踪树 |
-| `lv00_proof_tree_destroy(tree)` | 销毁证明追踪树 |
-| `lv00_proof_tree_add_step(tree, parent, axiom, conclusion, index)` | 添加推理步骤 |
-| `lv00_proof_tree_add_premise(node, id, desc, is_axiom)` | 添加前提 |
-| `lv00_proof_tree_export_text(tree, filepath)` | 导出为教科书风格文本 |
-| `lv00_proof_tree_export_mizar(tree, filepath)` | 导出为 Mizar 风格文本 |
-| `lv00_proof_tree_mark_contradiction(node)` | 标记为反证法分支 |
-| `lv00_proof_tree_mark_lemma(node)` | 标记为引理 |
-| `lv00_proof_tree_get_stats(tree, steps, depth, axioms)` | 获取统计摘要 |
+| `lv_proof_tree_create(theorem_name, strategy)` | 创建证明追踪树 |
+| `lv_proof_tree_destroy(tree)` | 销毁证明追踪树 |
+| `lv_proof_tree_add_step(tree, parent, axiom, conclusion, index)` | 添加推理步骤 |
+| `lv_proof_tree_add_premise(node, id, desc, is_axiom)` | 添加前提 |
+| `lv_proof_tree_export_text(tree, filepath)` | 导出为教科书风格文本 |
+| `lv_proof_tree_export_mizar(tree, filepath)` | 导出为 Mizar 风格文本 |
+| `lv_proof_tree_mark_contradiction(node)` | 标记为反证法分支 |
+| `lv_proof_tree_mark_lemma(node)` | 标记为引理 |
+| `lv_proof_tree_get_stats(tree, steps, depth, axioms)` | 获取统计摘要 |
 
 ---
 
@@ -287,7 +287,7 @@ typedef enum {
     LAYOUT_HORIZONTAL = 1, /**< 水平排列 */
     LAYOUT_VERTICAL = 2,   /**< 垂直排列（默认） */
     LAYOUT_TABBED = 3      /**< 标签页布局 */
-} Lv00LayoutType;
+} lvLayoutType;
 ```
 
 ### 4.4 高亮状态枚举
@@ -299,7 +299,7 @@ typedef enum {
     HIGHLIGHT_COMPLETED = 2, /**< 已完成 */
     HIGHLIGHT_FAILED = 3,    /**< 失败 */
     HIGHLIGHT_SEARCHING = 4  /**< 搜索中（带动画） */
-} Lv00HighlightState;
+} lvHighlightState;
 ```
 
 ### 4.5 核心数据结构
@@ -318,10 +318,10 @@ typedef struct ProofWidgetState {
 } ProofWidgetState;
 ```
 
-#### Lv00HypothesisEntry -- 前提条目
+#### lvHypothesisEntry -- 前提条目
 
 ```c
-struct Lv00HypothesisEntry {
+struct lvHypothesisEntry {
     int hyp_id;       /**< 前提标识符 */
     char *name;       /**< 前提名称 */
     char *type_text;  /**< 前提类型文本 */
@@ -331,11 +331,11 @@ struct Lv00HypothesisEntry {
 };
 ```
 
-#### Lv00GoalDisplay -- 证明目标显示
+#### lvGoalDisplay -- 证明目标显示
 
 ```c
-struct Lv00GoalDisplay {
-    Lv00HypothesisEntry *hypotheses; /**< 前提条目数组 */
+struct lvGoalDisplay {
+    lvHypothesisEntry *hypotheses; /**< 前提条目数组 */
     int hyp_count;
     char *goal_text;                 /**< 目标文本 */
     char **context_terms;            /**< 上下文可用项名称数组 */
@@ -345,26 +345,26 @@ struct Lv00GoalDisplay {
 };
 ```
 
-#### Lv00ProofStepHighlight -- 步骤高亮
+#### lvProofStepHighlight -- 步骤高亮
 
 ```c
-struct Lv00ProofStepHighlight {
+struct lvProofStepHighlight {
     int step_id;              /**< 证明步骤 ID */
-    Lv00HighlightState color; /**< 高亮颜色/状态 */
+    lvHighlightState color; /**< 高亮颜色/状态 */
     bool is_animated;         /**< 是否需要动画效果 */
     float progress;           /**< 动画进度（0.0 ~ 1.0） */
     char *tooltip_text;       /**< 工具提示文本 */
 };
 ```
 
-#### Lv00WidgetLayout -- 构件布局
+#### lvWidgetLayout -- 构件布局
 
 ```c
-struct Lv00WidgetLayout {
+struct lvWidgetLayout {
     ProofWidgetState *widgets;  /**< Widget 状态数组 */
     int widget_count;
     int widget_capacity;
-    Lv00LayoutType layout_type; /**< 布局类型 */
+    lvLayoutType layout_type; /**< 布局类型 */
     int columns;                /**< 列数（仅 GRID 有效） */
     int rows;                   /**< 行数（仅 GRID 有效） */
     int *order_indices;         /**< Widget 顺序索引数组 */
@@ -486,9 +486,9 @@ struct Lv00WidgetLayout {
 
 | 模块 | 头文件 | 源文件 |
 |------|--------|--------|
-| proof_export_enhanced | `core/include/lv00/proof_export_enhanced.h` | `core/src/layer5_output/proof_export_enhanced.c` |
-| proof_trace | `core/include/lv00/proof_trace.h` | `core/src/layer4_reasoning/proof_trace.c` |
-| proof_widget | `core/include/lv00/proof_widget.h` | `core/src/layer5_output/proof_widget.c` |
+| proof_export_enhanced | `core/include/lv/proof_export_enhanced.h` | `core/src/layer5_output/proof_export_enhanced.c` |
+| proof_trace | `core/include/lv/proof_trace.h` | `core/src/layer4_reasoning/proof_trace.c` |
+| proof_widget | `core/include/lv/proof_widget.h` | `core/src/layer5_output/proof_widget.c` |
 
 ## 6 依赖
 
@@ -496,9 +496,9 @@ struct Lv00WidgetLayout {
 |----------|--------|------|
 | `proof.h` | proof_widget | ProofNavigator、ProofStep 等核心类型 |
 | `constraint_graph.h` | proof_widget | 约束图核心数据结构 |
-| `lv00.h` | proof_export_enhanced | LV00_PUBLIC_API 宏 |
-| `lv00_utils.h` | proof_trace, proof_widget | 统一内存分配器 |
-| `lv00_internal.h` | proof_widget | 内部常量与工具宏 |
+| `lv.h` | proof_export_enhanced | lv_PUBLIC_API 宏 |
+| `lv_utils.h` | proof_trace, proof_widget | 统一内存分配器 |
+| `lv_internal.h` | proof_widget | 内部常量与工具宏 |
 | `error_codes.h` | proof_widget | 统一错误码系统 |
 
 ## 7 内部常量

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file module_lvz.c
  * @brief .lvz 词法/语法解析器
  *
@@ -14,11 +14,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/module.h"
-#include "lv00/module_internal.h"
+#include "lv/module.h"
+#include "lv/module_internal.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "module_helpers.h"
 
 /* LVZ 格式版本（与 module.c 保持一致） */
@@ -30,11 +30,11 @@
 #endif
 
 void lvz_lexer_init(LvzLexer *lex, const char *source) {
-    lv00_lexer_init(lex, source);
+    lv_lexer_init(lex, source);
 }
 
 void lvz_lexer_skip_whitespace_and_comments(LvzLexer *lex) {
-    lv00_lexer_skip_whitespace_and_comments(lex);
+    lv_lexer_skip_whitespace_and_comments(lex);
 }
 
 LvzToken lvz_lexer_next_token(LvzLexer *lex) {
@@ -69,7 +69,7 @@ LvzToken lvz_lexer_next_token(LvzLexer *lex) {
         lex->pos++;          /* 跳过开引号 */
         lex->col++;
 
-        tok.str_value = lv00_lexer_extract_string(lex);
+        tok.str_value = lv_lexer_extract_string(lex);
         if (!tok.str_value) {
             tok.type = TOK_ERROR;
             lex->error_msg = "字符串字面量解析失败";
@@ -127,7 +127,7 @@ LvzToken lvz_lexer_next_token(LvzLexer *lex) {
         }
         
         size_t len = lex->pos - start;
-        tok.str_value = lv00_malloc(len + 1);
+        tok.str_value = lv_malloc(len + 1);
         if (!tok.str_value) {
             tok.type = TOK_ERROR;
             return tok;
@@ -151,7 +151,7 @@ LvzToken lvz_lexer_next_token(LvzLexer *lex) {
 
 void lvz_token_free(LvzToken *tok) {
     if (tok->str_value) {
-        lv00_free((void**)&tok->str_value);
+        lv_free((void**)&tok->str_value);
         tok->str_value = NULL;
     }
 }
@@ -170,7 +170,7 @@ void lvz_parser_init(LvzParser *p, const char *source) {
 void lvz_parser_cleanup(LvzParser *p) {
     lvz_token_free(&p->current);
     if (p->module_dir) {
-        lv00_free((void**)&p->module_dir);
+        lv_free((void**)&p->module_dir);
         p->module_dir = NULL;
     }
 }
@@ -182,7 +182,7 @@ void lvz_parser_advance(LvzParser *p) {
 
 bool lvz_parser_expect(LvzParser *p, LvzTokenType type) {
     if (p->current.type != type) {
-        lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望 token 类型 %d, 得到 %d",
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望 token 类型 %d, 得到 %d",
                   p->current.line, p->current.col, type, p->current.type);
         p->has_error = true;
         return false;
@@ -193,7 +193,7 @@ bool lvz_parser_expect(LvzParser *p, LvzTokenType type) {
 bool lvz_parser_expect_identifier(LvzParser *p, const char *name) {
     if (p->current.type != TOK_IDENTIFIER || 
         strcmp(p->current.str_value, name) != 0) {
-        lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'",
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'",
                   p->current.line, p->current.col, name);
         p->has_error = true;
         return false;
@@ -203,7 +203,7 @@ bool lvz_parser_expect_identifier(LvzParser *p, const char *name) {
 
 bool lvz_parser_expect_number(LvzParser *p, int *value) {
     if (p->current.type != TOK_NUMBER) {
-        lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望数字",
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望数字",
                   p->current.line, p->current.col);
         p->has_error = true;
         return false;
@@ -214,12 +214,12 @@ bool lvz_parser_expect_number(LvzParser *p, int *value) {
 
 bool lvz_parser_expect_string(LvzParser *p, char **out) {
     if (p->current.type != TOK_STRING) {
-        lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望字符串",
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望字符串",
                   p->current.line, p->current.col);
         p->has_error = true;
         return false;
     }
-    if (out) *out = lv00_strdup_safe(p->current.str_value);
+    if (out) *out = lv_strdup_safe(p->current.str_value);
     return true;
 }
 
@@ -238,14 +238,14 @@ static bool lvz_parse_module_decl(LvzParser *p, Module *mod) {
     
     /* 期望模块名 (字符串) */
     if (!lvz_parser_expect(p, TOK_STRING)) return false;
-    lv00_free((void**)&mod->name);
-    mod->name = lv00_strdup_safe(p->current.str_value);
+    lv_free((void**)&mod->name);
+    mod->name = lv_strdup_safe(p->current.str_value);
     lvz_parser_advance(p);
     
     /* 期望版本 (字符串) */
     if (!lvz_parser_expect(p, TOK_STRING)) return false;
-    lv00_free((void**)&mod->version);
-    mod->version = lv00_strdup_safe(p->current.str_value);
+    lv_free((void**)&mod->version);
+    mod->version = lv_strdup_safe(p->current.str_value);
     lvz_parser_advance(p);
     
     return true;
@@ -257,22 +257,22 @@ static bool lvz_parse_dep(LvzParser *p, Module *mod) {
     
     /* 期望依赖名 (字符串) */
     if (!lvz_parser_expect(p, TOK_STRING)) return false;
-    char *dep_name = lv00_strdup_safe(p->current.str_value);
+    char *dep_name = lv_strdup_safe(p->current.str_value);
     lvz_parser_advance(p);
     
     /* 期望版本约束 (字符串) */
     if (!lvz_parser_expect(p, TOK_STRING)) {
-        lv00_free((void**)&dep_name);
+        lv_free((void**)&dep_name);
         return false;
     }
-    char *version_constraint = lv00_strdup_safe(p->current.str_value);
+    char *version_constraint = lv_strdup_safe(p->current.str_value);
     lvz_parser_advance(p);
     
     /* 添加依赖 */
     bool result = module_add_dependency(mod, dep_name, version_constraint);
     
-    lv00_free((void**)&dep_name);
-    lv00_free((void**)&version_constraint);
+    lv_free((void**)&dep_name);
+    lv_free((void**)&version_constraint);
     return result;
 }
 
@@ -288,7 +288,7 @@ static bool lvz_parse_deps_section(LvzParser *p, Module *mod) {
     /* 解析每个依赖 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "dep")) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望 'dep' 关键字", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'dep' 关键字", p->current.line);
             return false;
         }
         if (!lvz_parse_dep(p, mod)) return false;
@@ -314,7 +314,7 @@ static bool lvz_parse_exports_section(LvzParser *p, Module *mod) {
     /* 解析函数块导出 */
     for (int i = 0; i < func_count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "func_block")) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望 'func_block' 关键字", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'func_block' 关键字", p->current.line);
             return false;
         }
         lvz_parser_advance(p);
@@ -328,7 +328,7 @@ static bool lvz_parse_exports_section(LvzParser *p, Module *mod) {
     /* 解析类型区域导出 */
     for (int i = 0; i < type_count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "type_region")) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望 'type_region' 关键字", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'type_region' 关键字", p->current.line);
             return false;
         }
         lvz_parser_advance(p);
@@ -354,7 +354,7 @@ static bool lvz_parse_axioms_section(LvzParser *p, Module *mod) {
     /* 解析每个公理包引用 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "axiom")) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望 'axiom' 关键字", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'axiom' 关键字", p->current.line);
             return false;
         }
         lvz_parser_advance(p);
@@ -386,7 +386,7 @@ static bool lvz_parse_nodes_section(LvzParser *p, Module *mod) {
     if (!mod->graph) {
         mod->graph = graph_create();
         if (!mod->graph) {
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "无法创建约束图");
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "无法创建约束图");
             return false;
         }
     }
@@ -394,7 +394,7 @@ static bool lvz_parse_nodes_section(LvzParser *p, Module *mod) {
     /* 解析每个节点 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (p->current.type != TOK_IDENTIFIER) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望节点类型", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望节点类型", p->current.line);
             return false;
         }
         
@@ -482,7 +482,7 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
     if (!mod->graph) {
         mod->graph = graph_create();
         if (!mod->graph) {
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "无法创建约束图");
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "无法创建约束图");
             return false;
         }
     }
@@ -490,7 +490,7 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
     /* 解析每个约束 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (p->current.type != TOK_IDENTIFIER) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望约束类型", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望约束类型", p->current.line);
             return false;
         }
         
@@ -556,7 +556,7 @@ static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod) {
     /* 解析每个函数块 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "func_block")) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望 'func_block' 关键字", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'func_block' 关键字", p->current.line);
             return false;
         }
         lvz_parser_advance(p);
@@ -600,7 +600,7 @@ static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod) {
             lvz_parser_advance(p);
         }
         
-        lv00_free((void**)&func_name);
+        lv_free((void**)&func_name);
         (void)block_id; (void)inputs; (void)outputs; (void)internal;
     }
     
@@ -614,14 +614,14 @@ bool lvz_parse(LvzParser *p, Module *mod) {
     
     /* 期望 'lvz' 关键字 */
     if (!lvz_parser_expect_identifier(p, "lvz")) {
-        lv00_set_error(LV00_ERROR_PARSE, "无效的 LVZ 文件: 缺少 'lvz' 头");
+        lv_set_error(lv_ERROR_PARSE, "无效的 LVZ 文件: 缺少 'lvz' 头");
         return false;
     }
     lvz_parser_advance(p);
     
     /* 期望版本号 */
     if (!lvz_parser_expect(p, TOK_NUMBER)) {
-        lv00_set_error(LV00_ERROR_PARSE, "无效的 LVZ 文件: 缺少版本号");
+        lv_set_error(lv_ERROR_PARSE, "无效的 LVZ 文件: 缺少版本号");
         return false;
     }
     int major = (int)p->current.num_value;
@@ -641,7 +641,7 @@ bool lvz_parse(LvzParser *p, Module *mod) {
     
     /* 检查版本兼容性 */
     if (major > LVZ_VERSION_MAJOR) {
-        lv00_set_error(LV00_ERROR_UNSUPPORTED, "不支持的 LVZ 版本: %d.%d (最高支持 %d.%d)", 
+        lv_set_error(lv_ERROR_UNSUPPORTED, "不支持的 LVZ 版本: %d.%d (最高支持 %d.%d)", 
                   major, minor, LVZ_VERSION_MAJOR, LVZ_VERSION_MINOR);
         return false;
     }
@@ -649,7 +649,7 @@ bool lvz_parse(LvzParser *p, Module *mod) {
     /* 解析各个部分 */
     while (p->current.type != TOK_EOF && !p->has_error) {
         if (p->current.type != TOK_IDENTIFIER) {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 期望节名称", p->current.line);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望节名称", p->current.line);
             return false;
         }
         
@@ -681,7 +681,7 @@ bool lvz_parse(LvzParser *p, Module *mod) {
             break;
         }
         else {
-            lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 未知的节 '%s'", p->current.line, section);
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 未知的节 '%s'", p->current.line, section);
             return false;
         }
     }

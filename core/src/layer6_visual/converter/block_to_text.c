@@ -1,7 +1,7 @@
-#include "lv00/representation_converter.h"
-#include "lv00/func_block.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_parse_utils.h"
+﻿#include "lv/representation_converter.h"
+#include "lv/func_block.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_parse_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -15,7 +15,7 @@ typedef struct {
 
 static void buf_init(TextBuf *b) {
     b->cap = 1024;
-    b->data = lv00_calloc(b->cap, 1);
+    b->data = lv_calloc(b->cap, 1);
     if (!b->data) {
         b->cap = 0;
         return;
@@ -27,7 +27,7 @@ static void buf_append(TextBuf *b, const char *s) {
     int slen = (int)strlen(s);
     while (b->len + slen + 1 > b->cap) {
         b->cap *= 2;
-        char *tmp = lv00_realloc(b->data, b->cap);
+        char *tmp = lv_realloc(b->data, b->cap);
         if (!tmp) {
             b->cap /= 2; /* restore old capacity */
             return;
@@ -56,8 +56,8 @@ static void append_indent(TextBuf *buf, int level) {
 
 /* 将函数块图转换为 Lv-00 DSL 文本 */
 /* 按拓扑序遍历块图，为每个 FuncBlock 生成 DSL 声明 */
-Lv00ConvertResult lv00_convert_block_to_text(void *graph) {
-    Lv00ConvertResult result = {0};
+lvConvertResult lv_convert_block_to_text(void *graph) {
+    lvConvertResult result = {0};
     if (!graph) {
         result.success = 0;
         strncpy(result.error_msg, "NULL graph", sizeof(result.error_msg));
@@ -114,8 +114,8 @@ Lv00ConvertResult lv00_convert_block_to_text(void *graph) {
 
 /* 解析 Lv-00 DSL 文本，构建函数块图 */
 /* 逐行扫描 "block <name> {" 模式，为每个块创建 FuncBlock 并收集端口 */
-Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
-    Lv00ConvertResult result = {0};
+lvConvertResult lv_convert_text_to_block(const char *code) {
+    lvConvertResult result = {0};
     if (!code) {
         result.success = 0;
         strncpy(result.error_msg, "NULL code", sizeof(result.error_msg));
@@ -138,16 +138,16 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
         int cap;
     } SimpleBlockGraph;
 
-    SimpleBlockGraph *sg = lv00_calloc(1, sizeof(SimpleBlockGraph));
+    SimpleBlockGraph *sg = lv_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
     sg->cap = 16;
-    sg->blocks = lv00_calloc(sg->cap, sizeof(FuncBlock *));
+    sg->blocks = lv_calloc(sg->cap, sizeof(FuncBlock *));
     if (!sg->blocks) {
-        lv00_free((void **)&sg);
+        lv_free((void **)&sg);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
@@ -195,7 +195,7 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
                         if (strncmp(p, "port", 4) == 0) {
                             p += 4;
                             port_id = 0;
-                            lv00_parse_int(p, &port_id);
+                            lv_parse_int(p, &port_id);
                         }
                         if (in_cnt < 64) inputs[in_cnt++] = port_id;
                         /* 跳到行尾 */
@@ -208,7 +208,7 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
                         if (strncmp(p, "port", 4) == 0) {
                             p += 4;
                             port_id = 0;
-                            lv00_parse_int(p, &port_id);
+                            lv_parse_int(p, &port_id);
                         }
                         if (out_cnt < MAX_BLOCK_PORTS) outputs[out_cnt++] = port_id;
                         /* 跳到行尾 */
@@ -227,7 +227,7 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
                 /* 添加到块图 */
                 if (sg->count >= sg->cap) {
                     sg->cap *= 2;
-                    FuncBlock **tmp = lv00_realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
+                    FuncBlock **tmp = lv_realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
                     if (!tmp) {
                         sg->cap /= 2; /* restore old capacity */
                         break;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_nt_number_theory.c
  * @brief Test suite for the number theory module
  *
@@ -32,7 +32,7 @@ int g_fail_count = 0;
  * ============================================================ */
 
 static void test_mod_context_init(void) {
-    Lv00ModContext ctx;
+    lvModContext ctx;
     nt_mod_context_init(&ctx);
     TEST_ASSERT_MSG(mpz_cmp_ui(ctx.modulus, 1) == 0,
                     "initial modulus should be 1");
@@ -42,7 +42,7 @@ static void test_mod_context_init(void) {
 }
 
 static void test_mod_context_set(void) {
-    Lv00ModContext ctx;
+    lvModContext ctx;
     mpz_t m;
     mpz_init_set_ui(m, 13);
     nt_mod_context_init(&ctx);
@@ -60,7 +60,7 @@ static void test_mod_context_set(void) {
  * ============================================================ */
 
 static void test_mod_add(void) {
-    Lv00ModContext ctx;
+    lvModContext ctx;
     mpz_t mod, a, b, result;
     mpz_init_set_ui(mod, 7);
     mpz_init_set_ui(a, 5);
@@ -83,7 +83,7 @@ static void test_mod_add(void) {
 }
 
 static void test_mod_add_negative(void) {
-    Lv00ModContext ctx;
+    lvModContext ctx;
     mpz_t mod, a, b, result;
     mpz_init_set_ui(mod, 11);
     mpz_init_set_si(a, -3);
@@ -110,7 +110,7 @@ static void test_mod_add_negative(void) {
  * ============================================================ */
 
 static void test_mod_mul(void) {
-    Lv00ModContext ctx;
+    lvModContext ctx;
     mpz_t mod, a, b, result;
     mpz_init_set_ui(mod, 13);
     mpz_init_set_ui(a, 4);
@@ -133,7 +133,7 @@ static void test_mod_mul(void) {
 }
 
 static void test_mod_mul_zero(void) {
-    Lv00ModContext ctx;
+    lvModContext ctx;
     mpz_t mod, a, b, result;
     mpz_init_set_ui(mod, 17);
     mpz_init_set_ui(a, 0);
@@ -160,7 +160,7 @@ static void test_mod_mul_zero(void) {
  * ============================================================ */
 
 static void test_mod_inv(void) {
-    Lv00ModContext ctx;
+    lvModContext ctx;
     mpz_t mod, a, result;
     int ok;
     mpz_init_set_ui(mod, 7);
@@ -183,7 +183,7 @@ static void test_mod_inv(void) {
 }
 
 static void test_mod_inv_no_inverse(void) {
-    Lv00ModContext ctx;
+    lvModContext ctx;
     mpz_t mod, a, result;
     int ok;
     mpz_init_set_ui(mod, 6);
@@ -208,7 +208,7 @@ static void test_mod_inv_no_inverse(void) {
  * ============================================================ */
 
 static void test_mod_pow(void) {
-    Lv00ModContext ctx;
+    lvModContext ctx;
     mpz_t mod, base, exp, result;
     mpz_init_set_ui(mod, 13);
     mpz_init_set_ui(base, 2);

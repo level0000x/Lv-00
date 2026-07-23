@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file rewrite_vf2.c
  * @brief VF2 子图同构匹配
  *
@@ -13,11 +13,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/rewrite.h"
-#include "lv00/constraint_graph.h"
+#include "lv/rewrite.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
 
 /* ── 前向声明 ── */
@@ -52,12 +52,12 @@ static void vf2_state_init(VF2State *state, int pattern_size, int target_size) {
     state->target_size = target_size;
     state->core_count = 0;
 
-    state->core_1 = lv00_malloc((size_t)pattern_size * sizeof(int));
-    state->core_2 = lv00_malloc((size_t)target_size * sizeof(int));
-    state->in_1 = lv00_malloc((size_t)pattern_size * sizeof(int));
-    state->out_1 = lv00_malloc((size_t)pattern_size * sizeof(int));
-    state->in_2 = lv00_malloc((size_t)target_size * sizeof(int));
-    state->out_2 = lv00_malloc((size_t)target_size * sizeof(int));
+    state->core_1 = lv_malloc((size_t)pattern_size * sizeof(int));
+    state->core_2 = lv_malloc((size_t)target_size * sizeof(int));
+    state->in_1 = lv_malloc((size_t)pattern_size * sizeof(int));
+    state->out_1 = lv_malloc((size_t)pattern_size * sizeof(int));
+    state->in_2 = lv_malloc((size_t)target_size * sizeof(int));
+    state->out_2 = lv_malloc((size_t)target_size * sizeof(int));
 
     if (state->in_1) memset(state->in_1, 0, (size_t)pattern_size * sizeof(int));
     if (state->out_1) memset(state->out_1, 0, (size_t)pattern_size * sizeof(int));
@@ -71,8 +71,8 @@ static void vf2_state_init(VF2State *state, int pattern_size, int target_size) {
 
     /* 初始化 in/out 集合 */
     int initial_capacity = target_size > 0 ? target_size : 8;
-    state->in_set = lv00_malloc((size_t)initial_capacity * sizeof(int));
-    state->out_set = lv00_malloc((size_t)initial_capacity * sizeof(int));
+    state->in_set = lv_malloc((size_t)initial_capacity * sizeof(int));
+    state->out_set = lv_malloc((size_t)initial_capacity * sizeof(int));
     state->in_count = 0;
     state->out_count = 0;
     state->in_capacity = initial_capacity;
@@ -81,14 +81,14 @@ static void vf2_state_init(VF2State *state, int pattern_size, int target_size) {
 
 /* 销毁 VF2 匹配状态，释放内存 */
 static void vf2_state_destroy(VF2State *state) {
-    lv00_free((void**)&state->core_1);
-    lv00_free((void**)&state->core_2);
-    lv00_free((void**)&state->in_1);
-    lv00_free((void**)&state->out_1);
-    lv00_free((void**)&state->in_2);
-    lv00_free((void**)&state->out_2);
-    lv00_free((void**)&state->in_set);
-    lv00_free((void**)&state->out_set);
+    lv_free((void**)&state->core_1);
+    lv_free((void**)&state->core_2);
+    lv_free((void**)&state->in_1);
+    lv_free((void**)&state->out_1);
+    lv_free((void**)&state->in_2);
+    lv_free((void**)&state->out_2);
+    lv_free((void**)&state->in_set);
+    lv_free((void**)&state->out_set);
     state->core_1 = state->core_2 = NULL;
     state->in_1 = state->out_1 = NULL;
     state->in_2 = state->out_2 = NULL;
@@ -435,12 +435,12 @@ static bool vf2_match_recursive(VF2State *state,
     }
 
     /* 收集所有候选目标节点，按度数兼容性排序 */
-    int *candidates = lv00_malloc((size_t)state->target_size * sizeof(int));
-    int *cand_scores = lv00_malloc((size_t)state->target_size * sizeof(int));
+    int *candidates = lv_malloc((size_t)state->target_size * sizeof(int));
+    int *cand_scores = lv_malloc((size_t)state->target_size * sizeof(int));
     int cand_count = 0;
     if (!candidates || !cand_scores) {
-        lv00_free((void**)&candidates);
-        lv00_free((void**)&cand_scores);
+        lv_free((void**)&candidates);
+        lv_free((void**)&cand_scores);
         return false;
     }
 
@@ -506,12 +506,12 @@ static bool vf2_match_recursive(VF2State *state,
                 state->core_1[best_p] = -1;
                 state->core_2[t] = -1;
                 state->core_count--;
-                lv00_free((void**)&candidates);
-                lv00_free((void**)&cand_scores);
+                lv_free((void**)&candidates);
+                lv_free((void**)&cand_scores);
                 return false;
             }
             int new_cap = state->in_capacity * 2;
-            int *new_in = lv00_realloc(state->in_set, (size_t)new_cap * sizeof(int));
+            int *new_in = lv_realloc(state->in_set, (size_t)new_cap * sizeof(int));
             if (!new_in) {
                 LOG_WARN("rewrite", "VF2: in_set realloc failed (cap=%d), skipping candidate", new_cap);
                 state->core_1[best_p] = -1;
@@ -531,8 +531,8 @@ static bool vf2_match_recursive(VF2State *state,
                                 local_equivalence_tolerant,
                                 best_match, best_match_size,
                                 depth + 1)) {
-            lv00_free((void**)&candidates);
-            lv00_free((void**)&cand_scores);
+            lv_free((void**)&candidates);
+            lv_free((void**)&cand_scores);
             return true;
         }
 
@@ -552,12 +552,12 @@ static bool vf2_match_recursive(VF2State *state,
         if (state->out_count >= state->out_capacity) {
             if (state->out_capacity > INT_MAX / 2) {
                 LOG_WARN("rewrite", "VF2: out_set capacity overflow");
-                lv00_free((void**)&candidates);
-                lv00_free((void**)&cand_scores);
+                lv_free((void**)&candidates);
+                lv_free((void**)&cand_scores);
                 return false;
             }
             int new_cap = state->out_capacity * 2;
-            int *new_out = lv00_realloc(state->out_set, (size_t)new_cap * sizeof(int));
+            int *new_out = lv_realloc(state->out_set, (size_t)new_cap * sizeof(int));
             if (!new_out) {
                 LOG_WARN("rewrite", "VF2: out_set realloc failed (cap=%d), skipping candidate", new_cap);
                 state->core_1[best_p] = -1;
@@ -575,8 +575,8 @@ static bool vf2_match_recursive(VF2State *state,
         state->core_count--;
     }
 
-    lv00_free((void**)&candidates);
-    lv00_free((void**)&cand_scores);
+    lv_free((void**)&candidates);
+    lv_free((void**)&cand_scores);
     return false;
 }
 
@@ -614,7 +614,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
 
     /* 为每个模式变量创建节点 */
     for (int i = 0; i < pattern->var_count; i++) {
-        GeomNode *node = lv00_malloc(sizeof(GeomNode));
+        GeomNode *node = lv_malloc(sizeof(GeomNode));
         if (!node) { graph_destroy(pattern_graph); return NULL; }
         memset(node, 0, sizeof(GeomNode));
         node->id = pattern->variable_node_ids[i]; /* 负数 ID */
@@ -623,14 +623,14 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
         node->coord_count = 0;
         node->symbolic_coords = NULL;
 
-        pattern_graph->nodes = lv00_realloc(pattern_graph->nodes,
+        pattern_graph->nodes = lv_realloc(pattern_graph->nodes,
             (size_t)(pattern_graph->node_count + 1) * sizeof(GeomNode *));
         pattern_graph->nodes[pattern_graph->node_count++] = node;
     }
     pattern_graph->next_node_id = pattern->var_count;
 
     /* 构建模式变量 ID -> 数组索引的映射表 */
-    int *var_id_to_idx = lv00_malloc((size_t)pattern->var_count * sizeof(int));
+    int *var_id_to_idx = lv_malloc((size_t)pattern->var_count * sizeof(int));
     if (!var_id_to_idx) { graph_destroy(pattern_graph); return NULL; }
     for (int i = 0; i < pattern->var_count; i++) {
         var_id_to_idx[i] = -1;
@@ -652,9 +652,9 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
         Constraint *pc = pattern->pattern_constraints[c];
 
         /* 将参与者 ID 映射到模式图中的节点索引 */
-        int *mapped_participants = lv00_malloc((size_t)pc->participant_count * sizeof(int));
+        int *mapped_participants = lv_malloc((size_t)pc->participant_count * sizeof(int));
         if (!mapped_participants) {
-            lv00_free((void**)&var_id_to_idx);
+            lv_free((void**)&var_id_to_idx);
             graph_destroy(pattern_graph);
             return NULL;
         }
@@ -681,10 +681,10 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
         }
 
         if (all_mapped) {
-            Constraint *new_con = lv00_malloc(sizeof(Constraint));
+            Constraint *new_con = lv_malloc(sizeof(Constraint));
             if (!new_con) {
-                lv00_free((void**)&mapped_participants);
-                lv00_free((void**)&var_id_to_idx);
+                lv_free((void**)&mapped_participants);
+                lv_free((void**)&var_id_to_idx);
                 graph_destroy(pattern_graph);
                 return NULL;
             }
@@ -694,15 +694,15 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
             new_con->participant_count = pc->participant_count;
             new_con->participants = mapped_participants;
 
-            pattern_graph->constraints = lv00_realloc(pattern_graph->constraints,
+            pattern_graph->constraints = lv_realloc(pattern_graph->constraints,
                 (size_t)(pattern_graph->constraint_count + 1) * sizeof(Constraint *));
             pattern_graph->constraints[pattern_graph->constraint_count++] = new_con;
         } else {
-            lv00_free((void**)&mapped_participants);
+            lv_free((void**)&mapped_participants);
         }
     }
 
-    lv00_free((void**)&var_id_to_idx);
+    lv_free((void**)&var_id_to_idx);
 
     /* 初始化 VF2 匹配状态 */
     VF2State state;
@@ -717,17 +717,17 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
 
     if (found) {
         /* 将 VF2 匹配结果转换为 RewriteMatch 格式 */
-        match = lv00_malloc(sizeof(RewriteMatch));
+        match = lv_malloc(sizeof(RewriteMatch));
         if (!match) { vf2_state_destroy(&state); graph_destroy(pattern_graph); return NULL; }
 
-        match->node_bindings = lv00_malloc((size_t)pattern->var_count * 2 * sizeof(int));
-        if (!match->node_bindings) { lv00_free((void**)&match); vf2_state_destroy(&state); graph_destroy(pattern_graph); return NULL; }
+        match->node_bindings = lv_malloc((size_t)pattern->var_count * 2 * sizeof(int));
+        if (!match->node_bindings) { lv_free((void**)&match); vf2_state_destroy(&state); graph_destroy(pattern_graph); return NULL; }
 
-        match->constraint_bindings = lv00_malloc(
+        match->constraint_bindings = lv_malloc(
             (size_t)pattern->pattern_constraint_count * sizeof(int));
         if (!match->constraint_bindings) {
-            lv00_free((void**)&match->node_bindings);
-            lv00_free((void**)&match);
+            lv_free((void**)&match->node_bindings);
+            lv_free((void**)&match);
             vf2_state_destroy(&state);
             graph_destroy(pattern_graph);
             return NULL;

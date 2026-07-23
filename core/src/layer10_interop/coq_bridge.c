@@ -1,6 +1,6 @@
-#include "lv00/interop.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/interop.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -8,30 +8,30 @@
 
 /* Lv-00 证明步骤类型枚举 */
 typedef enum {
-    LV00_STEP_ADD_NODE = 0,      /* 添加节点 → intro */
-    LV00_STEP_ADD_CONSTRAINT,    /* 添加约束 → constructor */
-    LV00_STEP_REWRITE,           /* 重写 → rewrite */
-    LV00_STEP_FUNCTION_APP,      /* 函数应用 → apply */
-    LV00_STEP_NORMALIZATION,     /* 规范化 → simpl */
-    LV00_STEP_UNIFY,             /* 合一 → reflexivity */
-    LV00_STEP_EX_FALSO,          /* 矛盾 → contradiction */
-    LV00_STEP_ORACLE             /* 外部预言 → admit (* oracle *) */
-} Lv00ProofStepType;
+    lv_STEP_ADD_NODE = 0,      /* 添加节点 → intro */
+    lv_STEP_ADD_CONSTRAINT,    /* 添加约束 → constructor */
+    lv_STEP_REWRITE,           /* 重写 → rewrite */
+    lv_STEP_FUNCTION_APP,      /* 函数应用 → apply */
+    lv_STEP_NORMALIZATION,     /* 规范化 → simpl */
+    lv_STEP_UNIFY,             /* 合一 → reflexivity */
+    lv_STEP_EX_FALSO,          /* 矛盾 → contradiction */
+    lv_STEP_ORACLE             /* 外部预言 → admit (* oracle *) */
+} lvProofStepType;
 
 /* 证明步骤结构体 */
 typedef struct {
-    int type;                     /* 步骤类型（Lv00ProofStepType） */
+    int type;                     /* 步骤类型（lvProofStepType） */
     char description[512];       /* 步骤描述 */
     int id;                      /* 步骤编号 */
-} Lv00ProofStep;
+} lvProofStep;
 
 /* 内部证明结构体（用于导出/导入） */
 typedef struct {
     char theorem_name[256];      /* 定理名称 */
     int step_count;              /* 步骤数量 */
     int step_capacity;           /* 步骤容量 */
-    Lv00ProofStep *steps;        /* 步骤数组 */
-} Lv00CoqProof;
+    lvProofStep *steps;        /* 步骤数组 */
+} lvCoqProof;
 
 /* 映射表大小常量 */
 #define COQ_TACTIC_MAP_COUNT  8
@@ -44,27 +44,27 @@ typedef struct {
 static int coq_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0) return -1;
 
-    Lv00CoqProof *p = (Lv00CoqProof *)proof;
+    lvCoqProof *p = (lvCoqProof *)proof;
 
     /* 步骤类型到 Coq tactic 的映射表 */
     static const struct {
         int step_type;
         const char *tactic;
     } tactic_map[] = {
-        { LV00_STEP_ADD_NODE,        "intro" },
-        { LV00_STEP_ADD_CONSTRAINT,   "constructor" },
-        { LV00_STEP_REWRITE,         "rewrite" },
-        { LV00_STEP_FUNCTION_APP,    "apply" },
-        { LV00_STEP_NORMALIZATION,   "simpl" },
-        { LV00_STEP_UNIFY,           "reflexivity" },
-        { LV00_STEP_EX_FALSO,        "contradiction" },
-        { LV00_STEP_ORACLE,          "admit (* oracle *)" }
+        { lv_STEP_ADD_NODE,        "intro" },
+        { lv_STEP_ADD_CONSTRAINT,   "constructor" },
+        { lv_STEP_REWRITE,         "rewrite" },
+        { lv_STEP_FUNCTION_APP,    "apply" },
+        { lv_STEP_NORMALIZATION,   "simpl" },
+        { lv_STEP_UNIFY,           "reflexivity" },
+        { lv_STEP_EX_FALSO,        "contradiction" },
+        { lv_STEP_ORACLE,          "admit (* oracle *)" }
     };
     int tactic_count = COQ_TACTIC_MAP_COUNT;
 
     /* 输出头 */
     const char *header =
-        "Require Import Lv00.\n\n"
+        "Require Import lv.\n\n"
         "Theorem ";
     const char *footer =
         ".\n"
@@ -89,7 +89,7 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
 
     /* 遍历每个步骤，生成对应的 Coq tactic */
     for (int i = 0; i < p->step_count; i++) {
-        Lv00ProofStep *step = &p->steps[i];
+        lvProofStep *step = &p->steps[i];
         const char *tac = "admit"; /* 默认 tactic */
 
         /* 在映射表中查找对应的 tactic */
@@ -150,19 +150,19 @@ static int coq_import_proof(const char *input, void **proof) {
         const char *tactic;
         int step_type;
     } reverse_map[] = {
-        { "intro",         LV00_STEP_ADD_NODE },
-        { "constructor",   LV00_STEP_ADD_CONSTRAINT },
-        { "rewrite",       LV00_STEP_REWRITE },
-        { "apply",         LV00_STEP_FUNCTION_APP },
-        { "simpl",         LV00_STEP_NORMALIZATION },
-        { "reflexivity",   LV00_STEP_UNIFY },
-        { "contradiction", LV00_STEP_EX_FALSO },
-        { "admit",         LV00_STEP_ORACLE }
+        { "intro",         lv_STEP_ADD_NODE },
+        { "constructor",   lv_STEP_ADD_CONSTRAINT },
+        { "rewrite",       lv_STEP_REWRITE },
+        { "apply",         lv_STEP_FUNCTION_APP },
+        { "simpl",         lv_STEP_NORMALIZATION },
+        { "reflexivity",   lv_STEP_UNIFY },
+        { "contradiction", lv_STEP_EX_FALSO },
+        { "admit",         lv_STEP_ORACLE }
     };
     int reverse_count = COQ_REVERSE_MAP_COUNT;
 
     /* 分配证明结构体 */
-    Lv00CoqProof *p = (Lv00CoqProof *)lv00_calloc(1, sizeof(Lv00CoqProof));
+    lvCoqProof *p = (lvCoqProof *)lv_calloc(1, sizeof(lvCoqProof));
     if (!p) return -1;
 
     /* 保存定理名 */
@@ -175,8 +175,8 @@ static int coq_import_proof(const char *input, void **proof) {
 
     /* 初始化步骤数组 */
     p->step_capacity = 16;
-    p->steps = (Lv00ProofStep *)lv00_calloc(p->step_capacity, sizeof(Lv00ProofStep));
-    if (!p->steps) { lv00_free((void **)&p); return -1; }
+    p->steps = (lvProofStep *)lv_calloc(p->step_capacity, sizeof(lvProofStep));
+    if (!p->steps) { lv_free((void **)&p); return -1; }
 
     /* 逐行解析 tactic 脚本 */
     const char *line = script_start;
@@ -212,17 +212,17 @@ static int coq_import_proof(const char *input, void **proof) {
                 /* 检查是否需要扩容 */
                 if (p->step_count >= p->step_capacity) {
                     int new_cap = p->step_capacity * 2;
-                    Lv00ProofStep *new_steps = (Lv00ProofStep *)lv00_realloc(p->steps, new_cap * sizeof(Lv00ProofStep));
+                    lvProofStep *new_steps = (lvProofStep *)lv_realloc(p->steps, new_cap * sizeof(lvProofStep));
                     if (!new_steps) {
-                        lv00_free((void **)&p->steps);
-                        lv00_free((void **)&p);
+                        lv_free((void **)&p->steps);
+                        lv_free((void **)&p);
                         return -1;
                     }
                     p->steps = new_steps;
                     p->step_capacity = new_cap;
                 }
 
-                Lv00ProofStep *step = &p->steps[p->step_count];
+                lvProofStep *step = &p->steps[p->step_count];
                 step->type = step_type;
                 step->id = p->step_count;
                 /* 保存 tactic 名称作为描述 */
@@ -301,15 +301,15 @@ static int coq_validate(const char *input) {
 }
 
 /* 注册 Coq 插件 */
-int lv00_register_coq_plugin(Lv00InteropManager *mgr) {
+int lv_register_coq_plugin(lvInteropManager *mgr) {
     if (!mgr) return -1;
-    Lv00Plugin plugin;
+    lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "coq", sizeof(plugin.name) - 1);
     strncpy(plugin.version, "8.18", sizeof(plugin.version) - 1);
-    plugin.system = LV00_EXT_COQ;
+    plugin.system = lv_EXT_COQ;
     plugin.export_proof = coq_export_proof;
     plugin.import_proof = coq_import_proof;
     plugin.validate = coq_validate;
-    return lv00_interop_register_plugin(mgr, &plugin);
+    return lv_interop_register_plugin(mgr, &plugin);
 }

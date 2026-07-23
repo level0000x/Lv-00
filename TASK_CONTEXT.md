@@ -1,4 +1,4 @@
-# Lv-00 任务上下文 — v1.8.0
+﻿# Lv-00 任务上下文 — v1.8.0
 
 **版本**: v1.8.0 | **日期**: 2026-07-22 | **阶段**: 全系统代码优化到最优，0 技术债务
 
@@ -24,22 +24,22 @@
 
 ## 二、v1.8.0 内存分配统一 + 头文件依赖精简
 
-### 原始 malloc/realloc/free → lv00_* 统一
+### 原始 malloc/realloc/free → lv_* 统一
 | 文件 | 转换内容 |
 |:---|:---|
-| `layer3_geometry/geo_aabb_tree.c` | 4 `realloc` + 3 `malloc` + 多 `free` → `lv00_*` |
-| `layer3_geometry/geo_halfedge_mesh.c` | 10 `realloc` + 7 `malloc` + 多 `free` → `lv00_*` |
-| `layer3_geometry/geo_dynamic.c` | 6 `realloc` + 5 `malloc` + 多 `free` → `lv00_*` |
-| `layer3_geometry/geo_constraint_solver.c` | 2 `realloc` + 3 `malloc` + 多 `free` → `lv00_*` |
-| `layer3_geometry/geo_topology.c` | 2 `realloc` + 多 `free` → `lv00_*` |
-| `layer3_geometry/gappa_dsl.c` | 3 `realloc` + 3 `free` → `lv00_*` |
-| `layer3_geometry/gappa_propagate.c` | 1 `realloc` + 1 `free` → `lv00_*` |
-| `layer5_output/proof_export_enhanced.c` | 4 `malloc` + 4 `free` → `lv00_*` |
-| `layer5_output/proof_widget.c` | 1 `malloc` + 1 `free` → `lv00_*` |
-| `layer4_reasoning/backends/groebner_parallel.c` | 2 `free` → `lv00_*` |
-| `layer10_interop/lean4_bridge.c` | 1 `free` → `lv00_*` |
+| `layer3_geometry/geo_aabb_tree.c` | 4 `realloc` + 3 `malloc` + 多 `free` → `lv_*` |
+| `layer3_geometry/geo_halfedge_mesh.c` | 10 `realloc` + 7 `malloc` + 多 `free` → `lv_*` |
+| `layer3_geometry/geo_dynamic.c` | 6 `realloc` + 5 `malloc` + 多 `free` → `lv_*` |
+| `layer3_geometry/geo_constraint_solver.c` | 2 `realloc` + 3 `malloc` + 多 `free` → `lv_*` |
+| `layer3_geometry/geo_topology.c` | 2 `realloc` + 多 `free` → `lv_*` |
+| `layer3_geometry/gappa_dsl.c` | 3 `realloc` + 3 `free` → `lv_*` |
+| `layer3_geometry/gappa_propagate.c` | 1 `realloc` + 1 `free` → `lv_*` |
+| `layer5_output/proof_export_enhanced.c` | 4 `malloc` + 4 `free` → `lv_*` |
+| `layer5_output/proof_widget.c` | 1 `malloc` + 1 `free` → `lv_*` |
+| `layer4_reasoning/backends/groebner_parallel.c` | 2 `free` → `lv_*` |
+| `layer10_interop/lean4_bridge.c` | 1 `free` → `lv_*` |
 
-**总计**: 11 个文件，30+ malloc, 30+ realloc, 80+ free 全部统一到 lv00 内存分配器
+**总计**: 11 个文件，30+ malloc, 30+ realloc, 80+ free 全部统一到 lv 内存分配器
 
 ### 头文件依赖精简
 | 文件 | 优化前 | 优化后 | 精简 |
@@ -66,30 +66,30 @@
 | # | 旧名称 | 新名称 | 涉及文件 |
 |:--|:---|:---|:--:|
 | 1 | `ga_mv_free` | `ga_mv_destroy` | ga_multivector.h/.c, ga_interface.h/.c, test |
-| 2 | `lv00_he_mesh_free` | `lv00_he_mesh_destroy` | geo_halfedge_mesh.h/.c, test |
-| 3 | `lv00_aabb2d_free` | `lv00_aabb2d_destroy` | geo_aabb_tree.h/.c, test |
-| 4 | `lv00_aabb3d_free` | `lv00_aabb3d_destroy` | geo_aabb_tree.h/.c, test |
-| 5 | `lv00_dyn_graph_free` | `lv00_dyn_graph_destroy` | geo_dynamic.h/.c, test |
-| 6 | `lv00_geo_spec_free` | `lv00_geo_spec_destroy` | geo_spec.h/.c (×2) |
-| 7 | `lv00_solver_free` | `lv00_solver_destroy` | geo_constraint_solver.h/.c, test |
-| 8 | `lv00_dof_analysis_free` | `lv00_dof_analysis_destroy` | geo_constraint_solver.h/.c, test |
+| 2 | `lv_he_mesh_free` | `lv_he_mesh_destroy` | geo_halfedge_mesh.h/.c, test |
+| 3 | `lv_aabb2d_free` | `lv_aabb2d_destroy` | geo_aabb_tree.h/.c, test |
+| 4 | `lv_aabb3d_free` | `lv_aabb3d_destroy` | geo_aabb_tree.h/.c, test |
+| 5 | `lv_dyn_graph_free` | `lv_dyn_graph_destroy` | geo_dynamic.h/.c, test |
+| 6 | `lv_geo_spec_free` | `lv_geo_spec_destroy` | geo_spec.h/.c (×2) |
+| 7 | `lv_solver_free` | `lv_solver_destroy` | geo_constraint_solver.h/.c, test |
+| 8 | `lv_dof_analysis_free` | `lv_dof_analysis_destroy` | geo_constraint_solver.h/.c, test |
 | 9 | `dsl_tokens_free` | `dsl_tokens_destroy` | dsl_compiler.h/.c |
 | 10 | `dsl_ast_free` | `dsl_ast_destroy` | dsl_compiler.h/.c |
 | 11 | `dsl_ir_free` | `dsl_ir_destroy` | dsl_compiler.h/.c |
 | 12 | `error_bound_free` | `error_bound_destroy` | float_error.h/.c, fptaylor_eval.c |
-| 13 | `lv00_perf_record_free` | `lv00_perf_record_destroy` | benchmark.h/.c |
+| 13 | `lv_perf_record_free` | `lv_perf_record_destroy` | benchmark.h/.c |
 | 14 | `approx_count_result_free` | `approx_count_result_destroy` | approx_counter.h/.c (×2) |
-| 15 | `atp_result_free` | `atp_result_destroy` | atp_backend.h/.c, lv00_impl_upper.c, proof_multi_strategy.c |
+| 15 | `atp_result_free` | `atp_result_destroy` | atp_backend.h/.c, lv_impl_upper.c, proof_multi_strategy.c |
 | 16 | `preset_validation_result_free` | `preset_validation_result_destroy` | func_block_preset_ops.h/.c |
 | 17 | `preset_bindings_free` | `preset_bindings_destroy` | func_block_preset_ops.h/.c |
 | 18 | `preset_search_result_free` | `preset_search_result_destroy` | func_block_preset_ops.h/.c |
 
-保留的 _free 函数（语义不同，无需重命名）：`gappa_predicates_free`, `gappa_goals_free`, `gappa_result_free`, `lv00_aabb_query_result_free`, `mem_pool_free`
+保留的 _free 函数（语义不同，无需重命名）：`gappa_predicates_free`, `gappa_goals_free`, `gappa_result_free`, `lv_aabb_query_result_free`, `mem_pool_free`
 
 ## 四、远期路线图
 
 | 版本 | 目标 |
 |:---|:---|
-| v1.9.0 | 微自举 A：lv00 解析自身 .lv00 文件 |
+| v1.9.0 | 微自举 A：lv 解析自身 .lv 文件 |
 | v2.0.0 | λ-演算内核集成 |
-| v2.1.0 | 微自举 B：lv00 验证自身证明 |
+| v2.1.0 | 微自举 B：lv 验证自身证明 |

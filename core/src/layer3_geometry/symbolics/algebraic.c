@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file algebraic.c
  * @brief Algebraic 代数数类型
  *
@@ -7,17 +7,17 @@
  * @version 3.3.0
  */
 
-#include "lv00/symbolic_coord.h"
+#include "lv/symbolic_coord.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
 
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
@@ -58,9 +58,9 @@ void refine_algebraic_bounds(Algebraic *a, int iterations) {
         double val_mid = evaluate_poly_at_double(&a->minimal_poly, mid);
         double val_left = evaluate_poly_at_double(&a->minimal_poly, a->left_bound);
 
-        if (fabs(val_mid) < LV00_EPSILON_NEWTON) {
-            a->left_bound = mid - LV00_EPSILON_NEWTON;
-            a->right_bound = mid + LV00_EPSILON_NEWTON;
+        if (fabs(val_mid) < lv_EPSILON_NEWTON) {
+            a->left_bound = mid - lv_EPSILON_NEWTON;
+            a->right_bound = mid + lv_EPSILON_NEWTON;
             return;
         }
 
@@ -170,7 +170,7 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
     mpz_set_ui(h_curr, (unsigned long long) int_part_d);
     mpz_set_ui(k_curr, 1);
 
-    size_t bit_limit = LV00_BIT_CUTOFF_THRESHOLD / 2;
+    size_t bit_limit = lv_BIT_CUTOFF_THRESHOLD / 2;
 
     /* 检查整数部分本身是否已经是足够好的近似 */
     mpq_set_num(result, h_curr);
@@ -188,8 +188,8 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
      * 计算下一个渐近分数 h_{n+1} = a_{n+1}*h_n + h_{n-1}
      *                      k_{n+1} = a_{n+1}*k_n + k_{n-1}
      */
-    for (int iter = 0; iter < LV00_CONTINUED_FRACTION_MAX_ITER; iter++) {
-        if (frac < LV00_EPSILON_FRACTION_ZERO)
+    for (int iter = 0; iter < lv_CONTINUED_FRACTION_MAX_ITER; iter++) {
+        if (frac < lv_EPSILON_FRACTION_ZERO)
             break; /* 分数部分实际上为0 */
 
         double inv_frac = 1.0 / frac;
@@ -371,14 +371,14 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
      * 使用递归二分法计数实根。
      * 将区间不断细分，对每个有符号变化的子区间计数。
      * 为避免无限递归，设置最大递归深度和最小区间宽度。
-     * 使用 lv00_internal.h 中的 LV00_MAX_SUBINTERVALS 和 LV00_ROOT_EPSILON。
+     * 使用 lv_internal.h 中的 lv_MAX_SUBINTERVALS 和 lv_ROOT_EPSILON。
      */
 
     /* 使用栈模拟递归，避免栈溢出 */
     typedef struct {
         double lo, hi;
     } Interval;
-    Interval stack[LV00_MAX_SUBINTERVALS];
+    Interval stack[lv_MAX_SUBINTERVALS];
     int stack_top = 0;
     int root_count = 0;
 
@@ -390,18 +390,18 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
         double fb = poly_eval_double(poly, cur.hi);
 
         /* 如果端点之一恰好是根（或非常接近），计入并缩小区间 */
-        if (fabs(fa) < LV00_ROOT_EPSILON) {
+        if (fabs(fa) < lv_ROOT_EPSILON) {
             root_count++;
             /* 将左端点稍微右移，避免重复计数 */
-            cur.lo += LV00_ROOT_EPSILON;
+            cur.lo += lv_ROOT_EPSILON;
             if (cur.lo >= cur.hi)
                 continue;
             fa = poly_eval_double(poly, cur.lo);
         }
-        if (fabs(fb) < LV00_ROOT_EPSILON) {
+        if (fabs(fb) < lv_ROOT_EPSILON) {
             root_count++;
             /* 将右端点稍微左移，避免重复计数 */
-            cur.hi -= LV00_ROOT_EPSILON;
+            cur.hi -= lv_ROOT_EPSILON;
             if (cur.lo >= cur.hi)
                 continue;
             fb = poly_eval_double(poly, cur.hi);
@@ -414,14 +414,14 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
         }
 
         /* 区间足够小，认为找到一个根 */
-        if (cur.hi - cur.lo < LV00_ROOT_EPSILON) {
+        if (cur.hi - cur.lo < lv_ROOT_EPSILON) {
             root_count++;
             continue;
         }
 
         /* 二分 */
         double mid = (cur.lo + cur.hi) * 0.5;
-        if (stack_top + 2 <= LV00_MAX_SUBINTERVALS) {
+        if (stack_top + 2 <= lv_MAX_SUBINTERVALS) {
             stack[stack_top++] = (Interval) {cur.lo, mid};
             stack[stack_top++] = (Interval) {mid, cur.hi};
         }
@@ -504,12 +504,12 @@ static int verify_unique_real_root(const mpz_poly_t *poly, double left, double r
 }
 
 Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
-    Algebraic *a = lv00_malloc(sizeof(Algebraic));
+    Algebraic *a = lv_malloc(sizeof(Algebraic));
     if (!a)
         return NULL;
     mpz_poly_init(&a->minimal_poly);
     if (!mpz_poly_set(&a->minimal_poly, poly)) {
-        lv00_free((void **) &a);
+        lv_free((void **) &a);
         return NULL;
     }
     a->left_bound = left;
@@ -537,7 +537,7 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
         }
         /* 验证失败：释放已分配的资源并返回 NULL */
         mpz_poly_clear(&a->minimal_poly);
-        lv00_free((void **) &a);
+        lv_free((void **) &a);
         return NULL;
     }
 
@@ -553,7 +553,7 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
  * @return 新创建的代数数对象，失败时返回 NULL；调用者需负责释放
  */
 Algebraic *algebraic_from_rational(const Rational *r) {
-    Algebraic *a = lv00_malloc(sizeof(Algebraic));
+    Algebraic *a = lv_malloc(sizeof(Algebraic));
     if (!a)
         return NULL;
 
@@ -562,7 +562,7 @@ Algebraic *algebraic_from_rational(const Rational *r) {
     a->minimal_poly.coeffs = malloc(sizeof(mpz_t));
     if (!a->minimal_poly.coeffs) {
         mpz_poly_clear(&a->minimal_poly);
-        lv00_free((void **) &a);
+        lv_free((void **) &a);
         return NULL;
     }
     mpz_init(a->minimal_poly.coeffs[0]);
@@ -571,8 +571,8 @@ Algebraic *algebraic_from_rational(const Rational *r) {
     /* Handle denominator by storing numerator only; actual value is num/den */
     /* For simplicity, we'll use the double approximation for bounds */
     double val = rational_to_double(r);
-    a->left_bound = val - LV00_EPSILON_NEWTON;
-    a->right_bound = val + LV00_EPSILON_NEWTON;
+    a->left_bound = val - lv_EPSILON_NEWTON;
+    a->right_bound = val + lv_EPSILON_NEWTON;
     a->precision_bits = 53;
     a->cached_rational = rational_copy(r);
 
@@ -581,7 +581,7 @@ Algebraic *algebraic_from_rational(const Rational *r) {
 
 /* Create algebraic from quadratic: a + b*sqrt(n) */
 Algebraic *algebraic_from_quadratic(const Quadratic *q) {
-    Algebraic *alg = lv00_malloc(sizeof(Algebraic));
+    Algebraic *alg = lv_malloc(sizeof(Algebraic));
     if (!alg)
         return NULL;
 
@@ -616,7 +616,7 @@ Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     alg->minimal_poly.coeffs = malloc(3 * sizeof(mpz_t));
     if (!alg->minimal_poly.coeffs) {
         mpz_poly_clear(&alg->minimal_poly);
-        lv00_free((void**)&alg);  /* lv00_malloc分配 */
+        lv_free((void**)&alg);  /* lv_malloc分配 */
         return NULL;
     }
 
@@ -662,10 +662,10 @@ Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     mpq_clear(b_sq_n);
 
     /* Set bounds */
-    /* 使用更宽的隔离区间（10倍 LV00_EPSILON_NUMERIC_COMPARE），
+    /* 使用更宽的隔离区间（10倍 lv_EPSILON_NUMERIC_COMPARE），
      * 确保在 double 近似误差下区间仍包含实际根。
      * 与 algebraic_from_rational 的隔离策略保持一致。 */
-    double isolation_width = LV00_EPSILON_NUMERIC_COMPARE * 10.0;
+    double isolation_width = lv_EPSILON_NUMERIC_COMPARE * 10.0;
     alg->left_bound = actual_val - isolation_width;
     alg->right_bound = actual_val + isolation_width;
     alg->precision_bits = 53;
@@ -684,7 +684,7 @@ void algebraic_destroy(Algebraic *a) {
         mpz_poly_clear(&a->minimal_poly);
         if (a->cached_rational)
             rational_destroy(a->cached_rational);
-        lv00_free((void **) &a);
+        lv_free((void **) &a);
     }
 }
 
@@ -744,9 +744,9 @@ int algebraic_compare(const Algebraic *a, const Algebraic *b) {
     double a_val = (a->left_bound + a->right_bound) / 2.0;
     double b_val = (b->left_bound + b->right_bound) / 2.0;
 
-    if (a_val < b_val - LV00_EPSILON_NUMERIC_COMPARE)
+    if (a_val < b_val - lv_EPSILON_NUMERIC_COMPARE)
         return -1;
-    if (a_val > b_val + LV00_EPSILON_NUMERIC_COMPARE)
+    if (a_val > b_val + lv_EPSILON_NUMERIC_COMPARE)
         return 1;
 
     /* 如果区间重叠，它们可能相等 */
@@ -783,7 +783,7 @@ double algebraic_to_double(const Algebraic *a) {
  * @return 计算得到的极小多项式，失败时返回空多项式
  */
 static mpz_poly_t *compute_sum_minimal_poly(const Algebraic *a, const Algebraic *b) {
-    mpz_poly_t *result = lv00_malloc(sizeof(mpz_poly_t));
+    mpz_poly_t *result = lv_malloc(sizeof(mpz_poly_t));
     if (!result)
         return NULL;
     mpz_poly_init(result);
@@ -816,7 +816,7 @@ static mpz_poly_t *compute_sum_minimal_poly(const Algebraic *a, const Algebraic 
  * Uses the exact Sylvester matrix resultant from mpz_poly_resultant().
  */
 static mpz_poly_t *compute_product_minimal_poly(const Algebraic *a, const Algebraic *b) {
-    mpz_poly_t *result = lv00_malloc(sizeof(mpz_poly_t));
+    mpz_poly_t *result = lv_malloc(sizeof(mpz_poly_t));
     if (!result)
         return NULL;
     mpz_poly_init(result);
@@ -857,7 +857,7 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
     if (a->minimal_poly.degree == 0 && a->cached_rational) {
         /* a is rational, just add to b's bounds */
         double a_val = rational_to_double(a->cached_rational);
-        Algebraic *result = lv00_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_malloc(sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -871,7 +871,7 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
 
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        Algebraic *result = lv00_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_malloc(sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -897,7 +897,7 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
 
     Algebraic *result = algebraic_create(sum_poly, new_left, new_right);
     mpz_poly_clear(sum_poly);
-    lv00_free((void **) &sum_poly);
+    lv_free((void **) &sum_poly);
 
     if (!result) {
         /* Failed to create algebraic number - likely due to root isolation failure */
@@ -924,7 +924,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
     /* Special case: if either is effectively a rational */
     if (a->minimal_poly.degree == 0 && a->cached_rational) {
         double a_val = rational_to_double(a->cached_rational);
-        Algebraic *result = lv00_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_malloc(sizeof(Algebraic));
         if (!result)
             return NULL;
 
@@ -934,7 +934,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
         if (b->minimal_poly.degree >= 0) {
             result->minimal_poly.coeffs = malloc((b->minimal_poly.degree + 1) * sizeof(mpz_t));
             if (!result->minimal_poly.coeffs) {
-                lv00_free((void **) &result);
+                lv_free((void **) &result);
                 return NULL;
             }
             for (int i = 0; i <= b->minimal_poly.degree; i++) {
@@ -956,7 +956,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
 
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        Algebraic *result = lv00_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_malloc(sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -991,7 +991,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
         }
     }
 
-    mpz_poly_t *diff_poly = lv00_malloc(sizeof(mpz_poly_t));
+    mpz_poly_t *diff_poly = lv_malloc(sizeof(mpz_poly_t));
     if (!diff_poly) {
         mpz_poly_clear(&neg_b_poly);
         return NULL;
@@ -1013,7 +1013,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
 
     Algebraic *result = algebraic_create(diff_poly, new_left, new_right);
     mpz_poly_clear(diff_poly);
-    lv00_free((void **) &diff_poly);
+    lv_free((void **) &diff_poly);
 
     if (!result) {
         return NULL;
@@ -1031,7 +1031,7 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
     /* Special case: if either is effectively a rational */
     if (a->minimal_poly.degree == 0 && a->cached_rational) {
         double a_val = rational_to_double(a->cached_rational);
-        Algebraic *result = lv00_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_malloc(sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -1052,7 +1052,7 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
 
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        Algebraic *result = lv00_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_malloc(sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -1088,14 +1088,14 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
 
     /* Expand bounds to ensure unique root isolation */
     double width = new_right - new_left;
-    if (width < LV00_EPSILON_NUMERIC_COMPARE)
-        width = LV00_EPSILON_NUMERIC_COMPARE;
+    if (width < lv_EPSILON_NUMERIC_COMPARE)
+        width = lv_EPSILON_NUMERIC_COMPARE;
     new_left -= width * 0.5;
     new_right += width * 0.5;
 
     Algebraic *result = algebraic_create(prod_poly, new_left, new_right);
     mpz_poly_clear(prod_poly);
-    lv00_free((void **) &prod_poly);
+    lv_free((void **) &prod_poly);
 
     if (!result) {
         return NULL;
@@ -1121,7 +1121,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
         if (mpq_sgn(b->cached_rational->value) == 0)
             return NULL;
 
-        Algebraic *result = lv00_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_malloc(sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -1143,7 +1143,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
     /* For division, we need to compute the minimal polynomial of 1/beta */
     /* If beta has minpoly P(x), then 1/beta has minpoly x^n * P(1/x) */
 
-    mpz_poly_t *result_poly = lv00_malloc(sizeof(mpz_poly_t));
+    mpz_poly_t *result_poly = lv_malloc(sizeof(mpz_poly_t));
     if (!result_poly)
         return NULL;
     mpz_poly_init(result_poly);
@@ -1154,7 +1154,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
         result_poly->coeffs = malloc((deg_b + 1) * sizeof(mpz_t));
         if (!result_poly->coeffs) {
             mpz_poly_clear(result_poly);
-            lv00_free((void **) &result_poly);
+            lv_free((void **) &result_poly);
             return NULL;
         }
 
@@ -1174,7 +1174,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
         quotients[3] = a->right_bound / b->right_bound;
     } else {
         mpz_poly_clear(result_poly);
-        lv00_free((void **) &result_poly);
+        lv_free((void **) &result_poly);
         return NULL;
     }
 
@@ -1188,7 +1188,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
 
     Algebraic *result = algebraic_create(result_poly, new_left, new_right);
     mpz_poly_clear(result_poly);
-    lv00_free((void **) &result_poly);
+    lv_free((void **) &result_poly);
 
     refine_algebraic_bounds(result, 10);
 
@@ -1201,13 +1201,13 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
 char *algebraic_serialize(const Algebraic *a) {
     char *poly_str = mpz_poly_get_str(&a->minimal_poly);
     size_t len = strlen(poly_str) + 128;
-    char *result = lv00_malloc(len);
+    char *result = lv_malloc(len);
     if (!result) {
-        lv00_free((void **) &poly_str);
+        lv_free((void **) &poly_str);
         return NULL;
     }
     snprintf(result, len, "poly:%s left:%.15g right:%.15g", poly_str, a->left_bound, a->right_bound);
-    lv00_free((void **) &poly_str);
+    lv_free((void **) &poly_str);
     return result;
 }
 

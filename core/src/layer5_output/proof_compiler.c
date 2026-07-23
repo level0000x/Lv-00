@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_compiler.c
  * @brief 证明编译层实现
  *
@@ -13,8 +13,8 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#include "lv00.h"
-#include "lv00/lv00_internal.h"
+#include "lv.h"
+#include "lv/lv_internal.h"
 #include "circuit_breaker.h"
 
 /* ============== 内部辅助函数 ============== */
@@ -22,7 +22,7 @@
 /**
  * @brief 确保缓冲区容量
  */
-static bool ensure_buffer_capacity(Lv00ProofCompiler *compiler, size_t needed) {
+static bool ensure_buffer_capacity(lvProofCompiler *compiler, size_t needed) {
     if (!compiler) return false;
     
     /* 溢出检查：buffer_used + needed 不能超过 SIZE_MAX */
@@ -49,7 +49,7 @@ static bool ensure_buffer_capacity(Lv00ProofCompiler *compiler, size_t needed) {
         return false;
     }
     
-    char *new_buffer = (char *)lv00_realloc(compiler->output_buffer, new_size);
+    char *new_buffer = (char *)lv_realloc(compiler->output_buffer, new_size);
     if (!new_buffer) return false;
     
     compiler->output_buffer = new_buffer;
@@ -60,7 +60,7 @@ static bool ensure_buffer_capacity(Lv00ProofCompiler *compiler, size_t needed) {
 /**
  * @brief 添加到缓冲区
  */
-static void append_to_buffer(Lv00ProofCompiler *compiler, const char *str) {
+static void append_to_buffer(lvProofCompiler *compiler, const char *str) {
     if (!compiler || !str) return;
     size_t len = strlen(str);
     if (ensure_buffer_capacity(compiler, len + 1)) {
@@ -72,7 +72,7 @@ static void append_to_buffer(Lv00ProofCompiler *compiler, const char *str) {
 /**
  * @brief 添加格式化字符串到缓冲区
  */
-static void append_format(Lv00ProofCompiler *compiler, const char *fmt, ...) {
+static void append_format(lvProofCompiler *compiler, const char *fmt, ...) {
     if (!compiler || !fmt) return;
     
     va_list args;
@@ -90,32 +90,32 @@ static void append_format(Lv00ProofCompiler *compiler, const char *fmt, ...) {
 /**
  * @brief 创建证明对象
  */
-Lv00ProofObject *lv00_proof_object_create(void) {
-    Lv00ProofObject *obj = (Lv00ProofObject *)lv00_malloc(sizeof(Lv00ProofObject));
+lvProofObject *lv_proof_object_create(void) {
+    lvProofObject *obj = (lvProofObject *)lv_malloc(sizeof(lvProofObject));
     if (!obj) return NULL;
     
-    memset(obj, 0, sizeof(Lv00ProofObject));
+    memset(obj, 0, sizeof(lvProofObject));
     
     obj->step_capacity = 64;
-    obj->steps = (Lv00ProofStepRecord **)lv00_malloc(
-        obj->step_capacity * sizeof(Lv00ProofStepRecord *));
+    obj->steps = (lvProofStepRecord **)lv_malloc(
+        obj->step_capacity * sizeof(lvProofStepRecord *));
     if (!obj->steps) {
-        lv00_free((void **)&obj);
+        lv_free((void **)&obj);
         return NULL;
     }
     
-    obj->axiom_ids = (int *)lv00_malloc(32 * sizeof(int));
+    obj->axiom_ids = (int *)lv_malloc(32 * sizeof(int));
     if (!obj->axiom_ids) {
-        lv00_free((void **)&obj->steps);
-        lv00_free((void **)&obj);
+        lv_free((void **)&obj->steps);
+        lv_free((void **)&obj);
         return NULL;
     }
     obj->axiom_capacity = 32;
-    obj->assumption_ids = (int *)lv00_malloc(32 * sizeof(int));
+    obj->assumption_ids = (int *)lv_malloc(32 * sizeof(int));
     if (!obj->assumption_ids) {
-        lv00_free((void **)&obj->axiom_ids);
-        lv00_free((void **)&obj->steps);
-        lv00_free((void **)&obj);
+        lv_free((void **)&obj->axiom_ids);
+        lv_free((void **)&obj->steps);
+        lv_free((void **)&obj);
         return NULL;
     }
     obj->assumption_capacity = 32;
@@ -126,35 +126,35 @@ Lv00ProofObject *lv00_proof_object_create(void) {
 /**
  * @brief 销毁证明对象
  */
-void lv00_proof_object_destroy(Lv00ProofObject *obj) {
+void lv_proof_object_destroy(lvProofObject *obj) {
     if (!obj) return;
     
     /* 释放所有步骤 */
     for (int i = 0; i < obj->step_count; i++) {
         if (obj->steps[i]) {
-            lv00_proof_step_record_destroy(obj->steps[i]);
+            lv_proof_step_record_destroy(obj->steps[i]);
         }
     }
-    if (obj->steps) lv00_free((void **)&obj->steps);
-    if (obj->axiom_ids) lv00_free((void **)&obj->axiom_ids);
-    if (obj->assumption_ids) lv00_free((void **)&obj->assumption_ids);
-    if (obj->theorem_name) lv00_free((void **)&obj->theorem_name);
+    if (obj->steps) lv_free((void **)&obj->steps);
+    if (obj->axiom_ids) lv_free((void **)&obj->axiom_ids);
+    if (obj->assumption_ids) lv_free((void **)&obj->assumption_ids);
+    if (obj->theorem_name) lv_free((void **)&obj->theorem_name);
     if (obj->goal) proposition_unref(obj->goal);
     
-    lv00_free((void **)&obj);
+    lv_free((void **)&obj);
 }
 
 /**
  * @brief 添加证明步骤
  */
-int lv00_proof_object_add_step(Lv00ProofObject *obj, Lv00ProofStepRecord *step) {
+int lv_proof_object_add_step(lvProofObject *obj, lvProofStepRecord *step) {
     if (!obj || !step) return -1;
     
     /* 确保容量 */
     if (obj->step_count >= obj->step_capacity) {
         int new_capacity = obj->step_capacity * 2;
-        Lv00ProofStepRecord **new_steps = (Lv00ProofStepRecord **)lv00_realloc(
-            obj->steps, new_capacity * sizeof(Lv00ProofStepRecord *));
+        lvProofStepRecord **new_steps = (lvProofStepRecord **)lv_realloc(
+            obj->steps, new_capacity * sizeof(lvProofStepRecord *));
         if (!new_steps) return -1;
         obj->steps = new_steps;
         obj->step_capacity = new_capacity;
@@ -173,11 +173,11 @@ int lv00_proof_object_add_step(Lv00ProofObject *obj, Lv00ProofStepRecord *step) 
 /**
  * @brief 添加公理引用
  */
-bool lv00_proof_object_add_axiom(Lv00ProofObject *obj, int axiom_id) {
+bool lv_proof_object_add_axiom(lvProofObject *obj, int axiom_id) {
     if (!obj) return false;
     if (obj->axiom_count >= obj->axiom_capacity) {
         int new_capacity = obj->axiom_capacity * 2;
-        int *new_ids = (int *)lv00_realloc(obj->axiom_ids, new_capacity * sizeof(int));
+        int *new_ids = (int *)lv_realloc(obj->axiom_ids, new_capacity * sizeof(int));
         if (!new_ids) return false;
         obj->axiom_ids = new_ids;
         obj->axiom_capacity = new_capacity;
@@ -189,11 +189,11 @@ bool lv00_proof_object_add_axiom(Lv00ProofObject *obj, int axiom_id) {
 /**
  * @brief 添加假设引用
  */
-bool lv00_proof_object_add_assumption(Lv00ProofObject *obj, int assumption_id) {
+bool lv_proof_object_add_assumption(lvProofObject *obj, int assumption_id) {
     if (!obj) return false;
     if (obj->assumption_count >= obj->assumption_capacity) {
         int new_capacity = obj->assumption_capacity * 2;
-        int *new_ids = (int *)lv00_realloc(obj->assumption_ids, new_capacity * sizeof(int));
+        int *new_ids = (int *)lv_realloc(obj->assumption_ids, new_capacity * sizeof(int));
         if (!new_ids) return false;
         obj->assumption_ids = new_ids;
         obj->assumption_capacity = new_capacity;
@@ -205,21 +205,21 @@ bool lv00_proof_object_add_assumption(Lv00ProofObject *obj, int assumption_id) {
 /**
  * @brief 获取证明步骤数
  */
-int lv00_proof_object_get_step_count(const Lv00ProofObject *obj) {
+int lv_proof_object_get_step_count(const lvProofObject *obj) {
     return obj ? obj->step_count : 0;
 }
 
 /**
  * @brief 检查证明是否有效
  */
-bool lv00_proof_object_is_valid(const Lv00ProofObject *obj) {
+bool lv_proof_object_is_valid(const lvProofObject *obj) {
     if (!obj) return false;
     if (!obj->is_proved) return false;
     if (obj->step_count == 0) return false;
     if (!obj->goal) return false;
     
     /* 最后一步的结论应该是目标 */
-    Lv00ProofStepRecord *last = obj->steps[obj->step_count - 1];
+    lvProofStepRecord *last = obj->steps[obj->step_count - 1];
     if (!last || !last->conclusion) return false;
     
     /* 检查最后一步是否与目标匹配 */
@@ -229,12 +229,12 @@ bool lv00_proof_object_is_valid(const Lv00ProofObject *obj) {
 /**
  * @brief 验证证明链的每一步
  */
-bool lv00_proof_object_verify(const Lv00ProofObject *obj) {
-    if (!obj || !lv00_proof_object_is_valid(obj)) return false;
+bool lv_proof_object_verify(const lvProofObject *obj) {
+    if (!obj || !lv_proof_object_is_valid(obj)) return false;
     
     /* 验证每一步的前提都存在 */
     for (int i = 0; i < obj->step_count; i++) {
-        Lv00ProofStepRecord *step = obj->steps[i];
+        lvProofStepRecord *step = obj->steps[i];
         
         /* 检查前提步骤是否有效 */
         for (int j = 0; j < step->premise_count; j++) {
@@ -254,15 +254,15 @@ bool lv00_proof_object_verify(const Lv00ProofObject *obj) {
 /**
  * @brief 创建步骤记录
  */
-Lv00ProofStepRecord *lv00_proof_step_record_create(void) {
-    Lv00ProofStepRecord *record = (Lv00ProofStepRecord *)lv00_malloc(
-        sizeof(Lv00ProofStepRecord));
+lvProofStepRecord *lv_proof_step_record_create(void) {
+    lvProofStepRecord *record = (lvProofStepRecord *)lv_malloc(
+        sizeof(lvProofStepRecord));
     if (!record) return NULL;
     
-    memset(record, 0, sizeof(Lv00ProofStepRecord));
-    record->premise_step_ids = (int *)lv00_malloc(8 * sizeof(int));
+    memset(record, 0, sizeof(lvProofStepRecord));
+    record->premise_step_ids = (int *)lv_malloc(8 * sizeof(int));
     if (!record->premise_step_ids) {
-        lv00_free((void **) &record);
+        lv_free((void **) &record);
         return NULL;
     }
     record->premise_capacity = 8;
@@ -273,13 +273,13 @@ Lv00ProofStepRecord *lv00_proof_step_record_create(void) {
 /**
  * @brief 销毁步骤记录
  */
-void lv00_proof_step_record_destroy(Lv00ProofStepRecord *record) {
+void lv_proof_step_record_destroy(lvProofStepRecord *record) {
     if (!record) return;
-    if (record->rule_name) lv00_free((void **)&record->rule_name);
-    if (record->premise_step_ids) lv00_free((void **)&record->premise_step_ids);
+    if (record->rule_name) lv_free((void **)&record->rule_name);
+    if (record->premise_step_ids) lv_free((void **)&record->premise_step_ids);
     if (record->conclusion) proposition_unref(record->conclusion);
-    if (record->justification) lv00_free((void **)&record->justification);
-    lv00_free((void **)&record);
+    if (record->justification) lv_free((void **)&record->justification);
+    lv_free((void **)&record);
 }
 
 /* ============== Proof Trace 实现 ============== */
@@ -287,17 +287,17 @@ void lv00_proof_step_record_destroy(Lv00ProofStepRecord *record) {
 /**
  * @brief 创建证明跟踪
  */
-Lv00ProofTrace *lv00_proof_trace_create(void) {
-    Lv00ProofTrace *trace = (Lv00ProofTrace *)lv00_malloc(sizeof(Lv00ProofTrace));
+lvProofTrace *lv_proof_trace_create(void) {
+    lvProofTrace *trace = (lvProofTrace *)lv_malloc(sizeof(lvProofTrace));
     if (!trace) return NULL;
     
-    memset(trace, 0, sizeof(Lv00ProofTrace));
+    memset(trace, 0, sizeof(lvProofTrace));
     
     trace->event_capacity = 256;
-    trace->events = (Lv00TraceEvent **)lv00_malloc(
-        trace->event_capacity * sizeof(Lv00TraceEvent *));
+    trace->events = (lvTraceEvent **)lv_malloc(
+        trace->event_capacity * sizeof(lvTraceEvent *));
     if (!trace->events) {
-        lv00_free((void **)&trace);
+        lv_free((void **)&trace);
         return NULL;
     }
     
@@ -307,29 +307,29 @@ Lv00ProofTrace *lv00_proof_trace_create(void) {
 /**
  * @brief 销毁证明跟踪
  */
-void lv00_proof_trace_destroy(Lv00ProofTrace *trace) {
+void lv_proof_trace_destroy(lvProofTrace *trace) {
     if (!trace) return;
     
     for (int i = 0; i < trace->event_count; i++) {
         if (trace->events[i]) {
-            lv00_trace_event_destroy(trace->events[i]);
+            lv_trace_event_destroy(trace->events[i]);
         }
     }
     
-    if (trace->events) lv00_free((void **)&trace->events);
-    lv00_free((void **)&trace);
+    if (trace->events) lv_free((void **)&trace->events);
+    lv_free((void **)&trace);
 }
 
 /**
  * @brief 添加跟踪事件
  */
-int lv00_proof_trace_add_event(Lv00ProofTrace *trace, Lv00TraceEvent *event) {
+int lv_proof_trace_add_event(lvProofTrace *trace, lvTraceEvent *event) {
     if (!trace || !event) return -1;
     
     if (trace->event_count >= trace->event_capacity) {
         int new_capacity = trace->event_capacity * 2;
-        Lv00TraceEvent **new_events = (Lv00TraceEvent **)lv00_realloc(
-            trace->events, new_capacity * sizeof(Lv00TraceEvent *));
+        lvTraceEvent **new_events = (lvTraceEvent **)lv_realloc(
+            trace->events, new_capacity * sizeof(lvTraceEvent *));
         if (!new_events) return -1;
         trace->events = new_events;
         trace->event_capacity = new_capacity;
@@ -344,30 +344,30 @@ int lv00_proof_trace_add_event(Lv00ProofTrace *trace, Lv00TraceEvent *event) {
 /**
  * @brief 开始证明跟踪
  */
-void lv00_proof_trace_start(Lv00ProofTrace *trace, int proof_id) {
+void lv_proof_trace_start(lvProofTrace *trace, int proof_id) {
     if (!trace) return;
     
     trace->proof_id = proof_id;
     
-    Lv00TraceEvent *event = lv00_trace_event_create(TRACE_EVENT_START);
+    lvTraceEvent *event = lv_trace_event_create(TRACE_EVENT_START);
     if (event) {
-        event->description = lv00_strdup("证明开始");
-        lv00_proof_trace_add_event(trace, event);
+        event->description = lv_strdup("证明开始");
+        lv_proof_trace_add_event(trace, event);
     }
 }
 
 /**
  * @brief 记录步骤执行
  */
-void lv00_proof_trace_step(Lv00ProofTrace *trace, int step_id,
+void lv_proof_trace_step(lvProofTrace *trace, int step_id,
                             const char *description, int depth) {
     if (!trace) return;
     
-    Lv00TraceEvent *event = lv00_trace_event_create(TRACE_EVENT_STEP);
+    lvTraceEvent *event = lv_trace_event_create(TRACE_EVENT_STEP);
     if (!event) return;
     
     event->step_id = step_id;
-    event->description = lv00_strdup(description ? description : "步骤执行");
+    event->description = lv_strdup(description ? description : "步骤执行");
     event->depth = depth;
     
     trace->total_steps++;
@@ -375,16 +375,16 @@ void lv00_proof_trace_step(Lv00ProofTrace *trace, int step_id,
         trace->max_depth = depth;
     }
     
-    lv00_proof_trace_add_event(trace, event);
+    lv_proof_trace_add_event(trace, event);
 }
 
 /**
  * @brief 记录回溯
  */
-void lv00_proof_trace_backtrack(Lv00ProofTrace *trace, int from_step, int to_step) {
+void lv_proof_trace_backtrack(lvProofTrace *trace, int from_step, int to_step) {
     if (!trace) return;
     
-    Lv00TraceEvent *event = lv00_trace_event_create(TRACE_EVENT_BACKTRACK);
+    lvTraceEvent *event = lv_trace_event_create(TRACE_EVENT_BACKTRACK);
     if (!event) return;
     
     event->data.backtrack.from_step = from_step;
@@ -392,79 +392,79 @@ void lv00_proof_trace_backtrack(Lv00ProofTrace *trace, int from_step, int to_ste
     
     char desc[128];
     snprintf(desc, sizeof(desc), "从步骤 %d 回溯到 %d", from_step, to_step);
-    event->description = lv00_strdup(desc);
+    event->description = lv_strdup(desc);
     
     trace->total_backtracks++;
     
-    lv00_proof_trace_add_event(trace, event);
+    lv_proof_trace_add_event(trace, event);
 }
 
 /**
  * @brief 记录分支
  */
-void lv00_proof_trace_branch(Lv00ProofTrace *trace, const char *branch_name,
+void lv_proof_trace_branch(lvProofTrace *trace, const char *branch_name,
                               int branch_id, int depth) {
     if (!trace) return;
     
-    Lv00TraceEvent *event = lv00_trace_event_create(TRACE_EVENT_BRANCH);
+    lvTraceEvent *event = lv_trace_event_create(TRACE_EVENT_BRANCH);
     if (!event) return;
     
-    event->data.branch.branch_name = lv00_strdup(branch_name ? branch_name : "分支");
+    event->data.branch.branch_name = lv_strdup(branch_name ? branch_name : "分支");
     event->data.branch.branch_id = branch_id;
     event->depth = depth;
-    event->description = lv00_strdup("证明分支");
+    event->description = lv_strdup("证明分支");
     
-    lv00_proof_trace_add_event(trace, event);
+    lv_proof_trace_add_event(trace, event);
 }
 
 /**
  * @brief 记录引理引用
  */
-void lv00_proof_trace_lemma(Lv00ProofTrace *trace, int lemma_id,
+void lv_proof_trace_lemma(lvProofTrace *trace, int lemma_id,
                             const char *lemma_name) {
     if (!trace) return;
     
-    Lv00TraceEvent *event = lv00_trace_event_create(TRACE_EVENT_LEMMA);
+    lvTraceEvent *event = lv_trace_event_create(TRACE_EVENT_LEMMA);
     if (!event) return;
     
     event->data.lemma.lemma_id = lemma_id;
-    event->data.lemma.lemma_name = lv00_strdup(lemma_name ? lemma_name : "引理");
-    event->description = lv00_strdup("引理引用");
+    event->data.lemma.lemma_name = lv_strdup(lemma_name ? lemma_name : "引理");
+    event->description = lv_strdup("引理引用");
     
-    lv00_proof_trace_add_event(trace, event);
+    lv_proof_trace_add_event(trace, event);
 }
 
 /**
  * @brief 记录矛盾发现
  */
-void lv00_proof_trace_contradiction(Lv00ProofTrace *trace,
-                                     Lv00ProofScopeId scope_id,
+void lv_proof_trace_contradiction(lvProofTrace *trace,
+                                     lvProofScopeId scope_id,
                                      int assumption_count) {
     if (!trace) return;
     
-    Lv00TraceEvent *event = lv00_trace_event_create(TRACE_EVENT_CONTRADICTION);
+    lvTraceEvent *event = lv_trace_event_create(TRACE_EVENT_CONTRADICTION);
     if (!event) return;
     
     event->data.contradiction.scope_id = scope_id;
     event->data.contradiction.assumption_count = assumption_count;
-    event->description = lv00_strdup("发现矛盾");
+    event->description = lv_strdup("发现矛盾");
     
-    lv00_proof_trace_add_event(trace, event);
+    lv_proof_trace_add_event(trace, event);
 }
 
 /**
  * @brief 完成跟踪
  */
-void lv00_proof_trace_complete(Lv00ProofTrace *trace, bool success) {
+void lv_proof_trace_complete(lvProofTrace *trace, bool success) {
     if (!trace) return;
     
-    Lv00TraceEvent *event = lv00_trace_event_create(
+    lvTraceEvent *event = lv_trace_event_create(
         success ? TRACE_EVENT_COMPLETE : TRACE_EVENT_FAIL);
     if (!event) return;
     
-    event->description = lv00_strdup(success ? "证明完成" : "证明失败");
+    event->description = lv_strdup(success ? "证明完成" : "证明失败");
     
-    lv00_proof_trace_add_event(trace, event);
+    lv_proof_trace_add_event(trace, event);
 }
 
 /* ============== Trace Event 实现 ============== */
@@ -472,13 +472,13 @@ void lv00_proof_trace_complete(Lv00ProofTrace *trace, bool success) {
 /**
  * @brief 创建跟踪事件
  */
-Lv00TraceEvent *lv00_trace_event_create(Lv00TraceEventType type) {
-    Lv00TraceEvent *event = (Lv00TraceEvent *)lv00_malloc(sizeof(Lv00TraceEvent));
+lvTraceEvent *lv_trace_event_create(lvTraceEventType type) {
+    lvTraceEvent *event = (lvTraceEvent *)lv_malloc(sizeof(lvTraceEvent));
     if (!event) return NULL;
     
-    memset(event, 0, sizeof(Lv00TraceEvent));
+    memset(event, 0, sizeof(lvTraceEvent));
     event->type = type;
-    event->timestamp = lv00_circuit_breaker_now_us();
+    event->timestamp = lv_circuit_breaker_now_us();
     
     return event;
 }
@@ -486,28 +486,28 @@ Lv00TraceEvent *lv00_trace_event_create(Lv00TraceEventType type) {
 /**
  * @brief 销毁跟踪事件
  */
-void lv00_trace_event_destroy(Lv00TraceEvent *event) {
+void lv_trace_event_destroy(lvTraceEvent *event) {
     if (!event) return;
     
-    if (event->description) lv00_free((void **)&event->description);
-    if (event->details) lv00_free((void **)&event->details);
+    if (event->description) lv_free((void **)&event->description);
+    if (event->details) lv_free((void **)&event->details);
     
     switch (event->type) {
         case TRACE_EVENT_BRANCH:
             if (event->data.branch.branch_name) {
-                lv00_free((void **)&event->data.branch.branch_name);
+                lv_free((void **)&event->data.branch.branch_name);
             }
             break;
         case TRACE_EVENT_LEMMA:
             if (event->data.lemma.lemma_name) {
-                lv00_free((void **)&event->data.lemma.lemma_name);
+                lv_free((void **)&event->data.lemma.lemma_name);
             }
             break;
         default:
             break;
     }
     
-    lv00_free((void **)&event);
+    lv_free((void **)&event);
 }
 
 /* ============== Proof Compiler 实现 ============== */
@@ -515,20 +515,20 @@ void lv00_trace_event_destroy(Lv00TraceEvent *event) {
 /**
  * @brief 创建证明编译器
  */
-Lv00ProofCompiler *lv00_proof_compiler_create(const Lv00CompilerConfig *config) {
-    Lv00ProofCompiler *compiler = (Lv00ProofCompiler *)lv00_malloc(
-        sizeof(Lv00ProofCompiler));
+lvProofCompiler *lv_proof_compiler_create(const lvCompilerConfig *config) {
+    lvProofCompiler *compiler = (lvProofCompiler *)lv_malloc(
+        sizeof(lvProofCompiler));
     if (!compiler) return NULL;
     
     if (config) {
         compiler->config = *config;
     } else {
-        compiler->config = lv00_compiler_config_default();
+        compiler->config = lv_compiler_config_default();
     }
     
-    compiler->output_buffer = (char *)lv00_malloc(4096);
+    compiler->output_buffer = (char *)lv_malloc(4096);
     if (!compiler->output_buffer) {
-        lv00_free((void **)&compiler);
+        lv_free((void **)&compiler);
         return NULL;
     }
     compiler->buffer_size = 4096;
@@ -541,17 +541,17 @@ Lv00ProofCompiler *lv00_proof_compiler_create(const Lv00CompilerConfig *config) 
 /**
  * @brief 销毁证明编译器
  */
-void lv00_proof_compiler_destroy(Lv00ProofCompiler *compiler) {
+void lv_proof_compiler_destroy(lvProofCompiler *compiler) {
     if (!compiler) return;
-    if (compiler->output_buffer) lv00_free((void **)&compiler->output_buffer);
-    lv00_free((void **)&compiler);
+    if (compiler->output_buffer) lv_free((void **)&compiler->output_buffer);
+    lv_free((void **)&compiler);
 }
 
 /**
  * @brief 设置编译配置
  */
-void lv00_proof_compiler_set_config(Lv00ProofCompiler *compiler,
-                                     const Lv00CompilerConfig *config) {
+void lv_proof_compiler_set_config(lvProofCompiler *compiler,
+                                     const lvCompilerConfig *config) {
     if (!compiler || !config) return;
     compiler->config = *config;
 }
@@ -559,7 +559,7 @@ void lv00_proof_compiler_set_config(Lv00ProofCompiler *compiler,
 /**
  * @brief 获取事件类型名称
  */
-static const char *get_event_type_name(Lv00TraceEventType type) {
+static const char *get_event_type_name(lvTraceEventType type) {
     switch (type) {
         case TRACE_EVENT_START: return "开始";
         case TRACE_EVENT_STEP: return "步骤";
@@ -577,23 +577,23 @@ static const char *get_event_type_name(Lv00TraceEventType type) {
 /**
  * @brief 编译为JSON格式
  */
-char *lv00_proof_compiler_to_json(const Lv00ProofObject *proof,
-                                   const Lv00ProofTrace *trace) {
-    LV00_UNUSED(trace);
+char *lv_proof_compiler_to_json(const lvProofObject *proof,
+                                   const lvProofTrace *trace) {
+    lv_UNUSED(trace);
     if (!proof) return NULL;
 
     /* 动态缓冲区：初始 4096，溢出时翻倍 */
     size_t buffer_size = 4096;
     size_t offset = 0;
-    char *buffer = (char *)lv00_malloc(buffer_size);
+    char *buffer = (char *)lv_malloc(buffer_size);
     if (!buffer) return NULL;
 
     /* 辅助宏：确保容量并写入 */
     #define JSON_ENSURE(needed) do { \
         while (offset + (needed) >= buffer_size) { \
             buffer_size *= 2; \
-            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
-            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            char *_nb = (char *)lv_realloc(buffer, buffer_size); \
+            if (!_nb) { lv_free((void **)&buffer); return NULL; } \
             buffer = _nb; \
         } \
     } while(0)
@@ -618,7 +618,7 @@ char *lv00_proof_compiler_to_json(const Lv00ProofObject *proof,
     /* 步骤数组 */
     JSON_WRITE("  \"steps\": [\n");
     for (int i = 0; i < proof->step_count; i++) {
-        Lv00ProofStepRecord *step = proof->steps[i];
+        lvProofStepRecord *step = proof->steps[i];
         JSON_ENSURE(256);
         JSON_WRITE("    {\"id\": %d, \"type\": %d, \"depth\": %d}",
             step->step_id, step->type, step->depth);
@@ -640,12 +640,12 @@ char *lv00_proof_compiler_to_json(const Lv00ProofObject *proof,
 /**
  * @brief 编译为LaTeX格式
  */
-char *lv00_proof_compiler_to_latex(const Lv00ProofObject *proof,
+char *lv_proof_compiler_to_latex(const lvProofObject *proof,
                                     const char *language) {
     if (!proof) return NULL;
     
     size_t buffer_size = 16384;
-    char *buffer = (char *)lv00_malloc(buffer_size);
+    char *buffer = (char *)lv_malloc(buffer_size);
     if (!buffer) return NULL;
     
     size_t offset = 0;
@@ -654,8 +654,8 @@ char *lv00_proof_compiler_to_latex(const Lv00ProofObject *proof,
     #define LATEX_ENSURE(needed) do { \
         while (offset + (needed) >= buffer_size) { \
             buffer_size *= 2; \
-            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
-            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            char *_nb = (char *)lv_realloc(buffer, buffer_size); \
+            if (!_nb) { lv_free((void **)&buffer); return NULL; } \
             buffer = _nb; \
         } \
     } while(0)
@@ -674,7 +674,7 @@ char *lv00_proof_compiler_to_latex(const Lv00ProofObject *proof,
     
     /* 生成步骤 */
     for (int i = 0; i < proof->step_count; i++) {
-        Lv00ProofStepRecord *step = proof->steps[i];
+        lvProofStepRecord *step = proof->steps[i];
         
         /* 缩进 */
         for (int d = 0; d < step->depth; d++) {
@@ -703,11 +703,11 @@ char *lv00_proof_compiler_to_latex(const Lv00ProofObject *proof,
 /**
  * @brief 编译为TikZ格式
  */
-char *lv00_proof_compiler_to_tikz(const Lv00ProofObject *proof) {
+char *lv_proof_compiler_to_tikz(const lvProofObject *proof) {
     if (!proof) return NULL;
     
     size_t buffer_size = 16384;
-    char *buffer = (char *)lv00_malloc(buffer_size);
+    char *buffer = (char *)lv_malloc(buffer_size);
     if (!buffer) return NULL;
     
     size_t offset = 0;
@@ -716,8 +716,8 @@ char *lv00_proof_compiler_to_tikz(const Lv00ProofObject *proof) {
     #define TIKZ_ENSURE(needed) do { \
         while (offset + (needed) >= buffer_size) { \
             buffer_size *= 2; \
-            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
-            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            char *_nb = (char *)lv_realloc(buffer, buffer_size); \
+            if (!_nb) { lv_free((void **)&buffer); return NULL; } \
             buffer = _nb; \
         } \
     } while(0)
@@ -733,14 +733,14 @@ char *lv00_proof_compiler_to_tikz(const Lv00ProofObject *proof) {
     
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
-        Lv00ProofStepRecord *step = proof->steps[i];
+        lvProofStepRecord *step = proof->steps[i];
         TIKZ_WRITE("\\node[step] (S%d) at (%d, %d) {$S_%d$};\n",
             step->step_id, step->step_id % 3, -step->depth, step->step_id);
     }
     
     /* 生成边 */
     for (int i = 0; i < proof->step_count; i++) {
-        Lv00ProofStepRecord *step = proof->steps[i];
+        lvProofStepRecord *step = proof->steps[i];
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
             TIKZ_WRITE("\\draw[arrow] (S%d) -- (S%d);\n",
@@ -759,12 +759,12 @@ char *lv00_proof_compiler_to_tikz(const Lv00ProofObject *proof) {
 /**
  * @brief 编译为纯文本格式
  */
-char *lv00_proof_compiler_to_text(const Lv00ProofObject *proof,
+char *lv_proof_compiler_to_text(const lvProofObject *proof,
                                    const char *language) {
     if (!proof) return NULL;
     
     size_t buffer_size = 16384;
-    char *buffer = (char *)lv00_malloc(buffer_size);
+    char *buffer = (char *)lv_malloc(buffer_size);
     if (!buffer) return NULL;
     
     size_t offset = 0;
@@ -773,8 +773,8 @@ char *lv00_proof_compiler_to_text(const Lv00ProofObject *proof,
     #define TEXT_ENSURE(needed) do { \
         while (offset + (needed) >= buffer_size) { \
             buffer_size *= 2; \
-            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
-            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            char *_nb = (char *)lv_realloc(buffer, buffer_size); \
+            if (!_nb) { lv_free((void **)&buffer); return NULL; } \
             buffer = _nb; \
         } \
     } while(0)
@@ -795,7 +795,7 @@ char *lv00_proof_compiler_to_text(const Lv00ProofObject *proof,
     
     /* 生成步骤 */
     for (int i = 0; i < proof->step_count; i++) {
-        Lv00ProofStepRecord *step = proof->steps[i];
+        lvProofStepRecord *step = proof->steps[i];
         
         /* 缩进 */
         for (int d = 0; d < step->depth; d++) {
@@ -843,13 +843,13 @@ char *lv00_proof_compiler_to_text(const Lv00ProofObject *proof,
 /**
  * @brief 编译为Graphviz格式
  */
-char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
-                                       const Lv00ProofTrace *trace) {
-    LV00_UNUSED(trace);
+char *lv_proof_compiler_to_graphviz(const lvProofObject *proof,
+                                       const lvProofTrace *trace) {
+    lv_UNUSED(trace);
     if (!proof) return NULL;
     
     size_t buffer_size = 16384;
-    char *buffer = (char *)lv00_malloc(buffer_size);
+    char *buffer = (char *)lv_malloc(buffer_size);
     if (!buffer) return NULL;
     
     size_t offset = 0;
@@ -858,8 +858,8 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
     #define GRAPHVIZ_ENSURE(needed) do { \
         while (offset + (needed) >= buffer_size) { \
             buffer_size *= 2; \
-            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
-            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            char *_nb = (char *)lv_realloc(buffer, buffer_size); \
+            if (!_nb) { lv_free((void **)&buffer); return NULL; } \
             buffer = _nb; \
         } \
     } while(0)
@@ -875,7 +875,7 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
     
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
-        Lv00ProofStepRecord *step = proof->steps[i];
+        lvProofStepRecord *step = proof->steps[i];
         const char *label = step->conclusion && step->conclusion->label ?
             step->conclusion->label : "?";
         const char *color = step->color == PROOF_COLOR_GREEN ? "lightgreen" :
@@ -887,7 +887,7 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
     
     /* 生成边 */
     for (int i = 0; i < proof->step_count; i++) {
-        Lv00ProofStepRecord *step = proof->steps[i];
+        lvProofStepRecord *step = proof->steps[i];
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
             const char *rule_name = step->rule_name ? step->rule_name : "";
@@ -907,9 +907,9 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
 /**
  * @brief 编译证明对象为字符串
  */
-char *lv00_proof_compiler_compile(Lv00ProofCompiler *compiler,
-                                   const Lv00ProofObject *proof,
-                                   const Lv00ProofTrace *trace) {
+char *lv_proof_compiler_compile(lvProofCompiler *compiler,
+                                   const lvProofObject *proof,
+                                   const lvProofTrace *trace) {
     if (!compiler || !proof) return NULL;
     
     /* 清空缓冲区 */
@@ -917,30 +917,30 @@ char *lv00_proof_compiler_compile(Lv00ProofCompiler *compiler,
     
     switch (compiler->config.format) {
         case OUTPUT_FORMAT_JSON:
-            return lv00_proof_compiler_to_json(proof, trace);
+            return lv_proof_compiler_to_json(proof, trace);
         case OUTPUT_FORMAT_LATEX:
-            return lv00_proof_compiler_to_latex(proof, compiler->config.language);
+            return lv_proof_compiler_to_latex(proof, compiler->config.language);
         case OUTPUT_FORMAT_TIKZ:
-            return lv00_proof_compiler_to_tikz(proof);
+            return lv_proof_compiler_to_tikz(proof);
         case OUTPUT_FORMAT_TEXT:
-            return lv00_proof_compiler_to_text(proof, compiler->config.language);
+            return lv_proof_compiler_to_text(proof, compiler->config.language);
         case OUTPUT_FORMAT_GRAPHVIZ:
-            return lv00_proof_compiler_to_graphviz(proof, trace);
+            return lv_proof_compiler_to_graphviz(proof, trace);
         default:
-            return lv00_proof_compiler_to_text(proof, compiler->config.language);
+            return lv_proof_compiler_to_text(proof, compiler->config.language);
     }
 }
 
 /**
  * @brief 创建默认编译器配置
  */
-Lv00CompilerConfig lv00_compiler_config_default(void) {
-    Lv00CompilerConfig config;
+lvCompilerConfig lv_compiler_config_default(void) {
+    lvCompilerConfig config;
     config.format = OUTPUT_FORMAT_TEXT;
     config.include_metadata = true;
     config.include_trace = true;
     config.verbose = false;
-    config.max_depth = LV00_DEFAULT_MAX_DEPTH;
+    config.max_depth = lv_DEFAULT_MAX_DEPTH;
     config.language = "zh";
     return config;
 }
@@ -948,32 +948,32 @@ Lv00CompilerConfig lv00_compiler_config_default(void) {
 /**
  * @brief 导出证明对象到文件
  */
-bool lv00_proof_export_to_file(const Lv00ProofObject *proof,
-                                const Lv00ProofTrace *trace,
-                                Lv00OutputFormat format,
+bool lv_proof_export_to_file(const lvProofObject *proof,
+                                const lvProofTrace *trace,
+                                lvOutputFormat format,
                                 const char *filename) {
     if (!proof || !filename) return false;
     
-    Lv00CompilerConfig config = lv00_compiler_config_default();
+    lvCompilerConfig config = lv_compiler_config_default();
     config.format = format;
     
-    Lv00ProofCompiler *compiler = lv00_proof_compiler_create(&config);
+    lvProofCompiler *compiler = lv_proof_compiler_create(&config);
     if (!compiler) return false;
     
-    char *content = lv00_proof_compiler_compile(compiler, proof, trace);
-    lv00_proof_compiler_destroy(compiler);
+    char *content = lv_proof_compiler_compile(compiler, proof, trace);
+    lv_proof_compiler_destroy(compiler);
     
     if (!content) return false;
     
     FILE *fp = fopen(filename, "w");
     if (!fp) {
-        lv00_free((void **)&content);
+        lv_free((void **)&content);
         return false;
     }
     
     fputs(content, fp);
     fclose(fp);
-    lv00_free((void **)&content);
+    lv_free((void **)&content);
     
     return true;
 }

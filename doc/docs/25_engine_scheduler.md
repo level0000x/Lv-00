@@ -1,4 +1,4 @@
-# 25. 引擎核心与调度系统
+﻿# 25. 引擎核心与调度系统
 
 ## 25.1 模块概述
 
@@ -27,28 +27,28 @@
 ### 25.2.2 十层架构层级标识
 
 ```c
-#define LV00_LAYER_PARSER    1  // 输入解析层
-#define LV00_LAYER_RESOURCE  2  // 资源管理层
-#define LV00_LAYER_GEOMETRY  3  // 几何拓扑层
-#define LV00_LAYER_REASONING 4  // 公理推理层
-#define LV00_LAYER_OUTPUT    5  // 结果输出层
+#define lv_LAYER_PARSER    1  // 输入解析层
+#define lv_LAYER_RESOURCE  2  // 资源管理层
+#define lv_LAYER_GEOMETRY  3  // 几何拓扑层
+#define lv_LAYER_REASONING 4  // 公理推理层
+#define lv_LAYER_OUTPUT    5  // 结果输出层
 ```
 
 **层级验证宏**（编译时）：
 ```c
 // 声明当前编译单元允许调用的最低层级
-LV00_ALLOW_LAYER(LV00_LAYER_RESOURCE);  // 允许调用 Layer 2+
+lv_ALLOW_LAYER(lv_LAYER_RESOURCE);  // 允许调用 Layer 2+
 
 // 更严格的检查：要求必须高于目标层
-LV00_REQUIRE_STRICTLY_ABOVE(LV00_LAYER_GEOMETRY);
+lv_REQUIRE_STRICTLY_ABOVE(lv_LAYER_GEOMETRY);
 ```
 
 **运行时层级验证标志**：
 | 标志 | 值 | 说明 |
 |------|-----|------|
-| `LV00_LAYER_VALIDATION_FLAG_NONE` | 0x00 | 不执行层级验证 |
-| `LV00_LAYER_VALIDATION_FLAG_RUNTIME` | 0x01 | 运行时调用栈检查 |
-| `LV00_LAYER_VALIDATION_FLAG_STRICT` | 0x02 | 严格模式：违规即中止 |
+| `lv_LAYER_VALIDATION_FLAG_NONE` | 0x00 | 不执行层级验证 |
+| `lv_LAYER_VALIDATION_FLAG_RUNTIME` | 0x01 | 运行时调用栈检查 |
+| `lv_LAYER_VALIDATION_FLAG_STRICT` | 0x02 | 严格模式：违规即中止 |
 
 ### 25.2.3 五状态引擎状态机
 
@@ -101,10 +101,10 @@ typedef enum {
 } EngineState;
 ```
 
-### 25.2.4 LV00Context 结构体
+### 25.2.4 lvContext 结构体
 
 ```c
-typedef struct LV00Context {
+typedef struct lvContext {
     // 核心数据容器
     ConstraintGraph *main_graph;    // 主约束图
     Module **loaded_modules;        // 已加载模块数组
@@ -122,41 +122,41 @@ typedef struct LV00Context {
     
     // 错误报告
     EngineStatus last_status;
-    char last_error[LV00_CONFIG_ENGINE_ERROR_BUFFER_SIZE];
+    char last_error[lv_CONFIG_ENGINE_ERROR_BUFFER_SIZE];
     
     // 流式输出
     StreamContext *stream_ctx;
     
     // 上下文与架构
-    struct Lv00Context *context;
+    struct lvContext *context;
     int layer_validation_flags;
     
     // 状态机
     EngineState state;
     EngineState previous_state;
     int state_transition_count;
-} LV00Context;
+} lvContext;
 ```
 
 ### 25.2.5 引擎生命周期 API
 
 ```c
 // 创建与销毁
-LV00Context *lv00_context_create();
-void lv00_context_destroy(LV00Context *ctx);
+lvContext *lv_context_create();
+void lv_context_destroy(lvContext *ctx);
 
 // 资源加载
-bool engine_add_rewrite_rule(LV00Context *ctx, const RewriteRule *rule);
-ModuleLoadStatus engine_load_module(LV00Context *ctx, const char *filepath);
-AxiomLoadStatus engine_load_axiom_package(LV00Context *ctx, const char *filepath);
+bool engine_add_rewrite_rule(lvContext *ctx, const RewriteRule *rule);
+ModuleLoadStatus engine_load_module(lvContext *ctx, const char *filepath);
+AxiomLoadStatus engine_load_axiom_package(lvContext *ctx, const char *filepath);
 
 // 函数块操作
-bool engine_pack_function(LV00Context *ctx, 
+bool engine_pack_function(lvContext *ctx, 
     const int *internal_node_ids, int internal_count,
     const int *input_port_ids, int input_count,
     const int *output_port_ids, int output_count,
     int *out_func_block_id);
-int *engine_instantiate_function(LV00Context *ctx, int func_block_id,
+int *engine_instantiate_function(lvContext *ctx, int func_block_id,
     const int *arg_mappings, int arg_count, int *out_result_count);
 ```
 
@@ -164,10 +164,10 @@ int *engine_instantiate_function(LV00Context *ctx, int func_block_id,
 
 ```c
 // 完整求解流水线：重写 → 求解器 → 冲突检查 → 自由度更新
-EngineSolveResult engine_solve(LV00Context *ctx);
+EngineSolveResult engine_solve(lvContext *ctx);
 
 // 重写-求解协作：先重写 → 遇停顿则求解 → 冲突暴露
-int engine_rewrite_and_solve(LV00Context *ctx, 
+int engine_rewrite_and_solve(lvContext *ctx, 
     int max_rewrite_steps, int max_solve_steps);
 ```
 
@@ -188,16 +188,16 @@ typedef enum {
     ENGINE_CIRCUIT_ACTION_DOWNGRADE // 永久降级为 AMBER
 } EngineCircuitAction;
 
-EngineCircuitResult engine_handle_circuit_trip(LV00Context *ctx);
+EngineCircuitResult engine_handle_circuit_trip(lvContext *ctx);
 EngineCircuitResult engine_handle_circuit_trip_with_action(
-    LV00Context *ctx, EngineCircuitAction action);
+    lvContext *ctx, EngineCircuitAction action);
 ```
 
 ### 25.2.8 冻结点快照机制
 
 ```c
-void *engine_create_frozen_point(LV00Context *ctx);
-bool engine_restore_frozen_point(LV00Context *ctx, void *frozen_point);
+void *engine_create_frozen_point(lvContext *ctx);
+bool engine_restore_frozen_point(lvContext *ctx, void *frozen_point);
 void engine_destroy_frozen_point(void *frozen_point);
 ```
 
@@ -206,9 +206,9 @@ void engine_destroy_frozen_point(void *frozen_point);
 ### 25.2.9 状态机 API
 
 ```c
-EngineStatus lv00_engine_transition_state(LV00Context *ctx, EngineState new_state);
-EngineState engine_get_state(const LV00Context *ctx);
-bool engine_is_busy(const LV00Context *ctx);
+EngineStatus lv_engine_transition_state(lvContext *ctx, EngineState new_state);
+EngineState engine_get_state(const lvContext *ctx);
+bool engine_is_busy(const lvContext *ctx);
 const char *engine_state_name(EngineState state);
 bool engine_is_valid_transition(EngineState from, EngineState to);
 ```
@@ -216,10 +216,10 @@ bool engine_is_valid_transition(EngineState from, EngineState to);
 ### 25.2.10 流式输出集成
 
 ```c
-StreamContext *engine_get_stream_context(const LV00Context *ctx);
-void engine_set_streaming_enabled(LV00Context *ctx, bool enabled);
-bool engine_is_streaming_enabled(const LV00Context *ctx);
-void engine_emit_stream_event(LV00Context *ctx, StreamEventType type,
+StreamContext *engine_get_stream_context(const lvContext *ctx);
+void engine_set_streaming_enabled(lvContext *ctx, bool enabled);
+bool engine_is_streaming_enabled(const lvContext *ctx);
+void engine_emit_stream_event(lvContext *ctx, StreamEventType type,
     const char *description, int step_number, int node_id, int constraint_id);
 ```
 
@@ -399,7 +399,7 @@ int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_s
 
 | 代码概念 | 理论对应 | 文档位置 |
 |----------|----------|----------|
-| `LV00Context` | 中央调度器/协调器 | 本文档 25.2.4 |
+| `lvContext` | 中央调度器/协调器 | 本文档 25.2.4 |
 | `EngineState` | 有限状态机 | 本文档 25.2.3 |
 | `frozen_point` | 检查点/快照 | 本文档 25.2.8 |
 | `GraphFeatures` | 问题特征向量 | 本文档 25.3.2 |

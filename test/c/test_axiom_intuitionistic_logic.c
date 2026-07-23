@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_intuitionistic_logic.c
  * @brief Intuitionistic Propositional Logic (Heyting's Calculus) Axiom Package Test
  *
@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_fail_count = 0;
@@ -222,8 +222,8 @@ static void test_content_hash(void) {
     TEST_ASSERT(strcmp(hash, hash2) == 0, "content hash should be deterministic");
     printf("  Hash is deterministic: YES\n");
 
-    lv00_free_ptr(hash);
-    lv00_free_ptr(hash2);
+    lv_free_ptr(hash);
+    lv_free_ptr(hash2);
     axiom_package_destroy(pkg);
 }
 

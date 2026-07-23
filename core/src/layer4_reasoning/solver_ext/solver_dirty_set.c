@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_dirty_set.c
  * @brief 脏变量追踪实现 — 从 solver.c 拆分
  *
@@ -6,12 +6,12 @@
  */
 
 #include "../solver_dirty_set.h"
-#include "lv00/lv00.h"
+#include "lv/lv.h"
 #include <limits.h>
 
 /* 数组增长因子（与 solver.c 原实现保持一致） */
-#ifndef LV00_ARRAY_GROWTH_FACTOR
-#define LV00_ARRAY_GROWTH_FACTOR 2
+#ifndef lv_ARRAY_GROWTH_FACTOR
+#define lv_ARRAY_GROWTH_FACTOR 2
 #endif
 
 void dirty_set_init(DirtyVariableSet *ds) {
@@ -36,11 +36,11 @@ void dirty_set_add(DirtyVariableSet *ds, int var_id) {
     if (ds->dirty_count >= ds->capacity) {
         /* 内存安全修复：检查整数溢出 */
         int new_cap = ds->capacity == 0 ? 16 : ds->capacity;
-        if (new_cap > 0 && new_cap > INT_MAX / LV00_ARRAY_GROWTH_FACTOR)
+        if (new_cap > 0 && new_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR)
             return; /* 溢出，跳过 */
-        new_cap = new_cap == 0 ? 16 : new_cap * LV00_ARRAY_GROWTH_FACTOR;
+        new_cap = new_cap == 0 ? 16 : new_cap * lv_ARRAY_GROWTH_FACTOR;
         ds->capacity = new_cap;
-        int *new_ids = lv00_realloc(ds->dirty_ids, ds->capacity * sizeof(int));
+        int *new_ids = lv_realloc(ds->dirty_ids, ds->capacity * sizeof(int));
         if (!new_ids)
             return; /* allocation failed, skip */
         ds->dirty_ids = new_ids;
@@ -54,7 +54,7 @@ void dirty_set_clear(DirtyVariableSet *ds) {
 }
 
 void dirty_set_free(DirtyVariableSet *ds) {
-    lv00_free((void **) &ds->dirty_ids);
+    lv_free((void **) &ds->dirty_ids);
     ds->dirty_ids = NULL;
     ds->dirty_count = 0;
     ds->capacity = 0;

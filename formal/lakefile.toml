@@ -1,12 +1,12 @@
-name = "Lv00Formal"
+﻿name = "lvFormal"
 version = "1.1.0"
 
 [[lean_lib]]
-name = "Lv00Formal"
+name = "lvFormal"
 root = "."
 
 [[lean_lib]]
-name = "Lv00"
+name = "lv"
 root = "."
 
 [[lean_lib]]

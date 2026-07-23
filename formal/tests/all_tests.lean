@@ -1,48 +1,48 @@
-/-
+﻿/-
   Lv-00 Formal Verification: Test Suite
   测试入口
 -/
-import Lv00.Basic
-import Lv00.Incidence
-import Lv00.Betweenness
-import Lv00.Congruence
-import Lv00.Parallel
-import Lv00.Continuity
-import Lv00.Order
-import Lv00.HilbertAxioms
-import Lv00.EuclideanPlane
-import Lv00.Lv00Meta
+import lv.Basic
+import lv.Incidence
+import lv.Betweenness
+import lv.Congruence
+import lv.Parallel
+import lv.Continuity
+import lv.Order
+import lv.HilbertAxioms
+import lv.EuclideanPlane
+import lv.lvMeta
 
 -- Round 5-6: Theory modules (rebuilt)
-import Lv00Formal.Theory.ProofEngineSoundness
-import Lv00Formal.Theory.SolverCorrectness
-import Lv00Formal.Theory.RewriteProperties
-import Lv00Formal.Theory.KernelInvariants
-import Lv00Formal.Theory.ConstraintSoundness
-import Lv00Formal.Theory.RemovedModule
-import Lv00Formal.Theory.GroebnerTheory
-import Lv00Formal.Theory.MathPresetSoundness
-import Lv00Formal.Theory.DSLWrappersSoundness
-import Lv00Formal.Theory.InteractiveGeoSoundness
-import Lv00Formal.Theory.GeomPresetSoundness
-import Lv00Formal.Theory.NormalizationProperties
-import Lv00Formal.Theory.StreamInvariants
-import Lv00Formal.Theory.EngineInvariants
-import Lv00Formal.Theory.NDimGeometry
-import Lv00Formal.Theory.DifferentialGeometry
-import Lv00Formal.Theory.GeometryPresets
-import Lv00Formal.Theory.GeometricAlgebra
-import Lv00Formal.Theory.Numeric
-import Lv00Formal.Theory.ODESolver
-import Lv00Formal.Theory.PresetGeometry
+import lvFormal.Theory.ProofEngineSoundness
+import lvFormal.Theory.SolverCorrectness
+import lvFormal.Theory.RewriteProperties
+import lvFormal.Theory.KernelInvariants
+import lvFormal.Theory.ConstraintSoundness
+import lvFormal.Theory.RemovedModule
+import lvFormal.Theory.GroebnerTheory
+import lvFormal.Theory.MathPresetSoundness
+import lvFormal.Theory.DSLWrappersSoundness
+import lvFormal.Theory.InteractiveGeoSoundness
+import lvFormal.Theory.GeomPresetSoundness
+import lvFormal.Theory.NormalizationProperties
+import lvFormal.Theory.StreamInvariants
+import lvFormal.Theory.EngineInvariants
+import lvFormal.Theory.NDimGeometry
+import lvFormal.Theory.DifferentialGeometry
+import lvFormal.Theory.GeometryPresets
+import lvFormal.Theory.GeometricAlgebra
+import lvFormal.Theory.Numeric
+import lvFormal.Theory.ODESolver
+import lvFormal.Theory.PresetGeometry
 -- v1.1 R4: Codegen + CodegenCorrectness
-import Lv00Formal.Theory.Codegen
-import Lv00Formal.Theory.CodegenCorrectness
+import lvFormal.Theory.Codegen
+import lvFormal.Theory.CodegenCorrectness
 -- v1.1 R5: UndefinedBehavior + Evidence
-import Lv00Formal.Theory.UndefinedBehavior
-import Lv00Formal.Theory.Evidence
+import lvFormal.Theory.UndefinedBehavior
+import lvFormal.Theory.Evidence
 
-namespace Lv00.Tests
+namespace lv.Tests
 
 /-- 测试: 基本定义一致性 -/
 theorem basic_defs_consistent : True := trivial
@@ -163,7 +163,7 @@ theorem codegen_empty_graph_test : True := by
 
 /- CodegenCorrectness: full pipeline safety -/
 theorem codegen_pipeline_test : True := by
-  let prog : List Lv00Lang.Lv00Stmt := []
+  let prog : List lvLang.lvStmt := []
   have safe := CodegenCorrectness.full_pipeline_safety prog Cv00Memory.emptyMem Cv00Lang.emptyEnv
   have _ := safe "TEST"; trivial
 
@@ -188,7 +188,7 @@ theorem ub_free_empty_test : True := by
 
 /- UndefinedBehavior: full pipeline is UB-free -/
 theorem ub_free_pipeline_test : True := by
-  have h := UndefinedBehavior.full_pipeline_ub_free ([] : List Lv00Lang.Lv00Stmt)
+  have h := UndefinedBehavior.full_pipeline_ub_free ([] : List lvLang.lvStmt)
   have _ := h; trivial
 
 /- Evidence: empty graph + qed trace succeeds -/
@@ -233,4 +233,4 @@ theorem interop_coherence_test : True := by
   have _ := hc; have _ := hl; have _ := ho; have _ := hg; have _ := hs
   trivial
 
-end Lv00.Tests
+end lv.Tests

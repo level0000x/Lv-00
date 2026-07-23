@@ -2,12 +2,12 @@
  * @file dsl_compiler.c
  * @brief Lv-00 DSL 编译器 —— 词法分析 → 语法分析 → IR 生成 → 约束图加载
  *
- * @details 实现 .lv00 源文件的完整编译流水线。支持 GCLC 风格几何构造语句。
+ * @details 实现 .lv 源文件的完整编译流水线。支持 GCLC 风格几何构造语句。
  * @version 1.1.0
  */
 
 #include "dsl_compiler.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +27,7 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
 
     size_t src_len = strlen(source);
     int capacity = 64;
-    DslToken *tokens = lv00_malloc(sizeof(DslToken) * capacity);
+    DslToken *tokens = lv_malloc(sizeof(DslToken) * capacity);
     if (!tokens) return false;
 
     int count = 0;
@@ -55,7 +55,7 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
             /* 扩容 */
             if (count >= capacity) {
                 capacity *= 2;
-                tokens = lv00_realloc(tokens, sizeof(DslToken) * capacity);
+                tokens = lv_realloc(tokens, sizeof(DslToken) * capacity);
                 if (!tokens) return false;
             }
 
@@ -83,7 +83,7 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
         if (c == '=' || c == '(' || c == ')' || c == ',' || c == ';') {
             if (count >= capacity) {
                 capacity *= 2;
-                tokens = lv00_realloc(tokens, sizeof(DslToken) * capacity);
+                tokens = lv_realloc(tokens, sizeof(DslToken) * capacity);
                 if (!tokens) return false;
             }
             tokens[count].line = line;
@@ -106,7 +106,7 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
 
 void dsl_tokens_destroy(DslToken *tokens, int count) {
     (void)count;
-    if (tokens) lv00_free(tokens);
+    if (tokens) lv_free(tokens);
 }
 
 /* ================================================================
@@ -116,20 +116,20 @@ void dsl_tokens_destroy(DslToken *tokens, int count) {
 bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
     if (!tokens || count <= 0 || !out_ast) return false;
 
-    DslAST *root = lv00_malloc(sizeof(DslAST));
+    DslAST *root = lv_malloc(sizeof(DslAST));
     if (!root) return false;
     memset(root, 0, sizeof(*root));
     root->type = DSL_AST_PROGRAM;
     root->name = NULL;
     root->child_capacity = 4;
-    root->children = lv00_malloc(sizeof(DslAST *) * root->child_capacity);
-    if (!root->children) { lv00_free(root); return false; }
+    root->children = lv_malloc(sizeof(DslAST *) * root->child_capacity);
+    if (!root->children) { lv_free(root); return false; }
 
     /* 简单解析：每个顶层语句作为一个子节点 */
     for (int i = 0; i < count; i++) {
         if (tokens[i].type == DSL_TOK_POINT || tokens[i].type == DSL_TOK_LINE
             || tokens[i].type == DSL_TOK_CIRCLE) {
-            DslAST *stmt = lv00_malloc(sizeof(DslAST));
+            DslAST *stmt = lv_malloc(sizeof(DslAST));
             if (!stmt) continue;
             memset(stmt, 0, sizeof(*stmt));
             stmt->type = (tokens[i].type == DSL_TOK_POINT) ? DSL_AST_POINT_DECL
@@ -138,13 +138,13 @@ bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
 
             /* 尝试读取标识符名称 */
             if (i + 1 < count && tokens[i + 1].type == DSL_TOK_IDENT) {
-                stmt->name = lv00_strdup(tokens[i + 1].lexeme);
+                stmt->name = lv_strdup(tokens[i + 1].lexeme);
             }
             stmt->num_value = 0.0;
 
             if (root->child_count >= root->child_capacity) {
                 root->child_capacity *= 2;
-                root->children = lv00_realloc(root->children, sizeof(DslAST *) * root->child_capacity);
+                root->children = lv_realloc(root->children, sizeof(DslAST *) * root->child_capacity);
                 if (!root->children) continue;
             }
             root->children[root->child_count++] = stmt;
@@ -158,12 +158,12 @@ bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
 bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir) {
     if (!ast || !out_ir) return false;
 
-    DslIR *ir = lv00_malloc(sizeof(DslIR));
+    DslIR *ir = lv_malloc(sizeof(DslIR));
     if (!ir) return false;
     memset(ir, 0, sizeof(*ir));
     ir->op_capacity = (ast->child_count > 0) ? ast->child_count * 4 : 8;
-    ir->operations = lv00_malloc(sizeof(DslIROperation) * ir->op_capacity);
-    if (!ir->operations) { lv00_free(ir); return false; }
+    ir->operations = lv_malloc(sizeof(DslIROperation) * ir->op_capacity);
+    if (!ir->operations) { lv_free(ir); return false; }
 
     /* 遍历 AST 子节点生成 IR 操作 */
     for (int i = 0; i < ast->child_count; i++) {
@@ -172,7 +172,7 @@ bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_
 
         DslIROperation *op = &ir->operations[ir->op_count];
         memset(op, 0, sizeof(*op));
-        op->operands = lv00_malloc(sizeof(int) * 4);
+        op->operands = lv_malloc(sizeof(int) * 4);
         op->operand_count = 0;
         if (!op->operands) continue;
 
@@ -231,16 +231,16 @@ void dsl_compile_config_default(DslCompileConfig *out_config) {
 void dsl_ast_destroy(DslAST *ast) {
     if (!ast) return;
     for (int i = 0; i < ast->child_count; i++) dsl_ast_destroy(ast->children[i]);
-    lv00_free(ast->children);
-    lv00_free(ast->name);
-    lv00_free(ast);
+    lv_free(ast->children);
+    lv_free(ast->name);
+    lv_free(ast);
 }
 
 void dsl_ir_destroy(DslIR *ir) {
     if (!ir) return;
-    for (int i = 0; i < ir->op_count; i++) lv00_free(ir->operations[i].operands);
-    lv00_free(ir->operations);
-    lv00_free(ir);
+    for (int i = 0; i < ir->op_count; i++) lv_free(ir->operations[i].operands);
+    lv_free(ir->operations);
+    lv_free(ir);
 }
 
 void dsl_ast_dump(const DslAST *ast, void *fd, int indent) {

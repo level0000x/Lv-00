@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_proof.c
  * @brief 璇佹槑绯荤粺娴嬭瘯 - 鍛介鍒涘缓銆佸悎涓€妫€鏌ャ€佽瘉鏄庡鑸櫒銆佺垎鐐稿師鐞?
  *
@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* ============== 娴嬭瘯锛氬懡棰樼敓鍛藉懆鏈?============== */
@@ -326,7 +326,7 @@ static int test_unify_check(void) {
     printf("  璇︾粏鍚堜竴缁撴灉: %s\n", unify_result_to_string(result2));
     if (mismatch_info) {
         printf("  涓嶅尮閰嶄俊鎭? %s\n", mismatch_info);
-        lv00_free_ptr(mismatch_info);
+        lv_free_ptr(mismatch_info);
     }
 
     graph_destroy(construction);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver.c
  * @brief 符号代数求解器实现
  *
@@ -11,18 +11,18 @@
  *
  * @dependencies
  *   - solver.h              : 求解器公共接口定义
- *   - lv00_utils.h          : 统一内存分配器（lv00_malloc/lv00_free）
- *   - lv00_internal.h       : 内部数据结构和常量
+ *   - lv_utils.h          : 统一内存分配器（lv_malloc/lv_free）
+ *   - lv_internal.h       : 内部数据结构和常量
  *   - constraint_graph.h    : 约束图接口
  *   - mpz_poly.h            : GMP 多精度多项式操作
  *   - stream.h              : 流式事件输出接口
  *
  * @note 内存管理策略（设计决策）：
  *   - GMP 多精度多项式系数数组（poly.coeffs）必须使用标准 malloc/calloc
- *     而非 lv00_malloc 分配，因为 mpz_poly_clear() 内部调用标准 lv00_free() 释放
- *     系数数组。若使用 lv00_malloc 分配（带额外 AllocHeader），lv00_free() 将因为
+ *     而非 lv_malloc 分配，因为 mpz_poly_clear() 内部调用标准 lv_free() 释放
+ *     系数数组。若使用 lv_malloc 分配（带额外 AllocHeader），lv_free() 将因为
  *     指针不指向标准堆头而导致未定义行为。这是 GMP 库的硬性要求，非可选方案。
- *   - 其他所有动态内存分配统一使用 lv00_malloc/lv00_free。
+ *   - 其他所有动态内存分配统一使用 lv_malloc/lv_free。
  *
  * @note GMP 变量作用域与所有权规则（v3.3.0 补充）：
  *   - 每个 mpz_init/mpq_init 必须在相同或内层作用域内对应一个 mpz_clear/mpq_clear，
@@ -36,7 +36,7 @@
  *     一个分支 init 而在另一个分支泄漏。
  */
 
-#include "lv00/solver.h"
+#include "lv/solver.h"
 
 #include <float.h>
 #include <math.h>
@@ -45,40 +45,40 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h" /* lv00_malloc / lv00_free —— 统一内存分配器 */
+#include "lv_internal.h"
+#include "lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
 #include "mpz_poly.h"
-#include "lv00/stream.h"
+#include "lv/stream.h"
 #include "stream_context_util.h"
 
 /* SOLVER_MAX_VAR_ID 已在 solver.h 中统一定义，此处不再重复 */
 
 /**
- * LV00_SOLVER_DYNARRAY_INIT_CAP - 动态数组初始容量
+ * lv_SOLVER_DYNARRAY_INIT_CAP - 动态数组初始容量
  *
  * 用于 equation_system_push, mv_poly_add_term, dirty_set_add 等
  * 多处动态数组的初始分配容量。值取 16，兼顾小系统零次扩容与大系统
  * 较少扩容次数之间的平衡。
  */
-#define LV00_SOLVER_DYNARRAY_INIT_CAP 16
+#define lv_SOLVER_DYNARRAY_INIT_CAP 16
 
 /**
- * LV00_SOLVER_LINEAR_COEFF_COUNT - 一元一次多项式系数数量
+ * lv_SOLVER_LINEAR_COEFF_COUNT - 一元一次多项式系数数量
  *
  * degree=1 的多项式拥有 2 个系数：coeffs[0]（常数项）和 coeffs[1]（一次项）。
  * 用于 poly.coeffs 数组的 malloc 分配。
  */
-#define LV00_SOLVER_LINEAR_COEFF_COUNT 2
+#define lv_SOLVER_LINEAR_COEFF_COUNT 2
 
 /**
- * LV00_SOLVER_QUADRATIC_COEFF_COUNT - 一元二次多项式系数数量
+ * lv_SOLVER_QUADRATIC_COEFF_COUNT - 一元二次多项式系数数量
  *
  * degree=2 的多项式拥有 3 个系数：coeffs[0]（常数项）、coeffs[1]（一次项）
  * 和 coeffs[2]（二次项）。用于 poly.coeffs 数组的 malloc 分配。
  */
-#define LV00_SOLVER_QUADRATIC_COEFF_COUNT 3
+#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 
 /**
  * SOLVER_DETAIL_BUF_SIZE - 流式输出 detail JSON 缓冲区大小
@@ -111,7 +111,7 @@ typedef struct EquationSystem {
     int capacity;
 } EquationSystem;
 
-LV00_DECLARE_STREAM_CTX(solver);
+lv_DECLARE_STREAM_CTX(solver);
 
 void solver_set_stream_context(StreamContext *ctx) {
     solver_stream_ctx = ctx;
@@ -164,7 +164,7 @@ void solver_snapshot_free(SolverSnapshot *snapshot);
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
     do { \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
             goto label; \
         } \
     } while (0)
@@ -185,7 +185,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     }
 
     /* 分配结果内存 */
-    GroebnerResult *result = lv00_malloc(sizeof(GroebnerResult));
+    GroebnerResult *result = lv_malloc(sizeof(GroebnerResult));
     if (!result) {
         debug_log(LOG_LEVEL_ERROR, "solver", "solve_algebraic_system: 无法分配 GroebnerResult（大小 %zu 字节）",
                   sizeof(GroebnerResult));
@@ -224,9 +224,9 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         ev.description = "方程提取完成";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_eq;
-        LV00_SAFE_SNPRINTF(_snw_eq, detail, sizeof(detail), "{\"equation_count\":%d,\"phase\":\"extraction\"}",
+        lv_SAFE_SNPRINTF(_snw_eq, detail, sizeof(detail), "{\"equation_count\":%d,\"phase\":\"extraction\"}",
                            sys.count);
-        LV00_UNUSED(_snw_eq);
+        lv_UNUSED(_snw_eq);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
@@ -244,7 +244,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     int *point_ids = NULL;
     int point_count = count_point_variables(graph, &point_ids);
     int scalar_vars = point_count * 2; /* x and y for each point */
-    lv00_free((void **) &point_ids);
+    lv_free((void **) &point_ids);
 
     if (total_eqs > scalar_vars) {
         result->overdetermined = true;
@@ -284,7 +284,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
      * 已知值可以尽早代入，减少后续方程的复杂度。 */
     {
         /* 收集方程系统中的所有唯一变量 ID */
-        int *all_var_ids = lv00_malloc((size_t) sys.count * sizeof(int));
+        int *all_var_ids = lv_malloc((size_t) sys.count * sizeof(int));
         if (!all_var_ids) {
             equation_system_clear(&sys);
             *out_result = result;
@@ -321,9 +321,9 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 ev.description = "开始变量依赖拓扑排序";
                 char detail[SOLVER_DETAIL_BUF_SIZE];
                 int _snw_ts;
-                LV00_SAFE_SNPRINTF(_snw_ts, detail, sizeof(detail), "{\"phase\":\"topology_sort\",\"var_count\":%d}",
+                lv_SAFE_SNPRINTF(_snw_ts, detail, sizeof(detail), "{\"phase\":\"topology_sort\",\"var_count\":%d}",
                                    all_var_count);
-                LV00_UNUSED(_snw_ts);
+                lv_UNUSED(_snw_ts);
                 ev.detail_json = detail;
                 stream_emit(solver_stream_ctx, &ev);
             }
@@ -336,10 +336,10 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 /* 按拓扑排序重排方程系统中的方程顺序。
                  * 将被依赖变量的方程排在前面，确保优先求解。 */
                 /* 构建排序映射: var_id -> priority (越小越优先) */
-                int *priority = lv00_malloc((size_t) sys.count * sizeof(int));
+                int *priority = lv_malloc((size_t) sys.count * sizeof(int));
                 if (!priority) {
-                    lv00_free((void **) &ordered_ids);
-                    lv00_free((void **) &all_var_ids);
+                    lv_free((void **) &ordered_ids);
+                    lv_free((void **) &all_var_ids);
                     equation_system_clear(&sys);
                     *out_result = result;
                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解错误: 内存分配失败", 0);
@@ -391,11 +391,11 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                     }
                 }
 
-                lv00_free((void **) &priority);
-                lv00_free((void **) &ordered_ids);
+                lv_free((void **) &priority);
+                lv_free((void **) &ordered_ids);
             }
         }
-        lv00_free((void **) &all_var_ids);
+        lv_free((void **) &all_var_ids);
     }
 
     /* 流式事件: 拓扑排序完成，开始方程消元 */
@@ -451,10 +451,10 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 ev.description = "逐方程消元完成，仍有剩余方程，进入Gröbner基计算";
                 char detail[SOLVER_DETAIL_BUF_SIZE];
                 int _snw_gb_prog;
-                LV00_SAFE_SNPRINTF(_snw_gb_prog, detail, sizeof(detail),
+                lv_SAFE_SNPRINTF(_snw_gb_prog, detail, sizeof(detail),
                                    "{\"phase\":\"groebner_entry\",\"remaining\":%d,\"solved\":%d}", remaining_before_gb,
                                    solved_count);
-                LV00_UNUSED(_snw_gb_prog);
+                lv_UNUSED(_snw_gb_prog);
                 ev.detail_json = detail;
                 stream_emit(solver_stream_ctx, &ev);
             }
@@ -476,7 +476,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 /* Gröbner basis returned out-of-scope (degree > 4) */
                 char *suggestion = NULL;
                 analyze_out_of_scope(graph, -1, &suggestion);
-                lv00_free((void **) &suggestion);
+                lv_free((void **) &suggestion);
                 equation_system_clear(&sys);
                 *out_result = result;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 高次方程无法处理", 0);
@@ -492,7 +492,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 /* Gröbner basis computation found degree > 4 */
                 char *suggestion = NULL;
                 analyze_out_of_scope(graph, -1, &suggestion);
-                lv00_free((void **) &suggestion);
+                lv_free((void **) &suggestion);
                 equation_system_clear(&sys);
                 *out_result = result;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: Groebner基计算超出范围", 0);
@@ -547,7 +547,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         ev.description = "代数求解总结";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_sum;
-        LV00_SAFE_SNPRINTF(_snw_sum, detail, sizeof(detail),
+        lv_SAFE_SNPRINTF(_snw_sum, detail, sizeof(detail),
                            "{\"phase\":\"solve_summary\","
                            "\"solved_variables\":%d,"
                            "\"remaining_equations\":%d,"
@@ -557,7 +557,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                            "\"max_degree\":%d}",
                            solved_count, remaining, multiple_solutions, result->unique ? "true" : "false",
                            result->overdetermined ? "true" : "false", max_degree_global);
-        LV00_UNUSED(_snw_sum);
+        lv_UNUSED(_snw_sum);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
@@ -608,7 +608,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
  * @brief 创建求解器反馈
  */
 SolverFeedback *solver_feedback_create(SolverFeedbackType type, const char *message) {
-    SolverFeedback *fb = lv00_calloc(1, sizeof(SolverFeedback));
+    SolverFeedback *fb = lv_calloc(1, sizeof(SolverFeedback));
     if (!fb)
         return NULL;
 
@@ -619,13 +619,13 @@ SolverFeedback *solver_feedback_create(SolverFeedbackType type, const char *mess
     fb->overconstrained_count = 0;
 
     if (message && message[0] != '\0') {
-        fb->message = lv00_malloc(strlen(message) + 1);
+        fb->message = lv_malloc(strlen(message) + 1);
         if (!fb->message) {
-            lv00_free((void **) &fb);
+            lv_free((void **) &fb);
             return NULL;
         }
-        /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
-        lv00_strlcpy(fb->message, message, strlen(message) + 1);
+        /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
+        lv_strlcpy(fb->message, message, strlen(message) + 1);
     }
 
     return fb;
@@ -637,10 +637,10 @@ SolverFeedback *solver_feedback_create(SolverFeedbackType type, const char *mess
 void solver_feedback_destroy(SolverFeedback *feedback) {
     if (!feedback)
         return;
-    lv00_free((void **) &feedback->message);
-    lv00_free((void **) &feedback->free_var_ids);
-    lv00_free((void **) &feedback->overconstrained_ids);
-    lv00_free((void **) &feedback);
+    lv_free((void **) &feedback->message);
+    lv_free((void **) &feedback->free_var_ids);
+    lv_free((void **) &feedback->overconstrained_ids);
+    lv_free((void **) &feedback);
 }
 
 /**
@@ -661,11 +661,11 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
 
     if (!result) {
         fb->type = SOLVER_FEEDBACK_TYPE_CONFLICT_DETECTED;
-        lv00_free((void **) &fb->message);
-        fb->message = lv00_malloc(64);
+        lv_free((void **) &fb->message);
+        fb->message = lv_malloc(64);
         if (fb->message)
-            /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
-            lv00_strlcpy(fb->message, "求解失败：约束系统无解或超出范围", 64);
+            /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
+            lv_strlcpy(fb->message, "求解失败：约束系统无解或超出范围", 64);
         return fb;
     }
 
@@ -675,26 +675,26 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
     fb->degrees_of_freedom = (dof >= 0) ? dof : -1;
 
     if (free_var_ids && dof > 0) {
-        fb->free_var_ids = lv00_malloc((size_t) dof * sizeof(int));
+        fb->free_var_ids = lv_malloc((size_t) dof * sizeof(int));
         if (fb->free_var_ids) {
             memcpy(fb->free_var_ids, free_var_ids, (size_t) dof * sizeof(int));
             fb->free_var_count = dof;
         }
-        lv00_free((void **) &free_var_ids);
+        lv_free((void **) &free_var_ids);
     }
 
     /* Step 3: 判断反馈类型 */
     if (result->overdetermined) {
         fb->type = SOLVER_FEEDBACK_TYPE_OVERCONSTRAINED;
-        lv00_free((void **) &fb->message);
-        fb->message = lv00_malloc(64);
+        lv_free((void **) &fb->message);
+        fb->message = lv_malloc(64);
         if (fb->message)
-            /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
-            lv00_strlcpy(fb->message, "检测到过约束：某些变量被过多方程约束", 64);
+            /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
+            lv_strlcpy(fb->message, "检测到过约束：某些变量被过多方程约束", 64);
 
         /* 标记过约束变量（简化处理：标记脏变量为过约束候选） */
         if (dirty_count > 0 && dirty_vars) {
-            fb->overconstrained_ids = lv00_malloc((size_t) dirty_count * sizeof(int));
+            fb->overconstrained_ids = lv_malloc((size_t) dirty_count * sizeof(int));
             if (fb->overconstrained_ids) {
                 memcpy(fb->overconstrained_ids, dirty_vars, (size_t) dirty_count * sizeof(int));
                 fb->overconstrained_count = dirty_count;
@@ -702,11 +702,11 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         }
     } else if (dof == 0) {
         fb->type = SOLVER_FEEDBACK_TYPE_VARIABLE_SOLVED;
-        lv00_free((void **) &fb->message);
-        fb->message = lv00_malloc(64);
+        lv_free((void **) &fb->message);
+        fb->message = lv_malloc(64);
         if (fb->message)
-            /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
-            lv00_strlcpy(fb->message, "所有变量已唯一确定（零自由度）", 64);
+            /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
+            lv_strlcpy(fb->message, "所有变量已唯一确定（零自由度）", 64);
         if (dirty_count > 0 && dirty_vars) {
             fb->affected_var_id = dirty_vars[0];
         }
@@ -714,11 +714,11 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         fb->type = SOLVER_FEEDBACK_TYPE_DOF_CHANGED;
         char buf[SOLVER_DETAIL_BUF_SIZE];
         snprintf(buf, sizeof(buf), "当前仍有 %d 个自由度", dof);
-        lv00_free((void **) &fb->message);
-        fb->message = lv00_malloc(strlen(buf) + 1);
+        lv_free((void **) &fb->message);
+        fb->message = lv_malloc(strlen(buf) + 1);
         if (fb->message)
-            /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
-            lv00_strlcpy(fb->message, buf, strlen(buf) + 1);
+            /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
+            lv_strlcpy(fb->message, buf, strlen(buf) + 1);
         if (dirty_count > 0 && dirty_vars) {
             fb->affected_var_id = dirty_vars[0];
         }
@@ -734,7 +734,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         ev.description = fb->message ? fb->message : "";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_fb;
-        LV00_SAFE_SNPRINTF(_snw_fb, detail, sizeof(detail),
+        lv_SAFE_SNPRINTF(_snw_fb, detail, sizeof(detail),
                            "{\"type\":\"%s\",\"dof\":%d,\"free_count\":%d,\"overconstrained\":%d}",
                            (fb->type == SOLVER_FEEDBACK_TYPE_VARIABLE_SOLVED)     ? "solved"
                            : (fb->type == SOLVER_FEEDBACK_TYPE_OVERCONSTRAINED)   ? "overconstrained"
@@ -742,7 +742,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
                            : (fb->type == SOLVER_FEEDBACK_TYPE_CONFLICT_DETECTED) ? "conflict"
                                                                              : "constraint_added",
                            fb->degrees_of_freedom, fb->free_var_count, fb->overconstrained_count);
-        LV00_UNUSED(_snw_fb);
+        lv_UNUSED(_snw_fb);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
@@ -777,7 +777,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
  */
 
 SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const int *eliminate_ids, int elim_count) {
-    LV00_UNUSED(target_var_id);
+    lv_UNUSED(target_var_id);
     if (!graph || !eliminate_ids || elim_count <= 0)
         return SOLVER_STATUS_OK;
 
@@ -787,7 +787,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
     extract_equations_from_constraints(graph, &sys);
 
     /* Identify which variables appear linearly */
-    bool *is_linear = lv00_malloc((size_t) sys.count * sizeof(bool));
+    bool *is_linear = lv_malloc((size_t) sys.count * sizeof(bool));
     if (is_linear)
         memset(is_linear, 0, (size_t) sys.count * sizeof(bool));
     for (int i = 0; i < sys.count; i++) {
@@ -826,7 +826,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                         /* Value too large for exact rational representation, skip */
                     } else {
                         SymbolicCoord *new_coord = symbolic_coord_create_rational(
-                            (int64_t) (val * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
+                            (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
                         if (new_coord) {
                             symbolic_coord_destroy(node->symbolic_coords[sys.eqs[i].coord_index]);
                             node->symbolic_coords[sys.eqs[i].coord_index] = new_coord;
@@ -867,15 +867,15 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                                numeric_assumption_declaration */
                             GeomNode *target = graph_get_node(graph, eid);
                             if (target) {
-                                lv00_free((void **) &target->numeric_assumption_declaration);
+                                lv_free((void **) &target->numeric_assumption_declaration);
                                 char buf[SOLVER_DETAIL_BUF_SIZE];
                                 int _snw;
-                                LV00_SAFE_SNPRINTF(_snw, buf, sizeof(buf), "betweenness:p1=(%.6f,%.6f),p3=(%.6f,%.6f)",
+                                lv_SAFE_SNPRINTF(_snw, buf, sizeof(buf), "betweenness:p1=(%.6f,%.6f),p3=(%.6f,%.6f)",
                                                    x1, y1, x3, y3);
-                                LV00_UNUSED(_snw);
-                                target->numeric_assumption_declaration = lv00_malloc(strlen(buf) + 1);
+                                lv_UNUSED(_snw);
+                                target->numeric_assumption_declaration = lv_malloc(strlen(buf) + 1);
                                 if (target->numeric_assumption_declaration) {
-                                    lv00_strlcpy(target->numeric_assumption_declaration, buf, strlen(buf) + 1);
+                                    lv_strlcpy(target->numeric_assumption_declaration, buf, strlen(buf) + 1);
                                 }
                             }
                         }
@@ -885,7 +885,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
         }
     }
 
-    lv00_free((void **) &is_linear);
+    lv_free((void **) &is_linear);
     equation_system_clear(&sys);
 
     /* Apply geometry reasoning templates to generate additional equations.
@@ -918,7 +918,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                                 /* Value too large for exact rational representation, skip */
                             } else {
                                 SymbolicCoord *new_coord = symbolic_coord_create_rational(
-                                    (int64_t) (val * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
+                                    (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
                                 if (new_coord) {
                                     symbolic_coord_destroy(node->symbolic_coords[tmpl_sys.eqs[i].coord_index]);
                                     node->symbolic_coords[tmpl_sys.eqs[i].coord_index] = new_coord;
@@ -962,9 +962,9 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.description = "开始超出代数范围分析";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_diag;
-        LV00_SAFE_SNPRINTF(_snw_diag, detail, sizeof(detail), "{\"phase\":\"analyze_out_of_scope\",\"var_id\":%d}",
+        lv_SAFE_SNPRINTF(_snw_diag, detail, sizeof(detail), "{\"phase\":\"analyze_out_of_scope\",\"var_id\":%d}",
                            var_id);
-        LV00_UNUSED(_snw_diag);
+        lv_UNUSED(_snw_diag);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
@@ -997,7 +997,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
     if (!target_poly) {
         /* No high-degree equation found for this variable;
            the out-of-scope might come from the system as a whole */
-        *suggestion = lv00_strdup_safe(
+        *suggestion = lv_strdup_safe(
             "No single high-degree equation found for this variable. "
             "The system may be out of scope due to coupled nonlinear equations. "
             "Consider decomposing the construction into simpler sub-problems "
@@ -1029,9 +1029,9 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.description = "发现高次方程，尝试因式分解";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_found;
-        LV00_SAFE_SNPRINTF(_snw_found, detail, sizeof(detail), "{\"degree\":%d,\"var_id\":%d}", target_poly->degree,
+        lv_SAFE_SNPRINTF(_snw_found, detail, sizeof(detail), "{\"degree\":%d,\"var_id\":%d}", target_poly->degree,
                            var_id);
-        LV00_UNUSED(_snw_found);
+        lv_UNUSED(_snw_found);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
@@ -1046,21 +1046,21 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
 
         size_t needed = 256 + strlen(f1_str) + strlen(f2_str);
         if (needed > INT_MAX) {
-            lv00_free((void **)&f1_str);
-            lv00_free((void **)&f2_str);
+            lv_free((void **)&f1_str);
+            lv_free((void **)&f2_str);
             mpz_poly_clear(&factor1);
             mpz_poly_clear(&factor2);
             return SOLVER_STATUS_OUT_OF_SCOPE;
         }
-        *suggestion = lv00_malloc(needed);
+        *suggestion = lv_malloc(needed);
         int _snw;
-        LV00_SAFE_SNPRINTF(_snw, *suggestion, needed,
+        lv_SAFE_SNPRINTF(_snw, *suggestion, needed,
                            "Polynomial factors into (%s) * (%s). "
                            "Split into multiple quadratic steps with auxiliary lines: "
                            "solve each factor separately and combine solutions. "
                            "Each factor of degree <= 2 is within constructible scope.",
                            f1_str, f2_str);
-        LV00_UNUSED(_snw);
+        lv_UNUSED(_snw);
 
         /* 流式事件: 因式分解成功 */
         if (solver_stream_ctx) {
@@ -1072,17 +1072,17 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
             ev.description = "因式分解成功，可通过拆分求解";
             char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw_fact;
-            LV00_SAFE_SNPRINTF(
+            lv_SAFE_SNPRINTF(
                 _snw_fact, detail, sizeof(detail),
                 "{\"diagnosis\":\"factorable\",\"resolvable\":true,\"factor1\":\"%s\",\"factor2\":\"%s\"}", f1_str,
                 f2_str);
-            LV00_UNUSED(_snw_fact);
+            lv_UNUSED(_snw_fact);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
         }
 
-        lv00_free((void **) &f1_str); f1_str = NULL;  /* GMP分配，用标准free */
-        lv00_free((void **) &f2_str); f2_str = NULL;  /* GMP分配，用标准free */
+        lv_free((void **) &f1_str); f1_str = NULL;  /* GMP分配，用标准free */
+        lv_free((void **) &f2_str); f2_str = NULL;  /* GMP分配，用标准free */
         mpz_poly_clear(&factor1);
         mpz_poly_clear(&factor2);
         equation_system_clear(&sys);
@@ -1100,7 +1100,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
             }
         }
         if (biquadratic) {
-            *suggestion = lv00_strdup_safe(
+            *suggestion = lv_strdup_safe(
                 "Biquadratic equation detected (only even powers). "
                 "Substitute u = x^2 to reduce to quadratic, solve for u, "
                 "then take square roots. This is within constructible scope "
@@ -1129,12 +1129,12 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
     char *poly_str = mpz_poly_get_str(target_poly);
     size_t needed = 256 + strlen(poly_str);
     if (needed > INT_MAX || needed == 0) {
-        lv00_free((void **)&poly_str);
+        lv_free((void **)&poly_str);
         return SOLVER_STATUS_OUT_OF_SCOPE;
     }
-    *suggestion = lv00_malloc(needed);
+    *suggestion = lv_malloc(needed);
     int _snw2;
-    LV00_SAFE_SNPRINTF(_snw2, *suggestion, needed,
+    lv_SAFE_SNPRINTF(_snw2, *suggestion, needed,
                        "Irreducible polynomial of degree %d with coefficients [%s]. "
                        "Exceeds quadratic coverage. "
                        "Consider: (1) adding auxiliary construction lines to decompose "
@@ -1143,7 +1143,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
                        "cube duplication, circle squaring), or (3) using numerical "
                        "approximation with Neusis construction.",
                        target_poly->degree, poly_str);
-    LV00_UNUSED(_snw2);
+    lv_UNUSED(_snw2);
 
     /* 流式事件: 一般不可约高次多项式 */
     if (solver_stream_ctx) {
@@ -1155,16 +1155,16 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.description = "不可约高次多项式，超出二次可构造范围";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_irr;
-        LV00_SAFE_SNPRINTF(_snw_irr, detail, sizeof(detail),
+        lv_SAFE_SNPRINTF(_snw_irr, detail, sizeof(detail),
                            "{\"diagnosis\":\"irreducible_high_degree\",\"degree\":%d,"
                            "\"polynomial\":\"%s\",\"resolvable\":false}",
                            target_poly->degree, poly_str);
-        LV00_UNUSED(_snw_irr);
+        lv_UNUSED(_snw_irr);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
 
-    lv00_free((void **) &poly_str); poly_str = NULL;  /* GMP分配，用标准free */
+    lv_free((void **) &poly_str); poly_str = NULL;  /* GMP分配，用标准free */
 
     equation_system_clear(&sys);
     return SOLVER_STATUS_OUT_OF_SCOPE;
@@ -1222,10 +1222,10 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
        A variable is "free" if it has fewer equations than unknowns.
        We track this per-point: each point has 2 coords (x, y).
        A point is fully determined if it has >= 2 independent equations. */
-    int *eq_per_point = lv00_malloc((size_t) pt_count * sizeof(int));
+    int *eq_per_point = lv_malloc((size_t) pt_count * sizeof(int));
     if (eq_per_point)
         memset(eq_per_point, 0, (size_t) pt_count * sizeof(int));
-    bool *point_has_quadratic = lv00_malloc((size_t) pt_count * sizeof(bool));
+    bool *point_has_quadratic = lv_malloc((size_t) pt_count * sizeof(bool));
     if (point_has_quadratic)
         memset(point_has_quadratic, 0, (size_t) pt_count * sizeof(bool));
 
@@ -1299,11 +1299,11 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
     }
 
     /* Collect free variable IDs: points with fewer than 2 equations */
-    int *free_ids = lv00_malloc((size_t) dof * sizeof(int));
+    int *free_ids = lv_malloc((size_t) dof * sizeof(int));
     if (!free_ids) {
-        lv00_free((void **) &pt_ids);
-        lv00_free((void **) &eq_per_point);
-        lv00_free((void **) &point_has_quadratic);
+        lv_free((void **) &pt_ids);
+        lv_free((void **) &eq_per_point);
+        lv_free((void **) &point_has_quadratic);
         return -1;
     }
     int free_count = 0;
@@ -1327,9 +1327,9 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
         }
     }
 
-    lv00_free((void **) &eq_per_point);
-    lv00_free((void **) &point_has_quadratic);
-    lv00_free((void **) &pt_ids);
+    lv_free((void **) &eq_per_point);
+    lv_free((void **) &point_has_quadratic);
+    lv_free((void **) &pt_ids);
 
     *out_free_var_ids = free_ids;
     return dof;
@@ -1396,9 +1396,9 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
             double a = mpz_get_d(p->coeffs[2]);
             double b = mpz_get_d(p->coeffs[1]);
             double c_val = mpz_get_d(p->coeffs[0]);
-            if (fabs(a) > LV00_EPSILON_NEWTON) {
+            if (fabs(a) > lv_EPSILON_NEWTON) {
                 double disc = b * b - 4.0 * a * c_val;
-                if (disc < -LV00_EPSILON_SEGMENT_INTERIOR) {
+                if (disc < -lv_EPSILON_SEGMENT_INTERIOR) {
                     /* No real roots for this quadratic.
                        If this equation is mandatory (not optional),
                        it's a conflict. */
@@ -1423,7 +1423,7 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
         max_id = SOLVER_MAX_VAR_ID;
     }
     if (max_id > 0) {
-        eq_count_per_point = lv00_malloc((size_t) (max_id + 1) * sizeof(int));
+        eq_count_per_point = lv_malloc((size_t) (max_id + 1) * sizeof(int));
         if (eq_count_per_point)
             memset(eq_count_per_point, 0, (size_t) (max_id + 1) * sizeof(int));
         for (int i = 0; i < sys.count; i++) {
@@ -1454,14 +1454,14 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
                        is inconsistent with the first two, it's a conflict */
                     /* For now, just flag if > 3 (definitely overconstrained) */
                     if (eq_count_per_point[n->id] > 3) {
-                        lv00_free((void **) &eq_count_per_point);
+                        lv_free((void **) &eq_count_per_point);
                         equation_system_clear(&sys);
                         return true;
                     }
                 }
             }
         }
-        lv00_free((void **) &eq_count_per_point);
+        lv_free((void **) &eq_count_per_point);
     }
 
     /* Check 6: Duplicate constraints with different parameters */
@@ -1530,10 +1530,10 @@ static void mv_poly_init(MVPolynomial *p, int var_count) {
 /* 清理多变量多项式 */
 static void mv_poly_clear(MVPolynomial *p) {
     for (int i = 0; i < p->term_count; i++) {
-        lv00_free((void **) &p->terms[i].exponents);
+        lv_free((void **) &p->terms[i].exponents);
         mpz_clear(p->terms[i].coeff);
     }
-    lv00_free((void **) &p->terms);
+    lv_free((void **) &p->terms);
     p->terms = NULL;
     p->term_count = 0;
     p->capacity = 0;
@@ -1573,25 +1573,25 @@ static int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expon
 
     /* 新单项式 */
     if (p->term_count >= p->capacity) {
-        /* 内存安全修复：检查整数溢出，防止 capacity * LV00_ARRAY_GROWTH_FACTOR 超过 INT_MAX */
-        int new_cap = p->capacity == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
-        if (new_cap > 0 && new_cap > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
+        /* 内存安全修复：检查整数溢出，防止 capacity * lv_ARRAY_GROWTH_FACTOR 超过 INT_MAX */
+        int new_cap = p->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
+        if (new_cap > 0 && new_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
             return -1;
         }
-        new_cap = new_cap == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : new_cap * LV00_ARRAY_GROWTH_FACTOR;
+        new_cap = new_cap == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : new_cap * lv_ARRAY_GROWTH_FACTOR;
         p->capacity = new_cap;
-        MVMonomial *new_terms = lv00_realloc(p->terms, p->capacity * sizeof(MVMonomial));
+        MVMonomial *new_terms = lv_realloc(p->terms, p->capacity * sizeof(MVMonomial));
         if (!new_terms) {
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
             return -1;
         }
         p->terms = new_terms;
     }
     MVMonomial *m = &p->terms[p->term_count];
-    m->exponents = lv00_malloc((size_t) p->var_count * sizeof(int));
+    m->exponents = lv_malloc((size_t) p->var_count * sizeof(int));
     if (!m->exponents) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
         return -1;
     }
     for (int v = 0; v < p->var_count; v++) {
@@ -1649,7 +1649,7 @@ static void mv_poly_remove_zeros(MVPolynomial *p) {
                 p->terms[write] = p->terms[i];
             write++;
         } else {
-            lv00_free((void **) &p->terms[i].exponents);
+            lv_free((void **) &p->terms[i].exponents);
             mpz_clear(p->terms[i].coeff);
         }
     }
@@ -1698,7 +1698,7 @@ static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, co
         mpz_init(new_coeff);
         mpz_mul(new_coeff, p->terms[i].coeff, mono_coeff);
 
-        int *new_exp = lv00_malloc((size_t) var_count * sizeof(int));
+        int *new_exp = lv_malloc((size_t) var_count * sizeof(int));
         if (!new_exp) {
             mpz_clear(new_coeff);
             continue;
@@ -1708,7 +1708,7 @@ static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, co
         }
         mv_poly_add_term(result, new_coeff, new_exp);
         mpz_clear(new_coeff);
-        lv00_free((void **) &new_exp);
+        lv_free((void **) &new_exp);
     }
     mv_poly_sort(result);
 }
@@ -1764,18 +1764,18 @@ static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g, int var_c
         return;
 
     /* 检查次数限制: S-多项式的次数可能超过 2, 但输入限制在 degree <= 2 */
-    int *lcm_exp = lv00_malloc((size_t) var_count * sizeof(int));
+    int *lcm_exp = lv_malloc((size_t) var_count * sizeof(int));
     if (!lcm_exp)
         return;
-    int *quo_f_exp = lv00_malloc((size_t) var_count * sizeof(int));
+    int *quo_f_exp = lv_malloc((size_t) var_count * sizeof(int));
     if (!quo_f_exp) {
-        lv00_free((void **) &lcm_exp);
+        lv_free((void **) &lcm_exp);
         return;
     }
-    int *quo_g_exp = lv00_malloc((size_t) var_count * sizeof(int));
+    int *quo_g_exp = lv_malloc((size_t) var_count * sizeof(int));
     if (!quo_g_exp) {
-        lv00_free((void **) &lcm_exp);
-        lv00_free((void **) &quo_f_exp);
+        lv_free((void **) &lcm_exp);
+        lv_free((void **) &quo_f_exp);
         return;
     }
 
@@ -1804,9 +1804,9 @@ static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g, int var_c
 
     mv_poly_clear(&term1);
     mv_poly_clear(&term2);
-    lv00_free((void **) &lcm_exp);
-    lv00_free((void **) &quo_f_exp);
-    lv00_free((void **) &quo_g_exp);
+    lv_free((void **) &lcm_exp);
+    lv_free((void **) &quo_f_exp);
+    lv_free((void **) &quo_g_exp);
 }
 
 /* ================================================================== */
@@ -1849,7 +1849,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
             for (int j = 0; j < remainder->term_count && !reduced; j++) {
                 if (mv_monomial_divisible(&remainder->terms[j], lt_g, remainder->var_count)) {
                     /* 计算商单项式 */
-                    int *quo_exp = lv00_malloc((size_t) remainder->var_count * sizeof(int));
+                    int *quo_exp = lv_malloc((size_t) remainder->var_count * sizeof(int));
                     if (!quo_exp) {
                         /* 内存分配失败：无法继续约化，退出循环 */
                         reduced = true;
@@ -1898,7 +1898,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                     mv_poly_clear(remainder);
                     *remainder = new_remainder;
                     mv_poly_clear(&sub_term);
-                    lv00_free((void **) &quo_exp);
+                    lv_free((void **) &quo_exp);
 
                     changed = true;
                     reduced = true;
@@ -1982,7 +1982,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
 
     /* 初始化 G = F (复制) */
     int g_capacity = f_count + 16;
-    MVPolynomial **G = lv00_malloc((size_t) g_capacity * sizeof(MVPolynomial *));
+    MVPolynomial **G = lv_malloc((size_t) g_capacity * sizeof(MVPolynomial *));
     if (!G) {
         *out_G = NULL;
         *out_g_count = 0;
@@ -1990,14 +1990,14 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     }
     int g_count = f_count;
     for (int i = 0; i < f_count; i++) {
-        G[i] = lv00_malloc(sizeof(MVPolynomial));
+        G[i] = lv_malloc(sizeof(MVPolynomial));
         if (!G[i]) {
             /* 清理已分配的资源 */
             for (int j = 0; j < i; j++) {
                 mv_poly_clear(G[j]);
-                lv00_free((void **) &G[j]);
+                lv_free((void **) &G[j]);
             }
-            lv00_free((void **) &G);
+            lv_free((void **) &G);
             *out_G = NULL;
             *out_g_count = 0;
             return SOLVER_STATUS_TIMEOUT;
@@ -2013,20 +2013,20 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     if (g_capacity > 0 && g_capacity > INT_MAX / g_capacity) {
         for (int i = 0; i < g_count; i++) {
             mv_poly_clear(G[i]);
-            lv00_free((void **) &G[i]);
+            lv_free((void **) &G[i]);
         }
-        lv00_free((void **) &G);
+        lv_free((void **) &G);
         *out_G = NULL;
         *out_g_count = 0;
         return SOLVER_STATUS_OUT_OF_MEMORY;
     }
-    bool *pair_data = lv00_malloc((size_t) (g_capacity * g_capacity) * sizeof(bool));
+    bool *pair_data = lv_malloc((size_t) (g_capacity * g_capacity) * sizeof(bool));
     if (!pair_data) {
         for (int i = 0; i < g_count; i++) {
             mv_poly_clear(G[i]);
-            lv00_free((void **) &G[i]);
+            lv_free((void **) &G[i]);
         }
-        lv00_free((void **) &G);
+        lv_free((void **) &G);
         *out_G = NULL;
         *out_g_count = 0;
         return SOLVER_STATUS_OUT_OF_MEMORY;
@@ -2070,11 +2070,11 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                         ev.description = "Buchberger S-多项式约化";
                         char detail[SOLVER_DETAIL_BUF_SIZE];
                         int _snw_gb;
-                        LV00_SAFE_SNPRINTF(_snw_gb, detail, sizeof(detail),
+                        lv_SAFE_SNPRINTF(_snw_gb, detail, sizeof(detail),
                                            "{\"phase\":\"s_polynomial\",\"pair\":[%d,%d],"
                                            "\"basis_size\":%d,\"step\":%d,\"total_pairs\":%lld}",
                                            i, j, g_count, steps, total_pairs);
-                        LV00_UNUSED(_snw_gb);
+                        lv_UNUSED(_snw_gb);
                         ev.detail_json = detail;
                         stream_emit(solver_stream_ctx, &ev);
                     }
@@ -2087,7 +2087,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                 if (!lt_i || !lt_j)
                     continue;
 
-                int *lcm_exp = lv00_malloc((size_t) var_count * sizeof(int));
+                int *lcm_exp = lv_malloc((size_t) var_count * sizeof(int));
                 mv_monomial_lcm(lt_i, lt_j, var_count, lcm_exp);
 
                 bool lcm_is_lt_i = true, lcm_is_lt_j = true;
@@ -2097,7 +2097,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                     if (lcm_exp[v] != lt_j->exponents[v])
                         lcm_is_lt_j = false;
                 }
-                lv00_free((void **) &lcm_exp);
+                lv_free((void **) &lcm_exp);
 
                 if (lcm_is_lt_i || lcm_is_lt_j) {
                     /* 标记为已处理（虽然跳过，但配对已检查） */
@@ -2123,12 +2123,12 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                         continue;
 
                     /* 重新计算 lcm(G[i], G[j]) 用于链式判据 */
-                    int *lcm_chain = lv00_malloc((size_t) var_count * sizeof(int));
+                    int *lcm_chain = lv_malloc((size_t) var_count * sizeof(int));
                     if (!lcm_chain)
                         continue;
                     mv_monomial_lcm(lt_i, lt_j, var_count, lcm_chain);
                     bool lt_k_divides_lcm = mv_monomial_divisible_lcm(lt_k, lcm_chain, var_count);
-                    lv00_free((void **) &lcm_chain);
+                    lv_free((void **) &lcm_chain);
 
                     if (lt_k_divides_lcm) {
                         skip_by_chain = true;
@@ -2186,7 +2186,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                             int old_capacity = g_capacity;
                             /* 内存安全修复：检查 g_capacity 翻倍是否溢出 */
                             if (g_capacity > INT_MAX / 2) {
-                                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+                                lv_set_error(lv_ERROR_OUT_OF_MEMORY,
                                                "buchberger_groebner: 基容量翻倍将溢出 INT_MAX");
                                 mv_poly_clear(&remainder);
                                 break;
@@ -2194,22 +2194,22 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                             g_capacity *= 2;
                             /* 内存安全修复：检查 g_capacity * g_capacity 是否溢出 */
                             if (g_capacity > 0 && g_capacity > INT_MAX / g_capacity) {
-                                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+                                lv_set_error(lv_ERROR_OUT_OF_MEMORY,
                                                "buchberger_groebner: pair矩阵容量平方将溢出 INT_MAX");
                                 mv_poly_clear(&remainder);
                                 break;
                             }
-                            MVPolynomial **new_G = lv00_realloc(G, g_capacity * sizeof(MVPolynomial *));
+                            MVPolynomial **new_G = lv_realloc(G, g_capacity * sizeof(MVPolynomial *));
                             if (!new_G) {
-                                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基扩容失败");
+                                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基扩容失败");
                                 mv_poly_clear(&remainder);
                                 break;
                             }
                             G = new_G;
                             /* 扩容 pair_data 矩阵: 将旧数据复制到更大的矩阵 */
-                            bool *new_pair = lv00_malloc((size_t) (g_capacity * g_capacity) * sizeof(bool));
+                            bool *new_pair = lv_malloc((size_t) (g_capacity * g_capacity) * sizeof(bool));
                             if (!new_pair) {
-                                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "buchberger_groebner: pair矩阵扩容失败");
+                                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "buchberger_groebner: pair矩阵扩容失败");
                                 mv_poly_clear(&remainder);
                                 break;
                             }
@@ -2220,12 +2220,12 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                                     new_pair[pi * g_capacity + pj] = pair_data[pi * old_capacity + pj];
                                 }
                             }
-                            lv00_free((void **) &pair_data);
+                            lv_free((void **) &pair_data);
                             pair_data = new_pair;
                         }
-                        G[g_count] = lv00_malloc(sizeof(MVPolynomial));
+                        G[g_count] = lv_malloc(sizeof(MVPolynomial));
                         if (!G[g_count]) {
-                            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基元素分配失败");
+                            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基元素分配失败");
                             mv_poly_clear(&remainder);
                             break;
                         }
@@ -2286,7 +2286,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             /* 构建排除 g_i 的临时基 */
             MVPolynomial **temp_G = NULL;
             if (g_count > 1) {
-                temp_G = lv00_malloc((size_t) (g_count - 1) * sizeof(MVPolynomial *));
+                temp_G = lv_malloc((size_t) (g_count - 1) * sizeof(MVPolynomial *));
                 if (temp_G) {
                     int idx = 0;
                     for (int j = 0; j < g_count; j++) {
@@ -2300,7 +2300,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             MVPolynomial remainder;
             polynomial_reduce(G[i], temp_G ? temp_G : NULL, temp_G ? (g_count - 1) : 0, &remainder);
 
-            lv00_free((void **) &temp_G);
+            lv_free((void **) &temp_G);
 
             if (!mv_poly_is_zero(&remainder)) {
                 /* 用约化后的余式替换原多项式 */
@@ -2312,7 +2312,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             } else {
                 /* 约化为零：该多项式是冗余的，从基中移除 */
                 mv_poly_clear(G[i]);
-                lv00_free((void **) &G[i]);
+                lv_free((void **) &G[i]);
                 mv_poly_clear(&remainder);
                 /* 将后续多项式前移 */
                 for (int j = i; j < g_count - 1; j++) {
@@ -2334,11 +2334,11 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             ev.description = "Gröbner 基自约化完成";
             char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw_ar;
-            LV00_SAFE_SNPRINTF(_snw_ar, detail, sizeof(detail),
+            lv_SAFE_SNPRINTF(_snw_ar, detail, sizeof(detail),
                                "{\"phase\":\"auto_reduction\",\"reduced_count\":%d,"
                                "\"final_basis_size\":%d,\"total_steps\":%d}",
                                reduced_count, g_count, steps);
-            LV00_UNUSED(_snw_ar);
+            lv_UNUSED(_snw_ar);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
         }
@@ -2353,7 +2353,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             write++;
         } else {
             mv_poly_clear(G[i]);
-            lv00_free((void **) &G[i]);
+            lv_free((void **) &G[i]);
         }
     }
     g_count = write;
@@ -2363,7 +2363,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
         mv_poly_sort(G[i]);
     }
 
-    lv00_free((void **) &pair_data);
+    lv_free((void **) &pair_data);
 
     *out_G = G;
     *out_g_count = g_count;
@@ -2391,12 +2391,12 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
 static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map, int **out_coord_map,
                                           int *out_var_count) {
     /* 收集所有唯一的 (var_node_id, coord_index) 对 */
-    int *vids = lv00_malloc((size_t) sys->count * 2 * sizeof(int));
+    int *vids = lv_malloc((size_t) sys->count * 2 * sizeof(int));
     if (!vids)
         return NULL;
-    int *cids = lv00_malloc((size_t) sys->count * 2 * sizeof(int));
+    int *cids = lv_malloc((size_t) sys->count * 2 * sizeof(int));
     if (!cids) {
-        lv00_free((void **) &vids);
+        lv_free((void **) &vids);
         return NULL;
     }
     int vcount = 0;
@@ -2425,10 +2425,10 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
     *out_var_count = vcount;
 
     /* 为每个方程构建多变量多项式 */
-    MVPolynomial *polys = lv00_malloc((size_t) sys->count * sizeof(MVPolynomial));
+    MVPolynomial *polys = lv_malloc((size_t) sys->count * sizeof(MVPolynomial));
     if (!polys) {
-        lv00_free((void **) &vids);
-        lv00_free((void **) &cids);
+        lv_free((void **) &vids);
+        lv_free((void **) &cids);
         return NULL;
     }
     for (int i = 0; i < sys->count; i++) {
@@ -2451,7 +2451,7 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
         /* 将单变量多项式转换为多变量形式 */
         mpz_poly_t *p = &sys->eqs[i].poly;
         for (int d = 0; d <= p->degree; d++) {
-            int *exponents = lv00_malloc((size_t) vcount * sizeof(int));
+            int *exponents = lv_malloc((size_t) vcount * sizeof(int));
             if (!exponents) {
                 /* 内存分配失败，清理已分配的多项式 */
                 for (int k = 0; k < i; k++) {
@@ -2460,13 +2460,13 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
                 for (int k = i; k < sys->count; k++) {
                     memset(&polys[k], 0, sizeof(mpz_poly_t));
                 }
-                lv00_free((void **)&polys);
+                lv_free((void **)&polys);
                 return NULL;
             }
             memset(exponents, 0, (size_t) vcount * sizeof(int));
             exponents[var_idx] = d;
             mv_poly_add_term(&polys[i], p->coeffs[d], exponents);
-            lv00_free((void **) &exponents);
+            lv_free((void **) &exponents);
         }
         mv_poly_sort(&polys[i]);
     }
@@ -2508,9 +2508,9 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
         int p1;
         int p2;
     } SegInfo;
-    SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
+    SegInfo *segs = lv_malloc((size_t) graph->node_count * sizeof(SegInfo));
     if (!segs) {
-        lv00_free((void **) &point_ids);
+        lv_free((void **) &point_ids);
         return 0;
     }
     int seg_count = 0;
@@ -2591,7 +2591,7 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
                 double bc_len = sqrt((xc - xb) * (xc - xb) + (yc - yb) * (yc - yb));
                 double ac_len = sqrt((xc - xa) * (xc - xa) + (yc - ya) * (yc - ya));
 
-                if (ab_len < LV00_EPSILON_DOUBLE || bc_len < LV00_EPSILON_DOUBLE || ac_len < LV00_EPSILON_DOUBLE)
+                if (ab_len < lv_EPSILON_DOUBLE || bc_len < lv_EPSILON_DOUBLE || ac_len < lv_EPSILON_DOUBLE)
                     continue;
 
                 /* 检查是否近似相似于另一个三角形 (比例关系) */
@@ -2600,7 +2600,7 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
                 /* 这主要用于当某些边有距离约束时推断其他边 */
 
                 /* 生成: AB^2/BC^2 的精确比例 (用 GMP 整数) */
-                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = lv_SOLVER_SCALE_FACTOR;
                 mpz_t ab2_mpz, bc2_mpz, ac2_mpz;
                 mpz_init(ab2_mpz);
                 mpz_init(bc2_mpz);
@@ -2619,8 +2619,8 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
         }
     }
 
-    lv00_free((void **) &point_ids);
-    lv00_free((void **) &segs);
+    lv_free((void **) &point_ids);
+    lv_free((void **) &segs);
     return added;
 }
 
@@ -2655,9 +2655,9 @@ static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
         int p1;
         int p2;
     } SegInfo;
-    SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
+    SegInfo *segs = lv_malloc((size_t) graph->node_count * sizeof(SegInfo));
     if (!segs) {
-        lv00_free((void **) &point_ids);
+        lv_free((void **) &point_ids);
         return 0;
     }
     int seg_count = 0;
@@ -2738,7 +2738,7 @@ static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
                     /* 检查哪些坐标是未知的 (没有精确值) */
                     /* 对于有精确值的坐标, 直接代入; 对于未知的, 生成方程 */
 
-                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = lv_SOLVER_SCALE_FACTOR;
                     /* AB^2 = (xa-xb)^2 + (ya-yb)^2 */
                     mpz_t ab2_x_mpz, ab2_y_mpz;
                     mpz_init(ab2_x_mpz);
@@ -2807,8 +2807,8 @@ static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
         }
     }
 
-    lv00_free((void **) &point_ids);
-    lv00_free((void **) &segs);
+    lv_free((void **) &point_ids);
+    lv_free((void **) &segs);
     return added;
 }
 
@@ -2843,7 +2843,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
         double dx_i = x2_i - x1_i;
         double dy_i = y2_i - y1_i;
         double len_i = sqrt(dx_i * dx_i + dy_i * dy_i);
-        if (len_i < LV00_EPSILON_DOUBLE)
+        if (len_i < lv_EPSILON_DOUBLE)
             continue;
 
         /* Normalize direction */
@@ -2863,7 +2863,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
             double dx_j = x2_j - x1_j;
             double dy_j = y2_j - y1_j;
             double len_j = sqrt(dx_j * dx_j + dy_j * dy_j);
-            if (len_j < LV00_EPSILON_DOUBLE)
+            if (len_j < lv_EPSILON_DOUBLE)
                 continue;
 
             double nx_j = dx_j / len_j;
@@ -2929,7 +2929,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
 
                         /* Proportion: t_i * len_j = t_j * len_i
                          * => t_i * len_j - t_j * len_i = 0 (linear equation) */
-                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = lv_SOLVER_SCALE_FACTOR;
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
@@ -2945,7 +2945,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
                          * for a variable. Store as a constraint equation
                          * for the transversal parameter. */
                         double coeff = t_i * len_j - t_j * len_i;
-                        if (fabs(coeff) > LV00_EPSILON_NUMERIC_COMPARE) {
+                        if (fabs(coeff) > lv_EPSILON_NUMERIC_COMPARE) {
                             /* The proportion is not satisfied, add equation */
                             double_to_mpz_scaled(len_j, poly.coeffs[1], scale);
                             double_to_mpz_scaled(-t_j * len_i, poly.coeffs[0], scale);
@@ -2996,7 +2996,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
         int p1, p2;
         double dx, dy; /* 方向向量 */
     } SegInfo;
-    SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
+    SegInfo *segs = lv_malloc((size_t) graph->node_count * sizeof(SegInfo));
     if (!segs)
         return 0;
     int seg_count = 0;
@@ -3048,10 +3048,10 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
 
     /* 搜索平行线段对 */
     for (int i = 0; i < seg_count && added < 10; i++) {
-        if (segs[i].p1 < 0 || fabs(segs[i].dx) + fabs(segs[i].dy) < LV00_EPSILON_DOUBLE)
+        if (segs[i].p1 < 0 || fabs(segs[i].dx) + fabs(segs[i].dy) < lv_EPSILON_DOUBLE)
             continue;
         for (int j = i + 1; j < seg_count && added < 10; j++) {
-            if (segs[j].p1 < 0 || fabs(segs[j].dx) + fabs(segs[j].dy) < LV00_EPSILON_DOUBLE)
+            if (segs[j].p1 < 0 || fabs(segs[j].dx) + fabs(segs[j].dy) < lv_EPSILON_DOUBLE)
                 continue;
 
             /* 检查平行: 方向向量叉积为零 */
@@ -3113,7 +3113,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
                          * => segs[i].dx * segs[j].dy - segs[i].dy * segs[j].dx = 0
                          * (这已经在平行检测中使用, 这里生成精确方程) */
 
-                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = lv_SOLVER_SCALE_FACTOR;
                         /* 生成平行条件的精确方程 */
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
@@ -3135,7 +3135,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
         }
     }
 
-    lv00_free((void **) &segs);
+    lv_free((void **) &segs);
     return added;
 }
 
@@ -3209,13 +3209,13 @@ static void dirty_set_add(DirtyVariableSet *ds, int var_id) {
         return;
 
     if (ds->dirty_count >= ds->capacity) {
-        /* 内存安全修复：检查整数溢出，防止 capacity * LV00_ARRAY_GROWTH_FACTOR 超过 INT_MAX */
+        /* 内存安全修复：检查整数溢出，防止 capacity * lv_ARRAY_GROWTH_FACTOR 超过 INT_MAX */
         int new_cap = ds->capacity == 0 ? 16 : ds->capacity;
-        if (new_cap > 0 && new_cap > INT_MAX / LV00_ARRAY_GROWTH_FACTOR)
+        if (new_cap > 0 && new_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR)
             return; /* 溢出，跳过 */
-        new_cap = new_cap == 0 ? 16 : new_cap * LV00_ARRAY_GROWTH_FACTOR;
+        new_cap = new_cap == 0 ? 16 : new_cap * lv_ARRAY_GROWTH_FACTOR;
         ds->capacity = new_cap;
-        int *new_ids = lv00_realloc(ds->dirty_ids, ds->capacity * sizeof(int));
+        int *new_ids = lv_realloc(ds->dirty_ids, ds->capacity * sizeof(int));
         if (!new_ids)
             return; /* allocation failed, skip */
         ds->dirty_ids = new_ids;
@@ -3231,7 +3231,7 @@ static void dirty_set_clear(DirtyVariableSet *ds) {
 
 /* 释放脏变量集合资源 */
 static void dirty_set_free(DirtyVariableSet *ds) {
-    lv00_free((void **) &ds->dirty_ids);
+    lv_free((void **) &ds->dirty_ids);
     ds->dirty_ids = NULL;
     ds->dirty_count = 0;
     ds->capacity = 0;
@@ -3313,7 +3313,7 @@ push_error:
  *   dirty_count  - 脏变量数量
  *
  * 返回: 排序后的变量 ID 数组，通过 out_count 返回长度。
- *       调用者负责 lv00_free() 释放返回的数组。
+ *       调用者负责 lv_free() 释放返回的数组。
  *       若 dirty_var_ids 非空，仅对脏变量子集排序，其余变量追加在末尾。
  */
 static int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
@@ -3323,7 +3323,7 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
         return NULL;
 
     /* 构建变量 ID 到索引的映射 */
-    int *id_to_idx = lv00_malloc((size_t) var_count * sizeof(int));
+    int *id_to_idx = lv_malloc((size_t) var_count * sizeof(int));
     if (!id_to_idx)
         return NULL;
     for (int i = 0; i < var_count; i++)
@@ -3343,17 +3343,17 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
 
     /* 构建邻接矩阵：变量 A 依赖变量 B 当且仅当
      * 存在约束同时涉及 A 和 B，且 B 已有已知值或更少自由度 */
-    bool **adj = lv00_malloc((size_t) var_count * sizeof(bool *));
+    bool **adj = lv_malloc((size_t) var_count * sizeof(bool *));
     if (adj)
         memset(adj, 0, (size_t) var_count * sizeof(bool *));
     for (int i = 0; i < var_count; i++) {
-        adj[i] = lv00_malloc((size_t) var_count * sizeof(bool));
+        adj[i] = lv_malloc((size_t) var_count * sizeof(bool));
         if (adj[i])
             memset(adj[i], 0, (size_t) var_count * sizeof(bool));
     }
 
     /* 统计每个变量的约束参与度 (用于确定依赖方向) */
-    int *participation = lv00_malloc((size_t) var_count * sizeof(int));
+    int *participation = lv_malloc((size_t) var_count * sizeof(int));
     if (participation)
         memset(participation, 0, (size_t) var_count * sizeof(int));
     for (int ci = 0; ci < graph->constraint_count; ci++) {
@@ -3401,7 +3401,7 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
     }
 
     /* 计算入度 */
-    int *in_degree = lv00_malloc((size_t) var_count * sizeof(int));
+    int *in_degree = lv_malloc((size_t) var_count * sizeof(int));
     if (in_degree)
         memset(in_degree, 0, (size_t) var_count * sizeof(int));
     for (int i = 0; i < var_count; i++) {
@@ -3412,7 +3412,7 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
     }
 
     /* 确定排序子集：若有脏变量列表，仅对脏变量子集排序 */
-    bool *in_subset = lv00_malloc((size_t) var_count * sizeof(bool));
+    bool *in_subset = lv_malloc((size_t) var_count * sizeof(bool));
     if (in_subset)
         memset(in_subset, 0, (size_t) var_count * sizeof(bool));
     bool use_subset = (dirty_var_ids != NULL && dirty_count > 0);
@@ -3431,19 +3431,19 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
     }
 
     /* Kahn 拓扑排序，优先选择被依赖度最高的节点 */
-    int *order = lv00_malloc((size_t) var_count * sizeof(int));
+    int *order = lv_malloc((size_t) var_count * sizeof(int));
     if (!order) {
         for (int i = 0; i < var_count; i++)
-            lv00_free((void **) &adj[i]);
-        lv00_free((void **) &adj);
-        lv00_free((void **) &participation);
-        lv00_free((void **) &in_degree);
-        lv00_free((void **) &in_subset);
-        lv00_free((void **) &id_to_idx);
+            lv_free((void **) &adj[i]);
+        lv_free((void **) &adj);
+        lv_free((void **) &participation);
+        lv_free((void **) &in_degree);
+        lv_free((void **) &in_subset);
+        lv_free((void **) &id_to_idx);
         return NULL;
     }
     int order_count = 0;
-    bool *visited = lv00_malloc((size_t) var_count * sizeof(bool));
+    bool *visited = lv_malloc((size_t) var_count * sizeof(bool));
     if (visited)
         memset(visited, 0, (size_t) var_count * sizeof(bool));
 
@@ -3502,13 +3502,13 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
 
     /* 清理 */
     for (int i = 0; i < var_count; i++)
-        lv00_free((void **) &adj[i]);
-    lv00_free((void **) &adj);
-    lv00_free((void **) &participation);
-    lv00_free((void **) &in_degree);
-    lv00_free((void **) &visited);
-    lv00_free((void **) &in_subset);
-    lv00_free((void **) &id_to_idx);
+        lv_free((void **) &adj[i]);
+    lv_free((void **) &adj);
+    lv_free((void **) &participation);
+    lv_free((void **) &in_degree);
+    lv_free((void **) &visited);
+    lv_free((void **) &in_subset);
+    lv_free((void **) &id_to_idx);
 
     *out_count = order_count;
     return order;
@@ -3537,7 +3537,7 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
         return NULL;
 
     /* 收集所有唯一的变量 ID (来自方程系统) */
-    int *var_ids = lv00_malloc((size_t) sys->count * sizeof(int));
+    int *var_ids = lv_malloc((size_t) sys->count * sizeof(int));
     if (!var_ids)
         return NULL;
     int var_count = 0;
@@ -3557,12 +3557,12 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     }
 
     if (var_count == 0) {
-        lv00_free((void **) &var_ids);
+        lv_free((void **) &var_ids);
         return NULL;
     }
 
     /* 统计每个变量的方程数量 (被依赖度) */
-    int *eq_count = lv00_malloc((size_t) var_count * sizeof(int));
+    int *eq_count = lv_malloc((size_t) var_count * sizeof(int));
     if (eq_count)
         memset(eq_count, 0, (size_t) var_count * sizeof(int));
     for (int i = 0; i < sys->count; i++) {
@@ -3577,7 +3577,7 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     }
 
     /* 统计每个变量的约束参与度 (来自约束图) */
-    int *constraint_count = lv00_malloc((size_t) var_count * sizeof(int));
+    int *constraint_count = lv_malloc((size_t) var_count * sizeof(int));
     if (constraint_count)
         memset(constraint_count, 0, (size_t) var_count * sizeof(int));
     for (int ci = 0; ci < graph->constraint_count; ci++) {
@@ -3595,11 +3595,11 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
 
     /* 计算综合权重: 方程数量 * 2 + 约束参与度
      * 方程数量权重更高, 因为它直接反映消元复杂度 */
-    int *weight = lv00_malloc((size_t) var_count * sizeof(int));
+    int *weight = lv_malloc((size_t) var_count * sizeof(int));
     if (!weight) {
-        lv00_free((void **) &var_ids);
-        lv00_free((void **) &eq_count);
-        lv00_free((void **) &constraint_count);
+        lv_free((void **) &var_ids);
+        lv_free((void **) &eq_count);
+        lv_free((void **) &constraint_count);
         return NULL;
     }
     for (int i = 0; i < var_count; i++) {
@@ -3608,11 +3608,11 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
 
     /* 构建邻接表 (变量之间的依赖关系) */
     /* 两个变量相邻当且仅当它们共享至少一个约束 */
-    bool **adj = lv00_malloc((size_t) var_count * sizeof(bool *));
+    bool **adj = lv_malloc((size_t) var_count * sizeof(bool *));
     if (adj)
         memset(adj, 0, (size_t) var_count * sizeof(bool *));
     for (int i = 0; i < var_count; i++) {
-        adj[i] = lv00_malloc((size_t) var_count * sizeof(bool));
+        adj[i] = lv_malloc((size_t) var_count * sizeof(bool));
         if (adj[i])
             memset(adj[i], 0, (size_t) var_count * sizeof(bool));
     }
@@ -3620,7 +3620,7 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
         /* 找出此约束涉及的所有变量 */
-        int *participants = lv00_malloc((size_t) c->participant_count * sizeof(int));
+        int *participants = lv_malloc((size_t) c->participant_count * sizeof(int));
         if (!participants)
             continue;
         int p_var_count = 0;
@@ -3640,13 +3640,13 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
                 adj[participants[b]][participants[a]] = true;
             }
         }
-        lv00_free((void **) &participants);
+        lv_free((void **) &participants);
     }
 
     /* 计算每个变量的入度 (用于拓扑排序) */
     /* 在依赖图中, 如果变量 A 依赖变量 B (A 的求解需要 B 的值),
      * 则有一条边 B -> A。被依赖最多的变量 (入度最高) 优先消元。 */
-    int *in_degree = lv00_malloc((size_t) var_count * sizeof(int));
+    int *in_degree = lv_malloc((size_t) var_count * sizeof(int));
     if (in_degree)
         memset(in_degree, 0, (size_t) var_count * sizeof(int));
     for (int i = 0; i < var_count; i++) {
@@ -3657,20 +3657,20 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     }
 
     /* 拓扑排序 (Kahn 算法), 优先选择权重高的节点 */
-    int *order = lv00_malloc((size_t) var_count * sizeof(int));
+    int *order = lv_malloc((size_t) var_count * sizeof(int));
     if (!order) {
         for (int i = 0; i < var_count; i++)
-            lv00_free((void **) &adj[i]);
-        lv00_free((void **) &adj);
-        lv00_free((void **) &eq_count);
-        lv00_free((void **) &constraint_count);
-        lv00_free((void **) &weight);
-        lv00_free((void **) &in_degree);
-        lv00_free((void **) &var_ids);
+            lv_free((void **) &adj[i]);
+        lv_free((void **) &adj);
+        lv_free((void **) &eq_count);
+        lv_free((void **) &constraint_count);
+        lv_free((void **) &weight);
+        lv_free((void **) &in_degree);
+        lv_free((void **) &var_ids);
         return NULL;
     }
     int order_count = 0;
-    bool *visited = lv00_malloc((size_t) var_count * sizeof(bool));
+    bool *visited = lv_malloc((size_t) var_count * sizeof(bool));
     if (visited)
         memset(visited, 0, (size_t) var_count * sizeof(bool));
 
@@ -3725,15 +3725,15 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
 
     /* 清理 */
     for (int i = 0; i < var_count; i++) {
-        lv00_free((void **) &adj[i]);
+        lv_free((void **) &adj[i]);
     }
-    lv00_free((void **) &adj);
-    lv00_free((void **) &eq_count);
-    lv00_free((void **) &constraint_count);
-    lv00_free((void **) &weight);
-    lv00_free((void **) &in_degree);
-    lv00_free((void **) &visited);
-    lv00_free((void **) &var_ids);
+    lv_free((void **) &adj);
+    lv_free((void **) &eq_count);
+    lv_free((void **) &constraint_count);
+    lv_free((void **) &weight);
+    lv_free((void **) &in_degree);
+    lv_free((void **) &visited);
+    lv_free((void **) &var_ids);
 
     *out_order_count = order_count;
     return order;
@@ -3749,7 +3749,7 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
  * @return 新分配的 EquationSystem 指针，失败返回 NULL
  */
 EquationSystem *equation_system_create(void) {
-    EquationSystem *sys = lv00_malloc(sizeof(EquationSystem));
+    EquationSystem *sys = lv_malloc(sizeof(EquationSystem));
     if (!sys)
         return NULL;
     equation_system_init(sys);
@@ -3765,7 +3765,7 @@ void equation_system_destroy(EquationSystem *sys) {
     if (!sys)
         return;
     equation_system_clear(sys);
-    lv00_free((void **) &sys);
+    lv_free((void **) &sys);
 }
 
 /**
@@ -3824,9 +3824,9 @@ static void propagate_dependency(const ConstraintGraph *graph, int var_id, bool 
 
     /* BFS 队列 */
     int alloc_size = graph->node_count;
-    int *queue = lv00_malloc((size_t) alloc_size * sizeof(int));
+    int *queue = lv_malloc((size_t) alloc_size * sizeof(int));
     if (!queue) {
-        lv00_free((void **) &affected);
+        lv_free((void **) &affected);
         return;
     }
     int queue_head = 0, queue_tail = 0;
@@ -3840,7 +3840,7 @@ static void propagate_dependency(const ConstraintGraph *graph, int var_id, bool 
         }
     }
     if (start_idx < 0) {
-        lv00_free((void **) &queue);
+        lv_free((void **) &queue);
         return;
     }
 
@@ -3883,7 +3883,7 @@ static void propagate_dependency(const ConstraintGraph *graph, int var_id, bool 
         }
     }
 
-    lv00_free((void **) &queue);
+    lv_free((void **) &queue);
 }
 
 /* ================================================================== */
@@ -3920,9 +3920,9 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.description = "增量求解开始";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc;
-        LV00_SAFE_SNPRINTF(_snw_inc, detail, sizeof(detail), "{\"phase\":\"incremental\",\"dirty_count\":%d}",
+        lv_SAFE_SNPRINTF(_snw_inc, detail, sizeof(detail), "{\"phase\":\"incremental\",\"dirty_count\":%d}",
                            n_dirty_vars);
-        LV00_UNUSED(_snw_inc);
+        lv_UNUSED(_snw_inc);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
@@ -3935,7 +3935,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
     }
 
     /* Step 2: 构建脏变量的依赖子图 (BFS 传播) */
-    bool *affected = lv00_malloc((size_t) graph->node_count * sizeof(bool));
+    bool *affected = lv_malloc((size_t) graph->node_count * sizeof(bool));
     if (affected)
         memset(affected, 0, (size_t) graph->node_count * sizeof(bool));
     for (int i = 0; i < n_dirty_vars; i++) {
@@ -3947,13 +3947,13 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
     int affected_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         if (affected[i]) {
-            affected_ids = lv00_realloc(affected_ids, (size_t) (affected_count + 1) * sizeof(int));
+            affected_ids = lv_realloc(affected_ids, (size_t) (affected_count + 1) * sizeof(int));
             if (affected_ids) {
                 affected_ids[affected_count++] = graph->nodes[i]->id;
             }
         }
     }
-    lv00_free((void **) &affected);
+    lv_free((void **) &affected);
 
     /* 流式事件: 依赖传播完成 */
     if (solver_stream_ctx) {
@@ -3966,17 +3966,17 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.description = "依赖传播完成";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_dep;
-        LV00_SAFE_SNPRINTF(_snw_dep, detail, sizeof(detail), "{\"phase\":\"dependency_propagation\",\"affected\":%d}",
+        lv_SAFE_SNPRINTF(_snw_dep, detail, sizeof(detail), "{\"phase\":\"dependency_propagation\",\"affected\":%d}",
                            affected_count);
-        LV00_UNUSED(_snw_dep);
+        lv_UNUSED(_snw_dep);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
 
     if (affected_count == 0 || !affected_ids) {
-        lv00_free((void **) &affected_ids);
+        lv_free((void **) &affected_ids);
         /* 没有受影响的变量，返回空结果 */
-        GroebnerResult *result = lv00_malloc(sizeof(GroebnerResult));
+        GroebnerResult *result = lv_malloc(sizeof(GroebnerResult));
         if (result)
             memset(result, 0, sizeof(GroebnerResult));
         return result;
@@ -4026,7 +4026,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
     dirty_set_free(&ds);
     dirty_set_free(&expanded);
     equation_system_clear(&full_sys);
-    lv00_free((void **) &affected_ids);
+    lv_free((void **) &affected_ids);
 
     /* 流式事件: 方程过滤完成 */
     if (solver_stream_ctx) {
@@ -4039,15 +4039,15 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.description = "增量求解方程过滤完成";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_filt;
-        LV00_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail), "{\"phase\":\"filter\",\"filtered_eq_count\":%d}",
+        lv_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail), "{\"phase\":\"filter\",\"filtered_eq_count\":%d}",
                            filtered_sys.count);
-        LV00_UNUSED(_snw_filt);
+        lv_UNUSED(_snw_filt);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
 
     /* Step 5: Solve the filtered subsystem */
-    GroebnerResult *result = lv00_malloc(sizeof(GroebnerResult));
+    GroebnerResult *result = lv_malloc(sizeof(GroebnerResult));
     if (!result)
         return NULL;
     memset(result, 0, sizeof(GroebnerResult));
@@ -4119,10 +4119,10 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
                                                 : "增量求解完成: 部分求解";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc_done;
-        LV00_SAFE_SNPRINTF(_snw_inc_done, detail, sizeof(detail),
+        lv_SAFE_SNPRINTF(_snw_inc_done, detail, sizeof(detail),
                            "{\"phase\":\"incremental_done\",\"solved\":%d,\"multiple\":%d,\"unique\":%d}", solved_count,
                            multiple_solutions, result->unique ? 1 : 0);
-        LV00_UNUSED(_snw_inc_done);
+        lv_UNUSED(_snw_inc_done);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
@@ -4141,9 +4141,9 @@ void groebner_result_destroy(GroebnerResult *result) {
         for (int i = 0; i < result->solution_count; i++) {
             symbolic_coord_destroy(result->solutions[i]);
         }
-        lv00_free((void **) &result->solutions);
+        lv_free((void **) &result->solutions);
     }
-    lv00_free((void **) &result);
+    lv_free((void **) &result);
 }
 
 /* ================================================================== */
@@ -4241,7 +4241,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                      * As univariate in px: dy*px + (dx*ly1 - dy*lx1 - dx*py) = 0
                      * We store the x-component: dy*px + (dx*ly1 - dy*lx1) = 0
                      * (the y-dependent part is handled via the second equation) */
-                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = lv_SOLVER_SCALE_FACTOR;
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
@@ -4341,7 +4341,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 }
 
                 if (got1 && got2) {
-                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = lv_SOLVER_SCALE_FACTOR;
                     /* Line1: a1*x + b1*y + c1 = 0 */
                     mpz_poly_t poly;
                     mpz_poly_init(&poly);
@@ -4417,7 +4417,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     break;
 
                 {
-                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = lv_SOLVER_SCALE_FACTOR;
                     int seg_count = outer->data.region.segment_count;
 
                     for (int si = 0; si < seg_count; si++) {
@@ -4615,7 +4615,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     p1->symbolic_coords[1]->type == RATIONAL && p3->symbolic_coords[0] &&
                     p3->symbolic_coords[0]->type == RATIONAL && p3->symbolic_coords[1] &&
                     p3->symbolic_coords[1]->type == RATIONAL) {
-                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = lv_SOLVER_SCALE_FACTOR;
                     mpz_init(dx13_s);
                     mpz_init(dy13_s);
                     mpz_init(x1_s);
@@ -4733,7 +4733,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     if (ok) {
                         double dx13 = x3 - x1;
                         double dy13 = y3 - y1;
-                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = lv_SOLVER_SCALE_FACTOR;
 
                         /* Collinearity: (x2-x1)*dy13 - (y2-y1)*dx13 = 0 */
                         mpz_poly_t poly;
@@ -4833,7 +4833,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     break;
 
                 double dist_sq = dist_val * dist_val;
-                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = lv_SOLVER_SCALE_FACTOR;
 
                 /* (xA-xB)^2 + (yA-yB)^2 = d^2
                Expand for nodeB as variable (nodeA as fixed):
@@ -4880,7 +4880,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 break;
             }
             default:
-                LV00_LOG_WARNING("Unknown constraint type %d in solver_extract_equations", c->type);
+                lv_LOG_WARNING("Unknown constraint type %d in solver_extract_equations", c->type);
                 break;
         } /* closes switch(c->type) */
     } /* closes for(ci) - first pass */
@@ -4916,7 +4916,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
         if (node->coord_count >= 4) {
             double x1, y1;
             if (coord_to_double(node->symbolic_coords[0], &x1) && coord_to_double(node->symbolic_coords[1], &y1)) {
-                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = lv_SOLVER_SCALE_FACTOR;
 
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
@@ -5000,8 +5000,8 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     MVPolynomial *mv_polys = build_mv_polynomials(system, &var_id_map, &coord_map, &var_count);
 
     if (var_count == 0 || !mv_polys) {
-        lv00_free((void **) &var_id_map);
-        lv00_free((void **) &coord_map);
+        lv_free((void **) &var_id_map);
+        lv_free((void **) &coord_map);
         return SOLVER_STATUS_OK;
     }
 
@@ -5019,19 +5019,19 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         for (int i = 0; i < system->count; i++) {
             mv_poly_clear(&mv_polys[i]);
         }
-        lv00_free((void **) &mv_polys);
-        lv00_free((void **) &var_id_map);
-        lv00_free((void **) &coord_map);
+        lv_free((void **) &mv_polys);
+        lv_free((void **) &var_id_map);
+        lv_free((void **) &coord_map);
         return SOLVER_STATUS_OK;
     }
 
-    MVPolynomial **active = lv00_malloc((size_t) active_count * sizeof(MVPolynomial *));
+    MVPolynomial **active = lv_malloc((size_t) active_count * sizeof(MVPolynomial *));
     if (!active) {
         for (int i = 0; i < system->count; i++)
             mv_poly_clear(&mv_polys[i]);
-        lv00_free((void **) &mv_polys);
-        lv00_free((void **) &var_id_map);
-        lv00_free((void **) &coord_map);
+        lv_free((void **) &mv_polys);
+        lv_free((void **) &var_id_map);
+        lv_free((void **) &coord_map);
         return SOLVER_STATUS_TIMEOUT;
     }
     int idx = 0;
@@ -5056,7 +5056,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         ev.description = "Groebner 基计算完成";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_gc;
-        LV00_SAFE_SNPRINTF(_snw_gc, detail, sizeof(detail),
+        lv_SAFE_SNPRINTF(_snw_gc, detail, sizeof(detail),
                            "{\"phase\":\"groebner_complete\",\"status\":\"%s\","
                            "\"input_equations\":%d,\"active_equations\":%d,"
                            "\"basis_size\":%d,\"variables\":%d}",
@@ -5064,20 +5064,20 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
                            : (status == SOLVER_STATUS_OUT_OF_SCOPE) ? "out_of_scope"
                                                              : "timeout",
                            system->count, active_count, g_count, var_count);
-        LV00_UNUSED(_snw_gc);
+        lv_UNUSED(_snw_gc);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
 
-    lv00_free((void **) &active);
+    lv_free((void **) &active);
 
     if (status == SOLVER_STATUS_OUT_OF_SCOPE) {
         for (int i = 0; i < system->count; i++) {
             mv_poly_clear(&mv_polys[i]);
         }
-        lv00_free((void **) &mv_polys);
-        lv00_free((void **) &var_id_map);
-        lv00_free((void **) &coord_map);
+        lv_free((void **) &mv_polys);
+        lv_free((void **) &var_id_map);
+        lv_free((void **) &coord_map);
         return SOLVER_STATUS_OUT_OF_SCOPE;
     }
 
@@ -5152,9 +5152,9 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         /* Clean up Groebner basis */
         for (int i = 0; i < g_count; i++) {
             mv_poly_clear(G[i]);
-            lv00_free((void **) &G[i]);
+            lv_free((void **) &G[i]);
         }
-        lv00_free((void **) &G);
+        lv_free((void **) &G);
     }
 
     /* Clean up original multivariate polynomials.
@@ -5163,9 +5163,9 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     for (int i = 0; i < original_eq_count; i++) {
         mv_poly_clear(&mv_polys[i]);
     }
-    lv00_free((void **) &mv_polys);
-    lv00_free((void **) &var_id_map);
-    lv00_free((void **) &coord_map);
+    lv_free((void **) &mv_polys);
+    lv_free((void **) &var_id_map);
+    lv_free((void **) &coord_map);
 
     return (status == SOLVER_STATUS_TIMEOUT) ? SOLVER_STATUS_TIMEOUT : SOLVER_STATUS_OK;
 push_error:
@@ -5174,20 +5174,20 @@ push_error:
         for (int i = 0; i < g_count; i++) {
             if (G[i]) {
                 mv_poly_clear(G[i]);
-                lv00_free((void **) &G[i]);
+                lv_free((void **) &G[i]);
             }
         }
-        lv00_free((void **) &G);
+        lv_free((void **) &G);
     }
     /* 清理原始多变量多项式 */
     if (mv_polys) {
         for (int i = 0; i < original_eq_count; i++) {
             mv_poly_clear(&mv_polys[i]);
         }
-        lv00_free((void **) &mv_polys);
+        lv_free((void **) &mv_polys);
     }
-    lv00_free((void **) &var_id_map);
-    lv00_free((void **) &coord_map);
+    lv_free((void **) &var_id_map);
+    lv_free((void **) &coord_map);
     return SOLVER_STATUS_OUT_OF_MEMORY;
 }
 
@@ -5218,7 +5218,7 @@ push_error:
  */
 SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, const EquationSystem *system,
                                               SymbolicCoord ***out_branches, int *out_branch_count) {
-    LV00_UNUSED(result);
+    lv_UNUSED(result);
     if (!out_branches || !out_branch_count)
         return SOLVER_STATUS_TIMEOUT;
     *out_branches = NULL;
@@ -5243,7 +5243,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     };
 
     int max_branch_vars = system->count;
-    struct BranchVariable *branch_vars = lv00_malloc((size_t) max_branch_vars * sizeof(struct BranchVariable));
+    struct BranchVariable *branch_vars = lv_malloc((size_t) max_branch_vars * sizeof(struct BranchVariable));
     if (!branch_vars)
         return SOLVER_STATUS_TIMEOUT;
     memset(branch_vars, 0, (size_t) max_branch_vars * sizeof(struct BranchVariable));
@@ -5260,20 +5260,20 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
 
         /* Extract coefficients a, b, c using GMP's mpz_get_d which
          * converts mpz_t directly to double. */
-        double a_val = mpz_get_d(system->eqs[i].poly.coeffs[2]) / LV00_SOLVER_SCALE_FACTOR;
+        double a_val = mpz_get_d(system->eqs[i].poly.coeffs[2]) / lv_SOLVER_SCALE_FACTOR;
         double b_val = (system->eqs[i].poly.degree >= 1)
-                           ? mpz_get_d(system->eqs[i].poly.coeffs[1]) / LV00_SOLVER_SCALE_FACTOR
+                           ? mpz_get_d(system->eqs[i].poly.coeffs[1]) / lv_SOLVER_SCALE_FACTOR
                            : 0.0;
-        double c_val = mpz_get_d(system->eqs[i].poly.coeffs[0]) / LV00_SOLVER_SCALE_FACTOR;
+        double c_val = mpz_get_d(system->eqs[i].poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
 
         double discriminant = b_val * b_val - 4.0 * a_val * c_val;
 
-        if (discriminant < -LV00_EPSILON_DOUBLE) {
+        if (discriminant < -lv_EPSILON_DOUBLE) {
             /* No real roots - this equation has complex roots only */
             continue;
         }
 
-        if (discriminant < LV00_EPSILON_DOUBLE) {
+        if (discriminant < lv_EPSILON_DOUBLE) {
             /* Double root (D ≈ 0): only one distinct solution, skip for branching */
             continue;
         }
@@ -5300,11 +5300,11 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             ev.description = "二次方程双解分支变量";
             char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw3;
-            LV00_SAFE_SNPRINTF(_snw3, detail, sizeof(detail),
+            lv_SAFE_SNPRINTF(_snw3, detail, sizeof(detail),
                                "{\"var_id\":%d,\"coord\":%d,\"root1\":%.6f,\"root2\":%.6f,\"D\":%.6f}",
                                system->eqs[i].var_node_id, system->eqs[i].coord_index, branch_vars[branch_count].root1,
                                branch_vars[branch_count].root2, discriminant);
-            LV00_UNUSED(_snw3);
+            lv_UNUSED(_snw3);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
         }
@@ -5316,7 +5316,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
      * For k quadratic equations, there are 2^k possible branches.
      * We cap at 2^12 = 4096 to avoid combinatorial explosion. */
     if (branch_count == 0) {
-        lv00_free((void **) &branch_vars);
+        lv_free((void **) &branch_vars);
         return SOLVER_STATUS_UNIQUE; /* No quadratic equations with distinct roots */
     }
 
@@ -5334,9 +5334,9 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     /* Step 3: Allocate flat 2D array for all branch coordinates.
      * branch_coords[b * branch_count + v] = v-th coordinate of branch b */
     int total_coords = total_branches * branch_count;
-    SymbolicCoord **branch_coords = lv00_malloc((size_t) total_coords * sizeof(SymbolicCoord *));
+    SymbolicCoord **branch_coords = lv_malloc((size_t) total_coords * sizeof(SymbolicCoord *));
     if (!branch_coords) {
-        lv00_free((void **) &branch_vars);
+        lv_free((void **) &branch_vars);
         return SOLVER_STATUS_OUT_OF_MEMORY;
     }
     memset(branch_coords, 0, (size_t) total_coords * sizeof(SymbolicCoord *));
@@ -5347,15 +5347,15 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             double chosen = (b & (1u << v)) ? branch_vars[v].root2 : branch_vars[v].root1;
 
             /* Create a rational coordinate from the double value. */
-            int64_t num_val = (int64_t) (chosen * LV00_SOLVER_SCALE_FACTOR);
-            SymbolicCoord *coord = symbolic_coord_create_rational(num_val, (uint64_t) LV00_SOLVER_SCALE_FACTOR);
+            int64_t num_val = (int64_t) (chosen * lv_SOLVER_SCALE_FACTOR);
+            SymbolicCoord *coord = symbolic_coord_create_rational(num_val, (uint64_t) lv_SOLVER_SCALE_FACTOR);
             if (!coord) {
                 /* Cleanup: destroy all coords created so far */
                 for (int i = 0; i < b * branch_count + v; i++) {
                     symbolic_coord_destroy(branch_coords[i]);
                 }
-                lv00_free((void **) &branch_coords);
-                lv00_free((void **) &branch_vars);
+                lv_free((void **) &branch_coords);
+                lv_free((void **) &branch_vars);
                 return SOLVER_STATUS_TIMEOUT;
             }
             branch_coords[b * branch_count + v] = coord;
@@ -5365,13 +5365,13 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     /* Step 4: Validate each branch against remaining equations.
      * A branch is valid if it doesn't contradict any of the other equations
      * in the system when the quadratic values are substituted. */
-    bool *branch_valid = lv00_malloc((size_t) total_branches * sizeof(bool));
+    bool *branch_valid = lv_malloc((size_t) total_branches * sizeof(bool));
     if (!branch_valid) {
         for (int i = 0; i < total_coords; i++) {
             symbolic_coord_destroy(branch_coords[i]);
         }
-        lv00_free((void **) &branch_coords);
-        lv00_free((void **) &branch_vars);
+        lv_free((void **) &branch_coords);
+        lv_free((void **) &branch_vars);
         return SOLVER_STATUS_TIMEOUT;
     }
     memset(branch_valid, 0, (size_t) total_branches * sizeof(bool));
@@ -5465,8 +5465,8 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
 
                 /* 回退到 double 近似验证 */
                 if (!equation_satisfied) {
-                    double a_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[1]) / LV00_SOLVER_SCALE_FACTOR;
-                    double c_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[0]) / LV00_SOLVER_SCALE_FACTOR;
+                    double a_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[1]) / lv_SOLVER_SCALE_FACTOR;
+                    double c_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
                     double lhs = a_coeff * branch_val + c_coeff;
                     equation_satisfied = (fabs(lhs) < 1e-6);
                 }
@@ -5479,8 +5479,8 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             }
             /* For degree 0: check constant = 0 (contradiction if non-zero) */
             if (system->eqs[eq].poly.degree == 0) {
-                double const_val = mpz_get_d(system->eqs[eq].poly.coeffs[0]) / LV00_SOLVER_SCALE_FACTOR;
-                if (fabs(const_val) > LV00_EPSILON_DOUBLE) {
+                double const_val = mpz_get_d(system->eqs[eq].poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
+                if (fabs(const_val) > lv_EPSILON_DOUBLE) {
                     valid = false;
                     break;
                 }
@@ -5501,9 +5501,9 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             ev.description = "多解分支验证中";
             char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw4;
-            LV00_SAFE_SNPRINTF(_snw4, detail, sizeof(detail), "{\"checked\":%d,\"total\":%d,\"valid\":%d}", b + 1,
+            lv_SAFE_SNPRINTF(_snw4, detail, sizeof(detail), "{\"checked\":%d,\"total\":%d,\"valid\":%d}", b + 1,
                                total_branches, valid_branches);
-            LV00_UNUSED(_snw4);
+            lv_UNUSED(_snw4);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
         }
@@ -5512,14 +5512,14 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     /* Step 5: Build output array of valid branches.
      * Each valid branch is a newly-allocated SymbolicCoord* array of branch_count entries,
      * copied from the flat branch_coords. */
-    SymbolicCoord **out_branch_arr = lv00_malloc((size_t) (valid_branches * branch_count) * sizeof(SymbolicCoord *));
+    SymbolicCoord **out_branch_arr = lv_malloc((size_t) (valid_branches * branch_count) * sizeof(SymbolicCoord *));
     if (!out_branch_arr) {
         for (int i = 0; i < total_coords; i++) {
             symbolic_coord_destroy(branch_coords[i]);
         }
-        lv00_free((void **) &branch_coords);
-        lv00_free((void **) &branch_valid);
-        lv00_free((void **) &branch_vars);
+        lv_free((void **) &branch_coords);
+        lv_free((void **) &branch_valid);
+        lv_free((void **) &branch_vars);
         return SOLVER_STATUS_OUT_OF_MEMORY;
     }
     memset(out_branch_arr, 0, (size_t) (valid_branches * branch_count) * sizeof(SymbolicCoord *));
@@ -5547,22 +5547,22 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             ev.description = "有效多解分支";
             char detail[SOLVER_DETAIL_BUF_SIZE];
             int pos;
-            LV00_SAFE_SNPRINTF(pos, detail, sizeof(detail), "{\"branch\":%d,\"valid\":true,\"values\":[", out_idx);
+            lv_SAFE_SNPRINTF(pos, detail, sizeof(detail), "{\"branch\":%d,\"valid\":true,\"values\":[", out_idx);
             for (int v = 0; v < branch_count && pos < (int) sizeof(detail) - 30; v++) {
                 char *coord_str = symbolic_coord_serialize(branch_coords[src_base + v]);
                 if (coord_str) {
                     int _sn_tmp;
-                    LV00_SAFE_SNPRINTF(_sn_tmp, detail + pos, (size_t) (sizeof(detail) - pos - 5), "%s\"%s\"",
+                    lv_SAFE_SNPRINTF(_sn_tmp, detail + pos, (size_t) (sizeof(detail) - pos - 5), "%s\"%s\"",
                                        (v > 0 ? "," : ""), coord_str);
                     pos += _sn_tmp;
-                    lv00_free((void **) &coord_str);
+                    lv_free((void **) &coord_str);
                 }
             }
             {
                 int _sn_tmp2;
-                LV00_SAFE_SNPRINTF(_sn_tmp2, detail + pos, (size_t) (sizeof(detail) - pos - 3), "]}");
-                LV00_UNUSED(_sn_tmp2);
-                LV00_UNUSED(pos);
+                lv_SAFE_SNPRINTF(_sn_tmp2, detail + pos, (size_t) (sizeof(detail) - pos - 3), "]}");
+                lv_UNUSED(_sn_tmp2);
+                lv_UNUSED(pos);
             }
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
@@ -5581,12 +5581,12 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     /* Free temporary working arrays.
      * branch_coords entries for valid branches were MOVED to out_branch_arr;
      * don't double-free them. */
-    lv00_free((void **) &branch_coords);
-    lv00_free((void **) &branch_valid);
-    lv00_free((void **) &branch_vars);
+    lv_free((void **) &branch_coords);
+    lv_free((void **) &branch_valid);
+    lv_free((void **) &branch_vars);
 
     if (valid_branches == 0) {
-        lv00_free((void **) &out_branch_arr);
+        lv_free((void **) &out_branch_arr);
         *out_branches = NULL;
         *out_branch_count = 0;
         if (solver_stream_ctx) {
@@ -5609,9 +5609,9 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     if (solver_stream_ctx) {
         char msg[128];
         int _snw5;
-        LV00_SAFE_SNPRINTF(_snw5, msg, sizeof(msg), "多解分支处理: 生成 %d 个有效分支 (共 %d 个理论组合)",
+        lv_SAFE_SNPRINTF(_snw5, msg, sizeof(msg), "多解分支处理: 生成 %d 个有效分支 (共 %d 个理论组合)",
                            valid_branches, total_branches);
-        LV00_UNUSED(_snw5);
+        lv_UNUSED(_snw5);
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, msg, valid_branches);
     }
 

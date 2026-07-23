@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_module.c
  * @brief 模块系统测试 - 模块创建、依赖管理、导出管理
  *
@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* ============== 测试：模块生命周期 ============== */
@@ -187,7 +187,7 @@ static int test_version_hash(void) {
     char *hash = module_compute_version_hash(mod);
     if (hash) {
         printf("  版本哈希: %s\n", hash);
-        lv00_free_ptr(hash);
+        lv_free_ptr(hash);
     } else {
         printf("  版本哈希: (未实现)\n");
     }

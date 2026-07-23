@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
  * 模块名称：几何数据压缩引擎 (geometry_compress)
  *
  * 功能概述：
@@ -31,9 +31,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv/constraint_graph.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "node_deep_copy.h"
 #include "symbolic_coord.h"
 
@@ -160,7 +160,7 @@ static bool extract_triangle_faces(const ConstraintGraph *graph, TriangleFace **
         return false;
 
     int capacity = 64;
-    TriangleFace *f = (TriangleFace *) lv00_malloc(capacity * sizeof(TriangleFace));
+    TriangleFace *f = (TriangleFace *) lv_malloc(capacity * sizeof(TriangleFace));
     if (!f)
         return false;
 
@@ -172,9 +172,9 @@ static bool extract_triangle_faces(const ConstraintGraph *graph, TriangleFace **
         if (c->participant_count == 3) {
             if (count >= capacity) {
                 capacity *= 2;
-                TriangleFace *nf = (TriangleFace *) lv00_realloc(f, capacity * sizeof(TriangleFace));
+                TriangleFace *nf = (TriangleFace *) lv_realloc(f, capacity * sizeof(TriangleFace));
                 if (!nf) {
-                    lv00_free((void **) &f);
+                    lv_free((void **) &f);
                     return false;
                 }
                 f = nf;
@@ -327,14 +327,14 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
         return false;
 
     if (face_count == 0) {
-        lv00_free((void **) &faces);
+        lv_free((void **) &faces);
         return true;
     }
 
     /* Visited marker array */
-    bool *visited = (bool *) lv00_malloc(node_count * sizeof(bool));
+    bool *visited = (bool *) lv_malloc(node_count * sizeof(bool));
     if (!visited) {
-        lv00_free((void **) &faces);
+        lv_free((void **) &faces);
         return false;
     }
     memset(visited, 0, node_count * sizeof(bool));
@@ -342,10 +342,10 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
     /* Collect coordinate residuals for Huffman encoding */
     int residual_capacity = 256;
     int residual_count = 0;
-    double *residuals = (double *) lv00_malloc(residual_capacity * sizeof(double));
+    double *residuals = (double *) lv_malloc(residual_capacity * sizeof(double));
     if (!residuals) {
-        lv00_free((void **) &visited);
-        lv00_free((void **) &faces);
+        lv_free((void **) &visited);
+        lv_free((void **) &faces);
         return false;
     }
 
@@ -426,7 +426,7 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
                 double r = symbolic_coord_to_double(residual);
                 if (residual_count >= residual_capacity) {
                     residual_capacity *= 2;
-                    double *nr = (double *) lv00_realloc(residuals, residual_capacity * sizeof(double));
+                    double *nr = (double *) lv_realloc(residuals, residual_capacity * sizeof(double));
                     if (!nr) {
                         symbolic_coord_destroy(residual);
                         break;
@@ -446,7 +446,7 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
     /* Huffman encode residual data (quantize double residuals to int16) */
     if (residual_count > 0) {
         double quant_factor = 1000.0;
-        int16_t *quantized = (int16_t *) lv00_malloc(residual_count * sizeof(int16_t));
+        int16_t *quantized = (int16_t *) lv_malloc(residual_count * sizeof(int16_t));
         if (quantized) {
             for (int i = 0; i < residual_count; i++) {
                 double v = residuals[i] * quant_factor;
@@ -524,13 +524,13 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
                 (void) codes; /* Encoding table stored for subsequent use */
             }
 
-            lv00_free((void **) &quantized);
+            lv_free((void **) &quantized);
         }
     }
 
-    lv00_free((void **) &residuals);
-    lv00_free((void **) &visited);
-    lv00_free((void **) &faces);
+    lv_free((void **) &residuals);
+    lv_free((void **) &visited);
+    lv_free((void **) &faces);
     return true;
 }
 
@@ -559,14 +559,14 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
         return false;
 
     if (face_count == 0) {
-        lv00_free((void **) &faces);
+        lv_free((void **) &faces);
         return true;
     }
 
     /* Visited marker array */
-    bool *visited = (bool *) lv00_malloc(node_count * sizeof(bool));
+    bool *visited = (bool *) lv_malloc(node_count * sizeof(bool));
     if (!visited) {
-        lv00_free((void **) &faces);
+        lv_free((void **) &faces);
         return false;
     }
     memset(visited, 0, node_count * sizeof(bool));
@@ -680,8 +680,8 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
         face->visited = true;
     }
 
-    lv00_free((void **) &visited);
-    lv00_free((void **) &faces);
+    lv_free((void **) &visited);
+    lv_free((void **) &faces);
     return true;
 }
 
@@ -793,26 +793,26 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
 
     /* Initialize CLERS sequence buffer */
     int capacity = CLERS_SEQUENCE_INITIAL;
-    EdgebreakerMode *seq = (EdgebreakerMode *) lv00_malloc(capacity * sizeof(EdgebreakerMode));
+    EdgebreakerMode *seq = (EdgebreakerMode *) lv_malloc(capacity * sizeof(EdgebreakerMode));
     if (!seq)
         return false;
 
     int len = 0;
 
     /* Boundary stack: simple array model */
-    Edge *boundary = (Edge *) lv00_malloc(BOUNDARY_STACK_INITIAL * sizeof(Edge));
+    Edge *boundary = (Edge *) lv_malloc(BOUNDARY_STACK_INITIAL * sizeof(Edge));
     if (!boundary) {
-        lv00_free((void **) &seq);
+        lv_free((void **) &seq);
         return false;
     }
     int boundary_top = 0;
     int boundary_capacity = BOUNDARY_STACK_INITIAL;
 
     /* Node visit markers */
-    bool *visited = (bool *) lv00_malloc(graph->node_count * sizeof(bool));
+    bool *visited = (bool *) lv_malloc(graph->node_count * sizeof(bool));
     if (!visited) {
-        lv00_free((void **) &seq);
-        lv00_free((void **) &boundary);
+        lv_free((void **) &seq);
+        lv_free((void **) &boundary);
         return false;
     }
     memset(visited, 0, graph->node_count * sizeof(bool));
@@ -836,9 +836,9 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
 
     if (start_v0 < 0 || start_v1 < 0) {
         /* Not enough geometry points, generate empty sequence */
-        lv00_free((void **) &seq);
-        lv00_free((void **) &boundary);
-        lv00_free((void **) &visited);
+        lv_free((void **) &seq);
+        lv_free((void **) &boundary);
+        lv_free((void **) &visited);
         *modes = NULL;
         *seq_len = 0;
         return true;
@@ -888,7 +888,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                 if (len >= capacity) {
                     capacity *= 2;
                     EdgebreakerMode *new_seq =
-                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                        (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                     if (!new_seq)
                         break;
                     seq = new_seq;
@@ -899,7 +899,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                 /* Push new edges onto boundary stack */
                 if (boundary_top >= boundary_capacity) {
                     boundary_capacity *= 2;
-                    Edge *new_b = (Edge *) lv00_realloc(boundary, boundary_capacity * sizeof(Edge));
+                    Edge *new_b = (Edge *) lv_realloc(boundary, boundary_capacity * sizeof(Edge));
                     if (!new_b)
                         break;
                     boundary = new_b;
@@ -923,7 +923,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                     if (len >= capacity) {
                         capacity *= 2;
                         EdgebreakerMode *new_seq =
-                            (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                            (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                         if (!new_seq)
                             break;
                         seq = new_seq;
@@ -938,7 +938,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                             if (len >= capacity) {
                                 capacity *= 2;
                                 EdgebreakerMode *new_seq =
-                                    (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                                    (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                                 if (!new_seq)
                                     break;
                                 seq = new_seq;
@@ -960,7 +960,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                                 if (len >= capacity) {
                                     capacity *= 2;
                                     EdgebreakerMode *new_seq =
-                                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                                        (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                                     if (!new_seq)
                                         break;
                                     seq = new_seq;
@@ -971,7 +971,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                                 if (len >= capacity) {
                                     capacity *= 2;
                                     EdgebreakerMode *new_seq =
-                                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                                        (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                                     if (!new_seq)
                                         break;
                                     seq = new_seq;
@@ -984,7 +984,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                         if (len >= capacity) {
                             capacity *= 2;
                             EdgebreakerMode *new_seq =
-                                (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                                (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                             if (!new_seq)
                                 break;
                             seq = new_seq;
@@ -997,7 +997,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                 if (len >= capacity) {
                     capacity *= 2;
                     EdgebreakerMode *new_seq =
-                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                        (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                     if (!new_seq)
                         break;
                     seq = new_seq;
@@ -1010,7 +1010,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
             /* No related constraint -> mark as E */
             if (len >= capacity) {
                 capacity *= 2;
-                EdgebreakerMode *new_seq = (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                EdgebreakerMode *new_seq = (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                 if (!new_seq)
                     break;
                 seq = new_seq;
@@ -1019,8 +1019,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
         }
     }
 
-    lv00_free((void **) &boundary);
-    lv00_free((void **) &visited);
+    lv_free((void **) &boundary);
+    lv_free((void **) &visited);
 
     *modes = seq;
     *seq_len = len;
@@ -1061,7 +1061,7 @@ static bool bitwriter_write_bit(BitWriter *bw, int bit) {
         bw->byte_pos++;
         if (bw->byte_pos >= bw->capacity) {
             size_t new_cap = bw->capacity * 2;
-            uint8_t *new_buf = (uint8_t *) lv00_realloc(bw->buf, new_cap);
+            uint8_t *new_buf = (uint8_t *) lv_realloc(bw->buf, new_cap);
             if (!new_buf)
                 return false;
             bw->buf = new_buf;
@@ -1311,7 +1311,7 @@ static bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uin
     size_t bitstream_capacity = (raw_size * 8 + 7) / 8 + 16;
     size_t total_capacity = header_size + bitstream_capacity;
 
-    uint8_t *output = (uint8_t *) lv00_malloc(total_capacity);
+    uint8_t *output = (uint8_t *) lv_malloc(total_capacity);
     if (!output)
         return false;
 
@@ -1345,11 +1345,11 @@ static bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uin
         uint8_t byte_val = raw_data[i];
         HuffmanCode *hc = &codes[byte_val];
         if (hc->length == 0) {
-            lv00_free((void **) &output);
+            lv_free((void **) &output);
             return false;
         }
         if (!bitwriter_write_bits(&bw, hc->code, hc->length)) {
-            lv00_free((void **) &output);
+            lv_free((void **) &output);
             return false;
         }
     }
@@ -1407,7 +1407,7 @@ static bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **o
         return true;
     }
 
-    uint8_t *output = (uint8_t *) lv00_malloc(raw_sz);
+    uint8_t *output = (uint8_t *) lv_malloc(raw_sz);
     if (!output)
         return false;
 
@@ -1481,7 +1481,7 @@ static bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **o
             while (hnodes[node].left >= 0 || hnodes[node].right >= 0) {
                 int bit = bitreader_read_bit(&br);
                 if (bit < 0) {
-                    lv00_free((void **) &output);
+                    lv_free((void **) &output);
                     return false;
                 }
                 if (bit == 0) {
@@ -1490,7 +1490,7 @@ static bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **o
                     node = hnodes[node].right;
                 }
                 if (node < 0) {
-                    lv00_free((void **) &output);
+                    lv_free((void **) &output);
                     return false;
                 }
             }
@@ -1528,7 +1528,7 @@ static bool rle_encode(const uint8_t *data, size_t size, uint8_t **out_data, siz
 
     /* Worst case: each byte is different -> 2x expansion */
     size_t max_out = size * 2;
-    uint8_t *output = (uint8_t *) lv00_malloc(max_out);
+    uint8_t *output = (uint8_t *) lv_malloc(max_out);
     if (!output)
         return false;
 
@@ -1579,7 +1579,7 @@ static bool rle_decode(const uint8_t *data, size_t size, uint8_t **out_data, siz
         return true;
     }
 
-    uint8_t *output = (uint8_t *) lv00_malloc(total);
+    uint8_t *output = (uint8_t *) lv_malloc(total);
     if (!output)
         return false;
 
@@ -1634,7 +1634,7 @@ static bool entropy_encode_real(const uint8_t *raw_data, size_t raw_size, uint8_
         return false;
 
     if (!rle_data || rle_size == 0) {
-        lv00_free((void **) &rle_data);
+        lv_free((void **) &rle_data);
         *out_data = NULL;
         *out_size = 0;
         return true;
@@ -1644,7 +1644,7 @@ static bool entropy_encode_real(const uint8_t *raw_data, size_t raw_size, uint8_
     uint8_t *huffman_data = NULL;
     size_t huffman_size = 0;
     bool huff_ok = entropy_encode_huffman(rle_data, rle_size, &huffman_data, &huffman_size);
-    lv00_free((void **) &rle_data);
+    lv_free((void **) &rle_data);
 
     if (!huff_ok) {
         return false;
@@ -1653,9 +1653,9 @@ static bool entropy_encode_real(const uint8_t *raw_data, size_t raw_size, uint8_
     /* Build combined output: [magic(4)][original_size(4)][rle_size(4)][huffman_data] */
     size_t header_size = 4 + 4 + 4; /* magic + original_size + rle_size */
     size_t total_size = header_size + huffman_size;
-    uint8_t *output = (uint8_t *) lv00_malloc(total_size);
+    uint8_t *output = (uint8_t *) lv_malloc(total_size);
     if (!output) {
-        lv00_free((void **) &huffman_data);
+        lv_free((void **) &huffman_data);
         return false;
     }
 
@@ -1681,7 +1681,7 @@ static bool entropy_encode_real(const uint8_t *raw_data, size_t raw_size, uint8_
 
     /* Copy Huffman data */
     memcpy(output + header_size, huffman_data, huffman_size);
-    lv00_free((void **) &huffman_data);
+    lv_free((void **) &huffman_data);
 
     *out_data = output;
     *out_size = total_size;
@@ -1735,7 +1735,7 @@ static bool entropy_decode_real(const uint8_t *data, size_t size, uint8_t **out_
 
     /* RLE decode to get original data */
     bool rle_ok = rle_decode(rle_data, rle_decoded_size, out_data, out_size);
-    lv00_free((void **) &rle_data);
+    lv_free((void **) &rle_data);
 
     return rle_ok;
 }
@@ -1783,11 +1783,11 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
                     if (copy->symbolic_coords[d])
                         symbolic_coord_destroy(copy->symbolic_coords[d]);
                 }
-                lv00_free((void **) &copy->symbolic_coords);
+                lv_free((void **) &copy->symbolic_coords);
             }
             if (copy->numeric_assumption_declaration)
-                lv00_free((void **) &copy->numeric_assumption_declaration);
-            lv00_free((void **) &copy);
+                lv_free((void **) &copy->numeric_assumption_declaration);
+            lv_free((void **) &copy);
             graph_destroy(cloned);
             return NULL;
         }
@@ -1801,8 +1801,8 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
 
         /* Free the intermediate copy (graph_add_node_with_id made its own deep copy) */
         if (copy->numeric_assumption_declaration)
-            lv00_free((void **) &copy->numeric_assumption_declaration);
-        lv00_free((void **) &copy);
+            lv_free((void **) &copy->numeric_assumption_declaration);
+        lv_free((void **) &copy);
     }
 
     /* Deep copy all constraints */
@@ -1812,7 +1812,7 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
             continue;
 
         /* Allocate participant array copy */
-        int *parts_copy = (int *) lv00_malloc(orig->participant_count * sizeof(int));
+        int *parts_copy = (int *) lv_malloc(orig->participant_count * sizeof(int));
         if (!parts_copy) {
             graph_destroy(cloned);
             return NULL;
@@ -1822,11 +1822,11 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
         Constraint *added = graph_add_constraint_with_id(cloned, orig->id, orig->type,
                                                           parts_copy, orig->participant_count);
         if (!added) {
-            lv00_free((void **) &parts_copy);
+            lv_free((void **) &parts_copy);
             graph_destroy(cloned);
             return NULL;
         }
-        lv00_free((void **) &parts_copy); /* graph_add_constraint_with_id makes its own copy */
+        lv_free((void **) &parts_copy); /* graph_add_constraint_with_id makes its own copy */
     }
 
     return cloned;
@@ -1881,7 +1881,7 @@ static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_s
     }
 
     size_t total = header + body;
-    uint8_t *buf = (uint8_t *) lv00_malloc(total);
+    uint8_t *buf = (uint8_t *) lv_malloc(total);
     if (!buf)
         return NULL;
 
@@ -1928,7 +1928,7 @@ static uint8_t *serialize_clers(const EdgebreakerMode *seq, int seq_len, size_t 
     }
 
     size_t total = sizeof(int32_t) + seq_len;
-    uint8_t *buf = (uint8_t *) lv00_malloc(total);
+    uint8_t *buf = (uint8_t *) lv_malloc(total);
     if (!buf)
         return NULL;
 
@@ -1971,7 +1971,7 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
     size_t raw_size = 0;
     uint8_t *raw_buf = serialize_coords_raw(work_graph, &raw_size);
     if (!raw_buf) {
-        lv00_free((void **) &clers_seq);
+        lv_free((void **) &clers_seq);
         graph_destroy(work_graph);
         return false;
     }
@@ -1984,11 +1984,11 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
     /* Combined format: [clers_serial_size(4B)][clers_serial][coord_data] */
     size_t combined_header = sizeof(uint32_t);
     size_t combined_size = combined_header + clers_serial_size + raw_size;
-    uint8_t *combined = (uint8_t *) lv00_malloc(combined_size);
+    uint8_t *combined = (uint8_t *) lv_malloc(combined_size);
     if (!combined) {
-        lv00_free((void **) &clers_serial);
-        lv00_free((void **) &raw_buf);
-        lv00_free((void **) &clers_seq);
+        lv_free((void **) &clers_serial);
+        lv_free((void **) &raw_buf);
+        lv_free((void **) &clers_seq);
         graph_destroy(work_graph);
         return false;
     }
@@ -2004,22 +2004,22 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
     if (clers_serial && clers_serial_size > 0) {
         memcpy(combined + combined_header, clers_serial, clers_serial_size);
     }
-    lv00_free((void **) &clers_serial);
+    lv_free((void **) &clers_serial);
 
     /* Copy coordinate data */
     memcpy(combined + combined_header + clers_serial_size, raw_buf, raw_size);
-    lv00_free((void **) &raw_buf);
+    lv_free((void **) &raw_buf);
 
     /* Apply real entropy encoding (RLE + Huffman) */
     uint8_t *encoded = NULL;
     size_t encoded_size = 0;
     bool enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
-    lv00_free((void **) &combined);
+    lv_free((void **) &combined);
 
     graph_destroy(work_graph);
 
     if (!enc_ok) {
-        lv00_free((void **) &clers_seq);
+        lv_free((void **) &clers_seq);
         return false;
     }
 
@@ -2036,7 +2036,7 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
         out_meta->edgebreaker_sequence = clers_seq;
         out_meta->sequence_len = clers_len;
     } else {
-        lv00_free((void **) &clers_seq);
+        lv_free((void **) &clers_seq);
     }
 
     return true;
@@ -2072,7 +2072,7 @@ static bool deserialize_clers(const uint8_t *data, size_t size, EdgebreakerMode 
         return true;
     }
 
-    EdgebreakerMode *s = (EdgebreakerMode *) lv00_malloc(len * sizeof(EdgebreakerMode));
+    EdgebreakerMode *s = (EdgebreakerMode *) lv_malloc(len * sizeof(EdgebreakerMode));
     if (!s)
         return false;
 
@@ -2118,7 +2118,7 @@ static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph
 
         SymbolicCoord **coords = NULL;
         if (cc > 0) {
-            coords = (SymbolicCoord **) lv00_malloc(cc * sizeof(SymbolicCoord *));
+            coords = (SymbolicCoord **) lv_malloc(cc * sizeof(SymbolicCoord *));
             if (!coords)
                 return false;
 
@@ -2143,7 +2143,7 @@ static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph
                     if (coords[d])
                         symbolic_coord_destroy(coords[d]);
                 }
-                lv00_free((void **) &coords);
+                lv_free((void **) &coords);
                 return false;
             }
         }
@@ -2156,7 +2156,7 @@ static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph
                 if (coords[d])
                     symbolic_coord_destroy(coords[d]);
             }
-            lv00_free((void **) &coords);
+            lv_free((void **) &coords);
         }
     }
 
@@ -2175,7 +2175,7 @@ bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out
     }
 
     if (!decoded || decoded_size == 0) {
-        lv00_free((void **) &decoded);
+        lv_free((void **) &decoded);
         *out_graph = graph_create();
         return (*out_graph != NULL);
     }
@@ -2183,7 +2183,7 @@ bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out
     /* Step 2: Create output graph */
     ConstraintGraph *graph = graph_create();
     if (!graph) {
-        lv00_free((void **) &decoded);
+        lv_free((void **) &decoded);
         return false;
     }
 
@@ -2192,28 +2192,28 @@ bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out
     int clers_len = 0;
     size_t clers_consumed = 0;
     if (!deserialize_clers(decoded, decoded_size, &clers_seq, &clers_len, &clers_consumed)) {
-        lv00_free((void **) &decoded);
+        lv_free((void **) &decoded);
         graph_destroy(graph);
         return false;
     }
-    lv00_free((void **) &clers_seq); /* We don't need the CLERS sequence for basic deserialization */
+    lv_free((void **) &clers_seq); /* We don't need the CLERS sequence for basic deserialization */
 
     /* Step 4: Deserialize coordinate data and reconstruct nodes */
     /* The combined format is: [clers_serial_size(4B)][clers_serial][coord_data] */
     if (decoded_size < clers_consumed) {
-        lv00_free((void **) &decoded);
+        lv_free((void **) &decoded);
         graph_destroy(graph);
         return false;
     }
 
     /* Skip CLERS section header (4 bytes) and CLERS data to get to coordinate data */
     if (!deserialize_coords(decoded + clers_consumed, decoded_size - clers_consumed, graph)) {
-        lv00_free((void **) &decoded);
+        lv_free((void **) &decoded);
         graph_destroy(graph);
         return false;
     }
 
-    lv00_free((void **) &decoded);
+    lv_free((void **) &decoded);
 
     *out_graph = graph;
     return true;
@@ -2323,7 +2323,7 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     }
 
     /* Allocate buffer and read compressed data */
-    uint8_t *buf = (uint8_t *) lv00_malloc((size_t) comp_size);
+    uint8_t *buf = (uint8_t *) lv_malloc((size_t) comp_size);
     if (!buf) {
         fclose(fp);
         return false;
@@ -2333,7 +2333,7 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     fclose(fp);
 
     if (read_bytes != (size_t) comp_size) {
-        lv00_free((void **) &buf);
+        lv_free((void **) &buf);
         return false;
     }
 

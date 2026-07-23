@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_preset.c
  * @brief 预设函数块系统实现
  *
@@ -12,8 +12,8 @@
  */
 
 #include "func_block_preset.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "error_codes.h"
 
 #include <stdlib.h>
@@ -25,13 +25,13 @@
  * 命名常量
  * ============================================================ */
 
-/* 版本号统一使用 lv00_internal.h 中的 LV00_PRESET_LIBRARY_VERSION_* 定义 */
+/* 版本号统一使用 lv_internal.h 中的 lv_PRESET_LIBRARY_VERSION_* 定义 */
 
-/** 最大预设数量（引用 lv00_internal.h 中的统一定义） */
-#define MAX_PRESETS LV00_PRESET_MAX_COUNT
+/** 最大预设数量（引用 lv_internal.h 中的统一定义） */
+#define MAX_PRESETS lv_PRESET_MAX_COUNT
 
 /** 最大参数数量 */
-#define MAX_PARAMS LV00_PRESET_MAX_PARAMS
+#define MAX_PARAMS lv_PRESET_MAX_PARAMS
 
 /** 字符串缓冲区大小 */
 #define BUFFER_SIZE 4096
@@ -67,7 +67,7 @@ static struct {
 } g_preset_library = {
     .count = 0,
     .initialized = false,
-    .next_preset_id = LV00_PRESET_ID_OFFSET  /**< 预设ID起始偏移 */
+    .next_preset_id = lv_PRESET_ID_OFFSET  /**< 预设ID起始偏移 */
 };
 
 /* ============================================================
@@ -833,10 +833,10 @@ static FuncBlock *create_preset_template(const PresetMetadata *metadata)
     
     /* 设置名称和描述 */
     if (metadata->name) {
-        fb->name = lv00_strdup(metadata->name);
+        fb->name = lv_strdup(metadata->name);
     }
     if (metadata->description) {
-        fb->description = lv00_strdup(metadata->description);
+        fb->description = lv_strdup(metadata->description);
     }
     
     /* 设置确定性状态 */
@@ -889,7 +889,7 @@ static bool init_builtin_presets(void)
 {
     for (int i = 0; i < g_builtin_count; i++) {
         if (!register_builtin_preset(&g_builtin_metadata[i])) {
-            LV00_LOG_WARNING("注册内置预设失败: %s", g_builtin_metadata[i].name);
+            lv_LOG_WARNING("注册内置预设失败: %s", g_builtin_metadata[i].name);
             /* 继续注册其他预设 */
         }
     }
@@ -909,7 +909,7 @@ bool func_block_preset_library_init(void)
     
     /* 清空状态 */
     memset(&g_preset_library, 0, sizeof(g_preset_library));
-    g_preset_library.next_preset_id = LV00_PRESET_ID_OFFSET;
+    g_preset_library.next_preset_id = lv_PRESET_ID_OFFSET;
     
     /* 初始化内置预设 */
     if (!init_builtin_presets()) {
@@ -972,11 +972,11 @@ InstantiateResult func_block_preset_instantiate(
     /* 释放警告信息 */
     if (details.warnings) {
         for (int i = 0; i < details.warning_count; i++) {
-            lv00_free((void **)&details.warnings[i]);
+            lv_free((void **)&details.warnings[i]);
         }
-        lv00_free((void **)&details.warnings);
+        lv_free((void **)&details.warnings);
     }
-    lv00_free((void **)&details.error_detail);
+    lv_free((void **)&details.error_detail);
     
     return result;
 }
@@ -1001,7 +1001,7 @@ InstantiateResult func_block_preset_instantiate_ex(
     int idx = find_preset_index(preset_name);
     if (idx < 0) {
         out_details->result = INSTANTIATE_NO_SOLUTION;
-        out_details->error_detail = lv00_strdup("预设不存在");
+        out_details->error_detail = lv_strdup("预设不存在");
         return INSTANTIATE_NO_SOLUTION;
     }
     
@@ -1010,7 +1010,7 @@ InstantiateResult func_block_preset_instantiate_ex(
     /* 验证输入数量 */
     if (metadata->input_count > 0 && input_count != metadata->input_count) {
         out_details->result = INSTANTIATE_PRECONDITION_FAILED;
-        out_details->error_detail = lv00_asprintf(
+        out_details->error_detail = lv_asprintf(
             "输入参数数量不匹配: 需要%d个，提供%d个", metadata->input_count, input_count);
         return INSTANTIATE_PRECONDITION_FAILED;
     }
@@ -1018,7 +1018,7 @@ InstantiateResult func_block_preset_instantiate_ex(
     /* 验证输入节点 */
     if (input_count > 0 && !input_node_ids) {
         out_details->result = INSTANTIATE_PRECONDITION_FAILED;
-        out_details->error_detail = lv00_strdup("输入节点ID为空");
+        out_details->error_detail = lv_strdup("输入节点ID为空");
         return INSTANTIATE_PRECONDITION_FAILED;
     }
     
@@ -1026,7 +1026,7 @@ InstantiateResult func_block_preset_instantiate_ex(
         GeomNode *node = graph_get_node(graph, input_node_ids[i]);
         if (!node) {
             out_details->result = INSTANTIATE_PRECONDITION_FAILED;
-            out_details->error_detail = lv00_asprintf("输入节点%d不存在", input_node_ids[i]);
+            out_details->error_detail = lv_asprintf("输入节点%d不存在", input_node_ids[i]);
             return INSTANTIATE_PRECONDITION_FAILED;
         }
     }
@@ -1068,13 +1068,13 @@ void func_block_preset_free_details(InstantiateDetails *details)
     
     if (details->warnings) {
         for (int i = 0; i < details->warning_count; i++) {
-            lv00_free((void **)&details->warnings[i]);
+            lv_free((void **)&details->warnings[i]);
         }
-        lv00_free((void **)&details->warnings);
+        lv_free((void **)&details->warnings);
     }
     
-    lv00_free((void **)&details->error_detail);
-    lv00_free((void **)&details->output_node_ids);
+    lv_free((void **)&details->error_detail);
+    lv_free((void **)&details->output_node_ids);
     
     if (details->func_block) {
         func_block_destroy(details->func_block);
@@ -1533,7 +1533,7 @@ bool func_block_preset_partial(
     /* 构建新的输入端口数组（跳过已固定的端口） */
     int new_input_count = partial_meta.input_count;
     if (new_input_count > 0 && template->input_count > 0) {
-        int *new_input_ports = (int *)lv00_malloc((size_t)new_input_count * sizeof(int));
+        int *new_input_ports = (int *)lv_malloc((size_t)new_input_count * sizeof(int));
         if (!new_input_ports) {
             func_block_destroy(partial_template);
             return false;
@@ -1557,7 +1557,7 @@ bool func_block_preset_partial(
 
         /* 设置新的输入端口（func_block_set_input_ports 会自动释放旧值） */
         func_block_set_input_ports(partial_template, new_input_ports, new_input_count);
-        lv00_free((void **)&new_input_ports);
+        lv_free((void **)&new_input_ports);
     }
 
     /* 设置新名称 */
@@ -1621,7 +1621,7 @@ size_t func_block_preset_generate_doc(
     
     /* 修复：动态分配属性字符串缓冲区，避免固定 256 字节栈缓冲区不够用的问题 */
     size_t props_buf_size = 512;
-    char *props_buffer = (char *)lv00_malloc(props_buf_size);
+    char *props_buffer = (char *)lv_malloc(props_buf_size);
     if (!props_buffer) return 0;
     func_block_preset_properties_string(m->properties, props_buffer, props_buf_size);
     
@@ -1648,11 +1648,11 @@ size_t func_block_preset_generate_doc(
     );
     
     if (written < 0 || (size_t)written >= buffer_size) {
-        lv00_free((void **)&props_buffer);  /* 释放动态分配的属性缓冲区 */
+        lv_free((void **)&props_buffer);  /* 释放动态分配的属性缓冲区 */
         return buffer_size + 1;  /* 指示缓冲区不足 */
     }
     
-    lv00_free((void **)&props_buffer);  /* 释放动态分配的属性缓冲区 */
+    lv_free((void **)&props_buffer);  /* 释放动态分配的属性缓冲区 */
     return (size_t)written + 1;  /* 包含\0 */
 }
 

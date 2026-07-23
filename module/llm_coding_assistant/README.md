@@ -1,4 +1,4 @@
-# Lv-00 UI编程辅助系统
+﻿# Lv-00 UI编程辅助系统
 
 专为Lv-00几何元语言可视化界面优化的智能编程助手。
 
@@ -54,7 +54,7 @@ explain proof           # 证明系统
 ```
 llm_coding_assistant/
 ├── main.py              # 主程序入口
-├── lv00_knowledge.py    # 领域知识库和提示词引擎
+├── lv_knowledge.py    # 领域知识库和提示词引擎
 ├── templates.py         # 代码模板库
 └── README.md            # 本文档
 ```

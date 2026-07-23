@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_topology.c
  * @brief Implementation of the geometric topology module.
  *
@@ -14,10 +14,10 @@
  * @date   2026-05-25
  */
 
-#include "lv00/geo_topology.h"
+#include "lv/geo_topology.h"
 
 
-#include "lv00_utils.h"
+#include "lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +50,7 @@ static void canonicalize_triangle(int *v0, int *v1, int *v2) {
 /**
  * @brief Check if an edge already exists in the edge array.
  */
-static bool edge_exists(const Lv00Edge *edges, size_t n_edges, int v0, int v1) {
+static bool edge_exists(const lvEdge *edges, size_t n_edges, int v0, int v1) {
     for (size_t i = 0; i < n_edges; i++) {
         if (edges[i].v0 == v0 && edges[i].v1 == v1) {
             return true;
@@ -62,7 +62,7 @@ static bool edge_exists(const Lv00Edge *edges, size_t n_edges, int v0, int v1) {
 /**
  * @brief Check if a triangle already exists in the triangle array.
  */
-static bool triangle_exists(const Lv00Triangle *triangles, size_t n_triangles,
+static bool triangle_exists(const lvTriangle *triangles, size_t n_triangles,
                             int v0, int v1, int v2) {
     for (size_t i = 0; i < n_triangles; i++) {
         if (triangles[i].v0 == v0 && triangles[i].v1 == v1 && triangles[i].v2 == v2) {
@@ -111,10 +111,10 @@ static void uf_union(int *parent, int *rank, int x, int y) {
  * API: Create
  * ============================================================ */
 
-Lv00SimplicialComplex *geo_simplicial_create(int n_vertices) {
+lvSimplicialComplex *geo_simplicial_create(int n_vertices) {
     if (n_vertices < 0) return NULL;
 
-    Lv00SimplicialComplex *sc = (Lv00SimplicialComplex *)lv00_calloc(1, sizeof(Lv00SimplicialComplex));
+    lvSimplicialComplex *sc = (lvSimplicialComplex *)lv_calloc(1, sizeof(lvSimplicialComplex));
     if (!sc) return NULL;
 
     sc->n_vertices  = n_vertices;
@@ -130,18 +130,18 @@ Lv00SimplicialComplex *geo_simplicial_create(int n_vertices) {
  * API: Destroy
  * ============================================================ */
 
-void geo_simplicial_destroy(Lv00SimplicialComplex *sc) {
+void geo_simplicial_destroy(lvSimplicialComplex *sc) {
     if (!sc) return;
-    lv00_free((void **)&(sc->edges));
-    lv00_free((void **)&(sc->triangles));
-    lv00_free((void **)&(sc));
+    lv_free((void **)&(sc->edges));
+    lv_free((void **)&(sc->triangles));
+    lv_free((void **)&(sc));
 }
 
 /* ============================================================
  * API: Add edge
  * ============================================================ */
 
-bool geo_simplicial_add_edge(Lv00SimplicialComplex *sc, int v0, int v1) {
+bool geo_simplicial_add_edge(lvSimplicialComplex *sc, int v0, int v1) {
     if (!sc) return false;
     if (v0 < 0 || v1 < 0 || v0 == v1) return false;
     if (v0 >= sc->n_vertices || v1 >= sc->n_vertices) return false;
@@ -154,8 +154,8 @@ bool geo_simplicial_add_edge(Lv00SimplicialComplex *sc, int v0, int v1) {
     }
 
     /* Grow edge array */
-    size_t new_size = (sc->n_edges + 1) * sizeof(Lv00Edge);
-    Lv00Edge *new_edges = (Lv00Edge *)lv00_realloc(sc->edges, new_size);
+    size_t new_size = (sc->n_edges + 1) * sizeof(lvEdge);
+    lvEdge *new_edges = (lvEdge *)lv_realloc(sc->edges, new_size);
     if (!new_edges) return false;
 
     sc->edges = new_edges;
@@ -170,7 +170,7 @@ bool geo_simplicial_add_edge(Lv00SimplicialComplex *sc, int v0, int v1) {
  * API: Add triangle
  * ============================================================ */
 
-bool geo_simplicial_add_triangle(Lv00SimplicialComplex *sc, int v0, int v1, int v2) {
+bool geo_simplicial_add_triangle(lvSimplicialComplex *sc, int v0, int v1, int v2) {
     if (!sc) return false;
     if (v0 < 0 || v1 < 0 || v2 < 0) return false;
     if (v0 == v1 || v1 == v2 || v0 == v2) return false;
@@ -184,8 +184,8 @@ bool geo_simplicial_add_triangle(Lv00SimplicialComplex *sc, int v0, int v1, int 
     }
 
     /* Grow triangle array */
-    size_t new_size = (sc->n_triangles + 1) * sizeof(Lv00Triangle);
-    Lv00Triangle *new_triangles = (Lv00Triangle *)lv00_realloc(sc->triangles, new_size);
+    size_t new_size = (sc->n_triangles + 1) * sizeof(lvTriangle);
+    lvTriangle *new_triangles = (lvTriangle *)lv_realloc(sc->triangles, new_size);
     if (!new_triangles) return false;
 
     sc->triangles = new_triangles;
@@ -206,7 +206,7 @@ bool geo_simplicial_add_triangle(Lv00SimplicialComplex *sc, int v0, int v1, int 
  * API: Euler characteristic
  * ============================================================ */
 
-int geo_simplicial_euler_characteristic(const Lv00SimplicialComplex *sc) {
+int geo_simplicial_euler_characteristic(const lvSimplicialComplex *sc) {
     if (!sc) return 0;
 
     /* chi = V - E + F */
@@ -217,18 +217,18 @@ int geo_simplicial_euler_characteristic(const Lv00SimplicialComplex *sc) {
  * API: Boundary
  * ============================================================ */
 
-Lv00Boundary *geo_simplicial_boundary(const Lv00SimplicialComplex *sc,
-                                       const Lv00Triangle *tri) {
+lvBoundary *geo_simplicial_boundary(const lvSimplicialComplex *sc,
+                                       const lvTriangle *tri) {
     (void)sc; /* Reserved for future use */
 
     if (!tri) return NULL;
 
-    Lv00Boundary *bnd = (Lv00Boundary *)lv00_calloc(1, sizeof(Lv00Boundary));
+    lvBoundary *bnd = (lvBoundary *)lv_calloc(1, sizeof(lvBoundary));
     if (!bnd) return NULL;
 
-    bnd->edges = (Lv00Edge *)lv00_calloc(3, sizeof(Lv00Edge));
+    bnd->edges = (lvEdge *)lv_calloc(3, sizeof(lvEdge));
     if (!bnd->edges) {
-        lv00_free((void **)&(bnd));
+        lv_free((void **)&(bnd));
         return NULL;
     }
     bnd->n_edges = 3;
@@ -247,28 +247,28 @@ Lv00Boundary *geo_simplicial_boundary(const Lv00SimplicialComplex *sc,
     return bnd;
 }
 
-void geo_simplicial_boundary_destroy(Lv00Boundary *boundary) {
+void geo_simplicial_boundary_destroy(lvBoundary *boundary) {
     if (!boundary) return;
-    lv00_free((void **)&(boundary->edges));
-    lv00_free((void **)&(boundary->vertices));
-    lv00_free((void **)&(boundary));
+    lv_free((void **)&(boundary->edges));
+    lv_free((void **)&(boundary->vertices));
+    lv_free((void **)&(boundary));
 }
 
 /* ============================================================
  * API: Connected components
  * ============================================================ */
 
-int geo_simplicial_connected_components(const Lv00SimplicialComplex *sc) {
+int geo_simplicial_connected_components(const lvSimplicialComplex *sc) {
     if (!sc || sc->n_vertices <= 0) return 0;
 
     int n = sc->n_vertices;
 
     /* Initialize union-find */
-    int *parent = (int *)lv00_calloc((size_t)n, sizeof(int));
-    int *rank   = (int *)lv00_calloc((size_t)n, sizeof(int));
+    int *parent = (int *)lv_calloc((size_t)n, sizeof(int));
+    int *rank   = (int *)lv_calloc((size_t)n, sizeof(int));
     if (!parent || !rank) {
-        lv00_free((void **)&(parent));
-        lv00_free((void **)&(rank));
+        lv_free((void **)&(parent));
+        lv_free((void **)&(rank));
         return 0;
     }
 
@@ -290,7 +290,7 @@ int geo_simplicial_connected_components(const Lv00SimplicialComplex *sc) {
         }
     }
 
-    lv00_free((void **)&(parent));
-    lv00_free((void **)&(rank));
+    lv_free((void **)&(parent));
+    lv_free((void **)&(rank));
     return components;
 }

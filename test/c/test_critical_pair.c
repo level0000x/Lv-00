@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_critical_pair.c
  * @brief 关键对计算引擎测试
  *
@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -132,7 +132,7 @@ static void test_three_rules(void) {
 /* ============== 测试入口 ============== */
 
 int main(void) {
-    lv00_init();
+    lv_init();
     TEST_SUITE_BEGIN("Critical Pair Engine");
 
     TEST_RUN(test_empty_ruleset);
@@ -145,6 +145,6 @@ int main(void) {
     TEST_RUN(test_destroy_null_safe);
 
     TEST_SUITE_END();
-    lv00_cleanup();
+    lv_cleanup();
     return g_fail_count > 0 ? 1 : 0;
 }

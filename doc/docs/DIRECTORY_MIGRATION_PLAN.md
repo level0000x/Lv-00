@@ -1,4 +1,4 @@
-# Lv-00 工程目录结构迁移计划
+﻿# Lv-00 工程目录结构迁移计划
 
 **版本**: v3.4-academic  
 **状态**: 迁移规范
@@ -10,7 +10,7 @@
 ```
 Lv-00/
 ├── core/
-│   ├── include/lv00/     # 公共头文件 (150+ 文件)
+│   ├── include/lv/     # 公共头文件 (150+ 文件)
 │   └── src/
 │       ├── _deprecated/  # 已弃用代码
 │       ├── axiom/        # 公理系统
@@ -33,7 +33,7 @@ Lv-00/
 ```
 Lv-00/
 ├── core/
-│   ├── include/lv00/
+│   ├── include/lv/
 │   │   ├── layer1_parser/      # 第1层：语法解析
 │   │   ├── layer2_resource/    # 第2层：资源管理
 │   │   ├── layer3_geometry/    # 第3层：几何内核
@@ -75,7 +75,7 @@ Lv-00/
 | `src/core/context.c` | `layer2_resource/context.c` | 上下文管理 |
 | `src/core/error_codes.c` | `layer2_resource/error_codes.c` | 错误处理 |
 | `src/core/debug.c` | `layer2_resource/debug.c` | 调试工具 |
-| `src/utils/lv00_utils.c` | `layer2_resource/utils.c` | 工具函数 |
+| `src/utils/lv_utils.c` | `layer2_resource/utils.c` | 工具函数 |
 
 ### 3.3 第3层：几何内核 (Layer 3 - Geometry)
 
@@ -115,7 +115,7 @@ Lv-00/
 1. **创建目标目录结构**
    ```bash
    mkdir -p core/src/{layer1_parser,layer2_resource,layer3_geometry,layer4_reasoning,layer5_output}
-   mkdir -p core/include/lv00/{layer1_parser,layer2_resource,layer3_geometry,layer4_reasoning,layer5_output}
+   mkdir -p core/include/lv/{layer1_parser,layer2_resource,layer3_geometry,layer4_reasoning,layer5_output}
    ```
 
 2. **更新 CMakeLists.txt**
@@ -168,19 +168,19 @@ Lv-00/
 
 ```cmake
 # 第1层：语法解析
-add_library(lv00_layer1_parser
+add_library(lv_layer1_parser
     core/src/layer1_parser/formula_parser.c
     core/src/layer1_parser/formula_converter.c
     core/src/layer1_parser/formula_renderer.c
     core/src/layer1_parser/lexer_shared.c
     core/src/layer1_parser/parser_safety.c
 )
-target_include_directories(lv00_layer1_parser PUBLIC
-    core/include/lv00/layer1_parser
+target_include_directories(lv_layer1_parser PUBLIC
+    core/include/lv/layer1_parser
 )
 
 # 第2层：资源管理
-add_library(lv00_layer2_resource
+add_library(lv_layer2_resource
     core/src/layer2_resource/memory_pool.c
     core/src/layer2_resource/context.c
     core/src/layer2_resource/error_codes.c
@@ -189,39 +189,39 @@ add_library(lv00_layer2_resource
 )
 
 # 第3层：几何内核
-add_library(lv00_layer3_geometry
+add_library(lv_layer3_geometry
     core/src/layer3_geometry/constraint_graph.c
     core/src/layer3_geometry/normalization.c
     core/src/layer3_geometry/symbolic_coord.c
     core/src/layer3_geometry/type_system.c
     core/src/layer3_geometry/unify.c
 )
-target_link_libraries(lv00_layer3_geometry PUBLIC lv00_layer2_resource)
+target_link_libraries(lv_layer3_geometry PUBLIC lv_layer2_resource)
 
 # 第4层：推理引擎
-add_library(lv00_layer4_reasoning
+add_library(lv_layer4_reasoning
     core/src/layer4_reasoning/proof_core.c
     core/src/layer4_reasoning/proof_scoped.c
     core/src/layer4_reasoning/solver.c
     core/src/layer4_reasoning/rewrite.c
     core/src/layer4_reasoning/logic_check.c
 )
-target_link_libraries(lv00_layer4_reasoning PUBLIC lv00_layer3_geometry)
+target_link_libraries(lv_layer4_reasoning PUBLIC lv_layer3_geometry)
 
 # 第5层：输出展示
-add_library(lv00_layer5_output
+add_library(lv_layer5_output
     core/src/layer5_output/tikz_export.c
     core/src/layer5_output/stream.c
 )
-target_link_libraries(lv00_layer5_output PUBLIC lv00_layer4_reasoning)
+target_link_libraries(lv_layer5_output PUBLIC lv_layer4_reasoning)
 
 # 主库
-add_library(lv00 STATIC
-    $<TARGET_OBJECTS:lv00_layer1_parser>
-    $<TARGET_OBJECTS:lv00_layer2_resource>
-    $<TARGET_OBJECTS:lv00_layer3_geometry>
-    $<TARGET_OBJECTS:lv00_layer4_reasoning>
-    $<TARGET_OBJECTS:lv00_layer5_output>
+add_library(lv STATIC
+    $<TARGET_OBJECTS:lv_layer1_parser>
+    $<TARGET_OBJECTS:lv_layer2_resource>
+    $<TARGET_OBJECTS:lv_layer3_geometry>
+    $<TARGET_OBJECTS:lv_layer4_reasoning>
+    $<TARGET_OBJECTS:lv_layer5_output>
 )
 ```
 

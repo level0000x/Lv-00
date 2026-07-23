@@ -1,6 +1,6 @@
-#include "lv00/interop.h"
-#include "lv00_utils.h"
-#include "lv00/lv00_internal.h"
+﻿#include "lv/interop.h"
+#include "lv_utils.h"
+#include "lv/lv_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -8,31 +8,31 @@
 
 /* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */
 typedef enum {
-    LV00_STEP_ADD_NODE = 0,      /* 添加节点 → intro */
-    LV00_STEP_ADD_CONSTRAINT,    /* 添加约束 → constructor */
-    LV00_STEP_REWRITE,           /* 重写 → rw */
-    LV00_STEP_FUNCTION_APP,      /* 函数应用 → apply */
-    LV00_STEP_EXACT,             /* 精确匹配 → exact */
-    LV00_STEP_HAVE,              /* 中间引理 → have */
-    LV00_STEP_CALC,              /* 计算链 → calc */
-    LV00_STEP_NORMALIZATION,     /* 规范化 → simp */
-    LV00_STEP_ORACLE             /* 外部预言 → sorry */
-} Lv00ProofStepType;
+    lv_STEP_ADD_NODE = 0,      /* 添加节点 → intro */
+    lv_STEP_ADD_CONSTRAINT,    /* 添加约束 → constructor */
+    lv_STEP_REWRITE,           /* 重写 → rw */
+    lv_STEP_FUNCTION_APP,      /* 函数应用 → apply */
+    lv_STEP_EXACT,             /* 精确匹配 → exact */
+    lv_STEP_HAVE,              /* 中间引理 → have */
+    lv_STEP_CALC,              /* 计算链 → calc */
+    lv_STEP_NORMALIZATION,     /* 规范化 → simp */
+    lv_STEP_ORACLE             /* 外部预言 → sorry */
+} lvProofStepType;
 
 /* 证明步骤结构体 */
 typedef struct {
-    int type;                     /* 步骤类型（Lv00ProofStepType） */
+    int type;                     /* 步骤类型（lvProofStepType） */
     char description[512];       /* 步骤描述 */
     int id;                      /* 步骤编号 */
-} Lv00ProofStep;
+} lvProofStep;
 
 /* 内部证明结构体（用于导出/导入） */
 typedef struct {
     char theorem_name[256];      /* 定理名称 */
     int step_count;              /* 步骤数量 */
     int step_capacity;           /* 步骤容量 */
-    Lv00ProofStep *steps;        /* 步骤数组 */
-} Lv00Lean4Proof;
+    lvProofStep *steps;        /* 步骤数组 */
+} lvLean4Proof;
 
 /* 映射表大小常量 */
 #define LEAN4_TACTIC_MAP_COUNT   9
@@ -43,28 +43,28 @@ typedef struct {
 static int lean4_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0) return -1;
 
-    Lv00Lean4Proof *p = (Lv00Lean4Proof *)proof;
+    lvLean4Proof *p = (lvLean4Proof *)proof;
 
     /* 步骤类型到 Lean 4 tactic 的映射表 */
     static const struct {
         int step_type;
         const char *tactic;
     } tactic_map[] = {
-        { LV00_STEP_ADD_NODE,        "intro" },
-        { LV00_STEP_ADD_CONSTRAINT,   "constructor" },
-        { LV00_STEP_REWRITE,         "rw" },
-        { LV00_STEP_FUNCTION_APP,    "apply" },
-        { LV00_STEP_EXACT,           "exact" },
-        { LV00_STEP_HAVE,            "have" },
-        { LV00_STEP_CALC,            "calc" },
-        { LV00_STEP_NORMALIZATION,   "simp" },
-        { LV00_STEP_ORACLE,          "sorry" }
+        { lv_STEP_ADD_NODE,        "intro" },
+        { lv_STEP_ADD_CONSTRAINT,   "constructor" },
+        { lv_STEP_REWRITE,         "rw" },
+        { lv_STEP_FUNCTION_APP,    "apply" },
+        { lv_STEP_EXACT,           "exact" },
+        { lv_STEP_HAVE,            "have" },
+        { lv_STEP_CALC,            "calc" },
+        { lv_STEP_NORMALIZATION,   "simp" },
+        { lv_STEP_ORACLE,          "sorry" }
     };
     int tactic_count = LEAN4_TACTIC_MAP_COUNT;
 
     /* 输出头 */
     const char *header =
-        "import Lv00.HilbertAxioms\n\n"
+        "import lv.HilbertAxioms\n\n"
         "theorem ";
     const char *footer = "\n";
     int header_len = (int)strlen(header);
@@ -88,7 +88,7 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
 
     /* 遍历证明树中每个步骤，生成对应的 tactic */
     for (int i = 0; i < p->step_count; i++) {
-        Lv00ProofStep *step = &p->steps[i];
+        lvProofStep *step = &p->steps[i];
         const char *tac = "sorry"; /* 默认 tactic（未知类型） */
 
         /* 在映射表中查找对应的 tactic */
@@ -116,18 +116,18 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
 /* Lean 4 proof import: 解析 Lean 4 tactic 脚本并转换为 Lv-00 证明树 */
 
 /* 辅助：向证明结构体添加一个步骤，自动处理扩容 */
-static int lean4_add_step(Lv00Lean4Proof *p, int step_type,
+static int lean4_add_step(lvLean4Proof *p, int step_type,
                            const char *desc, int desc_len) {
     if (!p || step_type < 0) return -1;
     if (p->step_count >= p->step_capacity) {
         int new_cap = p->step_capacity * 2;
-        Lv00ProofStep *new_steps = (Lv00ProofStep *)lv00_realloc(
-            p->steps, new_cap * sizeof(Lv00ProofStep));
+        lvProofStep *new_steps = (lvProofStep *)lv_realloc(
+            p->steps, new_cap * sizeof(lvProofStep));
         if (!new_steps) return -1;
         p->steps = new_steps;
         p->step_capacity = new_cap;
     }
-    Lv00ProofStep *step = &p->steps[p->step_count];
+    lvProofStep *step = &p->steps[p->step_count];
     step->type = step_type;
     step->id = p->step_count;
     if (desc && desc_len > 0) {
@@ -149,42 +149,42 @@ static int lean4_lookup_tactic(const char *name, int name_len) {
         const char *tactic;
         int step_type;
     } reverse_map[] = {
-        { "intro",       LV00_STEP_ADD_NODE },
-        { "constructor", LV00_STEP_ADD_CONSTRAINT },
-        { "cases",       LV00_STEP_ADD_CONSTRAINT },
-        { "induction",   LV00_STEP_ADD_CONSTRAINT },
-        { "rw",          LV00_STEP_REWRITE },
-        { "rewrite",     LV00_STEP_REWRITE },
-        { "apply",       LV00_STEP_FUNCTION_APP },
-        { "exact",       LV00_STEP_EXACT },
-        { "have",        LV00_STEP_HAVE },
-        { "calc",        LV00_STEP_CALC },
-        { "simp",        LV00_STEP_NORMALIZATION },
-        { "norm",        LV00_STEP_NORMALIZATION },
-        { "ring",        LV00_STEP_NORMALIZATION },
-        { "linarith",    LV00_STEP_NORMALIZATION },
-        { "omega",       LV00_STEP_NORMALIZATION },
-        { "rfl",         LV00_STEP_EXACT },
-        { "refl",        LV00_STEP_EXACT },
-        { "trivial",     LV00_STEP_EXACT },
-        { "assumption",  LV00_STEP_EXACT },
-        { "sorry",       LV00_STEP_ORACLE },
-        { "admit",       LV00_STEP_ORACLE },
-        { "funext",      LV00_STEP_FUNCTION_APP },
-        { "subst",       LV00_STEP_REWRITE },
-        { "conv",        LV00_STEP_REWRITE },
-        { "show",        LV00_STEP_HAVE },
-        { "obtain",      LV00_STEP_HAVE },
-        { "suffices",    LV00_STEP_HAVE },
-        { "left",        LV00_STEP_ADD_CONSTRAINT },
-        { "right",       LV00_STEP_ADD_CONSTRAINT },
-        { "split",       LV00_STEP_ADD_CONSTRAINT },
-        { "first",       LV00_STEP_ORACLE },
-        { "skip",        LV00_STEP_ORACLE },
-        { "done",        LV00_STEP_EXACT },
-        { "at",          LV00_STEP_REWRITE },
-        { "let",         LV00_STEP_HAVE },
-        { "from",        LV00_STEP_FUNCTION_APP },
+        { "intro",       lv_STEP_ADD_NODE },
+        { "constructor", lv_STEP_ADD_CONSTRAINT },
+        { "cases",       lv_STEP_ADD_CONSTRAINT },
+        { "induction",   lv_STEP_ADD_CONSTRAINT },
+        { "rw",          lv_STEP_REWRITE },
+        { "rewrite",     lv_STEP_REWRITE },
+        { "apply",       lv_STEP_FUNCTION_APP },
+        { "exact",       lv_STEP_EXACT },
+        { "have",        lv_STEP_HAVE },
+        { "calc",        lv_STEP_CALC },
+        { "simp",        lv_STEP_NORMALIZATION },
+        { "norm",        lv_STEP_NORMALIZATION },
+        { "ring",        lv_STEP_NORMALIZATION },
+        { "linarith",    lv_STEP_NORMALIZATION },
+        { "omega",       lv_STEP_NORMALIZATION },
+        { "rfl",         lv_STEP_EXACT },
+        { "refl",        lv_STEP_EXACT },
+        { "trivial",     lv_STEP_EXACT },
+        { "assumption",  lv_STEP_EXACT },
+        { "sorry",       lv_STEP_ORACLE },
+        { "admit",       lv_STEP_ORACLE },
+        { "funext",      lv_STEP_FUNCTION_APP },
+        { "subst",       lv_STEP_REWRITE },
+        { "conv",        lv_STEP_REWRITE },
+        { "show",        lv_STEP_HAVE },
+        { "obtain",      lv_STEP_HAVE },
+        { "suffices",    lv_STEP_HAVE },
+        { "left",        lv_STEP_ADD_CONSTRAINT },
+        { "right",       lv_STEP_ADD_CONSTRAINT },
+        { "split",       lv_STEP_ADD_CONSTRAINT },
+        { "first",       lv_STEP_ORACLE },
+        { "skip",        lv_STEP_ORACLE },
+        { "done",        lv_STEP_EXACT },
+        { "at",          lv_STEP_REWRITE },
+        { "let",         lv_STEP_HAVE },
+        { "from",        lv_STEP_FUNCTION_APP },
     };
     int count = LEAN4_REVERSE_MAP_COUNT;
     for (int j = 0; j < count; j++) {
@@ -224,7 +224,7 @@ static const char *lean4_skip_bracketed(const char *p, char open, char close) {
 
 /* 递归解析 tactic 脚本，处理嵌套 by 块、match 表达式、. 链 */
 static void lean4_parse_tactics(const char *start, const char *end,
-                                 Lv00Lean4Proof *p, int base_indent) {
+                                 lvLean4Proof *p, int base_indent) {
     const char *pos = start;
     while (pos < end) {
         /* 跳过空白和空行 */
@@ -256,7 +256,7 @@ static void lean4_parse_tactics(const char *start, const char *end,
 
         /* 处理 match 表达式：match h with | ... => ... */
         if (ident_len == 5 && strncmp(ident_start, "match", 5) == 0) {
-            lean4_add_step(p, LV00_STEP_ADD_CONSTRAINT, "match", 5);
+            lean4_add_step(p, lv_STEP_ADD_CONSTRAINT, "match", 5);
             /* 跳过 match 目标表达式（到 "with"） */
             const char *with_kw = NULL;
             for (const char *s = pos; s + 5 < end; s++) {
@@ -431,7 +431,7 @@ static int lean4_import_proof(const char *input, void **proof) {
     while (*script_start && isspace((unsigned char)*script_start)) script_start++;
 
     /* 分配证明结构体 */
-    Lv00Lean4Proof *p = (Lv00Lean4Proof *)lv00_calloc(1, sizeof(Lv00Lean4Proof));
+    lvLean4Proof *p = (lvLean4Proof *)lv_calloc(1, sizeof(lvLean4Proof));
     if (!p) return -1;
 
     /* 保存定理名 */
@@ -444,8 +444,8 @@ static int lean4_import_proof(const char *input, void **proof) {
 
     /* 初始化步骤数组 */
     p->step_capacity = 16;
-    p->steps = (Lv00ProofStep *)lv00_calloc(p->step_capacity, sizeof(Lv00ProofStep));
-    if (!p->steps) { lv00_free((void **)&(p)); return -1; }
+    p->steps = (lvProofStep *)lv_calloc(p->step_capacity, sizeof(lvProofStep));
+    if (!p->steps) { lv_free((void **)&(p)); return -1; }
 
     /* 确定脚本结束位置（到下一个顶层关键字或文件末尾） */
     const char *script_end = script_start + strlen(script_start);
@@ -516,15 +516,15 @@ static int lean4_validate(const char *input) {
 }
 
 /* 注册 Lean 4 插件 */
-int lv00_register_lean4_plugin(Lv00InteropManager *mgr) {
+int lv_register_lean4_plugin(lvInteropManager *mgr) {
     if (!mgr) return -1;
-    Lv00Plugin plugin;
+    lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "lean4", sizeof(plugin.name) - 1);
     strncpy(plugin.version, "4.14.0", sizeof(plugin.version) - 1);
-    plugin.system = LV00_EXT_LEAN4;
+    plugin.system = lv_EXT_LEAN4;
     plugin.export_proof = lean4_export_proof;
     plugin.import_proof = lean4_import_proof;
     plugin.validate = lean4_validate;
-    return lv00_interop_register_plugin(mgr, &plugin);
+    return lv_interop_register_plugin(mgr, &plugin);
 }

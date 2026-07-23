@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_basic.c
  * @brief Lv-00 基础模块测试 - 有理数、约束图、归一化、模块系统、公理包、统一化、引擎
  *
@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* 全局测试计数器 */
@@ -51,7 +51,7 @@ void test_rational() {
     /* 验证序列化输出 */
     char *ser = rational_serialize(sum);
     printf("  Sum: %s\n", ser);
-    lv00_free_ptr(ser);
+    lv_free_ptr(ser);
 
     rational_destroy(r1);
     rational_destroy(r2);
@@ -223,7 +223,7 @@ void test_unify() {
 void test_engine() {
     printf("Testing engine...\n");
 
-    LV00Engine *engine = engine_create();
+    lvEngine *engine = engine_create();
     TEST_ASSERT(engine != NULL, "engine_create should return non-NULL");
 
     /* 使用辅助函数在引擎主图中添加原点 (0, 0) */

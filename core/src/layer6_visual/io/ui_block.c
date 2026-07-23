@@ -1,8 +1,8 @@
-#include "lv00/io_blocks.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/io_blocks.h"
+#include "lv/lv_utils.h"
 
-Lv00UIEventBlock *lv00_ui_event_block_create(Lv00EffectType effect) {
-    Lv00UIEventBlock *block = lv00_calloc(1, sizeof(Lv00UIEventBlock));
+lvUIEventBlock *lv_ui_event_block_create(lvEffectType effect) {
+    lvUIEventBlock *block = lv_calloc(1, sizeof(lvUIEventBlock));
     if (!block) return NULL;
     block->effect = effect;
     block->event_port = -1;
@@ -10,6 +10,6 @@ Lv00UIEventBlock *lv00_ui_event_block_create(Lv00EffectType effect) {
     return block;
 }
 
-void lv00_ui_event_block_destroy(Lv00UIEventBlock *block) {
-    lv00_free((void **)&block);
+void lv_ui_event_block_destroy(lvUIEventBlock *block) {
+    lv_free((void **)&block);
 }

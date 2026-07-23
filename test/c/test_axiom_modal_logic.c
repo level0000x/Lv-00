@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_modal_logic.c
  * @brief Modal Logic (Normal Modal Logics K, T, S4, S5) Axiom Package Test
  */
@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_fail_count = 0;
@@ -281,7 +281,7 @@ static void test_content_hash(void) {
         }
         TEST_ASSERT(valid_hex, "content hash should be valid hexadecimal");
 
-        lv00_free((void **) &hash);
+        lv_free((void **) &hash);
     }
 
     axiom_package_destroy(pkg);
@@ -321,8 +321,8 @@ static void test_roundtrip_save_load(void) {
     TEST_ASSERT(pkg1->unconstructible_count == pkg2->unconstructible_count,
                 "unconstructible count should be preserved");
 
-    lv00_free((void **) &hash1);
-    lv00_free((void **) &hash2);
+    lv_free((void **) &hash1);
+    lv_free((void **) &hash2);
     axiom_package_destroy(pkg1);
     axiom_package_destroy(pkg2);
 }

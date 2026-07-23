@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_autodiff.c
  * @brief Tests for the automatic differentiation engine.
  *
@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "autodiff.h"
 #include "test_helpers.h"
 
@@ -60,7 +60,7 @@ int g_fail_count = 0;
  * ============================================================ */
 
 static void test_ad_engine_lifecycle(void) {
-    Lv00ADEngine *engine = ad_engine_create(AD_FORWARD);
+    lvADEngine *engine = ad_engine_create(AD_FORWARD);
     TEST_ASSERT_NOT_NULL(engine);
     TEST_ASSERT_EQ(engine->mode, AD_FORWARD);
     ad_engine_destroy(engine);
@@ -80,23 +80,23 @@ static void test_ad_engine_lifecycle(void) {
 
 static void test_expr_construction(void) {
     /* Constant */
-    Lv00ADExpr *c = ad_expr_create_const(3.14);
+    lvADExpr *c = ad_expr_create_const(3.14);
     TEST_ASSERT_NOT_NULL(c);
     TEST_ASSERT_EQ(c->kind, AD_CONST);
     TEST_ASSERT_NEAR(c->value, 3.14, AD_TOLERANCE, "const value");
     ad_expr_destroy(c);
 
     /* Variable */
-    Lv00ADExpr *v = ad_expr_create_var(0);
+    lvADExpr *v = ad_expr_create_var(0);
     TEST_ASSERT_NOT_NULL(v);
     TEST_ASSERT_EQ(v->kind, AD_VAR);
     TEST_ASSERT_EQ(v->var_index, 0);
     ad_expr_destroy(v);
 
     /* Addition */
-    Lv00ADExpr *a = ad_expr_create_const(1.0);
-    Lv00ADExpr *b = ad_expr_create_const(2.0);
-    Lv00ADExpr *add = ad_expr_add(a, b);
+    lvADExpr *a = ad_expr_create_const(1.0);
+    lvADExpr *b = ad_expr_create_const(2.0);
+    lvADExpr *add = ad_expr_add(a, b);
     TEST_ASSERT_NOT_NULL(add);
     TEST_ASSERT_EQ(add->kind, AD_ADD);
     TEST_ASSERT_EQ(add->child_count, 2);
@@ -105,29 +105,29 @@ static void test_expr_construction(void) {
     /* Multiplication */
     a = ad_expr_create_const(3.0);
     b = ad_expr_create_const(4.0);
-    Lv00ADExpr *mul = ad_expr_mul(a, b);
+    lvADExpr *mul = ad_expr_mul(a, b);
     TEST_ASSERT_NOT_NULL(mul);
     TEST_ASSERT_EQ(mul->kind, AD_MUL);
     ad_expr_destroy(mul);
 
     /* Sin */
-    Lv00ADExpr *x = ad_expr_create_var(0);
-    Lv00ADExpr *s = ad_expr_sin(x);
+    lvADExpr *x = ad_expr_create_var(0);
+    lvADExpr *s = ad_expr_sin(x);
     TEST_ASSERT_NOT_NULL(s);
     TEST_ASSERT_EQ(s->kind, AD_SIN);
     ad_expr_destroy(s);
 
     /* Cos */
     x = ad_expr_create_var(0);
-    Lv00ADExpr *co = ad_expr_cos(x);
+    lvADExpr *co = ad_expr_cos(x);
     TEST_ASSERT_NOT_NULL(co);
     TEST_ASSERT_EQ(co->kind, AD_COS);
     ad_expr_destroy(co);
 
     /* Power */
-    Lv00ADExpr *base = ad_expr_create_var(0);
-    Lv00ADExpr *exp = ad_expr_create_const(2.0);
-    Lv00ADExpr *p = ad_expr_pow(base, exp);
+    lvADExpr *base = ad_expr_create_var(0);
+    lvADExpr *exp = ad_expr_create_const(2.0);
+    lvADExpr *p = ad_expr_pow(base, exp);
     TEST_ASSERT_NOT_NULL(p);
     TEST_ASSERT_EQ(p->kind, AD_POW);
     ad_expr_destroy(p);
@@ -149,8 +149,8 @@ static void test_expr_construction(void) {
 
 static void test_forward_diff_x_squared(void) {
     /* Build expression: x * x (which is x^2) */
-    Lv00ADExpr *x = ad_expr_create_var(0);
-    Lv00ADExpr *x2 = ad_expr_mul(x, x);
+    lvADExpr *x = ad_expr_create_var(0);
+    lvADExpr *x2 = ad_expr_mul(x, x);
 
     double value, deriv;
 
@@ -181,8 +181,8 @@ static void test_forward_diff_x_squared(void) {
 
 static void test_reverse_diff_x_squared(void) {
     /* Build expression: x * x (which is x^2) */
-    Lv00ADExpr *x = ad_expr_create_var(0);
-    Lv00ADExpr *x2 = ad_expr_mul(x, x);
+    lvADExpr *x = ad_expr_create_var(0);
+    lvADExpr *x2 = ad_expr_mul(x, x);
 
     double value;
     double gradients[1];
@@ -212,8 +212,8 @@ static void test_reverse_diff_x_squared(void) {
 
 static void test_forward_diff_sin(void) {
     /* Build expression: sin(x) */
-    Lv00ADExpr *x = ad_expr_create_var(0);
-    Lv00ADExpr *s = ad_expr_sin(x);
+    lvADExpr *x = ad_expr_create_var(0);
+    lvADExpr *s = ad_expr_sin(x);
 
     double value, deriv;
 
@@ -244,9 +244,9 @@ static void test_forward_diff_sin(void) {
 
 static void test_chain_rule(void) {
     /* Build expression: sin(x * x) = sin(x^2) */
-    Lv00ADExpr *x = ad_expr_create_var(0);
-    Lv00ADExpr *x2 = ad_expr_mul(x, x);
-    Lv00ADExpr *expr = ad_expr_sin(x2);
+    lvADExpr *x = ad_expr_create_var(0);
+    lvADExpr *x2 = ad_expr_mul(x, x);
+    lvADExpr *expr = ad_expr_sin(x2);
 
     double value, deriv;
 
@@ -289,11 +289,11 @@ static void test_chain_rule(void) {
 
 static void test_ad_eval(void) {
     /* Build expression: 2 * x + 3 */
-    Lv00ADExpr *two = ad_expr_create_const(2.0);
-    Lv00ADExpr *x = ad_expr_create_var(0);
-    Lv00ADExpr *three = ad_expr_create_const(3.0);
-    Lv00ADExpr *mul = ad_expr_mul(two, x);
-    Lv00ADExpr *add = ad_expr_add(mul, three);
+    lvADExpr *two = ad_expr_create_const(2.0);
+    lvADExpr *x = ad_expr_create_var(0);
+    lvADExpr *three = ad_expr_create_const(3.0);
+    lvADExpr *mul = ad_expr_mul(two, x);
+    lvADExpr *add = ad_expr_add(mul, three);
 
     double result;
     bool ok = ad_eval(add, (double[]){5.0}, 1, &result);
@@ -313,8 +313,8 @@ static void test_ad_eval(void) {
 
 static void test_forward_diff_cos(void) {
     /* Build expression: cos(x) */
-    Lv00ADExpr *x = ad_expr_create_var(0);
-    Lv00ADExpr *c = ad_expr_cos(x);
+    lvADExpr *x = ad_expr_create_var(0);
+    lvADExpr *c = ad_expr_cos(x);
 
     double value, deriv;
 
@@ -340,9 +340,9 @@ static void test_forward_diff_cos(void) {
 
 static void test_forward_diff_pow(void) {
     /* Build expression: x^3 using ad_expr_pow */
-    Lv00ADExpr *x = ad_expr_create_var(0);
-    Lv00ADExpr *three = ad_expr_create_const(3.0);
-    Lv00ADExpr *p = ad_expr_pow(x, three);
+    lvADExpr *x = ad_expr_create_var(0);
+    lvADExpr *three = ad_expr_create_const(3.0);
+    lvADExpr *p = ad_expr_pow(x, three);
 
     double value, deriv;
 
@@ -361,9 +361,9 @@ static void test_forward_diff_pow(void) {
 
 static void test_reverse_diff_multi_var(void) {
     /* Build expression: x * y (product of two variables) */
-    Lv00ADExpr *x = ad_expr_create_var(0);
-    Lv00ADExpr *y = ad_expr_create_var(1);
-    Lv00ADExpr *mul = ad_expr_mul(x, y);
+    lvADExpr *x = ad_expr_create_var(0);
+    lvADExpr *y = ad_expr_create_var(1);
+    lvADExpr *mul = ad_expr_mul(x, y);
 
     double value;
     double gradients[2];
@@ -390,7 +390,7 @@ static void test_ad_null_safety(void) {
     double value, deriv;
 
     /* NULL engine create (mode out of range still works) */
-    Lv00ADEngine *engine = ad_engine_create(AD_FORWARD);
+    lvADEngine *engine = ad_engine_create(AD_FORWARD);
     TEST_ASSERT_NOT_NULL(engine);
     ad_engine_destroy(engine);
 

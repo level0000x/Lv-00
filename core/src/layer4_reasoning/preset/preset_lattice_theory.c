@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_lattice_theory.c
  * @brief 格论预设函数块模块 - 实现（v2统一宏模式）
  *
@@ -11,8 +11,8 @@
  * @version 5.0.0
  */
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "preset_lattice_theory.h"
 #include "preset_blocks.h"
 #include "preset_common.h"

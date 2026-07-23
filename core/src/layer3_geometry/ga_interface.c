@@ -5,10 +5,10 @@
  * @version 1.0.0
  */
 
-#include "lv00/ga_interface.h"
-#include "lv00/ga_multivector.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
+#include "lv/ga_interface.h"
+#include "lv/ga_multivector.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -38,8 +38,8 @@
  * Point Operations
  * ============================================================ */
 
-Lv00MultiVector *ga_embed_point(double x, double y, double z) {
-    Lv00MultiVector *mv = ga_mv_create();
+lvMultiVector *ga_embed_point(double x, double y, double z) {
+    lvMultiVector *mv = ga_mv_create();
     if (!mv) return NULL;
 
     /* Point P = x*e023 + y*e013 + z*e012 + e123 */
@@ -51,7 +51,7 @@ Lv00MultiVector *ga_embed_point(double x, double y, double z) {
     return mv;
 }
 
-int ga_extract_point(const Lv00MultiVector *mv,
+int ga_extract_point(const lvMultiVector *mv,
                      double *out_x, double *out_y, double *out_z) {
     if (!mv || !out_x || !out_y || !out_z) return -1;
 
@@ -69,8 +69,8 @@ int ga_extract_point(const Lv00MultiVector *mv,
  * Vector Operations
  * ============================================================ */
 
-Lv00MultiVector *ga_embed_vector(double vx, double vy, double vz) {
-    Lv00MultiVector *mv = ga_mv_create();
+lvMultiVector *ga_embed_vector(double vx, double vy, double vz) {
+    lvMultiVector *mv = ga_mv_create();
     if (!mv) return NULL;
 
     /* Vector v = vx*e1 + vy*e2 + vz*e3 */
@@ -81,7 +81,7 @@ Lv00MultiVector *ga_embed_vector(double vx, double vy, double vz) {
     return mv;
 }
 
-int ga_extract_vector(const Lv00MultiVector *mv,
+int ga_extract_vector(const lvMultiVector *mv,
                       double *out_vx, double *out_vy, double *out_vz) {
     if (!mv || !out_vx || !out_vy || !out_vz) return -1;
 
@@ -96,8 +96,8 @@ int ga_extract_vector(const Lv00MultiVector *mv,
  * Plane Operations
  * ============================================================ */
 
-Lv00MultiVector *ga_embed_plane(double nx, double ny, double nz, double d) {
-    Lv00MultiVector *mv = ga_mv_create();
+lvMultiVector *ga_embed_plane(double nx, double ny, double nz, double d) {
+    lvMultiVector *mv = ga_mv_create();
     if (!mv) return NULL;
 
     /* Plane pi = nx*e1 + ny*e2 + nz*e3 + d*e0 */
@@ -109,7 +109,7 @@ Lv00MultiVector *ga_embed_plane(double nx, double ny, double nz, double d) {
     return mv;
 }
 
-int ga_extract_plane(const Lv00MultiVector *mv,
+int ga_extract_plane(const lvMultiVector *mv,
                      double *out_nx, double *out_ny, double *out_nz,
                      double *out_d) {
     if (!mv || !out_nx || !out_ny || !out_nz || !out_d) return -1;
@@ -126,17 +126,17 @@ int ga_extract_plane(const Lv00MultiVector *mv,
  * Ray Operations
  * ============================================================ */
 
-Lv00MultiVector *ga_embed_ray(const Lv00MultiVector *origin,
-                               const Lv00MultiVector *dir) {
+lvMultiVector *ga_embed_ray(const lvMultiVector *origin,
+                               const lvMultiVector *dir) {
     if (!origin || !dir) return NULL;
 
     /* Ray = origin ^ direction (outer product) */
     return ga_mv_outer_product(origin, dir);
 }
 
-int ga_extract_ray(const Lv00MultiVector *mv,
-                   Lv00MultiVector **out_origin,
-                   Lv00MultiVector **out_dir) {
+int ga_extract_ray(const lvMultiVector *mv,
+                   lvMultiVector **out_origin,
+                   lvMultiVector **out_dir) {
     if (!mv || !out_origin || !out_dir) return -1;
 
     /* Simplified: extract bivector components */
@@ -167,7 +167,7 @@ int ga_extract_ray(const Lv00MultiVector *mv,
  * Rotor Operations (Rotations)
  * ============================================================ */
 
-Lv00MultiVector *ga_embed_rotation(double ax, double ay, double az,
+lvMultiVector *ga_embed_rotation(double ax, double ay, double az,
                                     double angle) {
     /* Normalize axis */
     double len = sqrt(ax * ax + ay * ay + az * az);
@@ -177,7 +177,7 @@ Lv00MultiVector *ga_embed_rotation(double ax, double ay, double az,
     ay /= len;
     az /= len;
 
-    Lv00MultiVector *mv = ga_mv_create();
+    lvMultiVector *mv = ga_mv_create();
     if (!mv) return NULL;
 
     /* Rotor R = cos(angle/2) + sin(angle/2) * (ax*e23 + ay*e13 + az*e12) */
@@ -193,7 +193,7 @@ Lv00MultiVector *ga_embed_rotation(double ax, double ay, double az,
     return mv;
 }
 
-int ga_extract_rotation(const Lv00MultiVector *rotor,
+int ga_extract_rotation(const lvMultiVector *rotor,
                         double *out_ax, double *out_ay, double *out_az,
                         double *out_angle) {
     if (!rotor || !out_ax || !out_ay || !out_az || !out_angle) return -1;
@@ -225,8 +225,8 @@ int ga_extract_rotation(const Lv00MultiVector *rotor,
  * Motor Operations (Translations)
  * ============================================================ */
 
-Lv00MultiVector *ga_embed_translation(double tx, double ty, double tz) {
-    Lv00MultiVector *mv = ga_mv_create();
+lvMultiVector *ga_embed_translation(double tx, double ty, double tz) {
+    lvMultiVector *mv = ga_mv_create();
     if (!mv) return NULL;
 
     /* Translation motor T = 1 + 0.5*(tx*e01 + ty*e02 + tz*e03) */
@@ -242,17 +242,17 @@ Lv00MultiVector *ga_embed_translation(double tx, double ty, double tz) {
  * Geometric Construction Functions
  * ============================================================ */
 
-Lv00MultiVector *ga_line_from_two_points(const Lv00MultiVector *p1,
-                                          const Lv00MultiVector *p2) {
+lvMultiVector *ga_line_from_two_points(const lvMultiVector *p1,
+                                          const lvMultiVector *p2) {
     if (!p1 || !p2) return NULL;
 
     /* Line L = P1 ^ P2 (outer product) */
     return ga_mv_outer_product(p1, p2);
 }
 
-bool ga_three_points_collinear(const Lv00MultiVector *p1,
-                                const Lv00MultiVector *p2,
-                                const Lv00MultiVector *p3) {
+bool ga_three_points_collinear(const lvMultiVector *p1,
+                                const lvMultiVector *p2,
+                                const lvMultiVector *p3) {
     if (!p1 || !p2 || !p3) return false;
 
     /* PGA points are grade-3 trivectors; outer product of grade-3 in 4D = 0.
@@ -267,10 +267,10 @@ bool ga_three_points_collinear(const Lv00MultiVector *p1,
     return fabs(det) < 1e-6;
 }
 
-bool ga_four_points_coplanar(const Lv00MultiVector *p1,
-                              const Lv00MultiVector *p2,
-                              const Lv00MultiVector *p3,
-                              const Lv00MultiVector *p4) {
+bool ga_four_points_coplanar(const lvMultiVector *p1,
+                              const lvMultiVector *p2,
+                              const lvMultiVector *p3,
+                              const lvMultiVector *p4) {
     if (!p1 || !p2 || !p3 || !p4) return false;
 
     double x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4;
@@ -287,16 +287,16 @@ bool ga_four_points_coplanar(const Lv00MultiVector *p1,
     return fabs(det) < 1e-6;
 }
 
-Lv00MultiVector *ga_plane_from_three_points(const Lv00MultiVector *p1,
-                                             const Lv00MultiVector *p2,
-                                             const Lv00MultiVector *p3) {
+lvMultiVector *ga_plane_from_three_points(const lvMultiVector *p1,
+                                             const lvMultiVector *p2,
+                                             const lvMultiVector *p3) {
     if (!p1 || !p2 || !p3) return NULL;
 
     /* Plane pi = P1 ^ P2 ^ P3 (outer product) */
-    Lv00MultiVector *temp = ga_mv_outer_product(p1, p2);
+    lvMultiVector *temp = ga_mv_outer_product(p1, p2);
     if (!temp) return NULL;
 
-    Lv00MultiVector *result = ga_mv_outer_product(temp, p3);
+    lvMultiVector *result = ga_mv_outer_product(temp, p3);
     ga_mv_destroy(temp);
 
     return result;

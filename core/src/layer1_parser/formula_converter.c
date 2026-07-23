@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_converter.c
  * @brief 公式转换器实现
  *
@@ -11,14 +11,14 @@
  * @dependencies
  *   - formula_converter.h : 转换器公共接口定义
  *   - formula_renderer.h  : 公式渲染器接口（渲染辅助）
- *   - lv00_internal.h     : 内部数据结构和常量
- *   - lv00_utils.h        : 统一内存分配器和工具函数
+ *   - lv_internal.h     : 内部数据结构和常量
+ *   - lv_utils.h        : 统一内存分配器和工具函数
  */
 
 #include "formula_converter.h"
 #include "formula_renderer.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include <stdio.h>
@@ -54,9 +54,9 @@
  * 值 1000 表示保留小数点后 3 位精度。例如：3.14159 * 1000 = 3141/1000。
  * 选择 1000 是在精度与避免 int64_t 溢出之间的折中。
  */
-#define LV00_RATIONAL_APPROX_SCALE 1000
+#define lv_RATIONAL_APPROX_SCALE 1000
 
-LV00_DECLARE_STREAM_CTX(formula_converter);
+lv_DECLARE_STREAM_CTX(formula_converter);
 
 /* ============================================================
  * 变量名到节点ID映射
@@ -69,8 +69,8 @@ typedef struct {
 
 /* 注意：此全局变量已使用线程本地存储，每线程独立副本。
  * 若需跨线程共享变量映射，需额外使用互斥锁保护。 */
-static LV00_THREAD_LOCAL VarMapEntry g_var_map[MAX_VAR_MAP_SIZE];
-static LV00_THREAD_LOCAL int g_var_map_count = 0;
+static lv_THREAD_LOCAL VarMapEntry g_var_map[MAX_VAR_MAP_SIZE];
+static lv_THREAD_LOCAL int g_var_map_count = 0;
 
 /**
  * @brief 根据变量名查询节点 ID
@@ -108,8 +108,8 @@ void formula_set_node_id(const char *var_name, int node_id) {
     
     /* 添加新条目 */
     if (g_var_map_count < MAX_VAR_MAP_SIZE) {
-        /* 使用 lv00_strlcpy 替代不安全的 strncpy，自动保证零终止 */ 
-        lv00_strlcpy(g_var_map[g_var_map_count].name, var_name, MAX_NAME_LENGTH);
+        /* 使用 lv_strlcpy 替代不安全的 strncpy，自动保证零终止 */ 
+        lv_strlcpy(g_var_map[g_var_map_count].name, var_name, MAX_NAME_LENGTH);
         g_var_map[g_var_map_count].node_id = node_id;
         g_var_map_count++;
     }
@@ -175,7 +175,7 @@ SymbolicCoord **formula_coords_to_symbolic(const FormulaNode *coord_list, int *o
     }
     
     int count = coord_list->data.coord_list.coord_count;
-    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(sizeof(SymbolicCoord *) * count);  /* 统一内存分配器 */
+    SymbolicCoord **coords = (SymbolicCoord **)lv_malloc(sizeof(SymbolicCoord *) * count);  /* 统一内存分配器 */
     if (!coords) {
         *out_count = 0;
         return NULL;
@@ -262,9 +262,9 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
             for (int i = 0; i < coord_count; i++) {
                 symbolic_coord_destroy(coords[i]);
             }
-            lv00_free((void **)&coords);  /* 统一内存释放器 */
+            lv_free((void **)&coords);  /* 统一内存释放器 */
         }
-        coords = (SymbolicCoord **)lv00_malloc(sizeof(SymbolicCoord *) * 2);
+        coords = (SymbolicCoord **)lv_malloc(sizeof(SymbolicCoord *) * 2);
         if (!coords) {
             return -1; /* 内存分配失败 */
         }
@@ -280,7 +280,7 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
     for (int i = 0; i < coord_count; i++) {
         symbolic_coord_destroy(coords[i]);
     }
-    lv00_free((void **)&coords);  /* 统一内存释放器 */
+    lv_free((void **)&coords);  /* 统一内存释放器 */
     
     if (result != ADD_NODE_OK) {
         return false;
@@ -568,7 +568,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
     }
 
     /* 第一步：创建所有顶点 */
-    int *vertex_ids = (int *)lv00_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
+    int *vertex_ids = (int *)lv_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
     if (!vertex_ids) return false;
 
     for (int i = 0; i < vert_count; i++) {
@@ -605,9 +605,9 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
     }
 
     /* 第二步：创建边（首尾相连） */
-    int *segment_ids = (int *)lv00_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
+    int *segment_ids = (int *)lv_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
     if (!segment_ids) {
-        lv00_free((void **)&vertex_ids);  /* 统一内存释放器 */
+        lv_free((void **)&vertex_ids);  /* 统一内存释放器 */
         return false;
     }
     int seg_count = 0;
@@ -643,8 +643,8 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         }
     }
 
-    lv00_free((void **)&vertex_ids);   /* 统一内存释放器 */
-    lv00_free((void **)&segment_ids);  /* 统一内存释放器 */
+    lv_free((void **)&vertex_ids);   /* 统一内存释放器 */
+    lv_free((void **)&segment_ids);  /* 统一内存释放器 */
     return true;
 }
 
@@ -673,7 +673,7 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
     }
 
     /* 从子节点中提取边界线段 ID */
-    int *segment_ids = (int *)lv00_malloc(sizeof(int) * seg_count);  /* 统一内存分配器 */
+    int *segment_ids = (int *)lv_malloc(sizeof(int) * seg_count);  /* 统一内存分配器 */
     if (!segment_ids) return false;
 
     int valid_count = 0;
@@ -695,7 +695,7 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
     }
 
     if (valid_count < 3) {
-        lv00_free((void **)&segment_ids);  /* 统一内存释放器 */
+        lv_free((void **)&segment_ids);  /* 统一内存释放器 */
         return false;
     }
 
@@ -714,7 +714,7 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
         }
     }
 
-    lv00_free((void **)&segment_ids);  /* 统一内存释放器 */
+    lv_free((void **)&segment_ids);  /* 统一内存释放器 */
     return (*out_node_id >= 0);
 }
 
@@ -1165,7 +1165,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
             GeomNode *aux_node = graph_get_node(graph, aux_id);
             if (aux_node) {
                 if (aux_node->numeric_assumption_declaration) {
-                lv00_free((void **)&aux_node->numeric_assumption_declaration);  /* 统一内存释放器 */
+                lv_free((void **)&aux_node->numeric_assumption_declaration);  /* 统一内存释放器 */
                     aux_node->numeric_assumption_declaration = NULL;
                 }
                 /*
@@ -1176,7 +1176,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
                 snprintf(buf, sizeof(buf),
                          "ANGLE_CONSTRAINT:%d:%d:%d:%.10g:%.10g:%.10g",
                          a_id, b_id, c_id, angle_rad, cos_theta, sin_theta);
-                aux_node->numeric_assumption_declaration = lv00_strdup_safe(buf);
+                aux_node->numeric_assumption_declaration = lv_strdup_safe(buf);
             }
         }
     }
@@ -1314,7 +1314,7 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
  * @return 转换结果结构体指针，失败返回 NULL
  */
 FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *graph) {
-    FormulaToGraphResult *result = (FormulaToGraphResult *)lv00_calloc(1, sizeof(FormulaToGraphResult));  /* 统一内存分配器 */
+    FormulaToGraphResult *result = (FormulaToGraphResult *)lv_calloc(1, sizeof(FormulaToGraphResult));  /* 统一内存分配器 */
     if (!result) {
         return NULL;
     }
@@ -1330,13 +1330,13 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
     }
     
     /* 分配节点和约束 ID 数组 */
-    result->created_node_ids = (int *)lv00_malloc(sizeof(int) * MAX_CREATED_NODES);          /* 统一内存分配器 */
-    result->created_constraint_ids = (int *)lv00_malloc(sizeof(int) * MAX_CREATED_CONSTRAINTS);     /* 统一内存分配器 */
+    result->created_node_ids = (int *)lv_malloc(sizeof(int) * MAX_CREATED_NODES);          /* 统一内存分配器 */
+    result->created_constraint_ids = (int *)lv_malloc(sizeof(int) * MAX_CREATED_CONSTRAINTS);     /* 统一内存分配器 */
 
     if (!result->created_node_ids || !result->created_constraint_ids) {
         /* 修复：分配失败时释放已成功分配的数组，避免内存泄漏 */
-        lv00_free((void **)&result->created_node_ids);       /* 统一内存释放器 */
-        lv00_free((void **)&result->created_constraint_ids); /* 统一内存释放器 */
+        lv_free((void **)&result->created_node_ids);       /* 统一内存释放器 */
+        lv_free((void **)&result->created_constraint_ids); /* 统一内存释放器 */
         result->created_node_ids = NULL;
         result->created_constraint_ids = NULL;
         result->success = false;
@@ -1377,7 +1377,7 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
  * @return 转换结果结构体指针，失败返回 NULL
  */
 GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
-    GraphToFormulaResult *result = (GraphToFormulaResult *)lv00_calloc(1, sizeof(GraphToFormulaResult));  /* 统一内存分配器 */
+    GraphToFormulaResult *result = (GraphToFormulaResult *)lv_calloc(1, sizeof(GraphToFormulaResult));  /* 统一内存分配器 */
     if (!result) {
         return NULL;
     }
@@ -1393,9 +1393,9 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
     size_t python_size = FORMULA_EXPORT_BUF_SIZE;
     size_t dsl_size = FORMULA_EXPORT_BUF_SIZE;
     
-    result->latex_output = (char *)lv00_malloc(latex_size);  /* 统一内存分配器 */
-    result->python_output = (char *)lv00_malloc(python_size); /* 统一内存分配器 */
-    result->dsl_output = (char *)lv00_malloc(dsl_size);       /* 统一内存分配器 */
+    result->latex_output = (char *)lv_malloc(latex_size);  /* 统一内存分配器 */
+    result->python_output = (char *)lv_malloc(python_size); /* 统一内存分配器 */
+    result->dsl_output = (char *)lv_malloc(dsl_size);       /* 统一内存分配器 */
     
     if (!result->latex_output || !result->python_output || !result->dsl_output) {
         graph_to_formula_result_destroy(result);
@@ -1708,27 +1708,27 @@ void formula_to_graph_result_destroy(FormulaToGraphResult *result) {
     if (!result) return;
     
     if (result->created_node_ids) {
-        lv00_free((void **)&result->created_node_ids);  /* 统一内存释放器 */
+        lv_free((void **)&result->created_node_ids);  /* 统一内存释放器 */
     }
     if (result->created_constraint_ids) {
-        lv00_free((void **)&result->created_constraint_ids);  /* 统一内存释放器 */
+        lv_free((void **)&result->created_constraint_ids);  /* 统一内存释放器 */
     }
-    lv00_free((void **)&result);  /* 统一内存释放器 */
+    lv_free((void **)&result);  /* 统一内存释放器 */
 }
 
 void graph_to_formula_result_destroy(GraphToFormulaResult *result) {
     if (!result) return;
     
     if (result->latex_output) {
-        lv00_free((void **)&result->latex_output);  /* 统一内存释放器 */
+        lv_free((void **)&result->latex_output);  /* 统一内存释放器 */
     }
     if (result->python_output) {
-        lv00_free((void **)&result->python_output);  /* 统一内存释放器 */
+        lv_free((void **)&result->python_output);  /* 统一内存释放器 */
     }
     if (result->dsl_output) {
-        lv00_free((void **)&result->dsl_output);  /* 统一内存释放器 */
+        lv_free((void **)&result->dsl_output);  /* 统一内存释放器 */
     }
-    lv00_free((void **)&result);  /* 统一内存释放器 */
+    lv_free((void **)&result);  /* 统一内存释放器 */
 }
 
 /* ============================================================
@@ -1742,9 +1742,9 @@ void equation_curve_result_destroy(EquationCurveResult *result) {
     if (!result) return;
 
     if (result->points) {
-        lv00_free((void **)&result->points);  /* 统一内存释放器 */
+        lv_free((void **)&result->points);  /* 统一内存释放器 */
     }
-    lv00_free((void **)&result);  /* 统一内存释放器 */
+    lv_free((void **)&result);  /* 统一内存释放器 */
 }
 
 /**
@@ -2033,15 +2033,15 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
 
         case NODE_VARIABLE:
             if (node->data.variable.name) {
-                /* 使用 lv00_strlcpy 替代不安全的 strncpy */
-                lv00_strlcpy(buf, node->data.variable.name, buf_size);
+                /* 使用 lv_strlcpy 替代不安全的 strncpy */
+                lv_strlcpy(buf, node->data.variable.name, buf_size);
             }
             break;
 
         case NODE_IDENTIFIER:
             if (node->data.identifier.name) {
-                /* 使用 lv00_strlcpy 替代不安全的 strncpy */
-                lv00_strlcpy(buf, node->data.identifier.name, buf_size);
+                /* 使用 lv_strlcpy 替代不安全的 strncpy */
+                lv_strlcpy(buf, node->data.identifier.name, buf_size);
             }
             break;
 
@@ -2052,7 +2052,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             int n = snprintf(buf, buf_size, "(%s + %s)", left, right);
             if (n < 0 || (size_t)n >= buf_size) {
                 /* 缓冲区不足时使用安全截断标记 */
-                lv00_strlcpy(buf, "(... + ...)", buf_size);
+                lv_strlcpy(buf, "(... + ...)", buf_size);
             }
             break;
         }
@@ -2063,7 +2063,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s - %s)", left, right);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "(... - ...)", buf_size);
+                lv_strlcpy(buf, "(... - ...)", buf_size);
             }
             break;
         }
@@ -2074,7 +2074,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s * %s)", left, right);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "(... * ...)", buf_size);
+                lv_strlcpy(buf, "(... * ...)", buf_size);
             }
             break;
         }
@@ -2085,7 +2085,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s / %s)", left, right);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "(... / ...)", buf_size);
+                lv_strlcpy(buf, "(... / ...)", buf_size);
             }
             break;
         }
@@ -2096,7 +2096,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s ^ %s)", left, right);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "(... ^ ...)", buf_size);
+                lv_strlcpy(buf, "(... ^ ...)", buf_size);
             }
             break;
         }
@@ -2107,7 +2107,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.equation.rhs, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s = %s)", left, right);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "(... = ...)", buf_size);
+                lv_strlcpy(buf, "(... = ...)", buf_size);
             }
             break;
         }
@@ -2116,7 +2116,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             const char *name = node->data.geom_point.name ? node->data.geom_point.name : "?";
             int n = snprintf(buf, buf_size, "point(%s)", name);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "point(...)", buf_size);
+                lv_strlcpy(buf, "point(...)", buf_size);
             }
             break;
         }
@@ -2125,7 +2125,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             const char *name = node->data.geom_segment.name ? node->data.geom_segment.name : "?";
             int n = snprintf(buf, buf_size, "segment(%s)", name);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "segment(...)", buf_size);
+                lv_strlcpy(buf, "segment(...)", buf_size);
             }
             break;
         }
@@ -2138,7 +2138,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             }
             int n = snprintf(buf, buf_size, "circle(%s, r=%s)", name, r);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "circle(...)", buf_size);
+                lv_strlcpy(buf, "circle(...)", buf_size);
             }
             break;
         }
@@ -2147,7 +2147,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             const char *name = node->data.geom_triangle.name ? node->data.geom_triangle.name : "?";
             int n = snprintf(buf, buf_size, "triangle(%s)", name);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "triangle(...)", buf_size);
+                lv_strlcpy(buf, "triangle(...)", buf_size);
             }
             break;
         }
@@ -2157,7 +2157,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             int n = snprintf(buf, buf_size, "polygon(%s, %d vertices)", name,
                              node->data.geom_polygon.vertex_count);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "polygon(...)", buf_size);
+                lv_strlcpy(buf, "polygon(...)", buf_size);
             }
             break;
         }
@@ -2167,7 +2167,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             int n = snprintf(buf, buf_size, "region(%s, %d segments)", name,
                              node->data.geom_region.segment_count);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "region(...)", buf_size);
+                lv_strlcpy(buf, "region(...)", buf_size);
             }
             break;
         }
@@ -2186,14 +2186,14 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             }
             int n = snprintf(buf, buf_size, "arc(%s, r=%s, %s, %s)", name, r, t1, t2);
             if (n < 0 || (size_t)n >= buf_size) {
-                lv00_strlcpy(buf, "arc(...)", buf_size);
+                lv_strlcpy(buf, "arc(...)", buf_size);
             }
             break;
         }
 
         default:
-            /* 使用 lv00_strlcpy 替代不安全的 strncpy */
-            lv00_strlcpy(buf, "?", buf_size);
+            /* 使用 lv_strlcpy 替代不安全的 strncpy */
+            lv_strlcpy(buf, "?", buf_size);
             break;
     }
 }
@@ -2208,7 +2208,7 @@ EquationCurveResult *formula_convert_equation_to_curve(
     double x_min, double x_max,
     double y_min, double y_max
 ) {
-    EquationCurveResult *result = (EquationCurveResult *)lv00_calloc(1, sizeof(EquationCurveResult));  /* 统一内存分配器 */
+    EquationCurveResult *result = (EquationCurveResult *)lv_calloc(1, sizeof(EquationCurveResult));  /* 统一内存分配器 */
     if (!result) {
         return NULL;
     }
@@ -2222,7 +2222,7 @@ EquationCurveResult *formula_convert_equation_to_curve(
     }
 
     /* 分配采样点数组 */
-    result->points = (CurveSamplePoint *)lv00_calloc(sample_count, sizeof(CurveSamplePoint));  /* 统一内存分配器 */
+    result->points = (CurveSamplePoint *)lv_calloc(sample_count, sizeof(CurveSamplePoint));  /* 统一内存分配器 */
     if (!result->points) {
         result->success = false;
         snprintf(result->error_message, sizeof(result->error_message),
@@ -2254,7 +2254,7 @@ EquationCurveResult *formula_convert_equation_to_curve(
     double dy = (y_max - y_min) / grid_size;
 
     /* 第一阶段：粗采样，计算网格点上的函数值 */
-    double *grid_values = (double *)lv00_malloc((grid_size + 1) * (grid_size + 1) * sizeof(double));  /* 统一内存分配器 */
+    double *grid_values = (double *)lv_malloc((grid_size + 1) * (grid_size + 1) * sizeof(double));  /* 统一内存分配器 */
     if (!grid_values) {
         result->success = false;
         snprintf(result->error_message, sizeof(result->error_message),
@@ -2321,7 +2321,7 @@ EquationCurveResult *formula_convert_equation_to_curve(
         }
     }
 
-    lv00_free((void **)&grid_values);  /* 统一内存释放器 */
+    lv_free((void **)&grid_values);  /* 统一内存释放器 */
 
     result->point_count = point_idx;
     result->success = (point_idx > 0);
@@ -2871,7 +2871,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
             /* 标记为圆类型 */
             GeomNode *node = graph_get_node(graph, *out_node_id);
             if (node && node->numeric_assumption_declaration) {
-            lv00_free((void **)&node->numeric_assumption_declaration);  /* 统一内存释放器 */
+            lv_free((void **)&node->numeric_assumption_declaration);  /* 统一内存释放器 */
                 node->numeric_assumption_declaration = NULL;
             }
             if (node) {
@@ -2881,7 +2881,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
                 if (n < 0 || (size_t)n >= sizeof(buf)) {
                     buf[sizeof(buf) - 1] = '\0';  /* 确保零终止 */
                 }
-                node->numeric_assumption_declaration = lv00_strdup_safe(buf);
+                node->numeric_assumption_declaration = lv_strdup_safe(buf);
             }
 
             return true;
@@ -2937,7 +2937,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
             /* 标记为直线类型 */
             GeomNode *node = graph_get_node(graph, *out_node_id);
             if (node && node->numeric_assumption_declaration) {
-                lv00_free((void **)&node->numeric_assumption_declaration);  /* 统一内存释放器 */
+                lv_free((void **)&node->numeric_assumption_declaration);  /* 统一内存释放器 */
                 node->numeric_assumption_declaration = NULL;
             }
             if (node) {
@@ -2947,7 +2947,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
                 if (n < 0 || (size_t)n >= sizeof(buf)) {
                     buf[sizeof(buf) - 1] = '\0';
                 }
-                node->numeric_assumption_declaration = lv00_strdup_safe(buf);
+                node->numeric_assumption_declaration = lv_strdup_safe(buf);
             }
 
             return true;
@@ -2976,7 +2976,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
     GeomNode *node = graph_get_node(graph, *out_node_id);
     if (node) {
         if (node->numeric_assumption_declaration) {
-            lv00_free((void **)&node->numeric_assumption_declaration);  /* 统一内存释放器 */
+            lv_free((void **)&node->numeric_assumption_declaration);  /* 统一内存释放器 */
             node->numeric_assumption_declaration = NULL;
         }
 
@@ -3010,9 +3010,9 @@ bool formula_convert_equation(const FormulaNode *equation_node,
                     }
                 }
             }
-            node->numeric_assumption_declaration = lv00_strdup_safe(buf);
+            node->numeric_assumption_declaration = lv_strdup_safe(buf);
         } else {
-            node->numeric_assumption_declaration = lv00_strdup_safe("IMPLICIT_CURVE:UNKNOWN");
+            node->numeric_assumption_declaration = lv_strdup_safe("IMPLICIT_CURVE:UNKNOWN");
         }
     }
 

@@ -1,6 +1,6 @@
-#include "lv00/representation_converter.h"
-#include "lv00/func_block.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/representation_converter.h"
+#include "lv/func_block.h"
+#include "lv/lv_utils.h"
 #include <string.h>
 
 /* 节点图内部结构：将 FuncBlock 映射为节点和边 */
@@ -29,14 +29,14 @@ typedef struct {
     int edge_cap;
 } NodeGraph;
 
-static void lv00_convert_block_to_node_cleanup(NodeGraph *ng);
+static void lv_convert_block_to_node_cleanup(NodeGraph *ng);
 
 /* 将函数块转换为节点图表示 */
 /* 每个 FuncBlock → 一个 NodeGraphNode */
 /* 块的输入/输出端口 → 节点的输入/输出端口 */
 /* 块间的连接 → 节点间的边 */
-Lv00ConvertResult lv00_convert_block_to_node(void *block) {
-    Lv00ConvertResult result = {0};
+lvConvertResult lv_convert_block_to_node(void *block) {
+    lvConvertResult result = {0};
     if (!block) {
         result.success = 0;
         strncpy(result.error_msg, "NULL block", sizeof(result.error_msg));
@@ -52,25 +52,25 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
     BlockGraphView *bg = (BlockGraphView *)block;
 
     /* 创建节点图 */
-    NodeGraph *ng = lv00_calloc(1, sizeof(NodeGraph));
+    NodeGraph *ng = lv_calloc(1, sizeof(NodeGraph));
     if (!ng) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
     ng->node_cap = bg->count > 0 ? bg->count : 8;
-    ng->nodes = lv00_calloc(ng->node_cap, sizeof(NodeGraphNode));
+    ng->nodes = lv_calloc(ng->node_cap, sizeof(NodeGraphNode));
     if (!ng->nodes) {
-        lv00_free((void **)&ng);
+        lv_free((void **)&ng);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
     ng->edge_cap = 32;
-    ng->edges = lv00_calloc(ng->edge_cap, sizeof(ng->edges[0]));
+    ng->edges = lv_calloc(ng->edge_cap, sizeof(ng->edges[0]));
     if (!ng->edges) {
-        lv00_free((void **)&ng->nodes);
-        lv00_free((void **)&ng);
+        lv_free((void **)&ng->nodes);
+        lv_free((void **)&ng);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
@@ -87,19 +87,19 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
         /* 复制名称 */
         const char *name = func_block_get_name(fb);
         if (name) {
-            node->name = lv00_strdup_safe(name);
+            node->name = lv_strdup_safe(name);
         } else {
-            node->name = lv00_strdup_safe("unnamed");
+            node->name = lv_strdup_safe("unnamed");
         }
 
         /* 映射输入端口 */
         int in_count = func_block_get_input_count(fb);
         if (in_count > 0 && fb->input_port_ids) {
-            node->input_ports = lv00_calloc(in_count, sizeof(int));
+            node->input_ports = lv_calloc(in_count, sizeof(int));
             if (!node->input_ports) {
-                lv00_free((void **)&node->name);
+                lv_free((void **)&node->name);
                 ng->node_count--;
-                lv00_convert_block_to_node_cleanup(ng);
+                lv_convert_block_to_node_cleanup(ng);
                 result.success = 0;
                 strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
                 return result;
@@ -111,12 +111,12 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
         /* 映射输出端口 */
         int out_count = func_block_get_output_count(fb);
         if (out_count > 0 && fb->output_port_ids) {
-            node->output_ports = lv00_calloc(out_count, sizeof(int));
+            node->output_ports = lv_calloc(out_count, sizeof(int));
             if (!node->output_ports) {
-                lv00_free((void **)&node->name);
-                lv00_free((void **)&node->input_ports);
+                lv_free((void **)&node->name);
+                lv_free((void **)&node->input_ports);
                 ng->node_count--;
-                lv00_convert_block_to_node_cleanup(ng);
+                lv_convert_block_to_node_cleanup(ng);
                 result.success = 0;
                 strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
                 return result;
@@ -146,9 +146,9 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
                 /* 扩容检查 */
                 if (ng->edge_count >= ng->edge_cap) {
                     ng->edge_cap *= 2;
-                    void *_tmp = lv00_realloc(ng->edges, ng->edge_cap * sizeof(ng->edges[0]));
+                    void *_tmp = lv_realloc(ng->edges, ng->edge_cap * sizeof(ng->edges[0]));
                     if (!_tmp) {
-                        lv00_convert_block_to_node_cleanup(ng);
+                        lv_convert_block_to_node_cleanup(ng);
                         result.success = 0;
                         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
                         return result;
@@ -170,29 +170,29 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
 }
 
 /* 清理节点图中的动态内存（strdup分配的name等） */
-static void lv00_convert_block_to_node_cleanup(NodeGraph *ng) {
+static void lv_convert_block_to_node_cleanup(NodeGraph *ng) {
     if (!ng) return;
     for (int i = 0; i < ng->node_count; i++) {
-        lv00_free((void **)&ng->nodes[i].name);
-        lv00_free((void **)&ng->nodes[i].input_ports);
-        lv00_free((void **)&ng->nodes[i].output_ports);
+        lv_free((void **)&ng->nodes[i].name);
+        lv_free((void **)&ng->nodes[i].input_ports);
+        lv_free((void **)&ng->nodes[i].output_ports);
     }
-    lv00_free((void **)&ng->edges);
-    lv00_free((void **)&ng->nodes);
+    lv_free((void **)&ng->edges);
+    lv_free((void **)&ng->nodes);
     ng->node_count = 0;
     ng->edge_count = 0;
-    lv00_free((void **)&ng);
+    lv_free((void **)&ng);
 }
 
-Lv00ConvertResult lv00_convert_node_to_block(void *node) {
-    Lv00ConvertResult result = {0};
+lvConvertResult lv_convert_node_to_block(void *node) {
+    lvConvertResult result = {0};
     if (!node) {
         result.success = 0;
         strncpy(result.error_msg, "NULL node", sizeof(result.error_msg));
         return result;
     }
 
-    /* node 指向 NodeGraph 结构（由 lv00_convert_block_to_node 产生） */
+    /* node 指向 NodeGraph 结构（由 lv_convert_block_to_node 产生） */
     NodeGraph *ng = (NodeGraph *)node;
 
     /* 创建 BlockGraphView 结构作为输出 */
@@ -201,7 +201,7 @@ Lv00ConvertResult lv00_convert_node_to_block(void *node) {
         int count;
     } BlockGraphView;
 
-    BlockGraphView *bg = lv00_calloc(1, sizeof(BlockGraphView));
+    BlockGraphView *bg = lv_calloc(1, sizeof(BlockGraphView));
     if (!bg) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
@@ -219,9 +219,9 @@ Lv00ConvertResult lv00_convert_node_to_block(void *node) {
 
     /* 为每个节点创建对应的 FuncBlock */
     bg->count = ng->node_count;
-    bg->blocks = lv00_calloc(ng->node_count, sizeof(FuncBlock *));
+    bg->blocks = lv_calloc(ng->node_count, sizeof(FuncBlock *));
     if (!bg->blocks) {
-        lv00_free((void **)&bg);
+        lv_free((void **)&bg);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
@@ -237,8 +237,8 @@ Lv00ConvertResult lv00_convert_node_to_block(void *node) {
             for (int j = 0; j < i; j++) {
                 func_block_destroy(bg->blocks[j]);
             }
-            lv00_free((void **)&bg->blocks);
-            lv00_free((void **)&bg);
+            lv_free((void **)&bg->blocks);
+            lv_free((void **)&bg);
             result.success = 0;
             strncpy(result.error_msg, "out of memory creating FuncBlock", sizeof(result.error_msg));
             return result;

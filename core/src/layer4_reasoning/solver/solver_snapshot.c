@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_snapshot.c
  * @brief 求解回滚快照（保存/恢复/释放）
  *
@@ -7,7 +7,7 @@
  * @version 3.3.0
  */
 
-#include "lv00/solver.h"
+#include "lv/solver.h"
 #include "../solver_snapshot.h"
 
 #include <float.h>
@@ -17,24 +17,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
-#include "lv00/stream.h"
+#include "lv/stream.h"
 #include "stream_context_util.h"
 
 /* --- 共享宏 --- */
-#define LV00_SOLVER_DYNARRAY_INIT_CAP 16
-#define LV00_SOLVER_LINEAR_COEFF_COUNT 2
-#define LV00_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define LV00_ZERO_EPSILON 1e-12
+#define lv_SOLVER_DYNARRAY_INIT_CAP 16
+#define lv_SOLVER_LINEAR_COEFF_COUNT 2
+#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
+#define lv_ZERO_EPSILON 1e-12
 #define SOLVER_DETAIL_BUF_SIZE 512
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
     do { \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
             goto label; \
         } \
     } while (0)
@@ -51,8 +51,8 @@ bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot
         return true;
 
     snapshot->coord_count = snapshot->node_count * 2;
-    snapshot->node_ids = lv00_malloc((size_t) snapshot->node_count * sizeof(int));
-    snapshot->copies = lv00_malloc((size_t) snapshot->coord_count * sizeof(SymbolicCoord *));
+    snapshot->node_ids = lv_malloc((size_t) snapshot->node_count * sizeof(int));
+    snapshot->copies = lv_malloc((size_t) snapshot->coord_count * sizeof(SymbolicCoord *));
 
     if (!snapshot->node_ids || !snapshot->copies) {
         solver_snapshot_free(snapshot);
@@ -131,10 +131,10 @@ void solver_snapshot_free(SolverSnapshot *snapshot) {
                 snapshot->copies[i] = NULL;
             }
         }
-        lv00_free((void **) &snapshot->copies);
+        lv_free((void **) &snapshot->copies);
     }
 
-    lv00_free((void **) &snapshot->node_ids);
+    lv_free((void **) &snapshot->node_ids);
     snapshot->node_count = 0;
     snapshot->coord_count = 0;
 }

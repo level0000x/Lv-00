@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_algebraic.c
  * @brief ��������Ԥ�躯���� - ʵ��
  *
@@ -11,7 +11,7 @@
 
 #include "preset_algebraic.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 
 #include <string.h>
 

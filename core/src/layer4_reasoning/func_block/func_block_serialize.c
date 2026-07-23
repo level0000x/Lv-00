@@ -15,8 +15,8 @@
 #include <string.h>
 
 #include "func_block.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ==================== 命名常量 ==================== */
 
@@ -72,7 +72,7 @@ char *func_block_serialize_state(const FuncBlock *fb) {
                          fb->output_count + fb->port_dep_count +
                          fb->precondition_count) * 32;
 
-    char *buf = lv00_malloc(buf_size);
+    char *buf = lv_malloc(buf_size);
     if (!buf) return NULL;
     buf[0] = '\0';
     size_t pos = 0;
@@ -221,7 +221,7 @@ static const char *parse_quoted_string(const char *p, char **out) {
     const char *start = p;
     while (*p && *p != '"') p++;
     size_t len = (size_t)(p - start);
-    *out = lv00_malloc(len + 1);
+    *out = lv_malloc(len + 1);
     if (*out) {
         memcpy(*out, start, len);
         (*out)[len] = '\0';
@@ -262,7 +262,7 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
         return p;
     }
 
-    int *arr = lv00_malloc((size_t)count * sizeof(int));
+    int *arr = lv_malloc((size_t)count * sizeof(int));
     if (!arr) { *out = NULL; *out_count = 0; return p; }
 
     int idx = 0;
@@ -332,7 +332,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 p++;
                 char *name;
                 p = parse_quoted_string(p, &name);
-                lv00_free((void **)&fb->name);
+                lv_free((void **)&fb->name);
                 fb->name = name;
             }
         } else if (strncmp(p, "description", 11) == 0 && IS_KEY_BOUNDARY(p, 11)) {
@@ -342,7 +342,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 p++;
                 char *desc;
                 p = parse_quoted_string(p, &desc);
-                lv00_free((void **)&fb->description);
+                lv_free((void **)&fb->description);
                 fb->description = desc;
             }
         } else if (strncmp(p, "determinism", 11) == 0 && IS_KEY_BOUNDARY(p, 11)) {
@@ -394,7 +394,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 int count = 0;
                 p = parse_int_array(p, &arr, &count);
                 func_block_set_internal_nodes(fb, arr, count);
-                lv00_free((void **)&arr);
+                lv_free((void **)&arr);
             }
         } else if (strncmp(p, "input_ports", 11) == 0 && IS_KEY_BOUNDARY(p, 11)) {
             p += 11;
@@ -405,7 +405,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 int count = 0;
                 p = parse_int_array(p, &arr, &count);
                 func_block_set_input_ports(fb, arr, count);
-                lv00_free((void **)&arr);
+                lv_free((void **)&arr);
             }
         } else if (strncmp(p, "output_ports", 12) == 0 && IS_KEY_BOUNDARY(p, 12)) {
             p += 12;
@@ -416,7 +416,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 int count = 0;
                 p = parse_int_array(p, &arr, &count);
                 func_block_set_output_ports(fb, arr, count);
-                lv00_free((void **)&arr);
+                lv_free((void **)&arr);
             }
         } else if (strncmp(p, "selector", 8) == 0 && IS_KEY_BOUNDARY(p, 8)) {
             p += 8;
@@ -466,12 +466,12 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                             const char *start = p;
                             while (*p && *p != '\n' && *p != ' ' && *p != '}') p++;
                             size_t len = (size_t)(p - start);
-                            char *type_str = lv00_malloc(len + 1);
+                            char *type_str = lv_malloc(len + 1);
                             if (type_str) {
                                 memcpy(type_str, start, len);
                                 type_str[len] = '\0';
                                 dep.type = port_dep_type_from_string(type_str);
-                                lv00_free((void **)&type_str);
+                                lv_free((void **)&type_str);
                             }
                         }
                     } else if (strncmp(p, "port_id", 7) == 0 && IS_KEY_BOUNDARY(p, 7)) {
@@ -502,7 +502,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 int count = 0;
                 p = parse_int_array(p, &arr, &count);
                 func_block_set_preconditions(fb, arr, count);
-                lv00_free((void **)&arr);
+                lv_free((void **)&arr);
             }
         } else if (strncmp(p, "measure", 7) == 0 && IS_KEY_BOUNDARY(p, 7)) {
             p += 7;

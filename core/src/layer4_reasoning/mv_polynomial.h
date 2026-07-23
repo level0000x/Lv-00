@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mv_polynomial.h
  * @brief 多变量多项式 — Groebner 基计算基础数据结构
  *
@@ -8,8 +8,8 @@
  * 原位置: solver.c L4703-L4950
  */
 
-#ifndef LV00_MV_POLYNOMIAL_H
-#define LV00_MV_POLYNOMIAL_H
+#ifndef lv_MV_POLYNOMIAL_H
+#define lv_MV_POLYNOMIAL_H
 
 #include <gmp.h>
 #include <stdbool.h>
@@ -62,4 +62,4 @@ bool mv_monomial_divisible_lcm(const MVMonomial *d, const int *lcm_exp, int var_
 }
 #endif
 
-#endif /* LV00_MV_POLYNOMIAL_H */
+#endif /* lv_MV_POLYNOMIAL_H */

@@ -1,20 +1,20 @@
-"""
+﻿"""
 Lv-00 UI编程辅助系统 - 代码模板库
 包含常用的代码模板和片段
 
 本文件面向用户直接查询和代码生成，模板以结构化字典形式组织。
-与 lv00_knowledge.py 的关系：
-  - lv00_knowledge.py 是模板和知识的权威来源（single source of truth），
+与 lv_knowledge.py 的关系：
+  - lv_knowledge.py 是模板和知识的权威来源（single source of truth），
     其中的代码模式面向 LLM 上下文注入
   - 本文件仅保留 templates.py 独有的 UI 组件模板
 
-已废弃的模板（已迁移到 lv00_knowledge.py，不再在本文件中保留数据）：
-  - wasm_basic_binding      -> Lv00KnowledgeBase.code_patterns["wasm_binding_basic"]
-  - wasm_string_binding     -> Lv00KnowledgeBase.code_patterns["wasm_binding_with_string"]
-  - wasm_array_binding      -> Lv00KnowledgeBase.code_patterns["wasm_binding_with_array"]
-  - wasm_js_wrapper         -> Lv00KnowledgeBase.code_patterns["wasm_binding_basic"] (JS端)
-  - canvas_basic_renderer   -> Lv00KnowledgeBase.code_patterns["canvas_renderer_class"]
-  - canvas_event_handler    -> Lv00KnowledgeBase.code_patterns["canvas_event_handlers"]
+已废弃的模板（已迁移到 lv_knowledge.py，不再在本文件中保留数据）：
+  - wasm_basic_binding      -> lvKnowledgeBase.code_patterns["wasm_binding_basic"]
+  - wasm_string_binding     -> lvKnowledgeBase.code_patterns["wasm_binding_with_string"]
+  - wasm_array_binding      -> lvKnowledgeBase.code_patterns["wasm_binding_with_array"]
+  - wasm_js_wrapper         -> lvKnowledgeBase.code_patterns["wasm_binding_basic"] (JS端)
+  - canvas_basic_renderer   -> lvKnowledgeBase.code_patterns["canvas_renderer_class"]
+  - canvas_event_handler    -> lvKnowledgeBase.code_patterns["canvas_event_handlers"]
 
 独有模板（仅在本文件中维护）：
   - module_panel: 模块面板模板
@@ -90,7 +90,7 @@ CODE_TEMPLATES = {
         const param = document.getElementById('input{module}Param')?.value;
 
         try {{
-            const result = await window.lv00Api.{api_method}(param);
+            const result = await window.lvApi.{api_method}(param);
             console.log('{module} action1 result:', result);
             showStatus('{MODULE_TITLE}: 操作完成');
         }} catch (err) {{
@@ -101,7 +101,7 @@ CODE_TEMPLATES = {
     // 操作2
     document.getElementById('btn{module}Action2')?.addEventListener('click', async function() {{
         try {{
-            const result = await window.lv00Api.{api_method2}();
+            const result = await window.lvApi.{api_method2}();
             document.getElementById('{module}Count').textContent = result;
         }} catch (err) {{
             showError('{module} error:', err);
@@ -376,7 +376,7 @@ def get_template(name: str) -> str:
     """
     获取代码模板
 
-    对于已废弃的模板（已迁移到 lv00_knowledge.py），返回空字符串并记录
+    对于已废弃的模板（已迁移到 lv_knowledge.py），返回空字符串并记录
     deprecation warning。
 
     Args:
@@ -388,12 +388,12 @@ def get_template(name: str) -> str:
     # 检查是否为已废弃的模板名称
     if name in _DEPRECATED_TEMPLATE_NAMES:
         logger.warning(
-            "模板 '%s' 已废弃（已迁移到 lv00_knowledge.py），"
-            "请使用 Lv00KnowledgeBase.code_patterns 中的权威版本",
+            "模板 '%s' 已废弃（已迁移到 lv_knowledge.py），"
+            "请使用 lvKnowledgeBase.code_patterns 中的权威版本",
             name,
         )
         warnings.warn(
-            f"模板 '{name}' 已废弃，请使用 lv00_knowledge.py 中的权威版本",
+            f"模板 '{name}' 已废弃，请使用 lv_knowledge.py 中的权威版本",
             DeprecationWarning,
             stacklevel=2,
         )

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_transformations.c
  * @brief ���α任Ԥ�躯���� - ʵ��
  *
@@ -11,7 +11,7 @@
 
 #include "preset_transformations.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 
 #include <string.h>
 

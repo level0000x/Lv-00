@@ -1,4 +1,4 @@
-# Lv-00 提交规范指南
+﻿# Lv-00 提交规范指南
 
 > 本仓库遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范
 
@@ -86,14 +86,14 @@ Closes #234
 
 ### 破坏性变更
 ```
-refactor(api): rename lv00_init to lv00_context_create
+refactor(api): rename lv_init to lv_context_create
 
-BREAKING CHANGE: lv00_init() is removed. Use lv00_context_create()
+BREAKING CHANGE: lv_init() is removed. Use lv_context_create()
 instead with the new configuration structure.
 
 Migration guide:
-  Before: lv00_init(NULL);
-  After:  lv00_context_create(&config);
+  Before: lv_init(NULL);
+  After:  lv_context_create(&config);
 ```
 
 ### 修复 bug
@@ -101,7 +101,7 @@ Migration guide:
 fix(solver): prevent division by zero in constraint solving
 
 When all coefficients are zero, the solver would crash with
-SIGFPE. Now returns LV00_ERROR_DEGENERATE_CASE.
+SIGFPE. Now returns lv_ERROR_DEGENERATE_CASE.
 
 Fixes #456
 ```

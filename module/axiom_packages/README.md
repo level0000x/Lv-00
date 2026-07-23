@@ -1,4 +1,4 @@
-# Axiom Packages -- Lv-00 公理包系统
+﻿# Axiom Packages -- Lv-00 公理包系统
 
 ## 概述 / Overview
 
@@ -88,24 +88,24 @@ Layer 4: Parallels (平行)      -- Playfair (欧氏) / Lobachevsky (双曲)
 
 ```c
 // 加载欧氏几何公理包
-lv00_load_package("euclidean_plane");
+lv_load_package("euclidean_plane");
 
 // 加载时指定版本
-lv00_load_package_version("euclidean_plane", "1.0.0");
+lv_load_package_version("euclidean_plane", "1.0.0");
 
 // 仅加载特定层
-lv00_load_layer("euclidean_plane", "incidence");
-lv00_load_layer("euclidean_plane", "order");
+lv_load_layer("euclidean_plane", "incidence");
+lv_load_layer("euclidean_plane", "order");
 ```
 
 ### 查询已加载公理
 
 ```c
 // 列出所有已加载的公理
-lv00_list_axioms();
+lv_list_axioms();
 
 // 检查特定公理是否已加载
-lv00_axiom_loaded("euclidean.Playfair");
+lv_axiom_loaded("euclidean.Playfair");
 ```
 
 ## 包注册表 / Package Registry

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file math_input.c
  * @brief 数学输入处理 —— 解析 LaTeX 风格数学表达式并规范化
  *
@@ -11,17 +11,17 @@
  */
 
 #include "math_input.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
-int lv00_math_input_parse(const char *input, char *normalized, size_t buf_size) {
+int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
     if (!input || !normalized || buf_size == 0) return -1;
 
     /* 检测输入格式 */
-    int format = lv00_math_input_detect_format(input);
+    int format = lv_math_input_detect_format(input);
 
     if (format < 0) {
         /* 未知格式，直接复制 */
@@ -62,7 +62,7 @@ int lv00_math_input_parse(const char *input, char *normalized, size_t buf_size) 
     return (int)len;
 }
 
-int lv00_math_input_detect_format(const char *input) {
+int lv_math_input_detect_format(const char *input) {
     if (!input) return -1;
 
     /* 跳过前导空白 */

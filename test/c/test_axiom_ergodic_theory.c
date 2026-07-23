@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_ergodic_theory.c
  * @brief Ergodic Theory Axiom Package Test
  *
@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/ergodic_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/ergodic_theory_test_save.lvz"
@@ -282,8 +282,8 @@ static void test_content_hash(void) {
     TEST_ASSERT(hash2 != NULL, "second content hash should be computable");
     TEST_ASSERT(strcmp(hash, hash2) == 0, "content hash should be deterministic");
 
-    lv00_free_ptr(hash2);
-    lv00_free_ptr(hash);
+    lv_free_ptr(hash2);
+    lv_free_ptr(hash);
     axiom_package_destroy(pkg);
 }
 
@@ -327,8 +327,8 @@ static void test_round_trip(void) {
     TEST_ASSERT(strcmp(hash_orig, hash2) == 0, "round-trip content hash should match original");
     printf("  Round-trip: content hash matches\n");
 
-    lv00_free_ptr(hash2);
-    lv00_free_ptr(hash_orig);
+    lv_free_ptr(hash2);
+    lv_free_ptr(hash_orig);
     axiom_package_destroy(pkg2);
 }
 

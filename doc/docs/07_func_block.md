@@ -1,4 +1,4 @@
-# 函数块系统 (Function Block System)
+﻿# 函数块系统 (Function Block System)
 
 ## 模块概述
 
@@ -603,8 +603,8 @@ typedef enum {
 
 | 文件 | 描述 |
 |------|------|
-| `include/lv00/func_block.h` | 公共 API 头文件，暴露打包、实例化、组合子等接口 |
-| `include/lv00/func_block_internal.h` | 内部共享头文件，供各编译单元共享内部数据结构和辅助函数声明 |
+| `include/lv/func_block.h` | 公共 API 头文件，暴露打包、实例化、组合子等接口 |
+| `include/lv/func_block_internal.h` | 内部共享头文件，供各编译单元共享内部数据结构和辅助函数声明 |
 
 ### 源文件
 

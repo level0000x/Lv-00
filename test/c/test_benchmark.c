@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_benchmark.c
  * @brief 性能基准测试 - 大规模操作、内存使用、执行时间
  *
@@ -16,7 +16,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* ============== 计时辅助函数 ============== */
@@ -196,7 +196,7 @@ static int test_func_block_pack_performance(void) {
         assert(fb != NULL);
 
         func_block_destroy(fb);
-        lv00_free_ptr(internal_ids);
+        lv_free_ptr(internal_ids);
         graph_destroy(g);
     }
 

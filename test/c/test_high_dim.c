@@ -1,4 +1,4 @@
-#include <assert.h>
+﻿#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,24 +32,24 @@ void test_high_dim_block_registration() {
     assert(manager != NULL);
 
     int result = high_dim_register_block(NULL, 1, 4);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL manager check: PASSED\n");
 
     result = high_dim_register_block(manager, 1, 3);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  Dimension < 4 check: PASSED\n");
 
     result = high_dim_register_block(manager, 1, HIGH_DIM_MAX_DIMENSIONS + 1);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  Dimension > MAX check: PASSED\n");
 
     result = high_dim_register_block(manager, 1, 4);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(manager->block_count == 1);
     printf("  Register 4D block: PASSED\n");
 
     result = high_dim_register_block(manager, 1, 4);
-    assert(result == LV00_ERROR_ALREADY_EXISTS);
+    assert(result == lv_ERROR_ALREADY_EXISTS);
     printf("  Duplicate registration check: PASSED\n");
 
     HighDimAbstractBlock *block = high_dim_get_block(manager, 1);
@@ -65,15 +65,15 @@ void test_high_dim_block_registration() {
     printf("  Get non-existent block: PASSED\n");
 
     result = high_dim_unregister_block(NULL, 1);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  Unregister NULL manager: PASSED\n");
 
     result = high_dim_unregister_block(manager, 999);
-    assert(result == LV00_ERROR_NOT_FOUND);
+    assert(result == lv_ERROR_NOT_FOUND);
     printf("  Unregister non-existent block: PASSED\n");
 
     result = high_dim_unregister_block(manager, 1);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(manager->block_count == 0);
     printf("  Unregister existing block: PASSED\n");
 
@@ -89,11 +89,11 @@ void test_high_dim_projection_preset() {
     assert(manager != NULL);
 
     int result = high_dim_register_block(manager, 1, 4);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
 
     HighDimProjectionPreset preset;
     result = high_dim_create_default_preset(4, &preset);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(strcmp(preset.name, "Default") == 0);
     assert(preset.dimension_count == 4);
     assert(preset.mapping_count == 4);
@@ -101,7 +101,7 @@ void test_high_dim_projection_preset() {
     printf("  Create default preset: PASSED\n");
 
     result = high_dim_create_default_preset(3, &preset);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  Invalid dimension count: PASSED\n");
 
     const HighDimProjectionPreset *current = high_dim_get_current_preset(manager, 1);
@@ -111,7 +111,7 @@ void test_high_dim_projection_preset() {
 
     HighDimProjectionPreset new_preset;
     memset(&new_preset, 0, sizeof(new_preset));
-    lv00_strlcpy(new_preset.name, "Custom", HIGH_DIM_PROJECTION_NAME_MAX);
+    lv_strlcpy(new_preset.name, "Custom", HIGH_DIM_PROJECTION_NAME_MAX);
     new_preset.dimension_count = 4;
     new_preset.mapping_count = 4;
     for (int i = 0; i < 4; i++) {
@@ -132,28 +132,28 @@ void test_high_dim_projection_preset() {
 
     /* 使用实际返回的预设索引，而非硬编码 1 */
     result = high_dim_set_current_preset(manager, 1, preset_idx);
-    if (result != LV00_OK) {
+    if (result != lv_OK) {
         printf("  ⚠ Set current preset returned error %d (may be internal index mismatch)\n", result);
         /* 预设索引可能不直接对应视图内索引，跳过后续验证 */
         high_dim_manager_destroy(manager);
         printf("  PASSED\n");
         return;
     }
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     current = high_dim_get_current_preset(manager, 1);
     assert(strcmp(current->name, "Custom") == 0);
     printf("  Set current preset: PASSED\n");
 
     result = high_dim_set_current_preset(manager, 1, 99);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  Set invalid preset index: PASSED\n");
 
     result = high_dim_remove_projection_preset(manager, 1, 0);
-    assert(result == LV00_ERROR_UNSUPPORTED);
+    assert(result == lv_ERROR_UNSUPPORTED);
     printf("  Remove last preset check: PASSED\n");
 
     result = high_dim_remove_projection_preset(manager, 1, 1);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(manager->blocks[0].preset_count == 1);
     printf("  Remove existing preset: PASSED\n");
 
@@ -169,7 +169,7 @@ void test_high_dim_coordinate_projection() {
     assert(manager != NULL);
 
     int result = high_dim_register_block(manager, 1, 4);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
 
     SymbolicCoord *coord0 = symbolic_coord_create_rational(1, 1);
     SymbolicCoord *coord1 = symbolic_coord_create_rational(2, 1);
@@ -179,20 +179,20 @@ void test_high_dim_coordinate_projection() {
 
     HighDimProjectedCoord projected;
     result = high_dim_project_coordinates(manager, 1, coords, 4, &projected);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(projected.is_valid == true);
     printf("  Project 4D coordinates: PASSED\n");
 
     result = high_dim_project_coordinates(NULL, 1, coords, 4, &projected);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL manager check: PASSED\n");
 
     result = high_dim_project_coordinates(manager, 999, coords, 4, &projected);
-    assert(result == LV00_ERROR_NOT_FOUND);
+    assert(result == lv_ERROR_NOT_FOUND);
     printf("  Non-existent block check: PASSED\n");
 
     result = high_dim_project_coordinates(manager, 1, NULL, 0, &projected);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL coords check: PASSED\n");
 
     symbolic_coord_destroy(coord0);
@@ -209,7 +209,7 @@ void test_high_dim_transform() {
 
     HighDimTransform2D rotation;
     int result = high_dim_create_rotation_transform(0.0, &rotation);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(rotation.m[0][0] == 1.0);
     assert(rotation.m[0][1] == 0.0);
     assert(rotation.m[1][0] == 0.0);
@@ -217,12 +217,12 @@ void test_high_dim_transform() {
     printf("  Create identity rotation: PASSED\n");
 
     result = high_dim_create_rotation_transform(0.0, NULL);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL rotation transform check: PASSED\n");
 
     HighDimTransform2D scale;
     result = high_dim_create_scale_transform(2.0, 3.0, &scale);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(scale.m[0][0] == 2.0);
     assert(scale.m[1][1] == 3.0);
     printf("  Create scale transform: PASSED\n");
@@ -230,7 +230,7 @@ void test_high_dim_transform() {
     HighDimProjectedCoord coord = {1.0, 2.0, "", true};
     HighDimProjectedCoord result_coord;
     result = high_dim_apply_transform(&coord, &scale, &result_coord);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(result_coord.x == 2.0);
     assert(result_coord.y == 6.0);
     printf("  Apply transform: PASSED\n");
@@ -245,19 +245,19 @@ void test_high_dim_fidelity() {
     assert(manager != NULL);
 
     int result = high_dim_register_block(manager, 1, 4);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
 
     HighDimVisibilityStats stats;
     result = high_dim_calculate_fidelity(manager, 1, NULL, &stats);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     printf("  Calculate fidelity without constraint graph: PASSED\n");
 
     result = high_dim_calculate_fidelity(NULL, 1, NULL, &stats);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL manager check: PASSED\n");
 
     result = high_dim_calculate_fidelity(manager, 999, NULL, &stats);
-    assert(result == LV00_ERROR_NOT_FOUND);
+    assert(result == lv_ERROR_NOT_FOUND);
     printf("  Non-existent block check: PASSED\n");
 
     int below = high_dim_is_fidelity_below_threshold(manager, 1, 0.5);
@@ -270,7 +270,7 @@ void test_high_dim_fidelity() {
 
     char warning[256];
     result = high_dim_get_fidelity_warning(manager, 1, warning, sizeof(warning));
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     printf("  Get fidelity warning: PASSED\n");
 
     high_dim_manager_destroy(manager);
@@ -285,26 +285,26 @@ void test_high_dim_semantic_zoom() {
     assert(manager != NULL);
 
     int result = high_dim_register_block(manager, 1, 4);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     result = high_dim_register_block(manager, 2, 4);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
 
     result = high_dim_enter_block_perspective(NULL, 1);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL manager check: PASSED\n");
 
     result = high_dim_enter_block_perspective(manager, 999);
-    assert(result == LV00_ERROR_NOT_FOUND);
+    assert(result == lv_ERROR_NOT_FOUND);
     printf("  Non-existent block check: PASSED\n");
 
     result = high_dim_enter_block_perspective(manager, 1);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(manager->perspective_depth == 1);
     assert(manager->perspective_stack[0] == 1);
     printf("  Enter block perspective: PASSED\n");
 
     result = high_dim_enter_block_perspective(manager, 2);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(manager->perspective_depth == 2);
     printf("  Enter nested perspective: PASSED\n");
 
@@ -313,17 +313,17 @@ void test_high_dim_semantic_zoom() {
     printf("  Get current depth: PASSED\n");
 
     result = high_dim_exit_block_perspective(manager);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(manager->perspective_depth == 1);
     printf("  Exit perspective: PASSED\n");
 
     result = high_dim_exit_block_perspective(manager);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(manager->perspective_depth == 0);
     printf("  Exit root perspective: PASSED\n");
 
     result = high_dim_exit_block_perspective(manager);
-    assert(result == LV00_ERROR_UNSUPPORTED);
+    assert(result == lv_ERROR_UNSUPPORTED);
     printf("  Exit beyond root: PASSED\n");
 
     high_dim_manager_destroy(manager);
@@ -338,38 +338,38 @@ void test_high_dim_multi_projection_view() {
     assert(manager != NULL);
 
     int result = high_dim_register_block(manager, 1, 4);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
 
     int preset_indices[] = {0};
     int view_ids[1];
 
     result = high_dim_create_multi_projection_view(NULL, 1, preset_indices, 1, view_ids);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL manager check: PASSED\n");
 
     result = high_dim_create_multi_projection_view(manager, 999, preset_indices, 1, view_ids);
-    assert(result == LV00_ERROR_NOT_FOUND);
+    assert(result == lv_ERROR_NOT_FOUND);
     printf("  Non-existent block check: PASSED\n");
 
     result = high_dim_create_multi_projection_view(manager, 1, NULL, 1, view_ids);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL preset indices check: PASSED\n");
 
     result = high_dim_create_multi_projection_view(manager, 1, preset_indices, 0, view_ids);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  Zero preset count check: PASSED\n");
 
     result = high_dim_create_multi_projection_view(manager, 1, preset_indices, 1, view_ids);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     assert(view_ids[0] > 0);
     printf("  Create multi-projection view: PASSED\n");
 
     result = high_dim_destroy_multi_projection_view(manager, view_ids[0]);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     printf("  Destroy multi-projection view: PASSED\n");
 
     result = high_dim_destroy_multi_projection_view(manager, 99999);
-    assert(result == LV00_ERROR_NOT_FOUND);
+    assert(result == lv_ERROR_NOT_FOUND);
     printf("  Destroy non-existent view: PASSED\n");
 
     high_dim_manager_destroy(manager);
@@ -384,31 +384,31 @@ void test_high_dim_link_highlight() {
     assert(manager != NULL);
 
     int result = high_dim_register_block(manager, 1, 4);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
 
     int preset_indices[] = {0};
     int view_ids[1];
     result = high_dim_create_multi_projection_view(manager, 1, preset_indices, 1, view_ids);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
 
     result = high_dim_link_highlight(NULL, view_ids, 1, 0);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL manager check: PASSED\n");
 
     result = high_dim_link_highlight(manager, NULL, 1, 0);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL view_ids check: PASSED\n");
 
     result = high_dim_link_highlight(manager, view_ids, 0, 0);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  Zero view count check: PASSED\n");
 
     result = high_dim_link_highlight(manager, view_ids, 1, -1);
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  Negative element ID check: PASSED\n");
 
     result = high_dim_link_highlight(manager, view_ids, 1, 100);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     printf("  Link highlight: PASSED\n");
 
     high_dim_destroy_multi_projection_view(manager, view_ids[0]);
@@ -422,7 +422,7 @@ void test_high_dim_serialization() {
 
     HighDimProjectionPreset preset;
     int result = high_dim_create_default_preset(4, &preset);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
 
     char buffer[2048];
     result = high_dim_preset_serialize_json(&preset, buffer, sizeof(buffer));
@@ -432,11 +432,11 @@ void test_high_dim_serialization() {
     printf("  Serialize preset to JSON: PASSED\n");
 
     result = high_dim_preset_serialize_json(NULL, buffer, sizeof(buffer));
-    assert(result == LV00_ERROR_INVALID_PARAM);
+    assert(result == lv_ERROR_INVALID_PARAM);
     printf("  NULL preset check: PASSED\n");
 
     result = high_dim_preset_deserialize_json(buffer, &preset);
-    assert(result == LV00_OK);
+    assert(result == lv_OK);
     printf("  Deserialize preset from JSON: PASSED\n");
 
     printf("  PASSED\n");

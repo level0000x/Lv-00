@@ -1,4 +1,4 @@
-# Lv-00 未完成内容补齐实施规划
+﻿# Lv-00 未完成内容补齐实施规划
 
 > **For agentic workers:** 本计划按优先级分为 6 个 Phase，每个 Task 独立可执行。步骤使用 checkbox (`- [ ]`) 跟踪。
 
@@ -11,7 +11,7 @@
 **当前基线:**
 - VERSION 文件: 1.1.0
 - CMakeLists.txt project(): 1.1.0
-- lv00.h 宏: 5.0.0 ← 不一致
+- lv.h 宏: 5.0.0 ← 不一致
 - 构建状态: 有编译警告 + 宏重定义警告
 
 ---
@@ -21,24 +21,24 @@
 ### Task 1.1: 统一版本号为 1.1.0
 
 **Files:**
-- Modify: `core/include/lv00/lv00.h:199-201`
+- Modify: `core/include/lv/lv.h:199-201`
 
-**背景:** `lv00.h` 中 `LV00_VERSION_MAJOR=5, MINOR=0, PATCH=0`，但 CMakeLists.txt 的 `project(lv00 VERSION 1.1.0)` 和 `VERSION` 文件都是 `1.1.0`。`_Static_assert` 在 808 行会触发 `#error` 导致编译失败。
+**背景:** `lv.h` 中 `lv_VERSION_MAJOR=5, MINOR=0, PATCH=0`，但 CMakeLists.txt 的 `project(lv VERSION 1.1.0)` 和 `VERSION` 文件都是 `1.1.0`。`_Static_assert` 在 808 行会触发 `#error` 导致编译失败。
 
-- [ ] **Step 1: 修改 lv00.h 版本宏**
+- [ ] **Step 1: 修改 lv.h 版本宏**
 
-将 [lv00.h](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv00/lv00.h) 第 199-201 行改为：
+将 [lv.h](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h) 第 199-201 行改为：
 
 ```c
-#define LV00_VERSION_MAJOR 1
-#define LV00_VERSION_MINOR 1
-#define LV00_VERSION_PATCH 0
+#define lv_VERSION_MAJOR 1
+#define lv_VERSION_MINOR 1
+#define lv_VERSION_PATCH 0
 ```
 
 - [ ] **Step 2: 验证修改**
 
 ```powershell
-cd build ; cmake --build . --target lv00_static 2>&1 | Select-Object -First 30
+cd build ; cmake --build . --target lv_static 2>&1 | Select-Object -First 30
 ```
 
 预期: 不再出现 `#error "版本宏不匹配"`，编译继续进行。
@@ -46,8 +46,8 @@ cd build ; cmake --build . --target lv00_static 2>&1 | Select-Object -First 30
 - [ ] **Step 3: 提交**
 
 ```bash
-git add core/include/lv00/lv00.h
-git commit -m "fix: 统一版本号 lv00.h 5.0.0 → 1.1.0 与 CMake/VERSION 一致"
+git add core/include/lv/lv.h
+git commit -m "fix: 统一版本号 lv.h 5.0.0 → 1.1.0 与 CMake/VERSION 一致"
 ```
 
 ---
@@ -57,13 +57,13 @@ git commit -m "fix: 统一版本号 lv00.h 5.0.0 → 1.1.0 与 CMake/VERSION 一
 ### Task 2.1: 修复 preset_group_theory.c 宏重定义
 
 **Files:**
-- Modify: `core/include/lv00/preset_group_theory.h:17`
+- Modify: `core/include/lv/preset_group_theory.h:17`
 
 **问题:** 头文件定义 `GROUP_THEORY_PRESET_COUNT 16`，但源文件实际注册了 39 个预设，并在第 38 行重定义为 `39`。应同步头文件中的值。
 
 - [ ] **Step 1: 更新头文件宏值**
 
-将 [preset_group_theory.h](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv00/preset_group_theory.h) 第 17 行改为：
+将 [preset_group_theory.h](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/preset_group_theory.h) 第 17 行改为：
 
 ```c
 #define GROUP_THEORY_PRESET_COUNT 39
@@ -83,7 +83,7 @@ git commit -m "fix: 统一版本号 lv00.h 5.0.0 → 1.1.0 与 CMake/VERSION 一
 - [ ] **Step 3: 验证编译**
 
 ```powershell
-cd build ; cmake --build . --target lv00_layer4_reasoning 2>&1 | Select-String "GROUP_THEORY_PRESET_COUNT"
+cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "GROUP_THEORY_PRESET_COUNT"
 ```
 
 预期: 无 `GROUP_THEORY_PRESET_COUNT redefined` 警告。
@@ -91,7 +91,7 @@ cd build ; cmake --build . --target lv00_layer4_reasoning 2>&1 | Select-String "
 - [ ] **Step 4: 提交**
 
 ```bash
-git add core/include/lv00/preset_group_theory.h core/src/layer4_reasoning/preset/preset_group_theory.c
+git add core/include/lv/preset_group_theory.h core/src/layer4_reasoning/preset/preset_group_theory.c
 git commit -m "fix: 统一 GROUP_THEORY_PRESET_COUNT 为 39，消除宏重定义警告"
 ```
 
@@ -102,18 +102,18 @@ git commit -m "fix: 统一 GROUP_THEORY_PRESET_COUNT 为 39，消除宏重定义
 ### Task 3.1: 修复 variadic macro 零参数警告
 
 **Files:**
-- Modify: `core/include/lv00/debug.h`（假设 LV00_LOG_WARNING 等宏定义在此）
+- Modify: `core/include/lv/debug.h`（假设 lv_LOG_WARNING 等宏定义在此）
 
-**问题:** `-Wpedantic` 下 `LV00_LOG_WARNING("msg")` （无可变参数）触发 "ISO C99 requires at least one argument for the '...' in a variadic macro" 警告。影响 ~20 处调用。
+**问题:** `-Wpedantic` 下 `lv_LOG_WARNING("msg")` （无可变参数）触发 "ISO C99 requires at least one argument for the '...' in a variadic macro" 警告。影响 ~20 处调用。
 
 **方案:** 使用 GNU C 扩展 `##__VA_ARGS__` 或改为两个宏：一个无参数版本，一个有参数版本。
 
 - [ ] **Step 1: 定位宏定义**
 
-先找到 `LV00_LOG_WARNING` 等宏的定义位置：
+先找到 `lv_LOG_WARNING` 等宏的定义位置：
 
 ```powershell
-Select-String -Path "core/include/lv00/*.h" -Pattern "define LV00_LOG_WARNING"
+Select-String -Path "core/include/lv/*.h" -Pattern "define lv_LOG_WARNING"
 ```
 
 - [ ] **Step 2: 读取并修改宏定义**
@@ -122,10 +122,10 @@ Select-String -Path "core/include/lv00/*.h" -Pattern "define LV00_LOG_WARNING"
 
 ```c
 /* 修改前 */
-#define LV00_LOG_WARNING(fmt, ...) debug_log_write(LV00_LOG_LEVEL_WARN, "WARNING", fmt, ##__VA_ARGS__)
+#define lv_LOG_WARNING(fmt, ...) debug_log_write(lv_LOG_LEVEL_WARN, "WARNING", fmt, ##__VA_ARGS__)
 
 /* 修改后 —— 增加零参数安全版本 */
-#define LV00_LOG_WARNING(...) debug_log_write(LV00_LOG_LEVEL_WARN, "WARNING", "" __VA_ARGS__)
+#define lv_LOG_WARNING(...) debug_log_write(lv_LOG_LEVEL_WARN, "WARNING", "" __VA_ARGS__)
 ```
 
 如果编译器不支持，则改为在每个零参数调用处补一个空字符串参数 `""`。
@@ -141,7 +141,7 @@ cd build ; cmake --build . 2>&1 | Select-String "variadic macro"
 - [ ] **Step 4: 提交**
 
 ```bash
-git add core/include/lv00/debug.h
+git add core/include/lv/debug.h
 git commit -m "fix: 消除 variadic macro 零参数 -Wpedantic 警告"
 ```
 
@@ -175,7 +175,7 @@ if (plugin->path[0] == '\0') return -1;
 - [ ] **Step 3: 验证**
 
 ```powershell
-cd build ; cmake --build . --target lv00_layer5_output 2>&1 | Select-String "always evaluate"
+cd build ; cmake --build . --target lv_layer5_output 2>&1 | Select-String "always evaluate"
 ```
 
 - [ ] **Step 4: 提交**
@@ -204,14 +204,14 @@ git commit -m "fix: 修复 plugin_system.c 数组地址非 NULL 检查警告"
 
 - [ ] **Step 2: 修复 preset_group_theory.c 的 get_group_theory_names**
 
-在 715 行的函数前添加 `__attribute__((unused))` 或 `LV00_UNUSED`：
+在 715 行的函数前添加 `__attribute__((unused))` 或 `lv_UNUSED`：
 ```c
-static LV00_UNUSED char** get_group_theory_names(void)
+static lv_UNUSED char** get_group_theory_names(void)
 ```
 
-如果 `LV00_UNUSED` 不存在，在 [lv00.h](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv00/lv00.h) 添加：
+如果 `lv_UNUSED` 不存在，在 [lv.h](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h) 添加：
 ```c
-#define LV00_UNUSED __attribute__((unused))
+#define lv_UNUSED __attribute__((unused))
 ```
 
 - [ ] **Step 3: 修复 magic.c 和 geo_visual.c 的未使用变量**
@@ -221,13 +221,13 @@ static LV00_UNUSED char** get_group_theory_names(void)
 (void)graph_type;
 
 /* magic.c:1336 — json_skip_value 函数前加 */
-LV00_UNUSED static const char *json_skip_value(const char *p) {
+lv_UNUSED static const char *json_skip_value(const char *p) {
 
 /* geo_visual.c:890-892 */
 (void)fr; (void)fg; (void)fb_c;
 
 /* geo_visual.c:546 — render_object_threejs 函数前加 */
-LV00_UNUSED static void render_object_threejs(...) {
+lv_UNUSED static void render_object_threejs(...) {
 ```
 
 - [ ] **Step 4: 验证**
@@ -239,7 +239,7 @@ cd build ; cmake --build . 2>&1 | Select-String "unused"
 - [ ] **Step 5: 提交**
 
 ```bash
-git add core/include/lv00/lv00.h core/src/layer4_reasoning/reasoning_cache.c core/src/layer4_reasoning/preset/preset_group_theory.c core/src/layer5_output/magic/magic.c core/src/layer5_output/geo_visual.c
+git add core/include/lv/lv.h core/src/layer4_reasoning/reasoning_cache.c core/src/layer4_reasoning/preset/preset_group_theory.c core/src/layer5_output/magic/magic.c core/src/layer5_output/geo_visual.c
 git commit -m "fix: 消除未使用变量和函数编译警告"
 ```
 
@@ -253,14 +253,14 @@ git commit -m "fix: 消除未使用变量和函数编译警告"
 
 **Files:**
 - Modify: `core/src/layer1_parser/dsl_compiler.c`
-- Reference: `core/include/lv00/dsl_compiler.h`
+- Reference: `core/include/lv/dsl_compiler.h`
 
 **目标:** 实现 DSL 编译器，将 Lv-00 领域特定语言编译为内部 AST 表示。
 
 - [ ] **Step 1: 读取头文件了解接口**
 
 ```powershell
-Get-Content core/include/lv00/dsl_compiler.h
+Get-Content core/include/lv/dsl_compiler.h
 ```
 
 - [ ] **Step 2: 实现 dsl_compiler.c**
@@ -268,7 +268,7 @@ Get-Content core/include/lv00/dsl_compiler.h
 ```c
 /**
  * @file dsl_compiler.c
- * @brief Lv-00 DSL 编译器 —— 将 .lv00 源文件编译为 AST
+ * @brief Lv-00 DSL 编译器 —— 将 .lv 源文件编译为 AST
  *
  * @details 实现词法分析 → 语法分析 → AST 生成的完整编译流水线。
  *          当前版本支持基础几何构造语句（point、line、circle、
@@ -278,7 +278,7 @@ Get-Content core/include/lv00/dsl_compiler.h
  */
 
 #include "dsl_compiler.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 #include "formula_parser.h"
 
 #include <stdlib.h>
@@ -331,8 +331,8 @@ static bool dsl_read_ident(DslCompilerCtx *ctx, char *buf, size_t buf_size) {
 
 /* ---- 公共 API ---- */
 
-bool lv00_dsl_compile(LV00Engine *engine, const char *source,
-                      LV00DslCompileResult *out_result) {
+bool lv_dsl_compile(lvEngine *engine, const char *source,
+                      lvDslCompileResult *out_result) {
     if (!engine || !source || !out_result) {
         return false;
     }
@@ -350,7 +350,7 @@ bool lv00_dsl_compile(LV00Engine *engine, const char *source,
 
     /* 逐语句解析 */
     int stmt_count = 0;
-    while (ctx.pos < ctx.source_len && stmt_count < LV00_DSL_MAX_STATEMENTS) {
+    while (ctx.pos < ctx.source_len && stmt_count < lv_DSL_MAX_STATEMENTS) {
         dsl_skip_whitespace(&ctx);
         if (ctx.pos >= ctx.source_len) break;
 
@@ -368,7 +368,7 @@ bool lv00_dsl_compile(LV00Engine *engine, const char *source,
                 ctx.pos++;
 
             /* 简化实现：使用默认坐标 (0, 0) */
-            lv00_add_point(engine, 0, 1, 0, 1);
+            lv_add_point(engine, 0, 1, 0, 1);
             stmt_count++;
 
             /* 跳过到行尾 */
@@ -396,7 +396,7 @@ bool lv00_dsl_compile(LV00Engine *engine, const char *source,
     return true;
 }
 
-const char *lv00_dsl_last_error(void) {
+const char *lv_dsl_last_error(void) {
     return "DSL compiler: no error";
 }
 ```
@@ -404,7 +404,7 @@ const char *lv00_dsl_last_error(void) {
 - [ ] **Step 3: 验证编译**
 
 ```powershell
-cd build ; cmake --build . --target lv00_layer1_parser 2>&1 | Select-String "error"
+cd build ; cmake --build . --target lv_layer1_parser 2>&1 | Select-String "error"
 ```
 
 预期: 无编译错误。
@@ -420,12 +420,12 @@ git commit -m "feat: 实现 dsl_compiler.c DSL 编译器最小可用版本"
 
 **Files:**
 - Modify: `core/src/layer4_reasoning/engine/engine_scheduler.c`
-- Reference: `core/include/lv00/engine_scheduler.h`
+- Reference: `core/include/lv/engine_scheduler.h`
 
 - [ ] **Step 1: 读取头文件**
 
 ```powershell
-Get-Content core/include/lv00/engine_scheduler.h
+Get-Content core/include/lv/engine_scheduler.h
 ```
 
 - [ ] **Step 2: 实现 engine_scheduler.c**
@@ -446,8 +446,8 @@ Get-Content core/include/lv00/engine_scheduler.h
 
 #include "engine_scheduler.h"
 #include "engine.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -460,18 +460,18 @@ typedef enum {
     SCHED_ERROR
 } SchedulerState;
 
-struct Lv00EngineScheduler {
-    LV00Engine      *engine;
+struct lvEngineScheduler {
+    lvEngine      *engine;
     SchedulerState   state;
     int              max_iterations;
     int              current_iteration;
     EngineSolveResult last_result;
 };
 
-Lv00EngineScheduler *lv00_scheduler_create(LV00Engine *engine) {
+lvEngineScheduler *lv_scheduler_create(lvEngine *engine) {
     if (!engine) return NULL;
 
-    Lv00EngineScheduler *sched = lv00_malloc(sizeof(Lv00EngineScheduler));
+    lvEngineScheduler *sched = lv_malloc(sizeof(lvEngineScheduler));
     if (!sched) return NULL;
 
     memset(sched, 0, sizeof(*sched));
@@ -481,19 +481,19 @@ Lv00EngineScheduler *lv00_scheduler_create(LV00Engine *engine) {
     return sched;
 }
 
-void lv00_scheduler_destroy(Lv00EngineScheduler *sched) {
+void lv_scheduler_destroy(lvEngineScheduler *sched) {
     if (sched) {
-        lv00_free(sched);
+        lv_free(sched);
     }
 }
 
-void lv00_scheduler_set_max_iterations(Lv00EngineScheduler *sched, int max_iter) {
+void lv_scheduler_set_max_iterations(lvEngineScheduler *sched, int max_iter) {
     if (sched && max_iter > 0) {
         sched->max_iterations = max_iter;
     }
 }
 
-EngineSolveResult lv00_scheduler_run(Lv00EngineScheduler *sched) {
+EngineSolveResult lv_scheduler_run(lvEngineScheduler *sched) {
     if (!sched || !sched->engine) return ENGINE_SOLVE_ERROR;
 
     sched->state = SCHED_RUNNING;
@@ -516,13 +516,13 @@ EngineSolveResult lv00_scheduler_run(Lv00EngineScheduler *sched) {
     return result;
 }
 
-EngineSolveResult lv00_scheduler_get_last_result(
-    const Lv00EngineScheduler *sched) {
+EngineSolveResult lv_scheduler_get_last_result(
+    const lvEngineScheduler *sched) {
     if (!sched) return ENGINE_SOLVE_ERROR;
     return sched->last_result;
 }
 
-bool lv00_scheduler_is_running(const Lv00EngineScheduler *sched) {
+bool lv_scheduler_is_running(const lvEngineScheduler *sched) {
     return sched && sched->state == SCHED_RUNNING;
 }
 ```
@@ -530,7 +530,7 @@ bool lv00_scheduler_is_running(const Lv00EngineScheduler *sched) {
 - [ ] **Step 3: 验证编译**
 
 ```powershell
-cd build ; cmake --build . --target lv00_layer4_reasoning 2>&1 | Select-String "engine_scheduler.*error"
+cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "engine_scheduler.*error"
 ```
 
 预期: 无编译错误。
@@ -546,12 +546,12 @@ git commit -m "feat: 实现 engine_scheduler.c 多后端调度器最小可用版
 
 **Files:**
 - Modify: `core/src/layer4_reasoning/backends/approx_counter.c`
-- Reference: `core/include/lv00/approx_counter.h`
+- Reference: `core/include/lv/approx_counter.h`
 
 - [ ] **Step 1: 读取头文件**
 
 ```powershell
-Get-Content core/include/lv00/approx_counter.h
+Get-Content core/include/lv/approx_counter.h
 ```
 
 - [ ] **Step 2: 实现 approx_counter.c**
@@ -569,23 +569,23 @@ Get-Content core/include/lv00/approx_counter.h
  */
 
 #include "approx_counter.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 
 /* ---- 内部状态 ---- */
-struct Lv00ApproxCounter {
+struct lvApproxCounter {
     uint64_t total_count;     /* 近似总计数 */
     uint64_t cell_count;      /* 单个 cell 计数 */
     int      hash_bits;       /* 哈希位数 */
     double   confidence;      /* 置信度 (0.0 ~ 1.0) */
 };
 
-Lv00ApproxCounter *lv00_approx_counter_create(void) {
-    Lv00ApproxCounter *counter = lv00_malloc(sizeof(Lv00ApproxCounter));
+lvApproxCounter *lv_approx_counter_create(void) {
+    lvApproxCounter *counter = lv_malloc(sizeof(lvApproxCounter));
     if (!counter) return NULL;
 
     memset(counter, 0, sizeof(*counter));
@@ -593,19 +593,19 @@ Lv00ApproxCounter *lv00_approx_counter_create(void) {
     return counter;
 }
 
-void lv00_approx_counter_destroy(Lv00ApproxCounter *counter) {
+void lv_approx_counter_destroy(lvApproxCounter *counter) {
     if (counter) {
-        lv00_free(counter);
+        lv_free(counter);
     }
 }
 
-void lv00_approx_counter_reset(Lv00ApproxCounter *counter) {
+void lv_approx_counter_reset(lvApproxCounter *counter) {
     if (!counter) return;
     counter->total_count = 0;
     counter->cell_count = 0;
 }
 
-bool lv00_approx_counter_add_sample(Lv00ApproxCounter *counter,
+bool lv_approx_counter_add_sample(lvApproxCounter *counter,
                                      uint64_t hash, bool satisfied) {
     if (!counter) return false;
 
@@ -616,7 +616,7 @@ bool lv00_approx_counter_add_sample(Lv00ApproxCounter *counter,
     return true;
 }
 
-uint64_t lv00_approx_counter_estimate(Lv00ApproxCounter *counter) {
+uint64_t lv_approx_counter_estimate(lvApproxCounter *counter) {
     if (!counter) return 0;
 
     /* ApproxMC 简化估算：cell_count × 2^hash_bits */
@@ -625,14 +625,14 @@ uint64_t lv00_approx_counter_estimate(Lv00ApproxCounter *counter) {
     return counter->total_count;
 }
 
-bool lv00_approx_counter_set_hash_bits(Lv00ApproxCounter *counter,
+bool lv_approx_counter_set_hash_bits(lvApproxCounter *counter,
                                         int bits) {
     if (!counter || bits < 1 || bits > 32) return false;
     counter->hash_bits = bits;
     return true;
 }
 
-double lv00_approx_counter_get_confidence(Lv00ApproxCounter *counter) {
+double lv_approx_counter_get_confidence(lvApproxCounter *counter) {
     if (!counter) return 0.0;
     return counter->confidence;
 }
@@ -641,7 +641,7 @@ double lv00_approx_counter_get_confidence(Lv00ApproxCounter *counter) {
 - [ ] **Step 3: 验证编译**
 
 ```powershell
-cd build ; cmake --build . --target lv00_layer4_reasoning 2>&1 | Select-String "approx_counter.*error"
+cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "approx_counter.*error"
 ```
 
 - [ ] **Step 4: 提交**
@@ -655,12 +655,12 @@ git commit -m "feat: 实现 approx_counter.c 近似计数器最小可用版本"
 
 **Files:**
 - Modify: `core/src/layer3_geometry/sparse_linear_algebra.c`
-- Reference: `core/include/lv00/sparse_linear_algebra.h`
+- Reference: `core/include/lv/sparse_linear_algebra.h`
 
 - [ ] **Step 1: 读取头文件**
 
 ```powershell
-Get-Content core/include/lv00/sparse_linear_algebra.h
+Get-Content core/include/lv/sparse_linear_algebra.h
 ```
 
 - [ ] **Step 2: 实现 sparse_linear_algebra.c**
@@ -678,15 +678,15 @@ Get-Content core/include/lv00/sparse_linear_algebra.h
  */
 
 #include "sparse_linear_algebra.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
 /* ---- CSR 矩阵结构 ---- */
-struct Lv00SparseMatrix {
+struct lvSparseMatrix {
     int      rows;          /* 行数 */
     int      cols;          /* 列数 */
     int      nnz;           /* 非零元素数 */
@@ -696,28 +696,28 @@ struct Lv00SparseMatrix {
     int     *row_ptrs;      /* 行指针数组 [rows+1] */
 };
 
-#define LV00_SPARSE_INIT_CAPACITY 256
+#define lv_SPARSE_INIT_CAPACITY 256
 
-Lv00SparseMatrix *lv00_sparse_matrix_create(int rows, int cols) {
+lvSparseMatrix *lv_sparse_matrix_create(int rows, int cols) {
     if (rows <= 0 || cols <= 0) return NULL;
 
-    Lv00SparseMatrix *mat = lv00_malloc(sizeof(Lv00SparseMatrix));
+    lvSparseMatrix *mat = lv_malloc(sizeof(lvSparseMatrix));
     if (!mat) return NULL;
 
     mat->rows = rows;
     mat->cols = cols;
     mat->nnz = 0;
-    mat->nnz_capacity = LV00_SPARSE_INIT_CAPACITY;
+    mat->nnz_capacity = lv_SPARSE_INIT_CAPACITY;
 
-    mat->values      = lv00_malloc(sizeof(double) * mat->nnz_capacity);
-    mat->col_indices = lv00_malloc(sizeof(int)    * mat->nnz_capacity);
-    mat->row_ptrs    = lv00_malloc(sizeof(int)    * (rows + 1));
+    mat->values      = lv_malloc(sizeof(double) * mat->nnz_capacity);
+    mat->col_indices = lv_malloc(sizeof(int)    * mat->nnz_capacity);
+    mat->row_ptrs    = lv_malloc(sizeof(int)    * (rows + 1));
 
     if (!mat->values || !mat->col_indices || !mat->row_ptrs) {
-        lv00_free(mat->values);
-        lv00_free(mat->col_indices);
-        lv00_free(mat->row_ptrs);
-        lv00_free(mat);
+        lv_free(mat->values);
+        lv_free(mat->col_indices);
+        lv_free(mat->row_ptrs);
+        lv_free(mat);
         return NULL;
     }
 
@@ -729,15 +729,15 @@ Lv00SparseMatrix *lv00_sparse_matrix_create(int rows, int cols) {
     return mat;
 }
 
-void lv00_sparse_matrix_destroy(Lv00SparseMatrix *mat) {
+void lv_sparse_matrix_destroy(lvSparseMatrix *mat) {
     if (!mat) return;
-    lv00_free(mat->values);
-    lv00_free(mat->col_indices);
-    lv00_free(mat->row_ptrs);
-    lv00_free(mat);
+    lv_free(mat->values);
+    lv_free(mat->col_indices);
+    lv_free(mat->row_ptrs);
+    lv_free(mat);
 }
 
-bool lv00_sparse_matrix_add_entry(Lv00SparseMatrix *mat,
+bool lv_sparse_matrix_add_entry(lvSparseMatrix *mat,
                                    int row, int col, double value) {
     if (!mat || row < 0 || row >= mat->rows
         || col < 0 || col >= mat->cols) return false;
@@ -747,9 +747,9 @@ bool lv00_sparse_matrix_add_entry(Lv00SparseMatrix *mat,
     /* 扩容 */
     if (mat->nnz >= mat->nnz_capacity) {
         int new_cap = mat->nnz_capacity * 2;
-        double *new_vals = lv00_realloc(mat->values,
+        double *new_vals = lv_realloc(mat->values,
             sizeof(double) * new_cap);
-        int *new_cols = lv00_realloc(mat->col_indices,
+        int *new_cols = lv_realloc(mat->col_indices,
             sizeof(int) * new_cap);
         if (!new_vals || !new_cols) return false;
         mat->values = new_vals;
@@ -769,7 +769,7 @@ bool lv00_sparse_matrix_add_entry(Lv00SparseMatrix *mat,
     return true;
 }
 
-void lv00_sparse_matrix_mul_vec(const Lv00SparseMatrix *mat,
+void lv_sparse_matrix_mul_vec(const lvSparseMatrix *mat,
                                  const double *vec, double *out) {
     if (!mat || !vec || !out) return;
 
@@ -783,15 +783,15 @@ void lv00_sparse_matrix_mul_vec(const Lv00SparseMatrix *mat,
     }
 }
 
-int lv00_sparse_matrix_get_rows(const Lv00SparseMatrix *mat) {
+int lv_sparse_matrix_get_rows(const lvSparseMatrix *mat) {
     return mat ? mat->rows : 0;
 }
 
-int lv00_sparse_matrix_get_cols(const Lv00SparseMatrix *mat) {
+int lv_sparse_matrix_get_cols(const lvSparseMatrix *mat) {
     return mat ? mat->cols : 0;
 }
 
-int lv00_sparse_matrix_get_nnz(const Lv00SparseMatrix *mat) {
+int lv_sparse_matrix_get_nnz(const lvSparseMatrix *mat) {
     return mat ? mat->nnz : 0;
 }
 ```
@@ -799,7 +799,7 @@ int lv00_sparse_matrix_get_nnz(const Lv00SparseMatrix *mat) {
 - [ ] **Step 3: 验证编译**
 
 ```powershell
-cd build ; cmake --build . --target lv00_layer3_geometry 2>&1 | Select-String "sparse_linear_algebra.*error"
+cd build ; cmake --build . --target lv_layer3_geometry 2>&1 | Select-String "sparse_linear_algebra.*error"
 ```
 
 - [ ] **Step 4: 提交**
@@ -830,12 +830,12 @@ git commit -m "feat: 实现 sparse_linear_algebra.c CSR 稀疏矩阵最小可用
  */
 
 #include "tikz_export.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-bool lv00_tikz_export(const LV00Engine *engine, const char *filename) {
+bool lv_tikz_export(const lvEngine *engine, const char *filename) {
     if (!engine || !filename) return false;
 
     /* 委托给 Layer 2 的内部实现 */
@@ -843,11 +843,11 @@ bool lv00_tikz_export(const LV00Engine *engine, const char *filename) {
     (void)filename;
 
     /* 当前返回 true 表示接口已就绪但后端待完善 */
-    LV00_LOG_INFO("tikz_export", "TikZ export to '%s' requested", filename);
+    lv_LOG_INFO("tikz_export", "TikZ export to '%s' requested", filename);
     return true;
 }
 
-bool lv00_tikz_export_to_buffer(const LV00Engine *engine,
+bool lv_tikz_export_to_buffer(const lvEngine *engine,
                                  char *buffer, size_t buffer_size) {
     if (!engine || !buffer || buffer_size == 0) return false;
 
@@ -868,7 +868,7 @@ bool lv00_tikz_export_to_buffer(const LV00Engine *engine,
 - [ ] **Step 2: 验证编译**
 
 ```powershell
-cd build ; cmake --build . --target lv00_layer5_output 2>&1 | Select-String "tikz_export.*error"
+cd build ; cmake --build . --target lv_layer5_output 2>&1 | Select-String "tikz_export.*error"
 ```
 
 - [ ] **Step 3: 提交**
@@ -882,14 +882,14 @@ git commit -m "feat: 实现 tikz_export.c TikZ 导出最小可用版本"
 
 **Files:**
 - Modify: `core/src/layer1_parser/math_input.c`
-- Reference: `core/include/lv00/math_input.h`
+- Reference: `core/include/lv/math_input.h`
 
 **注:** Layer 2 也有一个 `math_input.c`，Layer 1 的版本处理 DSL 输入。
 
 - [ ] **Step 1: 读取头文件**
 
 ```powershell
-Get-Content core/include/lv00/math_input.h
+Get-Content core/include/lv/math_input.h
 ```
 
 - [ ] **Step 2: 实现 math_input.c**
@@ -908,7 +908,7 @@ Get-Content core/include/lv00/math_input.h
  */
 
 #include "math_input.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -916,27 +916,27 @@ Get-Content core/include/lv00/math_input.h
 
 /* ---- 公共 API ---- */
 
-Lv00MathInput *lv00_math_input_parse(const char *input) {
+lvMathInput *lv_math_input_parse(const char *input) {
     if (!input || strlen(input) == 0) return NULL;
 
-    Lv00MathInput *mi = lv00_malloc(sizeof(Lv00MathInput));
+    lvMathInput *mi = lv_malloc(sizeof(lvMathInput));
     if (!mi) return NULL;
 
     memset(mi, 0, sizeof(*mi));
-    mi->raw_input = lv00_strdup(input);
+    mi->raw_input = lv_strdup(input);
     mi->input_len = strlen(input);
 
     return mi;
 }
 
-void lv00_math_input_destroy(Lv00MathInput *input) {
+void lv_math_input_destroy(lvMathInput *input) {
     if (!input) return;
-    lv00_free(input->raw_input);
-    lv00_free(input);
+    lv_free(input->raw_input);
+    lv_free(input);
 }
 
-Lv00MathInputType lv00_math_input_get_type(const Lv00MathInput *input) {
-    if (!input || !input->raw_input) return LV00_MATH_INPUT_UNKNOWN;
+lvMathInputType lv_math_input_get_type(const lvMathInput *input) {
+    if (!input || !input->raw_input) return lv_MATH_INPUT_UNKNOWN;
 
     const char *s = input->raw_input;
 
@@ -945,21 +945,21 @@ Lv00MathInputType lv00_math_input_get_type(const Lv00MathInput *input) {
 
     /* 检测类型 */
     if (strncmp(s, "point", 5) == 0)
-        return LV00_MATH_INPUT_POINT;
+        return lv_MATH_INPUT_POINT;
     if (strncmp(s, "line", 4) == 0)
-        return LV00_MATH_INPUT_LINE;
+        return lv_MATH_INPUT_LINE;
     if (strncmp(s, "circle", 6) == 0)
-        return LV00_MATH_INPUT_CIRCLE;
+        return lv_MATH_INPUT_CIRCLE;
     if (strchr(s, '=') != NULL)
-        return LV00_MATH_INPUT_EQUATION;
+        return lv_MATH_INPUT_EQUATION;
     if (strchr(s, '+') != NULL || strchr(s, '-') != NULL
         || strchr(s, '*') != NULL || strchr(s, '/') != NULL)
-        return LV00_MATH_INPUT_EXPRESSION;
+        return lv_MATH_INPUT_EXPRESSION;
 
-    return LV00_MATH_INPUT_UNKNOWN;
+    return lv_MATH_INPUT_UNKNOWN;
 }
 
-const char *lv00_math_input_get_raw(const Lv00MathInput *input) {
+const char *lv_math_input_get_raw(const lvMathInput *input) {
     if (!input) return NULL;
     return input->raw_input;
 }
@@ -968,7 +968,7 @@ const char *lv00_math_input_get_raw(const Lv00MathInput *input) {
 - [ ] **Step 3: 验证编译**
 
 ```powershell
-cd build ; cmake --build . --target lv00_layer1_parser 2>&1 | Select-String "math_input.*error"
+cd build ; cmake --build . --target lv_layer1_parser 2>&1 | Select-String "math_input.*error"
 ```
 
 - [ ] **Step 4: 提交**
@@ -986,14 +986,14 @@ git commit -m "feat: 实现 math_input.c 数学输入解析最小可用版本"
 
 **Files:**
 - Create: `core/src/layer4_reasoning/preset/preset_abstract_algebra.c`
-- Reference: `core/include/lv00/preset_abstract_algebra.h`
+- Reference: `core/include/lv/preset_abstract_algebra.h`
 
 **背景:** 头文件声明了 `preset_abstract_algebra_register()` 等 3 个函数，但对应的 .c 文件不存在。
 
 - [ ] **Step 1: 读取头文件了解接口**
 
 ```powershell
-Get-Content core/include/lv00/preset_abstract_algebra.h
+Get-Content core/include/lv/preset_abstract_algebra.h
 ```
 
 - [ ] **Step 2: 创建实现文件**
@@ -1013,8 +1013,8 @@ Get-Content core/include/lv00/preset_abstract_algebra.h
 #include "preset_abstract_algebra.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 
@@ -1171,11 +1171,11 @@ bool preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
     };
 
     *out_count = ABSTRACT_ALGEBRA_PRESET_COUNT;
-    *out_names = lv00_malloc(sizeof(char *) * (*out_count));
+    *out_names = lv_malloc(sizeof(char *) * (*out_count));
     if (!*out_names) return false;
 
     for (int i = 0; i < *out_count; i++) {
-        (*out_names)[i] = lv00_strdup(names[i]);
+        (*out_names)[i] = lv_strdup(names[i]);
     }
 
     return true;
@@ -1184,7 +1184,7 @@ bool preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
 
 - [ ] **Step 3: 将新文件加入 CMake 构建**
 
-在 [CMakeLists.txt](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/CMakeLists.txt) 的 `LV00_LAYER4_SOURCES` 中添加对应条目。找到 preset 文件列表（约 748-803 行），在合适位置添加：
+在 [CMakeLists.txt](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/CMakeLists.txt) 的 `lv_LAYER4_SOURCES` 中添加对应条目。找到 preset 文件列表（约 748-803 行），在合适位置添加：
 
 ```cmake
 core/src/layer4_reasoning/preset/preset_abstract_algebra.c
@@ -1193,7 +1193,7 @@ core/src/layer4_reasoning/preset/preset_abstract_algebra.c
 - [ ] **Step 4: 验证编译**
 
 ```powershell
-cd build ; cmake --build . --target lv00_layer4_reasoning 2>&1 | Select-String "preset_abstract_algebra.*error"
+cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "preset_abstract_algebra.*error"
 ```
 
 - [ ] **Step 5: 提交**
@@ -1226,7 +1226,7 @@ git commit -m "feat: 创建 preset_abstract_algebra.c 抽象代数预设实现"
 | 6 个占位桩模块实现 | P2 | ✅ 已完成 |
 | preset_abstract_algebra.c 缺失实现 | P2 | ✅ 已完成 |
 | 编译警告消除 | P2 | ✅ 已完成 |
-| lv00-formal/ 29 sorry → 0 | P1 | 待完成 |
+| lv-formal/ 29 sorry → 0 | P1 | 待完成 |
 | `lake build` 类型检查 | P2 | 待完成 |
 | Python `pip install -e .` 验证 | P3 | 待完成 |
 | GitHub Actions CI/CD | P3 | 待完成 |

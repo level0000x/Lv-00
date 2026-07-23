@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_difference_equations.c
  * @brief 差分方程预设函数块 - 实现
  *
@@ -11,8 +11,8 @@
 
 #include "preset_difference_equations.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 

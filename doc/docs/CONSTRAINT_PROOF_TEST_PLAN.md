@@ -1,4 +1,4 @@
-# 约束相容检测与反证作用域测试落点规划
+﻿# 约束相容检测与反证作用域测试落点规划
 
 > **目的**：为十层架构整改中的两个关键安全点建立测试先行方案：约束相容检测、反证法作用域收束。该文档用于指导后续 C 接口和实现调整，避免无测试重构。
 
@@ -28,10 +28,10 @@ test/c/test_proof_contradiction_scope.c
 CMake 注册点：
 
 ```cmake
-add_lv00_test_and_register(test_constraint_compatibility
+add_lv_test_and_register(test_constraint_compatibility
     test/c/test_constraint_compatibility.c constraint_compatibility_test)
 
-add_lv00_test_and_register(test_proof_contradiction_scope
+add_lv_test_and_register(test_proof_contradiction_scope
     test/c/test_proof_contradiction_scope.c proof_contradiction_scope_test)
 ```
 
@@ -43,28 +43,28 @@ add_lv00_test_and_register(test_proof_contradiction_scope
 
 ### 2.1 新增枚举
 
-建议在 `core/include/lv00/constraint_graph.h` 中新增：
+建议在 `core/include/lv/constraint_graph.h` 中新增：
 
 ```c
-typedef enum Lv00ConstraintStatus {
-    LV00_CONSTRAINT_STATUS_CONSISTENT = 0,
-    LV00_CONSTRAINT_STATUS_INCONSISTENT = 1,
-    LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED = 2,
-    LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED = 3,
-    LV00_CONSTRAINT_STATUS_INVALID = 4
-} Lv00ConstraintStatus;
+typedef enum lvConstraintStatus {
+    lv_CONSTRAINT_STATUS_CONSISTENT = 0,
+    lv_CONSTRAINT_STATUS_INCONSISTENT = 1,
+    lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED = 2,
+    lv_CONSTRAINT_STATUS_OVER_CONSTRAINED = 3,
+    lv_CONSTRAINT_STATUS_INVALID = 4
+} lvConstraintStatus;
 ```
 
 ### 2.2 新增结果结构
 
 ```c
-typedef struct Lv00ConstraintCompatibilityResult {
-    Lv00ConstraintStatus status;
+typedef struct lvConstraintCompatibilityResult {
+    lvConstraintStatus status;
     int conflicting_constraint_id;
     int redundant_constraint_count;
     int free_degree_count;
     const char *diagnostic;
-} Lv00ConstraintCompatibilityResult;
+} lvConstraintCompatibilityResult;
 ```
 
 ### 2.3 新增函数
@@ -72,13 +72,13 @@ typedef struct Lv00ConstraintCompatibilityResult {
 ```c
 bool graph_check_compatibility(
     const ConstraintGraph *graph,
-    Lv00ConstraintCompatibilityResult *out_result
+    lvConstraintCompatibilityResult *out_result
 );
 ```
 
 设计要求：
 
-- `graph == NULL` 返回 `false`，`status = LV00_CONSTRAINT_STATUS_INVALID`。
+- `graph == NULL` 返回 `false`，`status = lv_CONSTRAINT_STATUS_INVALID`。
 - 空图或只有孤立点：`UNDER_CONSTRAINED`。
 - 无矛盾且约束足够：`CONSISTENT`。
 - 存在直接冲突：`INCONSISTENT`。
@@ -97,11 +97,11 @@ static void test_empty_graph_is_under_constrained(void) {
     ConstraintGraph *g = graph_create();
     assert(g != NULL);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(g, &result);
 
     assert(ok);
-    assert(result.status == LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED);
+    assert(result.status == lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED);
 
     graph_free(g);
 }
@@ -122,11 +122,11 @@ static void test_single_segment_is_consistent(void) {
     assert(b >= 0);
     assert(graph_add_line_segment(g, a, b) >= 0);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(g, &result);
 
     assert(ok);
-    assert(result.status == LV00_CONSTRAINT_STATUS_CONSISTENT);
+    assert(result.status == lv_CONSTRAINT_STATUS_CONSISTENT);
 
     graph_free(g);
 }
@@ -146,12 +146,12 @@ static void test_degenerate_line_from_same_point_is_not_consistent(void) {
     int line = graph_add_line_segment(g, a, a);
     (void)line;
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(g, &result);
 
     assert(ok);
-    assert(result.status == LV00_CONSTRAINT_STATUS_INCONSISTENT ||
-           result.status == LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED);
+    assert(result.status == lv_CONSTRAINT_STATUS_INCONSISTENT ||
+           result.status == lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED);
 
     graph_free(g);
 }
@@ -171,11 +171,11 @@ static void test_duplicate_segment_constraint_is_over_constrained_or_redundant(v
     assert(graph_add_line_segment(g, a, b) >= 0);
     assert(graph_add_line_segment(g, a, b) >= 0);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(g, &result);
 
     assert(ok);
-    assert(result.status == LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED ||
+    assert(result.status == lv_CONSTRAINT_STATUS_OVER_CONSTRAINED ||
            result.redundant_constraint_count > 0);
 
     graph_free(g);
@@ -193,25 +193,25 @@ static void test_duplicate_segment_constraint_is_over_constrained_or_redundant(v
 建议在 proof 相关头文件中新增：
 
 ```c
-typedef int Lv00ProofScopeId;
+typedef int lvProofScopeId;
 
-#define LV00_PROOF_SCOPE_GLOBAL 0
-#define LV00_PROOF_SCOPE_INVALID -1
+#define lv_PROOF_SCOPE_GLOBAL 0
+#define lv_PROOF_SCOPE_INVALID -1
 ```
 
 ### 4.2 新增作用域 API
 
 ```c
-Lv00ProofScopeId proof_begin_assumption_scope(ProofNavigator *nav,
+lvProofScopeId proof_begin_assumption_scope(ProofNavigator *nav,
                                                const Proposition *assumption);
 
 bool proof_close_assumption_scope(ProofNavigator *nav,
-                                  Lv00ProofScopeId scope_id);
+                                  lvProofScopeId scope_id);
 
 bool proof_apply_ex_falso_scoped(ProofNavigator *nav,
                                  const ConstraintGraph *contradiction_proof,
                                  const Proposition *target,
-                                 Lv00ProofScopeId scope_id);
+                                 lvProofScopeId scope_id);
 ```
 
 保留旧 `proof_apply_ex_falso` 时，应作为兼容包装，但必须默认拒绝无作用域全局爆炸，或仅允许在显式全局矛盾证明存在时使用。
@@ -232,8 +232,8 @@ static void test_local_contradiction_does_not_prove_global_target(void) {
     assert(assumption != NULL);
     assert(target != NULL);
 
-    Lv00ProofScopeId scope = proof_begin_assumption_scope(nav, assumption);
-    assert(scope != LV00_PROOF_SCOPE_INVALID);
+    lvProofScopeId scope = proof_begin_assumption_scope(nav, assumption);
+    assert(scope != lv_PROOF_SCOPE_INVALID);
 
     ConstraintGraph *local_bottom = graph_create();
     assert(local_bottom != NULL);
@@ -261,8 +261,8 @@ static void test_closed_assumption_scope_releases_temporary_assumption(void) {
     Proposition *assumption = proposition_create(101, PROPOSITION_TYPE_ATOMIC);
     assert(assumption != NULL);
 
-    Lv00ProofScopeId scope = proof_begin_assumption_scope(nav, assumption);
-    assert(scope != LV00_PROOF_SCOPE_INVALID);
+    lvProofScopeId scope = proof_begin_assumption_scope(nav, assumption);
+    assert(scope != lv_PROOF_SCOPE_INVALID);
 
     bool closed = proof_close_assumption_scope(nav, scope);
     assert(closed);
@@ -287,7 +287,7 @@ static void test_ex_falso_rejects_invalid_scope(void) {
     assert(target != NULL);
     assert(bottom != NULL);
 
-    bool ok = proof_apply_ex_falso_scoped(nav, bottom, target, LV00_PROOF_SCOPE_INVALID);
+    bool ok = proof_apply_ex_falso_scoped(nav, bottom, target, lv_PROOF_SCOPE_INVALID);
     assert(!ok);
 
     graph_free(bottom);

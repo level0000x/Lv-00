@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file rewrite_apply.c
  * @brief 规则加载与重写应用
  *
@@ -13,15 +13,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/rewrite.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/normalization.h"
+#include "lv/rewrite.h"
+#include "lv/constraint_graph.h"
+#include "lv/normalization.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
 
-LV00_DECLARE_STREAM_CTX(rewrite);
+lv_DECLARE_STREAM_CTX(rewrite);
 
 /* ── 前向声明：来自 rewrite_match.c 的共享函数 ── */
 int resolve_binding(const int *bindings, int binding_count, int pattern_var_id);
@@ -171,7 +171,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
     fseek(f, 0, SEEK_SET);
     if (fsize <= 0) { fclose(f); return NULL; }
 
-    char *content = lv00_malloc((size_t)fsize + 1);
+    char *content = lv_malloc((size_t)fsize + 1);
     if (!content) { fclose(f); return NULL; }
     size_t nread = fread(content, 1, (size_t)fsize, f);
     content[nread] = '\0';
@@ -190,11 +190,11 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
         p = skip_line(p);
     }
 
-    if (rule_count == 0) { lv00_free((void**)&content); return NULL; }
+    if (rule_count == 0) { lv_free((void**)&content); return NULL; }
 
     /* 分配规则数组 */
-    ParsedRule *rules = lv00_malloc((size_t)rule_count * sizeof(ParsedRule));
-    if (!rules) { lv00_free((void**)&content); return NULL; }
+    ParsedRule *rules = lv_malloc((size_t)rule_count * sizeof(ParsedRule));
+    if (!rules) { lv_free((void**)&content); return NULL; }
     memset(rules, 0, (size_t)rule_count * sizeof(ParsedRule));
 
     /* 第二遍：解析规则 */
@@ -222,7 +222,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                     p = read_int(p, &v);
                     if (count < 64) vars[count++] = v;
                 }
-                rules[current_rule].pattern_var_ids = lv00_malloc((size_t)count * sizeof(int));
+                rules[current_rule].pattern_var_ids = lv_malloc((size_t)count * sizeof(int));
                 if (rules[current_rule].pattern_var_ids) {
                     memcpy(rules[current_rule].pattern_var_ids, vars, (size_t)count * sizeof(int));
                     rules[current_rule].pattern_var_count = count;
@@ -241,13 +241,13 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                     if (pcount < 8) parts[pcount++] = v;
                 }
                 int idx = rules[current_rule].pattern_constraint_count;
-                void *new_pc = lv00_realloc(
+                void *new_pc = lv_realloc(
                     rules[current_rule].pattern_constraints,
                     (size_t)(idx + 1) * sizeof(rules[current_rule].pattern_constraints[0]));
                 if (!new_pc) {
                     for (int r = 0; r <= current_rule; r++) parsed_rule_destroy(&rules[r]);
-                    lv00_free((void**)&rules);
-                    lv00_free((void**)&content);
+                    lv_free((void**)&rules);
+                    lv_free((void**)&content);
                     return NULL;
                 }
                 rules[current_rule].pattern_constraints = new_pc;
@@ -270,13 +270,13 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                     if (pcount < 8) parts[pcount++] = v;
                 }
                 int idx = rules[current_rule].replacement_constraint_count;
-                void *new_rc = lv00_realloc(
+                void *new_rc = lv_realloc(
                     rules[current_rule].replacement_constraints,
                     (size_t)(idx + 1) * sizeof(rules[current_rule].replacement_constraints[0]));
                 if (!new_rc) {
                     for (int r = 0; r <= current_rule; r++) parsed_rule_destroy(&rules[r]);
-                    lv00_free((void**)&rules);
-                    lv00_free((void**)&content);
+                    lv_free((void**)&rules);
+                    lv_free((void**)&content);
                     return NULL;
                 }
                 rules[current_rule].replacement_constraints = new_rc;
@@ -291,13 +291,13 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 p = read_int(p, &var_id);
                 p = read_int(p, &target);
                 int idx = rules[current_rule].node_binding_count;
-                void *new_nb = lv00_realloc(
+                void *new_nb = lv_realloc(
                     rules[current_rule].node_bindings,
                     (size_t)(idx + 1) * sizeof(rules[current_rule].node_bindings[0]));
                 if (!new_nb) {
                     for (int r = 0; r <= current_rule; r++) parsed_rule_destroy(&rules[r]);
-                    lv00_free((void**)&rules);
-                    lv00_free((void**)&content);
+                    lv_free((void**)&rules);
+                    lv_free((void**)&content);
                     return NULL;
                 }
                 rules[current_rule].node_bindings = new_nb;
@@ -315,7 +315,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                     p = next;
                     if (ncount < 64) nodes[ncount++] = v;
                 }
-                rules[current_rule].new_nodes = lv00_malloc((size_t)ncount * sizeof(int));
+                rules[current_rule].new_nodes = lv_malloc((size_t)ncount * sizeof(int));
                 if (rules[current_rule].new_nodes) {
                     memcpy(rules[current_rule].new_nodes, nodes, (size_t)ncount * sizeof(int));
                     rules[current_rule].new_node_count = ncount;
@@ -338,7 +338,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                         }
                     }
                 }
-                rules[current_rule].new_node_types = lv00_malloc((size_t)tcount * sizeof(GeomType));
+                rules[current_rule].new_node_types = lv_malloc((size_t)tcount * sizeof(GeomType));
                 if (rules[current_rule].new_node_types) {
                     memcpy(rules[current_rule].new_node_types, types, (size_t)tcount * sizeof(GeomType));
                 }
@@ -347,7 +347,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
         p = skip_line(p);
     }
 
-    lv00_free((void**)&content);
+    lv_free((void**)&content);
     *out_count = rule_count;
     return rules;
 }
@@ -363,12 +363,12 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
  */
 static void parsed_rule_destroy(ParsedRule *rule) {
     if (!rule) return;
-    lv00_free((void**)&rule->pattern_var_ids);
-    lv00_free((void**)&rule->pattern_constraints);
-    lv00_free((void**)&rule->replacement_constraints);
-    lv00_free((void**)&rule->node_bindings);
-    lv00_free((void**)&rule->new_nodes);
-    lv00_free((void**)&rule->new_node_types);
+    lv_free((void**)&rule->pattern_var_ids);
+    lv_free((void**)&rule->pattern_constraints);
+    lv_free((void**)&rule->replacement_constraints);
+    lv_free((void**)&rule->node_bindings);
+    lv_free((void**)&rule->new_nodes);
+    lv_free((void**)&rule->new_node_types);
 }
 
 /**
@@ -384,12 +384,12 @@ static void parsed_rule_destroy(ParsedRule *rule) {
  */
 static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     /* 构建模式 */
-    RewritePattern *pattern = lv00_malloc(sizeof(RewritePattern));
+    RewritePattern *pattern = lv_malloc(sizeof(RewritePattern));
     if (!pattern) return NULL;
     pattern->var_count = pr->pattern_var_count;
     pattern->variable_node_ids = NULL;
     if (pr->pattern_var_count > 0 && pr->pattern_var_ids) {
-        pattern->variable_node_ids = lv00_malloc((size_t)pr->pattern_var_count * sizeof(int));
+        pattern->variable_node_ids = lv_malloc((size_t)pr->pattern_var_count * sizeof(int));
         if (pattern->variable_node_ids) {
             memcpy(pattern->variable_node_ids, pr->pattern_var_ids,
                    (size_t)pr->pattern_var_count * sizeof(int));
@@ -400,16 +400,16 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     pattern->pattern_constraint_count = pr->pattern_constraint_count;
     pattern->pattern_constraints = NULL;
     if (pr->pattern_constraint_count > 0 && pr->pattern_constraints) {
-        pattern->pattern_constraints = lv00_malloc(
+        pattern->pattern_constraints = lv_malloc(
             (size_t)pr->pattern_constraint_count * sizeof(Constraint *));
         if (pattern->pattern_constraints) {
             for (int i = 0; i < pr->pattern_constraint_count; i++) {
-                Constraint *c = lv00_malloc(sizeof(Constraint));
+                Constraint *c = lv_malloc(sizeof(Constraint));
                 if (c) {
                     memset(c, 0, sizeof(Constraint));
                     c->type = pr->pattern_constraints[i].type;
                     c->participant_count = pr->pattern_constraints[i].participant_count;
-                    c->participants = lv00_malloc(
+                    c->participants = lv_malloc(
                         (size_t)c->participant_count * sizeof(int));
                     if (c->participants) {
                         memcpy(c->participants,
@@ -423,20 +423,20 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     }
 
     /* 构建替换 */
-    RewriteReplacement *replacement = lv00_malloc(sizeof(RewriteReplacement));
+    RewriteReplacement *replacement = lv_malloc(sizeof(RewriteReplacement));
     if (!replacement) {
         /* 简化清理 */
-        lv00_free((void**)&pattern->variable_node_ids);
+        lv_free((void**)&pattern->variable_node_ids);
         if (pattern->pattern_constraints) {
             for (int i = 0; i < pattern->pattern_constraint_count; i++) {
                 if (pattern->pattern_constraints[i]) {
-                    lv00_free((void**)&pattern->pattern_constraints[i]->participants);
-                    lv00_free((void**)&pattern->pattern_constraints[i]);
+                    lv_free((void**)&pattern->pattern_constraints[i]->participants);
+                    lv_free((void**)&pattern->pattern_constraints[i]);
                 }
             }
-            lv00_free((void**)&pattern->pattern_constraints);
+            lv_free((void**)&pattern->pattern_constraints);
         }
-        lv00_free((void**)&pattern);
+        lv_free((void**)&pattern);
         return NULL;
     }
 
@@ -444,11 +444,11 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     replacement->binding_count = pr->node_binding_count;
     replacement->node_bindings = NULL;
     if (pr->node_binding_count > 0 && pr->node_bindings) {
-        replacement->node_bindings = lv00_malloc(
+        replacement->node_bindings = lv_malloc(
             (size_t)pr->node_binding_count * sizeof(int *));
         if (replacement->node_bindings) {
             for (int i = 0; i < pr->node_binding_count; i++) {
-                replacement->node_bindings[i] = lv00_malloc(2 * sizeof(int));
+                replacement->node_bindings[i] = lv_malloc(2 * sizeof(int));
                 if (replacement->node_bindings[i]) {
                     replacement->node_bindings[i][0] = pr->node_bindings[i].pattern_var_id;
                     replacement->node_bindings[i][1] = pr->node_bindings[i].target_id;
@@ -461,16 +461,16 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     replacement->replacement_constraint_count = pr->replacement_constraint_count;
     replacement->replacement_constraints = NULL;
     if (pr->replacement_constraint_count > 0 && pr->replacement_constraints) {
-        replacement->replacement_constraints = lv00_malloc(
+        replacement->replacement_constraints = lv_malloc(
             (size_t)pr->replacement_constraint_count * sizeof(Constraint *));
         if (replacement->replacement_constraints) {
             for (int i = 0; i < pr->replacement_constraint_count; i++) {
-                Constraint *c = lv00_malloc(sizeof(Constraint));
+                Constraint *c = lv_malloc(sizeof(Constraint));
                 if (c) {
                     memset(c, 0, sizeof(Constraint));
                     c->type = pr->replacement_constraints[i].type;
                     c->participant_count = pr->replacement_constraints[i].participant_count;
-                    c->participants = lv00_malloc(
+                    c->participants = lv_malloc(
                         (size_t)c->participant_count * sizeof(int));
                     if (c->participants) {
                         memcpy(c->participants,
@@ -488,7 +488,7 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     replacement->new_nodes = NULL;
     replacement->new_node_types = NULL;
     if (pr->new_node_count > 0 && pr->new_nodes) {
-        replacement->new_nodes = lv00_malloc((size_t)pr->new_node_count * sizeof(int));
+        replacement->new_nodes = lv_malloc((size_t)pr->new_node_count * sizeof(int));
         if (replacement->new_nodes) {
             memcpy(replacement->new_nodes, pr->new_nodes,
                    (size_t)pr->new_node_count * sizeof(int));
@@ -496,7 +496,7 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     }
     /* 新节点类型 */
     if (pr->new_node_count > 0 && pr->new_node_types) {
-        replacement->new_node_types = lv00_malloc((size_t)pr->new_node_count * sizeof(GeomType));
+        replacement->new_node_types = lv_malloc((size_t)pr->new_node_count * sizeof(GeomType));
         if (replacement->new_node_types) {
             memcpy(replacement->new_node_types, pr->new_node_types,
                    (size_t)pr->new_node_count * sizeof(GeomType));
@@ -519,14 +519,14 @@ int rewrite_rules_load_from_file(const char *filepath,
     int parsed_count = 0;
     ParsedRule *parsed = parse_lvz_file(filepath, &parsed_count);
     if (!parsed || parsed_count <= 0) {
-        if (parsed) lv00_free((void**)&parsed);
+        if (parsed) lv_free((void**)&parsed);
         return -1;
     }
 
-    RewriteRule **rules = lv00_malloc((size_t)parsed_count * sizeof(RewriteRule *));
+    RewriteRule **rules = lv_malloc((size_t)parsed_count * sizeof(RewriteRule *));
     if (!rules) {
         for (int i = 0; i < parsed_count; i++) parsed_rule_destroy(&parsed[i]);
-        lv00_free((void**)&parsed);
+        lv_free((void**)&parsed);
         return -1;
     }
     memset(rules, 0, (size_t)parsed_count * sizeof(RewriteRule *));
@@ -543,16 +543,16 @@ int rewrite_rules_load_from_file(const char *filepath,
         }
         parsed_rule_destroy(&parsed[i]);
     }
-    lv00_free((void**)&parsed);
+    lv_free((void**)&parsed);
 
     if (loaded == 0) {
-        lv00_free((void**)&rules);
+        lv_free((void**)&rules);
         return 0;
     }
 
     /* 压缩数组 */
     if (loaded < parsed_count) {
-        RewriteRule **compressed = lv00_realloc(rules, (size_t)loaded * sizeof(RewriteRule *));
+        RewriteRule **compressed = lv_realloc(rules, (size_t)loaded * sizeof(RewriteRule *));
         if (compressed) rules = compressed;
     }
 
@@ -582,40 +582,40 @@ bool rewrite_rule_unload(RewriteRule ***rules, int *count,
     if (rule) {
         /* 销毁模式 */
         if (rule->pattern) {
-            lv00_free((void**)&rule->pattern->variable_node_ids);
+            lv_free((void**)&rule->pattern->variable_node_ids);
             if (rule->pattern->pattern_constraints) {
                 for (int i = 0; i < rule->pattern->pattern_constraint_count; i++) {
                     if (rule->pattern->pattern_constraints[i]) {
-                        lv00_free((void**)&rule->pattern->pattern_constraints[i]->participants);
-                        lv00_free((void**)&rule->pattern->pattern_constraints[i]);
+                        lv_free((void**)&rule->pattern->pattern_constraints[i]->participants);
+                        lv_free((void**)&rule->pattern->pattern_constraints[i]);
                     }
                 }
-                lv00_free((void**)&rule->pattern->pattern_constraints);
+                lv_free((void**)&rule->pattern->pattern_constraints);
             }
-            lv00_free((void**)&rule->pattern);
+            lv_free((void**)&rule->pattern);
         }
         /* 销毁替换 */
         if (rule->replacement) {
             if (rule->replacement->node_bindings) {
                 for (int i = 0; i < rule->replacement->binding_count; i++) {
-                    lv00_free((void**)&rule->replacement->node_bindings[i]);
+                    lv_free((void**)&rule->replacement->node_bindings[i]);
                 }
-                lv00_free((void**)&rule->replacement->node_bindings);
+                lv_free((void**)&rule->replacement->node_bindings);
             }
             if (rule->replacement->replacement_constraints) {
                 for (int i = 0; i < rule->replacement->replacement_constraint_count; i++) {
                     if (rule->replacement->replacement_constraints[i]) {
-                        lv00_free((void**)&rule->replacement->replacement_constraints[i]->participants);
-                        lv00_free((void**)&rule->replacement->replacement_constraints[i]);
+                        lv_free((void**)&rule->replacement->replacement_constraints[i]->participants);
+                        lv_free((void**)&rule->replacement->replacement_constraints[i]);
                     }
                 }
-                lv00_free((void**)&rule->replacement->replacement_constraints);
+                lv_free((void**)&rule->replacement->replacement_constraints);
             }
-            lv00_free((void**)&rule->replacement->new_nodes);
-            lv00_free((void**)&rule->replacement);
+            lv_free((void**)&rule->replacement->new_nodes);
+            lv_free((void**)&rule->replacement);
         }
-        lv00_free((void**)&rule->name);
-        lv00_free((void**)&rule);
+        lv_free((void**)&rule->name);
+        lv_free((void**)&rule);
     }
 
     /* 从数组中移除并压缩 */
@@ -626,10 +626,10 @@ bool rewrite_rule_unload(RewriteRule ***rules, int *count,
 
     /* 缩小数组 */
     if (*count > 0) {
-        RewriteRule **compressed = lv00_realloc(*rules, (size_t)*count * sizeof(RewriteRule *));
+        RewriteRule **compressed = lv_realloc(*rules, (size_t)*count * sizeof(RewriteRule *));
         if (compressed) *rules = compressed;
     } else {
-        lv00_free((void**)&*rules);
+        lv_free((void**)&*rules);
         *rules = NULL;
     }
 
@@ -678,7 +678,7 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
 
     int txn_cap = 64;
     int txn_count = 0;
-    struct TxnEntry *txn = lv00_malloc((size_t)txn_cap * sizeof(struct TxnEntry));
+    struct TxnEntry *txn = lv_malloc((size_t)txn_cap * sizeof(struct TxnEntry));
     if (!txn) {
         graph_snapshot_destroy(snapshot);
         return REWRITE_NO_MATCH;
@@ -687,7 +687,7 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
     #define TXN_PUSH(entry) do { \
         if (txn_count >= txn_cap) { \
             txn_cap *= 2; \
-            struct TxnEntry *_tmp = lv00_realloc(txn, (size_t)txn_cap * sizeof(struct TxnEntry)); \
+            struct TxnEntry *_tmp = lv_realloc(txn, (size_t)txn_cap * sizeof(struct TxnEntry)); \
             if (!_tmp) goto txn_rollback; \
             txn = _tmp; \
         } \
@@ -712,7 +712,7 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
      * ---------------------------------------------------------------- */
     int *new_node_map = NULL;
     if (repl->new_node_count > 0) {
-        new_node_map = lv00_malloc((size_t)repl->new_node_count * sizeof(int));
+        new_node_map = lv_malloc((size_t)repl->new_node_count * sizeof(int));
         if (!new_node_map) goto txn_cleanup;
 
         for (int i = 0; i < repl->new_node_count; i++) {
@@ -907,7 +907,7 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
      * ---------------------------------------------------------------- */
     for (int c = 0; c < repl->replacement_constraint_count; c++) {
         Constraint *rc = repl->replacement_constraints[c];
-        int *resolved = lv00_malloc((size_t)rc->participant_count * sizeof(int));
+        int *resolved = lv_malloc((size_t)rc->participant_count * sizeof(int));
         if (!resolved) goto txn_rollback;
 
         bool all_ok = true;
@@ -925,21 +925,21 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
         }
 
         if (!all_ok) {
-            lv00_free((void**)&resolved);
+            lv_free((void**)&resolved);
             goto txn_rollback;
         }
 
         /* 验证所有引用的节点确实存在 */
         for (int p = 0; p < rc->participant_count; p++) {
             if (!graph_get_node(graph, resolved[p])) {
-                lv00_free((void**)&resolved);
+                lv_free((void**)&resolved);
                 goto txn_rollback;
             }
         }
 
         bool added = add_constraint_generic(graph, rc->type, resolved, rc->participant_count);
         if (!added) {
-            lv00_free((void**)&resolved);
+            lv_free((void**)&resolved);
             goto txn_rollback;
         }
 
@@ -1065,11 +1065,11 @@ txn_cleanup:
 
     for (int i = 0; i < txn_count; i++) {
         if (txn[i].kind == TXN_ADD_CONSTRAINT && txn[i].participants) {
-            lv00_free((void**)&txn[i].participants);
+            lv_free((void**)&txn[i].participants);
         }
     }
-    lv00_free((void**)&txn);
-    lv00_free((void**)&new_node_map);
+    lv_free((void**)&txn);
+    lv_free((void**)&new_node_map);
 
     #undef TXN_PUSH
 
@@ -1112,7 +1112,7 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
     }
 
     /* 按规则优先级排序 */
-    SortedRule *sorted = lv00_malloc((size_t)rule_count * sizeof(SortedRule));
+    SortedRule *sorted = lv_malloc((size_t)rule_count * sizeof(SortedRule));
     if (!sorted) return REWRITE_TERMINATED;
     for (int i = 0; i < rule_count; i++) {
         sorted[i].rule = rules[i];
@@ -1121,8 +1121,8 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
     qsort(sorted, (size_t)rule_count, sizeof(SortedRule), sorted_rule_cmp);
 
     int steps = 0;
-    int *history_hashes = lv00_malloc((size_t)step_limit * sizeof(uint32_t));
-    if (!history_hashes) { lv00_free((void**)&sorted); return REWRITE_TERMINATED; }
+    int *history_hashes = lv_malloc((size_t)step_limit * sizeof(uint32_t));
+    if (!history_hashes) { lv_free((void**)&sorted); return REWRITE_TERMINATED; }
     int history_count = 0;
 
     RewriteStatus final_status = REWRITE_OK;
@@ -1178,7 +1178,7 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
                 }
 
                 applied = true;
-                lv00_free((void**)&match);
+                lv_free((void**)&match);
                 break;
             } else {
                 if (rewrite_stream_ctx) {
@@ -1186,7 +1186,7 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
                                        rule->name ? rule->name : "rule rolled back", steps);
                 }
             }
-            lv00_free((void**)&match);
+            lv_free((void**)&match);
         }
 
         if (!applied) break;
@@ -1203,8 +1203,8 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
     }
 
 done:
-    lv00_free((void**)&history_hashes);
-    lv00_free((void**)&sorted);
+    lv_free((void**)&history_hashes);
+    lv_free((void**)&sorted);
     return final_status;
 }
 

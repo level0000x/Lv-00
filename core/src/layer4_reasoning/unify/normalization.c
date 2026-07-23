@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file normalization.c
  * @brief 图规范化引擎实现
  * @details 实现约束图的规范化处理，包括并查集合并、哈希预分组 O(n) 优化。
@@ -28,7 +28,7 @@
  * @dependencies
  *   - normalization.h       : 图规范化引擎公共接口定义
  *   - constraint_graph.h    : 约束图接口
- *   - lv00_internal.h       : 内部数据结构与常量（FNV 哈希、常量）
+ *   - lv_internal.h       : 内部数据结构与常量（FNV 哈希、常量）
  *   - stream.h              : 流式事件输出
  */
 
@@ -37,8 +37,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "lv00/constraint_graph.h"
-#include "lv00_internal.h"
+#include "lv/constraint_graph.h"
+#include "lv_internal.h"
 #include "normalization.h"
 #include "stream.h"
 #include "stream_context_util.h"
@@ -67,9 +67,9 @@
 /** 哈希计算描述符大小 —— 约束条目 */
 #define NORM_CONSTRAINT_DESC_SIZE     64
 
-/* FNV-1a 别名 —— 引用 lv00_internal.h 中的统一定义，本文件内统一缩写 */
-#define NORM_FNV1A_OFFSET  LV00_FNV64_OFFSET_BASIS
-#define NORM_FNV1A_PRIME   LV00_FNV64_PRIME
+/* FNV-1a 别名 —— 引用 lv_internal.h 中的统一定义，本文件内统一缩写 */
+#define NORM_FNV1A_OFFSET  lv_FNV64_OFFSET_BASIS
+#define NORM_FNV1A_PRIME   lv_FNV64_PRIME
 
 /** 端点哈希混合常量 —— golden ratio */
 #define NORM_GOLDEN_RATIO_MIX 0x9e3779b97f4a7c15ULL
@@ -111,7 +111,7 @@ static int hash_idx_compare_asc(const void *a, const void *b) {
 /*  Stream context (线程局部)                                          */
 /* ------------------------------------------------------------------ */
 
-LV00_DECLARE_STREAM_CTX(normalization);
+lv_DECLARE_STREAM_CTX(normalization);
 
 void normalization_set_stream_context(StreamContext *ctx) {
     normalization_stream_ctx = ctx;
@@ -121,8 +121,8 @@ void normalization_set_stream_context(StreamContext *ctx) {
 /*  Global merge confirmation callback (线程局部)                      */
 /* ------------------------------------------------------------------ */
 
-static LV00_THREAD_LOCAL MergeConfirmCallback g_merge_callback = NULL;
-static LV00_THREAD_LOCAL void *g_merge_user_data = NULL;
+static lv_THREAD_LOCAL MergeConfirmCallback g_merge_callback = NULL;
+static lv_THREAD_LOCAL void *g_merge_user_data = NULL;
 
 void normalization_set_merge_callback(MergeConfirmCallback cb, void *user_data) {
     g_merge_callback = cb;
@@ -199,11 +199,11 @@ static int cmp_seg_hash(const void *a, const void *b) {
  * @return parent 数组指针，失败返回 NULL（调用者需用 uf_destroy 释放）
  */
 static int *uf_create(int n, int **out_rank) {
-    int *parent = lv00_malloc((size_t)n * sizeof(int));
-    int *rank   = lv00_calloc((size_t)n, sizeof(int));
+    int *parent = lv_malloc((size_t)n * sizeof(int));
+    int *rank   = lv_calloc((size_t)n, sizeof(int));
     if (!parent || !rank) {
-        lv00_free((void**)&parent);
-        lv00_free((void**)&rank);
+        lv_free((void**)&parent);
+        lv_free((void**)&rank);
         return NULL;
     }
     for (int i = 0; i < n; i++) parent[i] = i;
@@ -220,8 +220,8 @@ static int *uf_create(int n, int **out_rank) {
  * @param rank    rank 数组指针（可为 NULL）
  */
 static void uf_destroy(int *parent, int *rank) {
-    lv00_free((void**)&parent);
-    lv00_free((void**)&rank);
+    lv_free((void**)&parent);
+    lv_free((void**)&rank);
 }
 
 static int uf_find(int *parent, int x) {
@@ -258,7 +258,7 @@ static void uf_union(int *parent, int *rank, int x, int y) {
  * @return true 成功，false 内存分配失败
  */
 static bool uf_resolve_to_min_id(int *parent, GeomNode **nodes, int n) {
-    int *set_min_idx = lv00_malloc((size_t)n * sizeof(int));
+    int *set_min_idx = lv_malloc((size_t)n * sizeof(int));
     if (!set_min_idx) return false;
     for (int i = 0; i < n; i++) set_min_idx[i] = -1;
     for (int i = 0; i < n; i++) {
@@ -272,7 +272,7 @@ static bool uf_resolve_to_min_id(int *parent, GeomNode **nodes, int n) {
         int ri = uf_find(parent, i);
         parent[i] = set_min_idx[ri];
     }
-    lv00_free((void**)&set_min_idx);
+    lv_free((void**)&set_min_idx);
     return true;
 }
 
@@ -322,7 +322,7 @@ static void uf_update_constraint_participants(ConstraintGraph *graph,
  * @return 合并节点索引数组（调用者需 free），失败返回 NULL
  */
 static int *uf_collect_merged(int *parent, int n, int *out_count) {
-    int *merged = lv00_malloc((size_t)n * sizeof(int));
+    int *merged = lv_malloc((size_t)n * sizeof(int));
     if (!merged) { *out_count = 0; return NULL; }
     int total = 0;
     for (int i = 0; i < n; i++) {
@@ -356,7 +356,7 @@ static int *build_id_to_idx(ConstraintGraph *graph, int *out_max_id) {
     if (map_size > SIZE_MAX / sizeof(int)) {
         return NULL;
     }
-    int *map = lv00_calloc(map_size, sizeof(int));
+    int *map = lv_calloc(map_size, sizeof(int));
     if (!map) return NULL;
     for (int i = 0; i < graph->node_count; i++) {
         int nid = graph->nodes[i]->id;
@@ -378,13 +378,13 @@ static int idx_from_id(int *id_to_idx, int max_id, int id) {
 /* ------------------------------------------------------------------ */
 
 NormalizationLog *normalization_log_create(int initial_capacity) {
-    NormalizationLog *log = lv00_malloc(sizeof(NormalizationLog));
+    NormalizationLog *log = lv_malloc(sizeof(NormalizationLog));
     if (!log) return NULL;
     log->capacity = initial_capacity > 0 ? initial_capacity : NORM_DEFAULT_CAPACITY;
     log->count = 0;
-    log->entries = lv00_malloc((size_t)log->capacity * sizeof(NormalizationLogEntry));
+    log->entries = lv_malloc((size_t)log->capacity * sizeof(NormalizationLogEntry));
     if (!log->entries) {
-        lv00_free((void**)&log);
+        lv_free((void**)&log);
         return NULL;
     }
     return log;
@@ -392,8 +392,8 @@ NormalizationLog *normalization_log_create(int initial_capacity) {
 
 void normalization_log_destroy(NormalizationLog *log) {
     if (log) {
-        lv00_free((void**)&log->entries);
-        lv00_free((void**)&log);
+        lv_free((void**)&log->entries);
+        lv_free((void**)&log);
     }
 }
 
@@ -404,7 +404,7 @@ void normalization_log_record(NormalizationLog *log, int old_id, int new_id,
         if (log->capacity > INT_MAX / 2) return;
         int new_cap = log->capacity * 2;
         NormalizationLogEntry *new_entries =
-            lv00_realloc(log->entries, (size_t)new_cap * sizeof(NormalizationLogEntry));
+            lv_realloc(log->entries, (size_t)new_cap * sizeof(NormalizationLogEntry));
         if (!new_entries) return;
         log->entries = new_entries;
         log->capacity = new_cap;
@@ -444,7 +444,7 @@ static int apply_uf_merges(ConstraintGraph *graph, int *parent, int *rank,
 {
     /* 将每个集合重定向到最小 ID 的代表节点 */
     if (!uf_resolve_to_min_id(parent, graph->nodes, n)) {
-        lv00_free((void**)&id_to_idx);
+        lv_free((void**)&id_to_idx);
         uf_destroy(parent, rank);
         return -1;
     }
@@ -456,7 +456,7 @@ static int apply_uf_merges(ConstraintGraph *graph, int *parent, int *rank,
     int merged_total = 0;
     int *merged_indices = uf_collect_merged(parent, n, &merged_total);
     if (!merged_indices) {
-        lv00_free((void**)&id_to_idx);
+        lv_free((void**)&id_to_idx);
         uf_destroy(parent, rank);
         return -1;
     }
@@ -483,8 +483,8 @@ static int apply_uf_merges(ConstraintGraph *graph, int *parent, int *rank,
         graph_remove_node(graph, graph->nodes[midx]->id);
     }
 
-    lv00_free((void**)&merged_indices);
-    lv00_free((void**)&id_to_idx);
+    lv_free((void**)&merged_indices);
+    lv_free((void**)&id_to_idx);
     uf_destroy(parent, rank);
     return merged_total;
 }
@@ -507,7 +507,7 @@ int merge_line_segments(ConstraintGraph *graph, NormalizationLog *log) {
     int *rank;
     int *parent = uf_create(n, &rank);
     if (!id_to_idx || !parent) {
-        lv00_free((void**)&id_to_idx); uf_destroy(parent, rank);
+        lv_free((void**)&id_to_idx); uf_destroy(parent, rank);
         return 0;
     }
 
@@ -564,7 +564,7 @@ int merge_regions(ConstraintGraph *graph, NormalizationLog *log) {
     int *rank;
     int *parent = uf_create(n, &rank);
     if (!id_to_idx || !parent) {
-        lv00_free((void**)&id_to_idx); uf_destroy(parent, rank);
+        lv_free((void**)&id_to_idx); uf_destroy(parent, rank);
         return 0;
     }
 
@@ -581,9 +581,9 @@ int merge_regions(ConstraintGraph *graph, NormalizationLog *log) {
             if (seg_count == 0) continue;
             if (scope_key(ni) != scope_key(nj)) continue;
             /* 比较边界线段 ID 序列：尝试所有旋转和翻转组合 */
-            int *ids_a = lv00_malloc((size_t)seg_count * sizeof(int));
-            int *ids_b = lv00_malloc((size_t)seg_count * sizeof(int));
-            int *ids_b_rev = lv00_malloc((size_t)seg_count * sizeof(int));
+            int *ids_a = lv_malloc((size_t)seg_count * sizeof(int));
+            int *ids_b = lv_malloc((size_t)seg_count * sizeof(int));
+            int *ids_b_rev = lv_malloc((size_t)seg_count * sizeof(int));
             for (int k = 0; k < seg_count; k++) {
                 ids_a[k] = ni->data.region.boundary_segments[k]->id;
                 ids_b[k] = nj->data.region.boundary_segments[k]->id;
@@ -609,9 +609,9 @@ int merge_regions(ConstraintGraph *graph, NormalizationLog *log) {
                 if (rev) { same = true; break; }
             }
 
-            lv00_free((void**)&ids_a);
-            lv00_free((void**)&ids_b);
-            lv00_free((void**)&ids_b_rev);
+            lv_free((void**)&ids_a);
+            lv_free((void**)&ids_b);
+            lv_free((void**)&ids_b_rev);
             if (!same) continue;
             uf_union(parent, rank, i, j);
         }
@@ -637,11 +637,11 @@ int merge_regions(ConstraintGraph *graph, NormalizationLog *log) {
  */
 static uint64_t point_coord_hash(GeomNode *node) {
     if (!node || node->coord_count == 0) return 0;
-    uint64_t h = LV00_FNV64_OFFSET_BASIS;  /* FNV-1a offset basis */
+    uint64_t h = lv_FNV64_OFFSET_BASIS;  /* FNV-1a offset basis */
     for (int i = 0; i < node->coord_count; i++) {
         uint64_t ch = symbolic_coord_hash(node->symbolic_coords[i]);
         h ^= ch;
-        h *= LV00_FNV64_PRIME;
+        h *= lv_FNV64_PRIME;
     }
     return h;
 }
@@ -660,7 +660,7 @@ static uint64_t segment_endpoint_hash(GeomNode *node) {
     /* 使用交换哈希：h1 ^ h2（与顺序无关） */
     uint64_t h = h1 ^ h2;
     h ^= NORM_GOLDEN_RATIO_MIX;
-    h *= LV00_FNV64_PRIME;
+    h *= lv_FNV64_PRIME;
     return h;
 }
 
@@ -696,15 +696,15 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
     }
     if (max_candidates == 0) return NULL;
 
-    NodeMergeCandidate *candidates = lv00_malloc((size_t)max_candidates * sizeof(NodeMergeCandidate));
+    NodeMergeCandidate *candidates = lv_malloc((size_t)max_candidates * sizeof(NodeMergeCandidate));
     if (!candidates) return NULL;
 
     /* 第一阶段：点候选（坐标相等）—— 使用哈希预分组 */
     {
         /* 步骤1：收集所有 POINT 节点索引并计算哈希 */
         int point_count = 0;
-        int *point_indices = lv00_malloc((size_t)graph->node_count * sizeof(int));
-        uint64_t *point_hashes = lv00_malloc((size_t)graph->node_count * sizeof(uint64_t));
+        int *point_indices = lv_malloc((size_t)graph->node_count * sizeof(int));
+        uint64_t *point_hashes = lv_malloc((size_t)graph->node_count * sizeof(uint64_t));
         if (point_indices && point_hashes) {
             for (int i = 0; i < graph->node_count; i++) {
                 GeomNode *ni = graph->nodes[i];
@@ -718,7 +718,7 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
 
         if (point_count > 1 && point_indices && point_hashes) {
             /* 步骤2：按哈希值排序点索引 */
-            HashIdx *pairs = lv00_malloc((size_t)point_count * sizeof(HashIdx));
+            HashIdx *pairs = lv_malloc((size_t)point_count * sizeof(HashIdx));
             if (pairs) {
                 for (int i = 0; i < point_count; i++) {
                     pairs[i].hash = point_hashes[i];
@@ -754,20 +754,20 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
                     group_start = group_end;
                 }
 
-                lv00_free((void**)&pairs);
+                lv_free((void**)&pairs);
             }
         }
 
-        lv00_free((void**)&point_indices);
-        lv00_free((void**)&point_hashes);
+        lv_free((void**)&point_indices);
+        lv_free((void**)&point_hashes);
     }
 
     /* 第二阶段：线段候选（点合并后端点相同）—— 使用哈希预分组 */
     {
         /* 步骤1：收集所有 LINE_SEGMENT 节点索引和端点哈希 */
         int seg_count = 0;
-        int *seg_indices = lv00_malloc((size_t)graph->node_count * sizeof(int));
-        uint64_t *seg_hashes = lv00_malloc((size_t)graph->node_count * sizeof(uint64_t));
+        int *seg_indices = lv_malloc((size_t)graph->node_count * sizeof(int));
+        uint64_t *seg_hashes = lv_malloc((size_t)graph->node_count * sizeof(uint64_t));
         if (seg_indices && seg_hashes) {
             for (int i = 0; i < graph->node_count; i++) {
                 GeomNode *ni = graph->nodes[i];
@@ -781,7 +781,7 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
 
         if (seg_count > 1 && seg_indices && seg_hashes) {
             /* 使用 qsort 按哈希值排序线段索引 */
-            HashIdx *seg_pairs = lv00_malloc((size_t)seg_count * sizeof(HashIdx));
+            HashIdx *seg_pairs = lv_malloc((size_t)seg_count * sizeof(HashIdx));
             if (seg_pairs) {
                 for (int i = 0; i < seg_count; i++) {
                     seg_pairs[i].hash = seg_hashes[i];
@@ -792,7 +792,7 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
                     seg_hashes[i]  = seg_pairs[i].hash;
                     seg_indices[i] = seg_pairs[i].idx;
                 }
-                lv00_free((void**)&seg_pairs);
+                lv_free((void**)&seg_pairs);
             }
 
             /* 步骤3：处理具有相同哈希的每个组 */
@@ -819,8 +819,8 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
                 }
             }
         }
-        lv00_free((void**)&seg_indices);
-        lv00_free((void**)&seg_hashes);
+        lv_free((void**)&seg_indices);
+        lv_free((void**)&seg_hashes);
     }
 
     /* 第三阶段：区域候选（边界线段集合相同） */
@@ -834,8 +834,8 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
             if (ni->data.region.segment_count == 0) continue;
             /* 比较排序后的边界线段 ID 集合 */
             int seg_count = ni->data.region.segment_count;
-            int *ids_a = lv00_malloc((size_t)seg_count * sizeof(int));
-            int *ids_b = lv00_malloc((size_t)seg_count * sizeof(int));
+            int *ids_a = lv_malloc((size_t)seg_count * sizeof(int));
+            int *ids_b = lv_malloc((size_t)seg_count * sizeof(int));
             for (int k = 0; k < seg_count; k++) {
                 ids_a[k] = ni->data.region.boundary_segments[k]->id;
                 ids_b[k] = nj->data.region.boundary_segments[k]->id;
@@ -846,8 +846,8 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
             for (int k = 0; k < seg_count; k++) {
                 if (ids_a[k] != ids_b[k]) { same = false; break; }
             }
-            lv00_free((void**)&ids_a);
-            lv00_free((void**)&ids_b);
+            lv_free((void**)&ids_a);
+            lv_free((void**)&ids_b);
             if (!same) continue;
             NodeMergeCandidate *c = &candidates[*out_count];
             c->node_a_id = ni->id;
@@ -883,8 +883,8 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
  * @note 此函数仅释放调用者持有的候选数组内存，不修改候选指向的图数据。
  */
 void merge_candidates_destroy(NodeMergeCandidate *candidates, int count) {
-    LV00_UNUSED(count);
-    lv00_free((void**)&candidates);
+    lv_UNUSED(count);
+    lv_free((void**)&candidates);
 }
 
 /* ------------------------------------------------------------------ */
@@ -902,7 +902,7 @@ int apply_merges(ConstraintGraph *graph, NodeMergeCandidate *candidates,
     int *rank;
     int *parent = uf_create(n, &rank);
     if (!id_to_idx || !parent) {
-        lv00_free((void**)&id_to_idx); uf_destroy(parent, rank);
+        lv_free((void**)&id_to_idx); uf_destroy(parent, rank);
         return 0;
     }
 
@@ -945,7 +945,7 @@ int apply_merges(ConstraintGraph *graph, NodeMergeCandidate *candidates,
 
     /* 使用公共函数：将每个集合重定向到最小 ID 的代表节点 */
     if (!uf_resolve_to_min_id(parent, graph->nodes, n)) {
-        lv00_free((void**)&id_to_idx); uf_destroy(parent, rank);
+        lv_free((void**)&id_to_idx); uf_destroy(parent, rank);
         return 0;
     }
 
@@ -956,7 +956,7 @@ int apply_merges(ConstraintGraph *graph, NodeMergeCandidate *candidates,
     int merged_total = 0;
     int *merged_indices = uf_collect_merged(parent, n, &merged_total);
     if (!merged_indices) {
-        lv00_free((void**)&id_to_idx); uf_destroy(parent, rank);
+        lv_free((void**)&id_to_idx); uf_destroy(parent, rank);
         return 0;
     }
 
@@ -975,13 +975,13 @@ int apply_merges(ConstraintGraph *graph, NodeMergeCandidate *candidates,
     }
 
     /* 移除节点后重建 id_to_idx，用于填充结果 */
-    lv00_free((void**)&id_to_idx);
+    lv_free((void**)&id_to_idx);
     max_id = -1; id_to_idx = build_id_to_idx(graph, &max_id);
 
     int merges = merged_total;
 
-    lv00_free((void**)&merged_indices);
-    lv00_free((void**)&id_to_idx);
+    lv_free((void**)&merged_indices);
+    lv_free((void**)&id_to_idx);
     uf_destroy(parent, rank);
     return merges;
 }
@@ -1079,13 +1079,13 @@ static int normalize_phase(ConstraintGraph *graph, NormalizationResult *result,
     int candidate_count = 0;
     NodeMergeCandidate *candidates = find_merge_candidates(graph, &candidate_count);
     if (candidate_count == 0) {
-        lv00_free((void**)&candidates);
+        lv_free((void**)&candidates);
         return 0;
     }
 
     /* 快照合并前的节点ID，用于记录映射关系 */
     int n = graph->node_count;
-    int *ids_before = lv00_malloc((size_t)n * sizeof(int));
+    int *ids_before = lv_malloc((size_t)n * sizeof(int));
     for (int i = 0; i < n; i++) {
         ids_before[i] = graph->nodes[i]->id;
     }
@@ -1158,25 +1158,25 @@ static int normalize_phase(ConstraintGraph *graph, NormalizationResult *result,
                 }
             }
         }
-        lv00_free((void**)&id_to_idx);
+        lv_free((void**)&id_to_idx);
     }
 
-    lv00_free((void**)&ids_before);
-    lv00_free((void**)&candidates);
+    lv_free((void**)&ids_before);
+    lv_free((void**)&candidates);
     return merges;
 }
 
 NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
-    NormalizationResult *result = lv00_malloc(sizeof(NormalizationResult));
+    NormalizationResult *result = lv_malloc(sizeof(NormalizationResult));
     if (!result) return NULL;
     memset(result, 0, sizeof(NormalizationResult));
     result->user_confirmed = true;
 
     int total_nodes = graph->node_count;
     /* 预分配结果数组（按最坏情况分配） */
-    result->original_ids      = lv00_malloc((size_t)total_nodes * sizeof(int));
-    result->representative_ids = lv00_malloc((size_t)total_nodes * sizeof(int));
-    result->merged_node_ids    = lv00_malloc((size_t)total_nodes * sizeof(int));
+    result->original_ids      = lv_malloc((size_t)total_nodes * sizeof(int));
+    result->representative_ids = lv_malloc((size_t)total_nodes * sizeof(int));
+    result->merged_node_ids    = lv_malloc((size_t)total_nodes * sizeof(int));
     result->merged_capacity    = total_nodes;  /* 记录预分配容量，供边界检查使用 */
     result->log = normalization_log_create(total_nodes > 0 ? total_nodes : NORM_DEFAULT_CAPACITY);
     if (!result->original_ids || !result->representative_ids ||
@@ -1267,10 +1267,10 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
 void normalization_result_destroy(NormalizationResult *result) {
     if (result) {
         normalization_log_destroy(result->log);
-        lv00_free((void**)&result->merged_node_ids);
-        lv00_free((void**)&result->original_ids);
-        lv00_free((void**)&result->representative_ids);
-        lv00_free((void**)&result);
+        lv_free((void**)&result->merged_node_ids);
+        lv_free((void**)&result->original_ids);
+        lv_free((void**)&result->representative_ids);
+        lv_free((void**)&result);
     }
 }
 
@@ -1279,31 +1279,31 @@ void normalization_result_destroy(NormalizationResult *result) {
 /* ------------------------------------------------------------------ */
 
 static uint64_t fnv1a_hash(const char *s) {
-    uint64_t hash = LV00_FNV64_OFFSET_BASIS;
+    uint64_t hash = lv_FNV64_OFFSET_BASIS;
     while (*s) {
         hash ^= (uint8_t)(*s++);
-        hash *= LV00_FNV64_PRIME;
+        hash *= lv_FNV64_PRIME;
     }
     return hash;
 }
 
 GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
-    GraphHash *gh = lv00_malloc(sizeof(GraphHash));
+    GraphHash *gh = lv_malloc(sizeof(GraphHash));
     if (!gh) return NULL;
     gh->node_count = graph->node_count;
-    gh->node_hashes = lv00_malloc((size_t)graph->node_count * sizeof(uint64_t));
+    gh->node_hashes = lv_malloc((size_t)graph->node_count * sizeof(uint64_t));
     if (!gh->node_hashes && graph->node_count > 0) {
-        lv00_free((void**)&gh);
+        lv_free((void**)&gh);
         return NULL;
     }
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        char *desc = lv00_malloc(NORM_HASH_DESC_BUFFER_SIZE);
+        char *desc = lv_malloc(NORM_HASH_DESC_BUFFER_SIZE);
         if (!desc) {
-            /* 内存分配失败：使用 lv00_malloc 分配最小缓冲区并复制空字符串，
-               确保后续 lv00_free 能正确释放（strdup 使用标准 malloc，
-               与 lv00_free 的自定义 AllocHeader 不兼容） */
-            desc = lv00_malloc(1);
+            /* 内存分配失败：使用 lv_malloc 分配最小缓冲区并复制空字符串，
+               确保后续 lv_free 能正确释放（strdup 使用标准 malloc，
+               与 lv_free 的自定义 AllocHeader 不兼容） */
+            desc = lv_malloc(1);
             if (desc) desc[0] = '\0';
         } else {
             snprintf(desc, NORM_HASH_DESC_BUFFER_SIZE, "%d:%d", node->id, (int)node->type);
@@ -1316,26 +1316,26 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
                 size_t coord_len = strlen(coord_str);
                 if (desc_len > SIZE_MAX - coord_len - 2) {
                     /* 长度溢出：跳过拼接，仅使用 desc */
-                    lv00_free((void**)&coord_str);
+                    lv_free((void**)&coord_str);
                 } else {
-                    char *new_desc = lv00_malloc(desc_len + coord_len + 2);
+                    char *new_desc = lv_malloc(desc_len + coord_len + 2);
                     if (new_desc) {
                         /* 使用 snprintf 替代 sprintf，防止缓冲区溢出 */
                         snprintf(new_desc, desc_len + coord_len + 2, "%s:%s", desc, coord_str);
-                        lv00_free((void**)&desc);
+                        lv_free((void**)&desc);
                         desc = new_desc;
                     }
-                    lv00_free((void**)&coord_str);
+                    lv_free((void**)&coord_str);
                 }
             }
         }
         gh->node_hashes[i] = fnv1a_hash(desc);
-        lv00_free((void**)&desc);
+        lv_free((void**)&desc);
     }
-    gh->hash = LV00_FNV64_OFFSET_BASIS;
+    gh->hash = lv_FNV64_OFFSET_BASIS;
     for (int i = 0; i < graph->node_count; i++) {
         gh->hash ^= gh->node_hashes[i];
-        gh->hash *= LV00_FNV64_PRIME;
+        gh->hash *= lv_FNV64_PRIME;
     }
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
@@ -1343,7 +1343,7 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
         snprintf(desc, NORM_CONSTRAINT_DESC_SIZE, "C:%d:%d", c->id, (int)c->type);
         uint64_t chash = fnv1a_hash(desc);
         gh->hash ^= chash;
-        gh->hash *= LV00_FNV64_PRIME;
+        gh->hash *= lv_FNV64_PRIME;
     }
     return gh;
 }
@@ -1360,19 +1360,19 @@ bool graph_hash_equal(const GraphHash *a, const GraphHash *b) {
 
 void graph_hash_destroy(GraphHash *hash) {
     if (hash) {
-        lv00_free((void**)&hash->node_hashes);
-        lv00_free((void**)&hash);
+        lv_free((void**)&hash->node_hashes);
+        lv_free((void**)&hash);
     }
 }
 
 RewriteHistory *rewrite_history_create(int capacity) {
-    RewriteHistory *rh = lv00_malloc(sizeof(RewriteHistory));
+    RewriteHistory *rh = lv_malloc(sizeof(RewriteHistory));
     if (!rh) return NULL;
     rh->capacity = capacity;
     rh->count = 0;
-    rh->history = lv00_malloc((size_t)capacity * sizeof(GraphHash *));
+    rh->history = lv_malloc((size_t)capacity * sizeof(GraphHash *));
     if (!rh->history) {
-        lv00_free((void**)&rh);
+        lv_free((void**)&rh);
         return NULL;
     }
     for (int i = 0; i < capacity; i++) {
@@ -1386,8 +1386,8 @@ void rewrite_history_destroy(RewriteHistory *history) {
         for (int i = 0; i < history->count; i++) {
             graph_hash_destroy(history->history[i]);
         }
-        lv00_free((void**)&history->history);
-        lv00_free((void**)&history);
+        lv_free((void**)&history->history);
+        lv_free((void**)&history);
     }
 }
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file fuzz_symbolic_coord.c
  * @brief 符号坐标模糊测试 - 使用 libFuzzer
  *
@@ -12,8 +12,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "lv00.h"
-#include "lv00_utils.h"
+#include "lv.h"
+#include "lv_utils.h"
 
 /**
  * @brief libFuzzer 入口点：符号坐标模糊测试
@@ -50,7 +50,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 if (c2) {
                     symbolic_coord_destroy(c2);
                 }
-                lv00_free_ptr(str);
+                lv_free_ptr(str);
             }
             symbolic_coord_destroy(c);
         }

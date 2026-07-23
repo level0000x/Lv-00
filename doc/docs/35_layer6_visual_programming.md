@@ -1,4 +1,4 @@
-# Lv-00 Layer 6：图形化编程层设计规范
+﻿# Lv-00 Layer 6：图形化编程层设计规范
 
 > **版本**: 1.0.0-draft  
 > **日期**: 2026-05-29  
@@ -298,7 +298,7 @@ typedef struct TextCodeView {
     TextEditor *editor;
     
     /* Lv-00 解析器（Layer 1） */
-    Lv00Parser *parser;
+    lvParser *parser;
     
     /* 代码生成器（函数块图 → Lv-00 DSL） */
     CodeGenerator *generator;
@@ -718,10 +718,10 @@ ConverterResult convert_geometry_to_block(GeomNode *entity);
 
 ```c
 /* 函数块图 → Lv-00 DSL */
-char *generate_lv00_code(FuncBlockGraph *graph);
+char *generate_lv_code(FuncBlockGraph *graph);
 
 /* Lv-00 DSL → 函数块图 */
-FuncBlockGraph *parse_lv00_code(char *code);
+FuncBlockGraph *parse_lv_code(char *code);
 
 /* 示例转换 */
 
@@ -772,7 +772,7 @@ Phase 4: 验证与优化（2周）
 
 ```
 core/
-├── include/lv00/
+├── include/lv/
 │   ├── visual_editor.h          # 可视化编辑器公共接口
 │   ├── control_flow_blocks.h    # 控制流块
 │   ├── io_blocks.h              # IO交互块
@@ -881,4 +881,4 @@ core/
 - [自举架构设计](self_bootstrapping_design.md)
 - [类型系统](08_type_system.md)
 - [架构手册](ARCHITECTURE_MANUAL.md)
-- [语言规范](LV00_LANGUAGE_SPEC.md)
+- [语言规范](lv_LANGUAGE_SPEC.md)

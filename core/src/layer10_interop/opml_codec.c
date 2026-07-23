@@ -1,6 +1,6 @@
-#include "lv00/interop.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/interop.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -36,49 +36,49 @@ static int json_escape_string(const char *src, char *dst, int dst_size) {
 
 /* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */
 typedef enum {
-    LV00_STEP_ADD_NODE = 0,      /* 添加节点 */
-    LV00_STEP_ADD_CONSTRAINT,    /* 添加约束 */
-    LV00_STEP_REWRITE,           /* 重写 */
-    LV00_STEP_FUNCTION_APP,      /* 函数应用 */
-    LV00_STEP_EXACT,             /* 精确匹配 */
-    LV00_STEP_HAVE,              /* 中间引理 */
-    LV00_STEP_CALC,              /* 计算链 */
-    LV00_STEP_NORMALIZATION,     /* 规范化 */
-    LV00_STEP_ORACLE             /* 外部预言 */
-} Lv00ProofStepType;
+    lv_STEP_ADD_NODE = 0,      /* 添加节点 */
+    lv_STEP_ADD_CONSTRAINT,    /* 添加约束 */
+    lv_STEP_REWRITE,           /* 重写 */
+    lv_STEP_FUNCTION_APP,      /* 函数应用 */
+    lv_STEP_EXACT,             /* 精确匹配 */
+    lv_STEP_HAVE,              /* 中间引理 */
+    lv_STEP_CALC,              /* 计算链 */
+    lv_STEP_NORMALIZATION,     /* 规范化 */
+    lv_STEP_ORACLE             /* 外部预言 */
+} lvProofStepType;
 
 /* 证明步骤结构体 */
 typedef struct {
-    int type;                     /* 步骤类型（Lv00ProofStepType） */
+    int type;                     /* 步骤类型（lvProofStepType） */
     char description[512];       /* 步骤描述 */
     int id;                      /* 步骤编号 */
     int dependencies[64];        /* 依赖的步骤 ID 列表 */
     int dep_count;               /* 依赖数量 */
-} Lv00ProofStep;
+} lvProofStep;
 
 /* 内部证明结构体（用于导出/导入） */
 typedef struct {
     char theorem_name[256];      /* 定理名称 */
     int step_count;              /* 步骤数量 */
     int step_capacity;           /* 步骤容量 */
-    Lv00ProofStep *steps;        /* 步骤数组 */
+    lvProofStep *steps;        /* 步骤数组 */
     char axioms[1024];           /* 公理列表（逗号分隔） */
-} Lv00OpmlProof;
+} lvOpmlProof;
 
 /**
  * @brief 将步骤类型枚举映射为字符串名称
  */
 static const char *step_type_name(int type) {
     switch (type) {
-        case LV00_STEP_ADD_NODE:        return "add_node";
-        case LV00_STEP_ADD_CONSTRAINT:  return "add_constraint";
-        case LV00_STEP_REWRITE:         return "rewrite";
-        case LV00_STEP_FUNCTION_APP:    return "function_app";
-        case LV00_STEP_EXACT:           return "exact";
-        case LV00_STEP_HAVE:            return "have";
-        case LV00_STEP_CALC:            return "calc";
-        case LV00_STEP_NORMALIZATION:   return "normalization";
-        case LV00_STEP_ORACLE:          return "oracle";
+        case lv_STEP_ADD_NODE:        return "add_node";
+        case lv_STEP_ADD_CONSTRAINT:  return "add_constraint";
+        case lv_STEP_REWRITE:         return "rewrite";
+        case lv_STEP_FUNCTION_APP:    return "function_app";
+        case lv_STEP_EXACT:           return "exact";
+        case lv_STEP_HAVE:            return "have";
+        case lv_STEP_CALC:            return "calc";
+        case lv_STEP_NORMALIZATION:   return "normalization";
+        case lv_STEP_ORACLE:          return "oracle";
         default:                        return "unknown";
     }
 }
@@ -89,7 +89,7 @@ static const char *step_type_name(int type) {
 static int opml_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0) return -1;
 
-    Lv00OpmlProof *p = (Lv00OpmlProof *)proof;
+    lvOpmlProof *p = (lvOpmlProof *)proof;
 
     int pos = 0;
 
@@ -101,7 +101,7 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
     pos += snprintf(output + pos, output_size - pos,
         "{\n"
         "  \"opml_version\": \"1.0.0\",\n"
-        "  \"source_system\": \"lv00\",\n"
+        "  \"source_system\": \"lv\",\n"
         "  \"metadata\": {\n"
         "    \"title\": \"%s\",\n"
         "    \"date\": \"2026-06-04\"\n"
@@ -168,7 +168,7 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
     /* 遍历每个步骤，生成 JSON 对象 */
     for (int i = 0; i < p->step_count; i++) {
-        Lv00ProofStep *step = &p->steps[i];
+        lvProofStep *step = &p->steps[i];
 
         if (i > 0) {
             if (pos >= output_size) return -1;
@@ -375,7 +375,7 @@ static void parse_theory_section(const char *theory_json,
  * @brief 从 proof 段提取证明步骤
  */
 static void parse_proof_steps(const char *proof_json,
-                               Lv00OpmlProof *proof, int max_steps) {
+                               lvOpmlProof *proof, int max_steps) {
     if (!proof_json || !proof) return;
 
     /* 查找 "steps" 键 */
@@ -392,8 +392,8 @@ static void parse_proof_steps(const char *proof_json,
         const char *name_val = json_find_key(p, "name");
         const char *type_val = json_find_key(p, "type");
 
-        Lv00ProofStep *step = &proof->steps[proof->step_count];
-        memset(step, 0, sizeof(Lv00ProofStep));
+        lvProofStep *step = &proof->steps[proof->step_count];
+        memset(step, 0, sizeof(lvProofStep));
         step->id = proof->step_count;
 
         if (name_val && *name_val == '"') {
@@ -402,16 +402,16 @@ static void parse_proof_steps(const char *proof_json,
         if (type_val && *type_val == '"') {
             char type_name[64];
             json_extract_string(type_val, type_name, sizeof(type_name));
-            /* 映射类型名到 Lv00ProofStepType */
-            if (strcmp(type_name, "axiom") == 0) step->type = LV00_STEP_ADD_NODE;
-            else if (strcmp(type_name, "definition") == 0) step->type = LV00_STEP_ADD_CONSTRAINT;
-            else if (strcmp(type_name, "rewrite") == 0) step->type = LV00_STEP_REWRITE;
-            else if (strcmp(type_name, "apply") == 0) step->type = LV00_STEP_FUNCTION_APP;
-            else if (strcmp(type_name, "exact") == 0) step->type = LV00_STEP_EXACT;
-            else if (strcmp(type_name, "have") == 0) step->type = LV00_STEP_HAVE;
-            else if (strcmp(type_name, "calc") == 0) step->type = LV00_STEP_CALC;
-            else if (strcmp(type_name, "normalization") == 0) step->type = LV00_STEP_NORMALIZATION;
-            else step->type = LV00_STEP_ORACLE;
+            /* 映射类型名到 lvProofStepType */
+            if (strcmp(type_name, "axiom") == 0) step->type = lv_STEP_ADD_NODE;
+            else if (strcmp(type_name, "definition") == 0) step->type = lv_STEP_ADD_CONSTRAINT;
+            else if (strcmp(type_name, "rewrite") == 0) step->type = lv_STEP_REWRITE;
+            else if (strcmp(type_name, "apply") == 0) step->type = lv_STEP_FUNCTION_APP;
+            else if (strcmp(type_name, "exact") == 0) step->type = lv_STEP_EXACT;
+            else if (strcmp(type_name, "have") == 0) step->type = lv_STEP_HAVE;
+            else if (strcmp(type_name, "calc") == 0) step->type = lv_STEP_CALC;
+            else if (strcmp(type_name, "normalization") == 0) step->type = lv_STEP_NORMALIZATION;
+            else step->type = lv_STEP_ORACLE;
         }
 
         proof->step_count++;
@@ -434,14 +434,14 @@ static int opml_import_proof(const char *input, void **proof) {
     const char *theory_start = strstr(input, "\"theory\"");
     const char *proof_start = strstr(input, "\"proof\"");
 
-    /* 分配 Lv00OpmlProof 结构体 */
-    Lv00OpmlProof *p = (Lv00OpmlProof *)lv00_calloc(1, sizeof(Lv00OpmlProof));
+    /* 分配 lvOpmlProof 结构体 */
+    lvOpmlProof *p = (lvOpmlProof *)lv_calloc(1, sizeof(lvOpmlProof));
     if (!p) return -1;
 
     /* 初始化步骤数组 */
     p->step_capacity = 64;
-    p->steps = (Lv00ProofStep *)lv00_calloc(p->step_capacity, sizeof(Lv00ProofStep));
-    if (!p->steps) { lv00_free((void **)&p); return -1; }
+    p->steps = (lvProofStep *)lv_calloc(p->step_capacity, sizeof(lvProofStep));
+    if (!p->steps) { lv_free((void **)&p); return -1; }
 
     /* 提取并解析 theory 段 */
     if (theory_start) {
@@ -455,7 +455,7 @@ static int opml_import_proof(const char *input, void **proof) {
                 if (depth == 0) { end++; break; }
             }
             size_t len = (size_t)(end - brace);
-            char *theory_buf = (char *)lv00_calloc(1, len + 1);
+            char *theory_buf = (char *)lv_calloc(1, len + 1);
             if (theory_buf) {
                 memcpy(theory_buf, brace, len);
                 theory_buf[len] = '\0';
@@ -481,7 +481,7 @@ static int opml_import_proof(const char *input, void **proof) {
                 }
                 p->axioms[pos] = '\0';
 
-                lv00_free((void **)&theory_buf);
+                lv_free((void **)&theory_buf);
             }
         }
     }
@@ -498,7 +498,7 @@ static int opml_import_proof(const char *input, void **proof) {
                 if (depth == 0) { end++; break; }
             }
             size_t len = (size_t)(end - brace);
-            char *proof_buf = (char *)lv00_calloc(1, len + 1);
+            char *proof_buf = (char *)lv_calloc(1, len + 1);
             if (proof_buf) {
                 memcpy(proof_buf, brace, len);
                 proof_buf[len] = '\0';
@@ -506,7 +506,7 @@ static int opml_import_proof(const char *input, void **proof) {
                 /* 从 proof 中提取步骤 */
                 parse_proof_steps(proof_buf, p, p->step_capacity);
 
-                lv00_free((void **)&proof_buf);
+                lv_free((void **)&proof_buf);
             }
         }
     }
@@ -532,15 +532,15 @@ static int opml_validate(const char *input) {
 }
 
 /* 注册 OPML 插件 */
-int lv00_register_opml_plugin(Lv00InteropManager *mgr) {
+int lv_register_opml_plugin(lvInteropManager *mgr) {
     if (!mgr) return -1;
-    Lv00Plugin plugin;
+    lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "opml", sizeof(plugin.name) - 1);
     strncpy(plugin.version, "1.0.0", sizeof(plugin.version) - 1);
-    plugin.system = LV00_EXT_JSON;
+    plugin.system = lv_EXT_JSON;
     plugin.export_proof = opml_export_proof;
     plugin.import_proof = opml_import_proof;
     plugin.validate = opml_validate;
-    return lv00_interop_register_plugin(mgr, &plugin);
+    return lv_interop_register_plugin(mgr, &plugin);
 }

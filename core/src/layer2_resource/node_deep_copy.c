@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file node_deep_copy.c
  * @brief 几何节点深拷贝公共实现
  * @details 提供统一的节点、端口和符号坐标深拷贝函数，
@@ -16,9 +16,9 @@
 
 #include <string.h>
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
-#include "lv00/constraint_graph.h"  /* GeomNode type */
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "lv/constraint_graph.h"  /* GeomNode type */
 
 /* ============================================================
  * 符号坐标深拷贝
@@ -40,7 +40,7 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
     if (!orig)
         return NULL;
 
-    SymbolicCoord *copy = lv00_malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *copy = lv_malloc(sizeof(SymbolicCoord));
     if (!copy)
         return NULL;
 
@@ -51,9 +51,9 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
         case RATIONAL:
             if (orig->data.rational) {
                 /* 通过 mpq_set 深拷贝，避免 mpz_get_si/mpz_get_ui 截断问题 */
-                copy->data.rational = lv00_malloc(sizeof(Rational));
+                copy->data.rational = lv_malloc(sizeof(Rational));
                 if (!copy->data.rational) {
-                    lv00_free((void **) &copy);
+                    lv_free((void **) &copy);
                     return NULL;
                 }
                 mpq_init(copy->data.rational->value);
@@ -74,18 +74,18 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
         case QUADRATIC:
             if (orig->data.quadratic) {
                 /* 通过 mpq_set 深拷贝有理数分量，避免截断问题 */
-                Rational *a_copy = lv00_malloc(sizeof(Rational));
+                Rational *a_copy = lv_malloc(sizeof(Rational));
                 if (!a_copy) {
-                    lv00_free((void **) &copy);
+                    lv_free((void **) &copy);
                     return NULL;
                 }
                 mpq_init(a_copy->value);
                 mpq_set(a_copy->value, orig->data.quadratic->a->value);
-                Rational *b_copy = lv00_malloc(sizeof(Rational));
+                Rational *b_copy = lv_malloc(sizeof(Rational));
                 if (!b_copy) {
                     mpq_clear(a_copy->value);
-                    lv00_free((void **) &a_copy);
-                    lv00_free((void **) &copy);
+                    lv_free((void **) &a_copy);
+                    lv_free((void **) &copy);
                     return NULL;
                 }
                 mpq_init(b_copy->value);
@@ -101,10 +101,10 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
                 /* 深拷贝表达式树 */
                 if (copy->data.transcendental && orig->data.transcendental->expr) {
                     TranscendentalExpr *src_expr = orig->data.transcendental->expr;
-                    TranscendentalExpr *dst_expr = lv00_malloc(sizeof(TranscendentalExpr));
+                    TranscendentalExpr *dst_expr = lv_malloc(sizeof(TranscendentalExpr));
                     if (dst_expr) {
                         dst_expr->expr_type = src_expr->expr_type;
-                        lv00_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
+                        lv_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
                         dst_expr->rational_operand =
                             src_expr->rational_operand ? rational_copy(src_expr->rational_operand) : NULL;
                         dst_expr->out_of_scope = src_expr->out_of_scope;
@@ -144,7 +144,7 @@ Port *node_deep_copy_port(const Port *orig) {
     if (!orig)
         return NULL;
 
-    Port *copy = lv00_malloc(sizeof(Port));
+    Port *copy = lv_malloc(sizeof(Port));
     if (!copy)
         return NULL;
 
@@ -171,7 +171,7 @@ Port *node_deep_copy_port(const Port *orig) {
  * 创建指定节点及其所有持有数据的深拷贝副本。
  * 拷贝策略：
  * - 标量字段：直接赋值
- * - numeric_assumption_declaration：通过 lv00_strdup_safe 深拷贝字符串
+ * - numeric_assumption_declaration：通过 lv_strdup_safe 深拷贝字符串
  * - symbolic_coords 数组：对每个坐标调用 node_deep_copy_symbolic_coord 深拷贝
  * - data.port：调用 node_deep_copy_port 深拷贝
  * - data.region.boundary_segments：分配新数组并拷贝引用（线段由图拥有）
@@ -185,9 +185,9 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
     if (!orig)
         return NULL;
 
-    LV00_UNUSED(id_map); /* 预留参数，当前未使用 */
+    lv_UNUSED(id_map); /* 预留参数，当前未使用 */
 
-    GeomNode *copy = lv00_malloc(sizeof(GeomNode));
+    GeomNode *copy = lv_malloc(sizeof(GeomNode));
     if (!copy)
         return NULL;
 
@@ -203,9 +203,9 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
 
     /* 深拷贝 numeric_assumption_declaration 字符串 */
     if (orig->numeric_assumption_declaration) {
-        copy->numeric_assumption_declaration = lv00_strdup_safe(orig->numeric_assumption_declaration);
+        copy->numeric_assumption_declaration = lv_strdup_safe(orig->numeric_assumption_declaration);
         if (!copy->numeric_assumption_declaration) {
-            lv00_free((void **) &copy);
+            lv_free((void **) &copy);
             return NULL;
         }
     } else {
@@ -214,10 +214,10 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
 
     /* 深拷贝符号坐标数组 */
     if (orig->symbolic_coords && orig->coord_count > 0) {
-        copy->symbolic_coords = lv00_malloc(orig->coord_count * sizeof(SymbolicCoord *));
+        copy->symbolic_coords = lv_malloc(orig->coord_count * sizeof(SymbolicCoord *));
         if (!copy->symbolic_coords) {
-            lv00_free((void **) &copy->numeric_assumption_declaration);
-            lv00_free((void **) &copy);
+            lv_free((void **) &copy->numeric_assumption_declaration);
+            lv_free((void **) &copy);
             return NULL;
         }
         for (int i = 0; i < orig->coord_count; i++) {
@@ -227,9 +227,9 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
                 for (int j = 0; j < i; j++) {
                     symbolic_coord_destroy(copy->symbolic_coords[j]);
                 }
-                lv00_free((void **) &copy->symbolic_coords);
-                lv00_free((void **) &copy->numeric_assumption_declaration);
-                lv00_free((void **) &copy);
+                lv_free((void **) &copy->symbolic_coords);
+                lv_free((void **) &copy->numeric_assumption_declaration);
+                lv_free((void **) &copy);
                 return NULL;
             }
         }
@@ -247,10 +247,10 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
                     for (int i = 0; i < copy->coord_count; i++) {
                         symbolic_coord_destroy(copy->symbolic_coords[i]);
                     }
-                    lv00_free((void **) &copy->symbolic_coords);
+                    lv_free((void **) &copy->symbolic_coords);
                 }
-                lv00_free((void **) &copy->numeric_assumption_declaration);
-                lv00_free((void **) &copy);
+                lv_free((void **) &copy->numeric_assumption_declaration);
+                lv_free((void **) &copy);
                 return NULL;
             }
             break;
@@ -259,16 +259,16 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
             /* Region类型：分配边界线段数组（引用共享，非拥有） */
             copy->data.region.segment_count = orig->data.region.segment_count;
             if (orig->data.region.boundary_segments && orig->data.region.segment_count > 0) {
-                copy->data.region.boundary_segments = lv00_malloc(orig->data.region.segment_count * sizeof(GeomNode *));
+                copy->data.region.boundary_segments = lv_malloc(orig->data.region.segment_count * sizeof(GeomNode *));
                 if (!copy->data.region.boundary_segments) {
                     if (copy->symbolic_coords) {
                         for (int i = 0; i < copy->coord_count; i++) {
                             symbolic_coord_destroy(copy->symbolic_coords[i]);
                         }
-                        lv00_free((void **) &copy->symbolic_coords);
+                        lv_free((void **) &copy->symbolic_coords);
                     }
-                    lv00_free((void **) &copy->numeric_assumption_declaration);
-                    lv00_free((void **) &copy);
+                    lv_free((void **) &copy->numeric_assumption_declaration);
+                    lv_free((void **) &copy);
                     return NULL;
                 }
                 /* 拷贝线段引用（线段由图拥有，区域仅持有引用） */
@@ -290,16 +290,16 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
             /* 分配并拷贝内部节点数组（引用，非拥有） */
             if (orig->data.func_block.internal_nodes && orig->data.func_block.internal_node_count > 0) {
                 copy->data.func_block.internal_nodes =
-                    lv00_malloc(orig->data.func_block.internal_node_count * sizeof(GeomNode *));
+                    lv_malloc(orig->data.func_block.internal_node_count * sizeof(GeomNode *));
                 if (!copy->data.func_block.internal_nodes) {
                     if (copy->symbolic_coords) {
                         for (int i = 0; i < copy->coord_count; i++) {
                             symbolic_coord_destroy(copy->symbolic_coords[i]);
                         }
-                        lv00_free((void **) &copy->symbolic_coords);
+                        lv_free((void **) &copy->symbolic_coords);
                     }
-                    lv00_free((void **) &copy->numeric_assumption_declaration);
-                    lv00_free((void **) &copy);
+                    lv_free((void **) &copy->numeric_assumption_declaration);
+                    lv_free((void **) &copy);
                     return NULL;
                 }
                 for (int i = 0; i < orig->data.func_block.internal_node_count; i++) {
@@ -311,17 +311,17 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
 
             /* 分配并拷贝输入端口ID数组 */
             if (orig->data.func_block.input_port_ids && orig->data.func_block.input_count > 0) {
-                copy->data.func_block.input_port_ids = lv00_malloc(orig->data.func_block.input_count * sizeof(int));
+                copy->data.func_block.input_port_ids = lv_malloc(orig->data.func_block.input_count * sizeof(int));
                 if (!copy->data.func_block.input_port_ids) {
-                    lv00_free((void **) &copy->data.func_block.internal_nodes);
+                    lv_free((void **) &copy->data.func_block.internal_nodes);
                     if (copy->symbolic_coords) {
                         for (int i = 0; i < copy->coord_count; i++) {
                             symbolic_coord_destroy(copy->symbolic_coords[i]);
                         }
-                        lv00_free((void **) &copy->symbolic_coords);
+                        lv_free((void **) &copy->symbolic_coords);
                     }
-                    lv00_free((void **) &copy->numeric_assumption_declaration);
-                    lv00_free((void **) &copy);
+                    lv_free((void **) &copy->numeric_assumption_declaration);
+                    lv_free((void **) &copy);
                     return NULL;
                 }
                 memcpy(copy->data.func_block.input_port_ids, orig->data.func_block.input_port_ids,
@@ -332,18 +332,18 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
 
             /* 分配并拷贝输出端口ID数组 */
             if (orig->data.func_block.output_port_ids && orig->data.func_block.output_count > 0) {
-                copy->data.func_block.output_port_ids = lv00_malloc(orig->data.func_block.output_count * sizeof(int));
+                copy->data.func_block.output_port_ids = lv_malloc(orig->data.func_block.output_count * sizeof(int));
                 if (!copy->data.func_block.output_port_ids) {
-                    lv00_free((void **) &copy->data.func_block.input_port_ids);
-                    lv00_free((void **) &copy->data.func_block.internal_nodes);
+                    lv_free((void **) &copy->data.func_block.input_port_ids);
+                    lv_free((void **) &copy->data.func_block.internal_nodes);
                     if (copy->symbolic_coords) {
                         for (int i = 0; i < copy->coord_count; i++) {
                             symbolic_coord_destroy(copy->symbolic_coords[i]);
                         }
-                        lv00_free((void **) &copy->symbolic_coords);
+                        lv_free((void **) &copy->symbolic_coords);
                     }
-                    lv00_free((void **) &copy->numeric_assumption_declaration);
-                    lv00_free((void **) &copy);
+                    lv_free((void **) &copy->numeric_assumption_declaration);
+                    lv_free((void **) &copy);
                     return NULL;
                 }
                 memcpy(copy->data.func_block.output_port_ids, orig->data.func_block.output_port_ids,

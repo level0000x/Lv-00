@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file path_type.c
  * @brief HoTT 路径类型实现
  *
@@ -19,8 +19,8 @@
  * @date 2026-05-24
  */
 
-#include "lv00/path_type.h"
-#include "lv00/lv00_internal.h"
+#include "lv/path_type.h"
+#include "lv/lv_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +32,7 @@
 
 /** @brief 获取当前时间（微秒），用于路径创建时间戳 */
 static int64_t get_time_us(void) {
-    return (int64_t)lv00_get_time_us();
+    return (int64_t)lv_get_time_us();
 }
 
 /* ============================================================
@@ -48,27 +48,27 @@ static int64_t get_time_us(void) {
  * @param interval_capacity 区间池初始容量（建议 >= 32）
  * @return 成功返回新路径系统指针，失败返回 NULL
  */
-Lv00PathSystem *path_system_create(int path_capacity, int interval_capacity) {
+lvPathSystem *path_system_create(int path_capacity, int interval_capacity) {
     if (path_capacity <= 0) path_capacity = 64;
     if (interval_capacity <= 0) interval_capacity = 32;
 
-    Lv00PathSystem *sys = lv00_calloc(1, sizeof(Lv00PathSystem));
+    lvPathSystem *sys = lv_calloc(1, sizeof(lvPathSystem));
     if (!sys) return NULL;
 
     /* 分配路径数组 */
-    sys->paths = lv00_calloc((size_t)path_capacity, sizeof(Lv00Path));
+    sys->paths = lv_calloc((size_t)path_capacity, sizeof(lvPath));
     if (!sys->paths) {
-        lv00_free((void **)&sys);
+        lv_free((void **)&sys);
         return NULL;
     }
     sys->path_capacity = path_capacity;
     sys->path_count = 0;
 
     /* 分配区间池 */
-    sys->intervals = lv00_calloc((size_t)interval_capacity, sizeof(Lv00Interval));
+    sys->intervals = lv_calloc((size_t)interval_capacity, sizeof(lvInterval));
     if (!sys->intervals) {
-        lv00_free((void **)&sys->paths);
-        lv00_free((void **)&sys);
+        lv_free((void **)&sys->paths);
+        lv_free((void **)&sys);
         return NULL;
     }
     sys->interval_capacity = interval_capacity;
@@ -76,11 +76,11 @@ Lv00PathSystem *path_system_create(int path_capacity, int interval_capacity) {
 
     /* 分配消去上下文数组（初始容量 16） */
     int coe_cap = 16;
-    sys->coe_contexts = lv00_calloc((size_t)coe_cap, sizeof(Lv00PathCoercionContext));
+    sys->coe_contexts = lv_calloc((size_t)coe_cap, sizeof(lvPathCoercionContext));
     if (!sys->coe_contexts) {
-        lv00_free((void **)&sys->intervals);
-        lv00_free((void **)&sys->paths);
-        lv00_free((void **)&sys);
+        lv_free((void **)&sys->intervals);
+        lv_free((void **)&sys->paths);
+        lv_free((void **)&sys);
         return NULL;
     }
     sys->coe_capacity = coe_cap;
@@ -94,30 +94,30 @@ Lv00PathSystem *path_system_create(int path_capacity, int interval_capacity) {
 /**
  * @brief 销毁路径系统并释放所有关联资源
  */
-void path_system_destroy(Lv00PathSystem *sys) {
+void path_system_destroy(lvPathSystem *sys) {
     if (!sys) return;
 
     /* 释放路径标签 */
     for (int i = 0; i < sys->path_count; i++) {
         if (sys->paths[i].label) {
-            lv00_free((void **)&sys->paths[i].label);
+            lv_free((void **)&sys->paths[i].label);
         }
     }
-    lv00_free((void **)&sys->paths);
+    lv_free((void **)&sys->paths);
 
     /* 释放区间标签 */
     for (int i = 0; i < sys->interval_count; i++) {
         if (sys->intervals[i].label) {
-            lv00_free((void **)&sys->intervals[i].label);
+            lv_free((void **)&sys->intervals[i].label);
         }
     }
-    lv00_free((void **)&sys->intervals);
+    lv_free((void **)&sys->intervals);
 
     /* 释放消去上下文 */
-    lv00_free((void **)&sys->coe_contexts);
+    lv_free((void **)&sys->coe_contexts);
 
     sys->is_initialized = false;
-    lv00_free((void **)&sys);
+    lv_free((void **)&sys);
 }
 
 /* ============================================================
@@ -136,7 +136,7 @@ void path_system_destroy(Lv00PathSystem *sys) {
  * @param source_step  产生此路径的构造步骤 ID（-1 表示无溯源）
  * @return 成功返回路径 ID（>= 0），失败返回 -1
  */
-int path_create(Lv00PathSystem *sys, int endpoint_a, int endpoint_b,
+int path_create(lvPathSystem *sys, int endpoint_a, int endpoint_b,
                 const char *label,
                 double (*path_func)(double t, void *user_data),
                 void *user_data, int source_step) {
@@ -145,27 +145,27 @@ int path_create(Lv00PathSystem *sys, int endpoint_a, int endpoint_b,
     /* 扩容检查 */
     if (sys->path_count >= sys->path_capacity) {
         int new_cap = sys->path_capacity * 2;
-        Lv00Path *new_arr = lv00_realloc(sys->paths,
-                                          (size_t)new_cap * sizeof(Lv00Path));
+        lvPath *new_arr = lv_realloc(sys->paths,
+                                          (size_t)new_cap * sizeof(lvPath));
         if (!new_arr) return -1;
         sys->paths = new_arr;
         /* 清零新增部分 */
         memset(&sys->paths[sys->path_count], 0,
-               (size_t)(new_cap - sys->path_count) * sizeof(Lv00Path));
+               (size_t)(new_cap - sys->path_count) * sizeof(lvPath));
         sys->path_capacity = new_cap;
     }
 
     int id = sys->path_count;
-    Lv00Path *p = &sys->paths[id];
+    lvPath *p = &sys->paths[id];
 
-    memset(p, 0, sizeof(Lv00Path));
+    memset(p, 0, sizeof(lvPath));
     p->path_id = id;
     p->type = PATH_CONSTRUCTION;
     p->direction = DIRECTION_FORWARD;
     p->endpoint_a = endpoint_a;
     p->endpoint_b = endpoint_b;
     p->interval_id = -1;
-    p->label = label ? lv00_strdup(label) : NULL;
+    p->label = label ? lv_strdup(label) : NULL;
     p->construction = NULL;
     p->path_func = path_func;
     p->func_user_data = user_data;
@@ -180,7 +180,7 @@ int path_create(Lv00PathSystem *sys, int endpoint_a, int endpoint_b,
 /**
  * @brief 创建恒等路径（refl_a : a = a）
  */
-int path_create_identity(Lv00PathSystem *sys, int endpoint_a,
+int path_create_identity(lvPathSystem *sys, int endpoint_a,
                           const char *label) {
     int id = path_create(sys, endpoint_a, endpoint_a,
                          label ? label : "refl", NULL, NULL, -1);
@@ -194,11 +194,11 @@ int path_create_identity(Lv00PathSystem *sys, int endpoint_a,
 /**
  * @brief 创建逆路径 p^{-1} : b = a
  */
-int path_create_inverse(Lv00PathSystem *sys, int path_id) {
+int path_create_inverse(lvPathSystem *sys, int path_id) {
     if (!sys || !sys->is_initialized) return -1;
     if (path_id < 0 || path_id >= sys->path_count) return -1;
 
-    const Lv00Path *orig = &sys->paths[path_id];
+    const lvPath *orig = &sys->paths[path_id];
 
     /* 创建从终点到起点的路径 */
     char inv_label[256];
@@ -224,14 +224,14 @@ int path_create_inverse(Lv00PathSystem *sys, int path_id) {
  *
  * 前一条路径的终点必须与后一条路径的起点相同。
  */
-int path_compose(Lv00PathSystem *sys, int path_id_p, int path_id_q,
+int path_compose(lvPathSystem *sys, int path_id_p, int path_id_q,
                   const char *label) {
     if (!sys || !sys->is_initialized) return -1;
     if (path_id_p < 0 || path_id_p >= sys->path_count) return -1;
     if (path_id_q < 0 || path_id_q >= sys->path_count) return -1;
 
-    const Lv00Path *p = &sys->paths[path_id_p];
-    const Lv00Path *q = &sys->paths[path_id_q];
+    const lvPath *p = &sys->paths[path_id_p];
+    const lvPath *q = &sys->paths[path_id_q];
 
     /* 检查端点匹配：p 的终点 == q 的起点 */
     if (p->endpoint_b != q->endpoint_a) return -1;
@@ -262,26 +262,26 @@ int path_compose(Lv00PathSystem *sys, int path_id_p, int path_id_q,
  * 已知在起点端点满足某属性，沿路径传输到终点端点。
  * 简化实现：创建传输记录，标记传输完成。
  */
-int path_transport(Lv00PathSystem *sys, int path_id, int source_type_id,
-                    Lv00TransportMode mode, void **transported) {
+int path_transport(lvPathSystem *sys, int path_id, int source_type_id,
+                    lvTransportMode mode, void **transported) {
     if (!sys || !sys->is_initialized) return -1;
     if (path_id < 0 || path_id >= sys->path_count) return -1;
 
-    const Lv00Path *p = &sys->paths[path_id];
+    const lvPath *p = &sys->paths[path_id];
 
     /* 扩容检查 */
     if (sys->coe_count >= sys->coe_capacity) {
         int new_cap = sys->coe_capacity * 2;
-        Lv00PathCoercionContext *new_arr = lv00_realloc(
-            sys->coe_contexts, (size_t)new_cap * sizeof(Lv00PathCoercionContext));
+        lvPathCoercionContext *new_arr = lv_realloc(
+            sys->coe_contexts, (size_t)new_cap * sizeof(lvPathCoercionContext));
         if (!new_arr) return -1;
         sys->coe_contexts = new_arr;
         sys->coe_capacity = new_cap;
     }
 
     /* 创建消去上下文 */
-    Lv00PathCoercionContext *ctx = &sys->coe_contexts[sys->coe_count];
-    memset(ctx, 0, sizeof(Lv00PathCoercionContext));
+    lvPathCoercionContext *ctx = &sys->coe_contexts[sys->coe_count];
+    memset(ctx, 0, sizeof(lvPathCoercionContext));
     ctx->context_id = sys->coe_count;
     ctx->source_type_id = source_type_id;
     ctx->mode = mode;
@@ -302,7 +302,7 @@ int path_transport(Lv00PathSystem *sys, int path_id, int source_type_id,
 /**
  * @brief 检查路径是否为恒等路径
  */
-bool path_is_constant(const Lv00PathSystem *sys, int path_id) {
+bool path_is_constant(const lvPathSystem *sys, int path_id) {
     if (!sys || !sys->is_initialized) return false;
     if (path_id < 0 || path_id >= sys->path_count) return false;
     return sys->paths[path_id].is_constant;
@@ -314,12 +314,12 @@ bool path_is_constant(const Lv00PathSystem *sys, int path_id) {
  * 简化实现：创建一个空的约束图作为等式证明的占位符。
  * 完整实现应遍历路径结构并生成相应的等式约束。
  */
-int path_to_equality(Lv00PathSystem *sys, int path_id,
+int path_to_equality(lvPathSystem *sys, int path_id,
                       ConstraintGraph **out_equality) {
     if (!sys || !sys->is_initialized || !out_equality) return -1;
     if (path_id < 0 || path_id >= sys->path_count) return -1;
 
-    Lv00Path *path = &sys->paths[path_id];
+    lvPath *path = &sys->paths[path_id];
 
     /* 创建约束图表示等式关系 */
     ConstraintGraph *eq = graph_create();
@@ -353,7 +353,7 @@ int path_to_equality(Lv00PathSystem *sys, int path_id,
  *
  * 简化实现：创建一条 PATH_CONSTRUCTION 类型的路径。
  */
-int path_from_construction(Lv00PathSystem *sys, int step_index,
+int path_from_construction(lvPathSystem *sys, int step_index,
                             const char *label) {
     if (!sys || !sys->is_initialized) return -1;
 
@@ -378,12 +378,12 @@ int path_from_construction(Lv00PathSystem *sys, int step_index,
  *
  * 简化实现：将 out_constraint 置为 NULL。
  */
-int path_to_constraint_graph(Lv00PathSystem *sys, int path_id,
+int path_to_constraint_graph(lvPathSystem *sys, int path_id,
                               ConstraintGraph **out_constraint) {
     if (!sys || !sys->is_initialized || !out_constraint) return -1;
     if (path_id < 0 || path_id >= sys->path_count) return -1;
 
-    Lv00Path *path = &sys->paths[path_id];
+    lvPath *path = &sys->paths[path_id];
 
     /* 创建约束图并从路径中提取约束 */
     ConstraintGraph *cg = graph_create();
@@ -423,7 +423,7 @@ int path_to_constraint_graph(Lv00PathSystem *sys, int path_id,
  * 遍历路径注册表，返回连接两个端点的所有路径 ID。
  * 包括正向路径（a->b）和逆向路径（b->a 的逆路径）。
  */
-int path_system_get_all_paths_between(const Lv00PathSystem *sys,
+int path_system_get_all_paths_between(const lvPathSystem *sys,
                                        int endpoint_a, int endpoint_b,
                                        int *out_path_ids, int max_count) {
     if (!sys || !sys->is_initialized || !out_path_ids) return -1;
@@ -432,7 +432,7 @@ int path_system_get_all_paths_between(const Lv00PathSystem *sys,
     int found = 0;
 
     for (int i = 0; i < sys->path_count && found < max_count; i++) {
-        const Lv00Path *p = &sys->paths[i];
+        const lvPath *p = &sys->paths[i];
 
         /* 正向匹配：a -> b */
         if (p->endpoint_a == endpoint_a && p->endpoint_b == endpoint_b) {
@@ -457,30 +457,30 @@ int path_system_get_all_paths_between(const Lv00PathSystem *sys,
  * 区间 [left, right] 对应 HoTT 区间类型 I。
  * 若 left == right，区间退化（对应恒等路径 refl）。
  */
-int path_system_create_interval(Lv00PathSystem *sys, double left,
+int path_system_create_interval(lvPathSystem *sys, double left,
                                  double right, const char *label) {
     if (!sys || !sys->is_initialized) return -1;
 
     /* 扩容检查 */
     if (sys->interval_count >= sys->interval_capacity) {
         int new_cap = sys->interval_capacity * 2;
-        Lv00Interval *new_arr = lv00_realloc(
-            sys->intervals, (size_t)new_cap * sizeof(Lv00Interval));
+        lvInterval *new_arr = lv_realloc(
+            sys->intervals, (size_t)new_cap * sizeof(lvInterval));
         if (!new_arr) return -1;
         sys->intervals = new_arr;
         memset(&sys->intervals[sys->interval_count], 0,
-               (size_t)(new_cap - sys->interval_count) * sizeof(Lv00Interval));
+               (size_t)(new_cap - sys->interval_count) * sizeof(lvInterval));
         sys->interval_capacity = new_cap;
     }
 
     int id = sys->interval_count;
-    Lv00Interval *iv = &sys->intervals[id];
+    lvInterval *iv = &sys->intervals[id];
 
     iv->interval_id = id;
     iv->left = left;
     iv->right = right;
     iv->is_degenerate = (fabs(left - right) < 1e-15);
-    iv->label = label ? lv00_strdup(label) : NULL;
+    iv->label = label ? lv_strdup(label) : NULL;
 
     sys->interval_count++;
     return id;
@@ -489,7 +489,7 @@ int path_system_create_interval(Lv00PathSystem *sys, double left,
 /**
  * @brief 获取区间实例
  */
-const Lv00Interval *path_system_get_interval(const Lv00PathSystem *sys,
+const lvInterval *path_system_get_interval(const lvPathSystem *sys,
                                                int interval_id) {
     if (!sys || !sys->is_initialized) return NULL;
     if (interval_id < 0 || interval_id >= sys->interval_count) return NULL;
@@ -499,7 +499,7 @@ const Lv00Interval *path_system_get_interval(const Lv00PathSystem *sys,
 /**
  * @brief 获取路径实例
  */
-const Lv00Path *path_system_get_path(const Lv00PathSystem *sys, int path_id) {
+const lvPath *path_system_get_path(const lvPathSystem *sys, int path_id) {
     if (!sys || !sys->is_initialized) return NULL;
     if (path_id < 0 || path_id >= sys->path_count) return NULL;
     return &sys->paths[path_id];

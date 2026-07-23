@@ -1,4 +1,4 @@
-# 27. 量词与关系逻辑
+﻿# 27. 量词与关系逻辑
 
 ## 27.1 模块概述
 
@@ -25,16 +25,16 @@
 
 | 量词 | 枚举值 | 符号 | 含义 |
 |------|--------|------|------|
-| 全称量词 | `LV00_FORALL` | ∀ | "对所有...都成立" |
-| 存在量词 | `LV00_EXISTS` | ∃ | "存在一个...使得..." |
-| 唯一存在 | `LV00_EXISTS_UNIQUE` | ∃! | "存在唯一一个...使得..." |
+| 全称量词 | `lv_FORALL` | ∀ | "对所有...都成立" |
+| 存在量词 | `lv_EXISTS` | ∃ | "存在一个...使得..." |
+| 唯一存在 | `lv_EXISTS_UNIQUE` | ∃! | "存在唯一一个...使得..." |
 
 ### 27.2.3 核心数据结构
 
-#### 量化域（Lv00Domain）
+#### 量化域（lvDomain）
 
 ```c
-struct Lv00Domain {
+struct lvDomain {
     int id;
     char *domain_name;         // 域名（如 "R", "Triangle", "Point"）
     
@@ -55,22 +55,22 @@ struct Lv00Domain {
 - 约束图子图：`subgraph` 指定一个约束图子图作为域
 - 命名域：`domain_name` 引用预定义的域（如实数域 R）
 
-#### 量化表达式（Lv00QuantifiedExpr）
+#### 量化表达式（lvQuantifiedExpr）
 
 ```c
-struct Lv00QuantifiedExpr {
+struct lvQuantifiedExpr {
     int id;
-    Lv00Quantifier quantifier;  // 量词类型
+    lvQuantifier quantifier;  // 量词类型
     char *variable_name;        // 绑定变量名
     int variable_node_id;       // 绑定变量对应的约束图节点ID
-    Lv00Domain *domain;         // 量化域
+    lvDomain *domain;         // 量化域
     
     struct Proposition *body_proposition;  // 体命题
     
     int *instantiated_ids;      // 已实例化的变量ID列表
     int instantiated_count;
     
-    Lv00TruthValue cached_truth;  // 缓存的真值（三值逻辑）
+    lvTruthValue cached_truth;  // 缓存的真值（三值逻辑）
     bool truth_cache_valid;
 };
 ```
@@ -84,10 +84,10 @@ struct Lv00QuantifiedExpr {
 #### 全称量词实例化（∀-消去）
 
 ```c
-Lv00QuantResult lv00_quantifier_instantiate(
-    const Lv00QuantifiedExpr *expr,  // ∀...
+lvQuantResult lv_quantifier_instantiate(
+    const lvQuantifiedExpr *expr,  // ∀...
     int instance_id,                  // 要代入的实例节点ID
-    Lv00QuantifiedResult *out_result
+    lvQuantifiedResult *out_result
 );
 ```
 
@@ -103,9 +103,9 @@ Lv00QuantResult lv00_quantifier_instantiate(
 #### 全称量词泛化（∀-引入）
 
 ```c
-Lv00QuantResult lv00_quantifier_generalize(
-    const Lv00QuantifiedExpr *expr,
-    Lv00QuantifiedResult *out_result
+lvQuantResult lv_quantifier_generalize(
+    const lvQuantifiedExpr *expr,
+    lvQuantifiedResult *out_result
 );
 ```
 
@@ -116,10 +116,10 @@ Lv00QuantResult lv00_quantifier_generalize(
 #### 存在量词引入（∃I）
 
 ```c
-Lv00QuantResult lv00_quant_exists_introduce(
-    Lv00QuantifiedExpr *expr,  // 量词为 ∃
+lvQuantResult lv_quant_exists_introduce(
+    lvQuantifiedExpr *expr,  // 量词为 ∃
     int witness_id,             // 目击者节点ID
-    Lv00QuantifiedResult *out_result
+    lvQuantifiedResult *out_result
 );
 ```
 
@@ -128,10 +128,10 @@ Lv00QuantResult lv00_quant_exists_introduce(
 #### 存在量词消去（∃E）
 
 ```c
-Lv00QuantResult lv00_quant_exists_eliminate(
-    const Lv00QuantifiedExpr *exists_expr,
+lvQuantResult lv_quant_exists_eliminate(
+    const lvQuantifiedExpr *exists_expr,
     struct Proposition *target_prop,  // 目标命题 Q
-    Lv00QuantifiedResult *out_result
+    lvQuantifiedResult *out_result
 );
 ```
 
@@ -142,9 +142,9 @@ Lv00QuantResult lv00_quant_exists_eliminate(
 #### 全称量词消去
 
 ```c
-Lv00QuantResult lv00_quant_eliminate_forall_finite(
-    const Lv00QuantifiedExpr *expr,
-    Lv00QuantifiedResult *out_result
+lvQuantResult lv_quant_eliminate_forall_finite(
+    const lvQuantifiedExpr *expr,
+    lvQuantifiedResult *out_result
 );
 ```
 
@@ -156,9 +156,9 @@ Lv00QuantResult lv00_quant_eliminate_forall_finite(
 #### 存在量词消去
 
 ```c
-Lv00QuantResult lv00_quant_eliminate_exists_finite(
-    const Lv00QuantifiedExpr *expr,
-    Lv00QuantifiedResult *out_result
+lvQuantResult lv_quant_eliminate_exists_finite(
+    const lvQuantifiedExpr *expr,
+    lvQuantifiedResult *out_result
 );
 ```
 
@@ -170,9 +170,9 @@ Lv00QuantResult lv00_quant_eliminate_exists_finite(
 #### 唯一存在量词消去
 
 ```c
-Lv00QuantResult lv00_quant_eliminate_exists_unique_finite(
-    const Lv00QuantifiedExpr *expr,
-    Lv00QuantifiedResult *out_result
+lvQuantResult lv_quant_eliminate_exists_unique_finite(
+    const lvQuantifiedExpr *expr,
+    lvQuantifiedResult *out_result
 );
 ```
 
@@ -186,23 +186,23 @@ Lv00QuantResult lv00_quant_eliminate_exists_unique_finite(
 
 ```c
 // 域管理
-Lv00Domain *lv00_quant_domain_create(int id, const char *domain_name);
-Lv00Domain *lv00_quant_domain_create_finite(int id, const int *elements, int count);
-bool lv00_quant_domain_add_element(Lv00Domain *domain, int element);
-bool lv00_quant_domain_contains(const Lv00Domain *domain, int element);
-int lv00_quant_domain_size(const Lv00Domain *domain);
-void lv00_quant_domain_destroy(Lv00Domain *domain);
+lvDomain *lv_quant_domain_create(int id, const char *domain_name);
+lvDomain *lv_quant_domain_create_finite(int id, const int *elements, int count);
+bool lv_quant_domain_add_element(lvDomain *domain, int element);
+bool lv_quant_domain_contains(const lvDomain *domain, int element);
+int lv_quant_domain_size(const lvDomain *domain);
+void lv_quant_domain_destroy(lvDomain *domain);
 
 // 量化表达式
-Lv00QuantifiedExpr *lv00_quant_expr_create(int id, Lv00Quantifier quantifier,
+lvQuantifiedExpr *lv_quant_expr_create(int id, lvQuantifier quantifier,
     const char *variable_name, int variable_node_id,
-    Lv00Domain *domain, struct Proposition *body_prop);
-void lv00_quant_expr_destroy(Lv00QuantifiedExpr *expr);
-Lv00TruthValue lv00_quant_expr_evaluate(Lv00QuantifiedExpr *expr);
+    lvDomain *domain, struct Proposition *body_prop);
+void lv_quant_expr_destroy(lvQuantifiedExpr *expr);
+lvTruthValue lv_quant_expr_evaluate(lvQuantifiedExpr *expr);
 
 // 检查与统计
-bool lv00_quant_is_eliminable(const Lv00QuantifiedExpr *expr);
-int lv00_quant_count_satisfying(const Lv00QuantifiedExpr *expr);
+bool lv_quant_is_eliminable(const lvQuantifiedExpr *expr);
+int lv_quant_count_satisfying(const lvQuantifiedExpr *expr);
 ```
 
 ---
@@ -397,10 +397,10 @@ char *relation_instance_export_xml(const RelInstance *inst);
 
 | 代码概念 | 理论对应 | 文档位置 |
 |----------|----------|----------|
-| `Lv00QuantifiedExpr` | 量化命题公式 | 本文档 27.2.3 |
-| `lv00_quantifier_instantiate()` | ∀-消去规则 | 本文档 27.2.4 |
-| `lv00_quantifier_generalize()` | ∀-引入规则 | 本文档 27.2.4 |
-| `lv00_quant_eliminate_*_finite()` | 有限域量词消去 | 本文档 27.2.5 |
+| `lvQuantifiedExpr` | 量化命题公式 | 本文档 27.2.3 |
+| `lv_quantifier_instantiate()` | ∀-消去规则 | 本文档 27.2.4 |
+| `lv_quantifier_generalize()` | ∀-引入规则 | 本文档 27.2.4 |
+| `lv_quant_eliminate_*_finite()` | 有限域量词消去 | 本文档 27.2.5 |
 | `RelAtom` | Alloy sig 实例 | 本文档 27.3.3 |
 | `Relation` | n 元关系 | 本文档 27.3.4 |
 | `rel_join()` | 关系连接运算 | 本文档 27.3.9 |

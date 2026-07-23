@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "prop_verifier.h"
 
 /* ============================================================
@@ -161,37 +161,37 @@ TEST(test_formula_to_string) {
     /* 原子 */
     s = prop_formula_to_string(ATOM("P"));
     assert(s != NULL && strcmp(s, "P") == 0);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     /* 合取 - basic output check (format may vary by compiler) */
     s = prop_formula_to_string(AND(ATOM("A"), ATOM("B")));
     assert(s != NULL && strlen(s) > 0);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     /* 析取 */
     s = prop_formula_to_string(OR(ATOM("A"), ATOM("B")));
     assert(s != NULL && strcmp(s, "A \\/ B") == 0);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     /* 蕴涵 */
     s = prop_formula_to_string(IMPL(ATOM("A"), ATOM("B")));
     assert(s != NULL && strcmp(s, "A -> B") == 0);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     /* 否定 */
     s = prop_formula_to_string(NEG(ATOM("A")));
     assert(s != NULL && strcmp(s, "~A") == 0);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     /* 矛盾 */
     s = prop_formula_to_string(BOT());
     assert(s != NULL && strcmp(s, "_|_") == 0);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     /* 真 */
     s = prop_formula_to_string(TOP());
     assert(s != NULL && strcmp(s, "T") == 0);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     /* NULL */
     assert(prop_formula_to_string(NULL) == NULL);
@@ -203,7 +203,7 @@ TEST(test_formula_to_string) {
     assert(strstr(s, "P") != NULL);
     assert(strstr(s, "Q") != NULL);
     assert(strstr(s, "R") != NULL);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
     prop_formula_destroy(complex);
 }
 
@@ -216,27 +216,27 @@ TEST(test_formula_to_latex) {
 
     s = prop_formula_to_latex(AND(ATOM("P"), ATOM("Q")));
     assert(s != NULL && strstr(s, "\\wedge") != NULL);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     s = prop_formula_to_latex(OR(ATOM("P"), ATOM("Q")));
     assert(s != NULL && strstr(s, "\\vee") != NULL);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     s = prop_formula_to_latex(IMPL(ATOM("P"), ATOM("Q")));
     assert(s != NULL && strstr(s, "\\to") != NULL);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     s = prop_formula_to_latex(NEG(ATOM("P")));
     assert(s != NULL && strstr(s, "\\neg") != NULL);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     s = prop_formula_to_latex(BOT());
     assert(s != NULL && strstr(s, "\\bot") != NULL);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 
     s = prop_formula_to_latex(TOP());
     assert(s != NULL && strstr(s, "\\top") != NULL);
-    lv00_free_ptr(s);
+    lv_free_ptr(s);
 }
 
 /* ============================================================
@@ -422,7 +422,7 @@ TEST(test_builtin_smoke_tests) {
     /* 测试 13 (爆炸原理) 应该可证（因为启用了 ex_falso） */
     assert(results[12].result == VERIFY_PROVEN);
 
-    lv00_free_ptr(results);
+    lv_free_ptr(results);
 }
 
 /* ============================================================

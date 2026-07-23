@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_blocks.c
  * @brief 预设函数块扩展系统 - 实现
  *
@@ -6,8 +6,8 @@
  * 提供更丰富的预设函数块集合。
  *
  * 内存管理：
- * - 使用 lv00_malloc / lv00_free / lv00_realloc 进行内存管理
- * - 使用 lv00_strdup 进行字符串复制
+ * - 使用 lv_malloc / lv_free / lv_realloc 进行内存管理
+ * - 使用 lv_strdup 进行字符串复制
  * - cleanup 时释放所有资源
  */
 
@@ -18,8 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "preset_common.h"
 
 /* ==================== 外部模块注册函数声明 ==================== */
@@ -108,8 +108,8 @@ extern bool preset_difference_equations_register(void);
 /** 数组扩容增长因子 */
 #define PRESET_REGISTRY_GROWTH_FACTOR 2
 
-/** 预设函数块 ID 起始偏移（引用 lv00_internal.h 中的统一定义） */
-#define PRESET_FB_ID_OFFSET LV00_PRESET_ID_OFFSET
+/** 预设函数块 ID 起始偏移（引用 lv_internal.h 中的统一定义） */
+#define PRESET_FB_ID_OFFSET lv_PRESET_ID_OFFSET
 
 /* ==================== 内部数据结构 ==================== */
 
@@ -238,7 +238,7 @@ static bool ensure_preset_registry_capacity(void) {
     }
 
     InternalPresetEntry *new_entries =
-        lv00_realloc(g_preset_registry.entries, (size_t) new_capacity * sizeof(InternalPresetEntry));
+        lv_realloc(g_preset_registry.entries, (size_t) new_capacity * sizeof(InternalPresetEntry));
     if (!new_entries) {
         return false;
     }
@@ -257,13 +257,13 @@ static void free_internal_preset_entry(InternalPresetEntry *entry) {
     if (!entry)
         return;
 
-    lv00_free((void **) &entry->name);
-    lv00_free((void **) &entry->description);
-    lv00_free((void **) &entry->mathematical_definition);
-    lv00_free((void **) &entry->preconditions);
-    lv00_free((void **) &entry->example_usage);
-    lv00_free((void **) &entry->complexity);
-    lv00_free((void **) &entry->input_types);
+    lv_free((void **) &entry->name);
+    lv_free((void **) &entry->description);
+    lv_free((void **) &entry->mathematical_definition);
+    lv_free((void **) &entry->preconditions);
+    lv_free((void **) &entry->example_usage);
+    lv_free((void **) &entry->complexity);
+    lv_free((void **) &entry->input_types);
 
     if (entry->template_fb) {
         func_block_destroy(entry->template_fb);
@@ -356,311 +356,311 @@ bool preset_blocks_init(void) {
 
     /* 注册基础几何模块 */
     if (!preset_basic_geometry_register()) {
-        LV00_LOG_WARNING("基础几何模块预设注册部分失败");
+        lv_LOG_WARNING("基础几何模块预设注册部分失败");
     }
 
     /* 注册几何变换模块 */
     if (!preset_transformations_register()) {
-        LV00_LOG_WARNING("几何变换模块预设注册部分失败");
+        lv_LOG_WARNING("几何变换模块预设注册部分失败");
     }
 
     /* 注册度量计算模块 */
     if (!preset_measurements_register()) {
-        LV00_LOG_WARNING("度量计算模块预设注册部分失败");
+        lv_LOG_WARNING("度量计算模块预设注册部分失败");
     }
 
     /* 注册多边形构造模块 */
     if (!preset_polygons_register()) {
-        LV00_LOG_WARNING("多边形构造模块预设注册部分失败");
+        lv_LOG_WARNING("多边形构造模块预设注册部分失败");
     }
 
     /* 注册代数运算模块 */
     if (!preset_algebraic_register()) {
-        LV00_LOG_WARNING("代数运算模块预设注册部分失败");
+        lv_LOG_WARNING("代数运算模块预设注册部分失败");
     }
 
     /* 注册数论运算模块（新增） */
     if (!preset_number_theory_register()) {
-        LV00_LOG_WARNING("数论运算模块预设注册部分失败");
+        lv_LOG_WARNING("数论运算模块预设注册部分失败");
     }
 
     /* 注册群论运算模块（新增） */
     if (!preset_group_theory_register()) {
-        LV00_LOG_WARNING("群论运算模块预设注册部分失败");
+        lv_LOG_WARNING("群论运算模块预设注册部分失败");
     }
 
     /* 注册拓扑学运算模块（新增） */
     if (!preset_topology_register()) {
-        LV00_LOG_WARNING("拓扑学运算模块预设注册部分失败");
+        lv_LOG_WARNING("拓扑学运算模块预设注册部分失败");
     }
 
     /* 注册分析学运算模块（新增） */
     if (!preset_analysis_register()) {
-        LV00_LOG_WARNING("分析学模块预设注册部分失败");
+        lv_LOG_WARNING("分析学模块预设注册部分失败");
     }
 
     /* 注册微分方程模块（新增 v9.0） */
     if (!preset_differential_equations_register()) {
-        LV00_LOG_WARNING("微分方程模块预设注册部分失败");
+        lv_LOG_WARNING("微分方程模块预设注册部分失败");
     }
 
     /* 注册特殊函数模块（新增 v10.0）—— Gamma/Beta/Bessel/正交多项式/Zeta */
     if (!preset_special_functions_register()) {
-        LV00_LOG_WARNING("特殊函数模块预设注册部分失败");
+        lv_LOG_WARNING("特殊函数模块预设注册部分失败");
     }
 
     /* 注册组合数学模块（新增 v5.0） */
     if (!preset_combinatorics_register()) {
-        LV00_LOG_WARNING("组合数学模块预设注册部分失败");
+        lv_LOG_WARNING("组合数学模块预设注册部分失败");
     }
 
     /* 注册三角函数模块（新增 v9.0） */
     if (!preset_trigonometry_register()) {
-        LV00_LOG_WARNING("三角函数模块预设注册部分失败");
+        lv_LOG_WARNING("三角函数模块预设注册部分失败");
     }
 
     /* 注册图论模块（新增 v5.0） */
     if (!preset_graph_theory_register()) {
-        LV00_LOG_WARNING("图论模块预设注册部分失败");
+        lv_LOG_WARNING("图论模块预设注册部分失败");
     }
 
     /* 注册概率统计模块（新增 v5.0） */
     if (!preset_probability_register()) {
-        LV00_LOG_WARNING("概率统计模块预设注册部分失败");
+        lv_LOG_WARNING("概率统计模块预设注册部分失败");
     }
 
     /* 注册统计学模块（新增 v9.0） */
     if (!preset_statistics_register()) {
-        LV00_LOG_WARNING("统计学模块预设注册部分失败");
+        lv_LOG_WARNING("统计学模块预设注册部分失败");
     }
 
     /* 注册数值分析模块（新增 v5.0） */
     if (!preset_numerical_register()) {
-        LV00_LOG_WARNING("数值分析模块预设注册部分失败");
+        lv_LOG_WARNING("数值分析模块预设注册部分失败");
     }
 
     /* 注册微分几何模块（新增 v9.0） */
-#ifndef LV00_EXCLUDE_BROKEN_PRESETS
+#ifndef lv_EXCLUDE_BROKEN_PRESETS
     if (!preset_differential_geometry_register()) {
-        LV00_LOG_WARNING("微分几何模块预设注册部分失败");
+        lv_LOG_WARNING("微分几何模块预设注册部分失败");
     }
 #endif
 
     /* 注册优化理论模块（新增 v5.0） */
     if (!preset_optimization_register()) {
-        LV00_LOG_WARNING("优化理论模块预设注册部分失败");
+        lv_LOG_WARNING("优化理论模块预设注册部分失败");
     }
 
     /* 注册高级几何模块（新增） */
     if (!preset_advanced_geometry_register()) {
-        LV00_LOG_WARNING("高级几何模块预设注册部分失败");
+        lv_LOG_WARNING("高级几何模块预设注册部分失败");
     }
 
     /* 注册三维几何模块（新增） */
     if (!preset_geometry_3d_register()) {
-        LV00_LOG_WARNING("三维几何模块预设注册部分失败");
+        lv_LOG_WARNING("三维几何模块预设注册部分失败");
     }
 
     /* 注册环论模块（新增 v5.0） */
     if (!preset_ring_theory_register()) {
-        LV00_LOG_WARNING("环论模块预设注册部分失败");
+        lv_LOG_WARNING("环论模块预设注册部分失败");
     }
 
     /* 注册域论模块（新增 v5.0） */
     if (!preset_field_theory_register()) {
-        LV00_LOG_WARNING("域论模块预设注册部分失败");
+        lv_LOG_WARNING("域论模块预设注册部分失败");
     }
 
     /* 注册线性代数模块（新增 v5.0） */
     if (!preset_linear_algebra_register()) {
-        LV00_LOG_WARNING("线性代数模块预设注册部分失败");
+        lv_LOG_WARNING("线性代数模块预设注册部分失败");
     }
 
     /* 注册多项式理论模块（新增 v5.0） */
     if (!preset_polynomial_register()) {
-        LV00_LOG_WARNING("多项式理论模块预设注册部分失败");
+        lv_LOG_WARNING("多项式理论模块预设注册部分失败");
     }
 
     /* 注册集合论模块（新增 v6.0） */
     if (!preset_set_theory_register()) {
-        LV00_LOG_WARNING("集合论模块预设注册部分失败");
+        lv_LOG_WARNING("集合论模块预设注册部分失败");
     }
 
     /* 注册高级逻辑模块（新增 v6.0） */
     if (!preset_logic_advanced_register()) {
-        LV00_LOG_WARNING("高级逻辑模块预设注册部分失败");
+        lv_LOG_WARNING("高级逻辑模块预设注册部分失败");
     }
 
     /* 注册范畴论模块（新增 v6.0） */
     if (!preset_category_theory_register()) {
-        LV00_LOG_WARNING("范畴论模块预设注册部分失败");
+        lv_LOG_WARNING("范畴论模块预设注册部分失败");
     }
 
     /* 注册复分析模块（新增 v6.0） */
     if (!preset_complex_analysis_register()) {
-        LV00_LOG_WARNING("复分析模块预设注册部分失败");
+        lv_LOG_WARNING("复分析模块预设注册部分失败");
     }
 
     /* 注册测度论模块（新增 v7.0） */
     if (!preset_measure_theory_register()) {
-        LV00_LOG_WARNING("测度论模块预设注册部分失败");
+        lv_LOG_WARNING("测度论模块预设注册部分失败");
     }
 
     /* 注册序理论模块（新增 v7.0） */
     if (!preset_order_theory_register()) {
-        LV00_LOG_WARNING("序理论模块预设注册部分失败");
+        lv_LOG_WARNING("序理论模块预设注册部分失败");
     }
 
     /* 注册泛函分析进阶模块（新增 v7.0） */
     if (!preset_functional_analysis_adv_register()) {
-        LV00_LOG_WARNING("泛函分析进阶模块预设注册部分失败");
+        lv_LOG_WARNING("泛函分析进阶模块预设注册部分失败");
     }
 
     /* 注册泛函分析模块（新增 v9.0） */
-#ifndef LV00_EXCLUDE_BROKEN_PRESETS
+#ifndef lv_EXCLUDE_BROKEN_PRESETS
     if (!preset_functional_analysis_register()) {
-        LV00_LOG_WARNING("泛函分析模块预设注册部分失败");
+        lv_LOG_WARNING("泛函分析模块预设注册部分失败");
     }
 #endif
 
     /* 注册代数拓扑进阶模块（新增 v7.0） */
     if (!preset_algebraic_topology_adv_register()) {
-        LV00_LOG_WARNING("代数拓扑进阶模块预设注册部分失败");
+        lv_LOG_WARNING("代数拓扑进阶模块预设注册部分失败");
     }
 
     /* 注册数学逻辑模块（新增 v8.0） */
     if (!preset_mathematical_logic_register()) {
-        LV00_LOG_WARNING("数学逻辑模块预设注册部分失败");
+        lv_LOG_WARNING("数学逻辑模块预设注册部分失败");
     }
 
     /* 注册矩阵运算模块（新增 v8.0） */
     if (!preset_matrix_register()) {
-        LV00_LOG_WARNING("矩阵运算模块预设注册部分失败");
+        lv_LOG_WARNING("矩阵运算模块预设注册部分失败");
     }
 
     /* 注册微积分模块（新增 v8.0） */
     if (!preset_calculus_register()) {
-        LV00_LOG_WARNING("微积分模块预设注册部分失败");
+        lv_LOG_WARNING("微积分模块预设注册部分失败");
     }
 
     /* 注册基础数学模块（新增 v8.0） */
     if (!preset_basic_math_register()) {
-        LV00_LOG_WARNING("基础数学模块预设注册部分失败");
+        lv_LOG_WARNING("基础数学模块预设注册部分失败");
     }
 
     /* 注册进阶数学逻辑模块（新增 v8.0） */
     if (!preset_math_logic_register()) {
-        LV00_LOG_WARNING("进阶数学逻辑模块预设注册部分失败");
+        lv_LOG_WARNING("进阶数学逻辑模块预设注册部分失败");
     }
 
     /* 注册代数拓扑模块（新增 v9.0）—— 同调/上同调/高阶同伦/单纯复形 */
     if (!preset_algebraic_topology_register()) {
-        LV00_LOG_WARNING("代数拓扑模块预设注册部分失败");
+        lv_LOG_WARNING("代数拓扑模块预设注册部分失败");
     }
 
     /* 注册积分变换模块（新增 v9.0）—— 傅里叶/拉普拉斯/Z变换/梅林/希尔伯特 */
     if (!preset_integral_transforms_register()) {
-        LV00_LOG_WARNING("积分变换模块预设注册部分失败");
+        lv_LOG_WARNING("积分变换模块预设注册部分失败");
     }
 
     /* 注册表示论模块（新增 v9.0）—— 群表示/特征标/不可约/诱导/李代数表示 */
     if (!preset_representation_theory_register()) {
-        LV00_LOG_WARNING("表示论模块预设注册部分失败");
+        lv_LOG_WARNING("表示论模块预设注册部分失败");
     }
 
     /* ---- v10.0 新增：格论模块接入 ---- */
     /* 格论模块（lattice_theory）：格基础运算/特殊格/格同态与表示，共30个预设 */
     if (!preset_lattice_theory_register()) {
-        LV00_LOG_WARNING("格论模块预设注册部分失败");
+        lv_LOG_WARNING("格论模块预设注册部分失败");
     }
 
     /* ---- v10.0 新增：进阶范畴论模块接入 ---- */
     /* 进阶范畴论（category_theory_adv）：Yoneda引理/Kan扩张/单子/预层，共20个预设 */
     if (!preset_category_theory_adv_register()) {
-        LV00_LOG_WARNING("进阶范畴论模块预设注册部分失败");
+        lv_LOG_WARNING("进阶范畴论模块预设注册部分失败");
     }
 
     /* ---- v11.0 新增：高级微分几何模块接入 ---- */
     /* 高级微分几何（differential_geometry_adv）：切空间/Riemann度量/测地线/Levi-Civita连接/曲率张量/Gauss-Bonnet，共8个预设 */
     if (!preset_differential_geometry_adv_register()) {
-        LV00_LOG_WARNING("高级微分几何模块预设注册部分失败");
+        lv_LOG_WARNING("高级微分几何模块预设注册部分失败");
     }
 
     /* ---- v11.0 新增：概率论与数理统计模块接入 ---- */
     /* 概率论与数理统计（probability_statistics）：概率空间/随机变量/分布/统计推断，共35个预设 */
     if (!preset_probability_statistics_register()) {
-        LV00_LOG_WARNING("概率论与数理统计模块预设注册部分失败");
+        lv_LOG_WARNING("概率论与数理统计模块预设注册部分失败");
     }
 
     /* ---- v11.0 修复：数值分析模块接入（之前遗漏） ---- */
     if (!preset_numerical_analysis_register()) {
-        LV00_LOG_WARNING("数值分析模块预设注册部分失败");
+        lv_LOG_WARNING("数值分析模块预设注册部分失败");
     }
 
     /* ---- v11.0 新增：代数几何模块接入 ---- */
     /* 代数几何（algebraic_geometry）：仿射簇/射影簇/Gröbner基/奇点理论，共25个预设 */
     if (!preset_algebraic_geometry_register()) {
-        LV00_LOG_WARNING("代数几何模块预设注册部分失败");
+        lv_LOG_WARNING("代数几何模块预设注册部分失败");
     }
 
     /* ---- v11.0 新增：同调代数模块接入 ---- */
     /* 同调代数（homological_algebra）：链复形/正合序列/导出函子/谱序列，共25个预设 */
     if (!preset_homological_algebra_register()) {
-        LV00_LOG_WARNING("同调代数模块预设注册部分失败");
+        lv_LOG_WARNING("同调代数模块预设注册部分失败");
     }
 
     /* ---- v11.0 新增：李理论高级模块接入 ---- */
     /* 李理论高级（lie_theory_advanced）：根系/表示论/泛包络代数，共25个预设 */
     if (!preset_lie_theory_advanced_register()) {
-        LV00_LOG_WARNING("李理论高级模块预设注册部分失败");
+        lv_LOG_WARNING("李理论高级模块预设注册部分失败");
     }
 
     /* ---- v12.0 新增：数学物理方程模块接入 ---- */
     /* 数学物理方程（mathematical_physics）：波动/热传导/位势/量子/电磁/流体，共25个预设 */
     if (!preset_mathematical_physics_register()) {
-        LV00_LOG_WARNING("数学物理方程模块预设注册部分失败");
+        lv_LOG_WARNING("数学物理方程模块预设注册部分失败");
     }
 
     /* ---- v12.0 新增：动力系统模块接入 ---- */
     /* 动力系统（dynamical_systems）：稳定性/分岔/极限环/混沌/流形/渐近，共25个预设 */
     if (!preset_dynamical_systems_register()) {
-        LV00_LOG_WARNING("动力系统模块预设注册部分失败");
+        lv_LOG_WARNING("动力系统模块预设注册部分失败");
     }
 
     /* ---- v12.0 新增：算术几何模块接入 ---- */
     /* 算术几何（arithmetic_geometry）：椭圆曲线/模形式/Diophantine/代数数论/p-adic，共25个预设 */
     if (!preset_arithmetic_geometry_register()) {
-        /* LV00_LOG_WARNING("算术几何模块预设注册部分失败"); */
+        /* lv_LOG_WARNING("算术几何模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：随机过程模块接入 ---- */
     /* 随机过程（stochastic_processes）：马尔可夫链/泊松过程/布朗运动/鞅论/随机游走，共25个预设 */
     if (!preset_stochastic_processes_register()) {
-        /* LV00_LOG_WARNING("随机过程模块预设注册部分失败"); */
+        /* lv_LOG_WARNING("随机过程模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：博弈论模块接入 ---- */
     /* 博弈论（game_theory）：策略型博弈/合作博弈/展开型博弈/特殊博弈模型，共20个预设 */
     if (!preset_game_theory_register()) {
-        /* LV00_LOG_WARNING("博弈论模块预设注册部分失败"); */
+        /* lv_LOG_WARNING("博弈论模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：信息论模块接入 ---- */
     /* 信息论（information_theory）：信息度量/信道理论/率失真理论/信息论应用，共20个预设 */
     if (!preset_information_theory_register()) {
-        /* LV00_LOG_WARNING("信息论模块预设注册部分失败"); */
+        /* lv_LOG_WARNING("信息论模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：编码理论模块接入 ---- */
     /* 编码理论（coding_theory）：线性码/循环码与BCH码/码的界与性能/编码应用，共18个预设 */
     if (!preset_coding_theory_register()) {
-        /* LV00_LOG_WARNING("编码理论模块预设注册部分失败"); */
+        /* lv_LOG_WARNING("编码理论模块预设注册部分失败"); */
     }
 
     /* ---- v12.0 新增：差分方程模块接入 ---- */
     /* 差分方程（difference_equations）：线性差分方程/非线性差分方程/Z变换/差分方程应用，共18个预设 */
     if (!preset_difference_equations_register()) {
-        /* LV00_LOG_WARNING("差分方程模块预设注册部分失败"); */
+        /* lv_LOG_WARNING("差分方程模块预设注册部分失败"); */
     }
 
     g_preset_registry.initialized = true;
@@ -676,7 +676,7 @@ void preset_blocks_cleanup(void) {
     }
 
     /* 释放条目数组本身 */
-    lv00_free((void **) &g_preset_registry.entries);
+    lv_free((void **) &g_preset_registry.entries);
 
     /* 重置注册表状态 */
     g_preset_registry.count = 0;
@@ -706,27 +706,27 @@ PresetBlockMetadata *preset_blocks_get_metadata(const char *name) {
 
     InternalPresetEntry *entry = &g_preset_registry.entries[idx];
 
-    PresetBlockMetadata *result = lv00_malloc(sizeof(PresetBlockMetadata));
+    PresetBlockMetadata *result = lv_malloc(sizeof(PresetBlockMetadata));
     if (result) {
         /* 深拷贝字符串字段，确保返回的元数据生命周期独立于注册表 */
-        result->name = entry->name ? lv00_strdup(entry->name) : NULL;
-        result->description = entry->description ? lv00_strdup(entry->description) : NULL;
+        result->name = entry->name ? lv_strdup(entry->name) : NULL;
+        result->description = entry->description ? lv_strdup(entry->description) : NULL;
         result->mathematical_definition =
-            entry->mathematical_definition ? lv00_strdup(entry->mathematical_definition) : NULL;
+            entry->mathematical_definition ? lv_strdup(entry->mathematical_definition) : NULL;
         result->category = entry->category;
         result->input_count = entry->input_count;
         result->output_count = entry->output_count;
         result->has_selector = entry->has_selector;
-        result->preconditions = entry->preconditions ? lv00_strdup(entry->preconditions) : NULL;
-        result->example_usage = entry->example_usage ? lv00_strdup(entry->example_usage) : NULL;
+        result->preconditions = entry->preconditions ? lv_strdup(entry->preconditions) : NULL;
+        result->example_usage = entry->example_usage ? lv_strdup(entry->example_usage) : NULL;
 
         /* 若关键字符串分配失败，回滚已分配的内存 */
         if (entry->name && !result->name) {
-            lv00_free((void **) &result->description);
-            lv00_free((void **) &result->mathematical_definition);
-            lv00_free((void **) &result->preconditions);
-            lv00_free((void **) &result->example_usage);
-            lv00_free((void **) &result);
+            lv_free((void **) &result->description);
+            lv_free((void **) &result->mathematical_definition);
+            lv_free((void **) &result->preconditions);
+            lv_free((void **) &result->example_usage);
+            lv_free((void **) &result);
             result = NULL;
         }
     }
@@ -894,12 +894,12 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
                                    bool is_reversible) {
     /* 参数有效性检查 */
     if (!name || !description) {
-        /* LV00_LOG_WARNING("preset_blocks_register_simple: 名称或描述为空"); */
+        /* lv_LOG_WARNING("preset_blocks_register_simple: 名称或描述为空"); */
         return false;
     }
 
     if (input_count < 0) {
-        LV00_LOG_WARNING("preset_blocks_register_simple: 输入数量无效 (%d)", input_count);
+        lv_LOG_WARNING("preset_blocks_register_simple: 输入数量无效 (%d)", input_count);
         return false;
     }
 
@@ -907,14 +907,14 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
 
     /* 检查是否已存在同名预设 */
     if (find_preset_index(name) >= 0) {
-        LV00_LOG_WARNING("preset_blocks_register_simple: 预设已存在 '%s'", name);
+        lv_LOG_WARNING("preset_blocks_register_simple: 预设已存在 '%s'", name);
         PRESET_REGISTRY_UNLOCK();
         return false;
     }
 
     /* 确保注册表容量 */
     if (!ensure_preset_registry_capacity()) {
-        /* LV00_LOG_WARNING("preset_blocks_register_simple: 注册表容量不足"); */
+        /* lv_LOG_WARNING("preset_blocks_register_simple: 注册表容量不足"); */
         PRESET_REGISTRY_UNLOCK();
         return false;
     }
@@ -922,7 +922,7 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
     /* 创建模板函数块 */
     FuncBlock *fb = func_block_create(g_preset_registry.next_preset_id++);
     if (!fb) {
-        LV00_LOG_WARNING("preset_blocks_register_simple: 创建函数块失败 '%s'", name);
+        lv_LOG_WARNING("preset_blocks_register_simple: 创建函数块失败 '%s'", name);
         PRESET_REGISTRY_UNLOCK();
         return false;
     }
@@ -952,20 +952,20 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
     InternalPresetEntry *entry = &g_preset_registry.entries[g_preset_registry.count];
     memset(entry, 0, sizeof(InternalPresetEntry));
 
-    entry->name = lv00_strdup(name);
-    entry->description = lv00_strdup(description);
+    entry->name = lv_strdup(name);
+    entry->description = lv_strdup(description);
 
     /* 映射类别：将基础 PresetCategory 转换为扩展 PresetExtendedCategory */
     entry->category = map_category_to_extended(category);
 
     /* 复制数学定义（可选） */
     if (mathematical_definition) {
-        entry->mathematical_definition = lv00_strdup(mathematical_definition);
+        entry->mathematical_definition = lv_strdup(mathematical_definition);
     }
 
     /* 复制输入类型数组（可选） */
     if (input_types && input_count > 0) {
-        entry->input_types = lv00_malloc((size_t) input_count * sizeof(PresetType));
+        entry->input_types = lv_malloc((size_t) input_count * sizeof(PresetType));
         if (entry->input_types) {
             memcpy(entry->input_types, input_types, (size_t) input_count * sizeof(PresetType));
             entry->input_type_count = input_count;
@@ -977,7 +977,7 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
 
     /* 复制复杂度描述（可选） */
     if (complexity) {
-        entry->complexity = lv00_strdup(complexity);
+        entry->complexity = lv_strdup(complexity);
     }
 
     /* 设置构造性和可逆性标志 */
@@ -995,7 +995,7 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
     /* 验证关键字段分配成功 */
     if (!entry->name || !entry->description) {
         free_internal_preset_entry(entry);
-        LV00_LOG_WARNING("preset_blocks_register_simple: 内存分配失败 '%s'", name);
+        lv_LOG_WARNING("preset_blocks_register_simple: 内存分配失败 '%s'", name);
         PRESET_REGISTRY_UNLOCK();
         return false;
     }
@@ -1047,8 +1047,8 @@ static bool register_preset_internal(const char *name, const char *description, 
     InternalPresetEntry *entry = &g_preset_registry.entries[g_preset_registry.count];
     memset(entry, 0, sizeof(InternalPresetEntry));
 
-    entry->name = lv00_strdup(name);
-    entry->description = lv00_strdup(description);
+    entry->name = lv_strdup(name);
+    entry->description = lv_strdup(description);
     entry->category = category;
     entry->input_count = input_count;
     entry->output_count = output_count;
@@ -1149,7 +1149,7 @@ char *preset_blocks_generate_documentation(void) {
         }
     }
 
-    char *doc = lv00_malloc(total_size);
+    char *doc = lv_malloc(total_size);
     if (!doc) {
         PRESET_REGISTRY_UNLOCK();
         return NULL;
@@ -1161,7 +1161,7 @@ char *preset_blocks_generate_documentation(void) {
                            "本系统提供 %d 个预设函数块，涵盖以下数学领域：\n\n",
                            g_preset_registry.count);
     if (written < 0) {
-        lv00_free((void **) &doc);
+        lv_free((void **) &doc);
         PRESET_REGISTRY_UNLOCK();
         return NULL;
     }
@@ -1234,7 +1234,7 @@ char *preset_blocks_generate_single_doc(const char *name) {
     InternalPresetEntry *entry = &g_preset_registry.entries[idx];
     size_t size = 2048;
 
-    char *doc = lv00_malloc(size);
+    char *doc = lv_malloc(size);
     if (!doc) {
         PRESET_REGISTRY_UNLOCK();
         return NULL;

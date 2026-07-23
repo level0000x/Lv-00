@@ -1,4 +1,4 @@
-# Lv-00 项目性能优化升级报告
+﻿# Lv-00 项目性能优化升级报告
 
 **版本**: v1.1.0
 **日期**: 2026-05-25
@@ -21,7 +21,7 @@
 ### 2.1 多线程并发调度系统 (`thread_pool.h/c`)
 
 **新增文件**:
-- `include/lv00/thread_pool.h` - 线程池系统头文件
+- `include/lv/thread_pool.h` - 线程池系统头文件
 - `src/core/thread_pool.c` - 线程池系统实现
 
 **核心特性**:
@@ -39,19 +39,19 @@
 
 ```c
 // 创建线程池
-Lv00ThreadPool *pool = lv00_thread_pool_create(NULL);
+lvThreadPool *pool = lv_thread_pool_create(NULL);
 
 // 提交简单任务
-uint64_t task_id = lv00_thread_pool_submit_simple(pool, my_func, data, LV00_TASK_PRIORITY_NORMAL);
+uint64_t task_id = lv_thread_pool_submit_simple(pool, my_func, data, lv_TASK_PRIORITY_NORMAL);
 
 // 并行for循环
-lv00_thread_pool_parallel_for(pool, 0, 1000, 1, process_item, user_data);
+lv_thread_pool_parallel_for(pool, 0, 1000, 1, process_item, user_data);
 
 // 等待所有任务完成
-lv00_thread_pool_wait_all(pool, 0);
+lv_thread_pool_wait_all(pool, 0);
 
 // 销毁线程池
-lv00_thread_pool_destroy(pool, false);
+lv_thread_pool_destroy(pool, false);
 ```
 
 **性能预期**:
@@ -64,7 +64,7 @@ lv00_thread_pool_destroy(pool, false);
 ### 2.2 SIMD向量并行加速 (`simd_ops.h/c`)
 
 **新增文件**:
-- `include/lv00/simd_ops.h` - SIMD运算库头文件
+- `include/lv/simd_ops.h` - SIMD运算库头文件
 - `src/core/simd_ops.c` - SIMD运算库实现
 
 **支持平台**:
@@ -79,17 +79,17 @@ lv00_thread_pool_destroy(pool, false);
 
 ```c
 // 向量运算
-Lv00Vec4d a = lv00_vec4d_load(data);
-Lv00Vec4d b = lv00_vec4d_set1(2.0);
-Lv00Vec4d c = lv00_vec4d_mul(a, b);  // 并行乘法
+lvVec4d a = lv_vec4d_load(data);
+lvVec4d b = lv_vec4d_set1(2.0);
+lvVec4d c = lv_vec4d_mul(a, b);  // 并行乘法
 
 // 批量运算
-lv00_simd_add_array_d(arr1, arr2, out, count);  // 批量加法
-double sum = lv00_simd_sum_array_d(arr, count); // 批量求和
+lv_simd_add_array_d(arr1, arr2, out, count);  // 批量加法
+double sum = lv_simd_sum_array_d(arr, count); // 批量求和
 
 // 几何运算加速
-lv00_simd_distance_array(x1, y1, x2, y2, distances, count);  // 批量距离计算
-lv00_simd_cross2d_array(ax, ay, bx, by, crosses, count);     // 批量叉积
+lv_simd_distance_array(x1, y1, x2, y2, distances, count);  // 批量距离计算
+lv_simd_cross2d_array(ax, ay, bx, by, crosses, count);     // 批量叉积
 ```
 
 **性能预期**:
@@ -102,35 +102,35 @@ lv00_simd_cross2d_array(ax, ay, bx, by, crosses, count);     // 批量叉积
 ### 2.3 高效数据结构与索引 (`fast_index.h`)
 
 **新增文件**:
-- `include/lv00/fast_index.h` - 高效索引系统头文件
+- `include/lv/fast_index.h` - 高效索引系统头文件
 
 **数据结构**:
 
 | 结构 | 用途 | 时间复杂度 |
 |------|------|-----------|
-| Lv00HashTable | 通用键值存储 | O(1) 平均 |
-| Lv00BloomFilter | 快速存在性检测 | O(k) k=哈希数 |
-| Lv00SkipList | 有序数据快速查找 | O(log n) |
-| Lv00LRUCache | 热点数据缓存 | O(1) |
-| Lv00RTree | 空间索引（几何查询） | O(log n) |
+| lvHashTable | 通用键值存储 | O(1) 平均 |
+| lvBloomFilter | 快速存在性检测 | O(k) k=哈希数 |
+| lvSkipList | 有序数据快速查找 | O(log n) |
+| lvLRUCache | 热点数据缓存 | O(1) |
+| lvRTree | 空间索引（几何查询） | O(log n) |
 
 **使用示例**:
 
 ```c
 // 哈希表
-Lv00HashTable *ht = lv00_hash_create(64, true);
-lv00_hash_insert(ht, key, value);
-void *val = lv00_hash_find(ht, key);
+lvHashTable *ht = lv_hash_create(64, true);
+lv_hash_insert(ht, key, value);
+void *val = lv_hash_find(ht, key);
 
 // LRU缓存
-Lv00LRUCache *cache = lv00_lru_create(256, true);
-lv00_lru_put(cache, key, value);
-void *cached = lv00_lru_get(cache, key);
+lvLRUCache *cache = lv_lru_create(256, true);
+lv_lru_put(cache, key, value);
+void *cached = lv_lru_get(cache, key);
 
 // R树空间索引
-Lv00RTree *rtree = lv00_rtree_create(16, false);
-lv00_rtree_insert(rtree, &bbox, geometry_data);
-lv00_rtree_query(rtree, &query_bbox, callback, user_data);
+lvRTree *rtree = lv_rtree_create(16, false);
+lv_rtree_insert(rtree, &bbox, geometry_data);
+lv_rtree_query(rtree, &query_bbox, callback, user_data);
 ```
 
 ---
@@ -138,31 +138,31 @@ lv00_rtree_query(rtree, &query_bbox, callback, user_data);
 ### 2.4 性能基准测试框架 (`benchmark.h`)
 
 **新增文件**:
-- `include/lv00/benchmark.h` - 基准测试框架头文件
+- `include/lv/benchmark.h` - 基准测试框架头文件
 
 **核心功能**:
 
 ```c
 // 创建基准测试套件
-Lv00BenchSuite *suite = lv00_bench_suite_create("Core Benchmarks");
+lvBenchSuite *suite = lv_bench_suite_create("Core Benchmarks");
 
 // 添加测试用例
-Lv00BenchCase case_ = {
+lvBenchCase case_ = {
     .name = "symbolic_coord_create",
     .func = bench_coord_create,
     .min_iterations = 1000,
     .target_time_sec = 1.0
 };
-lv00_bench_suite_add(suite, &case_);
+lv_bench_suite_add(suite, &case_);
 
 // 运行测试
-lv00_bench_suite_run(suite);
+lv_bench_suite_run(suite);
 
 // 打印报告
-lv00_bench_suite_print_report(suite, stdout);
+lv_bench_suite_print_report(suite, stdout);
 
 // 导出JSON
-char *json = lv00_bench_suite_to_json(suite);
+char *json = lv_bench_suite_to_json(suite);
 ```
 
 **统计指标**:
@@ -179,10 +179,10 @@ char *json = lv00_bench_suite_to_json(suite);
 
 ```cmake
 # 新增头文件
-include/lv00/thread_pool.h
-include/lv00/simd_ops.h
-include/lv00/fast_index.h
-include/lv00/benchmark.h
+include/lv/thread_pool.h
+include/lv/simd_ops.h
+include/lv/fast_index.h
+include/lv/benchmark.h
 
 # 新增源文件
 src/core/thread_pool.c
@@ -190,7 +190,7 @@ src/core/simd_ops.c
 
 # 新增依赖
 find_package(Threads REQUIRED)
-target_link_libraries(lv00_static ${GMP_LIBRARIES} Threads::Threads)
+target_link_libraries(lv_static ${GMP_LIBRARIES} Threads::Threads)
 ```
 
 ### 3.2 编译选项建议
@@ -222,14 +222,14 @@ target_link_libraries(lv00_static ${GMP_LIBRARIES} Threads::Threads)
 
 ```c
 // 初始化全局线程池（程序启动时）
-lv00_init_global_thread_pool(NULL);
+lv_init_global_thread_pool(NULL);
 
 // 在热点代码中使用并行处理
-Lv00ThreadPool *pool = lv00_get_global_thread_pool();
-lv00_thread_pool_parallel_for(pool, 0, n, 1, process_item, data);
+lvThreadPool *pool = lv_get_global_thread_pool();
+lv_thread_pool_parallel_for(pool, 0, n, 1, process_item, data);
 
 // 清理（程序退出时）
-lv00_cleanup_global_thread_pool();
+lv_cleanup_global_thread_pool();
 ```
 
 ### 4.2 使用SIMD加速
@@ -237,8 +237,8 @@ lv00_cleanup_global_thread_pool();
 ```c
 // 批量坐标变换
 for (int i = 0; i < count; i += 4) {
-    Lv00Vec4d x = lv00_vec4d_load(&coords[i].x);
-    Lv00Vec4d y = lv00_vec4d_load(&coords[i].y);
+    lvVec4d x = lv_vec4d_load(&coords[i].x);
+    lvVec4d y = lv_vec4d_load(&coords[i].y);
     // ... SIMD处理
 }
 ```
@@ -247,13 +247,13 @@ for (int i = 0; i < count; i += 4) {
 
 ```c
 // 对频繁访问的符号坐标使用LRU缓存
-static Lv00LRUCache *coord_cache = NULL;
+static lvLRUCache *coord_cache = NULL;
 
 void *get_cached_coord(uint64_t id) {
-    void *cached = lv00_lru_get(coord_cache, id);
+    void *cached = lv_lru_get(coord_cache, id);
     if (cached) return cached;
     // ... 计算并缓存
-    lv00_lru_put(coord_cache, id, result);
+    lv_lru_put(coord_cache, id, result);
     return result;
 }
 ```
@@ -274,12 +274,12 @@ void *get_cached_coord(uint64_t id) {
 
 | 文件路径 | 说明 |
 |---------|------|
-| `include/lv00/thread_pool.h` | 线程池系统头文件 |
+| `include/lv/thread_pool.h` | 线程池系统头文件 |
 | `src/core/thread_pool.c` | 线程池系统实现 |
-| `include/lv00/simd_ops.h` | SIMD运算库头文件 |
+| `include/lv/simd_ops.h` | SIMD运算库头文件 |
 | `src/core/simd_ops.c` | SIMD运算库实现 |
-| `include/lv00/fast_index.h` | 高效索引系统头文件 |
-| `include/lv00/benchmark.h` | 基准测试框架头文件 |
+| `include/lv/fast_index.h` | 高效索引系统头文件 |
+| `include/lv/benchmark.h` | 基准测试框架头文件 |
 | `docs/PERFORMANCE_OPTIMIZATION.md` | 本文档 |
 
 ---

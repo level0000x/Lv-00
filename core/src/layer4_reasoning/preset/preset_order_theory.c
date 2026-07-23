@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_order_theory.c
  * @brief 序理论预设函数块模块 - 实现
  *
@@ -17,8 +17,8 @@
  * @author Lv-00 开发团队
  */
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "preset_order_theory.h"
 #include "preset_blocks.h"
 #include "preset_common.h"

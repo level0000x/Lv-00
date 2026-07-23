@@ -9,16 +9,16 @@
 #include <string.h>
 #include <limits.h>
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "func_block_utils.h"
 
 /* 前向声明：委托给 preset_common.c 中的主实现，避免循环依赖 */
-extern int* lv00_dup_int_array(const int *src, int count);
+extern int* lv_dup_int_array(const int *src, int count);
 
 /* ==================== 命名常量 ==================== */
 
-/* DEFAULT_DISTANCE_SQUARED 已统一定义在 lv00_internal.h 中 (LV00_DEFAULT_DISTANCE_SQUARED) */
+/* DEFAULT_DISTANCE_SQUARED 已统一定义在 lv_internal.h 中 (lv_DEFAULT_DISTANCE_SQUARED) */
 
 /* ================================================================
  * ID 存在性检查
@@ -50,10 +50,10 @@ bool is_id_in_array(int id, const int *arr, int count) {
  * ================================================================ */
 
 /**
- * @brief 深拷贝整数数组（委托给 lv00_dup_int_array）
+ * @brief 深拷贝整数数组（委托给 lv_dup_int_array）
  *
  * 此函数保留以维持向后兼容的公共 API。
- * 实际逻辑委托给 preset_common.c 中的 lv00_dup_int_array，
+ * 实际逻辑委托给 preset_common.c 中的 lv_dup_int_array，
  * 后者具有更完善的错误检查（含溢出检查和错误码设置）。
  *
  * @param src   源数组指针
@@ -61,7 +61,7 @@ bool is_id_in_array(int id, const int *arr, int count) {
  * @return 新分配的整数数组指针，失败返回 NULL
  */
 int *dup_int_array(const int *src, int count) {
-    return lv00_dup_int_array(src, count);
+    return lv_dup_int_array(src, count);
 }
 
 /* ================================================================
@@ -107,7 +107,7 @@ int *merge_int_arrays(const int *a, int a_count, const int *b, int b_count, int 
         return NULL;
     }
     /* 分配结果数组，调用者负责释放 */
-    int *result = lv00_malloc((size_t)(*out_count) * sizeof(int));
+    int *result = lv_malloc((size_t)(*out_count) * sizeof(int));
     if (!result) {
         *out_count = 0;
         return NULL;  /* 分配失败，无需释放 result */

@@ -1,5 +1,5 @@
-{
-  "$schema": "https://lv00.dev/schemas/package-manifest-v1.json",
+﻿{
+  "$schema": "https://lv.dev/schemas/package-manifest-v1.json",
 
   "========== REQUIRED FIELDS ==========": "以下字段为必填字段",
 

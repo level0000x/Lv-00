@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
  * 交互式类型等价探索器引擎实现
  *
  * 核心算法：BFS 双向搜索
@@ -17,8 +17,8 @@
  *
  * ============================================================================ */
 
-#include "lv00/type_equiv_explorer.h"
-#include "lv00/rewrite.h"
+#include "lv/type_equiv_explorer.h"
+#include "lv/rewrite.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -99,7 +99,7 @@ static bool apply_rule_to_type(TypeSystem *ts, TypeRegion *inout_type)
          */
         type_free(inout_type);
         *inout_type = *normalized;        /* 浅拷贝结构体字段（kind、constraint_graph 指针等） */
-        lv00_free(normalized);            /* 只释放壳，不释放其内部资源（已转移） */
+        lv_free(normalized);            /* 只释放壳，不释放其内部资源（已转移） */
     }
     return true;
 }
@@ -112,7 +112,7 @@ static bool apply_rule_to_type(TypeSystem *ts, TypeRegion *inout_type)
 static bool expand_queue(TypeEquivExplorer *explorer)
 {
     int new_cap = explorer->queue_capacity * 2;
-    TypeEquivNode **new_q = lv00_realloc(explorer->queue,
+    TypeEquivNode **new_q = lv_realloc(explorer->queue,
         (size_t)new_cap * sizeof(TypeEquivNode *));
     if (!new_q) return false;
     explorer->queue = new_q;
@@ -136,7 +136,7 @@ static TypeEquivNode *create_child_node(const TypeEquivNode *parent,
                                          int rule_idx,
                                          bool apply_to_left)
 {
-    TypeEquivNode *child = lv00_calloc(1, sizeof(TypeEquivNode));
+    TypeEquivNode *child = lv_calloc(1, sizeof(TypeEquivNode));
     if (!child) return NULL;
 
     child->left  = type_copy(parent->left);
@@ -144,7 +144,7 @@ static TypeEquivNode *create_child_node(const TypeEquivNode *parent,
     if (!child->left || !child->right) {
         type_free(child->left);
         type_free(child->right);
-        lv00_free(child);
+        lv_free(child);
         return NULL;
     }
 
@@ -167,7 +167,7 @@ static void free_search_node(TypeEquivNode *node)
     if (!node) return;
     type_free(node->left);
     type_free(node->right);
-    lv00_free(node);
+    lv_free(node);
 }
 
 /**
@@ -181,13 +181,13 @@ static void reconstruct_path(TypeEquivExplorer *explorer, int node_idx)
     int max_steps = explorer->queue[node_idx]->depth + 1;
 
     /* 分配回溯数组 */
-    int   *reverse_path  = lv00_malloc((size_t)max_steps * sizeof(int));
-    int   *reverse_side  = lv00_malloc((size_t)max_steps * sizeof(int));
-    char **reverse_names = lv00_malloc((size_t)max_steps * sizeof(char *));
+    int   *reverse_path  = lv_malloc((size_t)max_steps * sizeof(int));
+    int   *reverse_side  = lv_malloc((size_t)max_steps * sizeof(int));
+    char **reverse_names = lv_malloc((size_t)max_steps * sizeof(char *));
     if (!reverse_path || !reverse_side || !reverse_names) {
-        lv00_free(reverse_path);
-        lv00_free(reverse_side);
-        lv00_free(reverse_names);
+        lv_free(reverse_path);
+        lv_free(reverse_side);
+        lv_free(reverse_names);
         return;
     }
 
@@ -206,9 +206,9 @@ static void reconstruct_path(TypeEquivExplorer *explorer, int node_idx)
     /* 创建正向路径并依序记录步骤 */
     TypeRewritePath *path = type_rewrite_path_create();
     if (!path) {
-        lv00_free(reverse_path);
-        lv00_free(reverse_side);
-        lv00_free(reverse_names);
+        lv_free(reverse_path);
+        lv_free(reverse_side);
+        lv_free(reverse_names);
         return;
     }
 
@@ -221,9 +221,9 @@ static void reconstruct_path(TypeEquivExplorer *explorer, int node_idx)
     explorer->found_equivalence  = true;
     explorer->solution_node_index = node_idx;
 
-    lv00_free(reverse_path);
-    lv00_free(reverse_side);
-    lv00_free(reverse_names);
+    lv_free(reverse_path);
+    lv_free(reverse_side);
+    lv_free(reverse_names);
 }
 
 /* ============================================================================
@@ -236,7 +236,7 @@ TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts,
 {
     if (!ts || !left || !right) return NULL;
 
-    TypeEquivExplorer *exp = lv00_calloc(1, sizeof(TypeEquivExplorer));
+    TypeEquivExplorer *exp = lv_calloc(1, sizeof(TypeEquivExplorer));
     if (!exp) return NULL;
 
     exp->ts = ts;
@@ -245,17 +245,17 @@ TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts,
     if (!exp->left_original || !exp->right_original) {
         type_free(exp->left_original);
         type_free(exp->right_original);
-        lv00_free(exp);
+        lv_free(exp);
         return NULL;
     }
 
     /* 初始化搜索队列 */
     exp->queue_capacity = INITIAL_QUEUE_CAPACITY;
-    exp->queue = lv00_calloc((size_t)exp->queue_capacity, sizeof(TypeEquivNode *));
+    exp->queue = lv_calloc((size_t)exp->queue_capacity, sizeof(TypeEquivNode *));
     if (!exp->queue) {
         type_free(exp->left_original);
         type_free(exp->right_original);
-        lv00_free(exp);
+        lv_free(exp);
         return NULL;
     }
     exp->queue_head = 0;
@@ -269,7 +269,7 @@ TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts,
     exp->exhausted   = false;
 
     /* 创建搜索根节点并入队 */
-    TypeEquivNode *root = lv00_calloc(1, sizeof(TypeEquivNode));
+    TypeEquivNode *root = lv_calloc(1, sizeof(TypeEquivNode));
     if (!root) {
         type_equiv_explore_destroy(exp);
         return NULL;
@@ -380,10 +380,10 @@ void type_equiv_explore_destroy(TypeEquivExplorer *explorer)
         if (explorer->queue[i]) {
             type_free(explorer->queue[i]->left);
             type_free(explorer->queue[i]->right);
-            lv00_free(explorer->queue[i]);
+            lv_free(explorer->queue[i]);
         }
     }
-    lv00_free(explorer->queue);
+    lv_free(explorer->queue);
 
     /* 释放原始类型副本和证明路径 */
     type_free(explorer->left_original);
@@ -392,7 +392,7 @@ void type_equiv_explore_destroy(TypeEquivExplorer *explorer)
         type_rewrite_path_destroy(explorer->proved_path);
     }
 
-    lv00_free(explorer);
+    lv_free(explorer);
 }
 
 void type_equiv_explore_get_stats(const TypeEquivExplorer *explorer,

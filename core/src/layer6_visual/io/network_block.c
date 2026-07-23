@@ -1,5 +1,5 @@
-#include "lv00/io_blocks.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/io_blocks.h"
+#include "lv/lv_utils.h"
 #include <string.h>
 
 /* Internal state for network block URL and connection management */
@@ -8,50 +8,50 @@ typedef struct {
     bool connected;
 } NetworkBlockState;
 
-Lv00NetworkBlock *lv00_network_block_create(void) {
-    Lv00NetworkBlock *block = lv00_calloc(1, sizeof(Lv00NetworkBlock));
+lvNetworkBlock *lv_network_block_create(void) {
+    lvNetworkBlock *block = lv_calloc(1, sizeof(lvNetworkBlock));
     if (!block) return NULL;
-    block->effect = LV00_EFFECT_NETWORK;
+    block->effect = lv_EFFECT_NETWORK;
     block->url_port = -1;
     block->request_port = -1;
     block->response_port = -1;
     block->status_port = -1;
 
-    NetworkBlockState *state = lv00_calloc(1, sizeof(NetworkBlockState));
+    NetworkBlockState *state = lv_calloc(1, sizeof(NetworkBlockState));
     if (!state) {
-        lv00_free((void **)&block);
+        lv_free((void **)&block);
         return NULL;
     }
     block->base = state;
     return block;
 }
 
-void lv00_network_block_destroy(Lv00NetworkBlock *block) {
+void lv_network_block_destroy(lvNetworkBlock *block) {
     if (!block) return;
     if (block->base) {
         NetworkBlockState *state = (NetworkBlockState *)block->base;
-        lv00_free((void **)&state->url);
-        lv00_free((void **)&state);
+        lv_free((void **)&state->url);
+        lv_free((void **)&state);
     }
-    lv00_free((void **)&block);
+    lv_free((void **)&block);
 }
 
-int lv00_network_block_set_url(Lv00NetworkBlock *block, const char *url) {
+int lv_network_block_set_url(lvNetworkBlock *block, const char *url) {
     if (!block || !block->base || !url) return -1;
     NetworkBlockState *state = (NetworkBlockState *)block->base;
-    lv00_free((void **)&state->url);
-    state->url = lv00_strdup(url);
+    lv_free((void **)&state->url);
+    state->url = lv_strdup(url);
     if (!state->url) return -1;
     return 0;
 }
 
-const char *lv00_network_block_get_url(const Lv00NetworkBlock *block) {
+const char *lv_network_block_get_url(const lvNetworkBlock *block) {
     if (!block || !block->base) return NULL;
     NetworkBlockState *state = (NetworkBlockState *)block->base;
     return state->url;
 }
 
-int lv00_network_block_connect(Lv00NetworkBlock *block) {
+int lv_network_block_connect(lvNetworkBlock *block) {
     if (!block || !block->base) return -1;
     NetworkBlockState *state = (NetworkBlockState *)block->base;
     if (!state->url) return -1;
@@ -63,12 +63,12 @@ int lv00_network_block_connect(Lv00NetworkBlock *block) {
     }
 
     /* Mark connection as established; actual socket I/O
-       is deferred to the transport layer (lv00_protocol.h). */
+       is deferred to the transport layer (lv_protocol.h). */
     state->connected = true;
     return 0;
 }
 
-int lv00_network_block_send(Lv00NetworkBlock *block, const void *data,
+int lv_network_block_send(lvNetworkBlock *block, const void *data,
                             size_t data_size) {
     if (!block || !block->base || !data || data_size == 0) return -1;
     NetworkBlockState *state = (NetworkBlockState *)block->base;
@@ -81,7 +81,7 @@ int lv00_network_block_send(Lv00NetworkBlock *block, const void *data,
     return 0;
 }
 
-int lv00_network_block_receive(Lv00NetworkBlock *block, void *buf,
+int lv_network_block_receive(lvNetworkBlock *block, void *buf,
                                size_t buf_size, size_t *bytes_received) {
     if (!block || !block->base || !buf || buf_size == 0) return -1;
     NetworkBlockState *state = (NetworkBlockState *)block->base;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_constraint_solver.c
  * @brief 几何约束求解器实现 —— Newton-Raphson 迭代求解
  *
@@ -20,9 +20,9 @@
 #define _USE_MATH_DEFINES
 #endif
 
-#include "lv00/geo_constraint_solver.h"
-#include "lv00_utils.h"
-#include "lv00/config.h"
+#include "lv/geo_constraint_solver.h"
+#include "lv_utils.h"
+#include "lv/config.h"
 
 
 #include <math.h>
@@ -33,11 +33,11 @@
 #include <stdint.h>
 
 /* ========================================================================
- * LV00_PUBLIC_API 兼容处理
+ * lv_PUBLIC_API 兼容处理
  * ======================================================================== */
 
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
+#ifndef lv_PUBLIC_API
+#define lv_PUBLIC_API
 #endif
 
 /* ========================================================================
@@ -83,11 +83,11 @@ typedef struct {
 /**
  * @brief 扩展的求解器系统（包含哈希索引）
  */
-typedef struct Lv00SolverSystemEx {
-    Lv00SolverSystem base;      /**< 基础求解器系统 */
+typedef struct lvSolverSystemEx {
+    lvSolverSystem base;      /**< 基础求解器系统 */
     IdHashTable entity_hash;    /**< 实体 ID 哈希表 */
     IdHashTable constraint_hash; /**< 约束 ID 哈希表 */
-} Lv00SolverSystemEx;
+} lvSolverSystemEx;
 
 /* ========================================================================
  * 内部辅助函数声明
@@ -100,12 +100,12 @@ static int id_hash_find(const IdHashTable *table, int id);
 static bool id_hash_remove(IdHashTable *table, int id);
 
 /* 查找函数（优先使用哈希表） */
-static int find_entity_index_fast(const Lv00SolverSystemEx *sys_ex, int id);
-static int find_constraint_index_fast(const Lv00SolverSystemEx *sys_ex, int id);
-static double evaluate_constraint(const Lv00SolverSystem *sys,
-                                  const Lv00Constraint *c,
+static int find_entity_index_fast(const lvSolverSystemEx *sys_ex, int id);
+static int find_constraint_index_fast(const lvSolverSystemEx *sys_ex, int id);
+static double evaluate_constraint(const lvSolverSystem *sys,
+                                  const lvConstraint *c,
                                   double *error_val);
-static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
+static void build_jacobian_and_residual(const lvSolverSystem *sys,
                                         double *J, double *F,
                                         int nrows, int ncols,
                                         const int *param_map,
@@ -273,7 +273,7 @@ static bool id_hash_remove(IdHashTable *table, int id)
  * @param id 实体 ID
  * @return 索引（-1 表示未找到）
  */
-static int find_entity_index_fast(const Lv00SolverSystemEx *sys_ex, int id)
+static int find_entity_index_fast(const lvSolverSystemEx *sys_ex, int id)
 {
     if (sys_ex == NULL) return -1;
     return id_hash_find(&sys_ex->entity_hash, id);
@@ -285,7 +285,7 @@ static int find_entity_index_fast(const Lv00SolverSystemEx *sys_ex, int id)
  * @param id 约束 ID
  * @return 索引（-1 表示未找到）
  */
-static int find_constraint_index_fast(const Lv00SolverSystemEx *sys_ex, int id)
+static int find_constraint_index_fast(const lvSolverSystemEx *sys_ex, int id)
 {
     if (sys_ex == NULL) return -1;
     return id_hash_find(&sys_ex->constraint_hash, id);
@@ -306,15 +306,15 @@ static int find_constraint_index_fast(const Lv00SolverSystemEx *sys_ex, int id)
  *   - SEGMENT_2D: 4 (x1, y1, x2, y2)
  *   - ARC_2D: 5 (cx, cy, r, start_angle, sweep)
  */
-LV00_PUBLIC_API int lv00_entity_dof(Lv00EntityType type)
+lv_PUBLIC_API int lv_entity_dof(lvEntityType type)
 {
     switch (type) {
-    case LV00_ENTITY_POINT_2D:   return 2;
-    case LV00_ENTITY_POINT_3D:   return 3;
-    case LV00_ENTITY_LINE_2D:    return 4;
-    case LV00_ENTITY_CIRCLE_2D:  return 3;
-    case LV00_ENTITY_SEGMENT_2D: return 4;
-    case LV00_ENTITY_ARC_2D:     return 5;
+    case lv_ENTITY_POINT_2D:   return 2;
+    case lv_ENTITY_POINT_3D:   return 3;
+    case lv_ENTITY_LINE_2D:    return 4;
+    case lv_ENTITY_CIRCLE_2D:  return 3;
+    case lv_ENTITY_SEGMENT_2D: return 4;
+    case lv_ENTITY_ARC_2D:     return 5;
     default:                     return 0;
     }
 }
@@ -345,26 +345,26 @@ LV00_PUBLIC_API int lv00_entity_dof(Lv00EntityType type)
  *   - HORIZONTAL: 1
  *   - VERTICAL: 1
  */
-LV00_PUBLIC_API int lv00_constraint_dof(Lv00ConstraintType type)
+lv_PUBLIC_API int lv_constraint_dof(lvConstraintType type)
 {
     switch (type) {
-    case LV00_CONSTRAINT_POINTS_COINCIDENT: return 2;
-    case LV00_CONSTRAINT_PT_PT_DISTANCE:    return 1;
-    case LV00_CONSTRAINT_PT_ON_LINE:        return 1;
-    case LV00_CONSTRAINT_PT_LINE_DISTANCE:  return 1;
-    case LV00_CONSTRAINT_PT_ON_SEGMENT:     return 1;
-    case LV00_CONSTRAINT_PT_ON_CIRCLE:      return 1;
-    case LV00_CONSTRAINT_PT_PT_MIDPOINT:    return 2;
-    case LV00_CONSTRAINT_PARALLEL:          return 1;
-    case LV00_CONSTRAINT_PERPENDICULAR:     return 1;
-    case LV00_CONSTRAINT_ANGLE:             return 1;
-    case LV00_CONSTRAINT_EQUAL_LENGTH:      return 1;
-    case LV00_CONSTRAINT_EQUAL_RADIUS:      return 1;
-    case LV00_CONSTRAINT_CONCENTRIC:        return 2;
-    case LV00_CONSTRAINT_TANGENT:           return 1;
-    case LV00_CONSTRAINT_FIXED:             return -1; /* 特殊：消除全部自由度 */
-    case LV00_CONSTRAINT_HORIZONTAL:        return 1;
-    case LV00_CONSTRAINT_VERTICAL:          return 1;
+    case lv_CONSTRAINT_POINTS_COINCIDENT: return 2;
+    case lv_CONSTRAINT_PT_PT_DISTANCE:    return 1;
+    case lv_CONSTRAINT_PT_ON_LINE:        return 1;
+    case lv_CONSTRAINT_PT_LINE_DISTANCE:  return 1;
+    case lv_CONSTRAINT_PT_ON_SEGMENT:     return 1;
+    case lv_CONSTRAINT_PT_ON_CIRCLE:      return 1;
+    case lv_CONSTRAINT_PT_PT_MIDPOINT:    return 2;
+    case lv_CONSTRAINT_PARALLEL:          return 1;
+    case lv_CONSTRAINT_PERPENDICULAR:     return 1;
+    case lv_CONSTRAINT_ANGLE:             return 1;
+    case lv_CONSTRAINT_EQUAL_LENGTH:      return 1;
+    case lv_CONSTRAINT_EQUAL_RADIUS:      return 1;
+    case lv_CONSTRAINT_CONCENTRIC:        return 2;
+    case lv_CONSTRAINT_TANGENT:           return 1;
+    case lv_CONSTRAINT_FIXED:             return -1; /* 特殊：消除全部自由度 */
+    case lv_CONSTRAINT_HORIZONTAL:        return 1;
+    case lv_CONSTRAINT_VERTICAL:          return 1;
     default:                                return 0;
     }
 }
@@ -376,13 +376,13 @@ LV00_PUBLIC_API int lv00_constraint_dof(Lv00ConstraintType type)
 /**
  * @brief 获取默认求解器配置
  */
-LV00_PUBLIC_API Lv00SolverConfig lv00_solver_default_config(void)
+lv_PUBLIC_API lvSolverConfig lv_solver_default_config(void)
 {
-    Lv00SolverConfig cfg;
+    lvSolverConfig cfg;
     cfg.max_iterations  = 50;
-    cfg.convergence_tol = LV00_EPSILON_HIGH;
+    cfg.convergence_tol = lv_EPSILON_HIGH;
     cfg.damping_factor  = 0.8;
-    cfg.min_step        = LV00_EPSILON_SUPERTINY;
+    cfg.min_step        = lv_EPSILON_SUPERTINY;
     cfg.verbose         = false;
     return cfg;
 }
@@ -394,30 +394,30 @@ LV00_PUBLIC_API Lv00SolverConfig lv00_solver_default_config(void)
 /**
  * @brief 创建约束求解系统
  *
- * 内部分配 Lv00SolverSystemEx（包含哈希索引），返回其 base 字段指针。
- * 由于 Lv00SolverSystemEx 的第一个字段是 Lv00SolverSystem base，
- * 返回的指针可以安全地作为 Lv00SolverSystem* 使用（向后兼容）。
+ * 内部分配 lvSolverSystemEx（包含哈希索引），返回其 base 字段指针。
+ * 由于 lvSolverSystemEx 的第一个字段是 lvSolverSystem base，
+ * 返回的指针可以安全地作为 lvSolverSystem* 使用（向后兼容）。
  *
  * @param config 配置（NULL 使用默认配置）
  * @return 求解系统指针，失败返回 NULL
  */
-LV00_PUBLIC_API Lv00SolverSystem *lv00_solver_create(const Lv00SolverConfig *config)
+lv_PUBLIC_API lvSolverSystem *lv_solver_create(const lvSolverConfig *config)
 {
-    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)lv00_malloc(sizeof(Lv00SolverSystemEx));
+    lvSolverSystemEx *sys_ex = (lvSolverSystemEx *)lv_malloc(sizeof(lvSolverSystemEx));
     if (!sys_ex) return NULL;
 
-    Lv00SolverSystem *sys = &sys_ex->base;
+    lvSolverSystem *sys = &sys_ex->base;
 
-    sys->entities = (Lv00Entity *)lv00_malloc(INITIAL_CAPACITY * sizeof(Lv00Entity));
+    sys->entities = (lvEntity *)lv_malloc(INITIAL_CAPACITY * sizeof(lvEntity));
     if (!sys->entities) {
-        lv00_free((void **)&(sys_ex));
+        lv_free((void **)&(sys_ex));
         return NULL;
     }
 
-    sys->constraints = (Lv00Constraint *)lv00_malloc(INITIAL_CAPACITY * sizeof(Lv00Constraint));
+    sys->constraints = (lvConstraint *)lv_malloc(INITIAL_CAPACITY * sizeof(lvConstraint));
     if (!sys->constraints) {
-        lv00_free((void **)&(sys->entities));
-        lv00_free((void **)&(sys_ex));
+        lv_free((void **)&(sys->entities));
+        lv_free((void **)&(sys_ex));
         return NULL;
     }
 
@@ -429,10 +429,10 @@ LV00_PUBLIC_API Lv00SolverSystem *lv00_solver_create(const Lv00SolverConfig *con
     if (config) {
         sys->config = *config;
     } else {
-        sys->config = lv00_solver_default_config();
+        sys->config = lv_solver_default_config();
     }
 
-    sys->last_result      = LV00_SOLVE_OK;
+    sys->last_result      = lv_SOLVE_OK;
     sys->iteration_count  = 0;
 
     /* 初始化哈希索引表 */
@@ -445,17 +445,17 @@ LV00_PUBLIC_API Lv00SolverSystem *lv00_solver_create(const Lv00SolverConfig *con
 /**
  * @brief 释放约束求解系统
  *
- * 释放时将 Lv00SolverSystem* 转换回 Lv00SolverSystemEx*，
- * 以释放哈希索引资源。由于 create 分配的是 Lv00SolverSystemEx，
+ * 释放时将 lvSolverSystem* 转换回 lvSolverSystemEx*，
+ * 以释放哈希索引资源。由于 create 分配的是 lvSolverSystemEx，
  * 此处必须使用相同的指针进行释放。
  */
-LV00_PUBLIC_API void lv00_solver_destroy(Lv00SolverSystem *sys)
+lv_PUBLIC_API void lv_solver_destroy(lvSolverSystem *sys)
 {
     if (!sys) return;
-    lv00_free((void **)&(sys->entities));
-    lv00_free((void **)&(sys->constraints));
-    /* sys 实际指向 Lv00SolverSystemEx.base，直接 free 即可释放整个 Ex 结构体 */
-    lv00_free((void **)&(sys));
+    lv_free((void **)&(sys->entities));
+    lv_free((void **)&(sys->constraints));
+    /* sys 实际指向 lvSolverSystemEx.base，直接 free 即可释放整个 Ex 结构体 */
+    lv_free((void **)&(sys));
 }
 
 /* ========================================================================
@@ -466,7 +466,7 @@ LV00_PUBLIC_API void lv00_solver_destroy(Lv00SolverSystem *sys)
  * @brief 在实体数组中查找指定 ID 的索引
  * @return 索引（-1 表示未找到）
  */
-static int find_entity_index(const Lv00SolverSystem *sys, int id)
+static int find_entity_index(const lvSolverSystem *sys, int id)
 {
     for (int i = 0; i < sys->entity_count; i++) {
         if (sys->entities[i].id == id) return i;
@@ -481,7 +481,7 @@ static int find_entity_index(const Lv00SolverSystem *sys, int id)
  *
  * @return 新实体的 ID
  */
-LV00_PUBLIC_API int lv00_solver_add_entity(Lv00SolverSystem *sys, const Lv00Entity *entity)
+lv_PUBLIC_API int lv_solver_add_entity(lvSolverSystem *sys, const lvEntity *entity)
 {
     if (!sys || !entity) return -1;
 
@@ -491,7 +491,7 @@ LV00_PUBLIC_API int lv00_solver_add_entity(Lv00SolverSystem *sys, const Lv00Enti
     /* 扩容 */
     if (sys->entity_count >= sys->entity_capacity) {
         int new_cap = sys->entity_capacity * 2;
-        Lv00Entity *tmp = (Lv00Entity *)lv00_realloc(sys->entities, new_cap * sizeof(Lv00Entity));
+        lvEntity *tmp = (lvEntity *)lv_realloc(sys->entities, new_cap * sizeof(lvEntity));
         if (!tmp) return -1;
         sys->entities        = tmp;
         sys->entity_capacity = new_cap;
@@ -502,7 +502,7 @@ LV00_PUBLIC_API int lv00_solver_add_entity(Lv00SolverSystem *sys, const Lv00Enti
     sys->entity_count++;
 
     /* 同步插入哈希表 */
-    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+    lvSolverSystemEx *sys_ex = (lvSolverSystemEx *)sys;
     if (!id_hash_insert(&sys_ex->entity_hash, entity->id, new_index)) {
         /* 哈希表插入失败（已满或 ID 冲突），线性扫描 fallback 仍然有效 */
         /* 此处仅记录警告，不影响功能 */
@@ -518,12 +518,12 @@ LV00_PUBLIC_API int lv00_solver_add_entity(Lv00SolverSystem *sys, const Lv00Enti
  *
  * @return 实体指针（NULL 表示不存在）
  */
-LV00_PUBLIC_API Lv00Entity *lv00_solver_get_entity(Lv00SolverSystem *sys, int id)
+lv_PUBLIC_API lvEntity *lv_solver_get_entity(lvSolverSystem *sys, int id)
 {
     if (!sys) return NULL;
 
     /* 优先使用哈希表查找 */
-    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+    lvSolverSystemEx *sys_ex = (lvSolverSystemEx *)sys;
     int idx = find_entity_index_fast(sys_ex, id);
     if (idx >= 0 && idx < sys->entity_count && sys->entities[idx].id == id) {
         return &sys->entities[idx];
@@ -543,7 +543,7 @@ LV00_PUBLIC_API Lv00Entity *lv00_solver_get_entity(Lv00SolverSystem *sys, int id
  * @brief 在约束数组中查找指定 ID 的索引
  * @return 索引（-1 表示未找到）
  */
-static int find_constraint_index(const Lv00SolverSystem *sys, int id)
+static int find_constraint_index(const lvSolverSystem *sys, int id)
 {
     for (int i = 0; i < sys->constraint_count; i++) {
         if (sys->constraints[i].id == id) return i;
@@ -558,7 +558,7 @@ static int find_constraint_index(const Lv00SolverSystem *sys, int id)
  *
  * @return 新约束的 ID
  */
-LV00_PUBLIC_API int lv00_solver_add_constraint(Lv00SolverSystem *sys, const Lv00Constraint *c)
+lv_PUBLIC_API int lv_solver_add_constraint(lvSolverSystem *sys, const lvConstraint *c)
 {
     if (!sys || !c) return -1;
 
@@ -568,8 +568,8 @@ LV00_PUBLIC_API int lv00_solver_add_constraint(Lv00SolverSystem *sys, const Lv00
     /* 扩容 */
     if (sys->constraint_count >= sys->constraint_capacity) {
         int new_cap = sys->constraint_capacity * 2;
-        Lv00Constraint *tmp = (Lv00Constraint *)lv00_realloc(
-            sys->constraints, new_cap * sizeof(Lv00Constraint));
+        lvConstraint *tmp = (lvConstraint *)lv_realloc(
+            sys->constraints, new_cap * sizeof(lvConstraint));
         if (!tmp) return -1;
         sys->constraints        = tmp;
         sys->constraint_capacity = new_cap;
@@ -580,15 +580,15 @@ LV00_PUBLIC_API int lv00_solver_add_constraint(Lv00SolverSystem *sys, const Lv00
     sys->constraint_count++;
 
     /* 同步插入哈希表 */
-    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+    lvSolverSystemEx *sys_ex = (lvSolverSystemEx *)sys;
     if (!id_hash_insert(&sys_ex->constraint_hash, c->id, new_index)) {
         /* 哈希表插入失败（已满或 ID 冲突），线性扫描 fallback 仍然有效 */
         /* 此处仅记录警告，不影响功能 */
     }
 
     /* FIXED 约束：自动标记目标实体为固定 */
-    if (c->type == LV00_CONSTRAINT_FIXED && c->entity_a >= 0) {
-        Lv00Entity *entity = lv00_solver_get_entity(sys, c->entity_a);
+    if (c->type == lv_CONSTRAINT_FIXED && c->entity_a >= 0) {
+        lvEntity *entity = lv_solver_get_entity(sys, c->entity_a);
         if (entity) {
             entity->is_fixed = true;
             memcpy(entity->initial_params, entity->params,
@@ -604,12 +604,12 @@ LV00_PUBLIC_API int lv00_solver_add_constraint(Lv00SolverSystem *sys, const Lv00
  *
  * 优先使用哈希表 O(1) 查找，找不到时 fallback 到线性扫描。
  */
-LV00_PUBLIC_API Lv00Constraint *lv00_solver_get_constraint(Lv00SolverSystem *sys, int id)
+lv_PUBLIC_API lvConstraint *lv_solver_get_constraint(lvSolverSystem *sys, int id)
 {
     if (!sys) return NULL;
 
     /* 优先使用哈希表查找 */
-    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+    lvSolverSystemEx *sys_ex = (lvSolverSystemEx *)sys;
     int idx = find_constraint_index_fast(sys_ex, id);
     if (idx >= 0 && idx < sys->constraint_count && sys->constraints[idx].id == id) {
         return &sys->constraints[idx];
@@ -627,13 +627,13 @@ LV00_PUBLIC_API Lv00Constraint *lv00_solver_get_constraint(Lv00SolverSystem *sys
  * 使用 swap-and-pop 策略删除约束，同时更新哈希表中
  * 被移动元素的索引映射。
  */
-LV00_PUBLIC_API bool lv00_solver_remove_constraint(Lv00SolverSystem *sys, int id)
+lv_PUBLIC_API bool lv_solver_remove_constraint(lvSolverSystem *sys, int id)
 {
     if (!sys) return false;
     int idx = find_constraint_index(sys, id);
     if (idx < 0) return false;
 
-    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+    lvSolverSystemEx *sys_ex = (lvSolverSystemEx *)sys;
 
     /* 如果被删除的不是最后一个元素，需要更新被移动元素的哈希索引 */
     int last_index = sys->constraint_count - 1;
@@ -668,8 +668,8 @@ LV00_PUBLIC_API bool lv00_solver_remove_constraint(Lv00SolverSystem *sys, int id
  * @param error_val  输出残差值（NULL 表示不输出）
  * @return 残差数量（1 或 2）
  */
-static double evaluate_constraint(const Lv00SolverSystem *sys,
-                                  const Lv00Constraint *c,
+static double evaluate_constraint(const lvSolverSystem *sys,
+                                  const lvConstraint *c,
                                   double *error_val)
 {
     double err = 0.0;
@@ -677,9 +677,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     switch (c->type) {
 
     /* ---- 两点重合 ---- */
-    case LV00_CONSTRAINT_POINTS_COINCIDENT: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_POINTS_COINCIDENT: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 2; }
         double dx = ea->params[0] - eb->params[0];
         double dy = ea->params[1] - eb->params[1];
@@ -690,9 +690,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 点点距离 ---- */
-    case LV00_CONSTRAINT_PT_PT_DISTANCE: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_PT_PT_DISTANCE: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         double dx = ea->params[0] - eb->params[0];
         double dy = ea->params[1] - eb->params[1];
@@ -703,9 +703,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 点在直线上 ---- */
-    case LV00_CONSTRAINT_PT_ON_LINE: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_PT_ON_LINE: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         /* 点 (px, py) 到直线 (ax,ay)-(bx,by) 的距离 */
         double px = ea->params[0], py = ea->params[1];
@@ -713,23 +713,23 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
         double bx = eb->params[2], by = eb->params[3];
         double ldx = bx - ax, ldy = by - ay;
         double len = sqrt(ldx * ldx + ldy * ldy);
-        if (len < LV00_EPSILON_SUPERTINY) { if (error_val) *error_val = 0.0; return 1; }
+        if (len < lv_EPSILON_SUPERTINY) { if (error_val) *error_val = 0.0; return 1; }
         err = ((px - ax) * ldy - (py - ay) * ldx) / len;
         if (error_val) *error_val = err;
         return 1;
     }
 
     /* ---- 点线距离 ---- */
-    case LV00_CONSTRAINT_PT_LINE_DISTANCE: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_PT_LINE_DISTANCE: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         double px = ea->params[0], py = ea->params[1];
         double ax = eb->params[0], ay = eb->params[1];
         double bx = eb->params[2], by = eb->params[3];
         double ldx = bx - ax, ldy = by - ay;
         double len = sqrt(ldx * ldx + ldy * ldy);
-        if (len < LV00_EPSILON_SUPERTINY) { if (error_val) *error_val = 0.0; return 1; }
+        if (len < lv_EPSILON_SUPERTINY) { if (error_val) *error_val = 0.0; return 1; }
         double dist = fabs(((px - ax) * ldy - (py - ay) * ldx) / len);
         err = dist - c->value;
         if (error_val) *error_val = err;
@@ -737,9 +737,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 点在线段上 ---- */
-    case LV00_CONSTRAINT_PT_ON_SEGMENT: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_PT_ON_SEGMENT: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         double px = ea->params[0], py = ea->params[1];
         double x1 = eb->params[0], y1 = eb->params[1];
@@ -755,9 +755,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 点在圆上 ---- */
-    case LV00_CONSTRAINT_PT_ON_CIRCLE: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_PT_ON_CIRCLE: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         double dx = ea->params[0] - eb->params[0];
         double dy = ea->params[1] - eb->params[1];
@@ -768,10 +768,10 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 第三点为前两点中点 ---- */
-    case LV00_CONSTRAINT_PT_PT_MIDPOINT: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
-        Lv00Entity *ec = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_c);
+    case lv_CONSTRAINT_PT_PT_MIDPOINT: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
+        lvEntity *ec = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_c);
         if (!ea || !eb || !ec) { if (error_val) *error_val = 0.0; return 2; }
         /* ec 应为 ea 和 eb 的中点 */
         double mx = (ea->params[0] + eb->params[0]) * 0.5;
@@ -783,9 +783,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 两线平行 ---- */
-    case LV00_CONSTRAINT_PARALLEL: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_PARALLEL: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         double dax = ea->params[2] - ea->params[0];
         double day = ea->params[3] - ea->params[1];
@@ -798,9 +798,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 两线垂直 ---- */
-    case LV00_CONSTRAINT_PERPENDICULAR: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_PERPENDICULAR: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         double dax = ea->params[2] - ea->params[0];
         double day = ea->params[3] - ea->params[1];
@@ -813,9 +813,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 两线角度 ---- */
-    case LV00_CONSTRAINT_ANGLE: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_ANGLE: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         double dax = ea->params[2] - ea->params[0];
         double day = ea->params[3] - ea->params[1];
@@ -833,9 +833,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 两线段等长 ---- */
-    case LV00_CONSTRAINT_EQUAL_LENGTH: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_EQUAL_LENGTH: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         double dax = ea->params[2] - ea->params[0];
         double day = ea->params[3] - ea->params[1];
@@ -849,9 +849,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 两圆等半径 ---- */
-    case LV00_CONSTRAINT_EQUAL_RADIUS: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_EQUAL_RADIUS: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         err = ea->params[2] - eb->params[2];
         if (error_val) *error_val = err;
@@ -859,9 +859,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 两圆同心 ---- */
-    case LV00_CONSTRAINT_CONCENTRIC: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_CONCENTRIC: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 2; }
         double dx = ea->params[0] - eb->params[0];
         double dy = ea->params[1] - eb->params[1];
@@ -871,9 +871,9 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 线与圆相切 ---- */
-    case LV00_CONSTRAINT_TANGENT: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-        Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+    case lv_CONSTRAINT_TANGENT: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+        lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
         if (!ea || !eb) { if (error_val) *error_val = 0.0; return 1; }
         /* 线 (ax,ay)-(bx,by) 到圆心 (cx,cy) 的距离应等于半径 r */
         double ax = ea->params[0], ay = ea->params[1];
@@ -882,7 +882,7 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
         double r  = eb->params[2];
         double ldx = bx - ax, ldy = by - ay;
         double len = sqrt(ldx * ldx + ldy * ldy);
-        if (len < LV00_EPSILON_SUPERTINY) { if (error_val) *error_val = 0.0; return 1; }
+        if (len < lv_EPSILON_SUPERTINY) { if (error_val) *error_val = 0.0; return 1; }
         double dist = fabs(((cx - ax) * ldy - (cy - ay) * ldx) / len);
         err = dist - r;
         if (error_val) *error_val = err;
@@ -890,14 +890,14 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 固定实体 ---- */
-    case LV00_CONSTRAINT_FIXED: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
+    case lv_CONSTRAINT_FIXED: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
         if (!ea) { if (error_val) *error_val = 0.0; return ea ? ea->param_count : 0; }
         /* value 存储初始位置（在添加约束时由用户设置） */
         /* 这里使用 params[0..param_count-1] 与 value 的差 */
         /* FIXED 约束：将实体固定在初始位置，value 存储第一个初始参数 */
         /* 实际实现：残差为各参数与初始值的偏差 */
-        int dof = lv00_entity_dof(ea->type);
+        int dof = lv_entity_dof(ea->type);
         double sum = 0.0;
         for (int i = 0; i < dof && i < ea->param_count; i++) {
             /* 初始值存储在约束的 value 中（简化：只存第一个参数） */
@@ -912,8 +912,8 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 线段水平 ---- */
-    case LV00_CONSTRAINT_HORIZONTAL: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
+    case lv_CONSTRAINT_HORIZONTAL: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
         if (!ea) { if (error_val) *error_val = 0.0; return 1; }
         /* y1 == y2 */
         err = ea->params[1] - ea->params[3];
@@ -922,8 +922,8 @@ static double evaluate_constraint(const Lv00SolverSystem *sys,
     }
 
     /* ---- 线段垂直 ---- */
-    case LV00_CONSTRAINT_VERTICAL: {
-        Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
+    case lv_CONSTRAINT_VERTICAL: {
+        lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
         if (!ea) { if (error_val) *error_val = 0.0; return 1; }
         /* x1 == x2 */
         err = ea->params[0] - ea->params[2];
@@ -1041,7 +1041,7 @@ static double vec_norm(const double *v, int n)
  * @param free_entities 自由实体索引数组
  * @param free_count    自由实体数量
  */
-static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
+static void build_jacobian_and_residual(const lvSolverSystem *sys,
                                         double *J, double *F,
                                         int nrows, int ncols,
                                         const int *param_map,
@@ -1052,17 +1052,17 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
 
     /* 计算残差向量 F */
     for (int ci = 0; ci < sys->constraint_count; ci++) {
-        const Lv00Constraint *c = &sys->constraints[ci];
+        const lvConstraint *c = &sys->constraints[ci];
         if (!c->is_active) continue;
-        if (c->type == LV00_CONSTRAINT_FIXED) continue;  /* FIXED 实体已通过 is_fixed 排除 */
+        if (c->type == lv_CONSTRAINT_FIXED) continue;  /* FIXED 实体已通过 is_fixed 排除 */
 
         int n_eq = evaluate_constraint(sys, c, NULL);
 
         /* 对于多方程约束（如 COINCIDENT 返回 2），分别计算 */
         if (n_eq == 2) {
             /* 第一个方程：x 方向 */
-            Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-            Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
             if (ea && eb) {
                 F[row] = ea->params[0] - eb->params[0];
                 row++;
@@ -1092,7 +1092,7 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
 
         for (int fi = 0; fi < free_count; fi++) {
             int ei = free_entities[fi];
-            const Lv00Entity *e = &sys->entities[ei];
+            const lvEntity *e = &sys->entities[ei];
             int dof = e->param_count;
             if (global_param >= accumulated && global_param < accumulated + dof) {
                 ent_idx = ei;
@@ -1109,14 +1109,14 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
         sys->entities[ent_idx].params[param_offset] = orig + eps;
 
         row = 0;
-        double *F_plus = (double *)lv00_malloc(nrows * sizeof(double));
+        double *F_plus = (double *)lv_malloc(nrows * sizeof(double));
         for (int ci = 0; ci < sys->constraint_count; ci++) {
-            const Lv00Constraint *c = &sys->constraints[ci];
+            const lvConstraint *c = &sys->constraints[ci];
             if (!c->is_active) continue;
             int n_eq = evaluate_constraint(sys, c, NULL);
             if (n_eq == 2) {
-                Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-                Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+                lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+                lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
                 if (ea && eb) {
                     F_plus[row] = ea->params[0] - eb->params[0]; row++;
                     F_plus[row] = ea->params[1] - eb->params[1]; row++;
@@ -1135,14 +1135,14 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
         sys->entities[ent_idx].params[param_offset] = orig - eps;
 
         row = 0;
-        double *F_minus = (double *)lv00_malloc(nrows * sizeof(double));
+        double *F_minus = (double *)lv_malloc(nrows * sizeof(double));
         for (int ci = 0; ci < sys->constraint_count; ci++) {
-            const Lv00Constraint *c = &sys->constraints[ci];
+            const lvConstraint *c = &sys->constraints[ci];
             if (!c->is_active) continue;
             int n_eq = evaluate_constraint(sys, c, NULL);
             if (n_eq == 2) {
-                Lv00Entity *ea = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_a);
-                Lv00Entity *eb = lv00_solver_get_entity((Lv00SolverSystem *)sys, c->entity_b);
+                lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
+                lvEntity *eb = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_b);
                 if (ea && eb) {
                     F_minus[row] = ea->params[0] - eb->params[0]; row++;
                     F_minus[row] = ea->params[1] - eb->params[1]; row++;
@@ -1165,8 +1165,8 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
             J[i * ncols + j] = (F_plus[i] - F_minus[i]) / (2.0 * eps);
         }
 
-        lv00_free((void **)&(F_plus));
-        lv00_free((void **)&(F_minus));
+        lv_free((void **)&(F_plus));
+        lv_free((void **)&(F_minus));
     }
 }
 
@@ -1183,9 +1183,9 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
  *
  * @return 求解结果
  */
-LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
+lv_PUBLIC_API lvSolveResult lv_solver_solve(lvSolverSystem *sys)
 {
-    if (!sys) return LV00_SOLVE_FAILED;
+    if (!sys) return lv_SOLVE_FAILED;
 
     sys->iteration_count = 0;
 
@@ -1204,40 +1204,40 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
     }
 
     if (total_params == 0) {
-        sys->last_result = LV00_SOLVE_OK;
-        return LV00_SOLVE_OK;
+        sys->last_result = lv_SOLVE_OK;
+        return lv_SOLVE_OK;
     }
 
     /* 统计约束方程数量 */
     int nrows = 0;
     for (int ci = 0; ci < sys->constraint_count; ci++) {
-        const Lv00Constraint *c = &sys->constraints[ci];
+        const lvConstraint *c = &sys->constraints[ci];
         if (!c->is_active) continue;
         nrows += evaluate_constraint(sys, c, NULL);
     }
 
     if (nrows == 0) {
-        sys->last_result = LV00_SOLVE_OK;
-        return LV00_SOLVE_OK;
+        sys->last_result = lv_SOLVE_OK;
+        return lv_SOLVE_OK;
     }
 
     int ncols = total_params;
 
     /* 分配工作内存 */
-    double *J     = (double *)lv00_calloc(nrows * ncols, sizeof(double));
-    double *F     = (double *)lv00_calloc(nrows, sizeof(double));
-    double *delta = (double *)lv00_calloc(ncols > nrows ? ncols : nrows, sizeof(double));
-    double *rhs   = (double *)lv00_calloc(nrows, sizeof(double));
-    double *J_copy = (double *)lv00_calloc(nrows * ncols, sizeof(double));
+    double *J     = (double *)lv_calloc(nrows * ncols, sizeof(double));
+    double *F     = (double *)lv_calloc(nrows, sizeof(double));
+    double *delta = (double *)lv_calloc(ncols > nrows ? ncols : nrows, sizeof(double));
+    double *rhs   = (double *)lv_calloc(nrows, sizeof(double));
+    double *J_copy = (double *)lv_calloc(nrows * ncols, sizeof(double));
 
     if (!J || !F || !delta || !rhs || !J_copy) {
-        lv00_free((void **)&(J)); lv00_free((void **)&(F)); lv00_free((void **)&(delta)); lv00_free((void **)&(rhs)); lv00_free((void **)&(J_copy));
-        sys->last_result = LV00_SOLVE_FAILED;
-        return LV00_SOLVE_FAILED;
+        lv_free((void **)&(J)); lv_free((void **)&(F)); lv_free((void **)&(delta)); lv_free((void **)&(rhs)); lv_free((void **)&(J_copy));
+        sys->last_result = lv_SOLVE_FAILED;
+        return lv_SOLVE_FAILED;
     }
 
     /* 构建参数映射表 */
-    int *param_map = (int *)lv00_calloc(ncols, sizeof(int));
+    int *param_map = (int *)lv_calloc(ncols, sizeof(int));
     int acc = 0;
     for (int fi = 0; fi < free_count; fi++) {
         int ei = free_entities[fi];
@@ -1249,7 +1249,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
         }
     }
 
-    Lv00SolveResult result = LV00_SOLVE_NOT_CONVERGED;
+    lvSolveResult result = lv_SOLVE_NOT_CONVERGED;
     double damping = sys->config.damping_factor;
 
     for (int iter = 0; iter < sys->config.max_iterations; iter++) {
@@ -1266,7 +1266,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
         }
 
         if (norm_F < sys->config.convergence_tol) {
-            result = LV00_SOLVE_OK;
+            result = lv_SOLVE_OK;
             break;
         }
 
@@ -1277,11 +1277,11 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
         if (nrows > ncols) {
             /* 超定系统：使用 J^T * J * delta = -J^T * F（正规方程） */
             /* J^T * J (ncols x ncols) */
-            double *JtJ = (double *)lv00_calloc(ncols * ncols, sizeof(double));
-            double *JtF = (double *)lv00_calloc(ncols, sizeof(double));
+            double *JtJ = (double *)lv_calloc(ncols * ncols, sizeof(double));
+            double *JtF = (double *)lv_calloc(ncols, sizeof(double));
             if (!JtJ || !JtF) {
-                lv00_free((void **)&(JtJ)); lv00_free((void **)&(JtF));
-                result = LV00_SOLVE_FAILED;
+                lv_free((void **)&(JtJ)); lv_free((void **)&(JtF));
+                result = lv_SOLVE_FAILED;
                 break;
             }
 
@@ -1304,11 +1304,11 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
             memcpy(delta, JtF, ncols * sizeof(double));
 
             int ret = gauss_eliminate(J_copy, delta, ncols);
-            lv00_free((void **)&(JtJ));
-            lv00_free((void **)&(JtF));
+            lv_free((void **)&(JtJ));
+            lv_free((void **)&(JtF));
 
             if (ret != 0) {
-                result = LV00_SOLVE_INCONSISTENT;
+                result = lv_SOLVE_INCONSISTENT;
                 break;
             }
 
@@ -1333,7 +1333,7 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
 
             int ret = gauss_eliminate(J_copy, rhs, solve_n);
             if (ret != 0) {
-                result = LV00_SOLVE_INCONSISTENT;
+                result = lv_SOLVE_INCONSISTENT;
                 break;
             }
 
@@ -1352,11 +1352,11 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
         } else {
             /* 欠定系统： nrows < ncols，使用最小范数解 */
             /* J * delta = -F，取 delta = J^T * (J * J^T)^{-1} * (-F) */
-            double *JJt = (double *)lv00_calloc(nrows * nrows, sizeof(double));
-            double *neg_F = (double *)lv00_calloc(nrows, sizeof(double));
+            double *JJt = (double *)lv_calloc(nrows * nrows, sizeof(double));
+            double *neg_F = (double *)lv_calloc(nrows, sizeof(double));
             if (!JJt || !neg_F) {
-                lv00_free((void **)&(JJt)); lv00_free((void **)&(neg_F));
-                result = LV00_SOLVE_FAILED;
+                lv_free((void **)&(JJt)); lv_free((void **)&(neg_F));
+                result = lv_SOLVE_FAILED;
                 break;
             }
 
@@ -1373,8 +1373,8 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
 
             int ret = gauss_eliminate(JJt, neg_F, nrows);
             if (ret != 0) {
-                lv00_free((void **)&(JJt)); lv00_free((void **)&(neg_F));
-                result = LV00_SOLVE_FAILED;
+                lv_free((void **)&(JJt)); lv_free((void **)&(neg_F));
+                result = lv_SOLVE_FAILED;
                 break;
             }
 
@@ -1388,8 +1388,8 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
                 delta[i] = sum;
             }
 
-            lv00_free((void **)&(JJt));
-            lv00_free((void **)&(neg_F));
+            lv_free((void **)&(JJt));
+            lv_free((void **)&(neg_F));
 
             /* 更新参数 */
             int pidx = 0;
@@ -1406,12 +1406,12 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
     }
 
     /* 清理 */
-    lv00_free((void **)&(J));
-    lv00_free((void **)&(F));
-    lv00_free((void **)&(delta));
-    lv00_free((void **)&(rhs));
-    lv00_free((void **)&(J_copy));
-    lv00_free((void **)&(param_map));
+    lv_free((void **)&(J));
+    lv_free((void **)&(F));
+    lv_free((void **)&(delta));
+    lv_free((void **)&(rhs));
+    lv_free((void **)&(J_copy));
+    lv_free((void **)&(param_map));
 
     sys->last_result = result;
     return result;
@@ -1427,13 +1427,13 @@ LV00_PUBLIC_API Lv00SolveResult lv00_solver_solve(Lv00SolverSystem *sys)
  * 统计所有实体的自由度之和，减去约束消耗的自由度。
  * FIXED 约束特殊处理：消除对应实体的全部自由度。
  *
- * @return DOF 分析结果（需用 lv00_dof_analysis_destroy 释放）
+ * @return DOF 分析结果（需用 lv_dof_analysis_destroy 释放）
  */
-LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem *sys)
+lv_PUBLIC_API lvDOFAnalysis *lv_solver_dof_analyze(const lvSolverSystem *sys)
 {
     if (!sys) return NULL;
 
-    Lv00DOFAnalysis *analysis = (Lv00DOFAnalysis *)lv00_calloc(1, sizeof(Lv00DOFAnalysis));
+    lvDOFAnalysis *analysis = (lvDOFAnalysis *)lv_calloc(1, sizeof(lvDOFAnalysis));
     if (!analysis) return NULL;
 
     /* 统计总自由度 */
@@ -1441,21 +1441,21 @@ LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem 
     int fixed_count = 0;
 
     for (int i = 0; i < sys->entity_count; i++) {
-        const Lv00Entity *e = &sys->entities[i];
+        const lvEntity *e = &sys->entities[i];
         if (e->is_fixed) {
             fixed_count++;
         } else {
-            total_dof += lv00_entity_dof(e->type);
+            total_dof += lv_entity_dof(e->type);
         }
     }
 
     /* 统计约束消耗的自由度 */
     int constraint_dof = 0;
     for (int i = 0; i < sys->constraint_count; i++) {
-        const Lv00Constraint *c = &sys->constraints[i];
+        const lvConstraint *c = &sys->constraints[i];
         if (!c->is_active) continue;
 
-        int cdof = lv00_constraint_dof(c->type);
+        int cdof = lv_constraint_dof(c->type);
         if (cdof == -1) {
             /* FIXED 约束：目标实体的 DOF 已通过 is_fixed 在 total_dof 中排除，跳过 */
             continue;
@@ -1471,7 +1471,7 @@ LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem 
 
     /* 确定自由实体 */
     int free_cap = sys->entity_count;
-    analysis->free_entity_ids = (int *)lv00_malloc(free_cap * sizeof(int));
+    analysis->free_entity_ids = (int *)lv_malloc(free_cap * sizeof(int));
     analysis->free_entity_count = 0;
 
     if (analysis->free_entity_ids) {
@@ -1486,11 +1486,11 @@ LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem 
 
     /* 确定系统状态 */
     if (analysis->remaining_dof > 0) {
-        analysis->status = LV00_SYSTEM_UNDER_CONSTRAINED;
+        analysis->status = lv_SYSTEM_UNDER_CONSTRAINED;
     } else if (analysis->remaining_dof == 0) {
-        analysis->status = LV00_SYSTEM_WELL_CONSTRAINED;
+        analysis->status = lv_SYSTEM_WELL_CONSTRAINED;
     } else {
-        analysis->status = LV00_SYSTEM_OVER_CONSTRAINED;
+        analysis->status = lv_SYSTEM_OVER_CONSTRAINED;
     }
 
     return analysis;
@@ -1499,11 +1499,11 @@ LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem 
 /**
  * @brief 释放 DOF 分析结果
  */
-LV00_PUBLIC_API void lv00_dof_analysis_destroy(Lv00DOFAnalysis *analysis)
+lv_PUBLIC_API void lv_dof_analysis_destroy(lvDOFAnalysis *analysis)
 {
     if (!analysis) return;
-    lv00_free((void **)&(analysis->free_entity_ids));
-    lv00_free((void **)&(analysis));
+    lv_free((void **)&(analysis->free_entity_ids));
+    lv_free((void **)&(analysis));
 }
 
 /* ========================================================================
@@ -1513,22 +1513,22 @@ LV00_PUBLIC_API void lv00_dof_analysis_destroy(Lv00DOFAnalysis *analysis)
 /**
  * @brief 获取系统约束状态
  */
-LV00_PUBLIC_API Lv00SystemStatus lv00_solver_get_status(const Lv00SolverSystem *sys)
+lv_PUBLIC_API lvSystemStatus lv_solver_get_status(const lvSolverSystem *sys)
 {
-    if (!sys) return LV00_SYSTEM_UNDER_CONSTRAINED;
+    if (!sys) return lv_SYSTEM_UNDER_CONSTRAINED;
 
-    Lv00DOFAnalysis *analysis = lv00_solver_dof_analyze(sys);
-    if (!analysis) return LV00_SYSTEM_UNDER_CONSTRAINED;
+    lvDOFAnalysis *analysis = lv_solver_dof_analyze(sys);
+    if (!analysis) return lv_SYSTEM_UNDER_CONSTRAINED;
 
-    Lv00SystemStatus status = analysis->status;
-    lv00_dof_analysis_destroy(analysis);
+    lvSystemStatus status = analysis->status;
+    lv_dof_analysis_destroy(analysis);
     return status;
 }
 
 /**
  * @brief 获取上次求解的迭代次数
  */
-LV00_PUBLIC_API int lv00_solver_get_iteration_count(const Lv00SolverSystem *sys)
+lv_PUBLIC_API int lv_solver_get_iteration_count(const lvSolverSystem *sys)
 {
     if (!sys) return 0;
     return sys->iteration_count;
@@ -1543,10 +1543,10 @@ LV00_PUBLIC_API int lv00_solver_get_iteration_count(const Lv00SolverSystem *sys)
  *
  * 固定实体不参与求解，其参数保持不变。
  */
-LV00_PUBLIC_API void lv00_solver_set_fixed(Lv00SolverSystem *sys, int entity_id, bool fixed)
+lv_PUBLIC_API void lv_solver_set_fixed(lvSolverSystem *sys, int entity_id, bool fixed)
 {
     if (!sys) return;
-    Lv00Entity *e = lv00_solver_get_entity(sys, entity_id);
+    lvEntity *e = lv_solver_get_entity(sys, entity_id);
     if (e) {
         e->is_fixed = fixed;
     }
@@ -1557,10 +1557,10 @@ LV00_PUBLIC_API void lv00_solver_set_fixed(Lv00SolverSystem *sys, int entity_id,
  *
  * 被拖拽的实体不参与求解，其位置由外部控制。
  */
-LV00_PUBLIC_API void lv00_solver_set_dragged(Lv00SolverSystem *sys, int entity_id, bool dragged)
+lv_PUBLIC_API void lv_solver_set_dragged(lvSolverSystem *sys, int entity_id, bool dragged)
 {
     if (!sys) return;
-    Lv00Entity *e = lv00_solver_get_entity(sys, entity_id);
+    lvEntity *e = lv_solver_get_entity(sys, entity_id);
     if (e) {
         e->is_dragged = dragged;
     }
@@ -1571,12 +1571,12 @@ LV00_PUBLIC_API void lv00_solver_set_dragged(Lv00SolverSystem *sys, int entity_i
  *
  * 仅对 2D 点实体有效，设置其 (x, y) 坐标。
  */
-LV00_PUBLIC_API void lv00_solver_set_drag_position(
-    Lv00SolverSystem *sys, int entity_id, double x, double y)
+lv_PUBLIC_API void lv_solver_set_drag_position(
+    lvSolverSystem *sys, int entity_id, double x, double y)
 {
     if (!sys) return;
-    Lv00Entity *e = lv00_solver_get_entity(sys, entity_id);
-    if (e && (e->type == LV00_ENTITY_POINT_2D || e->param_count >= 2)) {
+    lvEntity *e = lv_solver_get_entity(sys, entity_id);
+    if (e && (e->type == lv_ENTITY_POINT_2D || e->param_count >= 2)) {
         e->params[0] = x;
         e->params[1] = y;
         e->is_dragged = true;
@@ -1590,11 +1590,11 @@ LV00_PUBLIC_API void lv00_solver_set_drag_position(
 /**
  * @brief 创建 2D 点实体
  */
-LV00_PUBLIC_API Lv00Entity lv00_entity_point_2d(int id, double x, double y)
+lv_PUBLIC_API lvEntity lv_entity_point_2d(int id, double x, double y)
 {
-    Lv00Entity e;
+    lvEntity e;
     memset(&e, 0, sizeof(e));
-    e.type        = LV00_ENTITY_POINT_2D;
+    e.type        = lv_ENTITY_POINT_2D;
     e.id          = id;
     e.params[0]   = x;
     e.params[1]   = y;
@@ -1607,11 +1607,11 @@ LV00_PUBLIC_API Lv00Entity lv00_entity_point_2d(int id, double x, double y)
 /**
  * @brief 创建 2D 直线实体（过两点的直线）
  */
-LV00_PUBLIC_API Lv00Entity lv00_entity_line_2d(int id, double x1, double y1, double x2, double y2)
+lv_PUBLIC_API lvEntity lv_entity_line_2d(int id, double x1, double y1, double x2, double y2)
 {
-    Lv00Entity e;
+    lvEntity e;
     memset(&e, 0, sizeof(e));
-    e.type        = LV00_ENTITY_LINE_2D;
+    e.type        = lv_ENTITY_LINE_2D;
     e.id          = id;
     e.params[0]   = x1;
     e.params[1]   = y1;
@@ -1626,11 +1626,11 @@ LV00_PUBLIC_API Lv00Entity lv00_entity_line_2d(int id, double x1, double y1, dou
 /**
  * @brief 创建 2D 圆实体
  */
-LV00_PUBLIC_API Lv00Entity lv00_entity_circle_2d(int id, double cx, double cy, double r)
+lv_PUBLIC_API lvEntity lv_entity_circle_2d(int id, double cx, double cy, double r)
 {
-    Lv00Entity e;
+    lvEntity e;
     memset(&e, 0, sizeof(e));
-    e.type        = LV00_ENTITY_CIRCLE_2D;
+    e.type        = lv_ENTITY_CIRCLE_2D;
     e.id          = id;
     e.params[0]   = cx;
     e.params[1]   = cy;
@@ -1644,11 +1644,11 @@ LV00_PUBLIC_API Lv00Entity lv00_entity_circle_2d(int id, double cx, double cy, d
 /**
  * @brief 创建 2D 线段实体
  */
-LV00_PUBLIC_API Lv00Entity lv00_entity_segment_2d(int id, double x1, double y1, double x2, double y2)
+lv_PUBLIC_API lvEntity lv_entity_segment_2d(int id, double x1, double y1, double x2, double y2)
 {
-    Lv00Entity e;
+    lvEntity e;
     memset(&e, 0, sizeof(e));
-    e.type        = LV00_ENTITY_SEGMENT_2D;
+    e.type        = lv_ENTITY_SEGMENT_2D;
     e.id          = id;
     e.params[0]   = x1;
     e.params[1]   = y1;
@@ -1667,11 +1667,11 @@ LV00_PUBLIC_API Lv00Entity lv00_entity_segment_2d(int id, double x1, double y1, 
 /**
  * @brief 创建两点重合约束
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_coincident(int id, int entity_a, int entity_b)
+lv_PUBLIC_API lvConstraint lv_constraint_coincident(int id, int entity_a, int entity_b)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_POINTS_COINCIDENT;
+    c.type     = lv_CONSTRAINT_POINTS_COINCIDENT;
     c.id       = id;
     c.entity_a = entity_a;
     c.entity_b = entity_b;
@@ -1684,11 +1684,11 @@ LV00_PUBLIC_API Lv00Constraint lv00_constraint_coincident(int id, int entity_a, 
 /**
  * @brief 创建点点距离约束
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_distance(int id, int entity_a, int entity_b, double dist)
+lv_PUBLIC_API lvConstraint lv_constraint_distance(int id, int entity_a, int entity_b, double dist)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_PT_PT_DISTANCE;
+    c.type     = lv_CONSTRAINT_PT_PT_DISTANCE;
     c.id       = id;
     c.entity_a = entity_a;
     c.entity_b = entity_b;
@@ -1701,11 +1701,11 @@ LV00_PUBLIC_API Lv00Constraint lv00_constraint_distance(int id, int entity_a, in
 /**
  * @brief 创建平行约束
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_parallel(int id, int entity_a, int entity_b)
+lv_PUBLIC_API lvConstraint lv_constraint_parallel(int id, int entity_a, int entity_b)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_PARALLEL;
+    c.type     = lv_CONSTRAINT_PARALLEL;
     c.id       = id;
     c.entity_a = entity_a;
     c.entity_b = entity_b;
@@ -1718,11 +1718,11 @@ LV00_PUBLIC_API Lv00Constraint lv00_constraint_parallel(int id, int entity_a, in
 /**
  * @brief 创建垂直约束
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_perpendicular(int id, int entity_a, int entity_b)
+lv_PUBLIC_API lvConstraint lv_constraint_perpendicular(int id, int entity_a, int entity_b)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_PERPENDICULAR;
+    c.type     = lv_CONSTRAINT_PERPENDICULAR;
     c.id       = id;
     c.entity_a = entity_a;
     c.entity_b = entity_b;
@@ -1735,11 +1735,11 @@ LV00_PUBLIC_API Lv00Constraint lv00_constraint_perpendicular(int id, int entity_
 /**
  * @brief 创建角度约束
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_angle(int id, int entity_a, int entity_b, double angle_rad)
+lv_PUBLIC_API lvConstraint lv_constraint_angle(int id, int entity_a, int entity_b, double angle_rad)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_ANGLE;
+    c.type     = lv_CONSTRAINT_ANGLE;
     c.id       = id;
     c.entity_a = entity_a;
     c.entity_b = entity_b;
@@ -1752,11 +1752,11 @@ LV00_PUBLIC_API Lv00Constraint lv00_constraint_angle(int id, int entity_a, int e
 /**
  * @brief 创建点在圆上约束
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_on_circle(int id, int point_entity, int circle_entity)
+lv_PUBLIC_API lvConstraint lv_constraint_on_circle(int id, int point_entity, int circle_entity)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_PT_ON_CIRCLE;
+    c.type     = lv_CONSTRAINT_PT_ON_CIRCLE;
     c.id       = id;
     c.entity_a = point_entity;
     c.entity_b = circle_entity;
@@ -1769,11 +1769,11 @@ LV00_PUBLIC_API Lv00Constraint lv00_constraint_on_circle(int id, int point_entit
 /**
  * @brief 创建固定约束
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_fixed(int id, int entity)
+lv_PUBLIC_API lvConstraint lv_constraint_fixed(int id, int entity)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_FIXED;
+    c.type     = lv_CONSTRAINT_FIXED;
     c.id       = id;
     c.entity_a = entity;
     c.entity_b = -1;
@@ -1786,11 +1786,11 @@ LV00_PUBLIC_API Lv00Constraint lv00_constraint_fixed(int id, int entity)
 /**
  * @brief 创建等长约束
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_equal_length(int id, int entity_a, int entity_b)
+lv_PUBLIC_API lvConstraint lv_constraint_equal_length(int id, int entity_a, int entity_b)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_EQUAL_LENGTH;
+    c.type     = lv_CONSTRAINT_EQUAL_LENGTH;
     c.id       = id;
     c.entity_a = entity_a;
     c.entity_b = entity_b;
@@ -1803,11 +1803,11 @@ LV00_PUBLIC_API Lv00Constraint lv00_constraint_equal_length(int id, int entity_a
 /**
  * @brief 创建水平约束
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_horizontal(int id, int entity)
+lv_PUBLIC_API lvConstraint lv_constraint_horizontal(int id, int entity)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_HORIZONTAL;
+    c.type     = lv_CONSTRAINT_HORIZONTAL;
     c.id       = id;
     c.entity_a = entity;
     c.entity_b = -1;
@@ -1820,11 +1820,11 @@ LV00_PUBLIC_API Lv00Constraint lv00_constraint_horizontal(int id, int entity)
 /**
  * @brief 创建垂直约束（线段垂直方向）
  */
-LV00_PUBLIC_API Lv00Constraint lv00_constraint_vertical(int id, int entity)
+lv_PUBLIC_API lvConstraint lv_constraint_vertical(int id, int entity)
 {
-    Lv00Constraint c;
+    lvConstraint c;
     memset(&c, 0, sizeof(c));
-    c.type     = LV00_CONSTRAINT_VERTICAL;
+    c.type     = lv_CONSTRAINT_VERTICAL;
     c.id       = id;
     c.entity_a = entity;
     c.entity_b = -1;

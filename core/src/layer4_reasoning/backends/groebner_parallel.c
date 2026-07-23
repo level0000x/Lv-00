@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file groebner_parallel.c
  * @brief 并行 Groebner 基计算引擎 —— 基于 Buchberger 算法的多线程实现
  *
@@ -10,9 +10,9 @@
  * - 使用原子计数器跟踪完成进度
  */
 
-#include "lv00/groebner_parallel.h"
-#include "lv00_internal.h"
-#include "lv00/lv00_utils.h"
+#include "lv/groebner_parallel.h"
+#include "lv_internal.h"
+#include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -64,7 +64,7 @@ typedef struct {
 /** 工作线程参数 */
 typedef struct {
     int thread_id;                  /**< 线程 ID */
-    Lv00GroebnerParallel *engine;    /**< 所属引擎 */
+    lvGroebnerParallel *engine;    /**< 所属引擎 */
     SimplePoly *basis;               /**< 当前基（共享，需同步访问） */
     int basis_size;                 /**< 当前基大小 */
     WorkQueue *local_queue;          /**< 线程本地工作队列 */
@@ -81,7 +81,7 @@ typedef struct {
 
 /** 初始化工作队列，成功返回0，失败返回-1 */
 static int work_queue_init(WorkQueue *q, int initial_capacity) {
-    q->pairs = (SPair *)lv00_calloc((size_t)initial_capacity, sizeof(SPair));
+    q->pairs = (SPair *)lv_calloc((size_t)initial_capacity, sizeof(SPair));
     if (!q->pairs) {
         q->size = 0;
         q->capacity = 0;
@@ -99,7 +99,7 @@ static int work_queue_init(WorkQueue *q, int initial_capacity) {
 /** 销毁工作队列 */
 static void work_queue_destroy(WorkQueue *q) {
     if (q) {
-        lv00_free((void **)&q->pairs);
+        lv_free((void **)&q->pairs);
         q->pairs = NULL;
         q->size = 0;
         q->capacity = 0;
@@ -114,7 +114,7 @@ static int work_queue_push(WorkQueue *q, int i, int j) {
         /* 溢出检查：确保 capacity * 2 不超过 INT_MAX */
         if (q->capacity > INT_MAX / 2) return -1;
         int new_cap = q->capacity * 2;
-        SPair *new_pairs = (SPair *)lv00_realloc(q->pairs, (size_t)new_cap * sizeof(SPair));
+        SPair *new_pairs = (SPair *)lv_realloc(q->pairs, (size_t)new_cap * sizeof(SPair));
         if (!new_pairs) return -1;
         q->pairs = new_pairs;
         /* 环形缓冲区扩容：将数据从 head 到 tail 复制到开头 */
@@ -156,7 +156,7 @@ static int work_queue_steal(WorkQueue *q, SPair *out) {
 
 /** 创建空多项式，成功返回true */
 static bool simple_poly_create(SimplePoly *out, int initial_capacity) {
-    out->terms = (PolyTerm *)lv00_calloc((size_t)initial_capacity, sizeof(PolyTerm));
+    out->terms = (PolyTerm *)lv_calloc((size_t)initial_capacity, sizeof(PolyTerm));
     if (!out->terms) {
         out->term_count = 0;
         out->term_capacity = 0;
@@ -171,9 +171,9 @@ static bool simple_poly_create(SimplePoly *out, int initial_capacity) {
 static void simple_poly_destroy(SimplePoly *p) {
     if (!p) return;
     for (int i = 0; i < p->term_count; i++) {
-        lv00_free((void **)&p->terms[i].exponents);
+        lv_free((void **)&p->terms[i].exponents);
     }
-    lv00_free((void **)&p->terms);
+    lv_free((void **)&p->terms);
     p->terms = NULL;
     p->term_count = 0;
     p->term_capacity = 0;
@@ -183,7 +183,7 @@ static void simple_poly_destroy(SimplePoly *p) {
 static int simple_poly_add_term(SimplePoly *p, double coeff, const int *exponents, int var_count) {
     if (p->term_count >= p->term_capacity) {
         int new_cap = (p->term_capacity == 0) ? 8 : p->term_capacity * 2;
-        PolyTerm *new_terms = (PolyTerm *)lv00_realloc(p->terms, (size_t)new_cap * sizeof(PolyTerm));
+        PolyTerm *new_terms = (PolyTerm *)lv_realloc(p->terms, (size_t)new_cap * sizeof(PolyTerm));
         if (!new_terms) return -1;
         p->terms = new_terms;
         p->term_capacity = new_cap;
@@ -192,7 +192,7 @@ static int simple_poly_add_term(SimplePoly *p, double coeff, const int *exponent
     p->terms[idx].coeff = coeff;
     p->terms[idx].var_count = var_count;
     if (var_count > 0) {
-        p->terms[idx].exponents = (int *)lv00_malloc((size_t)var_count * sizeof(int));
+        p->terms[idx].exponents = (int *)lv_malloc((size_t)var_count * sizeof(int));
         if (!p->terms[idx].exponents) return -1;
         memcpy(p->terms[idx].exponents, exponents, (size_t)var_count * sizeof(int));
     } else {
@@ -234,7 +234,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
 
     /* 如果任一多项式为空或首项系数为零，S-多项式为零 */
     if (simple_poly_is_zero(gi) || simple_poly_is_zero(gj)) return result;
-    if (fabs(gi->terms[0].coeff) < LV00_EPSILON_DOUBLE || fabs(gj->terms[0].coeff) < LV00_EPSILON_DOUBLE) return result;
+    if (fabs(gi->terms[0].coeff) < lv_EPSILON_DOUBLE || fabs(gj->terms[0].coeff) < lv_EPSILON_DOUBLE) return result;
 
     /* 计算 LCM(leading terms) */
     int var_count = gi->terms[0].var_count;
@@ -242,7 +242,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
 
     int *lcm_exp = NULL;
     if (var_count > 0) {
-        lcm_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
+        lcm_exp = (int *)lv_calloc((size_t)var_count, sizeof(int));
         if (!lcm_exp) return result;
 
         for (int v = 0; v < var_count; v++) {
@@ -255,8 +255,8 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     /* 计算 multiplier_i = LCM / LT(gi) 的指数部分 */
     int *mult_i_exp = NULL;
     if (var_count > 0) {
-        mult_i_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
-        if (!mult_i_exp) { lv00_free((void **)&(lcm_exp)); return result; }
+        mult_i_exp = (int *)lv_calloc((size_t)var_count, sizeof(int));
+        if (!mult_i_exp) { lv_free((void **)&(lcm_exp)); return result; }
         for (int v = 0; v < var_count; v++) {
             int ei = (v < gi->terms[0].var_count) ? gi->terms[0].exponents[v] : 0;
             mult_i_exp[v] = lcm_exp[v] - ei;
@@ -266,8 +266,8 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     /* 计算 multiplier_j = LCM / LT(gj) 的指数部分 */
     int *mult_j_exp = NULL;
     if (var_count > 0) {
-        mult_j_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
-        if (!mult_j_exp) { lv00_free((void **)&(lcm_exp)); lv00_free((void **)&(mult_i_exp)); return result; }
+        mult_j_exp = (int *)lv_calloc((size_t)var_count, sizeof(int));
+        if (!mult_j_exp) { lv_free((void **)&(lcm_exp)); lv_free((void **)&(mult_i_exp)); return result; }
         for (int v = 0; v < var_count; v++) {
             int ej = (v < gj->terms[0].var_count) ? gj->terms[0].exponents[v] : 0;
             mult_j_exp[v] = lcm_exp[v] - ej;
@@ -283,7 +283,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     for (int t = 0; t < gi->term_count; t++) {
         int *new_exp = NULL;
         if (var_count > 0) {
-            new_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
+            new_exp = (int *)lv_calloc((size_t)var_count, sizeof(int));
             if (!new_exp) break;
             for (int v = 0; v < var_count; v++) {
                 int et = (v < gi->terms[t].var_count) ? gi->terms[t].exponents[v] : 0;
@@ -291,24 +291,24 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
             }
         }
         if (simple_poly_add_term(&result, scale_i * gi->terms[t].coeff, new_exp, var_count) != 0) {
-            lv00_free((void **)&new_exp);
-            lv00_free((void **)&lcm_exp);
-            lv00_free((void **)&mult_i_exp);
-            lv00_free((void **)&mult_j_exp);
+            lv_free((void **)&new_exp);
+            lv_free((void **)&lcm_exp);
+            lv_free((void **)&mult_i_exp);
+            lv_free((void **)&mult_j_exp);
             simple_poly_destroy(&result);
             result.term_count = 0;
             result.terms = NULL;
             result.term_capacity = 0;
             return result;
         }
-        lv00_free((void **)&new_exp);
+        lv_free((void **)&new_exp);
     }
 
     /* 减去 mult_j * gj 的项 */
     for (int t = 0; t < gj->term_count; t++) {
         int *new_exp = NULL;
         if (var_count > 0) {
-            new_exp = (int *)lv00_calloc((size_t)var_count, sizeof(int));
+            new_exp = (int *)lv_calloc((size_t)var_count, sizeof(int));
             if (!new_exp) break;
             for (int v = 0; v < var_count; v++) {
                 int et = (v < gj->terms[t].var_count) ? gj->terms[t].exponents[v] : 0;
@@ -316,22 +316,22 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
             }
         }
         if (simple_poly_add_term(&result, -scale_j * gj->terms[t].coeff, new_exp, var_count) != 0) {
-            lv00_free((void **)&new_exp);
-            lv00_free((void **)&lcm_exp);
-            lv00_free((void **)&mult_i_exp);
-            lv00_free((void **)&mult_j_exp);
+            lv_free((void **)&new_exp);
+            lv_free((void **)&lcm_exp);
+            lv_free((void **)&mult_i_exp);
+            lv_free((void **)&mult_j_exp);
             simple_poly_destroy(&result);
             result.term_count = 0;
             result.terms = NULL;
             result.term_capacity = 0;
             return result;
         }
-        lv00_free((void **)&new_exp);
+        lv_free((void **)&new_exp);
     }
 
-    lv00_free((void **)&lcm_exp);
-    lv00_free((void **)&mult_i_exp);
-    lv00_free((void **)&mult_j_exp);
+    lv_free((void **)&lcm_exp);
+    lv_free((void **)&mult_i_exp);
+    lv_free((void **)&mult_j_exp);
 
     return result;
 }
@@ -367,7 +367,7 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
             int vars = (f_vars > b_vars) ? f_vars : b_vars;
 
             /* 首项系数为零则跳过 */
-            if (fabs(basis[b].terms[0].coeff) < LV00_EPSILON_DOUBLE) continue;
+            if (fabs(basis[b].terms[0].coeff) < lv_EPSILON_DOUBLE) continue;
 
             int divisible = 1;
             for (int v = 0; v < vars && divisible; v++) {
@@ -385,7 +385,7 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
             for (int t = 0; t < basis[b].term_count; t++) {
                 int *new_exp = NULL;
                 if (vars > 0) {
-                    new_exp = (int *)lv00_calloc((size_t)vars, sizeof(int));
+                    new_exp = (int *)lv_calloc((size_t)vars, sizeof(int));
                     if (!new_exp) break;
                     for (int v = 0; v < vars; v++) {
                         int fe = (v < f_vars) ? f.terms[0].exponents[v] : 0;
@@ -412,13 +412,13 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
                 if (!found && vars > 0) {
                     simple_poly_add_term(&f, -ratio * basis[b].terms[t].coeff, new_exp, vars);
                 }
-                lv00_free((void **)&new_exp);
+                lv_free((void **)&new_exp);
             }
 
             /* 移除系数接近零的项 */
             for (int k = f.term_count - 1; k >= 0; k--) {
-                if (fabs(f.terms[k].coeff) < LV00_EPSILON_DOUBLE) {
-                    lv00_free((void **)&f.terms[k].exponents);
+                if (fabs(f.terms[k].coeff) < lv_EPSILON_DOUBLE) {
+                    lv_free((void **)&f.terms[k].exponents);
                     f.terms[k].exponents = NULL;
                     /* 将末尾项移到当前位置 */
                     if (k < f.term_count - 1) {
@@ -524,7 +524,7 @@ static void worker_process(WorkerArg *arg) {
             int new_idx = basis_size;
 
             /* 扩展基数组 */
-            SimplePoly *new_basis = (SimplePoly *)lv00_realloc(
+            SimplePoly *new_basis = (SimplePoly *)lv_realloc(
                 basis, (size_t)(basis_size + 1) * sizeof(SimplePoly));
             if (new_basis) {
                 basis = new_basis;
@@ -554,8 +554,8 @@ static void worker_process(WorkerArg *arg) {
  * 公共 API
  * ======================================================================== */
 
-Lv00GroebnerConfig lv00_groebner_default_config(void) {
-    Lv00GroebnerConfig cfg;
+lvGroebnerConfig lv_groebner_default_config(void) {
+    lvGroebnerConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.max_threads = 4;
     cfg.chunk_size = 16;
@@ -565,21 +565,21 @@ Lv00GroebnerConfig lv00_groebner_default_config(void) {
     return cfg;
 }
 
-Lv00GroebnerParallel *lv00_groebner_parallel_create(const Lv00GroebnerConfig *config) {
-    Lv00GroebnerParallel *engine = (Lv00GroebnerParallel *)lv00_calloc(1, sizeof(Lv00GroebnerParallel));
+lvGroebnerParallel *lv_groebner_parallel_create(const lvGroebnerConfig *config) {
+    lvGroebnerParallel *engine = (lvGroebnerParallel *)lv_calloc(1, sizeof(lvGroebnerParallel));
     if (!engine) return NULL;
-    engine->config = config ? *config : lv00_groebner_default_config();
+    engine->config = config ? *config : lv_groebner_default_config();
     return engine;
 }
 
-void lv00_groebner_parallel_destroy(Lv00GroebnerParallel *engine) {
+void lv_groebner_parallel_destroy(lvGroebnerParallel *engine) {
     if (!engine) return;
 
     /* 释放工作队列 */
     WorkQueue *queue = (WorkQueue *)engine->pair_queue;
     if (queue) {
         work_queue_destroy(queue);
-        lv00_free((void **)&queue);
+        lv_free((void **)&queue);
         engine->pair_queue = NULL;
     }
     engine->queue_size = 0;
@@ -601,24 +601,24 @@ void lv00_groebner_parallel_destroy(Lv00GroebnerParallel *engine) {
         for (int i = 0; i < num_threads; i++) {
             if (args[i].local_queue) {
                 work_queue_destroy(args[i].local_queue);
-                lv00_free((void **)&args[i].local_queue);
+                lv_free((void **)&args[i].local_queue);
                 args[i].local_queue = NULL;
             }
             if (args[i].all_queues) {
-                lv00_free((void **)&args[i].all_queues);
+                lv_free((void **)&args[i].all_queues);
                 args[i].all_queues = NULL;
             }
             /* 释放关闭标志 */
-            lv00_free((void **)&args[i].shutdown_flag);
+            lv_free((void **)&args[i].shutdown_flag);
             args[i].shutdown_flag = NULL;
             /* 释放全局计数器（仅释放第一个线程拥有的） */
             if (i == 0) {
-                lv00_free((void **)&args[i].global_completed);
-                lv00_free((void **)&args[i].global_total);
+                lv_free((void **)&args[i].global_completed);
+                lv_free((void **)&args[i].global_total);
             }
         }
 
-        lv00_free((void **)&args);
+        lv_free((void **)&args);
         engine->thread_pool = NULL;
     }
 
@@ -628,7 +628,7 @@ void lv00_groebner_parallel_destroy(Lv00GroebnerParallel *engine) {
         for (int i = 0; i < engine->basis_size; i++) {
             simple_poly_destroy(&basis[i]);
         }
-        lv00_free((void **)&basis);
+        lv_free((void **)&basis);
         engine->groebner_basis = NULL;
     }
     engine->basis_size = 0;
@@ -636,10 +636,10 @@ void lv00_groebner_parallel_destroy(Lv00GroebnerParallel *engine) {
     /* 重置状态 */
     memset(&engine->state, 0, sizeof(engine->state));
 
-    lv00_free((void **)&engine);
+    lv_free((void **)&engine);
 }
 
-int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
+int lv_groebner_parallel_compute(lvGroebnerParallel *engine,
                                      void *polynomials, int poly_count) {
     if (!engine || !polynomials || poly_count <= 0) return -1;
 
@@ -651,7 +651,7 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
 
     /* 从输入子句构造初始基（简化多项式） */
     int **clauses = (int **)polynomials;
-    SimplePoly *basis = (SimplePoly *)lv00_calloc((size_t)poly_count, sizeof(SimplePoly));
+    SimplePoly *basis = (SimplePoly *)lv_calloc((size_t)poly_count, sizeof(SimplePoly));
     if (!basis) return -1;
 
     for (int i = 0; i < poly_count; i++) {
@@ -659,7 +659,7 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
             /* calloc 失败，清理并返回 */
             for (int k = 0; k < i; k++)
                 simple_poly_destroy(&basis[k]);
-            lv00_free((void **)&basis);
+            lv_free((void **)&basis);
             /* 注意：args 和 all_queues 尚未分配，无需释放 */
             return -1;
         }
@@ -689,31 +689,31 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
     volatile int global_completed = 0;
     volatile int global_total = engine->state.total_pairs;
 
-    WorkerArg *args = (WorkerArg *)lv00_calloc((size_t)num_threads, sizeof(WorkerArg));
-    WorkQueue **all_queues = (WorkQueue **)lv00_calloc((size_t)num_threads, sizeof(WorkQueue *));
+    WorkerArg *args = (WorkerArg *)lv_calloc((size_t)num_threads, sizeof(WorkerArg));
+    WorkQueue **all_queues = (WorkQueue **)lv_calloc((size_t)num_threads, sizeof(WorkQueue *));
     if (!args || !all_queues) {
         for (int i = 0; i < poly_count; i++) simple_poly_destroy(&basis[i]);
-        lv00_free((void **)&basis);
-        lv00_free((void **)&args);
-        lv00_free((void **)&all_queues);
+        lv_free((void **)&basis);
+        lv_free((void **)&args);
+        lv_free((void **)&all_queues);
         return -1;
     }
 
     /* 创建每个线程的本地工作队列 */
     for (int t = 0; t < num_threads; t++) {
-        all_queues[t] = (WorkQueue *)lv00_calloc(1, sizeof(WorkQueue));
+        all_queues[t] = (WorkQueue *)lv_calloc(1, sizeof(WorkQueue));
         if (!all_queues[t] || work_queue_init(all_queues[t], engine->config.chunk_size) != 0) {
             /* 清理已分配的队列 */
             for (int k = 0; k < t; k++) {
                 work_queue_destroy(all_queues[k]);
-                lv00_free((void **)&all_queues[k]);
+                lv_free((void **)&all_queues[k]);
             }
-            if (all_queues[t]) lv00_free((void **)&all_queues[t]);
+            if (all_queues[t]) lv_free((void **)&all_queues[t]);
             /* 清理基和其他资源 */
             for (int i = 0; i < poly_count; i++)
                 simple_poly_destroy(&basis[i]);
-            lv00_free((void **)&basis);
-            lv00_free((void **)&args);
+            lv_free((void **)&basis);
+            lv_free((void **)&args);
             return -1;
         }
     }
@@ -770,7 +770,7 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
         for (int i = 0; i < engine->basis_size; i++) {
             simple_poly_destroy(&old_basis[i]);
         }
-        lv00_free((void **)&old_basis);
+        lv_free((void **)&old_basis);
     }
 
     engine->groebner_basis = (void **)final_basis;
@@ -784,22 +784,22 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
     }
 
     /* 释放 all_queues 数组（不释放队列本身） */
-    lv00_free((void **)&all_queues);
+    lv_free((void **)&all_queues);
 
     return 0;
 }
 
-Lv00GroebnerState lv00_groebner_parallel_state(const Lv00GroebnerParallel *engine) {
-    Lv00GroebnerState state = {0};
+lvGroebnerState lv_groebner_parallel_state(const lvGroebnerParallel *engine) {
+    lvGroebnerState state = {0};
     if (engine) state = engine->state;
     return state;
 }
 
-bool lv00_groebner_poly_is_nonzero_constant(void *poly) {
+bool lv_groebner_poly_is_nonzero_constant(void *poly) {
     if (!poly) return false;
     SimplePoly *p = (SimplePoly *)poly;
     if (p->term_count != 1) return false;
-    if (fabs(p->terms[0].coeff) < LV00_EPSILON_DOUBLE) return false;
+    if (fabs(p->terms[0].coeff) < lv_EPSILON_DOUBLE) return false;
     if (p->terms[0].var_count > 0 && p->terms[0].exponents) {
         for (int i = 0; i < p->terms[0].var_count; i++) {
             if (p->terms[0].exponents[i] != 0) return false;

@@ -1,4 +1,4 @@
-# Lv-00 WFC 范式注入：局部规则 → 全局结构
+﻿# Lv-00 WFC 范式注入：局部规则 → 全局结构
 
 > **版本**: v1.0-draft
 > **日期**: 2026-05-26
@@ -311,7 +311,7 @@ engine_solve() 修改后的流水线：
 
 | 文件 | 职责 |
 |------|------|
-| `core/include/lv00/propagation.h` | 传播引擎公共接口 |
+| `core/include/lv/propagation.h` | 传播引擎公共接口 |
 | `core/src/core/propagation.c` | 传播引擎实现 |
 | `test/c/test_propagation.c` | 传播引擎单元测试 |
 
@@ -556,7 +556,7 @@ graph_normalize() 修改后的流水线：
 
 | 文件 | 职责 |
 |------|------|
-| `core/include/lv00/equiv_class.h` | 等价类管理器公共接口 |
+| `core/include/lv/equiv_class.h` | 等价类管理器公共接口 |
 | `core/src/core/equiv_class.c` | 等价类管理器实现 |
 | `test/c/test_equiv_class.c` | 等价类单元测试 |
 
@@ -776,7 +776,7 @@ ProofNavigator 扩展：
 
 | 文件 | 职责 |
 |------|------|
-| `core/include/lv00/meta_proof.h` | 元证明公共接口 |
+| `core/include/lv/meta_proof.h` | 元证明公共接口 |
 | `core/src/core/meta_proof.c` | 元证明实现 |
 | `test/c/test_meta_proof.c` | 元证明单元测试 |
 
@@ -842,25 +842,25 @@ Module C (元证明)
 
 ```cmake
 # 在 core/CMakeLists.txt 中添加
-set(LV00_PROPAGATION_SOURCES
+set(lv_PROPAGATION_SOURCES
     src/core/propagation.c
 )
-set(LV00_EQUIV_CLASS_SOURCES
+set(lv_EQUIV_CLASS_SOURCES
     src/core/equiv_class.c
 )
-set(LV00_META_PROOF_SOURCES
+set(lv_META_PROOF_SOURCES
     src/core/meta_proof.c
 )
 
 # 头文件
-set(LV00_PROPAGATION_HEADERS
-    include/lv00/propagation.h
+set(lv_PROPAGATION_HEADERS
+    include/lv/propagation.h
 )
-set(LV00_EQUIV_CLASS_HEADERS
-    include/lv00/equiv_class.h
+set(lv_EQUIV_CLASS_HEADERS
+    include/lv/equiv_class.h
 )
-set(LV00_META_PROOF_HEADERS
-    include/lv00/meta_proof.h
+set(lv_META_PROOF_HEADERS
+    include/lv/meta_proof.h
 )
 ```
 

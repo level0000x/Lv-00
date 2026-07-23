@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mini_kernel.c
  * @brief 极简验证内核实现 —— 借鉴 mm0/Metamath 的超小型可信计算基（TCB）
  *
@@ -29,8 +29,8 @@
  * @dependencies
  *   - mini_kernel.h         : 内核公共接口
  *   - constraint_graph.h    : 约束图核心结构
- *   - lv00_utils.h          : 统一内存分配器
- *   - lv00_internal.h       : 内部常量与工具宏
+ *   - lv_utils.h          : 统一内存分配器
+ *   - lv_internal.h       : 内部常量与工具宏
  *   - error_codes.h         : 统一错误码系统
  */
 
@@ -45,10 +45,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "error_codes.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ========================================================================
  * 模块级常量
@@ -155,44 +155,44 @@ MiniKernelConfig mini_kernel_config_default(void)
  */
 MiniKernel *mini_kernel_create(const MiniKernelConfig *config)
 {
-    LV00_CHECK_NULL(config, NULL);
+    lv_CHECK_NULL(config, NULL);
 
-    MiniKernel *kernel = lv00_malloc(sizeof(MiniKernel));
-    LV00_CHECK_ALLOC(kernel, NULL);
+    MiniKernel *kernel = lv_malloc(sizeof(MiniKernel));
+    lv_CHECK_ALLOC(kernel, NULL);
     memset(kernel, 0, sizeof(MiniKernel));
 
     kernel->config = *config;
     kernel->statement_capacity = MINI_STMT_INITIAL_CAPACITY;
-    kernel->statements = lv00_calloc((size_t)kernel->statement_capacity,
+    kernel->statements = lv_calloc((size_t)kernel->statement_capacity,
                                       sizeof(MiniStatement *));
     if (!kernel->statements) {
-        lv00_free((void **)&kernel);
+        lv_free((void **)&kernel);
         return NULL;
     }
     kernel->statement_count = 0;
 
     kernel->symbol_capacity = MINI_SYMBOL_INITIAL_CAPACITY;
-    kernel->symbol_names = lv00_calloc((size_t)kernel->symbol_capacity,
+    kernel->symbol_names = lv_calloc((size_t)kernel->symbol_capacity,
                                         sizeof(char *));
-    kernel->symbol_stmt_ids = lv00_calloc((size_t)kernel->symbol_capacity,
+    kernel->symbol_stmt_ids = lv_calloc((size_t)kernel->symbol_capacity,
                                            sizeof(int));
     if (!kernel->symbol_names || !kernel->symbol_stmt_ids) {
-        lv00_free((void **)&kernel->symbol_names);
-        lv00_free((void **)&kernel->symbol_stmt_ids);
-        lv00_free((void **)&kernel->statements);
-        lv00_free((void **)&kernel);
+        lv_free((void **)&kernel->symbol_names);
+        lv_free((void **)&kernel->symbol_stmt_ids);
+        lv_free((void **)&kernel->statements);
+        lv_free((void **)&kernel);
         return NULL;
     }
     kernel->symbol_count = 0;
 
     /* 语句到约束图节点的映射 */
-    kernel->stmt_to_node_map = lv00_calloc(
+    kernel->stmt_to_node_map = lv_calloc(
         (size_t)kernel->statement_capacity, sizeof(int));
     if (!kernel->stmt_to_node_map) {
-        lv00_free((void **)&kernel->symbol_names);
-        lv00_free((void **)&kernel->symbol_stmt_ids);
-        lv00_free((void **)&kernel->statements);
-        lv00_free((void **)&kernel);
+        lv_free((void **)&kernel->symbol_names);
+        lv_free((void **)&kernel->symbol_stmt_ids);
+        lv_free((void **)&kernel->statements);
+        lv_free((void **)&kernel);
         return NULL;
     }
     kernel->map_count = kernel->statement_capacity;
@@ -220,22 +220,22 @@ void mini_kernel_destroy(MiniKernel *kernel)
     /* 释放所有语句 */
     for (int i = 0; i < kernel->statement_count; i++) {
         if (kernel->statements[i]) {
-            lv00_free((void **)&kernel->statements[i]);
+            lv_free((void **)&kernel->statements[i]);
         }
     }
-    lv00_free((void **)&kernel->statements);
+    lv_free((void **)&kernel->statements);
 
     /* 释放符号表 */
     for (int i = 0; i < kernel->symbol_count; i++) {
         if (kernel->symbol_names[i]) {
-            lv00_free((void **)&kernel->symbol_names[i]);
+            lv_free((void **)&kernel->symbol_names[i]);
         }
     }
-    lv00_free((void **)&kernel->symbol_names);
-    lv00_free((void **)&kernel->symbol_stmt_ids);
+    lv_free((void **)&kernel->symbol_names);
+    lv_free((void **)&kernel->symbol_stmt_ids);
 
-    lv00_free((void **)&kernel->stmt_to_node_map);
-    lv00_free((void **)&kernel);
+    lv_free((void **)&kernel->stmt_to_node_map);
+    lv_free((void **)&kernel);
 }
 
 /* ========================================================================
@@ -253,7 +253,7 @@ static bool mini_stmt_array_grow(MiniKernel *kernel)
     }
     if (kernel->statement_count >= new_cap) return false;
 
-    MiniStatement **new_arr = lv00_realloc(kernel->statements,
+    MiniStatement **new_arr = lv_realloc(kernel->statements,
         (size_t)new_cap * sizeof(MiniStatement *));
     if (!new_arr) return false;
 
@@ -265,7 +265,7 @@ static bool mini_stmt_array_grow(MiniKernel *kernel)
     kernel->statement_capacity = new_cap;
 
     /* 同步扩容节点映射 */
-    int *new_map = lv00_realloc(kernel->stmt_to_node_map,
+    int *new_map = lv_realloc(kernel->stmt_to_node_map,
         (size_t)new_cap * sizeof(int));
     if (new_map) {
         for (int i = kernel->map_count; i < new_cap; i++) {
@@ -284,13 +284,13 @@ static bool mini_symbol_table_grow(MiniKernel *kernel)
 {
     int new_cap = kernel->symbol_capacity * 2;
 
-    char **new_names = lv00_realloc(kernel->symbol_names,
+    char **new_names = lv_realloc(kernel->symbol_names,
         (size_t)new_cap * sizeof(char *));
-    int  *new_ids   = lv00_realloc(kernel->symbol_stmt_ids,
+    int  *new_ids   = lv_realloc(kernel->symbol_stmt_ids,
         (size_t)new_cap * sizeof(int));
     if (!new_names || !new_ids) {
-        lv00_free((void **)&new_names);
-        lv00_free((void **)&new_ids);
+        lv_free((void **)&new_names);
+        lv_free((void **)&new_ids);
         return false;
     }
     for (int i = kernel->symbol_capacity; i < new_cap; i++) {
@@ -310,19 +310,19 @@ static bool mini_symbol_table_grow(MiniKernel *kernel)
 static int mini_internal_add_statement(MiniKernel *kernel, MiniStmtType type,
                                         const char *label, const char *formula)
 {
-    LV00_CHECK_NULL(kernel, -1);
-    LV00_CHECK_NULL(label, -1);
-    LV00_CHECK_NULL(formula, -1);
+    lv_CHECK_NULL(kernel, -1);
+    lv_CHECK_NULL(label, -1);
+    lv_CHECK_NULL(formula, -1);
 
     if (kernel->is_sealed && type == MINI_STMT_AXIOM) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_STATE, __FILE__, __LINE__,
+        lv_set_error_ctx(lv_ERROR_INVALID_STATE, __FILE__, __LINE__,
                            __func__, "内核已封存，不可添加新公理");
         return -1;
     }
 
     if (kernel->config.max_statements > 0 &&
         kernel->statement_count >= kernel->config.max_statements) {
-        lv00_set_error_ctx(LV00_ERROR_RESOURCE_EXHAUSTED, __FILE__, __LINE__,
+        lv_set_error_ctx(lv_ERROR_RESOURCE_EXHAUSTED, __FILE__, __LINE__,
                            __func__, "已达最大语句数限制: %d",
                            kernel->config.max_statements);
         return -1;
@@ -334,8 +334,8 @@ static int mini_internal_add_statement(MiniKernel *kernel, MiniStmtType type,
         }
     }
 
-    MiniStatement *stmt = lv00_malloc(sizeof(MiniStatement));
-    LV00_CHECK_ALLOC(stmt, -1);
+    MiniStatement *stmt = lv_malloc(sizeof(MiniStatement));
+    lv_CHECK_ALLOC(stmt, -1);
     memset(stmt, 0, sizeof(MiniStatement));
 
     stmt->id   = kernel->statement_count;
@@ -431,7 +431,7 @@ static int mini_register_symbol(MiniKernel *kernel, const char *name, int stmt_i
     }
 
     int idx = kernel->symbol_count;
-    kernel->symbol_names[idx]    = lv00_strdup_safe(name);
+    kernel->symbol_names[idx]    = lv_strdup_safe(name);
     kernel->symbol_stmt_ids[idx] = stmt_id;
     kernel->symbol_count++;
     return idx;
@@ -453,8 +453,8 @@ MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel,
     const Substitution *substitutions, int subst_count,
     const char *base_formula, char **out_result)
 {
-    LV00_CHECK_NULL(kernel, MINI_VERIFY_FAIL_MEMORY);
-    LV00_CHECK_NULL(base_formula, MINI_VERIFY_FAIL_UNBOUND_VAR);
+    lv_CHECK_NULL(kernel, MINI_VERIFY_FAIL_MEMORY);
+    lv_CHECK_NULL(base_formula, MINI_VERIFY_FAIL_UNBOUND_VAR);
     if (subst_count < 0) {
         return MINI_VERIFY_FAIL_SUBSTITUTION;
     }
@@ -462,20 +462,20 @@ MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel,
     /* 0 条替换：直接复制基础公式 */
     if (subst_count == 0) {
         if (out_result) {
-            *out_result = lv00_strdup_safe(base_formula);
+            *out_result = lv_strdup_safe(base_formula);
             if (!*out_result) return MINI_VERIFY_FAIL_MEMORY;
         }
         return MINI_VERIFY_OK;
     }
 
-    LV00_CHECK_NULL(substitutions, MINI_VERIFY_FAIL_SUBSTITUTION);
+    lv_CHECK_NULL(substitutions, MINI_VERIFY_FAIL_SUBSTITUTION);
 
     /* 1. 验证每个替换条目的变量在上下文中有定义 */
     for (int i = 0; i < subst_count; i++) {
         const Substitution *sub = &substitutions[i];
         int var_id = mini_find_symbol(kernel, sub->variable_name);
         if (var_id < 0) {
-            lv00_set_error_ctx(LV00_ERROR_NOT_FOUND, __FILE__, __LINE__,
+            lv_set_error_ctx(lv_ERROR_NOT_FOUND, __FILE__, __LINE__,
                                __func__, "未绑定变量: %s", sub->variable_name);
             return MINI_VERIFY_FAIL_UNBOUND_VAR;
         }
@@ -488,7 +488,7 @@ MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel,
                        substitutions[j].variable_name) == 0) {
                 if (strcmp(substitutions[i].replacement_term,
                            substitutions[j].replacement_term) != 0) {
-                    lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__,
+                    lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__,
                                        __LINE__, __func__,
                                        "变量 %s 映射到不同表达式",
                                        substitutions[i].variable_name);
@@ -501,7 +501,7 @@ MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel,
     /* 3. 执行替换并输出结果 */
     if (out_result) {
         size_t buflen = strlen(base_formula) + 1024;
-        char *result = lv00_malloc(buflen);
+        char *result = lv_malloc(buflen);
         if (!result) return MINI_VERIFY_FAIL_MEMORY;
 
         strncpy(result, base_formula, buflen - 1);
@@ -512,9 +512,9 @@ MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel,
             const char *var = substitutions[i].variable_name;
             const char *repl = substitutions[i].replacement_term;
 
-            char *tmp = lv00_malloc(buflen);
+            char *tmp = lv_malloc(buflen);
             if (!tmp) {
-                lv00_free((void **)&result);
+                lv_free((void **)&result);
                 return MINI_VERIFY_FAIL_MEMORY;
             }
             tmp[0] = '\0';
@@ -532,7 +532,7 @@ MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel,
                     pos++;
                 }
             }
-            lv00_free((void **)&result);
+            lv_free((void **)&result);
             result = tmp;
         }
         *out_result = result;
@@ -572,13 +572,13 @@ static int mini_verifier_pop_stack(MiniProofVerifier *verifier)
 
 MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id)
 {
-    LV00_CHECK_NULL(kernel, MINI_VERIFY_FAIL_MEMORY);
-    LV00_CHECK_INDEX(stmt_id, kernel->statement_count, MINI_VERIFY_FAIL_MEMORY);
+    lv_CHECK_NULL(kernel, MINI_VERIFY_FAIL_MEMORY);
+    lv_CHECK_INDEX(stmt_id, kernel->statement_count, MINI_VERIFY_FAIL_MEMORY);
 
     MiniStatement *stmt = kernel->statements[stmt_id];
     if (!stmt) return MINI_VERIFY_FAIL_MEMORY;
     if (stmt->type != MINI_STMT_THEOREM) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__,
                            __func__, "语句 %d 不是定理类型", stmt_id);
         return MINI_VERIFY_FAIL_STACK;
     }
@@ -588,15 +588,15 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id)
     memset(&verifier, 0, sizeof(verifier));
 
     verifier.stack_capacity = MINI_VERIFIER_STACK_CAPACITY;
-    verifier.hypothesis_stack = lv00_malloc(
+    verifier.hypothesis_stack = lv_malloc(
         (size_t)verifier.stack_capacity * sizeof(int));
     if (!verifier.hypothesis_stack) return MINI_VERIFY_FAIL_MEMORY;
 
     verifier.subst_capacity = MINI_VERIFIER_SUBST_CAPACITY;
-    verifier.active_substitutions = lv00_malloc(
+    verifier.active_substitutions = lv_malloc(
         (size_t)verifier.subst_capacity * sizeof(Substitution));
     if (!verifier.active_substitutions) {
-        lv00_free((void **)&verifier.hypothesis_stack);
+        lv_free((void **)&verifier.hypothesis_stack);
         return MINI_VERIFY_FAIL_MEMORY;
     }
 
@@ -671,15 +671,15 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id)
     }
 
 cleanup:
-    lv00_free((void **)&verifier.hypothesis_stack);
-    lv00_free((void **)&verifier.active_substitutions);
+    lv_free((void **)&verifier.hypothesis_stack);
+    lv_free((void **)&verifier.active_substitutions);
     return verifier.last_result;
 }
 
 MiniVerifyResult mini_kernel_verify_all(MiniKernel *kernel,
     int *out_passed, int *out_failed)
 {
-    LV00_CHECK_NULL(kernel, MINI_VERIFY_FAIL_MEMORY);
+    lv_CHECK_NULL(kernel, MINI_VERIFY_FAIL_MEMORY);
 
     int passed = 0;
     int failed = 0;
@@ -715,7 +715,7 @@ static bool mini_read_file_content(const char *filepath, char **out_content,
 {
     FILE *fp = fopen(filepath, "r");
     if (!fp) {
-        lv00_set_error_ctx(LV00_ERROR_IO, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_IO, __FILE__, __LINE__, __func__,
                            "无法打开文件: %s", filepath);
         return false;
     }
@@ -728,7 +728,7 @@ static bool mini_read_file_content(const char *filepath, char **out_content,
         return false;
     }
 
-    char *buf = lv00_malloc((size_t)fsize + 1);
+    char *buf = lv_malloc((size_t)fsize + 1);
     if (!buf) {
         fclose(fp);
         return false;
@@ -744,8 +744,8 @@ static bool mini_read_file_content(const char *filepath, char **out_content,
 
 int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath)
 {
-    LV00_CHECK_NULL(kernel, -1);
-    LV00_CHECK_NULL(filepath, -1);
+    lv_CHECK_NULL(kernel, -1);
+    lv_CHECK_NULL(filepath, -1);
 
     char *content = NULL;
     size_t content_len = 0;
@@ -826,7 +826,7 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath)
             formula[fm_idx] = '\0';
 
             /* 去除公式首尾空白 */
-            char *trimmed = lv00_str_trim(formula);
+            char *trimmed = lv_str_trim(formula);
             if (strlen(trimmed) == 0) {
                 snprintf(trimmed, sizeof(formula), "%s", label);
             }
@@ -836,18 +836,18 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath)
         }
     }
 
-    lv00_free((void **)&content);
+    lv_free((void **)&content);
     return import_count;
 }
 
 bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath)
 {
-    LV00_CHECK_NULL(kernel, false);
-    LV00_CHECK_NULL(filepath, false);
+    lv_CHECK_NULL(kernel, false);
+    lv_CHECK_NULL(filepath, false);
 
     FILE *fp = fopen(filepath, "w");
     if (!fp) {
-        lv00_set_error_ctx(LV00_ERROR_IO, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_IO, __FILE__, __LINE__, __func__,
                            "无法创建文件: %s", filepath);
         return false;
     }
@@ -895,7 +895,7 @@ bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath)
 
 MiniVerifyResult mini_kernel_self_check(MiniKernel *kernel)
 {
-    LV00_CHECK_NULL(kernel, MINI_VERIFY_FAIL_MEMORY);
+    lv_CHECK_NULL(kernel, MINI_VERIFY_FAIL_MEMORY);
 
     /* 测试 1：空替换应通过 */
     {
@@ -903,7 +903,7 @@ MiniVerifyResult mini_kernel_self_check(MiniKernel *kernel)
         MiniVerifyResult r = mini_kernel_check_substitution(
             kernel, NULL, 0, "test", &result);
         if (r != MINI_VERIFY_OK) return r;
-        if (result) lv00_free((void **)&result);
+        if (result) lv_free((void **)&result);
     }
 
     /* 测试 2：同一变量两次映射到不同表达式应被检测 */
@@ -919,7 +919,7 @@ MiniVerifyResult mini_kernel_self_check(MiniKernel *kernel)
         MiniVerifyResult r = mini_kernel_check_substitution(
             kernel, subs, 2, "test", &result);
         if (r == MINI_VERIFY_OK) {
-            if (result) lv00_free((void **)&result);
+            if (result) lv_free((void **)&result);
             return MINI_VERIFY_FAIL_SUBSTITUTION;
         }
     }
@@ -937,7 +937,7 @@ MiniVerifyResult mini_kernel_self_check(MiniKernel *kernel)
         MiniVerifyResult r = mini_kernel_check_substitution(
             kernel, &sub, 1, "test", &result);
         if (r != MINI_VERIFY_FAIL_UNBOUND_VAR) {
-            if (result) lv00_free((void **)&result);
+            if (result) lv_free((void **)&result);
             return MINI_VERIFY_FAIL_SUBSTITUTION;
         }
     }
@@ -983,9 +983,9 @@ void mini_kernel_stats(const MiniKernel *kernel,
 
 bool mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id)
 {
-    LV00_CHECK_NULL(kernel, false);
+    lv_CHECK_NULL(kernel, false);
     if (stmt_id < 0 || stmt_id >= kernel->statement_count) {
-        lv00_set_error_ctx(LV00_ERROR_INDEX_OUT_OF_RANGE, __FILE__, __LINE__,
+        lv_set_error_ctx(lv_ERROR_INDEX_OUT_OF_RANGE, __FILE__, __LINE__,
                            __func__, "语句ID越界: %d", stmt_id);
         return false;
     }
@@ -994,7 +994,7 @@ bool mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id)
     if (stmt_id >= kernel->map_count) {
         int new_cap = kernel->map_count * 2;
         while (stmt_id >= new_cap) new_cap *= 2;
-        int *new_map = lv00_realloc(kernel->stmt_to_node_map,
+        int *new_map = lv_realloc(kernel->stmt_to_node_map,
             (size_t)new_cap * sizeof(int));
         if (!new_map) return false;
         for (int i = kernel->map_count; i < new_cap; i++) {
@@ -1041,7 +1041,7 @@ void mini_kernel_reset(MiniKernel *kernel)
     /* 释放所有语句 */
     for (int i = 0; i < kernel->statement_count; i++) {
         if (kernel->statements[i]) {
-            lv00_free((void **)&kernel->statements[i]);
+            lv_free((void **)&kernel->statements[i]);
         }
     }
     kernel->statement_count = 0;
@@ -1049,7 +1049,7 @@ void mini_kernel_reset(MiniKernel *kernel)
     /* 释放符号表 */
     for (int i = 0; i < kernel->symbol_count; i++) {
         if (kernel->symbol_names[i]) {
-            lv00_free((void **)&kernel->symbol_names[i]);
+            lv_free((void **)&kernel->symbol_names[i]);
             kernel->symbol_names[i] = NULL;
         }
     }

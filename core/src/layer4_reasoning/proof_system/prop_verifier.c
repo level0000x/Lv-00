@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file prop_verifier.c
  * @brief 命题逻辑验证器实现 —— 自然演绎证明引擎
  *
@@ -16,18 +16,18 @@
  * @version 1.1.0
  */
 
-#include "lv00/prop_verifier.h"
-#include "lv00/lv00_utils.h"
-#include "lv00/stream_context_util.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/stream.h"
+#include "lv/prop_verifier.h"
+#include "lv/lv_utils.h"
+#include "lv/stream_context_util.h"
+#include "lv/lv_internal.h"
+#include "lv/stream.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-LV00_DECLARE_STREAM_CTX(prop_verifier);
+lv_DECLARE_STREAM_CTX(prop_verifier);
 
 /* ============================================================
  * 内部常量
@@ -92,7 +92,7 @@ LV00_DECLARE_STREAM_CTX(prop_verifier);
  */
 PropFormula *prop_formula_create_atom(const char *name) {
     if (!name) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
+    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_ATOM;
     snprintf(f->data.atom.name, sizeof(f->data.atom.name), "%s", name);
@@ -108,7 +108,7 @@ PropFormula *prop_formula_create_atom(const char *name) {
  */
 PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *right) {
     if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
+    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_CONJUNCTION;
     f->data.binary.left = left;
@@ -125,7 +125,7 @@ PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *rig
  */
 PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *right) {
     if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
+    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_DISJUNCTION;
     f->data.binary.left = left;
@@ -142,7 +142,7 @@ PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *rig
  */
 PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *right) {
     if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
+    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_IMPLICATION;
     f->data.binary.left = left;
@@ -158,7 +158,7 @@ PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *rig
  */
 PropFormula *prop_formula_create_negation(PropFormula *operand) {
     if (!operand) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
+    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_NEGATION;
     f->data.unary.operand = operand;
@@ -171,7 +171,7 @@ PropFormula *prop_formula_create_negation(PropFormula *operand) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_bottom(void) {
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
+    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_BOTTOM;
     return f;
@@ -183,7 +183,7 @@ PropFormula *prop_formula_create_bottom(void) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_true(void) {
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
+    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
     if (!f) return NULL;
     f->type = PROP_TRUE;
     return f;
@@ -271,7 +271,7 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
     /* 显式栈存储待销毁的公式节点 */
     int stack_capacity = PROP_DESTROY_STACK_INIT_CAP;
     int stack_top = 0;
-    PropFormula **stack = (PropFormula **)lv00_malloc(
+    PropFormula **stack = (PropFormula **)lv_malloc(
         (size_t)stack_capacity * sizeof(PropFormula *));
     if (!stack) {
         /* 内存分配失败，退化为简单递归（浅层公式仍可正确销毁） */
@@ -293,7 +293,7 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
                         if (new_cap <= stack_capacity) break; /* 溢出保护 */
-                        PropFormula **new_stack = (PropFormula **)lv00_realloc(
+                        PropFormula **new_stack = (PropFormula **)lv_realloc(
                             stack, (size_t)new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
                             /* 栈扩容失败，改用直接递归销毁剩余子节点 */
@@ -314,7 +314,7 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
                         if (new_cap <= stack_capacity) break;
-                        PropFormula **new_stack = (PropFormula **)lv00_realloc(
+                        PropFormula **new_stack = (PropFormula **)lv_realloc(
                             stack, (size_t)new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
                             if (current->data.binary.left)
@@ -336,7 +336,7 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
                         if (new_cap <= stack_capacity) break;
-                        PropFormula **new_stack = (PropFormula **)lv00_realloc(
+                        PropFormula **new_stack = (PropFormula **)lv_realloc(
                             stack, (size_t)new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
                             if (current->data.unary.operand)
@@ -357,11 +357,11 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
         }
 
         /* 释放当前节点 */
-        lv00_free((void **)&current);
+        lv_free((void **)&current);
     }
 
     /* 释放栈 */
-    lv00_free((void **)&stack);
+    lv_free((void **)&stack);
 }
 
 /* ============================================================
@@ -485,7 +485,7 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
  */
 char *prop_formula_to_string(const PropFormula *f) {
     if (!f) return NULL;
-    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
+    char *buf = (char *)lv_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
     if (!buf) return NULL;
     formula_to_string_buf(f, buf, MAX_FORMULA_STR, 0);
     return buf;
@@ -548,7 +548,7 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size,
  */
 char *prop_formula_to_latex(const PropFormula *f) {
     if (!f) return NULL;
-    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
+    char *buf = (char *)lv_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
     if (!buf) return NULL;
     formula_to_latex_buf(f, buf, MAX_FORMULA_STR, 0);
     return buf;
@@ -1535,7 +1535,7 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
             snprintf(pattern_desc, desc_size,
                      "������ (LEM): %s \\/ ~%s��ֱ�������߼��в���֤��",
                      s, s);
-            lv00_free((void **)&s);
+            lv_free((void **)&s);
             return true;
         }
         /* ~A �� A */
@@ -1545,7 +1545,7 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
             snprintf(pattern_desc, desc_size,
                      "������ (LEM): ~%s \\/ %s��ֱ�������߼��в���֤��",
                      s, s);
-            lv00_free((void **)&s);
+            lv_free((void **)&s);
             return true;
         }
     }
@@ -1561,7 +1561,7 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
             snprintf(pattern_desc, desc_size,
                      "˫�ط���ȥ: ~~%s �� %s��ֱ�������߼��в���֤��",
                      s, s);
-            lv00_free((void **)&s);
+            lv_free((void **)&s);
             return true;
         }
         /* ��֤�� (RAA): (~A �� ��) �� A */
@@ -1573,7 +1573,7 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
             snprintf(pattern_desc, desc_size,
                      "��֤�� (RAA): (~%s �� _|_) �� %s��ֱ�������߼��в���֤��",
                      s, s);
-            lv00_free((void **)&s);
+            lv_free((void **)&s);
             return true;
         }
     }
@@ -1687,9 +1687,9 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
 
     /* ����ʧ����Ŀ������ */
     analysis.failed_subgoals = 1;
-    analysis.subgoal_descriptions = (char **)lv00_malloc(sizeof(char *));  /* �����ڴ� */
+    analysis.subgoal_descriptions = (char **)lv_malloc(sizeof(char *));  /* �����ڴ� */
     if (analysis.subgoal_descriptions) {
-        analysis.subgoal_descriptions[0] = (char *)lv00_malloc(512);  /* �����ڴ� */
+        analysis.subgoal_descriptions[0] = (char *)lv_malloc(512);  /* �����ڴ� */
         if (analysis.subgoal_descriptions[0]) {
             snprintf(analysis.subgoal_descriptions[0], 512,
                      "Ŀ��: %s | ״̬: %s | ����: %d/%d",
@@ -1707,9 +1707,9 @@ void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis) {
     if (!analysis) return;
     if (analysis->subgoal_descriptions) {
         for (int i = 0; i < analysis->subgoal_desc_count; i++) {
-            lv00_free((void**)&analysis->subgoal_descriptions[i]);  /* �ͷŲ���NULL */
+            lv_free((void**)&analysis->subgoal_descriptions[i]);  /* �ͷŲ���NULL */
         }
-        lv00_free((void**)&analysis->subgoal_descriptions);  /* �ͷŲ���NULL */
+        lv_free((void**)&analysis->subgoal_descriptions);  /* �ͷŲ���NULL */
     }
     analysis->subgoal_desc_count = 0;
 }
@@ -1851,7 +1851,7 @@ BHKVerificationResult prop_verifier_bhk_verify(
         result.missing_count = missing;
 
         if (missing > 0) {
-            result.missing_descriptions = (char **)lv00_malloc(sizeof(char *) * (size_t)missing);  /* �����ڴ� */
+            result.missing_descriptions = (char **)lv_malloc(sizeof(char *) * (size_t)missing);  /* �����ڴ� */
             if (result.missing_descriptions) {
                 int idx = 0;
                 for (int i = 0; i < atom_count && idx < missing; i++) {
@@ -1868,7 +1868,7 @@ BHKVerificationResult prop_verifier_bhk_verify(
                         snprintf(desc, sizeof(desc),
                                  "ȱ��ԭ������ '%s' �ļ���֤���Ҫ��Ӧ�ĵ㡢�߶λ�����ڵ㣩",
                                  goal_atoms[i]);
-                        result.missing_descriptions[idx] = lv00_strdup_safe(desc);  /* �����ַ��� */
+                        result.missing_descriptions[idx] = lv_strdup_safe(desc);  /* �����ַ��� */
                         idx++;
                     }
                 }
@@ -1877,12 +1877,12 @@ BHKVerificationResult prop_verifier_bhk_verify(
             result.missing_descriptions = NULL;
             /* ��ԭ��ǰ�ᵫ�޷����죺��������������������� */
             result.missing_count = 1;
-            result.missing_descriptions = (char **)lv00_malloc(sizeof(char *));  /* �����ڴ� */
+            result.missing_descriptions = (char **)lv_malloc(sizeof(char *));  /* �����ڴ� */
             if (result.missing_descriptions) {
                 char desc[256];
                 snprintf(desc, sizeof(desc),
                          "�޷�ͨ������ǰ�����Ϲ���Ŀ�꣨������������������");
-                result.missing_descriptions[0] = lv00_strdup_safe(desc);  /* �����ַ��� */
+                result.missing_descriptions[0] = lv_strdup_safe(desc);  /* �����ַ��� */
             }
         }
     }
@@ -1894,9 +1894,9 @@ void prop_verifier_free_bhk_result(BHKVerificationResult *result) {
     if (!result) return;
     if (result->missing_descriptions) {
         for (int i = 0; i < result->missing_count; i++) {
-            lv00_free((void**)&result->missing_descriptions[i]);  /* �ͷŲ���NULL */
+            lv_free((void**)&result->missing_descriptions[i]);  /* �ͷŲ���NULL */
         }
-        lv00_free((void**)&result->missing_descriptions);  /* �ͷŲ���NULL */
+        lv_free((void**)&result->missing_descriptions);  /* �ͷŲ���NULL */
     }
     result->missing_count = 0;
 }
@@ -2155,7 +2155,7 @@ StreamContext *prop_verifier_get_stream_context(void) {
     return prop_verifier_stream_ctx;
 }
 
-PropVerifierResult lv00_prop_verify(const void *prop) {
+PropVerifierResult lv_prop_verify(const void *prop) {
     PropVerifierResult res;
     res.valid = false;
     res.msg = "Not implemented";
@@ -2192,8 +2192,8 @@ PropVerifierResult lv00_prop_verify(const void *prop) {
 
         case PROP_CONJUNCTION: {
             /* 合取式：所有子命题均需成立 */
-            PropVerifierResult left  = lv00_prop_verify(f->data.binary.left);
-            PropVerifierResult right = lv00_prop_verify(f->data.binary.right);
+            PropVerifierResult left  = lv_prop_verify(f->data.binary.left);
+            PropVerifierResult right = lv_prop_verify(f->data.binary.right);
             if (left.valid && right.valid) {
                 res.valid = true;
                 res.msg = "verified";
@@ -2206,14 +2206,14 @@ PropVerifierResult lv00_prop_verify(const void *prop) {
 
         case PROP_IMPLICATION: {
             /* 蕴含式：检查前提是否为真，结论是否为前提的逻辑推论 */
-            PropVerifierResult ant = lv00_prop_verify(f->data.binary.left);
+            PropVerifierResult ant = lv_prop_verify(f->data.binary.left);
             if (!ant.valid) {
                 /* 前提不成立 → 蕴含式空洞为真 */
                 res.valid = true;
                 res.msg = "verified";
             } else {
                 /* 前提成立 → 结论必须成立 */
-                PropVerifierResult cons = lv00_prop_verify(f->data.binary.right);
+                PropVerifierResult cons = lv_prop_verify(f->data.binary.right);
                 if (cons.valid) {
                     res.valid = true;
                     res.msg = "verified";
@@ -2227,8 +2227,8 @@ PropVerifierResult lv00_prop_verify(const void *prop) {
 
         case PROP_DISJUNCTION: {
             /* 析取式：至少一个子命题成立 */
-            PropVerifierResult left  = lv00_prop_verify(f->data.binary.left);
-            PropVerifierResult right = lv00_prop_verify(f->data.binary.right);
+            PropVerifierResult left  = lv_prop_verify(f->data.binary.left);
+            PropVerifierResult right = lv_prop_verify(f->data.binary.right);
             if (left.valid || right.valid) {
                 res.valid = true;
                 res.msg = "verified";
@@ -2241,7 +2241,7 @@ PropVerifierResult lv00_prop_verify(const void *prop) {
 
         case PROP_NEGATION: {
             /* 否定式：取反内部验证结果 */
-            PropVerifierResult inner = lv00_prop_verify(f->data.unary.operand);
+            PropVerifierResult inner = lv_prop_verify(f->data.unary.operand);
             if (inner.valid) {
                 res.valid = false;
                 res.msg = "negation of verified formula";

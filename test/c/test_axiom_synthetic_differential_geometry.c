@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_synthetic_differential_geometry.c
  * @brief Synthetic Differential Geometry Axiom Package Test
  *
@@ -16,7 +16,7 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "test_helpers.h"
 
 int g_fail_count = 0;
@@ -236,8 +236,8 @@ static void test_content_hash(void) {
     TEST_ASSERT(hash2 != NULL, "second hash should not be NULL");
     TEST_ASSERT(strcmp(hash1, hash2) == 0, "content hash should be deterministic");
 
-    lv00_free((void **) &hash1);
-    lv00_free((void **) &hash2);
+    lv_free((void **) &hash1);
+    lv_free((void **) &hash2);
     axiom_package_destroy(pkg);
 }
 

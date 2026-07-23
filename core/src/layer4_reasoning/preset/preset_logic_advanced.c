@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_logic_advanced.c
  * @brief 高级逻辑预设函数块 - 实现
  *
@@ -14,8 +14,8 @@
 
 #include "preset_logic_advanced.h"
 #include "preset_blocks.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 

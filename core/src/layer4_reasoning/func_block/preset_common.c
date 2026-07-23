@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_common.c
  * @brief 预设函数块系统 - 公共工具实现
  *
@@ -28,7 +28,7 @@
  * 字符串操作实现
  * ============================================================ */
 
-size_t lv00_safe_strncpy(char *dest, const char *src, size_t dest_size) {
+size_t lv_safe_strncpy(char *dest, const char *src, size_t dest_size) {
     PRESET_CHECK_NULL(dest, error);
     PRESET_CHECK_NULL(src, error);
 
@@ -52,7 +52,7 @@ error:
     return 0;
 }
 
-size_t lv00_safe_strncat(char *dest, const char *src, size_t dest_size) {
+size_t lv_safe_strncat(char *dest, const char *src, size_t dest_size) {
     PRESET_CHECK_NULL(dest, error);
     PRESET_CHECK_NULL(src, error);
 
@@ -83,7 +83,7 @@ error:
     return 0;
 }
 
-int lv00_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...) {
+int lv_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...) {
     PRESET_CHECK_NULL(dest, error);
     PRESET_CHECK_NULL(fmt, error);
 
@@ -109,7 +109,7 @@ error:
  * 数组工具实现
  * ============================================================ */
 
-uint32_t lv00_hash_int_array(const int *arr, int count) {
+uint32_t lv_hash_int_array(const int *arr, int count) {
     if (arr == NULL || count <= 0) {
         return 0;
     }
@@ -123,7 +123,7 @@ uint32_t lv00_hash_int_array(const int *arr, int count) {
     return hash;
 }
 
-bool lv00_int_arrays_equal(const int *a, int count_a, const int *b, int count_b) {
+bool lv_int_arrays_equal(const int *a, int count_a, const int *b, int count_b) {
     if (a == NULL || b == NULL) {
         return a == b; /* 都为空则相等 */
     }
@@ -140,21 +140,21 @@ bool lv00_int_arrays_equal(const int *a, int count_a, const int *b, int count_b)
     return true;
 }
 
-int *lv00_dup_int_array(const int *src, int count) {
+int *lv_dup_int_array(const int *src, int count) {
     if (src == NULL || count <= 0) {
         return NULL;
     }
 
     /* 检查整数溢出 */
     if (count > INT_MAX / (int) sizeof(int)) {
-        LV00_ERROR_SET(LV00_ERROR_OVERFLOW, "数组大小溢出: count=%d", count);
+        lv_ERROR_SET(lv_ERROR_OVERFLOW, "数组大小溢出: count=%d", count);
         return NULL;
     }
 
     size_t size = (size_t) count * sizeof(int);
-    int *dup = (int *) lv00_malloc(size);
+    int *dup = (int *) lv_malloc(size);
     if (dup == NULL) {
-        LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, "数组内存分配失败");
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "数组内存分配失败");
         return NULL;
     }
 
@@ -405,7 +405,7 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
     *properties = 0;
 
     /* 复制字符串以便分割 */
-    char *copy = lv00_strdup(str);
+    char *copy = lv_strdup(str);
     if (copy == NULL) {
         return false;
     }
@@ -430,7 +430,7 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
         }
 
         if (!found) {
-            lv00_free((void **) &copy);
+            lv_free((void **) &copy);
             return false;
         }
 
@@ -441,7 +441,7 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
 #endif
     }
 
-    lv00_free((void **) &copy);
+    lv_free((void **) &copy);
     return true;
 }
 
@@ -458,7 +458,7 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
  * @return true 成功，false 失败
  *
  * 此函数消除了各预设模块中 get_names 函数的重复代码。
- * 调用者需要通过 lv00_free 释放每个名称字符串和数组本身。
+ * 调用者需要通过 lv_free 释放每个名称字符串和数组本身。
  */
 bool preset_module_get_names(const char *const *names, int count,
                              char ***out_names, int *out_count) {
@@ -466,22 +466,22 @@ bool preset_module_get_names(const char *const *names, int count,
         return false;
     }
 
-    char **result = (char **)lv00_malloc((size_t)count * sizeof(char *));
+    char **result = (char **)lv_malloc((size_t)count * sizeof(char *));
     if (!result) {
         return false;
     }
 
     for (int i = 0; i < count; i++) {
-        result[i] = lv00_strdup(names[i]);
+        result[i] = lv_strdup(names[i]);
         if (!result[i]) {
             /* 回滚已分配的内存 */
             for (int j = 0; j < i; j++) {
                 char *tmp = result[j];
-                lv00_free((void **)&tmp);
+                lv_free((void **)&tmp);
             }
             {
                 char *tmp_ptr = (char *)result;
-                lv00_free((void **)&tmp_ptr);
+                lv_free((void **)&tmp_ptr);
             }
             return false;
         }

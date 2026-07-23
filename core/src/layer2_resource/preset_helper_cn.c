@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_helper_cn.c
  * @brief 预设辅助函数（中文版）
  *
@@ -8,7 +8,7 @@
  * @version 1.0.0
  */
 
-#include "lv00/lv00.h"
+#include "lv/lv.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -51,7 +51,7 @@ static const PresetNameEntry g_preset_names[] = {
  * @param preset_id 预设ID
  * @return 中文名称字符串，未找到时返回 "未知预设"
  */
-const char *lv00_preset_get_name_cn(int preset_id)
+const char *lv_preset_get_name_cn(int preset_id)
 {
     for (size_t i = 0; i < PRESET_NAME_COUNT; i++) {
         if (g_preset_names[i].preset_id == preset_id) {
@@ -66,7 +66,7 @@ const char *lv00_preset_get_name_cn(int preset_id)
  * @param preset_id 预设ID
  * @return 中文描述字符串，未找到时返回 "无描述"
  */
-const char *lv00_preset_get_desc_cn(int preset_id)
+const char *lv_preset_get_desc_cn(int preset_id)
 {
     for (size_t i = 0; i < PRESET_NAME_COUNT; i++) {
         if (g_preset_names[i].preset_id == preset_id) {
@@ -81,7 +81,7 @@ const char *lv00_preset_get_desc_cn(int preset_id)
  * @param name_cn 中文名称
  * @return 预设ID，未找到返回 -1
  */
-int lv00_preset_find_by_name_cn(const char *name_cn)
+int lv_preset_find_by_name_cn(const char *name_cn)
 {
     if (name_cn == NULL) return -1;
 
@@ -103,12 +103,12 @@ int lv00_preset_find_by_name_cn(const char *name_cn)
  * @param buf_size  缓冲区大小
  * @return 写入的字符数（不含终止符），失败返回 -1
  */
-int lv00_preset_format_cn(int preset_id, char *buf, size_t buf_size)
+int lv_preset_format_cn(int preset_id, char *buf, size_t buf_size)
 {
     if (buf == NULL || buf_size == 0) return -1;
 
-    const char *name = lv00_preset_get_name_cn(preset_id);
-    const char *desc = lv00_preset_get_desc_cn(preset_id);
+    const char *name = lv_preset_get_name_cn(preset_id);
+    const char *desc = lv_preset_get_desc_cn(preset_id);
 
     return snprintf(buf, buf_size, "[%d] %s - %s", preset_id, name, desc);
 }
@@ -117,7 +117,7 @@ int lv00_preset_format_cn(int preset_id, char *buf, size_t buf_size)
  * @brief 获取预设名称表的条目数量
  * @return 条目数量
  */
-int lv00_preset_name_count(void)
+int lv_preset_name_count(void)
 {
     return (int)PRESET_NAME_COUNT;
 }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file relation_model.c
  * @brief 关系模型层实现 —— 借鉴 Alloy 的"关系即一切"统一建模范式
  *
@@ -16,10 +16,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "error_codes.h"
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 
 /* ========================================================================
  * 内部常量
@@ -50,7 +50,7 @@ static bool tuple_eq(const int *a, const int *b, int arity) {
  * @brief 复制元组
  */
 static int *tuple_clone(const int *src, int arity) {
-    int *dst = (int *)lv00_malloc((size_t)arity * sizeof(int));
+    int *dst = (int *)lv_malloc((size_t)arity * sizeof(int));
     if (!dst) return NULL;
     memcpy(dst, src, (size_t)arity * sizeof(int));
     return dst;
@@ -62,10 +62,10 @@ static int *tuple_clone(const int *src, int arity) {
 static bool rel_ensure_capacity(Relation *r) {
     if (r->tuple_count >= r->tuple_capacity) {
         int new_cap = (r->tuple_capacity == 0) ? TUPLE_INITIAL_CAP
-                                               : r->tuple_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        if (r->tuple_capacity > 0 && new_cap / r->tuple_capacity != LV00_ARRAY_GROWTH_FACTOR)
+                                               : r->tuple_capacity * lv_ARRAY_GROWTH_FACTOR;
+        if (r->tuple_capacity > 0 && new_cap / r->tuple_capacity != lv_ARRAY_GROWTH_FACTOR)
             return false; /* 整数溢出 */
-        int **new_t = (int **)lv00_realloc(r->tuples, (size_t)new_cap * sizeof(int *));
+        int **new_t = (int **)lv_realloc(r->tuples, (size_t)new_cap * sizeof(int *));
         if (!new_t) return false;
         r->tuples = new_t;
         r->tuple_capacity = new_cap;
@@ -98,10 +98,10 @@ static bool rel_add_tuple_inner(Relation *r, const int *tuple) {
  * @brief 创建新关系（内部使用）
  */
 static Relation *rel_new(const char *name, int arity) {
-    Relation *r = (Relation *)lv00_malloc(sizeof(Relation));
+    Relation *r = (Relation *)lv_malloc(sizeof(Relation));
     if (!r) return NULL;
     memset(r, 0, sizeof(Relation));
-    r->name = name ? lv00_strdup_safe(name) : NULL;
+    r->name = name ? lv_strdup_safe(name) : NULL;
     r->arity = arity;
     r->tuples = NULL;
     r->tuple_count = 0;
@@ -115,11 +115,11 @@ static Relation *rel_new(const char *name, int arity) {
 static void rel_destroy(Relation *r) {
     if (!r) return;
     for (int i = 0; i < r->tuple_count; i++) {
-        lv00_free((void **)&r->tuples[i]);
+        lv_free((void **)&r->tuples[i]);
     }
-    lv00_free((void **)&r->tuples);
-    if (r->name) lv00_free((void **)&r->name);
-    lv00_free((void **)&r);
+    lv_free((void **)&r->tuples);
+    if (r->name) lv_free((void **)&r->name);
+    lv_free((void **)&r);
 }
 
 /* ========================================================================
@@ -129,10 +129,10 @@ static void rel_destroy(Relation *r) {
 /* ── 并集（R + S）── */
 
 Relation *rel_union(const Relation *a, const Relation *b) {
-    LV00_CHECK_NULL(a, NULL);
-    LV00_CHECK_NULL(b, NULL);
+    lv_CHECK_NULL(a, NULL);
+    lv_CHECK_NULL(b, NULL);
     if (a->arity != b->arity) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "并集要求同元数: a->arity=%d, b->arity=%d", a->arity, b->arity);
         return NULL;
     }
@@ -163,10 +163,10 @@ Relation *rel_union(const Relation *a, const Relation *b) {
 /* ── 交集（R & S）── */
 
 Relation *rel_intersection(const Relation *a, const Relation *b) {
-    LV00_CHECK_NULL(a, NULL);
-    LV00_CHECK_NULL(b, NULL);
+    lv_CHECK_NULL(a, NULL);
+    lv_CHECK_NULL(b, NULL);
     if (a->arity != b->arity) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "交集要求同元数: a->arity=%d, b->arity=%d", a->arity, b->arity);
         return NULL;
     }
@@ -190,10 +190,10 @@ Relation *rel_intersection(const Relation *a, const Relation *b) {
 /* ── 差集（R - S）── */
 
 Relation *rel_difference(const Relation *a, const Relation *b) {
-    LV00_CHECK_NULL(a, NULL);
-    LV00_CHECK_NULL(b, NULL);
+    lv_CHECK_NULL(a, NULL);
+    lv_CHECK_NULL(b, NULL);
     if (a->arity != b->arity) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "差集要求同元数: a->arity=%d, b->arity=%d", a->arity, b->arity);
         return NULL;
     }
@@ -217,10 +217,10 @@ Relation *rel_difference(const Relation *a, const Relation *b) {
 /* ── 关系连接（join，R.S）── */
 
 Relation *rel_join(const Relation *a, const Relation *b) {
-    LV00_CHECK_NULL(a, NULL);
-    LV00_CHECK_NULL(b, NULL);
+    lv_CHECK_NULL(a, NULL);
+    lv_CHECK_NULL(b, NULL);
     if (a->arity < 1 || b->arity < 1) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "连接操作要求至少一元关系");
         return NULL;
     }
@@ -236,7 +236,7 @@ Relation *rel_join(const Relation *a, const Relation *b) {
         for (int j = 0; j < b->tuple_count; j++) {
             if (a_last == b->tuples[j][0]) {
                 /* 构建新元组: a[0..a->arity-2] + b[1..b->arity-1] */
-                int *t = (int *)lv00_malloc((size_t)new_arity * sizeof(int));
+                int *t = (int *)lv_malloc((size_t)new_arity * sizeof(int));
                 if (!t) {
                     rel_destroy(r);
                     return NULL;
@@ -250,12 +250,12 @@ Relation *rel_join(const Relation *a, const Relation *b) {
                 }
                 if (!rel_contains_tuple(r, t)) {
                     if (!rel_add_tuple_inner(r, t)) {
-                        lv00_free((void **)&t);
+                        lv_free((void **)&t);
                         rel_destroy(r);
                         return NULL;
                     }
                 } else {
-                    lv00_free((void **)&t);
+                    lv_free((void **)&t);
                 }
             }
         }
@@ -267,8 +267,8 @@ Relation *rel_join(const Relation *a, const Relation *b) {
 /* ── 笛卡尔积（R -> S）── */
 
 Relation *rel_product(const Relation *a, const Relation *b) {
-    LV00_CHECK_NULL(a, NULL);
-    LV00_CHECK_NULL(b, NULL);
+    lv_CHECK_NULL(a, NULL);
+    lv_CHECK_NULL(b, NULL);
 
     int new_arity = a->arity + b->arity;
     Relation *r = rel_new("product", new_arity);
@@ -276,7 +276,7 @@ Relation *rel_product(const Relation *a, const Relation *b) {
 
     for (int i = 0; i < a->tuple_count; i++) {
         for (int j = 0; j < b->tuple_count; j++) {
-            int *t = (int *)lv00_malloc((size_t)new_arity * sizeof(int));
+            int *t = (int *)lv_malloc((size_t)new_arity * sizeof(int));
             if (!t) {
                 rel_destroy(r);
                 return NULL;
@@ -284,7 +284,7 @@ Relation *rel_product(const Relation *a, const Relation *b) {
             memcpy(t, a->tuples[i], (size_t)a->arity * sizeof(int));
             memcpy(t + a->arity, b->tuples[j], (size_t)b->arity * sizeof(int));
             if (!rel_ensure_capacity(r)) {
-                lv00_free((void **)&t);
+                lv_free((void **)&t);
                 rel_destroy(r);
                 return NULL;
             }
@@ -298,9 +298,9 @@ Relation *rel_product(const Relation *a, const Relation *b) {
 /* ── 转置（~R）── */
 
 Relation *rel_transpose(const Relation *r) {
-    LV00_CHECK_NULL(r, NULL);
+    lv_CHECK_NULL(r, NULL);
     if (r->arity != 2) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "转置仅适用于二元关系: arity=%d", r->arity);
         return NULL;
     }
@@ -322,9 +322,9 @@ Relation *rel_transpose(const Relation *r) {
 /* ── 传递闭包（^R）── */
 
 Relation *rel_transitive_closure(const Relation *r) {
-    LV00_CHECK_NULL(r, NULL);
+    lv_CHECK_NULL(r, NULL);
     if (r->arity != 2) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "传递闭包仅适用于二元关系: arity=%d", r->arity);
         return NULL;
     }
@@ -341,7 +341,7 @@ Relation *rel_transitive_closure(const Relation *r) {
 
     /* Floyd-Warshall 风格迭代直到不动点 */
     bool changed = true;
-    int max_iter = LV00_DEFAULT_MAX_ITERATIONS;
+    int max_iter = lv_DEFAULT_MAX_ITERATIONS;
     int iter = 0;
     while (changed && iter < max_iter) {
         changed = false;
@@ -372,9 +372,9 @@ Relation *rel_transitive_closure(const Relation *r) {
 /* ── 自反传递闭包（*R）── */
 
 Relation *rel_reflexive_transitive_closure(const Relation *r) {
-    LV00_CHECK_NULL(r, NULL);
+    lv_CHECK_NULL(r, NULL);
     if (r->arity != 2) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "自反传递闭包仅适用于二元关系: arity=%d", r->arity);
         return NULL;
     }
@@ -408,7 +408,7 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
         if (r->tuples[i][1] > max_elem) max_elem = r->tuples[i][1];
     }
     size_t bitmap_size = (size_t)(max_elem + 8) / 8 + 1;
-    uint8_t *seen = (uint8_t *) lv00_calloc(bitmap_size, sizeof(uint8_t));
+    uint8_t *seen = (uint8_t *) lv_calloc(bitmap_size, sizeof(uint8_t));
     if (!seen) {
         rel_destroy(result);
         return NULL;
@@ -431,7 +431,7 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
     }
     #undef SEEN_SET
     #undef SEEN_TEST
-    lv00_free((void **) &seen);
+    lv_free((void **) &seen);
 
     return result;
 }
@@ -443,8 +443,8 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
 static bool model_ensure_sig_capacity(RelModel *model) {
     if (model->sig_count >= model->sig_capacity) {
         int new_cap = (model->sig_capacity == 0) ? SIG_INITIAL_CAP
-                                                 : model->sig_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        RelSignature **new_s = (RelSignature **)lv00_realloc(model->sigs,
+                                                 : model->sig_capacity * lv_ARRAY_GROWTH_FACTOR;
+        RelSignature **new_s = (RelSignature **)lv_realloc(model->sigs,
                                                               (size_t)new_cap * sizeof(RelSignature *));
         if (!new_s) return false;
         model->sigs = new_s;
@@ -454,10 +454,10 @@ static bool model_ensure_sig_capacity(RelModel *model) {
 }
 
 RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
-    LV00_CHECK_NULL(graph, NULL);
+    lv_CHECK_NULL(graph, NULL);
 
-    RelModel *model = (RelModel *)lv00_malloc(sizeof(RelModel));
-    LV00_CHECK_ALLOC(model, NULL);
+    RelModel *model = (RelModel *)lv_malloc(sizeof(RelModel));
+    lv_CHECK_ALLOC(model, NULL);
     memset(model, 0, sizeof(RelModel));
 
     /* 为每种 GeomType 创建 RelSignature */
@@ -467,9 +467,9 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
     };
 
     /* 分配初始签名容量 */
-    model->sigs = (RelSignature **)lv00_malloc((size_t)SIG_INITIAL_CAP * sizeof(RelSignature *));
+    model->sigs = (RelSignature **)lv_malloc((size_t)SIG_INITIAL_CAP * sizeof(RelSignature *));
     if (!model->sigs) {
-        lv00_free((void **)&model);
+        lv_free((void **)&model);
         return NULL;
     }
     model->sig_capacity = SIG_INITIAL_CAP;
@@ -477,19 +477,19 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
 
     /* 为每个节点分类创建原子 */
     for (int si = 0; si < 5; si++) {
-        RelSignature *sig = (RelSignature *)lv00_malloc(sizeof(RelSignature));
+        RelSignature *sig = (RelSignature *)lv_malloc(sizeof(RelSignature));
         if (!sig) {
             relation_model_destroy(model);
             return NULL;
         }
         memset(sig, 0, sizeof(RelSignature));
-        sig->name = lv00_strdup_safe(sig_names[si]);
+        sig->name = lv_strdup_safe(sig_names[si]);
         sig->atom_type = sig_types[si];
         sig->atom_capacity = 64;
-        sig->atoms = (RelAtom **)lv00_malloc((size_t)sig->atom_capacity * sizeof(RelAtom *));
+        sig->atoms = (RelAtom **)lv_malloc((size_t)sig->atom_capacity * sizeof(RelAtom *));
         if (!sig->atoms) {
-            lv00_free((void **)&sig->name);
-            lv00_free((void **)&sig);
+            lv_free((void **)&sig->name);
+            lv_free((void **)&sig);
             relation_model_destroy(model);
             return NULL;
         }
@@ -524,8 +524,8 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
 
         /* 扩容 atom 数组 */
         if (sig->atom_count >= sig->atom_capacity) {
-            int new_cap = (sig->atom_capacity == 0) ? 16 : sig->atom_capacity * LV00_ARRAY_GROWTH_FACTOR;
-            RelAtom **new_a = (RelAtom **)lv00_realloc(sig->atoms,
+            int new_cap = (sig->atom_capacity == 0) ? 16 : sig->atom_capacity * lv_ARRAY_GROWTH_FACTOR;
+            RelAtom **new_a = (RelAtom **)lv_realloc(sig->atoms,
                                                         (size_t)new_cap * sizeof(RelAtom *));
             if (!new_a) {
                 relation_model_destroy(model);
@@ -535,7 +535,7 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
             sig->atom_capacity = new_cap;
         }
 
-        RelAtom *atom = (RelAtom *)lv00_malloc(sizeof(RelAtom));
+        RelAtom *atom = (RelAtom *)lv_malloc(sizeof(RelAtom));
         if (!atom) {
             relation_model_destroy(model);
             return NULL;
@@ -569,17 +569,17 @@ void relation_model_destroy(RelModel *model) {
                 for (int ai = 0; ai < sig->atom_count; ai++) {
                     RelAtom *atom = sig->atoms[ai];
                     if (atom) {
-                        if (atom->label) lv00_free((void **)&atom->label);
-                        lv00_free((void **)&atom);
+                        if (atom->label) lv_free((void **)&atom->label);
+                        lv_free((void **)&atom);
                     }
                 }
-                lv00_free((void **)&sig->atoms);
+                lv_free((void **)&sig->atoms);
             }
-            if (sig->sub_sigs) lv00_free((void **)&sig->sub_sigs);
-            if (sig->name) lv00_free((void **)&sig->name);
-            lv00_free((void **)&sig);
+            if (sig->sub_sigs) lv_free((void **)&sig->sub_sigs);
+            if (sig->name) lv_free((void **)&sig->name);
+            lv_free((void **)&sig);
         }
-        lv00_free((void **)&model->sigs);
+        lv_free((void **)&model->sigs);
     }
 
     /* 销毁所有关系 */
@@ -587,22 +587,22 @@ void relation_model_destroy(RelModel *model) {
         for (int ri = 0; ri < model->relation_count; ri++) {
             rel_destroy(model->relations[ri]);
         }
-        lv00_free((void **)&model->relations);
+        lv_free((void **)&model->relations);
     }
 
     /* 销毁事实和断言（浅释放，所有权在模型） */
-    if (model->facts) lv00_free((void **)&model->facts);
-    if (model->assertions) lv00_free((void **)&model->assertions);
+    if (model->facts) lv_free((void **)&model->facts);
+    if (model->assertions) lv_free((void **)&model->assertions);
 
-    lv00_free((void **)&model);
+    lv_free((void **)&model);
 }
 
 bool relation_model_add_fact(RelModel *model, RelFormula *formula) {
-    LV00_CHECK_NULL(model, false);
-    LV00_CHECK_NULL(formula, false);
+    lv_CHECK_NULL(model, false);
+    lv_CHECK_NULL(formula, false);
 
     /* 简化：假设已分配足够空间 */
-    RelFormula **new_facts = (RelFormula **)lv00_realloc(
+    RelFormula **new_facts = (RelFormula **)lv_realloc(
         model->facts, (size_t)(model->fact_count + 1) * sizeof(RelFormula *));
     if (!new_facts) return false;
     model->facts = new_facts;
@@ -611,10 +611,10 @@ bool relation_model_add_fact(RelModel *model, RelFormula *formula) {
 }
 
 bool relation_model_add_assertion(RelModel *model, RelFormula *formula) {
-    LV00_CHECK_NULL(model, false);
-    LV00_CHECK_NULL(formula, false);
+    lv_CHECK_NULL(model, false);
+    lv_CHECK_NULL(formula, false);
 
-    RelFormula **new_asserts = (RelFormula **)lv00_realloc(
+    RelFormula **new_asserts = (RelFormula **)lv_realloc(
         model->assertions, (size_t)(model->assertion_count + 1) * sizeof(RelFormula *));
     if (!new_asserts) return false;
     model->assertions = new_asserts;
@@ -627,8 +627,8 @@ bool relation_model_add_assertion(RelModel *model, RelFormula *formula) {
  * ======================================================================== */
 
 bool relation_check_satisfiability(RelModel *model, const SmallScopeConfig *scope) {
-    LV00_CHECK_NULL(model, false);
-    LV00_CHECK_NULL(scope, false);
+    lv_CHECK_NULL(model, false);
+    lv_CHECK_NULL(scope, false);
 
     /* 有限范围可满足性检查：枚举所有关系绑定组合 */
     /* 收集所有签名中的原子总数 */
@@ -649,11 +649,11 @@ bool relation_check_satisfiability(RelModel *model, const SmallScopeConfig *scop
 
 RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *scope,
                                      bool assertions) {
-    LV00_CHECK_NULL(model, NULL);
-    LV00_CHECK_NULL(scope, NULL);
+    lv_CHECK_NULL(model, NULL);
+    lv_CHECK_NULL(scope, NULL);
 
-    RelInstance *inst = (RelInstance *)lv00_malloc(sizeof(RelInstance));
-    LV00_CHECK_ALLOC(inst, NULL);
+    RelInstance *inst = (RelInstance *)lv_malloc(sizeof(RelInstance));
+    lv_CHECK_ALLOC(inst, NULL);
     memset(inst, 0, sizeof(RelInstance));
 
     inst->model = model;
@@ -666,9 +666,9 @@ RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *sco
         }
     }
 
-    inst->atoms = (RelAtom **)lv00_malloc((size_t)total_atoms * sizeof(RelAtom *));
+    inst->atoms = (RelAtom **)lv_malloc((size_t)total_atoms * sizeof(RelAtom *));
     if (!inst->atoms) {
-        lv00_free((void **)&inst);
+        lv_free((void **)&inst);
         return NULL;
     }
     inst->atom_count = 0;
@@ -683,10 +683,10 @@ RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *sco
     /* 基于签名和原子生成具体的关系绑定 */
     inst->binding_count = model->relation_count;
     if (inst->binding_count > 0) {
-        inst->rel_bindings = (Relation **)lv00_calloc((size_t)inst->binding_count, sizeof(Relation *));
+        inst->rel_bindings = (Relation **)lv_calloc((size_t)inst->binding_count, sizeof(Relation *));
         if (!inst->rel_bindings) {
-            lv00_free((void **)&inst->atoms);
-            lv00_free((void **)&inst);
+            lv_free((void **)&inst->atoms);
+            lv_free((void **)&inst);
             return NULL;
         }
         /* 每个关系绑定为其自身的深拷贝 */
@@ -728,14 +728,14 @@ RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *sco
 void relation_instance_destroy(RelInstance *inst) {
     if (!inst) return;
     /* 原子和绑定不属于实例，属于模型，不释放 */
-    lv00_free((void **)&inst->atoms);
+    lv_free((void **)&inst->atoms);
     if (inst->rel_bindings) {
         for (int i = 0; i < inst->binding_count; i++) {
             rel_destroy(inst->rel_bindings[i]);
         }
-        lv00_free((void **)&inst->rel_bindings);
+        lv_free((void **)&inst->rel_bindings);
     }
-    lv00_free((void **)&inst);
+    lv_free((void **)&inst);
 }
 
 /* ========================================================================
@@ -744,9 +744,9 @@ void relation_instance_destroy(RelInstance *inst) {
 
 Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
                                   const RelExpr *expr) {
-    LV00_CHECK_NULL(model, NULL);
-    LV00_CHECK_NULL(expr, NULL);
-    LV00_UNUSED(inst);
+    lv_CHECK_NULL(model, NULL);
+    lv_CHECK_NULL(expr, NULL);
+    lv_UNUSED(inst);
 
     switch (expr->type) {
         case REL_EXPR_ATOMIC:
@@ -970,9 +970,9 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
 
 bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst,
                                 const RelFormula *formula) {
-    LV00_CHECK_NULL(model, false);
-    LV00_CHECK_NULL(inst, false);
-    LV00_CHECK_NULL(formula, false);
+    lv_CHECK_NULL(model, false);
+    lv_CHECK_NULL(inst, false);
+    lv_CHECK_NULL(formula, false);
 
     switch (formula->type) {
         case REL_FORMULA_FORALL:
@@ -1103,11 +1103,11 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst,
  * ======================================================================== */
 
 char *relation_model_export_alloy(const RelModel *model) {
-    LV00_CHECK_NULL(model, NULL);
+    lv_CHECK_NULL(model, NULL);
 
     int buf_size = EXPORT_BUF_INITIAL_SIZE;
-    char *buf = (char *)lv00_malloc((size_t)buf_size);
-    LV00_CHECK_ALLOC(buf, NULL);
+    char *buf = (char *)lv_malloc((size_t)buf_size);
+    lv_CHECK_ALLOC(buf, NULL);
     int pos = 0;
 
     /* 导出签名声明 */
@@ -1140,10 +1140,10 @@ char *relation_model_export_alloy(const RelModel *model) {
 
         /* 扩容检查 */
         if (pos >= buf_size - 256) {
-            buf_size *= LV00_ARRAY_GROWTH_FACTOR;
-            char *new_buf = (char *)lv00_realloc(buf, (size_t)buf_size);
+            buf_size *= lv_ARRAY_GROWTH_FACTOR;
+            char *new_buf = (char *)lv_realloc(buf, (size_t)buf_size);
             if (!new_buf) {
-                lv00_free((void **)&buf);
+                lv_free((void **)&buf);
                 return NULL;
             }
             buf = new_buf;
@@ -1170,11 +1170,11 @@ char *relation_model_export_alloy(const RelModel *model) {
 }
 
 char *relation_instance_export_xml(const RelInstance *inst) {
-    LV00_CHECK_NULL(inst, NULL);
+    lv_CHECK_NULL(inst, NULL);
 
     int buf_size = EXPORT_BUF_INITIAL_SIZE;
-    char *buf = (char *)lv00_malloc((size_t)buf_size);
-    LV00_CHECK_ALLOC(buf, NULL);
+    char *buf = (char *)lv_malloc((size_t)buf_size);
+    lv_CHECK_ALLOC(buf, NULL);
 
     int pos = 0;
     pos += snprintf(buf + pos, (size_t)(buf_size - pos),

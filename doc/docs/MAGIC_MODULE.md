@@ -1,4 +1,4 @@
-# Lv-00 编程魔法模块 - 开发者文档
+﻿# Lv-00 编程魔法模块 - 开发者文档
 
 ## 概述
 
@@ -21,7 +21,7 @@ Lv-00 编程魔法模块是一个基于轰界世界观和 Lv-00 核心系统的�
 ```
 Lv-00/
 ├── include/
-│   └── lv00/
+│   └── lv/
 │       └── magic.h          # C 语言头文件
 ├── src/
 │   └── magic.c              # C 语言实现
@@ -43,14 +43,14 @@ Lv-00/
 #### 创建实例
 
 ```javascript
-var magic = Lv00Magic.createMagic();
+var magic = lvMagic.createMagic();
 ```
 
 #### 符文系统
 
 ```javascript
 // 创建符文
-var rune = magic.createRationalRune(1, 1, Lv00Magic.Element.FIRE);
+var rune = magic.createRationalRune(1, 1, lvMagic.Element.FIRE);
 
 // 设置强度
 magic.setRunePower(rune, 5);
@@ -69,7 +69,7 @@ var array = magic.createArray();
 magic.addRuneToArray(array, rune);
 
 // 添加约束
-magic.addConstraintToArray(array, Lv00Magic.ArrayConstraint.CONNECTION, 0, 1);
+magic.addConstraintToArray(array, lvMagic.ArrayConstraint.CONNECTION, 0, 1);
 
 // 计算稳定性
 var stability = magic.calculateArrayStability(array);
@@ -81,8 +81,8 @@ var stability = magic.calculateArrayStability(array);
 // 创建咒语
 var spell = magic.createSpell('火球术');
 spell.difficulty = 2;
-magic.configureSpellPurifying(spell, Lv00Magic.Element.FIRE, 0.9);
-magic.configureSpellInfusing(spell, Lv00Magic.Threshold.T3);
+magic.configureSpellPurifying(spell, lvMagic.Element.FIRE, 0.9);
+magic.configureSpellInfusing(spell, lvMagic.Threshold.T3);
 
 // 执行施法
 var result = magic.castSpell(spell, array);
@@ -157,7 +157,7 @@ var spellBook = magic.createStarterSpellBook();
 
 ```javascript
 // 1. 创建魔法系统实例
-var magic = Lv00Magic.createMagic();
+var magic = lvMagic.createMagic();
 
 // 2. 创建咒语书
 var spellBook = magic.createStarterSpellBook();
@@ -167,13 +167,13 @@ var fireball = spellBook.get('火球术');
 
 // 4. 准备魔法阵
 var fireArray = magic.createArray();
-magic.addRuneToArray(fireArray, magic.createRationalRune(1, 1, Lv00Magic.Element.FIRE));
-magic.addRuneToArray(fireArray, magic.createRationalRune(1, 1, Lv00Magic.Element.FIRE));
-magic.addRuneToArray(fireArray, magic.createRationalRune(1, 1, Lv00Magic.Element.FIRE));
+magic.addRuneToArray(fireArray, magic.createRationalRune(1, 1, lvMagic.Element.FIRE));
+magic.addRuneToArray(fireArray, magic.createRationalRune(1, 1, lvMagic.Element.FIRE));
+magic.addRuneToArray(fireArray, magic.createRationalRune(1, 1, lvMagic.Element.FIRE));
 
 // 5. 添加约束
-magic.addConstraintToArray(fireArray, Lv00Magic.ArrayConstraint.CONNECTION, 0, 1);
-magic.addConstraintToArray(fireArray, Lv00Magic.ArrayConstraint.CONNECTION, 1, 2);
+magic.addConstraintToArray(fireArray, lvMagic.ArrayConstraint.CONNECTION, 0, 1);
+magic.addConstraintToArray(fireArray, lvMagic.ArrayConstraint.CONNECTION, 1, 2);
 
 // 6. 施放
 var result = magic.castSpell(fireball, fireArray);
@@ -197,10 +197,10 @@ file:///path/to/Lv-00/web/magic_test.html
 
 ```javascript
 // 加载模块
-var Lv00Magic = require('./web/js/magic_module.js');
+var lvMagic = require('./web/js/magic_module.js');
 
 // 使用
-var magic = Lv00Magic.createMagic();
+var magic = lvMagic.createMagic();
 ```
 
 ## 扩展指南

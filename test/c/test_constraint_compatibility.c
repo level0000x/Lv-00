@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_constraint_compatibility.c
  * @brief 约束拓扑规约层：约束相容性四态检测测试
  *
@@ -10,7 +10,7 @@
 
 #include <stdio.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -20,11 +20,11 @@ static void test_empty_graph_is_under_constrained(void) {
     ConstraintGraph *graph = graph_create();
     TEST_ASSERT_NOT_NULL(graph);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "空图相容性检查应成功返回诊断结果");
-    TEST_ASSERT_EQ(result.status, LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED);
+    TEST_ASSERT_EQ(result.status, lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED);
 
     graph_destroy(graph);
 }
@@ -39,11 +39,11 @@ static void test_single_segment_is_consistent(void) {
     TEST_ASSERT(b >= 0, "点 B 应成功创建");
     TEST_ASSERT_EQ(graph_add_line_segment(graph, a, b), ADD_NODE_OK);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "单线段图相容性检查应成功");
-    TEST_ASSERT_EQ(result.status, LV00_CONSTRAINT_STATUS_CONSISTENT);
+    TEST_ASSERT_EQ(result.status, lv_CONSTRAINT_STATUS_CONSISTENT);
 
     graph_destroy(graph);
 }
@@ -56,12 +56,12 @@ static void test_degenerate_line_from_same_point_is_not_consistent(void) {
     TEST_ASSERT(a >= 0, "点 A 应成功创建");
     (void) graph_add_line_segment(graph, a, a);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "退化线段图相容性检查应成功返回诊断结果");
-    TEST_ASSERT(result.status == LV00_CONSTRAINT_STATUS_INCONSISTENT ||
-                    result.status == LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED,
+    TEST_ASSERT(result.status == lv_CONSTRAINT_STATUS_INCONSISTENT ||
+                    result.status == lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED,
                 "重合点构造线段不得被判为普通相容");
 
     graph_destroy(graph);
@@ -78,11 +78,11 @@ static void test_duplicate_segment_constraint_is_over_constrained_or_redundant(v
     TEST_ASSERT_EQ(graph_add_line_segment(graph, a, b), ADD_NODE_OK);
     TEST_ASSERT_EQ(graph_add_line_segment(graph, a, b), ADD_NODE_OK);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "重复线段图相容性检查应成功");
-    TEST_ASSERT(result.status == LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED || result.redundant_constraint_count > 0,
+    TEST_ASSERT(result.status == lv_CONSTRAINT_STATUS_OVER_CONSTRAINED || result.redundant_constraint_count > 0,
                 "重复线段应被识别为过约束或冗余约束");
 
     graph_destroy(graph);
@@ -112,11 +112,11 @@ static void test_over_constrained_with_extra_incidence(void) {
     AddConstraintResult cr = graph_add_incidence(graph, a, seg_id);
     TEST_ASSERT_EQ(cr, ADD_CONSTRAINT_OK);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "过约束图相容性检查应成功");
-    TEST_ASSERT_EQ(result.status, LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED);
+    TEST_ASSERT_EQ(result.status, lv_CONSTRAINT_STATUS_OVER_CONSTRAINED);
     TEST_ASSERT(result.free_degree_count < 0, "过约束时 free_dof 应为负数");
 
     graph_destroy(graph);
@@ -143,13 +143,13 @@ static void test_inactive_node_skipped(void) {
     TEST_ASSERT_NOT_NULL(node_b);
     node_b->is_active = false;
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "不活跃节点跳过后的相容性检查应成功");
     /* 1 活跃点 * 2 DOF = 2，1 线段 * 4 = 4 约束，free_dof = 2 - 4 = -2 */
-    TEST_ASSERT(result.status == LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED ||
-                    result.status == LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED,
+    TEST_ASSERT(result.status == lv_CONSTRAINT_STATUS_OVER_CONSTRAINED ||
+                    result.status == lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED,
                 "不活跃节点应被跳过，改变 DOF 计算结果");
 
     graph_destroy(graph);
@@ -175,11 +175,11 @@ static void test_all_inactive_nodes_is_under_constrained(void) {
     node_a->is_active = false;
     node_b->is_active = false;
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "所有节点不活跃时相容性检查应成功");
-    TEST_ASSERT_EQ(result.status, LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED);
+    TEST_ASSERT_EQ(result.status, lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED);
 
     graph_destroy(graph);
 }
@@ -210,11 +210,11 @@ static void test_connection_constraint_zero_dof(void) {
     AddConstraintResult cr = graph_add_connection(graph, src_port, dst_port);
     TEST_ASSERT_EQ(cr, ADD_CONSTRAINT_OK);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "含连接约束的图相容性检查应成功");
-    TEST_ASSERT_EQ(result.status, LV00_CONSTRAINT_STATUS_CONSISTENT);
+    TEST_ASSERT_EQ(result.status, lv_CONSTRAINT_STATUS_CONSISTENT);
     TEST_ASSERT_EQ(result.free_degree_count, 0);
 
     graph_destroy(graph);
@@ -235,11 +235,11 @@ static void test_exactly_constrained_is_consistent(void) {
     TEST_ASSERT(b >= 0, "点 B 应成功创建");
     TEST_ASSERT_EQ(graph_add_line_segment(graph, a, b), ADD_NODE_OK);
 
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "恰好约束图相容性检查应成功");
-    TEST_ASSERT_EQ(result.status, LV00_CONSTRAINT_STATUS_CONSISTENT);
+    TEST_ASSERT_EQ(result.status, lv_CONSTRAINT_STATUS_CONSISTENT);
     TEST_ASSERT_EQ(result.free_degree_count, 0);
 
     graph_destroy(graph);
@@ -249,11 +249,11 @@ static void test_exactly_constrained_is_consistent(void) {
  * @brief 空指针输入应返回 INVALID 并返回 false
  */
 static void test_null_inputs_return_invalid(void) {
-    Lv00ConstraintCompatibilityResult result;
+    lvConstraintCompatibilityResult result;
 
     bool ok1 = graph_check_compatibility(NULL, &result);
     TEST_ASSERT(!ok1, "NULL 图输入应返回 false");
-    TEST_ASSERT_EQ(result.status, LV00_CONSTRAINT_STATUS_INVALID);
+    TEST_ASSERT_EQ(result.status, lv_CONSTRAINT_STATUS_INVALID);
 
     ConstraintGraph *graph = graph_create();
     TEST_ASSERT_NOT_NULL(graph);

@@ -1,2 +1,2 @@
-import Lv00Formal.Theory.Ontology.Defs
+﻿import lvFormal.Theory.Ontology.Defs
 def proof : List LvObj := [LvObj.pointObj <1,"P1">,LvObj.pointObj <2,"P2">]

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_demo.c
  * @brief 证明系统演示 —— 展示约束图构造、几何构造与证明引擎验证
  *
@@ -11,7 +11,7 @@
  * 6. 打印完整的证明结果
  *
  * 编译方式：
- *   gcc -o proof_demo proof_demo.c -llv00 -lgmp
+ *   gcc -o proof_demo proof_demo.c -llv -lgmp
  *
  * @author Lv-00 Project
  * @version 3.3.0
@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /* ============================================================
  * 辅助函数：添加一个有理数坐标的点
@@ -129,8 +129,8 @@ static Proposition *create_isosceles_proposition(void) {
     }
 
     /* 设置命题名称和描述 */
-    prop->name = lv00_strdup_safe("IsoscelesTriangle");
-    prop->description = lv00_strdup_safe("等腰三角形判定：两条边相等的三角形是等腰三角形");
+    prop->name = lv_strdup_safe("IsoscelesTriangle");
+    prop->description = lv_strdup_safe("等腰三角形判定：两条边相等的三角形是等腰三角形");
 
     /* 创建命题的模式约束图 */
     ConstraintGraph *pattern = graph_create();
@@ -178,24 +178,24 @@ static ProofNavigator *build_proof(ConstraintGraph *construction,
 
     /* ---- 证明步骤1：添加顶点 ---- */
     ProofStep *step1 = proof_step_create(PROOF_STEP_ADD_NODE);
-    step1->note = lv00_strdup_safe("构造三角形的三个顶点 A(0,0), B(4,0), C(2,3)");
+    step1->note = lv_strdup_safe("构造三角形的三个顶点 A(0,0), B(4,0), C(2,3)");
     proof_navigator_add_step(nav, step1);
 
     /* ---- 证明步骤2：添加边 ---- */
     ProofStep *step2 = proof_step_create(PROOF_STEP_ADD_CONSTRAINT);
-    step2->note = lv00_strdup_safe("连接顶点形成三条边 AB, BC, CA");
+    step2->note = lv_strdup_safe("连接顶点形成三条边 AB, BC, CA");
     proof_step_add_dependency(step2, step1->id);  /* 步骤2依赖步骤1 */
     proof_navigator_add_step(nav, step2);
 
     /* ---- 证明步骤3：添加约束 ---- */
     ProofStep *step3 = proof_step_create(PROOF_STEP_ADD_CONSTRAINT);
-    step3->note = lv00_strdup_safe("添加 betweenness 约束确定三角形方向");
+    step3->note = lv_strdup_safe("添加 betweenness 约束确定三角形方向");
     proof_step_add_dependency(step3, step1->id);
     proof_navigator_add_step(nav, step3);
 
     /* ---- 证明步骤4：执行合一检查 ---- */
     ProofStep *step4 = proof_step_create(PROOF_STEP_UNIFY);
-    step4->note = lv00_strdup_safe("合一检查：验证构造是否满足命题模式");
+    step4->note = lv_strdup_safe("合一检查：验证构造是否满足命题模式");
     proof_step_add_dependency(step4, step2->id);
     proof_step_add_dependency(step4, step3->id);
     proof_navigator_add_step(nav, step4);
@@ -217,7 +217,7 @@ static void run_logic_check(ProofNavigator *nav) {
     printf("\n[逻辑自检]\n");
 
     /* 创建逻辑检查上下文 */
-    Lv00LogicContext *ctx = lv00_logic_check_context_create(nav);
+    lvLogicContext *ctx = lv_logic_check_context_create(nav);
     if (!ctx) {
         fprintf(stderr, "  逻辑检查上下文创建失败\n");
         return;
@@ -225,15 +225,15 @@ static void run_logic_check(ProofNavigator *nav) {
     ctx->verbose = true;
 
     /* 创建报告 */
-    Lv00LogicReport *report = lv00_logic_report_create();
+    lvLogicReport *report = lv_logic_report_create();
     if (!report) {
         fprintf(stderr, "  逻辑检查报告创建失败\n");
-        lv00_logic_check_context_destroy(ctx);
+        lv_logic_check_context_destroy(ctx);
         return;
     }
 
     /* 执行综合逻辑检查（一致性 + 循环性 + 完备性） */
-    int issues = lv00_logic_check_all(ctx, report);
+    int issues = lv_logic_check_all(ctx, report);
     printf("  综合检查完成，发现问题数: %d\n", issues);
 
     /* 打印检查结果摘要 */
@@ -245,16 +245,16 @@ static void run_logic_check(ProofNavigator *nav) {
            report->warning_count, report->info_count);
 
     /* 导出文本报告 */
-    char *text_report = lv00_logic_report_to_text(report, false);
+    char *text_report = lv_logic_report_to_text(report, false);
     if (text_report) {
         printf("\n  --- 逻辑检查报告 ---\n");
         printf("%s\n", text_report);
-        lv00_free(text_report);
+        lv_free(text_report);
     }
 
     /* 清理 */
-    lv00_logic_report_destroy(report);
-    lv00_logic_check_context_destroy(ctx);
+    lv_logic_report_destroy(report);
+    lv_logic_check_context_destroy(ctx);
 }
 
 /* ============================================================
@@ -267,7 +267,7 @@ int main(void) {
     printf("========================================\n\n");
 
     /* ---- 初始化系统 ---- */
-    printf("[初始化] Lv-00 系统版本: %s\n\n", lv00_get_version_string());
+    printf("[初始化] Lv-00 系统版本: %s\n\n", lv_get_version_string());
 
     /* ======== 步骤1：构造等腰三角形 ======== */
     printf("[1/5] 构造等腰三角形...\n");

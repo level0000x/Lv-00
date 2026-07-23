@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_helpers.h
  * @brief Lv-00 测试套件公共辅助函数与宏
  *
@@ -12,14 +12,14 @@
  *   5. 使用 TEST_SUMMARY 打印汇总
  */
 
-#ifndef LV00_TEST_HELPERS_H
-#define LV00_TEST_HELPERS_H
+#ifndef lv_TEST_HELPERS_H
+#define lv_TEST_HELPERS_H
 
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /**
  * @brief 相等断言宏（带消息） - 比较两个值是否相等并显示自定义消息
@@ -303,4 +303,4 @@ static inline int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t
         TEST_SUMMARY();                                         \
     } while (0)
 
-#endif /* LV00_TEST_HELPERS_H */
+#endif /* lv_TEST_HELPERS_H */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file runtime_monitor.c
  * @brief 运行时监控与日志系统实现
  *
@@ -7,10 +7,10 @@
  */
 
 #include "runtime_monitor.h"
-#include "config.h"         /* LV00_LOCALTIME */
+#include "config.h"         /* lv_LOCALTIME */
 
-#include "lv00_utils.h"
-#include "lv00/lv00_parse_utils.h"
+#include "lv_utils.h"
+#include "lv/lv_parse_utils.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -44,7 +44,7 @@
 /* ============== 平台抽象层 ============== */
 
 #ifdef _WIN32
-typedef CRITICAL_SECTION Lv00Mutex;
+typedef CRITICAL_SECTION lvMutex;
 #define MUTEX_INIT(m) InitializeCriticalSection(&(m))
 #define MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
 #define MUTEX_LOCK(m) EnterCriticalSection(&(m))
@@ -61,7 +61,7 @@ static int get_thread_id(void) {
     return (int)GetCurrentThreadId();
 }
 #else
-typedef pthread_mutex_t Lv00Mutex;
+typedef pthread_mutex_t lvMutex;
 #define MUTEX_INIT(m) pthread_mutex_init(&(m), NULL)
 #define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
 #define MUTEX_LOCK(m) pthread_mutex_lock(&(m))
@@ -81,9 +81,9 @@ static int get_thread_id(void) {
 /* ============== 日志系统实现 ============== */
 
 static struct {
-    Lv00LogConfig config;
+    lvLogConfig config;
     FILE *log_file;
-    Lv00Mutex mutex;
+    lvMutex mutex;
     bool initialized;
     uint64_t current_file_size;
 } g_log_system = {0};
@@ -102,10 +102,10 @@ static const char *level_colors[] = {
     ""
 };
 
-static Lv00Mutex g_log_init_mutex;
+static lvMutex g_log_init_mutex;
 static volatile int g_log_init_mutex_initialized = 0;
 
-bool lv00_log_init(const Lv00LogConfig *config) {
+bool lv_log_init(const lvLogConfig *config) {
 #ifdef _WIN32
     if (InterlockedCompareExchange((LONG volatile*)&g_log_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_log_init_mutex);
@@ -127,7 +127,7 @@ bool lv00_log_init(const Lv00LogConfig *config) {
     memset(&g_log_system, 0, sizeof(g_log_system));
 
     if (config) {
-        memcpy(&g_log_system.config, config, sizeof(Lv00LogConfig));
+        memcpy(&g_log_system.config, config, sizeof(lvLogConfig));
     } else {
         /* 默认配置 */
         g_log_system.config.min_level = LOG_LEVEL_INFO;
@@ -159,7 +159,7 @@ bool lv00_log_init(const Lv00LogConfig *config) {
     return true;
 }
 
-void lv00_log_shutdown(void) {
+void lv_log_shutdown(void) {
     if (!g_log_system.initialized) {
         return;
     }
@@ -173,7 +173,7 @@ void lv00_log_shutdown(void) {
     g_log_system.initialized = false;
 }
 
-void lv00_log_set_level(Lv00LogLevel level) {
+void lv_log_set_level(lvLogLevel level) {
     if (level >= LOG_LEVEL_TRACE && level <= LOG_LEVEL_OFF) {
         MUTEX_LOCK(g_log_system.mutex);
         g_log_system.config.min_level = level;
@@ -181,14 +181,14 @@ void lv00_log_set_level(Lv00LogLevel level) {
     }
 }
 
-void lv00_log_set_targets(Lv00LogTarget targets) {
+void lv_log_set_targets(lvLogTarget targets) {
     /* 线程安全：加锁保护全局日志目标的修改 */
     MUTEX_LOCK(g_log_system.mutex);
     g_log_system.config.targets = targets;
     MUTEX_UNLOCK(g_log_system.mutex);
 }
 
-bool lv00_log_set_file(const char *path) {
+bool lv_log_set_file(const char *path) {
     if (!path) {
         return false;
     }
@@ -216,7 +216,7 @@ bool lv00_log_set_file(const char *path) {
     return true;
 }
 
-void lv00_log_set_callback(Lv00LogCallback callback, void *user_data) {
+void lv_log_set_callback(lvLogCallback callback, void *user_data) {
     /* 线程安全：加锁保护回调和用户数据的修改，防止与日志写入并发冲突 */
     MUTEX_LOCK(g_log_system.mutex);
     g_log_system.config.callback = callback;
@@ -262,7 +262,7 @@ static void rotate_log_file(void) {
     g_log_system.current_file_size = 0;
 }
 
-void lv00_log_write(Lv00LogLevel level, const char *tag,
+void lv_log_write(lvLogLevel level, const char *tag,
                     const char *file, int line, const char *function,
                     const char *fmt, ...) {
     if (!g_log_system.initialized) {
@@ -276,14 +276,14 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
     MUTEX_LOCK(g_log_system.mutex);
 
     /* 格式化消息 */
-    char message[LV00_LOG_MSG_MAX_LEN];
+    char message[lv_LOG_MSG_MAX_LEN];
     va_list args;
     va_start(args, fmt);
     vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
 
     /* 构建日志记录 */
-    Lv00LogRecord record;
+    lvLogRecord record;
     record.level = level;
     record.line = line;
     record.timestamp_ms = get_time_ns() / 1000000;
@@ -310,7 +310,7 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
     if (g_log_system.config.include_timestamp) {
         time_t now = time(NULL);
         struct tm tm_info;
-        if (LV00_LOCALTIME(&now, &tm_info) == 0)
+        if (lv_LOCALTIME(&now, &tm_info) == 0)
             pos += strftime(output + pos, sizeof(output) - pos, "%Y-%m-%d %H:%M:%S", &tm_info);
         if (pos < (int)sizeof(output))
             pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int)(record.timestamp_ms % 1000));
@@ -360,7 +360,7 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
         size_t len = strlen(output);
         size_t written = fwrite(output, 1, len, g_log_system.log_file);
         if (written != len) {
-            LV00_LOG_WARN_NT("日志文件写入不完整（期望 %zu, 实际 %zu）", len, written);
+            lv_LOG_WARN_NT("日志文件写入不完整（期望 %zu, 实际 %zu）", len, written);
         }
         fflush(g_log_system.log_file);
         g_log_system.current_file_size += len;
@@ -374,18 +374,18 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
 /* ============== 性能监控实现 ============== */
 
 static struct {
-    Lv00Timer *timers[MAX_TIMERS];
+    lvTimer *timers[MAX_TIMERS];
     uint32_t timer_count;
-    Lv00PerfStats *stats[MAX_PERF_STATS];
+    lvPerfStats *stats[MAX_PERF_STATS];
     uint32_t stats_count;
-    Lv00Mutex mutex;
+    lvMutex mutex;
     bool initialized;
 } g_perf_system = {0};
 
-static Lv00Mutex g_perf_init_mutex;
+static lvMutex g_perf_init_mutex;
 static volatile int g_perf_init_mutex_initialized = 0;
 
-bool lv00_perf_init(void) {
+bool lv_perf_init(void) {
 #ifdef _WIN32
     if (InterlockedCompareExchange((LONG volatile*)&g_perf_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_perf_init_mutex);
@@ -415,7 +415,7 @@ bool lv00_perf_init(void) {
     return true;
 }
 
-void lv00_perf_shutdown(void) {
+void lv_perf_shutdown(void) {
     if (!g_perf_system.initialized) {
         return;
     }
@@ -423,10 +423,10 @@ void lv00_perf_shutdown(void) {
     MUTEX_LOCK(g_perf_system.mutex);
 
     for (uint32_t i = 0; i < g_perf_system.timer_count; i++) {
-        lv00_free((void **) &g_perf_system.timers[i]);
+        lv_free((void **) &g_perf_system.timers[i]);
     }
     for (uint32_t i = 0; i < g_perf_system.stats_count; i++) {
-        lv00_free((void **) &g_perf_system.stats[i]);
+        lv_free((void **) &g_perf_system.stats[i]);
     }
 
     MUTEX_UNLOCK(g_perf_system.mutex);
@@ -434,12 +434,12 @@ void lv00_perf_shutdown(void) {
     g_perf_system.initialized = false;
 }
 
-Lv00Timer *lv00_timer_create(const char *name) {
+lvTimer *lv_timer_create(const char *name) {
     if (!g_perf_system.initialized || g_perf_system.timer_count >= MAX_TIMERS) {
         return NULL;
     }
 
-    Lv00Timer *timer = (Lv00Timer *)lv00_calloc(1, sizeof(Lv00Timer));
+    lvTimer *timer = (lvTimer *)lv_calloc(1, sizeof(lvTimer));
     if (!timer) {
         return NULL;
     }
@@ -456,7 +456,7 @@ Lv00Timer *lv00_timer_create(const char *name) {
     return timer;
 }
 
-void lv00_timer_destroy(Lv00Timer *timer) {
+void lv_timer_destroy(lvTimer *timer) {
     if (!timer) {
         return;
     }
@@ -470,10 +470,10 @@ void lv00_timer_destroy(Lv00Timer *timer) {
     }
     MUTEX_UNLOCK(g_perf_system.mutex);
 
-    lv00_free((void **) &timer);
+    lv_free((void **) &timer);
 }
 
-void lv00_timer_start(Lv00Timer *timer) {
+void lv_timer_start(lvTimer *timer) {
     if (!timer) {
         return;
     }
@@ -483,7 +483,7 @@ void lv00_timer_start(Lv00Timer *timer) {
     timer->call_count++;
 }
 
-int64_t lv00_timer_stop(Lv00Timer *timer) {
+int64_t lv_timer_stop(lvTimer *timer) {
     if (!timer || timer->state != TIMER_RUNNING) {
         return 0;
     }
@@ -495,7 +495,7 @@ int64_t lv00_timer_stop(Lv00Timer *timer) {
     return timer->elapsed_ns / 1000000;
 }
 
-void lv00_timer_pause(Lv00Timer *timer) {
+void lv_timer_pause(lvTimer *timer) {
     if (!timer || timer->state != TIMER_RUNNING) {
         return;
     }
@@ -504,7 +504,7 @@ void lv00_timer_pause(Lv00Timer *timer) {
     timer->state = TIMER_PAUSED;
 }
 
-void lv00_timer_resume(Lv00Timer *timer) {
+void lv_timer_resume(lvTimer *timer) {
     if (!timer || timer->state != TIMER_PAUSED) {
         return;
     }
@@ -513,7 +513,7 @@ void lv00_timer_resume(Lv00Timer *timer) {
     timer->state = TIMER_RUNNING;
 }
 
-void lv00_timer_reset(Lv00Timer *timer) {
+void lv_timer_reset(lvTimer *timer) {
     if (!timer) {
         return;
     }
@@ -524,7 +524,7 @@ void lv00_timer_reset(Lv00Timer *timer) {
     timer->state = TIMER_STOPPED;
 }
 
-int64_t lv00_timer_elapsed_ms(const Lv00Timer *timer) {
+int64_t lv_timer_elapsed_ms(const lvTimer *timer) {
     if (!timer) {
         return 0;
     }
@@ -535,7 +535,7 @@ int64_t lv00_timer_elapsed_ms(const Lv00Timer *timer) {
     return timer->elapsed_ns / 1000000;
 }
 
-int64_t lv00_timer_elapsed_ns(const Lv00Timer *timer) {
+int64_t lv_timer_elapsed_ns(const lvTimer *timer) {
     if (!timer) {
         return 0;
     }
@@ -546,12 +546,12 @@ int64_t lv00_timer_elapsed_ns(const Lv00Timer *timer) {
     return timer->elapsed_ns;
 }
 
-Lv00PerfStats *lv00_perf_stats_create(const char *name) {
+lvPerfStats *lv_perf_stats_create(const char *name) {
     if (!g_perf_system.initialized || g_perf_system.stats_count >= MAX_PERF_STATS) {
         return NULL;
     }
 
-    Lv00PerfStats *stats = (Lv00PerfStats *)lv00_calloc(1, sizeof(Lv00PerfStats));
+    lvPerfStats *stats = (lvPerfStats *)lv_calloc(1, sizeof(lvPerfStats));
     if (!stats) {
         return NULL;
     }
@@ -569,7 +569,7 @@ Lv00PerfStats *lv00_perf_stats_create(const char *name) {
     return stats;
 }
 
-void lv00_perf_stats_destroy(Lv00PerfStats *stats) {
+void lv_perf_stats_destroy(lvPerfStats *stats) {
     if (!stats) {
         return;
     }
@@ -583,10 +583,10 @@ void lv00_perf_stats_destroy(Lv00PerfStats *stats) {
     }
     MUTEX_UNLOCK(g_perf_system.mutex);
 
-    lv00_free((void **) &stats);
+    lv_free((void **) &stats);
 }
 
-void lv00_perf_stats_record(Lv00PerfStats *stats, double value) {
+void lv_perf_stats_record(lvPerfStats *stats, double value) {
     if (!stats) {
         return;
     }
@@ -614,12 +614,12 @@ void lv00_perf_stats_record(Lv00PerfStats *stats, double value) {
     MUTEX_UNLOCK(g_perf_system.mutex);
 }
 
-void lv00_perf_stats_reset(Lv00PerfStats *stats) {
+void lv_perf_stats_reset(lvPerfStats *stats) {
     if (!stats) {
         return;
     }
 
-    memset(stats, 0, sizeof(Lv00PerfStats));
+    memset(stats, 0, sizeof(lvPerfStats));
     stats->min_val = 1e308;
     stats->max_val = -1e308;
 }
@@ -631,14 +631,14 @@ static struct {
     double memory_critical_mb;
     double cpu_warning_percent;
     double cpu_critical_percent;
-    Lv00Mutex mutex;
+    lvMutex mutex;
     bool initialized;
 } g_health_system = {0};
 
-static Lv00Mutex g_health_init_mutex;
+static lvMutex g_health_init_mutex;
 static volatile int g_health_init_mutex_initialized = 0;
 
-bool lv00_health_init(void) {
+bool lv_health_init(void) {
 #ifdef _WIN32
     if (InterlockedCompareExchange((LONG volatile*)&g_health_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_health_init_mutex);
@@ -675,7 +675,7 @@ bool lv00_health_init(void) {
     return true;
 }
 
-void lv00_health_shutdown(void) {
+void lv_health_shutdown(void) {
     if (!g_health_system.initialized) {
         return;
     }
@@ -684,14 +684,14 @@ void lv00_health_shutdown(void) {
     g_health_system.initialized = false;
 }
 
-void lv00_health_set_memory_thresholds(double warning_mb, double critical_mb) {
+void lv_health_set_memory_thresholds(double warning_mb, double critical_mb) {
     MUTEX_LOCK(g_health_system.mutex);
     g_health_system.memory_warning_mb = warning_mb;
     g_health_system.memory_critical_mb = critical_mb;
     MUTEX_UNLOCK(g_health_system.mutex);
 }
 
-void lv00_health_set_cpu_thresholds(double warning_percent, double critical_percent) {
+void lv_health_set_cpu_thresholds(double warning_percent, double critical_percent) {
     MUTEX_LOCK(g_health_system.mutex);
     g_health_system.cpu_warning_percent = warning_percent;
     g_health_system.cpu_critical_percent = critical_percent;
@@ -777,16 +777,16 @@ static double get_cpu_usage_percent(void) {
 }
 #endif
 
-Lv00HealthReport *lv00_runtime_health_check(void) {
-    Lv00HealthReport *report = (Lv00HealthReport *)lv00_calloc(1, sizeof(Lv00HealthReport));
+lvHealthReport *lv_runtime_health_check(void) {
+    lvHealthReport *report = (lvHealthReport *)lv_calloc(1, sizeof(lvHealthReport));
     if (!report) {
         return NULL;
     }
 
     report->check_count = 5;
-    report->checks = (Lv00HealthCheck *)lv00_calloc(report->check_count, sizeof(Lv00HealthCheck));
+    report->checks = (lvHealthCheck *)lv_calloc(report->check_count, sizeof(lvHealthCheck));
     if (!report->checks) {
-        lv00_free((void **) &report);
+        lv_free((void **) &report);
         return NULL;
     }
 
@@ -794,7 +794,7 @@ Lv00HealthReport *lv00_runtime_health_check(void) {
     report->overall = HEALTH_OK;
 
     /* 内存检查 */
-    Lv00HealthCheck *check = &report->checks[0];
+    lvHealthCheck *check = &report->checks[0];
     strncpy(check->name, "Memory Usage", sizeof(check->name) - 1);
     check->threshold_warning = g_health_system.memory_warning_mb;
     check->threshold_critical = g_health_system.memory_critical_mb;
@@ -810,7 +810,7 @@ Lv00HealthReport *lv00_runtime_health_check(void) {
         char line[256];
         while (fgets(line, sizeof(line), fp)) {
             if (strncmp(line, "VmRSS:", 6) == 0) {
-                check->value = lv00_parse_double(line + 6, &check->value);
+                check->value = lv_parse_double(line + 6, &check->value);
                 break;
             }
         }
@@ -858,9 +858,9 @@ Lv00HealthReport *lv00_runtime_health_check(void) {
     /* 线程检查 */
     check = &report->checks[2];
     strncpy(check->name, "Thread Count", sizeof(check->name) - 1);
-    /* 线程检查：通过环境变量 LV00_MONITOR_THREADS 配置，默认 1，范围 [1, 64] */
+    /* 线程检查：通过环境变量 lv_MONITOR_THREADS 配置，默认 1，范围 [1, 64] */
     int monitor_threads = 1;
-    const char *env_threads = getenv("LV00_MONITOR_THREADS");
+    const char *env_threads = getenv("lv_MONITOR_THREADS");
     if (env_threads && env_threads[0] != '\0') {
         long parsed = strtol(env_threads, NULL, 10);
         if (parsed < 1) parsed = 1;
@@ -870,7 +870,7 @@ Lv00HealthReport *lv00_runtime_health_check(void) {
     check->value = (double)monitor_threads;
     check->status = HEALTH_OK;
     snprintf(check->message, sizeof(check->message),
-             "Thread count: %d (configurable via LV00_MONITOR_THREADS)", monitor_threads);
+             "Thread count: %d (configurable via lv_MONITOR_THREADS)", monitor_threads);
 
     /* 计时器检查 */
     check = &report->checks[3];
@@ -889,18 +889,18 @@ Lv00HealthReport *lv00_runtime_health_check(void) {
     return report;
 }
 
-void lv00_health_report_destroy(Lv00HealthReport *report) {
+void lv_health_report_destroy(lvHealthReport *report) {
     if (!report) {
         return;
     }
-    lv00_free((void **) &report->checks);
-    lv00_free((void **) &report);
+    lv_free((void **) &report->checks);
+    lv_free((void **) &report);
 }
 
 /* ============== 诊断报告实现 ============== */
 
-Lv00Diagnostics *lv00_diagnostics_generate(void) {
-    Lv00Diagnostics *diag = (Lv00Diagnostics *)lv00_calloc(1, sizeof(Lv00Diagnostics));
+lvDiagnostics *lv_diagnostics_generate(void) {
+    lvDiagnostics *diag = (lvDiagnostics *)lv_calloc(1, sizeof(lvDiagnostics));
     if (!diag) {
         return NULL;
     }
@@ -910,10 +910,10 @@ Lv00Diagnostics *lv00_diagnostics_generate(void) {
     strncpy(diag->build_date, __DATE__ " " __TIME__, sizeof(diag->build_date) - 1);
     diag->uptime_ms = get_time_ns() / 1000000;
 
-    /* 内存统计 - 从 lv00 内存管理器获取实际数据 */
+    /* 内存统计 - 从 lv 内存管理器获取实际数据 */
     {
         MemoryStats mem_stats;
-        lv00_get_memory_stats(&mem_stats);
+        lv_get_memory_stats(&mem_stats);
         diag->memory_total = mem_stats.current_used;
         diag->memory_peak = mem_stats.peak_used;
         diag->alloc_count = (uint64_t)mem_stats.allocation_count;
@@ -953,11 +953,11 @@ Lv00Diagnostics *lv00_diagnostics_generate(void) {
     return diag;
 }
 
-void lv00_diagnostics_destroy(Lv00Diagnostics *diag) {
-    lv00_free((void **) &diag);
+void lv_diagnostics_destroy(lvDiagnostics *diag) {
+    lv_free((void **) &diag);
 }
 
-bool lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path) {
+bool lv_diagnostics_write_file(const lvDiagnostics *diag, const char *path) {
     if (!diag || !path) {
         return false;
     }
@@ -997,12 +997,12 @@ bool lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path) 
     return true;
 }
 
-char *lv00_diagnostics_to_json(const Lv00Diagnostics *diag) {
+char *lv_diagnostics_to_json(const lvDiagnostics *diag) {
     if (!diag) {
         return NULL;
     }
 
-    char *json = (char *)lv00_malloc(4096);
+    char *json = (char *)lv_malloc(4096);
     if (!json) {
         return NULL;
     }
@@ -1059,17 +1059,17 @@ char *lv00_diagnostics_to_json(const Lv00Diagnostics *diag) {
 /* ============== 事件追踪实现 ============== */
 
 static struct {
-    Lv00EventRecord *events;
+    lvEventRecord *events;
     uint32_t max_events;
     uint32_t event_count;
-    Lv00Mutex mutex;
+    lvMutex mutex;
     bool initialized;
 } g_event_system = {0};
 
-static Lv00Mutex g_event_init_mutex;
+static lvMutex g_event_init_mutex;
 static volatile int g_event_init_mutex_initialized = 0;
 
-bool lv00_event_trace_init(uint32_t max_events) {
+bool lv_event_trace_init(uint32_t max_events) {
 #ifdef _WIN32
     if (InterlockedCompareExchange((LONG volatile*)&g_event_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_event_init_mutex);
@@ -1092,7 +1092,7 @@ bool lv00_event_trace_init(uint32_t max_events) {
     uint32_t actual_max = (max_events > 0) ? max_events : MAX_EVENTS;
 
     memset(&g_event_system, 0, sizeof(g_event_system));
-    g_event_system.events = (Lv00EventRecord *)lv00_calloc(actual_max, sizeof(Lv00EventRecord));
+    g_event_system.events = (lvEventRecord *)lv_calloc(actual_max, sizeof(lvEventRecord));
     if (!g_event_system.events) {
 #ifdef _WIN32
         LeaveCriticalSection(&g_event_init_mutex);
@@ -1112,24 +1112,24 @@ bool lv00_event_trace_init(uint32_t max_events) {
     return true;
 }
 
-void lv00_event_trace_shutdown(void) {
+void lv_event_trace_shutdown(void) {
     if (!g_event_system.initialized) {
         return;
     }
 
-    lv00_free((void **)&g_event_system.events);
+    lv_free((void **)&g_event_system.events);
     MUTEX_DESTROY(g_event_system.mutex);
     g_event_system.initialized = false;
 }
 
-void lv00_event_trace_record(Lv00EventType type, const char *name, const char *data) {
+void lv_event_trace_record(lvEventType type, const char *name, const char *data) {
     if (!g_event_system.initialized || g_event_system.event_count >= g_event_system.max_events) {
         return;
     }
 
     MUTEX_LOCK(g_event_system.mutex);
 
-    Lv00EventRecord *event = &g_event_system.events[g_event_system.event_count++];
+    lvEventRecord *event = &g_event_system.events[g_event_system.event_count++];
     event->type = type;
     event->timestamp_ns = get_time_ns();
     event->duration_ns = 0;
@@ -1145,7 +1145,7 @@ void lv00_event_trace_record(Lv00EventType type, const char *name, const char *d
     MUTEX_UNLOCK(g_event_system.mutex);
 }
 
-int lv00_event_trace_begin(Lv00EventType type, const char *name) {
+int lv_event_trace_begin(lvEventType type, const char *name) {
     if (!g_event_system.initialized || g_event_system.event_count >= g_event_system.max_events) {
         return -1;
     }
@@ -1153,7 +1153,7 @@ int lv00_event_trace_begin(Lv00EventType type, const char *name) {
     MUTEX_LOCK(g_event_system.mutex);
 
     int id = (int)g_event_system.event_count;
-    Lv00EventRecord *event = &g_event_system.events[g_event_system.event_count++];
+    lvEventRecord *event = &g_event_system.events[g_event_system.event_count++];
     event->type = type;
     event->timestamp_ns = get_time_ns();
     event->thread_id = get_thread_id();
@@ -1167,14 +1167,14 @@ int lv00_event_trace_begin(Lv00EventType type, const char *name) {
     return id;
 }
 
-void lv00_event_trace_end(int event_id, const char *data) {
+void lv_event_trace_end(int event_id, const char *data) {
     if (!g_event_system.initialized || event_id < 0 || event_id >= (int)g_event_system.event_count) {
         return;
     }
 
     MUTEX_LOCK(g_event_system.mutex);
 
-    Lv00EventRecord *event = &g_event_system.events[event_id];
+    lvEventRecord *event = &g_event_system.events[event_id];
     event->duration_ns = get_time_ns() - event->timestamp_ns;
 
     if (data) {
@@ -1184,7 +1184,7 @@ void lv00_event_trace_end(int event_id, const char *data) {
     MUTEX_UNLOCK(g_event_system.mutex);
 }
 
-uint32_t lv00_event_trace_get_all(Lv00EventRecord **out_events, uint32_t max_count) {
+uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count) {
     if (!g_event_system.initialized || !out_events) {
         return 0;
     }
@@ -1192,9 +1192,9 @@ uint32_t lv00_event_trace_get_all(Lv00EventRecord **out_events, uint32_t max_cou
     MUTEX_LOCK(g_event_system.mutex);
 
     uint32_t count = g_event_system.event_count < max_count ? g_event_system.event_count : max_count;
-    *out_events = (Lv00EventRecord *)lv00_malloc((size_t)count * sizeof(Lv00EventRecord));
+    *out_events = (lvEventRecord *)lv_malloc((size_t)count * sizeof(lvEventRecord));
     if (*out_events) {
-        memcpy(*out_events, g_event_system.events, count * sizeof(Lv00EventRecord));
+        memcpy(*out_events, g_event_system.events, count * sizeof(lvEventRecord));
     }
 
     MUTEX_UNLOCK(g_event_system.mutex);
@@ -1202,7 +1202,7 @@ uint32_t lv00_event_trace_get_all(Lv00EventRecord **out_events, uint32_t max_cou
     return count;
 }
 
-void lv00_event_trace_clear(void) {
+void lv_event_trace_clear(void) {
     if (!g_event_system.initialized) {
         return;
     }
@@ -1212,7 +1212,7 @@ void lv00_event_trace_clear(void) {
     MUTEX_UNLOCK(g_event_system.mutex);
 }
 
-bool lv00_event_trace_export_chrome(const char *path) {
+bool lv_event_trace_export_chrome(const char *path) {
     if (!g_event_system.initialized || !path) {
         return false;
     }
@@ -1227,7 +1227,7 @@ bool lv00_event_trace_export_chrome(const char *path) {
     MUTEX_LOCK(g_event_system.mutex);
 
     for (uint32_t i = 0; i < g_event_system.event_count; i++) {
-        Lv00EventRecord *event = &g_event_system.events[i];
+        lvEventRecord *event = &g_event_system.events[i];
 
         const char *type_str = "X";
         switch (event->type) {

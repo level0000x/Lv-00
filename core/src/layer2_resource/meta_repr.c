@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file meta_repr.c
  * @brief Lv-00 元表示层实现
  *
@@ -16,12 +16,12 @@
  * @version 1.0.0
  */
 
-#include "lv00/meta_repr.h"
-#include "lv00/lv00.h"
-#include "lv00/error_codes.h"
-#include "lv00/lv00_utils.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/func_block.h"
+#include "lv/meta_repr.h"
+#include "lv/lv.h"
+#include "lv/error_codes.h"
+#include "lv/lv_utils.h"
+#include "lv/constraint_graph.h"
+#include "lv/func_block.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +80,7 @@ MetaReprConfig meta_repr_default_config(void)
 
 MetaReprEncoder *meta_repr_encoder_create(const MetaReprConfig *config)
 {
-    MetaReprEncoder *encoder = (MetaReprEncoder *)lv00_malloc(sizeof(MetaReprEncoder));
+    MetaReprEncoder *encoder = (MetaReprEncoder *)lv_malloc(sizeof(MetaReprEncoder));
     if (!encoder) return NULL;
 
     memset(encoder, 0, sizeof(MetaReprEncoder));
@@ -103,7 +103,7 @@ void meta_repr_encoder_destroy(MetaReprEncoder *encoder)
 {
     if (!encoder) return;
     encoder->is_initialized = false;
-    lv00_free((void **)&encoder);
+    lv_free((void **)&encoder);
 }
 
 void meta_repr_encoder_reset(MetaReprEncoder *encoder)
@@ -182,7 +182,7 @@ GeomNode *meta_repr_encode_node(MetaReprEncoder *encoder,
 {
     if (!encoder || !encoder->is_initialized || !node) return NULL;
 
-    GeomNode *encoded = (GeomNode *)lv00_malloc(sizeof(GeomNode));
+    GeomNode *encoded = (GeomNode *)lv_malloc(sizeof(GeomNode));
     if (!encoded) return NULL;
     memset(encoded, 0, sizeof(GeomNode));
 
@@ -192,15 +192,15 @@ GeomNode *meta_repr_encode_node(MetaReprEncoder *encoder,
     double y_val = encoder->config.coordinate_scheme.base_y
                  + (double)node->type * encoder->config.coordinate_scheme.type_spacing;
 
-    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
-    if (!coords) { lv00_free((void **)&encoded); return NULL; }
+    SymbolicCoord **coords = (SymbolicCoord **)lv_malloc(2 * sizeof(SymbolicCoord *));
+    if (!coords) { lv_free((void **)&encoded); return NULL; }
     coords[0] = symbolic_coord_create_rational((int64_t)x_val, 1);
     coords[1] = symbolic_coord_create_rational((int64_t)y_val, 1);
     if (!coords[0] || !coords[1]) {
         if (coords[0]) symbolic_coord_destroy(coords[0]);
         if (coords[1]) symbolic_coord_destroy(coords[1]);
-        lv00_free((void **)&coords);
-        lv00_free((void **)&encoded);
+        lv_free((void **)&coords);
+        lv_free((void **)&encoded);
         return NULL;
     }
 
@@ -221,7 +221,7 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder,
 {
     if (!encoder || !encoder->is_initialized || !block) return NULL;
 
-    GeomNode *encoded_region = (GeomNode *)lv00_malloc(sizeof(GeomNode));
+    GeomNode *encoded_region = (GeomNode *)lv_malloc(sizeof(GeomNode));
     if (!encoded_region) return NULL;
     memset(encoded_region, 0, sizeof(GeomNode));
 
@@ -236,8 +236,8 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder,
     double x_val = base_x + (double)block->id * id_spacing;
     double y_val = base_y + (double)GEOM_FUNCTION_BLOCK * type_spacing;
 
-    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
-    if (!coords) { lv00_free((void **)&encoded_region); return NULL; }
+    SymbolicCoord **coords = (SymbolicCoord **)lv_malloc(2 * sizeof(SymbolicCoord *));
+    if (!coords) { lv_free((void **)&encoded_region); return NULL; }
     coords[0] = symbolic_coord_create_rational((int64_t)x_val, 1);
     coords[1] = symbolic_coord_create_rational((int64_t)y_val, 1);
 
@@ -255,26 +255,26 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder,
     int total_ports = block->input_count + block->output_count;
     if (total_ports > 0) {
         encoded_region->data.region.boundary_segments =
-            (GeomNode **)lv00_malloc((size_t)total_ports * sizeof(GeomNode *));
+            (GeomNode **)lv_malloc((size_t)total_ports * sizeof(GeomNode *));
         if (encoded_region->data.region.boundary_segments) {
             for (int i = 0; i < block->input_count; i++) {
                 double px = x_val;
                 double py = (double)padding - (double)i * port_spacing;
-                SymbolicCoord **pcoords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
+                SymbolicCoord **pcoords = (SymbolicCoord **)lv_malloc(2 * sizeof(SymbolicCoord *));
                 if (!pcoords) continue;
                 pcoords[0] = symbolic_coord_create_rational((int64_t)px, 1);
                 pcoords[1] = symbolic_coord_create_rational((int64_t)py, 1);
                 if (!pcoords[0] || !pcoords[1]) {
                     if (pcoords[0]) symbolic_coord_destroy(pcoords[0]);
                     if (pcoords[1]) symbolic_coord_destroy(pcoords[1]);
-                    lv00_free((void **)&pcoords);
+                    lv_free((void **)&pcoords);
                     continue;
                 }
-                GeomNode *port_node = (GeomNode *)lv00_malloc(sizeof(GeomNode));
+                GeomNode *port_node = (GeomNode *)lv_malloc(sizeof(GeomNode));
                 if (!port_node) {
                     symbolic_coord_destroy(pcoords[0]);
                     symbolic_coord_destroy(pcoords[1]);
-                    lv00_free((void **)&pcoords);
+                    lv_free((void **)&pcoords);
                     continue;
                 }
                 memset(port_node, 0, sizeof(GeomNode));
@@ -289,21 +289,21 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder,
             for (int i = 0; i < block->output_count; i++) {
                 double px = x_val;
                 double py = (double)(-(int64_t)padding) + (double)i * port_spacing;
-                SymbolicCoord **pcoords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
+                SymbolicCoord **pcoords = (SymbolicCoord **)lv_malloc(2 * sizeof(SymbolicCoord *));
                 if (!pcoords) continue;
                 pcoords[0] = symbolic_coord_create_rational((int64_t)px, 1);
                 pcoords[1] = symbolic_coord_create_rational((int64_t)py, 1);
                 if (!pcoords[0] || !pcoords[1]) {
                     if (pcoords[0]) symbolic_coord_destroy(pcoords[0]);
                     if (pcoords[1]) symbolic_coord_destroy(pcoords[1]);
-                    lv00_free((void **)&pcoords);
+                    lv_free((void **)&pcoords);
                     continue;
                 }
-                GeomNode *port_node = (GeomNode *)lv00_malloc(sizeof(GeomNode));
+                GeomNode *port_node = (GeomNode *)lv_malloc(sizeof(GeomNode));
                 if (!port_node) {
                     symbolic_coord_destroy(pcoords[0]);
                     symbolic_coord_destroy(pcoords[1]);
-                    lv00_free((void **)&pcoords);
+                    lv_free((void **)&pcoords);
                     continue;
                 }
                 memset(port_node, 0, sizeof(GeomNode));
@@ -329,7 +329,7 @@ GeomNode *meta_repr_encode_type_region(MetaReprEncoder *encoder,
 {
     if (!encoder || !encoder->is_initialized || !type_region) return NULL;
 
-    GeomNode *encoded_region = (GeomNode *)lv00_malloc(sizeof(GeomNode));
+    GeomNode *encoded_region = (GeomNode *)lv_malloc(sizeof(GeomNode));
     if (!encoded_region) return NULL;
     memset(encoded_region, 0, sizeof(GeomNode));
 
@@ -342,15 +342,15 @@ GeomNode *meta_repr_encode_type_region(MetaReprEncoder *encoder,
     double x_val = base_x + (double)type_region->id * id_spacing;
     double y_val = base_y + (double)((int)type_region->kind + 1) * type_spacing;
 
-    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
-    if (!coords) { lv00_free((void **)&encoded_region); return NULL; }
+    SymbolicCoord **coords = (SymbolicCoord **)lv_malloc(2 * sizeof(SymbolicCoord *));
+    if (!coords) { lv_free((void **)&encoded_region); return NULL; }
     coords[0] = symbolic_coord_create_rational((int64_t)x_val, 1);
     coords[1] = symbolic_coord_create_rational((int64_t)y_val, 1);
     if (!coords[0] || !coords[1]) {
         if (coords[0]) symbolic_coord_destroy(coords[0]);
         if (coords[1]) symbolic_coord_destroy(coords[1]);
-        lv00_free((void **)&coords);
-        lv00_free((void **)&encoded_region);
+        lv_free((void **)&coords);
+        lv_free((void **)&encoded_region);
         return NULL;
     }
 
@@ -371,7 +371,7 @@ GeomNode *meta_repr_encode_proposition(MetaReprEncoder *encoder,
 {
     if (!encoder || !encoder->is_initialized || !proposition) return NULL;
 
-    GeomNode *encoded_node = (GeomNode *)lv00_malloc(sizeof(GeomNode));
+    GeomNode *encoded_node = (GeomNode *)lv_malloc(sizeof(GeomNode));
     if (!encoded_node) return NULL;
     memset(encoded_node, 0, sizeof(GeomNode));
 
@@ -384,15 +384,15 @@ GeomNode *meta_repr_encode_proposition(MetaReprEncoder *encoder,
     double x_val = base_x + (double)proposition->id * id_spacing;
     double y_val = base_y + (double)proposition->type * type_spacing;
 
-    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(2 * sizeof(SymbolicCoord *));
-    if (!coords) { lv00_free((void **)&encoded_node); return NULL; }
+    SymbolicCoord **coords = (SymbolicCoord **)lv_malloc(2 * sizeof(SymbolicCoord *));
+    if (!coords) { lv_free((void **)&encoded_node); return NULL; }
     coords[0] = symbolic_coord_create_rational((int64_t)x_val, 1);
     coords[1] = symbolic_coord_create_rational((int64_t)y_val, 1);
     if (!coords[0] || !coords[1]) {
         if (coords[0]) symbolic_coord_destroy(coords[0]);
         if (coords[1]) symbolic_coord_destroy(coords[1]);
-        lv00_free((void **)&coords);
-        lv00_free((void **)&encoded_node);
+        lv_free((void **)&coords);
+        lv_free((void **)&encoded_node);
         return NULL;
     }
 
@@ -412,7 +412,7 @@ GeomNode *meta_repr_encode_proposition(MetaReprEncoder *encoder,
 
 MetaReprDecoder *meta_repr_decoder_create(void)
 {
-    MetaReprDecoder *decoder = (MetaReprDecoder *)lv00_malloc(sizeof(MetaReprDecoder));
+    MetaReprDecoder *decoder = (MetaReprDecoder *)lv_malloc(sizeof(MetaReprDecoder));
     if (!decoder) return NULL;
 
     memset(decoder, 0, sizeof(MetaReprDecoder));
@@ -426,7 +426,7 @@ void meta_repr_decoder_destroy(MetaReprDecoder *decoder)
 {
     if (!decoder) return;
     decoder->is_initialized = false;
-    lv00_free((void **)&decoder);
+    lv_free((void **)&decoder);
 }
 
 ConstraintGraph *meta_repr_decode_graph(MetaReprDecoder *decoder,
@@ -491,7 +491,7 @@ GeomNode *meta_repr_decode_node(MetaReprDecoder *decoder,
 {
     if (!decoder || !decoder->is_initialized || !encoded_node) return NULL;
 
-    GeomNode *decoded = (GeomNode *)lv00_malloc(sizeof(GeomNode));
+    GeomNode *decoded = (GeomNode *)lv_malloc(sizeof(GeomNode));
     if (!decoded) return NULL;
     memset(decoded, 0, sizeof(GeomNode));
 
@@ -558,7 +558,7 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
         }
 
         if (input_count > 0) {
-            int *in_ids = (int *)lv00_malloc((size_t)input_count * sizeof(int));
+            int *in_ids = (int *)lv_malloc((size_t)input_count * sizeof(int));
             if (in_ids) {
                 int idx = 0;
                 for (int i = 0; i < seg_count && idx < input_count; i++) {
@@ -567,11 +567,11 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
                     if (y > 0.0) in_ids[idx++] = segments[i]->id;
                 }
                 func_block_set_input_ports(decoded, in_ids, input_count);
-                lv00_free((void **)&in_ids);
+                lv_free((void **)&in_ids);
             }
         }
         if (output_count > 0) {
-            int *out_ids = (int *)lv00_malloc((size_t)output_count * sizeof(int));
+            int *out_ids = (int *)lv_malloc((size_t)output_count * sizeof(int));
             if (out_ids) {
                 int idx = 0;
                 for (int i = 0; i < seg_count && idx < output_count; i++) {
@@ -580,7 +580,7 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
                     if (y <= 0.0) out_ids[idx++] = segments[i]->id;
                 }
                 func_block_set_output_ports(decoded, out_ids, output_count);
-                lv00_free((void **)&out_ids);
+                lv_free((void **)&out_ids);
             }
         }
     }
@@ -793,7 +793,7 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph)
     /* 预估缓冲区大小 */
     size_t est_size = 512 + (size_t)encoded_graph->node_count * 128
                      + (size_t)encoded_graph->constraint_count * 64;
-    char *buf = (char *)lv00_malloc(est_size);
+    char *buf = (char *)lv_malloc(est_size);
     if (!buf) return NULL;
     memset(buf, 0, est_size);
 
@@ -885,6 +885,6 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph)
     return buf;
 
 overflow:
-    lv00_free((void **)&buf);
+    lv_free((void **)&buf);
     return NULL;
 }

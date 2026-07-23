@@ -1,5 +1,5 @@
-#include "lv00/control_flow_blocks.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/control_flow_blocks.h"
+#include "lv/lv_utils.h"
 #include <string.h>
 #include <stdbool.h>
 
@@ -9,32 +9,32 @@ typedef struct {
     bool condition_set;
 } IfBlockState;
 
-Lv00IfBlock *lv00_if_block_create(void) {
-    Lv00IfBlock *block = lv00_calloc(1, sizeof(Lv00IfBlock));
+lvIfBlock *lv_if_block_create(void) {
+    lvIfBlock *block = lv_calloc(1, sizeof(lvIfBlock));
     if (!block) return NULL;
     block->condition_port = -1;
     block->then_output = -1;
     block->else_output = -1;
-    block->determinism = LV00_DETERMINISM_PURE;
+    block->determinism = lv_DETERMINISM_PURE;
 
-    IfBlockState *state = lv00_calloc(1, sizeof(IfBlockState));
+    IfBlockState *state = lv_calloc(1, sizeof(IfBlockState));
     if (!state) {
-        lv00_free((void **)&block);
+        lv_free((void **)&block);
         return NULL;
     }
     block->base = state;
     return block;
 }
 
-void lv00_if_block_destroy(Lv00IfBlock *block) {
+void lv_if_block_destroy(lvIfBlock *block) {
     if (!block) return;
     if (block->base) {
-        lv00_free((void **)&block->base);
+        lv_free((void **)&block->base);
     }
-    lv00_free((void **)&block);
+    lv_free((void **)&block);
 }
 
-int lv00_if_block_set_branches(Lv00IfBlock *block, void *then_branch,
+int lv_if_block_set_branches(lvIfBlock *block, void *then_branch,
                                void *else_branch) {
     if (!block) return -1;
     block->branches.then_branch = then_branch;
@@ -42,7 +42,7 @@ int lv00_if_block_set_branches(Lv00IfBlock *block, void *then_branch,
     return 0;
 }
 
-int lv00_if_block_set_condition(Lv00IfBlock *block, bool condition) {
+int lv_if_block_set_condition(lvIfBlock *block, bool condition) {
     if (!block || !block->base) return -1;
     IfBlockState *state = (IfBlockState *)block->base;
     state->condition_value = condition;
@@ -50,25 +50,25 @@ int lv00_if_block_set_condition(Lv00IfBlock *block, bool condition) {
     return 0;
 }
 
-bool lv00_if_block_get_condition(const Lv00IfBlock *block) {
+bool lv_if_block_get_condition(const lvIfBlock *block) {
     if (!block || !block->base) return false;
     IfBlockState *state = (IfBlockState *)block->base;
     return state->condition_value;
 }
 
-bool lv00_if_block_evaluate(Lv00IfBlock *block) {
+bool lv_if_block_evaluate(lvIfBlock *block) {
     if (!block || !block->base) return false;
     IfBlockState *state = (IfBlockState *)block->base;
     if (!state->condition_set) return false;
 
     /* Mark determinism as conditional after first evaluation */
-    if (block->determinism == LV00_DETERMINISM_PURE) {
-        block->determinism = LV00_DETERMINISM_CONDITIONAL;
+    if (block->determinism == lv_DETERMINISM_PURE) {
+        block->determinism = lv_DETERMINISM_CONDITIONAL;
     }
     return state->condition_value;
 }
 
-int lv00_if_block_execute_true_branch(Lv00IfBlock *block) {
+int lv_if_block_execute_true_branch(lvIfBlock *block) {
     if (!block) return -1;
     if (!block->branches.then_branch) return -1;
 
@@ -78,7 +78,7 @@ int lv00_if_block_execute_true_branch(Lv00IfBlock *block) {
     return 0;
 }
 
-int lv00_if_block_execute_false_branch(Lv00IfBlock *block) {
+int lv_if_block_execute_false_branch(lvIfBlock *block) {
     if (!block) return -1;
     if (!block->branches.else_branch) return -1;
 

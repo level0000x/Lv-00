@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_ast.c
  * @brief FormulaNode AST 节点
  *
@@ -13,17 +13,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/formula_parser.h"
+#include "lv/formula_parser.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 FormulaNode *formula_create_number(int64_t numerator, uint64_t denominator) {
     if (denominator == 0) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "formula_create_number: denominator must not be zero");
+        lv_set_error(lv_ERROR_INVALID_PARAM, "formula_create_number: denominator must not be zero");
         return NULL;
     }
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_NUMBER;
@@ -45,16 +45,16 @@ FormulaNode *formula_create_number(int64_t numerator, uint64_t denominator) {
 FormulaNode *formula_create_variable(const char *name) {
     if (!name)
         return NULL;
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_VARIABLE;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
-    node->data.variable.name = lv00_strdup_safe(name);
+    node->data.variable.name = lv_strdup_safe(name);
     if (!node->data.variable.name) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     return node;
@@ -69,16 +69,16 @@ FormulaNode *formula_create_variable(const char *name) {
 FormulaNode *formula_create_identifier(const char *name) {
     if (!name)
         return NULL;
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_IDENTIFIER;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
-    node->data.identifier.name = lv00_strdup_safe(name);
+    node->data.identifier.name = lv_strdup_safe(name);
     if (!node->data.identifier.name) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     return node;
@@ -93,7 +93,7 @@ FormulaNode *formula_create_identifier(const char *name) {
  * @return 新分配的 AST 节点指针，失败返回 NULL
  */
 FormulaNode *formula_create_binary_op(NodeType op_type, FormulaNode *left, FormulaNode *right) {
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = op_type;
@@ -116,7 +116,7 @@ FormulaNode *formula_create_binary_op(NodeType op_type, FormulaNode *left, Formu
  * @return 新分配的 AST 节点指针，失败返回 NULL
  */
 FormulaNode *formula_create_unary_op(NodeType op_type, FormulaNode *operand) {
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = op_type;
@@ -140,7 +140,7 @@ FormulaNode *formula_create_unary_op(NodeType op_type, FormulaNode *operand) {
  * @return 新分配的 AST 节点指针，失败返回 NULL
  */
 FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_EQUATION;
@@ -155,7 +155,7 @@ FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
 }
 
 FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_COORDINATE_LIST;
@@ -163,9 +163,9 @@ FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
     node->column = 1;
     node->refcount = 1;
     if (count > 0 && coords) {
-        node->data.coord_list.coords = lv00_malloc(sizeof(FormulaNode *) * count);
+        node->data.coord_list.coords = lv_malloc(sizeof(FormulaNode *) * count);
         if (!node->data.coord_list.coords) {
-            lv00_free((void **) &node);
+            lv_free((void **) &node);
             return NULL;
         }
         memcpy(node->data.coord_list.coords, coords, sizeof(FormulaNode *) * count);
@@ -180,16 +180,16 @@ FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
 FormulaNode *formula_create_geom_point(const char *name, FormulaNode *coords) {
     if (!name)
         return NULL;
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_GEOM_POINT;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
-    node->data.geom_point.name = lv00_strdup_safe(name);
+    node->data.geom_point.name = lv_strdup_safe(name);
     if (!node->data.geom_point.name) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     node->data.geom_point.coords = coords;
@@ -199,16 +199,16 @@ FormulaNode *formula_create_geom_point(const char *name, FormulaNode *coords) {
 FormulaNode *formula_create_geom_segment(const char *name, FormulaNode *ep1, FormulaNode *ep2) {
     if (!name)
         return NULL;
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_GEOM_SEGMENT;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
-    node->data.geom_segment.name = lv00_strdup_safe(name);
+    node->data.geom_segment.name = lv_strdup_safe(name);
     if (!node->data.geom_segment.name) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     node->data.geom_segment.endpoint1 = ep1;
@@ -219,16 +219,16 @@ FormulaNode *formula_create_geom_segment(const char *name, FormulaNode *ep1, For
 FormulaNode *formula_create_geom_circle(const char *name, FormulaNode *center, FormulaNode *radius) {
     if (!name)
         return NULL;
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_GEOM_CIRCLE;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
-    node->data.geom_circle.name = lv00_strdup_safe(name);
+    node->data.geom_circle.name = lv_strdup_safe(name);
     if (!node->data.geom_circle.name) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     node->data.geom_circle.center = center;
@@ -239,16 +239,16 @@ FormulaNode *formula_create_geom_circle(const char *name, FormulaNode *center, F
 FormulaNode *formula_create_geom_triangle(const char *name, FormulaNode *v1, FormulaNode *v2, FormulaNode *v3) {
     if (!name)
         return NULL;
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_GEOM_TRIANGLE;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
-    node->data.geom_triangle.name = lv00_strdup_safe(name);
+    node->data.geom_triangle.name = lv_strdup_safe(name);
     if (!node->data.geom_triangle.name) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     node->data.geom_triangle.vertex1 = v1;
@@ -260,23 +260,23 @@ FormulaNode *formula_create_geom_triangle(const char *name, FormulaNode *v1, For
 FormulaNode *formula_create_geom_polygon(const char *name, FormulaNode **vertices, int vertex_count) {
     if (!name)
         return NULL;
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_GEOM_POLYGON;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
-    node->data.geom_polygon.name = lv00_strdup_safe(name);
+    node->data.geom_polygon.name = lv_strdup_safe(name);
     if (!node->data.geom_polygon.name) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     if (vertex_count > 0 && vertices) {
-        node->data.geom_polygon.vertices = lv00_malloc(sizeof(FormulaNode *) * vertex_count);
+        node->data.geom_polygon.vertices = lv_malloc(sizeof(FormulaNode *) * vertex_count);
         if (!node->data.geom_polygon.vertices) {
-            lv00_free((void **) &node->data.geom_polygon.name);
-            lv00_free((void **) &node);
+            lv_free((void **) &node->data.geom_polygon.name);
+            lv_free((void **) &node);
             return NULL;
         }
         memcpy(node->data.geom_polygon.vertices, vertices, sizeof(FormulaNode *) * vertex_count);
@@ -288,23 +288,23 @@ FormulaNode *formula_create_geom_polygon(const char *name, FormulaNode **vertice
 FormulaNode *formula_create_geom_region(const char *name, FormulaNode **segments, int segment_count) {
     if (!name)
         return NULL;
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_GEOM_REGION;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
-    node->data.geom_region.name = lv00_strdup_safe(name);
+    node->data.geom_region.name = lv_strdup_safe(name);
     if (!node->data.geom_region.name) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     if (segment_count > 0 && segments) {
-        node->data.geom_region.boundary_segments = lv00_malloc(sizeof(FormulaNode *) * segment_count);
+        node->data.geom_region.boundary_segments = lv_malloc(sizeof(FormulaNode *) * segment_count);
         if (!node->data.geom_region.boundary_segments) {
-            lv00_free((void **) &node->data.geom_region.name);
-            lv00_free((void **) &node);
+            lv_free((void **) &node->data.geom_region.name);
+            lv_free((void **) &node);
             return NULL;
         }
         memcpy(node->data.geom_region.boundary_segments, segments, sizeof(FormulaNode *) * segment_count);
@@ -317,16 +317,16 @@ FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, Form
                                      FormulaNode *start_angle, FormulaNode *end_angle) {
     if (!name)
         return NULL;
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_GEOM_ARC;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
-    node->data.geom_arc.name = lv00_strdup_safe(name);
+    node->data.geom_arc.name = lv_strdup_safe(name);
     if (!node->data.geom_arc.name) {
-        lv00_free((void **) &node);
+        lv_free((void **) &node);
         return NULL;
     }
     node->data.geom_arc.center = center;
@@ -337,7 +337,7 @@ FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, Form
 }
 
 FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **participants, int count) {
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = constraint_type;
@@ -345,9 +345,9 @@ FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **p
     node->column = 1;
     node->refcount = 1;
     if (count > 0 && participants) {
-        node->data.constraint.participants = lv00_malloc(sizeof(FormulaNode *) * count);
+        node->data.constraint.participants = lv_malloc(sizeof(FormulaNode *) * count);
         if (!node->data.constraint.participants) {
-            lv00_free((void **) &node);
+            lv_free((void **) &node);
             return NULL;
         }
         memcpy(node->data.constraint.participants, participants, sizeof(FormulaNode *) * count);
@@ -357,7 +357,7 @@ FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **p
 }
 
 FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
-    FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
         return NULL;
     node->type = NODE_COMPOUND;
@@ -365,9 +365,9 @@ FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
     node->column = 1;
     node->refcount = 1;
     if (count > 0 && statements) {
-        node->data.compound.statements = lv00_malloc(sizeof(FormulaNode *) * count);
+        node->data.compound.statements = lv_malloc(sizeof(FormulaNode *) * count);
         if (!node->data.compound.statements) {
-            lv00_free((void **) &node);
+            lv_free((void **) &node);
             return NULL;
         }
         memcpy(node->data.compound.statements, statements, sizeof(FormulaNode *) * count);
@@ -381,7 +381,7 @@ int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement
         return -1;
 
     int new_count = compound->data.compound.statement_count + 1;
-    FormulaNode **new_statements = lv00_realloc(compound->data.compound.statements, sizeof(FormulaNode *) * new_count);
+    FormulaNode **new_statements = lv_realloc(compound->data.compound.statements, sizeof(FormulaNode *) * new_count);
     if (!new_statements)
         return -1;
 
@@ -438,11 +438,11 @@ void formula_node_destroy(FormulaNode *node) {
             break;
 
         case NODE_VARIABLE:
-            lv00_free((void **) &node->data.variable.name);
+            lv_free((void **) &node->data.variable.name);
             break;
 
         case NODE_IDENTIFIER:
-            lv00_free((void **) &node->data.identifier.name);
+            lv_free((void **) &node->data.identifier.name);
             break;
 
         case NODE_BINARY_OP_ADD:
@@ -474,59 +474,59 @@ void formula_node_destroy(FormulaNode *node) {
             for (int i = 0; i < node->data.coord_list.coord_count; i++) {
                 formula_node_destroy(node->data.coord_list.coords[i]);
             }
-            lv00_free((void **) &node->data.coord_list.coords);
+            lv_free((void **) &node->data.coord_list.coords);
             break;
 
         case NODE_GEOM_POINT:
-            lv00_free((void **) &node->data.geom_point.name);
+            lv_free((void **) &node->data.geom_point.name);
             formula_node_destroy(node->data.geom_point.coords);
             break;
 
         case NODE_GEOM_SEGMENT:
-            lv00_free((void **) &node->data.geom_segment.name);
+            lv_free((void **) &node->data.geom_segment.name);
             formula_node_destroy(node->data.geom_segment.endpoint1);
             formula_node_destroy(node->data.geom_segment.endpoint2);
             break;
 
         case NODE_GEOM_LINE:
-            lv00_free((void **) &node->data.geom_line.name);
+            lv_free((void **) &node->data.geom_line.name);
             formula_node_destroy(node->data.geom_line.point1);
             formula_node_destroy(node->data.geom_line.point2);
             formula_node_destroy(node->data.geom_line.equation);
             break;
 
         case NODE_GEOM_CIRCLE:
-            lv00_free((void **) &node->data.geom_circle.name);
+            lv_free((void **) &node->data.geom_circle.name);
             formula_node_destroy(node->data.geom_circle.center);
             formula_node_destroy(node->data.geom_circle.radius);
             formula_node_destroy(node->data.geom_circle.equation);
             break;
 
         case NODE_GEOM_TRIANGLE:
-            lv00_free((void **) &node->data.geom_triangle.name);
+            lv_free((void **) &node->data.geom_triangle.name);
             formula_node_destroy(node->data.geom_triangle.vertex1);
             formula_node_destroy(node->data.geom_triangle.vertex2);
             formula_node_destroy(node->data.geom_triangle.vertex3);
             break;
 
         case NODE_GEOM_POLYGON:
-            lv00_free((void **) &node->data.geom_polygon.name);
+            lv_free((void **) &node->data.geom_polygon.name);
             for (int i = 0; i < node->data.geom_polygon.vertex_count; i++) {
                 formula_node_destroy(node->data.geom_polygon.vertices[i]);
             }
-            lv00_free((void **) &node->data.geom_polygon.vertices);
+            lv_free((void **) &node->data.geom_polygon.vertices);
             break;
 
         case NODE_GEOM_REGION:
-            lv00_free((void **) &node->data.geom_region.name);
+            lv_free((void **) &node->data.geom_region.name);
             for (int i = 0; i < node->data.geom_region.segment_count; i++) {
                 formula_node_destroy(node->data.geom_region.boundary_segments[i]);
             }
-            lv00_free((void **) &node->data.geom_region.boundary_segments);
+            lv_free((void **) &node->data.geom_region.boundary_segments);
             break;
 
         case NODE_GEOM_ARC:
-            lv00_free((void **) &node->data.geom_arc.name);
+            lv_free((void **) &node->data.geom_arc.name);
             formula_node_destroy(node->data.geom_arc.center);
             formula_node_destroy(node->data.geom_arc.radius);
             formula_node_destroy(node->data.geom_arc.start_angle);
@@ -534,7 +534,7 @@ void formula_node_destroy(FormulaNode *node) {
             break;
 
         case NODE_GEOM_VECTOR:
-            lv00_free((void **) &node->data.geom_vector.name);
+            lv_free((void **) &node->data.geom_vector.name);
             formula_node_destroy(node->data.geom_vector.start);
             formula_node_destroy(node->data.geom_vector.end);
             break;
@@ -550,25 +550,25 @@ void formula_node_destroy(FormulaNode *node) {
             for (int i = 0; i < node->data.constraint.participant_count; i++) {
                 formula_node_destroy(node->data.constraint.participants[i]);
             }
-            lv00_free((void **) &node->data.constraint.participants);
+            lv_free((void **) &node->data.constraint.participants);
             break;
 
         case NODE_COMPOUND:
             for (int i = 0; i < node->data.compound.statement_count; i++) {
                 formula_node_destroy(node->data.compound.statements[i]);
             }
-            lv00_free((void **) &node->data.compound.statements);
+            lv_free((void **) &node->data.compound.statements);
             break;
     }
 
-    lv00_free((void **) &node);
+    lv_free((void **) &node);
 }
 
 FormulaNode *formula_node_copy(const FormulaNode *node) {
     if (!node)
         return NULL;
 
-    FormulaNode *copy = lv00_calloc(1, sizeof(FormulaNode));
+    FormulaNode *copy = lv_calloc(1, sizeof(FormulaNode));
     if (!copy)
         return NULL;
 
@@ -586,12 +586,12 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 
         case NODE_VARIABLE:
             if (node->data.variable.name)
-                copy->data.variable.name = lv00_strdup(node->data.variable.name);
+                copy->data.variable.name = lv_strdup(node->data.variable.name);
             break;
 
         case NODE_IDENTIFIER:
             if (node->data.identifier.name)
-                copy->data.identifier.name = lv00_strdup(node->data.identifier.name);
+                copy->data.identifier.name = lv_strdup(node->data.identifier.name);
             break;
 
         case NODE_BINARY_OP_ADD:
@@ -622,7 +622,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_COORDINATE_LIST:
             copy->data.coord_list.coord_count = node->data.coord_list.coord_count;
             if (node->data.coord_list.coord_count > 0 && node->data.coord_list.coords) {
-                copy->data.coord_list.coords = lv00_malloc(
+                copy->data.coord_list.coords = lv_malloc(
                     (size_t) node->data.coord_list.coord_count * sizeof(FormulaNode *));
                 if (copy->data.coord_list.coords) {
                     for (int i = 0; i < node->data.coord_list.coord_count; i++)
@@ -633,20 +633,20 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 
         case NODE_GEOM_POINT:
             if (node->data.geom_point.name)
-                copy->data.geom_point.name = lv00_strdup(node->data.geom_point.name);
+                copy->data.geom_point.name = lv_strdup(node->data.geom_point.name);
             copy->data.geom_point.coords = formula_node_copy(node->data.geom_point.coords);
             break;
 
         case NODE_GEOM_SEGMENT:
             if (node->data.geom_segment.name)
-                copy->data.geom_segment.name = lv00_strdup(node->data.geom_segment.name);
+                copy->data.geom_segment.name = lv_strdup(node->data.geom_segment.name);
             copy->data.geom_segment.endpoint1 = formula_node_copy(node->data.geom_segment.endpoint1);
             copy->data.geom_segment.endpoint2 = formula_node_copy(node->data.geom_segment.endpoint2);
             break;
 
         case NODE_GEOM_LINE:
             if (node->data.geom_line.name)
-                copy->data.geom_line.name = lv00_strdup(node->data.geom_line.name);
+                copy->data.geom_line.name = lv_strdup(node->data.geom_line.name);
             copy->data.geom_line.point1 = formula_node_copy(node->data.geom_line.point1);
             copy->data.geom_line.point2 = formula_node_copy(node->data.geom_line.point2);
             copy->data.geom_line.equation = formula_node_copy(node->data.geom_line.equation);
@@ -654,7 +654,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 
         case NODE_GEOM_CIRCLE:
             if (node->data.geom_circle.name)
-                copy->data.geom_circle.name = lv00_strdup(node->data.geom_circle.name);
+                copy->data.geom_circle.name = lv_strdup(node->data.geom_circle.name);
             copy->data.geom_circle.center = formula_node_copy(node->data.geom_circle.center);
             copy->data.geom_circle.radius = formula_node_copy(node->data.geom_circle.radius);
             copy->data.geom_circle.equation = formula_node_copy(node->data.geom_circle.equation);
@@ -662,7 +662,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 
         case NODE_GEOM_TRIANGLE:
             if (node->data.geom_triangle.name)
-                copy->data.geom_triangle.name = lv00_strdup(node->data.geom_triangle.name);
+                copy->data.geom_triangle.name = lv_strdup(node->data.geom_triangle.name);
             copy->data.geom_triangle.vertex1 = formula_node_copy(node->data.geom_triangle.vertex1);
             copy->data.geom_triangle.vertex2 = formula_node_copy(node->data.geom_triangle.vertex2);
             copy->data.geom_triangle.vertex3 = formula_node_copy(node->data.geom_triangle.vertex3);
@@ -670,10 +670,10 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 
         case NODE_GEOM_POLYGON:
             if (node->data.geom_polygon.name)
-                copy->data.geom_polygon.name = lv00_strdup(node->data.geom_polygon.name);
+                copy->data.geom_polygon.name = lv_strdup(node->data.geom_polygon.name);
             copy->data.geom_polygon.vertex_count = node->data.geom_polygon.vertex_count;
             if (node->data.geom_polygon.vertex_count > 0 && node->data.geom_polygon.vertices) {
-                copy->data.geom_polygon.vertices = lv00_malloc(
+                copy->data.geom_polygon.vertices = lv_malloc(
                     (size_t) node->data.geom_polygon.vertex_count * sizeof(FormulaNode *));
                 if (copy->data.geom_polygon.vertices) {
                     for (int i = 0; i < node->data.geom_polygon.vertex_count; i++)
@@ -684,10 +684,10 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 
         case NODE_GEOM_REGION:
             if (node->data.geom_region.name)
-                copy->data.geom_region.name = lv00_strdup(node->data.geom_region.name);
+                copy->data.geom_region.name = lv_strdup(node->data.geom_region.name);
             copy->data.geom_region.segment_count = node->data.geom_region.segment_count;
             if (node->data.geom_region.segment_count > 0 && node->data.geom_region.boundary_segments) {
-                copy->data.geom_region.boundary_segments = lv00_malloc(
+                copy->data.geom_region.boundary_segments = lv_malloc(
                     (size_t) node->data.geom_region.segment_count * sizeof(FormulaNode *));
                 if (copy->data.geom_region.boundary_segments) {
                     for (int i = 0; i < node->data.geom_region.segment_count; i++)
@@ -698,7 +698,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 
         case NODE_GEOM_ARC:
             if (node->data.geom_arc.name)
-                copy->data.geom_arc.name = lv00_strdup(node->data.geom_arc.name);
+                copy->data.geom_arc.name = lv_strdup(node->data.geom_arc.name);
             copy->data.geom_arc.center = formula_node_copy(node->data.geom_arc.center);
             copy->data.geom_arc.radius = formula_node_copy(node->data.geom_arc.radius);
             copy->data.geom_arc.start_angle = formula_node_copy(node->data.geom_arc.start_angle);
@@ -707,7 +707,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 
         case NODE_GEOM_VECTOR:
             if (node->data.geom_vector.name)
-                copy->data.geom_vector.name = lv00_strdup(node->data.geom_vector.name);
+                copy->data.geom_vector.name = lv_strdup(node->data.geom_vector.name);
             copy->data.geom_vector.start = formula_node_copy(node->data.geom_vector.start);
             copy->data.geom_vector.end = formula_node_copy(node->data.geom_vector.end);
             break;
@@ -722,7 +722,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_CONSTRAINT_ANGLE:
             copy->data.constraint.participant_count = node->data.constraint.participant_count;
             if (node->data.constraint.participant_count > 0 && node->data.constraint.participants) {
-                copy->data.constraint.participants = lv00_malloc(
+                copy->data.constraint.participants = lv_malloc(
                     (size_t) node->data.constraint.participant_count * sizeof(FormulaNode *));
                 if (copy->data.constraint.participants) {
                     for (int i = 0; i < node->data.constraint.participant_count; i++)
@@ -734,7 +734,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_COMPOUND:
             copy->data.compound.statement_count = node->data.compound.statement_count;
             if (node->data.compound.statement_count > 0 && node->data.compound.statements) {
-                copy->data.compound.statements = lv00_malloc(
+                copy->data.compound.statements = lv_malloc(
                     (size_t) node->data.compound.statement_count * sizeof(FormulaNode *));
                 if (copy->data.compound.statements) {
                     for (int i = 0; i < node->data.compound.statement_count; i++)

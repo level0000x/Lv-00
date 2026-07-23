@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_memory_management.c
  * @brief 内存管理系统综合测试
  *
@@ -20,8 +20,8 @@
 #include <string.h>
 #include <math.h>
 
-#include "lv00.h"
-#include "lv00_utils.h"
+#include "lv.h"
+#include "lv_utils.h"
 #include "memory_pool.h"
 #include "geometry_config.h"
 #include "test_helpers.h"
@@ -34,24 +34,24 @@ int g_fail_count = 0;
  * ============================================================ */
 
 static void test_basic_alloc_free(void) {
-    /* lv00_malloc 分配 */
-    void *ptr = lv00_malloc(128);
+    /* lv_malloc 分配 */
+    void *ptr = lv_malloc(128);
     TEST_ASSERT_NOT_NULL(ptr);
 
     /* 写入数据验证可用性 */
     memset(ptr, 0xAA, 128);
     unsigned char *bytes = (unsigned char *)ptr;
-    TEST_ASSERT(bytes[0] == 0xAA, "lv00_malloc 分配的内存应可写入");
+    TEST_ASSERT(bytes[0] == 0xAA, "lv_malloc 分配的内存应可写入");
 
-    /* lv00_free 释放 */
-    lv00_free((void **)&ptr);
+    /* lv_free 释放 */
+    lv_free((void **)&ptr);
     TEST_ASSERT_NULL(ptr);
 }
 
 static void test_calloc_zero_fill(void) {
     size_t count = 64;
     size_t size = sizeof(int);
-    int *arr = (int *)lv00_calloc(count, size);
+    int *arr = (int *)lv_calloc(count, size);
     TEST_ASSERT_NOT_NULL(arr);
 
     /* calloc 应将内存清零 */
@@ -62,21 +62,21 @@ static void test_calloc_zero_fill(void) {
             break;
         }
     }
-    TEST_ASSERT(all_zero, "lv00_calloc 分配的内存应全部为零");
+    TEST_ASSERT(all_zero, "lv_calloc 分配的内存应全部为零");
 
-    lv00_free((void **)&arr);
+    lv_free((void **)&arr);
 }
 
 static void test_realloc_grow(void) {
     /* 初始分配 */
-    int *arr = (int *)lv00_malloc(sizeof(int) * 4);
+    int *arr = (int *)lv_malloc(sizeof(int) * 4);
     TEST_ASSERT_NOT_NULL(arr);
     for (int i = 0; i < 4; i++) {
         arr[i] = i * 10;
     }
 
     /* 扩容 */
-    int *new_arr = (int *)lv00_realloc(arr, sizeof(int) * 8);
+    int *new_arr = (int *)lv_realloc(arr, sizeof(int) * 8);
     TEST_ASSERT_NOT_NULL(new_arr);
 
     /* 验证原有数据保留 */
@@ -88,7 +88,7 @@ static void test_realloc_grow(void) {
     new_arr[5] = 50;
     TEST_ASSERT(new_arr[4] == 40, "realloc 后新区域应可写入");
 
-    lv00_free((void **)&new_arr);
+    lv_free((void **)&new_arr);
 }
 
 /* ============================================================
@@ -96,7 +96,7 @@ static void test_realloc_grow(void) {
  * ============================================================ */
 
 static void test_pool_lifecycle(void) {
-    Lv00PoolConfig cfg;
+    lvPoolConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.object_size = 64;
     cfg.capacity = 16;
@@ -105,33 +105,33 @@ static void test_pool_lifecycle(void) {
     cfg.name = "test_pool";
 
     /* 创建 */
-    Lv00ObjectPool *pool = lv00_pool_create(&cfg);
+    lvObjectPool *pool = lv_pool_create(&cfg);
     TEST_ASSERT_NOT_NULL(pool);
 
     /* 分配 */
-    void *obj1 = lv00_pool_alloc(pool);
+    void *obj1 = lv_pool_alloc(pool);
     TEST_ASSERT_NOT_NULL(obj1);
 
-    void *obj2 = lv00_pool_alloc(pool);
+    void *obj2 = lv_pool_alloc(pool);
     TEST_ASSERT_NOT_NULL(obj2);
 
     /* 释放 */
-    bool freed = lv00_pool_free(pool, obj1);
+    bool freed = lv_pool_free(pool, obj1);
     TEST_ASSERT(freed, "pool_free 应成功释放对象");
 
     /* 释放后再分配应复用内存 */
-    void *obj3 = lv00_pool_alloc(pool);
+    void *obj3 = lv_pool_alloc(pool);
     TEST_ASSERT_NOT_NULL(obj3);
 
     /* 统计信息 */
     uint64_t total_allocs = 0, total_frees = 0;
     size_t current_used = 0;
-    lv00_pool_get_stats(pool, &total_allocs, &total_frees, &current_used);
+    lv_pool_get_stats(pool, &total_allocs, &total_frees, &current_used);
     TEST_ASSERT(total_allocs == 3, "总分配次数应为 3");
     TEST_ASSERT(total_frees == 1, "总释放次数应为 1");
 
     /* 销毁 */
-    lv00_pool_destroy(pool);
+    lv_pool_destroy(pool);
 }
 
 /* ============================================================
@@ -140,31 +140,31 @@ static void test_pool_lifecycle(void) {
 
 static void test_poison_pattern(void) {
     /* 确保毒模式已启用 */
-    lv00_poison_enable(true);
-    TEST_ASSERT(lv00_poison_is_enabled(), "毒模式应已启用");
+    lv_poison_enable(true);
+    TEST_ASSERT(lv_poison_is_enabled(), "毒模式应已启用");
 
     /* 分配并写入已知数据 */
     size_t alloc_size = 64;
-    unsigned char *ptr = (unsigned char *)lv00_malloc(alloc_size);
+    unsigned char *ptr = (unsigned char *)lv_malloc(alloc_size);
     TEST_ASSERT_NOT_NULL(ptr);
 
     memset(ptr, 0x11, alloc_size);
 
     /* 释放后检查毒模式 */
-    lv00_free((void **)&ptr);
+    lv_free((void **)&ptr);
     /* 释放后 ptr 已置 NULL，需要单独分配来验证毒模式行为 */
 
     /* 分配新块，写入数据，释放，然后手动检查毒模式 */
-    unsigned char *ptr2 = (unsigned char *)lv00_malloc(alloc_size);
+    unsigned char *ptr2 = (unsigned char *)lv_malloc(alloc_size);
     TEST_ASSERT_NOT_NULL(ptr2);
     memset(ptr2, 0x22, alloc_size);
 
     /* 释放后 ptr2 置 NULL，但内存区域应被毒模式填充 */
-    lv00_free((void **)&ptr2);
+    lv_free((void **)&ptr2);
     TEST_ASSERT_NULL(ptr2);
 
     /* 恢复默认状态 */
-    lv00_poison_enable(true);
+    lv_poison_enable(true);
 }
 
 /* ============================================================
@@ -174,20 +174,20 @@ static void test_poison_pattern(void) {
 static void test_magic_number_integrity(void) {
     /* 分配内存 */
     size_t alloc_size = 128;
-    unsigned char *ptr = (unsigned char *)lv00_malloc(alloc_size);
+    unsigned char *ptr = (unsigned char *)lv_malloc(alloc_size);
     TEST_ASSERT_NOT_NULL(ptr);
 
     /* 检查魔数完整性 */
-    bool magic_ok = lv00_memory_check_magic(ptr);
+    bool magic_ok = lv_memory_check_magic(ptr);
     TEST_ASSERT(magic_ok, "新分配的内存魔数应完整");
 
     /* 正常使用后魔数仍应完整 */
     memset(ptr, 0xCC, alloc_size);
-    magic_ok = lv00_memory_check_magic(ptr);
+    magic_ok = lv_memory_check_magic(ptr);
     TEST_ASSERT(magic_ok, "正常使用后魔数应仍完整");
 
     /* 释放 */
-    lv00_free((void **)&ptr);
+    lv_free((void **)&ptr);
 }
 
 /* ============================================================
@@ -196,24 +196,24 @@ static void test_magic_number_integrity(void) {
 
 static void test_leak_tracking(void) {
     /* 重置内存统计 */
-    lv00_reset_memory_stats();
+    lv_reset_memory_stats();
 
     /* 使用追踪分配 */
-    void *tracked = LV00_TRACKED_MALLOC(256);
+    void *tracked = lv_TRACKED_MALLOC(256);
     TEST_ASSERT_NOT_NULL(tracked);
     memset(tracked, 0xDD, 256);
 
     /* 检查内存统计 */
     MemoryStats stats;
-    lv00_get_memory_stats(&stats);
+    lv_get_memory_stats(&stats);
     TEST_ASSERT(stats.allocation_count > 0, "分配次数应大于 0");
 
     /* 正常释放追踪分配的内存 */
-    lv00_free((void **)&tracked);
+    lv_free((void **)&tracked);
     TEST_ASSERT_NULL(tracked);
 
     /* 验证泄漏报告（此时不应有泄漏） */
-    int leaks = lv00_memory_leak_report(NULL);
+    int leaks = lv_memory_leak_report(NULL);
     /* leaks 表示未释放的追踪分配数量，释放后应为 0 或仅包含框架内部分配 */
     printf("    泄漏报告: %d 个未释放块\n", leaks);
 }
@@ -225,19 +225,19 @@ static void test_leak_tracking(void) {
 static void test_bounded_allocation(void) {
     /* 设置内存限制 */
     size_t limit = 1024; /* 1KB 限制 */
-    lv00_set_memory_limit(limit);
+    lv_set_memory_limit(limit);
 
     /* 请求超过限制的内存应失败 */
-    void *big = lv00_malloc_bounded(2048, limit);
+    void *big = lv_malloc_bounded(2048, limit);
     TEST_ASSERT_NULL(big);
 
     /* 请求在限制内的内存应成功 */
-    void *small = lv00_malloc_bounded(512, limit);
+    void *small = lv_malloc_bounded(512, limit);
     TEST_ASSERT_NOT_NULL(small);
-    lv00_free(&small);
+    lv_free(&small);
 
     /* 清除限制 */
-    lv00_set_memory_limit(0);
+    lv_set_memory_limit(0);
 }
 
 /* ============================================================
@@ -246,13 +246,13 @@ static void test_bounded_allocation(void) {
 
 static void test_tracked_allocation(void) {
     /* 重置统计 */
-    lv00_reset_memory_stats();
+    lv_reset_memory_stats();
 
     /* 追踪分配 */
-    void *p1 = LV00_TRACKED_MALLOC(32);
+    void *p1 = lv_TRACKED_MALLOC(32);
     TEST_ASSERT_NOT_NULL(p1);
 
-    void *p2 = LV00_TRACKED_CALLOC(1, 64);
+    void *p2 = lv_TRACKED_CALLOC(1, 64);
     TEST_ASSERT_NOT_NULL(p2);
 
     /* 验证 calloc 清零 */
@@ -267,8 +267,8 @@ static void test_tracked_allocation(void) {
     TEST_ASSERT(all_zero, "TRACKED_CALLOC 应清零内存");
 
     /* 释放 */
-    lv00_free(&p1);
-    lv00_free(&p2);
+    lv_free(&p1);
+    lv_free(&p2);
 }
 
 /* ============================================================
@@ -282,9 +282,9 @@ static void resource_destroy_callback(void *resource) {
 
 static void test_resource_tracker(void) {
     /* 创建追踪器 */
-    ResourceTracker *rt = lv00_resource_tracker_create();
+    ResourceTracker *rt = lv_resource_tracker_create();
     TEST_ASSERT_NOT_NULL(rt);
-    TEST_ASSERT_EQ(lv00_resource_tracker_count(rt), 0);
+    TEST_ASSERT_EQ(lv_resource_tracker_count(rt), 0);
 
     /* 追踪多个资源 */
     void *res1 = malloc(100);
@@ -292,29 +292,29 @@ static void test_resource_tracker(void) {
     void *res3 = malloc(300);
 
     bool ok;
-    ok = lv00_resource_track(rt, res1, resource_destroy_callback, "resource_1");
+    ok = lv_resource_track(rt, res1, resource_destroy_callback, "resource_1");
     TEST_ASSERT(ok, "追踪 res1 应成功");
-    ok = lv00_resource_track(rt, res2, resource_destroy_callback, "resource_2");
+    ok = lv_resource_track(rt, res2, resource_destroy_callback, "resource_2");
     TEST_ASSERT(ok, "追踪 res2 应成功");
-    ok = lv00_resource_track(rt, res3, resource_destroy_callback, "resource_3");
+    ok = lv_resource_track(rt, res3, resource_destroy_callback, "resource_3");
     TEST_ASSERT(ok, "追踪 res3 应成功");
 
-    TEST_ASSERT_EQ(lv00_resource_tracker_count(rt), 3);
+    TEST_ASSERT_EQ(lv_resource_tracker_count(rt), 3);
 
     /* 取消追踪一个资源 */
-    ok = lv00_resource_untrack(rt, res2);
+    ok = lv_resource_untrack(rt, res2);
     TEST_ASSERT(ok, "取消追踪 res2 应成功");
-    TEST_ASSERT_EQ(lv00_resource_tracker_count(rt), 2);
+    TEST_ASSERT_EQ(lv_resource_tracker_count(rt), 2);
 
     /* 手动释放 res2（已取消追踪） */
     free(res2);
 
     /* 清理剩余资源（应自动调用销毁回调） */
-    lv00_resource_tracker_cleanup(rt);
-    TEST_ASSERT_EQ(lv00_resource_tracker_count(rt), 0);
+    lv_resource_tracker_cleanup(rt);
+    TEST_ASSERT_EQ(lv_resource_tracker_count(rt), 0);
 
     /* 销毁追踪器 */
-    lv00_resource_tracker_destroy(&rt);
+    lv_resource_tracker_destroy(&rt);
     TEST_ASSERT_NULL(rt);
 }
 
@@ -324,14 +324,14 @@ static void test_resource_tracker(void) {
 
 static void test_linear_allocator(void) {
     /* 创建 */
-    Lv00LinearAllocator *la = lv00_linear_allocator_create(4096);
+    lvLinearAllocator *la = lv_linear_allocator_create(4096);
     TEST_ASSERT_NOT_NULL(la);
 
     /* 分配 */
-    void *p1 = lv00_linear_alloc(la, 128, 16);
+    void *p1 = lv_linear_alloc(la, 128, 16);
     TEST_ASSERT_NOT_NULL(p1);
 
-    void *p2 = lv00_linear_alloc(la, 256, 16);
+    void *p2 = lv_linear_alloc(la, 256, 16);
     TEST_ASSERT_NOT_NULL(p2);
 
     /* p2 应在 p1 之后 */
@@ -339,21 +339,21 @@ static void test_linear_allocator(void) {
 
     /* 统计 */
     size_t total_blocks = 0, used_bytes = 0, capacity_bytes = 0;
-    lv00_linear_allocator_get_stats(la, &total_blocks, &used_bytes, &capacity_bytes);
+    lv_linear_allocator_get_stats(la, &total_blocks, &used_bytes, &capacity_bytes);
     TEST_ASSERT(total_blocks >= 1, "至少应有 1 个内存块");
     TEST_ASSERT(used_bytes >= 384, "已使用字节数应 >= 384 (128+256)");
 
     /* 重置 */
-    lv00_linear_allocator_reset(la);
-    lv00_linear_allocator_get_stats(la, &total_blocks, &used_bytes, &capacity_bytes);
+    lv_linear_allocator_reset(la);
+    lv_linear_allocator_get_stats(la, &total_blocks, &used_bytes, &capacity_bytes);
     TEST_ASSERT(used_bytes == 0, "重置后已使用字节数应为 0");
 
     /* 重置后可重新分配 */
-    void *p3 = lv00_linear_alloc(la, 64, 16);
+    void *p3 = lv_linear_alloc(la, 64, 16);
     TEST_ASSERT_NOT_NULL(p3);
 
     /* 销毁 */
-    lv00_linear_allocator_destroy(la);
+    lv_linear_allocator_destroy(la);
 }
 
 /* ============================================================
@@ -362,19 +362,19 @@ static void test_linear_allocator(void) {
 
 static void test_geometry_config_sequential(void) {
     /* 获取默认配置 */
-    Lv00GeometryConfig def_cfg = lv00_geometry_config_default();
-    const Lv00GeometryConfig *def = &def_cfg;
+    lvGeometryConfig def_cfg = lv_geometry_config_default();
+    const lvGeometryConfig *def = &def_cfg;
     TEST_ASSERT_NOT_NULL(def);
     TEST_ASSERT(def_cfg.collinear_epsilon > 0, "默认共线容差应大于 0");
 
     /* 获取当前配置 */
-    const Lv00GeometryConfig *cur = lv00_geometry_get_config();
+    const lvGeometryConfig *cur = lv_geometry_get_config();
     TEST_ASSERT_NOT_NULL(cur);
     TEST_ASSERT(fabs(cur->collinear_epsilon - def->collinear_epsilon) < 1e-15,
                  "当前配置应与默认配置一致");
 
     /* 设置自定义配置 */
-    Lv00GeometryConfig custom;
+    lvGeometryConfig custom;
     custom.collinear_epsilon = 1e-6;
     custom.perpendicular_epsilon = 1e-6;
     custom.parallel_epsilon = 1e-6;
@@ -382,17 +382,17 @@ static void test_geometry_config_sequential(void) {
     custom.angle_epsilon = 1e-3;
     custom.singular_threshold = 1e-9;
 
-    lv00_geometry_set_config(&custom);
+    lv_geometry_set_config(&custom);
 
     /* 验证设置生效 */
-    cur = lv00_geometry_get_config();
+    cur = lv_geometry_get_config();
     TEST_ASSERT_NOT_NULL(cur);
     TEST_ASSERT(fabs(cur->collinear_epsilon - 1e-6) < 1e-15,
                  "自定义共线容差应已生效");
 
     /* 多次 set/get 交替验证 */
     for (int i = 0; i < 10; i++) {
-        Lv00GeometryConfig tmp;
+        lvGeometryConfig tmp;
         tmp.collinear_epsilon = (double)(i + 1) * 1e-10;
         tmp.perpendicular_epsilon = (double)(i + 1) * 1e-10;
         tmp.parallel_epsilon = (double)(i + 1) * 1e-10;
@@ -400,16 +400,16 @@ static void test_geometry_config_sequential(void) {
         tmp.angle_epsilon = (double)(i + 1) * 1e-7;
         tmp.singular_threshold = (double)(i + 1) * 1e-13;
 
-        lv00_geometry_set_config(&tmp);
+        lv_geometry_set_config(&tmp);
 
-        const Lv00GeometryConfig *got = lv00_geometry_get_config();
+        const lvGeometryConfig *got = lv_geometry_get_config();
         TEST_ASSERT(fabs(got->collinear_epsilon - tmp.collinear_epsilon) < 1e-15,
                      "交替 set/get 应一致");
     }
 
     /* 恢复默认配置 */
-    lv00_geometry_set_config(NULL);
-    cur = lv00_geometry_get_config();
+    lv_geometry_set_config(NULL);
+    cur = lv_geometry_get_config();
     TEST_ASSERT(fabs(cur->collinear_epsilon - def->collinear_epsilon) < 1e-15,
                  "恢复默认后配置应与初始默认一致");
 }

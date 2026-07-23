@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_polynomial.c
  * @brief 多项式理论预设函数块 - 实现
  *
@@ -11,8 +11,8 @@
  * @version 4.0.0
  */
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "preset_polynomial.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
@@ -346,7 +346,7 @@ bool preset_polynomial_get_names(char ***out_names, int *out_count)
     PRESET_CHECK_NULL(out_count, error);
 
     /* 分配名称数组 */
-    char **names = (char **)lv00_malloc(POLYNOMIAL_PRESET_COUNT * sizeof(char *));
+    char **names = (char **)lv_malloc(POLYNOMIAL_PRESET_COUNT * sizeof(char *));
     PRESET_CHECK_NULL(names, error);
 
     /* 填充预设名称列表 */
@@ -378,13 +378,13 @@ bool preset_polynomial_get_names(char ***out_names, int *out_count)
     int count = sizeof(preset_names) / sizeof(preset_names[0]);
 
     for (int i = 0; i < count; i++) {
-        names[i] = lv00_strdup(preset_names[i]);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                { void *tmp = names[j]; lv00_free(&tmp); }
+                { void *tmp = names[j]; lv_free(&tmp); }
             }
-            { void *tmp = names; lv00_free(&tmp); }
+            { void *tmp = names; lv_free(&tmp); }
             return false;
         }
     }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file recursion.c
  * @brief 递归与条件系统实现 —— 良基递归与测度递减验证
  *
@@ -25,10 +25,10 @@
  *
  * @dependencies
  *   - recursion.h          : 递归系统公共接口定义
- *   - lv00_internal.h      : 内部数据结构与常量
- *   - lv00_utils.h         : 统一内存分配器
+ *   - lv_internal.h      : 内部数据结构与常量
+ *   - lv_utils.h         : 统一内存分配器
  *   - stream.h             : 流式事件输出
- *   - constraint_graph.h   : 约束图接口（通过 lv00_internal.h 间接引用）
+ *   - constraint_graph.h   : 约束图接口（通过 lv_internal.h 间接引用）
  */
 
 #define _USE_MATH_DEFINES
@@ -37,13 +37,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "recursion.h"
 #include "stream.h"
 #include "stream_context_util.h"
 
-LV00_DECLARE_STREAM_CTX(recursion);
+lv_DECLARE_STREAM_CTX(recursion);
 
 void recursion_set_stream_context(StreamContext *ctx) {
     recursion_stream_ctx = ctx;
@@ -61,10 +61,10 @@ void recursion_set_stream_context(StreamContext *ctx) {
  * @return 新分配的测度系统指针，失败返回 NULL
  */
 MeasureSystem *measure_system_create(void) {
-    MeasureSystem *ms = lv00_calloc(1, sizeof(MeasureSystem));
+    MeasureSystem *ms = lv_calloc(1, sizeof(MeasureSystem));
     if (!ms) return NULL;
 
-    /* lv00_calloc 已零初始化所有字段，无需逐字段赋零值 */
+    /* lv_calloc 已零初始化所有字段，无需逐字段赋零值 */
     return ms;
 }
 
@@ -81,15 +81,15 @@ void measure_system_destroy(MeasureSystem *ms) {
     for (int i = 0; i < ms->measure_count; i++) {
         measure_destroy(ms->measures[i]);
     }
-    lv00_free((void **)&ms->measures);
+    lv_free((void **)&ms->measures);
 
     /* 释放非符号测度元数据 */
-    lv00_free((void **)&ms->non_symbolic_metas);
+    lv_free((void **)&ms->non_symbolic_metas);
 
     /* 释放验证模板元数据 */
-    lv00_free((void **)&ms->validation_metas);
+    lv_free((void **)&ms->validation_metas);
 
-    lv00_free((void **)&ms);
+    lv_free((void **)&ms);
 }
 
 /**
@@ -104,11 +104,11 @@ void measure_system_destroy(MeasureSystem *ms) {
  * @return 新分配的测度指针，失败返回 NULL
  */
 Measure *measure_create_symbolic(const char *name, int kind, int ref_node_id) {
-    Measure *m = lv00_calloc(1, sizeof(Measure));
+    Measure *m = lv_calloc(1, sizeof(Measure));
     if (!m) return NULL;
 
     m->type = MEASURE_SYMBOLIC;
-    m->name = name ? lv00_strdup(name) : NULL;
+    m->name = name ? lv_strdup(name) : NULL;
     m->kind = kind;
     m->reference_node_id = ref_node_id;
     m->is_well_founded = true; /* 符号测度默认良基 */
@@ -130,11 +130,11 @@ Measure *measure_create_symbolic(const char *name, int kind, int ref_node_id) {
 Measure *measure_create_custom(const char *name,
     int (*compare_func)(GeomNode *a, GeomNode *b, void *user_data),
     void *user_data) {
-    Measure *m = lv00_calloc(1, sizeof(Measure));
+    Measure *m = lv_calloc(1, sizeof(Measure));
     if (!m) return NULL;
 
     m->type = MEASURE_CUSTOM;
-    m->name = name ? lv00_strdup(name) : NULL;
+    m->name = name ? lv_strdup(name) : NULL;
     m->kind = MEASURE_KIND_CUSTOM;
     m->compare_func = compare_func;
     m->user_data = user_data;
@@ -153,8 +153,8 @@ Measure *measure_create_custom(const char *name,
 void measure_destroy(Measure *m) {
     if (!m) return;
 
-    lv00_free((void **)&m->name);
-    lv00_free((void **)&m);
+    lv_free((void **)&m->name);
+    lv_free((void **)&m);
 }
 
 /**
@@ -170,7 +170,7 @@ bool measure_system_add(MeasureSystem *ms, Measure *m) {
     if (!ms || !m) return false;
 
     int new_count = ms->measure_count + 1;
-    Measure **new_arr = lv00_realloc(ms->measures,
+    Measure **new_arr = lv_realloc(ms->measures,
         (size_t)new_count * sizeof(Measure*));
     if (!new_arr) return false;
 
@@ -859,18 +859,18 @@ MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b,
  * @brief 创建递归上下文
  *
  * 分配并初始化递归上下文，设置最大递归深度限制。
- * 深度上限受 LV00_MAX_RECURSION_DEPTH_LIMIT 约束。
+ * 深度上限受 lv_MAX_RECURSION_DEPTH_LIMIT 约束。
  *
  * @param max_depth 最大递归深度（0 或负值时使用默认值 10000）
  * @return 新分配的递归上下文指针，失败返回 NULL
  */
 RecursionContext *recursion_context_create(int max_depth) {
-    RecursionContext *ctx = lv00_calloc(1, sizeof(RecursionContext));
+    RecursionContext *ctx = lv_calloc(1, sizeof(RecursionContext));
     if (!ctx) return NULL;
 
-    /* 限制最大递归深度，防止内存耗尽（使用文件顶部定义的 LV00_MAX_RECURSION_DEPTH_LIMIT） */
-    if (max_depth > LV00_MAX_RECURSION_DEPTH_LIMIT) {
-        max_depth = LV00_MAX_RECURSION_DEPTH_LIMIT;
+    /* 限制最大递归深度，防止内存耗尽（使用文件顶部定义的 lv_MAX_RECURSION_DEPTH_LIMIT） */
+    if (max_depth > lv_MAX_RECURSION_DEPTH_LIMIT) {
+        max_depth = lv_MAX_RECURSION_DEPTH_LIMIT;
     }
     ctx->max_depth = max_depth > 0 ? max_depth : 10000;
     ctx->current_depth = 0;
@@ -892,10 +892,10 @@ void recursion_context_destroy(RecursionContext *ctx) {
     for (int i = 0; i < ctx->measure_value_count; i++) {
         symbolic_coord_destroy(ctx->measure_values[i]);
     }
-    lv00_free((void **)&ctx->measure_values);
-    lv00_free((void **)&ctx->call_stack);
-    lv00_free((void **)&ctx->termination_reason);
-    lv00_free((void **)&ctx);
+    lv_free((void **)&ctx->measure_values);
+    lv_free((void **)&ctx->call_stack);
+    lv_free((void **)&ctx->termination_reason);
+    lv_free((void **)&ctx);
 }
 
 /**
@@ -963,8 +963,8 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
                         "递归深度超限（回调停止）", ctx->current_depth);
                 }
                 ctx->is_terminated = true;
-                lv00_free((void **)&ctx->termination_reason);
-                ctx->termination_reason = lv00_strdup("Maximum recursion depth exceeded (user callback decided to stop)");
+                lv_free((void **)&ctx->termination_reason);
+                ctx->termination_reason = lv_strdup("Maximum recursion depth exceeded (user callback decided to stop)");
                 return RECURSION_DEPTH_EXCEEDED;
             }
             /* RECURSION_ACTION_CONTINUE：用户决定继续，不终止 */
@@ -976,8 +976,8 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
                     "递归深度超限", ctx->current_depth);
             }
             ctx->is_terminated = true;
-            lv00_free((void **)&ctx->termination_reason);
-            ctx->termination_reason = lv00_strdup("Maximum recursion depth exceeded");
+            lv_free((void **)&ctx->termination_reason);
+            ctx->termination_reason = lv_strdup("Maximum recursion depth exceeded");
             return RECURSION_DEPTH_EXCEEDED;
         }
     }
@@ -991,14 +991,14 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
             if (result == RECURSION_NOT_DECREASING) {
                 symbolic_coord_destroy(new_value);
                 ctx->is_terminated = true;
-                lv00_free((void **)&ctx->termination_reason);
-                ctx->termination_reason = lv00_strdup("Measure not decreasing");
+                lv_free((void **)&ctx->termination_reason);
+                ctx->termination_reason = lv_strdup("Measure not decreasing");
                 return RECURSION_NOT_DECREASING;
             }
 
             /* 记录测度值 */
             ctx->measure_value_count++;
-            SymbolicCoord **new_vals = lv00_realloc(ctx->measure_values,
+            SymbolicCoord **new_vals = lv_realloc(ctx->measure_values,
                 ctx->measure_value_count * sizeof(SymbolicCoord*));
             if (!new_vals) {
                 ctx->measure_value_count--;
@@ -1012,7 +1012,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
 
     /* 记录调用栈 */
     ctx->call_stack_size++;
-    int *new_stack = lv00_realloc(ctx->call_stack,
+    int *new_stack = lv_realloc(ctx->call_stack,
         ctx->call_stack_size * sizeof(int));
     if (!new_stack) {
         ctx->call_stack_size--;
@@ -1037,8 +1037,8 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
                     "递归循环检测", func_block_id);
             }
             ctx->is_terminated = true;
-            lv00_free((void **)&ctx->termination_reason);
-            ctx->termination_reason = lv00_strdup("Cycle detected: recursive call to the same function block");
+            lv_free((void **)&ctx->termination_reason);
+            ctx->termination_reason = lv_strdup("Cycle detected: recursive call to the same function block");
             return RECURSION_ERROR;
         }
     }
@@ -1177,18 +1177,18 @@ void recursion_context_reset(RecursionContext *ctx) {
     for (int i = 0; i < ctx->measure_value_count; i++) {
         symbolic_coord_destroy(ctx->measure_values[i]);
     }
-    lv00_free((void **)&ctx->measure_values);
+    lv_free((void **)&ctx->measure_values);
     ctx->measure_values = NULL;
     ctx->measure_value_count = 0;
 
-    lv00_free((void **)&ctx->call_stack);
+    lv_free((void **)&ctx->call_stack);
     ctx->call_stack = NULL;
     ctx->call_stack_size = 0;
 
     ctx->current_depth = 0;
     ctx->is_terminated = false;
 
-    lv00_free((void **)&ctx->termination_reason);
+    lv_free((void **)&ctx->termination_reason);
     ctx->termination_reason = NULL;
 
     /* 修改5：重置时保留回调设置 */
@@ -1348,7 +1348,7 @@ static bool point_in_region_ray_casting(double px, double py, GeomNode **segment
 }
 
 SelectorBlock *selector_block_create(int id, ConstraintGraph *graph) {
-    SelectorBlock *sb = lv00_calloc(1, sizeof(SelectorBlock));
+    SelectorBlock *sb = lv_calloc(1, sizeof(SelectorBlock));
     if (!sb) return NULL;
 
     sb->id = id;
@@ -1369,10 +1369,10 @@ void selector_block_destroy(SelectorBlock *sb) {
     if (!sb) return;
 
     /* 修改3：释放分支子图节点数组 */
-    lv00_free((void **)&sb->true_branch_node_ids);
-    lv00_free((void **)&sb->false_branch_node_ids);
+    lv_free((void **)&sb->true_branch_node_ids);
+    lv_free((void **)&sb->false_branch_node_ids);
 
-    lv00_free((void **)&sb);
+    lv_free((void **)&sb);
 }
 
 bool selector_block_set_condition(SelectorBlock *sb, int point_id, int region_id) {
@@ -1399,11 +1399,11 @@ void selector_block_set_branch_nodes(SelectorBlock *sb,
     if (!sb) return;
 
     /* 释放旧的真分支节点数组 */
-    lv00_free((void **)&sb->true_branch_node_ids);
+    lv_free((void **)&sb->true_branch_node_ids);
 
     /* 复制新的真分支节点ID数组 */
     if (true_ids && true_count > 0) {
-        sb->true_branch_node_ids = lv00_malloc(true_count * sizeof(int));
+        sb->true_branch_node_ids = lv_malloc(true_count * sizeof(int));
         if (sb->true_branch_node_ids) {
             memcpy(sb->true_branch_node_ids, true_ids, true_count * sizeof(int));
             sb->true_branch_node_count = true_count;
@@ -1416,11 +1416,11 @@ void selector_block_set_branch_nodes(SelectorBlock *sb,
     }
 
     /* 释放旧的假分支节点数组 */
-    lv00_free((void **)&sb->false_branch_node_ids);
+    lv_free((void **)&sb->false_branch_node_ids);
 
     /* 复制新的假分支节点ID数组 */
     if (false_ids && false_count > 0) {
-        sb->false_branch_node_ids = lv00_malloc(false_count * sizeof(int));
+        sb->false_branch_node_ids = lv_malloc(false_count * sizeof(int));
         if (sb->false_branch_node_ids) {
             memcpy(sb->false_branch_node_ids, false_ids, false_count * sizeof(int));
             sb->false_branch_node_count = false_count;
@@ -1760,7 +1760,7 @@ bool measure_system_register_non_symbolic(MeasureSystem *ms,
 
     /* 扩展元数据数组 */
     int new_count = ms->non_symbolic_meta_count + 1;
-    NonSymbolicMeasureMeta *new_metas = lv00_realloc(ms->non_symbolic_metas,
+    NonSymbolicMeasureMeta *new_metas = lv_realloc(ms->non_symbolic_metas,
         new_count * sizeof(NonSymbolicMeasureMeta));
     if (!new_metas) return false;
 
@@ -1886,7 +1886,7 @@ bool recursion_run_measure_tests(
 
         if (!before || !after) {
             results[i].passed = false;
-            results[i].error_message = lv00_strdup("NULL measure value in test case");
+            results[i].error_message = lv_strdup("NULL measure value in test case");
             all_passed = false;
             continue;
         }
@@ -1902,23 +1902,23 @@ bool recursion_run_measure_tests(
                     break;
                 case MEASURE_EQUAL:
                     results[i].passed = false;
-                    results[i].error_message = lv00_strdup("Measure values are equal (not decreasing)");
+                    results[i].error_message = lv_strdup("Measure values are equal (not decreasing)");
                     all_passed = false;
                     break;
                 case MEASURE_GREATER:
                     results[i].passed = false;
-                    results[i].error_message = lv00_strdup("Measure value increased (not decreasing)");
+                    results[i].error_message = lv_strdup("Measure value increased (not decreasing)");
                     all_passed = false;
                     break;
                 case MEASURE_UNKNOWN:
                     results[i].passed = false;
-                    results[i].error_message = lv00_strdup("Cannot determine measure comparison");
+                    results[i].error_message = lv_strdup("Cannot determine measure comparison");
                     all_passed = false;
                     break;
                 case MEASURE_ERROR:
                 default:
                     results[i].passed = false;
-                    results[i].error_message = lv00_strdup("Error comparing measure values");
+                    results[i].error_message = lv_strdup("Error comparing measure values");
                     all_passed = false;
                     break;
             }
@@ -1932,12 +1932,12 @@ bool recursion_run_measure_tests(
                  * 标记为需要通过公理包的模板展开来验证。
                  */
                 results[i].passed = false;
-                results[i].error_message = lv00_strdup(
+                results[i].error_message = lv_strdup(
                     "Non-symbolic measure requires axiom pack template expansion");
                 all_passed = false;
             } else {
                 results[i].passed = false;
-                results[i].error_message = lv00_strdup("No comparator for custom measure");
+                results[i].error_message = lv_strdup("No comparator for custom measure");
                 all_passed = false;
             }
         }
@@ -2130,7 +2130,7 @@ int recursion_run_builtin_tests(
     if (!results || !result_count) return -1;
 
     /* 分配测试结果数组 */
-    RecursionTestResult *test_results = lv00_calloc(BUILTIN_TEST_COUNT, sizeof(RecursionTestResult));
+    RecursionTestResult *test_results = lv_calloc(BUILTIN_TEST_COUNT, sizeof(RecursionTestResult));
     if (!test_results) return -1;
 
     *results = test_results;
@@ -2142,7 +2142,7 @@ int recursion_run_builtin_tests(
         sys = measure_system_create();
         if (!sys) {
             *result_count = 0;
-            lv00_free((void **)&test_results);
+            lv_free((void **)&test_results);
             *results = NULL;
             return -1;
         }
@@ -2279,7 +2279,7 @@ int recursion_run_builtin_tests(
 
                 /* 手动设置 ctx_a 的测度值 */
                 ctx_a->measure_value_count = 3;
-                ctx_a->measure_values = lv00_calloc(3, sizeof(SymbolicCoord*));
+                ctx_a->measure_values = lv_calloc(3, sizeof(SymbolicCoord*));
                 ctx_a->measure_values[0] = v5;
                 ctx_a->measure_values[1] = v3;
                 ctx_a->measure_values[2] = v1;
@@ -2290,7 +2290,7 @@ int recursion_run_builtin_tests(
                 SymbolicCoord *v0 = symbolic_coord_create_rational(0, 1);
 
                 ctx_b->measure_value_count = 3;
-                ctx_b->measure_values = lv00_calloc(3, sizeof(SymbolicCoord*));
+                ctx_b->measure_values = lv_calloc(3, sizeof(SymbolicCoord*));
                 ctx_b->measure_values[0] = v4;
                 ctx_b->measure_values[1] = v2;
                 ctx_b->measure_values[2] = v0;
@@ -2631,7 +2631,7 @@ int recursion_validate_non_symbolic_with_axiom(
         } else {
             /* 添加新条目 */
             int new_count = sys->validation_meta_count + 1;
-            NonSymbolicMeasureValidationMeta *new_metas = lv00_realloc(
+            NonSymbolicMeasureValidationMeta *new_metas = lv_realloc(
                 sys->validation_metas,
                 new_count * sizeof(NonSymbolicMeasureValidationMeta));
             if (!new_metas) return -1;

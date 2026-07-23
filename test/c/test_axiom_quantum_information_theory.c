@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_quantum_information_theory.c
  * @brief Quantum Information Theory Axiom Package Test
  *
@@ -17,7 +17,7 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
-#include "lv00_utils.h"
+#include "lv_utils.h"
 #include "test_helpers.h"
 
 int g_fail_count = 0;
@@ -288,7 +288,7 @@ static void test_content_hash(void) {
     printf("  Content hash: %.32s...\n", hash);
     printf("               ...%.32s\n", hash + 32);
 
-    lv00_free((void **) &hash);
+    lv_free((void **) &hash);
     axiom_package_destroy(pkg);
 }
 

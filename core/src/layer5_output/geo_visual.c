@@ -1,10 +1,10 @@
-/**
+﻿/**
  * @file geo_visual.c
  * @brief 几何可视化抽象层实现
  */
 
-#include "lv00/geo_visual.h"
-#include "lv00/lv00_internal.h"
+#include "lv/geo_visual.h"
+#include "lv/lv_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -23,17 +23,17 @@ static void write_output_to_file(const char *path, const char *content) {
         fputs(content, fp);
         fclose(fp);
     } else {
-        LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", path);
+        lv_LOG_WARNING("geo_visual: 无法打开输出文件 %s", path);
     }
 }
 
 /* ============ 构造器实现 ============ */
 
-Lv00VisualObject* lv00_visual_point_create(float x, float y) {
-    Lv00VisualObject* obj = (Lv00VisualObject*)lv00_malloc(sizeof(Lv00VisualObject));
+lvVisualObject* lv_visual_point_create(float x, float y) {
+    lvVisualObject* obj = (lvVisualObject*)lv_malloc(sizeof(lvVisualObject));
     if (!obj) return NULL;
     
-    obj->type = LV00_VISUAL_POINT;
+    obj->type = lv_VISUAL_POINT;
     obj->style.stroke_width = 2.0f;
     obj->style.stroke_color[0] = obj->style.stroke_color[1] = obj->style.stroke_color[2] = 0.0f;
     obj->style.stroke_color[3] = 1.0f;
@@ -55,11 +55,11 @@ Lv00VisualObject* lv00_visual_point_create(float x, float y) {
     return obj;
 }
 
-Lv00VisualObject* lv00_visual_line_create(float x1, float y1, float x2, float y2) {
-    Lv00VisualObject* obj = (Lv00VisualObject*)lv00_malloc(sizeof(Lv00VisualObject));
+lvVisualObject* lv_visual_line_create(float x1, float y1, float x2, float y2) {
+    lvVisualObject* obj = (lvVisualObject*)lv_malloc(sizeof(lvVisualObject));
     if (!obj) return NULL;
     
-    obj->type = LV00_VISUAL_LINE;
+    obj->type = lv_VISUAL_LINE;
     obj->style.stroke_width = 1.5f;
     obj->style.stroke_color[0] = obj->style.stroke_color[1] = obj->style.stroke_color[2] = 0.0f;
     obj->style.stroke_color[3] = 1.0f;
@@ -74,9 +74,9 @@ Lv00VisualObject* lv00_visual_line_create(float x1, float y1, float x2, float y2
     identity_matrix(obj->transform);
     
     /* 存储端点信息在 render_cache */
-    float* endpoints = (float*)lv00_malloc(4 * sizeof(float));
+    float* endpoints = (float*)lv_malloc(4 * sizeof(float));
     if (!endpoints) {
-        lv00_free_ptr(obj);
+        lv_free_ptr(obj);
         return NULL;
     }
     endpoints[0] = x1; endpoints[1] = y1;
@@ -86,11 +86,11 @@ Lv00VisualObject* lv00_visual_line_create(float x1, float y1, float x2, float y2
     return obj;
 }
 
-Lv00VisualObject* lv00_visual_circle_create(float cx, float cy, float r) {
-    Lv00VisualObject* obj = (Lv00VisualObject*)lv00_malloc(sizeof(Lv00VisualObject));
+lvVisualObject* lv_visual_circle_create(float cx, float cy, float r) {
+    lvVisualObject* obj = (lvVisualObject*)lv_malloc(sizeof(lvVisualObject));
     if (!obj) return NULL;
     
-    obj->type = LV00_VISUAL_CIRCLE;
+    obj->type = lv_VISUAL_CIRCLE;
     obj->style.stroke_width = 1.5f;
     obj->style.stroke_color[0] = obj->style.stroke_color[1] = obj->style.stroke_color[2] = 0.0f;
     obj->style.stroke_color[3] = 1.0f;
@@ -109,9 +109,9 @@ Lv00VisualObject* lv00_visual_circle_create(float cx, float cy, float r) {
     obj->transform[13] = cy;
     
     /* 存储半径 */
-    float* radius = (float*)lv00_malloc(sizeof(float));
+    float* radius = (float*)lv_malloc(sizeof(float));
     if (!radius) {
-        lv00_free_ptr(obj);
+        lv_free_ptr(obj);
         return NULL;
     }
     *radius = r;
@@ -120,11 +120,11 @@ Lv00VisualObject* lv00_visual_circle_create(float cx, float cy, float r) {
     return obj;
 }
 
-Lv00VisualObject* lv00_visual_group_create(Lv00VisualObject** objs, size_t n) {
-    Lv00VisualObject* obj = (Lv00VisualObject*)lv00_malloc(sizeof(Lv00VisualObject));
+lvVisualObject* lv_visual_group_create(lvVisualObject** objs, size_t n) {
+    lvVisualObject* obj = (lvVisualObject*)lv_malloc(sizeof(lvVisualObject));
     if (!obj) return NULL;
     
-    obj->type = LV00_VISUAL_MOBJECT_GROUP;
+    obj->type = lv_VISUAL_MOBJECT_GROUP;
     obj->style.stroke_width = 0;
     obj->style.opacity = 1.0f;
     
@@ -132,12 +132,12 @@ Lv00VisualObject* lv00_visual_group_create(Lv00VisualObject** objs, size_t n) {
     obj->render_cache = NULL;
     
     if (n > 0 && objs) {
-        obj->children = (Lv00VisualObject**)lv00_malloc((size_t)n * sizeof(Lv00VisualObject*));
+        obj->children = (lvVisualObject**)lv_malloc((size_t)n * sizeof(lvVisualObject*));
         if (!obj->children) {
-            lv00_free_ptr(obj);
+            lv_free_ptr(obj);
             return NULL;
         }
-        memcpy(obj->children, objs, n * sizeof(Lv00VisualObject*));
+        memcpy(obj->children, objs, n * sizeof(lvVisualObject*));
         obj->children_count = n;
     } else {
         obj->children = NULL;
@@ -151,13 +151,13 @@ Lv00VisualObject* lv00_visual_group_create(Lv00VisualObject** objs, size_t n) {
 
 /* ============ 样式设置 ============ */
 
-void lv00_visual_set_style(Lv00VisualObject* obj, const Lv00VisualStyle* style) {
+void lv_visual_set_style(lvVisualObject* obj, const lvVisualStyle* style) {
     if (obj && style) {
         obj->style = *style;
     }
 }
 
-void lv00_visual_set_color(Lv00VisualObject* obj, float r, float g, float b, float a) {
+void lv_visual_set_color(lvVisualObject* obj, float r, float g, float b, float a) {
     if (obj) {
         obj->style.stroke_color[0] = r;
         obj->style.stroke_color[1] = g;
@@ -166,7 +166,7 @@ void lv00_visual_set_color(Lv00VisualObject* obj, float r, float g, float b, flo
     }
 }
 
-void lv00_visual_set_dashed(Lv00VisualObject* obj, int dashed) {
+void lv_visual_set_dashed(lvVisualObject* obj, int dashed) {
     if (obj) {
         obj->style.dashed = dashed;
     }
@@ -174,20 +174,20 @@ void lv00_visual_set_dashed(Lv00VisualObject* obj, int dashed) {
 
 /* ============ 变换 ============ */
 
-void lv00_visual_translate(Lv00VisualObject* obj, float dx, float dy, float dz) {
+void lv_visual_translate(lvVisualObject* obj, float dx, float dy, float dz) {
     if (!obj) return;
     obj->transform[12] += dx;
     obj->transform[13] += dy;
     obj->transform[14] += dz;
 }
 
-void lv00_visual_scale(Lv00VisualObject* obj, float sx, float sy) {
+void lv_visual_scale(lvVisualObject* obj, float sx, float sy) {
     if (!obj) return;
     obj->transform[0] *= sx;
     obj->transform[5] *= sy;
 }
 
-void lv00_visual_rotate(Lv00VisualObject* obj, float angle, float axis[3]) {
+void lv_visual_rotate(lvVisualObject* obj, float angle, float axis[3]) {
     if (!obj) return;
 
     /* 判断是否需要使用任意轴旋转（Rodrigues 旋转公式） */
@@ -255,8 +255,8 @@ void lv00_visual_rotate(Lv00VisualObject* obj, float angle, float axis[3]) {
 
 /* ============ 场景管理 ============ */
 
-Lv00VisualScene* lv00_visual_scene_create(void) {
-    Lv00VisualScene* scene = (Lv00VisualScene*)lv00_malloc(sizeof(Lv00VisualScene));
+lvVisualScene* lv_visual_scene_create(void) {
+    lvVisualScene* scene = (lvVisualScene*)lv_malloc(sizeof(lvVisualScene));
     if (!scene) return NULL;
     
     scene->objects = NULL;
@@ -270,16 +270,16 @@ Lv00VisualScene* lv00_visual_scene_create(void) {
     return scene;
 }
 
-void lv00_visual_scene_add(Lv00VisualScene* scene, Lv00VisualObject* obj) {
+void lv_visual_scene_add(lvVisualScene* scene, lvVisualObject* obj) {
     if (!scene || !obj) return;
     
     size_t new_count = scene->object_count + 1;
-    Lv00VisualObject** new_objects = (Lv00VisualObject**)lv00_malloc((size_t)new_count * sizeof(Lv00VisualObject*));
+    lvVisualObject** new_objects = (lvVisualObject**)lv_malloc((size_t)new_count * sizeof(lvVisualObject*));
     if (!new_objects) return;
 
     if (scene->objects) {
-        memcpy(new_objects, scene->objects, scene->object_count * sizeof(Lv00VisualObject*));
-        lv00_free_ptr(scene->objects);
+        memcpy(new_objects, scene->objects, scene->object_count * sizeof(lvVisualObject*));
+        lv_free_ptr(scene->objects);
     }
     
     new_objects[scene->object_count] = obj;
@@ -287,19 +287,19 @@ void lv00_visual_scene_add(Lv00VisualScene* scene, Lv00VisualObject* obj) {
     scene->object_count = new_count;
 }
 
-void lv00_visual_scene_clear(Lv00VisualScene* scene) {
+void lv_visual_scene_clear(lvVisualScene* scene) {
     if (!scene) return;
     
     for (size_t i = 0; i < scene->object_count; i++) {
-        lv00_visual_object_destroy(scene->objects[i]);
+        lv_visual_object_destroy(scene->objects[i]);
     }
     
-    lv00_free_ptr(scene->objects);
+    lv_free_ptr(scene->objects);
     scene->objects = NULL;
     scene->object_count = 0;
 }
 
-void lv00_visual_scene_set_camera(Lv00VisualScene* scene, float cx, float cy, float cz, float zoom) {
+void lv_visual_scene_set_camera(lvVisualScene* scene, float cx, float cy, float cz, float zoom) {
     if (!scene) return;
     scene->camera_center[0] = cx;
     scene->camera_center[1] = cy;
@@ -323,7 +323,7 @@ static void color_to_svg(float c[4], char* buf, size_t buf_size) {
 }
 
 /* 递归渲染单个对象为 SVG 元素 */
-static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, size_t* cap) {
+static void render_object_svg(lvVisualObject* obj, char** buf, size_t* pos, size_t* cap) {
     if (!obj) return;
 
     /* 辅助宏：向缓冲区追加字符串（先检查容量再写入） */
@@ -334,7 +334,7 @@ static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, si
         if (needed > 0) { \
             while (*pos + (size_t)needed + 1 > *cap) { \
                 *cap *= 2; \
-                char* _nb = (char*)lv00_realloc(*buf, *cap); \
+                char* _nb = (char*)lv_realloc(*buf, *cap); \
                 if (!_nb) break; \
                 *buf = _nb; \
             } \
@@ -352,7 +352,7 @@ static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, si
     const char* dash_attr = obj->style.dashed ? " stroke-dasharray=\"5,3\"" : "";
 
     switch (obj->type) {
-    case LV00_VISUAL_POINT: {
+    case lv_VISUAL_POINT: {
         /* 点渲染为小圆 */
         float px = obj->transform[12];
         float py = obj->transform[13];
@@ -361,8 +361,8 @@ static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, si
                    px, py, stroke, stroke, obj->style.stroke_width, obj->style.opacity);
         break;
     }
-    case LV00_VISUAL_LINE:
-    case LV00_VISUAL_SEGMENT: {
+    case lv_VISUAL_LINE:
+    case lv_VISUAL_SEGMENT: {
         /* 线段渲染为 SVG line */
         if (obj->render_cache) {
             float* ep = (float*)obj->render_cache;
@@ -373,7 +373,7 @@ static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, si
         }
         break;
     }
-    case LV00_VISUAL_CIRCLE: {
+    case lv_VISUAL_CIRCLE: {
         /* 圆渲染为 SVG circle */
         float cx = obj->transform[12];
         float cy = obj->transform[13];
@@ -383,12 +383,12 @@ static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, si
                    cx, cy, r, fill, stroke, obj->style.stroke_width, obj->style.opacity, dash_attr);
         break;
     }
-    case LV00_VISUAL_POLYGON: {
+    case lv_VISUAL_POLYGON: {
         /* 多边形渲染为 SVG polygon */
         if (obj->render_cache && obj->children_count > 0) {
             SVG_APPEND("  <polygon points=\"");
             for (size_t i = 0; i < obj->children_count; i++) {
-                Lv00VisualObject* child = obj->children[i];
+                lvVisualObject* child = obj->children[i];
                 if (child) {
                     float px = child->transform[12];
                     float py = child->transform[13];
@@ -400,7 +400,7 @@ static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, si
         }
         break;
     }
-    case LV00_VISUAL_MOBJECT_GROUP: {
+    case lv_VISUAL_MOBJECT_GROUP: {
         /* 组合对象：递归渲染子对象 */
         for (size_t i = 0; i < obj->children_count; i++) {
             render_object_svg(obj->children[i], buf, pos, cap);
@@ -418,7 +418,7 @@ static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, si
 /* ============ Cairo 辅助函数 ============ */
 
 /* 递归渲染单个对象为 Cairo 脚本命令 */
-static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, size_t* cap) {
+static void render_object_cairo(lvVisualObject* obj, char** buf, size_t* pos, size_t* cap) {
     if (!obj) return;
 
     /* 辅助宏：向缓冲区追加字符串 */
@@ -428,7 +428,7 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
         size_t _avail = *cap - *pos; \
         if (*pos >= *cap) { \
             *cap *= 2; \
-            char* _nb = (char*)lv00_realloc(*buf, *cap); \
+            char* _nb = (char*)lv_realloc(*buf, *cap); \
             if (_nb) *buf = _nb; else break; \
             _avail = *cap - *pos; \
         } \
@@ -437,7 +437,7 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
             *pos += (size_t)written; \
             if (*pos >= *cap) { \
                 *cap *= 2; \
-                char* _nb2 = (char*)lv00_realloc(*buf, *cap); \
+                char* _nb2 = (char*)lv_realloc(*buf, *cap); \
                 if (_nb2) *buf = _nb2; \
             } \
         } \
@@ -454,7 +454,7 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
     float fa = obj->style.fill_color[3];
 
     switch (obj->type) {
-    case LV00_VISUAL_POINT: {
+    case lv_VISUAL_POINT: {
         /* 点渲染为小填充圆 */
         float px = obj->transform[12];
         float py = obj->transform[13];
@@ -466,8 +466,8 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
         CAIRO_APPEND("  cr->restore();\n\n");
         break;
     }
-    case LV00_VISUAL_LINE:
-    case LV00_VISUAL_SEGMENT: {
+    case lv_VISUAL_LINE:
+    case lv_VISUAL_SEGMENT: {
         /* 线段渲染为 move_to/line_to */
         if (obj->render_cache) {
             float* ep = (float*)obj->render_cache;
@@ -486,7 +486,7 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
         }
         break;
     }
-    case LV00_VISUAL_CIRCLE: {
+    case lv_VISUAL_CIRCLE: {
         /* 圆渲染为 arc */
         float cx = obj->transform[12];
         float cy = obj->transform[13];
@@ -502,14 +502,14 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
         CAIRO_APPEND("  cr->restore();\n\n");
         break;
     }
-    case LV00_VISUAL_POLYGON: {
+    case lv_VISUAL_POLYGON: {
         /* 多边形渲染为 move_to/line_to/close_path */
         if (obj->children_count > 0) {
             CAIRO_APPEND("  /* 多边形 (%zu 顶点) */\n", obj->children_count);
             CAIRO_APPEND("  cr->save();\n");
             CAIRO_APPEND("  cr->set_source_rgba(%.3f, %.3f, %.3f, %.3f);\n", fr, fg, fb_c, fa);
             for (size_t i = 0; i < obj->children_count; i++) {
-                Lv00VisualObject* child = obj->children[i];
+                lvVisualObject* child = obj->children[i];
                 if (child) {
                     float px = child->transform[12];
                     float py = child->transform[13];
@@ -529,7 +529,7 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
         }
         break;
     }
-    case LV00_VISUAL_MOBJECT_GROUP: {
+    case lv_VISUAL_MOBJECT_GROUP: {
         /* 组合对象：递归渲染子对象 */
         for (size_t i = 0; i < obj->children_count; i++) {
             render_object_cairo(obj->children[i], buf, pos, cap);
@@ -547,7 +547,7 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
 /* ============ Three.js 辅助函数 ============ */
 
 /* 递归渲染单个对象为 Three.js JavaScript 代码 */
-static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos, size_t* cap) {
+static void render_object_threejs(lvVisualObject* obj, char** buf, size_t* pos, size_t* cap) {
     if (!obj) return;
 
     /* 辅助宏：向缓冲区追加字符串 */
@@ -557,7 +557,7 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
         size_t _avail = *cap - *pos; \
         if (*pos >= *cap) { \
             *cap *= 2; \
-            char* _nb = (char*)lv00_realloc(*buf, *cap); \
+            char* _nb = (char*)lv_realloc(*buf, *cap); \
             if (_nb) *buf = _nb; else break; \
             _avail = *cap - *pos; \
         } \
@@ -566,7 +566,7 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
             *pos += (size_t)written; \
             if (*pos >= *cap) { \
                 *cap *= 2; \
-                char* _nb2 = (char*)lv00_realloc(*buf, *cap); \
+                char* _nb2 = (char*)lv_realloc(*buf, *cap); \
                 if (_nb2) *buf = _nb2; \
             } \
         } \
@@ -582,7 +582,7 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
     float opacity = obj->style.opacity;
 
     switch (obj->type) {
-    case LV00_VISUAL_POINT: {
+    case lv_VISUAL_POINT: {
         /* 点渲染为 SphereGeometry */
         float px = obj->transform[12];
         float py = obj->transform[13];
@@ -597,8 +597,8 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
         THREEJS_APPEND("  })();\n\n");
         break;
     }
-    case LV00_VISUAL_LINE:
-    case LV00_VISUAL_SEGMENT: {
+    case lv_VISUAL_LINE:
+    case lv_VISUAL_SEGMENT: {
         /* 线段渲染为 BufferGeometry + LineBasicMaterial */
         if (obj->render_cache) {
             float* ep = (float*)obj->render_cache;
@@ -616,7 +616,7 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
         }
         break;
     }
-    case LV00_VISUAL_CIRCLE: {
+    case lv_VISUAL_CIRCLE: {
         /* 圆渲染为自定义圆形轮廓（使用 RingGeometry 近似） */
         float cx = obj->transform[12];
         float cy = obj->transform[13];
@@ -638,7 +638,7 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
         THREEJS_APPEND("  })();\n\n");
         break;
     }
-    case LV00_VISUAL_POLYGON: {
+    case lv_VISUAL_POLYGON: {
         /* 多边形渲染为 ShapeGeometry */
         if (obj->children_count > 0) {
             THREEJS_APPEND("  // 多边形 (%zu 顶点)\n", obj->children_count);
@@ -646,7 +646,7 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
             THREEJS_APPEND("    var shape = new THREE.Shape();\n");
             size_t first = 1;
             for (size_t i = 0; i < obj->children_count; i++) {
-                Lv00VisualObject* child = obj->children[i];
+                lvVisualObject* child = obj->children[i];
                 if (child) {
                     float px = child->transform[12];
                     float py = child->transform[13];
@@ -667,7 +667,7 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
         }
         break;
     }
-    case LV00_VISUAL_MOBJECT_GROUP: {
+    case lv_VISUAL_MOBJECT_GROUP: {
         /* 组合对象：递归渲染子对象 */
         for (size_t i = 0; i < obj->children_count; i++) {
             render_object_threejs(obj->children[i], buf, pos, cap);
@@ -698,7 +698,7 @@ static void color_to_tikz(float c[4], char* buf, size_t buf_size) {
 }
 
 /* 递归渲染单个对象为 TikZ 命令 */
-static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, size_t* cap) {
+static void render_object_tikz(lvVisualObject* obj, char** buf, size_t* pos, size_t* cap) {
     if (!obj) return;
 
     /* 辅助宏：向缓冲区追加字符串 */
@@ -708,7 +708,7 @@ static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, s
         size_t _avail = *cap - *pos; \
         if (*pos >= *cap) { \
             *cap *= 2; \
-            char* _nb = (char*)lv00_realloc(*buf, *cap); \
+            char* _nb = (char*)lv_realloc(*buf, *cap); \
             if (_nb) *buf = _nb; else break; \
             _avail = *cap - *pos; \
         } \
@@ -717,7 +717,7 @@ static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, s
             *pos += (size_t)written; \
             if (*pos >= *cap) { \
                 *cap *= 2; \
-                char* _nb2 = (char*)lv00_realloc(*buf, *cap); \
+                char* _nb2 = (char*)lv_realloc(*buf, *cap); \
                 if (_nb2) *buf = _nb2; \
             } \
         } \
@@ -728,7 +728,7 @@ static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, s
     color_to_tikz(obj->style.fill_color, fill, sizeof(fill));
 
     switch (obj->type) {
-    case LV00_VISUAL_POINT: {
+    case lv_VISUAL_POINT: {
         /* 点渲染为填充小圆节点 */
         float px = obj->transform[12];
         float py = obj->transform[13];
@@ -737,8 +737,8 @@ static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, s
                    stroke, px, py);
         break;
     }
-    case LV00_VISUAL_LINE:
-    case LV00_VISUAL_SEGMENT: {
+    case lv_VISUAL_LINE:
+    case lv_VISUAL_SEGMENT: {
         /* 线段渲染为 \draw 命令 */
         if (obj->render_cache) {
             float* ep = (float*)obj->render_cache;
@@ -751,7 +751,7 @@ static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, s
         }
         break;
     }
-    case LV00_VISUAL_CIRCLE: {
+    case lv_VISUAL_CIRCLE: {
         /* 圆渲染为 \draw circle */
         float cx = obj->transform[12];
         float cy = obj->transform[13];
@@ -761,14 +761,14 @@ static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, s
                    fill, stroke, obj->style.stroke_width, cx, cy, r);
         break;
     }
-    case LV00_VISUAL_POLYGON: {
+    case lv_VISUAL_POLYGON: {
         /* 多边形渲染为 \draw -- cycle */
         if (obj->children_count > 0) {
             TIKZ_APPEND("  %% 多边形 (%zu 顶点)\n", obj->children_count);
             TIKZ_APPEND("  \\draw[fill=%s,draw=%s,line width=%.1fpt] ",
                        fill, stroke, obj->style.stroke_width);
             for (size_t i = 0; i < obj->children_count; i++) {
-                Lv00VisualObject* child = obj->children[i];
+                lvVisualObject* child = obj->children[i];
                 if (child) {
                     float px = child->transform[12];
                     float py = child->transform[13];
@@ -783,7 +783,7 @@ static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, s
         }
         break;
     }
-    case LV00_VISUAL_MOBJECT_GROUP: {
+    case lv_VISUAL_MOBJECT_GROUP: {
         /* 组合对象：递归渲染子对象 */
         for (size_t i = 0; i < obj->children_count; i++) {
             render_object_tikz(obj->children[i], buf, pos, cap);
@@ -888,7 +888,7 @@ static void ppm_fill_circle(unsigned char* pixels, int w, int h,
 }
 
 /* 递归光栅化单个对象到像素缓冲 */
-static void rasterize_object_ppm(Lv00VisualObject* obj, unsigned char* pixels, int w, int h) {
+static void rasterize_object_ppm(lvVisualObject* obj, unsigned char* pixels, int w, int h) {
     if (!obj) return;
 
     /* 提取颜色分量 */
@@ -900,15 +900,15 @@ static void rasterize_object_ppm(Lv00VisualObject* obj, unsigned char* pixels, i
     unsigned char fb_c = (unsigned char)(obj->style.fill_color[2] * 255.0f);
 
     switch (obj->type) {
-    case LV00_VISUAL_POINT: {
+    case lv_VISUAL_POINT: {
         /* 点渲染为填充小圆 */
         int px = (int)obj->transform[12];
         int py = (int)(h - obj->transform[13]); /* Y 轴翻转 */
         ppm_fill_circle(pixels, w, h, px, py, 3, sr, sg, sb);
         break;
     }
-    case LV00_VISUAL_LINE:
-    case LV00_VISUAL_SEGMENT: {
+    case lv_VISUAL_LINE:
+    case lv_VISUAL_SEGMENT: {
         /* 线段使用 Bresenham 画线 */
         if (obj->render_cache) {
             float* ep = (float*)obj->render_cache;
@@ -920,7 +920,7 @@ static void rasterize_object_ppm(Lv00VisualObject* obj, unsigned char* pixels, i
         }
         break;
     }
-    case LV00_VISUAL_CIRCLE: {
+    case lv_VISUAL_CIRCLE: {
         /* 圆使用中点圆算法 */
         int cx = (int)obj->transform[12];
         int cy = (int)(h - obj->transform[13]); /* Y 轴翻转 */
@@ -928,12 +928,12 @@ static void rasterize_object_ppm(Lv00VisualObject* obj, unsigned char* pixels, i
         ppm_draw_circle(pixels, w, h, cx, cy, r, sr, sg, sb);
         break;
     }
-    case LV00_VISUAL_POLYGON: {
+    case lv_VISUAL_POLYGON: {
         /* 多边形：逐边画线 */
         if (obj->children_count > 0) {
             for (size_t i = 0; i < obj->children_count; i++) {
-                Lv00VisualObject* curr = obj->children[i];
-                Lv00VisualObject* next = obj->children[(i + 1) % obj->children_count];
+                lvVisualObject* curr = obj->children[i];
+                lvVisualObject* next = obj->children[(i + 1) % obj->children_count];
                 if (curr && next) {
                     int x0 = (int)curr->transform[12];
                     int y0 = (int)(h - curr->transform[13]);
@@ -945,7 +945,7 @@ static void rasterize_object_ppm(Lv00VisualObject* obj, unsigned char* pixels, i
         }
         break;
     }
-    case LV00_VISUAL_MOBJECT_GROUP: {
+    case lv_VISUAL_MOBJECT_GROUP: {
         /* 组合对象：递归光栅化子对象 */
         for (size_t i = 0; i < obj->children_count; i++) {
             rasterize_object_ppm(obj->children[i], pixels, w, h);
@@ -960,8 +960,8 @@ static void rasterize_object_ppm(Lv00VisualObject* obj, unsigned char* pixels, i
 
 /* ============ 渲染器 ============ */
 
-Lv00VisualRenderer* lv00_visual_renderer_create(Lv00RenderBackend backend, int width, int height) {
-    Lv00VisualRenderer* renderer = (Lv00VisualRenderer*)lv00_malloc(sizeof(Lv00VisualRenderer));
+lvVisualRenderer* lv_visual_renderer_create(lvRenderBackend backend, int width, int height) {
+    lvVisualRenderer* renderer = (lvVisualRenderer*)lv_malloc(sizeof(lvVisualRenderer));
     if (!renderer) return NULL;
     
     renderer->backend = backend;
@@ -973,15 +973,15 @@ Lv00VisualRenderer* lv00_visual_renderer_create(Lv00RenderBackend backend, int w
     return renderer;
 }
 
-void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, const char* output_path) {
+void lv_visual_render(lvVisualRenderer* renderer, lvVisualScene* scene, const char* output_path) {
     if (!renderer || !scene || !output_path) return;
 
     /* 根据 backend 选择渲染方式 */
     switch (renderer->backend) {
-    case LV00_RENDER_SVG: {
+    case lv_RENDER_SVG: {
         /* SVG 渲染：生成完整 SVG 文档并写入文件 */
         size_t cap = 4096;
-        char* buf = (char*)lv00_malloc(cap);
+        char* buf = (char*)lv_malloc(cap);
         if (!buf) return;
         size_t pos = 0;
 
@@ -1009,13 +1009,13 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         /* 写入输出文件 */
         write_output_to_file(output_path, buf);
 
-        lv00_free_ptr(buf);
+        lv_free_ptr(buf);
         break;
     }
-    case LV00_RENDER_CAIRO: {
+    case lv_RENDER_CAIRO: {
         /* Cairo 后端：生成 Cairo 脚本命令（非实际 Cairo API 调用，而是脚本格式） */
         size_t cap = 4096;
-        char* buf = (char*)lv00_malloc(cap);
+        char* buf = (char*)lv_malloc(cap);
         if (!buf) return;
         size_t pos = 0;
 
@@ -1053,17 +1053,17 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         /* 写入输出文件 */
         write_output_to_file(output_path, buf);
 
-        lv00_free_ptr(buf);
+        lv_free_ptr(buf);
         break;
     }
-    case LV00_RENDER_THREEJS:
+    case lv_RENDER_THREEJS:
         /* Three.js HTML 生成已迁移至 UI 层。
-           内核通过 lv00_protocol.h 提供结构化数据。 */
+           内核通过 lv_protocol.h 提供结构化数据。 */
         break;
-    case LV00_RENDER_TIKZ: {
+    case lv_RENDER_TIKZ: {
         /* TikZ 后端：生成 TikZ/LaTeX 代码 */
         size_t cap = 4096;
-        char* buf = (char*)lv00_malloc(cap);
+        char* buf = (char*)lv_malloc(cap);
         if (!buf) return;
         size_t pos = 0;
 
@@ -1088,17 +1088,17 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         /* 写入输出文件 */
         write_output_to_file(output_path, buf);
 
-        lv00_free_ptr(buf);
+        lv_free_ptr(buf);
         break;
     }
-    case LV00_RENDER_PNG: {
+    case lv_RENDER_PNG: {
         /* PNG 后端：生成 PPM (Portable Pixmap) 作为 PNG 回退格式 */
         int w = renderer->width;
         int h = renderer->height;
 
         /* 创建像素缓冲区 (width x height x 3 RGB) */
         size_t pixel_size = (size_t)w * h * 3;
-        unsigned char* pixels = (unsigned char*)lv00_malloc(pixel_size);
+        unsigned char* pixels = (unsigned char*)lv_malloc(pixel_size);
         if (!pixels) return;
 
         /* 设置白色背景 */
@@ -1115,14 +1115,14 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
             fprintf(fp, "P6\n%d %d\n255\n", w, h);
             size_t written = fwrite(pixels, 1, pixel_size, fp);
             if (written != pixel_size) {
-                LV00_LOG_WARNING("PPM导出写入不完整（期望 %zu, 实际 %zu）", pixel_size, written);
+                lv_LOG_WARNING("PPM导出写入不完整（期望 %zu, 实际 %zu）", pixel_size, written);
             }
             fclose(fp);
         } else {
-            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
+            lv_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
         }
 
-        lv00_free_ptr(pixels);
+        lv_free_ptr(pixels);
         break;
     }
     default:
@@ -1132,34 +1132,34 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
 
 /* ============ 清理 ============ */
 
-void lv00_visual_object_destroy(Lv00VisualObject* obj) {
+void lv_visual_object_destroy(lvVisualObject* obj) {
     if (!obj) return;
     
     if (obj->render_cache) {
-        lv00_free_ptr(obj->render_cache);
+        lv_free_ptr(obj->render_cache);
     }
     
     if (obj->children) {
         for (size_t i = 0; i < obj->children_count; i++) {
-            lv00_visual_object_destroy(obj->children[i]);
+            lv_visual_object_destroy(obj->children[i]);
         }
-        lv00_free_ptr(obj->children);
+        lv_free_ptr(obj->children);
     }
     
-    lv00_free_ptr(obj);
+    lv_free_ptr(obj);
 }
 
-void lv00_visual_scene_destroy(Lv00VisualScene* scene) {
+void lv_visual_scene_destroy(lvVisualScene* scene) {
     if (!scene) return;
 
     for (size_t i = 0; i < scene->object_count; i++) {
-        lv00_visual_object_destroy(scene->objects[i]);
+        lv_visual_object_destroy(scene->objects[i]);
     }
-    lv00_free_ptr(scene->objects);
-    lv00_free_ptr(scene);
+    lv_free_ptr(scene->objects);
+    lv_free_ptr(scene);
 }
 
-void lv00_visual_renderer_destroy(Lv00VisualRenderer* renderer) {
+void lv_visual_renderer_destroy(lvVisualRenderer* renderer) {
     if (!renderer) return;
-    lv00_free_ptr(renderer);
+    lv_free_ptr(renderer);
 }

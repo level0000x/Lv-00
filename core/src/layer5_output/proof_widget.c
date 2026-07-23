@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_widget.c
  * @brief 证明交互可视化组件实现 -- Widget 生命周期、布局管理、证明状态查询与策略推荐
  *
@@ -10,10 +10,10 @@
  * - 布局导出与策略应用回传
  */
 
-#include "lv00/proof_widget.h"
-#include "lv00_utils.h"
-#include "lv00/proof.h"
-#include "lv00/lv00_internal.h"
+#include "lv/proof_widget.h"
+#include "lv_utils.h"
+#include "lv/proof.h"
+#include "lv/lv_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -36,18 +36,18 @@
  * ================================================================ */
 
 /* 创建 Widget 布局，分配初始容量 */
-Lv00WidgetLayout *proof_widget_init(int layout_capacity) {
+lvWidgetLayout *proof_widget_init(int layout_capacity) {
     if (layout_capacity <= 0) {
         layout_capacity = 8;
     }
 
-    Lv00WidgetLayout *layout = (Lv00WidgetLayout *)lv00_malloc(sizeof(Lv00WidgetLayout));
+    lvWidgetLayout *layout = (lvWidgetLayout *)lv_malloc(sizeof(lvWidgetLayout));
     if (!layout) return NULL;
 
-    layout->widgets = (ProofWidgetState *)lv00_calloc((size_t)layout_capacity,
+    layout->widgets = (ProofWidgetState *)lv_calloc((size_t)layout_capacity,
                                                        sizeof(ProofWidgetState));
     if (!layout->widgets) {
-        lv00_free_ptr(layout);
+        lv_free_ptr(layout);
         return NULL;
     }
 
@@ -63,24 +63,24 @@ Lv00WidgetLayout *proof_widget_init(int layout_capacity) {
 }
 
 /* 销毁 Widget 布局，释放所有内部资源 */
-void proof_widget_destroy(Lv00WidgetLayout *layout) {
+void proof_widget_destroy(lvWidgetLayout *layout) {
     if (!layout) return;
 
     /* 释放每个 widget 的动态字符串 */
     for (int i = 0; i < layout->widget_count; i++) {
         ProofWidgetState *ws = &layout->widgets[i];
         if (ws->display_label) {
-            lv00_free_ptr(ws->display_label);
+            lv_free_ptr(ws->display_label);
         }
         if (ws->interaction_data) {
-            lv00_free_ptr(ws->interaction_data);
+            lv_free_ptr(ws->interaction_data);
         }
     }
 
-    lv00_free_ptr(layout->widgets);
-    lv00_free_ptr(layout->order_indices);
-    lv00_free_ptr(layout->persistence_key);
-    lv00_free_ptr(layout);
+    lv_free_ptr(layout->widgets);
+    lv_free_ptr(layout->order_indices);
+    lv_free_ptr(layout->persistence_key);
+    lv_free_ptr(layout);
 }
 
 /* ================================================================
@@ -88,14 +88,14 @@ void proof_widget_destroy(Lv00WidgetLayout *layout) {
  * ================================================================ */
 
 /* 注册新 Widget 到布局中，返回 widget_id；失败返回 -1 */
-int proof_widget_register(Lv00WidgetLayout *layout, ProofWidgetType widget_type,
+int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type,
                           const char *label, int bound_step) {
     if (!layout) return -1;
 
     /* 容量不足时倍增扩容 */
     if (layout->widget_count >= layout->widget_capacity) {
-        int new_cap = layout->widget_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        ProofWidgetState *new_arr = (ProofWidgetState *)lv00_realloc(
+        int new_cap = layout->widget_capacity * lv_ARRAY_GROWTH_FACTOR;
+        ProofWidgetState *new_arr = (ProofWidgetState *)lv_realloc(
             layout->widgets, (size_t)new_cap * sizeof(ProofWidgetState));
         if (!new_arr) return -1;
 
@@ -112,7 +112,7 @@ int proof_widget_register(Lv00WidgetLayout *layout, ProofWidgetType widget_type,
     ws->widget_type = widget_type;
     ws->is_active = false;
     ws->is_enabled = true;
-    ws->display_label = label ? lv00_strdup(label) : NULL;
+    ws->display_label = label ? lv_strdup(label) : NULL;
     ws->bound_step_id = bound_step;
     ws->interaction_data = NULL;
 
@@ -121,7 +121,7 @@ int proof_widget_register(Lv00WidgetLayout *layout, ProofWidgetType widget_type,
 }
 
 /* 更新已有 Widget 的状态 */
-int proof_widget_update(Lv00WidgetLayout *layout, int widget_id, bool is_active,
+int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active,
                         bool is_enabled, const char *display_label,
                         int bound_step_id, const char *interaction_json) {
     if (!layout) return -1;
@@ -134,14 +134,14 @@ int proof_widget_update(Lv00WidgetLayout *layout, int widget_id, bool is_active,
 
     /* 更新显示标签（重新分配） */
     if (display_label) {
-        if (ws->display_label) lv00_free_ptr(ws->display_label);
-        ws->display_label = lv00_strdup(display_label);
+        if (ws->display_label) lv_free_ptr(ws->display_label);
+        ws->display_label = lv_strdup(display_label);
     }
 
     /* 更新交互数据 JSON（重新分配） */
     if (interaction_json) {
-        if (ws->interaction_data) lv00_free_ptr(ws->interaction_data);
-        ws->interaction_data = lv00_strdup(interaction_json);
+        if (ws->interaction_data) lv_free_ptr(ws->interaction_data);
+        ws->interaction_data = lv_strdup(interaction_json);
     }
 
     return 0;
@@ -152,17 +152,17 @@ int proof_widget_update(Lv00WidgetLayout *layout, int widget_id, bool is_active,
  * ================================================================ */
 
 /* 从 ProofNavigator 获取当前证明目标，填充 out_goal */
-int proof_widget_get_goal(const ProofNavigator *navigator, Lv00GoalDisplay *out_goal) {
+int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_goal) {
     if (!navigator || !out_goal) return -1;
 
     /* 初始化输出结构 */
-    memset(out_goal, 0, sizeof(Lv00GoalDisplay));
+    memset(out_goal, 0, sizeof(lvGoalDisplay));
     out_goal->is_solved = false;
     out_goal->depth = 0;
 
     /* 实际项目中应从 navigator 查询当前目标；
      * 此处分配默认文本作为桩实现 */
-    out_goal->goal_text = lv00_strdup("no goal available");
+    out_goal->goal_text = lv_strdup("no goal available");
     if (!out_goal->goal_text) return -1;
 
     return 0;
@@ -170,11 +170,11 @@ int proof_widget_get_goal(const ProofNavigator *navigator, Lv00GoalDisplay *out_
 
 /* 从 ProofNavigator 获取假设列表 */
 int proof_widget_get_hypotheses(const ProofNavigator *navigator,
-                                Lv00HypothesisEntry *out_hypotheses, int max_count) {
+                                lvHypothesisEntry *out_hypotheses, int max_count) {
     if (!navigator || !out_hypotheses || max_count <= 0) return -1;
 
     /* 清零输出数组 */
-    memset(out_hypotheses, 0, (size_t)max_count * sizeof(Lv00HypothesisEntry));
+    memset(out_hypotheses, 0, (size_t)max_count * sizeof(lvHypothesisEntry));
 
     /* 实际项目中应遍历 navigator 的假设集合；
      * 此处返回 0 条假设（由上层根据实际数据填充） */
@@ -182,23 +182,23 @@ int proof_widget_get_hypotheses(const ProofNavigator *navigator,
 }
 
 /* 释放 GoalDisplay 内部动态分配的资源 */
-void goal_display_free(Lv00GoalDisplay *goal) {
+void goal_display_free(lvGoalDisplay *goal) {
     if (!goal) return;
 
     if (goal->goal_text) {
-        lv00_free_ptr(goal->goal_text);
+        lv_free_ptr(goal->goal_text);
         goal->goal_text = NULL;
     }
 
     /* 释放假设条目的字符串 */
     if (goal->hypotheses) {
         for (int i = 0; i < goal->hyp_count; i++) {
-            Lv00HypothesisEntry *he = &goal->hypotheses[i];
-            if (he->name) lv00_free_ptr(he->name);
-            if (he->type_text) lv00_free_ptr(he->type_text);
-            if (he->value_text) lv00_free_ptr(he->value_text);
+            lvHypothesisEntry *he = &goal->hypotheses[i];
+            if (he->name) lv_free_ptr(he->name);
+            if (he->type_text) lv_free_ptr(he->type_text);
+            if (he->value_text) lv_free_ptr(he->value_text);
         }
-        lv00_free_ptr(goal->hypotheses);
+        lv_free_ptr(goal->hypotheses);
         goal->hypotheses = NULL;
     }
 
@@ -206,10 +206,10 @@ void goal_display_free(Lv00GoalDisplay *goal) {
     if (goal->context_terms) {
         for (int i = 0; i < goal->context_count; i++) {
             if (goal->context_terms[i]) {
-                lv00_free_ptr(goal->context_terms[i]);
+                lv_free_ptr(goal->context_terms[i]);
             }
         }
-        lv00_free_ptr(goal->context_terms);
+        lv_free_ptr(goal->context_terms);
         goal->context_terms = NULL;
     }
 
@@ -236,15 +236,15 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator,
     /* 实际项目中应调用策略推荐引擎；
      * 此处提供示例建议 */
     if (max_count >= 1) {
-        out_suggestions[0] = lv00_strdup("reflexivity");
+        out_suggestions[0] = lv_strdup("reflexivity");
         out_confidences[0] = 0.9;
     }
     if (max_count >= 2) {
-        out_suggestions[1] = lv00_strdup("congruence");
+        out_suggestions[1] = lv_strdup("congruence");
         out_confidences[1] = 0.7;
     }
     if (max_count >= 3) {
-        out_suggestions[2] = lv00_strdup("angle_bisector");
+        out_suggestions[2] = lv_strdup("angle_bisector");
         out_confidences[2] = 0.5;
     }
 
@@ -253,12 +253,12 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator,
 
 /* 获取每个证明步骤的高亮状态 */
 int proof_widget_get_step_highlights(const ProofNavigator *navigator,
-                                     Lv00ProofStepHighlight *out_highlights,
+                                     lvProofStepHighlight *out_highlights,
                                      int max_count) {
     if (!navigator || !out_highlights || max_count <= 0) return -1;
 
     /* 清零输出数组 */
-    memset(out_highlights, 0, (size_t)max_count * sizeof(Lv00ProofStepHighlight));
+    memset(out_highlights, 0, (size_t)max_count * sizeof(lvProofStepHighlight));
 
     /* 实际项目中应遍历 navigator 的步骤列表并设置高亮状态 */
     for (int i = 0; i < max_count; i++) {
@@ -277,7 +277,7 @@ char *proof_widget_get_search_tree(const ProofNavigator *navigator) {
     if (!navigator) return NULL;
 
     size_t cap = JSON_BUF_INIT_SIZE;
-    char *buf = (char *)lv00_malloc(cap);
+    char *buf = (char *)lv_malloc(cap);
     if (!buf) return NULL;
 
     int n = snprintf(buf, cap,
@@ -285,8 +285,8 @@ char *proof_widget_get_search_tree(const ProofNavigator *navigator) {
         "\"tactic\":\"start\",\"children\":[]},\"status\":\"active\"}");
     if (n < 0 || (size_t)n >= cap) {
         cap = (size_t)n + 1;
-        char *nb = (char *)lv00_realloc(buf, cap);
-        if (!nb) { lv00_free_ptr(buf); return NULL; }
+        char *nb = (char *)lv_realloc(buf, cap);
+        if (!nb) { lv_free_ptr(buf); return NULL; }
         buf = nb;
         snprintf(buf, cap,
             "{\"type\":\"search_tree\",\"root\":{\"id\":0,"
@@ -301,15 +301,15 @@ char *proof_widget_get_dependency_graph(const ProofNavigator *navigator) {
     if (!navigator) return NULL;
 
     size_t cap = JSON_BUF_INIT_SIZE;
-    char *buf = (char *)lv00_malloc(cap);
+    char *buf = (char *)lv_malloc(cap);
     if (!buf) return NULL;
 
     int n = snprintf(buf, cap,
         "{\"type\":\"dependency_graph\",\"nodes\":[],\"edges\":[]}");
     if (n < 0 || (size_t)n >= cap) {
         cap = (size_t)n + 1;
-        char *nb = (char *)lv00_realloc(buf, cap);
-        if (!nb) { lv00_free_ptr(buf); return NULL; }
+        char *nb = (char *)lv_realloc(buf, cap);
+        if (!nb) { lv_free_ptr(buf); return NULL; }
         buf = nb;
         snprintf(buf, cap,
             "{\"type\":\"dependency_graph\",\"nodes\":[],\"edges\":[]}");
@@ -323,12 +323,12 @@ char *proof_widget_get_dependency_graph(const ProofNavigator *navigator) {
  * ================================================================ */
 
 /* 将布局导出为 JSON 字符串（调用者负责释放） */
-char *proof_widget_export_layout(const Lv00WidgetLayout *layout) {
+char *proof_widget_export_layout(const lvWidgetLayout *layout) {
     if (!layout) return NULL;
 
     /* 估算缓冲区：基础 JSON + 每个 widget 约 160 字节 */
     size_t cap = (size_t)(JSON_BUF_INIT_SIZE + layout->widget_count * 160);
-    char *buf = (char *)lv00_malloc(cap);
+    char *buf = (char *)lv_malloc(cap);
     if (!buf) return NULL;
 
     size_t pos = 0;
@@ -350,8 +350,8 @@ char *proof_widget_export_layout(const Lv00WidgetLayout *layout) {
         /* 确保容量充足 */
         if (pos + 256 > cap) {
             cap *= 2;
-            char *nb = (char *)lv00_realloc(buf, cap);
-            if (!nb) { lv00_free_ptr(buf); return NULL; }
+            char *nb = (char *)lv_realloc(buf, cap);
+            if (!nb) { lv_free_ptr(buf); return NULL; }
             buf = nb;
         }
 
@@ -372,8 +372,8 @@ char *proof_widget_export_layout(const Lv00WidgetLayout *layout) {
     /* JSON 尾 */
     if (pos + 8 > cap) {
         cap += 8;
-        char *nb = (char *)lv00_realloc(buf, cap);
-        if (!nb) { lv00_free_ptr(buf); return NULL; }
+        char *nb = (char *)lv_realloc(buf, cap);
+        if (!nb) { lv_free_ptr(buf); return NULL; }
         buf = nb;
     }
     snprintf(buf + pos, cap - pos, "]}");
@@ -409,25 +409,25 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
     } else if (strcmp(tactic_name, "auto") == 0) {
         step_type = PROOF_STEP_NORMALIZATION;
     } else {
-        *out_feedback = lv00_strdup("unknown tactic");
+        *out_feedback = lv_strdup("unknown tactic");
         return (*out_feedback) ? 0 : -1;
     }
 
     /* 创建证明步骤 */
     ProofStep *step = proof_step_create(step_type);
     if (!step) {
-        *out_feedback = lv00_strdup("failed to create proof step");
+        *out_feedback = lv_strdup("failed to create proof step");
         return (*out_feedback) ? 0 : -1;
     }
 
     /* 设置步骤备注 */
     if (tactic_args && tactic_args[0]) {
         int buf_size = (int)strlen(tactic_name) + (int)strlen(tactic_args) + 4;
-        char *note = (char *)lv00_malloc((size_t)buf_size);
+        char *note = (char *)lv_malloc((size_t)buf_size);
         if (note) {
             snprintf(note, (size_t)buf_size, "%s %s", tactic_name, tactic_args);
             proof_step_set_note(step, note);
-            lv00_free((void **)&(note));
+            lv_free((void **)&(note));
         }
     } else {
         proof_step_set_note(step, tactic_name);
@@ -436,12 +436,12 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
     /* 添加到导航器 */
     if (!proof_navigator_add_step(navigator, step)) {
         proof_step_destroy(step);
-        *out_feedback = lv00_strdup("failed to add step to navigator");
+        *out_feedback = lv_strdup("failed to add step to navigator");
         return (*out_feedback) ? 0 : -1;
     }
 
     *out_success = true;
-    *out_feedback = lv00_strdup("tactic applied successfully");
+    *out_feedback = lv_strdup("tactic applied successfully");
     return (*out_feedback) ? 0 : -1;
 }
 
@@ -450,7 +450,7 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
  * ================================================================ */
 
 /* 设置布局类型和网格尺寸 */
-void proof_widget_set_layout_type(Lv00WidgetLayout *layout, Lv00LayoutType layout_type,
+void proof_widget_set_layout_type(lvWidgetLayout *layout, lvLayoutType layout_type,
                                   int columns, int rows) {
     if (!layout) return;
     layout->layout_type = layout_type;
@@ -459,27 +459,27 @@ void proof_widget_set_layout_type(Lv00WidgetLayout *layout, Lv00LayoutType layou
 }
 
 /* 设置布局的持久化键（用于状态序列化与恢复） */
-void proof_widget_set_persistence_key(Lv00WidgetLayout *layout,
+void proof_widget_set_persistence_key(lvWidgetLayout *layout,
                                       const char *persistence_key) {
     if (!layout) return;
 
     if (layout->persistence_key) {
-        lv00_free_ptr(layout->persistence_key);
+        lv_free_ptr(layout->persistence_key);
     }
-    layout->persistence_key = persistence_key ? lv00_strdup(persistence_key) : NULL;
+    layout->persistence_key = persistence_key ? lv_strdup(persistence_key) : NULL;
 }
 
 /* 设置 Widget 的显示顺序 */
-void proof_widget_set_order(Lv00WidgetLayout *layout, const int *order_indices,
+void proof_widget_set_order(lvWidgetLayout *layout, const int *order_indices,
                             int count) {
     if (!layout || !order_indices || count <= 0) return;
 
     /* 释放旧的顺序数组 */
     if (layout->order_indices) {
-        lv00_free_ptr(layout->order_indices);
+        lv_free_ptr(layout->order_indices);
     }
 
-    layout->order_indices = (int *)lv00_malloc((size_t)count * sizeof(int));
+    layout->order_indices = (int *)lv_malloc((size_t)count * sizeof(int));
     if (!layout->order_indices) return;
 
     memcpy(layout->order_indices, order_indices, (size_t)count * sizeof(int));

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file graph_serialize.c
  * @brief JSON 序列化/反序列化
  *
@@ -14,11 +14,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/constraint_graph.h"
-#include "lv00/symbolic_coord.h"
+#include "lv/constraint_graph.h"
+#include "lv/symbolic_coord.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* 前向声明 */
 static bool segments_intersect(double x1, double y1, double x2, double y2,
@@ -66,7 +66,7 @@ static void set_serialize_error(ConstraintGraph *graph, const char *fmt, ...) {
         /* 无 graph 时的回退：格式化后写入全局错误 API */
         char fallback[256];
         vsnprintf(fallback, sizeof(fallback), fmt, args);
-        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", fallback);
+        lv_set_error(lv_ERROR_UNKNOWN, "%s", fallback);
     }
     va_end(args);
 }
@@ -90,7 +90,7 @@ typedef struct {
 static bool json_buf_init(JsonBuf *buf, size_t initial_size) {
     buf->capacity = initial_size;
     buf->pos = 0;
-    buf->buffer = lv00_malloc(initial_size);
+    buf->buffer = lv_malloc(initial_size);
     if (!buf->buffer)
         return false;
     buf->buffer[0] = '\0';
@@ -100,7 +100,7 @@ static bool json_buf_init(JsonBuf *buf, size_t initial_size) {
 /**
  * @brief 扩展 JSON 缓冲区容量（倍增策略）
  *
- * 将缓冲区容量翻倍，使用 lv00_realloc 重新分配内存。
+ * 将缓冲区容量翻倍，使用 lv_realloc 重新分配内存。
  * 若重分配失败则保持原缓冲区不变。
  *
  * @param buf JsonBuf 结构体指针
@@ -108,7 +108,7 @@ static bool json_buf_init(JsonBuf *buf, size_t initial_size) {
 static void json_buf_grow(JsonBuf *buf) {
     int old_capacity = buf->capacity;
     buf->capacity *= 2;
-    char *new_buf = lv00_realloc(buf->buffer, buf->capacity);
+    char *new_buf = lv_realloc(buf->buffer, buf->capacity);
     if (new_buf)
         buf->buffer = new_buf;
     else
@@ -228,7 +228,7 @@ static void json_buf_append_coord(JsonBuf *buf, const SymbolicCoord *coord) {
 
     /* coord_json 格式: {"type":"RATIONAL","num":1,"den":2} */
     json_buf_append(buf, coord_json);
-    lv00_free((void **) &coord_json);
+    lv_free((void **) &coord_json);
 }
 
 /* 序列化信任颜色 */
@@ -494,7 +494,7 @@ char *graph_serialize_to_json(const ConstraintGraph *graph) {
         char *node_json = graph_node_serialize_to_json(graph->nodes[i]);
         if (node_json) {
             json_buf_append(&buf, node_json);
-            lv00_free((void **) &node_json);
+            lv_free((void **) &node_json);
         } else {
             json_buf_append(&buf, "null");
         }
@@ -509,7 +509,7 @@ char *graph_serialize_to_json(const ConstraintGraph *graph) {
         char *constraint_json = graph_constraint_serialize_to_json(graph->constraints[i]);
         if (constraint_json) {
             json_buf_append(&buf, constraint_json);
-            lv00_free((void **) &constraint_json);
+            lv_free((void **) &constraint_json);
         } else {
             json_buf_append(&buf, "null");
         }
@@ -584,7 +584,7 @@ static char *json_parser_parse_string(JsonParser *p) {
         return NULL;
     p->pos++; /* skip end quote */
 
-    char *result = lv00_malloc(len + 1);
+    char *result = lv_malloc(len + 1);
     if (!result)
         return NULL;
 
@@ -782,7 +782,7 @@ static int *json_parser_parse_int_array(JsonParser *p, int *out_count) {
     /* 先计数 */
     int capacity = 8;
     int count = 0;
-    int *result = lv00_malloc((size_t) capacity * sizeof(int));
+    int *result = lv_malloc((size_t) capacity * sizeof(int));
     if (!result) {
         *out_count = 0;
         return NULL;
@@ -791,9 +791,9 @@ static int *json_parser_parse_int_array(JsonParser *p, int *out_count) {
     while (json_parser_peek(p) != ']' && json_parser_peek(p) != '\0') {
         if (count >= capacity) {
             capacity *= 2;
-            int *new_result = lv00_realloc(result, (size_t) capacity * sizeof(int));
+            int *new_result = lv_realloc(result, (size_t) capacity * sizeof(int));
             if (!new_result) {
-                lv00_free((void **) &result);
+                lv_free((void **) &result);
                 *out_count = 0;
                 return NULL;
             }
@@ -851,14 +851,14 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
         json_parser_skip_ws(&p);
         if (p.pos >= p.size || p.data[p.pos] != ':') {
-            lv00_free((void **) &key);
+            lv_free((void **) &key);
             break;
         }
         p.pos++;
 
         if (strcmp(key, "nodes") == 0) {
             if (!json_parser_expect(&p, '[')) {
-                lv00_free((void **) &key);
+                lv_free((void **) &key);
                 graph_destroy(graph);
                 set_serialize_error(graph, "节点数组格式错误");
                 return NULL;
@@ -909,7 +909,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                     json_parser_skip_ws(&p);
                     if (p.pos >= p.size || p.data[p.pos] != ':') {
-                        lv00_free((void **) &node_key);
+                        lv_free((void **) &node_key);
                         break;
                     }
                     p.pos++;
@@ -920,7 +920,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         char *type_str = json_parser_parse_string(&p);
                         if (type_str) {
                             node_type = string_to_geom_type(type_str);
-                            lv00_free((void **) &type_str);
+                            lv_free((void **) &type_str);
                         }
                     } else if (strcmp(node_key, "trust") == 0) {
                         char *trust_str = json_parser_parse_string(&p);
@@ -939,7 +939,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                                 trust = TRUST_AMBER;
                             else
                                 trust = TRUST_GREEN;
-                            lv00_free((void **) &trust_str);
+                            lv_free((void **) &trust_str);
                         }
                     } else if (strcmp(node_key, "namespace_depth") == 0) {
                         json_parser_parse_int(&p, &ns_depth);
@@ -964,7 +964,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                             /* 解析坐标 */
                             if (coord_count > 0) {
-                                coords = lv00_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
+                                coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
                                 if (!coords) {
                                     coord_count = 0;
                                 } else {
@@ -998,9 +998,9 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                                                 coord_type = 1;
                                             else if (strcmp(ct, "QUADRATIC") == 0)
                                                 coord_type = 2;
-                                            lv00_free((void **) &ct);
+                                            lv_free((void **) &ct);
                                         }
-                                        lv00_free((void **) &coord_key);
+                                        lv_free((void **) &coord_key);
 
                                         /* 继续解析值 */
                                         while (json_parser_peek(&p) != '}' && json_parser_peek(&p) != '\0') {
@@ -1040,7 +1040,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                                                             p.pos = (size_t) (end - (const char *) p.data);
                                                         }
                                                     }
-                                                    lv00_free((void **) &dk);
+                                                    lv_free((void **) &dk);
                                                 }
                                                 coords[i] = symbolic_coord_create_rational(num, den);
                                             } else if (coord_type == 0 && strcmp(coord_key, "num") == 0) {
@@ -1055,11 +1055,11 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                                                 }
                                                 coords[i] = symbolic_coord_create_rational(num, den);
                                             }
-                                            lv00_free((void **) &coord_key);
+                                            lv_free((void **) &coord_key);
                                             json_parser_skip_ws(&p);
                                         }
                                     } else {
-                                        lv00_free((void **) &coord_key);
+                                        lv_free((void **) &coord_key);
                                         json_parser_skip_value(&p);
                                         while (json_parser_peek(&p) != '}')
                                             json_parser_skip_value(&p);
@@ -1085,7 +1085,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         char *pt = json_parser_parse_string(&p);
                         if (pt) {
                             port_type = (strcmp(pt, "OUTPUT") == 0) ? PORT_OUTPUT : PORT_INPUT;
-                            lv00_free((void **) &pt);
+                            lv_free((void **) &pt);
                         }
                     } else if (strcmp(node_key, "is_formal_param") == 0) {
                         json_parser_parse_bool(&p, &is_formal_param);
@@ -1095,7 +1095,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         json_parser_skip_value(&p);
                     }
 
-                    lv00_free((void **) &node_key);
+                    lv_free((void **) &node_key);
                     json_parser_skip_ws(&p);
                 }
 
@@ -1113,7 +1113,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                     /* 设置类型特定数据 */
                     if (node_type == GEOM_REGION && boundary_segs && boundary_seg_count > 0) {
-                        node->data.region.boundary_segments = lv00_malloc((size_t) boundary_seg_count * sizeof(GeomNode *));
+                        node->data.region.boundary_segments = lv_malloc((size_t) boundary_seg_count * sizeof(GeomNode *));
                         if (node->data.region.boundary_segments) {
                             for (int i = 0; i < boundary_seg_count; i++) {
                                 node->data.region.boundary_segments[i] = graph_get_node(graph, boundary_segs[i]);
@@ -1121,7 +1121,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                             node->data.region.segment_count = boundary_seg_count;
                         }
                     } else if (node_type == GEOM_PORT) {
-                        Port *port = lv00_malloc(sizeof(Port));
+                        Port *port = lv_malloc(sizeof(Port));
                         if (port) {
                             memset(port, 0, sizeof(Port));
                             port->id = node_id;
@@ -1139,7 +1139,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         node->data.func_block.output_count = output_port_count;
                         if (internal_nodes && internal_node_count > 0) {
                             node->data.func_block.internal_nodes =
-                                lv00_malloc((size_t) internal_node_count * sizeof(GeomNode *));
+                                lv_malloc((size_t) internal_node_count * sizeof(GeomNode *));
                             if (node->data.func_block.internal_nodes) {
                                 for (int i = 0; i < internal_node_count; i++) {
                                     node->data.func_block.internal_nodes[i] = graph_get_node(graph, internal_nodes[i]);
@@ -1147,14 +1147,14 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                             }
                         }
                         if (input_port_ids && input_port_count > 0) {
-                            node->data.func_block.input_port_ids = lv00_malloc((size_t) input_port_count * sizeof(int));
+                            node->data.func_block.input_port_ids = lv_malloc((size_t) input_port_count * sizeof(int));
                             if (node->data.func_block.input_port_ids) {
                                 memcpy(node->data.func_block.input_port_ids, input_port_ids,
                                        input_port_count * sizeof(int));
                             }
                         }
                         if (output_port_ids && output_port_count > 0) {
-                            node->data.func_block.output_port_ids = lv00_malloc((size_t) output_port_count * sizeof(int));
+                            node->data.func_block.output_port_ids = lv_malloc((size_t) output_port_count * sizeof(int));
                             if (node->data.func_block.output_port_ids) {
                                 memcpy(node->data.func_block.output_port_ids, output_port_ids,
                                        output_port_count * sizeof(int));
@@ -1170,23 +1170,23 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 }
 
                 /* 释放临时数据 */
-                lv00_free((void **) &boundary_segs);
-                lv00_free((void **) &internal_nodes);
-                lv00_free((void **) &input_port_ids);
-                lv00_free((void **) &output_port_ids);
+                lv_free((void **) &boundary_segs);
+                lv_free((void **) &internal_nodes);
+                lv_free((void **) &input_port_ids);
+                lv_free((void **) &output_port_ids);
                 if (coords) {
                     for (int i = 0; i < coord_count; i++) {
                         if (coords[i])
                             symbolic_coord_destroy(coords[i]);
                     }
-                    lv00_free((void **) &coords);
+                    lv_free((void **) &coords);
                 }
             }
 
             json_parser_expect(&p, ']');
         } else if (strcmp(key, "constraints") == 0) {
             if (!json_parser_expect(&p, '[')) {
-                lv00_free((void **) &key);
+                lv_free((void **) &key);
                 graph_destroy(graph);
                 set_serialize_error(graph, "约束数组格式错误");
                 return NULL;
@@ -1221,7 +1221,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                     json_parser_skip_ws(&p);
                     if (p.pos >= p.size || p.data[p.pos] != ':') {
-                        lv00_free((void **) &ckey);
+                        lv_free((void **) &ckey);
                         break;
                     }
                     p.pos++;
@@ -1232,7 +1232,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         char *type_str = json_parser_parse_string(&p);
                         if (type_str) {
                             constraint_type = string_to_constraint_type(type_str);
-                            lv00_free((void **) &type_str);
+                            lv_free((void **) &type_str);
                         }
                     } else if (strcmp(ckey, "participants") == 0) {
                         participants = json_parser_parse_int_array(&p, &participant_count);
@@ -1242,7 +1242,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         json_parser_skip_value(&p);
                     }
 
-                    lv00_free((void **) &ckey);
+                    lv_free((void **) &ckey);
                     json_parser_skip_ws(&p);
                 }
 
@@ -1261,7 +1261,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                     }
                 }
 
-                lv00_free((void **) &participants);
+                lv_free((void **) &participants);
             }
 
             json_parser_expect(&p, ']');
@@ -1269,7 +1269,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
             json_parser_skip_value(&p);
         }
 
-        lv00_free((void **) &key);
+        lv_free((void **) &key);
         json_parser_skip_ws(&p);
         if (json_parser_peek(&p) == ',')
             p.pos++;

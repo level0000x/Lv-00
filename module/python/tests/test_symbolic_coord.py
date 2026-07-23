@@ -1,10 +1,10 @@
-"""Test symbolic coordinates via lv00.fallback (pure-Python path)."""
+﻿"""Test symbolic coordinates via lv.fallback (pure-Python path)."""
 
 import pytest
 from fractions import Fraction
 from math import isclose, sqrt
 
-import lv00.fallback as fb
+import lv.fallback as fb
 
 
 class TestFraction:

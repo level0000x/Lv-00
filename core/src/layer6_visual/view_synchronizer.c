@@ -1,53 +1,53 @@
-#include "lv00/visual_editor.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/visual_editor.h"
+#include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
-Lv00ViewSynchronizer *lv00_view_sync_create(void) {
-    Lv00ViewSynchronizer *sync = lv00_calloc(1, sizeof(Lv00ViewSynchronizer));
+lvViewSynchronizer *lv_view_sync_create(void) {
+    lvViewSynchronizer *sync = lv_calloc(1, sizeof(lvViewSynchronizer));
     if (!sync) return NULL;
     sync->sync_enabled = 1;
     sync->dirty_capacity = 8;
-    sync->dirty_views = lv00_calloc(sync->dirty_capacity, sizeof(int));
+    sync->dirty_views = lv_calloc(sync->dirty_capacity, sizeof(int));
     if (!sync->dirty_views) {
-        lv00_free((void **)&sync);
+        lv_free((void **)&sync);
         return NULL;
     }
     sync->pending_capacity = 8;
-    sync->pending_changes = lv00_calloc(sync->pending_capacity, sizeof(sync->pending_changes[0]));
+    sync->pending_changes = lv_calloc(sync->pending_capacity, sizeof(sync->pending_changes[0]));
     if (!sync->pending_changes) {
-        lv00_free((void **)&sync->dirty_views);
-        lv00_free((void **)&sync);
+        lv_free((void **)&sync->dirty_views);
+        lv_free((void **)&sync);
         return NULL;
     }
     return sync;
 }
 
-void lv00_view_sync_destroy(Lv00ViewSynchronizer *sync) {
+void lv_view_sync_destroy(lvViewSynchronizer *sync) {
     if (!sync) return;
-    lv00_free((void **)&sync->dirty_views);
-    lv00_free((void **)&sync->pending_changes);
-    lv00_free((void **)&sync);
+    lv_free((void **)&sync->dirty_views);
+    lv_free((void **)&sync->pending_changes);
+    lv_free((void **)&sync);
 }
 
-int lv00_view_sync_enable(Lv00ViewSynchronizer *sync) {
+int lv_view_sync_enable(lvViewSynchronizer *sync) {
     if (!sync) return -1;
     sync->sync_enabled = 1;
     return 0;
 }
 
-int lv00_view_sync_disable(Lv00ViewSynchronizer *sync) {
+int lv_view_sync_disable(lvViewSynchronizer *sync) {
     if (!sync) return -1;
     sync->sync_enabled = 0;
     return 0;
 }
 
-int lv00_view_sync_conflicts(const Lv00ViewSynchronizer *sync) {
+int lv_view_sync_conflicts(const lvViewSynchronizer *sync) {
     return sync ? sync->conflict_count : 0;
 }
 
 /* 标记视图为脏并传播到依赖视图 */
-int lv00_view_sync_propagate(Lv00ViewSynchronizer *sync, int source_view_id,
+int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id,
                               const char *change_type) {
     if (!sync || !change_type) return -1;
     if (!sync->sync_enabled) return 0;
@@ -55,7 +55,7 @@ int lv00_view_sync_propagate(Lv00ViewSynchronizer *sync, int source_view_id,
     /* 添加待处理变更记录 */
     if (sync->pending_count >= sync->pending_capacity) {
         int new_cap = sync->pending_capacity * 2;
-        void *new_arr = lv00_realloc(sync->pending_changes,
+        void *new_arr = lv_realloc(sync->pending_changes,
                                 new_cap * sizeof(sync->pending_changes[0]));
         if (!new_arr) return -1;
         sync->pending_changes = new_arr;
@@ -79,7 +79,7 @@ int lv00_view_sync_propagate(Lv00ViewSynchronizer *sync, int source_view_id,
     if (!already_dirty) {
         if (sync->dirty_count >= sync->dirty_capacity) {
             int new_cap = sync->dirty_capacity * 2;
-            void *new_arr = lv00_realloc(sync->dirty_views, new_cap * sizeof(int));
+            void *new_arr = lv_realloc(sync->dirty_views, new_cap * sizeof(int));
             if (!new_arr) return -1;
             sync->dirty_views = new_arr;
             sync->dirty_capacity = new_cap;
@@ -91,7 +91,7 @@ int lv00_view_sync_propagate(Lv00ViewSynchronizer *sync, int source_view_id,
 }
 
 /* 处理所有待处理的同步 */
-int lv00_view_sync_flush(Lv00ViewSynchronizer *sync) {
+int lv_view_sync_flush(lvViewSynchronizer *sync) {
     if (!sync) return -1;
     if (!sync->sync_enabled) return 0;
 

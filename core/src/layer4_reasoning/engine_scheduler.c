@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file engine_scheduler.c
  * @brief 推理引擎任务调度器实现
  *
@@ -10,9 +10,9 @@
  * @version 5.0.0
  */
 
-#include "lv00/lv00.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
+#include "lv/lv.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -114,7 +114,7 @@ static int insert_by_priority(const char *name, int priority) {
  * @param priority  优先级（0 ~ 100，数值越小优先级越高，超出范围会自动裁剪）
  * @return 成功返回 0，队列满或无效任务名返回 -1
  */
-int lv00_engine_schedule(const char *task_name, int priority) {
+int lv_engine_schedule(const char *task_name, int priority) {
     if (!task_name || task_name[0] == '\0') {
         return -1;  /* 无效任务名 */
     }
@@ -140,7 +140,7 @@ int lv00_engine_schedule(const char *task_name, int priority) {
  *
  * @return 全部任务执行成功返回 true，任一任务失败返回 false；队列为空时返回 true
  */
-bool lv00_engine_execute_pending(void) {
+bool lv_engine_execute_pending(void) {
     ensure_initialized();
 
     if (g_scheduler.count == 0) {
@@ -201,7 +201,7 @@ bool lv00_engine_execute_pending(void) {
  *
  * @return 当前队列中待处理任务的个数
  */
-int lv00_engine_pending_count(void) {
+int lv_engine_pending_count(void) {
     ensure_initialized();
     return g_scheduler.count;
 }

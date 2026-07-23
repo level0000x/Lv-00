@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file fuzz_constraint_graph.c
  * @brief 约束图模糊测试 - 使用 libFuzzer
  *
@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /**
  * @brief libFuzzer 入口点：约束图模糊测试

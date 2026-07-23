@@ -13,8 +13,8 @@
 #include <string.h>
 
 #include "func_block.h"
-#include "lv00_utils.h"
-#include "lv00_internal.h"
+#include "lv_utils.h"
+#include "lv_internal.h"
 
 /* ============== 内部几何辅助函数 ============== */
 
@@ -134,11 +134,11 @@ static bool point_in_region(GeomNode *point, GeomNode *region, ConstraintGraph *
  *
  * @param a 第一个点
  * @param b 第二个点
- * @return 距离平方，无法计算时返回 LV00_DEFAULT_DISTANCE_SQUARED
+ * @return 距离平方，无法计算时返回 lv_DEFAULT_DISTANCE_SQUARED
  */
 static double point_distance(GeomNode *a, GeomNode *b) {
-    if (!a || !b || a->coord_count < 2 || b->coord_count < 2) return LV00_DEFAULT_DISTANCE_SQUARED;
-    if (!a->symbolic_coords || !b->symbolic_coords) return LV00_DEFAULT_DISTANCE_SQUARED;
+    if (!a || !b || a->coord_count < 2 || b->coord_count < 2) return lv_DEFAULT_DISTANCE_SQUARED;
+    if (!a->symbolic_coords || !b->symbolic_coords) return lv_DEFAULT_DISTANCE_SQUARED;
 
     /* 提取两个点的二维符号坐标并转换为浮点数 */
     double ax = symbolic_coord_to_double(a->symbolic_coords[0]);
@@ -148,7 +148,7 @@ static double point_distance(GeomNode *a, GeomNode *b) {
 
     /* 检查坐标转换结果是否有效，纯符号坐标可能返回 NaN */
     if (isnan(ax) || isnan(ay) || isnan(bx) || isnan(by)) {
-        return LV00_DEFAULT_DISTANCE_SQUARED;
+        return lv_DEFAULT_DISTANCE_SQUARED;
     }
 
     /* 计算距离平方（避免 sqrt 开销，用于比较大小足够） */
@@ -166,7 +166,7 @@ static double point_distance(GeomNode *a, GeomNode *b) {
  * @return 新创建的选择器指针，失败返回 NULL
  */
 SolutionSelector *selector_create(SelectorType type) {
-    SolutionSelector *sel = lv00_malloc(sizeof(SolutionSelector));
+    SolutionSelector *sel = lv_malloc(sizeof(SolutionSelector));
     if (!sel) return NULL;
     memset(sel, 0, sizeof(SolutionSelector));
     sel->type = type;
@@ -219,7 +219,7 @@ SolutionSelector *selector_create_custom(SelectorFunction func, void *user_data)
  */
 void selector_destroy(SolutionSelector *selector) {
     if (!selector) return;
-    lv00_free((void **)&selector);
+    lv_free((void **)&selector);
 }
 
 /**
@@ -332,7 +332,7 @@ bool selector_apply(
                 return false;
             }
             int best_idx = -1;
-            double best_dist = LV00_DEFAULT_DISTANCE_SQUARED;
+            double best_dist = lv_DEFAULT_DISTANCE_SQUARED;
             for (int i = 0; i < count; i++) {
                 if (!candidates[i]) continue;
                 double dist = point_distance(candidates[i], ref_point);

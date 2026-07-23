@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_proposition.c
  * @brief Proposition 命题系统
  *
@@ -13,15 +13,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/proof.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/node_deep_copy.h"
+#include "lv/proof.h"
+#include "lv/constraint_graph.h"
+#include "lv/node_deep_copy.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ── 流式上下文声明 ── */
-LV00_DECLARE_STREAM_CTX(proof);
+lv_DECLARE_STREAM_CTX(proof);
 
 /* ── 命题销毁栈初始容量 ── */
 #ifndef PROOF_DESTROY_STACK_INITIAL_CAPACITY
@@ -46,22 +46,22 @@ void proposition_destroy(Proposition *prop) {
     /* 初始容量 128，按需动态扩容，避免深层嵌套命题导致内存泄漏 */
     int stack_capacity = PROOF_DESTROY_STACK_INITIAL_CAPACITY;
     int stack_top = 0;
-    Proposition **destroy_stack = (Proposition **) lv00_malloc((size_t)stack_capacity * sizeof(Proposition *));
+    Proposition **destroy_stack = (Proposition **) lv_malloc((size_t)stack_capacity * sizeof(Proposition *));
     if (!destroy_stack) {
         /* 分配失败时的降级处理：直接释放命题本身的资源
          * 注意：这种情况下子命题可能泄漏，但至少避免崩溃 */
-        lv00_free((void **) &prop->input_port_ids);
-        lv00_free((void **) &prop->output_port_ids);
-        lv00_free((void **) &prop->precondition_region_ids);
-        lv00_free((void **) &prop->postcondition_constraint_ids);
+        lv_free((void **) &prop->input_port_ids);
+        lv_free((void **) &prop->output_port_ids);
+        lv_free((void **) &prop->precondition_region_ids);
+        lv_free((void **) &prop->postcondition_constraint_ids);
         if (prop->pattern)
             graph_destroy(prop->pattern);
-        lv00_free((void **) &prop->sub_props);
-        lv00_free((void **) &prop->name);
-        lv00_free((void **) &prop->description);
+        lv_free((void **) &prop->sub_props);
+        lv_free((void **) &prop->name);
+        lv_free((void **) &prop->description);
         if (prop->prop_type)
             type_region_destroy(prop->prop_type);
-        lv00_free((void **) &prop);
+        lv_free((void **) &prop);
         return;
     }
     Proposition *current = prop;
@@ -78,7 +78,7 @@ void proposition_destroy(Proposition *prop) {
                         for (int i = 0; i < stack_top; i++) {
                             proposition_unref(destroy_stack[i]);
                         }
-                        lv00_free((void **)&destroy_stack);
+                        lv_free((void **)&destroy_stack);
                         return;
                     }
                     int new_cap = stack_capacity * 2;
@@ -87,42 +87,42 @@ void proposition_destroy(Proposition *prop) {
                         for (int j = i; j < current->sub_prop_count; j++) {
                             if (current->sub_props[j]) {
                                 Proposition *child = current->sub_props[j];
-                                lv00_free((void **) &child->input_port_ids);
-                                lv00_free((void **) &child->output_port_ids);
-                                lv00_free((void **) &child->precondition_region_ids);
-                                lv00_free((void **) &child->postcondition_constraint_ids);
+                                lv_free((void **) &child->input_port_ids);
+                                lv_free((void **) &child->output_port_ids);
+                                lv_free((void **) &child->precondition_region_ids);
+                                lv_free((void **) &child->postcondition_constraint_ids);
                                 if (child->pattern)
                                     graph_destroy(child->pattern);
-                                lv00_free((void **) &child->sub_props);
-                                lv00_free((void **) &child->name);
-                                lv00_free((void **) &child->description);
+                                lv_free((void **) &child->sub_props);
+                                lv_free((void **) &child->name);
+                                lv_free((void **) &child->description);
                                 if (child->prop_type)
                                     type_region_destroy(child->prop_type);
-                                lv00_free((void **) &child);
+                                lv_free((void **) &child);
                             }
                         }
                         break;
                     }
                     Proposition **new_stack =
-                        (Proposition **) lv00_realloc(destroy_stack, new_cap * sizeof(Proposition *));
+                        (Proposition **) lv_realloc(destroy_stack, new_cap * sizeof(Proposition *));
                     if (!new_stack) {
                         /* 栈扩容失败：使用循环安全释放所有子命题的内部资源 */
                         for (int j = i; j < current->sub_prop_count; j++) {
                             if (current->sub_props[j]) {
                                 /* 使用非递归方式释放子命题，避免栈溢出 */
                                 Proposition *child = current->sub_props[j];
-                                lv00_free((void **) &child->input_port_ids);
-                                lv00_free((void **) &child->output_port_ids);
-                                lv00_free((void **) &child->precondition_region_ids);
-                                lv00_free((void **) &child->postcondition_constraint_ids);
+                                lv_free((void **) &child->input_port_ids);
+                                lv_free((void **) &child->output_port_ids);
+                                lv_free((void **) &child->precondition_region_ids);
+                                lv_free((void **) &child->postcondition_constraint_ids);
                                 if (child->pattern)
                                     graph_destroy(child->pattern);
-                                lv00_free((void **) &child->sub_props);
-                                lv00_free((void **) &child->name);
-                                lv00_free((void **) &child->description);
+                                lv_free((void **) &child->sub_props);
+                                lv_free((void **) &child->name);
+                                lv_free((void **) &child->description);
                                 if (child->prop_type)
                                     type_region_destroy(child->prop_type);
-                                lv00_free((void **) &child);
+                                lv_free((void **) &child);
                             }
                         }
                         break;
@@ -134,19 +134,19 @@ void proposition_destroy(Proposition *prop) {
             }
 
             /* 释放当前命题的资源 */
-            lv00_free((void **) &current->input_port_ids);
-            lv00_free((void **) &current->output_port_ids);
-            lv00_free((void **) &current->precondition_region_ids);
-            lv00_free((void **) &current->postcondition_constraint_ids);
+            lv_free((void **) &current->input_port_ids);
+            lv_free((void **) &current->output_port_ids);
+            lv_free((void **) &current->precondition_region_ids);
+            lv_free((void **) &current->postcondition_constraint_ids);
 
             if (current->pattern) {
                 graph_destroy(current->pattern);
                 current->pattern = NULL;
             }
 
-            lv00_free((void **) &current->sub_props);
-            lv00_free((void **) &current->name);
-            lv00_free((void **) &current->description);
+            lv_free((void **) &current->sub_props);
+            lv_free((void **) &current->name);
+            lv_free((void **) &current->description);
             if (current->prop_type) {
                 type_region_destroy(current->prop_type);
                 current->prop_type = NULL;
@@ -159,9 +159,9 @@ void proposition_destroy(Proposition *prop) {
     }
 
     /* 最后释放命题本身 */
-    lv00_free((void **) &prop);
+    lv_free((void **) &prop);
     /* 释放动态分配的销毁栈 */
-    lv00_free((void **) &destroy_stack);
+    lv_free((void **) &destroy_stack);
 }
 
 /**
@@ -185,12 +185,12 @@ static bool proposition_set_id_list(int **target, int *count_ptr, const int *ids
     if (count > 0) {
         if (!ids)
             return false;
-        new_ids = lv00_malloc((size_t)count * sizeof(int));
+        new_ids = lv_malloc((size_t)count * sizeof(int));
         if (!new_ids)
             return false;
         memcpy(new_ids, ids, count * sizeof(int));
     }
-    lv00_free((void **) target);
+    lv_free((void **) target);
     *target = new_ids;
     *count_ptr = count;
     return true;
@@ -309,7 +309,7 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child) {
         return false;
 
     int new_count = parent->sub_prop_count + 1;
-    Proposition **new_arr = lv00_realloc(parent->sub_props, (size_t) new_count * sizeof(Proposition *));
+    Proposition **new_arr = lv_realloc(parent->sub_props, (size_t) new_count * sizeof(Proposition *));
     if (!new_arr)
         return false;
 
@@ -345,7 +345,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *orig) {
 
     /* ---- 第一遍：深拷贝所有节点 ---- */
     if (orig->node_count > 0) {
-        copy->nodes = lv00_malloc(orig->node_count * sizeof(GeomNode *));
+        copy->nodes = lv_malloc(orig->node_count * sizeof(GeomNode *));
         if (!copy->nodes) {
             graph_destroy(copy);
             return NULL;
@@ -402,14 +402,14 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *orig) {
 
     /* ---- 深拷贝所有约束 ---- */
     if (orig->constraint_count > 0) {
-        copy->constraints = lv00_malloc(orig->constraint_count * sizeof(Constraint *));
+        copy->constraints = lv_malloc(orig->constraint_count * sizeof(Constraint *));
         if (!copy->constraints) {
             graph_destroy(copy);
             return NULL;
         }
         for (int i = 0; i < orig->constraint_count; i++) {
             Constraint *oc = orig->constraints[i];
-            Constraint *cc = lv00_malloc(sizeof(Constraint));
+            Constraint *cc = lv_malloc(sizeof(Constraint));
             if (!cc) {
                 graph_destroy(copy);
                 return NULL;
@@ -419,9 +419,9 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *orig) {
             cc->template_id = oc->template_id;
             cc->participant_count = oc->participant_count;
             if (oc->participants && oc->participant_count > 0) {
-                cc->participants = lv00_malloc(oc->participant_count * sizeof(int));
+                cc->participants = lv_malloc(oc->participant_count * sizeof(int));
                 if (!cc->participants) {
-                    lv00_free((void **) &cc);
+                    lv_free((void **) &cc);
                     graph_destroy(copy);
                     return NULL;
                 }
@@ -559,7 +559,7 @@ UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *propos
  * @brief 带详细信息的合一检查
  *
  * 执行 proof_unify 并在失败时通过 out_mismatch_info 返回人类可读的错误描述。
- * 调用者负责通过 lv00_free 释放 *out_mismatch_info。
+ * 调用者负责通过 lv_free 释放 *out_mismatch_info。
  *
  * @param construction      构造图
  * @param proposition       命题
@@ -576,27 +576,27 @@ UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Propositio
     /* 释放旧值，避免内存泄漏 */
     if (result != UNIFY_STATUS_OK && out_mismatch_info) {
         if (*out_mismatch_info) {
-            lv00_free((void **) out_mismatch_info);
+            lv_free((void **) out_mismatch_info);
             *out_mismatch_info = NULL;
         }
         switch (result) {
             case UNIFY_STATUS_PORT_TYPE_MISMATCH:
-                *out_mismatch_info = lv00_strdup_safe("端口类型不匹配");
+                *out_mismatch_info = lv_strdup_safe("端口类型不匹配");
                 break;
             case UNIFY_STATUS_CONSTRAINT_MISMATCH:
-                *out_mismatch_info = lv00_strdup_safe("约束类型不匹配");
+                *out_mismatch_info = lv_strdup_safe("约束类型不匹配");
                 break;
             case UNIFY_STATUS_COORD_MISMATCH:
-                *out_mismatch_info = lv00_strdup_safe("符号坐标不匹配");
+                *out_mismatch_info = lv_strdup_safe("符号坐标不匹配");
                 break;
             case UNIFY_STATUS_STRUCTURE_MISMATCH:
-                *out_mismatch_info = lv00_strdup_safe("结构不匹配");
+                *out_mismatch_info = lv_strdup_safe("结构不匹配");
                 break;
             case UNIFY_STATUS_SCOPE_MISMATCH:
-                *out_mismatch_info = lv00_strdup_safe("作用域不匹配");
+                *out_mismatch_info = lv_strdup_safe("作用域不匹配");
                 break;
             default:
-                *out_mismatch_info = lv00_strdup_safe("未知错误");
+                *out_mismatch_info = lv_strdup_safe("未知错误");
                 break;
         }
     }
@@ -628,7 +628,7 @@ static void update_dependent_steps(ProofNavigator *nav, int step_id, int dep_id)
 
     /* 将 step_id 添加到 dep_id 的 dependent_step_ids 中 */
     dep_step->dependent_count++;
-    int *new_arr = lv00_realloc(dep_step->dependent_step_ids, dep_step->dependent_count * sizeof(int));
+    int *new_arr = lv_realloc(dep_step->dependent_step_ids, dep_step->dependent_count * sizeof(int));
     if (!new_arr) {
         dep_step->dependent_count--;
         return;
@@ -647,7 +647,7 @@ static void update_dependent_steps(ProofNavigator *nav, int step_id, int dep_id)
  * @return 新分配的证明步骤指针，失败返回 NULL
  */
 ProofStep *proof_step_create(ProofStepType type) {
-    ProofStep *step = lv00_calloc(1, sizeof(ProofStep));
+    ProofStep *step = lv_calloc(1, sizeof(ProofStep));
     if (!step)
         return NULL;
 
@@ -669,11 +669,11 @@ void proof_step_destroy(ProofStep *step) {
     if (!step)
         return;
 
-    lv00_free((void **) &step->merged_node_ids);
-    lv00_free((void **) &step->dependency_step_ids);
-    lv00_free((void **) &step->dependent_step_ids);
-    lv00_free((void **) &step->note);
-    lv00_free((void **) &step);
+    lv_free((void **) &step->merged_node_ids);
+    lv_free((void **) &step->dependency_step_ids);
+    lv_free((void **) &step->dependent_step_ids);
+    lv_free((void **) &step->note);
+    lv_free((void **) &step);
 }
 
 /**
@@ -690,7 +690,7 @@ bool proof_step_add_dependency(ProofStep *step, int dep_step_id) {
         return false;
 
     int new_count = step->dependency_count + 1;
-    int *new_arr = lv00_realloc(step->dependency_step_ids, (size_t) new_count * sizeof(int));
+    int *new_arr = lv_realloc(step->dependency_step_ids, (size_t) new_count * sizeof(int));
     if (!new_arr)
         return false;
 
@@ -723,12 +723,12 @@ void proof_step_set_breakpoint(ProofStep *step, bool is_breakpoint) {
  * @param engine 引擎实例指针
  * @return 新分配的导航器指针，失败返回 NULL
  */
-ProofNavigator *proof_navigator_create(Proposition *target, LV00Engine *engine) {
+ProofNavigator *proof_navigator_create(Proposition *target, lvEngine *engine) {
     if (proof_stream_ctx) {
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_ADDED, "证明导航器创建", 0);
     }
 
-    ProofNavigator *nav = lv00_calloc(1, sizeof(ProofNavigator)); /* 统一内存分配器 */
+    ProofNavigator *nav = lv_calloc(1, sizeof(ProofNavigator)); /* 统一内存分配器 */
     if (!nav)
         return NULL;
 
@@ -758,13 +758,13 @@ void proof_navigator_destroy(ProofNavigator *nav) {
     for (int i = 0; i < nav->step_count; i++) {
         proof_step_destroy(nav->steps[i]);
     }
-    lv00_free((void **) &nav->steps);
+    lv_free((void **) &nav->steps);
 
     if (nav->dep_tree) {
         proof_dependency_destroy(nav->dep_tree);
     }
 
-    lv00_free((void **) &nav->breakpoint_indices);
+    lv_free((void **) &nav->breakpoint_indices);
 
     /* 释放等价命题表 */
     for (int i = 0; i < nav->equivalence_count; i++) {
@@ -772,24 +772,24 @@ void proof_navigator_destroy(ProofNavigator *nav) {
             graph_destroy(nav->equivalences[i].transformation);
         }
     }
-    lv00_free((void **) &nav->equivalences);
+    lv_free((void **) &nav->equivalences);
 
     /* 释放 ⊥ 定义 */
-    lv00_free((void **) &nav->bottom_def);
+    lv_free((void **) &nav->bottom_def);
 
     /* 释放引理视图状态 */
-    lv00_free((void **) &nav->lemma_view_step_ids);
-    lv00_free((void **) &nav->lemma_view_states);
+    lv_free((void **) &nav->lemma_view_step_ids);
+    lv_free((void **) &nav->lemma_view_states);
 
     /* 释放策略注释 */
-    lv00_free((void **) &nav->strategy_note);
+    lv_free((void **) &nav->strategy_note);
 
     /* 流式输出: 证明导航器销毁 */
     if (proof_stream_ctx) {
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_APPLIED, "证明导航器销毁", nav->step_count);
     }
 
-    lv00_free((void **) &nav);
+    lv_free((void **) &nav);
 }
 
 /**
@@ -826,7 +826,7 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
     }
 
     int new_count = nav->step_count + 1;
-    ProofStep **new_arr = lv00_realloc(nav->steps, (size_t) new_count * sizeof(ProofStep *));
+    ProofStep **new_arr = lv_realloc(nav->steps, (size_t) new_count * sizeof(ProofStep *));
     if (!new_arr)
         return false;
 
@@ -843,7 +843,7 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
     /* 如果是断点，添加到断点列表 */
     if (step->is_breakpoint) {
         nav->breakpoint_count++;
-        int *new_bp = lv00_realloc(nav->breakpoint_indices, nav->breakpoint_count * sizeof(int));
+        int *new_bp = lv_realloc(nav->breakpoint_indices, nav->breakpoint_count * sizeof(int));
         if (new_bp) {
             nav->breakpoint_indices = new_bp;
             nav->breakpoint_indices[nav->breakpoint_count - 1] = step->id;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file type_system.c
  * @brief 类型系统实现 —— 宇宙层级类型论与等价检查
  *
@@ -31,8 +31,8 @@
  *
  * @dependencies
  *   - type_system.h        : 类型系统公共接口定义
- *   - lv00_internal.h      : 内部数据结构与常量
- *   - lv00_utils.h         : 统一内存分配器
+ *   - lv_internal.h      : 内部数据结构与常量
+ *   - lv_utils.h         : 统一内存分配器
  *   - rewrite.h            : 图重写引擎（类型等价检查的重写路径）
  *   - stream.h             : 流式事件输出
  */
@@ -43,12 +43,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "rewrite.h"
-#include "lv00/stream.h"
+#include "lv/stream.h"
 
-LV00_DECLARE_STREAM_CTX(type_system);
+lv_DECLARE_STREAM_CTX(type_system);
 
 void type_system_set_stream_context(StreamContext *ctx) {
     type_system_stream_ctx = ctx;
@@ -79,8 +79,8 @@ void type_system_set_stream_context(StreamContext *ctx) {
 
 /* visited set：记录已比较的类型对，防止共享子类型导致指数级时间
  * 使用线程局部存储确保多线程环境下类型等价检查的线程安全性 */
-static LV00_THREAD_LOCAL struct { const TypeRegion *a; const TypeRegion *b; } s_equiv_visited[MAX_VISITED];
-static LV00_THREAD_LOCAL int s_equiv_visited_count = 0;
+static lv_THREAD_LOCAL struct { const TypeRegion *a; const TypeRegion *b; } s_equiv_visited[MAX_VISITED];
+static lv_THREAD_LOCAL int s_equiv_visited_count = 0;
 
 /**
  * @brief 检查是否已访问过此类型对，若已访问则直接返回等价
@@ -168,7 +168,7 @@ static inline TypeEquivResult check_binary_type_equiv(TypeSystem *ts, TypeRegion
  * @return 新分配的类型系统指针，失败返回 NULL
  */
 TypeSystem *type_system_create(void) {
-    TypeSystem *ts = lv00_calloc(1, sizeof(TypeSystem));
+    TypeSystem *ts = lv_calloc(1, sizeof(TypeSystem));
     if (!ts)
         return NULL;
 
@@ -179,7 +179,7 @@ TypeSystem *type_system_create(void) {
     /* 初始化重写路径 */
     ts->rewrite_path = type_rewrite_path_create();
     if (!ts->rewrite_path) {
-        lv00_free((void **) &ts);
+        lv_free((void **) &ts);
         return NULL;
     }
 
@@ -227,7 +227,7 @@ void type_system_destroy(TypeSystem *ts) {
     for (int i = 0; i < ts->type_region_count; i++) {
         type_region_destroy(ts->type_regions[i]);
     }
-    lv00_free((void **) &ts->type_regions);
+    lv_free((void **) &ts->type_regions);
 
     for (int i = 0; i < ts->type_var_count; i++) {
         if (ts->type_vars[i]) {
@@ -236,23 +236,23 @@ void type_system_destroy(TypeSystem *ts) {
                 type_region_destroy(ts->type_vars[i]->bound_type);
                 ts->type_vars[i]->bound_type = NULL;
             }
-            lv00_free((void **) &ts->type_vars[i]->name);
-            lv00_free((void **) &ts->type_vars[i]);
+            lv_free((void **) &ts->type_vars[i]->name);
+            lv_free((void **) &ts->type_vars[i]);
         }
     }
-    lv00_free((void **) &ts->type_vars);
+    lv_free((void **) &ts->type_vars);
 
     /* 释放节点-类型映射 */
-    lv00_free((void **) &ts->node_type_mappings);
+    lv_free((void **) &ts->node_type_mappings);
 
     /* 释放重写路径 */
     type_rewrite_path_destroy(ts->rewrite_path);
     ts->rewrite_path = NULL;
 
     /* 释放推断规则 */
-    lv00_free((void **) &ts->inference_rules);
+    lv_free((void **) &ts->inference_rules);
 
-    lv00_free((void **) &ts);
+    lv_free((void **) &ts);
 }
 
 /**
@@ -296,7 +296,7 @@ void type_system_set_cumulative(TypeSystem *ts, bool cumulative) {
  * @return 新分配的类型区域指针，失败返回 NULL
  */
 static TypeRegion *type_region_create(TypeSystem *ts, TypeKind kind) {
-    TypeRegion *tr = lv00_calloc(1, sizeof(TypeRegion));
+    TypeRegion *tr = lv_calloc(1, sizeof(TypeRegion));
     if (!tr)
         return NULL;
 
@@ -304,18 +304,18 @@ static TypeRegion *type_region_create(TypeSystem *ts, TypeKind kind) {
 
     /* 添加到类型系统 */
     if (ts->type_region_count >= INT_MAX) {
-        lv00_free((void **) &tr);
+        lv_free((void **) &tr);
         return NULL;
     }
     /* 指数扩容策略：避免 O(n²) 的逐次 realloc */
-    int new_capacity = ts->type_region_capacity == 0 ? LV00_INITIAL_ARRAY_CAPACITY
-                                                     : ts->type_region_capacity * LV00_ARRAY_GROWTH_FACTOR;
+    int new_capacity = ts->type_region_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY
+                                                     : ts->type_region_capacity * lv_ARRAY_GROWTH_FACTOR;
     if (new_capacity <= ts->type_region_count) {
         new_capacity = ts->type_region_count + 1; /* 防止容量不足 */
     }
-    TypeRegion **new_arr = (TypeRegion **) lv00_realloc(ts->type_regions, (size_t) new_capacity * sizeof(TypeRegion *));
+    TypeRegion **new_arr = (TypeRegion **) lv_realloc(ts->type_regions, (size_t) new_capacity * sizeof(TypeRegion *));
     if (!new_arr) {
-        lv00_free((void **) &tr);
+        lv_free((void **) &tr);
         return NULL;
     }
     ts->type_regions = new_arr;
@@ -379,7 +379,7 @@ TypeRegion *type_create_region(TypeSystem *ts, const int *contained_ids, int cou
     tr->level = UNIVERSE_TYPE_1;
 
     if (contained_ids && count > 0) {
-        tr->contained_node_ids = lv00_malloc((size_t)count * sizeof(int));
+        tr->contained_node_ids = lv_malloc((size_t)count * sizeof(int));
         if (tr->contained_node_ids) {
             memcpy(tr->contained_node_ids, contained_ids, count * sizeof(int));
             tr->contained_count = count;
@@ -484,32 +484,32 @@ TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
         return NULL;
 
     if (name) {
-        tr->variable_name = lv00_strdup(name);
+        tr->variable_name = lv_strdup(name);
     }
 
     /* 创建类型变量 */
-    TypeVariable *tv = lv00_calloc(1, sizeof(TypeVariable));
+    TypeVariable *tv = lv_calloc(1, sizeof(TypeVariable));
     if (tv) {
         int new_count = ts->type_var_count + 1;
-        TypeVariable **new_arr = (TypeVariable **) lv00_realloc(ts->type_vars, new_count * sizeof(TypeVariable *));
+        TypeVariable **new_arr = (TypeVariable **) lv_realloc(ts->type_vars, new_count * sizeof(TypeVariable *));
         if (!new_arr) {
             /* 修复：realloc 失败时，需清理已分配的 TypeVariable 和已创建的 TypeRegion，
              * 防止内存泄漏 */
-            lv00_free((void **) &tv);
-            lv00_free((void **) &tr->variable_name);
+            lv_free((void **) &tv);
+            lv_free((void **) &tr->variable_name);
             /* 从类型系统的 type_regions 数组中移除 tr，避免悬空指针 */
             if (ts->type_region_count > 0) {
                 ts->type_regions[ts->type_region_count - 1] = NULL;
                 ts->type_region_count--;
             }
-            lv00_free((void **) &tr);
+            lv_free((void **) &tr);
             return NULL;
         }
         ts->type_vars = new_arr;
         ts->type_var_count = new_count;
         ts->type_vars[new_count - 1] = tv;
         tv->id = new_count;
-        tv->name = name ? lv00_strdup(name) : NULL;
+        tv->name = name ? lv_strdup(name) : NULL;
         tv->is_polymorphic = true;
         tr->variable_id = tv->id;
     }
@@ -572,8 +572,8 @@ TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
         return NULL;
 
     tr->base_type = base_type;
-    tr->predicate_name = lv00_strdup(predicate_name);
-    tr->predicate_expr = predicate_expr ? lv00_strdup(predicate_expr) : NULL;
+    tr->predicate_name = lv_strdup(predicate_name);
+    tr->predicate_expr = predicate_expr ? lv_strdup(predicate_expr) : NULL;
     tr->predicate_constraint_id = -1; /* 稍后通过约束系统关联 */
     tr->level = base_type->level; /* 子类型与基类型同层级 */
 
@@ -581,7 +581,7 @@ TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
         /* 从 type_regions 数组中移除，避免悬空指针导致 type_system_destroy 时 double-free */
         ts->type_region_count--;
         ts->type_regions[ts->type_region_count] = NULL;
-        lv00_free((void **)&tr);
+        lv_free((void **)&tr);
         return NULL;
     }
 
@@ -653,15 +653,15 @@ void type_region_destroy(TypeRegion *tr) {
     if (!tr)
         return;
 
-    lv00_free((void **) &tr->contained_node_ids);
-    lv00_free((void **) &tr->variable_name);
-    lv00_free((void **) &tr->alias_name);
-    lv00_free((void **) &tr->constraint_ids);
-    lv00_free((void **) &tr->predicate_name);
-    lv00_free((void **) &tr->predicate_expr);
+    lv_free((void **) &tr->contained_node_ids);
+    lv_free((void **) &tr->variable_name);
+    lv_free((void **) &tr->alias_name);
+    lv_free((void **) &tr->constraint_ids);
+    lv_free((void **) &tr->predicate_name);
+    lv_free((void **) &tr->predicate_expr);
 
     /* 注意：不递归销毁关联的类型，因为它们可能被共享 */
-    lv00_free((void **) &tr);
+    lv_free((void **) &tr);
 }
 
 /**
@@ -677,8 +677,8 @@ bool type_add_alias(TypeRegion *tr, const char *alias) {
     if (!tr || !alias)
         return false;
 
-    lv00_free((void **) &tr->alias_name);
-    tr->alias_name = lv00_strdup(alias);
+    lv_free((void **) &tr->alias_name);
+    tr->alias_name = lv_strdup(alias);
     return tr->alias_name != NULL;
 }
 
@@ -938,11 +938,11 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                 if (type1->contained_node_ids && type2->contained_node_ids) {
                     /* 排序+双指针 O(n log n) 优化 */
                     int count = type1->contained_count;
-                    int *sorted1 = lv00_malloc((size_t)count * sizeof(int));
-                    int *sorted2 = lv00_malloc((size_t)count * sizeof(int));
+                    int *sorted1 = lv_malloc((size_t)count * sizeof(int));
+                    int *sorted2 = lv_malloc((size_t)count * sizeof(int));
                     if (!sorted1 || !sorted2) {
-                        lv00_free((void **) &sorted1);
-                        lv00_free((void **) &sorted2);
+                        lv_free((void **) &sorted1);
+                        lv_free((void **) &sorted2);
                         return TYPE_EQUIV_ERROR;
                     }
                     memcpy(sorted1, type1->contained_node_ids, count * sizeof(int));
@@ -969,8 +969,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                         equiv = false;
                     }
 
-                    lv00_free((void **) &sorted1);
-                    lv00_free((void **) &sorted2);
+                    lv_free((void **) &sorted1);
+                    lv_free((void **) &sorted2);
                     return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
                 }
 
@@ -982,11 +982,11 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
 
                     /* 排序+双指针 O(n log n) 优化 */
                     int count = type1->constraint_count;
-                    int *sorted1 = lv00_malloc((size_t)count * sizeof(int));
-                    int *sorted2 = lv00_malloc((size_t)count * sizeof(int));
+                    int *sorted1 = lv_malloc((size_t)count * sizeof(int));
+                    int *sorted2 = lv_malloc((size_t)count * sizeof(int));
                     if (!sorted1 || !sorted2) {
-                        lv00_free((void **) &sorted1);
-                        lv00_free((void **) &sorted2);
+                        lv_free((void **) &sorted1);
+                        lv_free((void **) &sorted2);
                         return TYPE_EQUIV_ERROR;
                     }
                     memcpy(sorted1, type1->constraint_ids, count * sizeof(int));
@@ -1013,8 +1013,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                         equiv = false;
                     }
 
-                    lv00_free((void **) &sorted1);
-                    lv00_free((void **) &sorted2);
+                    lv_free((void **) &sorted1);
+                    lv_free((void **) &sorted2);
                     return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
                 }
 
@@ -1680,7 +1680,7 @@ bool type_substitute_variable(TypeSystem *ts, TypeRegion *type, int var_id, Type
                         if (new_region) {
                             new_region->aliased_type = new_aliased;
                             if (type->alias_name) {
-                                new_region->alias_name = lv00_strdup(type->alias_name);
+                                new_region->alias_name = lv_strdup(type->alias_name);
                             }
                             *out_result = new_region;
                             return true;
@@ -1810,22 +1810,22 @@ bool type_detect_cycle(TypeSystem *ts, TypeRegion *type) {
         return false;
 
     /* 分配访问标记数组 */
-    bool *visited = lv00_calloc(ts->type_region_count + 1, sizeof(bool));
+    bool *visited = lv_calloc(ts->type_region_count + 1, sizeof(bool));
     if (!visited)
         return false;
 
     /* 分配当前路径标记数组 */
-    bool *on_stack = lv00_calloc(ts->type_region_count + 1, sizeof(bool));
+    bool *on_stack = lv_calloc(ts->type_region_count + 1, sizeof(bool));
     if (!on_stack) {
-        lv00_free((void **) &visited);
+        lv_free((void **) &visited);
         return false;
     }
 
     /* 执行DFS检测循环 */
     bool has_cycle = type_detect_cycle_dfs(ts, type, visited, on_stack);
 
-    lv00_free((void **) &visited);
-    lv00_free((void **) &on_stack);
+    lv_free((void **) &visited);
+    lv_free((void **) &on_stack);
 
     /* 流式事件：循环检测结果 */
     if (type_system_stream_ctx != NULL && has_cycle) {
@@ -2004,7 +2004,7 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
                                                                : ts->node_type_mapping_capacity * 2;
         if (ts->node_type_mapping_capacity > 0 && ts->node_type_mapping_capacity > INT_MAX / 2) return false;
         NodeTypeMapping *new_mappings =
-            (NodeTypeMapping *) lv00_realloc(ts->node_type_mappings, new_capacity * sizeof(NodeTypeMapping));
+            (NodeTypeMapping *) lv_realloc(ts->node_type_mappings, new_capacity * sizeof(NodeTypeMapping));
         if (!new_mappings)
             return false;
         ts->node_type_mappings = new_mappings;
@@ -2349,13 +2349,13 @@ void type_print(const TypeRegion *tr, int indent) {
 #define REWRITE_PATH_INITIAL_CAPACITY 8
 
 TypeRewritePath *type_rewrite_path_create(void) {
-    TypeRewritePath *path = lv00_calloc(1, sizeof(TypeRewritePath));
+    TypeRewritePath *path = lv_calloc(1, sizeof(TypeRewritePath));
     if (!path)
         return NULL;
 
-    path->steps = lv00_calloc(REWRITE_PATH_INITIAL_CAPACITY, sizeof(TypeRewriteStep));
+    path->steps = lv_calloc(REWRITE_PATH_INITIAL_CAPACITY, sizeof(TypeRewriteStep));
     if (!path->steps) {
-        lv00_free((void **) &path);
+        lv_free((void **) &path);
         return NULL;
     }
     path->step_count = 0;
@@ -2377,12 +2377,12 @@ void type_rewrite_path_destroy(TypeRewritePath *path) {
         return;
 
     for (int i = 0; i < path->step_count; i++) {
-        lv00_free((void **) &path->steps[i].rule_name);
+        lv_free((void **) &path->steps[i].rule_name);
         /* 注意：不销毁 before/after 指向的 TypeRegion，
          * 因为它们由类型系统管理，可能被共享引用 */
     }
-    lv00_free((void **) &path->steps);
-    lv00_free((void **) &path);
+    lv_free((void **) &path->steps);
+    lv_free((void **) &path);
 }
 
 /**
@@ -2406,7 +2406,7 @@ void type_rewrite_path_record(TypeRewritePath *path, const char *rule_name, cons
             return; /* 防止溢出 */
         int new_capacity = path->capacity * 2;
         TypeRewriteStep *new_steps =
-            (TypeRewriteStep *) lv00_realloc(path->steps, new_capacity * sizeof(TypeRewriteStep));
+            (TypeRewriteStep *) lv_realloc(path->steps, new_capacity * sizeof(TypeRewriteStep));
         if (!new_steps)
             return;
         path->steps = new_steps;
@@ -2416,7 +2416,7 @@ void type_rewrite_path_record(TypeRewritePath *path, const char *rule_name, cons
     /* 记录新步骤 */
     TypeRewriteStep *step = &path->steps[path->step_count];
     step->step_number = path->step_count;
-    step->rule_name = rule_name ? lv00_strdup(rule_name) : NULL;
+    step->rule_name = rule_name ? lv_strdup(rule_name) : NULL;
     step->before = (TypeRegion *) before;
     step->after = (TypeRegion *) after;
     path->step_count++;
@@ -2520,7 +2520,7 @@ int type_system_register_inference_rule(TypeSystem *ts, int source_node_type, in
         int new_capacity =
             ts->inference_rule_capacity == 0 ? INFERENCE_RULE_INITIAL_CAPACITY : ts->inference_rule_capacity * 2;
         TypeInferenceRule *new_arr =
-            (TypeInferenceRule *) lv00_realloc(ts->inference_rules, new_capacity * sizeof(TypeInferenceRule));
+            (TypeInferenceRule *) lv_realloc(ts->inference_rules, new_capacity * sizeof(TypeInferenceRule));
         if (!new_arr)
             return -1;
         ts->inference_rules = new_arr;
@@ -2705,7 +2705,7 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src) {
     if (!src)
         return NULL;
 
-    TypeRegion *dst = (TypeRegion *) lv00_calloc(1, sizeof(TypeRegion));
+    TypeRegion *dst = (TypeRegion *) lv_calloc(1, sizeof(TypeRegion));
     if (!dst)
         return NULL;
 
@@ -2717,7 +2717,7 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src) {
 
     /* 复制 contained_node_ids */
     if (src->contained_count > 0 && src->contained_node_ids) {
-        dst->contained_node_ids = (int *) lv00_calloc(src->contained_count, sizeof(int));
+        dst->contained_node_ids = (int *) lv_calloc(src->contained_count, sizeof(int));
         if (dst->contained_node_ids) {
             memcpy(dst->contained_node_ids, src->contained_node_ids, src->contained_count * sizeof(int));
             dst->contained_count = src->contained_count;
@@ -2726,7 +2726,7 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src) {
 
     /* 复制 constraint_ids */
     if (src->constraint_count > 0 && src->constraint_ids) {
-        dst->constraint_ids = (int *) lv00_calloc(src->constraint_count, sizeof(int));
+        dst->constraint_ids = (int *) lv_calloc(src->constraint_count, sizeof(int));
         if (dst->constraint_ids) {
             memcpy(dst->constraint_ids, src->constraint_ids, src->constraint_count * sizeof(int));
             dst->constraint_count = src->constraint_count;
@@ -2735,10 +2735,10 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src) {
 
     /* 复制字符串字段 */
     if (src->alias_name) {
-        dst->alias_name = lv00_strdup(src->alias_name);
+        dst->alias_name = lv_strdup(src->alias_name);
     }
     if (src->variable_name) {
-        dst->variable_name = lv00_strdup(src->variable_name);
+        dst->variable_name = lv_strdup(src->variable_name);
     }
 
     /* 递归复制子类型（仅一层，避免循环引用） */
@@ -2792,21 +2792,21 @@ void type_region_deep_free(TypeRegion *tr) {
     type_region_deep_free(tr->aliased_type);
 
     /* 释放数组 */
-    lv00_free((void **) &tr->contained_node_ids);
-    lv00_free((void **) &tr->constraint_ids);
+    lv_free((void **) &tr->contained_node_ids);
+    lv_free((void **) &tr->constraint_ids);
 
     /* 释放字符串 */
-    lv00_free((void **) &tr->alias_name);
-    lv00_free((void **) &tr->variable_name);
+    lv_free((void **) &tr->alias_name);
+    lv_free((void **) &tr->variable_name);
 
-    lv00_free((void **) &tr);
+    lv_free((void **) &tr);
 }
 
 PathExplorer *path_explorer_create(TypeSystem *ts, TypeRegion *current, TypeRegion *target) {
     if (!ts || !current || !target)
         return NULL;
 
-    PathExplorer *explorer = (PathExplorer *) lv00_calloc(1, sizeof(PathExplorer));
+    PathExplorer *explorer = (PathExplorer *) lv_calloc(1, sizeof(PathExplorer));
     if (!explorer)
         return NULL;
 
@@ -2816,27 +2816,27 @@ PathExplorer *path_explorer_create(TypeSystem *ts, TypeRegion *current, TypeRegi
     /* 深拷贝当前类型区域（探索器拥有副本） */
     explorer->current = type_region_deep_copy(current);
     if (!explorer->current) {
-        lv00_free((void **) &explorer);
+        lv_free((void **) &explorer);
         return NULL;
     }
 
     /* 初始化步骤数组 */
     explorer->step_capacity = EXPLORER_INITIAL_CAPACITY;
-    explorer->steps = (ExplorerStep *) lv00_calloc(explorer->step_capacity, sizeof(ExplorerStep));
+    explorer->steps = (ExplorerStep *) lv_calloc(explorer->step_capacity, sizeof(ExplorerStep));
     if (!explorer->steps) {
         type_region_deep_free(explorer->current);
-        lv00_free((void **) &explorer);
+        lv_free((void **) &explorer);
         return NULL;
     }
     explorer->step_count = 0;
 
     /* 初始化撤销栈 */
     explorer->undo_capacity = EXPLORER_HISTORY_INITIAL_CAPACITY;
-    explorer->undo_stack = (TypeRegion **) lv00_calloc(explorer->undo_capacity, sizeof(TypeRegion *));
+    explorer->undo_stack = (TypeRegion **) lv_calloc(explorer->undo_capacity, sizeof(TypeRegion *));
     if (!explorer->undo_stack) {
-        lv00_free((void **) &explorer->steps);
+        lv_free((void **) &explorer->steps);
         type_region_deep_free(explorer->current);
-        lv00_free((void **) &explorer);
+        lv_free((void **) &explorer);
         return NULL;
     }
     explorer->undo_count = 0;
@@ -2853,17 +2853,17 @@ void path_explorer_destroy(PathExplorer *explorer) {
 
     /* 释放步骤记录 */
     for (int i = 0; i < explorer->step_count; i++) {
-        lv00_free((void **) &explorer->steps[i].rule_name);
+        lv_free((void **) &explorer->steps[i].rule_name);
     }
-    lv00_free((void **) &explorer->steps);
+    lv_free((void **) &explorer->steps);
 
     /* 释放撤销栈 */
     for (int i = 0; i < explorer->undo_count; i++) {
         type_region_deep_free(explorer->undo_stack[i]);
     }
-    lv00_free((void **) &explorer->undo_stack);
+    lv_free((void **) &explorer->undo_stack);
 
-    lv00_free((void **) &explorer);
+    lv_free((void **) &explorer);
 }
 
 ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, int **rule_indices, int *count) {
@@ -2881,7 +2881,7 @@ ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, 
     }
 
     /* 遍历所有重写规则，检查哪些可以匹配当前类型 */
-    int *indices = (int *) lv00_calloc(explorer->ts->rewrite_rule_count, sizeof(int));
+    int *indices = (int *) lv_calloc(explorer->ts->rewrite_rule_count, sizeof(int));
     if (!indices)
         return EXPLORER_ERROR;
 
@@ -2913,7 +2913,7 @@ ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, 
     }
 
     if (applicable == 0) {
-        lv00_free((void **) &indices);
+        lv_free((void **) &indices);
         return EXPLORER_NO_RULES;
     }
 
@@ -2977,7 +2977,7 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
     if (explorer->undo_count >= explorer->undo_capacity) {
         if (explorer->undo_capacity > INT_MAX / 2) return EXPLORER_ERROR;
         int new_cap = explorer->undo_capacity * 2;
-        TypeRegion **new_stack = (TypeRegion **) lv00_realloc(explorer->undo_stack, new_cap * sizeof(TypeRegion *));
+        TypeRegion **new_stack = (TypeRegion **) lv_realloc(explorer->undo_stack, new_cap * sizeof(TypeRegion *));
         if (!new_stack)
             return EXPLORER_ERROR;
         explorer->undo_stack = new_stack;
@@ -3012,7 +3012,7 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
             return EXPLORER_OK;
         }
         int new_cap = explorer->step_capacity * 2;
-        ExplorerStep *new_steps = (ExplorerStep *) lv00_realloc(explorer->steps, new_cap * sizeof(ExplorerStep));
+        ExplorerStep *new_steps = (ExplorerStep *) lv_realloc(explorer->steps, new_cap * sizeof(ExplorerStep));
         if (!new_steps) {
             /* 步骤记录失败，但状态已改变，仍返回成功 */
             return EXPLORER_OK;
@@ -3023,7 +3023,7 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 
     ExplorerStep *step = &explorer->steps[explorer->step_count];
     step->rule_index = rule_index;
-    step->rule_name = rule->name ? lv00_strdup(rule->name) : NULL;
+    step->rule_name = rule->name ? lv_strdup(rule->name) : NULL;
     step->step_number = explorer->step_count;
     explorer->step_count++;
 
@@ -3065,7 +3065,7 @@ ExplorerResult path_explorer_undo(PathExplorer *explorer) {
     /* 移除最后一步记录 */
     if (explorer->step_count > 0) {
         explorer->step_count--;
-        lv00_free((void **) &explorer->steps[explorer->step_count].rule_name);
+        lv_free((void **) &explorer->steps[explorer->step_count].rule_name);
         explorer->steps[explorer->step_count].rule_name = NULL;
     }
 

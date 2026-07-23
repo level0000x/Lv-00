@@ -1,4 +1,4 @@
-# Lv-00 API 完整参考
+﻿# Lv-00 API 完整参考
 
 > **版本**: 1.1.0  
 > **最后更新**: 2026-06-27  
@@ -26,10 +26,10 @@
 
 ### 1.1 系统生命周期
 
-#### lv00_context_create
+#### lv_context_create
 
 ```c
-LV00Context *lv00_context_create(void);
+lvContext *lv_context_create(void);
 ```
 
 创建 Lv-00 上下文。
@@ -42,7 +42,7 @@ LV00Context *lv00_context_create(void);
 
 **示例**:
 ```c
-LV00Context *ctx = lv00_context_create();
+lvContext *ctx = lv_context_create();
 if (!ctx) {
     fprintf(stderr, "Lv-00 context creation failed\n");
     return EXIT_FAILURE;
@@ -51,10 +51,10 @@ if (!ctx) {
 
 ---
 
-#### lv00_context_destroy
+#### lv_context_destroy
 
 ```c
-void lv00_context_destroy(LV00Context *ctx);
+void lv_context_destroy(lvContext *ctx);
 ```
 
 销毁 Lv-00 上下文，释放所有资源。
@@ -63,7 +63,7 @@ void lv00_context_destroy(LV00Context *ctx);
 
 **示例**:
 ```c
-lv00_context_destroy(ctx);
+lv_context_destroy(ctx);
 ```
 
 ---
@@ -82,10 +82,10 @@ lv00_context_destroy(ctx);
 
 ---
 
-#### lv00_context_create（替代旧版）
+#### lv_context_create（替代旧版）
 
 ```c
-LV00Context *lv00_context_create(void);
+lvContext *lv_context_create(void);
 ```
 
 创建并初始化上下文实例。
@@ -96,7 +96,7 @@ LV00Context *lv00_context_create(void);
 
 **示例**:
 ```c
-LV00Context *ctx = lv00_context_create();
+lvContext *ctx = lv_context_create();
 if (!ctx) {
     fprintf(stderr, "Context creation failed\n");
     return EXIT_FAILURE;
@@ -105,10 +105,10 @@ if (!ctx) {
 
 ---
 
-#### lv00_context_destroy（替代旧版）
+#### lv_context_destroy（替代旧版）
 
 ```c
-void lv00_context_destroy(LV00Context *ctx);
+void lv_context_destroy(lvContext *ctx);
 ```
 
 销毁上下文实例。
@@ -122,10 +122,10 @@ void lv00_context_destroy(LV00Context *ctx);
 
 ### 1.2 版本信息
 
-#### lv00_get_version_string
+#### lv_get_version_string
 
 ```c
-const char *lv00_get_version_string(void);
+const char *lv_get_version_string(void);
 ```
 
 获取版本字符串。
@@ -134,24 +134,24 @@ const char *lv00_get_version_string(void);
 
 ---
 
-#### lv00_get_version_info
+#### lv_get_version_info
 
 ```c
-bool lv00_get_version_info(LV00VersionInfo *info);
+bool lv_get_version_info(lvVersionInfo *info);
 ```
 
 获取详细版本信息。
 
 **参数**:
-- `info` - 指向 LV00VersionInfo 结构体的指针
+- `info` - 指向 lvVersionInfo 结构体的指针
 
 **返回值**:
 - `true` - 成功
 - `false` - 失败（info 为 NULL 时）
 
-**LV00VersionInfo 结构**:
+**lvVersionInfo 结构**:
 ```c
-typedef struct LV00VersionInfo {
+typedef struct lvVersionInfo {
     int         major;          /* 主版本号 */
     int         minor;          /* 次版本号 */
     int         patch;          /* 补丁版本号 */
@@ -161,15 +161,15 @@ typedef struct LV00VersionInfo {
     const char *arch;           /* 目标架构 */
     const char *build_date;     /* 构建日期 */
     const char *build_time;     /* 构建时间 */
-} LV00VersionInfo;
+} lvVersionInfo;
 ```
 
 ---
 
-#### lv00_check_version_compat
+#### lv_check_version_compat
 
 ```c
-bool lv00_check_version_compat(void);
+bool lv_check_version_compat(void);
 ```
 
 检查运行时版本与编译时头文件版本的兼容性。
@@ -182,10 +182,10 @@ bool lv00_check_version_compat(void);
 
 ### 1.3 系统信息
 
-#### lv00_get_system_info
+#### lv_get_system_info
 
 ```c
-int lv00_get_system_info(char *buf, size_t size);
+int lv_get_system_info(char *buf, size_t size);
 ```
 
 获取系统信息字符串。
@@ -198,10 +198,10 @@ int lv00_get_system_info(char *buf, size_t size);
 
 ---
 
-#### lv00_health_check
+#### lv_health_check
 
 ```c
-int lv00_health_check(void);
+int lv_health_check(void);
 ```
 
 检查系统健康状况。
@@ -321,10 +321,10 @@ void symbolic_coord_destroy(SymbolicCoord *coord);
 
 ### 3.1 几何构造
 
-#### lv00_add_point
+#### lv_add_point
 
 ```c
-int lv00_add_point(LV00Context *ctx,
+int lv_add_point(lvContext *ctx,
     int64_t x_num, uint64_t x_den,
     int64_t y_num, uint64_t y_den);
 ```
@@ -340,28 +340,28 @@ int lv00_add_point(LV00Context *ctx,
 
 **示例**:
 ```c
-int origin = lv00_add_point(engine, 0, 1, 0, 1);   /* (0, 0) */
-int p = lv00_add_point(engine, 3, 2, 11, 4);       /* (1.5, 2.75) */
+int origin = lv_add_point(engine, 0, 1, 0, 1);   /* (0, 0) */
+int p = lv_add_point(engine, 3, 2, 11, 4);       /* (1.5, 2.75) */
 ```
 
 ---
 
-#### lv00_add_point_i
+#### lv_add_point_i
 
 ```c
-static inline int lv00_add_point_i(LV00Context *ctx, long long x, long long y);
+static inline int lv_add_point_i(lvContext *ctx, long long x, long long y);
 ```
 
 添加整数坐标点（便捷函数）。
 
-**说明**: 等价于 `lv00_add_point(engine, x, 1, y, 1)`
+**说明**: 等价于 `lv_add_point(engine, x, 1, y, 1)`
 
 ---
 
-#### lv00_add_line_segment
+#### lv_add_line_segment
 
 ```c
-int lv00_add_line_segment(LV00Context *ctx, int point1_id, int point2_id);
+int lv_add_line_segment(lvContext *ctx, int point1_id, int point2_id);
 ```
 
 创建连接两点的线段。
@@ -375,10 +375,10 @@ int lv00_add_line_segment(LV00Context *ctx, int point1_id, int point2_id);
 
 ---
 
-#### lv00_add_constraint_incidence
+#### lv_add_constraint_incidence
 
 ```c
-bool lv00_add_constraint_incidence(LV00Context *ctx, int point_id, int line_id);
+bool lv_add_constraint_incidence(lvContext *ctx, int point_id, int line_id);
 ```
 
 添加关联约束（点属于线段）。
@@ -396,40 +396,40 @@ bool lv00_add_constraint_incidence(LV00Context *ctx, int point_id, int line_id);
 
 ### 3.2 约束图操作
 
-#### lv00_constraint_graph_create
+#### lv_constraint_graph_create
 
 ```c
-Lv00ConstraintGraph *lv00_constraint_graph_create(void);
+lvConstraintGraph *lv_constraint_graph_create(void);
 ```
 
 创建空约束图。
 
 ---
 
-#### lv00_constraint_graph_destroy
+#### lv_constraint_graph_destroy
 
 ```c
-void lv00_constraint_graph_destroy(Lv00ConstraintGraph *graph);
+void lv_constraint_graph_destroy(lvConstraintGraph *graph);
 ```
 
 销毁约束图。
 
 ---
 
-#### lv00_constraint_graph_add_node
+#### lv_constraint_graph_add_node
 
 ```c
-int lv00_constraint_graph_add_node(Lv00ConstraintGraph *graph, GeometryEntity *entity);
+int lv_constraint_graph_add_node(lvConstraintGraph *graph, GeometryEntity *entity);
 ```
 
 添加节点到约束图。
 
 ---
 
-#### lv00_constraint_graph_add_edge
+#### lv_constraint_graph_add_edge
 
 ```c
-bool lv00_constraint_graph_add_edge(Lv00ConstraintGraph *graph, int node1, int node2, ConstraintType type);
+bool lv_constraint_graph_add_edge(lvConstraintGraph *graph, int node1, int node2, ConstraintType type);
 ```
 
 添加边到约束图。
@@ -440,10 +440,10 @@ bool lv00_constraint_graph_add_edge(Lv00ConstraintGraph *graph, int node1, int n
 
 ### 4.1 归一化
 
-#### lv00_normalize
+#### lv_normalize
 
 ```c
-NormalizationResult *lv00_normalize(LV00Context *ctx, bool scope_aware);
+NormalizationResult *lv_normalize(lvContext *ctx, bool scope_aware);
 ```
 
 执行图归一化。
@@ -460,10 +460,10 @@ NormalizationResult *lv00_normalize(LV00Context *ctx, bool scope_aware);
 
 ### 4.2 求解
 
-#### lv00_solve
+#### lv_solve
 
 ```c
-EngineSolveResult lv00_solve(LV00Context *ctx);
+EngineSolveResult lv_solve(lvContext *ctx);
 ```
 
 执行求解流水线。
@@ -476,13 +476,13 @@ EngineSolveResult lv00_solve(LV00Context *ctx);
 **EngineSolveResult 枚举**:
 ```c
 typedef enum {
-    LV00_SOLVE_SUCCESS = 0,        /* 求解成功 */
-    LV00_SOLVE_TIMEOUT,            /* 计算超时 */
-    LV00_SOLVE_INCONSISTENT,       /* 约束矛盾 */
-    LV00_SOLVE_UNDER_CONSTRAINED,  /* 欠约束 */
-    LV00_SOLVE_OVER_CONSTRAINED,   /* 过约束 */
-    LV00_SOLVE_MEMORY_ERROR,       /* 内存不足 */
-    LV00_SOLVE_INTERNAL_ERROR      /* 内部错误 */
+    lv_SOLVE_SUCCESS = 0,        /* 求解成功 */
+    lv_SOLVE_TIMEOUT,            /* 计算超时 */
+    lv_SOLVE_INCONSISTENT,       /* 约束矛盾 */
+    lv_SOLVE_UNDER_CONSTRAINED,  /* 欠约束 */
+    lv_SOLVE_OVER_CONSTRAINED,   /* 过约束 */
+    lv_SOLVE_MEMORY_ERROR,       /* 内存不足 */
+    lv_SOLVE_INTERNAL_ERROR      /* 内部错误 */
 } EngineSolveResult;
 ```
 
@@ -490,11 +490,11 @@ typedef enum {
 
 ### 4.3 高级求解
 
-#### lv00_solve_with_options
+#### lv_solve_with_options
 
 ```c
-EngineSolveResult lv00_solve_with_options(
-    LV00Context *ctx,
+EngineSolveResult lv_solve_with_options(
+    lvContext *ctx,
     const SolverOptions *options
 );
 ```
@@ -519,60 +519,60 @@ typedef struct SolverOptions {
 
 ### 5.1 命题创建
 
-#### lv00_proposition_eq
+#### lv_proposition_eq
 
 ```c
-Proposition *lv00_proposition_eq(Expr *lhs, Expr *rhs);
+Proposition *lv_proposition_eq(Expr *lhs, Expr *rhs);
 ```
 
 创建相等命题（lhs = rhs）。
 
 ---
 
-#### lv00_proposition_lt
+#### lv_proposition_lt
 
 ```c
-Proposition *lv00_proposition_lt(Expr *lhs, Expr *rhs);
+Proposition *lv_proposition_lt(Expr *lhs, Expr *rhs);
 ```
 
 创建小于命题（lhs < rhs）。
 
 ---
 
-#### lv00_proposition_and
+#### lv_proposition_and
 
 ```c
-Proposition *lv00_proposition_and(Proposition *p1, Proposition *p2);
+Proposition *lv_proposition_and(Proposition *p1, Proposition *p2);
 ```
 
 创建合取命题（p1 ∧ p2）。
 
 ---
 
-#### lv00_proposition_or
+#### lv_proposition_or
 
 ```c
-Proposition *lv00_proposition_or(Proposition *p1, Proposition *p2);
+Proposition *lv_proposition_or(Proposition *p1, Proposition *p2);
 ```
 
 创建析取命题（p1 ∨ p2）。
 
 ---
 
-#### lv00_proposition_not
+#### lv_proposition_not
 
 ```c
-Proposition *lv00_proposition_not(Proposition *p);
+Proposition *lv_proposition_not(Proposition *p);
 ```
 
 创建否定命题（¬p）。
 
 ---
 
-#### lv00_proposition_implies
+#### lv_proposition_implies
 
 ```c
-Proposition *lv00_proposition_implies(Proposition *premise, Proposition *conclusion);
+Proposition *lv_proposition_implies(Proposition *premise, Proposition *conclusion);
 ```
 
 创建蕴含命题（premise → conclusion）。
@@ -581,10 +581,10 @@ Proposition *lv00_proposition_implies(Proposition *premise, Proposition *conclus
 
 ### 5.2 证明执行
 
-#### lv00_prove
+#### lv_prove
 
 ```c
-Proof *lv00_prove(LV00Context *ctx, Proposition *goal);
+Proof *lv_prove(lvContext *ctx, Proposition *goal);
 ```
 
 执行自动证明。
@@ -597,11 +597,11 @@ Proof *lv00_prove(LV00Context *ctx, Proposition *goal);
 
 ---
 
-#### lv00_prove_with_strategy
+#### lv_prove_with_strategy
 
 ```c
-Proof *lv00_prove_with_strategy(
-    LV00Context *ctx,
+Proof *lv_prove_with_strategy(
+    lvContext *ctx,
     Proposition *goal,
     ProofStrategy strategy
 );
@@ -625,20 +625,20 @@ typedef enum {
 
 ### 5.3 证明验证
 
-#### lv00_proof_valid
+#### lv_proof_valid
 
 ```c
-bool lv00_proof_valid(const Proof *proof);
+bool lv_proof_valid(const Proof *proof);
 ```
 
 检查证明是否有效。
 
 ---
 
-#### lv00_proof_get_step_count
+#### lv_proof_get_step_count
 
 ```c
-size_t lv00_proof_get_step_count(const Proof *proof);
+size_t lv_proof_get_step_count(const Proof *proof);
 ```
 
 获取证明步骤数。
@@ -647,50 +647,50 @@ size_t lv00_proof_get_step_count(const Proof *proof);
 
 ### 5.4 证明导出
 
-#### lv00_proof_export_lean
+#### lv_proof_export_lean
 
 ```c
-bool lv00_proof_export_lean(const Proof *proof, const char *filename);
+bool lv_proof_export_lean(const Proof *proof, const char *filename);
 ```
 
 导出为 Lean 证明脚本。
 
 ---
 
-#### lv00_proof_export_coq
+#### lv_proof_export_coq
 
 ```c
-bool lv00_proof_export_coq(const Proof *proof, const char *filename);
+bool lv_proof_export_coq(const Proof *proof, const char *filename);
 ```
 
 导出为 Coq 证明脚本。
 
 ---
 
-#### lv00_proof_export_latex
+#### lv_proof_export_latex
 
 ```c
-bool lv00_proof_export_latex(const Proof *proof, const char *filename);
+bool lv_proof_export_latex(const Proof *proof, const char *filename);
 ```
 
 导出为 LaTeX 文档。
 
 ---
 
-#### lv00_proof_export_tikz
+#### lv_proof_export_tikz
 
 ```c
-bool lv00_proof_export_tikz(const Proof *proof, const char *filename);
+bool lv_proof_export_tikz(const Proof *proof, const char *filename);
 ```
 
 导出为 TikZ 几何图形。
 
 ---
 
-#### lv00_proof_export_json
+#### lv_proof_export_json
 
 ```c
-char *lv00_proof_export_json(const Proof *proof);
+char *lv_proof_export_json(const Proof *proof);
 ```
 
 导出为 JSON 字符串（调用者负责释放）。
@@ -701,10 +701,10 @@ char *lv00_proof_export_json(const Proof *proof);
 
 ### 6.1 预设加载
 
-#### lv00_preset_load
+#### lv_preset_load
 
 ```c
-bool lv00_preset_load(LV00Context *ctx, const char *preset_name);
+bool lv_preset_load(lvContext *ctx, const char *preset_name);
 ```
 
 加载预设模块。
@@ -719,10 +719,10 @@ bool lv00_preset_load(LV00Context *ctx, const char *preset_name);
 
 ---
 
-#### lv00_preset_unload
+#### lv_preset_unload
 
 ```c
-bool lv00_preset_unload(LV00Context *ctx, const char *preset_name);
+bool lv_preset_unload(lvContext *ctx, const char *preset_name);
 ```
 
 卸载预设模块。
@@ -731,11 +731,11 @@ bool lv00_preset_unload(LV00Context *ctx, const char *preset_name);
 
 ### 6.2 预设应用
 
-#### lv00_preset_apply
+#### lv_preset_apply
 
 ```c
-Proposition *lv00_preset_apply(
-    LV00Context *ctx,
+Proposition *lv_preset_apply(
+    lvContext *ctx,
     const char *theorem_name,
     ...
 );
@@ -752,7 +752,7 @@ Proposition *lv00_preset_apply(
 
 **示例**:
 ```c
-Proposition *prop = lv00_preset_apply(
+Proposition *prop = lv_preset_apply(
     engine, "pythagorean_theorem", A, B, C
 );
 ```
@@ -761,10 +761,10 @@ Proposition *prop = lv00_preset_apply(
 
 ### 6.3 预设查询
 
-#### lv00_preset_list
+#### lv_preset_list
 
 ```c
-char **lv00_preset_list(size_t *count);
+char **lv_preset_list(size_t *count);
 ```
 
 获取可用预设列表。
@@ -776,10 +776,10 @@ char **lv00_preset_list(size_t *count);
 
 ---
 
-#### lv00_preset_get_info
+#### lv_preset_get_info
 
 ```c
-PresetInfo *lv00_preset_get_info(const char *preset_name);
+PresetInfo *lv_preset_get_info(const char *preset_name);
 ```
 
 获取预设信息。
@@ -801,10 +801,10 @@ typedef struct PresetInfo {
 
 ### 7.1 函数块创建
 
-#### lv00_fb_create
+#### lv_fb_create
 
 ```c
-FuncBlock *lv00_fb_create(const char *name, int arity);
+FuncBlock *lv_fb_create(const char *name, int arity);
 ```
 
 创建函数块。
@@ -817,10 +817,10 @@ FuncBlock *lv00_fb_create(const char *name, int arity);
 
 ---
 
-#### lv00_fb_destroy
+#### lv_fb_destroy
 
 ```c
-void lv00_fb_destroy(FuncBlock *fb);
+void lv_fb_destroy(FuncBlock *fb);
 ```
 
 销毁函数块。
@@ -829,10 +829,10 @@ void lv00_fb_destroy(FuncBlock *fb);
 
 ### 7.2 函数块定义
 
-#### lv00_fb_define
+#### lv_fb_define
 
 ```c
-bool lv00_fb_define(FuncBlock *fb, const char *definition);
+bool lv_fb_define(FuncBlock *fb, const char *definition);
 ```
 
 定义函数块体。
@@ -843,10 +843,10 @@ bool lv00_fb_define(FuncBlock *fb, const char *definition);
 
 ---
 
-#### lv00_fb_define_c
+#### lv_fb_define_c
 
 ```c
-bool lv00_fb_define_c(FuncBlock *fb, Lv00FBFunction func);
+bool lv_fb_define_c(FuncBlock *fb, lvFBFunction func);
 ```
 
 使用 C 函数定义函数块。
@@ -855,19 +855,19 @@ bool lv00_fb_define_c(FuncBlock *fb, Lv00FBFunction func);
 
 ### 7.3 函数块应用
 
-#### lv00_fb_apply
+#### lv_fb_apply
 
 ```c
-GeometryEntity *lv00_fb_apply(FuncBlock *fb, ...);
+GeometryEntity *lv_fb_apply(FuncBlock *fb, ...);
 ```
 
 应用函数块。
 
 **示例**:
 ```c
-FuncBlock *midpoint = lv00_fb_create("midpoint", 2);
-lv00_fb_define(midpoint, "return point((A.x+B.x)/2, (A.y+B.y)/2);");
-Point *M = (Point *)lv00_fb_apply(midpoint, A, B);
+FuncBlock *midpoint = lv_fb_create("midpoint", 2);
+lv_fb_define(midpoint, "return point((A.x+B.x)/2, (A.y+B.y)/2);");
+Point *M = (Point *)lv_fb_apply(midpoint, A, B);
 ```
 
 ---
@@ -876,36 +876,36 @@ Point *M = (Point *)lv00_fb_apply(midpoint, A, B);
 
 ### 8.1 类型查询
 
-#### lv00_type_of
+#### lv_type_of
 
 ```c
-Lv00Type lv00_type_of(const GeometryEntity *entity);
+lvType lv_type_of(const GeometryEntity *entity);
 ```
 
 获取实体类型。
 
-**Lv00Type 枚举**:
+**lvType 枚举**:
 ```c
 typedef enum {
-    LV00_TYPE_POINT,
-    LV00_TYPE_LINE,
-    LV00_TYPE_CIRCLE,
-    LV00_TYPE_SEGMENT,
-    LV00_TYPE_ANGLE,
-    LV00_TYPE_TRIANGLE,
-    LV00_TYPE_POLYGON,
-    LV00_TYPE_CONSTRAINT,
-    LV00_TYPE_PROPOSITION,
-    LV00_TYPE_PROOF
-} Lv00Type;
+    lv_TYPE_POINT,
+    lv_TYPE_LINE,
+    lv_TYPE_CIRCLE,
+    lv_TYPE_SEGMENT,
+    lv_TYPE_ANGLE,
+    lv_TYPE_TRIANGLE,
+    lv_TYPE_POLYGON,
+    lv_TYPE_CONSTRAINT,
+    lv_TYPE_PROPOSITION,
+    lv_TYPE_PROOF
+} lvType;
 ```
 
 ---
 
-#### lv00_type_check
+#### lv_type_check
 
 ```c
-bool lv00_type_check(const GeometryEntity *entity, Lv00Type expected);
+bool lv_type_check(const GeometryEntity *entity, lvType expected);
 ```
 
 类型检查。
@@ -914,20 +914,20 @@ bool lv00_type_check(const GeometryEntity *entity, Lv00Type expected);
 
 ### 8.2 类型转换
 
-#### lv00_type_cast_point
+#### lv_type_cast_point
 
 ```c
-Point *lv00_type_cast_point(GeometryEntity *entity);
+Point *lv_type_cast_point(GeometryEntity *entity);
 ```
 
 转换为点类型。
 
 ---
 
-#### lv00_type_cast_line
+#### lv_type_cast_line
 
 ```c
-Line *lv00_type_cast_line(GeometryEntity *entity);
+Line *lv_type_cast_line(GeometryEntity *entity);
 ```
 
 转换为线类型。
@@ -938,10 +938,10 @@ Line *lv00_type_cast_line(GeometryEntity *entity);
 
 ### 9.1 流创建
 
-#### lv00_stream_create
+#### lv_stream_create
 
 ```c
-Lv00Stream *lv00_stream_create(LV00Context *ctx, StreamMode mode);
+lvStream *lv_stream_create(lvContext *ctx, StreamMode mode);
 ```
 
 创建输出流。
@@ -956,10 +956,10 @@ typedef enum {
 
 ---
 
-#### lv00_stream_destroy
+#### lv_stream_destroy
 
 ```c
-void lv00_stream_destroy(Lv00Stream *stream);
+void lv_stream_destroy(lvStream *stream);
 ```
 
 销毁流。
@@ -968,11 +968,11 @@ void lv00_stream_destroy(Lv00Stream *stream);
 
 ### 9.2 事件处理
 
-#### lv00_stream_set_event_handler
+#### lv_stream_set_event_handler
 
 ```c
-void lv00_stream_set_event_handler(
-    Lv00Stream *stream,
+void lv_stream_set_event_handler(
+    lvStream *stream,
     StreamEventType event_type,
     StreamEventHandler handler,
     void *user_data
@@ -999,14 +999,14 @@ typedef enum {
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_config_get_int(key, def)` | 获取整数配置 |
-| `lv00_config_get_bool(key, def)` | 获取布尔配置 |
-| `lv00_config_get_double(key, def)` | 获取浮点配置 |
-| `lv00_config_get_string(key, def)` | 获取字符串配置 |
-| `lv00_config_set_int(key, val)` | 设置整数配置 |
-| `lv00_config_set_bool(key, val)` | 设置布尔配置 |
-| `lv00_config_set_double(key, val)` | 设置浮点配置 |
-| `lv00_config_set_string(key, val)` | 设置字符串配置 |
+| `lv_config_get_int(key, def)` | 获取整数配置 |
+| `lv_config_get_bool(key, def)` | 获取布尔配置 |
+| `lv_config_get_double(key, def)` | 获取浮点配置 |
+| `lv_config_get_string(key, def)` | 获取字符串配置 |
+| `lv_config_set_int(key, val)` | 设置整数配置 |
+| `lv_config_set_bool(key, val)` | 设置布尔配置 |
+| `lv_config_set_double(key, val)` | 设置浮点配置 |
+| `lv_config_set_string(key, val)` | 设置字符串配置 |
 
 **常用配置项**:
 ```
@@ -1021,40 +1021,40 @@ log.level                - 日志级别（0-4，默认 2）
 
 ### 10.2 内存管理
 
-#### lv00_get_memory_stats_ex
+#### lv_get_memory_stats_ex
 
 ```c
-bool lv00_get_memory_stats_ex(Lv00MemoryStats *stats);
+bool lv_get_memory_stats_ex(lvMemoryStats *stats);
 ```
 
 获取内存统计。
 
-**Lv00MemoryStats 结构**:
+**lvMemoryStats 结构**:
 ```c
-typedef struct Lv00MemoryStats {
+typedef struct lvMemoryStats {
     size_t current_bytes;   /* 当前分配量 */
     size_t peak_bytes;      /* 峰值分配量 */
     size_t alloc_count;     /* 分配次数 */
     size_t free_count;      /* 释放次数 */
-} Lv00MemoryStats;
+} lvMemoryStats;
 ```
 
 ---
 
-#### lv00_set_memory_limit_ex
+#### lv_set_memory_limit_ex
 
 ```c
-void lv00_set_memory_limit_ex(size_t limit_bytes);
+void lv_set_memory_limit_ex(size_t limit_bytes);
 ```
 
 设置内存上限。
 
 ---
 
-#### lv00_get_memory_limit_ex
+#### lv_get_memory_limit_ex
 
 ```c
-size_t lv00_get_memory_limit_ex(void);
+size_t lv_get_memory_limit_ex(void);
 ```
 
 获取内存上限。
@@ -1067,46 +1067,46 @@ size_t lv00_get_memory_limit_ex(void);
 
 | 错误码 | 值 | 含义 |
 |--------|-----|------|
-| `LV00_OK` | 0 | 成功 |
-| `LV00_ERR_PARSE` | 1 | 输入解析失败 |
-| `LV00_ERR_MEMORY` | 2 | 内存不足 |
-| `LV00_ERR_INVALID_ARG` | 3 | 无效参数 |
-| `LV00_ERR_TIMEOUT` | 4 | 计算超时 |
-| `LV00_ERR_STATE` | 5 | 状态机违规 |
-| `LV00_ERR_OVERFLOW` | 6 | 数值溢出 |
-| `LV00_ERR_NOT_INIT` | 7 | 系统未初始化 |
-| `LV00_ERR_INCONSISTENT` | 8 | 约束矛盾 |
-| `LV00_ERR_UNDER_CONSTRAINED` | 9 | 欠约束 |
-| `LV00_ERR_OVER_CONSTRAINED` | 10 | 过约束 |
+| `lv_OK` | 0 | 成功 |
+| `lv_ERR_PARSE` | 1 | 输入解析失败 |
+| `lv_ERR_MEMORY` | 2 | 内存不足 |
+| `lv_ERR_INVALID_ARG` | 3 | 无效参数 |
+| `lv_ERR_TIMEOUT` | 4 | 计算超时 |
+| `lv_ERR_STATE` | 5 | 状态机违规 |
+| `lv_ERR_OVERFLOW` | 6 | 数值溢出 |
+| `lv_ERR_NOT_INIT` | 7 | 系统未初始化 |
+| `lv_ERR_INCONSISTENT` | 8 | 约束矛盾 |
+| `lv_ERR_UNDER_CONSTRAINED` | 9 | 欠约束 |
+| `lv_ERR_OVER_CONSTRAINED` | 10 | 过约束 |
 
 ---
 
 ### 11.2 错误查询
 
-#### lv00_get_last_error
+#### lv_get_last_error
 
 ```c
-Lv00ErrorCode lv00_get_last_error(void);
+lvErrorCode lv_get_last_error(void);
 ```
 
 获取最后错误码。
 
 ---
 
-#### lv00_get_last_error_string
+#### lv_get_last_error_string
 
 ```c
-const char *lv00_get_last_error_string(void);
+const char *lv_get_last_error_string(void);
 ```
 
 获取最后错误描述。
 
 ---
 
-#### lv00_clear_error
+#### lv_clear_error
 
 ```c
-void lv00_clear_error(void);
+void lv_clear_error(void);
 ```
 
 清除错误状态。
@@ -1115,10 +1115,10 @@ void lv00_clear_error(void);
 
 ### 11.3 日志控制
 
-#### lv00_set_log_level
+#### lv_set_log_level
 
 ```c
-void lv00_set_log_level(int level);
+void lv_set_log_level(int level);
 ```
 
 设置日志级别。
@@ -1133,10 +1133,10 @@ void lv00_set_log_level(int level);
 
 ---
 
-#### lv00_get_log_level
+#### lv_get_log_level
 
 ```c
-int lv00_get_log_level(void);
+int lv_get_log_level(void);
 ```
 
 获取当前日志级别。
@@ -1148,4 +1148,4 @@ int lv00_get_log_level(void);
 - [架构手册](ARCHITECTURE_MANUAL.md)
 - [入门教程](TUTORIAL.md)
 - [API 快速入门](API_QUICKSTART.md)
-- [语言规范](LV00_LANGUAGE_SPEC.md)
+- [语言规范](lv_LANGUAGE_SPEC.md)

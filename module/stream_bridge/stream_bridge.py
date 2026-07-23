@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Lv-00 Stream Bridge - C 引擎流式事件到 JSON Lines 的桥接服务器模块
 ========================================================================
@@ -344,9 +344,9 @@ class CTypesStreamBridge:
     直接从 C 引擎获取事件流。
     
     支持的平台库文件名：
-      - Windows: lv00.dll
-      - Linux: liblv00.so
-      - macOS: liblv00.dylib
+      - Windows: lv.dll
+      - Linux: liblv.so
+      - macOS: liblv.dylib
     """
     
     def __init__(self):
@@ -369,21 +369,21 @@ class CTypesStreamBridge:
         # 候选库文件名（按平台）
         if os.name == 'nt':
             # Windows
-            candidates = ['lv00.dll', 'liblv00.dll']
+            candidates = ['lv.dll', 'liblv.dll']
             search_paths = [
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),  # 项目根目录
                 os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'build'),
                 os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'build_mingw'),
             ]
         elif sys.platform == 'darwin':
-            candidates = ['liblv00.dylib', 'liblv00.so']
+            candidates = ['liblv.dylib', 'liblv.so']
             search_paths = [
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'build'),
             ]
         else:
             # Linux
-            candidates = ['liblv00.so', 'liblv00.so.0']
+            candidates = ['liblv.so', 'liblv.so.0']
             search_paths = [
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'build'),
@@ -974,7 +974,7 @@ el.prepend(div);if(el.children.length>100)el.lastChild.remove()}</script></body>
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(b'{"status":"ok","service":"lv00-stream-bridge"}')
+                self.wfile.write(b'{"status":"ok","service":"lv-stream-bridge"}')
             else:
                 self.send_response(404)
                 self.end_headers()

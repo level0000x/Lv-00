@@ -1,6 +1,6 @@
-[1/236] Building C object CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/reasoning_cache.c.obj
-FAILED: [code=1] CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/reasoning_cache.c.obj 
-C:\msys64\mingw64\bin\gcc.exe -DLV00_CURRENT_LAYER=4 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv00 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/preset -std=c11 -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -fstack-protector-strong -D_FORTIFY_SOURCE=2 -MD -MT CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/reasoning_cache.c.obj -MF CMakeFiles\lv00_layer4_reasoning.dir\core\src\layer4_reasoning\reasoning_cache.c.obj.d -o CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/reasoning_cache.c.obj -c C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c
+﻿[1/236] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/reasoning_cache.c.obj
+FAILED: [code=1] CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/reasoning_cache.c.obj 
+C:\msys64\mingw64\bin\gcc.exe -Dlv_CURRENT_LAYER=4 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/preset -std=c11 -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -fstack-protector-strong -D_FORTIFY_SOURCE=2 -MD -MT CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/reasoning_cache.c.obj -MF CMakeFiles\lv_layer4_reasoning.dir\core\src\layer4_reasoning\reasoning_cache.c.obj.d -o CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/reasoning_cache.c.obj -c C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:47:5: error: unknown type name 'bool'
    47 |     bool occupied;      /**< true = 已占用或已删除，false = 空槽位 */
       |     ^~~~
@@ -9,7 +9,7 @@ C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reaso
   +++ |+#include <stdbool.h>
    22 | 
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:116:8: error: unknown type name 'bool'
-  116 | static bool cache_find_slot(const Lv00ReasoningCache *cache, uint64_t key, size_t *out_index) {
+  116 | static bool cache_find_slot(const lvReasoningCache *cache, uint64_t key, size_t *out_index) {
       |        ^~~~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:116:8: note: 'bool' is defined in header '<stdbool.h>'; this is probably fixable by adding '#include <stdbool.h>'
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c: In function 'cache_find_slot':
@@ -27,14 +27,14 @@ C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reaso
       |            ^~~~~~~~~~~~~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c: At top level:
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:166:8: error: unknown type name 'bool'
-  166 | static bool cache_is_full(const Lv00ReasoningCache *cache) {
+  166 | static bool cache_is_full(const lvReasoningCache *cache) {
       |        ^~~~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:166:8: note: 'bool' is defined in header '<stdbool.h>'; this is probably fixable by adding '#include <stdbool.h>'
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:205:1: error: unknown type name 'bool'
-  205 | bool lv00_reasoning_cache_has(Lv00ReasoningCache *cache, uint64_t key) {
+  205 | bool lv_reasoning_cache_has(lvReasoningCache *cache, uint64_t key) {
       | ^~~~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:205:1: note: 'bool' is defined in header '<stdbool.h>'; this is probably fixable by adding '#include <stdbool.h>'
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c: In function 'lv00_reasoning_cache_has':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c: In function 'lv_reasoning_cache_has':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:207:16: error: 'false' undeclared (first use in this function)
   207 |         return false;
       |                ^~~~~
@@ -43,19 +43,19 @@ C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reaso
   211 |     bool found = cache_find_slot(cache, key, &idx);
       |     ^~~~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:211:5: note: 'bool' is defined in header '<stdbool.h>'; this is probably fixable by adding '#include <stdbool.h>'
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c: In function 'lv00_reasoning_cache_put':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c: In function 'lv_reasoning_cache_put':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:254:40: error: 'true' undeclared (first use in this function)
   254 |             cache->slots[i].occupied = true;
       |                                        ^~~~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/reasoning_cache.c:254:40: note: 'true' is defined in header '<stdbool.h>'; this is probably fixable by adding '#include <stdbool.h>'
-[2/236] Building C object CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/preset/preset_group_theory.c.obj
-FAILED: [code=1] CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/preset/preset_group_theory.c.obj 
-C:\msys64\mingw64\bin\gcc.exe -DLV00_CURRENT_LAYER=4 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv00 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/preset -std=c11 -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -fstack-protector-strong -D_FORTIFY_SOURCE=2 -MD -MT CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/preset/preset_group_theory.c.obj -MF CMakeFiles\lv00_layer4_reasoning.dir\core\src\layer4_reasoning\preset\preset_group_theory.c.obj.d -o CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/preset/preset_group_theory.c.obj -c C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/preset/preset_group_theory.c
+[2/236] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/preset/preset_group_theory.c.obj
+FAILED: [code=1] CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/preset/preset_group_theory.c.obj 
+C:\msys64\mingw64\bin\gcc.exe -Dlv_CURRENT_LAYER=4 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/preset -std=c11 -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -fstack-protector-strong -D_FORTIFY_SOURCE=2 -MD -MT CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/preset/preset_group_theory.c.obj -MF CMakeFiles\lv_layer4_reasoning.dir\core\src\layer4_reasoning\preset\preset_group_theory.c.obj.d -o CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/preset/preset_group_theory.c.obj -c C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/preset/preset_group_theory.c
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/preset/preset_group_theory.c:38:9: warning: 'GROUP_THEORY_PRESET_COUNT' redefined
    38 | #define GROUP_THEORY_PRESET_COUNT 39
       |         ^~~~~~~~~~~~~~~~~~~~~~~~~
 In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/preset/preset_group_theory.c:27:
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv00/preset_group_theory.h:17:9: note: this is the location of the previous definition
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/preset_group_theory.h:17:9: note: this is the location of the previous definition
    17 | #define GROUP_THEORY_PRESET_COUNT 16
       |         ^~~~~~~~~~~~~~~~~~~~~~~~~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/preset/preset_group_theory.c: In function 'preset_group_theory_register':
@@ -69,33 +69,33 @@ C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/prese
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/preset/preset_group_theory.c:715:15: warning: 'get_group_theory_names' defined but not used [-Wunused-function]
   715 | static char** get_group_theory_names(void)
       |               ^~~~~~~~~~~~~~~~~~~~~~
-[3/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/lv00_layer_msg.c.obj
-[4/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/geo_visual_complete.c.obj
-[5/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/tikz_export.c.obj
-[6/236] Building C object CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/axiom_rule_engine.c.obj
-[7/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/lv00_protocol.c.obj
-[8/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/proof_export_enhanced.c.obj
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/proof_export_enhanced.c: In function 'lv00_proof_export_enhanced':
+[3/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/lv_layer_msg.c.obj
+[4/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/geo_visual_complete.c.obj
+[5/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/tikz_export.c.obj
+[6/236] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom_rule_engine.c.obj
+[7/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/lv_protocol.c.obj
+[8/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/proof_export_enhanced.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/proof_export_enhanced.c: In function 'lv_proof_export_enhanced':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/proof_export_enhanced.c:221:82: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
-  221 |         LV00_LOG_WARNING("proof_export_enhanced: cfg 为 NULL，使用默认 JSON 格式");
+  221 |         lv_LOG_WARNING("proof_export_enhanced: cfg 为 NULL，使用默认 JSON 格式");
       |                                                                                  ^
-[9/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/interop/interop.c.obj
-[10/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/magic/magic.c.obj
+[9/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop.c.obj
+[10/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic.c.obj
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c: In function 'rune_parse':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:401:54: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
-  401 |         LV00_LOG_WARNING("rune_parse: 输入字符串为空");
+  401 |         lv_LOG_WARNING("rune_parse: 输入字符串为空");
       |                                                      ^
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:461:52: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
-  461 |             LV00_LOG_WARNING("rune_parse: 分子过长");
+  461 |             lv_LOG_WARNING("rune_parse: 分子过长");
       |                                                    ^
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:472:52: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
-  472 |             LV00_LOG_WARNING("rune_parse: 分母过长");
+  472 |             lv_LOG_WARNING("rune_parse: 分母过长");
       |                                                    ^
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:480:56: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
-  480 |             LV00_LOG_WARNING("rune_parse: 分母不能为零");
+  480 |             lv_LOG_WARNING("rune_parse: 分母不能为零");
       |                                                        ^
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:488:52: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
-  488 |             LV00_LOG_WARNING("rune_parse: 数值过长");
+  488 |             lv_LOG_WARNING("rune_parse: 数值过长");
       |                                                    ^
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c: In function 'magic_array_add_constraint':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:887:20: warning: variable 'graph_type' set but not used [-Wunused-but-set-variable=]
@@ -103,23 +103,23 @@ C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/ma
       |                    ^~~~~~~~~~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c: In function 'magic_array_deserialize':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:1386:67: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
- 1386 |         LV00_LOG_WARNING("magic_array_deserialize: 输入 JSON 为空");
+ 1386 |         lv_LOG_WARNING("magic_array_deserialize: 输入 JSON 为空");
       |                                                                   ^
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:1396:76: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
- 1396 |         LV00_LOG_WARNING("magic_array_deserialize: JSON 格式无效，期望 '{'");
+ 1396 |         lv_LOG_WARNING("magic_array_deserialize: JSON 格式无效，期望 '{'");
       |                                                                            ^
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:1403:67: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
- 1403 |         LV00_LOG_WARNING("magic_array_deserialize: 无法创建魔法阵");
+ 1403 |         lv_LOG_WARNING("magic_array_deserialize: 无法创建魔法阵");
       |                                                                   ^
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:1417:71: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
- 1417 |         LV00_LOG_WARNING("magic_array_deserialize: runes 不是数组格式");
+ 1417 |         lv_LOG_WARNING("magic_array_deserialize: runes 不是数组格式");
       |                                                                       ^
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c: At top level:
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/magic/magic.c:1336:20: warning: 'json_skip_value' defined but not used [-Wunused-function]
  1336 | static const char *json_skip_value(const char *p) {
       |                    ^~~~~~~~~~~~~~~
-[11/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/proof_widget.c.obj
-[12/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/geo_visual.c.obj
+[11/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/proof_widget.c.obj
+[12/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/geo_visual.c.obj
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/geo_visual.c: In function 'render_object_svg':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/geo_visual.c:387:46: warning: ISO C99 requires at least one argument for the '...' in a variadic macro [-Wpedantic]
   387 |             SVG_APPEND("  <polygon points=\"");
@@ -286,40 +286,40 @@ C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/geo_visu
       |                   ^~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/geo_visual.c: At top level:
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/geo_visual.c:546:13: warning: 'render_object_threejs' defined but not used [-Wunused-function]
-  546 | static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos, size_t* cap) {
+  546 | static void render_object_threejs(lvVisualObject* obj, char** buf, size_t* pos, size_t* cap) {
       |             ^~~~~~~~~~~~~~~~~~~~~
-[13/236] Building C object CMakeFiles/lv00_layer4_reasoning.dir/core/src/layer4_reasoning/simd_ops.c.obj
-[14/236] Building C object CMakeFiles/lv00_layer5_output.dir/core/src/layer5_output/plugin_system.c.obj
+[13/236] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/simd_ops.c.obj
+[14/236] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system.c.obj
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c: In function 'get_symbol':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c:65:12: warning: ISO C forbids conversion of function pointer to object pointer type [-Wpedantic]
    65 |     return (void*)GetProcAddress((HMODULE)handle, name);
       |            ^
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c: In function 'lv00_plugin_load':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c: In function 'lv_plugin_load':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c:176:13: warning: the comparison will always evaluate as 'true' for the address of 'path' will never be NULL [-Waddress]
   176 |         if (!system->plugins[i]->path) continue;
       |             ^
 In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c:11:
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv00/plugin_system.h:189:10: note: 'path' declared here
-  189 |     char path[LV00_PLUGIN_PATH_MAX];
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/plugin_system.h:189:10: note: 'path' declared here
+  189 |     char path[lv_PLUGIN_PATH_MAX];
       |          ^~~~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c:205:29: warning: ISO C forbids conversion of object pointer to function pointer type [-Wpedantic]
-  205 |     PluginEntryFunc entry = (PluginEntryFunc)get_symbol(handle, "lv00_plugin_load_entry");
+  205 |     PluginEntryFunc entry = (PluginEntryFunc)get_symbol(handle, "lv_plugin_load_entry");
       |                             ^
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c: In function 'lv00_plugin_reload':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c: In function 'lv_plugin_reload':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c:334:9: warning: the comparison will always evaluate as 'true' for the address of 'path' will never be NULL [-Waddress]
   334 |     if (!plugin->path) return -1;
       |         ^
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv00/plugin_system.h:189:10: note: 'path' declared here
-  189 |     char path[LV00_PLUGIN_PATH_MAX];
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/plugin_system.h:189:10: note: 'path' declared here
+  189 |     char path[lv_PLUGIN_PATH_MAX];
       |          ^~~~
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c: In function 'lv00_plugin_config_load':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c: In function 'lv_plugin_config_load':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c:731:58: warning: '%s' directive output may be truncated writing up to 2047 bytes into a region of size between 256 and 511 [-Wformat-truncation=]
   731 |                 snprintf(full_key, sizeof(full_key), "%s.%s", current_section, key);
       |                                                          ^~
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c:731:17: note: 'snprintf' output between 2 and 2304 bytes into a destination of size 512
   731 |                 snprintf(full_key, sizeof(full_key), "%s.%s", current_section, key);
       |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c: In function 'lv00_plugin_system_autoload':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c: In function 'lv_plugin_system_autoload':
 C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system.c:1027:55: warning: 'snprintf' output may be truncated before the last format character [-Wformat-truncation=]
  1027 |         snprintf(full_path, sizeof(full_path), "%s\\%s", directory, find_data.cFileName);
       |                                                       ^

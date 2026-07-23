@@ -1,4 +1,4 @@
-# 34. 元证明与推理缓存
+﻿# 34. 元证明与推理缓存
 
 ## 34.1 模块概述
 
@@ -422,15 +422,15 @@ bool prop_verifier_check_tautology(const PropFormula *f,
 ### 34.5.2 生命周期与操作
 
 ```c
-Lv00ReasoningCache *lv00_reasoning_cache_create(size_t capacity);
-void lv00_reasoning_cache_destroy(Lv00ReasoningCache *cache);
+lvReasoningCache *lv_reasoning_cache_create(size_t capacity);
+void lv_reasoning_cache_destroy(lvReasoningCache *cache);
 ```
 
 ```c
-bool lv00_reasoning_cache_has(Lv00ReasoningCache *cache, uint64_t key);
-void lv00_reasoning_cache_put(Lv00ReasoningCache *cache, uint64_t key, int result);
-int lv00_reasoning_cache_get(Lv00ReasoningCache *cache, uint64_t key);
-void lv00_reasoning_cache_clear(Lv00ReasoningCache *cache);
+bool lv_reasoning_cache_has(lvReasoningCache *cache, uint64_t key);
+void lv_reasoning_cache_put(lvReasoningCache *cache, uint64_t key, int result);
+int lv_reasoning_cache_get(lvReasoningCache *cache, uint64_t key);
+void lv_reasoning_cache_clear(lvReasoningCache *cache);
 ```
 
 默认容量为 4096；实际内部容量取不小于指定容量的最小 2 的幂。
@@ -438,7 +438,7 @@ void lv00_reasoning_cache_clear(Lv00ReasoningCache *cache);
 ### 34.5.3 统计接口
 
 ```c
-void lv00_reasoning_cache_get_stats(const Lv00ReasoningCache *cache,
+void lv_reasoning_cache_get_stats(const lvReasoningCache *cache,
                                      size_t *hits,
                                      size_t *misses,
                                      size_t *size);
@@ -483,7 +483,7 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig);
 | `PropFormula` | 命题逻辑 AST | 原子、合取、析取、蕴涵、否定 |
 | `prop_verifier_verify` | 自然演绎证明搜索 | 验证 premises ⊢ goal |
 | `BHKVerificationResult` | 构造性证物检查 | 映射命题证明到几何构造 |
-| `Lv00ReasoningCache` | 重复子问题缓存 | 哈希键到推理结果 |
+| `lvReasoningCache` | 重复子问题缓存 | 哈希键到推理结果 |
 | `node_deep_copy_geom_node` | 结构复制规范 | 消除重复实现和所有权歧义 |
 
 ---

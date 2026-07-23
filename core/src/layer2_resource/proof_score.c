@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_score.c
  * @brief 证明评分模块 —— Layer2 资源管理层
  *
@@ -18,7 +18,7 @@
  * @version 1.0.0
  */
 
-#include "lv00/proof_score.h"
+#include "lv/proof_score.h"
 
 #include <string.h>
 
@@ -105,7 +105,7 @@ static const char *score_to_grade(double score)
  * @param engine   证明引擎句柄（当前预留接口，传 NULL 有效）
  * @return 综合评分 [0.0, 1.0]，无效输入返回 0.0
  */
-double lv00_proof_score_evaluate(int proof_id, void *engine)
+double lv_proof_score_evaluate(int proof_id, void *engine)
 {
     double base_score;
     double completeness;
@@ -152,11 +152,11 @@ double lv00_proof_score_evaluate(int proof_id, void *engine)
 /**
  * @brief 将评分转换为人类可读的等级标签
  *
- * @param score 综合评分（通常由 lv00_proof_score_evaluate 返回）
+ * @param score 综合评分（通常由 lv_proof_score_evaluate 返回）
  * @return 等级字符串（静态存储，无需释放）
  *         无效分数返回 "F"
  */
-const char *lv00_proof_score_grade(double score)
+const char *lv_proof_score_grade(double score)
 {
     /* 无效分数检查 */
     if (score < 0.0) {

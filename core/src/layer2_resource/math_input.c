@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file math_input.c
  * @brief 数学输入处理模块 —— Layer2 资源管理层
  *
@@ -9,7 +9,7 @@
  * @version 1.0.0
  */
 
-#include "lv00/math_input.h"
+#include "lv/math_input.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -207,7 +207,7 @@ static int trim_copy(const char *str, char *out, size_t buf_size)
  * @return 写入规范化字符串的字符数（不含终止符），
  *         失败返回 -1
  */
-int lv00_math_input_parse(const char *input, char *normalized, size_t buf_size)
+int lv_math_input_parse(const char *input, char *normalized, size_t buf_size)
 {
     const char *p;
     char *out;
@@ -265,7 +265,7 @@ int lv00_math_input_parse(const char *input, char *normalized, size_t buf_size)
  *         MATH_FORMAT_JSON (4)   —— JSON 格式
  *         MATH_FORMAT_UNKNOWN (0) —— 无法识别
  */
-int lv00_math_input_detect_format(const char *input)
+int lv_math_input_detect_format(const char *input)
 {
     const char *p;
 

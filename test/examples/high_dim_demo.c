@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file high_dim_demo.c
  * @brief 高维结构表示与交互模块演示
  *
@@ -12,8 +12,8 @@
 #include <math.h>
 
 #include "high_dim.h"
-#include "lv00.h"
-#include "lv00_utils.h"
+#include "lv.h"
+#include "lv_utils.h"
 
 /**
  * @brief 高维结构表示与交互模块演示
@@ -28,7 +28,7 @@ int main() {
     printf("=== Lv-00 高维结构表示与交互演示 ===\n\n");
 
     /* 初始化系统 */
-    if (!lv00_init()) {
+    if (!lv_init()) {
         fprintf(stderr, "初始化失败\n");
         return 1;
     }
@@ -37,17 +37,17 @@ int main() {
     HighDimManager *manager = high_dim_manager_create();
     if (!manager) {
         fprintf(stderr, "创建高维管理器失败\n");
-        lv00_cleanup();
+        lv_cleanup();
         return 1;
     }
 
     printf("1. 注册6维超立方体块\n");
     int block_id = 1;
     int result = high_dim_register_block(manager, block_id, 6);
-    if (result != LV00_OK) {
+    if (result != lv_OK) {
         fprintf(stderr, "注册高维块失败: %d\n", result);
         high_dim_manager_destroy(manager);
-        lv00_cleanup();
+        lv_cleanup();
         return 1;
     }
     printf("   成功注册6维块，ID=%d\n\n", block_id);
@@ -70,7 +70,7 @@ int main() {
     printf("\n3. 创建自定义投影预设\n");
     HighDimProjectionPreset custom_preset;
     memset(&custom_preset, 0, sizeof(custom_preset));
-    lv00_strlcpy(custom_preset.name, "CustomView", HIGH_DIM_PROJECTION_NAME_MAX);
+    lv_strlcpy(custom_preset.name, "CustomView", HIGH_DIM_PROJECTION_NAME_MAX);
     custom_preset.dimension_count = 6;
     custom_preset.mapping_count = 6;
 
@@ -91,7 +91,7 @@ int main() {
 
     /* 设置旋转变换（45度） */
     int rot_result = high_dim_create_rotation_transform(M_PI / 4, &custom_preset.transform);
-    if (rot_result != LV00_OK) {
+    if (rot_result != lv_OK) {
         fprintf(stderr, "   创建旋转变换失败: %d\n", rot_result);
     }
 
@@ -108,7 +108,7 @@ int main() {
     printf("\n4. 计算投影保真度\n");
     HighDimVisibilityStats stats;
     result = high_dim_calculate_fidelity(manager, block_id, NULL, &stats);
-    if (result == LV00_OK) {
+    if (result == lv_OK) {
         printf("   总维度: %d\n", stats.total_relations);
         printf("   可见维度: %d\n", stats.visible_relations);
         printf("   保真度: %.1f%%\n", stats.fidelity_ratio * 100.0);
@@ -139,7 +139,7 @@ int main() {
             printf("   JSON长度: %d字节\n", json_len);
             printf("   JSON预览（前200字符）:\n");
             char preview[201];
-            lv00_strlcpy(preview, json_buffer, sizeof(preview));
+            lv_strlcpy(preview, json_buffer, sizeof(preview));
             printf("   %s...\n", preview);
         }
     }
@@ -149,7 +149,7 @@ int main() {
     int preset_indices[] = {0, 1}; /* 默认预设和自定义预设 */
     int view_ids[2] = {-1, -1};
     result = high_dim_create_multi_projection_view(manager, block_id, preset_indices, 2, view_ids);
-    if (result == LV00_OK) {
+    if (result == lv_OK) {
         printf("   成功创建2个视图: ID=%d, ID=%d\n", view_ids[0], view_ids[1]);
     } else {
         printf("   创建多投影视图失败: 错误码=%d\n", result);
@@ -166,7 +166,7 @@ int main() {
     /* 清理 */
     printf("\n8. 清理资源\n");
     high_dim_manager_destroy(manager);
-    lv00_cleanup();
+    lv_cleanup();
 
     printf("\n=== 演示完成 ===\n");
     return 0;

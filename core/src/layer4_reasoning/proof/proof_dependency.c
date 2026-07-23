@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_dependency.c
  * @brief 证明依赖图与传递闭包
  *
@@ -13,16 +13,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/proof.h"
-#include "lv00/engine.h"
-#include "lv00/axiom_pkg.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/solver.h"
+#include "lv/proof.h"
+#include "lv/engine.h"
+#include "lv/axiom_pkg.h"
+#include "lv/constraint_graph.h"
+#include "lv/solver.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
-LV00_DECLARE_STREAM_CTX(proof);
+lv_DECLARE_STREAM_CTX(proof);
 
 /**
  * @brief 将 src 中的特殊 JSON 字符转义后写入 dst
@@ -73,7 +73,7 @@ static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
     if (!prop)
         return NULL;
 
-    Proposition *inst = lv00_calloc(1, sizeof(Proposition));
+    Proposition *inst = lv_calloc(1, sizeof(Proposition));
     if (!inst)
         return NULL;
 
@@ -84,18 +84,18 @@ static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
 
     /* 复制标签 */
     if (prop->label) {
-        inst->label = lv00_strdup(prop->label);
+        inst->label = lv_strdup(prop->label);
     }
     if (prop->name) {
-        inst->name = lv00_strdup(prop->name);
+        inst->name = lv_strdup(prop->name);
     }
     if (prop->description) {
-        inst->description = lv00_strdup(prop->description);
+        inst->description = lv_strdup(prop->description);
     }
 
     /* 替换输出端口 ID */
     if (prop->output_port_ids && prop->output_count > 0) {
-        inst->output_port_ids = lv00_malloc((size_t) prop->output_count * sizeof(int));
+        inst->output_port_ids = lv_malloc((size_t) prop->output_count * sizeof(int));
         if (inst->output_port_ids) {
             inst->output_count = prop->output_count;
             inst->output_port_count = prop->output_port_count;
@@ -112,7 +112,7 @@ static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
 
     /* 替换输入端口 ID */
     if (prop->input_port_ids && prop->input_count > 0) {
-        inst->input_port_ids = lv00_malloc((size_t) prop->input_count * sizeof(int));
+        inst->input_port_ids = lv_malloc((size_t) prop->input_count * sizeof(int));
         if (inst->input_port_ids) {
             inst->input_count = prop->input_count;
             for (int j = 0; j < prop->input_count; j++) {
@@ -128,7 +128,7 @@ static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
 
     /* 替换后置条件约束 ID */
     if (prop->postcondition_constraint_ids && prop->postcondition_count > 0) {
-        inst->postcondition_constraint_ids = lv00_malloc(
+        inst->postcondition_constraint_ids = lv_malloc(
             (size_t) prop->postcondition_count * sizeof(int));
         if (inst->postcondition_constraint_ids) {
             inst->postcondition_count = prop->postcondition_count;
@@ -247,8 +247,8 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
                 info->proof_strategy = "代数可解性分析";
                 info->reduction_steps = sys_count;
                 if (info->detailed_report)
-                    lv00_free((void **) &info->detailed_report);
-                info->detailed_report = lv00_strdup(report);
+                    lv_free((void **) &info->detailed_report);
+                info->detailed_report = lv_strdup(report);
             }
 
             equation_system_destroy(temp_sys);
@@ -306,7 +306,7 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
                                  "构造可归约到已知的不可构造问题 '%s'\n"
                                  "（通过 '%s' 归约，来自公理包 '%s'）",
                                  ku->reduces_to, ku->name, pkg->name ? pkg->name : "未知");
-                        info->detailed_report = lv00_strdup(report);
+                        info->detailed_report = lv_strdup(report);
 
                         if (proof_stream_ctx) {
                             stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE,
@@ -353,7 +353,7 @@ void unconstruct_info_destroy(UnconstructInfo *info) {
     if (!info)
         return;
     if (info->detailed_report) {
-        lv00_free((void **) &info->detailed_report);
+        lv_free((void **) &info->detailed_report);
     }
     memset(info, 0, sizeof(UnconstructInfo));
 }
@@ -371,10 +371,10 @@ static void backtrack_node_destroy_recursive(BacktrackNode *node) {
     for (int i = 0; i < node->child_count; i++) {
         backtrack_node_destroy_recursive(node->children[i]);
     }
-    lv00_free((void **) &node->children);
-    lv00_free((void **) &node->label);
-    lv00_free((void **) &node->strategy_name);
-    lv00_free((void **) &node);
+    lv_free((void **) &node->children);
+    lv_free((void **) &node->label);
+    lv_free((void **) &node->strategy_name);
+    lv_free((void **) &node);
 }
 
 /**
@@ -385,7 +385,7 @@ static void backtrack_node_destroy_recursive(BacktrackNode *node) {
  * @return 新分配的搜索树指针，失败返回NULL
  */
 ProofSearchTree *proof_search_tree_create(void) {
-    ProofSearchTree *tree = lv00_calloc(1, sizeof(ProofSearchTree));
+    ProofSearchTree *tree = lv_calloc(1, sizeof(ProofSearchTree));
     if (!tree)
         return NULL;
 
@@ -423,19 +423,19 @@ void proof_search_tree_destroy(ProofSearchTree *tree) {
     }
 
     /* 释放 all_nodes 数组（节点指针已由递归销毁处理） */
-    lv00_free((void **) &tree->all_nodes);
+    lv_free((void **) &tree->all_nodes);
 
     /* 释放策略列表 */
     for (int i = 0; i < tree->strategy_count; i++) {
-        lv00_free((void **) &tree->available_strategies[i]);
+        lv_free((void **) &tree->available_strategies[i]);
     }
-    lv00_free((void **) &tree->available_strategies);
+    lv_free((void **) &tree->available_strategies);
 
     /* 释放当前策略字符串 */
-    lv00_free((void **) &tree->current_strategy);
+    lv_free((void **) &tree->current_strategy);
 
     /* 释放树结构本身 */
-    lv00_free((void **) &tree);
+    lv_free((void **) &tree);
 }
 
 /**
@@ -449,7 +449,7 @@ void proof_search_tree_destroy(ProofSearchTree *tree) {
  * @return 新分配的节点指针，失败返回NULL
  */
 BacktrackNode *backtrack_node_create(BacktrackNodeType type, const char *label) {
-    BacktrackNode *node = lv00_calloc(1, sizeof(BacktrackNode));
+    BacktrackNode *node = lv_calloc(1, sizeof(BacktrackNode));
     if (!node)
         return NULL;
 
@@ -467,12 +467,12 @@ BacktrackNode *backtrack_node_create(BacktrackNodeType type, const char *label) 
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     if (label && label[0] != '\0') {
-        node->label = lv00_malloc(strlen(label) + 1);
+        node->label = lv_malloc(strlen(label) + 1);
         if (!node->label) {
-            lv00_free((void **) &node);
+            lv_free((void **) &node);
             return NULL;
         }
-        lv00_strlcpy(node->label, label, strlen(label) + 1);
+        lv_strlcpy(node->label, label, strlen(label) + 1);
     } else {
         node->label = NULL;
     }
@@ -513,7 +513,7 @@ bool proof_search_tree_add_child(ProofSearchTree *tree, BacktrackNode *parent, B
         BacktrackNode *p = parent;
         if (p->child_count >= p->child_capacity) {
             int new_cap = p->child_capacity == 0 ? 4 : p->child_capacity * 2;
-            BacktrackNode **new_children = lv00_realloc(p->children, new_cap * sizeof(BacktrackNode *));
+            BacktrackNode **new_children = lv_realloc(p->children, new_cap * sizeof(BacktrackNode *));
             if (!new_children)
                 return false;
             p->children = new_children;
@@ -555,7 +555,7 @@ bool proof_search_tree_add_child(ProofSearchTree *tree, BacktrackNode *parent, B
     /* 将节点加入 all_nodes 数组 */
     if (tree->node_count >= tree->node_capacity) {
         int new_cap = tree->node_capacity == 0 ? 16 : tree->node_capacity * 2;
-        BacktrackNode **new_nodes = lv00_realloc(tree->all_nodes, new_cap * sizeof(BacktrackNode *));
+        BacktrackNode **new_nodes = lv_realloc(tree->all_nodes, new_cap * sizeof(BacktrackNode *));
         if (!new_nodes)
             return false;
         tree->all_nodes = new_nodes;
@@ -583,13 +583,13 @@ void backtrack_node_mark_backtrack(BacktrackNode *node, const char *strategy_nam
     node->is_backtrack_point = true;
 
     /* 释放旧策略名称 */
-    lv00_free((void **) &node->strategy_name);
+    lv_free((void **) &node->strategy_name);
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     if (strategy_name && strategy_name[0] != '\0') {
-        node->strategy_name = lv00_malloc(strlen(strategy_name) + 1);
+        node->strategy_name = lv_malloc(strlen(strategy_name) + 1);
         if (node->strategy_name) {
-            lv00_strlcpy(node->strategy_name, strategy_name, strlen(strategy_name) + 1);
+            lv_strlcpy(node->strategy_name, strategy_name, strlen(strategy_name) + 1);
         }
     } else {
         node->strategy_name = NULL;
@@ -620,16 +620,16 @@ void proof_search_tree_register_strategy(ProofSearchTree *tree, const char *stra
     }
 
     /* 扩展策略数组 */
-    char **new_strats = lv00_realloc(tree->available_strategies, (tree->strategy_count + 1) * sizeof(char *));
+    char **new_strats = lv_realloc(tree->available_strategies, (tree->strategy_count + 1) * sizeof(char *));
     if (!new_strats)
         return;
     tree->available_strategies = new_strats;
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
-    tree->available_strategies[tree->strategy_count] = lv00_malloc(strlen(strategy_name) + 1);
+    tree->available_strategies[tree->strategy_count] = lv_malloc(strlen(strategy_name) + 1);
     if (!tree->available_strategies[tree->strategy_count])
         return;
-    lv00_strlcpy(tree->available_strategies[tree->strategy_count], strategy_name, strlen(strategy_name) + 1);
+    lv_strlcpy(tree->available_strategies[tree->strategy_count], strategy_name, strlen(strategy_name) + 1);
     tree->strategy_count++;
 }
 
@@ -646,13 +646,13 @@ void proof_search_tree_set_strategy(ProofSearchTree *tree, const char *strategy_
         return;
 
     /* 释放旧值 */
-    lv00_free((void **) &tree->current_strategy);
+    lv_free((void **) &tree->current_strategy);
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     if (strategy_name && strategy_name[0] != '\0') {
-        tree->current_strategy = lv00_malloc(strlen(strategy_name) + 1);
+        tree->current_strategy = lv_malloc(strlen(strategy_name) + 1);
         if (tree->current_strategy) {
-            lv00_strlcpy(tree->current_strategy, strategy_name, strlen(strategy_name) + 1);
+            lv_strlcpy(tree->current_strategy, strategy_name, strlen(strategy_name) + 1);
         }
     } else {
         tree->current_strategy = NULL;
@@ -1130,5 +1130,5 @@ char *proof_step_get_natural_language(const ProofStep *step, ProofNaturalLanguag
         }
     }
 
-    return lv00_strdup(result);
+    return lv_strdup(result);
 }

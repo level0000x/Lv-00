@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_proof_version.c
  * @brief Tests for the proof version control system.
  *
@@ -31,7 +31,7 @@
 #define TEST_MKDIR(path) mkdir(path, 0755)
 #endif
 
-#include "lv00.h"
+#include "lv.h"
 #include "proof_version.h"
 #include "test_helpers.h"
 
@@ -52,7 +52,7 @@ static void ensure_dir_exists(const char *path) {
 
 static void test_repo_init(void) {
     ensure_dir_exists("test_repo_init");
-    Lv00ProofRepo *repo = proof_repo_init("test_repo_init");
+    lvProofRepo *repo = proof_repo_init("test_repo_init");
     TEST_ASSERT_NOT_NULL(repo);
 
     /* HEAD should be set (non-empty after initial commit) */
@@ -76,11 +76,11 @@ static void test_repo_init(void) {
 static void test_repo_open(void) {
     /* First create a repo */
     ensure_dir_exists("test_repo_open");
-    Lv00ProofRepo *repo = proof_repo_init("test_repo_open");
+    lvProofRepo *repo = proof_repo_init("test_repo_open");
     TEST_ASSERT_NOT_NULL(repo);
-    char original_head[LV00_OID_LENGTH];
+    char original_head[lv_OID_LENGTH];
     memset(original_head, 0, sizeof(original_head));
-    strncpy(original_head, repo->head_commit, LV00_OID_LENGTH - 1);
+    strncpy(original_head, repo->head_commit, lv_OID_LENGTH - 1);
     proof_repo_destroy(repo);
 
     /* Now open it */
@@ -103,14 +103,14 @@ static void test_repo_open(void) {
 
 static void test_repo_commit(void) {
     ensure_dir_exists("test_repo_commit");
-    Lv00ProofRepo *repo = proof_repo_init("test_repo_commit");
+    lvProofRepo *repo = proof_repo_init("test_repo_commit");
     TEST_ASSERT_NOT_NULL(repo);
 
-    char old_head[LV00_OID_LENGTH];
+    char old_head[lv_OID_LENGTH];
     memset(old_head, 0, sizeof(old_head));
-    strncpy(old_head, repo->head_commit, LV00_OID_LENGTH - 1);
+    strncpy(old_head, repo->head_commit, lv_OID_LENGTH - 1);
 
-    const char *files[] = {"theorem1.lv00"};
+    const char *files[] = {"theorem1.lv"};
     const char *contents[] = {"forall x: P(x) -> Q(x)"};
 
     bool ok = proof_repo_commit(repo, "Add theorem 1", files, contents, 1);
@@ -135,18 +135,18 @@ static void test_repo_commit(void) {
 
 static void test_repo_log(void) {
     ensure_dir_exists("test_repo_log");
-    Lv00ProofRepo *repo = proof_repo_init("test_repo_log");
+    lvProofRepo *repo = proof_repo_init("test_repo_log");
     TEST_ASSERT_NOT_NULL(repo);
 
     /* Create two more commits (initial + 2 = 3 total) */
-    const char *files[] = {"proof1.lv00"};
+    const char *files[] = {"proof1.lv"};
     const char *contents[] = {"proof of theorem 1"};
 
     proof_repo_commit(repo, "Add proof 1", files, contents, 1);
     proof_repo_commit(repo, "Add proof 2", files, contents, 1);
 
-    Lv00ProofCommit commits[LV00_LOG_MAX_ENTRIES];
-    size_t count = proof_repo_log(repo, commits, LV00_LOG_MAX_ENTRIES);
+    lvProofCommit commits[lv_LOG_MAX_ENTRIES];
+    size_t count = proof_repo_log(repo, commits, lv_LOG_MAX_ENTRIES);
 
     TEST_ASSERT_EQ(count, 3); /* initial + 2 commits */
 
@@ -175,21 +175,21 @@ static void test_repo_log(void) {
 
 static void test_repo_diff(void) {
     ensure_dir_exists("test_repo_diff");
-    Lv00ProofRepo *repo = proof_repo_init("test_repo_diff");
+    lvProofRepo *repo = proof_repo_init("test_repo_diff");
     TEST_ASSERT_NOT_NULL(repo);
 
     /* Get initial commit OID */
-    char initial_oid[LV00_OID_LENGTH];
+    char initial_oid[lv_OID_LENGTH];
     memset(initial_oid, 0, sizeof(initial_oid));
-    strncpy(initial_oid, repo->head_commit, LV00_OID_LENGTH - 1);
+    strncpy(initial_oid, repo->head_commit, lv_OID_LENGTH - 1);
 
-    const char *files[] = {"lemma.lv00"};
+    const char *files[] = {"lemma.lv"};
     const char *contents[] = {"lemma: A -> B"};
 
     proof_repo_commit(repo, "Add lemma", files, contents, 1);
 
     /* Diff from initial to HEAD */
-    Lv00ProofDiff diff;
+    lvProofDiff diff;
     bool ok = proof_repo_diff(repo, initial_oid, NULL, &diff);
     TEST_ASSERT(ok, "diff should succeed");
     TEST_ASSERT_EQ(diff.count, 1);
@@ -220,7 +220,7 @@ static void test_repo_diff(void) {
 
 static void test_repo_branch(void) {
     ensure_dir_exists("test_repo_branch");
-    Lv00ProofRepo *repo = proof_repo_init("test_repo_branch");
+    lvProofRepo *repo = proof_repo_init("test_repo_branch");
     TEST_ASSERT_NOT_NULL(repo);
 
     bool ok = proof_repo_branch(repo, "feature");
@@ -250,19 +250,19 @@ static void test_repo_branch(void) {
 
 static void test_repo_checkout(void) {
     ensure_dir_exists("test_repo_checkout");
-    Lv00ProofRepo *repo = proof_repo_init("test_repo_checkout");
+    lvProofRepo *repo = proof_repo_init("test_repo_checkout");
     TEST_ASSERT_NOT_NULL(repo);
 
     /* Create a branch before making new commits */
     proof_repo_branch(repo, "dev");
 
     /* Save the current HEAD (which dev branch points to) */
-    char dev_head[LV00_OID_LENGTH];
+    char dev_head[lv_OID_LENGTH];
     memset(dev_head, 0, sizeof(dev_head));
-    strncpy(dev_head, repo->head_commit, LV00_OID_LENGTH - 1);
+    strncpy(dev_head, repo->head_commit, lv_OID_LENGTH - 1);
 
     /* Make a new commit on main */
-    const char *files[] = {"new.lv00"};
+    const char *files[] = {"new.lv"};
     const char *contents[] = {"new content"};
     proof_repo_commit(repo, "New commit on main", files, contents, 1);
 
@@ -294,7 +294,7 @@ static void test_repo_checkout(void) {
 
 static void test_null_safety(void) {
     /* NULL init */
-    Lv00ProofRepo *repo = proof_repo_init(NULL);
+    lvProofRepo *repo = proof_repo_init(NULL);
     TEST_ASSERT_NULL(repo);
 
     /* NULL open */
@@ -313,7 +313,7 @@ static void test_null_safety(void) {
     TEST_ASSERT_EQ(count, 0);
 
     /* NULL diff */
-    Lv00ProofDiff diff;
+    lvProofDiff diff;
     ok = proof_repo_diff(NULL, NULL, NULL, &diff);
     TEST_ASSERT(!ok, "diff with NULL repo should fail");
 
@@ -335,18 +335,18 @@ static void test_null_safety(void) {
 
 static void test_multiple_commits(void) {
     ensure_dir_exists("test_multi_commit");
-    Lv00ProofRepo *repo = proof_repo_init("test_multi_commit");
+    lvProofRepo *repo = proof_repo_init("test_multi_commit");
     TEST_ASSERT_NOT_NULL(repo);
 
-    const char *files1[] = {"axiom1.lv00", "axiom2.lv00"};
+    const char *files1[] = {"axiom1.lv", "axiom2.lv"};
     const char *contents1[] = {"A1: forall x. P(x)", "A2: exists y. Q(y)"};
     proof_repo_commit(repo, "Add axioms", files1, contents1, 2);
 
-    const char *files2[] = {"theorem1.lv00"};
+    const char *files2[] = {"theorem1.lv"};
     const char *contents2[] = {"T1: P(a) -> Q(a)"};
     proof_repo_commit(repo, "Add theorem", files2, contents2, 1);
 
-    Lv00ProofCommit commits[10];
+    lvProofCommit commits[10];
     size_t count = proof_repo_log(repo, commits, 10);
     TEST_ASSERT_EQ(count, 3); /* initial + 2 */
     TEST_ASSERT_STR_EQ(commits[0].message, "Add theorem");

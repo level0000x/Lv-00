@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file debug_trace.c
  * @brief 调试追踪实现
  *
@@ -9,8 +9,8 @@
  * @version 1.0.0
  */
 
-#include "lv00/debug.h"
-#include "lv00/lv00_utils.h"
+#include "lv/debug.h"
+#include "lv/lv_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,7 +82,7 @@ void trace_record_event(TraceSession *session, TraceEventType type,
     /* 容量检查，必要时扩容 */
     if (session->event_count >= session->capacity) {
         int new_cap = session->capacity * 2;
-        TraceEvent *new_events = (TraceEvent *)lv00_realloc(
+        TraceEvent *new_events = (TraceEvent *)lv_realloc(
             session->events, (size_t)new_cap * sizeof(TraceEvent));
         if (new_events == NULL) return;
         session->events = new_events;

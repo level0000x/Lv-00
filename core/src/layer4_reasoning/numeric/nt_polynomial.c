@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file nt_polynomial.c
  * @brief Polynomial arithmetic with arbitrary-precision integer coefficients
  *
@@ -31,7 +31,7 @@
  * @param deg  Required minimum degree
  * @return 0 on success, -1 on allocation failure
  */
-static int nt_poly_ensure_capacity(Lv00Poly *p, int deg) {
+static int nt_poly_ensure_capacity(lvPoly *p, int deg) {
     if (deg < 0) return 0;
     if (deg < p->capacity) return 0;
 
@@ -42,7 +42,7 @@ static int nt_poly_ensure_capacity(Lv00Poly *p, int deg) {
         new_cap *= 2;
     }
 
-    mpz_t *new_coeffs = (mpz_t *)lv00_realloc(p->coeffs, (size_t)new_cap * sizeof(mpz_t));
+    mpz_t *new_coeffs = (mpz_t *)lv_realloc(p->coeffs, (size_t)new_cap * sizeof(mpz_t));
     if (!new_coeffs) return -1;
 
     p->coeffs = new_coeffs;
@@ -62,7 +62,7 @@ static int nt_poly_ensure_capacity(Lv00Poly *p, int deg) {
  * Updates degree to reflect the highest non-zero coefficient.
  * A polynomial with all zero coefficients has degree -1.
  */
-static void nt_poly_normalize(Lv00Poly *p) {
+static void nt_poly_normalize(lvPoly *p) {
     if (!p || !p->coeffs) return;
     while (p->degree >= 0 && mpz_cmp_ui(p->coeffs[p->degree], 0) == 0) {
         p->degree--;
@@ -73,8 +73,8 @@ static void nt_poly_normalize(Lv00Poly *p) {
  * Lifecycle
  * ============================================================ */
 
-LV00_PUBLIC_API Lv00Poly *nt_poly_create(void) {
-    Lv00Poly *p = (Lv00Poly *)calloc(1, sizeof(Lv00Poly));
+lv_PUBLIC_API lvPoly *nt_poly_create(void) {
+    lvPoly *p = (lvPoly *)calloc(1, sizeof(lvPoly));
     if (!p) return NULL;
     p->coeffs = NULL;
     p->degree = -1;
@@ -82,7 +82,7 @@ LV00_PUBLIC_API Lv00Poly *nt_poly_create(void) {
     return p;
 }
 
-LV00_PUBLIC_API void nt_poly_destroy(Lv00Poly *p) {
+lv_PUBLIC_API void nt_poly_destroy(lvPoly *p) {
     if (!p) return;
     if (p->coeffs) {
         for (int i = 0; i < p->capacity; i++) {
@@ -97,7 +97,7 @@ LV00_PUBLIC_API void nt_poly_destroy(Lv00Poly *p) {
  * Coefficient access
  * ============================================================ */
 
-LV00_PUBLIC_API int nt_poly_set_coeff(Lv00Poly *p, int deg, const mpz_t val) {
+lv_PUBLIC_API int nt_poly_set_coeff(lvPoly *p, int deg, const mpz_t val) {
     if (!p || deg < 0) return -1;
 
     if (nt_poly_ensure_capacity(p, deg) != 0) return -1;
@@ -114,7 +114,7 @@ LV00_PUBLIC_API int nt_poly_set_coeff(Lv00Poly *p, int deg, const mpz_t val) {
     return 0;
 }
 
-LV00_PUBLIC_API int nt_poly_get_coeff(const Lv00Poly *p, int deg, mpz_t out) {
+lv_PUBLIC_API int nt_poly_get_coeff(const lvPoly *p, int deg, mpz_t out) {
     if (!p || deg < 0 || deg > p->degree) {
         mpz_set_ui(out, 0);
         return -1;
@@ -127,8 +127,8 @@ LV00_PUBLIC_API int nt_poly_get_coeff(const Lv00Poly *p, int deg, mpz_t out) {
  * Arithmetic
  * ============================================================ */
 
-LV00_PUBLIC_API int nt_poly_add(Lv00Poly *result, const Lv00Poly *a,
-                                const Lv00Poly *b) {
+lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a,
+                                const lvPoly *b) {
     if (!result || !a || !b) return -1;
 
     int max_deg = (a->degree > b->degree) ? a->degree : b->degree;
@@ -159,8 +159,8 @@ LV00_PUBLIC_API int nt_poly_add(Lv00Poly *result, const Lv00Poly *a,
     return 0;
 }
 
-LV00_PUBLIC_API int nt_poly_mul(Lv00Poly *result, const Lv00Poly *a,
-                                const Lv00Poly *b) {
+lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a,
+                                const lvPoly *b) {
     if (!result || !a || !b) return -1;
 
     /* Zero polynomial cases */
@@ -197,8 +197,8 @@ LV00_PUBLIC_API int nt_poly_mul(Lv00Poly *result, const Lv00Poly *a,
     return 0;
 }
 
-LV00_PUBLIC_API int nt_poly_mod(Lv00Poly *result, const Lv00Poly *f,
-                                const Lv00Poly *m) {
+lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f,
+                                const lvPoly *m) {
     if (!result || !f || !m) return -1;
     if (m->degree < 0) return -1; /* cannot mod by zero polynomial */
 
@@ -278,8 +278,8 @@ LV00_PUBLIC_API int nt_poly_mod(Lv00Poly *result, const Lv00Poly *f,
     return 0;
 }
 
-LV00_PUBLIC_API int nt_poly_gcd(Lv00Poly *result, const Lv00Poly *a,
-                                const Lv00Poly *b) {
+lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a,
+                                const lvPoly *b) {
     if (!result || !a || !b) return -1;
 
     /* Handle zero polynomial cases */
@@ -309,12 +309,12 @@ LV00_PUBLIC_API int nt_poly_gcd(Lv00Poly *result, const Lv00Poly *a,
     }
 
     /* Euclidean algorithm using polynomial remainder sequence */
-    /* We use temporary Lv00Poly objects to avoid manual mpz array management */
+    /* We use temporary lvPoly objects to avoid manual mpz array management */
 
     /* Make u = a, v = b */
-    Lv00Poly *u = nt_poly_create();
-    Lv00Poly *v = nt_poly_create();
-    Lv00Poly *temp = nt_poly_create();
+    lvPoly *u = nt_poly_create();
+    lvPoly *v = nt_poly_create();
+    lvPoly *temp = nt_poly_create();
     if (!u || !v || !temp) {
         nt_poly_destroy(u);
         nt_poly_destroy(v);
@@ -335,7 +335,7 @@ LV00_PUBLIC_API int nt_poly_gcd(Lv00Poly *result, const Lv00Poly *a,
     while (v->degree >= 0) {
         nt_poly_mod(temp, u, v);
         /* Swap u and v */
-        Lv00Poly *swap_tmp = u;
+        lvPoly *swap_tmp = u;
         u = v;
         v = temp;
         temp = swap_tmp;
@@ -366,7 +366,7 @@ fail:
  * Evaluation and properties
  * ============================================================ */
 
-LV00_PUBLIC_API int nt_poly_eval(const Lv00Poly *p, const mpz_t x, mpz_t out) {
+lv_PUBLIC_API int nt_poly_eval(const lvPoly *p, const mpz_t x, mpz_t out) {
     if (!p) {
         mpz_set_ui(out, 0);
         return -1;
@@ -387,7 +387,7 @@ LV00_PUBLIC_API int nt_poly_eval(const Lv00Poly *p, const mpz_t x, mpz_t out) {
     return 0;
 }
 
-LV00_PUBLIC_API int nt_poly_degree(const Lv00Poly *p) {
+lv_PUBLIC_API int nt_poly_degree(const lvPoly *p) {
     if (!p) return -1;
     return p->degree;
 }

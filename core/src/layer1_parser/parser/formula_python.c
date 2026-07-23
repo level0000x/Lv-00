@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_python.c
  * @brief Python 语法解析器
  *
@@ -13,10 +13,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/formula_parser.h"
+#include "lv/formula_parser.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 FormulaNode *parse_python_expression(ParserContext *ctx);
 static FormulaNode *parse_python_term(ParserContext *ctx);
@@ -87,15 +87,15 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
         /* 检查布尔值 */
         if (strcmp(ident, "True") == 0 || strcmp(ident, "False") == 0) {
             int val = (strcmp(ident, "True") == 0) ? 1 : 0;
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return formula_create_number(val, 1);
         }
         if (strcmp(ident, "None") == 0) {
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return formula_create_variable("None");
         }
         if (strcmp(ident, "pi") == 0) {
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             return formula_create_variable("pi");
         }
 
@@ -105,12 +105,12 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
             skip_whitespace(ctx);
 
             /* 解析参数 */
-            FormulaNode *args[LV00_MAX_ARGUMENTS] = {NULL};
+            FormulaNode *args[lv_MAX_ARGUMENTS] = {NULL};
             int arg_count = 0;
             while (!is_at_end(ctx) && peek(ctx) != ')') {
-                if (arg_count >= LV00_MAX_ARGUMENTS) {
+                if (arg_count >= lv_MAX_ARGUMENTS) {
                     set_error(ctx, "Too many arguments");
-                    lv00_free((void **) &ident);
+                    lv_free((void **) &ident);
                     for (int i = 0; i < arg_count; i++)
                         formula_node_destroy(args[i]);
                     return NULL;
@@ -118,7 +118,7 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
 
                 args[arg_count] = parse_python_expression(ctx);
                 if (!args[arg_count]) {
-                    lv00_free((void **) &ident);
+                    lv_free((void **) &ident);
                     for (int i = 0; i < arg_count; i++)
                         formula_node_destroy(args[i]);
                     return NULL;
@@ -134,7 +134,7 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
             }
 
             if (!expect_char(ctx, ')')) {
-                lv00_free((void **) &ident);
+                lv_free((void **) &ident);
                 for (int i = 0; i < arg_count; i++)
                     formula_node_destroy(args[i]);
                 return NULL;
@@ -158,14 +158,14 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
                 node = formula_create_variable(ident);
             }
 
-            lv00_free((void **) &ident);
+            lv_free((void **) &ident);
             for (int i = 0; i < arg_count; i++)
                 formula_node_destroy(args[i]);
             return node;
         }
 
         FormulaNode *node = formula_create_variable(ident);
-        lv00_free((void **) &ident);
+        lv_free((void **) &ident);
         return node;
     }
 

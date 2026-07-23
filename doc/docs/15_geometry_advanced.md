@@ -1,4 +1,4 @@
-# 高级几何分析模块 (Advanced Geometry Analysis Modules)
+﻿# 高级几何分析模块 (Advanced Geometry Analysis Modules)
 
 ## 模块概述
 
@@ -108,7 +108,7 @@ typedef enum {
     TRANSFORM_SCALING,      /**< 缩放 */
     TRANSFORM_GLUING,       /**< 粘合（复合变换） */
     TRANSFORM_INVERSION     /**< 反演 */
-} Lv00TransformType;
+} lvTransformType;
 ```
 
 ### 变换矩阵
@@ -119,7 +119,7 @@ typedef enum {
 typedef struct {
     mpq_t a, b, tx;     /**< 第一行 */
     mpq_t c, d, ty;     /**< 第二行 */
-} Lv00TransformMatrix;
+} lvTransformMatrix;
 ```
 
 ### 变换参数
@@ -136,26 +136,26 @@ typedef struct {
 
 | 性质 | 函数 | 说明 |
 |------|------|------|
-| 等距性 | `lv00_transform_is_isometry()` | 是否保持距离不变 |
-| 保向性 | `lv00_transform_is_orientation_preserving()` | 是否保持方向 |
-| 不动点 | `lv00_transform_find_fixed_point()` | 求解 T(x) = x |
-| 阶数 | `lv00_transform_order()` | 使 T^n = I 的最小正整数 n |
-| 逆变换 | `lv00_transform_inverse()` | 计算逆变换 |
-| 复合 | `lv00_transform_compose()` | 计算 t2 ∘ t1 |
+| 等距性 | `lv_transform_is_isometry()` | 是否保持距离不变 |
+| 保向性 | `lv_transform_is_orientation_preserving()` | 是否保持方向 |
+| 不动点 | `lv_transform_find_fixed_point()` | 求解 T(x) = x |
+| 阶数 | `lv_transform_order()` | 使 T^n = I 的最小正整数 n |
+| 逆变换 | `lv_transform_inverse()` | 计算逆变换 |
+| 复合 | `lv_transform_compose()` | 计算 t2 ∘ t1 |
 
 ### 变换群
 
 ```c
-typedef struct Lv00TransformGroup {
-    Lv00Transform **generators;  /**< 生成元数组 */
+typedef struct lvTransformGroup {
+    lvTransform **generators;  /**< 生成元数组 */
     uint32_t generator_count;
     char *group_name;            /**< 群名称（如 "D4", "C3"） */
     uint32_t order;              /**< 群阶（有限群）或 0（无限群） */
     bool is_abelian;             /**< 是否为阿贝尔群 */
-} Lv00TransformGroup;
+} lvTransformGroup;
 ```
 
-支持常见变换群的预设创建（`lv00_transform_group_create_preset()`），以及群元素枚举和成员判定。
+支持常见变换群的预设创建（`lv_transform_group_create_preset()`），以及群元素枚举和成员判定。
 
 ### 约束保持性验证
 
@@ -165,12 +165,12 @@ typedef enum {
     CONSTRAINT_TRANSFORMED,     /**< 约束被变换为另一约束 */
     CONSTRAINT_BROKEN,          /**< 约束被破坏 */
     CONSTRAINT_CHECK_FAILED     /**< 检查失败 */
-} Lv00ConstraintPreservation;
+} lvConstraintPreservation;
 ```
 
 ### 对称性识别
 
-`lv00_transform_identify_symmetries()` 分析约束图所描述的几何图形，识别其所有对称变换。
+`lv_transform_identify_symmetries()` 分析约束图所描述的几何图形，识别其所有对称变换。
 
 ## 3. geometry_compress.h —— Draco 风格几何数据压缩
 
@@ -333,13 +333,13 @@ typedef enum {
 3. 统计通过率，给出概率真值判定
 
 ```c
-typedef struct Lv00RandomizedCheck {
+typedef struct lvRandomizedCheck {
     int sample_count;
     double tolerance;
     int passed_samples, failed_samples;
     bool is_probabilistically_true;
     double confidence_level;
-} Lv00RandomizedCheck;
+} lvRandomizedCheck;
 ```
 
 验证结果分类：
@@ -358,14 +358,14 @@ typedef enum {
 借鉴 Cinderella 的 Continuity 机制，使用投影几何（齐次坐标）作为底层数学模型，确保拖拽操作不发生"跳跃"。
 
 ```c
-typedef struct Lv00ContinuityTracker {
+typedef struct lvContinuityTracker {
     double *last_config;
     bool parallel_lines_detected;  /**< 平行线异常相交 */
     bool degenerate_triangle;      /**< 三角形退化 */
     bool zero_denominator;         /**< 分母为零 */
     bool near_singular;            /**< 接近奇异预警 */
     ConfigClassification current_config;
-} Lv00ContinuityTracker;
+} lvContinuityTracker;
 ```
 
 ### 约束实时维护
@@ -383,7 +383,7 @@ typedef struct Lv00ContinuityTracker {
 
 ```c
 typedef enum {
-    SCRIPT_LANG_LV00_DSL = 0, /**< Lv-00 原生 DSL */
+    SCRIPT_LANG_lv_DSL = 0, /**< Lv-00 原生 DSL */
     SCRIPT_LANG_PYTHON = 1,   /**< Python */
     SCRIPT_LANG_LUA = 2       /**< Lua */
 } ScriptLanguage;
@@ -403,11 +403,11 @@ typedef enum {
 
 ```c
 typedef enum {
-    LV00_EVOL_EULER = 0, /**< 显式 Euler 法（一阶） */
-    LV00_EVOL_RK4 = 1,   /**< 经典四阶 Runge-Kutta 法 */
-    LV00_EVOL_ADAMS = 2, /**< Adams-Bashforth-Moulton 预测-校正法 */
-    LV00_EVOL_BDF = 3    /**< 后向差分公式 BDF（刚性） */
-} Lv00EvolMethod;
+    lv_EVOL_EULER = 0, /**< 显式 Euler 法（一阶） */
+    lv_EVOL_RK4 = 1,   /**< 经典四阶 Runge-Kutta 法 */
+    lv_EVOL_ADAMS = 2, /**< Adams-Bashforth-Moulton 预测-校正法 */
+    lv_EVOL_BDF = 3    /**< 后向差分公式 BDF（刚性） */
+} lvEvolMethod;
 ```
 
 ### PI 步长控制器
@@ -419,23 +419,23 @@ h_new = h * safety * (1/error)^(k_I + k_P)
 ```
 
 ```c
-typedef struct Lv00GeomEvolPI {
+typedef struct lvGeomEvolPI {
     double safety_factor;  /**< 安全因子（典型值 0.9） */
     double growth_factor;  /**< 最大增长因子（典型值 2.5） */
     double bias_factor;    /**< P 分量权重（典型值 0.6） */
     double min_scale;      /**< 最小缩放因子（典型值 0.2） */
     double max_scale;      /**< 最大缩放因子（典型值 5.0） */
     double error_prev;     /**< 上一步误差估计 */
-} Lv00GeomEvolPI;
+} lvGeomEvolPI;
 ```
 
 ### 演化引擎主结构
 
 ```c
-struct Lv00GeomEvol {
+struct lvGeomEvol {
     int dim;
-    Lv00EvolMethod method;
-    Lv00EvolStatus status;
+    lvEvolMethod method;
+    lvEvolStatus status;
 
     double t;                                        /**< 当前时间 */
     double param[GEOEVOL_MAX_PARAM_DIM];             /**< 当前参数向量 */
@@ -444,11 +444,11 @@ struct Lv00GeomEvol {
     double step_size, step_size_min, step_size_max;
     double rel_tol, abs_tol;
 
-    Lv00GeomEvolPI pi;
-    Lv00GeomEvolRHSFunc rhs_func;
-    Lv00GeomEvolPostStepFunc post_step;
-    Lv00GeomEvolRootFunc root_func;
-    Lv00GeomEvolStats stats;
+    lvGeomEvolPI pi;
+    lvGeomEvolRHSFunc rhs_func;
+    lvGeomEvolPostStepFunc post_step;
+    lvGeomEvolRootFunc root_func;
+    lvGeomEvolStats stats;
 };
 ```
 
@@ -463,7 +463,7 @@ error_weight[i] = rel_tol * |param[i]| + abs_tol
 ### 统计信息
 
 ```c
-typedef struct Lv00GeomEvolStats {
+typedef struct lvGeomEvolStats {
     int64_t num_steps;             /**< 累计步数 */
     int64_t num_rhs_evals;         /**< RHS 函数求值次数 */
     int64_t num_error_fails;       /**< 误差测试失败次数 */
@@ -471,7 +471,7 @@ typedef struct Lv00GeomEvolStats {
     int64_t num_root_events;       /**< 事件触发次数 */
     double last_step_size;
     double last_error_est;
-} Lv00GeomEvolStats;
+} lvGeomEvolStats;
 ```
 
 ## 7. geo_event_detect.h —— 几何事件检测器
@@ -484,23 +484,23 @@ typedef struct Lv00GeomEvolStats {
 
 ```c
 typedef enum {
-    LV00_EVENT_INTERSECTION = 0, /**< 交点事件 */
-    LV00_EVENT_CONTACT = 1,      /**< 接触事件 */
-    LV00_EVENT_CROSSING = 2,     /**< 穿越事件 */
-    LV00_EVENT_THRESHOLD = 3,    /**< 阈值事件 */
-    LV00_EVENT_PERIODIC = 4,     /**< 周期性事件 */
-    LV00_EVENT_CUSTOM = 99       /**< 自定义事件 */
-} Lv00EventType;
+    lv_EVENT_INTERSECTION = 0, /**< 交点事件 */
+    lv_EVENT_CONTACT = 1,      /**< 接触事件 */
+    lv_EVENT_CROSSING = 2,     /**< 穿越事件 */
+    lv_EVENT_THRESHOLD = 3,    /**< 阈值事件 */
+    lv_EVENT_PERIODIC = 4,     /**< 周期性事件 */
+    lv_EVENT_CUSTOM = 99       /**< 自定义事件 */
+} lvEventType;
 ```
 
 ### 求根方法
 
 ```c
 typedef enum {
-    LV00_ROOTFIND_BRENT = 0,    /**< Brent 法（默认推荐） */
-    LV00_ROOTFIND_ILLINOIS = 1, /**< Illinois 法（SUNDIALS 默认） */
-    LV00_ROOTFIND_BISECTION = 2 /**< 二分法（最稳健） */
-} Lv00RootfindMethod;
+    lv_ROOTFIND_BRENT = 0,    /**< Brent 法（默认推荐） */
+    lv_ROOTFIND_ILLINOIS = 1, /**< Illinois 法（SUNDIALS 默认） */
+    lv_ROOTFIND_BISECTION = 2 /**< 二分法（最稳健） */
+} lvRootfindMethod;
 ```
 
 ### 事件检测流程
@@ -521,10 +521,10 @@ typedef enum {
 ### 事件检测器
 
 ```c
-struct Lv00EventDetector {
-    Lv00EventEntry events[GEO_EVENT_MAX_EVENTS]; // 32
+struct lvEventDetector {
+    lvEventEntry events[GEO_EVENT_MAX_EVENTS]; // 32
     int num_events;
-    Lv00RootfindMethod root_method;
+    lvRootfindMethod root_method;
     double root_tol;
     double t_prev;
     double g_prev[GEO_EVENT_MAX_EVENTS];
@@ -670,25 +670,25 @@ typedef struct StateSpaceExplorer {
 ### 单纯复形
 
 ```c
-typedef struct Lv00SimplicialComplex {
+typedef struct lvSimplicialComplex {
     int n_vertices;        /**< 顶点数（0-单纯形） */
-    Lv00Edge *edges;       /**< 边数组（1-单纯形） */
+    lvEdge *edges;       /**< 边数组（1-单纯形） */
     size_t n_edges;
-    Lv00Triangle *triangles; /**< 三角形数组（2-单纯形） */
+    lvTriangle *triangles; /**< 三角形数组（2-单纯形） */
     size_t n_triangles;
-} Lv00SimplicialComplex;
+} lvSimplicialComplex;
 ```
 
 ### 边与三角形
 
 ```c
-typedef struct Lv00Edge {
+typedef struct lvEdge {
     int v0, v1;  /**< 顶点索引，v0 < v1 */
-} Lv00Edge;
+} lvEdge;
 
-typedef struct Lv00Triangle {
+typedef struct lvTriangle {
     int v0, v1, v2;  /**< 顶点索引，v0 < v1 < v2 */
-} Lv00Triangle;
+} lvTriangle;
 ```
 
 ### 核心操作
@@ -715,12 +715,12 @@ chi = V - E + F
 三角形 (v0, v1, v2) 的边界为三条边：(v0, v1), (v1, v2), (v0, v2)。
 
 ```c
-typedef struct Lv00Boundary {
-    Lv00Edge *edges;
+typedef struct lvBoundary {
+    lvEdge *edges;
     size_t n_edges;
     int *vertices;
     size_t n_vertices;
-} Lv00Boundary;
+} lvBoundary;
 ```
 
 ### 连通分量
@@ -729,7 +729,7 @@ typedef struct Lv00Boundary {
 
 ## 实现文件
 
-- **头文件**：`include/lv00/geometry_types.h`, `include/lv00/geometry_transform.h`, `include/lv00/geometry_compress.h`, `include/lv00/high_dim.h`, `include/lv00/interactive_geo.h`, `include/lv00/geom_evol.h`, `include/lv00/geo_event_detect.h`, `include/lv00/geo_invariant_type.h`, `include/lv00/geo_spec.h`, `include/lv00/geo_topology.h`
+- **头文件**：`include/lv/geometry_types.h`, `include/lv/geometry_transform.h`, `include/lv/geometry_compress.h`, `include/lv/high_dim.h`, `include/lv/interactive_geo.h`, `include/lv/geom_evol.h`, `include/lv/geo_event_detect.h`, `include/lv/geo_invariant_type.h`, `include/lv/geo_spec.h`, `include/lv/geo_topology.h`
 - **源文件**：`src/layer3_geometry/` 下的对应 .c 文件
 
 ## 依赖

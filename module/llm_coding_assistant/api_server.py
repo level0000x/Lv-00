@@ -1,4 +1,4 @@
-"""
+﻿"""
 LLM编程辅助系统 - API 服务器模块
 ====================================
 
@@ -135,13 +135,13 @@ def _validate_config() -> None:
 def _ensure_admin_exists() -> None:
     """确保至少存在一个管理员账户（应在应用启动时调用）。
 
-    从环境变量 LV00_ADMIN_USER 和 LV00_ADMIN_PASSWORD 读取管理员凭据。
+    从环境变量 lv_ADMIN_USER 和 lv_ADMIN_PASSWORD 读取管理员凭据。
     两个变量都必须设置才会创建管理员账户。
     未设置时打印警告，用户可通过 /api/auth/register 注册账户。
     密码使用 PBKDF2-HMAC-SHA256 加盐哈希（参见 auth.hash_password）。
     """
-    admin_user = os.environ.get("LV00_ADMIN_USER", "")
-    admin_pass = os.environ.get("LV00_ADMIN_PASSWORD", "")
+    admin_user = os.environ.get("lv_ADMIN_USER", "")
+    admin_pass = os.environ.get("lv_ADMIN_PASSWORD", "")
     if admin_user and admin_pass:
         USERS[admin_user] = User(
             id="user-001",
@@ -151,7 +151,7 @@ def _ensure_admin_exists() -> None:
         )
     else:
         logger.warning(
-            "LV00_ADMIN_USER / LV00_ADMIN_PASSWORD 未设置，"
+            "lv_ADMIN_USER / lv_ADMIN_PASSWORD 未设置，"
             "未创建默认管理员账户。请通过 /api/auth/register 注册账户，"
             "或设置环境变量后重启。",
         )

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_smt_bitvector.c
  * @brief Tests for the SMT bitvector module (smt_bitvector.h)
  *
@@ -20,23 +20,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "smt_bitvector.h"
 #include "test_helpers.h"
 
 /* ── Convenience aliases for test readability ── */
-#define bv_create(w)         lv00_bv_create((w), 0)
-#define bv_destroy(bv)       lv00_bv_free(bv)
-#define bv_and(a, b)         lv00_bv_and(a, b)
-#define bv_or(a, b)          lv00_bv_or(a, b)
-#define bv_xor(a, b)         lv00_bv_xor(a, b)
-#define bv_not(a)            lv00_bv_not(a)
-#define bv_add(a, b)         lv00_bv_add(a, b)
-#define bv_mul(a, b)         lv00_bv_mul(a, b)
-#define bv_eq(a, b)          lv00_bv_equals(a, b)
-#define bv_extract(bv, h, l) lv00_bv_extract(bv, h, l)
-#define bv_concat(a, b)      lv00_bv_concat(a, b)
-#define bv_to_int(bv)        lv00_bv_to_int(bv)
+#define bv_create(w)         lv_bv_create((w), 0)
+#define bv_destroy(bv)       lv_bv_free(bv)
+#define bv_and(a, b)         lv_bv_and(a, b)
+#define bv_or(a, b)          lv_bv_or(a, b)
+#define bv_xor(a, b)         lv_bv_xor(a, b)
+#define bv_not(a)            lv_bv_not(a)
+#define bv_add(a, b)         lv_bv_add(a, b)
+#define bv_mul(a, b)         lv_bv_mul(a, b)
+#define bv_eq(a, b)          lv_bv_equals(a, b)
+#define bv_extract(bv, h, l) lv_bv_extract(bv, h, l)
+#define bv_concat(a, b)      lv_bv_concat(a, b)
+#define bv_to_int(bv)        lv_bv_to_int(bv)
 
 /* Global test counters (required by test framework) */
 int g_pass_count = 0;
@@ -55,7 +55,7 @@ int g_fail_count = 0;
  */
 void test_bv_create(void) {
     /* Create a 64-bit bitvector from an integer */
-    Lv00BitVector *bv = bv_from_int(42, 64);
+    lvBitVector *bv = bv_from_int(42, 64);
     TEST_ASSERT_NOT_NULL(bv);
     TEST_ASSERT_EQ(bv->width, 64);
     TEST_ASSERT_EQ(bv_to_int(bv), 42);
@@ -108,15 +108,15 @@ void test_bv_create(void) {
  */
 void test_bv_not(void) {
     /* NOT of 0 should be all 1s */
-    Lv00BitVector *zero = bv_from_int(0, 8);
-    Lv00BitVector *inv = bv_not(zero);
+    lvBitVector *zero = bv_from_int(0, 8);
+    lvBitVector *inv = bv_not(zero);
     TEST_ASSERT_NOT_NULL(inv);
     TEST_ASSERT_EQ(bv_to_int(inv), 0xFF);
     bv_destroy(zero);
     bv_destroy(inv);
 
     /* NOT of 0xFF should be 0 */
-    Lv00BitVector *ff = bv_from_int(0xFF, 8);
+    lvBitVector *ff = bv_from_int(0xFF, 8);
     inv = bv_not(ff);
     TEST_ASSERT_NOT_NULL(inv);
     TEST_ASSERT_EQ(bv_to_int(inv), 0);
@@ -124,7 +124,7 @@ void test_bv_not(void) {
     bv_destroy(inv);
 
     /* NOT of 0x0F should be 0xF0 */
-    Lv00BitVector *val = bv_from_int(0x0F, 8);
+    lvBitVector *val = bv_from_int(0x0F, 8);
     inv = bv_not(val);
     TEST_ASSERT_NOT_NULL(inv);
     TEST_ASSERT_EQ(bv_to_int(inv), 0xF0);
@@ -136,9 +136,9 @@ void test_bv_not(void) {
     TEST_ASSERT_NULL(inv);
 
     /* Double NOT should be identity */
-    Lv00BitVector *orig = bv_from_int(0x12345678, 32);
-    Lv00BitVector *not1 = bv_not(orig);
-    Lv00BitVector *not2 = bv_not(not1);
+    lvBitVector *orig = bv_from_int(0x12345678, 32);
+    lvBitVector *not1 = bv_not(orig);
+    lvBitVector *not2 = bv_not(not1);
     TEST_ASSERT(bv_eq(orig, not2), "double NOT should be identity");
     bv_destroy(orig);
     bv_destroy(not1);
@@ -156,9 +156,9 @@ void test_bv_not(void) {
  */
 void test_bv_and(void) {
     /* 0xFF AND 0x0F = 0x0F */
-    Lv00BitVector *a = bv_from_int(0xFF, 8);
-    Lv00BitVector *b = bv_from_int(0x0F, 8);
-    Lv00BitVector *result = bv_and(a, b);
+    lvBitVector *a = bv_from_int(0xFF, 8);
+    lvBitVector *b = bv_from_int(0x0F, 8);
+    lvBitVector *result = bv_and(a, b);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT_EQ(bv_to_int(result), 0x0F);
     bv_destroy(a);
@@ -213,9 +213,9 @@ void test_bv_and(void) {
  */
 void test_bv_add(void) {
     /* Simple addition: 3 + 4 = 7 */
-    Lv00BitVector *a = bv_from_int(3, 8);
-    Lv00BitVector *b = bv_from_int(4, 8);
-    Lv00BitVector *result = bv_add(a, b);
+    lvBitVector *a = bv_from_int(3, 8);
+    lvBitVector *b = bv_from_int(4, 8);
+    lvBitVector *result = bv_add(a, b);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT_EQ(bv_to_int(result), 7);
     bv_destroy(a);
@@ -274,8 +274,8 @@ void test_bv_add(void) {
  */
 void test_bv_extract(void) {
     /* Extract low 4 bits of 0xAB (8-bit) -> 0xB (4-bit) */
-    Lv00BitVector *bv = bv_from_int(0xAB, 8);
-    Lv00BitVector *ext = bv_extract(bv, 3, 0);
+    lvBitVector *bv = bv_from_int(0xAB, 8);
+    lvBitVector *ext = bv_extract(bv, 3, 0);
     TEST_ASSERT_NOT_NULL(ext);
     TEST_ASSERT_EQ(ext->width, 4);
     TEST_ASSERT_EQ(bv_to_int(ext), 0xB);
@@ -341,9 +341,9 @@ void test_bv_extract(void) {
  */
 void test_bv_concat(void) {
     /* concat(0xA [4-bit], 0xB [4-bit]) = 0xAB [8-bit] */
-    Lv00BitVector *hi = bv_from_int(0xA, 4);
-    Lv00BitVector *lo = bv_from_int(0xB, 4);
-    Lv00BitVector *result = bv_concat(hi, lo);
+    lvBitVector *hi = bv_from_int(0xA, 4);
+    lvBitVector *lo = bv_from_int(0xB, 4);
+    lvBitVector *result = bv_concat(hi, lo);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT_EQ(result->width, 8);
     TEST_ASSERT_EQ(bv_to_int(result), 0xAB);

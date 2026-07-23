@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_version.c
  * @brief 证明版本管理与序列化
  *
@@ -13,25 +13,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/proof.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/thread_pool.h"
+#include "lv/proof.h"
+#include "lv/constraint_graph.h"
+#include "lv/thread_pool.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-LV00_DECLARE_STREAM_CTX(proof);
+lv_DECLARE_STREAM_CTX(proof);
 
 /**
  * 将证明步骤格式化为自然语言文本。
  *
  * @param step 证明步骤指针
  * @param lang 目标语言（中文/英文）
- * @return 格式化后的字符串（lv00_malloc 分配），调用者负责释放；失败返回 NULL
+ * @return 格式化后的字符串（lv_malloc 分配），调用者负责释放；失败返回 NULL
  */
 static char *format_proof_step_nl(ProofStep *step, ProofNaturalLanguage lang) {
     if (!step)
@@ -76,10 +76,10 @@ static char *format_proof_step_nl(ProofStep *step, ProofNaturalLanguage lang) {
     }
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
-    char *output = lv00_malloc(strlen(result) + 1);
+    char *output = lv_malloc(strlen(result) + 1);
     if (!output)
         return NULL;
-    lv00_strlcpy(output, result, strlen(result) + 1);
+    lv_strlcpy(output, result, strlen(result) + 1);
     return output;
 }
 
@@ -137,7 +137,7 @@ bool proof_export_natural_language(ProofNavigator *nav, const char *filepath, Pr
         char *nl_desc = proof_step_get_natural_language(step, lang);
         if (nl_desc) {
             fprintf(f, "%s\n\n", nl_desc);
-            lv00_free((void **) &nl_desc);
+            lv_free((void **) &nl_desc);
         }
     }
 
@@ -169,14 +169,14 @@ bool proof_navigator_set_strategy_note(ProofNavigator *nav, const char *strategy
         return false;
 
     /* 释放旧值 */
-    lv00_free((void **) &nav->strategy_note);
+    lv_free((void **) &nav->strategy_note);
 
     if (strategy_note && strategy_note[0] != '\0') {
-        nav->strategy_note = lv00_malloc(strlen(strategy_note) + 1);
+        nav->strategy_note = lv_malloc(strlen(strategy_note) + 1);
         if (!nav->strategy_note)
             return false;
         /* 使用安全的字符串复制函数，确保缓冲区零终止 */
-        lv00_strlcpy(nav->strategy_note, strategy_note, strlen(strategy_note) + 1);
+        lv_strlcpy(nav->strategy_note, strategy_note, strlen(strategy_note) + 1);
     } else {
         nav->strategy_note = NULL;
     }
@@ -205,14 +205,14 @@ bool proof_step_set_note(ProofStep *step, const char *note) {
         return false;
 
     /* 释放旧值 */
-    lv00_free((void **) &step->note);
+    lv_free((void **) &step->note);
 
     if (note && note[0] != '\0') {
-        step->note = lv00_malloc(strlen(note) + 1);
+        step->note = lv_malloc(strlen(note) + 1);
         if (!step->note)
             return false;
         /* 使用安全的字符串复制函数，确保缓冲区零终止 */
-        lv00_strlcpy(step->note, note, strlen(note) + 1);
+        lv_strlcpy(step->note, note, strlen(note) + 1);
     } else {
         step->note = NULL;
     }
@@ -257,12 +257,12 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
 
     if (!goal_type || goal_type[0] == '\0') {
         /* 空目标类型 -> 建议 lambda 抽象 */
-        FillSuggestion *s = (FillSuggestion *) lv00_calloc(1, sizeof(FillSuggestion));
+        FillSuggestion *s = (FillSuggestion *) lv_calloc(1, sizeof(FillSuggestion));
         if (!s)
             return NULL;
         s->kind = FILL_LAMBDA;
-        s->label = lv00_strdup_safe("引入假设（lambda 抽象）");
-        s->code_snippet = lv00_strdup_safe("\\x -> ?hole");
+        s->label = lv_strdup_safe("引入假设（lambda 抽象）");
+        s->code_snippet = lv_strdup_safe("\\x -> ?hole");
         s->arity = 1;
         return s;
     }
@@ -270,12 +270,12 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
     /* 定义辅助宏：追加节点到链表末尾 */
 #define APPEND_FILL(kind_, label_, snippet_, arity_)                              \
     do {                                                                          \
-        FillSuggestion *s = (FillSuggestion *) lv00_calloc(1, sizeof(FillSuggestion)); \
+        FillSuggestion *s = (FillSuggestion *) lv_calloc(1, sizeof(FillSuggestion)); \
         if (!s)                                                                   \
             break;                                                                \
         s->kind = (kind_);                                                        \
-        s->label = lv00_strdup_safe(label_);                                               \
-        s->code_snippet = lv00_strdup_safe(snippet_);                                      \
+        s->label = lv_strdup_safe(label_);                                               \
+        s->code_snippet = lv_strdup_safe(snippet_);                                      \
         s->arity = (arity_);                                                      \
         if (!head) {                                                              \
             head = s;                                                             \
@@ -352,9 +352,9 @@ void fill_suggestions_destroy(FillSuggestion *list) {
     FillSuggestion *curr = list;
     while (curr) {
         FillSuggestion *next = curr->next;
-        lv00_free((void**)&curr->label);
-        lv00_free((void**)&curr->code_snippet);
-        lv00_free((void**)&curr);
+        lv_free((void**)&curr->label);
+        lv_free((void**)&curr->code_snippet);
+        lv_free((void**)&curr);
         curr = next;
     }
 }
@@ -479,7 +479,7 @@ static int sledgehammer_async_task_execute(void *user_data) {
     if (success) {
         const char *sname = proof_strategy_type_to_string(td->strategy_type);
         size_t len = strlen(sname) + 64;
-        td->isar_proof_script = (char *) lv00_malloc(len);
+        td->isar_proof_script = (char *) lv_malloc(len);
         if (td->isar_proof_script) {
             snprintf(td->isar_proof_script, len,
                      "proof (induction) -\n  (* 策略: %s *)\n  apply auto\nqed", sname);
@@ -501,13 +501,13 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
     if (!mse)
         return NULL;
 
-    SledgehammerReport *report = (SledgehammerReport *) lv00_calloc(1, sizeof(SledgehammerReport));
+    SledgehammerReport *report = (SledgehammerReport *) lv_calloc(1, sizeof(SledgehammerReport));
     if (!report)
         return NULL;
 
     /* ---- 异步模式：使用全局线程池并行执行所有策略 ---- */
     if (mode == SLEDGE_ASYNC) {
-        Lv00ThreadPool *pool = lv00_get_global_thread_pool();
+        lvThreadPool *pool = lv_get_global_thread_pool();
         if (!pool) {
             /* 线程池不可用，回退到同步模式并输出警告 */
             if (proof_stream_ctx) {
@@ -517,19 +517,19 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
             /* 回退：继续执行下面的同步逻辑 */
         } else {
             /* 分配结果数组 */
-            report->results = (SledgehammerStrategyResult *) lv00_calloc(PROOF_STRATEGY_COUNT, sizeof(SledgehammerStrategyResult));
+            report->results = (SledgehammerStrategyResult *) lv_calloc(PROOF_STRATEGY_COUNT, sizeof(SledgehammerStrategyResult));
             if (!report->results) {
-                lv00_free((void**)&report);
+                lv_free((void**)&report);
                 return NULL;
             }
 
             /* 第一遍：收集可用策略并分配任务数据 */
             int available_count = 0;
             _SledgehammerAsyncTaskData *task_data_array = (_SledgehammerAsyncTaskData *)
-                lv00_calloc(PROOF_STRATEGY_COUNT, sizeof(_SledgehammerAsyncTaskData));
+                lv_calloc(PROOF_STRATEGY_COUNT, sizeof(_SledgehammerAsyncTaskData));
             if (!task_data_array) {
-                lv00_free((void**)&report->results);
-                lv00_free((void**)&report);
+                lv_free((void**)&report->results);
+                lv_free((void**)&report);
                 return NULL;
             }
 
@@ -548,38 +548,38 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
 
             if (available_count == 0) {
                 /* 无可用策略 */
-                lv00_free((void**)&task_data_array);
+                lv_free((void**)&task_data_array);
                 report->result_count = 0;
                 report->best_index = -1;
                 return report;
             }
 
             /* 创建任务组 */
-            Lv00TaskGroup *group = lv00_task_group_create("sledgehammer_async");
+            lvTaskGroup *group = lv_task_group_create("sledgehammer_async");
             if (!group) {
                 /* 任务组创建失败，回退到同步模式 */
-                lv00_free((void**)&task_data_array);
+                lv_free((void**)&task_data_array);
                 if (proof_stream_ctx) {
                     stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING,
                                        "SLEDGE_ASYNC: 任务组创建失败，回退到同步模式", 0);
                 }
                 /* 回退：释放 results 并继续执行下面的同步逻辑 */
-                lv00_free((void**)&report->results);
+                lv_free((void**)&report->results);
                 report->results = NULL;
             } else {
                 /* 为每个可用策略创建并提交任务 */
                 for (int i = 0; i < available_count; i++) {
-                    Lv00Task *task = lv00_task_create(sledgehammer_async_task_execute,
+                    lvTask *task = lv_task_create(sledgehammer_async_task_execute,
                                                        &task_data_array[i], "sledgehammer_strategy");
                     if (!task) {
                         continue;
                     }
-                    lv00_task_group_add(group, task);
-                    lv00_thread_pool_submit(pool, task);
+                    lv_task_group_add(group, task);
+                    lv_thread_pool_submit(pool, task);
                 }
 
                 /* 等待所有任务完成 */
-                lv00_thread_pool_wait_group(pool, group, 0);
+                lv_thread_pool_wait_group(pool, group, 0);
 
                 /* 收集结果 */
                 clock_t total_start_a = clock();
@@ -607,8 +607,8 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
                 report->total_time_sec = ((double) (total_end_a - total_start_a)) / CLOCKS_PER_SEC;
                 report->best_index = best_index_a;
 
-                lv00_task_group_destroy(group);
-                lv00_free((void**)&task_data_array);
+                lv_task_group_destroy(group);
+                lv_free((void**)&task_data_array);
                 return report;
             }
         }
@@ -617,9 +617,9 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
     /* ---- 同步 / 超时模式（含异步回退） ---- */
 
     /* 分配结果数组，最多 PROOF_STRATEGY_COUNT 个策略 */
-    report->results = (SledgehammerStrategyResult *) lv00_calloc(PROOF_STRATEGY_COUNT, sizeof(SledgehammerStrategyResult));
+    report->results = (SledgehammerStrategyResult *) lv_calloc(PROOF_STRATEGY_COUNT, sizeof(SledgehammerStrategyResult));
     if (!report->results) {
-        lv00_free((void**)&report);
+        lv_free((void**)&report);
         return NULL;
     }
 
@@ -668,7 +668,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
         if (success) {
             const char *sname = proof_strategy_type_to_string(strategy_type);
             size_t len = strlen(sname) + 32;
-            report->results[idx].isar_proof_script = (char *) lv00_malloc(len);
+            report->results[idx].isar_proof_script = (char *) lv_malloc(len);
             if (report->results[idx].isar_proof_script) {
                 snprintf(report->results[idx].isar_proof_script, len,
                          "proof (induction) -\n  (* 策略: %s *)\n  apply auto\nqed", sname);
@@ -700,30 +700,30 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
 
     if (report->results) {
         for (int i = 0; i < report->result_count; i++) {
-            lv00_free((void**)&report->results[i].isar_proof_script);
+            lv_free((void**)&report->results[i].isar_proof_script);
         }
-        lv00_free((void**)&report->results);
+        lv_free((void**)&report->results);
     }
 
-    lv00_free((void**)&report);
+    lv_free((void**)&report);
 }
 
 /* ============================================================================
  * Task 模块 — 内部结构体定义
  *
- * Lv00TaskGroup = Lv00WaitGroup（在 proof.h 中 typedef）
- * Lv00Task      = Lv00ThreadTask（在 proof.h 中 typedef）
+ * lvTaskGroup = lvWaitGroup（在 proof.h 中 typedef）
+ * lvTask      = lvThreadTask（在 proof.h 中 typedef）
  *
  * 此处定义其实际结构体布局（与 thread_pool.c 保持一致）。
  * ============================================================================ */
 
 /* ---- 平台相关同步原语（与 thread_pool.c 保持一致） ---- */
 #ifdef _WIN32
-typedef CONDITION_VARIABLE Lv00CondVar;
+typedef CONDITION_VARIABLE lvCondVar;
 #else
 #include <pthread.h>
-typedef pthread_mutex_t Lv00Mutex;
-typedef pthread_cond_t  Lv00CondVar;
+typedef pthread_mutex_t lvMutex;
+typedef pthread_cond_t  lvCondVar;
 #define MUTEX_INIT(m)    pthread_mutex_init(&(m), NULL)
 #define MUTEX_LOCK(m)    pthread_mutex_lock(&(m))
 #define MUTEX_UNLOCK(m)  pthread_mutex_unlock(&(m))
@@ -732,13 +732,13 @@ typedef pthread_cond_t  Lv00CondVar;
 #define COND_DESTROY(c)  pthread_cond_destroy(&(c))
 #endif
 
-#ifndef Lv00Mutex
+#ifndef lvMutex
 #ifdef _WIN32
-typedef CRITICAL_SECTION Lv00Mutex;
+typedef CRITICAL_SECTION lvMutex;
 #define MUTEX_INIT(m)    InitializeCriticalSection(&(m))
 #define MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
 #else
-typedef pthread_mutex_t Lv00Mutex;
+typedef pthread_mutex_t lvMutex;
 #define MUTEX_INIT(m)    pthread_mutex_init(&(m), NULL)
 #define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
 #endif
@@ -759,27 +759,27 @@ typedef pthread_mutex_t Lv00Mutex;
 #endif
 
 /** @brief 等待组（与 thread_pool.c 保持一致） */
-struct Lv00WaitGroup {
+struct lvWaitGroup {
     int pending;
-    Lv00Mutex mutex;
-    Lv00CondVar cond;
+    lvMutex mutex;
+    lvCondVar cond;
 };
 
 /** @brief 线程任务（与 thread_pool.c 保持一致） */
-struct Lv00ThreadTask {
+struct lvThreadTask {
     void (*func)(void *arg);
     void *arg;
-    Lv00WaitGroup *group;
-    struct Lv00ThreadTask *next;
+    lvWaitGroup *group;
+    struct lvThreadTask *next;
 };
 
 /* ============================================================================
  * Task stubs — 实现
  * ============================================================================ */
 
-Lv00TaskGroup *lv00_task_group_create(const char *name) {
+lvTaskGroup *lv_task_group_create(const char *name) {
     (void)name;
-    Lv00TaskGroup *g = (Lv00TaskGroup *)lv00_calloc(1, sizeof(Lv00TaskGroup));
+    lvTaskGroup *g = (lvTaskGroup *)lv_calloc(1, sizeof(lvTaskGroup));
     if (!g) return NULL;
     MUTEX_INIT(g->mutex);
     COND_INIT(g->cond);
@@ -787,9 +787,9 @@ Lv00TaskGroup *lv00_task_group_create(const char *name) {
     return g;
 }
 
-Lv00Task *lv00_task_create(int (*fn)(void*), void *arg, const char *name) {
+lvTask *lv_task_create(int (*fn)(void*), void *arg, const char *name) {
     (void)name;
-    Lv00Task *t = (Lv00Task *)lv00_calloc(1, sizeof(Lv00Task));
+    lvTask *t = (lvTask *)lv_calloc(1, sizeof(lvTask));
     if (!t) return NULL;
     t->func = (void (*)(void*))fn;
     t->arg = arg;
@@ -798,7 +798,7 @@ Lv00Task *lv00_task_create(int (*fn)(void*), void *arg, const char *name) {
     return t;
 }
 
-void lv00_task_group_add(Lv00TaskGroup *group, Lv00Task *task) {
+void lv_task_group_add(lvTaskGroup *group, lvTask *task) {
     if (!group || !task) return;
     MUTEX_LOCK(group->mutex);
     group->pending++;
@@ -806,11 +806,11 @@ void lv00_task_group_add(Lv00TaskGroup *group, Lv00Task *task) {
     MUTEX_UNLOCK(group->mutex);
 }
 
-void lv00_task_group_destroy(Lv00TaskGroup *group) {
+void lv_task_group_destroy(lvTaskGroup *group) {
     if (!group) return;
     MUTEX_DESTROY(group->mutex);
     COND_DESTROY(group->cond);
-    lv00_free((void**)&group);
+    lv_free((void**)&group);
 }
 
 /* ================================================================
@@ -904,7 +904,7 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
 
     /* 预估输出大小：每个命题约 256 字节 */
     size_t est_size = (size_t) prop_count * 512 + 128;
-    char *output = (char *) lv00_calloc(1, est_size);
+    char *output = (char *) lv_calloc(1, est_size);
     if (!output)
         return NULL;
 
@@ -1105,7 +1105,7 @@ static bool starts_with(const char *s, const char *prefix) {
 static char *make_trace(const char *fmt, const char *arg1, const char *arg2, const char *arg3) {
     size_t len = (fmt ? strlen(fmt) : 0) + (arg1 ? strlen(arg1) : 0) +
                  (arg2 ? strlen(arg2) : 0) + (arg3 ? strlen(arg3) : 0) + 64;
-    char *buf = (char *) lv00_malloc(len);
+    char *buf = (char *) lv_malloc(len);
     if (buf) {
         if (arg3)
             snprintf(buf, len, fmt, arg1, arg2, arg3);
@@ -1132,7 +1132,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                                   char **out_trace) {
     if (!conclusion || conclusion[0] == '\0') {
         if (out_trace)
-            *out_trace = lv00_strdup_safe("VERIFY_INVALID: 结论为空");
+            *out_trace = lv_strdup_safe("VERIFY_INVALID: 结论为空");
         return VERIFY_INVALID;
     }
 
@@ -1142,7 +1142,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             if (is_refl_form(conclusion)) {
                 if (out_trace) {
                     size_t len = strlen(conclusion) + 64;
-                    *out_trace = (char *) lv00_malloc(len);
+                    *out_trace = (char *) lv_malloc(len);
                     if (*out_trace) {
                         snprintf(*out_trace, len, "VERIFY_VALID [REFL]: \"%s\" ≡ t=t, 自反性成立", conclusion);
                     }
@@ -1151,7 +1151,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             }
             if (out_trace) {
                 size_t len = strlen(conclusion) + 64;
-                *out_trace = (char *) lv00_malloc(len);
+                *out_trace = (char *) lv_malloc(len);
                 if (*out_trace) {
                     snprintf(*out_trace, len, "VERIFY_INVALID [REFL]: \"%s\" 非 t=t 形式", conclusion);
                 }
@@ -1162,7 +1162,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             /* TRANS: s=t, t=u => s=u */
             if (!premises || !premises[0] || !premises[1]) {
                 if (out_trace)
-                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [TRANS]: 需要两个前提 s=t, t=u");
+                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [TRANS]: 需要两个前提 s=t, t=u");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -1173,7 +1173,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 const char *eq0 = strstr(p0, "=");
                 if (!eq0) {
                     if (out_trace)
-                        *out_trace = lv00_strdup_safe("VERIFY_INVALID [TRANS]: 前提1非等式");
+                        *out_trace = lv_strdup_safe("VERIFY_INVALID [TRANS]: 前提1非等式");
                     return VERIFY_INVALID;
                 }
                 const char *t_from_p0 = eq0 + 1;
@@ -1184,7 +1184,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 const char *eq1 = strstr(p1, "=");
                 if (!eq1) {
                     if (out_trace)
-                        *out_trace = lv00_strdup_safe("VERIFY_INVALID [TRANS]: 前提2非等式");
+                        *out_trace = lv_strdup_safe("VERIFY_INVALID [TRANS]: 前提2非等式");
                     return VERIFY_INVALID;
                 }
                 size_t t_in_p1_len = (size_t) (eq1 - p1);
@@ -1193,7 +1193,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 if (strncmp(t_from_p0, p1, t_in_p1_len) != 0) {
                     if (out_trace) {
                         size_t len = strlen(p0) + strlen(p1) + 128;
-                        *out_trace = (char *) lv00_malloc(len);
+                        *out_trace = (char *) lv_malloc(len);
                         if (*out_trace) {
                             snprintf(*out_trace, len, "VERIFY_INVALID [TRANS]: \"%s\" 和 \"%s\" 中间项不匹配", p0, p1);
                         }
@@ -1204,7 +1204,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 /* s=u: 从 s=t 取 s，从 t=u 取 u 构造结论并比较 */
                 if (out_trace) {
                     size_t len = strlen(conclusion) + strlen(p0) + strlen(p1) + 128;
-                    *out_trace = (char *) lv00_malloc(len);
+                    *out_trace = (char *) lv_malloc(len);
                     if (*out_trace) {
                         snprintf(*out_trace, len, "VERIFY_VALID [TRANS]: s=t \"%s\", t=u \"%s\" => s=u \"%s\"", p0, p1,
                                  conclusion);
@@ -1217,14 +1217,14 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             /* ASSUME: t |- t — 结论必须是前提之一 */
             if (!premises) {
                 if (out_trace)
-                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [ASSUME]: 无前提");
+                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [ASSUME]: 无前提");
                 return VERIFY_UNDECIDED;
             }
             for (int i = 0; premises[i] != NULL; i++) {
                 if (strcmp(premises[i], conclusion) == 0) {
                     if (out_trace) {
                         size_t len = strlen(conclusion) + 64;
-                        *out_trace = (char *) lv00_malloc(len);
+                        *out_trace = (char *) lv_malloc(len);
                         if (*out_trace) {
                             snprintf(*out_trace, len, "VERIFY_VALID [ASSUME]: 结论 \"%s\" 在前提[%d]中", conclusion, i);
                         }
@@ -1234,7 +1234,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             }
             if (out_trace) {
                 size_t len = strlen(conclusion) + 64;
-                *out_trace = (char *) lv00_malloc(len);
+                *out_trace = (char *) lv_malloc(len);
                 if (*out_trace) {
                     snprintf(*out_trace, len, "VERIFY_INVALID [ASSUME]: 结论 \"%s\" 不在前提中", conclusion);
                 }
@@ -1280,7 +1280,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：需要两个前提（f1=f2 和 g1=g2），结论应含 COMB 模式 */
             if (!premises || !premises[0] || !premises[1]) {
                 if (out_trace)
-                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [MK_COMB]: 需要两个前提 f1=f2, g1=g2");
+                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [MK_COMB]: 需要两个前提 f1=f2, g1=g2");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -1314,7 +1314,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：需要一个前提 s=t，结论两侧都应含 lambda 抽象 */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [ABS]: 需要前提 s=t");
+                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [ABS]: 需要前提 s=t");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -1348,7 +1348,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：前提应包含替换定理，结论应体现替换结果 */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [SUBST]: 需要替换定理前提");
+                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [SUBST]: 需要替换定理前提");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -1382,7 +1382,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：前提为泛型定理，结论为特化后的版本（通常含类型标注） */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [INST_TYPE]: 需要泛型定理前提");
+                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [INST_TYPE]: 需要泛型定理前提");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -1410,7 +1410,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：前提为含变量的定理，结论为变量被替换后的版本 */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [INST]: 需要泛型定理前提");
+                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [INST]: 需要泛型定理前提");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -1438,7 +1438,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：前提为 B，结论应含蕴含模式（A ==> B 或 A --> B） */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [DISCH]: 需要前提 B");
+                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [DISCH]: 需要前提 B");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -1478,7 +1478,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
 
         default:
             if (out_trace) {
-                *out_trace = lv00_strdup_safe("VERIFY_INVALID: 未知验证规则");
+                *out_trace = lv_strdup_safe("VERIFY_INVALID: 未知验证规则");
             }
             return VERIFY_INVALID;
     }
@@ -1501,13 +1501,13 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
     if (!entries || count <= 0)
         return NULL;
 
-    RefinementCheckReport *report = (RefinementCheckReport *) lv00_calloc(1, sizeof(RefinementCheckReport));
+    RefinementCheckReport *report = (RefinementCheckReport *) lv_calloc(1, sizeof(RefinementCheckReport));
     if (!report)
         return NULL;
 
-    report->entries = (RefinementCheckEntry *) lv00_calloc((size_t) count, sizeof(RefinementCheckEntry));
+    report->entries = (RefinementCheckEntry *) lv_calloc((size_t) count, sizeof(RefinementCheckEntry));
     if (!report->entries) {
-        lv00_free((void**)&report);
+        lv_free((void**)&report);
         return NULL;
     }
 
@@ -1534,7 +1534,7 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
             /* 利用 solver 的类型注册表验证几何对象的 proposition 非空且类型一致 */
             const char *prop = constraint_solver_get_proposition(solver, entry->geom_object);
             if (!prop) {
-                entry->smt_counterexample = lv00_strdup_safe(
+                entry->smt_counterexample = lv_strdup_safe(
                     "类型检查失败: 几何对象的命题 (proposition) 为 NULL");
                 smt_ok = false;
             }
@@ -1547,7 +1547,7 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
             if (smt_solver) {
                 smtsolver_set_timeout(smt_solver, 5000); /* 5 秒超时 */
                 /* 将谓词编码为 SMT-LIB2 断言 */
-                char *smt_script = (char *) lv00_malloc(
+                char *smt_script = (char *) lv_malloc(
                     strlen(entry->refinement_pred) + 256);
                 if (smt_script) {
                     snprintf(smt_script, strlen(entry->refinement_pred) + 256,
@@ -1559,13 +1559,13 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
                     SMTSatResult smt_result = smtsolver_check(smt_solver);
                     if (smt_result == SMT_RESULT_UNSAT) {
                         smt_ok = false;
-                        entry->smt_counterexample = lv00_strdup_safe(
+                        entry->smt_counterexample = lv_strdup_safe(
                             "SMT求解器报告不可满足");
                     } else if (smt_result == SMT_RESULT_UNKNOWN) {
                         /* SMT 求解器超时或无法判定，保守通过 */
-                        LV00_LOG_WARNING("SMT精化检查超时/未知，保守通过");
+                        lv_LOG_WARNING("SMT精化检查超时/未知，保守通过");
                     }
-                    lv00_free((void **) &smt_script);
+                    lv_free((void **) &smt_script);
                 }
                 smtsolver_destroy(smt_solver);
             } else {
@@ -1574,7 +1574,7 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
                     strstr(entry->refinement_pred, "0 > 1") ||
                     strstr(entry->refinement_pred, "contradiction")) {
                     smt_ok = false;
-                    entry->smt_counterexample = lv00_strdup_safe(
+                    entry->smt_counterexample = lv_strdup_safe(
                         "模型不满足: 谓词包含恒假 (false) 子句");
                 }
             }
@@ -1605,10 +1605,10 @@ void refinement_check_report_destroy(RefinementCheckReport *report) {
 
     if (report->entries) {
         for (int i = 0; i < report->entry_count; i++) {
-            lv00_free((void**)&report->entries[i].smt_counterexample);
+            lv_free((void**)&report->entries[i].smt_counterexample);
         }
-        lv00_free((void**)&report->entries);
+        lv_free((void**)&report->entries);
     }
 
-    lv00_free((void**)&report);
+    lv_free((void**)&report);
 }

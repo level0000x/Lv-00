@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file probabilistic_constraint.c
  * @brief PRISM 概率模型检验 —— 真实实现
  *
@@ -18,8 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/lv00_parse_utils.h"
-#include "lv00_utils.h"
+#include "lv/lv_parse_utils.h"
+#include "lv_utils.h"
 
 /* ---- 内部常量 ---- */
 
@@ -86,26 +86,26 @@ static SimpleDTMC *dtmc_create(int n_states) {
     if (n_states <= 0 || n_states > PCTL_MAX_STATE_LIMIT)
         return NULL;
 
-    SimpleDTMC *mc = (SimpleDTMC *) lv00_calloc(1, sizeof(SimpleDTMC));
+    SimpleDTMC *mc = (SimpleDTMC *) lv_calloc(1, sizeof(SimpleDTMC));
     if (!mc)
         return NULL;
 
     mc->state_count = n_states;
-    mc->initial_dist = (double *) lv00_calloc((size_t) n_states, sizeof(double));
-    mc->trans_count = (int *) lv00_calloc((size_t) n_states, sizeof(int));
-    mc->trans_capacity = (int *) lv00_calloc((size_t) n_states, sizeof(int));
-    mc->trans_targets = (int **) lv00_calloc((size_t) n_states, sizeof(int *));
-    mc->trans_probs = (double **) lv00_calloc((size_t) n_states, sizeof(double *));
+    mc->initial_dist = (double *) lv_calloc((size_t) n_states, sizeof(double));
+    mc->trans_count = (int *) lv_calloc((size_t) n_states, sizeof(int));
+    mc->trans_capacity = (int *) lv_calloc((size_t) n_states, sizeof(int));
+    mc->trans_targets = (int **) lv_calloc((size_t) n_states, sizeof(int *));
+    mc->trans_probs = (double **) lv_calloc((size_t) n_states, sizeof(double *));
 
     if (!mc->initial_dist || !mc->trans_count || !mc->trans_capacity ||
         !mc->trans_targets || !mc->trans_probs) {
         /* 清理 */
-        lv00_free((void **) &mc->initial_dist);
-        lv00_free((void **) &mc->trans_count);
-        lv00_free((void **) &mc->trans_capacity);
-        lv00_free((void **) &mc->trans_targets);
-        lv00_free((void **) &mc->trans_probs);
-        lv00_free((void **) &mc);
+        lv_free((void **) &mc->initial_dist);
+        lv_free((void **) &mc->trans_count);
+        lv_free((void **) &mc->trans_capacity);
+        lv_free((void **) &mc->trans_targets);
+        lv_free((void **) &mc->trans_probs);
+        lv_free((void **) &mc);
         return NULL;
     }
 
@@ -122,15 +122,15 @@ static void dtmc_destroy(SimpleDTMC *mc) {
     if (!mc)
         return;
     for (int i = 0; i < mc->state_count; i++) {
-        lv00_free((void **) &mc->trans_targets[i]);
-        lv00_free((void **) &mc->trans_probs[i]);
+        lv_free((void **) &mc->trans_targets[i]);
+        lv_free((void **) &mc->trans_probs[i]);
     }
-    lv00_free((void **) &mc->initial_dist);
-    lv00_free((void **) &mc->trans_count);
-    lv00_free((void **) &mc->trans_capacity);
-    lv00_free((void **) &mc->trans_targets);
-    lv00_free((void **) &mc->trans_probs);
-    lv00_free((void **) &mc);
+    lv_free((void **) &mc->initial_dist);
+    lv_free((void **) &mc->trans_count);
+    lv_free((void **) &mc->trans_capacity);
+    lv_free((void **) &mc->trans_targets);
+    lv_free((void **) &mc->trans_probs);
+    lv_free((void **) &mc);
 }
 
 /** 向 DTMC 添加转移 */
@@ -143,13 +143,13 @@ static bool dtmc_add_transition(SimpleDTMC *mc, int from, int to, double prob) {
     /* 扩容 */
     if (mc->trans_count[from] >= mc->trans_capacity[from]) {
         int new_cap = (mc->trans_capacity[from] > 0) ? mc->trans_capacity[from] * 2 : 4;
-        int *new_targets = (int *) lv00_realloc(mc->trans_targets[from],
+        int *new_targets = (int *) lv_realloc(mc->trans_targets[from],
                                                   (size_t) new_cap * sizeof(int));
-        double *new_probs = (double *) lv00_realloc(mc->trans_probs[from],
+        double *new_probs = (double *) lv_realloc(mc->trans_probs[from],
                                                       (size_t) new_cap * sizeof(double));
         if (!new_targets || !new_probs) {
-            lv00_free((void **) &new_targets);
-            lv00_free((void **) &new_probs);
+            lv_free((void **) &new_targets);
+            lv_free((void **) &new_probs);
             return false;
         }
         mc->trans_targets[from] = new_targets;
@@ -323,7 +323,7 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
     /* "state_N" 格式 */
     if (strncmp(predicate, "state_", 6) == 0) {
         int target = 0;
-        lv00_parse_int(predicate + 6, &target);
+        lv_parse_int(predicate + 6, &target);
         return (state_id == target);
     }
 
@@ -381,7 +381,7 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
 
     /* 默认：尝试解析为状态 ID */
     int target = 0;
-    lv00_parse_int(predicate, &target);
+    lv_parse_int(predicate, &target);
     return (state_id == target);
 }
 
@@ -400,7 +400,7 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
     int n = mc->state_count;
 
     /* 标记哪些状态满足目标谓词 */
-    bool *is_target = (bool *) lv00_calloc((size_t) n, sizeof(bool));
+    bool *is_target = (bool *) lv_calloc((size_t) n, sizeof(bool));
     if (!is_target)
         return 0.0;
 
@@ -409,15 +409,15 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
     }
 
     /* BFS 找出从每个初始状态可达的目标状态 */
-    bool *visited = (bool *) lv00_calloc((size_t) n, sizeof(bool));
-    bool *can_reach_target = (bool *) lv00_calloc((size_t) n, sizeof(bool));
+    bool *visited = (bool *) lv_calloc((size_t) n, sizeof(bool));
+    bool *can_reach_target = (bool *) lv_calloc((size_t) n, sizeof(bool));
     int queue_capacity = (n < PCTL_BFS_QUEUE_INIT) ? PCTL_BFS_QUEUE_INIT : n * 2;
-    int *queue = (int *) lv00_malloc((size_t) queue_capacity * sizeof(int));
+    int *queue = (int *) lv_malloc((size_t) queue_capacity * sizeof(int));
     if (!visited || !can_reach_target || !queue) {
-        lv00_free((void **) &is_target);
-        lv00_free((void **) &visited);
-        lv00_free((void **) &can_reach_target);
-        lv00_free((void **) &queue);
+        lv_free((void **) &is_target);
+        lv_free((void **) &visited);
+        lv_free((void **) &can_reach_target);
+        lv_free((void **) &queue);
         return 0.0;
     }
 
@@ -453,7 +453,7 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
                             found = false;  /* 标记失败 */
                             break;
                         }
-                        int *new_queue = (int *) lv00_realloc(queue,
+                        int *new_queue = (int *) lv_realloc(queue,
                                                 (size_t) new_cap * sizeof(int));
                         if (!new_queue) {
                             fprintf(stderr, "[PCTL] BFS queue realloc failed\n");
@@ -477,10 +477,10 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
         }
     }
 
-    lv00_free((void **) &is_target);
-    lv00_free((void **) &visited);
-    lv00_free((void **) &can_reach_target);
-    lv00_free((void **) &queue);
+    lv_free((void **) &is_target);
+    lv_free((void **) &visited);
+    lv_free((void **) &can_reach_target);
+    lv_free((void **) &queue);
 
     /* 限制在 [0, 1] */
     if (total_prob > 1.0) total_prob = 1.0;
@@ -501,12 +501,12 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
 
     int n = mc->state_count;
 
-    bool *visited = (bool *) lv00_calloc((size_t) n, sizeof(bool));
+    bool *visited = (bool *) lv_calloc((size_t) n, sizeof(bool));
     int queue_capacity = (n < PCTL_BFS_QUEUE_INIT) ? PCTL_BFS_QUEUE_INIT : n * 2;
-    int *queue = (int *) lv00_malloc((size_t) queue_capacity * sizeof(int));
+    int *queue = (int *) lv_malloc((size_t) queue_capacity * sizeof(int));
     if (!visited || !queue) {
-        lv00_free((void **) &visited);
-        lv00_free((void **) &queue);
+        lv_free((void **) &visited);
+        lv_free((void **) &queue);
         return 0.0;
     }
 
@@ -518,7 +518,7 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
             if (back >= queue_capacity) {
                 int new_cap = queue_capacity * 2;
                 if (new_cap > PCTL_MAX_STATE_LIMIT) break;
-                int *new_queue = (int *) lv00_realloc(queue,
+                int *new_queue = (int *) lv_realloc(queue,
                                         (size_t) new_cap * sizeof(int));
                 if (!new_queue) break;
                 queue = new_queue;
@@ -553,7 +553,7 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
                                 back, PCTL_MAX_STATE_LIMIT);
                         break;
                     }
-                    int *new_queue = (int *) lv00_realloc(queue,
+                    int *new_queue = (int *) lv_realloc(queue,
                                             (size_t) new_cap * sizeof(int));
                     if (!new_queue) break;
                     queue = new_queue;
@@ -564,8 +564,8 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
         }
     }
 
-    lv00_free((void **) &visited);
-    lv00_free((void **) &queue);
+    lv_free((void **) &visited);
+    lv_free((void **) &queue);
 
     if (all_satisfy)
         return 1.0;
@@ -592,11 +592,11 @@ static double pctl_compute_until(const SimpleDTMC *mc,
     double convergence_threshold = 1e-9;
 
     /* prob[i] = 从状态 i 满足 phi U psi 的概率 */
-    double *prob = (double *) lv00_malloc((size_t) n * sizeof(double));
-    double *next_prob = (double *) lv00_malloc((size_t) n * sizeof(double));
+    double *prob = (double *) lv_malloc((size_t) n * sizeof(double));
+    double *next_prob = (double *) lv_malloc((size_t) n * sizeof(double));
     if (!prob || !next_prob) {
-        lv00_free((void **) &prob);
-        lv00_free((void **) &next_prob);
+        lv_free((void **) &prob);
+        lv_free((void **) &next_prob);
         return 0.0;
     }
 
@@ -658,8 +658,8 @@ static double pctl_compute_until(const SimpleDTMC *mc,
         result += mc->initial_dist[i] * prob[i];
     }
 
-    lv00_free((void **) &prob);
-    lv00_free((void **) &next_prob);
+    lv_free((void **) &prob);
+    lv_free((void **) &next_prob);
 
     if (result > 1.0) result = 1.0;
     if (result < 0.0) result = 0.0;
@@ -723,7 +723,7 @@ static double pctl_compute_probability(const SimpleDTMC *mc,
  * ======================================================================== */
 
 ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_count) {
-    ProbDistribution *dist = (ProbDistribution *) lv00_malloc(sizeof(ProbDistribution));
+    ProbDistribution *dist = (ProbDistribution *) lv_malloc(sizeof(ProbDistribution));
     if (!dist)
         return NULL;
 
@@ -733,9 +733,9 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
     dist->cdf = NULL;
 
     if (param_count > 0 && params) {
-        dist->params = (double *) lv00_malloc((size_t) param_count * sizeof(double));
+        dist->params = (double *) lv_malloc((size_t) param_count * sizeof(double));
         if (!dist->params) {
-            lv00_free((void **)&dist);
+            lv_free((void **)&dist);
             return NULL;
         }
         memcpy(dist->params, params, (size_t) param_count * sizeof(double));
@@ -772,8 +772,8 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
 
 void prob_dist_destroy(ProbDistribution *dist) {
     if (dist) {
-        lv00_free((void **)&dist->params);
-        lv00_free((void **)&dist);
+        lv_free((void **)&dist->params);
+        lv_free((void **)&dist);
     }
 }
 
@@ -860,7 +860,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
     if (!dist || n_samples <= 0 || !out_samples)
         return -1;
 
-    double *samples = (double *) lv00_malloc((size_t) n_samples * sizeof(double));
+    double *samples = (double *) lv_malloc((size_t) n_samples * sizeof(double));
     if (!samples)
         return -1;
 
@@ -1003,7 +1003,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
  * ======================================================================== */
 
 ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist) {
-    ProbConstraintNode *node = (ProbConstraintNode *) lv00_malloc(sizeof(ProbConstraintNode));
+    ProbConstraintNode *node = (ProbConstraintNode *) lv_malloc(sizeof(ProbConstraintNode));
     if (!node)
         return NULL;
 
@@ -1023,8 +1023,8 @@ ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist) 
 void prob_constraint_destroy(ProbConstraintNode *node) {
     if (node) {
         prob_dist_destroy(node->coord_dist);
-        lv00_free((void **)&node->pctl_formula);
-        lv00_free((void **)&node);
+        lv_free((void **)&node->pctl_formula);
+        lv_free((void **)&node);
     }
 }
 
@@ -1038,7 +1038,7 @@ int prob_constraint_sample(ProbConstraintNode *node, int n_samples, double **out
 
     if (!node->coord_dist) {
         /* 无分布：返回 0.0（确定性坐标） */
-        double *samples = (double *) lv00_malloc((size_t) n_samples * sizeof(double));
+        double *samples = (double *) lv_malloc((size_t) n_samples * sizeof(double));
         if (!samples)
             return -1;
         for (int i = 0; i < n_samples; i++)
@@ -1125,8 +1125,8 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
              * 使用幂迭代法近似稳态分布，带收敛检查 */
             {
                 int n = mc->state_count;
-                double *pi = (double *) lv00_malloc((size_t) n * sizeof(double));
-                double *next_pi = (double *) lv00_malloc((size_t) n * sizeof(double));
+                double *pi = (double *) lv_malloc((size_t) n * sizeof(double));
+                double *next_pi = (double *) lv_malloc((size_t) n * sizeof(double));
                 if (pi && next_pi) {
                     /* 初始化为均匀分布 */
                     for (int i = 0; i < n; i++)
@@ -1185,12 +1185,12 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
                     }
                     *out_probability = (result > 1.0) ? 1.0 : result;
 
-                    lv00_free((void **) &pi);
-                    lv00_free((void **) &next_pi);
+                    lv_free((void **) &pi);
+                    lv_free((void **) &next_pi);
                 } else {
                     *out_probability = 1.0 / (double) n;
-                    lv00_free((void **) &pi);
-                    lv00_free((void **) &next_pi);
+                    lv_free((void **) &pi);
+                    lv_free((void **) &next_pi);
                 }
             }
             break;
@@ -1312,7 +1312,7 @@ bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbCon
         total_confidence += conf;
         valid_constraints++;
 
-        lv00_free((void **) &samples);
+        lv_free((void **) &samples);
     }
 
     if (valid_constraints > 0) {

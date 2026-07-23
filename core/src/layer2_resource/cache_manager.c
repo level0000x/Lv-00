@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file cache_manager.c
  * @brief 缓存管理器实现
  *
@@ -8,7 +8,7 @@
  * @version 4.0.0
  */
 
-#include "lv00/cache_manager.h"
+#include "lv/cache_manager.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +37,7 @@ static uint32_t hash_key(const char *key, int bucket_count)
 }
 
 /** 将条目移到 LRU 链表头部（最近使用） */
-static void lru_touch(Lv00CacheManager *mgr, Lv00CacheEntry *entry)
+static void lru_touch(lvCacheManager *mgr, lvCacheEntry *entry)
 {
     if (entry == mgr->lru_head) return; /* 已在头部 */
 
@@ -55,11 +55,11 @@ static void lru_touch(Lv00CacheManager *mgr, Lv00CacheEntry *entry)
 }
 
 /** 从哈希表和 LRU 链表中移除条目 */
-static void remove_entry(Lv00CacheManager *mgr, Lv00CacheEntry *entry)
+static void remove_entry(lvCacheManager *mgr, lvCacheEntry *entry)
 {
     /* 从哈希桶中摘除 */
     uint32_t idx = hash_key(entry->key, mgr->bucket_count);
-    Lv00CacheEntry **pp = &mgr->buckets[idx];
+    lvCacheEntry **pp = &mgr->buckets[idx];
     while (*pp != NULL) {
         if (*pp == entry) {
             *pp = entry->hash_next;
@@ -84,10 +84,10 @@ static void remove_entry(Lv00CacheManager *mgr, Lv00CacheEntry *entry)
 }
 
 /** LRU 淘汰：移除最久未使用的条目 */
-static void evict_lru(Lv00CacheManager *mgr)
+static void evict_lru(lvCacheManager *mgr)
 {
     if (mgr->lru_tail == NULL) return;
-    Lv00CacheEntry *victim = mgr->lru_tail;
+    lvCacheEntry *victim = mgr->lru_tail;
     mgr->current_size -= victim->data_size;
     mgr->entry_count--;
     mgr->total_evictions++;
@@ -98,27 +98,27 @@ static void evict_lru(Lv00CacheManager *mgr)
  * 缓存管理器生命周期
  * ======================================================================== */
 
-Lv00CacheManager *lv00_cache_manager_create(const Lv00CacheConfig *config)
+lvCacheManager *lv_cache_manager_create(const lvCacheConfig *config)
 {
-    Lv00CacheManager *mgr = (Lv00CacheManager *)calloc(1, sizeof(Lv00CacheManager));
+    lvCacheManager *mgr = (lvCacheManager *)calloc(1, sizeof(lvCacheManager));
     if (mgr == NULL) return NULL;
 
-    mgr->magic = LV00_CACHE_MAGIC;
+    mgr->magic = lv_CACHE_MAGIC;
     mgr->is_running = true;
 
     /* 配置 */
     if (config != NULL) {
         mgr->config = *config;
     } else {
-        mgr->config.max_cache_size = LV00_CACHE_DEFAULT_SIZE;
-        mgr->config.max_entries = LV00_CACHE_MAX_ENTRIES;
-        mgr->config.strategy = LV00_CACHE_STRATEGY_LRU;
+        mgr->config.max_cache_size = lv_CACHE_DEFAULT_SIZE;
+        mgr->config.max_entries = lv_CACHE_MAX_ENTRIES;
+        mgr->config.strategy = lv_CACHE_STRATEGY_LRU;
         mgr->config.enable_auto_evict = true;
     }
 
     /* 哈希桶 */
     mgr->bucket_count = DEFAULT_BUCKET_COUNT;
-    mgr->buckets = (Lv00CacheEntry **)calloc((size_t)mgr->bucket_count, sizeof(Lv00CacheEntry *));
+    mgr->buckets = (lvCacheEntry **)calloc((size_t)mgr->bucket_count, sizeof(lvCacheEntry *));
     if (mgr->buckets == NULL) {
         free(mgr);
         return NULL;
@@ -126,7 +126,7 @@ Lv00CacheManager *lv00_cache_manager_create(const Lv00CacheConfig *config)
 
     /* 上下文数组 */
     mgr->context_capacity = DEFAULT_CONTEXT_CAPACITY;
-    mgr->contexts = (Lv00CacheContext *)calloc((size_t)mgr->context_capacity, sizeof(Lv00CacheContext));
+    mgr->contexts = (lvCacheContext *)calloc((size_t)mgr->context_capacity, sizeof(lvCacheContext));
     if (mgr->contexts == NULL) {
         free(mgr->buckets);
         free(mgr);
@@ -144,15 +144,15 @@ Lv00CacheManager *lv00_cache_manager_create(const Lv00CacheConfig *config)
     return mgr;
 }
 
-void lv00_cache_manager_destroy(Lv00CacheManager *manager)
+void lv_cache_manager_destroy(lvCacheManager *manager)
 {
     if (manager == NULL) return;
 
     /* 释放所有条目 */
     for (int i = 0; i < manager->bucket_count; i++) {
-        Lv00CacheEntry *entry = manager->buckets[i];
+        lvCacheEntry *entry = manager->buckets[i];
         while (entry != NULL) {
-            Lv00CacheEntry *next = entry->hash_next;
+            lvCacheEntry *next = entry->hash_next;
             if (entry->destructor && entry->data) {
                 entry->destructor(entry->data, entry->data_size);
             } else {
@@ -168,19 +168,19 @@ void lv00_cache_manager_destroy(Lv00CacheManager *manager)
     free(manager);
 }
 
-bool lv00_cache_manager_is_valid(const Lv00CacheManager *manager)
+bool lv_cache_manager_is_valid(const lvCacheManager *manager)
 {
-    return (manager != NULL && manager->magic == LV00_CACHE_MAGIC && manager->is_running);
+    return (manager != NULL && manager->magic == lv_CACHE_MAGIC && manager->is_running);
 }
 
 /* ========================================================================
  * 缓存存取操作
  * ======================================================================== */
 
-bool lv00_cache_put(Lv00CacheManager *manager, const char *key,
+bool lv_cache_put(lvCacheManager *manager, const char *key,
                      const void *data, size_t size)
 {
-    if (!lv00_cache_manager_is_valid(manager) || key == NULL || data == NULL) return false;
+    if (!lv_cache_manager_is_valid(manager) || key == NULL || data == NULL) return false;
 
     /* 自动淘汰 */
     while (manager->config.enable_auto_evict &&
@@ -192,7 +192,7 @@ bool lv00_cache_put(Lv00CacheManager *manager, const char *key,
 
     /* 检查是否已存在 */
     uint32_t idx = hash_key(key, manager->bucket_count);
-    Lv00CacheEntry *existing = manager->buckets[idx];
+    lvCacheEntry *existing = manager->buckets[idx];
     while (existing != NULL) {
         if (strncmp(existing->key, key, sizeof(existing->key) - 1) == 0) {
             /* 更新现有条目 */
@@ -210,7 +210,7 @@ bool lv00_cache_put(Lv00CacheManager *manager, const char *key,
     }
 
     /* 创建新条目 */
-    Lv00CacheEntry *entry = (Lv00CacheEntry *)calloc(1, sizeof(Lv00CacheEntry));
+    lvCacheEntry *entry = (lvCacheEntry *)calloc(1, sizeof(lvCacheEntry));
     if (entry == NULL) return false;
 
     strncpy(entry->key, key, sizeof(entry->key) - 1);
@@ -237,13 +237,13 @@ bool lv00_cache_put(Lv00CacheManager *manager, const char *key,
     return true;
 }
 
-bool lv00_cache_mgr_get(Lv00CacheManager *manager, const char *key,
+bool lv_cache_mgr_get(lvCacheManager *manager, const char *key,
                           void **out_data, size_t *out_size)
 {
-    if (!lv00_cache_manager_is_valid(manager) || key == NULL) return false;
+    if (!lv_cache_manager_is_valid(manager) || key == NULL) return false;
 
     uint32_t idx = hash_key(key, manager->bucket_count);
-    Lv00CacheEntry *entry = manager->buckets[idx];
+    lvCacheEntry *entry = manager->buckets[idx];
 
     while (entry != NULL) {
         if (strncmp(entry->key, key, sizeof(entry->key) - 1) == 0) {
@@ -263,12 +263,12 @@ bool lv00_cache_mgr_get(Lv00CacheManager *manager, const char *key,
     return false;
 }
 
-bool lv00_cache_mgr_remove(Lv00CacheManager *manager, const char *key)
+bool lv_cache_mgr_remove(lvCacheManager *manager, const char *key)
 {
-    if (!lv00_cache_manager_is_valid(manager) || key == NULL) return false;
+    if (!lv_cache_manager_is_valid(manager) || key == NULL) return false;
 
     uint32_t idx = hash_key(key, manager->bucket_count);
-    Lv00CacheEntry *entry = manager->buckets[idx];
+    lvCacheEntry *entry = manager->buckets[idx];
 
     while (entry != NULL) {
         if (strncmp(entry->key, key, sizeof(entry->key) - 1) == 0) {
@@ -283,12 +283,12 @@ bool lv00_cache_mgr_remove(Lv00CacheManager *manager, const char *key)
     return false;
 }
 
-bool lv00_cache_contains(Lv00CacheManager *manager, const char *key)
+bool lv_cache_contains(lvCacheManager *manager, const char *key)
 {
-    if (!lv00_cache_manager_is_valid(manager) || key == NULL) return false;
+    if (!lv_cache_manager_is_valid(manager) || key == NULL) return false;
 
     uint32_t idx = hash_key(key, manager->bucket_count);
-    Lv00CacheEntry *entry = manager->buckets[idx];
+    lvCacheEntry *entry = manager->buckets[idx];
 
     while (entry != NULL) {
         if (strncmp(entry->key, key, sizeof(entry->key) - 1) == 0) {
@@ -303,13 +303,13 @@ bool lv00_cache_contains(Lv00CacheManager *manager, const char *key)
  * 上下文管理
  * ======================================================================== */
 
-uint32_t lv00_cache_context_create(Lv00CacheManager *manager, const char *name,
+uint32_t lv_cache_context_create(lvCacheManager *manager, const char *name,
                                     uint32_t parent_id)
 {
-    if (!lv00_cache_manager_is_valid(manager) || name == NULL) return 0;
+    if (!lv_cache_manager_is_valid(manager) || name == NULL) return 0;
     if (manager->context_count >= manager->context_capacity) return 0;
 
-    Lv00CacheContext *ctx = &manager->contexts[manager->context_count];
+    lvCacheContext *ctx = &manager->contexts[manager->context_count];
     ctx->context_id = manager->next_context_id++;
     strncpy(ctx->name, name, sizeof(ctx->name) - 1);
     ctx->parent_id = parent_id;
@@ -320,9 +320,9 @@ uint32_t lv00_cache_context_create(Lv00CacheManager *manager, const char *name,
     return ctx->context_id;
 }
 
-bool lv00_cache_context_switch(Lv00CacheManager *manager, uint32_t context_id)
+bool lv_cache_context_switch(lvCacheManager *manager, uint32_t context_id)
 {
-    if (!lv00_cache_manager_is_valid(manager)) return false;
+    if (!lv_cache_manager_is_valid(manager)) return false;
 
     for (int i = 0; i < manager->context_count; i++) {
         if (manager->contexts[i].context_id == context_id) {
@@ -333,15 +333,15 @@ bool lv00_cache_context_switch(Lv00CacheManager *manager, uint32_t context_id)
     return false;
 }
 
-uint32_t lv00_cache_context_current(const Lv00CacheManager *manager)
+uint32_t lv_cache_context_current(const lvCacheManager *manager)
 {
     if (manager == NULL) return 0;
     return manager->current_context_id;
 }
 
-bool lv00_cache_context_destroy(Lv00CacheManager *manager, uint32_t context_id)
+bool lv_cache_context_destroy(lvCacheManager *manager, uint32_t context_id)
 {
-    if (!lv00_cache_manager_is_valid(manager)) return false;
+    if (!lv_cache_manager_is_valid(manager)) return false;
     if (context_id == 1) return false; /* 不允许销毁默认上下文 */
 
     for (int i = 0; i < manager->context_count; i++) {
@@ -361,7 +361,7 @@ bool lv00_cache_context_destroy(Lv00CacheManager *manager, uint32_t context_id)
  * 统计与查询
  * ======================================================================== */
 
-void lv00_cache_mgr_get_stats(const Lv00CacheManager *manager,
+void lv_cache_mgr_get_stats(const lvCacheManager *manager,
                                 uint64_t *out_hits, uint64_t *out_misses,
                                 size_t *out_size)
 {
@@ -371,7 +371,7 @@ void lv00_cache_mgr_get_stats(const Lv00CacheManager *manager,
     if (out_size) *out_size = manager->current_size;
 }
 
-void lv00_cache_get_context_stats(const Lv00CacheManager *manager,
+void lv_cache_get_context_stats(const lvCacheManager *manager,
                                    uint32_t context_id,
                                    uint64_t *out_hits, uint64_t *out_misses,
                                    size_t *out_size)
@@ -390,19 +390,19 @@ void lv00_cache_get_context_stats(const Lv00CacheManager *manager,
     if (out_size) *out_size = 0;
 }
 
-int lv00_cache_entry_count(const Lv00CacheManager *manager)
+int lv_cache_entry_count(const lvCacheManager *manager)
 {
     if (manager == NULL) return 0;
     return manager->entry_count;
 }
 
-size_t lv00_cache_current_size(const Lv00CacheManager *manager)
+size_t lv_cache_current_size(const lvCacheManager *manager)
 {
     if (manager == NULL) return 0;
     return manager->current_size;
 }
 
-const Lv00CacheConfig *lv00_cache_get_config(const Lv00CacheManager *manager)
+const lvCacheConfig *lv_cache_get_config(const lvCacheManager *manager)
 {
     if (manager == NULL) return NULL;
     return &manager->config;
@@ -412,15 +412,15 @@ const Lv00CacheConfig *lv00_cache_get_config(const Lv00CacheManager *manager)
  * 杂项操作
  * ======================================================================== */
 
-Lv00ErrorCode lv00_cache_manager_reset(Lv00CacheManager *manager)
+lvErrorCode lv_cache_manager_reset(lvCacheManager *manager)
 {
-    if (!lv00_cache_manager_is_valid(manager)) return LV00_ERROR_INVALID_STATE;
+    if (!lv_cache_manager_is_valid(manager)) return lv_ERROR_INVALID_STATE;
 
     /* 清空所有条目 */
     for (int i = 0; i < manager->bucket_count; i++) {
-        Lv00CacheEntry *entry = manager->buckets[i];
+        lvCacheEntry *entry = manager->buckets[i];
         while (entry != NULL) {
-            Lv00CacheEntry *next = entry->hash_next;
+            lvCacheEntry *next = entry->hash_next;
             if (entry->destructor && entry->data) {
                 entry->destructor(entry->data, entry->data_size);
             } else {
@@ -440,16 +440,16 @@ Lv00ErrorCode lv00_cache_manager_reset(Lv00CacheManager *manager)
     manager->total_misses = 0;
     manager->total_evictions = 0;
 
-    return LV00_OK;
+    return lv_OK;
 }
 
-void lv00_unified_cache_clear(Lv00CacheManager *manager)
+void lv_unified_cache_clear(lvCacheManager *manager)
 {
     if (manager == NULL) return;
-    lv00_cache_manager_reset(manager);
+    lv_cache_manager_reset(manager);
 }
 
-void lv00_cache_set_destructor(Lv00CacheManager *manager,
+void lv_cache_set_destructor(lvCacheManager *manager,
                                 void (*destructor)(void *, size_t))
 {
     if (manager == NULL) return;

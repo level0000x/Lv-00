@@ -1,8 +1,8 @@
-/**
+﻿/**
  * @file expr_canon.c
  * @brief 代数表达式规范形式实现
  *
- * @details 实现 Lv00ExprCanonical 的完整生命周期、规范化和算术运算。
+ * @details 实现 lvExprCanonical 的完整生命周期、规范化和算术运算。
  *          规范形式确保代数等价的表达式产生相同的序列化形式。
  *
  *          核心算法:
@@ -21,8 +21,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_utils.h"
-#include "lv00_internal.h" /* LV00_UNUSED */
+#include "lv_utils.h"
+#include "lv_internal.h" /* lv_UNUSED */
 
 /* 默认初始容量 */
 #define EXPR_CANON_DEFAULT_CAPACITY 16
@@ -90,10 +90,10 @@ static int cmp_hashidx(const void *a, const void *b) {
     return 0;
 }
 
-/** 按规范比较顺序排列 Lv00ExprTerm*: 次数降序，同次数字典序 */
+/** 按规范比较顺序排列 lvExprTerm*: 次数降序，同次数字典序 */
 static int cmp_term_canonical(const void *a, const void *b) {
-    const Lv00ExprTerm *ta = *(const Lv00ExprTerm **) a;
-    const Lv00ExprTerm *tb = *(const Lv00ExprTerm **) b;
+    const lvExprTerm *ta = *(const lvExprTerm **) a;
+    const lvExprTerm *tb = *(const lvExprTerm **) b;
 
     if (!ta || !tb || !ta->exponents || !tb->exponents) {
         return 0;
@@ -106,14 +106,14 @@ static int cmp_term_canonical(const void *a, const void *b) {
         return deg_b - deg_a; /* 降序 */
 
     /* 同次数按字典序比较指数数组 */
-    return -lv00_canonical_compare_terms(ta->exponents, tb->exponents, ta->var_count);
+    return -lv_canonical_compare_terms(ta->exponents, tb->exponents, ta->var_count);
 }
 
 /* ========================================================================
  * 排序规则
  * ======================================================================== */
 
-int lv00_canonical_compare_terms(const int *a, const int *b, int var_count) {
+int lv_canonical_compare_terms(const int *a, const int *b, int var_count) {
     if (!a || !b)
         return 0;
 
@@ -130,11 +130,11 @@ int lv00_canonical_compare_terms(const int *a, const int *b, int var_count) {
  * 生命周期
  * ======================================================================== */
 
-Lv00ExprCanonical *lv00_expr_canonical_create(int var_count, const char **var_names) {
+lvExprCanonical *lv_expr_canonical_create(int var_count, const char **var_names) {
     if (var_count < 0)
         return NULL;
 
-    Lv00ExprCanonical *expr = (Lv00ExprCanonical *) lv00_malloc(sizeof(Lv00ExprCanonical));
+    lvExprCanonical *expr = (lvExprCanonical *) lv_malloc(sizeof(lvExprCanonical));
     if (!expr)
         return NULL;
 
@@ -143,9 +143,9 @@ Lv00ExprCanonical *lv00_expr_canonical_create(int var_count, const char **var_na
     expr->var_count = var_count;
     expr->canonicalized = true;
 
-    expr->terms = (Lv00ExprTerm *) lv00_malloc((size_t) expr->term_capacity * sizeof(Lv00ExprTerm));
+    expr->terms = (lvExprTerm *) lv_malloc((size_t) expr->term_capacity * sizeof(lvExprTerm));
     if (!expr->terms) {
-        lv00_free((void **) &expr);
+        lv_free((void **) &expr);
         return NULL;
     }
 
@@ -158,16 +158,16 @@ Lv00ExprCanonical *lv00_expr_canonical_create(int var_count, const char **var_na
 
     /* 拷贝变量名 */
     if (var_names && var_count > 0) {
-        expr->var_names = (char **) lv00_malloc((size_t) var_count * sizeof(char *));
+        expr->var_names = (char **) lv_malloc((size_t) var_count * sizeof(char *));
         if (!expr->var_names) {
-            lv00_free((void **) &expr->terms);
-            lv00_free((void **) &expr);
+            lv_free((void **) &expr->terms);
+            lv_free((void **) &expr);
             return NULL;
         }
         for (int i = 0; i < var_count; i++) {
             if (var_names[i]) {
                 size_t name_len = strlen(var_names[i]) + 1;
-                expr->var_names[i] = (char *) lv00_malloc(name_len);
+                expr->var_names[i] = (char *) lv_malloc(name_len);
                 if (expr->var_names[i])
                     memcpy(expr->var_names[i], var_names[i], name_len);
             } else {
@@ -181,43 +181,43 @@ Lv00ExprCanonical *lv00_expr_canonical_create(int var_count, const char **var_na
     return expr;
 }
 
-void lv00_expr_canonical_destroy(Lv00ExprCanonical **expr) {
+void lv_expr_canonical_destroy(lvExprCanonical **expr) {
     if (!expr || !*expr)
         return;
 
-    Lv00ExprCanonical *e = *expr;
+    lvExprCanonical *e = *expr;
 
     for (int i = 0; i < e->term_capacity; i++) {
         if (e->terms[i].coeff) {
-            lv00_rational_destroy(&e->terms[i].coeff);
+            lv_rational_destroy(&e->terms[i].coeff);
         }
-        lv00_free((void **) &e->terms[i].exponents);
+        lv_free((void **) &e->terms[i].exponents);
     }
-    lv00_free((void **) &e->terms);
+    lv_free((void **) &e->terms);
 
     if (e->var_names) {
         for (int i = 0; i < e->var_count; i++) {
-            lv00_free((void **) &e->var_names[i]);
+            lv_free((void **) &e->var_names[i]);
         }
-        lv00_free((void **) &e->var_names);
+        lv_free((void **) &e->var_names);
     }
 
-    lv00_free((void **) expr);
+    lv_free((void **) expr);
 }
 
-Lv00ExprCanonical *lv00_expr_canonical_clone(const Lv00ExprCanonical *src) {
+lvExprCanonical *lv_expr_canonical_clone(const lvExprCanonical *src) {
     if (!src)
         return NULL;
 
     const char **names = (const char **) src->var_names;
-    Lv00ExprCanonical *dst = lv00_expr_canonical_create(src->var_count, names);
+    lvExprCanonical *dst = lv_expr_canonical_create(src->var_count, names);
     if (!dst)
         return NULL;
 
     /* 逐个拷贝现有项 */
     for (int i = 0; i < src->term_count; i++) {
-        if (!lv00_expr_canonical_add_term(dst, src->terms[i].coeff, src->terms[i].exponents)) {
-            lv00_expr_canonical_destroy(&dst);
+        if (!lv_expr_canonical_add_term(dst, src->terms[i].coeff, src->terms[i].exponents)) {
+            lv_expr_canonical_destroy(&dst);
             return NULL;
         }
     }
@@ -237,7 +237,7 @@ Lv00ExprCanonical *lv00_expr_canonical_clone(const Lv00ExprCanonical *src) {
  *
  * @return true 成功扩容或空间足够，false 分配失败
  */
-static bool ensure_capacity(Lv00ExprCanonical *expr, int needed) {
+static bool ensure_capacity(lvExprCanonical *expr, int needed) {
     if (expr->term_count + needed <= expr->term_capacity)
         return true;
 
@@ -249,7 +249,7 @@ static bool ensure_capacity(Lv00ExprCanonical *expr, int needed) {
         new_cap *= 2;
     }
 
-    Lv00ExprTerm *new_terms = (Lv00ExprTerm *) lv00_realloc(expr->terms, (size_t) new_cap * sizeof(Lv00ExprTerm));
+    lvExprTerm *new_terms = (lvExprTerm *) lv_realloc(expr->terms, (size_t) new_cap * sizeof(lvExprTerm));
     if (!new_terms)
         return false;
 
@@ -265,10 +265,10 @@ static bool ensure_capacity(Lv00ExprCanonical *expr, int needed) {
     return true;
 }
 
-bool lv00_expr_canonical_add_term(Lv00ExprCanonical *expr, const Lv00Rational *coeff, const int *exponents) {
+bool lv_expr_canonical_add_term(lvExprCanonical *expr, const lvRational *coeff, const int *exponents) {
     if (!expr || !coeff || !exponents)
         return false;
-    if (lv00_rational_is_zero(coeff))
+    if (lv_rational_is_zero(coeff))
         return true; /* 零系数项直接跳过 */
 
     if (!ensure_capacity(expr, 1))
@@ -277,14 +277,14 @@ bool lv00_expr_canonical_add_term(Lv00ExprCanonical *expr, const Lv00Rational *c
     int idx = expr->term_count;
 
     /* 分配并拷贝系数 */
-    expr->terms[idx].coeff = lv00_rational_clone(coeff);
+    expr->terms[idx].coeff = lv_rational_clone(coeff);
     if (!expr->terms[idx].coeff)
         return false;
 
     /* 分配并拷贝指数 */
-    expr->terms[idx].exponents = (int *) lv00_malloc((size_t) expr->var_count * sizeof(int));
+    expr->terms[idx].exponents = (int *) lv_malloc((size_t) expr->var_count * sizeof(int));
     if (!expr->terms[idx].exponents) {
-        lv00_rational_destroy(&expr->terms[idx].coeff);
+        lv_rational_destroy(&expr->terms[idx].coeff);
         return false;
     }
     memcpy(expr->terms[idx].exponents, exponents, (size_t) expr->var_count * sizeof(int));
@@ -299,7 +299,7 @@ bool lv00_expr_canonical_add_term(Lv00ExprCanonical *expr, const Lv00Rational *c
  * 规范化
  * ======================================================================== */
 
-bool lv00_expr_canonicalize(Lv00ExprCanonical *expr) {
+bool lv_expr_canonicalize(lvExprCanonical *expr) {
     if (!expr)
         return false;
     if (expr->term_count == 0) {
@@ -309,7 +309,7 @@ bool lv00_expr_canonicalize(Lv00ExprCanonical *expr) {
 
     int old_count = expr->term_count;
     int vc = expr->var_count;
-    Lv00ExprTerm *merged = (Lv00ExprTerm *) lv00_malloc((size_t) expr->term_capacity * sizeof(Lv00ExprTerm));
+    lvExprTerm *merged = (lvExprTerm *) lv_malloc((size_t) expr->term_capacity * sizeof(lvExprTerm));
     if (!merged)
         return false;
 
@@ -324,7 +324,7 @@ bool lv00_expr_canonicalize(Lv00ExprCanonical *expr) {
 
     /* 深拷贝并合并同类项，避免浅拷贝导致指针所有权混乱。 */
     for (int i = 0; i < old_count && ok; i++) {
-        if (!expr->terms[i].coeff || !expr->terms[i].exponents || lv00_rational_is_zero(expr->terms[i].coeff))
+        if (!expr->terms[i].coeff || !expr->terms[i].exponents || lv_rational_is_zero(expr->terms[i].coeff))
             continue;
 
         int found = -1;
@@ -336,10 +336,10 @@ bool lv00_expr_canonicalize(Lv00ExprCanonical *expr) {
         }
 
         if (found >= 0) {
-            lv00_rational_add_inplace(merged[found].coeff, expr->terms[i].coeff);
-            if (lv00_rational_is_zero(merged[found].coeff)) {
-                lv00_rational_destroy(&merged[found].coeff);
-                lv00_free((void **) &merged[found].exponents);
+            lv_rational_add_inplace(merged[found].coeff, expr->terms[i].coeff);
+            if (lv_rational_is_zero(merged[found].coeff)) {
+                lv_rational_destroy(&merged[found].coeff);
+                lv_free((void **) &merged[found].exponents);
                 for (int k = found; k + 1 < merged_count; k++) {
                     merged[k] = merged[k + 1];
                 }
@@ -349,14 +349,14 @@ bool lv00_expr_canonicalize(Lv00ExprCanonical *expr) {
                 merged[merged_count].var_count = 0;
             }
         } else {
-            merged[merged_count].coeff = lv00_rational_clone(expr->terms[i].coeff);
+            merged[merged_count].coeff = lv_rational_clone(expr->terms[i].coeff);
             if (!merged[merged_count].coeff) {
                 ok = false;
                 break;
             }
-            merged[merged_count].exponents = (int *) lv00_malloc((size_t) vc * sizeof(int));
+            merged[merged_count].exponents = (int *) lv_malloc((size_t) vc * sizeof(int));
             if (!merged[merged_count].exponents) {
-                lv00_rational_destroy(&merged[merged_count].coeff);
+                lv_rational_destroy(&merged[merged_count].coeff);
                 ok = false;
                 break;
             }
@@ -369,10 +369,10 @@ bool lv00_expr_canonicalize(Lv00ExprCanonical *expr) {
     if (!ok) {
         for (int i = 0; i < expr->term_capacity; i++) {
             if (merged[i].coeff)
-                lv00_rational_destroy(&merged[i].coeff);
-            lv00_free((void **) &merged[i].exponents);
+                lv_rational_destroy(&merged[i].coeff);
+            lv_free((void **) &merged[i].exponents);
         }
-        lv00_free((void **) &merged);
+        lv_free((void **) &merged);
         return false;
     }
 
@@ -385,11 +385,11 @@ bool lv00_expr_canonicalize(Lv00ExprCanonical *expr) {
             if (deg_i < deg_j) {
                 should_swap = true;
             } else if (deg_i == deg_j &&
-                       lv00_canonical_compare_terms(merged[i].exponents, merged[j].exponents, vc) < 0) {
+                       lv_canonical_compare_terms(merged[i].exponents, merged[j].exponents, vc) < 0) {
                 should_swap = true;
             }
             if (should_swap) {
-                Lv00ExprTerm tmp = merged[i];
+                lvExprTerm tmp = merged[i];
                 merged[i] = merged[j];
                 merged[j] = tmp;
             }
@@ -401,10 +401,10 @@ bool lv00_expr_canonicalize(Lv00ExprCanonical *expr) {
     /* 释放旧项后安装新项数组。 */
     for (int i = 0; i < expr->term_capacity; i++) {
         if (expr->terms[i].coeff)
-            lv00_rational_destroy(&expr->terms[i].coeff);
-        lv00_free((void **) &expr->terms[i].exponents);
+            lv_rational_destroy(&expr->terms[i].coeff);
+        lv_free((void **) &expr->terms[i].exponents);
     }
-    lv00_free((void **) &expr->terms);
+    lv_free((void **) &expr->terms);
 
     expr->terms = merged;
     expr->term_count = merged_count;
@@ -412,7 +412,7 @@ bool lv00_expr_canonicalize(Lv00ExprCanonical *expr) {
     return true;
 }
 
-bool lv00_expr_is_canonical(const Lv00ExprCanonical *expr) {
+bool lv_expr_is_canonical(const lvExprCanonical *expr) {
     if (!expr)
         return false;
     if (!expr->canonicalized)
@@ -423,7 +423,7 @@ bool lv00_expr_is_canonical(const Lv00ExprCanonical *expr) {
     /* 检查排序和唯一性 */
     for (int i = 0; i < expr->term_count; i++) {
         /* 检查零系数 */
-        if (expr->terms[i].coeff && lv00_rational_is_zero(expr->terms[i].coeff))
+        if (expr->terms[i].coeff && lv_rational_is_zero(expr->terms[i].coeff))
             return false;
 
         /* 检查排序 */
@@ -433,7 +433,7 @@ bool lv00_expr_is_canonical(const Lv00ExprCanonical *expr) {
             if (deg_a < deg_b)
                 return false;
             if (deg_a == deg_b) {
-                int cmp = lv00_canonical_compare_terms(expr->terms[i].exponents,
+                int cmp = lv_canonical_compare_terms(expr->terms[i].exponents,
                                                         expr->terms[i + 1].exponents,
                                                         expr->var_count);
                 if (cmp == 0)
@@ -446,7 +446,7 @@ bool lv00_expr_is_canonical(const Lv00ExprCanonical *expr) {
 
     /* 检查首项系数符号 */
     if (expr->term_count > 0 && expr->terms[0].coeff) {
-        if (lv00_rational_sgn(expr->terms[0].coeff) < 0)
+        if (lv_rational_sgn(expr->terms[0].coeff) < 0)
             return false;
     }
 
@@ -457,66 +457,66 @@ bool lv00_expr_is_canonical(const Lv00ExprCanonical *expr) {
  * 算术操作
  * ======================================================================== */
 
-Lv00ExprCanonical *lv00_expr_canonical_add(const Lv00ExprCanonical *a, const Lv00ExprCanonical *b) {
+lvExprCanonical *lv_expr_canonical_add(const lvExprCanonical *a, const lvExprCanonical *b) {
     if (!a || !b)
         return NULL;
     if (a->var_count != b->var_count)
         return NULL;
 
     const char **names = (const char **) a->var_names;
-    Lv00ExprCanonical *result = lv00_expr_canonical_create(a->var_count, names);
+    lvExprCanonical *result = lv_expr_canonical_create(a->var_count, names);
     if (!result)
         return NULL;
 
     /* 添加 a 的所有项 */
     for (int i = 0; i < a->term_count; i++) {
-        if (!lv00_expr_canonical_add_term(result, a->terms[i].coeff, a->terms[i].exponents)) {
-            lv00_expr_canonical_destroy(&result);
+        if (!lv_expr_canonical_add_term(result, a->terms[i].coeff, a->terms[i].exponents)) {
+            lv_expr_canonical_destroy(&result);
             return NULL;
         }
     }
 
     /* 添加 b 的所有项 */
     for (int i = 0; i < b->term_count; i++) {
-        if (!lv00_expr_canonical_add_term(result, b->terms[i].coeff, b->terms[i].exponents)) {
-            lv00_expr_canonical_destroy(&result);
+        if (!lv_expr_canonical_add_term(result, b->terms[i].coeff, b->terms[i].exponents)) {
+            lv_expr_canonical_destroy(&result);
             return NULL;
         }
     }
 
     /* 规范化 */
-    if (!lv00_expr_canonicalize(result)) {
-        lv00_expr_canonical_destroy(&result);
+    if (!lv_expr_canonicalize(result)) {
+        lv_expr_canonical_destroy(&result);
         return NULL;
     }
 
     return result;
 }
 
-Lv00ExprCanonical *lv00_expr_canonical_sub(const Lv00ExprCanonical *a, const Lv00ExprCanonical *b) {
+lvExprCanonical *lv_expr_canonical_sub(const lvExprCanonical *a, const lvExprCanonical *b) {
     if (!a || !b)
         return NULL;
     if (a->var_count != b->var_count)
         return NULL;
 
     /* a - b = a + (-b) */
-    Lv00ExprCanonical *neg_b = lv00_expr_canonical_neg(b);
+    lvExprCanonical *neg_b = lv_expr_canonical_neg(b);
     if (!neg_b)
         return NULL;
 
-    Lv00ExprCanonical *result = lv00_expr_canonical_add(a, neg_b);
-    lv00_expr_canonical_destroy(&neg_b);
+    lvExprCanonical *result = lv_expr_canonical_add(a, neg_b);
+    lv_expr_canonical_destroy(&neg_b);
     return result;
 }
 
-Lv00ExprCanonical *lv00_expr_canonical_mul(const Lv00ExprCanonical *a, const Lv00ExprCanonical *b) {
+lvExprCanonical *lv_expr_canonical_mul(const lvExprCanonical *a, const lvExprCanonical *b) {
     if (!a || !b)
         return NULL;
     if (a->var_count != b->var_count)
         return NULL;
 
     const char **names = (const char **) a->var_names;
-    Lv00ExprCanonical *result = lv00_expr_canonical_create(a->var_count, names);
+    lvExprCanonical *result = lv_expr_canonical_create(a->var_count, names);
     if (!result)
         return NULL;
 
@@ -525,16 +525,16 @@ Lv00ExprCanonical *lv00_expr_canonical_mul(const Lv00ExprCanonical *a, const Lv0
     /* 逐项乘法 */
     for (int i = 0; i < a->term_count; i++) {
         for (int j = 0; j < b->term_count; j++) {
-            Lv00Rational *coeff = lv00_rational_mul(a->terms[i].coeff, b->terms[j].coeff);
+            lvRational *coeff = lv_rational_mul(a->terms[i].coeff, b->terms[j].coeff);
             if (!coeff) {
-                lv00_expr_canonical_destroy(&result);
+                lv_expr_canonical_destroy(&result);
                 return NULL;
             }
 
-            int *exp = (int *) lv00_malloc((size_t) vc * sizeof(int));
+            int *exp = (int *) lv_malloc((size_t) vc * sizeof(int));
             if (!exp) {
-                lv00_rational_destroy(&coeff);
-                lv00_expr_canonical_destroy(&result);
+                lv_rational_destroy(&coeff);
+                lv_expr_canonical_destroy(&result);
                 return NULL;
             }
 
@@ -542,56 +542,56 @@ Lv00ExprCanonical *lv00_expr_canonical_mul(const Lv00ExprCanonical *a, const Lv0
                 exp[k] = a->terms[i].exponents[k] + b->terms[j].exponents[k];
             }
 
-            bool ok = lv00_expr_canonical_add_term(result, coeff, exp);
-            lv00_rational_destroy(&coeff);
-            lv00_free((void **) &exp);
+            bool ok = lv_expr_canonical_add_term(result, coeff, exp);
+            lv_rational_destroy(&coeff);
+            lv_free((void **) &exp);
 
             if (!ok) {
-                lv00_expr_canonical_destroy(&result);
+                lv_expr_canonical_destroy(&result);
                 return NULL;
             }
         }
     }
 
-    if (!lv00_expr_canonicalize(result)) {
-        lv00_expr_canonical_destroy(&result);
+    if (!lv_expr_canonicalize(result)) {
+        lv_expr_canonical_destroy(&result);
         return NULL;
     }
 
     return result;
 }
 
-Lv00ExprCanonical *lv00_expr_canonical_scale(const Lv00ExprCanonical *a, const Lv00Rational *coeff) {
+lvExprCanonical *lv_expr_canonical_scale(const lvExprCanonical *a, const lvRational *coeff) {
     if (!a || !coeff)
         return NULL;
 
-    Lv00ExprCanonical *result = lv00_expr_canonical_clone(a);
+    lvExprCanonical *result = lv_expr_canonical_clone(a);
     if (!result)
         return NULL;
 
     for (int i = 0; i < result->term_count; i++) {
-        lv00_rational_mul_inplace(result->terms[i].coeff, coeff);
+        lv_rational_mul_inplace(result->terms[i].coeff, coeff);
     }
 
     /* 重新规范化以合并可能产生的零项 */
-    if (!lv00_expr_canonicalize(result)) {
-        lv00_expr_canonical_destroy(&result);
+    if (!lv_expr_canonicalize(result)) {
+        lv_expr_canonical_destroy(&result);
         return NULL;
     }
 
     return result;
 }
 
-Lv00ExprCanonical *lv00_expr_canonical_neg(const Lv00ExprCanonical *a) {
+lvExprCanonical *lv_expr_canonical_neg(const lvExprCanonical *a) {
     if (!a)
         return NULL;
 
-    Lv00ExprCanonical *result = lv00_expr_canonical_clone(a);
+    lvExprCanonical *result = lv_expr_canonical_clone(a);
     if (!result)
         return NULL;
 
     for (int i = 0; i < result->term_count; i++) {
-        lv00_rational_neg_inplace(result->terms[i].coeff);
+        lv_rational_neg_inplace(result->terms[i].coeff);
     }
 
     return result;
@@ -601,7 +601,7 @@ Lv00ExprCanonical *lv00_expr_canonical_neg(const Lv00ExprCanonical *a) {
  * 比较与查询
  * ======================================================================== */
 
-bool lv00_expr_canonical_equal(const Lv00ExprCanonical *a, const Lv00ExprCanonical *b) {
+bool lv_expr_canonical_equal(const lvExprCanonical *a, const lvExprCanonical *b) {
     if (!a || !b)
         return (a == b);
     if (a->var_count != b->var_count)
@@ -610,7 +610,7 @@ bool lv00_expr_canonical_equal(const Lv00ExprCanonical *a, const Lv00ExprCanonic
         return false;
 
     for (int i = 0; i < a->term_count; i++) {
-        if (!lv00_rational_equal(a->terms[i].coeff, b->terms[i].coeff))
+        if (!lv_rational_equal(a->terms[i].coeff, b->terms[i].coeff))
             return false;
         if (!exponents_equal(a->terms[i].exponents, b->terms[i].exponents, a->var_count))
             return false;
@@ -618,13 +618,13 @@ bool lv00_expr_canonical_equal(const Lv00ExprCanonical *a, const Lv00ExprCanonic
     return true;
 }
 
-bool lv00_expr_canonical_is_zero(const Lv00ExprCanonical *a) {
+bool lv_expr_canonical_is_zero(const lvExprCanonical *a) {
     if (!a)
         return true;
     return a->term_count == 0;
 }
 
-int lv00_expr_canonical_degree(const Lv00ExprCanonical *expr) {
+int lv_expr_canonical_degree(const lvExprCanonical *expr) {
     if (!expr || expr->term_count == 0)
         return -1;
 
@@ -632,7 +632,7 @@ int lv00_expr_canonical_degree(const Lv00ExprCanonical *expr) {
     return term_total_degree(expr->terms[0].exponents, expr->var_count);
 }
 
-int lv00_expr_canonical_term_count(const Lv00ExprCanonical *expr) {
+int lv_expr_canonical_term_count(const lvExprCanonical *expr) {
     if (!expr)
         return 0;
     return expr->term_count;
@@ -642,7 +642,7 @@ int lv00_expr_canonical_term_count(const Lv00ExprCanonical *expr) {
  * 字符串表示
  * ======================================================================== */
 
-char *lv00_expr_canonical_to_string(const Lv00ExprCanonical *expr) {
+char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
     if (!expr)
         return NULL;
     if (expr->term_count == 0) {
@@ -663,9 +663,9 @@ char *lv00_expr_canonical_to_string(const Lv00ExprCanonical *expr) {
     bool first = true;
 
     for (int i = 0; i < expr->term_count; i++) {
-        const Lv00Rational *coeff = expr->terms[i].coeff;
+        const lvRational *coeff = expr->terms[i].coeff;
         const int *exp = expr->terms[i].exponents;
-        int sgn = lv00_rational_sgn(coeff);
+        int sgn = lv_rational_sgn(coeff);
 
         if (sgn == 0)
             continue;
@@ -697,28 +697,28 @@ char *lv00_expr_canonical_to_string(const Lv00ExprCanonical *expr) {
         }
 
         if (is_constant) {
-            Lv00Rational *abs_coeff = lv00_rational_abs(coeff);
-            char *cs = lv00_rational_to_string(abs_coeff);
+            lvRational *abs_coeff = lv_rational_abs(coeff);
+            char *cs = lv_rational_to_string(abs_coeff);
             if (cs) {
                 int w = snprintf(pos, remain, "%s", cs);
                 if (w > 0) { pos += w; remain -= (size_t)w; }
                 free(cs);
             }
-            lv00_rational_destroy(&abs_coeff);
+            lv_rational_destroy(&abs_coeff);
         } else {
             /* 变量项 */
-            Lv00Rational *abs_coeff = lv00_rational_abs(coeff);
-            bool is_one = lv00_rational_is_one(abs_coeff);
+            lvRational *abs_coeff = lv_rational_abs(coeff);
+            bool is_one = lv_rational_is_one(abs_coeff);
 
             if (!is_one) {
-                char *cs = lv00_rational_to_string(abs_coeff);
+                char *cs = lv_rational_to_string(abs_coeff);
                 if (cs) {
                     int w = snprintf(pos, remain, "%s*", cs);
                     if (w > 0) { pos += w; remain -= (size_t)w; }
                     free(cs);
                 }
             }
-            lv00_rational_destroy(&abs_coeff);
+            lv_rational_destroy(&abs_coeff);
 
             /* 输出变量 */
             bool first_var = true;
@@ -751,7 +751,7 @@ char *lv00_expr_canonical_to_string(const Lv00ExprCanonical *expr) {
         size_t piece_len = strlen(piece);
         while (buf_len + piece_len + 1 > buf_cap) {
             buf_cap *= 2;
-            char *new_buf = (char *) lv00_realloc(buf, buf_cap);
+            char *new_buf = (char *) lv_realloc(buf, buf_cap);
             if (!new_buf) {
                 free(buf);
                 return NULL;
@@ -772,15 +772,15 @@ char *lv00_expr_canonical_to_string(const Lv00ExprCanonical *expr) {
  *
  * 完整解析应由 DSL 编译器完成。此函数仅提供基础功能。
  */
-Lv00ExprCanonical *lv00_expr_canonical_from_string(const char *str, const char **var_names, int var_count) {
-    LV00_UNUSED(str);
-    LV00_UNUSED(var_names);
-    LV00_UNUSED(var_count);
+lvExprCanonical *lv_expr_canonical_from_string(const char *str, const char **var_names, int var_count) {
+    lv_UNUSED(str);
+    lv_UNUSED(var_names);
+    lv_UNUSED(var_count);
 
     /* 桩实现: 返回零多项式
      * 完整解析器应在 DSL 编译器模块中实现。
      * 此函数保留接口但不在本文件中实现复杂的递归下降解析。 */
 
-    Lv00ExprCanonical *expr = lv00_expr_canonical_create(var_count, var_names);
+    lvExprCanonical *expr = lv_expr_canonical_create(var_count, var_names);
     return expr; /* 空多项式 = 0 */
 }

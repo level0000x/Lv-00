@@ -1,5 +1,5 @@
-#include "lv00/extended_types.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/extended_types.h"
+#include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,44 +10,44 @@
 typedef struct {
     char pattern[128];   /* 匹配模式（子串） */
     char type_name[128]; /* 推理出的类型名 */
-} Lv00TypeInferenceRule;
+} lvTypeInferenceRule;
 
-typedef struct Lv00TypeInference {
+typedef struct lvTypeInference {
     void *type_env;
     int inference_depth;
 
     /* 自定义规则表 */
-    Lv00TypeInferenceRule *rules;
+    lvTypeInferenceRule *rules;
     int rule_count;
     int rule_capacity;
-} Lv00TypeInference;
+} lvTypeInference;
 
-Lv00TypeInference *lv00_type_inference_create(void) {
-    Lv00TypeInference *inf = lv00_calloc(1, sizeof(Lv00TypeInference));
+lvTypeInference *lv_type_inference_create(void) {
+    lvTypeInference *inf = lv_calloc(1, sizeof(lvTypeInference));
     if (!inf) return NULL;
     inf->rule_capacity = 8;
-    inf->rules = lv00_calloc(inf->rule_capacity, sizeof(Lv00TypeInferenceRule));
+    inf->rules = lv_calloc(inf->rule_capacity, sizeof(lvTypeInferenceRule));
     if (!inf->rules) {
-        lv00_free((void **)&inf);
+        lv_free((void **)&inf);
         return NULL;
     }
     return inf;
 }
 
-void lv00_type_inference_destroy(Lv00TypeInference *inf) {
+void lv_type_inference_destroy(lvTypeInference *inf) {
     if (!inf) return;
-    lv00_free((void **)&inf->rules);
-    lv00_free((void **)&inf);
+    lv_free((void **)&inf->rules);
+    lv_free((void **)&inf);
 }
 
 /* 注册一条 pattern->type 推理规则 */
-int lv00_type_inference_register_rule(Lv00TypeInference *inf,
+int lv_type_inference_register_rule(lvTypeInference *inf,
                                        const char *pattern, const char *type) {
     if (!inf || !pattern || !type) return -1;
     if (inf->rule_count >= inf->rule_capacity) {
         int new_cap = inf->rule_capacity * 2;
-        Lv00TypeInferenceRule *new_arr = lv00_realloc(inf->rules,
-                                              new_cap * sizeof(Lv00TypeInferenceRule));
+        lvTypeInferenceRule *new_arr = lv_realloc(inf->rules,
+                                              new_cap * sizeof(lvTypeInferenceRule));
         if (!new_arr) return -1;
         inf->rules = new_arr;
         inf->rule_capacity = new_cap;
@@ -63,7 +63,7 @@ int lv00_type_inference_register_rule(Lv00TypeInference *inf,
 }
 
 /* 基于规则的简单类型推理 */
-int lv00_type_inference_infer(Lv00TypeInference *inf, const char *expr,
+int lv_type_inference_infer(lvTypeInference *inf, const char *expr,
                                char *result_type, size_t size) {
     if (!inf || !expr || !result_type || size == 0) return -1;
 

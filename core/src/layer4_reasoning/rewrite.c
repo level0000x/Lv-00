@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file rewrite.c
  * @brief 图重写引擎实现
  * @details 实现 VF2 子图同构匹配算法和 Weisfeiler-Lehman 图核哈希。
@@ -33,8 +33,8 @@
  *
  * @dependencies
  *   - rewrite.h            : 图重写引擎公共接口定义
- *   - lv00_internal.h      : 内部数据结构、常量、FNV 哈希基础
- *   - lv00_utils.h         : 统一内存分配器
+ *   - lv_internal.h      : 内部数据结构、常量、FNV 哈希基础
+ *   - lv_utils.h         : 统一内存分配器
  *   - constraint_graph.h   : 约束图接口
  *   - normalization.h      : 图规范化引擎（规范化间步）
  *   - stream.h             : 流式事件输出
@@ -45,11 +45,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00_utils.h"         /* lv00_malloc / lv00_free —— 统一内存分配器 */
+#include "lv_utils.h"         /* lv_malloc / lv_free —— 统一内存分配器 */
 
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
+#include "lv_internal.h"
 #include "normalization.h"
 #include "rewrite.h"
 #include "stream.h"
@@ -63,7 +63,7 @@
 /** 哈希计算批次大小（用于 WL 图核哈希的增量计算） */
 #define REWRITE_HASH_BATCH_SIZE 64
 
-LV00_DECLARE_STREAM_CTX(rewrite);
+lv_DECLARE_STREAM_CTX(rewrite);
 
 void rewrite_set_stream_context(StreamContext *ctx) {
     rewrite_stream_ctx = ctx;

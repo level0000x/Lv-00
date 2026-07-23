@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_contradiction.c
  * @brief 反证法与矛盾推演系统实现
  *
@@ -12,10 +12,10 @@
  * @version 4.0.0
  */
 
-#include "lv00/proof_contradiction.h"
-#include "lv00/proof.h"
-#include "lv00/lv00_internal.h"
-#include "lv00/lv00_utils.h"
+#include "lv/proof_contradiction.h"
+#include "lv/proof.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -25,15 +25,15 @@
  * 假设栈实现
  * ============================================================ */
 
-Lv00AssumptionStack *lv00_assumption_stack_create(int capacity) {
+lvAssumptionStack *lv_assumption_stack_create(int capacity) {
     if (capacity <= 0) capacity = 16;
 
-    Lv00AssumptionStack *stack = lv00_calloc(1, sizeof(Lv00AssumptionStack));
+    lvAssumptionStack *stack = lv_calloc(1, sizeof(lvAssumptionStack));
     if (!stack) return NULL;
 
-    stack->entries = lv00_calloc((size_t)capacity, sizeof(Lv00AssumptionEntry));
+    stack->entries = lv_calloc((size_t)capacity, sizeof(lvAssumptionEntry));
     if (!stack->entries) {
-        lv00_free((void **)&stack);
+        lv_free((void **)&stack);
         return NULL;
     }
 
@@ -45,7 +45,7 @@ Lv00AssumptionStack *lv00_assumption_stack_create(int capacity) {
     return stack;
 }
 
-void lv00_assumption_stack_destroy(Lv00AssumptionStack *stack) {
+void lv_assumption_stack_destroy(lvAssumptionStack *stack) {
     if (!stack) return;
 
     /* 释放每个条目中的命题 */
@@ -55,21 +55,21 @@ void lv00_assumption_stack_destroy(Lv00AssumptionStack *stack) {
         }
     }
 
-    lv00_free((void **)&stack->entries);
-    lv00_free((void **)&stack);
+    lv_free((void **)&stack->entries);
+    lv_free((void **)&stack);
 }
 
-int lv00_assumption_stack_push(Lv00AssumptionStack *stack,
-                                Lv00ProofScopeId scope_id,
-                                Lv00AssumptionType type,
+int lv_assumption_stack_push(lvAssumptionStack *stack,
+                                lvProofScopeId scope_id,
+                                lvAssumptionType type,
                                 Proposition *prop) {
     if (!stack || !prop) return -1;
 
     /* 检查容量 */
     if (stack->count >= stack->capacity) {
         int new_cap = stack->capacity * 2;
-        Lv00AssumptionEntry *new_entries = lv00_realloc(
-            stack->entries, (size_t)new_cap * sizeof(Lv00AssumptionEntry));
+        lvAssumptionEntry *new_entries = lv_realloc(
+            stack->entries, (size_t)new_cap * sizeof(lvAssumptionEntry));
         if (!new_entries) return -1;
         stack->entries = new_entries;
         stack->capacity = new_cap;
@@ -88,7 +88,7 @@ int lv00_assumption_stack_push(Lv00AssumptionStack *stack,
     if (depth > stack->max_depth) return -1;
 
     /* 添加新假设 */
-    Lv00AssumptionEntry *entry = &stack->entries[stack->count];
+    lvAssumptionEntry *entry = &stack->entries[stack->count];
     entry->assumption_id = stack->count;
     entry->scope_id = scope_id;
     entry->type = type;
@@ -104,13 +104,13 @@ int lv00_assumption_stack_push(Lv00AssumptionStack *stack,
     return stack->count++;
 }
 
-Lv00AssumptionEntry *lv00_assumption_stack_pop(Lv00AssumptionStack *stack) {
+lvAssumptionEntry *lv_assumption_stack_pop(lvAssumptionStack *stack) {
     if (!stack || stack->count == 0) return NULL;
 
     return &stack->entries[--stack->count];
 }
 
-Lv00AssumptionEntry *lv00_assumption_stack_find(Lv00AssumptionStack *stack,
+lvAssumptionEntry *lv_assumption_stack_find(lvAssumptionStack *stack,
                                                   int assumption_id) {
     if (!stack) return NULL;
 
@@ -123,9 +123,9 @@ Lv00AssumptionEntry *lv00_assumption_stack_find(Lv00AssumptionStack *stack,
     return NULL;
 }
 
-int lv00_assumption_stack_get_by_scope(Lv00AssumptionStack *stack,
-                                        Lv00ProofScopeId scope_id,
-                                        Lv00AssumptionEntry **out,
+int lv_assumption_stack_get_by_scope(lvAssumptionStack *stack,
+                                        lvProofScopeId scope_id,
+                                        lvAssumptionEntry **out,
                                         int max_out) {
     if (!stack || !out || max_out <= 0) return 0;
 
@@ -143,13 +143,13 @@ int lv00_assumption_stack_get_by_scope(Lv00AssumptionStack *stack,
  * 矛盾闭包实现
  * ============================================================ */
 
-Lv00ContradictionClosure *lv00_contradiction_closure_create(
-    Lv00ProofScopeId scope_id,
-    Lv00ContradictionType type,
+lvContradictionClosure *lv_contradiction_closure_create(
+    lvProofScopeId scope_id,
+    lvContradictionType type,
     Proposition *prop) {
     if (!prop) return NULL;
 
-    Lv00ContradictionClosure *closure = lv00_calloc(1, sizeof(Lv00ContradictionClosure));
+    lvContradictionClosure *closure = lv_calloc(1, sizeof(lvContradictionClosure));
     if (!closure) return NULL;
 
     static int next_closure_id = 0;
@@ -163,7 +163,7 @@ Lv00ContradictionClosure *lv00_contradiction_closure_create(
     return closure;
 }
 
-void lv00_contradiction_closure_destroy(Lv00ContradictionClosure *closure) {
+void lv_contradiction_closure_destroy(lvContradictionClosure *closure) {
     if (!closure) return;
 
     if (closure->contradiction_prop) {
@@ -173,11 +173,11 @@ void lv00_contradiction_closure_destroy(Lv00ContradictionClosure *closure) {
         proposition_destroy(closure->origin_prop);
     }
 
-    lv00_free((void **)&closure->derivation_path);
-    lv00_free((void **)&closure);
+    lv_free((void **)&closure->derivation_path);
+    lv_free((void **)&closure);
 }
 
-bool lv00_contradiction_closure_close(Lv00ContradictionClosure *closure) {
+bool lv_contradiction_closure_close(lvContradictionClosure *closure) {
     if (!closure) return false;
     if (closure->is_closed) return false;
 
@@ -187,9 +187,9 @@ bool lv00_contradiction_closure_close(Lv00ContradictionClosure *closure) {
     return true;
 }
 
-bool lv00_contradiction_propagation_detect(
-    Lv00ProofScopeId scope,
-    Lv00ContradictionClosure **closures,
+bool lv_contradiction_propagation_detect(
+    lvProofScopeId scope,
+    lvContradictionClosure **closures,
     int closure_count) {
     if (!closures || closure_count <= 0) return false;
 
@@ -208,12 +208,12 @@ bool lv00_contradiction_propagation_detect(
  * 断点实现
  * ============================================================ */
 
-Lv00ContradictionBreakpoint *lv00_contradiction_breakpoint_create(
-    Lv00BreakpointType type,
-    Lv00ProofScopeId scope_id,
+lvContradictionBreakpoint *lv_contradiction_breakpoint_create(
+    lvBreakpointType type,
+    lvProofScopeId scope_id,
     int step_id,
     const char *description) {
-    Lv00ContradictionBreakpoint *bp = lv00_calloc(1, sizeof(Lv00ContradictionBreakpoint));
+    lvContradictionBreakpoint *bp = lv_calloc(1, sizeof(lvContradictionBreakpoint));
     if (!bp) return NULL;
 
     static int next_bp_id = 0;
@@ -226,21 +226,21 @@ Lv00ContradictionBreakpoint *lv00_contradiction_breakpoint_create(
     bp->timestamp = (int64_t)time(NULL);
 
     if (description) {
-        bp->description = lv00_strdup(description);
+        bp->description = lv_strdup(description);
     }
 
     return bp;
 }
 
-void lv00_contradiction_breakpoint_destroy(Lv00ContradictionBreakpoint *bp) {
+void lv_contradiction_breakpoint_destroy(lvContradictionBreakpoint *bp) {
     if (!bp) return;
-    lv00_free((void **)&bp->description);
-    lv00_free((void **)&bp);
+    lv_free((void **)&bp->description);
+    lv_free((void **)&bp);
 }
 
-int lv00_contradiction_detect_breakpoints(
-    Lv00ProofNavigatorEx *navigator,
-    Lv00ContradictionBreakpoint **breakpoints,
+int lv_contradiction_detect_breakpoints(
+    lvProofNavigatorEx *navigator,
+    lvContradictionBreakpoint **breakpoints,
     int max_breakpoints) {
     if (!navigator || !breakpoints || max_breakpoints <= 0) return 0;
 
@@ -261,35 +261,35 @@ int lv00_contradiction_detect_breakpoints(
  * 扩展证明导航器实现
  * ============================================================ */
 
-Lv00ProofNavigatorEx *lv00_proof_navigator_ex_create(void) {
-    Lv00ProofNavigatorEx *nav = lv00_calloc(1, sizeof(Lv00ProofNavigatorEx));
+lvProofNavigatorEx *lv_proof_navigator_ex_create(void) {
+    lvProofNavigatorEx *nav = lv_calloc(1, sizeof(lvProofNavigatorEx));
     if (!nav) return NULL;
 
     /* 创建假设栈 */
-    nav->assumption_stack = lv00_assumption_stack_create(16);
+    nav->assumption_stack = lv_assumption_stack_create(16);
     if (!nav->assumption_stack) {
-        lv00_free((void **)&nav);
+        lv_free((void **)&nav);
         return NULL;
     }
 
     /* 初始化闭包数组 */
     nav->closure_capacity = 16;
-    nav->closures = lv00_calloc((size_t)nav->closure_capacity,
-                                 sizeof(Lv00ContradictionClosure *));
+    nav->closures = lv_calloc((size_t)nav->closure_capacity,
+                                 sizeof(lvContradictionClosure *));
     if (!nav->closures) {
-        lv00_assumption_stack_destroy(nav->assumption_stack);
-        lv00_free((void **)&nav);
+        lv_assumption_stack_destroy(nav->assumption_stack);
+        lv_free((void **)&nav);
         return NULL;
     }
 
     /* 初始化断点数组 */
     nav->breakpoint_capacity = 16;
-    nav->breakpoints = lv00_calloc((size_t)nav->breakpoint_capacity,
-                                    sizeof(Lv00ContradictionBreakpoint *));
+    nav->breakpoints = lv_calloc((size_t)nav->breakpoint_capacity,
+                                    sizeof(lvContradictionBreakpoint *));
     if (!nav->breakpoints) {
-        lv00_free((void **)&nav->closures);
-        lv00_assumption_stack_destroy(nav->assumption_stack);
-        lv00_free((void **)&nav);
+        lv_free((void **)&nav->closures);
+        lv_assumption_stack_destroy(nav->assumption_stack);
+        lv_free((void **)&nav);
         return NULL;
     }
 
@@ -300,46 +300,46 @@ Lv00ProofNavigatorEx *lv00_proof_navigator_ex_create(void) {
     return nav;
 }
 
-void lv00_proof_navigator_ex_destroy(Lv00ProofNavigatorEx *navigator) {
+void lv_proof_navigator_ex_destroy(lvProofNavigatorEx *navigator) {
     if (!navigator) return;
 
     /* 释放假设栈 */
     if (navigator->assumption_stack) {
-        lv00_assumption_stack_destroy(navigator->assumption_stack);
+        lv_assumption_stack_destroy(navigator->assumption_stack);
     }
 
     /* 释放闭包 */
     if (navigator->closures) {
         for (int i = 0; i < navigator->closure_count; i++) {
             if (navigator->closures[i]) {
-                lv00_contradiction_closure_destroy(navigator->closures[i]);
+                lv_contradiction_closure_destroy(navigator->closures[i]);
             }
         }
-        lv00_free((void **)&navigator->closures);
+        lv_free((void **)&navigator->closures);
     }
 
     /* 释放断点 */
     if (navigator->breakpoints) {
         for (int i = 0; i < navigator->breakpoint_count; i++) {
             if (navigator->breakpoints[i]) {
-                lv00_contradiction_breakpoint_destroy(navigator->breakpoints[i]);
+                lv_contradiction_breakpoint_destroy(navigator->breakpoints[i]);
             }
         }
-        lv00_free((void **)&navigator->breakpoints);
+        lv_free((void **)&navigator->breakpoints);
     }
 
-    lv00_free((void **)&navigator);
+    lv_free((void **)&navigator);
 }
 
-Lv00ProofScopeId lv00_proof_begin_contradiction(Lv00ProofNavigatorEx *navigator,
+lvProofScopeId lv_proof_begin_contradiction(lvProofNavigatorEx *navigator,
                                                   Proposition *negation_prop) {
     if (!navigator || !negation_prop) return -1;
 
     /* 生成新的作用域 ID */
-    Lv00ProofScopeId scope_id = navigator->total_assumptions + 1;
+    lvProofScopeId scope_id = navigator->total_assumptions + 1;
 
     /* 将否定命题压入假设栈 */
-    int result = lv00_assumption_stack_push(
+    int result = lv_assumption_stack_push(
         navigator->assumption_stack,
         scope_id,
         ASSUMPTION_TYPE_TEMPORARY,
@@ -352,14 +352,14 @@ Lv00ProofScopeId lv00_proof_begin_contradiction(Lv00ProofNavigatorEx *navigator,
     return scope_id;
 }
 
-bool lv00_proof_end_contradiction(Lv00ProofNavigatorEx *navigator,
-                                   Lv00ProofScopeId scope_id,
-                                   Lv00ContradictionClosure **out_closure) {
+bool lv_proof_end_contradiction(lvProofNavigatorEx *navigator,
+                                   lvProofScopeId scope_id,
+                                   lvContradictionClosure **out_closure) {
     if (!navigator) return false;
 
     /* 查找并标记该作用域的假设为矛盾 */
-    Lv00AssumptionEntry *entries[16];
-    int count = lv00_assumption_stack_get_by_scope(
+    lvAssumptionEntry *entries[16];
+    int count = lv_assumption_stack_get_by_scope(
         navigator->assumption_stack, scope_id, entries, 16);
 
     for (int i = 0; i < count; i++) {
@@ -368,18 +368,18 @@ bool lv00_proof_end_contradiction(Lv00ProofNavigatorEx *navigator,
 
     /* 创建矛盾闭包 */
     Proposition *dummy_prop = proposition_create(999, PROPOSITION_TYPE_ATOMIC);
-    Lv00ContradictionClosure *closure = lv00_contradiction_closure_create(
+    lvContradictionClosure *closure = lv_contradiction_closure_create(
         scope_id, CONTRADICTION_TYPE_DIRECT, dummy_prop);
 
     if (closure) {
         /* 添加到导航器 */
         if (navigator->closure_count >= navigator->closure_capacity) {
             int new_cap = navigator->closure_capacity * 2;
-            Lv00ContradictionClosure **new_closures = lv00_realloc(
+            lvContradictionClosure **new_closures = lv_realloc(
                 navigator->closures,
-                (size_t)new_cap * sizeof(Lv00ContradictionClosure *));
+                (size_t)new_cap * sizeof(lvContradictionClosure *));
             if (!new_closures) {
-                lv00_contradiction_closure_destroy(closure);
+                lv_contradiction_closure_destroy(closure);
                 return false;
             }
             navigator->closures = new_closures;
@@ -397,8 +397,8 @@ bool lv00_proof_end_contradiction(Lv00ProofNavigatorEx *navigator,
     return true;
 }
 
-bool lv00_proof_scope_is_valid(Lv00ProofNavigatorEx *navigator,
-                                Lv00ProofScopeId scope_id) {
+bool lv_proof_scope_is_valid(lvProofNavigatorEx *navigator,
+                                lvProofScopeId scope_id) {
     if (!navigator) return false;
 
     /* 检查是否有该作用域的矛盾闭包 */
@@ -413,13 +413,13 @@ bool lv00_proof_scope_is_valid(Lv00ProofNavigatorEx *navigator,
     return true;
 }
 
-char *lv00_proof_export_contradiction_trace(Lv00ProofNavigatorEx *navigator,
-                                              Lv00ProofScopeId scope_id) {
+char *lv_proof_export_contradiction_trace(lvProofNavigatorEx *navigator,
+                                              lvProofScopeId scope_id) {
     if (!navigator) return NULL;
 
     /* 分配输出缓冲区 */
     size_t buf_size = 4096;
-    char *buf = lv00_malloc(buf_size);
+    char *buf = lv_malloc(buf_size);
     if (!buf) return NULL;
 
     int pos = 0;
@@ -429,8 +429,8 @@ char *lv00_proof_export_contradiction_trace(Lv00ProofNavigatorEx *navigator,
                     "作用域 ID: %d\n", scope_id);
 
     /* 输出假设信息 */
-    Lv00AssumptionEntry *entries[16];
-    int count = lv00_assumption_stack_get_by_scope(
+    lvAssumptionEntry *entries[16];
+    int count = lv_assumption_stack_get_by_scope(
         navigator->assumption_stack, scope_id, entries, 16);
 
     pos += snprintf(buf + pos, buf_size - (size_t)pos,

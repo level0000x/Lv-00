@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_pkg.c
  * @brief 公理包系统测试 - 公理包创建、已知不可构造项、模板注册
  *
@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /* ============== 测试：公理包生命周期 ============== */
 
@@ -141,7 +141,7 @@ static int test_content_hash(void) {
     char *hash = axiom_package_compute_content_hash(pkg);
     if (hash) {
         printf("  内容哈希: %s\n", hash);
-        lv00_free_ptr(hash);
+        lv_free_ptr(hash);
     } else {
         printf("  内容哈希: (未实现或为空)\n");
     }

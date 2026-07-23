@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_func_block_preset.c
  * @brief 预设函数块库测试
  *
@@ -10,7 +10,7 @@
 #include <string.h>
 
 #include "func_block_preset.h"
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* 全局测试计数器 */

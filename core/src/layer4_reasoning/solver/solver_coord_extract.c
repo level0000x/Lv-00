@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_coord_extract.c
  * @brief 坐标提取与方程提取
  *
@@ -7,7 +7,7 @@
  * @version 3.3.0
  */
 
-#include "lv00/solver.h"
+#include "lv/solver.h"
 
 #include <float.h>
 #include <math.h>
@@ -16,19 +16,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
-#include "lv00/stream.h"
+#include "lv/stream.h"
 #include "stream_context_util.h"
 
 /* --- 共享宏 --- */
-#define LV00_SOLVER_DYNARRAY_INIT_CAP 16
-#define LV00_SOLVER_LINEAR_COEFF_COUNT 2
-#define LV00_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define LV00_ZERO_EPSILON 1e-12
+#define lv_SOLVER_DYNARRAY_INIT_CAP 16
+#define lv_SOLVER_LINEAR_COEFF_COUNT 2
+#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
+#define lv_ZERO_EPSILON 1e-12
 #define SOLVER_DETAIL_BUF_SIZE 512
 
 /* --- 方程系统类型定义（与其他 solver 子模块保持一致）--- */
@@ -49,8 +49,8 @@ int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, 
 /** @brief 添加方程到方程系统 */
 static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
     if (sys->count >= sys->capacity) {
-        int new_cap = sys->capacity == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : sys->capacity * 2;
-        PolyEquation *new_eqs = lv00_realloc(sys->eqs, (size_t)new_cap * sizeof(PolyEquation));
+        int new_cap = sys->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : sys->capacity * 2;
+        PolyEquation *new_eqs = lv_realloc(sys->eqs, (size_t)new_cap * sizeof(PolyEquation));
         if (!new_eqs) return -1;
         sys->eqs = new_eqs;
         sys->capacity = new_cap;
@@ -68,7 +68,7 @@ static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int v
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
     do { \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
             goto label; \
         } \
     } while (0)
@@ -85,7 +85,7 @@ static void equation_system_clear(EquationSystem *sys) {
     for (int i = 0; i < sys->count; i++) {
         mpz_poly_clear(&sys->eqs[i].poly);
     }
-    lv00_free((void **) &sys->eqs);
+    lv_free((void **) &sys->eqs);
     sys->eqs = NULL;
     sys->count = 0;
     sys->capacity = 0;
@@ -114,7 +114,7 @@ static bool coord_to_double_via_serialize(const SymbolicCoord *c, double *out) {
     if (!str) return false;
     char *endptr = NULL;
     *out = strtod(str, &endptr);
-    lv00_free((void **) &str);
+    lv_free((void **) &str);
     return (endptr != str);
 }
 
@@ -128,7 +128,7 @@ static bool coord_to_double(const SymbolicCoord *c, double *out) {
                 return true;
             }
             /* 数据不一致：RATIONAL 类型但 rational 指针为空 */
-            LV00_LOG_WARNING("coord_to_double: RATIONAL 类型但 data.rational 为 NULL");
+            lv_LOG_WARNING("coord_to_double: RATIONAL 类型但 data.rational 为 NULL");
             *out = 0.0;
             return false;
         }
@@ -138,7 +138,7 @@ static bool coord_to_double(const SymbolicCoord *c, double *out) {
         case TRANSCENDENTAL: {
             /* 使用公共 API 获取超越常数的数值近似值（如 pi, e 等） */
             *out = symbolic_coord_to_double(c);
-            return (fabs(*out) > LV00_EPSILON_DOUBLE || c->data.transcendental != NULL);
+            return (fabs(*out) > lv_EPSILON_DOUBLE || c->data.transcendental != NULL);
         }
         default:
             return false;
@@ -360,10 +360,10 @@ static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
          * (round to nearest even) 而非单纯向上舍入。这消除了当余数恰好落在
          * 中点附近时因浮点舍入噪声导致的错误符号判别。
          *
-         * 零值保护：若原始 double 值 val 的绝对值 < LV00_ZERO_EPSILON，
+         * 零值保护：若原始 double 值 val 的绝对值 < lv_ZERO_EPSILON，
          * 则结果为 0，防止微小浮点噪声产生非零整数结果。
          */
-        if (fabs(val) < LV00_ZERO_EPSILON) {
+        if (fabs(val) < lv_ZERO_EPSILON) {
             mpz_set_ui(result, 0);
         } else {
             int cmp = mpz_cmp(remainder, half_den);
@@ -523,7 +523,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 if (line->type == GEOM_LINE_SEGMENT && line->coord_count >= 2) {
                     /* 线段的 symbolic_coords 存储端点坐标为 (x1,y1,x2,y2) 格式 */
                     if (line->coord_count >= 4) {
-                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = lv_SOLVER_SCALE_FACTOR;
                         /* 使用精确有理数路径获取端点坐标的缩放值 */
                         mpz_t lx1_s, ly1_s, lx2_s, ly2_s;
                         mpz_init(lx1_s);
@@ -677,7 +677,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 if (!line1 || !line2 || !rpt)
                     break;
 
-                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = lv_SOLVER_SCALE_FACTOR;
 
                 /* 尝试精确有理数路径：直接从线段端点坐标计算直线方程 */
                 if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4 && line2->type == GEOM_LINE_SEGMENT &&
@@ -930,7 +930,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         double D = le1.a * le2.b - le2.a * le1.b;
 
                         /* 检查是否平行（行列式接近零） */
-                        if (fabs(D) < LV00_EPSILON_NUMERIC_COMPARE) {
+                        if (fabs(D) < lv_EPSILON_NUMERIC_COMPARE) {
                             /* 直线平行或重合，无法确定唯一交点 */
                             break;
                         }
@@ -943,9 +943,9 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         mpz_poly_init(&poly);
                         poly.degree = 1;
                         /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
-                         * 因此此处必须使用标准 malloc 而非 lv00_malloc。
-                         * LV00_SOLVER_LINEAR_COEFF_COUNT 为常量，不存在溢出风险。 */
-                        poly.coeffs = malloc(LV00_SOLVER_LINEAR_COEFF_COUNT * sizeof(mpz_t));
+                         * 因此此处必须使用标准 malloc 而非 lv_malloc。
+                         * lv_SOLVER_LINEAR_COEFF_COUNT 为常量，不存在溢出风险。 */
+                        poly.coeffs = malloc(lv_SOLVER_LINEAR_COEFF_COUNT * sizeof(mpz_t));
                         if (!poly.coeffs) {
                             mpz_poly_clear(&poly);
                             break;
@@ -994,7 +994,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                (x2-x1)*(y3-y1) - (y2-y1)*(x3-x1) = 0
                展开: dy13*x2 - dx13*y2 + (dx13*y1 - dy13*x1) = 0
                使用精确有理数路径避免 double 精度损失 */
-                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = lv_SOLVER_SCALE_FACTOR;
                 mpz_t x1_s, y1_s, x3_s, y3_s;
                 mpz_init(x1_s);
                 mpz_init(y1_s);
@@ -1091,7 +1091,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                     break;
 
                 {
-                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = lv_SOLVER_SCALE_FACTOR;
                     int seg_count = outer->data.region.segment_count;
 
                     for (int si = 0; si < seg_count; si++) {
@@ -1227,7 +1227,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                     break;
 
                 double dist_sq = dist_val * dist_val;
-                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = lv_SOLVER_SCALE_FACTOR;
 
                 /* (xA-xB)^2 + (yA-yB)^2 = d^2
                Expand for nodeB as variable (nodeA as fixed):
@@ -1239,9 +1239,9 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 mpz_poly_init(&poly);
                 poly.degree = 2;
                 /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
-                 * 因此此处必须使用标准 malloc 而非 lv00_malloc。
-                 * LV00_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
-                poly.coeffs = malloc(LV00_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
+                 * 因此此处必须使用标准 malloc 而非 lv_malloc。
+                 * lv_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
+                poly.coeffs = malloc(lv_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     break;
@@ -1275,7 +1275,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 break;
             }
             default:
-                LV00_LOG_WARNING("Unknown constraint type %d in extract_equations_from_constraints", c->type);
+                lv_LOG_WARNING("Unknown constraint type %d in extract_equations_from_constraints", c->type);
                 break;
         }
     }
@@ -1325,7 +1325,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
 
                 /* 对于第二个端点的 x 坐标：需要第二个端点的节点 ID。
                    由于线段直接存储坐标，我们创建以线段 ID 标记的方程。 */
-                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = lv_SOLVER_SCALE_FACTOR;
 
                 /* x^2 - 2*x1*x + (x1^2 + y1^2 - dist_sq - y^2 + 2*y1*y) = 0
                    作为 x 的单变量方程: x^2 - 2*x1*x + const = 0
@@ -1336,9 +1336,9 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 mpz_poly_init(&poly);
                 poly.degree = 2;
                 /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
-                 * 因此此处必须使用标准 malloc 而非 lv00_malloc。
-                 * LV00_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
-                poly.coeffs = malloc(LV00_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
+                 * 因此此处必须使用标准 malloc 而非 lv_malloc。
+                 * lv_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
+                poly.coeffs = malloc(lv_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     continue;
@@ -1391,7 +1391,7 @@ typedef struct {
    如果方程系统为空（var_count == 0），直接返回 NULL。 */
 static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *out_var_count) {
     /* 收集所有不重复的变量节点 id */
-    int *var_ids = lv00_malloc((size_t) sys->count * sizeof(int));
+    int *var_ids = lv_malloc((size_t) sys->count * sizeof(int));
     if (!var_ids)
         return NULL;
     int var_count = 0;
@@ -1408,14 +1408,14 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
             var_ids[var_count++] = vid;
     }
 
-    /* 提前返回：如果没有变量，避免 lv00_calloc(0, ...) 的未定义行为 */
+    /* 提前返回：如果没有变量，避免 lv_calloc(0, ...) 的未定义行为 */
     if (var_count == 0) {
-        lv00_free((void **) &var_ids);
+        lv_free((void **) &var_ids);
         *out_var_count = 0;
         return NULL;
     }
 
-    VarInfo *info = lv00_malloc((size_t) var_count * sizeof(VarInfo));
+    VarInfo *info = lv_malloc((size_t) var_count * sizeof(VarInfo));
     if (info)
         memset(info, 0, (size_t) var_count * sizeof(VarInfo));
     for (int i = 0; i < var_count; i++) {
@@ -1435,7 +1435,7 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
             }
         }
     }
-    lv00_free((void **) &var_ids);
+    lv_free((void **) &var_ids);
     *out_var_count = var_count;
     return info;
 }
@@ -1458,7 +1458,7 @@ bool solve_linear(const mpz_poly_t *poly, double *x_out) {
     if (poly->degree != 1) return false;
     double a = mpz_get_d(poly->coeffs[1]);
     double b = mpz_get_d(poly->coeffs[0]);
-    if (fabs(a) < LV00_ZERO_EPSILON) return false;
+    if (fabs(a) < lv_ZERO_EPSILON) return false;
     *x_out = -b / a;
     return true;
 }

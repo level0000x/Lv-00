@@ -1,4 +1,4 @@
-name: Lv-00 CI
+﻿name: Lv-00 CI
 
 on:
   push:
@@ -28,15 +28,15 @@ jobs:
       - name: Syntax check (core impl)
         run: |
           gcc -fsyntax-only -std=c11 `
-            -Icore/include -Icore/include/lv00 -Icore/src -IC:/msys64/mingw64/include `
-            -include gmp.h -include lv00/lv00.h `
-            core/src/lv00_impl_native.c
+            -Icore/include -Icore/include/lv -Icore/src -IC:/msys64/mingw64/include `
+            -include gmp.h -include lv/lv.h `
+            core/src/lv_impl_native.c
 
       - name: Syntax check (runtime)
         run: |
           gcc -fsyntax-only -std=c11 `
-            -Icore/include -Icore/include/lv00 -Ibootstrap/runtime -IC:/msys64/mingw64/include `
-            -include gmp.h -include lv00/lv00.h `
+            -Icore/include -Icore/include/lv -Ibootstrap/runtime -IC:/msys64/mingw64/include `
+            -include gmp.h -include lv/lv.h `
             bootstrap/runtime/primitive_runtime.c
 
   lean-typecheck-formal:
@@ -54,7 +54,7 @@ jobs:
           cd formal
           lake build
 
-  lean-typecheck-lv00-formal:
+  lean-typecheck-lv-formal:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,9 +64,9 @@ jobs:
         with:
           toolchain: 'v4.32.0'
 
-      - name: Lake build (lv00-formal/)
+      - name: Lake build (lv-formal/)
         run: |
-          cd lv00-formal
+          cd lv-formal
           lake build
 
   python-syntax:
@@ -78,9 +78,9 @@ jobs:
           python-version: '3.10'
       - name: Compile check Python
         run: |
-          python -m py_compile module/python/lv00/__init__.py
-          python -m py_compile module/python/lv00/_ctypes_binding.py
-          python -m py_compile module/python/lv00/_stream_types.py
-          python -m py_compile module/python/lv00/ws_server.py
-          python -m py_compile module/python/lv00/stream_bridge.py
-          python -m py_compile module/python/lv00/core.py
+          python -m py_compile module/python/lv/__init__.py
+          python -m py_compile module/python/lv/_ctypes_binding.py
+          python -m py_compile module/python/lv/_stream_types.py
+          python -m py_compile module/python/lv/ws_server.py
+          python -m py_compile module/python/lv/stream_bridge.py
+          python -m py_compile module/python/lv/core.py

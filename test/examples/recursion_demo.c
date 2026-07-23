@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file recursion_demo.c
  * @brief 递归演示 —— 展示递归函数定义、测度系统与深度限制
  *
@@ -13,10 +13,10 @@
  * Lv-00 的递归系统基于良基归纳原理：
  * - 每个递归调用必须关联一个严格递减的测度
  * - 测度可以是符号的（几何度量）或非符号的（自定义序）
- * - 全局熔断器在深度超过 LV00_MAX_RECURSION_DEPTH (128) 时自动终止
+ * - 全局熔断器在深度超过 lv_MAX_RECURSION_DEPTH (128) 时自动终止
  *
  * 编译方式：
- *   gcc -o recursion_demo recursion_demo.c -llv00 -lgmp
+ *   gcc -o recursion_demo recursion_demo.c -llv -lgmp
  *
  * @author Lv-00 Project
  * @version 3.3.0
@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /* ============================================================
  * 辅助函数：添加一个有理数坐标的点
@@ -216,9 +216,9 @@ static void demo_recursion_context(void) {
  * 演示3：全局递归深度保护（熔断器）
  *
  * Lv-00 提供全局递归深度保护机制，防止无限递归导致栈溢出。
- * - lv00_recursion_enter(): 进入递归，深度+1
- * - lv00_recursion_leave(): 退出递归，深度-1
- * - LV00_MAX_RECURSION_DEPTH (128): 全局硬限制
+ * - lv_recursion_enter(): 进入递归，深度+1
+ * - lv_recursion_leave(): 退出递归，深度-1
+ * - lv_MAX_RECURSION_DEPTH (128): 全局硬限制
  * - 熔断器触发后，所有后续递归调用都会被拒绝
  * ============================================================ */
 static void demo_global_recursion_guard(void) {
@@ -227,35 +227,35 @@ static void demo_global_recursion_guard(void) {
     printf("\n");
 
     /* 确保初始状态干净 */
-    lv00_recursion_reset();
-    printf("  初始深度: %d\n", lv00_recursion_get_depth());
+    lv_recursion_reset();
+    printf("  初始深度: %d\n", lv_recursion_get_depth());
     printf("  熔断器状态: %s\n",
-           lv00_recursion_circuit_breaker_triggered() ? "已触发" : "未触发");
+           lv_recursion_circuit_breaker_triggered() ? "已触发" : "未触发");
 
     /* 模拟递归调用直到接近上限 */
     printf("\n  模拟递归调用:\n");
     int max_test_depth = 5;  /* 测试用，不真的到128 */
 
     for (int i = 0; i < max_test_depth; i++) {
-        bool ok = lv00_recursion_enter();
+        bool ok = lv_recursion_enter();
         printf("    深度 %d: %s\n",
-               lv00_recursion_get_depth(),
+               lv_recursion_get_depth(),
                ok ? "进入成功" : "被拒绝（熔断器触发）");
     }
 
-    printf("  当前深度: %d\n", lv00_recursion_get_depth());
+    printf("  当前深度: %d\n", lv_recursion_get_depth());
 
     /* 退出所有递归 */
     for (int i = 0; i < max_test_depth; i++) {
-        lv00_recursion_leave();
+        lv_recursion_leave();
     }
-    printf("  退出后深度: %d\n", lv00_recursion_get_depth());
+    printf("  退出后深度: %d\n", lv_recursion_get_depth());
     printf("  熔断器状态: %s\n",
-           lv00_recursion_circuit_breaker_triggered() ? "已触发" : "未触发");
+           lv_recursion_circuit_breaker_triggered() ? "已触发" : "未触发");
 
     /* 重置 */
-    lv00_recursion_reset();
-    printf("  重置后深度: %d\n", lv00_recursion_get_depth());
+    lv_recursion_reset();
+    printf("  重置后深度: %d\n", lv_recursion_get_depth());
 }
 
 /* ============================================================
@@ -408,8 +408,8 @@ int main(void) {
     printf("========================================\n");
 
     /* 初始化系统 */
-    printf("\n[初始化] Lv-00 系统版本: %s\n", lv00_get_version_string());
-    printf("[初始化] 全局递归深度上限: %d\n", LV00_MAX_RECURSION_DEPTH);
+    printf("\n[初始化] Lv-00 系统版本: %s\n", lv_get_version_string());
+    printf("[初始化] 全局递归深度上限: %d\n", lv_MAX_RECURSION_DEPTH);
 
     /* 依次运行各演示 */
     demo_measure_system();

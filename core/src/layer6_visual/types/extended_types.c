@@ -1,23 +1,23 @@
-#include "lv00/extended_types.h"
-#include "lv00/type_system.h"
-#include "lv00/lv00_utils.h"
+﻿#include "lv/extended_types.h"
+#include "lv/type_system.h"
+#include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
-Lv00ListTypeRegion *lv00_list_type_create(void *elem_type) {
-    Lv00ListTypeRegion *t = lv00_calloc(1, sizeof(Lv00ListTypeRegion));
+lvListTypeRegion *lv_list_type_create(void *elem_type) {
+    lvListTypeRegion *t = lv_calloc(1, sizeof(lvListTypeRegion));
     /* calloc returns NULL on failure; caller must check */
     if (!t) return NULL;
     t->elem_type = elem_type;
     return t;
 }
 
-void lv00_list_type_destroy(Lv00ListTypeRegion *t) {
-    lv00_free((void **)&t);
+void lv_list_type_destroy(lvListTypeRegion *t) {
+    lv_free((void **)&t);
 }
 
-Lv00MapTypeRegion *lv00_map_type_create(void *key_type, void *value_type) {
-    Lv00MapTypeRegion *t = lv00_calloc(1, sizeof(Lv00MapTypeRegion));
+lvMapTypeRegion *lv_map_type_create(void *key_type, void *value_type) {
+    lvMapTypeRegion *t = lv_calloc(1, sizeof(lvMapTypeRegion));
     /* calloc returns NULL on failure; caller must check */
     if (!t) return NULL;
     t->key_type = key_type;
@@ -25,12 +25,12 @@ Lv00MapTypeRegion *lv00_map_type_create(void *key_type, void *value_type) {
     return t;
 }
 
-void lv00_map_type_destroy(Lv00MapTypeRegion *t) {
-    lv00_free((void **)&t);
+void lv_map_type_destroy(lvMapTypeRegion *t) {
+    lv_free((void **)&t);
 }
 
-Lv00FunctionTypeRegion *lv00_function_type_create(void *param, void *ret, int dependent) {
-    Lv00FunctionTypeRegion *t = lv00_calloc(1, sizeof(Lv00FunctionTypeRegion));
+lvFunctionTypeRegion *lv_function_type_create(void *param, void *ret, int dependent) {
+    lvFunctionTypeRegion *t = lv_calloc(1, sizeof(lvFunctionTypeRegion));
     /* calloc returns NULL on failure; caller must check */
     if (!t) return NULL;
     t->param_type = param;
@@ -39,36 +39,36 @@ Lv00FunctionTypeRegion *lv00_function_type_create(void *param, void *ret, int de
     return t;
 }
 
-void lv00_function_type_destroy(Lv00FunctionTypeRegion *t) {
-    lv00_free((void **)&t);
+void lv_function_type_destroy(lvFunctionTypeRegion *t) {
+    lv_free((void **)&t);
 }
 
-Lv00EffectTypeRegion *lv00_effect_type_create(Lv00EffectType *effects, int count, void *result) {
-    Lv00EffectTypeRegion *t = lv00_calloc(1, sizeof(Lv00EffectTypeRegion));
+lvEffectTypeRegion *lv_effect_type_create(lvEffectType *effects, int count, void *result) {
+    lvEffectTypeRegion *t = lv_calloc(1, sizeof(lvEffectTypeRegion));
     /* calloc returns NULL on failure; caller must check */
     if (!t) return NULL;
     if (count > 0 && effects) {
-        t->effects = lv00_calloc(count, sizeof(Lv00EffectType));
+        t->effects = lv_calloc(count, sizeof(lvEffectType));
         if (!t->effects) {
-            lv00_free((void **)&t);
+            lv_free((void **)&t);
             return NULL;
         }
-        memcpy(t->effects, effects, count * sizeof(Lv00EffectType));
+        memcpy(t->effects, effects, count * sizeof(lvEffectType));
         t->effect_count = count;
     }
     t->result_type = result;
     return t;
 }
 
-void lv00_effect_type_destroy(Lv00EffectTypeRegion *t) {
+void lv_effect_type_destroy(lvEffectTypeRegion *t) {
     if (!t) return;
-    lv00_free((void **)&t->effects);
-    lv00_free((void **)&t);
+    lv_free((void **)&t->effects);
+    lv_free((void **)&t);
 }
 
 /* 扩展类型兼容性检查 */
 /* 检查两个扩展类型是否兼容，支持协变/逆变规则 */
-int lv00_extended_type_compatible(void *a, void *b) {
+int lv_extended_type_compatible(void *a, void *b) {
     /* 指针相同则必然兼容 */
     if (a == b) return 1;
 
@@ -95,13 +95,13 @@ int lv00_extended_type_compatible(void *a, void *b) {
         /* 即 (A -> B) 兼容 (C -> D) 当且仅当 C 兼容 A 且 B 兼容 D */
         if (ta->input_type && tb->input_type) {
             /* 输入参数逆变：tb->input_type 需兼容 ta->input_type */
-            if (!lv00_extended_type_compatible(tb->input_type, ta->input_type)) {
+            if (!lv_extended_type_compatible(tb->input_type, ta->input_type)) {
                 return 0;
             }
         }
         if (ta->output_type && tb->output_type) {
             /* 输出参数协变：ta->output_type 需兼容 tb->output_type */
-            if (!lv00_extended_type_compatible(ta->output_type, tb->output_type)) {
+            if (!lv_extended_type_compatible(ta->output_type, tb->output_type)) {
                 return 0;
             }
         }
@@ -110,12 +110,12 @@ int lv00_extended_type_compatible(void *a, void *b) {
     case TYPE_KIND_PRODUCT:
         /* 乘积类型：每个分量都需要兼容（协变） */
         if (ta->left_type && tb->left_type) {
-            if (!lv00_extended_type_compatible(ta->left_type, tb->left_type)) {
+            if (!lv_extended_type_compatible(ta->left_type, tb->left_type)) {
                 return 0;
             }
         }
         if (ta->right_type && tb->right_type) {
-            if (!lv00_extended_type_compatible(ta->right_type, tb->right_type)) {
+            if (!lv_extended_type_compatible(ta->right_type, tb->right_type)) {
                 return 0;
             }
         }
@@ -124,12 +124,12 @@ int lv00_extended_type_compatible(void *a, void *b) {
     case TYPE_KIND_SUM:
         /* 和类型：两个分支都需要兼容 */
         if (ta->first_type && tb->first_type) {
-            if (!lv00_extended_type_compatible(ta->first_type, tb->first_type)) {
+            if (!lv_extended_type_compatible(ta->first_type, tb->first_type)) {
                 return 0;
             }
         }
         if (ta->second_type && tb->second_type) {
-            if (!lv00_extended_type_compatible(ta->second_type, tb->second_type)) {
+            if (!lv_extended_type_compatible(ta->second_type, tb->second_type)) {
                 return 0;
             }
         }
@@ -141,7 +141,7 @@ int lv00_extended_type_compatible(void *a, void *b) {
             return 0;
         }
         if (ta->body_type && tb->body_type) {
-            return lv00_extended_type_compatible(ta->body_type, tb->body_type);
+            return lv_extended_type_compatible(ta->body_type, tb->body_type);
         }
         return 1;
 
@@ -167,7 +167,7 @@ int lv00_extended_type_compatible(void *a, void *b) {
     case TYPE_KIND_PREDICATE_SUBTYPE:
         /* 谓词子类型：基类型兼容即可 */
         if (ta->base_type && tb->base_type) {
-            return lv00_extended_type_compatible(ta->base_type, tb->base_type);
+            return lv_extended_type_compatible(ta->base_type, tb->base_type);
         }
         return 1;
 

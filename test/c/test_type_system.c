@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_type_system.c
  * @brief 类型系统测试 - 宇宙层级、类型等价检查、类型推断
  *
@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 /* ============== 测试：类型系统生命周期 ============== */
 

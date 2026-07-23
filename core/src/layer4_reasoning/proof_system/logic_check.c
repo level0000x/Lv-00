@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file logic_check.c
  * @brief 逻辑检查模块（子目录版本）
  *
@@ -8,7 +8,7 @@
  * 支持的逻辑连接词：AND(&), OR(|), NOT(!), IMPLIES(->), EQUIV(<->)
  */
 
-#include "lv00/logic_check.h"
+#include "lv/logic_check.h"
 
 #include <ctype.h>
 #include <string.h>
@@ -209,7 +209,7 @@ static int logic_check_all_combinations(const char *formula)
  * @param formula 命题公式字符串
  * @return 1 重言式，0 非重言式，-1 错误
  */
-int lv00_logic_check_tautology(const char *formula)
+int lv_logic_check_tautology(const char *formula)
 {
     if (!formula || !*formula) return -1;
     return logic_check_all_combinations(formula) == 1 ? 1 : 0;
@@ -221,7 +221,7 @@ int lv00_logic_check_tautology(const char *formula)
  * @param formula 命题公式字符串
  * @return 1 矛盾式，0 非矛盾式，-1 错误
  */
-int lv00_logic_check_contradiction(const char *formula)
+int lv_logic_check_contradiction(const char *formula)
 {
     if (!formula || !*formula) return -1;
     return logic_check_all_combinations(formula) == -1 ? 1 : 0;
@@ -234,7 +234,7 @@ int lv00_logic_check_contradiction(const char *formula)
  * @param b 第二个公式
  * @return 1 等价，0 不等价，-1 错误
  */
-int lv00_logic_check_equivalence(const char *a, const char *b)
+int lv_logic_check_equivalence(const char *a, const char *b)
 {
     char combined[LOGIC_MAX_FORMULA * 2 + 16];
     LogicVarEntry vars_a[LOGIC_MAX_VARS], vars_b[LOGIC_MAX_VARS];

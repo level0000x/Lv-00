@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file rational.c
  * @brief Rational 有理数类型
  *
@@ -7,7 +7,7 @@
  * @version 3.3.0
  */
 
-#include "lv00/symbolic_coord.h"
+#include "lv/symbolic_coord.h"
 #include <float.h>
 #include <inttypes.h>
 #include <math.h>
@@ -15,14 +15,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
 
 /* ── 外部溢出上下文 ── */
-extern LV00_THREAD_LOCAL struct OverflowContext g_overflow_context;
+extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;
 
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
 #define SYM_COORD_SIGFIGS_MIN_SAFE 6
@@ -36,7 +36,7 @@ extern LV00_THREAD_LOCAL struct OverflowContext g_overflow_context;
 Rational *rational_create(int64_t numerator, uint64_t denominator) {
     if (denominator == 0)
         return NULL;
-    Rational *r = lv00_malloc(sizeof(Rational));
+    Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -55,7 +55,7 @@ Rational *rational_create(int64_t numerator, uint64_t denominator) {
         mpz_ptr den_ptr = mpq_denref(r->value);
         if (!num_ptr || !den_ptr) {
             mpq_clear(r->value);
-            lv00_free((void **) &r);
+            lv_free((void **) &r);
             return NULL;
         }
         mpz_set_str(num_ptr, numer_str, 10);
@@ -80,7 +80,7 @@ Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominato
     if (!denominator || mpz_sgn(denominator) == 0) {
         return NULL;
     }
-    Rational *r = lv00_malloc(sizeof(Rational));
+    Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -93,7 +93,7 @@ Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominato
 Rational *rational_copy(const Rational *src) {
     if (!src)
         return NULL;
-    Rational *r = lv00_malloc(sizeof(Rational));
+    Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -104,7 +104,7 @@ Rational *rational_copy(const Rational *src) {
 void rational_destroy(Rational *r) {
     if (r) {
         mpq_clear(r->value);
-        lv00_free((void **) &r);
+        lv_free((void **) &r);
     }
 }
 
@@ -125,7 +125,7 @@ int rational_compare(const Rational *a, const Rational *b) {
  */
 Rational *rational_add(const Rational *a, const Rational *b) {
     if (!a || !b) return NULL;
-    Rational *r = lv00_malloc(sizeof(Rational));
+    Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -135,7 +135,7 @@ Rational *rational_add(const Rational *a, const Rational *b) {
 
 Rational *rational_subtract(const Rational *a, const Rational *b) {
     if (!a || !b) return NULL;
-    Rational *r = lv00_malloc(sizeof(Rational));
+    Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -152,7 +152,7 @@ Rational *rational_subtract(const Rational *a, const Rational *b) {
  */
 Rational *rational_multiply(const Rational *a, const Rational *b) {
     if (!a || !b) return NULL;
-    Rational *r = lv00_malloc(sizeof(Rational));
+    Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -172,7 +172,7 @@ Rational *rational_divide(const Rational *a, const Rational *b) {
     if (!a || !b) return NULL;
     if (mpq_cmp_ui(b->value, 0, 1) == 0)
         return NULL;
-    Rational *r = lv00_malloc(sizeof(Rational));
+    Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -208,25 +208,25 @@ char *rational_serialize(const Rational *r) {
     /* 多分配 4 字节安全余量（'/' + 符号位），加 4 字节 '\0' 终止符，
      * 防止边界情况下的缓冲区溢出 */
     size_t buf_size = num_digits + den_digits + 4 + 4;
-    char *buf = lv00_malloc(buf_size);
+    char *buf = lv_malloc(buf_size);
     if (!buf)
         return NULL;
     char *num_str = mpz_get_str(NULL, 10, mpq_numref(r->value));
     char *den_str = mpz_get_str(NULL, 10, mpq_denref(r->value));
     snprintf(buf, buf_size, "%s/%s", num_str, den_str);
-    lv00_free_external((void **) &num_str);
-    lv00_free_external((void **) &den_str);
+    lv_free_external((void **) &num_str);
+    lv_free_external((void **) &den_str);
     return buf;
 }
 
 Rational *rational_parse(const char *str) {
-    Rational *r = lv00_malloc(sizeof(Rational));
+    Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
     if (mpq_set_str(r->value, str, 10) != 0) {
         mpq_clear(r->value);
-        lv00_free((void **) &r);
+        lv_free((void **) &r);
         return NULL;
     }
     mpq_canonicalize(r->value);
@@ -249,7 +249,7 @@ double rational_to_double(const Rational *r) {
 /**
  * 检查有理数是否超过位数阈值。
  *
- * 计算分子和分母的比特位数总和，若超过 LV00_BIT_CUTOFF_THRESHOLD 则触发熔断。
+ * 计算分子和分母的比特位数总和，若超过 lv_BIT_CUTOFF_THRESHOLD 则触发熔断。
  *
  * @param r 有理数对象（不能为 NULL）
  * @return CIRCUIT_STATUS_OK 表示正常，CIRCUIT_STATUS_TRIPPED 表示超过阈值
@@ -263,7 +263,7 @@ static CircuitStatus check_rational_circuit(const Rational *r) {
     if (num_bits > SIZE_MAX - den_bits) {
         return CIRCUIT_STATUS_TRIPPED;
     }
-    if (num_bits + den_bits > LV00_BIT_CUTOFF_THRESHOLD) {
+    if (num_bits + den_bits > lv_BIT_CUTOFF_THRESHOLD) {
         return CIRCUIT_STATUS_TRIPPED;
     }
     return CIRCUIT_STATUS_OK;
@@ -291,7 +291,7 @@ static CircuitStatus check_algebraic_circuit(const Algebraic *a) {
     /* 检查多项式系数 */
     for (int i = 0; i <= a->minimal_poly.degree; i++) {
         size_t coeff_bits = mpz_sizeinbase(a->minimal_poly.coeffs[i], 2);
-        if (coeff_bits > LV00_BIT_CUTOFF_THRESHOLD) {
+        if (coeff_bits > lv_BIT_CUTOFF_THRESHOLD) {
             return CIRCUIT_STATUS_TRIPPED;
         }
     }
@@ -362,7 +362,7 @@ void circuit_handle_overflow(void) {
              g_overflow_context.overflow_count);
 
     /* 连续3次触发后，建议永久降级 */
-    if (g_overflow_context.overflow_count >= LV00_CIRCUIT_OVERFLOW_THRESHOLD) {
+    if (g_overflow_context.overflow_count >= lv_CIRCUIT_OVERFLOW_THRESHOLD) {
         fprintf(stderr, "[BIT CIRCUIT] Suggesting permanent downgrade to numerical approximation (AMBER)\n");
         /* 实际降级由调用者根据用户选择处理 */
     }
@@ -441,9 +441,9 @@ static void refine_algebraic_bounds(Algebraic *a, int iterations) {
         double val_mid = evaluate_poly_at_double(&a->minimal_poly, mid);
         double val_left = evaluate_poly_at_double(&a->minimal_poly, a->left_bound);
 
-        if (fabs(val_mid) < LV00_EPSILON_NEWTON) {
-            a->left_bound = mid - LV00_EPSILON_NEWTON;
-            a->right_bound = mid + LV00_EPSILON_NEWTON;
+        if (fabs(val_mid) < lv_EPSILON_NEWTON) {
+            a->left_bound = mid - lv_EPSILON_NEWTON;
+            a->right_bound = mid + lv_EPSILON_NEWTON;
             return;
         }
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file plugin_system.c
  * @brief LV-00 模块化插件系统实现
  *
@@ -8,8 +8,8 @@
  * @version 1.0
  */
 
-#include "lv00/plugin_system.h"
-#include "lv00/lv00_utils.h"
+#include "lv/plugin_system.h"
+#include "lv/lv_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,7 +71,7 @@ static void* get_symbol(void* handle, const char* name) {
 #pragma GCC diagnostic pop
 }
 
-static void set_error(Lv00PluginSystem* system, const char* format, ...) {
+static void set_error(lvPluginSystem* system, const char* format, ...) {
     if (!system) return;
     
     PluginSystemInternal* internal = (PluginSystemInternal*)system->mutex;
@@ -85,41 +85,41 @@ static void set_error(Lv00PluginSystem* system, const char* format, ...) {
 
 /* ============ 生命周期管理 ============ */
 
-Lv00PluginSystem* lv00_plugin_system_create(Lv00Context* ctx) {
-    Lv00PluginSystem* system = (Lv00PluginSystem*)lv00_malloc(sizeof(Lv00PluginSystem));
+lvPluginSystem* lv_plugin_system_create(lvContext* ctx) {
+    lvPluginSystem* system = (lvPluginSystem*)lv_malloc(sizeof(lvPluginSystem));
     if (!system) return NULL;
     
-    memset(system, 0, sizeof(Lv00PluginSystem));
+    memset(system, 0, sizeof(lvPluginSystem));
     
-    system->lv00_context = ctx;
-    system->version = (LV00_PLUGIN_SYSTEM_VERSION_MAJOR << 16) |
-                      (LV00_PLUGIN_SYSTEM_VERSION_MINOR << 8) |
-                      LV00_PLUGIN_SYSTEM_VERSION_PATCH;
+    system->lv_context = ctx;
+    system->version = (lv_PLUGIN_SYSTEM_VERSION_MAJOR << 16) |
+                      (lv_PLUGIN_SYSTEM_VERSION_MINOR << 8) |
+                      lv_PLUGIN_SYSTEM_VERSION_PATCH;
     
-    system->plugin_capacity = LV00_MAX_PLUGINS;
-    system->plugins = (Lv00Plugin**)lv00_malloc(sizeof(Lv00Plugin*) * system->plugin_capacity);
+    system->plugin_capacity = lv_MAX_PLUGINS;
+    system->plugins = (lvPlugin**)lv_malloc(sizeof(lvPlugin*) * system->plugin_capacity);
     if (!system->plugins) {
-        lv00_free((void **)&system);
+        lv_free((void **)&system);
         return NULL;
     }
     
-    system->interface_capacity = LV00_MAX_INTERFACES;
-    system->interfaces = (Lv00PluginInterface**)lv00_malloc(
-        sizeof(Lv00PluginInterface*) * system->interface_capacity);
+    system->interface_capacity = lv_MAX_INTERFACES;
+    system->interfaces = (lvPluginInterface**)lv_malloc(
+        sizeof(lvPluginInterface*) * system->interface_capacity);
     if (!system->interfaces) {
-        lv00_free((void **)&system->plugins);
-        lv00_free((void **)&system);
+        lv_free((void **)&system->plugins);
+        lv_free((void **)&system);
         return NULL;
     }
     
     system->search_path_count = 0;
     system->search_paths = NULL;
     
-    PluginSystemInternal* internal = (PluginSystemInternal*)lv00_malloc(sizeof(PluginSystemInternal));
+    PluginSystemInternal* internal = (PluginSystemInternal*)lv_malloc(sizeof(PluginSystemInternal));
     if (!internal) {
-        lv00_free((void **)&system->interfaces);
-        lv00_free((void **)&system->plugins);
-        lv00_free((void **)&system);
+        lv_free((void **)&system->interfaces);
+        lv_free((void **)&system->plugins);
+        lv_free((void **)&system);
         return NULL;
     }
     
@@ -129,37 +129,37 @@ Lv00PluginSystem* lv00_plugin_system_create(Lv00Context* ctx) {
     return system;
 }
 
-void lv00_plugin_system_destroy(Lv00PluginSystem* system) {
+void lv_plugin_system_destroy(lvPluginSystem* system) {
     if (!system) return;
     
-    lv00_plugin_system_cleanup(system);
+    lv_plugin_system_cleanup(system);
     
-    if (system->plugins) lv00_free((void **)&system->plugins);
-    if (system->interfaces) lv00_free((void **)&system->interfaces);
+    if (system->plugins) lv_free((void **)&system->plugins);
+    if (system->interfaces) lv_free((void **)&system->interfaces);
     
     for (size_t i = 0; i < system->search_path_count; i++) {
-        if (system->search_paths[i]) lv00_free((void **)&system->search_paths[i]);
+        if (system->search_paths[i]) lv_free((void **)&system->search_paths[i]);
     }
-    if (system->search_paths) lv00_free((void **)&system->search_paths);
+    if (system->search_paths) lv_free((void **)&system->search_paths);
     
-    if (system->mutex) lv00_free((void **)&system->mutex);
-    lv00_free((void **)&system);
+    if (system->mutex) lv_free((void **)&system->mutex);
+    lv_free((void **)&system);
 }
 
-int lv00_plugin_system_init(Lv00PluginSystem* system) {
+int lv_plugin_system_init(lvPluginSystem* system) {
     if (!system) return -1;
     
     system->initialized = 1;
     return 0;
 }
 
-void lv00_plugin_system_cleanup(Lv00PluginSystem* system) {
+void lv_plugin_system_cleanup(lvPluginSystem* system) {
     if (!system) return;
     if (!system->plugins || system->plugin_count <= 0) return;
     
     /* 卸载所有插件 */
     while (system->plugin_count > 0) {
-        lv00_plugin_unload(system, system->plugins[0]);
+        lv_plugin_unload(system, system->plugins[0]);
     }
     
     system->initialized = 0;
@@ -167,7 +167,7 @@ void lv00_plugin_system_cleanup(Lv00PluginSystem* system) {
 
 /* ============ 插件加载与卸载 ============ */
 
-Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
+lvPlugin* lv_plugin_load(lvPluginSystem* system, const char* path) {
     if (!system || !path) return NULL;
     if (system->plugin_count >= system->plugin_capacity) {
         set_error(system, "Plugin capacity exceeded");
@@ -191,51 +191,51 @@ Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
     }
     
     /* 创建插件对象 */
-    Lv00Plugin* plugin = (Lv00Plugin*)lv00_malloc(sizeof(Lv00Plugin));
+    lvPlugin* plugin = (lvPlugin*)lv_malloc(sizeof(lvPlugin));
     if (!plugin) {
         unload_library(handle);
         return NULL;
     }
     
-    memset(plugin, 0, sizeof(Lv00Plugin));
+    memset(plugin, 0, sizeof(lvPlugin));
     strncpy(plugin->path, path, sizeof(plugin->path) - 1);
     plugin->handle = handle;
-    plugin->state = LV00_PLUGIN_STATE_LOADING;
+    plugin->state = lv_PLUGIN_STATE_LOADING;
     plugin->load_time = get_timestamp();
     
     /* 获取入口函数 */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
-    typedef int (*PluginEntryFunc)(Lv00PluginContext* ctx);
-    PluginEntryFunc entry = (PluginEntryFunc)get_symbol(handle, "lv00_plugin_load_entry");
+    typedef int (*PluginEntryFunc)(lvPluginContext* ctx);
+    PluginEntryFunc entry = (PluginEntryFunc)get_symbol(handle, "lv_plugin_load_entry");
 #pragma GCC diagnostic pop
     
     if (!entry) {
         set_error(system, "Plugin entry point not found: %s", path);
         unload_library(handle);
-        lv00_free((void **)&plugin);
+        lv_free((void **)&plugin);
         return NULL;
     }
     
     /* 创建插件上下文 */
-    plugin->context = (Lv00PluginContext*)lv00_malloc(sizeof(Lv00PluginContext));
+    plugin->context = (lvPluginContext*)lv_malloc(sizeof(lvPluginContext));
     if (!plugin->context) {
         unload_library(handle);
-        lv00_free((void **)&plugin);
+        lv_free((void **)&plugin);
         return NULL;
     }
     
-    memset(plugin->context, 0, sizeof(Lv00PluginContext));
+    memset(plugin->context, 0, sizeof(lvPluginContext));
     plugin->context->plugin = plugin;
     plugin->context->system = system;
-    plugin->context->lv00_context = system->lv00_context;
+    plugin->context->lv_context = system->lv_context;
     
     /* 调用入口函数 */
     if (entry(plugin->context) != 0) {
         set_error(system, "Plugin entry function failed: %s", path);
-        lv00_free((void **)&plugin->context);
+        lv_free((void **)&plugin->context);
         unload_library(handle);
-        lv00_free((void **)&plugin);
+        lv_free((void **)&plugin);
         return NULL;
     }
     
@@ -243,19 +243,19 @@ Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
     if (plugin->on_load) {
         if (plugin->on_load(plugin->context) != 0) {
             set_error(system, "Plugin on_load failed: %s", path);
-            lv00_free((void **)&plugin->context);
+            lv_free((void **)&plugin->context);
             unload_library(handle);
-            lv00_free((void **)&plugin);
+            lv_free((void **)&plugin);
             return NULL;
         }
     }
     
-    plugin->state = LV00_PLUGIN_STATE_LOADED;
+    plugin->state = lv_PLUGIN_STATE_LOADED;
     system->plugins[system->plugin_count++] = plugin;
     
     /* 发送加载事件 */
-    Lv00PluginEvent event = {
-        .type = LV00_PLUGIN_EVENT_LOAD,
+    lvPluginEvent event = {
+        .type = lv_PLUGIN_EVENT_LOAD,
         .timestamp = get_timestamp(),
         .source = plugin,
         .target = NULL
@@ -268,24 +268,24 @@ Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
     return plugin;
 }
 
-int lv00_plugin_unload(Lv00PluginSystem* system, Lv00Plugin* plugin) {
+int lv_plugin_unload(lvPluginSystem* system, lvPlugin* plugin) {
     if (!system || !plugin) return -1;
     
     /* 停用插件 */
-    if (plugin->state == LV00_PLUGIN_STATE_ACTIVE) {
-        lv00_plugin_deactivate(plugin);
+    if (plugin->state == lv_PLUGIN_STATE_ACTIVE) {
+        lv_plugin_deactivate(plugin);
     }
     
     /* 注销所有接口 */
     if (plugin->registered_interfaces) {
         for (size_t i = 0; i < plugin->registered_interface_count; i++) {
-            lv00_plugin_unregister_interface(plugin, plugin->registered_interfaces[i]->name);
+            lv_plugin_unregister_interface(plugin, plugin->registered_interfaces[i]->name);
         }
     }
     
     /* 发送卸载事件 */
-    Lv00PluginEvent event = {
-        .type = LV00_PLUGIN_EVENT_UNLOAD,
+    lvPluginEvent event = {
+        .type = lv_PLUGIN_EVENT_UNLOAD,
         .timestamp = get_timestamp(),
         .source = plugin,
         .target = NULL
@@ -311,72 +311,72 @@ int lv00_plugin_unload(Lv00PluginSystem* system, Lv00Plugin* plugin) {
     /* 清理资源 */
     if (plugin->context) {
         if (plugin->context->config) {
-            lv00_plugin_config_destroy(plugin->context->config);
+            lv_plugin_config_destroy(plugin->context->config);
         }
-        lv00_free((void **)&plugin->context);
+        lv_free((void **)&plugin->context);
     }
     
     if (plugin->registered_interfaces) {
-        lv00_free((void **)&plugin->registered_interfaces);
+        lv_free((void **)&plugin->registered_interfaces);
     }
     
     if (plugin->resolved_dependencies) {
-        lv00_free((void **)&plugin->resolved_dependencies);
+        lv_free((void **)&plugin->resolved_dependencies);
     }
     
-    plugin->state = LV00_PLUGIN_STATE_UNLOADED;
+    plugin->state = lv_PLUGIN_STATE_UNLOADED;
     
     /* 卸载动态库 */
     if (plugin->handle) {
         unload_library(plugin->handle);
     }
     
-    lv00_free((void **)&plugin);
+    lv_free((void **)&plugin);
     return 0;
 }
 
-int lv00_plugin_reload(Lv00PluginSystem* system, Lv00Plugin* plugin) {
+int lv_plugin_reload(lvPluginSystem* system, lvPlugin* plugin) {
     if (!system || !plugin) return -1;
     if (plugin->path[0] == '\0') return -1;
     
-    char path[LV00_PLUGIN_PATH_MAX];
+    char path[lv_PLUGIN_PATH_MAX];
     strncpy(path, plugin->path, sizeof(path) - 1);
     
-    if (lv00_plugin_unload(system, plugin) != 0) {
+    if (lv_plugin_unload(system, plugin) != 0) {
         return -1;
     }
     
-    return lv00_plugin_load(system, path) ? 0 : -1;
+    return lv_plugin_load(system, path) ? 0 : -1;
 }
 
 /* ============ 插件激活与停用 ============ */
 
-int lv00_plugin_activate(Lv00Plugin* plugin) {
+int lv_plugin_activate(lvPlugin* plugin) {
     if (!plugin) return -1;
-    if (plugin->state != LV00_PLUGIN_STATE_LOADED) return -1;
+    if (plugin->state != lv_PLUGIN_STATE_LOADED) return -1;
     
-    plugin->state = LV00_PLUGIN_STATE_INITIALIZING;
+    plugin->state = lv_PLUGIN_STATE_INITIALIZING;
     
     /* 解析依赖 */
-    if (lv00_plugin_resolve_dependencies(plugin->context->system, plugin) != 0) {
-        plugin->state = LV00_PLUGIN_STATE_ERROR;
+    if (lv_plugin_resolve_dependencies(plugin->context->system, plugin) != 0) {
+        plugin->state = lv_PLUGIN_STATE_ERROR;
         return -1;
     }
     
     /* 调用 on_activate 回调 */
     if (plugin->on_activate) {
         if (plugin->on_activate(plugin->context) != 0) {
-            plugin->state = LV00_PLUGIN_STATE_ERROR;
+            plugin->state = lv_PLUGIN_STATE_ERROR;
             return -1;
         }
     }
     
-    plugin->state = LV00_PLUGIN_STATE_ACTIVE;
+    plugin->state = lv_PLUGIN_STATE_ACTIVE;
     plugin->activate_time = get_timestamp();
     
     /* 发送激活事件 */
-    Lv00PluginEvent event = {
-        .type = LV00_PLUGIN_EVENT_ACTIVATE,
+    lvPluginEvent event = {
+        .type = lv_PLUGIN_EVENT_ACTIVATE,
         .timestamp = get_timestamp(),
         .source = plugin,
         .target = NULL
@@ -389,22 +389,22 @@ int lv00_plugin_activate(Lv00Plugin* plugin) {
     return 0;
 }
 
-int lv00_plugin_deactivate(Lv00Plugin* plugin) {
+int lv_plugin_deactivate(lvPlugin* plugin) {
     if (!plugin) return -1;
-    if (plugin->state != LV00_PLUGIN_STATE_ACTIVE) return -1;
+    if (plugin->state != lv_PLUGIN_STATE_ACTIVE) return -1;
     
-    plugin->state = LV00_PLUGIN_STATE_DEACTIVATING;
+    plugin->state = lv_PLUGIN_STATE_DEACTIVATING;
     
     /* 调用 on_deactivate 回调 */
     if (plugin->on_deactivate) {
         plugin->on_deactivate(plugin->context);
     }
     
-    plugin->state = LV00_PLUGIN_STATE_LOADED;
+    plugin->state = lv_PLUGIN_STATE_LOADED;
     
     /* 发送停用事件 */
-    Lv00PluginEvent event = {
-        .type = LV00_PLUGIN_EVENT_DEACTIVATE,
+    lvPluginEvent event = {
+        .type = lv_PLUGIN_EVENT_DEACTIVATE,
         .timestamp = get_timestamp(),
         .source = plugin,
         .target = NULL
@@ -417,17 +417,17 @@ int lv00_plugin_deactivate(Lv00Plugin* plugin) {
     return 0;
 }
 
-int lv00_plugin_is_active(const Lv00Plugin* plugin) {
-    return plugin && plugin->state == LV00_PLUGIN_STATE_ACTIVE;
+int lv_plugin_is_active(const lvPlugin* plugin) {
+    return plugin && plugin->state == lv_PLUGIN_STATE_ACTIVE;
 }
 
-Lv00PluginState lv00_plugin_get_state(const Lv00Plugin* plugin) {
-    return plugin ? plugin->state : LV00_PLUGIN_STATE_UNLOADED;
+lvPluginState lv_plugin_get_state(const lvPlugin* plugin) {
+    return plugin ? plugin->state : lv_PLUGIN_STATE_UNLOADED;
 }
 
 /* ============ 插件查询 ============ */
 
-Lv00Plugin* lv00_plugin_find(Lv00PluginSystem* system, const char* name) {
+lvPlugin* lv_plugin_find(lvPluginSystem* system, const char* name) {
     if (!system || !name) return NULL;
     
     for (size_t i = 0; i < system->plugin_count; i++) {
@@ -438,14 +438,14 @@ Lv00Plugin* lv00_plugin_find(Lv00PluginSystem* system, const char* name) {
     return NULL;
 }
 
-Lv00Plugin** lv00_plugin_get_all(Lv00PluginSystem* system, size_t* count) {
+lvPlugin** lv_plugin_get_all(lvPluginSystem* system, size_t* count) {
     if (!system || !count) return NULL;
     
     *count = system->plugin_count;
     return system->plugins;
 }
 
-Lv00Plugin** lv00_plugin_get_by_type(Lv00PluginSystem* system, Lv00PluginType type, size_t* count) {
+lvPlugin** lv_plugin_get_by_type(lvPluginSystem* system, lvPluginType type, size_t* count) {
     if (!system || !count) return NULL;
     
     /* 统计匹配数量 */
@@ -462,7 +462,7 @@ Lv00Plugin** lv00_plugin_get_by_type(Lv00PluginSystem* system, Lv00PluginType ty
     }
     
     /* 分配结果数组 */
-    Lv00Plugin** result = (Lv00Plugin**)lv00_malloc(sizeof(Lv00Plugin*) * match_count);
+    lvPlugin** result = (lvPlugin**)lv_malloc(sizeof(lvPlugin*) * match_count);
     if (!result) {
         *count = 0;
         return NULL;
@@ -480,7 +480,7 @@ Lv00Plugin** lv00_plugin_get_by_type(Lv00PluginSystem* system, Lv00PluginType ty
     return result;
 }
 
-Lv00Plugin** lv00_plugin_get_by_state(Lv00PluginSystem* system, Lv00PluginState state, size_t* count) {
+lvPlugin** lv_plugin_get_by_state(lvPluginSystem* system, lvPluginState state, size_t* count) {
     if (!system || !count) return NULL;
     
     /* 统计匹配数量 */
@@ -497,7 +497,7 @@ Lv00Plugin** lv00_plugin_get_by_state(Lv00PluginSystem* system, Lv00PluginState 
     }
     
     /* 分配结果数组 */
-    Lv00Plugin** result = (Lv00Plugin**)lv00_malloc(sizeof(Lv00Plugin*) * match_count);
+    lvPlugin** result = (lvPlugin**)lv_malloc(sizeof(lvPlugin*) * match_count);
     if (!result) {
         *count = 0;
         return NULL;
@@ -517,9 +517,9 @@ Lv00Plugin** lv00_plugin_get_by_state(Lv00PluginSystem* system, Lv00PluginState 
 
 /* ============ 接口注册与查询 ============ */
 
-int lv00_plugin_register_interface(Lv00Plugin* plugin, Lv00PluginInterface* iface) {
+int lv_plugin_register_interface(lvPlugin* plugin, lvPluginInterface* iface) {
     if (!plugin || !plugin->context || !iface) return -1;
-    if (plugin->registered_interface_count >= LV00_MAX_INTERFACES) return -1;
+    if (plugin->registered_interface_count >= lv_MAX_INTERFACES) return -1;
     
     /* 检查是否已注册 */
     for (size_t i = 0; i < plugin->registered_interface_count; i++) {
@@ -530,8 +530,8 @@ int lv00_plugin_register_interface(Lv00Plugin* plugin, Lv00PluginInterface* ifac
     
     /* 添加到插件注册表 */
     if (!plugin->registered_interfaces) {
-        plugin->registered_interfaces = (Lv00PluginInterface**)lv00_malloc(
-            sizeof(Lv00PluginInterface*) * LV00_MAX_INTERFACES);
+        plugin->registered_interfaces = (lvPluginInterface**)lv_malloc(
+            sizeof(lvPluginInterface*) * lv_MAX_INTERFACES);
         if (!plugin->registered_interfaces) return -1;
     }
     
@@ -539,7 +539,7 @@ int lv00_plugin_register_interface(Lv00Plugin* plugin, Lv00PluginInterface* ifac
     plugin->registered_interfaces[plugin->registered_interface_count++] = iface;
     
     /* 添加到系统注册表 */
-    Lv00PluginSystem* system = plugin->context->system;
+    lvPluginSystem* system = plugin->context->system;
     if (system->interface_count < system->interface_capacity) {
         system->interfaces[system->interface_count++] = iface;
     }
@@ -547,14 +547,14 @@ int lv00_plugin_register_interface(Lv00Plugin* plugin, Lv00PluginInterface* ifac
     return 0;
 }
 
-int lv00_plugin_unregister_interface(Lv00Plugin* plugin, const char* name) {
+int lv_plugin_unregister_interface(lvPlugin* plugin, const char* name) {
     if (!plugin || !plugin->context || !name) return -1;
     
     /* 从插件注册表中移除 */
     for (size_t i = 0; i < plugin->registered_interface_count; i++) {
         if (strcmp(plugin->registered_interfaces[i]->name, name) == 0) {
             /* 从系统注册表中移除 */
-            Lv00PluginSystem* system = plugin->context->system;
+            lvPluginSystem* system = plugin->context->system;
             for (size_t j = 0; j < system->interface_count; j++) {
                 if (system->interfaces[j] == plugin->registered_interfaces[i]) {
                     system->interfaces[j] = system->interfaces[--system->interface_count];
@@ -571,7 +571,7 @@ int lv00_plugin_unregister_interface(Lv00Plugin* plugin, const char* name) {
     return -1;
 }
 
-Lv00PluginInterface* lv00_plugin_query_interface(Lv00PluginSystem* system, const char* name, uint32_t version) {
+lvPluginInterface* lv_plugin_query_interface(lvPluginSystem* system, const char* name, uint32_t version) {
     if (!system || !name) return NULL;
     
     for (size_t i = 0; i < system->interface_count; i++) {
@@ -615,7 +615,7 @@ static int wildcard_match(const char* pattern, const char* str) {
     return *p == '\0';
 }
 
-Lv00PluginInterface** lv00_plugin_query_interfaces(Lv00PluginSystem* system, const char* pattern, size_t* count) {
+lvPluginInterface** lv_plugin_query_interfaces(lvPluginSystem* system, const char* pattern, size_t* count) {
     if (!system || !pattern || !count) return NULL;
 
     /* 第一遍：统计匹配数量 */
@@ -632,7 +632,7 @@ Lv00PluginInterface** lv00_plugin_query_interfaces(Lv00PluginSystem* system, con
     }
 
     /* 分配结果数组 */
-    Lv00PluginInterface** result = (Lv00PluginInterface**)lv00_malloc(sizeof(Lv00PluginInterface*) * match_count);
+    lvPluginInterface** result = (lvPluginInterface**)lv_malloc(sizeof(lvPluginInterface*) * match_count);
     if (!result) {
         *count = 0;
         return NULL;
@@ -652,30 +652,30 @@ Lv00PluginInterface** lv00_plugin_query_interfaces(Lv00PluginSystem* system, con
 
 /* ============ 插件配置 ============ */
 
-Lv00PluginConfig* lv00_plugin_config_create(void) {
-    Lv00PluginConfig* config = (Lv00PluginConfig*)lv00_malloc(sizeof(Lv00PluginConfig));
+lvPluginConfig* lv_plugin_config_create(void) {
+    lvPluginConfig* config = (lvPluginConfig*)lv_malloc(sizeof(lvPluginConfig));
     if (!config) return NULL;
     
-    memset(config, 0, sizeof(Lv00PluginConfig));
+    memset(config, 0, sizeof(lvPluginConfig));
     config->entry_capacity = 256;
-    config->entries = (Lv00PluginConfigEntry*)lv00_malloc(
-        sizeof(Lv00PluginConfigEntry) * config->entry_capacity);
+    config->entries = (lvPluginConfigEntry*)lv_malloc(
+        sizeof(lvPluginConfigEntry) * config->entry_capacity);
     
     if (!config->entries) {
-        lv00_free((void **)&config);
+        lv_free((void **)&config);
         return NULL;
     }
     
     return config;
 }
 
-void lv00_plugin_config_destroy(Lv00PluginConfig* config) {
+void lv_plugin_config_destroy(lvPluginConfig* config) {
     if (!config) return;
-    if (config->entries) lv00_free((void **)&config->entries);
-    lv00_free((void **)&config);
+    if (config->entries) lv_free((void **)&config->entries);
+    lv_free((void **)&config);
 }
 
-int lv00_plugin_config_load(Lv00PluginConfig* config, const char* filepath) {
+int lv_plugin_config_load(lvPluginConfig* config, const char* filepath) {
     if (!config || !filepath) return -1;
     
     FILE* fp = fopen(filepath, "r");
@@ -738,9 +738,9 @@ int lv00_plugin_config_load(Lv00PluginConfig* config, const char* filepath) {
 #pragma GCC diagnostic ignored "-Wformat-truncation"
                 snprintf(full_key, sizeof(full_key), "%s.%s", current_section, key);
 #pragma GCC diagnostic pop
-                lv00_plugin_config_set(config, full_key, value, 0);
+                lv_plugin_config_set(config, full_key, value, 0);
             } else {
-                lv00_plugin_config_set(config, key, value, 0);
+                lv_plugin_config_set(config, key, value, 0);
             }
         }
     }
@@ -750,7 +750,7 @@ int lv00_plugin_config_load(Lv00PluginConfig* config, const char* filepath) {
     return 0;
 }
 
-int lv00_plugin_config_save(const Lv00PluginConfig* config, const char* filepath) {
+int lv_plugin_config_save(const lvPluginConfig* config, const char* filepath) {
     if (!config || !filepath) return -1;
     
     FILE* fp = fopen(filepath, "w");
@@ -764,7 +764,7 @@ int lv00_plugin_config_save(const Lv00PluginConfig* config, const char* filepath
     return 0;
 }
 
-int lv00_plugin_config_set(Lv00PluginConfig* config, const char* key, const char* value, int type) {
+int lv_plugin_config_set(lvPluginConfig* config, const char* key, const char* value, int type) {
     if (!config || !key || !value) return -1;
     if (!config->entries) return -1;
     if (config->entry_count >= config->entry_capacity) return -1;
@@ -779,7 +779,7 @@ int lv00_plugin_config_set(Lv00PluginConfig* config, const char* key, const char
     }
     
     /* 添加新条目 */
-    Lv00PluginConfigEntry* entry = &config->entries[config->entry_count++];
+    lvPluginConfigEntry* entry = &config->entries[config->entry_count++];
     strncpy(entry->key, key, sizeof(entry->key) - 1);
     strncpy(entry->value, value, sizeof(entry->value) - 1);
     entry->type = type;
@@ -787,7 +787,7 @@ int lv00_plugin_config_set(Lv00PluginConfig* config, const char* key, const char
     return 0;
 }
 
-const char* lv00_plugin_config_get(const Lv00PluginConfig* config, const char* key, const char* default_value) {
+const char* lv_plugin_config_get(const lvPluginConfig* config, const char* key, const char* default_value) {
     if (!config || !key) return default_value;
     
     for (size_t i = 0; i < config->entry_count; i++) {
@@ -799,7 +799,7 @@ const char* lv00_plugin_config_get(const Lv00PluginConfig* config, const char* k
     return default_value;
 }
 
-int lv00_plugin_apply_config(Lv00Plugin* plugin, const Lv00PluginConfig* config) {
+int lv_plugin_apply_config(lvPlugin* plugin, const lvPluginConfig* config) {
     if (!plugin || !config) return -1;
     
     if (plugin->on_configure) {
@@ -811,10 +811,10 @@ int lv00_plugin_apply_config(Lv00Plugin* plugin, const Lv00PluginConfig* config)
 
 /* ============ 事件系统 ============ */
 
-int lv00_plugin_send_event(Lv00Plugin* plugin, Lv00PluginEventType type, void* data, size_t data_size) {
+int lv_plugin_send_event(lvPlugin* plugin, lvPluginEventType type, void* data, size_t data_size) {
     if (!plugin || !plugin->context) return -1;
     
-    Lv00PluginEvent event = {
+    lvPluginEvent event = {
         .type = type,
         .timestamp = get_timestamp(),
         .source = plugin,
@@ -830,10 +830,10 @@ int lv00_plugin_send_event(Lv00Plugin* plugin, Lv00PluginEventType type, void* d
     return 0;
 }
 
-int lv00_plugin_broadcast_event(Lv00PluginSystem* system, Lv00PluginEventType type, void* data, size_t data_size) {
+int lv_plugin_broadcast_event(lvPluginSystem* system, lvPluginEventType type, void* data, size_t data_size) {
     if (!system) return -1;
     
-    Lv00PluginEvent event = {
+    lvPluginEvent event = {
         .type = type,
         .timestamp = get_timestamp(),
         .source = NULL,
@@ -853,7 +853,7 @@ int lv00_plugin_broadcast_event(Lv00PluginSystem* system, Lv00PluginEventType ty
     return 0;
 }
 
-void lv00_plugin_set_event_handler(Lv00PluginSystem* system, void (*handler)(Lv00PluginSystem*, const Lv00PluginEvent*)) {
+void lv_plugin_set_event_handler(lvPluginSystem* system, void (*handler)(lvPluginSystem*, const lvPluginEvent*)) {
     if (system) {
         system->event_handler = handler;
     }
@@ -861,13 +861,13 @@ void lv00_plugin_set_event_handler(Lv00PluginSystem* system, void (*handler)(Lv0
 
 /* ============ 依赖管理 ============ */
 
-int lv00_plugin_resolve_dependencies(Lv00PluginSystem* system, Lv00Plugin* plugin) {
+int lv_plugin_resolve_dependencies(lvPluginSystem* system, lvPlugin* plugin) {
     if (!system || !plugin) return -1;
     if (!plugin->info.dependencies && plugin->info.dependency_count > 0) return -1;
     
     for (size_t i = 0; i < plugin->info.dependency_count; i++) {
-        Lv00PluginDependency* dep = plugin->info.dependencies[i];
-        Lv00Plugin* dep_plugin = lv00_plugin_find(system, dep->name);
+        lvPluginDependency* dep = plugin->info.dependencies[i];
+        lvPlugin* dep_plugin = lv_plugin_find(system, dep->name);
         
         if (!dep_plugin) {
             if (!dep->optional) {
@@ -878,7 +878,7 @@ int lv00_plugin_resolve_dependencies(Lv00PluginSystem* system, Lv00Plugin* plugi
         }
         
         /* 检查版本兼容性 */
-        if (!lv00_plugin_check_version(dep->version_constraint, dep_plugin->info.version)) {
+        if (!lv_plugin_check_version(dep->version_constraint, dep_plugin->info.version)) {
             if (!dep->optional) {
                 set_error(system, "Dependency version mismatch: %s", dep->name);
                 return -1;
@@ -886,8 +886,8 @@ int lv00_plugin_resolve_dependencies(Lv00PluginSystem* system, Lv00Plugin* plugi
         }
         
         /* 激活依赖 */
-        if (dep_plugin->state != LV00_PLUGIN_STATE_ACTIVE) {
-            if (lv00_plugin_activate(dep_plugin) != 0) {
+        if (dep_plugin->state != lv_PLUGIN_STATE_ACTIVE) {
+            if (lv_plugin_activate(dep_plugin) != 0) {
                 if (!dep->optional) {
                     set_error(system, "Failed to activate dependency: %s", dep->name);
                     return -1;
@@ -899,7 +899,7 @@ int lv00_plugin_resolve_dependencies(Lv00PluginSystem* system, Lv00Plugin* plugi
     return 0;
 }
 
-int lv00_plugin_check_dependencies(const Lv00Plugin* plugin) {
+int lv_plugin_check_dependencies(const lvPlugin* plugin) {
     if (!plugin) return -1;
     if (!plugin->info.dependencies && plugin->info.dependency_count > 0) return -1;
     
@@ -912,7 +912,7 @@ int lv00_plugin_check_dependencies(const Lv00Plugin* plugin) {
     return 1; /* 没有非可选依赖 */
 }
 
-Lv00Plugin** lv00_plugin_get_dependents(Lv00PluginSystem* system, const Lv00Plugin* plugin, size_t* count) {
+lvPlugin** lv_plugin_get_dependents(lvPluginSystem* system, const lvPlugin* plugin, size_t* count) {
     if (!system || !plugin || !count) return NULL;
     
     /* 统计依赖此插件的插件数量 */
@@ -933,7 +933,7 @@ Lv00Plugin** lv00_plugin_get_dependents(Lv00PluginSystem* system, const Lv00Plug
     }
     
     /* 分配结果数组 */
-    Lv00Plugin** result = (Lv00Plugin**)lv00_malloc(sizeof(Lv00Plugin*) * dependent_count);
+    lvPlugin** result = (lvPlugin**)lv_malloc(sizeof(lvPlugin*) * dependent_count);
     if (!result) {
         *count = 0;
         return NULL;
@@ -957,7 +957,7 @@ Lv00Plugin** lv00_plugin_get_dependents(Lv00PluginSystem* system, const Lv00Plug
 
 /* ============ 搜索路径管理 ============ */
 
-int lv00_plugin_system_add_search_path(Lv00PluginSystem* system, const char* path) {
+int lv_plugin_system_add_search_path(lvPluginSystem* system, const char* path) {
     if (!system || !path) return -1;
     if (!system->search_paths) return -1;
     
@@ -969,12 +969,12 @@ int lv00_plugin_system_add_search_path(Lv00PluginSystem* system, const char* pat
     }
     
     /* 添加新路径 */
-    char** new_paths = (char**)lv00_realloc(system->search_paths, 
+    char** new_paths = (char**)lv_realloc(system->search_paths, 
         sizeof(char*) * (system->search_path_count + 1));
     if (!new_paths) return -1;
     
     system->search_paths = new_paths;
-    system->search_paths[system->search_path_count] = (char*)lv00_malloc(strlen(path) + 1);
+    system->search_paths[system->search_path_count] = (char*)lv_malloc(strlen(path) + 1);
     if (!system->search_paths[system->search_path_count]) return -1;
     
     snprintf(system->search_paths[system->search_path_count], strlen(path) + 1, "%s", path);
@@ -983,13 +983,13 @@ int lv00_plugin_system_add_search_path(Lv00PluginSystem* system, const char* pat
     return 0;
 }
 
-int lv00_plugin_system_remove_search_path(Lv00PluginSystem* system, const char* path) {
+int lv_plugin_system_remove_search_path(lvPluginSystem* system, const char* path) {
     if (!system || !path) return -1;
     if (!system->search_paths) return -1;
     
     for (size_t i = 0; i < system->search_path_count; i++) {
         if (strcmp(system->search_paths[i], path) == 0) {
-            lv00_free((void **)&system->search_paths[i]);
+            lv_free((void **)&system->search_paths[i]);
             system->search_paths[i] = system->search_paths[--system->search_path_count];
             return 0;
         }
@@ -998,7 +998,7 @@ int lv00_plugin_system_remove_search_path(Lv00PluginSystem* system, const char* 
     return -1;
 }
 
-char** lv00_plugin_system_get_search_paths(Lv00PluginSystem* system, size_t* count) {
+char** lv_plugin_system_get_search_paths(lvPluginSystem* system, size_t* count) {
     if (!system || !count) return NULL;
     
     *count = system->search_path_count;
@@ -1007,11 +1007,11 @@ char** lv00_plugin_system_get_search_paths(Lv00PluginSystem* system, size_t* cou
 
 /* ============ 自动加载 ============ */
 
-int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory) {
+int lv_plugin_system_autoload(lvPluginSystem* system, const char* directory) {
     if (!system || !directory) return -1;
 
     /* 添加搜索路径 */
-    lv00_plugin_system_add_search_path(system, directory);
+    lv_plugin_system_add_search_path(system, directory);
 
     /* 扫描目录中的 .dll 文件（Windows）或 .so 文件（Linux） */
 #ifdef _WIN32
@@ -1039,23 +1039,23 @@ int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory)
 #pragma GCC diagnostic pop
 
         /* 尝试加载为插件 */
-        Lv00Plugin* plugin = lv00_plugin_load(system, full_path);
+        lvPlugin* plugin = lv_plugin_load(system, full_path);
         if (plugin) {
             /* 版本兼容性检查：验证插件版本是否与系统版本兼容 */
             if (plugin->info.version[0] != '\0') {
-                if (!lv00_plugin_check_api_compatibility(
+                if (!lv_plugin_check_api_compatibility(
                         system->version,
-                        (LV00_PLUGIN_SYSTEM_VERSION_MAJOR << 16) |
-                        (LV00_PLUGIN_SYSTEM_VERSION_MINOR << 8))) {
+                        (lv_PLUGIN_SYSTEM_VERSION_MAJOR << 16) |
+                        (lv_PLUGIN_SYSTEM_VERSION_MINOR << 8))) {
                     /* 插件 API 版本不兼容，记录警告并跳过激活 */
                     set_error(system,
                               "Plugin '%s' version '%s' may be incompatible with "
                               "system API version %d.%d.%d. Loading but not activating.",
                               plugin->info.name,
                               plugin->info.version,
-                              LV00_PLUGIN_SYSTEM_VERSION_MAJOR,
-                              LV00_PLUGIN_SYSTEM_VERSION_MINOR,
-                              LV00_PLUGIN_SYSTEM_VERSION_PATCH);
+                              lv_PLUGIN_SYSTEM_VERSION_MAJOR,
+                              lv_PLUGIN_SYSTEM_VERSION_MINOR,
+                              lv_PLUGIN_SYSTEM_VERSION_PATCH);
                     /* 不卸载插件，但也不自动激活，让用户决定 */
                 }
             }
@@ -1082,22 +1082,22 @@ int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory)
             snprintf(full_path, sizeof(full_path), "%s/%s", directory, entry->d_name);
 
             /* 尝试加载为插件 */
-            Lv00Plugin* plugin = lv00_plugin_load(system, full_path);
+            lvPlugin* plugin = lv_plugin_load(system, full_path);
             if (plugin) {
                 /* 版本兼容性检查：验证插件版本是否与系统版本兼容 */
                 if (plugin->info.version[0] != '\0') {
-                    if (!lv00_plugin_check_api_compatibility(
+                    if (!lv_plugin_check_api_compatibility(
                             system->version,
-                            (LV00_PLUGIN_SYSTEM_VERSION_MAJOR << 16) |
-                            (LV00_PLUGIN_SYSTEM_VERSION_MINOR << 8))) {
+                            (lv_PLUGIN_SYSTEM_VERSION_MAJOR << 16) |
+                            (lv_PLUGIN_SYSTEM_VERSION_MINOR << 8))) {
                         set_error(system,
                                   "Plugin '%s' version '%s' may be incompatible with "
                                   "system API version %d.%d.%d. Loading but not activating.",
                                   plugin->info.name,
                                   plugin->info.version,
-                                  LV00_PLUGIN_SYSTEM_VERSION_MAJOR,
-                                  LV00_PLUGIN_SYSTEM_VERSION_MINOR,
-                                  LV00_PLUGIN_SYSTEM_VERSION_PATCH);
+                                  lv_PLUGIN_SYSTEM_VERSION_MAJOR,
+                                  lv_PLUGIN_SYSTEM_VERSION_MINOR,
+                                  lv_PLUGIN_SYSTEM_VERSION_PATCH);
                     }
                 }
             }
@@ -1110,12 +1110,12 @@ int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory)
     return 0;
 }
 
-int lv00_plugin_system_autoload_all(Lv00PluginSystem* system) {
+int lv_plugin_system_autoload_all(lvPluginSystem* system) {
     if (!system) return -1;
     
     /* 遍历所有搜索路径，自动加载其中的插件（含版本兼容性检查） */
     for (size_t i = 0; i < system->search_path_count; i++) {
-        lv00_plugin_system_autoload(system, system->search_paths[i]);
+        lv_plugin_system_autoload(system, system->search_paths[i]);
     }
     
     return 0;
@@ -1124,8 +1124,8 @@ int lv00_plugin_system_autoload_all(Lv00PluginSystem* system) {
 /* ============ 版本兼容性 ============ */
 
 /* 版本兼容性常量 */
-#define LV00_PLUGIN_VERSION_OK       1
-#define LV00_PLUGIN_VERSION_MISMATCH 0
+#define lv_PLUGIN_VERSION_OK       1
+#define lv_PLUGIN_VERSION_MISMATCH 0
 
 /* 解析语义版本字符串 "major.minor.patch" */
 static int parse_semver(const char* ver_str, int* major, int* minor, int* patch) {
@@ -1134,46 +1134,46 @@ static int parse_semver(const char* ver_str, int* major, int* minor, int* patch)
     return sscanf(ver_str, "%d.%d.%d", major, minor, patch);
 }
 
-int lv00_plugin_check_version(const char* required, const char* provided) {
-    if (!required || !provided) return LV00_PLUGIN_VERSION_MISMATCH;
+int lv_plugin_check_version(const char* required, const char* provided) {
+    if (!required || !provided) return lv_PLUGIN_VERSION_MISMATCH;
 
     /* 解析 required 版本 */
     int req_major, req_minor, req_patch;
     if (parse_semver(required, &req_major, &req_minor, &req_patch) < 1) {
-        return LV00_PLUGIN_VERSION_MISMATCH;
+        return lv_PLUGIN_VERSION_MISMATCH;
     }
 
     /* 解析 provided 版本 */
     int prov_major, prov_minor, prov_patch;
     if (parse_semver(provided, &prov_major, &prov_minor, &prov_patch) < 1) {
-        return LV00_PLUGIN_VERSION_MISMATCH;
+        return lv_PLUGIN_VERSION_MISMATCH;
     }
 
     /* 语义版本比较：逐级比较 major -> minor -> patch */
-    if (prov_major > req_major) return LV00_PLUGIN_VERSION_OK;
-    if (prov_major < req_major) return LV00_PLUGIN_VERSION_MISMATCH;
+    if (prov_major > req_major) return lv_PLUGIN_VERSION_OK;
+    if (prov_major < req_major) return lv_PLUGIN_VERSION_MISMATCH;
 
     /* major 相同，比较 minor */
-    if (prov_minor > req_minor) return LV00_PLUGIN_VERSION_OK;
-    if (prov_minor < req_minor) return LV00_PLUGIN_VERSION_MISMATCH;
+    if (prov_minor > req_minor) return lv_PLUGIN_VERSION_OK;
+    if (prov_minor < req_minor) return lv_PLUGIN_VERSION_MISMATCH;
 
     /* minor 相同，比较 patch */
-    if (prov_patch >= req_patch) return LV00_PLUGIN_VERSION_OK;
+    if (prov_patch >= req_patch) return lv_PLUGIN_VERSION_OK;
 
-    return LV00_PLUGIN_VERSION_MISMATCH;
+    return lv_PLUGIN_VERSION_MISMATCH;
 }
 
-int lv00_plugin_check_api_compatibility(uint32_t required, uint32_t provided) {
+int lv_plugin_check_api_compatibility(uint32_t required, uint32_t provided) {
     return provided >= required;
 }
 
 /* ============ 插件信息 ============ */
 
-char* lv00_plugin_get_info_json(const Lv00Plugin* plugin) {
+char* lv_plugin_get_info_json(const lvPlugin* plugin) {
     if (!plugin) return NULL;
     
     size_t size = 1024;
-    char* json = (char*)lv00_malloc(size);
+    char* json = (char*)lv_malloc(size);
     if (!json) return NULL;
     
     snprintf(json, size,
@@ -1196,13 +1196,13 @@ char* lv00_plugin_get_info_json(const Lv00Plugin* plugin) {
     return json;
 }
 
-char* lv00_plugin_system_get_info_json(const Lv00PluginSystem* system) {
+char* lv_plugin_system_get_info_json(const lvPluginSystem* system) {
     if (!system) return NULL;
 
     /* 防止整数溢出 */
     if (system->plugin_count > SIZE_MAX / 512 - 2048) return NULL;
     size_t size = 2048 + system->plugin_count * 512;
-    char* json = (char*)lv00_malloc(size);
+    char* json = (char*)lv_malloc(size);
     if (!json) return NULL;
 
     char* ptr = json;
@@ -1242,7 +1242,7 @@ char* lv00_plugin_system_get_info_json(const Lv00PluginSystem* system) {
 
 /* ============ 错误处理 ============ */
 
-const char* lv00_plugin_get_last_error(const Lv00Plugin* plugin) {
+const char* lv_plugin_get_last_error(const lvPlugin* plugin) {
     if (!plugin || !plugin->context) return NULL;
     if (!plugin->context->system) return NULL;
     
@@ -1251,14 +1251,14 @@ const char* lv00_plugin_get_last_error(const Lv00Plugin* plugin) {
     return internal->last_error;
 }
 
-const char* lv00_plugin_system_get_last_error(const Lv00PluginSystem* system) {
+const char* lv_plugin_system_get_last_error(const lvPluginSystem* system) {
     if (!system) return NULL;
     
     PluginSystemInternal* internal = (PluginSystemInternal*)system->mutex;
     return internal->last_error;
 }
 
-void lv00_plugin_clear_error(Lv00Plugin* plugin) {
+void lv_plugin_clear_error(lvPlugin* plugin) {
     if (!plugin || !plugin->context) return;
     if (!plugin->context->system) return;
     
@@ -1267,7 +1267,7 @@ void lv00_plugin_clear_error(Lv00Plugin* plugin) {
     internal->last_error[0] = '\0';
 }
 
-void lv00_plugin_system_clear_error(Lv00PluginSystem* system) {
+void lv_plugin_system_clear_error(lvPluginSystem* system) {
     if (!system) return;
     
     PluginSystemInternal* internal = (PluginSystemInternal*)system->mutex;

@@ -1,4 +1,4 @@
-# Batch-generate stub .c source files for CMake build
+﻿# Batch-generate stub .c source files for CMake build
 # Run: powershell -File gen_stubs.ps1
 
 $base = Split-Path $PSScriptRoot -Parent
@@ -163,7 +163,7 @@ foreach ($f in $files) {
     $name = [IO.Path]::GetFileNameWithoutExtension($f)
     $content = @"
 /* Stub for ${name} — TODO: implement */
-#include "lv00/lv00.h"
+#include "lv/lv.h"
 "@
     [IO.File]::WriteAllText($full, $content, [Text.Encoding]::UTF8)
     $count++

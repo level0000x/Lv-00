@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_projective_geometry.c
  * @brief Projective Geometry Axiom Package Test
  *
@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/projective_geometry.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/projective_geometry_test_save.lvz"
@@ -257,9 +257,9 @@ static void test_content_hash(void) {
     printf("  Hash verification: %s\n", (hash1 && hash2 && strcmp(hash1, hash2) == 0) ? "MATCH" : "MISMATCH");
 
     if (hash1)
-        lv00_free_ptr(hash1);
+        lv_free_ptr(hash1);
     if (hash2)
-        lv00_free_ptr(hash2);
+        lv_free_ptr(hash2);
     axiom_package_destroy(pkg);
     axiom_package_destroy(pkg2);
 }
@@ -312,9 +312,9 @@ static void test_round_trip_save_load(void) {
     printf("  Reloaded hash:  %s\n", hash2 ? hash2 : "(null)");
 
     if (hash1)
-        lv00_free_ptr(hash1);
+        lv_free_ptr(hash1);
     if (hash2)
-        lv00_free_ptr(hash2);
+        lv_free_ptr(hash2);
     axiom_package_destroy(pkg);
     axiom_package_destroy(pkg2);
 }

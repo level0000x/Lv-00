@@ -1,4 +1,4 @@
-/*
+﻿/*
  * test_complex_graph.c - Lv-00 复杂约束图测试
  *
  * 测试复杂约束图场景：
@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00.h"
+#include "lv.h"
 #include "test_helpers.h"
 /* 测试多节点图 */
 static int test_many_nodes(void) {
@@ -92,7 +92,7 @@ static int test_redundant_constraints(void) {
     int redundant_count = 0;
     int *redundant = graph_detect_redundant_constraints(graph, &redundant_count);
     printf("  Redundant constraints found: %d\n", redundant_count);
-    lv00_free_ptr(redundant);
+    lv_free_ptr(redundant);
     printf("  Redundant constraint detection: PASSED\n");
     graph_destroy(graph);
     return 0;
@@ -152,7 +152,7 @@ static int test_cross_boundary(void) {
     int out_count = 0;
     CrossBoundaryConstraint *cbc = find_cross_boundary_constraints(graph, internal, 2, ports, 1, &out_count);
     printf("  Cross-boundary constraints found: %d\n", out_count);
-    lv00_free_ptr(cbc);
+    lv_free_ptr(cbc);
     printf("  Cross-boundary detection: PASSED\n");
     graph_destroy(graph);
     return 0;

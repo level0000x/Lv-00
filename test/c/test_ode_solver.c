@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_ode_solver.c
  * @brief Tests for the ODE solver module.
  *
@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 #include "ode_solver.h"
 #include "test_helpers.h"
 
@@ -72,7 +72,7 @@ static void rhs_fast_decay(double t, const double *y, void *params, double *dydt
  * ============================================================ */
 
 static void test_euler_exponential_decay(void) {
-    Lv00ODEProblem problem;
+    lvODEProblem problem;
     problem.rhs_fn = rhs_decay;
     problem.dim    = 1;
     problem.y0     = (double[]){1.0};
@@ -80,14 +80,14 @@ static void test_euler_exponential_decay(void) {
     problem.t_span[1] = 1.0;
     problem.params = NULL;
 
-    Lv00ODEConfig config;
+    lvODEConfig config;
     config.method    = ODE_EULER;
     config.dt        = 0.01;
     config.max_steps = 10000;
     config.rtol      = 1e-6;
     config.atol      = 1e-9;
 
-    Lv00ODESolution *sol = ode_solve(&problem, &config);
+    lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);
     TEST_ASSERT(sol->n_steps > 0, "solution should have steps");
 
@@ -108,7 +108,7 @@ static void test_euler_exponential_decay(void) {
  * ============================================================ */
 
 static void test_rk4_exponential_decay(void) {
-    Lv00ODEProblem problem;
+    lvODEProblem problem;
     problem.rhs_fn = rhs_decay;
     problem.dim    = 1;
     problem.y0     = (double[]){1.0};
@@ -116,14 +116,14 @@ static void test_rk4_exponential_decay(void) {
     problem.t_span[1] = 1.0;
     problem.params = NULL;
 
-    Lv00ODEConfig config;
+    lvODEConfig config;
     config.method    = ODE_RK4;
     config.dt        = 0.01;
     config.max_steps = 10000;
     config.rtol      = 1e-6;
     config.atol      = 1e-9;
 
-    Lv00ODESolution *sol = ode_solve(&problem, &config);
+    lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);
     TEST_ASSERT(sol->n_steps > 0, "solution should have steps");
 
@@ -144,7 +144,7 @@ static void test_rk4_exponential_decay(void) {
  * ============================================================ */
 
 static void test_euler_fast_decay(void) {
-    Lv00ODEProblem problem;
+    lvODEProblem problem;
     problem.rhs_fn = rhs_fast_decay;
     problem.dim    = 1;
     problem.y0     = (double[]){5.0};
@@ -152,14 +152,14 @@ static void test_euler_fast_decay(void) {
     problem.t_span[1] = 2.0;
     problem.params = NULL;
 
-    Lv00ODEConfig config;
+    lvODEConfig config;
     config.method    = ODE_EULER;
     config.dt        = 0.005;
     config.max_steps = 10000;
     config.rtol      = 1e-6;
     config.atol      = 1e-9;
 
-    Lv00ODESolution *sol = ode_solve(&problem, &config);
+    lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);
 
     /* At t=2.0, exact solution is 5 * exp(-4) ~ 0.091578 */
@@ -175,7 +175,7 @@ static void test_euler_fast_decay(void) {
  * ============================================================ */
 
 static void test_rk4_fast_decay(void) {
-    Lv00ODEProblem problem;
+    lvODEProblem problem;
     problem.rhs_fn = rhs_fast_decay;
     problem.dim    = 1;
     problem.y0     = (double[]){5.0};
@@ -183,14 +183,14 @@ static void test_rk4_fast_decay(void) {
     problem.t_span[1] = 2.0;
     problem.params = NULL;
 
-    Lv00ODEConfig config;
+    lvODEConfig config;
     config.method    = ODE_RK4;
     config.dt        = 0.005;
     config.max_steps = 10000;
     config.rtol      = 1e-6;
     config.atol      = 1e-9;
 
-    Lv00ODESolution *sol = ode_solve(&problem, &config);
+    lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);
 
     /* At t=2.0, exact solution is 5 * exp(-4) ~ 0.091578 */
@@ -206,7 +206,7 @@ static void test_rk4_fast_decay(void) {
  * ============================================================ */
 
 static void test_rk4_more_accurate_than_euler(void) {
-    Lv00ODEProblem problem;
+    lvODEProblem problem;
     problem.rhs_fn = rhs_decay;
     problem.dim    = 1;
     problem.y0     = (double[]){1.0};
@@ -214,7 +214,7 @@ static void test_rk4_more_accurate_than_euler(void) {
     problem.t_span[1] = 1.0;
     problem.params = NULL;
 
-    Lv00ODEConfig config;
+    lvODEConfig config;
     config.dt        = 0.1;
     config.max_steps = 10000;
     config.rtol      = 1e-6;
@@ -222,12 +222,12 @@ static void test_rk4_more_accurate_than_euler(void) {
 
     /* Euler */
     config.method = ODE_EULER;
-    Lv00ODESolution *sol_euler = ode_solve(&problem, &config);
+    lvODESolution *sol_euler = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol_euler);
 
     /* RK4 */
     config.method = ODE_RK4;
-    Lv00ODESolution *sol_rk4 = ode_solve(&problem, &config);
+    lvODESolution *sol_rk4 = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol_rk4);
 
     double exact = exp(-1.0);
@@ -249,7 +249,7 @@ static void test_rk4_more_accurate_than_euler(void) {
  * ============================================================ */
 
 static void test_ode_null_safety(void) {
-    Lv00ODEProblem problem;
+    lvODEProblem problem;
     problem.rhs_fn = rhs_decay;
     problem.dim    = 1;
     problem.y0     = (double[]){1.0};
@@ -257,7 +257,7 @@ static void test_ode_null_safety(void) {
     problem.t_span[1] = 1.0;
     problem.params = NULL;
 
-    Lv00ODEConfig config;
+    lvODEConfig config;
     config.method    = ODE_EULER;
     config.dt        = 0.01;
     config.max_steps = 10000;
@@ -265,7 +265,7 @@ static void test_ode_null_safety(void) {
     config.atol      = 1e-9;
 
     /* NULL problem */
-    Lv00ODESolution *sol = ode_solve(NULL, &config);
+    lvODESolution *sol = ode_solve(NULL, &config);
     TEST_ASSERT_NULL(sol);
 
     /* NULL config */
@@ -273,7 +273,7 @@ static void test_ode_null_safety(void) {
     TEST_ASSERT_NULL(sol);
 
     /* NULL rhs_fn */
-    Lv00ODEProblem bad_problem = problem;
+    lvODEProblem bad_problem = problem;
     bad_problem.rhs_fn = NULL;
     sol = ode_solve(&bad_problem, &config);
     TEST_ASSERT_NULL(sol);
@@ -299,7 +299,7 @@ static void test_ode_null_safety(void) {
  * ============================================================ */
 
 static void test_solution_dimensions(void) {
-    Lv00ODEProblem problem;
+    lvODEProblem problem;
     problem.rhs_fn = rhs_decay;
     problem.dim    = 1;
     problem.y0     = (double[]){1.0};
@@ -307,14 +307,14 @@ static void test_solution_dimensions(void) {
     problem.t_span[1] = 1.0;
     problem.params = NULL;
 
-    Lv00ODEConfig config;
+    lvODEConfig config;
     config.method    = ODE_EULER;
     config.dt        = 0.1;
     config.max_steps = 10000;
     config.rtol      = 1e-6;
     config.atol      = 1e-9;
 
-    Lv00ODESolution *sol = ode_solve(&problem, &config);
+    lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);
     TEST_ASSERT_EQ(sol->dim, 1);
     /* dt=0.1, interval=1.0 => 10 steps + initial = 11 entries */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_theory_combiner.c
  * @brief SMT theory combination dispatcher implementation
  *
@@ -15,7 +15,7 @@
  */
 
 #include "smt_theory_combiner.h"
-#include "lv00/lv00_utils.h"
+#include "lv/lv_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,8 +34,8 @@
  * Lower priority value = higher dispatch precedence.
  */
 static int compare_entries_by_priority(const void *a, const void *b) {
-    const Lv00TheoryEntry *ea = (const Lv00TheoryEntry *) a;
-    const Lv00TheoryEntry *eb = (const Lv00TheoryEntry *) b;
+    const lvTheoryEntry *ea = (const lvTheoryEntry *) a;
+    const lvTheoryEntry *eb = (const lvTheoryEntry *) b;
     if (ea->priority != eb->priority)
         return ea->priority - eb->priority;
     /* Tie-break by theory ID for deterministic ordering */
@@ -47,7 +47,7 @@ static int compare_entries_by_priority(const void *a, const void *b) {
  *
  * @return Index of the entry, or -1 if not found
  */
-static int find_entry_index(const Lv00TheoryCombiner *combiner, Lv00TheoryId theory_id) {
+static int find_entry_index(const lvTheoryCombiner *combiner, lvTheoryId theory_id) {
     if (!combiner)
         return -1;
     for (int i = 0; i < combiner->entry_count; i++) {
@@ -62,7 +62,7 @@ static int find_entry_index(const Lv00TheoryCombiner *combiner, Lv00TheoryId the
  *
  * @return true on success, false on allocation failure
  */
-static bool ensure_capacity(Lv00TheoryCombiner *combiner) {
+static bool ensure_capacity(lvTheoryCombiner *combiner) {
     if (!combiner)
         return false;
 
@@ -73,8 +73,8 @@ static bool ensure_capacity(Lv00TheoryCombiner *combiner) {
     if (new_capacity < DEFAULT_CAPACITY)
         new_capacity = DEFAULT_CAPACITY;
 
-    Lv00TheoryEntry *new_entries = (Lv00TheoryEntry *) lv00_realloc(
-        combiner->entries, (size_t) new_capacity * sizeof(Lv00TheoryEntry));
+    lvTheoryEntry *new_entries = (lvTheoryEntry *) lv_realloc(
+        combiner->entries, (size_t) new_capacity * sizeof(lvTheoryEntry));
     if (!new_entries)
         return false;
 
@@ -87,17 +87,17 @@ static bool ensure_capacity(Lv00TheoryCombiner *combiner) {
  * Lifecycle
  * ======================================================================== */
 
-Lv00TheoryCombiner *smt_combiner_create(int initial_capacity, double timeout_ms) {
+lvTheoryCombiner *smt_combiner_create(int initial_capacity, double timeout_ms) {
     if (initial_capacity <= 0)
         initial_capacity = DEFAULT_CAPACITY;
 
-    Lv00TheoryCombiner *combiner =
-        (Lv00TheoryCombiner *) malloc(sizeof(Lv00TheoryCombiner));
+    lvTheoryCombiner *combiner =
+        (lvTheoryCombiner *) malloc(sizeof(lvTheoryCombiner));
     if (!combiner)
         return NULL;
 
-    combiner->entries = (Lv00TheoryEntry *) calloc(
-        (size_t) initial_capacity, sizeof(Lv00TheoryEntry));
+    combiner->entries = (lvTheoryEntry *) calloc(
+        (size_t) initial_capacity, sizeof(lvTheoryEntry));
     if (!combiner->entries) {
         free(combiner);
         return NULL;
@@ -110,7 +110,7 @@ Lv00TheoryCombiner *smt_combiner_create(int initial_capacity, double timeout_ms)
     return combiner;
 }
 
-void smt_combiner_destroy(Lv00TheoryCombiner *combiner) {
+void smt_combiner_destroy(lvTheoryCombiner *combiner) {
     if (!combiner)
         return;
 
@@ -126,10 +126,10 @@ void smt_combiner_destroy(Lv00TheoryCombiner *combiner) {
  * Theory registration
  * ======================================================================== */
 
-bool smt_combiner_add_theory(Lv00TheoryCombiner *combiner,
-                             Lv00TheoryId theory_id,
+bool smt_combiner_add_theory(lvTheoryCombiner *combiner,
+                             lvTheoryId theory_id,
                              int priority,
-                             Lv00TheorySolverFn solver_fn,
+                             lvTheorySolverFn solver_fn,
                              void *solver_context) {
     if (!combiner || !solver_fn)
         return false;
@@ -145,7 +145,7 @@ bool smt_combiner_add_theory(Lv00TheoryCombiner *combiner,
 
         /* Re-sort by priority */
         qsort(combiner->entries, (size_t) combiner->entry_count,
-              sizeof(Lv00TheoryEntry), compare_entries_by_priority);
+              sizeof(lvTheoryEntry), compare_entries_by_priority);
         return true;
     }
 
@@ -153,7 +153,7 @@ bool smt_combiner_add_theory(Lv00TheoryCombiner *combiner,
     if (!ensure_capacity(combiner))
         return false;
 
-    Lv00TheoryEntry *entry = &combiner->entries[combiner->entry_count];
+    lvTheoryEntry *entry = &combiner->entries[combiner->entry_count];
     entry->theory_id = theory_id;
     entry->priority = priority;
     entry->solver_fn = solver_fn;
@@ -163,13 +163,13 @@ bool smt_combiner_add_theory(Lv00TheoryCombiner *combiner,
 
     /* Re-sort by priority */
     qsort(combiner->entries, (size_t) combiner->entry_count,
-          sizeof(Lv00TheoryEntry), compare_entries_by_priority);
+          sizeof(lvTheoryEntry), compare_entries_by_priority);
 
     return true;
 }
 
-bool smt_combiner_set_enabled(Lv00TheoryCombiner *combiner,
-                              Lv00TheoryId theory_id,
+bool smt_combiner_set_enabled(lvTheoryCombiner *combiner,
+                              lvTheoryId theory_id,
                               bool enabled) {
     if (!combiner)
         return false;
@@ -186,9 +186,9 @@ bool smt_combiner_set_enabled(Lv00TheoryCombiner *combiner,
  * Solving
  * ======================================================================== */
 
-Lv00TheoryResult smt_combiner_solve(const Lv00TheoryCombiner *combiner,
+lvTheoryResult smt_combiner_solve(const lvTheoryCombiner *combiner,
                                     const void *constraints) {
-    Lv00TheoryResult result;
+    lvTheoryResult result;
     result.satisfiable = false;
     result.timeout = true;
     result.solve_time_ms = 0.0;
@@ -202,7 +202,7 @@ Lv00TheoryResult smt_combiner_solve(const Lv00TheoryCombiner *combiner,
      * If all theories time out, return the last result with timeout=true.
      */
     for (int i = 0; i < combiner->entry_count; i++) {
-        const Lv00TheoryEntry *entry = &combiner->entries[i];
+        const lvTheoryEntry *entry = &combiner->entries[i];
         if (!entry->enabled || !entry->solver_fn)
             continue;
 

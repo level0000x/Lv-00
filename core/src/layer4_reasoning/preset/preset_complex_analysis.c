@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_complex_analysis.c
  * @brief 复分析预设函数块模块 - 实现
  *
@@ -16,8 +16,8 @@
 #include "preset_complex_analysis.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 #include <string.h>
 
@@ -1010,7 +1010,7 @@ bool preset_complex_analysis_register(void)
     }
 
     /* 返回是否所有预设都注册成功 */
-    /* lv00_log_info("复分析预设注册完成，共 %d 个预设", success_count) */
+    /* lv_log_info("复分析预设注册完成，共 %d 个预设", success_count) */
     return success_count == COMPLEX_ANALYSIS_PRESET_COUNT;
 }
 
@@ -1029,7 +1029,7 @@ bool preset_complex_analysis_get_names(char ***out_names, int *out_count)
 {
     if (!out_names || !out_count) return false;
 
-    char **names = (char **)lv00_malloc(COMPLEX_ANALYSIS_PRESET_COUNT * sizeof(char *));
+    char **names = (char **)lv_malloc(COMPLEX_ANALYSIS_PRESET_COUNT * sizeof(char *));
     if (!names) return false;
 
     const char *preset_names[] = {
@@ -1073,10 +1073,10 @@ bool preset_complex_analysis_get_names(char ***out_names, int *out_count)
     int count = (int)(sizeof(preset_names) / sizeof(preset_names[0]));
 
     for (int i = 0; i < count; i++) {
-        names[i] = lv00_strdup(preset_names[i]);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
-            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv00_free(&tmp); }
-            { void *tmp = names; lv00_free(&tmp); }
+            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv_free(&tmp); }
+            { void *tmp = names; lv_free(&tmp); }
             return false;
         }
     }

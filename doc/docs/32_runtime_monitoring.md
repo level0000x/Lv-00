@@ -1,4 +1,4 @@
-# 32. 运行时监控与生态系统
+﻿# 32. 运行时监控与生态系统
 
 ## 32.1 模块概述
 
@@ -41,9 +41,9 @@ Lv-00 作为构造—证明系统，必须在长时间推理、复杂约束传�
 
 | 配置项 | 默认含义 |
 |--------|----------|
-| `LV00_CONFIG_RUNTIME_GUARD_MAX_RECURSE` | 最大递归深度 |
-| `LV00_CONFIG_RUNTIME_GUARD_SPIN_ATTEMPTS` | 最大自旋尝试次数 |
-| `LV00_CONFIG_RUNTIME_GUARD_WRITE_WARN_US` | 写操作警告阈值（微秒） |
+| `lv_CONFIG_RUNTIME_GUARD_MAX_RECURSE` | 最大递归深度 |
+| `lv_CONFIG_RUNTIME_GUARD_SPIN_ATTEMPTS` | 最大自旋尝试次数 |
+| `lv_CONFIG_RUNTIME_GUARD_WRITE_WARN_US` | 写操作警告阈值（微秒） |
 
 这些阈值用于在推理、归一化、重写、流式输出和插件调用中防止系统不可控膨胀。
 
@@ -64,14 +64,14 @@ Lv-00 作为构造—证明系统，必须在长时间推理、复杂约束传�
 
 ```c
 typedef enum {
-    LV00_LOG_LEVEL_TRACE = 0,
-    LV00_LOG_LEVEL_DEBUG = 1,
-    LV00_LOG_LEVEL_INFO  = 2,
-    LV00_LOG_LEVEL_WARN  = 3,
-    LV00_LOG_LEVEL_ERROR = 4,
-    LV00_LOG_LEVEL_FATAL = 5,
-    LV00_LOG_LEVEL_OFF   = 6
-} Lv00LogLevel;
+    lv_LOG_LEVEL_TRACE = 0,
+    lv_LOG_LEVEL_DEBUG = 1,
+    lv_LOG_LEVEL_INFO  = 2,
+    lv_LOG_LEVEL_WARN  = 3,
+    lv_LOG_LEVEL_ERROR = 4,
+    lv_LOG_LEVEL_FATAL = 5,
+    lv_LOG_LEVEL_OFF   = 6
+} lvLogLevel;
 ```
 
 日志输出目标：
@@ -84,39 +84,39 @@ typedef enum {
     LOG_TARGET_FILE = 4,
     LOG_TARGET_CALLBACK = 8,
     LOG_TARGET_SYSLOG = 16
-} Lv00LogTarget;
+} lvLogTarget;
 ```
 
 日志记录：
 
 ```c
 typedef struct {
-    Lv00LogLevel level;
-    char tag[LV00_LOG_TAG_MAX_LEN];
-    char message[LV00_LOG_MSG_MAX_LEN];
+    lvLogLevel level;
+    char tag[lv_LOG_TAG_MAX_LEN];
+    char message[lv_LOG_MSG_MAX_LEN];
     char file[256];
     int line;
     char function[128];
     int64_t timestamp_ms;
     int thread_id;
-} Lv00LogRecord;
+} lvLogRecord;
 ```
 
 核心 API：
 
 ```c
-bool lv00_log_init(const Lv00LogConfig *config);
-void lv00_log_shutdown(void);
-void lv00_log_set_level(Lv00LogLevel level);
-void lv00_log_set_targets(Lv00LogTarget targets);
-bool lv00_log_set_file(const char *path);
-void lv00_log_set_callback(Lv00LogCallback callback, void *user_data);
-void lv00_log_write(Lv00LogLevel level, const char *tag,
+bool lv_log_init(const lvLogConfig *config);
+void lv_log_shutdown(void);
+void lv_log_set_level(lvLogLevel level);
+void lv_log_set_targets(lvLogTarget targets);
+bool lv_log_set_file(const char *path);
+void lv_log_set_callback(lvLogCallback callback, void *user_data);
+void lv_log_write(lvLogLevel level, const char *tag,
                     const char *file, int line, const char *function,
                     const char *fmt, ...);
 ```
 
-便捷宏包括 `LV00_LOG_TRACE`、`LV00_LOG_DEBUG`、`LV00_LOG_INFO`、`LV00_LOG_WARN`、`LV00_LOG_ERROR` 和 `LV00_LOG_FATAL`。
+便捷宏包括 `lv_LOG_TRACE`、`lv_LOG_DEBUG`、`lv_LOG_INFO`、`lv_LOG_WARN`、`lv_LOG_ERROR` 和 `lv_LOG_FATAL`。
 
 ### 32.4.2 性能计时与统计
 
@@ -127,43 +127,43 @@ typedef enum {
     TIMER_STOPPED,
     TIMER_RUNNING,
     TIMER_PAUSED
-} Lv00TimerState;
+} lvTimerState;
 ```
 
 计时器结构：
 
 ```c
 typedef struct {
-    char name[LV00_METRIC_NAME_MAX_LEN];
-    Lv00TimerState state;
+    char name[lv_METRIC_NAME_MAX_LEN];
+    lvTimerState state;
     int64_t start_time_ns;
     int64_t elapsed_ns;
     int64_t total_ns;
     uint64_t call_count;
     int depth;
-} Lv00Timer;
+} lvTimer;
 ```
 
 API：
 
 ```c
-bool lv00_perf_init(void);
-void lv00_perf_shutdown(void);
-Lv00Timer *lv00_timer_create(const char *name);
-void lv00_timer_destroy(Lv00Timer *timer);
-void lv00_timer_start(Lv00Timer *timer);
-int64_t lv00_timer_stop(Lv00Timer *timer);
-void lv00_timer_pause(Lv00Timer *timer);
-void lv00_timer_resume(Lv00Timer *timer);
-int64_t lv00_timer_elapsed_ms(const Lv00Timer *timer);
-int64_t lv00_timer_elapsed_ns(const Lv00Timer *timer);
+bool lv_perf_init(void);
+void lv_perf_shutdown(void);
+lvTimer *lv_timer_create(const char *name);
+void lv_timer_destroy(lvTimer *timer);
+void lv_timer_start(lvTimer *timer);
+int64_t lv_timer_stop(lvTimer *timer);
+void lv_timer_pause(lvTimer *timer);
+void lv_timer_resume(lvTimer *timer);
+int64_t lv_timer_elapsed_ms(const lvTimer *timer);
+int64_t lv_timer_elapsed_ns(const lvTimer *timer);
 ```
 
 性能统计：
 
 ```c
 typedef struct {
-    char name[LV00_METRIC_NAME_MAX_LEN];
+    char name[lv_METRIC_NAME_MAX_LEN];
     uint64_t count;
     double min_val;
     double max_val;
@@ -174,7 +174,7 @@ typedef struct {
     double std_dev;
     double last_val;
     int64_t last_time_ns;
-} Lv00PerfStats;
+} lvPerfStats;
 ```
 
 ### 32.4.3 健康检查
@@ -185,29 +185,29 @@ typedef enum {
     HEALTH_WARNING,
     HEALTH_CRITICAL,
     HEALTH_UNKNOWN
-} Lv00HealthStatus;
+} lvHealthStatus;
 ```
 
 ```c
 typedef struct {
-    char name[LV00_METRIC_NAME_MAX_LEN];
-    Lv00HealthStatus status;
+    char name[lv_METRIC_NAME_MAX_LEN];
+    lvHealthStatus status;
     char message[256];
     double value;
     double threshold_warning;
     double threshold_critical;
-} Lv00HealthCheck;
+} lvHealthCheck;
 ```
 
 核心 API：
 
 ```c
-bool lv00_health_init(void);
-void lv00_health_shutdown(void);
-Lv00HealthReport *lv00_runtime_health_check(void);
-void lv00_health_report_destroy(Lv00HealthReport *report);
-void lv00_health_set_memory_thresholds(double warning_mb, double critical_mb);
-void lv00_health_set_cpu_thresholds(double warning_percent, double critical_percent);
+bool lv_health_init(void);
+void lv_health_shutdown(void);
+lvHealthReport *lv_runtime_health_check(void);
+void lv_health_report_destroy(lvHealthReport *report);
+void lv_health_set_memory_thresholds(double warning_mb, double critical_mb);
+void lv_health_set_cpu_thresholds(double warning_percent, double critical_percent);
 ```
 
 ### 32.4.4 诊断报告
@@ -232,22 +232,22 @@ typedef struct {
     uint64_t warning_count;
     char last_error[256];
 
-    Lv00HealthStatus health;
+    lvHealthStatus health;
 
     char os_info[256];
     char cpu_info[256];
     uint32_t cpu_cores;
     uint64_t total_memory_mb;
-} Lv00Diagnostics;
+} lvDiagnostics;
 ```
 
 API：
 
 ```c
-Lv00Diagnostics *lv00_diagnostics_generate(void);
-void lv00_diagnostics_destroy(Lv00Diagnostics *diag);
-bool lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path);
-char *lv00_diagnostics_to_json(const Lv00Diagnostics *diag);
+lvDiagnostics *lv_diagnostics_generate(void);
+void lv_diagnostics_destroy(lvDiagnostics *diag);
+bool lv_diagnostics_write_file(const lvDiagnostics *diag, const char *path);
+char *lv_diagnostics_to_json(const lvDiagnostics *diag);
 ```
 
 ### 32.4.5 事件追踪
@@ -267,20 +267,20 @@ typedef enum {
     EVENT_TYPE_ERROR,
     EVENT_TYPE_WARNING,
     EVENT_TYPE_CUSTOM
-} Lv00EventType;
+} lvEventType;
 ```
 
 API：
 
 ```c
-bool lv00_event_trace_init(uint32_t max_events);
-void lv00_event_trace_shutdown(void);
-void lv00_event_trace_record(Lv00EventType type, const char *name, const char *data);
-int lv00_event_trace_begin(Lv00EventType type, const char *name);
-void lv00_event_trace_end(int event_id, const char *data);
-uint32_t lv00_event_trace_get_all(Lv00EventRecord **out_events, uint32_t max_count);
-void lv00_event_trace_clear(void);
-bool lv00_event_trace_export_chrome(const char *path);
+bool lv_event_trace_init(uint32_t max_events);
+void lv_event_trace_shutdown(void);
+void lv_event_trace_record(lvEventType type, const char *name, const char *data);
+int lv_event_trace_begin(lvEventType type, const char *name);
+void lv_event_trace_end(int event_id, const char *data);
+uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count);
+void lv_event_trace_clear(void);
+bool lv_event_trace_export_chrome(const char *path);
 ```
 
 Chrome Tracing 导出可用于性能时间线分析。
@@ -307,7 +307,7 @@ typedef enum {
     ECO_ENTITY_EXPORT_FORMAT = 3,
     ECO_ENTITY_WEB_COMPONENT = 4,
     ECO_ENTITY_DSL_EXTENSION = 5
-} Lv00EcosystemEntity;
+} lvEcosystemEntity;
 ```
 
 可注册对象不仅包括公理包，也包括预设函数块、证明策略、导出格式、Web 组件与 DSL 扩展。
@@ -315,31 +315,31 @@ typedef enum {
 ### 32.5.3 生态包结构
 
 ```c
-typedef struct Lv00EcoPackage {
-    char package_id[LV00_ECO_NAME_MAX];
-    char name[LV00_ECO_NAME_MAX];
-    char version[LV00_ECO_VERSION_MAX];
-    char author[LV00_ECO_AUTHOR_MAX];
+typedef struct lvEcoPackage {
+    char package_id[lv_ECO_NAME_MAX];
+    char name[lv_ECO_NAME_MAX];
+    char version[lv_ECO_VERSION_MAX];
+    char author[lv_ECO_AUTHOR_MAX];
 
-    Lv00EcoLicense license_type;
-    char custom_license_text[LV00_ECO_DESC_MAX];
+    lvEcoLicense license_type;
+    char custom_license_text[lv_ECO_DESC_MAX];
 
-    char description[LV00_ECO_DESC_MAX];
-    char source_url[LV00_ECO_URL_MAX];
+    char description[lv_ECO_DESC_MAX];
+    char source_url[lv_ECO_URL_MAX];
 
-    char dependencies[LV00_ECO_MAX_DEPENDENCIES][LV00_ECO_NAME_MAX];
+    char dependencies[lv_ECO_MAX_DEPENDENCIES][lv_ECO_NAME_MAX];
     int dep_count;
 
-    Lv00EcosystemEntity entity_type;
+    lvEcosystemEntity entity_type;
 
     uint64_t install_date;
     int star_count;
     bool verified;
-    char min_lv00_version[LV00_ECO_MIN_VERSION_MAX];
+    char min_lv_version[lv_ECO_MIN_VERSION_MAX];
 
-    char install_path[LV00_ECO_URL_MAX];
+    char install_path[lv_ECO_URL_MAX];
     bool is_installed;
-} Lv00EcoPackage;
+} lvEcoPackage;
 ```
 
 ### 32.5.4 安装状态与兼容性
@@ -354,7 +354,7 @@ typedef enum {
     ECO_INSTALL_NETWORK_ERROR = 5,
     ECO_INSTALL_ALREADY_INSTALLED = 6,
     ECO_INSTALL_CHECKSUM_MISMATCH = 7
-} Lv00EcoInstallStatus;
+} lvEcoInstallStatus;
 ```
 
 ```c
@@ -363,7 +363,7 @@ typedef enum {
     ECO_COMPAT_PARTIAL = 1,
     ECO_COMPAT_INCOMPATIBLE = 2,
     ECO_COMPAT_UNKNOWN = 3
-} Lv00EcoCompatibilityLevel;
+} lvEcoCompatibilityLevel;
 ```
 
 ---
@@ -464,12 +464,12 @@ typedef enum {
 | 代码概念 | 理论/工程对应 | 说明 |
 |----------|----------------|------|
 | `runtime_guard` | 运行时安全不变量 | 防止递归、阻塞和自旋失控 |
-| `Lv00LogRecord` | 结构化运行记录 | 可审计日志单元 |
-| `Lv00Timer` | 操作时间度量 | 用于性能剖析 |
-| `Lv00HealthReport` | 系统健康状态 | 聚合资源与异常状态 |
-| `Lv00Diagnostics` | 诊断快照 | 系统状态一次性导出 |
-| `Lv00EventRecord` | 事件追踪记录 | 可导出 Chrome Tracing |
-| `Lv00EcoPackage` | 生态包元数据 | 支持依赖、版本与许可证 |
+| `lvLogRecord` | 结构化运行记录 | 可审计日志单元 |
+| `lvTimer` | 操作时间度量 | 用于性能剖析 |
+| `lvHealthReport` | 系统健康状态 | 聚合资源与异常状态 |
+| `lvDiagnostics` | 诊断快照 | 系统状态一次性导出 |
+| `lvEventRecord` | 事件追踪记录 | 可导出 Chrome Tracing |
+| `lvEcoPackage` | 生态包元数据 | 支持依赖、版本与许可证 |
 | `Rune` | 符号坐标映射 | 概念演示层 |
 | `MagicArray` | 约束图映射 | 魔法阵即约束图 |
 | `Spell` | 函数块映射 | 咒语即可复用构造块 |

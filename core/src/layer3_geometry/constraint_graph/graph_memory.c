@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file graph_memory.c
  * @brief ConstraintGraph 内存管理
  *
@@ -13,11 +13,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/constraint_graph.h"
-#include "lv00/symbolic_coord.h"
+#include "lv/constraint_graph.h"
+#include "lv/symbolic_coord.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ── 前向声明（graph_index.c 中定义） ── */
 void node_destroy(GeomNode *node);
@@ -37,18 +37,18 @@ void graph_destroy(ConstraintGraph *graph) {
     for (int i = 0; i < graph->node_count; i++) {
         node_destroy(graph->nodes[i]);
     }
-    lv00_free((void **) &graph->nodes);
+    lv_free((void **) &graph->nodes);
     for (int i = 0; i < graph->constraint_count; i++) {
-        lv00_free((void **) &graph->constraints[i]->participants);
-        lv00_free((void **) &graph->constraints[i]);
+        lv_free((void **) &graph->constraints[i]->participants);
+        lv_free((void **) &graph->constraints[i]);
     }
-    lv00_free((void **) &graph->constraints);
-    lv00_free((void **) &graph->node_index);
-    lv00_free((void **) &graph->constraint_index);
+    lv_free((void **) &graph->constraints);
+    lv_free((void **) &graph->node_index);
+    lv_free((void **) &graph->constraint_index);
     /* 释放每图级的错误缓冲区（v3.3.0） */
-    lv00_free((void **) &graph->error_buffer);
-    lv00_free((void **) &graph->serialize_buffer);
-    lv00_free((void **) &graph);
+    lv_free((void **) &graph->error_buffer);
+    lv_free((void **) &graph->serialize_buffer);
+    lv_free((void **) &graph);
 }
 
 /**
@@ -72,7 +72,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     /* Allocate enough space for both phases */
     int max_redundant = graph->constraint_count * 2;
-    int *redundant = lv00_malloc((size_t) max_redundant * sizeof(int));
+    int *redundant = lv_malloc((size_t) max_redundant * sizeof(int));
     if (!redundant)
         return NULL;
     for (int i = 0; i < max_redundant; i++) {
@@ -93,7 +93,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     int n = graph->constraint_count;
     if (n > 1) {
-        ConstraintHashEntry *entries = lv00_malloc((size_t) n * sizeof(ConstraintHashEntry));
+        ConstraintHashEntry *entries = lv_malloc((size_t) n * sizeof(ConstraintHashEntry));
         if (entries) {
             /* Compute hash for each constraint */
             for (int i = 0; i < n; i++) {
@@ -149,7 +149,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
                 i = j;
             }
 
-            lv00_free((void **) &entries);
+            lv_free((void **) &entries);
         } else {
             /* Fallback to O(n²) if allocation fails */
             for (int i = 0; i < graph->constraint_count; i++) {
@@ -193,16 +193,16 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     /* Collect all coordinate variables (point x,y pairs) */
     /* First, find all points referenced by INCIDENCE/BETWEENNESS constraints */
-    int *point_ids = lv00_malloc((size_t) graph->node_count * sizeof(int));
+    int *point_ids = lv_malloc((size_t) graph->node_count * sizeof(int));
     if (!point_ids) {
-        lv00_free((void **) &redundant);
+        lv_free((void **) &redundant);
         return redundant;
     }
     int point_count = 0;
-    bool *point_seen = lv00_calloc(graph->node_count, sizeof(bool));
+    bool *point_seen = lv_calloc(graph->node_count, sizeof(bool));
     if (!point_seen) {
-        lv00_free((void **) &point_ids);
-        lv00_free((void **) &redundant);
+        lv_free((void **) &point_ids);
+        lv_free((void **) &redundant);
         return redundant;
     }
 
@@ -214,11 +214,11 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     }
 
     /* node_id_to_var_idx: maps node_id to variable index (-1 if not a variable) */
-    int *node_id_to_var_idx = lv00_malloc((size_t)(max_node_id + 1) * sizeof(int));
+    int *node_id_to_var_idx = lv_malloc((size_t)(max_node_id + 1) * sizeof(int));
     if (!node_id_to_var_idx) {
-        lv00_free((void **) &point_seen);
-        lv00_free((void **) &point_ids);
-        lv00_free((void **) &redundant);
+        lv_free((void **) &point_seen);
+        lv_free((void **) &point_ids);
+        lv_free((void **) &redundant);
         return redundant;
     }
     for (int i = 0; i <= max_node_id; i++)
@@ -250,12 +250,12 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     /* Count linear constraints */
     int num_linear = 0;
-    int *linear_constraint_indices = lv00_malloc((size_t) graph->constraint_count * sizeof(int));
+    int *linear_constraint_indices = lv_malloc((size_t) graph->constraint_count * sizeof(int));
     if (!linear_constraint_indices) {
-        lv00_free((void **) &node_id_to_var_idx);
-        lv00_free((void **) &point_seen);
-        lv00_free((void **) &point_ids);
-        lv00_free((void **) &redundant);
+        lv_free((void **) &node_id_to_var_idx);
+        lv_free((void **) &point_seen);
+        lv_free((void **) &point_ids);
+        lv_free((void **) &redundant);
         return redundant;
     }
     for (int i = 0; i < graph->constraint_count; i++) {
@@ -268,22 +268,22 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     if (num_linear <= 1 || num_vars <= 0) {
         /* 约束数量不足，无法进行线性相关性检测 */
-        lv00_free((void **) &point_ids);
-        lv00_free((void **) &point_seen);
-        lv00_free((void **) &node_id_to_var_idx);
-        lv00_free((void **) &linear_constraint_indices);
+        lv_free((void **) &point_ids);
+        lv_free((void **) &point_seen);
+        lv_free((void **) &node_id_to_var_idx);
+        lv_free((void **) &linear_constraint_indices);
         return redundant;
     }
 
     /* 使用 GMP mpq_t 构建系数矩阵进行精确算术运算
      * 矩阵维度：num_linear x (num_vars + 1) [增广矩阵]
      * 每行代表一个约束对应的线性方程 */
-    mpq_t *matrix = lv00_malloc((size_t) num_linear * (num_vars + 1) * sizeof(mpq_t));
+    mpq_t *matrix = lv_malloc((size_t) num_linear * (num_vars + 1) * sizeof(mpq_t));
     if (!matrix) {
-        lv00_free((void **) &point_ids);
-        lv00_free((void **) &point_seen);
-        lv00_free((void **) &node_id_to_var_idx);
-        lv00_free((void **) &linear_constraint_indices);
+        lv_free((void **) &point_ids);
+        lv_free((void **) &point_seen);
+        lv_free((void **) &node_id_to_var_idx);
+        lv_free((void **) &linear_constraint_indices);
         return redundant;
     }
 
@@ -509,16 +509,16 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     }
 
     /* Gaussian elimination with partial pivoting using mpq_t */
-    int *pivot_row = lv00_malloc((size_t) num_linear * sizeof(int)); /* maps row i -> original constraint index */
+    int *pivot_row = lv_malloc((size_t) num_linear * sizeof(int)); /* maps row i -> original constraint index */
     if (!pivot_row) {
         for (int i = 0; i < num_linear * (num_vars + 1); i++)
             mpq_clear(matrix[i]);
-        lv00_free((void **) &matrix);
-        lv00_free((void **) &linear_constraint_indices);
-        lv00_free((void **) &node_id_to_var_idx);
-        lv00_free((void **) &point_seen);
-        lv00_free((void **) &point_ids);
-        lv00_free((void **) &redundant);
+        lv_free((void **) &matrix);
+        lv_free((void **) &linear_constraint_indices);
+        lv_free((void **) &node_id_to_var_idx);
+        lv_free((void **) &point_seen);
+        lv_free((void **) &point_ids);
+        lv_free((void **) &redundant);
         return redundant;
     }
     for (int i = 0; i < num_linear; i++)
@@ -648,12 +648,12 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     for (int i = 0; i < num_linear * (num_vars + 1); i++) {
         mpq_clear(matrix[i]);
     }
-    lv00_free((void **) &matrix);
-    lv00_free((void **) &pivot_row);
-    lv00_free((void **) &linear_constraint_indices);
-    lv00_free((void **) &node_id_to_var_idx);
-    lv00_free((void **) &point_seen);
-    lv00_free((void **) &point_ids);
+    lv_free((void **) &matrix);
+    lv_free((void **) &pivot_row);
+    lv_free((void **) &linear_constraint_indices);
+    lv_free((void **) &node_id_to_var_idx);
+    lv_free((void **) &point_seen);
+    lv_free((void **) &point_ids);
 
     return redundant;
 }

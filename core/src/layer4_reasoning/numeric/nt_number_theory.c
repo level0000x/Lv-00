@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file nt_number_theory.c
  * @brief Number theory algorithms -- GMP-based implementation
  *
@@ -19,19 +19,19 @@
  * Lifecycle
  * ============================================================ */
 
-LV00_PUBLIC_API void nt_mod_context_init(Lv00ModContext *ctx) {
+lv_PUBLIC_API void nt_mod_context_init(lvModContext *ctx) {
     if (!ctx) return;
     mpz_init_set_ui(ctx->modulus, 1);
     ctx->is_prime = 0;
 }
 
-LV00_PUBLIC_API void nt_mod_context_set(Lv00ModContext *ctx, const mpz_t modulus) {
+lv_PUBLIC_API void nt_mod_context_set(lvModContext *ctx, const mpz_t modulus) {
     if (!ctx) return;
     mpz_set(ctx->modulus, modulus);
     ctx->is_prime = 0;
 }
 
-LV00_PUBLIC_API void nt_mod_context_clear(Lv00ModContext *ctx) {
+lv_PUBLIC_API void nt_mod_context_clear(lvModContext *ctx) {
     if (!ctx) return;
     mpz_clear(ctx->modulus);
     ctx->modulus->_mp_d = NULL; /* safety: prevent dangling pointer */
@@ -42,27 +42,27 @@ LV00_PUBLIC_API void nt_mod_context_clear(Lv00ModContext *ctx) {
  * Modular arithmetic
  * ============================================================ */
 
-LV00_PUBLIC_API void nt_mod_add(mpz_t result, const Lv00ModContext *ctx,
+lv_PUBLIC_API void nt_mod_add(mpz_t result, const lvModContext *ctx,
                                 const mpz_t a, const mpz_t b) {
     if (!ctx) return;
     mpz_add(result, a, b);
     mpz_mod(result, result, ctx->modulus);
 }
 
-LV00_PUBLIC_API void nt_mod_mul(mpz_t result, const Lv00ModContext *ctx,
+lv_PUBLIC_API void nt_mod_mul(mpz_t result, const lvModContext *ctx,
                                 const mpz_t a, const mpz_t b) {
     if (!ctx) return;
     mpz_mul(result, a, b);
     mpz_mod(result, result, ctx->modulus);
 }
 
-LV00_PUBLIC_API int nt_mod_inv(mpz_t result, const Lv00ModContext *ctx,
+lv_PUBLIC_API int nt_mod_inv(mpz_t result, const lvModContext *ctx,
                                const mpz_t a) {
     if (!ctx) return 0;
     return (mpz_invert(result, a, ctx->modulus) != 0) ? 1 : 0;
 }
 
-LV00_PUBLIC_API void nt_mod_pow(mpz_t result, const Lv00ModContext *ctx,
+lv_PUBLIC_API void nt_mod_pow(mpz_t result, const lvModContext *ctx,
                                 const mpz_t base, const mpz_t exp) {
     if (!ctx) return;
     mpz_powm(result, base, exp, ctx->modulus);
@@ -72,11 +72,11 @@ LV00_PUBLIC_API void nt_mod_pow(mpz_t result, const Lv00ModContext *ctx,
  * GCD and LCM
  * ============================================================ */
 
-LV00_PUBLIC_API void nt_gcd(mpz_t result, const mpz_t a, const mpz_t b) {
+lv_PUBLIC_API void nt_gcd(mpz_t result, const mpz_t a, const mpz_t b) {
     mpz_gcd(result, a, b);
 }
 
-LV00_PUBLIC_API void nt_lcm(mpz_t result, const mpz_t a, const mpz_t b) {
+lv_PUBLIC_API void nt_lcm(mpz_t result, const mpz_t a, const mpz_t b) {
     if (mpz_cmp_ui(a, 0) == 0 || mpz_cmp_ui(b, 0) == 0) {
         mpz_set_ui(result, 0);
         return;
@@ -88,7 +88,7 @@ LV00_PUBLIC_API void nt_lcm(mpz_t result, const mpz_t a, const mpz_t b) {
  * Primality testing
  * ============================================================ */
 
-LV00_PUBLIC_API int nt_is_prime_miller_rabin(const mpz_t n, int k) {
+lv_PUBLIC_API int nt_is_prime_miller_rabin(const mpz_t n, int k) {
     /* Handle small cases */
     if (mpz_cmp_ui(n, 2) < 0) return 0;
     if (mpz_cmp_ui(n, 2) == 0) return 1;
@@ -160,7 +160,7 @@ LV00_PUBLIC_API int nt_is_prime_miller_rabin(const mpz_t n, int k) {
     return 1;
 }
 
-LV00_PUBLIC_API void nt_next_prime(mpz_t result, const mpz_t n) {
+lv_PUBLIC_API void nt_next_prime(mpz_t result, const mpz_t n) {
     /* mpz_nextprime returns the smallest prime > n.
      * For the "next prime >= n" semantics expected by the test,
      * check if n itself is prime first. */
@@ -175,7 +175,7 @@ LV00_PUBLIC_API void nt_next_prime(mpz_t result, const mpz_t n) {
  * Factorization
  * ============================================================ */
 
-LV00_PUBLIC_API int nt_factorize_trial_div(const mpz_t n, mpz_t *factors,
+lv_PUBLIC_API int nt_factorize_trial_div(const mpz_t n, mpz_t *factors,
                                            int max_factors, const mpz_t bound) {
     if (!factors || max_factors <= 0) return 0;
     if (mpz_cmp_ui(n, 2) < 0) return 0;

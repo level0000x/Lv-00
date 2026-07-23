@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop_server.c
  * @brief 互操作服务器
  *
@@ -7,7 +7,7 @@
  * @version 3.3.0
  */
 
-#include "lv00/interop.h"
+#include "lv/interop.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -15,13 +15,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
-#include "lv00/constraint_graph.h"
-#include "lv00/engine.h"
+#include "lv/constraint_graph.h"
+#include "lv/engine.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
-LV00_DECLARE_STREAM_CTX(interop);
+lv_DECLARE_STREAM_CTX(interop);
 
 /* ── 服务器核心 ── */
 
@@ -188,7 +188,7 @@ void interop_stream_callback(const StreamEvent *event, void *user_data) {
  * @param engine  引擎实例
  * @return true 成功，false 失败
  */
-static bool interop_attach_stream_callback(InteropServer *server, LV00Engine *engine) {
+static bool interop_attach_stream_callback(InteropServer *server, lvEngine *engine) {
     if (!server || !engine)
         return false;
 
@@ -222,7 +222,7 @@ static bool interop_attach_stream_callback(InteropServer *server, LV00Engine *en
  * @param server  互操作服务器
  * @param engine  引擎实例
  */
-static void interop_detach_stream_callback(InteropServer *server, LV00Engine *engine) {
+static void interop_detach_stream_callback(InteropServer *server, lvEngine *engine) {
     if (!server || !engine)
         return;
 
@@ -251,7 +251,7 @@ InteropServer *interop_server_create(InteropInterfaceType type) {
     /* 初始化 stdout 互斥锁（仅首次创建时生效） */
     stdout_lock_init();
 
-    InteropServer *server = (InteropServer *) lv00_malloc(sizeof(InteropServer));
+    InteropServer *server = (InteropServer *) lv_malloc(sizeof(InteropServer));
     if (!server)
         return NULL;
     memset(server, 0, sizeof(InteropServer));
@@ -285,7 +285,7 @@ void interop_server_destroy(InteropServer *server) {
     }
 
     stdout_lock_destroy();
-    lv00_free((void **) &server);
+    lv_free((void **) &server);
 }
 
 int interop_server_start(InteropServer *server, int port) {
@@ -302,23 +302,23 @@ int interop_server_start(InteropServer *server, int port) {
      *
      * @param server 服务器指针（必须非空且未运行）
      * @param port 监听端口（WebSocket模式，0表示使用默认端口）
-     * @return LV00_OK 启动成功
-     *         LV00_ERROR_INVALID_PARAM server为NULL
-     *         LV00_ERROR_INVALID_STATE 服务器已在运行
-     *         LV00_ERROR_IO Winsock初始化失败（仅Windows）
+     * @return lv_OK 启动成功
+     *         lv_ERROR_INVALID_PARAM server为NULL
+     *         lv_ERROR_INVALID_STATE 服务器已在运行
+     *         lv_ERROR_IO Winsock初始化失败（仅Windows）
      */
     if (!server)
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
 
     if (server->running) {
-        lv00_set_error(LV00_ERROR_INVALID_STATE, "服务器已在运行中，请先调用interop_server_stop停止当前服务器");
-        return LV00_ERROR_INVALID_STATE;
+        lv_set_error(lv_ERROR_INVALID_STATE, "服务器已在运行中，请先调用interop_server_stop停止当前服务器");
+        return lv_ERROR_INVALID_STATE;
     }
 
     /* 参数验证：端口号范围检查 */
     if (port < 0 || port > 65535) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "无效的端口号=%d，端口范围为0-65535", port);
-        return LV00_ERROR_INVALID_PARAM;
+        lv_set_error(lv_ERROR_INVALID_PARAM, "无效的端口号=%d，端口范围为0-65535", port);
+        return lv_ERROR_INVALID_PARAM;
     }
 
     if (server->type == INTEROP_INTERFACE_WEBSOCKET && port > 0) {
@@ -331,11 +331,11 @@ int interop_server_start(InteropServer *server, int port) {
         WSADATA wsa_data;
         int wsa_result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
         if (wsa_result != 0) {
-            lv00_set_error(LV00_ERROR_IO,
+            lv_set_error(lv_ERROR_IO,
                            "Winsock初始化失败（错误码=%d）。"
                            "请检查网络驱动是否正常安装。",
                            wsa_result);
-            return LV00_ERROR_IO;
+            return lv_ERROR_IO;
         }
 
         /* 尝试创建监听套接字 */
@@ -344,8 +344,8 @@ int interop_server_start(InteropServer *server, int port) {
             int err = WSAGetLastError();
             WSACleanup();
             /* 修复：套接字创建失败时应返回错误码，不应设置 running=true */
-            lv00_set_error(LV00_ERROR_IO, "创建监听套接字失败（Winsock错误码=%d）。", err);
-            return LV00_ERROR_IO;
+            lv_set_error(lv_ERROR_IO, "创建监听套接字失败（Winsock错误码=%d）。", err);
+            return lv_ERROR_IO;
         }
 
         /* 绑定地址 */
@@ -360,8 +360,8 @@ int interop_server_start(InteropServer *server, int port) {
             closesocket(listen_sock);
             WSACleanup();
             /* 修复：绑定失败时应返回错误码，不应设置 running=true */
-            lv00_set_error(LV00_ERROR_IO, "套接字绑定失败（Winsock错误码=%d）。", err);
-            return LV00_ERROR_IO;
+            lv_set_error(lv_ERROR_IO, "套接字绑定失败（Winsock错误码=%d）。", err);
+            return lv_ERROR_IO;
         }
 
         /* 开始监听 */
@@ -370,8 +370,8 @@ int interop_server_start(InteropServer *server, int port) {
             closesocket(listen_sock);
             WSACleanup();
             /* 监听失败时应返回错误码，不应设置 running=true */
-            lv00_set_error(LV00_ERROR_IO, "套接字监听失败（Winsock错误码=%d）。", err);
-            return LV00_ERROR_IO;
+            lv_set_error(lv_ERROR_IO, "套接字监听失败（Winsock错误码=%d）。", err);
+            return lv_ERROR_IO;
         }
 
         /* 存储套接字句柄到internal_data */
@@ -389,7 +389,7 @@ int interop_server_start(InteropServer *server, int port) {
     /* 设置运行状态 */
     server->running = true;
 
-    return LV00_OK;
+    return lv_OK;
 }
 
 int interop_server_stop(InteropServer *server) {
@@ -400,16 +400,16 @@ int interop_server_stop(InteropServer *server) {
      * 当前实现包含完整的资源清理逻辑（条件编译）。
      *
      * @param server 服务器指针（必须非空且正在运行）
-     * @return LV00_OK 停止成功
-     *         LV00_ERROR_INVALID_PARAM server为NULL
-     *         LV00_ERROR_INVALID_STATE 服务器未在运行
+     * @return lv_OK 停止成功
+     *         lv_ERROR_INVALID_PARAM server为NULL
+     *         lv_ERROR_INVALID_STATE 服务器未在运行
      */
     if (!server)
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
 
     if (!server->running) {
-        lv00_set_error(LV00_ERROR_INVALID_STATE, "服务器当前未运行，无需停止");
-        return LV00_ERROR_INVALID_STATE;
+        lv_set_error(lv_ERROR_INVALID_STATE, "服务器当前未运行，无需停止");
+        return lv_ERROR_INVALID_STATE;
     }
 
     /* 清理网络资源 */
@@ -429,7 +429,7 @@ int interop_server_stop(InteropServer *server) {
 
     /* 服务器已成功停止，网络资源已清理 */
 
-    return LV00_OK;
+    return lv_OK;
 }
 
 int interop_server_process_command(InteropServer *server, const char *input, char *output, size_t output_size) {
@@ -440,7 +440,7 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
      *   1. 参数验证：检查 server/input/output 的非空性和缓冲区大小
      *   2. 命令解析：调用 interop_parse_command 将字符串解析为
      *      InteropCommand 结构体（JSON 或空格分隔格式）
-     *   3. 引擎初始化：创建临时 LV00Engine 实例用于命令执行
+     *   3. 引擎初始化：创建临时 lvEngine 实例用于命令执行
      *      （注：生产环境应维护持久化引擎实例以避免反复创建）
      *   4. 命令执行：调用 interop_execute_command 将命令分派到
      *      对应的处理逻辑
@@ -449,25 +449,25 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
      *
      * 错误处理：
      *   - 解析失败时直接返回 JSON 错误对象
-     *   - 引擎创建失败时在响应中设置 LV00_ERROR_OUT_OF_MEMORY
+     *   - 引擎创建失败时在响应中设置 lv_ERROR_OUT_OF_MEMORY
      *   - 所有内部错误均有中文描述信息
      *
      * @param server 互操作服务器指针（用于状态查询）
      * @param input 输入的原始命令字符串
      * @param output 输出缓冲区，存放 JSON 格式的响应
      * @param output_size 输出缓冲区大小（字节）
-     * @return LV00_OK 命令处理成功（业务错误码在响应的JSON中体现）
-     *         LV00_ERROR_INVALID_PARAM 参数无效
-     *         LV00_ERROR_PARSE 命令解析失败
+     * @return lv_OK 命令处理成功（业务错误码在响应的JSON中体现）
+     *         lv_ERROR_INVALID_PARAM 参数无效
+     *         lv_ERROR_PARSE 命令解析失败
      */
     if (!server || !input || !output || output_size == 0) {
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
     }
 
     /* 解析命令 */
     InteropCommand cmd;
     int result = interop_parse_command(input, &cmd);
-    if (result != LV00_OK) {
+    if (result != lv_OK) {
         snprintf(output, output_size,
                  "{\"error\": \"Parse error\", \"code\": %d, "
                  "\"input_preview\": \"%.64s\"}",
@@ -492,10 +492,10 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
      * 替代调用路径：
      *   - 前端 UI 层：通过 JavaScript bridge 直接调用独立引擎 API，
      *     避免了每次 API 调用都创建/销毁引擎的开销
-     *   - Python 绑定层：lv00_bindings.py 的 EngineSession 类维护
+     *   - Python 绑定层：lv_bindings.py 的 EngineSession 类维护
      *     持久化引擎生命周期，提供上下文管理器支持
      */
-    LV00Engine *engine = NULL;
+    lvEngine *engine = NULL;
 
     if (server->persistent_engine) {
         /* 复用已有的持久化引擎 */
@@ -509,11 +509,11 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
     }
 
     if (!engine) {
-        resp.status_code = LV00_ERROR_OUT_OF_MEMORY;
-        lv00_strlcpy(resp.data, "{\"error\": \"Failed to create engine instance\"}", sizeof(resp.data));
+        resp.status_code = lv_ERROR_OUT_OF_MEMORY;
+        lv_strlcpy(resp.data, "{\"error\": \"Failed to create engine instance\"}", sizeof(resp.data));
         resp.data_len = strlen(resp.data);
 
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "命令处理失败：无法创建引擎实例以处理命令类型=%d", cmd.type);
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "命令处理失败：无法创建引擎实例以处理命令类型=%d", cmd.type);
     } else {
         /* 保存引擎快照，用于命令失败时回滚 */
         void *frozen = engine_create_frozen_point(engine);
@@ -536,11 +536,11 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
         }
 
         /* 命令失败时回滚引擎状态，成功时更新快照 */
-        if (result != LV00_OK && frozen) {
+        if (result != lv_OK && frozen) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
             if (!engine_restore_frozen_point(engine, frozen)) {
-                LV00_LOG_WARNING("interop: 命令失败后引擎状态回滚失败");
+                lv_LOG_WARNING("interop: 命令失败后引擎状态回滚失败");
             }
 #pragma GCC diagnostic pop
         } else if (frozen) {
@@ -579,23 +579,23 @@ int interop_server_run(InteropServer *server) {
      *   * 客户端断开时清理连接资源
      * - 在不支持 Winsock 的编译环境下：
      *   * 降级为仅处理 stdin 命令输入
-     *   * 通过 lv00_set_error 提示用户安装 Windows SDK
+     *   * 通过 lv_set_error 提示用户安装 Windows SDK
      *
      * 资源管理：
      * - 所有客户端套接字在循环退出时（服务器停止）被关闭
      * - 监听套接字在服务器停止后由 interop_server_stop 清理
      *
      * @param server 互操作服务器指针（必须已通过 interop_server_start 启动）
-     * @return LV00_OK 服务器循环正常退出
-     *         LV00_ERROR_INVALID_PARAM server 为 NULL
-     *         LV00_ERROR_INVALID_STATE 服务器未启动
+     * @return lv_OK 服务器循环正常退出
+     *         lv_ERROR_INVALID_PARAM server 为 NULL
+     *         lv_ERROR_INVALID_STATE 服务器未启动
      */
     if (!server)
-        return LV00_ERROR_INVALID_PARAM;
+        return lv_ERROR_INVALID_PARAM;
 
     if (!server->running) {
-        lv00_set_error(LV00_ERROR_INVALID_STATE, "服务器未启动，请先调用 interop_server_start");
-        return LV00_ERROR_INVALID_STATE;
+        lv_set_error(lv_ERROR_INVALID_STATE, "服务器未启动，请先调用 interop_server_start");
+        return lv_ERROR_INVALID_STATE;
     }
 
     if (server->type == INTEROP_INTERFACE_STDIO) {
@@ -603,16 +603,16 @@ int interop_server_run(InteropServer *server) {
         char input[INTEROP_CMD_BUFFER_SIZE];
         char output[INTEROP_RESP_BUFFER_SIZE];
 
-        lv00_set_error(LV00_OK, "STDIO互操作服务器已启动，等待标准输入命令...");
+        lv_set_error(lv_OK, "STDIO互操作服务器已启动，等待标准输入命令...");
 
         while (server->running) {
             /* 读取输入 */
             if (!fgets(input, sizeof(input), stdin)) {
                 /* EOF 或读取错误 */
                 if (feof(stdin)) {
-                    lv00_set_error(LV00_OK, "STDIO输入流已关闭（EOF），服务器退出");
+                    lv_set_error(lv_OK, "STDIO输入流已关闭（EOF），服务器退出");
                 } else {
-                    lv00_set_error(LV00_ERROR_IO, "STDIO读取错误，服务器退出");
+                    lv_set_error(lv_ERROR_IO, "STDIO读取错误，服务器退出");
                 }
                 break;
             }
@@ -630,7 +630,7 @@ int interop_server_run(InteropServer *server) {
 
             /* 处理命令 */
             int result = interop_server_process_command(server, input, output, sizeof(output));
-            if (result == LV00_OK) {
+            if (result == lv_OK) {
                 printf("%s\n", output);
                 fflush(stdout);
             } else {
@@ -641,16 +641,16 @@ int interop_server_run(InteropServer *server) {
         }
     } else if (server->type == INTEROP_INTERFACE_WEBSOCKET) {
         /* ====== WebSocket 模式：骨架实现 ====== */
-        lv00_set_error(LV00_OK, "WebSocket服务器主循环已启动（端口=%d）", server->port);
+        lv_set_error(lv_OK, "WebSocket服务器主循环已启动（端口=%d）", server->port);
 
 #if INTEROP_HAS_WINSOCK
         SOCKET listen_sock = (SOCKET) (intptr_t) server->internal_data;
         if (listen_sock == INVALID_SOCKET || listen_sock == 0) {
-            lv00_set_error(LV00_ERROR_IO,
+            lv_set_error(lv_ERROR_IO,
                            "WebSocket循环失败：监听套接字无效（listen_sock=%p）。"
                            "请确认 interop_server_start 已成功绑定端口。",
                            (void *) (intptr_t) listen_sock);
-            return LV00_ERROR_IO;
+            return lv_ERROR_IO;
         }
 
 /* 客户端管理 */
@@ -668,7 +668,7 @@ int interop_server_run(InteropServer *server) {
                      "WebSocket服务器正在端口%d上监听（最大%d个并发客户端），"
                      "同时接受STDIN命令",
                      server->port, WS_MAX_CLIENTS);
-            lv00_set_error(LV00_OK, "%s", msg);
+            lv_set_error(lv_OK, "%s", msg);
         }
 
         while (server->running) {
@@ -698,7 +698,7 @@ int interop_server_run(InteropServer *server) {
             int sel_ret = select((int) (max_sock + 1), &readfds, NULL, NULL, &tv);
             if (sel_ret < 0) {
                 int err = WSAGetLastError();
-                lv00_set_error(LV00_ERROR_IO, "WebSocket select() 出错（Winsock错误码=%d），服务器退出", err);
+                lv_set_error(lv_ERROR_IO, "WebSocket select() 出错（Winsock错误码=%d），服务器退出", err);
                 break;
             }
 
@@ -710,10 +710,10 @@ int interop_server_run(InteropServer *server) {
                 if (client_sock != INVALID_SOCKET) {
                     if (client_count < WS_MAX_CLIENTS) {
                         client_socks[client_count++] = client_sock;
-                        lv00_set_error(LV00_OK, "WebSocket客户端已连接（套接字=%p，总计%d个客户端）",
+                        lv_set_error(lv_OK, "WebSocket客户端已连接（套接字=%p，总计%d个客户端）",
                                        (void *) client_sock, client_count);
                     } else {
-                        lv00_set_error(LV00_ERROR_RESOURCE_EXHAUSTED, "WebSocket客户端连接被拒绝：已达最大客户端数%d",
+                        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "WebSocket客户端连接被拒绝：已达最大客户端数%d",
                                        WS_MAX_CLIENTS);
                         closesocket(client_sock);
                     }
@@ -733,7 +733,7 @@ int interop_server_run(InteropServer *server) {
                 if (recv_len <= 0) {
                     /* 客户端断开连接 */
                     int err = WSAGetLastError();
-                    lv00_set_error(LV00_OK, "WebSocket客户端断开（套接字=%p，错误码=%d）", (void *) cs,
+                    lv_set_error(lv_OK, "WebSocket客户端断开（套接字=%p，错误码=%d）", (void *) cs,
                                    (recv_len == 0 ? 0 : err));
                     closesocket(cs);
                     client_socks[i] = INVALID_SOCKET;
@@ -754,7 +754,7 @@ int interop_server_run(InteropServer *server) {
 
                 /* 处理命令 */
                 int result = interop_server_process_command(server, input, output, sizeof(output));
-                if (result == LV00_OK || output[0] != '\0') {
+                if (result == lv_OK || output[0] != '\0') {
                     /* 发送响应（追加换行符） */
                     size_t out_len = strlen(output);
                     if (out_len + 2 < sizeof(output)) {
@@ -788,11 +788,11 @@ int interop_server_run(InteropServer *server) {
                 closesocket(client_socks[i]);
             }
         }
-        lv00_set_error(LV00_OK, "WebSocket主循环已退出，已关闭%d个客户端连接", client_count);
+        lv_set_error(lv_OK, "WebSocket主循环已退出，已关闭%d个客户端连接", client_count);
 
 #else
         /* 无 Winsock 支持：降级为 STDIO 输入处理 */
-        lv00_set_error(LV00_WARNING,
+        lv_set_error(lv_WARNING,
                        "警告：未检测到Winsock2库，WebSocket服务器运行在STDIO降级模式。"
                        "请安装Windows SDK以启用完整的网络功能。");
 
@@ -815,7 +815,7 @@ int interop_server_run(InteropServer *server) {
                 continue;
 
             int result = interop_server_process_command(server, input, output, sizeof(output));
-            if (result == LV00_OK) {
+            if (result == lv_OK) {
                 printf("%s\n", output);
                 fflush(stdout);
             }
@@ -823,7 +823,7 @@ int interop_server_run(InteropServer *server) {
 #endif
     }
 
-    return LV00_OK;
+    return lv_OK;
 }
 
 /* ==================== 命令处理 ==================== */
@@ -836,7 +836,7 @@ int interop_server_run(InteropServer *server) {
  *
  * @param input 输入字符串
  * @param cmd   输出参数，接收解析后的命令
- * @return LV00_OK 成功，错误码表示失败原因
+ * @return lv_OK 成功，错误码表示失败原因
  */
 /* interop_parse_command: 实现在 interop_command.c 中，通过 interop.h 声明可见 */
 
@@ -844,14 +844,14 @@ int interop_server_run(InteropServer *server) {
 
 #define MAX_PLUGINS 32
 
-static Lv00Plugin g_plugins[MAX_PLUGINS];
+static lvPlugin g_plugins[MAX_PLUGINS];
 static int g_plugin_count = 0;
 
-int lv00_interop_register_plugin(Lv00InteropManager *mgr, const Lv00Plugin *plugin) {
+int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin) {
     if (!plugin) return -1;
     (void)mgr; /* 管理器参数保留供未来扩展 */
     if (g_plugin_count >= MAX_PLUGINS) return -1;
-    memcpy(&g_plugins[g_plugin_count], plugin, sizeof(Lv00Plugin));
+    memcpy(&g_plugins[g_plugin_count], plugin, sizeof(lvPlugin));
     g_plugin_count++;
     return 0;
 }

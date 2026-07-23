@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_minimal_parse.c
  * @brief 公理包最小化解析测试 - 验证 .lvz 文件加载
  *
@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00.h"
+#include "lv.h"
 
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);

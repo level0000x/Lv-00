@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_event_detect.c
  * @brief 几何事件检测器 —— 基于 SUNDIALS Rootfinding 的事件检测实现
  *
@@ -14,9 +14,9 @@
  *
  * @dependencies
  *   - geo_event_detect.h      : 事件检测器公共接口与类型定义
- *   - lv00_numeric.h          : 轻量数值基础设施
- *   - lv00_utils.h            : 统一内存分配器
- *   - lv00_internal.h         : 内部常量与工具宏
+ *   - lv_numeric.h          : 轻量数值基础设施
+ *   - lv_utils.h            : 统一内存分配器
+ *   - lv_internal.h         : 内部常量与工具宏
  *   - error_codes.h           : 统一错误码系统
  */
 
@@ -32,8 +32,8 @@
 #include <string.h>
 
 #include "error_codes.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ========================================================================
  * 模块级常量定义
@@ -52,36 +52,36 @@
  * 静态辅助函数的前向声明
  * ======================================================================== */
 
-static int geodet_root_bisection(Lv00EventDetector *detector, int event_id,
+static int geodet_root_bisection(lvEventDetector *detector, int event_id,
                                   const double *param_a, const double *param_b,
                                   int dim, double a, double b, double ga,
                                   double gb, double *root);
 
-static int geodet_root_illinois(Lv00EventDetector *detector, int event_id,
+static int geodet_root_illinois(lvEventDetector *detector, int event_id,
                                  const double *param_a, const double *param_b,
                                  int dim, double a, double b, double ga,
                                  double gb, double *root);
 
-static int geodet_eval_event_func(Lv00EventDetector *detector, int event_idx,
+static int geodet_eval_event_func(lvEventDetector *detector, int event_idx,
                                    double t, const double *param, int dim,
                                    double *g_out);
 
 static int geodet_check_intersection(double t, const double *param, int dim,
-                                      double *g, Lv00EventDetector *detector);
+                                      double *g, lvEventDetector *detector);
 
 static int geodet_check_contact(double t, const double *param, int dim,
-                                 double *g, Lv00EventDetector *detector);
+                                 double *g, lvEventDetector *detector);
 
 static int geodet_check_crossing(double t, const double *param, int dim,
-                                  double *g, Lv00EventDetector *detector);
+                                  double *g, lvEventDetector *detector);
 
 static int geodet_check_threshold(double t, const double *param, int dim,
-                                   double *g, Lv00EventDetector *detector);
+                                   double *g, lvEventDetector *detector);
 
 static int geodet_check_periodic(double t, const double *param, int dim,
-                                  double *g, Lv00EventDetector *detector);
+                                  double *g, lvEventDetector *detector);
 
-static int geodet_find_event_index(const Lv00EventDetector *detector,
+static int geodet_find_event_index(const lvEventDetector *detector,
                                     int event_id);
 
 /* ========================================================================
@@ -99,7 +99,7 @@ static int geodet_find_event_index(const Lv00EventDetector *detector,
  * @param[out] g_out      事件函数值
  * @return 成功返回 0，失败返回非零
  */
-static int geodet_eval_event_func(Lv00EventDetector *detector, int event_idx,
+static int geodet_eval_event_func(lvEventDetector *detector, int event_idx,
                                    double t, const double *param, int dim,
                                    double *g_out) {
     if (!detector || !param || !g_out) {
@@ -108,7 +108,7 @@ static int geodet_eval_event_func(Lv00EventDetector *detector, int event_idx,
     if (event_idx < 0 || event_idx >= detector->num_events) {
         return -1;
     }
-    Lv00EventEntry *evt = &detector->events[event_idx];
+    lvEventEntry *evt = &detector->events[event_idx];
     if (!evt->enabled || !evt->func) {
         *g_out = 1.0; /* 禁用事件不触发 */
         return 0;
@@ -122,7 +122,7 @@ static int geodet_eval_event_func(Lv00EventDetector *detector, int event_idx,
  *
  * @return 索引位置，未找到返回 -1
  */
-static int geodet_find_event_index(const Lv00EventDetector *detector,
+static int geodet_find_event_index(const lvEventDetector *detector,
                                     int event_id) {
     if (!detector) {
         return -1;
@@ -150,9 +150,9 @@ static int geodet_find_event_index(const Lv00EventDetector *detector,
  * g = distance_squared - epsilon
  */
 static int geodet_check_intersection(double t, const double *param, int dim,
-                                      double *g, Lv00EventDetector *detector) {
-    LV00_UNUSED(t);
-    LV00_UNUSED(detector);
+                                      double *g, lvEventDetector *detector) {
+    lv_UNUSED(t);
+    lv_UNUSED(detector);
     if (dim < 4) {
         *g = 1.0;
         return 0;
@@ -169,9 +169,9 @@ static int geodet_check_intersection(double t, const double *param, int dim,
  * g = distance_squared - threshold^2
  */
 static int geodet_check_contact(double t, const double *param, int dim,
-                                 double *g, Lv00EventDetector *detector) {
-    LV00_UNUSED(t);
-    LV00_UNUSED(detector);
+                                 double *g, lvEventDetector *detector) {
+    lv_UNUSED(t);
+    lv_UNUSED(detector);
     if (dim < 4) {
         *g = 1.0;
         return 0;
@@ -190,9 +190,9 @@ static int geodet_check_contact(double t, const double *param, int dim,
  * g = param[y_index]，使用 param[1] 为 y 坐标
  */
 static int geodet_check_crossing(double t, const double *param, int dim,
-                                  double *g, Lv00EventDetector *detector) {
-    LV00_UNUSED(t);
-    LV00_UNUSED(detector);
+                                  double *g, lvEventDetector *detector) {
+    lv_UNUSED(t);
+    lv_UNUSED(detector);
     if (dim < 2) {
         *g = 1.0;
         return 0;
@@ -207,9 +207,9 @@ static int geodet_check_crossing(double t, const double *param, int dim,
  * g = |param[0]| - threshold
  */
 static int geodet_check_threshold(double t, const double *param, int dim,
-                                   double *g, Lv00EventDetector *detector) {
-    LV00_UNUSED(t);
-    LV00_UNUSED(detector);
+                                   double *g, lvEventDetector *detector) {
+    lv_UNUSED(t);
+    lv_UNUSED(detector);
     if (dim < 1) {
         *g = 1.0;
         return 0;
@@ -225,10 +225,10 @@ static int geodet_check_threshold(double t, const double *param, int dim,
  * g = sin(2*pi*t / period)，周期设为 1.0
  */
 static int geodet_check_periodic(double t, const double *param, int dim,
-                                  double *g, Lv00EventDetector *detector) {
-    LV00_UNUSED(param);
-    LV00_UNUSED(dim);
-    LV00_UNUSED(detector);
+                                  double *g, lvEventDetector *detector) {
+    lv_UNUSED(param);
+    lv_UNUSED(dim);
+    lv_UNUSED(detector);
     double period = 1.0;
     *g = sin(2.0 * M_PI * t / period);
     return 0;
@@ -243,12 +243,12 @@ static int geodet_check_periodic(double t, const double *param, int dim,
  *
  * 最稳健但收敛较慢的求根方法，作为其他方法的备选。
  */
-static int geodet_root_bisection(Lv00EventDetector *detector, int event_id,
+static int geodet_root_bisection(lvEventDetector *detector, int event_id,
                                   const double *param_a, const double *param_b,
                                   int dim, double a, double b, double ga,
                                   double gb, double *root) {
-    LV00_UNUSED(param_a);
-    LV00_UNUSED(param_b);
+    lv_UNUSED(param_a);
+    lv_UNUSED(param_b);
 
     int event_idx = geodet_find_event_index(detector, event_id);
     if (event_idx < 0) {
@@ -309,7 +309,7 @@ static int geodet_root_bisection(Lv00EventDetector *detector, int event_id,
  *   3. 若 f(x) 与 f(a) 同号，则将 f(b) 减半（Illinois 技巧）
  *   4. 更新区间
  */
-static int geodet_root_illinois(Lv00EventDetector *detector, int event_id,
+static int geodet_root_illinois(lvEventDetector *detector, int event_id,
                                  const double *param_a, const double *param_b,
                                  int dim, double a, double b, double ga,
                                  double gb, double *root) {
@@ -328,7 +328,7 @@ static int geodet_root_illinois(Lv00EventDetector *detector, int event_id,
     for (int iter = 0; iter < max_iter; ++iter) {
         /* 线性插值 */
         double denom = f_r - f_l;
-        if (fabs(denom) < LV00_EPSILON_DOUBLE) {
+        if (fabs(denom) < lv_EPSILON_DOUBLE) {
             /* 退化为二分法 */
             double x_mid = 0.5 * (x_l + x_r);
             *root = x_mid;
@@ -399,15 +399,15 @@ static int geodet_root_illinois(Lv00EventDetector *detector, int event_id,
 /**
  * @brief 创建几何事件检测器
  */
-Lv00EventDetector *geo_event_detector_create(void) {
-    Lv00EventDetector *detector =
-        lv00_malloc(sizeof(Lv00EventDetector));
-    LV00_CHECK_ALLOC(detector, NULL);
+lvEventDetector *geo_event_detector_create(void) {
+    lvEventDetector *detector =
+        lv_malloc(sizeof(lvEventDetector));
+    lv_CHECK_ALLOC(detector, NULL);
 
-    memset(detector, 0, sizeof(Lv00EventDetector));
+    memset(detector, 0, sizeof(lvEventDetector));
 
     detector->num_events = 0;
-    detector->root_method = LV00_ROOTFIND_BRENT;
+    detector->root_method = lv_ROOTFIND_BRENT;
     detector->root_tol = GEO_EVENT_DEFAULT_TOL;
     detector->max_root_iters = GEO_EVENT_MAX_ROOT_ITERS;
     detector->t_prev = 0.0;
@@ -427,11 +427,11 @@ Lv00EventDetector *geo_event_detector_create(void) {
 /**
  * @brief 销毁事件检测器并释放所有关联资源
  */
-void geo_event_detector_destroy(Lv00EventDetector *detector) {
+void geo_event_detector_destroy(lvEventDetector *detector) {
     if (!detector) {
         return;
     }
-    lv00_free((void **) &detector);
+    lv_free((void **) &detector);
 }
 
 /* ========================================================================
@@ -441,13 +441,13 @@ void geo_event_detector_destroy(Lv00EventDetector *detector) {
 /**
  * @brief 注册一个几何事件
  */
-int geo_event_register(Lv00EventDetector *detector, int event_id,
-                       Lv00EventType type, Lv00EventFunc func, int direction,
-                       bool terminal, Lv00EventCallback callback) {
-    LV00_CHECK_NULL(detector, -1);
+int geo_event_register(lvEventDetector *detector, int event_id,
+                       lvEventType type, lvEventFunc func, int direction,
+                       bool terminal, lvEventCallback callback) {
+    lv_CHECK_NULL(detector, -1);
 
     if (detector->num_events >= GEO_EVENT_MAX_EVENTS) {
-        LV00_ERROR_SET(LV00_ERROR_OVERFLOW,
+        lv_ERROR_SET(lv_ERROR_OVERFLOW,
                        "事件注册已满，最大%d个事件", GEO_EVENT_MAX_EVENTS);
         return -1;
     }
@@ -455,7 +455,7 @@ int geo_event_register(Lv00EventDetector *detector, int event_id,
     /* 检查 ID 是否重复 */
     for (int i = 0; i < detector->num_events; ++i) {
         if (detector->events[i].event_id == event_id) {
-            LV00_ERROR_SET(LV00_ERROR_ALREADY_EXISTS,
+            lv_ERROR_SET(lv_ERROR_ALREADY_EXISTS,
                            "事件ID=%d已存在", event_id);
             return -1;
         }
@@ -464,24 +464,24 @@ int geo_event_register(Lv00EventDetector *detector, int event_id,
     /* 若未提供自定义事件函数，使用类型默认函数 */
     if (!func) {
         switch (type) {
-            case LV00_EVENT_INTERSECTION:
+            case lv_EVENT_INTERSECTION:
                 func = geodet_check_intersection;
                 break;
-            case LV00_EVENT_CONTACT:
+            case lv_EVENT_CONTACT:
                 func = geodet_check_contact;
                 break;
-            case LV00_EVENT_CROSSING:
+            case lv_EVENT_CROSSING:
                 func = geodet_check_crossing;
                 break;
-            case LV00_EVENT_THRESHOLD:
+            case lv_EVENT_THRESHOLD:
                 func = geodet_check_threshold;
                 break;
-            case LV00_EVENT_PERIODIC:
+            case lv_EVENT_PERIODIC:
                 func = geodet_check_periodic;
                 break;
             default:
-                LV00_ERROR_SET(LV00_ERROR_INVALID_PARAM,
-                               "自定义事件LV00_EVENT_CUSTOM必须提供func参数");
+                lv_ERROR_SET(lv_ERROR_INVALID_PARAM,
+                               "自定义事件lv_EVENT_CUSTOM必须提供func参数");
                 return -1;
         }
     }
@@ -516,26 +516,26 @@ int geo_event_register(Lv00EventDetector *detector, int event_id,
  * 3. 对满足条件的事件，通过求根方法精确定位事件时间
  * 4. 触发对应回调
  */
-Lv00EventResult geo_event_detect(Lv00EventDetector *detector, double t_prev,
+lvEventResult geo_event_detect(lvEventDetector *detector, double t_prev,
                                  const double *param_prev, double t_curr,
                                  const double *param_curr, int dim,
                                  int *event_id, double *t_event) {
-    LV00_CHECK_NULL(detector, LV00_EVENT_RESULT_ERROR);
-    LV00_CHECK_NULL(param_prev, LV00_EVENT_RESULT_ERROR);
-    LV00_CHECK_NULL(param_curr, LV00_EVENT_RESULT_ERROR);
-    LV00_CHECK_NULL(event_id, LV00_EVENT_RESULT_ERROR);
-    LV00_CHECK_NULL(t_event, LV00_EVENT_RESULT_ERROR);
+    lv_CHECK_NULL(detector, lv_EVENT_RESULT_ERROR);
+    lv_CHECK_NULL(param_prev, lv_EVENT_RESULT_ERROR);
+    lv_CHECK_NULL(param_curr, lv_EVENT_RESULT_ERROR);
+    lv_CHECK_NULL(event_id, lv_EVENT_RESULT_ERROR);
+    lv_CHECK_NULL(t_event, lv_EVENT_RESULT_ERROR);
 
     *event_id = -1;
     *t_event = t_curr;
 
     if (detector->num_events == 0) {
-        return LV00_EVENT_RESULT_NONE;
+        return lv_EVENT_RESULT_NONE;
     }
 
     /* 遍历所有注册事件 */
     for (int i = 0; i < detector->num_events; ++i) {
-        Lv00EventEntry *evt = &detector->events[i];
+        lvEventEntry *evt = &detector->events[i];
         if (!evt->enabled || !evt->func) {
             continue;
         }
@@ -580,11 +580,11 @@ Lv00EventResult geo_event_detect(Lv00EventDetector *detector, double t_prev,
 
         detector->g_prev[i] = g_curr_val;
 
-        return (ret == 0) ? LV00_EVENT_RESULT_DETECTED
-                          : LV00_EVENT_RESULT_WARNING;
+        return (ret == 0) ? lv_EVENT_RESULT_DETECTED
+                          : lv_EVENT_RESULT_WARNING;
     }
 
-    return LV00_EVENT_RESULT_NONE;
+    return lv_EVENT_RESULT_NONE;
 }
 
 /* ========================================================================
@@ -596,27 +596,27 @@ Lv00EventResult geo_event_detect(Lv00EventDetector *detector, double t_prev,
  *
  * 根据检测器配置的 root_method 选择合适的求根算法。
  */
-int geo_event_root_locate(Lv00EventDetector *detector, int event_id,
+int geo_event_root_locate(lvEventDetector *detector, int event_id,
                           const double *param_a, const double *param_b,
                           int dim, double a, double b, double ga, double gb,
                           double *root) {
-    LV00_CHECK_NULL(detector, -1);
-    LV00_CHECK_NULL(root, -1);
+    lv_CHECK_NULL(detector, -1);
+    lv_CHECK_NULL(root, -1);
 
     /* 调用对应的方法 */
     switch (detector->root_method) {
-        case LV00_ROOTFIND_BRENT:
+        case lv_ROOTFIND_BRENT:
             /* 使用头文件中的内联 Brent 法实现 */
             return geo_event_root_brent(detector, event_id, param_a, param_b,
                                          dim, a, b, ga, gb,
                                          detector->root_tol,
                                          detector->max_root_iters, root);
 
-        case LV00_ROOTFIND_ILLINOIS:
+        case lv_ROOTFIND_ILLINOIS:
             return geodet_root_illinois(detector, event_id, param_a, param_b,
                                          dim, a, b, ga, gb, root);
 
-        case LV00_ROOTFIND_BISECTION:
+        case lv_ROOTFIND_BISECTION:
             return geodet_root_bisection(detector, event_id, param_a, param_b,
                                           dim, a, b, ga, gb, root);
 

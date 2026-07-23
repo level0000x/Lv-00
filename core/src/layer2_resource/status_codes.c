@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file status_codes.c
  * @brief Lv-00 状态码系统实现
  *
@@ -9,25 +9,25 @@
  * @version 2.0.0
  */
 
-#include "lv00/lv00.h"
-#include "lv00/status_codes.h"
-#include "lv00/error_codes.h"
+#include "lv/lv.h"
+#include "lv/status_codes.h"
+#include "lv/error_codes.h"
 
 /* ==================== 状态码判断函数 ==================== */
 
-int lv00_status_is_success(int code)
+int lv_status_is_success(int code)
 {
     return code == 0 ? 1 : 0;
 }
 
-int lv00_status_is_error(int code)
+int lv_status_is_error(int code)
 {
     return code != 0 ? 1 : 0;
 }
 
 /* ==================== 状态码描述映射 ==================== */
 
-const char *lv00_status_message(int code)
+const char *lv_status_message(int code)
 {
     switch (code) {
     /* --- 成功 --- */
@@ -139,7 +139,7 @@ const char *lv00_status_message(int code)
  * @param code 状态码
  * @return 是警告返回 1，否则返回 0
  */
-int lv00_status_is_warning(int code)
+int lv_status_is_warning(int code)
 {
     return (code < 0 && code >= -99) ? 1 : 0;
 }
@@ -150,7 +150,7 @@ int lv00_status_is_warning(int code)
  * @param code 状态码
  * @return 类别名称字符串（中文，静态存储，无需释放）
  */
-const char *lv00_status_category(int code)
+const char *lv_status_category(int code)
 {
     if (code == 0)          return "成功";
     if (code >= 1 && code < 100)    return "通用系统错误";
@@ -173,80 +173,80 @@ const char *lv00_status_category(int code)
  * @brief 获取状态码的简短名称
  *
  * @param code 状态码
- * @return 状态码名称字符串（如 "LV00_OK"，静态存储，无需释放）
+ * @return 状态码名称字符串（如 "lv_OK"，静态存储，无需释放）
  */
-const char *lv00_status_name(int code)
+const char *lv_status_name(int code)
 {
     switch (code) {
-    case 0:   return "LV00_OK";
-    case 1:   return "LV00_ERROR_UNKNOWN";
-    case 2:   return "LV00_ERROR_INVALID_PARAM";
-    case 3:   return "LV00_ERROR_NULL_POINTER";
-    case 4:   return "LV00_ERROR_NOT_INITIALIZED";
-    case 5:   return "LV00_ERROR_ALREADY_EXISTS";
-    case 6:   return "LV00_ERROR_NOT_FOUND";
-    case 7:   return "LV00_ERROR_UNSUPPORTED";
-    case 8:   return "LV00_ERROR_OVERFLOW";
-    case 9:   return "LV00_ERROR_UNDERFLOW";
-    case 10:  return "LV00_ERROR_TIMEOUT";
-    case 11:  return "LV00_ERROR_CANCELLED";
-    case 12:  return "LV00_ERROR_IO";
-    case 13:  return "LV00_ERROR_PARSE";
-    case 14:  return "LV00_ERROR_INVALID_STATE";
-    case 15:  return "LV00_ERROR_INVALID_ARGUMENT";
-    case 17:  return "LV00_ERROR_INDEX_OUT_OF_RANGE";
-    case 18:  return "LV00_ERROR_VALUE_OUT_OF_RANGE";
-    case 70:  return "LV00_ERROR_INTERNAL";
-    case 100: return "LV00_ERROR_OUT_OF_MEMORY";
-    case 101: return "LV00_ERROR_ALLOCATION_FAILED";
-    case 102: return "LV00_ERROR_RESOURCE_EXHAUSTED";
-    case 103: return "LV00_ERROR_BUFFER_TOO_SMALL";
-    case 130: return "LV00_ERROR_PARSER_NULL_INPUT";
-    case 131: return "LV00_ERROR_PARSER_EMPTY_INPUT";
-    case 132: return "LV00_ERROR_PARSER_INPUT_TOO_LONG";
-    case 133: return "LV00_ERROR_PARSER_ILLEGAL_CHARS";
-    case 134: return "LV00_ERROR_PARSER_TOO_MANY_TOKENS";
-    case 135: return "LV00_ERROR_PARSER_DEPTH_EXCEEDED";
-    case 136: return "LV00_ERROR_PARSER_NODE_LIMIT";
-    case 137: return "LV00_ERROR_PARSER_TOKEN_TOO_LONG";
-    case 138: return "LV00_ERROR_PARSER_POOL_EXHAUSTED";
-    case 200: return "LV00_ERROR_NODE_CONFLICT";
-    case 201: return "LV00_ERROR_NODE_NOT_FOUND";
-    case 202: return "LV00_ERROR_CONSTRAINT_CONFLICT";
-    case 203: return "LV00_ERROR_CONSTRAINT_DUPLICATE";
-    case 204: return "LV00_ERROR_INVALID_REGION";
-    case 205: return "LV00_ERROR_INVALID_GEOM_TYPE";
-    case 206: return "LV00_ERROR_CYCLIC_DEPENDENCY";
-    case 207: return "LV00_ERROR_GRAPH_CORRUPTED";
-    case 300: return "LV00_ERROR_COORD_INVALID";
-    case 301: return "LV00_ERROR_COORD_OVERFLOW";
-    case 302: return "LV00_ERROR_PRECISION_LOSS";
-    case 303: return "LV00_ERROR_SYMBOLIC_EVAL_FAILED";
-    case 400: return "LV00_ERROR_SOLVER_NO_SOLUTION";
-    case 401: return "LV00_ERROR_SOLVER_INFINITE";
-    case 402: return "LV00_ERROR_SOLVER_NUMERIC";
-    case 403: return "LV00_ERROR_SOLVER_SINGULAR";
-    case 404: return "LV00_ERROR_SOLVER_NOT_CONVERGED";
-    case 405: return "LV00_ERROR_GROEBNER_FAILED";
-    case 500: return "LV00_ERROR_REWRITE_NO_MATCH";
-    case 501: return "LV00_ERROR_REWRITE_CYCLE";
-    case 502: return "LV00_ERROR_REWRITE_DEPTH";
-    case 600: return "LV00_ERROR_UNIFY_FAILED";
-    case 601: return "LV00_ERROR_UNIFY_OCCUR_CHECK";
-    case 602: return "LV00_ERROR_UNIFY_TYPE_MISMATCH";
-    case 700: return "LV00_ERROR_FUNC_BLOCK_INVALID";
-    case 701: return "LV00_ERROR_FUNC_BLOCK_NON_DETERMINISTIC";
-    case 702: return "LV00_ERROR_FUNC_BLOCK_CIRCULAR";
-    case 703: return "LV00_ERROR_FUNC_BLOCK_TYPE_ERROR";
-    case 750: return "LV00_ERROR_PRESET_REGISTRATION_FAILED";
-    case 751: return "LV00_ERROR_PRESET_INSTANTIATION_FAILED";
-    case 800: return "LV00_ERROR_TYPE_MISMATCH";
-    case 801: return "LV00_ERROR_TYPE_INFERENCE_FAILED";
-    case 802: return "LV00_ERROR_UNIVERSE_INCONSISTENT";
-    case 900: return "LV00_ERROR_PROOF_INVALID";
-    case 901: return "LV00_ERROR_PROOF_INCOMPLETE";
-    case 902: return "LV00_ERROR_PROOF_VERIFICATION_FAILED";
-    case 903: return "LV00_ERROR_CIRCUIT_OPEN";
-    default:  return "LV00_UNKNOWN";
+    case 0:   return "lv_OK";
+    case 1:   return "lv_ERROR_UNKNOWN";
+    case 2:   return "lv_ERROR_INVALID_PARAM";
+    case 3:   return "lv_ERROR_NULL_POINTER";
+    case 4:   return "lv_ERROR_NOT_INITIALIZED";
+    case 5:   return "lv_ERROR_ALREADY_EXISTS";
+    case 6:   return "lv_ERROR_NOT_FOUND";
+    case 7:   return "lv_ERROR_UNSUPPORTED";
+    case 8:   return "lv_ERROR_OVERFLOW";
+    case 9:   return "lv_ERROR_UNDERFLOW";
+    case 10:  return "lv_ERROR_TIMEOUT";
+    case 11:  return "lv_ERROR_CANCELLED";
+    case 12:  return "lv_ERROR_IO";
+    case 13:  return "lv_ERROR_PARSE";
+    case 14:  return "lv_ERROR_INVALID_STATE";
+    case 15:  return "lv_ERROR_INVALID_ARGUMENT";
+    case 17:  return "lv_ERROR_INDEX_OUT_OF_RANGE";
+    case 18:  return "lv_ERROR_VALUE_OUT_OF_RANGE";
+    case 70:  return "lv_ERROR_INTERNAL";
+    case 100: return "lv_ERROR_OUT_OF_MEMORY";
+    case 101: return "lv_ERROR_ALLOCATION_FAILED";
+    case 102: return "lv_ERROR_RESOURCE_EXHAUSTED";
+    case 103: return "lv_ERROR_BUFFER_TOO_SMALL";
+    case 130: return "lv_ERROR_PARSER_NULL_INPUT";
+    case 131: return "lv_ERROR_PARSER_EMPTY_INPUT";
+    case 132: return "lv_ERROR_PARSER_INPUT_TOO_LONG";
+    case 133: return "lv_ERROR_PARSER_ILLEGAL_CHARS";
+    case 134: return "lv_ERROR_PARSER_TOO_MANY_TOKENS";
+    case 135: return "lv_ERROR_PARSER_DEPTH_EXCEEDED";
+    case 136: return "lv_ERROR_PARSER_NODE_LIMIT";
+    case 137: return "lv_ERROR_PARSER_TOKEN_TOO_LONG";
+    case 138: return "lv_ERROR_PARSER_POOL_EXHAUSTED";
+    case 200: return "lv_ERROR_NODE_CONFLICT";
+    case 201: return "lv_ERROR_NODE_NOT_FOUND";
+    case 202: return "lv_ERROR_CONSTRAINT_CONFLICT";
+    case 203: return "lv_ERROR_CONSTRAINT_DUPLICATE";
+    case 204: return "lv_ERROR_INVALID_REGION";
+    case 205: return "lv_ERROR_INVALID_GEOM_TYPE";
+    case 206: return "lv_ERROR_CYCLIC_DEPENDENCY";
+    case 207: return "lv_ERROR_GRAPH_CORRUPTED";
+    case 300: return "lv_ERROR_COORD_INVALID";
+    case 301: return "lv_ERROR_COORD_OVERFLOW";
+    case 302: return "lv_ERROR_PRECISION_LOSS";
+    case 303: return "lv_ERROR_SYMBOLIC_EVAL_FAILED";
+    case 400: return "lv_ERROR_SOLVER_NO_SOLUTION";
+    case 401: return "lv_ERROR_SOLVER_INFINITE";
+    case 402: return "lv_ERROR_SOLVER_NUMERIC";
+    case 403: return "lv_ERROR_SOLVER_SINGULAR";
+    case 404: return "lv_ERROR_SOLVER_NOT_CONVERGED";
+    case 405: return "lv_ERROR_GROEBNER_FAILED";
+    case 500: return "lv_ERROR_REWRITE_NO_MATCH";
+    case 501: return "lv_ERROR_REWRITE_CYCLE";
+    case 502: return "lv_ERROR_REWRITE_DEPTH";
+    case 600: return "lv_ERROR_UNIFY_FAILED";
+    case 601: return "lv_ERROR_UNIFY_OCCUR_CHECK";
+    case 602: return "lv_ERROR_UNIFY_TYPE_MISMATCH";
+    case 700: return "lv_ERROR_FUNC_BLOCK_INVALID";
+    case 701: return "lv_ERROR_FUNC_BLOCK_NON_DETERMINISTIC";
+    case 702: return "lv_ERROR_FUNC_BLOCK_CIRCULAR";
+    case 703: return "lv_ERROR_FUNC_BLOCK_TYPE_ERROR";
+    case 750: return "lv_ERROR_PRESET_REGISTRATION_FAILED";
+    case 751: return "lv_ERROR_PRESET_INSTANTIATION_FAILED";
+    case 800: return "lv_ERROR_TYPE_MISMATCH";
+    case 801: return "lv_ERROR_TYPE_INFERENCE_FAILED";
+    case 802: return "lv_ERROR_UNIVERSE_INCONSISTENT";
+    case 900: return "lv_ERROR_PROOF_INVALID";
+    case 901: return "lv_ERROR_PROOF_INCOMPLETE";
+    case 902: return "lv_ERROR_PROOF_VERIFICATION_FAILED";
+    case 903: return "lv_ERROR_CIRCUIT_OPEN";
+    default:  return "lv_UNKNOWN";
     }
 }

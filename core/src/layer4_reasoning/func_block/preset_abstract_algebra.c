@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_abstract_algebra.c
  * @brief 抽象代数预设函数块 - 实现
  *
@@ -22,8 +22,8 @@
 
 #include <string.h>
 
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
 #include "preset_name_defs.h"
@@ -809,7 +809,7 @@ bool preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
         return false;
 
     /* 分配名称数组 */
-    char **names = (char **) lv00_malloc(ABSTRACT_ALGEBRA_PRESET_COUNT * sizeof(char *));
+    char **names = (char **) lv_malloc(ABSTRACT_ALGEBRA_PRESET_COUNT * sizeof(char *));
     if (!names)
         return false;
 
@@ -868,15 +868,15 @@ bool preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
     int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
 
     for (int i = 0; i < count; i++) {
-        names[i] = lv00_strdup(preset_names[i]);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
             for (int j = 0; j < i; j++) {
                 char *p = names[j];
-                lv00_free((void **) &p);
+                lv_free((void **) &p);
                 names[j] = NULL;
             }
-            lv00_free((void **) &names);
+            lv_free((void **) &names);
             return false;
         }
     }

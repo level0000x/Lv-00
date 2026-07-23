@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_adaptive_threshold.c
  * @brief 自适应阈值框架单元测试
  * 
@@ -8,8 +8,8 @@
  * @date 2026-05-26
  */
 
-#include "lv00/adaptive_threshold.h"
-#include "lv00/constraint_graph.h"
+#include "lv/adaptive_threshold.h"
+#include "lv/constraint_graph.h"
 #include "test_helpers.h"
 #include <math.h>
 #include <stdio.h>
@@ -137,32 +137,32 @@ static ConstraintGraph* create_complex_graph(void) {
  * @test 测试框架初始化和清理
  */
 void test_init_cleanup(void) {
-    Lv00Error err = lv00_adaptive_threshold_init();
-    TEST_ASSERT_EQ_MSG(err, LV00_OK, "Init should succeed");
+    lvError err = lv_adaptive_threshold_init();
+    TEST_ASSERT_EQ_MSG(err, lv_OK, "Init should succeed");
 
     /* 重复初始化应该成功 */
-    err = lv00_adaptive_threshold_init();
-    TEST_ASSERT_EQ_MSG(err, LV00_OK, "Repeated init should succeed");
+    err = lv_adaptive_threshold_init();
+    TEST_ASSERT_EQ_MSG(err, lv_OK, "Repeated init should succeed");
 
-    lv00_adaptive_threshold_cleanup();
+    lv_adaptive_threshold_cleanup();
 
     /* 重新初始化 */
-    err = lv00_adaptive_threshold_init();
-    TEST_ASSERT_EQ_MSG(err, LV00_OK, "Init after cleanup should succeed");
+    err = lv_adaptive_threshold_init();
+    TEST_ASSERT_EQ_MSG(err, lv_OK, "Init after cleanup should succeed");
 }
 
 /**
  * @test 测试问题复杂度评估
  */
 void test_complexity_computation(void) {
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
     /* 测试简单图 */
     ConstraintGraph* simple = create_triangle_graph();
-    Lv00ProblemComplexity complexity;
+    lvProblemComplexity complexity;
 
-    Lv00Error err = lv00_compute_complexity(simple, &complexity);
-    TEST_ASSERT_EQ_MSG(err, LV00_OK, "Complexity computation should succeed");
+    lvError err = lv_compute_complexity(simple, &complexity);
+    TEST_ASSERT_EQ_MSG(err, lv_OK, "Complexity computation should succeed");
 
     TEST_ASSERT_EQ_MSG(complexity.node_count, 6, "Should have 6 nodes (3 points + 3 lines)");
     TEST_ASSERT_EQ_MSG(complexity.constraint_count, 6, "Should have 6 incidence constraints");
@@ -174,8 +174,8 @@ void test_complexity_computation(void) {
 
     /* 测试复杂图 */
     ConstraintGraph* complex = create_complex_graph();
-    err = lv00_compute_complexity(complex, &complexity);
-    TEST_ASSERT_EQ_MSG(err, LV00_OK, "Complexity computation should succeed");
+    err = lv_compute_complexity(complex, &complexity);
+    TEST_ASSERT_EQ_MSG(err, lv_OK, "Complexity computation should succeed");
 
     TEST_ASSERT_EQ_MSG(complexity.node_count, 15, "Should have 15 nodes (7 points + 8 lines)");
     TEST_ASSERT_EQ_MSG(complexity.connected_components, 2, "Should have 2 components");
@@ -187,26 +187,26 @@ void test_complexity_computation(void) {
  * @test 测试动态阈值计算 - VF2匹配
  */
 void test_vf2_threshold_computation(void) {
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
     ConstraintGraph* graph = create_triangle_graph();
-    Lv00AdaptiveThresholdCtx* ctx = NULL;
+    lvAdaptiveThresholdCtx* ctx = NULL;
 
-    Lv00Error err = lv00_adaptive_threshold_create(
-        LV00_ALGO_VF2_MATCH,
+    lvError err = lv_adaptive_threshold_create(
+        lv_ALGO_VF2_MATCH,
         graph,
         NULL,
         &ctx
     );
-    TEST_ASSERT_EQ_MSG(err, LV00_OK, "Context creation should succeed");
+    TEST_ASSERT_EQ_MSG(err, lv_OK, "Context creation should succeed");
     TEST_ASSERT_NOT_NULL(ctx);
 
     /* 计算阈值 */
-    size_t threshold = lv00_adaptive_threshold_compute(ctx);
+    size_t threshold = lv_adaptive_threshold_compute(ctx);
 
     /* 验证阈值在合理范围内 */
-    Lv00ThresholdConfig config;
-    lv00_adaptive_threshold_default_config(LV00_ALGO_VF2_MATCH, &config);
+    lvThresholdConfig config;
+    lv_adaptive_threshold_default_config(lv_ALGO_VF2_MATCH, &config);
 
     TEST_ASSERT(threshold >= (size_t)config.min_threshold, "Threshold should be >= min_threshold");
     TEST_ASSERT(threshold <= (size_t)config.max_threshold, "Threshold should be <= max_threshold");
@@ -214,7 +214,7 @@ void test_vf2_threshold_computation(void) {
     /* 对于3个节点的简单图，阈值应该相对较小 */
     TEST_ASSERT(threshold < 500, "Small graph threshold should be < 500");
 
-    lv00_adaptive_threshold_destroy(&ctx);
+    lv_adaptive_threshold_destroy(&ctx);
     graph_destroy(graph);
 }
 
@@ -222,23 +222,23 @@ void test_vf2_threshold_computation(void) {
  * @test 测试动态阈值计算 - Buchberger算法
  */
 void test_buchberger_threshold_computation(void) {
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
     ConstraintGraph* graph = create_triangle_graph();
-    Lv00AdaptiveThresholdCtx* ctx = NULL;
+    lvAdaptiveThresholdCtx* ctx = NULL;
 
-    Lv00Error err = lv00_adaptive_threshold_create(
-        LV00_ALGO_BUCHBERGER,
+    lvError err = lv_adaptive_threshold_create(
+        lv_ALGO_BUCHBERGER,
         graph,
         NULL,
         &ctx
     );
-    TEST_ASSERT_EQ_MSG(err, LV00_OK, "Context creation should succeed");
+    TEST_ASSERT_EQ_MSG(err, lv_OK, "Context creation should succeed");
 
-    size_t threshold = lv00_adaptive_threshold_compute(ctx);
+    size_t threshold = lv_adaptive_threshold_compute(ctx);
 
-    Lv00ThresholdConfig config;
-    lv00_adaptive_threshold_default_config(LV00_ALGO_BUCHBERGER, &config);
+    lvThresholdConfig config;
+    lv_adaptive_threshold_default_config(lv_ALGO_BUCHBERGER, &config);
 
     TEST_ASSERT(threshold >= (size_t)config.min_threshold, "Threshold should be >= min_threshold");
     TEST_ASSERT(threshold <= (size_t)config.max_threshold, "Threshold should be <= max_threshold");
@@ -246,7 +246,7 @@ void test_buchberger_threshold_computation(void) {
     /* Buchberger阈值应该比VF2大 */
     TEST_ASSERT(threshold > 10000, "Buchberger threshold should be > 10000");
 
-    lv00_adaptive_threshold_destroy(&ctx);
+    lv_adaptive_threshold_destroy(&ctx);
     graph_destroy(graph);
 }
 
@@ -254,26 +254,26 @@ void test_buchberger_threshold_computation(void) {
  * @test 测试阈值随复杂度变化
  */
 void test_threshold_scaling(void) {
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
     /* 创建不同复杂度的图 */
     ConstraintGraph* small = create_triangle_graph();
     ConstraintGraph* large = create_complex_graph();
 
-    Lv00AdaptiveThresholdCtx* ctx_small = NULL;
-    Lv00AdaptiveThresholdCtx* ctx_large = NULL;
+    lvAdaptiveThresholdCtx* ctx_small = NULL;
+    lvAdaptiveThresholdCtx* ctx_large = NULL;
 
-    lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, small, NULL, &ctx_small);
-    lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, large, NULL, &ctx_large);
+    lv_adaptive_threshold_create(lv_ALGO_VF2_MATCH, small, NULL, &ctx_small);
+    lv_adaptive_threshold_create(lv_ALGO_VF2_MATCH, large, NULL, &ctx_large);
 
-    size_t threshold_small = lv00_adaptive_threshold_compute(ctx_small);
-    size_t threshold_large = lv00_adaptive_threshold_compute(ctx_large);
+    size_t threshold_small = lv_adaptive_threshold_compute(ctx_small);
+    size_t threshold_large = lv_adaptive_threshold_compute(ctx_large);
 
     /* 复杂图的阈值应该大于等于简单图（含更多节点和约束） */
     TEST_ASSERT(threshold_large >= threshold_small, "Large graph threshold should be >= small graph");
 
-    lv00_adaptive_threshold_destroy(&ctx_small);
-    lv00_adaptive_threshold_destroy(&ctx_large);
+    lv_adaptive_threshold_destroy(&ctx_small);
+    lv_adaptive_threshold_destroy(&ctx_large);
     graph_destroy(small);
     graph_destroy(large);
 }
@@ -282,25 +282,25 @@ void test_threshold_scaling(void) {
  * @test 测试进度更新和启发式剪枝
  */
 void test_progress_tracking_and_pruning(void) {
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
     ConstraintGraph* graph = create_triangle_graph();
-    Lv00AdaptiveThresholdCtx* ctx = NULL;
+    lvAdaptiveThresholdCtx* ctx = NULL;
 
     /* 使用很短的超时时间以便测试剪枝 */
-    Lv00ThresholdConfig config;
-    lv00_adaptive_threshold_default_config(LV00_ALGO_VF2_MATCH, &config);
+    lvThresholdConfig config;
+    lv_adaptive_threshold_default_config(lv_ALGO_VF2_MATCH, &config);
     config.time_budget_ms = 1.0;  /* 1毫秒超时 */
     config.enable_progress_tracking = true;
 
-    lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, graph, &config, &ctx);
+    lv_adaptive_threshold_create(lv_ALGO_VF2_MATCH, graph, &config, &ctx);
 
     /* 模拟一些迭代 */
     for (int i = 0; i < 10; i++) {
-        lv00_adaptive_threshold_update_progress(ctx, (size_t)i, 0);
+        lv_adaptive_threshold_update_progress(ctx, (size_t)i, 0);
 
         bool should_prune = false;
-        lv00_adaptive_threshold_should_prune(ctx, &should_prune);
+        lv_adaptive_threshold_should_prune(ctx, &should_prune);
 
         /* 在1ms超时后应该触发剪枝 */
         if (i > 5) {
@@ -310,14 +310,14 @@ void test_progress_tracking_and_pruning(void) {
     }
 
     /* 测试高回溯率剪枝 */
-    lv00_adaptive_threshold_update_progress(ctx, 200, 190);  /* 95%回溯率 */
+    lv_adaptive_threshold_update_progress(ctx, 200, 190);  /* 95%回溯率 */
 
     bool should_prune = false;
-    lv00_adaptive_threshold_should_prune(ctx, &should_prune);
+    lv_adaptive_threshold_should_prune(ctx, &should_prune);
     /* 高回溯率应该触发剪枝 */
     TEST_ASSERT(should_prune, "High backtrack rate should trigger pruning");
 
-    lv00_adaptive_threshold_destroy(&ctx);
+    lv_adaptive_threshold_destroy(&ctx);
     graph_destroy(graph);
 }
 
@@ -325,9 +325,9 @@ void test_progress_tracking_and_pruning(void) {
  * @test 测试自定义配置
  */
 void test_custom_config(void) {
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
-    Lv00ThresholdConfig custom_config = {
+    lvThresholdConfig custom_config = {
         .base_threshold = 50.0,
         .scale_factor = 1.0,
         .time_budget_ms = 1000.0,
@@ -338,26 +338,26 @@ void test_custom_config(void) {
     };
 
     /* 设置全局配置 */
-    Lv00Error err = lv00_adaptive_threshold_set_global_config(
-        LV00_ALGO_VF2_MATCH,
+    lvError err = lv_adaptive_threshold_set_global_config(
+        lv_ALGO_VF2_MATCH,
         &custom_config
     );
-    TEST_ASSERT_EQ_MSG(err, LV00_OK, "Setting global config should succeed");
+    TEST_ASSERT_EQ_MSG(err, lv_OK, "Setting global config should succeed");
 
     /* 创建上下文，应该使用全局配置 */
     ConstraintGraph* graph = create_triangle_graph();
-    Lv00AdaptiveThresholdCtx* ctx = NULL;
+    lvAdaptiveThresholdCtx* ctx = NULL;
 
-    err = lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, graph, NULL, &ctx);
-    TEST_ASSERT_EQ_MSG(err, LV00_OK, "Context creation should succeed");
+    err = lv_adaptive_threshold_create(lv_ALGO_VF2_MATCH, graph, NULL, &ctx);
+    TEST_ASSERT_EQ_MSG(err, lv_OK, "Context creation should succeed");
 
-    size_t threshold = lv00_adaptive_threshold_compute(ctx);
+    size_t threshold = lv_adaptive_threshold_compute(ctx);
 
     /* 使用自定义配置，阈值应该在更小的范围内 */
     TEST_ASSERT(threshold >= 10, "Threshold should be >= 10");
     TEST_ASSERT(threshold <= 200, "Threshold should be <= 200");
 
-    lv00_adaptive_threshold_destroy(&ctx);
+    lv_adaptive_threshold_destroy(&ctx);
     graph_destroy(graph);
 }
 
@@ -365,14 +365,14 @@ void test_custom_config(void) {
  * @test 测试向后兼容函数
  */
 void test_backward_compatibility(void) {
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
     ConstraintGraph* graph = create_triangle_graph();
 
     /* 测试向后兼容函数 */
-    size_t vf2_depth = lv00_get_vf2_max_depth(graph);
-    size_t buchberger_steps = lv00_get_buchberger_max_steps(graph);
-    size_t rewrite_iterations = lv00_get_rewrite_solve_max_iterations(graph);
+    size_t vf2_depth = lv_get_vf2_max_depth(graph);
+    size_t buchberger_steps = lv_get_buchberger_max_steps(graph);
+    size_t rewrite_iterations = lv_get_rewrite_solve_max_iterations(graph);
 
     /* 验证返回的值在合理范围内 */
     TEST_ASSERT(vf2_depth >= 50 && vf2_depth <= 1000, "VF2 depth should be in range [50,1000]");
@@ -386,33 +386,33 @@ void test_backward_compatibility(void) {
  * @test 测试错误处理
  */
 void test_error_handling(void) {
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
     /* 测试NULL参数 */
-    Lv00Error err = lv00_compute_complexity(NULL, NULL);
-    TEST_ASSERT(err != LV00_OK, "NULL parameters should return error");
+    lvError err = lv_compute_complexity(NULL, NULL);
+    TEST_ASSERT(err != lv_OK, "NULL parameters should return error");
 
     /* 测试无效算法类型 */
-    Lv00AdaptiveThresholdCtx* ctx = NULL;
-    err = lv00_adaptive_threshold_create(
-        (Lv00AlgorithmType)999,
+    lvAdaptiveThresholdCtx* ctx = NULL;
+    err = lv_adaptive_threshold_create(
+        (lvAlgorithmType)999,
         NULL,
         NULL,
         &ctx
     );
-    TEST_ASSERT(err != LV00_OK, "Invalid algorithm type should return error");
+    TEST_ASSERT(err != lv_OK, "Invalid algorithm type should return error");
 
     /* 测试无效算法类型的默认配置 */
-    Lv00ThresholdConfig config;
-    err = lv00_adaptive_threshold_default_config((Lv00AlgorithmType)999, &config);
-    TEST_ASSERT(err != LV00_OK, "Invalid algorithm type default config should return error");
+    lvThresholdConfig config;
+    err = lv_adaptive_threshold_default_config((lvAlgorithmType)999, &config);
+    TEST_ASSERT(err != lv_OK, "Invalid algorithm type default config should return error");
 }
 
 /**
  * @test 性能测试：验证动态阈值计算开销
  */
 void test_performance_overhead(void) {
-    lv00_adaptive_threshold_init();
+    lv_adaptive_threshold_init();
 
     ConstraintGraph* graph = create_complex_graph();
 
@@ -426,10 +426,10 @@ void test_performance_overhead(void) {
     QueryPerformanceCounter(&qpc_start);
 
     for (int i = 0; i < iterations; i++) {
-        Lv00AdaptiveThresholdCtx* ctx = NULL;
-        lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, graph, NULL, &ctx);
-        lv00_adaptive_threshold_compute(ctx);
-        lv00_adaptive_threshold_destroy(&ctx);
+        lvAdaptiveThresholdCtx* ctx = NULL;
+        lv_adaptive_threshold_create(lv_ALGO_VF2_MATCH, graph, NULL, &ctx);
+        lv_adaptive_threshold_compute(ctx);
+        lv_adaptive_threshold_destroy(&ctx);
     }
 
     QueryPerformanceCounter(&qpc_end);
@@ -440,10 +440,10 @@ void test_performance_overhead(void) {
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     for (int i = 0; i < iterations; i++) {
-        Lv00AdaptiveThresholdCtx* ctx = NULL;
-        lv00_adaptive_threshold_create(LV00_ALGO_VF2_MATCH, graph, NULL, &ctx);
-        lv00_adaptive_threshold_compute(ctx);
-        lv00_adaptive_threshold_destroy(&ctx);
+        lvAdaptiveThresholdCtx* ctx = NULL;
+        lv_adaptive_threshold_create(lv_ALGO_VF2_MATCH, graph, NULL, &ctx);
+        lv_adaptive_threshold_compute(ctx);
+        lv_adaptive_threshold_destroy(&ctx);
     }
 
     clock_gettime(CLOCK_MONOTONIC, &end);

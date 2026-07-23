@@ -1,4 +1,4 @@
-"""
+﻿"""
 Lv-00 UI编程辅助系统 - 主程序模块
 ====================================
 
@@ -6,7 +6,7 @@ Lv-00 UI编程辅助系统 - 主程序模块
 整合知识库、代码模板和 AI 接口，提供统一的编程辅助界面。
 
 核心类：
-  - Lv00CodingAssistant: 主交互类，管理命令解析和功能调度
+  - lvCodingAssistant: 主交互类，管理命令解析和功能调度
 
 功能模块：
   - API 参考：查看图操作、约束、证明等模块的 API 文档
@@ -24,11 +24,11 @@ from typing import Dict, List, Any, Optional, Deque
 from pathlib import Path
 
 # 导入本地模块
-from .lv00_knowledge import (
-    Lv00KnowledgeBase,
-    Lv00PromptEngine,
-    Lv00Module,
-    get_lv00_helper,
+from .lv_knowledge import (
+    lvKnowledgeBase,
+    lvPromptEngine,
+    lvModule,
+    get_lv_helper,
     CONCEPT_EXPLANATIONS,
     CODE_GUIDANCE,
 )
@@ -42,7 +42,7 @@ from .templates import (
 )
 
 
-class Lv00CodingAssistant:
+class lvCodingAssistant:
     """
     Lv-00 UI编程辅助系统主类
 
@@ -62,17 +62,17 @@ class Lv00CodingAssistant:
     DEFAULT_MAX_HISTORY = 1000
 
     # ── 类级常量：概念解释数据 ──────────────────────────────────────────
-    # 从 lv00_knowledge 模块导入，不再在 main.py 中内联定义
+    # 从 lv_knowledge 模块导入，不再在 main.py 中内联定义
     CONCEPT_EXPLANATIONS: Dict[str, str] = {}
 
     # ── 类级常量：代码生成指导文本 ──────────────────────────────────────
-    # 从 lv00_knowledge 模块导入，不再在 main.py 中内联定义
+    # 从 lv_knowledge 模块导入，不再在 main.py 中内联定义
     CODE_GUIDANCE: Dict[str, str] = {}
 
     def __init__(self) -> None:
         """初始化编程辅助系统"""
-        self.kb: Lv00KnowledgeBase = Lv00KnowledgeBase()
-        self.pe: Lv00PromptEngine = Lv00PromptEngine(self.kb)
+        self.kb: lvKnowledgeBase = lvKnowledgeBase()
+        self.pe: lvPromptEngine = lvPromptEngine(self.kb)
         self.current_context: Dict[str, Any] = {}
 
         # 命令历史记录上限，超出时自动裁剪最早记录
@@ -139,7 +139,7 @@ class Lv00CodingAssistant:
         """
         从用户目录加载配置文件
 
-        配置文件路径：~/.lv00_coding_assistant/config.json
+        配置文件路径：~/.lv_coding_assistant/config.json
         如果文件不存在或解析失败，返回默认配置。
 
         【修复 #9】加载后通过 _validate_config() 进行 schema 验证，
@@ -148,7 +148,7 @@ class Lv00CodingAssistant:
         Returns:
             Dict[str, Any]: 验证后的配置字典
         """
-        config_path: Path = Path.home() / ".lv00_coding_assistant" / "config.json"
+        config_path: Path = Path.home() / ".lv_coding_assistant" / "config.json"
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
@@ -164,7 +164,7 @@ class Lv00CodingAssistant:
 
     def _save_config(self) -> None:
         """保存当前配置到用户目录的配置文件"""
-        config_path: Path = Path.home() / ".lv00_coding_assistant"
+        config_path: Path = Path.home() / ".lv_coding_assistant"
         try:
             config_path.mkdir(parents=True, exist_ok=True)
             with open(config_path / "config.json", 'w', encoding='utf-8') as f:
@@ -466,10 +466,10 @@ class Lv00CodingAssistant:
 
         # 安全检查：确保解析后的路径在允许的范围内
         # 【修复 #8】扩展允许的根目录列表，不仅限于 CWD，
-        # 还包括用户主目录下的 .lv00_coding_assistant 目录（配置文件所在位置）
+        # 还包括用户主目录下的 .lv_coding_assistant 目录（配置文件所在位置）
         allowed_roots = [
             Path.cwd().resolve(),
-            Path.home().resolve() / ".lv00_coding_assistant",
+            Path.home().resolve() / ".lv_coding_assistant",
         ]
         is_allowed = False
         for allowed_root in allowed_roots:
@@ -527,7 +527,7 @@ class Lv00CodingAssistant:
 
 def main() -> None:
     """主函数入口，创建辅助系统实例并启动交互式会话"""
-    assistant: Lv00CodingAssistant = Lv00CodingAssistant()
+    assistant: lvCodingAssistant = lvCodingAssistant()
     assistant.run_interactive()
 
 

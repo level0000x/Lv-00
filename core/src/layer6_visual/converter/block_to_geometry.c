@@ -1,8 +1,8 @@
-#include "lv00/representation_converter.h"
-#include "lv00/func_block.h"
-#include "lv00/geometry_types.h"
-#include "lv00/lv00_utils.h"
-#include "lv00/symbolic_coord.h"
+﻿#include "lv/representation_converter.h"
+#include "lv/func_block.h"
+#include "lv/geometry_types.h"
+#include "lv/lv_utils.h"
+#include "lv/symbolic_coord.h"
 #include <string.h>
 #include <math.h>
 
@@ -46,7 +46,7 @@ static inline SymbolicCoord *symbolic_coord_from_double(double val) {
 }
 
 static inline PointEntity *point_entity_create(SymbolicCoord *x, SymbolicCoord *y) {
-    PointEntity *p = (PointEntity *)lv00_malloc(sizeof(PointEntity));
+    PointEntity *p = (PointEntity *)lv_malloc(sizeof(PointEntity));
     if (!p) return NULL;
     memset(p, 0, sizeof(PointEntity));
     p->x = x;
@@ -55,7 +55,7 @@ static inline PointEntity *point_entity_create(SymbolicCoord *x, SymbolicCoord *
 }
 
 static inline PolygonEntity *polygon_entity_create(PointEntity **corners, int count) {
-    PolygonEntity *poly = (PolygonEntity *)lv00_malloc(sizeof(PolygonEntity));
+    PolygonEntity *poly = (PolygonEntity *)lv_malloc(sizeof(PolygonEntity));
     if (!poly) return NULL;
     memset(poly, 0, sizeof(PolygonEntity));
     poly->vertex_count = count;
@@ -64,7 +64,7 @@ static inline PolygonEntity *polygon_entity_create(PointEntity **corners, int co
 }
 
 static inline LinearEntity *linear_entity_create_segment(PointEntity *p1, PointEntity *p2) {
-    LinearEntity *line = (LinearEntity *)lv00_malloc(sizeof(LinearEntity));
+    LinearEntity *line = (LinearEntity *)lv_malloc(sizeof(LinearEntity));
     if (!line) return NULL;
     memset(line, 0, sizeof(LinearEntity));
     line->start = p1;
@@ -88,27 +88,27 @@ typedef struct {
 } GeometryEncoding;
 
 /* 销毁几何编码结构及其内部资源 */
-void lv00_geometry_encoding_destroy(GeometryEncoding *enc) {
+void lv_geometry_encoding_destroy(GeometryEncoding *enc) {
     if (!enc) return;
     for (int i = 0; i < enc->rect_count; i++) {
         if (enc->rects[i]) {
-            lv00_free((void **)&enc->rects[i]->base.name);
+            lv_free((void **)&enc->rects[i]->base.name);
         }
     }
     for (int i = 0; i < enc->port_point_count; i++) {
         if (enc->port_points[i]) {
-            lv00_free((void **)&enc->port_points[i]->base.name);
+            lv_free((void **)&enc->port_points[i]->base.name);
         }
     }
     for (int i = 0; i < enc->connection_count; i++) {
         if (enc->connections[i]) {
-            lv00_free((void **)&enc->connections[i]->base.name);
+            lv_free((void **)&enc->connections[i]->base.name);
         }
     }
-    lv00_free((void **)&enc->rects);
-    lv00_free((void **)&enc->port_points);
-    lv00_free((void **)&enc->connections);
-    lv00_free((void **)&enc);
+    lv_free((void **)&enc->rects);
+    lv_free((void **)&enc->port_points);
+    lv_free((void **)&enc->connections);
+    lv_free((void **)&enc);
 }
 
 /* 默认块布局参数 */
@@ -125,8 +125,8 @@ void lv00_geometry_encoding_destroy(GeometryEncoding *enc) {
  *   输出端口 → 矩形右边缘上的点
  *   连接 → 端口点之间的线段
  */
-Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
-    Lv00ConvertResult result = {0};
+lvConvertResult lv_convert_block_to_geometry(void *block) {
+    lvConvertResult result = {0};
     if (!block) {
         result.success = 0;
         strncpy(result.error_msg, "NULL block", sizeof(result.error_msg));
@@ -141,7 +141,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
     BlockGraphView *bg = (BlockGraphView *)block;
 
     /* 创建几何编码结构 */
-    GeometryEncoding *enc = lv00_calloc(1, sizeof(GeometryEncoding));
+    GeometryEncoding *enc = lv_calloc(1, sizeof(GeometryEncoding));
     if (!enc) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
@@ -156,26 +156,26 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
             total_ports += func_block_get_output_count(bg->blocks[i]);
         }
     }
-    enc->rects = lv00_calloc(bg->count + 1, sizeof(PolygonEntity *));
+    enc->rects = lv_calloc(bg->count + 1, sizeof(PolygonEntity *));
     if (!enc->rects) {
-        lv00_free((void **)&enc);
+        lv_free((void **)&enc);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
-    enc->port_points = lv00_calloc(total_ports + 1, sizeof(PointEntity *));
+    enc->port_points = lv_calloc(total_ports + 1, sizeof(PointEntity *));
     if (!enc->port_points) {
-        lv00_free((void **)&enc->rects);
-        lv00_free((void **)&enc);
+        lv_free((void **)&enc->rects);
+        lv_free((void **)&enc);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
-    enc->connections = lv00_calloc(total_ports + 1, sizeof(LinearEntity *));
+    enc->connections = lv_calloc(total_ports + 1, sizeof(LinearEntity *));
     if (!enc->connections) {
-        lv00_free((void **)&enc->rects);
-        lv00_free((void **)&enc->port_points);
-        lv00_free((void **)&enc);
+        lv_free((void **)&enc->rects);
+        lv_free((void **)&enc->port_points);
+        lv_free((void **)&enc);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
@@ -216,7 +216,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
         if (rect) {
             const char *name = func_block_get_name(fb);
             if (name) {
-                rect->base.name = lv00_strdup(name);
+                rect->base.name = lv_strdup(name);
             }
             enc->rects[enc->rect_count++] = rect;
         }
@@ -229,7 +229,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
             SymbolicCoord *py_s = symbolic_coord_from_double(py);
             PointEntity *pt = point_entity_create(px_s, py_s);
             if (pt) {
-                pt->base.name = lv00_strdup("input_port");
+                pt->base.name = lv_strdup("input_port");
                 enc->port_points[enc->port_point_count++] = pt;
             }
         }
@@ -242,7 +242,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
             SymbolicCoord *py_s = symbolic_coord_from_double(py);
             PointEntity *pt = point_entity_create(px_s, py_s);
             if (pt) {
-                pt->base.name = lv00_strdup("output_port");
+                pt->base.name = lv_strdup("output_port");
                 enc->port_points[enc->port_point_count++] = pt;
             }
         }
@@ -312,8 +312,8 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
  *   右边缘上的点 → 输出端口
  *   线段 → 端口连接
  */
-Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
-    Lv00ConvertResult result = {0};
+lvConvertResult lv_convert_geometry_to_block(void *entity) {
+    lvConvertResult result = {0};
     if (!entity) {
         result.success = 0;
         strncpy(result.error_msg, "NULL entity", sizeof(result.error_msg));
@@ -328,18 +328,18 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
         int cap;
     } SimpleBlockGraph;
 
-    SimpleBlockGraph *sg = lv00_calloc(1, sizeof(SimpleBlockGraph));
+    SimpleBlockGraph *sg = lv_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
     sg->cap = enc->rect_count > 0 ? enc->rect_count : 8;
-    sg->blocks = lv00_calloc(sg->cap, sizeof(FuncBlock *));
+    sg->blocks = lv_calloc(sg->cap, sizeof(FuncBlock *));
     if (!sg->blocks) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
-        lv00_free((void **)&sg);
+        lv_free((void **)&sg);
         return result;
     }
 
@@ -383,7 +383,7 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
 
         if (sg->count >= sg->cap) {
             int new_cap = sg->cap * 2;
-            FuncBlock **tmp = lv00_realloc(sg->blocks, new_cap * sizeof(FuncBlock *));
+            FuncBlock **tmp = lv_realloc(sg->blocks, new_cap * sizeof(FuncBlock *));
             if (!tmp) {
                 result.success = 0;
                 strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));

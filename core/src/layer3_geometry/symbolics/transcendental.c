@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file transcendental.c
  * @brief Transcendental 超越数类型
  *
@@ -7,17 +7,17 @@
  * @version 3.3.0
  */
 
-#include "lv00/symbolic_coord.h"
+#include "lv/symbolic_coord.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv00/constraint_graph.h"
+#include "lv/constraint_graph.h"
 #include "debug.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 #include "mpz_poly.h"
 
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
@@ -100,7 +100,7 @@ Transcendental *transcendental_create(const char *name) {
     if (!base)
         return NULL;
 
-    Transcendental *t = lv00_malloc(sizeof(Transcendental));
+    Transcendental *t = lv_malloc(sizeof(Transcendental));
     if (!t)
         return NULL;
     /* 安全字符串复制：确保以 null 终止 */
@@ -117,9 +117,9 @@ Transcendental *transcendental_create(const char *name) {
         t->expr = NULL;
     } else {
         /* 构造表达式树 */
-        TranscendentalExpr *expr = lv00_calloc(1, sizeof(TranscendentalExpr));
+        TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
         if (!expr) {
-            lv00_free((void **) &t);
+            lv_free((void **) &t);
             return NULL;
         }
         /* 安全字符串复制：确保以 null 终止 */
@@ -142,8 +142,8 @@ Transcendental *transcendental_create(const char *name) {
         }
 
         if (!expr->rational_operand) {
-            lv00_free((void **) &expr);
-            lv00_free((void **) &t);
+            lv_free((void **) &expr);
+            lv_free((void **) &t);
             return NULL;
         }
 
@@ -160,9 +160,9 @@ void transcendental_destroy(Transcendental *t) {
         if (t->expr->rational_operand) {
             rational_destroy(t->expr->rational_operand);
         }
-        lv00_free((void **) &t->expr);
+        lv_free((void **) &t->expr);
     }
-    lv00_free((void **) &t);
+    lv_free((void **) &t);
 }
 
 /**
@@ -206,8 +206,8 @@ int transcendental_compare(const Transcendental *a, const Transcendental *b) {
 
 char *transcendental_serialize(const Transcendental *t) {
     if (!t->expr) {
-        /* 裸常量：使用 lv00_strdup 分配内存 */
-        return lv00_strdup(t->name);
+        /* 裸常量：使用 lv_strdup 分配内存 */
+        return lv_strdup(t->name);
     }
 
     /* Serialize expression tree */
@@ -226,14 +226,14 @@ char *transcendental_serialize(const Transcendental *t) {
             op_str = "*";
             break;
         default:
-            /* 未知表达式类型：使用 lv00_strdup 分配内存 */
-            return lv00_strdup(t->name);
+            /* 未知表达式类型：使用 lv_strdup 分配内存 */
+            return lv_strdup(t->name);
     }
 
     if (t->expr->out_of_scope) {
         /* Out-of-scope expression: mark clearly */
         size_t len = strlen(t->name) + strlen(op_str) + 32;
-        char *buf = lv00_malloc(len);
+        char *buf = lv_malloc(len);
         if (!buf)
             return NULL;
         snprintf(buf, len, "[%s %s <out-of-scope>]", t->name, op_str);
@@ -243,20 +243,20 @@ char *transcendental_serialize(const Transcendental *t) {
     if (t->expr->rational_operand) {
         char *rat_str = rational_serialize(t->expr->rational_operand);
         if (!rat_str)
-            return lv00_strdup(t->name); /* rational_serialize 失败时使用 lv00_strdup */
+            return lv_strdup(t->name); /* rational_serialize 失败时使用 lv_strdup */
         size_t len = strlen(t->name) + strlen(op_str) + strlen(rat_str) + 8;
-        char *buf = lv00_malloc(len);
+        char *buf = lv_malloc(len);
         if (!buf) {
-            lv00_free((void**)&rat_str); /* lv00_malloc分配 */
-            return lv00_strdup(t->name); /* 内存不足时使用 lv00_strdup */
+            lv_free((void**)&rat_str); /* lv_malloc分配 */
+            return lv_strdup(t->name); /* 内存不足时使用 lv_strdup */
         }
         snprintf(buf, len, "(%s %s %s)", t->name, op_str, rat_str);
-        lv00_free((void**)&rat_str); /* lv00_malloc分配 */
+        lv_free((void**)&rat_str); /* lv_malloc分配 */
         return buf;
     }
 
-    /* 无理数操作数：使用 lv00_strdup 分配内存 */
-    return lv00_strdup(t->name);
+    /* 无理数操作数：使用 lv_strdup 分配内存 */
+    return lv_strdup(t->name);
 }
 
 /**
