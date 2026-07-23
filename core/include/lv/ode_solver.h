@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ode_solver.h
  * @brief Ordinary Differential Equation (ODE) solver module.
  *
@@ -7,16 +7,16 @@
  *          SUNDIALS (CVODE), and IPOPT.
  *
  *          Supported methods:
- *          - Euler (explicit forward Euler)
+ *          - Euler (explicit forward Euler, 1st order)
  *          - RK4 (classical 4th-order Runge-Kutta)
- *          - Adams (placeholder for Adams-Bashforth multistep)
+ *          - Adams (4th-order Adams-Bashforth multistep, AB4)
  *
  *          The solver supports configurable tolerances (rtol, atol) and
  *          maximum step counts to prevent runaway integration.
  *
  * @author Lv-00 Project
- * @version 1.1.0
- * @date   2026-05-25
+ * @version 1.2.0
+ * @date   2026-07-24
  */
 #ifndef lv_ODE_SOLVER_H
 #define lv_ODE_SOLVER_H
@@ -37,7 +37,7 @@ extern "C" {
 typedef enum lvODEMethod {
     ODE_EULER = 0, /**< Explicit forward Euler method (1st order) */
     ODE_RK4 = 1,   /**< Classical 4th-order Runge-Kutta */
-    ODE_ADAMS = 2  /**< Adams-Bashforth multistep (placeholder) */
+    ODE_ADAMS = 2  /**< Adams-Bashforth 4-step multistep (AB4, 4th order) */
 } lvODEMethod;
 /* ============================================================
  * ODE problem definition

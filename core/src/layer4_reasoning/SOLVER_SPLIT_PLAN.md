@@ -1,11 +1,12 @@
-﻿# solver.c 拆分方案
+# solver.c 拆分方案
 
-## 现状
+## 现状（v1.2.0 — 全部完成）
 
-- **文件**: `core/src/layer4_reasoning/solver.c`
-- **行数**: ~8818 行
-- **函数数**: 87 个
-- **问题**: 严重违反单一职责原则，难以维护、审查、测试
+- **文件**: `core/src/layer4_reasoning/solver.c`（聚合入口，仅 forward declarations）
+- **原始行数**: ~8818 行 → **200 行**
+- **函数数**: 87 个（已全部分布到 18 个子模块）
+- **子模块目录**: `core/src/layer4_reasoning/solver/`
+- **状态**: 全部 21 个模块已提取完成（另包含 solver_core.c CDCL SAT 求解器）
 
 ## 拆分策略
 
@@ -18,24 +19,24 @@
 | 1 | `solver_dirty_set.h/.c` | ~60 | L6375-L6453 | 5 | ✅ 已完成 |
 | 2 | `solver_snapshot.h/.c` | ~100 | L108-L222 | 3 | ✅ 已完成 |
 | 3 | `mv_polynomial.h/.c` | ~230 | L4703-L4950 | 15 | ✅ 已完成 |
-| 4 | `equation_system.h/.c` | ~200 | L256-L338, L6952-L6996 | 9 | 待提取 |
-| 5 | `solver_coord_convert.h/.c` | ~300 | L355-L624 | 6 | 待提取 |
-| 6 | `solver_geom_util.h/.c` | ~80 | L650-L700 | 3 | 待提取 |
-| 7 | `solver_equation_extract.h/.c` | ~1600 | L754-L1635, L7369-L8185 | 2 | 待提取 |
-| 8 | `solver_univariate.h/.c` | ~700 | L1700-L2858 | 7 | 待提取 |
-| 9 | `solver_symbolic_util.h/.c` | ~250 | L2357-L2620 | 3 | 待提取 |
-| 10 | `solver_substitution.h/.c` | ~200 | L2623-L2840 | 2 | 待提取 |
-| 11 | `solver_stats.h/.c` | ~100 | L1636-L1699, L3112-L3170 | 3 | 待提取 |
-| 12 | `solver_conflict.h/.c` | ~200 | L3019-L3110, L4555-L4700 | 3 | 待提取 |
-| 13 | `solver_result.h/.c` | ~80 | L3171-L3201, L3358-L3376, L7338-L7368 | 3 | 待提取 |
-| 14 | `solver_engine.h/.c` | ~800 | L3202-L3357, L3377-L3807 | 2 | 待提取 |
-| 15 | `solver_feedback.h/.c` | ~150 | L3808-L3976 | 3 | 待提取 |
-| 16 | `solver_eliminate.h/.c` | ~600 | L3977-L4388, L4149-L4554 | 3 | 待提取 |
-| 17 | `solver_groebner.h/.c` | ~800 | L4961-L5696, L5592-L5696, L8186-L8417 | 5 | 待提取 |
-| 18 | `solver_geom_templates.h/.c` | ~700 | L5697-L6390 | 5 | 待提取 |
-| 19 | `solver_order.h/.c` | ~280 | L6520-L6951 | 2 | 待提取 |
-| 20 | `solver_incremental.h/.c` | ~350 | L7022-L7337 | 2 | 待提取 |
-| 21 | `solver_multibranch.h/.c` | ~400 | L8418-L8818 | 1 | 待提取 |
+| 4 | `equation_system` | ~200 | — | 9 | ✅ solver_eq_system.c |
+| 5 | `solver_coord_extract` | ~300 | — | 6 | ✅ solver_coord_extract.c |
+| 6 | `solver_geom_util` | ~80 | — | 3 | ✅ solver_coord_extract.c (内含) |
+| 7 | `solver_equation_extract` | ~1600 | — | 2 | ✅ solver_equation_extract.c |
+| 8 | `solver_univariate` | ~700 | — | 7 | ✅ solver_symbolic.c + solver_linear.c |
+| 9 | `solver_symbolic_util` | ~250 | — | 3 | ✅ solver_symbolic.c (内含) |
+| 10 | `solver_substitution` | ~200 | — | 2 | ✅ solver_equation_extract.c (内含) |
+| 11 | `solver_stats` | ~100 | — | 3 | ✅ solver_stats.c |
+| 12 | `solver_conflict` | ~200 | — | 3 | ✅ solver_conflict.c |
+| 13 | `solver_result` | ~80 | — | 3 | ✅ solver_result.c |
+| 14 | `solver_engine` | ~800 | — | 2 | ✅ solver_engine.c |
+| 15 | `solver_feedback` | ~150 | — | 3 | ✅ solver_feedback.c |
+| 16 | `solver_eliminate` | ~600 | — | 3 | ✅ solver_eliminate.c |
+| 17 | `solver_groebner` | ~800 | — | 5 | ✅ solver_groebner.c |
+| 18 | `solver_geom_templates` | ~700 | — | 5 | ✅ solver_geom_templates.c |
+| 19 | `solver_order` | ~280 | — | 2 | ✅ solver_order.c |
+| 20 | `solver_incremental` | ~350 | — | 2 | ✅ solver_incremental.c |
+| 21 | `solver_multibranch` | ~400 | — | 1 | ✅ solver_multibranch.c |
 
 ## 已识别的重复代码（拆分后需消除）
 
