@@ -1,8 +1,21 @@
 /**
  * @file quadratic.c
- * @brief Quadratic 二次根式类型
+ * @brief Quadratic 二次根式类型（a + b√n 形式）
  *
- * @details 拆分子模块（Lv-00 v3.3.0+）。
+ * @details 表示形如 a + b√n 的二次无理数，其中 a,b∈Q, n∈Z⁺ 无平方因子。
+ *          核心操作：
+ *          - quadratic_create / quadratic_destroy: 生命周期管理
+ *          - quadratic_add / quadratic_mul: 加法与乘法
+ *            （保持结果在 a + b√n 的闭包内）
+ *          - quadratic_compare: 通过平方比较（消除根号项）
+ *          - quadratic_to_double / quadratic_serialize: 数值转换与序列化
+ *
+ *          乘法闭包性质：若 a,b,c,d∈Q，则
+ *          (a + b√n) * (c + d√n) = (ac + bdn) + (ad + bc)√n ∈ Q(√n)
+ *          因此任意有限次加减乘除仍属于 Q(√n)。
+ *
+ *          约化策略：结果中的 b 部分为 0 时自动降级为 RATIONAL 类型。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

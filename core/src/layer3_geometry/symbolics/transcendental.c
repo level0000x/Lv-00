@@ -1,8 +1,23 @@
 /**
  * @file transcendental.c
- * @brief Transcendental 超越数类型
+ * @brief Transcendental 超越数类型（π, e, 及其有理倍）
  *
- * @details 拆分子模块（Lv-00 v3.3.0+）。
+ * @details 支持超越常数 π 和 e 及其有理倍数形式 (k*T)/m。
+ *          核心操作：
+ *          - transcendental_create("pi"/"e"/"pi/2"/"pi/4" 等): 按名称创建
+ *          - transcendental_evaluate: 获取 double 近似值
+ *          - transcendental_compare: 通过有理倍数比较（相同类型时精确）
+ *          - transcendental_serialize: 序列化为人类可读名称
+ *
+ *          支持的表达式格式：
+ *          - 基础常量：pi, e
+ *          - 有理倍数：pi/2, pi/3, pi/4, pi/6, 3*pi/4, 5*pi/6, 2*pi/3
+ *          - 负数形式：-pi/2, -pi/4 等
+ *
+ *          注意：不同超越常数的加减法不可合并（如 π + e 无法进一步简化）。
+ *          此类操作返回的结果标记为 TRANSCENDENTAL 类型，但内部表达式仅
+ *          包含系数信息，不存储真实的复合表达式树。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file mpz_poly_resultant.c
  * @brief 多精度多项式结式计算
  *
@@ -187,8 +187,10 @@ static void mpz_matrix_init(MPZMatrix *m, int rows, int cols) {
  * @param m 矩阵指针
  */
 static void mpz_matrix_clear(MPZMatrix *m) {
-    int total = m->rows * m->cols;
-    for (int i = 0; i < total; i++) {
+    if (!m || !m->data) return;
+    /* 使用 size_t 避免 rows*cols 超过 INT_MAX 时溢出 */
+    size_t total = (size_t)m->rows * (size_t)m->cols;
+    for (size_t i = 0; i < total; i++) {
         mpz_clear(m->data[i]);
     }
     lv_free((void**)&m->data);

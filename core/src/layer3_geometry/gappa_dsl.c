@@ -1,6 +1,21 @@
-﻿/**
+/**
  * @file gappa_dsl.c
- * @brief Gappa DSL parsing and proof generation (stub implementations)
+ * @brief Gappa DSL 解析与浮点误差证明生成
+ *
+ * @details Gappa 是 INRIA 开发的浮点程序验证工具。本模块实现：
+ *          - Gappa DSL 词法分析器：识别逻辑连接词（/\\, \\/）、
+ *            实数常量、标识符、括号嵌套
+ *          - 谓词解析：将输入分解为 hypothesis → goal 结构
+ *          - 证明树生成：基于模式匹配的误差传播规则
+ *          - 表达式求值：在符号上下文中进行区间求值
+ *
+ *          当前实现为桩（stub）级别：支持完整的词法与语法解析，
+ *          但证明树生成仅包含基础的模式匹配框架。
+ *          完整的浮点误差传播规则（舍入模型、Taylor 展开）待实现。
+ *
+ * @author Lv-00 Project
+ * @version 3.3.0
+ * @date 2026-05-24
  */
 
 #include "lv/gappa_dsl.h"

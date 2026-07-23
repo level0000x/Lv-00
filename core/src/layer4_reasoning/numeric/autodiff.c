@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file autodiff.c
  * @brief Implementation of the automatic differentiation engine.
  *
@@ -159,15 +159,24 @@ static ForwardResult forward_eval(const lvADExpr *expr, int var_index,
             ForwardResult base = forward_eval(expr->children[0], var_index, var_value);
             ForwardResult exp = forward_eval(expr->children[1], var_index, var_value);
             result.value = pow(base.value, exp.value);
-            /* d/dx (f^g) = f^g * (g' * ln(f) + g * f'/f) */
+            /* d/dx (f^g) = f^g * (g' * ln(f) + g * f'/f)
+             *
+             * When base > 0, the general formula applies.
+             * When base <= 0, the function x^y is only real-differentiable if
+             * the exponent is constant (exp.tangent == 0); otherwise the
+             * derivative is ill-defined in the real domain. */
             if (base.value > 0.0) {
                 result.tangent = result.value * (
                     exp.tangent * log(base.value) +
                     exp.value * base.tangent / base.value
                 );
-            } else {
-                /* For base <= 0, use simpler formula when exponent is constant */
+            } else if (fabs(exp.tangent) < 1e-15) {
+                /* Exponent is effectively constant: d/dx (base^n) = n * base^(n-1) * dbase/dx */
                 result.tangent = exp.value * pow(base.value, exp.value - 1.0) * base.tangent;
+            } else {
+                /* Base <= 0 with varying exponent: derivative undefined in reals.
+                 * Return 0 to indicate non-differentiability. */
+                result.tangent = 0.0;
             }
             break;
         }
@@ -483,6 +492,42 @@ bool ad_forward_diff(lvADExpr *expr, int var_index,
     return true;
 }
 
+/**
+ * @brief Recursively collect gradients from VAR nodes into the output array.
+ *
+ * Each VAR node's gradient field was accumulated during the backward pass.
+ * Multiple nodes can reference the same var_index (e.g., x appears in both
+ * children of x*x), so we sum their gradients into the output array.
+ *
+ * IMPORTANT: The expression graph is a DAG, not a tree — children may be
+ * shared (e.g., x*x has the same VAR node as both children of MUL).
+ * The backward pass already accumulated the correct total gradient on the
+ * shared node. We must deduplicate sibling pointers to avoid adding the
+ * same gradient multiple times.
+ */
+static void collect_gradients(const lvADExpr *expr, double *gradients, size_t var_count) {
+    if (!expr) return;
+
+    if (expr->kind == AD_VAR && expr->var_index >= 0 && (size_t)expr->var_index < var_count) {
+        gradients[expr->var_index] += expr->gradient;
+    }
+
+    /* Deduplicate children: skip children that share a pointer with an
+     * earlier sibling, preventing double-counting of shared subgraphs. */
+    for (size_t i = 0; i < expr->child_count; i++) {
+        bool already_visited = false;
+        for (size_t j = 0; j < i; j++) {
+            if (expr->children[j] == expr->children[i]) {
+                already_visited = true;
+                break;
+            }
+        }
+        if (!already_visited) {
+            collect_gradients(expr->children[i], gradients, var_count);
+        }
+    }
+}
+
 bool ad_reverse_diff(lvADExpr *expr,
     const double *var_values, size_t var_count,
     double *value, double *gradients) {
@@ -500,41 +545,9 @@ bool ad_reverse_diff(lvADExpr *expr,
     /* Backward pass: propagate gradients from output (adjoint = 1.0) */
     reverse_backward_pass(expr, 1.0);
 
-    /* Extract gradients for each variable */
-    for (size_t i = 0; i < var_count; i++) {
-        gradients[i] = 0.0;
-    }
-
-    /* Walk the tree to find variable nodes and collect their gradients */
-    /* We use a recursive helper to find all VAR nodes */
-    /* For simplicity, we do a tree walk */
-    (void)var_count; /* var_count is used via the loop above */
-
-    /* Collect gradients from all variable nodes in the tree */
-    /* We need a helper that traverses and collects */
-    /* Since gradients are accumulated on the VAR nodes directly,
-     * we need to walk the tree to find them. But the caller provides
-     * gradients indexed by var_index. So we walk the tree. */
-
-    /* Actually, let's do a proper tree walk to collect gradients */
-    /* We'll use a simple recursive approach */
+    /* Collect accumulated gradients from VAR nodes into the output array */
     memset(gradients, 0, var_count * sizeof(double));
-
-    /* Recursive gradient collection */
-    /* Stack-based traversal to avoid deep recursion */
-    /* For simplicity, use recursion */
-    /* We define a local recursive function via a helper */
-
-    /* The gradients are already accumulated on the VAR nodes during
-     * reverse_backward_pass. We just need to collect them. */
-
-    /* Use a simple recursive collector */
-    /* Since we can't define nested functions in C, we use a traversal
-     * that checks each node */
-
-    /* Actually, the simplest approach: walk the tree, find VAR nodes,
-     * read their gradient field */
-    /* We implement this with a separate traversal */
+    collect_gradients(expr, gradients, var_count);
 
     return true;
 }
@@ -553,15 +566,32 @@ bool ad_eval(lvADExpr *expr,
 double ad_grad(lvADExpr *expr, int var_index) {
     if (!expr) return 0.0;
 
-    /* Walk the tree to find the variable node with the given index */
+    /* Sum gradients across all occurrences of var_index in the DAG.
+     * A variable may appear multiple times (e.g., x in x*x), and each
+     * occurrence accumulates its own gradient contribution.
+     *
+     * IMPORTANT: The expression graph is a DAG with shared children.
+     * We must skip duplicate sibling pointers to avoid double-counting
+     * the gradient of a shared node. */
+    double total = 0.0;
+
     if (expr->kind == AD_VAR && expr->var_index == var_index) {
-        return expr->gradient;
+        total += expr->gradient;
     }
 
     for (size_t i = 0; i < expr->child_count; i++) {
-        double g = ad_grad(expr->children[i], var_index);
-        if (g != 0.0) return g;
+        /* Skip if this child's pointer matches an earlier sibling */
+        bool already_visited = false;
+        for (size_t j = 0; j < i; j++) {
+            if (expr->children[j] == expr->children[i]) {
+                already_visited = true;
+                break;
+            }
+        }
+        if (!already_visited) {
+            total += ad_grad(expr->children[i], var_index);
+        }
     }
 
-    return 0.0;
+    return total;
 }

@@ -1,8 +1,19 @@
 /**
  * @file graph_memory.c
- * @brief ConstraintGraph 内存管理
+ * @brief ConstraintGraph 内存管理与资源释放
  *
- * @details 拆分子模块（Lv-00 v3.3.0+）。
+ * @details 实现约束图的创建、销毁及内存生命周期管理：
+ *          - graph_create: 分配并初始化空的约束图结构
+ *            （包括节点数组、约束数组、序列化缓冲区和哈希索引）
+ *          - graph_destroy: 级联销毁所有子资源
+ *            销毁顺序：节点 → 约束参与者数组 → 约束数组 → 哈希索引 → 图本身
+ *          - graph_clear: 清空所有节点和约束（保留图结构，可重用）
+ *          - node_destroy: 单节点析构（释放符号坐标数组和属性字符串）
+ *
+ *          类型层级管理（GraphKind）：
+ *          - FLAT / HIERARCHICAL / PARAMETRIC 三种图类型
+ *          - 影响节点类型兼容性检查和约束验证逻辑
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

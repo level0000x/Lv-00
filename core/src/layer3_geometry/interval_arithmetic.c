@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interval_arithmetic.c
  * @brief Implementation of unified interval arithmetic for Lv-00
  *
@@ -16,6 +16,7 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,20 +28,38 @@
 /**
  * @brief Round a double downward (toward -infinity) to ensure containment.
  *
- * In a rigorous implementation, this would use nextafter() to round
- * outward. For the basic double implementation, we rely on the fact
- * that IEEE 754 arithmetic is correctly rounded.
+ * For rigorous interval arithmetic, outward rounding is essential to
+ * guarantee that the true mathematical result lies within the computed
+ * interval. nextafter(x, -INFINITY) returns the next representable
+ * double value less than x, providing a strict lower bound.
+ *
+ * For infinity/NaN inputs, returns the input unchanged.
+ *
+ * @param x  The value to round downward
+ * @return   The next representable double less than or equal to x
  */
 static double round_down(double x) {
-    (void)x;
-    return x; /* In double mode, direct computation is already correctly rounded */
+    if (isfinite(x)) {
+        return nextafter(x, -INFINITY);
+    }
+    return x;
 }
 
 /**
  * @brief Round a double upward (toward +infinity) to ensure containment.
+ *
+ * Symmetric to round_down. nextafter(x, INFINITY) returns the next
+ * representable double value greater than x, providing a strict upper bound.
+ *
+ * For infinity/NaN inputs, returns the input unchanged.
+ *
+ * @param x  The value to round upward
+ * @return   The next representable double greater than or equal to x
  */
 static double round_up(double x) {
-    (void)x;
+    if (isfinite(x)) {
+        return nextafter(x, INFINITY);
+    }
     return x;
 }
 

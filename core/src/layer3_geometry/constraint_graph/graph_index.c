@@ -1,8 +1,17 @@
 /**
  * @file graph_index.c
- * @brief GIndex 空间索引
+ * @brief GIndex 空间索引与哈希查找实现
  *
- * @details 拆分子模块（Lv-00 v3.3.0+）。
+ * @details 实现约束图的多维度索引系统：
+ *          - 节点哈希索引：O(1) 按 node_id 查找 GeomNode
+ *          - 约束哈希索引：O(1) 按 constraint_id 查找 Constraint
+ *          - 邻接矩阵：节点 → 关联约束列表的快速遍历
+ *          - 函数块边界验证：检查跨命名空间约束引用的合法性
+ *          - 增量冲突检查：新约束添加时的实时冲突检测
+ *
+ *          哈希策略采用开放地址法的线性探测（linear probing），
+ *          capacity 按 2 的幂扩容以优化取模运算。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

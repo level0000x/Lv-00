@@ -1,8 +1,17 @@
 /**
  * @file graph_serialize.c
- * @brief JSON 序列化/反序列化
+ * @brief ConstraintGraph JSON 序列化与反序列化
  *
- * @details 拆分子模块（Lv-00 v3.3.0+）。
+ * @details 实现约束图的持久化读写：
+ *          - graph_serialize_json: 图 → JSON 字符串
+ *            包含节点（类型、坐标、属性）和约束（类型、参与者）的完整导出
+ *          - graph_deserialize_json: JSON 字符串 → 图
+ *            重建节点、坐标（RATIONAL/QUADRATIC/ALGEBRAIC）、约束及邻接关系
+ *          - graph_clone: 深拷贝整个约束图（委托序列化/反序列化）
+ *          - 线段相交检测（segments_intersect）：用于区域闭合性验证
+ *
+ *          JSON 模式兼容前端 UI 编辑器，支持 .lvmod 和 .lvax 文件格式。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

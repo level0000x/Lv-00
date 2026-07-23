@@ -1,8 +1,27 @@
 /**
  * @file mv_polynomial.c
- * @brief 多变量多项式实现 — 从 solver.c 拆分
+ * @brief 多变量多项式（稀疏多元形式）实现
  *
- * 原位置: solver.c L4703-L4950
+ * @details 支持任意数量变量的稀疏多项式表示与操作。
+ *          每个多项式由一组 MVTerm 构成，每个项包含：
+ *          - GMP 大整数系数（mpz_t）
+ *          - 各变量的指数数组（int *exponents，长度为 var_count）
+ *
+ *          主要操作：
+ *          - mv_poly_init / mv_poly_clear: 生命周期管理
+ *          - mv_poly_add_term: 添加项（同类项自动合并系数）
+ *          - mv_poly_copy / mv_poly_negate: 拷贝与取反
+ *          - mv_poly_add / mv_poly_sub / mv_poly_mul: 算术运算
+ *          - mv_poly_eval: 在指定点求值
+ *
+ *          存储采用动态数组，初始容量 lv_SOLVER_DYNARRAY_INIT_CAP (16)，
+ *          扩容因子 lv_ARRAY_GROWTH_FACTOR (2)。
+ *
+ *          原位置: solver.c L4703-L4950，于 v3.3.0 拆分为独立模块。
+ *
+ * @author Lv-00 Project
+ * @version 3.3.0
+ * @date 2026-05-24
  */
 
 #include "../mv_polynomial.h"

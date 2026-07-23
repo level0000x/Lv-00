@@ -1,8 +1,18 @@
 /**
  * @file algebraic.c
- * @brief Algebraic 代数数类型
+ * @brief Algebraic 代数数类型（最小多项式 + 隔离区间）
  *
- * @details 拆分子模块（Lv-00 v3.3.0+）。
+ * @details 代数数 α 由其最小多项式 p(x)∈Z[x] 和包含唯一实根
+ *          的隔离区间 [lo, hi] 唯一确定。核心操作：
+ *          - algebraic_create / algebraic_destroy: 生命周期管理
+ *          - algebraic_add / algebraic_mul: 代数数的和与积
+ *            （通过结式 resultant 计算结果的最小多项式）
+ *          - algebraic_to_double: Newton-Raphson 迭代求近似值
+ *          - algebraic_serialize: 序列化为人类可读形式
+ *
+ *          结式计算委托给 mpz_poly_resultant（Sylvester 矩阵方法）。
+ *          隔离区间通过 Sturm 定理或二分法确定。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

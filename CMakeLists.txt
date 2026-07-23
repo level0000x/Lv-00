@@ -1227,8 +1227,7 @@ if(BUILD_TESTS)
         test/c/test_proof.c proof_test)
     add_lv_test_and_register(test_axiom_pkg
         test/c/test_axiom_pkg.c axiom_pkg_test)
-    # test_template_test disabled: pre-existing heap corruption in test_runner_high_level
-    # (graph_destroy NULL protection fix applied regardless)
+    # TODO: test_template_test allocator混用已修复，但预存堆损坏需进一步诊断
     # add_lv_test_and_register(test_template_test
     #     test/c/test_template_test.c template_test_test)
     add_lv_test_and_register(test_module

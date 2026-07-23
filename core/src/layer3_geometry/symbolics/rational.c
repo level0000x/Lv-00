@@ -1,8 +1,17 @@
 /**
  * @file rational.c
- * @brief Rational 有理数类型
+ * @brief Rational 有理数类型（GMP mpq_t 封装层）
  *
- * @details 拆分子模块（Lv-00 v3.3.0+）。
+ * @details 基于 GMP 有理数实现精确分数表示 a/b（a∈Z, b∈Z⁺）。
+ *          核心数据结构 Rational 封装 mpq_t，提供：
+ *          - rational_create / rational_destroy: 生命周期管理
+ *          - rational_add / rational_sub / rational_mul / rational_div: 四则运算
+ *          - rational_compare / rational_is_zero: 比较与判零
+ *          - rational_to_double / rational_serialize: 数值转换与序列化
+ *
+ *          所有运算均在创建时自动约分（mpq_canonicalize），
+ *          保证内部表示始终为最简分数形式。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

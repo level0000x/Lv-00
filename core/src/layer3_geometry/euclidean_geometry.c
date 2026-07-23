@@ -1296,7 +1296,11 @@ static bool symbolic_check_between(SymbolicCoord *ax, SymbolicCoord *ay,
         *out_ratio = ab / ac;
     }
 
-    return fabs(ab + bc - ac) < EUCLID_COLLINEARITY_EPSILON;
+    /* 使用相对容差判断 |AB| + |BC| == |AC|：
+     * 对于大坐标值，sqrt 的浮点误差可能超过绝对容差。
+     * 除以 ac（= max(ab, bc, ac) 当 B 在 A、C 之间）得到相对误差。 */
+    double rel_tol = fmax(EUCLID_COLLINEARITY_EPSILON, ac * EUCLID_COLLINEARITY_EPSILON);
+    return fabs(ab + bc - ac) <= rel_tol;
 }
 
 /**

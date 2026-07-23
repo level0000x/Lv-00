@@ -77,9 +77,9 @@ static ConstraintTemplate *create_and_register_template(
     int param_count,
     void (*expand)(SymbolicCoord **, ConstraintGraph *))
 {
-    ConstraintTemplate *tmpl = (ConstraintTemplate *)malloc(sizeof(ConstraintTemplate));
+    ConstraintTemplate *tmpl = lv_calloc(1, sizeof(ConstraintTemplate));
     assert(tmpl != NULL);
-    tmpl->name = strdup(name);
+    tmpl->name = lv_strdup_safe(name);
     tmpl->param_count = param_count;
     tmpl->expand = expand;
     tmpl->verified = true;
@@ -94,7 +94,8 @@ static ConstraintTemplate *create_and_register_template(
     assert(ok);
 
     /* 注册后释放包装内存（包内已深拷贝 name；params 被置 NULL 由包管理） */
-    free(tmpl);
+    lv_free((void **)&tmpl->name);
+    lv_free((void **)&tmpl);
     return NULL;
 }
 
@@ -305,9 +306,9 @@ static int test_normal_form_verification(void) {
     assert(pkg != NULL);
 
     /* 创建模板并设置 normal_form */
-    ConstraintTemplate *tmpl = (ConstraintTemplate *)malloc(sizeof(ConstraintTemplate));
+    ConstraintTemplate *tmpl = lv_calloc(1, sizeof(ConstraintTemplate));
     assert(tmpl != NULL);
-    tmpl->name = strdup("NormTpl");
+    tmpl->name = lv_strdup_safe("NormTpl");
     tmpl->param_count = 2;
     tmpl->expand = expand_basic;
     tmpl->verified = true;
@@ -323,7 +324,8 @@ static int test_normal_form_verification(void) {
 
     bool ok = axiom_package_register_template(pkg, tmpl);
     assert(ok);
-    free(tmpl);
+    lv_free((void **)&tmpl->name);
+    lv_free((void **)&tmpl);
 
     /* 验证正则形式 */
     bool verified = axiom_template_verify_normal_form(pkg, "NormTpl");
@@ -428,9 +430,9 @@ static int test_edge_cases(void) {
     printf("  result_destroy(NULL) → 无崩溃\n");
 
     /* --- 测试7：模板无 expand 函数 --- */
-    ConstraintTemplate *no_expand_tmpl = (ConstraintTemplate *)malloc(sizeof(ConstraintTemplate));
+    ConstraintTemplate *no_expand_tmpl = lv_calloc(1, sizeof(ConstraintTemplate));
     assert(no_expand_tmpl != NULL);
-    no_expand_tmpl->name = strdup("NoExpandTpl");
+    no_expand_tmpl->name = lv_strdup_safe("NoExpandTpl");
     no_expand_tmpl->param_count = 1;
     no_expand_tmpl->expand = NULL;
     no_expand_tmpl->verified = false;
@@ -442,7 +444,8 @@ static int test_edge_cases(void) {
     no_expand_tmpl->compressed_subgraph = NULL;
     ok = axiom_package_register_template(pkg, no_expand_tmpl);
     assert(ok);
-    free(no_expand_tmpl);
+    lv_free((void **)&no_expand_tmpl->name);
+    lv_free((void **)&no_expand_tmpl);
 
     TemplateTestCase *tc3 = axiom_template_test_case_create("NoExpandTpl", TEST_CASE_FACTORY, 1, true);
     assert(tc3 != NULL);
@@ -471,8 +474,7 @@ int main(void) {
 
     test_case_lifecycle();
     test_runner_basic();
-    /* test_runner_high_level 因内存管理模式复杂问题暂不启用 */
-    /* 基础测试（test_runner_basic）和边界测试（test_edge_cases）已覆盖核心功能 */
+    /* TODO: test_runner_high_level 堆损坏根因在 axiom_template_run_tests 内部 */
     test_normal_form_verification();
     test_edge_cases();
 

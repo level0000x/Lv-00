@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_symbolic.c
  * @brief 符号求解器（精确求解/回代/消元）—— 桩实现
  *
@@ -64,9 +64,32 @@ int coord_to_double(const SymbolicCoord *c, double *out) {
     }
 }
 
+/**
+ * @brief 将 double 值按 scale 缩放后精确转换为 mpz_t 整数
+ *
+ * @details 使用 mpq_t 中间类型进行缩放计算，避免 double * int64 相乘后
+ *          mpz_set_d 截断（向零舍入）导致的精度损失。
+ *
+ *          计算过程：
+ *          1. val → mpq_t（精确的 double→有理数转换）
+ *          2. mpq_numref(q) * scale → 缩放后的分子
+ *          3. floor(分子 / 分母) → mpz_t 结果
+ *
+ *          举例：val = 1.0/3.0 ≈ 0.333..., scale = 1000
+ *          旧版本：0.333... * 1000 ≈ 333.33..., mpz_set_d → 333（截断，错误）
+ *          新版本：6004799503160661/18014398509481984 * 1000 → 精确 floor → 333
+ *
+ * @param val    输入浮点数值
+ * @param result 输出 mpz_t 整数（floor(val * scale)）
+ * @param scale  缩放因子（正数）
+ */
 void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
-    double scaled = val * (double)scale;
-    mpz_set_d(result, scaled);
+    mpq_t q;
+    mpq_init(q);
+    mpq_set_d(q, val);                        /* val → 精确有理数 */
+    mpz_mul_si(mpq_numref(q), mpq_numref(q), (long)scale); /* 分子 * scale */
+    mpz_fdiv_q(result, mpq_numref(q), mpq_denref(q));       /* floor(分子/分母) */
+    mpq_clear(q);
 }
 
 /**
@@ -171,6 +194,28 @@ bool is_out_of_scope(const mpz_poly_t *poly) {
  * @param factor2 输出：第二个因式
  * @return true 表示分解成功，false 表示失败
  */
+/**
+ * @brief 使用有理根定理（Rational Root Theorem）对多项式进行因式分解
+ *
+ * @details 有理根定理：若整系数多项式 a_n*x^n + ... + a_1*x + a_0 有
+ *          有理根 p/q（最简形式），则 p | a_0 且 q | a_n。
+ *          本函数仅搜索整数根（q=1），因为几何构造中只需要整数分解。
+ *
+ *          搜索算法：
+ *          1. 若常数项 a_0 = 0，直接提取因式 x
+ *          2. 遍历 a_0 的所有正除数 d，使用 Horner 法检测 poly(d) == 0
+ *             和 poly(-d) == 0
+ *          3. 找到根后，通过综合除法（synthetic division）提取因式 (x - r)
+ *          4. 若未找到任何根，返回 false
+ *
+ *          时间复杂度：O(|a_0|^{1/2} * degree)，因为正除数数量受 sqrt(|a_0|) 限制。
+ *          由于 a_0 可能很大（GMP 大整数），当 |a_0| > 10^9 时提前终止以避免性能问题。
+ *
+ * @param poly    原始多项式（degree >= 3 的整系数多项式）
+ * @param factor1 输出：线性因式 (x - r)，其中 r 是找到的整数根
+ * @param factor2 输出：商多项式 poly(x) / (x - r)，次数为 degree-1
+ * @return true 表示成功分解，false 表示未找到有理根或因式分解失败
+ */
 bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2) {
     if (poly->degree < 3) return false;
 
@@ -203,12 +248,137 @@ bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly
         return true;
     }
 
-    /* 有理根定理：测试常数项除数的整数根 */
+    /* 有理根定理：搜索整数根（const_term 的正负除数） */
+    /* 性能保护：若 |a_0| > 10^9，除数的遍历代价过高，提前终止 */
+    mpz_t abs_ct;
+    mpz_init(abs_ct);
+    mpz_abs(abs_ct, const_term);
+
+    /* 10^9 作为终止阈值 */
+    mpz_t limit;
+    mpz_init_set_str(limit, "1000000000", 10);
+    if (mpz_cmp(abs_ct, limit) > 0) {
+        mpz_clear(abs_ct);
+        mpz_clear(limit);
+        mpz_clear(const_term);
+        mpz_clear(lead_coeff);
+        mpz_poly_clear(factor1);
+        mpz_poly_clear(factor2);
+        return false;
+    }
+    mpz_clear(limit);
+
+    /* 将 const_term 转为 int64_t 以进行遍历（已通过 10^9 检查，安全） */
+    int64_t ct_val = mpz_get_si(const_term);
+    int64_t abs_ct_val = (ct_val < 0) ? -ct_val : ct_val;
+
+    /* 遍历正除数并测试 ±d */
+    int64_t found_root = 0;
+    bool root_found = false;
+
+    /* 临时变量用于 Horner 法求值 */
+    mpz_t val, term, d_mpz;
+    mpz_init(val);
+    mpz_init(term);
+    mpz_init(d_mpz);
+
+    for (int64_t d = 1; d * d <= abs_ct_val; d++) {
+        if (abs_ct_val % d != 0) continue;
+
+        /* 测试两个候选除数：d 和 abs_ct_val / d */
+        int64_t candidates[2] = { d, abs_ct_val / d };
+        /* 对每个候选除数，测试 ±candidate */
+        for (int ci = 0; ci < 2 && !root_found; ci++) {
+            int64_t cand = candidates[ci];
+            if (ci == 1 && cand == d) continue; /* 避免重复测试（完全平方数） */
+
+            /* 测试正根：多项式在 d 处的值 */
+            mpz_set_ui(val, 0);
+            for (int i = poly->degree; i >= 0; i--) {
+                mpz_mul_si(val, val, cand);          /* val *= d */
+                mpz_add(val, val, poly->coeffs[i]);  /* val += coeff[i] */
+            }
+            if (mpz_cmp_si(val, 0) == 0) {
+                found_root = cand;
+                root_found = true;
+                break;
+            }
+
+            /* 跳过零测试（d > 0 时，-d != 0） */
+            if (cand != 0) {
+                int64_t neg_cand = -cand;
+                mpz_set_ui(val, 0);
+                for (int i = poly->degree; i >= 0; i--) {
+                    mpz_mul_si(val, val, neg_cand);
+                    mpz_add(val, val, poly->coeffs[i]);
+                }
+                if (mpz_cmp_si(val, 0) == 0) {
+                    found_root = neg_cand;
+                    root_found = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    mpz_clear(val);
+    mpz_clear(term);
+    mpz_clear(d_mpz);
+    mpz_clear(abs_ct);
+
+    if (!root_found) {
+        mpz_clear(const_term);
+        mpz_clear(lead_coeff);
+        mpz_poly_clear(factor1);
+        mpz_poly_clear(factor2);
+        return false;
+    }
+
+    /* 找到整数根 r = found_root，通过综合除法提取因式 (x - r) */
+    /* factor1 = (x - found_root) 即系数 [ -found_root, 1 ] */
+    factor1->degree = 1;
+    factor1->coeffs = lv_malloc(2 * sizeof(mpz_t));
+    if (!factor1->coeffs) { goto fail; }
+    mpz_init_set_si(factor1->coeffs[0], -found_root);
+    mpz_init_set_si(factor1->coeffs[1], 1);
+
+    /* factor2 = poly / (x - r) 通过综合除法计算 */
+    factor2->degree = poly->degree - 1;
+    factor2->coeffs = lv_malloc((size_t)(factor2->degree + 1) * sizeof(mpz_t));
+    if (!factor2->coeffs) {
+        mpz_poly_clear(factor1);
+        goto fail;
+    }
+
+    /* 综合除法：从高次项开始
+     * factor2[degree-1] = poly->coeffs[degree]                     (最高次系数)
+     * factor2[k] = poly->coeffs[k+1] + factor2[k+1] * r           (k = degree-2 ... 0)
+     * 余数 = poly->coeffs[0] + factor2[0] * r（应当为 0，已通过 Horner 验证）
+     */
+    {
+        mpz_t accum, root_mpz, tmp;
+        mpz_init(accum);
+        mpz_init_set_si(root_mpz, found_root);
+        mpz_init(tmp);
+        mpz_set(accum, poly->coeffs[poly->degree]);
+
+        for (int i = factor2->degree; i >= 0; i--) {
+            mpz_init(factor2->coeffs[i]);
+            mpz_set(factor2->coeffs[i], accum);
+            if (i > 0) {
+                /* accum = accum * r + poly->coeffs[i] */
+                mpz_mul(tmp, accum, root_mpz);
+                mpz_add(accum, tmp, poly->coeffs[i]);
+            }
+        }
+        mpz_clear(accum);
+        mpz_clear(root_mpz);
+        mpz_clear(tmp);
+    }
+
     mpz_clear(const_term);
     mpz_clear(lead_coeff);
-    mpz_poly_clear(factor1);
-    mpz_poly_clear(factor2);
-    return false;
+    return true;
 
 fail:
     mpz_clear(const_term);

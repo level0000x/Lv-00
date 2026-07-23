@@ -118,7 +118,8 @@ lvRational *lv_rational_create_from_i64(int64_t num, uint64_t den) {
     mpz_set_str(r->num, num_str, 10);
 
     char den_str[32];
-    snprintf(den_str, sizeof(den_str), "%lld", (long long)den);
+    /* den 为 uint64_t，使用 %llu 避免大值输出为负数的符号错误 */
+    snprintf(den_str, sizeof(den_str), "%llu", (unsigned long long)den);
     mpz_set_str(r->den, den_str, 10);
 
     lv_rational_simplify(r);

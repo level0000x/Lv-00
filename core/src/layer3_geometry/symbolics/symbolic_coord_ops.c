@@ -1,8 +1,29 @@
 /**
  * @file symbolic_coord_ops.c
- * @brief SymbolicCoord 基础操作
+ * @brief SymbolicCoord 四类型算术运算与比较操作
  *
- * @details 拆分子模块（Lv-00 v3.3.0+）。
+ * @details 实现 RATIONAL / QUADRATIC / ALGEBRAIC / TRANSCENDENTAL
+ *          四种符号坐标类型间的混合运算与比较。核心操作：
+ *
+ *          算术：
+ *          - symbolic_coord_add / sub / mul / div: 类型分派加法/减法/乘法/除法
+ *          - symbolic_coord_pow: 正整数幂（快速幂算法）
+ *          - symbolic_coord_negate / abs / reciprocal: 取负/绝对值/倒数
+ *
+ *          比较：
+ *          - symbolic_coord_compare: 全序比较（-1/0/1）
+ *          - symbolic_coord_approx_eq: 近似相等（容差 lv_EPSILON_DOUBLE）
+ *
+ *          类型提升规则（结果类型选择）：
+ *          RATIONAL * RATIONAL → RATIONAL（若分母不溢出）
+ *          RATIONAL * QUADRATIC → QUADRATIC
+ *          RATIONAL * ALGEBRAIC → ALGEBRAIC
+ *          任何类型 * TRANSCENDENTAL → TRANSCENDENTAL
+ *          QUADRATIC ± QUADRATIC → QUADRATIC（√n 相同则合并，否则回退为 double）
+ *
+ *          位电路熔断：当位宽超过 BIT_CUTOFF_THRESHOLD 时触发熔断信号，
+ *          交由 overflow_context 处理（忽略/回滚/降级）。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */
@@ -779,12 +800,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                 result->data.rational = r;
                 result->trust = (a->trust < b->trust) ? a->trust : b->trust;
 
-                /* Check for overflow */
-                if (check_digit_circuit(result) == CIRCUIT_STATUS_TRIPPED) {
-                    g_overflow_context.last_result = result;
-                    circuit_handle_overflow();
-                }
-                /* 位数熔断检查 */
+                /* 位数熔断检查（含溢出检测 + 信任降级） */
                 bit_burning_check_result(result, "add");
                 return result;
             }
@@ -1078,11 +1094,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                 result->data.rational = r;
                 result->trust = (a->trust < b->trust) ? a->trust : b->trust;
 
-                if (check_digit_circuit(result) == CIRCUIT_STATUS_TRIPPED) {
-                    g_overflow_context.last_result = result;
-                    circuit_handle_overflow();
-                }
-                /* 位数熔断检查 */
+                /* 位数熔断检查（含溢出检测 + 信任降级） */
                 bit_burning_check_result(result, "subtract");
                 return result;
             }
@@ -1305,11 +1317,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
                 result->data.rational = r;
                 result->trust = (a->trust < b->trust) ? a->trust : b->trust;
 
-                if (check_digit_circuit(result) == CIRCUIT_STATUS_TRIPPED) {
-                    g_overflow_context.last_result = result;
-                    circuit_handle_overflow();
-                }
-                /* 位数熔断检查 */
+                /* 位数熔断检查（含溢出检测 + 信任降级） */
                 bit_burning_check_result(result, "multiply");
                 return result;
             }
@@ -1592,11 +1600,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                 result->data.rational = r;
                 result->trust = (a->trust < b->trust) ? a->trust : b->trust;
 
-                if (check_digit_circuit(result) == CIRCUIT_STATUS_TRIPPED) {
-                    g_overflow_context.last_result = result;
-                    circuit_handle_overflow();
-                }
-                /* 位数熔断检查 */
+                /* 位数熔断检查（含溢出检测 + 信任降级） */
                 bit_burning_check_result(result, "divide");
                 return result;
             }

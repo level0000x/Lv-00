@@ -345,26 +345,27 @@ lvTransform *lv_transform_reflection(const mpq_t ax, const mpq_t ay,
         mpq_sub(t->matrix.d, a2, b2);
         mpq_div(t->matrix.d, t->matrix.d, denom);
 
-        /* 计算平移分量 */
-        mpq_t two_c;
-        mpq_init(two_c);
-        mpq_mul_by_ui(two_c, t->params.params.reflection.line_c, 2);
-
-        mpq_mul(t->matrix.tx, t->matrix.b, t->params.params.reflection.line_c);
-        mpq_mul(temp, t->matrix.a, t->params.params.reflection.line_c);
-        mpq_add(t->matrix.tx, t->matrix.tx, temp);
-        mpq_neg(t->matrix.tx, t->matrix.tx);
+        /* 计算平移分量 tx = -2*a*c / (a²+b²), ty = -2*b*c / (a²+b²)
+         *
+         * 反射变换公式（关于直线 ax+by+c=0）：
+         *   [a'] = [(b²-a²)/(a²+b²)  -2ab/(a²+b²)  ]
+         *   [b']   [-2ab/(a²+b²)     (a²-b²)/(a²+b²)]
+         *   tx = -2ac/(a²+b²),  ty = -2bc/(a²+b²)
+         *
+         * 注意：matrix.a/b/c/d 已经在前面除以 denom 归一化，
+         * 因此不能再用 matrix 元素来组装平移分量。
+         */
+        mpq_mul(t->matrix.tx, t->params.params.reflection.line_a,
+                t->params.params.reflection.line_c);
         mpq_mul_by_ui(t->matrix.tx, t->matrix.tx, 2);
+        mpq_neg(t->matrix.tx, t->matrix.tx);
         mpq_div(t->matrix.tx, t->matrix.tx, denom);
 
-        mpq_mul(t->matrix.ty, t->matrix.d, t->params.params.reflection.line_c);
-        mpq_mul(temp, t->matrix.c, t->params.params.reflection.line_c);
-        mpq_add(t->matrix.ty, t->matrix.ty, temp);
-        mpq_neg(t->matrix.ty, t->matrix.ty);
+        mpq_mul(t->matrix.ty, t->params.params.reflection.line_b,
+                t->params.params.reflection.line_c);
         mpq_mul_by_ui(t->matrix.ty, t->matrix.ty, 2);
+        mpq_neg(t->matrix.ty, t->matrix.ty);
         mpq_div(t->matrix.ty, t->matrix.ty, denom);
-
-        mpq_clear(two_c);
     }
 
     mpq_clear(dx);

@@ -1194,8 +1194,8 @@ lv_PUBLIC_API lvSolveResult lv_solver_solve(lvSolverSystem *sys)
         if (free_count < MAX_PARAMS) {
             free_entities[free_count] = i;
             free_count++;
+            total_params += sys->entities[i].param_count;
         }
-        total_params += sys->entities[i].param_count;
     }
 
     if (total_params == 0) {

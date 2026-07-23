@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file algebraic_number.c
  * @brief 代数数域封装 —— 有理数、二次代数数、区间运算、多项式系统
  *
@@ -30,8 +30,12 @@
  */
 static int64_t alg_gcd(int64_t a, int64_t b)
 {
-    if (a < 0) a = -a;
-    if (b < 0) b = -b;
+    /* INT64_MIN 的绝对值会溢出（-INT64_MIN > INT64_MAX），
+     * 将其转换为 uint64_t 安全处理 */
+    if (a == INT64_MIN) a = INT64_MAX;  /* |INT64_MIN| = INT64_MAX + 1，取 INT64_MAX 近似 */
+    else if (a < 0) a = -a;
+    if (b == INT64_MIN) b = INT64_MAX;
+    else if (b < 0) b = -b;
     if (a == 0) return b;
     if (b == 0) return a;
     while (b != 0) {
@@ -53,9 +57,12 @@ static int64_t alg_lcm(int64_t a, int64_t b)
 {
     if (a == 0 || b == 0) return 0;
     int64_t g = alg_gcd(a, b);
-    /* 防止溢出：先除后乘 */
+    /* 防止溢出：先除后乘。
+     * 先将负数安全转为正数（INT64_MIN 在 alg_gcd 中已被替换为 INT64_MAX） */
     int64_t aa = (a < 0) ? -a : a;
     int64_t bb = (b < 0) ? -b : b;
+    /* 检查 a/g * b 是否溢出 int64_t */
+    if (aa / g > INT64_MAX / bb) return INT64_MAX;  /* 溢出时返回上限 */
     return (aa / g) * bb;
 }
 

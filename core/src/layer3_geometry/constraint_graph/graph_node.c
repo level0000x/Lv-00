@@ -1,8 +1,20 @@
 /**
  * @file graph_node.c
- * @brief ConstraintGraph 节点与约束生命周期
+ * @brief ConstraintGraph 节点与约束生命周期管理
  *
- * @details 拆分子模块（Lv-00 v3.3.0+）。
+ * @details 实现节点和约束的完整生命周期：
+ *          - 节点创建：graph_create_point / graph_create_line /
+ *            graph_create_circle 等各类型节点的构造与坐标初始化
+ *          - 节点删除：graph_delete_node（级联删除关联约束）
+ *          - 约束创建：graph_add_constraint（带类型验证与参与者兼容性检查）
+ *          - 约束删除：graph_delete_constraint（更新邻接矩阵）
+ *          - 安全扩容：动态数组的容量管理与 realloc 原子性保证
+ *
+ *          内存安全策略：
+ *          - 所有数组扩容使用临时变量保存 realloc 结果，
+ *            失败时不破坏原有数组状态
+ *          - 节点删除前检查所有约束的参与者引用，级联清理
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

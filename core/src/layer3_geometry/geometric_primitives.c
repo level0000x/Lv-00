@@ -1,5 +1,24 @@
-﻿/* geometric_primitives.c -- 13 个 geo_* 原语统一包装层实现
- * C11 标准，NULL 指针安全，中文注释。 */
+/**
+ * @file geometric_primitives.c
+ * @brief 13 个几何原语统一包装层实现
+ *
+ * @details 本模块是外部调用者与约束图之间的门面（Facade）层，提供：
+ *          - geo_create_node: 创建几何节点（点、线、区域、端口）
+ *          - geo_add_constraint: 添加约束（关联、包含、相交、共面等）
+ *          - geo_get_node / geo_set_node: 节点查询与属性修改
+ *          - geo_delete_node / geo_add_point_line: 节点删除与点线构造
+ *
+ *          所有包装函数均处理 GeomNodeType ↔ GeoNodeType、
+ *          ConstraintType ↔ GeoConstraintType 之间的枚举映射，
+ *          并对 GeomNode 聚合体进行安全深拷贝。
+ *
+ *          内存安全：所有函数通过 CHECK_GRAPH/CHECK_ENGINE 宏进行
+ *          NULL 指针检查，返回 GEO_STATUS_NULL_ARG 错误码。
+ *
+ * @author Lv-00 Project
+ * @version 3.3.0
+ * @date 2026-05-24
+ */
 
 #include "lv/geometric_primitives.h"
 #include <stdlib.h>
