@@ -870,6 +870,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof/proof_proposition.c
     core/src/layer4_reasoning/proof/proof_version.c
     core/src/layer4_reasoning/proof/trust_color.c
+    core/src/layer4_reasoning/proof/meta_verify.c
     # 证明系统子模块：矛盾、追踪
     core/src/layer4_reasoning/proof_system/proof_contradiction.c
     core/src/layer4_reasoning/proof_system/proof_trace.c
@@ -1206,6 +1207,9 @@ if(BUILD_TESTS)
         test/c/test_normalization.c normalization_test)
     add_lv_test_and_register(test_constraint_graph_ops
         test/c/test_constraint_graph_ops.c constraint_graph_ops_test)
+    # 图哈希模块测试
+    add_lv_test_and_register(test_graph_hash
+        test/c/test_graph_hash.c graph_hash_test)
     add_lv_test_and_register(test_constraint_compatibility
         test/c/test_constraint_compatibility.c constraint_compatibility_test)
     add_lv_test_and_register(test_unify
@@ -1440,6 +1444,15 @@ if(BUILD_TESTS)
     # 几何可视化渲染模块测试
     add_lv_test_and_register(test_geo_visual
         test/c/test_geo_visual.c geo_visual_test)
+    # v3.6.0 WFC 约束传播引擎测试
+    add_lv_test_and_register(test_propagation
+        test/c/test_propagation.c propagation_test)
+    # v3.6.0 等价类管理器测试
+    add_lv_test_and_register(test_equiv_class
+        test/c/test_equiv_class.c equiv_class_test)
+    # v3.6.0 交互几何系统测试
+    add_lv_test_and_register(test_interactive_geo
+        test/c/test_interactive_geo.c interactive_geo_test)
     # AABB 树空间索引模块测试
     add_lv_test_and_register(test_geo_aabb_tree
         test/c/test_geo_aabb_tree.c geo_aabb_tree_test)
@@ -1454,6 +1467,9 @@ if(BUILD_TESTS)
     # 引擎核心操作测试
     add_lv_test_and_register(test_engine_ops
         test/c/test_engine_ops.c engine_ops_test)
+    # 引擎调度器测试
+    add_lv_test_and_register(test_engine_scheduler
+        test/c/test_engine_scheduler.c engine_scheduler_test)
     # 信任颜色映射系统测试（Gap 1）
     add_lv_test_and_register(test_trust_color
         test/c/test_trust_color.c trust_color_test)
@@ -1474,6 +1490,10 @@ if(BUILD_TESTS)
     # v1.9.0 micro-bootstrap: 集成测试
     add_lv_test_and_register(test_lv_bootstrap
         test/c/test_lv_bootstrap.c lv_bootstrap_test)
+
+    # 元验证逻辑测试
+    add_lv_test_and_register(test_meta_verify
+        test/c/test_meta_verify.c meta_verify_test)
 
     # λ-演算端到端测试（Church 数字编码、β-归约、Y 组合子）
     add_lv_test_and_register(test_lambda_church

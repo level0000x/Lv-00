@@ -1011,11 +1011,22 @@ static int gauss_eliminate(double *A, double *b, int n)
  */
 static double vec_norm(const double *v, int n)
 {
+    if (n <= 0 || !v) return 0.0;
+    /* 找到最大绝对值，用于缩放以避免平方和溢出到 Inf */
+    double max_abs = 0.0;
+    for (int i = 0; i < n; i++) {
+        double abs_val = fabs(v[i]);
+        if (abs_val > max_abs) max_abs = abs_val;
+    }
+    if (max_abs == 0.0) return 0.0;
+    /* 缩放后计算平方和：sqrt(sum((v[i]/scale)^2)) * scale */
+    double scale = max_abs;
     double sum = 0.0;
     for (int i = 0; i < n; i++) {
-        sum += v[i] * v[i];
+        double scaled = v[i] / scale;
+        sum += scaled * scaled;
     }
-    return sqrt(sum);
+    return sqrt(sum) * scale;
 }
 
 /* ========================================================================
@@ -1102,7 +1113,11 @@ static void build_jacobian_and_residual(const lvSolverSystem *sys,
 
         /* 正向扰动 */
         double orig = sys->entities[ent_idx].params[param_offset];
-        sys->entities[ent_idx].params[param_offset] = orig + eps;
+
+        /* 自适应扰动步长：固定步长 1e-8 在参数值较大时会被舍入（10000 + 1e-8 == 10000），
+         * 导致雅可比列为零。使用相对步长 eps * max(1, |orig|) 保证扰动显著。 */
+        double h = eps * fmax(1.0, fabs(orig));
+        sys->entities[ent_idx].params[param_offset] = orig + h;
 
         row = 0;
         double *F_plus = (double *)lv_malloc(nrows * sizeof(double));
@@ -1128,7 +1143,7 @@ static void build_jacobian_and_residual(const lvSolverSystem *sys,
         }
 
         /* 负向扰动 */
-        sys->entities[ent_idx].params[param_offset] = orig - eps;
+        sys->entities[ent_idx].params[param_offset] = orig - h;
 
         row = 0;
         double *F_minus = (double *)lv_malloc(nrows * sizeof(double));
@@ -1156,9 +1171,9 @@ static void build_jacobian_and_residual(const lvSolverSystem *sys,
         /* 恢复原始值 */
         sys->entities[ent_idx].params[param_offset] = orig;
 
-        /* 计算雅可比列：J[:, j] = (F_plus - F_minus) / (2 * eps) */
+        /* 计算雅可比列：J[:, j] = (F_plus - F_minus) / (2 * h) */
         for (int i = 0; i < nrows; i++) {
-            J[i * ncols + j] = (F_plus[i] - F_minus[i]) / (2.0 * eps);
+            J[i * ncols + j] = (F_plus[i] - F_minus[i]) / (2.0 * h);
         }
 
         lv_free((void **)&(F_plus));
@@ -1258,6 +1273,12 @@ lv_PUBLIC_API lvSolveResult lv_solver_solve(lvSolverSystem *sys)
 
         /* 检查收敛 */
         double norm_F = vec_norm(F, nrows);
+        /* 检测 NaN/Inf 传播：约束求值可能产生 NaN，导致残差范数为 NaN，
+         * 此时收敛检查和发散检查均无效，应提前终止迭代 */
+        if (!isfinite(norm_F)) {
+            result = lv_SOLVE_NOT_CONVERGED;
+            break;
+        }
         if (sys->config.verbose) {
             /* 静默模式下不输出 */
         }

@@ -984,10 +984,19 @@ static void csg_extract_vertices(const CSGTriList *tris, CSGVec3 **out_verts, in
             CSGVec3 pt = tris->tris[i].v[v];
             /* 检查是否已存在（简单 O(n^2) 去重） */
             int found = 0;
+            /* 使用相对容差：计算已存顶点的最大量级 */
+            double max_coord = 0.0;
+            for (int j = 0; j < count; j++) {
+                double cx = fabs(verts[j].x), cy = fabs(verts[j].y), cz = fabs(verts[j].z);
+                if (cx > max_coord) max_coord = cx;
+                if (cy > max_coord) max_coord = cy;
+                if (cz > max_coord) max_coord = cz;
+            }
+            double eps_sq = CSG_BSP_EPSILON * CSG_BSP_EPSILON * (1.0 + max_coord * max_coord);
             for (int j = 0; j < count; j++) {
                 CSGVec3 d = csg_vec3_sub(pt, verts[j]);
                 double dist2 = d.x * d.x + d.y * d.y + d.z * d.z;
-                if (dist2 < CSG_BSP_EPSILON * CSG_BSP_EPSILON) {
+                if (dist2 < eps_sq) {
                     found = 1;
                     break;
                 }

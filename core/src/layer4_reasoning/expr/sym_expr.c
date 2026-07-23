@@ -557,14 +557,19 @@ static int sym_expr_to_string_impl(const lvSymExpr *expr, char *buf,
         return len;
     }
 
-    case lv_SYM_NEG:
-        len = 1 + sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_NEG);
+    case lv_SYM_NEG: {
+        int need_paren = (expr->children[0]->kind == lv_SYM_ADD);
+        int inner_len = sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_NEG);
+        len = 1 + inner_len + (need_paren ? 2 : 0);
         if (buf && bufsize > 0) {
             int pos = 0;
             buf[pos++] = '-';
+            if (need_paren && pos < bufsize) buf[pos++] = '(';
             pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_NEG);
+            if (need_paren && pos < bufsize) buf[pos++] = ')';
         }
         return len;
+    }
 
     case lv_SYM_SIN:
         len = 5 + sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_SIN) + 1;

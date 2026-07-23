@@ -1855,6 +1855,19 @@ void smtsolver_result_free(SMTSolverResult *result) {
 }
 
 /**
+ * @brief 清除求解结果（释放动态资源并重置）
+ *
+ * 调用 smtsolver_result_free 释放赋值和 unsat core 后，
+ * 将整个结果结构体清零并初始化为 UNKNOWN 状态。
+ */
+void smtsolver_result_clear(SMTSolverResult *result) {
+    if (!result) return;
+    smtsolver_result_free(result);
+    result->sat_result = SMT_RESULT_UNKNOWN;
+    result->backend_used = GROEBNER;
+}
+
+/**
  * @brief 在结果中按变量节点 ID 查找赋值
  */
 const SMTVariableAssignment *smtsolver_result_find_assignment(const SMTSolverResult *result,

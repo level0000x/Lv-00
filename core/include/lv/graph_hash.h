@@ -41,6 +41,17 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph);
 bool graph_hash_equal(const GraphHash *a, const GraphHash *b);
 
 /**
+ * @brief 计算快速图哈希（轻量级，用于循环检测）
+ *
+ * 仅产生单一 uint64_t 值，不分配堆内存。适用于快速
+ * 比较和循环检测场景。
+ *
+ * @param graph 约束图指针
+ * @return uint64_t 图哈希值，输入为 NULL 时返回 0
+ */
+uint64_t compute_quick_graph_hash(const ConstraintGraph *graph);
+
+/**
  * @brief 销毁图哈希
  */
 void graph_hash_destroy(GraphHash *hash);

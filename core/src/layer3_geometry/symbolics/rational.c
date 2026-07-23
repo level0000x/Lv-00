@@ -72,6 +72,12 @@ Rational *rational_create(int64_t numerator, uint64_t denominator) {
         mpz_set_str(den_ptr, denom_str, 10);
     }
     mpq_canonicalize(r->value);
+    /* 保护：检测 "0/0" 等导致分母为零的输入 */
+    if (mpz_sgn(mpq_denref(r->value)) == 0) {
+        mpq_clear(r->value);
+        lv_free((void **) &r);
+        return NULL;
+    }
     return r;
 }
 

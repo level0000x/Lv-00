@@ -790,7 +790,15 @@ lv_PUBLIC_API double alg_quadratic_to_double(const AlgQuadratic *x)
 {
     double a = alg_rational_to_double(&x->a);
     double b = alg_rational_to_double(&x->b);
-    double sqrt_d = (x->d == 0) ? 0.0 : sqrt((double)x->d);
+    double sqrt_d;
+    if (x->d == 0) {
+        sqrt_d = 0.0;
+    } else if (x->d < 0) {
+        /* 负判别式：二次无理数无法表示为实数，只返回有理部分 */
+        return a;
+    } else {
+        sqrt_d = sqrt((double)x->d);
+    }
     return a + b * sqrt_d;
 }
 

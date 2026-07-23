@@ -484,6 +484,10 @@ void *lv_linear_alloc(lvLinearAllocator *allocator, size_t size, size_t alignmen
         uintptr_t start = (uintptr_t)(block->data + block->used);
         uintptr_t aligned = (start + align - 1) & ~(align - 1);
         size_t padding = aligned - start;
+        /* overflow check */
+        if (size > SIZE_MAX - padding) {
+            return NULL;
+        }
         size_t total_needed = padding + size;
 
         if (block->used + total_needed <= block->size) {

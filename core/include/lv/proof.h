@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof.h
  * @brief 命题与证明系统 - 合一检查、证明导航器、证明步骤
  *
@@ -271,7 +271,8 @@ void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negat
 #define PROOF_STRATEGY_ALGEBRAIC     105
 #define PROOF_STRATEGY_CONTRADICTION 106
 
-/* SMT stubs */
+#ifndef lv_SMT_BACKEND_H
+/* SMT stubs (only if smt_backend.h not already included) */
 typedef void *SMTSolver;
 #define SMT_GROEBNER 0
 typedef int SMTSatResult;
@@ -282,6 +283,7 @@ void smtsolver_set_timeout(SMTSolver s, int ms);
 int  smtsolver_encode(SMTSolver s, const char *script, size_t len);
 SMTSatResult smtsolver_check(SMTSolver s);
 void smtsolver_destroy(SMTSolver s);
+#endif /* lv_SMT_BACKEND_H */
 
 const char *constraint_solver_get_proposition(void *solver, void *geom_obj);
 void *proof_navigator_search(void *nav);

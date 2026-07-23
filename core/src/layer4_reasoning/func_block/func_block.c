@@ -593,6 +593,9 @@ static int handle_cross_boundary_constraints(ConstraintGraph *graph,
 
     int *bound_ids = NULL;
     if (total_bound > 0) {
+        /* 检查数组大小乘法溢出 */
+        if ((size_t)total_bound > SIZE_MAX / sizeof(int))
+            return lv_ERROR_OVERFLOW;
         bound_ids = (int *)lv_malloc((size_t)total_bound * sizeof(int));
         if (!bound_ids)
             return lv_ERROR_OUT_OF_MEMORY;

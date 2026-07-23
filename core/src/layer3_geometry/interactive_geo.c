@@ -291,9 +291,9 @@ int interactive_geo_randomized_check(lvInteractiveGeo *g, int samples,
     if (!g->engine_handle || !expr || !*expr) {
         passed = samples; /* 无定理时默认通过 */
     } else {
-        srand((unsigned)time(NULL));
+        lv_random_init((uint64_t)time(NULL));
         for (int i = 0; i < samples; i++) {
-            double p = ((double)rand() / RAND_MAX - 0.5) * tol * 100.0;
+            double p = lv_random_double(-0.5, 0.5) * tol * 100.0;
             if (fabs(p) < tol * 1000.0) { passed++; }
             else {
                 failed++;

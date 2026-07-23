@@ -85,7 +85,13 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
     /* 构建点 ID 到变量索引的映射 */
     int *point_ids = lv_malloc((size_t) num_point_nodes * sizeof(int));
     bool *point_seen = lv_calloc((size_t) num_point_nodes, sizeof(bool));
-    int *node_id_to_var_idx = lv_malloc((size_t) graph->node_count * 2 * sizeof(int));
+    /* 计算最大节点 ID，分配足够的映射空间（节点 ID 可能因删除/重建而远大于 node_count） */
+    int max_node_id = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        if (graph->nodes[i] && graph->nodes[i]->id > max_node_id)
+            max_node_id = graph->nodes[i]->id;
+    }
+    int *node_id_to_var_idx = lv_malloc((size_t)(max_node_id + 1) * 2 * sizeof(int));
     int *linear_constraint_indices = lv_malloc((size_t) num_linear * sizeof(int));
     if (!point_ids || !point_seen || !node_id_to_var_idx || !linear_constraint_indices) {
         lv_free((void **) &redundant);
@@ -95,14 +101,14 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
         lv_free((void **) &linear_constraint_indices);
         return NULL;
     }
-    memset(node_id_to_var_idx, -1, (size_t) graph->node_count * 2 * sizeof(int));
+    memset(node_id_to_var_idx, -1, (size_t)(max_node_id + 1) * 2 * sizeof(int));
 
     int point_idx = 0;
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *n = graph->nodes[i];
         if (n && n->type == GEOM_POINT) {
             point_ids[point_idx] = n->id;
-            if (n->id >= 0 && n->id < graph->node_count * 2) {
+            if (n->id >= 0 && n->id <= max_node_id) {
                 node_id_to_var_idx[n->id * 2] = point_idx * 2;
                 node_id_to_var_idx[n->id * 2 + 1] = point_idx * 2 + 1;
             }

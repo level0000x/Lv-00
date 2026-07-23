@@ -1002,8 +1002,14 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
 
             /* 记录测度值 */
             ctx->measure_value_count++;
+            /* 检查乘法溢出 */
+            if ((size_t)ctx->measure_value_count > SIZE_MAX / sizeof(SymbolicCoord*)) {
+                ctx->measure_value_count--;
+                symbolic_coord_destroy(new_value);
+                return RECURSION_ERROR;
+            }
             SymbolicCoord **new_vals = lv_realloc(ctx->measure_values,
-                ctx->measure_value_count * sizeof(SymbolicCoord*));
+                (size_t)ctx->measure_value_count * sizeof(SymbolicCoord*));
             if (!new_vals) {
                 ctx->measure_value_count--;
                 symbolic_coord_destroy(new_value);
@@ -1016,8 +1022,13 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
 
     /* 记录调用栈 */
     ctx->call_stack_size++;
+    /* 检查乘法溢出 */
+    if ((size_t)ctx->call_stack_size > SIZE_MAX / sizeof(int)) {
+        ctx->call_stack_size--;
+        return RECURSION_ERROR;
+    }
     int *new_stack = lv_realloc(ctx->call_stack,
-        ctx->call_stack_size * sizeof(int));
+        (size_t)ctx->call_stack_size * sizeof(int));
     if (!new_stack) {
         ctx->call_stack_size--;
         return RECURSION_ERROR;
@@ -1271,8 +1282,18 @@ static bool point_on_segment_symbolic(SymbolicCoord *px, SymbolicCoord *py,
 
 /* 辅助函数：计算从点到线段端点的有向角度 */
 static double compute_angle(double px, double py, double x1, double y1, double x2, double y2) {
-    double angle1 = atan2(y1 - py, x1 - px);
-    double angle2 = atan2(y2 - py, x2 - px);
+    double dx1 = x1 - px;
+    double dy1 = y1 - py;
+    double dx2 = x2 - px;
+    double dy2 = y2 - py;
+
+    /* 检查零向量：若参考点与端点重合，atan2(0,0) 返回 NaN */
+    if ((dx1 == 0.0 && dy1 == 0.0) || (dx2 == 0.0 && dy2 == 0.0)) {
+        return 0.0;
+    }
+
+    double angle1 = atan2(dy1, dx1);
+    double angle2 = atan2(dy2, dx2);
     double diff = angle2 - angle1;
 
     /* 归一化到 [-π, π] */
@@ -1764,8 +1785,12 @@ bool measure_system_register_non_symbolic(MeasureSystem *ms,
 
     /* 扩展元数据数组 */
     int new_count = ms->non_symbolic_meta_count + 1;
+    /* 检查加法溢出 */
+    if (new_count < 0) return false;
+    /* 检查乘法溢出 */
+    if ((size_t)new_count > SIZE_MAX / sizeof(NonSymbolicMeasureMeta)) return false;
     NonSymbolicMeasureMeta *new_metas = lv_realloc(ms->non_symbolic_metas,
-        new_count * sizeof(NonSymbolicMeasureMeta));
+        (size_t)new_count * sizeof(NonSymbolicMeasureMeta));
     if (!new_metas) return false;
 
     ms->non_symbolic_metas = new_metas;
@@ -2635,9 +2660,11 @@ int recursion_validate_non_symbolic_with_axiom(
         } else {
             /* 添加新条目 */
             int new_count = sys->validation_meta_count + 1;
+            if (new_count < 0) return -1;  /* 加法溢出 */
+            if ((size_t)new_count > SIZE_MAX / sizeof(NonSymbolicMeasureValidationMeta)) return -1;
             NonSymbolicMeasureValidationMeta *new_metas = lv_realloc(
                 sys->validation_metas,
-                new_count * sizeof(NonSymbolicMeasureValidationMeta));
+                (size_t)new_count * sizeof(NonSymbolicMeasureValidationMeta));
             if (!new_metas) return -1;
 
             sys->validation_metas = new_metas;

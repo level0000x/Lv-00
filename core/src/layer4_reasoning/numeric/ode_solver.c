@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ode_solver.c
  * @brief Implementation of the ODE solver module.
  *
@@ -56,8 +56,12 @@ static size_t compute_num_steps(const lvODEProblem *problem,
  */
 static void euler_step(lvODERhsFn rhs, double t, const double *y,
                        double dt, size_t dim, void *params, double *y_next) {
-    double *dydt = (double *)calloc(dim, sizeof(double));
-    if (!dydt) return;
+    double *dydt = (double *)lv_calloc(dim, sizeof(double));
+    if (!dydt) {
+        /* 分配失败：清零输出并返回 */
+        if (y_next) memset(y_next, 0, dim * sizeof(double));
+        return;
+    }
 
     rhs(t, y, params, dydt);
 
@@ -65,7 +69,7 @@ static void euler_step(lvODERhsFn rhs, double t, const double *y,
         y_next[i] = y[i] + dt * dydt[i];
     }
 
-    free(dydt);
+    lv_free((void **)&dydt);
 }
 
 /**
@@ -73,16 +77,18 @@ static void euler_step(lvODERhsFn rhs, double t, const double *y,
  */
 static void rk4_step(lvODERhsFn rhs, double t, const double *y,
                      double dt, size_t dim, void *params, double *y_next) {
-    double *k1 = (double *)calloc(dim, sizeof(double));
-    double *k2 = (double *)calloc(dim, sizeof(double));
-    double *k3 = (double *)calloc(dim, sizeof(double));
-    double *k4 = (double *)calloc(dim, sizeof(double));
-    double *ytmp = (double *)calloc(dim, sizeof(double));
+    double *k1 = (double *)lv_calloc(dim, sizeof(double));
+    double *k2 = (double *)lv_calloc(dim, sizeof(double));
+    double *k3 = (double *)lv_calloc(dim, sizeof(double));
+    double *k4 = (double *)lv_calloc(dim, sizeof(double));
+    double *ytmp = (double *)lv_calloc(dim, sizeof(double));
 
     if (!k1 || !k2 || !k3 || !k4 || !ytmp) {
         /* Allocation failure: zero out y_next and clean up */
         if (y_next) memset(y_next, 0, dim * sizeof(double));
-        free(k1); free(k2); free(k3); free(k4); free(ytmp);
+        lv_free((void **)&k1); lv_free((void **)&k2);
+        lv_free((void **)&k3); lv_free((void **)&k4);
+        lv_free((void **)&ytmp);
         return;
     }
 
@@ -112,11 +118,11 @@ static void rk4_step(lvODERhsFn rhs, double t, const double *y,
         y_next[i] = y[i] + (dt / 6.0) * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
     }
 
-    free(k1);
-    free(k2);
-    free(k3);
-    free(k4);
-    free(ytmp);
+    lv_free((void **)&k1);
+    lv_free((void **)&k2);
+    lv_free((void **)&k3);
+    lv_free((void **)&k4);
+    lv_free((void **)&ytmp);
 }
 
 /* ============================================================
@@ -140,19 +146,19 @@ lvODESolution *ode_solve(const lvODEProblem *problem,
     }
 
     /* Allocate solution */
-    lvODESolution *sol = (lvODESolution *)calloc(1, sizeof(lvODESolution));
+    lvODESolution *sol = (lvODESolution *)lv_calloc(1, sizeof(lvODESolution));
     if (!sol) return NULL;
 
     sol->n_steps = n_steps + 1; /* Include initial condition */
     sol->dim    = dim;
 
-    sol->t_values = (double *)calloc(sol->n_steps, sizeof(double));
-    sol->y_values = (double *)calloc(sol->n_steps * dim, sizeof(double));
+    sol->t_values = (double *)lv_calloc(sol->n_steps, sizeof(double));
+    sol->y_values = (double *)lv_calloc(sol->n_steps * dim, sizeof(double));
 
     if (!sol->t_values || !sol->y_values) {
-        free(sol->t_values);
-        free(sol->y_values);
-        free(sol);
+        lv_free((void **)&sol->t_values);
+        lv_free((void **)&sol->y_values);
+        lv_free((void **)&sol);
         return NULL;
     }
 
@@ -166,14 +172,14 @@ lvODESolution *ode_solve(const lvODEProblem *problem,
     }
 
     /* Integration loop */
-    double *y_curr = (double *)calloc(dim, sizeof(double));
-    double *y_next = (double *)calloc(dim, sizeof(double));
+    double *y_curr = (double *)lv_calloc(dim, sizeof(double));
+    double *y_next = (double *)lv_calloc(dim, sizeof(double));
     if (!y_curr || !y_next) {
-        free(y_curr);
-        free(y_next);
-        free(sol->t_values);
-        free(sol->y_values);
-        free(sol);
+        lv_free((void **)&y_curr);
+        lv_free((void **)&y_next);
+        lv_free((void **)&sol->t_values);
+        lv_free((void **)&sol->y_values);
+        lv_free((void **)&sol);
         return NULL;
     }
 
@@ -213,8 +219,8 @@ lvODESolution *ode_solve(const lvODEProblem *problem,
         }
     }
 
-    free(y_curr);
-    free(y_next);
+    lv_free((void **)&y_curr);
+    lv_free((void **)&y_next);
     return sol;
 }
 
@@ -224,7 +230,7 @@ lvODESolution *ode_solve(const lvODEProblem *problem,
 
 void ode_solution_destroy(lvODESolution *sol) {
     if (!sol) return;
-    free(sol->t_values);
-    free(sol->y_values);
-    free(sol);
+    lv_free((void **)&sol->t_values);
+    lv_free((void **)&sol->y_values);
+    lv_free((void **)&sol);
 }

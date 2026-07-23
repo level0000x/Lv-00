@@ -1438,7 +1438,10 @@ char* lv_plugin_system_get_info_json(const lvPluginSystem* system) {
     if (!system) return NULL;
 
     /* 防止整数溢出 */
-    if (system->plugin_count > SIZE_MAX / 512 - 2048) return NULL;
+    size_t plugin_size;
+    if (system->plugin_count > (SIZE_MAX - 2048) / 512) {
+        return NULL; /* overflow */
+    }
     size_t size = 2048 + system->plugin_count * 512;
     char* json = (char*)lv_malloc(size);
     if (!json) return NULL;

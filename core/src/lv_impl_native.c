@@ -1,4 +1,4 @@
-﻿/*
+/*
  * lv_impl_native.c — Base Layer Implementation
  * Provides all foundational data structures and algorithms for layer-0.
  * 
@@ -63,7 +63,7 @@ static void coord_clear(Coord* c) {
 }
 
 Coord* coord_create(const char* x_str, const char* y_str) {
-    Coord* c = (Coord*)malloc(sizeof(Coord));
+    Coord* c = (Coord*)lv_malloc(sizeof(Coord));
     if (!c) return NULL;
     c->id = native_id_alloc();
     coord_init(c, x_str, y_str);
@@ -71,7 +71,7 @@ Coord* coord_create(const char* x_str, const char* y_str) {
 }
 
 Coord* coord_create_si(long x_num, long y_num) {
-    Coord* c = (Coord*)malloc(sizeof(Coord));
+    Coord* c = (Coord*)lv_malloc(sizeof(Coord));
     if (!c) return NULL;
     c->id = native_id_alloc();
     coord_init_si(c, x_num, y_num);
@@ -81,12 +81,13 @@ Coord* coord_create_si(long x_num, long y_num) {
 void coord_destroy(Coord* c) {
     if (!c) return;
     coord_clear(c);
-    free(c);
+    lv_free((void**)&c);
+    c = NULL;
 }
 
 Coord* coord_dup(const Coord* src) {
     if (!src) return NULL;
-    Coord* c = (Coord*)malloc(sizeof(Coord));
+    Coord* c = (Coord*)lv_malloc(sizeof(Coord));
     if (!c) return NULL;
     c->id = native_id_alloc();
     mpq_init(c->x); mpq_set(c->x, src->x);
@@ -96,7 +97,7 @@ Coord* coord_dup(const Coord* src) {
 
 Coord* coord_add(const Coord* a, const Coord* b) {
     if (!a || !b) return NULL;
-    Coord* c = (Coord*)malloc(sizeof(Coord));
+    Coord* c = (Coord*)lv_malloc(sizeof(Coord));
     if (!c) return NULL;
     c->id = native_id_alloc();
     mpq_init(c->x); mpq_add(c->x, a->x, b->x);   /* GMP 精确加法 */
@@ -106,7 +107,7 @@ Coord* coord_add(const Coord* a, const Coord* b) {
 
 Coord* coord_sub(const Coord* a, const Coord* b) {
     if (!a || !b) return NULL;
-    Coord* c = (Coord*)malloc(sizeof(Coord));
+    Coord* c = (Coord*)lv_malloc(sizeof(Coord));
     if (!c) return NULL;
     c->id = native_id_alloc();
     mpq_init(c->x); mpq_sub(c->x, a->x, b->x);   /* GMP 精确减法 */
@@ -116,7 +117,7 @@ Coord* coord_sub(const Coord* a, const Coord* b) {
 
 Coord* coord_mul(const Coord* a, const mpq_t scalar) {
     if (!a) return NULL;
-    Coord* c = (Coord*)malloc(sizeof(Coord));
+    Coord* c = (Coord*)lv_malloc(sizeof(Coord));
     if (!c) return NULL;
     c->id = native_id_alloc();
     mpq_init(c->x); mpq_mul(c->x, a->x, scalar);  /* GMP 精确乘法 */
@@ -126,7 +127,7 @@ Coord* coord_mul(const Coord* a, const mpq_t scalar) {
 
 Coord* coord_div(const Coord* a, const mpq_t scalar) {
     if (!a || mpq_sgn(scalar) == 0) return NULL;
-    Coord* c = (Coord*)malloc(sizeof(Coord));
+    Coord* c = (Coord*)lv_malloc(sizeof(Coord));
     if (!c) return NULL;
     c->id = native_id_alloc();
     mpq_init(c->x); mpq_div(c->x, a->x, scalar);  /* GMP 精确除法 */
@@ -166,7 +167,7 @@ void coord_dist_sq(mpq_t result, const Coord* a, const Coord* b) {
 
 Coord* coord_midpoint(const Coord* a, const Coord* b) {
     if (!a || !b) return NULL;
-    Coord* c = (Coord*)malloc(sizeof(Coord));
+    Coord* c = (Coord*)lv_malloc(sizeof(Coord));
     if (!c) return NULL;
     c->id = native_id_alloc();
     mpq_t two;
@@ -199,9 +200,9 @@ int coord_to_string(const Coord* c, char* buf, size_t bufsz) {
     if (!c || !buf || bufsz == 0) return 0;
     char* xs = mpq_get_str(NULL, 10, c->x);
     char* ys = mpq_get_str(NULL, 10, c->y);
-    if (!xs || !ys) { free(xs); free(ys); return snprintf(buf, bufsz, "(null)"); }
+    if (!xs || !ys) { lv_free_external((void**)&xs); lv_free_external((void**)&ys); return snprintf(buf, bufsz, "(null)"); }
     int n = snprintf(buf, bufsz, "(%s, %s)", xs, ys);
-    free(xs); free(ys);
+    lv_free_external((void**)&xs); lv_free_external((void**)&ys);
     return n;
 }
 
@@ -215,7 +216,7 @@ typedef struct {
 } Rational;
 
 Rational* rational_create_str(const char* s) {
-    Rational* r = (Rational*)malloc(sizeof(Rational));
+    Rational* r = (Rational*)lv_malloc(sizeof(Rational));
     if (!r) return NULL;
     r->id = native_id_alloc();
     mpq_init(r->val);
@@ -225,7 +226,7 @@ Rational* rational_create_str(const char* s) {
 }
 
 Rational* rational_create_si(long num, unsigned long den) {
-    Rational* r = (Rational*)malloc(sizeof(Rational));
+    Rational* r = (Rational*)lv_malloc(sizeof(Rational));
     if (!r) return NULL;
     r->id = native_id_alloc();
     mpq_init(r->val);
@@ -242,7 +243,7 @@ Rational* rational_from_int(long n) {
  * @brief 销毁有理数对象并释放内存
  */
 static void rational_destroy(Rational* r) {
-    if (r) { mpq_clear(r->val); free(r); }
+    if (r) { mpq_clear(r->val); lv_free((void**)&r); }
 }
 
 /**
@@ -250,7 +251,7 @@ static void rational_destroy(Rational* r) {
  */
 static Rational* rational_add(const Rational* a, const Rational* b) {
     if (!a || !b) return NULL;
-    Rational* r = (Rational*)malloc(sizeof(Rational));
+    Rational* r = (Rational*)lv_malloc(sizeof(Rational));
     if (!r) return NULL;
     r->id = native_id_alloc();
     mpq_init(r->val);
@@ -260,7 +261,7 @@ static Rational* rational_add(const Rational* a, const Rational* b) {
 
 Rational* rational_sub(const Rational* a, const Rational* b) {
     if (!a || !b) return NULL;
-    Rational* r = (Rational*)malloc(sizeof(Rational));
+    Rational* r = (Rational*)lv_malloc(sizeof(Rational));
     if (!r) return NULL;
     r->id = native_id_alloc();
     mpq_init(r->val);
@@ -270,7 +271,7 @@ Rational* rational_sub(const Rational* a, const Rational* b) {
 
 Rational* rational_mul(const Rational* a, const Rational* b) {
     if (!a || !b) return NULL;
-    Rational* r = (Rational*)malloc(sizeof(Rational));
+    Rational* r = (Rational*)lv_malloc(sizeof(Rational));
     if (!r) return NULL;
     r->id = native_id_alloc();
     mpq_init(r->val);
@@ -280,7 +281,7 @@ Rational* rational_mul(const Rational* a, const Rational* b) {
 
 Rational* rational_div(const Rational* a, const Rational* b) {
     if (!a || !b || mpq_sgn(b->val) == 0) return NULL;  /* GMP 零检测 */
-    Rational* r = (Rational*)malloc(sizeof(Rational));
+    Rational* r = (Rational*)lv_malloc(sizeof(Rational));
     if (!r) return NULL;
     r->id = native_id_alloc();
     mpq_init(r->val);
@@ -305,7 +306,7 @@ int rational_to_string(const Rational* r, char* buf, size_t bufsz) {
     char* s = mpq_get_str(NULL, 10, r->val);
     if (!s) return snprintf(buf, bufsz, "(null)");
     int n = snprintf(buf, bufsz, "%s", s);
-    free(s);
+    lv_free_external((void**)&s);
     return n;
 }
 
@@ -349,13 +350,13 @@ static void graph_edge_clear(GraphEdge* e) { if (e) mpq_clear(e->weight); }
  * @brief 创建约束图并分配初始缓冲区
  */
 static ConstraintGraph* graph_create(void) {
-    ConstraintGraph* g = (ConstraintGraph*)calloc(1, sizeof(ConstraintGraph));
+    ConstraintGraph* g = (ConstraintGraph*)lv_calloc(1, sizeof(ConstraintGraph));
     if (!g) return NULL;
     g->id       = native_id_alloc();
     g->node_cap = 16;
     g->edge_cap = 16;
-    g->nodes    = (GraphNode*)calloc(g->node_cap, sizeof(GraphNode));
-    g->edges    = (GraphEdge*)calloc(g->edge_cap, sizeof(GraphEdge));
+    g->nodes    = (GraphNode*)lv_calloc(g->node_cap, sizeof(GraphNode));
+    g->edges    = (GraphEdge*)lv_calloc(g->edge_cap, sizeof(GraphEdge));
     return g;
 }
 
@@ -366,7 +367,7 @@ static void graph_destroy(ConstraintGraph* g) {
     if (!g) return;
     for (int i = 0; i < g->node_count; i++) graph_node_clear(&g->nodes[i]);
     for (int i = 0; i < g->edge_count; i++) graph_edge_clear(&g->edges[i]);
-    free(g->nodes); free(g->edges); free(g);
+    lv_free((void**)&g->nodes); lv_free((void**)&g->edges); lv_free((void**)&g);
 }
 
 int64_t graph_add_node(ConstraintGraph* g, const mpq_t value, int pinned) {
@@ -506,13 +507,13 @@ static void graph_normalize(ConstraintGraph* g) {
 
 ConstraintGraph* graph_clone(const ConstraintGraph* g) {
     if (!g) return NULL;
-    ConstraintGraph* ng = (ConstraintGraph*)malloc(sizeof(ConstraintGraph));
+    ConstraintGraph* ng = (ConstraintGraph*)lv_malloc(sizeof(ConstraintGraph));
     if (!ng) return NULL;
     ng->id         = native_id_alloc();
     ng->node_count = g->node_count; ng->node_cap = g->node_cap;
     ng->edge_count = g->edge_count; ng->edge_cap = g->edge_cap;
-    ng->nodes = (GraphNode*)calloc(ng->node_cap, sizeof(GraphNode));
-    ng->edges = (GraphEdge*)calloc(ng->edge_cap, sizeof(GraphEdge));
+    ng->nodes = (GraphNode*)lv_calloc(ng->node_cap, sizeof(GraphNode));
+    ng->edges = (GraphEdge*)lv_calloc(ng->edge_cap, sizeof(GraphEdge));
     for (int i = 0; i < ng->node_count; i++) {
         ng->nodes[i].id = g->nodes[i].id;
         mpq_init(ng->nodes[i].value); mpq_set(ng->nodes[i].value, g->nodes[i].value);
@@ -576,7 +577,7 @@ typedef struct ExprNode {
  * @brief 创建表达式树的叶子节点
  */
 static Expr* expr_new_leaf(int kind) {
-    Expr* e = (Expr*)calloc(1, sizeof(Expr));
+    Expr* e = (Expr*)lv_calloc(1, sizeof(Expr));
     if (!e) return NULL;
     mpq_init(e->val);
     e->kind = kind;
@@ -593,7 +594,7 @@ Expr* expr_create_const_si(long num, unsigned long den) {
 Expr* expr_create_var(const char* name) {
     Expr* e = expr_new_leaf(1);
     if (!e) return NULL;
-    e->name = strdup(name);
+    e->name = lv_strdup_safe(name);
     return e;
 }
 
@@ -613,8 +614,8 @@ void expr_destroy(Expr* e) {
         Expr* left = node->left;
         Expr* right = node->right;
         mpq_clear(node->val);
-        free(node->name);
-        free(node);
+        lv_free((void**)&node->name);
+        lv_free((void**)&node);
         if (right && top < 255) { stack[++top] = right; }
         node = left;
         if (!node && top > 0) { node = stack[top--]; }
@@ -717,13 +718,13 @@ typedef struct {
 } MemPool;
 
 MemPool* pool_create(void) {
-    MemPool* p = (MemPool*)calloc(1, sizeof(MemPool));
+    MemPool* p = (MemPool*)lv_calloc(1, sizeof(MemPool));
     if (!p) return NULL;
     p->id = native_id_alloc();
-    p->head = (MemChunk*)calloc(1, sizeof(MemChunk));
+    p->head = (MemChunk*)lv_calloc(1, sizeof(MemChunk));
     if (!p->head) { lv_free((void **)&p); return NULL; }
     p->head->cap = 65536;  /* 64KB chunk */
-    p->head->data = (char*)malloc(p->head->cap);
+    p->head->data = (char*)lv_malloc(p->head->cap);
     if (!p->head->data) { lv_free((void **)&p->head); lv_free((void **)&p); return NULL; }
     return p;
 }
@@ -731,10 +732,10 @@ MemPool* pool_create(void) {
 void* pool_alloc(MemPool* p, size_t sz) {
     if (!p || !p->head) return NULL;
     if (p->head->used + sz > p->head->cap) {
-        MemChunk* c = (MemChunk*)calloc(1, sizeof(MemChunk));
+        MemChunk* c = (MemChunk*)lv_calloc(1, sizeof(MemChunk));
         if (!c) return NULL;
         c->cap = sz > 65536 ? sz : 65536;
-        c->data = (char*)malloc(c->cap);
+        c->data = (char*)lv_malloc(c->cap);
         if (!c->data) { lv_free((void **)&c); return NULL; }
         c->next = p->head;
         p->head = c;
@@ -753,8 +754,8 @@ void pool_reset(MemPool* p) {
 void pool_destroy(MemPool* p) {
     if (!p) return;
     MemChunk* c = p->head;
-    while (c) { MemChunk* n = c->next; free(c->data); free(c); c = n; }
-    free(p);
+    while (c) { MemChunk* n = c->next; lv_free((void**)&c->data); lv_free((void**)&c); c = n; }
+    lv_free((void**)&p);
 }
 
 /* ================================================================
@@ -827,7 +828,7 @@ Coord* coord_rotate(const Coord* c, double angle) {
     mpq_t cs_q, sn_q;
     mpq_init(cs_q); mpq_set_d(cs_q, cs);
     mpq_init(sn_q); mpq_set_d(sn_q, sn);
-    Coord* r = (Coord*)malloc(sizeof(Coord));
+    Coord* r = (Coord*)lv_malloc(sizeof(Coord));
     if (!r) { mpq_clears(cs_q, sn_q, NULL); return NULL; }
     r->id = native_id_alloc();
     mpq_init(r->x); mpq_init(r->y);
@@ -842,7 +843,7 @@ Coord* coord_from_polar(double r, double theta) {
     double cs = cos(theta), sn = sin(theta);
     mpq_t rq, cq, sq;
     mpq_init(rq); mpq_set_d(rq, r); mpq_init(cq); mpq_set_d(cq, cs); mpq_init(sq); mpq_set_d(sq, sn);
-    Coord* c = (Coord*)malloc(sizeof(Coord));
+    Coord* c = (Coord*)lv_malloc(sizeof(Coord));
     if (!c) { mpq_clears(rq, cq, sq, NULL); return NULL; }
     c->id = native_id_alloc();
     mpq_init(c->x); mpq_mul(c->x, rq, cq);

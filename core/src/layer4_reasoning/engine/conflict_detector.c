@@ -396,10 +396,14 @@ static int detect_point_position_conflicts(const ConstraintGraph *graph,
                     int cy = symbolic_coord_compare(y_coord, other->symbolic_coords[1]);
                     if (cx != 0 || cy != 0) {
                         char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                        double px = symbolic_coord_to_double(x_coord);
+                        double py = symbolic_coord_to_double(y_coord);
+                        double ox = symbolic_coord_to_double(other->symbolic_coords[0]);
+                        double oy = symbolic_coord_to_double(other->symbolic_coords[1]);
                         snprintf(desc, sizeof(desc),
                             "点 %d 被约束与点 %d 重合（约束 %d），但坐标不同："
-                            "(%d,%d) vs (%d,%d)。",
-                            i, other_id, cons->id, cx, cy, cx, cy);
+                            "(%.6g,%.6g) vs (%.6g,%.6g)。",
+                            i, other_id, cons->id, px, py, ox, oy);
                         report_constraint_conflict(report, cons, CONFLICT_POINT_POSITION,
                             CONFLICT_SEVERITY_ERROR, desc,
                             "修正点的坐标或移除重合约束。");

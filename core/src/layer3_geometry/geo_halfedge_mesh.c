@@ -893,9 +893,12 @@ void lv_he_mesh_update_geometry(lvHeMesh *mesh)
         lvPoint3D cross = vector_cross(a, b);
         double area = sqrt(vector_dot(cross, cross)) / 2.0;
 
-        mesh->face_data[f].normal.x = cross.x / (2 * area + 1e-10);
-        mesh->face_data[f].normal.y = cross.y / (2 * area + 1e-10);
-        mesh->face_data[f].normal.z = cross.z / (2 * area + 1e-10);
+        /* 使用相对 epsilon 防止零面积面产生未归一化法线：
+         * area 较小时，用 |cross|^(1/2) 的量级缩放 epsilon */
+        double area_eps = 1e-12 * (1.0 + fabs(cross.x) + fabs(cross.y) + fabs(cross.z));
+        mesh->face_data[f].normal.x = cross.x / (2 * area + area_eps);
+        mesh->face_data[f].normal.y = cross.y / (2 * area + area_eps);
+        mesh->face_data[f].normal.z = cross.z / (2 * area + area_eps);
         mesh->face_data[f].area = area;
     }
 

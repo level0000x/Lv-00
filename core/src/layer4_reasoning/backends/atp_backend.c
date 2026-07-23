@@ -499,6 +499,11 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
             }
         }
     }
+    /* bounds check: ensure indices 14 (temp_path) and 15 (NULL) fit in exec_argv[16] */
+    if (argc > 14) {
+        lv_free((void**)&extra_copy);
+        return (int)lv_ERROR_IO;
+    }
     exec_argv[argc++] = temp_path;
     exec_argv[argc] = NULL;
 

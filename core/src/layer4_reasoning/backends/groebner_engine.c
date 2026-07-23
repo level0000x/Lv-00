@@ -1900,6 +1900,7 @@ static double univar_deriv(double x, void *ctx) {
 static double groebner_newton_refine(double (*eval)(double, void *), double (*deriv)(double, void *),
                                      void *ctx, double x0) {
     double x = x0;
+    double prev_fx = fabs(eval(x, ctx));
     for (int iter = 0; iter < GROEBNER_NEWTON_MAX_ITER; iter++) {
         double fx = eval(x, ctx);
         double fpx = deriv(x, ctx);
@@ -1911,6 +1912,12 @@ static double groebner_newton_refine(double (*eval)(double, void *), double (*de
         if (fabs(dx) < GROEBNER_NEWTON_TOL) {
             break;
         }
+        /* 发散检测：如果 |fx| 增长超过 10 倍，说明迭代发散，提前退出 */
+        double abs_fx = fabs(fx);
+        if (iter > 0 && abs_fx > prev_fx * 10.0) {
+            break;
+        }
+        prev_fx = abs_fx;
     }
     return x;
 }

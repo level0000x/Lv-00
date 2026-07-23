@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_version.c
  * @brief Implementation of the proof version control system.
  *
@@ -25,6 +25,7 @@
  */
 
 #include "proof_version.h"
+#include "lv_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -339,7 +340,7 @@ static char *read_file(const char *path) {
         return NULL;
     }
 
-    char *buf = (char *)malloc((size_t)size + 1);
+    char *buf = (char *)lv_malloc((size_t)size + 1);
     if (!buf) {
         fclose(f);
         return NULL;
@@ -362,7 +363,7 @@ static void compute_commit_oid(const char *message, const char *parent_oid,
     size_t fh_len = file_hashes ? strlen(file_hashes) : 0;
     size_t total = msg_len + 1 + parent_len + 1 + fh_len + 1 + sizeof(int64_t);
 
-    char *buf = (char *)malloc(total);
+    char *buf = (char *)lv_malloc(total);
     if (!buf) {
         memset(oid_out, '0', lv_OID_LENGTH - 1);
         oid_out[lv_OID_LENGTH - 1] = '\0';
@@ -389,7 +390,8 @@ static void compute_commit_oid(const char *message, const char *parent_oid,
     pos += sizeof(int64_t);
 
     compute_sha256_hex(buf, pos, oid_out, lv_OID_LENGTH);
-    free(buf);
+    lv_free((void**)&buf);
+    buf = NULL;
 }
 
 /**
@@ -437,7 +439,8 @@ static bool read_commit_file(const char *path, lvProofCommit *commit) {
         line = strtok(NULL, "\n");
     }
 
-    free(content);
+    lv_free((void**)&content);
+    content = NULL;
     return true;
 }
 
@@ -464,7 +467,7 @@ static int64_t get_timestamp(void) {
 lvProofRepo *proof_repo_init(const char *path) {
     if (!path) return NULL;
 
-    lvProofRepo *repo = (lvProofRepo *)calloc(1, sizeof(lvProofRepo));
+    lvProofRepo *repo = (lvProofRepo *)lv_calloc(1, sizeof(lvProofRepo));
     if (!repo) return NULL;
 
     strncpy(repo->path, path, sizeof(repo->path) - 1);
@@ -472,7 +475,8 @@ lvProofRepo *proof_repo_init(const char *path) {
 
     /* Create directory structure */
     if (!create_repo_dirs(path)) {
-        free(repo);
+        lv_free((void**)&repo);
+        repo = NULL;
         return NULL;
     }
 
@@ -485,7 +489,8 @@ lvProofRepo *proof_repo_init(const char *path) {
     compute_commit_oid(root.message, "", "", root.timestamp, root.oid);
 
     if (!write_commit_file(path, &root)) {
-        free(repo);
+        lv_free((void**)&repo);
+        repo = NULL;
         return NULL;
     }
 
@@ -516,7 +521,7 @@ lvProofRepo *proof_repo_init(const char *path) {
 lvProofRepo *proof_repo_open(const char *path) {
     if (!path) return NULL;
 
-    lvProofRepo *repo = (lvProofRepo *)calloc(1, sizeof(lvProofRepo));
+    lvProofRepo *repo = (lvProofRepo *)lv_calloc(1, sizeof(lvProofRepo));
     if (!repo) return NULL;
 
     strncpy(repo->path, path, sizeof(repo->path) - 1);
@@ -529,14 +534,16 @@ lvProofRepo *proof_repo_open(const char *path) {
 
     char *head = read_file(head_path);
     if (!head) {
-        free(repo);
+        lv_free((void**)&repo);
+        repo = NULL;
         return NULL;
     }
     /* Strip trailing newline */
     size_t hlen = strlen(head);
     if (hlen > 0 && head[hlen - 1] == '\n') head[hlen - 1] = '\0';
     safe_strncpy(repo->head_commit, head, lv_OID_LENGTH);
-    free(head);
+    lv_free((void**)&head);
+    head = NULL;
 
     /* Read branches */
     char branches_dir[1024];
@@ -570,7 +577,8 @@ lvProofRepo *proof_repo_open(const char *path) {
                 if (clen > 0 && content[clen - 1] == '\n') content[clen - 1] = '\0';
                 safe_strncpy(repo->branch_heads[repo->branch_count], content,
                     lv_OID_LENGTH);
-                free(content);
+                lv_free((void**)&content);
+                content = NULL;
                 repo->branch_count++;
             }
         }
@@ -587,7 +595,9 @@ lvProofRepo *proof_repo_open(const char *path) {
 }
 
 void proof_repo_destroy(lvProofRepo *repo) {
-    free(repo);
+    if (!repo) return;
+    lv_free((void**)&repo);
+    repo = NULL;
 }
 
 /* ============================================================
@@ -599,7 +609,7 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message,
     if (!repo || !message) return false;
 
     /* Compute file hashes and store objects */
-    char *hash_buf = (char *)malloc(file_count * (lv_OID_LENGTH + 1));
+    char *hash_buf = (char *)lv_malloc(file_count * (lv_OID_LENGTH + 1));
     if (!hash_buf) return false;
     memset(hash_buf, 0, file_count * (lv_OID_LENGTH + 1));
 
@@ -636,7 +646,8 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message,
     commit.timestamp = get_timestamp();
     compute_commit_oid(message, repo->head_commit, hash_buf, commit.timestamp, commit.oid);
 
-    free(hash_buf);
+    lv_free((void**)&hash_buf);
+    hash_buf = NULL;
 
     /* Write commit file */
     if (!write_commit_file(repo->path, &commit)) {
@@ -719,7 +730,7 @@ bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b,
 
     /* If oid_a is NULL, treat as empty tree (all files added) */
     if (!oid_a || oid_a[0] == '\0') {
-        diff->entries = (lvProofDiffEntry *)calloc(1, sizeof(lvProofDiffEntry));
+        diff->entries = (lvProofDiffEntry *)lv_calloc(1, sizeof(lvProofDiffEntry));
         if (!diff->entries) return false;
 
         strncpy(diff->entries[0].path, "(root)", sizeof(diff->entries[0].path) - 1);
@@ -733,7 +744,7 @@ bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b,
     }
 
     /* Compare two commits */
-    diff->entries = (lvProofDiffEntry *)calloc(1, sizeof(lvProofDiffEntry));
+    diff->entries = (lvProofDiffEntry *)lv_calloc(1, sizeof(lvProofDiffEntry));
     if (!diff->entries) return false;
 
     strncpy(diff->entries[0].path, "(commit)", sizeof(diff->entries[0].path) - 1);
@@ -748,7 +759,7 @@ bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b,
 
 void proof_repo_diff_destroy(lvProofDiff *diff) {
     if (!diff) return;
-    free(diff->entries);
+    lv_free((void**)&diff->entries);
     diff->entries = NULL;
     diff->count = 0;
 }

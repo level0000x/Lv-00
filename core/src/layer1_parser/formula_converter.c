@@ -1277,6 +1277,7 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
                 int node_ids[FORMULA_NODE_IDS_SIZE];
                 int count = 0;
                 if (formula_convert_polygon(stmt, graph, node_ids, &count)) {
+                    if (count > FORMULA_NODE_IDS_SIZE) count = FORMULA_NODE_IDS_SIZE; /* bounds check */
                     for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
                         result->created_node_ids[result->created_node_count++] = node_ids[j];
                     }
@@ -1296,6 +1297,7 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
                 int node_ids[10];
                 int count = 0;
                 if (formula_convert_arc(stmt, graph, node_ids, &count)) {
+                    if (count > 10) count = 10; /* bounds check */
                     for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
                         result->created_node_ids[result->created_node_count++] = node_ids[j];
                     }

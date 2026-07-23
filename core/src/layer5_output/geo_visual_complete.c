@@ -1167,8 +1167,14 @@ static bool write_png_rgb(const char *path, int width, int height,
 
     /* 构建 DEFLATE stored block: BFINAL=1, BTYPE=00, LEN, NLEN, data */
     /* 对于超出 65535 字节的大图像，使用多块 */
+    /* overflow check: raw_size + 5 + 64 must not wrap */
+    if (raw_size > SIZE_MAX - 69) {
+        lv_free((void **)&raw);
+        fclose(fp);
+        return false;
+    }
     size_t raw_remaining = raw_size;
-    size_t idat_capacity = raw_size + 5 + 64;
+    size_t idat_capacity = raw_size + 69;
     uint8_t *idat_buf = (uint8_t *)lv_malloc(idat_capacity);
     if (!idat_buf) { lv_free((void **)&raw); fclose(fp); return false; }
 

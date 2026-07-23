@@ -298,7 +298,7 @@ int64_t proof_tptp_export(lvEngine *ctx, int64_t proof_id, char *buf, int64_t bu
     if (!tptp_text) return -1;
 
     int n = snprintf(buf, (size_t)buf_size, "%s", tptp_text);
-    free(tptp_text);
+    lv_free((void**)&tptp_text);
     return (int64_t)(n >= 0 ? n : -1);
 }
 
@@ -1724,7 +1724,7 @@ int64_t preset_regular_polygon(lvEngine *ctx, int64_t center_id, int64_t radius_
     }
 
     /* 连接相邻顶点,形成 n 条边 */
-    int edge_ids[128];
+    int edge_ids[128]; /* n already verified <= 128 above */
     for (int i = 0; i < n; i++) {
         graph_add_line_segment(g, vertex_ids[i], vertex_ids[(i + 1) % n]);
         edge_ids[i] = graph_get_last_added_node_id(g);
@@ -1741,7 +1741,7 @@ int64_t preset_convex_hull(lvEngine *ctx, int64_t *point_ids, int64_t count) {
 
     int n = (int)count;
     /* 用输入点构建多边形环边,生成凸包区域 */
-    int *seg_ids = (int *)malloc((size_t)n * sizeof(int));
+    int *seg_ids = lv_malloc((size_t)n * sizeof(int));
     if (!seg_ids) return -1;
 
     for (int i = 0; i < n; i++) {
@@ -1751,7 +1751,7 @@ int64_t preset_convex_hull(lvEngine *ctx, int64_t *point_ids, int64_t count) {
 
     graph_add_region(g, seg_ids, n);
     int result_id = graph_get_last_added_node_id(g);
-    free(seg_ids);
+    lv_free((void**)&seg_ids);
     return (int64_t)result_id;
 }
 
@@ -1923,7 +1923,7 @@ int64_t preset_dual_polygon(lvEngine *ctx, int64_t poly_id) {
 
     /* 对偶多边形:以原多边形各边中点为顶点构造新多边形 */
     /* 创建 seg_count 个中点顶点 */
-    int *mid_ids = (int *)malloc((size_t)seg_count * sizeof(int));
+    int *mid_ids = lv_malloc((size_t)seg_count * sizeof(int));
     if (!mid_ids) return -1;
 
     for (int i = 0; i < seg_count; i++) {
@@ -1942,9 +1942,9 @@ int64_t preset_dual_polygon(lvEngine *ctx, int64_t poly_id) {
     }
 
     /* 连接相邻中点形成对偶多边形 */
-    int *dual_seg_ids = (int *)malloc((size_t)seg_count * sizeof(int));
+    int *dual_seg_ids = lv_malloc((size_t)seg_count * sizeof(int));
     if (!dual_seg_ids) {
-        free(mid_ids);
+        lv_free((void**)&mid_ids);
         return -1;
     }
     for (int i = 0; i < seg_count; i++) {
@@ -1954,8 +1954,8 @@ int64_t preset_dual_polygon(lvEngine *ctx, int64_t poly_id) {
 
     graph_add_region(g, dual_seg_ids, seg_count);
     int result_id = graph_get_last_added_node_id(g);
-    free(mid_ids);
-    free(dual_seg_ids);
+    lv_free((void**)&mid_ids);
+    lv_free((void**)&dual_seg_ids);
     return (int64_t)result_id;
 }
 
@@ -1969,7 +1969,7 @@ int64_t preset_polynomial_create(lvEngine *ctx, int64_t *coeffs, int64_t degree)
     if (!graph || !coeffs || degree < 0) return g_upper_id++;
 
     int coord_count = (int)degree + 1;
-    SymbolicCoord **coords = (SymbolicCoord **)calloc((size_t)coord_count, sizeof(SymbolicCoord *));
+    SymbolicCoord **coords = lv_calloc((size_t)coord_count, sizeof(SymbolicCoord *));
     if (!coords) return g_upper_id++;
 
     /* coord[0] = degree, coord[1..degree] = coeffs */
@@ -1982,7 +1982,7 @@ int64_t preset_polynomial_create(lvEngine *ctx, int64_t *coeffs, int64_t degree)
     int result_id = graph_get_last_added_node_id(graph);
 
     for (int i = 0; i < coord_count; i++) symbolic_coord_destroy(coords[i]);
-    free(coords);
+    lv_free((void**)&coords);
 
     if (add_res != ADD_NODE_OK || result_id < 0) return g_upper_id++;
     return (int64_t)result_id;
@@ -2491,15 +2491,15 @@ struct lvOrchestrator {
 /** 创建编排器 */
 lvOrchestrator *lv_orchestrator_create(lvEngine *ctx) {
     (void)ctx;
-    lvOrchestrator *orch = calloc(1, sizeof(lvOrchestrator));
+    lvOrchestrator *orch = lv_calloc(1, sizeof(lvOrchestrator));
     if (!orch) return NULL;
     orch->orch_id = g_upper_id++;
     orch->current_stage = 0;
     orch->status = 0;
     orch->stage_count = 6;
-    orch->stage_status = calloc((size_t)orch->stage_count, sizeof(int64_t));
+    orch->stage_status = lv_calloc((size_t)orch->stage_count, sizeof(int64_t));
     if (!orch->stage_status) {
-        free(orch);
+        lv_free((void**)&orch);
         return NULL;
     }
     return orch;
@@ -2514,8 +2514,8 @@ static const char *g_stage_names[] = {
 int64_t lv_orchestrator_run(lvOrchestrator *orch, lvEngine *ctx, const char *input) {
     if (!orch || !input) return -1;
     /* 深拷贝输入 */
-    free(orch->input_data);
-    orch->input_data = strdup(input);
+    lv_free((void**)&orch->input_data);
+    orch->input_data = lv_strdup_safe(input);
     if (!orch->input_data) return -1;
 
     orch->status = 1; /* 运行中 */
@@ -2594,9 +2594,9 @@ int64_t lv_orchestrator_get_report(const lvOrchestrator *orch, char *buf, int64_
 /** 销毁编排器 */
 void lv_orchestrator_destroy(lvOrchestrator *orch) {
     if (!orch) return;
-    free(orch->input_data);
-    free(orch->stage_status);
-    free(orch);
+    lv_free((void**)&orch->input_data);
+    lv_free((void**)&orch->stage_status);
+    lv_free((void**)&orch);
 }
 
 /* ============================================================
@@ -2636,45 +2636,13 @@ int64_t meta_verify_consistency(lvEngine *ctx) {
     return result;
 }
 
-/** 完备性检查:验证所有推理分支均已覆盖 */
-int64_t meta_verify_completeness(lvEngine *ctx) {
-    (void)ctx;
-    /* 完备性检查：在真实实现中由 check_completeness 完成，
-       但因为需要 lvSession 上下文，此处提供轻量实现 */
-    /* 遍历约束图，检查所有子图是否均可达 */
-    if (!ctx || !ctx->main_graph) return 1; /* 空图视为完备 */
-    ConstraintGraph *graph = ctx->main_graph;
-    /* 若约束图节点数 > 0 且无边，视为不完备 */
-    if (graph->node_count == 0) return 1;
-    /* 实际完备性验证需要与 session/证明树配合，此处返回 1 */
-    return 1;
-}
-
-/** 可靠性检查:验证证明链无漏洞 */
-int64_t meta_verify_soundness(lvEngine *ctx) {
-    (void)ctx;
-    if (!ctx || !ctx->main_graph) return 1; /* 空图视为可靠 */
-    /* 创建或复用元验证器 */
-    if (!g_meta_verifier) {
-        g_meta_verifier = lv_meta_verifier_create();
-        if (!g_meta_verifier) return -1;
-        lv_meta_verifier_enable_check(g_meta_verifier, lv_CHECK_SOUND);
-    }
-    ConstraintGraph *graph = ctx->main_graph;
-    /* 用冲突检测器作为轻量级可靠性检查 */
-    if (lv_conflict_detect_quick(graph)) return 0;
-    return 1;
-}
-
-/** 差分验证:对比两次求解结果的差异 */
-int64_t meta_verify_differential(lvEngine *ctx, int64_t session_a, int64_t session_b) {
-    (void)ctx; (void)session_a; (void)session_b;
-    /* 差分验证需要两个完整的 lvSession 实例，
-      在此统一入口层仅提供基础框架 */
-    if (session_a == session_b) return 0; /* 同一会话无差异 */
-    /* 返回 0=无差异（实际差异检测需完整 session 上下文） */
-    return 0;
-}
+/** @cond INTERNAL */
+/* 前向声明: 实现在 core/src/layer4_reasoning/proof/meta_verify.c */
+extern int meta_verify_completeness(const ConstraintGraph *graph);
+extern int meta_verify_soundness(const ConstraintGraph *graph);
+extern int meta_verify_differential(const ConstraintGraph *graph_a,
+                                     const ConstraintGraph *graph_b);
+/** @endcond */
 
 /** 综合元验证报告 */
 int64_t meta_verify_report(lvEngine *ctx, int64_t *out_overall_pass) {
@@ -2722,16 +2690,16 @@ typedef struct lvApplication {
 /** 运行应用 */
 lvApplication *lv_application_run(lvEngine *ctx, const char *app_name) {
     (void)ctx;
-    lvApplication *app = calloc(1, sizeof(lvApplication));
+    lvApplication *app = lv_calloc(1, sizeof(lvApplication));
     if (!app) return NULL;
     app->app_id = g_upper_id++;
-    app->app_name = strdup(app_name ? app_name : "default");
-    if (!app->app_name) { free(app); return NULL; }
+    app->app_name = lv_strdup_safe(app_name ? app_name : "default");
+    if (!app->app_name) { lv_free((void**)&app); return NULL; }
     app->session_count = 0;
     app->engine = ctx;
     /* 创建编排器并执行默认管线 */
     app->orch = lv_orchestrator_create(ctx);
-    if (!app->orch) { free(app->app_name); free(app); return NULL; }
+    if (!app->orch) { lv_free((void**)&app->app_name); lv_free((void**)&app); return NULL; }
     return app;
 }
 
@@ -2773,8 +2741,8 @@ const char *lv_application_get_version(lvEngine *ctx) {
 void lv_application_destroy(lvApplication *app) {
     if (!app) return;
     lv_orchestrator_destroy(app->orch);
-    free(app->app_name);
-    free(app);
+    lv_free((void**)&app->app_name);
+    lv_free((void**)&app);
 }
 
 /* ============================================================
@@ -3541,10 +3509,12 @@ int64_t lv_upper_get_id_counter(lvEngine *ctx) {
  * 四个检查,返回 AND 结果。
  */
 int64_t lv_upper_full_verify(lvEngine *ctx) {
+    if (!ctx || !ctx->main_graph) return -1;
+    ConstraintGraph *graph = ctx->main_graph;
     int64_t c = meta_verify_consistency(ctx);
-    int64_t m = meta_verify_completeness(ctx);
-    int64_t s = meta_verify_soundness(ctx);
-    int64_t d = meta_verify_differential(ctx, 0, 0);
+    int64_t m = meta_verify_completeness(graph);
+    int64_t s = meta_verify_soundness(graph);
+    int64_t d = meta_verify_differential(graph, graph);
     return (c && m && s && (d == 0)) ? 1 : 0;
 }
 

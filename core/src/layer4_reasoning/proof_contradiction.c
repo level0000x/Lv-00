@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_contradiction.c
  * @brief 反证法与矛盾推演系统实现
  *
@@ -423,21 +423,26 @@ char *lv_proof_export_contradiction_trace(lvProofNavigatorEx *navigator,
     if (!buf) return NULL;
 
     int pos = 0;
-    pos += snprintf(buf + pos, buf_size - (size_t)pos,
-                    "=== 矛盾证明追踪 ===\n");
-    pos += snprintf(buf + pos, buf_size - (size_t)pos,
-                    "作用域 ID: %d\n", scope_id);
+    /* 写入前计算剩余空间，防止 pos 超过 buf_size 导致回绕 */
+    #define CONTRADICTION_WRITE(...) do { \
+        if ((size_t)pos < buf_size) { \
+            int n = snprintf(buf + pos, buf_size - (size_t)pos, __VA_ARGS__); \
+            pos += (n > 0 ? n : 0); \
+            if ((size_t)pos > buf_size) pos = (int)buf_size; \
+        } \
+    } while (0)
+
+    CONTRADICTION_WRITE("=== 矛盾证明追踪 ===\n");
+    CONTRADICTION_WRITE("作用域 ID: %d\n", scope_id);
 
     /* 输出假设信息 */
     lvAssumptionEntry *entries[16];
     int count = lv_assumption_stack_get_by_scope(
         navigator->assumption_stack, scope_id, entries, 16);
 
-    pos += snprintf(buf + pos, buf_size - (size_t)pos,
-                    "\n假设栈 (%d 个假设):\n", count);
+    CONTRADICTION_WRITE("\n假设栈 (%d 个假设):\n", count);
     for (int i = 0; i < count; i++) {
-        pos += snprintf(buf + pos, buf_size - (size_t)pos,
-                        "  [%d] 深度=%d, 类型=%d, 矛盾=%s\n",
+        CONTRADICTION_WRITE("  [%d] 深度=%d, 类型=%d, 矛盾=%s\n",
                         entries[i]->assumption_id,
                         entries[i]->depth,
                         entries[i]->type,
@@ -453,18 +458,17 @@ char *lv_proof_export_contradiction_trace(lvProofNavigatorEx *navigator,
         }
     }
 
-    pos += snprintf(buf + pos, buf_size - (size_t)pos,
-                    "\n矛盾闭包 (%d 个):\n", closure_count);
+    CONTRADICTION_WRITE("\n矛盾闭包 (%d 个):\n", closure_count);
     for (int i = 0; i < navigator->closure_count; i++) {
         if (navigator->closures[i] &&
             navigator->closures[i]->scope_id == scope_id) {
-            pos += snprintf(buf + pos, buf_size - (size_t)pos,
-                            "  [%d] 类型=%d, 已关闭=%s\n",
+            CONTRADICTION_WRITE("  [%d] 类型=%d, 已关闭=%s\n",
                             navigator->closures[i]->closure_id,
                             navigator->closures[i]->type,
                             navigator->closures[i]->is_closed ? "是" : "否");
         }
     }
+    #undef CONTRADICTION_WRITE
 
     return buf;
 }

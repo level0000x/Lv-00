@@ -169,12 +169,19 @@ int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
     for (int i = 0; i < n; i++) x[i] = 0.0;
 
     int iter = 0;
+    /* 计算矩阵最大绝对值的估计值，用于相对容差 */
+    double max_val = 0.0;
+    for (int i = 0; i < n; i++) {
+        double d = fabs(lv_sparse_get(A, i, i));
+        if (d > max_val) max_val = d;
+    }
+    double diag_tol = 1e-12 * (1.0 + max_val);
     for (iter = 0; iter < max_iter; iter++) {
         double max_diff = 0.0;
 
         for (int i = 0; i < n; i++) {
             double diag = lv_sparse_get(A, i, i);
-            if (fabs(diag) < 1e-12) { lv_free(x_next); return -3; } /* 零对角线 */
+            if (fabs(diag) < diag_tol) { lv_free(x_next); return -3; } /* 零/近零对角线 */
 
             double sum = 0.0;
             int start = A->row_ptr[i];
