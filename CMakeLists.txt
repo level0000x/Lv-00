@@ -56,6 +56,20 @@ if(MSVC)
     # C4710: 函数未内联（信息性，非错误）
     # C4820: 填充字节（信息性，非错误）
     add_compile_options(/wd4201 /wd4710)
+
+    # 定义 _CRT_SECURE_NO_WARNINGS 以启用 strdup/strcat 等 POSIX 函数
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+
+    # 抑制函数弃用告警（strdup 等 POSIX 函数在 MSVC 中标记为弃用）
+    add_compile_options(/wd4996)
+
+    # VS 2022+ 需要显式启用 C11 atomics
+    if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "19.30")
+        add_compile_options(/experimental:c11atomics)
+    endif()
+
+    # 抑制 GMP 库内部的无符号负数告警（GMP 自身代码的 MSVC 兼容性问题）
+    add_compile_options(/wd4146)
 endif()
 
 # --- GCC 专用编译器选项 ---
@@ -995,6 +1009,10 @@ target_link_libraries(lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
 add_library(lv_layer5_output OBJECT ${lv_LAYER5_SOURCES} ${lv_HEADERS})
 lv_setup_layer(lv_layer5_output 5)
 target_link_libraries(lv_layer5_output lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
+# v3.5.0: 互操作层需要 ws2_32（Windows socket）
+if(WIN32)
+    target_link_libraries(lv_layer5_output ws2_32)
+endif()
 
 # ── Layer 6: 图形化编程层 (Visual Programming Layer) ──
 # 设计文档: doc/docs/35_layer6_visual_programming.md
@@ -1453,6 +1471,9 @@ if(BUILD_TESTS)
     # v3.6.0 交互几何系统测试
     add_lv_test_and_register(test_interactive_geo
         test/c/test_interactive_geo.c interactive_geo_test)
+    # v3.7.0 几何变换预设测试
+    add_lv_test_and_register(test_geom_transform_presets
+        test/c/test_geom_transform_presets.c geom_transform_presets_test)
     # AABB 树空间索引模块测试
     add_lv_test_and_register(test_geo_aabb_tree
         test/c/test_geo_aabb_tree.c geo_aabb_tree_test)

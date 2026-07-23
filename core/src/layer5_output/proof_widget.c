@@ -422,8 +422,17 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
                        "\"widget_count\":%d,\"persistence_key\":\"%s\",\"widgets\":[",
                        (int) layout->layout_type, layout->columns, layout->rows, layout->widget_count,
                        layout->persistence_key ? layout->persistence_key : "");
-    if (written > 0)
-        pos += (size_t) written;
+    if (written < 0) {
+        lv_free_ptr(buf);
+        return NULL;
+    }
+    if ((size_t)written >= cap - pos) {
+        cap = pos + (size_t)written + 1;
+        char *nb = (char *)lv_realloc(buf, cap);
+        if (!nb) { lv_free_ptr(buf); return NULL; }
+        buf = nb;
+    }
+    pos += (size_t) written;
 
     /* 逐个 Widget 序列化 */
     for (int i = 0; i < layout->widget_count; i++) {

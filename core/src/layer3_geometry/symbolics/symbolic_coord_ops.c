@@ -29,7 +29,12 @@
  */
 
 #include <float.h>
+#define _USE_MATH_DEFINES
 #include <math.h>
+
+#ifndef M_E
+#define M_E 2.71828182845904523536
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

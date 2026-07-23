@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_ga_multivector.c
  * @brief Tests for the PGA multivector module
  *
@@ -681,6 +681,222 @@ void test_ga_outer_product_associativity(void) {
 }
 
 /* ========================================================================
+ * Test: Geometric product comprehensive (bivector, trivector, mixed)
+ * ======================================================================== */
+
+void test_ga_geometric_product_full(void) {
+    printf("Testing ga_geometric_product full (bivector, trivector, mixed)...\n");
+
+    /* ---- 1. Bivector × Bivector ---- */
+
+    /* e12 * e12 = -1 (bivector squared gives negative scalar) */
+    {
+        lvMultiVector *e12 = ga_mv_zero();
+        ga_mv_set(e12, GA_BLADE_E12, 1.0);
+
+        lvMultiVector *r = ga_geometric_product(e12, e12);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_1), -1.0),
+                    "e12 * e12 should equal -1");
+        for (int i = 1; i < GA_MV_DIM; i++) {
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e12 * e12: non-scalar components should be zero");
+        }
+        ga_mv_destroy(e12); ga_mv_destroy(r);
+    }
+
+    /* e12 * e23 = e13 */
+    {
+        lvMultiVector *e12 = ga_mv_zero();
+        lvMultiVector *e23 = ga_mv_zero();
+        ga_mv_set(e12, GA_BLADE_E12, 1.0);
+        ga_mv_set(e23, GA_BLADE_E23, 1.0);
+
+        lvMultiVector *r = ga_geometric_product(e12, e23);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E13), 1.0),
+                    "e12 * e23 should have e13 component = 1");
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E13) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e12 * e23: non-e13 components should be zero");
+        }
+        ga_mv_destroy(e12); ga_mv_destroy(e23); ga_mv_destroy(r);
+    }
+
+    /* e12 * e13 = -e23 */
+    {
+        lvMultiVector *e12 = ga_mv_zero();
+        lvMultiVector *e13 = ga_mv_zero();
+        ga_mv_set(e12, GA_BLADE_E12, 1.0);
+        ga_mv_set(e13, GA_BLADE_E13, 1.0);
+
+        lvMultiVector *r = ga_geometric_product(e12, e13);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E23), -1.0),
+                    "e12 * e13 should have e23 component = -1");
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E23) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e12 * e13: non-e23 components should be zero");
+        }
+        ga_mv_destroy(e12); ga_mv_destroy(e13); ga_mv_destroy(r);
+    }
+
+    /* ---- 2. Bivector × Vector ---- */
+
+    /* e12 * e3 = e123 */
+    {
+        lvMultiVector *e12 = ga_mv_zero();
+        lvMultiVector *e3  = ga_mv_zero();
+        ga_mv_set(e12, GA_BLADE_E12, 1.0);
+        ga_mv_set(e3,  GA_BLADE_E3,  1.0);
+
+        lvMultiVector *r = ga_geometric_product(e12, e3);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E123), 1.0),
+                    "e12 * e3 should have e123 component = 1");
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E123) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e12 * e3: non-e123 components should be zero");
+        }
+        ga_mv_destroy(e12); ga_mv_destroy(e3); ga_mv_destroy(r);
+    }
+
+    /* e12 * e1 = -e2 (bivector contracting with contained vector) */
+    {
+        lvMultiVector *e12 = ga_mv_zero();
+        lvMultiVector *e1  = ga_mv_zero();
+        ga_mv_set(e12, GA_BLADE_E12, 1.0);
+        ga_mv_set(e1,  GA_BLADE_E1,  1.0);
+
+        lvMultiVector *r = ga_geometric_product(e12, e1);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E2), -1.0),
+                    "e12 * e1 should have e2 component = -1");
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E2) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e12 * e1: non-e2 components should be zero");
+        }
+        ga_mv_destroy(e12); ga_mv_destroy(e1); ga_mv_destroy(r);
+    }
+
+    /* ---- 3. Vector × Bivector ---- */
+
+    /* e1 * e12 = e2 */
+    {
+        lvMultiVector *e1  = ga_mv_zero();
+        lvMultiVector *e12 = ga_mv_zero();
+        ga_mv_set(e1,  GA_BLADE_E1,  1.0);
+        ga_mv_set(e12, GA_BLADE_E12, 1.0);
+
+        lvMultiVector *r = ga_geometric_product(e1, e12);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E2), 1.0),
+                    "e1 * e12 should have e2 component = 1");
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E2) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e1 * e12: non-e2 components should be zero");
+        }
+        ga_mv_destroy(e1); ga_mv_destroy(e12); ga_mv_destroy(r);
+    }
+
+    /* ---- 4. Trivector × Vector ---- */
+
+    /* e123 * e1 = e23 */
+    {
+        lvMultiVector *e123 = ga_mv_zero();
+        lvMultiVector *e1   = ga_mv_zero();
+        ga_mv_set(e123, GA_BLADE_E123, 1.0);
+        ga_mv_set(e1,   GA_BLADE_E1,   1.0);
+
+        lvMultiVector *r = ga_geometric_product(e123, e1);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E23), 1.0),
+                    "e123 * e1 should have e23 component = 1");
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E23) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e123 * e1: non-e23 components should be zero");
+        }
+        ga_mv_destroy(e123); ga_mv_destroy(e1); ga_mv_destroy(r);
+    }
+
+    /* e1 * e123 = e23 */
+    {
+        lvMultiVector *e1   = ga_mv_zero();
+        lvMultiVector *e123 = ga_mv_zero();
+        ga_mv_set(e1,   GA_BLADE_E1,   1.0);
+        ga_mv_set(e123, GA_BLADE_E123, 1.0);
+
+        lvMultiVector *r = ga_geometric_product(e1, e123);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E23), 1.0),
+                    "e1 * e123 should have e23 component = 1");
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E23) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e1 * e123: non-e23 components should be zero");
+        }
+        ga_mv_destroy(e1); ga_mv_destroy(e123); ga_mv_destroy(r);
+    }
+
+    /* ---- 5. Pseudoscalar × Scalar ---- */
+
+    /* e0123 * 1 = e0123 */
+    {
+        lvMultiVector *e0123 = ga_mv_zero();
+        lvMultiVector *s     = ga_mv_scalar(1.0);
+        ga_mv_set(e0123, GA_BLADE_E0123, 1.0);
+
+        lvMultiVector *r = ga_geometric_product(e0123, s);
+        TEST_ASSERT_NOT_NULL(r);
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E0123), 1.0),
+                    "e0123 * 1 should have e0123 component = 1");
+        for (int i = 0; i < GA_MV_DIM; i++) {
+            if (i == GA_BLADE_E0123) continue;
+            TEST_ASSERT(approx_eq(ga_mv_get(r, i), 0.0),
+                        "e0123 * 1: non-e0123 components should be zero");
+        }
+        ga_mv_destroy(e0123); ga_mv_destroy(s); ga_mv_destroy(r);
+    }
+
+    /* ---- 6. Mixed multivector: (1 + e1 + e12) * (e2 + e23) ---- */
+    {
+        lvMultiVector *a = ga_mv_zero();
+        lvMultiVector *b = ga_mv_zero();
+        ga_mv_set(a, GA_BLADE_1,   1.0);
+        ga_mv_set(a, GA_BLADE_E1,  1.0);
+        ga_mv_set(a, GA_BLADE_E12, 1.0);
+        ga_mv_set(b, GA_BLADE_E2,  1.0);
+        ga_mv_set(b, GA_BLADE_E23, 1.0);
+
+        lvMultiVector *r = ga_geometric_product(a, b);
+        TEST_ASSERT_NOT_NULL(r);
+        /* Expected: e1 + e2 + e12 + e13 + e23 + e123, all with coefficient 1.0 */
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E1),   1.0),
+                    "(1+e1+e12)*(e2+e23): e1 component should be 1");
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E2),   1.0),
+                    "(1+e1+e12)*(e2+e23): e2 component should be 1");
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E12),  1.0),
+                    "(1+e1+e12)*(e2+e23): e12 component should be 1");
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E13),  1.0),
+                    "(1+e1+e12)*(e2+e23): e13 component should be 1");
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E23),  1.0),
+                    "(1+e1+e12)*(e2+e23): e23 component should be 1");
+        TEST_ASSERT(approx_eq(ga_mv_get(r, GA_BLADE_E123), 1.0),
+                    "(1+e1+e12)*(e2+e23): e123 component should be 1");
+
+        ga_mv_destroy(a); ga_mv_destroy(b); ga_mv_destroy(r);
+    }
+
+    printf("  PASSED\n");
+}
+
+/* ========================================================================
  * Main
  * ======================================================================== */
 
@@ -690,6 +906,7 @@ int main(void) {
     TEST_RUN(test_ga_mv_zero);
     TEST_RUN(test_ga_mv_scalar);
     TEST_RUN(test_ga_geometric_product);
+    TEST_RUN(test_ga_geometric_product_full);
     TEST_RUN(test_ga_outer_product);
     TEST_RUN(test_ga_outer_product_comprehensive);
     TEST_RUN(test_ga_outer_product_anticommutativity);

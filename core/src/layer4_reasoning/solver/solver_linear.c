@@ -413,6 +413,16 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
         double d_rational = mpq_get_d(rational_part);
         double d_sqrt_coeff = mpq_get_d(sqrt_coeff);
         double d_n = mpz_get_d(n_part);
+
+        /* 检查 double 转换是否产生 Inf/NaN */
+        if (!isfinite(d_rational) || !isfinite(d_sqrt_coeff) || !isfinite(d_n)) {
+            mpz_clear(n_part);
+            mpq_clear(rational_part);
+            mpq_clear(sqrt_coeff);
+            lv_free((void **)&solutions);
+            return 0;
+        }
+
         double d_sqrt_n = (d_n >= 0.0) ? sqrt(d_n) : 0.0;
 
         double approx1 = d_rational - d_sqrt_coeff * d_sqrt_n;

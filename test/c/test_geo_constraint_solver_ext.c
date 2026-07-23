@@ -221,6 +221,19 @@ int main(void) {
         if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) { PASS(); }
         else { FAIL("求解失败"); }
 
+        /* 验证求解后的几何正确性：点到圆心的距离应等于半径 */
+        TEST("点在圆上约束: 几何验证");
+        lvEntity *solved_pt = lv_solver_get_entity(sys, 0);
+        lvEntity *solved_circle = lv_solver_get_entity(sys, 1);
+        if (solved_pt && solved_circle) {
+            double dx = solved_pt->params[0] - solved_circle->params[0];
+            double dy = solved_pt->params[1] - solved_circle->params[1];
+            double dist = sqrt(dx * dx + dy * dy);
+            ASSERT_NEAR(dist, solved_circle->params[2], 1e-4);
+        } else {
+            FAIL("无法获取求解后的实体");
+        }
+
         lv_solver_destroy(sys);
     }
 

@@ -83,6 +83,8 @@ struct lvFastIndex {
  * @return 桶索引 [0, capacity)
  */
 static int cell_hash(int gx, int gy, int capacity) {
+    if (capacity <= 0)
+        return 0;
     /* Cantor 配对函数：π(k1, k2) = (k1+k2)(k1+k2+1)/2 + k2 */
     /* 先处理符号，确保非负输入 */
     unsigned int ux = (unsigned int) (gx >= 0 ? gx : -gx);

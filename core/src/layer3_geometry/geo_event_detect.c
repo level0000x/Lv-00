@@ -261,7 +261,7 @@ static int geodet_root_bisection(lvEventDetector *detector, int event_id, const 
             return -1;
         }
 
-        if (fmid == 0.0) {
+        if (fabs(fmid) < lv_EPSILON_NUMERIC_COMPARE) {
             *root = mid;
             return 0;
         }

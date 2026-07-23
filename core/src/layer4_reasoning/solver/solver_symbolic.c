@@ -1,13 +1,15 @@
 /**
  * @file solver_symbolic.c
- * @brief 符号求解器（精确求解/回代/消元）—— 桩实现
+ * @brief 符号求解器（精确求解/回代/消元）
  *
  * @details 从 solver.c 拆分出的子模块（Lv-00 项目 v3.3.0+）。
- *          当前为桩实现，后续需用 GMP 精确求解逻辑填充。
+ *          包含实际求解逻辑：二次方程精确求解（GMP 判别式）、
+ *          三次方程 Cardano 公式求解、Groebner 基回代与结果清理。
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 3.4.0
  */
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -995,9 +997,25 @@ int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int
 
         if (!n_in_range) {
             /* n 超出 unsigned int 范围 → 回退到 double 近似 */
-            double a_val = mpz_get_d(a_num) / mpz_get_d(a_den);
-            double b_val = mpz_get_d(b_num) / mpz_get_d(b_den);
+            double a_num_d = mpz_get_d(a_num);
+            double a_den_d = mpz_get_d(a_den);
+            double b_num_d = mpz_get_d(b_num);
+            double b_den_d = mpz_get_d(b_den);
             double n_d = mpz_get_d(n_part);
+
+            /* 检查 double 转换是否产生 Inf/NaN */
+            if (!isfinite(a_num_d) || !isfinite(a_den_d) ||
+                !isfinite(b_num_d) || !isfinite(b_den_d) ||
+                !isfinite(n_d)) {
+                mpz_clear(a_num); mpz_clear(a_den);
+                mpz_clear(b_num); mpz_clear(b_den);
+                mpz_clear(n_part);
+                lv_free((void **)&solutions);
+                return 0;
+            }
+
+            double a_val = a_num_d / a_den_d;
+            double b_val = b_num_d / b_den_d;
             double approx1 = a_val - b_val * sqrt(n_d);
             double approx2 = a_val + b_val * sqrt(n_d);
 

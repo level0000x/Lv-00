@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_internal.h
  * @brief Lv-00 项目内部头文件 —— 内部工具宏与常量
  *
@@ -22,6 +22,21 @@
 
 #ifndef lv_INTERNAL_H
 #define lv_INTERNAL_H
+
+/* 数学常量：确保 M_PI, M_E 等在所有平台上可用 */
+#ifndef _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
+#endif
+#include <math.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#ifndef M_PI_2
+#define M_PI_2 1.57079632679489661923
+#endif
+#ifndef M_E
+#define M_E 2.71828182845904523536
+#endif
 
 #ifdef __cplusplus
 extern "C" {

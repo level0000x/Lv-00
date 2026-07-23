@@ -1746,7 +1746,7 @@ bool spell_set_input_count(Spell *spell, int count) {
  * @return 设置成功返回 true，spell 为 NULL 返回 false
  */
 bool spell_set_output_count(Spell *spell, int count) {
-    if (!spell)
+    if (!spell || count < 0)
         return false;
     spell->output_count = count;
     return true;
