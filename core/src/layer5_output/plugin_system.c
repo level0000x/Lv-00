@@ -225,7 +225,8 @@ lvPlugin* lv_plugin_load(lvPluginSystem* system, const char* path) {
         unload_library(handle);
         return NULL;
     }
-    strncpy(plugin->path, path, sizeof(plugin->path) - 1);
+    strncpy(plugin->path, path, sizeof(plugin->path));
+    plugin->path[sizeof(plugin->path) - 1] = '\0';
     plugin->handle = handle;
     plugin->state = lv_PLUGIN_STATE_LOADING;
     plugin->load_time = get_timestamp();
@@ -915,8 +916,10 @@ int lv_plugin_config_set(lvPluginConfig* config, const char* key, const char* va
     
     /* 添加新条目 */
     lvPluginConfigEntry* entry = &config->entries[config->entry_count++];
-    strncpy(entry->key, key, sizeof(entry->key) - 1);
-    strncpy(entry->value, value, sizeof(entry->value) - 1);
+    strncpy(entry->key, key, sizeof(entry->key));
+    entry->key[sizeof(entry->key) - 1] = '\0';
+    strncpy(entry->value, value, sizeof(entry->value));
+    entry->value[sizeof(entry->value) - 1] = '\0';
     entry->type = type;
     
     return 0;

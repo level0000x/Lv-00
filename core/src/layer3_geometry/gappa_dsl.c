@@ -182,17 +182,21 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count,
         size_t hyp_len = (size_t)(arrow - input);
         if (hyp_len >= sizeof(hyp_part)) hyp_len = sizeof(hyp_part) - 1;
         memcpy(hyp_part, input, hyp_len);
-        strncpy(goal_part, arrow + 2, sizeof(goal_part) - 1);
+        hyp_part[hyp_len] = '\0';
+        strncpy(goal_part, arrow + 2, sizeof(goal_part));
+        goal_part[sizeof(goal_part) - 1] = '\0';
     } else {
-        strncpy(hyp_part, input, sizeof(hyp_part) - 1);
+        strncpy(hyp_part, input, sizeof(hyp_part));
+        hyp_part[sizeof(hyp_part) - 1] = '\0';
     }
 
     /* 解析假设：按 ";" 分割，每条 "var in [lo, hi]" */
     int h_count = 0;
     lvGappaPredicate *h_arr = NULL;
     {
-        char buf[1024];
-        strncpy(buf, hyp_part, sizeof(buf) - 1);
+        char buf[1024] = {0};
+        strncpy(buf, hyp_part, sizeof(buf));
+        buf[sizeof(buf) - 1] = '\0';
         char *saveptr = NULL;
         char *token = lv_strtok_r(buf, ";", &saveptr);
         while (token) {
@@ -203,7 +207,10 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count,
                 double lo = 0.0, hi = 0.0;
                 if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
                     sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
-                    lvGappaPredicate *tmp = (lvGappaPredicate *)lv_realloc(h_arr, (size_t)(h_count + 1) * sizeof(lvGappaPredicate));
+                    lvGappaPredicate *tmp = NULL;
+                    if ((size_t)(h_count + 1) <= SIZE_MAX / sizeof(lvGappaPredicate)) {
+                        tmp = (lvGappaPredicate *)lv_realloc(h_arr, (size_t)(h_count + 1) * sizeof(lvGappaPredicate));
+                    }
                     if (tmp) {
                         h_arr = tmp;
                         memset(&h_arr[h_count], 0, sizeof(lvGappaPredicate));
@@ -246,12 +253,16 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count,
                     if (expr_len < sizeof(inner_expr)) {
                         memcpy(inner_expr, abs_start + 1, expr_len);
                     }
-                    lvGappaProofGoal *tmp = (lvGappaProofGoal *)lv_realloc(g_arr, (size_t)(g_count + 1) * sizeof(lvGappaProofGoal));
+                    lvGappaProofGoal *tmp = NULL;
+                    if ((size_t)(g_count + 1) <= SIZE_MAX / sizeof(lvGappaProofGoal)) {
+                        tmp = (lvGappaProofGoal *)lv_realloc(g_arr, (size_t)(g_count + 1) * sizeof(lvGappaProofGoal));
+                    }
                     if (tmp) {
                         g_arr = tmp;
                         memset(&g_arr[g_count], 0, sizeof(lvGappaProofGoal));
                         g_arr[g_count].predicate.type = lv_PRED_ABS;
-                        strncpy(g_arr[g_count].predicate.expr_lhs, inner_expr, sizeof(g_arr[g_count].predicate.expr_lhs) - 1);
+                        strncpy(g_arr[g_count].predicate.expr_lhs, inner_expr, sizeof(g_arr[g_count].predicate.expr_lhs));
+                        g_arr[g_count].predicate.expr_lhs[sizeof(g_arr[g_count].predicate.expr_lhs) - 1] = '\0';
                         g_arr[g_count].predicate.bound_abs = bound;
                         g_arr[g_count].predicate.is_hypothesis = false;
                         g_count++;
@@ -262,12 +273,16 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count,
                     double lo = 0.0, hi = 0.0;
                     if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
                         sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
-                        lvGappaProofGoal *tmp = (lvGappaProofGoal *)lv_realloc(g_arr, (size_t)(g_count + 1) * sizeof(lvGappaProofGoal));
+                        lvGappaProofGoal *tmp = NULL;
+                        if ((size_t)(g_count + 1) <= SIZE_MAX / sizeof(lvGappaProofGoal)) {
+                            tmp = (lvGappaProofGoal *)lv_realloc(g_arr, (size_t)(g_count + 1) * sizeof(lvGappaProofGoal));
+                        }
                         if (tmp) {
                             g_arr = tmp;
                             memset(&g_arr[g_count], 0, sizeof(lvGappaProofGoal));
                             g_arr[g_count].predicate.type = lv_PRED_BND;
-                            strncpy(g_arr[g_count].predicate.expr_lhs, varname, sizeof(g_arr[g_count].predicate.expr_lhs) - 1);
+                            strncpy(g_arr[g_count].predicate.expr_lhs, varname, sizeof(g_arr[g_count].predicate.expr_lhs));
+                            g_arr[g_count].predicate.expr_lhs[sizeof(g_arr[g_count].predicate.expr_lhs) - 1] = '\0';
                             g_arr[g_count].predicate.bound_lo = lo;
                             g_arr[g_count].predicate.bound_hi = hi;
                             g_arr[g_count].predicate.is_hypothesis = false;

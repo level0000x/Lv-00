@@ -587,7 +587,8 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
     lvVerifyReport report;
     memset(&report, 0, sizeof(report));
     if (!verifier || !session) {
-        strncpy(report.summary, "Invalid verifier or session", sizeof(report.summary) - 1);
+        strncpy(report.summary, "Invalid verifier or session", sizeof(report.summary));
+        report.summary[sizeof(report.summary) - 1] = '\0';
         return report;
     }
     report.total_checks = lv_CHECK_COUNT;
@@ -828,7 +829,8 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
         } else {
             report.failed_checks++;
         }
-        strncpy(report.results[i].description, desc, sizeof(report.results[i].description) - 1);
+        strncpy(report.results[i].description, desc, sizeof(report.results[i].description));
+        report.results[i].description[sizeof(report.results[i].description) - 1] = '\0';
     }
 
     /* 生成摘要 */

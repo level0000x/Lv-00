@@ -414,7 +414,8 @@ int64_t graph_add_edge(ConstraintGraph* g, int from_idx, int to_idx, const mpq_t
     if (!g || from_idx < 0 || to_idx < 0) return -1;
     if (from_idx >= g->node_count || to_idx >= g->node_count) return -1;
     if (g->edge_count >= g->edge_cap) {
-        size_t new_cap = g->edge_cap * 2;
+        if (g->edge_cap > SIZE_MAX / 2 / sizeof(GraphEdge)) return -1;
+        size_t new_cap = (size_t)g->edge_cap * 2;
         GraphEdge* tmp = (GraphEdge*)lv_realloc(g->edges, new_cap * sizeof(GraphEdge));
         if (!tmp) return -1;               /* realloc 失败, 原内存保留, 安全返回 */
         g->edge_cap = (int)new_cap;

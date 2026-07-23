@@ -174,8 +174,10 @@ int lv_proof_object_add_step(lvProofObject *obj, lvProofStepRecord *step) {
 bool lv_proof_object_add_axiom(lvProofObject *obj, int axiom_id) {
     if (!obj) return false;
     if (obj->axiom_count >= obj->axiom_capacity) {
+        if (obj->axiom_capacity > INT_MAX / 2) return false;
         int new_capacity = obj->axiom_capacity * 2;
-        int *new_ids = (int *)lv_realloc(obj->axiom_ids, new_capacity * sizeof(int));
+        if ((size_t)new_capacity > SIZE_MAX / sizeof(int)) return false;
+        int *new_ids = (int *)lv_realloc(obj->axiom_ids, (size_t)new_capacity * sizeof(int));
         if (!new_ids) return false;
         obj->axiom_ids = new_ids;
         obj->axiom_capacity = new_capacity;
@@ -190,8 +192,10 @@ bool lv_proof_object_add_axiom(lvProofObject *obj, int axiom_id) {
 bool lv_proof_object_add_assumption(lvProofObject *obj, int assumption_id) {
     if (!obj) return false;
     if (obj->assumption_count >= obj->assumption_capacity) {
+        if (obj->assumption_capacity > INT_MAX / 2) return false;
         int new_capacity = obj->assumption_capacity * 2;
-        int *new_ids = (int *)lv_realloc(obj->assumption_ids, new_capacity * sizeof(int));
+        if ((size_t)new_capacity > SIZE_MAX / sizeof(int)) return false;
+        int *new_ids = (int *)lv_realloc(obj->assumption_ids, (size_t)new_capacity * sizeof(int));
         if (!new_ids) return false;
         obj->assumption_ids = new_ids;
         obj->assumption_capacity = new_capacity;

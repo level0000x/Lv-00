@@ -47,8 +47,10 @@ lvSessionConfig lv_default_session_config(void) {
     cfg.max_reasoning_depth = 100;
     cfg.timeout_ms = lv_DEFAULT_TIMEOUT_MS;
     cfg.enable_visualization = 0;
-    strncpy(cfg.input_format, "lv-dsl", sizeof(cfg.input_format) - 1);
-    strncpy(cfg.output_format, "proof", sizeof(cfg.output_format) - 1);
+    strncpy(cfg.input_format, "lv-dsl", sizeof(cfg.input_format));
+    cfg.input_format[sizeof(cfg.input_format) - 1] = '\0';
+    strncpy(cfg.output_format, "proof", sizeof(cfg.output_format));
+    cfg.output_format[sizeof(cfg.output_format) - 1] = '\0';
     return cfg;
 }
 
@@ -64,7 +66,10 @@ lvSession *lv_session_create(const char *name) {
     lvSession *session = lv_calloc(1, sizeof(lvSession));
     if (!session) return NULL;
     session->session_id = atomic_fetch_add(&session_counter, 1) + 1;
-    if (name) strncpy(session->session_name, name, sizeof(session->session_name) - 1);
+    if (name) {
+        strncpy(session->session_name, name, sizeof(session->session_name));
+        session->session_name[sizeof(session->session_name) - 1] = '\0';
+    }
     session->config = lv_default_session_config();
     for (int i = 0; i < lv_STAGE_COUNT; i++) {
         session->stages[i].stage = (lvPipelineStage)i;
@@ -119,9 +124,11 @@ int lv_session_run(lvSession *session, const char *input) {
         if (input_len == 0) {
             session->stages[lv_STAGE_PARSE].status = lv_STAGE_FAILED;
             strncpy(session->stages[lv_STAGE_PARSE].error_msg,
-                    "解析失败：输入为空", sizeof(session->stages[lv_STAGE_PARSE].error_msg) - 1);
+                    "解析失败：输入为空", sizeof(session->stages[lv_STAGE_PARSE].error_msg));
+            session->stages[lv_STAGE_PARSE].error_msg[sizeof(session->stages[lv_STAGE_PARSE].error_msg) - 1] = '\0';
             strncpy(session->final_error, "Stage 0 (Parse) 失败: 输入为空",
-                    sizeof(session->final_error) - 1);
+                    sizeof(session->final_error));
+            session->final_error[sizeof(session->final_error) - 1] = '\0';
             session->success = 0;
             return -1;
         }

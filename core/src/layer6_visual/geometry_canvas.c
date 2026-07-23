@@ -155,13 +155,15 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type,
     }
 
     /* 复制坐标 */
+    if (coord_count < 0) return -1;
     ent->coords = lv_calloc(coord_count, sizeof(double));
     if (!ent->coords) {
         /* calloc失败，清零该实体槽位防止半初始化数据残留 */
         memset(ent, 0, sizeof(lvGeomEntity));
         return -1;
     }
-    memcpy(ent->coords, coords, coord_count * sizeof(double));
+    if ((size_t)coord_count > SIZE_MAX / sizeof(double)) return -1;
+    memcpy(ent->coords, coords, (size_t)coord_count * sizeof(double));
     ent->coord_count = coord_count;
 
     /* 默认样式 */
