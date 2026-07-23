@@ -1,10 +1,33 @@
-// bootstrap: lexer — 词法分析器: tokenize .lv00 source
+// bootstrap: lexer — 词法分析器: tokenize .lv source
+// 输入: Lv-00 源代码文本 (SourceText)
+// 输出: TokenStream (有序 Token 序列)
+// 功能: 识别关键字(Point/Constraint/Prove/Normalize)、标识符、符号(:= / ; / , / . / ( / ) / { / })
+//       字面量(字符串/整数)、注释(//)、空白分隔；忽略注释与空白，记录行号列号。
 
-Point Lexer := lex(input: SourceText) -> TokenStream;
-Point Token := { kind: TokenKind, lexeme: String, span: Span };
+Point SourceText   := { content: String, filename: Name, length: Int };
+Point TokenKind    := KeywordPoint | KeywordConstraint | KeywordProve | KeywordNormalize
+                    | Ident | StrLit | IntLit | OpAssign | OpSemi | OpColon
+                    | LParen | RParen | LBrace | RBrace | Comma | Dot | EOF;
+Point Token        := { kind: TokenKind, lexeme: String, span: Span, line: Int, col: Int };
+Point Span         := { start: Int, end: Int };
+Point TokenStream  := { tokens: List<Token>, source_ref: SourceText, error_count: Int };
+Point Lexer        := lex(input: SourceText) -> TokenStream;
 
 Constraint LexerCorrect: forall src: SourceText(valid_lv00).
   all_tokens_categorized(lex(src)) /\ no_orphan_characters(lex(src));
 
+Constraint TokenOrderPreserved: forall src: SourceText.
+  forall i: Int, j: Int.
+    i < j -> lex(src).tokens[i].span.start < lex(src).tokens[j].span.start;
+
+Constraint NoSkippedInput: forall src: SourceText.
+  lex(src).error_count = 0 ->
+    concat(lex(src).tokens[*].lexeme) eq strip_whitespace_and_comments(src.content);
+
+Constraint LexerIdempotent: forall src: SourceText(valid_lv00).
+  lex(src).error_count = 0 -> all_tokens_categorized(lex(src));
+
 Prove LexerCorrect;
+Prove TokenOrderPreserved;
+Prove NoSkippedInput;
 Normalize;

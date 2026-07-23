@@ -965,8 +965,14 @@ static int gauss_eliminate(double *A, double *b, int n)
             }
         }
 
-        /* 奇异检测 */
-        if (max_val < 1e-14) return -1;
+        /* 奇异检测：使用相对容差，依据矩阵列范数自适应缩放 */
+        double col_norm = 0.0;
+        for (int r = 0; r < n; r++) {
+            double av = fabs(A[r * n + col]);
+            if (av > col_norm) col_norm = av;
+        }
+        double singular_tol = 1e-14 * fmax(1.0, col_norm);
+        if (max_val < singular_tol) return -1;
 
         /* 交换行 */
         if (pivot != col) {

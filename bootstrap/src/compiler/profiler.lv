@@ -1,11 +1,47 @@
 // bootstrap: profiler — 性能剖析: 热点/调用计数/内存统计
-// [QA] Same filename as layer2_resource/profiler.lv00 — different layer scope. Keep both.
+// 输入: Execution (运行时执行记录或实时会话)
+// 输出: ProfileReport (结构化性能报告)
+// 功能: 收集程序运行时的性能指标，包括:
+//       - CPU 模式: 热点函数/基本块、指令分布、流水线停顿
+//       - Memory 模式: 堆分配/释放轨迹、GC 压力、缓存缺失
+//       - Allocation 模式: 分配大小分布、生命周期统计
+//       - Coverage 模式: 代码行/分支/路径覆盖率
+//       保证重复 profiling 在确定性执行下结果一致。
 
-Point Profiler := profile(exec: Execution, mode: ProfileMode) -> ProfileReport;
-Point ProfileMode := CPU | Memory | Allocation | Coverage;
+Point ProfileMode  := CPU | Memory | Allocation | Coverage;
+Point SampleMethod := TimerBased(IntervalMs: Int) | EventBased(Event: HWEvent) | Instrumented;
+
+Point CPUProfile   := { hotspots: List<Hotspot>, call_counts: Map<Name, Int>,
+                        inst_mix: Map<InstKind, Int>, total_cycles: Int };
+Point MemProfile   := { alloc_sites: List<AllocSite>, peak_rss: Int,
+                        gc_pause_total: Int, cache_misses: Int };
+Point AllocProfile := { size_histogram: Map<Int, Int>, avg_lifetime: Int,
+                        total_alloc: Int, allocation_rate: Float };
+Point CoverProfile := { line_coverage: Float, branch_coverage: Float,
+                        uncovered_lines: Set<Location> };
+Point ProfileReport := { mode: ProfileMode, cpu: Option<CPUProfile>,
+                         mem: Option<MemProfile>, alloc: Option<AllocProfile>,
+                         cover: Option<CoverProfile>, overhead_ns: Int };
+
+Point Profiler     := profile(exec: Execution, mode: ProfileMode,
+                              sample_method: SampleMethod) -> ProfileReport;
 
 Constraint ProfileDeterministic: forall e: Execution(deterministic).
-  profile(e, CPU) is unique /\ profile(e, CPU) = profile(e, CPU);
+  profile(e, CPU, _) is unique /\ profile(e, CPU, _) = profile(e, CPU, _);
+
+Constraint CoverageSound: forall e: Execution, r: ProfileReport.
+  profile(e, Coverage, _) = r -> forall loc: Location(in r.cover.uncovered_lines).
+    not(loc exercised in e);
+
+Constraint CPUMetricsConsistent: forall r: ProfileReport(cpu exists).
+  sum(r.cpu.call_counts) <= r.cpu.total_cycles /\
+  r.cpu.total_cycles > 0;
+
+Constraint OverheadBounded: forall e: Execution, mode: ProfileMode.
+  profile(e, mode, _).overhead_ns < duration(e) * 0.10;
 
 Prove ProfileDeterministic;
+Prove CoverageSound;
+Prove CPUMetricsConsistent;
+Prove OverheadBounded;
 Normalize;

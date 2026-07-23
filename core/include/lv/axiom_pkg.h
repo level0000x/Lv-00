@@ -349,6 +349,17 @@ lv_PUBLIC_API TemplateTestCase *axiom_template_test_case_create(const char *name
  */
 lv_PUBLIC_API void axiom_template_test_case_destroy(TemplateTestCase *tc);
 
+/**
+ * @brief 深拷贝测试用例
+ *
+ * 完整拷贝 template_name、description、params 和 expected_graph。
+ * 返回的拷贝由调用者负责销毁（axiom_template_test_case_destroy）。
+ *
+ * @param src 源测试用例
+ * @return 深拷贝副本，失败返回 NULL
+ */
+lv_PUBLIC_API TemplateTestCase *axiom_template_test_case_copy(const TemplateTestCase *src);
+
 /* ============== 模板展开缓存 ============== */
 
 /**

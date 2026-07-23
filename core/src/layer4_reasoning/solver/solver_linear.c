@@ -409,27 +409,29 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
     } else {
         /* n 太大，无法用 unsigned int 表示，回退到数值近似解。
            将有理部分和 sqrt 部分转为 double，计算近似值后存为 RATIONAL 类型。
-           使用 GMP 的 mpq_set_d 获取精确的有理表示。 */
-        double approx1 = mpq_get_d(rational_part) - mpq_get_d(sqrt_coeff) * sqrt(mpz_get_d(n_part));
-        double approx2 = mpq_get_d(rational_part) + mpq_get_d(sqrt_coeff) * sqrt(mpz_get_d(n_part));
+           使用 mpq_set_d 将 double 近似转为有理数。 */
+        double d_rational = mpq_get_d(rational_part);
+        double d_sqrt_coeff = mpq_get_d(sqrt_coeff);
+        double d_n = mpz_get_d(n_part);
+        double d_sqrt_n = (d_n >= 0.0) ? sqrt(d_n) : 0.0;
 
-        /* 将 double 近似值转换为有理数（通过 mpq_t 获取分子/分母） */
+        double approx1 = d_rational - d_sqrt_coeff * d_sqrt_n;
+        double approx2 = d_rational + d_sqrt_coeff * d_sqrt_n;
+
+        /* 将 double 近似值转换为有理数 */
         mpq_t q_approx;
         mpq_init(q_approx);
         mpq_set_d(q_approx, approx1);
-        /* 直接从 mpq 提取分子分母，避免 double->mpq->double->int64 精度损失 */
-        int64_t num1 = mpz_get_si(mpq_numref(q_approx));
-        uint64_t den1 = mpz_get_ui(mpq_denref(q_approx));
-        if (den1 == 0)
-            den1 = 1;
-        solutions[0] = symbolic_coord_create_rational(num1, den1);
+        int64_t num1 = (int64_t)llround(mpq_get_d(q_approx));
+        uint64_t den1 = (uint64_t)llround(mpq_get_d(mpq_denref(q_approx)));
+        if (den1 == 0) den1 = 1;
+        solutions[0] = symbolic_coord_create_rational((int)num1, (unsigned int)den1);
 
         if (max_solutions >= 2) {
             mpq_set_d(q_approx, approx2);
-            int64_t num2 = mpz_get_si(mpq_numref(q_approx));
-            uint64_t den2 = mpz_get_ui(mpq_denref(q_approx));
-            if (den2 == 0)
-                den2 = 1;
+            int64_t num2 = (int64_t)llround(mpq_get_d(q_approx));
+            uint64_t den2 = (uint64_t)llround(mpq_get_d(mpq_denref(q_approx)));
+            if (den2 == 0) den2 = 1;
             solutions[1] = symbolic_coord_create_rational(num2, den2);
         }
         mpq_clear(q_approx);

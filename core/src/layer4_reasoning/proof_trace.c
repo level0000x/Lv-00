@@ -101,6 +101,7 @@ int lv_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *sta
 
     /* 扩容检查 */
     if (trace->step_count >= trace->capacity) {
+        if (trace->capacity > INT_MAX / 2) return -1;
         int new_cap = trace->capacity * 2;
         ProofStep *new_steps = lv_realloc(
             trace->steps, (size_t)new_cap * sizeof(ProofStep));

@@ -1,10 +1,35 @@
 // bootstrap: semantic — 语义分析: 名字解析/作用域/符号表
+// 输入: AST (来自 parser)
+// 输出: ResolvedAST (每个使用处附有指向声明的引用)
+// 功能: 构建作用域链，解析所有标识符引用到对应定义，检测重复声明和未声明引用。
+//       支持嵌套作用域 (Point 定义内部可引用外部符号)，隐式导入核心预定义集。
 
-Point Semantic := resolve(ast: AST, env: ScopeChain) -> ResolvedAST;
-Point Scope := { bindings: SymbolTable, parent: Option<Scope> };
+Point SymbolTable  := Map<Name, DefinitionRef>;
+Point Scope        := { bindings: SymbolTable, parent: Option<Scope>, depth: Int };
+Point ScopeChain   := { scopes: List<Scope>, current_depth: Int, global_scope: Scope };
+Point DefRef       := { name: Name, node: ASTNode, def_site: Span, def_kind: DefKind };
+Point SemanticErr  := Undeclared(Name) | Duplicate(Name) | ShadowRestricted(Name);
+Point ResolvedAST  := { ast: AST, symbol_map: Map<Token, DefRef>, scopes: ScopeChain };
+
+Point Semantic     := resolve(ast: AST, env: ScopeChain) -> Result<ResolvedAST, List<SemanticErr>>;
 
 Constraint NoUndeclared: forall ast: AST(after_parse).
-  forall id: Identifier(in ast) -> id in resolve(ast).visible_names;
+  forall id: Identifier(in ast) -> id in resolve(ast, fresh_env()).visible_names;
+
+Constraint NoDuplicate: forall ast: AST(after_parse).
+  forall n1: Name, n2: Name(in same scope).
+    n1 = n2 -> resolve(ast, fresh_env()) raises Duplicate(n1);
+
+Constraint ScopeNestingSound: forall ast: AST, env: ScopeChain.
+  resolve(ast, env) passes -> forall s: Scope(in env.scopes).
+    forall b: Name(in s.bindings). b lookupable_in_parent_chain(s);
+
+Constraint ResolvedASTTotal: forall ast: AST.
+  resolve(ast, fresh_env()) passes ->
+    forall n: IdentToken(in ast). n in resolve(ast, fresh_env()).symbol_map;
 
 Prove NoUndeclared;
+Prove NoDuplicate;
+Prove ScopeNestingSound;
+Prove ResolvedASTTotal;
 Normalize;

@@ -626,6 +626,7 @@ static bool compute_bivariate_resultant(
     newton_term.degree = 0;
     newton_term.coeffs = lv_malloc(sizeof(mpz_t));
     if (!newton_term.coeffs) {
+        mpz_poly_clear(&newton_term);
         goto cleanup_resultant;
     }
     mpz_init_set_si(newton_term.coeffs[0], MPZ_RES_NEWTON_CONST_TERM);

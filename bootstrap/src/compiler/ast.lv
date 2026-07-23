@@ -1,10 +1,32 @@
 // bootstrap: ast — 抽象语法树定义与遍历
+// 功能: 定义 Lv-00 DSL 的 AST 节点类型体系、遍历器接口及树不变式。
+//       提供 Visitor、Fold、Map 三种遍历策略，保证树结构在语义阶段正确可导航。
 
-Point ASTNode := leaf(value: Token) | branch(label: NodeKind, children: List<ASTNode>);
-Point Visitor := accept(visitor: ASTVisitor, node: ASTNode) -> Result;
+Point ASTNode      := leaf(value: Token) | branch(label: NodeKind, children: List<ASTNode>);
+Point NodeKind     := Module | Definition | Constraint | ProveStmt | NormalizeStmt
+                    | Signature | Body | Parameter | TypeAnnot;
+Point AST          := root(kind: NodeKind(Module), children: List<ASTNode>, metadata: ASTMeta);
+Point ASTMeta      := { depth: Int, node_count: Int, leaf_count: Int };
+Point ASTVisitor   := { enter: NodeKind -> Bool, exit: NodeKind -> Unit, visit_leaf: Token -> Unit };
+Point Visitor      := accept(visitor: ASTVisitor, node: ASTNode) -> Result;
 
 Constraint ASTWellFormed: forall node: ASTNode.
   is_acyclic(node) /\ all_children_typed(node) /\ root_is_Module(node);
 
+Constraint ASTNodeCountInv: forall ast: AST.
+  ast.metadata.node_count = count_all_descendants(ast.root) + 1 /\
+  ast.metadata.leaf_count = count_leaves(ast.root);
+
+Constraint ASTRootKindInv: forall ast: AST.
+  ast.root.label = Module ->
+    forall child: ASTNode(in ast.root.children).
+      child.label in {Definition, Constraint, ProveStmt, NormalizeStmt};
+
+Constraint ASTDepthBounded: forall ast: AST.
+  ast.metadata.depth <= max_depth(ast) /\ max_depth(ast) <= 100;
+
 Prove ASTWellFormed;
+Prove ASTNodeCountInv;
+Prove ASTRootKindInv;
+Prove ASTDepthBounded;
 Normalize;

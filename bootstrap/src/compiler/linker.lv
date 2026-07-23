@@ -1,10 +1,42 @@
 // bootstrap: linker — 链接器: 对象文件合并与重定位
+// 输入: List<ObjectFile> (待链接的对象文件), List<Library> (静态/动态库)
+// 输出: Executable (可执行镜像)
+// 功能: 将多个对象文件和库链接为单一可执行文件。
+//       合并段、解析符号引用、执行重定位、构建最终内存映像。
+//       保证无未解析符号、无重复符号、所有重定位有合法目标。
 
-Point Linker := link(objs: List<ObjectFile>, libs: List<Library>) -> Executable;
-Point Relocation := { offset: Addr, symbol: Name, kind: RelocKind };
+Point ObjectFile   := { sections: List<ObjSection>, symbols: Map<Name, SymbolDef>,
+                        relocs: List<RelocSite>, filename: Name };
+Point Library      := { name: Name, objects: List<ObjectFile>, kind: LibKind };
+Point LibKind      := Static | Dynamic;
+Point SymbolDef    := { name: Name, addr: Addr, section: SectionRef, binding: Binding };
+Point Binding      := Local | Global | Weak | Extern;
+Point SectionRef   := { obj_index: Int, sec_index: Int, offset: Addr };
+Point Addr         := Int;
+Point Executable   := { segments: List<Segment>, entry: Addr,
+                        symbols: Map<Name, Addr>, debug_info: Option<DebugMeta> };
+Point Segment      := { vaddr: Addr, data: ByteVector, flags: SegFlags, alignment: Int };
+Point SegFlags     := { readable: Bool, writable: Bool, executable: Bool };
+
+Point Linker       := link(objs: List<ObjectFile>, libs: List<Library>,
+                           config: LinkerConfig) -> Result<Executable, LinkerError>;
 
 Constraint LinkerNoConflicts: forall objs: List<ObjectFile>(valid).
-  symbol_unique(resolve_symbols(objs)) /\ no_orphan_reloc(link(objs, []));
+  symbol_unique(resolve_symbols(objs)) /\ no_orphan_reloc(link(objs, [], _));
+
+Constraint AllSymbolsResolved: forall objs: List<ObjectFile>, libs: List<Library>.
+  link(objs, libs, _) passes -> forall sym: Name(referenced_in_objs).
+    sym in link(objs, libs, _).symbols;
+
+Constraint RelocDestinationValid: forall exe: Executable.
+  forall seg: Segment(in exe.segments).
+    forall reloc: RelocSite(in seg). reloc.target in exe.symbols;
+
+Constraint EntryExists: forall exe: Executable.
+  exe.entry > 0 /\ exe.entry in union(exe.segments[*].vaddr_range);
 
 Prove LinkerNoConflicts;
+Prove AllSymbolsResolved;
+Prove RelocDestinationValid;
+Prove EntryExists;
 Normalize;

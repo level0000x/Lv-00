@@ -80,10 +80,13 @@ static double double_max(double a, double b) {
  * 乘以 (1 - DBL_EPSILON) 以处理浮点舍入。
  */
 static double round_down(double x) {
+    if (isnan(x)) return x;
+    if (isinf(x)) return x;
+    if (x == 0.0) return -0.0;  /* 零方向的下一个可表示值 */
     if (x > 0.0) {
-        return x * (1.0 - DBL_EPSILON);
+        return nextafter(x, -INFINITY);
     } else {
-        return x * (1.0 + DBL_EPSILON);
+        return nextafter(x, -INFINITY);
     }
 }
 
@@ -91,13 +94,13 @@ static double round_down(double x) {
  * @brief 向上舍入（保留上界计算）
  *
  * 将 double 值向正无穷方向微调，确保区间上界是安全的。
+ * 使用 nextafter 确保对零和次正规数也正确。
  */
 static double round_up(double x) {
-    if (x > 0.0) {
-        return x * (1.0 + DBL_EPSILON);
-    } else {
-        return x * (1.0 - DBL_EPSILON);
-    }
+    if (isnan(x)) return x;
+    if (isinf(x)) return x;
+    if (x == 0.0) return +0.0;  /* 从零向上 */
+    return nextafter(x, INFINITY);
 }
 
 /* ========================================================================

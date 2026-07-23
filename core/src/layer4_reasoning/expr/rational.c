@@ -240,6 +240,32 @@ void lv_rational_simplify(lvRational *r) {
     mpz_clear(g);
 }
 
+/**
+ * @brief 位数熔断保护：当分子或分母比特位超出阈值时截断
+ *
+ * 防止循环中无界增长。默认阈值 1024 比特。
+ */
+static void lv_rational_canonicalize(lvRational *r) {
+    if (!r)
+        return;
+
+    size_t num_bits = mpz_sizeinbase(r->num, 2);
+    size_t den_bits = mpz_sizeinbase(r->den, 2);
+    size_t limit = 1024;
+
+    if (num_bits > limit || den_bits > limit) {
+        /* 截断：将分子和分母同时右移，保留有效位数 */
+        int shift = (int)(num_bits > den_bits ? num_bits - limit
+                                              : den_bits - limit);
+        if (shift > 0) {
+            mpz_tdiv_q_2exp(r->num, r->num, (unsigned int)shift);
+            mpz_tdiv_q_2exp(r->den, r->den, (unsigned int)shift);
+        }
+        /* 再次化简 */
+        lv_rational_simplify(r);
+    }
+}
+
 /* ========================================================================
  * 算术运算
  * ======================================================================== */
@@ -424,6 +450,19 @@ void lv_rational_add_inplace(lvRational *a, const lvRational *b) {
     mpz_clear(t2);
 
     lv_rational_simplify(a);
+    /* 保护：分子或分母比特位超出阈值时转换为 double 近似（防止循环中无界增长） */
+    if (mpz_sizeinbase(a->num, 2) > 128 || mpz_sizeinbase(a->den, 2) > 128) {
+        mpq_t tmp;
+        mpq_init(tmp);
+        mpz_set(mpq_numref(tmp), a->num);
+        mpz_set(mpq_denref(tmp), a->den);
+        mpq_canonicalize(tmp);
+        double d = mpq_get_d(tmp);
+        mpq_set_d(tmp, d);
+        mpz_set(a->num, mpq_numref(tmp));
+        mpz_set(a->den, mpq_denref(tmp));
+        mpq_clear(tmp);
+    }
 }
 
 /**
@@ -447,6 +486,19 @@ void lv_rational_sub_inplace(lvRational *a, const lvRational *b) {
     mpz_clear(t2);
 
     lv_rational_simplify(a);
+    /* 保护：分子或分母比特位超出阈值时转换为 double 近似 */
+    if (mpz_sizeinbase(a->num, 2) > 128 || mpz_sizeinbase(a->den, 2) > 128) {
+        mpq_t tmp;
+        mpq_init(tmp);
+        mpz_set(mpq_numref(tmp), a->num);
+        mpz_set(mpq_denref(tmp), a->den);
+        mpq_canonicalize(tmp);
+        double d = mpq_get_d(tmp);
+        mpq_set_d(tmp, d);
+        mpz_set(a->num, mpq_numref(tmp));
+        mpz_set(a->den, mpq_denref(tmp));
+        mpq_clear(tmp);
+    }
 }
 
 /**
@@ -476,6 +528,20 @@ bool lv_rational_div_inplace(lvRational *a, const lvRational *b) {
     mpz_mul(a->den, a->den, b->num);
 
     lv_rational_simplify(a);
+
+    /* 保护：分子或分母比特位超出阈值时转换为 double 近似（防止循环中无界增长） */
+    if (mpz_sizeinbase(a->num, 2) > 128 || mpz_sizeinbase(a->den, 2) > 128) {
+        mpq_t tmp;
+        mpq_init(tmp);
+        mpz_set(mpq_numref(tmp), a->num);
+        mpz_set(mpq_denref(tmp), a->den);
+        mpq_canonicalize(tmp);
+        double d = mpq_get_d(tmp);
+        mpq_set_d(tmp, d);
+        mpz_set(a->num, mpq_numref(tmp));
+        mpz_set(a->den, mpq_denref(tmp));
+        mpq_clear(tmp);
+    }
     return true;
 }
 

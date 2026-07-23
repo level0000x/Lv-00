@@ -330,9 +330,19 @@ static uint64_t *wl_refine_labels(ConstraintGraph *graph,
     for (int i = 0; i < node_count; i++) {
         uint64_t refined = labels[i];
 
-        /* 收集该节点所有邻居的标签（容量提升至128以支持密集图） */
-        uint64_t neighbor_labels[128];
+        /* 收集该节点所有邻居的标签，使用动态分配避免固定大小截断 */
+        int max_neighbors = graph->constraint_count * 4;
+        uint64_t *neighbor_labels = NULL;
         int neighbor_count = 0;
+
+        /* 小规模情况使用栈缓冲区避免分配开销 */
+        uint64_t small_buf[64];
+        if (max_neighbors <= 64) {
+            neighbor_labels = small_buf;
+        } else {
+            neighbor_labels = (uint64_t *)lv_malloc((size_t)max_neighbors * sizeof(uint64_t));
+            if (!neighbor_labels) neighbor_labels = small_buf;
+        }
 
         for (int c = 0; c < graph->constraint_count; c++) {
             Constraint *con = graph->constraints[c];
@@ -349,7 +359,7 @@ static uint64_t *wl_refine_labels(ConstraintGraph *graph,
                         }
                         if (nidx < node_count && id_to_idx[nidx] >= 0 &&
                             graph->nodes[id_to_idx[nidx]]->id == neighbor_id) {
-                            if (neighbor_count < 128) {
+                            if (neighbor_count < max_neighbors) {
                                 neighbor_labels[neighbor_count++] =
                                     labels[id_to_idx[nidx]];
                             }
@@ -370,6 +380,11 @@ static uint64_t *wl_refine_labels(ConstraintGraph *graph,
         }
 
         new_labels[i] = refined;
+
+        /* 清理动态分配的邻居标签缓冲区 */
+        if (neighbor_labels != small_buf) {
+            lv_free((void**)&neighbor_labels);
+        }
     }
 
     lv_free((void**)&id_to_idx);

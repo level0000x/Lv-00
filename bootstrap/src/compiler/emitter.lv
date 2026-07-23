@@ -1,10 +1,37 @@
 // bootstrap: emitter — 目标代码发射: IR -> 汇编/字节码
+// 输入: IR (优化后的中间表示)
+// 输出: ObjectCode (目标 ISA 的汇编或字节码)
+// 功能: 将平台无关 IR 翻译为平台相关的汇编指令或字节码序列。
+//       处理指令选择、寄存器分配、指令调度、栈帧布局。
+//       保证发射后的代码在目标平台上模拟执行等价于 IR 的逐步语义。
 
-Point Emitter := emit(ir: IR, target: TargetISA) -> ObjectCode;
-Point TargetISA := X86_64 | ARM64 | WASM | BPF;
+Point TargetISA    := X86_64 | ARM64 | WASM | BPF;
+Point ISASpec      := { reg_count: Int, word_size: Int, endianness: Endian,
+                        supported_extensions: Set<Extension> };
+Point Endian       := Little | Big;
+Point ObjSection   := { name: String, kind: SectionKind, data: ByteVector, alignment: Int };
+Point SectionKind  := Text | Data | Rodata | Bss | Debug;
+Point ObjectCode   := { sections: List<ObjSection>, entry_point: Addr,
+                        target_isa: TargetISA, isa_spec: ISASpec };
+
+Point Emitter      := emit_to_asm(ir: IR, isa: TargetISA) -> ObjectCode;
 
 Constraint EmitterCorrect: forall ir: IR, isa: TargetISA.
-  decode(emit(ir, isa)) simulates step_semantics(ir);
+  decode(emit_to_asm(ir, isa)) simulates step_semantics(ir);
+
+Constraint ISACompatible: forall ir: IR, isa: TargetISA, obj: ObjectCode.
+  emit_to_asm(ir, isa) = obj -> obj.target_isa = isa /\ obj.isa_spec.word_size >= 32;
+
+Constraint SectionAligned: forall obj: ObjectCode.
+  forall sec: ObjSection(in obj.sections).
+    sec.alignment > 0 /\ length(sec.data) mod sec.alignment = 0;
+
+Constraint EntryInText: forall obj: ObjectCode.
+  exists text_sec: ObjSection(in obj.sections).
+    text_sec.kind = Text /\ obj.entry_point in range_of(text_sec);
 
 Prove EmitterCorrect;
+Prove ISACompatible;
+Prove SectionAligned;
+Prove EntryInText;
 Normalize;

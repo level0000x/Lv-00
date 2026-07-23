@@ -233,9 +233,14 @@ lvInterval interval_sin(lvInterval a) {
     r.lo = round_down((s_lo < s_hi) ? s_lo : s_hi);
     r.hi = round_up((s_lo < s_hi) ? s_hi : s_lo);
 
-    /* Check for pi/2 + k*pi in [lo, hi] (maxima) */
-    double k;
-    for (k = -100.0; k <= 100.0; k += 1.0) {
+    /* 计算极值点覆盖范围：使用区间端点计算所需的 k 范围而非固定 [-100,100] */
+    /* 最大值在 pi/2 + k*pi 处，最小值在 -pi/2 + k*pi 处 */
+    double k_min_lo = floor((lo - M_PI / 2.0) / M_PI);
+    double k_max_hi = ceil((hi - M_PI / 2.0) / M_PI);
+    /* 限制搜索范围避免过大循环（区间跨度已在上方保证 < 2*pi，因此最多覆盖 3 个极值点） */
+    if (k_min_lo < -2.0) k_min_lo = -2.0;
+    if (k_max_hi > 2.0) k_max_hi = 2.0;
+    for (double k = k_min_lo; k <= k_max_hi; k += 1.0) {
         double crit = M_PI / 2.0 + k * M_PI;
         if (crit >= lo && crit <= hi) {
             double sc = sin(crit);
@@ -244,8 +249,7 @@ lvInterval interval_sin(lvInterval a) {
         }
     }
 
-    /* Check for -pi/2 + k*pi = 3*pi/2 + (k-2)*pi in [lo, hi] (minima) */
-    for (k = -100.0; k <= 100.0; k += 1.0) {
+    for (double k = k_min_lo; k <= k_max_hi; k += 1.0) {
         double crit = -M_PI / 2.0 + k * M_PI;
         if (crit >= lo && crit <= hi) {
             double sc = sin(crit);
@@ -283,9 +287,12 @@ lvInterval interval_cos(lvInterval a) {
     r.lo = round_down((c_lo < c_hi) ? c_lo : c_hi);
     r.hi = round_up((c_lo < c_hi) ? c_hi : c_lo);
 
-    /* Check for k*pi in [lo, hi] (maxima at 2k*pi, minima at (2k+1)*pi) */
-    double k;
-    for (k = -100.0; k <= 100.0; k += 1.0) {
+    /* 使用区间端点动态计算极值点范围 */
+    double k_min = floor(lo / M_PI);
+    double k_max = ceil(hi / M_PI);
+    if (k_min < -2.0) k_min = -2.0;
+    if (k_max > 2.0) k_max = 2.0;
+    for (double k = k_min; k <= k_max; k += 1.0) {
         double crit = k * M_PI;
         if (crit >= lo && crit <= hi) {
             double cc = cos(crit);

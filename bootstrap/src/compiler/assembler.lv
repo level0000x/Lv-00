@@ -1,10 +1,41 @@
 // bootstrap: assembler — 汇编器: 助记符 -> 机器码
+// 输入: AsmSource (目标 ISA 的汇编助记符文本)
+// 输出: BinaryCode (原始机器码字节序列 + 符号调试信息)
+// 功能: 将汇编助记符翻译为机器码。支持 X86_64 / ARM64 / WASM / BPF 指令集。
+//       处理伪指令、标签解析、立即数编码、重定位标记。
+//       保证汇编-反汇编往返一致性 (roundtrip 性质)。
 
-Point Assembler := assemble(asm: AsmSource) -> BinaryCode;
-Point Instruction := { mnemonic: String, operands: List<Operand>, encoding: Encoding };
+Point Mnemonic     := { name: String, operands: List<Operand>, size: Int };
+Point Operand      := Reg(Name) | Imm(Int) | Mem(Addr, Offset) | Label(Name);
+Point Encoding     := { opcode: ByteVector, modrm: Option<Byte>, imm: Option<ByteVector>,
+                        prefix: Option<ByteVector> };
+Point Instruction  := { mnemonic: Mnemonic, encoding: Encoding, is_pseudo: Bool };
+Point AsmSource    := { sections: List<SectionDef>, symbols: Map<Name, LabelDef>,
+                        origin: Origin };
+Point BinaryCode   := { bytes: ByteVector, relocs: List<RelocSite>,
+                        symbols: Map<Name, Addr>, entry: Option<Addr> };
+Point RelocSite    := { offset: Addr, kind: RelocKind, target: Name, addend: Int };
+
+Point Assembler    := assemble(asm: AsmSource) -> BinaryCode;
 
 Constraint AsmRoundtrip: forall inst: Instruction(valid).
-  disassemble(assemble(inst)) inst_eq inst;
+  disassemble(assemble(asm_with(inst))) contains_encoding_equal inst;
+
+Constraint SymbolResolvedUnique: forall asm: AsmSource(no_duplicate_labels).
+  forall lbl: LabelDef(in asm.symbols).
+    assemble(asm).symbols[lbl.name] = resolved_addr(lbl) /\
+    unique(asm.symbols, lbl.name);
+
+Constraint EncodingFit: forall inst: Instruction.
+  length(inst.encoding.opcode) = inst.mnemonic.size /\
+  fit_in_word(inst.encoding.imm) when inst.encoding.imm exists;
+
+Constraint RelocCoverage: forall asm: AsmSource, bin: BinaryCode.
+  assemble(asm) = bin -> forall r: RelocSite(in bin.relocs).
+    r.target in asm.symbols;
 
 Prove AsmRoundtrip;
+Prove SymbolResolvedUnique;
+Prove EncodingFit;
+Prove RelocCoverage;
 Normalize;

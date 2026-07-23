@@ -67,6 +67,7 @@ int lv_assumption_stack_push(lvAssumptionStack *stack,
 
     /* 检查容量 */
     if (stack->count >= stack->capacity) {
+        if (stack->capacity > INT_MAX / 2) return -1;
         int new_cap = stack->capacity * 2;
         lvAssumptionEntry *new_entries = lv_realloc(
             stack->entries, (size_t)new_cap * sizeof(lvAssumptionEntry));

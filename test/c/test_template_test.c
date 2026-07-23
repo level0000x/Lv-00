@@ -239,16 +239,17 @@ static int test_runner_high_level(void) {
 
     create_and_register_template(pkg, "MultiTpl", 2, expand_multi);
 
-    /* --- 工厂测试数组 --- */
+    /* --- 工厂测试数组（深拷贝后保留副本，测试完成后再释放） --- */
     TemplateTestCase factory_tests[2];
+    TemplateTestCase *factory_heap[2];
     for (int i = 0; i < 2; i++) {
-        TemplateTestCase *ftc = axiom_template_test_case_create(
+        factory_heap[i] = axiom_template_test_case_create(
             "MultiTpl", TEST_CASE_FACTORY, 2, true);
-        assert(ftc != NULL);
-        factory_tests[i] = *ftc;
-        /* 深拷贝 template_name，避免堆释放后栈拷贝悬垂 */
-        factory_tests[i].template_name = lv_strdup_safe(ftc->template_name);
-        axiom_template_test_case_destroy(ftc);
+        assert(factory_heap[i] != NULL);
+        factory_tests[i] = *factory_heap[i];
+        factory_tests[i].template_name = lv_strdup_safe(factory_heap[i]->template_name);
+        factory_tests[i].description = lv_strdup_safe(factory_heap[i]->description);
+        axiom_template_test_case_destroy(factory_heap[i]);
     }
 
     /* --- 用户测试数组 --- */
@@ -259,6 +260,7 @@ static int test_runner_high_level(void) {
         assert(utc0 != NULL);
         user_tests[0] = *utc0;
         user_tests[0].template_name = lv_strdup_safe(utc0->template_name);
+        user_tests[0].description = lv_strdup_safe(utc0->description);
         axiom_template_test_case_destroy(utc0);
     }
     {
@@ -267,6 +269,7 @@ static int test_runner_high_level(void) {
         assert(utc1 != NULL);
         user_tests[1] = *utc1;
         user_tests[1].template_name = lv_strdup_safe(utc1->template_name);
+        user_tests[1].description = lv_strdup_safe(utc1->description);
         axiom_template_test_case_destroy(utc1);
     }
 
@@ -287,11 +290,12 @@ static int test_runner_high_level(void) {
         }
     }
 
-    /* 释放 — 栈数组中的 template_name 通过浅释放 */
     axiom_template_test_result_destroy(&result);
     for (int i = 0; i < 2; i++) {
         lv_free((void **)&factory_tests[i].template_name);
+        lv_free((void **)&factory_tests[i].description);
         lv_free((void **)&user_tests[i].template_name);
+        lv_free((void **)&user_tests[i].description);
     }
     axiom_package_destroy(pkg);
     printf("  PASSED\n");

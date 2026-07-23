@@ -44,6 +44,9 @@ static bool graph_structure_match(const ConstraintGraph *a, const ConstraintGrap
     if (a->node_count != b->node_count) return false;
     if (a->constraint_count != b->constraint_count) return false;
 
+    /* 防御性检查：确保 constraints 数组已分配 */
+    if (!a->constraints || !b->constraints) return false;
+
     /* 比较每个约束的类型和参与者数量 */
     for (int i = 0; i < a->constraint_count; i++) {
         Constraint *ca = a->constraints[i];
@@ -332,6 +335,50 @@ TemplateTestCase *axiom_template_test_case_create(const char *name, TestCaseType
     return tc;
 }
 
+TemplateTestCase *axiom_template_test_case_copy(const TemplateTestCase *src)
+{
+    if (!src) return NULL;
+
+    TemplateTestCase *dst = lv_calloc(1, sizeof(TemplateTestCase));
+    if (!dst) return NULL;
+
+    /* 深拷贝基本字段 */
+    dst->template_name = lv_strdup_safe(src->template_name);
+    if (src->template_name && !dst->template_name) {
+        lv_free((void **)&dst);
+        return NULL;
+    }
+
+    dst->type = src->type;
+    dst->param_count = src->param_count;
+    dst->expected_result = src->expected_result;
+
+    dst->description = lv_strdup_safe(src->description);
+    if (src->description && !dst->description) {
+        lv_free((void **)&dst->template_name);
+        lv_free((void **)&dst);
+        return NULL;
+    }
+
+    /* params 浅拷贝（单个元素由调用者管理） */
+    dst->params = NULL;
+    if (src->params && src->param_count > 0) {
+        dst->params = lv_calloc((size_t)src->param_count, sizeof(SymbolicCoord *));
+        if (!dst->params) {
+            lv_free((void **)&dst->template_name);
+            lv_free((void **)&dst->description);
+            lv_free((void **)&dst);
+            return NULL;
+        }
+        memcpy(dst->params, src->params, (size_t)src->param_count * sizeof(SymbolicCoord *));
+    }
+
+    /* expected_graph 浅拷贝（由调用者管理生命周期） */
+    dst->expected_graph = src->expected_graph;
+
+    return dst;
+}
+
 void axiom_template_test_case_destroy(TemplateTestCase *tc)
 {
     if (!tc) return;
@@ -346,6 +393,5 @@ void axiom_template_test_case_destroy(TemplateTestCase *tc)
     }
 
     /* expected_graph 由调用者管理，此处不释放 */
-    memset(tc, 0, sizeof(TemplateTestCase));
     lv_free((void **)&tc);
 }

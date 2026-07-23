@@ -1,11 +1,37 @@
 // bootstrap: typer — 类型检查/推导引擎
+// 输入: ResolvedAST (来自 semantic)
+// 输出: TypedAST (每个表达式附有推导出的类型)
+// 功能: 对 Lv-00 的 Point/Constraint/Prove 等构造执行类型检查与双向类型推导。
+//       支持基本类型 (Bool, Int, String, Set, List), 函数箭头类型, 参数化类型。
+//       保障 subject reduction 性质: 良类型表达式在归约后类型不变。
 
-Point Typer := check(node: ASTNode, env: TypeEnv) -> TypedAST;
-Point TypeEnv := bindings: Map<Name, Type>;
-Point Type := PrimType | ArrowType | ParamType;
+Point Type         := PrimType | ArrowType | ParamType | UnionType;
+Point PrimType     := Bool | Int | String | Unit;
+Point ArrowType    := { param: Type, result: Type };
+Point ParamType    := { base: Type, args: List<Type> };
+Point UnionType    := { variants: List<Type> };
+Point TypeEnv      := { bindings: Map<Name, Type>, parent: Option<TypeEnv>, constraints: List<ConstraintType> };
+Point TypedAST     := { ast: AST, inferred_types: Map<ASTNode, Type>, type_env: TypeEnv };
+Point TypeErr      := TypeMismatch(Type, Type) | UnificationFail(Type, Type) | UnboundTypeVar(Name);
+
+Point Typer        := check(node: ASTNode, env: TypeEnv) -> Result<TypedAST, List<TypeErr>>;
 
 Constraint TypeSoundness: forall e: AST, tau: Type.
   typer |- e : tau -> eval(e) in denotation(tau);
 
+Constraint TypeProgress: forall e: TypedAST(well_typed).
+  is_value(e) \/ exists e': Expr. step(e, e') /\ typeof(e') = typeof(e);
+
+Constraint TypeUniqueness: forall e: AST, env: TypeEnv.
+  check(e, env) passes -> forall tau1: Type, tau2: Type.
+    (typer |- e : tau1 /\ typer |- e : tau2) -> tau1 = tau2;
+
+Constraint ArrowAppCompat: forall f: AST, arg: AST, env: TypeEnv.
+  check(f, env) passes /\ typeof(f) = ArrowType(t1, t2) ->
+    check(arg, env) passes /\ typeof(arg) = t1 -> typeof(Apply(f, arg)) = t2;
+
 Prove TypeSoundness;
+Prove TypeProgress;
+Prove TypeUniqueness;
+Prove ArrowAppCompat;
 Normalize;

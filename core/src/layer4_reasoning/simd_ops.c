@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file simd_ops.c
  * @brief SIMD向量运算库实现
  *
@@ -848,6 +848,8 @@ static void lv_simd_mat3x3_vec2_mul(const double mat[9],
                                 double *out_x, double *out_y) {
     /* 齐次坐标变换 */
     double w = mat[6] * x + mat[7] * y + mat[8];
-    *out_x = (mat[0] * x + mat[1] * y + mat[2]) / w;
-    *out_y = (mat[3] * x + mat[4] * y + mat[5]) / w;
+    /* 除零保护：w 接近零时回退到仿射变换（取 w=1） */
+    double inv_w = (fabs(w) > 1e-12) ? 1.0 / w : 1.0;
+    *out_x = (mat[0] * x + mat[1] * y + mat[2]) * inv_w;
+    *out_y = (mat[3] * x + mat[4] * y + mat[5]) * inv_w;
 }

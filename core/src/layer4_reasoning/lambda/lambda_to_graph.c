@@ -71,6 +71,7 @@ static bool scope_push(LambdaScope *scope, int port_id) {
     if (!scope) return false;
 
     if (scope->depth >= scope->capacity) {
+        if (scope->capacity > INT_MAX / 2) return false;
         int new_cap = scope->capacity ? scope->capacity * 2 : lv_SCOPE_INIT_CAPACITY;
         int *new_arr = lv_realloc(scope->port_ids, (size_t)new_cap * sizeof(int));
         if (!new_arr) return false;

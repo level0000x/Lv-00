@@ -1,10 +1,36 @@
 // bootstrap: validator — 输入验证器: schema/lint/invariant
+// 输入: Source (原始 .lv 源码)
+// 输出: ValidationResult (通过/警告/错误列表)
+// 功能: 在编译管线入口处对输入代码执行前置检查。包含:
+//       - 语法前验证 (空文件检查、BOM/编码检查)
+//       - 词法前验证 (非法字符、过长行、不匹配引号)
+//       - 结构验证 (文件以换行结尾、无 BOM 头)
+//       - Lint 检查 (命名约定、最大行长度、注释规范)
 
-Point Validator := validate(input: Source, schema: Schema) -> ValidationResult;
-Point Schema := { rules: List<Rule>, severity: Map<Rule, Level> };
+Point Rule         := { id: RuleId, check: Source -> Bool, severity: Level, message: String };
+Point RuleId       := String;
+Point Level        := Error | Warning | Info;
+Point FailedRule   := { rule: RuleId, location: Span, message: String, severity: Level };
+Point Schema       := { rules: List<Rule>, severity: Map<RuleId, Level>, version: Int };
+Point ValidationResult := { passed: Bool, failures: List<FailedRule>, warnings: List<FailedRule> };
 
-Constraint ValidatorCompleteness: forall src: Source, s: Schema.
-  validate(src, s) passes -> forall r: Rule(in s), src satisfies r;
+Point Validator    := validate(input: SourceText, schema: Schema) -> ValidationResult;
+
+Constraint ValidatorCompleteness: forall src: SourceText, s: Schema.
+  validate(src, s) passes -> forall r: Rule(in s). src satisfies r;
+
+Constraint ValidatorSoundness: forall src: SourceText, s: Schema.
+  exists r: Rule(in s). not(src satisfies r) -> validate(src, s) fails;
+
+Constraint LintNonBlocking: forall src: SourceText, s: Schema.
+  forall f: FailedRule(in validate(src, s).warnings).
+    f.severity = Warning /\ validate(src, s).passed = True;
+
+Constraint RuleDeterministic: forall src: SourceText, s: Schema.
+  forall r: Rule(in s). r.check(src) is deterministic;
 
 Prove ValidatorCompleteness;
+Prove ValidatorSoundness;
+Prove LintNonBlocking;
+Prove RuleDeterministic;
 Normalize;

@@ -99,6 +99,8 @@ static bool ensure_node_capacity(lvProofTree *tree) {
 static bool ensure_child_capacity(lvProofTreeNode *parent) {
     if (parent->child_count < parent->child_capacity) return true;
     int new_cap = parent->child_capacity > 0 ? parent->child_capacity * 2 : INITIAL_CHILD_CAPACITY;
+    if (parent->child_capacity > 0 && parent->child_capacity > INT_MAX / 2) return false;
+    if ((size_t)new_cap > SIZE_MAX / sizeof(lvProofTreeNode *)) return false;
     lvProofTreeNode **p = (lvProofTreeNode **)realloc(parent->children, (size_t)new_cap * sizeof(lvProofTreeNode *));
     if (!p) return false;
     parent->children = p;

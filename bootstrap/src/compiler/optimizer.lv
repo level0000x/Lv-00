@@ -1,10 +1,44 @@
 // bootstrap: optimizer — IR 优化: 常量折叠/死代码消除/内联
+// 输入: IR (中间表示，来自类型检查后的 TypedAST)
+// 输出: IR (优化后的等价中间表示)
+// 功能: 按 Pass 管线依次执行优化变换，每个 Pass 保语义等价。
+//       常量折叠: 编译期求值常量表达式；
+//       死代码消除: 移除无副作用的不可达代码；
+//       内联: 将小函数调用展开为调用点代码；
+//       CSE (公共子表达式消除): 合并重复计算；
+//       尾调用优化: 将尾递归转化为循环。
 
-Point Optimizer := optimize(ir: IR, passes: List<Pass>) -> IR;
-Point Pass := ConstantFold | DeadCodeElim | Inline | CSE | TailCall;
+Point IR           := { blocks: List<BasicBlock>, entry: BlockId, locals: TypeEnv };
+Point BasicBlock   := { id: BlockId, stmts: List<IRStmt>, terminator: Terminator };
+Point IRStmt       := Assign(Name, IRExpr) | Store(Addr, IRExpr) | Call(Name, List<IRExpr>);
+Point IRExpr       := Const(Value) | Var(Name) | BinOp(Op, IRExpr, IRExpr) | Load(Addr);
+Point Pass         := ConstantFold | DeadCodeElim | Inline | CSE | TailCall;
+Point OptPipeline  := { passes: List<Pass>, run_to_fixpoint: Bool, max_iterations: Int };
+
+Point Optimizer    := optimize(ir: IR, pipeline: OptPipeline) -> IR;
 
 Constraint OptPreservesSemantics: forall ir: IR(well_typed), p: Pass.
-  semantics(optimize(ir, [p])) equiv semantics(ir);
+  semantics(optimize(ir, { passes: [p], run_to_fixpoint: False, max_iterations: 1 }))
+    equiv semantics(ir);
+
+Constraint ConstantFoldCorrect: forall ir: IR.
+  (ConstantFold in optimize(ir, _).passes) ->
+    forall e: IRExpr(folded). eval(e) = eval(original(e));
+
+Constraint DeadCodeRemovesUnused: forall ir: IR(well_typed).
+  DeadCodeElim applied -> forall v: Name.
+    not(used_later(v)) -> not(defined_in(v, optimize(ir, _)));
+
+Constraint InlinePreservesCallTarget: forall ir: IR, f: Name(defined).
+  Inline applied -> forall call: CallExpr(f).
+    target_of(call) = target_of(call_before_inline);
+
+Constraint OptIdempotent: forall ir: IR.
+  optimize(ir, pipeline) = ir' -> optimize(ir', pipeline) = ir';
 
 Prove OptPreservesSemantics;
+Prove ConstantFoldCorrect;
+Prove DeadCodeRemovesUnused;
+Prove InlinePreservesCallTarget;
+Prove OptIdempotent;
 Normalize;

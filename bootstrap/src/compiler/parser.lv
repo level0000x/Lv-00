@@ -1,10 +1,35 @@
 // bootstrap: parser — 语法分析器: token stream -> AST
+// 输入: TokenStream (来自 lexer)
+// 输出: AST (抽象语法树)
+// 功能: 对 Token 序列执行递归下降解析，按 Lv-00 文法构建 AST。
+//       文法根规则: Module -> { DefOrConstraint }*  其中定义以 Point/Constraint 引导。
+//       错误恢复: 跳过当前语句到下一个 ; 或关键字。
 
-Point Parser := parse(tokens: TokenStream) -> AST;
-Point AST := root(ASTNode);
+Point DefKind      := EntityDef | FunDef | ConstraintDef;
+Point ASTNode      := leaf(value: Token) | branch(label: NodeKind, children: List<ASTNode>);
+Point NodeKind     := Module | Definition | Constraint | ProveStmt | NormalizeStmt
+                    | Signature | Body | Parameter | TypeAnnot;
+Point AST          := root(kind: NodeKind(Module), children: List<ASTNode>, token_count: Int);
+
+Point ParseError   := { pos: Span, message: String, recovery_kind: RecoveryKind };
+Point RecoveryKind := SkipToSemi | InsertToken | ReplaceToken;
+
+Point Parser       := parse(tokens: TokenStream) -> Result<AST, List<ParseError>>;
 
 Constraint ParseNoAmbiguity: forall tok: TokenStream(well_formed).
   parse(tok) is deterministic /\ is_unique(parse_tree);
 
+Constraint ParseCompleteConsumption: forall tok: TokenStream(well_formed).
+  parse(tok) passes -> tok.tokens[*EOF] consumed_in_parse(tok);
+
+Constraint ParseErrorRecovery: forall tok: TokenStream.
+  parse(tok) fails -> parse(tok).errors_nonempty /\ parse(tok).ast_partial_constructed;
+
+Constraint ParseStructuralInv: forall tok: TokenStream.
+  parse(tok) passes -> forall n: ASTNode(in parse(tok).ast).
+    n.children = [] -> n.leaf_value.token.kind != EOF;
+
 Prove ParseNoAmbiguity;
+Prove ParseCompleteConsumption;
+Prove ParseStructuralInv;
 Normalize;

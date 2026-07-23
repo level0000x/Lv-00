@@ -59,9 +59,9 @@ static const RewriteRuleEntry builtin_rules[] = {
     /* 消除灾难性抵消：sqrt(a^2+b^2) 形式 */
     { "sqrt(x*x+y*y)",    "hypot(x,y)",
       "使用 hypot 避免中间溢出", 1e6 },
-    /* 消除灾难性抵消：a^2 - b^2 */
-    { "(a-b)*(a+b)",      "a*a-b*b",
-      "因式分解减少乘法次数", 1.0 },
+    /* 消除灾难性抵消：a^2 - b^2 → (a-b)*(a+b) */
+    { "a*a-b*b",          "(a-b)*(a+b)",
+      "因式分解避免 a≈b 时的灾难性抵消", 1e8 },
     /* 改善精度：exp(x) - 1 */
     { "exp(x)-1",         "expm1(x)",
       "使用 expm1 避免 x 接近零时的精度损失", 1e10 },

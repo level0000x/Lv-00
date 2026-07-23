@@ -1,10 +1,40 @@
 // bootstrap: debugger — 调试器: 断点/单步/变量检查
+// 输入: RuntimeState (运行时状态: 寄存器/栈/堆/PC), 用户命令
+// 输出: 调试事件流 (断点命中/单步停止/变量值)
+// 功能: 支持基于符号的断点、条件断点、单步执行 (StepIn/StepOver/StepOut)、
+//       栈回溯、变量值实时检查、watch 表达式求值。
+//       保证调试器观测状态与真实运行时状态一致 (调试一致性)。
 
-Point Debugger := { breakpoints: Set<Location>, step_mode: StepMode, watchlist: WatchList };
-Point StepMode := StepIn | StepOver | StepOut;
+Point Location     := { source_file: Name, line: Int, col: Int, addr: Addr };
+Point Breakpoint   := { id: BPID, loc: Location, condition: Option<Formula>,
+                        enabled: Bool, hit_count: Int };
+Point StepMode     := StepIn | StepOver | StepOut | StepToLine(Int);
+Point WatchExpr    := { id: WatchID, expr: String, last_value: Value, enabled: Bool };
+Point WatchList    := Map<WatchID, WatchExpr>;
+Point RuntimeState := { registers: Map<RegName, Value>, stack_frames: List<Frame>,
+                        pc: Addr, memory: MemSnapshot, breakpoints_hit: Set<BPID> };
+Point DebugEvent   := BreakpointHit | StepComplete | WatchTriggered | Exception(ExceptionInfo);
+
+Point Debugger     := { breakpoints: Set<Breakpoint>, step_mode: StepMode,
+                        watchlist: WatchList, paused: Bool,
+                        source_map: Map<Addr, Location> };
 
 Constraint DebugConsistency: forall state: RuntimeState(halting).
   debug_state_from_source(loc(state)) equiv source_location(state);
 
+Constraint BreakpointConditional: forall bp: Breakpoint(has_condition).
+  bp.hit_count > 0 -> eval(bp.condition, current_state) = True;
+
+Constraint StepModeProgress: forall state: RuntimeState(suspended), mode: StepMode.
+  debugger_step(state, mode) terminates /\
+  pc(state) != pc(debugger_step(state, mode));
+
+Constraint StackFrameInv: forall state: RuntimeState.
+  forall i: Int, j: Int.
+    i < j < len(state.stack_frames) -> state.stack_frames[i].depth < state.stack_frames[j].depth;
+
 Prove DebugConsistency;
+Prove BreakpointConditional;
+Prove StepModeProgress;
+Prove StackFrameInv;
 Normalize;

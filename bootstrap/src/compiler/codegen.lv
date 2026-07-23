@@ -1,10 +1,33 @@
 // bootstrap: codegen — 代码生成: TypedAST -> TargetCode
+// 输入: TypedAST (类型检查后的抽象语法树)
+// 输出: TargetCode (目标语言代码表示)
+// 功能: 将 Lv-00 的类型化 AST 翻译为指定目标语言 (Python/C/Rust/WASM) 的代码表示。
+//       支持目标无关的中间变换和平台特定的发射策略。保证翻译后语义等价。
 
-Point Codegen := emit(node: TypedAST, target: Target) -> Code;
-Point Target := Python | C | Rust | WASM;
+Point Target       := Python | C | Rust | WASM;
+Point TargetCode   := { target: Target, modules: List<ModuleDef>, externs: List<ExternDecl> };
+Point ModuleDef    := { name: Name, defs: List<Def>, imports: List<Import> };
+Point ExternDecl   := { name: Name, sig: FunctionType, target_lang: Target };
+Point CodegenOpts  := { target: Target, optimize_for: Size | Speed,
+                        use_extern: Bool, emit_debug_info: Bool };
 
-Constraint CodegenPreservesSemantics: forall ast: TypedAST, t: Target.
-  semantics(eval(emit(ast, t))) equiv semantics(reduce(ast));
+Point Codegen      := emit(ast: TypedAST, opts: CodegenOpts) -> TargetCode;
+
+Constraint CodegenPreservesSemantics: forall ast: TypedAST, opts: CodegenOpts.
+  semantics(eval(emit(ast, opts))) equiv semantics(reduce(ast));
+
+Constraint CodegenTargetCoverage: forall ast: TypedAST, t: Target.
+  exists opts: CodegenOpts(target = t). emit(ast, opts).modules_nonempty;
+
+Constraint CodegenNoStub: forall ast: TypedAST, opts: CodegenOpts.
+  forall def: Def(in emit(ast, opts).modules). def.body not_empty;
+
+Constraint CodegenExternConsistency: forall ast: TypedAST, opts: CodegenOpts.
+  forall ext: ExternDecl(in emit(ast, opts).externs).
+    ext.name in ast.exported_names /\ ext.sig = lookup_signature(ast, ext.name);
 
 Prove CodegenPreservesSemantics;
+Prove CodegenTargetCoverage;
+Prove CodegenNoStub;
+Prove CodegenExternConsistency;
 Normalize;

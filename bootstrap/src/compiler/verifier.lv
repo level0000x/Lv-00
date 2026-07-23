@@ -1,10 +1,35 @@
 // bootstrap: verifier — 验证器: 输出正确性断言
+// 输入: Output (编译器某个阶段的输出), Spec (对应的形式化规格)
+// 输出: Verdict (Pass | Fail 及错误集合)
+// 功能: 对编译器各阶段输出进行形式化验证，检查输出是否满足用户或框架给定的规格。
+//       支持全量验证和抽样验证两种模式，保证验证器本身是可靠 (sound) 的。
 
-Point Verifier := verify(output: Output, spec: Spec) -> Verdict;
-Point Verdict := Pass | Fail(Set<Error>);
+Point Spec         := { preconditions: List<Formula>, postconditions: List<Formula>,
+                        invariants: List<Formula> };
+Point Output       := AST | ResolvedAST | TypedAST | IR | Code | Executable;
+Point Error        := { code: ErrorCode, location: Span, detail: String };
+Point ErrorCode    := SafetyViolation | LivenessViolation | PostconditionFail | InvariantBreak;
+Point Verifier     := { spec: Spec, mode: VerifyMode, timeout_ms: Int };
 
-Constraint VerifierSound: forall o: Output, s: Spec.
-  verify(o, s) passes -> output_satisfies(o, s);
+Point Verdict      := Pass(proof: ProofTerm) | Fail(reason: Set<Error>, counterexample: Option<Model>);
+Point ProofTerm    := { derivation: DerivationTree, assumptions: Set<Formula>, conclusion: Formula };
+
+Point VerifyFn     := verify(output: Output, spec: Spec, v: Verifier) -> Verdict;
+
+Constraint VerifierSound: forall o: Output, s: Spec, v: Verifier.
+  verify(o, s, v) = Pass(_) -> output_satisfies(o, s);
+
+Constraint VerifierComplete: forall o: Output, s: Spec, v: Verifier.
+  output_satisfies(o, s) /\ v.mode = Full -> verify(o, s, v) = Pass(_);
+
+Constraint VerifierFinite: forall o: Output, s: Spec, v: Verifier.
+  verify(o, s, v) terminates_in_finite_steps;
+
+Constraint CounterexampleValid: forall o: Output, s: Spec, v: Verifier.
+  verify(o, s, v) = Fail(cex, _) -> not(output_satisfies(o, s));
 
 Prove VerifierSound;
+Prove VerifierComplete;
+Prove VerifierFinite;
+Prove CounterexampleValid;
 Normalize;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_snapshot.c
  * @brief 求解快照/回滚实现 — 从 solver.c 拆分
  *
@@ -19,6 +19,11 @@ bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot
     if (snapshot->node_count <= 0)
         return true;
 
+    /* 检查 node_count * 2 溢出 */
+    if (snapshot->node_count > INT_MAX / 2) {
+        solver_snapshot_free(snapshot);
+        return false;
+    }
     snapshot->coord_count = snapshot->node_count * 2;
     snapshot->node_ids = lv_malloc((size_t) snapshot->node_count * sizeof(int));
     snapshot->copies = lv_malloc((size_t) snapshot->coord_count * sizeof(SymbolicCoord *));

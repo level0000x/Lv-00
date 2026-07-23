@@ -1,10 +1,43 @@
-// bootstrap: tracer — 追踪器: 执行日志/调用链/时间线
+// bootstrap: tracer — 执行追踪: 执行日志/调用链/时间线
+// 输入: Execution (程序执行实例), TraceLevel (追踪粒度)
+// 输出: TraceLog (结构化追踪日志)
+// 功能: 记录程序执行的完整可观测事件序列。支持三种粒度的追踪:
+//       - Full: 记录所有指令/函数调用/返回值
+//       - Summary: 仅记录函数入口/出口和异常
+//       - ErrorOnly: 仅记录异常和错误事件
+//       保证在 Full 模式下不丢失任何可观测事件。
 
-Point Tracer := trace(exec: Execution, level: TraceLevel) -> TraceLog;
-Point TraceLevel := Full | Summary | ErrorOnly;
+Point ExecEvent    := CallEntry | CallExit | Assignment | BranchTaken
+                    | ExceptionRaised | ReturnValue | MemoryOp;
+Point EventRecord  := { event: ExecEvent, timestamp: Int, location: Location,
+                        thread_id: ThreadID, payload: Value };
+Point TraceLevel   := Full | Summary | ErrorOnly;
+Point TraceLog     := { events: List<EventRecord>, thread_trace: Map<ThreadID, List<EventRecord>>,
+                        trace_level: TraceLevel, total_events: Int,
+                        start_time: Int, end_time: Int };
+
+Point Tracer       := trace(exec: Execution, level: TraceLevel) -> TraceLog;
 
 Constraint TraceFidelity: forall e: Execution(finite), l: TraceLevel.
   trace(e, l) contains all_observable_events(e) when l = Full;
 
+Constraint TraceOrdered: forall e: Execution, l: TraceLevel.
+  forall i: Int, j: Int.
+    i < j < len(trace(e, l).events) ->
+      trace(e, l).events[i].timestamp <= trace(e, l).events[j].timestamp;
+
+Constraint TraceThreadIsolation: forall e: Execution(multi_threaded), l: TraceLevel.
+  forall tid: ThreadID.
+    forall evt: EventRecord(in trace(e, l).thread_trace[tid]).
+      evt.thread_id = tid;
+
+Constraint TraceLevelFiltering: forall e: Execution, l: TraceLevel.
+  trace(e, l).trace_level = ErrorOnly ->
+    forall evt: EventRecord(in trace(e, l).events).
+      evt.event = ExceptionRaised;
+
 Prove TraceFidelity;
+Prove TraceOrdered;
+Prove TraceThreadIsolation;
+Prove TraceLevelFiltering;
 Normalize;
