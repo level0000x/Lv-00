@@ -618,6 +618,145 @@ lvVisualRenderer *lv_visual_renderer_create(lvRenderBackend backend,
     return renderer;
 }
 
+/* ── 最小 PNG 编码器（无需外部库，输出有效 PNG） ── */
+
+/** CRC-32 表（用于计算 PNG chunk CRC） */
+static uint32_t png_crc_table[256];
+static bool png_crc_initialized = false;
+
+static void png_init_crc(void) {
+    for (uint32_t i = 0; i < 256; i++) {
+        uint32_t c = i;
+        for (int j = 0; j < 8; j++) {
+            if (c & 1) c = 0xEDB88320U ^ (c >> 1);
+            else       c >>= 1;
+        }
+        png_crc_table[i] = c;
+    }
+    png_crc_initialized = true;
+}
+
+static uint32_t png_crc(const uint8_t *data, size_t len) {
+    if (!png_crc_initialized) png_init_crc();
+    uint32_t c = 0xFFFFFFFFU;
+    for (size_t i = 0; i < len; i++)
+        c = png_crc_table[(c ^ data[i]) & 0xFF] ^ (c >> 8);
+    return c ^ 0xFFFFFFFFU;
+}
+
+/** 以网络字节序（大端）写入 32 位整数 */
+static void png_write_be32(uint8_t *buf, uint32_t v) {
+    buf[0] = (uint8_t)(v >> 24);
+    buf[1] = (uint8_t)(v >> 16);
+    buf[2] = (uint8_t)(v >> 8);
+    buf[3] = (uint8_t)(v);
+}
+
+/** 写入 PNG chunk: length + type + data + crc */
+static bool png_write_chunk(FILE *fp, const char *type,
+                            const uint8_t *data, uint32_t data_len) {
+    uint8_t hdr[8];
+    uint8_t type_buf[4];
+    png_write_be32(hdr, data_len);
+    type_buf[0] = (uint8_t)type[0]; type_buf[1] = (uint8_t)type[1];
+    type_buf[2] = (uint8_t)type[2]; type_buf[3] = (uint8_t)type[3];
+
+    if (fwrite(hdr, 4, 1, fp) != 1) return false;
+    if (fwrite(type_buf, 4, 1, fp) != 1) return false;
+
+    uint32_t crc_val = png_crc(type_buf, 4);
+    if (data && data_len > 0) {
+        if (fwrite(data, 1, data_len, fp) != data_len) return false;
+        /* CRC 是 type + data 的校验 */
+        uint8_t *combined = (uint8_t *)lv_malloc(4 + data_len);
+        if (!combined) return false;
+        memcpy(combined, type_buf, 4);
+        memcpy(combined + 4, data, data_len);
+        crc_val = png_crc(combined, 4 + data_len);
+        lv_free((void **)&combined);
+    }
+
+    uint8_t crc_buf[4];
+    png_write_be32(crc_buf, crc_val);
+    if (fwrite(crc_buf, 4, 1, fp) != 1) return false;
+    return true;
+}
+
+/** 将 RGB 像素数据编码为 PNG 文件 */
+static bool write_png_rgb(const char *path, int width, int height,
+                          const uint8_t *rgb_data) {
+    FILE *fp = fopen(path, "wb");
+    if (!fp) return false;
+
+    /* PNG 签名 */
+    const uint8_t sig[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+    if (fwrite(sig, 8, 1, fp) != 1) { fclose(fp); return false; }
+
+    /* IHDR chunk */
+    uint8_t ihdr[13];
+    png_write_be32(ihdr, (uint32_t)width);
+    png_write_be32(ihdr + 4, (uint32_t)height);
+    ihdr[8] = 8;  /* bit depth */
+    ihdr[9] = 2;  /* color type: RGB */
+    ihdr[10] = 0; /* compression */
+    ihdr[11] = 0; /* filter */
+    ihdr[12] = 0; /* interlace */
+    if (!png_write_chunk(fp, "IHDR", ihdr, 13)) { fclose(fp); return false; }
+
+    /* 构建 IDAT 数据：每行前加 filter byte=0 (None)，然后 raw RGB */
+    int row_bytes = width * 3 + 1;
+    size_t raw_size = (size_t)row_bytes * (size_t)height;
+    uint8_t *raw = (uint8_t *)lv_malloc(raw_size);
+    if (!raw) { fclose(fp); return false; }
+
+    for (int y = 0; y < height; y++) {
+        raw[y * row_bytes] = 0;
+        memcpy(raw + y * row_bytes + 1,
+               rgb_data + (size_t)y * width * 3,
+               (size_t)width * 3);
+    }
+
+    /* 构建 DEFLATE stored block: BFINAL=1, BTYPE=00, LEN, NLEN, data */
+    /* 对于超出 65535 字节的大图像，使用多块 */
+    size_t raw_remaining = raw_size;
+    size_t idat_capacity = raw_size + 5 + 64;
+    uint8_t *idat_buf = (uint8_t *)lv_malloc(idat_capacity);
+    if (!idat_buf) { lv_free((void **)&raw); fclose(fp); return false; }
+
+    size_t idat_pos = 0;
+    while (raw_remaining > 0) {
+        uint32_t blk_len = (raw_remaining > 65535) ? 65535 : (uint32_t)raw_remaining;
+        if (idat_pos + 5 + blk_len > idat_capacity) {
+            idat_capacity = idat_pos + 5 + blk_len + 64;
+            uint8_t *nb = lv_realloc(idat_buf, idat_capacity);
+            if (!nb) { lv_free((void **)&idat_buf); lv_free((void **)&raw); fclose(fp); return false; }
+            idat_buf = nb;
+        }
+        bool is_last = (raw_remaining <= 65535);
+        idat_buf[idat_pos++] = is_last ? 0x01 : 0x00;
+        idat_buf[idat_pos++] = (uint8_t)(blk_len & 0xFF);
+        idat_buf[idat_pos++] = (uint8_t)((blk_len >> 8) & 0xFF);
+        uint16_t nlen = (uint16_t)(~blk_len);
+        idat_buf[idat_pos++] = (uint8_t)(nlen & 0xFF);
+        idat_buf[idat_pos++] = (uint8_t)((nlen >> 8) & 0xFF);
+        memcpy(idat_buf + idat_pos, raw + (raw_size - raw_remaining), blk_len);
+        idat_pos += blk_len;
+        raw_remaining -= blk_len;
+    }
+    lv_free((void **)&raw);
+
+    if (!png_write_chunk(fp, "IDAT", idat_buf, (uint32_t)idat_pos)) {
+        lv_free((void **)&idat_buf); fclose(fp); return false;
+    }
+    lv_free((void **)&idat_buf);
+
+    /* IEND chunk */
+    if (!png_write_chunk(fp, "IEND", NULL, 0)) { fclose(fp); return false; }
+
+    fclose(fp);
+    return true;
+}
+
 void lv_visual_render(lvVisualRenderer *renderer,
                          lvVisualScene *scene,
                          const char *output_path)
@@ -634,18 +773,21 @@ void lv_visual_render(lvVisualRenderer *renderer,
     case lv_RENDER_TIKZ:
         tikz_render_scene(fp, renderer, scene);
         break;
-    case lv_RENDER_PNG:
-        fprintf(fp, "P3\n# Lv-00 PNG placeholder (backend=%d)\n"
-                "%d %d\n255\n", lv_RENDER_PNG,
-                renderer->width, renderer->height);
-        /* 输出白色背景 */
-        for (int y = 0; y < renderer->height; y++) {
-            for (int x = 0; x < renderer->width; x++) {
-                fprintf(fp, "255 255 255 ");
-            }
-            fprintf(fp, "\n");
+    case lv_RENDER_PNG: {
+        /* PNG 使用二进制模式，关闭文本模式 fp */
+        fclose(fp);
+        size_t px = (size_t)renderer->width * (size_t)renderer->height;
+        size_t rgb_size = px * 3;
+        uint8_t *rgb = (uint8_t *)lv_malloc(rgb_size);
+        if (rgb) {
+            memset(rgb, 255, rgb_size);
+            write_png_rgb(output_path, renderer->width, renderer->height, rgb);
+            lv_free((void **)&rgb);
         }
+        /* write_png_rgb 已关闭文件，避免重复关闭 */
+        fp = NULL;
         break;
+    }
     default:
         fprintf(fp, "// Lv-00 render output (backend=%d, %dx%d)\n",
                 (int)renderer->backend, renderer->width, renderer->height);

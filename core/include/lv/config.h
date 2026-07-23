@@ -374,6 +374,10 @@ typedef struct {
     double health_memory_leak_ratio;
     int health_memory_leak_penalty;
     int health_recent_error_penalty;
+
+    /* ---- context timeout/cooldown ---- */
+    int context_timeout_ms;        /**< 上下文默认超时毫秒（默认 30000） */
+    int context_cooldown_ms;       /**< 上下文冷却时间毫秒（默认 5000） */
 } lvConfig;
 
 /* ====================================================================
@@ -410,6 +414,8 @@ void lv_config_set_geoevol_max_param_dim(int val);
 void lv_config_set_geoevol_max_rejections(int val);
 void lv_config_set_stream_max_callbacks(int val);
 void lv_config_set_max_plugins(int val);
+void lv_config_set_context_timeout_ms(int val);
+void lv_config_set_context_cooldown_ms(int val);
 
 /* ---- 通用 key-value setter（低频字段用，一次调用不改编译） ---- */
 bool lv_config_set_int(const char *key, int val);

@@ -2161,7 +2161,7 @@ StreamContext *prop_verifier_get_stream_context(void) {
 PropVerifierResult lv_prop_verify(const void *prop) {
     PropVerifierResult res;
     res.valid = false;
-    res.msg = "Not implemented";
+    res.msg = "unset";
 
     if (!prop) {
         res.valid = false;

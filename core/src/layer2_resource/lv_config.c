@@ -167,6 +167,8 @@ const lvConfig *lv_config_default(void) {
     def.health_memory_leak_ratio = 0.9;
     def.health_memory_leak_penalty = 20;
     def.health_recent_error_penalty = 5;
+    def.context_timeout_ms = 30000;
+    def.context_cooldown_ms = 5000;
 
     return &def;
 }
@@ -304,6 +306,8 @@ void lv_config_set_stream_max_callbacks(int val)      { cfg_mut()->stream_max_ca
  * @param val 新值
  */
 void lv_config_set_max_plugins(int val)               { cfg_mut()->max_plugins = val; }
+void lv_config_set_context_timeout_ms(int val)        { cfg_mut()->context_timeout_ms = val; }
+void lv_config_set_context_cooldown_ms(int val)       { cfg_mut()->context_cooldown_ms = val; }
 
 /* ---- 通用 key-value setter ---- */
 
@@ -400,6 +404,8 @@ bool lv_config_set_int(const char *key, int val) {
     SET_IF("value_too_large",                value_too_large)
     SET_IF("downgrade_denominator",          downgrade_denominator)
     SET_IF("default_memory_limit_mb",        default_memory_limit_mb)
+    SET_IF("context_timeout_ms",             context_timeout_ms)
+    SET_IF("context_cooldown_ms",            context_cooldown_ms)
     #undef SET_IF
     return false;
 }
@@ -682,7 +688,9 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         "  \"type_equiv_max_depth\": %d,\n"
         "  \"circuit_overflow_threshold\": %d,\n"
         "  \"smoke_test_step_limit\": %d,\n"
-        "  \"smoke_test_timeout_ms\": %d\n"
+        "  \"smoke_test_timeout_ms\": %d,\n"
+        "  \"context_timeout_ms\": %d,\n"
+        "  \"context_cooldown_ms\": %d\n"
         "}\n",
         c->solver_max_var_id, c->solver_max_iterations,
         c->default_rewrite_limit, c->stream_async_queue_capacity,
@@ -701,5 +709,6 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         c->cdcl_max_decisions, c->cdcl_max_restarts,
         c->type_infer_max_depth, c->type_equiv_max_depth,
         c->circuit_overflow_threshold,
-        c->smoke_test_step_limit, c->smoke_test_timeout_ms);
+        c->smoke_test_step_limit, c->smoke_test_timeout_ms,
+        c->context_timeout_ms, c->context_cooldown_ms);
 }

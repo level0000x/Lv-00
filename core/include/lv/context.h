@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file context.h
  * @brief Lv-00 隔离上下文系统 —— 统一状态容器、分支推理与熔断机制
  *
@@ -52,6 +52,9 @@ extern "C" {
 
 /* 工具函数 —— MemoryStats 类型定义在此 */
 #include "lv_utils.h"
+
+/* 运行时配置 —— lv_config_current() 在此声明 */
+#include "config.h"
 
 /* 前向声明 —— 避免循环依赖，具体类型在各模块头文件中定义 */
 struct ConstraintGraph;     /* constraint_graph.h */
@@ -678,7 +681,9 @@ typedef struct lvContext {
  * 单次操作超过此时限仍未完成，触发时间熔断。
  * 默认 30 秒，可根据问题复杂度调整。
  */
-#define lv_CONTEXT_DEFAULT_TIMEOUT_MS 30000
+#ifndef lv_CONTEXT_DEFAULT_TIMEOUT_MS
+#define lv_CONTEXT_DEFAULT_TIMEOUT_MS (lv_config_current()->context_timeout_ms)
+#endif
 
 /**
  * @brief 默认递归/推理深度上限
@@ -720,7 +725,9 @@ typedef struct lvContext {
  *
  * 熔断器打开后必须等待此时长才能进入半开态。
  */
-#define lv_CONTEXT_DEFAULT_COOLDOWN_MS 5000
+#ifndef lv_CONTEXT_DEFAULT_COOLDOWN_MS
+#define lv_CONTEXT_DEFAULT_COOLDOWN_MS (lv_config_current()->context_cooldown_ms)
+#endif
 
 /**
  * @brief 推理栈默认初始容量
