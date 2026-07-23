@@ -1,4 +1,4 @@
-﻿#ifndef lv_HIGH_DIM_H
+#ifndef lv_HIGH_DIM_H
 #define lv_HIGH_DIM_H
 
 #ifdef __cplusplus
@@ -9,15 +9,22 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 #include "constraint_graph.h"
+#include "lv/lv_config.h"
 
-/* ── Constants ── */
-#define HIGH_DIM_MAX_DIMENSIONS            16
+/* ── 编译期常量（影响 sizeof / 结构体布局，必须保留为宏） ── */
+#define HIGH_DIM_MAX_DIMENSIONS            32
 #define HIGH_DIM_MAX_DEPTH                 32
 #define HIGH_DIM_MAX_PROJECTION_PRESETS    64
 #define HIGH_DIM_MAX_ACTIVE_VIEWS          16
-#define HIGH_DIM_INITIAL_CAPACITY          8
 #define HIGH_DIM_PROJECTION_NAME_MAX       64
-#define HIGH_DIM_DEFAULT_FIDELITY_THRESHOLD 0.85
+
+/* ── 运行时可配置的默认值 ── */
+#ifndef HIGH_DIM_INITIAL_CAPACITY
+#define HIGH_DIM_INITIAL_CAPACITY          8
+#endif
+#ifndef HIGH_DIM_DEFAULT_FIDELITY_THRESHOLD
+#define HIGH_DIM_DEFAULT_FIDELITY_THRESHOLD (lv_config_current()->high_dim_default_fidelity_threshold)
+#endif
 
 /* ── Forward decls ── */
 struct SymbolicCoord;
@@ -168,7 +175,8 @@ int  high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset,
 
 /* ── 3D Projection ── */
 int  high_dim_project_to_3d(const double *coord_4d, int dim_count,
-                             double angle_xy, int coord_count, double *out_coords);
+                             double camera_distance, int projection_mode,
+                             double *coord_3d);
 
 /* ── Internals ── */
 int  high_dim_validate_mapping(int dimension_count, const HighDimAxisMapping *mappings, int mapping_count);

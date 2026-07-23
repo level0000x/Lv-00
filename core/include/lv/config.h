@@ -378,6 +378,18 @@ typedef struct {
     /* ---- context timeout/cooldown ---- */
     int context_timeout_ms;        /**< 上下文默认超时毫秒（默认 30000） */
     int context_cooldown_ms;       /**< 上下文冷却时间毫秒（默认 5000） */
+
+    /* ---- 传播引擎 ---- */
+    int prop_max_iterations;           /**< 传播引擎最大迭代次数（默认 10000） */
+    int prop_max_backtracks;           /**< 传播引擎最大回溯次数（默认 1000） */
+    int prop_max_collaboration_iters;  /**< WFC 协作最大迭代次数（默认 10000） */
+
+    /* ---- 高维几何 ---- */
+    int high_dim_max_dimensions;             /**< 最大维度数（默认 32） */
+    int high_dim_max_depth;                  /**< 语义缩放深度栈深度（默认 32） */
+    int high_dim_max_projection_presets;     /**< 每块最大投影预设数（默认 64） */
+    int high_dim_max_active_views;           /**< 多投影并排视图最大活跃数（默认 16） */
+    double high_dim_default_fidelity_threshold; /**< 保真度默认警告阈值（默认 0.85） */
 } lvConfig;
 
 /* ====================================================================
@@ -416,6 +428,14 @@ void lv_config_set_stream_max_callbacks(int val);
 void lv_config_set_max_plugins(int val);
 void lv_config_set_context_timeout_ms(int val);
 void lv_config_set_context_cooldown_ms(int val);
+void lv_config_set_prop_max_iterations(int val);
+void lv_config_set_prop_max_backtracks(int val);
+void lv_config_set_prop_max_collaboration_iters(int val);
+void lv_config_set_high_dim_max_dimensions(int val);
+void lv_config_set_high_dim_max_depth(int val);
+void lv_config_set_high_dim_max_projection_presets(int val);
+void lv_config_set_high_dim_max_active_views(int val);
+void lv_config_set_high_dim_default_fidelity_threshold(double val);
 
 /* ---- 通用 key-value setter（低频字段用，一次调用不改编译） ---- */
 bool lv_config_set_int(const char *key, int val);

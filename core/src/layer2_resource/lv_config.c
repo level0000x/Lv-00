@@ -169,6 +169,16 @@ const lvConfig *lv_config_default(void) {
     def.health_recent_error_penalty = 5;
     def.context_timeout_ms = 30000;
     def.context_cooldown_ms = 5000;
+    def.prop_max_iterations = 10000;
+    def.prop_max_backtracks = 1000;
+    def.prop_max_collaboration_iters = 10000;
+
+    /* 高维几何 */
+    def.high_dim_max_dimensions = 32;
+    def.high_dim_max_depth = 32;
+    def.high_dim_max_projection_presets = 64;
+    def.high_dim_max_active_views = 16;
+    def.high_dim_default_fidelity_threshold = 0.85;
 
     return &def;
 }
@@ -308,6 +318,15 @@ void lv_config_set_stream_max_callbacks(int val)      { cfg_mut()->stream_max_ca
 void lv_config_set_max_plugins(int val)               { cfg_mut()->max_plugins = val; }
 void lv_config_set_context_timeout_ms(int val)        { cfg_mut()->context_timeout_ms = val; }
 void lv_config_set_context_cooldown_ms(int val)       { cfg_mut()->context_cooldown_ms = val; }
+void lv_config_set_prop_max_iterations(int val)       { cfg_mut()->prop_max_iterations = val; }
+void lv_config_set_prop_max_backtracks(int val)       { cfg_mut()->prop_max_backtracks = val; }
+void lv_config_set_prop_max_collaboration_iters(int val) { cfg_mut()->prop_max_collaboration_iters = val; }
+
+void lv_config_set_high_dim_max_dimensions(int val)           { cfg_mut()->high_dim_max_dimensions = val; }
+void lv_config_set_high_dim_max_depth(int val)                { cfg_mut()->high_dim_max_depth = val; }
+void lv_config_set_high_dim_max_projection_presets(int val)   { cfg_mut()->high_dim_max_projection_presets = val; }
+void lv_config_set_high_dim_max_active_views(int val)         { cfg_mut()->high_dim_max_active_views = val; }
+void lv_config_set_high_dim_default_fidelity_threshold(double val) { cfg_mut()->high_dim_default_fidelity_threshold = val; }
 
 /* ---- 通用 key-value setter ---- */
 
@@ -406,6 +425,13 @@ bool lv_config_set_int(const char *key, int val) {
     SET_IF("default_memory_limit_mb",        default_memory_limit_mb)
     SET_IF("context_timeout_ms",             context_timeout_ms)
     SET_IF("context_cooldown_ms",            context_cooldown_ms)
+    SET_IF("prop_max_iterations",            prop_max_iterations)
+    SET_IF("prop_max_backtracks",            prop_max_backtracks)
+    SET_IF("prop_max_collaboration_iters",   prop_max_collaboration_iters)
+    SET_IF("high_dim_max_dimensions",        high_dim_max_dimensions)
+    SET_IF("high_dim_max_depth",             high_dim_max_depth)
+    SET_IF("high_dim_max_projection_presets", high_dim_max_projection_presets)
+    SET_IF("high_dim_max_active_views",      high_dim_max_active_views)
     #undef SET_IF
     return false;
 }
@@ -429,6 +455,7 @@ bool lv_config_set_double(const char *key, double val) {
     SET_IF("geoevol_pi_smooth_factor",  geoevol_pi_smooth_factor)
     SET_IF("health_memory_usage_ratio", health_memory_usage_ratio)
     SET_IF("health_memory_leak_ratio",  health_memory_leak_ratio)
+    SET_IF("high_dim_default_fidelity_threshold", high_dim_default_fidelity_threshold)
     #undef SET_IF
     return false;
 }
@@ -690,7 +717,15 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         "  \"smoke_test_step_limit\": %d,\n"
         "  \"smoke_test_timeout_ms\": %d,\n"
         "  \"context_timeout_ms\": %d,\n"
-        "  \"context_cooldown_ms\": %d\n"
+        "  \"context_cooldown_ms\": %d,\n"
+        "  \"prop_max_iterations\": %d,\n"
+        "  \"prop_max_backtracks\": %d,\n"
+        "  \"prop_max_collaboration_iters\": %d,\n"
+        "  \"high_dim_max_dimensions\": %d,\n"
+        "  \"high_dim_max_depth\": %d,\n"
+        "  \"high_dim_max_projection_presets\": %d,\n"
+        "  \"high_dim_max_active_views\": %d,\n"
+        "  \"high_dim_default_fidelity_threshold\": %.2f\n"
         "}\n",
         c->solver_max_var_id, c->solver_max_iterations,
         c->default_rewrite_limit, c->stream_async_queue_capacity,
@@ -710,5 +745,10 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         c->type_infer_max_depth, c->type_equiv_max_depth,
         c->circuit_overflow_threshold,
         c->smoke_test_step_limit, c->smoke_test_timeout_ms,
-        c->context_timeout_ms, c->context_cooldown_ms);
+        c->context_timeout_ms, c->context_cooldown_ms,
+        c->prop_max_iterations, c->prop_max_backtracks,
+        c->prop_max_collaboration_iters,
+        c->high_dim_max_dimensions, c->high_dim_max_depth,
+        c->high_dim_max_projection_presets, c->high_dim_max_active_views,
+        c->high_dim_default_fidelity_threshold);
 }

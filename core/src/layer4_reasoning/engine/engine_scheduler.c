@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file engine_scheduler.c
  * @brief 引擎调度器 —— 管理多后端求解引擎的任务调度
  *
@@ -11,6 +11,9 @@
 
 #include "engine_scheduler.h"
 #include "lv_internal.h"
+
+#include "lv/lv.h"
+#include "lv/engine.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -26,12 +29,17 @@ typedef struct {
 static SchedulerTask *g_tasks = NULL;
 static int            g_task_count = 0;
 static int            g_task_capacity = 0;
+static lvEngine      *g_scheduler_engine = NULL;
 
 /** 按优先级排序（高优先级在前）*/
 static int task_compare(const void *a, const void *b) {
     const SchedulerTask *ta = (const SchedulerTask *)a;
     const SchedulerTask *tb = (const SchedulerTask *)b;
     return tb->priority - ta->priority;
+}
+
+void lv_engine_scheduler_init(lvEngine *engine) {
+    g_scheduler_engine = engine;
 }
 
 int lv_engine_schedule(const char *task_name, int priority) {
@@ -62,12 +70,28 @@ int lv_engine_schedule(const char *task_name, int priority) {
 
 bool lv_engine_execute_pending(void) {
     bool any_executed = false;
+    if (!g_scheduler_engine) return false;
 
     for (int i = 0; i < g_task_count; i++) {
         if (g_tasks[i].pending) {
             g_tasks[i].pending = false;
             any_executed = true;
-            /* 实际执行逻辑预留：调度对应引擎后端处理 */
+
+            /* Dispatch task by name to the corresponding engine API */
+            if (strcmp(g_tasks[i].name, "solve") == 0) {
+                engine_solve(g_scheduler_engine);
+            } else if (strcmp(g_tasks[i].name, "normalize") == 0) {
+                lv_normalize(g_scheduler_engine, true);
+            } else if (strcmp(g_tasks[i].name, "unify") == 0) {
+                engine_unify(g_scheduler_engine, NULL, NULL);
+            } else if (strcmp(g_tasks[i].name, "parse") == 0) {
+                /* Parse tasks require input data — mark as acknowledged */
+                /* Actual parsing is handled through the parser API */
+            } else if (strcmp(g_tasks[i].name, "rewrite") == 0) {
+                engine_rewrite_and_solve(g_scheduler_engine, 1000, 0);
+            } else {
+                /* Unknown task name — still acknowledged */
+            }
         }
     }
 

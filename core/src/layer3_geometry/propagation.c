@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * propagation.c — 约束传播引擎实现
  *
  * WFC 风格的动态约束传播，包含：
@@ -17,6 +17,7 @@
 
 #include "error_codes.h"
 #include "lv_utils.h"
+#include "lv/lv_config.h"
 
 #define MAX_CONSTRAINTS_PER_NODE 128
 #define MAX_NEIGHBOR_CONSTRAINTS 64

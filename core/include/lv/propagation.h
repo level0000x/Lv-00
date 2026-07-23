@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：约束传播引擎 (propagation)
  * 功能概述：WFC（Wave Function Collapse）风格的约束传播引擎，
  *          通过动态约束传播、熵最小化节点选择和死路恢复机制，
@@ -47,13 +47,10 @@ extern "C" {
 #include "constraint_graph.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+#include "lv/lv_config.h"
 /* ================================================================
  * 常量定义
  * ================================================================ */
-/** @brief 传播引擎默认最大迭代轮次 */
-#define PROP_DEFAULT_MAX_ITERATIONS 10000
-/** @brief 传播引擎默认最大回溯次数 */
-#define PROP_DEFAULT_MAX_BACKTRACKS 1000
 /** @brief 传播队列默认容量 */
 #define PROP_DEFAULT_QUEUE_CAPACITY 256
 /** @brief 快照栈默认容量 */
@@ -62,8 +59,17 @@ extern "C" {
 #define PROP_DEFAULT_STATE_CAPACITY 8
 /** @brief 无穷大熵标记（表示自由变量/无界） */
 #define PROP_ENTROPY_UNBOUNDED (-1.0)
-/** @brief WFC 循环最大协作迭代次数 */
-#define PROP_WFC_MAX_COLLABORATION_ITERATIONS 10000
+
+// These reference runtime config; define before include to override:
+#ifndef PROP_DEFAULT_MAX_ITERATIONS
+#define PROP_DEFAULT_MAX_ITERATIONS (lv_config_current()->prop_max_iterations)
+#endif
+#ifndef PROP_DEFAULT_MAX_BACKTRACKS
+#define PROP_DEFAULT_MAX_BACKTRACKS (lv_config_current()->prop_max_backtracks)
+#endif
+#ifndef PROP_WFC_MAX_COLLABORATION_ITERATIONS
+#define PROP_WFC_MAX_COLLABORATION_ITERATIONS (lv_config_current()->prop_max_collaboration_iters)
+#endif
 /* ================================================================
  * 枚举类型
  * ================================================================ */

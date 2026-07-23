@@ -688,7 +688,6 @@ set(lv_LAYER3_SOURCES
 set(lv_LAYER4_SOURCES
     # 核心引擎与求解
     core/src/layer4_reasoning/engine/engine.c
-    core/src/layer4_reasoning/engine_scheduler.c
     core/src/layer4_reasoning/solver.c
     core/src/layer4_reasoning/solver_ext/solver_core.c
     # 证明系统
@@ -721,7 +720,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/backends/atp_backend.c
     core/src/layer4_reasoning/backends/sat_encoding.c
     core/src/layer4_reasoning/backends/bdd_encoding.c
-    core/src/layer4_reasoning/approx_counter.c
     core/src/layer4_reasoning/backends/probabilistic_constraint.c
     core/src/layer4_reasoning/expr/rational.c
     core/src/layer4_reasoning/expr/expr_canon.c
