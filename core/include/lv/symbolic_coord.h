@@ -1,4 +1,4 @@
-﻿#ifndef lv_SYMBOLIC_COORD_H
+#ifndef lv_SYMBOLIC_COORD_H
 #define lv_SYMBOLIC_COORD_H
 
 #ifdef __cplusplus
@@ -69,17 +69,22 @@ typedef enum {
 
 /* ── Trust color ── */
 typedef enum {
-    TRUST_GREEN        = 0,
-    TRUST_BLUE         = 1,
-    TRUST_YELLOW       = 2,
-    TRUST_LIGHT_ORANGE = 3,
-    TRUST_ORANGE       = 4,
-    TRUST_AMBER        = 5,
-    TRUST_RED          = 6
+    TRUST_GREEN                  = 0,  /* 全构造 */
+    TRUST_BLUE_UNEXPLORED        = 1,  /* 未探索 */
+    TRUST_BLUE_EXCEEDED          = 2,  /* 资源受限 */
+    TRUST_BLUE_OUT_OF_SCOPE      = 3,  /* 超出范围 */
+    TRUST_YELLOW                 = 4,  /* 条件性不可构造 */
+    TRUST_LIGHT_ORANGE_ORACLE    = 5,  /* 非构造性 oracle（实心端口） */
+    TRUST_LIGHT_ORANGE_EXPLOSION = 6,  /* 爆炸原理（虚线箭头） */
+    TRUST_AMBER                  = 7,  /* 数值假设 */
+    TRUST_DEEP_ORANGE            = 8,  /* 叠加（非构造性+数值假设） */
+    TRUST_RED                    = 9   /* 矛盾 / 验证伪 */
 } TrustColor;
 
 typedef enum {
-    LO_NONE = 0, LO_MEMORY = 1, LO_PERFORMANCE = 2, LO_NUMERIC = 3
+    LO_NONE      = 0,  /* 无子类型 */
+    LO_ORACLE    = 1,  /* 非构造性 oracle 依赖 */
+    LO_EXPLOSION = 2   /* 爆炸原理步骤 */
 } LightOrangeSubtype;
 
 /* ── Rational ── */
@@ -236,6 +241,9 @@ char  *symbolic_coord_serialize(const SymbolicCoord *c);
 TrustColor     symbolic_coord_get_trust(const SymbolicCoord *c);
 void           symbolic_coord_set_trust(SymbolicCoord *c, TrustColor t);
 SymbolicCoord *symbolic_coord_downgrade_to_amber(const SymbolicCoord *coord, double factor, const char *reason);
+
+/* ── Color combination ── */
+TrustColor trust_color_combine(TrustColor a, TrustColor b);
 
 /* ── Hashing ── */
 uint64_t symbolic_coord_hash(const SymbolicCoord *c);

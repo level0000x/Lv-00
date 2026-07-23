@@ -871,6 +871,9 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/rewrite/rewrite_vf2.c
     core/src/layer4_reasoning/rewrite/rewrite_wl.c
     core/src/layer4_reasoning/rewrite/critical_pair.c
+    core/src/layer4_reasoning/rewrite/beta_reduce.c
+    # λ-项编译：λ-项 ↔ 约束图
+    core/src/layer4_reasoning/lambda/lambda_to_graph.c
     # 引擎调度
     core/src/layer4_reasoning/engine/engine_scheduler.c
     # 精确算术

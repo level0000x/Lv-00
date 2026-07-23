@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_symbolic_coord.c
  * @brief 符号坐标模块测试 - 有理数运算、二次坐标、超越数、序列化
  *
@@ -284,9 +284,9 @@ void test_symbolic_coord_trust_color() {
     assert(trust == TRUST_GREEN);
     printf("  Get trust color: PASSED\n");
 
-    symbolic_coord_set_trust(coord, TRUST_BLUE);
+    symbolic_coord_set_trust(coord, TRUST_BLUE_UNEXPLORED);
     trust = symbolic_coord_get_trust(coord);
-    assert(trust == TRUST_BLUE);
+    assert(trust == TRUST_BLUE_UNEXPLORED);
     printf("  Set trust color: PASSED\n");
 
     assert(symbolic_coord_is_amber(coord) == false);

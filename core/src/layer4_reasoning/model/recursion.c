@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file recursion.c
  * @brief 递归与条件系统实现 —— 良基递归与测度递减验证
  *
@@ -1522,7 +1522,7 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
 
     /* 根据 design_v2.9.md 第 9.5 节管理分支子图节点：
      * 活跃分支节点保持 TRUST_GREEN（完全构造）。
-     * 虚影分支节点标记为 TRUST_BLUE（幽灵/虚拟）。 */
+     * 虚影分支节点标记为 TRUST_BLUE_UNEXPLORED（幽灵/虚拟）。 */
     {
         int *active_ids = is_inside ?
             sb->true_branch_node_ids : sb->false_branch_node_ids;
@@ -1544,7 +1544,7 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
             if (shadowed_ids[i] < 0) continue;
             GeomNode *node = graph_get_node(graph, shadowed_ids[i]);
             if (node) {
-                node->trust = TRUST_BLUE;
+                node->trust = TRUST_BLUE_UNEXPLORED;
             }
         }
     }

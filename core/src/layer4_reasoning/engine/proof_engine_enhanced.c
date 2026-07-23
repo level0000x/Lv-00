@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_engine_enhanced.c
  * @brief 增强证明引擎实现 —— 反证法完善与逻辑溯源树
  *
@@ -422,7 +422,7 @@ TrustColor lv_trace_node_compute_color(lvProofTraceNode *node) {
             break;
 
         case TRACE_NODE_HYPOTHESIS:
-            node->trust_color = TRUST_BLUE;
+            node->trust_color = TRUST_BLUE_UNEXPLORED;
             break;
 
         case TRACE_NODE_CONTRADICTION:
@@ -502,7 +502,7 @@ lvProofTraceTree *lv_trace_tree_create(Proposition *root_prop) {
     tree->disproved_count = 0;
     tree->max_depth = 0;
     tree->is_complete = false;
-    tree->final_color = TRUST_BLUE;
+    tree->final_color = TRUST_BLUE_UNEXPLORED;
 
     return tree;
 }
@@ -1453,7 +1453,7 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
         }
     } else {
         tree->is_complete = false;
-        tree->final_color = TRUST_BLUE;
+        tree->final_color = TRUST_BLUE_UNEXPLORED;
         if (tree->root) {
             lv_trace_node_set_status(tree->root, TRACE_STATUS_BLOCKED);
         }
@@ -3069,12 +3069,18 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
 
     /* 信任颜色映射到 LaTeX 颜色 */
     static const char *color_map[] = {
-        "\\textcolor{green}{",    /* TRUST_GREEN */
-        "\\textcolor{blue}{",     /* TRUST_BLUE */
-        "\\textcolor{yellow}{",   /* TRUST_YELLOW */
-        "\\textcolor{orange}{",   /* TRUST_ORANGE */
-        "\\textcolor{red}{"       /* TRUST_RED */
+        "\\textcolor{green}{}",    /* TRUST_GREEN */
+        "\\textcolor{blue}{}",     /* TRUST_BLUE_UNEXPLORED */
+        "\\textcolor{blue}{}",     /* TRUST_BLUE_EXCEEDED */
+        "\\textcolor{blue}{}",     /* TRUST_BLUE_OUT_OF_SCOPE */
+        "\\textcolor{yellow}{}",   /* TRUST_YELLOW */
+        "\\textcolor{orange!70}{}", /* TRUST_LIGHT_ORANGE_ORACLE */
+        "\\textcolor{orange!70}{}", /* TRUST_LIGHT_ORANGE_EXPLOSION */
+        "\\textcolor{orange!50}{}", /* TRUST_AMBER */
+        "\\textcolor{orange}{}",   /* TRUST_DEEP_ORANGE */
+        "\\textcolor{red}{}"       /* TRUST_RED */
     };
+    static const int color_map_count = sizeof(color_map) / sizeof(color_map[0]);
 
     /* 遍历节点生成 LaTeX */
     for (uint32_t i = 0; i < trace->node_count; i++) {
@@ -3096,7 +3102,7 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
         }
 
         int color_idx = (int)node->trust_color;
-        if (color_idx > 4) color_idx = 0;
+        if (color_idx < 0 || color_idx >= color_map_count) color_idx = 0;
 
         string_buffer_append(buf, "  \\noindent %s[%s] %s%s}\n",
                              type_label, node->label,

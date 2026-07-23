@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file graph_serialize.c
  * @brief JSON 序列化/反序列化
  *
@@ -236,16 +236,24 @@ static const char *trust_color_to_string(TrustColor trust) {
     switch (trust) {
         case TRUST_GREEN:
             return "GREEN";
-        case TRUST_BLUE:
-            return "BLUE";
+        case TRUST_BLUE_UNEXPLORED:
+            return "BLUE_UNEXPLORED";
+        case TRUST_BLUE_EXCEEDED:
+            return "BLUE_EXCEEDED";
+        case TRUST_BLUE_OUT_OF_SCOPE:
+            return "BLUE_OUT_OF_SCOPE";
         case TRUST_YELLOW:
             return "YELLOW";
-        case TRUST_ORANGE:
-            return "ORANGE";
-        case TRUST_LIGHT_ORANGE:
-            return "LIGHT_ORANGE";
+        case TRUST_LIGHT_ORANGE_ORACLE:
+            return "LIGHT_ORANGE_ORACLE";
+        case TRUST_LIGHT_ORANGE_EXPLOSION:
+            return "LIGHT_ORANGE_EXPLOSION";
         case TRUST_AMBER:
             return "AMBER";
+        case TRUST_DEEP_ORANGE:
+            return "DEEP_ORANGE";
+        case TRUST_RED:
+            return "RED";
         default:
             return "UNKNOWN";
     }
@@ -927,16 +935,24 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         if (trust_str) {
                             if (strcmp(trust_str, "GREEN") == 0)
                                 trust = TRUST_GREEN;
-                            else if (strcmp(trust_str, "BLUE") == 0)
-                                trust = TRUST_BLUE;
+                            else if (strcmp(trust_str, "BLUE_UNEXPLORED") == 0)
+                                trust = TRUST_BLUE_UNEXPLORED;
+                            else if (strcmp(trust_str, "BLUE_EXCEEDED") == 0)
+                                trust = TRUST_BLUE_EXCEEDED;
+                            else if (strcmp(trust_str, "BLUE_OUT_OF_SCOPE") == 0)
+                                trust = TRUST_BLUE_OUT_OF_SCOPE;
                             else if (strcmp(trust_str, "YELLOW") == 0)
                                 trust = TRUST_YELLOW;
-                            else if (strcmp(trust_str, "ORANGE") == 0)
-                                trust = TRUST_ORANGE;
-                            else if (strcmp(trust_str, "LIGHT_ORANGE") == 0)
-                                trust = TRUST_LIGHT_ORANGE;
+                            else if (strcmp(trust_str, "LIGHT_ORANGE_ORACLE") == 0)
+                                trust = TRUST_LIGHT_ORANGE_ORACLE;
+                            else if (strcmp(trust_str, "LIGHT_ORANGE_EXPLOSION") == 0)
+                                trust = TRUST_LIGHT_ORANGE_EXPLOSION;
                             else if (strcmp(trust_str, "AMBER") == 0)
                                 trust = TRUST_AMBER;
+                            else if (strcmp(trust_str, "DEEP_ORANGE") == 0)
+                                trust = TRUST_DEEP_ORANGE;
+                            else if (strcmp(trust_str, "RED") == 0)
+                                trust = TRUST_RED;
                             else
                                 trust = TRUST_GREEN;
                             lv_free((void **) &trust_str);

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file fptaylor_eval.c
  * @brief FPTaylor 浮点误差分析接口实现
  *
@@ -480,7 +480,7 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id,
  *
  * 根据绝对误差与容差的比较，返回信任颜色等级：
  *   - TRUST_GREEN:  absolute_error <= 1e-12（高精度安全）
- *   - TRUST_BLUE:   absolute_error <= 1e-10（一般安全）
+ *   - TRUST_BLUE_UNEXPLORED: absolute_error <= 1e-10（一般安全）
  *   - TRUST_AMBER:  absolute_error <= tolerance（边界安全）
  *   - TRUST_RED:    absolute_error > tolerance（不安全）
  *   - TRUST_YELLOW: 无法确定
@@ -495,7 +495,7 @@ TrustColor fptaylor_verify_safety(const ErrorBound *bound, double tolerance) {
     double abs_err = fabs(bound->absolute_error);
 
     if (abs_err <= 1e-12) return TRUST_GREEN;
-    if (abs_err <= 1e-10) return TRUST_BLUE;
+    if (abs_err <= 1e-10) return TRUST_BLUE_UNEXPLORED;
     if (abs_err <= tolerance) return TRUST_AMBER;
     return TRUST_RED;
 }

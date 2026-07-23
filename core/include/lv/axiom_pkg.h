@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_pkg.h
  * @brief 公理包系统 —— 约束模板、不可构造性记录、依赖引用追踪
  *
@@ -201,8 +201,15 @@ lv_PUBLIC_API void axiom_package_clear_expansion_cache(AxiomPackage *pkg);
 
 /* 信任颜色常量（用于 original_color 字段） */
 #define DEP_TRUST_GREEN 0
-#define DEP_TRUST_BLUE 1
-#define DEP_TRUST_YELLOW 2
+#define DEP_TRUST_BLUE_UNEXPLORED 1
+#define DEP_TRUST_BLUE_EXCEEDED 2
+#define DEP_TRUST_BLUE_OUT_OF_SCOPE 3
+#define DEP_TRUST_YELLOW 4
+#define DEP_TRUST_LIGHT_ORANGE_ORACLE 5
+#define DEP_TRUST_LIGHT_ORANGE_EXPLOSION 6
+#define DEP_TRUST_AMBER 7
+#define DEP_TRUST_DEEP_ORANGE 8
+#define DEP_TRUST_RED 9
 
 /* 追踪一个依赖引用（内部或外部） */
 typedef struct {

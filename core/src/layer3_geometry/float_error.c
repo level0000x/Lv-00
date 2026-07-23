@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file float_error.c
  * @brief FPTaylor 风格浮点误差验证实现 —— 区间算术 + 泰勒展开验证
  * @details 实现 IEEE 1788 区间算术的基本操作（加减乘除）以及
@@ -1022,7 +1022,7 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
     /* 步骤 5: 清理并输出 */
     out->absolute_error = max_abs_err;
     out->relative_error = max_rel_err;
-    out->trust_level = (max_abs_err > 0.0) ? TRUST_BLUE : TRUST_GREEN;
+    out->trust_level = (max_abs_err > 0.0) ? TRUST_BLUE_UNEXPLORED : TRUST_GREEN;
     out->proof_text = lv_strdup(proof_buf);
 
     for (int ei = 0; ei < eq_count; ei++) {
@@ -1070,7 +1070,7 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, i
 
     out->absolute_error = half_width;
     out->relative_error = (abs_center > DBL_MIN) ? half_width / abs_center : half_width;
-    out->trust_level = TRUST_BLUE;
+    out->trust_level = TRUST_BLUE_UNEXPLORED;
 
     /* 构造证明文本 */
     char proof_buf[512];
@@ -1124,7 +1124,7 @@ TrustColor fptaylor_verify_safety(const ErrorBound *bound, double tolerance) {
 
     if (abs_err <= 1e-10) {
         /* 高精度 —— 可信但仍需关注 */
-        return TRUST_BLUE;
+        return TRUST_BLUE_UNEXPLORED;
     }
 
     if (abs_err <= tolerance) {

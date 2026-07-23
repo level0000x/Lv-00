@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file symbolic_coord_ops.c
  * @brief SymbolicCoord 基础操作
  *
@@ -224,7 +224,7 @@ SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
     if (!coord)
         return NULL;
     coord->type = TRANSCENDENTAL;
-    coord->trust = TRUST_BLUE;
+    coord->trust = TRUST_BLUE_UNEXPLORED;
     coord->cache_valid = false;
     coord->cached_value = 0.0;
     coord->data.transcendental = transcendental_create(name);
@@ -700,7 +700,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                 return NULL;
             }
             result->type = TRANSCENDENTAL;
-            result->trust = expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE;
+            result->trust = expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE_UNEXPLORED;
             result->data.transcendental = t;
             return result;
         }
@@ -997,7 +997,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                 return NULL;
             }
             result->type = TRANSCENDENTAL;
-            result->trust = expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE;
+            result->trust = expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE_UNEXPLORED;
             result->data.transcendental = t;
             return result;
         }
@@ -3239,4 +3239,24 @@ bool algebraic_try_rationalize(Algebraic *a) {
     rational_destroy(result);
     rational_destroy(candidate);
     return false;
+}
+
+
+/* Trust color combination */
+TrustColor trust_color_combine(TrustColor a, TrustColor b) {
+    /* Rule: non-constructive(LO) + numeric-assumption(AMBER) = DEEP_ORANGE */
+    /* Otherwise take the higher value (lower trust) */
+    int a_val = (int)a;
+    int b_val = (int)b;
+
+    /* Check for light-orange + amber superposition */
+    int is_a_lo = (a_val == TRUST_LIGHT_ORANGE_ORACLE || a_val == TRUST_LIGHT_ORANGE_EXPLOSION);
+    int is_b_lo = (b_val == TRUST_LIGHT_ORANGE_ORACLE || b_val == TRUST_LIGHT_ORANGE_EXPLOSION);
+
+    if ((is_a_lo && b_val == TRUST_AMBER) || (is_b_lo && a_val == TRUST_AMBER)) {
+        return TRUST_DEEP_ORANGE;
+    }
+
+    /* Otherwise: higher value = lower trust */
+    return (a_val > b_val) ? a : b;
 }

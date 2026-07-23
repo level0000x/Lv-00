@@ -1,4 +1,4 @@
-﻿#include <assert.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,10 +15,10 @@ void test_trust_colors() {
     GeomNode *node = graph_get_node(graph, 0);
     assert(node->trust == TRUST_GREEN);
 
-    node->trust = TRUST_LIGHT_ORANGE;
-    node->lo_subtype = LIGHT_ORANGE_ORACLE;
-    assert(node->trust == TRUST_LIGHT_ORANGE);
-    assert(node->lo_subtype == LIGHT_ORANGE_ORACLE);
+    node->trust = TRUST_LIGHT_ORANGE_ORACLE;
+    node->lo_subtype = LO_ORACLE;
+    assert(node->trust == TRUST_LIGHT_ORANGE_ORACLE);
+    assert(node->lo_subtype == LO_ORACLE);
 
     node->trust = TRUST_AMBER;
     node->numeric_precision = 1e-6;

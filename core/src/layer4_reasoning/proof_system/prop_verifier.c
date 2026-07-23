@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file prop_verifier.c
  * @brief 命题逻辑验证器实现 —— 自然演绎证明引擎
  *
@@ -1934,12 +1934,12 @@ static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk,
     case VERIFY_DISPROVEN:
         return TRUST_RED;
     case VERIFY_FAILED:
-        return TRUST_BLUE;
+        return TRUST_BLUE_UNEXPLORED;
     case VERIFY_TIMEOUT:
     case VERIFY_INVALID_INPUT:
     case VERIFY_ERROR:
     default:
-        return TRUST_BLUE;
+        return TRUST_BLUE_UNEXPLORED;
     }
 }
 
@@ -1948,14 +1948,17 @@ static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk,
  */
 static const char *trust_color_name(TrustColor color) {
     switch (color) {
-    case TRUST_GREEN:  return "��ɫ����ȫ���ţ�";
-    case TRUST_BLUE:   return "��ɫ��δȷ����";
-    case TRUST_YELLOW: return "��ɫ�������Կ��ţ�";
-    case TRUST_ORANGE: return "��ɫ�����ע��";
-    case TRUST_LIGHT_ORANGE: return "ǳ��ɫ";
-    case TRUST_RED:    return "��ɫ��������/��֤α��";
-    case TRUST_AMBER:  return "����ɫ������ȱʧ��";
-    default:           return "δ֪";
+    case TRUST_GREEN:                  return "绿色：完全可信";
+    case TRUST_BLUE_UNEXPLORED:        return "蓝色-未探索";
+    case TRUST_BLUE_EXCEEDED:          return "蓝色-资源受限";
+    case TRUST_BLUE_OUT_OF_SCOPE:      return "蓝色-超出范围";
+    case TRUST_YELLOW:                 return "黄色：条件性可信";
+    case TRUST_LIGHT_ORANGE_ORACLE:    return "浅橙色-oracle";
+    case TRUST_LIGHT_ORANGE_EXPLOSION: return "浅橙色-爆炸";
+    case TRUST_AMBER:                  return "琥珀色：精度缺失";
+    case TRUST_DEEP_ORANGE:            return "深橙色：叠加";
+    case TRUST_RED:                    return "红色：矛盾/验证伪";
+    default:                           return "未知";
     }
 }
 

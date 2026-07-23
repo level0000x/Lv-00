@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_navigator.c
  * @brief ProofNavigator 证明导航
  *
@@ -264,9 +264,9 @@ bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_block_id) {
     /* 标记为爆炸原理块 */
     GeomNode *fb = graph_get_node(graph, *out_block_id);
     if (fb && fb->type == GEOM_FUNCTION_BLOCK) {
-        /* 设置特殊标记 - 使用 LIGHT_ORANGE 表示爆炸原理 */
-        fb->trust = TRUST_LIGHT_ORANGE;
-        fb->lo_subtype = LIGHT_ORANGE_EXPLOSION;
+        /* 设置特殊标记 - 使用 LIGHT_ORANGE_EXPLOSION 表示爆炸原理 */
+        fb->trust = TRUST_LIGHT_ORANGE_EXPLOSION;
+        fb->lo_subtype = LO_EXPLOSION;
     }
 
     /* 流式事件：爆炸原理块创建 */
@@ -295,8 +295,8 @@ bool proof_apply_ex_falso(ProofNavigator *nav, ConstraintGraph *bottom_proof, Pr
        并设置为目标命题的类型 */
     for (int i = 0; i < bottom_proof->node_count; i++) {
         GeomNode *n = bottom_proof->nodes[i];
-        if (n && n->type == GEOM_FUNCTION_BLOCK && n->trust == TRUST_LIGHT_ORANGE &&
-            n->lo_subtype == LIGHT_ORANGE_EXPLOSION) {
+        if (n && n->type == GEOM_FUNCTION_BLOCK && n->trust == TRUST_LIGHT_ORANGE_EXPLOSION &&
+            n->lo_subtype == LO_EXPLOSION) {
             /* 找到爆炸原理块，更新其输出端口类型 */
             if (n->data.func_block.output_port_ids && n->data.func_block.output_count > 0) {
                 int out_port_id = n->data.func_block.output_port_ids[0];

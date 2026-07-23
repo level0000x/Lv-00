@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @mainpage Lv-00 几何元语言系统
  *
  * @section intro_sec 简介
@@ -264,6 +264,9 @@ extern "C" {
 /* 流式输出 */
 #include "stream.h"              /* 流式事件系统 */
 #include "stream_context_util.h" /* 流式上下文工具宏 */
+
+/* λ-项数据结构 */
+#include "lambda_term.h" /* λ-项（tagged union） */
 
 /* ============================================================
  * === 版本信息 API ===
