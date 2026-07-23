@@ -637,7 +637,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -667,7 +667,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -702,7 +702,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -908,7 +908,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                 if (!t)
                     return NULL;
 
-                TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+                TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
                 if (!expr) {
                     transcendental_destroy(t);
                     return NULL;
@@ -936,7 +936,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -967,7 +967,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1001,7 +1001,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1202,7 +1202,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1231,7 +1231,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1265,7 +1265,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1440,7 +1440,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1552,7 +1552,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1771,7 +1771,7 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
             /* Deep copy the expression tree if present */
             if (dst->data.transcendental && src->data.transcendental->expr) {
                 TranscendentalExpr *src_expr = src->data.transcendental->expr;
-                TranscendentalExpr *dst_expr = lv_malloc(sizeof(TranscendentalExpr));
+                TranscendentalExpr *dst_expr = lv_calloc(1, sizeof(TranscendentalExpr));
                 if (dst_expr) {
                     dst_expr->expr_type = src_expr->expr_type;
                     /* 使用 lv_strlcpy 替代不安全的 strncpy（自动保证零终止） */
@@ -2014,7 +2014,7 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -2083,7 +2083,7 @@ mpz_t *mpz_perfect_sqrt(mpz_t n) {
         return NULL;
     if (!mpz_perfect_square_p(n))
         return NULL;
-    mpz_t *result = (mpz_t *)lv_malloc(sizeof(mpz_t));
+    mpz_t *result = (mpz_t *)lv_calloc(1, sizeof(mpz_t));
     if (!result)
         return NULL;
     mpz_init(*result);
@@ -3206,7 +3206,7 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
 
     mpq_canonicalize(result);
 
-    Rational *r = lv_malloc(sizeof(Rational));
+    Rational *r = lv_calloc(1, sizeof(Rational));
     if (r) {
         mpq_init(r->value);
         mpq_set(r->value, result);

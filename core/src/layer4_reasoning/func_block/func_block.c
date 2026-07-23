@@ -128,14 +128,11 @@ static bool func_block_set_int_array(int **target, int *count,
  *         内存不足时返回 NULL
  */
 FuncBlock *func_block_create(int id) {
-    FuncBlock *fb = (FuncBlock *)lv_malloc(sizeof(FuncBlock));
+    FuncBlock *fb = (FuncBlock *)lv_calloc(1, sizeof(FuncBlock));
     if (!fb) {
         lv_LOG_ERROR("func_block_create: 内存分配失败 (id=%d)", id);
         return NULL;
     }
-
-    /* 清零所有字段 */
-    memset(fb, 0, sizeof(FuncBlock));
 
     /* 设置基本属性 */
     fb->id = id;
@@ -1290,7 +1287,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
 
     /* 深拷贝选择器 - 改进版：正确处理回调函数和 user_data */
     if (src->selector) {
-        dst->selector = lv_malloc(sizeof(SolutionSelector));
+        dst->selector = lv_calloc(1, sizeof(SolutionSelector));
         if (!dst->selector)
             goto fail;
         

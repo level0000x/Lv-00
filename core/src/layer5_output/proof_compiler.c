@@ -91,10 +91,8 @@ static void append_format(lvProofCompiler *compiler, const char *fmt, ...) {
  * @brief 创建证明对象
  */
 lvProofObject *lv_proof_object_create(void) {
-    lvProofObject *obj = (lvProofObject *)lv_malloc(sizeof(lvProofObject));
+    lvProofObject *obj = (lvProofObject *)lv_calloc(1, sizeof(lvProofObject));
     if (!obj) return NULL;
-    
-    memset(obj, 0, sizeof(lvProofObject));
     
     obj->step_capacity = 64;
     obj->steps = (lvProofStepRecord **)lv_malloc(
@@ -255,11 +253,9 @@ bool lv_proof_object_verify(const lvProofObject *obj) {
  * @brief 创建步骤记录
  */
 lvProofStepRecord *lv_proof_step_record_create(void) {
-    lvProofStepRecord *record = (lvProofStepRecord *)lv_malloc(
-        sizeof(lvProofStepRecord));
+    lvProofStepRecord *record = (lvProofStepRecord *)lv_calloc(
+        1, sizeof(lvProofStepRecord));
     if (!record) return NULL;
-    
-    memset(record, 0, sizeof(lvProofStepRecord));
     record->premise_step_ids = (int *)lv_malloc(8 * sizeof(int));
     if (!record->premise_step_ids) {
         lv_free((void **) &record);
@@ -288,8 +284,8 @@ void lv_proof_step_record_destroy(lvProofStepRecord *record) {
  * @brief 创建证明编译器
  */
 lvProofCompiler *lv_proof_compiler_create(const lvCompilerConfig *config) {
-    lvProofCompiler *compiler = (lvProofCompiler *)lv_malloc(
-        sizeof(lvProofCompiler));
+    lvProofCompiler *compiler = (lvProofCompiler *)lv_calloc(
+        1, sizeof(lvProofCompiler));
     if (!compiler) return NULL;
     
     if (config) {

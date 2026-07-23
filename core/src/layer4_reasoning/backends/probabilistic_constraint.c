@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file probabilistic_constraint.c
  * @brief PRISM 概率模型检验 —— 真实实现
  *
@@ -723,7 +723,7 @@ static double pctl_compute_probability(const SimpleDTMC *mc,
  * ======================================================================== */
 
 ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_count) {
-    ProbDistribution *dist = (ProbDistribution *) lv_malloc(sizeof(ProbDistribution));
+    ProbDistribution *dist = (ProbDistribution *) lv_calloc(1, sizeof(ProbDistribution));
     if (!dist)
         return NULL;
 
@@ -1003,7 +1003,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
  * ======================================================================== */
 
 ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist) {
-    ProbConstraintNode *node = (ProbConstraintNode *) lv_malloc(sizeof(ProbConstraintNode));
+    ProbConstraintNode *node = (ProbConstraintNode *) lv_calloc(1, sizeof(ProbConstraintNode));
     if (!node)
         return NULL;
 

@@ -45,7 +45,7 @@ lvWidgetLayout *proof_widget_init(int layout_capacity) {
         layout_capacity = 8;
     }
 
-    lvWidgetLayout *layout = (lvWidgetLayout *)lv_malloc(sizeof(lvWidgetLayout));
+    lvWidgetLayout *layout = (lvWidgetLayout *)lv_calloc(1, sizeof(lvWidgetLayout));
     if (!layout) return NULL;
 
     layout->widgets = (ProofWidgetState *)lv_calloc((size_t)layout_capacity,

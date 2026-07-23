@@ -46,7 +46,7 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
     if (!orig)
         return NULL;
 
-    SymbolicCoord *copy = lv_malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *copy = lv_calloc(1, sizeof(SymbolicCoord));
     if (!copy)
         return NULL;
 
@@ -57,7 +57,7 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
         case RATIONAL:
             if (orig->data.rational) {
                 /* 通过 mpq_set 深拷贝，避免 mpz_get_si/mpz_get_ui 截断问题 */
-                copy->data.rational = lv_malloc(sizeof(Rational));
+                copy->data.rational = lv_calloc(1, sizeof(Rational));
                 if (!copy->data.rational) {
                     lv_free((void **) &copy);
                     return NULL;
@@ -80,14 +80,14 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
         case QUADRATIC:
             if (orig->data.quadratic) {
                 /* 通过 mpq_set 深拷贝有理数分量，避免截断问题 */
-                Rational *a_copy = lv_malloc(sizeof(Rational));
+                Rational *a_copy = lv_calloc(1, sizeof(Rational));
                 if (!a_copy) {
                     lv_free((void **) &copy);
                     return NULL;
                 }
                 mpq_init(a_copy->value);
                 mpq_set(a_copy->value, orig->data.quadratic->a->value);
-                Rational *b_copy = lv_malloc(sizeof(Rational));
+                Rational *b_copy = lv_calloc(1, sizeof(Rational));
                 if (!b_copy) {
                     mpq_clear(a_copy->value);
                     lv_free((void **) &a_copy);
@@ -150,7 +150,7 @@ Port *node_deep_copy_port(const Port *orig) {
     if (!orig)
         return NULL;
 
-    Port *copy = lv_malloc(sizeof(Port));
+    Port *copy = lv_calloc(1, sizeof(Port));
     if (!copy)
         return NULL;
 
@@ -193,7 +193,7 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
 
     lv_UNUSED(id_map); /* 预留参数，当前未使用 */
 
-    GeomNode *copy = lv_malloc(sizeof(GeomNode));
+    GeomNode *copy = lv_calloc(1, sizeof(GeomNode));
     if (!copy)
         return NULL;
 
@@ -265,7 +265,7 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
             /* Region类型：分配边界线段数组（引用共享，非拥有） */
             copy->data.region.segment_count = orig->data.region.segment_count;
             if (orig->data.region.boundary_segments && orig->data.region.segment_count > 0) {
-                copy->data.region.boundary_segments = lv_malloc(orig->data.region.segment_count * sizeof(GeomNode *));
+                copy->data.region.boundary_segments = lv_calloc(orig->data.region.segment_count, sizeof(GeomNode *));
                 if (!copy->data.region.boundary_segments) {
                     if (copy->symbolic_coords) {
                         for (int i = 0; i < copy->coord_count; i++) {
@@ -338,7 +338,7 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
 
             /* 分配并拷贝输出端口ID数组 */
             if (orig->data.func_block.output_port_ids && orig->data.func_block.output_count > 0) {
-                copy->data.func_block.output_port_ids = lv_malloc(orig->data.func_block.output_count * sizeof(int));
+                copy->data.func_block.output_port_ids = lv_calloc(orig->data.func_block.output_count, sizeof(int));
                 if (!copy->data.func_block.output_port_ids) {
                     lv_free((void **) &copy->data.func_block.input_port_ids);
                     lv_free((void **) &copy->data.func_block.internal_nodes);

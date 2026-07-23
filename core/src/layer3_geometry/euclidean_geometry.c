@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file euclidean_geometry.c
  * @brief 欧几里得几何公理体系实现 —— Hilbert 五大公理组 + Birkhoff/Tarski 等价性
  *
@@ -142,11 +142,10 @@ static const char *euclidean_axiom_group_names[] = {
  */
 EuclideanContext *euclidean_init(ConstraintGraph *graph)
 {
-    EuclideanContext *ctx = lv_malloc(sizeof(EuclideanContext));
+    EuclideanContext *ctx = lv_calloc(1, sizeof(EuclideanContext));
     if (!ctx) {
         return NULL;
     }
-    memset(ctx, 0, sizeof(EuclideanContext));
 
     /* 默认使用 Hilbert 公理体系 */
     ctx->active_axiom_system = EUCLID_HILBERT;
@@ -849,9 +848,8 @@ EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx)
         ctx->equivalence_chain = NULL;
     }
 
-    EquivalenceProofChain *chain = lv_malloc(sizeof(EquivalenceProofChain));
+    EquivalenceProofChain *chain = lv_calloc(1, sizeof(EquivalenceProofChain));
     if (!chain) return NULL;
-    memset(chain, 0, sizeof(EquivalenceProofChain));
 
     chain->source_system = EUCLID_BIRKHOFF;
     chain->target_system = EUCLID_TARSKI;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite_apply.c
  * @brief 规则加载与重写应用
  *
@@ -384,7 +384,7 @@ static void parsed_rule_destroy(ParsedRule *rule) {
  */
 static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     /* 构建模式 */
-    RewritePattern *pattern = lv_malloc(sizeof(RewritePattern));
+    RewritePattern *pattern = lv_calloc(1, sizeof(RewritePattern));
     if (!pattern) return NULL;
     pattern->var_count = pr->pattern_var_count;
     pattern->variable_node_ids = NULL;
@@ -404,9 +404,8 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
             (size_t)pr->pattern_constraint_count * sizeof(Constraint *));
         if (pattern->pattern_constraints) {
             for (int i = 0; i < pr->pattern_constraint_count; i++) {
-                Constraint *c = lv_malloc(sizeof(Constraint));
+                Constraint *c = lv_calloc(1, sizeof(Constraint));
                 if (c) {
-                    memset(c, 0, sizeof(Constraint));
                     c->type = pr->pattern_constraints[i].type;
                     c->participant_count = pr->pattern_constraints[i].participant_count;
                     c->participants = lv_malloc(
@@ -423,7 +422,7 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     }
 
     /* 构建替换 */
-    RewriteReplacement *replacement = lv_malloc(sizeof(RewriteReplacement));
+    RewriteReplacement *replacement = lv_calloc(1, sizeof(RewriteReplacement));
     if (!replacement) {
         /* 简化清理 */
         lv_free((void**)&pattern->variable_node_ids);
@@ -465,9 +464,8 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
             (size_t)pr->replacement_constraint_count * sizeof(Constraint *));
         if (replacement->replacement_constraints) {
             for (int i = 0; i < pr->replacement_constraint_count; i++) {
-                Constraint *c = lv_malloc(sizeof(Constraint));
+                Constraint *c = lv_calloc(1, sizeof(Constraint));
                 if (c) {
-                    memset(c, 0, sizeof(Constraint));
                     c->type = pr->replacement_constraints[i].type;
                     c->participant_count = pr->replacement_constraints[i].participant_count;
                     c->participants = lv_malloc(

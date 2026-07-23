@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file relation_model.c
  * @brief 关系模型层实现 —— 借鉴 Alloy 的"关系即一切"统一建模范式
  *
@@ -98,9 +98,8 @@ static bool rel_add_tuple_inner(Relation *r, const int *tuple) {
  * @brief 创建新关系（内部使用）
  */
 static Relation *rel_new(const char *name, int arity) {
-    Relation *r = (Relation *)lv_malloc(sizeof(Relation));
+    Relation *r = (Relation *)lv_calloc(1, sizeof(Relation));
     if (!r) return NULL;
-    memset(r, 0, sizeof(Relation));
     r->name = name ? lv_strdup_safe(name) : NULL;
     r->arity = arity;
     r->tuples = NULL;
@@ -456,9 +455,8 @@ static bool model_ensure_sig_capacity(RelModel *model) {
 RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
     lv_CHECK_NULL(graph, NULL);
 
-    RelModel *model = (RelModel *)lv_malloc(sizeof(RelModel));
+    RelModel *model = (RelModel *)lv_calloc(1, sizeof(RelModel));
     lv_CHECK_ALLOC(model, NULL);
-    memset(model, 0, sizeof(RelModel));
 
     /* 为每种 GeomType 创建 RelSignature */
     const char *sig_names[] = {"Point", "LineSegment", "Region", "Port", "FuncBlock"};
@@ -477,12 +475,11 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
 
     /* 为每个节点分类创建原子 */
     for (int si = 0; si < 5; si++) {
-        RelSignature *sig = (RelSignature *)lv_malloc(sizeof(RelSignature));
+        RelSignature *sig = (RelSignature *)lv_calloc(1, sizeof(RelSignature));
         if (!sig) {
             relation_model_destroy(model);
             return NULL;
         }
-        memset(sig, 0, sizeof(RelSignature));
         sig->name = lv_strdup_safe(sig_names[si]);
         sig->atom_type = sig_types[si];
         sig->atom_capacity = 64;
@@ -535,7 +532,7 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
             sig->atom_capacity = new_cap;
         }
 
-        RelAtom *atom = (RelAtom *)lv_malloc(sizeof(RelAtom));
+        RelAtom *atom = (RelAtom *)lv_calloc(1, sizeof(RelAtom));
         if (!atom) {
             relation_model_destroy(model);
             return NULL;
@@ -652,9 +649,8 @@ RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *sco
     lv_CHECK_NULL(model, NULL);
     lv_CHECK_NULL(scope, NULL);
 
-    RelInstance *inst = (RelInstance *)lv_malloc(sizeof(RelInstance));
+    RelInstance *inst = (RelInstance *)lv_calloc(1, sizeof(RelInstance));
     lv_CHECK_ALLOC(inst, NULL);
-    memset(inst, 0, sizeof(RelInstance));
 
     inst->model = model;
 

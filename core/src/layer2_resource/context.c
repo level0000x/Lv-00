@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file context.c
  * @brief Lv-00 隔离上下文系统 —— 核心实现
  *
@@ -308,16 +308,16 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
             }
             /* 深拷贝假设和目标数组 */
             if (src_frame->assumption_node_ids && src_frame->assumption_count > 0) {
-                dst_frame->assumption_node_ids = (int *)lv_malloc(
-                    (size_t)src_frame->assumption_count * sizeof(int));
+                dst_frame->assumption_node_ids = (int *)lv_calloc(
+                    (size_t)src_frame->assumption_count, sizeof(int));
                 if (dst_frame->assumption_node_ids) {
                     memcpy(dst_frame->assumption_node_ids, src_frame->assumption_node_ids,
                            (size_t)src_frame->assumption_count * sizeof(int));
                 }
             }
             if (src_frame->target_node_ids && src_frame->target_count > 0) {
-                dst_frame->target_node_ids = (int *)lv_malloc(
-                    (size_t)src_frame->target_count * sizeof(int));
+                dst_frame->target_node_ids = (int *)lv_calloc(
+                    (size_t)src_frame->target_count, sizeof(int));
                 if (dst_frame->target_node_ids) {
                     memcpy(dst_frame->target_node_ids, src_frame->target_node_ids,
                            (size_t)src_frame->target_count * sizeof(int));

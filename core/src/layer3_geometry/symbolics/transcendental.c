@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file transcendental.c
  * @brief Transcendental 超越数类型
  *
@@ -100,7 +100,7 @@ Transcendental *transcendental_create(const char *name) {
     if (!base)
         return NULL;
 
-    Transcendental *t = lv_malloc(sizeof(Transcendental));
+    Transcendental *t = lv_calloc(1, sizeof(Transcendental));
     if (!t)
         return NULL;
     /* 安全字符串复制：确保以 null 终止 */

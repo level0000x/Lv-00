@@ -163,7 +163,7 @@ struct BootstrapDiffTest {
 BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name,
                                                const char *dsl_source)
 {
-    BootstrapDiffTest *test = lv_malloc(sizeof(BootstrapDiffTest));
+    BootstrapDiffTest *test = lv_calloc(1, sizeof(BootstrapDiffTest));
     if (!test) {
         return NULL;
     }
@@ -208,12 +208,10 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
         return NULL;
     }
 
-    BootstrapDiffTestResult *result = lv_malloc(sizeof(BootstrapDiffTestResult));
+    BootstrapDiffTestResult *result = lv_calloc(1, sizeof(BootstrapDiffTestResult));
     if (!result) {
         return NULL;
     }
-
-    memset(result, 0, sizeof(BootstrapDiffTestResult));
 
     /* 差分测试逻辑：解析 DSL、通过 C API 执行、比较结果 */
     if (test->dsl_source) {
@@ -350,7 +348,7 @@ RandomGeneratorConfig random_generator_default_config(void)
  */
 RandomGenerator *random_generator_create(const RandomGeneratorConfig *config)
 {
-    RandomGenerator *gen = lv_malloc(sizeof(RandomGenerator));
+    RandomGenerator *gen = lv_calloc(1, sizeof(RandomGenerator));
     if (!gen) {
         return NULL;
     }
@@ -566,7 +564,7 @@ struct GraphIsomorphismComparator {
  */
 GraphIsomorphismComparator *graph_isomorphism_create(void)
 {
-    GraphIsomorphismComparator *comp = lv_malloc(sizeof(GraphIsomorphismComparator));
+    GraphIsomorphismComparator *comp = lv_calloc(1, sizeof(GraphIsomorphismComparator));
     if (!comp) {
         return NULL;
     }
@@ -1315,7 +1313,7 @@ struct TestOracle {
  */
 TestOracle *test_oracle_create(void)
 {
-    TestOracle *oracle = lv_malloc(sizeof(TestOracle));
+    TestOracle *oracle = lv_calloc(1, sizeof(TestOracle));
     if (!oracle) {
         return NULL;
     }

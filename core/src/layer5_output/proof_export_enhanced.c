@@ -134,7 +134,7 @@ static void dstr_free(DStr *d) {
  * @return 错误结果对象指针
  */
 static lvExportResult *make_error(const char *msg) {
-    lvExportResult *r = (lvExportResult *)lv_malloc(sizeof(lvExportResult));
+    lvExportResult *r = (lvExportResult *)lv_calloc(1, sizeof(lvExportResult));
     if (!r) return NULL;
     const char *src = msg ? msg : "Unknown error";
     size_t len = strlen(src);
@@ -155,7 +155,7 @@ static lvExportResult *make_error(const char *msg) {
  * @return 成功结果对象指针，失败返回 NULL
  */
 static lvExportResult *make_success(DStr *d) {
-    lvExportResult *r = (lvExportResult *)lv_malloc(sizeof(lvExportResult));
+    lvExportResult *r = (lvExportResult *)lv_calloc(1, sizeof(lvExportResult));
     if (!r) {
         dstr_free(d);
         return NULL;

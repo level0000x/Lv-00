@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_converter.c
  * @brief 公式转换器实现
  *
@@ -175,7 +175,7 @@ SymbolicCoord **formula_coords_to_symbolic(const FormulaNode *coord_list, int *o
     }
     
     int count = coord_list->data.coord_list.coord_count;
-    SymbolicCoord **coords = (SymbolicCoord **)lv_malloc(sizeof(SymbolicCoord *) * count);  /* 统一内存分配器 */
+    SymbolicCoord **coords = (SymbolicCoord **)lv_calloc(count, sizeof(SymbolicCoord *));  /* 统一内存分配器 */
     if (!coords) {
         *out_count = 0;
         return NULL;
@@ -264,7 +264,7 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
             }
             lv_free((void **)&coords);  /* 统一内存释放器 */
         }
-        coords = (SymbolicCoord **)lv_malloc(sizeof(SymbolicCoord *) * 2);
+        coords = (SymbolicCoord **)lv_calloc(2, sizeof(SymbolicCoord *));
         if (!coords) {
             return -1; /* 内存分配失败 */
         }
@@ -567,8 +567,8 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         return false;  /* 多边形至少需要3个顶点 */
     }
 
-    /* 第一步：创建所有顶点 */
-    int *vertex_ids = (int *)lv_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
+    /* 创建所有顶点 */
+    int *vertex_ids = (int *)lv_calloc(vert_count, sizeof(int));  /* 统一内存分配器 */
     if (!vertex_ids) return false;
 
     for (int i = 0; i < vert_count; i++) {
@@ -604,8 +604,8 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         }
     }
 
-    /* 第二步：创建边（首尾相连） */
-    int *segment_ids = (int *)lv_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
+    /* 创建边（首尾相连） */
+    int *segment_ids = (int *)lv_calloc(vert_count, sizeof(int));  /* 统一内存分配器 */
     if (!segment_ids) {
         lv_free((void **)&vertex_ids);  /* 统一内存释放器 */
         return false;
@@ -673,7 +673,7 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
     }
 
     /* 从子节点中提取边界线段 ID */
-    int *segment_ids = (int *)lv_malloc(sizeof(int) * seg_count);  /* 统一内存分配器 */
+    int *segment_ids = (int *)lv_calloc(seg_count, sizeof(int));  /* 统一内存分配器 */
     if (!segment_ids) return false;
 
     int valid_count = 0;
@@ -1330,8 +1330,8 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
     }
     
     /* 分配节点和约束 ID 数组 */
-    result->created_node_ids = (int *)lv_malloc(sizeof(int) * MAX_CREATED_NODES);          /* 统一内存分配器 */
-    result->created_constraint_ids = (int *)lv_malloc(sizeof(int) * MAX_CREATED_CONSTRAINTS);     /* 统一内存分配器 */
+    result->created_node_ids = (int *)lv_calloc(MAX_CREATED_NODES, sizeof(int));          /* 统一内存分配器 */
+    result->created_constraint_ids = (int *)lv_calloc(MAX_CREATED_CONSTRAINTS, sizeof(int));     /* 统一内存分配器 */
 
     if (!result->created_node_ids || !result->created_constraint_ids) {
         /* 修复：分配失败时释放已成功分配的数组，避免内存泄漏 */
@@ -2254,7 +2254,7 @@ EquationCurveResult *formula_convert_equation_to_curve(
     double dy = (y_max - y_min) / grid_size;
 
     /* 第一阶段：粗采样，计算网格点上的函数值 */
-    double *grid_values = (double *)lv_malloc((grid_size + 1) * (grid_size + 1) * sizeof(double));  /* 统一内存分配器 */
+    double *grid_values = (double *)lv_calloc((grid_size + 1) * (grid_size + 1), sizeof(double));  /* 统一内存分配器 */
     if (!grid_values) {
         result->success = false;
         snprintf(result->error_message, sizeof(result->error_message),

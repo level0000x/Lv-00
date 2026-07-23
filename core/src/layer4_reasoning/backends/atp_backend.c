@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file atp_backend.c
  * @brief 一阶逻辑自动定理证明器（FOL ATP）后端抽象层实现
  *
@@ -281,12 +281,10 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
  *   - Z3: SMT 求解（通过 SMT-LIB 2 接口）
  */
 ATPBackendSolver *atp_solver_create(ATPBackendType type, const ATPConfig *config) {
-    ATPBackendSolver *solver = (ATPBackendSolver *)lv_malloc(sizeof(ATPBackendSolver));
+    ATPBackendSolver *solver = (ATPBackendSolver *)lv_calloc(1, sizeof(ATPBackendSolver));
     if (!solver) {
         return NULL;
     }
-
-    memset(solver, 0, sizeof(ATPBackendSolver));
     solver->type = type;
     solver->is_initialized = true;
     solver->has_problem = false;

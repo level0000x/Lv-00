@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_instantiate.c
  * @brief 函数块例化与捕获避免模块
  * @details 实现函数块的例化（beta-归约）、部分应用（柯里化），
@@ -105,7 +105,7 @@ static InstantiateResult instantiate_copy_internal_nodes(
         }
 
         /* 情况3: 内部局部变量 - 创建深拷贝 */
-        GeomNode *copy = lv_malloc(sizeof(GeomNode));
+        GeomNode *copy = lv_calloc(1, sizeof(GeomNode));
         if (!copy) {
             lv_free((void **)&new_node_ids);
             return INSTANTIATE_OUT_OF_MEMORY;
@@ -173,7 +173,7 @@ static InstantiateResult instantiate_copy_internal_nodes(
                     lv_free((void **)&new_node_ids);
                     return INSTANTIATE_NO_SOLUTION;
                 }
-                Port *port_copy = lv_malloc(sizeof(Port));
+                Port *port_copy = lv_calloc(1, sizeof(Port));
                 if (!port_copy) {
                     lv_free((void **)&copy->symbolic_coords);
                     lv_free((void **)&copy->numeric_assumption_declaration);
@@ -436,9 +436,8 @@ static void instantiate_copy_constraints(
         if (!all_internal || !any_mapped) continue;
 
         /* 创建新约束，替换参与者ID */
-        Constraint *new_c = lv_malloc(sizeof(Constraint));
+        Constraint *new_c = lv_calloc(1, sizeof(Constraint));
         if (!new_c) continue;
-        memset(new_c, 0, sizeof(Constraint));
         new_c->id = graph->next_constraint_id++;
         new_c->type = c->type;
         new_c->template_id = c->template_id;
@@ -592,9 +591,8 @@ static void instantiate_copy_connection_constraints(
         if (!any_changed) continue;
 
         /* 创建新的 CONNECTION 约束 */
-        Constraint *new_c = lv_malloc(sizeof(Constraint));
+        Constraint *new_c = lv_calloc(1, sizeof(Constraint));
         if (!new_c) continue;
-        memset(new_c, 0, sizeof(Constraint));
         new_c->id = graph->next_constraint_id++;
         new_c->type = CONNECTION;
         new_c->template_id = c->template_id;

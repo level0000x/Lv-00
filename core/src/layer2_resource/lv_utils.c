@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_utils.c
  * @brief Lv-00 工具函数库实现
  *
@@ -868,7 +868,7 @@ lvArray *lv_array_create(size_t initial_capacity, size_t elem_size) {
     if (elem_size == 0)
         return NULL;
 
-    lvArray *arr = lv_malloc(sizeof(lvArray));
+    lvArray *arr = lv_calloc(1, sizeof(lvArray));
     if (!arr)
         return NULL;
 
@@ -1019,7 +1019,7 @@ int lv_array_find(const lvArray *arr, const void *elem) {
  * ============================================================ */
 
 IntArray *int_array_create(size_t initial_capacity) {
-    IntArray *arr = lv_malloc(sizeof(IntArray));
+    IntArray *arr = lv_calloc(1, sizeof(IntArray));
     if (!arr)
         return NULL;
 

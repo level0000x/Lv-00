@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_rule_engine.c
  * @brief Proof rule search engine implementation
  *
@@ -297,7 +297,7 @@ typedef struct BfsQueueNode {
  * @brief 创建 BFS 队列节点
  */
 static BfsQueueNode *bfs_queue_node_create(lvProofState *state, int depth) {
-    BfsQueueNode *node = (BfsQueueNode *)lv_malloc(sizeof(BfsQueueNode));
+    BfsQueueNode *node = (BfsQueueNode *)lv_calloc(1, sizeof(BfsQueueNode));
     if (!node) return NULL;
     node->state = state;
     node->depth = depth;
@@ -373,9 +373,8 @@ static lvProofState *proof_state_clone(const lvProofState *src) {
     int i;
     if (!src) return NULL;
 
-    lvProofState *dst = (lvProofState *)lv_malloc(sizeof(lvProofState));
+    lvProofState *dst = (lvProofState *)lv_calloc(1, sizeof(lvProofState));
     if (!dst) return NULL;
-    memset(dst, 0, sizeof(lvProofState));
 
     /* 复制目标栈 */
     for (i = 0; i <= src->goal_stack_top && i < lv_GOAL_STACK_MAX; i++) {
@@ -592,10 +591,8 @@ lvRuleEngine *rule_engine_create(void) {
 lvRuleEngine *rule_engine_create_ex(lvSearchStrategy strategy,
                                        int max_depth,
                                        uint64_t timeout_ms) {
-    lvRuleEngine *engine = (lvRuleEngine *)lv_malloc(sizeof(lvRuleEngine));
+    lvRuleEngine *engine = (lvRuleEngine *)lv_calloc(1, sizeof(lvRuleEngine));
     if (!engine) return NULL;
-
-    memset(engine, 0, sizeof(lvRuleEngine));
 
     engine->rule_set = (lvProofRule **)lv_malloc(
         sizeof(lvProofRule *) * lv_RULE_SET_CAPACITY);
@@ -713,10 +710,9 @@ lvProofState *proof_state_create(const char *initial_goal) {
     lvProofState *state;
     if (!initial_goal) return NULL;
 
-    state = (lvProofState *)lv_malloc(sizeof(lvProofState));
+    state = (lvProofState *)lv_calloc(1, sizeof(lvProofState));
     if (!state) return NULL;
 
-    memset(state, 0, sizeof(lvProofState));
     state->goal_stack_top = -1;
     state->current_depth = 0;
 

@@ -680,9 +680,8 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
 
     /* 为每个模式变量创建节点 */
     for (int i = 0; i < pattern->var_count; i++) {
-        GeomNode *node = lv_malloc(sizeof(GeomNode));
+        GeomNode *node = lv_calloc(1, sizeof(GeomNode));
         if (!node) { graph_destroy(pattern_graph); return NULL; }
-        memset(node, 0, sizeof(GeomNode));
         node->id = pattern->variable_node_ids[i]; /* 负数 ID */
         node->type = GEOM_POINT;
         node->trust = TRUST_GREEN;
@@ -747,14 +746,13 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
         }
 
         if (all_mapped) {
-            Constraint *new_con = lv_malloc(sizeof(Constraint));
+            Constraint *new_con = lv_calloc(1, sizeof(Constraint));
             if (!new_con) {
                 lv_free((void**)&mapped_participants);
                 lv_free((void**)&var_id_to_idx);
                 graph_destroy(pattern_graph);
                 return NULL;
             }
-            memset(new_con, 0, sizeof(Constraint));
             new_con->id = pattern_graph->next_constraint_id++;
             new_con->type = pc->type;
             new_con->participant_count = pc->participant_count;
@@ -783,7 +781,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
 
     if (found) {
         /* 将 VF2 匹配结果转换为 RewriteMatch 格式 */
-        match = lv_malloc(sizeof(RewriteMatch));
+        match = lv_calloc(1, sizeof(RewriteMatch));
         if (!match) { vf2_state_destroy(&state); graph_destroy(pattern_graph); return NULL; }
 
         match->node_bindings = lv_malloc((size_t)pattern->var_count * 2 * sizeof(int));

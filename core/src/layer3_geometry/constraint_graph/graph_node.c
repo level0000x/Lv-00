@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file graph_node.c
  * @brief ConstraintGraph 节点与约束生命周期
  *
@@ -69,10 +69,9 @@ static void *graph_ensure_capacity(void *arr, int count, int *capacity,
  * @return 新分配的 GeomNode 指针，失败返回 NULL
  */
 static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
-    GeomNode *node = lv_malloc(sizeof(GeomNode));
+    GeomNode *node = lv_calloc(1, sizeof(GeomNode));
     if (!node)
         return NULL;
-    memset(node, 0, sizeof(GeomNode));
     /* v3.4.1: 使用原子操作分配节点ID，确保多线程安全 */
     node->id = GRAPH_ATOMIC_NODE_ID_INCREMENT(graph);
     node->type = type;
@@ -105,10 +104,9 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
  * @return 新分配的 Constraint 指针，失败返回 NULL
  */
 Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) {
-    Constraint *con = lv_malloc(sizeof(Constraint));
+    Constraint *con = lv_calloc(1, sizeof(Constraint));
     if (!con)
         return NULL;
-    memset(con, 0, sizeof(Constraint));
     /* v3.4.1: 使用原子操作分配约束ID，确保多线程安全 */
     con->id = GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph);
     con->type = type;
@@ -138,10 +136,9 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
         return NULL;
     }
 
-    GeomNode *node = lv_malloc(sizeof(GeomNode));
+    GeomNode *node = lv_calloc(1, sizeof(GeomNode));
     if (!node)
         return NULL;
-    memset(node, 0, sizeof(GeomNode));
 
     node->id = node_id;
     node->type = type;
@@ -235,10 +232,9 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
         return NULL;
     }
 
-    Constraint *con = lv_malloc(sizeof(Constraint));
+    Constraint *con = lv_calloc(1, sizeof(Constraint));
     if (!con)
         return NULL;
-    memset(con, 0, sizeof(Constraint));
 
     con->id = constraint_id;
     con->type = type;
@@ -1236,9 +1232,7 @@ AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespac
     node->symbolic_coords = NULL;
     /* 设置端口类型 */
     if (!node->data.port) {
-        node->data.port = lv_malloc(sizeof(Port));
-        if (node->data.port)
-            memset(node->data.port, 0, sizeof(Port));
+        node->data.port = lv_calloc(1, sizeof(Port));
     }
     if (node->data.port) {
         node->data.port->type = type;

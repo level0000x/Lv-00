@@ -725,7 +725,7 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
 
 SimpleProposition *simple_proposition_create(const char *name, int *input_port_ids, int input_count,
                                int *output_port_ids, int output_count) {
-    SimpleProposition *prop = lv_malloc(sizeof(SimpleProposition));
+    SimpleProposition *prop = lv_calloc(1, sizeof(SimpleProposition));
     if (!prop) return NULL;
 
     /* 使用 lv_strdup_safe 替代裸 strdup，统一内存管理，
@@ -777,7 +777,7 @@ void simple_proposition_destroy(SimpleProposition *prop) {
 }
 
 SimpleProof *simple_proof_create(SimpleProposition *prop, ConstraintGraph *construction) {
-    SimpleProof *proof = lv_malloc(sizeof(SimpleProof));
+    SimpleProof *proof = lv_calloc(1, sizeof(SimpleProof));
     if (!proof) return NULL;
     proof->proposition = prop;
     proof->construction = construction;

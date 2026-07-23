@@ -96,7 +96,7 @@ static void set_error(lvPluginSystem* system, const char* format, ...) {
  * @return 成功返回插件系统指针，失败返回 NULL
  */
 lvPluginSystem* lv_plugin_system_create(lvContext* ctx) {
-    lvPluginSystem* system = (lvPluginSystem*)lv_malloc(sizeof(lvPluginSystem));
+    lvPluginSystem* system = (lvPluginSystem*)lv_calloc(1, sizeof(lvPluginSystem));
     if (!system) return NULL;
     
     memset(system, 0, sizeof(lvPluginSystem));
@@ -125,7 +125,7 @@ lvPluginSystem* lv_plugin_system_create(lvContext* ctx) {
     system->search_path_count = 0;
     system->search_paths = NULL;
     
-    PluginSystemInternal* internal = (PluginSystemInternal*)lv_malloc(sizeof(PluginSystemInternal));
+    PluginSystemInternal* internal = (PluginSystemInternal*)lv_calloc(1, sizeof(PluginSystemInternal));
     if (!internal) {
         lv_free((void **)&system->interfaces);
         lv_free((void **)&system->plugins);
@@ -220,13 +220,11 @@ lvPlugin* lv_plugin_load(lvPluginSystem* system, const char* path) {
     }
     
     /* 创建插件对象 */
-    lvPlugin* plugin = (lvPlugin*)lv_malloc(sizeof(lvPlugin));
+    lvPlugin* plugin = (lvPlugin*)lv_calloc(1, sizeof(lvPlugin));
     if (!plugin) {
         unload_library(handle);
         return NULL;
     }
-    
-    memset(plugin, 0, sizeof(lvPlugin));
     strncpy(plugin->path, path, sizeof(plugin->path) - 1);
     plugin->handle = handle;
     plugin->state = lv_PLUGIN_STATE_LOADING;
@@ -247,14 +245,12 @@ lvPlugin* lv_plugin_load(lvPluginSystem* system, const char* path) {
     }
     
     /* 创建插件上下文 */
-    plugin->context = (lvPluginContext*)lv_malloc(sizeof(lvPluginContext));
+    plugin->context = (lvPluginContext*)lv_calloc(1, sizeof(lvPluginContext));
     if (!plugin->context) {
         unload_library(handle);
         lv_free((void **)&plugin);
         return NULL;
     }
-    
-    memset(plugin->context, 0, sizeof(lvPluginContext));
     plugin->context->plugin = plugin;
     plugin->context->system = system;
     plugin->context->lv_context = system->lv_context;
@@ -770,10 +766,8 @@ lvPluginInterface** lv_plugin_query_interfaces(lvPluginSystem* system, const cha
  * @return 成功返回配置指针，失败返回 NULL
  */
 lvPluginConfig* lv_plugin_config_create(void) {
-    lvPluginConfig* config = (lvPluginConfig*)lv_malloc(sizeof(lvPluginConfig));
+    lvPluginConfig* config = (lvPluginConfig*)lv_calloc(1, sizeof(lvPluginConfig));
     if (!config) return NULL;
-    
-    memset(config, 0, sizeof(lvPluginConfig));
     config->entry_capacity = 256;
     config->entries = (lvPluginConfigEntry*)lv_malloc(
         sizeof(lvPluginConfigEntry) * config->entry_capacity);

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite_match.c
  * @brief 匹配查找（WL散列 + 图快照）
  *
@@ -299,7 +299,7 @@ bool check_graph_consistency(ConstraintGraph *graph) {
  */
 static GeomNode *graph_node_deep_copy(const GeomNode *src) {
     if (!src) return NULL;
-    GeomNode *dst = lv_malloc(sizeof(GeomNode));
+    GeomNode *dst = lv_calloc(1, sizeof(GeomNode));
     if (!dst) return NULL;
     memcpy(dst, src, sizeof(GeomNode));
     /* 清零 union data，避免 GEOM_POINT 等类型继承源节点的悬垂指针 */
@@ -349,7 +349,7 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
     switch (src->type) {
         case GEOM_PORT: {
             if (src->data.port) {
-                dst->data.port = lv_malloc(sizeof(Port));
+                dst->data.port = lv_calloc(1, sizeof(Port));
                 if (dst->data.port) {
                     memcpy(dst->data.port, src->data.port, sizeof(Port));
                     dst->data.port->connected_to = NULL; /* 指针在恢复后需要重建 */
@@ -461,9 +461,8 @@ static void snapshot_node_destroy(GeomNode *node) {
 GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     if (!graph) return NULL;
 
-    GraphSnapshot *snap = lv_malloc(sizeof(GraphSnapshot));
+    GraphSnapshot *snap = lv_calloc(1, sizeof(GraphSnapshot));
     if (!snap) return NULL;
-    memset(snap, 0, sizeof(GraphSnapshot));
 
     snap->node_count = graph->node_count;
     snap->node_capacity = graph->node_count > 0 ? graph->node_count : 1;
@@ -607,7 +606,7 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     }
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *src = graph->constraints[i];
-        Constraint *dst = lv_malloc(sizeof(Constraint));
+        Constraint *dst = lv_calloc(1, sizeof(Constraint));
         if (!dst) {
             for (int j = 0; j < i; j++) {
                 lv_free((void**)&snap->constraints[j]->participants);
@@ -757,7 +756,7 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
     }
     for (int i = 0; i < snapshot->constraint_count; i++) {
         Constraint *src = snapshot->constraints[i];
-        Constraint *dst = lv_malloc(sizeof(Constraint));
+        Constraint *dst = lv_calloc(1, sizeof(Constraint));
         if (!dst) {
             /* 清理已分配的部分约束数据 */
             for (int j = 0; j < i; j++) {
@@ -988,7 +987,7 @@ uint32_t compute_graph_hash(ConstraintGraph *graph) {
 RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern,
                                  RewriteReplacement *replacement, int measure)
 {
-    RewriteRule *rule = lv_malloc(sizeof(RewriteRule));
+    RewriteRule *rule = lv_calloc(1, sizeof(RewriteRule));
     if (!rule) return NULL;
     /* 【内存管理策略】strdup 为 rule->name 分配独立副本。
      * 若分配失败，需回滚已分配的 rule 结构体。
@@ -1093,7 +1092,7 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule,
                                  bool local_equivalence_tolerant)
 {
     RewritePattern *pat = rule->pattern;
-    RewriteMatch *match = lv_malloc(sizeof(RewriteMatch));
+    RewriteMatch *match = lv_calloc(1, sizeof(RewriteMatch));
     if (!match) return NULL;
     match->node_bindings = lv_malloc(pat->var_count * 2 * sizeof(int));
     if (!match->node_bindings) { lv_free((void**)&match); return NULL; }

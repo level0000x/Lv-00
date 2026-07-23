@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file algebraic.c
  * @brief Algebraic 代数数类型
  *
@@ -504,7 +504,7 @@ static int verify_unique_real_root(const mpz_poly_t *poly, double left, double r
 }
 
 Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
-    Algebraic *a = lv_malloc(sizeof(Algebraic));
+    Algebraic *a = lv_calloc(1, sizeof(Algebraic));
     if (!a)
         return NULL;
     mpz_poly_init(&a->minimal_poly);
@@ -553,7 +553,7 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
  * @return 新创建的代数数对象，失败时返回 NULL；调用者需负责释放
  */
 Algebraic *algebraic_from_rational(const Rational *r) {
-    Algebraic *a = lv_malloc(sizeof(Algebraic));
+    Algebraic *a = lv_calloc(1, sizeof(Algebraic));
     if (!a)
         return NULL;
 
@@ -581,7 +581,7 @@ Algebraic *algebraic_from_rational(const Rational *r) {
 
 /* Create algebraic from quadratic: a + b*sqrt(n) */
 Algebraic *algebraic_from_quadratic(const Quadratic *q) {
-    Algebraic *alg = lv_malloc(sizeof(Algebraic));
+    Algebraic *alg = lv_calloc(1, sizeof(Algebraic));
     if (!alg)
         return NULL;
 
@@ -783,7 +783,7 @@ double algebraic_to_double(const Algebraic *a) {
  * @return 计算得到的极小多项式，失败时返回空多项式
  */
 static mpz_poly_t *compute_sum_minimal_poly(const Algebraic *a, const Algebraic *b) {
-    mpz_poly_t *result = lv_malloc(sizeof(mpz_poly_t));
+    mpz_poly_t *result = lv_calloc(1, sizeof(mpz_poly_t));
     if (!result)
         return NULL;
     mpz_poly_init(result);
@@ -816,7 +816,7 @@ static mpz_poly_t *compute_sum_minimal_poly(const Algebraic *a, const Algebraic 
  * Uses the exact Sylvester matrix resultant from mpz_poly_resultant().
  */
 static mpz_poly_t *compute_product_minimal_poly(const Algebraic *a, const Algebraic *b) {
-    mpz_poly_t *result = lv_malloc(sizeof(mpz_poly_t));
+    mpz_poly_t *result = lv_calloc(1, sizeof(mpz_poly_t));
     if (!result)
         return NULL;
     mpz_poly_init(result);
@@ -857,7 +857,7 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
     if (a->minimal_poly.degree == 0 && a->cached_rational) {
         /* a is rational, just add to b's bounds */
         double a_val = rational_to_double(a->cached_rational);
-        Algebraic *result = lv_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -865,13 +865,12 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
         result->left_bound = b->left_bound + a_val;
         result->right_bound = b->right_bound + a_val;
         result->precision_bits = b->precision_bits;
-        result->cached_rational = NULL;
         return result;
     }
 
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        Algebraic *result = lv_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -879,7 +878,6 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
         result->left_bound = a->left_bound + b_val;
         result->right_bound = a->right_bound + b_val;
         result->precision_bits = a->precision_bits;
-        result->cached_rational = NULL;
         return result;
     }
 
@@ -924,7 +922,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
     /* Special case: if either is effectively a rational */
     if (a->minimal_poly.degree == 0 && a->cached_rational) {
         double a_val = rational_to_double(a->cached_rational);
-        Algebraic *result = lv_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
             return NULL;
 
@@ -956,7 +954,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
 
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        Algebraic *result = lv_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -991,7 +989,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
         }
     }
 
-    mpz_poly_t *diff_poly = lv_malloc(sizeof(mpz_poly_t));
+    mpz_poly_t *diff_poly = lv_calloc(1, sizeof(mpz_poly_t));
     if (!diff_poly) {
         mpz_poly_clear(&neg_b_poly);
         return NULL;
@@ -1031,7 +1029,7 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
     /* Special case: if either is effectively a rational */
     if (a->minimal_poly.degree == 0 && a->cached_rational) {
         double a_val = rational_to_double(a->cached_rational);
-        Algebraic *result = lv_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -1052,7 +1050,7 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
 
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        Algebraic *result = lv_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -1121,7 +1119,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
         if (mpq_sgn(b->cached_rational->value) == 0)
             return NULL;
 
-        Algebraic *result = lv_malloc(sizeof(Algebraic));
+        Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
             return NULL;
         mpz_poly_init(&result->minimal_poly);
@@ -1143,7 +1141,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
     /* For division, we need to compute the minimal polynomial of 1/beta */
     /* If beta has minpoly P(x), then 1/beta has minpoly x^n * P(1/x) */
 
-    mpz_poly_t *result_poly = lv_malloc(sizeof(mpz_poly_t));
+    mpz_poly_t *result_poly = lv_calloc(1, sizeof(mpz_poly_t));
     if (!result_poly)
         return NULL;
     mpz_poly_init(result_poly);

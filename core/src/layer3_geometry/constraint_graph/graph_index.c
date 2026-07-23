@@ -765,10 +765,9 @@ Constraint *graph_get_constraint(const ConstraintGraph *graph, int constraint_id
  * @return 新创建的约束图，失败时返回 NULL；调用者需负责释放
  */
 ConstraintGraph *graph_create(void) {
-    ConstraintGraph *graph = lv_malloc(sizeof(ConstraintGraph));
+    ConstraintGraph *graph = lv_calloc(1, sizeof(ConstraintGraph));
     if (!graph)
         return NULL;
-    memset(graph, 0, sizeof(ConstraintGraph));
     graph->next_node_id = 0;
     graph->next_constraint_id = 0;
     graph->dirty = false;  /* v3.5.0: 脏标记初始化为 false */

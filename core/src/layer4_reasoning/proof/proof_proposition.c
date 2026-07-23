@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_proposition.c
  * @brief Proposition 命题系统
  *
@@ -409,7 +409,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *orig) {
         }
         for (int i = 0; i < orig->constraint_count; i++) {
             Constraint *oc = orig->constraints[i];
-            Constraint *cc = lv_malloc(sizeof(Constraint));
+            Constraint *cc = lv_calloc(1, sizeof(Constraint));
             if (!cc) {
                 graph_destroy(copy);
                 return NULL;

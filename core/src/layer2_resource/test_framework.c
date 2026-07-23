@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_framework.c
  * @brief 增强单元测试框架实现
  *
@@ -364,7 +364,7 @@ lvTestReport *lv_test_run_all(void) {
     MUTEX_LOCK(g_test_system.mutex);
 
     /* 分配套件数组 */
-    report->suites = (lvTestSuite *)lv_malloc(g_test_system.suite_count * sizeof(lvTestSuite));
+    report->suites = (lvTestSuite *)lv_calloc(g_test_system.suite_count, sizeof(lvTestSuite));
     if (!report->suites) {
         MUTEX_UNLOCK(g_test_system.mutex);
         lv_free((void **) &report);
@@ -708,7 +708,7 @@ bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iter
     bench->iterations = iterations;
 
     /* 运行基准测试 */
-    int64_t *times = (int64_t *)lv_malloc((size_t)iterations * sizeof(int64_t));
+    int64_t *times = (int64_t *)lv_calloc((size_t)iterations, sizeof(int64_t));
     if (!times) {
         return false;
     }

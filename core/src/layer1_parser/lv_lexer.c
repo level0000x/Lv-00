@@ -322,7 +322,7 @@ static LvToken lex_raw(LvLexer *lexer) {
  * @return 词法分析器指针，失败返回 NULL
  */
 LvLexer *lv_lexer_create(const char *source, size_t source_len) {
-    LvLexer *lexer = (LvLexer *)lv_malloc(sizeof(LvLexer));
+    LvLexer *lexer = (LvLexer *)lv_calloc(1, sizeof(LvLexer));
     if (!lexer) return NULL;
     lexer->source = source;
     lexer->source_len = source_len;

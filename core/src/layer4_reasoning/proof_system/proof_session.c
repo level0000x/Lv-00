@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_session.c
  * @brief Proof session management implementation
  *
@@ -102,10 +102,8 @@ lvProofSession *proof_session_create_with_id(const char *session_id,
 
     if (!session_id || !target_proposition) return NULL;
 
-    session = (lvProofSession *)lv_malloc(sizeof(lvProofSession));
+    session = (lvProofSession *)lv_calloc(1, sizeof(lvProofSession));
     if (!session) return NULL;
-
-    memset(session, 0, sizeof(lvProofSession));
 
     /* Set identity */
     strncpy(session->session_id, session_id, lv_SESSION_ID_MAX - 1);

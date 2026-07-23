@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file mini_kernel.c
  * @brief 极简验证内核实现 —— 借鉴 mm0/Metamath 的超小型可信计算基（TCB）
  *
@@ -157,9 +157,8 @@ MiniKernel *mini_kernel_create(const MiniKernelConfig *config)
 {
     lv_CHECK_NULL(config, NULL);
 
-    MiniKernel *kernel = lv_malloc(sizeof(MiniKernel));
+    MiniKernel *kernel = lv_calloc(1, sizeof(MiniKernel));
     lv_CHECK_ALLOC(kernel, NULL);
-    memset(kernel, 0, sizeof(MiniKernel));
 
     kernel->config = *config;
     kernel->statement_capacity = MINI_STMT_INITIAL_CAPACITY;
@@ -334,9 +333,8 @@ static int mini_internal_add_statement(MiniKernel *kernel, MiniStmtType type,
         }
     }
 
-    MiniStatement *stmt = lv_malloc(sizeof(MiniStatement));
+    MiniStatement *stmt = lv_calloc(1, sizeof(MiniStatement));
     lv_CHECK_ALLOC(stmt, -1);
-    memset(stmt, 0, sizeof(MiniStatement));
 
     stmt->id   = kernel->statement_count;
     stmt->type = type;

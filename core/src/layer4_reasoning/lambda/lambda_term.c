@@ -18,7 +18,7 @@
  * =========================================================================== */
 
 LvLambdaTerm *lv_lambda_create_var(int index) {
-    LvLambdaTerm *term = lv_malloc(sizeof(LvLambdaTerm));
+    LvLambdaTerm *term = lv_calloc(1, sizeof(LvLambdaTerm));
     if (!term) return NULL;
     term->type = LV_LAMBDA_VAR;
     term->data.var.index = index;
@@ -27,7 +27,7 @@ LvLambdaTerm *lv_lambda_create_var(int index) {
 
 LvLambdaTerm *lv_lambda_create_abs(int binder, LvLambdaTerm *body) {
     if (!body) return NULL;
-    LvLambdaTerm *term = lv_malloc(sizeof(LvLambdaTerm));
+    LvLambdaTerm *term = lv_calloc(1, sizeof(LvLambdaTerm));
     if (!term) {
         lv_lambda_destroy(body);
         return NULL;
@@ -44,7 +44,7 @@ LvLambdaTerm *lv_lambda_create_app(LvLambdaTerm *left, LvLambdaTerm *right) {
         if (right) lv_lambda_destroy(right);
         return NULL;
     }
-    LvLambdaTerm *term = lv_malloc(sizeof(LvLambdaTerm));
+    LvLambdaTerm *term = lv_calloc(1, sizeof(LvLambdaTerm));
     if (!term) {
         lv_lambda_destroy(left);
         lv_lambda_destroy(right);

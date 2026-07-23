@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 关键对计算引擎实现
  *
  * 核心算法：
@@ -207,7 +207,7 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
 
     if (!rules || rule_count < 1) return NULL;
 
-    CriticalPairSet *set = lv_malloc(sizeof(CriticalPairSet));
+    CriticalPairSet *set = lv_calloc(1, sizeof(CriticalPairSet));
     if (!set) return NULL;
     set->pairs = NULL;
     set->pair_count = 0;

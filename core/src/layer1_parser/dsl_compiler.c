@@ -103,7 +103,7 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
     if (src_len == 0) return true;
 
     int capacity = 64;
-    DslToken *tokens = lv_malloc(sizeof(DslToken) * (size_t)capacity);
+    DslToken *tokens = lv_calloc((size_t)capacity, sizeof(DslToken));
     if (!tokens) return false;
 
     int count = 0;
@@ -365,11 +365,10 @@ static bool parser_expect(ParserCtx *ctx, DSLTokenType type, DslToken *out) {
     return true;
 }
 
-/** @brief 创建单个 AST 节点（仅 malloc + memset） */
+/** @brief 创建单个 AST 节点（使用 calloc 零初始化） */
 static DslAST *ast_alloc(DslASTType type, int line, int col) {
-    DslAST *node = lv_malloc(sizeof(DslAST));
+    DslAST *node = lv_calloc(1, sizeof(DslAST));
     if (!node) return NULL;
-    memset(node, 0, sizeof(*node));
     node->type  = type;
     node->line  = line;
     node->col   = col;
@@ -796,13 +795,12 @@ static DslAST *parse_stmt(ParserCtx *ctx) {
 bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
     if (!tokens || count <= 0 || !out_ast) return false;
 
-    DslAST *root = lv_malloc(sizeof(DslAST));
+    DslAST *root = lv_calloc(1, sizeof(DslAST));
     if (!root) return false;
-    memset(root, 0, sizeof(*root));
     root->type = DSL_AST_PROGRAM;
     root->name = NULL;
     root->child_capacity = 8;
-    root->children = lv_malloc(sizeof(DslAST *) * (size_t)root->child_capacity);
+    root->children = lv_calloc((size_t)root->child_capacity, sizeof(DslAST *));
     if (!root->children) { lv_free(root); return false; }
 
     ParserCtx ctx;
@@ -1194,21 +1192,20 @@ static bool compile_node(DslIR *ir, const DslAST *node, int *result_id) {
 bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir) {
     if (!ast || !out_ir) return false;
 
-    DslIR *ir = lv_malloc(sizeof(DslIR));
+    DslIR *ir = lv_calloc(1, sizeof(DslIR));
     if (!ir) return false;
-    memset(ir, 0, sizeof(*ir));
 
     int initial_cap = (ast->child_count > 0) ? (int)((size_t)ast->child_count * 4) : 16;
     if (initial_cap < 16) initial_cap = 16;
 
     ir->op_capacity = initial_cap;
-    ir->operations = lv_malloc(sizeof(DslIROperation) * (size_t)ir->op_capacity);
+    ir->operations = lv_calloc((size_t)ir->op_capacity, sizeof(DslIROperation));
     if (!ir->operations) { lv_free(ir); return false; }
 
     ir->symbol_capacity = initial_cap;
-    ir->symbols = lv_malloc(sizeof(char *) * (size_t)ir->symbol_capacity);
+    ir->symbols = lv_calloc((size_t)ir->symbol_capacity, sizeof(char *));
     if (!ir->symbols) { lv_free(ir->operations); lv_free(ir); return false; }
-    ir->symbol_to_ir_id = lv_malloc(sizeof(int) * (size_t)ir->symbol_capacity);
+    ir->symbol_to_ir_id = lv_calloc((size_t)ir->symbol_capacity, sizeof(int));
     if (!ir->symbol_to_ir_id) { lv_free(ir->symbols); lv_free(ir->operations); lv_free(ir); return false; }
 
     ir->next_id = 0;

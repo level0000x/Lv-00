@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file debug.c
  * @brief 调试工具实现
  * @details 实现日志系统、性能计数器、内存池、引用计数/GC、
@@ -401,7 +401,7 @@ static void check_rotation(void) {
  * @note 调用者在使用完毕后需调用 debug_context_destroy() 释放资源
  */
 DebugContext *debug_context_create(void) {
-    DebugContext *ctx = lv_malloc(sizeof(DebugContext));
+    DebugContext *ctx = lv_calloc(1, sizeof(DebugContext));
     if (!ctx)
         return NULL;
     ctx->normalization_assertions = false;
@@ -547,7 +547,7 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
     if (block_size == 0 || initial_blocks <= 0)
         return NULL;
 
-    MemPool *pool = (MemPool *) lv_malloc(sizeof(MemPool));
+    MemPool *pool = (MemPool *) lv_calloc(1, sizeof(MemPool));
     if (!pool)
         return NULL;
 
@@ -563,7 +563,7 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
     }
 
     /* 分配空闲块索引栈 */
-    pool->free_list = (int *) lv_malloc(sizeof(int) * (size_t) initial_blocks);
+    pool->free_list = (int *) lv_calloc((size_t) initial_blocks, sizeof(int));
     if (!pool->free_list) {
         lv_free((void **) &pool->blocks);
         lv_free((void **) &pool);
@@ -1008,8 +1008,8 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
     }
 
     result->total_ports = total_ports;
-    result->invalid_port_ids = (int *) lv_malloc(sizeof(int) * (total_ports > 0 ? (size_t) total_ports : 1));
-    result->error_messages = (char **) lv_malloc(sizeof(char *) * (total_ports > 0 ? (size_t) total_ports : 1));
+    result->invalid_port_ids = (int *) lv_calloc((size_t)(total_ports > 0 ? total_ports : 1), sizeof(int));
+    result->error_messages = (char **) lv_calloc((size_t)(total_ports > 0 ? total_ports : 1), sizeof(char *));
     result->invalid_ports = 0;
     result->all_valid = true;
 
@@ -1782,11 +1782,10 @@ lvLogRingBuffer *lv_log_ring_buffer_create(int capacity) {
         capacity = lv_LOG_RING_BUFFER_DEFAULT_CAPACITY;
     }
 
-    lvLogRingBuffer *rb = lv_malloc(sizeof(lvLogRingBuffer));
+    lvLogRingBuffer *rb = lv_calloc(1, sizeof(lvLogRingBuffer));
     if (!rb) {
         return NULL;
     }
-    memset(rb, 0, sizeof(lvLogRingBuffer));
 
     rb->entries = lv_malloc((size_t)capacity * sizeof(lvLogEntry));
     if (!rb->entries) {
@@ -1889,7 +1888,7 @@ lvLogEntry *lv_log_ring_buffer_export(const lvLogRingBuffer *rb, int *out_count)
         return NULL;
     }
 
-    lvLogEntry *exported = lv_malloc((size_t)rb->count * sizeof(lvLogEntry));
+    lvLogEntry *exported = lv_calloc((size_t)rb->count, sizeof(lvLogEntry));
     if (!exported) {
         *out_count = 0;
         log_unlock();
@@ -1945,12 +1944,11 @@ bool lv_log_ring_buffer_resize(lvLogRingBuffer *rb, int capacity) {
 
     log_lock();
 
-    lvLogEntry *new_entries = lv_malloc((size_t)capacity * sizeof(lvLogEntry));
+    lvLogEntry *new_entries = lv_calloc((size_t)capacity, sizeof(lvLogEntry));
     if (!new_entries) {
         log_unlock();
         return false;
     }
-    memset(new_entries, 0, (size_t)capacity * sizeof(lvLogEntry));
 
     /* 计算要保留的条目数量（保留最新的） */
     int keep_count = (rb->count < capacity) ? rb->count : capacity;

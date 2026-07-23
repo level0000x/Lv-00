@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file benchmark.c
  * @brief 性能基准测试框架 - 微/宏基准测试、统计分析、结果比较
  *
@@ -480,7 +480,7 @@ static uint64_t bench_core_memory_pool(int iterations, void *user_data) {
     lvTimer timer = lv_timer_create();
     lv_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
-        void *p = lv_malloc(64);
+        void *p = lv_calloc(1, 64);
         lv_free((void **)&p);
     }
     lv_timer_stop(&timer);
@@ -527,8 +527,8 @@ static uint64_t bench_memory_malloc_small(int iterations, void *user_data) {
     lvTimer timer = lv_timer_create();
     lv_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
-        void *p1 = lv_malloc(64);
-        void *p2 = lv_malloc(256);
+        void *p1 = lv_calloc(1, 64);
+        void *p2 = lv_calloc(1, 256);
         lv_free((void **)&p2);
         lv_free((void **)&p1);
     }
@@ -541,8 +541,8 @@ static uint64_t bench_memory_malloc_large(int iterations, void *user_data) {
     lvTimer timer = lv_timer_create();
     lv_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
-        void *p1 = lv_malloc(1024 * 1024);
-        void *p2 = lv_malloc(4 * 1024 * 1024);
+        void *p1 = lv_calloc(1, 1024 * 1024);
+        void *p2 = lv_calloc(1, 4 * 1024 * 1024);
         lv_free((void **)&p2);
         lv_free((void **)&p1);
     }
@@ -555,7 +555,7 @@ static uint64_t bench_memory_realloc_growth(int iterations, void *user_data) {
     lvTimer timer = lv_timer_create();
     lv_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
-        int *arr = (int *)lv_malloc(sizeof(int));
+        int *arr = (int *)lv_calloc(1, sizeof(int));
         if (!arr) continue;
         arr[0] = 0;
         for (int j = 2; j <= 10000; j++) {
@@ -583,7 +583,7 @@ static uint64_t bench_memory_alloc_free_stress(int iterations, void *user_data) 
         void *blocks[STRESS_BLOCK_COUNT];
         for (int k = 0; k < STRESS_BLOCK_COUNT; k++) {
             size_t sz = (size_t)(64 << (k % 6)); /* 64, 128, 256, 512, 1024, 2048 */
-            blocks[k] = lv_malloc(sz);
+            blocks[k] = lv_calloc(1, sz);
         }
         for (int k = STRESS_BLOCK_COUNT - 1; k >= 0; k--) {
             lv_free((void **)&blocks[k]);
@@ -640,8 +640,8 @@ static uint64_t bench_simd_vector_dot(int iterations, void *user_data) {
 
     /* 分配并初始化向量 */
     int dim = SIMD_VECTOR_DIM;
-    double *va = (double *)lv_malloc((size_t)dim * sizeof(double));
-    double *vb = (double *)lv_malloc((size_t)dim * sizeof(double));
+    double *va = (double *)lv_calloc((size_t)dim, sizeof(double));
+    double *vb = (double *)lv_calloc((size_t)dim, sizeof(double));
     if (!va || !vb) {
         lv_free((void **)&va);
         lv_free((void **)&vb);
@@ -676,9 +676,9 @@ static uint64_t bench_simd_vector_add(int iterations, void *user_data) {
     lvTimer timer = lv_timer_create();
 
     int dim = SIMD_VECTOR_DIM;
-    double *va = (double *)lv_malloc((size_t)dim * sizeof(double));
-    double *vb = (double *)lv_malloc((size_t)dim * sizeof(double));
-    double *vr = (double *)lv_malloc((size_t)dim * sizeof(double));
+    double *va = (double *)lv_calloc((size_t)dim, sizeof(double));
+    double *vb = (double *)lv_calloc((size_t)dim, sizeof(double));
+    double *vr = (double *)lv_calloc((size_t)dim, sizeof(double));
     if (!va || !vb || !vr) {
         lv_free((void **)&va);
         lv_free((void **)&vb);
@@ -715,8 +715,8 @@ static uint64_t bench_simd_vector_scale(int iterations, void *user_data) {
     lvTimer timer = lv_timer_create();
 
     int dim = SIMD_VECTOR_DIM;
-    double *va = (double *)lv_malloc((size_t)dim * sizeof(double));
-    double *vr = (double *)lv_malloc((size_t)dim * sizeof(double));
+    double *va = (double *)lv_calloc((size_t)dim, sizeof(double));
+    double *vr = (double *)lv_calloc((size_t)dim, sizeof(double));
     if (!va || !vr) {
         lv_free((void **)&va);
         lv_free((void **)&vr);
@@ -876,7 +876,7 @@ static uint64_t bench_thread_parallel_sum(int iterations, void *user_data) {
     lvThreadPool *pool = lv_get_global_thread_pool();
     if (!pool) return 0;
 
-    double *array = (double *)lv_malloc(THREAD_PARALLEL_SIZE * sizeof(double));
+    double *array = (double *)lv_calloc(THREAD_PARALLEL_SIZE, sizeof(double));
     if (!array) return 0;
     for (int k = 0; k < THREAD_PARALLEL_SIZE; k++) {
         array[k] = (double)(k + 1);

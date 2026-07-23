@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file bdd_encoding.c
  * @brief CUDD 二阶策略图编码 —— 真实实现
  *
@@ -74,7 +74,7 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDD
     }
 
     /* 未找到，分配新节点 */
-    BDDNode *node = (BDDNode *) lv_malloc(sizeof(BDDNode));
+    BDDNode *node = (BDDNode *) lv_calloc(1, sizeof(BDDNode));
     if (!node)
         return NULL;
     node->var_id = var_id;
@@ -116,12 +116,12 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDD
  * @return 新分配的 BDDManager 指针，失败返回 NULL
  */
 BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
-    BDDManager *mgr = (BDDManager *) lv_malloc(sizeof(BDDManager));
+    BDDManager *mgr = (BDDManager *) lv_calloc(1, sizeof(BDDManager));
     if (!mgr)
         return NULL;
 
     /* 创建终端 T 节点 */
-    mgr->true_node = (BDDNode *) lv_malloc(sizeof(BDDNode));
+    mgr->true_node = (BDDNode *) lv_calloc(1, sizeof(BDDNode));
     if (!mgr->true_node) {
         lv_free((void **)&mgr);
         return NULL;
@@ -133,7 +133,7 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     mgr->true_node->complemented = false;
 
     /* 创建终端 F 节点 */
-    mgr->false_node = (BDDNode *) lv_malloc(sizeof(BDDNode));
+    mgr->false_node = (BDDNode *) lv_calloc(1, sizeof(BDDNode));
     if (!mgr->false_node) {
         lv_free((void **)&mgr->true_node);
         lv_free((void **)&mgr);
@@ -1173,11 +1173,11 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
  * @return 新分配的 ADDManager 指针，失败返回 NULL
  */
 ADDManager *add_manager_create(int var_count, int unique_table_size) {
-    ADDManager *mgr = (ADDManager *) lv_malloc(sizeof(ADDManager));
+    ADDManager *mgr = (ADDManager *) lv_calloc(1, sizeof(ADDManager));
     if (!mgr)
         return NULL;
 
-    mgr->zero_node = (ADDNode *) lv_malloc(sizeof(ADDNode));
+    mgr->zero_node = (ADDNode *) lv_calloc(1, sizeof(ADDNode));
     if (!mgr->zero_node) {
         lv_free((void **)&mgr);
         return NULL;
@@ -1188,7 +1188,7 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
     mgr->zero_node->constant = 0.0;
     mgr->zero_node->is_constant = true;
 
-    mgr->one_node = (ADDNode *) lv_malloc(sizeof(ADDNode));
+    mgr->one_node = (ADDNode *) lv_calloc(1, sizeof(ADDNode));
     if (!mgr->one_node) {
         lv_free((void **)&mgr->zero_node);
         lv_free((void **)&mgr);
@@ -1248,7 +1248,7 @@ void add_manager_destroy(ADDManager *mgr) {
 ADDNode *add_constant(ADDManager *mgr, double value) {
     if (!mgr)
         return NULL;
-    ADDNode *node = (ADDNode *) lv_malloc(sizeof(ADDNode));
+    ADDNode *node = (ADDNode *) lv_calloc(1, sizeof(ADDNode));
     if (!node)
         return NULL;
     node->var_id = -1;
@@ -1266,7 +1266,7 @@ static ADDNode *add_node_create(ADDManager *mgr, int var_id, ADDNode *low, ADDNo
     if (!mgr) return NULL;
     /* 终端合并：如果 low == high，返回 low */
     if (low == high) return low;
-    ADDNode *node = (ADDNode *) lv_malloc(sizeof(ADDNode));
+    ADDNode *node = (ADDNode *) lv_calloc(1, sizeof(ADDNode));
     if (!node) return NULL;
     node->var_id = var_id;
     node->low = low;

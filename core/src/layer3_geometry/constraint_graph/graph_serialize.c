@@ -1137,9 +1137,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                             node->data.region.segment_count = boundary_seg_count;
                         }
                     } else if (node_type == GEOM_PORT) {
-                        Port *port = lv_malloc(sizeof(Port));
+                        Port *port = lv_calloc(1, sizeof(Port));
                         if (port) {
-                            memset(port, 0, sizeof(Port));
                             port->id = node_id;
                             port->type = port_type;
                             port->namespace_depth = ns_depth;

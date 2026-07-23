@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file runtime_monitor.c
  * @brief 运行时监控与日志系统实现
  *
@@ -1192,7 +1192,7 @@ uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count) 
     MUTEX_LOCK(g_event_system.mutex);
 
     uint32_t count = g_event_system.event_count < max_count ? g_event_system.event_count : max_count;
-    *out_events = (lvEventRecord *)lv_malloc((size_t)count * sizeof(lvEventRecord));
+    *out_events = (lvEventRecord *)lv_calloc((size_t)count, sizeof(lvEventRecord));
     if (*out_events) {
         memcpy(*out_events, g_event_system.events, count * sizeof(lvEventRecord));
     }

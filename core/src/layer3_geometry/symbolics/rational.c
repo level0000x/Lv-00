@@ -37,7 +37,7 @@ extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;
 Rational *rational_create(int64_t numerator, uint64_t denominator) {
     if (denominator == 0)
         return NULL;
-    Rational *r = lv_malloc(sizeof(Rational));
+    Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -94,7 +94,7 @@ Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominato
 Rational *rational_copy(const Rational *src) {
     if (!src)
         return NULL;
-    Rational *r = lv_malloc(sizeof(Rational));
+    Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -136,7 +136,7 @@ Rational *rational_add(const Rational *a, const Rational *b) {
 
 Rational *rational_subtract(const Rational *a, const Rational *b) {
     if (!a || !b) return NULL;
-    Rational *r = lv_malloc(sizeof(Rational));
+    Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -221,7 +221,7 @@ char *rational_serialize(const Rational *r) {
 }
 
 Rational *rational_parse(const char *str) {
-    Rational *r = lv_malloc(sizeof(Rational));
+    Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);

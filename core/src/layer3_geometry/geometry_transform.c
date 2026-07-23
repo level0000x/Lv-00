@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geometry_transform.c
  * @brief 几何变换推理系统实现
  *
@@ -64,11 +64,10 @@ static void mpq_sub_by_ui(mpq_t result, const mpq_t op, unsigned long n) {
 /* ============== 变换创建/销毁实现 ============== */
 
 lvTransform *lv_transform_identity(void) {
-    lvTransform *t = (lvTransform *)lv_malloc(sizeof(lvTransform));
+    lvTransform *t = (lvTransform *)lv_calloc(1, sizeof(lvTransform));
     if (!t) {
         return NULL;
     }
-    memset(t, 0, sizeof(lvTransform));
 
     t->type = TRANSFORM_IDENTITY;
     t->is_isometry = true;
@@ -591,11 +590,10 @@ bool lv_transform_get_matrix(lvTransform *t, lvTransformMatrix *matrix) {
 /* ============== 变换复合实现 ============== */
 
 lvTransformSequence *lv_transform_sequence_create(void) {
-    lvTransformSequence *seq = (lvTransformSequence *)lv_malloc(sizeof(lvTransformSequence));
+    lvTransformSequence *seq = (lvTransformSequence *)lv_calloc(1, sizeof(lvTransformSequence));
     if (!seq) {
         return NULL;
     }
-    memset(seq, 0, sizeof(lvTransformSequence));
 
     seq->transforms = (lvTransform **)lv_malloc(TRANSFORM_SEQ_INIT_CAPACITY * sizeof(lvTransform *));
     if (!seq->transforms) {
@@ -648,11 +646,10 @@ lvTransform *lv_transform_compose(const lvTransform *t1, const lvTransform *t2) 
         return NULL;
     }
 
-    lvTransform *result = (lvTransform *)lv_malloc(sizeof(lvTransform));
+    lvTransform *result = (lvTransform *)lv_calloc(1, sizeof(lvTransform));
     if (!result) {
         return NULL;
     }
-    memset(result, 0, sizeof(lvTransform));
 
     result->type = TRANSFORM_GLUING;
     result->ref_count = 1;
@@ -819,11 +816,10 @@ lvTransform *lv_transform_inverse(const lvTransform *t) {
         return NULL;
     }
 
-    lvTransform *inv = (lvTransform *)lv_malloc(sizeof(lvTransform));
+    lvTransform *inv = (lvTransform *)lv_calloc(1, sizeof(lvTransform));
     if (!inv) {
         return NULL;
     }
-    memset(inv, 0, sizeof(lvTransform));
 
     inv->type = t->type;
     inv->ref_count = 1;
@@ -1103,11 +1099,10 @@ char *lv_transform_to_json(const lvTransform *t) {
 /* ============== 变换群实现 ============== */
 
 lvTransformGroup *lv_transform_group_create(const char *name) {
-    lvTransformGroup *group = (lvTransformGroup *)lv_malloc(sizeof(lvTransformGroup));
+    lvTransformGroup *group = (lvTransformGroup *)lv_calloc(1, sizeof(lvTransformGroup));
     if (!group) {
         return NULL;
     }
-    memset(group, 0, sizeof(lvTransformGroup));
 
     if (name) {
         /* 使用 lv_malloc + strcpy 替代标准 strdup，确保与 lv_free 配对 */

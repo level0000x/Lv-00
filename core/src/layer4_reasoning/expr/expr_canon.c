@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file expr_canon.c
  * @brief 代数表达式规范形式实现
  *
@@ -134,11 +134,9 @@ lvExprCanonical *lv_expr_canonical_create(int var_count, const char **var_names)
     if (var_count < 0)
         return NULL;
 
-    lvExprCanonical *expr = (lvExprCanonical *) lv_malloc(sizeof(lvExprCanonical));
+    lvExprCanonical *expr = (lvExprCanonical *) lv_calloc(1, sizeof(lvExprCanonical));
     if (!expr)
         return NULL;
-
-    expr->term_count = 0;
     expr->term_capacity = EXPR_CANON_DEFAULT_CAPACITY;
     expr->var_count = var_count;
     expr->canonicalized = true;

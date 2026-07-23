@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file quadratic.c
  * @brief Quadratic 二次根式类型
  *
@@ -92,7 +92,7 @@ Quadratic *quadratic_create(Rational *a, Rational *b, unsigned int n) {
     if (!a)
         return NULL;
 
-    Quadratic *q = lv_malloc(sizeof(Quadratic));
+    Quadratic *q = lv_calloc(1, sizeof(Quadratic));
     if (!q)
         return NULL;
 

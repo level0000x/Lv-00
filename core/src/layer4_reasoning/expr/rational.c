@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rational.c
  * @brief 精确有理数运算实现 —— 基于 GMP mpz_t
  *
@@ -38,7 +38,7 @@ static uint64_t mpz_bit_size(const mpz_t x) {
  * @return 新分配的有理数，失败返回 NULL
  */
 lvRational *lv_rational_create(void) {
-    lvRational *r = (lvRational *) lv_malloc(sizeof(lvRational));
+    lvRational *r = (lvRational *) lv_calloc(1, sizeof(lvRational));
     if (!r)
         return NULL;
     mpz_init_set_si(r->num, 0);
@@ -56,7 +56,7 @@ lvRational *lv_rational_create_from_mpz(const mpz_t num, const mpz_t den) {
     if (mpz_sgn(den) == 0)
         return NULL; /* 分母不得为 0 */
 
-    lvRational *r = (lvRational *) lv_malloc(sizeof(lvRational));
+    lvRational *r = (lvRational *) lv_calloc(1, sizeof(lvRational));
     if (!r)
         return NULL;
 
@@ -82,7 +82,7 @@ lvRational *lv_rational_create_from_si(long num, unsigned long den) {
     if (den == 0)
         return NULL;
 
-    lvRational *r = (lvRational *) lv_malloc(sizeof(lvRational));
+    lvRational *r = (lvRational *) lv_calloc(1, sizeof(lvRational));
     if (!r)
         return NULL;
 
@@ -105,7 +105,7 @@ lvRational *lv_rational_create_from_i64(int64_t num, uint64_t den) {
     if (den == 0)
         return NULL;
 
-    lvRational *r = (lvRational *) lv_malloc(sizeof(lvRational));
+    lvRational *r = (lvRational *) lv_calloc(1, sizeof(lvRational));
     if (!r)
         return NULL;
 
@@ -134,7 +134,7 @@ lvRational *lv_rational_clone(const lvRational *src) {
     if (!src)
         return NULL;
 
-    lvRational *r = (lvRational *) lv_malloc(sizeof(lvRational));
+    lvRational *r = (lvRational *) lv_calloc(1, sizeof(lvRational));
     if (!r)
         return NULL;
 

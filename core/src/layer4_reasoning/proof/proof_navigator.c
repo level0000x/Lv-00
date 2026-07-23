@@ -1350,7 +1350,7 @@ void proof_set_bottom_definition(ProofNavigator *nav, const BottomDefinition *de
         return;
 
     if (!nav->bottom_def) {
-        nav->bottom_def = lv_malloc(sizeof(BottomDefinition));
+        nav->bottom_def = lv_calloc(1, sizeof(BottomDefinition));
         if (!nav->bottom_def)
             return;
     }
