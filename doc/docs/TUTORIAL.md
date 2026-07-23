@@ -1,7 +1,7 @@
-﻿# Lv-00 入门教程
+# Lv-00 入门教程
 
 > **版本**: 1.1.0  
-> **最后更新**: 2026-06-27  
+> **最后更新**: 2026-07-23  
 > **难度**: 初级到中级
 
 ---
@@ -84,7 +84,7 @@ cmake --install . --prefix "C:/Program Files/lv"
 
 int main(void) {
     /* 初始化系统 */
-    if (!lv_context_create()) {
+    if (!lv_engine_create()) {
         fprintf(stderr, "错误: Lv-00 初始化失败\n");
         return EXIT_FAILURE;
     }
@@ -93,10 +93,10 @@ int main(void) {
     printf("Lv-00 版本: %s\n", lv_get_version_string());
 
     /* 创建引擎 */
-    lvContext *ctx = lv_context_create();
+    lvEngine *ctx = lv_engine_create();
     if (!ctx) {
         fprintf(stderr, "错误: 上下文创建失败\n");
-        lv_context_destroy(ctx);
+        lv_engine_destroy(ctx);
         return EXIT_FAILURE;
     }
 
@@ -108,8 +108,7 @@ int main(void) {
     printf("系统信息:\n%s\n", info);
 
     /* 清理 */
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
 
     return EXIT_SUCCESS;
 }
@@ -150,8 +149,8 @@ Lv-00 版本: 1.1.0
 #include <stdio.h>
 
 int main(void) {
-    lv_context_create();
-    lvContext *ctx = lv_context_create();
+    lv_engine_create();
+    lvEngine *ctx = lv_engine_create();
 
     /* 创建三个点 */
     int A = lv_add_point(ctx, 0, 1, 0, 1);    /* (0, 0) */
@@ -164,8 +163,7 @@ int main(void) {
     int D = lv_add_point_i(ctx, 5, 5);        /* (5, 5) */
     printf("创建了整数点 D=%d\n", D);
 
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -177,8 +175,8 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    lv_context_create();
-    lvContext *ctx = lv_context_create();
+    lv_engine_create();
+    lvEngine *ctx = lv_engine_create();
 
     /* 创建三角形的三个顶点 */
     int A = lv_add_point_i(ctx, 0, 0);
@@ -202,8 +200,7 @@ int main(void) {
 
     printf("约束添加完成\n");
 
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -216,7 +213,7 @@ int main(void) {
 #include <stdlib.h>
 
 int main(void) {
-    lv_context_create();
+    lv_engine_create();
 
     /* 创建有理数坐标 */
     SymbolicCoord *x = symbolic_coord_create_rational(3, 4);   /* 3/4 */
@@ -248,7 +245,7 @@ int main(void) {
     rational_destroy(a);
     rational_destroy(b);
 
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -264,8 +261,8 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    lv_context_create();
-    lvContext *ctx = lv_context_create();
+    lv_engine_create();
+    lvEngine *ctx = lv_engine_create();
 
     /* 创建直角三角形 (3-4-5) */
     int A = lv_add_point_i(ctx, 0, 0);
@@ -303,8 +300,7 @@ int main(void) {
             printf("求解失败，错误码: %d\n", result);
     }
 
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -316,14 +312,14 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    lv_context_create();
+    lv_engine_create();
 
     /* 设置配置 */
     lv_config_set_int("rewrite.step_limit", 5000);
     lv_config_set_int("solver.timeout_ms", 60000);
     lv_set_log_level(3);  /* 启用 INFO 日志 */
 
-    lvContext *ctx = lv_context_create();
+    lvEngine *ctx = lv_engine_create();
 
     /* 构建复杂问题... */
 
@@ -340,8 +336,7 @@ int main(void) {
     EngineSolveResult result = lv_solve_with_options(ctx, &options);
     printf("求解结果: %d\n", result);
 
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -358,8 +353,8 @@ int main(void) {
 #include <stdlib.h>
 
 int main(void) {
-    lv_context_create();
-    lvContext *ctx = lv_context_create();
+    lv_engine_create();
+    lvEngine *ctx = lv_engine_create();
 
     /* 创建等边三角形 */
     int A = lv_add_point_i(ctx, 0, 0);
@@ -398,8 +393,7 @@ int main(void) {
     /* 清理 */
     /* ... 销毁命题和证明 ... */
 
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -411,8 +405,8 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    lv_context_create();
-    lvContext *ctx = lv_context_create();
+    lv_engine_create();
+    lvEngine *ctx = lv_engine_create();
 
     /* 构建问题... */
 
@@ -437,8 +431,7 @@ int main(void) {
         printf("代数证明成功!\n");
     }
 
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -454,14 +447,13 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    lv_context_create();
-    lvContext *ctx = lv_context_create();
+    lv_engine_create();
+    lvEngine *ctx = lv_engine_create();
 
     /* 加载欧氏几何预设 */
     if (!lv_preset_load(ctx, "euclidean_geometry")) {
         fprintf(stderr, "加载预设失败\n");
-        lv_context_destroy(ctx);
-        lv_context_destroy(ctx);
+        lv_engine_destroy(ctx);
         return 1;
     }
     printf("欧氏几何预设加载成功\n");
@@ -485,8 +477,7 @@ int main(void) {
     }
 
     lv_preset_unload(ctx, "euclidean_geometry");
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -498,7 +489,7 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    lv_context_create();
+    lv_engine_create();
 
     size_t count;
     char **presets = lv_preset_list(&count);
@@ -519,7 +510,7 @@ int main(void) {
     }
     free(presets);
 
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -541,7 +532,7 @@ typedef struct {
 } Problem;
 
 int main(void) {
-    lv_context_create();
+    lv_engine_create();
 
     /* 设置内存上限 */
     lv_set_memory_limit_ex(256 * 1024 * 1024);  /* 256 MB */
@@ -557,7 +548,7 @@ int main(void) {
     for (int i = 0; i < n; i++) {
         printf("[%d/%d] 处理 %s... ", i+1, n, problems[i].name);
 
-        lvContext *ctx = lv_context_create();
+        lvEngine *ctx = lv_engine_create();
 
         /* 构建问题 */
         int p[3];
@@ -581,7 +572,7 @@ int main(void) {
             printf("失败\n");
         }
 
-        lv_context_destroy(ctx);
+        lv_engine_destroy(ctx);
     }
 
     printf("\n总计: %d/%d 成功\n", success, n);
@@ -592,7 +583,7 @@ int main(void) {
         printf("内存峰值: %zu 字节\n", stats.peak_bytes);
     }
 
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -615,7 +606,7 @@ void *worker(void *arg) {
     ThreadData *data = (ThreadData *)arg;
 
     /* 每个线程创建独立引擎 */
-    lvContext *ctx = lv_context_create();
+    lvEngine *ctx = lv_engine_create();
     if (!ctx) {
         data->result = -1;
         return NULL;
@@ -633,13 +624,13 @@ void *worker(void *arg) {
     lv_normalize(ctx, true);
     data->result = lv_solve(ctx);
 
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return NULL;
 }
 
 int main(void) {
     /* 主线程初始化 */
-    if (!lv_context_create()) {
+    if (!lv_engine_create()) {
         fprintf(stderr, "初始化失败\n");
         return 1;
     }
@@ -661,7 +652,7 @@ int main(void) {
     }
 
     /* 主线程清理 */
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -677,12 +668,12 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    lv_context_create();
+    lv_engine_create();
 
     /* 设置日志级别 */
     lv_set_log_level(4);  /* DEBUG 级别 */
 
-    lvContext *ctx = lv_context_create();
+    lvEngine *ctx = lv_engine_create();
 
     /* 你的代码... */
 
@@ -690,8 +681,7 @@ int main(void) {
     int health = lv_health_check();
     printf("系统健康评分: %d/100\n", health);
 
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -703,7 +693,7 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    lv_context_create();
+    lv_engine_create();
 
     /* 设置内存限制 */
     lv_set_memory_limit_ex(100 * 1024 * 1024);  /* 100 MB */
@@ -713,7 +703,7 @@ int main(void) {
     lv_get_memory_stats_ex(&stats_before);
 
     /* 执行操作... */
-    lvContext *ctx = lv_context_create();
+    lvEngine *ctx = lv_engine_create();
     /* ... */
 
     /* 获取最终内存状态 */
@@ -724,8 +714,7 @@ int main(void) {
            stats_after.current_bytes - stats_before.current_bytes);
     printf("内存峰值: %zu 字节\n", stats_after.peak_bytes);
 
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -740,17 +729,17 @@ int main(void) {
 /* 推荐的分层错误处理 */
 int solve_problem_safely(void) {
     /* 第 1 层: 系统初始化 */
-    if (!lv_context_create()) {
-        fprintf(stderr, "FATAL: lv_context_create() 失败\n");
+    if (!lv_engine_create()) {
+        fprintf(stderr, "FATAL: lv_engine_create() 失败\n");
         return -1;
     }
 
     /* 第 2 层: 资源分配 */
-    lvContext *ctx = lv_context_create();
+    lvEngine *ctx = lv_engine_create();
     if (!ctx) {
         fprintf(stderr, "ERROR: 上下文创建失败: %s\n",
                 lv_get_last_error_string());
-        lv_context_destroy(ctx);
+        lv_engine_destroy(ctx);
         return -1;
     }
 
@@ -777,13 +766,11 @@ int solve_problem_safely(void) {
         /* 即使失败也可能有部分结果 */
     }
 
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return (result == lv_SOLVE_SUCCESS) ? 0 : 1;
 
 cleanup:
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
+    lv_engine_destroy(ctx);
     return -1;
 }
 

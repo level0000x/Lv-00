@@ -1,13 +1,14 @@
-﻿# Lv-00 API 完整参考
+# Lv-00 API 完整参考
 
 > **版本**: 1.1.0  
-> **最后更新**: 2026-06-27  
+> **最后更新**: 2026-07-23  
 > **适用范围**: Lv-00 公共 API 完整参考
 
 ---
 
 ## 目录
 
+0. [lv 语言解析器](#0-lv-语言解析器)
 1. [核心 API](#1-核心-api)
 2. [符号坐标系统](#2-符号坐标系统)
 3. [约束图系统](#3-约束图系统)
@@ -21,6 +22,165 @@
 11. [错误处理](#11-错误处理)
 
 ---
+
+## 0. lv 语言解析器
+
+.v1.9.0 新增 — 解析 .lv 语言文件的完整管线：词法分析 → AST 构建 → 语法解析 → 语义分析 → 引擎加载。
+
+### 0.1 词法分析器 (lv_lexer)
+
+```c
+#include "lv/lv_lexer.h"
+```
+
+**类型定义**:
+
+| 类型 | 说明 |
+|------|------|
+| `LvTokenType` | 75 种 Token 类型（关键字/字面量/运算符/分隔符） |
+| `LvSourceLoc` | 源码位置（行/列/偏移） |
+| `LvToken` | 词法单元（类型 + 位置 + 源文本指针） |
+| `LvLexer` | 词法分析器状态（不透明结构体） |
+
+**核心函数**:
+
+| 函数 | 说明 |
+|------|------|
+| `LvLexer *lv_lexer_create(const char *source, size_t source_len)` | 创建词法分析器 |
+| `void lv_lexer_destroy(LvLexer *lexer)` | 销毁词法分析器 |
+| `LvToken lv_lexer_next(LvLexer *lexer)` | 获取下一个 token |
+| `LvToken lv_lexer_peek(LvLexer *lexer, int lookahead)` | 窥视后续 token（不消费） |
+| `LvSourceLoc lv_lexer_get_loc(const LvLexer *lexer)` | 获取当前位置 |
+| `const char *lv_token_type_name(LvTokenType type)` | token 类型 → 字符串 |
+| `size_t lv_token_text(const LvToken *token, char *buf, size_t buf_size)` | 提取 token 文本 |
+
+### 0.2 AST 节点 (lv_ast)
+
+```c
+#include "lv/lv_ast.h"
+```
+
+**类型定义**:
+
+| 类型 | 说明 |
+|------|------|
+| `LvAstNodeType` | 28 种 AST 节点类型（程序/声明/语句/表达式） |
+| `LvEntityType` | 12 种实体类型（Point/Line/Circle/.../Proof） |
+| `LvAstNode` | AST 节点（tagged union，含子节点链表） |
+
+**核心函数**:
+
+| 函数 | 说明 |
+|------|------|
+| `LvAstNode *lv_ast_create(LvAstNodeType type, LvSourceLoc loc)` | 创建节点 |
+| `LvAstNode *lv_ast_create_ident(LvSourceLoc loc, const char *name)` | 标识符节点 |
+| `LvAstNode *lv_ast_create_int(LvSourceLoc loc, long long value)` | 整数节点 |
+| `LvAstNode *lv_ast_create_rational(LvSourceLoc loc, long long num, long long den)` | 有理数节点 |
+| `LvAstNode *lv_ast_create_decimal(LvSourceLoc loc, double value)` | 小数节点 |
+| `LvAstNode *lv_ast_create_string(LvSourceLoc loc, const char *value)` | 字符串节点 |
+| `LvAstNode *lv_ast_create_bool(LvSourceLoc loc, int value)` | 布尔节点 |
+| `LvAstNode *lv_ast_create_call(LvSourceLoc loc, const char *func_name, LvAstNode *args)` | 函数调用节点 |
+| `LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right)` | 二元运算节点 |
+| `LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *operand)` | 一元运算节点 |
+| `LvAstNode *lv_ast_create_compare(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right)` | 比较运算节点 |
+| `void lv_ast_append_child(LvAstNode *parent, LvAstNode *child)` | 追加子节点 |
+| `void lv_ast_destroy(LvAstNode *node)` | 销毁 AST 树 |
+| `void lv_ast_print(const LvAstNode *node, int indent)` | 调试打印 |
+| `const char *lv_entity_type_name(LvEntityType type)` | 实体类型 → 字符串 |
+| `LvEntityType lv_entity_type_from_token(LvTokenType tok)` | token → 实体类型 |
+
+### 0.3 语法解析器 (lv_parser)
+
+```c
+#include "lv/lv_parser.h"
+```
+
+**类型定义**:
+
+| 类型 | 说明 |
+|------|------|
+| `LvParser` | 递归下降解析器状态 |
+| `LvParseError` | 解析错误（位置 + 消息） |
+| `LvParseResult` | 解析结果（AST + 错误列表） |
+
+**核心函数**:
+
+| 函数 | 说明 |
+|------|------|
+| `LvParser *lv_parser_create(LvLexer *lexer)` | 创建解析器 |
+| `void lv_parser_destroy(LvParser *parser)` | 销毁解析器 |
+| `LvParseResult lv_parser_parse_program(LvParser *parser)` | 解析完整程序 |
+
+### 0.4 语义分析 (lv_sema)
+
+```c
+#include "lv/lv_sema.h"
+```
+
+**类型定义**:
+
+| 类型 | 说明 |
+|------|------|
+| `LvSemanticType` | 语义类型枚举（Point/Line/Scalar/Bool/Proposition 等） |
+| `LvSemaContext` | 语义分析上下文（符号表 + 错误列表） |
+
+**核心函数**:
+
+| 函数 | 说明 |
+|------|------|
+| `LvSemaContext *lv_sema_create(void)` | 创建语义分析上下文 |
+| `void lv_sema_destroy(LvSemaContext *ctx)` | 销毁语义分析上下文 |
+| `bool lv_sema_analyze(LvSemaContext *ctx, LvAstNode *ast)` | 分析 AST（符号解析 + 类型检查） |
+| `int lv_sema_error_count(const LvSemaContext *ctx)` | 获取错误数量 |
+| `const char *lv_sema_error(const LvSemaContext *ctx, int index)` | 获取错误消息 |
+| `const char *lv_semantic_type_name(LvSemanticType type)` | 语义类型 → 字符串 |
+
+### 0.5 文件加载与引擎集成 (lv_loader)
+
+```c
+#include "lv/lv_loader.h"
+```
+
+**核心函数**:
+
+| 函数 | 说明 |
+|------|------|
+| `LvParseResult lv_load_file(const char *filepath)` | 加载并解析 .lv 文件 |
+| `bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result)` | 将解析结果应用到引擎 |
+
+### 0.6 使用示例
+
+```c
+#include "lv/lv_lexer.h"
+#include "lv/lv_parser.h"
+#include "lv/lv_sema.h"
+#include "lv/lv_loader.h"
+
+/* 方式一：直接从文件加载 */
+LvParseResult result = lv_load_file("example.lv");
+if (result.error_count == 0) {
+    /* 应用到引擎 */
+    lvEngine *engine = lv_engine_create();
+    lv_apply_parse_result(engine, &result);
+    /* ... */
+    lv_ast_destroy(result.ast);
+    lv_engine_destroy(engine);
+}
+
+/* 方式二：分步执行 */
+const char *src = "Point A, B, C; Constraint collinear(A,B,C); Prove true;";
+LvLexer *lexer = lv_lexer_create(src, strlen(src));
+LvParser *parser = lv_parser_create(lexer);
+LvParseResult pr = lv_parser_parse_program(parser);
+/* 语义分析 */
+LvSemaContext *sema = lv_sema_create();
+lv_sema_analyze(sema, pr.ast);
+/* 清理 */
+lv_sema_destroy(sema);
+lv_parser_destroy(parser);
+lv_lexer_destroy(lexer);
+lv_ast_destroy(pr.ast);
+```
 
 ## 1. 核心 API
 
