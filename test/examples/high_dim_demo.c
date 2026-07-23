@@ -114,7 +114,7 @@ int main() {
         printf("   保真度: %.1f%%\n", stats.fidelity_ratio * 100.0);
 
         /* 检查是否低于阈值 */
-        if (high_dim_is_fidelity_below_threshold(manager, block_id, high_dim_default_fidelity_threshold())) {
+        if (high_dim_is_fidelity_below_threshold(manager, block_id, lv_high_dim_default_fidelity_threshold())) {
             char warning[512];
             high_dim_get_fidelity_warning(manager, block_id, warning, sizeof(warning));
             printf("   警告: %s\n", warning);

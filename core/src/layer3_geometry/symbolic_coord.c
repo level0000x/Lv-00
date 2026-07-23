@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file symbolic_coord.c
  * @brief 符号坐标系统实现
  * @details 实现有理数、代数数、二次根式和超越数的精确符号计算。
@@ -124,10 +124,27 @@ static lv_THREAD_LOCAL void *g_circuit_user_data = NULL;
 /* ── 四类型操作已拆分至 symbolics/rational.c, algebraic.c, quadratic.c, transcendental.c, symbolic_coord_ops.c ── */
 /* ── 电路与高级操作 ── */
 
+/**
+ * 获取当前线程的代数计划（A/B-Plan）。
+ *
+ * A/B 计划机制（design_v2.9.md Section 1.6）：
+ * - PLAN_A_FULL_ALGEBRAIC：全程使用符号代数精确计算
+ * - PLAN_B_MIXED：允许在精度可接受时回退到数值近似
+ *
+ * @return 当前代数计划枚举值
+ */
 AlgebraicPlan algebraic_get_plan(void) {
     return g_algebraic_plan;
 }
 
+/**
+ * 设置当前线程的代数计划。
+ *
+ * 线程局部存储，每个线程可独立设置计划。
+ * 通常在求解器入口处根据问题规模和用户配置选择计划。
+ *
+ * @param plan 要设置的代数计划
+ */
 void algebraic_set_plan(AlgebraicPlan plan) {
     g_algebraic_plan = plan;
 }
@@ -135,11 +152,16 @@ void algebraic_set_plan(AlgebraicPlan plan) {
 /*
  * Stress test for A-plan validation.
  *
- * Creates an algebraic number of degree <= max_poly_degree,
+ * Creates algebraic numbers of varying degrees up to max_poly_degree,
  * then performs chain_length alternating add/multiply operations
- * with itself, monitoring:
+ * with them, monitoring:
  *   - Isolation interval precision decay (width growth in bits)
  *   - Maximum polynomial coefficient bits
+ *
+ * The test uses 2 algebraic numbers:
+ *   - degree=2: sqrt(2) and sqrt(3) (always created)
+ *   - degree=3: root of x³-2 and root of x³-3 (if max_poly_degree >= 3)
+ *   - degree=4: root of x⁴-2 and root of x⁴-3 (if max_poly_degree >= 4)
  *
  * Returns a StressTestResult indicating whether A-plan is stable.
  */
@@ -152,20 +174,33 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
         return result;
     }
 
-    /* Create a simple algebraic number: root of x^2 - 2 = 0 (sqrt(2)) */
+    /*
+     * 根据 max_poly_degree 选择测试多项式的次数。
+     * 默认使用 degree=2（sqrt(2), sqrt(3)），
+     * 若 max_poly_degree >= 3 则增加 cubic，>= 4 则增加 quartic。
+     * 测试始终使用 sqrt(2) 和 sqrt(3) 作为基准操作数（common case），
+     * 因为它们是代数几何中最常见的二次无理数类型。
+     */
+    int test_degree = (max_poly_degree >= 4) ? 4 :
+                      (max_poly_degree >= 3) ? 3 : 2;
+
+    /* Create test polynomials */
+    /* 主操作数: root of x² - 2 = 0 (sqrt(2)) */
     mpz_poly_t poly;
     mpz_poly_init(&poly);
-    poly.degree = 2;
-    poly.coeffs = malloc(3 * sizeof(mpz_t));
+    poly.degree = test_degree;
+    int coeff_count = test_degree + 1;
+    poly.coeffs = malloc((size_t)coeff_count * sizeof(mpz_t));
     if (!poly.coeffs) {
         mpz_poly_clear(&poly);
         result.precision_stable = false;
         result.performance_stable = false;
         return result;
     }
-    mpz_init_set_si(poly.coeffs[0], -2); /* constant term */
-    mpz_init_set_si(poly.coeffs[1], 0);  /* linear term */
-    mpz_init_set_si(poly.coeffs[2], 1);  /* quadratic term */
+    for (int k = 0; k < coeff_count; k++) mpz_init(poly.coeffs[k]);
+    mpz_set_si(poly.coeffs[0], -2);      /* constant term: -2 */
+    /* intermediate coefficients = 0 (already initialized) */
+    mpz_set_si(poly.coeffs[test_degree], 1); /* leading coefficient: 1 */
 
     Algebraic *current = algebraic_create(&poly, 1.4, 1.5);
     mpz_poly_clear(&poly);
@@ -179,11 +214,11 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
     /* Track initial isolation interval width */
     double initial_width = current->right_bound - current->left_bound;
 
-    /* Also create a second algebraic number for variety: root of x^2 - 3 = 0 (sqrt(3)) */
+    /* 辅助操作数: root of x^test_degree - 3 = 0 */
     mpz_poly_t poly2;
     mpz_poly_init(&poly2);
-    poly2.degree = 2;
-    poly2.coeffs = malloc(3 * sizeof(mpz_t));
+    poly2.degree = test_degree;
+    poly2.coeffs = malloc((size_t)coeff_count * sizeof(mpz_t));
     if (!poly2.coeffs) {
         mpz_poly_clear(&poly2);
         algebraic_destroy(current);
@@ -191,9 +226,9 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
         result.performance_stable = false;
         return result;
     }
-    mpz_init_set_si(poly2.coeffs[0], -3);
-    mpz_init_set_si(poly2.coeffs[1], 0);
-    mpz_init_set_si(poly2.coeffs[2], 1);
+    for (int k = 0; k < coeff_count; k++) mpz_init(poly2.coeffs[k]);
+    mpz_set_si(poly2.coeffs[0], -3);
+    mpz_set_si(poly2.coeffs[test_degree], 1);
 
     Algebraic *other = algebraic_create(&poly2, 1.7, 1.8);
     mpz_poly_clear(&poly2);
@@ -312,19 +347,33 @@ bool is_rational_zero(const Rational *r) {
     return mpq_sgn(r->value) == 0;
 }
 
-int remove_square_factors(int n) {
+/**
+ * 移除整数 n 中的所有完全平方因子。
+ *
+ * 例如：remove_square_factors(72) = remove_square_factors(2³×3²) = 2
+ *       因为 72 = (2×3)² × 2，去掉 6² 剩下 2。
+ *
+ * 使用 int64_t 避免大整数溢出：n 可能来自代数化简中的系数，
+ * 在极端情况下可达 10⁹ 量级，int 在 32 位平台上仅有 2×10⁹ 范围。
+ *
+ * @param n 要处理的整数
+ * @return 移除所有平方因子后的结果（n 的无平方部分）
+ */
+int64_t remove_square_factors(int64_t n) {
     if (n <= 1) return n;
-    int result = 1;
-    for (int d = 2; d * d <= n; d++) {
+    int64_t result = 1;
+    for (int64_t d = 2; d * d <= n; d++) {
         int count = 0;
         while (n % d == 0) {
             n /= d;
             count++;
         }
+        /* 奇数次幂的质因子保留一次 */
         if (count % 2 != 0) {
             result *= d;
         }
     }
+    /* 剩余的大于 sqrt(n) 的质因子（必为 1 次） */
     if (n > 1) result *= n;
     return result;
 }

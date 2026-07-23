@@ -272,6 +272,7 @@ bool lv_cache_put(lvCacheManager *manager, const char *key,
     entry->data_size = size;
     entry->access_count = 1;
     entry->context_id = manager->current_context_id;
+    entry->destructor = manager->default_destructor; /* 继承默认析构 */
 
     /* 插入哈希桶 */
     entry->hash_next = manager->buckets[idx];
@@ -616,6 +617,5 @@ void lv_cache_set_destructor(lvCacheManager *manager,
                                 void (*destructor)(void *, size_t))
 {
     if (manager == NULL) return;
-    /* 设置默认析构函数（此处存储在 config 之外的预留字段中） */
-    (void)destructor;
+    manager->default_destructor = destructor;
 }

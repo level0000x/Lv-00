@@ -2726,8 +2726,8 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         time_t now = time(NULL);
         struct tm lt;
         char date_str[64] = {0};
-        if (localtime_s(&lt, &now) == 0)
-            strftime(date_str, sizeof(date_str), "D:%Y%m%d%H%M%S", &lt);
+        lv_LOCALTIME(&now, &lt);
+        strftime(date_str, sizeof(date_str), "D:%Y%m%d%H%M%S", &lt);
 
         fprintf(fp,
                 "7 0 obj\n<< /Title (Lv-00 Geometry Export)\n"

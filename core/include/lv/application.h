@@ -1,4 +1,4 @@
-﻿#ifndef lv_APPLICATION_H
+#ifndef lv_APPLICATION_H
 #define lv_APPLICATION_H
 
 #include <stdbool.h>
@@ -126,9 +126,9 @@ int lv_app_run_repl(lvApplication *app);
 int lv_app_stats(const lvApplication *app, int *total, int *passed, int *failed);
 
 /* 初始化/运行/关闭 */
-int lv_application_init(void);
-int lv_application_run(void);
-void lv_application_shutdown(void);
+int lv_app_init(void);
+int lv_app_run(void);
+void lv_app_shutdown(void);
 
 #ifdef __cplusplus
 }

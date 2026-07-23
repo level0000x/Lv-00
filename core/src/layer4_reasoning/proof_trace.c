@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_trace.c
  * @brief 证明追踪系统实现
  *
@@ -11,9 +11,11 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <time.h>
 
 /* ============================================================
@@ -111,14 +113,14 @@ int lv_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *sta
     ProofStep *step = &trace->steps[trace->step_count];
     step->step_id = trace->step_count;
 
-    /* 复制规则名称 */
+    /* 复制规则名称（截断保护） */
     strncpy(step->rule, rule, MAX_RULE_NAME_LENGTH - 1);
     step->rule[MAX_RULE_NAME_LENGTH - 1] = '\0';
 
-    /* 状态描述（如果有） */
+    /* 状态描述：使用调用者提供的 state 字符串，无则留空 */
     if (state) {
-        snprintf(step->state_desc, MAX_STATE_DESC_LENGTH,
-                 "State at step %d", trace->step_count);
+        strncpy(step->state_desc, (const char *)state, MAX_STATE_DESC_LENGTH - 1);
+        step->state_desc[MAX_STATE_DESC_LENGTH - 1] = '\0';
     } else {
         step->state_desc[0] = '\0';
     }

@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 /* 获取保真度默认警告阈值（从运行时配置读取） */
-double high_dim_default_fidelity_threshold(void);
+double lv_high_dim_default_fidelity_threshold(void);
 
 /* ── Forward decls ── */
 struct SymbolicCoord;

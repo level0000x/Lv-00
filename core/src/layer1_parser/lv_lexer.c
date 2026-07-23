@@ -122,22 +122,35 @@ static LvTokenType lookup_keyword(const char *word, size_t len) {
  * @brief 构造一个 LvToken 实例
  *
  * 根据当前词法分析器状态和识别出的 Token 信息填充 Token 结构体。
+ * 列号在调用前由 lex_raw 通过 start_col 参数传入，确保记录的是
+ * Token 起始位置的列号而非处理后的位置。
  *
  * @param lexer     词法分析器指针
  * @param type      Token 类型
  * @param start_pos Token 在源字符串中的起始偏移量
  * @param length    Token 的长度（字节数）
+ * @param start_col Token 起始列号（跳过空白和注释后的列号）
  * @return 填充完成的 LvToken
  */
-static LvToken make_token(LvLexer *lexer, LvTokenType type, size_t start_pos, size_t length) {
+static LvToken make_token_at(LvLexer *lexer, LvTokenType type, size_t start_pos, size_t length, int start_col) {
     LvToken tok;
     tok.type = type;
     tok.loc.offset = start_pos;
     tok.loc.line = lexer->line;
-    tok.loc.column = lexer->column;
+    tok.loc.column = start_col;
     tok.start = lexer->source + start_pos;
     tok.length = length;
     return tok;
+}
+
+/**
+ * @brief 构造一个 LvToken 实例（使用当前列号）
+ *
+ * 兼容旧接口：使用 lexer->column 作为 Token 起始列号。
+ * 适用于 EOF/ERROR 等无需精确列号的 Token。
+ */
+static LvToken make_token(LvLexer *lexer, LvTokenType type, size_t start_pos, size_t length) {
+    return make_token_at(lexer, type, start_pos, length, lexer->column);
 }
 
 /**
@@ -196,8 +209,8 @@ static LvToken lex_raw(LvLexer *lexer) {
         return make_token(lexer, LV_TOKEN_EOF, lexer->pos, 0);
 
     size_t start = lexer->pos;
+    int start_col = lexer->column;  /* 记录 Token 起始列号 */
     char c = lexer->source[lexer->pos];
-    lexer->column = (int)(lexer->pos - start) + 1;
 
     /* 标识符 / 关键字 */
     if (isalpha((unsigned char)c) || c == '_') {
@@ -207,7 +220,7 @@ static LvToken lex_raw(LvLexer *lexer) {
         size_t len = lexer->pos - start;
         LvTokenType type = lookup_keyword(lexer->source + start, len);
         lexer->column += (int)len;
-        return make_token(lexer, type, start, len);
+        return make_token_at(lexer, type, start, len, start_col);
     }
 
     /* 数字 */
@@ -220,12 +233,17 @@ static LvToken lex_raw(LvLexer *lexer) {
             if (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos])) {
                 while (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos]))
                     lexer->pos++;
-                return make_token(lexer, LV_TOKEN_RATIONAL, start, lexer->pos - start);
+                size_t len = lexer->pos - start;
+                lexer->column += (int)len;
+                return make_token_at(lexer, LV_TOKEN_RATIONAL, start, len, start_col);
             }
+            /* '/' 后非数字，回退：按整数处理 '/' 之前的部分 */
             lexer->pos = start;
             while (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos]))
                 lexer->pos++;
-            return make_token(lexer, LV_TOKEN_INTEGER, start, lexer->pos - start);
+            size_t len = lexer->pos - start;
+            lexer->column += (int)len;
+            return make_token_at(lexer, LV_TOKEN_INTEGER, start, len, start_col);
         }
         /* 小数: 3.14 */
         if (lexer->pos < lexer->source_len && lexer->source[lexer->pos] == '.') {
@@ -234,11 +252,16 @@ static LvToken lex_raw(LvLexer *lexer) {
             if (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos])) {
                 while (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos]))
                     lexer->pos++;
-                return make_token(lexer, LV_TOKEN_DECIMAL, start, lexer->pos - start);
+                size_t len = lexer->pos - start;
+                lexer->column += (int)len;
+                return make_token_at(lexer, LV_TOKEN_DECIMAL, start, len, start_col);
             }
+            /* '.' 后非数字，回退：按整数处理 */
             lexer->pos = dot_pos;
         }
-        return make_token(lexer, LV_TOKEN_INTEGER, start, lexer->pos - start);
+        size_t len = lexer->pos - start;
+        lexer->column += (int)len;
+        return make_token_at(lexer, LV_TOKEN_INTEGER, start, len, start_col);
     }
 
     /* 字符串 */
@@ -249,63 +272,65 @@ static LvToken lex_raw(LvLexer *lexer) {
             lexer->pos++;
         }
         if (lexer->pos < lexer->source_len) lexer->pos++;
-        return make_token(lexer, LV_TOKEN_STRING, start, lexer->pos - start);
+        size_t len = lexer->pos - start;
+        lexer->column += (int)len;
+        return make_token_at(lexer, LV_TOKEN_STRING, start, len, start_col);
     }
 
     /* 多字符运算符 */
     if (c == '-' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '>') {
-        lexer->pos += 2;
-        return make_token(lexer, LV_TOKEN_ARROW, start, 2);
+        lexer->pos += 2; lexer->column += 2;
+        return make_token_at(lexer, LV_TOKEN_ARROW, start, 2, start_col);
     }
     if (c == '=' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '=') {
-        lexer->pos += 2;
-        return make_token(lexer, LV_TOKEN_EQEQ, start, 2);
+        lexer->pos += 2; lexer->column += 2;
+        return make_token_at(lexer, LV_TOKEN_EQEQ, start, 2, start_col);
     }
     if (c == '!' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '=') {
-        lexer->pos += 2;
-        return make_token(lexer, LV_TOKEN_NEQ, start, 2);
+        lexer->pos += 2; lexer->column += 2;
+        return make_token_at(lexer, LV_TOKEN_NEQ, start, 2, start_col);
     }
     if (c == '<' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '=') {
-        lexer->pos += 2;
-        return make_token(lexer, LV_TOKEN_LE, start, 2);
+        lexer->pos += 2; lexer->column += 2;
+        return make_token_at(lexer, LV_TOKEN_LE, start, 2, start_col);
     }
     if (c == '>' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '=') {
-        lexer->pos += 2;
-        return make_token(lexer, LV_TOKEN_GE, start, 2);
+        lexer->pos += 2; lexer->column += 2;
+        return make_token_at(lexer, LV_TOKEN_GE, start, 2, start_col);
     }
     if (c == '=' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '>') {
-        lexer->pos += 2;
-        return make_token(lexer, LV_TOKEN_THEREFORE, start, 2);
+        lexer->pos += 2; lexer->column += 2;
+        return make_token_at(lexer, LV_TOKEN_THEREFORE, start, 2, start_col);
     }
     if (c == '|' && lexer->pos + 1 < lexer->source_len) {
         char n = lexer->source[lexer->pos + 1];
-        if (n == '-') { lexer->pos += 2; return make_token(lexer, LV_TOKEN_DARROW, start, 2); }
-        if (n == '=') { lexer->pos += 2; return make_token(lexer, LV_TOKEN_MODELS, start, 2); }
+        if (n == '-') { lexer->pos += 2; lexer->column += 2; return make_token_at(lexer, LV_TOKEN_DARROW, start, 2, start_col); }
+        if (n == '=') { lexer->pos += 2; lexer->column += 2; return make_token_at(lexer, LV_TOKEN_MODELS, start, 2, start_col); }
     }
 
     /* 单字符运算符 */
-    lexer->pos++;
+    lexer->pos++; lexer->column++;
     switch (c) {
-        case '(': return make_token(lexer, LV_TOKEN_LPAREN, start, 1);
-        case ')': return make_token(lexer, LV_TOKEN_RPAREN, start, 1);
-        case '{': return make_token(lexer, LV_TOKEN_LBRACE, start, 1);
-        case '}': return make_token(lexer, LV_TOKEN_RBRACE, start, 1);
-        case '[': return make_token(lexer, LV_TOKEN_LBRACKET, start, 1);
-        case ']': return make_token(lexer, LV_TOKEN_RBRACKET, start, 1);
-        case ';': return make_token(lexer, LV_TOKEN_SEMICOLON, start, 1);
-        case ',': return make_token(lexer, LV_TOKEN_COMMA, start, 1);
-        case '.': return make_token(lexer, LV_TOKEN_DOT, start, 1);
-        case ':': return make_token(lexer, LV_TOKEN_COLON, start, 1);
-        case '=': return make_token(lexer, LV_TOKEN_EQUALS, start, 1);
-        case '+': return make_token(lexer, LV_TOKEN_PLUS, start, 1);
-        case '-': return make_token(lexer, LV_TOKEN_MINUS, start, 1);
-        case '*': return make_token(lexer, LV_TOKEN_STAR, start, 1);
-        case '/': return make_token(lexer, LV_TOKEN_SLASH, start, 1);
-        case '^': return make_token(lexer, LV_TOKEN_CARET, start, 1);
-        case '<': return make_token(lexer, LV_TOKEN_LT, start, 1);
-        case '>': return make_token(lexer, LV_TOKEN_GT, start, 1);
+        case '(': return make_token_at(lexer, LV_TOKEN_LPAREN, start, 1, start_col);
+        case ')': return make_token_at(lexer, LV_TOKEN_RPAREN, start, 1, start_col);
+        case '{': return make_token_at(lexer, LV_TOKEN_LBRACE, start, 1, start_col);
+        case '}': return make_token_at(lexer, LV_TOKEN_RBRACE, start, 1, start_col);
+        case '[': return make_token_at(lexer, LV_TOKEN_LBRACKET, start, 1, start_col);
+        case ']': return make_token_at(lexer, LV_TOKEN_RBRACKET, start, 1, start_col);
+        case ';': return make_token_at(lexer, LV_TOKEN_SEMICOLON, start, 1, start_col);
+        case ',': return make_token_at(lexer, LV_TOKEN_COMMA, start, 1, start_col);
+        case '.': return make_token_at(lexer, LV_TOKEN_DOT, start, 1, start_col);
+        case ':': return make_token_at(lexer, LV_TOKEN_COLON, start, 1, start_col);
+        case '=': return make_token_at(lexer, LV_TOKEN_EQUALS, start, 1, start_col);
+        case '+': return make_token_at(lexer, LV_TOKEN_PLUS, start, 1, start_col);
+        case '-': return make_token_at(lexer, LV_TOKEN_MINUS, start, 1, start_col);
+        case '*': return make_token_at(lexer, LV_TOKEN_STAR, start, 1, start_col);
+        case '/': return make_token_at(lexer, LV_TOKEN_SLASH, start, 1, start_col);
+        case '^': return make_token_at(lexer, LV_TOKEN_CARET, start, 1, start_col);
+        case '<': return make_token_at(lexer, LV_TOKEN_LT, start, 1, start_col);
+        case '>': return make_token_at(lexer, LV_TOKEN_GT, start, 1, start_col);
         default:
-            return make_token(lexer, LV_TOKEN_ERROR, start, 1);
+            return make_token_at(lexer, LV_TOKEN_ERROR, start, 1, start_col);
     }
 }
 

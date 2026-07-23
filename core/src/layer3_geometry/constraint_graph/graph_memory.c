@@ -35,12 +35,15 @@ void graph_destroy(ConstraintGraph *graph) {
     if (!graph)
         return;
     for (int i = 0; i < graph->node_count; i++) {
-        node_destroy(graph->nodes[i]);
+        if (graph->nodes[i])
+            node_destroy(graph->nodes[i]);
     }
     lv_free((void **) &graph->nodes);
     for (int i = 0; i < graph->constraint_count; i++) {
-        lv_free((void **) &graph->constraints[i]->participants);
-        lv_free((void **) &graph->constraints[i]);
+        if (graph->constraints[i]) {
+            lv_free((void **) &graph->constraints[i]->participants);
+            lv_free((void **) &graph->constraints[i]);
+        }
     }
     lv_free((void **) &graph->constraints);
     lv_free((void **) &graph->node_index);

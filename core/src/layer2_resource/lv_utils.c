@@ -1927,7 +1927,7 @@ void lv_log_message(int level, const char *file, int line, const char *fmt, ...)
     /* 生成时间戳 */
     time_t now = time(NULL);
     struct tm tm_buf;
-    localtime_s(&tm_buf, &now); /* Windows 安全版本 */
+    lv_LOCALTIME(&now, &tm_buf);
     char timestamp[32];
     strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &tm_buf);
 

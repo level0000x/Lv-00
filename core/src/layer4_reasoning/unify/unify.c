@@ -1322,8 +1322,17 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
      * 阶段2：拷贝 LINE_SEGMENT 节点
      *
      * LINE_SEGMENT 依赖两个端点（POINT 节点），这些端点在阶段1中
-     * 已完成拷贝并写入映射表。此处通过符号坐标哈希值查找端点
-     * 的旧ID，再通过映射表查找新ID。找不到映射时使用 -1 作为占位符。
+     * 已完成拷贝并写入映射表。由于 graph_add_line_segment 将端点坐标
+     * 拷贝到 LINE_SEGMENT 的 symbolic_coords 数组中（而非通过图约束
+     * 存储端点 ID），此处需要通过坐标匹配在源图中查找端点：
+     *
+     *   1. 取 LINE_SEGMENT 的 symbolic_coords[0] 和 symbolic_coords[1]
+     *      （分别对应端点1和端点2的第一个坐标维度）
+     *   2. 遍历源图的 POINT 节点，比较 symbolic_coords[0] 是否匹配
+     *   3. 将找到的端点旧 ID 通过映射表转换为新 ID
+     *   4. 调用 graph_add_line_segment 创建新线段
+     *
+     * 若无法确定端点（无坐标或找不到匹配 POINT），使用 -1 占位符。
      */
     for (int i = 0; i < src->node_count; i++) {
         GeomNode *src_node = src->nodes[i];
@@ -1331,16 +1340,41 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
 
         int old_id = src_node->id;
 
-        /* 从symbolic_coords中提取端点ID（如果存储了的话）
-         * 注意：LINE_SEGMENT的端点通常通过INCIDENCE约束关联，
-         * 但我们也尝试从symbolic_coords获取 */
+        /*
+         * 通过坐标匹配查找端点 POINT 节点。
+         * LINE_SEGMENT 的 symbolic_coords 是端点坐标的副本，
+         * 因此可以通过比较坐标值找到原始端点。
+         */
         int endpoint1_old = -1, endpoint2_old = -1;
-        if (src_node->coord_count >= 2) {
-            /* 使用符号坐标哈希值作为临时ID（实际ID存储在节点中） */
-            endpoint1_old = (int)(src_node->symbolic_coords[0] ?
-                (symbolic_coord_hash(src_node->symbolic_coords[0]) & UNIFY_HASH_TO_ID_MASK) : -1);
-            endpoint2_old = (int)(src_node->symbolic_coords[1] ?
-                (symbolic_coord_hash(src_node->symbolic_coords[1]) & UNIFY_HASH_TO_ID_MASK) : -1);
+
+        if (src_node->coord_count >= 2 &&
+            src_node->symbolic_coords[0] && src_node->symbolic_coords[1]) {
+            /*
+             * 遍历源图 POINT 节点，找到坐标匹配的端点。
+             * 每个 POINT 的 symbolic_coords[0] 与端点坐标比较。
+             */
+            for (int j = 0; j < src->node_count; j++) {
+                GeomNode *candidate = src->nodes[j];
+                if (candidate->type != GEOM_POINT) continue;
+                if (!candidate->symbolic_coords || !candidate->symbolic_coords[0]) continue;
+
+                /* 比较候选 POINT 的坐标是否与端点1坐标匹配 */
+                if (endpoint1_old < 0 &&
+                    symbolic_coord_compare(
+                        src_node->symbolic_coords[0],
+                        candidate->symbolic_coords[0]) == 0) {
+                    endpoint1_old = candidate->id;
+                    continue;
+                }
+
+                /* 比较候选 POINT 的坐标是否与端点2坐标匹配 */
+                if (endpoint2_old < 0 &&
+                    symbolic_coord_compare(
+                        src_node->symbolic_coords[1],
+                        candidate->symbolic_coords[0]) == 0) {
+                    endpoint2_old = candidate->id;
+                }
+            }
         }
 
         /* 查找端点的新ID */

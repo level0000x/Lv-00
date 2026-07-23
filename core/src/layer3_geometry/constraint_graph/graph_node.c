@@ -1179,10 +1179,9 @@ bool graph_check_compatibility(const ConstraintGraph *graph, lvConstraintCompati
 }
 
 /* ===========================================================================
- * 存根实现：graph_add_region / graph_add_port / graph_add_function_block
+ * 存根实现：graph_add_region / graph_add_function_block
  *
- * 这些函数在 constraint_graph.h 中声明为 lv_PUBLIC_API，供多个模块调用。
- * 完整实现将随后续版本逐步完善，当前以最小存根保证链接通过。
+ * graph_add_port 已完全实现（被 27+ 处调用），此处仅保留声明兼容。
  * =========================================================================== */
 
 /**
@@ -1236,6 +1235,12 @@ AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespac
     }
     if (node->data.port) {
         node->data.port->type = type;
+        /* 同步 Port 层面的 namespace_depth/parent_block_id
+         * 避免 GeomNode 与 Port 双存储不一致 */
+        node->data.port->namespace_depth = namespace_depth;
+        node->data.port->parent_block_id = parent_block_id;
+        /* is_formal_param 默认为 false（calloc 零初始化），
+         * 后续由调用方通过 update_port_namespace_depth 或打包函数设置 */
     }
     if (graph_stream_ctx) {
         char buf[128];

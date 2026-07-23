@@ -298,11 +298,15 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
     double eps = cfg ? cfg->collinear_epsilon : lv_GEO_COLLINEAR_EPSILON;
 
     /*
-     * 仅检查 p1-p2 和 p1-p3 的重合：
-     * p1 是方向计算的原点参考点，当 p1 与 p2 或 p1 与 p3 重合时，
-     * 叉积 (p2-p1)×(p3-p1) 的两项同时为零，几何判定无意义。
+     * 检查 p1 与 p2 或 p1 与 p3 是否重合：
+     * p1 是方向计算的原点参考点，当 p1 与 p2 或 p1 与 p3 任一重合时，
+     * 叉积 (p2-p1)×(p3-p1) 对应的一项为零向量，导致结果为零，
+     * 几何判定无意义。因此使用 OR 而非 AND 检查。
+     *
+     * 注意：仅检查 p1-p2 和 p1-p3 即可，因为 p1 是叉积参考原点。
+     * p2-p3 之间的距离不直接影响叉积的零性。
      */
-    if (d12_sq < eps * eps && d13_sq < eps * eps) {
+    if (d12_sq < eps * eps || d13_sq < eps * eps) {
         return lv_ORIENTATION_DEGENERATE;
     }
 
@@ -409,9 +413,11 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
     lvPredicateMode mode)
 {
     /*
-     * 检查退化情况：若 p1 几乎与 p2、p3、p4 均重合，
-     * 则四面体体积为零且无法确定方向。
-     * 3D 方向使用 p1 作为参考原点，因此只需检查 p1 与其余三点的距离。
+     * 检查退化情况：3D 方向以 p1 为参考原点计算 3×3 行列式。
+     * 若 p1 与 p2、p3、p4 中任一重合，则对应列向量为零，
+     * 行列式必为零，方向判定无意义。
+     *
+     * 与 2D 同理，此处使用 OR 检查：任一对重合即退化。
      */
     double d12_sq = (p2x-p1x)*(p2x-p1x) + (p2y-p1y)*(p2y-p1y) + (p2z-p1z)*(p2z-p1z);
     double d13_sq = (p3x-p1x)*(p3x-p1x) + (p3y-p1y)*(p3y-p1y) + (p3z-p1z)*(p3z-p1z);
@@ -420,7 +426,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
     const lvGeometryConfig *cfg = lv_geometry_get_config();
     double eps = cfg ? cfg->collinear_epsilon : lv_GEO_COLLINEAR_EPSILON;
 
-    if (d12_sq < eps * eps && d13_sq < eps * eps && d14_sq < eps * eps) {
+    if (d12_sq < eps * eps || d13_sq < eps * eps || d14_sq < eps * eps) {
         return lv_ORIENTATION_DEGENERATE;
     }
 
@@ -665,13 +671,13 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(
         double diff = dist_sq - r_sq;
 
         /*
-         * diff = |p-c|^2 - r^2 的量级为 O(coord^2)，
-         * 但这里保守地使用 O(coord^3) 标度以确保在坐标量级较大时
-         * 也能优先使用浮点快速判定，仅在接近零时回退到精确模式。
+         * diff = |p-c|² - r² 的量级为 O(coord²)：
+         * |p-c|² = (px-cx)² + (py-cy)²，每项为坐标差的平方，
+         * 因此整体缩放 λ²。阈值取 max_coord² 标度即可。
          */
         double max_coord = fmax(fmax(fabs(px), fabs(py)),
                                 fmax(fmax(fabs(cx), fabs(cy)), fabs(r)));
-        double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord * max_coord;
+        double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord;
 
         if (threshold == 0.0) {
             threshold = ADAPTIVE_THRESHOLD;
@@ -1002,15 +1008,21 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
 
         /*
          * 归一化：按坐标量级缩放行列式，使其与容差 eps 可比。
-         * 共圆行列式每项包含坐标与坐标平方的乘积，量级 O(coord^3)，
-         * 当坐标量级很大时直接与 eps 比较会导致假阳性。
+         *
+         * 共圆 4×4 行列式经 Laplace 展开后，每项 3×3 子行列式
+         * 含两列坐标（λ）和一列坐标平方（λ²），总计 O(λ⁴)。
+         * 因此归一化因子应为 max_coord⁴ 而非 max_coord³。
+         *
+         * 推导：子行列式 M11 = |bx by bx²+by²; cx cy cx²+cy²; dx dy dx²+dy²|
+         *       缩放后每列因子为 λ, λ, λ²，子行列式缩放 λ⁴。
          */
         double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)),
                                      fmax(fabs(bx), fabs(by))),
                                 fmax(fmax(fabs(cx), fabs(cy)),
                                      fmax(fabs(dx), fabs(dy))));
         if (max_coord > 1.0) {
-            det /= (max_coord * max_coord * max_coord);
+            double s = max_coord * max_coord;
+            det /= (s * s);
         }
 
         return fabs(det) < eps;
@@ -1041,14 +1053,16 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
         double det = m11 - m21 + m31 - m41;
 
         /*
-         * 共圆行列式每项为坐标与坐标平方的乘积，量级 O(coord^3)，
-         * 阈值同取 max_coord^3。
+         * 共圆 4×4 行列式经 Laplace 展开后，每项 3×3 子行列式
+         * 含两列坐标（λ）和一列坐标平方（λ²），总计 O(λ⁴)。
+         * 因此自适应阈值取 max_coord⁴ 标度。
          */
         double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)),
                                      fmax(fabs(bx), fabs(by))),
                                 fmax(fmax(fabs(cx), fabs(cy)),
                                      fmax(fabs(dx), fabs(dy))));
-        double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord * max_coord;
+        double s = max_coord * max_coord;
+        double threshold = ADAPTIVE_THRESHOLD * s * s;
 
         if (threshold == 0.0) {
             threshold = ADAPTIVE_THRESHOLD;

@@ -20,6 +20,7 @@
 #include "lv/lv.h"
 #include "lv/lv_protocol.h"
 #include "lv/lv_config.h"
+#include "lv/lv_utils.h"
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
@@ -150,6 +151,97 @@ const char *lv_trust_color_tikz(lvTrustColor c)
         return "{HTML}{888888}";
     }
     return kTrustColorTikZ[(int)c];
+}
+
+/* ---- TrustColor <-> lvTrustColor 双向映射 ---- */
+
+/**
+ * @brief 将 TrustColor（layer3）映射为 lvTrustColor（协议层）
+ *
+ * 映射规则：
+ *   TRUST_GREEN                  → lv_COLOR_GREEN
+ *   TRUST_BLUE_UNEXPLORED        → lv_COLOR_BLUE
+ *   TRUST_BLUE_EXCEEDED          → lv_COLOR_BLUE
+ *   TRUST_BLUE_OUT_OF_SCOPE      → lv_COLOR_BLUE_RANGE
+ *   TRUST_YELLOW                 → lv_COLOR_YELLOW
+ *   TRUST_LIGHT_ORANGE_ORACLE    → lv_COLOR_LIGHT_ORANGE
+ *   TRUST_LIGHT_ORANGE_EXPLOSION → lv_COLOR_ORANGE
+ *   TRUST_AMBER                  → lv_COLOR_AMBER
+ *   TRUST_DEEP_ORANGE            → lv_COLOR_DARK_ORANGE
+ *   TRUST_RED                    → lv_COLOR_RED
+ *   越界                         → lv_COLOR_GREY
+ */
+lvTrustColor trust_color_to_lv_protocol(TrustColor tc) {
+    switch (tc) {
+        case TRUST_GREEN:
+            return lv_COLOR_GREEN;
+        case TRUST_BLUE_UNEXPLORED:
+        case TRUST_BLUE_EXCEEDED:
+            return lv_COLOR_BLUE;
+        case TRUST_BLUE_OUT_OF_SCOPE:
+            return lv_COLOR_BLUE_RANGE;
+        case TRUST_YELLOW:
+            return lv_COLOR_YELLOW;
+        case TRUST_LIGHT_ORANGE_ORACLE:
+            return lv_COLOR_LIGHT_ORANGE;
+        case TRUST_LIGHT_ORANGE_EXPLOSION:
+            return lv_COLOR_ORANGE;
+        case TRUST_AMBER:
+            return lv_COLOR_AMBER;
+        case TRUST_DEEP_ORANGE:
+            return lv_COLOR_DARK_ORANGE;
+        case TRUST_RED:
+            return lv_COLOR_RED;
+        default:
+            return lv_COLOR_GREY;
+    }
+}
+
+/**
+ * @brief 将 lvTrustColor（协议层）映射为 TrustColor（layer3）
+ *
+ * 映射规则：
+ *   lv_COLOR_GREEN         → TRUST_GREEN
+ *   lv_COLOR_BLUE          → TRUST_BLUE_UNEXPLORED
+ *   lv_COLOR_BLUE_RANGE    → TRUST_BLUE_OUT_OF_SCOPE
+ *   lv_COLOR_YELLOW        → TRUST_YELLOW
+ *   lv_COLOR_AMBER         → TRUST_AMBER
+ *   lv_COLOR_LIGHT_ORANGE  → TRUST_LIGHT_ORANGE_ORACLE
+ *   lv_COLOR_ORANGE        → TRUST_LIGHT_ORANGE_EXPLOSION
+ *   lv_COLOR_DARK_ORANGE   → TRUST_DEEP_ORANGE
+ *   lv_COLOR_RED           → TRUST_RED
+ *   lv_COLOR_GREY          → TRUST_BLUE_UNEXPLORED（未知回退）
+ *   lv_COLOR_PURPLE        → TRUST_GREEN（外部验证视为已验证）
+ *   lv_COLOR_CYAN          → TRUST_BLUE_UNEXPLORED（互操作回退）
+ *   越界                   → TRUST_BLUE_UNEXPLORED
+ */
+TrustColor lv_protocol_to_trust_color(lvTrustColor lv) {
+    switch (lv) {
+        case lv_COLOR_GREEN:
+            return TRUST_GREEN;
+        case lv_COLOR_BLUE:
+            return TRUST_BLUE_UNEXPLORED;
+        case lv_COLOR_BLUE_RANGE:
+            return TRUST_BLUE_OUT_OF_SCOPE;
+        case lv_COLOR_YELLOW:
+            return TRUST_YELLOW;
+        case lv_COLOR_AMBER:
+            return TRUST_AMBER;
+        case lv_COLOR_LIGHT_ORANGE:
+            return TRUST_LIGHT_ORANGE_ORACLE;
+        case lv_COLOR_ORANGE:
+            return TRUST_LIGHT_ORANGE_EXPLOSION;
+        case lv_COLOR_DARK_ORANGE:
+            return TRUST_DEEP_ORANGE;
+        case lv_COLOR_RED:
+            return TRUST_RED;
+        case lv_COLOR_GREY:
+        case lv_COLOR_CYAN:
+        default:
+            return TRUST_BLUE_UNEXPLORED;
+        case lv_COLOR_PURPLE:
+            return TRUST_GREEN;
+    }
 }
 
 /* ================================================================
@@ -291,7 +383,7 @@ int lv_proto_draw_commands(void *engine,
     /* 分配基本绘制命令空间
        通常至少需要一个命令来渲染画布状态指示器 */
     int init_cap = 4;
-    out->cmds = (lvDrawCmd *)calloc((size_t)init_cap, sizeof(lvDrawCmd));
+    out->cmds = (lvDrawCmd *)lv_calloc((size_t)init_cap, sizeof(lvDrawCmd));
     if (!out->cmds) return -1;
     out->capacity = init_cap;
     out->count = 0;
@@ -352,7 +444,7 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out)
 
     /* 最多创建 lv_PROTO_MAX_TABLE_ROWS 行 */
     int max_rows = 5;
-    out->rows = (lvTableRow *)calloc((size_t)max_rows, sizeof(lvTableRow));
+    out->rows = (lvTableRow *)lv_calloc((size_t)max_rows, sizeof(lvTableRow));
     if (!out->rows) return -1;
     out->capacity = max_rows;
 
@@ -514,7 +606,7 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root)
     int health = lv_health_check();
 
     /* 根节点 */
-    lvTreeNode *root = (lvTreeNode *)calloc(1, sizeof(lvTreeNode));
+    lvTreeNode *root = (lvTreeNode *)lv_calloc(1, sizeof(lvTreeNode));
     if (!root) return -1;
 
     snprintf(root->id, sizeof(root->id), "root");
@@ -526,15 +618,15 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root)
 
     /* 创建孩子节点展示子系统状态 */
     int max_children = 3;
-    root->children = (lvTreeNode **)calloc((size_t)max_children, sizeof(lvTreeNode *));
+    root->children = (lvTreeNode **)lv_calloc((size_t)max_children, sizeof(lvTreeNode *));
     if (!root->children) {
-        free(root);
+        lv_free((void **)&root);
         return -1;
     }
 
     /* 子节点 0: 健康状态 */
     {
-        lvTreeNode *child = (lvTreeNode *)calloc(1, sizeof(lvTreeNode));
+        lvTreeNode *child = (lvTreeNode *)lv_calloc(1, sizeof(lvTreeNode));
         if (child) {
             snprintf(child->id, sizeof(child->id), "health");
             snprintf(child->label, sizeof(child->label), "健康评分: %d/100", health);
@@ -548,7 +640,7 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root)
 
     /* 子节点 1: 求解器 */
     {
-        lvTreeNode *child = (lvTreeNode *)calloc(1, sizeof(lvTreeNode));
+        lvTreeNode *child = (lvTreeNode *)lv_calloc(1, sizeof(lvTreeNode));
         if (child) {
             snprintf(child->id, sizeof(child->id), "solver");
             uint64_t solver_calls = 0;
@@ -564,7 +656,7 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root)
 
     /* 子节点 2: 内存 */
     {
-        lvTreeNode *child = (lvTreeNode *)calloc(1, sizeof(lvTreeNode));
+        lvTreeNode *child = (lvTreeNode *)lv_calloc(1, sizeof(lvTreeNode));
         if (child) {
             snprintf(child->id, sizeof(child->id), "memory");
             double cur_mb = 0.0;
@@ -605,7 +697,7 @@ int lv_proto_topology(void *engine, lvTopoGraph *out)
 
     /* 创建 3 个拓扑块：Input → Engine → Output */
     int max_blocks = 3;
-    out->blocks = (lvTopoBlock *)calloc((size_t)max_blocks, sizeof(lvTopoBlock));
+    out->blocks = (lvTopoBlock *)lv_calloc((size_t)max_blocks, sizeof(lvTopoBlock));
     if (!out->blocks) return -1;
 
     /* 块 0: Input */
@@ -630,9 +722,9 @@ int lv_proto_topology(void *engine, lvTopoGraph *out)
     block->layout_y = 150.0;
 
     /* 创建 2 条边：Input→Engine, Engine→Output */
-    out->edges = (lvTopoEdge *)calloc(2, sizeof(lvTopoEdge));
+    out->edges = (lvTopoEdge *)lv_calloc(2, sizeof(lvTopoEdge));
     if (!out->edges) {
-        free(out->blocks);
+        lv_free((void **)&out->blocks);
         out->blocks = NULL;
         out->block_count = 0;
         return -1;
@@ -683,7 +775,7 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out)
 
     /* 创建证明步骤 */
     int max_steps = 3;
-    out->steps = (lvProofStep *)calloc((size_t)max_steps, sizeof(lvProofStep));
+    out->steps = (lvProofStep *)lv_calloc((size_t)max_steps, sizeof(lvProofStep));
     if (!out->steps) return -1;
 
     /* 步骤 0: 系统初始化（公理） */
@@ -715,7 +807,7 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out)
     step->color = (health >= 80) ? lv_COLOR_GREEN :
                   (health >= 50) ? lv_COLOR_YELLOW : lv_COLOR_RED;
     step->dependency_count = 1;
-    step->dependency_ids = (int *)malloc(sizeof(int));
+    step->dependency_ids = (int *)lv_malloc(sizeof(int));
     if (step->dependency_ids) step->dependency_ids[0] = 0;
     step->is_backtrack_point = 0;
     step->is_explored = 1;
@@ -734,7 +826,7 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out)
     step->color = (health >= 80) ? lv_COLOR_GREEN :
                   (health >= 50) ? lv_COLOR_YELLOW : lv_COLOR_RED;
     step->dependency_count = 1;
-    step->dependency_ids = (int *)malloc(sizeof(int));
+    step->dependency_ids = (int *)lv_malloc(sizeof(int));
     if (step->dependency_ids) step->dependency_ids[0] = 1;
     step->is_backtrack_point = 0;
     step->is_explored = 1;
@@ -904,7 +996,7 @@ int lv_proto_completions(void *engine, const char *prefix,
         return 0;
     }
 
-    out->items = (lvCompletion *)calloc((size_t)match_count, sizeof(lvCompletion));
+    out->items = (lvCompletion *)lv_calloc((size_t)match_count, sizeof(lvCompletion));
     if (!out->items) {
         return -1;
     }
@@ -912,7 +1004,7 @@ int lv_proto_completions(void *engine, const char *prefix,
     int idx = 0;
     for (size_t i = 0; i < BUILTIN_CMD_COUNT; i++) {
         if (strncmp(kBuiltinCommands[i], prefix, prefix_len) == 0) {
-            out->items[idx].text = _strdup(kBuiltinCommands[i]);
+            out->items[idx].text = lv_strdup_safe(kBuiltinCommands[i]);
             if (!out->items[idx].text) {
                 lv_proto_free_completions(out);
                 return -1;
@@ -975,7 +1067,7 @@ void lv_proto_free_draw_commands(lvDrawCmdList *list)
     if (!list) {
         return;
     }
-    free(list->cmds);
+    lv_free((void **)&list->cmds);
     memset(list, 0, sizeof(*list));
 }
 
@@ -989,7 +1081,7 @@ void lv_proto_free_table_rows(lvTableRowList *list)
     if (!list) {
         return;
     }
-    free(list->rows);
+    lv_free((void **)&list->rows);
     memset(list, 0, sizeof(*list));
 }
 
@@ -1006,8 +1098,8 @@ static void lv_proto_free_tree_node(lvTreeNode *node)
     for (int i = 0; i < node->child_count; i++) {
         lv_proto_free_tree_node(node->children[i]);
     }
-    free(node->children);
-    free(node);
+    lv_free((void **)&node->children);
+    lv_free((void **)&node);
 }
 
 /**
@@ -1033,11 +1125,11 @@ void lv_proto_free_topology(lvTopoGraph *graph)
         return;
     }
     for (int i = 0; i < graph->block_count; i++) {
-        free(graph->blocks[i].inputs);
-        free(graph->blocks[i].outputs);
+        lv_free((void **)&graph->blocks[i].inputs);
+        lv_free((void **)&graph->blocks[i].outputs);
     }
-    free(graph->blocks);
-    free(graph->edges);
+    lv_free((void **)&graph->blocks);
+    lv_free((void **)&graph->edges);
     memset(graph, 0, sizeof(*graph));
 }
 
@@ -1054,9 +1146,9 @@ void lv_proto_free_proof(lvProofNavigator *nav)
         return;
     }
     for (int i = 0; i < nav->step_count; i++) {
-        free(nav->steps[i].dependency_ids);
+        lv_free((void **)&nav->steps[i].dependency_ids);
     }
-    free(nav->steps);
+    lv_free((void **)&nav->steps);
     memset(nav, 0, sizeof(*nav));
 }
 
@@ -1073,8 +1165,8 @@ void lv_proto_free_completions(lvCompletionList *list)
         return;
     }
     for (int i = 0; i < list->count; i++) {
-        free(list->items[i].text);
+        lv_free((void **)&list->items[i].text);
     }
-    free(list->items);
+    lv_free((void **)&list->items);
     memset(list, 0, sizeof(*list));
 }

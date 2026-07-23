@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file cache_manager.h
  * @brief Lv-00 缓存隔离层管理器
  * @details 实现上下文状态隔离，避免多次连续运算造成上下文状态污染。
@@ -139,6 +139,8 @@ struct lvCacheManager {
     size_t current_size;             /**< 当前使用大小 */
     /* 条目计数 */
     int entry_count;                 /**< 当前条目数 */
+    /* 默认析构 */
+    void (*default_destructor)(void *data, size_t size); /**< 默认析构函数，新条目自动继承 */
     /* 互斥锁 */
     void *mutex;                     /**< 互斥锁 */
 };

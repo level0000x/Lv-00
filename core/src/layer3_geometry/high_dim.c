@@ -781,7 +781,7 @@ int high_dim_is_fidelity_below_threshold(const HighDimManager *manager, int bloc
  */
 
 /* ── 保真度默认阈值 ── */
-double high_dim_default_fidelity_threshold(void) {
+double lv_high_dim_default_fidelity_threshold(void) {
     return lv_config_current()->high_dim_default_fidelity_threshold;
 }
 
@@ -808,7 +808,7 @@ int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id,
                       "建议切换到其他投影预设以获得更好的可视化效果。",
                       preset->name,
                       block->fidelity_ratio * 100.0,
-                      high_dim_default_fidelity_threshold() * 100.0);
+                      lv_high_dim_default_fidelity_threshold() * 100.0);
 
     return lv_OK;
 }

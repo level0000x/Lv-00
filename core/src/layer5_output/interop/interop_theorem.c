@@ -526,7 +526,7 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
 void interop_free_completions(char **completions, int count) {
     if (!completions) return;
     for (int i = 0; i < count; i++) {
-        free(completions[i]);
+        lv_free((void **)&completions[i]);
     }
-    free(completions);
+    lv_free((void **)&completions);
 }

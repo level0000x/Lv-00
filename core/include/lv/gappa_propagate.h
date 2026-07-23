@@ -1,4 +1,4 @@
-﻿#ifndef lv_GAPPA_PROPAGATE_H
+#ifndef lv_GAPPA_PROPAGATE_H
 #define lv_GAPPA_PROPAGATE_H
 
 #include <stdbool.h>
@@ -27,14 +27,14 @@ typedef struct {
 } lvGappaPropagateConfig;
 
 /** Propagation API */
-void gappa_pred_set_init(lvGappaPredSet *set);
-bool gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred);
-int gappa_pred_set_find(const lvGappaPredSet *set, const char *name, lvGappaPredicate *found);
-void gappa_pred_set_clear(lvGappaPredSet *set);
+void lv_gappa_pred_set_init(lvGappaPredSet *set);
+bool lv_gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred);
+int lv_gappa_pred_set_find(const lvGappaPredSet *set, const char *name, lvGappaPredicate *found);
+void lv_gappa_pred_set_clear(lvGappaPredSet *set);
 
-lvGappaPropagateConfig gappa_propagate_config_default(void);
-int gappa_propagate(const lvGappaPredSet *input, lvGappaPredSet *output, const lvGappaPropagateConfig *cfg);
-int gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredSet *known,
+lvGappaPropagateConfig lv_gappa_propagate_config_default(void);
+int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, const lvGappaPropagateConfig *cfg);
+int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredSet *known,
                               lvGappaPredSet *output, const lvGappaPropagateConfig *cfg);
 
 #ifdef __cplusplus

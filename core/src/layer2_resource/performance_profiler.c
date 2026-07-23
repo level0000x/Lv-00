@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file performance_profiler.c
  * @brief 性能分析器 —— 基准测试与会话级性能追踪
  *
@@ -14,6 +14,7 @@
  */
 
 #include "lv/performance_profiler.h"
+#include "lv_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -135,7 +136,7 @@ static int get_or_create_region(lvPerfSession *session, const char *name)
     if (idx >= 0) return idx;
     if (session->region_count >= MAX_REGIONS) return -1;
     idx = session->region_count++;
-    session->regions[idx].name = _strdup(name);
+    session->regions[idx].name = lv_strdup_safe(name);
     session->regions[idx].count = 0;
     session->regions[idx].total_ns = 0;
     session->regions[idx].min_ns = UINT64_MAX;
@@ -171,7 +172,7 @@ static int get_or_create_mem_stat(lvPerfSession *session, const char *type_name)
     if (idx >= 0) return idx;
     if (session->mem_count >= MAX_MEM_TYPES) return -1;
     idx = session->mem_count++;
-    session->mem_stats[idx].type_name = _strdup(type_name);
+    session->mem_stats[idx].type_name = lv_strdup_safe(type_name);
     session->mem_stats[idx].total_alloc_bytes = 0;
     session->mem_stats[idx].total_free_bytes = 0;
     session->mem_stats[idx].alloc_count = 0;
@@ -282,14 +283,14 @@ void lv_perf_benchmark_print_result(const char *name,
 
 lvPerfSession *lv_perf_session_create(const char *name)
 {
-    lvPerfSession *session = (lvPerfSession *)malloc(sizeof(lvPerfSession));
+    lvPerfSession *session = (lvPerfSession *)lv_malloc(sizeof(lvPerfSession));
     if (!session) return NULL;
 
     memset(session, 0, sizeof(*session));
 
-    session->name = name ? _strdup(name) : _strdup("unnamed");
+    session->name = name ? lv_strdup_safe(name) : lv_strdup_safe("unnamed");
     if (!session->name) {
-        free(session);
+        lv_free((void **)&session);
         return NULL;
     }
 
@@ -477,13 +478,13 @@ void lv_perf_session_reset(lvPerfSession *session)
 
     /* 释放区域名称 */
     for (int i = 0; i < session->region_count; i++) {
-        free(session->regions[i].name);
+        lv_free((void **)&session->regions[i].name);
     }
     session->region_count = 0;
 
     /* 释放内存类型名称 */
     for (int i = 0; i < session->mem_count; i++) {
-        free(session->mem_stats[i].type_name);
+        lv_free((void **)&session->mem_stats[i].type_name);
     }
     session->mem_count = 0;
 
@@ -497,14 +498,14 @@ void lv_perf_session_destroy(lvPerfSession *session)
 
     /* 释放区域名称 */
     for (int i = 0; i < session->region_count; i++) {
-        free(session->regions[i].name);
+        lv_free((void **)&session->regions[i].name);
     }
 
     /* 释放内存类型名称 */
     for (int i = 0; i < session->mem_count; i++) {
-        free(session->mem_stats[i].type_name);
+        lv_free((void **)&session->mem_stats[i].type_name);
     }
 
-    free(session->name);
-    free(session);
+    lv_free((void **)&session->name);
+    lv_free((void **)&session);
 }

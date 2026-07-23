@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file adaptive_threshold.c
  * @brief 自适应阈值框架 —— 动态阈值计算与启发式剪枝
  *
@@ -10,12 +10,18 @@
  */
 
 #include "lv/adaptive_threshold.h"
+#include "lv_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <float.h>
 #include <math.h>
+#include <time.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 /* ================================================================
  * 默认配置
@@ -84,13 +90,13 @@ static int count_connected_components(const ConstraintGraph *graph) {
     /* 构建 node_id → 索引 映射的快速查找表 */
     /* 使用 graph 的 node_index 作为查找 */
     /* 为每个节点分配一个 visited 标记 */
-    int *visited = (int *)calloc((size_t)n, sizeof(int));
+    int *visited = (int *)lv_calloc((size_t)n, sizeof(int));
     if (!visited) return 0;
 
     /* 为 BFS 分配队列 */
-    int *queue = (int *)malloc((size_t)n * sizeof(int));
+    int *queue = (int *)lv_malloc((size_t)n * sizeof(int));
     if (!queue) {
-        free(visited);
+        lv_free((void **)&visited);
         return 0;
     }
 
@@ -140,8 +146,8 @@ static int count_connected_components(const ConstraintGraph *graph) {
         }
     }
 
-    free(queue);
-    free(visited);
+    lv_free((void **)&queue);
+    lv_free((void **)&visited);
     return components;
 }
 
@@ -257,7 +263,19 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo,
     c->algo = algo;
 
     /* 捕获开始时间 */
+#ifdef __APPLE__
     clock_gettime(CLOCK_MONOTONIC, &c->start_time);
+#elif defined(_WIN32)
+    {
+        LARGE_INTEGER freq, count;
+        QueryPerformanceFrequency(&freq);
+        QueryPerformanceCounter(&count);
+        c->start_time.tv_sec = (time_t)(count.QuadPart / freq.QuadPart);
+        c->start_time.tv_nsec = (long)((count.QuadPart % freq.QuadPart) * 1000000000LL / freq.QuadPart);
+    }
+#else
+    clock_gettime(CLOCK_MONOTONIC, &c->start_time);
+#endif
 
     /* 分析复杂度 */
     lvError err = lv_compute_complexity(graph, &c->complexity);
@@ -309,7 +327,7 @@ lvError lv_adaptive_threshold_default_config(lvAlgorithmType algo,
 
 void lv_adaptive_threshold_destroy(lvAdaptiveThresholdCtx **ctx) {
     if (!ctx || !*ctx) return;
-    free(*ctx);
+    lv_free((void **)&*ctx);
     *ctx = NULL;
 }
 
@@ -333,8 +351,22 @@ void lv_adaptive_threshold_should_prune(lvAdaptiveThresholdCtx *ctx,
     /* 基于时间的剪枝 */
     if (ctx->config.enable_time_based) {
         double elapsed_ms = 0.0;
+#ifdef __APPLE__
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
+#elif defined(_WIN32)
+        struct timespec now;
+        {
+            LARGE_INTEGER freq, count;
+            QueryPerformanceFrequency(&freq);
+            QueryPerformanceCounter(&count);
+            now.tv_sec = (time_t)(count.QuadPart / freq.QuadPart);
+            now.tv_nsec = (long)((count.QuadPart % freq.QuadPart) * 1000000000LL / freq.QuadPart);
+        }
+#else
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+#endif
         elapsed_ms = (double)(now.tv_sec - ctx->start_time.tv_sec) * 1000.0 +
                      (double)(now.tv_nsec - ctx->start_time.tv_nsec) / 1000000.0;
         if (elapsed_ms > ctx->config.time_budget_ms) {

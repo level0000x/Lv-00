@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_protocol.h
  * @brief Lv-00 UI-Kernel 通信协议 —— UI 与内核的唯一接口
  *
@@ -41,6 +41,7 @@
 #include <stdint.h>
 #include "lv/lv_api_spec.h"
 #include "lv/config.h"
+#include "lv/symbolic_coord.h"  /* TrustColor 枚举 */
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,6 +70,12 @@ lv_API const char *lv_trust_color_name(lvTrustColor c);
 lv_API uint32_t    lv_trust_color_rgba(lvTrustColor c);
 lv_API const char *lv_trust_color_svg(lvTrustColor c);
 lv_API const char *lv_trust_color_tikz(lvTrustColor c);
+
+/* ---- TrustColor <-> lvTrustColor 双向映射 ---- */
+/** @brief 将 TrustColor（layer3）映射为 lvTrustColor（协议层） */
+lv_API lvTrustColor trust_color_to_lv_protocol(TrustColor tc);
+/** @brief 将 lvTrustColor（协议层）映射为 TrustColor（layer3） */
+lv_API TrustColor lv_protocol_to_trust_color(lvTrustColor lv);
 
 /* ================================================================
  * 三、内核→UI：DisplayData

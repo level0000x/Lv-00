@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof.c
  * @brief 证明系统实现 —— 命题管理与证明工作流
  *
@@ -46,6 +46,8 @@
 
 #include "lv/proof.h"
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

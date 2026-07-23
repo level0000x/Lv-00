@@ -31,6 +31,7 @@
 #include "lv/engine.h"
 
 #include <assert.h>
+#include <inttypes.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -42,6 +43,7 @@
 #include "lv_utils.h"
 #include "lv/stream.h"
 #include "lv/bit_burning.h"
+#include "lv/trust_color.h"
 #include "node_deep_copy.h"
 #include "stream_context_util.h"
 
@@ -920,6 +922,29 @@ EngineSolveResult engine_solve(lvEngine *engine) {
             return solver_result;
         }
         engine_emit_stream_event(engine, STREAM_EVENT_SOLVE_DONE, "代数求解完成", 2, -1, -1);
+
+        /* 步骤2b：位数熔断自动检测
+         * 求解过程中可能触发位数熔断（bit_burning_check_result 在
+         * symbolic_coord_ops 的算术运算中自动检查）。如果连续触发次数
+         * 达到阈值，自动执行永久降级。 */
+        {
+            BitBurningState *bb_state = bit_burning_get_global_state();
+            if (bb_state && bb_state->tripped) {
+                if (bb_state->consecutive_trips >= MAX_CONSECUTIVE_TRIPS) {
+                    engine_emit_stream_event(engine, STREAM_EVENT_WARNING,
+                        "位数熔断: 连续触发达到阈值，自动降级为数值假设", 2, -1, -1);
+                    /* 标记引擎状态，信任颜色传播会在步骤5中处理 */
+                    snprintf(engine->last_error, sizeof(engine->last_error),
+                             "位数熔断: 求解器产生 %d 次位数溢出（最大位数 %" PRIu64 "），已自动降级",
+                             bb_state->consecutive_trips, bb_state->bit_count);
+                } else {
+                    engine_emit_stream_event(engine, STREAM_EVENT_INFO,
+                        "位数熔断: 检测到位数溢出，继续求解", 2, -1, -1);
+                }
+                /* 重置 tripped 标志，避免后续操作重复检测 */
+                bb_state->tripped = false;
+            }
+        }
     }
 
     /* 步骤3：检查冲突 */
@@ -936,6 +961,43 @@ EngineSolveResult engine_solve(lvEngine *engine) {
         free_count = 0; /* 使用安全默认值 */
     }
     lv_free((void **) &free_var_ids);
+
+    /* 步骤5：信任颜色传播
+     * 遍历所有节点，将坐标级 trust 聚合到 GeomNode.trust。
+     * 节点的 trust 取所有坐标 trust 的最大值（最差信任级别）。 */
+    {
+        engine_emit_stream_event(engine, STREAM_EVENT_INFO, "开始信任颜色传播", 5, -1, -1);
+        for (int i = 0; i < engine->main_graph->node_count; i++) {
+            GeomNode *node = engine->main_graph->nodes[i];
+            if (!node)
+                continue;
+
+            TrustColor worst = TRUST_GREEN;
+            int coord_count = 0;
+
+            switch (node->type) {
+                case GEOM_POINT:
+                case GEOM_LINE_SEGMENT:
+                    coord_count = node->coord_count;
+                    break;
+                default:
+                    break;
+            }
+
+            for (int j = 0; j < coord_count; j++) {
+                if (node->symbolic_coords && node->symbolic_coords[j]) {
+                    TrustColor c = symbolic_coord_get_trust(node->symbolic_coords[j]);
+                    if ((int)c > (int)worst)
+                        worst = c;
+                }
+            }
+
+            /* 如果坐标传播后得到更差的 trust，更新节点 trust */
+            if ((int)worst > (int)node->trust) {
+                node->trust = worst;
+            }
+        }
+    }
 
     /* 流式事件: 引擎完成 */
     {
@@ -1100,6 +1162,24 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
             remaining_solve = 0;
 
             engine_emit_stream_event(engine, STREAM_EVENT_SOLVE_DONE, "代数求解完成，返回重写阶段", iteration, -1, -1);
+
+            /* 位数熔断自动检测（同 engine_solve 步骤2b） */
+            {
+                BitBurningState *bb_state = bit_burning_get_global_state();
+                if (bb_state && bb_state->tripped) {
+                    if (bb_state->consecutive_trips >= MAX_CONSECUTIVE_TRIPS) {
+                        engine_emit_stream_event(engine, STREAM_EVENT_WARNING,
+                            "位数熔断: 连续触发达到阈值，自动降级", iteration, -1, -1);
+                        snprintf(engine->last_error, sizeof(engine->last_error),
+                                 "位数熔断: 求解器产生 %d 次位数溢出（最大位数 %" PRIu64 "），已自动降级",
+                                 bb_state->consecutive_trips, bb_state->bit_count);
+                    } else {
+                        engine_emit_stream_event(engine, STREAM_EVENT_INFO,
+                            "位数熔断: 检测到位数溢出，继续求解", iteration, -1, -1);
+                    }
+                    bb_state->tripped = false;
+                }
+            }
 
             /* 求解器有进展，返回重写阶段 */
             remaining_rewrite = max_rewrite_steps;

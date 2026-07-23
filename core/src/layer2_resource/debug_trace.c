@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file debug_trace.c
  * @brief 调试追踪实现
  *
@@ -45,15 +45,16 @@ static DebugTraceState g_trace_state = {0};
  * 追踪会话 API
  * ======================================================================== */
 
+/** @brief 创建追踪会话 */
 TraceSession *trace_session_create(void)
 {
-    TraceSession *session = (TraceSession *)calloc(1, sizeof(TraceSession));
+    TraceSession *session = (TraceSession *)lv_calloc(1, sizeof(TraceSession));
     if (session == NULL) return NULL;
 
     session->capacity = INITIAL_EVENT_CAPACITY;
-    session->events = (TraceEvent *)calloc((size_t)session->capacity, sizeof(TraceEvent));
+    session->events = (TraceEvent *)lv_calloc((size_t)session->capacity, sizeof(TraceEvent));
     if (session->events == NULL) {
-        free(session);
+        lv_free((void **)&session);
         return NULL;
     }
 
@@ -62,18 +63,20 @@ TraceSession *trace_session_create(void)
     return session;
 }
 
+/** @brief 销毁追踪会话，释放所有关联资源 */
 void trace_session_destroy(TraceSession *session)
 {
     if (session == NULL) return;
 
     for (int i = 0; i < session->event_count; i++) {
-        free(session->events[i].description);
-        free(session->events[i].details);
+        lv_free((void **)&session->events[i].description);
+        lv_free((void **)&session->events[i].details);
     }
-    free(session->events);
-    free(session);
+    lv_free((void **)&session->events);
+    lv_free((void **)&session);
 }
 
+/** @brief 向追踪会话中记录一个事件 */
 void trace_record_event(TraceSession *session, TraceEventType type,
                          int step, const char *description, const char *details)
 {
@@ -93,14 +96,15 @@ void trace_record_event(TraceSession *session, TraceEventType type,
     evt->type = type;
     evt->step_number = step;
     evt->timestamp = (double)clock() / CLOCKS_PER_SEC;
-    evt->description = (description != NULL) ? strdup(description) : NULL;
-    evt->details = (details != NULL) ? strdup(details) : NULL;
+    evt->description = (description != NULL) ? lv_strdup_safe(description) : NULL;
+    evt->details = (details != NULL) ? lv_strdup_safe(details) : NULL;
 }
 
 /* ========================================================================
  * 断点管理
  * ======================================================================== */
 
+/** @brief 添加一个调试断点 */
 int debug_trace_add_breakpoint(TraceEventType type, int step_number)
 {
     DebugTraceState *state = &g_trace_state;
@@ -114,6 +118,7 @@ int debug_trace_add_breakpoint(TraceEventType type, int step_number)
     return state->breakpoint_count - 1;
 }
 
+/** @brief 移除指定索引的断点 */
 void debug_trace_remove_breakpoint(int index)
 {
     DebugTraceState *state = &g_trace_state;
@@ -126,6 +131,7 @@ void debug_trace_remove_breakpoint(int index)
     state->breakpoint_count--;
 }
 
+/** @brief 检查是否命中断点 */
 int debug_trace_check_breakpoint(TraceEventType type, int step)
 {
     DebugTraceState *state = &g_trace_state;
@@ -145,13 +151,14 @@ int debug_trace_check_breakpoint(TraceEventType type, int step)
  * 导出
  * ======================================================================== */
 
+/** @brief 将追踪会话导出为 JSON 字符串 */
 char *trace_session_export_json(const TraceSession *session)
 {
     if (session == NULL) return NULL;
 
     /* 估算缓冲区大小 */
     size_t buf_size = (size_t)(session->event_count * 256) + 256;
-    char *buf = (char *)malloc(buf_size);
+    char *buf = (char *)lv_malloc(buf_size);
     if (buf == NULL) return NULL;
 
     int offset = 0;
@@ -178,6 +185,7 @@ char *trace_session_export_json(const TraceSession *session)
     return buf;
 }
 
+/** @brief 获取全局调试追踪会话 */
 TraceSession *debug_get_trace_session(void)
 {
     return &g_trace_state.session;

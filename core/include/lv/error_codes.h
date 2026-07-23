@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file error_codes.h
  * @brief Lv-00 统一错误码系统
  *
@@ -354,7 +354,7 @@ typedef struct {
  * @brief 创建成功的 lvResult
  * @param val 返回值
  */
-#define lv_OK(val) ((lvResult){ .code = lv_OK, .value = (val) })
+#define lv_RESULT_OK(val) ((lvResult){ .code = lv_OK, .value = (val) })
 
 /**
  * @brief 创建失败的 lvResult

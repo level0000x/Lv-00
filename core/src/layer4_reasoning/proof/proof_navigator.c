@@ -23,6 +23,7 @@
 #include "lv/engine.h"
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
+#include "lv/trust_color.h"
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -85,6 +86,45 @@ ProofColor proof_navigator_compute_final_color(ProofNavigator *nav) {
         } else if (step->color >= PROOF_COLOR_BLUE_UNEXPLORED && step->color <= PROOF_COLOR_BLUE_OUT_OF_RANGE &&
                    final_color == PROOF_COLOR_GREEN) {
             final_color = step->color;
+        }
+    }
+
+    nav->final_color = final_color;
+
+    /* 从约束图节点信任颜色整合 */
+    if (nav->construction) {
+        ProofColor graph_color = PROOF_COLOR_GREEN;
+        for (int i = 0; i < nav->construction->node_count; i++) {
+            GeomNode *node = nav->construction->nodes[i];
+            if (!node)
+                continue;
+            /* 将 GeomNode.trust (TrustColor) 转换为 ProofColor 后合并 */
+            ProofColor node_color = trust_color_to_proof(node->trust);
+            if (node_color != PROOF_COLOR_GREEN) {
+                if (graph_color == PROOF_COLOR_GREEN) {
+                    graph_color = node_color;
+                } else {
+                    /* 多颜色叠加 */
+                    bool is_lo = (node_color == PROOF_COLOR_ORANGE_ORACLE ||
+                                  node_color == PROOF_COLOR_ORANGE_EX_FALSO);
+                    bool is_graph_lo = (graph_color == PROOF_COLOR_ORANGE_ORACLE ||
+                                        graph_color == PROOF_COLOR_ORANGE_EX_FALSO);
+                    if ((is_lo && graph_color == PROOF_COLOR_AMBER) ||
+                        (is_graph_lo && node_color == PROOF_COLOR_AMBER)) {
+                        graph_color = PROOF_COLOR_DARK_ORANGE;
+                    } else if ((int)node_color > (int)graph_color) {
+                        graph_color = node_color;
+                    }
+                }
+            }
+        }
+        /* 整合图的信任颜色到最终颜色 */
+        if (graph_color != PROOF_COLOR_GREEN) {
+            if (final_color == PROOF_COLOR_GREEN) {
+                final_color = graph_color;
+            } else {
+                final_color = proof_color_combine(final_color, graph_color);
+            }
         }
     }
 
@@ -1670,8 +1710,34 @@ const char *html_escape(const char *s) {
 }
 
 const char *proof_color_to_string(ProofColor color) {
-    (void)color;
-    return "Unknown";
+    switch (color) {
+        case PROOF_COLOR_GREEN:
+            return "Green";
+        case PROOF_COLOR_BLUE_UNEXPLORED:
+            return "Blue (unexplored)";
+        case PROOF_COLOR_BLUE_RESOURCE:
+            return "Blue (resource)";
+        case PROOF_COLOR_BLUE_OUT_OF_RANGE:
+            return "Blue (out of range)";
+        case PROOF_COLOR_GREEN_VERIFIED:
+            return "Green (verified)";
+        case PROOF_COLOR_YELLOW:
+            return "Yellow";
+        case PROOF_COLOR_ORANGE_ORACLE:
+            return "Orange (oracle)";
+        case PROOF_COLOR_ORANGE_EX_FALSO:
+            return "Orange (ex falso)";
+        case PROOF_COLOR_AMBER:
+            return "Amber";
+        case PROOF_COLOR_DARK_ORANGE:
+            return "Dark orange";
+        case PROOF_COLOR_GREEN_COMPLETE:
+            return "Green (complete)";
+        case PROOF_COLOR_RED_CONFLICT:
+            return "Red (conflict)";
+        default:
+            return "Unknown";
+    }
 }
 
 const char *proposition_type_to_string(PropositionType type) {

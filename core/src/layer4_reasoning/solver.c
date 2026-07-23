@@ -332,9 +332,11 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                                                              dirty_count, &ordered_count);
 
             if (ordered_ids && ordered_count > 0) {
-                /* 按拓扑排序重排方程系统中的方程顺序。
-                 * 将被依赖变量的方程排在前面，确保优先求解。 */
-                /* 构建排序映射: var_id -> priority (越小越优先) */
+                /*
+                 * 构建优先级映射：为每个方程查找其变量在拓扑排序中的位置。
+                 * priority[i] = 方程 i 的变量在 topological order 中的索引
+                 *              （越小越优先求解），未找到则为 INT_MAX。
+                 */
                 int *priority = lv_calloc((size_t) sys.count, sizeof(int));
                 if (!priority) {
                     lv_free((void **) &ordered_ids);
@@ -342,51 +344,36 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                     equation_system_clear(&sys);
                     *out_result = result;
                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解错误: 内存分配失败", 0);
-                    /* 求解失败，回滚所有坐标修改 */
                     solver_snapshot_restore(graph, &snapshot);
                     solver_snapshot_free(&snapshot);
                     return SOLVER_STATUS_OUT_OF_MEMORY;
                 }
-                for (int i = 0; i < sys.count; i++)
+                for (int i = 0; i < sys.count; i++) {
                     priority[i] = INT_MAX;
-
-                for (int i = 0; i < ordered_count; i++) {
-                    for (int j = 0; j < all_var_count; j++) {
-                        if (all_var_ids[j] == ordered_ids[i]) {
-                            /* 将 priority 存储在临时数组中 */
+                    int vid = sys.eqs[i].var_node_id;
+                    for (int k = 0; k < ordered_count; k++) {
+                        if (ordered_ids[k] == vid) {
+                            priority[i] = k;
                             break;
                         }
                     }
                 }
 
-                /* 使用简单的选择排序重排方程 (方程数量通常不大) */
+                /* 选择排序：按 priority 升序重排方程 */
                 for (int i = 0; i < sys.count - 1; i++) {
                     int best = i;
-                    int best_pri = INT_MAX;
-                    for (int k = 0; k < ordered_count; k++) {
-                        if (sys.eqs[i].var_node_id == ordered_ids[k]) {
-                            best_pri = k;
-                            break;
-                        }
-                    }
                     for (int j = i + 1; j < sys.count; j++) {
-                        int pri = INT_MAX;
-                        for (int k = 0; k < ordered_count; k++) {
-                            if (sys.eqs[j].var_node_id == ordered_ids[k]) {
-                                pri = k;
-                                break;
-                            }
-                        }
-                        if (pri < best_pri) {
-                            best_pri = pri;
+                        if (priority[j] < priority[best]) {
                             best = j;
                         }
                     }
                     if (best != i) {
-                        /* 交换方程 i 和 best */
                         PolyEquation tmp = sys.eqs[i];
                         sys.eqs[i] = sys.eqs[best];
                         sys.eqs[best] = tmp;
+                        int tmp_pri = priority[i];
+                        priority[i] = priority[best];
+                        priority[best] = tmp_pri;
                     }
                 }
 
