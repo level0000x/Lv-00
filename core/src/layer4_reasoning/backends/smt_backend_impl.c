@@ -973,6 +973,14 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
     }
 
     /* 建立节点 ID -> 变量索引的映射表 */
+    if (max_node_id == INT_MAX) {
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY,
+                       "Groebner 后端初始化失败：节点 ID 溢出");
+        for (int i = 0; i < var_count; i++) lv_free((void **)&var_names[i]);
+        lv_free((void **)&var_names);
+        groebner_backend_cleanup(solver);
+        return -1;
+    }
     int map_size = max_node_id + 1;
     int *node_var_map = (int *)lv_calloc((size_t)map_size, sizeof(int));
     if (!node_var_map) {
@@ -1094,6 +1102,222 @@ static void groebner_backend_cleanup(SMTSolver *solver) {
     solver->groebner_var_count = 0;
 }
 
+/* ================================================================
+ *  辅助函数——多项式构造（用于手动编码回退路径）
+ * ================================================================ */
+
+/**
+ * @brief 获取多项式环的变量数量
+ */
+static int _get_ring_var_count(lvRingRegistry *registry, int ring_id) {
+    lvPolynomialRing *ring = ring_find(registry, ring_id);
+    if (!ring) return -1;
+    return ring->var_count;
+}
+
+/**
+ * @brief 向已存在的多项式中添加一个单项式项
+ *
+ * 多项式必须预先通过 poly_create 创建且有足够的容量（预分配 ≥8）。
+ * 直接操作多项式内部数据结构——poly_get 返回的 const 指针可安全转换，
+ * 因为该多项式是由 poly_create 以非 const 方式创建的。
+ *
+ * @param registry    环注册表
+ * @param poly_id     多项式 ID
+ * @param coeff       系数（double）
+ * @param exponents   指数数组（长度为 var_count，调用者负责管理该数组的生命周期）
+ * @param var_count   变量个数
+ * @return 0 成功，-1 失败（多项式不存在或容量不足）
+ */
+static int _poly_add_term(lvRingRegistry *registry, int poly_id,
+                           double coeff, const int *exponents, int var_count) {
+    const lvPolynomial *cp = poly_get(registry, poly_id);
+    if (!cp) return -1;
+
+    lvPolynomial *p = (lvPolynomial *)cp;
+    if (p->term_count >= p->term_capacity) return -1;
+
+    int ti = p->term_count;
+    for (int j = 0; j < var_count; j++) {
+        p->powers[ti * var_count + j] = exponents[j];
+    }
+    ((double *)p->coeffs)[ti] = coeff;
+    p->term_count = ti + 1;
+
+    /* 更新总次数 */
+    int deg = 0;
+    for (int j = 0; j < var_count; j++) deg += exponents[j];
+    if (deg > p->total_degree) p->total_degree = deg;
+
+    return 0;
+}
+
+/**
+ * @brief 从约束图中查找线段的两个端点节点 ID
+ *
+ * 遍历所有 INCIDENCE 约束（[point_id, line_id]），收集与目标线段
+ * 关联的点节点，返回前两个作为候选端点。
+ *
+ * @param graph         约束图
+ * @param line_id       线段节点 ID
+ * @param out_endpoints 输出缓冲区（至少 2 个元素）
+ * @return 找到的端点数量（0, 1, 或 2）
+ */
+static int _find_line_endpoints(const ConstraintGraph *graph, int line_id,
+                                 int out_endpoints[2]) {
+    out_endpoints[0] = -1;
+    out_endpoints[1] = -1;
+    int found = 0;
+
+    for (int ci = 0; ci < graph->constraint_count && found < 2; ci++) {
+        Constraint *c = graph->constraints[ci];
+        if (!c || !c->is_active) continue;
+        if (c->type != INCIDENCE || c->participant_count < 2) continue;
+
+        int candidate = -1;
+        /* INCIDENCE 通常是 [point_id, line_id] 顺序 */
+        if (c->participants[1] == line_id) {
+            candidate = c->participants[0];
+        } else if (c->participants[0] == line_id) {
+            candidate = c->participants[1];
+        }
+        if (candidate < 0) continue;
+
+        /* 去重 */
+        bool dup = false;
+        for (int i = 0; i < found; i++) {
+            if (out_endpoints[i] == candidate) { dup = true; break; }
+        }
+        if (!dup) {
+            GeomNode *n = graph_get_node(graph, candidate);
+            if (n && n->type == GEOM_POINT) {
+                out_endpoints[found++] = candidate;
+            }
+        }
+    }
+    return found;
+}
+
+/**
+ * @brief 构造共线叉积多项式的完全展开形式
+ *
+ * 几何语义：三点 A, B, C 共线  ⇔  (Bx-Ax)*(Cy-Ay) - (By-Ay)*(Cx-Ax) = 0
+ *
+ * 展开后消去同类项得到 6 项双线性形式：
+ *   Bx·Cy - Bx·Ay - Ax·Cy - By·Cx + By·Ax + Ay·Cx
+ *
+ * 其中 points[0]=A, points[1]=B, points[2]=C。
+ *
+ * @param registry  环注册表
+ * @param ring_id   环 ID
+ * @param var_map   节点 ID → 变量索引映射（来自 solver->groebner_node_var_map）
+ * @param points    三个点节点 ID 数组 [A, B, C]
+ * @param var_count 环的变量总数
+ * @param label     多项式标签
+ * @return 多项式 ID（≥0），失败返回 -1
+ */
+static int _poly_create_collinear(lvRingRegistry *registry, int ring_id,
+                                   const int *var_map,
+                                   const int points[3], int var_count,
+                                   const char *label) {
+    /* 叉积展开为 6 项，预分配 8 确保安全 */
+    int pid = poly_create(registry, ring_id, 8, label);
+    if (pid < 0) return -1;
+
+    int ax = var_map[points[0]];
+    int ay = var_map[points[0]] + 1;
+    int bx = var_map[points[1]];
+    int by = var_map[points[1]] + 1;
+    int cx = var_map[points[2]];
+    int cy = var_map[points[2]] + 1;
+
+    if (ax < 0 || ay < 0 || bx < 0 || by < 0 || cx < 0 || cy < 0) {
+        poly_destroy(registry, pid);
+        return -1;
+    }
+
+    int *exp = (int *)lv_calloc((size_t)var_count, sizeof(int));
+    if (!exp) { poly_destroy(registry, pid); return -1; }
+
+    /* Term 0: +1.0 * Bx * Cy */
+    exp[bx] = 1; exp[cy] = 1;
+    _poly_add_term(registry, pid, 1.0, exp, var_count);
+    exp[bx] = 0; exp[cy] = 0;
+
+    /* Term 1: -1.0 * Bx * Ay */
+    exp[bx] = 1; exp[ay] = 1;
+    _poly_add_term(registry, pid, -1.0, exp, var_count);
+    exp[bx] = 0; exp[ay] = 0;
+
+    /* Term 2: -1.0 * Ax * Cy */
+    exp[ax] = 1; exp[cy] = 1;
+    _poly_add_term(registry, pid, -1.0, exp, var_count);
+    exp[ax] = 0; exp[cy] = 0;
+
+    /* Term 3: -1.0 * By * Cx */
+    exp[by] = 1; exp[cx] = 1;
+    _poly_add_term(registry, pid, -1.0, exp, var_count);
+    exp[by] = 0; exp[cx] = 0;
+
+    /* Term 4: +1.0 * By * Ax */
+    exp[by] = 1; exp[ax] = 1;
+    _poly_add_term(registry, pid, 1.0, exp, var_count);
+    exp[by] = 0; exp[ax] = 0;
+
+    /* Term 5: +1.0 * Ay * Cx */
+    exp[ay] = 1; exp[cx] = 1;
+    _poly_add_term(registry, pid, 1.0, exp, var_count);
+    exp[ay] = 0; exp[cx] = 0;
+
+    lv_free((void **)&exp);
+    return pid;
+}
+
+/**
+ * @brief 构造坐标差多项式：var_x(node_a) - var_x(node_b) = 0
+ *
+ * 用于 CONNECTION 约束：两个节点的 x（或 y）坐标相等。
+ * 生成的多项式为：coeff_x_a * x_a + coeff_x_b * x_b。
+ *
+ * @param registry  环注册表
+ * @param ring_id   环 ID
+ * @param var_map   节点 ID → 变量索引映射
+ * @param node_a    节点 A ID
+ * @param node_b    节点 B ID
+ * @param is_y      0=x坐标差，1=y坐标差
+ * @param var_count 变量总数
+ * @param label     多项式标签
+ * @return 多项式 ID（≥0），失败返回 -1
+ */
+static int _poly_create_coord_diff(lvRingRegistry *registry, int ring_id,
+                                    const int *var_map,
+                                    int node_a, int node_b,
+                                    int is_y, int var_count,
+                                    const char *label) {
+    int idx_a = var_map[node_a] + is_y;
+    int idx_b = var_map[node_b] + is_y;
+    if (idx_a < 0 || idx_b < 0) return -1;
+
+    int pid = poly_create(registry, ring_id, 2, label);
+    if (pid < 0) return -1;
+
+    int *exp = (int *)lv_calloc((size_t)var_count, sizeof(int));
+    if (!exp) { poly_destroy(registry, pid); return -1; }
+
+    /* Term 0: +1.0 * var_a */
+    exp[idx_a] = 1;
+    _poly_add_term(registry, pid, 1.0, exp, var_count);
+    exp[idx_a] = 0;
+
+    /* Term 1: -1.0 * var_b */
+    exp[idx_b] = 1;
+    _poly_add_term(registry, pid, -1.0, exp, var_count);
+    exp[idx_b] = 0;
+
+    lv_free((void **)&exp);
+    return pid;
+}
+
 /**
  * @brief Groebner 后端：将约束图转换为多项式理想并求解
  *
@@ -1123,10 +1347,6 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
     int ring_id = solver->groebner_ring_id;
     int ideal_id = solver->groebner_ideal_id;
 
-    /* var_map 和 map_size 在手动编码回退路径中使用 */
-    lv_UNUSED(solver->groebner_node_var_map);
-    lv_UNUSED(solver->groebner_node_var_map_size);
-
     /* ---- 步骤 2：将约束转换为多项式生成元 ---- */
 
     /*
@@ -1147,6 +1367,17 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
 
         lv_LOG_WARNING("constraint_graph_to_ideal 失败，回退到手动约束编码");
 
+        /* 获取环信息与变量映射 */
+        int vc = _get_ring_var_count(registry, ring_id);
+        if (vc < 0) {
+            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED,
+                                "无法获取多项式环的变量数量");
+            return SMT_RESULT_ERROR;
+        }
+        int *var_map = solver->groebner_node_var_map;
+        int map_size = solver->groebner_node_var_map_size;
+        lv_UNUSED(map_size);
+
         /* 手动编码：遍历约束，为每个约束创建多项式 */
         for (int ci = 0; ci < graph->constraint_count; ci++) {
             Constraint *c = graph->constraints[ci];
@@ -1154,69 +1385,227 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
 
             switch (c->type) {
             case INCIDENCE: {
-                /* 关联约束：叉积方程 (P-A) x (B-A) = 0
-                 * 创建多项式：(Px-Ax)*(By-Ay) - (Py-Ay)*(Bx-Ax) */
+                /*
+                 * 关联约束：点 P 在线段 AB 上
+                 *  参与者: [point_id, line_id]
+                 *  多项式: (Px-Ax)*(By-Ay) - (Py-Ay)*(Bx-Ax) = 0
+                 *
+                 *  展开为 6 项（叉积消去同类型后的化简形式）：
+                 *    +1*Px*By -1*Px*Ay -1*Ax*By -1*Py*Bx +1*Py*Ax +1*Ay*Bx
+                 */
                 if (c->participant_count >= 2) {
-                    /* 创建一个多项式作为占位生成元
-                     * （实际应用中需要完整的符号多项式构造，
-                     *   通过 poly_add/poly_multiply 构建叉积方程） */
-                    int poly_id = poly_create(registry, ring_id, 4,
-                                              "incidence_constraint");
-                    if (poly_id >= 0) {
-                        ideal_add_generator(registry, ideal_id, poly_id);
+                    int pt_id = c->participants[0];
+                    int seg_id = c->participants[1];
+
+                    int p_var = (pt_id >= 0 && pt_id < map_size) ? var_map[pt_id] : -1;
+                    if (p_var < 0) break;
+
+                    /* 查找线段端点 */
+                    int endpoints[2] = {-1, -1};
+                    int n_endpoints = _find_line_endpoints(graph, seg_id, endpoints);
+
+                    if (n_endpoints >= 2) {
+                        /* 三点共线：P, A(endpoint[0]), B(endpoint[1]) */
+                        int pts[3] = {endpoints[0], pt_id, endpoints[1]};
+                        int poly_id = _poly_create_collinear(registry, ring_id,
+                                                              var_map, pts, vc,
+                                                              "incidence_constraint");
+                        if (poly_id >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_id);
+                        } else {
+                            lv_LOG_WARNING("INCIDENCE: 无法构造叉积多项式 (c=%d)", c->id);
+                        }
+                    } else {
+                        lv_LOG_WARNING("INCIDENCE: 无法确定线段端点 (seg=%d, found=%d)",
+                                       seg_id, n_endpoints);
+                        /* 回退：创建空多项式占位 */
+                        int poly_id = poly_create(registry, ring_id, 2,
+                                                  "incidence_placeholder");
+                        if (poly_id >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_id);
+                        }
                     }
                 }
                 break;
             }
             case BETWEENNESS: {
-                /* 之间约束：共线叉积方程 */
+                /*
+                 * 之间约束：点 B 在点 A 和点 C 之间（共线有序）
+                 *  参与者: [A_id, B_id, C_id]
+                 *  多项式: (Bx-Ax)*(Cy-Ay) - (By-Ay)*(Cx-Ax) = 0
+                 *
+                 *  展开为 6 项：
+                 *    +1*Bx*Cy -1*Bx*Ay -1*Ax*Cy -1*By*Cx +1*By*Ax +1*Ay*Cx
+                 */
                 if (c->participant_count >= 3) {
-                    int poly_id = poly_create(registry, ring_id, 4,
-                                              "betweenness_constraint");
-                    if (poly_id >= 0) {
-                        ideal_add_generator(registry, ideal_id, poly_id);
+                    int pts[3] = {c->participants[0], c->participants[1], c->participants[2]};
+                    /* 验证三个节点都是点类型且有变量映射 */
+                    bool valid = true;
+                    for (int k = 0; k < 3; k++) {
+                        if (pts[k] < 0 || pts[k] >= map_size ||
+                            var_map[pts[k]] < 0) {
+                            valid = false;
+                            break;
+                        }
+                    }
+                    if (valid) {
+                        int poly_id = _poly_create_collinear(registry, ring_id,
+                                                              var_map, pts, vc,
+                                                              "betweenness_constraint");
+                        if (poly_id >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_id);
+                        } else {
+                            lv_LOG_WARNING("BETWEENNESS: 无法构造叉积多项式 (c=%d)", c->id);
+                        }
                     }
                 }
                 break;
             }
             case INTERSECTION: {
-                /* 相交约束：联立方程 */
+                /*
+                 * 相交约束：两线交于一点
+                 *  参与者: [line1_id, line2_id, point_id]
+                 *  两个联立多项式（分别对两条线应用叉积方程）
+                 */
                 if (c->participant_count >= 3) {
-                    int poly_id = poly_create(registry, ring_id, 4,
-                                              "intersection_constraint");
-                    if (poly_id >= 0) {
-                        ideal_add_generator(registry, ideal_id, poly_id);
+                    int line1_id = c->participants[0];
+                    int line2_id = c->participants[1];
+                    int pt_id    = c->participants[2];
+
+                    int p_var = (pt_id >= 0 && pt_id < map_size) ? var_map[pt_id] : -1;
+                    if (p_var < 0) break;
+
+                    /* 分别查找两条线的端点 */
+                    int ep1[2] = {-1, -1}, ep2[2] = {-1, -1};
+                    int n1 = _find_line_endpoints(graph, line1_id, ep1);
+                    int n2 = _find_line_endpoints(graph, line2_id, ep2);
+
+                    if (n1 >= 2) {
+                        int pts1[3] = {ep1[0], pt_id, ep1[1]};
+                        int poly_id = _poly_create_collinear(registry, ring_id,
+                                                              var_map, pts1, vc,
+                                                              "intersection_line1");
+                        if (poly_id >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_id);
+                        }
+                    }
+                    if (n2 >= 2) {
+                        int pts2[3] = {ep2[0], pt_id, ep2[1]};
+                        int poly_id = _poly_create_collinear(registry, ring_id,
+                                                              var_map, pts2, vc,
+                                                              "intersection_line2");
+                        if (poly_id >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_id);
+                        }
+                    }
+                    if (n1 < 2 && n2 < 2) {
+                        lv_LOG_WARNING("INTERSECTION: 无法确定两条线的端点 (c=%d)", c->id);
+                        int poly_id = poly_create(registry, ring_id, 2,
+                                                  "intersection_placeholder");
+                        if (poly_id >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_id);
+                        }
                     }
                 }
                 break;
             }
             case CONNECTION: {
-                /* 连接约束：坐标等价（src_x = dst_x, src_y = dst_y） */
+                /*
+                 * 连接约束：坐标等价（src_x = dst_x, src_y = dst_y）
+                 *  参与者: [src_id, dst_id]
+                 *  两个多项式：src_x - dst_x = 0, src_y - dst_y = 0
+                 */
                 if (c->participant_count >= 2) {
+                    int src_id = c->participants[0];
+                    int dst_id = c->participants[1];
 
-                    /* x 坐标差 = 0 */
-                    int poly_x = poly_create(registry, ring_id, 2,
-                                             "connection_x_eq");
-                    if (poly_x >= 0) {
-                        ideal_add_generator(registry, ideal_id, poly_x);
-                    }
+                    int src_var = (src_id >= 0 && src_id < map_size) ? var_map[src_id] : -1;
+                    int dst_var = (dst_id >= 0 && dst_id < map_size) ? var_map[dst_id] : -1;
 
-                    /* y 坐标差 = 0 */
-                    int poly_y = poly_create(registry, ring_id, 2,
-                                             "connection_y_eq");
-                    if (poly_y >= 0) {
-                        ideal_add_generator(registry, ideal_id, poly_y);
+                    if (src_var >= 0 && dst_var >= 0) {
+                        /* 两个节点都是点类型 → 差多项式 */
+                        int poly_x = _poly_create_coord_diff(
+                            registry, ring_id, var_map,
+                            src_id, dst_id, 0, vc, "connection_x_eq");
+                        if (poly_x >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_x);
+                        }
+                        int poly_y = _poly_create_coord_diff(
+                            registry, ring_id, var_map,
+                            src_id, dst_id, 1, vc, "connection_y_eq");
+                        if (poly_y >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_y);
+                        }
+                    } else {
+                        /* 回退：创建空多项式占位 */
+                        int poly_x = poly_create(registry, ring_id, 2,
+                                                 "connection_x_placeholder");
+                        if (poly_x >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_x);
+                        }
+                        int poly_y = poly_create(registry, ring_id, 2,
+                                                 "connection_y_placeholder");
+                        if (poly_y >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_y);
+                        }
                     }
                 }
                 break;
             }
             case CONTAINMENT: {
-                /* 包含约束：距离约束 */
+                /*
+                 * 包含约束：点在区域内
+                 *  参与者: [inner_id, outer_id]
+                 *  区域由多条边界线段围成，每个边界段对应一个
+                 *  定向不等式方程。这里构造边界上关联的多项式。
+                 *
+                 *  编码：对区域边界上的每条线段，构造点与线段的
+                 *  叉积方程（与 INCIDENCE 相同的共线条件）。
+                 */
                 if (c->participant_count >= 2) {
-                    int poly_id = poly_create(registry, ring_id, 4,
-                                              "containment_constraint");
-                    if (poly_id >= 0) {
-                        ideal_add_generator(registry, ideal_id, poly_id);
+                    int inner_id = c->participants[0];
+                    int outer_id = c->participants[1];
+
+                    GeomNode *inner = graph_get_node(graph, inner_id);
+                    GeomNode *outer = graph_get_node(graph, outer_id);
+
+                    bool added_any = false;
+
+                    if (inner && outer &&
+                        inner->type == GEOM_POINT &&
+                        outer->type == GEOM_REGION &&
+                        outer->data.region.segment_count > 0) {
+                        /* 对区域的每条边界线段构造共线条件 */
+                        for (int si = 0; si < outer->data.region.segment_count; si++) {
+                            GeomNode *seg = outer->data.region.boundary_segments[si];
+                            if (!seg || seg->type != GEOM_LINE_SEGMENT) continue;
+
+                            int seg_id = seg->id;
+                            int endpoints[2] = {-1, -1};
+                            int n_ep = _find_line_endpoints(graph, seg_id, endpoints);
+
+                            if (n_ep >= 2) {
+                                int pts[3] = {endpoints[0], inner_id, endpoints[1]};
+                                char label[64];
+                                snprintf(label, sizeof(label),
+                                         "containment_seg_%d", si);
+                                int poly_id = _poly_create_collinear(
+                                    registry, ring_id, var_map, pts, vc, label);
+                                if (poly_id >= 0) {
+                                    ideal_add_generator(registry, ideal_id, poly_id);
+                                    added_any = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!added_any) {
+                        /* 回退：创建空多项式占位 */
+                        int poly_id = poly_create(registry, ring_id, 2,
+                                                  "containment_placeholder");
+                        if (poly_id >= 0) {
+                            ideal_add_generator(registry, ideal_id, poly_id);
+                        }
                     }
                 }
                 break;

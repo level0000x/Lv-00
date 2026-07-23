@@ -60,13 +60,18 @@ static double evaluate_poly_at_double(const mpz_poly_t *poly, double x) {
  * @param iterations 迭代次数
  */
 void refine_algebraic_bounds(Algebraic *a, int iterations) {
-    if (a->minimal_poly.degree < 1)
+    if (a->minimal_poly.degree < 1 || iterations <= 0)
         return;
 
     for (int iter = 0; iter < iterations; iter++) {
         double mid = (a->left_bound + a->right_bound) / 2.0;
         double val_mid = evaluate_poly_at_double(&a->minimal_poly, mid);
         double val_left = evaluate_poly_at_double(&a->minimal_poly, a->left_bound);
+
+        /* 检查 NaN/Inf：如果求值结果无效，终止细化 */
+        if (!isfinite(val_mid) || !isfinite(val_left)) {
+            return;
+        }
 
         if (fabs(val_mid) < lv_EPSILON_NEWTON) {
             /* 使用相对区间宽度：根据 |mid| 缩放 epsilon，

@@ -270,13 +270,142 @@ lvMultiVector *ga_mv_negate(const lvMultiVector *mv) {
 }
 
 /* ============================================================
- * Geometric product (simplified)
+ * Geometric product (complete)
  * ============================================================ */
 
+/*
+ * Bitmask representation for basis vectors:
+ *   bit 0 = e0, bit 1 = e1, bit 2 = e2, bit 3 = e3
+ *
+ * Geometric product rules for Cl(3,0,1):
+ *   e0 * e0 = 0
+ *   e1 * e1 = e2 * e2 = e3 * e3 = 1
+ *   ei * ej = -ej * ei  (i ≠ j)
+ */
+
+/* Basis vector bitmask for each blade index (0-15) */
+static const unsigned char s_blade_bits[16] = {
+    0,   /* GA_S     (scalar)       */
+    1,   /* GA_E0    (e0)           */
+    2,   /* GA_E1    (e1)           */
+    4,   /* GA_E2    (e2)           */
+    8,   /* GA_E3    (e3)           */
+    3,   /* GA_E01   (e0∧e1)        */
+    5,   /* GA_E02   (e0∧e2)        */
+    9,   /* GA_E03   (e0∧e3)        */
+    6,   /* GA_E12   (e1∧e2)        */
+    10,  /* GA_E13   (e1∧e3)        */
+    12,  /* GA_E23   (e2∧e3)        */
+    7,   /* GA_E012  (e0∧e1∧e2)     */
+    11,  /* GA_E013  (e0∧e1∧e3)     */
+    13,  /* GA_E023  (e0∧e2∧e3)     */
+    14,  /* GA_E123  (e1∧e2∧e3)     */
+    15   /* GA_E0123 (e0∧e1∧e2∧e3)  */
+};
+
+/* Reverse: bitmask (0-15) → blade index */
+static const unsigned char s_blade_from_mask[16] = {
+    0,  /* mask 0  → GA_S     */
+    1,  /* mask 1  → GA_E0    */
+    2,  /* mask 2  → GA_E1    */
+    5,  /* mask 3  → GA_E01   */
+    3,  /* mask 4  → GA_E2    */
+    6,  /* mask 5  → GA_E02   */
+    8,  /* mask 6  → GA_E12   */
+    11, /* mask 7  → GA_E012  */
+    4,  /* mask 8  → GA_E3    */
+    7,  /* mask 9  → GA_E03   */
+    9,  /* mask 10 → GA_E13   */
+    12, /* mask 11 → GA_E013  */
+    10, /* mask 12 → GA_E23   */
+    13, /* mask 13 → GA_E023  */
+    14, /* mask 14 → GA_E123  */
+    15  /* mask 15 → GA_E0123 */
+};
+
 /**
- * @brief 多向量几何积（简化实现）
- * @details 当前仅正确处理：标量×任意、向量×向量（点积+外积）
- *          其余情况仅复制 a 的分量作为占位。
+ * @brief 计算两个基元素（basis blade）的几何积
+ * @param a_idx, b_idx  基元素索引 (0-15)
+ * @param out_blade     输出：结果 blade 索引 (0-15)，乘积为零时输出 -1
+ * @param out_sign      输出：+1.0 或 -1.0（out_blade == -1 时未定义）
+ *
+ * @details 算法：将两个 blade 的基向量展开成有序列表，连接后使用冒泡排序
+ *          重排至规范次序。排序过程中处理：
+ *          - 相等相邻向量：ei*ei → 1（e0*e0 → 0 返回零）
+ *          - 逆序相邻向量：交换并翻转符号
+ */
+static void ga_basis_geometric_product(int a_idx, int b_idx,
+                                       int *out_blade, double *out_sign) {
+    int mask_a = s_blade_bits[a_idx];
+    int mask_b = s_blade_bits[b_idx];
+
+    /* e0 同时在两个 blade 中出现 → e0² = 0，乘积为零 */
+    if ((mask_a & mask_b) & 1) {
+        *out_blade = -1;
+        *out_sign = 0.0;
+        return;
+    }
+
+    /* 收集两个 blade 的基向量（已各自有序） */
+    unsigned char vecs[8];
+    int n = 0;
+    for (int i = 0; i < 4; i++) {
+        if (mask_a & (1 << i)) vecs[n++] = (unsigned char)i;
+    }
+    for (int i = 0; i < 4; i++) {
+        if (mask_b & (1 << i)) vecs[n++] = (unsigned char)i;
+    }
+
+    double sign = 1.0;
+
+    /* 冒泡排序 + 同时检查相等收缩 */
+    for (;;) {
+        int changed = 0;
+        for (int i = 0; i < n - 1; i++) {
+            if (vecs[i] == vecs[i + 1]) {
+                /* 相等相邻 → 收缩 */
+                if (vecs[i] == 0) {
+                    /* e0 * e0 = 0 */
+                    *out_blade = -1;
+                    *out_sign = 0.0;
+                    return;
+                }
+                /* ei * ei = 1 (i=1,2,3) → 删除两个元素 */
+                for (int j = i; j < n - 2; j++) vecs[j] = vecs[j + 2];
+                n -= 2;
+                changed = 1;
+                break;
+            }
+            if (vecs[i] > vecs[i + 1]) {
+                /* 逆序 → 交换 */
+                unsigned char tmp = vecs[i];
+                vecs[i] = vecs[i + 1];
+                vecs[i + 1] = tmp;
+                sign = -sign;
+                changed = 1;
+                break;
+            }
+        }
+        if (!changed) break;
+    }
+
+    /* 将结果向量列表映射回 blade 索引 */
+    if (n == 0) {
+        *out_blade = GA_S;
+        *out_sign = sign;
+        return;
+    }
+    int result_mask = 0;
+    for (int i = 0; i < n; i++) result_mask |= (1 << vecs[i]);
+    *out_blade = (int)s_blade_from_mask[result_mask];
+    *out_sign = sign;
+}
+
+/**
+ * @brief 多向量几何积（完整实现）
+ * @details 遍历两个多向量的非零系数分量，使用基元素几何积查找表
+ *          计算所有 blade 组合的结果并累加。覆盖 Cl(3,0,1) 中所有
+ *          16×16 种基元素组合。
  * @param a, b  相乘的多向量
  * @return 新多向量（调用者负责释放），失败返回 NULL
  */
@@ -287,33 +416,20 @@ lvMultiVector *ga_mv_geometric_product(const lvMultiVector *a,
     lvMultiVector *result = ga_mv_zero();
     if (!result) return NULL;
 
-    /* Simplified: only handle common cases */
-    /* Scalar * anything */
-    if (fabs(a->c[GA_S]) > 1e-10 && ga_mv_grade(a) == 0) {
-        return ga_mv_scale(b, a->c[GA_S]);
-    }
-    if (fabs(b->c[GA_S]) > 1e-10 && ga_mv_grade(b) == 0) {
-        return ga_mv_scale(a, b->c[GA_S]);
-    }
-
-    /* Vector * Vector: a·b + a^b */
-    if (ga_mv_grade(a) == 1 && ga_mv_grade(b) == 1) {
-        /* Dot product (scalar part) */
-        result->c[GA_S] = (a->c[GA_E1] * b->c[GA_E1] +
-                           a->c[GA_E2] * b->c[GA_E2] +
-                           a->c[GA_E3] * b->c[GA_E3]);
-
-        /* Outer product (bivector part) */
-        result->c[GA_E12] = a->c[GA_E1] * b->c[GA_E2] - a->c[GA_E2] * b->c[GA_E1];
-        result->c[GA_E13] = a->c[GA_E1] * b->c[GA_E3] - a->c[GA_E3] * b->c[GA_E1];
-        result->c[GA_E23] = a->c[GA_E2] * b->c[GA_E3] - a->c[GA_E3] * b->c[GA_E2];
-
-        return result;
-    }
-
-    /* General case: copy a (placeholder) */
     for (int i = 0; i < 16; i++) {
-        result->c[i] = a->c[i];
+        double ai = a->c[i];
+        if (fabs(ai) < 1e-14) continue;
+        for (int j = 0; j < 16; j++) {
+            double bj = b->c[j];
+            if (fabs(bj) < 1e-14) continue;
+
+            int blade;
+            double sign;
+            ga_basis_geometric_product(i, j, &blade, &sign);
+            if (blade >= 0) {
+                result->c[blade] += ai * bj * sign;
+            }
+        }
     }
 
     return result;

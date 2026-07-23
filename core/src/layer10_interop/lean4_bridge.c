@@ -149,6 +149,7 @@ static int lean4_add_step(lvLean4Proof *p, int step_type,
                            const char *desc, int desc_len) {
     if (!p || step_type < 0) return -1;
     if (p->step_count >= p->step_capacity) {
+        if (p->step_capacity > INT_MAX / 2) return -1;
         int new_cap = p->step_capacity * 2;
         lvProofStep *new_steps = (lvProofStep *)lv_realloc(
             p->steps, new_cap * sizeof(lvProofStep));

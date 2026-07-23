@@ -175,6 +175,7 @@ static int extract_assignments_from_graph(const ConstraintGraph *graph,
     }
 
     /* 每个点有两个坐标 (x, y)，所以最多 point_count * 2 个赋值 */
+    if (point_count > INT_MAX / 2) return -1;
     int max_assignments = point_count * 2;
     SMTVariableAssignment *assignments = (SMTVariableAssignment *)
         lv_calloc((size_t)max_assignments, sizeof(SMTVariableAssignment));

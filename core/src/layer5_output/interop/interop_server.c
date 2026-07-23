@@ -32,10 +32,9 @@ lv_DECLARE_STREAM_CTX(interop);
  * 如果编译环境未安装Winsock2，通过条件编译跳过套接字初始化，
  * 降级为 STDIO 模式运行（详见 interop_server_run 中的 #else 分支）。
  *
- * 在非 Windows 平台（Linux/macOS）上，当前未实现 POSIX socket 支持，
- * 同样降级为 STDIO 模式。如需在 Linux/macOS 上启用 WebSocket，
- * 需添加 #elif defined(__linux__) || defined(__APPLE__) 分支，
- * 使用 <sys/socket.h> + <netinet/in.h> + <arpa/inet.h> 实现。
+ * 在 Linux/macOS 平台上，使用 POSIX socket API
+ * （<sys/socket.h> + <netinet/in.h> + <arpa/inet.h>）实现
+ * WebSocket 服务器支持，功能等级与 Windows Winsock2 实现相同。
  */
 #if defined(_WIN32) || defined(_WIN64)
 /* 尝试包含Winsock2头文件用于套接字初始化 */
@@ -45,6 +44,14 @@ lv_DECLARE_STREAM_CTX(interop);
 #else
 #define INTEROP_HAS_WINSOCK 0
 #endif
+#elif defined(__linux__) || defined(__APPLE__)
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#define INTEROP_HAS_POSIX_SOCKET 1
 #else
 #define INTEROP_HAS_WINSOCK 0
 #endif
@@ -377,11 +384,54 @@ int interop_server_start(InteropServer *server, int port) {
         server->internal_data = (void *) (intptr_t) listen_sock;
         /* WebSocket服务器已在端口上启动成功（套接字已创建并监听） */
     }
+#elif INTEROP_HAS_POSIX_SOCKET
+    if (server->type == INTEROP_INTERFACE_WEBSOCKET) {
+        /* 创建监听套接字 */
+        int listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (listen_sock < 0) {
+            lv_set_error(lv_ERROR_IO, "创建监听套接字失败（errno=%d）。", errno);
+            return lv_ERROR_IO;
+        }
+
+        /* 设置 SO_REUSEADDR 选项，允许快速重用地址 */
+        int reuse = 1;
+        if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+            int err = errno;
+            close(listen_sock);
+            lv_set_error(lv_ERROR_IO, "设置套接字选项失败（errno=%d）。", err);
+            return lv_ERROR_IO;
+        }
+
+        /* 绑定地址 */
+        struct sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = INADDR_ANY;
+        addr.sin_port = htons((uint16_t) server->port);
+
+        if (bind(listen_sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+            int err = errno;
+            close(listen_sock);
+            lv_set_error(lv_ERROR_IO, "套接字绑定失败（errno=%d）。", err);
+            return lv_ERROR_IO;
+        }
+
+        /* 开始监听 */
+        if (listen(listen_sock, SOMAXCONN) < 0) {
+            int err = errno;
+            close(listen_sock);
+            lv_set_error(lv_ERROR_IO, "套接字监听失败（errno=%d）。", err);
+            return lv_ERROR_IO;
+        }
+
+        /* 存储套接字句柄到internal_data */
+        server->internal_data = (void *) (intptr_t) listen_sock;
+    }
 #else
     if (server->type == INTEROP_INTERFACE_WEBSOCKET) {
         /* WebSocket服务器已标记为运行状态。
-           注意：当前编译环境未包含Winsock2库，无实际网络监听。
-           请安装Windows SDK以启用完整的网络功能。 */
+           注意：当前编译环境未包含Winsock2或POSIX socket库，无实际网络监听。
+           请安装Windows SDK或POSIX兼容的开发环境以启用完整的网络功能。 */
     }
 #endif
 
@@ -421,6 +471,15 @@ int interop_server_stop(InteropServer *server) {
             server->internal_data = NULL;
         }
         WSACleanup();
+    }
+#elif INTEROP_HAS_POSIX_SOCKET
+    if (server->type == INTEROP_INTERFACE_WEBSOCKET) {
+        if (server->internal_data) {
+            int sock = (int) (intptr_t) server->internal_data;
+            shutdown(sock, SHUT_RDWR);
+            close(sock);
+            server->internal_data = NULL;
+        }
     }
 #endif
 
@@ -789,11 +848,160 @@ int interop_server_run(InteropServer *server) {
         }
         lv_set_error(lv_OK, "WebSocket主循环已退出，已关闭%d个客户端连接", client_count);
 
+#elif INTEROP_HAS_POSIX_SOCKET
+        int listen_sock = (int) (intptr_t) server->internal_data;
+        if (listen_sock < 0) {
+            lv_set_error(lv_ERROR_IO,
+                           "WebSocket循环失败：监听套接字无效（listen_sock=%d）。"
+                           "请确认 interop_server_start 已成功绑定端口。",
+                           listen_sock);
+            return lv_ERROR_IO;
+        }
+
+/* 客户端管理 */
+#define WS_MAX_CLIENTS 16
+        int client_socks[WS_MAX_CLIENTS];
+        int client_count = 0;
+        for (int i = 0; i < WS_MAX_CLIENTS; i++) {
+            client_socks[i] = -1;
+        }
+
+        char input[INTEROP_CMD_BUFFER_SIZE];
+        char output[INTEROP_RESP_BUFFER_SIZE];
+
+        {
+            char msg[160];
+            snprintf(msg, sizeof(msg),
+                     "WebSocket服务器正在端口%d上监听（最大%d个并发客户端），"
+                     "同时接受STDIN命令",
+                     server->port, WS_MAX_CLIENTS);
+            lv_set_error(lv_OK, "%s", msg);
+        }
+
+        while (server->running) {
+            /* 构建 fd_set 用于 select */
+            fd_set readfds;
+            FD_ZERO(&readfds);
+
+            /* 监听套接字（接受新连接） */
+            FD_SET(listen_sock, &readfds);
+
+            /* 已连接的客户端套接字 */
+            int max_sock = listen_sock;
+            for (int i = 0; i < client_count; i++) {
+                if (client_socks[i] >= 0) {
+                    FD_SET(client_socks[i], &readfds);
+                    if (client_socks[i] > max_sock) {
+                        max_sock = client_socks[i];
+                    }
+                }
+            }
+
+            /* select 超时设置为 100ms，使循环可以及时响应停止信号 */
+            struct timeval tv;
+            tv.tv_sec = 0;
+            tv.tv_usec = 100000; /* 100ms */
+
+            int sel_ret = select(max_sock + 1, &readfds, NULL, NULL, &tv);
+            if (sel_ret < 0) {
+                int err = errno;
+                lv_set_error(lv_ERROR_IO, "WebSocket select() 出错（errno=%d），服务器退出", err);
+                break;
+            }
+
+            /* 检查是否有新连接 */
+            if (FD_ISSET(listen_sock, &readfds)) {
+                struct sockaddr_in client_addr;
+                socklen_t addr_len = sizeof(client_addr);
+                int client_sock = accept(listen_sock, (struct sockaddr *) &client_addr, &addr_len);
+                if (client_sock >= 0) {
+                    if (client_count < WS_MAX_CLIENTS) {
+                        client_socks[client_count++] = client_sock;
+                        lv_set_error(lv_OK, "WebSocket客户端已连接（套接字=%d，总计%d个客户端）",
+                                       client_sock, client_count);
+                    } else {
+                        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "WebSocket客户端连接被拒绝：已达最大客户端数%d",
+                                       WS_MAX_CLIENTS);
+                        close(client_sock);
+                    }
+                }
+            }
+
+            /* 处理客户端消息 */
+            for (int i = 0; i < client_count; i++) {
+                if (client_socks[i] < 0)
+                    continue;
+                if (!FD_ISSET(client_socks[i], &readfds))
+                    continue;
+
+                int cs = client_socks[i];
+                ssize_t recv_len = recv(cs, input, sizeof(input) - 1, 0);
+
+                if (recv_len <= 0) {
+                    /* 客户端断开连接 */
+                    int err = errno;
+                    lv_set_error(lv_OK, "WebSocket客户端断开（套接字=%d，错误码=%d）", cs,
+                                   (recv_len == 0 ? 0 : err));
+                    close(cs);
+                    client_socks[i] = -1;
+                    continue;
+                }
+
+                input[recv_len] = '\0';
+
+                /* 去除尾部换行符 */
+                size_t in_len = strlen(input);
+                while (in_len > 0 && (input[in_len - 1] == '\n' || input[in_len - 1] == '\r')) {
+                    input[in_len - 1] = '\0';
+                    in_len--;
+                }
+
+                if (in_len == 0)
+                    continue;
+
+                /* 处理命令 */
+                int result = interop_server_process_command(server, input, output, sizeof(output));
+                if (result == lv_OK || output[0] != '\0') {
+                    /* 发送响应（追加换行符） */
+                    size_t out_len = strlen(output);
+                    if (out_len + 2 < sizeof(output)) {
+                        output[out_len] = '\n';
+                        output[out_len + 1] = '\0';
+                        out_len++;
+                    }
+                    send(cs, output, out_len, 0);
+                }
+            }
+
+            /* 压缩客户端数组（移除已断开的连接） */
+            int write_idx = 0;
+            for (int i = 0; i < client_count; i++) {
+                if (client_socks[i] >= 0) {
+                    if (write_idx != i) {
+                        client_socks[write_idx] = client_socks[i];
+                    }
+                    write_idx++;
+                }
+            }
+            client_count = write_idx;
+
+            /* 同时检查 stdin 是否有输入（在WebSocket模式下也支持本地命令） */
+            /* 注意：Linux/macOS 下 select 支持 stdin 文件描述符，此处暂不启用 */
+        }
+
+        /* 清理：关闭所有客户端连接 */
+        for (int i = 0; i < client_count; i++) {
+            if (client_socks[i] >= 0) {
+                close(client_socks[i]);
+            }
+        }
+        lv_set_error(lv_OK, "WebSocket主循环已退出，已关闭%d个客户端连接", client_count);
+
 #else
-        /* 无 Winsock 支持：降级为 STDIO 输入处理 */
+        /* 无网络库支持：降级为 STDIO 输入处理 */
         lv_set_error(lv_WARNING,
-                       "警告：未检测到Winsock2库，WebSocket服务器运行在STDIO降级模式。"
-                       "请安装Windows SDK以启用完整的网络功能。");
+                       "警告：未检测到Winsock2或POSIX socket库，WebSocket服务器运行在STDIO降级模式。"
+                       "请安装Windows SDK或POSIX兼容的开发环境以启用完整的网络功能。");
 
         char input[INTEROP_CMD_BUFFER_SIZE];
         char output[INTEROP_RESP_BUFFER_SIZE];

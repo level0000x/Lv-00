@@ -150,6 +150,7 @@ int lv_proof_object_add_step(lvProofObject *obj, lvProofStepRecord *step) {
     
     /* 确保容量 */
     if (obj->step_count >= obj->step_capacity) {
+        if (obj->step_capacity > INT_MAX / 2) return -1;
         int new_capacity = obj->step_capacity * 2;
         lvProofStepRecord **new_steps = (lvProofStepRecord **)lv_realloc(
             obj->steps, new_capacity * sizeof(lvProofStepRecord *));

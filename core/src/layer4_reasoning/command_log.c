@@ -368,13 +368,15 @@ static bool execute_command(CommandEntry *entry, lvEngine *engine) {
     }
 
     case CMD_REMOVE_NODE: {
-        /* 引擎层未暴露删除 API — 通过底层图操作 */
-        /* constraint_graph.h: graph_remove_node */
-        return false; /* 占位：需要引擎封装 */
+        CmdRemoveNodeParams *p = &entry->params.remove_node;
+        RemoveNodeResult result = graph_remove_node(engine->main_graph, p->node_id);
+        return result == REMOVE_NODE_OK;
     }
 
     case CMD_REMOVE_CONSTRAINT: {
-        return false; /* 占位 */
+        CmdRemoveConstraintParams *p = &entry->params.remove_constraint;
+        RemoveConstraintResult result = graph_remove_constraint(engine->main_graph, p->constraint_index);
+        return result == REMOVE_CONSTRAINT_OK;
     }
 
     case CMD_PACK_FUNCTION: {
@@ -396,8 +398,12 @@ static bool execute_command(CommandEntry *entry, lvEngine *engine) {
     }
 
     case CMD_UNIFY: {
-        /* 合一操作需要两个图 — 当前简化 */
-        return false; /* 占位 */
+        CmdUnifyParams *p = &entry->params.unify;
+        /* construction_graph_id 和 proposition_graph_id 保留供将来多图使用，
+         * 当前引擎仅有一个主图，因此均传入 engine->main_graph */
+        UnifyStatus status = engine_unify(engine, engine->main_graph, engine->main_graph);
+        p->result = (status == UNIFY_STATUS_OK);
+        return p->result;
     }
 
     case CMD_SET_NUMERIC_ASSUMPTION: {

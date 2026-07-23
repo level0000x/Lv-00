@@ -152,6 +152,7 @@ void lv_bench_suite_destroy(lvBenchSuite *suite) {
 int lv_bench_suite_add(lvBenchSuite *suite, const lvBenchCase *case_) {
     if (!suite || !case_) return -1;
     if (suite->case_count >= suite->case_capacity) {
+        if (suite->case_capacity > INT_MAX / 2) return -1;
         int new_cap = suite->case_capacity * 2;
         void *p = lv_realloc(suite->cases, (size_t)new_cap * sizeof(lvBenchCase));
         if (!p) return -1;

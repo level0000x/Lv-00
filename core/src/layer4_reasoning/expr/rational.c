@@ -13,6 +13,7 @@
 
 #include "rational.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -635,6 +636,11 @@ bool lv_rational_to_double(const lvRational *r, double *out_lossy, int *out_loss
 
     if (den_d == 0.0) {
         /* 分母为 0（不应发生，但此处防御） */
+        return false;
+    }
+
+    /* 检查 double 转换是否产生 Inf/NaN */
+    if (!isfinite(num_d) || !isfinite(den_d)) {
         return false;
     }
 

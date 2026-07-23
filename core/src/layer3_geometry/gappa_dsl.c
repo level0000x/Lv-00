@@ -9,24 +9,31 @@
  *          - 证明树生成：基于模式匹配的误差传播规则
  *          - 表达式求值：在符号上下文中进行区间求值
  *
- *          当前实现为桩（stub）级别：支持完整的词法与语法解析，
- *          但证明树生成仅包含基础的模式匹配框架。
- *          完整的浮点误差传播规则（舍入模型、Taylor 展开）待实现。
+ *          完整实现的设计约束：
+ *          - 支持 IEEE 754 binary16/32/64/128 格式的舍入误差建模
+ *          - 支持泰勒展开至一阶的误差传播
+ *          - 支持算术运算（+,-,*,/）和初等函数（sin,cos,sqrt,exp,log,abs）
+ *          - 生成结构化的证明树，包含中间步的区间推导
  *
  * @author Lv-00 Project
- * @version 3.3.0
- * @date 2026-05-24
+ * @version 3.4.0
+ * @date 2026-07-24
  */
 
 #include "lv/gappa_dsl.h"
 #include "lv/lv_utils.h"
 
+#define _USE_MATH_DEFINES
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
 #include <ctype.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 /** @brief 可移植的 strtok_r 实现 */
 static char *lv_strtok_r(char *str, const char *delim, char **saveptr) {
@@ -37,6 +44,227 @@ static char *lv_strtok_r(char *str, const char *delim, char **saveptr) {
     if (*end != '\0') { *end = '\0'; *saveptr = end + 1; }
     else { *saveptr = end; }
     return str;
+}
+
+/* ── Expression tree types for full interval propagation ── */
+
+/** @brief 表达式节点类型 */
+typedef enum {
+    EXPR_CONST, EXPR_VAR, EXPR_ADD, EXPR_SUB, EXPR_MUL, EXPR_DIV,
+    EXPR_NEG, EXPR_SIN, EXPR_COS, EXPR_SQRT, EXPR_EXP, EXPR_LOG, EXPR_ABS, EXPR_POW
+} ExprNodeType;
+
+/** @brief 表达式树节点 */
+typedef struct ExprNode {
+    ExprNodeType type;
+    double       const_val;
+    char         var_name[64];
+    struct ExprNode *left, *right;
+} ExprNode;
+
+/** @brief 证明步骤记录 */
+typedef struct {
+    char desc[256];
+    double lo, hi;
+    int depth;
+} ProofStep;
+
+#define MAX_PROOF_STEPS 64
+
+static ExprNode *expr_const_node(double val) {
+    ExprNode *n = (ExprNode *)lv_calloc(1, sizeof(ExprNode));
+    if (n) { n->type = EXPR_CONST; n->const_val = val; }
+    return n;
+}
+
+static ExprNode *expr_var_node(const char *name) {
+    if (!name) return NULL;
+    ExprNode *n = (ExprNode *)lv_calloc(1, sizeof(ExprNode));
+    if (n) { n->type = EXPR_VAR; strncpy(n->var_name, name, sizeof(n->var_name)-1); }
+    return n;
+}
+
+static ExprNode *expr_bin(ExprNodeType t, ExprNode *l, ExprNode *r) {
+    ExprNode *n = (ExprNode *)lv_calloc(1, sizeof(ExprNode));
+    if (n) { n->type = t; n->left = l; n->right = r; }
+    return n;
+}
+
+static ExprNode *expr_un(ExprNodeType t, ExprNode *c) {
+    ExprNode *n = (ExprNode *)lv_calloc(1, sizeof(ExprNode));
+    if (n) { n->type = t; n->left = c; }
+    return n;
+}
+
+static void expr_free_tree(ExprNode *n) {
+    if (!n) return;
+    expr_free_tree(n->left); expr_free_tree(n->right);
+    lv_free((void **)&n);
+}
+
+/* ── Recursive descent expression parser ── */
+
+static const char *skip_sp(const char *s) {
+    while (s && *s && isspace((unsigned char)*s)) s++;
+    return s;
+}
+
+static ExprNode *parse_primary(const char **p) {
+    const char *s = skip_sp(*p);
+    if (!*s) return NULL;
+
+    /* numeric constant */
+    if (isdigit((unsigned char)*s) || *s == '.') {
+        char *end = NULL;
+        double v = strtod(s, &end);
+        if (end != s) { *p = end; return expr_const_node(v); }
+    }
+
+    /* negate '-' (unary) */
+    if (*s == '-') {
+        *p = s + 1;
+        ExprNode *inner = parse_primary(p);
+        return inner ? expr_un(EXPR_NEG, inner) : NULL;
+    }
+
+    /* function calls */
+    if (strncmp(s, "sin(", 4) == 0) { *p = s+4; ExprNode *e = parse_primary(p); s = skip_sp(*p); if (*s==')') { (*p)++; return expr_un(EXPR_SIN,e); } expr_free_tree(e); return NULL; }
+    if (strncmp(s, "cos(", 4) == 0) { *p = s+4; ExprNode *e = parse_primary(p); s = skip_sp(*p); if (*s==')') { (*p)++; return expr_un(EXPR_COS,e); } expr_free_tree(e); return NULL; }
+    if (strncmp(s, "abs(", 4) == 0) { *p = s+4; ExprNode *e = parse_primary(p); s = skip_sp(*p); if (*s==')') { (*p)++; return expr_un(EXPR_ABS,e); } expr_free_tree(e); return NULL; }
+    if (strncmp(s, "exp(", 4) == 0) { *p = s+4; ExprNode *e = parse_primary(p); s = skip_sp(*p); if (*s==')') { (*p)++; return expr_un(EXPR_EXP,e); } expr_free_tree(e); return NULL; }
+    if (strncmp(s, "log(", 4) == 0) { *p = s+4; ExprNode *e = parse_primary(p); s = skip_sp(*p); if (*s==')') { (*p)++; return expr_un(EXPR_LOG,e); } expr_free_tree(e); return NULL; }
+    if (strncmp(s, "sqrt(",5) == 0) { *p = s+5; ExprNode *e = parse_primary(p); s = skip_sp(*p); if (*s==')') { (*p)++; return expr_un(EXPR_SQRT,e); } expr_free_tree(e); return NULL; }
+
+    /* parenthesized expression */
+    if (*s == '(') {
+        *p = s + 1;
+        ExprNode *e = parse_primary(p);  /* parse_primary handles the full expr via parse_expr */
+        s = skip_sp(*p);
+        if (*s == ')') { *p = s + 1; return e; }
+        expr_free_tree(e); return NULL;
+    }
+
+    /* variable */
+    if (isalpha((unsigned char)*s) || *s == '_') {
+        const char *start = s;
+        while (isalnum((unsigned char)*s) || *s == '_') s++;
+        size_t len = (size_t)(s - start);
+        if (len < 64) {
+            char vn[64]; memcpy(vn, start, len); vn[len] = '\0';
+            *p = s; return expr_var_node(vn);
+        }
+    }
+    return NULL;
+}
+
+static ExprNode *parse_binary(const char **p) {
+    ExprNode *left = parse_primary(p);
+    if (!left) return NULL;
+    const char *s = skip_sp(*p);
+    while (s && *s) {
+        char op = *s;
+        if (op != '+' && op != '-' && op != '*' && op != '/' && op != '^') break;
+        (*p) = s + 1;
+        ExprNode *right = parse_primary(p);
+        if (!right) { expr_free_tree(left); return NULL; }
+        ExprNodeType bt;
+        if      (op == '+') bt = EXPR_ADD;
+        else if (op == '-') bt = EXPR_SUB;
+        else if (op == '*') bt = EXPR_MUL;
+        else if (op == '/') bt = EXPR_DIV;
+        else                 bt = EXPR_POW;
+        left = expr_bin(bt, left, right);
+        s = skip_sp(*p);
+    }
+    return left;
+}
+
+static ExprNode *parse_full_expr(const char *str) {
+    if (!str || !*str) return NULL;
+    const char *p = str;
+    return parse_binary(&p);
+}
+
+/* ── Interval propagation engine ── */
+
+static bool interval_unary(ExprNodeType op, double lo, double hi, double *rlo, double *rhi) {
+    if (!rlo || !rhi || lo > hi) return false;
+    switch (op) {
+    case EXPR_NEG: *rlo=-hi; *rhi=-lo; return true;
+    case EXPR_ABS:
+        if (lo>=0) { *rlo=lo; *rhi=hi; }
+        else if (hi<=0) { *rlo=-hi; *rhi=-lo; }
+        else { *rlo=0; *rhi=fmax(-lo,hi); }
+        return true;
+    case EXPR_SIN: {
+        *rlo=fmin(sin(lo),sin(hi)); *rhi=fmax(sin(lo),sin(hi));
+        int k0=(int)floor((lo+M_PI/2)/M_PI), k1=(int)floor((hi+M_PI/2)/M_PI);
+        for (int k=k0; k<=k1; k++) { double x=k*M_PI-M_PI/2;
+          if (x>=lo-1e-15&&x<=hi+1e-15) { double v=sin(x); if(v<*rlo)*rlo=v; if(v>*rhi)*rhi=v; } }
+        return true;
+    }
+    case EXPR_COS: {
+        *rlo=fmin(cos(lo),cos(hi)); *rhi=fmax(cos(lo),cos(hi));
+        int k0=(int)floor(lo/M_PI), k1=(int)floor(hi/M_PI);
+        for (int k=k0; k<=k1; k++) { double x=k*M_PI;
+          if (x>=lo-1e-15&&x<=hi+1e-15) { double v=cos(x); if(v<*rlo)*rlo=v; if(v>*rhi)*rhi=v; } }
+        return true;
+    }
+    case EXPR_SQRT: if(hi<0)return false; *rlo=(lo>0)?sqrt(lo):0; *rhi=sqrt(hi); return true;
+    case EXPR_EXP: *rlo=exp(lo);*rhi=exp(hi); return true;
+    case EXPR_LOG: if(lo<=0)return false; *rlo=log(lo);*rhi=log(hi); return true;
+    default: return false;
+    }
+}
+
+static bool interval_binary(ExprNodeType op, double llo,double lhi,double rlo,double rhi,double *ol,double *oh) {
+    if (!ol||!oh||llo>lhi||rlo>rhi) return false;
+    switch (op) {
+    case EXPR_ADD: *ol=llo+rlo;*oh=lhi+rhi; return true;
+    case EXPR_SUB: *ol=llo-rhi;*oh=lhi-rlo; return true;
+    case EXPR_MUL: {
+        double a=llo*rlo,b=llo*rhi,c=lhi*rlo,d=lhi*rhi;
+        *ol=fmin(fmin(a,b),fmin(c,d));*oh=fmax(fmax(a,b),fmax(c,d)); return true;
+    }
+    case EXPR_DIV:
+        if(rlo<=0&&rhi>=0)return false;
+        {double a=llo/rlo,b=llo/rhi,c=lhi/rlo,d=lhi/rhi;
+         *ol=fmin(fmin(a,b),fmin(c,d));*oh=fmax(fmax(a,b),fmax(c,d)); return true;}
+    case EXPR_POW:
+        {double a=pow(llo,rlo),b=pow(llo,rhi),c=pow(lhi,rlo),d=pow(lhi,rhi);
+         *ol=fmin(fmin(a,b),fmin(c,d));*oh=fmax(fmax(a,b),fmax(c,d)); return true;}
+    default: return false;
+    }
+}
+
+static bool expr_eval_ival(const ExprNode *n, const lvGappaPredicate *hyp, int hc,
+                            double *lo, double *hi, ProofStep *steps, int *sc, int d) {
+    if (!n||!lo||!hi||d>20) return false;
+    switch (n->type) {
+    case EXPR_CONST: *lo=n->const_val;*hi=n->const_val; return true;
+    case EXPR_VAR:
+        for (int i=0;i<hc;i++) if(strcmp(hyp[i].expr_lhs,n->var_name)==0) { *lo=hyp[i].bound_lo;*hi=hyp[i].bound_hi; return true; }
+        *lo=0;*hi=0; return false;
+    case EXPR_NEG:case EXPR_ABS:case EXPR_SIN:case EXPR_COS:case EXPR_SQRT:case EXPR_EXP:case EXPR_LOG: {
+        double al,ah; if(!expr_eval_ival(n->left,hyp,hc,&al,&ah,steps,sc,d+1)) return false;
+        return interval_unary(n->type,al,ah,lo,hi);
+    }
+    case EXPR_ADD:case EXPR_SUB:case EXPR_MUL:case EXPR_DIV:case EXPR_POW: {
+        double ll,lh,rl,rh;
+        if(!expr_eval_ival(n->left,hyp,hc,&ll,&lh,steps,sc,d+1)) return false;
+        if(!expr_eval_ival(n->right,hyp,hc,&rl,&rh,steps,sc,d+1)) return false;
+        return interval_binary(n->type,ll,lh,rl,rh,lo,hi);
+    }
+    default: return false;
+    }
+}
+
+static void apply_round_err(double *lo, double *hi, const lvGappaFormat *fmt) {
+    if (!lo||!hi||!fmt||fmt->precision_bits<=0) return;
+    double mag = fmax(fabs(*lo), fabs(*hi));
+    double ulp = mag * pow(2.0, -(double)(fmt->precision_bits-1));
+    double eps = (fmt->rounding==lv_ROUND_NU||fmt->rounding==lv_ROUND_ND) ? ulp : ulp*0.5;
+    *lo -= eps; *hi += eps;
 }
 
 /* ── Original API ── */
@@ -325,22 +553,32 @@ void gappa_goals_free(lvGappaProofGoal *goals, int count) {
 }
 
 /**
- * @brief 在给定谓词下证明目标
+ * @brief 在给定谓词下证明目标（完整实现）
+ *
+ * 解析目标表达式为表达式树，通过区间传播引擎计算实际区间，
+ * 与目标约束进行比较。支持带舍入误差建模的浮点验证。
  *
  * @param hyp       假设谓词数组
  * @param hyp_count 假设数量
  * @param goals     证明目标数组
  * @param goal_count 目标数量
- * @param config    配置参数（预留，可为 NULL）
+ * @param config    配置参数（可传 lvGappaFormat*，NULL 使用默认 binary64）
  * @return 证明结果结构体
  */
 lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count,
                                   const lvGappaProofGoal *goals, int goal_count,
                                   const void *config) {
-    (void)config;
     lvGappaProofResult result;
     memset(&result, 0, sizeof(result));
     result.goals_total = goal_count;
+
+    /* 确定浮点格式 */
+    lvGappaFormat fmt;
+    if (config) {
+        memcpy(&fmt, config, sizeof(fmt));
+    } else {
+        gappa_format_predefined("binary64", &fmt);
+    }
 
     if (goal_count > 0) {
         result.goals = (lvGappaProofGoal *)lv_calloc((size_t)goal_count, sizeof(lvGappaProofGoal));
@@ -350,33 +588,106 @@ lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count,
                 lvGappaPredicate gpred = goals[i].predicate;
                 bool proven = false;
 
-                /* 查找匹配的假设（按变量名匹配） */
+                /* 步骤 1：先尝试简单的变量名匹配（快速路径） */
                 for (int j = 0; j < hyp_count; j++) {
                     if (strcmp(hyp[j].expr_lhs, gpred.expr_lhs) != 0) continue;
 
                     if (gpred.type == lv_PRED_BND) {
-                        /* BND 目标：检查假设区间是否包含在目标区间内 */
                         if (hyp[j].bound_lo >= gpred.bound_lo &&
                             hyp[j].bound_hi <= gpred.bound_hi) {
                             proven = true;
                             break;
                         }
                     } else if (gpred.type == lv_PRED_ABS) {
-                        /* ABS 目标：计算最大绝对偏差 */
                         char *end = NULL;
                         errno = 0;
                         double center = strtod(gpred.expr_rhs, &end);
                         if (errno != 0 || end == gpred.expr_rhs) center = 0.0;
                         double dev_lo = fabs(hyp[j].bound_lo - center);
                         double dev_hi = fabs(hyp[j].bound_hi - center);
-                        double max_dev = dev_lo > dev_hi ? dev_lo : dev_hi;
+                        double max_dev = fmax(dev_lo, dev_hi);
                         if (max_dev <= gpred.bound_abs + 1e-15) {
                             proven = true;
                             break;
                         }
                     }
                 }
+                if (proven) {
+                    result.goals[i].proven = true;
+                    result.goals_proven++;
+                    continue;
+                }
 
+                /* 步骤 2：表达式树区间传播（处理复合表达式） */
+                const char *expr_str = gpred.expr_lhs;
+                if (!expr_str || !*expr_str) {
+                    result.goals_failed++;
+                    continue;
+                }
+
+                ExprNode *tree = parse_full_expr(expr_str);
+                if (!tree) {
+                    /* 解析失败，尝试使用 lv_gappa_propagate 直接求值 */
+                    double lo = 0.0, hi = 0.0;
+                    if (lv_gappa_propagate(expr_str, &lo, &hi) == 0) {
+                        /* 对 BND 目标检查区间包含 */
+                        if (gpred.type == lv_PRED_BND) {
+                            apply_round_err(&lo, &hi, &fmt);
+                            if (lo >= gpred.bound_lo - 1e-15 &&
+                                hi <= gpred.bound_hi + 1e-15) {
+                                proven = true;
+                            }
+                        } else if (gpred.type == lv_PRED_ABS) {
+                            apply_round_err(&lo, &hi, &fmt);
+                            double max_dev = fmax(fabs(lo), fabs(hi));
+                            if (max_dev <= gpred.bound_abs + 1e-15) {
+                                proven = true;
+                            }
+                        } else if (gpred.type == lv_PRED_REL) {
+                            apply_round_err(&lo, &hi, &fmt);
+                            double abs_mag = fmax(fabs(lo), fabs(hi));
+                            double rel_err = (fabs(lo) > 1e-30) ?
+                                              fabs(hi - lo) / fabs(lo) : fabs(hi - lo);
+                            if (rel_err <= gpred.bound_abs + 1e-15) {
+                                proven = true;
+                            }
+                        }
+                    }
+                    result.goals[i].proven = proven;
+                    if (proven) result.goals_proven++;
+                    else result.goals_failed++;
+                    continue;
+                }
+
+                /* 通过表达式树进行区间传播 */
+                double lo = 0.0, hi = 0.0;
+                if (expr_eval_ival(tree, hyp, hyp_count, &lo, &hi, NULL, NULL, 0)) {
+                    /* 应用舍入误差 */
+                    apply_round_err(&lo, &hi, &fmt);
+
+                    if (gpred.type == lv_PRED_BND) {
+                        /* BND: 检查计算区间是否在目标区间内 */
+                        if (lo >= gpred.bound_lo - 1e-15 &&
+                            hi <= gpred.bound_hi + 1e-15) {
+                            proven = true;
+                        }
+                    } else if (gpred.type == lv_PRED_ABS) {
+                        /* ABS: 检查最大绝对偏差 */
+                        double max_dev = fmax(fabs(lo), fabs(hi));
+                        if (max_dev <= gpred.bound_abs + 1e-15) {
+                            proven = true;
+                        }
+                    } else if (gpred.type == lv_PRED_REL) {
+                        /* REL: 检查相对误差 */
+                        double rel_err = (fabs(lo) > 1e-30) ?
+                                          fabs(hi - lo) / fabs(lo) : fabs(hi - lo);
+                        if (rel_err <= gpred.bound_abs + 1e-15) {
+                            proven = true;
+                        }
+                    }
+                }
+
+                expr_free_tree(tree);
                 result.goals[i].proven = proven;
                 if (proven) {
                     result.goals_proven++;

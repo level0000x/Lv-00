@@ -373,10 +373,12 @@ static void graph_destroy(ConstraintGraph* g) {
 int64_t graph_add_node(ConstraintGraph* g, const mpq_t value, int pinned) {
     if (!g) return -1;
     if (g->node_count >= g->node_cap) {
-        size_t new_cap = g->node_cap * 2;
+        if (g->node_cap > INT_MAX / 2) return -1;
+        int new_cap_int = g->node_cap * 2;
+        size_t new_cap = (size_t)new_cap_int;
         GraphNode* tmp = (GraphNode*)lv_realloc(g->nodes, new_cap * sizeof(GraphNode));
         if (!tmp) return -1;               /* realloc 失败, 原内存保留, 安全返回 */
-        g->node_cap = (int)new_cap;
+        g->node_cap = (int)new_cap_int;
         g->nodes = tmp;
     }
     int idx = g->node_count++;
@@ -470,7 +472,8 @@ int graph_solve(ConstraintGraph* g) {
     mpq_inits(eps, propagated, diff, NULL);
     mpq_set_str(eps, "1/1000000000000", 10);  /* ε = 10⁻¹² — 用字符串避免 32-bit overflow */
 
-    for (int iter = 0; iter < g->node_count * 2; iter++) {
+    int max_iters = (g->node_count > INT_MAX / 2) ? INT_MAX : g->node_count * 2;
+    for (int iter = 0; iter < max_iters; iter++) {
         int changed = 0;
         for (int i = 0; i < g->edge_count; i++) {
             int from = g->edges[i].from;

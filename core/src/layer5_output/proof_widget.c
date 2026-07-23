@@ -105,6 +105,7 @@ int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type,
 
     /* 容量不足时倍增扩容 */
     if (layout->widget_count >= layout->widget_capacity) {
+        if (layout->widget_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) return -1;
         int new_cap = layout->widget_capacity * lv_ARRAY_GROWTH_FACTOR;
         ProofWidgetState *new_arr = (ProofWidgetState *)lv_realloc(
             layout->widgets, (size_t)new_cap * sizeof(ProofWidgetState));

@@ -3260,8 +3260,13 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
         for (int i = n_terms - 2; i >= 0; i--) {
             mpq_set_si(term, terms[i], 1);
             /* result = term + 1/result */
-            mpq_inv(result, result);
-            mpq_add(result, term, result);
+            if (mpq_sgn(result) == 0) {
+                /* 连分数中间项为零时直接赋值为 term */
+                mpq_set(result, term);
+            } else {
+                mpq_inv(result, result);
+                mpq_add(result, term, result);
+            }
         }
     }
 

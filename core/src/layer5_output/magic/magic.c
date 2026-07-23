@@ -604,6 +604,7 @@ bool rune_sequence_add(RuneSequence *seq, Rune *rune) {
 
     /* 容量不足时自动扩容（翻倍策略） */
     if (seq->rune_count >= seq->capacity) {
+        if (seq->capacity > INT_MAX / MAGIC_RUNE_SEQUENCE_GROWTH) return false;
         int new_capacity = seq->capacity * MAGIC_RUNE_SEQUENCE_GROWTH;
         Rune **new_runes = (Rune **) lv_realloc(seq->runes, new_capacity * sizeof(Rune *));
         if (!new_runes)
@@ -2545,6 +2546,7 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
 
     /* 规则数组容量不足时自动扩容 */
     if (domain->rule_count >= domain->rule_capacity) {
+        if (domain->rule_capacity > 0 && domain->rule_capacity > INT_MAX / 2) return false;
         int new_cap = domain->rule_capacity == 0 ? 8 : domain->rule_capacity * 2;
         DomainRule *new_rules = (DomainRule *) lv_realloc(
             domain->rules, new_cap * sizeof(DomainRule));

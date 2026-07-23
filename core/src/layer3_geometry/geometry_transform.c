@@ -417,6 +417,12 @@ lvTransform *lv_transform_reflection_line(const mpq_t a, const mpq_t b, const mp
         mpq_div(by, by, b);
     } else {
         /* 垂直线 ax + c = 0 */
+        if (mpq_sgn(a) == 0) {
+            /* a 和 b 同时为零，不是有效直线方程 */
+            mpq_clear(ax); mpq_clear(ay);
+            mpq_clear(bx); mpq_clear(by);
+            return NULL;
+        }
         mpq_neg(ax, c);
         mpq_div(ax, ax, a);
         mpq_set_ui(ay, 0, 1);
