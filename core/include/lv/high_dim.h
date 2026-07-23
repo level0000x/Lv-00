@@ -22,9 +22,9 @@ extern "C" {
 #ifndef HIGH_DIM_INITIAL_CAPACITY
 #define HIGH_DIM_INITIAL_CAPACITY          8
 #endif
-#ifndef HIGH_DIM_DEFAULT_FIDELITY_THRESHOLD
-#define HIGH_DIM_DEFAULT_FIDELITY_THRESHOLD (lv_config_current()->high_dim_default_fidelity_threshold)
-#endif
+
+/* 获取保真度默认警告阈值（从运行时配置读取） */
+double high_dim_default_fidelity_threshold(void);
 
 /* ── Forward decls ── */
 struct SymbolicCoord;

@@ -136,6 +136,18 @@ lv_PUBLIC_API const char *module_get_last_error(void);
 
 lv_PUBLIC_API char *module_compute_version_hash(const Module *mod);
 
+/**
+ * @brief 计算模块的内容 SHA-256 哈希（64 字符十六进制字符串）
+ *
+ * 哈希内容包括：模块名称、版本、依赖数量+名称+版本约束、
+ * 导出数量+ID、公理包数量+名称+版本。
+ * 调用者负责 free() 返回值。
+ *
+ * @param mod 模块
+ * @return malloc 分配的 65 字节字符串（64 hex + null），失败返回 NULL
+ */
+lv_PUBLIC_API char *module_compute_content_hash(const Module *mod);
+
 lv_PUBLIC_API bool module_validate_dependency_chain(Module *mod, Module **all_modules, int module_count);
 lv_PUBLIC_API bool module_detect_circular_dependency(Module *mod, Module **visited, int visited_count);
 lv_PUBLIC_API bool module_full_cycle_detect(Module **modules, int count, int **out_path, int *out_path_len);

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file high_dim_demo.c
  * @brief 高维结构表示与交互模块演示
  *
@@ -114,7 +114,7 @@ int main() {
         printf("   保真度: %.1f%%\n", stats.fidelity_ratio * 100.0);
 
         /* 检查是否低于阈值 */
-        if (high_dim_is_fidelity_below_threshold(manager, block_id, HIGH_DIM_DEFAULT_FIDELITY_THRESHOLD)) {
+        if (high_dim_is_fidelity_below_threshold(manager, block_id, high_dim_default_fidelity_threshold())) {
             char warning[512];
             high_dim_get_fidelity_warning(manager, block_id, warning, sizeof(warning));
             printf("   警告: %s\n", warning);

@@ -39,6 +39,7 @@
 #include "lv_utils.h"
 #include "lv_internal.h"   /* M_PI, lv_SAFE_SNPRINTF 等内部宏 */
 #include "debug.h"           /* LOG_DEBUG, LOG_WARN, LOG_ERROR 等日志宏 */
+#include "lv/config.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include <math.h>
@@ -778,6 +779,12 @@ int high_dim_is_fidelity_below_threshold(const HighDimManager *manager, int bloc
  * @param buffer_size 缓冲区大小
  * @return lv_OK 成功，错误码表示失败原因
  */
+
+/* ── 保真度默认阈值 ── */
+double high_dim_default_fidelity_threshold(void) {
+    return lv_config_current()->high_dim_default_fidelity_threshold;
+}
+
 int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id,
                                   char *buffer, size_t buffer_size) {
     if (!manager || !buffer || buffer_size == 0) {
@@ -801,7 +808,7 @@ int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id,
                       "建议切换到其他投影预设以获得更好的可视化效果。",
                       preset->name,
                       block->fidelity_ratio * 100.0,
-                      HIGH_DIM_DEFAULT_FIDELITY_THRESHOLD * 100.0);
+                      high_dim_default_fidelity_threshold() * 100.0);
 
     return lv_OK;
 }

@@ -60,16 +60,10 @@ extern "C" {
 /** @brief 无穷大熵标记（表示自由变量/无界） */
 #define PROP_ENTROPY_UNBOUNDED (-1.0)
 
-// These reference runtime config; define before include to override:
-#ifndef PROP_DEFAULT_MAX_ITERATIONS
-#define PROP_DEFAULT_MAX_ITERATIONS (lv_config_current()->prop_max_iterations)
-#endif
-#ifndef PROP_DEFAULT_MAX_BACKTRACKS
-#define PROP_DEFAULT_MAX_BACKTRACKS (lv_config_current()->prop_max_backtracks)
-#endif
-#ifndef PROP_WFC_MAX_COLLABORATION_ITERATIONS
-#define PROP_WFC_MAX_COLLABORATION_ITERATIONS (lv_config_current()->prop_max_collaboration_iters)
-#endif
+// Config defaults — values read from runtime lvConfig:
+int  propagation_default_max_iterations(void);
+int  propagation_default_max_backtracks(void);
+int  propagation_wfc_max_collaboration_iterations(void);
 /* ================================================================
  * 枚举类型
  * ================================================================ */

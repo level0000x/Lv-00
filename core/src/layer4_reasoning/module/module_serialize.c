@@ -15,6 +15,7 @@
 #include <string.h>
 #include "lv/module.h"
 #include "lv/module_internal.h"
+#include "lv/sha256.h"
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -2362,3 +2363,89 @@ AutoSaveConfig *get_or_create_autosave_config(const char *module_name) {
 }
 
 /* module_set_autosave_config 已在 module_delta.c 中实现 */
+
+/* ============== 模块内容哈希（SHA-256） ============== */
+
+char *module_compute_content_hash(const Module *mod) {
+    if (!mod) return NULL;
+
+    lvSha256Context ctx;
+    lv_sha256_init(&ctx);
+
+    /* 哈希模块名称和版本 */
+    if (mod->name) {
+        lv_sha256_update(&ctx, (const uint8_t *)mod->name, strlen(mod->name));
+    } else {
+        lv_sha256_update(&ctx, (const uint8_t *)"(null)", 6);
+    }
+    if (mod->version) {
+        lv_sha256_update(&ctx, (const uint8_t *)mod->version, strlen(mod->version));
+    } else {
+        lv_sha256_update(&ctx, (const uint8_t *)"(null)", 6);
+    }
+
+    /* 哈希依赖信息 */
+    lv_sha256_update(&ctx, (const uint8_t *)&mod->dependency_count, sizeof(mod->dependency_count));
+    for (int i = 0; i < mod->dependency_count; i++) {
+        if (mod->dependencies[i].name) {
+            lv_sha256_update(&ctx, (const uint8_t *)mod->dependencies[i].name, strlen(mod->dependencies[i].name));
+        } else {
+            lv_sha256_update(&ctx, (const uint8_t *)"(null)", 6);
+        }
+        if (mod->dependencies[i].version_constraint) {
+            lv_sha256_update(&ctx, (const uint8_t *)mod->dependencies[i].version_constraint, strlen(mod->dependencies[i].version_constraint));
+        } else {
+            lv_sha256_update(&ctx, (const uint8_t *)"(null)", 6);
+        }
+    }
+
+    /* 哈希导出信息 */
+    if (mod->exports) {
+        lv_sha256_update(&ctx, (const uint8_t *)&mod->exports->function_count, sizeof(mod->exports->function_count));
+        for (int i = 0; i < mod->exports->function_count; i++) {
+            lv_sha256_update(&ctx, (const uint8_t *)&mod->exports->function_block_ids[i], sizeof(int));
+        }
+        lv_sha256_update(&ctx, (const uint8_t *)&mod->exports->type_count, sizeof(mod->exports->type_count));
+        for (int i = 0; i < mod->exports->type_count; i++) {
+            lv_sha256_update(&ctx, (const uint8_t *)&mod->exports->type_region_ids[i], sizeof(int));
+        }
+    } else {
+        int zero = 0;
+        lv_sha256_update(&ctx, (const uint8_t *)&zero, sizeof(zero));
+        lv_sha256_update(&ctx, (const uint8_t *)&zero, sizeof(zero));
+    }
+
+    /* 哈希公理包信息 */
+    lv_sha256_update(&ctx, (const uint8_t *)&mod->axiom_package_count, sizeof(mod->axiom_package_count));
+    for (int i = 0; i < mod->axiom_package_count; i++) {
+        if (mod->axiom_packages[i]) {
+            if (mod->axiom_packages[i]->name) {
+                lv_sha256_update(&ctx, (const uint8_t *)mod->axiom_packages[i]->name, strlen(mod->axiom_packages[i]->name));
+            } else {
+                lv_sha256_update(&ctx, (const uint8_t *)"(null)", 6);
+            }
+            if (mod->axiom_packages[i]->version) {
+                lv_sha256_update(&ctx, (const uint8_t *)mod->axiom_packages[i]->version, strlen(mod->axiom_packages[i]->version));
+            } else {
+                lv_sha256_update(&ctx, (const uint8_t *)"(null)", 6);
+            }
+        } else {
+            lv_sha256_update(&ctx, (const uint8_t *)"(null)", 6);
+            lv_sha256_update(&ctx, (const uint8_t *)"(null)", 6);
+        }
+    }
+
+    /* 计算最终哈希并转换为十六进制字符串 */
+    uint8_t hash[32];
+    lv_sha256_final(&ctx, hash);
+
+    char *result = (char *)lv_calloc(65, 1);
+    if (result) {
+        for (int i = 0; i < 32; i++) {
+            snprintf(result + i * 2, 65 - (size_t)(i * 2), "%02x", hash[i]);
+        }
+        result[64] = '\0';
+    }
+
+    return result;
+}

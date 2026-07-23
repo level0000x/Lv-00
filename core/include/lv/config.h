@@ -222,7 +222,7 @@ extern "C" {
 
 /* == 以下全部移入 lvConfig 运行时 == */
 
-typedef struct {
+typedef struct lvConfig {
     /* ---- 求解器 ---- */
     int solver_max_var_id;
     int solver_max_iterations;

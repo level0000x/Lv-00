@@ -1,5 +1,5 @@
-﻿#ifndef lv_CONFIG_H
-#define lv_CONFIG_H
+#ifndef lv_LV_CONFIG_H
+#define lv_LV_CONFIG_H
 
 /* ========================================================================
  * lvConfig 运行时配置

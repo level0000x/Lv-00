@@ -18,6 +18,18 @@
 #include "error_codes.h"
 #include "lv_utils.h"
 #include "lv/lv_config.h"
+#include "lv/config.h"
+
+/* ── 运行时配置默认值的边界函数 ── */
+int propagation_default_max_iterations(void) {
+    return (int)lv_config_current()->prop_max_iterations;
+}
+int propagation_default_max_backtracks(void) {
+    return (int)lv_config_current()->prop_max_backtracks;
+}
+int propagation_wfc_max_collaboration_iterations(void) {
+    return (int)lv_config_current()->prop_max_collaboration_iters;
+}
 
 #define MAX_CONSTRAINTS_PER_NODE 128
 #define MAX_NEIGHBOR_CONSTRAINTS 64
@@ -238,8 +250,8 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
     ctx->graph = graph;
     ctx->strategy = PROP_STRATEGY_MIN_ENTROPY;
     ctx->collapse_strategy = PROP_COLLAPSE_FIRST;
-    ctx->max_iterations = PROP_DEFAULT_MAX_ITERATIONS;
-    ctx->max_backtracks = PROP_DEFAULT_MAX_BACKTRACKS;
+    ctx->max_iterations = propagation_default_max_iterations();
+    ctx->max_backtracks = propagation_default_max_backtracks();
 
     /* 初始化状态空间数组 */
     ctx->state_count = graph->node_count;
@@ -789,7 +801,7 @@ PropagationResult propagation_wfc_solve(PropagationContext *ctx) {
 
     int wfc_iterations = 0;
 
-    while (wfc_iterations < PROP_WFC_MAX_COLLABORATION_ITERATIONS) {
+    while (wfc_iterations < propagation_wfc_max_collaboration_iterations()) {
         /* 步骤 1: AC-3 约束传播 */
         PropagationResult prop_result = propagation_run(ctx);
 
