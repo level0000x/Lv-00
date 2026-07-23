@@ -720,3 +720,23 @@ int interval_verify_adaptive(const char *expr_str, const char **var_names, lvInt
     var_intervals[widest] = saved;
     return 0;
 }
+
+/* ========================================================================
+ * Legacy lv_interval_* wrappers (matching interval_arithmetic.h stubs)
+ * ======================================================================== */
+
+lvInterval lv_interval_add(lvInterval a, lvInterval b) {
+    return interval_add(a, b);
+}
+
+lvInterval lv_interval_sub(lvInterval a, lvInterval b) {
+    return interval_sub(a, b);
+}
+
+lvInterval lv_interval_mul(lvInterval a, lvInterval b) {
+    return interval_mul(a, b);
+}
+
+lvInterval lv_interval_div(lvInterval a, lvInterval b) {
+    return interval_div(a, b);
+}

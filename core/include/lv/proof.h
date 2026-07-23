@@ -271,19 +271,7 @@ void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negat
 #define PROOF_STRATEGY_ALGEBRAIC 105
 #define PROOF_STRATEGY_CONTRADICTION 106
 
-#ifndef lv_SMT_BACKEND_H
-/* SMT stubs (only if smt_backend.h not already included) */
-typedef void *SMTSolver;
-#define SMT_GROEBNER 0
-typedef int SMTSatResult;
-#define SMT_RESULT_UNSAT 1
-#define SMT_RESULT_UNKNOWN 2
-SMTSolver smtsolver_create(int type);
-void smtsolver_set_timeout(SMTSolver s, int ms);
-int smtsolver_encode(SMTSolver s, const char *script, size_t len);
-SMTSatResult smtsolver_check(SMTSolver s);
-void smtsolver_destroy(SMTSolver s);
-#endif /* lv_SMT_BACKEND_H */
+/* SMT API is declared in lv/smt_backend.h — include it directly for SMT functions. */
 
 const char *constraint_solver_get_proposition(void *solver, void *geom_obj);
 void *proof_navigator_search(void *nav);

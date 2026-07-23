@@ -848,3 +848,18 @@ void lv_dyn_graph_reset_states(lvDynGraph *graph) {
         graph->nodes[i].state = lv_DYN_STATE_VALID;
     }
 }
+
+/* ========================================================================
+ * 动态点物理步进（Euler 积分）
+ * ======================================================================== */
+
+void lv_geo_dynamic_step(lvDynamicPoint *points, size_t count, double dt) {
+    if (!points || count == 0 || dt <= 0.0) {
+        return;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        points[i].x += points[i].vx * dt;
+        points[i].y += points[i].vy * dt;
+    }
+}

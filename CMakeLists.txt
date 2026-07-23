@@ -441,10 +441,23 @@ set(lv_HEADERS
     core/include/lv/runtime_guard.h
     core/include/lv/exact_arithmetic.h
     core/include/lv/sha256.h
-    # [QA] Pending header additions: adaptive_pruning, autodiff, cache_manager,
-    # conflict_detector, ga_codegen, ga_interface, ga_multivector, groebner_parallel,
-    # math_theory_guide_cn, meta_repr, nt_number_theory, nt_polynomial, ode_solver,
-    # plugin_system, proof_compiler, proof_contradiction (see TASK_CONTEXT_QA.md R6)
+    # v3.7.0 新增头文件（原 Pending header additions）
+    core/include/lv/adaptive_pruning.h
+    core/include/lv/autodiff.h
+    core/include/lv/cache_manager.h
+    core/include/lv/conflict_detector.h
+    core/include/lv/ga_codegen.h
+    core/include/lv/ga_interface.h
+    core/include/lv/ga_multivector.h
+    core/include/lv/groebner_parallel.h
+    core/include/lv/math_theory_guide_cn.h
+    core/include/lv/meta_repr.h
+    core/include/lv/nt_number_theory.h
+    core/include/lv/nt_polynomial.h
+    core/include/lv/ode_solver.h
+    core/include/lv/plugin_system.h
+    core/include/lv/proof_compiler.h
+    core/include/lv/proof_contradiction.h
     # v3.0.0 UI-Kernel 通信协议（替代 view_projection）
     core/include/lv/lv_protocol.h
     # v3.0.0 API 版式规范 + 层间通信
@@ -867,7 +880,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/func_block/preset_abstract_algebra.c
     # v1.1.0 补全遗漏：公理规则引擎、推理缓存、SIMD 运算
     core/src/layer4_reasoning/axiom_rule_engine.c
-    core/src/layer4_reasoning/reasoning_cache.c
+    # reasoning_cache is in model/reasoning_cache.c (below)
     core/src/layer4_reasoning/simd_ops.c
     # 求解器子模块：坐标提取、方程组、线性、快照、符号
     core/src/layer4_reasoning/solver/solver_coord_extract.c

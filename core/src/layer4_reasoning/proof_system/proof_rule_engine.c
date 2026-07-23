@@ -896,3 +896,71 @@ const char *search_result_status_to_string(lvSearchResultStatus status) {
             return "UNKNOWN";
     }
 }
+
+/* ============================================================
+ * lv_proof_rule_apply — 公开入口 API
+ * ============================================================ */
+
+int lv_proof_rule_apply(const char *rule, const void *input, void **output) {
+    if (!rule || !input || !output) {
+        return -1;
+    }
+
+    /* 创建规则引擎 */
+    lvRuleEngine *engine = rule_engine_create();
+    if (!engine) {
+        return -1;
+    }
+
+    /* 从 rule 名称查找内置规则 */
+    const lvProofRule *existing = rule_engine_find_rule(engine, rule);
+    if (!existing) {
+        /* 用名称作为匹配模式创建临时规则 */
+        lvProofRule tmp_rule;
+        memset(&tmp_rule, 0, sizeof(tmp_rule));
+        int name_len = (int)strlen(rule);
+        if (name_len >= lv_PROOF_RULE_NAME_MAX) {
+            name_len = lv_PROOF_RULE_NAME_MAX - 1;
+        }
+        memcpy(tmp_rule.name, rule, (size_t)name_len);
+        tmp_rule.name[name_len] = '\0';
+        tmp_rule.weight = 1.0;
+        tmp_rule.type = RULE_REWRITE;
+        tmp_rule.priority = 0;
+        tmp_rule.applicability_check_fn = NULL;
+        tmp_rule.apply_fn = NULL;
+
+        if (!rule_engine_add_rule(engine, &tmp_rule)) {
+            rule_engine_destroy(engine);
+            return -1;
+        }
+    }
+
+    /* 创建证明状态 */
+    const char *goal_str = (const char *)input;
+    lvProofState *state = proof_state_create(goal_str);
+    if (!state) {
+        rule_engine_destroy(engine);
+        return -1;
+    }
+
+    /* 执行搜索 */
+    lvSearchResultStatus status = rule_engine_search(engine, state);
+
+    if (status == SEARCH_RESULT_FOUND) {
+        /* 输出当前目标（证明已找到） */
+        const char *result_goal = proof_state_current_goal(state);
+        if (result_goal) {
+            *output = (void *)result_goal;
+        } else {
+            *output = NULL;
+        }
+    } else {
+        *output = NULL;
+    }
+
+    proof_state_destroy(state);
+    rule_engine_destroy(engine);
+
+    return (status == SEARCH_RESULT_FOUND) ? 0 : 1;
+}

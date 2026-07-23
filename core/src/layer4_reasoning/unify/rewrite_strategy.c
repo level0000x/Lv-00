@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite_strategy.c
  * @brief Implementation of the extended rewrite strategy engine.
  *
@@ -497,4 +497,28 @@ void rewrite_engine_result_ex_destroy(lvRewriteResultEx *result) {
         return;
     free(result->output);
     result->output = NULL;
+}
+
+/* ============================================================
+ * lv_rewrite_apply_strategy — 按策略类型应用重写
+ * ============================================================ */
+
+int lv_rewrite_apply_strategy(lvRewriteContext *ctx, lvRewriteStrategyType strategy) {
+    if (!ctx) {
+        return -1;
+    }
+
+    if (ctx->impl) {
+        /* 已有引擎，返回规则数（>0 表示可用） */
+        lvRewriteEngineEx *engine = (lvRewriteEngineEx *)ctx->impl;
+        return (int)engine->rule_count > 0 ? 0 : 1;
+    }
+
+    /* 创建新引擎并存入 context */
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create((lvRewriteStrategyEx)strategy, 100);
+    if (!engine) {
+        return -1;
+    }
+    ctx->impl = engine;
+    return 0;
 }

@@ -23,6 +23,7 @@
 #include "lv/engine.h"
 #include "lv/proof.h"
 #include "lv/proof_trace.h"
+#include "lv/smt_backend.h"
 #include "lv/trust_color.h"
 
 #include "debug.h"
@@ -2325,18 +2326,6 @@ void *proof_navigator_search(void *nav) {
         return NULL;
     /* 存根：完整实现应调用导航器的搜索策略 */
     return NULL;
-}
-
-/**
- * @brief 设置 SMT 求解器超时时间（存根实现）
- *
- * @param s   SMT 求解器句柄
- * @param ms  超时时间（毫秒）
- */
-void smtsolver_set_timeout(SMTSolver s, int ms) {
-    (void) s;
-    (void) ms;
-    /* 存根：完整实现应将超时设置传递给底层求解器 */
 }
 
 /**

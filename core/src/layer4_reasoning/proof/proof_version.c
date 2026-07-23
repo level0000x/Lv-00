@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/proof.h"
+#include "lv/smt_backend.h"
 #include "lv/thread_pool.h"
 
 #include "debug.h"
@@ -1560,9 +1561,10 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
         /* 步骤 2：SMT 精化谓词检查 */
         if (entry->refinement_pred && entry->refinement_pred[0] != '\0') {
             /* 尝试调用 SMT 后端进行实际求解 */
-            SMTSolver *smt_solver = smtsolver_create(SMT_GROEBNER);
+            SMTSolverConfig smt_cfg = *smtsolver_default_config(SMT_GROEBNER);
+            smt_cfg.timeout_ms = 5000;
+            SMTSolver *smt_solver = smtsolver_create(SMT_GROEBNER, &smt_cfg);
             if (smt_solver) {
-                smtsolver_set_timeout(smt_solver, 5000); /* 5 秒超时 */
                 /* 将谓词编码为 SMT-LIB2 断言 */
                 char *smt_script = (char *) lv_malloc(strlen(entry->refinement_pred) + 256);
                 if (smt_script) {
