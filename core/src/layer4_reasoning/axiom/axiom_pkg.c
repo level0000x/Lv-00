@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_pkg.c
  * @brief 公理系统包实现
  * @details 实现公理包的加载、验证和展开功能。支持约束模板、
@@ -1389,7 +1389,7 @@ static bool run_single_test_case(
     if (!target) return false;
 
     /* 调用模板展开函数 */
-    tmpl->expand(tc->param_values, target);
+    tmpl->expand(tc->params, target);
 
     /* 基本有效性检查：展开后应有约束产生 */
     bool passed = (target->constraint_count > 0);
@@ -1433,7 +1433,7 @@ TemplateTestResult axiom_template_run_tests(
     for (int i = 0; i < factory_count; i++) {
         bool passed = run_single_test_case(tmpl, &factory_tests[i]);
 
-        if (passed == factory_tests[i].expected_pass) {
+        if (passed == factory_tests[i].expected_result) {
             result.passed++;
         } else {
             /* 边界检查：确保 failure_messages 数组不越界 */
@@ -1442,8 +1442,8 @@ TemplateTestResult axiom_template_run_tests(
                 char msg[AXIOM_TEST_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                          "[FACTORY] '%s': expected %s, got %s",
-                         factory_tests[i].name,
-                         factory_tests[i].expected_pass ? "pass" : "fail",
+                         factory_tests[i].template_name,
+                         factory_tests[i].expected_result ? "pass" : "fail",
                          passed ? "pass" : "fail");
                 result.failure_messages[result.failed - 1] = lv_strdup_safe(msg);
             }
@@ -1454,7 +1454,7 @@ TemplateTestResult axiom_template_run_tests(
     for (int i = 0; i < user_count; i++) {
         bool passed = run_single_test_case(tmpl, &user_tests[i]);
 
-        if (passed == user_tests[i].expected_pass) {
+        if (passed == user_tests[i].expected_result) {
             result.passed++;
         } else {
             /* 边界检查：确保 failure_messages 数组不越界 */
@@ -1463,8 +1463,8 @@ TemplateTestResult axiom_template_run_tests(
                 char msg[AXIOM_TEST_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                          "[USER] '%s': expected %s, got %s",
-                         user_tests[i].name,
-                         user_tests[i].expected_pass ? "pass" : "fail",
+                         user_tests[i].template_name,
+                         user_tests[i].expected_result ? "pass" : "fail",
                          passed ? "pass" : "fail");
                 result.failure_messages[result.failed - 1] = lv_strdup_safe(msg);
             }

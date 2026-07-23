@@ -252,6 +252,14 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *c);
 AlgebraicPlan algebraic_get_plan(void);
 void          algebraic_set_plan(AlgebraicPlan plan);
 
+/* ── Plan Manager (A/B 自动降级系统) ── */
+void          symbolic_coord_set_plan(AlgebraicPlan plan);
+AlgebraicPlan symbolic_coord_get_plan(void);
+bool          symbolic_coord_auto_degrade(const char *reason);
+SymbolicCoord *symbolic_coord_create_with_plan(long num, long den);
+bool          symbolic_coord_is_quadratic_form(const char *expr);
+void          symbolic_coord_plan_stats(int *out_total, AlgebraicPlan *out_current);
+
 /* ── Stress test ── */
 StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree);
 

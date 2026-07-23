@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file engine.c
  * @brief 主引擎实现
  * @details 实现工作流编排，协调规范化、重写、求解和冲突检查。
@@ -40,6 +40,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/stream.h"
+#include "lv/bit_burning.h"
 #include "node_deep_copy.h"
 #include "stream_context_util.h"
 
@@ -835,6 +836,12 @@ EngineSolveResult engine_solve(lvEngine *engine) {
     /* 流式事件: 引擎开始 */
     engine_emit_stream_event(engine, STREAM_EVENT_ENGINE_START, "求解流程启动", 0, -1, -1);
 
+    /* 步骤0：设置位数熔断检查点 */
+    {
+        BitBurningState *bb_state = bit_burning_get_global_state();
+        bit_burning_set_checkpoint(engine->main_graph, bb_state);
+    }
+
     /* 步骤0：归一化约束图
      * 根据 design_v2.9.md Section 18.1：求解前进行归一化可消除冗余节点并规范化图结构。
      * 归一化失败时记录警告，但不中断求解流程（归一化是优化步骤，
@@ -974,6 +981,12 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
     /* 初始化WL哈希历史记录用于循环检测 */
     WLHashHistory wl_history;
     wl_history_init(&wl_history);
+
+    /* 设置位数熔断检查点 */
+    {
+        BitBurningState *bb_state = bit_burning_get_global_state();
+        bit_burning_set_checkpoint(engine->main_graph, bb_state);
+    }
 
     /* 外层循环：交替执行重写和求解 */
     while (remaining_rewrite > 0 || remaining_solve > 0) {

@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：函数块系统 (func_block)
  * 功能概述：提供函数块的打包、例化、确定性检查、多解选择器等核心功能。
  *          函数块是 Lv-00 系统中封装几何构造的基本单元，支持将一组
@@ -810,6 +810,21 @@ lv_PUBLIC_API FuncBlockViewState func_block_get_view_state(const FuncBlock *fb);
  * @param user_data 传递给回调的用户数据
  */
 lv_PUBLIC_API void func_block_set_cross_boundary_callback(CrossBoundaryCallback cb, void *user_data);
+
+/**
+ * @brief 执行跨边界约束的处理动作
+ *
+ * 根据用户选择的处理方式执行对应操作：
+ * - CROSS_BOUNDARY_DISCONNECT：删除该约束（调用 graph_deactivate_constraint）
+ * - CROSS_BOUNDARY_PROMOTE：保留约束，标记为端口依赖
+ * - CROSS_BOUNDARY_CANCEL：返回 lv_ERROR_CANCELLED
+ *
+ * @param graph 约束图
+ * @param constraint_id 约束 ID
+ * @param action 处理动作
+ * @return lv_OK 成功，其他错误码
+ */
+lv_PUBLIC_API int execute_boundary_action(ConstraintGraph *graph, int constraint_id, CrossBoundaryAction action);
 
 /**
  * @brief 设置函数块系统的流式输出上下文

@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lv/constraint_graph.h"
+#include "lv/bit_burning.h"
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -41,6 +42,62 @@ int remove_square_factors(int n);
 
 /* ── 外部溢出上下文 ── */
 extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;
+
+/* ── Plan Manager 线程局部状态 ── */
+#define SYM_COORD_DEGRADE_THRESHOLD  3
+#define SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR 10  /* lv_BIT_CUTOFF_THRESHOLD / 10 */
+
+static lv_THREAD_LOCAL int g_degrade_fail_count = 0;
+static lv_THREAD_LOCAL int g_degrade_total = 0;
+
+/* ── 前向声明: 降级辅助函数 ── */
+static SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *result);
+
+/* ── 位数熔断辅助函数 ── */
+static void bit_burning_check_result(SymbolicCoord *result, const char *operation);
+
+/**
+ * @brief 检查 SymbolicCoord 结果的位数是否超过熔断阈值。
+ *
+ * 当 Rational 类型结果的分子或分母位数超过 BIT_CUTOFF_THRESHOLD 时，
+ * 触发熔断状态更新。如果连续触发次数达到 MAX_CONSECUTIVE_TRIPS，
+ * 自动将结果降级为 TRUST_AMBER。
+ *
+ * @param result   运算结果（可为 NULL）
+ * @param operation 操作名称（如 "add", "multiply" 等）
+ */
+static void bit_burning_check_result(SymbolicCoord *result, const char *operation) {
+    if (!result || result->type != RATIONAL)
+        return;
+
+    (void)operation; /* 保留参数供未来扩展使用 */
+
+    size_t num_bits = mpz_sizeinbase(mpq_numref(result->data.rational->value), 2);
+    size_t den_bits = mpz_sizeinbase(mpq_denref(result->data.rational->value), 2);
+
+    /* 溢出保护 */
+    if (num_bits > SIZE_MAX - den_bits) {
+        /* 位数溢出，严重情况，直接标记为 AMBER */
+        result->trust = TRUST_AMBER;
+        return;
+    }
+
+    size_t total_bits = num_bits + den_bits;
+    if (total_bits <= BIT_CUTOFF_THRESHOLD)
+        return;
+
+    BitBurningState *state = bit_burning_get_global_state();
+    if (bit_burning_check(total_bits, state)) {
+        /* 连续的位数熔断触发，根据连续次数执行不同策略 */
+        if (state->consecutive_trips >= MAX_CONSECUTIVE_TRIPS) {
+            /* 逃逸出口：连续 3 次触发，永久降级为数值假设 */
+            result->trust = TRUST_AMBER;
+        } else {
+            /* 第 1-2 次：标记为 AMBER，但保留完整构造信息 */
+            result->trust = TRUST_AMBER;
+        }
+    }
+}
 
 /* ── SymbolicCoord 操作 ── */
 
@@ -727,6 +784,8 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                     g_overflow_context.last_result = result;
                     circuit_handle_overflow();
                 }
+                /* 位数熔断检查 */
+                bit_burning_check_result(result, "add");
                 return result;
             }
             case ALGEBRAIC: {
@@ -738,7 +797,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                 algebraic_destroy(alg);
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return result;
+                return _symbolic_coord_degrade_check_algebraic(result);
             }
             case QUADRATIC: {
                 Quadratic *q = quadratic_add(a->data.quadratic, b->data.quadratic);
@@ -1023,6 +1082,8 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                     g_overflow_context.last_result = result;
                     circuit_handle_overflow();
                 }
+                /* 位数熔断检查 */
+                bit_burning_check_result(result, "subtract");
                 return result;
             }
             case ALGEBRAIC: {
@@ -1034,7 +1095,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                 algebraic_destroy(alg);
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return result;
+                return _symbolic_coord_degrade_check_algebraic(result);
             }
             case QUADRATIC: {
                 Quadratic *q = quadratic_subtract(a->data.quadratic, b->data.quadratic);
@@ -1248,6 +1309,8 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
                     g_overflow_context.last_result = result;
                     circuit_handle_overflow();
                 }
+                /* 位数熔断检查 */
+                bit_burning_check_result(result, "multiply");
                 return result;
             }
             case ALGEBRAIC: {
@@ -1259,7 +1322,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
                 algebraic_destroy(alg);
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return result;
+                return _symbolic_coord_degrade_check_algebraic(result);
             }
             case QUADRATIC: {
                 Quadratic *q = quadratic_multiply(a->data.quadratic, b->data.quadratic);
@@ -1533,6 +1596,8 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                     g_overflow_context.last_result = result;
                     circuit_handle_overflow();
                 }
+                /* 位数熔断检查 */
+                bit_burning_check_result(result, "divide");
                 return result;
             }
             case ALGEBRAIC: {
@@ -1544,7 +1609,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                 algebraic_destroy(alg);
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return result;
+                return _symbolic_coord_degrade_check_algebraic(result);
             }
             case QUADRATIC: {
                 Quadratic *q = quadratic_divide(a->data.quadratic, b->data.quadratic);
@@ -3259,4 +3324,328 @@ TrustColor trust_color_combine(TrustColor a, TrustColor b) {
 
     /* Otherwise: higher value = lower trust */
     return (a_val > b_val) ? a : b;
+}
+
+/* ============================================================
+ * A/B 自动降级系统实现
+ *
+ * 根据设计文档 3.3 节，Lv-00 的符号坐标系统采用 A/B 双轨策略：
+ * - A 计划（主轨道）：基于 GMP + 代数数
+ * - B 计划（降级轨道）：二次根式（a + b√n 规范形式）
+ * - C 计划：仅有理数
+ *
+ * 降级规则：
+ * - 连续失败次数达到 SYM_COORD_DEGRADE_THRESHOLD (3) 次后自动降级
+ * - 降级不可逆（B→A 不自动恢复）
+ * - 使用 lv_THREAD_LOCAL 保证线程安全
+ * ============================================================ */
+
+/**
+ * @brief 降级辅助函数：检查代数数运算结果是否需要降级
+ *
+ * 当 A 计划运算产生的结果 degree > 2 或系数位数超过阈值时：
+ * 1. 尝试有理化（如果结果是实际上的有理数）
+ * 2. 尝试检测是否为二次根式形式（degree == 2 且可化简为 a+b√n）
+ * 3. 如果无法化简，调用 symbolic_coord_auto_degrade() 触发降级
+ *
+ * @param result 代数数运算结果（ALGEBRAIC 类型），函数接管所有权
+ * @return 处理后的 SymbolicCoord（可能类型已转换）
+ */
+static SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *result) {
+    if (!result || result->type != ALGEBRAIC)
+        return result;
+
+    /* 仅当当前计划为 PLAN_A 时执行降级检查 */
+    if (algebraic_get_plan() != PLAN_A_FULL_ALGEBRAIC)
+        return result;
+
+    Algebraic *a = result->data.algebraic;
+    if (!a)
+        return result;
+
+    int deg = a->minimal_poly.degree;
+
+    /* 检查是否需要降级：degree > 2 或系数位数超过阈值 */
+    bool needs_check = false;
+    if (deg > 2) {
+        needs_check = true;
+    } else {
+        size_t max_bits = 0;
+        for (int i = 0; i <= deg; i++) {
+            size_t bits = mpz_sizeinbase(a->minimal_poly.coeffs[i], 2);
+            if (bits > max_bits)
+                max_bits = bits;
+        }
+        if (max_bits > (size_t)(lv_BIT_CUTOFF_THRESHOLD / SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR)) {
+            needs_check = true;
+        }
+    }
+
+    if (!needs_check)
+        return result;
+
+    /* 1. 尝试有理化 */
+    algebraic_try_rationalize(a);
+    if (a->cached_rational) {
+        SymbolicCoord *new_result = symbolic_coord_create_rational(0, 1);
+        if (new_result) {
+            rational_destroy(new_result->data.rational);
+            new_result->data.rational = rational_copy(a->cached_rational);
+            new_result->trust = result->trust;
+            symbolic_coord_destroy(result);
+            return new_result;
+        }
+    }
+
+    /* 2. 如果 degree == 2，尝试转换为二次根式形式 */
+    if (deg == 2) {
+        /* 检查是否为 x^2 - n = 0 的形式 => sqrt(n) */
+        mpz_t *c0 = &a->minimal_poly.coeffs[0];
+        mpz_t *c1 = &a->minimal_poly.coeffs[1];
+        mpz_t *c2 = &a->minimal_poly.coeffs[2];
+
+        if (mpz_cmp_si(*c1, 0) == 0 && mpz_sgn(*c0) < 0 && mpz_sgn(*c2) > 0) {
+            /* 形如 c2*x^2 + c0 = 0, i.e. x^2 = -c0/c2 */
+            mpz_t n_num;
+            mpz_init(n_num);
+            mpz_neg(n_num, *c0);
+            /* 检查是否 -c0/c2 为正整数 */
+            if (mpz_divisible_p(n_num, *c2) && mpz_sgn(n_num) > 0) {
+                mpz_divexact(n_num, n_num, *c2);
+                if (mpz_fits_uint_p(n_num)) {
+                    unsigned long n_val = mpz_get_ui(n_num);
+                    if (n_val > 0) {
+                        double a_val = algebraic_to_double(a);
+                        Rational *zero = rational_create(0, 1);
+                        Rational *one = rational_create(1, 1);
+                        unsigned int n_ui = (unsigned int)n_val;
+
+                        SymbolicCoord *new_result = symbolic_coord_create_quadratic(zero, one, n_ui);
+                        if (new_result) {
+                            /* 确定符号 */
+                            if (a_val < 0) {
+                                /* negate */
+                                Rational *neg_one = rational_create(-1, 1);
+                                rational_destroy(new_result->data.quadratic->b);
+                                new_result->data.quadratic->b = neg_one;
+                            }
+                            new_result->trust = result->trust;
+                            symbolic_coord_destroy(result);
+                            mpz_clear(n_num);
+                            return new_result;
+                        }
+                        rational_destroy(zero);
+                        rational_destroy(one);
+                    }
+                }
+            }
+            mpz_clear(n_num);
+        }
+
+        /* 一般二次形式：a*x^2 + b*x + c = 0
+         * 解为 x = (-b ± sqrt(b^2 - 4ac)) / (2a)
+         * 这是 a + b*sqrt(n) 形式的推广，其中 a = -b/(2a), b = 1/(2a), n = b^2 - 4ac */
+        {
+            /* 对于无法直接识别的二次形式，保留为 ALGEBRAIC
+             * 但计数一次近阈值事件（不强制降级） */
+            g_degrade_fail_count++;
+        }
+        return result;
+    }
+
+    /* 3. 对于 degree > 2：无法化简，触发自动降级 */
+    symbolic_coord_auto_degrade("algebraic result degree > 2, exceeds A-plan threshold");
+
+    return result;
+}
+
+/**
+ * @brief 设置坐标系统当前代数计划
+ *
+ * 运行时切换代数计划。切换后，新创建的坐标将使用新计划。
+ * 已有坐标不受影响。
+ *
+ * @param plan 目标代数计划
+ */
+void symbolic_coord_set_plan(AlgebraicPlan plan) {
+    algebraic_set_plan(plan);
+    /* 切换计划时重置失败计数 */
+    g_degrade_fail_count = 0;
+}
+
+/**
+ * @brief 获取当前代数计划
+ *
+ * @return 当前代数计划
+ */
+AlgebraicPlan symbolic_coord_get_plan(void) {
+    return algebraic_get_plan();
+}
+
+/**
+ * @brief 自动降级决策
+ *
+ * 当 A 计划操作失败时调用此函数，决定是否降级。
+ * 决策依据：连续失败次数（达到 3 次后自动降级）。
+ * 降级路径：PLAN_A → PLAN_B → PLAN_C（单向不可逆）。
+ *
+ * @param reason 失败原因描述（如 "precision degraded", "timeout"），仅用于日志
+ * @return true 已降级到更低计划，false 保持当前计划
+ */
+bool symbolic_coord_auto_degrade(const char *reason) {
+    AlgebraicPlan current = algebraic_get_plan();
+    (void)reason; /* 日志预留 */
+
+    /* 若已在最低计划，不再降级 */
+    if (current == PLAN_C_RATIONAL_ONLY) {
+        g_degrade_fail_count = 0;
+        return false;
+    }
+
+    g_degrade_fail_count++;
+
+    if (g_degrade_fail_count >= SYM_COORD_DEGRADE_THRESHOLD) {
+        /* 降级到下一级计划 */
+        AlgebraicPlan new_plan;
+        switch (current) {
+            case PLAN_A_FULL_ALGEBRAIC:
+                new_plan = PLAN_B_QUADRATIC_ONLY;
+                break;
+            case PLAN_B_QUADRATIC_ONLY:
+                new_plan = PLAN_C_RATIONAL_ONLY;
+                break;
+            default:
+                new_plan = current;
+                break;
+        }
+
+        if (new_plan != current) {
+            algebraic_set_plan(new_plan);
+            g_degrade_total++;
+        }
+
+        g_degrade_fail_count = 0;
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * @brief 创建符号坐标（带计划感知）
+ *
+ * 根据当前计划选择创建方式：
+ * - PLAN_A_FULL_ALGEBRAIC: 创建 ALGEBRAIC 类型，失败后自动降级
+ * - PLAN_B_QUADRATIC_ONLY: 仅使用二次根式
+ * - PLAN_C_RATIONAL_ONLY: 仅使用有理数
+ *
+ * @param num 分子
+ * @param den 分母
+ * @return 新创建的 SymbolicCoord
+ */
+SymbolicCoord *symbolic_coord_create_with_plan(long num, long den) {
+    AlgebraicPlan plan = algebraic_get_plan();
+
+    switch (plan) {
+        case PLAN_A_FULL_ALGEBRAIC: {
+            /* 尝试创建完整代数数 */
+            Rational *r = rational_create((int64_t)num, (uint64_t)den);
+            if (!r)
+                return NULL;
+
+            Algebraic *alg = algebraic_from_rational(r);
+            rational_destroy(r);
+
+            if (alg) {
+                SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+                if (!result) {
+                    algebraic_destroy(alg);
+                    return NULL;
+                }
+                result->type = ALGEBRAIC;
+                result->trust = TRUST_GREEN;
+                result->cache_valid = false;
+                result->cached_value = 0.0;
+                result->algebraic_info = NULL;
+                result->data.algebraic = alg;
+                return result;
+            }
+
+            /* 失败后降级并回退 */
+            symbolic_coord_auto_degrade("algebraic_from_rational failed");
+            /* fall through to PLAN_B */
+        }
+        case PLAN_B_QUADRATIC_ONLY: {
+            /* 创建二次根式 (a + 0*sqrt(1)) */
+            Rational *a = rational_create((int64_t)num, (uint64_t)den);
+            Rational *b = rational_create(0, 1);
+            SymbolicCoord *result = symbolic_coord_create_quadratic(a, b, 1);
+            if (!result) {
+                rational_destroy(a);
+                rational_destroy(b);
+            }
+            return result;
+        }
+        case PLAN_C_RATIONAL_ONLY:
+        default:
+            return symbolic_coord_create_rational((int64_t)num, (uint64_t)den);
+    }
+}
+
+/**
+ * @brief 检测代数表达式是否为二次根式形式
+ *
+ * 检查代数表达式（字符串格式）是否可以化简为 a + b√n 的形式。
+ * 这是 A→B 降级的前置条件。
+ *
+ * @param expr 代数表达式（字符串格式）
+ * @return true 可以化简为二次根式
+ */
+bool symbolic_coord_is_quadratic_form(const char *expr) {
+    if (!expr || expr[0] == '\0')
+        return false;
+
+    /* 检查表达式中是否包含 sqrt (或 √) 关键字 */
+    bool has_sqrt = (strstr(expr, "sqrt") != NULL);
+    bool has_radical = (strstr(expr, "√") != NULL);
+
+    if (!has_sqrt && !has_radical)
+        return false;
+
+    /* 检查是否只包含一个 sqrt 项（非嵌套） */
+    const char *first;
+    if (has_sqrt) {
+        first = strstr(expr, "sqrt");
+        if (first) {
+            const char *second = strstr(first + 4, "sqrt");
+            if (second)
+                return false; /* 嵌套或复合 sqrt，不是简单二次根式 */
+        }
+    } else {
+        first = strstr(expr, "√");
+        if (first) {
+            const char *second = strstr(first + 3, "√");
+            if (second)
+                return false;
+        }
+    }
+
+    /* 检查是否包含幂运算（如 ^3, 立方等），这些会产生高次代数数 */
+    if (strstr(expr, "^3") || strstr(expr, "^4") || strstr(expr, "cbrt") || strstr(expr, "cubic"))
+        return false;
+
+    return true;
+}
+
+/**
+ * @brief 获取降级统计信息
+ *
+ * @param out_total 输出：总降级次数（可为 NULL）
+ * @param out_current 输出：当前计划（可为 NULL）
+ */
+void symbolic_coord_plan_stats(int *out_total, AlgebraicPlan *out_current) {
+    if (out_total)
+        *out_total = g_degrade_total;
+    if (out_current)
+        *out_current = algebraic_get_plan();
 }

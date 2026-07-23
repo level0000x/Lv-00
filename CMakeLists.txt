@@ -367,6 +367,8 @@ set(lv_HEADERS
     core/include/lv/smt_backend.h
     core/include/lv/bdd_encoding.h
     core/include/lv/approx_counter.h
+    # 位数熔断系统
+    core/include/lv/bit_burning.h
     # v1.1.0 新增模块头文件（第二轮：计算后端与数值模块）
     core/include/lv/atp_backend.h
     core/include/lv/solver_core.h
@@ -756,6 +758,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/numeric/autodiff.c
     # ODE 求解器（从 Layer 3 迁移）
     core/src/layer4_reasoning/numeric/ode_solver.c
+    # 位数熔断系统
+    core/src/layer4_reasoning/numeric/bit_burning.c
     # v1.1.0 新增：不等式推理系统（桩实现）
     core/src/layer4_reasoning/type_logic/inequality_reasoning.c
     # v4.0.0 新增：自适应剪枝策略（动态阈值 + 启发式评分）
@@ -765,6 +769,7 @@ set(lv_LAYER4_SOURCES
     # 公理包
     core/src/layer4_reasoning/axiom/axiom_pkg.c
     core/src/layer4_reasoning/axiom/axiom_grade.c
+    core/src/layer4_reasoning/axiom/axiom_template_test.c
     # func_block 函数块系统
     core/src/layer4_reasoning/func_block/func_block.c
     core/src/layer4_reasoning/func_block/func_block_compose.c

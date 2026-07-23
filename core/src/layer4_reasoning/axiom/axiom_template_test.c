@@ -1,0 +1,270 @@
+/**
+ * @file axiom_template_test.c
+ * @brief 约束模板双层测试框架 —— 测试执行器与正则形式验证
+ *
+ * 提供：
+ * 1. 出厂测试集与用户测试集的双层测试执行
+ * 2. 模板正则形式验证（图结构比对）
+ * 3. 测试用例的创建与销毁
+ *
+ * 测试执行器是纯比对函数，不执行任何推理，不使用约束求解器。
+ */
+
+#include "lv/axiom_pkg.h"
+#include "lv/constraint_graph.h"
+#include "lv_internal.h"
+#include "debug.h"
+
+/* ============== 辅助：图结构比对 ============== */
+
+/**
+ * @brief 比较两个约束图的结构是否一致
+ *
+ * 纯结构比对：比较节点数量、约束数量以及每个约束的类型和参与者数量。
+ * 不进行语义等价性判断，也不调用约束求解器。
+ *
+ * @return true 结构一致
+ */
+static bool graph_structure_match(const ConstraintGraph *a, const ConstraintGraph *b) {
+    if (!a || !b) return false;
+
+    /* 比较节点数量和约束数量 */
+    if (a->node_count != b->node_count) return false;
+    if (a->constraint_count != b->constraint_count) return false;
+
+    /* 比较每个约束的类型和参与者数量 */
+    for (int i = 0; i < a->constraint_count; i++) {
+        Constraint *ca = a->constraints[i];
+        Constraint *cb = b->constraints[i];
+        if (!ca || !cb) return false;
+        if (ca->type != cb->type) return false;
+        if (ca->participant_count != cb->participant_count) return false;
+    }
+
+    return true;
+}
+
+/* ============== 模板测试执行器 ============== */
+
+int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, int count,
+                             int *out_passed, int *out_failed, char ***out_failures)
+{
+    if (!pkg || !test_cases || count <= 0 || !out_passed || !out_failed || !out_failures) {
+        return -1;
+    }
+
+    *out_passed = 0;
+    *out_failed = 0;
+    *out_failures = NULL;
+
+    /* 分配失败消息数组 */
+    char **failures = lv_calloc((size_t)count, sizeof(char *));
+    if (!failures) return -1;
+
+    int fail_count = 0;
+
+    for (int i = 0; i < count; i++) {
+        TemplateTestCase *tc = test_cases[i];
+        if (!tc) {
+            /* 空测试用例视为失败 */
+            if (fail_count < count) {
+                failures[fail_count] = lv_strdup_safe("(null test case)");
+                if (failures[fail_count]) fail_count++;
+            }
+            continue;
+        }
+
+        /* 查找模板 */
+        ConstraintTemplate *tmpl = axiom_package_get_template(pkg, tc->template_name);
+        if (!tmpl) {
+            if (fail_count < count) {
+                char msg[128];
+                int _sn_ret;
+                lv_SAFE_SNPRINTF(_sn_ret, msg, sizeof(msg),
+                                 "Template '%s' not found", tc->template_name);
+                (void)_sn_ret;
+                failures[fail_count] = lv_strdup_safe(msg);
+                if (failures[fail_count]) fail_count++;
+            }
+            continue;
+        }
+
+        /* 如果模板没有 expand 函数，无法运行测试 */
+        if (!tmpl->expand) {
+            if (fail_count < count) {
+                char msg[128];
+                int _sn_ret;
+                lv_SAFE_SNPRINTF(_sn_ret, msg, sizeof(msg),
+                                 "Template '%s' has no expand function", tc->template_name);
+                (void)_sn_ret;
+                failures[fail_count] = lv_strdup_safe(msg);
+                if (failures[fail_count]) fail_count++;
+            }
+            continue;
+        }
+
+        /* 创建临时图并展开模板 */
+        ConstraintGraph *expanded = graph_create();
+        if (!expanded) {
+            if (fail_count < count) {
+                failures[fail_count] = lv_strdup_safe("Out of memory creating temp graph");
+                if (failures[fail_count]) fail_count++;
+            }
+            continue;
+        }
+
+        tmpl->expand(tc->params, expanded);
+
+        /* 判断展开是否"通过"：产生了有效约束 */
+        bool actual_pass = (expanded->constraint_count > 0);
+
+        /* 如果提供了预期图，进行结构比对 */
+        if (tc->expected_graph != NULL) {
+            actual_pass = graph_structure_match(expanded, tc->expected_graph);
+        }
+
+        /* 比对实际结果与预期结果 */
+        if (actual_pass == tc->expected_result) {
+            (*out_passed)++;
+        } else {
+            if (fail_count < count) {
+                char msg[256];
+                int _sn_ret;
+                lv_SAFE_SNPRINTF(_sn_ret, msg, sizeof(msg),
+                                 "[%s] '%s': expected %s, got %s (nodes=%d, constraints=%d)",
+                                 (tc->type == TEST_CASE_FACTORY) ? "FACTORY" : "USER",
+                                 tc->template_name,
+                                 tc->expected_result ? "pass" : "fail",
+                                 actual_pass ? "pass" : "fail",
+                                 expanded->node_count,
+                                 expanded->constraint_count);
+                (void)_sn_ret;
+                failures[fail_count] = lv_strdup_safe(msg);
+                if (failures[fail_count]) fail_count++;
+            }
+        }
+
+        graph_destroy(expanded);
+    }
+
+    *out_failed = fail_count;
+    *out_failures = failures;
+    return fail_count;
+}
+
+/* ============== 模板正则形式验证 ============== */
+
+bool axiom_template_verify_normal_form(AxiomPackage *pkg, const char *template_name)
+{
+    if (!pkg || !template_name) return false;
+
+    /* 查找模板 */
+    ConstraintTemplate *tmpl = axiom_package_get_template(pkg, template_name);
+    if (!tmpl) {
+        LOG_ERROR("axiom_template_test", "Template '%s' not found for normal form verification",
+                  template_name);
+        return false;
+    }
+
+    /* 如果模板没有 expand 函数，无法验证 */
+    if (!tmpl->expand) {
+        LOG_ERROR("axiom_template_test", "Template '%s' has no expand function", template_name);
+        return false;
+    }
+
+    /* 如果没有定义正则形式，跳过验证（视为通过） */
+    if (tmpl->normal_form.constraint_type_count <= 0 &&
+        tmpl->normal_form.node_type_count <= 0) {
+        LOG_INFO("axiom_template_test", "Template '%s' has no normal form defined, skipping",
+                 template_name);
+        return true;
+    }
+
+    /* 创建临时图并展开模板 */
+    ConstraintGraph *expanded = graph_create();
+    if (!expanded) {
+        LOG_ERROR("axiom_template_test", "Out of memory creating temp graph");
+        return false;
+    }
+
+    tmpl->expand(tmpl->params ? (SymbolicCoord **)tmpl->params : NULL, expanded);
+
+    /* 使用现有的正则形式验证函数 */
+    /* 构建规范形式字符串："CONSTRAINT_TYPE(NODE_TYPE,...)+" */
+    char canonical_buf[256] = {0};
+    int pos = 0;
+
+    for (int i = 0; i < tmpl->normal_form.constraint_type_count && pos < 240; i++) {
+        /* 追加约束类型编号 */
+        int _n;
+        lv_SAFE_SNPRINTF(_n, &canonical_buf[pos], (size_t)(256 - pos),
+                         "%d(", tmpl->normal_form.expected_constraint_types[i]);
+        pos += _n;
+
+        /* 追加节点类型 */
+        for (int j = 0; j < tmpl->normal_form.node_type_count && pos < 240; j++) {
+            if (j > 0 && pos < 255) {
+                canonical_buf[pos++] = ',';
+            }
+            lv_SAFE_SNPRINTF(_n, &canonical_buf[pos], (size_t)(256 - pos),
+                             "%d", tmpl->normal_form.expected_node_types[j]);
+            pos += _n;
+        }
+        if (pos < 255) {
+            canonical_buf[pos++] = ')';
+            if (i < tmpl->normal_form.constraint_type_count - 1 && pos < 254) {
+                canonical_buf[pos++] = '+';
+            }
+        }
+    }
+    canonical_buf[pos] = '\0';
+
+    bool result = axiom_template_validate_normal_form(tmpl, expanded, canonical_buf);
+
+    graph_destroy(expanded);
+    return result;
+}
+
+/* ============== 测试用例生命周期管理 ============== */
+
+TemplateTestCase *axiom_template_test_case_create(const char *name, TestCaseType type,
+                                                    int param_count, bool expected)
+{
+    if (!name || param_count < 0) return NULL;
+
+    TemplateTestCase *tc = lv_calloc(1, sizeof(TemplateTestCase));
+    if (!tc) return NULL;
+
+    tc->template_name = lv_strdup_safe(name);
+    if (!tc->template_name) {
+        lv_free((void **)&tc);
+        return NULL;
+    }
+
+    tc->type = type;
+    tc->param_count = param_count;
+    tc->params = NULL;          /* 调用者可后续设置 */
+    tc->expected_graph = NULL;  /* 调用者可后续设置 */
+    tc->expected_result = expected;
+    tc->description = NULL;
+
+    return tc;
+}
+
+void axiom_template_test_case_destroy(TemplateTestCase *tc)
+{
+    if (!tc) return;
+
+    lv_free((void **)&tc->template_name);
+    lv_free((void **)&tc->description);
+
+    /* params 数组中的每个 SymbolicCoord 由调用者管理，
+     * 此处只释放数组本身（浅释放） */
+    if (tc->params) {
+        lv_free((void **)&tc->params);
+    }
+
+    /* expected_graph 由调用者管理，此处不释放 */
+    memset(tc, 0, sizeof(TemplateTestCase));
+    lv_free((void **)&tc);
+}

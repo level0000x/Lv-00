@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module_serialize.c
  * @brief 模块序列化（MsgPack/JSON）
  *
@@ -309,6 +309,12 @@ ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_
         return status;
     }
     
+    /* 加载完成后使用三色 DFS 进行完整循环依赖检测 */
+    if (module_full_cycle_detect(loaded, count, NULL, NULL)) {
+        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "检测到循环依赖，模块加载终止");
+        return MODULE_LOAD_CIRCULAR_DEPENDENCY;
+    }
+    
     if (module_stream_ctx) {
         stream_emit_simple(module_stream_ctx, STREAM_EVENT_INFO, "模块加载成功", 0);
     }
@@ -587,17 +593,105 @@ bool module_validate_dependency_chain(Module *mod, Module **all_modules, int mod
 }
 
 /**
- * @brief 检测模块依赖中是否存在循环依赖
+ * @brief 三色 DFS 标记（白/灰/黑）
  *
- * 当前实现的局限性说明：
- * - 本函数仅检查目标模块是否已出现在 visited 列表中（即单层存在性检查），
- *   而非执行完整的深度优先搜索（DFS）路径回溯。
- * - 这意味着它只能检测到"直接自引用"类型的循环（A 依赖 A），
- *   以及在 visited 列表已包含完整依赖链时的简单循环（A->B->C->A）。
- * - 对于更复杂的循环模式（如 A->B, A->C, B->D, C->D, D->A），
- *   如果 visited 列表未按正确的 DFS 顺序构建，可能会产生误判。
- * - 建议未来重构为基于 DFS 的完整循环检测算法（使用白/灰/黑三色标记），
- *   以确保对任意复杂的依赖图都能准确检测所有环路。
+ * WHITE = 未访问，GRAY = 访问中（当前 DFS 路径上），BLACK = 已访问完成
+ */
+typedef enum {
+    DFS_WHITE = 0,
+    DFS_GRAY  = 1,
+    DFS_BLACK = 2
+} DFSColor;
+
+/**
+ * @brief 在模块数组中按指针查找模块索引
+ * @return 模块索引，未找到返回 -1
+ */
+static int module_index_in_array(Module **modules, int count, Module *mod) {
+    for (int i = 0; i < count; i++) {
+        if (modules[i] == mod) return i;
+    }
+    return -1;
+}
+
+/**
+ * @brief 递归 DFS 检测循环依赖（三色标记算法）
+ *
+ * @param mod 当前模块
+ * @param modules 所有模块数组
+ * @param count 模块数量
+ * @param color_map 颜色表
+ * @param out_path 输出：循环路径（暂未实现，保留参数供扩展）
+ * @param out_path_len 输出：路径长度（暂未实现，保留参数供扩展）
+ * @return true 检测到循环，false 无循环
+ */
+static bool dfs_detect_cycle(Module *mod, Module **modules, int count,
+                              DFSColor *color_map,
+                              int **out_path, int *out_path_len) {
+    int idx = module_index_in_array(modules, count, mod);
+    if (idx < 0) return false;
+
+    if (color_map[idx] == DFS_GRAY) {
+        /* 检测到循环！当前模块在当前 DFS 路径上 */
+        return true;
+    }
+    if (color_map[idx] == DFS_BLACK) {
+        /* 已访问完成，无需重复 */
+        return false;
+    }
+
+    /* 标记为访问中 */
+    color_map[idx] = DFS_GRAY;
+
+    /* 遍历依赖 */
+    for (int i = 0; i < mod->dependency_count; i++) {
+        Module *dep = mod->dependencies[i].module;
+        if (dep) {
+            if (dfs_detect_cycle(dep, modules, count, color_map, out_path, out_path_len)) {
+                return true;
+            }
+        }
+    }
+
+    /* 标记为访问完成 */
+    color_map[idx] = DFS_BLACK;
+    return false;
+}
+
+/**
+ * @brief 模块加载时的完整循环检测
+ *
+ * 使用三色 DFS 对所有已加载模块执行完整循环检测。
+ * 可检测任意复杂循环依赖（如 A→B, A→C, B→D, C→D, D→A）。
+ *
+ * @param modules 模块数组
+ * @param count 模块数量
+ * @param out_path 输出：循环路径（调用者需 free，当前暂未实现）
+ * @param out_path_len 输出：路径长度（当前暂未实现）
+ * @return true 检测到循环依赖，false 无循环
+ */
+bool module_full_cycle_detect(Module **modules, int count, int **out_path, int *out_path_len) {
+    if (!modules || count <= 0) return false;
+
+    DFSColor *color_map = (DFSColor *)lv_calloc((size_t)count, sizeof(DFSColor));
+    if (!color_map) return false;
+
+    bool has_cycle = false;
+    for (int i = 0; i < count && !has_cycle; i++) {
+        if (color_map[i] == DFS_WHITE) {
+            has_cycle = dfs_detect_cycle(modules[i], modules, count, color_map,
+                                          out_path, out_path_len);
+        }
+    }
+
+    lv_free((void **)&color_map);
+    return has_cycle;
+}
+
+/**
+ * @brief 检测模块依赖中是否存在循环依赖（旧版 API，保留向后兼容）
+ *
+ * 内部调用三色 DFS 算法进行完整检测。
  *
  * @param mod 待检测的模块
  * @param visited 已访问模块列表
@@ -605,7 +699,22 @@ bool module_validate_dependency_chain(Module *mod, Module **all_modules, int mod
  * @return true 如果检测到循环依赖，false 否则
  */
 bool module_detect_circular_dependency(Module *mod, Module **visited, int visited_count) {
-    return dependency_exists(visited, visited_count, mod);
+    if (!mod) return false;
+
+    /* 构建完整模块数组：visited + mod */
+    int total = visited_count + 1;
+    Module **all_modules = (Module **)lv_malloc((size_t)total * sizeof(Module *));
+    if (!all_modules) return false;
+
+    for (int i = 0; i < visited_count; i++) {
+        all_modules[i] = visited[i];
+    }
+    all_modules[visited_count] = mod;
+
+    bool result = module_full_cycle_detect(all_modules, total, NULL, NULL);
+
+    lv_free((void **)&all_modules);
+    return result;
 }
 
 /* ------------------------------------------------------------------ */

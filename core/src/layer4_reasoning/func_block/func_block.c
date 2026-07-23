@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block.c
  * @brief 函数块核心实现
  * @details 实现函数块的创建、销毁、打包、深拷贝等核心管理 API。
@@ -559,6 +559,120 @@ bool func_block_detect_cross_boundary(ConstraintGraph *graph, const int *interna
     return *out_conflict_count > 0;
 }
 
+/* ============== 跨边界约束处理 ============== */
+
+/**
+ * @brief 检查并处理跨边界约束
+ *
+ * 1. 调用 find_cross_boundary_constraints() 获取跨边界约束列表
+ * 2. 对每条约束，检查其类型：
+ *    - CONNECTION 类型：允许（端口连接在封装后自动由边界端口接管）
+ *    - 其他类型（INCIDENCE/BETWEENNESS/INTERSECTION/CONTAINMENT）：
+ *      通过 callback 询问用户处理方式
+ * 3. 根据用户选择执行对应操作
+ *
+ * @param graph 约束图
+ * @param internal_ids 内部节点 ID 数组
+ * @param internal_count 内部节点数量
+ * @param port_ids 端口 ID 数组
+ * @param port_count 端口数量
+ * @param error_msg 输出：错误消息缓冲区（可选）
+ * @param error_size 错误消息缓冲区大小
+ * @return lv_OK 成功（无跨边界约束或全部已处理），其他错误码
+ */
+static int handle_cross_boundary_constraints(ConstraintGraph *graph,
+    const int *internal_ids, int internal_count,
+    const int *port_ids, int port_count,
+    char *error_msg, int error_size)
+{
+    if (!graph || !internal_ids || internal_count <= 0)
+        return lv_OK;
+
+    /* 合并内部节点和端口 ID 用于跨边界检测 */
+    int partial = lv_SAFE_ADD(internal_count, port_count > 0 ? port_count : 0, INT_MAX);
+    if (partial == INT_MAX)
+        return lv_ERROR_OVERFLOW;
+    int total_bound = partial;
+
+    int *bound_ids = NULL;
+    if (total_bound > 0) {
+        bound_ids = (int *)lv_malloc((size_t)total_bound * sizeof(int));
+        if (!bound_ids)
+            return lv_ERROR_OUT_OF_MEMORY;
+        int bidx = 0;
+        for (int i = 0; i < internal_count; i++)
+            bound_ids[bidx++] = internal_ids[i];
+        if (port_ids && port_count > 0) {
+            for (int i = 0; i < port_count; i++)
+                bound_ids[bidx++] = port_ids[i];
+        }
+    }
+
+    int count = 0;
+    CrossBoundaryConstraint *cbs = find_cross_boundary_constraints(
+        graph, bound_ids, total_bound, NULL, 0, &count);
+
+    if (bound_ids)
+        lv_free((void **)&bound_ids);
+
+    if (!cbs || count == 0)
+        return lv_OK;
+
+    int result = lv_OK;
+    for (int i = 0; i < count; i++) {
+        /* CONNECTION 约束自动允许（端口连接在封装后被边界端口接管） */
+        if (cbs[i].type == CONNECTION)
+            continue;
+
+        /* 非连接约束需要用户决策 */
+        if (error_msg && error_size > 0) {
+            snprintf(error_msg, error_size,
+                "跨边界%d: 约束#%d (type=%d) 涉及外部节点#%d，"
+                "请选择: promote/disconnect/cancel",
+                i, cbs[i].constraint_id, (int)cbs[i].type,
+                cbs[i].node_ids[0]);
+        }
+        result = lv_ERROR_UNKNOWN;  /* 需要用户介入 */
+    }
+
+    lv_free((void **)&cbs);
+    return result;
+}
+
+/**
+ * @brief 执行跨边界约束的处理动作
+ *
+ * @param graph 约束图
+ * @param constraint_id 约束 ID
+ * @param action 处理动作
+ * @return lv_OK 成功，其他错误码
+ */
+int execute_boundary_action(ConstraintGraph *graph, int constraint_id, CrossBoundaryAction action) {
+    if (!graph)
+        return lv_ERROR_INVALID_PARAM;
+
+    switch (action) {
+        case CROSS_BOUNDARY_DISCONNECT:
+            return graph_deactivate_constraint(graph, constraint_id);
+        case CROSS_BOUNDARY_PROMOTE:
+            /* 标记约束为"已提升"（保留在图中，作为端口依赖可见） */
+            return lv_OK;
+        case CROSS_BOUNDARY_CANCEL:
+        default:
+            return lv_ERROR_CANCELLED;
+    }
+}
+
+/* ============== 跨边界回调上下文 ============== */
+
+/** 跨边界回调上下文结构体：封装回调和用户数据，确保线程安全 */
+typedef struct {
+    CrossBoundaryCallback callback; /**< 回调函数指针 */
+    void *user_data;                /**< 回调用户数据 */
+} CrossBoundaryCallbackContext;
+
+static lv_THREAD_LOCAL CrossBoundaryCallbackContext g_cross_boundary_ctx = {NULL, NULL};
+
 /* ============== 打包操作 ============== */
 
 /**
@@ -668,16 +782,63 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
                                "打包检测到跨边界约束，开始处理", 0);
         }
 
-        if (!cross_boundary_actions || cross_boundary_count < conflict_count) {
-            /* 存在跨边界约束但未提供足够的处理方式 */
-            lv_free((void **) &conflicts);
-            lv_free((void **) &bound_ids);
-            return PACK_RESULT_CROSS_BOUNDARY_CONFLICT;
+        /* 统计非 CONNECTION 类型的跨边界约束数量 */
+        int non_connection_count = 0;
+        for (int i = 0; i < conflict_count; i++) {
+            if (conflicts[i].type != CONNECTION)
+                non_connection_count++;
         }
 
-        /* 处理每条跨边界约束 */
+        /* CONNECTION 类型约束自动允许（端口连接在封装后由边界端口接管）*/
+        /* 如果存在非 CONNECTION 类型约束，需要用户决策 */
+        if (non_connection_count > 0) {
+            bool can_process = false;
+
+            if (cross_boundary_actions && cross_boundary_count >= non_connection_count) {
+                can_process = true;
+            } else if (g_cross_boundary_ctx.callback) {
+                /* 使用回调为每条非 CONNECTION 约束获取处理方式 */
+                int action_idx = 0;
+                int *cb_actions = (int *)lv_malloc((size_t)non_connection_count * sizeof(int));
+                if (cb_actions) {
+                    for (int i = 0; i < conflict_count; i++) {
+                        if (conflicts[i].type == CONNECTION)
+                            continue;
+                        CrossBoundaryResolution res = g_cross_boundary_ctx.callback(
+                            conflicts[i].constraint_id, conflicts[i].type,
+                            conflicts[i].node_ids[0],
+                            conflicts[i].node_ids[1],
+                            g_cross_boundary_ctx.user_data);
+                        if (res.action == CROSS_BOUNDARY_CANCEL) {
+                            lv_free((void **)&cb_actions);
+                            lv_free((void **)&conflicts);
+                            lv_free((void **)&bound_ids);
+                            return PACK_RESULT_CANCELLED;
+                        }
+                        cb_actions[action_idx++] = (int)res.action;
+                    }
+                    cross_boundary_actions = (CrossBoundaryAction *)cb_actions;
+                    cross_boundary_count = non_connection_count;
+                    can_process = true;
+                }
+            }
+
+            if (!can_process) {
+                /* 存在跨边界约束但未提供足够的处理方式 */
+                lv_free((void **) &conflicts);
+                lv_free((void **) &bound_ids);
+                return PACK_RESULT_CROSS_BOUNDARY_CONFLICT;
+            }
+        }
+
+        /* 处理每条跨边界约束（CONNECTION 类型自动跳过） */
+        int action_idx = 0;
         for (int i = 0; i < conflict_count; i++) {
-            CrossBoundaryAction action = cross_boundary_actions[i];
+            /* CONNECTION 约束自动允许 */
+            if (conflicts[i].type == CONNECTION)
+                continue;
+
+            CrossBoundaryAction action = cross_boundary_actions[action_idx++];
             switch (action) {
                 case CROSS_BOUNDARY_CANCEL:
                     lv_free((void **) &conflicts);
@@ -951,11 +1112,90 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
                           (void *) config->output_port_ids, config->output_count);
     }
 
+    /* 准备跨边界约束处理参数 */
+    CrossBoundaryAction *actions = (CrossBoundaryAction *)config->cross_boundary_actions;
+    int action_count = config->cross_boundary_count;
+    bool actions_allocated = false;
+
+    /* ========== 跨边界约束预检查 ==========
+     *
+     * 在调用 func_block_pack 之前，先检查是否存在非 CONNECTION 类型的
+     * 跨边界约束。CONNECTION 类型约束自动允许（由端口机制处理），
+     * 其他类型需要通过回调询问用户处理方式（promote/disconnect/cancel）。
+     *
+     * 如果已存在 cross_boundary_actions 数组，则直接使用（跳过回调）。
+     */
+    if (!actions || action_count <= 0) {
+        char error_buf[256];
+        int cb_status = handle_cross_boundary_constraints(graph,
+            config->internal_node_ids, config->internal_count,
+            config->input_port_ids, config->input_count,
+            error_buf, sizeof(error_buf));
+
+        if (cb_status != lv_OK) {
+            /* 存在非 CONNECTION 类型的跨边界约束，需要用户决策 */
+            if (g_cross_boundary_ctx.callback) {
+                /* 使用回调获取每条约束的处理方式 */
+                int count = 0;
+                CrossBoundaryConstraint *cbs = find_cross_boundary_constraints(graph,
+                    config->internal_node_ids, config->internal_count,
+                    config->input_port_ids, config->input_count, &count);
+
+                if (cbs && count > 0) {
+                    int non_conn_count = 0;
+                    for (int i = 0; i < count; i++) {
+                        if (cbs[i].type != CONNECTION)
+                            non_conn_count++;
+                    }
+
+                    if (non_conn_count > 0) {
+                        CrossBoundaryAction *cb_actions = (CrossBoundaryAction *)lv_malloc(
+                            (size_t)non_conn_count * sizeof(CrossBoundaryAction));
+                        if (cb_actions) {
+                            int act_idx = 0;
+                            bool cancelled = false;
+                            for (int i = 0; i < count; i++) {
+                                if (cbs[i].type == CONNECTION)
+                                    continue;
+                                CrossBoundaryResolution res = g_cross_boundary_ctx.callback(
+                                    cbs[i].constraint_id, cbs[i].type,
+                                    cbs[i].node_ids[0], cbs[i].node_ids[1],
+                                    g_cross_boundary_ctx.user_data);
+                                if (res.action == CROSS_BOUNDARY_CANCEL) {
+                                    cancelled = true;
+                                    break;
+                                }
+                                cb_actions[act_idx++] = res.action;
+                            }
+                            if (cancelled) {
+                                lv_free((void **)&cb_actions);
+                                lv_free((void **)&cbs);
+                                return PACK_RESULT_CANCELLED;
+                            }
+                            actions = cb_actions;
+                            action_count = non_conn_count;
+                            actions_allocated = true;
+                        }
+                    }
+                    lv_free((void **)&cbs);
+                }
+            } else {
+                /* 无回调，返回错误消息让调用者处理 */
+                lv_ERROR_RETURN(lv_ERROR_UNKNOWN, PACK_RESULT_CROSS_BOUNDARY_CONFLICT,
+                                  "跨边界约束检查失败: %s", error_buf);
+            }
+        }
+    }
+
     /* 调用传统API */
     PackResult result = func_block_pack(graph, config->internal_node_ids, config->internal_count,
                                         config->input_port_ids, config->input_count, config->output_port_ids,
-                                        config->output_count, (CrossBoundaryAction *) config->cross_boundary_actions,
-                                        config->cross_boundary_count, out_func_block);
+                                        config->output_count, actions, action_count, out_func_block);
+
+    /* 如果 actions 是本函数分配的，需要释放 */
+    if (actions_allocated) {
+        lv_free((void **)&actions);
+    }
 
     /* 设置名称和描述（如果提供了） */
     if (result == PACK_RESULT_OK && *out_func_block) {
@@ -971,14 +1211,6 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
 }
 
 /* ============== 打包冲突对话框（API层） ============== */
-
-/** 跨边界回调上下文结构体：封装回调和用户数据，确保线程安全 */
-typedef struct {
-    CrossBoundaryCallback callback; /**< 回调函数指针 */
-    void *user_data;                /**< 回调用户数据 */
-} CrossBoundaryCallbackContext;
-
-static lv_THREAD_LOCAL CrossBoundaryCallbackContext g_cross_boundary_ctx = {NULL, NULL};
 
 /**
  * @brief 设置跨边界回调

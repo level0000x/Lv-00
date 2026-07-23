@@ -130,13 +130,24 @@ lv_PUBLIC_API bool axiom_template_validate_normal_form(const ConstraintTemplate 
 /* ============== 双层测试集 ============== */
 
 /**
+ * @brief 模板测试用例类型
+ */
+typedef enum {
+    TEST_CASE_FACTORY,    /**< 出厂测试（内核开发者编写） */
+    TEST_CASE_USER        /**< 用户测试（公理包作者添加） */
+} TestCaseType;
+
+/**
  * @brief 模板测试用例
  */
 typedef struct {
-    char name[128];
-    SymbolicCoord **param_values; /* 参数值 */
-    int param_count;
-    bool expected_pass; /* 预期结果 */
+    char *template_name;       /**< 模板名称 */
+    TestCaseType type;         /**< 测试类型 */
+    int param_count;           /**< 参数数量 */
+    SymbolicCoord **params;    /**< 参数值 */
+    struct ConstraintGraph *expected_graph; /**< 预期的展开后图结构（仅用于正则形式验证） */
+    bool expected_result;      /**< 期望结果（true=通过，false=失败） */
+    char *description;         /**< 测试描述 */
 } TemplateTestCase;
 
 /**
@@ -168,6 +179,54 @@ lv_PUBLIC_API TemplateTestResult axiom_template_run_tests(AxiomPackage *pkg, con
  * @brief 释放测试结果
  */
 lv_PUBLIC_API void axiom_template_test_result_destroy(TemplateTestResult *result);
+
+/**
+ * @brief 模板测试执行器
+ *
+ * 运行一组测试用例，比对实际结果与预期结果。
+ * 测试执行器是纯比对函数，不执行任何推理。
+ *
+ * @param pkg 公理包
+ * @param test_cases 测试用例数组
+ * @param count 测试用例数量
+ * @param out_passed 输出：通过的测试数
+ * @param out_failed 输出：失败的测试数
+ * @param out_failures 输出：失败的测试名称数组（调用者需 free）
+ * @return int 失败数量，<0 表示错误
+ */
+lv_PUBLIC_API int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, int count,
+                             int *out_passed, int *out_failed, char ***out_failures);
+
+/**
+ * @brief 模板正则形式验证
+ *
+ * 验证模板展开后的图结构是否符合该模板的正则形式规范。
+ * 正则形式由约束图的结构定义（节点类型、约束类型组合）。
+ *
+ * @param pkg 公理包
+ * @param template_name 模板名称
+ * @return true 通过正则形式验证
+ */
+lv_PUBLIC_API bool axiom_template_verify_normal_form(AxiomPackage *pkg, const char *template_name);
+
+/**
+ * @brief 创建测试用例
+ *
+ * @param name 测试用例名称
+ * @param type 测试类型（TEST_CASE_FACTORY 或 TEST_CASE_USER）
+ * @param param_count 参数数量
+ * @param expected 期望结果
+ * @return 新创建的 TemplateTestCase，失败返回 NULL
+ */
+lv_PUBLIC_API TemplateTestCase *axiom_template_test_case_create(const char *name, TestCaseType type,
+                                                    int param_count, bool expected);
+
+/**
+ * @brief 销毁测试用例
+ *
+ * @param tc 要销毁的测试用例（可为 NULL）
+ */
+lv_PUBLIC_API void axiom_template_test_case_destroy(TemplateTestCase *tc);
 
 /* ============== 模板展开缓存 ============== */
 

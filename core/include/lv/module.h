@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：模块系统 (module)
  * 功能概述：提供模块的创建/销毁、依赖管理、循环依赖检测、
  *          LVZ 文本格式与 MessagePack 二进制格式的序列化/反序列化、
@@ -138,6 +138,7 @@ lv_PUBLIC_API char *module_compute_version_hash(const Module *mod);
 
 lv_PUBLIC_API bool module_validate_dependency_chain(Module *mod, Module **all_modules, int module_count);
 lv_PUBLIC_API bool module_detect_circular_dependency(Module *mod, Module **visited, int visited_count);
+lv_PUBLIC_API bool module_full_cycle_detect(Module **modules, int count, int **out_path, int *out_path_len);
 
 lv_PUBLIC_API bool module_parse_version_constraint(const char *constraint, const char *version);
 lv_PUBLIC_API int module_compare_versions(const char *v1, const char *v2);
