@@ -46,6 +46,8 @@ int main(void) {
     printf("=== geo_visual 渲染模块测试 ===\n\n");
     const char *tmp_svg = "test_geo_visual_output.svg";
     const char *tmp_tikz = "test_geo_visual_output.tex";
+    const char *tmp_cairo = "test_geo_visual_output_cairo.c";
+    const char *tmp_threejs = "test_geo_visual_output_threejs.html";
 
     /* ========== 组 1：对象创建 ========== */
     printf("[组 1] 对象创建\n");
@@ -332,9 +334,111 @@ int main(void) {
         lv_visual_renderer_destroy(r2);
     }
 
+    /* ========== 组 10：Cairo 脚本渲染输出 ========== */
+    printf("[组 10] Cairo 脚本渲染输出\n");
+    {
+        lvVisualScene *scene = lv_visual_scene_create();
+        lvVisualRenderer *r = lv_visual_renderer_create(lv_RENDER_CAIRO, 400, 300);
+
+        TEST("cairo: 空场景渲染 (main function)");
+        lv_visual_render(r, scene, tmp_cairo);
+        if (file_starts_with(tmp_cairo, "/* Generated") && file_contains(tmp_cairo, "int main(void)")) PASS;
+        else FAIL;
+
+        lvVisualObject *pt = lv_visual_point_create(100, 150);
+        lv_visual_set_color(pt, 1.0f, 0.0f, 0.0f, 1.0f);
+        lv_visual_scene_add(scene, pt);
+
+        TEST("cairo: cairo头文件引用");
+        if (file_contains(tmp_cairo, "#include <cairo.h>")) PASS;
+        else FAIL;
+
+        TEST("cairo: 点渲染为 cairo_arc");
+        lv_visual_render(r, scene, tmp_cairo);
+        if (file_contains(tmp_cairo, "cairo_arc") && file_contains(tmp_cairo, "cairo_fill")) PASS;
+        else FAIL;
+
+        lvVisualObject *line = lv_visual_line_create(0, 0, 200, 200);
+        lv_visual_scene_add(scene, line);
+        lvVisualObject *circ = lv_visual_circle_create(200, 100, 50);
+        lv_visual_scene_add(scene, circ);
+
+        TEST("cairo: 线段渲染为 move_to / line_to / stroke");
+        lv_visual_render(r, scene, tmp_cairo);
+        if (file_contains(tmp_cairo, "cairo_move_to") &&
+            file_contains(tmp_cairo, "cairo_line_to") &&
+            file_contains(tmp_cairo, "cairo_stroke")) PASS;
+        else FAIL;
+
+        TEST("cairo: 圆渲染含 cairo_arc + stroke_preserve");
+        if (file_contains(tmp_cairo, "cairo_stroke_preserve")) PASS;
+        else FAIL;
+
+        TEST("cairo: 输出为 cairo_surface_write_to_png");
+        if (file_contains(tmp_cairo, "cairo_surface_write_to_png")) PASS;
+        else FAIL;
+
+        lv_visual_scene_destroy(scene);
+        lv_visual_renderer_destroy(r);
+    }
+
+    /* ========== 组 11：Three.js HTML 渲染输出 ========== */
+    printf("[组 11] Three.js 渲染输出\n");
+    {
+        lvVisualScene *scene = lv_visual_scene_create();
+        lvVisualRenderer *r = lv_visual_renderer_create(lv_RENDER_THREEJS, 400, 300);
+
+        TEST("threejs: 空场景渲染 (HTML DOCTYPE)");
+        lv_visual_render(r, scene, tmp_threejs);
+        if (file_contains(tmp_threejs, "<!DOCTYPE html>") && file_contains(tmp_threejs, "</html>")) PASS;
+        else FAIL;
+
+        TEST("threejs: Three.js CDN 引用");
+        if (file_contains(tmp_threejs, "three.module.js") &&
+            file_contains(tmp_threejs, "OrbitControls")) PASS;
+        else FAIL;
+
+        TEST("threejs: WebGLRenderer 创建");
+        if (file_contains(tmp_threejs, "WebGLRenderer")) PASS;
+        else FAIL;
+
+        lvVisualObject *pt = lv_visual_point_create(100, 150);
+        lv_visual_set_color(pt, 0.0f, 1.0f, 0.0f, 1.0f);
+        lv_visual_scene_add(scene, pt);
+
+        TEST("threejs: 点渲染为 SphereGeometry");
+        lv_visual_render(r, scene, tmp_threejs);
+        if (file_contains(tmp_threejs, "SphereGeometry") && file_contains(tmp_threejs, "THREE.Mesh")) PASS;
+        else FAIL;
+
+        lvVisualObject *line = lv_visual_line_create(0, 0, 200, 200);
+        lv_visual_set_color(line, 0.0f, 0.0f, 1.0f, 1.0f);
+        lv_visual_scene_add(scene, line);
+        lvVisualObject *circ = lv_visual_circle_create(200, 100, 50);
+        lv_visual_scene_add(scene, circ);
+
+        TEST("threejs: 线段渲染为 PlaneGeometry");
+        lv_visual_render(r, scene, tmp_threejs);
+        if (file_contains(tmp_threejs, "PlaneGeometry")) PASS;
+        else FAIL;
+
+        TEST("threejs: 圆形渲染为 RingGeometry");
+        if (file_contains(tmp_threejs, "RingGeometry")) PASS;
+        else FAIL;
+
+        TEST("threejs: 场景含 OrbitControls");
+        if (file_contains(tmp_threejs, "controls.update")) PASS;
+        else FAIL;
+
+        lv_visual_scene_destroy(scene);
+        lv_visual_renderer_destroy(r);
+    }
+
     /* 清理临时文件 */
     remove(tmp_svg);
     remove(tmp_tikz);
+    remove(tmp_cairo);
+    remove(tmp_threejs);
 
     printf("\n=== 结果: %d passed, %d failed ===\n", tests_passed, tests_failed);
     return tests_failed > 0 ? 1 : 0;

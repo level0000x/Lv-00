@@ -818,7 +818,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
         lv_free((void **) &boundary);
         return false;
     }
-    memset(visited, 0, graph->node_count * sizeof(bool));
+    memset(visited, 0, (size_t)graph->node_count * sizeof(bool));
 
     /* Find initial edge: take first two point-type nodes */
     int start_v0 = -1, start_v1 = -1;
@@ -2345,4 +2345,5 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
 
     *out_data = buf;
     *out_size = (size_t) comp_size;
-    return t
+    return true;
+}
