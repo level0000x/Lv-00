@@ -15,9 +15,9 @@
 
 #ifdef lv_ENABLE_RUNTIME_GUARDS
 
-#include "context.h"
-
 #include <string.h>
+
+#include "context.h"
 
 /* ========================================================================
  * 内部辅助：平台相关的锁初始化/销毁
@@ -65,9 +65,9 @@ static void guard_destroy_locks(lvGuardContext *guard) {
  */
 static void guard_lock_stats(const lvGuardContext *guard) {
 #ifdef _WIN32
-    EnterCriticalSection((CRITICAL_SECTION *)&guard->stat_mutex);
+    EnterCriticalSection((CRITICAL_SECTION *) &guard->stat_mutex);
 #else
-    pthread_mutex_lock((pthread_mutex_t *)&guard->stat_mutex);
+    pthread_mutex_lock((pthread_mutex_t *) &guard->stat_mutex);
 #endif
 }
 
@@ -76,9 +76,9 @@ static void guard_lock_stats(const lvGuardContext *guard) {
  */
 static void guard_unlock_stats(const lvGuardContext *guard) {
 #ifdef _WIN32
-    LeaveCriticalSection((CRITICAL_SECTION *)&guard->stat_mutex);
+    LeaveCriticalSection((CRITICAL_SECTION *) &guard->stat_mutex);
 #else
-    pthread_mutex_unlock((pthread_mutex_t *)&guard->stat_mutex);
+    pthread_mutex_unlock((pthread_mutex_t *) &guard->stat_mutex);
 #endif
 }
 
@@ -186,8 +186,7 @@ bool lv_verify_data_integrity(struct lvContext *ctx) {
     if (ctx->reasoning_stack.top >= ctx->reasoning_stack.max_depth) {
         return false;
     }
-    if (ctx->reasoning_stack.top >= 0 &&
-        ctx->reasoning_stack.top >= ctx->reasoning_stack.capacity) {
+    if (ctx->reasoning_stack.top >= 0 && ctx->reasoning_stack.top >= ctx->reasoning_stack.capacity) {
         return false;
     }
 
@@ -200,14 +199,12 @@ bool lv_verify_data_integrity(struct lvContext *ctx) {
     }
 
     /* 检查 5：熔断器状态一致性 */
-    if (ctx->circuit_breaker.state < CIRCUIT_BREAKER_CLOSED ||
-        ctx->circuit_breaker.state > CIRCUIT_BREAKER_OPEN) {
+    if (ctx->circuit_breaker.state < CIRCUIT_BREAKER_CLOSED || ctx->circuit_breaker.state > CIRCUIT_BREAKER_OPEN) {
         return false;
     }
 
     /* 若熔断器处于 OPEN 状态且上下文不在 ERROR 状态，则不一致 */
-    if (ctx->circuit_breaker.state == CIRCUIT_BREAKER_OPEN &&
-        ctx->state != lv_CONTEXT_ERROR) {
+    if (ctx->circuit_breaker.state == CIRCUIT_BREAKER_OPEN && ctx->state != lv_CONTEXT_ERROR) {
         return false;
     }
 

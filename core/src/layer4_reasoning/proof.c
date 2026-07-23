@@ -59,17 +59,18 @@
 #include <pthread.h>
 #endif
 
-#include "axiom_pkg.h"
 #include "lv/engine.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
 #include "lv/node_deep_copy.h"
 #include "lv/solver.h"
 #include "lv/stream.h"
-#include "stream_context_util.h"
 #include "lv/thread_pool.h"
 #include "lv/type_system.h"
 #include "lv/unify.h"
+
+#include "axiom_pkg.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "stream_context_util.h"
 
 lv_DECLARE_STREAM_CTX(proof);
 
@@ -108,7 +109,7 @@ Proposition *proposition_create(int id, PropositionType type) {
     prop->id = id;
     prop->type = type;
     prop->color = PROOF_COLOR_BLUE_UNEXPLORED; /* 默认蓝色未探索 */
-    prop->ref_count = 1; /* 创建时引用计数为1 */
+    prop->ref_count = 1;                       /* 创建时引用计数为1 */
 
     /* 初始化时间戳 */
     prop->created_at = time(NULL);

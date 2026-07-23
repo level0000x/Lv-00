@@ -14,17 +14,18 @@
  */
 
 #include "lv/gappa_propagate.h"
-#include "lv_utils.h"
-#include "lv/gappa_dsl.h"
-#include "lv/lv_internal.h"
 
+#include <ctype.h>
 #include <errno.h>
+#include <float.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <math.h>
-#include <ctype.h>
-#include <float.h>
+#include "lv/gappa_dsl.h"
+#include "lv/lv_internal.h"
+
+#include "lv_utils.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -67,10 +68,12 @@ static PropInterval ia_mul(PropInterval a, PropInterval b) {
     p[1] = a.lo * b.hi;
     p[2] = a.hi * b.lo;
     p[3] = a.hi * b.hi;
-    PropInterval r = { p[0], p[0] };
+    PropInterval r = {p[0], p[0]};
     for (int i = 1; i < 4; i++) {
-        if (p[i] < r.lo) r.lo = p[i];
-        if (p[i] > r.hi) r.hi = p[i];
+        if (p[i] < r.lo)
+            r.lo = p[i];
+        if (p[i] > r.hi)
+            r.hi = p[i];
     }
     return r;
 }
@@ -79,34 +82,35 @@ static PropInterval ia_mul(PropInterval a, PropInterval b) {
 static PropInterval ia_div(PropInterval a, PropInterval b) {
     /* 除数包含零 -> 返回全实数 */
     if (b.lo <= 0.0 && b.hi >= 0.0) {
-        PropInterval r = { -INFINITY, INFINITY };
+        PropInterval r = {-INFINITY, INFINITY};
         return r;
     }
-    PropInterval inv_b = { 1.0 / b.hi, 1.0 / b.lo };
+    PropInterval inv_b = {1.0 / b.hi, 1.0 / b.lo};
     return ia_mul(a, inv_b);
 }
 
 /** @brief 区间取反: [-a.hi, -a.lo] */
 static PropInterval ia_neg(PropInterval a) {
-    PropInterval r = { -a.hi, -a.lo };
+    PropInterval r = {-a.hi, -a.lo};
     return r;
 }
 
 /** @brief 区间绝对值 */
 static PropInterval ia_abs(PropInterval a) {
-    if (a.lo >= 0.0) return a;
+    if (a.lo >= 0.0)
+        return a;
     if (a.hi <= 0.0) {
-        PropInterval r = { -a.hi, -a.lo };
+        PropInterval r = {-a.hi, -a.lo};
         return r;
     }
-    PropInterval r = { 0.0, fmax(-a.lo, a.hi) };
+    PropInterval r = {0.0, fmax(-a.lo, a.hi)};
     return r;
 }
 
 /** @brief 区间平方根（要求 a.lo >= 0） */
 static PropInterval ia_sqrt(PropInterval a) {
     if (a.hi < 0.0) {
-        PropInterval r = { NAN, NAN };
+        PropInterval r = {NAN, NAN};
         return r;
     }
     PropInterval r;
@@ -119,12 +123,12 @@ static PropInterval ia_sqrt(PropInterval a) {
 static PropInterval ia_sin(PropInterval a) {
     /* 若区间跨过整个周期 */
     if (a.hi - a.lo >= 2.0 * M_PI) {
-        PropInterval r = { -1.0, 1.0 };
+        PropInterval r = {-1.0, 1.0};
         return r;
     }
     double s_lo = sin(a.lo);
     double s_hi = sin(a.hi);
-    PropInterval r = { fmin(s_lo, s_hi), fmax(s_lo, s_hi) };
+    PropInterval r = {fmin(s_lo, s_hi), fmax(s_lo, s_hi)};
     /* 检查区间内是否包含极值点 pi/2 + k*pi */
     double k_lo = floor((a.lo - M_PI / 2.0) / M_PI);
     double k_hi = floor((a.hi - M_PI / 2.0) / M_PI);
@@ -143,12 +147,12 @@ static PropInterval ia_sin(PropInterval a) {
 /** @brief 区间余弦: 类似正弦处理非单调性 */
 static PropInterval ia_cos(PropInterval a) {
     if (a.hi - a.lo >= 2.0 * M_PI) {
-        PropInterval r = { -1.0, 1.0 };
+        PropInterval r = {-1.0, 1.0};
         return r;
     }
     double c_lo = cos(a.lo);
     double c_hi = cos(a.hi);
-    PropInterval r = { fmin(c_lo, c_hi), fmax(c_lo, c_hi) };
+    PropInterval r = {fmin(c_lo, c_hi), fmax(c_lo, c_hi)};
     /* 检查区间内是否包含 k*pi（cos 极值点） */
     double k_lo = floor(a.lo / M_PI);
     double k_hi = floor(a.hi / M_PI);
@@ -166,17 +170,17 @@ static PropInterval ia_cos(PropInterval a) {
 
 /** @brief 区间指数: exp 单调递增 */
 static PropInterval ia_exp(PropInterval a) {
-    PropInterval r = { exp(a.lo), exp(a.hi) };
+    PropInterval r = {exp(a.lo), exp(a.hi)};
     return r;
 }
 
 /** @brief 区间对数: log 单调递增，要求 a.lo > 0 */
 static PropInterval ia_log(PropInterval a) {
     if (a.lo <= 0.0) {
-        PropInterval r = { -INFINITY, log(fmax(DBL_MIN, a.hi)) };
+        PropInterval r = {-INFINITY, log(fmax(DBL_MIN, a.hi))};
         return r;
     }
-    PropInterval r = { log(a.lo), log(a.hi) };
+    PropInterval r = {log(a.lo), log(a.hi)};
     return r;
 }
 
@@ -196,13 +200,14 @@ static PropInterval parse_expr(Parser *p);
 
 /** @brief 跳过空白字符 */
 static void skip_ws(Parser *p) {
-    while (*p->pos && isspace((unsigned char)*p->pos)) p->pos++;
+    while (*p->pos && isspace((unsigned char) *p->pos))
+        p->pos++;
 }
 
 /** @brief 解析因子（数字、变量、括号、函数调用） */
 static PropInterval parse_factor(Parser *p) {
     skip_ws(p);
-    PropInterval r = { 0.0, 0.0 };
+    PropInterval r = {0.0, 0.0};
 
     /* 负号 */
     if (*p->pos == '-') {
@@ -216,36 +221,34 @@ static PropInterval parse_factor(Parser *p) {
         p->pos++;
         r = parse_expr(p);
         skip_ws(p);
-        if (*p->pos == ')') p->pos++;
+        if (*p->pos == ')')
+            p->pos++;
         return r;
     }
 
     /* 函数调用: sqrt, sin, cos, exp, log, abs */
-    if (isalpha((unsigned char)p->pos[0])) {
-        static const char *fnames[] = {
-            "sqrt", "sin", "cos", "exp", "log", "abs", NULL
-        };
+    if (isalpha((unsigned char) p->pos[0])) {
+        static const char *fnames[] = {"sqrt", "sin", "cos", "exp", "log", "abs", NULL};
         typedef PropInterval (*FnFunc)(PropInterval);
-        static const FnFunc fns[] = {
-            ia_sqrt, ia_sin, ia_cos, ia_exp, ia_log, ia_abs
-        };
+        static const FnFunc fns[] = {ia_sqrt, ia_sin, ia_cos, ia_exp, ia_log, ia_abs};
 
         for (int fi = 0; fnames[fi]; fi++) {
             size_t len = strlen(fnames[fi]);
-            if (strncmp(p->pos, fnames[fi], len) == 0 &&
-                !isalpha((unsigned char)p->pos[len])) {
+            if (strncmp(p->pos, fnames[fi], len) == 0 && !isalpha((unsigned char) p->pos[len])) {
                 p->pos += len;
                 skip_ws(p);
-                if (*p->pos == '(') p->pos++;
+                if (*p->pos == '(')
+                    p->pos++;
                 PropInterval arg = parse_expr(p);
                 skip_ws(p);
-                if (*p->pos == ')') p->pos++;
+                if (*p->pos == ')')
+                    p->pos++;
                 return fns[fi](arg);
             }
         }
 
         /* 单字母变量 */
-        if (isalpha((unsigned char)*p->pos) && !isalpha((unsigned char)p->pos[1])) {
+        if (isalpha((unsigned char) *p->pos) && !isalpha((unsigned char) p->pos[1])) {
             int idx = *p->pos - 'a';
             if (idx >= 0 && idx < 26) {
                 p->pos++;
@@ -254,12 +257,13 @@ static PropInterval parse_factor(Parser *p) {
             }
         }
         /* 未知标识符 -> 返回 [0,0] */
-        while (isalpha((unsigned char)*p->pos)) p->pos++;
+        while (isalpha((unsigned char) *p->pos))
+            p->pos++;
         return r;
     }
 
     /* 数字字面量 */
-    if (isdigit((unsigned char)*p->pos) || *p->pos == '.') {
+    if (isdigit((unsigned char) *p->pos) || *p->pos == '.') {
         char *end;
         double val = strtod(p->pos, &end);
         p->pos = end;
@@ -312,20 +316,21 @@ static PropInterval parse_expr(Parser *p) {
  * @param out_hi   输出上界
  * @return 成功返回 0，失败返回 -1
  */
-static int forward_propagate(const char *expr, const PropInterval *vars,
-                              double *out_lo, double *out_hi) {
-    if (!expr || !out_lo || !out_hi) return -1;
+static int forward_propagate(const char *expr, const PropInterval *vars, double *out_lo, double *out_hi) {
+    if (!expr || !out_lo || !out_hi)
+        return -1;
 
     Parser parser;
     memset(&parser, 0, sizeof(parser));
     parser.pos = expr;
 
     for (int i = 0; i < 26; i++) {
-        parser.ivars[i] = vars ? vars[i] : (PropInterval){ -1.0, 1.0 };
+        parser.ivars[i] = vars ? vars[i] : (PropInterval) {-1.0, 1.0};
     }
 
     PropInterval result = parse_expr(&parser);
-    if (isnan(result.lo) || isnan(result.hi)) return -1;
+    if (isnan(result.lo) || isnan(result.hi))
+        return -1;
 
     *out_lo = result.lo;
     *out_hi = result.hi;
@@ -335,26 +340,29 @@ static int forward_propagate(const char *expr, const PropInterval *vars,
 /* ── Structured propagation API (stubs) ── */
 
 void lv_gappa_pred_set_init(lvGappaPredSet *set) {
-    if (!set) return;
+    if (!set)
+        return;
     set->preds = NULL;
     set->count = 0;
     set->capacity = 0;
 }
 
 bool lv_gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred) {
-    if (!set || !pred) return false;
+    if (!set || !pred)
+        return false;
 
     /* Check for duplicate expr_lhs */
     for (int i = 0; i < set->count; i++) {
         if (strcmp(set->preds[i].expr_lhs, pred->expr_lhs) == 0) {
-            return false;  /* Duplicate: a predicate with this name already exists */
+            return false; /* Duplicate: a predicate with this name already exists */
         }
     }
 
     if (set->count >= set->capacity) {
         int new_cap = set->capacity > 0 ? set->capacity * 2 : 8;
-        lvGappaPredicate *p = (lvGappaPredicate *)lv_realloc(set->preds, (size_t)new_cap * sizeof(lvGappaPredicate));
-        if (!p) return false;
+        lvGappaPredicate *p = (lvGappaPredicate *) lv_realloc(set->preds, (size_t) new_cap * sizeof(lvGappaPredicate));
+        if (!p)
+            return false;
         set->preds = p;
         set->capacity = new_cap;
     }
@@ -363,10 +371,12 @@ bool lv_gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred) {
 }
 
 int lv_gappa_pred_set_find(const lvGappaPredSet *set, const char *name, lvGappaPredicate *found) {
-    if (!set || !name) return -1;
+    if (!set || !name)
+        return -1;
     for (int i = 0; i < set->count; i++) {
         if (strcmp(set->preds[i].expr_lhs, name) == 0) {
-            if (found) *found = set->preds[i];
+            if (found)
+                *found = set->preds[i];
             return i;
         }
     }
@@ -374,8 +384,9 @@ int lv_gappa_pred_set_find(const lvGappaPredSet *set, const char *name, lvGappaP
 }
 
 void lv_gappa_pred_set_clear(lvGappaPredSet *set) {
-    if (!set) return;
-    lv_free((void **)&(set->preds));
+    if (!set)
+        return;
+    lv_free((void **) &(set->preds));
     set->preds = NULL;
     set->count = 0;
     set->capacity = 0;
@@ -401,25 +412,24 @@ lvGappaPropagateConfig lv_gappa_propagate_config_default(void) {
  * @param precision 收敛精度阈值
  * @param changed   输出：是否有边界被收紧
  */
-static void backward_refine_pred(lvGappaPredSet *output, int idx,
-                                  const char *lhs, double precision,
-                                  bool *changed) {
+static void backward_refine_pred(lvGappaPredSet *output, int idx, const char *lhs, double precision, bool *changed) {
     size_t lhs_len = strlen(lhs);
 
     for (int p = 0; p < output->count; p++) {
-        if (p == idx || output->preds[p].type != lv_PRED_BND) continue;
+        if (p == idx || output->preds[p].type != lv_PRED_BND)
+            continue;
 
         size_t plen = strlen(output->preds[p].expr_lhs);
         const char *pexpr = output->preds[p].expr_lhs;
 
         /* ── 模式 1: pexpr = lhs + rest → 反推 lhs = pexpr - rest ── */
-        if (plen > lhs_len + 3 &&
-            strncmp(pexpr, lhs, lhs_len) == 0 &&
-            strncmp(pexpr + lhs_len, " + ", 3) == 0) {
+        if (plen > lhs_len + 3 && strncmp(pexpr, lhs, lhs_len) == 0 && strncmp(pexpr + lhs_len, " + ", 3) == 0) {
             const char *rest = pexpr + lhs_len + 3;
             for (int r = 0; r < output->count; r++) {
-                if (r == idx || r == p || output->preds[r].type != lv_PRED_BND) continue;
-                if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
+                if (r == idx || r == p || output->preds[r].type != lv_PRED_BND)
+                    continue;
+                if (strcmp(output->preds[r].expr_lhs, rest) != 0)
+                    continue;
 
                 /* lhs = (lhs + rest) - rest */
                 double new_lo = output->preds[p].bound_lo - output->preds[r].bound_hi;
@@ -439,14 +449,16 @@ static void backward_refine_pred(lvGappaPredSet *output, int idx,
         /* 检查 pexpr 是否以 " + lhs" 结尾 */
         if (plen > lhs_len + 3) {
             const char *suffix_start = pexpr + plen - lhs_len - 3;
-            if (strncmp(suffix_start, " + ", 3) == 0 &&
-                strcmp(suffix_start + 3, lhs) == 0) {
+            if (strncmp(suffix_start, " + ", 3) == 0 && strcmp(suffix_start + 3, lhs) == 0) {
                 /* 提取 rest = pexpr[0..plen-lhs_len-4) */
                 size_t rest_len = plen - lhs_len - 3;
                 for (int r = 0; r < output->count; r++) {
-                    if (r == idx || r == p || output->preds[r].type != lv_PRED_BND) continue;
-                    if (strlen(output->preds[r].expr_lhs) != rest_len) continue;
-                    if (strncmp(output->preds[r].expr_lhs, pexpr, rest_len) != 0) continue;
+                    if (r == idx || r == p || output->preds[r].type != lv_PRED_BND)
+                        continue;
+                    if (strlen(output->preds[r].expr_lhs) != rest_len)
+                        continue;
+                    if (strncmp(output->preds[r].expr_lhs, pexpr, rest_len) != 0)
+                        continue;
 
                     double new_lo = output->preds[p].bound_lo - output->preds[r].bound_hi;
                     double new_hi = output->preds[p].bound_hi - output->preds[r].bound_lo;
@@ -463,13 +475,13 @@ static void backward_refine_pred(lvGappaPredSet *output, int idx,
         }
 
         /* ── 模式 3: pexpr = lhs - rest → 反推 lhs = pexpr + rest ── */
-        if (plen > lhs_len + 3 &&
-            strncmp(pexpr, lhs, lhs_len) == 0 &&
-            strncmp(pexpr + lhs_len, " - ", 3) == 0) {
+        if (plen > lhs_len + 3 && strncmp(pexpr, lhs, lhs_len) == 0 && strncmp(pexpr + lhs_len, " - ", 3) == 0) {
             const char *rest = pexpr + lhs_len + 3;
             for (int r = 0; r < output->count; r++) {
-                if (r == idx || r == p || output->preds[r].type != lv_PRED_BND) continue;
-                if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
+                if (r == idx || r == p || output->preds[r].type != lv_PRED_BND)
+                    continue;
+                if (strcmp(output->preds[r].expr_lhs, rest) != 0)
+                    continue;
 
                 /* lhs = (lhs - rest) + rest */
                 double new_lo = output->preds[p].bound_lo + output->preds[r].bound_lo;
@@ -488,13 +500,15 @@ static void backward_refine_pred(lvGappaPredSet *output, int idx,
         /* ── 模式 4: pexpr = rest - lhs → 反推 lhs = rest - pexpr ── */
         if (plen > lhs_len + 3) {
             const char *suffix_start = pexpr + plen - lhs_len - 3;
-            if (strncmp(suffix_start, " - ", 3) == 0 &&
-                strcmp(suffix_start + 3, lhs) == 0) {
+            if (strncmp(suffix_start, " - ", 3) == 0 && strcmp(suffix_start + 3, lhs) == 0) {
                 size_t rest_len = plen - lhs_len - 3;
                 for (int r = 0; r < output->count; r++) {
-                    if (r == idx || r == p || output->preds[r].type != lv_PRED_BND) continue;
-                    if (strlen(output->preds[r].expr_lhs) != rest_len) continue;
-                    if (strncmp(output->preds[r].expr_lhs, pexpr, rest_len) != 0) continue;
+                    if (r == idx || r == p || output->preds[r].type != lv_PRED_BND)
+                        continue;
+                    if (strlen(output->preds[r].expr_lhs) != rest_len)
+                        continue;
+                    if (strncmp(output->preds[r].expr_lhs, pexpr, rest_len) != 0)
+                        continue;
 
                     /* lhs = rest - (rest - lhs) */
                     double new_lo = output->preds[r].bound_lo - output->preds[p].bound_hi;
@@ -514,11 +528,12 @@ static void backward_refine_pred(lvGappaPredSet *output, int idx,
 }
 
 int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, const lvGappaPropagateConfig *cfg) {
-    if (!input || !output) return 0;
+    if (!input || !output)
+        return 0;
 
     lv_gappa_pred_set_init(output);
 
-    int max_iter   = cfg ? cfg->max_iterations : 100;
+    int max_iter = cfg ? cfg->max_iterations : 100;
     double precision = cfg ? cfg->precision : 1e-15;
     bool do_backward = cfg ? cfg->backward : false;
 
@@ -540,98 +555,122 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
         /* 对每对 BND 谓词，推导其和与差 */
         int saved_count = output->count;
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != lv_PRED_BND) continue;
+            if (output->preds[i].type != lv_PRED_BND)
+                continue;
             for (int j = i + 1; j < saved_count; j++) {
-                if (output->preds[j].type != lv_PRED_BND) continue;
+                if (output->preds[j].type != lv_PRED_BND)
+                    continue;
 
                 /* 推导和: x + y in [lo_x + lo_y, hi_x + hi_y] */
                 lvGappaPredicate sum_pred;
                 memset(&sum_pred, 0, sizeof(sum_pred));
                 sum_pred.type = lv_PRED_BND;
-                snprintf(sum_pred.expr_lhs, sizeof(sum_pred.expr_lhs), "%s + %s",
-                         output->preds[i].expr_lhs, output->preds[j].expr_lhs);
+                snprintf(sum_pred.expr_lhs, sizeof(sum_pred.expr_lhs), "%s + %s", output->preds[i].expr_lhs,
+                         output->preds[j].expr_lhs);
                 sum_pred.bound_lo = output->preds[i].bound_lo + output->preds[j].bound_lo;
                 sum_pred.bound_hi = output->preds[i].bound_hi + output->preds[j].bound_hi;
                 sum_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &sum_pred)) { derived++; changed = true; }
+                if (lv_gappa_pred_set_add(output, &sum_pred)) {
+                    derived++;
+                    changed = true;
+                }
 
                 /* 推导差: x - y in [lo_x - hi_y, hi_x - lo_y] */
                 lvGappaPredicate diff_pred;
                 memset(&diff_pred, 0, sizeof(diff_pred));
                 diff_pred.type = lv_PRED_BND;
-                snprintf(diff_pred.expr_lhs, sizeof(diff_pred.expr_lhs), "%s - %s",
-                         output->preds[i].expr_lhs, output->preds[j].expr_lhs);
+                snprintf(diff_pred.expr_lhs, sizeof(diff_pred.expr_lhs), "%s - %s", output->preds[i].expr_lhs,
+                         output->preds[j].expr_lhs);
                 diff_pred.bound_lo = output->preds[i].bound_lo - output->preds[j].bound_hi;
                 diff_pred.bound_hi = output->preds[i].bound_hi - output->preds[j].bound_lo;
                 diff_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &diff_pred)) { derived++; changed = true; }
+                if (lv_gappa_pred_set_add(output, &diff_pred)) {
+                    derived++;
+                    changed = true;
+                }
 
                 /* 推导差: y - x in [lo_y - hi_x, hi_y - lo_x] */
                 lvGappaPredicate diff_pred2;
                 memset(&diff_pred2, 0, sizeof(diff_pred2));
                 diff_pred2.type = lv_PRED_BND;
-                snprintf(diff_pred2.expr_lhs, sizeof(diff_pred2.expr_lhs), "%s - %s",
-                         output->preds[j].expr_lhs, output->preds[i].expr_lhs);
+                snprintf(diff_pred2.expr_lhs, sizeof(diff_pred2.expr_lhs), "%s - %s", output->preds[j].expr_lhs,
+                         output->preds[i].expr_lhs);
                 diff_pred2.bound_lo = output->preds[j].bound_lo - output->preds[i].bound_hi;
                 diff_pred2.bound_hi = output->preds[j].bound_hi - output->preds[i].bound_lo;
                 diff_pred2.is_hypothesis = output->preds[j].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &diff_pred2)) { derived++; changed = true; }
+                if (lv_gappa_pred_set_add(output, &diff_pred2)) {
+                    derived++;
+                    changed = true;
+                }
             }
         }
 
         /* 乘法推导：x * y，取四个角点的 min/max */
         saved_count = output->count;
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != lv_PRED_BND) continue;
+            if (output->preds[i].type != lv_PRED_BND)
+                continue;
             for (int j = i + 1; j < saved_count; j++) {
-                if (output->preds[j].type != lv_PRED_BND) continue;
+                if (output->preds[j].type != lv_PRED_BND)
+                    continue;
 
-                PropInterval a = { output->preds[i].bound_lo, output->preds[i].bound_hi };
-                PropInterval b = { output->preds[j].bound_lo, output->preds[j].bound_hi };
+                PropInterval a = {output->preds[i].bound_lo, output->preds[i].bound_hi};
+                PropInterval b = {output->preds[j].bound_lo, output->preds[j].bound_hi};
                 PropInterval r = ia_mul(a, b);
 
                 lvGappaPredicate mul_pred;
                 memset(&mul_pred, 0, sizeof(mul_pred));
                 mul_pred.type = lv_PRED_BND;
-                snprintf(mul_pred.expr_lhs, sizeof(mul_pred.expr_lhs), "%s * %s",
-                         output->preds[i].expr_lhs, output->preds[j].expr_lhs);
+                snprintf(mul_pred.expr_lhs, sizeof(mul_pred.expr_lhs), "%s * %s", output->preds[i].expr_lhs,
+                         output->preds[j].expr_lhs);
                 mul_pred.bound_lo = r.lo;
                 mul_pred.bound_hi = r.hi;
                 mul_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &mul_pred)) { derived++; changed = true; }
+                if (lv_gappa_pred_set_add(output, &mul_pred)) {
+                    derived++;
+                    changed = true;
+                }
             }
         }
 
         /* 除法推导：x / y，处理分母跨零（返回无穷区间则跳过） */
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != lv_PRED_BND) continue;
+            if (output->preds[i].type != lv_PRED_BND)
+                continue;
             for (int j = 0; j < saved_count; j++) {
-                if (i == j || output->preds[j].type != lv_PRED_BND) continue;
+                if (i == j || output->preds[j].type != lv_PRED_BND)
+                    continue;
 
-                PropInterval a = { output->preds[i].bound_lo, output->preds[i].bound_hi };
-                PropInterval b = { output->preds[j].bound_lo, output->preds[j].bound_hi };
+                PropInterval a = {output->preds[i].bound_lo, output->preds[i].bound_hi};
+                PropInterval b = {output->preds[j].bound_lo, output->preds[j].bound_hi};
 
                 /* 跳过分母包含零的情况 */
-                if (b.lo <= 0.0 && b.hi >= 0.0) continue;
+                if (b.lo <= 0.0 && b.hi >= 0.0)
+                    continue;
 
                 PropInterval r = ia_div(a, b);
-                if (isinf(r.lo) || isinf(r.hi)) continue;
+                if (isinf(r.lo) || isinf(r.hi))
+                    continue;
 
                 lvGappaPredicate div_pred;
                 memset(&div_pred, 0, sizeof(div_pred));
                 div_pred.type = lv_PRED_BND;
-                snprintf(div_pred.expr_lhs, sizeof(div_pred.expr_lhs), "%s / %s",
-                         output->preds[i].expr_lhs, output->preds[j].expr_lhs);
+                snprintf(div_pred.expr_lhs, sizeof(div_pred.expr_lhs), "%s / %s", output->preds[i].expr_lhs,
+                         output->preds[j].expr_lhs);
                 div_pred.bound_lo = r.lo;
                 div_pred.bound_hi = r.hi;
                 div_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &div_pred)) { derived++; changed = true; }
+                if (lv_gappa_pred_set_add(output, &div_pred)) {
+                    derived++;
+                    changed = true;
+                }
             }
         }
 
         /* 平方推导：x²，利用单调性精确计算 */
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != lv_PRED_BND) continue;
+            if (output->preds[i].type != lv_PRED_BND)
+                continue;
 
             double x_lo = output->preds[i].bound_lo;
             double x_hi = output->preds[i].bound_hi;
@@ -653,21 +692,23 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
             lvGappaPredicate sq_pred;
             memset(&sq_pred, 0, sizeof(sq_pred));
             sq_pred.type = lv_PRED_BND;
-            snprintf(sq_pred.expr_lhs, sizeof(sq_pred.expr_lhs), "(%s)^2",
-                     output->preds[i].expr_lhs);
+            snprintf(sq_pred.expr_lhs, sizeof(sq_pred.expr_lhs), "(%s)^2", output->preds[i].expr_lhs);
             sq_pred.bound_lo = sq_lo;
             sq_pred.bound_hi = sq_hi;
             sq_pred.is_hypothesis = output->preds[i].is_hypothesis;
-            if (lv_gappa_pred_set_add(output, &sq_pred)) { derived++; changed = true; }
+            if (lv_gappa_pred_set_add(output, &sq_pred)) {
+                derived++;
+                changed = true;
+            }
         }
 
         /* ============================================================
          * Refinement pass：利用 sum/diff 关系收紧已有边界
          * ============================================================ */
         for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != lv_PRED_BND) continue;
-            backward_refine_pred(output, i, output->preds[i].expr_lhs,
-                                  precision, &changed);
+            if (output->preds[i].type != lv_PRED_BND)
+                continue;
+            backward_refine_pred(output, i, output->preds[i].expr_lhs, precision, &changed);
         }
 
         /* ============================================================
@@ -677,58 +718,67 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
             int bw_count = output->count;
             /* ABS → BND 转换：|x - c| ≤ eps → x ∈ [c - eps, c + eps] */
             for (int i = 0; i < bw_count; i++) {
-                if (output->preds[i].type != lv_PRED_ABS) continue;
+                if (output->preds[i].type != lv_PRED_ABS)
+                    continue;
 
                 char *end = NULL;
                 errno = 0;
                 double center = strtod(output->preds[i].expr_rhs, &end);
-                if (errno != 0 || end == output->preds[i].expr_rhs) center = 0.0;
-                double eps    = output->preds[i].bound_abs;
+                if (errno != 0 || end == output->preds[i].expr_rhs)
+                    center = 0.0;
+                double eps = output->preds[i].bound_abs;
 
                 lvGappaPredicate bnd;
                 memset(&bnd, 0, sizeof(bnd));
                 bnd.type = lv_PRED_BND;
-                strncpy(bnd.expr_lhs, output->preds[i].expr_lhs,
-                        sizeof(bnd.expr_lhs) - 1);
+                strncpy(bnd.expr_lhs, output->preds[i].expr_lhs, sizeof(bnd.expr_lhs) - 1);
                 bnd.bound_lo = center - eps;
                 bnd.bound_hi = center + eps;
                 bnd.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &bnd)) { derived++; changed = true; }
+                if (lv_gappa_pred_set_add(output, &bnd)) {
+                    derived++;
+                    changed = true;
+                }
             }
 
             /* 利用 ABS 谓词的约束能力：对刚转换出的 BND 再跑一次 refinement */
             for (int i = 0; i < bw_count; i++) {
-                if (output->preds[i].type != lv_PRED_BND) continue;
-                backward_refine_pred(output, i, output->preds[i].expr_lhs,
-                                      precision, &changed);
+                if (output->preds[i].type != lv_PRED_BND)
+                    continue;
+                backward_refine_pred(output, i, output->preds[i].expr_lhs, precision, &changed);
             }
 
             /* 反向传播：对乘除关系进行反向收紧
              *   - 若已知 x*y 和 x 的区间，收紧 y
              *   - 若已知 x/y 和 y 的区间，收紧 x */
             for (int i = 0; i < bw_count; i++) {
-                if (output->preds[i].type != lv_PRED_BND) continue;
+                if (output->preds[i].type != lv_PRED_BND)
+                    continue;
                 size_t ilen = strlen(output->preds[i].expr_lhs);
 
                 for (int p = 0; p < bw_count; p++) {
-                    if (p == i || output->preds[p].type != lv_PRED_BND) continue;
+                    if (p == i || output->preds[p].type != lv_PRED_BND)
+                        continue;
                     size_t plen = strlen(output->preds[p].expr_lhs);
                     const char *pexpr = output->preds[p].expr_lhs;
 
                     /* 乘反向: pexpr = lhs * rest → lhs = pexpr / rest */
-                    if (plen > ilen + 3 &&
-                        strncmp(pexpr, output->preds[i].expr_lhs, ilen) == 0 &&
+                    if (plen > ilen + 3 && strncmp(pexpr, output->preds[i].expr_lhs, ilen) == 0 &&
                         strncmp(pexpr + ilen, " * ", 3) == 0) {
                         const char *rest = pexpr + ilen + 3;
                         for (int r = 0; r < bw_count; r++) {
-                            if (r == i || r == p || output->preds[r].type != lv_PRED_BND) continue;
-                            if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
-                            if (output->preds[r].bound_lo <= 0.0 && output->preds[r].bound_hi >= 0.0) continue;
+                            if (r == i || r == p || output->preds[r].type != lv_PRED_BND)
+                                continue;
+                            if (strcmp(output->preds[r].expr_lhs, rest) != 0)
+                                continue;
+                            if (output->preds[r].bound_lo <= 0.0 && output->preds[r].bound_hi >= 0.0)
+                                continue;
 
-                            PropInterval prod = { output->preds[p].bound_lo, output->preds[p].bound_hi };
-                            PropInterval fac  = { output->preds[r].bound_lo, output->preds[r].bound_hi };
-                            PropInterval quo  = ia_div(prod, fac);
-                            if (isinf(quo.lo) || isinf(quo.hi)) continue;
+                            PropInterval prod = {output->preds[p].bound_lo, output->preds[p].bound_hi};
+                            PropInterval fac = {output->preds[r].bound_lo, output->preds[r].bound_hi};
+                            PropInterval quo = ia_div(prod, fac);
+                            if (isinf(quo.lo) || isinf(quo.hi))
+                                continue;
 
                             if (quo.lo > output->preds[i].bound_lo + precision) {
                                 output->preds[i].bound_lo = quo.lo;
@@ -742,17 +792,18 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
                     }
 
                     /* 除反向: pexpr = lhs / rest → lhs = pexpr * rest */
-                    if (plen > ilen + 3 &&
-                        strncmp(pexpr, output->preds[i].expr_lhs, ilen) == 0 &&
+                    if (plen > ilen + 3 && strncmp(pexpr, output->preds[i].expr_lhs, ilen) == 0 &&
                         strncmp(pexpr + ilen, " / ", 3) == 0) {
                         const char *rest = pexpr + ilen + 3;
                         for (int r = 0; r < bw_count; r++) {
-                            if (r == i || r == p || output->preds[r].type != lv_PRED_BND) continue;
-                            if (strcmp(output->preds[r].expr_lhs, rest) != 0) continue;
+                            if (r == i || r == p || output->preds[r].type != lv_PRED_BND)
+                                continue;
+                            if (strcmp(output->preds[r].expr_lhs, rest) != 0)
+                                continue;
 
-                            PropInterval quot  = { output->preds[p].bound_lo, output->preds[p].bound_hi };
-                            PropInterval denom = { output->preds[r].bound_lo, output->preds[r].bound_hi };
-                            PropInterval num   = ia_mul(quot, denom);
+                            PropInterval quot = {output->preds[p].bound_lo, output->preds[p].bound_hi};
+                            PropInterval denom = {output->preds[r].bound_lo, output->preds[r].bound_hi};
+                            PropInterval num = ia_mul(quot, denom);
 
                             if (num.lo > output->preds[i].bound_lo + precision) {
                                 output->preds[i].bound_lo = num.lo;
@@ -769,16 +820,18 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
         }
 
         /* ── 收敛检查：本轮未产生任何新谓词且未收紧任何边界 ── */
-        if (!changed) break;
+        if (!changed)
+            break;
     }
 
     return derived > 0 ? derived : (input->count > 0 ? 1 : 0);
 }
 
-int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredSet *known,
-                              lvGappaPredSet *output, const lvGappaPropagateConfig *cfg) {
-    (void)cfg;
-    if (!goal || !output) return 0;
+int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredSet *known, lvGappaPredSet *output,
+                                const lvGappaPropagateConfig *cfg) {
+    (void) cfg;
+    if (!goal || !output)
+        return 0;
 
     lv_gappa_pred_set_init(output);
 
@@ -796,7 +849,8 @@ int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredS
         char *end = NULL;
         errno = 0;
         double center = strtod(goal->expr_rhs, &end);
-        if (errno != 0 || end == goal->expr_rhs) center = 0.0;
+        if (errno != 0 || end == goal->expr_rhs)
+            center = 0.0;
 
         lvGappaPredicate derived;
         memset(&derived, 0, sizeof(derived));
@@ -804,11 +858,12 @@ int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredS
         /* 提取变量名：从 expr_lhs 中获取（可能是 "x - 0.5" 格式，取第一个标识符） */
         const char *src = goal->expr_lhs;
         int k = 0;
-        while (src[k] && (isalpha((unsigned char)src[k]) || isdigit((unsigned char)src[k]) || src[k] == '_')) {
+        while (src[k] && (isalpha((unsigned char) src[k]) || isdigit((unsigned char) src[k]) || src[k] == '_')) {
             k++;
         }
-        size_t name_len = (size_t)k;
-        if (name_len >= sizeof(derived.expr_lhs)) name_len = sizeof(derived.expr_lhs) - 1;
+        size_t name_len = (size_t) k;
+        if (name_len >= sizeof(derived.expr_lhs))
+            name_len = sizeof(derived.expr_lhs) - 1;
         memcpy(derived.expr_lhs, src, name_len);
         derived.expr_lhs[name_len] = '\0';
 
@@ -816,7 +871,8 @@ int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredS
         derived.bound_hi = center + goal->bound_abs;
         derived.is_hypothesis = true;
 
-        if (lv_gappa_pred_set_add(output, &derived)) needed++;
+        if (lv_gappa_pred_set_add(output, &derived))
+            needed++;
     } else if (goal->type == lv_PRED_BND) {
         /* BND 目标: 直接使用目标区间作为所需假设 */
         lvGappaPredicate derived;
@@ -827,7 +883,8 @@ int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredS
         derived.bound_hi = goal->bound_hi;
         derived.is_hypothesis = true;
 
-        if (lv_gappa_pred_set_add(output, &derived)) needed++;
+        if (lv_gappa_pred_set_add(output, &derived))
+            needed++;
     }
 
     return needed;
@@ -845,9 +902,9 @@ int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredS
  * @param vars_inout   输入/输出变量区间（会被收紧）
  * @return 成功返回 0，失败返回 -1
  */
-static int backward_propagate(const char *expr, double out_lo, double out_hi,
-                               PropInterval *vars_inout) {
-    if (!expr || !vars_inout) return -1;
+static int backward_propagate(const char *expr, double out_lo, double out_hi, PropInterval *vars_inout) {
+    if (!expr || !vars_inout)
+        return -1;
 
     Parser parser;
     memset(&parser, 0, sizeof(parser));
@@ -857,7 +914,8 @@ static int backward_propagate(const char *expr, double out_lo, double out_hi,
     }
 
     PropInterval fwd = parse_expr(&parser);
-    if (isnan(fwd.lo) || isnan(fwd.hi)) return -1;
+    if (isnan(fwd.lo) || isnan(fwd.hi))
+        return -1;
 
     /* 计算收缩比例 */
     double fwd_width = fwd.hi - fwd.lo;
@@ -872,8 +930,10 @@ static int backward_propagate(const char *expr, double out_lo, double out_hi,
                 double new_lo = mid - half;
                 double new_hi = mid + half;
                 /* 与原区间取交集（只收紧不放松） */
-                if (new_lo > vars_inout[i].lo) vars_inout[i].lo = new_lo;
-                if (new_hi < vars_inout[i].hi) vars_inout[i].hi = new_hi;
+                if (new_lo > vars_inout[i].lo)
+                    vars_inout[i].lo = new_lo;
+                if (new_hi < vars_inout[i].hi)
+                    vars_inout[i].hi = new_hi;
             }
         }
     }
@@ -897,9 +957,9 @@ static int backward_propagate(const char *expr, double out_lo, double out_hi,
  * @param out_hi   输出上界
  * @return 成功返回 0，失败返回 -1
  */
-static int apply_rewrite_rules(const char *expr, const PropInterval *vars,
-                                double *out_lo, double *out_hi) {
-    if (!expr || !out_lo || !out_hi) return -1;
+static int apply_rewrite_rules(const char *expr, const PropInterval *vars, double *out_lo, double *out_hi) {
+    if (!expr || !out_lo || !out_hi)
+        return -1;
     /* 默认直接正向传播；特定模式可在此扩展 */
     return forward_propagate(expr, vars, out_lo, out_hi);
 }
@@ -926,18 +986,20 @@ static int apply_rewrite_rules(const char *expr, const PropInterval *vars,
  * @return 0 成功，-1 失败（参数无效或解析错误）
  */
 int lv_gappa_propagate(const char *expr, double *lo, double *hi) {
-    if (!expr || !lo || !hi) return -1;
+    if (!expr || !lo || !hi)
+        return -1;
 
     /* 初始化默认变量区间 [-1, 1] */
     PropInterval vars[26];
     for (int i = 0; i < 26; i++) {
         vars[i].lo = -1.0;
-        vars[i].hi =  1.0;
+        vars[i].hi = 1.0;
     }
 
     /* 应用重写规则并传播 */
     int rc = apply_rewrite_rules(expr, vars, lo, hi);
-    if (rc != 0) return -1;
+    if (rc != 0)
+        return -1;
 
     /* 确保 lo <= hi */
     if (*lo > *hi) {

@@ -62,18 +62,12 @@ typedef struct {
 lvTheoryCombiner *smt_combiner_create(int initial_capacity, double timeout_ms);
 void smt_combiner_destroy(lvTheoryCombiner *combiner);
 
-bool smt_combiner_add_theory(lvTheoryCombiner *combiner,
-                             lvTheoryId theory_id,
-                             int priority,
-                             lvTheorySolverFn solver_fn,
+bool smt_combiner_add_theory(lvTheoryCombiner *combiner, lvTheoryId theory_id, int priority, lvTheorySolverFn solver_fn,
                              void *solver_context);
 
-bool smt_combiner_set_enabled(lvTheoryCombiner *combiner,
-                              lvTheoryId theory_id,
-                              bool enabled);
+bool smt_combiner_set_enabled(lvTheoryCombiner *combiner, lvTheoryId theory_id, bool enabled);
 
-lvTheoryResult smt_combiner_solve(const lvTheoryCombiner *combiner,
-                                    const void *constraints);
+lvTheoryResult smt_combiner_solve(const lvTheoryCombiner *combiner, const void *constraints);
 
 #ifdef __cplusplus
 }

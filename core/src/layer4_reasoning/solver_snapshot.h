@@ -20,10 +20,10 @@ extern "C" {
 #endif
 
 typedef struct SolverSnapshot {
-    int *node_ids;              /**< 受影响的节点 ID 数组（长度 = node_count） */
+    int *node_ids;                 /**< 受影响的节点 ID 数组（长度 = node_count） */
     struct SymbolicCoord **copies; /**< 对应节点的坐标副本（长度 = node_count * 2，x/y 连续存放） */
-    int node_count;             /**< 节点数量 */
-    int coord_count;            /**< 坐标总数量（= node_count * 2） */
+    int node_count;                /**< 节点数量 */
+    int coord_count;               /**< 坐标总数量（= node_count * 2） */
 } SolverSnapshot;
 
 /**

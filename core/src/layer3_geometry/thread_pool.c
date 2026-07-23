@@ -12,6 +12,7 @@
 
 #define lv_THREAD_POOL_IMPL
 #include "lv/thread_pool.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,67 +20,67 @@
  * 平台相关线程抽象
  * ======================================================================== */
 #ifdef _WIN32
-  #include <windows.h>
-  typedef HANDLE lvThread;
-  typedef CRITICAL_SECTION lvMutex;
-  typedef CONDITION_VARIABLE lvCondVar;
-  #define MUTEX_INIT(m)    InitializeCriticalSection(&(m))
-  #define MUTEX_LOCK(m)    EnterCriticalSection(&(m))
-  #define MUTEX_UNLOCK(m)  LeaveCriticalSection(&(m))
-  #define MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
-  #define COND_INIT(c)     InitializeConditionVariable(&(c))
-  #define COND_WAIT(c, m)  SleepConditionVariableCS(&(c), &(m), INFINITE)
-  #define COND_SIGNAL(c)   WakeConditionVariable(&(c))
-  #define COND_BROADCAST(c) WakeAllConditionVariable(&(c))
+#include <windows.h>
+typedef HANDLE lvThread;
+typedef CRITICAL_SECTION lvMutex;
+typedef CONDITION_VARIABLE lvCondVar;
+#define MUTEX_INIT(m) InitializeCriticalSection(&(m))
+#define MUTEX_LOCK(m) EnterCriticalSection(&(m))
+#define MUTEX_UNLOCK(m) LeaveCriticalSection(&(m))
+#define MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
+#define COND_INIT(c) InitializeConditionVariable(&(c))
+#define COND_WAIT(c, m) SleepConditionVariableCS(&(c), &(m), INFINITE)
+#define COND_SIGNAL(c) WakeConditionVariable(&(c))
+#define COND_BROADCAST(c) WakeAllConditionVariable(&(c))
 #else
-  #include <pthread.h>
-  typedef pthread_t lvThread;
-  typedef pthread_mutex_t lvMutex;
-  typedef pthread_cond_t lvCondVar;
-  #define MUTEX_INIT(m)    pthread_mutex_init(&(m), NULL)
-  #define MUTEX_LOCK(m)    pthread_mutex_lock(&(m))
-  #define MUTEX_UNLOCK(m)  pthread_mutex_unlock(&(m))
-  #define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
-  #define COND_INIT(c)     pthread_cond_init(&(c), NULL)
-  #define COND_WAIT(c, m)  pthread_cond_wait(&(c), &(m))
-  #define COND_SIGNAL(c)   pthread_cond_signal(&(c))
-  #define COND_BROADCAST(c) pthread_cond_broadcast(&(c))
+#include <pthread.h>
+typedef pthread_t lvThread;
+typedef pthread_mutex_t lvMutex;
+typedef pthread_cond_t lvCondVar;
+#define MUTEX_INIT(m) pthread_mutex_init(&(m), NULL)
+#define MUTEX_LOCK(m) pthread_mutex_lock(&(m))
+#define MUTEX_UNLOCK(m) pthread_mutex_unlock(&(m))
+#define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
+#define COND_INIT(c) pthread_cond_init(&(c), NULL)
+#define COND_WAIT(c, m) pthread_cond_wait(&(c), &(m))
+#define COND_SIGNAL(c) pthread_cond_signal(&(c))
+#define COND_BROADCAST(c) pthread_cond_broadcast(&(c))
 #endif
 
 /* ========================================================================
  * 内部常量与数据结构
  * ======================================================================== */
-#define MAX_TASK_QUEUE 4096    /**< 最大任务队列长度 */
-#define DEFAULT_THREADS 4      /**< 默认工作线程数 */
+#define MAX_TASK_QUEUE 4096 /**< 最大任务队列长度 */
+#define DEFAULT_THREADS 4   /**< 默认工作线程数 */
 
 /** 任务节点（链表） */
 struct lvThreadTask {
     void (*func)(void *arg);   /**< 任务函数 */
     void *arg;                 /**< 任务参数 */
-    lvWaitGroup *group;      /**< 所属等待组（可为 NULL） */
+    lvWaitGroup *group;        /**< 所属等待组（可为 NULL） */
     struct lvThreadTask *next; /**< 下一个任务 */
 };
 
 /** 等待组 */
 struct lvWaitGroup {
-    int pending;               /**< 待完成任务数 */
-    lvMutex mutex;           /**< 保护互斥锁 */
-    lvCondVar cond;          /**< 等待条件变量 */
+    int pending;    /**< 待完成任务数 */
+    lvMutex mutex;  /**< 保护互斥锁 */
+    lvCondVar cond; /**< 等待条件变量 */
 };
 
 /** 线程池 */
 struct lvThreadPool {
-    lvThread *threads;       /**< 工作线程句柄数组 */
-    int thread_count;          /**< 工作线程数 */
+    lvThread *threads; /**< 工作线程句柄数组 */
+    int thread_count;  /**< 工作线程数 */
 
     /* 任务队列（链表） */
     lvThreadTask *queue_head; /**< 队列头 */
     lvThreadTask *queue_tail; /**< 队列尾 */
-    int queue_size;            /**< 当前队列长度 */
+    int queue_size;           /**< 当前队列长度 */
 
-    lvMutex mutex;           /**< 队列保护互斥锁 */
-    lvCondVar not_empty;     /**< 队列非空条件 */
-    int shutdown;              /**< 关闭标志 */
+    lvMutex mutex;       /**< 队列保护互斥锁 */
+    lvCondVar not_empty; /**< 队列非空条件 */
+    int shutdown;        /**< 关闭标志 */
 };
 
 /* ========================================================================
@@ -96,7 +97,7 @@ static DWORD WINAPI worker_func(LPVOID arg)
 static void *worker_func(void *arg)
 #endif
 {
-    lvThreadPool *pool = (lvThreadPool *)arg;
+    lvThreadPool *pool = (lvThreadPool *) arg;
 
     for (;;) {
         MUTEX_LOCK(pool->mutex);
@@ -160,17 +161,17 @@ void lv_thread_pool_destroy(lvThreadPool *pool);
  * @param num_threads 工作线程数（<=0 时使用默认值 4）
  * @return 线程池（调用者通过 lv_thread_pool_destroy 释放），失败返回 NULL
  */
-lvThreadPool *lv_thread_pool_create(int num_threads)
-{
+lvThreadPool *lv_thread_pool_create(int num_threads) {
     if (num_threads <= 0) {
         num_threads = DEFAULT_THREADS;
     }
 
-    lvThreadPool *pool = (lvThreadPool *)calloc(1, sizeof(lvThreadPool));
-    if (pool == NULL) return NULL;
+    lvThreadPool *pool = (lvThreadPool *) calloc(1, sizeof(lvThreadPool));
+    if (pool == NULL)
+        return NULL;
 
     pool->thread_count = num_threads;
-    pool->threads = (lvThread *)calloc((size_t)num_threads, sizeof(lvThread));
+    pool->threads = (lvThread *) calloc((size_t) num_threads, sizeof(lvThread));
     if (pool->threads == NULL) {
         free(pool);
         return NULL;
@@ -209,9 +210,9 @@ lvThreadPool *lv_thread_pool_create(int num_threads)
  * @brief 销毁线程池，等待所有工作线程结束并释放资源
  * @param pool 线程池指针（可为 NULL）
  */
-void lv_thread_pool_destroy(lvThreadPool *pool)
-{
-    if (pool == NULL) return;
+void lv_thread_pool_destroy(lvThreadPool *pool) {
+    if (pool == NULL)
+        return;
 
     /* 通知所有工作线程退出 */
     MUTEX_LOCK(pool->mutex);
@@ -249,13 +250,14 @@ void lv_thread_pool_destroy(lvThreadPool *pool)
  * @param task 任务节点（由调用者分配，线程池会在执行后 free）
  * @return 等待组指针（调用者传入 lv_thread_pool_wait_group），失败返回 NULL
  */
-lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task)
-{
-    if (pool == NULL || task == NULL) return NULL;
+lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task) {
+    if (pool == NULL || task == NULL)
+        return NULL;
 
     /* 创建等待组 */
-    lvWaitGroup *group = (lvWaitGroup *)calloc(1, sizeof(lvWaitGroup));
-    if (group == NULL) return NULL;
+    lvWaitGroup *group = (lvWaitGroup *) calloc(1, sizeof(lvWaitGroup));
+    if (group == NULL)
+        return NULL;
     MUTEX_INIT(group->mutex);
     COND_INIT(group->cond);
     group->pending = 1;
@@ -292,15 +294,14 @@ lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task)
  * @param group     等待组指针（函数内部会自动释放）
  * @param timeout_ms 超时毫秒（当前简化实现中忽略，始终等待全部完成）
  */
-void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group,
-                                  int timeout_ms)
-{
-    (void)pool;
-    if (group == NULL) return;
+void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group, int timeout_ms) {
+    (void) pool;
+    if (group == NULL)
+        return;
 
     MUTEX_LOCK(group->mutex);
     /* 简化实现：不支持精确超时，一直等到所有任务完成 */
-    (void)timeout_ms;
+    (void) timeout_ms;
     while (group->pending > 0) {
         COND_WAIT(group->cond, group->mutex);
     }
@@ -319,8 +320,7 @@ void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group,
  * @warning 当前实现非线程安全，并发调用可能导致重复创建。
  * @return 全局线程池指针
  */
-lvThreadPool *lv_get_global_thread_pool(void)
-{
+lvThreadPool *lv_get_global_thread_pool(void) {
     /* 注意：此简化实现非线程安全地初始化全局池 */
     if (g_global_pool == NULL) {
         g_global_pool = lv_thread_pool_create(DEFAULT_THREADS);

@@ -7,8 +7,6 @@
  * @version 3.3.0
  */
 
-#include "lv/solver.h"
-
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -17,11 +15,13 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/solver.h"
+#include "lv/stream.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
-#include "lv/stream.h"
 #include "stream_context_util.h"
 
 /* --- 共享宏 --- */
@@ -31,12 +31,12 @@
 #define lv_ZERO_EPSILON 1e-12
 #define SOLVER_DETAIL_BUF_SIZE 512
 #ifndef EQUATION_PUSH_OR_GOTO
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
-    do { \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
+#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
+    do {                                                               \
+        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
             lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label; \
-        } \
+            goto label;                                                \
+        }                                                              \
     } while (0)
 #endif
 
@@ -77,12 +77,12 @@ void equation_system_init(EquationSystem *sys) {
  * 用于避免在37个调用点重复相同的错误检查代码。
  */
 #ifndef EQUATION_PUSH_OR_GOTO
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
-    do { \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
+#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)                                            \
+    do {                                                                                            \
+        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {                                \
             lv_set_error(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: 方程添加失败（内存不足）"); \
-            goto label; \
-        } \
+            goto label;                                                                             \
+        }                                                                                           \
     } while (0)
 #endif
 
@@ -105,10 +105,10 @@ int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, 
         /* 使用临时变量计算新容量，避免 realloc 失败时 capacity 已被修改 */
         int new_capacity = sys->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : sys->capacity * lv_ARRAY_GROWTH_FACTOR;
         /* 溢出检查：确保 new_capacity * sizeof(PolyEquation) 不超过 SIZE_MAX */
-        if ((size_t)new_capacity > SIZE_MAX / sizeof(PolyEquation)) {
+        if ((size_t) new_capacity > SIZE_MAX / sizeof(PolyEquation)) {
             return -1;
         }
-        PolyEquation *new_eqs = lv_realloc(sys->eqs, (size_t)new_capacity * sizeof(PolyEquation));
+        PolyEquation *new_eqs = lv_realloc(sys->eqs, (size_t) new_capacity * sizeof(PolyEquation));
         if (!new_eqs) {
             lv_set_error(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: 扩容失败");
             /* 注意：poly 按值传入（结构体副本，内部 coeffs 指针与调用者共享），
@@ -139,7 +139,8 @@ int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, 
  * @param sys 方程系统指针
  */
 void equation_system_clear(EquationSystem *sys) {
-    if (!sys) return;
+    if (!sys)
+        return;
     for (int i = 0; i < sys->count; i++) {
         mpz_poly_clear(&sys->eqs[i].poly);
     }

@@ -14,18 +14,19 @@
  *     多证明方法并存引擎、可读证明生成、C-tree 约束分解
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+
+#include "lv/constraint_graph.h"
+#include "lv/proof.h"
+#include "lv/solver.h"
 
 #include "atp_backend.h"
-#include "lv/constraint_graph.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "normalization.h"
-#include "lv/proof.h"
-#include "lv/solver.h"
 #include "type_system.h"
 #include "unify.h"
 
@@ -257,19 +258,22 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
 
     /* 检查目标命题是否涉及垂直关系（点积=0） */
     if (nav->target_prop && nav->target_prop->name) {
-        if (strstr(nav->target_prop->name, "perpendicular") ||
-            strstr(nav->target_prop->name, "垂直")) {
+        if (strstr(nav->target_prop->name, "perpendicular") || strstr(nav->target_prop->name, "垂直")) {
             /* 遍历所有线段对，检查点积 */
             for (int i = 0; i < graph->constraint_count && !verified; i++) {
                 Constraint *c = graph->constraints[i];
-                if (!c || !c->is_active) continue;
-                if (c->type != INTERSECTION) continue;
+                if (!c || !c->is_active)
+                    continue;
+                if (c->type != INTERSECTION)
+                    continue;
 
                 /* 找到相交的线段，计算方向向量 */
                 for (int j = 0; j < graph->constraint_count && !verified; j++) {
-                    if (j == i) continue;
+                    if (j == i)
+                        continue;
                     Constraint *c2 = graph->constraints[j];
-                    if (!c2 || !c2->is_active || c2->type != INTERSECTION) continue;
+                    if (!c2 || !c2->is_active || c2->type != INTERSECTION)
+                        continue;
 
                     /* 使用符号坐标计算点积 */
                     /* 取两组不同的点对构建向量 */
@@ -279,13 +283,17 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                         GeomNode *p3 = graph_get_node(graph, c2->participants[0]);
                         GeomNode *p4 = graph_get_node(graph, c2->participants[1]);
 
-                        if (p1 && p1->coord_count >= 2 && p2 && p2->coord_count >= 2 &&
-                            p3 && p3->coord_count >= 2 && p4 && p4->coord_count >= 2) {
+                        if (p1 && p1->coord_count >= 2 && p2 && p2->coord_count >= 2 && p3 && p3->coord_count >= 2 &&
+                            p4 && p4->coord_count >= 2) {
                             /* 向量 v1 = p2 - p1, v2 = p4 - p3 */
-                            SymbolicCoord *v1x = symbolic_coord_subtract(p2->symbolic_coords[0], p1->symbolic_coords[0]);
-                            SymbolicCoord *v1y = symbolic_coord_subtract(p2->symbolic_coords[1], p1->symbolic_coords[1]);
-                            SymbolicCoord *v2x = symbolic_coord_subtract(p4->symbolic_coords[0], p3->symbolic_coords[0]);
-                            SymbolicCoord *v2y = symbolic_coord_subtract(p4->symbolic_coords[1], p3->symbolic_coords[1]);
+                            SymbolicCoord *v1x =
+                                symbolic_coord_subtract(p2->symbolic_coords[0], p1->symbolic_coords[0]);
+                            SymbolicCoord *v1y =
+                                symbolic_coord_subtract(p2->symbolic_coords[1], p1->symbolic_coords[1]);
+                            SymbolicCoord *v2x =
+                                symbolic_coord_subtract(p4->symbolic_coords[0], p3->symbolic_coords[0]);
+                            SymbolicCoord *v2y =
+                                symbolic_coord_subtract(p4->symbolic_coords[1], p3->symbolic_coords[1]);
 
                             if (v1x && v1y && v2x && v2y) {
                                 /* 点积: v1x*v2x + v1y*v2y */
@@ -306,14 +314,21 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                                     verified = true;
                                 }
 
-                                if (dot) symbolic_coord_destroy(dot);
-                                if (dot2) symbolic_coord_destroy(dot2);
-                                if (dot1) symbolic_coord_destroy(dot1);
+                                if (dot)
+                                    symbolic_coord_destroy(dot);
+                                if (dot2)
+                                    symbolic_coord_destroy(dot2);
+                                if (dot1)
+                                    symbolic_coord_destroy(dot1);
                             }
-                            if (v2y) symbolic_coord_destroy(v2y);
-                            if (v2x) symbolic_coord_destroy(v2x);
-                            if (v1y) symbolic_coord_destroy(v1y);
-                            if (v1x) symbolic_coord_destroy(v1x);
+                            if (v2y)
+                                symbolic_coord_destroy(v2y);
+                            if (v2x)
+                                symbolic_coord_destroy(v2x);
+                            if (v1y)
+                                symbolic_coord_destroy(v1y);
+                            if (v1x)
+                                symbolic_coord_destroy(v1x);
                         }
                     }
                 }
@@ -321,14 +336,15 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
         }
 
         /* 检查共线关系（叉积=0） */
-        if (!verified && (strstr(nav->target_prop->name, "collinear") ||
-                          strstr(nav->target_prop->name, "共线"))) {
+        if (!verified && (strstr(nav->target_prop->name, "collinear") || strstr(nav->target_prop->name, "共线"))) {
             for (int i = 0; i < point_count - 2 && !verified; i++) {
                 GeomNode *pa = graph_get_node(graph, point_ids[i]);
                 GeomNode *pb = graph_get_node(graph, point_ids[i + 1]);
                 GeomNode *pc = graph_get_node(graph, point_ids[i + 2]);
-                if (!pa || !pb || !pc) continue;
-                if (pa->coord_count < 2 || pb->coord_count < 2 || pc->coord_count < 2) continue;
+                if (!pa || !pb || !pc)
+                    continue;
+                if (pa->coord_count < 2 || pb->coord_count < 2 || pc->coord_count < 2)
+                    continue;
 
                 /* 叉积: (pb-pa) x (pc-pa) = (bx-ax)*(cy-ay) - (by-ay)*(cx-ax) */
                 SymbolicCoord *abx = symbolic_coord_subtract(pb->symbolic_coords[0], pa->symbolic_coords[0]);
@@ -354,32 +370,40 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                         verified = true;
                     }
 
-                    if (cross) symbolic_coord_destroy(cross);
-                    if (term2) symbolic_coord_destroy(term2);
-                    if (term1) symbolic_coord_destroy(term1);
+                    if (cross)
+                        symbolic_coord_destroy(cross);
+                    if (term2)
+                        symbolic_coord_destroy(term2);
+                    if (term1)
+                        symbolic_coord_destroy(term1);
                 }
-                if (acy) symbolic_coord_destroy(acy);
-                if (acx) symbolic_coord_destroy(acx);
-                if (aby) symbolic_coord_destroy(aby);
-                if (abx) symbolic_coord_destroy(abx);
+                if (acy)
+                    symbolic_coord_destroy(acy);
+                if (acx)
+                    symbolic_coord_destroy(acx);
+                if (aby)
+                    symbolic_coord_destroy(aby);
+                if (abx)
+                    symbolic_coord_destroy(abx);
             }
         }
 
         /* 检查平行关系（向量成标量倍） */
-        if (!verified && (strstr(nav->target_prop->name, "parallel") ||
-                          strstr(nav->target_prop->name, "平行"))) {
+        if (!verified && (strstr(nav->target_prop->name, "parallel") || strstr(nav->target_prop->name, "平行"))) {
             /* 平行检查：两组向量的叉积为零 */
             for (int i = 0; i < graph->constraint_count && !verified; i++) {
                 Constraint *c = graph->constraints[i];
-                if (!c || !c->is_active || c->type != INCIDENCE) continue;
+                if (!c || !c->is_active || c->type != INCIDENCE)
+                    continue;
                 for (int j = i + 1; j < graph->constraint_count && !verified; j++) {
                     Constraint *c2 = graph->constraints[j];
-                    if (!c2 || !c2->is_active || c2->type != INCIDENCE) continue;
+                    if (!c2 || !c2->is_active || c2->type != INCIDENCE)
+                        continue;
 
                     /* 取两条线段的方向向量 */
                     if (c->participant_count >= 2 && c2->participant_count >= 2) {
                         /* 通过关联约束找到线段上的点 */
-                        int l1 = c->participants[1]; /* 线段ID */
+                        int l1 = c->participants[1];  /* 线段ID */
                         int l2 = c2->participants[1]; /* 线段ID */
 
                         /* 查找线段端点：找到与同一线段关联的所有点 */
@@ -387,8 +411,10 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                         int l2_points[32], l2_pt_count = 0;
                         for (int k = 0; k < graph->constraint_count; k++) {
                             Constraint *cc = graph->constraints[k];
-                            if (!cc || !cc->is_active || cc->type != INCIDENCE) continue;
-                            if (cc->participant_count < 2) continue;
+                            if (!cc || !cc->is_active || cc->type != INCIDENCE)
+                                continue;
+                            if (cc->participant_count < 2)
+                                continue;
                             if (cc->participants[1] == l1 && l1_pt_count < 32) {
                                 l1_points[l1_pt_count++] = cc->participants[0];
                             }
@@ -408,13 +434,16 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                             GeomNode *p2 = graph_get_node(graph, l1_p2);
                             GeomNode *p3 = graph_get_node(graph, l2_p1);
                             GeomNode *p4 = graph_get_node(graph, l2_p2);
-                            if (p1 && p2 && p3 && p4 &&
-                                p1->coord_count >= 2 && p2->coord_count >= 2 &&
+                            if (p1 && p2 && p3 && p4 && p1->coord_count >= 2 && p2->coord_count >= 2 &&
                                 p3->coord_count >= 2 && p4->coord_count >= 2) {
-                                SymbolicCoord *v1x = symbolic_coord_subtract(p2->symbolic_coords[0], p1->symbolic_coords[0]);
-                                SymbolicCoord *v1y = symbolic_coord_subtract(p2->symbolic_coords[1], p1->symbolic_coords[1]);
-                                SymbolicCoord *v2x = symbolic_coord_subtract(p4->symbolic_coords[0], p3->symbolic_coords[0]);
-                                SymbolicCoord *v2y = symbolic_coord_subtract(p4->symbolic_coords[1], p3->symbolic_coords[1]);
+                                SymbolicCoord *v1x =
+                                    symbolic_coord_subtract(p2->symbolic_coords[0], p1->symbolic_coords[0]);
+                                SymbolicCoord *v1y =
+                                    symbolic_coord_subtract(p2->symbolic_coords[1], p1->symbolic_coords[1]);
+                                SymbolicCoord *v2x =
+                                    symbolic_coord_subtract(p4->symbolic_coords[0], p3->symbolic_coords[0]);
+                                SymbolicCoord *v2y =
+                                    symbolic_coord_subtract(p4->symbolic_coords[1], p3->symbolic_coords[1]);
 
                                 if (v1x && v1y && v2x && v2y) {
                                     SymbolicCoord *cross_term1 = symbolic_coord_multiply(v1x, v2y);
@@ -427,19 +456,27 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                                         ProofStep *para_step = proof_step_create(PROOF_STEP_REWRITE);
                                         if (para_step) {
                                             para_step->color = PROOF_COLOR_GREEN;
-                                            para_step->note = lv_strdup_safe("[向量法] 方向向量叉积为零，验证平行关系成立");
+                                            para_step->note =
+                                                lv_strdup_safe("[向量法] 方向向量叉积为零，验证平行关系成立");
                                             proof_navigator_add_step(nav, para_step);
                                         }
                                         verified = true;
                                     }
-                                    if (cross) symbolic_coord_destroy(cross);
-                                    if (cross_term2) symbolic_coord_destroy(cross_term2);
-                                    if (cross_term1) symbolic_coord_destroy(cross_term1);
+                                    if (cross)
+                                        symbolic_coord_destroy(cross);
+                                    if (cross_term2)
+                                        symbolic_coord_destroy(cross_term2);
+                                    if (cross_term1)
+                                        symbolic_coord_destroy(cross_term1);
                                 }
-                                if (v2y) symbolic_coord_destroy(v2y);
-                                if (v2x) symbolic_coord_destroy(v2x);
-                                if (v1y) symbolic_coord_destroy(v1y);
-                                if (v1x) symbolic_coord_destroy(v1x);
+                                if (v2y)
+                                    symbolic_coord_destroy(v2y);
+                                if (v2x)
+                                    symbolic_coord_destroy(v2x);
+                                if (v1y)
+                                    symbolic_coord_destroy(v1y);
+                                if (v1x)
+                                    symbolic_coord_destroy(v1x);
                             }
                         }
                     }
@@ -448,31 +485,35 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
         }
 
         /* 检查中点关系 */
-        if (!verified && (strstr(nav->target_prop->name, "midpoint") ||
-                          strstr(nav->target_prop->name, "中点"))) {
+        if (!verified && (strstr(nav->target_prop->name, "midpoint") || strstr(nav->target_prop->name, "中点"))) {
             for (int i = 0; i < graph->constraint_count && !verified; i++) {
                 Constraint *c = graph->constraints[i];
-                if (!c || !c->is_active || c->type != BETWEENNESS) continue;
-                if (c->participant_count < 3) continue;
+                if (!c || !c->is_active || c->type != BETWEENNESS)
+                    continue;
+                if (c->participant_count < 3)
+                    continue;
 
                 GeomNode *pa = graph_get_node(graph, c->participants[0]);
                 GeomNode *pm = graph_get_node(graph, c->participants[1]); /* 中点 */
                 GeomNode *pb = graph_get_node(graph, c->participants[2]);
-                if (!pa || !pm || !pb) continue;
-                if (pa->coord_count < 2 || pm->coord_count < 2 || pb->coord_count < 2) continue;
+                if (!pa || !pm || !pb)
+                    continue;
+                if (pa->coord_count < 2 || pm->coord_count < 2 || pb->coord_count < 2)
+                    continue;
 
                 /* 中点条件: pm = (pa + pb) / 2, 即 2*pm = pa + pb */
                 bool is_mid = true;
                 for (int d = 0; d < 2; d++) {
                     SymbolicCoord *sum = symbolic_coord_add(pa->symbolic_coords[d], pb->symbolic_coords[d]);
-                    SymbolicCoord *two_m = symbolic_coord_multiply(
-                        pm->symbolic_coords[d],
-                        symbolic_coord_create_rational(2, 1));
+                    SymbolicCoord *two_m =
+                        symbolic_coord_multiply(pm->symbolic_coords[d], symbolic_coord_create_rational(2, 1));
                     if (!sum || !two_m || !symbolic_coord_is_zero(symbolic_coord_subtract(sum, two_m))) {
                         is_mid = false;
                     }
-                    if (sum) symbolic_coord_destroy(sum);
-                    if (two_m) symbolic_coord_destroy(two_m);
+                    if (sum)
+                        symbolic_coord_destroy(sum);
+                    if (two_m)
+                        symbolic_coord_destroy(two_m);
                 }
 
                 if (is_mid) {
@@ -539,7 +580,8 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
             /* 尝试从约束中获取端点 */
             for (int j = 0; j < graph->constraint_count; j++) {
                 Constraint *c = graph->constraints[j];
-                if (!c || !c->is_active) continue;
+                if (!c || !c->is_active)
+                    continue;
                 if (c->type == INCIDENCE && c->participant_count >= 2) {
                     if (c->participants[1] == node->id) {
                         if (lines[line_count].p1_id < 0)
@@ -558,8 +600,10 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
     /* 也从之间约束中提取有向线 */
     for (int i = 0; i < graph->constraint_count && line_count < 256; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c || !c->is_active || c->type != BETWEENNESS) continue;
-        if (c->participant_count < 3) continue;
+        if (!c || !c->is_active || c->type != BETWEENNESS)
+            continue;
+        if (c->participant_count < 3)
+            continue;
         /* A-B-C 产生两条有向线: AB 和 BC */
         lines[line_count].p1_id = c->participants[0];
         lines[line_count].p2_id = c->participants[1];
@@ -596,8 +640,10 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
     /* 全角性质1：对顶角相等 —— 通过相交约束推导 */
     for (int i = 0; i < graph->constraint_count && !verified; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c || !c->is_active || c->type != INTERSECTION) continue;
-        if (c->participant_count < 3) continue;
+        if (!c || !c->is_active || c->type != INTERSECTION)
+            continue;
+        if (c->participant_count < 3)
+            continue;
 
         int inter_point = c->participants[2]; /* 交点 */
         int line1_id = c->participants[0];
@@ -607,8 +653,10 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
         int l1_other = -1, l2_other = -1;
         for (int j = 0; j < graph->constraint_count; j++) {
             Constraint *cc = graph->constraints[j];
-            if (!cc || !cc->is_active || cc->type != INCIDENCE) continue;
-            if (cc->participant_count < 2) continue;
+            if (!cc || !cc->is_active || cc->type != INCIDENCE)
+                continue;
+            if (cc->participant_count < 2)
+                continue;
             if (cc->participants[1] == line1_id && cc->participants[0] != inter_point) {
                 l1_other = cc->participants[0];
             }
@@ -621,7 +669,8 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
             ProofStep *angle_step = proof_step_create(PROOF_STEP_FUNCTION_APP);
             if (angle_step) {
                 angle_step->color = PROOF_COLOR_GREEN;
-                angle_step->note = lv_strdup_safe("[全角法] 对顶角相等：由相交约束推导 ∠(l1_other, inter, l2_other) 的对顶角关系");
+                angle_step->note =
+                    lv_strdup_safe("[全角法] 对顶角相等：由相交约束推导 ∠(l1_other, inter, l2_other) 的对顶角关系");
                 proof_navigator_add_step(nav, angle_step);
             }
         }
@@ -630,8 +679,10 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
     /* 全角性质2：全角加减 —— 三点共线时全角为0或pi */
     for (int i = 0; i < graph->constraint_count && !verified; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c || !c->is_active || c->type != BETWEENNESS) continue;
-        if (c->participant_count < 3) continue;
+        if (!c || !c->is_active || c->type != BETWEENNESS)
+            continue;
+        if (c->participant_count < 3)
+            continue;
 
         /* A-B-C 共线 => 全角(AB, BC) = pi */
         ProofStep *collinear_step = proof_step_create(PROOF_STEP_FUNCTION_APP);
@@ -646,20 +697,25 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
     /* 查找三角形结构（三个点两两之间有约束） */
     for (int i = 0; i < graph->node_count && !verified; i++) {
         GeomNode *ni = graph->nodes[i];
-        if (!ni || ni->type != GEOM_POINT) continue;
+        if (!ni || ni->type != GEOM_POINT)
+            continue;
         for (int j = i + 1; j < graph->node_count && !verified; j++) {
             GeomNode *nj = graph->nodes[j];
-            if (!nj || nj->type != GEOM_POINT) continue;
+            if (!nj || nj->type != GEOM_POINT)
+                continue;
             for (int k = j + 1; k < graph->node_count && !verified; k++) {
                 GeomNode *nk = graph->nodes[k];
-                if (!nk || nk->type != GEOM_POINT) continue;
+                if (!nk || nk->type != GEOM_POINT)
+                    continue;
 
                 /* 检查三点是否构成三角形（两两之间有约束） */
                 bool has_ij = false, has_jk = false, has_ki = false;
                 for (int c = 0; c < graph->constraint_count; c++) {
                     Constraint *con = graph->constraints[c];
-                    if (!con || !con->is_active) continue;
-                    if (con->participant_count < 2) continue;
+                    if (!con || !con->is_active)
+                        continue;
+                    if (con->participant_count < 2)
+                        continue;
                     if ((con->participants[0] == ni->id && con->participants[1] == nj->id) ||
                         (con->participants[0] == nj->id && con->participants[1] == ni->id))
                         has_ij = true;
@@ -686,13 +742,16 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
     /* 全角性质4：等腰三角形底角相等 */
     for (int i = 0; i < graph->node_count && !verified; i++) {
         GeomNode *ni = graph->nodes[i];
-        if (!ni || ni->type != GEOM_POINT || ni->coord_count < 2) continue;
+        if (!ni || ni->type != GEOM_POINT || ni->coord_count < 2)
+            continue;
         for (int j = i + 1; j < graph->node_count && !verified; j++) {
             GeomNode *nj = graph->nodes[j];
-            if (!nj || nj->type != GEOM_POINT || nj->coord_count < 2) continue;
+            if (!nj || nj->type != GEOM_POINT || nj->coord_count < 2)
+                continue;
             for (int k = j + 1; k < graph->node_count && !verified; k++) {
                 GeomNode *nk = graph->nodes[k];
-                if (!nk || nk->type != GEOM_POINT || nk->coord_count < 2) continue;
+                if (!nk || nk->type != GEOM_POINT || nk->coord_count < 2)
+                    continue;
 
                 /* 检查是否为等腰三角形：两腰长度相等 */
                 SymbolicCoord *ij_dx = symbolic_coord_subtract(nj->symbolic_coords[0], ni->symbolic_coords[0]);
@@ -715,23 +774,35 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
                             ProofStep *iso_step = proof_step_create(PROOF_STEP_FUNCTION_APP);
                             if (iso_step) {
                                 iso_step->color = PROOF_COLOR_GREEN;
-                                iso_step->note = lv_strdup_safe("[全角法] 等腰三角形底角相等：由两边相等推导底角全角相等");
+                                iso_step->note =
+                                    lv_strdup_safe("[全角法] 等腰三角形底角相等：由两边相等推导底角全角相等");
                                 proof_navigator_add_step(nav, iso_step);
                             }
                         }
-                        if (diff) symbolic_coord_destroy(diff);
-                        if (ik_sq) symbolic_coord_destroy(ik_sq);
-                        if (ij_sq) symbolic_coord_destroy(ij_sq);
+                        if (diff)
+                            symbolic_coord_destroy(diff);
+                        if (ik_sq)
+                            symbolic_coord_destroy(ik_sq);
+                        if (ij_sq)
+                            symbolic_coord_destroy(ij_sq);
                     }
-                    if (ik_sq2) symbolic_coord_destroy(ik_sq2);
-                    if (ik_sq1) symbolic_coord_destroy(ik_sq1);
-                    if (ij_sq2) symbolic_coord_destroy(ij_sq2);
-                    if (ij_sq1) symbolic_coord_destroy(ij_sq1);
+                    if (ik_sq2)
+                        symbolic_coord_destroy(ik_sq2);
+                    if (ik_sq1)
+                        symbolic_coord_destroy(ik_sq1);
+                    if (ij_sq2)
+                        symbolic_coord_destroy(ij_sq2);
+                    if (ij_sq1)
+                        symbolic_coord_destroy(ij_sq1);
                 }
-                if (ik_dy) symbolic_coord_destroy(ik_dy);
-                if (ik_dx) symbolic_coord_destroy(ik_dx);
-                if (ij_dy) symbolic_coord_destroy(ij_dy);
-                if (ij_dx) symbolic_coord_destroy(ij_dx);
+                if (ik_dy)
+                    symbolic_coord_destroy(ik_dy);
+                if (ik_dx)
+                    symbolic_coord_destroy(ik_dx);
+                if (ij_dy)
+                    symbolic_coord_destroy(ij_dy);
+                if (ij_dx)
+                    symbolic_coord_destroy(ij_dx);
             }
         }
     }
@@ -780,12 +851,12 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
         proof_navigator_add_step(nav, start_step);
     }
 
-    /* ---- 事实表示 ----
+/* ---- 事实表示 ----
      * 使用简单的字符串数组表示事实（"fact_type:arg1,arg2,..."）
      * 最大事实数 1024，最大迭代 100
      */
-    #define DEDUCT_MAX_FACTS 1024
-    #define DEDUCT_MAX_ITER  100
+#define DEDUCT_MAX_FACTS 1024
+#define DEDUCT_MAX_ITER 100
 
     char **facts = (char **) lv_calloc(DEDUCT_MAX_FACTS, sizeof(char *));
     if (!facts) {
@@ -794,24 +865,29 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
     int fact_count = 0;
     bool verified = false;
 
-    /* 辅助函数：添加事实（去重） */
-    /* 使用内联 lambda 风格的辅助逻辑 */
-    #define DEDUCT_ADD_FACT(fmt_str, ...) do { \
-        char _buf[512]; \
-        snprintf(_buf, sizeof(_buf), fmt_str, __VA_ARGS__); \
-        bool _dup = false; \
-        for (int _fi = 0; _fi < fact_count; _fi++) { \
-            if (facts[_fi] && strcmp(facts[_fi], _buf) == 0) { _dup = true; break; } \
-        } \
-        if (!_dup && fact_count < DEDUCT_MAX_FACTS) { \
-            facts[fact_count++] = lv_strdup_safe(_buf); \
-        } \
-    } while(0)
+/* 辅助函数：添加事实（去重） */
+/* 使用内联 lambda 风格的辅助逻辑 */
+#define DEDUCT_ADD_FACT(fmt_str, ...)                          \
+    do {                                                       \
+        char _buf[512];                                        \
+        snprintf(_buf, sizeof(_buf), fmt_str, __VA_ARGS__);    \
+        bool _dup = false;                                     \
+        for (int _fi = 0; _fi < fact_count; _fi++) {           \
+            if (facts[_fi] && strcmp(facts[_fi], _buf) == 0) { \
+                _dup = true;                                   \
+                break;                                         \
+            }                                                  \
+        }                                                      \
+        if (!_dup && fact_count < DEDUCT_MAX_FACTS) {          \
+            facts[fact_count++] = lv_strdup_safe(_buf);        \
+        }                                                      \
+    } while (0)
 
     /* 阶段1：从约束图提取初始事实 */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c || !c->is_active) continue;
+        if (!c || !c->is_active)
+            continue;
 
         switch (c->type) {
             case INCIDENCE:
@@ -820,13 +896,12 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                 break;
             case BETWEENNESS:
                 if (c->participant_count >= 3)
-                    DEDUCT_ADD_FACT("betweenness:%d,%d,%d",
-                                    c->participants[0], c->participants[1], c->participants[2]);
+                    DEDUCT_ADD_FACT("betweenness:%d,%d,%d", c->participants[0], c->participants[1], c->participants[2]);
                 break;
             case INTERSECTION:
                 if (c->participant_count >= 3)
-                    DEDUCT_ADD_FACT("intersection:%d,%d,%d",
-                                    c->participants[0], c->participants[1], c->participants[2]);
+                    DEDUCT_ADD_FACT("intersection:%d,%d,%d", c->participants[0], c->participants[1],
+                                    c->participants[2]);
                 break;
             case CONTAINMENT:
                 if (c->participant_count >= 2)
@@ -845,7 +920,8 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
     /* 提取点坐标作为事实 */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_POINT) continue;
+        if (!node || node->type != GEOM_POINT)
+            continue;
         if (node->coord_count >= 2 && node->symbolic_coords[0] && node->symbolic_coords[1]) {
             char *sx = symbolic_coord_serialize(node->symbolic_coords[0]);
             char *sy = symbolic_coord_serialize(node->symbolic_coords[1]);
@@ -854,14 +930,19 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                 snprintf(buf, sizeof(buf), "point_coord:%d,%s,%s", node->id, sx, sy);
                 bool dup = false;
                 for (int fi = 0; fi < fact_count; fi++) {
-                    if (facts[fi] && strcmp(facts[fi], buf) == 0) { dup = true; break; }
+                    if (facts[fi] && strcmp(facts[fi], buf) == 0) {
+                        dup = true;
+                        break;
+                    }
                 }
                 if (!dup && fact_count < DEDUCT_MAX_FACTS) {
                     facts[fact_count++] = lv_strdup_safe(buf);
                 }
             }
-            if (sy) lv_free((void **) &sy);
-            if (sx) lv_free((void **) &sx);
+            if (sy)
+                lv_free((void **) &sy);
+            if (sx)
+                lv_free((void **) &sx);
         }
     }
 
@@ -882,15 +963,19 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
 
         /* 规则1：传递性 —— 如果 A-B 和 B-C 共线，则 A-B-C 共线 */
         for (int i = 0; i < fact_count; i++) {
-            if (!facts[i] || strncmp(facts[i], "betweenness:", 12) != 0) continue;
+            if (!facts[i] || strncmp(facts[i], "betweenness:", 12) != 0)
+                continue;
             /* 解析 betweenness:a,b,c */
             int a1, b1, c1;
-            if (sscanf(facts[i], "betweenness:%d,%d,%d", &a1, &b1, &c1) != 3) continue;
+            if (sscanf(facts[i], "betweenness:%d,%d,%d", &a1, &b1, &c1) != 3)
+                continue;
 
             for (int j = 0; j < fact_count; j++) {
-                if (i == j || !facts[j] || strncmp(facts[j], "betweenness:", 12) != 0) continue;
+                if (i == j || !facts[j] || strncmp(facts[j], "betweenness:", 12) != 0)
+                    continue;
                 int a2, b2, c2;
-                if (sscanf(facts[j], "betweenness:%d,%d,%d", &a2, &b2, &c2) != 3) continue;
+                if (sscanf(facts[j], "betweenness:%d,%d,%d", &a2, &b2, &c2) != 3)
+                    continue;
 
                 /* 如果 b1 == a2，则推导 a1-b1(=a2)-c2 共线 */
                 if (b1 == a2 && a1 != c2) {
@@ -907,14 +992,18 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
 
         /* 规则2：相交传递 —— 如果线L1过点P，L2过点P，且L1和L2相交于P */
         for (int i = 0; i < fact_count; i++) {
-            if (!facts[i] || strncmp(facts[i], "incidence:", 10) != 0) continue;
+            if (!facts[i] || strncmp(facts[i], "incidence:", 10) != 0)
+                continue;
             int p1, l1;
-            if (sscanf(facts[i], "incidence:%d,%d", &p1, &l1) != 2) continue;
+            if (sscanf(facts[i], "incidence:%d,%d", &p1, &l1) != 2)
+                continue;
 
             for (int j = i + 1; j < fact_count; j++) {
-                if (!facts[j] || strncmp(facts[j], "incidence:", 10) != 0) continue;
+                if (!facts[j] || strncmp(facts[j], "incidence:", 10) != 0)
+                    continue;
                 int p2, l2;
-                if (sscanf(facts[j], "incidence:%d,%d", &p2, &l2) != 2) continue;
+                if (sscanf(facts[j], "incidence:%d,%d", &p2, &l2) != 2)
+                    continue;
 
                 /* 同一点在两条不同线上 => 相交 */
                 if (p1 == p2 && l1 != l2) {
@@ -926,9 +1015,11 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
 
         /* 规则3：等量代换 —— 如果两点的坐标相同，则两点重合 */
         for (int i = 0; i < fact_count; i++) {
-            if (!facts[i] || strncmp(facts[i], "point_coord:", 11) != 0) continue;
+            if (!facts[i] || strncmp(facts[i], "point_coord:", 11) != 0)
+                continue;
             for (int j = i + 1; j < fact_count; j++) {
-                if (!facts[j] || strncmp(facts[j], "point_coord:", 11) != 0) continue;
+                if (!facts[j] || strncmp(facts[j], "point_coord:", 11) != 0)
+                    continue;
                 /* 比较坐标字符串：从逗号后截取坐标部分进行字符串比较 */
                 /* 格式：point_coord:id,x,y —— 逗号后为 ",x,y" */
                 char *comma1_i = strchr(facts[i] + 11, ',');
@@ -956,7 +1047,8 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
             double pt_x[128], pt_y[128];
             int pt_count = 0;
             for (int fi = 0; fi < fact_count && pt_count < 128; fi++) {
-                if (!facts[fi] || strncmp(facts[fi], "point_coord:", 11) != 0) continue;
+                if (!facts[fi] || strncmp(facts[fi], "point_coord:", 11) != 0)
+                    continue;
                 int pid;
                 double fx, fy;
                 if (sscanf(facts[fi], "point_coord:%d,%lf,%lf", &pid, &fx, &fy) == 3) {
@@ -969,7 +1061,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
 
             /* 计算所有点对之间的距离平方（避免开方） */
             if (pt_count >= 3) {
-                #define SSS_MAX_PAIRS 4096
+#define SSS_MAX_PAIRS 4096
                 int pair_a[SSS_MAX_PAIRS], pair_b[SSS_MAX_PAIRS];
                 double pair_dist2[SSS_MAX_PAIRS];
                 int pair_count = 0;
@@ -984,8 +1076,8 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                     }
                 }
 
-                /* 枚举所有三角形（三个点），检查是否有合同三角形 */
-                #define SSS_MAX_TRI 512
+/* 枚举所有三角形（三个点），检查是否有合同三角形 */
+#define SSS_MAX_TRI 512
                 int tri[SSS_MAX_TRI][3]; /* 每个三角形的三个点ID */
                 int tri_count = 0;
                 for (int a = 0; a < pt_count && tri_count < SSS_MAX_TRI; a++) {
@@ -1010,8 +1102,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                             int pa = tri[t1][e];
                             int pb = tri[t1][(e + 1) % 3];
                             for (int p = 0; p < pair_count; p++) {
-                                if ((pair_a[p] == pa && pair_b[p] == pb) ||
-                                    (pair_a[p] == pb && pair_b[p] == pa)) {
+                                if ((pair_a[p] == pa && pair_b[p] == pb) || (pair_a[p] == pb && pair_b[p] == pa)) {
                                     edges1[e] = pair_dist2[p];
                                     e1_pairs[e][0] = pa;
                                     e1_pairs[e][1] = pb;
@@ -1021,30 +1112,28 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                             }
                         }
 
-                        if (e1_found < 3) continue;
+                        if (e1_found < 3)
+                            continue;
 
                         /* 计算三角形 t2 的三边长，尝试所有顶点排列 */
                         for (int perm = 0; perm < 6; perm++) {
                             /* 6种排列：012, 021, 102, 120, 201, 210 */
-                            static const int perms[6][3] = {
-                                {0, 1, 2}, {0, 2, 1}, {1, 0, 2},
-                                {1, 2, 0}, {2, 0, 1}, {2, 1, 0}
-                            };
+                            static const int perms[6][3] = {{0, 1, 2}, {0, 2, 1}, {1, 0, 2},
+                                                            {1, 2, 0}, {2, 0, 1}, {2, 1, 0}};
                             int va = tri[t2][perms[perm][0]];
                             int vb = tri[t2][perms[perm][1]];
                             int vc = tri[t2][perms[perm][2]];
                             double edges2[3];
                             int e2_found = 0;
                             int e2_pairs[3][2];
-                            (void)e2_pairs; /* suppress unused warning */
+                            (void) e2_pairs; /* suppress unused warning */
 
                             int t2verts[3] = {va, vb, vc};
                             for (int e = 0; e < 3; e++) {
                                 int pa = t2verts[e];
                                 int pb = t2verts[(e + 1) % 3];
                                 for (int p = 0; p < pair_count; p++) {
-                                    if ((pair_a[p] == pa && pair_b[p] == pb) ||
-                                        (pair_a[p] == pb && pair_b[p] == pa)) {
+                                    if ((pair_a[p] == pa && pair_b[p] == pb) || (pair_a[p] == pb && pair_b[p] == pa)) {
                                         edges2[e] = pair_dist2[p];
                                         e2_pairs[e][0] = pa;
                                         e2_pairs[e][1] = pb;
@@ -1054,14 +1143,16 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                                 }
                             }
 
-                            if (e2_found < 3) continue;
+                            if (e2_found < 3)
+                                continue;
 
                             /* 检查三边是否对应相等（使用相对容差） */
                             bool sss_match = true;
                             for (int e = 0; e < 3; e++) {
                                 double diff = fabs(edges1[e] - edges2[e]);
                                 double max_val = fmax(fabs(edges1[e]), fabs(edges2[e]));
-                                if (max_val < 1e-12) continue; /* 两边都为零 */
+                                if (max_val < 1e-12)
+                                    continue; /* 两边都为零 */
                                 if (diff / max_val > 1e-6) {
                                     sss_match = false;
                                     break;
@@ -1069,16 +1160,15 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                             }
 
                             if (sss_match) {
-                                DEDUCT_ADD_FACT("congruent:%d,%d,%d,%d,%d,%d",
-                                    tri[t1][0], tri[t1][1], tri[t1][2],
-                                    tri[t2][0], tri[t2][1], tri[t2][2]);
+                                DEDUCT_ADD_FACT("congruent:%d,%d,%d,%d,%d,%d", tri[t1][0], tri[t1][1], tri[t1][2],
+                                                tri[t2][0], tri[t2][1], tri[t2][2]);
                                 new_derived++;
                             }
                         }
                     }
                 }
-                #undef SSS_MAX_PAIRS
-                #undef SSS_MAX_TRI
+#undef SSS_MAX_PAIRS
+#undef SSS_MAX_TRI
             }
         }
 
@@ -1086,22 +1176,20 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
         if (nav->target_prop && nav->target_prop->name) {
             /* 检查目标命题中的关键关系是否在事实库中 */
             for (int fi = 0; fi < fact_count; fi++) {
-                if (!facts[fi]) continue;
+                if (!facts[fi])
+                    continue;
                 /* 如果目标涉及共线，检查 betweenness 事实 */
-                if (strstr(nav->target_prop->name, "collinear") &&
-                    strncmp(facts[fi], "betweenness:", 12) == 0) {
+                if (strstr(nav->target_prop->name, "collinear") && strncmp(facts[fi], "betweenness:", 12) == 0) {
                     verified = true;
                     break;
                 }
                 /* 如果目标涉及相交，检查 intersection 事实 */
-                if (strstr(nav->target_prop->name, "intersect") &&
-                    strncmp(facts[fi], "intersection:", 13) == 0) {
+                if (strstr(nav->target_prop->name, "intersect") && strncmp(facts[fi], "intersection:", 13) == 0) {
                     verified = true;
                     break;
                 }
                 /* 如果目标涉及重合，检查 coincident 事实 */
-                if (strstr(nav->target_prop->name, "coincident") &&
-                    strncmp(facts[fi], "coincident:", 11) == 0) {
+                if (strstr(nav->target_prop->name, "coincident") && strncmp(facts[fi], "coincident:", 11) == 0) {
                     verified = true;
                     break;
                 }
@@ -1126,8 +1214,8 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
             if (iter_step) {
                 iter_step->color = PROOF_COLOR_GREEN;
                 char buf[256];
-                snprintf(buf, sizeof(buf), "[演绎数据库] 第 %d 轮推理，新增 %d 条事实，累计 %d 条",
-                         iter + 1, new_derived, fact_count);
+                snprintf(buf, sizeof(buf), "[演绎数据库] 第 %d 轮推理，新增 %d 条事实，累计 %d 条", iter + 1,
+                         new_derived, fact_count);
                 iter_step->note = lv_strdup_safe(buf);
                 proof_navigator_add_step(nav, iter_step);
             }
@@ -1155,9 +1243,9 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
     }
     lv_free((void **) &facts);
 
-    #undef DEDUCT_MAX_FACTS
-    #undef DEDUCT_MAX_ITER
-    #undef DEDUCT_ADD_FACT
+#undef DEDUCT_MAX_FACTS
+#undef DEDUCT_MAX_ITER
+#undef DEDUCT_ADD_FACT
 
     return verified;
 }
@@ -1195,11 +1283,11 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
 
     for (int i = 0; i < graph->node_count && point_count < 256; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_POINT) continue;
+        if (!node || node->type != GEOM_POINT)
+            continue;
         point_ids[point_count] = node->id;
-        has_coords[point_count] = (node->coord_count >= 2 &&
-                                    node->symbolic_coords[0] != NULL &&
-                                    node->symbolic_coords[1] != NULL);
+        has_coords[point_count] =
+            (node->coord_count >= 2 && node->symbolic_coords[0] != NULL && node->symbolic_coords[1] != NULL);
         if (!has_coords[point_count])
             unassigned_count++;
         point_count++;
@@ -1219,10 +1307,12 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
     /* 策略：第一个点在原点，第二个点在x轴上，其余使用自由变量 */
     int free_var_counter = 0;
     for (int i = 0; i < point_count; i++) {
-        if (has_coords[i]) continue;
+        if (has_coords[i])
+            continue;
 
         GeomNode *node = graph_get_node(graph, point_ids[i]);
-        if (!node) continue;
+        if (!node)
+            continue;
 
         SymbolicCoord *cx = NULL;
         SymbolicCoord *cy = NULL;
@@ -1237,8 +1327,8 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
             cy = symbolic_coord_create_rational(0, 1);
         } else {
             /* 其余使用自由变量（用有理数参数化） */
-            cx = symbolic_coord_create_rational((int64_t)(free_var_counter * 2 + 3), 1);
-            cy = symbolic_coord_create_rational((int64_t)(free_var_counter * 2 + 4), 1);
+            cx = symbolic_coord_create_rational((int64_t) (free_var_counter * 2 + 3), 1);
+            cy = symbolic_coord_create_rational((int64_t) (free_var_counter * 2 + 4), 1);
             free_var_counter++;
         }
 
@@ -1250,17 +1340,21 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 char buf[256];
                 char *sx = symbolic_coord_serialize(cx);
                 char *sy = symbolic_coord_serialize(cy);
-                snprintf(buf, sizeof(buf), "[坐标法] 为点 %d 分配坐标 (%s, %s)",
-                         node->id, sx ? sx : "?", sy ? sy : "?");
+                snprintf(buf, sizeof(buf), "[坐标法] 为点 %d 分配坐标 (%s, %s)", node->id, sx ? sx : "?",
+                         sy ? sy : "?");
                 assign_step->note = lv_strdup_safe(buf);
-                if (sy) lv_free((void **) &sy);
-                if (sx) lv_free((void **) &sx);
+                if (sy)
+                    lv_free((void **) &sy);
+                if (sx)
+                    lv_free((void **) &sx);
                 proof_navigator_add_step(nav, assign_step);
             }
         }
 
-        if (cx) symbolic_coord_destroy(cx);
-        if (cy) symbolic_coord_destroy(cy);
+        if (cx)
+            symbolic_coord_destroy(cx);
+        if (cy)
+            symbolic_coord_destroy(cy);
     }
 
     /* 阶段3：将几何约束转化为代数方程并验证 */
@@ -1269,7 +1363,8 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
 
     for (int i = 0; i < graph->constraint_count && !verified; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c || !c->is_active) continue;
+        if (!c || !c->is_active)
+            continue;
 
         if (c->type == BETWEENNESS && c->participant_count >= 3) {
             /* 之间约束：B在A和C之间 => B = A + t*(C-A), 0<t<1 */
@@ -1277,8 +1372,7 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
             GeomNode *pb = graph_get_node(graph, c->participants[1]);
             GeomNode *pc = graph_get_node(graph, c->participants[2]);
 
-            if (pa && pb && pc &&
-                pa->coord_count >= 2 && pb->coord_count >= 2 && pc->coord_count >= 2) {
+            if (pa && pb && pc && pa->coord_count >= 2 && pb->coord_count >= 2 && pc->coord_count >= 2) {
                 /* 验证 betweenness：B 在 A 和 C 之间
                  * 条件：B = A + t*(C-A)，其中 0 < t < 1
                  * 等价于：(B-A) 和 (C-B) 方向相同（同号），且 B 在 A 和 C 之间
@@ -1301,10 +1395,14 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
                         equation_count++;
                     }
                 }
-                if (ab_x) symbolic_coord_destroy(ab_x);
-                if (ab_y) symbolic_coord_destroy(ab_y);
-                if (bc_x) symbolic_coord_destroy(bc_x);
-                if (bc_y) symbolic_coord_destroy(bc_y);
+                if (ab_x)
+                    symbolic_coord_destroy(ab_x);
+                if (ab_y)
+                    symbolic_coord_destroy(ab_y);
+                if (bc_x)
+                    symbolic_coord_destroy(bc_x);
+                if (bc_y)
+                    symbolic_coord_destroy(bc_y);
             }
         }
 
@@ -1323,7 +1421,8 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 GeomNode *pi = graph_get_node(graph, point_ids[i]);
                 for (int j = i + 1; j < point_count && !verified; j++) {
                     GeomNode *pj = graph_get_node(graph, point_ids[j]);
-                    if (!pi || !pj || pi->coord_count < 2 || pj->coord_count < 2) continue;
+                    if (!pi || !pj || pi->coord_count < 2 || pj->coord_count < 2)
+                        continue;
 
                     SymbolicCoord *dx = symbolic_coord_subtract(pj->symbolic_coords[0], pi->symbolic_coords[0]);
                     SymbolicCoord *dy = symbolic_coord_subtract(pj->symbolic_coords[1], pi->symbolic_coords[1]);
@@ -1337,43 +1436,59 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
                                 for (int k = 0; k < i && !verified; k++) {
                                     GeomNode *pk = graph_get_node(graph, point_ids[k]);
                                     for (int l = k + 1; l < j && !verified; l++) {
-                                        if (l == i) continue;
+                                        if (l == i)
+                                            continue;
                                         GeomNode *pl = graph_get_node(graph, point_ids[l]);
-                                        if (!pk || !pl || pk->coord_count < 2 || pl->coord_count < 2) continue;
+                                        if (!pk || !pl || pk->coord_count < 2 || pl->coord_count < 2)
+                                            continue;
 
-                                        SymbolicCoord *dx2 = symbolic_coord_subtract(pl->symbolic_coords[0], pk->symbolic_coords[0]);
-                                        SymbolicCoord *dy2 = symbolic_coord_subtract(pl->symbolic_coords[1], pk->symbolic_coords[1]);
+                                        SymbolicCoord *dx2 =
+                                            symbolic_coord_subtract(pl->symbolic_coords[0], pk->symbolic_coords[0]);
+                                        SymbolicCoord *dy2 =
+                                            symbolic_coord_subtract(pl->symbolic_coords[1], pk->symbolic_coords[1]);
                                         if (dx2 && dy2) {
                                             SymbolicCoord *d2_3 = symbolic_coord_multiply(dx2, dx2);
                                             SymbolicCoord *d2_4 = symbolic_coord_multiply(dy2, dy2);
                                             if (d2_3 && d2_4) {
                                                 SymbolicCoord *dist_sq2 = symbolic_coord_add(d2_3, d2_4);
-                                                if (dist_sq2 && symbolic_coord_is_zero(symbolic_coord_subtract(dist_sq, dist_sq2))) {
+                                                if (dist_sq2 && symbolic_coord_is_zero(
+                                                                    symbolic_coord_subtract(dist_sq, dist_sq2))) {
                                                     ProofStep *eq_step = proof_step_create(PROOF_STEP_REWRITE);
                                                     if (eq_step) {
                                                         eq_step->color = PROOF_COLOR_GREEN;
-                                                        eq_step->note = lv_strdup_safe("[坐标法] 距离平方相等，验证等距关系成立");
+                                                        eq_step->note =
+                                                            lv_strdup_safe("[坐标法] 距离平方相等，验证等距关系成立");
                                                         proof_navigator_add_step(nav, eq_step);
                                                     }
                                                     verified = true;
                                                 }
-                                                if (dist_sq2) symbolic_coord_destroy(dist_sq2);
+                                                if (dist_sq2)
+                                                    symbolic_coord_destroy(dist_sq2);
                                             }
-                                            if (d2_4) symbolic_coord_destroy(d2_4);
-                                            if (d2_3) symbolic_coord_destroy(d2_3);
+                                            if (d2_4)
+                                                symbolic_coord_destroy(d2_4);
+                                            if (d2_3)
+                                                symbolic_coord_destroy(d2_3);
                                         }
-                                        if (dy2) symbolic_coord_destroy(dy2);
-                                        if (dx2) symbolic_coord_destroy(dx2);
+                                        if (dy2)
+                                            symbolic_coord_destroy(dy2);
+                                        if (dx2)
+                                            symbolic_coord_destroy(dx2);
                                     }
                                 }
-                                if (dist_sq) symbolic_coord_destroy(dist_sq);
+                                if (dist_sq)
+                                    symbolic_coord_destroy(dist_sq);
                             }
                         }
-                        if (d2_2) symbolic_coord_destroy(d2_2);
-                        if (d2_1) symbolic_coord_destroy(d2_1);
+                        if (d2_2)
+                            symbolic_coord_destroy(d2_2);
+                        if (d2_1)
+                            symbolic_coord_destroy(d2_1);
                     }
-                    if (dy) symbolic_coord_destroy(dy);
-                    if (dx) symbolic_coord_destroy(dx);
+                    if (dy)
+                        symbolic_coord_destroy(dy);
+                    if (dx)
+                        symbolic_coord_destroy(dx);
                 }
             }
         }
@@ -1384,8 +1499,8 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
     if (summary_step) {
         summary_step->color = verified ? PROOF_COLOR_GREEN : PROOF_COLOR_BLUE_UNEXPLORED;
         char buf[256];
-        snprintf(buf, sizeof(buf), "[坐标法] 坐标分配完成，转化 %d 个约束方程，验证结果：%s",
-                 equation_count, verified ? "成功" : "未确认");
+        snprintf(buf, sizeof(buf), "[坐标法] 坐标分配完成，转化 %d 个约束方程，验证结果：%s", equation_count,
+                 verified ? "成功" : "未确认");
         summary_step->note = lv_strdup_safe(buf);
         proof_navigator_add_step(nav, summary_step);
     }
@@ -1438,7 +1553,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
     /* 尝试使用 ATP 后端编码约束图 */
     /* 检查是否有可用的 ATP 后端 */
     bool atp_available = false;
-    (void)atp_available; /* suppress unused warning */
+    (void) atp_available; /* suppress unused warning */
     ATPBackendType atp_types[] = {ATP_BACKEND_VAMPIRE, ATP_BACKEND_EPROVER, ATP_BACKEND_IPROVER};
     const char *atp_names[] = {"Vampire", "E Prover", "iProver"};
 
@@ -1467,9 +1582,8 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
         }
 
         /* 尝试将约束图编码为 TPTP 格式 */
-        char *tptp = atp_encode_constraint_graph(
-            nav->construction, ATP_FORMAT_TPTP_FOF,
-            "lv_oracle_problem", true, nav->target_prop);
+        char *tptp = atp_encode_constraint_graph(nav->construction, ATP_FORMAT_TPTP_FOF, "lv_oracle_problem", true,
+                                                 nav->target_prop);
 
         if (tptp == NULL) {
             ProofStep *enc_fail = proof_step_create(PROOF_STEP_ORACLE);
@@ -1506,10 +1620,8 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                     if (success_step) {
                         success_step->color = PROOF_COLOR_GREEN_COMPLETE;
                         char buf[256];
-                        snprintf(buf, sizeof(buf),
-                                 "[Oracle] %s 证明成功（%.2fs, %d 子句）",
-                                 atp_names[backend], result.solve_time_seconds,
-                                 result.processed_clauses);
+                        snprintf(buf, sizeof(buf), "[Oracle] %s 证明成功（%.2fs, %d 子句）", atp_names[backend],
+                                 result.solve_time_seconds, result.processed_clauses);
                         success_step->note = lv_strdup_safe(buf);
                         proof_navigator_add_step(nav, success_step);
                     }
@@ -1547,7 +1659,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
             atp_solver_destroy(solver);
         }
 
-        lv_free((void **)&tptp);
+        lv_free((void **) &tptp);
     }
 
     /* 如果 ATP 后端不可用，尝试直接合一作为降级方案 */
@@ -1565,8 +1677,8 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
         if (result_step) {
             result_step->color = (status == UNIFY_STATUS_OK) ? PROOF_COLOR_ORANGE_ORACLE : PROOF_COLOR_BLUE_UNEXPLORED;
             result_step->note = (status == UNIFY_STATUS_OK)
-                ? lv_strdup_safe("[Oracle] 合一检查确认命题成立（Oracle辅助）")
-                : lv_strdup_safe("[Oracle] 合一检查未能确认命题");
+                                    ? lv_strdup_safe("[Oracle] 合一检查确认命题成立（Oracle辅助）")
+                                    : lv_strdup_safe("[Oracle] 合一检查未能确认命题");
             proof_navigator_add_step(nav, result_step);
         }
 
@@ -1900,7 +2012,7 @@ void proof_multi_strategy_set_fallback_order(ProofMultiStrategy *mse, const int 
         return;
 
     lv_free((void **) &mse->fallback_order);
-    mse->fallback_order = (int *) lv_malloc((size_t)count * sizeof(int));
+    mse->fallback_order = (int *) lv_malloc((size_t) count * sizeof(int));
     if (!mse->fallback_order)
         return;
 
@@ -2100,22 +2212,22 @@ static bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
 
     /* ---- DFS 栈帧 ---- */
     typedef struct {
-        int strategy_index;     /* 当前尝试的策略索引 */
-        int tried_count;        /* 已尝试的策略数量 */
-        int depth;              /* 当前深度 */
-        int step_count;         /* 进入此帧时的步骤计数 */
+        int strategy_index;                          /* 当前尝试的策略索引 */
+        int tried_count;                             /* 已尝试的策略数量 */
+        int depth;                                   /* 当前深度 */
+        int step_count;                              /* 进入此帧时的步骤计数 */
         bool strategies_tried[PROOF_STRATEGY_COUNT]; /* 每个策略是否已尝试 */
     } DFSFrame;
 
-    #define DFS_MAX_DEPTH 32
-    #define DFS_STACK_SIZE 64
+#define DFS_MAX_DEPTH 32
+#define DFS_STACK_SIZE 64
 
     DFSFrame stack[DFS_STACK_SIZE];
     int stack_top = 0;
     int total_steps = 0;
 
-    /* 已访问状态哈希（使用策略组合的简单编码） */
-    #define DFS_VISIT_HASH_SIZE 1024
+/* 已访问状态哈希（使用策略组合的简单编码） */
+#define DFS_VISIT_HASH_SIZE 1024
     int visited_hashes[DFS_VISIT_HASH_SIZE];
     memset(visited_hashes, 0, sizeof(visited_hashes));
 
@@ -2138,8 +2250,7 @@ static bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
         /* 查找下一个未尝试的策略 */
         int next_strategy = -1;
         for (int i = 0; i < PROOF_STRATEGY_COUNT; i++) {
-            if (!frame->strategies_tried[i] &&
-                mse->strategies[i].status != PROOF_STRATEGY_UNAVAILABLE &&
+            if (!frame->strategies_tried[i] && mse->strategies[i].status != PROOF_STRATEGY_UNAVAILABLE &&
                 mse->strategies[i].execute != NULL) {
                 next_strategy = i;
                 frame->strategies_tried[i] = true;
@@ -2202,9 +2313,9 @@ static bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
 
     return proof->is_complete;
 
-    #undef DFS_MAX_DEPTH
-    #undef DFS_STACK_SIZE
-    #undef DFS_VISIT_HASH_SIZE
+#undef DFS_MAX_DEPTH
+#undef DFS_STACK_SIZE
+#undef DFS_VISIT_HASH_SIZE
 }
 
 /**
@@ -2224,13 +2335,13 @@ static bool proof_breadth_first_search(ProofNavigator *proof, int max_steps) {
 
     /* ---- BFS 队列状态 ---- */
     typedef struct {
-        int strategy_index;                              /* 上一次执行的策略 */
-        bool strategies_tried[PROOF_STRATEGY_COUNT];     /* 已尝试的策略集合 */
-        int tried_count;                                 /* 已尝试数量 */
-        int depth;                                       /* 搜索深度 */
+        int strategy_index;                          /* 上一次执行的策略 */
+        bool strategies_tried[PROOF_STRATEGY_COUNT]; /* 已尝试的策略集合 */
+        int tried_count;                             /* 已尝试数量 */
+        int depth;                                   /* 搜索深度 */
     } BFSState;
 
-    #define BFS_QUEUE_SIZE 512
+#define BFS_QUEUE_SIZE 512
 
     BFSState queue[BFS_QUEUE_SIZE];
     int queue_head = 0;
@@ -2247,8 +2358,7 @@ static bool proof_breadth_first_search(ProofNavigator *proof, int max_steps) {
         /* 查找该状态中下一个未尝试的策略 */
         int next_strategy = -1;
         for (int i = 0; i < PROOF_STRATEGY_COUNT; i++) {
-            if (!state->strategies_tried[i] &&
-                mse->strategies[i].status != PROOF_STRATEGY_UNAVAILABLE &&
+            if (!state->strategies_tried[i] && mse->strategies[i].status != PROOF_STRATEGY_UNAVAILABLE &&
                 mse->strategies[i].execute != NULL) {
                 next_strategy = i;
                 state->strategies_tried[i] = true;
@@ -2286,8 +2396,7 @@ static bool proof_breadth_first_search(ProofNavigator *proof, int max_steps) {
         /* 如果所有策略已穷尽，自动出队（下次循环会检测到） */
         bool has_more = false;
         for (int i = 0; i < PROOF_STRATEGY_COUNT; i++) {
-            if (!state->strategies_tried[i] &&
-                mse->strategies[i].status != PROOF_STRATEGY_UNAVAILABLE) {
+            if (!state->strategies_tried[i] && mse->strategies[i].status != PROOF_STRATEGY_UNAVAILABLE) {
                 has_more = true;
                 break;
             }
@@ -2299,7 +2408,7 @@ static bool proof_breadth_first_search(ProofNavigator *proof, int max_steps) {
 
     return proof->is_complete;
 
-    #undef BFS_QUEUE_SIZE
+#undef BFS_QUEUE_SIZE
 }
 
 /**
@@ -2319,28 +2428,28 @@ static bool proof_best_first_search(ProofNavigator *proof, int max_steps) {
 
     /* ---- 优先队列条目 ---- */
     typedef struct {
-        int strategy_index;  /* 策略索引 */
-        double score;        /* 启发式分数 */
-        int attempt_count;   /* 该策略已尝试次数 */
+        int strategy_index; /* 策略索引 */
+        double score;       /* 启发式分数 */
+        int attempt_count;  /* 该策略已尝试次数 */
     } PQEntry;
 
-    #define PQ_MAX_SIZE 128
+#define PQ_MAX_SIZE 128
 
     PQEntry pq[PQ_MAX_SIZE];
     int pq_size = 0;
     int total_steps = 0;
 
-    /* ---- 启发式评分函数 ----
+/* ---- 启发式评分函数 ----
      * 综合考虑以下因素：
      * - 适用性检查（+40分）：策略的适用性检查是否通过
      * - 约束匹配度（+30分）：策略与当前约束图的匹配程度
      * - 历史成功率（+20分）：之前尝试的成功/失败比率
      * - 策略优先级（+10分）：回退顺序中的位置
      */
-    #define SCORE_APPLICABILITY 40.0
-    #define SCORE_CONSTRAINT_MATCH 30.0
-    #define SCORE_HISTORY 20.0
-    #define SCORE_PRIORITY 10.0
+#define SCORE_APPLICABILITY 40.0
+#define SCORE_CONSTRAINT_MATCH 30.0
+#define SCORE_HISTORY 20.0
+#define SCORE_PRIORITY 10.0
 
     /* 计算单个策略的启发式分数 */
     for (int i = 0; i < PROOF_STRATEGY_COUNT; i++) {
@@ -2497,11 +2606,11 @@ static bool proof_best_first_search(ProofNavigator *proof, int max_steps) {
 
     return proof->is_complete;
 
-    #undef PQ_MAX_SIZE
-    #undef SCORE_APPLICABILITY
-    #undef SCORE_CONSTRAINT_MATCH
-    #undef SCORE_HISTORY
-    #undef SCORE_PRIORITY
+#undef PQ_MAX_SIZE
+#undef SCORE_APPLICABILITY
+#undef SCORE_CONSTRAINT_MATCH
+#undef SCORE_HISTORY
+#undef SCORE_PRIORITY
 }
 
 /**
@@ -2524,20 +2633,20 @@ static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
 
     ProofMultiStrategy *mse = (ProofMultiStrategy *) proof->engine;
 
-    /* ---- MCTS 树节点 ---- */
-    #define MCTS_MAX_NODES 256
-    #define MCTS_MAX_CHILDREN PROOF_STRATEGY_COUNT
-    #define MCTS_C 1.41421356  /* sqrt(2)，UCB1 探索常数 */
+/* ---- MCTS 树节点 ---- */
+#define MCTS_MAX_NODES 256
+#define MCTS_MAX_CHILDREN PROOF_STRATEGY_COUNT
+#define MCTS_C 1.41421356 /* sqrt(2)，UCB1 探索常数 */
 
     typedef struct MCTSNode {
-        int id;                  /* 节点ID */
-        int parent_id;           /* 父节点ID（-1 = 根） */
-        int strategy_index;      /* 此节点对应的策略索引（-1 = 根） */
+        int id;                          /* 节点ID */
+        int parent_id;                   /* 父节点ID（-1 = 根） */
+        int strategy_index;              /* 此节点对应的策略索引（-1 = 根） */
         int children[MCTS_MAX_CHILDREN]; /* 子节点ID数组（-1 = 空） */
-        int child_count;         /* 子节点数量 */
-        int visit_count;         /* 访问次数 */
-        int win_count;           /* 胜利次数 */
-        bool fully_expanded;     /* 是否已完全展开 */
+        int child_count;                 /* 子节点数量 */
+        int visit_count;                 /* 访问次数 */
+        int win_count;                   /* 胜利次数 */
+        bool fully_expanded;             /* 是否已完全展开 */
     } MCTSNode;
 
     MCTSNode nodes[MCTS_MAX_NODES];
@@ -2553,25 +2662,26 @@ static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
     }
     node_count = 1;
 
-    /* ---- 辅助函数 ---- */
+/* ---- 辅助函数 ---- */
 
-    /* UCB1 评分 */
-    #define UCB1(win_rate, parent_visits, visits) \
-        ((win_rate) + MCTS_C * sqrt(log((double)(parent_visits) + 1.0) / ((double)(visits) + 1e-10)))
+/* UCB1 评分 */
+#define UCB1(win_rate, parent_visits, visits) \
+    ((win_rate) + MCTS_C * sqrt(log((double) (parent_visits) + 1.0) / ((double) (visits) + 1e-10)))
 
-    /* 创建新节点 */
-    #define MCTS_CREATE_NODE(parent, strategy) do { \
-        if (node_count < MCTS_MAX_NODES) { \
-            memset(&nodes[node_count], 0, sizeof(MCTSNode)); \
-            nodes[node_count].id = node_count; \
-            nodes[node_count].parent_id = (parent); \
-            nodes[node_count].strategy_index = (strategy); \
+/* 创建新节点 */
+#define MCTS_CREATE_NODE(parent, strategy)                      \
+    do {                                                        \
+        if (node_count < MCTS_MAX_NODES) {                      \
+            memset(&nodes[node_count], 0, sizeof(MCTSNode));    \
+            nodes[node_count].id = node_count;                  \
+            nodes[node_count].parent_id = (parent);             \
+            nodes[node_count].strategy_index = (strategy);      \
             for (int _ci = 0; _ci < MCTS_MAX_CHILDREN; _ci++) { \
-                nodes[node_count].children[_ci] = -1; \
-            } \
-            node_count++; \
-        } \
-    } while(0)
+                nodes[node_count].children[_ci] = -1;           \
+            }                                                   \
+            node_count++;                                       \
+        }                                                       \
+    } while (0)
 
     /* ---- 主 MCTS 循环 ---- */
     for (int sim = 0; sim < max_steps && !proof->is_complete; sim++) {
@@ -2584,7 +2694,8 @@ static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
 
             for (int c = 0; c < nodes[current].child_count; c++) {
                 int child_id = nodes[current].children[c];
-                if (child_id < 0) continue;
+                if (child_id < 0)
+                    continue;
 
                 MCTSNode *child = &nodes[child_id];
                 if (child->visit_count == 0) {
@@ -2593,9 +2704,8 @@ static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
                     break;
                 }
 
-                double win_rate = (child->visit_count > 0)
-                    ? (double) child->win_count / (double) child->visit_count
-                    : 0.0;
+                double win_rate =
+                    (child->visit_count > 0) ? (double) child->win_count / (double) child->visit_count : 0.0;
                 double ucb = UCB1(win_rate, nodes[current].visit_count, child->visit_count);
 
                 if (ucb > best_ucb) {
@@ -2604,7 +2714,8 @@ static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
                 }
             }
 
-            if (best_child < 0) break;
+            if (best_child < 0)
+                break;
             current = best_child;
         }
 
@@ -2624,8 +2735,7 @@ static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
             }
 
             for (int s = 0; s < PROOF_STRATEGY_COUNT; s++) {
-                if (!already_child[s] &&
-                    mse->strategies[s].status != PROOF_STRATEGY_UNAVAILABLE &&
+                if (!already_child[s] && mse->strategies[s].status != PROOF_STRATEGY_UNAVAILABLE &&
                     mse->strategies[s].execute != NULL) {
                     untried_strategy = s;
                     break;
@@ -2653,8 +2763,7 @@ static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
                     }
                 }
                 for (int s = 0; s < PROOF_STRATEGY_COUNT; s++) {
-                    if (!child_check[s] &&
-                        mse->strategies[s].status != PROOF_STRATEGY_UNAVAILABLE &&
+                    if (!child_check[s] && mse->strategies[s].status != PROOF_STRATEGY_UNAVAILABLE &&
                         mse->strategies[s].execute != NULL) {
                         all_expanded = false;
                         break;
@@ -2669,7 +2778,7 @@ static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
         /* ---- 阶段3：模拟（Simulation） ----
          * 从当前节点随机执行策略直到终止或达到模拟深度限制 */
         int sim_depth = 0;
-        #define MCTS_SIM_MAX_DEPTH 8
+#define MCTS_SIM_MAX_DEPTH 8
         bool sim_result = false;
 
         /* 执行当前节点对应的策略 */
@@ -2753,12 +2862,12 @@ static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
 
     return proof->is_complete;
 
-    #undef MCTS_MAX_NODES
-    #undef MCTS_MAX_CHILDREN
-    #undef MCTS_C
-    #undef UCB1
-    #undef MCTS_CREATE_NODE
-    #undef MCTS_SIM_MAX_DEPTH
+#undef MCTS_MAX_NODES
+#undef MCTS_MAX_CHILDREN
+#undef MCTS_C
+#undef UCB1
+#undef MCTS_CREATE_NODE
+#undef MCTS_SIM_MAX_DEPTH
 }
 
 /* ============== 公共简化API ============== */

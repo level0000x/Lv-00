@@ -29,9 +29,9 @@
 extern "C" {
 #endif
 
-#include <stddef.h>  /* size_t, NULL */
-#include <stdint.h>  /* int32_t, uint32_t, int64_t, uint64_t */
-#include <limits.h>  /* CHAR_BIT, UINT_MAX, ULONG_MAX */
+#include <limits.h> /* CHAR_BIT, UINT_MAX, ULONG_MAX */
+#include <stddef.h> /* size_t, NULL */
+#include <stdint.h> /* int32_t, uint32_t, int64_t, uint64_t */
 
 /* ====================================================================
  * 1. 固定宽度整数类型别名（Fixed-width Integer Types）
@@ -51,33 +51,33 @@ extern "C" {
  * ==================================================================== */
 
 /** @brief 固定宽度 32 位有符号整数 */
-typedef int32_t  lv_i32;
+typedef int32_t lv_i32;
 
 /** @brief 固定宽度 32 位无符号整数 */
 typedef uint32_t lv_u32;
 
 /** @brief 固定宽度 64 位有符号整数 */
-typedef int64_t  lv_i64;
+typedef int64_t lv_i64;
 
 /** @brief 固定宽度 64 位无符号整数 */
 typedef uint64_t lv_u64;
 
 /** @brief 指针宽度有符号整数（intptr_t 别名） */
-typedef intptr_t  lv_iptr;
+typedef intptr_t lv_iptr;
 
 /** @brief 指针宽度无符号整数（uintptr_t 别名，常用于哈希） */
 typedef uintptr_t lv_uptr;
 
 /** @brief 恰好 8 位无符号整数（字节操作） */
-typedef uint8_t   lv_byte;
+typedef uint8_t lv_byte;
 
 /** @brief 布尔类型：C99+ 使用 _Bool，否则回退到 int */
 #if __STDC_VERSION__ >= 199901L || defined(__cplusplus)
 #include <stdbool.h>
 typedef bool lv_bool;
 #else
-typedef int  lv_bool;
-#define true  1
+typedef int lv_bool;
+#define true 1
 #define false 0
 #endif
 
@@ -99,55 +99,54 @@ typedef int  lv_bool;
  * _WIN32: 所有 Windows 平台（32 位和 64 位），包括 MinGW
  * _WIN64: 仅 64 位 Windows */
 #if defined(_WIN32) || defined(_WIN64)
-  #define lv_PLATFORM_WINDOWS 1
+#define lv_PLATFORM_WINDOWS 1
 #else
-  #define lv_PLATFORM_WINDOWS 0
+#define lv_PLATFORM_WINDOWS 0
 #endif
 
 /* ── Linux 检测 ──
  * __linux__: Linux 内核（GCC/Clang 定义）
  * 注意: Android 也定义 __linux__，通过 __ANDROID__ 排除 */
 #if defined(__linux__) && !defined(__ANDROID__)
-  #define lv_PLATFORM_LINUX 1
+#define lv_PLATFORM_LINUX 1
 #else
-  #define lv_PLATFORM_LINUX 0
+#define lv_PLATFORM_LINUX 0
 #endif
 
 /* ── macOS 检测 ──
  * __APPLE__ && __MACH__: Apple 平台（macOS, iOS 等）
  * TARGET_OS_MAC: macOS 桌面系统（排除 iOS/tvOS/watchOS） */
 #if defined(__APPLE__) && defined(__MACH__)
-  #include <TargetConditionals.h>
-  #if TARGET_OS_MAC && !TARGET_OS_IPHONE
-    #define lv_PLATFORM_MACOS 1
-  #else
-    #define lv_PLATFORM_MACOS 0
-  #endif
+#include <TargetConditionals.h>
+#if TARGET_OS_MAC && !TARGET_OS_IPHONE
+#define lv_PLATFORM_MACOS 1
 #else
-  #define lv_PLATFORM_MACOS 0
+#define lv_PLATFORM_MACOS 0
+#endif
+#else
+#define lv_PLATFORM_MACOS 0
 #endif
 
 /* ── 通用 Unix 检测 ──
  * 涵盖所有 POSIX 兼容系统: Linux, macOS, BSD, Solaris 等 */
-#if lv_PLATFORM_LINUX || lv_PLATFORM_MACOS || \
-    defined(__unix__) || defined(__unix) || \
+#if lv_PLATFORM_LINUX || lv_PLATFORM_MACOS || defined(__unix__) || defined(__unix) || \
     (defined(__APPLE__) && defined(__MACH__))
-  #define lv_PLATFORM_UNIX 1
+#define lv_PLATFORM_UNIX 1
 #elif lv_PLATFORM_WINDOWS
-  #define lv_PLATFORM_UNIX 0
+#define lv_PLATFORM_UNIX 0
 #else
-  #define lv_PLATFORM_UNIX 0
+#define lv_PLATFORM_UNIX 0
 #endif
 
 /* ── 平台名称字符串 ── */
 #if lv_PLATFORM_WINDOWS
-  #define lv_PLATFORM_NAME "Windows"
+#define lv_PLATFORM_NAME "Windows"
 #elif lv_PLATFORM_LINUX
-  #define lv_PLATFORM_NAME "Linux"
+#define lv_PLATFORM_NAME "Linux"
 #elif lv_PLATFORM_MACOS
-  #define lv_PLATFORM_NAME "macOS"
+#define lv_PLATFORM_NAME "macOS"
 #else
-  #define lv_PLATFORM_NAME "Unknown"
+#define lv_PLATFORM_NAME "Unknown"
 #endif
 
 /* ====================================================================
@@ -164,46 +163,46 @@ typedef int  lv_bool;
 
 /* ── GCC ── */
 #if defined(__GNUC__) && !defined(__clang__) && !defined(__INTEL_COMPILER)
-  #define lv_CC_GCC   1
-  #define lv_CC_CLANG 0
-  #define lv_CC_MSVC  0
-  #define lv_CC_NAME  "GCC"
-  #define lv_CC_VERSION_MAJOR __GNUC__
-  #define lv_CC_VERSION_MINOR __GNUC_MINOR__
-  #define lv_CC_VERSION_PATCH __GNUC_PATCHLEVEL__
+#define lv_CC_GCC 1
+#define lv_CC_CLANG 0
+#define lv_CC_MSVC 0
+#define lv_CC_NAME "GCC"
+#define lv_CC_VERSION_MAJOR __GNUC__
+#define lv_CC_VERSION_MINOR __GNUC_MINOR__
+#define lv_CC_VERSION_PATCH __GNUC_PATCHLEVEL__
 
 /* ── Clang ──
  * Clang 也定义 __GNUC__ 宏，因此必须在 GCC 之后检测 */
 #elif defined(__clang__)
-  #define lv_CC_GCC   0
-  #define lv_CC_CLANG 1
-  #define lv_CC_MSVC  0
-  #define lv_CC_NAME  "Clang"
-  #define lv_CC_VERSION_MAJOR __clang_major__
-  #define lv_CC_VERSION_MINOR __clang_minor__
-  #define lv_CC_VERSION_PATCH __clang_patchlevel__
+#define lv_CC_GCC 0
+#define lv_CC_CLANG 1
+#define lv_CC_MSVC 0
+#define lv_CC_NAME "Clang"
+#define lv_CC_VERSION_MAJOR __clang_major__
+#define lv_CC_VERSION_MINOR __clang_minor__
+#define lv_CC_VERSION_PATCH __clang_patchlevel__
 
 /* ── MSVC ── */
 #elif defined(_MSC_VER)
-  #define lv_CC_GCC   0
-  #define lv_CC_CLANG 0
-  #define lv_CC_MSVC  1
-  #define lv_CC_NAME  "MSVC"
+#define lv_CC_GCC 0
+#define lv_CC_CLANG 0
+#define lv_CC_MSVC 1
+#define lv_CC_NAME "MSVC"
 
-  /* _MSC_VER 编码: MMmmpp (主版本+次版本+补丁) */
-  #define lv_CC_VERSION_MAJOR (_MSC_VER / 100)
-  #define lv_CC_VERSION_MINOR ((_MSC_VER % 100) / 10)
-  #define lv_CC_VERSION_PATCH (_MSC_VER % 10)
+/* _MSC_VER 编码: MMmmpp (主版本+次版本+补丁) */
+#define lv_CC_VERSION_MAJOR (_MSC_VER / 100)
+#define lv_CC_VERSION_MINOR ((_MSC_VER % 100) / 10)
+#define lv_CC_VERSION_PATCH (_MSC_VER % 10)
 
 /* ── 未知编译器 ── */
 #else
-  #define lv_CC_GCC   0
-  #define lv_CC_CLANG 0
-  #define lv_CC_MSVC  0
-  #define lv_CC_NAME  "Unknown"
-  #define lv_CC_VERSION_MAJOR 0
-  #define lv_CC_VERSION_MINOR 0
-  #define lv_CC_VERSION_PATCH 0
+#define lv_CC_GCC 0
+#define lv_CC_CLANG 0
+#define lv_CC_MSVC 0
+#define lv_CC_NAME "Unknown"
+#define lv_CC_VERSION_MAJOR 0
+#define lv_CC_VERSION_MINOR 0
+#define lv_CC_VERSION_PATCH 0
 #endif
 
 /* ====================================================================
@@ -225,35 +224,32 @@ typedef int  lv_bool;
  *   - __ppc64__ / __powerpc64__: PowerPC 64
  *   - _WIN64: 64 位 Windows (MSVC)
  *   - UINTPTR_MAX: 标准方法（最后手段） */
-#if defined(__x86_64__) || defined(__amd64__) || defined(_M_X64) || \
-    defined(__aarch64__) || defined(__arm64__) || \
-    defined(__ia64__) || defined(__ppc64__) || defined(__powerpc64__) || \
-    defined(_WIN64)
-  #define lv_ARCH_64BIT 1
-  #define lv_ARCH_32BIT 0
+#if defined(__x86_64__) || defined(__amd64__) || defined(_M_X64) || defined(__aarch64__) || defined(__arm64__) || \
+    defined(__ia64__) || defined(__ppc64__) || defined(__powerpc64__) || defined(_WIN64)
+#define lv_ARCH_64BIT 1
+#define lv_ARCH_32BIT 0
 
-#elif defined(__i386__) || defined(_M_IX86) || \
-      defined(__arm__) || defined(_M_ARM) || \
-      defined(__mips__) || defined(__ppc__) || defined(__powerpc__)
-  #define lv_ARCH_64BIT 0
-  #define lv_ARCH_32BIT 1
+#elif defined(__i386__) || defined(_M_IX86) || defined(__arm__) || defined(_M_ARM) || defined(__mips__) || \
+    defined(__ppc__) || defined(__powerpc__)
+#define lv_ARCH_64BIT 0
+#define lv_ARCH_32BIT 1
 
 /* 回退: 根据指针大小推断 */
 #elif UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFULL
-  #define lv_ARCH_64BIT 1
-  #define lv_ARCH_32BIT 0
+#define lv_ARCH_64BIT 1
+#define lv_ARCH_32BIT 0
 #elif UINTPTR_MAX == 0xFFFFFFFFUL
-  #define lv_ARCH_64BIT 0
-  #define lv_ARCH_32BIT 1
+#define lv_ARCH_64BIT 0
+#define lv_ARCH_32BIT 1
 #else
-  #error "Lv-00: Unable to determine architecture bit width"
+#error "Lv-00: Unable to determine architecture bit width"
 #endif
 
 /* ── 架构名称 ── */
 #if lv_ARCH_64BIT
-  #define lv_ARCH_NAME "64-bit"
+#define lv_ARCH_NAME "64-bit"
 #else
-  #define lv_ARCH_NAME "32-bit"
+#define lv_ARCH_NAME "32-bit"
 #endif
 
 /* ====================================================================
@@ -278,21 +274,21 @@ typedef int  lv_bool;
 /* ── 估计的默认线程栈大小（KB）──
  * 注意: 主线程栈可能不同；这些值是典型平台的 pthread/CreateThread 默认值 */
 #if lv_PLATFORM_WINDOWS
-  #define lv_STACK_SIZE_KB           1024   /* MSVC 默认 1 MB */
-  #define lv_STACK_SIZE_BYTES        1048576
+#define lv_STACK_SIZE_KB 1024 /* MSVC 默认 1 MB */
+#define lv_STACK_SIZE_BYTES 1048576
 #elif lv_PLATFORM_MACOS
-  #define lv_STACK_SIZE_KB           512    /* macOS 辅助线程 512 KB */
-  #define lv_STACK_SIZE_BYTES        524288
+#define lv_STACK_SIZE_KB 512 /* macOS 辅助线程 512 KB */
+#define lv_STACK_SIZE_BYTES 524288
 #else
-  /* Linux 及其他 Unix: 通常 8 MB */
-  #define lv_STACK_SIZE_KB           8192
-  #define lv_STACK_SIZE_BYTES        8388608
+/* Linux 及其他 Unix: 通常 8 MB */
+#define lv_STACK_SIZE_KB 8192
+#define lv_STACK_SIZE_BYTES 8388608
 #endif
 
 /* ── 安全栈分配阈值 ──
  * 如果局部变量总计超过此值，应使用堆分配
  * 保守策略: 不超过栈大小的 1/8 */
-#define lv_SAFE_STACK_ALLOC_BYTES   (lv_STACK_SIZE_BYTES / 8)
+#define lv_SAFE_STACK_ALLOC_BYTES (lv_STACK_SIZE_BYTES / 8)
 
 /* ====================================================================
  * 6. 字节序检测（Endianness Detection）
@@ -307,74 +303,68 @@ typedef int  lv_bool;
 /* ── 编译期字节序检测 ──
  * 策略: 优先使用编译器内置宏，回退到标准检测 */
 #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && defined(__ORDER_BIG_ENDIAN__)
-  /* GCC / Clang 内置 */
-  #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    #define lv_ENDIAN_LITTLE 1
-    #define lv_ENDIAN_BIG    0
-  #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-    #define lv_ENDIAN_LITTLE 0
-    #define lv_ENDIAN_BIG    1
-  #else
-    #error "Lv-00: Unknown byte order (PDP-endian not supported)"
-  #endif
+/* GCC / Clang 内置 */
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define lv_ENDIAN_LITTLE 1
+#define lv_ENDIAN_BIG 0
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define lv_ENDIAN_LITTLE 0
+#define lv_ENDIAN_BIG 1
+#else
+#error "Lv-00: Unknown byte order (PDP-endian not supported)"
+#endif
 
 #elif defined(_WIN32)
-  /* Windows: 总是小端序 (x86/x64/ARM64) */
-  #define lv_ENDIAN_LITTLE 1
-  #define lv_ENDIAN_BIG    0
+/* Windows: 总是小端序 (x86/x64/ARM64) */
+#define lv_ENDIAN_LITTLE 1
+#define lv_ENDIAN_BIG 0
 
 #elif defined(__LITTLE_ENDIAN__)
-  #define lv_ENDIAN_LITTLE 1
-  #define lv_ENDIAN_BIG    0
+#define lv_ENDIAN_LITTLE 1
+#define lv_ENDIAN_BIG 0
 
 #elif defined(__BIG_ENDIAN__)
-  #define lv_ENDIAN_LITTLE 0
-  #define lv_ENDIAN_BIG    1
+#define lv_ENDIAN_LITTLE 0
+#define lv_ENDIAN_BIG 1
 
 #else
-  /* 回退: 编译时无法确定，运行时检测 */
-  #define lv_ENDIAN_UNKNOWN 1
-  #define lv_ENDIAN_LITTLE  0
-  #define lv_ENDIAN_BIG     0
+/* 回退: 编译时无法确定，运行时检测 */
+#define lv_ENDIAN_UNKNOWN 1
+#define lv_ENDIAN_LITTLE 0
+#define lv_ENDIAN_BIG 0
 
-  /** @brief 运行时字节序检测函数
+/** @brief 运行时字节序检测函数
    *  @return 1 = 小端序, 0 = 大端序 */
-  static inline int lv_is_little_endian(void) {
-      const uint16_t val = 0x0001;
-      return (int)(*(const uint8_t *)&val);
-  }
+static inline int lv_is_little_endian(void) {
+    const uint16_t val = 0x0001;
+    return (int) (*(const uint8_t *) &val);
+}
 #endif
 
 /* ── 字节交换宏（可移植）── */
 #if defined(__GNUC__) || defined(__clang__)
-  /** @brief 16 位字节交换（GCC/Clang 内置） */
-  #define lv_BSWAP16(x) __builtin_bswap16(x)
-  /** @brief 32 位字节交换（GCC/Clang 内置） */
-  #define lv_BSWAP32(x) __builtin_bswap32(x)
-  /** @brief 64 位字节交换（GCC/Clang 内置） */
-  #define lv_BSWAP64(x) __builtin_bswap64(x)
+/** @brief 16 位字节交换（GCC/Clang 内置） */
+#define lv_BSWAP16(x) __builtin_bswap16(x)
+/** @brief 32 位字节交换（GCC/Clang 内置） */
+#define lv_BSWAP32(x) __builtin_bswap32(x)
+/** @brief 64 位字节交换（GCC/Clang 内置） */
+#define lv_BSWAP64(x) __builtin_bswap64(x)
 #elif defined(_MSC_VER)
-  #include <stdlib.h>
-  #define lv_BSWAP16(x) _byteswap_ushort(x)
-  #define lv_BSWAP32(x) _byteswap_ulong(x)
-  #define lv_BSWAP64(x) _byteswap_uint64(x)
+#include <stdlib.h>
+#define lv_BSWAP16(x) _byteswap_ushort(x)
+#define lv_BSWAP32(x) _byteswap_ulong(x)
+#define lv_BSWAP64(x) _byteswap_uint64(x)
 #else
-  /* 通用实现（较慢，但保证正确） */
-  #define lv_BSWAP16(x) ((uint16_t)(((x) >> 8) | ((x) << 8)))
-  #define lv_BSWAP32(x) ((uint32_t)( \
-      (((x) & 0xFF000000u) >> 24) | \
-      (((x) & 0x00FF0000u) >> 8)  | \
-      (((x) & 0x0000FF00u) << 8)  | \
-      (((x) & 0x000000FFu) << 24)))
-  #define lv_BSWAP64(x) ((uint64_t)( \
-      (((x) & 0xFF00000000000000ull) >> 56) | \
-      (((x) & 0x00FF000000000000ull) >> 40) | \
-      (((x) & 0x0000FF0000000000ull) >> 24) | \
-      (((x) & 0x000000FF00000000ull) >> 8)  | \
-      (((x) & 0x00000000FF000000ull) << 8)  | \
-      (((x) & 0x0000000000FF0000ull) << 24) | \
-      (((x) & 0x000000000000FF00ull) << 40) | \
-      (((x) & 0x00000000000000FFull) << 56)))
+/* 通用实现（较慢，但保证正确） */
+#define lv_BSWAP16(x) ((uint16_t) (((x) >> 8) | ((x) << 8)))
+#define lv_BSWAP32(x)                                                                                    \
+    ((uint32_t) ((((x) & 0xFF000000u) >> 24) | (((x) & 0x00FF0000u) >> 8) | (((x) & 0x0000FF00u) << 8) | \
+                 (((x) & 0x000000FFu) << 24)))
+#define lv_BSWAP64(x)                                                                            \
+    ((uint64_t) ((((x) & 0xFF00000000000000ull) >> 56) | (((x) & 0x00FF000000000000ull) >> 40) | \
+                 (((x) & 0x0000FF0000000000ull) >> 24) | (((x) & 0x000000FF00000000ull) >> 8) |  \
+                 (((x) & 0x00000000FF000000ull) << 8) | (((x) & 0x0000000000FF0000ull) << 24) |  \
+                 (((x) & 0x000000000000FF00ull) << 40) | (((x) & 0x00000000000000FFull) << 56)))
 #endif
 
 /* ====================================================================
@@ -387,38 +377,38 @@ typedef int  lv_bool;
  * lv_ALIGNAS(n): 将变量/类型对齐到 n 字节边界
  * 示例: lv_ALIGNAS(16) char buf[64]; */
 #if __STDC_VERSION__ >= 201112L
-  /* C11: 使用标准 _Alignas */
-  #define lv_ALIGNAS(n) _Alignas(n)
+/* C11: 使用标准 _Alignas */
+#define lv_ALIGNAS(n) _Alignas(n)
 #elif defined(__GNUC__) || defined(__clang__)
-  #define lv_ALIGNAS(n) __attribute__((aligned(n)))
+#define lv_ALIGNAS(n) __attribute__((aligned(n)))
 #elif defined(_MSC_VER)
-  #define lv_ALIGNAS(n) __declspec(align(n))
+#define lv_ALIGNAS(n) __declspec(align(n))
 #else
-  #define lv_ALIGNAS(n)
-  #warning "Lv-00: lv_ALIGNAS not supported on this compiler"
+#define lv_ALIGNAS(n)
+#warning "Lv-00: lv_ALIGNAS not supported on this compiler"
 #endif
 
 /* ── 对齐计算 ──
  * lv_ALIGN_UP(x, n): 将 x 向上对齐到 n 的倍数
  * lv_ALIGN_DOWN(x, n): 将 x 向下对齐到 n 的倍数
  * 要求: n 必须是 2 的幂 */
-#define lv_ALIGN_UP(x, n)   (((x) + ((n) - 1)) & ~((n) - 1))
+#define lv_ALIGN_UP(x, n) (((x) + ((n) - 1)) & ~((n) - 1))
 #define lv_ALIGN_DOWN(x, n) ((x) & ~((n) - 1))
 
 /* ── 缓存行大小估计 ──
  * 大多数 x86/ARM 架构: 64 字节
  * Apple M 系列: 128 字节 */
 #if defined(__APPLE__) && defined(__aarch64__)
-  #define lv_CACHE_LINE_SIZE 128
+#define lv_CACHE_LINE_SIZE 128
 #else
-  #define lv_CACHE_LINE_SIZE 64
+#define lv_CACHE_LINE_SIZE 64
 #endif
 
 /* ── 标准对齐常量 ── */
-#define lv_ALIGNOF_POINTER   (sizeof(void *))        /**< 指针对齐 */
-#define lv_ALIGNOF_MAX       (sizeof(void *) * 2)    /**< 最大标量对齐（通常 8/16） */
-#define lv_ALIGNOF_SIMD      16                       /**< SIMD 向量对齐（SSE/NEON） */
-#define lv_ALIGNOF_PAGE      4096                     /**< 内存页面对齐 */
+#define lv_ALIGNOF_POINTER (sizeof(void *)) /**< 指针对齐 */
+#define lv_ALIGNOF_MAX (sizeof(void *) * 2) /**< 最大标量对齐（通常 8/16） */
+#define lv_ALIGNOF_SIMD 16                  /**< SIMD 向量对齐（SSE/NEON） */
+#define lv_ALIGNOF_PAGE 4096                /**< 内存页面对齐 */
 
 /* ====================================================================
  * 8. 属性与注解宏（Attributes and Annotations）
@@ -428,63 +418,61 @@ typedef int  lv_bool;
 
 /* ── 函数内联提示 ── */
 #if __STDC_VERSION__ >= 199901L || defined(__cplusplus)
-  #define lv_INLINE inline
+#define lv_INLINE inline
 #else
-  #define lv_INLINE /* 不支持 */
+#define lv_INLINE /* 不支持 */
 #endif
 
 /* 强制内联（编译器自行决定是否采纳） */
 #if defined(__GNUC__) || defined(__clang__)
-  #define lv_FORCE_INLINE __attribute__((always_inline)) inline
+#define lv_FORCE_INLINE __attribute__((always_inline)) inline
 #elif defined(_MSC_VER)
-  #define lv_FORCE_INLINE __forceinline
+#define lv_FORCE_INLINE __forceinline
 #else
-  #define lv_FORCE_INLINE lv_INLINE
+#define lv_FORCE_INLINE lv_INLINE
 #endif
 
 /* ── 函数不可返回标记 ── */
 #if defined(__GNUC__) || defined(__clang__)
-  #define lv_NORETURN __attribute__((noreturn))
+#define lv_NORETURN __attribute__((noreturn))
 #elif defined(_MSC_VER)
-  #define lv_NORETURN __declspec(noreturn)
+#define lv_NORETURN __declspec(noreturn)
 #else
-  #define lv_NORETURN
+#define lv_NORETURN
 #endif
 
 /* ── 未使用变量/参数抑制警告 ── */
 #if defined(__GNUC__) || defined(__clang__)
-  #define lv_UNUSED(x) (void)(x)
+#define lv_UNUSED(x) (void) (x)
 #else
-  #define lv_UNUSED(x) (void)(x)
+#define lv_UNUSED(x) (void) (x)
 #endif
 
 /* ── const 返回值提示（帮助编译器优化） ── */
 #if defined(__GNUC__) || defined(__clang__)
-  #define lv_CONST_FUNC __attribute__((const))
-  #define lv_PURE_FUNC  __attribute__((pure))
+#define lv_CONST_FUNC __attribute__((const))
+#define lv_PURE_FUNC __attribute__((pure))
 #else
-  #define lv_CONST_FUNC
-  #define lv_PURE_FUNC
+#define lv_CONST_FUNC
+#define lv_PURE_FUNC
 #endif
 
 /* ── 分支预测提示 ── */
 #if defined(__GNUC__) || defined(__clang__)
-  #define lv_LIKELY(x)   __builtin_expect(!!(x), 1)
-  #define lv_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#define lv_LIKELY(x) __builtin_expect(!!(x), 1)
+#define lv_UNLIKELY(x) __builtin_expect(!!(x), 0)
 #else
-  #define lv_LIKELY(x)   (x)
-  #define lv_UNLIKELY(x) (x)
+#define lv_LIKELY(x) (x)
+#define lv_UNLIKELY(x) (x)
 #endif
 
 /* ── 格式字符串检查（printf/scanf 风格） ── */
 #if defined(__GNUC__) || defined(__clang__)
-  #define lv_FORMAT_PRINTF(fmt_idx, args_idx) \
-      __attribute__((format(printf, fmt_idx, args_idx)))
-  #define lv_FORMAT_SCANF(fmt_idx, args_idx) \
-      __attribute__((format(scanf, fmt_idx, args_idx)))
+#define lv_FORMAT_PRINTF(fmt_idx, args_idx) __attribute__((format(printf, fmt_idx, args_idx)))
+#define lv_FORMAT_SCANF(fmt_idx, args_idx) __attribute__((format(scanf, fmt_idx, args_idx)))
 #else
-  #define lv_FORMAT_PRINTF(fmt_idx, args_idx)
-  #define lv_FORMAT_SCANF(fmt_idx, args_idx)
+#define lv_FORMAT_PRINTF(fmt_idx, args_idx)
+#define lv_FORMAT_SCANF(fmt_idx, args_idx)
 #endif
 
 /* ====================================================================
@@ -496,16 +484,16 @@ typedef int  lv_bool;
 
 /* ── 符号可见性（GCC/Clang）── */
 #if defined(__GNUC__) || defined(__clang__)
-  #if __GNUC__ >= 4 || defined(__clang__)
-    #define lv_EXPORT __attribute__((visibility("default")))
-    #define lv_HIDDEN __attribute__((visibility("hidden")))
-  #else
-    #define lv_EXPORT
-    #define lv_HIDDEN
-  #endif
+#if __GNUC__ >= 4 || defined(__clang__)
+#define lv_EXPORT __attribute__((visibility("default")))
+#define lv_HIDDEN __attribute__((visibility("hidden")))
 #else
-  #define lv_EXPORT
-  #define lv_HIDDEN
+#define lv_EXPORT
+#define lv_HIDDEN
+#endif
+#else
+#define lv_EXPORT
+#define lv_HIDDEN
 #endif
 
 /* ====================================================================
@@ -516,14 +504,13 @@ typedef int  lv_bool;
  * ==================================================================== */
 
 #if __STDC_VERSION__ >= 201112L
-  #define lv_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
+#define lv_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
 #else
-  /* 非 C11: 使用经典的数组大小技巧 */
-  #define lv_STATIC_ASSERT_CONCAT_IMPL(a, b) a##b
-  #define lv_STATIC_ASSERT_CONCAT(a, b) lv_STATIC_ASSERT_CONCAT_IMPL(a, b)
-  #define lv_STATIC_ASSERT(cond, msg) \
-      typedef char lv_STATIC_ASSERT_CONCAT(lv_static_assertion_, __LINE__) \
-          [(cond) ? 1 : -1]
+/* 非 C11: 使用经典的数组大小技巧 */
+#define lv_STATIC_ASSERT_CONCAT_IMPL(a, b) a##b
+#define lv_STATIC_ASSERT_CONCAT(a, b) lv_STATIC_ASSERT_CONCAT_IMPL(a, b)
+#define lv_STATIC_ASSERT(cond, msg) \
+    typedef char lv_STATIC_ASSERT_CONCAT(lv_static_assertion_, __LINE__)[(cond) ? 1 : -1]
 #endif
 
 /* ── 编译期验证固定宽度类型 ── */
@@ -599,13 +586,13 @@ static inline int lv_cache_line_size(void) {
  * ==================================================================== */
 
 #if defined(_MSC_VER)
-    #define lv_THREAD_LOCAL __declspec(thread)
+#define lv_THREAD_LOCAL __declspec(thread)
 #elif defined(__GNUC__) || defined(__clang__)
-    #define lv_THREAD_LOCAL __thread
+#define lv_THREAD_LOCAL __thread
 #elif __STDC_VERSION__ >= 201112L
-    #define lv_THREAD_LOCAL _Thread_local
+#define lv_THREAD_LOCAL _Thread_local
 #else
-    #define lv_THREAD_LOCAL /* 不支持：回退到全局变量 */
+#define lv_THREAD_LOCAL /* 不支持：回退到全局变量 */
 #endif
 
 #ifdef __cplusplus

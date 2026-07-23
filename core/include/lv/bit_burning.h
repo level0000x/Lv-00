@@ -1,10 +1,11 @@
 #ifndef lv_BIT_BURNING_H
 #define lv_BIT_BURNING_H
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <stddef.h>
 #include <inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
 
@@ -24,21 +25,21 @@ extern "C" {
  * @brief 熔断操作选择
  */
 typedef enum {
-    BURN_ACTION_IGNORE,     // 忽略，接受"数值辅助"节点
-    BURN_ACTION_ROLLBACK,   // 回退到冻结点
-    BURN_ACTION_DOWNGRADE   // 永久降级为数值假设
+    BURN_ACTION_IGNORE,    // 忽略，接受"数值辅助"节点
+    BURN_ACTION_ROLLBACK,  // 回退到冻结点
+    BURN_ACTION_DOWNGRADE  // 永久降级为数值假设
 } BurningAction;
 
 /**
  * @brief 位数熔断状态
  */
 typedef struct {
-    bool tripped;                              // 是否已触发熔断
-    uint64_t bit_count;                        // 触发时的位数
-    int consecutive_trips;                     // 连续触发次数
-    int checkpoint_node_count;                 // 冻结点节点数
-    int checkpoint_constraint_count;           // 冻结点约束数
-    char reason[256];                          // 触发原因
+    bool tripped;                     // 是否已触发熔断
+    uint64_t bit_count;               // 触发时的位数
+    int consecutive_trips;            // 连续触发次数
+    int checkpoint_node_count;        // 冻结点节点数
+    int checkpoint_constraint_count;  // 冻结点约束数
+    char reason[256];                 // 触发原因
 } BitBurningState;
 
 /**
@@ -71,8 +72,7 @@ void bit_burning_set_checkpoint(ConstraintGraph *graph, BitBurningState *state);
  * @param action 用户选择的操作
  * @return true 操作成功
  */
-bool bit_burning_execute(ConstraintGraph *graph, int node_id, 
-                          BitBurningState *state, BurningAction action);
+bool bit_burning_execute(ConstraintGraph *graph, int node_id, BitBurningState *state, BurningAction action);
 
 /**
  * @brief 回退到冻结点
@@ -97,8 +97,7 @@ bool bit_burning_rollback(ConstraintGraph *graph, BitBurningState *state);
  * @param declaration 声明文本
  * @return true 降级成功
  */
-bool bit_burning_downgrade_to_amber(ConstraintGraph *graph, int node_id,
-                                     double precision, const char *declaration);
+bool bit_burning_downgrade_to_amber(ConstraintGraph *graph, int node_id, double precision, const char *declaration);
 
 /**
  * @brief 检查下游传播是否被阻断

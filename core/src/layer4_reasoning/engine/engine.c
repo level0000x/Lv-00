@@ -38,12 +38,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/bit_burning.h"
 #include "lv/lv_config.h"
+#include "lv/stream.h"
+#include "lv/trust_color.h"
+
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/stream.h"
-#include "lv/bit_burning.h"
-#include "lv/trust_color.h"
 #include "node_deep_copy.h"
 #include "stream_context_util.h"
 
@@ -111,7 +112,7 @@ static lv_THREAD_LOCAL char g_thread_last_error[lv_ERROR_MSG_SIZE] = {0};
 static void engine_set_error(lvEngine *engine, EngineStatus status, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    
+
     if (engine) {
         engine->last_status = status;
         vsnprintf(engine->last_error, sizeof(engine->last_error), fmt, args);
@@ -119,7 +120,7 @@ static void engine_set_error(lvEngine *engine, EngineStatus status, const char *
         g_thread_last_status = status;
         vsnprintf(g_thread_last_error, sizeof(g_thread_last_error), fmt, args);
     }
-    
+
     va_end(args);
 }
 
@@ -133,14 +134,22 @@ static void engine_set_error(lvEngine *engine, EngineStatus status, const char *
  */
 const char *engine_status_to_string(EngineStatus status) {
     switch (status) {
-        case ENGINE_STATUS_OK: return "成功";
-        case ENGINE_STATUS_OUT_OF_MEMORY: return "内存不足";
-        case ENGINE_STATUS_INVALID_ARGUMENT: return "无效参数";
-        case ENGINE_STATUS_INVALID_STATE: return "无效状态";
-        case ENGINE_STATUS_ERROR_INTERNAL: return "内部错误";
-        case ENGINE_STATUS_CONSTRAINT_CONFLICT: return "约束冲突";
-        case ENGINE_STATUS_MODULE_ERROR: return "模块错误";
-        default: return "未知错误";
+        case ENGINE_STATUS_OK:
+            return "成功";
+        case ENGINE_STATUS_OUT_OF_MEMORY:
+            return "内存不足";
+        case ENGINE_STATUS_INVALID_ARGUMENT:
+            return "无效参数";
+        case ENGINE_STATUS_INVALID_STATE:
+            return "无效状态";
+        case ENGINE_STATUS_ERROR_INTERNAL:
+            return "内部错误";
+        case ENGINE_STATUS_CONSTRAINT_CONFLICT:
+            return "约束冲突";
+        case ENGINE_STATUS_MODULE_ERROR:
+            return "模块错误";
+        default:
+            return "未知错误";
     }
 }
 
@@ -154,14 +163,22 @@ const char *engine_status_to_string(EngineStatus status) {
  */
 const char *engine_status_to_identifier(EngineStatus status) {
     switch (status) {
-        case ENGINE_STATUS_OK: return "ENGINE_STATUS_OK";
-        case ENGINE_STATUS_OUT_OF_MEMORY: return "ENGINE_STATUS_OUT_OF_MEMORY";
-        case ENGINE_STATUS_INVALID_ARGUMENT: return "ENGINE_STATUS_INVALID_ARGUMENT";
-        case ENGINE_STATUS_INVALID_STATE: return "ENGINE_STATUS_INVALID_STATE";
-        case ENGINE_STATUS_ERROR_INTERNAL: return "ENGINE_STATUS_ERROR_INTERNAL";
-        case ENGINE_STATUS_CONSTRAINT_CONFLICT: return "ENGINE_STATUS_CONSTRAINT_CONFLICT";
-        case ENGINE_STATUS_MODULE_ERROR: return "ENGINE_STATUS_MODULE_ERROR";
-        default: return "ENGINE_STATUS_UNKNOWN";
+        case ENGINE_STATUS_OK:
+            return "ENGINE_STATUS_OK";
+        case ENGINE_STATUS_OUT_OF_MEMORY:
+            return "ENGINE_STATUS_OUT_OF_MEMORY";
+        case ENGINE_STATUS_INVALID_ARGUMENT:
+            return "ENGINE_STATUS_INVALID_ARGUMENT";
+        case ENGINE_STATUS_INVALID_STATE:
+            return "ENGINE_STATUS_INVALID_STATE";
+        case ENGINE_STATUS_ERROR_INTERNAL:
+            return "ENGINE_STATUS_ERROR_INTERNAL";
+        case ENGINE_STATUS_CONSTRAINT_CONFLICT:
+            return "ENGINE_STATUS_CONSTRAINT_CONFLICT";
+        case ENGINE_STATUS_MODULE_ERROR:
+            return "ENGINE_STATUS_MODULE_ERROR";
+        default:
+            return "ENGINE_STATUS_UNKNOWN";
     }
 }
 
@@ -175,21 +192,23 @@ const char *engine_status_to_identifier(EngineStatus status) {
  */
 const char *engine_status_get_description(EngineStatus status) {
     switch (status) {
-        case ENGINE_STATUS_OK: 
+        case ENGINE_STATUS_OK:
             return "操作成功完成。系统处于正常状态，可以继续后续操作。";
-        case ENGINE_STATUS_OUT_OF_MEMORY: 
-            return "内存分配失败。系统无法分配所需的内存资源。建议：检查系统内存使用情况，尝试释放不必要的资源，或减小问题规模。";
-        case ENGINE_STATUS_INVALID_ARGUMENT: 
+        case ENGINE_STATUS_OUT_OF_MEMORY:
+            return "内存分配失败。系统无法分配所需的内存资源。建议：检查系统内存使用情况，尝试释放不必要的资源，或减小"
+                   "问题规模。";
+        case ENGINE_STATUS_INVALID_ARGUMENT:
             return "传入参数无效。可能是空指针、越界值或格式错误的参数。建议：检查函数调用的参数是否符合文档要求。";
-        case ENGINE_STATUS_INVALID_STATE: 
-            return "引擎处于无效状态。当前操作与引擎状态不兼容。建议：检查引擎当前状态，必要时调用 engine_reset() 重置。";
-        case ENGINE_STATUS_ERROR_INTERNAL: 
+        case ENGINE_STATUS_INVALID_STATE:
+            return "引擎处于无效状态。当前操作与引擎状态不兼容。建议：检查引擎当前状态，必要时调用 engine_reset() "
+                   "重置。";
+        case ENGINE_STATUS_ERROR_INTERNAL:
             return "内部错误。系统内部出现意外情况。建议：检查日志获取详细信息，如果问题持续请报告给开发团队。";
-        case ENGINE_STATUS_CONSTRAINT_CONFLICT: 
+        case ENGINE_STATUS_CONSTRAINT_CONFLICT:
             return "约束冲突。几何约束之间存在矛盾，无法满足所有约束条件。建议：检查约束定义，移除或修改冲突的约束。";
-        case ENGINE_STATUS_MODULE_ERROR: 
+        case ENGINE_STATUS_MODULE_ERROR:
             return "模块错误。加载或执行模块/公理包时发生错误。建议：检查模块文件路径和格式是否正确。";
-        default: 
+        default:
             return "未知错误。系统遇到未识别的错误状态。建议：检查日志并报告问题。";
     }
 }
@@ -216,7 +235,7 @@ lvEngine *engine_create(void) {
     }
     engine->rewrite_step_limit = lv_DEFAULT_REWRITE_STEP_LIMIT; /* 默认重写步数限制 */
     engine->frozen_point = NULL;
-    engine->context = NULL; /* 迁移中：暂不绑定上下文，后续可通过 engine_bind_context() 设置 */
+    engine->context = NULL;                       /* 迁移中：暂不绑定上下文，后续可通过 engine_bind_context() 设置 */
     engine->stream_ctx = stream_context_create(); /* 创建流式上下文 */
     if (!engine->stream_ctx) {
         lv_free((void **) &engine);
@@ -346,7 +365,7 @@ bool engine_add_rewrite_rule(lvEngine *engine, const RewriteRule *rule) {
                                 &engine->rewrite_rule_capacity, sizeof(RewriteRule *)))
         return false;
 
-    engine->rewrite_rules[engine->rewrite_rule_count++] = (RewriteRule *)rule;
+    engine->rewrite_rules[engine->rewrite_rule_count++] = (RewriteRule *) rule;
     return true;
 }
 
@@ -456,7 +475,8 @@ AxiomLoadStatus engine_load_axiom_package(lvEngine *engine, const char *filepath
     if (status != AXIOM_LOAD_OK) {
         axiom_package_destroy(pkg);
         engine->last_status = ENGINE_STATUS_MODULE_ERROR;
-        snprintf(engine->last_error, sizeof(engine->last_error), "公理包加载失败 [文件=%s, 状态码=%d]", filepath, status);
+        snprintf(engine->last_error, sizeof(engine->last_error), "公理包加载失败 [文件=%s, 状态码=%d]", filepath,
+                 status);
         return status;
     }
     /* 指数增长策略：使用通用扩容辅助函数 */
@@ -477,8 +497,7 @@ AxiomLoadStatus engine_load_axiom_package(lvEngine *engine, const char *filepath
  * @param context_depth 上下文深度
  * @param is_input 是否为输入端口（影响 is_formal_param 设置）
  */
-static void update_port_namespace_depth(GeomNode *n, int new_func_block_id,
-                                         int context_depth, bool is_input) {
+static void update_port_namespace_depth(GeomNode *n, int new_func_block_id, int context_depth, bool is_input) {
     if (n && n->type == GEOM_PORT && n->data.port != NULL) {
         n->data.port->parent_block_id = new_func_block_id;
         n->data.port->is_formal_param = is_input;
@@ -507,14 +526,16 @@ static void update_port_namespace_depth(GeomNode *n, int new_func_block_id,
  */
 bool engine_pack_function(lvEngine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
                           int input_count, const int *output_port_ids, int output_count, int *out_func_block_id) {
-    if (!engine || !engine->main_graph || (internal_count > 0 && !internal_node_ids) || (input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids)) {
+    if (!engine || !engine->main_graph || (internal_count > 0 && !internal_node_ids) ||
+        (input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids)) {
         engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "引擎或主图为空");
         return false;
     }
     for (int i = 0; i < internal_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, internal_node_ids[i]);
         if (!n) {
-            engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 内部节点 %d 不存在", internal_node_ids[i]);
+            engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 内部节点 %d 不存在",
+                             internal_node_ids[i]);
             return false;
         }
     }
@@ -522,7 +543,7 @@ bool engine_pack_function(lvEngine *engine, const int *internal_node_ids, int in
         GeomNode *n = graph_get_node(engine->main_graph, input_port_ids[i]);
         if (!n || n->type != GEOM_PORT) {
             engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 输入端口 %d 不存在或不是端口类型",
-                     input_port_ids[i]);
+                             input_port_ids[i]);
             return false;
         }
     }
@@ -530,7 +551,7 @@ bool engine_pack_function(lvEngine *engine, const int *internal_node_ids, int in
         GeomNode *n = graph_get_node(engine->main_graph, output_port_ids[i]);
         if (!n || n->type != GEOM_PORT) {
             engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 输出端口 %d 不存在或不是端口类型",
-                     output_port_ids[i]);
+                             output_port_ids[i]);
             return false;
         }
     }
@@ -543,17 +564,17 @@ bool engine_pack_function(lvEngine *engine, const int *internal_node_ids, int in
         engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "创建函数块失败（图操作返回错误: %d）", result);
         return false;
     }
-    
+
     /* 安全获取新创建的函数块 ID */
     int new_func_block_id = graph_get_last_added_node_id(engine->main_graph);
-    
+
     /* 验证获取的 ID 有效 */
     if (new_func_block_id < 0) {
         /* lv_LOG_ERROR("engine_add_function_block: 无法获取有效的函数块 ID"); */
         engine_set_error(engine, ENGINE_STATUS_ERROR_INTERNAL, "无法获取有效的函数块 ID");
         return false;
     }
-    
+
     /* 二次验证：确保 ID 对应的节点存在且类型正确 */
     GeomNode *new_fb_node = graph_get_node(engine->main_graph, new_func_block_id);
     if (!new_fb_node || new_fb_node->type != GEOM_FUNCTION_BLOCK) {
@@ -618,7 +639,7 @@ int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int 
     /* 拷贝内部节点ID */
     if (func_block->data.func_block.internal_node_count > 0) {
         int ic = func_block->data.func_block.internal_node_count;
-        int *ids = lv_calloc((size_t) ic , sizeof(int));
+        int *ids = lv_calloc((size_t) ic, sizeof(int));
         if (!ids) {
             func_block_destroy(fb);
             engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "内部节点ID数组分配失败");
@@ -653,13 +674,13 @@ int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int 
     int *new_node_ids = NULL;
     int new_node_count = 0;
     InstantiateResult inst_result =
-        func_block_instantiate(fb, engine->main_graph, (int *)arg_mappings, arg_count, &new_node_ids, &new_node_count);
+        func_block_instantiate(fb, engine->main_graph, (int *) arg_mappings, arg_count, &new_node_ids, &new_node_count);
 
     func_block_destroy(fb);
 
     if (inst_result != INSTANTIATE_OK) {
-        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "engine_instantiate_function: instantiation failed (code %d)",
-                 inst_result);
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE,
+                         "engine_instantiate_function: instantiation failed (code %d)", inst_result);
         return NULL;
     }
 
@@ -842,7 +863,8 @@ static EngineSolveResult run_solver_on_graph(lvEngine *engine, const char *conte
  */
 EngineSolveResult engine_solve(lvEngine *engine) {
     /* P2修复: 迁移到 engine 实例变量，移除全局 TLS 状态依赖 */
-    if (!engine) return ENGINE_SOLVE_ERROR;
+    if (!engine)
+        return ENGINE_SOLVE_ERROR;
     if (!engine->main_graph) {
         engine->last_status = ENGINE_STATUS_INVALID_STATE;
         snprintf(engine->last_error, sizeof(engine->last_error), "求解失败: 约束图为空");
@@ -932,14 +954,14 @@ EngineSolveResult engine_solve(lvEngine *engine) {
             if (bb_state && bb_state->tripped) {
                 if (bb_state->consecutive_trips >= MAX_CONSECUTIVE_TRIPS) {
                     engine_emit_stream_event(engine, STREAM_EVENT_WARNING,
-                        "位数熔断: 连续触发达到阈值，自动降级为数值假设", 2, -1, -1);
+                                             "位数熔断: 连续触发达到阈值，自动降级为数值假设", 2, -1, -1);
                     /* 标记引擎状态，信任颜色传播会在步骤5中处理 */
                     snprintf(engine->last_error, sizeof(engine->last_error),
                              "位数熔断: 求解器产生 %d 次位数溢出（最大位数 %" PRIu64 "），已自动降级",
                              bb_state->consecutive_trips, bb_state->bit_count);
                 } else {
-                    engine_emit_stream_event(engine, STREAM_EVENT_INFO,
-                        "位数熔断: 检测到位数溢出，继续求解", 2, -1, -1);
+                    engine_emit_stream_event(engine, STREAM_EVENT_INFO, "位数熔断: 检测到位数溢出，继续求解", 2, -1,
+                                             -1);
                 }
                 /* 重置 tripped 标志，避免后续操作重复检测 */
                 bb_state->tripped = false;
@@ -987,13 +1009,13 @@ EngineSolveResult engine_solve(lvEngine *engine) {
             for (int j = 0; j < coord_count; j++) {
                 if (node->symbolic_coords && node->symbolic_coords[j]) {
                     TrustColor c = symbolic_coord_get_trust(node->symbolic_coords[j]);
-                    if ((int)c > (int)worst)
+                    if ((int) c > (int) worst)
                         worst = c;
                 }
             }
 
             /* 如果坐标传播后得到更差的 trust，更新节点 trust */
-            if ((int)worst > (int)node->trust) {
+            if ((int) worst > (int) node->trust) {
                 node->trust = worst;
             }
         }
@@ -1045,8 +1067,7 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
 
     /* 若调用方传入0或负值，则使用引擎的可配置步数限制 */
     if (max_rewrite_steps <= 0) {
-        max_rewrite_steps =
-            engine->rewrite_step_limit > 0 ? engine->rewrite_step_limit : lv_DEFAULT_REWRITE_STEP_LIMIT;
+        max_rewrite_steps = engine->rewrite_step_limit > 0 ? engine->rewrite_step_limit : lv_DEFAULT_REWRITE_STEP_LIMIT;
     }
 
     int total_steps = 0;
@@ -1070,10 +1091,14 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
 
         /* 总迭代次数安全限制：防止重写-求解交替无限循环 */
         if (iteration > ENGINE_MAX_COLLABORATION_ITERATIONS) {
-            engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写-求解协作超过最大迭代次数限制 (" lv_TOSTRING(ENGINE_MAX_COLLABORATION_ITERATIONS) ")", iteration, -1, -1);
+            engine_emit_stream_event(
+                engine, STREAM_EVENT_ERROR,
+                "重写-求解协作超过最大迭代次数限制 (" lv_TOSTRING(ENGINE_MAX_COLLABORATION_ITERATIONS) ")", iteration,
+                -1, -1);
             engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
             snprintf(engine->last_error, sizeof(engine->last_error),
-                     "engine_rewrite_and_solve: 总迭代次数超过上限 " lv_TOSTRING(ENGINE_MAX_COLLABORATION_ITERATIONS) "，终止执行");
+                     "engine_rewrite_and_solve: 总迭代次数超过上限 " lv_TOSTRING(
+                         ENGINE_MAX_COLLABORATION_ITERATIONS) "，终止执行");
             wl_history_destroy(&wl_history);
             return -2;
         }
@@ -1109,7 +1134,8 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
             if (rstatus == REWRITE_STATUS_TERMINATED) {
                 engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写终止（循环）", iteration, -1, -1);
                 engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-                snprintf(engine->last_error, sizeof(engine->last_error), "engine_rewrite_and_solve: 重写终止（存在循环）");
+                snprintf(engine->last_error, sizeof(engine->last_error),
+                         "engine_rewrite_and_solve: 重写终止（存在循环）");
                 wl_history_destroy(&wl_history);
                 return -2;
             }
@@ -1133,8 +1159,8 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
             if (loop_status == REWRITE_STATUS_TERMINATED) {
                 engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "WL哈希循环检测触发", iteration, -1, -1);
                 engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-                snprintf(engine->last_error, sizeof(engine->last_error), "engine_rewrite_and_solve: 在第 %d 步通过WL哈希检测到重写循环",
-                         total_steps);
+                snprintf(engine->last_error, sizeof(engine->last_error),
+                         "engine_rewrite_and_solve: 在第 %d 步通过WL哈希检测到重写循环", total_steps);
                 wl_history_destroy(&wl_history);
                 return -2;
             }
@@ -1168,14 +1194,14 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
                 BitBurningState *bb_state = bit_burning_get_global_state();
                 if (bb_state && bb_state->tripped) {
                     if (bb_state->consecutive_trips >= MAX_CONSECUTIVE_TRIPS) {
-                        engine_emit_stream_event(engine, STREAM_EVENT_WARNING,
-                            "位数熔断: 连续触发达到阈值，自动降级", iteration, -1, -1);
+                        engine_emit_stream_event(engine, STREAM_EVENT_WARNING, "位数熔断: 连续触发达到阈值，自动降级",
+                                                 iteration, -1, -1);
                         snprintf(engine->last_error, sizeof(engine->last_error),
                                  "位数熔断: 求解器产生 %d 次位数溢出（最大位数 %" PRIu64 "），已自动降级",
                                  bb_state->consecutive_trips, bb_state->bit_count);
                     } else {
-                        engine_emit_stream_event(engine, STREAM_EVENT_INFO,
-                            "位数熔断: 检测到位数溢出，继续求解", iteration, -1, -1);
+                        engine_emit_stream_event(engine, STREAM_EVENT_INFO, "位数熔断: 检测到位数溢出，继续求解",
+                                                 iteration, -1, -1);
                     }
                     bb_state->tripped = false;
                 }
@@ -1270,7 +1296,8 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
         return ENGINE_CIRCUIT_DOWNGRADE;
     }
 
-    snprintf(engine->last_error, sizeof(engine->last_error), "engine_handle_circuit_trip: 溢出计数 %d，已处理（忽略）", overflow);
+    snprintf(engine->last_error, sizeof(engine->last_error), "engine_handle_circuit_trip: 溢出计数 %d，已处理（忽略）",
+             overflow);
     engine->last_status = ENGINE_STATUS_OK;
     return ENGINE_CIRCUIT_IGNORE;
 }
@@ -1295,23 +1322,23 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(lvEngine *engine, Eng
 
     switch (action) {
         case ENGINE_CIRCUIT_ACTION_IGNORE: /* 忽略：将坐标标记为琥珀色并继续 */
-        if (overflow_coord) {
-            symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
-        }
-        circuit_handle_overflow();
-        g_thread_last_status = ENGINE_STATUS_OK;
-        g_thread_last_error[0] = '\0';
-        return ENGINE_CIRCUIT_IGNORE;
-
-    case ENGINE_CIRCUIT_ACTION_ROLLBACK: /* 回滚：恢复到冻结点 */
-        if (engine->frozen_point) {
-            if (!engine_restore_frozen_point(engine, engine->frozen_point)) {
-                /* lv_LOG_WARNING("engine: 回滚到冻结点失败，引擎状态可能不一致"); */
+            if (overflow_coord) {
+                symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
             }
-            /* engine_restore_frozen_point 消费了 frozen_point，已置 NULL */
-        }
-        circuit_reset_context();
-        g_thread_last_status = ENGINE_STATUS_OK;
+            circuit_handle_overflow();
+            g_thread_last_status = ENGINE_STATUS_OK;
+            g_thread_last_error[0] = '\0';
+            return ENGINE_CIRCUIT_IGNORE;
+
+        case ENGINE_CIRCUIT_ACTION_ROLLBACK: /* 回滚：恢复到冻结点 */
+            if (engine->frozen_point) {
+                if (!engine_restore_frozen_point(engine, engine->frozen_point)) {
+                    /* lv_LOG_WARNING("engine: 回滚到冻结点失败，引擎状态可能不一致"); */
+                }
+                /* engine_restore_frozen_point 消费了 frozen_point，已置 NULL */
+            }
+            circuit_reset_context();
+            g_thread_last_status = ENGINE_STATUS_OK;
             snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine: 通过回滚到冻结点处理了电路跳闸");
             return ENGINE_CIRCUIT_ROLLBACK;
 
@@ -1355,7 +1382,7 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(lvEngine *engine, Eng
                         overflow_coord->data = new_coord->data;
                         overflow_coord->trust = new_coord->trust;
                         /* 仅释放 new_coord 的外壳，不释放其内部数据（已转移至 overflow_coord） */
-                        lv_free((void **)&new_coord);
+                        lv_free((void **) &new_coord);
                     } else {
                         /* new_coord 创建失败，仅标记琥珀色作为降级 */
                         symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
@@ -1369,7 +1396,8 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(lvEngine *engine, Eng
 
         default:
             g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
+            snprintf(g_thread_last_error, sizeof(g_thread_last_error),
+                     "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
             return ENGINE_CIRCUIT_ERROR;
     }
 }
@@ -1452,7 +1480,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
     /* 第一遍：深拷贝所有节点 */
     /* 预分配足够容量以容纳所有源节点 */
     if (src->node_count > 0) {
-        dst->nodes = lv_calloc((size_t) src->node_count , sizeof(GeomNode *));
+        dst->nodes = lv_calloc((size_t) src->node_count, sizeof(GeomNode *));
         if (!dst->nodes) {
             graph_destroy(dst);
             lv_free((void **) &id_map);
@@ -1646,8 +1674,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
             }
             dst->constraint_index_capacity = ci_cap;
             for (int i = 0; i < dst->constraint_count; i++) {
-                unsigned idx =
-                    (unsigned) dst->constraints[i]->id * lv_FNV_HASH_MULTIPLIER & (unsigned) (ci_cap - 1);
+                unsigned idx = (unsigned) dst->constraints[i]->id * lv_FNV_HASH_MULTIPLIER & (unsigned) (ci_cap - 1);
                 while (dst->constraint_index[idx] != NULL) {
                     idx = (idx + 1) & (unsigned) (ci_cap - 1);
                 }
@@ -1790,11 +1817,11 @@ void engine_emit_stream_event(lvEngine *engine, StreamEventType type, const char
  */
 static const bool engine_transition_table[5][5] = {
     /* from \ to →        IDLE  PARSING  REASONING  ERROR  COMPLETE */
-    /* IDLE      */  {  false,   true,     false,    true,   false },
-    /* PARSING   */  {   true,  false,      true,    true,   false },
-    /* REASONING */  {   true,  false,     false,    true,    true },
-    /* ERROR     */  {   true,  false,     false,   false,   false },
-    /* COMPLETE  */  {   true,  false,     false,   false,   false },
+    /* IDLE      */ {false, true, false, true, false},
+    /* PARSING   */ {true, false, true, true, false},
+    /* REASONING */ {true, false, false, true, true},
+    /* ERROR     */ {true, false, false, false, false},
+    /* COMPLETE  */ {true, false, false, false, false},
 };
 
 /**
@@ -1825,15 +1852,15 @@ bool engine_is_valid_transition(EngineState from, EngineState to) {
 const char *engine_state_name(EngineState state) {
     switch (state) {
         case ENGINE_STATE_IDLE:
-            return "空闲";       /* IDLE: 等待输入 */
+            return "空闲"; /* IDLE: 等待输入 */
         case ENGINE_STATE_PARSING:
-            return "解析中";     /* PARSING: 解析输入文本 */
+            return "解析中"; /* PARSING: 解析输入文本 */
         case ENGINE_STATE_REASONING:
-            return "推理中";     /* REASONING: 执行重写/求解/证明 */
+            return "推理中"; /* REASONING: 执行重写/求解/证明 */
         case ENGINE_STATE_ERROR:
-            return "错误";       /* ERROR: 发生不可恢复错误 */
+            return "错误"; /* ERROR: 发生不可恢复错误 */
         case ENGINE_STATE_COMPLETE:
-            return "完成";       /* COMPLETE: 推理成功完成 */
+            return "完成"; /* COMPLETE: 推理成功完成 */
         default:
             return "未知状态";
     }
@@ -1872,9 +1899,8 @@ EngineStatus lv_engine_transition_state(lvEngine *engine, EngineState new_state)
     /* 边界检查：防止无效状态枚举值 */
     if (new_state < ENGINE_STATE_IDLE || new_state > ENGINE_STATE_COMPLETE) {
         engine->last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(engine->last_error, sizeof(engine->last_error),
-                 "状态转移失败: 无效的目标状态 %d（合法范围: %d-%d）",
-                 (int)new_state, ENGINE_STATE_IDLE, ENGINE_STATE_COMPLETE);
+        snprintf(engine->last_error, sizeof(engine->last_error), "状态转移失败: 无效的目标状态 %d（合法范围: %d-%d）",
+                 (int) new_state, ENGINE_STATE_IDLE, ENGINE_STATE_COMPLETE);
         return ENGINE_STATUS_INVALID_STATE;
     }
 
@@ -1889,9 +1915,8 @@ EngineStatus lv_engine_transition_state(lvEngine *engine, EngineState new_state)
     if (!engine_is_valid_transition(current, new_state)) {
         engine->last_status = ENGINE_STATUS_INVALID_STATE;
         snprintf(engine->last_error, sizeof(engine->last_error),
-                 "状态转移非法: 不能从 \"%s\" 转移到 \"%s\"（转移次数: %d）",
-                 engine_state_name(current), engine_state_name(new_state),
-                 engine->state_transition_count);
+                 "状态转移非法: 不能从 \"%s\" 转移到 \"%s\"（转移次数: %d）", engine_state_name(current),
+                 engine_state_name(new_state), engine->state_transition_count);
         return ENGINE_STATUS_INVALID_STATE;
     }
 

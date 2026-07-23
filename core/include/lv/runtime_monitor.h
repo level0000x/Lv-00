@@ -50,62 +50,62 @@ extern "C" {
  */
 typedef enum {
 #ifndef LOG_LEVEL_TRACE
-    LOG_LEVEL_TRACE = -1,   /**< 最详细跟踪 */
+    LOG_LEVEL_TRACE = -1, /**< 最详细跟踪 */
 #endif
 #ifndef LOG_LEVEL_DEBUG
-    LOG_LEVEL_DEBUG = 0,    /**< 调试信息 */
+    LOG_LEVEL_DEBUG = 0, /**< 调试信息 */
 #endif
 #ifndef LOG_LEVEL_INFO
-    LOG_LEVEL_INFO = 1,     /**< 一般信息 */
+    LOG_LEVEL_INFO = 1, /**< 一般信息 */
 #endif
 #ifndef LOG_LEVEL_WARN
-    LOG_LEVEL_WARN = 2,     /**< 警告 */
+    LOG_LEVEL_WARN = 2, /**< 警告 */
 #endif
 #ifndef LOG_LEVEL_ERROR
-    LOG_LEVEL_ERROR = 3,    /**< 错误 */
+    LOG_LEVEL_ERROR = 3, /**< 错误 */
 #endif
 #ifndef LOG_LEVEL_FATAL
-    LOG_LEVEL_FATAL = 4,    /**< 致命错误 */
+    LOG_LEVEL_FATAL = 4, /**< 致命错误 */
 #endif
 #ifndef LOG_LEVEL_OFF
-    LOG_LEVEL_OFF = 5       /**< 关闭日志 */
+    LOG_LEVEL_OFF = 5 /**< 关闭日志 */
 #endif
 } lvLogLevel;
 
 /* 与 debug.h 兼容（debug.h 是主定义源，运行时监控借用其级别） */
 #define LOG_LEVEL_TRACE -1
 #define LOG_LEVEL_DEBUG 0
-#define LOG_LEVEL_INFO  1
-#define LOG_LEVEL_WARN  2
+#define LOG_LEVEL_INFO 1
+#define LOG_LEVEL_WARN 2
 #define LOG_LEVEL_ERROR 3
 #define LOG_LEVEL_FATAL 4
-#define LOG_LEVEL_OFF   5
-#define LOG_LEVEL_NONE  6
+#define LOG_LEVEL_OFF 5
+#define LOG_LEVEL_NONE 6
 
 /**
  * @brief 日志输出目标类型
  */
 typedef enum {
-    LOG_TARGET_NONE = 0,        /**< 无输出 */
-    LOG_TARGET_STDOUT = 1,      /**< 标准输出 */
-    LOG_TARGET_STDERR = 2,      /**< 标准错误 */
-    LOG_TARGET_FILE = 4,        /**< 文件 */
-    LOG_TARGET_CALLBACK = 8,    /**< 回调函数 */
-    LOG_TARGET_SYSLOG = 16      /**< 系统日志 */
+    LOG_TARGET_NONE = 0,     /**< 无输出 */
+    LOG_TARGET_STDOUT = 1,   /**< 标准输出 */
+    LOG_TARGET_STDERR = 2,   /**< 标准错误 */
+    LOG_TARGET_FILE = 4,     /**< 文件 */
+    LOG_TARGET_CALLBACK = 8, /**< 回调函数 */
+    LOG_TARGET_SYSLOG = 16   /**< 系统日志 */
 } lvLogTarget;
 
 /**
  * @brief 日志记录结构
  */
 typedef struct {
-    lvLogLevel level;             /**< 日志级别 */
-    char tag[lv_LOG_TAG_MAX_LEN]; /**< 日志标签 */
+    lvLogLevel level;                 /**< 日志级别 */
+    char tag[lv_LOG_TAG_MAX_LEN];     /**< 日志标签 */
     char message[lv_LOG_MSG_MAX_LEN]; /**< 日志消息 */
-    char file[256];                 /**< 源文件名 */
-    int line;                       /**< 行号 */
-    char function[128];             /**< 函数名 */
-    int64_t timestamp_ms;           /**< 时间戳（毫秒） */
-    int thread_id;                  /**< 线程 ID */
+    char file[256];                   /**< 源文件名 */
+    int line;                         /**< 行号 */
+    char function[128];               /**< 函数名 */
+    int64_t timestamp_ms;             /**< 时间戳（毫秒） */
+    int thread_id;                    /**< 线程 ID */
 } lvLogRecord;
 
 /**
@@ -121,15 +121,15 @@ typedef void (*lvLogCallback)(const lvLogRecord *record, void *user_data);
 typedef struct {
     lvLogLevel min_level;     /**< 最小日志级别 */
     lvLogTarget targets;      /**< 输出目标（位掩码） */
-    char file_path[256];        /**< 日志文件路径 */
-    bool include_timestamp;     /**< 是否包含时间戳 */
-    bool include_location;      /**< 是否包含位置信息 */
-    bool include_thread_id;     /**< 是否包含线程 ID */
-    bool colored_output;        /**< 是否彩色输出 */
+    char file_path[256];      /**< 日志文件路径 */
+    bool include_timestamp;   /**< 是否包含时间戳 */
+    bool include_location;    /**< 是否包含位置信息 */
+    bool include_thread_id;   /**< 是否包含线程 ID */
+    bool colored_output;      /**< 是否彩色输出 */
     lvLogCallback callback;   /**< 回调函数 */
-    void *callback_user_data;   /**< 回调用户数据 */
-    size_t max_file_size;       /**< 最大文件大小（字节） */
-    int max_backup_files;       /**< 最大备份文件数 */
+    void *callback_user_data; /**< 回调用户数据 */
+    size_t max_file_size;     /**< 最大文件大小（字节） */
+    int max_backup_files;     /**< 最大备份文件数 */
 } lvLogConfig;
 
 /**
@@ -180,27 +180,20 @@ void lv_log_set_callback(lvLogCallback callback, void *user_data);
  * @param fmt 格式字符串
  * @param ... 可变参数
  */
-void lv_log_write(lvLogLevel level, const char *tag,
-                    const char *file, int line, const char *function,
-                    const char *fmt, ...);
+void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line, const char *function, const char *fmt,
+                  ...);
 
 /* 便捷日志宏 */
-#define lv_LOG_TRACE(tag, fmt, ...) \
-    lv_log_write(LOG_LEVEL_TRACE, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_DEBUG(tag, fmt, ...) \
-    lv_log_write(LOG_LEVEL_DEBUG, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_INFO(tag, fmt, ...) \
-    lv_log_write(LOG_LEVEL_INFO, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_WARN(tag, fmt, ...) \
-    lv_log_write(LOG_LEVEL_WARN, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+#define lv_LOG_TRACE(tag, fmt, ...) lv_log_write(LOG_LEVEL_TRACE, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+#define lv_LOG_DEBUG(tag, fmt, ...) lv_log_write(LOG_LEVEL_DEBUG, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+#define lv_LOG_INFO(tag, fmt, ...) lv_log_write(LOG_LEVEL_INFO, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+#define lv_LOG_WARN(tag, fmt, ...) lv_log_write(LOG_LEVEL_WARN, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define lv_LOG_WARNING(tag, fmt, ...) \
     lv_log_write(LOG_LEVEL_WARN, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define lv_LOG_WARN_NT(fmt, ...) \
     lv_log_write(LOG_LEVEL_WARN, "runtime", __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_ERROR(tag, fmt, ...) \
-    lv_log_write(LOG_LEVEL_ERROR, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_FATAL(tag, fmt, ...) \
-    lv_log_write(LOG_LEVEL_FATAL, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+#define lv_LOG_ERROR(tag, fmt, ...) lv_log_write(LOG_LEVEL_ERROR, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+#define lv_LOG_FATAL(tag, fmt, ...) lv_log_write(LOG_LEVEL_FATAL, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
 /* ============== 性能监控 ============== */
 
@@ -208,9 +201,9 @@ void lv_log_write(lvLogLevel level, const char *tag,
  * @brief 计时器状态
  */
 typedef enum {
-    TIMER_STOPPED,      /**< 已停止 */
-    TIMER_RUNNING,      /**< 运行中 */
-    TIMER_PAUSED        /**< 已暂停 */
+    TIMER_STOPPED, /**< 已停止 */
+    TIMER_RUNNING, /**< 运行中 */
+    TIMER_PAUSED   /**< 已暂停 */
 } lvTimerState;
 
 /**
@@ -219,11 +212,11 @@ typedef enum {
 typedef struct {
     char name[lv_METRIC_NAME_MAX_LEN]; /**< 计时器名称 */
     lvTimerState state;                /**< 状态 */
-    int64_t start_time_ns;               /**< 开始时间（纳秒） */
-    int64_t elapsed_ns;                  /**< 已用时间（纳秒） */
-    int64_t total_ns;                    /**< 累计时间（纳秒） */
-    uint64_t call_count;                 /**< 调用次数 */
-    int depth;                           /**< 嵌套深度 */
+    int64_t start_time_ns;             /**< 开始时间（纳秒） */
+    int64_t elapsed_ns;                /**< 已用时间（纳秒） */
+    int64_t total_ns;                  /**< 累计时间（纳秒） */
+    uint64_t call_count;               /**< 调用次数 */
+    int depth;                         /**< 嵌套深度 */
 } lvTimer;
 
 /**
@@ -231,17 +224,17 @@ typedef struct {
  */
 typedef struct {
     char name[lv_METRIC_NAME_MAX_LEN]; /**< 指标名称 */
-    uint64_t count;                      /**< 样本数 */
-    double min_val;                      /**< 最小值 */
-    double max_val;                      /**< 最大值 */
-    double sum;                          /**< 总和 */
-    double sum_sq;                       /**< 平方和 */
-    double m2;                           /**< Welford M₂：平方差累积和，用于数值稳定方差（见 Welford 在线算法） */
-    double mean;                         /**< 均值 */
-    double variance;                     /**< 方差 */
-    double std_dev;                      /**< 标准差 */
-    double last_val;                     /**< 最后值 */
-    int64_t last_time_ns;                /**< 最后更新时间 */
+    uint64_t count;                    /**< 样本数 */
+    double min_val;                    /**< 最小值 */
+    double max_val;                    /**< 最大值 */
+    double sum;                        /**< 总和 */
+    double sum_sq;                     /**< 平方和 */
+    double m2;                         /**< Welford M₂：平方差累积和，用于数值稳定方差（见 Welford 在线算法） */
+    double mean;                       /**< 均值 */
+    double variance;                   /**< 方差 */
+    double std_dev;                    /**< 标准差 */
+    double last_val;                   /**< 最后值 */
+    int64_t last_time_ns;              /**< 最后更新时间 */
 } lvPerfStats;
 
 /**
@@ -317,9 +310,9 @@ int64_t lv_timer_elapsed_ns(const lvTimer *timer);
  * @brief 作用域计时器（自动开始/停止）
  * @param name 计时器名称
  */
-#define lv_SCOPED_TIMER(name) \
+#define lv_SCOPED_TIMER(name)                         \
     lvTimer *__timer_##name = lv_timer_create(#name); \
-    lv_timer_start(__timer_##name); \
+    lv_timer_start(__timer_##name);                   \
     __attribute__((cleanup(lv_timer_auto_stop))) lvTimer **__timer_ptr_##name = &__timer_##name
 
 /* 自动停止函数（内部使用） */
@@ -370,10 +363,10 @@ uint32_t lv_perf_get_all_timer_stats(lvPerfStats **out_stats, uint32_t max_count
  * @brief 健康状态
  */
 typedef enum {
-    HEALTH_OK,          /**< 正常 */
-    HEALTH_WARNING,     /**< 警告 */
-    HEALTH_CRITICAL,    /**< 严重 */
-    HEALTH_UNKNOWN      /**< 未知 */
+    HEALTH_OK,       /**< 正常 */
+    HEALTH_WARNING,  /**< 警告 */
+    HEALTH_CRITICAL, /**< 严重 */
+    HEALTH_UNKNOWN   /**< 未知 */
 } lvHealthStatus;
 
 /**
@@ -382,20 +375,20 @@ typedef enum {
 typedef struct {
     char name[lv_METRIC_NAME_MAX_LEN]; /**< 检查项名称 */
     lvHealthStatus status;             /**< 状态 */
-    char message[256];                   /**< 状态消息 */
-    double value;                        /**< 当前值 */
-    double threshold_warning;            /**< 警告阈值 */
-    double threshold_critical;           /**< 严重阈值 */
+    char message[256];                 /**< 状态消息 */
+    double value;                      /**< 当前值 */
+    double threshold_warning;          /**< 警告阈值 */
+    double threshold_critical;         /**< 严重阈值 */
 } lvHealthCheck;
 
 /**
  * @brief 健康报告
  */
 typedef struct {
-    lvHealthCheck *checks;     /**< 检查项数组 */
-    uint32_t check_count;        /**< 检查项数量 */
-    lvHealthStatus overall;    /**< 总体状态 */
-    int64_t timestamp_ms;        /**< 时间戳 */
+    lvHealthCheck *checks;  /**< 检查项数组 */
+    uint32_t check_count;   /**< 检查项数量 */
+    lvHealthStatus overall; /**< 总体状态 */
+    int64_t timestamp_ms;   /**< 时间戳 */
 } lvHealthReport;
 
 /**
@@ -442,35 +435,35 @@ void lv_health_set_cpu_thresholds(double warning_percent, double critical_percen
  */
 typedef struct {
     /* 基本信息 */
-    char version[64];           /**< 版本号 */
-    char build_date[32];        /**< 构建日期 */
-    int64_t uptime_ms;          /**< 运行时间（毫秒） */
+    char version[64];    /**< 版本号 */
+    char build_date[32]; /**< 构建日期 */
+    int64_t uptime_ms;   /**< 运行时间（毫秒） */
 
     /* 内存统计 */
-    uint64_t memory_total;      /**< 总内存使用 */
-    uint64_t memory_peak;       /**< 峰值内存 */
-    uint64_t alloc_count;       /**< 分配次数 */
-    uint64_t free_count;        /**< 释放次数 */
+    uint64_t memory_total; /**< 总内存使用 */
+    uint64_t memory_peak;  /**< 峰值内存 */
+    uint64_t alloc_count;  /**< 分配次数 */
+    uint64_t free_count;   /**< 释放次数 */
 
     /* 性能统计 */
-    uint64_t proof_count;       /**< 证明次数 */
-    uint64_t solve_count;       /**< 求解次数 */
-    double avg_proof_time_ms;   /**< 平均证明时间 */
-    double avg_solve_time_ms;   /**< 平均求解时间 */
+    uint64_t proof_count;     /**< 证明次数 */
+    uint64_t solve_count;     /**< 求解次数 */
+    double avg_proof_time_ms; /**< 平均证明时间 */
+    double avg_solve_time_ms; /**< 平均求解时间 */
 
     /* 错误统计 */
-    uint64_t error_count;       /**< 错误次数 */
-    uint64_t warning_count;     /**< 警告次数 */
-    char last_error[256];       /**< 最后错误消息 */
+    uint64_t error_count;   /**< 错误次数 */
+    uint64_t warning_count; /**< 警告次数 */
+    char last_error[256];   /**< 最后错误消息 */
 
     /* 健康状态 */
-    lvHealthStatus health;    /**< 健康状态 */
+    lvHealthStatus health; /**< 健康状态 */
 
     /* 系统信息 */
-    char os_info[256];          /**< 操作系统信息 */
-    char cpu_info[256];         /**< CPU 信息 */
-    uint32_t cpu_cores;         /**< CPU 核心数 */
-    uint64_t total_memory_mb;   /**< 总内存（MB） */
+    char os_info[256];        /**< 操作系统信息 */
+    char cpu_info[256];       /**< CPU 信息 */
+    uint32_t cpu_cores;       /**< CPU 核心数 */
+    uint64_t total_memory_mb; /**< 总内存（MB） */
 } lvDiagnostics;
 
 /**
@@ -506,29 +499,29 @@ char *lv_diagnostics_to_json(const lvDiagnostics *diag);
  * @brief 事件类型
  */
 typedef enum {
-    EVENT_TYPE_PROOF_START,     /**< 证明开始 */
-    EVENT_TYPE_PROOF_END,       /**< 证明结束 */
-    EVENT_TYPE_SOLVE_START,     /**< 求解开始 */
-    EVENT_TYPE_SOLVE_END,       /**< 求解结束 */
-    EVENT_TYPE_CONSTRAINT_ADD,  /**< 约束添加 */
-    EVENT_TYPE_CONSTRAINT_DEL,  /**< 约束删除 */
-    EVENT_TYPE_NODE_CREATE,     /**< 节点创建 */
-    EVENT_TYPE_NODE_DESTROY,    /**< 节点销毁 */
-    EVENT_TYPE_ERROR,           /**< 错误 */
-    EVENT_TYPE_WARNING,         /**< 警告 */
-    EVENT_TYPE_CUSTOM           /**< 自定义 */
+    EVENT_TYPE_PROOF_START,    /**< 证明开始 */
+    EVENT_TYPE_PROOF_END,      /**< 证明结束 */
+    EVENT_TYPE_SOLVE_START,    /**< 求解开始 */
+    EVENT_TYPE_SOLVE_END,      /**< 求解结束 */
+    EVENT_TYPE_CONSTRAINT_ADD, /**< 约束添加 */
+    EVENT_TYPE_CONSTRAINT_DEL, /**< 约束删除 */
+    EVENT_TYPE_NODE_CREATE,    /**< 节点创建 */
+    EVENT_TYPE_NODE_DESTROY,   /**< 节点销毁 */
+    EVENT_TYPE_ERROR,          /**< 错误 */
+    EVENT_TYPE_WARNING,        /**< 警告 */
+    EVENT_TYPE_CUSTOM          /**< 自定义 */
 } lvEventType;
 
 /**
  * @brief 事件记录
  */
 typedef struct {
-    lvEventType type;             /**< 事件类型 */
-    char name[64];                  /**< 事件名称 */
-    int64_t timestamp_ns;           /**< 时间戳（纳秒） */
-    int64_t duration_ns;            /**< 持续时间（纳秒） */
-    char data[256];                 /**< 事件数据 */
-    int thread_id;                  /**< 线程 ID */
+    lvEventType type;     /**< 事件类型 */
+    char name[64];        /**< 事件名称 */
+    int64_t timestamp_ns; /**< 时间戳（纳秒） */
+    int64_t duration_ns;  /**< 持续时间（纳秒） */
+    char data[256];       /**< 事件数据 */
+    int thread_id;        /**< 线程 ID */
 } lvEventRecord;
 
 /**

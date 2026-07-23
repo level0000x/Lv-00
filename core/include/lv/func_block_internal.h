@@ -8,9 +8,9 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "lv/func_block.h"
 #include "lv/lv.h"
 #include "lv/stream.h"
-#include "lv/func_block.h"
 
 /* ============== 确定性统计结构 ============== */
 
@@ -48,11 +48,8 @@ bool collect_all_block_ids(const FuncBlock *fb, int **out_ids, int *out_count);
  * @param stats 输出参数，存储确定性统计结果
  * @return 返回收集到的约束统计项数量，失败返回负数
  */
-int *determinism_collect_constraint_stats(
-    const FuncBlock *fb,
-    const ConstraintGraph *graph,
-    int step_limit,
-    DeterminismStaticStats *stats);
+int *determinism_collect_constraint_stats(const FuncBlock *fb, const ConstraintGraph *graph, int step_limit,
+                                          DeterminismStaticStats *stats);
 
 /**
  * @brief 根据自由度数评估线性系统的确定性程度
@@ -135,19 +132,19 @@ void determinism_cleanup_groebner(void *gresult);
 /* 以下类型未在 constraint_graph.h 的 GeomType 枚举中定义，
  * 使用负值确保 switch 语句不会匹配它们（由 default 处理） */
 #ifndef NODE_TYPE_CIRCLE
-#define NODE_TYPE_CIRCLE ((GeomType)-1)
+#define NODE_TYPE_CIRCLE ((GeomType) - 1)
 #endif
 #ifndef NODE_TYPE_ARC
-#define NODE_TYPE_ARC ((GeomType)-2)
+#define NODE_TYPE_ARC ((GeomType) - 2)
 #endif
 #ifndef NODE_TYPE_POLYGON
-#define NODE_TYPE_POLYGON ((GeomType)-3)
+#define NODE_TYPE_POLYGON ((GeomType) - 3)
 #endif
 #ifndef NODE_TYPE_SCALAR
-#define NODE_TYPE_SCALAR ((GeomType)-4)
+#define NODE_TYPE_SCALAR ((GeomType) - 4)
 #endif
 #ifndef NODE_TYPE_VECTOR
-#define NODE_TYPE_VECTOR ((GeomType)-5)
+#define NODE_TYPE_VECTOR ((GeomType) - 5)
 #endif
 
 /* FB_VIEW_STATE_* 旧命名兼容 */

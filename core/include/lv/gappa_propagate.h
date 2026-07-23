@@ -34,8 +34,8 @@ void lv_gappa_pred_set_clear(lvGappaPredSet *set);
 
 lvGappaPropagateConfig lv_gappa_propagate_config_default(void);
 int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, const lvGappaPropagateConfig *cfg);
-int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredSet *known,
-                              lvGappaPredSet *output, const lvGappaPropagateConfig *cfg);
+int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredSet *known, lvGappaPredSet *output,
+                                const lvGappaPropagateConfig *cfg);
 
 #ifdef __cplusplus
 }

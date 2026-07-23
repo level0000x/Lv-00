@@ -1,7 +1,8 @@
-﻿#include "lv/extended_types.h"
-#include "lv/lv_utils.h"
-#include <stdlib.h>
+﻿#include <stdlib.h>
 #include <string.h>
+
+#include "lv/extended_types.h"
+#include "lv/lv_utils.h"
 
 /* Enhanced type inference for Layer 6 generic types */
 /* Infers type parameters for List<T>, Map<K,V>, etc. */
@@ -24,48 +25,48 @@ typedef struct lvTypeInference {
 
 lvTypeInference *lv_type_inference_create(void) {
     lvTypeInference *inf = lv_calloc(1, sizeof(lvTypeInference));
-    if (!inf) return NULL;
+    if (!inf)
+        return NULL;
     inf->rule_capacity = 8;
     inf->rules = lv_calloc(inf->rule_capacity, sizeof(lvTypeInferenceRule));
     if (!inf->rules) {
-        lv_free((void **)&inf);
+        lv_free((void **) &inf);
         return NULL;
     }
     return inf;
 }
 
 void lv_type_inference_destroy(lvTypeInference *inf) {
-    if (!inf) return;
-    lv_free((void **)&inf->rules);
-    lv_free((void **)&inf);
+    if (!inf)
+        return;
+    lv_free((void **) &inf->rules);
+    lv_free((void **) &inf);
 }
 
 /* 注册一条 pattern->type 推理规则 */
-int lv_type_inference_register_rule(lvTypeInference *inf,
-                                       const char *pattern, const char *type) {
-    if (!inf || !pattern || !type) return -1;
+int lv_type_inference_register_rule(lvTypeInference *inf, const char *pattern, const char *type) {
+    if (!inf || !pattern || !type)
+        return -1;
     if (inf->rule_count >= inf->rule_capacity) {
         int new_cap = inf->rule_capacity * 2;
-        lvTypeInferenceRule *new_arr = lv_realloc(inf->rules,
-                                              new_cap * sizeof(lvTypeInferenceRule));
-        if (!new_arr) return -1;
+        lvTypeInferenceRule *new_arr = lv_realloc(inf->rules, new_cap * sizeof(lvTypeInferenceRule));
+        if (!new_arr)
+            return -1;
         inf->rules = new_arr;
         inf->rule_capacity = new_cap;
     }
-    strncpy(inf->rules[inf->rule_count].pattern, pattern,
-            sizeof(inf->rules[0].pattern) - 1);
+    strncpy(inf->rules[inf->rule_count].pattern, pattern, sizeof(inf->rules[0].pattern) - 1);
     inf->rules[inf->rule_count].pattern[sizeof(inf->rules[0].pattern) - 1] = '\0';
-    strncpy(inf->rules[inf->rule_count].type_name, type,
-            sizeof(inf->rules[0].type_name) - 1);
+    strncpy(inf->rules[inf->rule_count].type_name, type, sizeof(inf->rules[0].type_name) - 1);
     inf->rules[inf->rule_count].type_name[sizeof(inf->rules[0].type_name) - 1] = '\0';
     inf->rule_count++;
     return 0;
 }
 
 /* 基于规则的简单类型推理 */
-int lv_type_inference_infer(lvTypeInference *inf, const char *expr,
-                               char *result_type, size_t size) {
-    if (!inf || !expr || !result_type || size == 0) return -1;
+int lv_type_inference_infer(lvTypeInference *inf, const char *expr, char *result_type, size_t size) {
+    if (!inf || !expr || !result_type || size == 0)
+        return -1;
 
     /* 先检查自定义规则（后注册的优先） */
     for (int i = inf->rule_count - 1; i >= 0; i--) {
@@ -77,8 +78,8 @@ int lv_type_inference_infer(lvTypeInference *inf, const char *expr,
     }
 
     /* 内置默认规则 */
-    if (strstr(expr, "+") != NULL || strstr(expr, "-") != NULL ||
-        strstr(expr, "*") != NULL || strstr(expr, "/") != NULL) {
+    if (strstr(expr, "+") != NULL || strstr(expr, "-") != NULL || strstr(expr, "*") != NULL ||
+        strstr(expr, "/") != NULL) {
         strncpy(result_type, "Number", size - 1);
         result_type[size - 1] = '\0';
         return 0;

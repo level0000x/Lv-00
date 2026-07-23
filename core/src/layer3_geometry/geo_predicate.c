@@ -18,13 +18,14 @@
  */
 
 #include "lv/geo_predicate.h"
-#include "lv/geometry_config.h"
-#include "lv/config.h"
-#include "lv/interval_arithmetic.h"
 
+#include <float.h>
 #include <math.h>
 #include <string.h>
-#include <float.h>
+
+#include "lv/config.h"
+#include "lv/geometry_config.h"
+#include "lv/interval_arithmetic.h"
 
 /* 确保 lv_PUBLIC_API 已定义 */
 #ifndef lv_PUBLIC_API
@@ -73,11 +74,8 @@ static lvPredicateStats g_predicate_stats = {0, 0, 0};
  *
  * @return 区间表示的有符号面积
  */
-static lvInterval orientation_2d_exact_interval(
-    double p1x, double p1y,
-    double p2x, double p2y,
-    double p3x, double p3y)
-{
+static lvInterval orientation_2d_exact_interval(double p1x, double p1y, double p2x, double p2y, double p3x,
+                                                double p3y) {
     /* (p2 - p1) x (p3 - p1) = (p2x-p1x)*(p3y-p1y) - (p3x-p1x)*(p2y-p1y) */
     lvInterval dx2 = interval_sub(interval_point(p2x), interval_point(p1x));
     lvInterval dy2 = interval_sub(interval_point(p2y), interval_point(p1y));
@@ -102,12 +100,9 @@ static lvInterval orientation_2d_exact_interval(
  *
  * 使用 Sarrus / Laplace 展开计算 3x3 行列式。
  */
-static lvInterval orientation_3d_exact_interval(
-    double p1x, double p1y, double p1z,
-    double p2x, double p2y, double p2z,
-    double p3x, double p3y, double p3z,
-    double p4x, double p4y, double p4z)
-{
+static lvInterval orientation_3d_exact_interval(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
+                                                double p3x, double p3y, double p3z, double p4x, double p4y,
+                                                double p4z) {
     /* 构造三个列向量（区间） */
     lvInterval ax = interval_sub(interval_point(p2x), interval_point(p1x));
     lvInterval ay = interval_sub(interval_point(p2y), interval_point(p1y));
@@ -144,11 +139,7 @@ static lvInterval orientation_3d_exact_interval(
  *
  * 计算 |p - c|^2 - r^2 的区间。
  */
-static lvInterval side_of_circle_exact_interval(
-    double px, double py,
-    double cx, double cy,
-    double r)
-{
+static lvInterval side_of_circle_exact_interval(double px, double py, double cx, double cy, double r) {
     lvInterval dx = interval_sub(interval_point(px), interval_point(cx));
     lvInterval dy = interval_sub(interval_point(py), interval_point(cy));
     lvInterval dist_sq = interval_add(interval_mul(dx, dx), interval_mul(dy, dy));
@@ -167,21 +158,17 @@ static lvInterval side_of_circle_exact_interval(
  *
  * 使用 Laplace 展开沿最后一列展开。
  */
-static lvInterval four_points_concyclic_exact_interval(
-    double ax, double ay,
-    double bx, double by,
-    double cx, double cy,
-    double dx, double dy)
-{
+static lvInterval four_points_concyclic_exact_interval(double ax, double ay, double bx, double by, double cx, double cy,
+                                                       double dx, double dy) {
     /* 计算 ax^2+ay^2 等 */
     lvInterval a2 = interval_add(interval_mul(interval_point(ax), interval_point(ax)),
-                                   interval_mul(interval_point(ay), interval_point(ay)));
+                                 interval_mul(interval_point(ay), interval_point(ay)));
     lvInterval b2 = interval_add(interval_mul(interval_point(bx), interval_point(bx)),
-                                   interval_mul(interval_point(by), interval_point(by)));
+                                 interval_mul(interval_point(by), interval_point(by)));
     lvInterval c2 = interval_add(interval_mul(interval_point(cx), interval_point(cx)),
-                                   interval_mul(interval_point(cy), interval_point(cy)));
+                                 interval_mul(interval_point(cy), interval_point(cy)));
     lvInterval d2 = interval_add(interval_mul(interval_point(dx), interval_point(dx)),
-                                   interval_mul(interval_point(dy), interval_point(dy)));
+                                 interval_mul(interval_point(dy), interval_point(dy)));
 
     /*
      * Laplace 展开沿最后一列（全为 1）：
@@ -216,49 +203,31 @@ static lvInterval four_points_concyclic_exact_interval(
      */
 
     /* M11 */
-    lvInterval m11_t1 = interval_mul(interval_point(by),
-                                       interval_sub(c2, d2));
-    lvInterval m11_t2 = interval_mul(b2,
-                                       interval_sub(interval_point(cy), interval_point(dy)));
-    lvInterval m11_t3 = interval_sub(
-        interval_mul(interval_point(cy), d2),
-        interval_mul(c2, interval_point(dy)));
+    lvInterval m11_t1 = interval_mul(interval_point(by), interval_sub(c2, d2));
+    lvInterval m11_t2 = interval_mul(b2, interval_sub(interval_point(cy), interval_point(dy)));
+    lvInterval m11_t3 = interval_sub(interval_mul(interval_point(cy), d2), interval_mul(c2, interval_point(dy)));
     lvInterval m11 = interval_add(interval_sub(m11_t1, m11_t2), m11_t3);
 
     /* M21 */
-    lvInterval m21_t1 = interval_mul(interval_point(bx),
-                                       interval_sub(c2, d2));
-    lvInterval m21_t2 = interval_mul(a2,
-                                       interval_sub(interval_point(cx), interval_point(dx)));
-    lvInterval m21_t3 = interval_sub(
-        interval_mul(interval_point(cx), d2),
-        interval_mul(c2, interval_point(dx)));
+    lvInterval m21_t1 = interval_mul(interval_point(bx), interval_sub(c2, d2));
+    lvInterval m21_t2 = interval_mul(a2, interval_sub(interval_point(cx), interval_point(dx)));
+    lvInterval m21_t3 = interval_sub(interval_mul(interval_point(cx), d2), interval_mul(c2, interval_point(dx)));
     lvInterval m21 = interval_add(interval_sub(m21_t1, m21_t2), m21_t3);
 
     /* M31 */
-    lvInterval m31_t1 = interval_mul(interval_point(ax),
-                                       interval_sub(b2, d2));
-    lvInterval m31_t2 = interval_mul(a2,
-                                       interval_sub(interval_point(bx), interval_point(dx)));
-    lvInterval m31_t3 = interval_sub(
-        interval_mul(interval_point(bx), d2),
-        interval_mul(b2, interval_point(dx)));
+    lvInterval m31_t1 = interval_mul(interval_point(ax), interval_sub(b2, d2));
+    lvInterval m31_t2 = interval_mul(a2, interval_sub(interval_point(bx), interval_point(dx)));
+    lvInterval m31_t3 = interval_sub(interval_mul(interval_point(bx), d2), interval_mul(b2, interval_point(dx)));
     lvInterval m31 = interval_add(interval_sub(m31_t1, m31_t2), m31_t3);
 
     /* M41 */
-    lvInterval m41_t1 = interval_mul(interval_point(ax),
-                                       interval_sub(b2, c2));
-    lvInterval m41_t2 = interval_mul(a2,
-                                       interval_sub(interval_point(bx), interval_point(cx)));
-    lvInterval m41_t3 = interval_sub(
-        interval_mul(interval_point(bx), c2),
-        interval_mul(b2, interval_point(cx)));
+    lvInterval m41_t1 = interval_mul(interval_point(ax), interval_sub(b2, c2));
+    lvInterval m41_t2 = interval_mul(a2, interval_sub(interval_point(bx), interval_point(cx)));
+    lvInterval m41_t3 = interval_sub(interval_mul(interval_point(bx), c2), interval_mul(b2, interval_point(cx)));
     lvInterval m41 = interval_add(interval_sub(m41_t1, m41_t2), m41_t3);
 
     /* det = M11 - M21 + M31 - M41 */
-    lvInterval det = interval_sub(
-        interval_add(interval_sub(m11, m21), m31),
-        m41);
+    lvInterval det = interval_sub(interval_add(interval_sub(m11, m21), m31), m41);
 
     return det;
 }
@@ -281,12 +250,8 @@ static lvInterval four_points_concyclic_exact_interval(
  * @param mode      精度模式（APPROX / EXACT / ADAPTIVE）
  * @return lvOrientation 方向枚举（LEFT / RIGHT / COLLINEAR / DEGENERATE）
  */
-lv_PUBLIC_API lvOrientation lv_orientation_2d(
-    double p1x, double p1y,
-    double p2x, double p2y,
-    double p3x, double p3y,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API lvOrientation lv_orientation_2d(double p1x, double p1y, double p2x, double p2y, double p3x, double p3y,
+                                              lvPredicateMode mode) {
     /*
      * 检查退化情况：如果任意两点重合，则无法判定方向。
      */
@@ -328,9 +293,8 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
          * 固定阈值对于大坐标会过于严格（舍入误差超过阈值），
          * 对于小坐标又可能过于宽松。
          */
-        double max_coord = fmax(fmax(fabs(p1x), fabs(p1y)),
-                                fmax(fmax(fabs(p2x), fabs(p2y)),
-                                     fmax(fabs(p3x), fabs(p3y))));
+        double max_coord =
+            fmax(fmax(fabs(p1x), fabs(p1y)), fmax(fmax(fabs(p2x), fabs(p2y)), fmax(fabs(p3x), fabs(p3y))));
         double adapted_eps = eps * fmax(1.0, max_coord * max_coord * max_coord);
 
         if (cross > adapted_eps) {
@@ -346,8 +310,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
         /* 精确模式：区间算术 */
         g_predicate_stats.exact_count++;
 
-        lvInterval result = orientation_2d_exact_interval(
-            p1x, p1y, p2x, p2y, p3x, p3y);
+        lvInterval result = orientation_2d_exact_interval(p1x, p1y, p2x, p2y, p3x, p3y);
 
         if (result.lo > 0.0) {
             return lv_ORIENTATION_LEFT;
@@ -370,9 +333,8 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
          * (p2-p1)×(p3-p1) 展开后每项都是坐标差乘积，量级正比于 O(coord^3)，
          * 因此浮点舍入误差的上界也按此标度增长。
          */
-        double max_coord = fmax(fmax(fabs(p1x), fabs(p1y)),
-                                fmax(fmax(fabs(p2x), fabs(p2y)),
-                                     fmax(fabs(p3x), fabs(p3y))));
+        double max_coord =
+            fmax(fmax(fabs(p1x), fabs(p1y)), fmax(fmax(fabs(p2x), fabs(p2y)), fmax(fabs(p3x), fabs(p3y))));
         double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord * max_coord;
 
         if (threshold == 0.0) {
@@ -391,8 +353,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
             g_predicate_stats.adaptive_fallback++;
             g_predicate_stats.exact_count++;
 
-            lvInterval result = orientation_2d_exact_interval(
-                p1x, p1y, p2x, p2y, p3x, p3y);
+            lvInterval result = orientation_2d_exact_interval(p1x, p1y, p2x, p2y, p3x, p3y);
 
             if (result.lo > 0.0) {
                 return lv_ORIENTATION_LEFT;
@@ -417,13 +378,9 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
  * @param mode           精度模式
  * @return lvOrientation 方向枚举（LEFT / RIGHT / COPLANAR / DEGENERATE）
  */
-lv_PUBLIC_API lvOrientation lv_orientation_3d(
-    double p1x, double p1y, double p1z,
-    double p2x, double p2y, double p2z,
-    double p3x, double p3y, double p3z,
-    double p4x, double p4y, double p4z,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
+                                              double p3x, double p3y, double p3z, double p4x, double p4y, double p4z,
+                                              lvPredicateMode mode) {
     /*
      * 检查退化情况：3D 方向以 p1 为参考原点计算 3×3 行列式。
      * 若 p1 与 p2、p3、p4 中任一重合，则对应列向量为零，
@@ -431,9 +388,9 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
      *
      * 与 2D 同理，此处使用 OR 检查：任一对重合即退化。
      */
-    double d12_sq = (p2x-p1x)*(p2x-p1x) + (p2y-p1y)*(p2y-p1y) + (p2z-p1z)*(p2z-p1z);
-    double d13_sq = (p3x-p1x)*(p3x-p1x) + (p3y-p1y)*(p3y-p1y) + (p3z-p1z)*(p3z-p1z);
-    double d14_sq = (p4x-p1x)*(p4x-p1x) + (p4y-p1y)*(p4y-p1y) + (p4z-p1z)*(p4z-p1z);
+    double d12_sq = (p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y) + (p2z - p1z) * (p2z - p1z);
+    double d13_sq = (p3x - p1x) * (p3x - p1x) + (p3y - p1y) * (p3y - p1y) + (p3z - p1z) * (p3z - p1z);
+    double d14_sq = (p4x - p1x) * (p4x - p1x) + (p4y - p1y) * (p4y - p1y) + (p4z - p1z) * (p4z - p1z);
 
     const lvGeometryConfig *cfg = lv_geometry_get_config();
     double eps = cfg ? cfg->collinear_epsilon : lv_GEO_COLLINEAR_EPSILON;
@@ -454,9 +411,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
         double bx = p3x - p1x, by = p3y - p1y, bz = p3z - p1z;
         double cx = p4x - p1x, cy = p4y - p1y, cz = p4z - p1z;
 
-        double det = ax * (by * cz - bz * cy)
-                   - ay * (bx * cz - bz * cx)
-                   + az * (bx * cy - by * cx);
+        double det = ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
 
         if (det > eps) {
             return lv_ORIENTATION_LEFT;
@@ -470,8 +425,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
     if (mode == lv_PREDICATE_EXACT) {
         g_predicate_stats.exact_count++;
 
-        lvInterval result = orientation_3d_exact_interval(
-            p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z);
+        lvInterval result = orientation_3d_exact_interval(p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z);
 
         if (result.lo > 0.0) {
             return lv_ORIENTATION_LEFT;
@@ -488,18 +442,16 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
         double bx = p3x - p1x, by = p3y - p1y, bz = p3z - p1z;
         double cx = p4x - p1x, cy = p4y - p1y, cz = p4z - p1z;
 
-        double det = ax * (by * cz - bz * cy)
-                   - ay * (bx * cz - bz * cx)
-                   + az * (bx * cy - by * cx);
+        double det = ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
 
         /*
          * 3D 行列式每项为三个坐标差之积，量级 O(coord^3)，
          * 因此阈值按 max_coord^3 标度，与 2D 情形同理。
          */
-        double max_coord = fmax(fmax(fmax(fabs(p1x), fabs(p1y)), fabs(p1z)),
-                                fmax(fmax(fmax(fabs(p2x), fabs(p2y)), fabs(p2z)),
-                                     fmax(fmax(fmax(fabs(p3x), fabs(p3y)), fabs(p3z)),
-                                          fmax(fmax(fabs(p4x), fabs(p4y)), fabs(p4z)))));
+        double max_coord =
+            fmax(fmax(fmax(fabs(p1x), fabs(p1y)), fabs(p1z)),
+                 fmax(fmax(fmax(fabs(p2x), fabs(p2y)), fabs(p2z)),
+                      fmax(fmax(fmax(fabs(p3x), fabs(p3y)), fabs(p3z)), fmax(fmax(fabs(p4x), fabs(p4y)), fabs(p4z)))));
         double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord * max_coord;
 
         if (threshold == 0.0) {
@@ -516,8 +468,8 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
             g_predicate_stats.adaptive_fallback++;
             g_predicate_stats.exact_count++;
 
-            lvInterval result = orientation_3d_exact_interval(
-                p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z);
+            lvInterval result =
+                orientation_3d_exact_interval(p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z);
 
             if (result.lo > 0.0) {
                 return lv_ORIENTATION_LEFT;
@@ -541,12 +493,8 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
  * @param mode     精度模式
  * @return lvLineSide 点侧枚举（LEFT / RIGHT / ON / DEGENERATE）
  */
-lv_PUBLIC_API lvLineSide lv_line_side(
-    double px, double py,
-    double lx1, double ly1,
-    double lx2, double ly2,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API lvLineSide lv_line_side(double px, double py, double lx1, double ly1, double lx2, double ly2,
+                                      lvPredicateMode mode) {
     /* 检查退化情况：直线的两个定义点重合 */
     const lvGeometryConfig *cfg = lv_geometry_get_config();
     double eps = cfg ? cfg->distance_epsilon : lv_GEO_COLLINEAR_EPSILON;
@@ -581,12 +529,8 @@ lv_PUBLIC_API lvLineSide lv_line_side(
  * @param mode     精度模式
  * @return lvLineSide 点侧枚举（LEFT / RIGHT / ON / DEGENERATE）
  */
-lv_PUBLIC_API lvLineSide lv_segment_side(
-    double px, double py,
-    double sx1, double sy1,
-    double sx2, double sy2,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API lvLineSide lv_segment_side(double px, double py, double sx1, double sy1, double sx2, double sy2,
+                                         lvPredicateMode mode) {
     /* 检查退化情况：线段长度为零 */
     const lvGeometryConfig *cfg = lv_geometry_get_config();
     double eps = cfg ? cfg->distance_epsilon : lv_GEO_COLLINEAR_EPSILON;
@@ -624,12 +568,8 @@ lv_PUBLIC_API lvLineSide lv_segment_side(
  * @param mode   精度模式
  * @return lvSideOfCircle 位置枚举（INSIDE / ON / OUTSIDE / DEGENERATE）
  */
-lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(
-    double px, double py,
-    double cx, double cy,
-    double r,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(double px, double py, double cx, double cy, double r,
+                                               lvPredicateMode mode) {
     /* 检查退化情况：半径为负或零 */
     if (r < 0.0) {
         return lv_SIDE_DEGENERATE;
@@ -687,8 +627,7 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(
          * |p-c|² = (px-cx)² + (py-cy)²，每项为坐标差的平方，
          * 因此整体缩放 λ²。阈值取 max_coord² 标度即可。
          */
-        double max_coord = fmax(fmax(fabs(px), fabs(py)),
-                                fmax(fmax(fabs(cx), fabs(cy)), fabs(r)));
+        double max_coord = fmax(fmax(fabs(px), fabs(py)), fmax(fmax(fabs(cx), fabs(cy)), fabs(r)));
         double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord;
 
         if (threshold == 0.0) {
@@ -731,13 +670,8 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(
  * @param mode     精度模式
  * @return true 两点在直线同侧（或一点/两点在直线上）
  */
-lv_PUBLIC_API bool lv_same_side_of_line(
-    double ax, double ay,
-    double bx, double by,
-    double lx1, double ly1,
-    double lx2, double ly2,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API bool lv_same_side_of_line(double ax, double ay, double bx, double by, double lx1, double ly1, double lx2,
+                                        double ly2, lvPredicateMode mode) {
     lvLineSide side_a = lv_line_side(ax, ay, lx1, ly1, lx2, ly2, mode);
     lvLineSide side_b = lv_line_side(bx, by, lx1, ly1, lx2, ly2, mode);
 
@@ -773,13 +707,8 @@ lv_PUBLIC_API bool lv_same_side_of_line(
  * @param mode   精度模式
  * @return true 两点在圆同侧（或一点/两点在圆上）
  */
-lv_PUBLIC_API bool lv_same_side_of_circle(
-    double ax, double ay,
-    double bx, double by,
-    double cx, double cy,
-    double r,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API bool lv_same_side_of_circle(double ax, double ay, double bx, double by, double cx, double cy, double r,
+                                          lvPredicateMode mode) {
     lvSideOfCircle side_a = lv_side_of_circle(ax, ay, cx, cy, r, mode);
     lvSideOfCircle side_b = lv_side_of_circle(bx, by, cx, cy, r, mode);
 
@@ -819,13 +748,8 @@ lv_PUBLIC_API bool lv_same_side_of_circle(
  * @param mode   精度模式
  * @return true 两条线段相交（含端点接触）
  */
-lv_PUBLIC_API bool lv_segments_intersect(
-    double ax, double ay,
-    double bx, double by,
-    double cx, double cy,
-    double dx, double dy,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API bool lv_segments_intersect(double ax, double ay, double bx, double by, double cx, double cy, double dx,
+                                         double dy, lvPredicateMode mode) {
     /*
      * 方向谓词：
      *   d1 = orientation(A, B, C)  -- C 相对于 AB 的方向
@@ -857,8 +781,8 @@ lv_PUBLIC_API bool lv_segments_intersect(
      * 线段"内部"——共线点可能在线段延长线上。因此需要通过
      * 一维区间重叠（含 epsilon 容差）来确认。
      */
-    if (d1 == lv_ORIENTATION_COLLINEAR && d2 == lv_ORIENTATION_COLLINEAR &&
-        d3 == lv_ORIENTATION_COLLINEAR && d4 == lv_ORIENTATION_COLLINEAR) {
+    if (d1 == lv_ORIENTATION_COLLINEAR && d2 == lv_ORIENTATION_COLLINEAR && d3 == lv_ORIENTATION_COLLINEAR &&
+        d4 == lv_ORIENTATION_COLLINEAR) {
         /*
          * 检查 C 或 D 是否在 AB 的 bounding box 内，
          * 或 A 或 B 是否在 CD 的 bounding box 内。
@@ -936,13 +860,8 @@ lv_PUBLIC_API bool lv_segments_intersect(
  * @param mode   精度模式
  * @return true 点在三角形内部或边界上
  */
-lv_PUBLIC_API bool lv_point_in_triangle(
-    double px, double py,
-    double ax, double ay,
-    double bx, double by,
-    double cx, double cy,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API bool lv_point_in_triangle(double px, double py, double ax, double ay, double bx, double by, double cx,
+                                        double cy, lvPredicateMode mode) {
     lvOrientation o1 = lv_orientation_2d(ax, ay, bx, by, px, py, mode);
     lvOrientation o2 = lv_orientation_2d(bx, by, cx, cy, px, py, mode);
     lvOrientation o3 = lv_orientation_2d(cx, cy, ax, ay, px, py, mode);
@@ -953,7 +872,7 @@ lv_PUBLIC_API bool lv_point_in_triangle(
      *
      * 即：不存在一个为 LEFT 而另一个为 RIGHT 的情况。
      */
-    int has_left  = (o1 == lv_ORIENTATION_LEFT)  || (o2 == lv_ORIENTATION_LEFT)  || (o3 == lv_ORIENTATION_LEFT);
+    int has_left = (o1 == lv_ORIENTATION_LEFT) || (o2 == lv_ORIENTATION_LEFT) || (o3 == lv_ORIENTATION_LEFT);
     int has_right = (o1 == lv_ORIENTATION_RIGHT) || (o2 == lv_ORIENTATION_RIGHT) || (o3 == lv_ORIENTATION_RIGHT);
 
     /* 如果同时存在 LEFT 和 RIGHT，则点在三角形外部 */
@@ -980,13 +899,8 @@ lv_PUBLIC_API bool lv_point_in_triangle(
  * @param mode   精度模式
  * @return true 四点共圆
  */
-lv_PUBLIC_API bool lv_four_points_concyclic(
-    double ax, double ay,
-    double bx, double by,
-    double cx, double cy,
-    double dx, double dy,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API bool lv_four_points_concyclic(double ax, double ay, double bx, double by, double cx, double cy, double dx,
+                                            double dy, lvPredicateMode mode) {
     if (mode == lv_PREDICATE_SYMBOLIC) {
         mode = lv_PREDICATE_EXACT;
     }
@@ -1028,10 +942,8 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
          * 推导：子行列式 M11 = |bx by bx²+by²; cx cy cx²+cy²; dx dy dx²+dy²|
          *       缩放后每列因子为 λ, λ, λ²，子行列式缩放 λ⁴。
          */
-        double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)),
-                                     fmax(fabs(bx), fabs(by))),
-                                fmax(fmax(fabs(cx), fabs(cy)),
-                                     fmax(fabs(dx), fabs(dy))));
+        double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)), fmax(fabs(bx), fabs(by))),
+                                fmax(fmax(fabs(cx), fabs(cy)), fmax(fabs(dx), fabs(dy))));
         if (max_coord > 1.0) {
             double s = max_coord * max_coord;
             det /= (s * s);
@@ -1043,8 +955,7 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
     if (mode == lv_PREDICATE_EXACT) {
         g_predicate_stats.exact_count++;
 
-        lvInterval result = four_points_concyclic_exact_interval(
-            ax, ay, bx, by, cx, cy, dx, dy);
+        lvInterval result = four_points_concyclic_exact_interval(ax, ay, bx, by, cx, cy, dx, dy);
 
         /* 如果区间包含零，则可能共圆 */
         return (result.lo <= 0.0 && result.hi >= 0.0);
@@ -1069,10 +980,8 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
          * 含两列坐标（λ）和一列坐标平方（λ²），总计 O(λ⁴)。
          * 因此自适应阈值取 max_coord⁴ 标度。
          */
-        double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)),
-                                     fmax(fabs(bx), fabs(by))),
-                                fmax(fmax(fabs(cx), fabs(cy)),
-                                     fmax(fabs(dx), fabs(dy))));
+        double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)), fmax(fabs(bx), fabs(by))),
+                                fmax(fmax(fabs(cx), fabs(cy)), fmax(fabs(dx), fabs(dy))));
         double s = max_coord * max_coord;
         double threshold = ADAPTIVE_THRESHOLD * s * s;
 
@@ -1087,8 +996,7 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
             g_predicate_stats.adaptive_fallback++;
             g_predicate_stats.exact_count++;
 
-            lvInterval result = four_points_concyclic_exact_interval(
-                ax, ay, bx, by, cx, cy, dx, dy);
+            lvInterval result = four_points_concyclic_exact_interval(ax, ay, bx, by, cx, cy, dx, dy);
 
             return (result.lo <= 0.0 && result.hi >= 0.0);
         }
@@ -1106,10 +1014,7 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
  * @param mode   精度模式
  * @return true 多边形为凸，false 为非凸或输入无效
  */
-lv_PUBLIC_API bool lv_polygon_is_convex(
-    const double *xs, const double *ys, int n,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API bool lv_polygon_is_convex(const double *xs, const double *ys, int n, lvPredicateMode mode) {
     if (n < 3 || xs == NULL || ys == NULL) {
         return false;
     }
@@ -1124,8 +1029,7 @@ lv_PUBLIC_API bool lv_polygon_is_convex(
         int i1 = (i + 1) % n;
         int i2 = (i + 2) % n;
 
-        lvOrientation orient = lv_orientation_2d(
-            xs[i], ys[i], xs[i1], ys[i1], xs[i2], ys[i2], mode);
+        lvOrientation orient = lv_orientation_2d(xs[i], ys[i], xs[i1], ys[i1], xs[i2], ys[i2], mode);
 
         if (orient == lv_ORIENTATION_LEFT) {
             if (first_sign == 0) {
@@ -1163,11 +1067,8 @@ lv_PUBLIC_API bool lv_polygon_is_convex(
  * @param mode     精度模式
  * @return true 点在凸多边形内部或边界上
  */
-lv_PUBLIC_API bool lv_point_in_convex_polygon(
-    double px, double py,
-    const double *xs, const double *ys, int n,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API bool lv_point_in_convex_polygon(double px, double py, const double *xs, const double *ys, int n,
+                                              lvPredicateMode mode) {
     if (n < 3 || xs == NULL || ys == NULL) {
         return false;
     }
@@ -1180,8 +1081,7 @@ lv_PUBLIC_API bool lv_point_in_convex_polygon(
     for (int i = 0; i < n; i++) {
         int i1 = (i + 1) % n;
         int i2 = (i + 2) % n;
-        lvOrientation orient = lv_orientation_2d(
-            xs[i], ys[i], xs[i1], ys[i1], xs[i2], ys[i2], mode);
+        lvOrientation orient = lv_orientation_2d(xs[i], ys[i], xs[i1], ys[i1], xs[i2], ys[i2], mode);
         if (orient == lv_ORIENTATION_LEFT) {
             ccw = 1;
             break;
@@ -1211,8 +1111,7 @@ lv_PUBLIC_API bool lv_point_in_convex_polygon(
          * 逆时针多边形：点应在左侧
          * 顺时针多边形：点应在右侧
          */
-        lvOrientation orient = lv_orientation_2d(
-            xs[0], ys[0], xs[mid], ys[mid], px, py, mode);
+        lvOrientation orient = lv_orientation_2d(xs[0], ys[0], xs[mid], ys[mid], px, py, mode);
 
         if (ccw == 1) {
             /* 逆时针：点在左侧则缩小上界 */
@@ -1232,8 +1131,7 @@ lv_PUBLIC_API bool lv_point_in_convex_polygon(
     }
 
     /* 检查点是否在三角形 (v0, v[lo], v[hi]) 内 */
-    return lv_point_in_triangle(
-        px, py, xs[0], ys[0], xs[lo], ys[lo], xs[hi], ys[hi], mode);
+    return lv_point_in_triangle(px, py, xs[0], ys[0], xs[lo], ys[lo], xs[hi], ys[hi], mode);
 }
 
 /**
@@ -1250,11 +1148,8 @@ lv_PUBLIC_API bool lv_point_in_convex_polygon(
  * @param mode   精度模式（仅用于顶点重合判断的容差）
  * @return true 点在多边形内部或边界上
  */
-lv_PUBLIC_API bool lv_point_in_polygon(
-    double px, double py,
-    const double *xs, const double *ys, int n,
-    lvPredicateMode mode)
-{
+lv_PUBLIC_API bool lv_point_in_polygon(double px, double py, const double *xs, const double *ys, int n,
+                                       lvPredicateMode mode) {
     if (n < 3 || xs == NULL || ys == NULL) {
         return false;
     }
@@ -1318,8 +1213,7 @@ lv_PUBLIC_API bool lv_point_in_polygon(
  *
  * @param stats [out] 输出统计信息的缓冲区（不可为 NULL）
  */
-lv_PUBLIC_API void lv_predicate_get_stats(lvPredicateStats *stats)
-{
+lv_PUBLIC_API void lv_predicate_get_stats(lvPredicateStats *stats) {
     if (stats != NULL) {
         memcpy(stats, &g_predicate_stats, sizeof(lvPredicateStats));
     }
@@ -1330,8 +1224,7 @@ lv_PUBLIC_API void lv_predicate_get_stats(lvPredicateStats *stats)
  *
  * 将统计计数器清零，通常在开始新的测试或算例前调用。
  */
-lv_PUBLIC_API void lv_predicate_reset_stats(void)
-{
+lv_PUBLIC_API void lv_predicate_reset_stats(void) {
     memset(&g_predicate_stats, 0, sizeof(lvPredicateStats));
 }
 
@@ -1340,8 +1233,7 @@ lv_PUBLIC_API void lv_predicate_reset_stats(void)
  *
  * @param mode 新的精度模式（APPROX / EXACT / ADAPTIVE / SYMBOLIC）
  */
-lv_PUBLIC_API void lv_predicate_set_mode(lvPredicateMode mode)
-{
+lv_PUBLIC_API void lv_predicate_set_mode(lvPredicateMode mode) {
     g_predicate_mode = mode;
 }
 
@@ -1350,7 +1242,6 @@ lv_PUBLIC_API void lv_predicate_set_mode(lvPredicateMode mode)
  *
  * @return 当前精度模式（APPROX / EXACT / ADAPTIVE / SYMBOLIC）
  */
-lv_PUBLIC_API lvPredicateMode lv_predicate_get_mode(void)
-{
+lv_PUBLIC_API lvPredicateMode lv_predicate_get_mode(void) {
     return g_predicate_mode;
 }

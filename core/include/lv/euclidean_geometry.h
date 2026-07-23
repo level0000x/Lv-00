@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 #include "symbolic_coord.h"
 #ifdef __cplusplus

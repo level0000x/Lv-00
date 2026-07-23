@@ -65,8 +65,7 @@ typedef void (*lvCurveEvalFunc)(double t, void *user_data, lvPoint2D *out);
  * @param out_dx  输出 dx/dt
  * @param out_dy  输出 dy/dt
  */
-typedef void (*lvCurveDerivFunc)(double t, void *user_data,
-                                    double *out_dx, double *out_dy);
+typedef void (*lvCurveDerivFunc)(double t, void *user_data, double *out_dx, double *out_dy);
 
 /**
  * @brief 参数曲面的求值函数类型
@@ -75,8 +74,7 @@ typedef void (*lvCurveDerivFunc)(double t, void *user_data,
  * @param user_data 用户自定义数据指针
  * @param out     输出点坐标
  */
-typedef void (*lvSurfaceEvalFunc)(double u, double v, void *user_data,
-                                     lvPoint3D *out);
+typedef void (*lvSurfaceEvalFunc)(double u, double v, void *user_data, lvPoint3D *out);
 
 /**
  * @brief 参数曲面的偏导数函数类型
@@ -86,25 +84,24 @@ typedef void (*lvSurfaceEvalFunc)(double u, double v, void *user_data,
  * @param out_du    输出偏导 dP/du (三维向量)
  * @param out_dv    输出偏导 dP/dv (三维向量)
  */
-typedef void (*lvSurfaceDerivFunc)(double u, double v, void *user_data,
-                                      lvPoint3D *out_du, lvPoint3D *out_dv);
+typedef void (*lvSurfaceDerivFunc)(double u, double v, void *user_data, lvPoint3D *out_du, lvPoint3D *out_dv);
 
 /**
  * @brief 参数域（一维区间）
  */
 typedef struct {
-    double t_min;  /**< 参数下界 */
-    double t_max;  /**< 参数上界 */
+    double t_min; /**< 参数下界 */
+    double t_max; /**< 参数上界 */
 } lvParametricDomain1D;
 
 /**
  * @brief 参数域（二维矩形区域）
  */
 typedef struct {
-    double u_min;  /**< u 参数下界 */
-    double u_max;  /**< u 参数上界 */
-    double v_min;  /**< v 参数下界 */
-    double v_max;  /**< v 参数上界 */
+    double u_min; /**< u 参数下界 */
+    double u_max; /**< u 参数上界 */
+    double v_min; /**< v 参数下界 */
+    double v_max; /**< v 参数上界 */
 } lvParametricDomain2D;
 
 /**
@@ -114,11 +111,11 @@ typedef struct {
  * 用户通过函数指针提供求值和导数计算逻辑。
  */
 typedef struct lvParametricCurve {
-    lvParametricDomain1D domain;      /**< 参数域 */
-    lvCurveEvalFunc      eval_func;   /**< 求值函数 C(t) */
-    lvCurveDerivFunc     deriv_func;  /**< 导数函数 C'(t) */
-    void                  *user_data;   /**< 用户自定义数据 */
-    bool                   is_closed;   /**< 是否闭合曲线 */
+    lvParametricDomain1D domain; /**< 参数域 */
+    lvCurveEvalFunc eval_func;   /**< 求值函数 C(t) */
+    lvCurveDerivFunc deriv_func; /**< 导数函数 C'(t) */
+    void *user_data;             /**< 用户自定义数据 */
+    bool is_closed;              /**< 是否闭合曲线 */
 } lvParametricCurve;
 
 /**
@@ -127,10 +124,10 @@ typedef struct lvParametricCurve {
  * 表示一张参数曲面 S(u,v) = (x,y,z)，(u,v) 属于矩形参数域。
  */
 typedef struct lvParametricSurface {
-    lvParametricDomain2D domain;      /**< 参数域 */
-    lvSurfaceEvalFunc    eval_func;   /**< 求值函数 S(u,v) */
-    lvSurfaceDerivFunc   deriv_func;  /**< 偏导数函数 */
-    void                  *user_data;   /**< 用户自定义数据 */
+    lvParametricDomain2D domain;   /**< 参数域 */
+    lvSurfaceEvalFunc eval_func;   /**< 求值函数 S(u,v) */
+    lvSurfaceDerivFunc deriv_func; /**< 偏导数函数 */
+    void *user_data;               /**< 用户自定义数据 */
 } lvParametricSurface;
 
 /* ============================================================
@@ -148,17 +145,13 @@ typedef struct lvParametricSurface {
  * @param is_closed 是否闭合曲线
  * @return 新曲线指针，失败返回 NULL
  */
-lvParametricCurve *lv_curve_create(double t_min, double t_max,
-                                        lvCurveEvalFunc eval_func,
-                                        lvCurveDerivFunc deriv_func,
-                                        void *user_data,
-                                        bool is_closed) {
+lvParametricCurve *lv_curve_create(double t_min, double t_max, lvCurveEvalFunc eval_func, lvCurveDerivFunc deriv_func,
+                                   void *user_data, bool is_closed) {
     if (!eval_func || t_min >= t_max) {
         return NULL;
     }
 
-    lvParametricCurve *curve = (lvParametricCurve *)lv_malloc(
-        sizeof(lvParametricCurve));
+    lvParametricCurve *curve = (lvParametricCurve *) lv_malloc(sizeof(lvParametricCurve));
     if (!curve) {
         return NULL;
     }
@@ -179,8 +172,9 @@ lvParametricCurve *lv_curve_create(double t_min, double t_max,
  * @param curve 曲线指针（可为 NULL，此时为空操作）
  */
 void lv_curve_destroy(lvParametricCurve *curve) {
-    if (!curve) return;
-    lv_free((void **)&curve);
+    if (!curve)
+        return;
+    lv_free((void **) &curve);
 }
 
 /**
@@ -192,19 +186,19 @@ void lv_curve_destroy(lvParametricCurve *curve) {
  * @return true  成功
  * @return false 失败（参数无效）
  */
-bool lv_curve_evaluate(const lvParametricCurve *curve, double t,
-                          lvPoint2D *out) {
+bool lv_curve_evaluate(const lvParametricCurve *curve, double t, lvPoint2D *out) {
     if (!curve || !curve->eval_func || !out) {
         return false;
     }
     /* 域边界检查：禁止在定义域外静默外推 */
-    if (t < curve->domain.t_min - 1e-12 ||
-        t > curve->domain.t_max + 1e-12) {
+    if (t < curve->domain.t_min - 1e-12 || t > curve->domain.t_max + 1e-12) {
         return false;
     }
     /* 将 t 钳制到边界（允许微小浮点误差越过边界） */
-    if (t < curve->domain.t_min) t = curve->domain.t_min;
-    if (t > curve->domain.t_max) t = curve->domain.t_max;
+    if (t < curve->domain.t_min)
+        t = curve->domain.t_min;
+    if (t > curve->domain.t_max)
+        t = curve->domain.t_max;
     curve->eval_func(t, curve->user_data, out);
     return true;
 }
@@ -219,18 +213,18 @@ bool lv_curve_evaluate(const lvParametricCurve *curve, double t,
  * @return true  成功
  * @return false 失败（无导数函数）
  */
-bool lv_curve_tangent(const lvParametricCurve *curve, double t,
-                         double *out_dx, double *out_dy) {
+bool lv_curve_tangent(const lvParametricCurve *curve, double t, double *out_dx, double *out_dy) {
     if (!curve || !curve->deriv_func || !out_dx || !out_dy) {
         return false;
     }
     /* 域边界检查：禁止在定义域外静默外推 */
-    if (t < curve->domain.t_min - 1e-12 ||
-        t > curve->domain.t_max + 1e-12) {
+    if (t < curve->domain.t_min - 1e-12 || t > curve->domain.t_max + 1e-12) {
         return false;
     }
-    if (t < curve->domain.t_min) t = curve->domain.t_min;
-    if (t > curve->domain.t_max) t = curve->domain.t_max;
+    if (t < curve->domain.t_min)
+        t = curve->domain.t_min;
+    if (t > curve->domain.t_max)
+        t = curve->domain.t_max;
     curve->deriv_func(t, curve->user_data, out_dx, out_dy);
     return true;
 }
@@ -259,7 +253,7 @@ double lv_curve_arc_length(const lvParametricCurve *curve, int n_steps) {
 
     double a = curve->domain.t_min;
     double b = curve->domain.t_max;
-    double h = (b - a) / (double)n_steps;
+    double h = (b - a) / (double) n_steps;
 
     /* 计算端点的 |C'(t)| */
     double dx, dy;
@@ -288,9 +282,9 @@ double lv_curve_arc_length(const lvParametricCurve *curve, int n_steps) {
  * @param out_t_max 输出参数上界
  * @return true 成功，false 参数无效
  */
-bool lv_curve_get_domain(const lvParametricCurve *curve,
-                            double *out_t_min, double *out_t_max) {
-    if (!curve || !out_t_min || !out_t_max) return false;
+bool lv_curve_get_domain(const lvParametricCurve *curve, double *out_t_min, double *out_t_max) {
+    if (!curve || !out_t_min || !out_t_max)
+        return false;
     *out_t_min = curve->domain.t_min;
     *out_t_max = curve->domain.t_max;
     return true;
@@ -322,17 +316,13 @@ bool lv_curve_is_closed(const lvParametricCurve *curve) {
  * @param user_data 用户数据指针
  * @return 新曲面指针，失败返回 NULL
  */
-lvParametricSurface *lv_surface_create(double u_min, double u_max,
-                                            double v_min, double v_max,
-                                            lvSurfaceEvalFunc eval_func,
-                                            lvSurfaceDerivFunc deriv_func,
-                                            void *user_data) {
+lvParametricSurface *lv_surface_create(double u_min, double u_max, double v_min, double v_max,
+                                       lvSurfaceEvalFunc eval_func, lvSurfaceDerivFunc deriv_func, void *user_data) {
     if (!eval_func || u_min >= u_max || v_min >= v_max) {
         return NULL;
     }
 
-    lvParametricSurface *surf = (lvParametricSurface *)lv_malloc(
-        sizeof(lvParametricSurface));
+    lvParametricSurface *surf = (lvParametricSurface *) lv_malloc(sizeof(lvParametricSurface));
     if (!surf) {
         return NULL;
     }
@@ -354,8 +344,9 @@ lvParametricSurface *lv_surface_create(double u_min, double u_max,
  * @param surf 曲面指针（可为 NULL，此时为空操作）
  */
 void lv_surface_destroy(lvParametricSurface *surf) {
-    if (!surf) return;
-    lv_free((void **)&surf);
+    if (!surf)
+        return;
+    lv_free((void **) &surf);
 }
 
 /**
@@ -366,8 +357,7 @@ void lv_surface_destroy(lvParametricSurface *surf) {
  * @param out   输出：曲面上对应点
  * @return true 成功，false 参数无效
  */
-bool lv_surface_evaluate(const lvParametricSurface *surf,
-                            double u, double v, lvPoint3D *out) {
+bool lv_surface_evaluate(const lvParametricSurface *surf, double u, double v, lvPoint3D *out) {
     if (!surf || !surf->eval_func || !out) {
         return false;
     }
@@ -389,9 +379,8 @@ bool lv_surface_evaluate(const lvParametricSurface *surf,
  * @return true   成功
  * @return false  失败（无偏导数函数）
  */
-bool lv_surface_normal(const lvParametricSurface *surf,
-                          double u, double v,
-                          double *out_nx, double *out_ny, double *out_nz) {
+bool lv_surface_normal(const lvParametricSurface *surf, double u, double v, double *out_nx, double *out_ny,
+                       double *out_nz) {
     if (!surf || !surf->deriv_func || !out_nx || !out_ny || !out_nz) {
         return false;
     }
@@ -418,23 +407,26 @@ bool lv_surface_normal(const lvParametricSurface *surf,
  * @param n_v      v 方向的子区间数（0 使用默认值）
  * @return 表面积值，失败返回 -1.0
  */
-double lv_surface_area(const lvParametricSurface *surf,
-                          int n_u, int n_v) {
+double lv_surface_area(const lvParametricSurface *surf, int n_u, int n_v) {
     if (!surf || !surf->deriv_func) {
         return -1.0;
     }
 
-    if (n_u <= 0) n_u = PARAMETRIC_DEFAULT_INTEGRATION_STEPS;
-    if (n_v <= 0) n_v = PARAMETRIC_DEFAULT_INTEGRATION_STEPS;
-    if (n_u > PARAMETRIC_MAX_INTEGRATION_STEPS) n_u = PARAMETRIC_MAX_INTEGRATION_STEPS;
-    if (n_v > PARAMETRIC_MAX_INTEGRATION_STEPS) n_v = PARAMETRIC_MAX_INTEGRATION_STEPS;
+    if (n_u <= 0)
+        n_u = PARAMETRIC_DEFAULT_INTEGRATION_STEPS;
+    if (n_v <= 0)
+        n_v = PARAMETRIC_DEFAULT_INTEGRATION_STEPS;
+    if (n_u > PARAMETRIC_MAX_INTEGRATION_STEPS)
+        n_u = PARAMETRIC_MAX_INTEGRATION_STEPS;
+    if (n_v > PARAMETRIC_MAX_INTEGRATION_STEPS)
+        n_v = PARAMETRIC_MAX_INTEGRATION_STEPS;
 
     double a = surf->domain.u_min;
     double b = surf->domain.u_max;
     double c = surf->domain.v_min;
     double d = surf->domain.v_max;
-    double hu = (b - a) / (double)n_u;
-    double hv = (d - c) / (double)n_v;
+    double hu = (b - a) / (double) n_u;
+    double hv = (d - c) / (double) n_v;
 
     double total = 0.0;
 
@@ -471,9 +463,9 @@ double lv_surface_area(const lvParametricSurface *surf,
  * @param out 输出参数域
  * @return true 成功，false 参数无效
  */
-bool lv_surface_get_domain(const lvParametricSurface *surf,
-                              lvParametricDomain2D *out) {
-    if (!surf || !out) return false;
+bool lv_surface_get_domain(const lvParametricSurface *surf, lvParametricDomain2D *out) {
+    if (!surf || !out)
+        return false;
     *out = surf->domain;
     return true;
 }

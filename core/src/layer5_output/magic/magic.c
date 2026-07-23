@@ -205,8 +205,7 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
 
     /* 使用相对容差，避免小数值时区间不合理 */
     double tolerance = fabs(value) * MAGIC_POLY_ROOT_TOLERANCE + MAGIC_POLY_ROOT_TOLERANCE;
-    rune->coord =
-        symbolic_coord_create_algebraic(&poly, value - tolerance, value + tolerance);
+    rune->coord = symbolic_coord_create_algebraic(&poly, value - tolerance, value + tolerance);
     if (!rune->coord) {
         /* 错误路径：必须先清理 mpz_t 内部状态，再释放数组内存 */
         for (int i = 0; i < MAGIC_POLY_COEFF_COUNT; i++) {
@@ -281,7 +280,7 @@ Rune *rune_copy(const Rune *src) {
     /* 深拷贝符号坐标 */
     rune->coord = symbolic_coord_copy(src->coord);
     if (!rune->coord) {
-        lv_free((void **)&rune);
+        lv_free((void **) &rune);
         return NULL;
     }
     /* 拷贝标量属性 */
@@ -604,7 +603,8 @@ bool rune_sequence_add(RuneSequence *seq, Rune *rune) {
 
     /* 容量不足时自动扩容（翻倍策略） */
     if (seq->rune_count >= seq->capacity) {
-        if (seq->capacity > INT_MAX / MAGIC_RUNE_SEQUENCE_GROWTH) return false;
+        if (seq->capacity > INT_MAX / MAGIC_RUNE_SEQUENCE_GROWTH)
+            return false;
         int new_capacity = seq->capacity * MAGIC_RUNE_SEQUENCE_GROWTH;
         Rune **new_runes = (Rune **) lv_realloc(seq->runes, new_capacity * sizeof(Rune *));
         if (!new_runes)
@@ -671,13 +671,23 @@ void rune_sequence_destroy(RuneSequence *seq) {
 /** 元素反应矩阵：定义两种元素之间的相互作用关系 */
 static ElementReaction element_reaction_matrix[MAGIC_ELEMENT_TOTAL_COUNT][MAGIC_ELEMENT_TOTAL_COUNT] = {
     /*        NONE  FIRE  WATER AIR  EARTH ETHER */
-    /*NONE*/ {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE},
-    /*FIRE*/ {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_NONE},
-    /*WATER*/ {ELEMENT_REACTION_NONE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_NONE, ELEMENT_REACTION_WEAKEN, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_NONE},
-    /*AIR*/ {ELEMENT_REACTION_NONE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_WEAKEN, ELEMENT_REACTION_NONE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_NONE},
-    /*EARTH*/ {ELEMENT_REACTION_NONE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE},
-    /*ETHER*/ {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE}
-};
+    /*NONE*/ {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE,
+              ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE},
+    /*FIRE*/
+    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_ENHANCE,
+     ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_NONE},
+    /*WATER*/
+    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_NONE, ELEMENT_REACTION_WEAKEN,
+     ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_NONE},
+    /*AIR*/
+    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_WEAKEN, ELEMENT_REACTION_NONE,
+     ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_NONE},
+    /*EARTH*/
+    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_CONFLICT,
+     ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE},
+    /*ETHER*/
+    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE,
+     ELEMENT_REACTION_NONE}};
 
 /**
  * @brief 查询两种魔法元素之间的反应关系
@@ -702,7 +712,7 @@ ElementReaction array_check_element_reaction(MagicElement e1, MagicElement e2) {
 
 /** 魔法阵结构体：由符文序列、约束图和约束列表组成 */
 struct MagicArray {
-    char *name;                        /* 魔法阵名称 */
+    char *name;                       /* 魔法阵名称 */
     RuneSequence *runes;              /* 符文序列 */
     ConstraintGraph *graph;           /* 底层约束图 */
     ArrayConstraintType *constraints; /* 约束类型数组 */
@@ -929,7 +939,7 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
             graph_type = CONNECTION;
     }
 
-    (void)graph_type; /* 预留给后续 graph_add_xxx 类型扩展 */
+    (void) graph_type; /* 预留给后续 graph_add_xxx 类型扩展 */
 
     /* 在约束图中添加 incidence 边，关联两个符文节点 */
     int participants[2] = {rune1_index, rune2_index};
@@ -1107,7 +1117,7 @@ MagicArray *magic_array_copy(const MagicArray *src) {
         }
 
         /* 将符文坐标加入副本的约束图 */
-        SymbolicCoord *coords[] = { rune->coord };
+        SymbolicCoord *coords[] = {rune->coord};
         graph_add_point(copy->graph, coords, 1);
     }
 
@@ -1182,26 +1192,29 @@ char *magic_array_serialize(const MagicArray *array) {
     int offset = 0;
     offset += snprintf(json + offset, buf_size - offset, "{\"rune_count\":%d,\"constraint_count\":%d,\"runes\":[",
                        rune_count, constraint_count);
-    if (offset < 0) goto done;
+    if (offset < 0)
+        goto done;
 
     /* 逐个序列化符文为 JSON 对象 */
-    for (int i = 0; i < rune_count && offset < (int)buf_size; i++) {
+    for (int i = 0; i < rune_count && offset < (int) buf_size; i++) {
         Rune *rune = array->runes->runes[i];
         const char *elem_str = element_to_string(rune->element);
         /* 元素间用逗号分隔 */
-        if (i > 0 && offset < (int)buf_size) {
+        if (i > 0 && offset < (int) buf_size) {
             offset += snprintf(json + offset, buf_size - offset, ",");
-            if (offset < 0) break;
+            if (offset < 0)
+                break;
         }
-        if (offset < (int)buf_size) {
+        if (offset < (int) buf_size) {
             offset += snprintf(json + offset, buf_size - offset, "{\"element\":\"%s\",\"power\":%d}", elem_str,
                                rune->power_level);
-            if (offset < 0) break;
+            if (offset < 0)
+                break;
         }
     }
 
     /* 闭合 JSON 数组和对象 */
-    if (offset >= 0 && offset < (int)buf_size)
+    if (offset >= 0 && offset < (int) buf_size)
         offset += snprintf(json + offset, buf_size - offset, "]}");
 
 done:
@@ -1242,7 +1255,8 @@ done:
  * @return 找到返回键名起始位置的指针，未找到返回 NULL
  */
 static const char *json_find_key_safe(const char *start, const char *key) {
-    if (!start || !key) return NULL;
+    if (!start || !key)
+        return NULL;
 
     /* 构造搜索模式: "key" */
     char pattern[128];
@@ -1272,7 +1286,8 @@ static const char *json_find_key_safe(const char *start, const char *key) {
                     p++;
                 }
             }
-            if (*p == '"') p++;
+            if (*p == '"')
+                p++;
         } else {
             p++;
         }
@@ -1293,7 +1308,8 @@ static const char *json_find_key_safe(const char *start, const char *key) {
  * @return 写入的字符数（不含终止符），-1 表示错误
  */
 static int json_decode_string(const char *src, char *dst, size_t dst_cap) {
-    if (!src || !dst || dst_cap == 0) return -1;
+    if (!src || !dst || dst_cap == 0)
+        return -1;
 
     size_t written = 0;
     const char *p = src;
@@ -1302,23 +1318,43 @@ static int json_decode_string(const char *src, char *dst, size_t dst_cap) {
         if (*p == '\\') {
             p++;
             switch (*p) {
-                case '"':  dst[written++] = '"';  break;
-                case '\\': dst[written++] = '\\'; break;
-                case '/':  dst[written++] = '/';  break;
-                case 'b':  dst[written++] = '\b'; break;
-                case 'f':  dst[written++] = '\f'; break;
-                case 'n':  dst[written++] = '\n'; break;
-                case 'r':  dst[written++] = '\r'; break;
-                case 't':  dst[written++] = '\t'; break;
+                case '"':
+                    dst[written++] = '"';
+                    break;
+                case '\\':
+                    dst[written++] = '\\';
+                    break;
+                case '/':
+                    dst[written++] = '/';
+                    break;
+                case 'b':
+                    dst[written++] = '\b';
+                    break;
+                case 'f':
+                    dst[written++] = '\f';
+                    break;
+                case 'n':
+                    dst[written++] = '\n';
+                    break;
+                case 'r':
+                    dst[written++] = '\r';
+                    break;
+                case 't':
+                    dst[written++] = '\t';
+                    break;
                 case 'u':
                     /* \uXXXX unicode 转义：当前不解码，保留为原始文本 */
                     if (written + 6 < dst_cap - 1) {
                         dst[written++] = '\\';
                         dst[written++] = 'u';
-                        if (p[1]) dst[written++] = p[1];
-                        if (p[2]) dst[written++] = p[2];
-                        if (p[3]) dst[written++] = p[3];
-                        if (p[4]) dst[written++] = p[4];
+                        if (p[1])
+                            dst[written++] = p[1];
+                        if (p[2])
+                            dst[written++] = p[2];
+                        if (p[3])
+                            dst[written++] = p[3];
+                        if (p[4])
+                            dst[written++] = p[4];
                         p += 4;
                     }
                     break;
@@ -1350,7 +1386,8 @@ static int json_decode_string(const char *src, char *dst, size_t dst_cap) {
  * @return 跳过字符串后的下一个字符位置
  */
 static const char *json_skip_string(const char *p) {
-    if (!p || *p != '"') return p;
+    if (!p || *p != '"')
+        return p;
     p++; /* 跳过起始引号 */
     while (*p && *p != '"') {
         if (*p == '\\' && *(p + 1)) {
@@ -1359,7 +1396,8 @@ static const char *json_skip_string(const char *p) {
             p++;
         }
     }
-    if (*p == '"') p++; /* 跳过结束引号 */
+    if (*p == '"')
+        p++; /* 跳过结束引号 */
     return p;
 }
 
@@ -1370,10 +1408,12 @@ static const char *json_skip_string(const char *p) {
  * @return 跳过值后的下一个字符位置
  */
 static __attribute__((unused)) const char *json_skip_value(const char *p) {
-    if (!p) return NULL;
+    if (!p)
+        return NULL;
 
     /* 跳过空白 */
-    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+        p++;
 
     if (*p == '"') {
         return json_skip_string(p);
@@ -1383,23 +1423,28 @@ static __attribute__((unused)) const char *json_skip_value(const char *p) {
         while (*p && *p != '}') {
             if (*p == '"') {
                 p = json_skip_string(p); /* 跳过键 */
-                while (*p == ' ' || *p == '\t' || *p == ':' || *p == '\n' || *p == '\r') p++;
+                while (*p == ' ' || *p == '\t' || *p == ':' || *p == '\n' || *p == '\r')
+                    p++;
                 p = json_skip_value(p); /* 跳过值 */
             } else {
                 p++;
             }
-            while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n' || *p == '\r') p++;
+            while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n' || *p == '\r')
+                p++;
         }
-        if (*p == '}') p++;
+        if (*p == '}')
+            p++;
         return p;
     } else if (*p == '[') {
         /* 跳过数组 */
         p++; /* 跳过 '[' */
         while (*p && *p != ']') {
             p = json_skip_value(p);
-            while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n' || *p == '\r') p++;
+            while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n' || *p == '\r')
+                p++;
         }
-        if (*p == ']') p++;
+        if (*p == ']')
+            p++;
         return p;
     } else if (*p == 't') {
         return p + 4; /* true */
@@ -1409,8 +1454,7 @@ static __attribute__((unused)) const char *json_skip_value(const char *p) {
         return p + 4; /* null */
     } else {
         /* 数字 */
-        while (*p && (*p == '-' || *p == '+' || *p == '.' || *p == 'e' || *p == 'E' ||
-               (*p >= '0' && *p <= '9'))) {
+        while (*p && (*p == '-' || *p == '+' || *p == '.' || *p == 'e' || *p == 'E' || (*p >= '0' && *p <= '9'))) {
             p++;
         }
         return p;
@@ -1482,11 +1526,16 @@ MagicArray *magic_array_deserialize(const char *json) {
         const char *element_key = json_find_key_safe(ptr, "element");
 
         /* 确保找到的键在当前对象范围内 */
-        if (type_key && type_key > obj_end) type_key = NULL;
-        if (num_key && num_key > obj_end) num_key = NULL;
-        if (denom_key && denom_key > obj_end) denom_key = NULL;
-        if (value_key && value_key > obj_end) value_key = NULL;
-        if (element_key && element_key > obj_end) element_key = NULL;
+        if (type_key && type_key > obj_end)
+            type_key = NULL;
+        if (num_key && num_key > obj_end)
+            num_key = NULL;
+        if (denom_key && denom_key > obj_end)
+            denom_key = NULL;
+        if (value_key && value_key > obj_end)
+            value_key = NULL;
+        if (element_key && element_key > obj_end)
+            element_key = NULL;
 
         Rune *rune = NULL;
         MagicElement element = ELEMENT_NONE;
@@ -2439,9 +2488,9 @@ RestrictionLevel spell_check_restriction(const Spell *spell, const ForbiddenSpel
 
 /** 领域规则结构体 */
 typedef struct {
-    char *pattern;    /* 规则匹配模式 */
-    double priority;  /* 规则优先级（数值越小优先级越高） */
-    int action;       /* 规则动作类型 */
+    char *pattern;   /* 规则匹配模式 */
+    double priority; /* 规则优先级（数值越小优先级越高） */
+    int action;      /* 规则动作类型 */
 } DomainRule;
 
 /** 领域结构体：定义一个魔法作用区域 */
@@ -2453,9 +2502,9 @@ struct Domain {
     double strength;       /* 领域强度 */
 
     /* 规则系统 */
-    DomainRule *rules;     /* 规则动态数组 */
-    int rule_count;         /* 当前规则数量 */
-    int rule_capacity;      /* 规则数组容量 */
+    DomainRule *rules; /* 规则动态数组 */
+    int rule_count;    /* 当前规则数量 */
+    int rule_capacity; /* 规则数组容量 */
 };
 
 /**
@@ -2538,18 +2587,17 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
 
     /* 检查重复规则（相同 pattern 视为已存在，跳过） */
     for (int i = 0; i < domain->rule_count; i++) {
-        if (domain->rules[i].pattern &&
-            strcmp(domain->rules[i].pattern, rule_name) == 0) {
+        if (domain->rules[i].pattern && strcmp(domain->rules[i].pattern, rule_name) == 0) {
             return true; /* 已存在，视为成功 */
         }
     }
 
     /* 规则数组容量不足时自动扩容 */
     if (domain->rule_count >= domain->rule_capacity) {
-        if (domain->rule_capacity > 0 && domain->rule_capacity > INT_MAX / 2) return false;
+        if (domain->rule_capacity > 0 && domain->rule_capacity > INT_MAX / 2)
+            return false;
         int new_cap = domain->rule_capacity == 0 ? 8 : domain->rule_capacity * 2;
-        DomainRule *new_rules = (DomainRule *) lv_realloc(
-            domain->rules, new_cap * sizeof(DomainRule));
+        DomainRule *new_rules = (DomainRule *) lv_realloc(domain->rules, new_cap * sizeof(DomainRule));
         if (!new_rules)
             return false;
         domain->rules = new_rules;

@@ -44,87 +44,87 @@ typedef struct lvInequalitySystem lvInequalitySystem;
  * @brief 不等式关系类型
  */
 typedef enum {
-    INEQ_LESS_THAN,         /**< < */
-    INEQ_LESS_EQUAL,        /**< ≤ */
-    INEQ_GREATER_THAN,      /**< > */
-    INEQ_GREATER_EQUAL,     /**< ≥ */
-    INEQ_NOT_EQUAL          /**< ≠ */
+    INEQ_LESS_THAN,     /**< < */
+    INEQ_LESS_EQUAL,    /**< ≤ */
+    INEQ_GREATER_THAN,  /**< > */
+    INEQ_GREATER_EQUAL, /**< ≥ */
+    INEQ_NOT_EQUAL      /**< ≠ */
 } lvInequalityType;
 
 /**
  * @brief 不等式证明状态
  */
 typedef enum {
-    INEQ_STATUS_UNPROVED,       /**< 未证明 */
-    INEQ_STATUS_PROVED,         /**< 已证明 */
-    INEQ_STATUS_DISPROVED,      /**< 已证伪 */
-    INEQ_STATUS_CONDITIONAL,    /**< 条件成立 */
-    INEQ_STATUS_UNKNOWN         /**< 无法判定 */
+    INEQ_STATUS_UNPROVED,    /**< 未证明 */
+    INEQ_STATUS_PROVED,      /**< 已证明 */
+    INEQ_STATUS_DISPROVED,   /**< 已证伪 */
+    INEQ_STATUS_CONDITIONAL, /**< 条件成立 */
+    INEQ_STATUS_UNKNOWN      /**< 无法判定 */
 } lvInequalityStatus;
 
 /**
  * @brief 不等式证明方法
  */
 typedef enum {
-    INEQ_METHOD_DIRECT,         /**< 直接证明 */
-    INEQ_METHOD_AM_GM,          /**< AM-GM 不等式 */
-    INEQ_METHOD_CAUCHY,         /**< Cauchy-Schwarz 不等式 */
-    INEQ_METHOD_REARRANGEMENT,  /**< 排序不等式 */
-    INEQ_METHOD_SCHUR,          /**< Schur 不等式 */
-    INEQ_METHOD_JENSEN,         /**< Jensen 不等式 */
-    INEQ_METHOD_HOLDER,         /**< Hölder 不等式 */
-    INEQ_METHOD_MINKOWSKI,      /**< Minkowski 不等式 */
-    INEQ_METHOD_TRIANGLE,       /**< 三角形不等式 */
-    INEQ_METHOD_SUBSTITUTION,   /**< 变量替换 */
-    INEQ_METHOD_INDUCTION,      /**< 数学归纳法 */
-    INEQ_METHOD_CONTRADICTION,  /**< 反证法 */
-    INEQ_METHOD_SMART_SUM,      /**< 智能求和（Muirhead） */
-    INEQ_METHOD_SOS             /**< 平方和分解 */
+    INEQ_METHOD_DIRECT,        /**< 直接证明 */
+    INEQ_METHOD_AM_GM,         /**< AM-GM 不等式 */
+    INEQ_METHOD_CAUCHY,        /**< Cauchy-Schwarz 不等式 */
+    INEQ_METHOD_REARRANGEMENT, /**< 排序不等式 */
+    INEQ_METHOD_SCHUR,         /**< Schur 不等式 */
+    INEQ_METHOD_JENSEN,        /**< Jensen 不等式 */
+    INEQ_METHOD_HOLDER,        /**< Hölder 不等式 */
+    INEQ_METHOD_MINKOWSKI,     /**< Minkowski 不等式 */
+    INEQ_METHOD_TRIANGLE,      /**< 三角形不等式 */
+    INEQ_METHOD_SUBSTITUTION,  /**< 变量替换 */
+    INEQ_METHOD_INDUCTION,     /**< 数学归纳法 */
+    INEQ_METHOD_CONTRADICTION, /**< 反证法 */
+    INEQ_METHOD_SMART_SUM,     /**< 智能求和（Muirhead） */
+    INEQ_METHOD_SOS            /**< 平方和分解 */
 } lvInequalityMethod;
 
 /**
  * @brief 不等式结构
  */
 struct lvInequality {
-    lvExpr *left;             /**< 左边表达式 */
-    lvExpr *right;            /**< 右边表达式 */
-    lvInequalityType type;    /**< 不等式类型 */
-    lvInequalityStatus status;/**< 证明状态 */
-    char *label;                /**< 标签（可选） */
+    lvExpr *left;              /**< 左边表达式 */
+    lvExpr *right;             /**< 右边表达式 */
+    lvInequalityType type;     /**< 不等式类型 */
+    lvInequalityStatus status; /**< 证明状态 */
+    char *label;               /**< 标签（可选） */
 };
 
 /**
  * @brief 不等式证明步骤
  */
 typedef struct {
-    lvInequalityMethod method;    /**< 使用的方法 */
-    lvInequality *ineq;           /**< 此步骤的不等式 */
-    char *justification;            /**< 证明理由 */
-    int *premise_ids;               /**< 前提步骤 ID */
-    int premise_count;              /**< 前提数量 */
+    lvInequalityMethod method; /**< 使用的方法 */
+    lvInequality *ineq;        /**< 此步骤的不等式 */
+    char *justification;       /**< 证明理由 */
+    int *premise_ids;          /**< 前提步骤 ID */
+    int premise_count;         /**< 前提数量 */
 } lvInequalityStep;
 
 /**
  * @brief 不等式证明
  */
 struct lvInequalityProof {
-    lvInequality *target;         /**< 目标不等式 */
-    lvInequalityStep *steps;      /**< 证明步骤数组 */
-    int step_count;                 /**< 步骤数量 */
-    int step_capacity;              /**< 步骤容量 */
-    lvInequalityStatus status;    /**< 最终状态 */
-    char *error_message;            /**< 错误消息（失败时） */
+    lvInequality *target;      /**< 目标不等式 */
+    lvInequalityStep *steps;   /**< 证明步骤数组 */
+    int step_count;            /**< 步骤数量 */
+    int step_capacity;         /**< 步骤容量 */
+    lvInequalityStatus status; /**< 最终状态 */
+    char *error_message;       /**< 错误消息（失败时） */
 };
 
 /**
  * @brief 不等式系统
  */
 struct lvInequalitySystem {
-    lvInequality **inequalities;  /**< 不等式数组 */
-    uint32_t count;                 /**< 不等式数量 */
-    uint32_t capacity;              /**< 数组容量 */
-    lvExpr **variables;           /**< 变量数组 */
-    uint32_t var_count;             /**< 变量数量 */
+    lvInequality **inequalities; /**< 不等式数组 */
+    uint32_t count;              /**< 不等式数量 */
+    uint32_t capacity;           /**< 数组容量 */
+    lvExpr **variables;          /**< 变量数组 */
+    uint32_t var_count;          /**< 变量数量 */
 };
 
 /* ============== 不等式创建/销毁 ============== */
@@ -179,10 +179,7 @@ bool lv_ineq_system_add(lvInequalitySystem *sys, lvInequality *ineq);
  * @param value 约束值（通常为 0）
  * @return 是否成功
  */
-bool lv_ineq_system_add_var_constraint(lvInequalitySystem *sys,
-                                          lvExpr *var,
-                                          lvInequalityType type,
-                                          const mpq_t value);
+bool lv_ineq_system_add_var_constraint(lvInequalitySystem *sys, lvExpr *var, lvInequalityType type, const mpq_t value);
 
 /* ============== 基本不等式证明 ============== */
 
@@ -193,9 +190,7 @@ bool lv_ineq_system_add_var_constraint(lvInequalitySystem *sys,
  * @param proof 输出证明（可为 NULL）
  * @return 证明状态
  */
-lvInequalityStatus lv_ineq_prove(lvInequality *ineq,
-                                      const lvInequalitySystem *sys,
-                                      lvInequalityProof **proof);
+lvInequalityStatus lv_ineq_prove(lvInequality *ineq, const lvInequalitySystem *sys, lvInequalityProof **proof);
 
 /**
  * @brief 销毁证明
@@ -211,10 +206,8 @@ void lv_ineq_proof_destroy(lvInequalityProof *proof);
  * @param proof 输出证明
  * @return 证明状态
  */
-lvInequalityStatus lv_ineq_prove_with_method(lvInequality *ineq,
-                                                  lvInequalityMethod method,
-                                                  const lvInequalitySystem *sys,
-                                                  lvInequalityProof **proof);
+lvInequalityStatus lv_ineq_prove_with_method(lvInequality *ineq, lvInequalityMethod method,
+                                             const lvInequalitySystem *sys, lvInequalityProof **proof);
 
 /* ============== 经典不等式 ============== */
 
@@ -230,8 +223,7 @@ lvInequalityStatus lv_ineq_prove_with_method(lvInequality *ineq,
  * @param out_upper_bound 输出上界（几何平均）
  * @return 是否成功
  */
-bool lv_ineq_am_gm(lvExpr **expressions, uint32_t count,
-                     lvExpr **out_lower_bound, lvExpr **out_upper_bound);
+bool lv_ineq_am_gm(lvExpr **expressions, uint32_t count, lvExpr **out_lower_bound, lvExpr **out_upper_bound);
 
 /**
  * @brief 应用 Cauchy-Schwarz 不等式
@@ -244,8 +236,7 @@ bool lv_ineq_am_gm(lvExpr **expressions, uint32_t count,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_cauchy_schwarz(lvExpr **a, lvExpr **b, uint32_t count,
-                               lvInequality **out_ineq);
+bool lv_ineq_cauchy_schwarz(lvExpr **a, lvExpr **b, uint32_t count, lvInequality **out_ineq);
 
 /**
  * @brief 应用排序不等式
@@ -260,8 +251,7 @@ bool lv_ineq_cauchy_schwarz(lvExpr **a, lvExpr **b, uint32_t count,
  * @param out_max 输出最大和
  * @return 是否成功
  */
-bool lv_ineq_rearrangement(lvExpr **a, lvExpr **b, uint32_t count,
-                              lvExpr **out_min, lvExpr **out_max);
+bool lv_ineq_rearrangement(lvExpr **a, lvExpr **b, uint32_t count, lvExpr **out_min, lvExpr **out_max);
 
 /**
  * @brief 应用 Schur 不等式
@@ -276,8 +266,7 @@ bool lv_ineq_rearrangement(lvExpr **a, lvExpr **b, uint32_t count,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_schur(lvExpr *a, lvExpr *b, lvExpr *c, uint32_t r,
-                     lvInequality **out_ineq);
+bool lv_ineq_schur(lvExpr *a, lvExpr *b, lvExpr *c, uint32_t r, lvInequality **out_ineq);
 
 /**
  * @brief 应用 Jensen 不等式
@@ -292,8 +281,8 @@ bool lv_ineq_schur(lvExpr *a, lvExpr *b, lvExpr *c, uint32_t r,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_jensen(const char *func, lvExpr **points, mpq_t *weights,
-                       uint32_t count, bool is_convex, lvInequality **out_ineq);
+bool lv_ineq_jensen(const char *func, lvExpr **points, mpq_t *weights, uint32_t count, bool is_convex,
+                    lvInequality **out_ineq);
 
 /**
  * @brief 应用三角形不等式
@@ -308,8 +297,7 @@ bool lv_ineq_jensen(const char *func, lvExpr **points, mpq_t *weights,
  * @param max_count 最大输出数量
  * @return 实际输出数量
  */
-uint32_t lv_ineq_triangle(lvExpr *a, lvExpr *b, lvExpr *c,
-                             lvInequality **out_inequalities, uint32_t max_count);
+uint32_t lv_ineq_triangle(lvExpr *a, lvExpr *b, lvExpr *c, lvInequality **out_inequalities, uint32_t max_count);
 
 /* ============== 不等式变换 ============== */
 
@@ -344,8 +332,7 @@ lvInequality *lv_ineq_negate(lvInequality *ineq);
  * @param out_result 输出结果不等式
  * @return 是否可以传递
  */
-bool lv_ineq_transitive(lvInequality **ineqs, uint32_t count,
-                          lvInequality **out_result);
+bool lv_ineq_transitive(lvInequality **ineqs, uint32_t count, lvInequality **out_result);
 
 /**
  * @brief 合并同向不等式
@@ -354,8 +341,7 @@ bool lv_ineq_transitive(lvInequality **ineqs, uint32_t count,
  * @param out_result 输出结果不等式
  * @return 是否可以合并
  */
-bool lv_ineq_merge(lvInequality **ineqs, uint32_t count,
-                     lvInequality **out_result);
+bool lv_ineq_merge(lvInequality **ineqs, uint32_t count, lvInequality **out_result);
 
 /* ============== 表达式符号判定 ============== */
 
@@ -363,12 +349,12 @@ bool lv_ineq_merge(lvInequality **ineqs, uint32_t count,
  * @brief 表达式符号判定结果
  */
 typedef enum {
-    SIGN_POSITIVE,      /**< 正数 */
-    SIGN_NEGATIVE,      /**< 负数 */
-    SIGN_ZERO,          /**< 零 */
-    SIGN_NONNEGATIVE,   /**< 非负 */
-    SIGN_NONPOSITIVE,   /**< 非正 */
-    SIGN_UNKNOWN        /**< 未知 */
+    SIGN_POSITIVE,    /**< 正数 */
+    SIGN_NEGATIVE,    /**< 负数 */
+    SIGN_ZERO,        /**< 零 */
+    SIGN_NONNEGATIVE, /**< 非负 */
+    SIGN_NONPOSITIVE, /**< 非正 */
+    SIGN_UNKNOWN      /**< 未知 */
 } lvSign;
 
 /**
@@ -402,9 +388,9 @@ bool lv_expr_is_nonnegative(lvExpr *expr, const lvInequalitySystem *sys);
  */
 typedef struct {
     lvExpr **squares;     /**< 平方项数组 */
-    uint32_t count;         /**< 平方项数量 */
+    uint32_t count;       /**< 平方项数量 */
     lvExpr *remainder;    /**< 余项（可为 NULL） */
-    char *failure_reason;   /**< 分解失败原因（成功时为 NULL） */
+    char *failure_reason; /**< 分解失败原因（成功时为 NULL） */
 } lvSOSDecomposition;
 
 /**
@@ -440,8 +426,7 @@ void lv_sos_destroy(lvSOSDecomposition *sos);
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_triangle_area(lvExpr *a, lvExpr *b, lvExpr *c,
-                              lvExpr *area, lvInequality **out_ineq);
+bool lv_ineq_triangle_area(lvExpr *a, lvExpr *b, lvExpr *c, lvExpr *area, lvInequality **out_ineq);
 
 /**
  * @brief Weitzenböck 不等式
@@ -456,8 +441,7 @@ bool lv_ineq_triangle_area(lvExpr *a, lvExpr *b, lvExpr *c,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_weitzenbock(lvExpr *a, lvExpr *b, lvExpr *c,
-                            lvExpr *area, lvInequality **out_ineq);
+bool lv_ineq_weitzenbock(lvExpr *a, lvExpr *b, lvExpr *c, lvExpr *area, lvInequality **out_ineq);
 
 /**
  * @brief Erdős–Mordell 不等式
@@ -474,9 +458,8 @@ bool lv_ineq_weitzenbock(lvExpr *a, lvExpr *b, lvExpr *c,
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_erdos_mordell(lvExpr *pa, lvExpr *pb, lvExpr *pc,
-                              lvExpr *p, lvExpr *q, lvExpr *r,
-                              lvInequality **out_ineq);
+bool lv_ineq_erdos_mordell(lvExpr *pa, lvExpr *pb, lvExpr *pc, lvExpr *p, lvExpr *q, lvExpr *r,
+                           lvInequality **out_ineq);
 
 /* ============== 不等式序列化 ============== */
 

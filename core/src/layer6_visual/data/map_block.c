@@ -22,7 +22,8 @@
  */
 lvMapBlock *lv_map_block_create(lvMapOp op) {
     lvMapBlock *block = lv_calloc(1, sizeof(lvMapBlock));
-    if (!block) return NULL;
+    if (!block)
+        return NULL;
     block->operation = op;
     return block;
 }
@@ -35,5 +36,5 @@ lvMapBlock *lv_map_block_create(lvMapOp op) {
  * @param block 映射块指针
  */
 void lv_map_block_destroy(lvMapBlock *block) {
-    lv_free((void **)&block);
+    lv_free((void **) &block);
 }

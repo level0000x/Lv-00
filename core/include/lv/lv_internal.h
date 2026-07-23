@@ -101,11 +101,11 @@ extern "C" {
  * ================================================================ */
 
 #ifndef lv_LOG_LEVEL_OFF
-#define lv_LOG_LEVEL_OFF     0
-#define lv_LOG_LEVEL_ERROR   1
+#define lv_LOG_LEVEL_OFF 0
+#define lv_LOG_LEVEL_ERROR 1
 #define lv_LOG_LEVEL_WARNING 2
-#define lv_LOG_LEVEL_INFO    3
-#define lv_LOG_LEVEL_DEBUG   4
+#define lv_LOG_LEVEL_INFO 3
+#define lv_LOG_LEVEL_DEBUG 4
 #endif
 
 /**
@@ -117,26 +117,21 @@ extern "C" {
  * @param fmt     格式化字符串
  * @param ...     可变参数
  */
-extern void lv_log_message(int level, const char *file, int line,
-                             const char *fmt, ...);
+extern void lv_log_message(int level, const char *file, int line, const char *fmt, ...);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #ifndef lv_LOG_WARNING
-#define lv_LOG_WARNING(fmt, ...) \
-    lv_log_message(lv_LOG_LEVEL_WARNING, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#define lv_LOG_WARNING(fmt, ...) lv_log_message(lv_LOG_LEVEL_WARNING, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
 #endif
 #ifndef lv_LOG_ERROR
-#define lv_LOG_ERROR(fmt, ...) \
-    lv_log_message(lv_LOG_LEVEL_ERROR, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#define lv_LOG_ERROR(fmt, ...) lv_log_message(lv_LOG_LEVEL_ERROR, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
 #endif
 #ifndef lv_LOG_INFO
-#define lv_LOG_INFO(fmt, ...) \
-    lv_log_message(lv_LOG_LEVEL_INFO, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#define lv_LOG_INFO(fmt, ...) lv_log_message(lv_LOG_LEVEL_INFO, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
 #endif
 #ifndef lv_LOG_DEBUG
-#define lv_LOG_DEBUG(fmt, ...) \
-    lv_log_message(lv_LOG_LEVEL_DEBUG, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#define lv_LOG_DEBUG(fmt, ...) lv_log_message(lv_LOG_LEVEL_DEBUG, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
 #endif
 #pragma GCC diagnostic pop
 
@@ -156,10 +151,10 @@ extern void lv_log_message(int level, const char *file, int line,
  * @param fmt     格式化字符串
  * @param ...     可变参数
  */
-#define lv_SAFE_SNPRINTF(retvar, buf, size, fmt, ...) \
-    do { \
-        int _sn_rc = snprintf((buf), (size), (fmt), ##__VA_ARGS__); \
-        (retvar) = ((_sn_rc) < 0) ? 0 : (((size_t)(_sn_rc) >= (size)) ? (int)((size) - 1) : (_sn_rc)); \
+#define lv_SAFE_SNPRINTF(retvar, buf, size, fmt, ...)                                                    \
+    do {                                                                                                 \
+        int _sn_rc = snprintf((buf), (size), (fmt), ##__VA_ARGS__);                                      \
+        (retvar) = ((_sn_rc) < 0) ? 0 : (((size_t) (_sn_rc) >= (size)) ? (int) ((size) - 1) : (_sn_rc)); \
     } while (0)
 
 /* ================================================================
@@ -179,8 +174,7 @@ extern void lv_log_message(int level, const char *file, int line,
 #else
 #define lv_UNUSED_ATTR
 #endif
-#define lv_DECLARE_STREAM_CTX(module) \
-    lv_UNUSED_ATTR static lv_THREAD_LOCAL StreamContext *module##_stream_ctx = NULL
+#define lv_DECLARE_STREAM_CTX(module) lv_UNUSED_ATTR static lv_THREAD_LOCAL StreamContext *module##_stream_ctx = NULL
 
 /* ================================================================
  * 错误返回宏
@@ -197,10 +191,10 @@ extern void lv_log_message(int level, const char *file, int line,
  * @param fmt       格式化错误消息
  * @param ...       可变参数
  */
-#define lv_ERROR_RETURN(err_code, ret_val, fmt, ...) \
-    do { \
+#define lv_ERROR_RETURN(err_code, ret_val, fmt, ...)                                      \
+    do {                                                                                  \
         lv_set_error_ctx((err_code), __FILE__, __LINE__, __func__, (fmt), ##__VA_ARGS__); \
-        return (ret_val); \
+        return (ret_val);                                                                 \
     } while (0)
 
 /* ================================================================
@@ -216,10 +210,10 @@ extern void lv_log_message(int level, const char *file, int line,
  * @param b             第二个操作数
  * @param overflow_val  溢出时的返回值
  */
-#define lv_SAFE_ADD(a, b, overflow_val) \
-    (((a) >= 0 && (b) > 0 && (a) > INT_MAX - (b)) ? (overflow_val) : \
-     ((a) < 0 && (b) < 0 && (a) < INT_MIN - (b)) ? (overflow_val) : \
-     (int)((a) + (b)))
+#define lv_SAFE_ADD(a, b, overflow_val)                             \
+    (((a) >= 0 && (b) > 0 && (a) > INT_MAX - (b))  ? (overflow_val) \
+     : ((a) < 0 && (b) < 0 && (a) < INT_MIN - (b)) ? (overflow_val) \
+                                                   : (int) ((a) + (b)))
 
 #ifdef __cplusplus
 }

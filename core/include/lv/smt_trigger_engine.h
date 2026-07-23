@@ -47,22 +47,14 @@ typedef struct {
     int total_instantiations;
 } lvTriggerEngine;
 
-lvTriggerEngine *trigger_engine_create(int initial_trigger_count,
-                                         int initial_cache_size,
-                                         int max_instances);
+lvTriggerEngine *trigger_engine_create(int initial_trigger_count, int initial_cache_size, int max_instances);
 
 void trigger_engine_destroy(lvTriggerEngine *engine);
 
-int trigger_engine_add_pattern(lvTriggerEngine *engine,
-                               const int *pattern_ids,
-                               int pattern_size,
-                               double weight);
+int trigger_engine_add_pattern(lvTriggerEngine *engine, const int *pattern_ids, int pattern_size, double weight);
 
-bool trigger_engine_find_matches(lvTriggerEngine *engine,
-                                 int quantifier_id,
-                                 const void *ground_term,
-                                 uint64_t term_hash,
-                                 int *match_count);
+bool trigger_engine_find_matches(lvTriggerEngine *engine, int quantifier_id, const void *ground_term,
+                                 uint64_t term_hash, int *match_count);
 
 void trigger_engine_clear_cache(lvTriggerEngine *engine);
 

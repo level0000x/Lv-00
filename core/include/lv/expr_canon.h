@@ -20,9 +20,9 @@ extern "C" {
  * 表示一个单项式：coeff * x0^e0 * x1^e1 * ... * xn^en
  */
 typedef struct {
-    lvRational *coeff;    /**< 系数 */
-    int *exponents;         /**< 各变量的指数数组，长度为 var_count */
-    int var_count;          /**< 变量个数 */
+    lvRational *coeff; /**< 系数 */
+    int *exponents;    /**< 各变量的指数数组，长度为 var_count */
+    int var_count;     /**< 变量个数 */
 } lvExprTerm;
 
 /**
@@ -32,12 +32,12 @@ typedef struct {
  * 项按总次数降序排列，同次数按字典序排列。
  */
 typedef struct {
-    lvExprTerm *terms;    /**< 项数组 */
-    int term_count;         /**< 当前项数 */
-    int term_capacity;      /**< 项数组容量 */
-    int var_count;          /**< 变量个数 */
-    char **var_names;       /**< 变量名数组（可选，可为 NULL） */
-    bool canonicalized;     /**< 是否已规范化 */
+    lvExprTerm *terms;  /**< 项数组 */
+    int term_count;     /**< 当前项数 */
+    int term_capacity;  /**< 项数组容量 */
+    int var_count;      /**< 变量个数 */
+    char **var_names;   /**< 变量名数组（可选，可为 NULL） */
+    bool canonicalized; /**< 是否已规范化 */
 } lvExprCanonical;
 
 /* ============================================================
@@ -89,9 +89,7 @@ lvExprCanonical *lv_expr_canonical_clone(const lvExprCanonical *src);
  * @param exponents 项的指数数组
  * @return 是否成功
  */
-bool lv_expr_canonical_add_term(lvExprCanonical *expr,
-                                   const lvRational *coeff,
-                                   const int *exponents);
+bool lv_expr_canonical_add_term(lvExprCanonical *expr, const lvRational *coeff, const int *exponents);
 
 /* ============================================================
  * 规范化
@@ -121,8 +119,7 @@ bool lv_expr_is_canonical(const lvExprCanonical *expr);
  * @param b 第二个多项式
  * @return a + b，失败返回 NULL
  */
-lvExprCanonical *lv_expr_canonical_add(const lvExprCanonical *a,
-                                            const lvExprCanonical *b);
+lvExprCanonical *lv_expr_canonical_add(const lvExprCanonical *a, const lvExprCanonical *b);
 
 /**
  * @brief 多项式减法
@@ -130,8 +127,7 @@ lvExprCanonical *lv_expr_canonical_add(const lvExprCanonical *a,
  * @param b 减多项式
  * @return a - b，失败返回 NULL
  */
-lvExprCanonical *lv_expr_canonical_sub(const lvExprCanonical *a,
-                                            const lvExprCanonical *b);
+lvExprCanonical *lv_expr_canonical_sub(const lvExprCanonical *a, const lvExprCanonical *b);
 
 /**
  * @brief 多项式乘法
@@ -139,8 +135,7 @@ lvExprCanonical *lv_expr_canonical_sub(const lvExprCanonical *a,
  * @param b 第二个多项式
  * @return a * b，失败返回 NULL
  */
-lvExprCanonical *lv_expr_canonical_mul(const lvExprCanonical *a,
-                                            const lvExprCanonical *b);
+lvExprCanonical *lv_expr_canonical_mul(const lvExprCanonical *a, const lvExprCanonical *b);
 
 /**
  * @brief 多项式数乘
@@ -148,8 +143,7 @@ lvExprCanonical *lv_expr_canonical_mul(const lvExprCanonical *a,
  * @param coeff 标量系数
  * @return coeff * a，失败返回 NULL
  */
-lvExprCanonical *lv_expr_canonical_scale(const lvExprCanonical *a,
-                                              const lvRational *coeff);
+lvExprCanonical *lv_expr_canonical_scale(const lvExprCanonical *a, const lvRational *coeff);
 
 /**
  * @brief 多项式取负
@@ -168,8 +162,7 @@ lvExprCanonical *lv_expr_canonical_neg(const lvExprCanonical *a);
  * @param b 第二个多项式
  * @return 是否相等
  */
-bool lv_expr_canonical_equal(const lvExprCanonical *a,
-                                const lvExprCanonical *b);
+bool lv_expr_canonical_equal(const lvExprCanonical *a, const lvExprCanonical *b);
 
 /**
  * @brief 检查多项式是否为零
@@ -210,9 +203,7 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr);
  * @param var_count 变量个数
  * @return 解析后的多项式，失败返回 NULL
  */
-lvExprCanonical *lv_expr_canonical_from_string(const char *str,
-                                                    const char **var_names,
-                                                    int var_count);
+lvExprCanonical *lv_expr_canonical_from_string(const char *str, const char **var_names, int var_count);
 
 /* ============================================================
  * 兼容性接口

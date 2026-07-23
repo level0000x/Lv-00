@@ -37,8 +37,7 @@ bool bit_burning_check(size_t num_bits, BitBurningState *state) {
         state->tripped = true;
         state->bit_count = (uint64_t) num_bits;
         state->consecutive_trips++;
-        snprintf(state->reason, sizeof(state->reason),
-                 "中间结果位数 %zu 超过阈值 %d", num_bits, BIT_CUTOFF_THRESHOLD);
+        snprintf(state->reason, sizeof(state->reason), "中间结果位数 %zu 超过阈值 %d", num_bits, BIT_CUTOFF_THRESHOLD);
         return true;
     }
 
@@ -210,8 +209,7 @@ bool bit_burning_rollback(ConstraintGraph *graph, BitBurningState *state) {
  * @param declaration 声明文本
  * @return true 降级成功
  */
-bool bit_burning_downgrade_to_amber(ConstraintGraph *graph, int node_id,
-                                     double precision, const char *declaration) {
+bool bit_burning_downgrade_to_amber(ConstraintGraph *graph, int node_id, double precision, const char *declaration) {
     if (!graph)
         return false;
 
@@ -252,8 +250,7 @@ bool bit_burning_downgrade_to_amber(ConstraintGraph *graph, int node_id,
  * @param action 用户选择的操作
  * @return true 操作成功
  */
-bool bit_burning_execute(ConstraintGraph *graph, int node_id,
-                          BitBurningState *state, BurningAction action) {
+bool bit_burning_execute(ConstraintGraph *graph, int node_id, BitBurningState *state, BurningAction action) {
     if (!graph || !state)
         return false;
 
@@ -273,14 +270,12 @@ bool bit_burning_execute(ConstraintGraph *graph, int node_id,
         case BURN_ACTION_ROLLBACK:
             return bit_burning_rollback(graph, state);
 
-        case BURN_ACTION_DOWNGRADE:
-            {
-                char decl[256];
-                snprintf(decl, sizeof(decl),
-                         "位熔断降级: 连续触发 %d 次, 位数 %" PRIu64,
-                         state->consecutive_trips, state->bit_count);
-                return bit_burning_downgrade_to_amber(graph, node_id, 1e-12, decl);
-            }
+        case BURN_ACTION_DOWNGRADE: {
+            char decl[256];
+            snprintf(decl, sizeof(decl), "位熔断降级: 连续触发 %d 次, 位数 %" PRIu64, state->consecutive_trips,
+                     state->bit_count);
+            return bit_burning_downgrade_to_amber(graph, node_id, 1e-12, decl);
+        }
 
         default:
             return false;
@@ -325,8 +320,7 @@ bool bit_burning_is_blocked(ConstraintGraph *graph, int source_node_id, int targ
             /* 点节点如果依赖数值假设的坐标，阻断 */
             if (target->coord_count > 0) {
                 for (int i = 0; i < target->coord_count; i++) {
-                    if (target->symbolic_coords[i] &&
-                        target->symbolic_coords[i]->trust == TRUST_AMBER) {
+                    if (target->symbolic_coords[i] && target->symbolic_coords[i]->trust == TRUST_AMBER) {
                         return true;
                     }
                 }
@@ -397,8 +391,7 @@ void bit_burning_propagate_downgrade(ConstraintGraph *graph, int node_id) {
             /* 设置默认声明 */
             if (!pn->numeric_assumption_declaration) {
                 char decl[128];
-                snprintf(decl, sizeof(decl),
-                         "自动传播降级: 从节点 %d 继承", node_id);
+                snprintf(decl, sizeof(decl), "自动传播降级: 从节点 %d 继承", node_id);
                 pn->numeric_assumption_declaration = lv_strdup(decl);
             }
 
@@ -415,14 +408,12 @@ void bit_burning_propagate_downgrade(ConstraintGraph *graph, int node_id) {
 
         if (n->coord_count > 0 && n->symbolic_coords) {
             for (int j = 0; j < n->coord_count; j++) {
-                if (n->symbolic_coords[j] &&
-                    n->symbolic_coords[j]->trust == TRUST_AMBER) {
+                if (n->symbolic_coords[j] && n->symbolic_coords[j]->trust == TRUST_AMBER) {
                     n->trust = TRUST_AMBER;
 
                     if (!n->numeric_assumption_declaration) {
                         char decl[128];
-                        snprintf(decl, sizeof(decl),
-                                 "坐标继承降级: 从节点 %d", node_id);
+                        snprintf(decl, sizeof(decl), "坐标继承降级: 从节点 %d", node_id);
                         n->numeric_assumption_declaration = lv_strdup(decl);
                     }
                     break;

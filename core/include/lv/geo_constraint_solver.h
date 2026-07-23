@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
@@ -53,22 +53,13 @@ typedef enum {
  * 求解结果枚举
  * ======================================================================== */
 
-typedef enum {
-    lv_SOLVE_OK = 0,
-    lv_SOLVE_FAILED,
-    lv_SOLVE_NOT_CONVERGED,
-    lv_SOLVE_INCONSISTENT
-} lvSolveResult;
+typedef enum { lv_SOLVE_OK = 0, lv_SOLVE_FAILED, lv_SOLVE_NOT_CONVERGED, lv_SOLVE_INCONSISTENT } lvSolveResult;
 
 /* ========================================================================
  * 系统状态枚举
  * ======================================================================== */
 
-typedef enum {
-    lv_SYSTEM_UNDER_CONSTRAINED = 0,
-    lv_SYSTEM_WELL_CONSTRAINED,
-    lv_SYSTEM_OVER_CONSTRAINED
-} lvSystemStatus;
+typedef enum { lv_SYSTEM_UNDER_CONSTRAINED = 0, lv_SYSTEM_WELL_CONSTRAINED, lv_SYSTEM_OVER_CONSTRAINED } lvSystemStatus;
 
 /* ========================================================================
  * 实体结构体
@@ -188,8 +179,7 @@ lv_PUBLIC_API int lv_solver_get_iteration_count(const lvSolverSystem *sys);
 /* 交互支持 */
 lv_PUBLIC_API void lv_solver_set_fixed(lvSolverSystem *sys, int entity_id, bool fixed);
 lv_PUBLIC_API void lv_solver_set_dragged(lvSolverSystem *sys, int entity_id, bool dragged);
-lv_PUBLIC_API void lv_solver_set_drag_position(
-    lvSolverSystem *sys, int entity_id, double x, double y);
+lv_PUBLIC_API void lv_solver_set_drag_position(lvSolverSystem *sys, int entity_id, double x, double y);
 
 /* 便捷函数 —— 快速创建实体 */
 lv_PUBLIC_API lvEntity lv_entity_point_2d(int id, double x, double y);

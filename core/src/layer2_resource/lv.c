@@ -13,15 +13,16 @@
 
 #include "lv.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <inttypes.h>
+
+#include "lv/bit_burning.h"
 
 #include "func_block_registry.h"
 #include "lv_internal.h"
-#include "lv/bit_burning.h"
 
 /* ============================================================
  * 全局状态管理
@@ -137,8 +138,7 @@ static bool is_system_initialized(void) {
 const char *lv_get_version_string(void) {
     static lv_THREAD_LOCAL char version_str[32] = {0};
     if (version_str[0] == '\0') {
-        snprintf(version_str, sizeof(version_str), "%d.%d.%d",
-                 lv_VERSION_MAJOR, lv_VERSION_MINOR, lv_VERSION_PATCH);
+        snprintf(version_str, sizeof(version_str), "%d.%d.%d", lv_VERSION_MAJOR, lv_VERSION_MINOR, lv_VERSION_PATCH);
     }
     return version_str;
 }
@@ -308,17 +308,20 @@ int lv_get_system_info(char *info, size_t size) {
         "  总释放: %.2f MB\n"
         "  分配次数: %zu\n"
         "\n[性能统计]\n"
-        "  节点创建: %" PRIu64 "\n"
-        "  约束创建: %" PRIu64 "\n"
-        "  求解器调用: %" PRIu64 "\n"
-        "  重写步数: %" PRIu64 "\n"
+        "  节点创建: %" PRIu64
+        "\n"
+        "  约束创建: %" PRIu64
+        "\n"
+        "  求解器调用: %" PRIu64
+        "\n"
+        "  重写步数: %" PRIu64
+        "\n"
         "  合一检查: %" PRIu64 "\n",
         lv_VERSION_STRING, is_system_initialized() ? "已初始化" : "未初始化", g_init_count,
         (double) mem_stats.current_used / (1024.0 * 1024.0), (double) mem_stats.peak_used / (1024.0 * 1024.0),
         (double) mem_stats.total_allocated / (1024.0 * 1024.0), (double) mem_stats.total_freed / (1024.0 * 1024.0),
-        mem_stats.allocation_count, (uint64_t) perf.total_nodes_created,
-        (uint64_t) perf.total_constraints_created, (uint64_t) perf.solver_call_count,
-        (uint64_t) perf.rewrite_total_steps, (uint64_t) perf.unify_check_count);
+        mem_stats.allocation_count, (uint64_t) perf.total_nodes_created, (uint64_t) perf.total_constraints_created,
+        (uint64_t) perf.solver_call_count, (uint64_t) perf.rewrite_total_steps, (uint64_t) perf.unify_check_count);
 
     return written;
 }
@@ -406,7 +409,7 @@ int lv_add_point(lvEngine *engine, int64_t x_num, uint64_t x_den, int64_t y_num,
     /* 参数校验：分母不能为零 */
     if (x_den == 0 || y_den == 0) {
         lv_set_error(lv_ERROR_INVALID_PARAM, "lv_add_point: 分母不能为零 (x_den=%" PRIu64 ", y_den=%" PRIu64 ")",
-                       (uint64_t) x_den, (uint64_t) y_den);
+                     (uint64_t) x_den, (uint64_t) y_den);
         return -1;
     }
 
@@ -450,7 +453,7 @@ int lv_add_line_segment(lvEngine *engine, int point1_id, int point2_id) {
     AddNodeResult result = graph_add_line_segment(engine->main_graph, point1_id, point2_id);
     if (result != ADD_NODE_OK) {
         lv_set_error(lv_ERROR_NODE_CONFLICT, "lv_add_line_segment: 添加线段失败 (point1=%d, point2=%d, result=%d)",
-                       point1_id, point2_id, (int) result);
+                     point1_id, point2_id, (int) result);
         return -1;
     }
 
@@ -469,8 +472,8 @@ bool lv_add_constraint_incidence(lvEngine *engine, int point_id, int line_id) {
     AddConstraintResult result = graph_add_incidence(engine->main_graph, point_id, line_id);
     if (result != ADD_CONSTRAINT_OK) {
         lv_set_error(lv_ERROR_CONSTRAINT_CONFLICT,
-                       "lv_add_constraint_incidence: 添加关联约束失败 (point=%d, line=%d, result=%d)",
-                       point_id, line_id, (int) result);
+                     "lv_add_constraint_incidence: 添加关联约束失败 (point=%d, line=%d, result=%d)", point_id, line_id,
+                     (int) result);
         return false;
     }
     return true;
@@ -613,7 +616,7 @@ bool lv_check_version_compat(void) {
  * 该函数计划在后续主版本中移除。
  */
 lv_DEPRECATED("use lv_get_memory_stats instead")
-/**
+    /**
  * @brief 获取扩展内存统计信息（便捷封装）
  *
  * @param stats  输出参数，用于接收内存统计信息
@@ -621,7 +624,7 @@ lv_DEPRECATED("use lv_get_memory_stats instead")
  * @return false stats 为 NULL 指针，未执行任何操作
  * @note 内部委托 lv_get_memory_stats() 完成实际统计
  */
-bool lv_get_memory_stats_ex(MemoryStats *stats) {
+    bool lv_get_memory_stats_ex(MemoryStats *stats) {
     if (!stats)
         return false;
     lv_get_memory_stats(stats);
@@ -633,8 +636,7 @@ bool lv_get_memory_stats_ex(MemoryStats *stats) {
  * 新代码请直接使用 lv_set_memory_limit()。
  * 该函数计划在后续主版本中移除。
  */
-lv_DEPRECATED("use lv_set_memory_limit instead")
-void lv_set_memory_limit_ex(size_t limit_bytes) {
+lv_DEPRECATED("use lv_set_memory_limit instead") void lv_set_memory_limit_ex(size_t limit_bytes) {
     lv_set_memory_limit(limit_bytes);
 }
 
@@ -643,8 +645,7 @@ void lv_set_memory_limit_ex(size_t limit_bytes) {
  * 新代码请直接使用 lv_get_memory_limit()。
  * 该函数计划在后续主版本中移除。
  */
-lv_DEPRECATED("use lv_get_memory_limit instead")
-size_t lv_get_memory_limit_ex(void) {
+lv_DEPRECATED("use lv_get_memory_limit instead") size_t lv_get_memory_limit_ex(void) {
     return lv_get_memory_limit();
 }
 
@@ -695,20 +696,16 @@ bool lv_are_assertions_enabled(void) {
  * @param declaration 数值假设声明文本（如"该点坐标在10^{-15}精度下近似为1.4142"）
  * @return 成功返回 0（lv_OK），失败返回负错误码
  */
-int lv_set_numeric_assumption(lvEngine *engine, int node_id,
-    double precision, const char *declaration) {
+int lv_set_numeric_assumption(lvEngine *engine, int node_id, double precision, const char *declaration) {
     /* 参数有效性检查 */
     if (!engine || !engine->main_graph) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-            "lv_set_numeric_assumption: engine 或 main_graph 为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "lv_set_numeric_assumption: engine 或 main_graph 为 NULL");
         return -1;
     }
 
     /* 委托给 bit_burning_downgrade_to_amber 执行降级操作 */
-    if (!bit_burning_downgrade_to_amber(engine->main_graph, node_id,
-                                         precision, declaration)) {
-        lv_set_error(lv_ERROR_INVALID_PARAM,
-            "lv_set_numeric_assumption: 节点 %d 不存在或降级失败", node_id);
+    if (!bit_burning_downgrade_to_amber(engine->main_graph, node_id, precision, declaration)) {
+        lv_set_error(lv_ERROR_INVALID_PARAM, "lv_set_numeric_assumption: 节点 %d 不存在或降级失败", node_id);
         return -1;
     }
 

@@ -35,19 +35,21 @@
  */
 
 #include "high_dim.h"
-#include "error_codes.h"
-#include "lv_utils.h"
-#include "lv_internal.h"   /* M_PI, lv_SAFE_SNPRINTF 等内部宏 */
-#include "debug.h"           /* LOG_DEBUG, LOG_WARN, LOG_ERROR 等日志宏 */
+
+#include <math.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+
 #include "lv/config.h"
+#include "lv/lv_parse_utils.h"
+
+#include "debug.h" /* LOG_DEBUG, LOG_WARN, LOG_ERROR 等日志宏 */
+#include "error_codes.h"
+#include "lv_internal.h" /* M_PI, lv_SAFE_SNPRINTF 等内部宏 */
+#include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
-#include <math.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
-
-#include "lv/lv_parse_utils.h"
 
 /* ==================== 内部常量 ==================== */
 
@@ -96,12 +98,13 @@ static int high_dim_snprintf(char *str, size_t size, const char *format, ...) {
  *
  * @return 新分配的管理器指针，失败返回 NULL
  */
-HighDimManager* high_dim_manager_create(void) {
-    HighDimManager *manager = (HighDimManager*)lv_malloc(sizeof(HighDimManager));
-    if (!manager) return NULL;
+HighDimManager *high_dim_manager_create(void) {
+    HighDimManager *manager = (HighDimManager *) lv_malloc(sizeof(HighDimManager));
+    if (!manager)
+        return NULL;
 
     if (high_dim_manager_init(manager) != 0) {
-        lv_free((void**)&manager);
+        lv_free((void **) &manager);
         return NULL;
     }
 
@@ -117,13 +120,14 @@ HighDimManager* high_dim_manager_create(void) {
  * @param manager 管理器指针（可为 NULL）
  */
 void high_dim_manager_destroy(HighDimManager *manager) {
-    if (!manager) return;
+    if (!manager)
+        return;
 
     /* HighDimAbstractBlock 仅含标量和固定大小数组，无动态资源需要释放；
      * 已移除空 for 循环（迭代无副作用）。 */
-    lv_free((void**)&manager->blocks);
+    lv_free((void **) &manager->blocks);
 
-    lv_free((void**)&manager);
+    lv_free((void **) &manager);
 }
 
 /**
@@ -135,10 +139,10 @@ void high_dim_manager_destroy(HighDimManager *manager) {
  * @return lv_OK 成功，错误码表示失败原因
  */
 int high_dim_manager_init(HighDimManager *manager) {
-    if (!manager) return lv_ERROR_INVALID_PARAM;
+    if (!manager)
+        return lv_ERROR_INVALID_PARAM;
 
-    manager->blocks = (HighDimAbstractBlock*)lv_malloc(
-        sizeof(HighDimAbstractBlock) * HIGH_DIM_INITIAL_CAPACITY);
+    manager->blocks = (HighDimAbstractBlock *) lv_malloc(sizeof(HighDimAbstractBlock) * HIGH_DIM_INITIAL_CAPACITY);
     if (!manager->blocks) {
         return lv_ERROR_OUT_OF_MEMORY;
     }
@@ -184,8 +188,8 @@ int high_dim_register_block(HighDimManager *manager, int block_id, int dimension
             return lv_ERROR_OUT_OF_MEMORY;
         }
         int new_capacity = manager->block_capacity * 2;
-        HighDimAbstractBlock *new_blocks = (HighDimAbstractBlock*)lv_realloc(
-            manager->blocks, sizeof(HighDimAbstractBlock) * new_capacity);
+        HighDimAbstractBlock *new_blocks =
+            (HighDimAbstractBlock *) lv_realloc(manager->blocks, sizeof(HighDimAbstractBlock) * new_capacity);
         if (!new_blocks) {
             return lv_ERROR_OUT_OF_MEMORY;
         }
@@ -229,7 +233,8 @@ int high_dim_register_block(HighDimManager *manager, int block_id, int dimension
  * @return lv_OK 成功，错误码表示失败原因
  */
 int high_dim_unregister_block(HighDimManager *manager, int block_id) {
-    if (!manager) return lv_ERROR_INVALID_PARAM;
+    if (!manager)
+        return lv_ERROR_INVALID_PARAM;
 
     int index = -1;
     for (int i = 0; i < manager->block_count; i++) {
@@ -263,8 +268,9 @@ int high_dim_unregister_block(HighDimManager *manager, int block_id) {
  * @param block_id 块 ID
  * @return 高维块指针，未找到或 manager 为 NULL 时返回 NULL
  */
-HighDimAbstractBlock* high_dim_get_block(HighDimManager *manager, int block_id) {
-    if (!manager) return NULL;
+HighDimAbstractBlock *high_dim_get_block(HighDimManager *manager, int block_id) {
+    if (!manager)
+        return NULL;
 
     for (int i = 0; i < manager->block_count; i++) {
         if (manager->blocks[i].block_id == block_id) {
@@ -287,9 +293,9 @@ HighDimAbstractBlock* high_dim_get_block(HighDimManager *manager, int block_id) 
  * @param preset  投影预设指针
  * @return lv_OK 成功，错误码表示失败原因
  */
-int high_dim_add_projection_preset(HighDimManager *manager, int block_id,
-                                   const HighDimProjectionPreset *preset) {
-    if (!manager || !preset) return lv_ERROR_INVALID_PARAM;
+int high_dim_add_projection_preset(HighDimManager *manager, int block_id, const HighDimProjectionPreset *preset) {
+    if (!manager || !preset)
+        return lv_ERROR_INVALID_PARAM;
 
     HighDimAbstractBlock *block = high_dim_get_block(manager, block_id);
     if (!block) {
@@ -326,7 +332,8 @@ int high_dim_add_projection_preset(HighDimManager *manager, int block_id,
  * @return lv_OK 成功，错误码表示失败原因
  */
 int high_dim_remove_projection_preset(HighDimManager *manager, int block_id, int preset_index) {
-    if (!manager) return lv_ERROR_INVALID_PARAM;
+    if (!manager)
+        return lv_ERROR_INVALID_PARAM;
 
     HighDimAbstractBlock *block = high_dim_get_block(manager, block_id);
     if (!block) {
@@ -369,7 +376,8 @@ int high_dim_remove_projection_preset(HighDimManager *manager, int block_id, int
  * @return lv_OK 成功，错误码表示失败原因
  */
 int high_dim_set_current_preset(HighDimManager *manager, int block_id, int preset_index) {
-    if (!manager) return lv_ERROR_INVALID_PARAM;
+    if (!manager)
+        return lv_ERROR_INVALID_PARAM;
 
     HighDimAbstractBlock *block = high_dim_get_block(manager, block_id);
     if (!block) {
@@ -389,12 +397,13 @@ int high_dim_set_current_preset(HighDimManager *manager, int block_id, int prese
     return lv_OK;
 }
 
-const HighDimProjectionPreset* high_dim_get_current_preset(const HighDimManager *manager, int block_id) {
-    if (!manager) return NULL;
+const HighDimProjectionPreset *high_dim_get_current_preset(const HighDimManager *manager, int block_id) {
+    if (!manager)
+        return NULL;
 
     /* 注意: 此处将 const HighDimManager* 转换为非 const 是因为
      * high_dim_get_block() 缺少 const 版本的API，但该函数不会修改图结构 */
-    const HighDimAbstractBlock *block = high_dim_get_block((HighDimManager*)manager, block_id);
+    const HighDimAbstractBlock *block = high_dim_get_block((HighDimManager *) manager, block_id);
     if (!block || block->current_preset_index < 0) {
         return NULL;
     }
@@ -461,9 +470,8 @@ int high_dim_create_default_preset(int dimension_count, HighDimProjectionPreset 
  * @param projected       输出参数，接收投影结果
  * @return lv_OK 成功，错误码表示失败原因
  */
-int high_dim_project_coordinates(HighDimManager *manager, int block_id,
-                                 const SymbolicCoord **high_dim_coords, int coord_count,
-                                 HighDimProjectedCoord *projected) {
+int high_dim_project_coordinates(HighDimManager *manager, int block_id, const SymbolicCoord **high_dim_coords,
+                                 int coord_count, HighDimProjectedCoord *projected) {
     /*
      * 【边界检查和错误处理】
      *   1. NULL 指针检查：manager、high_dim_coords、projected 必须非空
@@ -524,8 +532,7 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id,
             case HIGH_DIM_MAP_DISCARD:
                 if (folded_count < 3) {
                     char dim_info[32];
-                    high_dim_snprintf(dim_info, sizeof(dim_info), "%s%d:%.2f",
-                                      folded_count > 0 ? ", " : "",
+                    high_dim_snprintf(dim_info, sizeof(dim_info), "%s%d:%.2f", folded_count > 0 ? ", " : "",
                                       mapping->axis_index, coord_value);
                     lv_strlcat(folded_dims, dim_info, sizeof(folded_dims));
                 }
@@ -542,8 +549,8 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id,
 
     /* 设置折叠维度信息 */
     if (folded_count > 0) {
-        high_dim_snprintf(projected->folded_info, sizeof(projected->folded_info),
-                          "折叠维度(%d): %s", folded_count, folded_dims);
+        high_dim_snprintf(projected->folded_info, sizeof(projected->folded_info), "折叠维度(%d): %s", folded_count,
+                          folded_dims);
     }
 
     return lv_OK;
@@ -557,8 +564,7 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id,
  * @param result    输出参数，接收变换结果
  * @return lv_OK 成功，错误码表示失败原因
  */
-int high_dim_apply_transform(const HighDimProjectedCoord *coord,
-                             const HighDimTransform2D *transform,
+int high_dim_apply_transform(const HighDimProjectedCoord *coord, const HighDimTransform2D *transform,
                              HighDimProjectedCoord *result) {
     if (!coord || !transform || !result) {
         return lv_ERROR_INVALID_PARAM;
@@ -583,7 +589,8 @@ int high_dim_apply_transform(const HighDimProjectedCoord *coord,
  * @return lv_OK 成功，错误码表示失败原因
  */
 int high_dim_create_rotation_transform(double angle_rad, HighDimTransform2D *transform) {
-    if (!transform) return lv_ERROR_INVALID_PARAM;
+    if (!transform)
+        return lv_ERROR_INVALID_PARAM;
 
     double cos_a = cos(angle_rad);
     double sin_a = sin(angle_rad);
@@ -605,7 +612,8 @@ int high_dim_create_rotation_transform(double angle_rad, HighDimTransform2D *tra
  * @return lv_OK 成功，错误码表示失败原因
  */
 int high_dim_create_scale_transform(double scale_x, double scale_y, HighDimTransform2D *transform) {
-    if (!transform) return lv_ERROR_INVALID_PARAM;
+    if (!transform)
+        return lv_ERROR_INVALID_PARAM;
 
     transform->m[0][0] = scale_x;
     transform->m[0][1] = 0.0;
@@ -628,8 +636,7 @@ int high_dim_create_scale_transform(double scale_x, double scale_y, HighDimTrans
  * @param stats           输出参数，接收可见性统计
  * @return lv_OK 成功，错误码表示失败原因
  */
-int high_dim_calculate_fidelity(HighDimManager *manager, int block_id,
-                                const ConstraintGraph *constraint_graph,
+int high_dim_calculate_fidelity(HighDimManager *manager, int block_id, const ConstraintGraph *constraint_graph,
                                 HighDimVisibilityStats *stats) {
     if (!manager || !stats) {
         return lv_ERROR_INVALID_PARAM;
@@ -676,12 +683,12 @@ int high_dim_calculate_fidelity(HighDimManager *manager, int block_id,
          *   - 如果可见维度比例 >= 50%，认为约束在投影中可区分
          *   - CONTAINMENT/CONNECTION 约束涉及端口和区域，需要更多维度
          */
-        double dim_ratio = (block->dimension_count > 0) ?
-                           (double)visible_dims / block->dimension_count : 1.0;
+        double dim_ratio = (block->dimension_count > 0) ? (double) visible_dims / block->dimension_count : 1.0;
 
         for (int i = 0; i < constraint_graph->constraint_count; i++) {
             Constraint *c = constraint_graph->constraints[i];
-            if (!c) continue;
+            if (!c)
+                continue;
 
             /*
              * 不同约束类型对维度可见性的要求不同：
@@ -719,10 +726,8 @@ int high_dim_calculate_fidelity(HighDimManager *manager, int block_id,
      *
      * 当约束图不可用时，退回到纯维度比例计算。
      */
-    double dim_fidelity = (block->dimension_count > 0) ?
-                          (double)visible_dims / block->dimension_count : 1.0;
-    double constraint_fidelity = (constraint_total > 0) ?
-                                 (double)constraint_visible / constraint_total : dim_fidelity;
+    double dim_fidelity = (block->dimension_count > 0) ? (double) visible_dims / block->dimension_count : 1.0;
+    double constraint_fidelity = (constraint_total > 0) ? (double) constraint_visible / constraint_total : dim_fidelity;
 
     if (constraint_total > 0) {
         /* 有约束图数据：使用加权综合保真度 */
@@ -737,8 +742,10 @@ int high_dim_calculate_fidelity(HighDimManager *manager, int block_id,
     }
 
     /* 保真度钳制到 [0.0, 1.0] */
-    if (stats->fidelity_ratio < 0.0) stats->fidelity_ratio = 0.0;
-    if (stats->fidelity_ratio > 1.0) stats->fidelity_ratio = 1.0;
+    if (stats->fidelity_ratio < 0.0)
+        stats->fidelity_ratio = 0.0;
+    if (stats->fidelity_ratio > 1.0)
+        stats->fidelity_ratio = 1.0;
 
     block->fidelity_ratio = stats->fidelity_ratio;
 
@@ -760,7 +767,7 @@ int high_dim_is_fidelity_below_threshold(const HighDimManager *manager, int bloc
 
     /* 注意: 此处将 const HighDimManager* 转换为非 const 是因为
      * high_dim_get_block() 缺少 const 版本的API，但该函数不会修改图结构 */
-    const HighDimAbstractBlock *block = high_dim_get_block((HighDimManager*)manager, block_id);
+    const HighDimAbstractBlock *block = high_dim_get_block((HighDimManager *) manager, block_id);
     if (!block) {
         return -1;
     }
@@ -785,15 +792,14 @@ double lv_high_dim_default_fidelity_threshold(void) {
     return lv_config_current()->high_dim_default_fidelity_threshold;
 }
 
-int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id,
-                                  char *buffer, size_t buffer_size) {
+int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id, char *buffer, size_t buffer_size) {
     if (!manager || !buffer || buffer_size == 0) {
         return lv_ERROR_INVALID_PARAM;
     }
 
     /* 注意: 此处将 const HighDimManager* 转换为非 const 是因为
      * high_dim_get_block() 缺少 const 版本的API，但该函数不会修改图结构 */
-    const HighDimAbstractBlock *block = high_dim_get_block((HighDimManager*)manager, block_id);
+    const HighDimAbstractBlock *block = high_dim_get_block((HighDimManager *) manager, block_id);
     if (!block) {
         return lv_ERROR_NOT_FOUND;
     }
@@ -806,9 +812,7 @@ int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id,
     high_dim_snprintf(buffer, buffer_size,
                       "警告：当前投影'%s'的保真度为%.1f%%，低于推荐阈值%.0f%%。"
                       "建议切换到其他投影预设以获得更好的可视化效果。",
-                      preset->name,
-                      block->fidelity_ratio * 100.0,
-                      lv_high_dim_default_fidelity_threshold() * 100.0);
+                      preset->name, block->fidelity_ratio * 100.0, lv_high_dim_default_fidelity_threshold() * 100.0);
 
     return lv_OK;
 }
@@ -834,20 +838,19 @@ int high_dim_enter_block_perspective(HighDimManager *manager, int block_id) {
      *         lv_ERROR_NOT_FOUND 未找到对应的高维块
      *         lv_ERROR_UNSUPPORTED 深度栈已满
      */
-    if (!manager) return lv_ERROR_INVALID_PARAM;
+    if (!manager)
+        return lv_ERROR_INVALID_PARAM;
 
     HighDimAbstractBlock *block = high_dim_get_block(manager, block_id);
     if (!block) {
-        lv_set_error(lv_ERROR_NOT_FOUND,
-            "进入块透视失败：未找到block_id=%d对应的高维抽象块", block_id);
+        lv_set_error(lv_ERROR_NOT_FOUND, "进入块透视失败：未找到block_id=%d对应的高维抽象块", block_id);
         return lv_ERROR_NOT_FOUND;
     }
 
     /* 检查深度栈是否已满 */
     if (manager->perspective_depth >= HIGH_DIM_MAX_DEPTH) {
-        lv_set_error(lv_ERROR_UNSUPPORTED,
-            "语义缩放深度栈已满（最大深度=%d），无法进入更深的透视层级",
-            HIGH_DIM_MAX_DEPTH);
+        lv_set_error(lv_ERROR_UNSUPPORTED, "语义缩放深度栈已满（最大深度=%d），无法进入更深的透视层级",
+                     HIGH_DIM_MAX_DEPTH);
         return lv_ERROR_UNSUPPORTED;
     }
 
@@ -860,9 +863,7 @@ int high_dim_enter_block_perspective(HighDimManager *manager, int block_id) {
     }
 
     /* DEBUG级别日志：提示UI层需要同步切换渲染管线 */
-    LOG_DEBUG("high_dim",
-        "已进入block_id=%d的内部透视，当前深度=%d。",
-        block_id, manager->perspective_depth);
+    LOG_DEBUG("high_dim", "已进入block_id=%d的内部透视，当前深度=%d。", block_id, manager->perspective_depth);
 
     return lv_OK;
 }
@@ -880,12 +881,12 @@ int high_dim_exit_block_perspective(HighDimManager *manager) {
      *         lv_ERROR_INVALID_PARAM 参数无效
      *         lv_ERROR_UNSUPPORTED 深度栈已空（已在最外层）
      */
-    if (!manager) return lv_ERROR_INVALID_PARAM;
+    if (!manager)
+        return lv_ERROR_INVALID_PARAM;
 
     /* 检查深度栈是否已空 */
     if (manager->perspective_depth <= 0) {
-        lv_set_error(lv_ERROR_UNSUPPORTED,
-            "当前已在最外层透视，无法继续退出");
+        lv_set_error(lv_ERROR_UNSUPPORTED, "当前已在最外层透视，无法继续退出");
         return lv_ERROR_UNSUPPORTED;
     }
 
@@ -895,9 +896,7 @@ int high_dim_exit_block_perspective(HighDimManager *manager) {
     manager->perspective_depth--;
 
     /* DEBUG级别日志：提示UI层需要同步恢复上层视图 */
-    LOG_DEBUG("high_dim",
-        "已退出block_id=%d的内部透视，恢复到深度=%d。",
-        exited_block_id, manager->perspective_depth);
+    LOG_DEBUG("high_dim", "已退出block_id=%d的内部透视，恢复到深度=%d。", exited_block_id, manager->perspective_depth);
 
     return lv_OK;
 }
@@ -912,7 +911,8 @@ int high_dim_get_current_depth(const HighDimManager *manager) {
      * @param manager 高维管理器指针（const，只读操作）
      * @return 当前透视深度（>= 0），manager为NULL时返回-1
      */
-    if (!manager) return -1;
+    if (!manager)
+        return -1;
 
     /* 直接返回C层维护的深度计数值 */
     return manager->perspective_depth;
@@ -927,12 +927,12 @@ int high_dim_get_current_depth(const HighDimManager *manager) {
  * 当前高亮元素列表。视图ID由 create 函数生成，通过静态数组统一管理。
  */
 typedef struct {
-    int view_id;                                /**< 唯一视图标识符 */
-    int block_id;                               /**< 关联的高维块ID */
-    int preset_index;                           /**< 使用的投影预设索引 */
-    bool is_active;                             /**< 视图是否处于激活状态 */
+    int view_id;                                       /**< 唯一视图标识符 */
+    int block_id;                                      /**< 关联的高维块ID */
+    int preset_index;                                  /**< 使用的投影预设索引 */
+    bool is_active;                                    /**< 视图是否处于激活状态 */
     int highlighted_elements[HIGH_DIM_MAX_DIMENSIONS]; /**< 当前高亮的元素ID列表 */
-    int highlighted_count;                      /**< 高亮元素数量 */
+    int highlighted_count;                             /**< 高亮元素数量 */
 } HighDimMultiViewContext;
 
 /** 全局活跃视图追踪数组 */
@@ -993,9 +993,8 @@ static int high_dim_allocate_view_slot(int view_id, int block_id, int preset_ind
     return idx;
 }
 
-int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
-                                          const int *preset_indices, int preset_count,
-                                          int *view_ids) {
+int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id, const int *preset_indices,
+                                          int preset_count, int *view_ids) {
     /**
      * @brief 创建多投影并排视图
      *
@@ -1036,8 +1035,7 @@ int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
 
     HighDimAbstractBlock *block = high_dim_get_block(manager, block_id);
     if (!block) {
-        lv_set_error(lv_ERROR_NOT_FOUND,
-            "创建多投影视图失败：未找到block_id=%d对应的高维抽象块", block_id);
+        lv_set_error(lv_ERROR_NOT_FOUND, "创建多投影视图失败：未找到block_id=%d对应的高维抽象块", block_id);
         return lv_ERROR_NOT_FOUND;
     }
 
@@ -1045,9 +1043,9 @@ int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
     for (int i = 0; i < preset_count; i++) {
         if (preset_indices[i] < 0 || preset_indices[i] >= block->preset_count) {
             lv_set_error(lv_ERROR_INVALID_PARAM,
-                "创建多投影视图失败：第%d个预设索引=%d无效"
-                "（有效范围：0-%d）",
-                i, preset_indices[i], block->preset_count - 1);
+                         "创建多投影视图失败：第%d个预设索引=%d无效"
+                         "（有效范围：0-%d）",
+                         i, preset_indices[i], block->preset_count - 1);
             return lv_ERROR_INVALID_PARAM;
         }
     }
@@ -1057,8 +1055,8 @@ int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
         /* 生成唯一视图ID：基础编码 + 冲突避免偏移 */
         /* 注意: block_id 和 preset_index 必须小于 1000，否则ID会碰撞 */
         if (block_id >= 1000 || preset_indices[i] >= 1000) {
-            lv_LOG_WARNING("视图ID编码: block_id=%d 或 preset_index=%d 超过999，可能产生ID碰撞",
-                             block_id, preset_indices[i]);
+            lv_LOG_WARNING("视图ID编码: block_id=%d 或 preset_index=%d 超过999，可能产生ID碰撞", block_id,
+                           preset_indices[i]);
         }
         int base_vid = block_id * 1000 + preset_indices[i];
         int vid = base_vid;
@@ -1077,9 +1075,9 @@ int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
                 }
             }
             lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED,
-                "创建多投影视图失败：block_id=%d 的视图ID空间已耗尽"
-                "（无法为preset_index=%d分配唯一ID）",
-                block_id, preset_indices[i]);
+                         "创建多投影视图失败：block_id=%d 的视图ID空间已耗尽"
+                         "（无法为preset_index=%d分配唯一ID）",
+                         block_id, preset_indices[i]);
             return lv_ERROR_RESOURCE_EXHAUSTED;
         }
 
@@ -1094,9 +1092,9 @@ int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
                 }
             }
             lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED,
-                "创建多投影视图失败：全局视图槽位已满"
-                "（最大=%d，当前=%d）",
-                HIGH_DIM_MAX_ACTIVE_VIEWS, g_multi_view_count);
+                         "创建多投影视图失败：全局视图槽位已满"
+                         "（最大=%d，当前=%d）",
+                         HIGH_DIM_MAX_ACTIVE_VIEWS, g_multi_view_count);
             return lv_ERROR_RESOURCE_EXHAUSTED;
         }
 
@@ -1104,9 +1102,8 @@ int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
     }
 
     /* DEBUG级别日志：提示UI层需要同步创建视图窗口 */
-    LOG_DEBUG("high_dim",
-        "已为block_id=%d创建%d个并排投影视图（view_ids[0]=%d,...）。",
-        block_id, preset_count, view_ids[0]);
+    LOG_DEBUG("high_dim", "已为block_id=%d创建%d个并排投影视图（view_ids[0]=%d,...）。", block_id, preset_count,
+              view_ids[0]);
 
     return lv_OK;
 }
@@ -1136,12 +1133,12 @@ int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id)
      *         lv_ERROR_INVALID_PARAM 参数无效或 view_id 不合法
      *         lv_ERROR_NOT_FOUND 未找到指定的视图或对应的块不存在
      */
-    if (!manager) return lv_ERROR_INVALID_PARAM;
+    if (!manager)
+        return lv_ERROR_INVALID_PARAM;
 
     /* 验证 view_id 的基本有效性 */
     if (view_id <= 0) {
-        lv_set_error(lv_ERROR_INVALID_PARAM,
-            "销毁视图失败：无效的视图ID=%d，ID必须为正值", view_id);
+        lv_set_error(lv_ERROR_INVALID_PARAM, "销毁视图失败：无效的视图ID=%d，ID必须为正值", view_id);
         return lv_ERROR_INVALID_PARAM;
     }
 
@@ -1149,9 +1146,9 @@ int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id)
     int view_index = high_dim_find_view_index(view_id);
     if (view_index < 0) {
         lv_set_error(lv_ERROR_NOT_FOUND,
-            "销毁视图失败：未找到view_id=%d对应的活跃视图"
-            "（可能已被销毁或从未创建）",
-            view_id);
+                     "销毁视图失败：未找到view_id=%d对应的活跃视图"
+                     "（可能已被销毁或从未创建）",
+                     view_id);
         return lv_ERROR_NOT_FOUND;
     }
 
@@ -1164,16 +1161,16 @@ int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id)
     if (!block) {
         /* 块已被删除：仍需清理视图槽位，使用WARN级别日志记录异常情况 */
         LOG_WARN("high_dim",
-            "view_id=%d对应的block_id=%d已不存在（可能已被注销），"
-            "但视图槽位仍将被清理。",
-            view_id, block_id);
+                 "view_id=%d对应的block_id=%d已不存在（可能已被注销），"
+                 "但视图槽位仍将被清理。",
+                 view_id, block_id);
     } else {
         /* 验证预设索引是否仍然有效 */
         if (preset_index < 0 || preset_index >= block->preset_count) {
             LOG_WARN("high_dim",
-                "view_id=%d对应的预设索引=%d已无效"
-                "（当前块预设数=%d），视图槽位仍将被清理。",
-                view_id, preset_index, block->preset_count);
+                     "view_id=%d对应的预设索引=%d已无效"
+                     "（当前块预设数=%d），视图槽位仍将被清理。",
+                     view_id, preset_index, block->preset_count);
         }
     }
 
@@ -1185,10 +1182,8 @@ int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id)
     view_ctx->is_active = false;
 
     /* DEBUG级别日志：提示UI层需要同步关闭视图窗口 */
-    LOG_DEBUG("high_dim",
-        "视图view_id=%d（block_id=%d, preset=%d, 高亮元素数=%d）已销毁。",
-        view_id, block_id, preset_index,
-        view_ctx->highlighted_count);
+    LOG_DEBUG("high_dim", "视图view_id=%d（block_id=%d, preset=%d, 高亮元素数=%d）已销毁。", view_id, block_id,
+              preset_index, view_ctx->highlighted_count);
 
     return lv_OK;
 }
@@ -1238,8 +1233,7 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
 
     /* 验证 element_id 有效性 */
     if (element_id < 0) {
-        lv_set_error(lv_ERROR_INVALID_PARAM,
-            "联动高亮失败：无效的元素ID=%d", element_id);
+        lv_set_error(lv_ERROR_INVALID_PARAM, "联动高亮失败：无效的元素ID=%d", element_id);
         return lv_ERROR_INVALID_PARAM;
     }
 
@@ -1253,8 +1247,7 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
         if (vid <= 0) {
             if (views_skipped < 10) {
                 char buf[64];
-                high_dim_snprintf(buf, sizeof(buf), "%sview_id[%d]=%d无效; ",
-                    views_skipped > 0 ? "" : "", i, vid);
+                high_dim_snprintf(buf, sizeof(buf), "%sview_id[%d]=%d无效; ", views_skipped > 0 ? "" : "", i, vid);
                 lv_strlcat(skipped_info, buf, sizeof(skipped_info));
             }
             views_skipped++;
@@ -1266,8 +1259,7 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
         if (view_idx < 0) {
             if (views_skipped < 10) {
                 char buf[64];
-                high_dim_snprintf(buf, sizeof(buf), "%sview_id=%d未注册; ",
-                    views_skipped > 0 ? "" : "", vid);
+                high_dim_snprintf(buf, sizeof(buf), "%sview_id=%d未注册; ", views_skipped > 0 ? "" : "", vid);
                 lv_strlcat(skipped_info, buf, sizeof(skipped_info));
             }
             views_skipped++;
@@ -1281,9 +1273,8 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
         if (!block) {
             if (views_skipped < 10) {
                 char buf[80];
-                high_dim_snprintf(buf, sizeof(buf),
-                    "%sview_id=%d的block_id=%d已注销; ",
-                    views_skipped > 0 ? "" : "", vid, view_ctx->block_id);
+                high_dim_snprintf(buf, sizeof(buf), "%sview_id=%d的block_id=%d已注销; ", views_skipped > 0 ? "" : "",
+                                  vid, view_ctx->block_id);
                 lv_strlcat(skipped_info, buf, sizeof(skipped_info));
             }
             views_skipped++;
@@ -1312,9 +1303,7 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
         } else {
             if (views_skipped < 10) {
                 char buf[80];
-                high_dim_snprintf(buf, sizeof(buf),
-                    "%sview_id=%d高亮列表已满; ",
-                    views_skipped > 0 ? "" : "", vid);
+                high_dim_snprintf(buf, sizeof(buf), "%sview_id=%d高亮列表已满; ", views_skipped > 0 ? "" : "", vid);
                 lv_strlcat(skipped_info, buf, sizeof(skipped_info));
             }
             views_skipped++;
@@ -1323,27 +1312,23 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
 
     /* 汇总结果 */
     if (views_highlighted == 0) {
-        lv_set_error(lv_ERROR_NOT_FOUND,
-            "联动高亮失败：所有%d个视图均未能记录高亮状态。跳过原因：%s",
-            view_count,
-            skipped_info[0] ? skipped_info : "所有视图未注册或无效");
+        lv_set_error(lv_ERROR_NOT_FOUND, "联动高亮失败：所有%d个视图均未能记录高亮状态。跳过原因：%s", view_count,
+                     skipped_info[0] ? skipped_info : "所有视图未注册或无效");
         return lv_ERROR_NOT_FOUND;
     }
 
     if (views_skipped > 0) {
         /* 部分视图被跳过，使用WARN级别日志记录 */
         LOG_WARN("high_dim",
-            "联动高亮部分成功：元素element_id=%d已在%d/%d个视图中高亮"
-            "（跳过%d个视图：%s）。",
-            element_id, views_highlighted, view_count,
-            views_skipped,
-            skipped_info[0] ? skipped_info : "重复高亮");
+                 "联动高亮部分成功：元素element_id=%d已在%d/%d个视图中高亮"
+                 "（跳过%d个视图：%s）。",
+                 element_id, views_highlighted, view_count, views_skipped, skipped_info[0] ? skipped_info : "重复高亮");
     } else {
         /* DEBUG级别日志：记录完整成功状态 */
         LOG_DEBUG("high_dim",
-            "联动高亮成功：元素element_id=%d已在全部%d个关联视图中高亮。"
-            "首视图view_id=%d。",
-            element_id, view_count, view_ids[0]);
+                  "联动高亮成功：元素element_id=%d已在全部%d个关联视图中高亮。"
+                  "首视图view_id=%d。",
+                  element_id, view_count, view_ids[0]);
     }
 
     return lv_OK;
@@ -1351,8 +1336,7 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
 
 /* ==================== 序列化 ==================== */
 
-int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset,
-                                   char *buffer, size_t buffer_size) {
+int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset, char *buffer, size_t buffer_size) {
     if (!preset || !buffer || buffer_size == 0) {
         return lv_ERROR_INVALID_PARAM;
     }
@@ -1363,11 +1347,9 @@ int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset,
                                     "  \"dimension_count\": %d,\n"
                                     "  \"mapping_count\": %d,\n"
                                     "  \"mappings\": [\n",
-                                    preset->name,
-                                    preset->dimension_count,
-                                    preset->mapping_count);
+                                    preset->name, preset->dimension_count, preset->mapping_count);
 
-    if (written >= (int)buffer_size) {
+    if (written >= (int) buffer_size) {
         return lv_ERROR_BUFFER_TOO_SMALL;
     }
 
@@ -1383,11 +1365,8 @@ int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset,
                                     "      \"scale\": %.6f,\n"
                                     "      \"offset\": %.6f\n"
                                     "    }%s\n",
-                                    m->axis_index,
-                                    high_dim_mapping_type_to_string(m->mapping_type),
-                                    m->scale,
-                                    m->offset,
-                                    (i < preset->mapping_count - 1) ? "," : "");
+                                    m->axis_index, high_dim_mapping_type_to_string(m->mapping_type), m->scale,
+                                    m->offset, (i < preset->mapping_count - 1) ? "," : "");
         offset += written;
     }
 
@@ -1402,22 +1381,20 @@ int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset,
                                     "  },\n"
                                     "  \"is_default\": %s\n"
                                     "}",
-                                    preset->transform.m[0][0],
-                                    preset->transform.m[0][1],
-                                    preset->transform.m[1][0],
-                                    preset->transform.m[1][1],
-                                    preset->is_default ? "true" : "false");
+                                    preset->transform.m[0][0], preset->transform.m[0][1], preset->transform.m[1][0],
+                                    preset->transform.m[1][1], preset->is_default ? "true" : "false");
         offset += written;
     }
 
-    return (offset >= buffer_size) ? lv_ERROR_BUFFER_TOO_SMALL : (int)offset;
+    return (offset >= buffer_size) ? lv_ERROR_BUFFER_TOO_SMALL : (int) offset;
 }
 
 /* ==================== JSON 反序列化辅助函数 ==================== */
 
 /** 跳过空白字符 */
 static const char *hd_json_skip_ws(const char *p) {
-    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+        p++;
     return p;
 }
 
@@ -1427,20 +1404,25 @@ static const char *hd_json_skip_value(const char *p) {
     if (*p == '"') {
         p++;
         while (*p && *p != '"') {
-            if (*p == '\\') p++;
+            if (*p == '\\')
+                p++;
             p++;
         }
-        if (*p == '"') p++;
+        if (*p == '"')
+            p++;
     } else if (*p == '{') {
         int depth = 1;
         p++;
         while (*p && depth > 0) {
-            if (*p == '{') depth++;
-            else if (*p == '}') depth--;
+            if (*p == '{')
+                depth++;
+            else if (*p == '}')
+                depth--;
             else if (*p == '"') {
                 p++;
                 while (*p && *p != '"') {
-                    if (*p == '\\') p++;
+                    if (*p == '\\')
+                        p++;
                     p++;
                 }
             }
@@ -1450,20 +1432,22 @@ static const char *hd_json_skip_value(const char *p) {
         int depth = 1;
         p++;
         while (*p && depth > 0) {
-            if (*p == '[') depth++;
-            else if (*p == ']') depth--;
+            if (*p == '[')
+                depth++;
+            else if (*p == ']')
+                depth--;
             else if (*p == '"') {
                 p++;
                 while (*p && *p != '"') {
-                    if (*p == '\\') p++;
+                    if (*p == '\\')
+                        p++;
                     p++;
                 }
             }
             p++;
         }
     } else {
-        while (*p && *p != ',' && *p != '}' && *p != ']' &&
-               *p != ' ' && *p != '\t' && *p != '\n' && *p != '\r') {
+        while (*p && *p != ',' && *p != '}' && *p != ']' && *p != ' ' && *p != '\t' && *p != '\n' && *p != '\r') {
             p++;
         }
     }
@@ -1471,19 +1455,21 @@ static const char *hd_json_skip_value(const char *p) {
 }
 
 /** 在 JSON 文本中查找 "key": 并提取其后的字符串值 */
-static bool hd_json_extract_string(const char *json, const char *key,
-                                   char *buf, size_t buf_size) {
+static bool hd_json_extract_string(const char *json, const char *key, char *buf, size_t buf_size) {
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
     const char *pos = strstr(json, search);
-    if (!pos) return false;
+    if (!pos)
+        return false;
 
     pos += strlen(search);
     pos = hd_json_skip_ws(pos);
-    if (*pos != ':') return false;
+    if (*pos != ':')
+        return false;
     pos++;
     pos = hd_json_skip_ws(pos);
-    if (*pos != '"') return false;
+    if (*pos != '"')
+        return false;
     pos++;
 
     size_t i = 0;
@@ -1491,12 +1477,24 @@ static bool hd_json_extract_string(const char *json, const char *key,
         if (*pos == '\\' && *(pos + 1)) {
             pos++;
             switch (*pos) {
-                case 'n':  buf[i++] = '\n'; break;
-                case 't':  buf[i++] = '\t'; break;
-                case 'r':  buf[i++] = '\r'; break;
-                case '\\': buf[i++] = '\\'; break;
-                case '"':  buf[i++] = '"';  break;
-                default:   buf[i++] = *pos;  break;
+                case 'n':
+                    buf[i++] = '\n';
+                    break;
+                case 't':
+                    buf[i++] = '\t';
+                    break;
+                case 'r':
+                    buf[i++] = '\r';
+                    break;
+                case '\\':
+                    buf[i++] = '\\';
+                    break;
+                case '"':
+                    buf[i++] = '"';
+                    break;
+                default:
+                    buf[i++] = *pos;
+                    break;
             }
         } else {
             buf[i++] = *pos;
@@ -1512,11 +1510,13 @@ static bool hd_json_extract_int(const char *json, const char *key, int *out_val)
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
     const char *pos = strstr(json, search);
-    if (!pos) return false;
+    if (!pos)
+        return false;
 
     pos += strlen(search);
     pos = hd_json_skip_ws(pos);
-    if (*pos != ':') return false;
+    if (*pos != ':')
+        return false;
     pos++;
     pos = hd_json_skip_ws(pos);
     *out_val = 0;
@@ -1529,11 +1529,13 @@ static bool hd_json_extract_bool(const char *json, const char *key, bool *out_va
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
     const char *pos = strstr(json, search);
-    if (!pos) return false;
+    if (!pos)
+        return false;
 
     pos += strlen(search);
     pos = hd_json_skip_ws(pos);
-    if (*pos != ':') return false;
+    if (*pos != ':')
+        return false;
     pos++;
     pos = hd_json_skip_ws(pos);
     if (strncmp(pos, "true", 4) == 0) {
@@ -1581,8 +1583,12 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
 
                     while (idx < HIGH_DIM_MAX_DIMENSIONS) {
                         p = hd_json_skip_ws(p);
-                        if (*p == ']') break;
-                        if (*p == ',') { p++; continue; }
+                        if (*p == ']')
+                            break;
+                        if (*p == ',') {
+                            p++;
+                            continue;
+                        }
                         if (*p != '{') {
                             p = hd_json_skip_value(p);
                             continue;
@@ -1670,7 +1676,8 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
 
                         /* 跳到对象结束 */
                         p = strchr(p, '}');
-                        if (p) p++;
+                        if (p)
+                            p++;
                     }
 
                     /* 更新 mapping_count（如果 JSON 中未指定或指定值偏小） */
@@ -1708,20 +1715,27 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
                                 /* 解析 2x2 矩阵 [[m00, m01], [m10, m11]] */
                                 for (int row = 0; row < 2; row++) {
                                     m_val = hd_json_skip_ws(m_val);
-                                    if (*m_val == ',') { m_val++; m_val = hd_json_skip_ws(m_val); }
+                                    if (*m_val == ',') {
+                                        m_val++;
+                                        m_val = hd_json_skip_ws(m_val);
+                                    }
                                     if (*m_val == '[') {
                                         m_val++; /* 跳过行 '[' */
 
                                         for (int col = 0; col < 2; col++) {
                                             m_val = hd_json_skip_ws(m_val);
-                                            if (*m_val == ',') { m_val++; m_val = hd_json_skip_ws(m_val); }
+                                            if (*m_val == ',') {
+                                                m_val++;
+                                                m_val = hd_json_skip_ws(m_val);
+                                            }
                                             preset->transform.m[row][col] = strtod(m_val, NULL);
                                             /* 跳过数值 */
                                             m_val = hd_json_skip_value(m_val);
                                         }
 
                                         m_val = hd_json_skip_ws(m_val);
-                                        if (*m_val == ']') m_val++; /* 跳过行 ']' */
+                                        if (*m_val == ']')
+                                            m_val++; /* 跳过行 ']' */
                                     }
                                 }
                             }
@@ -1737,8 +1751,7 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
 
 /* ==================== 4D到3D投影 ==================== */
 
-int high_dim_project_to_3d(const double *coord_4d, int dim_count,
-                           double camera_distance, int projection_mode,
+int high_dim_project_to_3d(const double *coord_4d, int dim_count, double camera_distance, int projection_mode,
                            double *coord_3d) {
     /**
      * @brief 将4D及以上坐标投影到3D空间
@@ -1833,12 +1846,12 @@ int high_dim_project_to_3d(const double *coord_4d, int dim_count,
         if (dim_count >= 4) {
             if (camera_distance <= 0.0) {
                 /* 摄像机距离必须为正，否则投影公式中的分母 d-w 可能为0 */
-                lv_set_error(lv_ERROR_INVALID_PARAM,
-                    "4D透视投影失败：camera_distance=%.2f无效，必须大于0", camera_distance);
+                lv_set_error(lv_ERROR_INVALID_PARAM, "4D透视投影失败：camera_distance=%.2f无效，必须大于0",
+                             camera_distance);
                 return lv_ERROR_INVALID_PARAM;
             }
 
-            double w = coord_4d[3];  /* 第4维坐标 */
+            double w = coord_4d[3]; /* 第4维坐标 */
             double denominator = camera_distance - w;
 
             /*
@@ -1849,16 +1862,18 @@ int high_dim_project_to_3d(const double *coord_4d, int dim_count,
                 double min_denom = camera_distance * 1e-6 + 1e-12;
                 denominator = (denominator >= 0) ? min_denom : -min_denom;
                 lv_set_error(lv_OK,
-                    "4D透视投影：w=%.4f接近摄像机距离d=%.4f，"
-                    "已应用奇点保护（截断因子=%.0fx）",
-                    w, camera_distance, camera_distance / min_denom);
+                             "4D透视投影：w=%.4f接近摄像机距离d=%.4f，"
+                             "已应用奇点保护（截断因子=%.0fx）",
+                             w, camera_distance, camera_distance / min_denom);
             }
 
             double factor = camera_distance / denominator;
 
             /* 防止 factor 过大导致坐标溢出 */
-            if (factor > 1e12) factor = 1e12;
-            if (factor < -1e12) factor = -1e12;
+            if (factor > 1e12)
+                factor = 1e12;
+            if (factor < -1e12)
+                factor = -1e12;
 
             coord_3d[0] = coord_4d[0] * factor;
             coord_3d[1] = coord_4d[1] * factor;
@@ -1889,9 +1904,8 @@ int high_dim_project_to_3d(const double *coord_4d, int dim_count,
             coord_3d[d] = (d < dim_count) ? coord_4d[d] : 0.0;
         }
     } else {
-        lv_set_error(lv_ERROR_INVALID_PARAM,
-            "4D投影失败：不支持的projection_mode=%d（有效值：0=透视, 1=正交）",
-            projection_mode);
+        lv_set_error(lv_ERROR_INVALID_PARAM, "4D投影失败：不支持的projection_mode=%d（有效值：0=透视, 1=正交）",
+                     projection_mode);
         return lv_ERROR_INVALID_PARAM;
     }
 
@@ -1900,8 +1914,7 @@ int high_dim_project_to_3d(const double *coord_4d, int dim_count,
 
 /* ==================== 保真度计算（增强版） ==================== */
 
-int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
-                              const ConstraintGraph *constraint_graph,
+int high_dim_compute_fidelity(HighDimManager *manager, int block_id, const ConstraintGraph *constraint_graph,
                               HighDimVisibilityStats *stats) {
     /**
      * @brief 计算投影保真度（增强版，基于约束图结构的准确度量）
@@ -1995,11 +2008,10 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
         }
     }
 
-    double fidelity_dim = (block->dimension_count > 0) ?
-                          (double)visible_dims / block->dimension_count : 1.0;
+    double fidelity_dim = (block->dimension_count > 0) ? (double) visible_dims / block->dimension_count : 1.0;
 
     /* ---- 第二层：约束图关系保留率 ---- */
-    double fidelity_constraint = 1.0;  /* 默认：无约束时视为完全保留 */
+    double fidelity_constraint = 1.0; /* 默认：无约束时视为完全保留 */
     int total_constraints = 0;
     int retainable_constraints = 0;
 
@@ -2008,7 +2020,8 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
 
         for (int i = 0; i < constraint_graph->constraint_count; i++) {
             Constraint *c = constraint_graph->constraints[i];
-            if (!c) continue;
+            if (!c)
+                continue;
 
             /*
              * 约束保留判定：
@@ -2030,8 +2043,7 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
             }
         }
 
-        fidelity_constraint = (total_constraints > 0) ?
-                              (double)retainable_constraints / total_constraints : 1.0;
+        fidelity_constraint = (total_constraints > 0) ? (double) retainable_constraints / total_constraints : 1.0;
     }
 
     /* ---- 第三层：几何信息熵比 ---- */
@@ -2050,7 +2062,8 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
 
         for (int i = 0; i < constraint_graph->node_count; i++) {
             GeomNode *node = constraint_graph->nodes[i];
-            if (!node || node->coord_count < 2) continue;
+            if (!node || node->coord_count < 2)
+                continue;
 
             double x = symbolic_coord_to_double(node->symbolic_coords[0]);
             double y = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -2060,10 +2073,14 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
                 min_y = max_y = y;
                 has_coords = 1;
             } else {
-                if (x < min_x) min_x = x;
-                if (x > max_x) max_x = x;
-                if (y < min_y) min_y = y;
-                if (y > max_y) max_y = y;
+                if (x < min_x)
+                    min_x = x;
+                if (x > max_x)
+                    max_x = x;
+                if (y < min_y)
+                    min_y = y;
+                if (y > max_y)
+                    max_y = y;
             }
         }
 
@@ -2082,7 +2099,7 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
             } else if (total_range > 0.0) {
                 fidelity_geometry = total_range / 100.0;
             } else {
-                fidelity_geometry = 0.0;  /* 所有点重合，完全损失几何信息 */
+                fidelity_geometry = 0.0; /* 所有点重合，完全损失几何信息 */
             }
         }
     }
@@ -2095,13 +2112,13 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
      *   - 几何信息（0.3）次要：几何失真影响可视化质量
      *   - 维度比（0.2）基线：提供基础的维度覆盖度量
      */
-    double fidelity = 0.2 * fidelity_dim +
-                      0.5 * fidelity_constraint +
-                      0.3 * fidelity_geometry;
+    double fidelity = 0.2 * fidelity_dim + 0.5 * fidelity_constraint + 0.3 * fidelity_geometry;
 
     /* 钳制到 [0.0, 1.0] 范围 */
-    if (fidelity < 0.0) fidelity = 0.0;
-    if (fidelity > 1.0) fidelity = 1.0;
+    if (fidelity < 0.0)
+        fidelity = 0.0;
+    if (fidelity > 1.0)
+        fidelity = 1.0;
 
     /* ---- 输出统计信息 ---- */
     stats->total_relations = block->dimension_count;
@@ -2116,8 +2133,7 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
 
 /* ==================== 多视图管理（统一接口） ==================== */
 
-int high_dim_manage_multi_views(HighDimManager *manager, int operation,
-                                int *view_ids, int *count) {
+int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *view_ids, int *count) {
     /**
      * @brief 统一的多投影视图管理接口
      *
@@ -2195,7 +2211,8 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation,
      *         lv_ERROR_INVALID_PARAM 参数无效
      *         lv_ERROR_UNSUPPORTED 不支持的操作类型
      */
-    if (!manager) return lv_ERROR_INVALID_PARAM;
+    if (!manager)
+        return lv_ERROR_INVALID_PARAM;
 
     switch (operation) {
         case 0: {
@@ -2232,13 +2249,11 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation,
 
             if (written > max_count) {
                 lv_set_error(lv_OK,
-                    "列出视图：共%d个活跃视图，但输出数组容量仅%d，"
-                    "实际写入%d个。请增大view_ids数组容量。",
-                    written, max_count, max_count);
+                             "列出视图：共%d个活跃视图，但输出数组容量仅%d，"
+                             "实际写入%d个。请增大view_ids数组容量。",
+                             written, max_count, max_count);
             } else {
-                lv_set_error(lv_OK,
-                    "列出视图：共%d个活跃视图，已全部写入view_ids数组。",
-                    written);
+                lv_set_error(lv_OK, "列出视图：共%d个活跃视图，已全部写入view_ids数组。", written);
             }
 
             return lv_OK;
@@ -2300,8 +2315,7 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation,
                 if (g_multi_views[i].is_active) {
                     g_multi_views[i].is_active = false;
                     g_multi_views[i].highlighted_count = 0;
-                    memset(g_multi_views[i].highlighted_elements, 0,
-                           sizeof(g_multi_views[i].highlighted_elements));
+                    memset(g_multi_views[i].highlighted_elements, 0, sizeof(g_multi_views[i].highlighted_elements));
                     cleared++;
                 }
             }
@@ -2311,27 +2325,25 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation,
             }
 
             lv_set_error(lv_OK,
-                "多视图管理：已清除%d个活跃视图。"
-                "UI层需同步关闭所有视图窗口并释放渲染资源。",
-                cleared);
+                         "多视图管理：已清除%d个活跃视图。"
+                         "UI层需同步关闭所有视图窗口并释放渲染资源。",
+                         cleared);
 
             return lv_OK;
         }
 
         default:
             lv_set_error(lv_ERROR_UNSUPPORTED,
-                "多视图管理失败：不支持的操作类型=%d"
-                "（有效值：0=LIST, 1=COUNT, 2=CLEAR）",
-                operation);
+                         "多视图管理失败：不支持的操作类型=%d"
+                         "（有效值：0=LIST, 1=COUNT, 2=CLEAR）",
+                         operation);
             return lv_ERROR_UNSUPPORTED;
     }
 }
 
 /* ==================== 工具函数 ==================== */
 
-int high_dim_validate_mapping(int dimension_count,
-                              const HighDimAxisMapping *mappings,
-                              int mapping_count) {
+int high_dim_validate_mapping(int dimension_count, const HighDimAxisMapping *mappings, int mapping_count) {
     if (dimension_count < 4 || dimension_count > HIGH_DIM_MAX_DIMENSIONS) {
         return 0;
     }
@@ -2346,36 +2358,47 @@ int high_dim_validate_mapping(int dimension_count,
         if (mappings[i].axis_index < 0 || mappings[i].axis_index >= dimension_count) {
             return 0;
         }
-        if (mappings[i].mapping_type == HIGH_DIM_MAP_TO_X) has_x = 1;
-        if (mappings[i].mapping_type == HIGH_DIM_MAP_TO_Y) has_y = 1;
+        if (mappings[i].mapping_type == HIGH_DIM_MAP_TO_X)
+            has_x = 1;
+        if (mappings[i].mapping_type == HIGH_DIM_MAP_TO_Y)
+            has_y = 1;
     }
 
     return (has_x && has_y) ? 1 : 0;
 }
 
-const char* high_dim_mapping_type_to_string(HighDimMappingType mapping_type) {
+const char *high_dim_mapping_type_to_string(HighDimMappingType mapping_type) {
     switch (mapping_type) {
-        case HIGH_DIM_MAP_TO_X:     return "x";
-        case HIGH_DIM_MAP_TO_Y:     return "y";
-        case HIGH_DIM_MAP_FOLD:     return "fold";
-        case HIGH_DIM_MAP_DISCARD:  return "discard";
-        default:                    return "unknown";
+        case HIGH_DIM_MAP_TO_X:
+            return "x";
+        case HIGH_DIM_MAP_TO_Y:
+            return "y";
+        case HIGH_DIM_MAP_FOLD:
+            return "fold";
+        case HIGH_DIM_MAP_DISCARD:
+            return "discard";
+        default:
+            return "unknown";
     }
 }
 
 HighDimMappingType high_dim_mapping_type_from_string(const char *str) {
-    if (!str) return (HighDimMappingType)-1;
+    if (!str)
+        return (HighDimMappingType) -1;
 
-    if (strcmp(str, "x") == 0) return HIGH_DIM_MAP_TO_X;
-    if (strcmp(str, "y") == 0) return HIGH_DIM_MAP_TO_Y;
-    if (strcmp(str, "fold") == 0) return HIGH_DIM_MAP_FOLD;
-    if (strcmp(str, "discard") == 0) return HIGH_DIM_MAP_DISCARD;
+    if (strcmp(str, "x") == 0)
+        return HIGH_DIM_MAP_TO_X;
+    if (strcmp(str, "y") == 0)
+        return HIGH_DIM_MAP_TO_Y;
+    if (strcmp(str, "fold") == 0)
+        return HIGH_DIM_MAP_FOLD;
+    if (strcmp(str, "discard") == 0)
+        return HIGH_DIM_MAP_DISCARD;
 
-    return (HighDimMappingType)-1;
+    return (HighDimMappingType) -1;
 }
 
-int high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset,
-                                        char *buffer, size_t buffer_size) {
+int high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset, char *buffer, size_t buffer_size) {
     if (!preset || !buffer || buffer_size == 0) {
         return lv_ERROR_INVALID_PARAM;
     }

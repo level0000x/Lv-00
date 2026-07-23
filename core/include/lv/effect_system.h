@@ -60,8 +60,7 @@ void lv_effect_tracker_reset(lvEffectTracker *tracker);
  * @param block_id 关联的代码块 ID
  * @param desc 副作用描述信息
  */
-void lv_effect_tracker_record(lvEffectTracker *tracker, lvEffectType effect,
-                                 int block_id, const char *desc);
+void lv_effect_tracker_record(lvEffectTracker *tracker, lvEffectType effect, int block_id, const char *desc);
 
 /* Query */
 
@@ -95,8 +94,7 @@ const lvEffectAnnotation *lv_effect_tracker_current(const lvEffectTracker *track
  * @param b 指向第二个副作用注解的指针
  * @return 成功返回合并后的副作用注解指针，失败返回 NULL
  */
-lvEffectAnnotation *lv_effect_compose(const lvEffectAnnotation *a,
-                                           const lvEffectAnnotation *b);
+lvEffectAnnotation *lv_effect_compose(const lvEffectAnnotation *a, const lvEffectAnnotation *b);
 
 /**
  * @brief 销毁副作用注解并释放资源

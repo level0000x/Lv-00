@@ -52,8 +52,7 @@ lv_PUBLIC_API lvMultiVector *ga_embed_point(double x, double y, double z);
  * @param out_z  Output Z coordinate (must not be NULL)
  * @return 0 on success, -1 if mv is NULL or not a valid point
  */
-lv_PUBLIC_API int ga_extract_point(const lvMultiVector *mv,
-                                      double *out_x, double *out_y, double *out_z);
+lv_PUBLIC_API int ga_extract_point(const lvMultiVector *mv, double *out_x, double *out_y, double *out_z);
 
 /* ========================================================================
  * Vector Operations
@@ -81,8 +80,7 @@ lv_PUBLIC_API lvMultiVector *ga_embed_vector(double vx, double vy, double vz);
  * @param out_vz  Output Z component (must not be NULL)
  * @return 0 on success, -1 if mv is NULL
  */
-lv_PUBLIC_API int ga_extract_vector(const lvMultiVector *mv,
-                                       double *out_vx, double *out_vy, double *out_vz);
+lv_PUBLIC_API int ga_extract_vector(const lvMultiVector *mv, double *out_vx, double *out_vy, double *out_vz);
 
 /* ========================================================================
  * Plane Operations
@@ -112,9 +110,8 @@ lv_PUBLIC_API lvMultiVector *ga_embed_plane(double nx, double ny, double nz, dou
  * @param out_d   Output distance (must not be NULL)
  * @return 0 on success, -1 if mv is NULL
  */
-lv_PUBLIC_API int ga_extract_plane(const lvMultiVector *mv,
-                                      double *out_nx, double *out_ny, double *out_nz,
-                                      double *out_d);
+lv_PUBLIC_API int ga_extract_plane(const lvMultiVector *mv, double *out_nx, double *out_ny, double *out_nz,
+                                   double *out_d);
 
 /* ========================================================================
  * Ray Operations
@@ -130,8 +127,7 @@ lv_PUBLIC_API int ga_extract_plane(const lvMultiVector *mv,
  * @param dir      Direction vector multivector
  * @return A new multivector representing the embedded ray (bivector)
  */
-lv_PUBLIC_API lvMultiVector *ga_embed_ray(const lvMultiVector *origin,
-                                               const lvMultiVector *dir);
+lv_PUBLIC_API lvMultiVector *ga_embed_ray(const lvMultiVector *origin, const lvMultiVector *dir);
 
 /**
  * @brief Extract ray parameters from a PGA ray
@@ -141,9 +137,7 @@ lv_PUBLIC_API lvMultiVector *ga_embed_ray(const lvMultiVector *origin,
  * @param out_dir     Output direction vector (caller owns, free with ga_mv_destroy)
  * @return 0 on success, -1 if mv is NULL or not a valid ray
  */
-lv_PUBLIC_API int ga_extract_ray(const lvMultiVector *mv,
-                                    lvMultiVector **out_origin,
-                                    lvMultiVector **out_dir);
+lv_PUBLIC_API int ga_extract_ray(const lvMultiVector *mv, lvMultiVector **out_origin, lvMultiVector **out_dir);
 
 /* ========================================================================
  * Rotor Operations (Rotations)
@@ -161,8 +155,7 @@ lv_PUBLIC_API int ga_extract_ray(const lvMultiVector *mv,
  * @param angle  Rotation angle in radians
  * @return A new multivector representing the rotor
  */
-lv_PUBLIC_API lvMultiVector *ga_embed_rotation(double ax, double ay, double az,
-                                                     double angle);
+lv_PUBLIC_API lvMultiVector *ga_embed_rotation(double ax, double ay, double az, double angle);
 
 /**
  * @brief Extract rotation parameters from a PGA rotor
@@ -174,9 +167,8 @@ lv_PUBLIC_API lvMultiVector *ga_embed_rotation(double ax, double ay, double az,
  * @param out_angle Output angle in radians (must not be NULL)
  * @return 0 on success, -1 if rotor is NULL or not a valid rotor
  */
-lv_PUBLIC_API int ga_extract_rotation(const lvMultiVector *rotor,
-                                         double *out_ax, double *out_ay, double *out_az,
-                                         double *out_angle);
+lv_PUBLIC_API int ga_extract_rotation(const lvMultiVector *rotor, double *out_ax, double *out_ay, double *out_az,
+                                      double *out_angle);
 
 /* ========================================================================
  * Motor Operations (Translations)
@@ -209,8 +201,7 @@ lv_PUBLIC_API lvMultiVector *ga_embed_translation(double tx, double ty, double t
  * @param p2  Second point multivector
  * @return A new multivector representing the line (bivector)
  */
-lv_PUBLIC_API lvMultiVector *ga_line_from_two_points(const lvMultiVector *p1,
-                                                          const lvMultiVector *p2);
+lv_PUBLIC_API lvMultiVector *ga_line_from_two_points(const lvMultiVector *p1, const lvMultiVector *p2);
 
 /**
  * @brief Check if three points are collinear
@@ -222,9 +213,7 @@ lv_PUBLIC_API lvMultiVector *ga_line_from_two_points(const lvMultiVector *p1,
  * @param p3  Third point
  * @return true if collinear, false otherwise
  */
-lv_PUBLIC_API bool ga_three_points_collinear(const lvMultiVector *p1,
-                                                const lvMultiVector *p2,
-                                                const lvMultiVector *p3);
+lv_PUBLIC_API bool ga_three_points_collinear(const lvMultiVector *p1, const lvMultiVector *p2, const lvMultiVector *p3);
 
 /**
  * @brief Check if four points are coplanar
@@ -237,10 +226,8 @@ lv_PUBLIC_API bool ga_three_points_collinear(const lvMultiVector *p1,
  * @param p4  Fourth point
  * @return true if coplanar, false otherwise
  */
-lv_PUBLIC_API bool ga_four_points_coplanar(const lvMultiVector *p1,
-                                              const lvMultiVector *p2,
-                                              const lvMultiVector *p3,
-                                              const lvMultiVector *p4);
+lv_PUBLIC_API bool ga_four_points_coplanar(const lvMultiVector *p1, const lvMultiVector *p2, const lvMultiVector *p3,
+                                           const lvMultiVector *p4);
 
 /**
  * @brief Compute the plane through three points in PGA
@@ -253,9 +240,8 @@ lv_PUBLIC_API bool ga_four_points_coplanar(const lvMultiVector *p1,
  * @param p3  Third point
  * @return A new multivector representing the plane (trivector)
  */
-lv_PUBLIC_API lvMultiVector *ga_plane_from_three_points(const lvMultiVector *p1,
-                                                             const lvMultiVector *p2,
-                                                             const lvMultiVector *p3);
+lv_PUBLIC_API lvMultiVector *ga_plane_from_three_points(const lvMultiVector *p1, const lvMultiVector *p2,
+                                                        const lvMultiVector *p3);
 
 #ifdef __cplusplus
 }

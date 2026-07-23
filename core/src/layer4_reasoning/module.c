@@ -7,12 +7,12 @@
 
 #include <ctype.h>
 #ifdef _WIN32
-    #include <windows.h>
-    /* Windows 下使用 FindFirstFile/FindNextFile 替代 POSIX dirent */
-    #include <fileapi.h>
+#include <windows.h>
+/* Windows 下使用 FindFirstFile/FindNextFile 替代 POSIX dirent */
+#include <fileapi.h>
 #else
-    #include <dirent.h>
-    #include <unistd.h>
+#include <dirent.h>
+#include <unistd.h>
 #endif
 #include <math.h>
 #include <stdarg.h>
@@ -23,10 +23,11 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "axiom_pkg.h"
 #include "lv/constraint_graph.h"
-#include "lexer_shared.h"
+
+#include "axiom_pkg.h"
 #include "error_codes.h"
+#include "lexer_shared.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "module.h"

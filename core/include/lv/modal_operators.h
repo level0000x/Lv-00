@@ -59,7 +59,7 @@ typedef struct lvModalEvalResult lvModalEvalResult;
  */
 typedef enum {
     lv_MODALOP_NECESSARY = 0, /**< □ 必然 */
-    lv_MODALOP_POSSIBLE  = 1  /**< ◇ 可能 */
+    lv_MODALOP_POSSIBLE = 1   /**< ◇ 可能 */
 } lvModalOperator;
 
 /* ============== 模态可达关系 ============== */
@@ -106,14 +106,14 @@ struct lvModalWorld {
  * R: 世界间的可达关系
  */
 struct lvModalFrame {
-    lvModalWorld **worlds;        /**< 世界数组 */
-    int world_count;                /**< 世界数量 */
-    int world_capacity;             /**< 世界数组容量 */
-    int current_world_id;           /**< 当前世界ID（1-based） */
+    lvModalWorld **worlds; /**< 世界数组 */
+    int world_count;       /**< 世界数量 */
+    int world_capacity;    /**< 世界数组容量 */
+    int current_world_id;  /**< 当前世界ID（1-based） */
 
     /* 可达关系：reachability[w_from][w_to] */
     lvReachabilityType **reach_matrix; /**< 可达关系类型矩阵 */
-    int reach_dimension;                 /**< 可达矩阵维度 */
+    int reach_dimension;               /**< 可达矩阵维度 */
 };
 
 /* ============== 模态公式 ============== */
@@ -124,9 +124,9 @@ struct lvModalFrame {
  * 支持嵌套模态算子，例如：□◇P（必然可能P）
  */
 struct lvModalFormula {
-    lvModalOperator op;           /**< 最外层模态算子 */
+    lvModalOperator op;             /**< 最外层模态算子 */
     struct Proposition *inner_prop; /**< 内层命题（不含模态算子） */
-    struct lvModalFormula *sub;   /**< 子模态公式（嵌套时使用，如 □◇P 时 sub = ◇P） */
+    struct lvModalFormula *sub;     /**< 子模态公式（嵌套时使用，如 □◇P 时 sub = ◇P） */
 };
 
 /* ============== 模态评估结果 ============== */
@@ -135,9 +135,9 @@ struct lvModalFormula {
  * @brief 模态公式评估结果
  */
 struct lvModalEvalResult {
-    lvTruthValue truth_value;     /**< 评估真值 */
-    int witness_world_id;           /**< 目击世界ID（◇ 算子时有效，-1 表示无） */
-    char *explanation;              /**< 解释字符串 */
+    lvTruthValue truth_value; /**< 评估真值 */
+    int witness_world_id;     /**< 目击世界ID（◇ 算子时有效，-1 表示无） */
+    char *explanation;        /**< 解释字符串 */
 };
 
 /* ============== 世界管理 API ============== */
@@ -212,7 +212,7 @@ lv_PUBLIC_API bool lv_modal_frame_add_world(lvModalFrame *frame, lvModalWorld *w
  * @return true 成功，false 失败
  */
 lv_PUBLIC_API bool lv_modal_frame_set_reachability(lvModalFrame *frame, int from_world_id, int to_world_id,
-                                       lvReachabilityType reach_type);
+                                                   lvReachabilityType reach_type);
 
 /**
  * @brief 检查世界 w_to 是否从 w_from 可达
@@ -233,8 +233,8 @@ lv_PUBLIC_API bool lv_modal_frame_is_reachable(const lvModalFrame *frame, int fr
  * @param out_count 输出数量
  * @return true 成功，false 失败
  */
-lv_PUBLIC_API bool lv_modal_frame_get_reachable_worlds(const lvModalFrame *frame, int world_id,
-                                           int **out_ids, int *out_count);
+lv_PUBLIC_API bool lv_modal_frame_get_reachable_worlds(const lvModalFrame *frame, int world_id, int **out_ids,
+                                                       int *out_count);
 
 /* ============== 模态公式 API ============== */
 
@@ -278,8 +278,8 @@ lv_PUBLIC_API void lv_modal_formula_destroy(lvModalFormula *formula);
  * @param result   输出评估结果
  * @return 0 成功，-1 参数错误
  */
-lv_PUBLIC_API int lv_modal_evaluate(const lvModalFrame *frame, const lvModalFormula *formula,
-                        int world_id, lvModalEvalResult *result);
+lv_PUBLIC_API int lv_modal_evaluate(const lvModalFrame *frame, const lvModalFormula *formula, int world_id,
+                                    lvModalEvalResult *result);
 
 /**
  * @brief 检查公式是否为模态框架中的有效式

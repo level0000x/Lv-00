@@ -19,11 +19,11 @@
  *  格式类型常量
  * ================================================================ */
 
-#define MATH_FORMAT_UNKNOWN     0   /**< 未知格式 */
-#define MATH_FORMAT_LATEX       1   /**< LaTeX 格式 */
-#define MATH_FORMAT_ASCII       2   /**< ASCII 数学格式 */
-#define MATH_FORMAT_NATURAL     3   /**< 自然语言描述 */
-#define MATH_FORMAT_JSON        4   /**< JSON 格式 */
+#define MATH_FORMAT_UNKNOWN 0 /**< 未知格式 */
+#define MATH_FORMAT_LATEX 1   /**< LaTeX 格式 */
+#define MATH_FORMAT_ASCII 2   /**< ASCII 数学格式 */
+#define MATH_FORMAT_NATURAL 3 /**< 自然语言描述 */
+#define MATH_FORMAT_JSON 4    /**< JSON 格式 */
 
 /* ================================================================
  *  内部辅助函数
@@ -34,10 +34,10 @@
  * @param p 当前解析位置
  * @return 跳过空白后的新位置
  */
-static const char *skip_whitespace(const char *p)
-{
-    if (!p) return NULL;
-    while (*p && isspace((unsigned char)*p)) {
+static const char *skip_whitespace(const char *p) {
+    if (!p)
+        return NULL;
+    while (*p && isspace((unsigned char) *p)) {
         p++;
     }
     return p;
@@ -52,16 +52,16 @@ static const char *skip_whitespace(const char *p)
  * @param input 输入字符串
  * @return 包含 LaTeX 特征返回 1，否则返回 0
  */
-static int has_latex_features(const char *input)
-{
+static int has_latex_features(const char *input) {
     const char *p;
 
-    if (!input) return 0;
+    if (!input)
+        return 0;
 
     /* 检测反斜杠命令（\frac, \sqrt, \int 等） */
     p = input;
     while (*p) {
-        if (*p == '\\' && isalpha((unsigned char)*(p + 1))) {
+        if (*p == '\\' && isalpha((unsigned char) *(p + 1))) {
             return 1;
         }
         /* 检测数学环境定界符 */
@@ -80,11 +80,11 @@ static int has_latex_features(const char *input)
  * @param input 输入字符串
  * @return 包含 JSON 特征返回 1，否则返回 0
  */
-static int has_json_features(const char *input)
-{
+static int has_json_features(const char *input) {
     const char *p;
 
-    if (!input) return 0;
+    if (!input)
+        return 0;
 
     p = skip_whitespace(input);
     return (*p == '{' || *p == '[') ? 1 : 0;
@@ -99,26 +99,25 @@ static int has_json_features(const char *input)
  * @param input 输入字符串
  * @return 是 ASCII 数学表达式返回 1，否则返回 0
  */
-static int has_ascii_math_features(const char *input)
-{
+static int has_ascii_math_features(const char *input) {
     int has_operator = 0;
     int has_operand = 0;
     const char *p;
 
-    if (!input) return 0;
+    if (!input)
+        return 0;
 
     p = input;
     while (*p) {
         char c = *p;
 
         /* 运算符检测 */
-        if (c == '+' || c == '-' || c == '*' || c == '/' ||
-            c == '^' || c == '=' || c == '<' || c == '>') {
+        if (c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '=' || c == '<' || c == '>') {
             has_operator = 1;
         }
 
         /* 操作数检测（数字或字母标识符） */
-        if (isdigit((unsigned char)c) || isalpha((unsigned char)c)) {
+        if (isdigit((unsigned char) c) || isalpha((unsigned char) c)) {
             has_operand = 1;
         }
 
@@ -136,8 +135,7 @@ static int has_ascii_math_features(const char *input)
  * @param src     源字符串
  * @return 追加后的新位置，缓冲区不足返回 NULL
  */
-static char *safe_append(char *dst, const char *buf_end, const char *src)
-{
+static char *safe_append(char *dst, const char *buf_end, const char *src) {
     if (!dst || !buf_end || !src || dst >= buf_end) {
         return NULL;
     }
@@ -157,28 +155,28 @@ static char *safe_append(char *dst, const char *buf_end, const char *src)
  * @param buf_size 缓冲区大小
  * @return 写入的字符数
  */
-static int trim_copy(const char *str, char *out, size_t buf_size)
-{
+static int trim_copy(const char *str, char *out, size_t buf_size) {
     const char *start;
     const char *end;
     size_t len;
     size_t i;
 
-    if (!str || !out || buf_size == 0) return 0;
+    if (!str || !out || buf_size == 0)
+        return 0;
 
     /* 跳过前导空白 */
     start = str;
-    while (*start && isspace((unsigned char)*start)) {
+    while (*start && isspace((unsigned char) *start)) {
         start++;
     }
 
     /* 找到尾部非空白位置 */
     end = start + strlen(start);
-    while (end > start && isspace((unsigned char)*(end - 1))) {
+    while (end > start && isspace((unsigned char) *(end - 1))) {
         end--;
     }
 
-    len = (size_t)(end - start);
+    len = (size_t) (end - start);
     if (len >= buf_size) {
         len = buf_size - 1;
     }
@@ -188,7 +186,7 @@ static int trim_copy(const char *str, char *out, size_t buf_size)
     }
     out[len] = '\0';
 
-    return (int)len;
+    return (int) len;
 }
 
 /* ================================================================
@@ -207,8 +205,7 @@ static int trim_copy(const char *str, char *out, size_t buf_size)
  * @return 写入规范化字符串的字符数（不含终止符），
  *         失败返回 -1
  */
-int lv_math_input_parse(const char *input, char *normalized, size_t buf_size)
-{
+int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
     const char *p;
     char *out;
     const char *out_end;
@@ -226,11 +223,11 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size)
     }
 
     out = normalized;
-    out_end = normalized + buf_size - 1;  /* 预留终止符空间 */
+    out_end = normalized + buf_size - 1; /* 预留终止符空间 */
 
     /* 逐字符复制并规范化空白 */
     while (*p && out < out_end) {
-        if (isspace((unsigned char)*p)) {
+        if (isspace((unsigned char) *p)) {
             /* 连续空白合并为单个空格 */
             if (!last_was_space) {
                 *out++ = ' ';
@@ -249,7 +246,7 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size)
     }
 
     *out = '\0';
-    return (int)(out - normalized);
+    return (int) (out - normalized);
 }
 
 /**
@@ -265,8 +262,7 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size)
  *         MATH_FORMAT_JSON (4)   —— JSON 格式
  *         MATH_FORMAT_UNKNOWN (0) —— 无法识别
  */
-int lv_math_input_detect_format(const char *input)
-{
+int lv_math_input_detect_format(const char *input) {
     const char *p;
 
     if (!input) {

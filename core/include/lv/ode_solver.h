@@ -26,6 +26,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "lv.h"
 /* ============================================================
  * ODE method enumeration
@@ -34,9 +35,9 @@ extern "C" {
  * @brief Numerical integration methods for ODE solving.
  */
 typedef enum lvODEMethod {
-    ODE_EULER = 0,   /**< Explicit forward Euler method (1st order) */
-    ODE_RK4   = 1,   /**< Classical 4th-order Runge-Kutta */
-    ODE_ADAMS = 2    /**< Adams-Bashforth multistep (placeholder) */
+    ODE_EULER = 0, /**< Explicit forward Euler method (1st order) */
+    ODE_RK4 = 1,   /**< Classical 4th-order Runge-Kutta */
+    ODE_ADAMS = 2  /**< Adams-Bashforth multistep (placeholder) */
 } lvODEMethod;
 /* ============================================================
  * ODE problem definition
@@ -58,10 +59,10 @@ typedef void (*lvODERhsFn)(double t, const double *y, void *params, double *dydt
  */
 typedef struct lvODEProblem {
     lvODERhsFn rhs_fn; /**< Right-hand-side function dy/dt = f(t,y) */
-    double         *y0;    /**< Initial state vector (size = dim) */
-    size_t          dim;   /**< Dimension of the state vector */
-    double          t_span[2]; /**< Integration interval [t_start, t_end] */
-    void           *params;    /**< User parameters passed to rhs_fn */
+    double *y0;        /**< Initial state vector (size = dim) */
+    size_t dim;        /**< Dimension of the state vector */
+    double t_span[2];  /**< Integration interval [t_start, t_end] */
+    void *params;      /**< User parameters passed to rhs_fn */
 } lvODEProblem;
 /* ============================================================
  * ODE solver configuration
@@ -70,11 +71,11 @@ typedef struct lvODEProblem {
  * @brief Configuration for the ODE solver.
  */
 typedef struct lvODEConfig {
-    lvODEMethod method;    /**< Integration method */
-    double        dt;        /**< Fixed time step size */
-    size_t        max_steps; /**< Maximum number of steps */
-    double        rtol;      /**< Relative tolerance (for adaptive, reserved) */
-    double        atol;      /**< Absolute tolerance (for adaptive, reserved) */
+    lvODEMethod method; /**< Integration method */
+    double dt;          /**< Fixed time step size */
+    size_t max_steps;   /**< Maximum number of steps */
+    double rtol;        /**< Relative tolerance (for adaptive, reserved) */
+    double atol;        /**< Absolute tolerance (for adaptive, reserved) */
 } lvODEConfig;
 /* ============================================================
  * ODE solution
@@ -86,10 +87,10 @@ typedef struct lvODEConfig {
  * state vectors: y_values[i * dim + j] is the j-th component at step i.
  */
 typedef struct lvODESolution {
-    double *t_values;  /**< Time points (size = n_steps) */
-    double *y_values;  /**< State vectors (size = n_steps * dim) */
-    size_t  n_steps;   /**< Number of time steps stored */
-    size_t  dim;       /**< Dimension of the state vector */
+    double *t_values; /**< Time points (size = n_steps) */
+    double *y_values; /**< State vectors (size = n_steps * dim) */
+    size_t n_steps;   /**< Number of time steps stored */
+    size_t dim;       /**< Dimension of the state vector */
 } lvODESolution;
 /* ============================================================
  * API: Solve
@@ -101,8 +102,7 @@ typedef struct lvODESolution {
  * @param config   Solver configuration
  * @return Pointer to the solution, or NULL on failure
  */
-lv_PUBLIC_API lvODESolution *ode_solve(const lvODEProblem *problem,
-                                           const lvODEConfig  *config);
+lv_PUBLIC_API lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config);
 /* ============================================================
  * API: Destroy
  * ============================================================ */

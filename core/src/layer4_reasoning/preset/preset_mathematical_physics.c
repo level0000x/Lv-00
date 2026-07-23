@@ -10,11 +10,12 @@
  */
 
 #include "preset_mathematical_physics.h"
-#include "preset_blocks.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
 
 #include <string.h>
+
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -23,8 +24,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_mathematical_physics_register(void)
-{
+bool preset_mathematical_physics_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -32,29 +32,21 @@ bool preset_mathematical_physics_register(void)
      * ============================================================ */
 
     /* 泛函极值问题 */
-    if (preset_blocks_register_by_category(
-            "functional_extremum",
-            "求解泛函 J[y] = ∫ L(x, y, y') dx 的极值",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("functional_extremum", "求解泛函 J[y] = ∫ L(x, y, y') dx 的极值",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* Euler-Lagrange方程 */
-    if (preset_blocks_register_by_category(
-            "euler_lagrange_equation",
-            "建立并求解Euler-Lagrange方程 ∂L/∂y - d/dx(∂L/∂y') = 0",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("euler_lagrange_equation",
+                                           "建立并求解Euler-Lagrange方程 ∂L/∂y - d/dx(∂L/∂y') = 0", PRESET_EXT_ANALYSIS,
+                                           2, 1)) {
         success_count++;
     }
 
     /* 等周问题 */
-    if (preset_blocks_register_by_category(
-            "isoperimetric_problem",
-            "求解带约束的变分问题（等周问题）",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("isoperimetric_problem", "求解带约束的变分问题（等周问题）",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
@@ -63,20 +55,14 @@ bool preset_mathematical_physics_register(void)
      * ============================================================ */
 
     /* Lagrange函数构造 */
-    if (preset_blocks_register_by_category(
-            "lagrangian_construct",
-            "构造Lagrange函数 L = T - V（动能减势能）",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("lagrangian_construct", "构造Lagrange函数 L = T - V（动能减势能）",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* Lagrange方程 */
-    if (preset_blocks_register_by_category(
-            "lagrange_equation",
-            "建立Lagrange运动方程 d/dt(∂L/∂q') - ∂L/∂q = Q",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("lagrange_equation", "建立Lagrange运动方程 d/dt(∂L/∂q') - ∂L/∂q = Q",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
@@ -85,29 +71,20 @@ bool preset_mathematical_physics_register(void)
      * ============================================================ */
 
     /* Hamilton函数构造 */
-    if (preset_blocks_register_by_category(
-            "hamiltonian_construct",
-            "由Lagrange函数通过Legendre变换构造Hamilton函数 H",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("hamiltonian_construct", "由Lagrange函数通过Legendre变换构造Hamilton函数 H",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* Hamilton正则方程 */
-    if (preset_blocks_register_by_category(
-            "hamilton_equation",
-            "建立Hamilton正则方程 dq/dt = ∂H/∂p, dp/dt = -∂H/∂q",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("hamilton_equation", "建立Hamilton正则方程 dq/dt = ∂H/∂p, dp/dt = -∂H/∂q",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* Poisson括号 */
-    if (preset_blocks_register_by_category(
-            "poisson_bracket",
-            "计算Poisson括号 {f, g} = Σ(∂f/∂q·∂g/∂p - ∂f/∂p·∂g/∂q)",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("poisson_bracket", "计算Poisson括号 {f, g} = Σ(∂f/∂q·∂g/∂p - ∂f/∂p·∂g/∂q)",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
@@ -116,20 +93,14 @@ bool preset_mathematical_physics_register(void)
      * ============================================================ */
 
     /* Noether定理 */
-    if (preset_blocks_register_by_category(
-            "noether_theorem",
-            "应用Noether定理：连续对称性对应守恒量",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("noether_theorem", "应用Noether定理：连续对称性对应守恒量",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
     /* 守恒量计算 */
-    if (preset_blocks_register_by_category(
-            "conserved_quantity",
-            "计算运动方程的守恒量（能量、动量、角动量等）",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("conserved_quantity", "计算运动方程的守恒量（能量、动量、角动量等）",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
@@ -138,20 +109,14 @@ bool preset_mathematical_physics_register(void)
      * ============================================================ */
 
     /* 场方程推导 */
-    if (preset_blocks_register_by_category(
-            "field_equation",
-            "由场的Lagrangian密度推导场的运动方程",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("field_equation", "由场的Lagrangian密度推导场的运动方程",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* 作用量原理 */
-    if (preset_blocks_register_by_category(
-            "action_principle",
-            "计算作用量 S = ∫ L dt 并应用最小作用量原理",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("action_principle", "计算作用量 S = ∫ L dt 并应用最小作用量原理",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
@@ -159,7 +124,6 @@ bool preset_mathematical_physics_register(void)
     return success_count == MATHEMATICAL_PHYSICS_PRESET_COUNT;
 }
 
-int preset_mathematical_physics_count(void)
-{
+int preset_mathematical_physics_count(void) {
     return MATHEMATICAL_PHYSICS_PRESET_COUNT;
 }

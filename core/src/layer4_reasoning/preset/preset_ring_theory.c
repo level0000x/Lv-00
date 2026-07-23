@@ -139,10 +139,9 @@ bool preset_ring_theory_register(void) {
     /* -------------------- 主理想生成 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING};
-        if (register_ring_theory_preset(PRESET_PRINCIPAL_IDEAL, "主理想生成：由单个元素a生成主理想 <a> = aR = Ra",
-                                        inputs, 1, PRESET_TYPE_IDEAL,
-                                        "\\langle a \\rangle = \\{ra : r \\in R\\} \\quad \\text{（交换环）}", "O(1)",
-                                        true, false)) {
+        if (register_ring_theory_preset(
+                PRESET_PRINCIPAL_IDEAL, "主理想生成：由单个元素a生成主理想 <a> = aR = Ra", inputs, 1, PRESET_TYPE_IDEAL,
+                "\\langle a \\rangle = \\{ra : r \\in R\\} \\quad \\text{（交换环）}", "O(1)", true, false)) {
             success_count++;
         }
     }

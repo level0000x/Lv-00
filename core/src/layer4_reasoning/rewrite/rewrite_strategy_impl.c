@@ -5,12 +5,14 @@
  * 实现 rewrite.h 中声明的策略树构造、执行和搜索 API。
  * 基于现有 rewrite_with_rules() 和 graph_copy() 构建。
  */
-#include "lv/rewrite.h"
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv/constraint_graph.h"
 #include "lv/lv.h"
+#include "lv/rewrite.h"
+
 #include "lv_internal.h"
-#include <string.h>
-#include <stdlib.h>
 
 /* ================================================================
  *  策略树构造函数
@@ -18,13 +20,15 @@
 
 RewriteStrategy *rewrite_strategy_create_idle(void) {
     RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
-    if (s) s->kind = REWRITE_STRATEGY_KIND_IDLE;
+    if (s)
+        s->kind = REWRITE_STRATEGY_KIND_IDLE;
     return s;
 }
 
 RewriteStrategy *rewrite_strategy_create_fail(void) {
     RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
-    if (s) s->kind = REWRITE_STRATEGY_KIND_FAIL;
+    if (s)
+        s->kind = REWRITE_STRATEGY_KIND_FAIL;
     return s;
 }
 
@@ -38,7 +42,8 @@ RewriteStrategy *rewrite_strategy_create_apply_rule(int rule_id) {
 }
 
 RewriteStrategy *rewrite_strategy_create_match(const char *pattern) {
-    if (!pattern) return NULL;
+    if (!pattern)
+        return NULL;
     RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
     if (s) {
         s->kind = REWRITE_STRATEGY_KIND_MATCH_PATTERN;
@@ -48,7 +53,8 @@ RewriteStrategy *rewrite_strategy_create_match(const char *pattern) {
 }
 
 RewriteStrategy *rewrite_strategy_create_test(int (*test)(void *), void *ctx) {
-    if (!test) return NULL;
+    if (!test)
+        return NULL;
     RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
     if (s) {
         s->kind = REWRITE_STRATEGY_KIND_TEST_COND;
@@ -59,7 +65,8 @@ RewriteStrategy *rewrite_strategy_create_test(int (*test)(void *), void *ctx) {
 }
 
 RewriteStrategy *rewrite_strategy_sequence(RewriteStrategy *left, RewriteStrategy *right) {
-    if (!left || !right) return NULL;
+    if (!left || !right)
+        return NULL;
     RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
     if (s) {
         s->kind = REWRITE_STRATEGY_KIND_SEQUENCE;
@@ -70,7 +77,8 @@ RewriteStrategy *rewrite_strategy_sequence(RewriteStrategy *left, RewriteStrateg
 }
 
 RewriteStrategy *rewrite_strategy_orelse(RewriteStrategy *left, RewriteStrategy *right) {
-    if (!left || !right) return NULL;
+    if (!left || !right)
+        return NULL;
     RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
     if (s) {
         s->kind = REWRITE_STRATEGY_KIND_ORELSE;
@@ -81,7 +89,8 @@ RewriteStrategy *rewrite_strategy_orelse(RewriteStrategy *left, RewriteStrategy 
 }
 
 RewriteStrategy *rewrite_strategy_repeat(RewriteStrategy *child, int max_iter) {
-    if (!child) return NULL;
+    if (!child)
+        return NULL;
     RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
     if (s) {
         s->kind = REWRITE_STRATEGY_KIND_REPEAT;
@@ -92,7 +101,8 @@ RewriteStrategy *rewrite_strategy_repeat(RewriteStrategy *child, int max_iter) {
 }
 
 RewriteStrategy *rewrite_strategy_normalize(RewriteStrategy *child) {
-    if (!child) return NULL;
+    if (!child)
+        return NULL;
     RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
     if (s) {
         s->kind = REWRITE_STRATEGY_KIND_NORMALIZE;
@@ -102,7 +112,8 @@ RewriteStrategy *rewrite_strategy_normalize(RewriteStrategy *child) {
 }
 
 RewriteStrategy *rewrite_strategy_try(RewriteStrategy *child) {
-    if (!child) return NULL;
+    if (!child)
+        return NULL;
     RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
     if (s) {
         s->kind = REWRITE_STRATEGY_KIND_TRY;
@@ -116,21 +127,19 @@ RewriteStrategy *rewrite_strategy_try(RewriteStrategy *child) {
  * ================================================================ */
 
 void rewrite_strategy_destroy(RewriteStrategy *s) {
-    if (!s) return;
+    if (!s)
+        return;
     /* 递归销毁子节点 */
-    if (s->left && (s->kind == REWRITE_STRATEGY_KIND_SEQUENCE ||
-                    s->kind == REWRITE_STRATEGY_KIND_ORELSE ||
-                    s->kind == REWRITE_STRATEGY_KIND_REPEAT ||
-                    s->kind == REWRITE_STRATEGY_KIND_NORMALIZE ||
+    if (s->left && (s->kind == REWRITE_STRATEGY_KIND_SEQUENCE || s->kind == REWRITE_STRATEGY_KIND_ORELSE ||
+                    s->kind == REWRITE_STRATEGY_KIND_REPEAT || s->kind == REWRITE_STRATEGY_KIND_NORMALIZE ||
                     s->kind == REWRITE_STRATEGY_KIND_TRY)) {
         rewrite_strategy_destroy(s->left);
     }
-    if (s->right && (s->kind == REWRITE_STRATEGY_KIND_SEQUENCE ||
-                     s->kind == REWRITE_STRATEGY_KIND_ORELSE)) {
+    if (s->right && (s->kind == REWRITE_STRATEGY_KIND_SEQUENCE || s->kind == REWRITE_STRATEGY_KIND_ORELSE)) {
         rewrite_strategy_destroy(s->right);
     }
-    lv_free((void **)&s->pattern_expr);
-    lv_free((void **)&s);
+    lv_free((void **) &s->pattern_expr);
+    lv_free((void **) &s);
 }
 
 /* ================================================================
@@ -148,190 +157,193 @@ void rewrite_strategy_destroy(RewriteStrategy *s) {
  * @param out_steps  输出：执行步数
  * @return true 策略执行成功（产生了变化或无变化但未失败）
  */
-static bool strategy_execute(const ConstraintGraph *graph, const RewriteStrategy *strategy,
-                              const RewriteRule *rules, int rule_count,
-                              ConstraintGraph **out_graph, int *out_steps) {
-    if (!graph || !strategy) return false;
+static bool strategy_execute(const ConstraintGraph *graph, const RewriteStrategy *strategy, const RewriteRule *rules,
+                             int rule_count, ConstraintGraph **out_graph, int *out_steps) {
+    if (!graph || !strategy)
+        return false;
 
     *out_graph = NULL;
     *out_steps = 0;
 
     switch (strategy->kind) {
-    case REWRITE_STRATEGY_KIND_IDLE:
-        /* 无操作，返回原图副本 */
-        *out_graph = graph_copy(graph);
-        return *out_graph != NULL;
+        case REWRITE_STRATEGY_KIND_IDLE:
+            /* 无操作，返回原图副本 */
+            *out_graph = graph_copy(graph);
+            return *out_graph != NULL;
 
-    case REWRITE_STRATEGY_KIND_FAIL:
-        /* 总是失败 */
-        return false;
-
-    case REWRITE_STRATEGY_KIND_APPLY_RULE: {
-        /* 使用规则 */
-        if (strategy->rule_id < 0 || strategy->rule_id >= rule_count || !rules)
+        case REWRITE_STRATEGY_KIND_FAIL:
+            /* 总是失败 */
             return false;
 
-        ConstraintGraph *cpy = graph_copy(graph);
-        if (!cpy) return false;
+        case REWRITE_STRATEGY_KIND_APPLY_RULE: {
+            /* 使用规则 */
+            if (strategy->rule_id < 0 || strategy->rule_id >= rule_count || !rules)
+                return false;
 
-        RewriteRule rules_arr[1];
-        rules_arr[0] = rules[strategy->rule_id];
-        RewriteStatus status = rewrite_with_rules(cpy, (RewriteRule **)&rules_arr, 1, 1, false);
+            ConstraintGraph *cpy = graph_copy(graph);
+            if (!cpy)
+                return false;
 
-        if (status == REWRITE_STATUS_APPLIED || status == REWRITE_STATUS_OK) {
+            RewriteRule rules_arr[1];
+            rules_arr[0] = rules[strategy->rule_id];
+            RewriteStatus status = rewrite_with_rules(cpy, (RewriteRule **) &rules_arr, 1, 1, false);
+
+            if (status == REWRITE_STATUS_APPLIED || status == REWRITE_STATUS_OK) {
+                *out_graph = cpy;
+                *out_steps = 1;
+                return true;
+            }
+            graph_destroy(cpy);
+            return false;
+        }
+
+        case REWRITE_STRATEGY_KIND_MATCH_PATTERN: {
+            /* 模式匹配（不替换）：检查规则能否匹配 */
+            if (!strategy->pattern_expr || rule_count == 0 || !rules)
+                return false;
+
+            /* 用规则匹配作为代理 */
+            ConstraintGraph *cpy = graph_copy(graph);
+            if (!cpy)
+                return false;
+
+            /* 将所有可用规则尝试一次 */
+            bool matched = false;
+            for (int i = 0; i < rule_count && !matched; i++) {
+                RewriteRule single[1];
+                single[0] = rules[i];
+                RewriteStatus st = rewrite_with_rules(cpy, (RewriteRule **) &single, 1, 1, false);
+                if (st == REWRITE_STATUS_APPLIED || st == REWRITE_STATUS_OK) {
+                    matched = true;
+                }
+            }
+
             *out_graph = cpy;
-            *out_steps = 1;
-            return true;
+            *out_steps = 0;
+            return matched;
         }
-        graph_destroy(cpy);
-        return false;
-    }
 
-    case REWRITE_STRATEGY_KIND_MATCH_PATTERN: {
-        /* 模式匹配（不替换）：检查规则能否匹配 */
-        if (!strategy->pattern_expr || rule_count == 0 || !rules)
-            return false;
+        case REWRITE_STRATEGY_KIND_TEST_COND:
+            if (!strategy->test_func)
+                return false;
+            *out_graph = graph_copy(graph);
+            *out_steps = 0;
+            return strategy->test_func(strategy->test_ctx) != 0;
 
-        /* 用规则匹配作为代理 */
-        ConstraintGraph *cpy = graph_copy(graph);
-        if (!cpy) return false;
+        case REWRITE_STRATEGY_KIND_SEQUENCE: {
+            /* s1 ; s2: 先执行左，再执行右 */
+            ConstraintGraph *intermediate = NULL;
+            int steps1 = 0;
+            if (!strategy->left || !strategy->right)
+                return false;
 
-        /* 将所有可用规则尝试一次 */
-        bool matched = false;
-        for (int i = 0; i < rule_count && !matched; i++) {
-            RewriteRule single[1];
-            single[0] = rules[i];
-            RewriteStatus st = rewrite_with_rules(cpy, (RewriteRule **)&single, 1, 1, false);
-            if (st == REWRITE_STATUS_APPLIED || st == REWRITE_STATUS_OK) {
-                matched = true;
+            if (!strategy_execute(graph, strategy->left, rules, rule_count, &intermediate, &steps1)) {
+                return false;
             }
+
+            ConstraintGraph *final = NULL;
+            int steps2 = 0;
+            bool ok = strategy_execute(intermediate, strategy->right, rules, rule_count, &final, &steps2);
+            graph_destroy(intermediate);
+
+            *out_graph = final;
+            *out_steps = steps1 + steps2;
+            return ok;
         }
 
-        *out_graph = cpy;
-        *out_steps = 0;
-        return matched;
-    }
+        case REWRITE_STRATEGY_KIND_ORELSE: {
+            /* s1 orelse s2: 先尝试左，失败则回退到右 */
+            if (!strategy->left || !strategy->right)
+                return false;
 
-    case REWRITE_STRATEGY_KIND_TEST_COND:
-        if (!strategy->test_func) return false;
-        *out_graph = graph_copy(graph);
-        *out_steps = 0;
-        return strategy->test_func(strategy->test_ctx) != 0;
-
-    case REWRITE_STRATEGY_KIND_SEQUENCE: {
-        /* s1 ; s2: 先执行左，再执行右 */
-        ConstraintGraph *intermediate = NULL;
-        int steps1 = 0;
-        if (!strategy->left || !strategy->right) return false;
-
-        if (!strategy_execute(graph, strategy->left, rules, rule_count,
-                               &intermediate, &steps1)) {
-            return false;
-        }
-
-        ConstraintGraph *final = NULL;
-        int steps2 = 0;
-        bool ok = strategy_execute(intermediate, strategy->right, rules, rule_count,
-                                    &final, &steps2);
-        graph_destroy(intermediate);
-
-        *out_graph = final;
-        *out_steps = steps1 + steps2;
-        return ok;
-    }
-
-    case REWRITE_STRATEGY_KIND_ORELSE: {
-        /* s1 orelse s2: 先尝试左，失败则回退到右 */
-        if (!strategy->left || !strategy->right) return false;
-
-        ConstraintGraph *left_result = NULL;
-        int left_steps = 0;
-        if (strategy_execute(graph, strategy->left, rules, rule_count,
-                              &left_result, &left_steps)) {
-            *out_graph = left_result;
-            *out_steps = left_steps;
-            return true;
-        }
-
-        return strategy_execute(graph, strategy->right, rules, rule_count,
-                                 out_graph, out_steps);
-    }
-
-    case REWRITE_STRATEGY_KIND_REPEAT: {
-        /* repeat s: 重复直到不动点或超过最大迭代 */
-        if (!strategy->left) return false;
-
-        ConstraintGraph *current = graph_copy(graph);
-        if (!current) return false;
-
-        int total_steps = 0;
-        int max_iter = strategy->max_iterations > 0 ? strategy->max_iterations : 1000;
-
-        for (int i = 0; i < max_iter; i++) {
-            ConstraintGraph *next = NULL;
-            int step = 0;
-            if (!strategy_execute(current, strategy->left, rules, rule_count,
-                                   &next, &step)) {
-                /* 不动点：策略无法再执行 */
-                break;
+            ConstraintGraph *left_result = NULL;
+            int left_steps = 0;
+            if (strategy_execute(graph, strategy->left, rules, rule_count, &left_result, &left_steps)) {
+                *out_graph = left_result;
+                *out_steps = left_steps;
+                return true;
             }
-            total_steps += step;
-            graph_destroy(current);
-            current = next;
+
+            return strategy_execute(graph, strategy->right, rules, rule_count, out_graph, out_steps);
         }
 
-        *out_graph = current;
-        *out_steps = total_steps;
-        return true; /* 至少执行到了最大迭代 */
-    }
+        case REWRITE_STRATEGY_KIND_REPEAT: {
+            /* repeat s: 重复直到不动点或超过最大迭代 */
+            if (!strategy->left)
+                return false;
 
-    case REWRITE_STRATEGY_KIND_NORMALIZE: {
-        /* normalize s: 等价于 repeat(s ; s) 直到不动点 */
-        if (!strategy->left) return false;
+            ConstraintGraph *current = graph_copy(graph);
+            if (!current)
+                return false;
 
-        RewriteStrategy *seq = rewrite_strategy_sequence(strategy->left, strategy->left);
-        RewriteStrategy *norm = rewrite_strategy_repeat(seq, 0);
+            int total_steps = 0;
+            int max_iter = strategy->max_iterations > 0 ? strategy->max_iterations : 1000;
 
-        ConstraintGraph *result = NULL;
-        int steps = 0;
-        bool ok = strategy_execute(graph, norm, rules, rule_count,
-                                    &result, &steps);
+            for (int i = 0; i < max_iter; i++) {
+                ConstraintGraph *next = NULL;
+                int step = 0;
+                if (!strategy_execute(current, strategy->left, rules, rule_count, &next, &step)) {
+                    /* 不动点：策略无法再执行 */
+                    break;
+                }
+                total_steps += step;
+                graph_destroy(current);
+                current = next;
+            }
 
-        rewrite_strategy_destroy(norm); /* 递归释放 seq */
+            *out_graph = current;
+            *out_steps = total_steps;
+            return true; /* 至少执行到了最大迭代 */
+        }
 
-        *out_graph = result;
-        *out_steps = steps;
-        return ok;
-    }
+        case REWRITE_STRATEGY_KIND_NORMALIZE: {
+            /* normalize s: 等价于 repeat(s ; s) 直到不动点 */
+            if (!strategy->left)
+                return false;
 
-    case REWRITE_STRATEGY_KIND_TRY: {
-        /* try s: 尝试执行，失败则返回原图副本 */
-        if (!strategy->left) return false;
+            RewriteStrategy *seq = rewrite_strategy_sequence(strategy->left, strategy->left);
+            RewriteStrategy *norm = rewrite_strategy_repeat(seq, 0);
 
-        ConstraintGraph *result = NULL;
-        int steps = 0;
-        if (strategy_execute(graph, strategy->left, rules, rule_count,
-                              &result, &steps)) {
+            ConstraintGraph *result = NULL;
+            int steps = 0;
+            bool ok = strategy_execute(graph, norm, rules, rule_count, &result, &steps);
+
+            rewrite_strategy_destroy(norm); /* 递归释放 seq */
+
             *out_graph = result;
             *out_steps = steps;
-            return true;
+            return ok;
         }
 
-        *out_graph = graph_copy(graph);
-        *out_steps = 0;
-        return true; /* try 永远不对外失败 */
-    }
+        case REWRITE_STRATEGY_KIND_TRY: {
+            /* try s: 尝试执行，失败则返回原图副本 */
+            if (!strategy->left)
+                return false;
 
-    default:
-        return false;
+            ConstraintGraph *result = NULL;
+            int steps = 0;
+            if (strategy_execute(graph, strategy->left, rules, rule_count, &result, &steps)) {
+                *out_graph = result;
+                *out_steps = steps;
+                return true;
+            }
+
+            *out_graph = graph_copy(graph);
+            *out_steps = 0;
+            return true; /* try 永远不对外失败 */
+        }
+
+        default:
+            return false;
     }
 }
 
-bool rewrite_strategy_apply(const ConstraintGraph *graph, const RewriteStrategy *strategy,
-                             const RewriteRule *rules, int rule_count,
-                             ConstraintGraph **out_graph, int *out_steps) {
-    if (!graph || !strategy || !out_graph || !out_steps) return false;
-    if (rule_count > 0 && !rules) return false;
+bool rewrite_strategy_apply(const ConstraintGraph *graph, const RewriteStrategy *strategy, const RewriteRule *rules,
+                            int rule_count, ConstraintGraph **out_graph, int *out_steps) {
+    if (!graph || !strategy || !out_graph || !out_steps)
+        return false;
+    if (rule_count > 0 && !rules)
+        return false;
 
     return strategy_execute(graph, strategy, rules, rule_count, out_graph, out_steps);
 }
@@ -352,19 +364,20 @@ typedef struct SearchNode {
 } SearchNode;
 
 static void search_node_destroy(SearchNode *node) {
-    if (!node) return;
+    if (!node)
+        return;
     graph_destroy(node->graph);
-    lv_free((void **)&node->path);
-    lv_free((void **)&node);
+    lv_free((void **) &node->path);
+    lv_free((void **) &node);
 }
 
-bool rewrite_search_backward(const ConstraintGraph *target_graph, const RewriteRule *rules,
-                              int rule_count, int max_depth, bool use_bfs,
-                              int **out_path, int *out_path_len) {
+bool rewrite_search_backward(const ConstraintGraph *target_graph, const RewriteRule *rules, int rule_count,
+                             int max_depth, bool use_bfs, int **out_path, int *out_path_len) {
     if (!target_graph || !rules || rule_count <= 0 || !out_path || !out_path_len) {
         return false;
     }
-    if (max_depth <= 0) max_depth = 32;
+    if (max_depth <= 0)
+        max_depth = 32;
 
     /* 使用广度优先队列 */
     SearchNode *head = NULL;
@@ -372,7 +385,8 @@ bool rewrite_search_backward(const ConstraintGraph *target_graph, const RewriteR
 
     /* 初始节点：目标图本身 */
     SearchNode *start = lv_calloc(1, sizeof(SearchNode));
-    if (!start) return false;
+    if (!start)
+        return false;
     start->graph = graph_copy(target_graph);
     start->depth = 0;
     start->path = NULL;
@@ -397,16 +411,17 @@ bool rewrite_search_backward(const ConstraintGraph *target_graph, const RewriteR
         /* 尝试逆用所有规则 */
         for (int r = 0; r < rule_count; r++) {
             ConstraintGraph *cpy = graph_copy(cur->graph);
-            if (!cpy) continue;
+            if (!cpy)
+                continue;
 
             RewriteRule single[1];
             single[0] = rules[r];
-            RewriteStatus st = rewrite_with_rules(cpy, (RewriteRule **)&single, 1, 1, false);
+            RewriteStatus st = rewrite_with_rules(cpy, (RewriteRule **) &single, 1, 1, false);
 
             if (st == REWRITE_STATUS_APPLIED || st == REWRITE_STATUS_OK) {
                 /* 找到了一条逆用路径 */
                 *out_path_len = cur->path_len + 1;
-                *out_path = lv_calloc((size_t)(*out_path_len), sizeof(int));
+                *out_path = lv_calloc((size_t) (*out_path_len), sizeof(int));
                 if (*out_path) {
                     for (int i = 0; i < cur->path_len; i++) {
                         (*out_path)[i] = cur->path[i];
@@ -425,7 +440,7 @@ bool rewrite_search_backward(const ConstraintGraph *target_graph, const RewriteR
                     next->graph = cpy;
                     next->depth = cur->depth + 1;
                     next->path_len = cur->path_len + 1;
-                    next->path = lv_calloc((size_t)next->path_len, sizeof(int));
+                    next->path = lv_calloc((size_t) next->path_len, sizeof(int));
                     if (next->path) {
                         for (int i = 0; i < cur->path_len; i++) {
                             next->path[i] = cur->path[i];
@@ -478,25 +493,30 @@ typedef struct {
 } BuiltinNumRule;
 
 static BuiltinNumRule g_builtin_rules[] = {
-    {(char *)"sqrt-diff-recip",        (char *)"sqrt(x+1)-sqrt(x)",           (char *)"1/(sqrt(x+1)+sqrt(x))",   REWRITE_NUM_CRITICAL, 100.0, (char *)"x > 0"},
-    {(char *)"quadratic-formula",      (char *)"(-b+sqrt(b^2-4*a*c))/(2*a)",  (char *)"(2*c)/(-b+sqrt(b^2-4*a*c))", REWRITE_NUM_HIGH, 10.0, (char *)"a > 0"},
-    {(char *)"log-exp-diff",           (char *)"log(1+x)-log(x)",             (char *)"log(1+1/x)",              REWRITE_NUM_HIGH, 10.0, (char *)"x > 0"},
-    {(char *)"atan-diff",              (char *)"atan(x+1)-atan(x)",           (char *)"atan(1/(x^2+x+1))",       REWRITE_NUM_MEDIUM, 5.0, (char *)"x > 0"},
-    {(char *)"sin2-plus-cos2",         (char *)"sin(x)^2+cos(x)^2",           (char *)"1",                       REWRITE_NUM_LOW, 1.0, (char *)""},
-    {(char *)"cancel-div-same",        (char *)"(a*b)/b",                     (char *)"a",                       REWRITE_NUM_LOW, 1.0, (char *)"b != 0"},
+    {(char *) "sqrt-diff-recip", (char *) "sqrt(x+1)-sqrt(x)", (char *) "1/(sqrt(x+1)+sqrt(x))", REWRITE_NUM_CRITICAL,
+     100.0, (char *) "x > 0"},
+    {(char *) "quadratic-formula", (char *) "(-b+sqrt(b^2-4*a*c))/(2*a)", (char *) "(2*c)/(-b+sqrt(b^2-4*a*c))",
+     REWRITE_NUM_HIGH, 10.0, (char *) "a > 0"},
+    {(char *) "log-exp-diff", (char *) "log(1+x)-log(x)", (char *) "log(1+1/x)", REWRITE_NUM_HIGH, 10.0,
+     (char *) "x > 0"},
+    {(char *) "atan-diff", (char *) "atan(x+1)-atan(x)", (char *) "atan(1/(x^2+x+1))", REWRITE_NUM_MEDIUM, 5.0,
+     (char *) "x > 0"},
+    {(char *) "sin2-plus-cos2", (char *) "sin(x)^2+cos(x)^2", (char *) "1", REWRITE_NUM_LOW, 1.0, (char *) ""},
+    {(char *) "cancel-div-same", (char *) "(a*b)/b", (char *) "a", REWRITE_NUM_LOW, 1.0, (char *) "b != 0"},
 };
 
 #define BUILTIN_RULE_COUNT (sizeof(g_builtin_rules) / sizeof(g_builtin_rules[0]))
 
 static int g_registered_rule_count = 0;
 
-RewriteNumRule *rewrite_num_rule_create(const char *name, const char *pattern,
-                                         const char *replacement,
-                                         RewriteNumPriority pri, double improvement) {
-    if (!name || !pattern || !replacement) return NULL;
+RewriteNumRule *rewrite_num_rule_create(const char *name, const char *pattern, const char *replacement,
+                                        RewriteNumPriority pri, double improvement) {
+    if (!name || !pattern || !replacement)
+        return NULL;
 
     RewriteNumRule *rule = lv_calloc(1, sizeof(RewriteNumRule));
-    if (!rule) return NULL;
+    if (!rule)
+        return NULL;
 
     rule->name = lv_strdup_safe(name);
     rule->pattern_expr = lv_strdup_safe(pattern);
@@ -514,31 +534,32 @@ RewriteNumRule *rewrite_num_rule_create(const char *name, const char *pattern,
 }
 
 void rewrite_num_rule_destroy(RewriteNumRule *rule) {
-    if (!rule) return;
-    lv_free((void **)&rule->name);
-    lv_free((void **)&rule->pattern_expr);
-    lv_free((void **)&rule->replacement_expr);
-    lv_free((void **)&rule->condition_desc);
-    lv_free((void **)&rule);
+    if (!rule)
+        return;
+    lv_free((void **) &rule->name);
+    lv_free((void **) &rule->pattern_expr);
+    lv_free((void **) &rule->replacement_expr);
+    lv_free((void **) &rule->condition_desc);
+    lv_free((void **) &rule);
 }
 
 int rewrite_num_register_builtins(void) {
     g_registered_rule_count = 0;
     for (size_t i = 0; i < BUILTIN_RULE_COUNT; i++) {
-        (void)g_builtin_rules[i]; /* 注册验证通过 */
+        (void) g_builtin_rules[i]; /* 注册验证通过 */
         g_registered_rule_count++;
     }
-    return (int)BUILTIN_RULE_COUNT;
+    return (int) BUILTIN_RULE_COUNT;
 }
 
 int rewrite_num_rule_count(void) {
     return g_registered_rule_count;
 }
 
-char *rewrite_num_optimize(const char *expr, RewriteNumRule **rules,
-                            int rule_count, double *out_improvement) {
+char *rewrite_num_optimize(const char *expr, RewriteNumRule **rules, int rule_count, double *out_improvement) {
     if (!expr || !rules || rule_count <= 0) {
-        if (out_improvement) *out_improvement = 0.0;
+        if (out_improvement)
+            *out_improvement = 0.0;
         return expr ? lv_strdup_safe(expr) : NULL;
     }
 
@@ -558,7 +579,8 @@ char *rewrite_num_optimize(const char *expr, RewriteNumRule **rules,
         }
     }
 
-    if (out_improvement) *out_improvement = best_improvement;
+    if (out_improvement)
+        *out_improvement = best_improvement;
     if (best_replacement) {
         return lv_strdup_safe(best_replacement);
     }

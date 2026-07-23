@@ -26,8 +26,7 @@
  * @param epsilon 精度阈值
  * @return true 如果 |x| < epsilon
  */
-bool lv_is_zero(double x, double epsilon)
-{
+bool lv_is_zero(double x, double epsilon) {
     return fabs(x) < epsilon;
 }
 
@@ -38,8 +37,7 @@ bool lv_is_zero(double x, double epsilon)
  * @param epsilon 精度阈值
  * @return true 如果 |a - b| < epsilon
  */
-bool lv_is_equal(double a, double b, double epsilon)
-{
+bool lv_is_equal(double a, double b, double epsilon) {
     return fabs(a - b) < epsilon;
 }
 
@@ -49,8 +47,7 @@ bool lv_is_equal(double a, double b, double epsilon)
  * @param epsilon 精度阈值
  * @return true 如果 x > epsilon
  */
-bool lv_is_positive(double x, double epsilon)
-{
+bool lv_is_positive(double x, double epsilon) {
     return x > epsilon;
 }
 
@@ -60,8 +57,7 @@ bool lv_is_positive(double x, double epsilon)
  * @param epsilon 精度阈值
  * @return true 如果 x < -epsilon
  */
-bool lv_is_negative(double x, double epsilon)
-{
+bool lv_is_negative(double x, double epsilon) {
     return x < -epsilon;
 }
 
@@ -76,8 +72,7 @@ bool lv_is_negative(double x, double epsilon)
  * @param hi 上界
  * @return true 如果 lo <= x <= hi
  */
-bool lv_is_in_range(double x, double lo, double hi)
-{
+bool lv_is_in_range(double x, double lo, double hi) {
     return x >= lo && x <= hi;
 }
 
@@ -88,10 +83,11 @@ bool lv_is_in_range(double x, double lo, double hi)
  * @param hi 上界
  * @return 限制后的值：lo <= result <= hi
  */
-double lv_clamp(double x, double lo, double hi)
-{
-    if (x < lo) return lo;
-    if (x > hi) return hi;
+double lv_clamp(double x, double lo, double hi) {
+    if (x < lo)
+        return lo;
+    if (x > hi)
+        return hi;
     return x;
 }
 
@@ -104,8 +100,7 @@ double lv_clamp(double x, double lo, double hi)
  * @param deg 角度值（度数）
  * @return 对应的弧度值
  */
-double lv_deg_to_rad(double deg)
-{
+double lv_deg_to_rad(double deg) {
     return deg * (lv_PI / 180.0);
 }
 
@@ -114,8 +109,7 @@ double lv_deg_to_rad(double deg)
  * @param rad 弧度值
  * @return 对应的角度值（度数）
  */
-double lv_rad_to_deg(double rad)
-{
+double lv_rad_to_deg(double rad) {
     return rad * (180.0 / lv_PI);
 }
 
@@ -128,10 +122,11 @@ double lv_rad_to_deg(double rad)
  * @param x 输入值
  * @return x > 0 返回 1.0，x < 0 返回 -1.0，x == 0 返回 0.0
  */
-double lv_sign(double x)
-{
-    if (x > 0.0) return 1.0;
-    if (x < 0.0) return -1.0;
+double lv_sign(double x) {
+    if (x > 0.0)
+        return 1.0;
+    if (x < 0.0)
+        return -1.0;
     return 0.0;
 }
 
@@ -140,10 +135,11 @@ double lv_sign(double x)
  * @param x 输入值
  * @return x > 0 返回 1，x < 0 返回 -1，x == 0 返回 0
  */
-int lv_sign_int(int x)
-{
-    if (x > 0) return 1;
-    if (x < 0) return -1;
+int lv_sign_int(int x) {
+    if (x > 0)
+        return 1;
+    if (x < 0)
+        return -1;
     return 0;
 }
 
@@ -162,8 +158,7 @@ int lv_sign_int(int x)
  * @param x 自变量的值
  * @return 多项式在 x 处的值
  */
-double lv_evaluate_quadratic(double a, double b, double c, double x)
-{
+double lv_evaluate_quadratic(double a, double b, double c, double x) {
     return (a * x + b) * x + c;
 }
 
@@ -179,7 +174,6 @@ double lv_evaluate_quadratic(double a, double b, double c, double x)
  * @param x 自变量的值
  * @return 多项式在 x 处的值
  */
-double lv_evaluate_cubic(double a, double b, double c, double d, double x)
-{
+double lv_evaluate_cubic(double a, double b, double c, double d, double x) {
     return ((a * x + b) * x + c) * x + d;
 }

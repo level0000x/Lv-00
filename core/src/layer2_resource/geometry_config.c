@@ -1,10 +1,10 @@
 ﻿#include "lv/geometry_config.h"
+
 #include <string.h>
 
 static lvGeometryConfig g_geometry_config;
 
-lvGeometryConfig lv_geometry_config_default(void)
-{
+lvGeometryConfig lv_geometry_config_default(void) {
     lvGeometryConfig cfg;
     cfg.precision = lv_GEO_DOUBLE;
     cfg.tolerance = 1e-9;
@@ -18,8 +18,7 @@ lvGeometryConfig lv_geometry_config_default(void)
     return cfg;
 }
 
-const lvGeometryConfig *lv_geometry_get_config(void)
-{
+const lvGeometryConfig *lv_geometry_get_config(void) {
     static int initialized = 0;
     if (!initialized) {
         g_geometry_config = lv_geometry_config_default();
@@ -28,8 +27,7 @@ const lvGeometryConfig *lv_geometry_get_config(void)
     return &g_geometry_config;
 }
 
-void lv_geometry_set_config(const lvGeometryConfig *cfg)
-{
+void lv_geometry_set_config(const lvGeometryConfig *cfg) {
     if (cfg != NULL) {
         g_geometry_config = *cfg;
     }

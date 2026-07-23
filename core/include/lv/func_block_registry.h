@@ -212,12 +212,12 @@ typedef struct {
  * 3. 注册表可以安全重新初始化
  */
 typedef struct {
-    char *name;              /* 预设名称（唯一键） */
-    char *description;       /* 描述 */
-    PresetCategory category; /* 类别 */
-    FuncBlock *template_fb;  /* 模板函数块（只读） */
-    int ref_count;           /* 引用计数 (v3.4.1)：模板函数块的引用数量 */
-    PresetMetadata metadata; /* 预设元数据 */
+    char *name;                   /* 预设名称（唯一键） */
+    char *description;            /* 描述 */
+    PresetCategory category;      /* 类别 */
+    FuncBlock *template_fb;       /* 模板函数块（只读） */
+    int ref_count;                /* 引用计数 (v3.4.1)：模板函数块的引用数量 */
+    PresetMetadata metadata;      /* 预设元数据 */
     PresetParamDef *input_params; /* 输入参数定义数组 */
 } PresetEntry;
 
@@ -271,7 +271,8 @@ lv_PUBLIC_API void func_block_registry_cleanup(void);
  * @param fb          模板函数块（不可为 NULL，注册后由注册表接管管理）
  * @return true 注册成功，false 参数无效或同名已存在或内存不足
  */
-lv_PUBLIC_API bool func_block_register(const char *name, const char *description, PresetCategory category, FuncBlock *fb);
+lv_PUBLIC_API bool func_block_register(const char *name, const char *description, PresetCategory category,
+                                       FuncBlock *fb);
 
 /**
  * @brief 按名称查找预设函数块并返回深拷贝
@@ -311,7 +312,8 @@ lv_PUBLIC_API PresetEntry *func_block_registry_find(const char *name);
  * @param max_count   输出数组的最大容量
  * @return 实际找到的条目数量（可能超过 max_count，此时仅返回前 max_count 个）
  */
-lv_PUBLIC_API int func_block_registry_find_by_category(PresetCategory category, PresetEntry **out_entries, int max_count);
+lv_PUBLIC_API int func_block_registry_find_by_category(PresetCategory category, PresetEntry **out_entries,
+                                                       int max_count);
 
 /* ============== 辅助函数 ============== */
 

@@ -8,14 +8,14 @@
 
 #include "test_framework.h"
 
-#include "lv_utils.h"
-
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "lv_utils.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -46,7 +46,7 @@ static int64_t get_time_ns(void) {
     LARGE_INTEGER freq, count;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&count);
-    return (int64_t)((double)count.QuadPart / (double)freq.QuadPart * 1e9);
+    return (int64_t) ((double) count.QuadPart / (double) freq.QuadPart * 1e9);
 }
 #else
 typedef pthread_mutex_t lvTestMutex;
@@ -58,7 +58,7 @@ typedef pthread_mutex_t lvTestMutex;
 static int64_t get_time_ns(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    return (int64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 #endif
 
@@ -95,13 +95,13 @@ static lvTestSuite *find_or_create_suite(const char *name) {
         return NULL;
     }
 
-    lvTestSuite *suite = (lvTestSuite *)lv_calloc(1, sizeof(lvTestSuite));
+    lvTestSuite *suite = (lvTestSuite *) lv_calloc(1, sizeof(lvTestSuite));
     if (!suite) {
         return NULL;
     }
 
     strncpy(suite->name, name, sizeof(suite->name) - 1);
-    suite->cases = (lvTestCase *)lv_malloc(TEST_CASE_INIT_CAPACITY * sizeof(lvTestCase));
+    suite->cases = (lvTestCase *) lv_malloc(TEST_CASE_INIT_CAPACITY * sizeof(lvTestCase));
     if (!suite->cases) {
         lv_free((void **) &suite);
         return NULL;
@@ -117,7 +117,7 @@ static volatile int g_test_init_mutex_initialized = 0;
 
 static void init_test_system(void) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile*)&g_test_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile *) &g_test_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_test_init_mutex);
     }
     EnterCriticalSection(&g_test_init_mutex);
@@ -151,10 +151,8 @@ bool lv_test_register(const char *suite_name, const char *test_name, lvTestFunc 
     return lv_test_register_with_fixture(suite_name, test_name, func, NULL, NULL);
 }
 
-bool lv_test_register_with_fixture(const char *suite_name, const char *test_name,
-                                      lvTestFunc func,
-                                      lvTestSetupFunc setup,
-                                      lvTestTeardownFunc teardown) {
+bool lv_test_register_with_fixture(const char *suite_name, const char *test_name, lvTestFunc func,
+                                   lvTestSetupFunc setup, lvTestTeardownFunc teardown) {
     init_test_system();
 
     if (!suite_name || !test_name || !func) {
@@ -180,8 +178,7 @@ bool lv_test_register_with_fixture(const char *suite_name, const char *test_name
     /* 扩容 */
     if (suite->case_count >= suite->case_capacity) {
         uint32_t new_cap = suite->case_capacity * 2;
-        lvTestCase *new_cases = (lvTestCase *)lv_realloc(suite->cases,
-                                                          new_cap * sizeof(lvTestCase));
+        lvTestCase *new_cases = (lvTestCase *) lv_realloc(suite->cases, new_cap * sizeof(lvTestCase));
         if (!new_cases) {
             MUTEX_UNLOCK(g_test_system.mutex);
             return false;
@@ -205,9 +202,7 @@ bool lv_test_register_with_fixture(const char *suite_name, const char *test_name
     return true;
 }
 
-bool lv_test_register_suite_fixture(const char *suite_name,
-                                       lvTestSetupFunc setup,
-                                       lvTestTeardownFunc teardown) {
+bool lv_test_register_suite_fixture(const char *suite_name, lvTestSetupFunc setup, lvTestTeardownFunc teardown) {
     init_test_system();
 
     if (!suite_name) {
@@ -245,9 +240,9 @@ bool lv_test_add_tag(const char *suite_name, const char *test_name, const char *
                     /* 添加标签（使用安全的字符串复制函数 lv_strlcpy） */
                     if (test_case->tag_count < 8) {
                         if (test_case->tag_count == 0) {
-                            test_case->tags = (char **)lv_malloc(8 * sizeof(char *));
+                            test_case->tags = (char **) lv_malloc(8 * sizeof(char *));
                         }
-                        test_case->tags[test_case->tag_count] = (char *)lv_malloc(strlen(tag) + 1);
+                        test_case->tags[test_case->tag_count] = (char *) lv_malloc(strlen(tag) + 1);
                         if (test_case->tags[test_case->tag_count]) {
                             /* 使用安全的字符串复制函数，自动保证零终止 */
                             lv_strlcpy(test_case->tags[test_case->tag_count], tag, strlen(tag) + 1);
@@ -292,15 +287,15 @@ void lv_assert_fail(const char *expr, const char *file, int line, const char *fm
 }
 
 void lv_assert_pass(const char *file, int line) {
-    (void)file;
-    (void)line;
+    (void) file;
+    (void) line;
     /* 默认通过，无需操作 */
 }
 
 /* ============== 测试执行实现 ============== */
 
 static lvTestResult *run_single_test(lvTestCase *test_case, lvTestSuite *suite) {
-    lvTestResult *result = (lvTestResult *)lv_calloc(1, sizeof(lvTestResult));
+    lvTestResult *result = (lvTestResult *) lv_calloc(1, sizeof(lvTestResult));
     if (!result) {
         return NULL;
     }
@@ -354,7 +349,7 @@ static lvTestResult *run_single_test(lvTestCase *test_case, lvTestSuite *suite) 
 lvTestReport *lv_test_run_all(void) {
     init_test_system();
 
-    lvTestReport *report = (lvTestReport *)lv_calloc(1, sizeof(lvTestReport));
+    lvTestReport *report = (lvTestReport *) lv_calloc(1, sizeof(lvTestReport));
     if (!report) {
         return NULL;
     }
@@ -364,7 +359,7 @@ lvTestReport *lv_test_run_all(void) {
     MUTEX_LOCK(g_test_system.mutex);
 
     /* 分配套件数组 */
-    report->suites = (lvTestSuite *)lv_calloc(g_test_system.suite_count, sizeof(lvTestSuite));
+    report->suites = (lvTestSuite *) lv_calloc(g_test_system.suite_count, sizeof(lvTestSuite));
     if (!report->suites) {
         MUTEX_UNLOCK(g_test_system.mutex);
         lv_free((void **) &report);
@@ -438,14 +433,14 @@ lvTestReport *lv_test_run_suite(const char *suite_name) {
         return NULL;
     }
 
-    lvTestReport *report = (lvTestReport *)lv_calloc(1, sizeof(lvTestReport));
+    lvTestReport *report = (lvTestReport *) lv_calloc(1, sizeof(lvTestReport));
     if (!report) {
         MUTEX_UNLOCK(g_test_system.mutex);
         return NULL;
     }
 
     report->start_time_ns = get_time_ns();
-    report->suites = (lvTestSuite *)lv_calloc(1, sizeof(lvTestSuite));
+    report->suites = (lvTestSuite *) lv_calloc(1, sizeof(lvTestSuite));
     if (!report->suites) {
         lv_free((void **) &report);
         MUTEX_UNLOCK(g_test_system.mutex);
@@ -527,7 +522,7 @@ lvTestReport *lv_test_run_by_tag(const char *tag) {
         return NULL;
     }
 
-    lvTestReport *report = (lvTestReport *)lv_calloc(1, sizeof(lvTestReport));
+    lvTestReport *report = (lvTestReport *) lv_calloc(1, sizeof(lvTestReport));
     if (!report) {
         return NULL;
     }
@@ -578,7 +573,7 @@ lvTestReport *lv_test_run_by_pattern(const char *pattern) {
         return NULL;
     }
 
-    lvTestReport *report = (lvTestReport *)lv_calloc(1, sizeof(lvTestReport));
+    lvTestReport *report = (lvTestReport *) lv_calloc(1, sizeof(lvTestReport));
     if (!report) {
         return NULL;
     }
@@ -651,10 +646,8 @@ uint32_t lv_test_get_data_index(void) {
     return test ? test->data_index : 0;
 }
 
-bool lv_test_register_parameterized(const char *suite_name, const char *test_name,
-                                       lvTestFunc func,
-                                       lvTestDataGenerator generator,
-                                       uint32_t data_count) {
+bool lv_test_register_parameterized(const char *suite_name, const char *test_name, lvTestFunc func,
+                                    lvTestDataGenerator generator, uint32_t data_count) {
     if (!suite_name || !test_name || !func || !generator || data_count == 0) {
         return false;
     }
@@ -708,7 +701,7 @@ bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iter
     bench->iterations = iterations;
 
     /* 运行基准测试 */
-    int64_t *times = (int64_t *)lv_calloc((size_t)iterations, sizeof(int64_t));
+    int64_t *times = (int64_t *) lv_calloc((size_t) iterations, sizeof(int64_t));
     if (!times) {
         return false;
     }
@@ -724,15 +717,17 @@ bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iter
         times[i] = end - start;
         total_ns += times[i];
 
-        if (times[i] < min_ns) min_ns = times[i];
-        if (times[i] > max_ns) max_ns = times[i];
+        if (times[i] < min_ns)
+            min_ns = times[i];
+        if (times[i] > max_ns)
+            max_ns = times[i];
     }
 
     bench->total_time_ns = total_ns;
-    bench->avg_time_ns = (double)total_ns / iterations;
+    bench->avg_time_ns = (double) total_ns / iterations;
     bench->min_time_ns = min_ns;
     bench->max_time_ns = max_ns;
-    bench->ops_per_sec = (double)iterations / ((double)total_ns / 1e9);
+    bench->ops_per_sec = (double) iterations / ((double) total_ns / 1e9);
 
     /* 计算标准差 */
     double sum_sq = 0;
@@ -770,7 +765,7 @@ uint32_t lv_benchmark_run_all(lvBenchmark **out_results, uint32_t max_count) {
 
 void lv_benchmark_destroy(lvBenchmark *bench) {
     /* 基准测试结果存储在静态数组中，无需单独释放 */
-    (void)bench;
+    (void) bench;
 }
 
 /* ============== 测试报告实现 ============== */
@@ -804,7 +799,7 @@ void lv_test_report_print(const lvTestReport *report, FILE *stream) {
     fprintf(stream, "Passed: %u\n", report->passed_count);
     fprintf(stream, "Failed: %u\n", report->failed_count);
     fprintf(stream, "Skipped: %u\n", report->skipped_count);
-    fprintf(stream, "Time: %.3f ms\n", (double)report->total_time_ns / 1e6);
+    fprintf(stream, "Time: %.3f ms\n", (double) report->total_time_ns / 1e6);
     fprintf(stream, "==================================\n\n");
 
     /* 打印失败详情 */
@@ -828,7 +823,7 @@ char *lv_test_report_to_json(const lvTestReport *report) {
         return NULL;
     }
 
-    char *json = (char *)lv_malloc(8192);
+    char *json = (char *) lv_malloc(8192);
     if (!json) {
         return NULL;
     }
@@ -841,22 +836,23 @@ char *lv_test_report_to_json(const lvTestReport *report) {
                        "\"skipped\":%u,"
                        "\"time_ns\":%lld,"
                        "\"suites\":[",
-                       report->total_tests,
-                       report->passed_count,
-                       report->failed_count,
-                       report->skipped_count,
-                       (long long)report->total_time_ns);
-    if (pos < 0) { json[0] = '\0'; return json; }
+                       report->total_tests, report->passed_count, report->failed_count, report->skipped_count,
+                       (long long) report->total_time_ns);
+    if (pos < 0) {
+        json[0] = '\0';
+        return json;
+    }
 
     for (uint32_t i = 0; i < report->suite_count && pos < 8192; i++) {
         const lvTestSuite *suite = &report->suites[i];
-        pos += snprintf(json + pos, 8192 - pos,
-                        "{\"name\":\"%s\",\"passed\":%u,\"failed\":%u,\"skipped\":%u}",
+        pos += snprintf(json + pos, 8192 - pos, "{\"name\":\"%s\",\"passed\":%u,\"failed\":%u,\"skipped\":%u}",
                         suite->name, suite->passed_count, suite->failed_count, suite->skipped_count);
-        if (pos < 0) break;
+        if (pos < 0)
+            break;
         if (i < report->suite_count - 1 && pos < 8192) {
             pos += snprintf(json + pos, 8192 - pos, ",");
-            if (pos < 0) break;
+            if (pos < 0)
+                break;
         }
     }
 
@@ -871,7 +867,7 @@ char *lv_test_report_to_xml(const lvTestReport *report) {
         return NULL;
     }
 
-    char *xml = (char *)lv_malloc(16384);
+    char *xml = (char *) lv_malloc(16384);
     if (!xml) {
         return NULL;
     }
@@ -880,35 +876,40 @@ char *lv_test_report_to_xml(const lvTestReport *report) {
                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                        "<testsuites tests=\"%u\" failures=\"%u\" skipped=\"%u\" time=\"%.3f\">\n",
                        report->total_tests, report->failed_count, report->skipped_count,
-                       (double)report->total_time_ns / 1e9);
-    if (pos < 0) { xml[0] = '\0'; return xml; }
+                       (double) report->total_time_ns / 1e9);
+    if (pos < 0) {
+        xml[0] = '\0';
+        return xml;
+    }
 
     for (uint32_t i = 0; i < report->suite_count && pos < 16384; i++) {
         const lvTestSuite *suite = &report->suites[i];
-        pos += snprintf(xml + pos, 16384 - pos,
-                        "  <testsuite name=\"%s\" tests=\"%u\" failures=\"%u\" skipped=\"%u\">\n",
-                        suite->name, suite->case_count, suite->failed_count, suite->skipped_count);
-        if (pos < 0) break;
+        pos +=
+            snprintf(xml + pos, 16384 - pos, "  <testsuite name=\"%s\" tests=\"%u\" failures=\"%u\" skipped=\"%u\">\n",
+                     suite->name, suite->case_count, suite->failed_count, suite->skipped_count);
+        if (pos < 0)
+            break;
 
         for (uint32_t j = 0; j < suite->case_count && pos < 16384; j++) {
             const lvTestCase *test = &suite->cases[j];
-            pos += snprintf(xml + pos, 16384 - pos,
-                            "    <testcase name=\"%s\" time=\"%.6f\"",
-                            test->name, (double)test->elapsed_ns / 1e9);
-            if (pos < 0) break;
+            pos += snprintf(xml + pos, 16384 - pos, "    <testcase name=\"%s\" time=\"%.6f\"", test->name,
+                            (double) test->elapsed_ns / 1e9);
+            if (pos < 0)
+                break;
 
             if (test->status == TEST_STATUS_FAILED && pos < 16384) {
-                pos += snprintf(xml + pos, 16384 - pos,
-                                ">\n      <failure message=\"%s\"/>\n    </testcase>\n",
+                pos += snprintf(xml + pos, 16384 - pos, ">\n      <failure message=\"%s\"/>\n    </testcase>\n",
                                 test->message);
-                if (pos < 0) break;
+                if (pos < 0)
+                    break;
             } else if (test->status == TEST_STATUS_SKIPPED && pos < 16384) {
-                pos += snprintf(xml + pos, 16384 - pos,
-                                ">\n      <skipped/>\n    </testcase>\n");
-                if (pos < 0) break;
+                pos += snprintf(xml + pos, 16384 - pos, ">\n      <skipped/>\n    </testcase>\n");
+                if (pos < 0)
+                    break;
             } else if (pos < 16384) {
                 pos += snprintf(xml + pos, 16384 - pos, "/>\n");
-                if (pos < 0) break;
+                if (pos < 0)
+                    break;
             }
         }
 
@@ -927,7 +928,7 @@ char *lv_test_report_to_html(const lvTestReport *report) {
         return NULL;
     }
 
-    char *html = (char *)lv_malloc(32768);
+    char *html = (char *) lv_malloc(32768);
     if (!html) {
         return NULL;
     }
@@ -945,22 +946,27 @@ char *lv_test_report_to_html(const lvTestReport *report) {
                        "Failed: <span class=\"failed\">%u</span> | Skipped: <span class=\"skipped\">%u</span></p>\n"
                        "<table><tr><th>Suite</th><th>Test</th><th>Status</th><th>Time (ms)</th></tr>\n",
                        report->total_tests, report->passed_count, report->failed_count, report->skipped_count);
-    if (pos < 0) { html[0] = '\0'; return html; }
+    if (pos < 0) {
+        html[0] = '\0';
+        return html;
+    }
 
     for (uint32_t i = 0; i < report->suite_count && pos < 32768; i++) {
         const lvTestSuite *suite = &report->suites[i];
         for (uint32_t j = 0; j < suite->case_count && pos < 32768; j++) {
             const lvTestCase *test = &suite->cases[j];
-            const char *status_class = test->status == TEST_STATUS_PASSED ? "passed" :
-                                       test->status == TEST_STATUS_FAILED ? "failed" : "skipped";
-            const char *status_text = test->status == TEST_STATUS_PASSED ? "PASSED" :
-                                      test->status == TEST_STATUS_FAILED ? "FAILED" : "SKIPPED";
+            const char *status_class = test->status == TEST_STATUS_PASSED   ? "passed"
+                                       : test->status == TEST_STATUS_FAILED ? "failed"
+                                                                            : "skipped";
+            const char *status_text = test->status == TEST_STATUS_PASSED   ? "PASSED"
+                                      : test->status == TEST_STATUS_FAILED ? "FAILED"
+                                                                           : "SKIPPED";
 
             pos += snprintf(html + pos, 32768 - pos,
-                            "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%.3f</td></tr>\n",
-                            suite->name, test->name, status_class, status_text,
-                            (double)test->elapsed_ns / 1e6);
-            if (pos < 0) break;
+                            "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%.3f</td></tr>\n", suite->name,
+                            test->name, status_class, status_text, (double) test->elapsed_ns / 1e6);
+            if (pos < 0)
+                break;
         }
     }
 
@@ -970,9 +976,7 @@ char *lv_test_report_to_html(const lvTestReport *report) {
     return html;
 }
 
-bool lv_test_report_write_file(const lvTestReport *report,
-                                  const char *path,
-                                  const char *format) {
+bool lv_test_report_write_file(const lvTestReport *report, const char *path, const char *format) {
     if (!report || !path || !format) {
         return false;
     }
@@ -1003,8 +1007,8 @@ bool lv_test_report_write_file(const lvTestReport *report,
 /* ============== 主函数实现 ============== */
 
 int lv_test_main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
+    (void) argc;
+    (void) argv;
 
     lvTestReport *report = lv_test_run_all();
     if (!report) {

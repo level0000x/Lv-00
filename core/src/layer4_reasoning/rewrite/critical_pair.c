@@ -15,14 +15,15 @@
  * ============================================================================ */
 
 #include "lv/critical_pair.h"
-#include "lv/normalization.h"
-#include "lv/unify.h"
-#include "lv/graph_hash.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
+
+#include "lv/graph_hash.h"
+#include "lv/normalization.h"
+#include "lv/unify.h"
 
 /* ---- 内部常量 ------------------------------------------------------------- */
 
@@ -44,11 +45,12 @@
  * @param src  源约束图（不可为 NULL）
  * @return 独立副本，调用者负责 graph_destroy；失败返回 NULL
  */
-static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src)
-{
-    if (!src) return NULL;
+static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
+    if (!src)
+        return NULL;
     GraphSnapshot *snap = graph_snapshot_create(src);
-    if (!snap) return NULL;
+    if (!snap)
+        return NULL;
     ConstraintGraph *copy = graph_create();
     if (!copy) {
         graph_snapshot_destroy(snap);
@@ -71,12 +73,10 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src)
  * @param local_equiv 是否启用局部等价容忍（允许近等价结构匹配）
  * @return 找到的匹配（调用者负责 lv_free），未找到返回 NULL
  */
-static RewriteMatch *find_one_vf2_match(ConstraintGraph *graph,
-                                        const RewritePattern *pattern,
-                                        bool local_equiv)
-{
-    if (!graph || !pattern) return NULL;
-    return vf2_find_match(graph, (RewritePattern *)pattern, local_equiv);
+static RewriteMatch *find_one_vf2_match(ConstraintGraph *graph, const RewritePattern *pattern, bool local_equiv) {
+    if (!graph || !pattern)
+        return NULL;
+    return vf2_find_match(graph, (RewritePattern *) pattern, local_equiv);
 }
 
 /**
@@ -89,12 +89,13 @@ static RewriteMatch *find_one_vf2_match(ConstraintGraph *graph,
  * @param rule   要应用的重写规则
  * @return 归约后的独立图，调用者负责 graph_destroy；失败返回 NULL
  */
-static ConstraintGraph *apply_rule_once(ConstraintGraph *graph, RewriteRule *rule)
-{
-    if (!graph || !rule || !rule->pattern) return NULL;
+static ConstraintGraph *apply_rule_once(ConstraintGraph *graph, RewriteRule *rule) {
+    if (!graph || !rule || !rule->pattern)
+        return NULL;
 
     ConstraintGraph *work = graph_deep_copy(graph);
-    if (!work) return NULL;
+    if (!work)
+        return NULL;
 
     RewriteMatch *match = find_one_vf2_match(work, rule->pattern, true);
     if (!match) {
@@ -119,8 +120,7 @@ static ConstraintGraph *apply_rule_once(ConstraintGraph *graph, RewriteRule *rul
  *
  * 若 variable_node_ids 为 NULL 则回退使用索引本身作为 ID。
  */
-static inline int var_orig_id(const RewritePattern *pat, int idx)
-{
+static inline int var_orig_id(const RewritePattern *pat, int idx) {
     return pat->variable_node_ids ? pat->variable_node_ids[idx] : idx;
 }
 
@@ -130,10 +130,10 @@ static inline int var_orig_id(const RewritePattern *pat, int idx)
  * 在 variable_node_ids 中搜索 orig_id，返回对应索引。
  * 若未找到则返回 0（默认回退）。
  */
-static int map_orig_id_to_local(const RewritePattern *pat, int orig_id, int base_count)
-{
+static int map_orig_id_to_local(const RewritePattern *pat, int orig_id, int base_count) {
     for (int v = 0; v < base_count; v++) {
-        if (var_orig_id(pat, v) == orig_id) return v;
+        if (var_orig_id(pat, v) == orig_id)
+            return v;
     }
     return 0;
 }
@@ -145,15 +145,18 @@ static int map_orig_id_to_local(const RewritePattern *pat, int orig_id, int base
  * @param g     要导出的约束图
  * @param label 标题标签（如 "REDUCED_1 (via rule1)"）
  */
-static void export_graph_to_text(FILE *f, const ConstraintGraph *g, const char *label)
-{
+static void export_graph_to_text(FILE *f, const ConstraintGraph *g, const char *label) {
     fprintf(f, "\n## %s\n", label);
-    if (!g) { fprintf(f, "(none)\n"); return; }
+    if (!g) {
+        fprintf(f, "(none)\n");
+        return;
+    }
 
     for (int i = 0; i < g->node_count; i++) {
         GeomNode *n = g->nodes[i];
-        if (!n) continue;
-        fprintf(f, "NODE %d %d", n->id, (int)n->type);
+        if (!n)
+            continue;
+        fprintf(f, "NODE %d %d", n->id, (int) n->type);
         if (n->symbolic_coords && n->coord_count > 0) {
             fprintf(f, " coords=%d", n->coord_count);
         }
@@ -161,8 +164,9 @@ static void export_graph_to_text(FILE *f, const ConstraintGraph *g, const char *
     }
     for (int i = 0; i < g->constraint_count; i++) {
         Constraint *c = g->constraints[i];
-        if (!c) continue;
-        fprintf(f, "EDGE %d", (int)c->type);
+        if (!c)
+            continue;
+        fprintf(f, "EDGE %d", (int) c->type);
         for (int j = 0; j < c->participant_count; j++) {
             fprintf(f, " %d", c->participants[j]);
         }
@@ -181,10 +185,7 @@ static void export_graph_to_text(FILE *f, const ConstraintGraph *g, const char *
  * @param cb             归约结果 B 的约束 ID
  * @param fmt            描述格式字符串（及后续参数）
  */
-static void fill_mismatch(CpMismatch *m, int kind,
-                          int na, int nb, int ca, int cb,
-                          const char *fmt, ...)
-{
+static void fill_mismatch(CpMismatch *m, int kind, int na, int nb, int ca, int cb, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     m->kind = kind;
@@ -200,31 +201,35 @@ static void fill_mismatch(CpMismatch *m, int kind,
  * 公共 API
  * ============================================================================ */
 
-CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
-                                           ConstraintGraph *base_graph)
-{
-    (void)base_graph; /* 保留参数供未来扩展（全局命名空间等） */
+CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count, ConstraintGraph *base_graph) {
+    (void) base_graph; /* 保留参数供未来扩展（全局命名空间等） */
 
-    if (!rules || rule_count < 1) return NULL;
+    if (!rules || rule_count < 1)
+        return NULL;
 
     CriticalPairSet *set = lv_calloc(1, sizeof(CriticalPairSet));
-    if (!set) return NULL;
+    if (!set)
+        return NULL;
     set->pairs = NULL;
     set->pair_count = 0;
     set->capacity = 0;
 
     /* ---- 两两配对：对每对规则（含自配对）计算关键对 ---- */
     for (int i = 0; i < rule_count; i++) {
-        if (!rules[i] || !rules[i]->pattern) continue;
+        if (!rules[i] || !rules[i]->pattern)
+            continue;
         for (int j = i; j < rule_count; j++) {
-            if (!rules[j] || !rules[j]->pattern) continue;
+            if (!rules[j] || !rules[j]->pattern)
+                continue;
 
             RewritePattern *pat_i = rules[i]->pattern;
             RewritePattern *pat_j = rules[j]->pattern;
 
             /* 跳过空模式（无变量节点且无模式约束） */
-            if (pat_i->var_count == 0 && pat_i->pattern_constraint_count == 0) continue;
-            if (pat_j->var_count == 0 && pat_j->pattern_constraint_count == 0) continue;
+            if (pat_i->var_count == 0 && pat_i->pattern_constraint_count == 0)
+                continue;
+            if (pat_j->var_count == 0 && pat_j->pattern_constraint_count == 0)
+                continue;
 
             /*
              * ---- 构造重叠图 ----
@@ -235,14 +240,18 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
 
             /* 步骤 1：构造临时图 tmp，添加 pat_i 和 pat_j 的变量占位节点 */
             ConstraintGraph *tmp = graph_create();
-            if (!tmp) continue;
+            if (!tmp)
+                continue;
 
             /* 在 tmp 中为 pat_i 的每个变量节点创建占位点 */
             int *node_map_i = NULL;
             int node_map_i_count = 0;
             if (pat_i->var_count > 0) {
-                node_map_i = lv_malloc((size_t)pat_i->var_count * sizeof(int));
-                if (!node_map_i) { graph_destroy(tmp); continue; }
+                node_map_i = lv_malloc((size_t) pat_i->var_count * sizeof(int));
+                if (!node_map_i) {
+                    graph_destroy(tmp);
+                    continue;
+                }
                 for (int k = 0; k < pat_i->var_count; k++) {
                     AddNodeResult res = graph_add_point(tmp, NULL, 0);
                     node_map_i[k] = (res == ADD_NODE_OK) ? k : -1;
@@ -254,7 +263,7 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
             int *node_map_j = NULL;
             int node_map_j_count = 0;
             if (pat_j->var_count > 0) {
-                node_map_j = lv_malloc((size_t)pat_j->var_count * sizeof(int));
+                node_map_j = lv_malloc((size_t) pat_j->var_count * sizeof(int));
                 if (!node_map_j) {
                     lv_free(node_map_i);
                     graph_destroy(tmp);
@@ -298,33 +307,30 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
 
             for (int k = 0; k < base_pat->pattern_constraint_count; k++) {
                 Constraint *c = base_pat->pattern_constraints[k];
-                if (!c) continue;
-                int *parts = lv_malloc((size_t)c->participant_count * sizeof(int));
-                if (!parts) continue;
+                if (!c)
+                    continue;
+                int *parts = lv_malloc((size_t) c->participant_count * sizeof(int));
+                if (!parts)
+                    continue;
                 for (int p = 0; p < c->participant_count; p++) {
-                    parts[p] = map_orig_id_to_local(base_pat,
-                                                    c->participants[p],
-                                                    base_count);
+                    parts[p] = map_orig_id_to_local(base_pat, c->participants[p], base_count);
                 }
-                graph_add_constraint_with_id(overlap, -1, c->type,
-                                             parts, c->participant_count);
-                lv_free((void **)&parts);
+                graph_add_constraint_with_id(overlap, -1, c->type, parts, c->participant_count);
+                lv_free((void **) &parts);
             }
 
             /* 步骤 4：扩展 CriticalPairSet 数组容量 */
             if (set->pair_count >= set->capacity) {
-                int new_cap = (set->capacity == 0) ? INITIAL_PAIR_CAPACITY
-                                                   : set->capacity * 2;
+                int new_cap = (set->capacity == 0) ? INITIAL_PAIR_CAPACITY : set->capacity * 2;
                 if (set->capacity > 0 && set->capacity > INT_MAX / 2) {
                     graph_destroy(overlap);
-                    lv_free((void **)&match_ij);
-                    lv_free((void **)&node_map_i);
-                    lv_free((void **)&node_map_j);
+                    lv_free((void **) &match_ij);
+                    lv_free((void **) &node_map_i);
+                    lv_free((void **) &node_map_j);
                     graph_destroy(tmp);
                     continue;
                 }
-                CriticalPair *new_pairs = lv_realloc(set->pairs,
-                    (size_t)new_cap * sizeof(CriticalPair));
+                CriticalPair *new_pairs = lv_realloc(set->pairs, (size_t) new_cap * sizeof(CriticalPair));
                 if (!new_pairs) {
                     graph_destroy(overlap);
                     lv_free(match_ij);
@@ -355,15 +361,25 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
     return set;
 }
 
-bool critical_pair_compare(CriticalPair *cp)
-{
-    if (!cp || !cp->overlap) return false;
-    if (cp->compared) return true; /* 幂等：已比较则直接返回 */
+bool critical_pair_compare(CriticalPair *cp) {
+    if (!cp || !cp->overlap)
+        return false;
+    if (cp->compared)
+        return true; /* 幂等：已比较则直接返回 */
 
     /* ---- 清理旧比较结果 ---- */
-    if (cp->reduced1) { graph_destroy(cp->reduced1); cp->reduced1 = NULL; }
-    if (cp->reduced2) { graph_destroy(cp->reduced2); cp->reduced2 = NULL; }
-    if (cp->mismatches) { lv_free(cp->mismatches); cp->mismatches = NULL; }
+    if (cp->reduced1) {
+        graph_destroy(cp->reduced1);
+        cp->reduced1 = NULL;
+    }
+    if (cp->reduced2) {
+        graph_destroy(cp->reduced2);
+        cp->reduced2 = NULL;
+    }
+    if (cp->mismatches) {
+        lv_free(cp->mismatches);
+        cp->mismatches = NULL;
+    }
     cp->mismatch_count = 0;
 
     /* ---- 分别沿两条规则归约一步 ---- */
@@ -382,8 +398,7 @@ bool critical_pair_compare(CriticalPair *cp)
     /* ---- 合一检查：比较规范化后的图是否等价 ---- */
     UnifyFailureInfo failure_info;
     memset(&failure_info, 0, sizeof(failure_info));
-    UnifyStatus us = unify_construction_with_proposition_detailed(
-        cp->reduced1, cp->reduced2, &failure_info);
+    UnifyStatus us = unify_construction_with_proposition_detailed(cp->reduced1, cp->reduced2, &failure_info);
 
     if (us == UNIFY_STATUS_OK) {
         /* 合一成功 → 该关键对汇合 */
@@ -404,38 +419,32 @@ bool critical_pair_compare(CriticalPair *cp)
              *   2 = 坐标不匹配
              */
             int mk = (failure_info.mismatch_reason == COORD_VALUE_MISMATCH ||
-                      failure_info.mismatch_reason == COORD_TYPE_MISMATCH) ? 2 :
-                     (failure_info.mismatch_reason == CONSTRAINT_TYPE_MISMATCH ||
-                      failure_info.mismatch_reason == CONSTRAINT_PARTICIPANT_COUNT_MISMATCH ||
-                      failure_info.mismatch_reason == CONSTRAINT_PARTICIPANT_ID_MISMATCH) ? 1 : 0;
+                      failure_info.mismatch_reason == COORD_TYPE_MISMATCH)
+                         ? 2
+                     : (failure_info.mismatch_reason == CONSTRAINT_TYPE_MISMATCH ||
+                        failure_info.mismatch_reason == CONSTRAINT_PARTICIPANT_COUNT_MISMATCH ||
+                        failure_info.mismatch_reason == CONSTRAINT_PARTICIPANT_ID_MISMATCH)
+                         ? 1
+                         : 0;
 
-            fill_mismatch(m, mk,
-                          failure_info.failed_node_id, -1,
-                          failure_info.failed_constraint_id, -1,
-                          "合一失败: %s",
+            fill_mismatch(m, mk, failure_info.failed_node_id, -1, failure_info.failed_constraint_id, -1, "合一失败: %s",
                           failure_info.description ? failure_info.description : "(未知原因)");
             cp->mismatch_count = 1;
 
             /* 额外：节点数差异 */
-            if (cp->reduced1->node_count != cp->reduced2->node_count
-                && cp->mismatch_count < MAX_MISMATCHES) {
+            if (cp->reduced1->node_count != cp->reduced2->node_count && cp->mismatch_count < MAX_MISMATCHES) {
                 CpMismatch *m2 = &cp->mismatches[cp->mismatch_count];
-                fill_mismatch(m2, 0,
-                              cp->reduced1->node_count, cp->reduced2->node_count,
-                              -1, -1,
-                              "节点数不匹配: %d ≠ %d",
-                              cp->reduced1->node_count, cp->reduced2->node_count);
+                fill_mismatch(m2, 0, cp->reduced1->node_count, cp->reduced2->node_count, -1, -1,
+                              "节点数不匹配: %d ≠ %d", cp->reduced1->node_count, cp->reduced2->node_count);
                 cp->mismatch_count++;
             }
 
             /* 额外：约束数差异 */
-            if (cp->reduced1->constraint_count != cp->reduced2->constraint_count
-                && cp->mismatch_count < MAX_MISMATCHES) {
+            if (cp->reduced1->constraint_count != cp->reduced2->constraint_count &&
+                cp->mismatch_count < MAX_MISMATCHES) {
                 CpMismatch *m3 = &cp->mismatches[cp->mismatch_count];
-                fill_mismatch(m3, 1, -1, -1,
-                              cp->reduced1->constraint_count, cp->reduced2->constraint_count,
-                              "约束数不匹配: %d ≠ %d",
-                              cp->reduced1->constraint_count, cp->reduced2->constraint_count);
+                fill_mismatch(m3, 1, -1, -1, cp->reduced1->constraint_count, cp->reduced2->constraint_count,
+                              "约束数不匹配: %d ≠ %d", cp->reduced1->constraint_count, cp->reduced2->constraint_count);
                 cp->mismatch_count++;
             }
         }
@@ -443,30 +452,34 @@ bool critical_pair_compare(CriticalPair *cp)
         unify_failure_info_destroy(&failure_info);
     }
 
-    if (nr1) normalization_result_destroy(nr1);
-    if (nr2) normalization_result_destroy(nr2);
+    if (nr1)
+        normalization_result_destroy(nr1);
+    if (nr2)
+        normalization_result_destroy(nr2);
 
     cp->compared = true;
     return true;
 }
 
-int critical_pair_compare_all(CriticalPairSet *set)
-{
-    if (!set) return 0;
+int critical_pair_compare_all(CriticalPairSet *set) {
+    if (!set)
+        return 0;
     int confluent = 0;
     for (int i = 0; i < set->pair_count; i++) {
         critical_pair_compare(&set->pairs[i]);
-        if (set->pairs[i].is_confluent) confluent++;
+        if (set->pairs[i].is_confluent)
+            confluent++;
     }
     return confluent;
 }
 
-bool critical_pair_export_text(const CriticalPair *cp, const char *filepath)
-{
-    if (!cp || !filepath) return false;
+bool critical_pair_export_text(const CriticalPair *cp, const char *filepath) {
+    if (!cp || !filepath)
+        return false;
 
     FILE *f = fopen(filepath, "w");
-    if (!f) return false;
+    if (!f)
+        return false;
 
     /* ---- 文件头：元信息 ---- */
     fprintf(f, "# Lv-00 关键对导出\n");
@@ -484,10 +497,8 @@ bool critical_pair_export_text(const CriticalPair *cp, const char *filepath)
         fprintf(f, "\n## 不匹配详情 (%d)\n", cp->mismatch_count);
         for (int i = 0; i < cp->mismatch_count; i++) {
             CpMismatch *m = &cp->mismatches[i];
-            fprintf(f, "#%d kind=%d nA=%d nB=%d cA=%d cB=%d %s\n",
-                    i, m->kind, m->node_id_a, m->node_id_b,
-                    m->constraint_id_a, m->constraint_id_b,
-                    m->description);
+            fprintf(f, "#%d kind=%d nA=%d nB=%d cA=%d cB=%d %s\n", i, m->kind, m->node_id_a, m->node_id_b,
+                    m->constraint_id_a, m->constraint_id_b, m->description);
         }
     }
 
@@ -495,41 +506,57 @@ bool critical_pair_export_text(const CriticalPair *cp, const char *filepath)
     return true;
 }
 
-void critical_pair_set_destroy(CriticalPairSet *set)
-{
-    if (!set) return;
+void critical_pair_set_destroy(CriticalPairSet *set) {
+    if (!set)
+        return;
     for (int i = 0; i < set->pair_count; i++) {
         CriticalPair *cp = &set->pairs[i];
-        if (cp->overlap)     { graph_destroy(cp->overlap);  cp->overlap  = NULL; }
-        if (cp->reduced1)    { graph_destroy(cp->reduced1); cp->reduced1 = NULL; }
-        if (cp->reduced2)    { graph_destroy(cp->reduced2); cp->reduced2 = NULL; }
-        if (cp->mismatches)  { lv_free(cp->mismatches);   cp->mismatches = NULL; }
+        if (cp->overlap) {
+            graph_destroy(cp->overlap);
+            cp->overlap = NULL;
+        }
+        if (cp->reduced1) {
+            graph_destroy(cp->reduced1);
+            cp->reduced1 = NULL;
+        }
+        if (cp->reduced2) {
+            graph_destroy(cp->reduced2);
+            cp->reduced2 = NULL;
+        }
+        if (cp->mismatches) {
+            lv_free(cp->mismatches);
+            cp->mismatches = NULL;
+        }
     }
     lv_free(set->pairs);
     lv_free(set);
 }
 
-void critical_pair_get_statistics(const CriticalPairSet *set,
-                                  int *out_total,
-                                  int *out_confluent,
-                                  int *out_pending)
-{
+void critical_pair_get_statistics(const CriticalPairSet *set, int *out_total, int *out_confluent, int *out_pending) {
     /* 先清零所有输出参数 */
-    if (out_total)     *out_total     = 0;
-    if (out_confluent) *out_confluent = 0;
-    if (out_pending)   *out_pending   = 0;
-    if (!set) return;
+    if (out_total)
+        *out_total = 0;
+    if (out_confluent)
+        *out_confluent = 0;
+    if (out_pending)
+        *out_pending = 0;
+    if (!set)
+        return;
 
-    if (out_total) *out_total = set->pair_count;
+    if (out_total)
+        *out_total = set->pair_count;
 
     int c = 0, p = 0;
     for (int i = 0; i < set->pair_count; i++) {
         if (set->pairs[i].compared) {
-            if (set->pairs[i].is_confluent) c++;
+            if (set->pairs[i].is_confluent)
+                c++;
         } else {
             p++;
         }
     }
-    if (out_confluent) *out_confluent = c;
-    if (out_pending)   *out_pending   = p;
+    if (out_confluent)
+        *out_confluent = c;
+    if (out_pending)
+        *out_pending = p;
 }

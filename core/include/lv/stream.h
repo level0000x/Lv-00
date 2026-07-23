@@ -48,21 +48,21 @@ extern "C" {
 
 /* lv_PUBLIC_API —— 若未定义则提供默认实现 */
 #ifndef lv_PUBLIC_API
-  #if defined(_WIN32) || defined(_MSC_VER)
-    #ifdef lv_BUILD_SHARED
-      #define lv_PUBLIC_API __declspec(dllexport)
-    #else
-      #define lv_PUBLIC_API
-    #endif
-  #elif defined(__GNUC__) || defined(__clang__)
-    #ifdef lv_BUILD_SHARED
-      #define lv_PUBLIC_API __attribute__((visibility("default")))
-    #else
-      #define lv_PUBLIC_API
-    #endif
-  #else
-    #define lv_PUBLIC_API
-  #endif
+#if defined(_WIN32) || defined(_MSC_VER)
+#ifdef lv_BUILD_SHARED
+#define lv_PUBLIC_API __declspec(dllexport)
+#else
+#define lv_PUBLIC_API
+#endif
+#elif defined(__GNUC__) || defined(__clang__)
+#ifdef lv_BUILD_SHARED
+#define lv_PUBLIC_API __attribute__((visibility("default")))
+#else
+#define lv_PUBLIC_API
+#endif
+#else
+#define lv_PUBLIC_API
+#endif
 #endif
 
 /* ============== 常量 ============== */
@@ -309,7 +309,8 @@ lv_PUBLIC_API bool stream_register_callback(StreamContext *ctx, StreamCallback c
  * @param filter_mask  事件类型位掩码（STREAM_FILTER_ALL 表示接收全部）
  * @return >=0 成功，返回回调 ID（用于后续注销）；<0 失败
  */
-lv_PUBLIC_API int stream_register_callback_ex(StreamContext *ctx, StreamCallback callback, void *user_data, uint64_t filter_mask);
+lv_PUBLIC_API int stream_register_callback_ex(StreamContext *ctx, StreamCallback callback, void *user_data,
+                                              uint64_t filter_mask);
 
 /**
  * @brief 注销流式事件回调
@@ -388,7 +389,8 @@ lv_PUBLIC_API void stream_emit(StreamContext *ctx, const StreamEvent *event);
  * @param description  描述文本（可为 NULL）
  * @param step_number  步骤编号
  */
-lv_PUBLIC_API void stream_emit_simple(StreamContext *ctx, StreamEventType type, const char *description, int step_number);
+lv_PUBLIC_API void stream_emit_simple(StreamContext *ctx, StreamEventType type, const char *description,
+                                      int step_number);
 
 /* ==================== 便捷发射函数 ==================== */
 
@@ -403,8 +405,8 @@ lv_PUBLIC_API void stream_emit_simple(StreamContext *ctx, StreamEventType type, 
  * @param description 事件描述
  * @param step_number 步骤编号
  */
-lv_PUBLIC_API void stream_emit_node_event(StreamContext *ctx, StreamEventType type, int node_id, const char *description,
-                            int step_number);
+lv_PUBLIC_API void stream_emit_node_event(StreamContext *ctx, StreamEventType type, int node_id,
+                                          const char *description, int step_number);
 
 /**
  * @brief 发射约束相关事件
@@ -417,8 +419,8 @@ lv_PUBLIC_API void stream_emit_node_event(StreamContext *ctx, StreamEventType ty
  * @param description   事件描述
  * @param step_number   步骤编号
  */
-lv_PUBLIC_API void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type, int constraint_id, const char *description,
-                                  int step_number);
+lv_PUBLIC_API void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type, int constraint_id,
+                                                const char *description, int step_number);
 
 /**
  * @brief 发射进度事件
@@ -432,7 +434,7 @@ lv_PUBLIC_API void stream_emit_constraint_event(StreamContext *ctx, StreamEventT
  * @param total_steps 总步骤数
  */
 lv_PUBLIC_API void stream_emit_progress(StreamContext *ctx, double progress, const char *description, int step_number,
-                          int total_steps);
+                                        int total_steps);
 
 /**
  * @brief 发射带数值结果的事件
@@ -445,8 +447,8 @@ lv_PUBLIC_API void stream_emit_progress(StreamContext *ctx, double progress, con
  * @param description   事件描述
  * @param step_number   步骤编号
  */
-lv_PUBLIC_API void stream_emit_numeric(StreamContext *ctx, StreamEventType type, double numeric_value, const char *description,
-                         int step_number);
+lv_PUBLIC_API void stream_emit_numeric(StreamContext *ctx, StreamEventType type, double numeric_value,
+                                       const char *description, int step_number);
 
 /**
  * @brief 发射带图快照的事件
@@ -460,7 +462,7 @@ lv_PUBLIC_API void stream_emit_numeric(StreamContext *ctx, StreamEventType type,
  * @param step_number 步骤编号
  */
 lv_PUBLIC_API void stream_emit_graph_snapshot(StreamContext *ctx, StreamEventType type, const char *graph_json,
-                                const char *description, int step_number);
+                                              const char *description, int step_number);
 
 /**
  * @brief 发射合并事件
@@ -486,7 +488,7 @@ lv_PUBLIC_API void stream_emit_merge(StreamContext *ctx, int from_id, int to_id,
  * @param step_number 步骤编号
  */
 lv_PUBLIC_API void stream_emit_variable_resolved(StreamContext *ctx, int var_id, double value, const char *description,
-                                   int step_number);
+                                                 int step_number);
 
 /**
  * @brief 发射错误事件
@@ -546,7 +548,8 @@ lv_PUBLIC_API void stream_emit_preset_register(StreamContext *ctx, const char *n
  * @param instance_id  实例化后的函数块 ID
  * @param step_number  步骤编号
  */
-lv_PUBLIC_API void stream_emit_preset_instantiate(StreamContext *ctx, const char *name, int instance_id, int step_number);
+lv_PUBLIC_API void stream_emit_preset_instantiate(StreamContext *ctx, const char *name, int instance_id,
+                                                  int step_number);
 
 /**
  * @brief 发射预设验证事件
@@ -560,7 +563,7 @@ lv_PUBLIC_API void stream_emit_preset_instantiate(StreamContext *ctx, const char
  * @param step_number  步骤编号
  */
 lv_PUBLIC_API void stream_emit_preset_validate(StreamContext *ctx, const char *name, bool is_valid, const char *detail,
-                                 int step_number);
+                                               int step_number);
 
 /**
  * @brief 发射预设模块加载完成事件
@@ -572,7 +575,8 @@ lv_PUBLIC_API void stream_emit_preset_validate(StreamContext *ctx, const char *n
  * @param count        该模块注册的预设数量
  * @param step_number  步骤编号
  */
-lv_PUBLIC_API void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_name, int count, int step_number);
+lv_PUBLIC_API void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_name, int count,
+                                                    int step_number);
 
 /* ============== 异步模式 API ============== */
 

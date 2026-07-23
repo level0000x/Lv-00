@@ -10,11 +10,12 @@
  */
 
 #include "preset_difference_equations.h"
-#include "preset_blocks.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
 
 #include <string.h>
+
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -23,8 +24,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_difference_equations_register(void)
-{
+bool preset_difference_equations_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -32,29 +32,21 @@ bool preset_difference_equations_register(void)
      * ============================================================ */
 
     /* 一阶齐次差分方程 */
-    if (preset_blocks_register_by_category(
-            "homogeneous_first_order",
-            "求解一阶齐次差分方程 a_n = r * a_{n-1}",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("homogeneous_first_order", "求解一阶齐次差分方程 a_n = r * a_{n-1}",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
     /* 二阶齐次差分方程 */
-    if (preset_blocks_register_by_category(
-            "homogeneous_second_order",
-            "求解二阶齐次差分方程 a_n = p*a_{n-1} + q*a_{n-2}",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+    if (preset_blocks_register_by_category("homogeneous_second_order",
+                                           "求解二阶齐次差分方程 a_n = p*a_{n-1} + q*a_{n-2}",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 3, 1)) {
         success_count++;
     }
 
     /* k阶齐次差分方程 */
-    if (preset_blocks_register_by_category(
-            "homogeneous_kth_order",
-            "求解k阶齐次线性差分方程（特征方程法）",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("homogeneous_kth_order", "求解k阶齐次线性差分方程（特征方程法）",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
@@ -63,20 +55,14 @@ bool preset_difference_equations_register(void)
      * ============================================================ */
 
     /* 非齐次差分方程求解 */
-    if (preset_blocks_register_by_category(
-            "nonhomogeneous_solve",
-            "求解非齐次差分方程 a_n = p*a_{n-1} + f(n)",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+    if (preset_blocks_register_by_category("nonhomogeneous_solve", "求解非齐次差分方程 a_n = p*a_{n-1} + f(n)",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 3, 1)) {
         success_count++;
     }
 
     /* 特解构造 */
-    if (preset_blocks_register_by_category(
-            "particular_solution",
-            "待定系数法构造非齐次差分方程的特解",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+    if (preset_blocks_register_by_category("particular_solution", "待定系数法构造非齐次差分方程的特解",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 3, 1)) {
         success_count++;
     }
 
@@ -85,29 +71,20 @@ bool preset_difference_equations_register(void)
      * ============================================================ */
 
     /* Z变换计算 */
-    if (preset_blocks_register_by_category(
-            "z_transform",
-            "计算序列 {a_n} 的Z变换 A(z) = Σ a_n * z^{-n}",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("z_transform", "计算序列 {a_n} 的Z变换 A(z) = Σ a_n * z^{-n}",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
     /* 逆Z变换 */
-    if (preset_blocks_register_by_category(
-            "inverse_z_transform",
-            "计算Z变换 A(z) 的逆变换得到序列 {a_n}",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("inverse_z_transform", "计算Z变换 A(z) 的逆变换得到序列 {a_n}",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
     /* Z变换求解差分方程 */
-    if (preset_blocks_register_by_category(
-            "z_transform_solve",
-            "利用Z变换求解线性常系数差分方程",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+    if (preset_blocks_register_by_category("z_transform_solve", "利用Z变换求解线性常系数差分方程",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 3, 1)) {
         success_count++;
     }
 
@@ -116,38 +93,26 @@ bool preset_difference_equations_register(void)
      * ============================================================ */
 
     /* 平衡点计算 */
-    if (preset_blocks_register_by_category(
-            "equilibrium_point",
-            "计算差分方程的平衡点（不动点）",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("equilibrium_point", "计算差分方程的平衡点（不动点）",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
     /* 稳定性判定 */
-    if (preset_blocks_register_by_category(
-            "stability_test",
-            "判定差分方程平衡点的稳定性",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("stability_test", "判定差分方程平衡点的稳定性", PRESET_EXT_ALGEBRA_ADVANCED,
+                                           2, 1)) {
         success_count++;
     }
 
     /* 渐近行为分析 */
-    if (preset_blocks_register_by_category(
-            "asymptotic_behavior",
-            "分析差分方程解的渐近行为",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("asymptotic_behavior", "分析差分方程解的渐近行为",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
     /* 生成函数方法 */
-    if (preset_blocks_register_by_category(
-            "generating_function_solve",
-            "利用生成函数求解递推关系",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("generating_function_solve", "利用生成函数求解递推关系",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
@@ -155,7 +120,6 @@ bool preset_difference_equations_register(void)
     return success_count == DIFFERENCE_EQUATIONS_PRESET_COUNT;
 }
 
-int preset_difference_equations_count(void)
-{
+int preset_difference_equations_count(void) {
     return DIFFERENCE_EQUATIONS_PRESET_COUNT;
 }

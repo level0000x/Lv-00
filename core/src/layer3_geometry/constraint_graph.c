@@ -43,26 +43,27 @@
 #define lv_DESC_BUFFER_SIZE 128
 
 #include "lv/constraint_graph.h"
-#include "symbolic_coord.h"     /* SymbolicCoord, TrustColor (brings rational.h) */
 
 #include <assert.h>
 #include <gmp.h>
 #include <math.h>
-#include <stdatomic.h>
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/solver.h"
+
+#include "config.h"  /* lv_ARRAY_GROWTH_FACTOR etc. */
+#include "context.h" /* v3.4.0: lvContext 用于统一错误系统 */
 #include "debug.h"
 #include "error_codes.h"
-#include "config.h"          /* lv_ARRAY_GROWTH_FACTOR etc. */
-#include "context.h"      /* v3.4.0: lvContext 用于统一错误系统 */
 #include "lv_internal.h"
 #include "lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
-#include "lv/solver.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "symbolic_coord.h" /* SymbolicCoord, TrustColor (brings rational.h) */
 
 lv_DECLARE_STREAM_CTX(graph);
 

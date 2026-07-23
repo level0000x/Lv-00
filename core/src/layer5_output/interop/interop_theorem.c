@@ -7,7 +7,6 @@
  * @version 3.3.0
  */
 
-#include "lv/interop.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -15,8 +14,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
+#include "lv/interop.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -32,7 +34,7 @@ InteropTheoremContext *interop_theorem_context_create(const char *trust_base_nam
 
     lv_strlcpy(ctx->trust_base_name, trust_base_name ? trust_base_name : "lv", sizeof(ctx->trust_base_name));
     lv_strlcpy(ctx->trust_base_version, trust_base_version ? trust_base_version : "3.0.0",
-                 sizeof(ctx->trust_base_version));
+               sizeof(ctx->trust_base_version));
     ctx->exported_calls = NULL;
     ctx->calls_len = 0;
 
@@ -86,9 +88,8 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
     size_t new_len = ctx->calls_len + entry_len;
     char *new_buf = (char *) lv_realloc(ctx->exported_calls, new_len + 1);
     if (!new_buf) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY,
-                       "定理调用记录失败：无法为%d个参数的调用\"%s\"分配缓冲区（需要%zu字节）", param_count,
-                       theorem_name, new_len + 1);
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "定理调用记录失败：无法为%d个参数的调用\"%s\"分配缓冲区（需要%zu字节）",
+                     param_count, theorem_name, new_len + 1);
         return lv_ERROR_OUT_OF_MEMORY;
     }
     ctx->exported_calls = new_buf;
@@ -98,17 +99,21 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
     size_t remaining = new_len - ctx->calls_len + 1;
 
     int written = snprintf(write_ptr, remaining, "%s", theorem_name);
-    if (written < 0) written = 0;
-    if ((size_t)written >= remaining) written = (int)(remaining - 1);
+    if (written < 0)
+        written = 0;
+    if ((size_t) written >= remaining)
+        written = (int) (remaining - 1);
     write_ptr += written;
-    remaining -= (size_t)written;
+    remaining -= (size_t) written;
 
     for (int i = 0; i < param_count; i++) {
         written = snprintf(write_ptr, remaining, ";%s", params[i] ? params[i] : "null");
-        if (written < 0) written = 0;
-        if ((size_t)written >= remaining) written = (int)(remaining - 1);
+        if (written < 0)
+            written = 0;
+        if ((size_t) written >= remaining)
+            written = (int) (remaining - 1);
         write_ptr += written;
-        remaining -= (size_t)written;
+        remaining -= (size_t) written;
     }
     *write_ptr = '\n';
     write_ptr++;
@@ -169,7 +174,8 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
         line_end = ";";
         lean_style_params = false;
     } else {
-        lv_set_error(lv_ERROR_UNSUPPORTED, "定理导出仅支持 Coq、Lean、Isabelle/HOL 和 HOL Light 格式，当前格式=%d", format);
+        lv_set_error(lv_ERROR_UNSUPPORTED, "定理导出仅支持 Coq、Lean、Isabelle/HOL 和 HOL Light 格式，当前格式=%d",
+                     format);
         return lv_ERROR_UNSUPPORTED;
     }
 
@@ -193,8 +199,7 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
     if (ctx->exported_calls && ctx->calls_len > 0) {
         char *buf = (char *) lv_malloc(ctx->calls_len + 1);
         if (!buf) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "定理导出失败：无法分配%zu字节的临时解析缓冲区",
-                           ctx->calls_len + 1);
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "定理导出失败：无法分配%zu字节的临时解析缓冲区", ctx->calls_len + 1);
             return lv_ERROR_OUT_OF_MEMORY;
         }
         memcpy(buf, ctx->exported_calls, ctx->calls_len + 1);
@@ -327,8 +332,7 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
     for (size_t i = 0; i < hash_len; i++) {
         char c = content_hash[i];
         if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
-            lv_set_error(lv_ERROR_INVALID_PARAM, "外部定理导入失败：内容哈希包含非十六进制字符'%c'（位置=%zu）", c,
-                           i);
+            lv_set_error(lv_ERROR_INVALID_PARAM, "外部定理导入失败：内容哈希包含非十六进制字符'%c'（位置=%zu）", c, i);
             return lv_ERROR_INVALID_PARAM;
         }
     }
@@ -470,48 +474,48 @@ const char *interop_get_file_extension(const char *path) {
 
 /* ---- 命令补全 ---- */
 
-static const char *BUILTIN_COMMANDS[] = {
-    "add point", "add segment", "add constraint", "add region",
-    "move point", "remove point", "remove segment",
-    "normalize", "undo", "redo",
-    "snapshot", "restore",
-    "solve", "rewrite", "unify",
-    "pack function", "instantiate",
-    "get graph", "export graph", "get status",
-    "history", "help", "clear", "cls",
-    "ping", "stream start", "stream stop",
-    NULL
-};
+static const char *BUILTIN_COMMANDS[] = {"add point",   "add segment",  "add constraint", "add region",
+                                         "move point",  "remove point", "remove segment", "normalize",
+                                         "undo",        "redo",         "snapshot",       "restore",
+                                         "solve",       "rewrite",      "unify",          "pack function",
+                                         "instantiate", "get graph",    "export graph",   "get status",
+                                         "history",     "help",         "clear",          "cls",
+                                         "ping",        "stream start", "stream stop",    NULL};
 
 static int str_prefix_match(const char *str, const char *prefix) {
     size_t plen = strlen(prefix);
-    if (plen == 0) return 1;
+    if (plen == 0)
+        return 1;
     return strncmp(str, prefix, plen) == 0;
 }
 
 char **interop_get_command_completions(lvEngine *engine, const char *prefix, int *out_count) {
-    if (!out_count) return NULL;
+    if (!out_count)
+        return NULL;
     *out_count = 0;
 
     int capacity = INTEROP_MAX_COMPLETIONS;
-    char **result = (char **)calloc((size_t)capacity, sizeof(char *));
-    if (!result) return NULL;
+    char **result = (char **) calloc((size_t) capacity, sizeof(char *));
+    if (!result)
+        return NULL;
 
     int count = 0;
     const char *p = prefix ? prefix : "";
 
     /* 内置命令补全 */
     for (int i = 0; BUILTIN_COMMANDS[i] != NULL; i++) {
-        if (count >= capacity - 1) break;
+        if (count >= capacity - 1)
+            break;
         if (str_prefix_match(BUILTIN_COMMANDS[i], p)) {
             result[count] = strdup(BUILTIN_COMMANDS[i]);
-            if (result[count]) count++;
+            if (result[count])
+                count++;
         }
     }
 
     /* 当前图中的节点名称和约束名称补全 */
     /* 从 engine 获取实时节点/约束名称列表（暂未实现） */
-    (void)engine;
+    (void) engine;
 
     if (count == 0) {
         free(result);
@@ -524,9 +528,10 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
 }
 
 void interop_free_completions(char **completions, int count) {
-    if (!completions) return;
+    if (!completions)
+        return;
     for (int i = 0; i < count; i++) {
-        lv_free((void **)&completions[i]);
+        lv_free((void **) &completions[i]);
     }
-    lv_free((void **)&completions);
+    lv_free((void **) &completions);
 }

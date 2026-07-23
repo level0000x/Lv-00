@@ -22,6 +22,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 #include "proof.h"
 #ifdef __cplusplus
@@ -51,12 +52,7 @@ typedef enum {
     WIDGET_TACTIC_HISTORY = 7
 } ProofWidgetType;
 
-typedef enum {
-    LAYOUT_GRID = 0,
-    LAYOUT_HORIZONTAL = 1,
-    LAYOUT_VERTICAL = 2,
-    LAYOUT_TABBED = 3
-} lvLayoutType;
+typedef enum { LAYOUT_GRID = 0, LAYOUT_HORIZONTAL = 1, LAYOUT_VERTICAL = 2, LAYOUT_TABBED = 3 } lvLayoutType;
 
 typedef enum {
     HIGHLIGHT_NORMAL = 0,

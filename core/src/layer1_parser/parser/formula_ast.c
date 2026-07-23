@@ -13,7 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/formula_parser.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -400,7 +402,8 @@ int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement
  * @return 增加后的引用计数
  */
 int formula_node_ref(FormulaNode *node) {
-    if (!node) return 0;
+    if (!node)
+        return 0;
     return ++node->refcount;
 }
 
@@ -411,7 +414,8 @@ int formula_node_ref(FormulaNode *node) {
  * @return 当前引用计数，node为NULL时返回0
  */
 int formula_node_refcount(const FormulaNode *node) {
-    if (!node) return 0;
+    if (!node)
+        return 0;
     return node->refcount;
 }
 
@@ -622,8 +626,8 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_COORDINATE_LIST:
             copy->data.coord_list.coord_count = node->data.coord_list.coord_count;
             if (node->data.coord_list.coord_count > 0 && node->data.coord_list.coords) {
-                copy->data.coord_list.coords = lv_calloc(
-                    (size_t) node->data.coord_list.coord_count, sizeof(FormulaNode *));
+                copy->data.coord_list.coords =
+                    lv_calloc((size_t) node->data.coord_list.coord_count, sizeof(FormulaNode *));
                 if (copy->data.coord_list.coords) {
                     for (int i = 0; i < node->data.coord_list.coord_count; i++)
                         copy->data.coord_list.coords[i] = formula_node_copy(node->data.coord_list.coords[i]);
@@ -673,8 +677,8 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
                 copy->data.geom_polygon.name = lv_strdup(node->data.geom_polygon.name);
             copy->data.geom_polygon.vertex_count = node->data.geom_polygon.vertex_count;
             if (node->data.geom_polygon.vertex_count > 0 && node->data.geom_polygon.vertices) {
-                copy->data.geom_polygon.vertices = lv_calloc(
-                    (size_t) node->data.geom_polygon.vertex_count, sizeof(FormulaNode *));
+                copy->data.geom_polygon.vertices =
+                    lv_calloc((size_t) node->data.geom_polygon.vertex_count, sizeof(FormulaNode *));
                 if (copy->data.geom_polygon.vertices) {
                     for (int i = 0; i < node->data.geom_polygon.vertex_count; i++)
                         copy->data.geom_polygon.vertices[i] = formula_node_copy(node->data.geom_polygon.vertices[i]);
@@ -687,11 +691,12 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
                 copy->data.geom_region.name = lv_strdup(node->data.geom_region.name);
             copy->data.geom_region.segment_count = node->data.geom_region.segment_count;
             if (node->data.geom_region.segment_count > 0 && node->data.geom_region.boundary_segments) {
-                copy->data.geom_region.boundary_segments = lv_calloc(
-                    (size_t) node->data.geom_region.segment_count, sizeof(FormulaNode *));
+                copy->data.geom_region.boundary_segments =
+                    lv_calloc((size_t) node->data.geom_region.segment_count, sizeof(FormulaNode *));
                 if (copy->data.geom_region.boundary_segments) {
                     for (int i = 0; i < node->data.geom_region.segment_count; i++)
-                        copy->data.geom_region.boundary_segments[i] = formula_node_copy(node->data.geom_region.boundary_segments[i]);
+                        copy->data.geom_region.boundary_segments[i] =
+                            formula_node_copy(node->data.geom_region.boundary_segments[i]);
                 }
             }
             break;
@@ -722,11 +727,12 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_CONSTRAINT_ANGLE:
             copy->data.constraint.participant_count = node->data.constraint.participant_count;
             if (node->data.constraint.participant_count > 0 && node->data.constraint.participants) {
-                copy->data.constraint.participants = lv_calloc(
-                    (size_t) node->data.constraint.participant_count, sizeof(FormulaNode *));
+                copy->data.constraint.participants =
+                    lv_calloc((size_t) node->data.constraint.participant_count, sizeof(FormulaNode *));
                 if (copy->data.constraint.participants) {
                     for (int i = 0; i < node->data.constraint.participant_count; i++)
-                        copy->data.constraint.participants[i] = formula_node_copy(node->data.constraint.participants[i]);
+                        copy->data.constraint.participants[i] =
+                            formula_node_copy(node->data.constraint.participants[i]);
                 }
             }
             break;
@@ -734,8 +740,8 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_COMPOUND:
             copy->data.compound.statement_count = node->data.compound.statement_count;
             if (node->data.compound.statement_count > 0 && node->data.compound.statements) {
-                copy->data.compound.statements = lv_calloc(
-                    (size_t) node->data.compound.statement_count, sizeof(FormulaNode *));
+                copy->data.compound.statements =
+                    lv_calloc((size_t) node->data.compound.statement_count, sizeof(FormulaNode *));
                 if (copy->data.compound.statements) {
                     for (int i = 0; i < node->data.compound.statement_count; i++)
                         copy->data.compound.statements[i] = formula_node_copy(node->data.compound.statements[i]);

@@ -10,14 +10,15 @@
  * @author Lv-00 Project
  */
 
+#include <string.h>
+
 #include "lv/io_blocks.h"
 #include "lv/lv_utils.h"
-#include <string.h>
 
 /** @brief 网络块内部状态结构 */
 typedef struct {
-    char *url;          /**< 目标 URL 字符串 */
-    bool connected;     /**< 是否已建立连接 */
+    char *url;      /**< 目标 URL 字符串 */
+    bool connected; /**< 是否已建立连接 */
 } NetworkBlockState;
 
 /**
@@ -30,7 +31,8 @@ typedef struct {
  */
 lvNetworkBlock *lv_network_block_create(void) {
     lvNetworkBlock *block = lv_calloc(1, sizeof(lvNetworkBlock));
-    if (!block) return NULL;
+    if (!block)
+        return NULL;
     block->effect = lv_EFFECT_NETWORK;
     block->url_port = -1;
     block->request_port = -1;
@@ -39,7 +41,7 @@ lvNetworkBlock *lv_network_block_create(void) {
 
     NetworkBlockState *state = lv_calloc(1, sizeof(NetworkBlockState));
     if (!state) {
-        lv_free((void **)&block);
+        lv_free((void **) &block);
         return NULL;
     }
     block->base = state;
@@ -54,13 +56,14 @@ lvNetworkBlock *lv_network_block_create(void) {
  * @param block 网络块指针
  */
 void lv_network_block_destroy(lvNetworkBlock *block) {
-    if (!block) return;
+    if (!block)
+        return;
     if (block->base) {
-        NetworkBlockState *state = (NetworkBlockState *)block->base;
-        lv_free((void **)&state->url);
-        lv_free((void **)&state);
+        NetworkBlockState *state = (NetworkBlockState *) block->base;
+        lv_free((void **) &state->url);
+        lv_free((void **) &state);
     }
-    lv_free((void **)&block);
+    lv_free((void **) &block);
 }
 
 /**
@@ -73,11 +76,13 @@ void lv_network_block_destroy(lvNetworkBlock *block) {
  * @return 成功返回0，失败返回-1
  */
 int lv_network_block_set_url(lvNetworkBlock *block, const char *url) {
-    if (!block || !block->base || !url) return -1;
-    NetworkBlockState *state = (NetworkBlockState *)block->base;
-    lv_free((void **)&state->url);
+    if (!block || !block->base || !url)
+        return -1;
+    NetworkBlockState *state = (NetworkBlockState *) block->base;
+    lv_free((void **) &state->url);
     state->url = lv_strdup(url);
-    if (!state->url) return -1;
+    if (!state->url)
+        return -1;
     return 0;
 }
 
@@ -88,8 +93,9 @@ int lv_network_block_set_url(lvNetworkBlock *block, const char *url) {
  * @return URL 字符串，参数无效时返回NULL
  */
 const char *lv_network_block_get_url(const lvNetworkBlock *block) {
-    if (!block || !block->base) return NULL;
-    NetworkBlockState *state = (NetworkBlockState *)block->base;
+    if (!block || !block->base)
+        return NULL;
+    NetworkBlockState *state = (NetworkBlockState *) block->base;
     return state->url;
 }
 
@@ -103,13 +109,14 @@ const char *lv_network_block_get_url(const lvNetworkBlock *block) {
  * @return 成功返回0，失败返回-1
  */
 int lv_network_block_connect(lvNetworkBlock *block) {
-    if (!block || !block->base) return -1;
-    NetworkBlockState *state = (NetworkBlockState *)block->base;
-    if (!state->url) return -1;
+    if (!block || !block->base)
+        return -1;
+    NetworkBlockState *state = (NetworkBlockState *) block->base;
+    if (!state->url)
+        return -1;
 
     /* Validate URL format: must start with http:// or https:// */
-    if (strncmp(state->url, "http://", 7) != 0 &&
-        strncmp(state->url, "https://", 8) != 0) {
+    if (strncmp(state->url, "http://", 7) != 0 && strncmp(state->url, "https://", 8) != 0) {
         return -1;
     }
 
@@ -129,16 +136,17 @@ int lv_network_block_connect(lvNetworkBlock *block) {
  * @param data_size 数据大小
  * @return 成功返回0，失败返回-1
  */
-int lv_network_block_send(lvNetworkBlock *block, const void *data,
-                            size_t data_size) {
-    if (!block || !block->base || !data || data_size == 0) return -1;
-    NetworkBlockState *state = (NetworkBlockState *)block->base;
-    if (!state->connected) return -1;
+int lv_network_block_send(lvNetworkBlock *block, const void *data, size_t data_size) {
+    if (!block || !block->base || !data || data_size == 0)
+        return -1;
+    NetworkBlockState *state = (NetworkBlockState *) block->base;
+    if (!state->connected)
+        return -1;
 
     /* Data is staged in the request_port for the transport layer
        to transmit. Actual send is performed by the protocol handler. */
-    (void)data;
-    (void)data_size;
+    (void) data;
+    (void) data_size;
     return 0;
 }
 
@@ -153,14 +161,16 @@ int lv_network_block_send(lvNetworkBlock *block, const void *data,
  * @param bytes_received 输出实际接收字节数（可为NULL）
  * @return 成功返回0，失败返回-1
  */
-int lv_network_block_receive(lvNetworkBlock *block, void *buf,
-                               size_t buf_size, size_t *bytes_received) {
-    if (!block || !block->base || !buf || buf_size == 0) return -1;
-    NetworkBlockState *state = (NetworkBlockState *)block->base;
-    if (!state->connected) return -1;
+int lv_network_block_receive(lvNetworkBlock *block, void *buf, size_t buf_size, size_t *bytes_received) {
+    if (!block || !block->base || !buf || buf_size == 0)
+        return -1;
+    NetworkBlockState *state = (NetworkBlockState *) block->base;
+    if (!state->connected)
+        return -1;
 
     /* Data is read from the response_port populated by the transport
        layer. Actual receive is performed by the protocol handler. */
-    if (bytes_received) *bytes_received = 0;
+    if (bytes_received)
+        *bytes_received = 0;
     return 0;
 }

@@ -34,12 +34,12 @@ extern "C" {
  * 渲染输出格式
  * ============================================================ */
 typedef enum {
-    OUTPUT_LATEX,    /* LaTeX 格式 */
-    OUTPUT_PYTHON,   /* Python 代码格式 */
-    OUTPUT_DSL,      /* Lv-00 DSL 格式 */
-    OUTPUT_MATHML,   /* MathML 格式 */
-    OUTPUT_ASCII,    /* ASCII 艺术格式 */
-    OUTPUT_HTML      /* HTML MathJax 格式 */
+    OUTPUT_LATEX,  /* LaTeX 格式 */
+    OUTPUT_PYTHON, /* Python 代码格式 */
+    OUTPUT_DSL,    /* Lv-00 DSL 格式 */
+    OUTPUT_MATHML, /* MathML 格式 */
+    OUTPUT_ASCII,  /* ASCII 艺术格式 */
+    OUTPUT_HTML    /* HTML MathJax 格式 */
 } OutputFormat;
 /* ============================================================
  * 渲染选项
@@ -49,8 +49,8 @@ typedef struct {
     bool display_mode;
     bool fraction_mode;
     bool simplify_output;
-    int  precision;
-    const char *style;           /* HTML: inline or block */
+    int precision;
+    const char *style; /* HTML: inline or block */
 } RenderOptions;
 /* 默认渲染选项 */
 #define RENDER_OPTIONS_DEFAULT {false, true, true, true, 6}

@@ -7,8 +7,6 @@
  * @version 3.3.0
  */
 
-#include "lv/solver.h"
-
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -17,11 +15,13 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/solver.h"
+#include "lv/stream.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
-#include "lv/stream.h"
 #include "stream_context_util.h"
 
 /* --- 共享宏 --- */
@@ -30,12 +30,12 @@
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define lv_ZERO_EPSILON 1e-12
 #define SOLVER_DETAIL_BUF_SIZE 512
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
-    do { \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
+#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
+    do {                                                               \
+        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
             lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label; \
-        } \
+            goto label;                                                \
+        }                                                              \
     } while (0)
 
 /* ── 数值求解器 ── */
@@ -422,16 +422,18 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
         mpq_t q_approx;
         mpq_init(q_approx);
         mpq_set_d(q_approx, approx1);
-        int64_t num1 = (int64_t)llround(mpq_get_d(q_approx));
-        uint64_t den1 = (uint64_t)llround(mpq_get_d(mpq_denref(q_approx)));
-        if (den1 == 0) den1 = 1;
-        solutions[0] = symbolic_coord_create_rational((int)num1, (unsigned int)den1);
+        int64_t num1 = (int64_t) llround(mpq_get_d(q_approx));
+        uint64_t den1 = (uint64_t) llround(mpq_get_d(mpq_denref(q_approx)));
+        if (den1 == 0)
+            den1 = 1;
+        solutions[0] = symbolic_coord_create_rational((int) num1, (unsigned int) den1);
 
         if (max_solutions >= 2) {
             mpq_set_d(q_approx, approx2);
-            int64_t num2 = (int64_t)llround(mpq_get_d(q_approx));
-            uint64_t den2 = (uint64_t)llround(mpq_get_d(mpq_denref(q_approx)));
-            if (den2 == 0) den2 = 1;
+            int64_t num2 = (int64_t) llround(mpq_get_d(q_approx));
+            uint64_t den2 = (uint64_t) llround(mpq_get_d(mpq_denref(q_approx)));
+            if (den2 == 0)
+                den2 = 1;
             solutions[1] = symbolic_coord_create_rational(num2, den2);
         }
         mpq_clear(q_approx);
@@ -667,12 +669,15 @@ static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, 
         /* 三个不等实根 (casus irreducibilis): 使用三角函数
          * y_k = 2*sqrt(-P/3)*cos((acos(3Q/(2P)*sqrt(-3/P)) + 2*pi*k)/3) */
         /* 数值稳定性：casus irreducibilis 要求 P < 0，浮点误差可能导致 P >= 0 */
-        if (P >= 0) return sol_count;
+        if (P >= 0)
+            return sol_count;
         double sqrt_term = sqrt(-P / 3.0);
         double acos_arg = 3.0 * Q / (2.0 * P) * sqrt(-3.0 / P);
         /* 裁剪到 [-1, 1] 以防止浮点精度误差导致 acos 返回 NaN */
-        if (acos_arg > 1.0) acos_arg = 1.0;
-        if (acos_arg < -1.0) acos_arg = -1.0;
+        if (acos_arg > 1.0)
+            acos_arg = 1.0;
+        if (acos_arg < -1.0)
+            acos_arg = -1.0;
         double phi = acos(acos_arg);
         for (int k = 0; k < 3 && sol_count < max_solutions; k++) {
             double angle = (phi + 2.0 * M_PI * (double) k) / 3.0;

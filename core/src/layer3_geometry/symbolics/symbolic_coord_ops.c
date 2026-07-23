@@ -28,15 +28,17 @@
  * @version 3.3.0
  */
 
-#include "lv/symbolic_coord.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv/constraint_graph.h"
+
 #include "lv/bit_burning.h"
+#include "lv/constraint_graph.h"
+#include "lv/symbolic_coord.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -69,8 +71,8 @@ int remove_square_factors(int n);
 extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;
 
 /* ── Plan Manager 线程局部状态 ── */
-#define SYM_COORD_DEGRADE_THRESHOLD  3
-#define SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR 10  /* lv_BIT_CUTOFF_THRESHOLD / 10 */
+#define SYM_COORD_DEGRADE_THRESHOLD 3
+#define SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR 10 /* lv_BIT_CUTOFF_THRESHOLD / 10 */
 
 static lv_THREAD_LOCAL int g_degrade_fail_count = 0;
 static lv_THREAD_LOCAL int g_degrade_total = 0;
@@ -85,10 +87,12 @@ static SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *res
  * @return 总位数，溢出时返回 SIZE_MAX
  */
 static size_t rational_total_bits(const Rational *r) {
-    if (!r) return 0;
+    if (!r)
+        return 0;
     size_t num = mpz_sizeinbase(mpq_numref(r->value), 2);
     size_t den = mpz_sizeinbase(mpq_denref(r->value), 2);
-    if (num > SIZE_MAX - den) return SIZE_MAX;
+    if (num > SIZE_MAX - den)
+        return SIZE_MAX;
     return num + den;
 }
 
@@ -103,52 +107,66 @@ static size_t rational_total_bits(const Rational *r) {
  * @param operation 操作名称（预留，暂未使用）
  */
 static void bit_burning_check_result(SymbolicCoord *result, const char *operation) {
-    if (!result) return;
+    if (!result)
+        return;
 
-    (void)operation;
+    (void) operation;
 
     size_t total_bits = 0;
     bool overflow = false;
 
     switch (result->type) {
-    case RATIONAL: {
-        if (!result->data.rational) return;
-        total_bits = rational_total_bits(result->data.rational);
-        if (total_bits == SIZE_MAX) overflow = true;
-        break;
-    }
-    case ALGEBRAIC: {
-        if (!result->data.algebraic) return;
-        /* 检查缓存有理数 */
-        if (result->data.algebraic->cached_rational) {
-            size_t rb = rational_total_bits(result->data.algebraic->cached_rational);
-            if (rb == SIZE_MAX) { overflow = true; break; }
-            total_bits += rb;
+        case RATIONAL: {
+            if (!result->data.rational)
+                return;
+            total_bits = rational_total_bits(result->data.rational);
+            if (total_bits == SIZE_MAX)
+                overflow = true;
+            break;
         }
-        /* 检查多项式系数 */
-        for (int i = 0; i <= result->data.algebraic->minimal_poly.degree; i++) {
-            size_t cb = (size_t)mpz_sizeinbase(result->data.algebraic->minimal_poly.coeffs[i], 2);
-            if (cb > (size_t)BIT_CUTOFF_THRESHOLD) { overflow = true; break; }
-            total_bits += cb;
+        case ALGEBRAIC: {
+            if (!result->data.algebraic)
+                return;
+            /* 检查缓存有理数 */
+            if (result->data.algebraic->cached_rational) {
+                size_t rb = rational_total_bits(result->data.algebraic->cached_rational);
+                if (rb == SIZE_MAX) {
+                    overflow = true;
+                    break;
+                }
+                total_bits += rb;
+            }
+            /* 检查多项式系数 */
+            for (int i = 0; i <= result->data.algebraic->minimal_poly.degree; i++) {
+                size_t cb = (size_t) mpz_sizeinbase(result->data.algebraic->minimal_poly.coeffs[i], 2);
+                if (cb > (size_t) BIT_CUTOFF_THRESHOLD) {
+                    overflow = true;
+                    break;
+                }
+                total_bits += cb;
+            }
+            break;
         }
-        break;
-    }
-    case QUADRATIC: {
-        if (!result->data.quadratic) return;
-        size_t rb_a = rational_total_bits(result->data.quadratic->a);
-        size_t rb_b = rational_total_bits(result->data.quadratic->b);
-        if (rb_a == SIZE_MAX || rb_b == SIZE_MAX) { overflow = true; break; }
-        total_bits = rb_a + rb_b;
-        break;
-    }
-    default:
-        /* TRANSCENDENTAL 等无位数概念 */
-        return;
+        case QUADRATIC: {
+            if (!result->data.quadratic)
+                return;
+            size_t rb_a = rational_total_bits(result->data.quadratic->a);
+            size_t rb_b = rational_total_bits(result->data.quadratic->b);
+            if (rb_a == SIZE_MAX || rb_b == SIZE_MAX) {
+                overflow = true;
+                break;
+            }
+            total_bits = rb_a + rb_b;
+            break;
+        }
+        default:
+            /* TRANSCENDENTAL 等无位数概念 */
+            return;
     }
 
-    if (overflow || total_bits > (size_t)BIT_CUTOFF_THRESHOLD) {
+    if (overflow || total_bits > (size_t) BIT_CUTOFF_THRESHOLD) {
         BitBurningState *state = bit_burning_get_global_state();
-        bit_burning_check(total_bits > (size_t)BIT_CUTOFF_THRESHOLD ? total_bits : BIT_CUTOFF_THRESHOLD, state);
+        bit_burning_check(total_bits > (size_t) BIT_CUTOFF_THRESHOLD ? total_bits : BIT_CUTOFF_THRESHOLD, state);
         /* 统一降级为数值假设 */
         result->trust = TRUST_AMBER;
     }
@@ -167,12 +185,14 @@ static void bit_burning_check_result(SymbolicCoord *result, const char *operatio
  * @return 解析后的 int64_t 值，解析失败返回 0
  */
 static int64_t safe_atol(const char *str) {
-    if (!str || !*str) return 0;
+    if (!str || !*str)
+        return 0;
     char *end = NULL;
     errno = 0;
     long val = strtol(str, &end, 10);
-    if (errno != 0 || end == str) return 0;
-    return (int64_t)val;
+    if (errno != 0 || end == str)
+        return 0;
+    return (int64_t) val;
 }
 
 /**
@@ -296,7 +316,7 @@ SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
     coord->cached_value = 0.0;
     coord->data.rational = rational_create(num, denom);
     if (!coord->data.rational) {
-        lv_free((void**)&coord);  /* lv_malloc分配 */
+        lv_free((void **) &coord); /* lv_malloc分配 */
         return NULL;
     }
     return coord;
@@ -320,7 +340,7 @@ SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, do
     coord->cached_value = 0.0;
     coord->data.algebraic = algebraic_create(poly, left, right);
     if (!coord->data.algebraic) {
-        lv_free((void**)&coord);  /* lv_malloc分配 */
+        lv_free((void **) &coord); /* lv_malloc分配 */
         return NULL;
     }
     return coord;
@@ -344,7 +364,7 @@ SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigne
     coord->cached_value = 0.0;
     coord->data.quadratic = quadratic_create(a, b, n);
     if (!coord->data.quadratic) {
-        lv_free((void**)&coord);  /* lv_malloc分配 */
+        lv_free((void **) &coord); /* lv_malloc分配 */
         return NULL;
     }
     return coord;
@@ -360,7 +380,7 @@ SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
     coord->cached_value = 0.0;
     coord->data.transcendental = transcendental_create(name);
     if (!coord->data.transcendental) {
-        lv_free((void**)&coord);  /* lv_malloc分配 */
+        lv_free((void **) &coord); /* lv_malloc分配 */
         return NULL;
     }
     return coord;
@@ -411,7 +431,7 @@ void symbolic_coord_destroy(SymbolicCoord *coord) {
     coord->trust = TRUST_GREEN;
     coord->type = RATIONAL;
 
-    lv_free((void**)&coord);  /* lv_malloc分配 */
+    lv_free((void **) &coord); /* lv_malloc分配 */
 }
 
 /**
@@ -461,8 +481,8 @@ double symbolic_coord_to_double(const SymbolicCoord *coord) {
     }
 
     /* 更新缓存（const 转换为非 const：缓存是性能优化，不改变逻辑语义） */
-    ((SymbolicCoord *)coord)->cached_value = val;
-    ((SymbolicCoord *)coord)->cache_valid = true;
+    ((SymbolicCoord *) coord)->cached_value = val;
+    ((SymbolicCoord *) coord)->cache_valid = true;
 
     return val;
 }
@@ -486,7 +506,8 @@ void symbolic_coord_invalidate_cache(SymbolicCoord *coord) {
 
 /* Cross-type comparison */
 int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
-    if (!a || !b) return 0;
+    if (!a || !b)
+        return 0;
     /* Same type: use type-specific comparison */
     if (a->type == b->type) {
         switch (a->type) {
@@ -887,7 +908,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                     return result;
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                lv_free((void**)&q); /* quadratic_create copies the rationals */
+                lv_free((void **) &q); /* quadratic_create copies the rationals */
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
@@ -1181,7 +1202,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                     return result;
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                lv_free((void**)&q);  /* lv_malloc分配 */
+                lv_free((void **) &q); /* lv_malloc分配 */
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
@@ -1404,7 +1425,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
                     return result;
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                lv_free((void**)&q);  /* lv_malloc分配 */
+                lv_free((void **) &q); /* lv_malloc分配 */
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
@@ -1691,7 +1712,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                     return result;
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                lv_free((void**)&q);  /* lv_malloc分配 */
+                lv_free((void **) &q); /* lv_malloc分配 */
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
@@ -1806,7 +1827,7 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
 
     dst->type = src->type;
     dst->trust = src->trust;
-    dst->cache_valid = false;  /* 复制品缓存初始无效，首次访问时重新计算 */
+    dst->cache_valid = false; /* 复制品缓存初始无效，首次访问时重新计算 */
     dst->cached_value = 0.0;
 
     switch (src->type) {
@@ -2144,7 +2165,7 @@ mpz_t *mpz_perfect_sqrt(mpz_t n) {
         return NULL;
     if (!mpz_perfect_square_p(n))
         return NULL;
-    mpz_t *result = (mpz_t *)lv_calloc(1, sizeof(mpz_t));
+    mpz_t *result = (mpz_t *) lv_calloc(1, sizeof(mpz_t));
     if (!result)
         return NULL;
     mpz_init(*result);
@@ -3154,7 +3175,7 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
             char *ser = rational_serialize(coord->data.rational);
             if (ser) {
                 hash = fnv1a_update(hash, ser, strlen(ser));
-                lv_free((void**)&ser); /* lv_malloc分配 */
+                lv_free((void **) &ser); /* lv_malloc分配 */
             }
             break;
         }
@@ -3179,11 +3200,11 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
             char *b_ser = rational_serialize(q->b);
             if (a_ser) {
                 hash = fnv1a_update(hash, a_ser, strlen(a_ser));
-                lv_free((void**)&a_ser); /* lv_malloc分配 */
+                lv_free((void **) &a_ser); /* lv_malloc分配 */
             }
             if (b_ser) {
                 hash = fnv1a_update(hash, b_ser, strlen(b_ser));
-                lv_free((void**)&b_ser); /* lv_malloc分配 */
+                lv_free((void **) &b_ser); /* lv_malloc分配 */
             }
             hash = fnv1a_update(hash, (const char *) &q->n, sizeof(q->n));
             break;
@@ -3377,8 +3398,8 @@ bool algebraic_try_rationalize(Algebraic *a) {
 TrustColor trust_color_combine(TrustColor a, TrustColor b) {
     /* Rule: non-constructive(LO) + numeric-assumption(AMBER) = DEEP_ORANGE */
     /* Otherwise take the higher value (lower trust) */
-    int a_val = (int)a;
-    int b_val = (int)b;
+    int a_val = (int) a;
+    int b_val = (int) b;
 
     /* Check for light-orange + amber superposition */
     int is_a_lo = (a_val == TRUST_LIGHT_ORANGE_ORACLE || a_val == TRUST_LIGHT_ORANGE_EXPLOSION);
@@ -3442,7 +3463,7 @@ static SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *res
             if (bits > max_bits)
                 max_bits = bits;
         }
-        if (max_bits > (size_t)(lv_BIT_CUTOFF_THRESHOLD / SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR)) {
+        if (max_bits > (size_t) (lv_BIT_CUTOFF_THRESHOLD / SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR)) {
             needs_check = true;
         }
     }
@@ -3484,7 +3505,7 @@ static SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *res
                         double a_val = algebraic_to_double(a);
                         Rational *zero = rational_create(0, 1);
                         Rational *one = rational_create(1, 1);
-                        unsigned int n_ui = (unsigned int)n_val;
+                        unsigned int n_ui = (unsigned int) n_val;
 
                         SymbolicCoord *new_result = symbolic_coord_create_quadratic(zero, one, n_ui);
                         if (new_result) {
@@ -3560,7 +3581,7 @@ AlgebraicPlan symbolic_coord_get_plan(void) {
  */
 bool symbolic_coord_auto_degrade(const char *reason) {
     AlgebraicPlan current = algebraic_get_plan();
-    (void)reason; /* 日志预留 */
+    (void) reason; /* 日志预留 */
 
     /* 若已在最低计划，不再降级 */
     if (current == PLAN_C_RATIONAL_ONLY) {
@@ -3615,7 +3636,7 @@ SymbolicCoord *symbolic_coord_create_with_plan(long num, long den) {
     switch (plan) {
         case PLAN_A_FULL_ALGEBRAIC: {
             /* 尝试创建完整代数数 */
-            Rational *r = rational_create((int64_t)num, (uint64_t)den);
+            Rational *r = rational_create((int64_t) num, (uint64_t) den);
             if (!r)
                 return NULL;
 
@@ -3643,7 +3664,7 @@ SymbolicCoord *symbolic_coord_create_with_plan(long num, long den) {
         }
         case PLAN_B_QUADRATIC_ONLY: {
             /* 创建二次根式 (a + 0*sqrt(1)) */
-            Rational *a = rational_create((int64_t)num, (uint64_t)den);
+            Rational *a = rational_create((int64_t) num, (uint64_t) den);
             Rational *b = rational_create(0, 1);
             SymbolicCoord *result = symbolic_coord_create_quadratic(a, b, 1);
             if (!result) {
@@ -3654,7 +3675,7 @@ SymbolicCoord *symbolic_coord_create_with_plan(long num, long den) {
         }
         case PLAN_C_RATIONAL_ONLY:
         default:
-            return symbolic_coord_create_rational((int64_t)num, (uint64_t)den);
+            return symbolic_coord_create_rational((int64_t) num, (uint64_t) den);
     }
 }
 

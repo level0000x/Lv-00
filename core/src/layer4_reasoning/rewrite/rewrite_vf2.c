@@ -13,8 +13,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv/rewrite.h"
+
 #include "lv/constraint_graph.h"
+#include "lv/rewrite.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -67,17 +69,21 @@ static void vf2_state_init(VF2State *state, int pattern_size, int target_size) {
     state->target_size = target_size;
     state->core_count = 0;
 
-    state->core_1 = lv_malloc((size_t)pattern_size * sizeof(int));
-    state->core_2 = lv_malloc((size_t)target_size * sizeof(int));
-    state->in_1 = lv_malloc((size_t)pattern_size * sizeof(int));
-    state->out_1 = lv_malloc((size_t)pattern_size * sizeof(int));
-    state->in_2 = lv_malloc((size_t)target_size * sizeof(int));
-    state->out_2 = lv_malloc((size_t)target_size * sizeof(int));
+    state->core_1 = lv_malloc((size_t) pattern_size * sizeof(int));
+    state->core_2 = lv_malloc((size_t) target_size * sizeof(int));
+    state->in_1 = lv_malloc((size_t) pattern_size * sizeof(int));
+    state->out_1 = lv_malloc((size_t) pattern_size * sizeof(int));
+    state->in_2 = lv_malloc((size_t) target_size * sizeof(int));
+    state->out_2 = lv_malloc((size_t) target_size * sizeof(int));
 
-    if (state->in_1) memset(state->in_1, 0, (size_t)pattern_size * sizeof(int));
-    if (state->out_1) memset(state->out_1, 0, (size_t)pattern_size * sizeof(int));
-    if (state->in_2) memset(state->in_2, 0, (size_t)target_size * sizeof(int));
-    if (state->out_2) memset(state->out_2, 0, (size_t)target_size * sizeof(int));
+    if (state->in_1)
+        memset(state->in_1, 0, (size_t) pattern_size * sizeof(int));
+    if (state->out_1)
+        memset(state->out_1, 0, (size_t) pattern_size * sizeof(int));
+    if (state->in_2)
+        memset(state->in_2, 0, (size_t) target_size * sizeof(int));
+    if (state->out_2)
+        memset(state->out_2, 0, (size_t) target_size * sizeof(int));
 
     for (int i = 0; i < pattern_size; i++)
         state->core_1[i] = -1;
@@ -86,8 +92,8 @@ static void vf2_state_init(VF2State *state, int pattern_size, int target_size) {
 
     /* 初始化 in/out 集合 */
     int initial_capacity = target_size > 0 ? target_size : 8;
-    state->in_set = lv_malloc((size_t)initial_capacity * sizeof(int));
-    state->out_set = lv_malloc((size_t)initial_capacity * sizeof(int));
+    state->in_set = lv_malloc((size_t) initial_capacity * sizeof(int));
+    state->out_set = lv_malloc((size_t) initial_capacity * sizeof(int));
     state->in_count = 0;
     state->out_count = 0;
     state->in_capacity = initial_capacity;
@@ -102,14 +108,14 @@ static void vf2_state_init(VF2State *state, int pattern_size, int target_size) {
  * @param state VF2State 指针
  */
 static void vf2_state_destroy(VF2State *state) {
-    lv_free((void**)&state->core_1);
-    lv_free((void**)&state->core_2);
-    lv_free((void**)&state->in_1);
-    lv_free((void**)&state->out_1);
-    lv_free((void**)&state->in_2);
-    lv_free((void**)&state->out_2);
-    lv_free((void**)&state->in_set);
-    lv_free((void**)&state->out_set);
+    lv_free((void **) &state->core_1);
+    lv_free((void **) &state->core_2);
+    lv_free((void **) &state->in_1);
+    lv_free((void **) &state->out_1);
+    lv_free((void **) &state->in_2);
+    lv_free((void **) &state->out_2);
+    lv_free((void **) &state->in_set);
+    lv_free((void **) &state->out_set);
     state->core_1 = state->core_2 = NULL;
     state->in_1 = state->out_1 = NULL;
     state->in_2 = state->out_2 = NULL;
@@ -132,11 +138,8 @@ static void vf2_state_destroy(VF2State *state) {
  * @param local_equivalence_tolerant 是否允许局部等价近似（启用符号坐标比较）
  * @return true 匹配可行，false 不可行
  */
-static bool vf2_feasible(VF2State *state, int p, int t,
-                          ConstraintGraph *pattern_graph,
-                          ConstraintGraph *target_graph,
-                          bool local_equivalence_tolerant)
-{
+static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern_graph, ConstraintGraph *target_graph,
+                         bool local_equivalence_tolerant) {
     GeomNode *pn = pattern_graph->nodes[p];
     GeomNode *tn = target_graph->nodes[t];
 
@@ -160,8 +163,7 @@ static bool vf2_feasible(VF2State *state, int p, int t,
 
     /* FUNCTION_BLOCK 节点语义检查：确定性状态必须一致 */
     if (pn->type == GEOM_FUNCTION_BLOCK) {
-        if (pn->data.func_block.determinism_state !=
-            tn->data.func_block.determinism_state)
+        if (pn->data.func_block.determinism_state != tn->data.func_block.determinism_state)
             return false;
     }
 
@@ -170,8 +172,7 @@ static bool vf2_feasible(VF2State *state, int p, int t,
         if (pn->coord_count != tn->coord_count)
             return false;
         for (int c = 0; c < pn->coord_count; c++) {
-            if (symbolic_coord_compare(pn->symbolic_coords[c],
-                                       tn->symbolic_coords[c]) != 0) {
+            if (symbolic_coord_compare(pn->symbolic_coords[c], tn->symbolic_coords[c]) != 0) {
                 return false;
             }
         }
@@ -183,7 +184,7 @@ static bool vf2_feasible(VF2State *state, int p, int t,
      * 以支持端点顺序无关的等价判断。 */
     if (pn->type == GEOM_LINE_SEGMENT && local_equivalence_tolerant) {
         /* 收集模式图中 p 的两个端点的符号坐标 */
-        SymbolicCoord *p_endpoint_coords[2] = { NULL, NULL };
+        SymbolicCoord *p_endpoint_coords[2] = {NULL, NULL};
         int p_ep_count = 0;
         for (int c = 0; c < pattern_graph->constraint_count; c++) {
             Constraint *pc = pattern_graph->constraints[c];
@@ -193,19 +194,21 @@ static bool vf2_feasible(VF2State *state, int p, int t,
                         int ep_idx = pc->participants[1 - k];
                         if (ep_idx >= 0 && ep_idx < pattern_graph->node_count) {
                             GeomNode *ep_node = pattern_graph->nodes[ep_idx];
-                            if (ep_node && ep_node->type == GEOM_POINT &&
-                                ep_node->coord_count > 0 && ep_node->symbolic_coords) {
+                            if (ep_node && ep_node->type == GEOM_POINT && ep_node->coord_count > 0 &&
+                                ep_node->symbolic_coords) {
                                 p_endpoint_coords[p_ep_count++] = ep_node->symbolic_coords[0];
-                                if (p_ep_count >= 2) break;
+                                if (p_ep_count >= 2)
+                                    break;
                             }
                         }
                     }
                 }
             }
-            if (p_ep_count >= 2) break;
+            if (p_ep_count >= 2)
+                break;
         }
         /* 收集目标图中 t 的两个端点的符号坐标 */
-        SymbolicCoord *t_endpoint_coords[2] = { NULL, NULL };
+        SymbolicCoord *t_endpoint_coords[2] = {NULL, NULL};
         int t_ep_count = 0;
         for (int c = 0; c < target_graph->constraint_count; c++) {
             Constraint *tc = target_graph->constraints[c];
@@ -214,15 +217,17 @@ static bool vf2_feasible(VF2State *state, int p, int t,
                     if (tc->participants[k] == t) {
                         int ep_idx = tc->participants[1 - k];
                         GeomNode *ep_node = graph_get_node(target_graph, ep_idx);
-                        if (ep_node && ep_node->type == GEOM_POINT &&
-                            ep_node->coord_count > 0 && ep_node->symbolic_coords) {
+                        if (ep_node && ep_node->type == GEOM_POINT && ep_node->coord_count > 0 &&
+                            ep_node->symbolic_coords) {
                             t_endpoint_coords[t_ep_count++] = ep_node->symbolic_coords[0];
-                            if (t_ep_count >= 2) break;
+                            if (t_ep_count >= 2)
+                                break;
                         }
                     }
                 }
             }
-            if (t_ep_count >= 2) break;
+            if (t_ep_count >= 2)
+                break;
         }
         /* 如果两端点坐标都收集到了，进行排序后比对 */
         if (p_ep_count == 2 && t_ep_count == 2) {
@@ -258,23 +263,32 @@ static bool vf2_feasible(VF2State *state, int p, int t,
                 continue;
             }
             int p_neighbor = pc->participants[k];
-            if (state->core_1[p_neighbor] < 0) continue;
+            if (state->core_1[p_neighbor] < 0)
+                continue;
             int t_neighbor = state->core_1[p_neighbor];
             /* 检查 t 和 t_neighbor 之间是否存在相同类型的约束 */
             bool found = false;
             for (int ci = 0; ci < target_graph->constraint_count; ci++) {
                 Constraint *tc = target_graph->constraints[ci];
-                if (tc->type != pc->type) continue;
+                if (tc->type != pc->type)
+                    continue;
                 bool t_in = false, tn_in = false;
                 for (int kk = 0; kk < tc->participant_count; kk++) {
-                    if (tc->participants[kk] == t) t_in = true;
-                    if (tc->participants[kk] == t_neighbor) tn_in = true;
+                    if (tc->participants[kk] == t)
+                        t_in = true;
+                    if (tc->participants[kk] == t_neighbor)
+                        tn_in = true;
                 }
-                if (t_in && tn_in) { found = true; break; }
+                if (t_in && tn_in) {
+                    found = true;
+                    break;
+                }
             }
-            if (!found) return false;
+            if (!found)
+                return false;
         }
-        if (!p_participates) continue;
+        if (!p_participates)
+            continue;
     }
 
     /* 反向检查：目标图中 t 的已映射邻居在模式图中也必须兼容 */
@@ -287,23 +301,32 @@ static bool vf2_feasible(VF2State *state, int p, int t,
                 continue;
             }
             int t_neighbor = tc->participants[k];
-            if (state->core_2[t_neighbor] < 0) continue;
+            if (state->core_2[t_neighbor] < 0)
+                continue;
             int p_mapped = state->core_2[t_neighbor];
             /* 在模式图中，p 和 p_mapped 之间必须存在相同类型的约束 */
             bool found = false;
             for (int ci = 0; ci < pattern_graph->constraint_count; ci++) {
                 Constraint *pcon = pattern_graph->constraints[ci];
-                if (pcon->type != tc->type) continue;
+                if (pcon->type != tc->type)
+                    continue;
                 bool p_in = false, pm_in = false;
                 for (int kk = 0; kk < pcon->participant_count; kk++) {
-                    if (pcon->participants[kk] == p) p_in = true;
-                    if (pcon->participants[kk] == p_mapped) pm_in = true;
+                    if (pcon->participants[kk] == p)
+                        p_in = true;
+                    if (pcon->participants[kk] == p_mapped)
+                        pm_in = true;
                 }
-                if (p_in && pm_in) { found = true; break; }
+                if (p_in && pm_in) {
+                    found = true;
+                    break;
+                }
             }
-            if (!found) return false;
+            if (!found)
+                return false;
         }
-        if (!t_participates) continue;
+        if (!t_participates)
+            continue;
     }
 
     return true;
@@ -323,10 +346,8 @@ static bool vf2_feasible(VF2State *state, int p, int t,
  * @param target_graph  目标约束图
  * @return true 有前景（可继续匹配），false 无前景（应回溯）
  */
-static bool vf2_lookahead(VF2State *state, int p, int t,
-                           ConstraintGraph *pattern_graph,
-                           ConstraintGraph *target_graph)
-{
+static bool vf2_lookahead(VF2State *state, int p, int t, ConstraintGraph *pattern_graph,
+                          ConstraintGraph *target_graph) {
     /* 统计模式图中 p 的未映射邻居数量 */
     int p_unmapped_neighbors = 0;
     for (int c = 0; c < pattern_graph->constraint_count; c++) {
@@ -379,7 +400,8 @@ static bool vf2_lookahead(VF2State *state, int p, int t,
                 continue;
             }
             int p_neighbor = pc->participants[k];
-            if (state->core_1[p_neighbor] >= 0) continue; /* 已映射，跳过 */
+            if (state->core_1[p_neighbor] >= 0)
+                continue; /* 已映射，跳过 */
 
             GeomNode *pn = pattern_graph->nodes[p_neighbor];
 
@@ -387,7 +409,8 @@ static bool vf2_lookahead(VF2State *state, int p, int t,
             bool has_compatible = false;
             for (int gc = 0; gc < target_graph->constraint_count; gc++) {
                 Constraint *tc = target_graph->constraints[gc];
-                if (tc->type != pc->type) continue;
+                if (tc->type != pc->type)
+                    continue;
 
                 bool t_in = false;
                 for (int kk = 0; kk < tc->participant_count; kk++) {
@@ -396,7 +419,8 @@ static bool vf2_lookahead(VF2State *state, int p, int t,
                         continue;
                     }
                     int t_neighbor = tc->participants[kk];
-                    if (state->core_2[t_neighbor] >= 0) continue; /* 已映射，跳过 */
+                    if (state->core_2[t_neighbor] >= 0)
+                        continue; /* 已映射，跳过 */
 
                     GeomNode *tn = target_graph->nodes[t_neighbor];
                     if (tn->type == pn->type) {
@@ -404,12 +428,14 @@ static bool vf2_lookahead(VF2State *state, int p, int t,
                         break;
                     }
                 }
-                if (has_compatible) break;
+                if (has_compatible)
+                    break;
             }
             if (!has_compatible)
                 return false;
         }
-        if (!p_in) continue;
+        if (!p_in)
+            continue;
     }
 
     return true;
@@ -432,14 +458,9 @@ static bool vf2_lookahead(VF2State *state, int p, int t,
  * @param depth                      当前递归深度（由调用者传入 depth+1）
  * @return true 找到完整匹配，false 未找到
  */
-static bool vf2_match_recursive(VF2State *state,
-                                 ConstraintGraph *pattern_graph,
-                                 ConstraintGraph *target_graph,
-                                 bool local_equivalence_tolerant,
-                                 RewriteMatch *best_match,
-                                 int *best_match_size,
-                                 int depth)
-{
+static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph, ConstraintGraph *target_graph,
+                                bool local_equivalence_tolerant, RewriteMatch *best_match, int *best_match_size,
+                                int depth) {
     /* 递归深度保护：超过限制则立即返回失败，防止栈溢出 */
     int max_depth = lv_config_get_int("vf2_max_depth", 64);
     if (depth > max_depth) {
@@ -458,7 +479,8 @@ static bool vf2_match_recursive(VF2State *state,
     int best_mapped_neighbors = -1;
 
     for (int p = 0; p < state->pattern_size; p++) {
-        if (state->core_1[p] >= 0) continue;
+        if (state->core_1[p] >= 0)
+            continue;
 
         int mapped_neighbors = 0;
         for (int c = 0; c < pattern_graph->constraint_count; c++) {
@@ -471,7 +493,8 @@ static bool vf2_match_recursive(VF2State *state,
                     mapped_neighbors++;
                 }
             }
-            if (p_in) break;
+            if (p_in)
+                break;
         }
 
         if (mapped_neighbors > best_mapped_neighbors) {
@@ -480,42 +503,54 @@ static bool vf2_match_recursive(VF2State *state,
         }
     }
 
-    if (best_p < 0) return false;
+    if (best_p < 0)
+        return false;
 
     /* 计算 best_p 的约束度数（涉及的约束数）用于候选排序 */
     int p_degree = 0;
     for (int c = 0; c < pattern_graph->constraint_count; c++) {
         Constraint *pc = pattern_graph->constraints[c];
         for (int k = 0; k < pc->participant_count; k++) {
-            if (pc->participants[k] == best_p) { p_degree++; break; }
+            if (pc->participants[k] == best_p) {
+                p_degree++;
+                break;
+            }
         }
     }
 
     /* 收集所有候选目标节点，按度数兼容性排序 */
-    int *candidates = lv_malloc((size_t)state->target_size * sizeof(int));
-    int *cand_scores = lv_malloc((size_t)state->target_size * sizeof(int));
+    int *candidates = lv_malloc((size_t) state->target_size * sizeof(int));
+    int *cand_scores = lv_malloc((size_t) state->target_size * sizeof(int));
     int cand_count = 0;
     if (!candidates || !cand_scores) {
-        lv_free((void**)&candidates);
-        lv_free((void**)&cand_scores);
+        lv_free((void **) &candidates);
+        lv_free((void **) &cand_scores);
         return false;
     }
 
     for (int t = 0; t < state->target_size; t++) {
-        if (state->core_2[t] >= 0) continue;
+        if (state->core_2[t] >= 0)
+            continue;
         /* in/out 集合剪枝：跳过 out_set 中的节点 */
         bool in_out_set = false;
         for (int o = 0; o < state->out_count; o++) {
-            if (state->out_set[o] == t) { in_out_set = true; break; }
+            if (state->out_set[o] == t) {
+                in_out_set = true;
+                break;
+            }
         }
-        if (in_out_set) continue;
+        if (in_out_set)
+            continue;
 
         /* 计算目标节点度数 & 兼容性评分 */
         int t_degree = 0;
         for (int c = 0; c < target_graph->constraint_count; c++) {
             Constraint *tc = target_graph->constraints[c];
             for (int k = 0; k < tc->participant_count; k++) {
-                if (tc->participants[k] == t) { t_degree++; break; }
+                if (tc->participants[k] == t) {
+                    t_degree++;
+                    break;
+                }
             }
         }
         /* 评分 = 1 + (度数匹配分: 越接近 p_degree 越好)
@@ -530,11 +565,16 @@ static bool vf2_match_recursive(VF2State *state,
     for (int i = 0; i < cand_count - 1; i++) {
         int best_idx = i;
         for (int j = i + 1; j < cand_count; j++) {
-            if (cand_scores[j] < cand_scores[best_idx]) best_idx = j;
+            if (cand_scores[j] < cand_scores[best_idx])
+                best_idx = j;
         }
         if (best_idx != i) {
-            int tmp_t = candidates[i]; candidates[i] = candidates[best_idx]; candidates[best_idx] = tmp_t;
-            int tmp_s = cand_scores[i]; cand_scores[i] = cand_scores[best_idx]; cand_scores[best_idx] = tmp_s;
+            int tmp_t = candidates[i];
+            candidates[i] = candidates[best_idx];
+            candidates[best_idx] = tmp_t;
+            int tmp_s = cand_scores[i];
+            cand_scores[i] = cand_scores[best_idx];
+            cand_scores[best_idx] = tmp_s;
         }
     }
 
@@ -543,8 +583,7 @@ static bool vf2_match_recursive(VF2State *state,
         int t = candidates[ci];
 
         /* 可行性检查 */
-        if (!vf2_feasible(state, best_p, t, pattern_graph, target_graph,
-                          local_equivalence_tolerant))
+        if (!vf2_feasible(state, best_p, t, pattern_graph, target_graph, local_equivalence_tolerant))
             continue;
 
         /* 前瞻检查 */
@@ -563,12 +602,12 @@ static bool vf2_match_recursive(VF2State *state,
                 state->core_1[best_p] = -1;
                 state->core_2[t] = -1;
                 state->core_count--;
-                lv_free((void**)&candidates);
-                lv_free((void**)&cand_scores);
+                lv_free((void **) &candidates);
+                lv_free((void **) &cand_scores);
                 return false;
             }
             int new_cap = state->in_capacity * 2;
-            int *new_in = lv_realloc(state->in_set, (size_t)new_cap * sizeof(int));
+            int *new_in = lv_realloc(state->in_set, (size_t) new_cap * sizeof(int));
             if (!new_in) {
                 LOG_WARN("rewrite", "VF2: in_set realloc failed (cap=%d), skipping candidate", new_cap);
                 state->core_1[best_p] = -1;
@@ -583,13 +622,11 @@ static bool vf2_match_recursive(VF2State *state,
 
         /* 递归搜索 */
         int saved_out_count = state->out_count;
-        
-        if (vf2_match_recursive(state, pattern_graph, target_graph,
-                                local_equivalence_tolerant,
-                                best_match, best_match_size,
-                                depth + 1)) {
-            lv_free((void**)&candidates);
-            lv_free((void**)&cand_scores);
+
+        if (vf2_match_recursive(state, pattern_graph, target_graph, local_equivalence_tolerant, best_match,
+                                best_match_size, depth + 1)) {
+            lv_free((void **) &candidates);
+            lv_free((void **) &cand_scores);
             return true;
         }
 
@@ -609,12 +646,12 @@ static bool vf2_match_recursive(VF2State *state,
         if (state->out_count >= state->out_capacity) {
             if (state->out_capacity > INT_MAX / 2) {
                 LOG_WARN("rewrite", "VF2: out_set capacity overflow");
-                lv_free((void**)&candidates);
-                lv_free((void**)&cand_scores);
+                lv_free((void **) &candidates);
+                lv_free((void **) &cand_scores);
                 return false;
             }
             int new_cap = state->out_capacity * 2;
-            int *new_out = lv_realloc(state->out_set, (size_t)new_cap * sizeof(int));
+            int *new_out = lv_realloc(state->out_set, (size_t) new_cap * sizeof(int));
             if (!new_out) {
                 LOG_WARN("rewrite", "VF2: out_set realloc failed (cap=%d), skipping candidate", new_cap);
                 state->core_1[best_p] = -1;
@@ -632,8 +669,8 @@ static bool vf2_match_recursive(VF2State *state,
         state->core_count--;
     }
 
-    lv_free((void**)&candidates);
-    lv_free((void**)&cand_scores);
+    lv_free((void **) &candidates);
+    lv_free((void **) &cand_scores);
     return false;
 }
 
@@ -653,10 +690,7 @@ static bool vf2_match_recursive(VF2State *state,
  * @param local_equivalence_tolerant 是否允许局部等价近似
  * @return 匹配结果 RewriteMatch 对象，未找到匹配或失败返回 NULL
  */
-RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
-                              RewritePattern *pattern,
-                              bool local_equivalence_tolerant)
-{
+RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *pattern, bool local_equivalence_tolerant) {
     if (!target_graph || !pattern || pattern->var_count == 0)
         return NULL;
 
@@ -676,27 +710,34 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
      * （该约束涉及外部/边界节点，VF2 仅匹配模式变量之间的结构）。
      * ---------------------------------------------------------------- */
     ConstraintGraph *pattern_graph = graph_create();
-    if (!pattern_graph) return NULL;
+    if (!pattern_graph)
+        return NULL;
 
     /* 为每个模式变量创建节点 */
     for (int i = 0; i < pattern->var_count; i++) {
         GeomNode *node = lv_calloc(1, sizeof(GeomNode));
-        if (!node) { graph_destroy(pattern_graph); return NULL; }
+        if (!node) {
+            graph_destroy(pattern_graph);
+            return NULL;
+        }
         node->id = pattern->variable_node_ids[i]; /* 负数 ID */
         node->type = GEOM_POINT;
         node->trust = TRUST_GREEN;
         node->coord_count = 0;
         node->symbolic_coords = NULL;
 
-        pattern_graph->nodes = lv_realloc(pattern_graph->nodes,
-            (size_t)(pattern_graph->node_count + 1) * sizeof(GeomNode *));
+        pattern_graph->nodes =
+            lv_realloc(pattern_graph->nodes, (size_t) (pattern_graph->node_count + 1) * sizeof(GeomNode *));
         pattern_graph->nodes[pattern_graph->node_count++] = node;
     }
     pattern_graph->next_node_id = pattern->var_count;
 
     /* 构建模式变量 ID -> 数组索引的映射表 */
-    int *var_id_to_idx = lv_malloc((size_t)pattern->var_count * sizeof(int));
-    if (!var_id_to_idx) { graph_destroy(pattern_graph); return NULL; }
+    int *var_id_to_idx = lv_malloc((size_t) pattern->var_count * sizeof(int));
+    if (!var_id_to_idx) {
+        graph_destroy(pattern_graph);
+        return NULL;
+    }
     for (int i = 0; i < pattern->var_count; i++) {
         var_id_to_idx[i] = -1;
     }
@@ -704,8 +745,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
         /* 使用 abs(variable_node_ids[i]) % var_count 作为哈希索引 */
         int vid = pattern->variable_node_ids[i];
         int idx = ((vid < 0 ? -vid : vid) % pattern->var_count);
-        while (var_id_to_idx[idx] >= 0 &&
-               pattern->variable_node_ids[var_id_to_idx[idx]] != vid) {
+        while (var_id_to_idx[idx] >= 0 && pattern->variable_node_ids[var_id_to_idx[idx]] != vid) {
             idx = (idx + 1) % pattern->var_count;
         }
         var_id_to_idx[idx] = i;
@@ -717,9 +757,9 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
         Constraint *pc = pattern->pattern_constraints[c];
 
         /* 将参与者 ID 映射到模式图中的节点索引 */
-        int *mapped_participants = lv_malloc((size_t)pc->participant_count * sizeof(int));
+        int *mapped_participants = lv_malloc((size_t) pc->participant_count * sizeof(int));
         if (!mapped_participants) {
-            lv_free((void**)&var_id_to_idx);
+            lv_free((void **) &var_id_to_idx);
             graph_destroy(pattern_graph);
             return NULL;
         }
@@ -748,8 +788,8 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
         if (all_mapped) {
             Constraint *new_con = lv_calloc(1, sizeof(Constraint));
             if (!new_con) {
-                lv_free((void**)&mapped_participants);
-                lv_free((void**)&var_id_to_idx);
+                lv_free((void **) &mapped_participants);
+                lv_free((void **) &var_id_to_idx);
                 graph_destroy(pattern_graph);
                 return NULL;
             }
@@ -758,40 +798,46 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
             new_con->participant_count = pc->participant_count;
             new_con->participants = mapped_participants;
 
-            pattern_graph->constraints = lv_realloc(pattern_graph->constraints,
-                (size_t)(pattern_graph->constraint_count + 1) * sizeof(Constraint *));
+            pattern_graph->constraints = lv_realloc(
+                pattern_graph->constraints, (size_t) (pattern_graph->constraint_count + 1) * sizeof(Constraint *));
             pattern_graph->constraints[pattern_graph->constraint_count++] = new_con;
         } else {
-            lv_free((void**)&mapped_participants);
+            lv_free((void **) &mapped_participants);
         }
     }
 
-    lv_free((void**)&var_id_to_idx);
+    lv_free((void **) &var_id_to_idx);
 
     /* 初始化 VF2 匹配状态 */
     VF2State state;
     vf2_state_init(&state, pattern_graph->node_count, target_graph->node_count);
 
     /* 使用模式图和目标图进行 VF2 子图同构匹配 */
-    bool found = vf2_match_recursive(&state, pattern_graph, target_graph,
-                                     local_equivalence_tolerant,
-                                     NULL, NULL, 0);
+    bool found = vf2_match_recursive(&state, pattern_graph, target_graph, local_equivalence_tolerant, NULL, NULL, 0);
 
     RewriteMatch *match = NULL;
 
     if (found) {
         /* 将 VF2 匹配结果转换为 RewriteMatch 格式 */
         match = lv_calloc(1, sizeof(RewriteMatch));
-        if (!match) { vf2_state_destroy(&state); graph_destroy(pattern_graph); return NULL; }
+        if (!match) {
+            vf2_state_destroy(&state);
+            graph_destroy(pattern_graph);
+            return NULL;
+        }
 
-        match->node_bindings = lv_malloc((size_t)pattern->var_count * 2 * sizeof(int));
-        if (!match->node_bindings) { lv_free((void**)&match); vf2_state_destroy(&state); graph_destroy(pattern_graph); return NULL; }
+        match->node_bindings = lv_malloc((size_t) pattern->var_count * 2 * sizeof(int));
+        if (!match->node_bindings) {
+            lv_free((void **) &match);
+            vf2_state_destroy(&state);
+            graph_destroy(pattern_graph);
+            return NULL;
+        }
 
-        match->constraint_bindings = lv_malloc(
-            (size_t)pattern->pattern_constraint_count * sizeof(int));
+        match->constraint_bindings = lv_malloc((size_t) pattern->pattern_constraint_count * sizeof(int));
         if (!match->constraint_bindings) {
-            lv_free((void**)&match->node_bindings);
-            lv_free((void**)&match);
+            lv_free((void **) &match->node_bindings);
+            lv_free((void **) &match);
             vf2_state_destroy(&state);
             graph_destroy(pattern_graph);
             return NULL;
@@ -803,8 +849,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
             int target_node_idx = state.core_1[i];
             match->node_bindings[i * 2] = pattern->variable_node_ids[i];
             if (target_node_idx >= 0 && target_node_idx < target_graph->node_count) {
-                match->node_bindings[i * 2 + 1] =
-                    target_graph->nodes[target_node_idx]->id;
+                match->node_bindings[i * 2 + 1] = target_graph->nodes[target_node_idx]->id;
             } else {
                 match->node_bindings[i * 2 + 1] = -1;
             }
@@ -819,8 +864,10 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
 
             for (int gc = 0; gc < target_graph->constraint_count; gc++) {
                 Constraint *tcon = target_graph->constraints[gc];
-                if (pcon->type != tcon->type) continue;
-                if (pcon->participant_count != tcon->participant_count) continue;
+                if (pcon->type != tcon->type)
+                    continue;
+                if (pcon->participant_count != tcon->participant_count)
+                    continue;
 
                 bool all_match = true;
                 for (int k = 0; k < pcon->participant_count; k++) {
@@ -838,14 +885,19 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
                                 break;
                             }
                         }
-                        if (!found_bind) { all_match = false; break; }
+                        if (!found_bind) {
+                            all_match = false;
+                            break;
+                        }
                     } else {
-                        if (pid != tid) { all_match = false; break; }
+                        if (pid != tid) {
+                            all_match = false;
+                            break;
+                        }
                     }
                 }
                 if (all_match) {
-                    match->constraint_bindings[constraint_match_count++] =
-                        pcon->id;
+                    match->constraint_bindings[constraint_match_count++] = pcon->id;
                     break;
                 }
             }

@@ -460,13 +460,12 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
  * 此函数消除了各预设模块中 get_names 函数的重复代码。
  * 调用者需要通过 lv_free 释放每个名称字符串和数组本身。
  */
-bool preset_module_get_names(const char *const *names, int count,
-                             char ***out_names, int *out_count) {
+bool preset_module_get_names(const char *const *names, int count, char ***out_names, int *out_count) {
     if (!names || !out_names || !out_count || count <= 0) {
         return false;
     }
 
-    char **result = (char **)lv_malloc((size_t)count * sizeof(char *));
+    char **result = (char **) lv_malloc((size_t) count * sizeof(char *));
     if (!result) {
         return false;
     }
@@ -477,11 +476,11 @@ bool preset_module_get_names(const char *const *names, int count,
             /* 回滚已分配的内存 */
             for (int j = 0; j < i; j++) {
                 char *tmp = result[j];
-                lv_free((void **)&tmp);
+                lv_free((void **) &tmp);
             }
             {
-                char *tmp_ptr = (char *)result;
-                lv_free((void **)&tmp_ptr);
+                char *tmp_ptr = (char *) result;
+                lv_free((void **) &tmp_ptr);
             }
             return false;
         }
@@ -505,17 +504,8 @@ bool preset_module_get_names(const char *const *names, int count,
  *
  * @return true 注册成功，false 注册失败（如预设已存在或内存不足）
  */
-bool preset_common_register(void)
-{
-    return preset_blocks_register_simple(
-        "common",
-        "通用预设块：默认占位符，接受任意输入并产生任意输出",
-        PRESET_CATEGORY_CUSTOM,
-        NULL, 0,
-        PRESET_TYPE_ANY,
-        "\\text{通用数学运算占位符}",
-        "O(1)",
-        true,
-        false
-    );
+bool preset_common_register(void) {
+    return preset_blocks_register_simple("common", "通用预设块：默认占位符，接受任意输入并产生任意输出",
+                                         PRESET_CATEGORY_CUSTOM, NULL, 0, PRESET_TYPE_ANY, "\\text{通用数学运算占位符}",
+                                         "O(1)", true, false);
 }

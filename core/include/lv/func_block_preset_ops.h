@@ -16,6 +16,7 @@
 #ifndef lv_FUNC_BLOCK_PRESET_OPS_H
 #define lv_FUNC_BLOCK_PRESET_OPS_H
 #include <stdbool.h>
+
 #include "func_block.h"
 #include "preset_blocks.h"
 #ifdef __cplusplus

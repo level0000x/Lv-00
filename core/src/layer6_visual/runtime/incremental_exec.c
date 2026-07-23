@@ -1,7 +1,8 @@
-﻿#include "lv/block_scheduler.h"
-#include "lv/lv_utils.h"
-#include <stdlib.h>
+﻿#include <stdlib.h>
 #include <string.h>
+
+#include "lv/block_scheduler.h"
+#include "lv/lv_utils.h"
 
 /* Incremental execution engine */
 /* Tracks which blocks need re-execution based on port value changes */
@@ -13,38 +14,40 @@ typedef struct lvIncrementalExec {
 
     /* 有效性位图：每个int的32位代表32个block的有效性，0=无效(脏), 1=有效 */
     unsigned int *validity_bitmap;
-    int bitmap_count;  /* bitmap数组长度 */
+    int bitmap_count; /* bitmap数组长度 */
 } lvIncrementalExec;
 
 lvIncrementalExec *lv_incremental_exec_create(int node_count) {
     lvIncrementalExec *exec = lv_calloc(1, sizeof(lvIncrementalExec));
-    if (!exec) return NULL;
+    if (!exec)
+        return NULL;
     exec->node_count = node_count;
     /* 分配位图，每个unsigned int追踪32个block */
     if (node_count > 0) {
         exec->bitmap_count = (node_count + 31) / 32;
         exec->validity_bitmap = lv_calloc(exec->bitmap_count, sizeof(unsigned int));
         if (!exec->validity_bitmap) {
-            lv_free((void **)&exec);
+            lv_free((void **) &exec);
             return NULL;
         }
         /* 初始状态：所有block都有效 */
-        memset(exec->validity_bitmap, 0xFF,
-               exec->bitmap_count * sizeof(unsigned int));
+        memset(exec->validity_bitmap, 0xFF, exec->bitmap_count * sizeof(unsigned int));
     }
     return exec;
 }
 
 void lv_incremental_exec_destroy(lvIncrementalExec *exec) {
-    if (!exec) return;
-    lv_free((void **)&exec->dependency_graph);
-    lv_free((void **)&exec->validity_bitmap);
-    lv_free((void **)&exec);
+    if (!exec)
+        return;
+    lv_free((void **) &exec->dependency_graph);
+    lv_free((void **) &exec->validity_bitmap);
+    lv_free((void **) &exec);
 }
 
 /* 将指定block标记为无效（脏） */
 int lv_incremental_exec_invalidate(lvIncrementalExec *exec, int block_id) {
-    if (!exec || block_id < 0 || block_id >= exec->node_count) return -1;
+    if (!exec || block_id < 0 || block_id >= exec->node_count)
+        return -1;
     int word_idx = block_id / 32;
     int bit_idx = block_id % 32;
     exec->validity_bitmap[word_idx] &= ~(1u << bit_idx);
@@ -53,7 +56,8 @@ int lv_incremental_exec_invalidate(lvIncrementalExec *exec, int block_id) {
 
 /* 检查指定block的输出是否有效 */
 int lv_incremental_exec_is_valid(lvIncrementalExec *exec, int block_id) {
-    if (!exec || block_id < 0 || block_id >= exec->node_count) return 0;
+    if (!exec || block_id < 0 || block_id >= exec->node_count)
+        return 0;
     int word_idx = block_id / 32;
     int bit_idx = block_id % 32;
     return (exec->validity_bitmap[word_idx] & (1u << bit_idx)) != 0;

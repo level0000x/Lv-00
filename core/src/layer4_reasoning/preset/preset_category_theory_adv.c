@@ -10,11 +10,12 @@
  */
 
 #include "preset_category_theory_adv.h"
-#include "preset_blocks.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
 
 #include <string.h>
+
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -23,8 +24,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_category_theory_adv_register(void)
-{
+bool preset_category_theory_adv_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -32,29 +32,21 @@ bool preset_category_theory_adv_register(void)
      * ============================================================ */
 
     /* 伴随函子对构造 */
-    if (preset_blocks_register_by_category(
-            "adjunction_construct",
-            "构造伴随函子对 F ⊣ G（F左伴随G）",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("adjunction_construct", "构造伴随函子对 F ⊣ G（F左伴随G）",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
     /* 伴随判定 */
-    if (preset_blocks_register_by_category(
-            "adjunction_test",
-            "判定函子对是否构成伴随关系",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("adjunction_test", "判定函子对是否构成伴随关系", PRESET_EXT_ALGEBRA_ADVANCED,
+                                           2, 1)) {
         success_count++;
     }
 
     /* 单位与余单位 */
-    if (preset_blocks_register_by_category(
-            "adjunction_unit_counit",
-            "从伴随函子对提取单位 η: Id → GF 和余单位 ε: FG → Id",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("adjunction_unit_counit",
+                                           "从伴随函子对提取单位 η: Id → GF 和余单位 ε: FG → Id",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
@@ -63,20 +55,14 @@ bool preset_category_theory_adv_register(void)
      * ============================================================ */
 
     /* 极限计算 */
-    if (preset_blocks_register_by_category(
-            "limit_compute",
-            "计算图表的极限（锥的终对象）",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("limit_compute", "计算图表的极限（锥的终对象）", PRESET_EXT_ALGEBRA_ADVANCED,
+                                           2, 1)) {
         success_count++;
     }
 
     /* 余极限计算 */
-    if (preset_blocks_register_by_category(
-            "colimit_compute",
-            "计算图表的余极限（余锥的始对象）",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("colimit_compute", "计算图表的余极限（余锥的始对象）",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
@@ -85,20 +71,14 @@ bool preset_category_theory_adv_register(void)
      * ============================================================ */
 
     /* 左Kan扩张 */
-    if (preset_blocks_register_by_category(
-            "left_kan_extension",
-            "计算函子沿另一函子的左Kan扩张 Lan_K F",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+    if (preset_blocks_register_by_category("left_kan_extension", "计算函子沿另一函子的左Kan扩张 Lan_K F",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 3, 1)) {
         success_count++;
     }
 
     /* 右Kan扩张 */
-    if (preset_blocks_register_by_category(
-            "right_kan_extension",
-            "计算函子沿另一函子的右Kan扩张 Ran_K F",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            3, 1)) {
+    if (preset_blocks_register_by_category("right_kan_extension", "计算函子沿另一函子的右Kan扩张 Ran_K F",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 3, 1)) {
         success_count++;
     }
 
@@ -107,11 +87,8 @@ bool preset_category_theory_adv_register(void)
      * ============================================================ */
 
     /* Yoneda嵌入 */
-    if (preset_blocks_register_by_category(
-            "yoneda_embedding",
-            "Yoneda嵌入 C → [C^op, Set] 将对象映到Hom(-, A)",
-            PRESET_EXT_ALGEBRA_ADVANCED,
-            2, 1)) {
+    if (preset_blocks_register_by_category("yoneda_embedding", "Yoneda嵌入 C → [C^op, Set] 将对象映到Hom(-, A)",
+                                           PRESET_EXT_ALGEBRA_ADVANCED, 2, 1)) {
         success_count++;
     }
 
@@ -119,7 +96,6 @@ bool preset_category_theory_adv_register(void)
     return success_count == CATEGORY_THEORY_ADV_PRESET_COUNT;
 }
 
-int preset_category_theory_adv_count(void)
-{
+int preset_category_theory_adv_count(void) {
     return CATEGORY_THEORY_ADV_PRESET_COUNT;
 }

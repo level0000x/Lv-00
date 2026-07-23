@@ -7,7 +7,6 @@
  * @version 3.3.0
  */
 
-#include "lv/solver.h"
 #include "../solver_snapshot.h"
 
 #include <float.h>
@@ -18,11 +17,13 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/solver.h"
+#include "lv/stream.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
-#include "lv/stream.h"
 #include "stream_context_util.h"
 
 /* --- 共享宏 --- */
@@ -31,12 +32,12 @@
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define lv_ZERO_EPSILON 1e-12
 #define SOLVER_DETAIL_BUF_SIZE 512
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
-    do { \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
+#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
+    do {                                                               \
+        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
             lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label; \
-        } \
+            goto label;                                                \
+        }                                                              \
     } while (0)
 
 /* ── SolverSnapshot 定义见 ../solver_snapshot.h ── */
@@ -66,10 +67,9 @@ bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot
         if (node && node->symbolic_coords) {
             snapshot->copies[i * 2 + 0] =
                 node->symbolic_coords[0] ? symbolic_coord_copy(node->symbolic_coords[0]) : NULL;
-            snapshot->copies[i * 2 + 1] =
-                (node->coord_count >= 2 && node->symbolic_coords[1])
-                    ? symbolic_coord_copy(node->symbolic_coords[1])
-                    : NULL;
+            snapshot->copies[i * 2 + 1] = (node->coord_count >= 2 && node->symbolic_coords[1])
+                                              ? symbolic_coord_copy(node->symbolic_coords[1])
+                                              : NULL;
         } else {
             snapshot->copies[i * 2 + 0] = NULL;
             snapshot->copies[i * 2 + 1] = NULL;
@@ -138,4 +138,3 @@ void solver_snapshot_free(SolverSnapshot *snapshot) {
     snapshot->node_count = 0;
     snapshot->coord_count = 0;
 }
-

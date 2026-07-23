@@ -12,20 +12,10 @@ extern "C" {
 #define lv_LAYER_VISUAL 6
 
 /* View types */
-typedef enum {
-    lv_VIEW_GEOMETRY_CANVAS,
-    lv_VIEW_NODE_GRAPH,
-    lv_VIEW_BLOCK_CANVAS,
-    lv_VIEW_TEXT_CODE
-} lvViewType;
+typedef enum { lv_VIEW_GEOMETRY_CANVAS, lv_VIEW_NODE_GRAPH, lv_VIEW_BLOCK_CANVAS, lv_VIEW_TEXT_CODE } lvViewType;
 
 /* Editor state */
-typedef enum {
-    lv_EDITOR_IDLE,
-    lv_EDITOR_EDITING,
-    lv_EDITOR_EXECUTING,
-    lv_EDITOR_ERROR
-} lvEditorState;
+typedef enum { lv_EDITOR_IDLE, lv_EDITOR_EDITING, lv_EDITOR_EXECUTING, lv_EDITOR_ERROR } lvEditorState;
 
 /* Forward declarations */
 typedef struct lvVisualEditor lvVisualEditor;
@@ -124,8 +114,7 @@ void lv_view_sync_destroy(lvViewSynchronizer *sync);
 int lv_view_sync_enable(lvViewSynchronizer *sync);
 int lv_view_sync_disable(lvViewSynchronizer *sync);
 int lv_view_sync_conflicts(const lvViewSynchronizer *sync);
-int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id,
-                             const char *change_type);
+int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const char *change_type);
 int lv_view_sync_flush(lvViewSynchronizer *sync);
 
 /* ---- Text Code View API ---- */

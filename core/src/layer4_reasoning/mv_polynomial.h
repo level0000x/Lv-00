@@ -37,11 +37,11 @@ void mv_poly_init(MVPolynomial *p, int var_count);
 void mv_poly_clear(MVPolynomial *p);
 
 /* ---- 项操作 ---- */
-int  mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents);
+int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents);
 void mv_poly_sort(MVPolynomial *p);
 void mv_poly_remove_zeros(MVPolynomial *p);
-void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p,
-                          const int *mono_exp, const mpz_t mono_coeff, int var_count);
+void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, const int *mono_exp, const mpz_t mono_coeff,
+                          int var_count);
 
 /* ---- 算术 ---- */
 void mv_poly_sub(MVPolynomial *result, const MVPolynomial *a, const MVPolynomial *b);
@@ -49,11 +49,11 @@ void mv_poly_copy(MVPolynomial *dst, const MVPolynomial *src);
 
 /* ---- 查询 ---- */
 bool mv_poly_is_zero(const MVPolynomial *p);
-int  mv_poly_leading_term(const MVPolynomial *p, MVMonomial *out);
+int mv_poly_leading_term(const MVPolynomial *p, MVMonomial *out);
 
 /* ---- 单项式工具 ---- */
-int  mv_monomial_total_degree(const MVMonomial *m, int var_count);
-int  mv_monomial_compare_grlex(const MVMonomial *a, const MVMonomial *b, int var_count);
+int mv_monomial_total_degree(const MVMonomial *m, int var_count);
+int mv_monomial_compare_grlex(const MVMonomial *a, const MVMonomial *b, int var_count);
 void mv_monomial_lcm(const MVMonomial *a, const MVMonomial *b, int var_count, int *out_lcm);
 bool mv_monomial_divisible(const MVMonomial *m, const MVMonomial *d, int var_count);
 bool mv_monomial_divisible_lcm(const MVMonomial *d, const int *lcm_exp, int var_count);

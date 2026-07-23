@@ -21,8 +21,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_utils.h"
 #include "lv_internal.h" /* lv_UNUSED */
+#include "lv_utils.h"
 
 /* 默认初始容量 */
 #define EXPR_CANON_DEFAULT_CAPACITY 16
@@ -35,13 +35,13 @@
 static uint64_t term_hash(const int *exponents, int var_count) {
     uint64_t h = 0x811c9dc5; /* FNV-1a offset basis (32-bit truncated) */
     for (int i = 0; i < var_count; i++) {
-        h ^= (uint64_t)(exponents[i] & 0xFF);
+        h ^= (uint64_t) (exponents[i] & 0xFF);
         h *= 0x01000193; /* FNV-1a prime (64-bit) */
-        h ^= (uint64_t)((exponents[i] >> 8) & 0xFF);
+        h ^= (uint64_t) ((exponents[i] >> 8) & 0xFF);
         h *= 0x01000193;
-        h ^= (uint64_t)((exponents[i] >> 16) & 0xFF);
+        h ^= (uint64_t) ((exponents[i] >> 16) & 0xFF);
         h *= 0x01000193;
-        h ^= (uint64_t)((exponents[i] >> 24) & 0xFF);
+        h ^= (uint64_t) ((exponents[i] >> 24) & 0xFF);
         h *= 0x01000193;
     }
     return h;
@@ -382,8 +382,7 @@ bool lv_expr_canonicalize(lvExprCanonical *expr) {
             bool should_swap = false;
             if (deg_i < deg_j) {
                 should_swap = true;
-            } else if (deg_i == deg_j &&
-                       lv_canonical_compare_terms(merged[i].exponents, merged[j].exponents, vc) < 0) {
+            } else if (deg_i == deg_j && lv_canonical_compare_terms(merged[i].exponents, merged[j].exponents, vc) < 0) {
                 should_swap = true;
             }
             if (should_swap) {
@@ -431,9 +430,8 @@ bool lv_expr_is_canonical(const lvExprCanonical *expr) {
             if (deg_a < deg_b)
                 return false;
             if (deg_a == deg_b) {
-                int cmp = lv_canonical_compare_terms(expr->terms[i].exponents,
-                                                        expr->terms[i + 1].exponents,
-                                                        expr->var_count);
+                int cmp =
+                    lv_canonical_compare_terms(expr->terms[i].exponents, expr->terms[i + 1].exponents, expr->var_count);
                 if (cmp == 0)
                     return false; /* 重复项 */
                 if (cmp < 0)
@@ -677,12 +675,18 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
         if (first) {
             if (sgn < 0) {
                 int w = snprintf(pos, remain, "-");
-                if (w > 0) { pos += w; remain -= (size_t)w; }
+                if (w > 0) {
+                    pos += w;
+                    remain -= (size_t) w;
+                }
             }
             first = false;
         } else {
             int w = snprintf(pos, remain, sgn >= 0 ? " + " : " - ");
-            if (w > 0) { pos += w; remain -= (size_t)w; }
+            if (w > 0) {
+                pos += w;
+                remain -= (size_t) w;
+            }
         }
 
         /* 判断是否常数项 */
@@ -699,7 +703,10 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
             char *cs = lv_rational_to_string(abs_coeff);
             if (cs) {
                 int w = snprintf(pos, remain, "%s", cs);
-                if (w > 0) { pos += w; remain -= (size_t)w; }
+                if (w > 0) {
+                    pos += w;
+                    remain -= (size_t) w;
+                }
                 free(cs);
             }
             lv_rational_destroy(&abs_coeff);
@@ -712,7 +719,10 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
                 char *cs = lv_rational_to_string(abs_coeff);
                 if (cs) {
                     int w = snprintf(pos, remain, "%s*", cs);
-                    if (w > 0) { pos += w; remain -= (size_t)w; }
+                    if (w > 0) {
+                        pos += w;
+                        remain -= (size_t) w;
+                    }
                     free(cs);
                 }
             }
@@ -726,21 +736,33 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
 
                 if (!first_var) {
                     int w = snprintf(pos, remain, "*");
-                    if (w > 0) { pos += w; remain -= (size_t)w; }
+                    if (w > 0) {
+                        pos += w;
+                        remain -= (size_t) w;
+                    }
                 }
                 first_var = false;
 
                 if (expr->var_names && expr->var_names[k]) {
                     int w = snprintf(pos, remain, "%s", expr->var_names[k]);
-                    if (w > 0) { pos += w; remain -= (size_t)w; }
+                    if (w > 0) {
+                        pos += w;
+                        remain -= (size_t) w;
+                    }
                 } else {
                     int w = snprintf(pos, remain, "x%d", k);
-                    if (w > 0) { pos += w; remain -= (size_t)w; }
+                    if (w > 0) {
+                        pos += w;
+                        remain -= (size_t) w;
+                    }
                 }
 
                 if (exp[k] > 1) {
                     int w = snprintf(pos, remain, "^%d", exp[k]);
-                    if (w > 0) { pos += w; remain -= (size_t)w; }
+                    if (w > 0) {
+                        pos += w;
+                        remain -= (size_t) w;
+                    }
                 }
             }
         }

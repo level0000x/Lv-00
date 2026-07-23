@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "lv/lv_parse_utils.h"
+
 #include "lv_utils.h"
 
 /* ---- 内部常量 ---- */
@@ -73,12 +74,12 @@ static double rand_normal_box_muller(void) {
  * 状态编号 0..n-1，初始分布为均匀分布。
  */
 typedef struct {
-    int state_count;                     /**< 状态数 */
-    double *initial_dist;                /**< 初始分布 [state_count] */
-    int *trans_count;                    /**< 每个状态的转移数 [state_count] */
-    int *trans_capacity;                 /**< 转移数组容量 [state_count] */
-    int **trans_targets;                 /**< 转移目标状态 [state_count][...] */
-    double **trans_probs;                /**< 转移概率 [state_count][...] */
+    int state_count;      /**< 状态数 */
+    double *initial_dist; /**< 初始分布 [state_count] */
+    int *trans_count;     /**< 每个状态的转移数 [state_count] */
+    int *trans_capacity;  /**< 转移数组容量 [state_count] */
+    int **trans_targets;  /**< 转移目标状态 [state_count][...] */
+    double **trans_probs; /**< 转移概率 [state_count][...] */
 } SimpleDTMC;
 
 /** 创建空 DTMC */
@@ -97,8 +98,7 @@ static SimpleDTMC *dtmc_create(int n_states) {
     mc->trans_targets = (int **) lv_calloc((size_t) n_states, sizeof(int *));
     mc->trans_probs = (double **) lv_calloc((size_t) n_states, sizeof(double *));
 
-    if (!mc->initial_dist || !mc->trans_count || !mc->trans_capacity ||
-        !mc->trans_targets || !mc->trans_probs) {
+    if (!mc->initial_dist || !mc->trans_count || !mc->trans_capacity || !mc->trans_targets || !mc->trans_probs) {
         /* 清理 */
         lv_free((void **) &mc->initial_dist);
         lv_free((void **) &mc->trans_count);
@@ -143,10 +143,8 @@ static bool dtmc_add_transition(SimpleDTMC *mc, int from, int to, double prob) {
     /* 扩容 */
     if (mc->trans_count[from] >= mc->trans_capacity[from]) {
         int new_cap = (mc->trans_capacity[from] > 0) ? mc->trans_capacity[from] * 2 : 4;
-        int *new_targets = (int *) lv_realloc(mc->trans_targets[from],
-                                                  (size_t) new_cap * sizeof(int));
-        double *new_probs = (double *) lv_realloc(mc->trans_probs[from],
-                                                      (size_t) new_cap * sizeof(double));
+        int *new_targets = (int *) lv_realloc(mc->trans_targets[from], (size_t) new_cap * sizeof(int));
+        double *new_probs = (double *) lv_realloc(mc->trans_probs[from], (size_t) new_cap * sizeof(double));
         if (!new_targets || !new_probs) {
             lv_free((void **) &new_targets);
             lv_free((void **) &new_probs);
@@ -180,18 +178,26 @@ static double prob_from_satisfaction(const Constraint *con) {
     if (con->satisfaction < -0.01) {
         /* 违反的约束 — 低概率 */
         switch (con->type) {
-            case INCIDENCE:    return 0.05;
-            case BETWEENNESS:  return 0.05;
-            case INTERSECTION: return 0.05;
-            case CONTAINMENT:  return 0.05;
-            case CONNECTION:   return 0.05;
-            default:           return 0.05;
+            case INCIDENCE:
+                return 0.05;
+            case BETWEENNESS:
+                return 0.05;
+            case INTERSECTION:
+                return 0.05;
+            case CONTAINMENT:
+                return 0.05;
+            case CONNECTION:
+                return 0.05;
+            default:
+                return 0.05;
         }
     }
     /* satisfaction ∈ [0,1] → 直接用作转移概率 */
     double p = con->satisfaction;
-    if (p < 0.0) p = 0.0;
-    if (p > 1.0) p = 1.0;
+    if (p < 0.0)
+        p = 0.0;
+    if (p > 1.0)
+        p = 1.0;
     return p;
 }
 
@@ -332,9 +338,7 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
         return true;
 
     /* ---------- 几何语义谓词 ---------- */
-    if (eval_state_graph && state_id >= 0 &&
-        state_id < eval_state_graph->constraint_count) {
-
+    if (eval_state_graph && state_id >= 0 && state_id < eval_state_graph->constraint_count) {
         Constraint *con = eval_state_graph->constraints[state_id];
         if (!con)
             return false;
@@ -342,7 +346,7 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
         /* "safe"：状态对应的约束非违反状态 */
         if (strcmp(predicate, "safe") == 0) {
             if (!con->is_active)
-                return true;           /* 非活跃约束无违反 */
+                return true; /* 非活跃约束无违反 */
             return (con->satisfaction >= 0.99);
         }
 
@@ -362,8 +366,7 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
         }
 
         /* "violated" / "unsatisfied" / "broken" */
-        if (strcmp(predicate, "violated") == 0 ||
-            strcmp(predicate, "unsatisfied") == 0 ||
+        if (strcmp(predicate, "violated") == 0 || strcmp(predicate, "unsatisfied") == 0 ||
             strcmp(predicate, "broken") == 0) {
             if (!con->is_active)
                 return false;
@@ -447,14 +450,12 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
                         int new_cap = queue_capacity * 2;
                         if (new_cap > PCTL_MAX_STATE_LIMIT) {
                             /* 超出合理上限，标记溢出 */
-                            fprintf(stderr,
-                                    "[PCTL] BFS queue overflow at %d states (limit %d)\n",
-                                    back, PCTL_MAX_STATE_LIMIT);
-                            found = false;  /* 标记失败 */
+                            fprintf(stderr, "[PCTL] BFS queue overflow at %d states (limit %d)\n", back,
+                                    PCTL_MAX_STATE_LIMIT);
+                            found = false; /* 标记失败 */
                             break;
                         }
-                        int *new_queue = (int *) lv_realloc(queue,
-                                                (size_t) new_cap * sizeof(int));
+                        int *new_queue = (int *) lv_realloc(queue, (size_t) new_cap * sizeof(int));
                         if (!new_queue) {
                             fprintf(stderr, "[PCTL] BFS queue realloc failed\n");
                             found = false;
@@ -483,8 +484,10 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
     lv_free((void **) &queue);
 
     /* 限制在 [0, 1] */
-    if (total_prob > 1.0) total_prob = 1.0;
-    if (total_prob < 0.0) total_prob = 0.0;
+    if (total_prob > 1.0)
+        total_prob = 1.0;
+    if (total_prob < 0.0)
+        total_prob = 0.0;
 
     return total_prob;
 }
@@ -517,10 +520,11 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
             /* 动态扩容 */
             if (back >= queue_capacity) {
                 int new_cap = queue_capacity * 2;
-                if (new_cap > PCTL_MAX_STATE_LIMIT) break;
-                int *new_queue = (int *) lv_realloc(queue,
-                                        (size_t) new_cap * sizeof(int));
-                if (!new_queue) break;
+                if (new_cap > PCTL_MAX_STATE_LIMIT)
+                    break;
+                int *new_queue = (int *) lv_realloc(queue, (size_t) new_cap * sizeof(int));
+                if (!new_queue)
+                    break;
                 queue = new_queue;
                 queue_capacity = new_cap;
             }
@@ -548,14 +552,12 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
                 if (back >= queue_capacity) {
                     int new_cap = queue_capacity * 2;
                     if (new_cap > PCTL_MAX_STATE_LIMIT) {
-                        fprintf(stderr,
-                                "[PCTL] Always BFS overflow at %d (limit %d)\n",
-                                back, PCTL_MAX_STATE_LIMIT);
+                        fprintf(stderr, "[PCTL] Always BFS overflow at %d (limit %d)\n", back, PCTL_MAX_STATE_LIMIT);
                         break;
                     }
-                    int *new_queue = (int *) lv_realloc(queue,
-                                            (size_t) new_cap * sizeof(int));
-                    if (!new_queue) break;
+                    int *new_queue = (int *) lv_realloc(queue, (size_t) new_cap * sizeof(int));
+                    if (!new_queue)
+                        break;
                     queue = new_queue;
                     queue_capacity = new_cap;
                 }
@@ -581,9 +583,7 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
  *
  * 使用迭代求解线性方程组（值迭代法）。
  */
-static double pctl_compute_until(const SimpleDTMC *mc,
-                                 const char *phi_predicate,
-                                 const char *psi_predicate) {
+static double pctl_compute_until(const SimpleDTMC *mc, const char *phi_predicate, const char *psi_predicate) {
     if (!mc || mc->state_count <= 0)
         return 0.0;
 
@@ -661,8 +661,10 @@ static double pctl_compute_until(const SimpleDTMC *mc,
     lv_free((void **) &prob);
     lv_free((void **) &next_prob);
 
-    if (result > 1.0) result = 1.0;
-    if (result < 0.0) result = 0.0;
+    if (result > 1.0)
+        result = 1.0;
+    if (result < 0.0)
+        result = 0.0;
 
     return result;
 }
@@ -672,8 +674,7 @@ static double pctl_compute_until(const SimpleDTMC *mc,
  *
  * 先计算 phi 的实际概率，再与边界比较。
  */
-static double pctl_compute_probability(const SimpleDTMC *mc,
-                                        const PCTLFormula *formula) {
+static double pctl_compute_probability(const SimpleDTMC *mc, const PCTLFormula *formula) {
     if (!mc || !formula)
         return 0.0;
 
@@ -684,17 +685,14 @@ static double pctl_compute_probability(const SimpleDTMC *mc,
         /* 递归评估子公式 */
         switch (formula->sub_formula->type) {
             case PCTL_EVENTUALLY:
-                actual_prob = pctl_compute_eventually(mc,
-                                                      formula->sub_formula->state_predicate);
+                actual_prob = pctl_compute_eventually(mc, formula->sub_formula->state_predicate);
                 break;
             case PCTL_ALWAYS:
-                actual_prob = pctl_compute_always(mc,
-                                                    formula->sub_formula->state_predicate);
+                actual_prob = pctl_compute_always(mc, formula->sub_formula->state_predicate);
                 break;
             case PCTL_UNTIL:
-                actual_prob = pctl_compute_until(mc,
-                                                  formula->sub_formula->state_predicate,
-                                                  formula->sub_formula->path_predicate);
+                actual_prob =
+                    pctl_compute_until(mc, formula->sub_formula->state_predicate, formula->sub_formula->path_predicate);
                 break;
             case PCTL_PROB_BOUND:
                 actual_prob = pctl_compute_probability(mc, formula->sub_formula);
@@ -735,7 +733,7 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
     if (param_count > 0 && params) {
         dist->params = (double *) lv_malloc((size_t) param_count * sizeof(double));
         if (!dist->params) {
-            lv_free((void **)&dist);
+            lv_free((void **) &dist);
             return NULL;
         }
         memcpy(dist->params, params, (size_t) param_count * sizeof(double));
@@ -772,8 +770,8 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
 
 void prob_dist_destroy(ProbDistribution *dist) {
     if (dist) {
-        lv_free((void **)&dist->params);
-        lv_free((void **)&dist);
+        lv_free((void **) &dist->params);
+        lv_free((void **) &dist);
     }
 }
 
@@ -888,9 +886,11 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                  * 或简单接受-拒绝法（alpha < 1 时）。
                  */
                 double alpha = (dist->param_count >= 2) ? dist->params[0] : 1.0;
-                double beta  = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-                if (alpha < 0.01) alpha = 0.01;
-                if (beta  < 0.01) beta  = 0.01;
+                double beta = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+                if (alpha < 0.01)
+                    alpha = 0.01;
+                if (beta < 0.01)
+                    beta = 0.01;
 
                 /* Gamma 采样：alpha >= 1 使用 Marsaglia-Tsang；
                    alpha < 1 使用接受-拒绝变换 */
@@ -902,16 +902,20 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                     double c = 1.0 / sqrt(9.0 * d);
                     int _try = 0;
                     for (;;) {
-                        if (++_try > 10000) { x_gamma = 1.0; break; }
+                        if (++_try > 10000) {
+                            x_gamma = 1.0;
+                            break;
+                        }
                         double v = 1.0 + c * rand_normal_box_muller();
-                        if (v <= 0.0) continue;
+                        if (v <= 0.0)
+                            continue;
                         v = v * v * v;
                         double u = rand_uniform_lcg();
-                        if (u < 1.0 - 0.0331 * (v*v)/(d*d)) {
+                        if (u < 1.0 - 0.0331 * (v * v) / (d * d)) {
                             x_gamma = d * v;
                             break;
                         }
-                        if (log(u) < 0.5 * (v/d)*(v/d) + d * (1.0 - v + log(v))) {
+                        if (log(u) < 0.5 * (v / d) * (v / d) + d * (1.0 - v + log(v))) {
                             x_gamma = d * v;
                             break;
                         }
@@ -921,7 +925,10 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                     double am = 0.0;
                     int _try2 = 0;
                     for (;;) {
-                        if (++_try2 > 10000) { x_gamma = 1.0; break; }
+                        if (++_try2 > 10000) {
+                            x_gamma = 1.0;
+                            break;
+                        }
                         am = alpha + 1.0;
                         double u1 = rand_uniform_lcg();
                         double u2 = rand_uniform_lcg();
@@ -939,16 +946,20 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                     double c = 1.0 / sqrt(9.0 * d);
                     int _try3 = 0;
                     for (;;) {
-                        if (++_try3 > 10000) { y_gamma = 1.0; break; }
+                        if (++_try3 > 10000) {
+                            y_gamma = 1.0;
+                            break;
+                        }
                         double v = 1.0 + c * rand_normal_box_muller();
-                        if (v <= 0.0) continue;
+                        if (v <= 0.0)
+                            continue;
                         v = v * v * v;
                         double u = rand_uniform_lcg();
-                        if (u < 1.0 - 0.0331 * (v*v)/(d*d)) {
+                        if (u < 1.0 - 0.0331 * (v * v) / (d * d)) {
                             y_gamma = d * v;
                             break;
                         }
-                        if (log(u) < 0.5 * (v/d)*(v/d) + d * (1.0 - v + log(v))) {
+                        if (log(u) < 0.5 * (v / d) * (v / d) + d * (1.0 - v + log(v))) {
                             y_gamma = d * v;
                             break;
                         }
@@ -957,7 +968,10 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                     double bm = 0.0;
                     int _try4 = 0;
                     for (;;) {
-                        if (++_try4 > 10000) { y_gamma = 1.0; break; }
+                        if (++_try4 > 10000) {
+                            y_gamma = 1.0;
+                            break;
+                        }
                         bm = beta + 1.0;
                         double u1 = rand_uniform_lcg();
                         double u2 = rand_uniform_lcg();
@@ -970,8 +984,10 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                 }
 
                 samples[i] = x_gamma / (x_gamma + y_gamma);
-                if (samples[i] < 0.0) samples[i] = 0.0;
-                if (samples[i] > 1.0) samples[i] = 1.0;
+                if (samples[i] < 0.0)
+                    samples[i] = 0.0;
+                if (samples[i] > 1.0)
+                    samples[i] = 1.0;
                 break;
             }
             case PROB_DIST_DISCRETE: {
@@ -1023,8 +1039,8 @@ ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist) 
 void prob_constraint_destroy(ProbConstraintNode *node) {
     if (node) {
         prob_dist_destroy(node->coord_dist);
-        lv_free((void **)&node->pctl_formula);
-        lv_free((void **)&node);
+        lv_free((void **) &node->pctl_formula);
+        lv_free((void **) &node);
     }
 }
 
@@ -1093,8 +1109,7 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
                     for (int t = 0; t < mc->trans_count[i]; t++) {
                         int j = mc->trans_targets[i][t];
                         double p = mc->trans_probs[i][t];
-                        if (j >= 0 && j < mc->state_count &&
-                            eval_state_predicate(formula->state_predicate, j)) {
+                        if (j >= 0 && j < mc->state_count && eval_state_predicate(formula->state_predicate, j)) {
                             prob += mc->initial_dist[i] * p;
                         }
                     }
@@ -1105,9 +1120,7 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
 
         case PCTL_UNTIL:
             /* phi U psi：使用值迭代法 */
-            *out_probability = pctl_compute_until(mc,
-                                                    formula->state_predicate,
-                                                    formula->path_predicate);
+            *out_probability = pctl_compute_until(mc, formula->state_predicate, formula->path_predicate);
             break;
 
         case PCTL_EVENTUALLY:
@@ -1174,7 +1187,9 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
                     }
 
                     if (!converged) {
-                        fprintf(stderr, "Warning: PCTL steady-state power iteration did not converge within %d iterations.\n", max_iter);
+                        fprintf(stderr,
+                                "Warning: PCTL steady-state power iteration did not converge within %d iterations.\n",
+                                max_iter);
                     }
 
                     /* 计算满足谓词的稳态概率 */
@@ -1300,7 +1315,8 @@ bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbCon
                                 break;
                             }
                         }
-                        if (adjacent) break;
+                        if (adjacent)
+                            break;
                     }
                 }
             }

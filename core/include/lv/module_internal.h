@@ -13,8 +13,8 @@
 extern "C" {
 #endif
 
-#include "lv/module.h"
 #include "lv/constraint_graph.h"
+#include "lv/module.h"
 
 /* ============== 模块实例结构体完整定义 ============== */
 

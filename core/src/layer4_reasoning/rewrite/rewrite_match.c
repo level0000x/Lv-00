@@ -13,8 +13,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv/rewrite.h"
+
 #include "lv/constraint_graph.h"
+#include "lv/rewrite.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -28,9 +30,7 @@ uint32_t compute_graph_hash(ConstraintGraph *graph);
  * ------------------------------------------------------------------------- */
 
 /* 前向声明 */
-extern bool evaluate_precondition(ConstraintGraph *graph,
-                                   RewriteRule *rule,
-                                   RewriteMatch *match);
+extern bool evaluate_precondition(ConstraintGraph *graph, RewriteRule *rule, RewriteMatch *match);
 
 /**
  * @brief FNV-1a 64位哈希混合（与项目统一的 64 位哈希体系一致）
@@ -44,10 +44,10 @@ extern bool evaluate_precondition(ConstraintGraph *graph,
  * @return 混合后的新哈希值（64位）
  */
 static uint64_t fnv1a_mix(uint64_t hash, const void *data, size_t len) {
-    const uint8_t *p = (const uint8_t *)data;
+    const uint8_t *p = (const uint8_t *) data;
     for (size_t i = 0; i < len; i++) {
         hash ^= p[i];
-        hash *= lv_FNV64_PRIME;  /* 使用 64 位 FNV 质数，与项目统一 */
+        hash *= lv_FNV64_PRIME; /* 使用 64 位 FNV 质数，与项目统一 */
     }
     return hash;
 }
@@ -130,15 +130,10 @@ bool pattern_var_in_replacement_bindings(const RewriteReplacement *repl, int pat
  * @param new_node_count    新节点数量
  * @return 解析后的实际图节点 ID，失败返回 -1
  */
-int resolve_replacement_participant(
-    int participant_id,
-    const int *match_bindings,
-    int match_binding_count,
-    const int *new_node_map,   /* 将替换 new_node 索引映射到实际图节点 ID */
-    int new_node_map_count,
-    const int *new_nodes,      /* replacement->new_nodes 数组 */
-    int new_node_count)
-{
+int resolve_replacement_participant(int participant_id, const int *match_bindings, int match_binding_count,
+                                    const int *new_node_map, /* 将替换 new_node 索引映射到实际图节点 ID */
+                                    int new_node_map_count, const int *new_nodes, /* replacement->new_nodes 数组 */
+                                    int new_node_count) {
     if (participant_id < 0) {
         /* 模式变量：在匹配绑定表中查找 */
         return resolve_binding(match_bindings, match_binding_count, participant_id);
@@ -149,7 +144,7 @@ int resolve_replacement_participant(
        替换约束通过 new_nodes[i] 中存储的相同值来引用它们。 */
     for (int i = 0; i < new_node_count; i++) {
         if (new_nodes[i] == participant_id) {
-                    /* 映射到新创建的图节点 ID */
+            /* 映射到新创建的图节点 ID */
             if (i < new_node_map_count) {
                 return new_node_map[i];
             }
@@ -173,11 +168,8 @@ int resolve_replacement_participant(
  * @param participant_count 参与者数量
  * @return true 添加成功，false 失败（类型不支持或参数不匹配）
  */
-bool add_constraint_generic(ConstraintGraph *graph,
-                                   ConstraintType type,
-                                   const int *participants,
-                                   int participant_count)
-{
+bool add_constraint_generic(ConstraintGraph *graph, ConstraintType type, const int *participants,
+                            int participant_count) {
     switch (type) {
         case INCIDENCE:
             if (participant_count == 2)
@@ -185,11 +177,13 @@ bool add_constraint_generic(ConstraintGraph *graph,
             break;
         case BETWEENNESS:
             if (participant_count == 3)
-                return graph_add_betweenness(graph, participants[0], participants[1], participants[2]) == ADD_CONSTRAINT_OK;
+                return graph_add_betweenness(graph, participants[0], participants[1], participants[2]) ==
+                       ADD_CONSTRAINT_OK;
             break;
         case INTERSECTION:
             if (participant_count == 3)
-                return graph_add_intersection(graph, participants[0], participants[1], participants[2]) == ADD_CONSTRAINT_OK;
+                return graph_add_intersection(graph, participants[0], participants[1], participants[2]) ==
+                       ADD_CONSTRAINT_OK;
             break;
         case CONTAINMENT:
             if (participant_count == 2)
@@ -267,13 +261,17 @@ bool check_graph_consistency(ConstraintGraph *graph) {
     int **conflicts = graph_detect_conflicts(graph, &conflict_count, &conflict_sizes);
     if (conflicts && conflict_count > 0) {
         /* 存在冲突：释放冲突数组并返回 false */
-        if (conflict_sizes) lv_free((void**)&conflict_sizes);
-        if (conflicts) lv_free((void**)&conflicts);
+        if (conflict_sizes)
+            lv_free((void **) &conflict_sizes);
+        if (conflicts)
+            lv_free((void **) &conflicts);
         return false;
     }
     /* 无冲突或 conflicts 为 NULL（分配失败）：释放资源并返回 true */
-    if (conflict_sizes) lv_free((void**)&conflict_sizes);
-    if (conflicts) lv_free((void**)&conflicts);
+    if (conflict_sizes)
+        lv_free((void **) &conflict_sizes);
+    if (conflicts)
+        lv_free((void **) &conflicts);
     return true;
 }
 
@@ -298,9 +296,11 @@ bool check_graph_consistency(ConstraintGraph *graph) {
  * @return 深拷贝的节点，失败返回 NULL（已分配资源已回滚）
  */
 static GeomNode *graph_node_deep_copy(const GeomNode *src) {
-    if (!src) return NULL;
+    if (!src)
+        return NULL;
     GeomNode *dst = lv_calloc(1, sizeof(GeomNode));
-    if (!dst) return NULL;
+    if (!dst)
+        return NULL;
     memcpy(dst, src, sizeof(GeomNode));
     /* 清零 union data，避免 GEOM_POINT 等类型继承源节点的悬垂指针 */
     memset(&dst->data, 0, sizeof(dst->data));
@@ -308,16 +308,17 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
     /* 深拷贝符号坐标 */
     dst->symbolic_coords = NULL;
     if (src->coord_count > 0 && src->symbolic_coords) {
-        dst->symbolic_coords = lv_malloc((size_t)src->coord_count * sizeof(SymbolicCoord *));
+        dst->symbolic_coords = lv_malloc((size_t) src->coord_count * sizeof(SymbolicCoord *));
         if (dst->symbolic_coords) {
             for (int c = 0; c < src->coord_count; c++) {
                 dst->symbolic_coords[c] = symbolic_coord_copy(src->symbolic_coords[c]);
                 if (!dst->symbolic_coords[c]) {
-                    for (int j = 0; j < c; j++) symbolic_coord_destroy(dst->symbolic_coords[j]);
-                    lv_free((void**)&dst->symbolic_coords);
+                    for (int j = 0; j < c; j++)
+                        symbolic_coord_destroy(dst->symbolic_coords[j]);
+                    lv_free((void **) &dst->symbolic_coords);
                     dst->symbolic_coords = NULL;
                     dst->coord_count = 0;
-                    lv_free((void**)&dst);
+                    lv_free((void **) &dst);
                     return NULL;
                 }
             }
@@ -338,9 +339,9 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
                     if (dst->symbolic_coords[j])
                         symbolic_coord_destroy(dst->symbolic_coords[j]);
                 }
-                lv_free((void**)&dst->symbolic_coords);
+                lv_free((void **) &dst->symbolic_coords);
             }
-            lv_free((void**)&dst);
+            lv_free((void **) &dst);
             return NULL;
         }
     }
@@ -361,13 +362,13 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
             dst->data.region.boundary_segments = NULL;
             dst->data.region.segment_count = 0;
             if (src->data.region.segment_count > 0 && src->data.region.boundary_segments) {
-                dst->data.region.boundary_segments = lv_malloc(
-                    (size_t)src->data.region.segment_count * sizeof(GeomNode *));
+                dst->data.region.boundary_segments =
+                    lv_malloc((size_t) src->data.region.segment_count * sizeof(GeomNode *));
                 if (dst->data.region.boundary_segments) {
                     dst->data.region.segment_count = src->data.region.segment_count;
                     /* 指针置空，恢复时根据 ID 重新绑定 */
                     memset(dst->data.region.boundary_segments, 0,
-                           (size_t)src->data.region.segment_count * sizeof(GeomNode *));
+                           (size_t) src->data.region.segment_count * sizeof(GeomNode *));
                 }
             }
             break;
@@ -382,29 +383,29 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
             dst->data.func_block.determinism_state = src->data.func_block.determinism_state;
 
             if (src->data.func_block.internal_node_count > 0 && src->data.func_block.internal_nodes) {
-                dst->data.func_block.internal_nodes = lv_malloc(
-                    (size_t)src->data.func_block.internal_node_count * sizeof(GeomNode *));
+                dst->data.func_block.internal_nodes =
+                    lv_malloc((size_t) src->data.func_block.internal_node_count * sizeof(GeomNode *));
                 if (dst->data.func_block.internal_nodes) {
                     dst->data.func_block.internal_node_count = src->data.func_block.internal_node_count;
                     memset(dst->data.func_block.internal_nodes, 0,
-                           (size_t)src->data.func_block.internal_node_count * sizeof(GeomNode *));
+                           (size_t) src->data.func_block.internal_node_count * sizeof(GeomNode *));
                 }
             }
             if (src->data.func_block.input_count > 0 && src->data.func_block.input_port_ids) {
-                dst->data.func_block.input_port_ids = lv_malloc(
-                    (size_t)src->data.func_block.input_count * sizeof(int));
+                dst->data.func_block.input_port_ids =
+                    lv_malloc((size_t) src->data.func_block.input_count * sizeof(int));
                 if (dst->data.func_block.input_port_ids) {
                     memcpy(dst->data.func_block.input_port_ids, src->data.func_block.input_port_ids,
-                           (size_t)src->data.func_block.input_count * sizeof(int));
+                           (size_t) src->data.func_block.input_count * sizeof(int));
                     dst->data.func_block.input_count = src->data.func_block.input_count;
                 }
             }
             if (src->data.func_block.output_count > 0 && src->data.func_block.output_port_ids) {
-                dst->data.func_block.output_port_ids = lv_malloc(
-                    (size_t)src->data.func_block.output_count * sizeof(int));
+                dst->data.func_block.output_port_ids =
+                    lv_malloc((size_t) src->data.func_block.output_count * sizeof(int));
                 if (dst->data.func_block.output_port_ids) {
                     memcpy(dst->data.func_block.output_port_ids, src->data.func_block.output_port_ids,
-                           (size_t)src->data.func_block.output_count * sizeof(int));
+                           (size_t) src->data.func_block.output_count * sizeof(int));
                     dst->data.func_block.output_count = src->data.func_block.output_count;
                 }
             }
@@ -423,30 +424,31 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
  * @param node 待销毁的节点指针
  */
 static void snapshot_node_destroy(GeomNode *node) {
-    if (!node) return;
+    if (!node)
+        return;
     if (node->symbolic_coords) {
         for (int c = 0; c < node->coord_count; c++) {
             symbolic_coord_destroy(node->symbolic_coords[c]);
         }
-        lv_free((void**)&node->symbolic_coords);
+        lv_free((void **) &node->symbolic_coords);
     }
-    lv_free((void**)&node->numeric_assumption_declaration);
+    lv_free((void **) &node->numeric_assumption_declaration);
     switch (node->type) {
         case GEOM_PORT:
-            lv_free((void**)&node->data.port);
+            lv_free((void **) &node->data.port);
             break;
         case GEOM_REGION:
-            lv_free((void**)&node->data.region.boundary_segments);
+            lv_free((void **) &node->data.region.boundary_segments);
             break;
         case GEOM_FUNCTION_BLOCK:
-            lv_free((void**)&node->data.func_block.internal_nodes);
-            lv_free((void**)&node->data.func_block.input_port_ids);
-            lv_free((void**)&node->data.func_block.output_port_ids);
+            lv_free((void **) &node->data.func_block.internal_nodes);
+            lv_free((void **) &node->data.func_block.input_port_ids);
+            lv_free((void **) &node->data.func_block.output_port_ids);
             break;
         default:
             break;
     }
-    lv_free((void**)&node);
+    lv_free((void **) &node);
 }
 
 /**
@@ -459,10 +461,12 @@ static void snapshot_node_destroy(GeomNode *node) {
  * @return 新分配的图快照，失败返回 NULL
  */
 GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
-    if (!graph) return NULL;
+    if (!graph)
+        return NULL;
 
     GraphSnapshot *snap = lv_calloc(1, sizeof(GraphSnapshot));
-    if (!snap) return NULL;
+    if (!snap)
+        return NULL;
 
     snap->node_count = graph->node_count;
     snap->node_capacity = graph->node_count > 0 ? graph->node_count : 1;
@@ -476,16 +480,19 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     int port_ref_count = 0, region_ref_count = 0, fb_ref_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *n = graph->nodes[i];
-        if (n->type == GEOM_PORT && n->data.port) port_ref_count++;
-        if (n->type == GEOM_REGION && n->data.region.segment_count > 0) region_ref_count++;
-        if (n->type == GEOM_FUNCTION_BLOCK && n->data.func_block.internal_node_count > 0) fb_ref_count++;
+        if (n->type == GEOM_PORT && n->data.port)
+            port_ref_count++;
+        if (n->type == GEOM_REGION && n->data.region.segment_count > 0)
+            region_ref_count++;
+        if (n->type == GEOM_FUNCTION_BLOCK && n->data.func_block.internal_node_count > 0)
+            fb_ref_count++;
     }
 
     /* 分配并填充 port_refs */
     snap->port_ref_count = port_ref_count;
     snap->port_refs = NULL;
     if (port_ref_count > 0) {
-        snap->port_refs = lv_calloc((size_t)port_ref_count, sizeof(PortRef));
+        snap->port_refs = lv_calloc((size_t) port_ref_count, sizeof(PortRef));
         if (snap->port_refs) {
             int idx = 0;
             for (int i = 0; i < graph->node_count; i++) {
@@ -510,22 +517,19 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     snap->region_ref_count = region_ref_count;
     snap->region_refs = NULL;
     if (region_ref_count > 0) {
-        snap->region_refs = lv_calloc((size_t)region_ref_count, sizeof(RegionRef));
+        snap->region_refs = lv_calloc((size_t) region_ref_count, sizeof(RegionRef));
         if (snap->region_refs) {
             int idx = 0;
             for (int i = 0; i < graph->node_count; i++) {
                 GeomNode *n = graph->nodes[i];
-                if (n->type == GEOM_REGION && n->data.region.segment_count > 0 &&
-                    n->data.region.boundary_segments) {
+                if (n->type == GEOM_REGION && n->data.region.segment_count > 0 && n->data.region.boundary_segments) {
                     snap->region_refs[idx].region_node_index = i;
                     snap->region_refs[idx].segment_count = n->data.region.segment_count;
-                    snap->region_refs[idx].segment_ids = lv_malloc(
-                        (size_t)n->data.region.segment_count * sizeof(int));
+                    snap->region_refs[idx].segment_ids = lv_malloc((size_t) n->data.region.segment_count * sizeof(int));
                     if (snap->region_refs[idx].segment_ids) {
                         for (int k = 0; k < n->data.region.segment_count; k++) {
                             snap->region_refs[idx].segment_ids[k] =
-                                n->data.region.boundary_segments[k] ?
-                                n->data.region.boundary_segments[k]->id : -1;
+                                n->data.region.boundary_segments[k] ? n->data.region.boundary_segments[k]->id : -1;
                         }
                     }
                     idx++;
@@ -540,23 +544,21 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     snap->fb_ref_count = fb_ref_count;
     snap->fb_refs = NULL;
     if (fb_ref_count > 0) {
-        snap->fb_refs = lv_calloc((size_t)fb_ref_count, sizeof(FBRef));
+        snap->fb_refs = lv_calloc((size_t) fb_ref_count, sizeof(FBRef));
         if (snap->fb_refs) {
             int idx = 0;
             for (int i = 0; i < graph->node_count; i++) {
                 GeomNode *n = graph->nodes[i];
-                if (n->type == GEOM_FUNCTION_BLOCK &&
-                    n->data.func_block.internal_node_count > 0 &&
+                if (n->type == GEOM_FUNCTION_BLOCK && n->data.func_block.internal_node_count > 0 &&
                     n->data.func_block.internal_nodes) {
                     snap->fb_refs[idx].fb_node_index = i;
                     snap->fb_refs[idx].internal_node_count = n->data.func_block.internal_node_count;
-                    snap->fb_refs[idx].internal_node_ids = lv_malloc(
-                        (size_t)n->data.func_block.internal_node_count * sizeof(int));
+                    snap->fb_refs[idx].internal_node_ids =
+                        lv_malloc((size_t) n->data.func_block.internal_node_count * sizeof(int));
                     if (snap->fb_refs[idx].internal_node_ids) {
                         for (int k = 0; k < n->data.func_block.internal_node_count; k++) {
                             snap->fb_refs[idx].internal_node_ids[k] =
-                                n->data.func_block.internal_nodes[k] ?
-                                n->data.func_block.internal_nodes[k]->id : -1;
+                                n->data.func_block.internal_nodes[k] ? n->data.func_block.internal_nodes[k]->id : -1;
                         }
                     }
                     idx++;
@@ -568,40 +570,46 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     }
 
     /* 深拷贝节点数组 */
-    snap->nodes = lv_malloc((size_t)snap->node_capacity * sizeof(GeomNode *));
+    snap->nodes = lv_malloc((size_t) snap->node_capacity * sizeof(GeomNode *));
     if (!snap->nodes) {
         /* cleanup refs */
-        lv_free((void**)&snap->port_refs);
-        for (int i = 0; i < snap->region_ref_count; i++) lv_free((void**)&snap->region_refs[i].segment_ids);
-        lv_free((void**)&snap->region_refs);
-        for (int i = 0; i < snap->fb_ref_count; i++) lv_free((void**)&snap->fb_refs[i].internal_node_ids);
-        lv_free((void**)&snap->fb_refs);
-        lv_free((void**)&snap);
+        lv_free((void **) &snap->port_refs);
+        for (int i = 0; i < snap->region_ref_count; i++)
+            lv_free((void **) &snap->region_refs[i].segment_ids);
+        lv_free((void **) &snap->region_refs);
+        for (int i = 0; i < snap->fb_ref_count; i++)
+            lv_free((void **) &snap->fb_refs[i].internal_node_ids);
+        lv_free((void **) &snap->fb_refs);
+        lv_free((void **) &snap);
         return NULL;
     }
     for (int i = 0; i < graph->node_count; i++) {
         snap->nodes[i] = graph_node_deep_copy(graph->nodes[i]);
         if (!snap->nodes[i]) {
             /* 回滚已分配的节点 */
-            for (int j = 0; j < i; j++) snapshot_node_destroy(snap->nodes[j]);
-            lv_free((void**)&snap->nodes);
-            lv_free((void**)&snap);
+            for (int j = 0; j < i; j++)
+                snapshot_node_destroy(snap->nodes[j]);
+            lv_free((void **) &snap->nodes);
+            lv_free((void **) &snap);
             return NULL;
         }
     }
 
     /* 深拷贝约束数组 */
-    snap->constraints = lv_malloc((size_t)snap->constraint_capacity * sizeof(Constraint *));
+    snap->constraints = lv_malloc((size_t) snap->constraint_capacity * sizeof(Constraint *));
     if (!snap->constraints) {
-        for (int i = 0; i < snap->node_count; i++) snapshot_node_destroy(snap->nodes[i]);
-        lv_free((void**)&snap->nodes);
+        for (int i = 0; i < snap->node_count; i++)
+            snapshot_node_destroy(snap->nodes[i]);
+        lv_free((void **) &snap->nodes);
         /* cleanup refs */
-        lv_free((void**)&snap->port_refs);
-        for (int i = 0; i < snap->region_ref_count; i++) lv_free((void**)&snap->region_refs[i].segment_ids);
-        lv_free((void**)&snap->region_refs);
-        for (int i = 0; i < snap->fb_ref_count; i++) lv_free((void**)&snap->fb_refs[i].internal_node_ids);
-        lv_free((void**)&snap->fb_refs);
-        lv_free((void**)&snap);
+        lv_free((void **) &snap->port_refs);
+        for (int i = 0; i < snap->region_ref_count; i++)
+            lv_free((void **) &snap->region_refs[i].segment_ids);
+        lv_free((void **) &snap->region_refs);
+        for (int i = 0; i < snap->fb_ref_count; i++)
+            lv_free((void **) &snap->fb_refs[i].internal_node_ids);
+        lv_free((void **) &snap->fb_refs);
+        lv_free((void **) &snap);
         return NULL;
     }
     for (int i = 0; i < graph->constraint_count; i++) {
@@ -609,13 +617,14 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
         Constraint *dst = lv_calloc(1, sizeof(Constraint));
         if (!dst) {
             for (int j = 0; j < i; j++) {
-                lv_free((void**)&snap->constraints[j]->participants);
-                lv_free((void**)&snap->constraints[j]);
+                lv_free((void **) &snap->constraints[j]->participants);
+                lv_free((void **) &snap->constraints[j]);
             }
-            for (int j = 0; j < snap->node_count; j++) snapshot_node_destroy(snap->nodes[j]);
-            lv_free((void**)&snap->constraints);
-            lv_free((void**)&snap->nodes);
-            lv_free((void**)&snap);
+            for (int j = 0; j < snap->node_count; j++)
+                snapshot_node_destroy(snap->nodes[j]);
+            lv_free((void **) &snap->constraints);
+            lv_free((void **) &snap->nodes);
+            lv_free((void **) &snap);
             return NULL;
         }
         dst->id = src->id;
@@ -624,10 +633,9 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
         dst->participant_count = src->participant_count;
         dst->participants = NULL;
         if (src->participant_count > 0 && src->participants) {
-            dst->participants = lv_malloc((size_t)src->participant_count * sizeof(int));
+            dst->participants = lv_malloc((size_t) src->participant_count * sizeof(int));
             if (dst->participants) {
-                memcpy(dst->participants, src->participants,
-                       (size_t)src->participant_count * sizeof(int));
+                memcpy(dst->participants, src->participants, (size_t) src->participant_count * sizeof(int));
             }
         }
         snap->constraints[i] = dst;
@@ -652,7 +660,8 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
  *   false - 恢复失败（内存不足），图已被重置为空图
  */
 bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
-    if (!snapshot || !graph) return false;
+    if (!snapshot || !graph)
+        return false;
 
     /* 1. 销毁当前图中的所有节点和约束 */
     for (int i = 0; i < graph->node_count; i++) {
@@ -661,34 +670,34 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
             for (int c = 0; c < node->coord_count; c++) {
                 symbolic_coord_destroy(node->symbolic_coords[c]);
             }
-            lv_free((void**)&node->symbolic_coords);
+            lv_free((void **) &node->symbolic_coords);
         }
-        lv_free((void**)&node->numeric_assumption_declaration);
+        lv_free((void **) &node->numeric_assumption_declaration);
         switch (node->type) {
             case GEOM_PORT:
-                lv_free((void**)&node->data.port);
+                lv_free((void **) &node->data.port);
                 break;
             case GEOM_REGION:
-                lv_free((void**)&node->data.region.boundary_segments);
+                lv_free((void **) &node->data.region.boundary_segments);
                 break;
             case GEOM_FUNCTION_BLOCK:
-                lv_free((void**)&node->data.func_block.internal_nodes);
-                lv_free((void**)&node->data.func_block.input_port_ids);
-                lv_free((void**)&node->data.func_block.output_port_ids);
+                lv_free((void **) &node->data.func_block.internal_nodes);
+                lv_free((void **) &node->data.func_block.input_port_ids);
+                lv_free((void **) &node->data.func_block.output_port_ids);
                 break;
             default:
                 break;
         }
-        lv_free((void**)&node);
+        lv_free((void **) &node);
     }
     for (int i = 0; i < graph->constraint_count; i++) {
-        lv_free((void**)&graph->constraints[i]->participants);
-        lv_free((void**)&graph->constraints[i]);
+        lv_free((void **) &graph->constraints[i]->participants);
+        lv_free((void **) &graph->constraints[i]);
     }
-    lv_free((void**)&graph->nodes);
-    lv_free((void**)&graph->constraints);
-    lv_free((void**)&graph->node_index);
-    lv_free((void**)&graph->constraint_index);
+    lv_free((void **) &graph->nodes);
+    lv_free((void **) &graph->constraints);
+    lv_free((void **) &graph->node_index);
+    lv_free((void **) &graph->constraint_index);
 
     /* 2. 从快照恢复所有节点和约束（深拷贝） */
     graph->node_count = snapshot->node_count;
@@ -698,7 +707,7 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
     graph->next_node_id = snapshot->next_node_id;
     graph->next_constraint_id = snapshot->next_constraint_id;
 
-    graph->nodes = lv_malloc((size_t)graph->node_capacity * sizeof(GeomNode *));
+    graph->nodes = lv_malloc((size_t) graph->node_capacity * sizeof(GeomNode *));
     if (!graph->nodes) {
         /* 将图重置为空图状态，避免半销毁 */
         graph->nodes = NULL;
@@ -720,7 +729,7 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
             for (int j = 0; j < i; j++) {
                 snapshot_node_destroy(graph->nodes[j]);
             }
-            lv_free((void**)&graph->nodes);
+            lv_free((void **) &graph->nodes);
             graph->nodes = NULL;
             graph->node_count = 0;
             graph->node_capacity = 0;
@@ -735,13 +744,13 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
         }
     }
 
-    graph->constraints = lv_malloc((size_t)graph->constraint_capacity * sizeof(Constraint *));
+    graph->constraints = lv_malloc((size_t) graph->constraint_capacity * sizeof(Constraint *));
     if (!graph->constraints) {
         /* 清理已恢复的节点数据，将图重置为空图状态 */
         for (int i = 0; i < graph->node_count; i++) {
             snapshot_node_destroy(graph->nodes[i]);
         }
-        lv_free((void**)&graph->nodes);
+        lv_free((void **) &graph->nodes);
         graph->nodes = NULL;
         graph->node_count = 0;
         graph->node_capacity = 0;
@@ -760,14 +769,14 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
         if (!dst) {
             /* 清理已分配的部分约束数据 */
             for (int j = 0; j < i; j++) {
-                lv_free((void**)&graph->constraints[j]->participants);
-                lv_free((void**)&graph->constraints[j]);
+                lv_free((void **) &graph->constraints[j]->participants);
+                lv_free((void **) &graph->constraints[j]);
             }
-            lv_free((void**)&graph->constraints);
+            lv_free((void **) &graph->constraints);
             for (int j = 0; j < graph->node_count; j++) {
                 snapshot_node_destroy(graph->nodes[j]);
             }
-            lv_free((void**)&graph->nodes);
+            lv_free((void **) &graph->nodes);
             graph->nodes = NULL;
             graph->node_count = 0;
             graph->node_capacity = 0;
@@ -786,10 +795,9 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
         dst->participant_count = src->participant_count;
         dst->participants = NULL;
         if (src->participant_count > 0 && src->participants) {
-            dst->participants = lv_malloc((size_t)src->participant_count * sizeof(int));
+            dst->participants = lv_malloc((size_t) src->participant_count * sizeof(int));
             if (dst->participants) {
-                memcpy(dst->participants, src->participants,
-                       (size_t)src->participant_count * sizeof(int));
+                memcpy(dst->participants, src->participants, (size_t) src->participant_count * sizeof(int));
             }
         }
         graph->constraints[i] = dst;
@@ -802,10 +810,13 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
         /* 使用简单的线性搜索（节点数通常不大）；如果需要可改为哈希表 */
         for (int r = 0; r < snapshot->port_ref_count; r++) {
             PortRef *ref = &snapshot->port_refs[r];
-            if (ref->connected_to_id < 0) continue;
-            if (ref->port_node_index >= graph->node_count) continue;
+            if (ref->connected_to_id < 0)
+                continue;
+            if (ref->port_node_index >= graph->node_count)
+                continue;
             GeomNode *port_node = graph->nodes[ref->port_node_index];
-            if (!port_node || port_node->type != GEOM_PORT || !port_node->data.port) continue;
+            if (!port_node || port_node->type != GEOM_PORT || !port_node->data.port)
+                continue;
             /* 在新图中查找 connected_to_id 对应的节点 */
             for (int i = 0; i < graph->node_count; i++) {
                 if (graph->nodes[i]->id == ref->connected_to_id) {
@@ -817,12 +828,15 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
 
         for (int r = 0; r < snapshot->region_ref_count; r++) {
             RegionRef *ref = &snapshot->region_refs[r];
-            if (ref->region_node_index >= graph->node_count) continue;
+            if (ref->region_node_index >= graph->node_count)
+                continue;
             GeomNode *region_node = graph->nodes[ref->region_node_index];
-            if (!region_node || region_node->type != GEOM_REGION) continue;
+            if (!region_node || region_node->type != GEOM_REGION)
+                continue;
             if (region_node->data.region.boundary_segments && ref->segment_ids) {
                 for (int k = 0; k < ref->segment_count && k < region_node->data.region.segment_count; k++) {
-                    if (ref->segment_ids[k] < 0) continue;
+                    if (ref->segment_ids[k] < 0)
+                        continue;
                     for (int i = 0; i < graph->node_count; i++) {
                         if (graph->nodes[i]->id == ref->segment_ids[k]) {
                             region_node->data.region.boundary_segments[k] = graph->nodes[i];
@@ -835,12 +849,15 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
 
         for (int r = 0; r < snapshot->fb_ref_count; r++) {
             FBRef *ref = &snapshot->fb_refs[r];
-            if (ref->fb_node_index >= graph->node_count) continue;
+            if (ref->fb_node_index >= graph->node_count)
+                continue;
             GeomNode *fb_node = graph->nodes[ref->fb_node_index];
-            if (!fb_node || fb_node->type != GEOM_FUNCTION_BLOCK) continue;
+            if (!fb_node || fb_node->type != GEOM_FUNCTION_BLOCK)
+                continue;
             if (fb_node->data.func_block.internal_nodes && ref->internal_node_ids) {
                 for (int k = 0; k < ref->internal_node_count && k < fb_node->data.func_block.internal_node_count; k++) {
-                    if (ref->internal_node_ids[k] < 0) continue;
+                    if (ref->internal_node_ids[k] < 0)
+                        continue;
                     for (int i = 0; i < graph->node_count; i++) {
                         if (graph->nodes[i]->id == ref->internal_node_ids[k]) {
                             fb_node->data.func_block.internal_nodes[k] = graph->nodes[i];
@@ -859,16 +876,17 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
     if (graph->node_count > 0) {
         /* 计算合适的哈希表大小（至少是节点数的 2 倍，且为 2 的幂） */
         int cap = 4;
-        while (cap < graph->node_count * 2) cap *= 2;
-        graph->node_index = lv_malloc((size_t)cap * sizeof(GeomNode *));
+        while (cap < graph->node_count * 2)
+            cap *= 2;
+        graph->node_index = lv_malloc((size_t) cap * sizeof(GeomNode *));
         if (graph->node_index) {
-            memset(graph->node_index, 0, (size_t)cap * sizeof(GeomNode *));
+            memset(graph->node_index, 0, (size_t) cap * sizeof(GeomNode *));
             graph->node_index_capacity = cap;
             for (int i = 0; i < graph->node_count; i++) {
                 GeomNode *node = graph->nodes[i];
-                unsigned idx = (unsigned)node->id * 2654435769u & (unsigned)(cap - 1);
+                unsigned idx = (unsigned) node->id * 2654435769u & (unsigned) (cap - 1);
                 while (graph->node_index[idx] != NULL) {
-                    idx = (idx + 1) & (unsigned)(cap - 1);
+                    idx = (idx + 1) & (unsigned) (cap - 1);
                 }
                 graph->node_index[idx] = node;
             }
@@ -884,16 +902,17 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
     graph->constraint_index_capacity = 0;
     if (graph->constraint_count > 0) {
         int cap = 4;
-        while (cap < graph->constraint_count * 2) cap *= 2;
-        graph->constraint_index = lv_malloc((size_t)cap * sizeof(Constraint *));
+        while (cap < graph->constraint_count * 2)
+            cap *= 2;
+        graph->constraint_index = lv_malloc((size_t) cap * sizeof(Constraint *));
         if (graph->constraint_index) {
-            memset(graph->constraint_index, 0, (size_t)cap * sizeof(Constraint *));
+            memset(graph->constraint_index, 0, (size_t) cap * sizeof(Constraint *));
             graph->constraint_index_capacity = cap;
             for (int i = 0; i < graph->constraint_count; i++) {
                 Constraint *con = graph->constraints[i];
-                unsigned idx = (unsigned)con->id * 2654435769u & (unsigned)(cap - 1);
+                unsigned idx = (unsigned) con->id * 2654435769u & (unsigned) (cap - 1);
                 while (graph->constraint_index[idx] != NULL) {
-                    idx = (idx + 1) & (unsigned)(cap - 1);
+                    idx = (idx + 1) & (unsigned) (cap - 1);
                 }
                 graph->constraint_index[idx] = con;
             }
@@ -908,27 +927,28 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
 }
 
 void graph_snapshot_destroy(GraphSnapshot *snapshot) {
-    if (!snapshot) return;
+    if (!snapshot)
+        return;
     for (int i = 0; i < snapshot->node_count; i++) {
         snapshot_node_destroy(snapshot->nodes[i]);
     }
-    lv_free((void**)&snapshot->nodes);
+    lv_free((void **) &snapshot->nodes);
     for (int i = 0; i < snapshot->constraint_count; i++) {
-        lv_free((void**)&snapshot->constraints[i]->participants);
-        lv_free((void**)&snapshot->constraints[i]);
+        lv_free((void **) &snapshot->constraints[i]->participants);
+        lv_free((void **) &snapshot->constraints[i]);
     }
-    lv_free((void**)&snapshot->constraints);
+    lv_free((void **) &snapshot->constraints);
     /* 释放交叉引用信息 */
     for (int i = 0; i < snapshot->region_ref_count; i++) {
-        lv_free((void**)&snapshot->region_refs[i].segment_ids);
+        lv_free((void **) &snapshot->region_refs[i].segment_ids);
     }
-    lv_free((void**)&snapshot->region_refs);
+    lv_free((void **) &snapshot->region_refs);
     for (int i = 0; i < snapshot->fb_ref_count; i++) {
-        lv_free((void**)&snapshot->fb_refs[i].internal_node_ids);
+        lv_free((void **) &snapshot->fb_refs[i].internal_node_ids);
     }
-    lv_free((void**)&snapshot->fb_refs);
-    lv_free((void**)&snapshot->port_refs);
-    lv_free((void**)&snapshot);
+    lv_free((void **) &snapshot->fb_refs);
+    lv_free((void **) &snapshot->port_refs);
+    lv_free((void **) &snapshot);
 }
 
 /* ---------------------------------------------------------------------------
@@ -953,7 +973,7 @@ uint32_t compute_graph_hash(ConstraintGraph *graph) {
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *n = graph->nodes[i];
         h = fnv1a_mix(h, &n->id, sizeof(n->id));
-        int type_val = (int)n->type;
+        int type_val = (int) n->type;
         h = fnv1a_mix(h, &type_val, sizeof(type_val));
 
         if (n->type == GEOM_POINT && n->coord_count > 0 && n->symbolic_coords) {
@@ -962,7 +982,7 @@ uint32_t compute_graph_hash(ConstraintGraph *graph) {
                     char *ser = symbolic_coord_serialize(n->symbolic_coords[c]);
                     if (ser) {
                         h = fnv1a_mix(h, ser, strlen(ser));
-                        lv_free((void**)&ser);
+                        lv_free((void **) &ser);
                     }
                 }
             }
@@ -972,30 +992,30 @@ uint32_t compute_graph_hash(ConstraintGraph *graph) {
     /* 哈希约束类型及其参与者列表 */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        int type_val = (int)c->type;
+        int type_val = (int) c->type;
         h = fnv1a_mix(h, &type_val, sizeof(type_val));
         h = fnv1a_mix(h, c->participants, c->participant_count * sizeof(int));
     }
 
-    return (int)h;
+    return (int) h;
 }
 
 /* ---------------------------------------------------------------------------
  * 公共 API
  * ------------------------------------------------------------------------- */
 
-RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern,
-                                 RewriteReplacement *replacement, int measure)
-{
+RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern, RewriteReplacement *replacement,
+                                 int measure) {
     RewriteRule *rule = lv_calloc(1, sizeof(RewriteRule));
-    if (!rule) return NULL;
+    if (!rule)
+        return NULL;
     /* 【内存管理策略】strdup 为 rule->name 分配独立副本。
      * 若分配失败，需回滚已分配的 rule 结构体。
      * 注意：pattern 和 replacement 的所有权不属于 rule，
      * 由调用者管理，无需在此处释放。 */
     rule->name = lv_strdup_safe(name);
     if (!rule->name) {
-        lv_free((void**)&rule);
+        lv_free((void **) &rule);
         return NULL;
     }
     rule->pattern = pattern;
@@ -1019,17 +1039,15 @@ RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern,
  */
 void rewrite_rule_destroy(RewriteRule *rule) {
     if (rule) {
-        lv_free((void**)&rule->name);
+        lv_free((void **) &rule->name);
         /* 注意：不释放 rule->pattern 和 rule->replacement，所有权不属于此对象 */
-        lv_free((void**)&rule);
+        lv_free((void **) &rule);
     }
 }
 
 /* ---- 模式匹配辅助函数 ---- */
 
-static bool pattern_var_matches_node(int pattern_var_id, GeomNode *graph_node,
-                                     const int *bindings, int binding_count)
-{
+static bool pattern_var_matches_node(int pattern_var_id, GeomNode *graph_node, const int *bindings, int binding_count) {
     if (pattern_var_id >= 0) {
         return pattern_var_id == graph_node->id;
     }
@@ -1052,11 +1070,12 @@ static bool pattern_var_matches_node(int pattern_var_id, GeomNode *graph_node,
  * @param binding_count   绑定数量
  * @return true 表示匹配成功
  */
-static bool pattern_constraint_matches(Constraint *pattern, Constraint *graph_con,
-                                       const int *bindings, int binding_count)
-{
-    if (pattern->type != graph_con->type) return false;
-    if (pattern->participant_count != graph_con->participant_count) return false;
+static bool pattern_constraint_matches(Constraint *pattern, Constraint *graph_con, const int *bindings,
+                                       int binding_count) {
+    if (pattern->type != graph_con->type)
+        return false;
+    if (pattern->participant_count != graph_con->participant_count)
+        return false;
     for (int i = 0; i < pattern->participant_count; i++) {
         int pid = pattern->participants[i];
         int gid = graph_con->participants[i];
@@ -1068,9 +1087,11 @@ static bool pattern_constraint_matches(Constraint *pattern, Constraint *graph_co
                     break;
                 }
             }
-            if (!found) return false;
+            if (!found)
+                return false;
         } else {
-            if (pid != gid) return false;
+            if (pid != gid)
+                return false;
         }
     }
     return true;
@@ -1088,16 +1109,22 @@ static bool pattern_constraint_matches(Constraint *pattern, Constraint *graph_co
  * @param local_equivalence_tolerant 是否启用局部等价容忍模式
  * @return 新分配的匹配结果，失败返回 NULL
  */
-RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule,
-                                 bool local_equivalence_tolerant)
-{
+RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool local_equivalence_tolerant) {
     RewritePattern *pat = rule->pattern;
     RewriteMatch *match = lv_calloc(1, sizeof(RewriteMatch));
-    if (!match) return NULL;
+    if (!match)
+        return NULL;
     match->node_bindings = lv_malloc(pat->var_count * 2 * sizeof(int));
-    if (!match->node_bindings) { lv_free((void**)&match); return NULL; }
+    if (!match->node_bindings) {
+        lv_free((void **) &match);
+        return NULL;
+    }
     match->constraint_bindings = lv_malloc(pat->pattern_constraint_count * sizeof(int));
-    if (!match->constraint_bindings) { lv_free((void**)&match->node_bindings); lv_free((void**)&match); return NULL; }
+    if (!match->constraint_bindings) {
+        lv_free((void **) &match->node_bindings);
+        lv_free((void **) &match);
+        return NULL;
+    }
     match->binding_count = 0;
     int binding_count = 0;
 
@@ -1118,7 +1145,8 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule,
                     break;
                 }
             }
-            if (already_used) continue;
+            if (already_used)
+                continue;
 
             /* 标准ID匹配 */
             if (pattern_var_id >= 0) {
@@ -1139,7 +1167,8 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule,
                     break;
                 }
             }
-            if (was_bound) continue;
+            if (was_bound)
+                continue;
 
             /* 在 local_equivalence_tolerant 模式下，对于 POINT 节点，
                即使ID不同，也接受具有相同符号坐标的节点。
@@ -1156,12 +1185,10 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule,
                 }
                 if (existing_bind >= 0) {
                     GeomNode *existing = graph_get_node(graph, existing_bind);
-                    if (existing && existing->type == GEOM_POINT &&
-                        existing->coord_count == gn->coord_count) {
+                    if (existing && existing->type == GEOM_POINT && existing->coord_count == gn->coord_count) {
                         coord_match = true;
                         for (int c = 0; c < gn->coord_count; c++) {
-                            if (symbolic_coord_compare(existing->symbolic_coords[c],
-                                                      gn->symbolic_coords[c]) != 0) {
+                            if (symbolic_coord_compare(existing->symbolic_coords[c], gn->symbolic_coords[c]) != 0) {
                                 coord_match = false;
                                 break;
                             }
@@ -1188,25 +1215,25 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule,
 
         if (!bound) {
             /* 无法绑定此模式变量 */
-            lv_free((void**)&match->node_bindings);
-            lv_free((void**)&match->constraint_bindings);
-            lv_free((void**)&match);
+            lv_free((void **) &match->node_bindings);
+            lv_free((void **) &match->constraint_bindings);
+            lv_free((void **) &match);
             return NULL;
         }
     }
 
     /* --- Phase 2: match pattern constraints against graph constraints --- */
     int constraint_match_count = 0;
-    bool *pattern_con_matched = lv_malloc((size_t)pat->pattern_constraint_count * sizeof(bool));
-    if (pattern_con_matched) memset(pattern_con_matched, 0,
-                                     (size_t)pat->pattern_constraint_count * sizeof(bool));
+    bool *pattern_con_matched = lv_malloc((size_t) pat->pattern_constraint_count * sizeof(bool));
+    if (pattern_con_matched)
+        memset(pattern_con_matched, 0, (size_t) pat->pattern_constraint_count * sizeof(bool));
 
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *gc = graph->constraints[i];
         for (int j = 0; j < pat->pattern_constraint_count; j++) {
-            if (pattern_con_matched[j]) continue;
-            if (pattern_constraint_matches(pat->pattern_constraints[j], gc,
-                                           match->node_bindings, binding_count)) {
+            if (pattern_con_matched[j])
+                continue;
+            if (pattern_constraint_matches(pat->pattern_constraints[j], gc, match->node_bindings, binding_count)) {
                 match->constraint_bindings[j] = gc->id;
                 pattern_con_matched[j] = true;
                 constraint_match_count++;
@@ -1215,12 +1242,12 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule,
         }
     }
 
-    lv_free((void**)&pattern_con_matched);
+    lv_free((void **) &pattern_con_matched);
 
     if (constraint_match_count != pat->pattern_constraint_count) {
-        lv_free((void**)&match->node_bindings);
-        lv_free((void**)&match->constraint_bindings);
-        lv_free((void**)&match);
+        lv_free((void **) &match->node_bindings);
+        lv_free((void **) &match->constraint_bindings);
+        lv_free((void **) &match);
         return NULL;
     }
 
@@ -1252,7 +1279,7 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule,
  * @return 64位 WL 哈希值
  */
 uint64_t rewrite_compute_wl_hash(const ConstraintGraph *graph) {
-    return compute_wl_graph_hash((ConstraintGraph *)graph);
+    return compute_wl_graph_hash((ConstraintGraph *) graph);
 }
 
 /* ===========================================================================
@@ -1278,8 +1305,8 @@ uint64_t rewrite_compute_wl_hash(const ConstraintGraph *graph) {
  * @return >0 表示 a 优于 b，<0 表示 b 优于 a
  */
 static int match_quality_cmp(const void *a, const void *b) {
-    const RewriteMatch *ma = *(const RewriteMatch **)a;
-    const RewriteMatch *mb = *(const RewriteMatch **)b;
+    const RewriteMatch *ma = *(const RewriteMatch **) a;
+    const RewriteMatch *mb = *(const RewriteMatch **) b;
     /* binding_count 是匹配的约束数量，作为匹配质量的代理指标 */
     if (ma->binding_count != mb->binding_count) {
         return (mb->binding_count > ma->binding_count) ? 1 : -1;
@@ -1287,7 +1314,7 @@ static int match_quality_cmp(const void *a, const void *b) {
     return 0;
 }
 
-    /* 检查匹配是否与已使用的节点集合重叠。
+/* 检查匹配是否与已使用的节点集合重叠。
      * 返回 true 如果存在重叠（即匹配中有节点在 used_ids 中）。 */
 /**
  * @brief 检查匹配是否与已使用的节点集合重叠
@@ -1298,13 +1325,12 @@ static int match_quality_cmp(const void *a, const void *b) {
  * @param node_binding_pair_count 节点绑定对数量
  * @return true 如果存在重叠
  */
-static bool match_overlaps_used(const RewriteMatch *match,
-                                const int *used_ids, int used_count,
-                                int node_binding_pair_count)
-{
+static bool match_overlaps_used(const RewriteMatch *match, const int *used_ids, int used_count,
+                                int node_binding_pair_count) {
     for (int i = 0; i < node_binding_pair_count; i++) {
         int graph_node_id = match->node_bindings[i * 2 + 1];
-        if (graph_node_id < 0) continue;
+        if (graph_node_id < 0)
+            continue;
         for (int u = 0; u < used_count; u++) {
             if (graph_node_id == used_ids[u]) {
                 return true;
@@ -1323,13 +1349,12 @@ static bool match_overlaps_used(const RewriteMatch *match,
  * @param used_capacity          容量指针
  * @param node_binding_pair_count 节点绑定对数量
  */
-static void add_match_to_used(const RewriteMatch *match,
-                              int **used_ids, int *used_count, int *used_capacity,
-                              int node_binding_pair_count)
-{
+static void add_match_to_used(const RewriteMatch *match, int **used_ids, int *used_count, int *used_capacity,
+                              int node_binding_pair_count) {
     for (int i = 0; i < node_binding_pair_count; i++) {
         int graph_node_id = match->node_bindings[i * 2 + 1];
-        if (graph_node_id < 0) continue;
+        if (graph_node_id < 0)
+            continue;
 
         /* 检查是否已在集合中 */
         bool already = false;
@@ -1339,12 +1364,13 @@ static void add_match_to_used(const RewriteMatch *match,
                 break;
             }
         }
-        if (already) continue;
+        if (already)
+            continue;
 
         /* 扩容 */
         if (*used_count >= *used_capacity) {
             int new_cap = *used_capacity > 0 ? *used_capacity * 2 : 16;
-            int *new_arr = lv_realloc(*used_ids, (size_t)new_cap * sizeof(int));
+            int *new_arr = lv_realloc(*used_ids, (size_t) new_cap * sizeof(int));
             if (!new_arr) {
                 debug_log_rewrite("内存分配失败：无法扩展 used_ids 数组");
                 return;
@@ -1356,12 +1382,8 @@ static void add_match_to_used(const RewriteMatch *match,
     }
 }
 
-int find_all_non_overlapping_matches(
-    ConstraintGraph *graph,
-    RewriteRule *rule,
-    const int *used_node_ids, int used_count,
-    RewriteMatch ***out_matches, int *out_match_count)
-{
+int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, const int *used_node_ids,
+                                     int used_count, RewriteMatch ***out_matches, int *out_match_count) {
     if (!graph || !rule || !rule->pattern || !out_matches || !out_match_count)
         return -1;
 
@@ -1374,16 +1396,20 @@ int find_all_non_overlapping_matches(
 
     /* 初始化本地已使用节点集合（合并外部传入的已使用节点） */
     int local_used_capacity = used_count > 0 ? used_count + 16 : 16;
-    int *local_used = lv_malloc((size_t)local_used_capacity * sizeof(int));
-    if (!local_used) return -1;
+    int *local_used = lv_malloc((size_t) local_used_capacity * sizeof(int));
+    if (!local_used)
+        return -1;
     int local_used_count = 0;
 
     /* 复制外部传入的已使用节点 */
     for (int i = 0; i < used_count; i++) {
         if (local_used_count >= local_used_capacity) {
             int new_cap = local_used_capacity * 2;
-            int *new_arr = lv_realloc(local_used, (size_t)new_cap * sizeof(int));
-            if (!new_arr) { lv_free((void**)&local_used); return -1; }
+            int *new_arr = lv_realloc(local_used, (size_t) new_cap * sizeof(int));
+            if (!new_arr) {
+                lv_free((void **) &local_used);
+                return -1;
+            }
             local_used = new_arr;
             local_used_capacity = new_cap;
         }
@@ -1393,16 +1419,16 @@ int find_all_non_overlapping_matches(
     /* 创建图快照，以便在搜索过程中临时移除已匹配节点 */
     GraphSnapshot *snapshot = graph_snapshot_create(graph);
     if (!snapshot) {
-        lv_free((void**)&local_used);
+        lv_free((void **) &local_used);
         return -1;
     }
 
     /* 匹配结果数组 */
     int match_capacity = 8;
-    RewriteMatch **matches = lv_malloc((size_t)match_capacity * sizeof(RewriteMatch *));
+    RewriteMatch **matches = lv_malloc((size_t) match_capacity * sizeof(RewriteMatch *));
     if (!matches) {
         graph_snapshot_destroy(snapshot);
-        lv_free((void**)&local_used);
+        lv_free((void **) &local_used);
         return -1;
     }
     int match_count = 0;
@@ -1419,19 +1445,19 @@ int find_all_non_overlapping_matches(
 
         /* 使用 VF2 在当前图状态中查找一个匹配 */
         RewriteMatch *match = vf2_find_match(graph, pat, false);
-        if (!match) break;
+        if (!match)
+            break;
 
         /* 检查前置条件 */
         if (!evaluate_precondition(graph, rule, match)) {
-            lv_free((void**)&match->node_bindings);
-            lv_free((void**)&match->constraint_bindings);
-            lv_free((void**)&match);
+            lv_free((void **) &match->node_bindings);
+            lv_free((void **) &match->constraint_bindings);
+            lv_free((void **) &match);
             break; /* 前置条件失败，停止搜索 */
         }
 
         /* 检查匹配是否与已使用节点重叠 */
-        if (match_overlaps_used(match, local_used, local_used_count,
-                                node_binding_pairs)) {
+        if (match_overlaps_used(match, local_used, local_used_count, node_binding_pairs)) {
             /* 匹配与已使用节点重叠 -- 需要移除已使用的节点后重新搜索。
              * 从图中移除已使用的节点，然后继续循环。 */
             for (int u = 0; u < local_used_count; u++) {
@@ -1440,21 +1466,20 @@ int find_all_non_overlapping_matches(
             /* 清空本地已使用集合（已从图中移除） */
             local_used_count = 0;
 
-            lv_free((void**)&match->node_bindings);
-            lv_free((void**)&match->constraint_bindings);
-            lv_free((void**)&match);
+            lv_free((void **) &match->node_bindings);
+            lv_free((void **) &match->constraint_bindings);
+            lv_free((void **) &match);
             continue;
         }
 
         /* 找到一个有效的非重叠匹配 -- 保存它 */
         if (match_count >= match_capacity) {
             int new_cap = match_capacity * 2;
-            RewriteMatch **new_arr = lv_realloc(matches,
-                (size_t)new_cap * sizeof(RewriteMatch *));
+            RewriteMatch **new_arr = lv_realloc(matches, (size_t) new_cap * sizeof(RewriteMatch *));
             if (!new_arr) {
-                lv_free((void**)&match->node_bindings);
-                lv_free((void**)&match->constraint_bindings);
-                lv_free((void**)&match);
+                lv_free((void **) &match->node_bindings);
+                lv_free((void **) &match->constraint_bindings);
+                lv_free((void **) &match);
                 break;
             }
             matches = new_arr;
@@ -1463,8 +1488,7 @@ int find_all_non_overlapping_matches(
         matches[match_count++] = match;
 
         /* 将此匹配的节点添加到已使用集合 */
-        add_match_to_used(match, &local_used, &local_used_count,
-                          &local_used_capacity, node_binding_pairs);
+        add_match_to_used(match, &local_used, &local_used_count, &local_used_capacity, node_binding_pairs);
 
         /* 从图中移除已匹配的节点，以便下次搜索不会找到重叠匹配 */
         for (int i = 0; i < node_binding_pairs; i++) {
@@ -1482,12 +1506,12 @@ int find_all_non_overlapping_matches(
         LOG_ERROR("rewrite", "find_all_non_overlapping_matches: 图快照恢复失败，图已被重置为空图");
         graph_snapshot_destroy(snapshot);
         for (int i = 0; i < match_count; i++) {
-            lv_free((void**)&matches[i]->node_bindings);
-            lv_free((void**)&matches[i]->constraint_bindings);
-            lv_free((void**)&matches[i]);
+            lv_free((void **) &matches[i]->node_bindings);
+            lv_free((void **) &matches[i]->constraint_bindings);
+            lv_free((void **) &matches[i]);
         }
-        lv_free((void**)&matches);
-        lv_free((void**)&local_used);
+        lv_free((void **) &matches);
+        lv_free((void **) &local_used);
         *out_matches = NULL;
         *out_match_count = 0;
         return -1;
@@ -1496,11 +1520,10 @@ int find_all_non_overlapping_matches(
 
     /* 按匹配质量排序（匹配约束数降序） */
     if (match_count > 1) {
-        qsort(matches, (size_t)match_count, sizeof(RewriteMatch *),
-              match_quality_cmp);
+        qsort(matches, (size_t) match_count, sizeof(RewriteMatch *), match_quality_cmp);
     }
 
-    lv_free((void**)&local_used);
+    lv_free((void **) &local_used);
 
     *out_matches = matches;
     *out_match_count = match_count;
@@ -1518,12 +1541,8 @@ int find_all_non_overlapping_matches(
  * ===========================================================================
  */
 
-int rewrite_apply_all_matches(
-    ConstraintGraph *graph,
-    RewriteRule *rule,
-    RewriteMatch *matches, int match_count,
-    int *out_applied_count)
-{
+int rewrite_apply_all_matches(ConstraintGraph *graph, RewriteRule *rule, RewriteMatch *matches, int match_count,
+                              int *out_applied_count) {
     if (!graph || !rule || !matches || match_count <= 0 || !out_applied_count)
         return -1;
 
@@ -1531,8 +1550,9 @@ int rewrite_apply_all_matches(
 
     /* 记录已被前序替换修改过的节点 ID，用于冲突检测 */
     int modified_capacity = 64;
-    int *modified_node_ids = lv_malloc((size_t)modified_capacity * sizeof(int));
-    if (!modified_node_ids) return -1;
+    int *modified_node_ids = lv_malloc((size_t) modified_capacity * sizeof(int));
+    if (!modified_node_ids)
+        return -1;
     int modified_count = 0;
 
     int applied = 0;
@@ -1545,7 +1565,8 @@ int rewrite_apply_all_matches(
         int node_binding_pairs = rule->pattern ? rule->pattern->var_count : 0;
         for (int i = 0; i < node_binding_pairs; i++) {
             int graph_node_id = match->node_bindings[i * 2 + 1];
-            if (graph_node_id < 0) continue;
+            if (graph_node_id < 0)
+                continue;
 
             /* 检查节点是否仍然存在于图中 */
             if (!graph_get_node(graph, graph_node_id)) {
@@ -1560,7 +1581,8 @@ int rewrite_apply_all_matches(
                     break;
                 }
             }
-            if (conflict) break;
+            if (conflict)
+                break;
         }
 
         if (conflict) {
@@ -1582,12 +1604,12 @@ int rewrite_apply_all_matches(
             /* 应用成功 -- 记录被修改的节点 */
             for (int i = 0; i < node_binding_pairs; i++) {
                 int graph_node_id = match->node_bindings[i * 2 + 1];
-                if (graph_node_id < 0) continue;
+                if (graph_node_id < 0)
+                    continue;
 
                 if (modified_count >= modified_capacity) {
                     int new_cap = modified_capacity * 2;
-                    int *new_arr = lv_realloc(modified_node_ids,
-                        (size_t)new_cap * sizeof(int));
+                    int *new_arr = lv_realloc(modified_node_ids, (size_t) new_cap * sizeof(int));
                     if (!new_arr) {
                         debug_log_rewrite("内存分配失败：无法扩展 modified_node_ids 数组");
                         break;
@@ -1601,7 +1623,7 @@ int rewrite_apply_all_matches(
         } else {
             /* 应用失败 -- apply_rewrite 内部已通过快照回滚，
              * 无需额外恢复操作 */
-            (void)snap;
+            (void) snap;
         }
 
         /* 注意：apply_rewrite 内部会创建并销毁自己的快照。
@@ -1610,7 +1632,7 @@ int rewrite_apply_all_matches(
         graph_snapshot_destroy(snap);
     }
 
-    lv_free((void**)&modified_node_ids);
+    lv_free((void **) &modified_node_ids);
     *out_applied_count = applied;
     return 0;
 }

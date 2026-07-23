@@ -29,195 +29,195 @@ extern "C" {
  * ==================================================================== */
 
 /* ---- 对象池块尺寸（影响结构体 sizeof） ---- */
-#define lv_CONFIG_POOL_CONSTRAINT_NODE_SIZE     128
-#define lv_CONFIG_POOL_CONSTRAINT_SIZE           96
-#define lv_CONFIG_POOL_SYMBOLIC_COORD_SIZE       64
-#define lv_CONFIG_POOL_PROOF_STEP_SIZE          128
+#define lv_CONFIG_POOL_CONSTRAINT_NODE_SIZE 128
+#define lv_CONFIG_POOL_CONSTRAINT_SIZE 96
+#define lv_CONFIG_POOL_SYMBOLIC_COORD_SIZE 64
+#define lv_CONFIG_POOL_PROOF_STEP_SIZE 128
 
 /* ---- 内存池容量 ---- */
-#define lv_CONFIG_POOL_DEFAULT_CAPACITY        1024
+#define lv_CONFIG_POOL_DEFAULT_CAPACITY 1024
 #define lv_CONFIG_LINEAR_ALLOCATOR_BLOCK_SIZE 65536
-#define lv_CONFIG_LRU_CACHE_DEFAULT_CAPACITY    256
-#define lv_CONFIG_MEM_STAT_MAX_TYPES             64
+#define lv_CONFIG_LRU_CACHE_DEFAULT_CAPACITY 256
+#define lv_CONFIG_MEM_STAT_MAX_TYPES 64
 
 /* ---- 数据结构 ---- */
-#define lv_CONFIG_INITIAL_ARRAY_CAPACITY          8
-#define lv_CONFIG_INITIAL_HASH_INDEX_CAPACITY    64
-#define lv_CONFIG_ARRAY_GROWTH_FACTOR             2
-#define lv_CONFIG_FNV_HASH_MULTIPLIER    0x01000193U
-#define lv_CONFIG_NODE_INDEX_INITIAL_SIZE        16
-#define lv_CONFIG_CONSTRAINT_INDEX_INITIAL_SIZE  16
-#define lv_CONFIG_INDEX_LOAD_FACTOR            0.75
-#define lv_FNV64_OFFSET_BASIS          14695981039346656037ULL
-#define lv_FNV64_PRIME                  1099511628211ULL
+#define lv_CONFIG_INITIAL_ARRAY_CAPACITY 8
+#define lv_CONFIG_INITIAL_HASH_INDEX_CAPACITY 64
+#define lv_CONFIG_ARRAY_GROWTH_FACTOR 2
+#define lv_CONFIG_FNV_HASH_MULTIPLIER 0x01000193U
+#define lv_CONFIG_NODE_INDEX_INITIAL_SIZE 16
+#define lv_CONFIG_CONSTRAINT_INDEX_INITIAL_SIZE 16
+#define lv_CONFIG_INDEX_LOAD_FACTOR 0.75
+#define lv_FNV64_OFFSET_BASIS 14695981039346656037ULL
+#define lv_FNV64_PRIME 1099511628211ULL
 #define lv_ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 /* ---- 缓冲区 / 字符串长度（影响 char buf[N] 声明） ---- */
-#define lv_CONFIG_GRAPH_ERROR_BUFFER_SIZE        256
-#define lv_CONFIG_GRAPH_SERIALIZE_BUFFER_SIZE    256
-#define lv_CONFIG_ENGINE_ERROR_BUFFER_SIZE       256
-#define lv_CONFIG_PARSER_MAX_BUFFER_SIZE         256
-#define lv_CONFIG_PARSER_MAX_TEMP_MSG_SIZE       128
+#define lv_CONFIG_GRAPH_ERROR_BUFFER_SIZE 256
+#define lv_CONFIG_GRAPH_SERIALIZE_BUFFER_SIZE 256
+#define lv_CONFIG_ENGINE_ERROR_BUFFER_SIZE 256
+#define lv_CONFIG_PARSER_MAX_BUFFER_SIZE 256
+#define lv_CONFIG_PARSER_MAX_TEMP_MSG_SIZE 128
 
-#define lv_CONFIG_INTEROP_CMD_BUFFER_SIZE       4096
-#define lv_CONFIG_INTEROP_RESP_BUFFER_SIZE     65536
-#define lv_CONFIG_INTEROP_MAX_PATH_LEN           512
-#define lv_CONFIG_LOG_PATH_MAX                  256
+#define lv_CONFIG_INTEROP_CMD_BUFFER_SIZE 4096
+#define lv_CONFIG_INTEROP_RESP_BUFFER_SIZE 65536
+#define lv_CONFIG_INTEROP_MAX_PATH_LEN 512
+#define lv_CONFIG_LOG_PATH_MAX 256
 
-#define lv_CONFIG_STREAM_JSON_BUFFER_SIZE       4096
+#define lv_CONFIG_STREAM_JSON_BUFFER_SIZE 4096
 
-#define lv_CONFIG_PROTO_STR_LEN                  64
-#define lv_CONFIG_PROTO_LABEL_LEN               128
-#define lv_CONFIG_PROTO_DESC_LEN                256
-#define lv_CONFIG_PROTO_BUFFER_LEN             4096
+#define lv_CONFIG_PROTO_STR_LEN 64
+#define lv_CONFIG_PROTO_LABEL_LEN 128
+#define lv_CONFIG_PROTO_DESC_LEN 256
+#define lv_CONFIG_PROTO_BUFFER_LEN 4096
 
-#define lv_CONFIG_GEO_SCRIPT_BUFFER_SIZE       65536
-#define lv_CONFIG_GEO_STATE_BUFFER_SIZE       131072
+#define lv_CONFIG_GEO_SCRIPT_BUFFER_SIZE 65536
+#define lv_CONFIG_GEO_STATE_BUFFER_SIZE 131072
 
-#define lv_CONFIG_LOG_MSG_MAX_LEN              4096
-#define lv_CONFIG_LOG_TAG_MAX_LEN                64
-#define lv_CONFIG_METRIC_NAME_MAX_LEN           128
+#define lv_CONFIG_LOG_MSG_MAX_LEN 4096
+#define lv_CONFIG_LOG_TAG_MAX_LEN 64
+#define lv_CONFIG_METRIC_NAME_MAX_LEN 128
 
-#define lv_CONFIG_PLUGIN_NAME_MAX                64
-#define lv_CONFIG_PLUGIN_DESC_MAX               256
-#define lv_CONFIG_PLUGIN_AUTHOR_MAX             128
-#define lv_CONFIG_PLUGIN_PATH_MAX               512
+#define lv_CONFIG_PLUGIN_NAME_MAX 64
+#define lv_CONFIG_PLUGIN_DESC_MAX 256
+#define lv_CONFIG_PLUGIN_AUTHOR_MAX 128
+#define lv_CONFIG_PLUGIN_PATH_MAX 512
 
-#define lv_CONFIG_BACKEND_NAME_MAX               64
+#define lv_CONFIG_BACKEND_NAME_MAX 64
 
-#define lv_CONFIG_TEST_NAME_MAX_LEN             256
-#define lv_CONFIG_TEST_MSG_MAX_LEN              512
+#define lv_CONFIG_TEST_NAME_MAX_LEN 256
+#define lv_CONFIG_TEST_MSG_MAX_LEN 512
 
-#define lv_CONFIG_MAX_LABEL_LENGTH              256
-#define lv_CONFIG_MAX_FORMULA_LENGTH           1024
-#define lv_CONFIG_MAX_VARIABLE_NAME_LENGTH      128
-#define lv_CONFIG_MAX_REPLACEMENT_TERM_LENGTH   512
-#define lv_CONFIG_MAX_PROOF_REFS                 64
+#define lv_CONFIG_MAX_LABEL_LENGTH 256
+#define lv_CONFIG_MAX_FORMULA_LENGTH 1024
+#define lv_CONFIG_MAX_VARIABLE_NAME_LENGTH 128
+#define lv_CONFIG_MAX_REPLACEMENT_TERM_LENGTH 512
+#define lv_CONFIG_MAX_PROOF_REFS 64
 
 /* ---- 数值常量（compile-time 表达式中使用） ---- */
-#define lv_CONFIG_DEFAULT_PRECISION_BITS         52
-#define lv_CONFIG_ROOT_EPSILON                 1e-12
+#define lv_CONFIG_DEFAULT_PRECISION_BITS 52
+#define lv_CONFIG_ROOT_EPSILON 1e-12
 
 /* ---- 数值精度常量（浮点数比较容差） ---- */
 /* 通用高精度容差 */
 #ifndef lv_EPSILON_SUPERTINY
-#define lv_EPSILON_SUPERTINY 1e-15   /* 极高精度：用于Adams/BDF步长、Groebner基 */
+#define lv_EPSILON_SUPERTINY 1e-15 /* 极高精度：用于Adams/BDF步长、Groebner基 */
 #endif
 #ifndef lv_EPSILON_ULTRA
-#define lv_EPSILON_ULTRA     1e-12   /* 超高精度：用于根求解、收敛判断 */
+#define lv_EPSILON_ULTRA 1e-12 /* 超高精度：用于根求解、收敛判断 */
 #endif
 #ifndef lv_EPSILON_HIGH
-#define lv_EPSILON_HIGH      1e-10   /* 高精度：用于角度/距离判断 */
+#define lv_EPSILON_HIGH 1e-10 /* 高精度：用于角度/距离判断 */
 #endif
 #ifndef lv_EPSILON_MEDIUM
-#define lv_EPSILON_MEDIUM    1e-9    /* 中等精度：用于几何谓词（orientation） */
+#define lv_EPSILON_MEDIUM 1e-9 /* 中等精度：用于几何谓词（orientation） */
 #endif
 #ifndef lv_EPSILON_LOW
-#define lv_EPSILON_LOW       1e-6    /* 低精度：用于近似计算 */
+#define lv_EPSILON_LOW 1e-6 /* 低精度：用于近似计算 */
 #endif
 
 /* 几何专用容差 */
 #ifndef lv_GEO_COLLINEAR_EPSILON
-#define lv_GEO_COLLINEAR_EPSILON 1e-9   /* 共线性判断容差 */
+#define lv_GEO_COLLINEAR_EPSILON 1e-9 /* 共线性判断容差 */
 #endif
 #ifndef lv_GEO_DISTANCE_EPSILON
-#define lv_GEO_DISTANCE_EPSILON 1e-8    /* 距离判断容差 */
+#define lv_GEO_DISTANCE_EPSILON 1e-8 /* 距离判断容差 */
 #endif
 #ifndef lv_GEO_ANGLE_EPSILON
-#define lv_GEO_ANGLE_EPSILON 1e-10      /* 角度相等容差 */
+#define lv_GEO_ANGLE_EPSILON 1e-10 /* 角度相等容差 */
 #endif
 
 /* 代数运算安全阈值 */
 #ifndef lv_SINGULARITY_THRESHOLD
-#define lv_SINGULARITY_THRESHOLD 1e-12   /* 矩阵奇异性判断 */
+#define lv_SINGULARITY_THRESHOLD 1e-12 /* 矩阵奇异性判断 */
 #endif
 #ifndef lv_NORMALIZATION_THRESHOLD
-#define lv_NORMALIZATION_THRESHOLD 1e-15  /* 向量归一化容差 */
+#define lv_NORMALIZATION_THRESHOLD 1e-15 /* 向量归一化容差 */
 #endif
 
 /* 数值范围极限（用于哨兵值） */
 #ifndef lv_INFINITY_SENTINEL
-#define lv_INFINITY_SENTINEL 1e308      /* "无穷大"哨兵 */
+#define lv_INFINITY_SENTINEL 1e308 /* "无穷大"哨兵 */
 #endif
 #ifndef lv_TINY_SENTINEL
-#define lv_TINY_SENTINEL  1e-300        /* "接近零"哨兵 */
+#define lv_TINY_SENTINEL 1e-300 /* "接近零"哨兵 */
 #endif
 #ifndef lv_HUGE_NUMBER
-#define lv_HUGE_NUMBER     1e30        /* 极大数阈值 */
+#define lv_HUGE_NUMBER 1e30 /* 极大数阈值 */
 #endif
 #ifndef lv_LARGE_NUMBER
-#define lv_LARGE_NUMBER    1e18        /* 大数阈值 */
+#define lv_LARGE_NUMBER 1e18 /* 大数阈值 */
 #endif
 #ifndef lv_BIG_NUMBER
-#define lv_BIG_NUMBER      1e9         /* 10亿级阈值 */
+#define lv_BIG_NUMBER 1e9 /* 10亿级阈值 */
 #endif
 
 /* ---- 常用数学系数与比例因子 ---- */
 /* 缩放系数 */
 #ifndef lv_HALF
-#define lv_HALF         0.5         /* 1/2 */
+#define lv_HALF 0.5 /* 1/2 */
 #endif
 #ifndef lv_THIRD
-#define lv_THIRD        0.333333333333333333333   /* 1/3 */
+#define lv_THIRD 0.333333333333333333333 /* 1/3 */
 #endif
 #ifndef lv_QUARTER
-#define lv_QUARTER      0.25        /* 1/4 */
+#define lv_QUARTER 0.25 /* 1/4 */
 #endif
 #ifndef lv_TENTH
-#define lv_TENTH        0.1         /* 1/10 */
+#define lv_TENTH 0.1 /* 1/10 */
 #endif
 
 /* 角度系数（弧度↔度） */
 #ifndef lv_DEG_TO_RAD
-#define lv_DEG_TO_RAD   0.017453292519943295769   /* π/180 */
+#define lv_DEG_TO_RAD 0.017453292519943295769 /* π/180 */
 #endif
 #ifndef lv_RAD_TO_DEG
-#define lv_RAD_TO_DEG   57.2957795130823208768    /* 180/π */
+#define lv_RAD_TO_DEG 57.2957795130823208768 /* 180/π */
 #endif
 #ifndef lv_PI
-#define lv_PI           3.1415926535897932384626  /* π */
+#define lv_PI 3.1415926535897932384626 /* π */
 #endif
 #ifndef lv_TWO_PI
-#define lv_TWO_PI       6.28318530717958647692   /* 2π */
+#define lv_TWO_PI 6.28318530717958647692 /* 2π */
 #endif
 #ifndef lv_HALF_PI
-#define lv_HALF_PI      1.57079632679489661923   /* π/2 */
+#define lv_HALF_PI 1.57079632679489661923 /* π/2 */
 #endif
 #ifndef lv_QUARTER_PI
-#define lv_QUARTER_PI   0.78539816339744830962   /* π/4 */
+#define lv_QUARTER_PI 0.78539816339744830962 /* π/4 */
 #endif
 
 /* 颜色通道（RGB 0-255 归一化） */
 #ifndef lv_COLOR_CHANNEL_MAX
-#define lv_COLOR_CHANNEL_MAX 255.0f   /* RGB最大通道值 */
+#define lv_COLOR_CHANNEL_MAX 255.0f /* RGB最大通道值 */
 #endif
 #ifndef lv_COLOR_CHANNEL_HALF
-#define lv_COLOR_CHANNEL_HALF 0.5f    /* 0.5f */
+#define lv_COLOR_CHANNEL_HALF 0.5f /* 0.5f */
 #endif
 
 /* 哈希表负载因子 */
 #ifndef lv_HASH_LOAD_FACTOR_MAX
-#define lv_HASH_LOAD_FACTOR_MAX 0.75  /* 最大负载因子 */
+#define lv_HASH_LOAD_FACTOR_MAX 0.75 /* 最大负载因子 */
 #endif
 #ifndef lv_HASH_LOAD_FACTOR_MIN
-#define lv_HASH_LOAD_FACTOR_MIN 0.25  /* 最小负载因子 */
+#define lv_HASH_LOAD_FACTOR_MIN 0.25 /* 最小负载因子 */
 #endif
 
 /* 缓冲区/块大小（2的幂次） */
 #ifndef lv_KB
-#define lv_KB           1024.0       /* 1KB */
+#define lv_KB 1024.0 /* 1KB */
 #endif
 #ifndef lv_MB
-#define lv_MB           1048576.0    /* 1MB */
+#define lv_MB 1048576.0 /* 1MB */
 #endif
 #ifndef lv_GB
-#define lv_GB           1073741824.0 /* 1GB */
+#define lv_GB 1073741824.0 /* 1GB */
 #endif
 #ifndef lv_KB_I
-#define lv_KB_I         1024         /* 1KB (int) */
+#define lv_KB_I 1024 /* 1KB (int) */
 #endif
 #ifndef lv_MB_I
-#define lv_MB_I         1048576      /* 1MB (int) */
+#define lv_MB_I 1048576 /* 1MB (int) */
 #endif
 
 /* == 以下全部移入 lvConfig 运行时 == */
@@ -354,8 +354,8 @@ typedef struct lvConfig {
     int test_max_cases;
 
     /* ---- 烟测保护 ---- */
-    int smoke_test_step_limit;       /**< 烟测独立步数上限（默认=1000） */
-    int smoke_test_timeout_ms;       /**< 烟测总时间上限毫秒（默认=30000） */
+    int smoke_test_step_limit; /**< 烟测独立步数上限（默认=1000） */
+    int smoke_test_timeout_ms; /**< 烟测总时间上限毫秒（默认=30000） */
 
     /* ---- 熔断器 ---- */
     int circuit_overflow_threshold;
@@ -376,19 +376,19 @@ typedef struct lvConfig {
     int health_recent_error_penalty;
 
     /* ---- context timeout/cooldown ---- */
-    int context_timeout_ms;        /**< 上下文默认超时毫秒（默认 30000） */
-    int context_cooldown_ms;       /**< 上下文冷却时间毫秒（默认 5000） */
+    int context_timeout_ms;  /**< 上下文默认超时毫秒（默认 30000） */
+    int context_cooldown_ms; /**< 上下文冷却时间毫秒（默认 5000） */
 
     /* ---- 传播引擎 ---- */
-    int prop_max_iterations;           /**< 传播引擎最大迭代次数（默认 10000） */
-    int prop_max_backtracks;           /**< 传播引擎最大回溯次数（默认 1000） */
-    int prop_max_collaboration_iters;  /**< WFC 协作最大迭代次数（默认 10000） */
+    int prop_max_iterations;          /**< 传播引擎最大迭代次数（默认 10000） */
+    int prop_max_backtracks;          /**< 传播引擎最大回溯次数（默认 1000） */
+    int prop_max_collaboration_iters; /**< WFC 协作最大迭代次数（默认 10000） */
 
     /* ---- 高维几何 ---- */
-    int high_dim_max_dimensions;             /**< 最大维度数（默认 32） */
-    int high_dim_max_depth;                  /**< 语义缩放深度栈深度（默认 32） */
-    int high_dim_max_projection_presets;     /**< 每块最大投影预设数（默认 64） */
-    int high_dim_max_active_views;           /**< 多投影并排视图最大活跃数（默认 16） */
+    int high_dim_max_dimensions;                /**< 最大维度数（默认 32） */
+    int high_dim_max_depth;                     /**< 语义缩放深度栈深度（默认 32） */
+    int high_dim_max_projection_presets;        /**< 每块最大投影预设数（默认 64） */
+    int high_dim_max_active_views;              /**< 多投影并排视图最大活跃数（默认 16） */
     double high_dim_default_fidelity_threshold; /**< 保真度默认警告阈值（默认 0.85） */
 } lvConfig;
 
@@ -398,9 +398,9 @@ typedef struct lvConfig {
 
 const lvConfig *lv_config_default(void);
 const lvConfig *lv_config_current(void);
-int               lv_config_apply(const lvConfig *cfg);
-int               lv_config_load_json(const char *json_path);
-int               lv_config_to_json(char *buf, size_t buf_size);
+int lv_config_apply(const lvConfig *cfg);
+int lv_config_load_json(const char *json_path);
+int lv_config_to_json(char *buf, size_t buf_size);
 
 /* ====================================================================
  * 运行时单字段修改 API（不重编译，立即生效）
@@ -516,22 +516,22 @@ void lv_config_reset(void);
 
 /* lv_protocol.h 上限（运行时，兼容旧宏） */
 #ifndef lv_PROTO_MAX_DRAW_CMDS
-#define lv_PROTO_MAX_DRAW_CMDS    4096
+#define lv_PROTO_MAX_DRAW_CMDS 4096
 #endif
 #ifndef lv_PROTO_MAX_TABLE_ROWS
-#define lv_PROTO_MAX_TABLE_ROWS    512
+#define lv_PROTO_MAX_TABLE_ROWS 512
 #endif
 #ifndef lv_PROTO_MAX_TREE_NODES
-#define lv_PROTO_MAX_TREE_NODES    256
+#define lv_PROTO_MAX_TREE_NODES 256
 #endif
 #ifndef lv_PROTO_MAX_TOPOLOGY
-#define lv_PROTO_MAX_TOPOLOGY      128
+#define lv_PROTO_MAX_TOPOLOGY 128
 #endif
 #ifndef lv_PROTO_MAX_PROOF_STEPS
-#define lv_PROTO_MAX_PROOF_STEPS   512
+#define lv_PROTO_MAX_PROOF_STEPS 512
 #endif
 #ifndef lv_PROTO_MAX_COMPLETIONS
-#define lv_PROTO_MAX_COMPLETIONS    64
+#define lv_PROTO_MAX_COMPLETIONS 64
 #endif
 #ifndef lv_PROTO_MAX_TERMINAL_LINES
 #define lv_PROTO_MAX_TERMINAL_LINES 512

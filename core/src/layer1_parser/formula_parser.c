@@ -64,9 +64,9 @@ const char *formula_parser_get_last_error(void) {
  * ============================================================ */
 
 const char *formula_dsl_keywords[] = {"point",         "segment",  "circle",    "triangle", "line",      "region",
-                                     "perpendicular", "parallel", "midpoint",  "angle",    "distance",  "area",
-                                     "perimeter",     "tangent",  "intersect", "equal",    "collinear", "bisector",
-                                     "congruent",     "polygon",  "vector",    NULL};
+                                      "perpendicular", "parallel", "midpoint",  "angle",    "distance",  "area",
+                                      "perimeter",     "tangent",  "intersect", "equal",    "collinear", "bisector",
+                                      "congruent",     "polygon",  "vector",    NULL};
 
 /* ============================================================
  * LaTeX 命令表
@@ -83,9 +83,9 @@ const char *formula_latex_commands[] = {
  * ============================================================ */
 
 const char *formula_python_features[] = {"**",    "==",   "!=",     "<=",      ">=",      "and ", "or ",  "not ",
-                                        "sqrt(", "sin(", "cos(",   "tan(",    "abs(",    "pow(", "True", "False",
-                                        "None",  "pi",   "e)",     "import ", "from ",   "def ", "if ",  "else ",
-                                        "elif ", "for ", "while ", "return ", "lambda ", NULL};
+                                         "sqrt(", "sin(", "cos(",   "tan(",    "abs(",    "pow(", "True", "False",
+                                         "None",  "pi",   "e)",     "import ", "from ",   "def ", "if ",  "else ",
+                                         "elif ", "for ", "while ", "return ", "lambda ", NULL};
 
 
 /* ============================================================

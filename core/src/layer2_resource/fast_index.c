@@ -19,10 +19,12 @@
  * @version 1.0.0
  */
 
-#include "lv/lv.h"
 #include "lv/fast_index.h"
+
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv/lv.h"
 
 /* ============== 内部常量 ============== */
 
@@ -44,26 +46,26 @@
  * @brief 网格单元内的条目节点（单链表）
  */
 typedef struct CellEntry {
-    int node_id;               /**< 几何节点 ID */
-    struct CellEntry *next;    /**< 链表下一节点 */
+    int node_id;            /**< 几何节点 ID */
+    struct CellEntry *next; /**< 链表下一节点 */
 } CellEntry;
 
 /**
  * @brief 网格单元
  */
 typedef struct GridCell {
-    CellEntry *head;    /**< 条目链表头 */
-    int count;          /**< 条目数量 */
+    CellEntry *head; /**< 条目链表头 */
+    int count;       /**< 条目数量 */
 } GridCell;
 
 /**
  * @brief 快速空间索引结构
  */
 struct lvFastIndex {
-    int capacity;       /**< 当前桶数量 */
-    int count;          /**< 已插入的节点总数 */
-    double cell_size;   /**< 网格单元大小（自适应） */
-    GridCell *cells;    /**< 网格单元数组（哈希桶） */
+    int capacity;     /**< 当前桶数量 */
+    int count;        /**< 已插入的节点总数 */
+    double cell_size; /**< 网格单元大小（自适应） */
+    GridCell *cells;  /**< 网格单元数组（哈希桶） */
 };
 
 /* ============== 内部辅助函数 ============== */
@@ -83,14 +85,16 @@ struct lvFastIndex {
 static int cell_hash(int gx, int gy, int capacity) {
     /* Cantor 配对函数：π(k1, k2) = (k1+k2)(k1+k2+1)/2 + k2 */
     /* 先处理符号，确保非负输入 */
-    unsigned int ux = (unsigned int)(gx >= 0 ? gx : -gx);
-    unsigned int uy = (unsigned int)(gy >= 0 ? gy : -gy);
-    unsigned long long sum = (unsigned long long)ux + (unsigned long long)uy;
+    unsigned int ux = (unsigned int) (gx >= 0 ? gx : -gx);
+    unsigned int uy = (unsigned int) (gy >= 0 ? gy : -gy);
+    unsigned long long sum = (unsigned long long) ux + (unsigned long long) uy;
     unsigned long long paired = (sum * (sum + 1)) / 2 + uy;
     /* 若原始坐标为负，用符号位混合以避免 ⊕/- 对称冲突 */
-    if (gx < 0) paired ^= 0x5555555555555555ULL;
-    if (gy < 0) paired ^= 0xAAAAAAAAAAAAAAAAULL;
-    return (int)(paired % (unsigned long long)capacity);
+    if (gx < 0)
+        paired ^= 0x5555555555555555ULL;
+    if (gy < 0)
+        paired ^= 0xAAAAAAAAAAAAAAAAULL;
+    return (int) (paired % (unsigned long long) capacity);
 }
 
 /**
@@ -102,9 +106,9 @@ static int cell_hash(int gx, int gy, int capacity) {
  */
 static int grid_coord(double val, double cell_size) {
     /* 显式 floor 以处理负值 */
-    int c = (int)(val / cell_size);
-    if (val < 0.0 && val != (double)c * cell_size) {
-        c--;  /* 修正向零舍入到向下取整 */
+    int c = (int) (val / cell_size);
+    if (val < 0.0 && val != (double) c * cell_size) {
+        c--; /* 修正向零舍入到向下取整 */
     }
     return c;
 }
@@ -117,17 +121,17 @@ static int grid_coord(double val, double cell_size) {
  * @param capacity 初始桶数量（建议值 >= 64），<= 0 时使用默认值
  * @return 新创建的索引指针，失败返回 NULL
  */
-lvFastIndex *lv_fast_index_create(int capacity)
-{
-    lvFastIndex *idx = (lvFastIndex *)calloc(1, sizeof(lvFastIndex));
-    if (!idx) return NULL;
+lvFastIndex *lv_fast_index_create(int capacity) {
+    lvFastIndex *idx = (lvFastIndex *) calloc(1, sizeof(lvFastIndex));
+    if (!idx)
+        return NULL;
 
     idx->capacity = (capacity > 0) ? capacity : INITIAL_BUCKET_COUNT;
     idx->count = 0;
     idx->cell_size = DEFAULT_CELL_SIZE;
 
     /* 分配网格单元数组 */
-    idx->cells = (GridCell *)calloc((size_t)idx->capacity, sizeof(GridCell));
+    idx->cells = (GridCell *) calloc((size_t) idx->capacity, sizeof(GridCell));
     if (!idx->cells) {
         free(idx);
         return NULL;
@@ -141,9 +145,9 @@ lvFastIndex *lv_fast_index_create(int capacity)
  *
  * @param idx 索引指针（可为 NULL）
  */
-void lv_fast_index_destroy(lvFastIndex *idx)
-{
-    if (!idx) return;
+void lv_fast_index_destroy(lvFastIndex *idx) {
+    if (!idx)
+        return;
 
     /* 释放每个桶的条目链表 */
     for (int i = 0; i < idx->capacity; i++) {
@@ -175,9 +179,9 @@ void lv_fast_index_destroy(lvFastIndex *idx)
  * @param h       包围盒高度（必须 >= 0）
  * @return 0 成功，-1 失败（参数无效或内存不足）
  */
-int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, double w, double h)
-{
-    if (!idx || w < 0.0 || h < 0.0) return -1;
+int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, double w, double h) {
+    if (!idx || w < 0.0 || h < 0.0)
+        return -1;
 
     /* 自适应调整网格单元大小：
      * 取包围盒尺寸作为候选 cell_size，取最大值以避免过度细分。
@@ -208,8 +212,9 @@ int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, doub
     if (total_cells > idx->capacity / 4 && idx->capacity < 4096) {
         /* 扩容：加倍桶数量 */
         int new_cap = idx->capacity * BUCKET_GROWTH_FACTOR;
-        GridCell *new_cells = (GridCell *)calloc((size_t)new_cap, sizeof(GridCell));
-        if (!new_cells) return -1;
+        GridCell *new_cells = (GridCell *) calloc((size_t) new_cap, sizeof(GridCell));
+        if (!new_cells)
+            return -1;
 
         /* 重新哈希所有现有条目 */
         for (int i = 0; i < idx->capacity; i++) {
@@ -234,8 +239,9 @@ int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, doub
     for (int gx = gx_min; gx <= gx_max; gx++) {
         for (int gy = gy_min; gy <= gy_max; gy++) {
             int bucket = cell_hash(gx, gy, idx->capacity);
-            CellEntry *entry = (CellEntry *)malloc(sizeof(CellEntry));
-            if (!entry) continue;  /* 尽力而为：内存不足时跳过此单元 */
+            CellEntry *entry = (CellEntry *) malloc(sizeof(CellEntry));
+            if (!entry)
+                continue; /* 尽力而为：内存不足时跳过此单元 */
 
             entry->node_id = node_id;
             entry->next = idx->cells[bucket].head;
@@ -266,9 +272,9 @@ int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, doub
  * @note 仅返回网格单元内的候选节点，不保证候选节点确实包含该点
  *       （需要调用者进一步做精确的包围盒或几何包含检查）。
  */
-int lv_fast_index_query(lvFastIndex *idx, double x, double y, int *out_ids, int max_out)
-{
-    if (!idx || !out_ids || max_out <= 0) return -1;
+int lv_fast_index_query(lvFastIndex *idx, double x, double y, int *out_ids, int max_out) {
+    if (!idx || !out_ids || max_out <= 0)
+        return -1;
 
     int gx = grid_coord(x, idx->cell_size);
     int gy = grid_coord(y, idx->cell_size);

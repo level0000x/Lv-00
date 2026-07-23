@@ -1176,7 +1176,7 @@ char *preset_blocks_generate_documentation(void) {
 
         /* 统计该类别数量 */
         for (int i = 0; i < g_preset_registry.count; i++) {
-            if (g_preset_registry.entries[i].category == (PresetExtendedCategory)cat) {
+            if (g_preset_registry.entries[i].category == (PresetExtendedCategory) cat) {
                 cat_count++;
             }
         }
@@ -1192,7 +1192,7 @@ char *preset_blocks_generate_documentation(void) {
             written += w;
 
             for (int i = 0; i < g_preset_registry.count; i++) {
-                if (g_preset_registry.entries[i].category == (PresetExtendedCategory)cat) {
+                if (g_preset_registry.entries[i].category == (PresetExtendedCategory) cat) {
                     w = snprintf(
                         doc + written, total_size - written, "- **%s**: %s\n", g_preset_registry.entries[i].name,
                         g_preset_registry.entries[i].description ? g_preset_registry.entries[i].description : "");

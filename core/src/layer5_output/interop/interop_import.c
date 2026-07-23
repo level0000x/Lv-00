@@ -7,21 +7,23 @@
  * @version 3.3.0
  */
 
-#include "lv/interop.h"
+#include <errno.h>
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <zlib.h>
+
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
+#include "lv/interop.h"
+#include "lv/lv_parse_utils.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/lv_parse_utils.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -29,11 +31,11 @@
 
 /* ── GeoGebra ZIP 解析常量 ── */
 
-#define GGB_EOCD_MIN_SIZE   22
-#define GGB_EOCD_SIG        0x06054b50
+#define GGB_EOCD_MIN_SIZE 22
+#define GGB_EOCD_SIG 0x06054b50
 #define GGB_CENTRAL_DIR_MIN 46
-#define GGB_LOCAL_FILE_SIG  0x04034b50
-#define GGB_LOCAL_HEADER_MIN 30  /* ZIP local file header fixed size */
+#define GGB_LOCAL_FILE_SIG 0x04034b50
+#define GGB_LOCAL_HEADER_MIN 30 /* ZIP local file header fixed size */
 #define GGB_CENTRAL_DIR_SIG 0x02014b50
 
 /** @brief 导入坐标精度分母（1e6 精度） */
@@ -249,10 +251,11 @@ int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config)
      *   5. 手工 XML 解析，提取 <element> 标签
      *   6. 按 type 属性（point/segment/circle/line/polygon）映射到约束图
      */
-    if (!engine || !config) return lv_ERROR_INVALID_PARAM;
+    if (!engine || !config)
+        return lv_ERROR_INVALID_PARAM;
     if (config->input_path[0] == '\0')
         return lv_ERROR_INVALID_PARAM;
-    (void)engine;
+    (void) engine;
     /* FUTURE: 实现 GeoGebra .ggb 导入 */
     return lv_ERROR_UNSUPPORTED;
 }
@@ -295,8 +298,8 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
     if (read_size != (size_t) fsize) {
         fclose(fp);
         lv_free((void **) &json);
-        lv_set_error(lv_ERROR_IO, "GeoJSON文件'%s'读取不完整（期望 %ld, 实际 %zu）",
-                       config->input_path, fsize, read_size);
+        lv_set_error(lv_ERROR_IO, "GeoJSON文件'%s'读取不完整（期望 %ld, 实际 %zu）", config->input_path, fsize,
+                     read_size);
         return lv_ERROR_IO;
     }
     fclose(fp);
@@ -304,7 +307,11 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
 
 /* --- 手写 JSON 解析辅助（不依赖外部 JSON 库） --- */
 /* 跳过空白 */
-#define GJ_SKIP_WS(p) do { while (*(p) == ' ' || *(p) == '\t' || *(p) == '\n' || *(p) == '\r') (p)++; } while (0)
+#define GJ_SKIP_WS(p)                                                       \
+    do {                                                                    \
+        while (*(p) == ' ' || *(p) == '\t' || *(p) == '\n' || *(p) == '\r') \
+            (p)++;                                                          \
+    } while (0)
 /* 跳过JSON字符串值 */
 #define GJ_SKIP_STRING(p)                 \
     do {                                  \
@@ -320,9 +327,12 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
         }                                 \
     } while (0)
 /* 跳过JSON数字 */
-#define GJ_SKIP_NUMBER(p) do { while (*(p) && \
-           (*(p) == '-' || *(p) == '.' || *(p) == 'e' || *(p) == 'E' || *(p) == '+' || (*(p) >= '0' && *(p) <= '9'))) \
-    (p)++; } while (0)
+#define GJ_SKIP_NUMBER(p)                                                                          \
+    do {                                                                                           \
+        while (*(p) && (*(p) == '-' || *(p) == '.' || *(p) == 'e' || *(p) == 'E' || *(p) == '+' || \
+                        (*(p) >= '0' && *(p) <= '9')))                                             \
+            (p)++;                                                                                 \
+    } while (0)
 
     const char *s = json;
     int imported_count = 0;
@@ -688,8 +698,8 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
 
     if (imported_count == 0) {
         lv_set_error(lv_ERROR_PARSE,
-                       "GeoJSON导入完成但未找到任何有效的几何数据。"
-                       "支持的类型：Point, LineString, Polygon, MultiPoint, MultiLineString");
+                     "GeoJSON导入完成但未找到任何有效的几何数据。"
+                     "支持的类型：Point, LineString, Polygon, MultiPoint, MultiLineString");
     }
 
     return imported_count;
@@ -705,8 +715,11 @@ typedef struct {
 } SvgParserState;
 
 /** @brief 跳过空白字符 */
-#define SVG_SKIP_WS(s) do { while (*(s) == ' ' || *(s) == '\t' || *(s) == '\n' || *(s) == '\r' || *(s) == ',') \
-    (s)++; } while (0)
+#define SVG_SKIP_WS(s)                                                                     \
+    do {                                                                                   \
+        while (*(s) == ' ' || *(s) == '\t' || *(s) == '\n' || *(s) == '\r' || *(s) == ',') \
+            (s)++;                                                                         \
+    } while (0)
 
 /** @brief 读取一个浮点数 */
 static bool svg_parse_double(const char **s, double *val) {
@@ -855,7 +868,9 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             if (!svg_parse_double(s, &rx) || !svg_parse_double(s, &ry) || !svg_parse_double(s, &rot) ||
                 !svg_parse_double(s, &laf_d) || !svg_parse_double(s, &sf_d) || !svg_parse_coord(s, &dx, &dy))
                 return false;
-            lv_UNUSED(ry); lv_UNUSED(rot); lv_UNUSED(laf_d); /* parsed for future SVG arc implementation */
+            lv_UNUSED(ry);
+            lv_UNUSED(rot);
+            lv_UNUSED(laf_d); /* parsed for future SVG arc implementation */
             int sf = (int) (sf_d + 0.5);
             if (is_relative) {
                 dx += state->cx;
@@ -932,10 +947,11 @@ static int svg_parse_circle(double cx, double cy, double r, double *out_points, 
 }
 
 int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
-    if (!engine || !config) return lv_ERROR_INVALID_PARAM;
+    if (!engine || !config)
+        return lv_ERROR_INVALID_PARAM;
     if (config->input_path[0] == '\0')
         return lv_ERROR_INVALID_PARAM;
-    (void)engine;
+    (void) engine;
     /* FUTURE: 实现 SVG 导入 */
     return lv_ERROR_UNSUPPORTED;
 }

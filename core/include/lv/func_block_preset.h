@@ -43,8 +43,8 @@
 #endif
 
 #include "func_block.h"
-#include "func_block_registry.h"
 #include "func_block_internal.h"
+#include "func_block_registry.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -274,8 +274,9 @@ lv_PUBLIC_API const PresetMetadata *func_block_preset_get_metadata(const char *p
  * @param out_func_block 输出函数块
  * @return 实例化结果
  */
-lv_PUBLIC_API InstantiateResult func_block_preset_instantiate(const char *preset_name, const int *input_node_ids, int input_count,
-                                                ConstraintGraph *graph, FuncBlock **out_func_block);
+lv_PUBLIC_API InstantiateResult func_block_preset_instantiate(const char *preset_name, const int *input_node_ids,
+                                                              int input_count, ConstraintGraph *graph,
+                                                              FuncBlock **out_func_block);
 
 /**
  * @brief 实例化预设函数块（完整版）
@@ -290,9 +291,10 @@ lv_PUBLIC_API InstantiateResult func_block_preset_instantiate(const char *preset
  * @param out_details 输出详细信息（调用者负责释放warnings和error_detail）
  * @return 实例化结果状态
  */
-lv_PUBLIC_API InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, const int *input_node_ids, int input_count,
-                                                   ConstraintGraph *graph, const InstantiateOptions *options,
-                                                   InstantiateDetails *out_details);
+lv_PUBLIC_API InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, const int *input_node_ids,
+                                                                 int input_count, ConstraintGraph *graph,
+                                                                 const InstantiateOptions *options,
+                                                                 InstantiateDetails *out_details);
 
 /**
  * @brief 释放实例化详情
@@ -313,7 +315,7 @@ lv_PUBLIC_API void func_block_preset_free_details(InstantiateDetails *details);
  * @return true 类型匹配，false 类型不匹配
  */
 lv_PUBLIC_API bool func_block_preset_validate_types(const char *preset_name, GeomNode **input_nodes, int input_count,
-                                      int *out_mismatch_index);
+                                                    int *out_mismatch_index);
 
 /**
  * @brief 验证参数约束
@@ -327,8 +329,9 @@ lv_PUBLIC_API bool func_block_preset_validate_types(const char *preset_name, Geo
  * @param out_violated_constraint 输出违反的约束描述（可为NULL）
  * @return true 约束满足，false 约束违反
  */
-lv_PUBLIC_API bool func_block_preset_validate_constraints(const char *preset_name, ConstraintGraph *graph, const int *input_node_ids,
-                                            int input_count, const char **out_violated_constraint);
+lv_PUBLIC_API bool func_block_preset_validate_constraints(const char *preset_name, ConstraintGraph *graph,
+                                                          const int *input_node_ids, int input_count,
+                                                          const char **out_violated_constraint);
 
 /**
  * @brief 获取预设输入参数数量
@@ -439,7 +442,7 @@ lv_PUBLIC_API bool func_block_preset_compose(const char *f_name, const char *g_n
  * @return true 成功，false 失败
  */
 lv_PUBLIC_API bool func_block_preset_partial(const char *preset_name, const int *fixed_param_indices, int fixed_count,
-                               const char *new_preset_name);
+                                             const char *new_preset_name);
 
 /**
  * @brief 获取预设的逆（如果存在）

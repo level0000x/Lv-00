@@ -43,15 +43,15 @@ extern "C" {
  */
 typedef enum {
     /* 度量约束 */
-    CONSTRAINT_DISTANCE      = 100, /**< 距离约束：两实体间距离为指定值 */
-    CONSTRAINT_ANGLE         = 101, /**< 角度约束：两实体间角度为指定值 */
-    CONSTRAINT_COINCIDENT    = 102, /**< 重合约束：两实体位置相同 */
+    CONSTRAINT_DISTANCE = 100,   /**< 距离约束：两实体间距离为指定值 */
+    CONSTRAINT_ANGLE = 101,      /**< 角度约束：两实体间角度为指定值 */
+    CONSTRAINT_COINCIDENT = 102, /**< 重合约束：两实体位置相同 */
 
     /* 方向约束 */
-    CONSTRAINT_PARALLEL      = 110, /**< 平行约束：两线段平行 */
+    CONSTRAINT_PARALLEL = 110,      /**< 平行约束：两线段平行 */
     CONSTRAINT_PERPENDICULAR = 111, /**< 垂直约束：两线段垂直 */
-    CONSTRAINT_HORIZONTAL    = 112, /**< 水平约束：线段水平 */
-    CONSTRAINT_VERTICAL      = 113  /**< 垂直约束：线段垂直 */
+    CONSTRAINT_HORIZONTAL = 112,    /**< 水平约束：线段水平 */
+    CONSTRAINT_VERTICAL = 113       /**< 垂直约束：线段垂直 */
 } ExtendedConstraintType;
 
 /* ================================================================
@@ -64,20 +64,20 @@ typedef enum {
  * 标识检测到的矛盾约束的具体类型。
  */
 typedef enum {
-    CONFLICT_POINT_POSITION            = 0,  /**< 点位置冲突 */
-    CONFLICT_DISTANCE_MISMATCH        = 1,  /**< 距离不匹配 */
-    CONFLICT_ANGLE_MISMATCH           = 2,  /**< 角度不匹配 */
-    CONFLICT_COLLINEAR_VS_ANGLE       = 3,  /**< 共线与角度矛盾 */
-    CONFLICT_PERPENDICULAR_VS_PARALLEL = 4, /**< 垂直与平行矛盾 */
+    CONFLICT_POINT_POSITION = 0,             /**< 点位置冲突 */
+    CONFLICT_DISTANCE_MISMATCH = 1,          /**< 距离不匹配 */
+    CONFLICT_ANGLE_MISMATCH = 2,             /**< 角度不匹配 */
+    CONFLICT_COLLINEAR_VS_ANGLE = 3,         /**< 共线与角度矛盾 */
+    CONFLICT_PERPENDICULAR_VS_PARALLEL = 4,  /**< 垂直与平行矛盾 */
     CONFLICT_CONTAINMENT_VS_SEPARATION = 5,  /**< 包含与分离矛盾 */
-    CONFLICT_INTERSECTION_VS_PARALLEL  = 6,  /**< 相交与平行矛盾 */
-    CONFLICT_TRANSITIVE_EQUALITY       = 7,  /**< 传递等式矛盾 */
-    CONFLICT_TRANSITIVE_ORDER          = 8,  /**< 传递序矛盾 */
-    CONFLICT_CYCLIC_DEPENDENCY         = 9,  /**< 循环依赖 */
-    CONFLICT_ALGEBRAIC_NO_SOLUTION     = 10, /**< 代数无解 */
+    CONFLICT_INTERSECTION_VS_PARALLEL = 6,   /**< 相交与平行矛盾 */
+    CONFLICT_TRANSITIVE_EQUALITY = 7,        /**< 传递等式矛盾 */
+    CONFLICT_TRANSITIVE_ORDER = 8,           /**< 传递序矛盾 */
+    CONFLICT_CYCLIC_DEPENDENCY = 9,          /**< 循环依赖 */
+    CONFLICT_ALGEBRAIC_NO_SOLUTION = 10,     /**< 代数无解 */
     CONFLICT_ALGEBRAIC_OVERCONSTRAINED = 11, /**< 代数过约束 */
-    CONFLICT_ALGEBRAIC_SINGULAR        = 12, /**< 代数奇异矩阵 */
-    CONFLICT_UNKNOWN                   = 15  /**< 未知冲突类型 */
+    CONFLICT_ALGEBRAIC_SINGULAR = 12,        /**< 代数奇异矩阵 */
+    CONFLICT_UNKNOWN = 15                    /**< 未知冲突类型 */
 } ConflictType;
 
 /* ================================================================
@@ -88,9 +88,9 @@ typedef enum {
  * @brief 冲突严重程度枚举
  */
 typedef enum {
-    CONFLICT_SEVERITY_WARNING  = 0, /**< 警告：可能的问题，不阻止求解 */
-    CONFLICT_SEVERITY_ERROR    = 1, /**< 错误：确定的矛盾，阻止正确求解 */
-    CONFLICT_SEVERITY_CRITICAL = 2  /**< 严重：系统级矛盾，必须立即修复 */
+    CONFLICT_SEVERITY_WARNING = 0, /**< 警告：可能的问题，不阻止求解 */
+    CONFLICT_SEVERITY_ERROR = 1,   /**< 错误：确定的矛盾，阻止正确求解 */
+    CONFLICT_SEVERITY_CRITICAL = 2 /**< 严重：系统级矛盾，必须立即修复 */
 } ConflictSeverity;
 
 /* ================================================================
@@ -102,13 +102,13 @@ typedef enum {
  */
 typedef struct {
     ConflictType type;         /**< 冲突类型 */
-    ConflictSeverity severity;  /**< 严重程度 */
-    char *description;        /**< 冲突描述（动态分配） */
+    ConflictSeverity severity; /**< 严重程度 */
+    char *description;         /**< 冲突描述（动态分配） */
     char *suggestion;          /**< 修复建议（动态分配） */
     int *node_ids;             /**< 相关节点 ID 数组（动态分配） */
     int node_count;            /**< 相关节点数量 */
     int *constraint_ids;       /**< 相关约束 ID 数组（动态分配） */
-    int constraint_count;     /**< 相关约束数量 */
+    int constraint_count;      /**< 相关约束数量 */
 } ConflictRecord;
 
 /* ================================================================
@@ -119,15 +119,15 @@ typedef struct {
  * @brief 冲突报告 —— 存储一次检测的所有冲突结果
  */
 typedef struct {
-    ConflictRecord *conflicts;      /**< 冲突记录数组（动态分配） */
-    int conflict_count;             /**< 冲突总数 */
-    int capacity;                   /**< 数组容量 */
+    ConflictRecord *conflicts; /**< 冲突记录数组（动态分配） */
+    int conflict_count;        /**< 冲突总数 */
+    int capacity;              /**< 数组容量 */
 
-    bool has_critical;              /**< 是否包含严重冲突 */
-    bool has_error;                 /**< 是否包含错误级冲突 */
-    bool has_warning;               /**< 是否包含警告级冲突 */
+    bool has_critical; /**< 是否包含严重冲突 */
+    bool has_error;    /**< 是否包含错误级冲突 */
+    bool has_warning;  /**< 是否包含警告级冲突 */
 
-    int by_type[16];               /**< 按类型统计的冲突计数 */
+    int by_type[16]; /**< 按类型统计的冲突计数 */
 } ConflictReport;
 
 /* ================================================================
@@ -145,12 +145,12 @@ typedef struct {
     bool enable_transitive_checks;  /**< 启用传递检测（传递等式、循环依赖） */
     bool enable_algebraic_checks;   /**< 启用代数检测（方程组无解、过约束） */
 
-    int max_conflicts;              /**< 最大报告冲突数（0=无限制） */
-    int max_check_time_ms;          /**< 最大检测时间（毫秒，0=无限制） */
+    int max_conflicts;     /**< 最大报告冲突数（0=无限制） */
+    int max_check_time_ms; /**< 最大检测时间（毫秒，0=无限制） */
 
-    double position_tolerance;      /**< 位置容差（默认 1e-9） */
-    double distance_tolerance;      /**< 距离容差（默认 1e-9） */
-    double angle_tolerance;         /**< 角度容差（弧度，默认 1e-6） */
+    double position_tolerance; /**< 位置容差（默认 1e-9） */
+    double distance_tolerance; /**< 距离容差（默认 1e-9） */
+    double angle_tolerance;    /**< 角度容差（弧度，默认 1e-6） */
 } ConflictDetectorConfig;
 
 /* ================================================================
@@ -199,9 +199,8 @@ lv_PUBLIC_API void lv_conflict_report_clear(ConflictReport *report);
  * @param report 输出报告（会被清空后填充）
  * @return 0 成功，非零错误码
  */
-lv_PUBLIC_API int lv_conflict_detect_all(const ConstraintGraph *graph,
-                                              const ConflictDetectorConfig *config,
-                                              ConflictReport *report);
+lv_PUBLIC_API int lv_conflict_detect_all(const ConstraintGraph *graph, const ConflictDetectorConfig *config,
+                                         ConflictReport *report);
 
 /**
  * @brief 快速冲突检测（仅基础检测）
@@ -217,9 +216,7 @@ lv_PUBLIC_API bool lv_conflict_detect_quick(const ConstraintGraph *graph);
  * @param report  输出报告
  * @return 0 成功，非零错误码
  */
-lv_PUBLIC_API int lv_conflict_detect_for_node(const ConstraintGraph *graph,
-                                                   int node_id,
-                                                   ConflictReport *report);
+lv_PUBLIC_API int lv_conflict_detect_for_node(const ConstraintGraph *graph, int node_id, ConflictReport *report);
 
 /**
  * @brief 针对特定约束检测冲突
@@ -228,9 +225,8 @@ lv_PUBLIC_API int lv_conflict_detect_for_node(const ConstraintGraph *graph,
  * @param report        输出报告
  * @return 0 成功，非零错误码
  */
-lv_PUBLIC_API int lv_conflict_detect_for_constraint(const ConstraintGraph *graph,
-                                                         int constraint_id,
-                                                         ConflictReport *report);
+lv_PUBLIC_API int lv_conflict_detect_for_constraint(const ConstraintGraph *graph, int constraint_id,
+                                                    ConflictReport *report);
 
 /* ================================================================
  * 类型名称查询
@@ -260,9 +256,7 @@ lv_PUBLIC_API const char *lv_conflict_severity_name(ConflictSeverity severity);
  * @param output 输出流（NULL 使用 stdout）
  * @param verbose 是否输出详细信息（建议、节点列表）
  */
-lv_PUBLIC_API void lv_conflict_report_print(const ConflictReport *report,
-                                                 void *output,
-                                                 bool verbose);
+lv_PUBLIC_API void lv_conflict_report_print(const ConflictReport *report, void *output, bool verbose);
 
 /**
  * @brief 将冲突报告序列化为 JSON
@@ -271,9 +265,7 @@ lv_PUBLIC_API void lv_conflict_report_print(const ConflictReport *report,
  * @param buffer_size 缓冲区大小
  * @return 写入的字节数（不含终止符），失败返回 -1
  */
-lv_PUBLIC_API int lv_conflict_report_to_json(const ConflictReport *report,
-                                                  char *buffer,
-                                                  size_t buffer_size);
+lv_PUBLIC_API int lv_conflict_report_to_json(const ConflictReport *report, char *buffer, size_t buffer_size);
 
 /* ================================================================
  * 便捷函数

@@ -7,14 +7,16 @@
  * @version 3.3.0
  */
 
+#include <ctype.h>
 #include <float.h>
 #include <math.h>
-#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/formula_parser.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -36,7 +38,8 @@
  * @return 新创建的节点（如果超限则释放并返回NULL）
  */
 FormulaNode *formula_track_node(ParserContext *ctx, FormulaNode *node) {
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     ctx->node_count++;
     if (ctx->node_count > lv_MAX_AST_NODES) {
         set_error(ctx, "AST节点数超过安全上限");

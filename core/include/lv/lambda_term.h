@@ -38,17 +38,17 @@ typedef enum {
  * - App:   应用，包含左右两个子项
  */
 typedef struct LvLambdaTerm {
-    LvLambdaTermType type;  /**< 节点类型（决定 data 联合体的活跃成员） */
+    LvLambdaTermType type; /**< 节点类型（决定 data 联合体的活跃成员） */
     union {
         /** @brief 变量数据 */
         struct {
-            int index;  /**< De Bruijn 索引 */
+            int index; /**< De Bruijn 索引 */
         } var;
 
         /** @brief 抽象数据 */
         struct {
-            int                 binder; /**< 绑定变量索引 */
-            struct LvLambdaTerm *body;  /**< 体子项（生命周期由本节点管理） */
+            int binder;                /**< 绑定变量索引 */
+            struct LvLambdaTerm *body; /**< 体子项（生命周期由本节点管理） */
         } abs;
 
         /** @brief 应用数据 */

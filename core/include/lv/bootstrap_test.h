@@ -19,8 +19,8 @@
 extern "C" {
 #endif
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 /* ============== 前向声明 ============== */
 typedef struct BootstrapDiffTest BootstrapDiffTest;
 typedef struct BootstrapDiffTestResult BootstrapDiffTestResult;
@@ -35,31 +35,31 @@ typedef struct TestOracle TestOracle;
  * @brief 差分比较结果类型
  */
 typedef enum {
-    DIFF_RESULT_EQUAL,             /**< 完全相等 */
-    DIFF_RESULT_ISO_EQUAL,         /**< 同构等价 */
-    DIFF_RESULT_SEMANTIC_EQUAL,    /**< 语义等价 */
-    DIFF_RESULT_DIFFERENT,         /**< 不同 */
-    DIFF_RESULT_ERROR,             /**< 执行错误 */
-    DIFF_RESULT_TIMEOUT            /**< 执行超时 */
+    DIFF_RESULT_EQUAL,          /**< 完全相等 */
+    DIFF_RESULT_ISO_EQUAL,      /**< 同构等价 */
+    DIFF_RESULT_SEMANTIC_EQUAL, /**< 语义等价 */
+    DIFF_RESULT_DIFFERENT,      /**< 不同 */
+    DIFF_RESULT_ERROR,          /**< 执行错误 */
+    DIFF_RESULT_TIMEOUT         /**< 执行超时 */
 } DiffComparisonResult;
 /**
  * @brief 差分测试结果结构
  */
 struct BootstrapDiffTestResult {
-    DiffComparisonResult comparison;   /**< 比较结果 */
-    bool passed;                        /**< 是否通过 */
-    
+    DiffComparisonResult comparison; /**< 比较结果 */
+    bool passed;                     /**< 是否通过 */
+
     /* 详细信息 */
-    char *c_api_output;                 /**< C API 输出 */
-    char *geo_layer_output;             /**< 几何层输出 */
-    char *diff_description;             /**< 差异描述 */
-    
+    char *c_api_output;     /**< C API 输出 */
+    char *geo_layer_output; /**< 几何层输出 */
+    char *diff_description; /**< 差异描述 */
+
     /* 性能数据 */
-    int64_t c_api_time_ns;              /**< C API 执行时间 */
-    int64_t geo_layer_time_ns;          /**< 几何层执行时间 */
-    
+    int64_t c_api_time_ns;     /**< C API 执行时间 */
+    int64_t geo_layer_time_ns; /**< 几何层执行时间 */
+
     /* 错误信息 */
-    char *error_message;                /**< 错误消息 */
+    char *error_message; /**< 错误消息 */
 };
 /* ============== 随机生成器配置 ============== */
 /**
@@ -67,43 +67,43 @@ struct BootstrapDiffTestResult {
  */
 struct RandomGeneratorConfig {
     /* 几何实体数量范围 */
-    uint32_t min_points;                /**< 最小点数 */
-    uint32_t max_points;                /**< 最大点数 */
-    uint32_t min_lines;                 /**< 最小线数 */
-    uint32_t max_lines;                 /**< 最大线数 */
-    uint32_t min_circles;               /**< 最小圆数 */
-    uint32_t max_circles;               /**< 最大圆数 */
-    
+    uint32_t min_points;  /**< 最小点数 */
+    uint32_t max_points;  /**< 最大点数 */
+    uint32_t min_lines;   /**< 最小线数 */
+    uint32_t max_lines;   /**< 最大线数 */
+    uint32_t min_circles; /**< 最小圆数 */
+    uint32_t max_circles; /**< 最大圆数 */
+
     /* 约束密度 */
-    double constraint_density;          /**< 约束密度 (0.0 - 1.0) */
-    
+    double constraint_density; /**< 约束密度 (0.0 - 1.0) */
+
     /* 数值范围 */
-    double coord_min;                   /**< 坐标最小值 */
-    double coord_max;                   /**< 坐标最大值 */
-    
+    double coord_min; /**< 坐标最小值 */
+    double coord_max; /**< 坐标最大值 */
+
     /* 特殊配置 */
-    bool allow_degenerate;              /**< 允许退化情况 */
-    bool allow_overconstrained;         /**< 允许过约束 */
-    bool use_symbolic_coords;           /**< 使用符号坐标 */
-    
+    bool allow_degenerate;      /**< 允许退化情况 */
+    bool allow_overconstrained; /**< 允许过约束 */
+    bool use_symbolic_coords;   /**< 使用符号坐标 */
+
     /* 种子 */
-    uint64_t seed;                      /**< 随机种子 */
+    uint64_t seed; /**< 随机种子 */
 };
 /* ============== 原语测试结果 ============== */
 /**
  * @brief 原语测试结果结构
  */
 struct PrimitiveTestResult {
-    const char *primitive_name;         /**< 原语名称 */
-    DiffComparisonResult comparison;    /**< 比较结果 */
-    bool passed;                        /**< 是否通过 */
-    
-    char *input_description;            /**< 输入描述 */
-    char *c_api_result;                 /**< C API 结果 */
-    char *geo_layer_result;             /**< 几何层结果 */
-    char *error_message;                /**< 错误消息 */
-    
-    int64_t execution_time_ns;          /**< 执行时间 */
+    const char *primitive_name;      /**< 原语名称 */
+    DiffComparisonResult comparison; /**< 比较结果 */
+    bool passed;                     /**< 是否通过 */
+
+    char *input_description; /**< 输入描述 */
+    char *c_api_result;      /**< C API 结果 */
+    char *geo_layer_result;  /**< 几何层结果 */
+    char *error_message;     /**< 错误消息 */
+
+    int64_t execution_time_ns; /**< 执行时间 */
 };
 /* ============== 框架初始化 ============== */
 /**
@@ -127,8 +127,7 @@ bool bootstrap_test_framework_is_initialized(void);
  * @param dsl_source DSL 源码（可选）
  * @return 差分测试对象
  */
-BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name,
-                                               const char *dsl_source);
+BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name, const char *dsl_source);
 /**
  * @brief 销毁差分测试
  * @param test 差分测试对象
@@ -152,9 +151,8 @@ void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result);
  * @param out_results 输出结果数组
  * @return 成功执行的测试数量
  */
-uint32_t bootstrap_diff_test_run_batch(BootstrapDiffTest **tests,
-                                        uint32_t count,
-                                        BootstrapDiffTestResult **out_results);
+uint32_t bootstrap_diff_test_run_batch(BootstrapDiffTest **tests, uint32_t count,
+                                       BootstrapDiffTestResult **out_results);
 /* ============== 随机生成器 API ============== */
 /**
  * @brief 创建随机生成器
@@ -191,9 +189,7 @@ char *random_generator_generate_dsl(RandomGenerator *gen);
  * @param count 生成数量
  * @return 实际生成数量
  */
-uint32_t random_generator_generate_batch(RandomGenerator *gen,
-                                          void **out_graphs,
-                                          uint32_t count);
+uint32_t random_generator_generate_batch(RandomGenerator *gen, void **out_graphs, uint32_t count);
 /**
  * @brief 重置生成器种子
  * @param gen 生成器对象
@@ -218,10 +214,8 @@ void graph_isomorphism_destroy(GraphIsomorphismComparator *comp);
  * @param compare_coords 是否比较坐标
  * @param coord_tolerance 坐标容差
  */
-void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
-                                  bool ignore_ids,
-                                  bool compare_coords,
-                                  double coord_tolerance);
+void graph_isomorphism_configure(GraphIsomorphismComparator *comp, bool ignore_ids, bool compare_coords,
+                                 double coord_tolerance);
 /**
  * @brief 比较两个图是否同构
  * @param comp 比较器对象
@@ -229,9 +223,7 @@ void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
  * @param graph_b 图 B
  * @return 是否同构
  */
-bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
-                                const void *graph_a,
-                                const void *graph_b);
+bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *graph_a, const void *graph_b);
 /**
  * @brief 计算图哈希
  * @param graph 图对象
@@ -247,11 +239,8 @@ uint64_t graph_isomorphism_hash(const void *graph);
  * @param out_constraint_mapping 输出约束映射
  * @return 是否找到映射
  */
-bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
-                                     const void *graph_a,
-                                     const void *graph_b,
-                                     int **out_node_mapping,
-                                     int **out_constraint_mapping);
+bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp, const void *graph_a, const void *graph_b,
+                                    int **out_node_mapping, int **out_constraint_mapping);
 /* ============== 原语包装器 API ============== */
 /**
  * @brief 初始化原语包装器
@@ -271,19 +260,15 @@ void primitive_wrapper_cleanup(void);
  * @param return_type 返回类型
  * @return 是否成功
  */
-bool primitive_wrapper_register(const char *name,
-                                 void *c_api_func,
-                                 const char **param_types,
-                                 uint32_t param_count,
-                                 const char *return_type);
+bool primitive_wrapper_register(const char *name, void *c_api_func, const char **param_types, uint32_t param_count,
+                                const char *return_type);
 /**
  * @brief 执行单个原语差分测试
  * @param name 原语名称
  * @param params 参数数组
  * @return 测试结果
  */
-PrimitiveTestResult *primitive_wrapper_test(const char *name,
-                                             void **params);
+PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params);
 /**
  * @brief 销毁原语测试结果
  * @param result 测试结果
@@ -295,8 +280,7 @@ void primitive_test_result_destroy(PrimitiveTestResult *result);
  * @param max_count 最大数量
  * @return 实际测试数量
  */
-uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results,
-                                     uint32_t max_count);
+uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results, uint32_t max_count);
 /**
  * @brief 获取原语统计信息
  * @param name 原语名称
@@ -304,10 +288,7 @@ uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results,
  * @param out_passed 输出通过数
  * @param out_failed 输出失败数
  */
-void primitive_wrapper_get_stats(const char *name,
-                                  uint32_t *out_total,
-                                  uint32_t *out_passed,
-                                  uint32_t *out_failed);
+void primitive_wrapper_get_stats(const char *name, uint32_t *out_total, uint32_t *out_passed, uint32_t *out_failed);
 /* ============== 测试预言机 API ============== */
 /**
  * @brief 创建测试预言机
@@ -325,8 +306,7 @@ void test_oracle_destroy(TestOracle *oracle);
  * @param graph 约束图
  * @return 是否幂等
  */
-bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
-                                                  void *graph);
+bool test_oracle_verify_normalization_idempotent(TestOracle *oracle, void *graph);
 /**
  * @brief 验证求解正确性
  * @param oracle 预言机对象
@@ -334,17 +314,14 @@ bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
  * @param solution 求解结果
  * @return 是否正确
  */
-bool test_oracle_verify_solution_correct(TestOracle *oracle,
-                                          const void *graph,
-                                          const void *solution);
+bool test_oracle_verify_solution_correct(TestOracle *oracle, const void *graph, const void *solution);
 /**
  * @brief 验证证明有效性
  * @param oracle 预言机对象
  * @param trace 证明追踪
  * @return 是否有效
  */
-bool test_oracle_verify_proof_valid(TestOracle *oracle,
-                                     const void *trace);
+bool test_oracle_verify_proof_valid(TestOracle *oracle, const void *trace);
 /**
  * @brief 验证序列化往返正确性
  * @param oracle 预言机对象
@@ -353,10 +330,8 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle,
  * @param deserialized 反序列化图
  * @return 是否正确
  */
-bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
-                                             const void *graph,
-                                             const char *serialized,
-                                             const void *deserialized);
+bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle, const void *graph, const char *serialized,
+                                            const void *deserialized);
 /* ============== 报告生成 ============== */
 /**
  * @brief 生成差分测试报告
@@ -365,9 +340,7 @@ bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
  * @param format 格式（"json", "html", "text"）
  * @return 报告字符串
  */
-char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
-                                      uint32_t count,
-                                      const char *format);
+char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t count, const char *format);
 /**
  * @brief 将报告写入文件
  * @param results 结果数组
@@ -376,10 +349,8 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
  * @param format 格式
  * @return 是否成功
  */
-bool bootstrap_test_write_report(BootstrapDiffTestResult **results,
-                                  uint32_t count,
-                                  const char *filepath,
-                                  const char *format);
+bool bootstrap_test_write_report(BootstrapDiffTestResult **results, uint32_t count, const char *filepath,
+                                 const char *format);
 #ifdef __cplusplus
 }
 #endif

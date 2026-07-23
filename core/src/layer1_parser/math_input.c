@@ -12,11 +12,12 @@
  */
 
 #include "math_input.h"
-#include "lv_internal.h"
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+
+#include "lv_internal.h"
 
 /**
  * @brief 解析并规范化数学输入表达式
@@ -30,7 +31,8 @@
  * @return 规范化后表达式长度（不含 null 终止符）；失败返回 -1
  */
 int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
-    if (!input || !normalized || buf_size == 0) return -1;
+    if (!input || !normalized || buf_size == 0)
+        return -1;
 
     /* 检测输入格式 */
     int format = lv_math_input_detect_format(input);
@@ -38,7 +40,8 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
     if (format < 0) {
         /* 未知格式，直接复制 */
         size_t len = strlen(input);
-        if (len >= buf_size) len = buf_size - 1;
+        if (len >= buf_size)
+            len = buf_size - 1;
         memcpy(normalized, input, len);
         normalized[len] = '\0';
         return 0;
@@ -50,28 +53,34 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
         size_t len = strlen(input);
 
         /* 跳过开头的 $ */
-        while (*start == '$') start++;
+        while (*start == '$')
+            start++;
         /* 跳过末尾的 $ */
         const char *end = input + len;
-        while (end > start && *(end - 1) == '$') end--;
+        while (end > start && *(end - 1) == '$')
+            end--;
 
-        size_t out_len = (size_t)(end - start);
-        if (out_len >= buf_size) out_len = buf_size - 1;
+        size_t out_len = (size_t) (end - start);
+        if (out_len >= buf_size)
+            out_len = buf_size - 1;
         memcpy(normalized, start, out_len);
         normalized[out_len] = '\0';
-        return (int)out_len;
+        return (int) out_len;
     }
 
     /* 纯文本表达式：去除首尾空白 */
     const char *p = input;
-    while (isspace((unsigned char)*p)) p++;
+    while (isspace((unsigned char) *p))
+        p++;
     size_t len = strlen(p);
-    while (len > 0 && isspace((unsigned char)p[len - 1])) len--;
+    while (len > 0 && isspace((unsigned char) p[len - 1]))
+        len--;
 
-    if (len >= buf_size) len = buf_size - 1;
+    if (len >= buf_size)
+        len = buf_size - 1;
     memcpy(normalized, p, len);
     normalized[len] = '\0';
-    return (int)len;
+    return (int) len;
 }
 
 /**
@@ -84,19 +93,22 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
  * @return 格式类型：1=LaTeX, 2=GCLC, 0=纯文本；输入无效返回 -1
  */
 int lv_math_input_detect_format(const char *input) {
-    if (!input) return -1;
+    if (!input)
+        return -1;
 
     /* 跳过前导空白 */
-    while (isspace((unsigned char)*input)) input++;
+    while (isspace((unsigned char) *input))
+        input++;
 
-    if (*input == '\0') return -1;
+    if (*input == '\0')
+        return -1;
 
     /* LaTeX 数学模式 */
-    if (input[0] == '$') return 1;
+    if (input[0] == '$')
+        return 1;
 
     /* GCLC 风格几何构造 */
-    if (strncmp(input, "point", 5) == 0 || strncmp(input, "line", 4) == 0
-        || strncmp(input, "circle", 6) == 0) {
+    if (strncmp(input, "point", 5) == 0 || strncmp(input, "line", 4) == 0 || strncmp(input, "circle", 6) == 0) {
         return 2;
     }
 

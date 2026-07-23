@@ -28,10 +28,11 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
+#include "lv/proof.h"
+
 #include "error_codes.h"
 #include "lv_internal.h" /* lv_SAFE_SNPRINTF, M_PI 等内部宏 */
 #include "lv_utils.h"
-#include "lv/proof.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include "symbolic_coord.h"
@@ -54,4 +55,3 @@
  */
 
 /* ── 子模块已拆分至 interop_server.c / interop_command.c / interop_export.c / interop_import.c / interop_theorem.c ── */
-

@@ -209,10 +209,12 @@ static void csg_trilist_init(CSGTriList *list, int init_cap) {
  */
 static void csg_trilist_append(CSGTriList *list, const CSGTriangle *tri) {
     if (list->count >= list->capacity) {
-        if (list->capacity > INT_MAX / 2) return;
+        if (list->capacity > INT_MAX / 2)
+            return;
         int new_cap = list->capacity * 2;
         CSGTriangle *new_tris = (CSGTriangle *) lv_realloc(list->tris, (size_t) new_cap * sizeof(CSGTriangle));
-        if (!new_tris) return;
+        if (!new_tris)
+            return;
         list->tris = new_tris;
         list->capacity = new_cap;
     }
@@ -988,9 +990,12 @@ static void csg_extract_vertices(const CSGTriList *tris, CSGVec3 **out_verts, in
             double max_coord = 0.0;
             for (int j = 0; j < count; j++) {
                 double cx = fabs(verts[j].x), cy = fabs(verts[j].y), cz = fabs(verts[j].z);
-                if (cx > max_coord) max_coord = cx;
-                if (cy > max_coord) max_coord = cy;
-                if (cz > max_coord) max_coord = cz;
+                if (cx > max_coord)
+                    max_coord = cx;
+                if (cy > max_coord)
+                    max_coord = cy;
+                if (cz > max_coord)
+                    max_coord = cz;
             }
             double eps_sq = CSG_BSP_EPSILON * CSG_BSP_EPSILON * (1.0 + max_coord * max_coord);
             for (int j = 0; j < count; j++) {
@@ -1101,9 +1106,7 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             double m10 = M[1][0], m11 = M[1][1], m12 = M[1][2];
             double m20 = M[2][0], m21 = M[2][1], m22 = M[2][2];
 
-            double det = m00 * (m11 * m22 - m12 * m21)
-                       - m01 * (m10 * m22 - m12 * m20)
-                       + m02 * (m10 * m21 - m11 * m20);
+            double det = m00 * (m11 * m22 - m12 * m21) - m01 * (m10 * m22 - m12 * m20) + m02 * (m10 * m21 - m11 * m20);
 
             /* 相对容差奇异检测：行列式应相对于矩阵元素的量级进行判断。
              * 当坐标值很大时（如 1e6），矩阵元素量级可达 1e6，
@@ -1113,14 +1116,22 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             double abs_m10 = fabs(m10), abs_m11 = fabs(m11), abs_m12 = fabs(m12);
             double abs_m20 = fabs(m20), abs_m21 = fabs(m21), abs_m22 = fabs(m22);
             double max_el = abs_m00;
-            if (abs_m01 > max_el) max_el = abs_m01;
-            if (abs_m02 > max_el) max_el = abs_m02;
-            if (abs_m10 > max_el) max_el = abs_m10;
-            if (abs_m11 > max_el) max_el = abs_m11;
-            if (abs_m12 > max_el) max_el = abs_m12;
-            if (abs_m20 > max_el) max_el = abs_m20;
-            if (abs_m21 > max_el) max_el = abs_m21;
-            if (abs_m22 > max_el) max_el = abs_m22;
+            if (abs_m01 > max_el)
+                max_el = abs_m01;
+            if (abs_m02 > max_el)
+                max_el = abs_m02;
+            if (abs_m10 > max_el)
+                max_el = abs_m10;
+            if (abs_m11 > max_el)
+                max_el = abs_m11;
+            if (abs_m12 > max_el)
+                max_el = abs_m12;
+            if (abs_m20 > max_el)
+                max_el = abs_m20;
+            if (abs_m21 > max_el)
+                max_el = abs_m21;
+            if (abs_m22 > max_el)
+                max_el = abs_m22;
             double det_tol = CSG_BSP_EPSILON * fmax(1.0, max_el * max_el);
 
             /* 逆转置 3x3 = (1/det) * adjugate(M)^T = (1/det) * cofactor(M) */
@@ -1128,20 +1139,26 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             double invT[3][3];
             if (fabs(det) < det_tol) {
                 /* 奇异矩阵：行列式接近零，法线保持不变（使用单位矩阵） */
-                invT[0][0] = 1.0; invT[0][1] = 0.0; invT[0][2] = 0.0;
-                invT[1][0] = 0.0; invT[1][1] = 1.0; invT[1][2] = 0.0;
-                invT[2][0] = 0.0; invT[2][1] = 0.0; invT[2][2] = 1.0;
+                invT[0][0] = 1.0;
+                invT[0][1] = 0.0;
+                invT[0][2] = 0.0;
+                invT[1][0] = 0.0;
+                invT[1][1] = 1.0;
+                invT[1][2] = 0.0;
+                invT[2][0] = 0.0;
+                invT[2][1] = 0.0;
+                invT[2][2] = 1.0;
             } else {
                 inv_det = 1.0 / det;
-                invT[0][0] = ( m11 * m22 - m12 * m21) * inv_det;
-                invT[0][1] = ( m02 * m21 - m01 * m22) * inv_det;
-                invT[0][2] = ( m01 * m12 - m02 * m11) * inv_det;
-                invT[1][0] = ( m12 * m20 - m10 * m22) * inv_det;
-                invT[1][1] = ( m00 * m22 - m02 * m20) * inv_det;
-                invT[1][2] = ( m02 * m10 - m00 * m12) * inv_det;
-                invT[2][0] = ( m10 * m21 - m11 * m20) * inv_det;
-                invT[2][1] = ( m01 * m20 - m00 * m21) * inv_det;
-                invT[2][2] = ( m00 * m11 - m01 * m10) * inv_det;
+                invT[0][0] = (m11 * m22 - m12 * m21) * inv_det;
+                invT[0][1] = (m02 * m21 - m01 * m22) * inv_det;
+                invT[0][2] = (m01 * m12 - m02 * m11) * inv_det;
+                invT[1][0] = (m12 * m20 - m10 * m22) * inv_det;
+                invT[1][1] = (m00 * m22 - m02 * m20) * inv_det;
+                invT[1][2] = (m02 * m10 - m00 * m12) * inv_det;
+                invT[2][0] = (m10 * m21 - m11 * m20) * inv_det;
+                invT[2][1] = (m01 * m20 - m00 * m21) * inv_det;
+                invT[2][2] = (m00 * m11 - m01 * m10) * inv_det;
             }
 
             /* 对每个三角形应用变换 */
@@ -1231,28 +1248,30 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             if (verts_a && verts_b && count_a > 0 && count_b > 0) {
                 /* 计算所有顶点对之和：v_sum = v_a + v_b */
                 if (count_a <= INT_MAX / count_b) {
-                int sum_count = count_a * count_b;
-                CSGVec3 *sum_verts = (CSGVec3 *) lv_calloc((size_t) sum_count, sizeof(CSGVec3));
-                if (sum_verts) {
-                    int idx = 0;
-                    for (int i = 0; i < count_a; i++) {
-                        for (int j = 0; j < count_b; j++) {
-                            sum_verts[idx] = csg_vec3_add(verts_a[i], verts_b[j]);
-                            idx++;
+                    int sum_count = count_a * count_b;
+                    CSGVec3 *sum_verts = (CSGVec3 *) lv_calloc((size_t) sum_count, sizeof(CSGVec3));
+                    if (sum_verts) {
+                        int idx = 0;
+                        for (int i = 0; i < count_a; i++) {
+                            for (int j = 0; j < count_b; j++) {
+                                sum_verts[idx] = csg_vec3_add(verts_a[i], verts_b[j]);
+                                idx++;
+                            }
                         }
+
+                        /* 对求和结果计算凸包，得到 Minkowski 和的近似 */
+                        csg_compute_convex_hull(sum_verts, sum_count, out);
+
+                        lv_free((void **) &sum_verts);
                     }
-
-                    /* 对求和结果计算凸包，得到 Minkowski 和的近似 */
-                    csg_compute_convex_hull(sum_verts, sum_count, out);
-
-                    lv_free((void **) &sum_verts);
-                }
                 } /* end if (count_a <= INT_MAX / count_b) */
             } /* end if (verts_a && verts_b) */
 
             /* 清理 */
-            if (verts_a) lv_free((void **) &verts_a);
-            if (verts_b) lv_free((void **) &verts_b);
+            if (verts_a)
+                lv_free((void **) &verts_a);
+            if (verts_b)
+                lv_free((void **) &verts_b);
             csg_trilist_free(&tris_a);
             csg_trilist_free(&tris_b);
             break;
@@ -1278,7 +1297,8 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
 
             /* 读取拉伸参数 */
             double height = node->data.prim.params[0];
-            if (height <= 0.0) height = 1.0;
+            if (height <= 0.0)
+                height = 1.0;
 
             double dir_x = node->data.prim.params[1];
             double dir_y = node->data.prim.params[2];
@@ -1289,9 +1309,13 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             double dir_len = sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
             if (dir_len < CSG_BSP_EPSILON) {
                 /* 默认沿 Z 轴拉伸 */
-                dir.x = 0.0; dir.y = 0.0; dir.z = 1.0;
+                dir.x = 0.0;
+                dir.y = 0.0;
+                dir.z = 1.0;
             } else {
-                dir.x /= dir_len; dir.y /= dir_len; dir.z /= dir_len;
+                dir.x /= dir_len;
+                dir.y /= dir_len;
+                dir.z /= dir_len;
             }
 
             CSGVec3 offset = csg_vec3_scale(dir, height);
@@ -1361,7 +1385,9 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
 
                             /* 确保边的方向一致（较小索引在前） */
                             if (idx_a > idx_b) {
-                                int tmp = idx_a; idx_a = idx_b; idx_b = tmp;
+                                int tmp = idx_a;
+                                idx_a = idx_b;
+                                idx_b = tmp;
                             }
 
                             /* 检查边是否已存在 */
@@ -1392,24 +1418,31 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                         csg_trilist_init(&side_tris, 2);
 
                         CSGTriangle tri;
-                        tri.v[0] = v0; tri.v[1] = v1; tri.v[2] = v2;
+                        tri.v[0] = v0;
+                        tri.v[1] = v1;
+                        tri.v[2] = v2;
                         tri.normal = csg_tri_normal(&tri);
                         /* 确保法线朝外（远离拉伸轴） */
                         CSGVec3 edge_mid = csg_vec3_scale(csg_vec3_add(v0, v1), 0.5);
-                        CSGVec3 edge_out = csg_vec3_sub(edge_mid,
-                            csg_vec3_scale(dir, csg_vec3_dot(edge_mid, dir)));
+                        CSGVec3 edge_out = csg_vec3_sub(edge_mid, csg_vec3_scale(dir, csg_vec3_dot(edge_mid, dir)));
                         if (csg_vec3_dot(tri.normal, edge_out) < 0.0) {
                             /* 翻转三角形绕序 */
-                            CSGVec3 tmp = tri.v[1]; tri.v[1] = tri.v[2]; tri.v[2] = tmp;
+                            CSGVec3 tmp = tri.v[1];
+                            tri.v[1] = tri.v[2];
+                            tri.v[2] = tmp;
                             tri.normal = csg_vec3_scale(tri.normal, -1.0);
                         }
                         tri.face_id = out->count;
                         csg_trilist_append(out, &tri);
 
-                        tri.v[0] = v0; tri.v[1] = v2; tri.v[2] = v3;
+                        tri.v[0] = v0;
+                        tri.v[1] = v2;
+                        tri.v[2] = v3;
                         tri.normal = csg_tri_normal(&tri);
                         if (csg_vec3_dot(tri.normal, edge_out) < 0.0) {
-                            CSGVec3 tmp = tri.v[1]; tri.v[1] = tri.v[2]; tri.v[2] = tmp;
+                            CSGVec3 tmp = tri.v[1];
+                            tri.v[1] = tri.v[2];
+                            tri.v[2] = tmp;
                             tri.normal = csg_vec3_scale(tri.normal, -1.0);
                         }
                         tri.face_id = out->count;
@@ -1419,12 +1452,15 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                     }
                 }
 
-                if (edge_a) lv_free((void **) &edge_a);
-                if (edge_b) lv_free((void **) &edge_b);
+                if (edge_a)
+                    lv_free((void **) &edge_a);
+                if (edge_b)
+                    lv_free((void **) &edge_b);
             }
 
             /* 清理 */
-            if (section_verts) lv_free((void **) &section_verts);
+            if (section_verts)
+                lv_free((void **) &section_verts);
             csg_trilist_free(&section_tris);
             break;
         }
@@ -1449,22 +1485,25 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
 
             /* 读取旋转参数 */
             double angle_deg = node->data.prim.params[0];
-            if (angle_deg <= 0.0) angle_deg = 360.0;
+            if (angle_deg <= 0.0)
+                angle_deg = 360.0;
             int segments = (int) node->data.prim.params[1];
-            if (segments <= 0) segments = 32;
-            if (segments > 128) segments = 128; /* 限制最大分段数 */
+            if (segments <= 0)
+                segments = 32;
+            if (segments > 128)
+                segments = 128; /* 限制最大分段数 */
 
             /* 旋转轴（默认 Y 轴） */
-            CSGVec3 axis = {
-                node->data.prim.params[2],
-                node->data.prim.params[3],
-                node->data.prim.params[4]
-            };
+            CSGVec3 axis = {node->data.prim.params[2], node->data.prim.params[3], node->data.prim.params[4]};
             double axis_len = sqrt(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
             if (axis_len < CSG_BSP_EPSILON) {
-                axis.x = 0.0; axis.y = 1.0; axis.z = 0.0;
+                axis.x = 0.0;
+                axis.y = 1.0;
+                axis.z = 0.0;
             } else {
-                axis.x /= axis_len; axis.y /= axis_len; axis.z /= axis_len;
+                axis.x /= axis_len;
+                axis.y /= axis_len;
+                axis.z /= axis_len;
             }
 
             double angle_rad = angle_deg * M_PI / 180.0;
@@ -1476,7 +1515,8 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             csg_extract_vertices(&section_tris, &sec_verts, &sec_count);
 
             if (!sec_verts || sec_count < 2) {
-                if (sec_verts) lv_free((void **) &sec_verts);
+                if (sec_verts)
+                    lv_free((void **) &sec_verts);
                 csg_trilist_free(&section_tris);
                 break;
             }
@@ -1501,8 +1541,8 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
 
                         /* 跳过退化边 */
                         CSGVec3 ediff = csg_vec3_sub(vb, va);
-                        if (ediff.x * ediff.x + ediff.y * ediff.y + ediff.z * ediff.z
-                            < CSG_BSP_EPSILON * CSG_BSP_EPSILON)
+                        if (ediff.x * ediff.x + ediff.y * ediff.y + ediff.z * ediff.z <
+                            CSG_BSP_EPSILON * CSG_BSP_EPSILON)
                             continue;
 
                         /* 旋转 va 和 vb 到 theta1 和 theta2 位置 */
@@ -1539,12 +1579,16 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
 
                         /* 生成两个三角形组成侧面四边形 */
                         CSGTriangle tri;
-                        tri.v[0] = va1; tri.v[1] = vb1; tri.v[2] = va2;
+                        tri.v[0] = va1;
+                        tri.v[1] = vb1;
+                        tri.v[2] = va2;
                         tri.normal = csg_tri_normal(&tri);
                         tri.face_id = out->count;
                         csg_trilist_append(out, &tri);
 
-                        tri.v[0] = vb1; tri.v[1] = vb2; tri.v[2] = va2;
+                        tri.v[0] = vb1;
+                        tri.v[1] = vb2;
+                        tri.v[2] = va2;
                         tri.normal = csg_tri_normal(&tri);
                         tri.face_id = out->count;
                         csg_trilist_append(out, &tri);
@@ -1561,7 +1605,9 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                     CSGVec3 face_normal = csg_tri_normal(&tri);
                     if (csg_vec3_dot(face_normal, axis) < 0.0) {
                         face_normal = csg_vec3_scale(face_normal, -1.0);
-                        CSGVec3 tmp = tri.v[1]; tri.v[1] = tri.v[2]; tri.v[2] = tmp;
+                        CSGVec3 tmp = tri.v[1];
+                        tri.v[1] = tri.v[2];
+                        tri.v[2] = tmp;
                     }
                     tri.normal = csg_vec3_normalize(face_normal);
                     tri.face_id = out->count;
@@ -1585,7 +1631,9 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                     CSGVec3 face_normal = csg_tri_normal(&tri);
                     if (csg_vec3_dot(face_normal, axis) > 0.0) {
                         face_normal = csg_vec3_scale(face_normal, -1.0);
-                        CSGVec3 tmp = tri.v[1]; tri.v[1] = tri.v[2]; tri.v[2] = tmp;
+                        CSGVec3 tmp = tri.v[1];
+                        tri.v[1] = tri.v[2];
+                        tri.v[2] = tmp;
                     }
                     tri.normal = csg_vec3_normalize(face_normal);
                     tri.face_id = out->count;
@@ -1594,7 +1642,8 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
             }
 
             /* 清理 */
-            if (sec_verts) lv_free((void **) &sec_verts);
+            if (sec_verts)
+                lv_free((void **) &sec_verts);
             csg_trilist_free(&section_tris);
             break;
         }
@@ -1636,7 +1685,8 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
 
             switch (ptype) {
                 case 0: /* 球体 */
-                    n = snprintf(buf + written, (size_t) (buf_size - written), "%ssphere(r=%.10g);\n", indent_str, p[0]);
+                    n = snprintf(buf + written, (size_t) (buf_size - written), "%ssphere(r=%.10g);\n", indent_str,
+                                 p[0]);
                     break;
                 case 1: /* 立方体 */
                     n = snprintf(buf + written, (size_t) (buf_size - written),

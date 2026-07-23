@@ -10,10 +10,10 @@ extern "C" {
 
 /* SHA-256 上下文结构体（共 108 字节） */
 typedef struct {
-    uint8_t  data[64];   /* 当前数据块 */
-    uint32_t datalen;    /* data 内的有效字节数 */
+    uint8_t data[64];          /* 当前数据块 */
+    uint32_t datalen;          /* data 内的有效字节数 */
     unsigned long long bitlen; /* 总位长 */
-    uint32_t state[8];   /* 工作状态（A-H） */
+    uint32_t state[8];         /* 工作状态（A-H） */
 } lvSha256Context;
 
 /** 初始化 SHA-256 上下文 */

@@ -39,9 +39,10 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include "lv/lv_api_spec.h"
+
 #include "lv/config.h"
-#include "lv/symbolic_coord.h"  /* TrustColor 枚举 */
+#include "lv/lv_api_spec.h"
+#include "lv/symbolic_coord.h" /* TrustColor 枚举 */
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,22 +53,22 @@ extern "C" {
  * ================================================================ */
 
 typedef enum {
-    lv_COLOR_GREEN = 0,       /* 全构造 / 已验证 */
-    lv_COLOR_BLUE = 1,        /* 未探索 / 输入值 */
-    lv_COLOR_BLUE_RANGE = 2,  /* 超出输入范围 */
-    lv_COLOR_YELLOW = 3,      /* 求解器生成 */
-    lv_COLOR_AMBER = 4,       /* 数值假设 */
-    lv_COLOR_LIGHT_ORANGE = 5,/* 非构造 */
-    lv_COLOR_ORANGE = 6,      /* 爆炸原理 / 神谕 */
-    lv_COLOR_DARK_ORANGE = 7, /* 非构造 + 数值 */
-    lv_COLOR_RED = 8,         /* 矛盾 */
-    lv_COLOR_GREY = 9,        /* 未知 / 未确证 */
-    lv_COLOR_PURPLE = 10,     /* 外部验证 */
-    lv_COLOR_CYAN = 11,       /* 互操作 */
+    lv_COLOR_GREEN = 0,        /* 全构造 / 已验证 */
+    lv_COLOR_BLUE = 1,         /* 未探索 / 输入值 */
+    lv_COLOR_BLUE_RANGE = 2,   /* 超出输入范围 */
+    lv_COLOR_YELLOW = 3,       /* 求解器生成 */
+    lv_COLOR_AMBER = 4,        /* 数值假设 */
+    lv_COLOR_LIGHT_ORANGE = 5, /* 非构造 */
+    lv_COLOR_ORANGE = 6,       /* 爆炸原理 / 神谕 */
+    lv_COLOR_DARK_ORANGE = 7,  /* 非构造 + 数值 */
+    lv_COLOR_RED = 8,          /* 矛盾 */
+    lv_COLOR_GREY = 9,         /* 未知 / 未确证 */
+    lv_COLOR_PURPLE = 10,      /* 外部验证 */
+    lv_COLOR_CYAN = 11,        /* 互操作 */
 } lvTrustColor;
 
 lv_API const char *lv_trust_color_name(lvTrustColor c);
-lv_API uint32_t    lv_trust_color_rgba(lvTrustColor c);
+lv_API uint32_t lv_trust_color_rgba(lvTrustColor c);
 lv_API const char *lv_trust_color_svg(lvTrustColor c);
 lv_API const char *lv_trust_color_tikz(lvTrustColor c);
 
@@ -101,8 +102,8 @@ typedef struct {
     double x1, y1;
     double x2, y2;
     double radius;
-    char   text[lv_PROTO_STR_LEN];
-    uint32_t    color_rgba;
+    char text[lv_PROTO_STR_LEN];
+    uint32_t color_rgba;
     lvTrustColor trust_color;
     double line_width;
     lvLineStyle style;
@@ -123,16 +124,16 @@ typedef struct {
 /* ---- M3-Table：表格行 ---- */
 
 typedef struct {
-    int    id;
-    char   name[lv_PROTO_STR_LEN];
-    char   node_type[32];
-    char   coord_x[32];
-    char   coord_y[32];
-    int    constraint_count;
-    uint32_t    color_rgba;
+    int id;
+    char name[lv_PROTO_STR_LEN];
+    char node_type[32];
+    char coord_x[32];
+    char coord_y[32];
+    int constraint_count;
+    uint32_t color_rgba;
     lvTrustColor trust_color;
-    char   status[16];
-    int    parent_block_id;
+    char status[16];
+    int parent_block_id;
 } lvTableRow;
 
 typedef struct {
@@ -152,29 +153,29 @@ typedef enum {
 } lvTreeNodeStatus;
 
 typedef struct lvTreeNode {
-    char   id[lv_PROTO_STR_LEN];
-    char   label[lv_PROTO_LABEL_LEN];
+    char id[lv_PROTO_STR_LEN];
+    char label[lv_PROTO_LABEL_LEN];
     lvTrustColor trust_color;
     lvTreeNodeStatus status;
-    int    node_id;
+    int node_id;
     struct lvTreeNode **children;
-    int    child_count;
+    int child_count;
 } lvTreeNode;
 
 /* ---- M6-Topology：拓扑图 ---- */
 
 typedef struct {
-    int  id;
+    int id;
     char name[lv_PROTO_STR_LEN];
 } lvTopoPort;
 
 typedef struct {
-    int  id;
+    int id;
     char name[lv_PROTO_STR_LEN];
     lvTopoPort *inputs;
-    int  input_count;
+    int input_count;
     lvTopoPort *outputs;
-    int  output_count;
+    int output_count;
     double layout_x;
     double layout_y;
 } lvTopoBlock;
@@ -197,13 +198,13 @@ typedef struct {
 
 typedef struct {
     char *text;
-    int   length;
+    int length;
 } lvDslText;
 
 /* ---- M5-Terminal：终端输出行 ---- */
 
 typedef struct {
-    int  id;
+    int id;
     char text[lv_PROTO_BUFFER_LEN];
     lvTrustColor color;
 } lvTerminalLine;
@@ -237,46 +238,46 @@ typedef enum {
 } lvProofStepKind;
 
 typedef struct {
-    int    step_id;
-    int    step_index;
+    int step_id;
+    int step_index;
     lvProofStepKind kind;
-    char   label[lv_PROTO_LABEL_LEN];
-    char   description[lv_PROTO_DESC_LEN];
+    char label[lv_PROTO_LABEL_LEN];
+    char description[lv_PROTO_DESC_LEN];
     lvTrustColor color;
-    int    dependency_count;
-    int   *dependency_ids;
-    int    is_backtrack_point;
-    int    is_explored;
-    char   strategy[lv_PROTO_STR_LEN];
-    int    node_id;
-    int    constraint_id;
+    int dependency_count;
+    int *dependency_ids;
+    int is_backtrack_point;
+    int is_explored;
+    char strategy[lv_PROTO_STR_LEN];
+    int node_id;
+    int constraint_id;
 } lvProofStep;
 
 typedef struct {
     lvProofStep *steps;
-    int   step_count;
-    int   total_steps;
-    int   green_count;       /* 已验证步骤数 */
+    int step_count;
+    int total_steps;
+    int green_count;          /* 已验证步骤数 */
     lvTrustColor final_color; /* 整体证明颜色 */
-    char  strategy_label[lv_PROTO_LABEL_LEN];
-    char  nl_summary[lv_PROTO_DESC_LEN]; /* 自然语言摘要 */
-    int   is_complete;
+    char strategy_label[lv_PROTO_LABEL_LEN];
+    char nl_summary[lv_PROTO_DESC_LEN]; /* 自然语言摘要 */
+    int is_complete;
 } lvProofNavigator;
 
 /* ---- P8-Engine：引擎状态 ---- */
 
 typedef struct {
-    int   node_count;
-    int   constraint_count;
-    int   proof_count;
-    int   func_block_count;
-    int   snapshot_count;
-    int   undo_depth;
-    int   redo_depth;
+    int node_count;
+    int constraint_count;
+    int proof_count;
+    int func_block_count;
+    int snapshot_count;
+    int undo_depth;
+    int redo_depth;
     double last_solve_time_ms;
     double memory_usage_mb;
-    char  engine_state[32];    /* "idle" | "running" | "error" */
-    char  backend_info[lv_PROTO_STR_LEN];
+    char engine_state[32]; /* "idle" | "running" | "error" */
+    char backend_info[lv_PROTO_STR_LEN];
 } lvEngineStatus;
 
 /* ================================================================
@@ -297,11 +298,11 @@ typedef struct {
     lvCanvasEventType type;
     double screen_x;
     double screen_y;
-    int    button;       /* 0=left, 1=middle, 2=right */
-    int    shift_down;
-    int    ctrl_down;
-    double wheel_delta;  /* >0=zoom in, <0=zoom out */
-    char   key[8];
+    int button; /* 0=left, 1=middle, 2=right */
+    int shift_down;
+    int ctrl_down;
+    double wheel_delta; /* >0=zoom in, <0=zoom out */
+    char key[8];
 } lvCanvasEvent;
 
 /* ---- M5-Terminal：命令 ---- */
@@ -311,10 +312,10 @@ typedef struct {
 } lvTerminalCmd;
 
 typedef struct {
-    int    request_id;
-    int    success;
-    int    error_code;
-    char   output[lv_PROTO_BUFFER_LEN];
+    int request_id;
+    int success;
+    int error_code;
+    char output[lv_PROTO_BUFFER_LEN];
 } lvTerminalResponse;
 
 /* ---- M3-Table：行选择 ---- */
@@ -334,13 +335,13 @@ typedef enum {
 typedef struct {
     lvTreeActionType type;
     char node_id[lv_PROTO_STR_LEN];
-    int  node_id_int; /* 关联的几何节点 ID */
+    int node_id_int; /* 关联的几何节点 ID */
 } lvTreeAction;
 
 /* ---- M6-Topology：块拖拽 ---- */
 
 typedef struct {
-    int    block_id;
+    int block_id;
     double new_x;
     double new_y;
 } lvBlockDrag;
@@ -349,11 +350,8 @@ typedef struct {
  * 五、协议生成函数（内核→UI 数据投影）
  * ================================================================ */
 
-lv_API int lv_proto_draw_commands(void *engine,
-                             double offset_x, double offset_y,
-                             double scale,
-                             double canvas_w, double canvas_h,
-                             lvDrawCmdList *out);
+lv_API int lv_proto_draw_commands(void *engine, double offset_x, double offset_y, double scale, double canvas_w,
+                                  double canvas_h, lvDrawCmdList *out);
 
 lv_API int lv_proto_table_rows(void *engine, lvTableRowList *out);
 
@@ -367,11 +365,9 @@ lv_API int lv_proto_proof_navigator(void *engine, lvProofNavigator *out);
 
 lv_API int lv_proto_engine_status(void *engine, lvEngineStatus *out);
 
-lv_API int lv_proto_completions(void *engine, const char *prefix,
-                           lvCompletionList *out);
+lv_API int lv_proto_completions(void *engine, const char *prefix, lvCompletionList *out);
 
-lv_API int lv_proto_terminal_exec(void *engine, const char *command,
-                             lvTerminalResponse *out);
+lv_API int lv_proto_terminal_exec(void *engine, const char *command, lvTerminalResponse *out);
 
 /* ---- 资源释放 ---- */
 

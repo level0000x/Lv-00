@@ -36,9 +36,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/constraint_graph.h"
-#include "lv_internal.h"
 #include "lv/config.h"
+#include "lv/constraint_graph.h"
+
+#include "lv_internal.h"
 #include "lv_utils.h"
 #include "symbolic_coord.h"
 
@@ -80,9 +81,12 @@ static double double_max(double a, double b) {
  * 乘以 (1 - DBL_EPSILON) 以处理浮点舍入。
  */
 static double round_down(double x) {
-    if (isnan(x)) return x;
-    if (isinf(x)) return x;
-    if (x == 0.0) return -0.0;  /* 零方向的下一个可表示值 */
+    if (isnan(x))
+        return x;
+    if (isinf(x))
+        return x;
+    if (x == 0.0)
+        return -0.0; /* 零方向的下一个可表示值 */
     if (x > 0.0) {
         return nextafter(x, -INFINITY);
     } else {
@@ -97,9 +101,12 @@ static double round_down(double x) {
  * 使用 nextafter 确保对零和次正规数也正确。
  */
 static double round_up(double x) {
-    if (isnan(x)) return x;
-    if (isinf(x)) return x;
-    if (x == 0.0) return +0.0;  /* 从零向上 */
+    if (isnan(x))
+        return x;
+    if (isinf(x))
+        return x;
+    if (x == 0.0)
+        return +0.0; /* 从零向上 */
     return nextafter(x, INFINITY);
 }
 
@@ -350,22 +357,22 @@ FloatInterval float_interval_log(FloatInterval a) {
  * ======================================================================== */
 
 /** @brief RPN（逆波兰表示）运算符编码宏 */
-#define RPN_OP_ADD   (-1)   /**< 加法 + */
-#define RPN_OP_SUB   (-2)   /**< 减法 - */
-#define RPN_OP_MUL   (-3)   /**< 乘法 * */
-#define RPN_OP_DIV   (-4)   /**< 除法 / */
-#define RPN_OP_POW   (-5)   /**< 幂运算 ^ */
-#define RPN_OP_SQRT  (-10)  /**< sqrt 函数 */
-#define RPN_OP_SIN   (-11)  /**< sin 函数 */
-#define RPN_OP_COS   (-12)  /**< cos 函数 */
-#define RPN_OP_EXP   (-13)  /**< exp 函数 */
-#define RPN_OP_LOG   (-14)  /**< log 函数 */
-#define RPN_OP_NEG   (-20)  /**< 一元负号 */
+#define RPN_OP_ADD (-1)   /**< 加法 + */
+#define RPN_OP_SUB (-2)   /**< 减法 - */
+#define RPN_OP_MUL (-3)   /**< 乘法 * */
+#define RPN_OP_DIV (-4)   /**< 除法 / */
+#define RPN_OP_POW (-5)   /**< 幂运算 ^ */
+#define RPN_OP_SQRT (-10) /**< sqrt 函数 */
+#define RPN_OP_SIN (-11)  /**< sin 函数 */
+#define RPN_OP_COS (-12)  /**< cos 函数 */
+#define RPN_OP_EXP (-13)  /**< exp 函数 */
+#define RPN_OP_LOG (-14)  /**< log 函数 */
+#define RPN_OP_NEG (-20)  /**< 一元负号 */
 
 /** @brief 表达式求值栈的最大深度 */
-#define EXPR_STACK_MAX  128
+#define EXPR_STACK_MAX 128
 /** @brief RPN 输出队列的最大长度 */
-#define EXPR_RPN_MAX    256
+#define EXPR_RPN_MAX 256
 
 /**
  * @brief 获取运算符优先级（值越大优先级越高）
@@ -377,11 +384,18 @@ FloatInterval float_interval_log(FloatInterval a) {
  */
 static int expr_op_precedence(int op) {
     switch (op) {
-        case RPN_OP_ADD: case RPN_OP_SUB: return 1;
-        case RPN_OP_MUL: case RPN_OP_DIV: return 2;
-        case RPN_OP_NEG: return 3;
-        case RPN_OP_POW: return 4;
-        default: return 0;
+        case RPN_OP_ADD:
+        case RPN_OP_SUB:
+            return 1;
+        case RPN_OP_MUL:
+        case RPN_OP_DIV:
+            return 2;
+        case RPN_OP_NEG:
+            return 3;
+        case RPN_OP_POW:
+            return 4;
+        default:
+            return 0;
     }
 }
 
@@ -452,11 +466,11 @@ static double evaluate_expression(const char *expr, const double *var_values, in
              */
 
             /* 数值常量（含科学记数法，如 3.14、-2.5e-3、.5） */
-            if ((*p >= '0' && *p <= '9') ||
-                (*p == '.' && (*(p + 1) >= '0' && *(p + 1) <= '9'))) {
+            if ((*p >= '0' && *p <= '9') || (*p == '.' && (*(p + 1) >= '0' && *(p + 1) <= '9'))) {
                 char *end = NULL;
                 double val = strtod(p, &end);
-                if (end == p || rpn_len >= EXPR_RPN_MAX) return NAN;
+                if (end == p || rpn_len >= EXPR_RPN_MAX)
+                    return NAN;
                 rpn_op[rpn_len] = 0;
                 rpn_val[rpn_len] = val;
                 rpn_len++;
@@ -468,7 +482,8 @@ static double evaluate_expression(const char *expr, const double *var_values, in
             /* 变量 xN 或 XN */
             if (*p == 'x' || *p == 'X') {
                 const char *digits = p + 1;
-                if (*digits < '0' || *digits > '9') return NAN;
+                if (*digits < '0' || *digits > '9')
+                    return NAN;
                 char *end = NULL;
                 long idx = strtol(digits, &end, 10);
                 if (idx < 0 || idx >= var_count || rpn_len >= EXPR_RPN_MAX)
@@ -486,21 +501,27 @@ static double evaluate_expression(const char *expr, const double *var_values, in
                 char name[8] = {0};
                 int nl = 0;
                 const char *q = p;
-                while (nl < 7 &&
-                       ((*q >= 'a' && *q <= 'z') || (*q >= 'A' && *q <= 'Z'))) {
+                while (nl < 7 && ((*q >= 'a' && *q <= 'z') || (*q >= 'A' && *q <= 'Z'))) {
                     name[nl++] = *q++;
                 }
                 name[nl] = '\0';
 
                 int func_op = 0;
-                if (strcmp(name, "sqrt") == 0)      func_op = RPN_OP_SQRT;
-                else if (strcmp(name, "sin") == 0)  func_op = RPN_OP_SIN;
-                else if (strcmp(name, "cos") == 0)  func_op = RPN_OP_COS;
-                else if (strcmp(name, "exp") == 0)  func_op = RPN_OP_EXP;
-                else if (strcmp(name, "log") == 0)  func_op = RPN_OP_LOG;
-                else return NAN; /* 无法识别的标识符 */
+                if (strcmp(name, "sqrt") == 0)
+                    func_op = RPN_OP_SQRT;
+                else if (strcmp(name, "sin") == 0)
+                    func_op = RPN_OP_SIN;
+                else if (strcmp(name, "cos") == 0)
+                    func_op = RPN_OP_COS;
+                else if (strcmp(name, "exp") == 0)
+                    func_op = RPN_OP_EXP;
+                else if (strcmp(name, "log") == 0)
+                    func_op = RPN_OP_LOG;
+                else
+                    return NAN; /* 无法识别的标识符 */
 
-                if (op_top >= EXPR_STACK_MAX) return NAN;
+                if (op_top >= EXPR_STACK_MAX)
+                    return NAN;
                 op_stack[op_top++] = func_op;
                 p = q;
                 /* 仍期望操作数（函数参数） */
@@ -509,7 +530,8 @@ static double evaluate_expression(const char *expr, const double *var_values, in
 
             /* 左括号 ( */
             if (*p == '(') {
-                if (op_top >= EXPR_STACK_MAX) return NAN;
+                if (op_top >= EXPR_STACK_MAX)
+                    return NAN;
                 op_stack[op_top++] = 0; /* 0 作为左括号哨兵值 */
                 p++;
                 continue;
@@ -517,7 +539,8 @@ static double evaluate_expression(const char *expr, const double *var_values, in
 
             /* 一元负号（在期望操作数的位置出现的 '-'） */
             if (*p == '-') {
-                if (op_top >= EXPR_STACK_MAX) return NAN;
+                if (op_top >= EXPR_STACK_MAX)
+                    return NAN;
                 op_stack[op_top++] = RPN_OP_NEG;
                 p++;
                 continue;
@@ -541,30 +564,42 @@ static double evaluate_expression(const char *expr, const double *var_values, in
             int cur_op = 0;
 
             switch (*p) {
-                case '+': cur_op = RPN_OP_ADD; break;
-                case '-': cur_op = RPN_OP_SUB; break;
-                case '*': cur_op = RPN_OP_MUL; break;
-                case '/': cur_op = RPN_OP_DIV; break;
-                case '^': cur_op = RPN_OP_POW; break;
+                case '+':
+                    cur_op = RPN_OP_ADD;
+                    break;
+                case '-':
+                    cur_op = RPN_OP_SUB;
+                    break;
+                case '*':
+                    cur_op = RPN_OP_MUL;
+                    break;
+                case '/':
+                    cur_op = RPN_OP_DIV;
+                    break;
+                case '^':
+                    cur_op = RPN_OP_POW;
+                    break;
 
                 case ')':
                     /* 弹出直到遇到左括号哨兵 */
                     while (op_top > 0 && op_stack[op_top - 1] != 0) {
-                        if (rpn_len >= EXPR_RPN_MAX) return NAN;
+                        if (rpn_len >= EXPR_RPN_MAX)
+                            return NAN;
                         rpn_op[rpn_len] = op_stack[op_top - 1];
                         rpn_val[rpn_len] = 0.0;
                         rpn_len++;
                         op_top--;
                     }
-                    if (op_top == 0) return NAN; /* 括号不匹配 */
-                    op_top--; /* 弹出左括号哨兵 */
+                    if (op_top == 0)
+                        return NAN; /* 括号不匹配 */
+                    op_top--;       /* 弹出左括号哨兵 */
                     /* 若栈顶是函数，将其弹出到 RPN */
                     if (op_top > 0) {
                         int top = op_stack[op_top - 1];
-                        if (top == RPN_OP_SQRT || top == RPN_OP_SIN ||
-                            top == RPN_OP_COS || top == RPN_OP_EXP ||
+                        if (top == RPN_OP_SQRT || top == RPN_OP_SIN || top == RPN_OP_COS || top == RPN_OP_EXP ||
                             top == RPN_OP_LOG) {
-                            if (rpn_len >= EXPR_RPN_MAX) return NAN;
+                            if (rpn_len >= EXPR_RPN_MAX)
+                                return NAN;
                             rpn_op[rpn_len] = top;
                             rpn_val[rpn_len] = 0.0;
                             rpn_len++;
@@ -578,13 +613,15 @@ static double evaluate_expression(const char *expr, const double *var_values, in
                 case ',':
                     /* 函数参数分隔符：弹出直到遇到左括号哨兵 */
                     while (op_top > 0 && op_stack[op_top - 1] != 0) {
-                        if (rpn_len >= EXPR_RPN_MAX) return NAN;
+                        if (rpn_len >= EXPR_RPN_MAX)
+                            return NAN;
                         rpn_op[rpn_len] = op_stack[op_top - 1];
                         rpn_val[rpn_len] = 0.0;
                         rpn_len++;
                         op_top--;
                     }
-                    if (op_top == 0) return NAN;
+                    if (op_top == 0)
+                        return NAN;
                     p++;
                     expect_operand = 1;
                     continue;
@@ -603,9 +640,9 @@ static double evaluate_expression(const char *expr, const double *var_values, in
                      * 左结合：top_prec >= cur_prec 时弹出
                      * 右结合（^）：仅 top_prec > cur_prec 时弹出
                      */
-                    if (top_prec > cur_prec ||
-                        (top_prec == cur_prec && cur_op != RPN_OP_POW)) {
-                        if (rpn_len >= EXPR_RPN_MAX) return NAN;
+                    if (top_prec > cur_prec || (top_prec == cur_prec && cur_op != RPN_OP_POW)) {
+                        if (rpn_len >= EXPR_RPN_MAX)
+                            return NAN;
                         rpn_op[rpn_len] = top_op;
                         rpn_val[rpn_len] = 0.0;
                         rpn_len++;
@@ -614,7 +651,8 @@ static double evaluate_expression(const char *expr, const double *var_values, in
                         break;
                     }
                 }
-                if (op_top >= EXPR_STACK_MAX) return NAN;
+                if (op_top >= EXPR_STACK_MAX)
+                    return NAN;
                 op_stack[op_top++] = cur_op;
                 p++;
                 expect_operand = 1;
@@ -626,14 +664,17 @@ static double evaluate_expression(const char *expr, const double *var_values, in
     /* 将栈中剩余运算符全部弹出到 RPN */
     while (op_top > 0) {
         int top = op_stack[--op_top];
-        if (top == 0) return NAN; /* 括号不匹配 */
-        if (rpn_len >= EXPR_RPN_MAX) return NAN;
+        if (top == 0)
+            return NAN; /* 括号不匹配 */
+        if (rpn_len >= EXPR_RPN_MAX)
+            return NAN;
         rpn_op[rpn_len] = top;
         rpn_val[rpn_len] = 0.0;
         rpn_len++;
     }
 
-    if (rpn_len == 0) return NAN;
+    if (rpn_len == 0)
+        return NAN;
 
     /* ---- 阶段 2：RPN 求值 ---- */
     double eval_stack[EXPR_STACK_MAX];
@@ -644,75 +685,82 @@ static double evaluate_expression(const char *expr, const double *var_values, in
 
         if (op == 0) {
             /* 操作数：直接压入求值栈 */
-            if (eval_top >= EXPR_STACK_MAX) return NAN;
+            if (eval_top >= EXPR_STACK_MAX)
+                return NAN;
             eval_stack[eval_top++] = rpn_val[i];
         } else {
             /* 运算符：从求值栈弹出操作数并计算 */
             switch (op) {
                 case RPN_OP_ADD:
-                    if (eval_top < 2) return NAN;
+                    if (eval_top < 2)
+                        return NAN;
                     eval_stack[eval_top - 2] += eval_stack[eval_top - 1];
                     eval_top--;
                     break;
                 case RPN_OP_SUB:
-                    if (eval_top < 2) return NAN;
+                    if (eval_top < 2)
+                        return NAN;
                     eval_stack[eval_top - 2] -= eval_stack[eval_top - 1];
                     eval_top--;
                     break;
                 case RPN_OP_MUL:
-                    if (eval_top < 2) return NAN;
+                    if (eval_top < 2)
+                        return NAN;
                     eval_stack[eval_top - 2] *= eval_stack[eval_top - 1];
                     eval_top--;
                     break;
                 case RPN_OP_DIV:
-                    if (eval_top < 2) return NAN;
+                    if (eval_top < 2)
+                        return NAN;
                     if (fabs(eval_stack[eval_top - 1]) < 1e-308)
                         return NAN; /* 除零保护 */
                     eval_stack[eval_top - 2] /= eval_stack[eval_top - 1];
                     eval_top--;
                     break;
                 case RPN_OP_POW:
-                    if (eval_top < 2) return NAN;
+                    if (eval_top < 2)
+                        return NAN;
                     /* Guard: pow(negative, non-integer) is undefined in reals */
                     if (eval_stack[eval_top - 2] < 0.0 &&
-                        fabs(eval_stack[eval_top - 1] -
-                             round(eval_stack[eval_top - 1])) > 1e-12) {
+                        fabs(eval_stack[eval_top - 1] - round(eval_stack[eval_top - 1])) > 1e-12) {
                         return NAN;
                     }
-                    eval_stack[eval_top - 2] =
-                        pow(eval_stack[eval_top - 2], eval_stack[eval_top - 1]);
+                    eval_stack[eval_top - 2] = pow(eval_stack[eval_top - 2], eval_stack[eval_top - 1]);
                     eval_top--;
                     break;
                 case RPN_OP_NEG:
-                    if (eval_top < 1) return NAN;
+                    if (eval_top < 1)
+                        return NAN;
                     eval_stack[eval_top - 1] = -eval_stack[eval_top - 1];
                     break;
                 case RPN_OP_SQRT:
-                    if (eval_top < 1) return NAN;
-                    if (eval_stack[eval_top - 1] < 0.0) return NAN;
-                    eval_stack[eval_top - 1] =
-                        sqrt(eval_stack[eval_top - 1]);
+                    if (eval_top < 1)
+                        return NAN;
+                    if (eval_stack[eval_top - 1] < 0.0)
+                        return NAN;
+                    eval_stack[eval_top - 1] = sqrt(eval_stack[eval_top - 1]);
                     break;
                 case RPN_OP_SIN:
-                    if (eval_top < 1) return NAN;
-                    eval_stack[eval_top - 1] =
-                        sin(eval_stack[eval_top - 1]);
+                    if (eval_top < 1)
+                        return NAN;
+                    eval_stack[eval_top - 1] = sin(eval_stack[eval_top - 1]);
                     break;
                 case RPN_OP_COS:
-                    if (eval_top < 1) return NAN;
-                    eval_stack[eval_top - 1] =
-                        cos(eval_stack[eval_top - 1]);
+                    if (eval_top < 1)
+                        return NAN;
+                    eval_stack[eval_top - 1] = cos(eval_stack[eval_top - 1]);
                     break;
                 case RPN_OP_EXP:
-                    if (eval_top < 1) return NAN;
-                    eval_stack[eval_top - 1] =
-                        exp(eval_stack[eval_top - 1]);
+                    if (eval_top < 1)
+                        return NAN;
+                    eval_stack[eval_top - 1] = exp(eval_stack[eval_top - 1]);
                     break;
                 case RPN_OP_LOG:
-                    if (eval_top < 1) return NAN;
-                    if (eval_stack[eval_top - 1] <= 0.0) return NAN;
-                    eval_stack[eval_top - 1] =
-                        log(eval_stack[eval_top - 1]);
+                    if (eval_top < 1)
+                        return NAN;
+                    if (eval_stack[eval_top - 1] <= 0.0)
+                        return NAN;
+                    eval_stack[eval_top - 1] = log(eval_stack[eval_top - 1]);
                     break;
                 default:
                     return NAN;
@@ -751,8 +799,7 @@ static double finite_difference_partial(const char *expr, const FloatInterval *v
                                         const double *center_vals) {
     (void) var_bounds; /* 签名兼容：区间边界在此函数中未直接使用 */
 
-    if (!expr || !center_vals || var_count <= 0 ||
-        var_idx < 0 || var_idx >= var_count) {
+    if (!expr || !center_vals || var_count <= 0 || var_idx < 0 || var_idx >= var_count) {
         return NAN;
     }
 
@@ -771,10 +818,11 @@ static double finite_difference_partial(const char *expr, const FloatInterval *v
 
     /* 扰动后的变量值缓冲区：在栈上分配，最多 MAX_EQUATIONS 个变量 */
     double perturbed[MAX_EQUATIONS];
-    if (var_count > MAX_EQUATIONS) return NAN;
+    if (var_count > MAX_EQUATIONS)
+        return NAN;
 
     /* 计算 f(..., xi+h, ...) */
-    memcpy(perturbed, center_vals, (size_t)var_count * sizeof(double));
+    memcpy(perturbed, center_vals, (size_t) var_count * sizeof(double));
     perturbed[var_idx] = x_c + h;
     double f_plus = evaluate_expression(expr, perturbed, var_count);
 
@@ -812,11 +860,11 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
     tf->deriv_count = var_count;
     tf->order = 1;
 
-    tf->first_derivs = (double *) lv_malloc((size_t)var_count * sizeof(double));
-    tf->deriv_var_ids = (int *) lv_malloc((size_t)var_count * sizeof(int));
+    tf->first_derivs = (double *) lv_malloc((size_t) var_count * sizeof(double));
+    tf->deriv_var_ids = (int *) lv_malloc((size_t) var_count * sizeof(int));
     if (!tf->first_derivs || !tf->deriv_var_ids) {
-        lv_free((void **)&tf->first_derivs);
-        lv_free((void **)&tf->deriv_var_ids);
+        lv_free((void **) &tf->first_derivs);
+        lv_free((void **) &tf->deriv_var_ids);
         return false;
     }
 
@@ -888,7 +936,7 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
 
     /* 分配表达式数组 */
     int alloc_count = (graph->constraint_count < MAX_EQUATIONS) ? graph->constraint_count : MAX_EQUATIONS;
-    char **eqs = (char **) lv_malloc((size_t)alloc_count * sizeof(char *));
+    char **eqs = (char **) lv_malloc((size_t) alloc_count * sizeof(char *));
     if (!eqs)
         return false;
 
@@ -933,13 +981,15 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
 
         char buf[EXPR_BUFFER_INITIAL];
         int off = snprintf(buf, sizeof(buf), "constraint_%d: type=%s, vars=[", c->id, type_str);
-        if (off < 0) off = 0;
+        if (off < 0)
+            off = 0;
         for (int pi = 0; pi < c->participant_count && off >= 0 && off < (int) sizeof(buf) - 20; pi++) {
-            int n = snprintf(buf + off, sizeof(buf) - (size_t)off, "%s%d", (pi > 0) ? "," : "", c->participants[pi]);
-            if (n > 0) off += n;
+            int n = snprintf(buf + off, sizeof(buf) - (size_t) off, "%s%d", (pi > 0) ? "," : "", c->participants[pi]);
+            if (n > 0)
+                off += n;
         }
-        if (off >= 0 && off < (int)sizeof(buf))
-            snprintf(buf + off, sizeof(buf) - (size_t)off, "]");
+        if (off >= 0 && off < (int) sizeof(buf))
+            snprintf(buf + off, sizeof(buf) - (size_t) off, "]");
 
         eqs[*eq_count] = lv_strdup(buf);
         (*eq_count)++;
@@ -1020,8 +1070,8 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
                     max_rel_err = rel;
             }
 
-            lv_free((void **)&tf.first_derivs);
-            lv_free((void **)&tf.deriv_var_ids);
+            lv_free((void **) &tf.first_derivs);
+            lv_free((void **) &tf.deriv_var_ids);
         }
     }
 
@@ -1044,9 +1094,9 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
     out->proof_text = lv_strdup(proof_buf);
 
     for (int ei = 0; ei < eq_count; ei++) {
-        lv_free((void **)&equations[ei]);
+        lv_free((void **) &equations[ei]);
     }
-    lv_free((void **)&equations);
+    lv_free((void **) &equations);
 
     return true;
 }
@@ -1099,8 +1149,8 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, i
              out->relative_error);
     out->proof_text = lv_strdup(proof_buf);
 
-    lv_free((void **)&tf.first_derivs);
-    lv_free((void **)&tf.deriv_var_ids);
+    lv_free((void **) &tf.first_derivs);
+    lv_free((void **) &tf.deriv_var_ids);
 
     return true;
 }
@@ -1185,7 +1235,7 @@ void error_bound_destroy(ErrorBound *bound) {
     if (!bound)
         return;
     if (bound->proof_text) {
-        lv_free((void **)&bound->proof_text);
+        lv_free((void **) &bound->proof_text);
         bound->proof_text = NULL;
     }
 }

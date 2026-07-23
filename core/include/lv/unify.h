@@ -84,7 +84,8 @@ typedef enum {
  * @param[in] proposition   命题模式图（待匹配的目标模式）
  * @return 合一状态（UNIFY_STATUS_OK 表示匹配成功）
  */
-lv_PUBLIC_API UnifyStatus unify_construction_with_proposition(const ConstraintGraph *construction, const ConstraintGraph *proposition);
+lv_PUBLIC_API UnifyStatus unify_construction_with_proposition(const ConstraintGraph *construction,
+                                                              const ConstraintGraph *proposition);
 
 /**
  * @brief 带坐标级别相等检查的合一（增强版）
@@ -97,7 +98,8 @@ lv_PUBLIC_API UnifyStatus unify_construction_with_proposition(const ConstraintGr
  * @param[in] proposition   命题模式图
  * @return 合一状态
  */
-lv_PUBLIC_API UnifyStatus unify_construction_with_proposition_coord(const ConstraintGraph *construction, const ConstraintGraph *proposition);
+lv_PUBLIC_API UnifyStatus unify_construction_with_proposition_coord(const ConstraintGraph *construction,
+                                                                    const ConstraintGraph *proposition);
 
 /**
  * @brief 带哈希预过滤的合一（优化版）
@@ -110,7 +112,7 @@ lv_PUBLIC_API UnifyStatus unify_construction_with_proposition_coord(const Constr
  * @return 合一状态
  */
 lv_PUBLIC_API UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGraph *construction,
-                                                              const ConstraintGraph *proposition);
+                                                                            const ConstraintGraph *proposition);
 
 /* ============== 精细化匹配函数（供外部精细控制） ============== */
 
@@ -140,7 +142,7 @@ lv_PUBLIC_API UnifyStatus unify_construction_with_proposition_hash_filtered(cons
  *   建议在调用前检查端口数并分配足够的缓冲区，或传入 NULL 以仅获取匹配计数。
  */
 lv_PUBLIC_API int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition,
-                      int *out_port_bindings, int max_bindings);
+                                    int *out_port_bindings, int max_bindings);
 
 /**
  * @brief 单独执行约束匹配
@@ -156,7 +158,7 @@ lv_PUBLIC_API int unify_match_ports(const ConstraintGraph *construction, const C
  * @return 匹配成功的约束对数（>=0），或 -1 表示错误
  */
 lv_PUBLIC_API int unify_match_constraints(const ConstraintGraph *construction, const ConstraintGraph *proposition,
-                            int *out_constraint_bindings);
+                                          int *out_constraint_bindings);
 
 /**
  * @brief 比较两个几何节点的符号坐标数组是否完全相等
@@ -238,8 +240,9 @@ lv_PUBLIC_API void unify_failure_info_destroy(UnifyFailureInfo *info);
  * @param out_failure 输出的失败信息（可为 NULL）
  * @return 合一状态
  */
-lv_PUBLIC_API UnifyStatus unify_construction_with_proposition_detailed(const ConstraintGraph *construction, const ConstraintGraph *pattern,
-                                                         UnifyFailureInfo *out_failure);
+lv_PUBLIC_API UnifyStatus unify_construction_with_proposition_detailed(const ConstraintGraph *construction,
+                                                                       const ConstraintGraph *pattern,
+                                                                       UnifyFailureInfo *out_failure);
 
 /* ============== 命题的等价变换 ============== */
 
@@ -255,7 +258,8 @@ lv_PUBLIC_API UnifyStatus unify_construction_with_proposition_detailed(const Con
  * @param transformation_rule 变换规则（可为 NULL，表示纯等价声明）
  * @return 是否成功声明
  */
-lv_PUBLIC_API bool unify_declare_proposition_equivalence(int prop_a_id, int prop_b_id, ConstraintGraph *transformation_rule);
+lv_PUBLIC_API bool unify_declare_proposition_equivalence(int prop_a_id, int prop_b_id,
+                                                         ConstraintGraph *transformation_rule);
 
 /**
  * @brief 查找命题的等价命题
@@ -313,8 +317,8 @@ lv_PUBLIC_API int unify_equivalence_count(void);
  * @param out_instantiated 输出的实例化命题（调用者负责销毁）
  * @return 是否成功实例化
  */
-lv_PUBLIC_API bool unify_instantiate_proposition(ConstraintGraph *proposition, int type_var_node_id, const TypeRegion *concrete_type,
-                                   ConstraintGraph **out_instantiated);
+lv_PUBLIC_API bool unify_instantiate_proposition(ConstraintGraph *proposition, int type_var_node_id,
+                                                 const TypeRegion *concrete_type, ConstraintGraph **out_instantiated);
 
 /* 简化的命题结构（用于底层合一检查） */
 typedef struct SimpleProposition {
@@ -336,7 +340,7 @@ typedef struct SimpleProof {
 } SimpleProof;
 
 lv_PUBLIC_API SimpleProposition *simple_proposition_create(const char *name, int *input_port_ids, int input_count,
-                                             int *output_port_ids, int output_count);
+                                                           int *output_port_ids, int output_count);
 lv_PUBLIC_API void simple_proposition_destroy(SimpleProposition *prop);
 lv_PUBLIC_API SimpleProof *simple_proof_create(SimpleProposition *prop, ConstraintGraph *construction);
 lv_PUBLIC_API void simple_proof_destroy(SimpleProof *proof);

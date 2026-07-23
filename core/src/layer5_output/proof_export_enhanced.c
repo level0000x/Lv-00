@@ -12,11 +12,13 @@
  */
 
 #include "lv/proof_export_enhanced.h"
-#include "lv/lv_utils.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv/lv_utils.h"
 
 /* ================================================================
  * 动态字符串构建器
@@ -25,7 +27,7 @@
 #define DSTR_INIT_CAP 4096
 
 typedef struct {
-    char  *data;
+    char *data;
     size_t len;
     size_t cap;
 } DStr;
@@ -37,8 +39,9 @@ typedef struct {
  * @return 0 成功，-1 内存分配失败
  */
 static int dstr_init(DStr *d, size_t cap) {
-    d->data = (char *)lv_malloc(cap);
-    if (!d->data) return -1;
+    d->data = (char *) lv_malloc(cap);
+    if (!d->data)
+        return -1;
     d->data[0] = '\0';
     d->len = 0;
     d->cap = cap;
@@ -53,13 +56,16 @@ static int dstr_init(DStr *d, size_t cap) {
  */
 static int dstr_grow(DStr *d, size_t extra) {
     size_t needed = d->len + extra + 1;
-    if (needed <= d->cap) return 0;
+    if (needed <= d->cap)
+        return 0;
     size_t new_cap = d->cap * 2;
-    while (new_cap < needed) new_cap *= 2;
-    char *nd = (char *)lv_realloc(d->data, new_cap);
-    if (!nd) return -1;
+    while (new_cap < needed)
+        new_cap *= 2;
+    char *nd = (char *) lv_realloc(d->data, new_cap);
+    if (!nd)
+        return -1;
     d->data = nd;
-    d->cap  = new_cap;
+    d->cap = new_cap;
     return 0;
 }
 
@@ -75,12 +81,14 @@ static int dstr_append(DStr *d, const char *fmt, ...) {
     va_start(ap, fmt);
     int needed = vsnprintf(NULL, 0, fmt, ap);
     va_end(ap);
-    if (needed < 0) return -1;
-    if (dstr_grow(d, (size_t)needed) != 0) return -1;
+    if (needed < 0)
+        return -1;
+    if (dstr_grow(d, (size_t) needed) != 0)
+        return -1;
     va_start(ap, fmt);
     vsnprintf(d->data + d->len, d->cap - d->len, fmt, ap);
     va_end(ap);
-    d->len += (size_t)needed;
+    d->len += (size_t) needed;
     return 0;
 }
 
@@ -92,8 +100,10 @@ static int dstr_append(DStr *d, const char *fmt, ...) {
  * @return 0 成功，-1 失败
  */
 static int dstr_append_raw(DStr *d, const char *s, size_t n) {
-    if (!s || n == 0) return 0;
-    if (dstr_grow(d, n) != 0) return -1;
+    if (!s || n == 0)
+        return 0;
+    if (dstr_grow(d, n) != 0)
+        return -1;
     memcpy(d->data + d->len, s, n);
     d->len += n;
     d->data[d->len] = '\0';
@@ -107,7 +117,8 @@ static int dstr_append_raw(DStr *d, const char *s, size_t n) {
  * @return 0 成功，-1 失败
  */
 static int dstr_append_str(DStr *d, const char *s) {
-    if (!s) return 0;
+    if (!s)
+        return 0;
     return dstr_append_raw(d, s, strlen(s));
 }
 
@@ -117,7 +128,7 @@ static int dstr_append_str(DStr *d, const char *s) {
  */
 static void dstr_free(DStr *d) {
     if (d->data) {
-        lv_free((void **)&(d->data));
+        lv_free((void **) &(d->data));
         d->data = NULL;
     }
     d->len = 0;
@@ -134,12 +145,13 @@ static void dstr_free(DStr *d) {
  * @return 错误结果对象指针
  */
 static lvExportResult *make_error(const char *msg) {
-    lvExportResult *r = (lvExportResult *)lv_calloc(1, sizeof(lvExportResult));
-    if (!r) return NULL;
+    lvExportResult *r = (lvExportResult *) lv_calloc(1, sizeof(lvExportResult));
+    if (!r)
+        return NULL;
     const char *src = msg ? msg : "Unknown error";
     size_t len = strlen(src);
-    r->success     = false;
-    r->output      = (char *)lv_malloc(len + 1);
+    r->success = false;
+    r->output = (char *) lv_malloc(len + 1);
     if (r->output) {
         memcpy(r->output, src, len + 1);
         r->output_size = len;
@@ -155,13 +167,13 @@ static lvExportResult *make_error(const char *msg) {
  * @return 成功结果对象指针，失败返回 NULL
  */
 static lvExportResult *make_success(DStr *d) {
-    lvExportResult *r = (lvExportResult *)lv_calloc(1, sizeof(lvExportResult));
+    lvExportResult *r = (lvExportResult *) lv_calloc(1, sizeof(lvExportResult));
     if (!r) {
         dstr_free(d);
         return NULL;
     }
-    r->success     = true;
-    r->output      = d->data;
+    r->success = true;
+    r->output = d->data;
     r->output_size = d->len;
     /* d->data ownership transferred — don't free it again */
     return r;
@@ -190,11 +202,9 @@ static void sanitize_id(char *dst, size_t dst_sz, const char *src) {
     size_t j = 0;
     for (size_t i = 0; src[i] && j + 1 < dst_sz; i++) {
         char c = src[i];
-        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-            (c >= '0' && c <= '9') || c == '_') {
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
             dst[j++] = c;
-        } else if (c == ' ' || c == ':' || c == '-' || c == '>' || c == '(' ||
-                   c == ')' || c == ',') {
+        } else if (c == ' ' || c == ':' || c == '-' || c == '>' || c == '(' || c == ')' || c == ',') {
             dst[j++] = '_';
         }
         /* skip other chars */
@@ -215,21 +225,28 @@ static int dstr_append_json_string(DStr *d, const char *str) {
     if (!str) {
         return dstr_append(d, "null");
     }
-    if (dstr_append(d, "\"") != 0) return -1;
+    if (dstr_append(d, "\"") != 0)
+        return -1;
     for (const char *p = str; *p; p++) {
         if (*p == '\\') {
-            if (dstr_append(d, "\\\\") != 0) return -1;
+            if (dstr_append(d, "\\\\") != 0)
+                return -1;
         } else if (*p == '"') {
-            if (dstr_append(d, "\\\"") != 0) return -1;
+            if (dstr_append(d, "\\\"") != 0)
+                return -1;
         } else if (*p == '\n') {
-            if (dstr_append(d, "\\n") != 0) return -1;
+            if (dstr_append(d, "\\n") != 0)
+                return -1;
         } else if (*p == '\t') {
-            if (dstr_append(d, "\\t") != 0) return -1;
+            if (dstr_append(d, "\\t") != 0)
+                return -1;
         } else if (*p == '\r') {
-            if (dstr_append(d, "\\r") != 0) return -1;
+            if (dstr_append(d, "\\r") != 0)
+                return -1;
         } else {
             char tmp[2] = {*p, '\0'};
-            if (dstr_append_str(d, tmp) != 0) return -1;
+            if (dstr_append_str(d, tmp) != 0)
+                return -1;
         }
     }
     return dstr_append(d, "\"");
@@ -239,10 +256,10 @@ static int dstr_append_json_string(DStr *d, const char *str) {
  * HTML 导出
  * ================================================================ */
 
-static lvExportResult *export_html(const lvProof *proof,
-                                     const lvExportConfig *config) {
+static lvExportResult *export_html(const lvProof *proof, const lvExportConfig *config) {
     DStr d;
-    if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
+    if (dstr_init(&d, DSTR_INIT_CAP) != 0)
+        return NULL;
 
     const char *indent = config->pretty_print ? "\n" : "";
     const char *indent2 = config->pretty_print ? "  " : "";
@@ -253,18 +270,17 @@ static lvExportResult *export_html(const lvProof *proof,
     dstr_append(&d, "%s<meta charset=\"UTF-8\">%s", indent2, indent);
     dstr_append(&d, "%s<title>%s</title>%s", indent2, safe_str(proof->theorem), indent);
     dstr_append(&d, "%s<style>%s", indent2, indent);
-    dstr_append(&d, "%s  body { font-family: 'Segoe UI', sans-serif; margin: 2em; background: #f9f9f9; }%s",
+    dstr_append(&d, "%s  body { font-family: 'Segoe UI', sans-serif; margin: 2em; background: #f9f9f9; }%s", indent2,
+                indent);
+    dstr_append(&d, "%s  h1 { color: #333; border-bottom: 2px solid #4a90d9; padding-bottom: 0.3em; }%s", indent2,
+                indent);
+    dstr_append(&d,
+                "%s  table { border-collapse: collapse; width: 100%%; background: #fff; box-shadow: 0 1px 3px "
+                "rgba(0,0,0,0.1); }%s",
                 indent2, indent);
-    dstr_append(&d, "%s  h1 { color: #333; border-bottom: 2px solid #4a90d9; padding-bottom: 0.3em; }%s",
-                indent2, indent);
-    dstr_append(&d, "%s  table { border-collapse: collapse; width: 100%%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }%s",
-                indent2, indent);
-    dstr_append(&d, "%s  th { background: #4a90d9; color: #fff; padding: 10px; text-align: left; }%s",
-                indent2, indent);
-    dstr_append(&d, "%s  td { padding: 8px 10px; border-bottom: 1px solid #e0e0e0; }%s",
-                indent2, indent);
-    dstr_append(&d, "%s  tr:nth-child(even) { background: #f2f7fd; }%s",
-                indent2, indent);
+    dstr_append(&d, "%s  th { background: #4a90d9; color: #fff; padding: 10px; text-align: left; }%s", indent2, indent);
+    dstr_append(&d, "%s  td { padding: 8px 10px; border-bottom: 1px solid #e0e0e0; }%s", indent2, indent);
+    dstr_append(&d, "%s  tr:nth-child(even) { background: #f2f7fd; }%s", indent2, indent);
     dstr_append(&d, "%s  .trace { margin-top: 2em; padding: 1em; background: #fff3cd; border: 1px solid #ffc107; }%s",
                 indent2, indent);
     dstr_append(&d, "%s</style>%s", indent2, indent);
@@ -272,8 +288,9 @@ static lvExportResult *export_html(const lvProof *proof,
     dstr_append(&d, "<body>%s", indent);
     dstr_append(&d, "%s<h1>%s</h1>%s", indent2, safe_str(proof->theorem), indent);
     dstr_append(&d, "%s<table>%s", indent2, indent);
-    dstr_append(&d, "%s  <thead><tr><th>Step</th><th>Rule</th><th>Premise</th><th>Conclusion</th><th>Depth</th></tr></thead>%s",
-                indent2, indent);
+    dstr_append(
+        &d, "%s  <thead><tr><th>Step</th><th>Rule</th><th>Premise</th><th>Conclusion</th><th>Depth</th></tr></thead>%s",
+        indent2, indent);
     dstr_append(&d, "%s  <tbody>%s", indent2, indent);
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *s = &proof->steps[i];
@@ -295,7 +312,8 @@ static lvExportResult *export_html(const lvProof *proof,
         for (int i = 0; i < proof->n_steps; i++) {
             const lvProofStep *s = &proof->steps[i];
             dstr_append(&d, "%s  <p>[%d] %s", indent2, s->step_id, safe_str(s->rule));
-            if (s->premise) dstr_append(&d, " (from %s)", s->premise);
+            if (s->premise)
+                dstr_append(&d, " (from %s)", s->premise);
             dstr_append(&d, " &rarr; %s</p>%s", safe_str(s->conclusion), indent);
         }
         dstr_append(&d, "%s</div>%s", indent2, indent);
@@ -311,10 +329,10 @@ static lvExportResult *export_html(const lvProof *proof,
  * LaTeX 导出
  * ================================================================ */
 
-static lvExportResult *export_latex(const lvProof *proof,
-                                      const lvExportConfig *config) {
+static lvExportResult *export_latex(const lvProof *proof, const lvExportConfig *config) {
     DStr d;
-    if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
+    if (dstr_init(&d, DSTR_INIT_CAP) != 0)
+        return NULL;
 
     const char *nl = config->pretty_print ? "\n" : "\n";
 
@@ -330,16 +348,36 @@ static lvExportResult *export_latex(const lvProof *proof,
     /* 简单转义：\ → \textbackslash, { → \{, } → \}, _ → \_, & → \&, # → \#, % → \% */
     for (const char *p = th; *p; p++) {
         switch (*p) {
-            case '\\': dstr_append(&d, "\\textbackslash{}"); break;
-            case '{':  dstr_append(&d, "\\{"); break;
-            case '}':  dstr_append(&d, "\\}"); break;
-            case '_':  dstr_append(&d, "\\_"); break;
-            case '&':  dstr_append(&d, "\\&"); break;
-            case '#':  dstr_append(&d, "\\#"); break;
-            case '%':  dstr_append(&d, "\\%%"); break;
-            case '$':  dstr_append(&d, "\\$"); break;
-            case '^':  dstr_append(&d, "\\^{}"); break;
-            case '~':  dstr_append(&d, "\\~{}"); break;
+            case '\\':
+                dstr_append(&d, "\\textbackslash{}");
+                break;
+            case '{':
+                dstr_append(&d, "\\{");
+                break;
+            case '}':
+                dstr_append(&d, "\\}");
+                break;
+            case '_':
+                dstr_append(&d, "\\_");
+                break;
+            case '&':
+                dstr_append(&d, "\\&");
+                break;
+            case '#':
+                dstr_append(&d, "\\#");
+                break;
+            case '%':
+                dstr_append(&d, "\\%%");
+                break;
+            case '$':
+                dstr_append(&d, "\\$");
+                break;
+            case '^':
+                dstr_append(&d, "\\^{}");
+                break;
+            case '~':
+                dstr_append(&d, "\\~{}");
+                break;
             default: {
                 char tmp[2] = {*p, '\0'};
                 dstr_append_str(&d, tmp);
@@ -354,12 +392,8 @@ static lvExportResult *export_latex(const lvProof *proof,
     dstr_append(&d, "Step & Rule & Premise & Conclusion \\\\\\hline%s", nl);
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *s = &proof->steps[i];
-        dstr_append(&d, "%d & %s & %s & %s \\\\\\hline%s",
-                    s->step_id,
-                    safe_str(s->rule),
-                    s->premise ? s->premise : "---",
-                    safe_str(s->conclusion),
-                    nl);
+        dstr_append(&d, "%d & %s & %s & %s \\\\\\hline%s", s->step_id, safe_str(s->rule),
+                    s->premise ? s->premise : "---", safe_str(s->conclusion), nl);
     }
     dstr_append(&d, "\\end{tabular}%s", nl);
 
@@ -373,12 +407,12 @@ static lvExportResult *export_latex(const lvProof *proof,
  * Coq 导出
  * ================================================================ */
 
-static lvExportResult *export_coq(const lvProof *proof,
-                                    const lvExportConfig *config) {
+static lvExportResult *export_coq(const lvProof *proof, const lvExportConfig *config) {
     DStr d;
-    if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
+    if (dstr_init(&d, DSTR_INIT_CAP) != 0)
+        return NULL;
 
-    (void)config;
+    (void) config;
 
     char id[256];
     sanitize_id(id, sizeof(id), proof->theorem);
@@ -390,7 +424,8 @@ static lvExportResult *export_coq(const lvProof *proof,
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *s = &proof->steps[i];
         dstr_append(&d, "  (* Step %d: %s", s->step_id, safe_str(s->rule));
-        if (s->premise) dstr_append(&d, " (premise: %s)", s->premise);
+        if (s->premise)
+            dstr_append(&d, " (premise: %s)", s->premise);
         dstr_append(&d, " → %s *)%s", safe_str(s->conclusion), "\n");
         dstr_append(&d, "  %s. (* %s *)%s", "exact I", safe_str(s->rule), "\n");
     }
@@ -403,12 +438,12 @@ static lvExportResult *export_coq(const lvProof *proof,
  * Lean 4 导出
  * ================================================================ */
 
-static lvExportResult *export_lean4(const lvProof *proof,
-                                      const lvExportConfig *config) {
+static lvExportResult *export_lean4(const lvProof *proof, const lvExportConfig *config) {
     DStr d;
-    if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
+    if (dstr_init(&d, DSTR_INIT_CAP) != 0)
+        return NULL;
 
-    (void)config;
+    (void) config;
 
     char id[256];
     sanitize_id(id, sizeof(id), proof->theorem);
@@ -420,7 +455,8 @@ static lvExportResult *export_lean4(const lvProof *proof,
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *s = &proof->steps[i];
         dstr_append(&d, "  -- Step %d: %s", s->step_id, safe_str(s->rule));
-        if (s->premise) dstr_append(&d, " (from %s)", s->premise);
+        if (s->premise)
+            dstr_append(&d, " (from %s)", s->premise);
         dstr_append(&d, " → %s%s", safe_str(s->conclusion), "\n");
         dstr_append(&d, "  have h%d : True := by trivial%s", s->step_id, "\n");
     }
@@ -433,13 +469,13 @@ static lvExportResult *export_lean4(const lvProof *proof,
  * JSON 导出
  * ================================================================ */
 
-static lvExportResult *export_json(const lvProof *proof,
-                                     const lvExportConfig *config) {
+static lvExportResult *export_json(const lvProof *proof, const lvExportConfig *config) {
     DStr d;
-    if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
+    if (dstr_init(&d, DSTR_INIT_CAP) != 0)
+        return NULL;
 
-    const char *nl  = config->pretty_print ? "\n" : "";
-    const char *sp  = config->pretty_print ? "  " : "";
+    const char *nl = config->pretty_print ? "\n" : "";
+    const char *sp = config->pretty_print ? "  " : "";
     const char *sp2 = config->pretty_print ? "    " : "";
     const char *sp3 = config->pretty_print ? "      " : "";
 
@@ -481,13 +517,13 @@ static lvExportResult *export_json(const lvProof *proof,
  * DOT（Graphviz）导出
  * ================================================================ */
 
-static lvExportResult *export_dot(const lvProof *proof,
-                                    const lvExportConfig *config) {
+static lvExportResult *export_dot(const lvProof *proof, const lvExportConfig *config) {
     DStr d;
-    if (dstr_init(&d, DSTR_INIT_CAP) != 0) return NULL;
+    if (dstr_init(&d, DSTR_INIT_CAP) != 0)
+        return NULL;
 
-    const char *nl  = config->pretty_print ? "\n" : "";
-    const char *sp  = config->pretty_print ? "  " : "";
+    const char *nl = config->pretty_print ? "\n" : "";
+    const char *sp = config->pretty_print ? "  " : "";
     const char *sp2 = config->pretty_print ? "    " : "";
 
     dstr_append(&d, "digraph Proof {%s", nl);
@@ -499,9 +535,7 @@ static lvExportResult *export_dot(const lvProof *proof,
     /* 节点 */
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *s = &proof->steps[i];
-        dstr_append(&d, "%sstep%d[label=\"[%d] %s\\n%s",
-                    sp, s->step_id, s->step_id,
-                    safe_str(s->rule),
+        dstr_append(&d, "%sstep%d[label=\"[%d] %s\\n%s", sp, s->step_id, s->step_id, safe_str(s->rule),
                     safe_str(s->conclusion));
         if (s->premise) {
             dstr_append(&d, "\\n(from: %s)", s->premise);
@@ -513,9 +547,11 @@ static lvExportResult *export_dot(const lvProof *proof,
     dstr_append(&d, "%s%s", sp, nl);
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *si = &proof->steps[i];
-        if (!si->premise) continue;
+        if (!si->premise)
+            continue;
         for (int j = 0; j < proof->n_steps; j++) {
-            if (i == j) continue;
+            if (i == j)
+                continue;
             const lvProofStep *sj = &proof->steps[j];
             if (strcmp(si->premise, sj->conclusion) == 0) {
                 dstr_append(&d, "%sstep%d -> step%d;%s", sp, sj->step_id, si->step_id, nl);
@@ -532,8 +568,7 @@ static lvExportResult *export_dot(const lvProof *proof,
  * 公共 API
  * ================================================================ */
 
-lvExportResult *proof_export_enhanced(const lvProof *proof,
-                                        const lvExportConfig *config) {
+lvExportResult *proof_export_enhanced(const lvProof *proof, const lvExportConfig *config) {
     if (!proof) {
         return make_error("proof_export_enhanced: proof is NULL");
     }
@@ -542,49 +577,55 @@ lvExportResult *proof_export_enhanced(const lvProof *proof,
     }
 
     switch (config->format) {
-        case EXPORT_HTML:  return export_html(proof, config);
-        case EXPORT_LATEX: return export_latex(proof, config);
-        case EXPORT_COQ:   return export_coq(proof, config);
-        case EXPORT_LEAN4: return export_lean4(proof, config);
-        case EXPORT_JSON:  return export_json(proof, config);
-        case EXPORT_DOT:   return export_dot(proof, config);
+        case EXPORT_HTML:
+            return export_html(proof, config);
+        case EXPORT_LATEX:
+            return export_latex(proof, config);
+        case EXPORT_COQ:
+            return export_coq(proof, config);
+        case EXPORT_LEAN4:
+            return export_lean4(proof, config);
+        case EXPORT_JSON:
+            return export_json(proof, config);
+        case EXPORT_DOT:
+            return export_dot(proof, config);
         default:
             return make_error("proof_export_enhanced: unknown format");
     }
 }
 
-lvExportResult *proof_export_from_navigator(const char *theorem_name,
-                                              lvExportFormat format) {
+lvExportResult *proof_export_from_navigator(const char *theorem_name, lvExportFormat format) {
     if (!theorem_name) {
         return make_error("proof_export_from_navigator: theorem_name is NULL");
     }
 
     lvProofStep step;
-    step.step_id    = 1;
-    step.rule       = "given";
-    step.premise    = NULL;
+    step.step_id = 1;
+    step.rule = "given";
+    step.premise = NULL;
     step.conclusion = theorem_name;
-    step.depth      = 0;
+    step.depth = 0;
 
     lvProof proof;
-    proof.steps   = &step;
+    proof.steps = &step;
     proof.n_steps = 1;
     proof.theorem = theorem_name;
 
     lvExportConfig config;
-    config.format              = format;
+    config.format = format;
     config.include_proof_trace = false;
-    config.include_geometry    = false;
-    config.pretty_print        = true;
+    config.include_geometry = false;
+    config.pretty_print = true;
 
     return proof_export_enhanced(&proof, &config);
 }
 
 void proof_export_result_destroy(lvExportResult *result) {
-    if (!result) return;
+    if (!result)
+        return;
     if (result->output) {
-        lv_free((void **)&(result->output));
+        lv_free((void **) &(result->output));
         result->output = NULL;
     }
-    lv_free((void **)&(result));
+    lv_free((void **) &(result));
 }

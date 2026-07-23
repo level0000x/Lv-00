@@ -16,8 +16,6 @@
  * @version 3.3.0
  */
 
-#include "lv/symbolic_coord.h"
-#include "lv/lv.h"
 #include <float.h>
 #include <inttypes.h>
 #include <math.h>
@@ -25,7 +23,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/constraint_graph.h"
+#include "lv/lv.h"
+#include "lv/symbolic_coord.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -140,7 +142,8 @@ int rational_compare(const Rational *a, const Rational *b) {
  * @return 新的有理数对象表示 a + b，失败时返回 NULL；调用者需负责释放
  */
 Rational *rational_add(const Rational *a, const Rational *b) {
-    if (!a || !b) return NULL;
+    if (!a || !b)
+        return NULL;
     Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
         return NULL;
@@ -150,7 +153,8 @@ Rational *rational_add(const Rational *a, const Rational *b) {
 }
 
 Rational *rational_subtract(const Rational *a, const Rational *b) {
-    if (!a || !b) return NULL;
+    if (!a || !b)
+        return NULL;
     Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
         return NULL;
@@ -167,7 +171,8 @@ Rational *rational_subtract(const Rational *a, const Rational *b) {
  * @return 新的有理数对象表示 a * b，失败时返回 NULL；调用者需负责释放
  */
 Rational *rational_multiply(const Rational *a, const Rational *b) {
-    if (!a || !b) return NULL;
+    if (!a || !b)
+        return NULL;
     Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
         return NULL;
@@ -185,7 +190,8 @@ Rational *rational_multiply(const Rational *a, const Rational *b) {
  */
 Rational *rational_divide(const Rational *a, const Rational *b) {
     /* NULL 指针检查，与 rational_add / rational_multiply 保持一致 */
-    if (!a || !b) return NULL;
+    if (!a || !b)
+        return NULL;
     if (mpq_cmp_ui(b->value, 0, 1) == 0)
         return NULL;
     Rational *r = lv_malloc(sizeof(Rational));

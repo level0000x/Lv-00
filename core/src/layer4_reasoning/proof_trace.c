@@ -8,8 +8,6 @@
  */
 
 #include "lv/proof_trace.h"
-#include "lv/lv_internal.h"
-#include "lv/lv_utils.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -17,6 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * 内部数据结构
@@ -32,22 +33,22 @@
  * @brief 证明步骤
  */
 typedef struct ProofStep {
-    int step_id;                          /**< 步骤 ID */
-    char rule[MAX_RULE_NAME_LENGTH];      /**< 使用的规则 */
+    int step_id;                            /**< 步骤 ID */
+    char rule[MAX_RULE_NAME_LENGTH];        /**< 使用的规则 */
     char state_desc[MAX_STATE_DESC_LENGTH]; /**< 状态描述 */
-    int64_t timestamp;                    /**< 时间戳 */
+    int64_t timestamp;                      /**< 时间戳 */
 } ProofStep;
 
 /**
  * @brief 证明追踪结构
  */
 struct ProofTrace {
-    ProofStep *steps;      /**< 步骤数组 */
-    int step_count;        /**< 当前步骤数 */
-    int capacity;          /**< 数组容量 */
-    bool complete;         /**< 是否完成 */
-    int64_t start_time;    /**< 开始时间 */
-    int64_t end_time;      /**< 结束时间 */
+    ProofStep *steps;   /**< 步骤数组 */
+    int step_count;     /**< 当前步骤数 */
+    int capacity;       /**< 数组容量 */
+    bool complete;      /**< 是否完成 */
+    int64_t start_time; /**< 开始时间 */
+    int64_t end_time;   /**< 结束时间 */
 };
 
 /* ============================================================
@@ -61,18 +62,19 @@ struct ProofTrace {
  */
 ProofTrace *lv_proof_trace_create(void) {
     ProofTrace *trace = lv_calloc(1, sizeof(ProofTrace));
-    if (!trace) return NULL;
+    if (!trace)
+        return NULL;
 
     trace->capacity = 64;
-    trace->steps = lv_calloc((size_t)trace->capacity, sizeof(ProofStep));
+    trace->steps = lv_calloc((size_t) trace->capacity, sizeof(ProofStep));
     if (!trace->steps) {
-        lv_free((void **)&trace);
+        lv_free((void **) &trace);
         return NULL;
     }
 
     trace->step_count = 0;
     trace->complete = false;
-    trace->start_time = (int64_t)time(NULL);
+    trace->start_time = (int64_t) time(NULL);
 
     return trace;
 }
@@ -83,9 +85,10 @@ ProofTrace *lv_proof_trace_create(void) {
  * @param trace 要销毁的证明轨迹
  */
 void lv_proof_trace_destroy(ProofTrace *trace) {
-    if (!trace) return;
-    lv_free((void **)&trace->steps);
-    lv_free((void **)&trace);
+    if (!trace)
+        return;
+    lv_free((void **) &trace->steps);
+    lv_free((void **) &trace);
 }
 
 /**
@@ -97,15 +100,17 @@ void lv_proof_trace_destroy(ProofTrace *trace) {
  * @return 新步骤的索引，失败返回 -1
  */
 int lv_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *state) {
-    if (!trace || !rule) return -1;
+    if (!trace || !rule)
+        return -1;
 
     /* 扩容检查 */
     if (trace->step_count >= trace->capacity) {
-        if (trace->capacity > INT_MAX / 2) return -1;
+        if (trace->capacity > INT_MAX / 2)
+            return -1;
         int new_cap = trace->capacity * 2;
-        ProofStep *new_steps = lv_realloc(
-            trace->steps, (size_t)new_cap * sizeof(ProofStep));
-        if (!new_steps) return -1;
+        ProofStep *new_steps = lv_realloc(trace->steps, (size_t) new_cap * sizeof(ProofStep));
+        if (!new_steps)
+            return -1;
         trace->steps = new_steps;
         trace->capacity = new_cap;
     }
@@ -120,13 +125,13 @@ int lv_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *sta
 
     /* 状态描述：使用调用者提供的 state 字符串，无则留空 */
     if (state) {
-        strncpy(step->state_desc, (const char *)state, MAX_STATE_DESC_LENGTH - 1);
+        strncpy(step->state_desc, (const char *) state, MAX_STATE_DESC_LENGTH - 1);
         step->state_desc[MAX_STATE_DESC_LENGTH - 1] = '\0';
     } else {
         step->state_desc[0] = '\0';
     }
 
-    step->timestamp = (int64_t)time(NULL);
+    step->timestamp = (int64_t) time(NULL);
 
     return trace->step_count++;
 }
@@ -149,7 +154,7 @@ bool lv_proof_trace_is_complete(const ProofTrace *trace) {
 void lv_proof_trace_mark_complete(ProofTrace *trace) {
     if (trace) {
         trace->complete = true;
-        trace->end_time = (int64_t)time(NULL);
+        trace->end_time = (int64_t) time(NULL);
     }
 }
 
@@ -184,21 +189,25 @@ const char *lv_proof_trace_get_rule(const ProofTrace *trace, int step_index) {
  * @return 格式化后的证明轨迹字符串（调用者负责释放），失败返回 NULL
  */
 char *lv_proof_trace_export(const ProofTrace *trace) {
-    if (!trace) return NULL;
+    if (!trace)
+        return NULL;
 
     /* 分配输出缓冲区 */
-    size_t buf_size = (size_t)trace->step_count * 256 + 1024;
+    size_t buf_size = (size_t) trace->step_count * 256 + 1024;
     char *buf = lv_malloc(buf_size);
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
 
     int pos = 0;
-    /* 写入前计算剩余空间，防止 pos 超过 buf_size 导致回绕 */
-    #define TRACE_WRITE(...) do { \
-        if ((size_t)pos < buf_size) { \
-            int n = snprintf(buf + pos, buf_size - (size_t)pos, __VA_ARGS__); \
-            pos += (n > 0 ? n : 0); \
-            if ((size_t)pos > buf_size) pos = (int)buf_size; \
-        } \
+/* 写入前计算剩余空间，防止 pos 超过 buf_size 导致回绕 */
+#define TRACE_WRITE(...)                                                       \
+    do {                                                                       \
+        if ((size_t) pos < buf_size) {                                         \
+            int n = snprintf(buf + pos, buf_size - (size_t) pos, __VA_ARGS__); \
+            pos += (n > 0 ? n : 0);                                            \
+            if ((size_t) pos > buf_size)                                       \
+                pos = (int) buf_size;                                          \
+        }                                                                      \
     } while (0)
 
     TRACE_WRITE("=== 证明追踪 ===\n");
@@ -213,7 +222,7 @@ char *lv_proof_trace_export(const ProofTrace *trace) {
         }
         TRACE_WRITE("\n");
     }
-    #undef TRACE_WRITE
+#undef TRACE_WRITE
 
     return buf;
 }

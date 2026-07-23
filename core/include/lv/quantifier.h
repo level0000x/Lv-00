@@ -55,11 +55,7 @@ typedef struct lvQuantifiedResult lvQuantifiedResult;
  * lv_EXISTS       : ∃  存在量词  "存在一个...使得..."
  * lv_EXISTS_UNIQUE: ∃! 唯一存在  "存在唯一一个...使得..."
  */
-typedef enum {
-    lv_FORALL        = 0,
-    lv_EXISTS        = 1,
-    lv_EXISTS_UNIQUE = 2
-} lvQuantifier;
+typedef enum { lv_FORALL = 0, lv_EXISTS = 1, lv_EXISTS_UNIQUE = 2 } lvQuantifier;
 
 /* ============== 域定义 ============== */
 
@@ -72,13 +68,13 @@ typedef enum {
  * - 命名域：domain_name 引用预定义的域（如实数域 R）
  */
 struct lvDomain {
-    int id;                    /**< 域ID */
-    char *domain_name;         /**< 域名（如 "R", "Triangle", "Point"） */
+    int id;            /**< 域ID */
+    char *domain_name; /**< 域名（如 "R", "Triangle", "Point"） */
 
     /* 有限枚举域 */
-    int *domain_elements;      /**< 域元素列表（节点ID数组） */
-    int element_count;         /**< 元素数量 */
-    int element_capacity;      /**< 元素数组容量 */
+    int *domain_elements; /**< 域元素列表（节点ID数组） */
+    int element_count;    /**< 元素数量 */
+    int element_capacity; /**< 元素数组容量 */
 
     /* 约束图子图域 */
     ConstraintGraph *subgraph; /**< 约束图子图（可为 NULL） */
@@ -97,10 +93,10 @@ struct lvDomain {
  * 例如: ∀p ∈ Points . collinear(p, A, B) → onSegment(p, AB)
  */
 struct lvQuantifiedExpr {
-    int id;                    /**< 表达式ID */
+    int id;                  /**< 表达式ID */
     lvQuantifier quantifier; /**< 量词类型 */
-    char *variable_name;       /**< 绑定变量名（如 "x", "p"） */
-    int variable_node_id;      /**< 绑定变量对应的约束图节点ID */
+    char *variable_name;     /**< 绑定变量名（如 "x", "p"） */
+    int variable_node_id;    /**< 绑定变量对应的约束图节点ID */
     lvDomain *domain;        /**< 量化域 */
 
     /* 体命题：量词作用域内的命题公式 */
@@ -112,8 +108,8 @@ struct lvQuantifiedExpr {
     int instantiated_capacity; /**< 已实例化ID数组的分配容量 */
 
     /* 真值缓存（三值逻辑） */
-    lvTruthValue cached_truth;  /**< 缓存的真值 */
-    bool truth_cache_valid;       /**< 真值缓存是否有效 */
+    lvTruthValue cached_truth; /**< 缓存的真值 */
+    bool truth_cache_valid;    /**< 真值缓存是否有效 */
 };
 
 /* ============== 量词运算结果 ============== */
@@ -137,10 +133,10 @@ typedef enum {
  * @brief 实例化结果
  */
 struct lvQuantifiedResult {
-    lvQuantResult status;         /**< 操作结果状态 */
-    lvTruthValue truth_value;     /**< 量词表达式的真值 */
-    int witness_node_id;            /**< 目击者节点ID（存在量词） */
-    char *error_message;            /**< 错误消息（失败时） */
+    lvQuantResult status;            /**< 操作结果状态 */
+    lvTruthValue truth_value;        /**< 量词表达式的真值 */
+    int witness_node_id;             /**< 目击者节点ID（存在量词） */
+    char *error_message;             /**< 错误消息（失败时） */
     struct Proposition *result_prop; /**< 结果命题（实例化/消去后） */
 };
 
@@ -222,7 +218,8 @@ lv_PUBLIC_API void lv_quant_domain_destroy(lvDomain *domain);
  * @return 新分配的量化表达式，失败返回 NULL
  */
 lv_PUBLIC_API lvQuantifiedExpr *lv_quant_expr_create(int id, lvQuantifier quantifier, const char *variable_name,
-                                           int variable_node_id, lvDomain *domain, struct Proposition *body_prop);
+                                                     int variable_node_id, lvDomain *domain,
+                                                     struct Proposition *body_prop);
 
 /**
  * @brief 销毁量化表达式
@@ -259,7 +256,7 @@ lv_PUBLIC_API lvTruthValue lv_quant_expr_evaluate(lvQuantifiedExpr *expr);
  * @return 操作结果
  */
 lv_PUBLIC_API lvQuantResult lv_quantifier_instantiate(const lvQuantifiedExpr *expr, int instance_id,
-                                            lvQuantifiedResult *out_result);
+                                                      lvQuantifiedResult *out_result);
 
 /**
  * @brief 量词泛化（∀-引入）
@@ -286,7 +283,7 @@ lv_PUBLIC_API lvQuantResult lv_quantifier_generalize(const lvQuantifiedExpr *exp
  * @return 操作结果
  */
 lv_PUBLIC_API lvQuantResult lv_quant_exists_introduce(lvQuantifiedExpr *expr, int witness_id,
-                                            lvQuantifiedResult *out_result);
+                                                      lvQuantifiedResult *out_result);
 
 /**
  * @brief 存在量词消去（∃E）
@@ -299,7 +296,7 @@ lv_PUBLIC_API lvQuantResult lv_quant_exists_introduce(lvQuantifiedExpr *expr, in
  * @return 操作结果
  */
 lv_PUBLIC_API lvQuantResult lv_quant_exists_eliminate(const lvQuantifiedExpr *exists_expr,
-                                            struct Proposition *target_prop, lvQuantifiedResult *out_result);
+                                                      struct Proposition *target_prop, lvQuantifiedResult *out_result);
 
 /* ============== 有限域上的量词消去 ============== */
 
@@ -314,7 +311,7 @@ lv_PUBLIC_API lvQuantResult lv_quant_exists_eliminate(const lvQuantifiedExpr *ex
  * @return 操作结果
  */
 lv_PUBLIC_API lvQuantResult lv_quant_eliminate_forall_finite(const lvQuantifiedExpr *expr,
-                                                    lvQuantifiedResult *out_result);
+                                                             lvQuantifiedResult *out_result);
 
 /**
  * @brief 有限域上的存在量词消去
@@ -327,7 +324,7 @@ lv_PUBLIC_API lvQuantResult lv_quant_eliminate_forall_finite(const lvQuantifiedE
  * @return 操作结果
  */
 lv_PUBLIC_API lvQuantResult lv_quant_eliminate_exists_finite(const lvQuantifiedExpr *expr,
-                                                    lvQuantifiedResult *out_result);
+                                                             lvQuantifiedResult *out_result);
 
 /**
  * @brief 有限域上的唯一存在量词消去
@@ -341,7 +338,7 @@ lv_PUBLIC_API lvQuantResult lv_quant_eliminate_exists_finite(const lvQuantifiedE
  * @return 操作结果
  */
 lv_PUBLIC_API lvQuantResult lv_quant_eliminate_exists_unique_finite(const lvQuantifiedExpr *expr,
-                                                           lvQuantifiedResult *out_result);
+                                                                    lvQuantifiedResult *out_result);
 
 /* ============== 量词级别的最佳实践检查 ============== */
 

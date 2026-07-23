@@ -24,10 +24,10 @@ extern "C" {
  * - GRADE_EXPERT:       专家级公理，如大基数公理、V=L、选择公理的精细等价形式
  */
 typedef enum {
-    GRADE_BASIC       = 0,  /**< 基础级 —— 适用于初学者 */
-    GRADE_INTERMEDIATE = 1,  /**< 中级 —— 适用于有一定基础的学习者 */
-    GRADE_ADVANCED     = 2,  /**< 高级 —— 适用于进阶学习者 */
-    GRADE_EXPERT       = 3   /**< 专家级 —— 适用于研究级用户 */
+    GRADE_BASIC = 0,        /**< 基础级 —— 适用于初学者 */
+    GRADE_INTERMEDIATE = 1, /**< 中级 —— 适用于有一定基础的学习者 */
+    GRADE_ADVANCED = 2,     /**< 高级 —— 适用于进阶学习者 */
+    GRADE_EXPERT = 3        /**< 专家级 —— 适用于研究级用户 */
 } lvAxiomGrade;
 /* ============== 证明风格 ============== */
 /**
@@ -40,10 +40,10 @@ typedef enum {
  * - STYLE_INDUCTION:     归纳法（基于良基关系的归纳证明）
  */
 typedef enum {
-    STYLE_FORWARD       = 0,  /**< 正向推理法 */
-    STYLE_BACKWARD      = 1,  /**< 反向推理法 */
-    STYLE_CONTRADICTION = 2,  /**< 反证法（归谬法） */
-    STYLE_INDUCTION     = 3   /**< 归纳法（数学归纳/良基归纳） */
+    STYLE_FORWARD = 0,       /**< 正向推理法 */
+    STYLE_BACKWARD = 1,      /**< 反向推理法 */
+    STYLE_CONTRADICTION = 2, /**< 反证法（归谬法） */
+    STYLE_INDUCTION = 3      /**< 归纳法（数学归纳/良基归纳） */
 } lvProofStyle;
 /* ============== 带分级的公理元数据 ============== */
 /**
@@ -53,12 +53,12 @@ typedef enum {
  * 关联。每个公理通过其索引或名称映射到对应的 lvAxiomGradeMeta。
  */
 typedef struct {
-    char   axiom_name[128];    /**< 公理名称（与 ConstraintTemplate 的 name 对应） */
-    lvAxiomGrade grade;      /**< 难度等级 */
-    lvProofStyle style;      /**< 推荐证明风格 */
-    int    prerequisite_count; /**< 前置公理数量（用于拓扑排序教学顺序） */
-    char  *description;        /**< 教学性描述文本（可为 NULL） */
-    bool   is_required;        /**< 是否为必修公理（不受难度筛选影响） */
+    char axiom_name[128];   /**< 公理名称（与 ConstraintTemplate 的 name 对应） */
+    lvAxiomGrade grade;     /**< 难度等级 */
+    lvProofStyle style;     /**< 推荐证明风格 */
+    int prerequisite_count; /**< 前置公理数量（用于拓扑排序教学顺序） */
+    char *description;      /**< 教学性描述文本（可为 NULL） */
+    bool is_required;       /**< 是否为必修公理（不受难度筛选影响） */
 } lvAxiomGradeMeta;
 /* ============== 难度过滤器 ============== */
 /**
@@ -68,10 +68,10 @@ typedef struct {
  * 例如设置 max_grade = GRADE_INTERMEDIATE 则只允许基础和中级公理。
  */
 typedef struct {
-    lvAxiomGrade min_grade;        /**< 最低允许难度（含） */
-    lvAxiomGrade max_grade;        /**< 最高允许难度（含） */
-    bool           filter_enabled;   /**< 是否启用过滤 */
-    int            current_level;    /**< 当前难度级别（0-based，递增解锁） */
+    lvAxiomGrade min_grade; /**< 最低允许难度（含） */
+    lvAxiomGrade max_grade; /**< 最高允许难度（含） */
+    bool filter_enabled;    /**< 是否启用过滤 */
+    int current_level;      /**< 当前难度级别（0-based，递增解锁） */
 } lvAxiomGradeFilter;
 /* ============== API ============== */
 /**
@@ -98,8 +98,8 @@ const lvAxiomGradeFilter *lv_axiom_get_filter(void);
  * @param description 教学描述（可为 NULL，内部会复制）
  * @return 新分配的公理分级元数据，失败返回 NULL
  */
-lvAxiomGradeMeta *lv_axiom_grade_meta_create(const char *name, lvAxiomGrade grade,
-                                                  lvProofStyle style, const char *description);
+lvAxiomGradeMeta *lv_axiom_grade_meta_create(const char *name, lvAxiomGrade grade, lvProofStyle style,
+                                             const char *description);
 /**
  * @brief 销毁公理分级元数据
  *
@@ -150,8 +150,8 @@ lvAxiomGrade lv_axiom_unlock_next_grade(void);
  * @param max_out       输出数组最大容量
  * @return 实际匹配的公理数量
  */
-int lv_axiom_filter_by_style(const lvAxiomGradeMeta *metas, int meta_count,
-                                lvProofStyle style, int *out_indices, int max_out);
+int lv_axiom_filter_by_style(const lvAxiomGradeMeta *metas, int meta_count, lvProofStyle style, int *out_indices,
+                             int max_out);
 #ifdef __cplusplus
 }
 #endif

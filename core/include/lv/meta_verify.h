@@ -27,13 +27,13 @@ extern "C" {
  * @brief 元验证检查项枚举
  */
 typedef enum {
-    lv_CHECK_STRUCTURAL = 0,  /**< 检查 1: 结构完整性 */
-    lv_CHECK_TYPE,             /**< 检查 2: 类型一致性 */
-    lv_CHECK_COMPLETE,         /**< 检查 3: 完备性 */
-    lv_CHECK_SOUND,            /**< 检查 4: 可靠性 */
-    lv_CHECK_NONTRIVIAL,       /**< 检查 5: 非平凡性 */
-    lv_CHECK_ROUNDTRIP,        /**< 检查 6: 往返验证 */
-    lv_CHECK_COUNT             /**< 检查项总数 */
+    lv_CHECK_STRUCTURAL = 0, /**< 检查 1: 结构完整性 */
+    lv_CHECK_TYPE,           /**< 检查 2: 类型一致性 */
+    lv_CHECK_COMPLETE,       /**< 检查 3: 完备性 */
+    lv_CHECK_SOUND,          /**< 检查 4: 可靠性 */
+    lv_CHECK_NONTRIVIAL,     /**< 检查 5: 非平凡性 */
+    lv_CHECK_ROUNDTRIP,      /**< 检查 6: 往返验证 */
+    lv_CHECK_COUNT           /**< 检查项总数 */
 } lvVerifyCheck;
 
 /* ============================================================
@@ -44,29 +44,29 @@ typedef enum {
  * @brief 单项检查结果（元验证专用）
  */
 typedef struct {
-    lvVerifyCheck check;       /**< 检查项标识 */
-    int passed;                   /**< 1=通过, 0=失败, -1=跳过 */
-    char description[512];       /**< 检查描述/诊断信息 */
+    lvVerifyCheck check;   /**< 检查项标识 */
+    int passed;            /**< 1=通过, 0=失败, -1=跳过 */
+    char description[512]; /**< 检查描述/诊断信息 */
 } lvMetaVerifyResult;
 
 /**
  * @brief 元验证报告
  */
 typedef struct {
-    int total_checks;             /**< 总检查数 */
-    int passed_checks;            /**< 通过数 */
-    int failed_checks;            /**< 失败数 */
-    int skipped_checks;           /**< 跳过数 */
+    int total_checks;                           /**< 总检查数 */
+    int passed_checks;                          /**< 通过数 */
+    int failed_checks;                          /**< 失败数 */
+    int skipped_checks;                         /**< 跳过数 */
     lvMetaVerifyResult results[lv_CHECK_COUNT]; /**< 各项结果 */
-    char summary[1024];           /**< 摘要 */
+    char summary[1024];                         /**< 摘要 */
 } lvVerifyReport;
 
 /**
  * @brief 元验证器
  */
 typedef struct lvMetaVerifier {
-    unsigned int check_mask;      /**< 启用的检查位掩码 */
-    int strict_mode;              /**< 严格模式 */
+    unsigned int check_mask; /**< 启用的检查位掩码 */
+    int strict_mode;         /**< 严格模式 */
 } lvMetaVerifier;
 
 /* ============================================================

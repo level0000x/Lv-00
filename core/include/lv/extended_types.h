@@ -1,8 +1,8 @@
 ﻿#ifndef lv_EXTENDED_TYPES_H
 #define lv_EXTENDED_TYPES_H
 
-#include "lv/type_system.h"
 #include "lv/effect_system.h"
+#include "lv/type_system.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,7 +10,7 @@ extern "C" {
 
 /* List type region */
 typedef struct lvListTypeRegion {
-    void *base;  /* TypeRegion base */
+    void *base; /* TypeRegion base */
     void *elem_type;
 } lvListTypeRegion;
 

@@ -24,8 +24,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -86,7 +88,8 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     /* Allocate enough space for both phases */
     /* [安全] 防止 constraint_count * 2 整数溢出 */
-    if (graph->constraint_count > INT_MAX / 2) return NULL;
+    if (graph->constraint_count > INT_MAX / 2)
+        return NULL;
     int max_redundant = graph->constraint_count * 2;
     int *redundant = lv_malloc((size_t) max_redundant * sizeof(int));
     if (!redundant)
@@ -230,7 +233,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     }
 
     /* node_id_to_var_idx: maps node_id to variable index (-1 if not a variable) */
-    int *node_id_to_var_idx = lv_malloc((size_t)(max_node_id + 1) * sizeof(int));
+    int *node_id_to_var_idx = lv_malloc((size_t) (max_node_id + 1) * sizeof(int));
     if (!node_id_to_var_idx) {
         lv_free((void **) &point_seen);
         lv_free((void **) &point_ids);
@@ -295,8 +298,8 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
      * 矩阵维度：num_linear x (num_vars + 1) [增广矩阵]
      * 每行代表一个约束对应的线性方程 */
     /* [安全] 防止乘法溢出：size_t 计算 */
-    size_t matrix_size = (size_t) num_linear * (size_t)(num_vars + 1);
-    if (num_linear > 0 && matrix_size / (size_t) num_linear != (size_t)(num_vars + 1)) {
+    size_t matrix_size = (size_t) num_linear * (size_t) (num_vars + 1);
+    if (num_linear > 0 && matrix_size / (size_t) num_linear != (size_t) (num_vars + 1)) {
         lv_free((void **) &point_ids);
         lv_free((void **) &point_seen);
         lv_free((void **) &node_id_to_var_idx);
@@ -661,8 +664,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
                 if (!already && *out_count < max_redundant) {
                     redundant[*out_count] = con_id;
                     (*out_count)++;
-                    LOG_DEBUG("constraint_graph",
-                              "Linear dependency: constraint %d is identical to constraint %d",
+                    LOG_DEBUG("constraint_graph", "Linear dependency: constraint %d is identical to constraint %d",
                               con_id, pivot_row[i]);
                 }
             }

@@ -6,11 +6,11 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
-#include "proof_session.h"
 #include "proof_rule_engine_internal.h"
+#include "proof_session.h"
 
 /* ============== 常量定义 ============== */
 #ifndef lv_SESSION_ID_MAX
@@ -55,9 +55,8 @@ typedef struct lvProofSession {
 /* ============== 函数声明 ============== */
 
 /* 会话生命周期函数 */
-lvProofSession *proof_session_create_with_id(const char *session_id,
-                                                const char *target_proposition,
-                                                lvRuleEngine *engine);
+lvProofSession *proof_session_create_with_id(const char *session_id, const char *target_proposition,
+                                             lvRuleEngine *engine);
 
 /* 工具函数 */
 const char *session_status_to_string(lvSessionStatus status);

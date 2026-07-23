@@ -41,12 +41,13 @@
  */
 
 #include "memory_pool.h"
-#include "config.h"        /* lv_FNV64_*, lv_CONFIG_POOL_* macros */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
+
+#include "config.h" /* lv_FNV64_*, lv_CONFIG_POOL_* macros */
 
 #ifdef _WIN32
 #include <windows.h>
@@ -54,8 +55,8 @@
 #include <pthread.h>
 #endif
 
-#include "lv_internal.h"  /* lv_FNV64_* 哈希常量 */
-#include "lv_utils.h"     /* lv_strdup, lv_malloc, lv_free */
+#include "lv_internal.h" /* lv_FNV64_* 哈希常量 */
+#include "lv_utils.h"    /* lv_strdup, lv_malloc, lv_free */
 
 /* ============== 内部常量 ============== */
 
@@ -101,28 +102,28 @@ typedef struct FreeNode {
  */
 struct lvObjectPool {
     /* 配置 */
-    size_t object_size;     /**< 单个对象大小 */
-    size_t capacity;        /**< 当前容量 */
-    bool thread_safe;       /**< 是否线程安全 */
-    bool auto_grow;         /**< 是否自动扩展 */
-    char name[32];          /**< 池名称 */
+    size_t object_size; /**< 单个对象大小 */
+    size_t capacity;    /**< 当前容量 */
+    bool thread_safe;   /**< 是否线程安全 */
+    bool auto_grow;     /**< 是否自动扩展 */
+    char name[32];      /**< 池名称 */
 
     /* 内存块 */
-    void **blocks;          /**< 内存块数组 */
-    size_t block_count;     /**< 内存块数量 */
-    size_t block_capacity;  /**< 内存块数组容量 */
+    void **blocks;            /**< 内存块数组 */
+    size_t block_count;       /**< 内存块数量 */
+    size_t block_capacity;    /**< 内存块数组容量 */
     size_t *block_capacities; /**< [Bug修复] 每块实际分配的对象数量，用于 pool_clear 正确重建空闲链表 */
 
     /* 空闲链表 */
-    FreeNode *free_list;    /**< 空闲对象链表 */
+    FreeNode *free_list; /**< 空闲对象链表 */
 
     /* 统计 */
-    uint64_t total_allocs;  /**< 总分配次数 */
-    uint64_t total_frees;   /**< 总释放次数 */
-    size_t current_used;    /**< 当前使用数量 */
+    uint64_t total_allocs; /**< 总分配次数 */
+    uint64_t total_frees;  /**< 总释放次数 */
+    size_t current_used;   /**< 当前使用数量 */
 
     /* 线程安全 */
-    lvMutex mutex;        /**< 互斥锁 */
+    lvMutex mutex; /**< 互斥锁 */
 };
 
 /* 对齐辅助函数 */
@@ -135,7 +136,7 @@ lvObjectPool *lv_pool_create(const lvPoolConfig *config) {
         return NULL;
     }
 
-    lvObjectPool *pool = (lvObjectPool *)malloc(sizeof(lvObjectPool));
+    lvObjectPool *pool = (lvObjectPool *) malloc(sizeof(lvObjectPool));
     if (!pool) {
         return NULL;
     }
@@ -161,20 +162,20 @@ lvObjectPool *lv_pool_create(const lvPoolConfig *config) {
 
     /* 分配初始内存块数组 */
     pool->block_capacity = 4;
-    pool->blocks = (void **)malloc(pool->block_capacity * sizeof(void *));
+    pool->blocks = (void **) malloc(pool->block_capacity * sizeof(void *));
     if (!pool->blocks) {
-        lv_free((void **)&pool);
+        lv_free((void **) &pool);
         return NULL;
     }
 
     /* [Bug修复] 分配块容量记录数组 */
-    pool->block_capacities = (size_t *)malloc(pool->block_capacity * sizeof(size_t));
+    pool->block_capacities = (size_t *) malloc(pool->block_capacity * sizeof(size_t));
     if (!pool->block_capacities) {
         if (pool->thread_safe) {
             lv_MUTEX_DESTROY(pool->mutex);
         }
-        lv_free((void **)&pool->blocks);
-        lv_free((void **)&pool);
+        lv_free((void **) &pool->blocks);
+        lv_free((void **) &pool);
         return NULL;
     }
 
@@ -184,20 +185,20 @@ lvObjectPool *lv_pool_create(const lvPoolConfig *config) {
         if (pool->thread_safe) {
             lv_MUTEX_DESTROY(pool->mutex);
         }
-        lv_free((void **)&pool->block_capacities);
-        lv_free((void **)&pool->blocks);
-        lv_free((void **)&pool);
+        lv_free((void **) &pool->block_capacities);
+        lv_free((void **) &pool->blocks);
+        lv_free((void **) &pool);
         return NULL;
     }
     pool->blocks[0] = block;
-    pool->block_capacities[0] = pool->capacity;  /* [Bug修复] 记录首块容量 */
+    pool->block_capacities[0] = pool->capacity; /* [Bug修复] 记录首块容量 */
     pool->block_count = 1;
 
     /* 初始化空闲链表 */
     pool->free_list = NULL;
-    char *ptr = (char *)block;
+    char *ptr = (char *) block;
     for (size_t i = 0; i < pool->capacity; i++) {
-        FreeNode *node = (FreeNode *)(ptr + i * pool->object_size);
+        FreeNode *node = (FreeNode *) (ptr + i * pool->object_size);
         node->next = pool->free_list;
         pool->free_list = node;
     }
@@ -222,7 +223,7 @@ void lv_pool_destroy(lvObjectPool *pool) {
         lv_MUTEX_DESTROY(pool->mutex);
     }
 
-    lv_free((void **)&pool);
+    lv_free((void **) &pool);
 }
 
 void *lv_pool_alloc(lvObjectPool *pool) {
@@ -247,17 +248,21 @@ void *lv_pool_alloc(lvObjectPool *pool) {
         if (pool->block_count >= pool->block_capacity) {
             /* [Bug修复] 溢出检查：确保 block_capacity * GROWTH_FACTOR 不会溢出 */
             if (lv_SIZE_MUL_OVERFLOW(pool->block_capacity, lv_POOL_GROWTH_FACTOR)) {
-                if (pool->thread_safe) { lv_MUTEX_UNLOCK(pool->mutex); }
+                if (pool->thread_safe) {
+                    lv_MUTEX_UNLOCK(pool->mutex);
+                }
                 return NULL;
             }
             size_t new_cap = pool->block_capacity * lv_POOL_GROWTH_FACTOR;
 
             /* [Bug修复] 溢出检查：确保 new_cap * sizeof(void*) 不会溢出 */
             if (lv_SIZE_MUL_OVERFLOW(new_cap, sizeof(void *))) {
-                if (pool->thread_safe) { lv_MUTEX_UNLOCK(pool->mutex); }
+                if (pool->thread_safe) {
+                    lv_MUTEX_UNLOCK(pool->mutex);
+                }
                 return NULL;
             }
-            void **new_blocks = (void **)lv_realloc(pool->blocks, new_cap * sizeof(void *));
+            void **new_blocks = (void **) lv_realloc(pool->blocks, new_cap * sizeof(void *));
             if (!new_blocks) {
                 if (pool->thread_safe) {
                     lv_MUTEX_UNLOCK(pool->mutex);
@@ -267,15 +272,17 @@ void *lv_pool_alloc(lvObjectPool *pool) {
             pool->blocks = new_blocks;
 
             /* [Bug修复] 同步扩展 block_capacities 数组 */
-            size_t *new_bcaps = (size_t *)lv_realloc(pool->block_capacities, new_cap * sizeof(size_t));
+            size_t *new_bcaps = (size_t *) lv_realloc(pool->block_capacities, new_cap * sizeof(size_t));
             if (!new_bcaps) {
                 /* 回滚 blocks 扩容：使用 realloc 缩回原大小，若失败则保留 new_blocks（仍有效） */
-                void **shrunk = (void **)lv_realloc(new_blocks, pool->block_capacity * sizeof(void *));
+                void **shrunk = (void **) lv_realloc(new_blocks, pool->block_capacity * sizeof(void *));
                 if (shrunk) {
                     pool->blocks = shrunk;
                 }
                 /* pool->blocks 始终有效（要么是 shrunk，要么是 new_blocks） */
-                if (pool->thread_safe) { lv_MUTEX_UNLOCK(pool->mutex); }
+                if (pool->thread_safe) {
+                    lv_MUTEX_UNLOCK(pool->mutex);
+                }
                 return NULL;
             }
             pool->block_capacities = new_bcaps;
@@ -285,14 +292,18 @@ void *lv_pool_alloc(lvObjectPool *pool) {
         /* 分配新内存块 */
         /* [Bug修复] 溢出检查：确保 capacity * GROWTH_FACTOR 不会溢出 */
         if (lv_SIZE_MUL_OVERFLOW(pool->capacity, lv_POOL_GROWTH_FACTOR)) {
-            if (pool->thread_safe) { lv_MUTEX_UNLOCK(pool->mutex); }
+            if (pool->thread_safe) {
+                lv_MUTEX_UNLOCK(pool->mutex);
+            }
             return NULL;
         }
         size_t new_capacity = pool->capacity * lv_POOL_GROWTH_FACTOR;
 
         /* [Bug修复] 溢出检查：确保 object_size * new_capacity 不会溢出 */
         if (lv_SIZE_MUL_OVERFLOW(pool->object_size, new_capacity)) {
-            if (pool->thread_safe) { lv_MUTEX_UNLOCK(pool->mutex); }
+            if (pool->thread_safe) {
+                lv_MUTEX_UNLOCK(pool->mutex);
+            }
             return NULL;
         }
         /* 分配新内存块（性能关键路径：保留原生 malloc，避免循环依赖开销） */
@@ -304,13 +315,13 @@ void *lv_pool_alloc(lvObjectPool *pool) {
             return NULL;
         }
         pool->blocks[pool->block_count] = block;
-        pool->block_capacities[pool->block_count] = new_capacity;  /* [Bug修复] 记录新块容量 */
+        pool->block_capacities[pool->block_count] = new_capacity; /* [Bug修复] 记录新块容量 */
         pool->block_count++;
 
         /* 添加到空闲链表 */
-        char *ptr = (char *)block;
+        char *ptr = (char *) block;
         for (size_t i = 0; i < new_capacity; i++) {
-            FreeNode *node = (FreeNode *)(ptr + i * pool->object_size);
+            FreeNode *node = (FreeNode *) (ptr + i * pool->object_size);
             node->next = pool->free_list;
             pool->free_list = node;
         }
@@ -342,11 +353,12 @@ bool lv_pool_free(lvObjectPool *pool, void *obj) {
     }
 
     /* 添加到空闲链表 */
-    FreeNode *node = (FreeNode *)obj;
+    FreeNode *node = (FreeNode *) obj;
     node->next = pool->free_list;
     pool->free_list = node;
     pool->total_frees++;
-    if (pool->current_used > 0) pool->current_used--;
+    if (pool->current_used > 0)
+        pool->current_used--;
 
     if (pool->thread_safe) {
         lv_MUTEX_UNLOCK(pool->mutex);
@@ -355,10 +367,8 @@ bool lv_pool_free(lvObjectPool *pool, void *obj) {
     return true;
 }
 
-void lv_pool_get_stats(lvObjectPool *pool,
-                         uint64_t *out_total_allocs,
-                         uint64_t *out_total_frees,
-                         size_t *out_current_used) {
+void lv_pool_get_stats(lvObjectPool *pool, uint64_t *out_total_allocs, uint64_t *out_total_frees,
+                       size_t *out_current_used) {
     if (!pool) {
         return;
     }
@@ -367,9 +377,12 @@ void lv_pool_get_stats(lvObjectPool *pool,
         lv_MUTEX_LOCK(pool->mutex);
     }
 
-    if (out_total_allocs) *out_total_allocs = pool->total_allocs;
-    if (out_total_frees) *out_total_frees = pool->total_frees;
-    if (out_current_used) *out_current_used = pool->current_used;
+    if (out_total_allocs)
+        *out_total_allocs = pool->total_allocs;
+    if (out_total_frees)
+        *out_total_frees = pool->total_frees;
+    if (out_current_used)
+        *out_current_used = pool->current_used;
 
     if (pool->thread_safe) {
         lv_MUTEX_UNLOCK(pool->mutex);
@@ -389,10 +402,10 @@ void lv_pool_clear(lvObjectPool *pool) {
      * 替代原来基于 lv_POOL_DEFAULT_CAPACITY 的错误计算 */
     pool->free_list = NULL;
     for (size_t b = 0; b < pool->block_count; b++) {
-        char *ptr = (char *)pool->blocks[b];
+        char *ptr = (char *) pool->blocks[b];
         size_t block_size = pool->block_capacities[b];
         for (size_t i = 0; i < block_size; i++) {
-            FreeNode *node = (FreeNode *)(ptr + i * pool->object_size);
+            FreeNode *node = (FreeNode *) (ptr + i * pool->object_size);
             node->next = pool->free_list;
             pool->free_list = node;
         }
@@ -413,22 +426,22 @@ typedef struct MemoryBlock {
     struct MemoryBlock *next;
     size_t size;
     size_t used;
-    char data[];  /**< 柔性数组 */
+    char data[]; /**< 柔性数组 */
 } MemoryBlock;
 
 /**
  * @brief 线性分配器结构
  */
 struct lvLinearAllocator {
-    MemoryBlock *blocks;        /**< 内存块链表 */
-    size_t block_size;          /**< 默认块大小 */
-    size_t total_blocks;        /**< 总块数 */
-    size_t total_used;          /**< 总使用字节数 */
-    size_t total_capacity;      /**< 总容量 */
+    MemoryBlock *blocks;   /**< 内存块链表 */
+    size_t block_size;     /**< 默认块大小 */
+    size_t total_blocks;   /**< 总块数 */
+    size_t total_used;     /**< 总使用字节数 */
+    size_t total_capacity; /**< 总容量 */
 };
 
 lvLinearAllocator *lv_linear_allocator_create(size_t block_size) {
-    lvLinearAllocator *allocator = (lvLinearAllocator *)malloc(sizeof(lvLinearAllocator));
+    lvLinearAllocator *allocator = (lvLinearAllocator *) malloc(sizeof(lvLinearAllocator));
     if (!allocator) {
         return NULL;
     }
@@ -437,9 +450,9 @@ lvLinearAllocator *lv_linear_allocator_create(size_t block_size) {
     allocator->block_size = block_size > 0 ? block_size : lv_LINEAR_ALLOCATOR_BLOCK_SIZE;
 
     /* 预分配第一个块（性能关键路径：保留原生 malloc，避免循环依赖开销） */
-    MemoryBlock *block = (MemoryBlock *)malloc(sizeof(MemoryBlock) + allocator->block_size);
+    MemoryBlock *block = (MemoryBlock *) malloc(sizeof(MemoryBlock) + allocator->block_size);
     if (!block) {
-        lv_free((void **)&allocator);
+        lv_free((void **) &allocator);
         return NULL;
     }
     block->next = NULL;
@@ -466,7 +479,7 @@ void lv_linear_allocator_destroy(lvLinearAllocator *allocator) {
         block = next;
     }
 
-    lv_free((void **)&allocator);
+    lv_free((void **) &allocator);
 }
 
 void *lv_linear_alloc(lvLinearAllocator *allocator, size_t size, size_t alignment) {
@@ -481,7 +494,7 @@ void *lv_linear_alloc(lvLinearAllocator *allocator, size_t size, size_t alignmen
     MemoryBlock *block = allocator->blocks;
     while (block) {
         /* 计算对齐后的起始位置 */
-        uintptr_t start = (uintptr_t)(block->data + block->used);
+        uintptr_t start = (uintptr_t) (block->data + block->used);
         uintptr_t aligned = (start + align - 1) & ~(align - 1);
         size_t padding = aligned - start;
         /* overflow check */
@@ -492,7 +505,7 @@ void *lv_linear_alloc(lvLinearAllocator *allocator, size_t size, size_t alignmen
 
         if (block->used + total_needed <= block->size) {
             /* 找到足够空间 */
-            void *ptr = (void *)aligned;
+            void *ptr = (void *) aligned;
             block->used += total_needed;
             allocator->total_used += total_needed;
             return ptr;
@@ -510,7 +523,7 @@ void *lv_linear_alloc(lvLinearAllocator *allocator, size_t size, size_t alignmen
         new_block_size = allocator->block_size;
     }
 
-    MemoryBlock *new_block = (MemoryBlock *)malloc(sizeof(MemoryBlock) + new_block_size);
+    MemoryBlock *new_block = (MemoryBlock *) malloc(sizeof(MemoryBlock) + new_block_size);
     if (!new_block) {
         return NULL;
     }
@@ -523,10 +536,10 @@ void *lv_linear_alloc(lvLinearAllocator *allocator, size_t size, size_t alignmen
     allocator->total_capacity += new_block_size;
 
     /* 在新块中分配 */
-    uintptr_t start = (uintptr_t)new_block->data;
+    uintptr_t start = (uintptr_t) new_block->data;
     uintptr_t aligned = (start + align - 1) & ~(align - 1);
     size_t padding = aligned - start;
-    void *ptr = (void *)aligned;
+    void *ptr = (void *) aligned;
     new_block->used = padding + size;
     allocator->total_used += padding + size;
 
@@ -547,16 +560,17 @@ void lv_linear_allocator_reset(lvLinearAllocator *allocator) {
     allocator->total_used = 0;
 }
 
-void lv_linear_allocator_get_stats(const lvLinearAllocator *allocator,
-                                     size_t *out_total_blocks,
-                                     size_t *out_used_bytes,
-                                     size_t *out_capacity_bytes) {
+void lv_linear_allocator_get_stats(const lvLinearAllocator *allocator, size_t *out_total_blocks, size_t *out_used_bytes,
+                                   size_t *out_capacity_bytes) {
     if (!allocator) {
         return;
     }
-    if (out_total_blocks) *out_total_blocks = allocator->total_blocks;
-    if (out_used_bytes) *out_used_bytes = allocator->total_used;
-    if (out_capacity_bytes) *out_capacity_bytes = allocator->total_capacity;
+    if (out_total_blocks)
+        *out_total_blocks = allocator->total_blocks;
+    if (out_used_bytes)
+        *out_used_bytes = allocator->total_used;
+    if (out_capacity_bytes)
+        *out_capacity_bytes = allocator->total_capacity;
 }
 
 /* ============== 对象缓存（LRU）实现 ============== */
@@ -569,7 +583,7 @@ typedef struct CacheEntry {
     void *value;
     struct CacheEntry *prev;
     struct CacheEntry *next;
-    struct CacheEntry *hash_next;  /**< 哈希表链 */
+    struct CacheEntry *hash_next; /**< 哈希表链 */
 } CacheEntry;
 
 /**
@@ -583,8 +597,8 @@ struct lvObjectCache {
     void *user_data;
 
     /* LRU 双向链表 */
-    CacheEntry *head;  /**< 最近使用 */
-    CacheEntry *tail;  /**< 最少使用 */
+    CacheEntry *head; /**< 最近使用 */
+    CacheEntry *tail; /**< 最少使用 */
 
     /* 哈希表 */
     CacheEntry **hash_table;
@@ -600,23 +614,21 @@ struct lvObjectCache {
 static inline size_t hash_key(lvCacheKey key, size_t capacity) {
     uint64_t hash = lv_FNV64_OFFSET_BASIS;
     /* 对 8 字节 key 逐字节进行 FNV-1a 混合 */
-    const unsigned char *bytes = (const unsigned char *)&key;
+    const unsigned char *bytes = (const unsigned char *) &key;
     for (size_t i = 0; i < sizeof(key); i++) {
         hash ^= bytes[i];
         hash *= lv_FNV64_PRIME;
     }
-    return (size_t)(hash % capacity);
+    return (size_t) (hash % capacity);
 }
 
-lvObjectCache *lv_cache_create(size_t capacity,
-                                   lvCacheCreateFunc create_func,
-                                   lvCacheDestroyFunc destroy_func,
-                                   void *user_data) {
+lvObjectCache *lv_cache_create(size_t capacity, lvCacheCreateFunc create_func, lvCacheDestroyFunc destroy_func,
+                               void *user_data) {
     if (!create_func) {
         return NULL;
     }
 
-    lvObjectCache *cache = (lvObjectCache *)malloc(sizeof(lvObjectCache));
+    lvObjectCache *cache = (lvObjectCache *) malloc(sizeof(lvObjectCache));
     if (!cache) {
         return NULL;
     }
@@ -629,7 +641,7 @@ lvObjectCache *lv_cache_create(size_t capacity,
 
     /* 分配哈希表 */
     cache->hash_capacity = lv_HASH_TABLE_INIT_CAP;
-    cache->hash_table = (CacheEntry **)calloc(cache->hash_capacity, sizeof(CacheEntry *));
+    cache->hash_table = (CacheEntry **) calloc(cache->hash_capacity, sizeof(CacheEntry *));
     if (!cache->hash_table) {
         free(cache);
         return NULL;
@@ -759,7 +771,7 @@ void *lv_cache_get(lvObjectCache *cache, lvCacheKey key) {
     }
 
     /* 创建条目（性能关键路径：保留原生 malloc） */
-    entry = (CacheEntry *)malloc(sizeof(CacheEntry));
+    entry = (CacheEntry *) malloc(sizeof(CacheEntry));
     if (!entry) {
         if (cache->destroy_func) {
             cache->destroy_func(value, cache->user_data);
@@ -854,16 +866,17 @@ void lv_cache_clear(lvObjectCache *cache) {
     cache->current_size = 0;
 }
 
-void lv_cache_get_stats(const lvObjectCache *cache,
-                          uint64_t *out_hits,
-                          uint64_t *out_misses,
-                          size_t *out_current_size) {
+void lv_cache_get_stats(const lvObjectCache *cache, uint64_t *out_hits, uint64_t *out_misses,
+                        size_t *out_current_size) {
     if (!cache) {
         return;
     }
-    if (out_hits) *out_hits = cache->hits;
-    if (out_misses) *out_misses = cache->misses;
-    if (out_current_size) *out_current_size = cache->current_size;
+    if (out_hits)
+        *out_hits = cache->hits;
+    if (out_misses)
+        *out_misses = cache->misses;
+    if (out_current_size)
+        *out_current_size = cache->current_size;
 }
 
 /* ============== 全局内存统计 ============== */
@@ -908,7 +921,7 @@ int lv_mem_register_type(const char *name) {
     }
 
     int id = g_global_stats.type_count++;
-    g_global_stats.types[id].name = lv_strdup(name);  /* 复制字符串，避免保存裸指针 */
+    g_global_stats.types[id].name = lv_strdup(name); /* 复制字符串，避免保存裸指针 */
     g_global_stats.types[id].total_allocs = 0;
     g_global_stats.types[id].total_frees = 0;
     g_global_stats.types[id].current_bytes = 0;
@@ -926,7 +939,7 @@ void lv_mem_record_alloc(int type_id, size_t size) {
     ensure_stats_init();
     lv_MUTEX_LOCK(g_stats_mutex);
 
-    if ((size_t)type_id < (size_t)g_global_stats.type_count) {
+    if ((size_t) type_id < (size_t) g_global_stats.type_count) {
         g_global_stats.types[type_id].total_allocs++;
         g_global_stats.types[type_id].current_bytes += size;
         if (g_global_stats.types[type_id].current_bytes > g_global_stats.types[type_id].peak_bytes) {
@@ -949,7 +962,7 @@ void lv_mem_record_free(int type_id, size_t size) {
     ensure_stats_init();
     lv_MUTEX_LOCK(g_stats_mutex);
 
-    if ((size_t)type_id < (size_t)g_global_stats.type_count) {
+    if ((size_t) type_id < (size_t) g_global_stats.type_count) {
         g_global_stats.types[type_id].total_frees++;
         if (g_global_stats.types[type_id].current_bytes >= size) {
             g_global_stats.types[type_id].current_bytes -= size;
@@ -979,7 +992,7 @@ void lv_mem_reset_stats(void) {
     /* 释放已注册类型的名称字符串，防止内存泄漏 */
     for (int i = 0; i < g_global_stats.type_count; i++) {
         if (g_global_stats.types[i].name) {
-            lv_free((void **)&g_global_stats.types[i].name);
+            lv_free((void **) &g_global_stats.types[i].name);
         }
     }
     memset(&g_global_stats, 0, sizeof(lvMemoryStats));
@@ -994,26 +1007,21 @@ void lv_mem_print_stats(void *stream) {
     ensure_stats_init();
     lv_MUTEX_LOCK(g_stats_mutex);
 
-    fprintf((FILE *)stream, "\n========== Lv-00 内存统计 ==========\n");
-    fprintf((FILE *)stream, "总使用: %llu 字节, 峰值: %llu 字节\n",
-            (unsigned long long)g_global_stats.total_bytes,
-            (unsigned long long)g_global_stats.peak_bytes);
-    fprintf((FILE *)stream, "\n各类型统计:\n");
-    fprintf((FILE *)stream, "%-24s %12s %12s %12s %12s\n",
-            "类型", "分配次数", "释放次数", "当前字节", "峰值字节");
-    fprintf((FILE *)stream, "------------------------------------------------------------\n");
+    fprintf((FILE *) stream, "\n========== Lv-00 内存统计 ==========\n");
+    fprintf((FILE *) stream, "总使用: %llu 字节, 峰值: %llu 字节\n", (unsigned long long) g_global_stats.total_bytes,
+            (unsigned long long) g_global_stats.peak_bytes);
+    fprintf((FILE *) stream, "\n各类型统计:\n");
+    fprintf((FILE *) stream, "%-24s %12s %12s %12s %12s\n", "类型", "分配次数", "释放次数", "当前字节", "峰值字节");
+    fprintf((FILE *) stream, "------------------------------------------------------------\n");
 
     for (int i = 0; i < g_global_stats.type_count; i++) {
         lvMemTypeStat *s = &g_global_stats.types[i];
-        fprintf((FILE *)stream, "%-24s %12llu %12llu %12llu %12llu\n",
-                s->name ? s->name : "(unnamed)",
-                (unsigned long long)s->total_allocs,
-                (unsigned long long)s->total_frees,
-                (unsigned long long)s->current_bytes,
-                (unsigned long long)s->peak_bytes);
+        fprintf((FILE *) stream, "%-24s %12llu %12llu %12llu %12llu\n", s->name ? s->name : "(unnamed)",
+                (unsigned long long) s->total_allocs, (unsigned long long) s->total_frees,
+                (unsigned long long) s->current_bytes, (unsigned long long) s->peak_bytes);
     }
 
-    fprintf((FILE *)stream, "====================================\n\n");
+    fprintf((FILE *) stream, "====================================\n\n");
 
     lv_MUTEX_UNLOCK(g_stats_mutex);
 }
@@ -1022,9 +1030,9 @@ void lv_mem_print_stats(void *stream) {
 
 /* 对象大小定义 —— 集中管理于 config.h，此处引用 */
 #define lv_CONSTRAINT_NODE_SIZE lv_CONFIG_POOL_CONSTRAINT_NODE_SIZE
-#define lv_CONSTRAINT_SIZE      lv_CONFIG_POOL_CONSTRAINT_SIZE
-#define lv_SYMBOLIC_COORD_SIZE  lv_CONFIG_POOL_SYMBOLIC_COORD_SIZE
-#define lv_PROOF_STEP_SIZE      lv_CONFIG_POOL_PROOF_STEP_SIZE
+#define lv_CONSTRAINT_SIZE lv_CONFIG_POOL_CONSTRAINT_SIZE
+#define lv_SYMBOLIC_COORD_SIZE lv_CONFIG_POOL_SYMBOLIC_COORD_SIZE
+#define lv_PROOF_STEP_SIZE lv_CONFIG_POOL_PROOF_STEP_SIZE
 
 /* 全局对象池 */
 static lvObjectPool *g_node_pool = NULL;
@@ -1034,18 +1042,13 @@ static lvObjectPool *g_proof_step_pool = NULL;
 
 bool lv_init_preset_pools(void) {
     /* 防御性检查：防止二次初始化导致旧池泄漏 */
-    if (g_node_pool != NULL || g_constraint_pool != NULL ||
-        g_symbolic_coord_pool != NULL || g_proof_step_pool != NULL) {
-        return true;  /* 已经初始化 */
+    if (g_node_pool != NULL || g_constraint_pool != NULL || g_symbolic_coord_pool != NULL ||
+        g_proof_step_pool != NULL) {
+        return true; /* 已经初始化 */
     }
 
     lvPoolConfig config = {
-        .object_size = 0,
-        .capacity = lv_POOL_DEFAULT_CAPACITY,
-        .thread_safe = true,
-        .auto_grow = true,
-        .name = NULL
-    };
+        .object_size = 0, .capacity = lv_POOL_DEFAULT_CAPACITY, .thread_safe = true, .auto_grow = true, .name = NULL};
 
     /* ConstraintNode 池 */
     config.object_size = lv_CONSTRAINT_NODE_SIZE;

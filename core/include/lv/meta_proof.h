@@ -41,6 +41,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 #include "propagation.h"
 #include "stream.h"
@@ -55,18 +56,18 @@ typedef struct EquivClassManager EquivClassManager;
  * @brief 剪枝策略枚举
  */
 typedef enum {
-    PRUNE_DIRECT_CONTRADICTION,        /**< L1: 直接矛盾（候选与约束直接冲突） */
-    PRUNE_PROPAGATION_CONTRADICTION,   /**< L2: 传播矛盾（选择后传播导致死路） */
-    PRUNE_ALGEBRAIC_EXCLUSION          /**< L3: 代数排除（不在 Groebner 基解集中） */
+    PRUNE_DIRECT_CONTRADICTION,      /**< L1: 直接矛盾（候选与约束直接冲突） */
+    PRUNE_PROPAGATION_CONTRADICTION, /**< L2: 传播矛盾（选择后传播导致死路） */
+    PRUNE_ALGEBRAIC_EXCLUSION        /**< L3: 代数排除（不在 Groebner 基解集中） */
 } PruneStrategy;
 /**
  * @brief 元证明结果枚举
  */
 typedef enum {
-    META_PROVE_VALID,          /**< 剪枝合法（已证明） */
-    META_PROVE_INVALID,        /**< 剪枝非法（候选可能是合法解） */
-    META_PROVE_INCONCLUSIVE,   /**< 无法确定（超出证明能力） */
-    META_PROVE_TIMEOUT         /**< 证明超时 */
+    META_PROVE_VALID,        /**< 剪枝合法（已证明） */
+    META_PROVE_INVALID,      /**< 剪枝非法（候选可能是合法解） */
+    META_PROVE_INCONCLUSIVE, /**< 无法确定（超出证明能力） */
+    META_PROVE_TIMEOUT       /**< 证明超时 */
 } MetaProofResult;
 /* ================================================================
  * 数据结构
@@ -77,19 +78,19 @@ typedef enum {
  * 记录一次状态空间剪枝的详细信息。
  */
 typedef struct PruningOperation {
-    int node_id;                       /**< 被剪枝的节点 ID */
-    SymbolicCoord **removed_states;    /**< 被移除的状态列表 */
-    int removed_count;                 /**< 被移除的状态数量 */
-    PruneStrategy strategy;            /**< 使用的证明策略 */
-    TrustColor trust;                  /**< 剪枝信任颜色 */
+    int node_id;                    /**< 被剪枝的节点 ID */
+    SymbolicCoord **removed_states; /**< 被移除的状态列表 */
+    int removed_count;              /**< 被移除的状态数量 */
+    PruneStrategy strategy;         /**< 使用的证明策略 */
+    TrustColor trust;               /**< 剪枝信任颜色 */
     /* L1: 直接矛盾 */
-    int conflicting_constraint_id;     /**< 矛盾约束 ID（L1 时有效，-1 表示无） */
+    int conflicting_constraint_id; /**< 矛盾约束 ID（L1 时有效，-1 表示无） */
     /* L2: 传播矛盾 */
-    int propagation_steps;             /**< 传播到矛盾所需的步数（L2 时有效） */
-    int *propagation_trace;            /**< 传播路径节点 ID 序列（L2 时有效） */
-    int propagation_trace_count;       /**< 传播路径长度 */
+    int propagation_steps;       /**< 传播到矛盾所需的步数（L2 时有效） */
+    int *propagation_trace;      /**< 传播路径节点 ID 序列（L2 时有效） */
+    int propagation_trace_count; /**< 传播路径长度 */
     /* L3: 代数排除 */
-    int poly_violation_count;          /**< 违反的多项式数量（L3 时有效） */
+    int poly_violation_count; /**< 违反的多项式数量（L3 时有效） */
 } PruningOperation;
 /**
  * @brief 剪枝记录
@@ -97,22 +98,22 @@ typedef struct PruningOperation {
  * 记录整个求解过程中的所有剪枝操作。
  */
 typedef struct PruningRecord {
-    PruningOperation *operations;      /**< 剪枝操作数组 */
-    int operation_count;               /**< 操作数量 */
-    int capacity;                      /**< 预分配容量 */
-    int64_t total_states_removed;      /**< 总移除状态数 */
-    int64_t total_states_remaining;    /**< 总剩余状态数 */
+    PruningOperation *operations;   /**< 剪枝操作数组 */
+    int operation_count;            /**< 操作数量 */
+    int capacity;                   /**< 预分配容量 */
+    int64_t total_states_removed;   /**< 总移除状态数 */
+    int64_t total_states_remaining; /**< 总剩余状态数 */
 } PruningRecord;
 /**
  * @brief 完备性报告
  */
 typedef struct CompletenessReport {
-    int total_prunings;                /**< 总剪枝次数 */
-    int proven_prunings;               /**< 已证明合法的剪枝次数 */
-    int unproven_prunings;             /**< 未证明的剪枝次数 */
-    int invalid_prunings;              /**< 非法剪枝次数 */
-    TrustColor overall_color;          /**< 总体信任颜色 */
-    char summary[256];                 /**< 人类可读摘要 */
+    int total_prunings;       /**< 总剪枝次数 */
+    int proven_prunings;      /**< 已证明合法的剪枝次数 */
+    int unproven_prunings;    /**< 未证明的剪枝次数 */
+    int invalid_prunings;     /**< 非法剪枝次数 */
+    TrustColor overall_color; /**< 总体信任颜色 */
+    char summary[256];        /**< 人类可读摘要 */
 } CompletenessReport;
 /**
  * @brief 元证明上下文
@@ -120,24 +121,24 @@ typedef struct CompletenessReport {
  * 管理剪枝合法性证明的上下文，关联传播引擎和等价类管理器。
  */
 typedef struct MetaProofContext {
-    ConstraintGraph *graph;            /**< 关联约束图（只读引用） */
-    PropagationContext *prop_ctx;      /**< 关联传播上下文（可为 NULL） */
-    EquivClassManager *equiv_mgr;      /**< 关联等价类管理器（可为 NULL） */
-    ProofNavigator *navigator;         /**< 关联证明导航器（可为 NULL） */
-    PruningRecord *record;             /**< 剪枝记录 */
+    ConstraintGraph *graph;       /**< 关联约束图（只读引用） */
+    PropagationContext *prop_ctx; /**< 关联传播上下文（可为 NULL） */
+    EquivClassManager *equiv_mgr; /**< 关联等价类管理器（可为 NULL） */
+    ProofNavigator *navigator;    /**< 关联证明导航器（可为 NULL） */
+    PruningRecord *record;        /**< 剪枝记录 */
     /* 配置 */
-    int max_propagation_steps;         /**< L2 传播矛盾最大步数 */
-    int timeout_ms;                    /**< 单次证明超时（毫秒） */
-    bool enable_l1;                    /**< 启用 L1 直接矛盾 */
-    bool enable_l2;                    /**< 启用 L2 传播矛盾 */
-    bool enable_l3;                    /**< 启用 L3 代数排除 */
+    int max_propagation_steps; /**< L2 传播矛盾最大步数 */
+    int timeout_ms;            /**< 单次证明超时（毫秒） */
+    bool enable_l1;            /**< 启用 L1 直接矛盾 */
+    bool enable_l2;            /**< 启用 L2 传播矛盾 */
+    bool enable_l3;            /**< 启用 L3 代数排除 */
     /* 统计 */
-    int64_t l1_proofs;                 /**< L1 证明次数 */
-    int64_t l2_proofs;                 /**< L2 证明次数 */
-    int64_t l3_proofs;                 /**< L3 证明次数 */
-    int64_t inconclusive_count;        /**< 无法确定次数 */
+    int64_t l1_proofs;          /**< L1 证明次数 */
+    int64_t l2_proofs;          /**< L2 证明次数 */
+    int64_t l3_proofs;          /**< L3 证明次数 */
+    int64_t inconclusive_count; /**< 无法确定次数 */
     /* 流式事件 */
-    StreamContext *stream_ctx;         /**< 流式输出上下文 */
+    StreamContext *stream_ctx; /**< 流式输出上下文 */
 } MetaProofContext;
 /* ================================================================
  * 生命周期管理
@@ -149,8 +150,7 @@ typedef struct MetaProofContext {
  * @param prop_ctx  传播上下文（可为 NULL，L2 策略需要）
  * @return 新创建的元证明上下文，失败返回 NULL
  */
-MetaProofContext *meta_proof_context_create(ConstraintGraph *graph,
-                                             PropagationContext *prop_ctx);
+MetaProofContext *meta_proof_context_create(ConstraintGraph *graph, PropagationContext *prop_ctx);
 /**
  * @brief 销毁元证明上下文
  *
@@ -172,10 +172,8 @@ void meta_proof_context_destroy(MetaProofContext *ctx);
  * @param out_conflicting_constraint   [out] 矛盾约束 ID（可为 NULL）
  * @return META_PROVE_VALID / INVALID / INCONCLUSIVE / TIMEOUT
  */
-MetaProofResult meta_prove_direct_contradiction(MetaProofContext *ctx,
-                                                  int node_id,
-                                                  const SymbolicCoord *candidate,
-                                                  int *out_conflicting_constraint);
+MetaProofResult meta_prove_direct_contradiction(MetaProofContext *ctx, int node_id, const SymbolicCoord *candidate,
+                                                int *out_conflicting_constraint);
 /**
  * @brief L2: 传播矛盾证明
  *
@@ -187,9 +185,8 @@ MetaProofResult meta_prove_direct_contradiction(MetaProofContext *ctx,
  * @param candidate  候选坐标
  * @return META_PROVE_VALID / INVALID / INCONCLUSIVE / TIMEOUT
  */
-MetaProofResult meta_prove_propagation_contradiction(MetaProofContext *ctx,
-                                                      int node_id,
-                                                      const SymbolicCoord *candidate);
+MetaProofResult meta_prove_propagation_contradiction(MetaProofContext *ctx, int node_id,
+                                                     const SymbolicCoord *candidate);
 /**
  * @brief L3: 代数排除证明
  *
@@ -201,9 +198,7 @@ MetaProofResult meta_prove_propagation_contradiction(MetaProofContext *ctx,
  * @param candidate  候选坐标
  * @return META_PROVE_VALID / INVALID / INCONCLUSIVE / TIMEOUT
  */
-MetaProofResult meta_prove_algebraic_exclusion(MetaProofContext *ctx,
-                                                int node_id,
-                                                const SymbolicCoord *candidate);
+MetaProofResult meta_prove_algebraic_exclusion(MetaProofContext *ctx, int node_id, const SymbolicCoord *candidate);
 /**
  * @brief 自动选择策略证明剪枝合法性
  *
@@ -214,9 +209,7 @@ MetaProofResult meta_prove_algebraic_exclusion(MetaProofContext *ctx,
  * @param candidate  候选坐标
  * @return META_PROVE_VALID / INVALID / INCONCLUSIVE / TIMEOUT
  */
-MetaProofResult meta_prove_pruning(MetaProofContext *ctx,
-                                    int node_id,
-                                    const SymbolicCoord *candidate);
+MetaProofResult meta_prove_pruning(MetaProofContext *ctx, int node_id, const SymbolicCoord *candidate);
 /* ================================================================
  * 完备性验证
  * ================================================================ */
@@ -247,12 +240,8 @@ void meta_proof_completeness_report_destroy(CompletenessReport *report);
  * @param strategy    证明策略
  * @param trust       信任颜色
  */
-void meta_proof_record_pruning(MetaProofContext *ctx,
-                                int node_id,
-                                SymbolicCoord **removed,
-                                int count,
-                                PruneStrategy strategy,
-                                TrustColor trust);
+void meta_proof_record_pruning(MetaProofContext *ctx, int node_id, SymbolicCoord **removed, int count,
+                               PruneStrategy strategy, TrustColor trust);
 /**
  * @brief 获取剪枝记录（只读）
  * @param ctx  元证明上下文
@@ -286,9 +275,7 @@ void meta_proof_set_stream_context(MetaProofContext *ctx, StreamContext *stream_
  * @param strategy 策略类型
  * @param enable   true 启用, false 禁用
  */
-void meta_proof_set_strategy_enabled(MetaProofContext *ctx,
-                                      PruneStrategy strategy,
-                                      bool enable);
+void meta_proof_set_strategy_enabled(MetaProofContext *ctx, PruneStrategy strategy, bool enable);
 /**
  * @brief 设置 L2 传播矛盾最大步数
  * @param ctx       元证明上下文
@@ -313,11 +300,8 @@ void meta_proof_set_timeout(MetaProofContext *ctx, int timeout_ms);
  * @param out_l3           [out] L3 证明次数
  * @param out_inconclusive [out] 无法确定次数
  */
-void meta_proof_get_statistics(const MetaProofContext *ctx,
-                                int64_t *out_l1,
-                                int64_t *out_l2,
-                                int64_t *out_l3,
-                                int64_t *out_inconclusive);
+void meta_proof_get_statistics(const MetaProofContext *ctx, int64_t *out_l1, int64_t *out_l2, int64_t *out_l3,
+                               int64_t *out_inconclusive);
 #ifdef __cplusplus
 }
 #endif

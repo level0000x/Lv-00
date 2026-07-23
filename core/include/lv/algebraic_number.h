@@ -68,11 +68,11 @@ typedef struct {
  * @brief 有理数运算错误码
  */
 typedef enum {
-    ALG_RATIONAL_OK = 0,        /**< 成功 */
-    ALG_RATIONAL_ERR_ZERO_DEN,   /**< 分母为零 */
-    ALG_RATIONAL_ERR_OVERFLOW,   /**< int64_t 溢出 */
-    ALG_RATIONAL_ERR_NULL,       /**< 空指针 */
-    ALG_RATIONAL_ERR_INVALID     /**< 无效参数 */
+    ALG_RATIONAL_OK = 0,       /**< 成功 */
+    ALG_RATIONAL_ERR_ZERO_DEN, /**< 分母为零 */
+    ALG_RATIONAL_ERR_OVERFLOW, /**< int64_t 溢出 */
+    ALG_RATIONAL_ERR_NULL,     /**< 空指针 */
+    ALG_RATIONAL_ERR_INVALID   /**< 无效参数 */
 } AlgRationalError;
 
 /**
@@ -116,8 +116,7 @@ lv_PUBLIC_API AlgRational alg_rational_from_int(int64_t n);
  * @param[out] err 错误码（可为 NULL）
  * @return a + b 的约分结果
  */
-lv_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRational *b,
-                                             AlgRationalError *err);
+lv_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRational *b, AlgRationalError *err);
 
 /**
  * @brief 有理数减法
@@ -129,8 +128,7 @@ lv_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRation
  * @param[out] err 错误码（可为 NULL）
  * @return a - b 的约分结果
  */
-lv_PUBLIC_API AlgRational alg_rational_sub(const AlgRational *a, const AlgRational *b,
-                                             AlgRationalError *err);
+lv_PUBLIC_API AlgRational alg_rational_sub(const AlgRational *a, const AlgRational *b, AlgRationalError *err);
 
 /**
  * @brief 有理数乘法
@@ -142,8 +140,7 @@ lv_PUBLIC_API AlgRational alg_rational_sub(const AlgRational *a, const AlgRation
  * @param[out] err 错误码（可为 NULL）
  * @return a * b 的约分结果
  */
-lv_PUBLIC_API AlgRational alg_rational_mul(const AlgRational *a, const AlgRational *b,
-                                             AlgRationalError *err);
+lv_PUBLIC_API AlgRational alg_rational_mul(const AlgRational *a, const AlgRational *b, AlgRationalError *err);
 
 /**
  * @brief 有理数除法
@@ -155,8 +152,7 @@ lv_PUBLIC_API AlgRational alg_rational_mul(const AlgRational *a, const AlgRation
  * @param[out] err 错误码（可为 NULL）
  * @return a / b 的约分结果
  */
-lv_PUBLIC_API AlgRational alg_rational_div(const AlgRational *a, const AlgRational *b,
-                                             AlgRationalError *err);
+lv_PUBLIC_API AlgRational alg_rational_div(const AlgRational *a, const AlgRational *b, AlgRationalError *err);
 
 /**
  * @brief 有理数取负
@@ -199,8 +195,7 @@ lv_PUBLIC_API AlgRational alg_rational_inv(const AlgRational *a, AlgRationalErro
  * @param[out] err 错误码（可为 NULL）
  * @return a^n
  */
-lv_PUBLIC_API AlgRational alg_rational_pow(const AlgRational *a, int n,
-                                             AlgRationalError *err);
+lv_PUBLIC_API AlgRational alg_rational_pow(const AlgRational *a, int n, AlgRationalError *err);
 
 /**
  * @brief 有理数比较
@@ -292,9 +287,9 @@ lv_PUBLIC_API const char *alg_rational_error_string(AlgRationalError err);
  *   - d=1 时表示有理数（sqrt(1)=1）
  */
 typedef struct {
-    AlgRational a;  /**< 有理部分 a */
-    AlgRational b;  /**< sqrt(d) 的系数 b */
-    int64_t     d;  /**< 根号内的整数 d（>= 0，无平方因子） */
+    AlgRational a; /**< 有理部分 a */
+    AlgRational b; /**< sqrt(d) 的系数 b */
+    int64_t d;     /**< 根号内的整数 d（>= 0，无平方因子） */
 } AlgQuadratic;
 
 /**
@@ -305,7 +300,7 @@ typedef enum {
     ALG_QUADRATIC_ERR_DOMAIN,   /**< 域不匹配（d 不同） */
     ALG_QUADRATIC_ERR_OVERFLOW, /**< int64_t 溢出 */
     ALG_QUADRATIC_ERR_NULL,     /**< 空指针 */
-    ALG_QUADRATIC_ERR_INVALID  /**< 无效参数 */
+    ALG_QUADRATIC_ERR_INVALID   /**< 无效参数 */
 } AlgQuadraticError;
 
 /**
@@ -322,10 +317,8 @@ typedef enum {
  * @param[out] err  错误码（可为 NULL）
  * @return 二次代数数
  */
-lv_PUBLIC_API AlgQuadratic alg_quadratic_create(int64_t a_val, int64_t a_den,
-                                                    int64_t b_val, int64_t b_den,
-                                                    int64_t d,
-                                                    AlgQuadraticError *err);
+lv_PUBLIC_API AlgQuadratic alg_quadratic_create(int64_t a_val, int64_t a_den, int64_t b_val, int64_t b_den, int64_t d,
+                                                AlgQuadraticError *err);
 
 /**
  * @brief 从有理数创建二次代数数（b=0）
@@ -347,9 +340,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_from_rational(const AlgRational *r, int
  * @param[out] err  错误码（可为 NULL）
  * @return 二次代数数
  */
-lv_PUBLIC_API AlgQuadratic alg_quadratic_sqrt(int64_t b_val, int64_t b_den,
-                                                 int64_t d,
-                                                 AlgQuadraticError *err);
+lv_PUBLIC_API AlgQuadratic alg_quadratic_sqrt(int64_t b_val, int64_t b_den, int64_t d, AlgQuadraticError *err);
 
 /**
  * @brief 二次代数数加法
@@ -361,8 +352,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_sqrt(int64_t b_val, int64_t b_den,
  * @param[out] err 错误码（可为 NULL）
  * @return x + y
  */
-lv_PUBLIC_API AlgQuadratic alg_quadratic_add(const AlgQuadratic *x, const AlgQuadratic *y,
-                                                AlgQuadraticError *err);
+lv_PUBLIC_API AlgQuadratic alg_quadratic_add(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err);
 
 /**
  * @brief 二次代数数减法
@@ -372,8 +362,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_add(const AlgQuadratic *x, const AlgQua
  * @param[out] err 错误码（可为 NULL）
  * @return x - y
  */
-lv_PUBLIC_API AlgQuadratic alg_quadratic_sub(const AlgQuadratic *x, const AlgQuadratic *y,
-                                                AlgQuadraticError *err);
+lv_PUBLIC_API AlgQuadratic alg_quadratic_sub(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err);
 
 /**
  * @brief 二次代数数乘法
@@ -386,8 +375,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_sub(const AlgQuadratic *x, const AlgQua
  * @param[out] err 错误码（可为 NULL）
  * @return x * y
  */
-lv_PUBLIC_API AlgQuadratic alg_quadratic_mul(const AlgQuadratic *x, const AlgQuadratic *y,
-                                                AlgQuadraticError *err);
+lv_PUBLIC_API AlgQuadratic alg_quadratic_mul(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err);
 
 /**
  * @brief 二次代数数除法
@@ -400,8 +388,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_mul(const AlgQuadratic *x, const AlgQua
  * @param[out] err 错误码（可为 NULL）
  * @return x / y
  */
-lv_PUBLIC_API AlgQuadratic alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y,
-                                                AlgQuadraticError *err);
+lv_PUBLIC_API AlgQuadratic alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err);
 
 /**
  * @brief 二次代数数取负
@@ -431,8 +418,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_conj(const AlgQuadratic *x);
  * @param[out] err 错误码（可为 NULL）
  * @return 范数（有理数）
  */
-lv_PUBLIC_API AlgRational alg_quadratic_norm(const AlgQuadratic *x,
-                                                AlgQuadraticError *err);
+lv_PUBLIC_API AlgRational alg_quadratic_norm(const AlgQuadratic *x, AlgQuadraticError *err);
 
 /**
  * @brief 二次代数数比较
@@ -456,8 +442,7 @@ lv_PUBLIC_API int alg_quadratic_cmp(const AlgQuadratic *x, const AlgQuadratic *y
  * @param[out] err 错误码（可为 NULL）
  * @return <0 表示 x < y，0 表示 x == y，>0 表示 x > y
  */
-lv_PUBLIC_API int alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadratic *y,
-                                             AlgQuadraticError *err);
+lv_PUBLIC_API int alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err);
 
 /**
  * @brief 二次代数数转 double（近似值）
@@ -528,11 +513,11 @@ typedef struct {
  * @brief 区间运算错误码
  */
 typedef enum {
-    ALG_INTERVAL_OK = 0,        /**< 成功 */
-    ALG_INTERVAL_ERR_EMPTY,     /**< 空区间 */
-    ALG_INTERVAL_ERR_OVERFLOW,  /**< int64_t 溢出 */
-    ALG_INTERVAL_ERR_NULL,     /**< 空指针 */
-    ALG_INTERVAL_ERR_INVALID,   /**< 无效参数（lo > hi） */
+    ALG_INTERVAL_OK = 0,         /**< 成功 */
+    ALG_INTERVAL_ERR_EMPTY,      /**< 空区间 */
+    ALG_INTERVAL_ERR_OVERFLOW,   /**< int64_t 溢出 */
+    ALG_INTERVAL_ERR_NULL,       /**< 空指针 */
+    ALG_INTERVAL_ERR_INVALID,    /**< 无效参数（lo > hi） */
     ALG_INTERVAL_ERR_DIV_BY_ZERO /**< 除以包含零的区间 */
 } AlgIntervalError;
 
@@ -549,9 +534,8 @@ typedef enum {
  * @param[out] err   错误码（可为 NULL）
  * @return 隔离区间
  */
-lv_PUBLIC_API AlgInterval alg_interval_create(int64_t lo_val, int64_t lo_den,
-                                                int64_t hi_val, int64_t hi_den,
-                                                AlgIntervalError *err);
+lv_PUBLIC_API AlgInterval alg_interval_create(int64_t lo_val, int64_t lo_den, int64_t hi_val, int64_t hi_den,
+                                              AlgIntervalError *err);
 
 /**
  * @brief 从单个有理数创建点区间 [r, r]
@@ -571,8 +555,7 @@ lv_PUBLIC_API AlgInterval alg_interval_point(const AlgRational *r);
  * @param[out] err 错误码（可为 NULL）
  * @return 隔离区间
  */
-lv_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x,
-                                                         AlgIntervalError *err);
+lv_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x, AlgIntervalError *err);
 
 /**
  * @brief 区间加法
@@ -584,8 +567,7 @@ lv_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x,
  * @param[out] err 错误码（可为 NULL）
  * @return 和区间
  */
-lv_PUBLIC_API AlgInterval alg_interval_add(const AlgInterval *x, const AlgInterval *y,
-                                             AlgIntervalError *err);
+lv_PUBLIC_API AlgInterval alg_interval_add(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err);
 
 /**
  * @brief 区间减法
@@ -597,8 +579,7 @@ lv_PUBLIC_API AlgInterval alg_interval_add(const AlgInterval *x, const AlgInterv
  * @param[out] err 错误码（可为 NULL）
  * @return 差区间
  */
-lv_PUBLIC_API AlgInterval alg_interval_sub(const AlgInterval *x, const AlgInterval *y,
-                                             AlgIntervalError *err);
+lv_PUBLIC_API AlgInterval alg_interval_sub(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err);
 
 /**
  * @brief 区间乘法
@@ -610,8 +591,7 @@ lv_PUBLIC_API AlgInterval alg_interval_sub(const AlgInterval *x, const AlgInterv
  * @param[out] err 错误码（可为 NULL）
  * @return 积区间
  */
-lv_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInterval *y,
-                                             AlgIntervalError *err);
+lv_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err);
 
 /**
  * @brief 区间除法
@@ -623,8 +603,7 @@ lv_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInterv
  * @param[out] err 错误码（可为 NULL）
  * @return 商区间
  */
-lv_PUBLIC_API AlgInterval alg_interval_div(const AlgInterval *x, const AlgInterval *y,
-                                             AlgIntervalError *err);
+lv_PUBLIC_API AlgInterval alg_interval_div(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err);
 
 /**
  * @brief 区间取负
@@ -646,8 +625,7 @@ lv_PUBLIC_API AlgInterval alg_interval_neg(const AlgInterval *x);
  * @param[out] err 错误码（可为 NULL）
  * @return 交集区间（可能为空）
  */
-lv_PUBLIC_API AlgInterval alg_interval_intersect(const AlgInterval *x, const AlgInterval *y,
-                                                    AlgIntervalError *err);
+lv_PUBLIC_API AlgInterval alg_interval_intersect(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err);
 
 /**
  * @brief 区间并集
@@ -659,8 +637,7 @@ lv_PUBLIC_API AlgInterval alg_interval_intersect(const AlgInterval *x, const Alg
  * @param[out] err 错误码（可为 NULL）
  * @return 并集的凸包区间
  */
-lv_PUBLIC_API AlgInterval alg_interval_hull(const AlgInterval *x, const AlgInterval *y,
-                                              AlgIntervalError *err);
+lv_PUBLIC_API AlgInterval alg_interval_hull(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err);
 
 /**
  * @brief 区间包含判断
@@ -680,8 +657,7 @@ lv_PUBLIC_API bool alg_interval_contains(const AlgInterval *x, const AlgInterval
  * @param[in] r 有理数
  * @return true 区间包含 r，false 不包含
  */
-lv_PUBLIC_API bool alg_interval_contains_rational(const AlgInterval *x,
-                                                     const AlgRational *r);
+lv_PUBLIC_API bool alg_interval_contains_rational(const AlgInterval *x, const AlgRational *r);
 
 /**
  * @brief 判断区间是否为空
@@ -708,8 +684,7 @@ lv_PUBLIC_API bool alg_interval_is_point(const AlgInterval *x);
  * @param[out] err 错误码（可为 NULL）
  * @return 区间宽度（有理数）
  */
-lv_PUBLIC_API AlgRational alg_interval_width(const AlgInterval *x,
-                                                AlgIntervalError *err);
+lv_PUBLIC_API AlgRational alg_interval_width(const AlgInterval *x, AlgIntervalError *err);
 
 /**
  * @brief 区间中点
@@ -720,8 +695,7 @@ lv_PUBLIC_API AlgRational alg_interval_width(const AlgInterval *x,
  * @param[out] err 错误码（可为 NULL）
  * @return 中点（有理数）
  */
-lv_PUBLIC_API AlgRational alg_interval_midpoint(const AlgInterval *x,
-                                                   AlgIntervalError *err);
+lv_PUBLIC_API AlgRational alg_interval_midpoint(const AlgInterval *x, AlgIntervalError *err);
 
 /**
  * @brief 区间二分
@@ -733,9 +707,8 @@ lv_PUBLIC_API AlgRational alg_interval_midpoint(const AlgInterval *x,
  * @param[out] upper 上半区间（可为 NULL）
  * @param[out] err   错误码（可为 NULL）
  */
-lv_PUBLIC_API void alg_interval_bisect(const AlgInterval *x,
-                                          AlgInterval *lower, AlgInterval *upper,
-                                          AlgIntervalError *err);
+lv_PUBLIC_API void alg_interval_bisect(const AlgInterval *x, AlgInterval *lower, AlgInterval *upper,
+                                       AlgIntervalError *err);
 
 /**
  * @brief 区间转字符串
@@ -782,19 +755,19 @@ lv_PUBLIC_API const char *alg_interval_error_string(AlgIntervalError err);
  */
 typedef struct {
     int64_t coef[ALG_POLY_MAX_DEGREE + 1]; /**< 系数数组（coef[i] 为 x^i 的系数） */
-    int     degree;                          /**< 多项式次数 */
+    int degree;                            /**< 多项式次数 */
 } AlgPoly;
 
 /**
  * @brief 多项式运算错误码
  */
 typedef enum {
-    ALG_POLY_OK = 0,          /**< 成功 */
-    ALG_POLY_ERR_DEGREE,      /**< 次数超限 */
-    ALG_POLY_ERR_OVERFLOW,    /**< int64_t 溢出 */
-    ALG_POLY_ERR_NULL,        /**< 空指针 */
-    ALG_POLY_ERR_INVALID,     /**< 无效参数 */
-    ALG_POLY_ERR_DIV_BY_ZERO  /**< 除以零多项式 */
+    ALG_POLY_OK = 0,         /**< 成功 */
+    ALG_POLY_ERR_DEGREE,     /**< 次数超限 */
+    ALG_POLY_ERR_OVERFLOW,   /**< int64_t 溢出 */
+    ALG_POLY_ERR_NULL,       /**< 空指针 */
+    ALG_POLY_ERR_INVALID,    /**< 无效参数 */
+    ALG_POLY_ERR_DIV_BY_ZERO /**< 除以零多项式 */
 } AlgPolyError;
 
 /**
@@ -852,8 +825,7 @@ lv_PUBLIC_API AlgPoly alg_poly_x(void);
  * @param[out] err 错误码（可为 NULL）
  * @return p(n) 的值
  */
-lv_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n,
-                                           AlgPolyError *err);
+lv_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n, AlgPolyError *err);
 
 /**
  * @brief 多项式求值（代入有理数）
@@ -865,8 +837,7 @@ lv_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n,
  * @param[out] err 错误码（可为 NULL）
  * @return p(r) 的值（有理数）
  */
-lv_PUBLIC_API AlgRational alg_poly_eval_rational(const AlgPoly *p, const AlgRational *r,
-                                                   AlgPolyError *err);
+lv_PUBLIC_API AlgRational alg_poly_eval_rational(const AlgPoly *p, const AlgRational *r, AlgPolyError *err);
 
 /**
  * @brief 多项式加法
@@ -876,8 +847,7 @@ lv_PUBLIC_API AlgRational alg_poly_eval_rational(const AlgPoly *p, const AlgRati
  * @param[out] err 错误码（可为 NULL）
  * @return p + q
  */
-lv_PUBLIC_API AlgPoly alg_poly_add(const AlgPoly *p, const AlgPoly *q,
-                                      AlgPolyError *err);
+lv_PUBLIC_API AlgPoly alg_poly_add(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err);
 
 /**
  * @brief 多项式减法
@@ -887,8 +857,7 @@ lv_PUBLIC_API AlgPoly alg_poly_add(const AlgPoly *p, const AlgPoly *q,
  * @param[out] err 错误码（可为 NULL）
  * @return p - q
  */
-lv_PUBLIC_API AlgPoly alg_poly_sub(const AlgPoly *p, const AlgPoly *q,
-                                      AlgPolyError *err);
+lv_PUBLIC_API AlgPoly alg_poly_sub(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err);
 
 /**
  * @brief 多项式乘法
@@ -898,8 +867,7 @@ lv_PUBLIC_API AlgPoly alg_poly_sub(const AlgPoly *p, const AlgPoly *q,
  * @param[out] err 错误码（可为 NULL）
  * @return p * q
  */
-lv_PUBLIC_API AlgPoly alg_poly_mul(const AlgPoly *p, const AlgPoly *q,
-                                      AlgPolyError *err);
+lv_PUBLIC_API AlgPoly alg_poly_mul(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err);
 
 /**
  * @brief 多项式取负
@@ -968,8 +936,7 @@ lv_PUBLIC_API int64_t alg_poly_discriminant(const AlgPoly *p, AlgPolyError *err)
  * @param[out] err        错误码（可为 NULL）
  * @return 实际找到的有理根数量
  */
-lv_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots,
-                                             int max_roots, AlgPolyError *err);
+lv_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roots, AlgPolyError *err);
 
 /**
  * @brief 多项式导数
@@ -1013,8 +980,7 @@ lv_PUBLIC_API const char *alg_poly_error_string(AlgPolyError err);
  * @param[out] err 错误码（可为 NULL）
  * @return 隔离区间
  */
-lv_PUBLIC_API AlgInterval alg_quadratic_to_interval(const AlgQuadratic *x,
-                                                       AlgIntervalError *err);
+lv_PUBLIC_API AlgInterval alg_quadratic_to_interval(const AlgQuadratic *x, AlgIntervalError *err);
 
 /**
  * @brief 有理数转隔离区间（点区间）

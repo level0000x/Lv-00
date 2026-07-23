@@ -75,22 +75,22 @@ typedef enum {
     LOG_LEVEL_TRACE = -1, /**< 追踪级别：最详细的逐步骤日志（函数进入/退出、参数转储） */
 #endif
 #ifndef LOG_LEVEL_DEBUG
-    LOG_LEVEL_DEBUG = 0,  /**< 调试级别：开发调试信息 */
+    LOG_LEVEL_DEBUG = 0, /**< 调试级别：开发调试信息 */
 #endif
 #ifndef LOG_LEVEL_INFO
-    LOG_LEVEL_INFO  = 1,  /**< 信息级别：常规运行时信息 */
+    LOG_LEVEL_INFO = 1, /**< 信息级别：常规运行时信息 */
 #endif
 #ifndef LOG_LEVEL_WARN
-    LOG_LEVEL_WARN  = 2,  /**< 警告级别：潜在问题，不影响当前操作 */
+    LOG_LEVEL_WARN = 2, /**< 警告级别：潜在问题，不影响当前操作 */
 #endif
 #ifndef LOG_LEVEL_ERROR
-    LOG_LEVEL_ERROR = 3,  /**< 错误级别：操作失败，但引擎可继续 */
+    LOG_LEVEL_ERROR = 3, /**< 错误级别：操作失败，但引擎可继续 */
 #endif
 #ifndef LOG_LEVEL_FATAL
-    LOG_LEVEL_FATAL = 4,  /**< 致命级别：不可恢复错误，记录后触发保护性动作 */
+    LOG_LEVEL_FATAL = 4, /**< 致命级别：不可恢复错误，记录后触发保护性动作 */
 #endif
 #ifndef LOG_LEVEL_NONE
-    LOG_LEVEL_NONE  = 5   /**< 禁用所有日志 */
+    LOG_LEVEL_NONE = 5 /**< 禁用所有日志 */
 #endif
 } LogLevel;
 
@@ -228,23 +228,44 @@ lv_PUBLIC_API void debug_log(LogLevel level, const char *module, const char *fmt
  */
 #ifdef lv_LOG_GUARD
 /* 编译期过滤版本：低于阈值的日志被编译期移除，不产生任何代码 */
-#define LOG_TRACE(module, fmt, ...)  do { \
-    if (lv_LOG_IS_ENABLED(LOG_LEVEL_TRACE)) \
-        debug_log(LOG_LEVEL_TRACE, module, fmt, ##__VA_ARGS__); \
-} while(0)
-#define LOG_DEBUG(module, fmt, ...)  do { if (lv_LOG_IS_ENABLED(LOG_LEVEL_DEBUG)) debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__); } while(0)
-#define LOG_INFO(module, fmt, ...)   do { if (lv_LOG_IS_ENABLED(LOG_LEVEL_INFO))  debug_log(LOG_LEVEL_INFO,  module, fmt, ##__VA_ARGS__); } while(0)
-#define LOG_WARN(module, fmt, ...)   do { if (lv_LOG_IS_ENABLED(LOG_LEVEL_WARN))  debug_log(LOG_LEVEL_WARN,  module, fmt, ##__VA_ARGS__); } while(0)
-#define LOG_ERROR(module, fmt, ...)  do { if (lv_LOG_IS_ENABLED(LOG_LEVEL_ERROR)) debug_log(LOG_LEVEL_ERROR, module, fmt, ##__VA_ARGS__); } while(0)
-#define LOG_FATAL(module, fmt, ...)  do { if (lv_LOG_IS_ENABLED(LOG_LEVEL_FATAL)) debug_log(LOG_LEVEL_FATAL, module, fmt, ##__VA_ARGS__); } while(0)
+#define LOG_TRACE(module, fmt, ...)                                 \
+    do {                                                            \
+        if (lv_LOG_IS_ENABLED(LOG_LEVEL_TRACE))                     \
+            debug_log(LOG_LEVEL_TRACE, module, fmt, ##__VA_ARGS__); \
+    } while (0)
+#define LOG_DEBUG(module, fmt, ...)                                 \
+    do {                                                            \
+        if (lv_LOG_IS_ENABLED(LOG_LEVEL_DEBUG))                     \
+            debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__); \
+    } while (0)
+#define LOG_INFO(module, fmt, ...)                                 \
+    do {                                                           \
+        if (lv_LOG_IS_ENABLED(LOG_LEVEL_INFO))                     \
+            debug_log(LOG_LEVEL_INFO, module, fmt, ##__VA_ARGS__); \
+    } while (0)
+#define LOG_WARN(module, fmt, ...)                                 \
+    do {                                                           \
+        if (lv_LOG_IS_ENABLED(LOG_LEVEL_WARN))                     \
+            debug_log(LOG_LEVEL_WARN, module, fmt, ##__VA_ARGS__); \
+    } while (0)
+#define LOG_ERROR(module, fmt, ...)                                 \
+    do {                                                            \
+        if (lv_LOG_IS_ENABLED(LOG_LEVEL_ERROR))                     \
+            debug_log(LOG_LEVEL_ERROR, module, fmt, ##__VA_ARGS__); \
+    } while (0)
+#define LOG_FATAL(module, fmt, ...)                                 \
+    do {                                                            \
+        if (lv_LOG_IS_ENABLED(LOG_LEVEL_FATAL))                     \
+            debug_log(LOG_LEVEL_FATAL, module, fmt, ##__VA_ARGS__); \
+    } while (0)
 #else
 /* 无编译期过滤：所有级别在运行时由 debug_set_log_level 决定 */
-#define LOG_TRACE(module, fmt, ...)  debug_log(LOG_LEVEL_TRACE, module, fmt, ##__VA_ARGS__)
-#define LOG_DEBUG(module, fmt, ...)  debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__)
-#define LOG_INFO(module, fmt, ...)   debug_log(LOG_LEVEL_INFO,  module, fmt, ##__VA_ARGS__)
-#define LOG_WARN(module, fmt, ...)   debug_log(LOG_LEVEL_WARN,  module, fmt, ##__VA_ARGS__)
-#define LOG_ERROR(module, fmt, ...)  debug_log(LOG_LEVEL_ERROR, module, fmt, ##__VA_ARGS__)
-#define LOG_FATAL(module, fmt, ...)  debug_log(LOG_LEVEL_FATAL, module, fmt, ##__VA_ARGS__)
+#define LOG_TRACE(module, fmt, ...) debug_log(LOG_LEVEL_TRACE, module, fmt, ##__VA_ARGS__)
+#define LOG_DEBUG(module, fmt, ...) debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__)
+#define LOG_INFO(module, fmt, ...) debug_log(LOG_LEVEL_INFO, module, fmt, ##__VA_ARGS__)
+#define LOG_WARN(module, fmt, ...) debug_log(LOG_LEVEL_WARN, module, fmt, ##__VA_ARGS__)
+#define LOG_ERROR(module, fmt, ...) debug_log(LOG_LEVEL_ERROR, module, fmt, ##__VA_ARGS__)
+#define LOG_FATAL(module, fmt, ...) debug_log(LOG_LEVEL_FATAL, module, fmt, ##__VA_ARGS__)
 #endif /* lv_LOG_GUARD */
 
 /* ============================================================
@@ -268,14 +289,14 @@ lv_PUBLIC_API void debug_log(LogLevel level, const char *module, const char *fmt
  * - 性能分析（记录时间戳和耗时）
  */
 typedef struct lvLogEntry {
-    LogLevel    level;          /**< 日志级别 */
-    uint64_t    timestamp_us;   /**< 时间戳（微秒精度） */
-    const char *module_name;    /**< 模块名称（如 "solver", "engine", "graph"） */
-    const char *function_name;  /**< 函数名称（__func__） */
-    int         line_number;    /**< 源文件行号（__LINE__） */
-    const char *file_name;      /**< 源文件名（__FILE__） */
-    char        message[512];   /**< 格式化后的日志消息（定长，防止 OOM） */
-    uint64_t    context_id;     /**< 关联的上下文 ID（0 = 全局日志） */
+    LogLevel level;            /**< 日志级别 */
+    uint64_t timestamp_us;     /**< 时间戳（微秒精度） */
+    const char *module_name;   /**< 模块名称（如 "solver", "engine", "graph"） */
+    const char *function_name; /**< 函数名称（__func__） */
+    int line_number;           /**< 源文件行号（__LINE__） */
+    const char *file_name;     /**< 源文件名（__FILE__） */
+    char message[512];         /**< 格式化后的日志消息（定长，防止 OOM） */
+    uint64_t context_id;       /**< 关联的上下文 ID（0 = 全局日志） */
 } lvLogEntry;
 
 /**
@@ -290,11 +311,11 @@ typedef struct lvLogEntry {
  * - 性能敏感场景下的轻量级日志存储
  */
 typedef struct lvLogRingBuffer {
-    lvLogEntry *entries;   /**< 环形缓冲区条目数组 */
-    int           capacity;  /**< 缓冲区容量（最大条目数） */
-    int           head;      /**< 写入位置（下一条新日志将写入此位置） */
-    int           count;     /**< 当前缓冲区中的日志数量（<= capacity） */
-    bool          wrapped;   /**< 是否已经至少绕回一次 */
+    lvLogEntry *entries; /**< 环形缓冲区条目数组 */
+    int capacity;        /**< 缓冲区容量（最大条目数） */
+    int head;            /**< 写入位置（下一条新日志将写入此位置） */
+    int count;           /**< 当前缓冲区中的日志数量（<= capacity） */
+    bool wrapped;        /**< 是否已经至少绕回一次 */
 } lvLogRingBuffer;
 
 /**
@@ -324,10 +345,9 @@ lv_PUBLIC_API void lv_log_ring_buffer_destroy(lvLogRingBuffer *rb);
  * @param fmt           printf 格式字符串
  * @param ...           格式参数
  */
-lv_PUBLIC_API void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level,
-                                const char *module_name, const char *function_name,
-                                const char *file_name, int line_number,
-                                const char *fmt, ...);
+lv_PUBLIC_API void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level, const char *module_name,
+                                            const char *function_name, const char *file_name, int line_number,
+                                            const char *fmt, ...);
 
 /**
  * @brief 导出环形缓冲区中的所有日志（按时间顺序）
@@ -387,10 +407,9 @@ lv_PUBLIC_API bool lv_log_ring_buffer_resize(lvLogRingBuffer *rb, int capacity);
  * @param ...           格式参数
  */
 struct lvContext; /* 前向声明 */
-lv_PUBLIC_API void lv_log_with_context(struct lvContext *ctx, LogLevel level,
-                           const char *module_name, const char *function_name,
-                           const char *file_name, int line_number,
-                           const char *fmt, ...);
+lv_PUBLIC_API void lv_log_with_context(struct lvContext *ctx, LogLevel level, const char *module_name,
+                                       const char *function_name, const char *file_name, int line_number,
+                                       const char *fmt, ...);
 
 /**
  * @brief 带上下文的便捷日志宏 —— 自动填入位置信息
@@ -403,8 +422,7 @@ lv_PUBLIC_API void lv_log_with_context(struct lvContext *ctx, LogLevel level,
  * @endcode
  */
 #define lv_LOG_CTX(ctx, level, module, fmt, ...) \
-    lv_log_with_context((ctx), (level), (module), __func__, __FILE__, __LINE__, \
-                          (fmt), ##__VA_ARGS__)
+    lv_log_with_context((ctx), (level), (module), __func__, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
 
 /*=== 性能计数器 ===*/
 
@@ -620,7 +638,7 @@ lv_PUBLIC_API void trace_session_destroy(TraceSession *session);
  * @brief 记录追踪事件
  */
 lv_PUBLIC_API void trace_record_event(TraceSession *session, TraceEventType type, int step, const char *description,
-                        const char *details);
+                                      const char *details);
 
 /**
  * @brief 导出追踪会话为 JSON

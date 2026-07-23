@@ -81,9 +81,9 @@ typedef enum {
     PROOF_COLOR_ORANGE_ORACLE,     /**< 浅橙色实心端口：依赖非构造性oracle */
     PROOF_COLOR_ORANGE_EX_FALSO,   /**< 浅橙色虚线箭头：爆炸原理步骤 */
     PROOF_COLOR_AMBER,             /**< 橙黄色：含数值假设 */
-    PROOF_COLOR_DARK_ORANGE,        /**< 深橙色：非构造性依赖与数值假设叠加 */
-    PROOF_COLOR_GREEN_COMPLETE,     /**< 绿色：证明完成 */
-    PROOF_COLOR_RED_CONFLICT        /**< 红色：冲突/矛盾 */
+    PROOF_COLOR_DARK_ORANGE,       /**< 深橙色：非构造性依赖与数值假设叠加 */
+    PROOF_COLOR_GREEN_COMPLETE,    /**< 绿色：证明完成 */
+    PROOF_COLOR_RED_CONFLICT       /**< 红色：冲突/矛盾 */
 } ProofColor;
 
 /* ============== 命题类型 ==============
@@ -109,18 +109,18 @@ struct Proposition {
     int ref_count;        /* 引用计数（用于 proposition_ref/unref） */
 
     /* 输入/输出端口 */
-    int *input_port_ids;  /* 输入端口ID数组 */
-    int input_count;      /* 输入端口数量 */
-    int *output_port_ids; /* 输出端口ID数组 */
-    int output_count;     /* 输出端口数量 */
+    int *input_port_ids;   /* 输入端口ID数组 */
+    int input_count;       /* 输入端口数量 */
+    int *output_port_ids;  /* 输出端口ID数组 */
+    int output_count;      /* 输出端口数量 */
     int output_port_count; /* 别名 = output_count */
 
     /* 几何模式（虚线框内的约束骨架） */
     ConstraintGraph *pattern; /* 命题模式图 */
 
     /* 前置条件区域 */
-    int *precondition_region_ids; /* 前置条件区域ID */
-    int precondition_count;       /* 前置条件数量 */
+    int *precondition_region_ids;  /* 前置条件区域ID */
+    int precondition_count;        /* 前置条件数量 */
     int precondition_region_count; /* 别名 = precondition_count */
 
     /* 后置条件 */
@@ -214,7 +214,7 @@ struct ProofDependency {
     char *external_ref; /* 外部引用字符串 */
 
     /* 数值假设声明 */
-    char *numeric_declaration;  /* 数值假设声明 */
+    char *numeric_declaration;                      /* 数值假设声明 */
     double lv_TOLERATED_FLOAT(precision_threshold); /* 精度阈值
                                                         * @note lv_TOLERATED_FLOAT:
                                                         * 阈值用于证明规则参数化，不参与代数计算 */
@@ -240,9 +240,9 @@ typedef enum {
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
-    PROOF_STATE_ONGOING,       /**< 证明进行中 */
-    PROOF_STATE_COMPLETED,     /**< 证明完成 */
-    PROOF_STATE_CONTRADICTORY  /**< 证明矛盾：推导出了互斥结论 */
+    PROOF_STATE_ONGOING,      /**< 证明进行中 */
+    PROOF_STATE_COMPLETED,    /**< 证明完成 */
+    PROOF_STATE_CONTRADICTORY /**< 证明矛盾：推导出了互斥结论 */
 } ProofState;
 
 /* ============== 假设作用域标识符 ============== */
@@ -259,16 +259,16 @@ typedef int lvProofScopeId;
 #define lv_PROOF_SCOPE_INVALID -1 /**< 无效作用域标识符 */
 
 /* Missing enums/types used by proof.c */
-#define LIGHT_ORANGE_EXPLOSION  30
+#define LIGHT_ORANGE_EXPLOSION 30
 void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negated);
 
 /* Missing proof strategies */
-#define PROOF_STRATEGY_DIRECT        100
-#define PROOF_STRATEGY_AREA          101
-#define PROOF_STRATEGY_VECTOR        102
-#define PROOF_STRATEGY_TRANSFORM     103
-#define PROOF_STRATEGY_TRIGONOMETRY  104
-#define PROOF_STRATEGY_ALGEBRAIC     105
+#define PROOF_STRATEGY_DIRECT 100
+#define PROOF_STRATEGY_AREA 101
+#define PROOF_STRATEGY_VECTOR 102
+#define PROOF_STRATEGY_TRANSFORM 103
+#define PROOF_STRATEGY_TRIGONOMETRY 104
+#define PROOF_STRATEGY_ALGEBRAIC 105
 #define PROOF_STRATEGY_CONTRADICTION 106
 
 #ifndef lv_SMT_BACKEND_H
@@ -276,11 +276,11 @@ void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negat
 typedef void *SMTSolver;
 #define SMT_GROEBNER 0
 typedef int SMTSatResult;
-#define SMT_RESULT_UNSAT    1
-#define SMT_RESULT_UNKNOWN  2
+#define SMT_RESULT_UNSAT 1
+#define SMT_RESULT_UNKNOWN 2
 SMTSolver smtsolver_create(int type);
 void smtsolver_set_timeout(SMTSolver s, int ms);
-int  smtsolver_encode(SMTSolver s, const char *script, size_t len);
+int smtsolver_encode(SMTSolver s, const char *script, size_t len);
 SMTSatResult smtsolver_check(SMTSolver s);
 void smtsolver_destroy(SMTSolver s);
 #endif /* lv_SMT_BACKEND_H */
@@ -298,7 +298,7 @@ typedef lvThreadTask lvTask;
 typedef lvWaitGroup lvTaskGroup;
 
 lvTaskGroup *lv_task_group_create(const char *name);
-lvTask *lv_task_create(int (*fn)(void*), void *arg, const char *name);
+lvTask *lv_task_create(int (*fn)(void *), void *arg, const char *name);
 void lv_task_group_add(lvTaskGroup *g, lvTask *t);
 void lv_task_group_destroy(lvTaskGroup *g);
 
@@ -434,7 +434,8 @@ lv_PUBLIC_API bool proposition_contradicts(const Proposition *a, const Propositi
  * @param normalize_first 是否先执行图规范化遍
  * @return 合一结果
  */
-lv_PUBLIC_API UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *proposition, bool normalize_first);
+lv_PUBLIC_API UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *proposition,
+                                      bool normalize_first);
 
 /**
  * 合一检查（详细版）
@@ -443,7 +444,8 @@ lv_PUBLIC_API UnifyStatus proof_unify(const ConstraintGraph *construction, Propo
  * @param out_mismatch_info 输出不匹配信息
  * @return 合一结果
  */
-lv_PUBLIC_API UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info);
+lv_PUBLIC_API UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Proposition *proposition,
+                                               char **out_mismatch_info);
 
 /* ============== 证明步骤管理 ============== */
 
@@ -490,7 +492,8 @@ lv_PUBLIC_API void proof_step_set_breakpoint(ProofStep *step, bool is_breakpoint
  * @param out_count    输出：祖先数量（包含步骤本身为 0 时表示该步骤为根步骤）
  * @return true 成功，false 步骤不存在或参数无效
  */
-lv_PUBLIC_API bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_ancestor_ids, int *out_count);
+lv_PUBLIC_API bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_ancestor_ids,
+                                            int *out_count);
 
 /* ============== 证明导航器 ============== */
 
@@ -634,7 +637,7 @@ lv_PUBLIC_API bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_
  * @return 是否成功
  */
 lv_PUBLIC_API bool proof_apply_ex_falso_scoped(ProofNavigator *nav, ConstraintGraph *bottom_proof,
-                                  Proposition *target_prop, lvProofScopeId scope_id);
+                                               Proposition *target_prop, lvProofScopeId scope_id);
 
 /**
  * 应用爆炸原理（兼容包装）
@@ -661,13 +664,13 @@ lv_PUBLIC_API bool proof_apply_ex_falso(ProofNavigator *nav, ConstraintGraph *bo
 typedef struct lvProofTree lvProofTree; /* 前向声明，完整定义见 proof_trace.h */
 
 typedef struct {
-    bool              success;           /**< 反证法是否成功 */
-    char             *contradiction_desc; /**< 矛盾的描述（如"P ∧ ¬P 同时成立"） */
-    int               contradiction_step; /**< 发现矛盾的步骤索引（-1 = 未发现） */
-    struct lvProofTree *proof_trace;    /**< 完整的证明追踪树（成功时记录完整路径，失败时也记录已探索路径） */
-    int               total_steps;       /**< 反证法证明的总步骤数 */
-    int               forward_steps;     /**< 正向推理步骤数 */
-    char             *error_message;     /**< 错误消息（失败时有效，可为 NULL） */
+    bool success;                    /**< 反证法是否成功 */
+    char *contradiction_desc;        /**< 矛盾的描述（如"P ∧ ¬P 同时成立"） */
+    int contradiction_step;          /**< 发现矛盾的步骤索引（-1 = 未发现） */
+    struct lvProofTree *proof_trace; /**< 完整的证明追踪树（成功时记录完整路径，失败时也记录已探索路径） */
+    int total_steps;                 /**< 反证法证明的总步骤数 */
+    int forward_steps;               /**< 正向推理步骤数 */
+    char *error_message;             /**< 错误消息（失败时有效，可为 NULL） */
 } lvContradictionResult;
 
 /**
@@ -692,7 +695,8 @@ typedef struct {
  * @param max_steps   最大允许的正向推理步骤数（0 = 无限制）
  * @return 反证法结果，包含成功标志和矛盾路径。调用者需用 lv_contradiction_result_destroy 释放。
  */
-lv_PUBLIC_API lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Proposition *goal_prop, int max_steps);
+lv_PUBLIC_API lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Proposition *goal_prop,
+                                                               int max_steps);
 
 /**
  * @brief 释放反证法结果
@@ -899,7 +903,8 @@ lv_PUBLIC_API void proof_declare_proposition_equivalence(ProofNavigator *nav, in
 /**
  * @brief 查找命题的等价命题
  */
-lv_PUBLIC_API int proof_find_equivalent_proposition(const ProofNavigator *nav, int prop_id, int *equivalent_ids, int max_count);
+lv_PUBLIC_API int proof_find_equivalent_proposition(const ProofNavigator *nav, int prop_id, int *equivalent_ids,
+                                                    int max_count);
 
 /* ============== 依赖链断裂自动降级 ============== */
 
@@ -1020,7 +1025,8 @@ lv_PUBLIC_API bool proof_has_type_variables(const Proposition *prop);
  * @param mapping_count      映射条目数量（数组长度 = mapping_count * 2）
  * @return 新的已实例化命题，失败返回 NULL
  */
-lv_PUBLIC_API Proposition *proof_instantiate_proposition(const Proposition *prop, const int *type_var_to_concrete, int mapping_count);
+lv_PUBLIC_API Proposition *proof_instantiate_proposition(const Proposition *prop, const int *type_var_to_concrete,
+                                                         int mapping_count);
 
 /* ============== 不可构造性证明流程 ============== */
 
@@ -1060,7 +1066,7 @@ typedef struct {
  * @return 检查结果
  */
 lv_PUBLIC_API UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const ConstraintGraph *graph,
-                                                 const Proposition *prop, UnconstructInfo *info);
+                                                               const Proposition *prop, UnconstructInfo *info);
 
 /**
  * @brief 尝试系统性地证明不可构造性
@@ -1078,7 +1084,7 @@ lv_PUBLIC_API UnconstructResult proof_check_unconstructibility(ProofNavigator *n
  * @return 证明结果
  */
 lv_PUBLIC_API UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const ConstraintGraph *graph,
-                                                   const Proposition *prop, UnconstructInfo *info);
+                                                                 const Proposition *prop, UnconstructInfo *info);
 
 /**
  * @brief 释放不可构造性信息结构体
@@ -1370,8 +1376,8 @@ lv_PUBLIC_API const ProofStrategyDescriptor *proof_multi_strategy_get_active(con
  * @return 实际返回的适用策略数量
  */
 lv_PUBLIC_API int proof_multi_strategy_evaluate_applicability(ProofMultiStrategy *mse, const ConstraintGraph *graph,
-                                                const Proposition *prop, ProofStrategyType *out_applicable_types,
-                                                int max_count);
+                                                              const Proposition *prop,
+                                                              ProofStrategyType *out_applicable_types, int max_count);
 
 /**
  * @brief 使用当前策略执行证明
@@ -1400,7 +1406,8 @@ lv_PUBLIC_API ProofStrategyType proof_multi_strategy_try_all(ProofMultiStrategy 
  * @param pipeline_count 流水线长度
  * @return 是否全部成功
  */
-lv_PUBLIC_API bool proof_multi_strategy_pipeline(ProofMultiStrategy *mse, const ProofStrategyType *pipeline, int pipeline_count);
+lv_PUBLIC_API bool proof_multi_strategy_pipeline(ProofMultiStrategy *mse, const ProofStrategyType *pipeline,
+                                                 int pipeline_count);
 
 /**
  * @brief 设置回退顺序
@@ -1408,7 +1415,8 @@ lv_PUBLIC_API bool proof_multi_strategy_pipeline(ProofMultiStrategy *mse, const 
  * @param fallback_order  策略索引数组（按优先级排序）
  * @param count           回退策略数量
  */
-lv_PUBLIC_API void proof_multi_strategy_set_fallback_order(ProofMultiStrategy *mse, const int *fallback_order, int count);
+lv_PUBLIC_API void proof_multi_strategy_set_fallback_order(ProofMultiStrategy *mse, const int *fallback_order,
+                                                           int count);
 
 /**
  * @brief 切换策略（保存当前策略状态后切换）
@@ -1424,7 +1432,8 @@ lv_PUBLIC_API bool proof_multi_strategy_switch(ProofMultiStrategy *mse, ProofStr
  * @param out_total_attempts  输出：总尝试次数
  * @param out_success_count   输出：成功次数
  */
-lv_PUBLIC_API void proof_multi_strategy_get_stats(const ProofMultiStrategy *mse, int *out_total_attempts, int *out_success_count);
+lv_PUBLIC_API void proof_multi_strategy_get_stats(const ProofMultiStrategy *mse, int *out_total_attempts,
+                                                  int *out_success_count);
 
 /**
  * @brief 策略类型转字符串
@@ -1544,14 +1553,14 @@ typedef struct {
     ProofStrategyType strategy;
     bool success;
     double lv_TOLERATED_FLOAT(elapsed_sec); /* @note tolerated: timing only */
-    char *isar_proof_script; /* 自动生成的 Isar 证明脚本 */
+    char *isar_proof_script;                /* 自动生成的 Isar 证明脚本 */
 } SledgehammerStrategyResult;
 
 /** @brief Sledgehammer 批量调度报告 */
 typedef struct {
     SledgehammerStrategyResult *results;
     int result_count;
-    int best_index; /* 最优（最简）证明的索引 */
+    int best_index;                            /* 最优（最简）证明的索引 */
     double lv_TOLERATED_FLOAT(total_time_sec); /* @note tolerated: timing only */
     const char *error_msg;
 } SledgehammerReport;
@@ -1563,7 +1572,8 @@ typedef struct {
  * @param timeout_ms   超时毫秒（0 = 不限）
  * @return 调度报告，调用者用 sledgehammer_report_destroy() 释放
  */
-lv_PUBLIC_API SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, SledgehammerMode mode, int timeout_ms);
+lv_PUBLIC_API SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, SledgehammerMode mode,
+                                                              int timeout_ms);
 lv_PUBLIC_API void sledgehammer_report_destroy(SledgehammerReport *report);
 
 /**
@@ -1606,7 +1616,8 @@ typedef enum { VERIFY_VALID, VERIFY_INVALID, VERIFY_UNDECIDED } VerifyResult;
  * @param out_trace   输出：验证追溯（可选，成功时给出规则链）
  * @return VERIFY_VALID 如果结论可从前提通过给定规则合法推导
  */
-lv_PUBLIC_API VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, const char *conclusion, char **out_trace);
+lv_PUBLIC_API VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, const char *conclusion,
+                                                char **out_trace);
 
 /* ================================================================
  * 5. F* — 精化类型 + SMT 混合验证
@@ -1621,7 +1632,7 @@ typedef struct {
     const char *base_type;       /* 基础类型（如 Triangle） */
     const char *refinement_pred; /* 精化谓词（如 "is_right && area > 0"） */
     RefinementCheckResult result;
-    char *smt_counterexample; /* SMT 反例（失败时） */
+    char *smt_counterexample;               /* SMT 反例（失败时） */
     double lv_TOLERATED_FLOAT(elapsed_sec); /* @note tolerated: timing only */
 } RefinementCheckEntry;
 
@@ -1640,7 +1651,8 @@ typedef struct {
  * @param count      条目数量
  * @return 批量检查报告
  */
-lv_PUBLIC_API RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, RefinementCheckEntry *entries, int count);
+lv_PUBLIC_API RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, RefinementCheckEntry *entries,
+                                                            int count);
 lv_PUBLIC_API void refinement_check_report_destroy(RefinementCheckReport *report);
 
 #ifdef __cplusplus

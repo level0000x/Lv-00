@@ -29,6 +29,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "lv.h"
 /* ============================================================
  * AD mode enumeration
@@ -43,10 +44,7 @@ extern "C" {
  *   f: R^n -> R where n is large. Builds a computation graph and propagates
  *   adjoints backwards.
  */
-typedef enum lvADMode {
-    AD_FORWARD = 0,
-    AD_REVERSE = 1
-} lvADMode;
+typedef enum lvADMode { AD_FORWARD = 0, AD_REVERSE = 1 } lvADMode;
 /* ============================================================
  * AD expression kind enumeration
  * ============================================================ */
@@ -54,14 +52,14 @@ typedef enum lvADMode {
  * @brief Kinds of AD expression nodes.
  */
 typedef enum lvADExprKind {
-    AD_CONST = 0,   /**< Constant value */
-    AD_VAR   = 1,   /**< Variable (identified by var_index) */
-    AD_ADD   = 2,   /**< Addition: children[0] + children[1] */
-    AD_MUL   = 3,   /**< Multiplication: children[0] * children[1] */
-    AD_NEG   = 4,   /**< Negation: -children[0] */
-    AD_SIN   = 5,   /**< Sine: sin(children[0]) */
-    AD_COS   = 6,   /**< Cosine: cos(children[0]) */
-    AD_POW   = 7    /**< Power: children[0] ^ children[1] */
+    AD_CONST = 0, /**< Constant value */
+    AD_VAR = 1,   /**< Variable (identified by var_index) */
+    AD_ADD = 2,   /**< Addition: children[0] + children[1] */
+    AD_MUL = 3,   /**< Multiplication: children[0] * children[1] */
+    AD_NEG = 4,   /**< Negation: -children[0] */
+    AD_SIN = 5,   /**< Sine: sin(children[0]) */
+    AD_COS = 6,   /**< Cosine: cos(children[0]) */
+    AD_POW = 7    /**< Power: children[0] ^ children[1] */
 } lvADExprKind;
 /* ============================================================
  * AD expression node
@@ -76,12 +74,12 @@ typedef enum lvADExprKind {
  * The gradient field is used during reverse mode to accumulate gradients.
  */
 typedef struct lvADExpr {
-    lvADExprKind   kind;         /**< Node kind */
-    double           value;        /**< Primal value (set during evaluation) */
-    int              var_index;    /**< Variable index (only for AD_VAR, -1 otherwise) */
-    struct lvADExpr **children;  /**< Child expression nodes */
-    size_t           child_count;  /**< Number of children */
-    double           gradient;     /**< Accumulated gradient (used in reverse mode) */
+    lvADExprKind kind;          /**< Node kind */
+    double value;               /**< Primal value (set during evaluation) */
+    int var_index;              /**< Variable index (only for AD_VAR, -1 otherwise) */
+    struct lvADExpr **children; /**< Child expression nodes */
+    size_t child_count;         /**< Number of children */
+    double gradient;            /**< Accumulated gradient (used in reverse mode) */
 } lvADExpr;
 /* ============================================================
  * AD engine
@@ -92,7 +90,7 @@ typedef struct lvADExpr {
  * Holds the AD mode and manages expression allocation.
  */
 typedef struct lvADEngine {
-    lvADMode mode;  /**< Differentiation mode */
+    lvADMode mode; /**< Differentiation mode */
 } lvADEngine;
 /* ============================================================
  * API: Engine lifecycle
@@ -187,8 +185,7 @@ lv_PUBLIC_API void ad_expr_destroy(lvADExpr *expr);
  * @param[out] derivative The computed derivative
  * @return true on success, false on failure
  */
-lv_PUBLIC_API bool ad_forward_diff(lvADExpr *expr, int var_index,
-    double var_value, double *value, double *derivative);
+lv_PUBLIC_API bool ad_forward_diff(lvADExpr *expr, int var_index, double var_value, double *value, double *derivative);
 /**
  * @brief Compute gradients using reverse mode (backpropagation).
  *
@@ -202,9 +199,8 @@ lv_PUBLIC_API bool ad_forward_diff(lvADExpr *expr, int var_index,
  * @param[out] gradients Array of gradients (caller-allocated, size >= var_count)
  * @return true on success, false on failure
  */
-lv_PUBLIC_API bool ad_reverse_diff(lvADExpr *expr,
-    const double *var_values, size_t var_count,
-    double *value, double *gradients);
+lv_PUBLIC_API bool ad_reverse_diff(lvADExpr *expr, const double *var_values, size_t var_count, double *value,
+                                   double *gradients);
 /* ============================================================
  * API: Evaluation and gradient query
  * ============================================================ */
@@ -217,8 +213,7 @@ lv_PUBLIC_API bool ad_reverse_diff(lvADExpr *expr,
  * @param[out] result  The evaluated result
  * @return true on success, false on failure
  */
-lv_PUBLIC_API bool ad_eval(lvADExpr *expr,
-    const double *var_values, size_t var_count, double *result);
+lv_PUBLIC_API bool ad_eval(lvADExpr *expr, const double *var_values, size_t var_count, double *result);
 /**
  * @brief Get the gradient of a specific variable after reverse differentiation.
  *

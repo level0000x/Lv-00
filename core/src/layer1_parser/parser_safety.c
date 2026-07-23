@@ -9,11 +9,11 @@
  */
 
 #include "parser_safety.h"
-#include "config.h"          /* lv_MAX_* macros */
 
 #include <ctype.h>
 #include <string.h>
 
+#include "config.h" /* lv_MAX_* macros */
 #include "lv_utils.h"
 
 /* ============================================================
@@ -29,11 +29,15 @@
  */
 static bool is_disallowed_ctrl(unsigned char c) {
     /* 允许: 空格(0x20), 制表(0x09), 换行(0x0A), 回车(0x0D) */
-    if (c >= 0x20) return false;  /* 可打印字符 */
-    if (c == 0x09) return false;  /* '\t' */
-    if (c == 0x0A) return false;  /* '\n' */
-    if (c == 0x0D) return false;  /* '\r' */
-    return true; /* 其他控制字符 (0x00-0x08, 0x0B-0x0C, 0x0E-0x1F) */
+    if (c >= 0x20)
+        return false; /* 可打印字符 */
+    if (c == 0x09)
+        return false; /* '\t' */
+    if (c == 0x0A)
+        return false; /* '\n' */
+    if (c == 0x0D)
+        return false; /* '\r' */
+    return true;      /* 其他控制字符 (0x00-0x08, 0x0B-0x0C, 0x0E-0x1F) */
 }
 
 /**
@@ -65,11 +69,14 @@ static int is_unicode_whitespace_start(unsigned char c, unsigned char n2, unsign
             return (n2 == 0x9A && n3 == 0x80) ? 3 : 0;
         case 0xE2:
             /* U+2000-U+200A: E2 80 80-8A */
-            if (n2 == 0x80 && n3 >= 0x80 && n3 <= 0x8A) return 3;
+            if (n2 == 0x80 && n3 >= 0x80 && n3 <= 0x8A)
+                return 3;
             /* U+2028: E2 80 A8, U+2029: E2 80 A9, U+202F: E2 80 AF */
-            if (n2 == 0x80 && (n3 == 0xA8 || n3 == 0xA9 || n3 == 0xAF)) return 3;
+            if (n2 == 0x80 && (n3 == 0xA8 || n3 == 0xA9 || n3 == 0xAF))
+                return 3;
             /* U+205F: E2 81 9F */
-            if (n2 == 0x81 && n3 == 0x9F) return 3;
+            if (n2 == 0x81 && n3 == 0x9F)
+                return 3;
             return 0;
         case 0xE3:
             /* U+3000: E3 80 80 */
@@ -97,10 +104,14 @@ static int is_unicode_whitespace_start(unsigned char c, unsigned char n2, unsign
  * @return false 字符不安全（不允许的控制字符）
  */
 bool lv_char_is_safe_ctrl(unsigned char c) {
-    if (c >= 0x20) return true;  /* 可打印ASCII */
-    if (c == 0x09) return true;  /* '\t' */
-    if (c == 0x0A) return true;  /* '\n' */
-    if (c == 0x0D) return true;  /* '\r' */
+    if (c >= 0x20)
+        return true; /* 可打印ASCII */
+    if (c == 0x09)
+        return true; /* '\t' */
+    if (c == 0x0A)
+        return true; /* '\n' */
+    if (c == 0x0D)
+        return true; /* '\r' */
     return false;
 }
 
@@ -128,8 +139,7 @@ lvErrorCode lv_input_validate(const char *input, size_t len) {
 
     /* 检查2：长度上限 */
     if (len > lv_MAX_INPUT_LENGTH) {
-        lv_set_error(lv_ERROR_PARSER_INPUT_TOO_LONG,
-                       "输入长度 %zu 超过上限 %d", len, lv_MAX_INPUT_LENGTH);
+        lv_set_error(lv_ERROR_PARSER_INPUT_TOO_LONG, "输入长度 %zu 超过上限 %d", len, lv_MAX_INPUT_LENGTH);
         return lv_ERROR_PARSER_INPUT_TOO_LONG;
     }
 
@@ -139,15 +149,13 @@ lvErrorCode lv_input_validate(const char *input, size_t len) {
 
         /* null字节检查 */
         if (c == 0x00) {
-            lv_set_error(lv_ERROR_PARSER_ILLEGAL_CHARS,
-                           "输入在位置 %zu 包含null字节", i);
+            lv_set_error(lv_ERROR_PARSER_ILLEGAL_CHARS, "输入在位置 %zu 包含null字节", i);
             return lv_ERROR_PARSER_ILLEGAL_CHARS;
         }
 
         /* 不允许的控制字符检查 */
         if (is_disallowed_ctrl(c)) {
-            lv_set_error(lv_ERROR_PARSER_ILLEGAL_CHARS,
-                           "输入在位置 %zu 包含非法控制字符 0x%02X", i, (unsigned int) c);
+            lv_set_error(lv_ERROR_PARSER_ILLEGAL_CHARS, "输入在位置 %zu 包含非法控制字符 0x%02X", i, (unsigned int) c);
             return lv_ERROR_PARSER_ILLEGAL_CHARS;
         }
     }
@@ -169,7 +177,8 @@ lvErrorCode lv_input_validate(const char *input, size_t len) {
  * @return 净化后的字符串长度
  */
 size_t lv_input_sanitize(char *input, size_t max_len) {
-    if (!input || max_len == 0) return 0;
+    if (!input || max_len == 0)
+        return 0;
 
     size_t read = 0;
     size_t write = 0;
@@ -231,8 +240,7 @@ size_t lv_input_sanitize(char *input, size_t max_len) {
  */
 lvErrorCode lv_check_ast_depth(int depth) {
     if (depth > lv_MAX_AST_DEPTH) {
-        lv_set_error(lv_ERROR_PARSER_DEPTH_EXCEEDED,
-                       "AST深度 %d 超过上限 %d", depth, lv_MAX_AST_DEPTH);
+        lv_set_error(lv_ERROR_PARSER_DEPTH_EXCEEDED, "AST深度 %d 超过上限 %d", depth, lv_MAX_AST_DEPTH);
         return lv_ERROR_PARSER_DEPTH_EXCEEDED;
     }
     return lv_OK;
@@ -246,8 +254,7 @@ lvErrorCode lv_check_ast_depth(int depth) {
  */
 lvErrorCode lv_check_ast_node_count(int count) {
     if (count > lv_MAX_AST_NODES) {
-        lv_set_error(lv_ERROR_PARSER_NODE_LIMIT,
-                       "AST节点数 %d 超过上限 %d", count, lv_MAX_AST_NODES);
+        lv_set_error(lv_ERROR_PARSER_NODE_LIMIT, "AST节点数 %d 超过上限 %d", count, lv_MAX_AST_NODES);
         return lv_ERROR_PARSER_NODE_LIMIT;
     }
     return lv_OK;
@@ -261,8 +268,7 @@ lvErrorCode lv_check_ast_node_count(int count) {
  */
 lvErrorCode lv_check_token_length(size_t len) {
     if (len > lv_MAX_TOKEN_LENGTH) {
-        lv_set_error(lv_ERROR_PARSER_TOKEN_TOO_LONG,
-                       "Token长度 %zu 超过上限 %d", len, lv_MAX_TOKEN_LENGTH);
+        lv_set_error(lv_ERROR_PARSER_TOKEN_TOO_LONG, "Token长度 %zu 超过上限 %d", len, lv_MAX_TOKEN_LENGTH);
         return lv_ERROR_PARSER_TOKEN_TOO_LONG;
     }
     return lv_OK;

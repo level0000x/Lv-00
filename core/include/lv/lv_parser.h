@@ -16,8 +16,8 @@ typedef struct {
 } LvParseError;
 
 typedef struct {
-    LvAstNode   *ast;
-    int          error_count;
+    LvAstNode *ast;
+    int error_count;
     LvParseError errors[64];
 } LvParseResult;
 

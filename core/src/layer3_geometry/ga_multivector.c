@@ -11,27 +11,28 @@
  */
 
 #include "lv/ga_multivector.h"
-#include "lv/lv_internal.h"
-#include "lv/lv_utils.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * Basis element indices (Cl(3,0,1))
  * ============================================================ */
-#define GA_S    0   /* 1 (scalar) */
-#define GA_E0   1   /* e0 */
-#define GA_E1   2   /* e1 */
-#define GA_E2   3   /* e2 */
-#define GA_E3   4   /* e3 */
-#define GA_E01  5   /* e0^e1 */
-#define GA_E02  6   /* e0^e2 */
-#define GA_E03  7   /* e0^e3 */
-#define GA_E12  8   /* e1^e2 */
-#define GA_E13  9   /* e1^e3 */
-#define GA_E23  10  /* e2^e3 */
+#define GA_S 0      /* 1 (scalar) */
+#define GA_E0 1     /* e0 */
+#define GA_E1 2     /* e1 */
+#define GA_E2 3     /* e2 */
+#define GA_E3 4     /* e3 */
+#define GA_E01 5    /* e0^e1 */
+#define GA_E02 6    /* e0^e2 */
+#define GA_E03 7    /* e0^e3 */
+#define GA_E12 8    /* e1^e2 */
+#define GA_E13 9    /* e1^e3 */
+#define GA_E23 10   /* e2^e3 */
 #define GA_E012 11  /* e0^e1^e2 */
 #define GA_E013 12  /* e0^e1^e3 */
 #define GA_E023 13  /* e0^e2^e3 */
@@ -43,7 +44,7 @@
  * ============================================================ */
 
 struct lvMultiVector {
-    double c[16];  /* Coefficients for each basis element */
+    double c[16]; /* Coefficients for each basis element */
 };
 
 /* ============================================================
@@ -64,7 +65,7 @@ lvMultiVector *ga_mv_create(void) {
  * @param mv 目标多向量（可为 NULL）
  */
 void ga_mv_destroy(lvMultiVector *mv) {
-    lv_free((void **)&mv);
+    lv_free((void **) &mv);
 }
 
 /**
@@ -73,10 +74,12 @@ void ga_mv_destroy(lvMultiVector *mv) {
  * @return 新副本（调用者负责释放），src 为 NULL 时返回 NULL
  */
 lvMultiVector *ga_mv_copy(const lvMultiVector *src) {
-    if (!src) return NULL;
+    if (!src)
+        return NULL;
 
     lvMultiVector *copy = ga_mv_create();
-    if (!copy) return NULL;
+    if (!copy)
+        return NULL;
 
     memcpy(copy->c, src->c, sizeof(copy->c));
     return copy;
@@ -87,7 +90,7 @@ lvMultiVector *ga_mv_copy(const lvMultiVector *src) {
  * @return 零多向量（调用者负责释放），失败返回 NULL
  */
 lvMultiVector *ga_mv_zero(void) {
-    return ga_mv_create();  /* calloc initializes to zero */
+    return ga_mv_create(); /* calloc initializes to zero */
 }
 
 /* ============================================================
@@ -101,7 +104,8 @@ lvMultiVector *ga_mv_zero(void) {
  * @return 系数值；参数无效时返回 0.0
  */
 double ga_mv_get(const lvMultiVector *mv, int index) {
-    if (!mv || index < 0 || index >= 16) return 0.0;
+    if (!mv || index < 0 || index >= 16)
+        return 0.0;
     return mv->c[index];
 }
 
@@ -112,7 +116,8 @@ double ga_mv_get(const lvMultiVector *mv, int index) {
  * @param value 系数值
  */
 void ga_mv_set(lvMultiVector *mv, int index, double value) {
-    if (!mv || index < 0 || index >= 16) return;
+    if (!mv || index < 0 || index >= 16)
+        return;
     mv->c[index] = value;
 }
 
@@ -126,28 +131,28 @@ void ga_mv_set(lvMultiVector *mv, int index, double value) {
  * @return 最高阶数（0~4），mv 为 NULL 时返回 -1，零向量返回 -1
  */
 int ga_mv_grade(const lvMultiVector *mv) {
-    if (!mv) return -1;
+    if (!mv)
+        return -1;
 
     int max_grade = -1;
     double eps = 1e-10;
 
     /* Grade 0: scalar */
-    if (fabs(mv->c[GA_S]) > eps) max_grade = 0;
+    if (fabs(mv->c[GA_S]) > eps)
+        max_grade = 0;
 
     /* Grade 1: vectors */
-    if (fabs(mv->c[GA_E0]) > eps || fabs(mv->c[GA_E1]) > eps ||
-        fabs(mv->c[GA_E2]) > eps || fabs(mv->c[GA_E3]) > eps)
+    if (fabs(mv->c[GA_E0]) > eps || fabs(mv->c[GA_E1]) > eps || fabs(mv->c[GA_E2]) > eps || fabs(mv->c[GA_E3]) > eps)
         max_grade = 1;
 
     /* Grade 2: bivectors */
-    if (fabs(mv->c[GA_E01]) > eps || fabs(mv->c[GA_E02]) > eps ||
-        fabs(mv->c[GA_E03]) > eps || fabs(mv->c[GA_E12]) > eps ||
-        fabs(mv->c[GA_E13]) > eps || fabs(mv->c[GA_E23]) > eps)
+    if (fabs(mv->c[GA_E01]) > eps || fabs(mv->c[GA_E02]) > eps || fabs(mv->c[GA_E03]) > eps ||
+        fabs(mv->c[GA_E12]) > eps || fabs(mv->c[GA_E13]) > eps || fabs(mv->c[GA_E23]) > eps)
         max_grade = 2;
 
     /* Grade 3: trivectors */
-    if (fabs(mv->c[GA_E012]) > eps || fabs(mv->c[GA_E013]) > eps ||
-        fabs(mv->c[GA_E023]) > eps || fabs(mv->c[GA_E123]) > eps)
+    if (fabs(mv->c[GA_E012]) > eps || fabs(mv->c[GA_E013]) > eps || fabs(mv->c[GA_E023]) > eps ||
+        fabs(mv->c[GA_E123]) > eps)
         max_grade = 3;
 
     /* Grade 4: pseudoscalar */
@@ -164,38 +169,40 @@ int ga_mv_grade(const lvMultiVector *mv) {
  * @return 新多向量（仅包含指定阶数的分量），失败返回 NULL
  */
 lvMultiVector *ga_mv_grade_project(const lvMultiVector *mv, int grade) {
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     lvMultiVector *result = ga_mv_zero();
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     switch (grade) {
-    case 0:
-        result->c[GA_S] = mv->c[GA_S];
-        break;
-    case 1:
-        result->c[GA_E0] = mv->c[GA_E0];
-        result->c[GA_E1] = mv->c[GA_E1];
-        result->c[GA_E2] = mv->c[GA_E2];
-        result->c[GA_E3] = mv->c[GA_E3];
-        break;
-    case 2:
-        result->c[GA_E01] = mv->c[GA_E01];
-        result->c[GA_E02] = mv->c[GA_E02];
-        result->c[GA_E03] = mv->c[GA_E03];
-        result->c[GA_E12] = mv->c[GA_E12];
-        result->c[GA_E13] = mv->c[GA_E13];
-        result->c[GA_E23] = mv->c[GA_E23];
-        break;
-    case 3:
-        result->c[GA_E012] = mv->c[GA_E012];
-        result->c[GA_E013] = mv->c[GA_E013];
-        result->c[GA_E023] = mv->c[GA_E023];
-        result->c[GA_E123] = mv->c[GA_E123];
-        break;
-    case 4:
-        result->c[GA_E0123] = mv->c[GA_E0123];
-        break;
+        case 0:
+            result->c[GA_S] = mv->c[GA_S];
+            break;
+        case 1:
+            result->c[GA_E0] = mv->c[GA_E0];
+            result->c[GA_E1] = mv->c[GA_E1];
+            result->c[GA_E2] = mv->c[GA_E2];
+            result->c[GA_E3] = mv->c[GA_E3];
+            break;
+        case 2:
+            result->c[GA_E01] = mv->c[GA_E01];
+            result->c[GA_E02] = mv->c[GA_E02];
+            result->c[GA_E03] = mv->c[GA_E03];
+            result->c[GA_E12] = mv->c[GA_E12];
+            result->c[GA_E13] = mv->c[GA_E13];
+            result->c[GA_E23] = mv->c[GA_E23];
+            break;
+        case 3:
+            result->c[GA_E012] = mv->c[GA_E012];
+            result->c[GA_E013] = mv->c[GA_E013];
+            result->c[GA_E023] = mv->c[GA_E023];
+            result->c[GA_E123] = mv->c[GA_E123];
+            break;
+        case 4:
+            result->c[GA_E0123] = mv->c[GA_E0123];
+            break;
     }
 
     return result;
@@ -211,10 +218,12 @@ lvMultiVector *ga_mv_grade_project(const lvMultiVector *mv, int grade) {
  * @return 新多向量（a + b），失败返回 NULL
  */
 lvMultiVector *ga_mv_add(const lvMultiVector *a, const lvMultiVector *b) {
-    if (!a || !b) return NULL;
+    if (!a || !b)
+        return NULL;
 
     lvMultiVector *result = ga_mv_create();
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     for (int i = 0; i < 16; i++) {
         result->c[i] = a->c[i] + b->c[i];
@@ -229,10 +238,12 @@ lvMultiVector *ga_mv_add(const lvMultiVector *a, const lvMultiVector *b) {
  * @return 新多向量（a - b），失败返回 NULL
  */
 lvMultiVector *ga_mv_sub(const lvMultiVector *a, const lvMultiVector *b) {
-    if (!a || !b) return NULL;
+    if (!a || !b)
+        return NULL;
 
     lvMultiVector *result = ga_mv_create();
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     for (int i = 0; i < 16; i++) {
         result->c[i] = a->c[i] - b->c[i];
@@ -248,10 +259,12 @@ lvMultiVector *ga_mv_sub(const lvMultiVector *a, const lvMultiVector *b) {
  * @return 新多向量（mv * scalar），失败返回 NULL
  */
 lvMultiVector *ga_mv_scale(const lvMultiVector *mv, double scalar) {
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     lvMultiVector *result = ga_mv_create();
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     for (int i = 0; i < 16; i++) {
         result->c[i] = mv->c[i] * scalar;
@@ -285,22 +298,22 @@ lvMultiVector *ga_mv_negate(const lvMultiVector *mv) {
 
 /* Basis vector bitmask for each blade index (0-15) */
 static const unsigned char s_blade_bits[16] = {
-    0,   /* GA_S     (scalar)       */
-    1,   /* GA_E0    (e0)           */
-    2,   /* GA_E1    (e1)           */
-    4,   /* GA_E2    (e2)           */
-    8,   /* GA_E3    (e3)           */
-    3,   /* GA_E01   (e0∧e1)        */
-    5,   /* GA_E02   (e0∧e2)        */
-    9,   /* GA_E03   (e0∧e3)        */
-    6,   /* GA_E12   (e1∧e2)        */
-    10,  /* GA_E13   (e1∧e3)        */
-    12,  /* GA_E23   (e2∧e3)        */
-    7,   /* GA_E012  (e0∧e1∧e2)     */
-    11,  /* GA_E013  (e0∧e1∧e3)     */
-    13,  /* GA_E023  (e0∧e2∧e3)     */
-    14,  /* GA_E123  (e1∧e2∧e3)     */
-    15   /* GA_E0123 (e0∧e1∧e2∧e3)  */
+    0,  /* GA_S     (scalar)       */
+    1,  /* GA_E0    (e0)           */
+    2,  /* GA_E1    (e1)           */
+    4,  /* GA_E2    (e2)           */
+    8,  /* GA_E3    (e3)           */
+    3,  /* GA_E01   (e0∧e1)        */
+    5,  /* GA_E02   (e0∧e2)        */
+    9,  /* GA_E03   (e0∧e3)        */
+    6,  /* GA_E12   (e1∧e2)        */
+    10, /* GA_E13   (e1∧e3)        */
+    12, /* GA_E23   (e2∧e3)        */
+    7,  /* GA_E012  (e0∧e1∧e2)     */
+    11, /* GA_E013  (e0∧e1∧e3)     */
+    13, /* GA_E023  (e0∧e2∧e3)     */
+    14, /* GA_E123  (e1∧e2∧e3)     */
+    15  /* GA_E0123 (e0∧e1∧e2∧e3)  */
 };
 
 /* Reverse: bitmask (0-15) → blade index */
@@ -334,8 +347,7 @@ static const unsigned char s_blade_from_mask[16] = {
  *          - 相等相邻向量：ei*ei → 1（e0*e0 → 0 返回零）
  *          - 逆序相邻向量：交换并翻转符号
  */
-static void ga_basis_geometric_product(int a_idx, int b_idx,
-                                       int *out_blade, double *out_sign) {
+static void ga_basis_geometric_product(int a_idx, int b_idx, int *out_blade, double *out_sign) {
     int mask_a = s_blade_bits[a_idx];
     int mask_b = s_blade_bits[b_idx];
 
@@ -350,10 +362,12 @@ static void ga_basis_geometric_product(int a_idx, int b_idx,
     unsigned char vecs[8];
     int n = 0;
     for (int i = 0; i < 4; i++) {
-        if (mask_a & (1 << i)) vecs[n++] = (unsigned char)i;
+        if (mask_a & (1 << i))
+            vecs[n++] = (unsigned char) i;
     }
     for (int i = 0; i < 4; i++) {
-        if (mask_b & (1 << i)) vecs[n++] = (unsigned char)i;
+        if (mask_b & (1 << i))
+            vecs[n++] = (unsigned char) i;
     }
 
     double sign = 1.0;
@@ -371,7 +385,8 @@ static void ga_basis_geometric_product(int a_idx, int b_idx,
                     return;
                 }
                 /* ei * ei = 1 (i=1,2,3) → 删除两个元素 */
-                for (int j = i; j < n - 2; j++) vecs[j] = vecs[j + 2];
+                for (int j = i; j < n - 2; j++)
+                    vecs[j] = vecs[j + 2];
                 n -= 2;
                 changed = 1;
                 break;
@@ -386,7 +401,8 @@ static void ga_basis_geometric_product(int a_idx, int b_idx,
                 break;
             }
         }
-        if (!changed) break;
+        if (!changed)
+            break;
     }
 
     /* 将结果向量列表映射回 blade 索引 */
@@ -396,8 +412,9 @@ static void ga_basis_geometric_product(int a_idx, int b_idx,
         return;
     }
     int result_mask = 0;
-    for (int i = 0; i < n; i++) result_mask |= (1 << vecs[i]);
-    *out_blade = (int)s_blade_from_mask[result_mask];
+    for (int i = 0; i < n; i++)
+        result_mask |= (1 << vecs[i]);
+    *out_blade = (int) s_blade_from_mask[result_mask];
     *out_sign = sign;
 }
 
@@ -409,19 +426,22 @@ static void ga_basis_geometric_product(int a_idx, int b_idx,
  * @param a, b  相乘的多向量
  * @return 新多向量（调用者负责释放），失败返回 NULL
  */
-lvMultiVector *ga_mv_geometric_product(const lvMultiVector *a,
-                                          const lvMultiVector *b) {
-    if (!a || !b) return NULL;
+lvMultiVector *ga_mv_geometric_product(const lvMultiVector *a, const lvMultiVector *b) {
+    if (!a || !b)
+        return NULL;
 
     lvMultiVector *result = ga_mv_zero();
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     for (int i = 0; i < 16; i++) {
         double ai = a->c[i];
-        if (fabs(ai) < 1e-14) continue;
+        if (fabs(ai) < 1e-14)
+            continue;
         for (int j = 0; j < 16; j++) {
             double bj = b->c[j];
-            if (fabs(bj) < 1e-14) continue;
+            if (fabs(bj) < 1e-14)
+                continue;
 
             int blade;
             double sign;
@@ -446,12 +466,11 @@ lvMultiVector *ga_mv_geometric_product(const lvMultiVector *a,
  * @return 内积标量值
  */
 double ga_mv_inner_product(const lvMultiVector *a, const lvMultiVector *b) {
-    if (!a || !b) return 0.0;
+    if (!a || !b)
+        return 0.0;
 
     /* For vectors: standard dot product */
-    return (a->c[GA_E1] * b->c[GA_E1] +
-            a->c[GA_E2] * b->c[GA_E2] +
-            a->c[GA_E3] * b->c[GA_E3]);
+    return (a->c[GA_E1] * b->c[GA_E1] + a->c[GA_E2] * b->c[GA_E2] + a->c[GA_E3] * b->c[GA_E3]);
 }
 
 /* ============================================================
@@ -464,12 +483,13 @@ double ga_mv_inner_product(const lvMultiVector *a, const lvMultiVector *b) {
  * @param a, b  多向量
  * @return 新多向量（调用者负责释放），失败返回 NULL
  */
-lvMultiVector *ga_mv_outer_product(const lvMultiVector *a,
-                                      const lvMultiVector *b) {
-    if (!a || !b) return NULL;
+lvMultiVector *ga_mv_outer_product(const lvMultiVector *a, const lvMultiVector *b) {
+    if (!a || !b)
+        return NULL;
 
     lvMultiVector *result = ga_mv_zero();
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     /* scalar * anything */
     for (int i = 0; i < 16; i++) {
@@ -479,37 +499,36 @@ lvMultiVector *ga_mv_outer_product(const lvMultiVector *a,
     result->c[GA_S] = a->c[GA_S] * b->c[GA_S];
 
     /* grade-1 ^ grade-1 → grade-2 */
-    result->c[GA_E01] += a->c[GA_E0]*b->c[GA_E1] - a->c[GA_E1]*b->c[GA_E0];
-    result->c[GA_E02] += a->c[GA_E0]*b->c[GA_E2] - a->c[GA_E2]*b->c[GA_E0];
-    result->c[GA_E03] += a->c[GA_E0]*b->c[GA_E3] - a->c[GA_E3]*b->c[GA_E0];
-    result->c[GA_E12] += a->c[GA_E1]*b->c[GA_E2] - a->c[GA_E2]*b->c[GA_E1];
-    result->c[GA_E13] += a->c[GA_E1]*b->c[GA_E3] - a->c[GA_E3]*b->c[GA_E1];
-    result->c[GA_E23] += a->c[GA_E2]*b->c[GA_E3] - a->c[GA_E3]*b->c[GA_E2];
+    result->c[GA_E01] += a->c[GA_E0] * b->c[GA_E1] - a->c[GA_E1] * b->c[GA_E0];
+    result->c[GA_E02] += a->c[GA_E0] * b->c[GA_E2] - a->c[GA_E2] * b->c[GA_E0];
+    result->c[GA_E03] += a->c[GA_E0] * b->c[GA_E3] - a->c[GA_E3] * b->c[GA_E0];
+    result->c[GA_E12] += a->c[GA_E1] * b->c[GA_E2] - a->c[GA_E2] * b->c[GA_E1];
+    result->c[GA_E13] += a->c[GA_E1] * b->c[GA_E3] - a->c[GA_E3] * b->c[GA_E1];
+    result->c[GA_E23] += a->c[GA_E2] * b->c[GA_E3] - a->c[GA_E3] * b->c[GA_E2];
 
     /* grade-1 ^ grade-2 → grade-3 */
-    result->c[GA_E012] += a->c[GA_E0]*b->c[GA_E12] - a->c[GA_E1]*b->c[GA_E02] + a->c[GA_E2]*b->c[GA_E01];
-    result->c[GA_E013] += a->c[GA_E0]*b->c[GA_E13] - a->c[GA_E1]*b->c[GA_E03] + a->c[GA_E3]*b->c[GA_E01];
-    result->c[GA_E023] += a->c[GA_E0]*b->c[GA_E23] - a->c[GA_E2]*b->c[GA_E03] + a->c[GA_E3]*b->c[GA_E02];
-    result->c[GA_E123] += a->c[GA_E1]*b->c[GA_E23] - a->c[GA_E2]*b->c[GA_E13] + a->c[GA_E3]*b->c[GA_E12];
+    result->c[GA_E012] += a->c[GA_E0] * b->c[GA_E12] - a->c[GA_E1] * b->c[GA_E02] + a->c[GA_E2] * b->c[GA_E01];
+    result->c[GA_E013] += a->c[GA_E0] * b->c[GA_E13] - a->c[GA_E1] * b->c[GA_E03] + a->c[GA_E3] * b->c[GA_E01];
+    result->c[GA_E023] += a->c[GA_E0] * b->c[GA_E23] - a->c[GA_E2] * b->c[GA_E03] + a->c[GA_E3] * b->c[GA_E02];
+    result->c[GA_E123] += a->c[GA_E1] * b->c[GA_E23] - a->c[GA_E2] * b->c[GA_E13] + a->c[GA_E3] * b->c[GA_E12];
 
     /* grade-2 ^ grade-1 → grade-3 */
-    result->c[GA_E012] += a->c[GA_E01]*b->c[GA_E2] - a->c[GA_E02]*b->c[GA_E1] + a->c[GA_E12]*b->c[GA_E0];
-    result->c[GA_E013] += a->c[GA_E01]*b->c[GA_E3] - a->c[GA_E03]*b->c[GA_E1] + a->c[GA_E13]*b->c[GA_E0];
-    result->c[GA_E023] += a->c[GA_E02]*b->c[GA_E3] - a->c[GA_E03]*b->c[GA_E2] + a->c[GA_E23]*b->c[GA_E0];
-    result->c[GA_E123] += a->c[GA_E12]*b->c[GA_E3] - a->c[GA_E13]*b->c[GA_E2] + a->c[GA_E23]*b->c[GA_E1];
+    result->c[GA_E012] += a->c[GA_E01] * b->c[GA_E2] - a->c[GA_E02] * b->c[GA_E1] + a->c[GA_E12] * b->c[GA_E0];
+    result->c[GA_E013] += a->c[GA_E01] * b->c[GA_E3] - a->c[GA_E03] * b->c[GA_E1] + a->c[GA_E13] * b->c[GA_E0];
+    result->c[GA_E023] += a->c[GA_E02] * b->c[GA_E3] - a->c[GA_E03] * b->c[GA_E2] + a->c[GA_E23] * b->c[GA_E0];
+    result->c[GA_E123] += a->c[GA_E12] * b->c[GA_E3] - a->c[GA_E13] * b->c[GA_E2] + a->c[GA_E23] * b->c[GA_E1];
 
     /* grade-2 ^ grade-2 → grade-4 */
-    result->c[GA_E0123] += a->c[GA_E01]*b->c[GA_E23] - a->c[GA_E02]*b->c[GA_E13]
-                         + a->c[GA_E03]*b->c[GA_E12] + a->c[GA_E12]*b->c[GA_E03]
-                         - a->c[GA_E13]*b->c[GA_E02] + a->c[GA_E23]*b->c[GA_E01];
+    result->c[GA_E0123] += a->c[GA_E01] * b->c[GA_E23] - a->c[GA_E02] * b->c[GA_E13] + a->c[GA_E03] * b->c[GA_E12] +
+                           a->c[GA_E12] * b->c[GA_E03] - a->c[GA_E13] * b->c[GA_E02] + a->c[GA_E23] * b->c[GA_E01];
 
     /* grade-1 ^ grade-3 → grade-4 */
-    result->c[GA_E0123] += a->c[GA_E0]*b->c[GA_E123] - a->c[GA_E1]*b->c[GA_E023]
-                         + a->c[GA_E2]*b->c[GA_E013] - a->c[GA_E3]*b->c[GA_E012];
+    result->c[GA_E0123] += a->c[GA_E0] * b->c[GA_E123] - a->c[GA_E1] * b->c[GA_E023] + a->c[GA_E2] * b->c[GA_E013] -
+                           a->c[GA_E3] * b->c[GA_E012];
 
     /* grade-3 ^ grade-1 → grade-4 */
-    result->c[GA_E0123] += a->c[GA_E012]*b->c[GA_E3] - a->c[GA_E013]*b->c[GA_E2]
-                         + a->c[GA_E023]*b->c[GA_E1] - a->c[GA_E123]*b->c[GA_E0];
+    result->c[GA_E0123] += a->c[GA_E012] * b->c[GA_E3] - a->c[GA_E013] * b->c[GA_E2] + a->c[GA_E023] * b->c[GA_E1] -
+                           a->c[GA_E123] * b->c[GA_E0];
 
     return result;
 }
@@ -524,7 +543,8 @@ lvMultiVector *ga_mv_outer_product(const lvMultiVector *a,
  * @return 范数值；mv 为 NULL 时返回 0.0
  */
 double ga_mv_norm(const lvMultiVector *mv) {
-    if (!mv) return 0.0;
+    if (!mv)
+        return 0.0;
 
     double sum = 0.0;
     for (int i = 0; i < 16; i++) {
@@ -540,7 +560,8 @@ double ga_mv_norm(const lvMultiVector *mv) {
  * @return 范数平方值；mv 为 NULL 时返回 0.0
  */
 double ga_mv_norm_squared(const lvMultiVector *mv) {
-    if (!mv) return 0.0;
+    if (!mv)
+        return 0.0;
 
     double sum = 0.0;
     for (int i = 0; i < 16; i++) {
@@ -557,10 +578,12 @@ double ga_mv_norm_squared(const lvMultiVector *mv) {
  * @return 反转后的多向量（调用者负责释放），失败返回 NULL
  */
 lvMultiVector *ga_mv_reverse(const lvMultiVector *mv) {
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     lvMultiVector *result = ga_mv_create();
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     /* Grade 0: unchanged */
     result->c[GA_S] = mv->c[GA_S];
@@ -597,10 +620,12 @@ lvMultiVector *ga_mv_reverse(const lvMultiVector *mv) {
  * @return 单位多向量（调用者负责释放）；范数为零时返回 NULL
  */
 lvMultiVector *ga_mv_normalize(const lvMultiVector *mv) {
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     double norm = ga_mv_norm(mv);
-    if (fabs(norm) < 1e-10) return NULL;
+    if (fabs(norm) < 1e-10)
+        return NULL;
 
     return ga_mv_scale(mv, 1.0 / norm);
 }
@@ -616,10 +641,12 @@ lvMultiVector *ga_mv_normalize(const lvMultiVector *mv) {
  * @return 对偶多向量（调用者负责释放），失败返回 NULL
  */
 lvMultiVector *ga_mv_dual(const lvMultiVector *mv) {
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     lvMultiVector *result = ga_mv_create();
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     /* Hodge dual: multiply by pseudoscalar inverse */
     /* In Cl(3,0,1), I = e0123, I^{-1} = -e0123 */
@@ -650,13 +677,14 @@ lvMultiVector *ga_mv_dual(const lvMultiVector *mv) {
  * @param mv    被变换的多向量
  * @return 变换后的多向量（调用者负责释放），失败返回 NULL
  */
-lvMultiVector *ga_mv_sandwich(const lvMultiVector *rotor,
-                                 const lvMultiVector *mv) {
-    if (!rotor || !mv) return NULL;
+lvMultiVector *ga_mv_sandwich(const lvMultiVector *rotor, const lvMultiVector *mv) {
+    if (!rotor || !mv)
+        return NULL;
 
     /* Sandwich product: R * mv * R~ */
     lvMultiVector *r_rev = ga_mv_reverse(rotor);
-    if (!r_rev) return NULL;
+    if (!r_rev)
+        return NULL;
 
     lvMultiVector *temp = ga_mv_geometric_product(rotor, mv);
     if (!temp) {
@@ -683,10 +711,12 @@ lvMultiVector *ga_mv_sandwich(const lvMultiVector *rotor,
  * @return 所有分量差值绝对值均 <= eps 时返回 true
  */
 bool ga_mv_equal(const lvMultiVector *a, const lvMultiVector *b, double eps) {
-    if (!a || !b) return false;
+    if (!a || !b)
+        return false;
 
     for (int i = 0; i < 16; i++) {
-        if (fabs(a->c[i] - b->c[i]) > eps) return false;
+        if (fabs(a->c[i] - b->c[i]) > eps)
+            return false;
     }
 
     return true;
@@ -700,7 +730,8 @@ bool ga_mv_equal(const lvMultiVector *a, const lvMultiVector *b, double eps) {
  */
 lvMultiVector *ga_mv_scalar(double value) {
     lvMultiVector *mv = ga_mv_create();
-    if (mv) mv->c[0] = value;
+    if (mv)
+        mv->c[0] = value;
     return mv;
 }
 
@@ -711,10 +742,12 @@ lvMultiVector *ga_mv_scalar(double value) {
  * @return 零向量返回 true；mv 为 NULL 时视为零向量返回 true
  */
 bool ga_mv_is_zero(const lvMultiVector *mv, double eps) {
-    if (!mv) return true;
+    if (!mv)
+        return true;
 
     for (int i = 0; i < 16; i++) {
-        if (fabs(mv->c[i]) > eps) return false;
+        if (fabs(mv->c[i]) > eps)
+            return false;
     }
 
     return true;

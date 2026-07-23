@@ -10,13 +10,15 @@
  */
 
 #include "lv/application.h"
-#include "lv/orchestrator.h"
-#include "lv/lv_internal.h"
-#include "lv/lv_utils.h"
+
+#include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <limits.h>
+
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/orchestrator.h"
 
 /**
  * @brief 获取默认应用配置
@@ -45,15 +47,18 @@ lvAppConfig lv_default_app_config(void) {
 lvApplication *lv_app_create(const lvAppConfig *config) {
     /* 分配主结构体，用 calloc 确保所有字段初始为零 */
     lvApplication *app = lv_calloc(1, sizeof(lvApplication));
-    if (!app) return NULL;
+    if (!app)
+        return NULL;
     /* 使用传入配置或默认配置 */
-    if (config) app->config = *config;
-    else app->config = lv_default_app_config();
+    if (config)
+        app->config = *config;
+    else
+        app->config = lv_default_app_config();
     /* 预分配会话指针数组（初始容量 16），后续按需扩容 */
     app->session_capacity = 16;
     app->sessions = lv_calloc(app->session_capacity, sizeof(lvSession *));
     if (!app->sessions) {
-        lv_free((void **)&app);
+        lv_free((void **) &app);
         return NULL;
     }
     /* 若启用元验证，初始化元验证器用于结果校验 */
@@ -72,15 +77,17 @@ lvApplication *lv_app_create(const lvAppConfig *config) {
  * @param app 要销毁的应用实例
  */
 void lv_app_destroy(lvApplication *app) {
-    if (!app) return;
+    if (!app)
+        return;
     /* 释放所有注册的会话 */
     for (int i = 0; i < app->session_count; i++) {
         lv_session_destroy(app->sessions[i]);
     }
     /* 释放会话数组及元验证器 */
-    lv_free((void **)&app->sessions);
-    if (app->verifier) lv_meta_verifier_destroy(app->verifier);
-    lv_free((void **)&app);
+    lv_free((void **) &app->sessions);
+    if (app->verifier)
+        lv_meta_verifier_destroy(app->verifier);
+    lv_free((void **) &app);
 }
 
 /**
@@ -93,15 +100,17 @@ void lv_app_destroy(lvApplication *app) {
  * @return 成功返回会话指针，app 为 NULL 或内存分配失败返回 NULL
  */
 lvSession *lv_app_create_session(lvApplication *app, const char *name) {
-    if (!app) return NULL;
+    if (!app)
+        return NULL;
     /* 检查容量，不足时进行动态扩容（容量翻倍） */
     if (app->session_count >= app->session_capacity) {
         /* [安全] 乘法前做溢出检查：防止 INT_MAX/2 以下时 int * 2 溢出导致 UB */
-        if (app->session_capacity > INT_MAX / 2) return NULL;
+        if (app->session_capacity > INT_MAX / 2)
+            return NULL;
         int new_cap = app->session_capacity * 2;
-        lvSession **_tmp = (lvSession **)lv_realloc(
-            app->sessions, (size_t)new_cap * sizeof(lvSession *));
-        if (!_tmp) return NULL;
+        lvSession **_tmp = (lvSession **) lv_realloc(app->sessions, (size_t) new_cap * sizeof(lvSession *));
+        if (!_tmp)
+            return NULL;
         app->sessions = _tmp;
         app->session_capacity = new_cap;
     }
@@ -125,7 +134,8 @@ lvSession *lv_app_create_session(lvApplication *app, const char *name) {
  * @return 会话运行结果码：成功返回 0，参数无效返回 -1，流水线失败返回非零值
  */
 int lv_app_run_session(lvApplication *app, lvSession *session, const char *input) {
-    if (!app || !session || !input) return -1;
+    if (!app || !session || !input)
+        return -1;
     int rc = lv_session_run(session, input);
     app->total_sessions_run++;
     /* 会话运行成功时，若启用元验证则进一步校验结果合法性 */
@@ -155,7 +165,8 @@ int lv_app_run_session(lvApplication *app, lvSession *session, const char *input
  * @return 成功返回 0，app 为 NULL 或未找到匹配会话返回 -1
  */
 int lv_app_remove_session(lvApplication *app, int session_id) {
-    if (!app) return -1;
+    if (!app)
+        return -1;
     for (int i = 0; i < app->session_count; i++) {
         if (app->sessions[i] && app->sessions[i]->session_id == session_id) {
             lv_session_destroy(app->sessions[i]);
@@ -179,12 +190,14 @@ int lv_app_remove_session(lvApplication *app, int session_id) {
  * @return 成功完成的会话数量，参数无效返回 -1
  */
 int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
-    if (!app || !files || file_count <= 0) return -1;
+    if (!app || !files || file_count <= 0)
+        return -1;
     int passed = 0;
     /* 遍历每个输入文件，为之创建独立会话并执行完整流水线 */
     for (int i = 0; i < file_count; i++) {
         lvSession *session = lv_app_create_session(app, files[i]);
-        if (!session) continue;
+        if (!session)
+            continue;
 
         /* 以二进制只读方式打开文件 */
         FILE *fp = fopen(files[i], "rb");
@@ -202,22 +215,22 @@ int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
             continue;
         }
         /* 限制单文件不超过 100MB，防止内存耗尽 */
-        if (fsize > (long)(100 * 1024 * 1024)) {
+        if (fsize > (long) (100 * 1024 * 1024)) {
             fclose(fp);
             lv_LOG_ERROR("文件过大: %s (%ld 字节)", files[i], fsize);
             continue;
         }
         /* 分配缓冲区并读取完整文件内容 */
-        char *content = lv_malloc((size_t)fsize + 1);
+        char *content = lv_malloc((size_t) fsize + 1);
         if (!content) {
             fclose(fp);
             lv_LOG_ERROR("内存分配失败，文件: %s", files[i]);
             continue;
         }
-        size_t nread = fread(content, 1, (size_t)fsize, fp);
-        if (nread != (size_t)fsize) {
+        size_t nread = fread(content, 1, (size_t) fsize, fp);
+        if (nread != (size_t) fsize) {
             fclose(fp);
-            lv_free((void **)&content);
+            lv_free((void **) &content);
             lv_LOG_ERROR("读取文件不完整: %s (期望 %ld, 实际 %zu)", files[i], fsize, nread);
             continue;
         }
@@ -226,8 +239,9 @@ int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
 
         /* 将文件内容传入会话流水线执行 */
         int rc = lv_app_run_session(app, session, content);
-        lv_free((void **)&content);
-        if (rc == 0) passed++;
+        lv_free((void **) &content);
+        if (rc == 0)
+            passed++;
     }
     return passed;
 }
@@ -242,7 +256,8 @@ int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
  * @return 正常退出返回 0，app 为 NULL 返回 -1
  */
 int lv_app_run_repl(lvApplication *app) {
-    if (!app) return -1;
+    if (!app)
+        return -1;
 
     /* 交互式 REPL 循环 */
     char linebuf[4096];
@@ -266,12 +281,11 @@ int lv_app_run_repl(lvApplication *app) {
         }
 
         /* 跳过空行 */
-        if (len == 0) continue;
+        if (len == 0)
+            continue;
 
         /* 检查退出命令 */
-        if (strcmp(linebuf, "quit") == 0 ||
-            strcmp(linebuf, "exit") == 0 ||
-            strcmp(linebuf, "q") == 0) {
+        if (strcmp(linebuf, "quit") == 0 || strcmp(linebuf, "exit") == 0 || strcmp(linebuf, "q") == 0) {
             break;
         }
 
@@ -317,9 +331,13 @@ int lv_app_run_repl(lvApplication *app) {
  * @return 成功返回 0，app 为 NULL 返回 -1
  */
 int lv_app_stats(const lvApplication *app, int *total, int *passed, int *failed) {
-    if (!app) return -1;
-    if (total) *total = app->total_sessions_run;
-    if (passed) *passed = app->total_sessions_passed;
-    if (failed) *failed = app->total_sessions_failed;
+    if (!app)
+        return -1;
+    if (total)
+        *total = app->total_sessions_run;
+    if (passed)
+        *passed = app->total_sessions_passed;
+    if (failed)
+        *failed = app->total_sessions_failed;
     return 0;
 }

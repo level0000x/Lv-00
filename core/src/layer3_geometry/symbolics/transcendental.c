@@ -22,7 +22,6 @@
  * @version 3.3.0
  */
 
-#include "lv/symbolic_coord.h"
 #include <errno.h>
 #include <float.h>
 #include <math.h>
@@ -30,7 +29,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/constraint_graph.h"
+#include "lv/symbolic_coord.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -69,7 +71,13 @@ Transcendental *transcendental_create(const char *name) {
         coeff_num = -1;
         if (name[3] == '/') {
             is_mul = false;
-            { char *e = NULL; errno = 0; long v = strtol(name + 4, &e, 10); if (errno == 0 && e != name + 4) coeff_den = (int64_t)v; }
+            {
+                char *e = NULL;
+                errno = 0;
+                long v = strtol(name + 4, &e, 10);
+                if (errno == 0 && e != name + 4)
+                    coeff_den = (int64_t) v;
+            }
             if (coeff_den <= 0)
                 return NULL;
         }
@@ -77,7 +85,13 @@ Transcendental *transcendental_create(const char *name) {
         /* pi/N 形式 */
         base = "pi";
         is_mul = false;
-        { char *e = NULL; errno = 0; long v = strtol(name + 3, &e, 10); if (errno == 0 && e != name + 3) coeff_den = (int64_t)v; }
+        {
+            char *e = NULL;
+            errno = 0;
+            long v = strtol(name + 3, &e, 10);
+            if (errno == 0 && e != name + 3)
+                coeff_den = (int64_t) v;
+        }
         if (coeff_den <= 0)
             return NULL;
     } else if (strncmp(name, "-pi/", 4) == 0) {
@@ -90,12 +104,24 @@ Transcendental *transcendental_create(const char *name) {
             /* N*pi 或 N*pi/M */
             base = "pi";
             is_mul = true;
-            { char *e = NULL; errno = 0; long v = strtol(name, &e, 10); if (errno == 0 && e != name) coeff_num = (int64_t)v; }
+            {
+                char *e = NULL;
+                errno = 0;
+                long v = strtol(name, &e, 10);
+                if (errno == 0 && e != name)
+                    coeff_num = (int64_t) v;
+            }
             if (coeff_num <= 0)
                 return NULL;
             const char *after = star_pos + 3; /* skip "*pi" */
             if (*after == '/') {
-                { char *e = NULL; errno = 0; long v = strtol(after + 1, &e, 10); if (errno == 0 && e != after + 1) coeff_den = (int64_t)v; }
+                {
+                    char *e = NULL;
+                    errno = 0;
+                    long v = strtol(after + 1, &e, 10);
+                    if (errno == 0 && e != after + 1)
+                        coeff_den = (int64_t) v;
+                }
                 if (coeff_den <= 0)
                     return NULL;
             }
@@ -103,12 +129,24 @@ Transcendental *transcendental_create(const char *name) {
             /* -N*pi 或 -N*pi/M */
             base = "pi";
             is_mul = true;
-            { char *e = NULL; errno = 0; long v = strtol(name, &e, 10); if (errno == 0 && e != name) coeff_num = (int64_t)v; }
+            {
+                char *e = NULL;
+                errno = 0;
+                long v = strtol(name, &e, 10);
+                if (errno == 0 && e != name)
+                    coeff_num = (int64_t) v;
+            }
             if (coeff_num >= 0)
                 return NULL;
             const char *after = star_pos + 3;
             if (*after == '/') {
-                { char *e = NULL; errno = 0; long v = strtol(after + 1, &e, 10); if (errno == 0 && e != after + 1) coeff_den = (int64_t)v; }
+                {
+                    char *e = NULL;
+                    errno = 0;
+                    long v = strtol(after + 1, &e, 10);
+                    if (errno == 0 && e != after + 1)
+                        coeff_den = (int64_t) v;
+                }
                 if (coeff_den <= 0)
                     return NULL;
             }
@@ -267,11 +305,11 @@ char *transcendental_serialize(const Transcendental *t) {
         size_t len = strlen(t->name) + strlen(op_str) + strlen(rat_str) + 8;
         char *buf = lv_malloc(len);
         if (!buf) {
-            lv_free((void**)&rat_str); /* lv_malloc分配 */
-            return lv_strdup(t->name); /* 内存不足时使用 lv_strdup */
+            lv_free((void **) &rat_str); /* lv_malloc分配 */
+            return lv_strdup(t->name);   /* 内存不足时使用 lv_strdup */
         }
         snprintf(buf, len, "(%s %s %s)", t->name, op_str, rat_str);
-        lv_free((void**)&rat_str); /* lv_malloc分配 */
+        lv_free((void **) &rat_str); /* lv_malloc分配 */
         return buf;
     }
 

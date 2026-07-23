@@ -129,7 +129,8 @@ lv_PUBLIC_API bool module_add_axiom_package(Module *mod, AxiomPackage *pkg);
 lv_PUBLIC_API bool module_export_function_block(Module *mod, int func_block_id);
 lv_PUBLIC_API bool module_export_type_region(Module *mod, int type_region_id);
 
-lv_PUBLIC_API ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_modules, int module_count);
+lv_PUBLIC_API ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_modules,
+                                           int module_count);
 lv_PUBLIC_API ModuleSaveStatus module_save(const Module *mod, const char *filepath);
 
 lv_PUBLIC_API const char *module_get_last_error(void);

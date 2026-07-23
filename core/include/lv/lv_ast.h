@@ -1,8 +1,9 @@
 #ifndef LV_AST_H
 #define LV_AST_H
 
-#include "lv/lv_lexer.h"
 #include <stddef.h>
+
+#include "lv/lv_lexer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,11 +14,11 @@ typedef enum {
     LV_AST_PROGRAM,
 
     /* 声明 */
-    LV_AST_DECLARATION,       // Point A, B, C;
-    LV_AST_LET,               // Let x : Type = expr;
+    LV_AST_DECLARATION,  // Point A, B, C;
+    LV_AST_LET,          // Let x : Type = expr;
 
     /* 语句 */
-    LV_AST_CONSTRAINT_STMT,   // Constraint ...;
+    LV_AST_CONSTRAINT_STMT,  // Constraint ...;
     LV_AST_ASSUME_STMT,
     LV_AST_ASSERT_STMT,
     LV_AST_PROVE_STMT,
@@ -43,14 +44,14 @@ typedef enum {
     LV_AST_LOGIC_FORALL,
     LV_AST_LOGIC_EXISTS,
 
-    LV_AST_BINARY_OP,         // +, -, *, /
-    LV_AST_UNARY_OP,          // +, -
+    LV_AST_BINARY_OP,  // +, -, *, /
+    LV_AST_UNARY_OP,   // +, -
     LV_AST_FUNCTION_CALL,
 
-    LV_AST_RELATION,          // collinear(A,B,C)
-    LV_AST_MEASURE,           // length(A,B)
-    LV_AST_GEOMETRY_EXPR,     // point(1,2), line(A,B)
-    LV_AST_COMPARE,           // a == b, a != b, a < b, etc.
+    LV_AST_RELATION,       // collinear(A,B,C)
+    LV_AST_MEASURE,        // length(A,B)
+    LV_AST_GEOMETRY_EXPR,  // point(1,2), line(A,B)
+    LV_AST_COMPARE,        // a == b, a != b, a < b, etc.
 
     LV_AST_MODULE_DECL,
     LV_AST_IMPORT_DECL,
@@ -82,23 +83,23 @@ typedef struct LvAstNode LvAstNode;
 /* ── AST 节点（tagged union） ── */
 struct LvAstNode {
     LvAstNodeType type;
-    LvSourceLoc    loc;
-    LvAstNode     *next;      /* 兄弟节点链表 */
-    LvAstNode     *child;     /* 第一个子节点 */
-    int            child_count;
+    LvSourceLoc loc;
+    LvAstNode *next;  /* 兄弟节点链表 */
+    LvAstNode *child; /* 第一个子节点 */
+    int child_count;
 
     union {
         /* LV_AST_DECLARATION */
         struct {
-            int   entity_type;    /* LvEntityType */
-            char *names;          /* "A,B,C" 逗号分隔 */
+            int entity_type; /* LvEntityType */
+            char *names;     /* "A,B,C" 逗号分隔 */
         } decl;
 
         /* LV_AST_LET */
         struct {
-            char       *name;
-            char       *type_name;
-            LvAstNode  *value;
+            char *name;
+            char *type_name;
+            LvAstNode *value;
         } let_def;
 
         /* LV_AST_IDENTIFIER_EXPR */
@@ -109,55 +110,58 @@ struct LvAstNode {
         /* 字面量 */
         struct {
             long long integer_value;
-            struct { long long num; long long den; } rational_value;
+            struct {
+                long long num;
+                long long den;
+            } rational_value;
             double decimal_value;
-            char  *string_value;
-            int    bool_value;
+            char *string_value;
+            int bool_value;
         } literal;
 
         /* 逻辑量词 */
         struct {
-            char       *var_name;
-            char       *var_type;
-            LvAstNode  *body;
+            char *var_name;
+            char *var_type;
+            LvAstNode *body;
         } quantifier;
 
         /* 函数/关系/度量/几何调用 */
         struct {
-            char       *func_name;
-            LvAstNode  *args;
+            char *func_name;
+            LvAstNode *args;
         } call;
 
         /* 二元运算 */
         struct {
-            char       op[4];     /* "+", "-", "*", "/", "^" */
-            LvAstNode  *left;
-            LvAstNode  *right;
+            char op[4]; /* "+", "-", "*", "/", "^" */
+            LvAstNode *left;
+            LvAstNode *right;
         } binary;
 
         /* 一元运算 */
         struct {
-            char       op[4];
-            LvAstNode  *operand;
+            char op[4];
+            LvAstNode *operand;
         } unary;
 
         /* 比较运算: ==, !=, <, <=, >, >= */
         struct {
-            char       op[4];
-            LvAstNode  *left;
-            LvAstNode  *right;
+            char op[4];
+            LvAstNode *left;
+            LvAstNode *right;
         } compare;
 
         /* 约束/假设/断言/证明（单表达式语句） */
         struct {
-            LvAstNode  *expr;
+            LvAstNode *expr;
         } stmt;
 
         /* ExportStmt */
         struct {
-            char  *target;
-            char  *format;
-            char  *path;
+            char *target;
+            char *format;
+            char *path;
         } export_stmt;
 
         /* Module/Import */
@@ -167,9 +171,9 @@ struct LvAstNode {
 
         /* Theorem */
         struct {
-            char       *name;
-            LvAstNode  *proposition;
-            LvAstNode  *proof_block;
+            char *name;
+            LvAstNode *proposition;
+            LvAstNode *proof_block;
         } theorem;
 
         /* Normalize */

@@ -18,11 +18,13 @@
  */
 
 #include "lv/lv_lexer.h"
-#include "lv_utils.h"
-#include <string.h>
+
 #include <ctype.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "lv_utils.h"
 
 /**
  * @brief 词法分析器结构体
@@ -31,13 +33,13 @@
  * 和一个三 Token 的 lookahead 缓冲区。
  */
 struct LvLexer {
-    const char *source;     /**< 源字符串指针（不拥有所有权） */
-    size_t      source_len; /**< 源字符串长度 */
-    size_t      pos;        /**< 当前扫描位置 */
-    int         line;       /**< 当前行号（从 1 开始） */
-    int         column;     /**< 当前列号（从 1 开始） */
-    LvToken     peek_buf[3];/**< 前瞻缓冲区 */
-    int         peek_count; /**< 前瞻缓冲区中有效 Token 数量 */
+    const char *source;  /**< 源字符串指针（不拥有所有权） */
+    size_t source_len;   /**< 源字符串长度 */
+    size_t pos;          /**< 当前扫描位置 */
+    int line;            /**< 当前行号（从 1 开始） */
+    int column;          /**< 当前列号（从 1 开始） */
+    LvToken peek_buf[3]; /**< 前瞻缓冲区 */
+    int peek_count;      /**< 前瞻缓冲区中有效 Token 数量 */
 };
 
 /* ── 关键字查找表 ── */
@@ -46,8 +48,8 @@ struct LvLexer {
  * @brief 关键字-类型映射条目
  */
 typedef struct {
-    const char *word;       /**< 关键字字符串 */
-    LvTokenType type;       /**< 对应的 Token 类型 */
+    const char *word; /**< 关键字字符串 */
+    LvTokenType type; /**< 对应的 Token 类型 */
 } KeywordEntry;
 
 /**
@@ -57,48 +59,48 @@ typedef struct {
  * 按字母顺序排列以便于维护。
  */
 static const KeywordEntry s_keywords[] = {
-    {"Angle",        LV_TOKEN_KW_ANGLE},
-    {"Assert",       LV_TOKEN_KW_ASSERT},
-    {"Assume",       LV_TOKEN_KW_ASSUME},
-    {"Axiom",        LV_TOKEN_KW_AXIOM},
-    {"Bool",         LV_TOKEN_KW_BOOL},
-    {"Circle",       LV_TOKEN_KW_CIRCLE},
-    {"Compute",      LV_TOKEN_KW_COMPUTE},
-    {"Constraint",   LV_TOKEN_KW_CONSTRAINT},
-    {"Export",       LV_TOKEN_KW_EXPORT},
-    {"Let",          LV_TOKEN_KW_LET},
-    {"Line",         LV_TOKEN_KW_LINE},
-    {"Normalize",    LV_TOKEN_KW_NORMALIZE},
-    {"Point",        LV_TOKEN_KW_POINT},
-    {"Polygon",      LV_TOKEN_KW_POLYGON},
-    {"Proof",        LV_TOKEN_KW_PROOF},
-    {"Proposition",  LV_TOKEN_KW_PROPOSITION},
-    {"Prove",        LV_TOKEN_KW_PROVE},
-    {"Ray",          LV_TOKEN_KW_RAY},
-    {"Scalar",       LV_TOKEN_KW_SCALAR},
-    {"Segment",      LV_TOKEN_KW_SEGMENT},
-    {"Theorem",      LV_TOKEN_KW_THEOREM},
-    {"Triangle",     LV_TOKEN_KW_TRIANGLE},
-    {"and",          LV_TOKEN_KW_AND},
-    {"area",         LV_TOKEN_KW_AREA},
-    {"bottom",       LV_TOKEN_KW_BOTTOM},
-    {"collinear",    LV_TOKEN_KW_COLLINEAR},
-    {"congruent",    LV_TOKEN_KW_CONGRUENT},
-    {"distance",     LV_TOKEN_KW_DISTANCE},
-    {"exists",       LV_TOKEN_KW_EXISTS},
-    {"false",        LV_TOKEN_KW_FALSE},
-    {"forall",       LV_TOKEN_KW_FORALL},
-    {"import",       LV_TOKEN_KW_IMPORT},
-    {"length",       LV_TOKEN_KW_LENGTH},
-    {"measure",      LV_TOKEN_KW_MEASURE},
-    {"module",       LV_TOKEN_KW_MODULE},
-    {"not",          LV_TOKEN_KW_NOT},
-    {"or",           LV_TOKEN_KW_OR},
-    {"parallel",     LV_TOKEN_KW_PARALLEL},
-    {"perpendicular",LV_TOKEN_KW_PERPENDICULAR},
-    {"radius",       LV_TOKEN_KW_RADIUS},
-    {"tangent",      LV_TOKEN_KW_TANGENT},
-    {"true",         LV_TOKEN_KW_TRUE},
+    {"Angle", LV_TOKEN_KW_ANGLE},
+    {"Assert", LV_TOKEN_KW_ASSERT},
+    {"Assume", LV_TOKEN_KW_ASSUME},
+    {"Axiom", LV_TOKEN_KW_AXIOM},
+    {"Bool", LV_TOKEN_KW_BOOL},
+    {"Circle", LV_TOKEN_KW_CIRCLE},
+    {"Compute", LV_TOKEN_KW_COMPUTE},
+    {"Constraint", LV_TOKEN_KW_CONSTRAINT},
+    {"Export", LV_TOKEN_KW_EXPORT},
+    {"Let", LV_TOKEN_KW_LET},
+    {"Line", LV_TOKEN_KW_LINE},
+    {"Normalize", LV_TOKEN_KW_NORMALIZE},
+    {"Point", LV_TOKEN_KW_POINT},
+    {"Polygon", LV_TOKEN_KW_POLYGON},
+    {"Proof", LV_TOKEN_KW_PROOF},
+    {"Proposition", LV_TOKEN_KW_PROPOSITION},
+    {"Prove", LV_TOKEN_KW_PROVE},
+    {"Ray", LV_TOKEN_KW_RAY},
+    {"Scalar", LV_TOKEN_KW_SCALAR},
+    {"Segment", LV_TOKEN_KW_SEGMENT},
+    {"Theorem", LV_TOKEN_KW_THEOREM},
+    {"Triangle", LV_TOKEN_KW_TRIANGLE},
+    {"and", LV_TOKEN_KW_AND},
+    {"area", LV_TOKEN_KW_AREA},
+    {"bottom", LV_TOKEN_KW_BOTTOM},
+    {"collinear", LV_TOKEN_KW_COLLINEAR},
+    {"congruent", LV_TOKEN_KW_CONGRUENT},
+    {"distance", LV_TOKEN_KW_DISTANCE},
+    {"exists", LV_TOKEN_KW_EXISTS},
+    {"false", LV_TOKEN_KW_FALSE},
+    {"forall", LV_TOKEN_KW_FORALL},
+    {"import", LV_TOKEN_KW_IMPORT},
+    {"length", LV_TOKEN_KW_LENGTH},
+    {"measure", LV_TOKEN_KW_MEASURE},
+    {"module", LV_TOKEN_KW_MODULE},
+    {"not", LV_TOKEN_KW_NOT},
+    {"or", LV_TOKEN_KW_OR},
+    {"parallel", LV_TOKEN_KW_PARALLEL},
+    {"perpendicular", LV_TOKEN_KW_PERPENDICULAR},
+    {"radius", LV_TOKEN_KW_RADIUS},
+    {"tangent", LV_TOKEN_KW_TANGENT},
+    {"true", LV_TOKEN_KW_TRUE},
 };
 
 /**
@@ -110,8 +112,7 @@ static const KeywordEntry s_keywords[] = {
  */
 static LvTokenType lookup_keyword(const char *word, size_t len) {
     for (size_t i = 0; i < sizeof(s_keywords) / sizeof(s_keywords[0]); i++) {
-        if (strlen(s_keywords[i].word) == len &&
-            strncmp(s_keywords[i].word, word, len) == 0) {
+        if (strlen(s_keywords[i].word) == len && strncmp(s_keywords[i].word, word, len) == 0) {
             return s_keywords[i].type;
         }
     }
@@ -165,8 +166,12 @@ static void skip_whitespace_and_comments(LvLexer *lexer) {
     while (lexer->pos < lexer->source_len) {
         char c = lexer->source[lexer->pos];
         if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
-            if (c == '\n') { lexer->line++; lexer->column = 1; }
-            else { lexer->column++; }
+            if (c == '\n') {
+                lexer->line++;
+                lexer->column = 1;
+            } else {
+                lexer->column++;
+            }
             lexer->pos++;
         } else if (c == '/' && lexer->pos + 1 < lexer->source_len) {
             char next = lexer->source[lexer->pos + 1];
@@ -180,7 +185,10 @@ static void skip_whitespace_and_comments(LvLexer *lexer) {
                         lexer->pos += 2;
                         break;
                     }
-                    if (lexer->source[lexer->pos] == '\n') { lexer->line++; lexer->column = 1; }
+                    if (lexer->source[lexer->pos] == '\n') {
+                        lexer->line++;
+                        lexer->column = 1;
+                    }
                     lexer->pos++;
                 }
             } else {
@@ -209,58 +217,58 @@ static LvToken lex_raw(LvLexer *lexer) {
         return make_token(lexer, LV_TOKEN_EOF, lexer->pos, 0);
 
     size_t start = lexer->pos;
-    int start_col = lexer->column;  /* 记录 Token 起始列号 */
+    int start_col = lexer->column; /* 记录 Token 起始列号 */
     char c = lexer->source[lexer->pos];
 
     /* 标识符 / 关键字 */
-    if (isalpha((unsigned char)c) || c == '_') {
+    if (isalpha((unsigned char) c) || c == '_') {
         while (lexer->pos < lexer->source_len &&
-               (isalnum((unsigned char)lexer->source[lexer->pos]) || lexer->source[lexer->pos] == '_'))
+               (isalnum((unsigned char) lexer->source[lexer->pos]) || lexer->source[lexer->pos] == '_'))
             lexer->pos++;
         size_t len = lexer->pos - start;
         LvTokenType type = lookup_keyword(lexer->source + start, len);
-        lexer->column += (int)len;
+        lexer->column += (int) len;
         return make_token_at(lexer, type, start, len, start_col);
     }
 
     /* 数字 */
-    if (isdigit((unsigned char)c)) {
-        while (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos]))
+    if (isdigit((unsigned char) c)) {
+        while (lexer->pos < lexer->source_len && isdigit((unsigned char) lexer->source[lexer->pos]))
             lexer->pos++;
         /* 有理数: 3/4 */
         if (lexer->pos < lexer->source_len && lexer->source[lexer->pos] == '/') {
             lexer->pos++;
-            if (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos])) {
-                while (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos]))
+            if (lexer->pos < lexer->source_len && isdigit((unsigned char) lexer->source[lexer->pos])) {
+                while (lexer->pos < lexer->source_len && isdigit((unsigned char) lexer->source[lexer->pos]))
                     lexer->pos++;
                 size_t len = lexer->pos - start;
-                lexer->column += (int)len;
+                lexer->column += (int) len;
                 return make_token_at(lexer, LV_TOKEN_RATIONAL, start, len, start_col);
             }
             /* '/' 后非数字，回退：按整数处理 '/' 之前的部分 */
             lexer->pos = start;
-            while (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos]))
+            while (lexer->pos < lexer->source_len && isdigit((unsigned char) lexer->source[lexer->pos]))
                 lexer->pos++;
             size_t len = lexer->pos - start;
-            lexer->column += (int)len;
+            lexer->column += (int) len;
             return make_token_at(lexer, LV_TOKEN_INTEGER, start, len, start_col);
         }
         /* 小数: 3.14 */
         if (lexer->pos < lexer->source_len && lexer->source[lexer->pos] == '.') {
             size_t dot_pos = lexer->pos;
             lexer->pos++;
-            if (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos])) {
-                while (lexer->pos < lexer->source_len && isdigit((unsigned char)lexer->source[lexer->pos]))
+            if (lexer->pos < lexer->source_len && isdigit((unsigned char) lexer->source[lexer->pos])) {
+                while (lexer->pos < lexer->source_len && isdigit((unsigned char) lexer->source[lexer->pos]))
                     lexer->pos++;
                 size_t len = lexer->pos - start;
-                lexer->column += (int)len;
+                lexer->column += (int) len;
                 return make_token_at(lexer, LV_TOKEN_DECIMAL, start, len, start_col);
             }
             /* '.' 后非数字，回退：按整数处理 */
             lexer->pos = dot_pos;
         }
         size_t len = lexer->pos - start;
-        lexer->column += (int)len;
+        lexer->column += (int) len;
         return make_token_at(lexer, LV_TOKEN_INTEGER, start, len, start_col);
     }
 
@@ -268,67 +276,102 @@ static LvToken lex_raw(LvLexer *lexer) {
     if (c == '"') {
         lexer->pos++;
         while (lexer->pos < lexer->source_len && lexer->source[lexer->pos] != '"') {
-            if (lexer->source[lexer->pos] == '\\') lexer->pos++;
+            if (lexer->source[lexer->pos] == '\\')
+                lexer->pos++;
             lexer->pos++;
         }
-        if (lexer->pos < lexer->source_len) lexer->pos++;
+        if (lexer->pos < lexer->source_len)
+            lexer->pos++;
         size_t len = lexer->pos - start;
-        lexer->column += (int)len;
+        lexer->column += (int) len;
         return make_token_at(lexer, LV_TOKEN_STRING, start, len, start_col);
     }
 
     /* 多字符运算符 */
     if (c == '-' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '>') {
-        lexer->pos += 2; lexer->column += 2;
+        lexer->pos += 2;
+        lexer->column += 2;
         return make_token_at(lexer, LV_TOKEN_ARROW, start, 2, start_col);
     }
     if (c == '=' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '=') {
-        lexer->pos += 2; lexer->column += 2;
+        lexer->pos += 2;
+        lexer->column += 2;
         return make_token_at(lexer, LV_TOKEN_EQEQ, start, 2, start_col);
     }
     if (c == '!' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '=') {
-        lexer->pos += 2; lexer->column += 2;
+        lexer->pos += 2;
+        lexer->column += 2;
         return make_token_at(lexer, LV_TOKEN_NEQ, start, 2, start_col);
     }
     if (c == '<' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '=') {
-        lexer->pos += 2; lexer->column += 2;
+        lexer->pos += 2;
+        lexer->column += 2;
         return make_token_at(lexer, LV_TOKEN_LE, start, 2, start_col);
     }
     if (c == '>' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '=') {
-        lexer->pos += 2; lexer->column += 2;
+        lexer->pos += 2;
+        lexer->column += 2;
         return make_token_at(lexer, LV_TOKEN_GE, start, 2, start_col);
     }
     if (c == '=' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '>') {
-        lexer->pos += 2; lexer->column += 2;
+        lexer->pos += 2;
+        lexer->column += 2;
         return make_token_at(lexer, LV_TOKEN_THEREFORE, start, 2, start_col);
     }
     if (c == '|' && lexer->pos + 1 < lexer->source_len) {
         char n = lexer->source[lexer->pos + 1];
-        if (n == '-') { lexer->pos += 2; lexer->column += 2; return make_token_at(lexer, LV_TOKEN_DARROW, start, 2, start_col); }
-        if (n == '=') { lexer->pos += 2; lexer->column += 2; return make_token_at(lexer, LV_TOKEN_MODELS, start, 2, start_col); }
+        if (n == '-') {
+            lexer->pos += 2;
+            lexer->column += 2;
+            return make_token_at(lexer, LV_TOKEN_DARROW, start, 2, start_col);
+        }
+        if (n == '=') {
+            lexer->pos += 2;
+            lexer->column += 2;
+            return make_token_at(lexer, LV_TOKEN_MODELS, start, 2, start_col);
+        }
     }
 
     /* 单字符运算符 */
-    lexer->pos++; lexer->column++;
+    lexer->pos++;
+    lexer->column++;
     switch (c) {
-        case '(': return make_token_at(lexer, LV_TOKEN_LPAREN, start, 1, start_col);
-        case ')': return make_token_at(lexer, LV_TOKEN_RPAREN, start, 1, start_col);
-        case '{': return make_token_at(lexer, LV_TOKEN_LBRACE, start, 1, start_col);
-        case '}': return make_token_at(lexer, LV_TOKEN_RBRACE, start, 1, start_col);
-        case '[': return make_token_at(lexer, LV_TOKEN_LBRACKET, start, 1, start_col);
-        case ']': return make_token_at(lexer, LV_TOKEN_RBRACKET, start, 1, start_col);
-        case ';': return make_token_at(lexer, LV_TOKEN_SEMICOLON, start, 1, start_col);
-        case ',': return make_token_at(lexer, LV_TOKEN_COMMA, start, 1, start_col);
-        case '.': return make_token_at(lexer, LV_TOKEN_DOT, start, 1, start_col);
-        case ':': return make_token_at(lexer, LV_TOKEN_COLON, start, 1, start_col);
-        case '=': return make_token_at(lexer, LV_TOKEN_EQUALS, start, 1, start_col);
-        case '+': return make_token_at(lexer, LV_TOKEN_PLUS, start, 1, start_col);
-        case '-': return make_token_at(lexer, LV_TOKEN_MINUS, start, 1, start_col);
-        case '*': return make_token_at(lexer, LV_TOKEN_STAR, start, 1, start_col);
-        case '/': return make_token_at(lexer, LV_TOKEN_SLASH, start, 1, start_col);
-        case '^': return make_token_at(lexer, LV_TOKEN_CARET, start, 1, start_col);
-        case '<': return make_token_at(lexer, LV_TOKEN_LT, start, 1, start_col);
-        case '>': return make_token_at(lexer, LV_TOKEN_GT, start, 1, start_col);
+        case '(':
+            return make_token_at(lexer, LV_TOKEN_LPAREN, start, 1, start_col);
+        case ')':
+            return make_token_at(lexer, LV_TOKEN_RPAREN, start, 1, start_col);
+        case '{':
+            return make_token_at(lexer, LV_TOKEN_LBRACE, start, 1, start_col);
+        case '}':
+            return make_token_at(lexer, LV_TOKEN_RBRACE, start, 1, start_col);
+        case '[':
+            return make_token_at(lexer, LV_TOKEN_LBRACKET, start, 1, start_col);
+        case ']':
+            return make_token_at(lexer, LV_TOKEN_RBRACKET, start, 1, start_col);
+        case ';':
+            return make_token_at(lexer, LV_TOKEN_SEMICOLON, start, 1, start_col);
+        case ',':
+            return make_token_at(lexer, LV_TOKEN_COMMA, start, 1, start_col);
+        case '.':
+            return make_token_at(lexer, LV_TOKEN_DOT, start, 1, start_col);
+        case ':':
+            return make_token_at(lexer, LV_TOKEN_COLON, start, 1, start_col);
+        case '=':
+            return make_token_at(lexer, LV_TOKEN_EQUALS, start, 1, start_col);
+        case '+':
+            return make_token_at(lexer, LV_TOKEN_PLUS, start, 1, start_col);
+        case '-':
+            return make_token_at(lexer, LV_TOKEN_MINUS, start, 1, start_col);
+        case '*':
+            return make_token_at(lexer, LV_TOKEN_STAR, start, 1, start_col);
+        case '/':
+            return make_token_at(lexer, LV_TOKEN_SLASH, start, 1, start_col);
+        case '^':
+            return make_token_at(lexer, LV_TOKEN_CARET, start, 1, start_col);
+        case '<':
+            return make_token_at(lexer, LV_TOKEN_LT, start, 1, start_col);
+        case '>':
+            return make_token_at(lexer, LV_TOKEN_GT, start, 1, start_col);
         default:
             return make_token_at(lexer, LV_TOKEN_ERROR, start, 1, start_col);
     }
@@ -347,8 +390,9 @@ static LvToken lex_raw(LvLexer *lexer) {
  * @return 词法分析器指针，失败返回 NULL
  */
 LvLexer *lv_lexer_create(const char *source, size_t source_len) {
-    LvLexer *lexer = (LvLexer *)lv_calloc(1, sizeof(LvLexer));
-    if (!lexer) return NULL;
+    LvLexer *lexer = (LvLexer *) lv_calloc(1, sizeof(LvLexer));
+    if (!lexer)
+        return NULL;
     lexer->source = source;
     lexer->source_len = source_len;
     lexer->pos = 0;
@@ -367,7 +411,7 @@ LvLexer *lv_lexer_create(const char *source, size_t source_len) {
  * @param lexer 词法分析器指针
  */
 void lv_lexer_destroy(LvLexer *lexer) {
-    lv_free((void **)&lexer);
+    lv_free((void **) &lexer);
 }
 
 /**
@@ -435,25 +479,81 @@ LvSourceLoc lv_lexer_get_loc(const LvLexer *lexer) {
  * @return 类型名称字符串（静态存储，无需释放）
  */
 const char *lv_token_type_name(LvTokenType type) {
-    static const char *names[] = {
-        "INTEGER", "RATIONAL", "DECIMAL", "STRING", "IDENTIFIER",
-        "KW_ANGLE", "KW_AREA", "KW_ASSERT", "KW_ASSUME", "KW_AXIOM",
-        "KW_BOOL", "KW_BOTTOM", "KW_CIRCLE", "KW_COLLINEAR", "KW_COMPUTE",
-        "KW_CONGRUENT", "KW_CONSTRAINT", "KW_DISTANCE", "KW_EXISTS", "KW_EXPORT",
-        "KW_FALSE", "KW_FORALL", "KW_IMPORT",
-        "KW_LENGTH", "KW_LET", "KW_LINE", "KW_MEASURE", "KW_MODULE",
-        "KW_NORMALIZE", "KW_NOT", "KW_OR", "KW_AND",
-        "KW_PARALLEL", "KW_PERPENDICULAR", "KW_POINT", "KW_POLYGON",
-        "KW_PROOF", "KW_PROPOSITION", "KW_PROVE", "KW_RADIUS", "KW_RAY",
-        "KW_SCALAR", "KW_SEGMENT", "KW_TANGENT", "KW_THEOREM", "KW_TRIANGLE",
-        "KW_TRUE",
-        "LPAREN", "RPAREN", "LBRACE", "RBRACE", "LBRACKET", "RBRACKET",
-        "SEMICOLON", "COMMA", "DOT", "COLON",
-        "EQUALS", "EQEQ", "NEQ", "LT", "LE", "GT", "GE",
-        "PLUS", "MINUS", "STAR", "SLASH", "CARET",
-        "ARROW", "DARROW", "MODELS", "THEREFORE",
-        "EOF", "ERROR"
-    };
+    static const char *names[] = {"INTEGER",
+                                  "RATIONAL",
+                                  "DECIMAL",
+                                  "STRING",
+                                  "IDENTIFIER",
+                                  "KW_ANGLE",
+                                  "KW_AREA",
+                                  "KW_ASSERT",
+                                  "KW_ASSUME",
+                                  "KW_AXIOM",
+                                  "KW_BOOL",
+                                  "KW_BOTTOM",
+                                  "KW_CIRCLE",
+                                  "KW_COLLINEAR",
+                                  "KW_COMPUTE",
+                                  "KW_CONGRUENT",
+                                  "KW_CONSTRAINT",
+                                  "KW_DISTANCE",
+                                  "KW_EXISTS",
+                                  "KW_EXPORT",
+                                  "KW_FALSE",
+                                  "KW_FORALL",
+                                  "KW_IMPORT",
+                                  "KW_LENGTH",
+                                  "KW_LET",
+                                  "KW_LINE",
+                                  "KW_MEASURE",
+                                  "KW_MODULE",
+                                  "KW_NORMALIZE",
+                                  "KW_NOT",
+                                  "KW_OR",
+                                  "KW_AND",
+                                  "KW_PARALLEL",
+                                  "KW_PERPENDICULAR",
+                                  "KW_POINT",
+                                  "KW_POLYGON",
+                                  "KW_PROOF",
+                                  "KW_PROPOSITION",
+                                  "KW_PROVE",
+                                  "KW_RADIUS",
+                                  "KW_RAY",
+                                  "KW_SCALAR",
+                                  "KW_SEGMENT",
+                                  "KW_TANGENT",
+                                  "KW_THEOREM",
+                                  "KW_TRIANGLE",
+                                  "KW_TRUE",
+                                  "LPAREN",
+                                  "RPAREN",
+                                  "LBRACE",
+                                  "RBRACE",
+                                  "LBRACKET",
+                                  "RBRACKET",
+                                  "SEMICOLON",
+                                  "COMMA",
+                                  "DOT",
+                                  "COLON",
+                                  "EQUALS",
+                                  "EQEQ",
+                                  "NEQ",
+                                  "LT",
+                                  "LE",
+                                  "GT",
+                                  "GE",
+                                  "PLUS",
+                                  "MINUS",
+                                  "STAR",
+                                  "SLASH",
+                                  "CARET",
+                                  "ARROW",
+                                  "DARROW",
+                                  "MODELS",
+                                  "THEREFORE",
+                                  "EOF",
+                                  "ERROR"};
     if (type >= 0 && type < LV_TOKEN_COUNT)
         return names[type];
     return "UNKNOWN";
@@ -471,7 +571,8 @@ const char *lv_token_type_name(LvTokenType type) {
  * @return 实际复制的字符数（不含 null 终止符）
  */
 size_t lv_token_text(const LvToken *token, char *buf, size_t buf_size) {
-    if (!token || !buf || buf_size == 0) return 0;
+    if (!token || !buf || buf_size == 0)
+        return 0;
     /* [安全] 使用 lv_strncpy 替代标准 strncpy，保证 null 终止且处理 NULL src */
     size_t copy_len = token->length < buf_size - 1 ? token->length : buf_size - 1;
     lv_strncpy(buf, token->start, copy_len + 1);

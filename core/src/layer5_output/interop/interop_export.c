@@ -7,7 +7,6 @@
  * @version 3.3.0
  */
 
-#include "lv/interop.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -15,8 +14,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
+#include "lv/interop.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -348,44 +350,40 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
 
             /* 信任颜色分类判断 */
             bool is_green = (step->color == PROOF_COLOR_GREEN || step->color == PROOF_COLOR_GREEN_VERIFIED);
-            bool is_blue = (step->color == PROOF_COLOR_BLUE_UNEXPLORED ||
-                            step->color == PROOF_COLOR_BLUE_RESOURCE ||
+            bool is_blue = (step->color == PROOF_COLOR_BLUE_UNEXPLORED || step->color == PROOF_COLOR_BLUE_RESOURCE ||
                             step->color == PROOF_COLOR_BLUE_OUT_OF_RANGE);
-            bool is_orange = (step->color == PROOF_COLOR_ORANGE_ORACLE ||
-                              step->color == PROOF_COLOR_ORANGE_EX_FALSO ||
+            bool is_orange = (step->color == PROOF_COLOR_ORANGE_ORACLE || step->color == PROOF_COLOR_ORANGE_EX_FALSO ||
                               step->color == PROOF_COLOR_DARK_ORANGE);
             bool is_amber = (step->color == PROOF_COLOR_AMBER);
 
             switch (step->type) {
                 case PROOF_STEP_ADD_NODE:
                     if (is_green) {
-                        fprintf(fp, "    have h_node_%d : True := by intro node_%d ; constructor\n",
-                                step->node_id, step->node_id);
+                        fprintf(fp, "    have h_node_%d : True := by intro node_%d ; constructor\n", step->node_id,
+                                step->node_id);
                     } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 构造节点 node_%d, 信任色: %s (未探索/资源受限)\n",
-                                step->node_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [BLUE] 构造节点 node_%d, 信任色: %s (未探索/资源受限)\n", step->node_id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    have h_node_%d : True := by admit\n", step->node_id);
                     } else if (is_orange) {
                         fprintf(fp, "    -- [ORANGE] 构造节点 node_%d, 信任色: %s (非构造性oracle依赖)\n",
                                 step->node_id, proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_node_%d : True := by exact oracle_result.node_%d\n",
-                                step->node_id, step->node_id);
-                    } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 构造节点 node_%d, 信任色: %s (数值假设)\n",
-                                step->node_id, proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_node_%d : True := by sorry -- [NUMERIC] 数值假设步骤\n",
+                        fprintf(fp, "    have h_node_%d : True := by exact oracle_result.node_%d\n", step->node_id,
                                 step->node_id);
+                    } else if (is_amber) {
+                        fprintf(fp, "    -- [AMBER] 构造节点 node_%d, 信任色: %s (数值假设)\n", step->node_id,
+                                proof_color_to_string(step->color));
+                        fprintf(fp, "    have h_node_%d : True := by sorry -- [NUMERIC] 数值假设步骤\n", step->node_id);
                     } else {
-                        fprintf(fp, "    -- 构造节点 node_%d, 信任色: %s\n",
-                                step->node_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 构造节点 node_%d, 信任色: %s\n", step->node_id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    have h_node_%d : True := by trivial\n", step->node_id);
                     }
                     break;
 
                 case PROOF_STEP_ADD_CONSTRAINT:
                     if (is_green) {
-                        fprintf(fp, "    have h_cstr_%d : True := by constructor ; assumption\n",
-                                step->constraint_id);
+                        fprintf(fp, "    have h_cstr_%d : True := by constructor ; assumption\n", step->constraint_id);
                     } else if (is_blue) {
                         fprintf(fp, "    -- [BLUE] 添加约束 cstr_%d, 信任色: %s (未探索/资源受限)\n",
                                 step->constraint_id, proof_color_to_string(step->color));
@@ -396,13 +394,13 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                         fprintf(fp, "    have h_cstr_%d : True := by exact oracle_result.cstr_%d\n",
                                 step->constraint_id, step->constraint_id);
                     } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 添加约束 cstr_%d, 信任色: %s (数值假设)\n",
-                                step->constraint_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [AMBER] 添加约束 cstr_%d, 信任色: %s (数值假设)\n", step->constraint_id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    have h_cstr_%d : True := by sorry -- [NUMERIC] 数值假设步骤\n",
                                 step->constraint_id);
                     } else {
-                        fprintf(fp, "    -- 添加约束 cstr_%d, 信任色: %s\n",
-                                step->constraint_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 添加约束 cstr_%d, 信任色: %s\n", step->constraint_id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    have h_cstr_%d : True := by trivial\n", step->constraint_id);
                     }
                     break;
@@ -411,20 +409,20 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                     if (is_green) {
                         fprintf(fp, "    rw [h]\n");
                     } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 重写步骤 step_%d, 信任色: %s (未探索/资源受限)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [BLUE] 重写步骤 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
                     } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 重写步骤 step_%d, 信任色: %s (非构造性oracle依赖)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [ORANGE] 重写步骤 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
                     } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 重写步骤 step_%d, 信任色: %s (数值假设)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [AMBER] 重写步骤 step_%d, 信任色: %s (数值假设)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
                     } else {
-                        fprintf(fp, "    -- 重写步骤 step_%d, 信任色: %s\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 重写步骤 step_%d, 信任色: %s\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by assumption\n");
                     }
                     break;
@@ -433,20 +431,20 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                     if (is_green) {
                         fprintf(fp, "    apply h\n");
                     } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 函数应用 step_%d, 信任色: %s (未探索/资源受限)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [BLUE] 函数应用 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
                     } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 函数应用 step_%d, 信任色: %s (非构造性oracle依赖)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [ORANGE] 函数应用 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
                     } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 函数应用 step_%d, 信任色: %s (数值假设)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [AMBER] 函数应用 step_%d, 信任色: %s (数值假设)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
                     } else {
-                        fprintf(fp, "    -- 函数应用 step_%d, 信任色: %s\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 函数应用 step_%d, 信任色: %s\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by trivial\n");
                     }
                     break;
@@ -459,20 +457,20 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                     if (is_green) {
                         fprintf(fp, "    simp [normalization]\n");
                     } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 归一化 step_%d, 信任色: %s (未探索/资源受限)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [BLUE] 归一化 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
                     } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 归一化 step_%d, 信任色: %s (非构造性oracle依赖)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [ORANGE] 归一化 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
                     } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 归一化 step_%d, 信任色: %s (数值假设)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [AMBER] 归一化 step_%d, 信任色: %s (数值假设)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
                     } else {
-                        fprintf(fp, "    -- 归一化 step_%d, 信任色: %s\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 归一化 step_%d, 信任色: %s\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by assumption\n");
                     }
                     break;
@@ -481,20 +479,20 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                     if (is_green) {
                         fprintf(fp, "    rfl\n");
                     } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 合一检查 step_%d, 信任色: %s (未探索/资源受限)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [BLUE] 合一检查 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
                     } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 合一检查 step_%d, 信任色: %s (非构造性oracle依赖)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [ORANGE] 合一检查 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
                     } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 合一检查 step_%d, 信任色: %s (数值假设)\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [AMBER] 合一检查 step_%d, 信任色: %s (数值假设)\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
                     } else {
-                        fprintf(fp, "    -- 合一检查 step_%d, 信任色: %s\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 合一检查 step_%d, 信任色: %s\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    by trivial\n");
                     }
                     break;
@@ -503,22 +501,21 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                     if (is_green) {
                         fprintf(fp, "    contradiction ; assumption\n");
                     } else {
-                        fprintf(fp, "    -- [非绿色] 爆炸原理 step_%d, 信任色: %s\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- [非绿色] 爆炸原理 step_%d, 信任色: %s\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    exfalso ; by sorry -- 非构造性爆炸原理，需外部验证\n");
                     }
                     break;
 
                 case PROOF_STEP_ORACLE:
-                    fprintf(fp, "    -- [ORACLE] Oracle依赖: step_%d, 信任色: %s\n",
-                            step->id, proof_color_to_string(step->color));
-                    fprintf(fp, "    by exact (oracle.verify step_%d) -- 非构造性依赖，需外部oracle验证\n",
-                            step->id);
+                    fprintf(fp, "    -- [ORACLE] Oracle依赖: step_%d, 信任色: %s\n", step->id,
+                            proof_color_to_string(step->color));
+                    fprintf(fp, "    by exact (oracle.verify step_%d) -- 非构造性依赖，需外部oracle验证\n", step->id);
                     break;
 
                 default:
-                    fprintf(fp, "    -- 未知步骤类型: %d, 信任色: %s\n",
-                            (int) step->type, proof_color_to_string(step->color));
+                    fprintf(fp, "    -- 未知步骤类型: %d, 信任色: %s\n", (int) step->type,
+                            proof_color_to_string(step->color));
                     fprintf(fp, "    by trivial\n");
                     break;
             }
@@ -548,8 +545,8 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
  * @return -1（未实现）
  */
 int interop_export_html(const lvEngine *engine, const InteropExportConfig *config) {
-    (void)engine;
-    (void)config;
+    (void) engine;
+    (void) config;
     /* HTML 渲染已迁移至 UI 层（ui/L3-modules/）。
        内核通过 lv_protocol.h 提供结构化数据。 */
     return -1;
@@ -1130,22 +1127,22 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
         return lv_ERROR_IO;
 
     /* LaTeX文档头部 */
-    (void)fprintf(fp, "%% Generated by Lv-00 v%s\n", lv_VERSION_STRING);
-    (void)fprintf(fp, "%% TikZ geometry export\n\n");
-    (void)fprintf(fp, "\\documentclass[tikz,border=10pt]{standalone}\n");
-    (void)fprintf(fp, "\\usepackage{tikz}\n");
-    (void)fprintf(fp, "\\usetikzlibrary{arrows.meta,shapes.geometric,positioning,calc}\n\n");
-    (void)fprintf(fp, "\\begin{document}\n\n");
-    (void)fprintf(fp, "\\begin{tikzpicture}[\n");
-    (void)fprintf(fp, "    point/.style={circle, fill, inner sep=1.5pt},\n");
-    (void)fprintf(fp, "    line/.style={thick},\n");
-    (void)fprintf(fp, "    region/.style={fill opacity=0.3, thick},\n");
-    (void)fprintf(fp, "    constraint/.style={dashed, thin, gray},\n");
-    (void)fprintf(fp, "    block/.style={draw, rounded corners, minimum width=2cm, minimum height=1cm, thick},\n");
-    (void)fprintf(fp, "    port/.style={circle, draw, inner sep=2pt, fill=white},\n");
-    (void)fprintf(fp, "    label/.style={font=\\small},\n");
-    (void)fprintf(fp, "    connection/.style={-{Stealth[length=5pt]}, thick, orange}\n");
-    (void)fprintf(fp, "]\n\n");
+    (void) fprintf(fp, "%% Generated by Lv-00 v%s\n", lv_VERSION_STRING);
+    (void) fprintf(fp, "%% TikZ geometry export\n\n");
+    (void) fprintf(fp, "\\documentclass[tikz,border=10pt]{standalone}\n");
+    (void) fprintf(fp, "\\usepackage{tikz}\n");
+    (void) fprintf(fp, "\\usetikzlibrary{arrows.meta,shapes.geometric,positioning,calc}\n\n");
+    (void) fprintf(fp, "\\begin{document}\n\n");
+    (void) fprintf(fp, "\\begin{tikzpicture}[\n");
+    (void) fprintf(fp, "    point/.style={circle, fill, inner sep=1.5pt},\n");
+    (void) fprintf(fp, "    line/.style={thick},\n");
+    (void) fprintf(fp, "    region/.style={fill opacity=0.3, thick},\n");
+    (void) fprintf(fp, "    constraint/.style={dashed, thin, gray},\n");
+    (void) fprintf(fp, "    block/.style={draw, rounded corners, minimum width=2cm, minimum height=1cm, thick},\n");
+    (void) fprintf(fp, "    port/.style={circle, draw, inner sep=2pt, fill=white},\n");
+    (void) fprintf(fp, "    label/.style={font=\\small},\n");
+    (void) fprintf(fp, "    connection/.style={-{Stealth[length=5pt]}, thick, orange}\n");
+    (void) fprintf(fp, "]\n\n");
 
     /* ---- 渲染区域（底层） ---- */
     for (int i = 0; i < graph->node_count; i++) {
@@ -2320,11 +2317,11 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
             size_t _new_cap = buf_cap * 2;                                           \
             while (_new_cap < buf_len + (size_t) _need)                              \
                 _new_cap *= 2;                                                       \
-            char *_new_buf = (char *) lv_realloc(content, _new_cap);               \
+            char *_new_buf = (char *) lv_realloc(content, _new_cap);                 \
             if (!_new_buf) {                                                         \
-                lv_free((void **) &content);                                       \
+                lv_free((void **) &content);                                         \
                 fclose(fp);                                                          \
-                return lv_ERROR_OUT_OF_MEMORY;                                     \
+                return lv_ERROR_OUT_OF_MEMORY;                                       \
             }                                                                        \
             content = _new_buf;                                                      \
             buf_cap = _new_cap;                                                      \
@@ -2809,4 +2806,3 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 #define GGB_MAX_XML_SIZE (16 * 1024 * 1024) /**< XML 最大大小 16MB */
 #define GGB_COMPRESSION_STORE 0             /**< 无压缩（STORE） */
 #define GGB_COMPRESSION_DEFLATE 8           /**< Deflate 压缩 */
-

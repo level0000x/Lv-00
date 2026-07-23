@@ -104,14 +104,14 @@ typedef enum {
  */
 typedef struct lvSelector {
     lvSelectorType type;          /**< 选择器类型 */
-    char *expr;                     /**< 选择器表达式字符串（拥有所有权） */
+    char *expr;                   /**< 选择器表达式字符串（拥有所有权） */
     lvSelectorDirOp dir_op;       /**< 方向运算符（BY_DIRECTION 时有效） */
-    char axis;                      /**< 目标轴 'X'/'Y'/'Z'（BY_DIRECTION/PARALLEL_TO/PERPENDICULAR_TO 时有效） */
-    int index;                      /**< 索引值（BY_INDEX 时有效） */
-    double distance;                /**< 距离参数（NEAREST 时有效） */
+    char axis;                    /**< 目标轴 'X'/'Y'/'Z'（BY_DIRECTION/PARALLEL_TO/PERPENDICULAR_TO 时有效） */
+    int index;                    /**< 索引值（BY_INDEX 时有效） */
+    double distance;              /**< 距离参数（NEAREST 时有效） */
     struct lvSelector **children; /**< 子选择器（COMPOSITE 时有效） */
-    int child_count;                /**< 子选择器数量 */
-    int child_capacity;             /**< 子选择器容量 */
+    int child_count;              /**< 子选择器数量 */
+    int child_capacity;           /**< 子选择器容量 */
     /* 复合选择器的组合操作 */
     bool is_union;   /**< true=OR, false=AND（COMPOSITE 时有效） */
     bool is_negated; /**< 是否取反（NOT 语义） */

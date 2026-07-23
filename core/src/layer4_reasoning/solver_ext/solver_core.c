@@ -19,11 +19,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "lv/lv.h"
 #include "lv/constraint_graph.h"
 #include "lv/groebner_parallel.h"
+#include "lv/lv.h"
+
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ========================================================================
  * 内部常量
@@ -51,24 +52,24 @@ struct lvSolver {
     lvSolverConfig config;
 
     /* 变量管理 */
-    int *values;        /**< 变量赋值数组：0=未赋值, >0=真, <0=假 */
-    int var_count;      /**< 已分配变量数 */
-    int var_capacity;   /**< values 数组容量 */
-    int next_var_id;    /**< 下一个待分配变量 ID */
+    int *values;      /**< 变量赋值数组：0=未赋值, >0=真, <0=假 */
+    int var_count;    /**< 已分配变量数 */
+    int var_capacity; /**< values 数组容量 */
+    int next_var_id;  /**< 下一个待分配变量 ID */
 
     /* 约束管理 */
-    int **clauses;        /**< 子句数组（文字序列） */
-    int *clause_sizes;    /**< 每子句的文字数 */
-    int clause_count;     /**< 子句总数 */
-    int clause_capacity;  /**< 子句数组容量 */
+    int **clauses;          /**< 子句数组（文字序列） */
+    int *clause_sizes;      /**< 每子句的文字数 */
+    int clause_count;       /**< 子句总数 */
+    int clause_capacity;    /**< 子句数组容量 */
     int next_constraint_id; /**< 下一个约束 ID */
 
     /* 失败标记（用于 failed_constraint / failed_assumption） */
-    bool *constraint_failed; /**< 约束失败标记，索引=constraint_id */
+    bool *constraint_failed;   /**< 约束失败标记，索引=constraint_id */
     int constraint_failed_cap; /**< 失败标记数组容量 */
-    int *assumption_lits;     /**< 最近求解的假设文字 */
-    int assumption_count;     /**< 假设数量 */
-    bool *assumption_failed;  /**< 假设失败标记 */
+    int *assumption_lits;      /**< 最近求解的假设文字 */
+    int assumption_count;      /**< 假设数量 */
+    bool *assumption_failed;   /**< 假设失败标记 */
     int assumption_failed_cap; /**< 假设失败标记数组容量 */
 
     /* CDCL 上下文 */
@@ -104,14 +105,16 @@ static bool ensure_clause_cap(lvSolver *s) {
      * 但 realloc 已使用临时变量模式，失败时不会丢失原指针。 */
     if (s->clause_count >= s->clause_capacity) {
         /* 检查容量扩大的乘法是否会导致整数溢出 */
-        if (s->clause_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) return false;
-        int new_cap = (s->clause_capacity == 0) ? DEFAULT_CLAUSE_CAPACITY
-                                                : s->clause_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int **new_c = (int **)lv_realloc(s->clauses, (size_t)new_cap * sizeof(int *));
-        int *new_s = (int *)lv_realloc(s->clause_sizes, (size_t)new_cap * sizeof(int));
+        if (s->clause_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR)
+            return false;
+        int new_cap = (s->clause_capacity == 0) ? DEFAULT_CLAUSE_CAPACITY : s->clause_capacity * lv_ARRAY_GROWTH_FACTOR;
+        int **new_c = (int **) lv_realloc(s->clauses, (size_t) new_cap * sizeof(int *));
+        int *new_s = (int *) lv_realloc(s->clause_sizes, (size_t) new_cap * sizeof(int));
         if (!new_c || !new_s) {
-            if (new_c) lv_free((void **)&new_c);
-            if (new_s) lv_free((void **)&new_s);
+            if (new_c)
+                lv_free((void **) &new_c);
+            if (new_s)
+                lv_free((void **) &new_s);
             return false;
         }
         s->clauses = new_c;
@@ -122,8 +125,7 @@ static bool ensure_clause_cap(lvSolver *s) {
 }
 
 static bool ensure_var_cap(lvSolver *s) {
-    return ensure_array_cap((void **)&s->values, &s->var_capacity,
-                            s->var_count + 1, sizeof(int));
+    return ensure_array_cap((void **) &s->values, &s->var_capacity, s->var_count + 1, sizeof(int));
 }
 
 /**
@@ -140,29 +142,29 @@ static void cdcl_context_init(CDCLContext *ctx) {
  */
 static void cdcl_context_destroy(CDCLContext *ctx) {
     lv_CHECK_NULL_VOID(ctx);
-    lv_free((void **)&ctx->assigns);
-    lv_free((void **)&ctx->levels);
-    lv_free((void **)&ctx->reasons);
-    lv_free((void **)&ctx->trail);
-    lv_free((void **)&ctx->trail_lim);
-    lv_free((void **)&ctx->conflict_clause);
+    lv_free((void **) &ctx->assigns);
+    lv_free((void **) &ctx->levels);
+    lv_free((void **) &ctx->reasons);
+    lv_free((void **) &ctx->trail);
+    lv_free((void **) &ctx->trail_lim);
+    lv_free((void **) &ctx->conflict_clause);
 
     if (ctx->clauses) {
         for (int i = 0; i < ctx->orig_clause_count + ctx->learn_clause_count; i++) {
-            lv_free((void **)&ctx->clauses[i]);
+            lv_free((void **) &ctx->clauses[i]);
         }
-        lv_free((void **)&ctx->clauses);
+        lv_free((void **) &ctx->clauses);
     }
-    lv_free((void **)&ctx->clause_sizes);
+    lv_free((void **) &ctx->clause_sizes);
 
     if (ctx->watches) {
         for (int i = 1; i <= ctx->var_count; i++) {
-            lv_free((void **)&ctx->watches[i]);
+            lv_free((void **) &ctx->watches[i]);
         }
-        lv_free((void **)&ctx->watches);
+        lv_free((void **) &ctx->watches);
     }
-    lv_free((void **)&ctx->watch_sizes);
-    lv_free((void **)&ctx->watch_capacities);
+    lv_free((void **) &ctx->watch_sizes);
+    lv_free((void **) &ctx->watch_capacities);
 
     memset(ctx, 0, sizeof(CDCLContext));
 }
@@ -174,9 +176,9 @@ static void cdcl_context_destroy(CDCLContext *ctx) {
 lvSolverConfig lv_solver_config_default(void) {
     lvSolverConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.enable_restarts  = true;   /* 启用 Luby 序列重启策略 */
-    cfg.restart_interval = 100;    /* 每 100 次冲突触发一次重启 */
-    cfg.max_time_sec     = 30.0;   /* 默认最大求解时间 30 秒，0=无限制 */
+    cfg.enable_restarts = true; /* 启用 Luby 序列重启策略 */
+    cfg.restart_interval = 100; /* 每 100 次冲突触发一次重启 */
+    cfg.max_time_sec = 30.0;    /* 默认最大求解时间 30 秒，0=无限制 */
     return cfg;
 }
 
@@ -192,31 +194,33 @@ lvSolver *lv_solver_create(void) {
 lvSolver *lv_solver_create_with_config(const lvSolverConfig *config) {
     lv_CHECK_NULL(config, NULL);
 
-    lvSolver *s = (lvSolver *)lv_calloc(1, sizeof(lvSolver));
+    lvSolver *s = (lvSolver *) lv_calloc(1, sizeof(lvSolver));
     lv_CHECK_ALLOC(s, NULL);
 
     /* 复制配置 */
     s->config = *config;
 
     /* 初始化变量管理 */
-    s->values = (int *)lv_malloc((size_t)DEFAULT_VAR_CAPACITY * sizeof(int));
+    s->values = (int *) lv_malloc((size_t) DEFAULT_VAR_CAPACITY * sizeof(int));
     if (!s->values) {
-        lv_free((void **)&s);
+        lv_free((void **) &s);
         return NULL;
     }
-    memset(s->values, 0, (size_t)DEFAULT_VAR_CAPACITY * sizeof(int));
+    memset(s->values, 0, (size_t) DEFAULT_VAR_CAPACITY * sizeof(int));
     s->var_capacity = DEFAULT_VAR_CAPACITY;
     s->var_count = 0;
     s->next_var_id = 1;
 
     /* 初始化约束管理 */
-    s->clauses = (int **)lv_malloc((size_t)DEFAULT_CLAUSE_CAPACITY * sizeof(int *));
-    s->clause_sizes = (int *)lv_malloc((size_t)DEFAULT_CLAUSE_CAPACITY * sizeof(int));
+    s->clauses = (int **) lv_malloc((size_t) DEFAULT_CLAUSE_CAPACITY * sizeof(int *));
+    s->clause_sizes = (int *) lv_malloc((size_t) DEFAULT_CLAUSE_CAPACITY * sizeof(int));
     if (!s->clauses || !s->clause_sizes) {
-        lv_free((void **)&s->values);
-        if (s->clauses) lv_free((void **)&s->clauses);
-        if (s->clause_sizes) lv_free((void **)&s->clause_sizes);
-        lv_free((void **)&s);
+        lv_free((void **) &s->values);
+        if (s->clauses)
+            lv_free((void **) &s->clauses);
+        if (s->clause_sizes)
+            lv_free((void **) &s->clause_sizes);
+        lv_free((void **) &s);
         return NULL;
     }
     s->clause_capacity = DEFAULT_CLAUSE_CAPACITY;
@@ -243,24 +247,24 @@ void lv_solver_destroy(lvSolver *solver) {
     lv_CHECK_NULL_VOID(solver);
 
     /* 释放变量 */
-    lv_free((void **)&solver->values);
+    lv_free((void **) &solver->values);
 
     /* 释放子句 */
     for (int i = 0; i < solver->clause_count; i++) {
-        lv_free((void **)&solver->clauses[i]);
+        lv_free((void **) &solver->clauses[i]);
     }
-    lv_free((void **)&solver->clauses);
-    lv_free((void **)&solver->clause_sizes);
+    lv_free((void **) &solver->clauses);
+    lv_free((void **) &solver->clause_sizes);
 
     /* 释放失败标记 */
-    lv_free((void **)&solver->constraint_failed);
-    lv_free((void **)&solver->assumption_lits);
-    lv_free((void **)&solver->assumption_failed);
+    lv_free((void **) &solver->constraint_failed);
+    lv_free((void **) &solver->assumption_lits);
+    lv_free((void **) &solver->assumption_failed);
 
     /* 释放 CDCL 上下文 */
     cdcl_context_destroy(&solver->cdcl);
 
-    lv_free((void **)&solver);
+    lv_free((void **) &solver);
 }
 
 /* ========================================================================
@@ -275,8 +279,7 @@ lvSolverVar lv_solver_new_var(lvSolver *solver) {
 lvSolverVar lv_solver_new_vars(lvSolver *solver, int count) {
     lv_CHECK_NULL(solver, -1);
     if (count <= 0) {
-        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
-                           "变量数量必须 >= 1, 实际=%d", count);
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__, "变量数量必须 >= 1, 实际=%d", count);
         return -1;
     }
 
@@ -286,15 +289,15 @@ lvSolverVar lv_solver_new_vars(lvSolver *solver, int count) {
     while (solver->var_count + count > solver->var_capacity) {
         /* 整数溢出检查：确保扩容不会超过 INT_MAX */
         if (solver->var_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_set_error_ctx(lv_ERROR_OVERFLOW, __FILE__, __LINE__, __func__,
-                               "变量容量溢出: current=%d", solver->var_capacity);
+            lv_set_error_ctx(lv_ERROR_OVERFLOW, __FILE__, __LINE__, __func__, "变量容量溢出: current=%d",
+                             solver->var_capacity);
             return -1;
         }
         int new_cap = solver->var_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int *new_v = (int *)lv_realloc(solver->values, (size_t)new_cap * sizeof(int));
-        if (!new_v) return -1;
-        memset(new_v + solver->var_capacity, 0,
-               (size_t)(new_cap - solver->var_capacity) * sizeof(int));
+        int *new_v = (int *) lv_realloc(solver->values, (size_t) new_cap * sizeof(int));
+        if (!new_v)
+            return -1;
+        memset(new_v + solver->var_capacity, 0, (size_t) (new_cap - solver->var_capacity) * sizeof(int));
         solver->values = new_v;
         solver->var_capacity = new_cap;
     }
@@ -315,24 +318,22 @@ int lv_solver_var_count(const lvSolver *solver) {
  * 约束管理 API
  * ======================================================================== */
 
-lvConstraintId lv_solver_add_constraint(lvSolver *solver,
-                                             const lvSolverLit *literals, int count) {
+lvConstraintId lv_solver_add_constraint(lvSolver *solver, const lvSolverLit *literals, int count) {
     lv_CHECK_NULL(solver, lv_CONSTRAINT_ID_INVALID);
     lv_CHECK_NULL(literals, lv_CONSTRAINT_ID_INVALID);
     if (count < 0) {
-        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
-                           "子句文字数不能为负: %d", count);
+        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__, "子句文字数不能为负: %d", count);
         return lv_CONSTRAINT_ID_INVALID;
     }
 
     /* 零文字子句 = 矛盾 */
     if (count == 0) {
-        lv_set_error_ctx(lv_ERROR_CONSTRAINT_CONFLICT, __FILE__, __LINE__, __func__,
-                           "零文字子句表示矛盾");
+        lv_set_error_ctx(lv_ERROR_CONSTRAINT_CONFLICT, __FILE__, __LINE__, __func__, "零文字子句表示矛盾");
         return lv_CONSTRAINT_ID_INVALID;
     }
 
-    if (!ensure_clause_cap(solver)) return lv_CONSTRAINT_ID_INVALID;
+    if (!ensure_clause_cap(solver))
+        return lv_CONSTRAINT_ID_INVALID;
 
     lvConstraintId cid = solver->next_constraint_id;
 
@@ -340,24 +341,25 @@ lvConstraintId lv_solver_add_constraint(lvSolver *solver,
     if (cid >= solver->constraint_failed_cap) {
         /* 整数溢出检查 */
         if (solver->constraint_failed_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_set_error_ctx(lv_ERROR_OVERFLOW, __FILE__, __LINE__, __func__,
-                               "约束失败标记数组容量溢出: current=%d", solver->constraint_failed_cap);
+            lv_set_error_ctx(lv_ERROR_OVERFLOW, __FILE__, __LINE__, __func__, "约束失败标记数组容量溢出: current=%d",
+                             solver->constraint_failed_cap);
             return lv_CONSTRAINT_ID_INVALID;
         }
         int new_cap = (solver->constraint_failed_cap == 0) ? DEFAULT_CLAUSE_CAPACITY
                                                            : solver->constraint_failed_cap * lv_ARRAY_GROWTH_FACTOR;
-        bool *new_fail = (bool *)lv_realloc(solver->constraint_failed, (size_t)new_cap * sizeof(bool));
-        if (!new_fail) return lv_CONSTRAINT_ID_INVALID;
+        bool *new_fail = (bool *) lv_realloc(solver->constraint_failed, (size_t) new_cap * sizeof(bool));
+        if (!new_fail)
+            return lv_CONSTRAINT_ID_INVALID;
         memset(new_fail + solver->constraint_failed_cap, 0,
-               (size_t)(new_cap - solver->constraint_failed_cap) * sizeof(bool));
+               (size_t) (new_cap - solver->constraint_failed_cap) * sizeof(bool));
         solver->constraint_failed = new_fail;
         solver->constraint_failed_cap = new_cap;
     }
 
     /* 分配子句存储 */
-    int *clause = (int *)lv_malloc((size_t)(count + 1) * sizeof(int));
+    int *clause = (int *) lv_malloc((size_t) (count + 1) * sizeof(int));
     lv_CHECK_ALLOC(clause, lv_CONSTRAINT_ID_INVALID);
-    memcpy(clause, literals, (size_t)count * sizeof(int));
+    memcpy(clause, literals, (size_t) count * sizeof(int));
     clause[count] = 0; /* 0 终止标记 */
 
     int idx = solver->clause_count;
@@ -377,14 +379,13 @@ lvConstraintId lv_solver_add_constraint(lvSolver *solver,
 bool lv_solver_remove_constraint(lvSolver *solver, lvConstraintId constraint_id) {
     lv_CHECK_NULL(solver, false);
     if (constraint_id < 0 || constraint_id >= solver->next_constraint_id) {
-        lv_set_error_ctx(lv_ERROR_NOT_FOUND, __FILE__, __LINE__, __func__,
-                           "约束 ID=%d 不在有效范围 [0, %d)", constraint_id, solver->next_constraint_id);
+        lv_set_error_ctx(lv_ERROR_NOT_FOUND, __FILE__, __LINE__, __func__, "约束 ID=%d 不在有效范围 [0, %d)",
+                         constraint_id, solver->next_constraint_id);
         return false;
     }
 
     /* 检查约束是否已被移除 */
-    if (constraint_id < solver->constraint_failed_cap &&
-        solver->constraint_failed[constraint_id]) {
+    if (constraint_id < solver->constraint_failed_cap && solver->constraint_failed[constraint_id]) {
         return true; /* 已移除，幂等操作 */
     }
 
@@ -402,7 +403,7 @@ bool lv_solver_remove_constraint(lvSolver *solver, lvConstraintId constraint_id)
 
     /* 释放子句内存 */
     if (solver->clauses[clause_idx]) {
-        lv_free((void **)&solver->clauses[clause_idx]);
+        lv_free((void **) &solver->clauses[clause_idx]);
     }
 
     /* 将末尾子句移到被删除位置（保持子句数组紧凑） */
@@ -449,9 +450,11 @@ bool lv_solver_remove_constraint(lvSolver *solver, lvConstraintId constraint_id)
  */
 static int lit_value(const CDCLContext *ctx, int lit) {
     int var = (lit < 0) ? -lit : lit;
-    if (var < 1 || var > ctx->var_count) return 0;
+    if (var < 1 || var > ctx->var_count)
+        return 0;
     int a = ctx->assigns[var];
-    if (a == 0) return 0;
+    if (a == 0)
+        return 0;
     return (a == lit) ? 1 : -1;
 }
 
@@ -466,10 +469,11 @@ static void cdcl_assign(CDCLContext *ctx, int lit, int reason_clause) {
 
     /* 扩展 trail 容量 */
     if (ctx->trail_size >= ctx->trail_capacity) {
-        int new_cap = (ctx->trail_capacity == 0) ? DEFAULT_TRAIL_CAPACITY
-                                                 : ctx->trail_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int *new_trail = (int *)lv_realloc(ctx->trail, (size_t)new_cap * sizeof(int));
-        if (!new_trail) return;
+        int new_cap =
+            (ctx->trail_capacity == 0) ? DEFAULT_TRAIL_CAPACITY : ctx->trail_capacity * lv_ARRAY_GROWTH_FACTOR;
+        int *new_trail = (int *) lv_realloc(ctx->trail, (size_t) new_cap * sizeof(int));
+        if (!new_trail)
+            return;
         ctx->trail = new_trail;
         ctx->trail_capacity = new_cap;
     }
@@ -503,14 +507,15 @@ static void cdcl_undo_trail(CDCLContext *ctx, int top) {
  * @brief 回溯到指定决策层
  */
 static void cdcl_backtrack_to(CDCLContext *ctx, int level) {
-    if (level >= ctx->decision_level) return;
+    if (level >= ctx->decision_level)
+        return;
     /* 撤销 trail_lim[level+1..] 对应的所有赋值 */
-    int new_trail_size = (level >= 0 && level < ctx->decision_level)
-                         ? ctx->trail_lim[level]
-                         : 0;
+    int new_trail_size = (level >= 0 && level < ctx->decision_level) ? ctx->trail_lim[level] : 0;
     /* trail_lim 索引从 0 开始，但决策层 0 的 trail_lim[0] 不一定存在 */
-    if (level < 0) new_trail_size = 0;
-    else if (level == 0) new_trail_size = 0; /* 决策层 0 保留单元传播 */
+    if (level < 0)
+        new_trail_size = 0;
+    else if (level == 0)
+        new_trail_size = 0; /* 决策层 0 保留单元传播 */
     else if (level < ctx->decision_level && ctx->trail_lim) {
         new_trail_size = ctx->trail_lim[level];
     }
@@ -523,7 +528,8 @@ static void cdcl_backtrack_to(CDCLContext *ctx, int level) {
  */
 static bool cdcl_init_clauses(CDCLContext *ctx, lvSolver *solver) {
     int total = solver->clause_count;
-    if (total == 0) return true;
+    if (total == 0)
+        return true;
 
     /* 扩容 */
     if (total > ctx->clause_capacity) {
@@ -532,11 +538,13 @@ static bool cdcl_init_clauses(CDCLContext *ctx, lvSolver *solver) {
         if (new_cap < total || new_cap <= 0) {
             return false;
         }
-        int **new_clauses = (int **)lv_realloc(ctx->clauses, (size_t)new_cap * sizeof(int *));
-        int *new_sizes = (int *)lv_realloc(ctx->clause_sizes, (size_t)new_cap * sizeof(int));
+        int **new_clauses = (int **) lv_realloc(ctx->clauses, (size_t) new_cap * sizeof(int *));
+        int *new_sizes = (int *) lv_realloc(ctx->clause_sizes, (size_t) new_cap * sizeof(int));
         if (!new_clauses || !new_sizes) {
-            if (new_clauses) lv_free((void **)&new_clauses);
-            if (new_sizes) lv_free((void **)&new_sizes);
+            if (new_clauses)
+                lv_free((void **) &new_clauses);
+            if (new_sizes)
+                lv_free((void **) &new_sizes);
             return false;
         }
         ctx->clauses = new_clauses;
@@ -547,14 +555,14 @@ static bool cdcl_init_clauses(CDCLContext *ctx, lvSolver *solver) {
     /* 复制子句 */
     for (int i = 0; i < total; i++) {
         int sz = solver->clause_sizes[i];
-        ctx->clauses[i] = (int *)lv_malloc((size_t)(sz + 1) * sizeof(int));
+        ctx->clauses[i] = (int *) lv_malloc((size_t) (sz + 1) * sizeof(int));
         if (!ctx->clauses[i]) {
             /* 释放已复制的子句 */
             for (int j = 0; j < i; j++)
-                lv_free((void **)&ctx->clauses[j]);
+                lv_free((void **) &ctx->clauses[j]);
             return false;
         }
-        memcpy(ctx->clauses[i], solver->clauses[i], (size_t)(sz + 1) * sizeof(int));
+        memcpy(ctx->clauses[i], solver->clauses[i], (size_t) (sz + 1) * sizeof(int));
         ctx->clause_sizes[i] = sz;
     }
     ctx->orig_clause_count = total;
@@ -567,17 +575,19 @@ static bool cdcl_init_clauses(CDCLContext *ctx, lvSolver *solver) {
  * @brief 初始化 CDCL 上下文的赋值数组
  */
 static bool cdcl_init_assigns(CDCLContext *ctx, int var_count) {
-    if (var_count <= 0) return true;
-    ctx->assigns = (int *)lv_calloc((size_t)(var_count + 1), sizeof(int));
-    ctx->levels = (int *)lv_calloc((size_t)(var_count + 1), sizeof(int));
-    ctx->reasons = (int *)lv_malloc((size_t)(var_count + 1) * sizeof(int));
+    if (var_count <= 0)
+        return true;
+    ctx->assigns = (int *) lv_calloc((size_t) (var_count + 1), sizeof(int));
+    ctx->levels = (int *) lv_calloc((size_t) (var_count + 1), sizeof(int));
+    ctx->reasons = (int *) lv_malloc((size_t) (var_count + 1) * sizeof(int));
     if (!ctx->assigns || !ctx->levels || !ctx->reasons) {
-        lv_free((void **)&ctx->assigns);
-        lv_free((void **)&ctx->levels);
-        lv_free((void **)&ctx->reasons);
+        lv_free((void **) &ctx->assigns);
+        lv_free((void **) &ctx->levels);
+        lv_free((void **) &ctx->reasons);
         return false;
     }
-    for (int i = 0; i <= var_count; i++) ctx->reasons[i] = -1;
+    for (int i = 0; i <= var_count; i++)
+        ctx->reasons[i] = -1;
     ctx->var_count = var_count;
     ctx->var_capacity = var_count;
     return true;
@@ -587,7 +597,7 @@ static bool cdcl_init_assigns(CDCLContext *ctx, int var_count) {
  * @brief 初始化 trail_lim 数组
  */
 static bool cdcl_init_trail_lim(CDCLContext *ctx, int capacity) {
-    ctx->trail_lim = (int *)lv_calloc((size_t)capacity, sizeof(int));
+    ctx->trail_lim = (int *) lv_calloc((size_t) capacity, sizeof(int));
     return ctx->trail_lim != NULL;
 }
 
@@ -599,8 +609,9 @@ static bool cdcl_ensure_trail_lim(CDCLContext *ctx, int level) {
     /* 我们用 trail_lim[decision_level] 记录当前决策层的起始位置 */
     int needed = level + 2;
     /* 简单策略：每次需要时 realloc 到足够大 */
-    int *new_lim = (int *)lv_realloc(ctx->trail_lim, (size_t)needed * sizeof(int));
-    if (!new_lim) return false;
+    int *new_lim = (int *) lv_realloc(ctx->trail_lim, (size_t) needed * sizeof(int));
+    if (!new_lim)
+        return false;
     /* 只初始化新增部分，保留已有数据 */
     /* ctx->trail_lim_capacity 记录旧容量；首次分配时为 0，全部初始化 */
     int old_cap = ctx->trail_lim_capacity;
@@ -631,7 +642,7 @@ static CDCLState cdcl_step_propagate(CDCLContext *ctx) {
     for (int i = 0; i < total_clauses; i++) {
         int *clause = ctx->clauses[i];
         int sz = ctx->clause_sizes[i];
-        int unassigned = -1;  /* 未赋值文字的索引 */
+        int unassigned = -1; /* 未赋值文字的索引 */
         int unassigned_lit = 0;
         int false_count = 0;
         bool satisfied = false;
@@ -639,12 +650,20 @@ static CDCLState cdcl_step_propagate(CDCLContext *ctx) {
         for (int j = 0; j < sz; j++) {
             int lit = clause[j];
             int val = lit_value(ctx, lit);
-            if (val == 1) { satisfied = true; break; }
-            if (val == -1) { false_count++; }
-            else { unassigned = j; unassigned_lit = lit; }
+            if (val == 1) {
+                satisfied = true;
+                break;
+            }
+            if (val == -1) {
+                false_count++;
+            } else {
+                unassigned = j;
+                unassigned_lit = lit;
+            }
         }
 
-        if (satisfied) continue;
+        if (satisfied)
+            continue;
 
         if (false_count == sz) {
             /* 冲突：所有文字为假 */
@@ -690,7 +709,10 @@ static CDCLState cdcl_step_conflict(CDCLContext *ctx) {
         int sz = ctx->clause_sizes[i];
         bool all_false = true;
         for (int j = 0; j < sz; j++) {
-            if (lit_value(ctx, clause[j]) != -1) { all_false = false; break; }
+            if (lit_value(ctx, clause[j]) != -1) {
+                all_false = false;
+                break;
+            }
         }
         if (all_false) {
             ctx->conflict_clause = clause;
@@ -719,12 +741,16 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
 
     /* 使用 seen 标记数组（复用 levels 数组的符号位，或使用栈上临时数组） */
     /* 1-UIP 冲突分析：沿蕴含图反向解析，直到当前决策层只剩一个文字 */
-    int *seen = (int *)lv_calloc((size_t)(ctx->var_count + 1), sizeof(int));
-    if (!seen) return CDCL_UNSAT;
+    int *seen = (int *) lv_calloc((size_t) (ctx->var_count + 1), sizeof(int));
+    if (!seen)
+        return CDCL_UNSAT;
 
-    int *resolving = (int *)lv_malloc((size_t)(ctx->trail_capacity + 1) * sizeof(int));
+    int *resolving = (int *) lv_malloc((size_t) (ctx->trail_capacity + 1) * sizeof(int));
     int resolve_count = 0;
-    if (!resolving) { lv_free((void **)&seen); return CDCL_UNSAT; }
+    if (!resolving) {
+        lv_free((void **) &seen);
+        return CDCL_UNSAT;
+    }
 
     /* 初始化：将冲突子句中的文字加入解析栈 */
     for (int i = 0; i < ctx->conflict_size; i++) {
@@ -775,7 +801,8 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
                 break;
             }
         } else if (level > 0) {
-            if (level > bt_level) bt_level = level;
+            if (level > bt_level)
+                bt_level = level;
             /* 解析该变量的原因子句，将其中的文字加入解析栈 */
             int reason = ctx->reasons[var];
             if (reason >= 0 && reason < ctx->orig_clause_count + ctx->learn_clause_count) {
@@ -812,23 +839,24 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
     /* 构建学习子句：所有 seen 标记的文字取反（1-UIP 文字也在其中） */
     int learned_size = 0;
     for (int v = 1; v <= ctx->var_count; v++) {
-        if (seen[v]) learned_size++;
+        if (seen[v])
+            learned_size++;
     }
 
     if (learned_size == 0) {
         /* 空学习子句 = UNSAT */
-        lv_free((void **)&seen);
-        lv_free((void **)&resolving);
+        lv_free((void **) &seen);
+        lv_free((void **) &resolving);
         return CDCL_UNSAT;
     }
 
     /* 扩容冲突子句缓冲区以存储学习子句 */
     if (learned_size > ctx->conflict_capacity) {
         int new_cap = learned_size * 2;
-        int *new_cc = (int *)lv_realloc(ctx->conflict_clause, (size_t)new_cap * sizeof(int));
+        int *new_cc = (int *) lv_realloc(ctx->conflict_clause, (size_t) new_cap * sizeof(int));
         if (!new_cc) {
-            lv_free((void **)&seen);
-            lv_free((void **)&resolving);
+            lv_free((void **) &seen);
+            lv_free((void **) &resolving);
             return CDCL_UNSAT;
         }
         ctx->conflict_clause = new_cc;
@@ -845,8 +873,8 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
 
     ctx->backtrack_level = bt_level;
 
-    lv_free((void **)&seen);
-    lv_free((void **)&resolving);
+    lv_free((void **) &seen);
+    lv_free((void **) &resolving);
 
     return CDCL_BACKJUMPING;
 }
@@ -865,7 +893,8 @@ static CDCLState cdcl_step_backjump(CDCLContext *ctx) {
     while (ctx->trail_size > 0) {
         int lit = ctx->trail[ctx->trail_size - 1];
         int var = (lit < 0) ? -lit : lit;
-        if (ctx->levels[var] <= target) break;
+        if (ctx->levels[var] <= target)
+            break;
         ctx->trail_size--;
         ctx->assigns[var] = 0;
         ctx->levels[var] = 0;
@@ -898,13 +927,15 @@ static CDCLState cdcl_step_learn(CDCLContext *ctx) {
     /* 扩容子句数组 */
     int total = ctx->orig_clause_count + ctx->learn_clause_count;
     if (total >= ctx->clause_capacity) {
-        int new_cap = (ctx->clause_capacity == 0) ? DEFAULT_CLAUSE_CAPACITY
-                                                   : ctx->clause_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int **new_cl = (int **)lv_realloc(ctx->clauses, (size_t)new_cap * sizeof(int *));
-        int *new_sz = (int *)lv_realloc(ctx->clause_sizes, (size_t)new_cap * sizeof(int));
+        int new_cap =
+            (ctx->clause_capacity == 0) ? DEFAULT_CLAUSE_CAPACITY : ctx->clause_capacity * lv_ARRAY_GROWTH_FACTOR;
+        int **new_cl = (int **) lv_realloc(ctx->clauses, (size_t) new_cap * sizeof(int *));
+        int *new_sz = (int *) lv_realloc(ctx->clause_sizes, (size_t) new_cap * sizeof(int));
         if (!new_cl || !new_sz) {
-            if (new_cl) lv_free((void **)&new_cl);
-            if (new_sz) lv_free((void **)&new_sz);
+            if (new_cl)
+                lv_free((void **) &new_cl);
+            if (new_sz)
+                lv_free((void **) &new_sz);
             ctx->conflicts++;
             return CDCL_DECIDING;
         }
@@ -914,12 +945,12 @@ static CDCLState cdcl_step_learn(CDCLContext *ctx) {
     }
 
     /* 分配并复制学习子句 */
-    int *new_clause = (int *)lv_malloc((size_t)(learned_size + 1) * sizeof(int));
+    int *new_clause = (int *) lv_malloc((size_t) (learned_size + 1) * sizeof(int));
     if (!new_clause) {
         ctx->conflicts++;
         return CDCL_DECIDING;
     }
-    memcpy(new_clause, learned_lits, (size_t)learned_size * sizeof(int));
+    memcpy(new_clause, learned_lits, (size_t) learned_size * sizeof(int));
     new_clause[learned_size] = 0;
 
     int idx = ctx->orig_clause_count + ctx->learn_clause_count;
@@ -948,9 +979,13 @@ static CDCLState cdcl_step_decide(CDCLContext *ctx) {
     /* 检查是否所有变量已赋值 -> SAT */
     bool all_assigned = true;
     for (int v = 1; v <= ctx->var_count; v++) {
-        if (ctx->assigns[v] == 0) { all_assigned = false; break; }
+        if (ctx->assigns[v] == 0) {
+            all_assigned = false;
+            break;
+        }
     }
-    if (all_assigned) return CDCL_SATISFIED;
+    if (all_assigned)
+        return CDCL_SATISFIED;
 
     /* 资源耗尽检查 */
     int max_decisions = lv_config_get_int("cdcl_max_decisions", 1000);
@@ -961,20 +996,24 @@ static CDCLState cdcl_step_decide(CDCLContext *ctx) {
     /* 选择第一个未赋值的变量（简单策略） */
     int decision_var = -1;
     for (int v = 1; v <= ctx->var_count; v++) {
-        if (ctx->assigns[v] == 0) { decision_var = v; break; }
+        if (ctx->assigns[v] == 0) {
+            decision_var = v;
+            break;
+        }
     }
-    if (decision_var < 0) return CDCL_SATISFIED;
+    if (decision_var < 0)
+        return CDCL_SATISFIED;
 
     /* 进入新决策层 */
     ctx->decision_level++;
 
     /* 记录当前 trail 位置 */
     int needed = ctx->decision_level + 1;
-    int *new_lim = (int *)lv_realloc(ctx->trail_lim, (size_t)needed * sizeof(int));
+    int *new_lim = (int *) lv_realloc(ctx->trail_lim, (size_t) needed * sizeof(int));
     if (!new_lim) {
         /* realloc 失败，回退决策层级 */
         ctx->decision_level--;
-        return CDCL_CONFLICT;  /* 内存不足，视为冲突处理 */
+        return CDCL_CONFLICT; /* 内存不足，视为冲突处理 */
     }
     ctx->trail_lim = new_lim;
     ctx->trail_lim_capacity = needed;
@@ -1020,10 +1059,12 @@ static CDCLState cdcl_run(lvSolver *solver) {
 
     /* 首次运行时初始化 CDCL 上下文 */
     if (ctx->assigns == NULL) {
-        if (!cdcl_init_assigns(ctx, solver->var_count)) return CDCL_IDLE;
+        if (!cdcl_init_assigns(ctx, solver->var_count))
+            return CDCL_IDLE;
     }
     if (ctx->clauses == NULL || ctx->orig_clause_count == 0) {
-        if (!cdcl_init_clauses(ctx, solver)) return CDCL_IDLE;
+        if (!cdcl_init_clauses(ctx, solver))
+            return CDCL_IDLE;
     }
     /* 确保 var_count 同步 */
     ctx->var_count = solver->var_count;
@@ -1073,9 +1114,8 @@ static CDCLState cdcl_run(lvSolver *solver) {
                 /* 检查是否需要重启 */
                 if (ctx->state == CDCL_DECIDING && solver->config.enable_restarts) {
                     int max_restarts = lv_config_get_int("cdcl_max_restarts", 10);
-                    if (ctx->restarts < max_restarts &&
-                        ctx->conflicts > 0 &&
-                        ctx->conflicts % (int64_t)solver->config.restart_interval == 0) {
+                    if (ctx->restarts < max_restarts && ctx->conflicts > 0 &&
+                        ctx->conflicts % (int64_t) solver->config.restart_interval == 0) {
                         ctx->state = CDCL_RESTARTING;
                     }
                 }
@@ -1136,33 +1176,33 @@ lvSolverResult lv_solver_solve(lvSolver *solver) {
     }
 }
 
-lvSolverResult lv_solver_solve_under_assumptions(lvSolver *solver,
-                                                      const lvSolverLit *assumptions, int count) {
+lvSolverResult lv_solver_solve_under_assumptions(lvSolver *solver, const lvSolverLit *assumptions, int count) {
     lv_CHECK_NULL(solver, lv_SOLVER_UNKNOWN);
 
     /* 记录假设 */
-    lv_free((void **)&solver->assumption_lits);
+    lv_free((void **) &solver->assumption_lits);
     solver->assumption_lits = NULL;
     solver->assumption_count = 0;
 
     if (count > 0 && assumptions) {
-        solver->assumption_lits = (int *)lv_malloc((size_t)count * sizeof(int));
-        if (!solver->assumption_lits) return lv_SOLVER_UNKNOWN;
-        memcpy(solver->assumption_lits, assumptions, (size_t)count * sizeof(int));
+        solver->assumption_lits = (int *) lv_malloc((size_t) count * sizeof(int));
+        if (!solver->assumption_lits)
+            return lv_SOLVER_UNKNOWN;
+        memcpy(solver->assumption_lits, assumptions, (size_t) count * sizeof(int));
         solver->assumption_count = count;
 
         /* 扩展 assumption_failed 数组 */
         if (count > solver->assumption_failed_cap) {
-            lv_free((void **)&solver->assumption_failed);
-            solver->assumption_failed = (bool *)lv_malloc((size_t)count * sizeof(bool));
+            lv_free((void **) &solver->assumption_failed);
+            solver->assumption_failed = (bool *) lv_malloc((size_t) count * sizeof(bool));
             if (solver->assumption_failed) {
-                memset(solver->assumption_failed, 0, (size_t)count * sizeof(bool));
+                memset(solver->assumption_failed, 0, (size_t) count * sizeof(bool));
                 solver->assumption_failed_cap = count;
             } else {
                 solver->assumption_failed_cap = 0;
             }
         } else if (solver->assumption_failed) {
-            memset(solver->assumption_failed, 0, (size_t)count * sizeof(bool));
+            memset(solver->assumption_failed, 0, (size_t) count * sizeof(bool));
         }
     }
 
@@ -1175,13 +1215,15 @@ lvSolverResult lv_solver_solve_under_assumptions(lvSolver *solver,
 
 bool lv_solver_failed_constraint(const lvSolver *solver, lvConstraintId constraint_id) {
     lv_CHECK_NULL(solver, false);
-    if (constraint_id < 0 || constraint_id >= solver->constraint_failed_cap) return false;
+    if (constraint_id < 0 || constraint_id >= solver->constraint_failed_cap)
+        return false;
     return solver->constraint_failed[constraint_id];
 }
 
 bool lv_solver_failed_assumption(const lvSolver *solver, lvSolverLit assumption) {
     lv_CHECK_NULL(solver, false);
-    if (!solver->assumption_failed || solver->assumption_count == 0) return false;
+    if (!solver->assumption_failed || solver->assumption_count == 0)
+        return false;
 
     for (int i = 0; i < solver->assumption_count; i++) {
         if (solver->assumption_lits[i] == assumption) {
@@ -1203,9 +1245,9 @@ lvSolverLit *lv_solver_conflict_set(const lvSolver *solver, int *out_count) {
         /* 返回最后一个学习子句 */
         int idx = total - 1;
         int sz = ctx->clause_sizes[idx];
-        int *set = (int *)lv_malloc((size_t)(sz + 1) * sizeof(int));
+        int *set = (int *) lv_malloc((size_t) (sz + 1) * sizeof(int));
         if (set) {
-            memcpy(set, ctx->clauses[idx], (size_t)(sz + 1) * sizeof(int));
+            memcpy(set, ctx->clauses[idx], (size_t) (sz + 1) * sizeof(int));
             *out_count = sz;
             return set;
         }
@@ -1213,8 +1255,9 @@ lvSolverLit *lv_solver_conflict_set(const lvSolver *solver, int *out_count) {
 
     /* 无学习子句，返回空冲突集 */
     *out_count = 0;
-    int *set = (int *)lv_malloc(sizeof(int));
-    if (set) set[0] = 0;
+    int *set = (int *) lv_malloc(sizeof(int));
+    if (set)
+        set[0] = 0;
     return set;
 }
 
@@ -1230,8 +1273,7 @@ int lv_solver_get_value(const lvSolver *solver, lvSolverVar var) {
     return solver->values[var - 1];
 }
 
-bool lv_solver_get_coord(const lvSolver *solver, lvSolverVar var_base,
-                            SymbolicCoord *coord) {
+bool lv_solver_get_coord(const lvSolver *solver, lvSolverVar var_base, SymbolicCoord *coord) {
     lv_CHECK_NULL(solver, false);
     lv_CHECK_NULL(coord, false);
 
@@ -1270,9 +1312,9 @@ bool lv_solver_get_coord(const lvSolver *solver, lvSolverVar var_base,
         /* 遍历图的节点，查找与 var_base 关联的几何点 */
         for (int i = 0; i < g->node_count; i++) {
             GeomNode *node = g->nodes[i];
-            if (!node || !node->is_active) continue;
-            if (node->type == GEOM_POINT && node->coord_count >= 2 &&
-                node->symbolic_coords) {
+            if (!node || !node->is_active)
+                continue;
+            if (node->type == GEOM_POINT && node->coord_count >= 2 && node->symbolic_coords) {
                 /* 验证该节点的坐标与当前 SAT 赋值一致 */
                 /* 使用第一个有效坐标作为 x，第二个作为 y */
                 if (node->symbolic_coords[0] && node->symbolic_coords[1]) {
@@ -1301,11 +1343,10 @@ bool lv_solver_get_coord(const lvSolver *solver, lvSolverVar var_base,
 
     /* 使用缩放因子将有理数近似值编码为 Rational 坐标 */
     coord->type = RATIONAL;
-    coord->data.rational = rational_create(
-        (int64_t)(sign_x * lv_SOLVER_SCALE_FACTOR),
-        (uint64_t)lv_SOLVER_SCALE_FACTOR);
+    coord->data.rational =
+        rational_create((int64_t) (sign_x * lv_SOLVER_SCALE_FACTOR), (uint64_t) lv_SOLVER_SCALE_FACTOR);
     coord->trust = TRUST_GREEN;
-    coord->cached_value = (double)sign_x;
+    coord->cached_value = (double) sign_x;
     coord->cache_valid = true;
 
     return coord->data.rational != NULL;
@@ -1320,20 +1361,27 @@ CDCLState lv_solver_cdcl_state(const lvSolver *solver) {
     return solver->cdcl.state;
 }
 
-void lv_solver_cdcl_stats(const lvSolver *solver, int64_t *out_conflicts,
-                             int64_t *out_decisions, int64_t *out_propagations,
-                             int64_t *out_restarts) {
+void lv_solver_cdcl_stats(const lvSolver *solver, int64_t *out_conflicts, int64_t *out_decisions,
+                          int64_t *out_propagations, int64_t *out_restarts) {
     if (!solver) {
-        if (out_conflicts) *out_conflicts = 0;
-        if (out_decisions) *out_decisions = 0;
-        if (out_propagations) *out_propagations = 0;
-        if (out_restarts) *out_restarts = 0;
+        if (out_conflicts)
+            *out_conflicts = 0;
+        if (out_decisions)
+            *out_decisions = 0;
+        if (out_propagations)
+            *out_propagations = 0;
+        if (out_restarts)
+            *out_restarts = 0;
         return;
     }
-    if (out_conflicts) *out_conflicts = solver->cdcl.conflicts;
-    if (out_decisions) *out_decisions = solver->cdcl.decisions;
-    if (out_propagations) *out_propagations = solver->cdcl.propagations;
-    if (out_restarts) *out_restarts = solver->cdcl.restarts;
+    if (out_conflicts)
+        *out_conflicts = solver->cdcl.conflicts;
+    if (out_decisions)
+        *out_decisions = solver->cdcl.decisions;
+    if (out_propagations)
+        *out_propagations = solver->cdcl.propagations;
+    if (out_restarts)
+        *out_restarts = solver->cdcl.restarts;
 }
 
 const CDCLContext *lv_solver_cdcl_context(const lvSolver *solver) {
@@ -1367,7 +1415,7 @@ lvSolverResult lv_solver_solve_algebraic(lvSolver *solver) {
      * 这里使用简化编码：直接将子句作为多项式输入。 */
     int poly_count = solver->clause_count;
     /* 使用 void* 传递子句数组（Groebner 引擎内部将解析） */
-    void **polynomials = (void **)lv_malloc((size_t)poly_count * sizeof(void *));
+    void **polynomials = (void **) lv_malloc((size_t) poly_count * sizeof(void *));
     if (!polynomials) {
         lv_groebner_parallel_destroy(gb_engine);
         return lv_SOLVER_UNKNOWN;
@@ -1380,7 +1428,7 @@ lvSolverResult lv_solver_solve_algebraic(lvSolver *solver) {
     /* 调用 Groebner 基并行计算 */
     int result = lv_groebner_parallel_compute(gb_engine, polynomials, poly_count);
 
-    lv_free((void **)&polynomials);
+    lv_free((void **) &polynomials);
 
     /* 解释 Groebner 基计算结果
      *
@@ -1407,8 +1455,7 @@ lvSolverResult lv_solver_solve_algebraic(lvSolver *solver) {
                         /* 检查该多项式是否为非零常数。
                          * 约化基中常数多项式的单项式数为 1 且无常数项为零时
                          * 意味着该多项式恒等于非零常数（矛盾）。 */
-                        if (lv_groebner_poly_is_nonzero_constant(
-                                gb_engine->groebner_basis[i])) {
+                        if (lv_groebner_poly_is_nonzero_constant(gb_engine->groebner_basis[i])) {
                             found_contradiction = true;
                             break;
                         }
@@ -1435,8 +1482,7 @@ lvSolverResult lv_solver_solve_algebraic(lvSolver *solver) {
     return solver_result;
 }
 
-void lv_solver_set_constraint_graph(lvSolver *solver,
-                                       const struct ConstraintGraph *graph) {
+void lv_solver_set_constraint_graph(lvSolver *solver, const struct ConstraintGraph *graph) {
     lv_CHECK_NULL_VOID(solver);
     solver->graph = graph;
 }
@@ -1449,11 +1495,12 @@ lvSolver *lv_solver_clone(const lvSolver *solver) {
     lv_CHECK_NULL(solver, NULL);
 
     lvSolver *clone = lv_solver_create_with_config(&solver->config);
-    if (!clone) return NULL;
+    if (!clone)
+        return NULL;
 
     /* 复制变量状态 */
     if (clone->var_capacity >= solver->var_count) {
-        memcpy(clone->values, solver->values, (size_t)solver->var_count * sizeof(int));
+        memcpy(clone->values, solver->values, (size_t) solver->var_count * sizeof(int));
     }
     clone->var_count = solver->var_count;
     clone->next_var_id = solver->next_var_id;
@@ -1466,12 +1513,12 @@ lvSolver *lv_solver_clone(const lvSolver *solver) {
             lv_solver_destroy(clone);
             return NULL;
         }
-        clone->clauses[i] = (int *)lv_malloc((size_t)(size + 1) * sizeof(int));
+        clone->clauses[i] = (int *) lv_malloc((size_t) (size + 1) * sizeof(int));
         if (!clone->clauses[i]) {
             lv_solver_destroy(clone);
             return NULL;
         }
-        memcpy(clone->clauses[i], solver->clauses[i], (size_t)(size + 1) * sizeof(int));
+        memcpy(clone->clauses[i], solver->clauses[i], (size_t) (size + 1) * sizeof(int));
         clone->clause_sizes[i] = size;
     }
     clone->next_constraint_id = solver->next_constraint_id;
@@ -1486,26 +1533,26 @@ void lv_solver_reset(lvSolver *solver) {
     lv_CHECK_NULL_VOID(solver);
 
     /* 清除变量赋值 */
-    memset(solver->values, 0, (size_t)solver->var_capacity * sizeof(int));
+    memset(solver->values, 0, (size_t) solver->var_capacity * sizeof(int));
     solver->var_count = 0;
     solver->next_var_id = 1;
 
     /* 清除子句 */
     for (int i = 0; i < solver->clause_count; i++) {
-        lv_free((void **)&solver->clauses[i]);
+        lv_free((void **) &solver->clauses[i]);
     }
     solver->clause_count = 0;
     solver->next_constraint_id = 0;
 
     /* 清除失败标记 */
     if (solver->constraint_failed) {
-        memset(solver->constraint_failed, 0, (size_t)solver->constraint_failed_cap * sizeof(bool));
+        memset(solver->constraint_failed, 0, (size_t) solver->constraint_failed_cap * sizeof(bool));
     }
-    lv_free((void **)&solver->assumption_lits);
+    lv_free((void **) &solver->assumption_lits);
     solver->assumption_lits = NULL;
     solver->assumption_count = 0;
     if (solver->assumption_failed) {
-        memset(solver->assumption_failed, 0, (size_t)solver->assumption_failed_cap * sizeof(bool));
+        memset(solver->assumption_failed, 0, (size_t) solver->assumption_failed_cap * sizeof(bool));
     }
 
     /* 重置 CDCL 上下文 */

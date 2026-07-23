@@ -5,16 +5,17 @@
  *          这些函数原内嵌于 func_block.c，现独立为单独编译单元。
  */
 
+#include "func_block_utils.h"
+
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "func_block_utils.h"
 
 /* 前向声明：委托给 preset_common.c 中的主实现，避免循环依赖 */
-extern int* lv_dup_int_array(const int *src, int count);
+extern int *lv_dup_int_array(const int *src, int count);
 
 /* ==================== 命名常量 ==================== */
 
@@ -38,9 +39,11 @@ extern int* lv_dup_int_array(const int *src, int count);
  * @return false 不存在或数组为 NULL
  */
 bool is_id_in_array(int id, const int *arr, int count) {
-    if (!arr) return false;
+    if (!arr)
+        return false;
     for (int i = 0; i < count; i++) {
-        if (arr[i] == id) return true;
+        if (arr[i] == id)
+            return true;
     }
     return false;
 }
@@ -86,35 +89,39 @@ int *dup_int_array(const int *src, int count) {
  * @return 新分配的整数数组，调用方负责释放；失败返回 NULL
  */
 int *merge_int_arrays(const int *a, int a_count, const int *b, int b_count, int *out_count) {
-    if (!out_count) return NULL;
+    if (!out_count)
+        return NULL;
     /* 【修复】检查 count 参数是否为负数，防止 size_t 转换后回绕产生巨大值 */
     if (a_count < 0 || b_count < 0) {
         *out_count = 0;
         return NULL;
     }
     if (a_count > INT_MAX - b_count) {
-        return NULL; // 整数溢出
+        return NULL;  // 整数溢出
     }
     *out_count = a_count + b_count;
-    if (*out_count == 0) return NULL;
+    if (*out_count == 0)
+        return NULL;
     if ((!a && a_count > 0) || (!b && b_count > 0)) {
         *out_count = 0;
         return NULL;
     }
     /* 【修复】显式检查 (size_t)(*out_count) * sizeof(int) 不会溢出 size_t */
-    if ((size_t)(*out_count) > SIZE_MAX / sizeof(int)) {
+    if ((size_t) (*out_count) > SIZE_MAX / sizeof(int)) {
         *out_count = 0;
         return NULL;
     }
     /* 分配结果数组，调用者负责释放 */
-    int *result = lv_malloc((size_t)(*out_count) * sizeof(int));
+    int *result = lv_malloc((size_t) (*out_count) * sizeof(int));
     if (!result) {
         *out_count = 0;
-        return NULL;  /* 分配失败，无需释放 result */
+        return NULL; /* 分配失败，无需释放 result */
     }
     int idx = 0;
-    for (int i = 0; i < a_count; i++) result[idx++] = a[i];
-    for (int i = 0; i < b_count; i++) result[idx++] = b[i];
+    for (int i = 0; i < a_count; i++)
+        result[idx++] = a[i];
+    for (int i = 0; i < b_count; i++)
+        result[idx++] = b[i];
     /* 【说明】result 由调用者负责释放，此处直接返回所有权 */
     return result;
 }

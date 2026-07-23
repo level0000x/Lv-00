@@ -13,9 +13,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv/proof.h"
+
 #include "lv/constraint_graph.h"
 #include "lv/node_deep_copy.h"
+#include "lv/proof.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -46,7 +48,7 @@ void proposition_destroy(Proposition *prop) {
     /* 初始容量 128，按需动态扩容，避免深层嵌套命题导致内存泄漏 */
     int stack_capacity = PROOF_DESTROY_STACK_INITIAL_CAPACITY;
     int stack_top = 0;
-    Proposition **destroy_stack = (Proposition **) lv_malloc((size_t)stack_capacity * sizeof(Proposition *));
+    Proposition **destroy_stack = (Proposition **) lv_malloc((size_t) stack_capacity * sizeof(Proposition *));
     if (!destroy_stack) {
         /* 分配失败时的降级处理：直接释放命题本身的资源
          * 注意：这种情况下子命题可能泄漏，但至少避免崩溃 */
@@ -78,7 +80,7 @@ void proposition_destroy(Proposition *prop) {
                         for (int i = 0; i < stack_top; i++) {
                             proposition_unref(destroy_stack[i]);
                         }
-                        lv_free((void **)&destroy_stack);
+                        lv_free((void **) &destroy_stack);
                         return;
                     }
                     int new_cap = stack_capacity * 2;
@@ -185,7 +187,7 @@ static bool proposition_set_id_list(int **target, int *count_ptr, const int *ids
     if (count > 0) {
         if (!ids)
             return false;
-        new_ids = lv_malloc((size_t)count * sizeof(int));
+        new_ids = lv_malloc((size_t) count * sizeof(int));
         if (!new_ids)
             return false;
         memcpy(new_ids, ids, count * sizeof(int));
@@ -287,8 +289,8 @@ bool proposition_set_preconditions(Proposition *prop, const int *region_ids, int
 bool proposition_set_postconditions(Proposition *prop, const int *constraint_ids, int count) {
     if (!prop)
         return false;
-    bool result = proposition_set_id_list(&prop->postcondition_constraint_ids, &prop->postcondition_count, constraint_ids,
-                                   count);
+    bool result =
+        proposition_set_id_list(&prop->postcondition_constraint_ids, &prop->postcondition_count, constraint_ids, count);
     if (result) {
         prop->last_modified = time(NULL);
     }
@@ -566,7 +568,8 @@ UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *propos
  * @param out_mismatch_info [输出] 不匹配的描述字符串（仅在合一失败时设置）
  * @return 合一状态
  */
-UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info) {
+UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Proposition *proposition,
+                                 char **out_mismatch_info) {
     if (!out_mismatch_info) {
         return proof_unify(construction, proposition, true);
     }
@@ -859,8 +862,7 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
         if (nav->target_prop->sub_props && nav->target_prop->sub_prop_count >= 2) {
             for (int i = 0; i < nav->target_prop->sub_prop_count && !has_contradiction; i++) {
                 for (int j = i + 1; j < nav->target_prop->sub_prop_count && !has_contradiction; j++) {
-                    if (proposition_contradicts(nav->target_prop->sub_props[i],
-                                                nav->target_prop->sub_props[j])) {
+                    if (proposition_contradicts(nav->target_prop->sub_props[i], nav->target_prop->sub_props[j])) {
                         has_contradiction = true;
                     }
                 }
@@ -868,8 +870,7 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
         }
         if (has_contradiction) {
             if (proof_stream_ctx) {
-                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING,
-                                   "逻辑互斥: 检测到自矛盾命题", step->id);
+                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING, "逻辑互斥: 检测到自矛盾命题", step->id);
             }
             nav->proof_state = PROOF_STATE_CONTRADICTORY;
         }

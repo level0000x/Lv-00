@@ -7,8 +7,6 @@
  * @version 3.3.0
  */
 
-#include "lv/solver.h"
-
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -17,11 +15,13 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/solver.h"
+#include "lv/stream.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
-#include "lv/stream.h"
 #include "stream_context_util.h"
 
 /* --- 共享宏 --- */
@@ -50,8 +50,9 @@ int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, 
 static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
     if (sys->count >= sys->capacity) {
         int new_cap = sys->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : sys->capacity * 2;
-        PolyEquation *new_eqs = lv_realloc(sys->eqs, (size_t)new_cap * sizeof(PolyEquation));
-        if (!new_eqs) return -1;
+        PolyEquation *new_eqs = lv_realloc(sys->eqs, (size_t) new_cap * sizeof(PolyEquation));
+        if (!new_eqs)
+            return -1;
         sys->eqs = new_eqs;
         sys->capacity = new_cap;
     }
@@ -65,12 +66,12 @@ static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int v
 
 /* equation_system_push 实现在 solver_eq_system.c 中，通过前向声明可见 */
 
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
-    do { \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
+#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
+    do {                                                               \
+        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
             lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label; \
-        } \
+            goto label;                                                \
+        }                                                              \
     } while (0)
 
 /* ── 坐标提取与方程提取 ── */
@@ -81,7 +82,8 @@ static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int v
  * @param sys 方程系统指针
  */
 static void equation_system_clear(EquationSystem *sys) {
-    if (!sys || !sys->eqs) return;
+    if (!sys || !sys->eqs)
+        return;
     for (int i = 0; i < sys->count; i++) {
         mpz_poly_clear(&sys->eqs[i].poly);
     }
@@ -109,9 +111,11 @@ static void equation_system_clear(EquationSystem *sys) {
  * 通过序列化为字符串再解析为浮点数实现，精度受限于 strtod。
  */
 static bool coord_to_double_via_serialize(const SymbolicCoord *c, double *out) {
-    if (!c || !out) return false;
+    if (!c || !out)
+        return false;
     char *str = symbolic_coord_serialize(c);
-    if (!str) return false;
+    if (!str)
+        return false;
     char *endptr = NULL;
     *out = strtod(str, &endptr);
     lv_free((void **) &str);
@@ -1452,11 +1456,14 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
  * @return true 表示成功求解，false 表示次数不为 1 或 a 近似为 0
  */
 bool solve_linear(const mpz_poly_t *poly, double *x_out) {
-    if (!poly || !x_out) return false;
-    if (poly->degree != 1) return false;
+    if (!poly || !x_out)
+        return false;
+    if (poly->degree != 1)
+        return false;
     double a = mpz_get_d(poly->coeffs[1]);
     double b = mpz_get_d(poly->coeffs[0]);
-    if (fabs(a) < lv_ZERO_EPSILON) return false;
+    if (fabs(a) < lv_ZERO_EPSILON)
+        return false;
     *x_out = -b / a;
     return true;
 }

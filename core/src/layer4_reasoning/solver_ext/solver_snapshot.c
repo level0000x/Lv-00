@@ -6,9 +6,11 @@
  */
 
 #include "../solver_snapshot.h"
-#include "lv/lv.h"
-#include "lv/constraint_graph.h"
+
 #include <string.h>
+
+#include "lv/constraint_graph.h"
+#include "lv/lv.h"
 
 bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot) {
     if (!graph || !snapshot)
@@ -40,10 +42,9 @@ bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot
         if (node && node->symbolic_coords) {
             snapshot->copies[i * 2 + 0] =
                 node->symbolic_coords[0] ? symbolic_coord_copy(node->symbolic_coords[0]) : NULL;
-            snapshot->copies[i * 2 + 1] =
-                (node->coord_count >= 2 && node->symbolic_coords[1])
-                    ? symbolic_coord_copy(node->symbolic_coords[1])
-                    : NULL;
+            snapshot->copies[i * 2 + 1] = (node->coord_count >= 2 && node->symbolic_coords[1])
+                                              ? symbolic_coord_copy(node->symbolic_coords[1])
+                                              : NULL;
         } else {
             snapshot->copies[i * 2 + 0] = NULL;
             snapshot->copies[i * 2 + 1] = NULL;

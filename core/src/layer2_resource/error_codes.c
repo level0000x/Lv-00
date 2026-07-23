@@ -294,11 +294,11 @@ int lv_get_error_description(char *buf, size_t buf_size) {
         if (has_valid_func) {
             /* 文件名、行号、函数名均有效：输出完整上下文 */
             lv_SAFE_SNPRINTF(written, buf, buf_size, "[%s] %s (0x%08X): %s\n  位置: %s:%d (%s)", category, name,
-                               g_last_error_code, message, g_error_file, g_error_line, g_error_func);
+                             g_last_error_code, message, g_error_file, g_error_line, g_error_func);
         } else {
             /* 函数名无效：仅输出文件名和行号 */
             lv_SAFE_SNPRINTF(written, buf, buf_size, "[%s] %s (0x%08X): %s\n  位置: %s:%d", category, name,
-                               g_last_error_code, message, g_error_file, g_error_line);
+                             g_last_error_code, message, g_error_file, g_error_line);
         }
     } else {
         /* 无上下文信息 */

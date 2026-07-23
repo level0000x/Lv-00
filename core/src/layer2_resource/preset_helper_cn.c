@@ -8,9 +8,10 @@
  * @version 1.0.0
  */
 
-#include "lv/lv.h"
 #include <stdio.h>
 #include <string.h>
+
+#include "lv/lv.h"
 
 /* ========================================================================
  * 预设几何名称表
@@ -18,26 +19,26 @@
 
 /** 预设名称条目 */
 typedef struct {
-    int preset_id;        /**< 预设ID */
-    const char *name_cn;  /**< 中文名称 */
-    const char *name_en;  /**< 英文名称 */
-    const char *desc_cn;  /**< 中文描述 */
+    int preset_id;       /**< 预设ID */
+    const char *name_cn; /**< 中文名称 */
+    const char *name_en; /**< 英文名称 */
+    const char *desc_cn; /**< 中文描述 */
 } PresetNameEntry;
 
 static const PresetNameEntry g_preset_names[] = {
-    {0,  "点",         "point",         "零维几何对象，表示空间中的位置"},
-    {1,  "线段",       "line_segment",  "一维有限几何对象，由两个端点定义"},
-    {2,  "直线",       "line",          "一维无限延伸的几何对象"},
-    {3,  "圆",         "circle",        "到定点距离相等的点的集合"},
-    {4,  "三角形",     "triangle",      "三条线段围成的封闭区域"},
-    {5,  "矩形",       "rectangle",     "四角均为直角的四边形"},
-    {6,  "正方形",     "square",        "四边等长的矩形"},
-    {7,  "平行四边形", "parallelogram", "对边平行且等长的四边形"},
-    {8,  "梯形",       "trapezoid",     "仅一组对边平行的四边形"},
-    {9,  "菱形",       "rhombus",       "四边等长的平行四边形"},
-    {10, "圆弧",       "arc",           "圆上两点间的曲线段"},
-    {11, "椭圆",       "ellipse",       "到两焦点距离之和相等的点的集合"},
-    {12, "多边形",     "polygon",       "多条线段围成的封闭区域"},
+    {0, "点", "point", "零维几何对象，表示空间中的位置"},
+    {1, "线段", "line_segment", "一维有限几何对象，由两个端点定义"},
+    {2, "直线", "line", "一维无限延伸的几何对象"},
+    {3, "圆", "circle", "到定点距离相等的点的集合"},
+    {4, "三角形", "triangle", "三条线段围成的封闭区域"},
+    {5, "矩形", "rectangle", "四角均为直角的四边形"},
+    {6, "正方形", "square", "四边等长的矩形"},
+    {7, "平行四边形", "parallelogram", "对边平行且等长的四边形"},
+    {8, "梯形", "trapezoid", "仅一组对边平行的四边形"},
+    {9, "菱形", "rhombus", "四边等长的平行四边形"},
+    {10, "圆弧", "arc", "圆上两点间的曲线段"},
+    {11, "椭圆", "ellipse", "到两焦点距离之和相等的点的集合"},
+    {12, "多边形", "polygon", "多条线段围成的封闭区域"},
 };
 
 #define PRESET_NAME_COUNT (sizeof(g_preset_names) / sizeof(g_preset_names[0]))
@@ -51,8 +52,7 @@ static const PresetNameEntry g_preset_names[] = {
  * @param preset_id 预设ID
  * @return 中文名称字符串，未找到时返回 "未知预设"
  */
-const char *lv_preset_get_name_cn(int preset_id)
-{
+const char *lv_preset_get_name_cn(int preset_id) {
     for (size_t i = 0; i < PRESET_NAME_COUNT; i++) {
         if (g_preset_names[i].preset_id == preset_id) {
             return g_preset_names[i].name_cn;
@@ -66,8 +66,7 @@ const char *lv_preset_get_name_cn(int preset_id)
  * @param preset_id 预设ID
  * @return 中文描述字符串，未找到时返回 "无描述"
  */
-const char *lv_preset_get_desc_cn(int preset_id)
-{
+const char *lv_preset_get_desc_cn(int preset_id) {
     for (size_t i = 0; i < PRESET_NAME_COUNT; i++) {
         if (g_preset_names[i].preset_id == preset_id) {
             return g_preset_names[i].desc_cn;
@@ -81,9 +80,9 @@ const char *lv_preset_get_desc_cn(int preset_id)
  * @param name_cn 中文名称
  * @return 预设ID，未找到返回 -1
  */
-int lv_preset_find_by_name_cn(const char *name_cn)
-{
-    if (name_cn == NULL) return -1;
+int lv_preset_find_by_name_cn(const char *name_cn) {
+    if (name_cn == NULL)
+        return -1;
 
     for (size_t i = 0; i < PRESET_NAME_COUNT; i++) {
         if (strcmp(g_preset_names[i].name_cn, name_cn) == 0) {
@@ -103,9 +102,9 @@ int lv_preset_find_by_name_cn(const char *name_cn)
  * @param buf_size  缓冲区大小
  * @return 写入的字符数（不含终止符），失败返回 -1
  */
-int lv_preset_format_cn(int preset_id, char *buf, size_t buf_size)
-{
-    if (buf == NULL || buf_size == 0) return -1;
+int lv_preset_format_cn(int preset_id, char *buf, size_t buf_size) {
+    if (buf == NULL || buf_size == 0)
+        return -1;
 
     const char *name = lv_preset_get_name_cn(preset_id);
     const char *desc = lv_preset_get_desc_cn(preset_id);
@@ -117,7 +116,6 @@ int lv_preset_format_cn(int preset_id, char *buf, size_t buf_size)
  * @brief 获取预设名称表的条目数量
  * @return 条目数量
  */
-int lv_preset_name_count(void)
-{
-    return (int)PRESET_NAME_COUNT;
+int lv_preset_name_count(void) {
+    return (int) PRESET_NAME_COUNT;
 }

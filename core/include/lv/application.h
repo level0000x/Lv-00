@@ -12,20 +12,9 @@ extern "C" {
  * 应用模式与日志级别枚举
  * ======================================================================== */
 
-typedef enum {
-    lv_APP_REPL = 0,
-    lv_APP_BATCH,
-    lv_APP_SERVER,
-    lv_APP_GUI
-} lvAppMode;
+typedef enum { lv_APP_REPL = 0, lv_APP_BATCH, lv_APP_SERVER, lv_APP_GUI } lvAppMode;
 
-typedef enum {
-    lv_LOG_DEBUG = 0,
-    lv_LOG_INFO,
-    lv_LOG_WARN,
-    lv_LOG_ERROR,
-    lv_LOG_FATAL
-} lvLogLevel;
+typedef enum { lv_LOG_DEBUG = 0, lv_LOG_INFO, lv_LOG_WARN, lv_LOG_ERROR, lv_LOG_FATAL } lvLogLevel;
 
 /* ========================================================================
  * 应用配置结构体
@@ -70,7 +59,7 @@ typedef struct lvApplication {
     lvSession **sessions;
     int session_count;
     int session_capacity;
-    void *verifier;  /* lvMetaVerifier* */
+    void *verifier; /* lvMetaVerifier* */
     int total_sessions_run;
     int total_sessions_passed;
     int total_sessions_failed;
@@ -108,7 +97,7 @@ bool lv_verify_report_passed(const lvVerifyReport *report);
 #endif
 
 #ifndef lv_LOG_DEBUG
-#define lv_LOG_DEBUG(...) ((void)0)
+#define lv_LOG_DEBUG(...) ((void) 0)
 #endif
 
 /* ========================================================================

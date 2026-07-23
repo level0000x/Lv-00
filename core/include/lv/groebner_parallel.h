@@ -10,10 +10,10 @@ extern "C" {
 /* Thread pool configuration for Groebner basis computation */
 typedef struct lvGroebnerConfig {
     int max_threads;
-    int chunk_size;           /* Polynomial pairs per chunk */
+    int chunk_size;                /* Polynomial pairs per chunk */
     double load_balance_threshold; /* Trigger rebalance when imbalance exceeds this */
-    int enable_inter_reduction;   /* Inter-thread reduction */
-    int enable_cache;             /* Cache intermediate S-polynomials */
+    int enable_inter_reduction;    /* Inter-thread reduction */
+    int enable_cache;              /* Cache intermediate S-polynomials */
 } lvGroebnerConfig;
 
 /* Parallel computation state */
@@ -50,8 +50,7 @@ lvGroebnerParallel *lv_groebner_parallel_create(const lvGroebnerConfig *config);
 void lv_groebner_parallel_destroy(lvGroebnerParallel *engine);
 
 /* Execution */
-int lv_groebner_parallel_compute(lvGroebnerParallel *engine,
-                                     void *polynomials, int poly_count);
+int lv_groebner_parallel_compute(lvGroebnerParallel *engine, void *polynomials, int poly_count);
 
 /* Progress query */
 lvGroebnerState lv_groebner_parallel_state(const lvGroebnerParallel *engine);

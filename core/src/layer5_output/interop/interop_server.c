@@ -7,7 +7,6 @@
  * @version 3.3.0
  */
 
-#include "lv/interop.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -15,8 +14,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
+#include "lv/interop.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -45,12 +47,12 @@ lv_DECLARE_STREAM_CTX(interop);
 #define INTEROP_HAS_WINSOCK 0
 #endif
 #elif defined(__linux__) || defined(__APPLE__)
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #define INTEROP_HAS_POSIX_SOCKET 1
 #else
 #define INTEROP_HAS_WINSOCK 0
@@ -264,7 +266,7 @@ InteropServer *interop_server_create(InteropInterfaceType type) {
     server->type = type;
     server->stream_callback_id = -1;
     server->stream_filter_mask = STREAM_FILTER_ALL; /* 默认接收所有事件 */
-    server->persistent_engine = NULL; /* 引擎复用：初始为空，首次命令时惰性创建 */
+    server->persistent_engine = NULL;               /* 引擎复用：初始为空，首次命令时惰性创建 */
     server->engine_in_use = 0;
     return server;
 }
@@ -338,9 +340,9 @@ int interop_server_start(InteropServer *server, int port) {
         int wsa_result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
         if (wsa_result != 0) {
             lv_set_error(lv_ERROR_IO,
-                           "Winsock初始化失败（错误码=%d）。"
-                           "请检查网络驱动是否正常安装。",
-                           wsa_result);
+                         "Winsock初始化失败（错误码=%d）。"
+                         "请检查网络驱动是否正常安装。",
+                         wsa_result);
             return lv_ERROR_IO;
         }
 
@@ -705,9 +707,9 @@ int interop_server_run(InteropServer *server) {
         SOCKET listen_sock = (SOCKET) (intptr_t) server->internal_data;
         if (listen_sock == INVALID_SOCKET || listen_sock == 0) {
             lv_set_error(lv_ERROR_IO,
-                           "WebSocket循环失败：监听套接字无效（listen_sock=%p）。"
-                           "请确认 interop_server_start 已成功绑定端口。",
-                           (void *) (intptr_t) listen_sock);
+                         "WebSocket循环失败：监听套接字无效（listen_sock=%p）。"
+                         "请确认 interop_server_start 已成功绑定端口。",
+                         (void *) (intptr_t) listen_sock);
             return lv_ERROR_IO;
         }
 
@@ -768,11 +770,11 @@ int interop_server_run(InteropServer *server) {
                 if (client_sock != INVALID_SOCKET) {
                     if (client_count < WS_MAX_CLIENTS) {
                         client_socks[client_count++] = client_sock;
-                        lv_set_error(lv_OK, "WebSocket客户端已连接（套接字=%p，总计%d个客户端）",
-                                       (void *) client_sock, client_count);
+                        lv_set_error(lv_OK, "WebSocket客户端已连接（套接字=%p，总计%d个客户端）", (void *) client_sock,
+                                     client_count);
                     } else {
                         lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "WebSocket客户端连接被拒绝：已达最大客户端数%d",
-                                       WS_MAX_CLIENTS);
+                                     WS_MAX_CLIENTS);
                         closesocket(client_sock);
                     }
                 }
@@ -792,7 +794,7 @@ int interop_server_run(InteropServer *server) {
                     /* 客户端断开连接 */
                     int err = WSAGetLastError();
                     lv_set_error(lv_OK, "WebSocket客户端断开（套接字=%p，错误码=%d）", (void *) cs,
-                                   (recv_len == 0 ? 0 : err));
+                                 (recv_len == 0 ? 0 : err));
                     closesocket(cs);
                     client_socks[i] = INVALID_SOCKET;
                     continue;
@@ -852,9 +854,9 @@ int interop_server_run(InteropServer *server) {
         int listen_sock = (int) (intptr_t) server->internal_data;
         if (listen_sock < 0) {
             lv_set_error(lv_ERROR_IO,
-                           "WebSocket循环失败：监听套接字无效（listen_sock=%d）。"
-                           "请确认 interop_server_start 已成功绑定端口。",
-                           listen_sock);
+                         "WebSocket循环失败：监听套接字无效（listen_sock=%d）。"
+                         "请确认 interop_server_start 已成功绑定端口。",
+                         listen_sock);
             return lv_ERROR_IO;
         }
 
@@ -917,11 +919,11 @@ int interop_server_run(InteropServer *server) {
                 if (client_sock >= 0) {
                     if (client_count < WS_MAX_CLIENTS) {
                         client_socks[client_count++] = client_sock;
-                        lv_set_error(lv_OK, "WebSocket客户端已连接（套接字=%d，总计%d个客户端）",
-                                       client_sock, client_count);
+                        lv_set_error(lv_OK, "WebSocket客户端已连接（套接字=%d，总计%d个客户端）", client_sock,
+                                     client_count);
                     } else {
                         lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "WebSocket客户端连接被拒绝：已达最大客户端数%d",
-                                       WS_MAX_CLIENTS);
+                                     WS_MAX_CLIENTS);
                         close(client_sock);
                     }
                 }
@@ -940,8 +942,7 @@ int interop_server_run(InteropServer *server) {
                 if (recv_len <= 0) {
                     /* 客户端断开连接 */
                     int err = errno;
-                    lv_set_error(lv_OK, "WebSocket客户端断开（套接字=%d，错误码=%d）", cs,
-                                   (recv_len == 0 ? 0 : err));
+                    lv_set_error(lv_OK, "WebSocket客户端断开（套接字=%d，错误码=%d）", cs, (recv_len == 0 ? 0 : err));
                     close(cs);
                     client_socks[i] = -1;
                     continue;
@@ -1000,8 +1001,8 @@ int interop_server_run(InteropServer *server) {
 #else
         /* 无网络库支持：降级为 STDIO 输入处理 */
         lv_set_error(lv_WARNING,
-                       "警告：未检测到Winsock2或POSIX socket库，WebSocket服务器运行在STDIO降级模式。"
-                       "请安装Windows SDK或POSIX兼容的开发环境以启用完整的网络功能。");
+                     "警告：未检测到Winsock2或POSIX socket库，WebSocket服务器运行在STDIO降级模式。"
+                     "请安装Windows SDK或POSIX兼容的开发环境以启用完整的网络功能。");
 
         char input[INTEROP_CMD_BUFFER_SIZE];
         char output[INTEROP_RESP_BUFFER_SIZE];
@@ -1055,9 +1056,11 @@ static lvPlugin g_plugins[MAX_PLUGINS];
 static int g_plugin_count = 0;
 
 int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin) {
-    if (!plugin) return -1;
-    (void)mgr; /* 管理器参数保留供未来扩展 */
-    if (g_plugin_count >= MAX_PLUGINS) return -1;
+    if (!plugin)
+        return -1;
+    (void) mgr; /* 管理器参数保留供未来扩展 */
+    if (g_plugin_count >= MAX_PLUGINS)
+        return -1;
     memcpy(&g_plugins[g_plugin_count], plugin, sizeof(lvPlugin));
     g_plugin_count++;
     return 0;

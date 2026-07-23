@@ -20,19 +20,22 @@
  * ============================================================ */
 
 lv_PUBLIC_API void nt_mod_context_init(lvModContext *ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
     mpz_init_set_ui(ctx->modulus, 1);
     ctx->is_prime = 0;
 }
 
 lv_PUBLIC_API void nt_mod_context_set(lvModContext *ctx, const mpz_t modulus) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
     mpz_set(ctx->modulus, modulus);
     ctx->is_prime = 0;
 }
 
 lv_PUBLIC_API void nt_mod_context_clear(lvModContext *ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
     mpz_clear(ctx->modulus);
     ctx->modulus->_mp_d = NULL; /* safety: prevent dangling pointer */
     ctx->is_prime = 0;
@@ -42,29 +45,29 @@ lv_PUBLIC_API void nt_mod_context_clear(lvModContext *ctx) {
  * Modular arithmetic
  * ============================================================ */
 
-lv_PUBLIC_API void nt_mod_add(mpz_t result, const lvModContext *ctx,
-                                const mpz_t a, const mpz_t b) {
-    if (!ctx) return;
+lv_PUBLIC_API void nt_mod_add(mpz_t result, const lvModContext *ctx, const mpz_t a, const mpz_t b) {
+    if (!ctx)
+        return;
     mpz_add(result, a, b);
     mpz_mod(result, result, ctx->modulus);
 }
 
-lv_PUBLIC_API void nt_mod_mul(mpz_t result, const lvModContext *ctx,
-                                const mpz_t a, const mpz_t b) {
-    if (!ctx) return;
+lv_PUBLIC_API void nt_mod_mul(mpz_t result, const lvModContext *ctx, const mpz_t a, const mpz_t b) {
+    if (!ctx)
+        return;
     mpz_mul(result, a, b);
     mpz_mod(result, result, ctx->modulus);
 }
 
-lv_PUBLIC_API int nt_mod_inv(mpz_t result, const lvModContext *ctx,
-                               const mpz_t a) {
-    if (!ctx) return 0;
+lv_PUBLIC_API int nt_mod_inv(mpz_t result, const lvModContext *ctx, const mpz_t a) {
+    if (!ctx)
+        return 0;
     return (mpz_invert(result, a, ctx->modulus) != 0) ? 1 : 0;
 }
 
-lv_PUBLIC_API void nt_mod_pow(mpz_t result, const lvModContext *ctx,
-                                const mpz_t base, const mpz_t exp) {
-    if (!ctx) return;
+lv_PUBLIC_API void nt_mod_pow(mpz_t result, const lvModContext *ctx, const mpz_t base, const mpz_t exp) {
+    if (!ctx)
+        return;
     mpz_powm(result, base, exp, ctx->modulus);
 }
 
@@ -90,10 +93,14 @@ lv_PUBLIC_API void nt_lcm(mpz_t result, const mpz_t a, const mpz_t b) {
 
 lv_PUBLIC_API int nt_is_prime_miller_rabin(const mpz_t n, int k) {
     /* Handle small cases */
-    if (mpz_cmp_ui(n, 2) < 0) return 0;
-    if (mpz_cmp_ui(n, 2) == 0) return 1;
-    if (mpz_cmp_ui(n, 3) == 0) return 1;
-    if (mpz_even_p(n)) return 0;
+    if (mpz_cmp_ui(n, 2) < 0)
+        return 0;
+    if (mpz_cmp_ui(n, 2) == 0)
+        return 1;
+    if (mpz_cmp_ui(n, 3) == 0)
+        return 1;
+    if (mpz_even_p(n))
+        return 0;
 
     /* Write n - 1 = 2^r * d with d odd */
     mpz_t n_minus_1, d;
@@ -116,12 +123,13 @@ lv_PUBLIC_API int nt_is_prime_miller_rabin(const mpz_t n, int k) {
     }
 
     gmp_randinit_default(state);
-    gmp_randseed_ui(state, (unsigned long)42); /* deterministic seed for reproducibility */
+    gmp_randseed_ui(state, (unsigned long) 42); /* deterministic seed for reproducibility */
 
     for (int i = 0; i < k; i++) {
         /* Pick a random witness a in [2, n - 2] */
         mpz_urandomm(a, state, n_minus_1);
-        if (mpz_cmp_ui(a, 2) < 0) mpz_set_ui(a, 2);
+        if (mpz_cmp_ui(a, 2) < 0)
+            mpz_set_ui(a, 2);
 
         /* x = a^d mod n */
         mpz_powm(x, a, d, n);
@@ -175,10 +183,11 @@ lv_PUBLIC_API void nt_next_prime(mpz_t result, const mpz_t n) {
  * Factorization
  * ============================================================ */
 
-lv_PUBLIC_API int nt_factorize_trial_div(const mpz_t n, mpz_t *factors,
-                                           int max_factors, const mpz_t bound) {
-    if (!factors || max_factors <= 0) return 0;
-    if (mpz_cmp_ui(n, 2) < 0) return 0;
+lv_PUBLIC_API int nt_factorize_trial_div(const mpz_t n, mpz_t *factors, int max_factors, const mpz_t bound) {
+    if (!factors || max_factors <= 0)
+        return 0;
+    if (mpz_cmp_ui(n, 2) < 0)
+        return 0;
 
     int count = 0;
     mpz_t remainder, divisor, limit;
@@ -211,7 +220,8 @@ lv_PUBLIC_API int nt_factorize_trial_div(const mpz_t n, mpz_t *factors,
             mpz_fdiv_q(remainder, remainder, divisor);
             count++;
         }
-        if (mpz_cmp_ui(remainder, 1) == 0) break;
+        if (mpz_cmp_ui(remainder, 1) == 0)
+            break;
 
         mpz_add_ui(divisor, divisor, 2);
 

@@ -28,12 +28,12 @@ extern "C" {
 /* ============== 表达式类型枚举 ============== */
 
 typedef enum {
-    EXPR_TYPE_VARIABLE,     /**< 变量，如 x, y, a */
-    EXPR_TYPE_RATIONAL,     /**< 有理数常量，如 3/4 */
-    EXPR_TYPE_POWER,        /**< 幂运算: base^exponent */
-    EXPR_TYPE_PRODUCT,      /**< 乘积: operand[0] * operand[1] * ... */
-    EXPR_TYPE_SUM,          /**< 和: operand[0] + operand[1] + ... */
-    EXPR_TYPE_FUNCTION      /**< 函数应用: f(args) */
+    EXPR_TYPE_VARIABLE, /**< 变量，如 x, y, a */
+    EXPR_TYPE_RATIONAL, /**< 有理数常量，如 3/4 */
+    EXPR_TYPE_POWER,    /**< 幂运算: base^exponent */
+    EXPR_TYPE_PRODUCT,  /**< 乘积: operand[0] * operand[1] * ... */
+    EXPR_TYPE_SUM,      /**< 和: operand[0] + operand[1] + ... */
+    EXPR_TYPE_FUNCTION  /**< 函数应用: f(args) */
 } lvExprType;
 
 /* ============== 表达式结构体 ============== */
@@ -65,7 +65,7 @@ typedef struct lvExpr {
             struct lvExpr *argument;
         } function;
     } data;
-    char *label;  /**< 可选标签 */
+    char *label; /**< 可选标签 */
 } lvExpr;
 
 /* ============== 表达式构造 ============== */

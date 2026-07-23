@@ -12,19 +12,19 @@
  * @author Lv-00 Project
  */
 
-#include "lv_internal.h"
-#include "error_codes.h"
-#include "lv_utils.h"
-#include "func_block_preset.h"
-#include "func_block_registry.h"
-#include "preset_core.h"
-#include "preset_common.h"
-#include "preset_blocks.h"
-
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
+
+#include "error_codes.h"
+#include "func_block_preset.h"
+#include "func_block_registry.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "preset_blocks.h"
+#include "preset_common.h"
+#include "preset_core.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -65,21 +65,21 @@
 #endif
 
 #ifndef PRESET_CHECK_NULL
-#define PRESET_CHECK_NULL(ptr, label) \
-    do { \
-        if ((ptr) == NULL) { \
+#define PRESET_CHECK_NULL(ptr, label)         \
+    do {                                      \
+        if ((ptr) == NULL) {                  \
             set_error("参数不能为空: " #ptr); \
-            goto label; \
-        } \
+            goto label;                       \
+        }                                     \
     } while (0)
 #endif
 
-#define PRESET_CHECK_STRING(str, label) \
-    do { \
-        if ((str) == NULL || *(str) == '\0') { \
+#define PRESET_CHECK_STRING(str, label)         \
+    do {                                        \
+        if ((str) == NULL || *(str) == '\0') {  \
             set_error("字符串参数无效: " #str); \
-            goto label; \
-        } \
+            goto label;                         \
+        }                                       \
     } while (0)
 
 #ifdef _WIN32
@@ -186,37 +186,37 @@ typedef struct {
  * @brief 内部预设条目结构
  */
 typedef struct InternalPresetEntry {
-    int id;                         /**< 预设ID */
-    PresetMetadata metadata;        /**< 预设元数据 */
-    FuncBlock *template_fb;         /**< 模板函数块（可为NULL） */
-    bool is_builtin;                /**< 是否为内置预设 */
-    bool is_active;                 /**< 是否激活 */
-    int reference_count;            /**< 引用计数 */
-    struct InternalPresetEntry *next;  /**< 哈希表冲突链 */
+    int id;                           /**< 预设ID */
+    PresetMetadata metadata;          /**< 预设元数据 */
+    FuncBlock *template_fb;           /**< 模板函数块（可为NULL） */
+    bool is_builtin;                  /**< 是否为内置预设 */
+    bool is_active;                   /**< 是否激活 */
+    int reference_count;              /**< 引用计数 */
+    struct InternalPresetEntry *next; /**< 哈希表冲突链 */
 } InternalPresetEntry;
 
 /**
  * @brief 预设库状态结构
  */
 typedef struct {
-    InternalPresetEntry **hash_table;   /**< 哈希表 */
-    int hash_table_size;                /**< 哈希表大小 */
-    int entry_count;                    /**< 条目数量 */
-    int builtin_count;                  /**< 内置预设数量 */
-    int custom_count;                   /**< 自定义预设数量 */
-    bool initialized;                   /**< 是否已初始化 */
-    
+    InternalPresetEntry **hash_table; /**< 哈希表 */
+    int hash_table_size;              /**< 哈希表大小 */
+    int entry_count;                  /**< 条目数量 */
+    int builtin_count;                /**< 内置预设数量 */
+    int custom_count;                 /**< 自定义预设数量 */
+    bool initialized;                 /**< 是否已初始化 */
+
 #ifdef _WIN32
-    CRITICAL_SECTION mutex;             /**< Windows临界区 */
+    CRITICAL_SECTION mutex; /**< Windows临界区 */
 #else
-    pthread_mutex_t mutex;              /**< POSIX互斥锁 */
+    pthread_mutex_t mutex; /**< POSIX互斥锁 */
 #endif
-    
-    PresetAtomicCounter next_id;        /**< 下一个预设ID */
+
+    PresetAtomicCounter next_id;         /**< 下一个预设ID */
     char last_error[PRESET_BUFFER_SIZE]; /**< 最后错误信息 */
-    
+
     /* 错误回调 */
-    void (*error_callback)(const char*, void*);
+    void (*error_callback)(const char *, void *);
     void *error_callback_data;
 } PresetLibraryState;
 
@@ -225,18 +225,16 @@ typedef struct {
  * ============================================================ */
 
 /** 预设库全局状态 */
-static PresetLibraryState g_library = {
-    .hash_table = NULL,
-    .hash_table_size = 0,
-    .entry_count = 0,
-    .builtin_count = 0,
-    .custom_count = 0,
-    .initialized = false,
-    .next_id = PRESET_ID_OFFSET,
-    .last_error = {0},
-    .error_callback = NULL,
-    .error_callback_data = NULL
-};
+static PresetLibraryState g_library = {.hash_table = NULL,
+                                       .hash_table_size = 0,
+                                       .entry_count = 0,
+                                       .builtin_count = 0,
+                                       .custom_count = 0,
+                                       .initialized = false,
+                                       .next_id = PRESET_ID_OFFSET,
+                                       .last_error = {0},
+                                       .error_callback = NULL,
+                                       .error_callback_data = NULL};
 
 /* ── 前向声明：供下方新增函数使用的静态辅助函数 ──
  * （这些函数的定义在文件后半部分） */
@@ -244,32 +242,28 @@ static void lock_library(void);
 static void unlock_library(void);
 static void set_error(const char *fmt, ...);
 static void clear_error(void);
-static struct InternalPresetEntry* find_entry(const char *name);
+static struct InternalPresetEntry *find_entry(const char *name);
 static bool insert_entry(InternalPresetEntry *entry);
 static bool remove_entry(const char *name);
 static void free_entry(InternalPresetEntry *entry);
 
 /* ── 前向声明：公共API函数（定义在文件后半部分）── */
-bool preset_register_custom(const PresetMetadata *metadata,
-                            const FuncBlock *template_fb,
-                            PresetEntryHandle *out_entry);
+bool preset_register_custom(const PresetMetadata *metadata, const FuncBlock *template_fb, PresetEntryHandle *out_entry);
 PresetEntryHandle preset_find(const char *name);
 void preset_release(PresetEntryHandle entry);
-const PresetMetadata* preset_get_metadata(PresetEntryHandle entry);
+const PresetMetadata *preset_get_metadata(PresetEntryHandle entry);
 bool preset_library_init(void);
 bool preset_library_shutdown(void);
 bool preset_library_is_initialized(void);
-const PresetVersion* preset_library_get_version(void);
+const PresetVersion *preset_library_get_version(void);
 bool preset_library_get_statistics(PresetStatistics *stats);
 bool preset_library_reset(void);
 bool preset_unregister(const char *name);
 bool preset_exists(const char *name);
 bool preset_is_builtin(const char *name);
-const char* preset_get_last_error(void);
+const char *preset_get_last_error(void);
 void preset_clear_error(void);
-void preset_set_error_callback(void (*callback)(const char *error,
-                                               void *user_data),
-                              void *user_data);
+void preset_set_error_callback(void (*callback)(const char *error, void *user_data), void *user_data);
 
 /* ============================================================
  * 预设实例内部结构（PresetInstance 不透明类型的定义）
@@ -282,11 +276,11 @@ void preset_set_error_callback(void (*callback)(const char *error,
  * 通过 PresetInstanceHandle（不透明指针）暴露给外部。
  */
 typedef struct PresetInstance {
-    FuncBlock *func_block;              /**< 实例化后的函数块 */
-    int *output_node_ids;               /**< 输出节点ID数组 */
-    int output_count;                   /**< 输出节点数量 */
-    char *preset_name;                  /**< 来源预设名称 */
-    int reference_count;                /**< 引用计数 */
+    FuncBlock *func_block; /**< 实例化后的函数块 */
+    int *output_node_ids;  /**< 输出节点ID数组 */
+    int output_count;      /**< 输出节点数量 */
+    char *preset_name;     /**< 来源预设名称 */
+    int reference_count;   /**< 引用计数 */
 } PresetInstance;
 
 /* ============================================================
@@ -301,8 +295,7 @@ typedef struct PresetInstance {
  *
  * @return 成功注册的预设数量，失败返回 -1
  */
-int preset_register_builtin(void)
-{
+int preset_register_builtin(void) {
     lock_library();
 
     if (!g_library.initialized) {
@@ -337,15 +330,16 @@ int preset_register_builtin(void)
  * @param count 数量
  * @return 成功注册的数量
  */
-int preset_register_batch(const PresetMetadata *metadatas, int count)
-{
-    if (!metadatas || count <= 0) return 0;
+int preset_register_batch(const PresetMetadata *metadatas, int count) {
+    if (!metadatas || count <= 0)
+        return 0;
 
     int success_count = 0;
 
     for (int i = 0; i < count; i++) {
         const PresetMetadata *meta = &metadatas[i];
-        if (!meta->name) continue;
+        if (!meta->name)
+            continue;
 
         if (preset_register_custom(meta, NULL, NULL)) {
             success_count++;
@@ -368,20 +362,23 @@ int preset_register_batch(const PresetMetadata *metadatas, int count)
  * @param name    待匹配的名称
  * @return true 匹配成功
  */
-static bool wildcard_match(const char *pattern, const char *name)
-{
-    if (!pattern || !name) return false;
+static bool wildcard_match(const char *pattern, const char *name) {
+    if (!pattern || !name)
+        return false;
 
     /* 空模式匹配空字符串 */
-    if (*pattern == '\0') return (*name == '\0');
+    if (*pattern == '\0')
+        return (*name == '\0');
 
     /* 遇到 '*' 时递归试探 */
     if (*pattern == '*') {
         /* 跳过连续的 '*' */
-        while (*(pattern + 1) == '*') pattern++;
+        while (*(pattern + 1) == '*')
+            pattern++;
         /* 尝试从每个位置匹配剩余模式 */
         while (*name) {
-            if (wildcard_match(pattern + 1, name)) return true;
+            if (wildcard_match(pattern + 1, name))
+                return true;
             name++;
         }
         return wildcard_match(pattern + 1, name);
@@ -407,9 +404,7 @@ static bool wildcard_match(const char *pattern, const char *name)
  * @return true 查询成功
  * @return false 查询失败
  */
-bool preset_query(const PresetQueryCriteria *criteria,
-                 PresetQueryResult **out_result)
-{
+bool preset_query(const PresetQueryCriteria *criteria, PresetQueryResult **out_result) {
     PRESET_CHECK_NULL(criteria, error);
     PRESET_CHECK_NULL(out_result, error);
 
@@ -422,7 +417,7 @@ bool preset_query(const PresetQueryCriteria *criteria,
     }
 
     /* ── 第一步：分配结果结构 ── */
-    PresetQueryResult *result = (PresetQueryResult *)lv_calloc(1, sizeof(PresetQueryResult));
+    PresetQueryResult *result = (PresetQueryResult *) lv_calloc(1, sizeof(PresetQueryResult));
     if (!result) {
         unlock_library();
         set_error("内存分配失败");
@@ -431,11 +426,10 @@ bool preset_query(const PresetQueryCriteria *criteria,
 
     /* 预分配名称数组（最多 entry_count 个） */
     int max_candidates = g_library.entry_count;
-    const char **candidate_names = (const char **)lv_malloc(
-        (size_t)max_candidates * sizeof(const char *));
+    const char **candidate_names = (const char **) lv_malloc((size_t) max_candidates * sizeof(const char *));
     if (!candidate_names) {
         unlock_library();
-        lv_free((void **)&result);
+        lv_free((void **) &result);
         set_error("内存分配失败");
         goto error;
     }
@@ -462,15 +456,13 @@ bool preset_query(const PresetQueryCriteria *criteria,
             }
 
             /* 条件2：类别筛选 */
-            if (matches && criteria->category >= 0 &&
-                meta->category != criteria->category) {
+            if (matches && criteria->category >= 0 && meta->category != criteria->category) {
                 matches = false;
             }
 
             /* 条件3：必须属性检查 */
             if (matches && criteria->required_properties != PRESET_PROPERTY_NONE) {
-                if ((meta->properties & criteria->required_properties)
-                    != criteria->required_properties) {
+                if ((meta->properties & criteria->required_properties) != criteria->required_properties) {
                     matches = false;
                 }
             }
@@ -484,23 +476,27 @@ bool preset_query(const PresetQueryCriteria *criteria,
 
             /* 条件5：输入数量范围 */
             if (matches && criteria->min_inputs > 0 && meta->input_count > 0) {
-                if (meta->input_count < criteria->min_inputs) matches = false;
+                if (meta->input_count < criteria->min_inputs)
+                    matches = false;
             }
             if (matches && criteria->max_inputs > 0 && meta->input_count > 0) {
-                if (meta->input_count > criteria->max_inputs) matches = false;
+                if (meta->input_count > criteria->max_inputs)
+                    matches = false;
             }
 
             /* 条件6：输出数量范围 */
             if (matches && criteria->min_outputs > 0 && meta->output_count > 0) {
-                if (meta->output_count < criteria->min_outputs) matches = false;
+                if (meta->output_count < criteria->min_outputs)
+                    matches = false;
             }
             if (matches && criteria->max_outputs > 0 && meta->output_count > 0) {
-                if (meta->output_count > criteria->max_outputs) matches = false;
+                if (meta->output_count > criteria->max_outputs)
+                    matches = false;
             }
 
             /* 条件7：搜索描述（关键词匹配） */
-            if (matches && criteria->search_description &&
-                criteria->name_pattern && criteria->name_pattern[0] != '\0') {
+            if (matches && criteria->search_description && criteria->name_pattern &&
+                criteria->name_pattern[0] != '\0') {
                 /* 在描述中搜索名称模式（不使用通配符） */
                 if (meta->description) {
                     const char *found = strstr(meta->description, criteria->name_pattern);
@@ -533,11 +529,10 @@ bool preset_query(const PresetQueryCriteria *criteria,
     result->count = match_count;
 
     if (match_count > 0) {
-        result->names = (const char **)lv_malloc(
-            (size_t)match_count * sizeof(const char *));
+        result->names = (const char **) lv_malloc((size_t) match_count * sizeof(const char *));
         if (!result->names) {
-            lv_free((void **)&candidate_names);
-            lv_free((void **)&result);
+            lv_free((void **) &candidate_names);
+            lv_free((void **) &result);
             unlock_library();
             set_error("内存分配失败");
             goto error;
@@ -547,7 +542,7 @@ bool preset_query(const PresetQueryCriteria *criteria,
         }
     }
 
-    lv_free((void **)&candidate_names);
+    lv_free((void **) &candidate_names);
     unlock_library();
 
     *out_result = result;
@@ -565,15 +560,15 @@ error:
  *
  * @param result 查询结果（可为 NULL）
  */
-void preset_query_result_free(PresetQueryResult *result)
-{
-    if (!result) return;
+void preset_query_result_free(PresetQueryResult *result) {
+    if (!result)
+        return;
 
     if (result->names) {
-        lv_free((void **)&result->names);
+        lv_free((void **) &result->names);
     }
 
-    lv_free((void **)&result);
+    lv_free((void **) &result);
 }
 
 /* ============================================================
@@ -592,10 +587,7 @@ void preset_query_result_free(PresetQueryResult *result)
  * @return true 成功
  * @return false 失败
  */
-bool preset_list_by_category(PresetCategory category,
-                            char ***out_names,
-                            int *out_count)
-{
+bool preset_list_by_category(PresetCategory category, char ***out_names, int *out_count) {
     PRESET_CHECK_NULL(out_names, error);
     PRESET_CHECK_NULL(out_count, error);
 
@@ -622,21 +614,20 @@ bool preset_list_by_category(PresetCategory category,
     /* 分配结果数组 */
     char **names = NULL;
     if (count > 0) {
-        names = (char **)lv_malloc((size_t)count * sizeof(char *));
+        names = (char **) lv_malloc((size_t) count * sizeof(char *));
         if (!names) {
             unlock_library();
             set_error("内存分配失败");
             return false;
         }
-        memset(names, 0, (size_t)count * sizeof(char *));
+        memset(names, 0, (size_t) count * sizeof(char *));
 
         /* 第二遍：填充名称 */
         int idx = 0;
         for (int i = 0; i < g_library.hash_table_size && idx < count; i++) {
             InternalPresetEntry *entry = g_library.hash_table[i];
             while (entry != NULL && idx < count) {
-                if (entry->is_active &&
-                    entry->metadata.category == category) {
+                if (entry->is_active && entry->metadata.category == category) {
                     names[idx] = lv_strdup_safe(entry->metadata.name);
                     if (!names[idx]) {
                         /* 部分分配失败，释放已分配的元素 */
@@ -645,7 +636,7 @@ bool preset_list_by_category(PresetCategory category,
                             void *tmp = names[j];
                             lv_free(&tmp);
                         }
-                        lv_free((void **)&names);
+                        lv_free((void **) &names);
                         set_error("内存分配失败");
                         return false;
                     }
@@ -674,8 +665,7 @@ error:
  * @return true 成功
  * @return false 失败
  */
-bool preset_list_all(char ***out_names, int *out_count)
-{
+bool preset_list_all(char ***out_names, int *out_count) {
     PRESET_CHECK_NULL(out_names, error);
     PRESET_CHECK_NULL(out_count, error);
 
@@ -691,13 +681,13 @@ bool preset_list_all(char ***out_names, int *out_count)
     char **names = NULL;
 
     if (count > 0) {
-        names = (char **)lv_malloc((size_t)count * sizeof(char *));
+        names = (char **) lv_malloc((size_t) count * sizeof(char *));
         if (!names) {
             unlock_library();
             set_error("内存分配失败");
             return false;
         }
-        memset(names, 0, (size_t)count * sizeof(char *));
+        memset(names, 0, (size_t) count * sizeof(char *));
 
         int idx = 0;
         for (int i = 0; i < g_library.hash_table_size && idx < count; i++) {
@@ -711,7 +701,7 @@ bool preset_list_all(char ***out_names, int *out_count)
                             void *tmp = names[j];
                             lv_free(&tmp);
                         }
-                        lv_free((void **)&names);
+                        lv_free((void **) &names);
                         set_error("内存分配失败");
                         return false;
                     }
@@ -749,12 +739,8 @@ error:
  * @return true 实例化成功
  * @return false 实例化失败
  */
-bool preset_instantiate(const char *name,
-                       const int *input_nodes,
-                       int input_count,
-                       const PresetInstantiateOptions *options,
-                       PresetInstanceHandle *out_instance)
-{
+bool preset_instantiate(const char *name, const int *input_nodes, int input_count,
+                        const PresetInstantiateOptions *options, PresetInstanceHandle *out_instance) {
     PRESET_CHECK_STRING(name, error);
     PRESET_CHECK_NULL(out_instance, error);
 
@@ -783,13 +769,12 @@ bool preset_instantiate(const char *name,
     /* 验证输入数量 */
     if (entry->metadata.input_count > 0 && input_count != entry->metadata.input_count) {
         unlock_library();
-        set_error("输入数量不匹配: 期望 %d，实际 %d",
-                  entry->metadata.input_count, input_count);
+        set_error("输入数量不匹配: 期望 %d，实际 %d", entry->metadata.input_count, input_count);
         return false;
     }
 
     /* 创建实例结构 */
-    PresetInstance *instance = (PresetInstance *)lv_calloc(1, sizeof(PresetInstance));
+    PresetInstance *instance = (PresetInstance *) lv_calloc(1, sizeof(PresetInstance));
     if (!instance) {
         unlock_library();
         set_error("内存分配失败");
@@ -803,8 +788,8 @@ bool preset_instantiate(const char *name,
         instance->func_block = func_block_copy(entry->template_fb);
         if (!instance->func_block) {
             unlock_library();
-            lv_free((void **)&instance->preset_name);
-            lv_free((void **)&instance);
+            lv_free((void **) &instance->preset_name);
+            lv_free((void **) &instance);
             set_error("函数块复制失败");
             return false;
         }
@@ -817,12 +802,10 @@ bool preset_instantiate(const char *name,
         /* 设置输出端口为模板的输出 */
         instance->output_count = entry->template_fb->output_count;
         if (instance->output_count > 0 && entry->template_fb->output_port_ids) {
-            instance->output_node_ids = (int *)lv_malloc(
-                (size_t)instance->output_count * sizeof(int));
+            instance->output_node_ids = (int *) lv_malloc((size_t) instance->output_count * sizeof(int));
             if (instance->output_node_ids) {
-                memcpy(instance->output_node_ids,
-                       entry->template_fb->output_port_ids,
-                       (size_t)instance->output_count * sizeof(int));
+                memcpy(instance->output_node_ids, entry->template_fb->output_port_ids,
+                       (size_t) instance->output_count * sizeof(int));
             }
         }
     }
@@ -834,7 +817,7 @@ bool preset_instantiate(const char *name,
 
     unlock_library();
 
-    *out_instance = (PresetInstanceHandle)instance;
+    *out_instance = (PresetInstanceHandle) instance;
     return true;
 
 error:
@@ -852,29 +835,23 @@ error:
  * @param out_instances     输出实例句柄数组（调用者需释放）
  * @return 成功实例化的数量
  */
-int preset_instantiate_batch(const char **names,
-                            const int **input_nodes_array,
-                            const int *input_counts,
-                            int count,
-                            const PresetInstantiateOptions *options,
-                            PresetInstanceHandle **out_instances)
-{
-    if (!names || !input_counts || count <= 0 || !out_instances) return 0;
+int preset_instantiate_batch(const char **names, const int **input_nodes_array, const int *input_counts, int count,
+                             const PresetInstantiateOptions *options, PresetInstanceHandle **out_instances) {
+    if (!names || !input_counts || count <= 0 || !out_instances)
+        return 0;
 
     /* 分配实例数组 */
-    PresetInstanceHandle *instances = (PresetInstanceHandle *)lv_malloc(
-        (size_t)count * sizeof(PresetInstanceHandle));
+    PresetInstanceHandle *instances = (PresetInstanceHandle *) lv_malloc((size_t) count * sizeof(PresetInstanceHandle));
     if (!instances) {
         set_error("内存分配失败");
         return 0;
     }
-    memset(instances, 0, (size_t)count * sizeof(PresetInstanceHandle));
+    memset(instances, 0, (size_t) count * sizeof(PresetInstanceHandle));
 
     int success = 0;
     for (int i = 0; i < count; i++) {
         const int *nodes = (input_nodes_array) ? input_nodes_array[i] : NULL;
-        if (preset_instantiate(names[i], nodes, input_counts[i],
-                               options, &instances[i])) {
+        if (preset_instantiate(names[i], nodes, input_counts[i], options, &instances[i])) {
             success++;
         } else {
             /* 失败时置空该条目 */
@@ -897,11 +874,11 @@ int preset_instantiate_batch(const char **names,
  *
  * @param instance 实例句柄（可为 NULL）
  */
-void preset_instance_destroy(PresetInstanceHandle instance)
-{
-    if (!instance) return;
+void preset_instance_destroy(PresetInstanceHandle instance) {
+    if (!instance)
+        return;
 
-    PresetInstance *inst = (PresetInstance *)instance;
+    PresetInstance *inst = (PresetInstance *) instance;
 
     /* 释放函数块 */
     if (inst->func_block) {
@@ -911,16 +888,16 @@ void preset_instance_destroy(PresetInstanceHandle instance)
 
     /* 释放输出节点ID数组 */
     if (inst->output_node_ids) {
-        lv_free((void **)&inst->output_node_ids);
+        lv_free((void **) &inst->output_node_ids);
     }
 
     /* 释放预设名称 */
     if (inst->preset_name) {
-        lv_free((void **)&inst->preset_name);
+        lv_free((void **) &inst->preset_name);
     }
 
     /* 释放实例结构本身 */
-    lv_free((void **)&instance);
+    lv_free((void **) &instance);
 }
 
 /**
@@ -929,11 +906,11 @@ void preset_instance_destroy(PresetInstanceHandle instance)
  * @param instance 实例句柄
  * @return 函数块指针（只读，生命周期与实例相同）
  */
-const FuncBlock* preset_instance_get_func_block(PresetInstanceHandle instance)
-{
-    if (!instance) return NULL;
+const FuncBlock *preset_instance_get_func_block(PresetInstanceHandle instance) {
+    if (!instance)
+        return NULL;
 
-    PresetInstance *inst = (PresetInstance *)instance;
+    PresetInstance *inst = (PresetInstance *) instance;
     return inst->func_block;
 }
 
@@ -946,15 +923,12 @@ const FuncBlock* preset_instance_get_func_block(PresetInstanceHandle instance)
  * @return true 成功
  * @return false 失败
  */
-bool preset_instance_get_outputs(PresetInstanceHandle instance,
-                                int **out_output_ids,
-                                int *out_count)
-{
+bool preset_instance_get_outputs(PresetInstanceHandle instance, int **out_output_ids, int *out_count) {
     PRESET_CHECK_NULL(instance, error);
     PRESET_CHECK_NULL(out_output_ids, error);
     PRESET_CHECK_NULL(out_count, error);
 
-    PresetInstance *inst = (PresetInstance *)instance;
+    PresetInstance *inst = (PresetInstance *) instance;
 
     if (inst->output_count <= 0 || !inst->output_node_ids) {
         *out_output_ids = NULL;
@@ -962,14 +936,13 @@ bool preset_instance_get_outputs(PresetInstanceHandle instance,
         return true;
     }
 
-    int *ids = (int *)lv_malloc((size_t)inst->output_count * sizeof(int));
+    int *ids = (int *) lv_malloc((size_t) inst->output_count * sizeof(int));
     if (!ids) {
         set_error("内存分配失败");
         return false;
     }
 
-    memcpy(ids, inst->output_node_ids,
-           (size_t)inst->output_count * sizeof(int));
+    memcpy(ids, inst->output_node_ids, (size_t) inst->output_count * sizeof(int));
 
     *out_output_ids = ids;
     *out_count = inst->output_count;
@@ -994,15 +967,13 @@ error:
  * @return true 执行成功
  * @return false 执行失败
  */
-bool preset_instance_execute(PresetInstanceHandle instance,
-                            const PresetExecutionContext *context)
-{
+bool preset_instance_execute(PresetInstanceHandle instance, const PresetExecutionContext *context) {
     if (!instance) {
         set_error("无效的实例句柄");
         return false;
     }
 
-    PresetInstance *inst = (PresetInstance *)instance;
+    PresetInstance *inst = (PresetInstance *) instance;
 
     if (!inst->func_block) {
         set_error("实例没有关联的函数块");
@@ -1043,21 +1014,17 @@ bool preset_instance_execute(PresetInstanceHandle instance,
  * @return true 验证流程完成
  * @return false 验证过程出错
  */
-bool preset_instance_validate(PresetInstanceHandle instance,
-                             bool *out_is_valid,
-                             char **out_error_message)
-{
+bool preset_instance_validate(PresetInstanceHandle instance, bool *out_is_valid, char **out_error_message) {
     PRESET_CHECK_NULL(instance, error);
     PRESET_CHECK_NULL(out_is_valid, error);
 
-    PresetInstance *inst = (PresetInstance *)instance;
+    PresetInstance *inst = (PresetInstance *) instance;
     *out_is_valid = false;
 
     /* 验证1：函数块是否存在 */
     if (!inst->func_block) {
         if (out_error_message) {
-            *out_error_message = lv_strdup_safe(
-                "验证失败: 实例没有关联的函数块");
+            *out_error_message = lv_strdup_safe("验证失败: 实例没有关联的函数块");
         }
         return true;
     }
@@ -1065,8 +1032,7 @@ bool preset_instance_validate(PresetInstanceHandle instance,
     /* 验证2：输入端口数量是否有效 */
     if (inst->func_block->input_count < 0) {
         if (out_error_message) {
-            *out_error_message = lv_strdup_safe(
-                "验证失败: 输入端口数量无效");
+            *out_error_message = lv_strdup_safe("验证失败: 输入端口数量无效");
         }
         return true;
     }
@@ -1074,8 +1040,7 @@ bool preset_instance_validate(PresetInstanceHandle instance,
     /* 验证3：确定性状态检查 */
     if (inst->func_block->determinism == DETERMINISM_NON_DETERMINISTIC) {
         if (out_error_message) {
-            *out_error_message = lv_strdup_safe(
-                "验证警告: 函数块存在多解歧义");
+            *out_error_message = lv_strdup_safe("验证警告: 函数块存在多解歧义");
         }
         /* 多解歧义不视为失败，仅发出警告 */
     }
@@ -1105,9 +1070,7 @@ error:
  * @return true 组合成功
  * @return false 组合失败
  */
-bool preset_compose(const PresetComposition *composition,
-                   PresetEntryHandle *out_new_entry)
-{
+bool preset_compose(const PresetComposition *composition, PresetEntryHandle *out_new_entry) {
     PRESET_CHECK_NULL(composition, error);
     PRESET_CHECK_NULL(composition->preset_names, error);
     PRESET_CHECK_STRING(composition->new_name, error);
@@ -1134,12 +1097,9 @@ bool preset_compose(const PresetComposition *composition,
 
     /* 验证所有组成预设是否存在 */
     for (int i = 0; i < composition->count; i++) {
-        if (!composition->preset_names[i] ||
-            find_entry(composition->preset_names[i]) == NULL) {
+        if (!composition->preset_names[i] || find_entry(composition->preset_names[i]) == NULL) {
             unlock_library();
-            set_error("预设 '%s' 不存在",
-                      composition->preset_names[i]
-                        ? composition->preset_names[i] : "(null)");
+            set_error("预设 '%s' 不存在", composition->preset_names[i] ? composition->preset_names[i] : "(null)");
             return false;
         }
     }
@@ -1163,8 +1123,7 @@ bool preset_compose(const PresetComposition *composition,
         case PRESET_COMPOSE_SEQUENCE:
             /* 顺序执行：输入 = 第一个预设的输入，输出 = 最后一个预设的输出 */
             {
-                InternalPresetEntry *last_entry =
-                    find_entry(composition->preset_names[composition->count - 1]);
+                InternalPresetEntry *last_entry = find_entry(composition->preset_names[composition->count - 1]);
                 if (last_entry) {
                     composed_meta.output_count = last_entry->metadata.output_count;
                     composed_meta.output_params = last_entry->metadata.output_params;
@@ -1198,9 +1157,7 @@ bool preset_compose(const PresetComposition *composition,
     }
 
     /* 注册新预设 */
-    bool success = preset_register_custom(&composed_meta,
-                                          first_entry->template_fb,
-                                          out_new_entry);
+    bool success = preset_register_custom(&composed_meta, first_entry->template_fb, out_new_entry);
 
     unlock_library();
 
@@ -1233,11 +1190,7 @@ error:
  * @return true 绑定成功
  * @return false 绑定失败
  */
-bool preset_bind_parameter(const char *preset_name,
-                          int param_index,
-                          int value,
-                          char **out_new_name)
-{
+bool preset_bind_parameter(const char *preset_name, int param_index, int value, char **out_new_name) {
     PRESET_CHECK_STRING(preset_name, error);
 
     lock_library();
@@ -1257,20 +1210,16 @@ bool preset_bind_parameter(const char *preset_name,
     }
 
     /* 验证参数索引 */
-    if (param_index < 0 ||
-        (entry->metadata.input_count > 0 &&
-         param_index >= entry->metadata.input_count)) {
+    if (param_index < 0 || (entry->metadata.input_count > 0 && param_index >= entry->metadata.input_count)) {
         unlock_library();
-        set_error("参数索引 %d 越界（有效范围: 0-%d）",
-                  param_index, entry->metadata.input_count - 1);
+        set_error("参数索引 %d 越界（有效范围: 0-%d）", param_index, entry->metadata.input_count - 1);
         return false;
     }
 
     /* 生成新预设名称：原名称 + _bound_ + 索引 */
     char new_name[PRESET_BUFFER_SIZE];
-    int written = snprintf(new_name, sizeof(new_name),
-                          "%s_bound_%d", preset_name, param_index);
-    if (written < 0 || (size_t)written >= sizeof(new_name)) {
+    int written = snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, param_index);
+    if (written < 0 || (size_t) written >= sizeof(new_name)) {
         unlock_library();
         set_error("新预设名称过长");
         return false;
@@ -1291,7 +1240,7 @@ bool preset_bind_parameter(const char *preset_name,
         int old_count = entry->template_fb->input_count;
         int new_count = old_count - 1;
 
-        int *new_inputs = (int *)lv_malloc((size_t)new_count * sizeof(int));
+        int *new_inputs = (int *) lv_malloc((size_t) new_count * sizeof(int));
         if (new_inputs) {
             int dst = 0;
             for (int i = 0; i < old_count; i++) {
@@ -1300,7 +1249,7 @@ bool preset_bind_parameter(const char *preset_name,
                 }
             }
             func_block_set_input_ports(template_copy, new_inputs, new_count);
-            lv_free((void **)&new_inputs);
+            lv_free((void **) &new_inputs);
         }
     } else if (template_copy && entry->template_fb->input_count == 1) {
         /* 绑定唯一输入后，输入数量变为0 */
@@ -1341,9 +1290,7 @@ error:
  * @return true 成功
  * @return false 失败
  */
-bool preset_get_usage_example(const char *name,
-                             char **out_example)
-{
+bool preset_get_usage_example(const char *name, char **out_example) {
     PRESET_CHECK_STRING(name, error);
     PRESET_CHECK_NULL(out_example, error);
 
@@ -1371,28 +1318,24 @@ bool preset_get_usage_example(const char *name,
     char inputs_desc[512] = {0};
     if (meta->input_count > 0 && meta->input_params) {
         int offset = 0;
-        for (int i = 0; i < meta->input_count && offset < (int)sizeof(inputs_desc) - 1; i++) {
-            int n = snprintf(inputs_desc + offset,
-                            sizeof(inputs_desc) - (size_t)offset,
-                            "    node%d = graph_create_node(graph, \"point_%d\"); /* %s */\n",
-                            i + 1, i + 1,
-                            func_block_preset_param_type_string(meta->input_params[i].type));
-            if (n > 0) offset += n;
+        for (int i = 0; i < meta->input_count && offset < (int) sizeof(inputs_desc) - 1; i++) {
+            int n = snprintf(inputs_desc + offset, sizeof(inputs_desc) - (size_t) offset,
+                             "    node%d = graph_create_node(graph, \"point_%d\"); /* %s */\n", i + 1, i + 1,
+                             func_block_preset_param_type_string(meta->input_params[i].type));
+            if (n > 0)
+                offset += n;
         }
     } else if (meta->input_count > 0) {
-        snprintf(inputs_desc, sizeof(inputs_desc),
-                "    /* 提供 %d 个输入节点 */\n", meta->input_count);
+        snprintf(inputs_desc, sizeof(inputs_desc), "    /* 提供 %d 个输入节点 */\n", meta->input_count);
     }
 
     /* 构建输出说明 */
     char outputs_desc[256] = {0};
     if (meta->output_count > 0) {
-        snprintf(outputs_desc, sizeof(outputs_desc),
-                "    /* 预设产生 %d 个输出: %s */\n",
-                meta->output_count,
-                meta->output_params && meta->output_count > 0
-                    ? func_block_preset_param_type_string(meta->output_params[0].type)
-                    : "未知类型");
+        snprintf(outputs_desc, sizeof(outputs_desc), "    /* 预设产生 %d 个输出: %s */\n", meta->output_count,
+                 meta->output_params && meta->output_count > 0
+                     ? func_block_preset_param_type_string(meta->output_params[0].type)
+                     : "未知类型");
     }
 
     /* 构建完整示例 */
@@ -1440,16 +1383,9 @@ bool preset_get_usage_example(const char *name,
         "    graph_destroy(graph);\n"
         "    preset_library_shutdown();\n"
         "}\n",
-        meta->name,
-        func_block_preset_category_string(meta->category),
-        meta->description ? meta->description : "（无描述）",
-        func_block_preset_complexity_string(meta->complexity),
-        meta->name,
-        inputs_desc,
-        meta->name,
-        meta->input_count > 0 ? meta->input_count : 0,
-        outputs_desc
-    );
+        meta->name, func_block_preset_category_string(meta->category),
+        meta->description ? meta->description : "（无描述）", func_block_preset_complexity_string(meta->complexity),
+        meta->name, inputs_desc, meta->name, meta->input_count > 0 ? meta->input_count : 0, outputs_desc);
 
     unlock_library();
 
@@ -1480,10 +1416,7 @@ error:
  * @return true 生成成功
  * @return false 生成失败
  */
-bool preset_generate_documentation(const char *name,
-                                  const char *format,
-                                  char **out_document)
-{
+bool preset_generate_documentation(const char *name, const char *format, char **out_document) {
     PRESET_CHECK_STRING(name, error);
     PRESET_CHECK_NULL(out_document, error);
 
@@ -1522,19 +1455,12 @@ bool preset_generate_documentation(const char *name,
             "%s\n\n"
             "## 后置条件 (%d)\n\n"
             "%s\n",
-            meta->name,
-            meta->description ? meta->description : "（无描述）",
+            meta->name, meta->description ? meta->description : "（无描述）",
             meta->mathematical_def ? meta->mathematical_def : "（无定义）",
-            func_block_preset_category_string(meta->category),
-            func_block_preset_complexity_string(meta->complexity),
-            meta->input_count,
-            meta->output_count,
-            meta->version_major, meta->version_minor, meta->version_patch,
-            meta->precondition_count,
-            meta->precondition_count > 0 ? "（已定义）" : "（无）",
-            meta->postcondition_count,
-            meta->postcondition_count > 0 ? "（已定义）" : "（无）"
-        );
+            func_block_preset_category_string(meta->category), func_block_preset_complexity_string(meta->complexity),
+            meta->input_count, meta->output_count, meta->version_major, meta->version_minor, meta->version_patch,
+            meta->precondition_count, meta->precondition_count > 0 ? "（已定义）" : "（无）", meta->postcondition_count,
+            meta->postcondition_count > 0 ? "（已定义）" : "（无）");
     } else if (strcmp(fmt, "text") == 0) {
         doc = lv_asprintf(
             "预设: %s\n"
@@ -1545,15 +1471,10 @@ bool preset_generate_documentation(const char *name,
             "输入数量: %d\n"
             "输出数量: %d\n"
             "版本: %d.%d.%d\n",
-            meta->name,
-            meta->description ? meta->description : "（无描述）",
+            meta->name, meta->description ? meta->description : "（无描述）",
             meta->mathematical_def ? meta->mathematical_def : "（无定义）",
-            func_block_preset_category_string(meta->category),
-            func_block_preset_complexity_string(meta->complexity),
-            meta->input_count,
-            meta->output_count,
-            meta->version_major, meta->version_minor, meta->version_patch
-        );
+            func_block_preset_category_string(meta->category), func_block_preset_complexity_string(meta->complexity),
+            meta->input_count, meta->output_count, meta->version_major, meta->version_minor, meta->version_patch);
     } else if (strcmp(fmt, "html") == 0) {
         doc = lv_asprintf(
             "<!DOCTYPE html>\n<html>\n<head>\n"
@@ -1568,25 +1489,18 @@ bool preset_generate_documentation(const char *name,
             "<p><strong>输入:</strong> %d | <strong>输出:</strong> %d</p>\n"
             "<p><strong>版本:</strong> %d.%d.%d</p>\n"
             "</body>\n</html>\n",
-            meta->name,
-            meta->name,
-            meta->description ? meta->description : "（无描述）",
+            meta->name, meta->name, meta->description ? meta->description : "（无描述）",
             meta->mathematical_def ? meta->mathematical_def : "（无定义）",
-            func_block_preset_category_string(meta->category),
-            func_block_preset_complexity_string(meta->complexity),
-            meta->input_count, meta->output_count,
-            meta->version_major, meta->version_minor, meta->version_patch
-        );
+            func_block_preset_category_string(meta->category), func_block_preset_complexity_string(meta->complexity),
+            meta->input_count, meta->output_count, meta->version_major, meta->version_minor, meta->version_patch);
     } else {
         /* 未知格式，默认使用 markdown */
         doc = lv_asprintf(
             "# %s\n\n"
             "## 描述\n\n%s\n\n"
             "## 类别\n\n%s\n",
-            meta->name,
-            meta->description ? meta->description : "（无描述）",
-            func_block_preset_category_string(meta->category)
-        );
+            meta->name, meta->description ? meta->description : "（无描述）",
+            func_block_preset_category_string(meta->category));
     }
 
     unlock_library();
@@ -1613,9 +1527,7 @@ error:
  * @return true 生成成功
  * @return false 生成失败
  */
-bool preset_generate_library_documentation(const char *format,
-                                          char **out_document)
-{
+bool preset_generate_library_documentation(const char *format, char **out_document) {
     PRESET_CHECK_NULL(out_document, error);
 
     lock_library();
@@ -1630,7 +1542,7 @@ bool preset_generate_library_documentation(const char *format,
 
     /* 使用动态缓冲区构建文档 */
     size_t buf_capacity = PRESET_BUFFER_SIZE;
-    char *buffer = (char *)lv_malloc(buf_capacity);
+    char *buffer = (char *) lv_malloc(buf_capacity);
     if (!buffer) {
         unlock_library();
         set_error("内存分配失败");
@@ -1641,21 +1553,19 @@ bool preset_generate_library_documentation(const char *format,
 
     /* 标题 */
     int n = snprintf(buffer + offset, buf_capacity - offset,
-                    "# Lv-00 预设函数块库\n\n"
-                    "## 概述\n\n"
-                    "本库包含 %d 个预设函数块，涵盖多个数学领域。\n\n"
-                    "| 类别 | 数量 |\n|------|------|\n",
-                    g_library.entry_count);
-    offset += (size_t)n;
+                     "# Lv-00 预设函数块库\n\n"
+                     "## 概述\n\n"
+                     "本库包含 %d 个预设函数块，涵盖多个数学领域。\n\n"
+                     "| 类别 | 数量 |\n|------|------|\n",
+                     g_library.entry_count);
+    offset += (size_t) n;
 
     /* 按类别统计 */
     int cat_counts[PRESET_CATEGORY_COUNT] = {0};
     for (int i = 0; i < g_library.hash_table_size; i++) {
         InternalPresetEntry *entry = g_library.hash_table[i];
         while (entry != NULL) {
-            if (entry->is_active &&
-                entry->metadata.category >= 0 &&
-                entry->metadata.category < PRESET_CATEGORY_COUNT) {
+            if (entry->is_active && entry->metadata.category >= 0 && entry->metadata.category < PRESET_CATEGORY_COUNT) {
                 cat_counts[entry->metadata.category]++;
             }
             entry = entry->next;
@@ -1664,11 +1574,9 @@ bool preset_generate_library_documentation(const char *format,
 
     for (int c = 0; c < PRESET_CATEGORY_COUNT; c++) {
         if (cat_counts[c] > 0) {
-            n = snprintf(buffer + offset, buf_capacity - offset,
-                        "| %s | %d |\n",
-                        func_block_preset_category_string((PresetCategory)c),
-                        cat_counts[c]);
-            offset += (size_t)n;
+            n = snprintf(buffer + offset, buf_capacity - offset, "| %s | %d |\n",
+                         func_block_preset_category_string((PresetCategory) c), cat_counts[c]);
+            offset += (size_t) n;
         }
     }
 
@@ -1695,10 +1603,10 @@ error:
  * @param out_len 输出转义后长度（可选）
  * @return 新分配的转义后字符串，调用者需使用 lv_free 释放
  */
-static char *json_escape_string(const char *str, size_t *out_len)
-{
+static char *json_escape_string(const char *str, size_t *out_len) {
     if (!str) {
-        if (out_len) *out_len = 0;
+        if (out_len)
+            *out_len = 0;
         return lv_strdup_safe("");
     }
 
@@ -1706,30 +1614,55 @@ static char *json_escape_string(const char *str, size_t *out_len)
     size_t len = 0;
     for (const char *p = str; *p; p++) {
         switch (*p) {
-            case '"': case '\\': case '\n': case '\r': case '\t':
-                len += 2; break;
+            case '"':
+            case '\\':
+            case '\n':
+            case '\r':
+            case '\t':
+                len += 2;
+                break;
             default:
-                len += 1; break;
+                len += 1;
+                break;
         }
     }
 
-    char *escaped = (char *)lv_malloc(len + 1);
-    if (!escaped) return NULL;
+    char *escaped = (char *) lv_malloc(len + 1);
+    if (!escaped)
+        return NULL;
 
     size_t pos = 0;
     for (const char *p = str; *p; p++) {
         switch (*p) {
-            case '"':  escaped[pos++] = '\\'; escaped[pos++] = '"';  break;
-            case '\\': escaped[pos++] = '\\'; escaped[pos++] = '\\'; break;
-            case '\n': escaped[pos++] = '\\'; escaped[pos++] = 'n';  break;
-            case '\r': escaped[pos++] = '\\'; escaped[pos++] = 'r';  break;
-            case '\t': escaped[pos++] = '\\'; escaped[pos++] = 't';  break;
-            default:   escaped[pos++] = *p; break;
+            case '"':
+                escaped[pos++] = '\\';
+                escaped[pos++] = '"';
+                break;
+            case '\\':
+                escaped[pos++] = '\\';
+                escaped[pos++] = '\\';
+                break;
+            case '\n':
+                escaped[pos++] = '\\';
+                escaped[pos++] = 'n';
+                break;
+            case '\r':
+                escaped[pos++] = '\\';
+                escaped[pos++] = 'r';
+                break;
+            case '\t':
+                escaped[pos++] = '\\';
+                escaped[pos++] = 't';
+                break;
+            default:
+                escaped[pos++] = *p;
+                break;
         }
     }
     escaped[pos] = '\0';
 
-    if (out_len) *out_len = pos;
+    if (out_len)
+        *out_len = pos;
     return escaped;
 }
 
@@ -1756,28 +1689,26 @@ static char *json_escape_string(const char *str, size_t *out_len)
  * @return true 成功
  * @return false 失败
  */
-bool preset_serialize(PresetEntryHandle entry,
-                     uint8_t **out_data,
-                     size_t *out_size)
-{
+bool preset_serialize(PresetEntryHandle entry, uint8_t **out_data, size_t *out_size) {
     PRESET_CHECK_NULL(entry, error);
     PRESET_CHECK_NULL(out_data, error);
     PRESET_CHECK_NULL(out_size, error);
 
-    InternalPresetEntry *internal = (InternalPresetEntry *)entry;
+    InternalPresetEntry *internal = (InternalPresetEntry *) entry;
     const PresetMetadata *meta = &internal->metadata;
 
     /* 对字符串字段进行 JSON 转义 */
     char *esc_name = json_escape_string(meta->name, NULL);
-    char *esc_desc = json_escape_string(
-        meta->description ? meta->description : "", NULL);
-    char *esc_math = json_escape_string(
-        meta->mathematical_def ? meta->mathematical_def : "", NULL);
+    char *esc_desc = json_escape_string(meta->description ? meta->description : "", NULL);
+    char *esc_math = json_escape_string(meta->mathematical_def ? meta->mathematical_def : "", NULL);
 
     if (!esc_name || !esc_desc || !esc_math) {
-        if (esc_name) lv_free((void **)&esc_name);
-        if (esc_desc) lv_free((void **)&esc_desc);
-        if (esc_math) lv_free((void **)&esc_math);
+        if (esc_name)
+            lv_free((void **) &esc_name);
+        if (esc_desc)
+            lv_free((void **) &esc_desc);
+        if (esc_math)
+            lv_free((void **) &esc_math);
         set_error("内存分配失败");
         return false;
     }
@@ -1794,26 +1725,20 @@ bool preset_serialize(PresetEntryHandle entry,
         "  \"output_count\": %d,\n"
         "  \"version\": \"%d.%d.%d\"\n"
         "}\n",
-        esc_name,
-        esc_desc,
-        esc_math,
-        func_block_preset_category_string(meta->category),
-        func_block_preset_complexity_string(meta->complexity),
-        meta->input_count,
-        meta->output_count,
-        meta->version_major, meta->version_minor, meta->version_patch
-    );
+        esc_name, esc_desc, esc_math, func_block_preset_category_string(meta->category),
+        func_block_preset_complexity_string(meta->complexity), meta->input_count, meta->output_count,
+        meta->version_major, meta->version_minor, meta->version_patch);
 
-    lv_free((void **)&esc_name);
-    lv_free((void **)&esc_desc);
-    lv_free((void **)&esc_math);
+    lv_free((void **) &esc_name);
+    lv_free((void **) &esc_desc);
+    lv_free((void **) &esc_math);
 
     if (!json) {
         set_error("JSON 序列化失败：内存不足");
         return false;
     }
 
-    *out_data = (uint8_t *)json;
+    *out_data = (uint8_t *) json;
     *out_size = strlen(json);
     return true;
 
@@ -1831,18 +1756,19 @@ error:
  * @param out_value 输出值（调用者需使用 lv_free 释放）
  * @return true 找到并成功提取
  */
-static bool json_extract_string(const char *json, const char *key,
-                                char **out_value)
-{
-    if (!json || !key || !out_value) return false;
+static bool json_extract_string(const char *json, const char *key, char **out_value) {
+    if (!json || !key || !out_value)
+        return false;
 
     /* 查找键 */
     const char *key_pos = strstr(json, key);
-    if (!key_pos) return false;
+    if (!key_pos)
+        return false;
 
     /* 跳过键和冒号 */
     const char *val_start = strchr(key_pos + strlen(key), ':');
-    if (!val_start) return false;
+    if (!val_start)
+        return false;
     val_start++;
 
     /* 跳过空白 */
@@ -1851,16 +1777,19 @@ static bool json_extract_string(const char *json, const char *key,
     }
 
     /* 期望引号开始 */
-    if (*val_start != '"') return false;
+    if (*val_start != '"')
+        return false;
     val_start++;
 
     /* 查找结束引号 */
     const char *val_end = strchr(val_start, '"');
-    if (!val_end) return false;
+    if (!val_end)
+        return false;
 
-    size_t len = (size_t)(val_end - val_start);
-    char *value = (char *)lv_malloc(len + 1);
-    if (!value) return false;
+    size_t len = (size_t) (val_end - val_start);
+    char *value = (char *) lv_malloc(len + 1);
+    if (!value)
+        return false;
 
     memcpy(value, val_start, len);
     value[len] = '\0';
@@ -1872,15 +1801,17 @@ static bool json_extract_string(const char *json, const char *key,
 /**
  * @brief 从 JSON 字符串中提取整数键的值
  */
-static bool json_extract_int(const char *json, const char *key, int *out_value)
-{
-    if (!json || !key || !out_value) return false;
+static bool json_extract_int(const char *json, const char *key, int *out_value) {
+    if (!json || !key || !out_value)
+        return false;
 
     const char *key_pos = strstr(json, key);
-    if (!key_pos) return false;
+    if (!key_pos)
+        return false;
 
     const char *val_start = strchr(key_pos + strlen(key), ':');
-    if (!val_start) return false;
+    if (!val_start)
+        return false;
     val_start++;
 
     while (*val_start == ' ' || *val_start == '\t' || *val_start == '\n') {
@@ -1889,9 +1820,10 @@ static bool json_extract_int(const char *json, const char *key, int *out_value)
 
     char *endptr = NULL;
     long val = strtol(val_start, &endptr, 10);
-    if (endptr == val_start) return false;
+    if (endptr == val_start)
+        return false;
 
-    *out_value = (int)val;
+    *out_value = (int) val;
     return true;
 }
 
@@ -1909,15 +1841,12 @@ static bool json_extract_int(const char *json, const char *key, int *out_value)
  * @return true 成功
  * @return false 失败
  */
-bool preset_deserialize(const uint8_t *data,
-                       size_t size,
-                       PresetEntryHandle *out_entry)
-{
+bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out_entry) {
     PRESET_CHECK_NULL(data, error);
     PRESET_CHECK_NULL(out_entry, error);
 
     /* 确保数据以空字符结尾 */
-    char *json_copy = (char *)lv_malloc(size + 1);
+    char *json_copy = (char *) lv_malloc(size + 1);
     if (!json_copy) {
         set_error("内存分配失败");
         return false;
@@ -1944,11 +1873,15 @@ bool preset_deserialize(const uint8_t *data,
     ok = ok && json_extract_int(json_copy, "\"output_count\"", &meta.output_count);
 
     if (!ok) {
-        if (name)  lv_free((void **)&name);
-        if (desc)  lv_free((void **)&desc);
-        if (math_def) lv_free((void **)&math_def);
-        if (cat_str) lv_free((void **)&cat_str);
-        lv_free((void **)&json_copy);
+        if (name)
+            lv_free((void **) &name);
+        if (desc)
+            lv_free((void **) &desc);
+        if (math_def)
+            lv_free((void **) &math_def);
+        if (cat_str)
+            lv_free((void **) &cat_str);
+        lv_free((void **) &json_copy);
         set_error("JSON 解析失败：缺少必要字段");
         return false;
     }
@@ -1961,10 +1894,9 @@ bool preset_deserialize(const uint8_t *data,
     meta.category = PRESET_CATEGORY_CUSTOM;
     if (cat_str) {
         for (int c = 0; c < PRESET_CATEGORY_COUNT; c++) {
-            const char *cat_name =
-                func_block_preset_category_string((PresetCategory)c);
+            const char *cat_name = func_block_preset_category_string((PresetCategory) c);
             if (cat_name && strcmp(cat_name, cat_str) == 0) {
-                meta.category = (PresetCategory)c;
+                meta.category = (PresetCategory) c;
                 break;
             }
         }
@@ -1981,18 +1913,18 @@ bool preset_deserialize(const uint8_t *data,
     meta.version_minor = 0;
     meta.version_patch = 0;
 
-    lv_free((void **)&cat_str);
-    lv_free((void **)&complexity_str);
-    lv_free((void **)&json_copy);
+    lv_free((void **) &cat_str);
+    lv_free((void **) &complexity_str);
+    lv_free((void **) &json_copy);
 
     /* 注册到库中 */
     bool success = preset_register_custom(&meta, NULL, out_entry);
 
     /* 注意：preset_register_custom 会通过 lv_strdup 深拷贝 name/desc/math_def，
      * 因此可以安全释放临时分配的字符串 */
-    lv_free((void **)&name);
-    lv_free((void **)&desc);
-    lv_free((void **)&math_def);
+    lv_free((void **) &name);
+    lv_free((void **) &desc);
+    lv_free((void **) &math_def);
 
     if (!success) {
         return false;
@@ -2018,8 +1950,7 @@ error:
  * @return true 成功
  * @return false 失败
  */
-bool preset_export_to_file(const char *name, const char *filepath)
-{
+bool preset_export_to_file(const char *name, const char *filepath) {
     PRESET_CHECK_STRING(name, error);
     PRESET_CHECK_STRING(filepath, error);
 
@@ -2044,7 +1975,7 @@ bool preset_export_to_file(const char *name, const char *filepath)
     /* 写入文件 */
     FILE *fp = fopen(filepath, "w");
     if (!fp) {
-        lv_free((void **)&data);
+        lv_free((void **) &data);
         set_error("无法打开文件 '%s' 进行写入", filepath);
         return false;
     }
@@ -2052,11 +1983,10 @@ bool preset_export_to_file(const char *name, const char *filepath)
     size_t written = fwrite(data, 1, size, fp);
     fclose(fp);
 
-    lv_free((void **)&data);
+    lv_free((void **) &data);
 
     if (written != size) {
-        set_error("文件写入不完整：期望 %zu 字节，实际写入 %zu 字节",
-                  size, written);
+        set_error("文件写入不完整：期望 %zu 字节，实际写入 %zu 字节", size, written);
         return false;
     }
 
@@ -2077,8 +2007,7 @@ error:
  * @return true 成功
  * @return false 失败
  */
-bool preset_import_from_file(const char *filepath, char **out_name)
-{
+bool preset_import_from_file(const char *filepath, char **out_name) {
     PRESET_CHECK_STRING(filepath, error);
 
     /* 打开文件 */
@@ -2093,25 +2022,25 @@ bool preset_import_from_file(const char *filepath, char **out_name)
     long file_size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
 
-    if (file_size <= 0 || file_size > (long)(PRESET_BUFFER_SIZE * 10)) {
+    if (file_size <= 0 || file_size > (long) (PRESET_BUFFER_SIZE * 10)) {
         fclose(fp);
         set_error("文件大小无效：%ld 字节", file_size);
         return false;
     }
 
     /* 读取文件内容 */
-    uint8_t *data = (uint8_t *)lv_malloc((size_t)file_size + 1);
+    uint8_t *data = (uint8_t *) lv_malloc((size_t) file_size + 1);
     if (!data) {
         fclose(fp);
         set_error("内存分配失败");
         return false;
     }
 
-    size_t read_size = fread(data, 1, (size_t)file_size, fp);
+    size_t read_size = fread(data, 1, (size_t) file_size, fp);
     fclose(fp);
 
-    if (read_size != (size_t)file_size) {
-        lv_free((void **)&data);
+    if (read_size != (size_t) file_size) {
+        lv_free((void **) &data);
         set_error("文件读取不完整");
         return false;
     }
@@ -2119,9 +2048,9 @@ bool preset_import_from_file(const char *filepath, char **out_name)
 
     /* 反序列化 */
     PresetEntryHandle entry = NULL;
-    bool ok = preset_deserialize(data, (size_t)file_size, &entry);
+    bool ok = preset_deserialize(data, (size_t) file_size, &entry);
 
-    lv_free((void **)&data);
+    lv_free((void **) &data);
 
     if (!ok || !entry) {
         return false;
@@ -2147,7 +2076,7 @@ error:
  * ============================================================ */
 
 static uint32_t hash_string(const char *str);
-static InternalPresetEntry* find_entry(const char *name);
+static InternalPresetEntry *find_entry(const char *name);
 static bool insert_entry(InternalPresetEntry *entry);
 static bool remove_entry(const char *name);
 static void free_entry(InternalPresetEntry *entry);
@@ -2163,15 +2092,14 @@ static void clear_error(void);
 /**
  * @brief 字符串哈希函数（FNV-1a）
  */
-static uint32_t hash_string(const char *str)
-{
+static uint32_t hash_string(const char *str) {
     if (str == NULL) {
         return 0;
     }
-    
+
     uint32_t hash = 2166136261U;
     while (*str) {
-        hash ^= (uint32_t)(unsigned char)*str++;
+        hash ^= (uint32_t) (unsigned char) *str++;
         hash *= 16777619U;
     }
     return hash;
@@ -2181,8 +2109,7 @@ static uint32_t hash_string(const char *str)
  * 线程安全实现
  * ============================================================ */
 
-static void lock_library(void)
-{
+static void lock_library(void) {
     /* 惰性初始化：静态库链接时 DllMain/constructor 不会被调用 */
     static volatile long g_mutex_initialized = 0;
     if (!g_mutex_initialized) {
@@ -2200,8 +2127,7 @@ static void lock_library(void)
 #endif
 }
 
-static void unlock_library(void)
-{
+static void unlock_library(void) {
 #ifdef _WIN32
     LeaveCriticalSection(&g_library.mutex);
 #else
@@ -2213,25 +2139,22 @@ static void unlock_library(void)
  * 错误处理实现
  * ============================================================ */
 
-static void set_error(const char *fmt, ...)
-{
+static void set_error(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     vsnprintf(g_library.last_error, sizeof(g_library.last_error), fmt, args);
     va_end(args);
-    
+
     /* 同步到统一错误系统 */
     lv_set_error(lv_ERROR_INVALID_PARAM, "%s", g_library.last_error);
-    
+
     /* 调用错误回调 */
     if (g_library.error_callback != NULL) {
-        g_library.error_callback(g_library.last_error, 
-                                g_library.error_callback_data);
+        g_library.error_callback(g_library.last_error, g_library.error_callback_data);
     }
 }
 
-static void clear_error(void)
-{
+static void clear_error(void) {
     g_library.last_error[0] = '\0';
     lv_clear_error();
 }
@@ -2243,15 +2166,14 @@ static void clear_error(void)
 /**
  * @brief 查找预设条目
  */
-static InternalPresetEntry* find_entry(const char *name)
-{
+static InternalPresetEntry *find_entry(const char *name) {
     if (name == NULL || g_library.hash_table == NULL) {
         return NULL;
     }
-    
+
     uint32_t hash = hash_string(name);
-    int index = (int)(hash % (uint32_t)g_library.hash_table_size);
-    
+    int index = (int) (hash % (uint32_t) g_library.hash_table_size);
+
     InternalPresetEntry *entry = g_library.hash_table[index];
     while (entry != NULL) {
         if (strcmp(entry->metadata.name, name) == 0) {
@@ -2259,56 +2181,54 @@ static InternalPresetEntry* find_entry(const char *name)
         }
         entry = entry->next;
     }
-    
+
     return NULL;
 }
 
 /**
  * @brief 插入预设条目
  */
-static bool insert_entry(InternalPresetEntry *entry)
-{
+static bool insert_entry(InternalPresetEntry *entry) {
     if (entry == NULL || g_library.hash_table == NULL) {
         return false;
     }
-    
+
     /* 检查是否已存在 */
     if (find_entry(entry->metadata.name) != NULL) {
         return false;
     }
-    
+
     uint32_t hash = hash_string(entry->metadata.name);
-    int index = (int)(hash % (uint32_t)g_library.hash_table_size);
-    
+    int index = (int) (hash % (uint32_t) g_library.hash_table_size);
+
     /* 插入到链表头部 */
     entry->next = g_library.hash_table[index];
     g_library.hash_table[index] = entry;
-    
+
     g_library.entry_count++;
     if (entry->is_builtin) {
         g_library.builtin_count++;
     } else {
         g_library.custom_count++;
     }
-    
+
     return true;
 }
 
 /**
  * @brief 移除预设条目
  */
-static bool remove_entry(const char *name)
-{
+static bool remove_entry(const char *name) {
     if (name == NULL || g_library.hash_table == NULL) {
         return false;
     }
-    
+
     uint32_t hash = hash_string(name);
-    int index = (int)(hash % (uint32_t)g_library.hash_table_size);
-    
+    int index = (int) (hash % (uint32_t) g_library.hash_table_size);
+
     InternalPresetEntry *entry = g_library.hash_table[index];
     InternalPresetEntry *prev = NULL;
-    
+
     while (entry != NULL) {
         if (strcmp(entry->metadata.name, name) == 0) {
             /* 从链表中移除 */
@@ -2317,7 +2237,7 @@ static bool remove_entry(const char *name)
             } else {
                 prev->next = entry->next;
             }
-            
+
             /* 更新计数 */
             g_library.entry_count--;
             if (entry->is_builtin) {
@@ -2325,16 +2245,16 @@ static bool remove_entry(const char *name)
             } else {
                 g_library.custom_count--;
             }
-            
+
             /* 释放条目 */
             free_entry(entry);
             return true;
         }
-        
+
         prev = entry;
         entry = entry->next;
     }
-    
+
     return false;
 }
 
@@ -2344,8 +2264,7 @@ static bool remove_entry(const char *name)
  * 释放预设条目及其关联的所有动态内存。
  * 注意：此函数为内部函数，调用前应确保已从哈希表中移除该条目。
  */
-static void free_entry(InternalPresetEntry *entry)
-{
+static void free_entry(InternalPresetEntry *entry) {
     if (entry == NULL) {
         return;
     }
@@ -2359,39 +2278,39 @@ static void free_entry(InternalPresetEntry *entry)
     /* 释放元数据中的动态内存 */
     /* 注意：metadata 字段可能为 const 限定，需要通过非 const 中间变量释放 */
     if (entry->metadata.input_params != NULL) {
-        void *tmp = (void *)entry->metadata.input_params;
+        void *tmp = (void *) entry->metadata.input_params;
         lv_free(&tmp);
         entry->metadata.input_params = NULL;
     }
     if (entry->metadata.output_params != NULL) {
-        void *tmp = (void *)entry->metadata.output_params;
+        void *tmp = (void *) entry->metadata.output_params;
         lv_free(&tmp);
         entry->metadata.output_params = NULL;
     }
     if (entry->metadata.preconditions != NULL) {
         for (int i = 0; i < entry->metadata.precondition_count; i++) {
-            void *tmp = (void *)entry->metadata.preconditions[i];
+            void *tmp = (void *) entry->metadata.preconditions[i];
             lv_free(&tmp);
         }
-        void *tmp = (void *)entry->metadata.preconditions;
+        void *tmp = (void *) entry->metadata.preconditions;
         lv_free(&tmp);
         entry->metadata.preconditions = NULL;
     }
     if (entry->metadata.postconditions != NULL) {
         for (int i = 0; i < entry->metadata.postcondition_count; i++) {
-            void *tmp = (void *)entry->metadata.postconditions[i];
+            void *tmp = (void *) entry->metadata.postconditions[i];
             lv_free(&tmp);
         }
-        void *tmp = (void *)entry->metadata.postconditions;
+        void *tmp = (void *) entry->metadata.postconditions;
         lv_free(&tmp);
         entry->metadata.postconditions = NULL;
     }
     if (entry->metadata.related_presets != NULL) {
         for (int i = 0; i < entry->metadata.related_count; i++) {
-            void *tmp = (void *)entry->metadata.related_presets[i];
+            void *tmp = (void *) entry->metadata.related_presets[i];
             lv_free(&tmp);
         }
-        void *tmp = (void *)entry->metadata.related_presets;
+        void *tmp = (void *) entry->metadata.related_presets;
         lv_free(&tmp);
         entry->metadata.related_presets = NULL;
     }
@@ -2407,50 +2326,47 @@ static void free_entry(InternalPresetEntry *entry)
  * 库生命周期管理实现
  * ============================================================ */
 
-bool preset_library_init(void)
-{
+bool preset_library_init(void) {
     lock_library();
-    
+
     if (g_library.initialized) {
         unlock_library();
         set_error("预设库已经初始化");
         return false;
     }
-    
+
     /* 初始化哈希表 */
     g_library.hash_table_size = 256;
-    g_library.hash_table = (InternalPresetEntry**)lv_calloc(
-        g_library.hash_table_size, sizeof(InternalPresetEntry*));
-    
+    g_library.hash_table = (InternalPresetEntry **) lv_calloc(g_library.hash_table_size, sizeof(InternalPresetEntry *));
+
     if (g_library.hash_table == NULL) {
         unlock_library();
         set_error("哈希表内存分配失败");
         return false;
     }
-    
+
     g_library.entry_count = 0;
     g_library.builtin_count = 0;
     g_library.custom_count = 0;
     g_library.initialized = true;
     g_library.next_id = PRESET_ID_OFFSET;
-    
+
     clear_error();
-    
+
     unlock_library();
     ; /* 注册完成 */
     return true;
 }
 
-bool preset_library_shutdown(void)
-{
+bool preset_library_shutdown(void) {
     lock_library();
-    
+
     if (!g_library.initialized) {
         unlock_library();
         set_error("预设库未初始化");
         return false;
     }
-    
+
     /* 释放所有条目 */
     for (int i = 0; i < g_library.hash_table_size; i++) {
         InternalPresetEntry *entry = g_library.hash_table[i];
@@ -2460,7 +2376,7 @@ bool preset_library_shutdown(void)
             entry = next;
         }
     }
-    
+
     /* 释放哈希表（使用正确的双重指针方式调用 lv_free） */
     {
         void *tmp = g_library.hash_table;
@@ -2468,19 +2384,18 @@ bool preset_library_shutdown(void)
     }
     g_library.hash_table = NULL;
     g_library.hash_table_size = 0;
-    
+
     g_library.entry_count = 0;
     g_library.builtin_count = 0;
     g_library.custom_count = 0;
     g_library.initialized = false;
-    
+
     unlock_library();
     ; /* 注册完成 */
     return true;
 }
 
-bool preset_library_is_initialized(void)
-{
+bool preset_library_is_initialized(void) {
     /* 使用 volatile 读取 + 编译器内存屏障确保线程间可见性 */
 #ifdef _WIN32
     MemoryBarrier();
@@ -2494,72 +2409,66 @@ bool preset_library_is_initialized(void)
     return init;
 }
 
-const PresetVersion* preset_library_get_version(void)
-{
-    static PresetVersion version = {
-        .major = PRESET_SYSTEM_VERSION_MAJOR,
-        .minor = PRESET_SYSTEM_VERSION_MINOR,
-        .patch = PRESET_SYSTEM_VERSION_PATCH,
-        .build_info = __DATE__ " " __TIME__
-    };
+const PresetVersion *preset_library_get_version(void) {
+    static PresetVersion version = {.major = PRESET_SYSTEM_VERSION_MAJOR,
+                                    .minor = PRESET_SYSTEM_VERSION_MINOR,
+                                    .patch = PRESET_SYSTEM_VERSION_PATCH,
+                                    .build_info = __DATE__ " " __TIME__};
     return &version;
 }
 
-bool preset_library_get_statistics(PresetStatistics *stats)
-{
+bool preset_library_get_statistics(PresetStatistics *stats) {
     PRESET_CHECK_NULL(stats, error);
-    
+
     lock_library();
-    
+
     if (!g_library.initialized) {
         unlock_library();
         set_error("预设库未初始化");
         return false;
     }
-    
+
     memset(stats, 0, sizeof(PresetStatistics));
     stats->total_count = g_library.entry_count;
     stats->builtin_count = g_library.builtin_count;
     stats->custom_count = g_library.custom_count;
     stats->active_count = g_library.entry_count; /* 简化实现 */
-    
+
     /* 统计各类别数量 */
     for (int i = 0; i < g_library.hash_table_size; i++) {
         InternalPresetEntry *entry = g_library.hash_table[i];
         while (entry != NULL) {
-            if (entry->metadata.category >= 0 && 
-                entry->metadata.category < PRESET_CATEGORY_COUNT) {
+            if (entry->metadata.category >= 0 && entry->metadata.category < PRESET_CATEGORY_COUNT) {
                 stats->category_counts[entry->metadata.category]++;
             }
             entry = entry->next;
         }
     }
-    
+
     unlock_library();
     return true;
-    
+
 error:
     return false;
 }
 
-bool preset_library_reset(void)
-{
+bool preset_library_reset(void) {
     lock_library();
-    
+
     if (!g_library.initialized) {
         unlock_library();
         set_error("预设库未初始化");
         return false;
     }
-    
+
     /* 移除所有自定义预设 */
     for (int i = 0; i < g_library.hash_table_size; i++) {
         InternalPresetEntry *entry = g_library.hash_table[i];
         InternalPresetEntry *prev = NULL;
-        
+
         while (entry != NULL) {
             InternalPresetEntry *next = entry->next;
-            
+
             if (!entry->is_builtin) {
                 /* 从链表中移除 */
                 if (prev == NULL) {
@@ -2567,18 +2476,18 @@ bool preset_library_reset(void)
                 } else {
                     prev->next = next;
                 }
-                
+
                 free_entry(entry);
                 g_library.entry_count--;
                 g_library.custom_count--;
             } else {
                 prev = entry;
             }
-            
+
             entry = next;
         }
     }
-    
+
     unlock_library();
     ; /* 注册完成 */
     return true;
@@ -2588,59 +2497,54 @@ bool preset_library_reset(void)
  * 预设注册实现
  * ============================================================ */
 
-bool preset_register_custom(const PresetMetadata *metadata,
-                           const FuncBlock *template_fb,
-                           PresetEntryHandle *out_entry)
-{
+bool preset_register_custom(const PresetMetadata *metadata, const FuncBlock *template_fb,
+                            PresetEntryHandle *out_entry) {
     PRESET_CHECK_NULL(metadata, error);
     PRESET_CHECK_STRING(metadata->name, error);
-    
+
     lock_library();
-    
+
     if (!g_library.initialized) {
         unlock_library();
         set_error("预设库未初始化");
         return false;
     }
-    
+
     /* 检查容量 */
     if (g_library.entry_count >= PRESET_MAX_COUNT) {
         unlock_library();
         set_error("预设库已满");
         return false;
     }
-    
+
     /* 检查名称是否已存在 */
     if (find_entry(metadata->name) != NULL) {
         unlock_library();
         set_error("预设 '%s' 已存在", metadata->name);
         return false;
     }
-    
+
     /* 创建新条目 */
-    InternalPresetEntry *entry = (InternalPresetEntry*)lv_calloc(
-        1, sizeof(InternalPresetEntry));
+    InternalPresetEntry *entry = (InternalPresetEntry *) lv_calloc(1, sizeof(InternalPresetEntry));
     if (entry == NULL) {
         unlock_library();
         set_error("内存分配失败");
         return false;
     }
-    
+
     /* 复制元数据 */
     memcpy(&entry->metadata, metadata, sizeof(PresetMetadata));
     entry->metadata.name = lv_strdup(metadata->name);
-    entry->metadata.description = metadata->description ? 
-        lv_strdup(metadata->description) : NULL;
-    entry->metadata.mathematical_def = metadata->mathematical_def ? 
-        lv_strdup(metadata->mathematical_def) : NULL;
-    
+    entry->metadata.description = metadata->description ? lv_strdup(metadata->description) : NULL;
+    entry->metadata.mathematical_def = metadata->mathematical_def ? lv_strdup(metadata->mathematical_def) : NULL;
+
     /* 分配ID */
     entry->id = PRESET_ATOMIC_INC(g_library.next_id);
-    
+
     entry->is_builtin = false;
     entry->is_active = true;
     entry->reference_count = 1;
-    
+
     /* 复制模板函数块 */
     if (template_fb != NULL) {
         /* 修复函数名：func_block_clone 不存在，应使用 func_block_copy */
@@ -2652,7 +2556,7 @@ bool preset_register_custom(const PresetMetadata *metadata,
             return false;
         }
     }
-    
+
     /* 插入哈希表 */
     if (!insert_entry(entry)) {
         free_entry(entry);
@@ -2660,31 +2564,30 @@ bool preset_register_custom(const PresetMetadata *metadata,
         set_error("插入预设条目失败");
         return false;
     }
-    
+
     if (out_entry != NULL) {
-        *out_entry = (PresetEntryHandle)entry;
+        *out_entry = (PresetEntryHandle) entry;
     }
-    
+
     unlock_library();
     ; /* 注册完成 */
     return true;
-    
+
 error:
     return false;
 }
 
-bool preset_unregister(const char *name)
-{
+bool preset_unregister(const char *name) {
     PRESET_CHECK_STRING(name, error);
-    
+
     lock_library();
-    
+
     if (!g_library.initialized) {
         unlock_library();
         set_error("预设库未初始化");
         return false;
     }
-    
+
     /* 查找条目 */
     InternalPresetEntry *entry = find_entry(name);
     if (entry == NULL) {
@@ -2692,32 +2595,32 @@ bool preset_unregister(const char *name)
         set_error("预设 '%s' 不存在", name);
         return false;
     }
-    
+
     /* 不能注销内置预设 */
     if (entry->is_builtin) {
         unlock_library();
         set_error("不能注销内置预设 '%s'", name);
         return false;
     }
-    
+
     /* 检查引用计数 */
     if (entry->reference_count > 1) {
         unlock_library();
         set_error("预设 '%s' 仍在使用中", name);
         return false;
     }
-    
+
     /* 移除条目 */
     if (!remove_entry(name)) {
         unlock_library();
         set_error("移除预设 '%s' 失败", name);
         return false;
     }
-    
+
     unlock_library();
     ; /* 注册完成 */
     return true;
-    
+
 error:
     return false;
 }
@@ -2726,26 +2629,25 @@ error:
  * 预设查询实现
  * ============================================================ */
 
-PresetEntryHandle preset_find(const char *name)
-{
+PresetEntryHandle preset_find(const char *name) {
     PRESET_CHECK_NULL(name, error);
-    
+
     lock_library();
-    
+
     if (!g_library.initialized) {
         unlock_library();
         set_error("预设库未初始化");
         return NULL;
     }
-    
+
     InternalPresetEntry *entry = find_entry(name);
     if (entry != NULL) {
         entry->reference_count++;
     }
-    
+
     unlock_library();
-    return (PresetEntryHandle)entry;
-    
+    return (PresetEntryHandle) entry;
+
 error:
     return NULL;
 }
@@ -2759,15 +2661,14 @@ error:
  *
  * @param entry 预设条目句柄（由 preset_find 返回）
  */
-void preset_release(PresetEntryHandle entry)
-{
+void preset_release(PresetEntryHandle entry) {
     if (entry == NULL) {
         return;
     }
 
     lock_library();
 
-    InternalPresetEntry *internal = (InternalPresetEntry*)entry;
+    InternalPresetEntry *internal = (InternalPresetEntry *) entry;
 
     /* 防止引用计数下溢 */
     if (internal->reference_count > 0) {
@@ -2777,52 +2678,49 @@ void preset_release(PresetEntryHandle entry)
     unlock_library();
 }
 
-const PresetMetadata* preset_get_metadata(PresetEntryHandle entry)
-{
+const PresetMetadata *preset_get_metadata(PresetEntryHandle entry) {
     if (entry == NULL) {
         set_error("无效的预设条目句柄");
         return NULL;
     }
-    
-    InternalPresetEntry *internal = (InternalPresetEntry*)entry;
+
+    InternalPresetEntry *internal = (InternalPresetEntry *) entry;
     return &internal->metadata;
 }
 
-bool preset_exists(const char *name)
-{
+bool preset_exists(const char *name) {
     if (name == NULL) {
         return false;
     }
-    
+
     lock_library();
-    
+
     if (!g_library.initialized) {
         unlock_library();
         return false;
     }
-    
+
     bool exists = (find_entry(name) != NULL);
-    
+
     unlock_library();
     return exists;
 }
 
-bool preset_is_builtin(const char *name)
-{
+bool preset_is_builtin(const char *name) {
     if (name == NULL) {
         return false;
     }
-    
+
     lock_library();
-    
+
     if (!g_library.initialized) {
         unlock_library();
         return false;
     }
-    
+
     InternalPresetEntry *entry = find_entry(name);
     bool is_builtin = (entry != NULL && entry->is_builtin);
-    
+
     unlock_library();
     return is_builtin;
 }
@@ -2831,20 +2729,15 @@ bool preset_is_builtin(const char *name)
  * 错误处理实现
  * ============================================================ */
 
-const char* preset_get_last_error(void)
-{
+const char *preset_get_last_error(void) {
     return lv_get_last_error_message();
 }
 
-void preset_clear_error(void)
-{
+void preset_clear_error(void) {
     clear_error();
 }
 
-void preset_set_error_callback(void (*callback)(const char *error,
-                                               void *user_data),
-                              void *user_data)
-{
+void preset_set_error_callback(void (*callback)(const char *error, void *user_data), void *user_data) {
     g_library.error_callback = callback;
     g_library.error_callback_data = user_data;
 }
@@ -2866,31 +2759,29 @@ void preset_set_error_callback(void (*callback)(const char *error,
  *   因为关闭操作需要获取锁，在加载器锁下可能导致死锁。
  *   用户应在卸载前显式调用 preset_library_shutdown()。
  */
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, 
-                      LPVOID lpReserved)
-{
-    (void)hModule;
-    (void)lpReserved;
-    
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
+    (void) hModule;
+    (void) lpReserved;
+
     switch (ul_reason_for_call) {
-    case DLL_PROCESS_ATTACH:
-        /* 仅初始化临界区，不做其他复杂操作 */
-        InitializeCriticalSection(&g_library.mutex);
-        DisableThreadLibraryCalls(hModule);
-        break;
-        
-    case DLL_PROCESS_DETACH:
-        /* 仅销毁临界区，不调用 preset_library_shutdown()
+        case DLL_PROCESS_ATTACH:
+            /* 仅初始化临界区，不做其他复杂操作 */
+            InitializeCriticalSection(&g_library.mutex);
+            DisableThreadLibraryCalls(hModule);
+            break;
+
+        case DLL_PROCESS_DETACH:
+            /* 仅销毁临界区，不调用 preset_library_shutdown()
          * 如果库仍处于初始化状态，由操作系统回收资源。
          * 用户应确保在卸载前已调用 preset_library_shutdown()。 */
-        DeleteCriticalSection(&g_library.mutex);
-        break;
-        
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-        break;
+            DeleteCriticalSection(&g_library.mutex);
+            break;
+
+        case DLL_THREAD_ATTACH:
+        case DLL_THREAD_DETACH:
+            break;
     }
-    
+
     return TRUE;
 }
 

@@ -14,9 +14,9 @@
 #include <stdint.h>
 
 #ifdef _WIN32
-    #include <windows.h>
+#include <windows.h>
 #else
-    #include <time.h>
+#include <time.h>
 #endif
 
 /* ========================================================================
@@ -25,7 +25,7 @@
 
 #ifdef _WIN32
 /* Windows: QPC 高精度单调时钟的静态状态和初始化回调 */
-static LARGE_INTEGER s_qpc_freq = { 0 };
+static LARGE_INTEGER s_qpc_freq = {0};
 static INIT_ONCE s_qpc_init_once = INIT_ONCE_STATIC_INIT;
 
 /**
@@ -33,9 +33,9 @@ static INIT_ONCE s_qpc_init_once = INIT_ONCE_STATIC_INIT;
  * @note 由 InitOnceExecuteOnce 保证仅执行一次，消除竞态条件
  */
 static BOOL CALLBACK qpc_init_callback(PINIT_ONCE init_once, PVOID param, PVOID *context) {
-    (void)init_once;
-    (void)param;
-    (void)context;
+    (void) init_once;
+    (void) param;
+    (void) context;
     return QueryPerformanceFrequency(&s_qpc_freq);
 }
 #endif
@@ -67,8 +67,8 @@ lvTimestamp lv_timestamp_now(void) {
         uli.LowPart = ft.dwLowDateTime;
         uli.HighPart = ft.dwHighDateTime;
         /* FILETIME 表示自 1601-01-01 以来的 100ns 间隔 */
-        ts.seconds = (int64_t)(uli.QuadPart / 10000000ULL);
-        ts.nanoseconds = (int64_t)((uli.QuadPart % 10000000ULL) * 100ULL);
+        ts.seconds = (int64_t) (uli.QuadPart / 10000000ULL);
+        ts.nanoseconds = (int64_t) ((uli.QuadPart % 10000000ULL) * 100ULL);
     }
 #else
     /* POSIX: 使用 clock_gettime(CLOCK_MONOTONIC) */
@@ -107,13 +107,21 @@ lvTimestamp lv_timestamp_now(void) {
  * @return true 表示无溢出，false 表示溢出或参数无效
  */
 bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
-    if (!out) return false;
-    if (a == 0 || b == 0) { *out = 0; return true; }
+    if (!out)
+        return false;
+    if (a == 0 || b == 0) {
+        *out = 0;
+        return true;
+    }
     /* 检查是否会溢出: |a * b| > INT64_MAX */
-    if (a > 0 && b > 0 && a > INT64_MAX / b) return false;
-    if (a > 0 && b < 0 && b < INT64_MIN / a) return false;
-    if (a < 0 && b > 0 && a < INT64_MIN / b) return false;
-    if (a < 0 && b < 0 && a < INT64_MAX / b) return false;
+    if (a > 0 && b > 0 && a > INT64_MAX / b)
+        return false;
+    if (a > 0 && b < 0 && b < INT64_MIN / a)
+        return false;
+    if (a < 0 && b > 0 && a < INT64_MIN / b)
+        return false;
+    if (a < 0 && b < 0 && a < INT64_MAX / b)
+        return false;
     *out = a * b;
     return true;
 }

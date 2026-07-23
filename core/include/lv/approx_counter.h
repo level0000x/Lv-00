@@ -24,6 +24,7 @@ extern "C" {
 #endif
 #include <stdbool.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 /* ========================================================================
  * PAC 配置与计数结果

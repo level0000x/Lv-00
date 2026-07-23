@@ -25,18 +25,18 @@ extern "C" {
  * ============================================================ */
 
 /** 公开 API（跨层或外部可调用） */
-#define lv_API        lv_PUBLIC_API
+#define lv_API lv_PUBLIC_API
 
 /** 模块内部 API（同层内可见，通过 static 限制链接作用域） */
-#define lv_INTERNAL   static
+#define lv_INTERNAL static
 
 /** 已废弃 API（编译器会发出警告） */
 #ifdef __GNUC__
-  #define lv_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#define lv_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #elif defined(_MSC_VER)
-  #define lv_DEPRECATED(msg) __declspec(deprecated(msg))
+#define lv_DEPRECATED(msg) __declspec(deprecated(msg))
 #else
-  #define lv_DEPRECATED(msg)
+#define lv_DEPRECATED(msg)
 #endif
 
 /* ============================================================

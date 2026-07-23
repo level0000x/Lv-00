@@ -1,10 +1,11 @@
-#include "lv/representation_converter.h"
+#include <math.h>
+#include <string.h>
+
 #include "lv/func_block.h"
 #include "lv/geometry_types.h"
 #include "lv/lv_utils.h"
+#include "lv/representation_converter.h"
 #include "lv/symbolic_coord.h"
-#include <string.h>
-#include <math.h>
 
 #define MAX_BLOCK_PORTS 64
 
@@ -42,28 +43,31 @@ typedef struct {
 } LinearEntity;
 
 static inline SymbolicCoord *symbolic_coord_from_double(double val) {
-    return symbolic_coord_create_rational((int64_t)(val * 1000000), 1000000);
+    return symbolic_coord_create_rational((int64_t) (val * 1000000), 1000000);
 }
 
 static inline PointEntity *point_entity_create(SymbolicCoord *x, SymbolicCoord *y) {
-    PointEntity *p = (PointEntity *)lv_calloc(1, sizeof(PointEntity));
-    if (!p) return NULL;
+    PointEntity *p = (PointEntity *) lv_calloc(1, sizeof(PointEntity));
+    if (!p)
+        return NULL;
     p->x = x;
     p->y = y;
     return p;
 }
 
 static inline PolygonEntity *polygon_entity_create(PointEntity **corners, int count) {
-    PolygonEntity *poly = (PolygonEntity *)lv_calloc(1, sizeof(PolygonEntity));
-    if (!poly) return NULL;
+    PolygonEntity *poly = (PolygonEntity *) lv_calloc(1, sizeof(PolygonEntity));
+    if (!poly)
+        return NULL;
     poly->vertex_count = count;
-    (void)corners;
+    (void) corners;
     return poly;
 }
 
 static inline LinearEntity *linear_entity_create_segment(PointEntity *p1, PointEntity *p2) {
-    LinearEntity *line = (LinearEntity *)lv_malloc(sizeof(LinearEntity));
-    if (!line) return NULL;
+    LinearEntity *line = (LinearEntity *) lv_malloc(sizeof(LinearEntity));
+    if (!line)
+        return NULL;
     memset(line, 0, sizeof(LinearEntity));
     line->start = p1;
     line->end = p2;
@@ -87,34 +91,35 @@ typedef struct {
 
 /* 销毁几何编码结构及其内部资源 */
 void lv_geometry_encoding_destroy(GeometryEncoding *enc) {
-    if (!enc) return;
+    if (!enc)
+        return;
     for (int i = 0; i < enc->rect_count; i++) {
         if (enc->rects[i]) {
-            lv_free((void **)&enc->rects[i]->base.name);
+            lv_free((void **) &enc->rects[i]->base.name);
         }
     }
     for (int i = 0; i < enc->port_point_count; i++) {
         if (enc->port_points[i]) {
-            lv_free((void **)&enc->port_points[i]->base.name);
+            lv_free((void **) &enc->port_points[i]->base.name);
         }
     }
     for (int i = 0; i < enc->connection_count; i++) {
         if (enc->connections[i]) {
-            lv_free((void **)&enc->connections[i]->base.name);
+            lv_free((void **) &enc->connections[i]->base.name);
         }
     }
-    lv_free((void **)&enc->rects);
-    lv_free((void **)&enc->port_points);
-    lv_free((void **)&enc->connections);
-    lv_free((void **)&enc);
+    lv_free((void **) &enc->rects);
+    lv_free((void **) &enc->port_points);
+    lv_free((void **) &enc->connections);
+    lv_free((void **) &enc);
 }
 
 /* 默认块布局参数 */
-#define BLOCK_WIDTH  160.0
+#define BLOCK_WIDTH 160.0
 #define BLOCK_HEIGHT 80.0
-#define BLOCK_GAP_X  40.0
-#define BLOCK_GAP_Y  30.0
-#define PORT_RADIUS  6.0
+#define BLOCK_GAP_X 40.0
+#define BLOCK_GAP_Y 30.0
+#define PORT_RADIUS 6.0
 
 /* 将函数块转换为几何实体 */
 /* 编码规则：
@@ -136,7 +141,7 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
         int count;
     } BlockGraphView;
 
-    BlockGraphView *bg = (BlockGraphView *)block;
+    BlockGraphView *bg = (BlockGraphView *) block;
 
     /* 创建几何编码结构 */
     GeometryEncoding *enc = lv_calloc(1, sizeof(GeometryEncoding));
@@ -156,24 +161,24 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
     }
     enc->rects = lv_calloc(bg->count + 1, sizeof(PolygonEntity *));
     if (!enc->rects) {
-        lv_free((void **)&enc);
+        lv_free((void **) &enc);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
     enc->port_points = lv_calloc(total_ports + 1, sizeof(PointEntity *));
     if (!enc->port_points) {
-        lv_free((void **)&enc->rects);
-        lv_free((void **)&enc);
+        lv_free((void **) &enc->rects);
+        lv_free((void **) &enc);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
     enc->connections = lv_calloc(total_ports + 1, sizeof(LinearEntity *));
     if (!enc->connections) {
-        lv_free((void **)&enc->rects);
-        lv_free((void **)&enc->port_points);
-        lv_free((void **)&enc);
+        lv_free((void **) &enc->rects);
+        lv_free((void **) &enc->port_points);
+        lv_free((void **) &enc);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
@@ -182,7 +187,8 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
     /* 为每个 FuncBlock 生成矩形和端口点 */
     for (int i = 0; i < bg->count; i++) {
         FuncBlock *fb = bg->blocks[i];
-        if (!fb) continue;
+        if (!fb)
+            continue;
 
         /* 计算块的位置（简单网格布局） */
         int col = i % 4;
@@ -193,15 +199,15 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
         double y1 = y0 + BLOCK_HEIGHT;
 
         /* 创建矩形区域的4个顶点 */
-        SymbolicCoord *coords[8]; /* 4个点，每个点2个坐标 */
-        coords[0] = symbolic_coord_from_double(x0);  /* 左下 x */
-        coords[1] = symbolic_coord_from_double(y0);  /* 左下 y */
-        coords[2] = symbolic_coord_from_double(x1);  /* 右下 x */
-        coords[3] = symbolic_coord_from_double(y0);  /* 右下 y */
-        coords[4] = symbolic_coord_from_double(x1);  /* 右上 x */
-        coords[5] = symbolic_coord_from_double(y1);  /* 右上 y */
-        coords[6] = symbolic_coord_from_double(x0);  /* 左上 x */
-        coords[7] = symbolic_coord_from_double(y1);  /* 左上 y */
+        SymbolicCoord *coords[8];                   /* 4个点，每个点2个坐标 */
+        coords[0] = symbolic_coord_from_double(x0); /* 左下 x */
+        coords[1] = symbolic_coord_from_double(y0); /* 左下 y */
+        coords[2] = symbolic_coord_from_double(x1); /* 右下 x */
+        coords[3] = symbolic_coord_from_double(y0); /* 右下 y */
+        coords[4] = symbolic_coord_from_double(x1); /* 右上 x */
+        coords[5] = symbolic_coord_from_double(y1); /* 右上 y */
+        coords[6] = symbolic_coord_from_double(x0); /* 左上 x */
+        coords[7] = symbolic_coord_from_double(y1); /* 左上 y */
 
         PointEntity *corners[4];
         corners[0] = point_entity_create(coords[0], coords[1]); /* 左下 */
@@ -249,7 +255,8 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
     /* 根据端口依赖生成连接线段 */
     for (int i = 0; i < bg->count; i++) {
         FuncBlock *fb = bg->blocks[i];
-        if (!fb) continue;
+        if (!fb)
+            continue;
 
         int in_count = func_block_get_input_count(fb);
         int out_count = func_block_get_output_count(fb);
@@ -295,7 +302,6 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
                 }
             }
         }
-
     }
 
     result.output = enc;
@@ -318,7 +324,7 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
         return result;
     }
 
-    GeometryEncoding *enc = (GeometryEncoding *)entity;
+    GeometryEncoding *enc = (GeometryEncoding *) entity;
 
     typedef struct {
         FuncBlock **blocks;
@@ -337,17 +343,19 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
     if (!sg->blocks) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
-        lv_free((void **)&sg);
+        lv_free((void **) &sg);
         return result;
     }
 
     /* 遍历矩形区域，每个矩形还原为一个 FuncBlock */
     for (int i = 0; i < enc->rect_count; i++) {
         PolygonEntity *rect = enc->rects[i];
-        if (!rect) continue;
+        if (!rect)
+            continue;
 
         FuncBlock *fb = func_block_create(i);
-        if (!fb) continue;
+        if (!fb)
+            continue;
 
         /* 使用矩形名称作为块名称 */
         if (rect->base.name) {
@@ -364,7 +372,8 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
 
         for (int j = 0; j < enc->port_point_count && (in_cnt < MAX_BLOCK_PORTS || out_cnt < MAX_BLOCK_PORTS); j++) {
             PointEntity *pt = enc->port_points[j];
-            if (!pt) continue;
+            if (!pt)
+                continue;
 
             double px = pt->base.bounding_box.x_min; /* 点的x坐标 */
 
@@ -376,8 +385,10 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
             }
         }
 
-        if (in_cnt > 0) func_block_set_input_ports(fb, inputs, in_cnt);
-        if (out_cnt > 0) func_block_set_output_ports(fb, outputs, out_cnt);
+        if (in_cnt > 0)
+            func_block_set_input_ports(fb, inputs, in_cnt);
+        if (out_cnt > 0)
+            func_block_set_output_ports(fb, outputs, out_cnt);
 
         if (sg->count >= sg->cap) {
             int new_cap = sg->cap * 2;

@@ -79,8 +79,8 @@
  * 缓冲区仅在首次使用时懒初始化，之后被复用。
  */
 typedef struct {
-    char *data;   /**< 堆分配的缓冲区，未初始化时为 NULL */
-    bool in_use;  /**< 当前是否被占用 */
+    char *data;  /**< 堆分配的缓冲区，未初始化时为 NULL */
+    bool in_use; /**< 当前是否被占用 */
 } FormulaPoolSlot;
 
 /* ---------- 缓冲区池线程安全保护 ----------
@@ -101,7 +101,9 @@ static INIT_ONCE g_formula_pool_init_once = INIT_ONCE_STATIC_INIT;
 
 /* InitOnceExecuteOnce 回调：执行 CRITICAL_SECTION 的一次性初始化 */
 static BOOL CALLBACK formula_pool_init_callback(PINIT_ONCE once, PVOID param, PVOID *context) {
-    (void)once; (void)param; (void)context;
+    (void) once;
+    (void) param;
+    (void) context;
     InitializeCriticalSection(&g_formula_pool_mutex);
     return TRUE;
 }
@@ -110,11 +112,15 @@ static BOOL CALLBACK formula_pool_init_callback(PINIT_ONCE once, PVOID param, PV
 static void formula_pool_ensure_mutex_init(void) {
     InitOnceExecuteOnce(&g_formula_pool_init_once, formula_pool_init_callback, NULL, NULL);
 }
-#define lv_FORMULA_POOL_LOCK()   do { formula_pool_ensure_mutex_init(); EnterCriticalSection(&g_formula_pool_mutex); } while (0)
+#define lv_FORMULA_POOL_LOCK()                       \
+    do {                                             \
+        formula_pool_ensure_mutex_init();            \
+        EnterCriticalSection(&g_formula_pool_mutex); \
+    } while (0)
 #define lv_FORMULA_POOL_UNLOCK() LeaveCriticalSection(&g_formula_pool_mutex)
 #else
 static pthread_mutex_t g_formula_pool_mutex = PTHREAD_MUTEX_INITIALIZER;
-#define lv_FORMULA_POOL_LOCK()   pthread_mutex_lock(&g_formula_pool_mutex)
+#define lv_FORMULA_POOL_LOCK() pthread_mutex_lock(&g_formula_pool_mutex)
 #define lv_FORMULA_POOL_UNLOCK() pthread_mutex_unlock(&g_formula_pool_mutex)
 #endif
 
@@ -187,7 +193,8 @@ done:
  * @param ptr 待归还的缓冲区指针
  */
 static void formula_pool_free(char *ptr) {
-    if (!ptr) return;
+    if (!ptr)
+        return;
 
     lv_FORMULA_POOL_LOCK();
 
@@ -452,7 +459,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
 
         case NODE_BINARY_OP_ADD: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -460,7 +467,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
                 return -1;
             }
 
-            int left_ret  = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+            int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
             int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
             if (left_ret < 0 || right_ret < 0) {
                 formula_pool_free(left_buf);
@@ -476,7 +483,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
 
         case NODE_BINARY_OP_SUB: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -484,7 +491,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
                 return -1;
             }
 
-            int left_ret  = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+            int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
             int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
             if (left_ret < 0 || right_ret < 0) {
                 formula_pool_free(left_buf);
@@ -507,7 +514,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
 
         case NODE_BINARY_OP_MUL: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -515,7 +522,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
                 return -1;
             }
 
-            int left_ret  = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+            int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
             int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
             if (left_ret < 0 || right_ret < 0) {
                 formula_pool_free(left_buf);
@@ -537,7 +544,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
 
         case NODE_BINARY_OP_DIV: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -545,7 +552,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
                 return -1;
             }
 
-            int left_ret  = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+            int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
             int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
             if (left_ret < 0 || right_ret < 0) {
                 formula_pool_free(left_buf);
@@ -562,7 +569,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
 
         case NODE_BINARY_OP_POW: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -570,7 +577,7 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
                 return -1;
             }
 
-            int left_ret  = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+            int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
             int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
             if (left_ret < 0 || right_ret < 0) {
                 formula_pool_free(left_buf);
@@ -594,9 +601,11 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
         case NODE_UNARY_OP_NEG: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
-            int operand_ret = render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+            int operand_ret =
+                render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             if (operand_ret < 0) {
                 formula_pool_free(operand_buf);
                 return -1;
@@ -615,9 +624,11 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
         case NODE_UNARY_OP_SQRT: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
-            int operand_ret = render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+            int operand_ret =
+                render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             if (operand_ret < 0) {
                 formula_pool_free(operand_buf);
                 return -1;
@@ -637,9 +648,11 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
 
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
-            int operand_ret = render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+            int operand_ret =
+                render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             if (operand_ret < 0) {
                 formula_pool_free(operand_buf);
                 return -1;
@@ -652,9 +665,11 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
         case NODE_UNARY_OP_ABS: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
-            int operand_ret = render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+            int operand_ret =
+                render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             if (operand_ret < 0) {
                 formula_pool_free(operand_buf);
                 return -1;
@@ -667,9 +682,11 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
         case NODE_UNARY_OP_LN: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
-            int operand_ret = render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+            int operand_ret =
+                render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             if (operand_ret < 0) {
                 formula_pool_free(operand_buf);
                 return -1;
@@ -682,9 +699,11 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
         case NODE_UNARY_OP_LOG: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
-            int operand_ret = render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+            int operand_ret =
+                render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             if (operand_ret < 0) {
                 formula_pool_free(operand_buf);
                 return -1;
@@ -721,11 +740,13 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
         case NODE_GEOM_POINT: {
             /* HEAP_ALLOCATED: 大型坐标缓冲区使用直接 malloc */
             char *coords_buf = (char *) lv_malloc(lv_FORMULA_BUF_LARGE);
-            if (!coords_buf) return -1;
+            if (!coords_buf)
+                return -1;
             memset(coords_buf, 0, lv_FORMULA_BUF_LARGE);
 
             if (node->data.geom_point.coords) {
-                int coords_ret = render_latex_internal(node->data.geom_point.coords, coords_buf, lv_FORMULA_BUF_LARGE, options);
+                int coords_ret =
+                    render_latex_internal(node->data.geom_point.coords, coords_buf, lv_FORMULA_BUF_LARGE, options);
                 if (coords_ret < 0) {
                     lv_free((void **) &coords_buf);
                     return -1;
@@ -749,12 +770,16 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
                 char ep1_buf[lv_FORMULA_BUF_SMALL] = {0};
                 char ep2_buf[lv_FORMULA_BUF_SMALL] = {0};
                 if (node->data.geom_segment.endpoint1) {
-                    int ep_ret = render_latex_internal(node->data.geom_segment.endpoint1, ep1_buf, sizeof(ep1_buf), options);
-                    if (ep_ret < 0) return -1;
+                    int ep_ret =
+                        render_latex_internal(node->data.geom_segment.endpoint1, ep1_buf, sizeof(ep1_buf), options);
+                    if (ep_ret < 0)
+                        return -1;
                 }
                 if (node->data.geom_segment.endpoint2) {
-                    int ep_ret = render_latex_internal(node->data.geom_segment.endpoint2, ep2_buf, sizeof(ep2_buf), options);
-                    if (ep_ret < 0) return -1;
+                    int ep_ret =
+                        render_latex_internal(node->data.geom_segment.endpoint2, ep2_buf, sizeof(ep2_buf), options);
+                    if (ep_ret < 0)
+                        return -1;
                 }
                 written = snprintf(buffer, size, "\\overline{%s%s}", ep1_buf, ep2_buf);
             }
@@ -769,14 +794,18 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
                 if (node->data.geom_circle.center->type == NODE_IDENTIFIER) {
                     snprintf(center_buf, sizeof(center_buf), "%s", node->data.geom_circle.center->data.identifier.name);
                 } else {
-                    int center_ret = render_latex_internal(node->data.geom_circle.center, center_buf, sizeof(center_buf), options);
-                    if (center_ret < 0) return -1;
+                    int center_ret =
+                        render_latex_internal(node->data.geom_circle.center, center_buf, sizeof(center_buf), options);
+                    if (center_ret < 0)
+                        return -1;
                 }
             }
 
             if (node->data.geom_circle.radius) {
-                int radius_ret = render_latex_internal(node->data.geom_circle.radius, radius_buf, sizeof(radius_buf), options);
-                if (radius_ret < 0) return -1;
+                int radius_ret =
+                    render_latex_internal(node->data.geom_circle.radius, radius_buf, sizeof(radius_buf), options);
+                if (radius_ret < 0)
+                    return -1;
             }
 
             written = snprintf(buffer, size, "\\text{circle } %s \\text{ with center } %s \\text{ and radius } %s",
@@ -799,8 +828,10 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
             for (int i = 0; i < node->data.coord_list.coord_count; i++) {
                 /* STACK_SAFE: 坐标缓冲区 ≤256 字节 */
                 char coord_buf[lv_FORMULA_BUF_MEDIUM] = {0};
-                int coord_ret = render_latex_internal(node->data.coord_list.coords[i], coord_buf, sizeof(coord_buf), options);
-                if (coord_ret < 0) return -1;
+                int coord_ret =
+                    render_latex_internal(node->data.coord_list.coords[i], coord_buf, sizeof(coord_buf), options);
+                if (coord_ret < 0)
+                    return -1;
 
                 int w = snprintf(ptr, remaining, "%s%s", (i > 0) ? ", " : "", coord_buf);
                 if (w < 0 || (size_t) w >= remaining)
@@ -817,10 +848,14 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
             char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
                  p3_buf[lv_FORMULA_BUF_SMALL] = {0};
             if (node->data.constraint.participant_count >= 3) {
-                int p1_ret = render_latex_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
-                int p2_ret = render_latex_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
-                int p3_ret = render_latex_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-                if (p1_ret < 0 || p2_ret < 0 || p3_ret < 0) return -1;
+                int p1_ret =
+                    render_latex_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+                int p2_ret =
+                    render_latex_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+                int p3_ret =
+                    render_latex_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+                if (p1_ret < 0 || p2_ret < 0 || p3_ret < 0)
+                    return -1;
                 written = snprintf(buffer, size, "%s \\perp %s%s", p1_buf, p2_buf, p3_buf);
             }
         } break;
@@ -829,9 +864,12 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
             /* STACK_SAFE: 线名缓冲区 ≤64 字节 */
             char l1_buf[lv_FORMULA_BUF_SMALL] = {0}, l2_buf[lv_FORMULA_BUF_SMALL] = {0};
             if (node->data.constraint.participant_count >= 2) {
-                int l1_ret = render_latex_internal(node->data.constraint.participants[0], l1_buf, sizeof(l1_buf), options);
-                int l2_ret = render_latex_internal(node->data.constraint.participants[1], l2_buf, sizeof(l2_buf), options);
-                if (l1_ret < 0 || l2_ret < 0) return -1;
+                int l1_ret =
+                    render_latex_internal(node->data.constraint.participants[0], l1_buf, sizeof(l1_buf), options);
+                int l2_ret =
+                    render_latex_internal(node->data.constraint.participants[1], l2_buf, sizeof(l2_buf), options);
+                if (l1_ret < 0 || l2_ret < 0)
+                    return -1;
                 written = snprintf(buffer, size, "%s \\parallel %s", l1_buf, l2_buf);
             }
         } break;
@@ -844,7 +882,8 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
                 int m_ret = render_latex_internal(node->data.constraint.participants[0], m_buf, sizeof(m_buf), options);
                 int a_ret = render_latex_internal(node->data.constraint.participants[1], a_buf, sizeof(a_buf), options);
                 int b_ret = render_latex_internal(node->data.constraint.participants[2], b_buf, sizeof(b_buf), options);
-                if (m_ret < 0 || a_ret < 0 || b_ret < 0) return -1;
+                if (m_ret < 0 || a_ret < 0 || b_ret < 0)
+                    return -1;
                 written = snprintf(buffer, size, "%s = \\text{midpoint}(%s, %s)", m_buf, a_buf, b_buf);
             }
         } break;
@@ -862,20 +901,27 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
             char start_buf[lv_FORMULA_BUF_SMALL] = {0}, end_buf[lv_FORMULA_BUF_SMALL] = {0};
 
             if (node->data.geom_arc.center) {
-                int center_ret = render_latex_internal(node->data.geom_arc.center, center_buf, sizeof(center_buf), options);
-                if (center_ret < 0) return -1;
+                int center_ret =
+                    render_latex_internal(node->data.geom_arc.center, center_buf, sizeof(center_buf), options);
+                if (center_ret < 0)
+                    return -1;
             }
             if (node->data.geom_arc.radius) {
-                int radius_ret = render_latex_internal(node->data.geom_arc.radius, radius_buf, sizeof(radius_buf), options);
-                if (radius_ret < 0) return -1;
+                int radius_ret =
+                    render_latex_internal(node->data.geom_arc.radius, radius_buf, sizeof(radius_buf), options);
+                if (radius_ret < 0)
+                    return -1;
             }
             if (node->data.geom_arc.start_angle) {
-                int start_ret = render_latex_internal(node->data.geom_arc.start_angle, start_buf, sizeof(start_buf), options);
-                if (start_ret < 0) return -1;
+                int start_ret =
+                    render_latex_internal(node->data.geom_arc.start_angle, start_buf, sizeof(start_buf), options);
+                if (start_ret < 0)
+                    return -1;
             }
             if (node->data.geom_arc.end_angle) {
                 int end_ret = render_latex_internal(node->data.geom_arc.end_angle, end_buf, sizeof(end_buf), options);
-                if (end_ret < 0) return -1;
+                if (end_ret < 0)
+                    return -1;
             }
 
             written = snprintf(buffer, size,
@@ -891,10 +937,14 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
             char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
                  p3_buf[lv_FORMULA_BUF_SMALL] = {0};
             if (node->data.constraint.participant_count >= 3) {
-                int p1_ret = render_latex_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
-                int p2_ret = render_latex_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
-                int p3_ret = render_latex_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-                if (p1_ret < 0 || p2_ret < 0 || p3_ret < 0) return -1;
+                int p1_ret =
+                    render_latex_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+                int p2_ret =
+                    render_latex_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+                int p3_ret =
+                    render_latex_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+                if (p1_ret < 0 || p2_ret < 0 || p3_ret < 0)
+                    return -1;
                 written = snprintf(buffer, size, "\\angle %s %s %s", p1_buf, p2_buf, p3_buf);
             }
         } break;
@@ -907,9 +957,11 @@ static int render_latex_internal(const FormulaNode *node, char *buffer, size_t s
             for (int i = 0; i < node->data.compound.statement_count; i++) {
                 /* HEAP_ALLOCATED: 池分配语句缓冲区 */
                 char *stmt_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-                if (!stmt_buf) break;
+                if (!stmt_buf)
+                    break;
 
-                int stmt_ret = render_latex_internal(node->data.compound.statements[i], stmt_buf, lv_FORMULA_BUF_SIZE, options);
+                int stmt_ret =
+                    render_latex_internal(node->data.compound.statements[i], stmt_buf, lv_FORMULA_BUF_SIZE, options);
                 if (stmt_ret < 0) {
                     formula_pool_free(stmt_buf);
                     return -1;
@@ -981,7 +1033,7 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
 
         case NODE_BINARY_OP_ADD: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1000,7 +1052,7 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
 
         case NODE_BINARY_OP_SUB: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1019,7 +1071,7 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
 
         case NODE_BINARY_OP_MUL: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1038,7 +1090,7 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
 
         case NODE_BINARY_OP_DIV: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1057,7 +1109,7 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
 
         case NODE_BINARY_OP_POW: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1077,7 +1129,8 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
         case NODE_UNARY_OP_NEG: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "(-%s)", operand_buf);
@@ -1088,7 +1141,8 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
         case NODE_UNARY_OP_SQRT: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "sqrt(%s)", operand_buf);
@@ -1106,7 +1160,8 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
 
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "%s(%s)", func_names[idx], operand_buf);
@@ -1117,7 +1172,8 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
         case NODE_UNARY_OP_ABS: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "abs(%s)", operand_buf);
@@ -1128,7 +1184,8 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
         case NODE_UNARY_OP_LN: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "log(%s)", operand_buf);
@@ -1139,7 +1196,8 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
         case NODE_UNARY_OP_LOG: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "log10(%s)", operand_buf);
@@ -1170,7 +1228,8 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
         case NODE_GEOM_POINT: {
             /* HEAP_ALLOCATED: 大型坐标缓冲区使用直接 malloc */
             char *coords_buf = (char *) lv_malloc(lv_FORMULA_BUF_LARGE);
-            if (!coords_buf) return -1;
+            if (!coords_buf)
+                return -1;
             memset(coords_buf, 0, lv_FORMULA_BUF_LARGE);
 
             if (node->data.geom_point.coords) {
@@ -1339,7 +1398,8 @@ static int render_python_internal(const FormulaNode *node, char *buffer, size_t 
             for (int i = 0; i < node->data.compound.statement_count; i++) {
                 /* HEAP_ALLOCATED: 池分配语句缓冲区 */
                 char *stmt_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-                if (!stmt_buf) break;
+                if (!stmt_buf)
+                    break;
 
                 render_python_internal(node->data.compound.statements[i], stmt_buf, lv_FORMULA_BUF_SIZE, options);
 
@@ -1399,7 +1459,7 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
 
         case NODE_BINARY_OP_ADD: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1418,7 +1478,7 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
 
         case NODE_BINARY_OP_SUB: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1437,7 +1497,7 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
 
         case NODE_BINARY_OP_MUL: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1456,7 +1516,7 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
 
         case NODE_BINARY_OP_DIV: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1475,7 +1535,7 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
 
         case NODE_BINARY_OP_POW: {
             /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-            char *left_buf  = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+            char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
             if (!left_buf || !right_buf) {
                 formula_pool_free(left_buf);
@@ -1495,7 +1555,8 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
         case NODE_UNARY_OP_NEG: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_dsl_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "-%s", operand_buf);
@@ -1506,7 +1567,8 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
         case NODE_UNARY_OP_SQRT: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_dsl_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "sqrt(%s)", operand_buf);
@@ -1524,7 +1586,8 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
 
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_dsl_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "%s(%s)", func_names[idx], operand_buf);
@@ -1535,7 +1598,8 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
         case NODE_UNARY_OP_ABS: {
             /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
             char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-            if (!operand_buf) return -1;
+            if (!operand_buf)
+                return -1;
 
             render_dsl_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
             written = snprintf(buffer, size, "abs(%s)", operand_buf);
@@ -1565,7 +1629,8 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
         case NODE_GEOM_POINT: {
             /* HEAP_ALLOCATED: 大型坐标缓冲区使用直接 malloc */
             char *coords_buf = (char *) lv_malloc(lv_FORMULA_BUF_LARGE);
-            if (!coords_buf) return -1;
+            if (!coords_buf)
+                return -1;
             memset(coords_buf, 0, lv_FORMULA_BUF_LARGE);
 
             if (node->data.geom_point.coords) {
@@ -1735,7 +1800,8 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
             for (int i = 0; i < node->data.compound.statement_count; i++) {
                 /* HEAP_ALLOCATED: 池分配语句缓冲区 */
                 char *stmt_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-                if (!stmt_buf) break;
+                if (!stmt_buf)
+                    break;
 
                 render_dsl_internal(node->data.compound.statements[i], stmt_buf, lv_FORMULA_BUF_SIZE, options);
 
@@ -1769,14 +1835,15 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
  * 当前使用 LaTeX-in-annotation 方式（annotation encoding），这是合法的 MathML 表示。
  * 未来可扩展为原生 MathML 语义元素（<mfrac>, <msqrt>, <msup> 等）。
  */
-static int render_mathml_internal(const FormulaNode *node, char *buffer, size_t size,
-                                  const RenderOptions *options) {
+static int render_mathml_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
     /* options 预留：未来可控制输出精度、样式等 */
-    (void)options;
-    if (!node || !buffer || size == 0) return -1;
+    (void) options;
+    if (!node || !buffer || size == 0)
+        return -1;
 
     char *latex_buf = (char *) lv_malloc(lv_MAX_RENDER_BUFFER);
-    if (!latex_buf) return -1;
+    if (!latex_buf)
+        return -1;
 
     int latex_len = render_latex_internal(node, latex_buf, lv_MAX_RENDER_BUFFER, options);
     if (latex_len < 0) {
@@ -1785,15 +1852,15 @@ static int render_mathml_internal(const FormulaNode *node, char *buffer, size_t 
     }
 
     int written = snprintf(buffer, size,
-        "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\">\n"
-        "  <semantics>\n"
-        "    <mrow>\n"
-        "      <mi>%s</mi>\n"
-        "    </mrow>\n"
-        "    <annotation encoding=\"application/x-tex\">%s</annotation>\n"
-        "  </semantics>\n"
-        "</math>",
-        latex_buf, latex_buf);
+                           "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\">\n"
+                           "  <semantics>\n"
+                           "    <mrow>\n"
+                           "      <mi>%s</mi>\n"
+                           "    </mrow>\n"
+                           "    <annotation encoding=\"application/x-tex\">%s</annotation>\n"
+                           "  </semantics>\n"
+                           "</math>",
+                           latex_buf, latex_buf);
 
     lv_free((void **) &latex_buf);
     return written;
@@ -1809,20 +1876,19 @@ static int render_mathml_internal(const FormulaNode *node, char *buffer, size_t 
  * 生成基本的 ASCII 数学表示。
  * options 预留：未来可控制精度、宽度等格式参数。
  */
-static int render_ascii_internal(const FormulaNode *node, char *buffer, size_t size,
-                                 const RenderOptions *options) {
+static int render_ascii_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
     /* options 预留 */
-    (void)options;
-    if (!node || !buffer || size == 0) return -1;
+    (void) options;
+    if (!node || !buffer || size == 0)
+        return -1;
 
     switch (node->type) {
         case NODE_NUMBER: {
             if (node->data.number.is_integer) {
                 return snprintf(buffer, size, "%lld", (long long) node->data.number.numerator);
             } else {
-                return snprintf(buffer, size, "%lld/%llu",
-                    (long long) node->data.number.numerator,
-                    (unsigned long long) node->data.number.denominator);
+                return snprintf(buffer, size, "%lld/%llu", (long long) node->data.number.numerator,
+                                (unsigned long long) node->data.number.denominator);
             }
         }
         case NODE_VARIABLE:
@@ -1872,8 +1938,9 @@ static int render_ascii_internal(const FormulaNode *node, char *buffer, size_t s
         case NODE_UNARY_OP_SIN:
         case NODE_UNARY_OP_COS:
         case NODE_UNARY_OP_TAN: {
-            const char *fn = (node->type == NODE_UNARY_OP_SIN) ? "sin" :
-                             (node->type == NODE_UNARY_OP_COS) ? "cos" : "tan";
+            const char *fn = (node->type == NODE_UNARY_OP_SIN)   ? "sin"
+                             : (node->type == NODE_UNARY_OP_COS) ? "cos"
+                                                                 : "tan";
             char operand[lv_FORMULA_BUF_SIZE];
             render_ascii_internal(node->data.unary_op.operand, operand, sizeof(operand), options);
             return snprintf(buffer, size, "%s(%s)", fn, operand);
@@ -1914,18 +1981,21 @@ static int render_ascii_internal(const FormulaNode *node, char *buffer, size_t s
  * 将 LaTeX 渲染结果包装在 MathJax 兼容的 HTML 标签中。
  * options 控制精度和输出样式（inline/block）。
  */
-static int render_html_internal(const FormulaNode *node, char *buffer, size_t size,
-                                const RenderOptions *options) {
+static int render_html_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
     int precision = 6; /* 默认精度 */
     int use_block = 0; /* 0=inline <code>, 1=block <div> */
     if (options) {
-        if (options->precision > 0) precision = options->precision;
-        if (options->style) use_block = (options->style[0] == 'b' || options->style[0] == 'B');
+        if (options->precision > 0)
+            precision = options->precision;
+        if (options->style)
+            use_block = (options->style[0] == 'b' || options->style[0] == 'B');
     }
-    if (!node || !buffer || size == 0) return -1;
+    if (!node || !buffer || size == 0)
+        return -1;
 
     char *latex_buf = (char *) lv_malloc(lv_MAX_RENDER_BUFFER);
-    if (!latex_buf) return -1;
+    if (!latex_buf)
+        return -1;
 
     int latex_len = render_latex_internal(node, latex_buf, lv_MAX_RENDER_BUFFER, options);
     if (latex_len < 0) {
@@ -1933,9 +2003,8 @@ static int render_html_internal(const FormulaNode *node, char *buffer, size_t si
         return -1;
     }
 
-    int written = snprintf(buffer, size,
-        "<span class=\"mathjax-container\" data-formula=\"%s\">\\(%s\\)</span>",
-        latex_buf, latex_buf);
+    int written = snprintf(buffer, size, "<span class=\"mathjax-container\" data-formula=\"%s\">\\(%s\\)</span>",
+                           latex_buf, latex_buf);
 
     lv_free((void **) &latex_buf);
     return written;
@@ -2123,7 +2192,8 @@ char *formula_render_point_latex(const char *name, const FormulaNode **coords, i
 
     /* HEAP_ALLOCATED: 坐标组合缓冲区使用池分配 */
     char *coords_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!coords_buf) return NULL;
+    if (!coords_buf)
+        return NULL;
 
     char *ptr = coords_buf;
     size_t remaining = lv_FORMULA_BUF_SIZE;
@@ -2187,8 +2257,8 @@ char *formula_render_circle_latex(const char *name, const char *center, const Fo
     /* HEAP_ALLOCATED: 结果字符串 */
     char *result = (char *) lv_malloc(lv_CIRCLE_LATEX_BUF_SIZE);
     if (result) {
-        snprintf(result, lv_CIRCLE_LATEX_BUF_SIZE, "\\text{circle } %s \\text{ with center } %s \\text{ and radius } %s",
-                 name, center, radius_buf);
+        snprintf(result, lv_CIRCLE_LATEX_BUF_SIZE,
+                 "\\text{circle } %s \\text{ with center } %s \\text{ and radius } %s", name, center, radius_buf);
     }
     return result;
 }

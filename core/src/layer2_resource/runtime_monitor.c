@@ -7,10 +7,6 @@
  */
 
 #include "runtime_monitor.h"
-#include "config.h"         /* lv_LOCALTIME */
-
-#include "lv_utils.h"
-#include "lv/lv_parse_utils.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -18,6 +14,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "lv/lv_parse_utils.h"
+
+#include "config.h" /* lv_LOCALTIME */
+#include "lv_utils.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -54,11 +55,11 @@ static int64_t get_time_ns(void) {
     LARGE_INTEGER freq, count;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&count);
-    return (int64_t)((double)count.QuadPart / (double)freq.QuadPart * 1e9);
+    return (int64_t) ((double) count.QuadPart / (double) freq.QuadPart * 1e9);
 }
 
 static int get_thread_id(void) {
-    return (int)GetCurrentThreadId();
+    return (int) GetCurrentThreadId();
 }
 #else
 typedef pthread_mutex_t lvMutex;
@@ -70,11 +71,11 @@ typedef pthread_mutex_t lvMutex;
 static int64_t get_time_ns(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    return (int64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 
 static int get_thread_id(void) {
-    return (int)pthread_self();
+    return (int) pthread_self();
 }
 #endif
 
@@ -88,26 +89,22 @@ static struct {
     uint64_t current_file_size;
 } g_log_system = {0};
 
-static const char *level_strings[] = {
-    "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "OFF"
-};
+static const char *level_strings[] = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "OFF"};
 
-static const char *level_colors[] = {
-    "\033[37m",    /* TRACE: 白色 */
-    "\033[36m",    /* DEBUG: 青色 */
-    "\033[32m",    /* INFO: 绿色 */
-    "\033[33m",    /* WARN: 黄色 */
-    "\033[31m",    /* ERROR: 红色 */
-    "\033[35;1m",  /* FATAL: 紫色加粗 */
-    ""
-};
+static const char *level_colors[] = {"\033[37m",   /* TRACE: 白色 */
+                                     "\033[36m",   /* DEBUG: 青色 */
+                                     "\033[32m",   /* INFO: 绿色 */
+                                     "\033[33m",   /* WARN: 黄色 */
+                                     "\033[31m",   /* ERROR: 红色 */
+                                     "\033[35;1m", /* FATAL: 紫色加粗 */
+                                     ""};
 
 static lvMutex g_log_init_mutex;
 static volatile int g_log_init_mutex_initialized = 0;
 
 bool lv_log_init(const lvLogConfig *config) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile*)&g_log_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile *) &g_log_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_log_init_mutex);
     }
     EnterCriticalSection(&g_log_init_mutex);
@@ -262,9 +259,8 @@ static void rotate_log_file(void) {
     g_log_system.current_file_size = 0;
 }
 
-void lv_log_write(lvLogLevel level, const char *tag,
-                    const char *file, int line, const char *function,
-                    const char *fmt, ...) {
+void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line, const char *function, const char *fmt,
+                  ...) {
     if (!g_log_system.initialized) {
         return;
     }
@@ -312,39 +308,39 @@ void lv_log_write(lvLogLevel level, const char *tag,
         struct tm tm_info;
         if (lv_LOCALTIME(&now, &tm_info) == 0)
             pos += strftime(output + pos, sizeof(output) - pos, "%Y-%m-%d %H:%M:%S", &tm_info);
-        if (pos < (int)sizeof(output))
-            pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int)(record.timestamp_ms % 1000));
+        if (pos < (int) sizeof(output))
+            pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int) (record.timestamp_ms % 1000));
     }
 
     if (g_log_system.config.colored_output) {
-        if (pos < (int)sizeof(output))
-            pos += snprintf(output + pos, sizeof(output) - pos, "%s%-5s\033[0m ",
-                            level_colors[level], level_strings[level]);
+        if (pos < (int) sizeof(output))
+            pos += snprintf(output + pos, sizeof(output) - pos, "%s%-5s\033[0m ", level_colors[level],
+                            level_strings[level]);
     } else {
-        if (pos < (int)sizeof(output))
+        if (pos < (int) sizeof(output))
             pos += snprintf(output + pos, sizeof(output) - pos, "%-5s ", level_strings[level]);
     }
 
-    if (record.tag[0] && pos < (int)sizeof(output)) {
+    if (record.tag[0] && pos < (int) sizeof(output)) {
         pos += snprintf(output + pos, sizeof(output) - pos, "[%s] ", record.tag);
     }
 
-    if (g_log_system.config.include_thread_id && pos < (int)sizeof(output)) {
+    if (g_log_system.config.include_thread_id && pos < (int) sizeof(output)) {
         pos += snprintf(output + pos, sizeof(output) - pos, "(T%d) ", record.thread_id);
     }
 
-    if (pos < (int)sizeof(output))
+    if (pos < (int) sizeof(output))
         pos += snprintf(output + pos, sizeof(output) - pos, "%s", record.message);
 
-    if (g_log_system.config.include_location && pos < (int)sizeof(output)) {
+    if (g_log_system.config.include_location && pos < (int) sizeof(output)) {
         const char *basename = strrchr(record.file, '/');
-        if (!basename) basename = strrchr(record.file, '\\');
+        if (!basename)
+            basename = strrchr(record.file, '\\');
         basename = basename ? basename + 1 : record.file;
-        pos += snprintf(output + pos, sizeof(output) - pos, " (%s:%d in %s)",
-                        basename, record.line, record.function);
+        pos += snprintf(output + pos, sizeof(output) - pos, " (%s:%d in %s)", basename, record.line, record.function);
     }
 
-    if (pos < (int)sizeof(output))
+    if (pos < (int) sizeof(output))
         pos += snprintf(output + pos, sizeof(output) - pos, "\n");
 
     /* 输出到标准输出/错误 */
@@ -387,7 +383,7 @@ static volatile int g_perf_init_mutex_initialized = 0;
 
 bool lv_perf_init(void) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile*)&g_perf_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile *) &g_perf_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_perf_init_mutex);
     }
     EnterCriticalSection(&g_perf_init_mutex);
@@ -439,7 +435,7 @@ lvTimer *lv_timer_create(const char *name) {
         return NULL;
     }
 
-    lvTimer *timer = (lvTimer *)lv_calloc(1, sizeof(lvTimer));
+    lvTimer *timer = (lvTimer *) lv_calloc(1, sizeof(lvTimer));
     if (!timer) {
         return NULL;
     }
@@ -551,7 +547,7 @@ lvPerfStats *lv_perf_stats_create(const char *name) {
         return NULL;
     }
 
-    lvPerfStats *stats = (lvPerfStats *)lv_calloc(1, sizeof(lvPerfStats));
+    lvPerfStats *stats = (lvPerfStats *) lv_calloc(1, sizeof(lvPerfStats));
     if (!stats) {
         return NULL;
     }
@@ -610,7 +606,7 @@ void lv_perf_stats_record(lvPerfStats *stats, double value) {
     stats->count++;
 
     double delta = value - stats->mean;
-    stats->mean += delta / (double)stats->count;
+    stats->mean += delta / (double) stats->count;
     double delta2 = value - stats->mean;
     stats->m2 += delta * delta2;
 
@@ -628,7 +624,7 @@ void lv_perf_stats_record(lvPerfStats *stats, double value) {
 
     /* 更新方差和标准差（Welford M₂ / (n-1)） */
     if (stats->count > 1) {
-        stats->variance = stats->m2 / (double)(stats->count - 1);
+        stats->variance = stats->m2 / (double) (stats->count - 1);
         stats->std_dev = sqrt(stats->variance);
     }
     MUTEX_UNLOCK(g_perf_system.mutex);
@@ -661,7 +657,7 @@ static volatile int g_health_init_mutex_initialized = 0;
 
 bool lv_health_init(void) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile*)&g_health_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile *) &g_health_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_health_init_mutex);
     }
     EnterCriticalSection(&g_health_init_mutex);
@@ -682,8 +678,8 @@ bool lv_health_init(void) {
     MUTEX_INIT(g_health_system.mutex);
 
     /* 默认阈值 */
-    g_health_system.memory_warning_mb = 1024;   /* 1 GB */
-    g_health_system.memory_critical_mb = 2048;  /* 2 GB */
+    g_health_system.memory_warning_mb = 1024;  /* 1 GB */
+    g_health_system.memory_critical_mb = 2048; /* 2 GB */
     g_health_system.cpu_warning_percent = 80;
     g_health_system.cpu_critical_percent = 95;
 
@@ -728,34 +724,37 @@ static double get_cpu_usage_percent(void) {
     GetSystemTimes(&idle1, &kernel1, &user1);
     Sleep(100);
     GetSystemTimes(&idle2, &kernel2, &user2);
-    ULONGLONG k1 = kernel1.dwLowDateTime | ((ULONGLONG)kernel1.dwHighDateTime << 32);
-    ULONGLONG u1 = user1.dwLowDateTime | ((ULONGLONG)user1.dwHighDateTime << 32);
-    ULONGLONG i1 = idle1.dwLowDateTime | ((ULONGLONG)idle1.dwHighDateTime << 32);
-    ULONGLONG k2 = kernel2.dwLowDateTime | ((ULONGLONG)kernel2.dwHighDateTime << 32);
-    ULONGLONG u2 = user2.dwLowDateTime | ((ULONGLONG)user2.dwHighDateTime << 32);
-    ULONGLONG i2 = idle2.dwLowDateTime | ((ULONGLONG)idle2.dwHighDateTime << 32);
+    ULONGLONG k1 = kernel1.dwLowDateTime | ((ULONGLONG) kernel1.dwHighDateTime << 32);
+    ULONGLONG u1 = user1.dwLowDateTime | ((ULONGLONG) user1.dwHighDateTime << 32);
+    ULONGLONG i1 = idle1.dwLowDateTime | ((ULONGLONG) idle1.dwHighDateTime << 32);
+    ULONGLONG k2 = kernel2.dwLowDateTime | ((ULONGLONG) kernel2.dwHighDateTime << 32);
+    ULONGLONG u2 = user2.dwLowDateTime | ((ULONGLONG) user2.dwHighDateTime << 32);
+    ULONGLONG i2 = idle2.dwLowDateTime | ((ULONGLONG) idle2.dwHighDateTime << 32);
     ULONGLONG idle_diff = i2 - i1;
     ULONGLONG total_diff = (k2 - k1) + (u2 - u1);
-    if (total_diff == 0) return 0.0;
-    return 100.0 * (1.0 - (double)idle_diff / (double)total_diff);
+    if (total_diff == 0)
+        return 0.0;
+    return 100.0 * (1.0 - (double) idle_diff / (double) total_diff);
 }
 #elif defined(__linux__)
 static double get_cpu_usage_percent(void) {
     FILE *fp = fopen("/proc/stat", "r");
-    if (!fp) return 0.0;
+    if (!fp)
+        return 0.0;
     unsigned long long user1, nice1, sys1, idle1, iowait1, irq1, softirq1;
-    if (fscanf(fp, "cpu %llu %llu %llu %llu %llu %llu %llu",
-               &user1, &nice1, &sys1, &idle1, &iowait1, &irq1, &softirq1) != 7) {
+    if (fscanf(fp, "cpu %llu %llu %llu %llu %llu %llu %llu", &user1, &nice1, &sys1, &idle1, &iowait1, &irq1,
+               &softirq1) != 7) {
         fclose(fp);
         return 0.0;
     }
     fclose(fp);
     usleep(100000); /* 100ms */
     fp = fopen("/proc/stat", "r");
-    if (!fp) return 0.0;
+    if (!fp)
+        return 0.0;
     unsigned long long user2, nice2, sys2, idle2, iowait2, irq2, softirq2;
-    if (fscanf(fp, "cpu %llu %llu %llu %llu %llu %llu %llu",
-               &user2, &nice2, &sys2, &idle2, &iowait2, &irq2, &softirq2) != 7) {
+    if (fscanf(fp, "cpu %llu %llu %llu %llu %llu %llu %llu", &user2, &nice2, &sys2, &idle2, &iowait2, &irq2,
+               &softirq2) != 7) {
         fclose(fp);
         return 0.0;
     }
@@ -764,33 +763,35 @@ static double get_cpu_usage_percent(void) {
     unsigned long long total2 = user2 + nice2 + sys2 + idle2 + iowait2 + irq2 + softirq2;
     unsigned long long total_diff = total2 - total1;
     unsigned long long idle_diff = (idle2 + iowait2) - (idle1 + iowait1);
-    if (total_diff == 0) return 0.0;
-    return 100.0 * (1.0 - (double)idle_diff / (double)total_diff);
+    if (total_diff == 0)
+        return 0.0;
+    return 100.0 * (1.0 - (double) idle_diff / (double) total_diff);
 }
 #elif defined(__APPLE__)
-#include <sys/types.h>
-#include <sys/sysctl.h>
 #include <mach/mach.h>
+#include <sys/sysctl.h>
+#include <sys/types.h>
 static double get_cpu_usage_percent(void) {
     host_cpu_load_info_data_t info1, info2;
     mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
-    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO,
-                        (host_info_t)&info1, &count) != KERN_SUCCESS) return 0.0;
+    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t) &info1, &count) != KERN_SUCCESS)
+        return 0.0;
     usleep(100000); /* 100ms */
     count = HOST_CPU_LOAD_INFO_COUNT;
-    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO,
-                        (host_info_t)&info2, &count) != KERN_SUCCESS) return 0.0;
-    unsigned long long total1 = (unsigned long long)info1.cpu_ticks[CPU_STATE_USER]
-        + info1.cpu_ticks[CPU_STATE_SYSTEM] + info1.cpu_ticks[CPU_STATE_IDLE]
-        + info1.cpu_ticks[CPU_STATE_NICE];
-    unsigned long long total2 = (unsigned long long)info2.cpu_ticks[CPU_STATE_USER]
-        + info2.cpu_ticks[CPU_STATE_SYSTEM] + info2.cpu_ticks[CPU_STATE_IDLE]
-        + info2.cpu_ticks[CPU_STATE_NICE];
-    unsigned long long idle_diff = (unsigned long long)info2.cpu_ticks[CPU_STATE_IDLE]
-        - info1.cpu_ticks[CPU_STATE_IDLE];
+    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t) &info2, &count) != KERN_SUCCESS)
+        return 0.0;
+    unsigned long long total1 = (unsigned long long) info1.cpu_ticks[CPU_STATE_USER] +
+                                info1.cpu_ticks[CPU_STATE_SYSTEM] + info1.cpu_ticks[CPU_STATE_IDLE] +
+                                info1.cpu_ticks[CPU_STATE_NICE];
+    unsigned long long total2 = (unsigned long long) info2.cpu_ticks[CPU_STATE_USER] +
+                                info2.cpu_ticks[CPU_STATE_SYSTEM] + info2.cpu_ticks[CPU_STATE_IDLE] +
+                                info2.cpu_ticks[CPU_STATE_NICE];
+    unsigned long long idle_diff =
+        (unsigned long long) info2.cpu_ticks[CPU_STATE_IDLE] - info1.cpu_ticks[CPU_STATE_IDLE];
     unsigned long long total_diff = total2 - total1;
-    if (total_diff == 0) return 0.0;
-    return 100.0 * (1.0 - (double)idle_diff / (double)total_diff);
+    if (total_diff == 0)
+        return 0.0;
+    return 100.0 * (1.0 - (double) idle_diff / (double) total_diff);
 }
 #else
 static double get_cpu_usage_percent(void) {
@@ -799,13 +800,13 @@ static double get_cpu_usage_percent(void) {
 #endif
 
 lvHealthReport *lv_runtime_health_check(void) {
-    lvHealthReport *report = (lvHealthReport *)lv_calloc(1, sizeof(lvHealthReport));
+    lvHealthReport *report = (lvHealthReport *) lv_calloc(1, sizeof(lvHealthReport));
     if (!report) {
         return NULL;
     }
 
     report->check_count = 5;
-    report->checks = (lvHealthCheck *)lv_calloc(report->check_count, sizeof(lvHealthCheck));
+    report->checks = (lvHealthCheck *) lv_calloc(report->check_count, sizeof(lvHealthCheck));
     if (!report->checks) {
         lv_free((void **) &report);
         return NULL;
@@ -824,7 +825,7 @@ lvHealthReport *lv_runtime_health_check(void) {
     MEMORYSTATUSEX status;
     status.dwLength = sizeof(status);
     GlobalMemoryStatusEx(&status);
-    check->value = (double)(status.ullTotalVirtual - status.ullAvailVirtual) / (1024 * 1024);
+    check->value = (double) (status.ullTotalVirtual - status.ullAvailVirtual) / (1024 * 1024);
 #else
     FILE *fp = fopen("/proc/self/status", "r");
     if (fp) {
@@ -884,14 +885,16 @@ lvHealthReport *lv_runtime_health_check(void) {
     const char *env_threads = getenv("lv_MONITOR_THREADS");
     if (env_threads && env_threads[0] != '\0') {
         long parsed = strtol(env_threads, NULL, 10);
-        if (parsed < 1) parsed = 1;
-        if (parsed > 64) parsed = 64;
-        monitor_threads = (int)parsed;
+        if (parsed < 1)
+            parsed = 1;
+        if (parsed > 64)
+            parsed = 64;
+        monitor_threads = (int) parsed;
     }
-    check->value = (double)monitor_threads;
+    check->value = (double) monitor_threads;
     check->status = HEALTH_OK;
-    snprintf(check->message, sizeof(check->message),
-             "Thread count: %d (configurable via lv_MONITOR_THREADS)", monitor_threads);
+    snprintf(check->message, sizeof(check->message), "Thread count: %d (configurable via lv_MONITOR_THREADS)",
+             monitor_threads);
 
     /* 计时器检查 */
     check = &report->checks[3];
@@ -921,7 +924,7 @@ void lv_health_report_destroy(lvHealthReport *report) {
 /* ============== 诊断报告实现 ============== */
 
 lvDiagnostics *lv_diagnostics_generate(void) {
-    lvDiagnostics *diag = (lvDiagnostics *)lv_calloc(1, sizeof(lvDiagnostics));
+    lvDiagnostics *diag = (lvDiagnostics *) lv_calloc(1, sizeof(lvDiagnostics));
     if (!diag) {
         return NULL;
     }
@@ -937,8 +940,8 @@ lvDiagnostics *lv_diagnostics_generate(void) {
         lv_get_memory_stats(&mem_stats);
         diag->memory_total = mem_stats.current_used;
         diag->memory_peak = mem_stats.peak_used;
-        diag->alloc_count = (uint64_t)mem_stats.allocation_count;
-        diag->free_count = (uint64_t)mem_stats.free_count;
+        diag->alloc_count = (uint64_t) mem_stats.allocation_count;
+        diag->free_count = (uint64_t) mem_stats.free_count;
     }
 
     /* 性能统计 */
@@ -964,11 +967,11 @@ lvDiagnostics *lv_diagnostics_generate(void) {
     MEMORYSTATUSEX mem_status;
     mem_status.dwLength = sizeof(mem_status);
     GlobalMemoryStatusEx(&mem_status);
-    diag->total_memory_mb = (uint32_t)(mem_status.ullTotalPhys / (1024 * 1024));
+    diag->total_memory_mb = (uint32_t) (mem_status.ullTotalPhys / (1024 * 1024));
 #else
     strncpy(diag->os_info, "Linux/Unix", sizeof(diag->os_info) - 1);
     diag->cpu_cores = sysconf(_SC_NPROCESSORS_ONLN);
-    diag->total_memory_mb = (uint32_t)(sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE) / (1024 * 1024));
+    diag->total_memory_mb = (uint32_t) (sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE) / (1024 * 1024));
 #endif
 
     return diag;
@@ -991,20 +994,20 @@ bool lv_diagnostics_write_file(const lvDiagnostics *diag, const char *path) {
     fprintf(fp, "========== Lv-00 Diagnostics Report ==========\n\n");
     fprintf(fp, "Version: %s\n", diag->version);
     fprintf(fp, "Build Date: %s\n", diag->build_date);
-    fprintf(fp, "Uptime: %lld ms\n", (long long)diag->uptime_ms);
+    fprintf(fp, "Uptime: %lld ms\n", (long long) diag->uptime_ms);
     fprintf(fp, "\n--- Memory ---\n");
-    fprintf(fp, "Total Used: %llu bytes\n", (unsigned long long)diag->memory_total);
-    fprintf(fp, "Peak Used: %llu bytes\n", (unsigned long long)diag->memory_peak);
-    fprintf(fp, "Allocations: %llu\n", (unsigned long long)diag->alloc_count);
-    fprintf(fp, "Frees: %llu\n", (unsigned long long)diag->free_count);
+    fprintf(fp, "Total Used: %llu bytes\n", (unsigned long long) diag->memory_total);
+    fprintf(fp, "Peak Used: %llu bytes\n", (unsigned long long) diag->memory_peak);
+    fprintf(fp, "Allocations: %llu\n", (unsigned long long) diag->alloc_count);
+    fprintf(fp, "Frees: %llu\n", (unsigned long long) diag->free_count);
     fprintf(fp, "\n--- Performance ---\n");
-    fprintf(fp, "Proof Count: %llu\n", (unsigned long long)diag->proof_count);
-    fprintf(fp, "Solve Count: %llu\n", (unsigned long long)diag->solve_count);
+    fprintf(fp, "Proof Count: %llu\n", (unsigned long long) diag->proof_count);
+    fprintf(fp, "Solve Count: %llu\n", (unsigned long long) diag->solve_count);
     fprintf(fp, "Avg Proof Time: %.2f ms\n", diag->avg_proof_time_ms);
     fprintf(fp, "Avg Solve Time: %.2f ms\n", diag->avg_solve_time_ms);
     fprintf(fp, "\n--- Errors ---\n");
-    fprintf(fp, "Error Count: %llu\n", (unsigned long long)diag->error_count);
-    fprintf(fp, "Warning Count: %llu\n", (unsigned long long)diag->warning_count);
+    fprintf(fp, "Error Count: %llu\n", (unsigned long long) diag->error_count);
+    fprintf(fp, "Warning Count: %llu\n", (unsigned long long) diag->warning_count);
     if (diag->last_error[0]) {
         fprintf(fp, "Last Error: %s\n", diag->last_error);
     }
@@ -1023,7 +1026,7 @@ char *lv_diagnostics_to_json(const lvDiagnostics *diag) {
         return NULL;
     }
 
-    char *json = (char *)lv_malloc(4096);
+    char *json = (char *) lv_malloc(4096);
     if (!json) {
         return NULL;
     }
@@ -1056,23 +1059,12 @@ char *lv_diagnostics_to_json(const lvDiagnostics *diag) {
              "\"total_memory_mb\":%u"
              "}"
              "}",
-             diag->version,
-             diag->build_date,
-             (long long)diag->uptime_ms,
-             (unsigned long long)diag->memory_total,
-             (unsigned long long)diag->memory_peak,
-             (unsigned long long)diag->alloc_count,
-             (unsigned long long)diag->free_count,
-             (unsigned long long)diag->proof_count,
-             (unsigned long long)diag->solve_count,
-             diag->avg_proof_time_ms,
-             diag->avg_solve_time_ms,
-             (unsigned long long)diag->error_count,
-             (unsigned long long)diag->warning_count,
-             diag->last_error,
-             diag->os_info,
-             diag->cpu_cores,
-             diag->total_memory_mb);
+             diag->version, diag->build_date, (long long) diag->uptime_ms, (unsigned long long) diag->memory_total,
+             (unsigned long long) diag->memory_peak, (unsigned long long) diag->alloc_count,
+             (unsigned long long) diag->free_count, (unsigned long long) diag->proof_count,
+             (unsigned long long) diag->solve_count, diag->avg_proof_time_ms, diag->avg_solve_time_ms,
+             (unsigned long long) diag->error_count, (unsigned long long) diag->warning_count, diag->last_error,
+             diag->os_info, diag->cpu_cores, diag->total_memory_mb);
 
     return json;
 }
@@ -1092,7 +1084,7 @@ static volatile int g_event_init_mutex_initialized = 0;
 
 bool lv_event_trace_init(uint32_t max_events) {
 #ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile*)&g_event_init_mutex_initialized, 1, 0) == 0) {
+    if (InterlockedCompareExchange((LONG volatile *) &g_event_init_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_event_init_mutex);
     }
     EnterCriticalSection(&g_event_init_mutex);
@@ -1113,7 +1105,7 @@ bool lv_event_trace_init(uint32_t max_events) {
     uint32_t actual_max = (max_events > 0) ? max_events : MAX_EVENTS;
 
     memset(&g_event_system, 0, sizeof(g_event_system));
-    g_event_system.events = (lvEventRecord *)lv_calloc(actual_max, sizeof(lvEventRecord));
+    g_event_system.events = (lvEventRecord *) lv_calloc(actual_max, sizeof(lvEventRecord));
     if (!g_event_system.events) {
 #ifdef _WIN32
         LeaveCriticalSection(&g_event_init_mutex);
@@ -1138,7 +1130,7 @@ void lv_event_trace_shutdown(void) {
         return;
     }
 
-    lv_free((void **)&g_event_system.events);
+    lv_free((void **) &g_event_system.events);
     MUTEX_DESTROY(g_event_system.mutex);
     g_event_system.initialized = false;
 }
@@ -1173,7 +1165,7 @@ int lv_event_trace_begin(lvEventType type, const char *name) {
 
     MUTEX_LOCK(g_event_system.mutex);
 
-    int id = (int)g_event_system.event_count;
+    int id = (int) g_event_system.event_count;
     lvEventRecord *event = &g_event_system.events[g_event_system.event_count++];
     event->type = type;
     event->timestamp_ns = get_time_ns();
@@ -1189,7 +1181,7 @@ int lv_event_trace_begin(lvEventType type, const char *name) {
 }
 
 void lv_event_trace_end(int event_id, const char *data) {
-    if (!g_event_system.initialized || event_id < 0 || event_id >= (int)g_event_system.event_count) {
+    if (!g_event_system.initialized || event_id < 0 || event_id >= (int) g_event_system.event_count) {
         return;
     }
 
@@ -1213,7 +1205,7 @@ uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count) 
     MUTEX_LOCK(g_event_system.mutex);
 
     uint32_t count = g_event_system.event_count < max_count ? g_event_system.event_count : max_count;
-    *out_events = (lvEventRecord *)lv_calloc((size_t)count, sizeof(lvEventRecord));
+    *out_events = (lvEventRecord *) lv_calloc((size_t) count, sizeof(lvEventRecord));
     if (*out_events) {
         memcpy(*out_events, g_event_system.events, count * sizeof(lvEventRecord));
     }
@@ -1265,13 +1257,10 @@ bool lv_event_trace_export_chrome(const char *path) {
                 break;
         }
 
-        fprintf(fp,
-                "  {\"name\":\"%s\",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}",
+        fprintf(fp, "  {\"name\":\"%s\",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}",
                 event->name,
                 event->type == EVENT_TYPE_PROOF_START || event->type == EVENT_TYPE_PROOF_END ? "proof" : "other",
-                type_str,
-                (long long)(event->timestamp_ns / 1000),
-                (long long)(event->duration_ns / 1000),
+                type_str, (long long) (event->timestamp_ns / 1000), (long long) (event->duration_ns / 1000),
                 event->thread_id);
 
         if (i < g_event_system.event_count - 1) {

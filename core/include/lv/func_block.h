@@ -40,7 +40,7 @@
 #define lv_FUNC_BLOCK_H
 
 #include <stdbool.h>
-#include <stdint.h>  /* v3.4.2: 添加 uint16_t 支持 */
+#include <stdint.h> /* v3.4.2: 添加 uint16_t 支持 */
 
 #include "constraint_graph.h"
 #include "func_block_utils.h"
@@ -126,28 +126,28 @@ typedef bool (*SelectorFunction)(GeomNode **candidates, int count, int *selected
  */
 struct SolutionSelector {
     /* === 基础配置 === */
-    SelectorType type;            /**< 选择器类型 */
-    int reference_node_id;        /**< 参考节点ID（如区域、点等） */
-    
+    SelectorType type;     /**< 选择器类型 */
+    int reference_node_id; /**< 参考节点ID（如区域、点等） */
+
     /* === 回调函数 === */
-    SelectorFunction custom_func; /**< 自定义选择函数 */
-    int (*compare)(const void *a, const void *b); /**< 候选解比较函数 */
-    void (*on_select)(int selected_index, void *user_data); /**< 选择回调 */
+    SelectorFunction custom_func;                                     /**< 自定义选择函数 */
+    int (*compare)(const void *a, const void *b);                     /**< 候选解比较函数 */
+    void (*on_select)(int selected_index, void *user_data);           /**< 选择回调 */
     void (*on_change)(int old_index, int new_index, void *user_data); /**< 切换回调 */
-    
+
     /* === user_data 生命周期管理 === */
-    void *user_data;              /**< 用户透传数据 */
-    void (*free_user_data)(void *user_data);   /**< user_data 释放回调（可选） */
+    void *user_data;                                /**< 用户透传数据 */
+    void (*free_user_data)(void *user_data);        /**< user_data 释放回调（可选） */
     void *(*copy_user_data)(const void *user_data); /**< user_data 深拷贝回调（可选） */
-    
+
     /* === 约束图引用 === */
-    ConstraintGraph *graph;       /**< 显式的约束图引用 */
-    
+    ConstraintGraph *graph; /**< 显式的约束图引用 */
+
     /* === 候选解管理 === */
-    char *name;                   /**< 选择器名称（用于调试和UI显示） */
-    double *solution_values;      /**< 候选解数值数组（用于排序和比较） */
-    int solution_count;           /**< 候选解数量 */
-    int current_index;            /**< 当前选中的候选解索引 */
+    char *name;              /**< 选择器名称（用于调试和UI显示） */
+    double *solution_values; /**< 候选解数值数组（用于排序和比较） */
+    int solution_count;      /**< 候选解数量 */
+    int current_index;       /**< 当前选中的候选解索引 */
 };
 
 /* ============== 函数块跨边界约束（扩展版） ============== */
@@ -240,38 +240,38 @@ typedef CrossBoundaryResolution (*CrossBoundaryCallback)(int constraint_id, Cons
  */
 struct FuncBlock {
     /* === 指针字段（8字节对齐）=== */
-    int *internal_node_ids;         /**< 内部节点ID数组 */
-    int *input_port_ids;            /**< 输入端口ID数组 */
-    int *output_port_ids;           /**< 输出端口ID数组 */
-    PortDependency *port_deps;      /**< 端口依赖数组 */
-    char *name;                     /**< 函数块名称 */
-    char *description;              /**< 函数块描述 */
-    int *precondition_region_ids;   /**< 前置条件区域ID数组 */
-    SolutionSelector *selector;     /**< 多解选择器 */
+    int *internal_node_ids;       /**< 内部节点ID数组 */
+    int *input_port_ids;          /**< 输入端口ID数组 */
+    int *output_port_ids;         /**< 输出端口ID数组 */
+    PortDependency *port_deps;    /**< 端口依赖数组 */
+    char *name;                   /**< 函数块名称 */
+    char *description;            /**< 函数块描述 */
+    int *precondition_region_ids; /**< 前置条件区域ID数组 */
+    SolutionSelector *selector;   /**< 多解选择器 */
 
     /* === 函数指针 === */
     int (*measure_compare)(const GeomNode *a, const GeomNode *b); /**< 测度比较函数 */
 
     /* === int 字段（4字节对齐）=== */
-    int id;                         /**< 函数块ID */
-    int internal_node_count;        /**< 内部节点数量 */
-    int input_count;                /**< 输入端口数量 */
-    int output_count;               /**< 输出端口数量 */
-    int port_dep_count;             /**< 端口依赖数量 */
-    int port_dep_capacity;          /**< 端口依赖数组容量（v3.4.2 新增） */
-    int precondition_count;         /**< 前置条件数量 */
-    int measure_node_id;            /**< 测度节点ID */
+    int id;                  /**< 函数块ID */
+    int internal_node_count; /**< 内部节点数量 */
+    int input_count;         /**< 输入端口数量 */
+    int output_count;        /**< 输出端口数量 */
+    int port_dep_count;      /**< 端口依赖数量 */
+    int port_dep_capacity;   /**< 端口依赖数组容量（v3.4.2 新增） */
+    int precondition_count;  /**< 前置条件数量 */
+    int measure_node_id;     /**< 测度节点ID */
 
     /* === 版本字段（v3.4.2 新增）=== */
-    uint16_t version_major;         /**< 主版本号 */
-    uint16_t version_minor;         /**< 次版本号 */
-    uint16_t version_patch;         /**< 补丁版本号 */
+    uint16_t version_major; /**< 主版本号 */
+    uint16_t version_minor; /**< 次版本号 */
+    uint16_t version_patch; /**< 补丁版本号 */
 
     /* === 布尔和枚举字段 === */
-    bool has_measure;               /**< 是否声明了测度 */
-    bool is_instantiated;           /**< 是否已被例化（生命周期追踪，v3.4.2 新增） */
-    DeterminismState determinism;   /**< 确定性状态 */
-    FuncBlockViewState view_state;  /**< 视图折叠/展开状态 */
+    bool has_measure;              /**< 是否声明了测度 */
+    bool is_instantiated;          /**< 是否已被例化（生命周期追踪，v3.4.2 新增） */
+    DeterminismState determinism;  /**< 确定性状态 */
+    FuncBlockViewState view_state; /**< 视图折叠/展开状态 */
 };
 
 /* ============== 打包结果 ==============
@@ -298,12 +298,12 @@ typedef enum {
 } InstantiateResult;
 
 /* 向后兼容别名：旧名称映射到新名称 */
-#define INSTANTIATE_OK                  lv_INSTANTIATE_OK
-#define INSTANTIATE_NO_SOLUTION         lv_INSTANTIATE_NO_SOLUTION
-#define INSTANTIATE_MULTIPLE_SOLUTIONS  lv_INSTANTIATE_MULTIPLE_SOLUTIONS
-#define INSTANTIATE_SELECTOR_NEEDED     lv_INSTANTIATE_SELECTOR_NEEDED
+#define INSTANTIATE_OK lv_INSTANTIATE_OK
+#define INSTANTIATE_NO_SOLUTION lv_INSTANTIATE_NO_SOLUTION
+#define INSTANTIATE_MULTIPLE_SOLUTIONS lv_INSTANTIATE_MULTIPLE_SOLUTIONS
+#define INSTANTIATE_SELECTOR_NEEDED lv_INSTANTIATE_SELECTOR_NEEDED
 #define INSTANTIATE_PRECONDITION_FAILED lv_INSTANTIATE_PRECONDITION_FAILED
-#define INSTANTIATE_OUT_OF_MEMORY       lv_INSTANTIATE_OUT_OF_MEMORY
+#define INSTANTIATE_OUT_OF_MEMORY lv_INSTANTIATE_OUT_OF_MEMORY
 
 /* ============== 确定性检查结果（设计文档 8.2 节） ============== */
 
@@ -534,8 +534,9 @@ lv_PUBLIC_API FuncBlock *func_block_copy(const FuncBlock *src);
  *       新分配的约束数组，调用者负责使用 lv_free() 释放该数组。
  *       当返回 false 时，*out_conflicts 设为 NULL，无需释放。
  */
-lv_PUBLIC_API bool func_block_detect_cross_boundary(ConstraintGraph *graph, const int *internal_node_ids, int internal_count,
-                                      CrossBoundaryConstraint **out_conflicts, int *out_conflict_count);
+lv_PUBLIC_API bool func_block_detect_cross_boundary(ConstraintGraph *graph, const int *internal_node_ids,
+                                                    int internal_count, CrossBoundaryConstraint **out_conflicts,
+                                                    int *out_conflict_count);
 
 /**
  * @brief 执行打包操作（简化版API）
@@ -548,7 +549,8 @@ lv_PUBLIC_API bool func_block_detect_cross_boundary(ConstraintGraph *graph, cons
  *       调用者获得其所有权，负责在不再使用时调用 func_block_destroy() 释放。
  *       失败时 *out_func_block 设为 NULL，无需释放。
  */
-lv_PUBLIC_API PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, FuncBlock **out_func_block);
+lv_PUBLIC_API PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config,
+                                            FuncBlock **out_func_block);
 
 /**
  * @brief 执行打包操作（传统API，保持向后兼容）
@@ -569,9 +571,9 @@ lv_PUBLIC_API PackResult func_block_pack_ex(ConstraintGraph *graph, const PackCo
  *       失败时 *out_func_block 设为 NULL，无需释放。
  */
 lv_PUBLIC_API PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids, int internal_count,
-                           const int *input_port_ids, int input_count, const int *output_port_ids, int output_count,
-                           CrossBoundaryAction *cross_boundary_actions, int cross_boundary_count,
-                           FuncBlock **out_func_block);
+                                         const int *input_port_ids, int input_count, const int *output_port_ids,
+                                         int output_count, CrossBoundaryAction *cross_boundary_actions,
+                                         int cross_boundary_count, FuncBlock **out_func_block);
 
 /* ============== 确定性检查 ============== */
 
@@ -593,7 +595,7 @@ lv_PUBLIC_API DeterminismStatus func_block_determinism_check_static(FuncBlock *f
  * @return 确定性状态
  */
 lv_PUBLIC_API DeterminismStatus func_block_determinism_check_dynamic(FuncBlock *fb, ConstraintGraph *graph,
-                                                       const SymbolicCoord **input_values, int n_inputs);
+                                                                     const SymbolicCoord **input_values, int n_inputs);
 
 /**
  * @brief 完整的确定性验证流水线
@@ -620,8 +622,8 @@ lv_PUBLIC_API DeterminismState func_block_verify_determinism(FuncBlock *fb, Cons
  *       调用者负责使用 lv_free() 释放该数组。
  *       失败时 *out_new_node_ids 设为 NULL，无需释放。
  */
-lv_PUBLIC_API InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, int *arg_mappings, int arg_count,
-                                         int **out_new_node_ids, int *out_new_node_count);
+lv_PUBLIC_API InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, int *arg_mappings,
+                                                       int arg_count, int **out_new_node_ids, int *out_new_node_count);
 
 /**
  * @brief 部分应用（柯里化）
@@ -636,8 +638,8 @@ lv_PUBLIC_API InstantiateResult func_block_instantiate(FuncBlock *fb, Constraint
  *       调用者获得其所有权，负责在不再使用时调用 func_block_destroy() 释放。
  *       原函数块 fb 的所有权不受影响。
  */
-lv_PUBLIC_API bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *graph, int *fixed_arg_mappings, int fixed_count,
-                              FuncBlock **out_new_fb);
+lv_PUBLIC_API bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *graph, int *fixed_arg_mappings,
+                                            int fixed_count, FuncBlock **out_new_fb);
 
 /**
  * @brief 执行捕获避免的例化
@@ -653,9 +655,9 @@ lv_PUBLIC_API bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *grap
  *       调用者负责使用 lv_free() 释放该数组。
  *       失败时 *output_node_ids 设为 NULL，无需释放。
  */
-lv_PUBLIC_API InstantiateResult func_block_instantiate_capture_avoiding(FuncBlock *block, const int *actual_arg_nodes, int arg_count,
-                                                          ConstraintGraph *target_graph, int **output_node_ids,
-                                                          int *output_node_count);
+lv_PUBLIC_API InstantiateResult func_block_instantiate_capture_avoiding(FuncBlock *block, const int *actual_arg_nodes,
+                                                                        int arg_count, ConstraintGraph *target_graph,
+                                                                        int **output_node_ids, int *output_node_count);
 
 /* ============== 多解选择 ============== */
 
@@ -716,7 +718,8 @@ lv_PUBLIC_API void selector_set_graph(SolutionSelector *selector, ConstraintGrap
  * @param out_selected_index 输出的选中索引
  * @return 是否成功选择
  */
-lv_PUBLIC_API bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count, int *out_selected_index);
+lv_PUBLIC_API bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count,
+                                  int *out_selected_index);
 
 /* ============== 函数块组合子 ============== */
 

@@ -21,17 +21,18 @@ extern "C" {
 #include <stdint.h>
 
 #include "lv/module.h"
+
 #include "lexer_shared.h"
 
 /* ============== LVZ 词法 Token 类型 ============== */
 
 typedef enum {
     TOK_EOF,
-    TOK_STRING,         /* "..." */
-    TOK_NUMBER,         /* 整数或浮点数 */
-    TOK_IDENTIFIER,     /* 标识符 */
-    TOK_LBRACE,         /* { */
-    TOK_RBRACE,         /* } */
+    TOK_STRING,     /* "..." */
+    TOK_NUMBER,     /* 整数或浮点数 */
+    TOK_IDENTIFIER, /* 标识符 */
+    TOK_LBRACE,     /* { */
+    TOK_RBRACE,     /* } */
     TOK_ERROR
 } LvzTokenType;
 

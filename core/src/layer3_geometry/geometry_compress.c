@@ -32,6 +32,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "node_deep_copy.h"
@@ -91,29 +92,29 @@ typedef struct {
  * @brief Huffman tree node
  */
 typedef struct {
-    int left;           /**< Left child index, -1 = none */
-    int right;          /**< Right child index, -1 = none */
-    int parent;         /**< Parent index, -1 = root */
-    uint32_t freq;      /**< Node frequency weight */
-    uint8_t byte_val;   /**< Leaf byte value (invalid for internal nodes) */
+    int left;         /**< Left child index, -1 = none */
+    int right;        /**< Right child index, -1 = none */
+    int parent;       /**< Parent index, -1 = root */
+    uint32_t freq;    /**< Node frequency weight */
+    uint8_t byte_val; /**< Leaf byte value (invalid for internal nodes) */
 } HuffmanNode;
 
 /**
  * @brief Min-heap structure (for building Huffman tree)
  */
 typedef struct {
-    int *nodes;             /**< Heap-stored Huffman node indices */
-    int size;               /**< Current heap size */
-    int capacity;           /**< Heap capacity */
-    HuffmanNode *hnodes;    /**< Pointer to Huffman node array (for frequency comparison) */
+    int *nodes;          /**< Heap-stored Huffman node indices */
+    int size;            /**< Current heap size */
+    int capacity;        /**< Heap capacity */
+    HuffmanNode *hnodes; /**< Pointer to Huffman node array (for frequency comparison) */
 } MinHeap;
 
 /**
  * @brief Huffman encoding lookup table entry
  */
 typedef struct {
-    uint32_t code;      /**< Encoding bit sequence */
-    int length;         /**< Encoding bit length */
+    uint32_t code; /**< Encoding bit sequence */
+    int length;    /**< Encoding bit length */
 } HuffmanCode;
 
 /* Forward declarations for Huffman functions */
@@ -207,8 +208,10 @@ static int find_adjacent_face(const TriangleFace *faces, int face_count, int v0,
             continue;
         bool has_v0 = false, has_v1 = false;
         for (int k = 0; k < 3; k++) {
-            if (faces[i].verts[k] == v0) has_v0 = true;
-            if (faces[i].verts[k] == v1) has_v1 = true;
+            if (faces[i].verts[k] == v0)
+                has_v0 = true;
+            if (faces[i].verts[k] == v1)
+                has_v1 = true;
         }
         if (has_v0 && has_v1)
             return i;
@@ -226,14 +229,16 @@ static int find_adjacent_face(const TriangleFace *faces, int face_count, int v0,
  * @param[in]  max_adj       Maximum number of adjacent faces to return
  * @return Number of adjacent faces found
  */
-static int find_all_adjacent_faces(const TriangleFace *faces, int face_count, int v0, int v1,
-                                   int *adj_indices, int max_adj) {
+static int find_all_adjacent_faces(const TriangleFace *faces, int face_count, int v0, int v1, int *adj_indices,
+                                   int max_adj) {
     int count = 0;
     for (int i = 0; i < face_count && count < max_adj; i++) {
         bool has_v0 = false, has_v1 = false;
         for (int k = 0; k < 3; k++) {
-            if (faces[i].verts[k] == v0) has_v0 = true;
-            if (faces[i].verts[k] == v1) has_v1 = true;
+            if (faces[i].verts[k] == v0)
+                has_v0 = true;
+            if (faces[i].verts[k] == v1)
+                has_v1 = true;
         }
         if (has_v0 && has_v1) {
             adj_indices[count++] = i;
@@ -337,7 +342,7 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
         lv_free((void **) &faces);
         return false;
     }
-    memset(visited, 0, (size_t)node_count * sizeof(bool));
+    memset(visited, 0, (size_t) node_count * sizeof(bool));
 
     /* Collect coordinate residuals for Huffman encoding */
     int residual_capacity = 256;
@@ -363,11 +368,17 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
         int target = -1;
         int known_a = -1, known_b = -1;
         if (!visited[v2]) {
-            target = v2; known_a = v0; known_b = v1;
+            target = v2;
+            known_a = v0;
+            known_b = v1;
         } else if (!visited[v1]) {
-            target = v1; known_a = v0; known_b = v2;
+            target = v1;
+            known_a = v0;
+            known_b = v2;
         } else if (!visited[v0]) {
-            target = v0; known_a = v1; known_b = v2;
+            target = v0;
+            known_a = v1;
+            known_b = v2;
         }
 
         if (target < 0) {
@@ -402,8 +413,8 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
         }
 
         int dim = node_target->coord_count;
-        if (dim < 1 || !node_target->symbolic_coords ||
-            !node_a->symbolic_coords || !node_b->symbolic_coords || !node_opp->symbolic_coords) {
+        if (dim < 1 || !node_target->symbolic_coords || !node_a->symbolic_coords || !node_b->symbolic_coords ||
+            !node_opp->symbolic_coords) {
             visited[target] = true;
             face->visited = true;
             continue;
@@ -412,13 +423,18 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
         /* Apply parallelogram prediction per dimension: pred = a + b - opp */
         for (int d = 0; d < dim && d < COORD_DIM; d++) {
             SymbolicCoord *neg_opp = symbolic_coord_negate(node_opp->symbolic_coords[d]);
-            if (!neg_opp) continue;
+            if (!neg_opp)
+                continue;
             SymbolicCoord *sum_ab = symbolic_coord_add(node_a->symbolic_coords[d], node_b->symbolic_coords[d]);
-            if (!sum_ab) { symbolic_coord_destroy(neg_opp); continue; }
+            if (!sum_ab) {
+                symbolic_coord_destroy(neg_opp);
+                continue;
+            }
             SymbolicCoord *pred = symbolic_coord_add(sum_ab, neg_opp);
             symbolic_coord_destroy(sum_ab);
             symbolic_coord_destroy(neg_opp);
-            if (!pred) continue;
+            if (!pred)
+                continue;
 
             SymbolicCoord *residual = symbolic_coord_subtract(node_target->symbolic_coords[d], pred);
             symbolic_coord_destroy(pred);
@@ -450,8 +466,10 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
         if (quantized) {
             for (int i = 0; i < residual_count; i++) {
                 double v = residuals[i] * quant_factor;
-                if (v > 32767.0) v = 32767.0;
-                if (v < -32768.0) v = -32768.0;
+                if (v > 32767.0)
+                    v = 32767.0;
+                if (v < -32768.0)
+                    v = -32768.0;
                 quantized[i] = (int16_t) v;
             }
 
@@ -569,7 +587,7 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
         lv_free((void **) &faces);
         return false;
     }
-    memset(visited, 0, (size_t)node_count * sizeof(bool));
+    memset(visited, 0, (size_t) node_count * sizeof(bool));
     /* Traverse triangle faces */
     for (int fi = 0; fi < face_count; fi++) {
         TriangleFace *face = &faces[fi];
@@ -584,11 +602,17 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
         int target = -1;
         int known_a = -1, known_b = -1;
         if (!visited[v2]) {
-            target = v2; known_a = v0; known_b = v1;
+            target = v2;
+            known_a = v0;
+            known_b = v1;
         } else if (!visited[v1]) {
-            target = v1; known_a = v0; known_b = v2;
+            target = v1;
+            known_a = v0;
+            known_b = v2;
         } else if (!visited[v0]) {
-            target = v0; known_a = v1; known_b = v2;
+            target = v0;
+            known_a = v1;
+            known_b = v2;
         }
 
         if (target < 0) {
@@ -617,8 +641,7 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
         }
 
         int dim = node_target->coord_count;
-        if (dim < 1 || !node_target->symbolic_coords ||
-            !node_a->symbolic_coords || !node_b->symbolic_coords) {
+        if (dim < 1 || !node_target->symbolic_coords || !node_a->symbolic_coords || !node_b->symbolic_coords) {
             visited[target] = true;
             face->visited = true;
             continue;
@@ -631,14 +654,17 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
 
         for (int ai = 0; ai < adj_count; ai++) {
             int v_opp = get_opposite_vertex(&faces[adj_indices[ai]], known_a, known_b);
-            if (v_opp < 0) continue;
+            if (v_opp < 0)
+                continue;
 
             GeomNode *node_opp = graph_get_node(graph, v_opp);
-            if (!node_opp || !node_opp->symbolic_coords) continue;
+            if (!node_opp || !node_opp->symbolic_coords)
+                continue;
 
             /* Weight by face area */
             double area = triangle_face_area(graph, &faces[adj_indices[ai]]);
-            if (area <= 0.0) area = 1.0; /* Minimum weight to avoid division by zero */
+            if (area <= 0.0)
+                area = 1.0; /* Minimum weight to avoid division by zero */
             total_weight += area;
 
             /* Prediction: pred = a + b - opp */
@@ -669,10 +695,11 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
             /* Replace coordinate with residual as rational */
             double scaled_val = residual_val * 1000.0;
             /* 钳制到 int64 安全范围再转换，避免大值时未定义行为 */
-            if (scaled_val > 9223372036854774784.0) scaled_val = 9223372036854774784.0;
-            if (scaled_val < -9223372036854774784.0) scaled_val = -9223372036854774784.0;
-            SymbolicCoord *residual = symbolic_coord_create_rational(
-                (int64_t)scaled_val, 1000);
+            if (scaled_val > 9223372036854774784.0)
+                scaled_val = 9223372036854774784.0;
+            if (scaled_val < -9223372036854774784.0)
+                scaled_val = -9223372036854774784.0;
+            SymbolicCoord *residual = symbolic_coord_create_rational((int64_t) scaled_val, 1000);
             if (residual) {
                 symbolic_coord_destroy(node_target->symbolic_coords[d]);
                 node_target->symbolic_coords[d] = residual;
@@ -773,8 +800,8 @@ bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode) {
  * @param[out] is_v0        Output: true if vertex is the v0 of the edge, false if v1
  * @return true if found, false otherwise
  */
-static bool find_vertex_in_boundary(const Edge *boundary, int boundary_top, int vertex_id,
-                                    int *edge_index, bool *is_v0) {
+static bool find_vertex_in_boundary(const Edge *boundary, int boundary_top, int vertex_id, int *edge_index,
+                                    bool *is_v0) {
     for (int i = 0; i < boundary_top; i++) {
         if (boundary[i].v0 == vertex_id) {
             *edge_index = i;
@@ -818,7 +845,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
         lv_free((void **) &boundary);
         return false;
     }
-    memset(visited, 0, (size_t)graph->node_count * sizeof(bool));
+    memset(visited, 0, (size_t) graph->node_count * sizeof(bool));
 
     /* Find initial edge: take first two point-type nodes */
     int start_v0 = -1, start_v1 = -1;
@@ -890,8 +917,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                 /* Opposite vertex unvisited -> C mode */
                 if (len >= capacity) {
                     capacity *= 2;
-                    EdgebreakerMode *new_seq =
-                        (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                    EdgebreakerMode *new_seq = (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                     if (!new_seq)
                         break;
                     seq = new_seq;
@@ -918,8 +944,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                 /* Opposite vertex already visited -> need L/R/S classification */
                 int opp_edge_index = -1;
                 bool opp_is_v0 = false;
-                bool opp_in_boundary = find_vertex_in_boundary(boundary, boundary_top, opposite_id,
-                                                               &opp_edge_index, &opp_is_v0);
+                bool opp_in_boundary =
+                    find_vertex_in_boundary(boundary, boundary_top, opposite_id, &opp_edge_index, &opp_is_v0);
 
                 if (!opp_in_boundary) {
                     /* Opposite vertex not in boundary -> S mode (split) */
@@ -999,8 +1025,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                 /* No opposite vertex -> E mode */
                 if (len >= capacity) {
                     capacity *= 2;
-                    EdgebreakerMode *new_seq =
-                        (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                    EdgebreakerMode *new_seq = (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
                     if (!new_seq)
                         break;
                     seq = new_seq;
@@ -1038,10 +1063,10 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
  * @brief Bit writer - supports bit-level writing to output buffer
  */
 typedef struct {
-    uint8_t *buf;       /**< Output buffer */
-    size_t capacity;    /**< Buffer capacity (bytes) */
-    size_t byte_pos;    /**< Current write byte position */
-    int bit_pos;        /**< Current bit position within byte (7=MSB, 0=LSB) */
+    uint8_t *buf;    /**< Output buffer */
+    size_t capacity; /**< Buffer capacity (bytes) */
+    size_t byte_pos; /**< Current write byte position */
+    int bit_pos;     /**< Current bit position within byte (7=MSB, 0=LSB) */
 } BitWriter;
 
 /**
@@ -1395,13 +1420,13 @@ static bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **o
     /* Step 1: Read frequency table and rebuild Huffman tree */
     uint32_t freq[256];
     for (int i = 0; i < 256; i++) {
-        freq[i] = ((uint32_t) data[i * 4 + 0]) | ((uint32_t) data[i * 4 + 1] << 8)
-                | ((uint32_t) data[i * 4 + 2] << 16) | ((uint32_t) data[i * 4 + 3] << 24);
+        freq[i] = ((uint32_t) data[i * 4 + 0]) | ((uint32_t) data[i * 4 + 1] << 8) |
+                  ((uint32_t) data[i * 4 + 2] << 16) | ((uint32_t) data[i * 4 + 3] << 24);
     }
 
     size_t offset = 256 * sizeof(uint32_t);
-    uint32_t raw_sz = ((uint32_t) data[offset + 0]) | ((uint32_t) data[offset + 1] << 8)
-                    | ((uint32_t) data[offset + 2] << 16) | ((uint32_t) data[offset + 3] << 24);
+    uint32_t raw_sz = ((uint32_t) data[offset + 0]) | ((uint32_t) data[offset + 1] << 8) |
+                      ((uint32_t) data[offset + 2] << 16) | ((uint32_t) data[offset + 3] << 24);
     offset += sizeof(uint32_t);
 
     if (raw_sz == 0) {
@@ -1718,15 +1743,15 @@ static bool entropy_decode_real(const uint8_t *data, size_t size, uint8_t **out_
         return false;
 
     /* Verify magic */
-    uint32_t magic = ((uint32_t) data[0]) | ((uint32_t) data[1] << 8)
-                   | ((uint32_t) data[2] << 16) | ((uint32_t) data[3] << 24);
+    uint32_t magic =
+        ((uint32_t) data[0]) | ((uint32_t) data[1] << 8) | ((uint32_t) data[2] << 16) | ((uint32_t) data[3] << 24);
     if (magic != LVZD_COMPRESS_MAGIC) {
         /* Fall back to legacy Huffman-only format */
         return entropy_decode_huffman(data, size, out_data, out_size);
     }
 
-    uint32_t orig_sz = ((uint32_t) data[4]) | ((uint32_t) data[5] << 8)
-                      | ((uint32_t) data[6] << 16) | ((uint32_t) data[7] << 24);
+    uint32_t orig_sz =
+        ((uint32_t) data[4]) | ((uint32_t) data[5] << 8) | ((uint32_t) data[6] << 16) | ((uint32_t) data[7] << 24);
     (void) orig_sz; /* Used for validation */
 
     /* Huffman decode to get RLE data */
@@ -1777,8 +1802,8 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
         }
 
         /* Add node to cloned graph using the same ID */
-        GeomNode *added = graph_add_node_with_id(cloned, copy->id, copy->type,
-                                                  copy->symbolic_coords, copy->coord_count);
+        GeomNode *added =
+            graph_add_node_with_id(cloned, copy->id, copy->type, copy->symbolic_coords, copy->coord_count);
         if (!added) {
             /* Clean up the copy we made */
             if (copy->symbolic_coords) {
@@ -1820,10 +1845,10 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
             graph_destroy(cloned);
             return NULL;
         }
-        memcpy(parts_copy, orig->participants, (size_t)orig->participant_count * sizeof(int));
+        memcpy(parts_copy, orig->participants, (size_t) orig->participant_count * sizeof(int));
 
-        Constraint *added = graph_add_constraint_with_id(cloned, orig->id, orig->type,
-                                                          parts_copy, orig->participant_count);
+        Constraint *added =
+            graph_add_constraint_with_id(cloned, orig->id, orig->type, parts_copy, orig->participant_count);
         if (!added) {
             lv_free((void **) &parts_copy);
             graph_destroy(cloned);
@@ -2031,8 +2056,8 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
 
     /* Fill metadata */
     if (out_meta) {
-        out_meta->original_size = (int)original_sz;
-        out_meta->compressed_size = (int)encoded_size;
+        out_meta->original_size = (int) original_sz;
+        out_meta->compressed_size = (int) encoded_size;
         out_meta->compression_ratio = (encoded_size > 0) ? (double) original_sz / (double) encoded_size : 1.0;
         out_meta->node_count = graph->node_count;
         out_meta->constraint_count = graph->constraint_count;
@@ -2135,9 +2160,11 @@ static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph
                 memcpy(&val, ptr, sizeof(double));
                 ptr += sizeof(double);
                 double scaled_val = val * 1000000.0;
-                if (scaled_val > 9223372036854774784.0) scaled_val = 9223372036854774784.0;
-                if (scaled_val < -9223372036854774784.0) scaled_val = -9223372036854774784.0;
-                coords[d] = symbolic_coord_create_rational((int64_t)scaled_val, 1000000);
+                if (scaled_val > 9223372036854774784.0)
+                    scaled_val = 9223372036854774784.0;
+                if (scaled_val < -9223372036854774784.0)
+                    scaled_val = -9223372036854774784.0;
+                coords[d] = symbolic_coord_create_rational((int64_t) scaled_val, 1000000);
                 if (!coords[d]) {
                     ok = false;
                     break;

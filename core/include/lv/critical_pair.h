@@ -43,6 +43,7 @@ extern "C" {
 
 #include <stdbool.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 #include "rewrite.h"
 
@@ -128,8 +129,7 @@ typedef struct {
  * @return 新分配的关键对集合，调用者负责通过 critical_pair_set_destroy 释放；
  *         空规则集或 rule_count < 1 返回 NULL
  */
-CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count,
-                                           ConstraintGraph *base_graph);
+CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count, ConstraintGraph *base_graph);
 
 /**
  * @brief 比较一个关键对的两条归约路径结果
@@ -195,10 +195,7 @@ void critical_pair_set_destroy(CriticalPairSet *set);
  * @param out_confluent  输出：已比较且汇合的关键对数
  * @param out_pending    输出：尚未比较的关键对数
  */
-void critical_pair_get_statistics(const CriticalPairSet *set,
-                                  int *out_total,
-                                  int *out_confluent,
-                                  int *out_pending);
+void critical_pair_get_statistics(const CriticalPairSet *set, int *out_total, int *out_confluent, int *out_pending);
 
 #ifdef __cplusplus
 }

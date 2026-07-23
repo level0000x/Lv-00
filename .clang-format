@@ -1,4 +1,4 @@
-﻿# Lv-00 代码格式化配置
+# Lv-00 代码格式化配置
 # 适用于 C11 项目，与项目风格保持一致
 # 使用方法：clang-format -i <file>
 
@@ -18,7 +18,7 @@ BreakBeforeBraces: Attach
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortBlocksOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
 
 # 指针/引用
 PointerAlignment: Right

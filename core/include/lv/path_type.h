@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 #include "unify.h"
 #ifdef __cplusplus
@@ -124,8 +125,8 @@ typedef enum {
  */
 struct lvPath {
     int path_id;                                    /**< 路径唯一标识符 */
-    lvPathType type;                              /**< 路径类型分类 */
-    lvPathDirection direction;                    /**< 路径方向（正向/逆向） */
+    lvPathType type;                                /**< 路径类型分类 */
+    lvPathDirection direction;                      /**< 路径方向（正向/逆向） */
     int endpoint_a;                                 /**< 起点端点（对应 HoTT 起点 a） */
     int endpoint_b;                                 /**< 终点端点（对应 HoTT 终点 b） */
     int interval_id;                                /**< 关联的区间实例 ID */
@@ -153,7 +154,7 @@ struct lvPath {
 typedef struct {
     int context_id;          /**< 消去上下文的唯一 ID */
     int source_type_id;      /**< 源类型族 ID */
-    lvTransportMode mode;  /**< 传输模式 */
+    lvTransportMode mode;    /**< 传输模式 */
     int along_path_id;       /**< 沿此路径传输（路径 ID） */
     int along_equiv_id;      /**< 沿此等价传输（等价 ID，仅 TRANSPORT_ALONG_EQUIV） */
     void *transported_term;  /**< 传输后的项（结果） */
@@ -179,16 +180,16 @@ typedef struct {
  */
 struct lvPathSystem {
     lvPath *paths;                       /**< 路径动态数组 */
-    int path_count;                        /**< 当前路径数量 */
-    int path_capacity;                     /**< 路径数组容量 */
+    int path_count;                      /**< 当前路径数量 */
+    int path_capacity;                   /**< 路径数组容量 */
     lvInterval *intervals;               /**< 区间实例池 */
-    int interval_count;                    /**< 当前区间数量 */
-    int interval_capacity;                 /**< 区间池容量 */
+    int interval_count;                  /**< 当前区间数量 */
+    int interval_capacity;               /**< 区间池容量 */
     lvPathCoercionContext *coe_contexts; /**< 路径消去上下文数组 */
-    int coe_count;                         /**< 当前消去上下文数量 */
-    int coe_capacity;                      /**< 消去上下文容量 */
-    bool is_initialized;                   /**< 系统初始化状态 */
-    int64_t init_time_us;                  /**< 系统初始化时间戳 */
+    int coe_count;                       /**< 当前消去上下文数量 */
+    int coe_capacity;                    /**< 消去上下文容量 */
+    bool is_initialized;                 /**< 系统初始化状态 */
+    int64_t init_time_us;                /**< 系统初始化时间戳 */
 };
 /* ================================================================
  *  第五部分：API —— 路径系统生命周期

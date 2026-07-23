@@ -9,28 +9,29 @@
  */
 
 #include "lv/ga_interface.h"
+
+#include <math.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
 #include "lv/ga_multivector.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
-#include <stdlib.h>
-#include <math.h>
-#include <stdbool.h>
-
 /* ============================================================
  * Basis element indices (Cl(3,0,1))
  * ============================================================ */
-#define GA_S    0
-#define GA_E0   1
-#define GA_E1   2
-#define GA_E2   3
-#define GA_E3   4
-#define GA_E01  5
-#define GA_E02  6
-#define GA_E03  7
-#define GA_E12  8
-#define GA_E13  9
-#define GA_E23  10
+#define GA_S 0
+#define GA_E0 1
+#define GA_E1 2
+#define GA_E2 3
+#define GA_E3 4
+#define GA_E01 5
+#define GA_E02 6
+#define GA_E03 7
+#define GA_E12 8
+#define GA_E13 9
+#define GA_E23 10
 #define GA_E012 11
 #define GA_E013 12
 #define GA_E023 13
@@ -48,7 +49,8 @@
  */
 lvMultiVector *ga_embed_point(double x, double y, double z) {
     lvMultiVector *mv = ga_mv_create();
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     /* Point P = x*e023 + y*e013 + z*e012 + e123 */
     ga_mv_set(mv, GA_E023, x);
@@ -65,12 +67,13 @@ lvMultiVector *ga_embed_point(double x, double y, double z) {
  * @param out_x, out_y, out_z  输出坐标（不能为 NULL）
  * @return 成功返回 0；参数无效或非有效点（w 分量为零）返回 -1
  */
-int ga_extract_point(const lvMultiVector *mv,
-                     double *out_x, double *out_y, double *out_z) {
-    if (!mv || !out_x || !out_y || !out_z) return -1;
+int ga_extract_point(const lvMultiVector *mv, double *out_x, double *out_y, double *out_z) {
+    if (!mv || !out_x || !out_y || !out_z)
+        return -1;
 
     double w = ga_mv_get(mv, GA_E123);
-    if (fabs(w) < 1e-10) return -1;  /* Not a valid point */
+    if (fabs(w) < 1e-10)
+        return -1; /* Not a valid point */
 
     *out_x = ga_mv_get(mv, GA_E023) / w;
     *out_y = ga_mv_get(mv, GA_E013) / w;
@@ -90,7 +93,8 @@ int ga_extract_point(const lvMultiVector *mv,
  */
 lvMultiVector *ga_embed_vector(double vx, double vy, double vz) {
     lvMultiVector *mv = ga_mv_create();
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     /* Vector v = vx*e1 + vy*e2 + vz*e3 */
     ga_mv_set(mv, GA_E1, vx);
@@ -106,9 +110,9 @@ lvMultiVector *ga_embed_vector(double vx, double vy, double vz) {
  * @param out_vx, out_vy, out_vz  输出向量分量（不能为 NULL）
  * @return 成功返回 0，失败返回 -1
  */
-int ga_extract_vector(const lvMultiVector *mv,
-                      double *out_vx, double *out_vy, double *out_vz) {
-    if (!mv || !out_vx || !out_vy || !out_vz) return -1;
+int ga_extract_vector(const lvMultiVector *mv, double *out_vx, double *out_vy, double *out_vz) {
+    if (!mv || !out_vx || !out_vy || !out_vz)
+        return -1;
 
     *out_vx = ga_mv_get(mv, GA_E1);
     *out_vy = ga_mv_get(mv, GA_E2);
@@ -129,7 +133,8 @@ int ga_extract_vector(const lvMultiVector *mv,
  */
 lvMultiVector *ga_embed_plane(double nx, double ny, double nz, double d) {
     lvMultiVector *mv = ga_mv_create();
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     /* Plane pi = nx*e1 + ny*e2 + nz*e3 + d*e0 */
     ga_mv_set(mv, GA_E1, nx);
@@ -147,10 +152,9 @@ lvMultiVector *ga_embed_plane(double nx, double ny, double nz, double d) {
  * @param out_d             输出距离（不能为 NULL）
  * @return 成功返回 0，失败返回 -1
  */
-int ga_extract_plane(const lvMultiVector *mv,
-                     double *out_nx, double *out_ny, double *out_nz,
-                     double *out_d) {
-    if (!mv || !out_nx || !out_ny || !out_nz || !out_d) return -1;
+int ga_extract_plane(const lvMultiVector *mv, double *out_nx, double *out_ny, double *out_nz, double *out_d) {
+    if (!mv || !out_nx || !out_ny || !out_nz || !out_d)
+        return -1;
 
     *out_nx = ga_mv_get(mv, GA_E1);
     *out_ny = ga_mv_get(mv, GA_E2);
@@ -170,9 +174,9 @@ int ga_extract_plane(const lvMultiVector *mv,
  * @param dir    方向多向量
  * @return 表示射线的多向量（调用者负责释放），失败返回 NULL
  */
-lvMultiVector *ga_embed_ray(const lvMultiVector *origin,
-                               const lvMultiVector *dir) {
-    if (!origin || !dir) return NULL;
+lvMultiVector *ga_embed_ray(const lvMultiVector *origin, const lvMultiVector *dir) {
+    if (!origin || !dir)
+        return NULL;
 
     /* Ray = origin ^ direction (outer product) */
     return ga_mv_outer_product(origin, dir);
@@ -186,10 +190,9 @@ lvMultiVector *ga_embed_ray(const lvMultiVector *origin,
  * @return 成功返回 0，失败返回 -1
  * @warning 输出参数在失败时可能部分分配，调用者仍须对非 NULL 输出调用 ga_mv_destroy
  */
-int ga_extract_ray(const lvMultiVector *mv,
-                   lvMultiVector **out_origin,
-                   lvMultiVector **out_dir) {
-    if (!mv || !out_origin || !out_dir) return -1;
+int ga_extract_ray(const lvMultiVector *mv, lvMultiVector **out_origin, lvMultiVector **out_dir) {
+    if (!mv || !out_origin || !out_dir)
+        return -1;
 
     /* Simplified: extract bivector components */
     *out_origin = ga_mv_create();
@@ -225,18 +228,19 @@ int ga_extract_ray(const lvMultiVector *mv,
  * @param angle       旋转角度（弧度）
  * @return Rotor 多向量（调用者负责释放），轴为零向量时返回 NULL
  */
-lvMultiVector *ga_embed_rotation(double ax, double ay, double az,
-                                    double angle) {
+lvMultiVector *ga_embed_rotation(double ax, double ay, double az, double angle) {
     /* Normalize axis */
     double len = sqrt(ax * ax + ay * ay + az * az);
-    if (len < 1e-10) return NULL;
+    if (len < 1e-10)
+        return NULL;
 
     ax /= len;
     ay /= len;
     az /= len;
 
     lvMultiVector *mv = ga_mv_create();
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     /* Rotor R = cos(angle/2) + sin(angle/2) * (ax*e23 + ay*e13 + az*e12) */
     double half_angle = angle / 2.0;
@@ -258,10 +262,9 @@ lvMultiVector *ga_embed_rotation(double ax, double ay, double az,
  * @param out_angle      输出旋转角度（弧度，不能为 NULL）
  * @return 成功返回 0，失败返回 -1
  */
-int ga_extract_rotation(const lvMultiVector *rotor,
-                        double *out_ax, double *out_ay, double *out_az,
-                        double *out_angle) {
-    if (!rotor || !out_ax || !out_ay || !out_az || !out_angle) return -1;
+int ga_extract_rotation(const lvMultiVector *rotor, double *out_ax, double *out_ay, double *out_az, double *out_angle) {
+    if (!rotor || !out_ax || !out_ay || !out_az || !out_angle)
+        return -1;
 
     double c = ga_mv_get(rotor, GA_S);
     double bx = ga_mv_get(rotor, GA_E23);
@@ -297,7 +300,8 @@ int ga_extract_rotation(const lvMultiVector *rotor,
  */
 lvMultiVector *ga_embed_translation(double tx, double ty, double tz) {
     lvMultiVector *mv = ga_mv_create();
-    if (!mv) return NULL;
+    if (!mv)
+        return NULL;
 
     /* Translation motor T = 1 + 0.5*(tx*e01 + ty*e02 + tz*e03) */
     ga_mv_set(mv, GA_S, 1.0);
@@ -317,9 +321,9 @@ lvMultiVector *ga_embed_translation(double tx, double ty, double tz) {
  * @param p1, p2  点多向量
  * @return 表示直线的多向量（调用者负责释放），失败返回 NULL
  */
-lvMultiVector *ga_line_from_two_points(const lvMultiVector *p1,
-                                          const lvMultiVector *p2) {
-    if (!p1 || !p2) return NULL;
+lvMultiVector *ga_line_from_two_points(const lvMultiVector *p1, const lvMultiVector *p2) {
+    if (!p1 || !p2)
+        return NULL;
 
     /* Line L = P1 ^ P2 (outer product) */
     return ga_mv_outer_product(p1, p2);
@@ -330,20 +334,22 @@ lvMultiVector *ga_line_from_two_points(const lvMultiVector *p1,
  * @param p1, p2, p3  点多向量
  * @return 共线返回 true，否则返回 false（参数无效时也返回 false）
  */
-bool ga_three_points_collinear(const lvMultiVector *p1,
-                                const lvMultiVector *p2,
-                                const lvMultiVector *p3) {
-    if (!p1 || !p2 || !p3) return false;
+bool ga_three_points_collinear(const lvMultiVector *p1, const lvMultiVector *p2, const lvMultiVector *p3) {
+    if (!p1 || !p2 || !p3)
+        return false;
 
     /* PGA points are grade-3 trivectors; outer product of grade-3 in 4D = 0.
      * Use determinant of coordinate matrix instead. */
     double x1, y1, z1, x2, y2, z2, x3, y3, z3;
-    if (ga_extract_point(p1, &x1, &y1, &z1) < 0) return false;
-    if (ga_extract_point(p2, &x2, &y2, &z2) < 0) return false;
-    if (ga_extract_point(p3, &x3, &y3, &z3) < 0) return false;
+    if (ga_extract_point(p1, &x1, &y1, &z1) < 0)
+        return false;
+    if (ga_extract_point(p2, &x2, &y2, &z2) < 0)
+        return false;
+    if (ga_extract_point(p3, &x3, &y3, &z3) < 0)
+        return false;
 
     /* 3x3 determinant (last column is all 1s for homogeneous) */
-    double det = x1*(y2 - y3) - y1*(x2 - x3) + (x2*y3 - x3*y2);
+    double det = x1 * (y2 - y3) - y1 * (x2 - x3) + (x2 * y3 - x3 * y2);
     return fabs(det) < 1e-6;
 }
 
@@ -352,23 +358,26 @@ bool ga_three_points_collinear(const lvMultiVector *p1,
  * @param p1, p2, p3, p4  点多向量
  * @return 共面返回 true，否则返回 false（参数无效时也返回 false）
  */
-bool ga_four_points_coplanar(const lvMultiVector *p1,
-                              const lvMultiVector *p2,
-                              const lvMultiVector *p3,
-                              const lvMultiVector *p4) {
-    if (!p1 || !p2 || !p3 || !p4) return false;
+bool ga_four_points_coplanar(const lvMultiVector *p1, const lvMultiVector *p2, const lvMultiVector *p3,
+                             const lvMultiVector *p4) {
+    if (!p1 || !p2 || !p3 || !p4)
+        return false;
 
     double x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4;
-    if (ga_extract_point(p1, &x1, &y1, &z1) < 0) return false;
-    if (ga_extract_point(p2, &x2, &y2, &z2) < 0) return false;
-    if (ga_extract_point(p3, &x3, &y3, &z3) < 0) return false;
-    if (ga_extract_point(p4, &x4, &y4, &z4) < 0) return false;
+    if (ga_extract_point(p1, &x1, &y1, &z1) < 0)
+        return false;
+    if (ga_extract_point(p2, &x2, &y2, &z2) < 0)
+        return false;
+    if (ga_extract_point(p3, &x3, &y3, &z3) < 0)
+        return false;
+    if (ga_extract_point(p4, &x4, &y4, &z4) < 0)
+        return false;
 
     /* 4x4 determinant (last column all 1s) */
-    double det = x1*(y2*(z3 - z4) - y3*(z2 - z4) + y4*(z2 - z3))
-               - y1*(x2*(z3 - z4) - x3*(z2 - z4) + x4*(z2 - z3))
-               + z1*(x2*(y3 - y4) - x3*(y2 - y4) + x4*(y2 - y3))
-               - (x2*(y3*z4 - y4*z3) - x3*(y2*z4 - y4*z2) + x4*(y2*z3 - y3*z2));
+    double det = x1 * (y2 * (z3 - z4) - y3 * (z2 - z4) + y4 * (z2 - z3)) -
+                 y1 * (x2 * (z3 - z4) - x3 * (z2 - z4) + x4 * (z2 - z3)) +
+                 z1 * (x2 * (y3 - y4) - x3 * (y2 - y4) + x4 * (y2 - y3)) -
+                 (x2 * (y3 * z4 - y4 * z3) - x3 * (y2 * z4 - y4 * z2) + x4 * (y2 * z3 - y3 * z2));
     return fabs(det) < 1e-6;
 }
 
@@ -377,14 +386,14 @@ bool ga_four_points_coplanar(const lvMultiVector *p1,
  * @param p1, p2, p3  点多向量
  * @return 表示平面的多向量（调用者负责释放），失败返回 NULL
  */
-lvMultiVector *ga_plane_from_three_points(const lvMultiVector *p1,
-                                             const lvMultiVector *p2,
-                                             const lvMultiVector *p3) {
-    if (!p1 || !p2 || !p3) return NULL;
+lvMultiVector *ga_plane_from_three_points(const lvMultiVector *p1, const lvMultiVector *p2, const lvMultiVector *p3) {
+    if (!p1 || !p2 || !p3)
+        return NULL;
 
     /* Plane pi = P1 ^ P2 ^ P3 (outer product) */
     lvMultiVector *temp = ga_mv_outer_product(p1, p2);
-    if (!temp) return NULL;
+    if (!temp)
+        return NULL;
 
     lvMultiVector *result = ga_mv_outer_product(temp, p3);
     ga_mv_destroy(temp);

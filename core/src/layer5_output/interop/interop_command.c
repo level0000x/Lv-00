@@ -7,7 +7,6 @@
  * @version 3.3.0
  */
 
-#include "lv/interop.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -15,12 +14,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
-#include "lv/engine.h"
+
 #include "lv/constraint_graph.h"
+#include "lv/engine.h"
+#include "lv/interop.h"
+#include "lv/lv_parse_utils.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/lv_parse_utils.h"
 
 lv_DECLARE_STREAM_CTX(interop);
 
@@ -180,8 +182,8 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 }
             } else {
                 lv_strlcpy(resp->data,
-                             "{\"nodes\": [], \"constraints\": [], \"info\": \"Graph is empty or not loaded\"}",
-                             sizeof(resp->data));
+                           "{\"nodes\": [], \"constraints\": [], \"info\": \"Graph is empty or not loaded\"}",
+                           sizeof(resp->data));
             }
             break;
 
@@ -233,14 +235,16 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 /* 线段：需要两个已存在的端点节点ID */
                 if (cmd->param_count < 3) {
                     resp->status_code = lv_ERROR_INVALID_PARAM;
-                    lv_strlcpy(resp->data, "Usage: AddNode LineSegment <endpoint1_id> <endpoint2_id>", sizeof(resp->data));
+                    lv_strlcpy(resp->data, "Usage: AddNode LineSegment <endpoint1_id> <endpoint2_id>",
+                               sizeof(resp->data));
                     break;
                 }
                 int ep1 = lv_parse_int_default(cmd->params[1], 0);
                 int ep2 = lv_parse_int_default(cmd->params[2], 0);
                 AddNodeResult result = graph_add_line_segment(engine->main_graph, ep1, ep2);
                 if (result == ADD_NODE_OK) {
-                    snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"line_segment\"}",
+                    snprintf(resp->data, sizeof(resp->data),
+                             "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"line_segment\"}",
                              engine->main_graph->next_node_id - 1);
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -257,7 +261,8 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 int radius_pt_id = lv_parse_int_default(cmd->params[2], 0);
                 AddNodeResult result = graph_add_line_segment(engine->main_graph, center_id, radius_pt_id);
                 if (result == ADD_NODE_OK) {
-                    snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"circle\"}",
+                    snprintf(resp->data, sizeof(resp->data),
+                             "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"circle\"}",
                              engine->main_graph->next_node_id - 1);
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -277,7 +282,8 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 }
                 AddNodeResult result = graph_add_region(engine->main_graph, seg_ids, seg_count);
                 if (result == ADD_NODE_OK) {
-                    snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"region\"}",
+                    snprintf(resp->data, sizeof(resp->data),
+                             "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"region\"}",
                              engine->main_graph->next_node_id - 1);
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -285,8 +291,9 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 }
             } else {
                 resp->status_code = lv_ERROR_UNSUPPORTED;
-                lv_strlcpy(resp->data, "Unsupported node type for AddNode. Supported: Point, LineSegment, Circle, Region",
-                             sizeof(resp->data));
+                lv_strlcpy(resp->data,
+                           "Unsupported node type for AddNode. Supported: Point, LineSegment, Circle, Region",
+                           sizeof(resp->data));
             }
             break;
         }
@@ -342,29 +349,29 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
             } else if (strcmp(ct, "parallel") == 0 || strcmp(ct, "Parallel") == 0) {
                 /* 平行约束：通过 CONTAINMENT 类型语义标记两条线段平行 */
                 if (pcount >= 2) {
-                    Constraint *c = graph_add_constraint_with_id(engine->main_graph,
-                        engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
+                    Constraint *c = graph_add_constraint_with_id(
+                        engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
                     ok = (c != NULL);
                 }
             } else if (strcmp(ct, "perpendicular") == 0 || strcmp(ct, "Perpendicular") == 0) {
                 /* 垂直约束：通过 CONTAINMENT 类型语义标记两条线段垂直 */
                 if (pcount >= 2) {
-                    Constraint *c = graph_add_constraint_with_id(engine->main_graph,
-                        engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
+                    Constraint *c = graph_add_constraint_with_id(
+                        engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
                     ok = (c != NULL);
                 }
             } else if (strcmp(ct, "equal_length") == 0 || strcmp(ct, "EqualLength") == 0) {
                 /* 等长约束：通过 CONTAINMENT 类型语义标记两条线段等长 */
                 if (pcount >= 2) {
-                    Constraint *c = graph_add_constraint_with_id(engine->main_graph,
-                        engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
+                    Constraint *c = graph_add_constraint_with_id(
+                        engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
                     ok = (c != NULL);
                 }
             } else if (strcmp(ct, "angle") == 0 || strcmp(ct, "Angle") == 0) {
                 /* 角度约束：通过 BETWEENNESS 类型语义标记角度关系 */
                 if (pcount >= 3) {
-                    Constraint *c = graph_add_constraint_with_id(engine->main_graph,
-                        engine->main_graph->next_constraint_id, BETWEENNESS, participants, 3);
+                    Constraint *c = graph_add_constraint_with_id(
+                        engine->main_graph, engine->main_graph->next_constraint_id, BETWEENNESS, participants, 3);
                     ok = (c != NULL);
                 }
             } else {
@@ -412,8 +419,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 break;
             }
             resp->status_code = lv_ERROR_UNSUPPORTED;
-            lv_strlcpy(resp->data, "PackFunction requires UI-level interaction for port selection",
-                         sizeof(resp->data));
+            lv_strlcpy(resp->data, "PackFunction requires UI-level interaction for port selection", sizeof(resp->data));
             break;
         }
 
@@ -439,19 +445,21 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
             lv_free((void **) &arg_mappings);
             if (results && result_count > 0) {
                 int offset = snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"instantiated_ids\": [");
-                if (offset < 0) offset = 0;
-                for (int i = 0; i < result_count && offset < (int)sizeof(resp->data); i++) {
+                if (offset < 0)
+                    offset = 0;
+                for (int i = 0; i < result_count && offset < (int) sizeof(resp->data); i++) {
                     offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "%s%d", (i > 0 ? ", " : ""),
                                        results[i]);
-                    if (offset < 0) break;
+                    if (offset < 0)
+                        break;
                 }
-                if (offset >= 0 && offset < (int)sizeof(resp->data))
+                if (offset >= 0 && offset < (int) sizeof(resp->data))
                     snprintf(resp->data + offset, sizeof(resp->data) - offset, "]}");
                 lv_free((void **) &results);
             } else {
                 resp->status_code = lv_ERROR_UNSUPPORTED;
                 lv_strlcpy(resp->data, "{\"result\": \"failed\", \"reason\": \"Instantiation failed\"}",
-                             sizeof(resp->data));
+                           sizeof(resp->data));
             }
             break;
         }
@@ -463,7 +471,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 lv_strlcpy(resp->data, "No graph loaded for solving", sizeof(resp->data));
             } else {
                 lv_strlcpy(resp->data, "{\"result\": \"solved\", \"info\": \"Solver invoked - check engine state\"}",
-                             sizeof(resp->data));
+                           sizeof(resp->data));
             }
             break;
 
@@ -508,51 +516,60 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
             } else if (strcmp(fmt, "svg") == 0) {
                 /* SVG 导出：生成基本的 SVG 矢量图 */
                 int offset = snprintf(resp->data, sizeof(resp->data),
-                    "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n"
-                    "  <rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
-                if (offset < 0) offset = 0;
+                                      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n"
+                                      "  <rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
+                if (offset < 0)
+                    offset = 0;
                 if (engine->main_graph) {
-                    for (int i = 0; i < engine->main_graph->node_count && offset < (int)sizeof(resp->data) - 256; i++) {
+                    for (int i = 0; i < engine->main_graph->node_count && offset < (int) sizeof(resp->data) - 256;
+                         i++) {
                         GeomNode *node = engine->main_graph->nodes[i];
                         if (node->type == GEOM_POINT && node->coord_count >= 2) {
                             double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                             double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                            if (offset < (int)sizeof(resp->data))
-                                offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                    "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" fill=\"#3b82f6\"/>\n", x, y);
-                            if (offset < 0) break;
-                        } else if (node->type == GEOM_LINE_SEGMENT && offset < (int)sizeof(resp->data)) {
+                            if (offset < (int) sizeof(resp->data))
+                                offset +=
+                                    snprintf(resp->data + offset, sizeof(resp->data) - offset,
+                                             "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" fill=\"#3b82f6\"/>\n", x, y);
+                            if (offset < 0)
+                                break;
+                        } else if (node->type == GEOM_LINE_SEGMENT && offset < (int) sizeof(resp->data)) {
                             offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                "  <line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"#22c55e\" stroke-width=\"2\"/>\n");
-                            if (offset < 0) break;
+                                               "  <line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"#22c55e\" "
+                                               "stroke-width=\"2\"/>\n");
+                            if (offset < 0)
+                                break;
                         }
                     }
                 }
-                if (offset >= 0 && offset < (int)sizeof(resp->data))
+                if (offset >= 0 && offset < (int) sizeof(resp->data))
                     offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "</svg>");
             } else if (strcmp(fmt, "tikz") == 0) {
                 /* TikZ 导出：生成 LaTeX TikZ 代码 */
-                int offset = snprintf(resp->data, sizeof(resp->data),
-                    "\\begin{tikzpicture}\n");
-                if (offset < 0) offset = 0;
+                int offset = snprintf(resp->data, sizeof(resp->data), "\\begin{tikzpicture}\n");
+                if (offset < 0)
+                    offset = 0;
                 if (engine->main_graph) {
-                    for (int i = 0; i < engine->main_graph->node_count && offset < (int)sizeof(resp->data) - 256; i++) {
+                    for (int i = 0; i < engine->main_graph->node_count && offset < (int) sizeof(resp->data) - 256;
+                         i++) {
                         GeomNode *node = engine->main_graph->nodes[i];
                         if (node->type == GEOM_POINT && node->coord_count >= 2) {
                             double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                             double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                            if (offset < (int)sizeof(resp->data))
+                            if (offset < (int) sizeof(resp->data))
                                 offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                    "  \\coordinate (P%d) at (%.2f, %.2f);\n", node->id, x, y);
-                            if (offset < 0) break;
-                        } else if (node->type == GEOM_LINE_SEGMENT && offset < (int)sizeof(resp->data)) {
+                                                   "  \\coordinate (P%d) at (%.2f, %.2f);\n", node->id, x, y);
+                            if (offset < 0)
+                                break;
+                        } else if (node->type == GEOM_LINE_SEGMENT && offset < (int) sizeof(resp->data)) {
                             offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                "  \\draw (0,0) -- (1,1);\n");
-                            if (offset < 0) break;
+                                               "  \\draw (0,0) -- (1,1);\n");
+                            if (offset < 0)
+                                break;
                         }
                     }
                 }
-                if (offset >= 0 && offset < (int)sizeof(resp->data))
+                if (offset >= 0 && offset < (int) sizeof(resp->data))
                     offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "\\end{tikzpicture}");
             } else if (strcmp(fmt, "json-pretty") == 0) {
                 /* Pretty-printed JSON 导出：带缩进的 JSON */
@@ -561,25 +578,26 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                     /* 简单的 pretty-print：在 } 和 , 前插入换行和缩进 */
                     int offset = 0;
                     int indent = 0;
-                    for (size_t i = 0; json_str[i] && offset < (int)sizeof(resp->data) - 4; i++) {
+                    for (size_t i = 0; json_str[i] && offset < (int) sizeof(resp->data) - 4; i++) {
                         char ch = json_str[i];
                         if (ch == '{' || ch == '[') {
                             resp->data[offset++] = ch;
                             resp->data[offset++] = '\n';
                             indent += 2;
-                            for (int s = 0; s < indent && offset < (int)sizeof(resp->data) - 1; s++)
+                            for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
                                 resp->data[offset++] = ' ';
                         } else if (ch == '}' || ch == ']') {
                             resp->data[offset++] = '\n';
                             indent -= 2;
-                            if (indent < 0) indent = 0;
-                            for (int s = 0; s < indent && offset < (int)sizeof(resp->data) - 1; s++)
+                            if (indent < 0)
+                                indent = 0;
+                            for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
                                 resp->data[offset++] = ' ';
                             resp->data[offset++] = ch;
                         } else if (ch == ',') {
                             resp->data[offset++] = ch;
                             resp->data[offset++] = '\n';
-                            for (int s = 0; s < indent && offset < (int)sizeof(resp->data) - 1; s++)
+                            for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
                                 resp->data[offset++] = ' ';
                         } else {
                             resp->data[offset++] = ch;
@@ -694,8 +712,8 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
 
         default:
             resp->status_code = lv_ERROR_UNSUPPORTED;
-            snprintf(resp->data, sizeof(resp->data), "Unknown command type: %d (command name: \"%s\")",
-                     cmd->type, cmd->command_name[0] ? cmd->command_name : "(unknown)");
+            snprintf(resp->data, sizeof(resp->data), "Unknown command type: %d (command name: \"%s\")", cmd->type,
+                     cmd->command_name[0] ? cmd->command_name : "(unknown)");
             break;
     }
 
@@ -715,7 +733,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
  * @return 对应的 SVG 颜色字符串（如 "#22c55e"），未知颜色返回 "#9ca3af"
  */
 const char *interop_trust_color_to_svg(TrustColor trust) {
-    (void)trust;
+    (void) trust;
     /* 颜色映射已迁移至 lv_protocol.c */
     return NULL;
 }
@@ -729,7 +747,7 @@ const char *interop_trust_color_to_svg(TrustColor trust) {
  * @return 对应的 TikZ 颜色字符串（如 "green!70!black"），未知颜色返回 "gray"
  */
 const char *interop_trust_color_to_tikz(TrustColor trust) {
-    (void)trust;
+    (void) trust;
     /* 颜色映射已迁移至 lv_protocol.c */
     return NULL;
 }
@@ -797,8 +815,10 @@ const char *interop_constraint_type_name(ConstraintType type) {
 static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, double *min_y, double *max_x,
                                  double *max_y) {
     /* 默认边界框 */
-    *min_x = 0.0; *min_y = 0.0;
-    *max_x = 100.0; *max_y = 100.0;
+    *min_x = 0.0;
+    *min_y = 0.0;
+    *max_x = 100.0;
+    *max_y = 100.0;
 
     if (!graph || graph->node_count == 0)
         return;
@@ -815,16 +835,25 @@ static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, do
 
             double val = symbolic_coord_to_double(node->symbolic_coords[c]);
             if (first) {
-                if (c == 0) { *min_x = val; *max_x = val; }
-                else        { *min_y = val; *max_y = val; }
+                if (c == 0) {
+                    *min_x = val;
+                    *max_x = val;
+                } else {
+                    *min_y = val;
+                    *max_y = val;
+                }
                 first = false;
             } else {
                 if (c == 0) {
-                    if (val < *min_x) *min_x = val;
-                    if (val > *max_x) *max_x = val;
+                    if (val < *min_x)
+                        *min_x = val;
+                    if (val > *max_x)
+                        *max_x = val;
                 } else {
-                    if (val < *min_y) *min_y = val;
-                    if (val > *max_y) *max_y = val;
+                    if (val < *min_y)
+                        *min_y = val;
+                    if (val > *max_y)
+                        *max_y = val;
                 }
             }
         }
@@ -832,6 +861,8 @@ static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, do
 
     /* 添加边距 */
     double margin = 10.0;
-    *min_x -= margin; *min_y -= margin;
-    *max_x += margin; *max_y += margin;
+    *min_x -= margin;
+    *min_y -= margin;
+    *max_x += margin;
+    *max_y += margin;
 }

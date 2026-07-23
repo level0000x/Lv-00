@@ -5,14 +5,14 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 /* ============== 常量定义 ============== */
 
 #ifndef lv_OID_LENGTH
-#define lv_OID_LENGTH 65  /* 64 hex chars + null terminator */
+#define lv_OID_LENGTH 65 /* 64 hex chars + null terminator */
 #endif
 
 #ifndef lv_COMMIT_MSG_MAX
@@ -98,8 +98,8 @@ void proof_repo_destroy(lvProofRepo *repo);
  * @param file_count 文件数量
  * @return 提交成功返回 true，失败返回 false
  */
-bool proof_repo_commit(lvProofRepo *repo, const char *message,
-    const char **files, const char **contents, size_t file_count);
+bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **files, const char **contents,
+                       size_t file_count);
 /**
  * @brief 获取提交历史日志，按时间倒序返回提交记录
  *
@@ -118,8 +118,7 @@ size_t proof_repo_log(lvProofRepo *repo, lvProofCommit *commits, size_t max_coun
  * @param diff 输出参数，存储差异结果
  * @return 比较成功返回 true，失败返回 false
  */
-bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b,
-    lvProofDiff *diff);
+bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b, lvProofDiff *diff);
 /**
  * @brief 销毁差异对象，释放差异条目占用的内存
  *

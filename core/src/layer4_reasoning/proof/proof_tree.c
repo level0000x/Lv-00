@@ -9,15 +9,15 @@
  * @version 1.0.0
  */
 
-#include "lv/proof_trace.h"
-#include "lv/lv_utils.h"
-
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+
+#include "lv/lv_utils.h"
+#include "lv/proof_trace.h"
 
 #define INITIAL_CHILD_CAPACITY 4
-#define INITIAL_NODE_CAPACITY  16
+#define INITIAL_NODE_CAPACITY 16
 
 /**
  * @brief 创建新的证明树节点
@@ -31,8 +31,9 @@
  * @return 新创建的节点指针，失败返回 NULL
  */
 static lvProofTreeNode *create_node(int id, int depth, const char *desc, const char *detail) {
-    lvProofTreeNode *n = (lvProofTreeNode *)calloc(1, sizeof(lvProofTreeNode));
-    if (!n) return NULL;
+    lvProofTreeNode *n = (lvProofTreeNode *) calloc(1, sizeof(lvProofTreeNode));
+    if (!n)
+        return NULL;
     n->id = id;
     n->depth = depth;
     n->step_type = 0;
@@ -59,14 +60,15 @@ static lvProofTreeNode *create_node(int id, int depth, const char *desc, const c
  * @param n 要释放的节点指针（为 NULL 时直接返回）
  */
 static void free_node_recursive(lvProofTreeNode *n) {
-    if (!n) return;
+    if (!n)
+        return;
     for (int i = 0; i < n->child_count; i++) {
         free_node_recursive(n->children[i]);
     }
     free(n->children);
     free(n->premises);
-    lv_free((void**)&n->axiom_used);
-    lv_free((void**)&n->conclusion);
+    lv_free((void **) &n->axiom_used);
+    lv_free((void **) &n->conclusion);
     free(n);
 }
 
@@ -79,10 +81,12 @@ static void free_node_recursive(lvProofTreeNode *n) {
  * @return true 容量充足或扩展成功，false 扩展失败
  */
 static bool ensure_node_capacity(lvProofTree *tree) {
-    if (tree->node_count < tree->node_capacity) return true;
+    if (tree->node_count < tree->node_capacity)
+        return true;
     int new_cap = tree->node_capacity * 2;
-    lvProofTreeNode **p = (lvProofTreeNode **)realloc(tree->all_nodes, (size_t)new_cap * sizeof(lvProofTreeNode *));
-    if (!p) return false;
+    lvProofTreeNode **p = (lvProofTreeNode **) realloc(tree->all_nodes, (size_t) new_cap * sizeof(lvProofTreeNode *));
+    if (!p)
+        return false;
     tree->all_nodes = p;
     tree->node_capacity = new_cap;
     return true;
@@ -97,12 +101,16 @@ static bool ensure_node_capacity(lvProofTree *tree) {
  * @return true 容量充足或扩展成功，false 扩展失败
  */
 static bool ensure_child_capacity(lvProofTreeNode *parent) {
-    if (parent->child_count < parent->child_capacity) return true;
+    if (parent->child_count < parent->child_capacity)
+        return true;
     int new_cap = parent->child_capacity > 0 ? parent->child_capacity * 2 : INITIAL_CHILD_CAPACITY;
-    if (parent->child_capacity > 0 && parent->child_capacity > INT_MAX / 2) return false;
-    if ((size_t)new_cap > SIZE_MAX / sizeof(lvProofTreeNode *)) return false;
-    lvProofTreeNode **p = (lvProofTreeNode **)realloc(parent->children, (size_t)new_cap * sizeof(lvProofTreeNode *));
-    if (!p) return false;
+    if (parent->child_capacity > 0 && parent->child_capacity > INT_MAX / 2)
+        return false;
+    if ((size_t) new_cap > SIZE_MAX / sizeof(lvProofTreeNode *))
+        return false;
+    lvProofTreeNode **p = (lvProofTreeNode **) realloc(parent->children, (size_t) new_cap * sizeof(lvProofTreeNode *));
+    if (!p)
+        return false;
     parent->children = p;
     parent->child_capacity = new_cap;
     return true;
@@ -119,25 +127,35 @@ static bool ensure_child_capacity(lvProofTreeNode *parent) {
  * @return 新创建的证明树指针，失败返回 NULL
  */
 lvProofTree *lv_proof_tree_create(const char *name, const char *strategy) {
-    lvProofTree *tree = (lvProofTree *)calloc(1, sizeof(lvProofTree));
-    if (!tree) return NULL;
+    lvProofTree *tree = (lvProofTree *) calloc(1, sizeof(lvProofTree));
+    if (!tree)
+        return NULL;
 
-    if (name) strncpy(tree->name, name, sizeof(tree->name) - 1);
-    if (strategy) strncpy(tree->strategy, strategy, sizeof(tree->strategy) - 1);
+    if (name)
+        strncpy(tree->name, name, sizeof(tree->name) - 1);
+    if (strategy)
+        strncpy(tree->strategy, strategy, sizeof(tree->strategy) - 1);
     tree->name[sizeof(tree->name) - 1] = '\0';
     tree->strategy[sizeof(tree->strategy) - 1] = '\0';
     tree->theorem_name = name ? lv_strdup(name) : NULL;
     tree->proof_strategy = strategy ? lv_strdup(strategy) : NULL;
 
     tree->node_capacity = INITIAL_NODE_CAPACITY;
-    tree->all_nodes = (lvProofTreeNode **)calloc((size_t)tree->node_capacity, sizeof(lvProofTreeNode *));
-    if (!tree->all_nodes) { free(tree); return NULL; }
+    tree->all_nodes = (lvProofTreeNode **) calloc((size_t) tree->node_capacity, sizeof(lvProofTreeNode *));
+    if (!tree->all_nodes) {
+        free(tree);
+        return NULL;
+    }
 
     lvProofTreeNode *root = create_node(0, 0, NULL, NULL);
-    if (!root) { free(tree->all_nodes); free(tree); return NULL; }
+    if (!root) {
+        free(tree->all_nodes);
+        free(tree);
+        return NULL;
+    }
 
     tree->root = root;
-    root->step_index = -1;  /* Root node has no step index */
+    root->step_index = -1; /* Root node has no step index */
     root->conclusion = name ? lv_strdup(name) : NULL;
     tree->all_nodes[0] = root;
     tree->node_count = 1;
@@ -156,11 +174,12 @@ lvProofTree *lv_proof_tree_create(const char *name, const char *strategy) {
  * @param tree 要销毁的证明树指针（为 NULL 时直接返回）
  */
 void lv_proof_tree_destroy(lvProofTree *tree) {
-    if (!tree) return;
+    if (!tree)
+        return;
     free_node_recursive(tree->root);
     free(tree->all_nodes);
-    lv_free((void**)&tree->theorem_name);
-    lv_free((void**)&tree->proof_strategy);
+    lv_free((void **) &tree->theorem_name);
+    lv_free((void **) &tree->proof_strategy);
     free(tree);
 }
 
@@ -177,28 +196,36 @@ void lv_proof_tree_destroy(lvProofTree *tree) {
  * @param id     步骤 ID（当前未使用，保留给未来扩展）
  * @return 新创建的节点指针，失败返回 NULL
  */
-lvProofTreeNode *lv_proof_tree_add_step(lvProofTree *tree, lvProofTreeNode *parent,
-                                             const char *desc, const char *detail, int id) {
-    if (!tree) return NULL;
-    (void)id;
+lvProofTreeNode *lv_proof_tree_add_step(lvProofTree *tree, lvProofTreeNode *parent, const char *desc,
+                                        const char *detail, int id) {
+    if (!tree)
+        return NULL;
+    (void) id;
 
     lvProofTreeNode *par = parent ? parent : tree->root;
-    if (!par) return NULL;
+    if (!par)
+        return NULL;
 
     int new_depth = par->depth + 1;
     lvProofTreeNode *node = create_node(tree->next_id++, new_depth, desc, detail);
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
 
     node->parent = par;
     node->step_index = tree->total_steps;
 
-    if (!ensure_child_capacity(par)) { free_node_recursive(node); return NULL; }
+    if (!ensure_child_capacity(par)) {
+        free_node_recursive(node);
+        return NULL;
+    }
     par->children[par->child_count++] = node;
 
-    if (!ensure_node_capacity(tree)) return node;
+    if (!ensure_node_capacity(tree))
+        return node;
     tree->all_nodes[tree->node_count++] = node;
     tree->total_steps++;
-    if (new_depth > tree->max_depth) tree->max_depth = new_depth;
+    if (new_depth > tree->max_depth)
+        tree->max_depth = new_depth;
     return node;
 }
 
@@ -214,15 +241,16 @@ lvProofTreeNode *lv_proof_tree_add_step(lvProofTree *tree, lvProofTreeNode *pare
  * @param negated 是否为公理（true 表示 is_axiom）
  */
 void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negated) {
-    if (!tree) return;
-    lvProofTreeNode *node = (lvProofTreeNode *)tree;
+    if (!tree)
+        return;
+    lvProofTreeNode *node = (lvProofTreeNode *) tree;
 
     /* Ensure capacity */
     if (node->premise_count >= node->premise_capacity) {
         int new_cap = node->premise_capacity > 0 ? node->premise_capacity * 2 : 4;
-        lvProofPremise *p = (lvProofPremise *)realloc(node->premises,
-            (size_t)new_cap * sizeof(lvProofPremise));
-        if (!p) return;
+        lvProofPremise *p = (lvProofPremise *) realloc(node->premises, (size_t) new_cap * sizeof(lvProofPremise));
+        if (!p)
+            return;
         node->premises = p;
         node->premise_capacity = new_cap;
     }
@@ -249,7 +277,8 @@ void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negat
  * @return true 标记成功，false 节点为 NULL
  */
 bool lv_proof_tree_mark_contradiction(lvProofTreeNode *node) {
-    if (!node) return false;
+    if (!node)
+        return false;
     node->is_contradiction = true;
     node->is_contradiction_branch = true;
     /* Propagate to ancestors */
@@ -274,24 +303,26 @@ bool lv_proof_tree_mark_contradiction(lvProofTreeNode *node) {
  * @param cap   当前缓冲区容量
  */
 static void export_node(const lvProofTreeNode *n, int indent, char **buf, size_t *len, size_t *cap) {
-    if (!n) return;
+    if (!n)
+        return;
     char line[512];
     int spaces = indent * 2;
-    if (spaces > 40) spaces = 40;
-    int written = snprintf(line, sizeof(line), "%*s[%d] %s%s\n",
-                           spaces, "", n->id,
-                           n->axiom_used ? n->axiom_used : "(no axiom)",
-                           n->is_contradiction ? " [CONTRADICTION]" : "");
-    if (written < 0) return;
-    size_t need = *len + (size_t)written + 1;
+    if (spaces > 40)
+        spaces = 40;
+    int written = snprintf(line, sizeof(line), "%*s[%d] %s%s\n", spaces, "", n->id,
+                           n->axiom_used ? n->axiom_used : "(no axiom)", n->is_contradiction ? " [CONTRADICTION]" : "");
+    if (written < 0)
+        return;
+    size_t need = *len + (size_t) written + 1;
     if (need > *cap) {
         *cap = *cap * 2 > need ? *cap * 2 : need;
-        char *tmp = (char *)realloc(*buf, *cap);
-        if (!tmp) return;
+        char *tmp = (char *) realloc(*buf, *cap);
+        if (!tmp)
+            return;
         *buf = tmp;
     }
-    memcpy(*buf + *len, line, (size_t)written);
-    *len += (size_t)written;
+    memcpy(*buf + *len, line, (size_t) written);
+    *len += (size_t) written;
     (*buf)[*len] = '\0';
 
     for (int i = 0; i < n->child_count; i++) {
@@ -310,20 +341,24 @@ static void export_node(const lvProofTreeNode *n, int indent, char **buf, size_t
  * @return 动态分配的文本字符串，失败返回 NULL
  */
 char *lv_proof_tree_export_text(const lvProofTree *tree, const char *opts) {
-    (void)opts;
-    if (!tree || !tree->root) return NULL;
+    (void) opts;
+    if (!tree || !tree->root)
+        return NULL;
 
     size_t cap = 1024;
     size_t len = 0;
-    char *buf = (char *)malloc(cap);
-    if (!buf) return NULL;
+    char *buf = (char *) malloc(cap);
+    if (!buf)
+        return NULL;
     buf[0] = '\0';
 
     /* Header */
-    int hdr = snprintf(buf, cap, "Proof Tree: %s\nStrategy: %s\n---\n",
-                       tree->theorem_name ? tree->theorem_name : "(unnamed)",
-                       tree->proof_strategy ? tree->proof_strategy : "(none)");
-    if (hdr > 0) { len = (size_t)hdr; }
+    int hdr =
+        snprintf(buf, cap, "Proof Tree: %s\nStrategy: %s\n---\n", tree->theorem_name ? tree->theorem_name : "(unnamed)",
+                 tree->proof_strategy ? tree->proof_strategy : "(none)");
+    if (hdr > 0) {
+        len = (size_t) hdr;
+    }
 
     export_node(tree->root, 0, &buf, &len, &cap);
     return buf;

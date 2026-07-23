@@ -1,19 +1,15 @@
 ﻿#ifndef lv_BLOCK_SCHEDULER_H
 #define lv_BLOCK_SCHEDULER_H
 
-#include "lv/func_block.h"
 #include "lv/effect_system.h"
+#include "lv/func_block.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Execution strategy */
-typedef enum {
-    lv_SCHED_FULL,
-    lv_SCHED_INCREMENTAL,
-    lv_SCHED_LAZY
-} lvSchedStrategy;
+typedef enum { lv_SCHED_FULL, lv_SCHED_INCREMENTAL, lv_SCHED_LAZY } lvSchedStrategy;
 
 /* Execution result */
 typedef struct lvExecResult {

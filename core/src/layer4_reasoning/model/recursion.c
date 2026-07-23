@@ -32,6 +32,8 @@
  */
 
 #define _USE_MATH_DEFINES
+#include "recursion.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +41,6 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "recursion.h"
 #include "stream.h"
 #include "stream_context_util.h"
 
@@ -66,7 +67,8 @@ void recursion_set_stream_context(StreamContext *ctx) {
  */
 MeasureSystem *measure_system_create(void) {
     MeasureSystem *ms = lv_calloc(1, sizeof(MeasureSystem));
-    if (!ms) return NULL;
+    if (!ms)
+        return NULL;
 
     /* lv_calloc 已零初始化所有字段，无需逐字段赋零值 */
     return ms;
@@ -80,20 +82,21 @@ MeasureSystem *measure_system_create(void) {
  * @param ms 测度系统指针（可为 NULL）
  */
 void measure_system_destroy(MeasureSystem *ms) {
-    if (!ms) return;
+    if (!ms)
+        return;
 
     for (int i = 0; i < ms->measure_count; i++) {
         measure_destroy(ms->measures[i]);
     }
-    lv_free((void **)&ms->measures);
+    lv_free((void **) &ms->measures);
 
     /* 释放非符号测度元数据 */
-    lv_free((void **)&ms->non_symbolic_metas);
+    lv_free((void **) &ms->non_symbolic_metas);
 
     /* 释放验证模板元数据 */
-    lv_free((void **)&ms->validation_metas);
+    lv_free((void **) &ms->validation_metas);
 
-    lv_free((void **)&ms);
+    lv_free((void **) &ms);
 }
 
 /**
@@ -109,7 +112,8 @@ void measure_system_destroy(MeasureSystem *ms) {
  */
 Measure *measure_create_symbolic(const char *name, int kind, int ref_node_id) {
     Measure *m = lv_calloc(1, sizeof(Measure));
-    if (!m) return NULL;
+    if (!m)
+        return NULL;
 
     m->type = MEASURE_SYMBOLIC;
     m->name = name ? lv_strdup(name) : NULL;
@@ -131,11 +135,11 @@ Measure *measure_create_symbolic(const char *name, int kind, int ref_node_id) {
  * @param user_data    用户数据指针（传递给比较函数）
  * @return 新分配的测度指针，失败返回 NULL
  */
-Measure *measure_create_custom(const char *name,
-    int (*compare_func)(GeomNode *a, GeomNode *b, void *user_data),
-    void *user_data) {
+Measure *measure_create_custom(const char *name, int (*compare_func)(GeomNode *a, GeomNode *b, void *user_data),
+                               void *user_data) {
     Measure *m = lv_calloc(1, sizeof(Measure));
-    if (!m) return NULL;
+    if (!m)
+        return NULL;
 
     m->type = MEASURE_CUSTOM;
     m->name = name ? lv_strdup(name) : NULL;
@@ -155,10 +159,11 @@ Measure *measure_create_custom(const char *name,
  * @param m 测度指针（可为 NULL）
  */
 void measure_destroy(Measure *m) {
-    if (!m) return;
+    if (!m)
+        return;
 
-    lv_free((void **)&m->name);
-    lv_free((void **)&m);
+    lv_free((void **) &m->name);
+    lv_free((void **) &m);
 }
 
 /**
@@ -171,12 +176,13 @@ void measure_destroy(Measure *m) {
  * @return true 添加成功，false 参数无效或内存分配失败
  */
 bool measure_system_add(MeasureSystem *ms, Measure *m) {
-    if (!ms || !m) return false;
+    if (!ms || !m)
+        return false;
 
     int new_count = ms->measure_count + 1;
-    Measure **new_arr = lv_realloc(ms->measures,
-        (size_t)new_count * sizeof(Measure*));
-    if (!new_arr) return false;
+    Measure **new_arr = lv_realloc(ms->measures, (size_t) new_count * sizeof(Measure *));
+    if (!new_arr)
+        return false;
 
     ms->measures = new_arr;
     ms->measures[ms->measure_count] = m;
@@ -196,7 +202,8 @@ bool measure_system_add(MeasureSystem *ms, Measure *m) {
  * @param m  默认测度指针
  */
 void measure_system_set_default(MeasureSystem *ms, Measure *m) {
-    if (ms) ms->default_measure = m;
+    if (ms)
+        ms->default_measure = m;
 }
 
 /**
@@ -211,7 +218,8 @@ void measure_system_set_default(MeasureSystem *ms, Measure *m) {
  * @return 计算结果的符号坐标，失败返回 NULL
  */
 SymbolicCoord *measure_compute_value(Measure *m, GeomNode *node, ConstraintGraph *graph) {
-    if (!m || !node) return NULL;
+    if (!m || !node)
+        return NULL;
 
     if (m->type != MEASURE_SYMBOLIC) {
         /* 非符号测度无法直接计算数值 */
@@ -245,14 +253,17 @@ SymbolicCoord *measure_compute_value(Measure *m, GeomNode *node, ConstraintGraph
                 /* 计算距离：sqrt((x2-x1)^2 + (y2-y1)^2) */
                 dx = symbolic_coord_subtract(x2, x1);
                 dy = symbolic_coord_subtract(y2, y1);
-                if (!dx || !dy) goto length_val_cleanup;
+                if (!dx || !dy)
+                    goto length_val_cleanup;
 
                 dx2 = symbolic_coord_multiply(dx, dx);
                 dy2 = symbolic_coord_multiply(dy, dy);
-                if (!dx2 || !dy2) goto length_val_cleanup;
+                if (!dx2 || !dy2)
+                    goto length_val_cleanup;
 
                 sum = symbolic_coord_add(dx2, dy2);
-                if (!sum) goto length_val_cleanup;
+                if (!sum)
+                    goto length_val_cleanup;
 
                 /* 计算成功，只释放中间变量，返回 sum */
                 symbolic_coord_destroy(dx);
@@ -323,7 +334,8 @@ SymbolicCoord *measure_compute_value(Measure *m, GeomNode *node, ConstraintGraph
  * @return 计算结果的符号坐标，失败返回 NULL
  */
 SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, ConstraintGraph *graph) {
-    if (!m || !node) return NULL;
+    if (!m || !node)
+        return NULL;
 
     if (m->type != MEASURE_SYMBOLIC) {
         return NULL;
@@ -334,7 +346,8 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
             /* 使用纯符号坐标的代数运算计算面积（鞋带公式） */
             if (node->type == GEOM_REGION && node->data.region.boundary_segments) {
                 int seg_count = node->data.region.segment_count;
-                if (seg_count < 3) return NULL; /* 至少需要3条边才能构成面积 */
+                if (seg_count < 3)
+                    return NULL; /* 至少需要3条边才能构成面积 */
 
                 /*
                  * 鞋带公式（符号版本）：
@@ -349,7 +362,8 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
                 /* 每条线段 seg[i] 的起点为 (x_i, y_i)，
                  * 下一条线段 seg[(i+1)%n] 的起点为 (x_{i+1}, y_{i+1}) */
                 SymbolicCoord *sum = symbolic_coord_create_rational(0, 1);
-                if (!sum) return NULL;
+                if (!sum)
+                    return NULL;
 
                 for (int i = 0; i < seg_count; i++) {
                     GeomNode *seg_i = node->data.region.boundary_segments[i];
@@ -399,7 +413,8 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
                     symbolic_coord_destroy(sum);
                     symbolic_coord_destroy(cross);
 
-                    if (!new_sum) return NULL;
+                    if (!new_sum)
+                        return NULL;
                     sum = new_sum;
                 }
 
@@ -414,7 +429,8 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
                 symbolic_coord_destroy(sum);
                 symbolic_coord_destroy(two);
 
-                if (!half_sum) return NULL;
+                if (!half_sum)
+                    return NULL;
 
                 /* 取绝对值：检查是否为负数，如果是则取反 */
                 bool is_neg = symbolic_coord_is_negative(half_sum);
@@ -440,7 +456,8 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
              * 使用 goto cleanup 模式确保所有中间 SymbolicCoord 对象
              * 在运算失败时被正确销毁，避免资源泄漏。
              */
-            if (!node->symbolic_coords) return NULL;
+            if (!node->symbolic_coords)
+                return NULL;
             if (node->type == GEOM_LINE_SEGMENT && node->coord_count >= 4) {
                 SymbolicCoord *x1 = node->symbolic_coords[0];
                 SymbolicCoord *y1 = node->symbolic_coords[1];
@@ -455,14 +472,17 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
 
                 dx = symbolic_coord_subtract(x2, x1);
                 dy = symbolic_coord_subtract(y2, y1);
-                if (!dx || !dy) goto length_cleanup;
+                if (!dx || !dy)
+                    goto length_cleanup;
 
                 dx2 = symbolic_coord_multiply(dx, dx);
                 dy2 = symbolic_coord_multiply(dy, dy);
-                if (!dx2 || !dy2) goto length_cleanup;
+                if (!dx2 || !dy2)
+                    goto length_cleanup;
 
                 sum = symbolic_coord_add(dx2, dy2);
-                if (!sum) goto length_cleanup;
+                if (!sum)
+                    goto length_cleanup;
 
                 /* 计算成功，只释放中间变量，返回 sum */
                 symbolic_coord_destroy(dx);
@@ -800,13 +820,16 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
  * @return 比较结果（LESS/EQUAL/GREATER/UNKNOWN/ERROR）
  */
 MeasureCompareResult measure_compare(Measure *m, SymbolicCoord *a, SymbolicCoord *b) {
-    if (!m || !a || !b) return MEASURE_ERROR;
+    if (!m || !a || !b)
+        return MEASURE_ERROR;
 
     /* 符号测度使用代数比较 */
     if (m->type == MEASURE_SYMBOLIC) {
         int cmp = symbolic_coord_compare(a, b);
-        if (cmp < 0) return MEASURE_LESS;
-        if (cmp > 0) return MEASURE_GREATER;
+        if (cmp < 0)
+            return MEASURE_LESS;
+        if (cmp > 0)
+            return MEASURE_GREATER;
         return MEASURE_EQUAL;
     }
 
@@ -826,7 +849,8 @@ MeasureCompareResult measure_compare(Measure *m, SymbolicCoord *a, SymbolicCoord
  * @return 比较结果
  */
 MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b, const ConstraintGraph *graph) {
-    if (!m || !a || !b) return MEASURE_ERROR;
+    if (!m || !a || !b)
+        return MEASURE_ERROR;
 
     if (m->type == MEASURE_SYMBOLIC) {
         SymbolicCoord *val_a = measure_compute_value(m, a, graph);
@@ -849,8 +873,10 @@ MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b,
     /* 非符号测度使用自定义比较函数 */
     if (m->compare_func) {
         int cmp = m->compare_func(a, b, m->user_data);
-        if (cmp < 0) return MEASURE_LESS;
-        if (cmp > 0) return MEASURE_GREATER;
+        if (cmp < 0)
+            return MEASURE_LESS;
+        if (cmp > 0)
+            return MEASURE_GREATER;
         return MEASURE_EQUAL;
     }
 
@@ -870,7 +896,8 @@ MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b,
  */
 RecursionContext *recursion_context_create(int max_depth) {
     RecursionContext *ctx = lv_calloc(1, sizeof(RecursionContext));
-    if (!ctx) return NULL;
+    if (!ctx)
+        return NULL;
 
     /* 限制最大递归深度，防止内存耗尽（使用文件顶部定义的 lv_MAX_RECURSION_DEPTH_LIMIT） */
     if (max_depth > lv_MAX_RECURSION_DEPTH_LIMIT) {
@@ -891,15 +918,16 @@ RecursionContext *recursion_context_create(int max_depth) {
  * @param ctx 递归上下文指针（可为 NULL）
  */
 void recursion_context_destroy(RecursionContext *ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     for (int i = 0; i < ctx->measure_value_count; i++) {
         symbolic_coord_destroy(ctx->measure_values[i]);
     }
-    lv_free((void **)&ctx->measure_values);
-    lv_free((void **)&ctx->call_stack);
-    lv_free((void **)&ctx->termination_reason);
-    lv_free((void **)&ctx);
+    lv_free((void **) &ctx->measure_values);
+    lv_free((void **) &ctx->call_stack);
+    lv_free((void **) &ctx->termination_reason);
+    lv_free((void **) &ctx);
 }
 
 /**
@@ -909,7 +937,8 @@ void recursion_context_destroy(RecursionContext *ctx) {
  * @param m   测度指针
  */
 void recursion_context_set_measure(RecursionContext *ctx, Measure *m) {
-    if (ctx) ctx->active_measure = m;
+    if (ctx)
+        ctx->active_measure = m;
 }
 
 /* ============== 修改5：深度超限回调注册 ============== */
@@ -923,10 +952,9 @@ void recursion_context_set_measure(RecursionContext *ctx, Measure *m) {
  * @param callback   深度超限回调函数
  * @param user_data  回调透传数据
  */
-void recursion_context_set_depth_callback(RecursionContext *ctx,
-                                           RecursionDepthCallback callback,
-                                           void *user_data) {
-    if (!ctx) return;
+void recursion_context_set_depth_callback(RecursionContext *ctx, RecursionDepthCallback callback, void *user_data) {
+    if (!ctx)
+        return;
     ctx->depth_callback = callback;
     ctx->depth_callback_user_data = user_data;
 }
@@ -943,31 +971,32 @@ void recursion_context_set_depth_callback(RecursionContext *ctx,
  * @param graph         约束图指针
  * @return 递归检查结果
  */
-RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_block_id, const GeomNode *input, ConstraintGraph *graph) {
-    if (!ctx) return RECURSION_ERROR;
+RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_block_id, const GeomNode *input,
+                                             ConstraintGraph *graph) {
+    if (!ctx)
+        return RECURSION_ERROR;
 
     /* 流式输出：递归测度检查入口 */
     if (recursion_stream_ctx) {
-        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_INFO,
-                           "递归测度检查", ctx->current_depth);
+        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_INFO, "递归测度检查", ctx->current_depth);
     }
 
     /* 检查深度限制（修改5：支持回调机制） */
     if (ctx->current_depth >= ctx->max_depth) {
         if (ctx->depth_callback) {
             /* 如果注册了回调，让用户决定是否继续 */
-            RecursionAction action = ctx->depth_callback(
-                ctx->current_depth, ctx->max_depth, ctx->depth_callback_user_data);
+            RecursionAction action =
+                ctx->depth_callback(ctx->current_depth, ctx->max_depth, ctx->depth_callback_user_data);
 
             if (action == RECURSION_ACTION_STOP) {
                 /* 用户决定停止 */
                 /* 流式事件：递归深度超限（回调停止） */
                 if (recursion_stream_ctx) {
-                    stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_ERROR,
-                        "递归深度超限（回调停止）", ctx->current_depth);
+                    stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_ERROR, "递归深度超限（回调停止）",
+                                       ctx->current_depth);
                 }
                 ctx->is_terminated = true;
-                lv_free((void **)&ctx->termination_reason);
+                lv_free((void **) &ctx->termination_reason);
                 ctx->termination_reason = lv_strdup("Maximum recursion depth exceeded (user callback decided to stop)");
                 return RECURSION_DEPTH_EXCEEDED;
             }
@@ -976,11 +1005,10 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
             /* 未注册回调，保持原有行为 */
             /* 流式事件：递归深度超限 */
             if (recursion_stream_ctx) {
-                stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_ERROR,
-                    "递归深度超限", ctx->current_depth);
+                stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_ERROR, "递归深度超限", ctx->current_depth);
             }
             ctx->is_terminated = true;
-            lv_free((void **)&ctx->termination_reason);
+            lv_free((void **) &ctx->termination_reason);
             ctx->termination_reason = lv_strdup("Maximum recursion depth exceeded");
             return RECURSION_DEPTH_EXCEEDED;
         }
@@ -995,7 +1023,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
             if (result == RECURSION_NOT_DECREASING) {
                 symbolic_coord_destroy(new_value);
                 ctx->is_terminated = true;
-                lv_free((void **)&ctx->termination_reason);
+                lv_free((void **) &ctx->termination_reason);
                 ctx->termination_reason = lv_strdup("Measure not decreasing");
                 return RECURSION_NOT_DECREASING;
             }
@@ -1003,13 +1031,13 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
             /* 记录测度值 */
             ctx->measure_value_count++;
             /* 检查乘法溢出 */
-            if ((size_t)ctx->measure_value_count > SIZE_MAX / sizeof(SymbolicCoord*)) {
+            if ((size_t) ctx->measure_value_count > SIZE_MAX / sizeof(SymbolicCoord *)) {
                 ctx->measure_value_count--;
                 symbolic_coord_destroy(new_value);
                 return RECURSION_ERROR;
             }
-            SymbolicCoord **new_vals = lv_realloc(ctx->measure_values,
-                (size_t)ctx->measure_value_count * sizeof(SymbolicCoord*));
+            SymbolicCoord **new_vals =
+                lv_realloc(ctx->measure_values, (size_t) ctx->measure_value_count * sizeof(SymbolicCoord *));
             if (!new_vals) {
                 ctx->measure_value_count--;
                 symbolic_coord_destroy(new_value);
@@ -1023,12 +1051,11 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
     /* 记录调用栈 */
     ctx->call_stack_size++;
     /* 检查乘法溢出 */
-    if ((size_t)ctx->call_stack_size > SIZE_MAX / sizeof(int)) {
+    if ((size_t) ctx->call_stack_size > SIZE_MAX / sizeof(int)) {
         ctx->call_stack_size--;
         return RECURSION_ERROR;
     }
-    int *new_stack = lv_realloc(ctx->call_stack,
-        (size_t)ctx->call_stack_size * sizeof(int));
+    int *new_stack = lv_realloc(ctx->call_stack, (size_t) ctx->call_stack_size * sizeof(int));
     if (!new_stack) {
         ctx->call_stack_size--;
         return RECURSION_ERROR;
@@ -1048,11 +1075,10 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
         if (ctx->call_stack[i] == func_block_id) {
             /* 流式事件：递归循环检测 */
             if (recursion_stream_ctx) {
-                stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_CONFLICT_DETECTED,
-                    "递归循环检测", func_block_id);
+                stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_CONFLICT_DETECTED, "递归循环检测", func_block_id);
             }
             ctx->is_terminated = true;
-            lv_free((void **)&ctx->termination_reason);
+            lv_free((void **) &ctx->termination_reason);
             ctx->termination_reason = lv_strdup("Cycle detected: recursive call to the same function block");
             return RECURSION_ERROR;
         }
@@ -1062,8 +1088,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
 
     /* 流式输出：递归终止检查通过 */
     if (recursion_stream_ctx) {
-        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_INFO,
-                           "递归终止检查通过", ctx->current_depth);
+        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_INFO, "递归终止检查通过", ctx->current_depth);
     }
 
     return RECURSION_OK;
@@ -1077,12 +1102,12 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
  * @param ctx 递归上下文指针（可为 NULL）
  */
 void recursion_context_exit(RecursionContext *ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     /* 流式事件：递归退出 */
     if (recursion_stream_ctx) {
-        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_INFO,
-                           "递归退出", ctx->current_depth);
+        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_INFO, "递归退出", ctx->current_depth);
     }
 
     if (ctx->current_depth > 0) {
@@ -1112,9 +1137,11 @@ void recursion_context_exit(RecursionContext *ctx) {
  * @return 递归检查结果
  */
 RecursionCheckResult recursion_context_check_decreasing(const RecursionContext *ctx, SymbolicCoord *new_value) {
-    if (!ctx || !new_value) return RECURSION_ERROR;
+    if (!ctx || !new_value)
+        return RECURSION_ERROR;
 
-    if (!ctx->active_measure) return RECURSION_OK;
+    if (!ctx->active_measure)
+        return RECURSION_OK;
 
     if (ctx->measure_value_count == 0) {
         /* 第一次调用，无需检查递减 */
@@ -1136,8 +1163,7 @@ RecursionCheckResult recursion_context_check_decreasing(const RecursionContext *
     } else if (cmp == MEASURE_EQUAL || cmp == MEASURE_GREATER) {
         /* 流式输出：测度未减小 */
         if (recursion_stream_ctx) {
-            stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_WARNING,
-                               "递归测度未减小", ctx->current_depth);
+            stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_WARNING, "递归测度未减小", ctx->current_depth);
         }
         return RECURSION_NOT_DECREASING;
     } else {
@@ -1156,8 +1182,8 @@ RecursionCheckResult recursion_context_check_decreasing(const RecursionContext *
             if (chain_cmp == MEASURE_EQUAL || chain_cmp == MEASURE_GREATER) {
                 /* 流式输出：测度未减小（调用链检查） */
                 if (recursion_stream_ctx) {
-                    stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_WARNING,
-                                       "递归测度未减小", ctx->current_depth);
+                    stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_WARNING, "递归测度未减小",
+                                       ctx->current_depth);
                 }
                 return RECURSION_NOT_DECREASING;
             }
@@ -1187,23 +1213,24 @@ int recursion_context_get_depth(RecursionContext *ctx) {
  * @param ctx 递归上下文指针（可为 NULL）
  */
 void recursion_context_reset(RecursionContext *ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     for (int i = 0; i < ctx->measure_value_count; i++) {
         symbolic_coord_destroy(ctx->measure_values[i]);
     }
-    lv_free((void **)&ctx->measure_values);
+    lv_free((void **) &ctx->measure_values);
     ctx->measure_values = NULL;
     ctx->measure_value_count = 0;
 
-    lv_free((void **)&ctx->call_stack);
+    lv_free((void **) &ctx->call_stack);
     ctx->call_stack = NULL;
     ctx->call_stack_size = 0;
 
     ctx->current_depth = 0;
     ctx->is_terminated = false;
 
-    lv_free((void **)&ctx->termination_reason);
+    lv_free((void **) &ctx->termination_reason);
     ctx->termination_reason = NULL;
 
     /* 修改5：重置时保留回调设置 */
@@ -1212,9 +1239,8 @@ void recursion_context_reset(RecursionContext *ctx) {
 /* ============== 选择器块API ============== */
 
 /* 辅助函数：检查点是否在线段上（符号计算） */
-static bool point_on_segment_symbolic(SymbolicCoord *px, SymbolicCoord *py,
-                                       SymbolicCoord *x1, SymbolicCoord *y1,
-                                       SymbolicCoord *x2, SymbolicCoord *y2) {
+static bool point_on_segment_symbolic(SymbolicCoord *px, SymbolicCoord *py, SymbolicCoord *x1, SymbolicCoord *y1,
+                                      SymbolicCoord *x2, SymbolicCoord *y2) {
     /* 计算向量 (P-A) 和 (B-A) */
     SymbolicCoord *pax = symbolic_coord_subtract(px, x1);
     SymbolicCoord *pay = symbolic_coord_subtract(py, y1);
@@ -1276,8 +1302,8 @@ static bool point_on_segment_symbolic(SymbolicCoord *px, SymbolicCoord *py,
     double max_y = (y1_val > y2_val) ? y1_val : y2_val;
 
     const double epsilon = 1e-10;
-    return (px_val >= min_x - epsilon && px_val <= max_x + epsilon &&
-            py_val >= min_y - epsilon && py_val <= max_y + epsilon);
+    return (px_val >= min_x - epsilon && px_val <= max_x + epsilon && py_val >= min_y - epsilon &&
+            py_val <= max_y + epsilon);
 }
 
 /* 辅助函数：计算从点到线段端点的有向角度 */
@@ -1297,8 +1323,10 @@ static double compute_angle(double px, double py, double x1, double y1, double x
     double diff = angle2 - angle1;
 
     /* 归一化到 [-π, π] */
-    while (diff > M_PI) diff -= 2 * M_PI;
-    while (diff < -M_PI) diff += 2 * M_PI;
+    while (diff > M_PI)
+        diff -= 2 * M_PI;
+    while (diff < -M_PI)
+        diff += 2 * M_PI;
 
     return diff;
 }
@@ -1309,7 +1337,8 @@ static int compute_winding_number(double px, double py, GeomNode **segments, int
 
     for (int i = 0; i < seg_count; i++) {
         GeomNode *seg = segments[i];
-        if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4) continue;
+        if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4)
+            continue;
 
         double x1 = symbolic_coord_to_double(seg->symbolic_coords[0]);
         double y1 = symbolic_coord_to_double(seg->symbolic_coords[1]);
@@ -1321,25 +1350,28 @@ static int compute_winding_number(double px, double py, GeomNode **segments, int
 
     /* 卷绕数 = total_angle / (2π) */
     /* 如果卷绕数不为零，点在内部 */
-    return (int)round(total_angle / (2 * M_PI));
+    return (int) round(total_angle / (2 * M_PI));
 }
 
 /* 辅助函数：检查点是否在区域边界上 */
 static bool point_on_region_boundary(GeomNode *point, GeomNode *region) {
-    if (!point || !region || region->type != GEOM_REGION) return false;
-    if (!region->data.region.boundary_segments || region->data.region.segment_count <= 0) return false;
-    if (point->coord_count < 2) return false;
+    if (!point || !region || region->type != GEOM_REGION)
+        return false;
+    if (!region->data.region.boundary_segments || region->data.region.segment_count <= 0)
+        return false;
+    if (point->coord_count < 2)
+        return false;
 
     SymbolicCoord *px = point->symbolic_coords[0];
     SymbolicCoord *py = point->symbolic_coords[1];
 
     for (int i = 0; i < region->data.region.segment_count; i++) {
         GeomNode *seg = region->data.region.boundary_segments[i];
-        if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4) continue;
+        if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4)
+            continue;
 
-        if (point_on_segment_symbolic(px, py,
-                seg->symbolic_coords[0], seg->symbolic_coords[1],
-                seg->symbolic_coords[2], seg->symbolic_coords[3])) {
+        if (point_on_segment_symbolic(px, py, seg->symbolic_coords[0], seg->symbolic_coords[1], seg->symbolic_coords[2],
+                                      seg->symbolic_coords[3])) {
             return true;
         }
     }
@@ -1353,7 +1385,8 @@ static bool point_in_region_ray_casting(double px, double py, GeomNode **segment
 
     for (int i = 0; i < seg_count; i++) {
         GeomNode *seg = segments[i];
-        if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4) continue;
+        if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4)
+            continue;
 
         double x1 = symbolic_coord_to_double(seg->symbolic_coords[0]);
         double y1 = symbolic_coord_to_double(seg->symbolic_coords[1]);
@@ -1374,7 +1407,8 @@ static bool point_in_region_ray_casting(double px, double py, GeomNode **segment
 
 SelectorBlock *selector_block_create(int id, ConstraintGraph *graph) {
     SelectorBlock *sb = lv_calloc(1, sizeof(SelectorBlock));
-    if (!sb) return NULL;
+    if (!sb)
+        return NULL;
 
     sb->id = id;
     sb->graph = graph;
@@ -1391,17 +1425,19 @@ SelectorBlock *selector_block_create(int id, ConstraintGraph *graph) {
 }
 
 void selector_block_destroy(SelectorBlock *sb) {
-    if (!sb) return;
+    if (!sb)
+        return;
 
     /* 修改3：释放分支子图节点数组 */
-    lv_free((void **)&sb->true_branch_node_ids);
-    lv_free((void **)&sb->false_branch_node_ids);
+    lv_free((void **) &sb->true_branch_node_ids);
+    lv_free((void **) &sb->false_branch_node_ids);
 
-    lv_free((void **)&sb);
+    lv_free((void **) &sb);
 }
 
 bool selector_block_set_condition(SelectorBlock *sb, int point_id, int region_id) {
-    if (!sb) return false;
+    if (!sb)
+        return false;
 
     sb->test_point_id = point_id;
     sb->test_region_id = region_id;
@@ -1409,7 +1445,8 @@ bool selector_block_set_condition(SelectorBlock *sb, int point_id, int region_id
 }
 
 bool selector_block_set_branches(SelectorBlock *sb, int true_root, int false_root) {
-    if (!sb) return false;
+    if (!sb)
+        return false;
 
     sb->true_branch_root_id = true_root;
     sb->false_branch_root_id = false_root;
@@ -1418,13 +1455,13 @@ bool selector_block_set_branches(SelectorBlock *sb, int true_root, int false_roo
 
 /* ============== 修改3：分支子图管理 ============== */
 
-void selector_block_set_branch_nodes(SelectorBlock *sb,
-                                      int *true_ids, int true_count,
-                                      int *false_ids, int false_count) {
-    if (!sb) return;
+void selector_block_set_branch_nodes(SelectorBlock *sb, int *true_ids, int true_count, int *false_ids,
+                                     int false_count) {
+    if (!sb)
+        return;
 
     /* 释放旧的真分支节点数组 */
-    lv_free((void **)&sb->true_branch_node_ids);
+    lv_free((void **) &sb->true_branch_node_ids);
 
     /* 复制新的真分支节点ID数组 */
     if (true_ids && true_count > 0) {
@@ -1441,7 +1478,7 @@ void selector_block_set_branch_nodes(SelectorBlock *sb,
     }
 
     /* 释放旧的假分支节点数组 */
-    lv_free((void **)&sb->false_branch_node_ids);
+    lv_free((void **) &sb->false_branch_node_ids);
 
     /* 复制新的假分支节点ID数组 */
     if (false_ids && false_count > 0) {
@@ -1458,10 +1495,9 @@ void selector_block_set_branch_nodes(SelectorBlock *sb,
     }
 }
 
-const int* selector_block_get_branch_nodes(SelectorBlock *sb,
-                                            bool is_true_branch,
-                                            int *out_count) {
-    if (!sb || !out_count) return NULL;
+const int *selector_block_get_branch_nodes(SelectorBlock *sb, bool is_true_branch, int *out_count) {
+    if (!sb || !out_count)
+        return NULL;
 
     if (is_true_branch) {
         *out_count = sb->true_branch_node_count;
@@ -1473,7 +1509,8 @@ const int* selector_block_get_branch_nodes(SelectorBlock *sb,
 }
 
 bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
-    if (!sb || !graph) return false;
+    if (!sb || !graph)
+        return false;
 
     GeomNode *point = graph_get_node(graph, sb->test_point_id);
     GeomNode *region = graph_get_node(graph, sb->test_region_id);
@@ -1504,18 +1541,16 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
         double py = symbolic_coord_to_double(point->symbolic_coords[1]);
 
         /* 第二步：使用卷绕数算法（更稳健） */
-        int winding = compute_winding_number(px, py,
-            region->data.region.boundary_segments,
-            region->data.region.segment_count);
+        int winding =
+            compute_winding_number(px, py, region->data.region.boundary_segments, region->data.region.segment_count);
 
         if (winding != 0) {
             is_inside = true;
         } else {
             /* 第三步：使用射线法作为备用验证 */
             /* 这可以处理一些卷绕数算法可能遗漏的边缘情况 */
-            is_inside = point_in_region_ray_casting(px, py,
-                region->data.region.boundary_segments,
-                region->data.region.segment_count);
+            is_inside = point_in_region_ray_casting(px, py, region->data.region.boundary_segments,
+                                                    region->data.region.segment_count);
         }
 
         /* 第四步：根据信任颜色设置分支状态 */
@@ -1530,8 +1565,7 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
     /* 流式事件：选择器块评估结果 */
     if (recursion_stream_ctx) {
         stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_INFO,
-            is_inside ? "选择器块评估：真分支激活" : "选择器块评估：假分支激活",
-            sb->id);
+                           is_inside ? "选择器块评估：真分支激活" : "选择器块评估：假分支激活", sb->id);
     }
 
     /* 修改3：评估后根据结果设置分支状态 */
@@ -1549,24 +1583,22 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
      * 活跃分支节点保持 TRUST_GREEN（完全构造）。
      * 虚影分支节点标记为 TRUST_BLUE_UNEXPLORED（幽灵/虚拟）。 */
     {
-        int *active_ids = is_inside ?
-            sb->true_branch_node_ids : sb->false_branch_node_ids;
-        int active_count = is_inside ?
-            sb->true_branch_node_count : sb->false_branch_node_count;
-        int *shadowed_ids = is_inside ?
-            sb->false_branch_node_ids : sb->true_branch_node_ids;
-        int shadowed_count = is_inside ?
-            sb->false_branch_node_count : sb->true_branch_node_count;
+        int *active_ids = is_inside ? sb->true_branch_node_ids : sb->false_branch_node_ids;
+        int active_count = is_inside ? sb->true_branch_node_count : sb->false_branch_node_count;
+        int *shadowed_ids = is_inside ? sb->false_branch_node_ids : sb->true_branch_node_ids;
+        int shadowed_count = is_inside ? sb->false_branch_node_count : sb->true_branch_node_count;
 
         for (int i = 0; i < active_count; i++) {
-            if (active_ids[i] < 0) continue;
+            if (active_ids[i] < 0)
+                continue;
             GeomNode *node = graph_get_node(graph, active_ids[i]);
             if (node) {
                 node->trust = TRUST_GREEN;
             }
         }
         for (int i = 0; i < shadowed_count; i++) {
-            if (shadowed_ids[i] < 0) continue;
+            if (shadowed_ids[i] < 0)
+                continue;
             GeomNode *node = graph_get_node(graph, shadowed_ids[i]);
             if (node) {
                 node->trust = TRUST_BLUE_UNEXPLORED;
@@ -1578,7 +1610,8 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
 }
 
 int selector_block_get_active_branch(SelectorBlock *sb) {
-    if (!sb) return -1;
+    if (!sb)
+        return -1;
 
     if (sb->true_state == BRANCH_ACTIVE) {
         return sb->true_branch_root_id;
@@ -1599,20 +1632,23 @@ void selector_block_update_states(SelectorBlock *sb, BranchState true_state, Bra
 /* ============== 符号测度验证 ============== */
 
 RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, const Measure *measure,
-                               const ConstraintGraph *graph, int node_id) {
-    if (!ctx || !measure || !graph || node_id < 0) return RECURSION_ERROR;
+                                                const ConstraintGraph *graph, int node_id) {
+    if (!ctx || !measure || !graph || node_id < 0)
+        return RECURSION_ERROR;
 
     /* 获取目标节点（需要 const_cast，因为 graph_get_node 不接受 const） */
-    GeomNode *node = graph_get_node((ConstraintGraph *)graph, node_id);
-    if (!node) return RECURSION_ERROR;
+    GeomNode *node = graph_get_node((ConstraintGraph *) graph, node_id);
+    if (!node)
+        return RECURSION_ERROR;
 
     /* 计算当前节点的测度值（需要 const_cast，因为底层 API 不接受 const） */
-    SymbolicCoord *current_value = measure_compute_value((Measure *)measure, node, (ConstraintGraph *)graph);
+    SymbolicCoord *current_value = measure_compute_value((Measure *) measure, node, (ConstraintGraph *) graph);
     if (!current_value) {
         /* 如果符号测度无法计算，尝试纯符号版本 */
-        current_value = measure_compute_value_symbolic((Measure *)measure, node, (ConstraintGraph *)graph);
+        current_value = measure_compute_value_symbolic((Measure *) measure, node, (ConstraintGraph *) graph);
     }
-    if (!current_value) return RECURSION_ERROR;
+    if (!current_value)
+        return RECURSION_ERROR;
 
     /* 如果上下文中没有历史测度值，这是第一次调用，无法比较 */
     if (ctx->measure_value_count == 0) {
@@ -1624,25 +1660,23 @@ RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, con
     SymbolicCoord *prev_value = ctx->measure_values[ctx->measure_value_count - 1];
 
     /* 比较当前值与前一个值 */
-    MeasureCompareResult cmp = measure_compare((Measure *)measure, current_value, prev_value);
+    MeasureCompareResult cmp = measure_compare((Measure *) measure, current_value, prev_value);
 
     symbolic_coord_destroy(current_value);
 
     /* 流式事件：测度验证结果 */
     if (recursion_stream_ctx) {
-        stream_emit_simple(recursion_stream_ctx,
-            STREAM_EVENT_PROGRESS,
-            cmp == MEASURE_LESS ? "测度验证通过" : "测度验证失败",
-            node_id);
+        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_PROGRESS,
+                           cmp == MEASURE_LESS ? "测度验证通过" : "测度验证失败", node_id);
     }
 
     /* 返回结果 */
     switch (cmp) {
         case MEASURE_LESS:
-            return RECURSION_OK;  /* 严格递减 */
+            return RECURSION_OK; /* 严格递减 */
         case MEASURE_EQUAL:
         case MEASURE_GREATER:
-            return RECURSION_NOT_DECREASING;  /* 未递减 */
+            return RECURSION_NOT_DECREASING; /* 未递减 */
         case MEASURE_UNKNOWN:
         case MEASURE_ERROR:
         default:
@@ -1652,9 +1686,9 @@ RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, con
 
 /* ============== 选择器块分支管理增强 ============== */
 
-int selector_block_count_branch_nodes(const SelectorBlock *sb,
-                                      int *out_true_count, int *out_false_count) {
-    if (!sb || !out_true_count || !out_false_count) return -1;
+int selector_block_count_branch_nodes(const SelectorBlock *sb, int *out_true_count, int *out_false_count) {
+    if (!sb || !out_true_count || !out_false_count)
+        return -1;
 
     *out_true_count = sb->true_branch_node_count;
     *out_false_count = sb->false_branch_node_count;
@@ -1663,7 +1697,8 @@ int selector_block_count_branch_nodes(const SelectorBlock *sb,
 }
 
 bool selector_block_validate_branches(const SelectorBlock *sb) {
-    if (!sb) return false;
+    if (!sb)
+        return false;
 
     /* 如果任一分支没有节点，视为互斥（空集与任何集互斥） */
     if (sb->true_branch_node_count == 0 || sb->false_branch_node_count == 0) {
@@ -1689,7 +1724,8 @@ bool selector_block_validate_branches(const SelectorBlock *sb) {
 /* ============== 互递归支持 ============== */
 
 bool recursion_check_mutual(int *func_ids, int count, MeasureSystem *ms) {
-    if (!func_ids || count <= 0 || !ms) return false;
+    if (!func_ids || count <= 0 || !ms)
+        return false;
 
     /* 互递归的测度检查要求所有函数在同一个全局测度下各自递减 */
     /* 这需要更复杂的分析，这里简化为检查是否有默认测度 */
@@ -1705,12 +1741,12 @@ bool recursion_check_mutual(int *func_ids, int count, MeasureSystem *ms) {
 /* ============== 修改2：互递归的完整测度验证 ============== */
 
 bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionContext *ctx_b) {
-    if (!ctx_a || !ctx_b) return false;
+    if (!ctx_a || !ctx_b)
+        return false;
 
     /* 流式事件：互递归测度验证开始 */
     if (recursion_stream_ctx) {
-        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_PROGRESS,
-            "互递归测度验证", 0);
+        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_PROGRESS, "互递归测度验证", 0);
     }
 
     /* 检查1：两个上下文使用相同的测度系统 */
@@ -1728,9 +1764,7 @@ bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionCont
     /* 检查2：在各自的调用链中，测度值单调递减 */
     /* 验证 ctx_a 的调用链 */
     for (int i = 0; i < ctx_a->measure_value_count - 1; i++) {
-        MeasureCompareResult cmp = measure_compare(measure,
-            ctx_a->measure_values[i + 1],
-            ctx_a->measure_values[i]);
+        MeasureCompareResult cmp = measure_compare(measure, ctx_a->measure_values[i + 1], ctx_a->measure_values[i]);
         if (cmp != MEASURE_LESS) {
             return false; /* ctx_a 的调用链不满足递减 */
         }
@@ -1738,9 +1772,7 @@ bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionCont
 
     /* 验证 ctx_b 的调用链 */
     for (int i = 0; i < ctx_b->measure_value_count - 1; i++) {
-        MeasureCompareResult cmp = measure_compare(measure,
-            ctx_b->measure_values[i + 1],
-            ctx_b->measure_values[i]);
+        MeasureCompareResult cmp = measure_compare(measure, ctx_b->measure_values[i + 1], ctx_b->measure_values[i]);
         if (cmp != MEASURE_LESS) {
             return false; /* ctx_b 的调用链不满足递减 */
         }
@@ -1777,21 +1809,23 @@ bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionCont
 
 /* ============== 修改6：非符号测度的加载时验证 ============== */
 
-bool measure_system_register_non_symbolic(MeasureSystem *ms,
-                                           int measure_type_id,
-                                           NonSymbolicComparator comparator,
-                                           bool is_well_founded) {
-    if (!ms || !comparator) return false;
+bool measure_system_register_non_symbolic(MeasureSystem *ms, int measure_type_id, NonSymbolicComparator comparator,
+                                          bool is_well_founded) {
+    if (!ms || !comparator)
+        return false;
 
     /* 扩展元数据数组 */
     int new_count = ms->non_symbolic_meta_count + 1;
     /* 检查加法溢出 */
-    if (new_count < 0) return false;
+    if (new_count < 0)
+        return false;
     /* 检查乘法溢出 */
-    if ((size_t)new_count > SIZE_MAX / sizeof(NonSymbolicMeasureMeta)) return false;
-    NonSymbolicMeasureMeta *new_metas = lv_realloc(ms->non_symbolic_metas,
-        (size_t)new_count * sizeof(NonSymbolicMeasureMeta));
-    if (!new_metas) return false;
+    if ((size_t) new_count > SIZE_MAX / sizeof(NonSymbolicMeasureMeta))
+        return false;
+    NonSymbolicMeasureMeta *new_metas =
+        lv_realloc(ms->non_symbolic_metas, (size_t) new_count * sizeof(NonSymbolicMeasureMeta));
+    if (!new_metas)
+        return false;
 
     ms->non_symbolic_metas = new_metas;
     ms->non_symbolic_meta_count = new_count;
@@ -1806,7 +1840,8 @@ bool measure_system_register_non_symbolic(MeasureSystem *ms,
 }
 
 bool measure_system_validate_non_symbolic(MeasureSystem *ms) {
-    if (!ms) return false;
+    if (!ms)
+        return false;
 
     /* 如果没有非符号测度元数据，直接通过 */
     if (ms->non_symbolic_meta_count == 0) {
@@ -1849,15 +1884,14 @@ bool measure_system_validate_non_symbolic(MeasureSystem *ms) {
 
 /* ============== 非符号测度的模板展开机制 ============== */
 
-RecursionCheckResult recursion_validate_non_symbolic_measure(
-    const Measure *measure,
-    SymbolicCoord *before_value,
-    SymbolicCoord *after_value,
-    NonSymbolicComparator comparator)
-{
-    if (!measure || !before_value || !after_value) return RECURSION_ERROR;
+RecursionCheckResult recursion_validate_non_symbolic_measure(const Measure *measure, SymbolicCoord *before_value,
+                                                             SymbolicCoord *after_value,
+                                                             NonSymbolicComparator comparator) {
+    if (!measure || !before_value || !after_value)
+        return RECURSION_ERROR;
 
-    if (!comparator) return RECURSION_MEASURE_UNKNOWN;
+    if (!comparator)
+        return RECURSION_MEASURE_UNKNOWN;
 
     /*
      * 通过公理包提供的比较器验证测度递减性。
@@ -1866,7 +1900,7 @@ RecursionCheckResult recursion_validate_non_symbolic_measure(
     bool is_decreasing = comparator(before_value, after_value);
 
     if (is_decreasing) {
-        return RECURSION_OK;  /* 递减，验证通过 */
+        return RECURSION_OK; /* 递减，验证通过 */
     }
 
     /* 检查是否相等或递增 */
@@ -1882,7 +1916,7 @@ RecursionCheckResult recursion_validate_non_symbolic_measure(
     /* 检查相等性：使用符号坐标比较 */
     int cmp = symbolic_coord_compare(before_value, after_value);
     if (cmp == 0) {
-        return RECURSION_NOT_DECREASING;  /* 相等，未递减 */
+        return RECURSION_NOT_DECREASING; /* 相等，未递减 */
     }
 
     /* 比较器无法判定 */
@@ -1891,15 +1925,9 @@ RecursionCheckResult recursion_validate_non_symbolic_measure(
 
 /* ============== 加载时验证的完整测试集 ============== */
 
-bool recursion_run_measure_tests(
-    const Measure *measure,
-    int test_count,
-    SymbolicCoord ***test_before_values,
-    SymbolicCoord ***test_after_values,
-    MeasureTestResult *results)
-{
-    if (!measure || test_count <= 0 || !test_before_values ||
-        !test_after_values || !results) {
+bool recursion_run_measure_tests(const Measure *measure, int test_count, SymbolicCoord ***test_before_values,
+                                 SymbolicCoord ***test_after_values, MeasureTestResult *results) {
+    if (!measure || test_count <= 0 || !test_before_values || !test_after_values || !results) {
         return false;
     }
 
@@ -1922,8 +1950,7 @@ bool recursion_run_measure_tests(
 
         if (measure->type == MEASURE_SYMBOLIC) {
             /* 符号测度：使用符号坐标比较 */
-            MeasureCompareResult cmp = measure_compare(
-                (Measure *)measure, after, before);
+            MeasureCompareResult cmp = measure_compare((Measure *) measure, after, before);
 
             switch (cmp) {
                 case MEASURE_LESS:
@@ -1961,8 +1988,7 @@ bool recursion_run_measure_tests(
                  * 标记为需要通过公理包的模板展开来验证。
                  */
                 results[i].passed = false;
-                results[i].error_message = lv_strdup(
-                    "Non-symbolic measure requires axiom pack template expansion");
+                results[i].error_message = lv_strdup("Non-symbolic measure requires axiom pack template expansion");
                 all_passed = false;
             } else {
                 results[i].passed = false;
@@ -1979,42 +2005,63 @@ bool recursion_run_measure_tests(
 
 const char *measure_type_to_string(MeasureType type) {
     switch (type) {
-        case MEASURE_SYMBOLIC: return "Symbolic";
-        case MEASURE_CUSTOM: return "Custom";
-        default: return "Unknown";
+        case MEASURE_SYMBOLIC:
+            return "Symbolic";
+        case MEASURE_CUSTOM:
+            return "Custom";
+        default:
+            return "Unknown";
     }
 }
 
 const char *measure_compare_result_to_string(MeasureCompareResult result) {
     switch (result) {
-        case MEASURE_LESS: return "Less";
-        case MEASURE_EQUAL: return "Equal";
-        case MEASURE_GREATER: return "Greater";
-        case MEASURE_UNKNOWN: return "Unknown";
-        case MEASURE_ERROR: return "Error";
-        default: return "Unknown";
+        case MEASURE_LESS:
+            return "Less";
+        case MEASURE_EQUAL:
+            return "Equal";
+        case MEASURE_GREATER:
+            return "Greater";
+        case MEASURE_UNKNOWN:
+            return "Unknown";
+        case MEASURE_ERROR:
+            return "Error";
+        default:
+            return "Unknown";
     }
 }
 
 const char *recursion_check_result_to_string(RecursionCheckResult result) {
     switch (result) {
-        case RECURSION_OK: return "OK";
-        case RECURSION_NOT_DECREASING: return "Not Decreasing";
-        case RECURSION_DEPTH_EXCEEDED: return "Depth Exceeded";
-        case RECURSION_CYCLE_DETECTED: return "Cycle Detected";
-        case RECURSION_MEASURE_UNKNOWN: return "Measure Unknown";
-        case RECURSION_ERROR: return "Error";
-        default: return "Unknown";
+        case RECURSION_OK:
+            return "OK";
+        case RECURSION_NOT_DECREASING:
+            return "Not Decreasing";
+        case RECURSION_DEPTH_EXCEEDED:
+            return "Depth Exceeded";
+        case RECURSION_CYCLE_DETECTED:
+            return "Cycle Detected";
+        case RECURSION_MEASURE_UNKNOWN:
+            return "Measure Unknown";
+        case RECURSION_ERROR:
+            return "Error";
+        default:
+            return "Unknown";
     }
 }
 
 const char *branch_state_to_string(BranchState state) {
     switch (state) {
-        case BRANCH_INACTIVE: return "Inactive";
-        case BRANCH_ACTIVE: return "Active";
-        case BRANCH_PENDING: return "Pending";
-        case BRANCH_SHADOWED: return "Shadowed";
-        default: return "Unknown";
+        case BRANCH_INACTIVE:
+            return "Inactive";
+        case BRANCH_ACTIVE:
+            return "Active";
+        case BRANCH_PENDING:
+            return "Pending";
+        case BRANCH_SHADOWED:
+            return "Shadowed";
+        default:
+            return "Unknown";
     }
 }
 
@@ -2026,16 +2073,13 @@ const char *branch_state_to_string(BranchState state) {
  */
 static ConstraintGraph *create_test_graph(void) {
     ConstraintGraph *graph = graph_create();
-    if (!graph) return NULL;
+    if (!graph)
+        return NULL;
 
     /* 创建两个线段节点用于测度比较测试 */
     /* 线段1: (0,0) -> (3,4)，长度平方 = 25 */
-    SymbolicCoord *coords1[4] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(3, 1),
-        symbolic_coord_create_rational(4, 1)
-    };
+    SymbolicCoord *coords1[4] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1),
+                                 symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(4, 1)};
     graph_add_line_segment(graph, 0, 0); /* 占位调用，创建节点 */
     if (graph->node_count > 0) {
         GeomNode *node = graph->nodes[graph->node_count - 1];
@@ -2048,12 +2092,8 @@ static ConstraintGraph *create_test_graph(void) {
     }
 
     /* 线段2: (0,0) -> (1,0)，长度平方 = 1（比线段1短） */
-    SymbolicCoord *coords2[4] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *coords2[4] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1),
+                                 symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
     graph_add_line_segment(graph, 0, 0);
     if (graph->node_count > 1) {
         GeomNode *node = graph->nodes[graph->node_count - 1];
@@ -2068,12 +2108,12 @@ static ConstraintGraph *create_test_graph(void) {
     /* 创建一个点节点用于角度测试（6个坐标：ax, ay, bx, by, cx, cy） */
     /* 45度角：B=(0,0), A=(1,0), C=(1,1) => BA=(1,0), BC=(1,1), cos^2=1/2 */
     SymbolicCoord *coords_angle_45[6] = {
-        symbolic_coord_create_rational(1, 1),  /* ax */
-        symbolic_coord_create_rational(0, 1),  /* ay */
-        symbolic_coord_create_rational(0, 1),  /* bx */
-        symbolic_coord_create_rational(0, 1),  /* by */
-        symbolic_coord_create_rational(1, 1),  /* cx */
-        symbolic_coord_create_rational(1, 1)   /* cy */
+        symbolic_coord_create_rational(1, 1), /* ax */
+        symbolic_coord_create_rational(0, 1), /* ay */
+        symbolic_coord_create_rational(0, 1), /* bx */
+        symbolic_coord_create_rational(0, 1), /* by */
+        symbolic_coord_create_rational(1, 1), /* cx */
+        symbolic_coord_create_rational(1, 1)  /* cy */
     };
     graph_add_point(graph, NULL, 0);
     if (graph->node_count > 2) {
@@ -2095,12 +2135,12 @@ static ConstraintGraph *create_test_graph(void) {
     /* 60度需要 cos^2=1/4: A=(2,0), B=(0,0), C=(1,sqrt(3)) 但sqrt(3)是代数数 */
     /* 使用有理近似无法精确表示，这里我们测试90度（cos^2=0） */
     SymbolicCoord *coords_angle_90[6] = {
-        symbolic_coord_create_rational(1, 1),  /* ax */
-        symbolic_coord_create_rational(0, 1),  /* ay */
-        symbolic_coord_create_rational(0, 1),  /* bx */
-        symbolic_coord_create_rational(0, 1),  /* by */
-        symbolic_coord_create_rational(0, 1),  /* cx */
-        symbolic_coord_create_rational(1, 1)   /* cy */
+        symbolic_coord_create_rational(1, 1), /* ax */
+        symbolic_coord_create_rational(0, 1), /* ay */
+        symbolic_coord_create_rational(0, 1), /* bx */
+        symbolic_coord_create_rational(0, 1), /* by */
+        symbolic_coord_create_rational(0, 1), /* cx */
+        symbolic_coord_create_rational(1, 1)  /* cy */
     };
     graph_add_point(graph, NULL, 0);
     if (graph->node_count > 3) {
@@ -2121,7 +2161,8 @@ static ConstraintGraph *create_test_graph(void) {
  * 因为符号坐标由测试函数管理）
  */
 static void destroy_test_graph(ConstraintGraph *graph) {
-    if (!graph) return;
+    if (!graph)
+        return;
     /* graph_destroy 会释放节点，但不会释放 symbolic_coords */
     /* 我们需要先释放 symbolic_coords */
     for (int i = 0; i < graph->node_count; i++) {
@@ -2141,26 +2182,27 @@ static void destroy_test_graph(ConstraintGraph *graph) {
  * 基于 namespace_depth 比较
  */
 static int test_non_symbolic_compare(GeomNode *a, GeomNode *b, void *user_data) {
-    (void)user_data;
-    if (!a || !b) return 0;
-    if (a->namespace_depth < b->namespace_depth) return -1;
-    if (a->namespace_depth > b->namespace_depth) return 1;
+    (void) user_data;
+    if (!a || !b)
+        return 0;
+    if (a->namespace_depth < b->namespace_depth)
+        return -1;
+    if (a->namespace_depth > b->namespace_depth)
+        return 1;
     return 0;
 }
 
-int recursion_run_builtin_tests(
-    MeasureSystem *sys,
-    RecursionTestResult **results,
-    int *result_count)
-{
-    /* 定义测试数量 */
-    #define BUILTIN_TEST_COUNT 6
+int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **results, int *result_count) {
+/* 定义测试数量 */
+#define BUILTIN_TEST_COUNT 6
 
-    if (!results || !result_count) return -1;
+    if (!results || !result_count)
+        return -1;
 
     /* 分配测试结果数组 */
     RecursionTestResult *test_results = lv_calloc(BUILTIN_TEST_COUNT, sizeof(RecursionTestResult));
-    if (!test_results) return -1;
+    if (!test_results)
+        return -1;
 
     *results = test_results;
     *result_count = BUILTIN_TEST_COUNT;
@@ -2171,7 +2213,7 @@ int recursion_run_builtin_tests(
         sys = measure_system_create();
         if (!sys) {
             *result_count = 0;
-            lv_free((void **)&test_results);
+            lv_free((void **) &test_results);
             *results = NULL;
             return -1;
         }
@@ -2191,8 +2233,8 @@ int recursion_run_builtin_tests(
             snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create symbolic measure");
         } else {
             /* 创建两个符号坐标值，a > b */
-            SymbolicCoord *val_a = symbolic_coord_create_rational(25, 1);  /* 25 */
-            SymbolicCoord *val_b = symbolic_coord_create_rational(1, 1);   /* 1 */
+            SymbolicCoord *val_a = symbolic_coord_create_rational(25, 1); /* 25 */
+            SymbolicCoord *val_b = symbolic_coord_create_rational(1, 1);  /* 1 */
 
             MeasureCompareResult cmp = measure_compare(m_len, val_b, val_a);
             /* val_b(1) < val_a(25)，所以 measure_compare(m, val_b, val_a) 应返回 MEASURE_LESS */
@@ -2206,9 +2248,8 @@ int recursion_run_builtin_tests(
                 passed_count++;
             } else {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg),
-                    "Expected MEASURE_LESS, got %s",
-                    measure_compare_result_to_string(cmp));
+                snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_LESS, got %s",
+                         measure_compare_result_to_string(cmp));
             }
         }
     }
@@ -2239,9 +2280,8 @@ int recursion_run_builtin_tests(
                 passed_count++;
             } else {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg),
-                    "Expected MEASURE_UNKNOWN for non-symbolic, got %s",
-                    measure_compare_result_to_string(cmp));
+                snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_UNKNOWN for non-symbolic, got %s",
+                         measure_compare_result_to_string(cmp));
             }
         }
     }
@@ -2265,18 +2305,15 @@ int recursion_run_builtin_tests(
             recursion_context_destroy(ctx);
 
             /* 前三次应该成功，第四次应该返回 DEPTH_EXCEEDED */
-            if (r1 == RECURSION_OK && r2 == RECURSION_OK && r3 == RECURSION_OK &&
-                r4 == RECURSION_DEPTH_EXCEEDED) {
+            if (r1 == RECURSION_OK && r2 == RECURSION_OK && r3 == RECURSION_OK && r4 == RECURSION_DEPTH_EXCEEDED) {
                 tr->passed = true;
                 passed_count++;
             } else {
                 tr->passed = false;
                 snprintf(tr->error_msg, sizeof(tr->error_msg),
-                    "Depth limit not enforced correctly: r1=%s r2=%s r3=%s r4=%s",
-                    recursion_check_result_to_string(r1),
-                    recursion_check_result_to_string(r2),
-                    recursion_check_result_to_string(r3),
-                    recursion_check_result_to_string(r4));
+                         "Depth limit not enforced correctly: r1=%s r2=%s r3=%s r4=%s",
+                         recursion_check_result_to_string(r1), recursion_check_result_to_string(r2),
+                         recursion_check_result_to_string(r3), recursion_check_result_to_string(r4));
             }
         }
     }
@@ -2308,7 +2345,7 @@ int recursion_run_builtin_tests(
 
                 /* 手动设置 ctx_a 的测度值 */
                 ctx_a->measure_value_count = 3;
-                ctx_a->measure_values = lv_calloc(3, sizeof(SymbolicCoord*));
+                ctx_a->measure_values = lv_calloc(3, sizeof(SymbolicCoord *));
                 ctx_a->measure_values[0] = v5;
                 ctx_a->measure_values[1] = v3;
                 ctx_a->measure_values[2] = v1;
@@ -2319,7 +2356,7 @@ int recursion_run_builtin_tests(
                 SymbolicCoord *v0 = symbolic_coord_create_rational(0, 1);
 
                 ctx_b->measure_value_count = 3;
-                ctx_b->measure_values = lv_calloc(3, sizeof(SymbolicCoord*));
+                ctx_b->measure_values = lv_calloc(3, sizeof(SymbolicCoord *));
                 ctx_b->measure_values[0] = v4;
                 ctx_b->measure_values[1] = v2;
                 ctx_b->measure_values[2] = v0;
@@ -2446,7 +2483,7 @@ int recursion_run_builtin_tests(
                 } else {
                     tr->passed = false;
                     snprintf(tr->error_msg, sizeof(tr->error_msg),
-                        "Cross-check should fail for non-decreasing cross values");
+                             "Cross-check should fail for non-decreasing cross values");
                 }
 
                 /* 清理：measure_values 会被 recursion_context_destroy 释放 */
@@ -2469,18 +2506,9 @@ int recursion_run_builtin_tests(
         } else {
             /* 创建一个简单的区域（三角形）和测试点 */
             /* 三角形顶点：(0,0), (4,0), (0,3) */
-            SymbolicCoord *p0_coords[2] = {
-                symbolic_coord_create_rational(0, 1),
-                symbolic_coord_create_rational(0, 1)
-            };
-            SymbolicCoord *p1_coords[2] = {
-                symbolic_coord_create_rational(4, 1),
-                symbolic_coord_create_rational(0, 1)
-            };
-            SymbolicCoord *p2_coords[2] = {
-                symbolic_coord_create_rational(0, 1),
-                symbolic_coord_create_rational(3, 1)
-            };
+            SymbolicCoord *p0_coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+            SymbolicCoord *p1_coords[2] = {symbolic_coord_create_rational(4, 1), symbolic_coord_create_rational(0, 1)};
+            SymbolicCoord *p2_coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(3, 1)};
 
             graph_add_point(graph, p0_coords, 2);
             graph_add_point(graph, p1_coords, 2);
@@ -2492,10 +2520,8 @@ int recursion_run_builtin_tests(
             graph_add_line_segment(graph, 2, 0);
 
             /* 创建测试点（在三角形内部：(1,1)） */
-            SymbolicCoord *test_pt_coords[2] = {
-                symbolic_coord_create_rational(1, 1),
-                symbolic_coord_create_rational(1, 1)
-            };
+            SymbolicCoord *test_pt_coords[2] = {symbolic_coord_create_rational(1, 1),
+                                                symbolic_coord_create_rational(1, 1)};
             graph_add_point(graph, test_pt_coords, 2);
 
             /* 创建选择器块 */
@@ -2530,8 +2556,7 @@ int recursion_run_builtin_tests(
                     passed_count++;
                 } else {
                     tr->passed = false;
-                    snprintf(tr->error_msg, sizeof(tr->error_msg),
-                        "Branches should be disjoint");
+                    snprintf(tr->error_msg, sizeof(tr->error_msg), "Branches should be disjoint");
                 }
             }
 
@@ -2553,25 +2578,23 @@ int recursion_run_builtin_tests(
             if (!graph || graph->node_count < 4) {
                 tr->passed = false;
                 snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create test graph");
-                if (graph) destroy_test_graph(graph);
+                if (graph)
+                    destroy_test_graph(graph);
             } else {
                 /* 测试45度角（节点索引2） */
                 GeomNode *angle_45_node = graph->nodes[2];
-                SymbolicCoord *angle_45_val = measure_compute_value_symbolic(
-                    m_angle, angle_45_node, graph);
+                SymbolicCoord *angle_45_val = measure_compute_value_symbolic(m_angle, angle_45_node, graph);
 
                 /* 测试90度角（节点索引3） */
                 GeomNode *angle_90_node = graph->nodes[3];
-                SymbolicCoord *angle_90_val = measure_compute_value_symbolic(
-                    m_angle, angle_90_node, graph);
+                SymbolicCoord *angle_90_val = measure_compute_value_symbolic(m_angle, angle_90_node, graph);
 
                 bool test_45_ok = false;
                 bool test_90_ok = false;
 
                 if (angle_45_val) {
                     /* 45度应返回 "pi/4" 超越数 */
-                    if (angle_45_val->type == TRANSCENDENTAL &&
-                        angle_45_val->data.transcendental &&
+                    if (angle_45_val->type == TRANSCENDENTAL && angle_45_val->data.transcendental &&
                         strcmp(angle_45_val->data.transcendental->name, "pi/4") == 0) {
                         test_45_ok = true;
                     }
@@ -2579,8 +2602,7 @@ int recursion_run_builtin_tests(
 
                 if (angle_90_val) {
                     /* 90度应返回 "pi/2" 超越数 */
-                    if (angle_90_val->type == TRANSCENDENTAL &&
-                        angle_90_val->data.transcendental &&
+                    if (angle_90_val->type == TRANSCENDENTAL && angle_90_val->data.transcendental &&
                         strcmp(angle_90_val->data.transcendental->name, "pi/2") == 0) {
                         test_90_ok = true;
                     }
@@ -2594,10 +2616,8 @@ int recursion_run_builtin_tests(
                     passed_count++;
                 } else {
                     tr->passed = false;
-                    snprintf(tr->error_msg, sizeof(tr->error_msg),
-                        "Angle test failed: 45deg=%s, 90deg=%s",
-                        test_45_ok ? "OK" : "FAIL",
-                        test_90_ok ? "OK" : "FAIL");
+                    snprintf(tr->error_msg, sizeof(tr->error_msg), "Angle test failed: 45deg=%s, 90deg=%s",
+                             test_45_ok ? "OK" : "FAIL", test_90_ok ? "OK" : "FAIL");
                 }
 
                 destroy_test_graph(graph);
@@ -2616,15 +2636,12 @@ int recursion_run_builtin_tests(
 
 /* ============== Feature 2: 非符号测度模板展开集成 ============== */
 
-int recursion_validate_non_symbolic_with_axiom(
-    MeasureSystem *sys,
-    int measure_id,
-    const char *axiom_template_name,
-    void *axiom_pkg)
-{
-    (void)axiom_pkg; /* 不透明指针，当前不使用，预留未来扩展 */
+int recursion_validate_non_symbolic_with_axiom(MeasureSystem *sys, int measure_id, const char *axiom_template_name,
+                                               void *axiom_pkg) {
+    (void) axiom_pkg; /* 不透明指针，当前不使用，预留未来扩展 */
 
-    if (!sys) return -1;
+    if (!sys)
+        return -1;
 
     /* 查找指定ID的测度 */
     Measure *target = NULL;
@@ -2636,10 +2653,12 @@ int recursion_validate_non_symbolic_with_axiom(
     }
 
     /* 未找到测度 */
-    if (!target) return -1;
+    if (!target)
+        return -1;
 
     /* 必须是非符号测度 */
-    if (target->type != MEASURE_CUSTOM) return -1;
+    if (target->type != MEASURE_CUSTOM)
+        return -1;
 
     /* 如果提供了模板名称，存储为验证模板 */
     if (axiom_template_name && axiom_template_name[0] != '\0') {
@@ -2655,38 +2674,34 @@ int recursion_validate_non_symbolic_with_axiom(
         if (existing_idx >= 0) {
             /* 更新已有条目 */
             snprintf(sys->validation_metas[existing_idx].validation_template,
-                sizeof(sys->validation_metas[existing_idx].validation_template),
-                "%s", axiom_template_name);
+                     sizeof(sys->validation_metas[existing_idx].validation_template), "%s", axiom_template_name);
         } else {
             /* 添加新条目 */
             int new_count = sys->validation_meta_count + 1;
-            if (new_count < 0) return -1;  /* 加法溢出 */
-            if ((size_t)new_count > SIZE_MAX / sizeof(NonSymbolicMeasureValidationMeta)) return -1;
-            NonSymbolicMeasureValidationMeta *new_metas = lv_realloc(
-                sys->validation_metas,
-                (size_t)new_count * sizeof(NonSymbolicMeasureValidationMeta));
-            if (!new_metas) return -1;
+            if (new_count < 0)
+                return -1; /* 加法溢出 */
+            if ((size_t) new_count > SIZE_MAX / sizeof(NonSymbolicMeasureValidationMeta))
+                return -1;
+            NonSymbolicMeasureValidationMeta *new_metas =
+                lv_realloc(sys->validation_metas, (size_t) new_count * sizeof(NonSymbolicMeasureValidationMeta));
+            if (!new_metas)
+                return -1;
 
             sys->validation_metas = new_metas;
             sys->validation_meta_count = new_count;
 
-            NonSymbolicMeasureValidationMeta *meta =
-                &sys->validation_metas[new_count - 1];
+            NonSymbolicMeasureValidationMeta *meta = &sys->validation_metas[new_count - 1];
             meta->measure_id = measure_id;
-            snprintf(meta->validation_template,
-                sizeof(meta->validation_template),
-                "%s", axiom_template_name);
+            snprintf(meta->validation_template, sizeof(meta->validation_template), "%s", axiom_template_name);
         }
     }
 
     return 0;
 }
 
-const char *recursion_get_measure_validation_template(
-    MeasureSystem *sys,
-    int measure_id)
-{
-    if (!sys) return NULL;
+const char *recursion_get_measure_validation_template(MeasureSystem *sys, int measure_id) {
+    if (!sys)
+        return NULL;
 
     /* 查找测度 */
     Measure *target = NULL;
@@ -2698,10 +2713,12 @@ const char *recursion_get_measure_validation_template(
     }
 
     /* 未找到测度 */
-    if (!target) return NULL;
+    if (!target)
+        return NULL;
 
     /* 符号测度没有验证模板 */
-    if (target->type != MEASURE_CUSTOM) return NULL;
+    if (target->type != MEASURE_CUSTOM)
+        return NULL;
 
     /* 查找验证模板 */
     for (int i = 0; i < sys->validation_meta_count; i++) {

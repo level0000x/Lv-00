@@ -13,10 +13,11 @@
  */
 #ifndef lv_NT_POLYNOMIAL_H
 #define lv_NT_POLYNOMIAL_H
-#include "lv.h"
 #include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>
+
+#include "lv.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,9 +34,9 @@ extern "C" {
  * The capacity field tracks the allocated size for amortized growth.
  */
 typedef struct lvPoly {
-    mpz_t *coeffs;   /**< Array of coefficients (ascending degree order) */
-    int    degree;   /**< Current degree (-1 for zero polynomial) */
-    int    capacity; /**< Allocated size of coeffs array */
+    mpz_t *coeffs; /**< Array of coefficients (ascending degree order) */
+    int degree;    /**< Current degree (-1 for zero polynomial) */
+    int capacity;  /**< Allocated size of coeffs array */
 } lvPoly;
 /* ============================================================
  * Lifecycle
@@ -89,8 +90,7 @@ lv_PUBLIC_API int nt_poly_get_coeff(const lvPoly *p, int deg, mpz_t out);
  * @param b       Second operand
  * @return 0 on success, -1 on error
  */
-lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a,
-                                const lvPoly *b);
+lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a, const lvPoly *b);
 /**
  * @brief Polynomial multiplication: result = a * b
  *
@@ -99,8 +99,7 @@ lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a,
  * @param b       Second operand
  * @return 0 on success, -1 on error
  */
-lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a,
-                                const lvPoly *b);
+lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a, const lvPoly *b);
 /**
  * @brief Polynomial modular reduction: result = f mod m
  *
@@ -112,8 +111,7 @@ lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a,
  * @param m       Modulus polynomial (must be non-zero)
  * @return 0 on success, -1 on error
  */
-lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f,
-                                const lvPoly *m);
+lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m);
 /**
  * @brief Polynomial GCD: result = gcd(a, b)
  *
@@ -124,8 +122,7 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f,
  * @param b       Second operand
  * @return 0 on success, -1 on error
  */
-lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a,
-                                const lvPoly *b);
+lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a, const lvPoly *b);
 /* ============================================================
  * Evaluation and properties
  * ============================================================ */

@@ -25,10 +25,12 @@
  */
 
 #include "../mv_polynomial.h"
-#include "lv/lv.h"
+
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv/lv.h"
 
 /* 动态数组初始容量 */
 #ifndef lv_SOLVER_DYNARRAY_INIT_CAP
@@ -98,7 +100,7 @@ int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
         }
         new_cap = new_cap == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : new_cap * lv_ARRAY_GROWTH_FACTOR;
         /* 检查 size_t 乘积溢出：new_cap * sizeof(MVMonomial) 可能超过 SIZE_MAX */
-        if ((size_t)new_cap > SIZE_MAX / sizeof(MVMonomial)) {
+        if ((size_t) new_cap > SIZE_MAX / sizeof(MVMonomial)) {
             lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
             return -1;
         }
@@ -129,8 +131,7 @@ void mv_poly_sort(MVPolynomial *p) {
     for (int i = 1; i < p->term_count; i++) {
         MVMonomial key = p->terms[i];
         int j = i - 1;
-        while (j >= 0 &&
-               mv_monomial_compare_grlex(&p->terms[j], &key, p->var_count) > 0) {
+        while (j >= 0 && mv_monomial_compare_grlex(&p->terms[j], &key, p->var_count) > 0) {
             p->terms[j + 1] = p->terms[j];
             j--;
         }
@@ -153,8 +154,8 @@ void mv_poly_remove_zeros(MVPolynomial *p) {
     p->term_count = write;
 }
 
-void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p,
-                          const int *mono_exp, const mpz_t mono_coeff, int var_count) {
+void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, const int *mono_exp, const mpz_t mono_coeff,
+                          int var_count) {
     mv_poly_clear(result);
     mv_poly_init(result, var_count);
     for (int i = 0; i < p->term_count; i++) {

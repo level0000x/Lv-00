@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "exact_arithmetic.h" /* lv_TOLERATED_FLOAT for approximate backend */
 #ifdef __cplusplus
 extern "C" {
@@ -43,12 +44,12 @@ extern "C" {
  * Lv-00 在运行时通过枚举选择，允许同一可执行文件混用多个后端。
  */
 typedef enum {
-    lv_BACKEND_SERIAL = 0, /**< 串行 CPU（默认实现） */
-    lv_BACKEND_OPENMP = 1, /**< OpenMP 多核 CPU 并行 */
-    lv_BACKEND_CUDA = 2,   /**< NVIDIA CUDA GPU */
-    lv_BACKEND_HIP = 3,    /**< AMD HIP GPU（ROCm 平台） */
+    lv_BACKEND_SERIAL = 0,   /**< 串行 CPU（默认实现） */
+    lv_BACKEND_OPENMP = 1,   /**< OpenMP 多核 CPU 并行 */
+    lv_BACKEND_CUDA = 2,     /**< NVIDIA CUDA GPU */
+    lv_BACKEND_HIP = 3,      /**< AMD HIP GPU（ROCm 平台） */
     lv_BACKEND_SINGULAR = 4, /**< Singular 计算机代数后端 */
-    lv_BACKEND_CUSTOM = 99 /**< 用户自定义后端（使用自定义操作表） */
+    lv_BACKEND_CUSTOM = 99   /**< 用户自定义后端（使用自定义操作表） */
 } lvBackendType;
 /* ==================== 误差码 ==================== */
 /**
@@ -182,13 +183,13 @@ struct lvVectorOps {
  * 具体后端的向量实现可以通过扩展此结构来附加额外字段。
  */
 struct lvVector {
-    int64_t length;           /**< 向量长度（元素个数） */
-    lvBackendType backend;  /**< 所属后端类型 */
-    double lv_TOLERATED_FLOAT(*data);  /**< 数据数组（序列后端直接使用）
+    int64_t length;                   /**< 向量长度（元素个数） */
+    lvBackendType backend;            /**< 所属后端类型 */
+    double lv_TOLERATED_FLOAT(*data); /**< 数据数组（序列后端直接使用）
                                           * @note lv_TOLERATED_FLOAT:
                                           * 数值后端为近似求解路径，double 可容忍 */
-    void *backend_data;       /**< 后端私有不透明数据（GPU 指针等） */
-    const lvVectorOps *ops; /**< 操作表 */
+    void *backend_data;               /**< 后端私有不透明数据（GPU 指针等） */
+    const lvVectorOps *ops;           /**< 操作表 */
 };
 /* ==================== 第二部分：lvMatrix + 操作表 ==================== */
 /** @cond 前向声明 */
@@ -280,13 +281,13 @@ struct lvMatrixOps {
  * @brief lvMatrix 结构体 —— 借鉴 SUNDIALS SUNMatrix 内容结构
  */
 struct lvMatrix {
-    int64_t rows;             /**< 行数 */
-    int64_t cols;             /**< 列数 */
-    bool sparse;              /**< 是否稀疏矩阵 */
+    int64_t rows;           /**< 行数 */
+    int64_t cols;           /**< 列数 */
+    bool sparse;            /**< 是否稀疏矩阵 */
     lvMatrixFormat format;  /**< 存储格式 */
     lvBackendType backend;  /**< 所属后端 */
-    void *data;               /**< 矩阵数据（稠密时为 double*，CSR 为自定义结构） */
-    void *backend_data;       /**< 后端私有不透明数据 */
+    void *data;             /**< 矩阵数据（稠密时为 double*，CSR 为自定义结构） */
+    void *backend_data;     /**< 后端私有不透明数据 */
     const lvMatrixOps *ops; /**< 操作表 */
 };
 /* ==================== 第三部分：lvLinearSolver + 操作表 ==================== */
@@ -338,8 +339,8 @@ struct lvLinearSolverOps {
 struct lvLinearSolver {
     lvLinearSolverMethod method;  /**< 求解方法 */
     lvBackendType backend;        /**< 所属后端 */
-    void *solver_data;              /**< 求解器私有数据 */
-    void *backend_data;             /**< 后端私有不透明数据 */
+    void *solver_data;            /**< 求解器私有数据 */
+    void *backend_data;           /**< 后端私有不透明数据 */
     const lvLinearSolverOps *ops; /**< 操作表 */
 };
 /* ==================== 第四部分：工厂函数 ==================== */

@@ -1,16 +1,18 @@
 #include "lv/lv_parser.h"
-#include "lv_utils.h"
+
+#include <ctype.h>
 #include <errno.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
+#include <string.h>
+
+#include "lv_utils.h"
 
 /* ── Parser 结构 ── */
 struct LvParser {
-    LvLexer  *lexer;
-    LvToken   current;
-    int       error_count;
+    LvLexer *lexer;
+    LvToken current;
+    int error_count;
     LvParseError errors[64];
 };
 
@@ -46,10 +48,8 @@ static int expect(LvParser *p, LvTokenType type, const char *msg) {
     if (p->error_count < 64) {
         int idx = p->error_count++;
         p->errors[idx].loc = p->current.loc;
-        lv_snprintf(p->errors[idx].message, sizeof(p->errors[idx].message),
-                    "expected %s but got %s: %s",
-                    lv_token_type_name(type),
-                    lv_token_type_name(p->current.type), msg);
+        lv_snprintf(p->errors[idx].message, sizeof(p->errors[idx].message), "expected %s but got %s: %s",
+                    lv_token_type_name(type), lv_token_type_name(p->current.type), msg);
     }
     return 0;
 }
@@ -63,9 +63,11 @@ static int check(LvParser *p, int lookahead, LvTokenType type) {
 /** 检查后面第 lookahead 个 token 是否是 identifier 且文本匹配 */
 static int check_ident(LvParser *p, int lookahead, const char *text) {
     LvToken t = lv_lexer_peek(p->lexer, lookahead);
-    if (t.type != LV_TOKEN_IDENTIFIER) return 0;
+    if (t.type != LV_TOKEN_IDENTIFIER)
+        return 0;
     size_t len = strlen(text);
-    if (t.length != len) return 0;
+    if (t.length != len)
+        return 0;
     return strncmp(t.start, text, len) == 0;
 }
 
@@ -87,21 +89,33 @@ static void synchronize(LvParser *p) {
         }
         /* 语句起始关键字 */
         switch (p->current.type) {
-        case LV_TOKEN_KW_POINT: case LV_TOKEN_KW_LINE:
-        case LV_TOKEN_KW_CIRCLE: case LV_TOKEN_KW_SEGMENT:
-        case LV_TOKEN_KW_RAY: case LV_TOKEN_KW_ANGLE:
-        case LV_TOKEN_KW_TRIANGLE: case LV_TOKEN_KW_POLYGON:
-        case LV_TOKEN_KW_SCALAR: case LV_TOKEN_KW_BOOL:
-        case LV_TOKEN_KW_PROPOSITION: case LV_TOKEN_KW_PROOF:
-        case LV_TOKEN_KW_CONSTRAINT: case LV_TOKEN_KW_ASSUME:
-        case LV_TOKEN_KW_ASSERT: case LV_TOKEN_KW_PROVE:
-        case LV_TOKEN_KW_LET: case LV_TOKEN_KW_COMPUTE:
-        case LV_TOKEN_KW_NORMALIZE: case LV_TOKEN_KW_EXPORT:
-        case LV_TOKEN_KW_AXIOM: case LV_TOKEN_KW_THEOREM:
-        case LV_TOKEN_KW_MODULE: case LV_TOKEN_KW_IMPORT:
-            return;
-        default:
-            break;
+            case LV_TOKEN_KW_POINT:
+            case LV_TOKEN_KW_LINE:
+            case LV_TOKEN_KW_CIRCLE:
+            case LV_TOKEN_KW_SEGMENT:
+            case LV_TOKEN_KW_RAY:
+            case LV_TOKEN_KW_ANGLE:
+            case LV_TOKEN_KW_TRIANGLE:
+            case LV_TOKEN_KW_POLYGON:
+            case LV_TOKEN_KW_SCALAR:
+            case LV_TOKEN_KW_BOOL:
+            case LV_TOKEN_KW_PROPOSITION:
+            case LV_TOKEN_KW_PROOF:
+            case LV_TOKEN_KW_CONSTRAINT:
+            case LV_TOKEN_KW_ASSUME:
+            case LV_TOKEN_KW_ASSERT:
+            case LV_TOKEN_KW_PROVE:
+            case LV_TOKEN_KW_LET:
+            case LV_TOKEN_KW_COMPUTE:
+            case LV_TOKEN_KW_NORMALIZE:
+            case LV_TOKEN_KW_EXPORT:
+            case LV_TOKEN_KW_AXIOM:
+            case LV_TOKEN_KW_THEOREM:
+            case LV_TOKEN_KW_MODULE:
+            case LV_TOKEN_KW_IMPORT:
+                return;
+            default:
+                break;
         }
         advance(p);
     }
@@ -131,15 +145,21 @@ static LvAstNode *parse_primary_expr(LvParser *p);
 /** EntityType ::= "Point" | "Line" | ... | "Proof" */
 static int is_entity_type(LvTokenType t) {
     switch (t) {
-    case LV_TOKEN_KW_POINT: case LV_TOKEN_KW_LINE:
-    case LV_TOKEN_KW_CIRCLE: case LV_TOKEN_KW_SEGMENT:
-    case LV_TOKEN_KW_RAY: case LV_TOKEN_KW_ANGLE:
-    case LV_TOKEN_KW_TRIANGLE: case LV_TOKEN_KW_POLYGON:
-    case LV_TOKEN_KW_SCALAR: case LV_TOKEN_KW_BOOL:
-    case LV_TOKEN_KW_PROPOSITION: case LV_TOKEN_KW_PROOF:
-        return 1;
-    default:
-        return 0;
+        case LV_TOKEN_KW_POINT:
+        case LV_TOKEN_KW_LINE:
+        case LV_TOKEN_KW_CIRCLE:
+        case LV_TOKEN_KW_SEGMENT:
+        case LV_TOKEN_KW_RAY:
+        case LV_TOKEN_KW_ANGLE:
+        case LV_TOKEN_KW_TRIANGLE:
+        case LV_TOKEN_KW_POLYGON:
+        case LV_TOKEN_KW_SCALAR:
+        case LV_TOKEN_KW_BOOL:
+        case LV_TOKEN_KW_PROPOSITION:
+        case LV_TOKEN_KW_PROOF:
+            return 1;
+        default:
+            return 0;
     }
 }
 
@@ -167,7 +187,8 @@ static LvAstNode *parse_declaration_stmt(LvParser *p) {
     }
 
     while (match(p, LV_TOKEN_COMMA)) {
-        if (pos < sizeof(names_buf)) names_buf[pos++] = ',';
+        if (pos < sizeof(names_buf))
+            names_buf[pos++] = ',';
         if (p->current.type == LV_TOKEN_IDENTIFIER) {
             const char *name = token_text(&p->current);
             size_t nlen = strlen(name);
@@ -190,7 +211,7 @@ static LvAstNode *parse_declaration_stmt(LvParser *p) {
 
     LvAstNode *node = lv_ast_create(LV_AST_DECLARATION, loc);
     if (node) {
-        node->data.decl.entity_type = (int)entity;
+        node->data.decl.entity_type = (int) entity;
         node->data.decl.names = lv_strdup(names_buf);
     }
     return node;
@@ -254,7 +275,8 @@ static LvAstNode *parse_constraint_stmt(LvParser *p) {
         synchronize(p);
     }
     LvAstNode *node = lv_ast_create(LV_AST_CONSTRAINT_STMT, loc);
-    if (node) node->data.stmt.expr = expr;
+    if (node)
+        node->data.stmt.expr = expr;
     return node;
 }
 
@@ -268,7 +290,8 @@ static LvAstNode *parse_prove_stmt(LvParser *p) {
         synchronize(p);
     }
     LvAstNode *node = lv_ast_create(LV_AST_PROVE_STMT, loc);
-    if (node) node->data.stmt.expr = expr;
+    if (node)
+        node->data.stmt.expr = expr;
     return node;
 }
 
@@ -282,7 +305,8 @@ static LvAstNode *parse_assume_stmt(LvParser *p) {
         synchronize(p);
     }
     LvAstNode *node = lv_ast_create(LV_AST_ASSUME_STMT, loc);
-    if (node) node->data.stmt.expr = expr;
+    if (node)
+        node->data.stmt.expr = expr;
     return node;
 }
 
@@ -296,7 +320,8 @@ static LvAstNode *parse_assert_stmt(LvParser *p) {
         synchronize(p);
     }
     LvAstNode *node = lv_ast_create(LV_AST_ASSERT_STMT, loc);
-    if (node) node->data.stmt.expr = expr;
+    if (node)
+        node->data.stmt.expr = expr;
     return node;
 }
 
@@ -441,7 +466,8 @@ static LvAstNode *parse_compute_stmt(LvParser *p) {
         synchronize(p);
     }
     LvAstNode *node = lv_ast_create(LV_AST_COMPUTE_STMT, loc);
-    if (node) node->data.stmt.expr = expr;
+    if (node)
+        node->data.stmt.expr = expr;
     return node;
 }
 
@@ -459,8 +485,7 @@ static LvAstNode *parse_export_stmt(LvParser *p) {
     }
 
     /* "as" is a regular identifier, not a keyword */
-    if (p->current.type == LV_TOKEN_IDENTIFIER &&
-        strcmp(token_text(&p->current), "as") == 0) {
+    if (p->current.type == LV_TOKEN_IDENTIFIER && strcmp(token_text(&p->current), "as") == 0) {
         advance(p); /* consume "as" */
     }
 
@@ -479,7 +504,8 @@ static LvAstNode *parse_export_stmt(LvParser *p) {
         size_t len = strlen(txt);
         if (len >= 2) {
             size_t plen = len - 2;
-            if (plen >= sizeof(path)) plen = sizeof(path) - 1;
+            if (plen >= sizeof(path))
+                plen = sizeof(path) - 1;
             memcpy(path, txt + 1, plen);
             path[plen] = '\0';
         }
@@ -511,7 +537,8 @@ static LvAstNode *parse_module_decl(LvParser *p) {
         const char *txt = token_text(&p->current);
         size_t tlen = strlen(txt);
         if (pos + tlen + 1 < sizeof(qname)) {
-            if (pos > 0) qname[pos++] = '.';
+            if (pos > 0)
+                qname[pos++] = '.';
             memcpy(qname + pos, txt, tlen);
             pos += tlen;
         }
@@ -530,7 +557,8 @@ static LvAstNode *parse_module_decl(LvParser *p) {
     }
 
     LvAstNode *node = lv_ast_create(LV_AST_MODULE_DECL, loc);
-    if (node) node->data.module_import.qualified_name = lv_strdup(qname);
+    if (node)
+        node->data.module_import.qualified_name = lv_strdup(qname);
     return node;
 }
 
@@ -545,7 +573,8 @@ static LvAstNode *parse_import_decl(LvParser *p) {
         const char *txt = token_text(&p->current);
         size_t tlen = strlen(txt);
         if (pos + tlen + 1 < sizeof(qname)) {
-            if (pos > 0) qname[pos++] = '.';
+            if (pos > 0)
+                qname[pos++] = '.';
             memcpy(qname + pos, txt, tlen);
             pos += tlen;
         }
@@ -560,8 +589,7 @@ static LvAstNode *parse_import_decl(LvParser *p) {
 
     /* optional "as" alias */
     /* "as" is not a keyword, so check for identifier "as" */
-    if (p->current.type == LV_TOKEN_IDENTIFIER &&
-        strcmp(token_text(&p->current), "as") == 0) {
+    if (p->current.type == LV_TOKEN_IDENTIFIER && strcmp(token_text(&p->current), "as") == 0) {
         advance(p); /* consume "as" */
         if (p->current.type == LV_TOKEN_IDENTIFIER) {
             advance(p); /* consume alias */
@@ -574,7 +602,8 @@ static LvAstNode *parse_import_decl(LvParser *p) {
     }
 
     LvAstNode *node = lv_ast_create(LV_AST_IMPORT_DECL, loc);
-    if (node) node->data.module_import.qualified_name = lv_strdup(qname);
+    if (node)
+        node->data.module_import.qualified_name = lv_strdup(qname);
     return node;
 }
 
@@ -585,20 +614,32 @@ static LvAstNode *parse_statement(LvParser *p) {
     }
 
     switch (p->current.type) {
-    case LV_TOKEN_KW_CONSTRAINT: return parse_constraint_stmt(p);
-    case LV_TOKEN_KW_PROVE:      return parse_prove_stmt(p);
-    case LV_TOKEN_KW_ASSUME:     return parse_assume_stmt(p);
-    case LV_TOKEN_KW_ASSERT:     return parse_assert_stmt(p);
-    case LV_TOKEN_KW_LET:        return parse_let_stmt(p);
-    case LV_TOKEN_KW_COMPUTE:    return parse_compute_stmt(p);
-    case LV_TOKEN_KW_NORMALIZE:  return parse_normalize_stmt(p);
-    case LV_TOKEN_KW_EXPORT:     return parse_export_stmt(p);
-    case LV_TOKEN_KW_AXIOM:      return parse_axiom_stmt(p);
-    case LV_TOKEN_KW_THEOREM:    return parse_theorem_stmt(p);
-    case LV_TOKEN_KW_MODULE:     return parse_module_decl(p);
-    case LV_TOKEN_KW_IMPORT:     return parse_import_decl(p);
-    default:
-        return NULL;
+        case LV_TOKEN_KW_CONSTRAINT:
+            return parse_constraint_stmt(p);
+        case LV_TOKEN_KW_PROVE:
+            return parse_prove_stmt(p);
+        case LV_TOKEN_KW_ASSUME:
+            return parse_assume_stmt(p);
+        case LV_TOKEN_KW_ASSERT:
+            return parse_assert_stmt(p);
+        case LV_TOKEN_KW_LET:
+            return parse_let_stmt(p);
+        case LV_TOKEN_KW_COMPUTE:
+            return parse_compute_stmt(p);
+        case LV_TOKEN_KW_NORMALIZE:
+            return parse_normalize_stmt(p);
+        case LV_TOKEN_KW_EXPORT:
+            return parse_export_stmt(p);
+        case LV_TOKEN_KW_AXIOM:
+            return parse_axiom_stmt(p);
+        case LV_TOKEN_KW_THEOREM:
+            return parse_theorem_stmt(p);
+        case LV_TOKEN_KW_MODULE:
+            return parse_module_decl(p);
+        case LV_TOKEN_KW_IMPORT:
+            return parse_import_decl(p);
+        default:
+            return NULL;
     }
 }
 
@@ -628,34 +669,34 @@ static LvAstNode *parse_logic_expr(LvParser *p) {
 /** IffExpr ::= ImpliesExpr (("iff" | "<->") ImpliesExpr)* */
 static LvAstNode *parse_iff_expr(LvParser *p) {
     LvAstNode *left = parse_implies_expr(p);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (1) {
         int is_iff = 0;
         /* Check for "iff" identifier */
-        if (p->current.type == LV_TOKEN_IDENTIFIER &&
-            strcmp(token_text(&p->current), "iff") == 0) {
+        if (p->current.type == LV_TOKEN_IDENTIFIER && strcmp(token_text(&p->current), "iff") == 0) {
             is_iff = 1;
             /* consume "iff" after all checks */
         }
         /* Check for "<->" - three tokens: LT, MINUS, GT */
-        if (!is_iff && p->current.type == LV_TOKEN_LT &&
-            check(p, 0, LV_TOKEN_MINUS) &&
-            check(p, 1, LV_TOKEN_GT)) {
+        if (!is_iff && p->current.type == LV_TOKEN_LT && check(p, 0, LV_TOKEN_MINUS) && check(p, 1, LV_TOKEN_GT)) {
             is_iff = 1;
             advance(p); /* consume < */
             advance(p); /* consume - */
             advance(p); /* consume > */
         }
 
-        if (!is_iff) break;
+        if (!is_iff)
+            break;
 
         if (is_iff && p->current.type == LV_TOKEN_IDENTIFIER) {
             advance(p); /* consume "iff" */
         }
 
         LvAstNode *right = parse_implies_expr(p);
-        if (!right) break;
+        if (!right)
+            break;
 
         LvAstNode *node = lv_ast_create(LV_AST_LOGIC_IFF, left->loc);
         if (node) {
@@ -672,19 +713,20 @@ static LvAstNode *parse_iff_expr(LvParser *p) {
 /** ImpliesExpr ::= OrExpr (("implies" | "->") OrExpr)* */
 static LvAstNode *parse_implies_expr(LvParser *p) {
     LvAstNode *left = parse_or_expr(p);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (1) {
         int is_implies = 0;
-        if (p->current.type == LV_TOKEN_IDENTIFIER &&
-            strcmp(token_text(&p->current), "implies") == 0) {
+        if (p->current.type == LV_TOKEN_IDENTIFIER && strcmp(token_text(&p->current), "implies") == 0) {
             is_implies = 1;
         }
         if (p->current.type == LV_TOKEN_ARROW) {
             is_implies = 1;
         }
 
-        if (!is_implies) break;
+        if (!is_implies)
+            break;
 
         if (p->current.type == LV_TOKEN_IDENTIFIER) {
             advance(p); /* consume "implies" */
@@ -693,7 +735,8 @@ static LvAstNode *parse_implies_expr(LvParser *p) {
         }
 
         LvAstNode *right = parse_or_expr(p);
-        if (!right) break;
+        if (!right)
+            break;
 
         LvAstNode *node = lv_ast_create(LV_AST_LOGIC_IMPLIES, left->loc);
         if (node) {
@@ -710,7 +753,8 @@ static LvAstNode *parse_implies_expr(LvParser *p) {
 /** OrExpr ::= AndExpr (("or" | "\/") AndExpr)* */
 static LvAstNode *parse_or_expr(LvParser *p) {
     LvAstNode *left = parse_and_expr(p);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (1) {
         int is_or = 0;
@@ -718,12 +762,14 @@ static LvAstNode *parse_or_expr(LvParser *p) {
             is_or = 1;
         }
         /* "\/" is not a single token, would be SLASH, CARET... actually not used in practice */
-        if (!is_or) break;
+        if (!is_or)
+            break;
 
         advance(p); /* consume "or" */
 
         LvAstNode *right = parse_and_expr(p);
-        if (!right) break;
+        if (!right)
+            break;
 
         LvAstNode *node = lv_ast_create(LV_AST_LOGIC_OR, left->loc);
         if (node) {
@@ -740,19 +786,22 @@ static LvAstNode *parse_or_expr(LvParser *p) {
 /** AndExpr ::= NotExpr (("and" | "/\") NotExpr)* */
 static LvAstNode *parse_and_expr(LvParser *p) {
     LvAstNode *left = parse_not_expr(p);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (1) {
         int is_and = 0;
         if (p->current.type == LV_TOKEN_KW_AND) {
             is_and = 1;
         }
-        if (!is_and) break;
+        if (!is_and)
+            break;
 
         advance(p); /* consume "and" */
 
         LvAstNode *right = parse_not_expr(p);
-        if (!right) break;
+        if (!right)
+            break;
 
         LvAstNode *node = lv_ast_create(LV_AST_LOGIC_AND, left->loc);
         if (node) {
@@ -784,8 +833,7 @@ static LvAstNode *parse_not_expr(LvParser *p) {
 
 /** QuantifiedExpr ::= ("forall" | "exists") BinderList "." LogicExpr | PredicateExpr */
 static LvAstNode *parse_quantified_expr(LvParser *p) {
-    if (p->current.type == LV_TOKEN_KW_FORALL ||
-        p->current.type == LV_TOKEN_KW_EXISTS) {
+    if (p->current.type == LV_TOKEN_KW_FORALL || p->current.type == LV_TOKEN_KW_EXISTS) {
         int is_forall = (p->current.type == LV_TOKEN_KW_FORALL);
         LvSourceLoc loc = p->current.loc;
         advance(p);
@@ -822,8 +870,7 @@ static LvAstNode *parse_quantified_expr(LvParser *p) {
             }
 
             /* 创建 quantifier 节点表示这个 binder */
-            LvAstNode *bnode = lv_ast_create(
-                is_forall ? LV_AST_LOGIC_FORALL : LV_AST_LOGIC_EXISTS, loc);
+            LvAstNode *bnode = lv_ast_create(is_forall ? LV_AST_LOGIC_FORALL : LV_AST_LOGIC_EXISTS, loc);
             if (bnode) {
                 bnode->data.quantifier.var_name = lv_strdup(var_name);
                 bnode->data.quantifier.var_type = lv_strdup(var_type);
@@ -853,7 +900,8 @@ static LvAstNode *parse_quantified_expr(LvParser *p) {
         if (binder_count > 0) {
             /* 找到最后一个 binder */
             LvAstNode *inner = first_binder;
-            while (inner->next) inner = inner->next;
+            while (inner->next)
+                inner = inner->next;
             inner->data.quantifier.body = body;
 
             /* 如果有多个 binder，嵌套它们：forall x: T. forall y: U. body */
@@ -915,25 +963,40 @@ static LvAstNode *parse_predicate_expr(LvParser *p) {
 /** CompareExpr ::= AddExpr (("==" | "!=" | "<" | "<=" | ">" | ">=") AddExpr)? */
 static LvAstNode *parse_compare_expr(LvParser *p) {
     LvAstNode *left = parse_add_expr(p);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     const char *op = NULL;
     LvSourceLoc op_loc = p->current.loc;
 
     switch (p->current.type) {
-    case LV_TOKEN_EQEQ: op = "=="; break;
-    case LV_TOKEN_NEQ:  op = "!="; break;
-    case LV_TOKEN_LT:   op = "<";  break;
-    case LV_TOKEN_LE:   op = "<="; break;
-    case LV_TOKEN_GT:   op = ">";  break;
-    case LV_TOKEN_GE:   op = ">="; break;
-    default: return left;
+        case LV_TOKEN_EQEQ:
+            op = "==";
+            break;
+        case LV_TOKEN_NEQ:
+            op = "!=";
+            break;
+        case LV_TOKEN_LT:
+            op = "<";
+            break;
+        case LV_TOKEN_LE:
+            op = "<=";
+            break;
+        case LV_TOKEN_GT:
+            op = ">";
+            break;
+        case LV_TOKEN_GE:
+            op = ">=";
+            break;
+        default:
+            return left;
     }
 
     advance(p); /* consume operator */
 
     LvAstNode *right = parse_add_expr(p);
-    if (!right) return left;
+    if (!right)
+        return left;
 
     return lv_ast_create_compare(op_loc, op, left, right);
 }
@@ -941,14 +1004,16 @@ static LvAstNode *parse_compare_expr(LvParser *p) {
 /** AddExpr ::= MulExpr (("+" | "-") MulExpr)* */
 static LvAstNode *parse_add_expr(LvParser *p) {
     LvAstNode *left = parse_mul_expr(p);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (p->current.type == LV_TOKEN_PLUS || p->current.type == LV_TOKEN_MINUS) {
         const char *op = (p->current.type == LV_TOKEN_PLUS) ? "+" : "-";
         LvSourceLoc loc = p->current.loc;
         advance(p);
         LvAstNode *right = parse_mul_expr(p);
-        if (!right) break;
+        if (!right)
+            break;
         left = lv_ast_create_binary(loc, op, left, right);
     }
 
@@ -958,14 +1023,16 @@ static LvAstNode *parse_add_expr(LvParser *p) {
 /** MulExpr ::= UnaryExpr (("*" | "/") UnaryExpr)* */
 static LvAstNode *parse_mul_expr(LvParser *p) {
     LvAstNode *left = parse_unary_expr(p);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (p->current.type == LV_TOKEN_STAR || p->current.type == LV_TOKEN_SLASH) {
         const char *op = (p->current.type == LV_TOKEN_STAR) ? "*" : "/";
         LvSourceLoc loc = p->current.loc;
         advance(p);
         LvAstNode *right = parse_unary_expr(p);
-        if (!right) break;
+        if (!right)
+            break;
         left = lv_ast_create_binary(loc, op, left, right);
     }
 
@@ -986,29 +1053,18 @@ static LvAstNode *parse_unary_expr(LvParser *p) {
 
 /** 检查 identifier 是否为关系/度量/几何函数名 */
 static int is_relation_func(const char *name) {
-    return strcmp(name, "collinear") == 0 ||
-           strcmp(name, "parallel") == 0 ||
-           strcmp(name, "perpendicular") == 0 ||
-           strcmp(name, "congruent") == 0 ||
-           strcmp(name, "tangent") == 0;
+    return strcmp(name, "collinear") == 0 || strcmp(name, "parallel") == 0 || strcmp(name, "perpendicular") == 0 ||
+           strcmp(name, "congruent") == 0 || strcmp(name, "tangent") == 0;
 }
 
 static int is_measure_func(const char *name) {
-    return strcmp(name, "length") == 0 ||
-           strcmp(name, "distance") == 0 ||
-           strcmp(name, "angle") == 0 ||
-           strcmp(name, "measure") == 0 ||
-           strcmp(name, "area") == 0 ||
-           strcmp(name, "radius") == 0;
+    return strcmp(name, "length") == 0 || strcmp(name, "distance") == 0 || strcmp(name, "angle") == 0 ||
+           strcmp(name, "measure") == 0 || strcmp(name, "area") == 0 || strcmp(name, "radius") == 0;
 }
 
 static int is_geometry_func(const char *name) {
-    return strcmp(name, "point") == 0 ||
-           strcmp(name, "line") == 0 ||
-           strcmp(name, "circle") == 0 ||
-           strcmp(name, "segment") == 0 ||
-           strcmp(name, "ray") == 0 ||
-           strcmp(name, "triangle") == 0;
+    return strcmp(name, "point") == 0 || strcmp(name, "line") == 0 || strcmp(name, "circle") == 0 ||
+           strcmp(name, "segment") == 0 || strcmp(name, "ray") == 0 || strcmp(name, "triangle") == 0;
 }
 
 /** 解析参数列表: "(" Expr ("," Expr)* ")" */
@@ -1024,7 +1080,8 @@ static LvAstNode *parse_arg_list(LvParser *p) {
     if (p->current.type != LV_TOKEN_RPAREN) {
         while (1) {
             LvAstNode *arg = parse_logic_expr(p);
-            if (!arg) break;
+            if (!arg)
+                break;
 
             if (!first_arg) {
                 first_arg = arg;
@@ -1072,7 +1129,8 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
         if (errno == 0 && end != txt && *end == '/') {
             errno = 0;
             den = strtoll(end + 1, &end, 10);
-            if (errno != 0 || den == 0) den = 1;
+            if (errno != 0 || den == 0)
+                den = 1;
         }
         advance(p);
         return lv_ast_create_rational(loc, num, den);
@@ -1096,7 +1154,7 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
         size_t len = strlen(txt);
         char *val = NULL;
         if (len >= 2) {
-            val = (char *)lv_malloc(len - 1);
+            val = (char *) lv_malloc(len - 1);
             if (val) {
                 memcpy(val, txt + 1, len - 2);
                 val[len - 2] = '\0';
@@ -1104,7 +1162,7 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
         }
         advance(p);
         LvAstNode *node = lv_ast_create_string(loc, val ? val : "");
-        lv_free((void **)&val);
+        lv_free((void **) &val);
         return node;
     }
 
@@ -1143,7 +1201,8 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
                 node->child = args;
                 if (args) {
                     int count = 0;
-                    for (LvAstNode *c = args; c; c = c->next) count++;
+                    for (LvAstNode *c = args; c; c = c->next)
+                        count++;
                     node->child_count = count;
                 }
             }
@@ -1155,10 +1214,8 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
     }
 
     /* 关键字也可以是几何函数调用：length, distance, angle, area, radius, measure, point, line, etc. */
-    if (p->current.type == LV_TOKEN_KW_LENGTH ||
-        p->current.type == LV_TOKEN_KW_DISTANCE ||
-        p->current.type == LV_TOKEN_KW_AREA ||
-        p->current.type == LV_TOKEN_KW_RADIUS ||
+    if (p->current.type == LV_TOKEN_KW_LENGTH || p->current.type == LV_TOKEN_KW_DISTANCE ||
+        p->current.type == LV_TOKEN_KW_AREA || p->current.type == LV_TOKEN_KW_RADIUS ||
         p->current.type == LV_TOKEN_KW_MEASURE) {
         /* Copy immediately — token_text uses a static buffer */
         char func_name[128];
@@ -1176,7 +1233,8 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
                 node->child = args;
                 if (args) {
                     int count = 0;
-                    for (LvAstNode *c = args; c; c = c->next) count++;
+                    for (LvAstNode *c = args; c; c = c->next)
+                        count++;
                     node->child_count = count;
                 }
             }
@@ -1202,7 +1260,8 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
                 node->child = args;
                 if (args) {
                     int count = 0;
-                    for (LvAstNode *c = args; c; c = c->next) count++;
+                    for (LvAstNode *c = args; c; c = c->next)
+                        count++;
                     node->child_count = count;
                 }
             }
@@ -1226,7 +1285,8 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
             node->child = args;
             if (args) {
                 int count = 0;
-                for (LvAstNode *c = args; c; c = c->next) count++;
+                for (LvAstNode *c = args; c; c = c->next)
+                    count++;
                 node->child_count = count;
             }
         }
@@ -1234,17 +1294,24 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
     }
 
     /* Handle "parallel", "perpendicular", "congruent", "tangent" as keywords */
-    if (p->current.type == LV_TOKEN_KW_PARALLEL ||
-        p->current.type == LV_TOKEN_KW_PERPENDICULAR ||
-        p->current.type == LV_TOKEN_KW_CONGRUENT ||
-        p->current.type == LV_TOKEN_KW_TANGENT) {
+    if (p->current.type == LV_TOKEN_KW_PARALLEL || p->current.type == LV_TOKEN_KW_PERPENDICULAR ||
+        p->current.type == LV_TOKEN_KW_CONGRUENT || p->current.type == LV_TOKEN_KW_TANGENT) {
         const char *name = "";
         switch (p->current.type) {
-        case LV_TOKEN_KW_PARALLEL: name = "parallel"; break;
-        case LV_TOKEN_KW_PERPENDICULAR: name = "perpendicular"; break;
-        case LV_TOKEN_KW_CONGRUENT: name = "congruent"; break;
-        case LV_TOKEN_KW_TANGENT: name = "tangent"; break;
-        default: break;
+            case LV_TOKEN_KW_PARALLEL:
+                name = "parallel";
+                break;
+            case LV_TOKEN_KW_PERPENDICULAR:
+                name = "perpendicular";
+                break;
+            case LV_TOKEN_KW_CONGRUENT:
+                name = "congruent";
+                break;
+            case LV_TOKEN_KW_TANGENT:
+                name = "tangent";
+                break;
+            default:
+                break;
         }
         LvSourceLoc kw_loc = p->current.loc;
         advance(p);
@@ -1259,7 +1326,8 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
             node->child = args;
             if (args) {
                 int count = 0;
-                for (LvAstNode *c = args; c; c = c->next) count++;
+                for (LvAstNode *c = args; c; c = c->next)
+                    count++;
                 node->child_count = count;
             }
         }
@@ -1277,9 +1345,11 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
  * ================================================================ */
 
 LvParser *lv_parser_create(LvLexer *lexer) {
-    if (!lexer) return NULL;
-    LvParser *p = (LvParser *)lv_calloc(1, sizeof(LvParser));
-    if (!p) return NULL;
+    if (!lexer)
+        return NULL;
+    LvParser *p = (LvParser *) lv_calloc(1, sizeof(LvParser));
+    if (!p)
+        return NULL;
     p->lexer = lexer;
     p->error_count = 0;
     /* 预读第一个 token */
@@ -1288,8 +1358,9 @@ LvParser *lv_parser_create(LvLexer *lexer) {
 }
 
 void lv_parser_destroy(LvParser *parser) {
-    if (!parser) return;
-    lv_free((void **)&parser);
+    if (!parser)
+        return;
+    lv_free((void **) &parser);
 }
 
 LvParseResult lv_parser_parse_program(LvParser *p) {
@@ -1299,8 +1370,7 @@ LvParseResult lv_parser_parse_program(LvParser *p) {
     if (!p) {
         result.error_count = 1;
         result.errors[0].loc.line = 0;
-        lv_strncpy(result.errors[0].message, "parser is NULL",
-                   sizeof(result.errors[0].message));
+        lv_strncpy(result.errors[0].message, "parser is NULL", sizeof(result.errors[0].message));
         return result;
     }
 
@@ -1308,8 +1378,7 @@ LvParseResult lv_parser_parse_program(LvParser *p) {
     LvAstNode *program = lv_ast_create(LV_AST_PROGRAM, program_loc);
     if (!program) {
         result.error_count = 1;
-        lv_strncpy(result.errors[0].message, "out of memory",
-                   sizeof(result.errors[0].message));
+        lv_strncpy(result.errors[0].message, "out of memory", sizeof(result.errors[0].message));
         return result;
     }
 

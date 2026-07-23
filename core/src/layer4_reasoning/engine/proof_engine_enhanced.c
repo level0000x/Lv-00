@@ -34,18 +34,20 @@
  */
 
 #include "proof_engine_enhanced.h"
-#include "lv/proof.h"
-#include "axiom_rule_engine.h"
-#include "lv/constraint_graph.h"
-#include "error_codes.h"
-#include "three_valued_logic.h"
-#include "lv.h"              /* lv_THREAD_LOCAL 宏定义 */
 
+#include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
-#include <math.h>
+
+#include "lv/constraint_graph.h"
+#include "lv/proof.h"
+
+#include "axiom_rule_engine.h"
+#include "error_codes.h"
+#include "lv.h" /* lv_THREAD_LOCAL 宏定义 */
+#include "three_valued_logic.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -103,11 +105,11 @@ static uint32_t next_trace_node_id(void) {
  * @param node_id      待检查的节点 ID
  * @return true 已访问，false 未访问
  */
-static inline bool _visit_check(uint32_t *visited_map, uint32_t map_size,
-                                 uint32_t node_id) {
+static inline bool _visit_check(uint32_t *visited_map, uint32_t map_size, uint32_t node_id) {
     uint32_t idx = node_id % map_size;
     while (visited_map[idx] != 0) {
-        if (visited_map[idx] == node_id) return true;
+        if (visited_map[idx] == node_id)
+            return true;
         idx = (idx + 1) % map_size;
     }
     return false;
@@ -123,11 +125,11 @@ static int64_t get_time_ns(void) {
     LARGE_INTEGER freq, count;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&count);
-    return (int64_t)((count.QuadPart * 1000000000ULL) / freq.QuadPart);
+    return (int64_t) ((count.QuadPart * 1000000000ULL) / freq.QuadPart);
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    return (int64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
 #endif
 }
 
@@ -146,7 +148,8 @@ static int64_t get_time_ns(void) {
  */
 static void safe_strncpy(char *dest, const char *src, size_t max_len) {
     if (!dest || !src) {
-        if (dest && max_len > 0) dest[0] = '\0';
+        if (dest && max_len > 0)
+            dest[0] = '\0';
         return;
     }
     strncpy(dest, src, max_len - 1);
@@ -157,9 +160,9 @@ static void safe_strncpy(char *dest, const char *src, size_t max_len) {
  * @brief 动态字符串缓冲区结构
  */
 typedef struct {
-    char *data;         /**< 缓冲区数据 */
-    size_t length;      /**< 当前长度 */
-    size_t capacity;    /**< 缓冲区容量 */
+    char *data;      /**< 缓冲区数据 */
+    size_t length;   /**< 当前长度 */
+    size_t capacity; /**< 缓冲区容量 */
 } StringBuffer;
 
 /**
@@ -167,12 +170,13 @@ typedef struct {
  * @return 新缓冲区，失败返回 NULL
  */
 static StringBuffer *string_buffer_create(void) {
-    StringBuffer *buf = (StringBuffer *)lv_calloc(1, sizeof(StringBuffer));
-    if (!buf) return NULL;
+    StringBuffer *buf = (StringBuffer *) lv_calloc(1, sizeof(StringBuffer));
+    if (!buf)
+        return NULL;
     buf->capacity = EXPORT_BUFFER_INITIAL_SIZE;
-    buf->data = (char *)lv_malloc(buf->capacity);
+    buf->data = (char *) lv_malloc(buf->capacity);
     if (!buf->data) {
-        lv_free((void **)&buf);
+        lv_free((void **) &buf);
         return NULL;
     }
     buf->data[0] = '\0';
@@ -187,22 +191,27 @@ static StringBuffer *string_buffer_create(void) {
  * @return 是否成功
  */
 static bool string_buffer_append(StringBuffer *buf, const char *fmt, ...) {
-    if (!buf || !fmt) return false;
+    if (!buf || !fmt)
+        return false;
 
     va_list args;
     va_start(args, fmt);
     int needed = vsnprintf(NULL, 0, fmt, args);
     va_end(args);
 
-    if (needed < 0) return false;
+    if (needed < 0)
+        return false;
 
     /* 确保有足够空间 */
-    while (buf->length + (size_t)needed + 1 >= buf->capacity) {
-        if (buf->capacity >= EXPORT_BUFFER_MAX_SIZE) return false;
+    while (buf->length + (size_t) needed + 1 >= buf->capacity) {
+        if (buf->capacity >= EXPORT_BUFFER_MAX_SIZE)
+            return false;
         size_t new_cap = buf->capacity * 2;
-        if (new_cap > EXPORT_BUFFER_MAX_SIZE) new_cap = EXPORT_BUFFER_MAX_SIZE;
-        char *new_data = (char *)lv_realloc(buf->data, new_cap);
-        if (!new_data) return false;
+        if (new_cap > EXPORT_BUFFER_MAX_SIZE)
+            new_cap = EXPORT_BUFFER_MAX_SIZE;
+        char *new_data = (char *) lv_realloc(buf->data, new_cap);
+        if (!new_data)
+            return false;
         buf->data = new_data;
         buf->capacity = new_cap;
     }
@@ -210,7 +219,7 @@ static bool string_buffer_append(StringBuffer *buf, const char *fmt, ...) {
     va_start(args, fmt);
     vsnprintf(buf->data + buf->length, buf->capacity - buf->length, fmt, args);
     va_end(args);
-    buf->length += (size_t)needed;
+    buf->length += (size_t) needed;
 
     return true;
 }
@@ -220,11 +229,12 @@ static bool string_buffer_append(StringBuffer *buf, const char *fmt, ...) {
  * @param buf 缓冲区指针
  */
 static void string_buffer_destroy(StringBuffer *buf) {
-    if (!buf) return;
+    if (!buf)
+        return;
     if (buf->data) {
-        lv_free((void **)&buf->data);
+        lv_free((void **) &buf->data);
     }
-    lv_free((void **)&buf);
+    lv_free((void **) &buf);
 }
 
 /**
@@ -233,7 +243,8 @@ static void string_buffer_destroy(StringBuffer *buf) {
  * @return 数据字符串
  */
 static char *string_buffer_detach(StringBuffer *buf) {
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
     char *data = buf->data;
     buf->data = NULL;
     string_buffer_destroy(buf);
@@ -254,10 +265,9 @@ static char *string_buffer_detach(StringBuffer *buf) {
  * @return 新分配的溯源节点指针，失败返回 NULL
  */
 lvProofTraceNode *lv_trace_node_create(lvTraceNodeType type, const char *label) {
-    lvProofTraceNode *node = (lvProofTraceNode *)lv_calloc(1, sizeof(lvProofTraceNode));
+    lvProofTraceNode *node = (lvProofTraceNode *) lv_calloc(1, sizeof(lvProofTraceNode));
     if (!node) {
-        lv_set_error(lv_ERROR_ALLOCATION_FAILED,
-                       "无法分配溯源节点内存");
+        lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配溯源节点内存");
         return NULL;
     }
 
@@ -276,12 +286,10 @@ lvProofTraceNode *lv_trace_node_create(lvTraceNodeType type, const char *label) 
 
     /* 初始化子节点数组 */
     node->child_capacity = TRACE_NODE_INITIAL_CHILD_CAPACITY;
-    node->children = (lvProofTraceNode **)lv_calloc(
-        node->child_capacity, sizeof(lvProofTraceNode *));
+    node->children = (lvProofTraceNode **) lv_calloc(node->child_capacity, sizeof(lvProofTraceNode *));
     if (!node->children) {
-        lv_free((void **)&node);
-        lv_set_error(lv_ERROR_ALLOCATION_FAILED,
-                       "无法分配溯源节点子节点数组");
+        lv_free((void **) &node);
+        lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配溯源节点子节点数组");
         return NULL;
     }
 
@@ -305,7 +313,8 @@ lvProofTraceNode *lv_trace_node_create(lvTraceNodeType type, const char *label) 
  * @param node 节点指针（可为 NULL，此时直接返回）
  */
 void lv_trace_node_destroy(lvProofTraceNode *node) {
-    if (!node) return;
+    if (!node)
+        return;
 
     /* 递归销毁所有子节点 */
     for (uint32_t i = 0; i < node->child_count; i++) {
@@ -314,17 +323,17 @@ void lv_trace_node_destroy(lvProofTraceNode *node) {
 
     /* 释放子节点数组 */
     if (node->children) {
-        lv_free((void **)&node->children);
+        lv_free((void **) &node->children);
     }
 
     /* 释放依赖 ID 数组 */
     if (node->dependency_ids) {
-        lv_free((void **)&node->dependency_ids);
+        lv_free((void **) &node->dependency_ids);
     }
 
     /* 注意：proposition、step、rule 不在此释放，它们由各自的管理器负责 */
 
-    lv_free((void **)&node);
+    lv_free((void **) &node);
 }
 
 /**
@@ -338,22 +347,19 @@ void lv_trace_node_destroy(lvProofTraceNode *node) {
  * @param child  子节点（不可为 NULL）
  * @return true 添加成功，false 参数无效或扩容失败
  */
-bool lv_trace_node_add_child(lvProofTraceNode *parent,
-                                lvProofTraceNode *child) {
+bool lv_trace_node_add_child(lvProofTraceNode *parent, lvProofTraceNode *child) {
     if (!parent || !child) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "添加子节点时父节点或子节点为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "添加子节点时父节点或子节点为 NULL");
         return false;
     }
 
     /* 检查容量是否足够 */
     if (parent->child_count >= parent->child_capacity) {
         uint32_t new_cap = parent->child_capacity * 2;
-        lvProofTraceNode **new_children = (lvProofTraceNode **)lv_realloc(
-            parent->children, new_cap * sizeof(lvProofTraceNode *));
+        lvProofTraceNode **new_children =
+            (lvProofTraceNode **) lv_realloc(parent->children, new_cap * sizeof(lvProofTraceNode *));
         if (!new_children) {
-            lv_set_error(lv_ERROR_ALLOCATION_FAILED,
-                           "扩容子节点数组失败");
+            lv_set_error(lv_ERROR_ALLOCATION_FAILED, "扩容子节点数组失败");
             return false;
         }
         parent->children = new_children;
@@ -376,19 +382,17 @@ bool lv_trace_node_add_child(lvProofTraceNode *parent,
  * @param node   节点指针（不可为 NULL）
  * @param status 新状态
  */
-void lv_trace_node_set_status(lvProofTraceNode *node,
-                                 lvTraceNodeStatus status) {
-    if (!node) return;
+void lv_trace_node_set_status(lvProofTraceNode *node, lvTraceNodeStatus status) {
+    if (!node)
+        return;
 
     node->status = status;
 
     /* 终态时记录完成时间 */
-    if (status == TRACE_STATUS_PROVED ||
-        status == TRACE_STATUS_DISPROVED ||
-        status == TRACE_STATUS_BLOCKED) {
+    if (status == TRACE_STATUS_PROVED || status == TRACE_STATUS_DISPROVED || status == TRACE_STATUS_BLOCKED) {
         node->complete_time_ns = get_time_ns();
         if (node->create_time_ns > 0) {
-            node->elapsed_ms = (double)(node->complete_time_ns - node->create_time_ns) / 1e6;
+            node->elapsed_ms = (double) (node->complete_time_ns - node->create_time_ns) / 1e6;
         }
     }
 }
@@ -411,7 +415,8 @@ void lv_trace_node_set_status(lvProofTraceNode *node,
  * @return 计算后的信任颜色
  */
 TrustColor lv_trace_node_compute_color(lvProofTraceNode *node) {
-    if (!node) return TRUST_GREEN;
+    if (!node)
+        return TRUST_GREEN;
 
     switch (node->type) {
         case TRACE_NODE_AXIOM:
@@ -460,21 +465,18 @@ TrustColor lv_trace_node_compute_color(lvProofTraceNode *node) {
  * @return 新溯源树指针，失败返回 NULL
  */
 lvProofTraceTree *lv_trace_tree_create(Proposition *root_prop) {
-    lvProofTraceTree *tree = (lvProofTraceTree *)lv_calloc(1, sizeof(lvProofTraceTree));
+    lvProofTraceTree *tree = (lvProofTraceTree *) lv_calloc(1, sizeof(lvProofTraceTree));
     if (!tree) {
-        lv_set_error(lv_ERROR_ALLOCATION_FAILED,
-                       "无法分配溯源树内存");
+        lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配溯源树内存");
         return NULL;
     }
 
     /* 初始化节点数组 */
     tree->node_capacity = TRACE_TREE_INITIAL_CAPACITY;
-    tree->all_nodes = (lvProofTraceNode **)lv_calloc(
-        tree->node_capacity, sizeof(lvProofTraceNode *));
+    tree->all_nodes = (lvProofTraceNode **) lv_calloc(tree->node_capacity, sizeof(lvProofTraceNode *));
     if (!tree->all_nodes) {
-        lv_free((void **)&tree);
-        lv_set_error(lv_ERROR_ALLOCATION_FAILED,
-                       "无法分配溯源树节点数组");
+        lv_free((void **) &tree);
+        lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配溯源树节点数组");
         return NULL;
     }
     tree->node_count = 0;
@@ -487,8 +489,8 @@ lvProofTraceTree *lv_trace_tree_create(Proposition *root_prop) {
 
     tree->root = lv_trace_node_create(TRACE_NODE_GOAL, root_label);
     if (!tree->root) {
-        lv_free((void **)&tree->all_nodes);
-        lv_free((void **)&tree);
+        lv_free((void **) &tree->all_nodes);
+        lv_free((void **) &tree);
         return NULL;
     }
 
@@ -515,7 +517,8 @@ lvProofTraceTree *lv_trace_tree_create(Proposition *root_prop) {
  * @param tree 溯源树指针（可为 NULL，此时直接返回）
  */
 void lv_trace_tree_destroy(lvProofTraceTree *tree) {
-    if (!tree) return;
+    if (!tree)
+        return;
 
     /* 递归销毁根节点（会递归销毁所有子节点） */
     if (tree->root) {
@@ -524,10 +527,10 @@ void lv_trace_tree_destroy(lvProofTraceTree *tree) {
 
     /* 释放节点数组 */
     if (tree->all_nodes) {
-        lv_free((void **)&tree->all_nodes);
+        lv_free((void **) &tree->all_nodes);
     }
 
-    lv_free((void **)&tree);
+    lv_free((void **) &tree);
 }
 
 /**
@@ -537,15 +540,16 @@ void lv_trace_tree_destroy(lvProofTraceTree *tree) {
  * @param node 要注册的节点
  * @return 是否成功
  */
-static bool trace_tree_register_node(lvProofTraceTree *tree,
-                                      lvProofTraceNode *node) {
-    if (!tree || !node) return false;
+static bool trace_tree_register_node(lvProofTraceTree *tree, lvProofTraceNode *node) {
+    if (!tree || !node)
+        return false;
 
     if (tree->node_count >= tree->node_capacity) {
         uint32_t new_cap = tree->node_capacity * 2;
-        lvProofTraceNode **new_nodes = (lvProofTraceNode **)lv_realloc(
-            tree->all_nodes, new_cap * sizeof(lvProofTraceNode *));
-        if (!new_nodes) return false;
+        lvProofTraceNode **new_nodes =
+            (lvProofTraceNode **) lv_realloc(tree->all_nodes, new_cap * sizeof(lvProofTraceNode *));
+        if (!new_nodes)
+            return false;
         tree->all_nodes = new_nodes;
         tree->node_capacity = new_cap;
     }
@@ -553,8 +557,8 @@ static bool trace_tree_register_node(lvProofTraceTree *tree,
     tree->all_nodes[tree->node_count++] = node;
 
     /* 更新最大深度 */
-    if ((uint32_t)node->depth > tree->max_depth) {
-        tree->max_depth = (uint32_t)node->depth;
+    if ((uint32_t) node->depth > tree->max_depth) {
+        tree->max_depth = (uint32_t) node->depth;
     }
 
     return true;
@@ -568,7 +572,8 @@ static bool trace_tree_register_node(lvProofTraceTree *tree,
  * @param tree 溯源树
  */
 static void trace_tree_update_stats(lvProofTraceTree *tree) {
-    if (!tree) return;
+    if (!tree)
+        return;
 
     tree->proved_count = 0;
     tree->disproved_count = 0;
@@ -581,8 +586,8 @@ static void trace_tree_update_stats(lvProofTraceTree *tree) {
         } else if (node->status == TRACE_STATUS_DISPROVED) {
             tree->disproved_count++;
         }
-        if ((uint32_t)node->depth > tree->max_depth) {
-            tree->max_depth = (uint32_t)node->depth;
+        if ((uint32_t) node->depth > tree->max_depth) {
+            tree->max_depth = (uint32_t) node->depth;
         }
     }
 }
@@ -600,11 +605,10 @@ static void trace_tree_update_stats(lvProofTraceTree *tree) {
  * @param max_length  最大路径长度
  * @return 实际路径长度（0 表示未找到路径）
  */
-uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree,
-                                    uint32_t from_id, uint32_t to_id,
-                                    lvProofTraceNode **out_path,
-                                    uint32_t max_length) {
-    if (!tree || !out_path || max_length == 0) return 0;
+uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id, uint32_t to_id,
+                                 lvProofTraceNode **out_path, uint32_t max_length) {
+    if (!tree || !out_path || max_length == 0)
+        return 0;
 
     /* 查找起始节点 */
     lvProofTraceNode *start = NULL;
@@ -614,7 +618,8 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree,
             break;
         }
     }
-    if (!start) return 0;
+    if (!start)
+        return 0;
 
     /* 检查目标是否就是起点 */
     if (from_id == to_id) {
@@ -629,41 +634,44 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree,
         uint32_t depth;
     } SearchFrame;
 
-    SearchFrame *stack = (SearchFrame *)lv_calloc(
-        tree->node_count, sizeof(SearchFrame));
-    if (!stack) return 0;
+    SearchFrame *stack = (SearchFrame *) lv_calloc(tree->node_count, sizeof(SearchFrame));
+    if (!stack)
+        return 0;
 
     /* 访问标记：使用 ID 到索引的映射避免哈希碰撞 */
     /* visited_map[id % map_size] 存储已访问节点的 id，0 表示空槽 */
-    uint32_t map_size = tree->node_count * 2;  /* 负载因子 <= 0.5 减少碰撞 */
-    if (map_size < 8) map_size = 8;
-    uint32_t *visited_map = (uint32_t *)lv_calloc(map_size, sizeof(uint32_t));
+    uint32_t map_size = tree->node_count * 2; /* 负载因子 <= 0.5 减少碰撞 */
+    if (map_size < 8)
+        map_size = 8;
+    uint32_t *visited_map = (uint32_t *) lv_calloc(map_size, sizeof(uint32_t));
     if (!visited_map) {
-        lv_free((void **)&stack);
+        lv_free((void **) &stack);
         return 0;
     }
 
     /* 记录路径 */
-    lvProofTraceNode **path = (lvProofTraceNode **)lv_malloc(
-        tree->node_count * sizeof(lvProofTraceNode *));
+    lvProofTraceNode **path = (lvProofTraceNode **) lv_malloc(tree->node_count * sizeof(lvProofTraceNode *));
     if (!path) {
-        lv_free((void **)&visited_map);
-        lv_free((void **)&stack);
+        lv_free((void **) &visited_map);
+        lv_free((void **) &stack);
         return 0;
     }
 
-    /* 辅助函数：检查/标记节点是否已访问（线性探测） */
-    #define VISIT_MARK(node_id) do { \
-        uint32_t idx = (uint32_t)(node_id) % map_size; \
-        while (visited_map[idx] != 0) { idx = (idx + 1) % map_size; } \
-        visited_map[idx] = (uint32_t)(node_id); \
-    } while(0)
+/* 辅助函数：检查/标记节点是否已访问（线性探测） */
+#define VISIT_MARK(node_id)                             \
+    do {                                                \
+        uint32_t idx = (uint32_t) (node_id) % map_size; \
+        while (visited_map[idx] != 0) {                 \
+            idx = (idx + 1) % map_size;                 \
+        }                                               \
+        visited_map[idx] = (uint32_t) (node_id);        \
+    } while (0)
 
     /* 内联函数：检查节点是否已访问（避免 GNU statement-expression 扩展） */
     uint32_t *__vm = visited_map;
     uint32_t __ms = map_size;
 
-    #define VISIT_CHECK(node_id) _visit_check(__vm, __ms, (uint32_t)(node_id))
+#define VISIT_CHECK(node_id) _visit_check(__vm, __ms, (uint32_t) (node_id))
 
     uint32_t top = 0;
     stack[top].node = start;
@@ -708,11 +716,11 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree,
     }
 
 cleanup:
-    #undef VISIT_MARK
-    #undef VISIT_CHECK
-    lv_free((void **)&path);
-    lv_free((void **)&visited_map);
-    lv_free((void **)&stack);
+#undef VISIT_MARK
+#undef VISIT_CHECK
+    lv_free((void **) &path);
+    lv_free((void **) &visited_map);
+    lv_free((void **) &stack);
     return result;
 }
 
@@ -734,15 +742,13 @@ cleanup:
  */
 bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
     if (!tree || !path) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "导出 DOT 时参数为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "导出 DOT 时参数为 NULL");
         return false;
     }
 
     FILE *fp = fopen(path, "w");
     if (!fp) {
-        lv_set_error(lv_ERROR_IO,
-                       "无法打开 DOT 输出文件: %s", path);
+        lv_set_error(lv_ERROR_IO, "无法打开 DOT 输出文件: %s", path);
         return false;
     }
 
@@ -753,43 +759,43 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
 
     /* 节点颜色映射 */
     static const char *node_colors[] = {
-        "lightgreen",   /* TRACE_NODE_AXIOM */
-        "palegreen",    /* TRACE_NODE_DEFINITION */
-        "green",        /* TRACE_NODE_THEOREM */
-        "limegreen",    /* TRACE_NODE_LEMMA */
-        "lightblue",    /* TRACE_NODE_HYPOTHESIS */
-        "lightgray",    /* TRACE_NODE_DERIVATION */
-        "salmon",       /* TRACE_NODE_CONTRADICTION */
-        "gold"          /* TRACE_NODE_GOAL */
+        "lightgreen", /* TRACE_NODE_AXIOM */
+        "palegreen",  /* TRACE_NODE_DEFINITION */
+        "green",      /* TRACE_NODE_THEOREM */
+        "limegreen",  /* TRACE_NODE_LEMMA */
+        "lightblue",  /* TRACE_NODE_HYPOTHESIS */
+        "lightgray",  /* TRACE_NODE_DERIVATION */
+        "salmon",     /* TRACE_NODE_CONTRADICTION */
+        "gold"        /* TRACE_NODE_GOAL */
     };
 
     static const char *node_shapes[] = {
-        "ellipse",      /* TRACE_NODE_AXIOM */
-        "box",          /* TRACE_NODE_DEFINITION */
-        "box",          /* TRACE_NODE_THEOREM */
-        "box",          /* TRACE_NODE_LEMMA */
-        "diamond",      /* TRACE_NODE_HYPOTHESIS */
-        "rounded",      /* TRACE_NODE_DERIVATION */
-        "octagon",      /* TRACE_NODE_CONTRADICTION */
-        "doublecircle"  /* TRACE_NODE_GOAL */
+        "ellipse",     /* TRACE_NODE_AXIOM */
+        "box",         /* TRACE_NODE_DEFINITION */
+        "box",         /* TRACE_NODE_THEOREM */
+        "box",         /* TRACE_NODE_LEMMA */
+        "diamond",     /* TRACE_NODE_HYPOTHESIS */
+        "rounded",     /* TRACE_NODE_DERIVATION */
+        "octagon",     /* TRACE_NODE_CONTRADICTION */
+        "doublecircle" /* TRACE_NODE_GOAL */
     };
 
     /* 输出所有节点 */
     for (uint32_t i = 0; i < tree->node_count; i++) {
         lvProofTraceNode *node = tree->all_nodes[i];
-        int type_idx = (int)node->type;
-        if (type_idx > 7) type_idx = 0;
+        int type_idx = (int) node->type;
+        if (type_idx > 7)
+            type_idx = 0;
 
-        fprintf(fp, "    n%d [shape=%s, style=filled, fillcolor=%s, "
-                   "label=\"%s\\n[%s]\"];\n",
-                node->id,
-                node_shapes[type_idx],
-                node_colors[type_idx],
-                node->label,
-                node->status == TRACE_STATUS_PROVED ? "proved" :
-                node->status == TRACE_STATUS_DISPROVED ? "disproved" :
-                node->status == TRACE_STATUS_EXPLORING ? "exploring" :
-                node->status == TRACE_STATUS_BLOCKED ? "blocked" : "unexplored");
+        fprintf(fp,
+                "    n%d [shape=%s, style=filled, fillcolor=%s, "
+                "label=\"%s\\n[%s]\"];\n",
+                node->id, node_shapes[type_idx], node_colors[type_idx], node->label,
+                node->status == TRACE_STATUS_PROVED      ? "proved"
+                : node->status == TRACE_STATUS_DISPROVED ? "disproved"
+                : node->status == TRACE_STATUS_EXPLORING ? "exploring"
+                : node->status == TRACE_STATUS_BLOCKED   ? "blocked"
+                                                         : "unexplored");
     }
 
     fprintf(fp, "\n");
@@ -829,17 +835,16 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
  */
 char *lv_trace_tree_to_json(const lvProofTraceTree *tree) {
     if (!tree) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "导出 JSON 时溯源树为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "导出 JSON 时溯源树为 NULL");
         return NULL;
     }
 
     StringBuffer *buf = string_buffer_create();
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
 
     string_buffer_append(buf, "{\n");
-    string_buffer_append(buf, "  \"is_complete\": %s,\n",
-                         tree->is_complete ? "true" : "false");
+    string_buffer_append(buf, "  \"is_complete\": %s,\n", tree->is_complete ? "true" : "false");
     string_buffer_append(buf, "  \"node_count\": %u,\n", tree->node_count);
     string_buffer_append(buf, "  \"proved_count\": %u,\n", tree->proved_count);
     string_buffer_append(buf, "  \"disproved_count\": %u,\n", tree->disproved_count);
@@ -851,15 +856,14 @@ char *lv_trace_tree_to_json(const lvProofTraceTree *tree) {
 
         string_buffer_append(buf, "    {\n");
         string_buffer_append(buf, "      \"id\": %u,\n", node->id);
-        string_buffer_append(buf, "      \"type\": %d,\n", (int)node->type);
-        string_buffer_append(buf, "      \"status\": %d,\n", (int)node->status);
+        string_buffer_append(buf, "      \"type\": %d,\n", (int) node->type);
+        string_buffer_append(buf, "      \"status\": %d,\n", (int) node->status);
         string_buffer_append(buf, "      \"label\": \"%s\",\n", node->label);
         string_buffer_append(buf, "      \"description\": \"%s\",\n", node->description);
         string_buffer_append(buf, "      \"depth\": %d,\n", node->depth);
         string_buffer_append(buf, "      \"child_count\": %u,\n", node->child_count);
         string_buffer_append(buf, "      \"elapsed_ms\": %.3f\n", node->elapsed_ms);
-        string_buffer_append(buf, "    }%s\n",
-                             (i + 1 < tree->node_count) ? "," : "");
+        string_buffer_append(buf, "    }%s\n", (i + 1 < tree->node_count) ? "," : "");
     }
 
     string_buffer_append(buf, "  ]\n");
@@ -879,21 +883,17 @@ char *lv_trace_tree_to_json(const lvProofTraceTree *tree) {
  * @return 新矛盾路径指针，失败返回 NULL
  */
 lvContradictionPath *lv_contradiction_path_create(void) {
-    lvContradictionPath *path = (lvContradictionPath *)lv_calloc(
-        1, sizeof(lvContradictionPath));
+    lvContradictionPath *path = (lvContradictionPath *) lv_calloc(1, sizeof(lvContradictionPath));
     if (!path) {
-        lv_set_error(lv_ERROR_ALLOCATION_FAILED,
-                       "无法分配矛盾路径内存");
+        lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配矛盾路径内存");
         return NULL;
     }
 
     path->node_capacity = CONTRADICTION_PATH_INITIAL_CAPACITY;
-    path->nodes = (lvContradictionPathNode *)lv_calloc(
-        path->node_capacity, sizeof(lvContradictionPathNode));
+    path->nodes = (lvContradictionPathNode *) lv_calloc(path->node_capacity, sizeof(lvContradictionPathNode));
     if (!path->nodes) {
-        lv_free((void **)&path);
-        lv_set_error(lv_ERROR_ALLOCATION_FAILED,
-                       "无法分配矛盾路径节点数组");
+        lv_free((void **) &path);
+        lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配矛盾路径节点数组");
         return NULL;
     }
 
@@ -914,16 +914,17 @@ lvContradictionPath *lv_contradiction_path_create(void) {
  * @param path 矛盾路径指针（可为 NULL，此时直接返回）
  */
 void lv_contradiction_path_destroy(lvContradictionPath *path) {
-    if (!path) return;
+    if (!path)
+        return;
 
     if (path->nodes) {
-        lv_free((void **)&path->nodes);
+        lv_free((void **) &path->nodes);
     }
 
     /* 溯源树由引擎管理，此处不销毁 */
     path->trace_tree = NULL;
 
-    lv_free((void **)&path);
+    lv_free((void **) &path);
 }
 
 /**
@@ -938,26 +939,21 @@ void lv_contradiction_path_destroy(lvContradictionPath *path) {
  * @param is_assumption 是否为初始假设
  * @return 新节点的 ID（从 0 开始），失败返回 (uint32_t)-1
  */
-uint32_t lv_contradiction_path_add_node(lvContradictionPath *path,
-                                           const char *statement,
-                                           const char *justification,
-                                           bool is_assumption) {
+uint32_t lv_contradiction_path_add_node(lvContradictionPath *path, const char *statement, const char *justification,
+                                        bool is_assumption) {
     if (!path || !statement) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "添加矛盾路径节点时参数为 NULL");
-        return (uint32_t)-1;
+        lv_set_error(lv_ERROR_NULL_POINTER, "添加矛盾路径节点时参数为 NULL");
+        return (uint32_t) -1;
     }
 
     /* 检查容量 */
     if (path->node_count >= path->node_capacity) {
         uint32_t new_cap = path->node_capacity * 2;
         lvContradictionPathNode *new_nodes =
-            (lvContradictionPathNode *)lv_realloc(
-                path->nodes, new_cap * sizeof(lvContradictionPathNode));
+            (lvContradictionPathNode *) lv_realloc(path->nodes, new_cap * sizeof(lvContradictionPathNode));
         if (!new_nodes) {
-            lv_set_error(lv_ERROR_ALLOCATION_FAILED,
-                           "扩容矛盾路径节点数组失败");
-            return (uint32_t)-1;
+            lv_set_error(lv_ERROR_ALLOCATION_FAILED, "扩容矛盾路径节点数组失败");
+            return (uint32_t) -1;
         }
         path->nodes = new_nodes;
         path->node_capacity = new_cap;
@@ -996,13 +992,10 @@ uint32_t lv_contradiction_path_add_node(lvContradictionPath *path,
  * @param out_desc 输出矛盾描述（缓冲区至少 512 字节）
  * @return true 检测到矛盾，false 未检测到矛盾或参数无效
  */
-bool lv_detect_contradiction(const ConstraintGraph *graph,
-                                const ProofNavigator *nav,
-                                lvContradictionType *out_type,
-                                char *out_desc) {
+bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator *nav, lvContradictionType *out_type,
+                             char *out_desc) {
     if (!out_type || !out_desc) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "矛盾检测输出参数为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "矛盾检测输出参数为 NULL");
         return false;
     }
 
@@ -1013,22 +1006,21 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
     if (nav && nav->steps) {
         for (int i = 0; i < nav->step_count; i++) {
             ProofStep *step_i = nav->steps[i];
-            if (!step_i || !step_i->is_completed) continue;
+            if (!step_i || !step_i->is_completed)
+                continue;
 
             /* 检查是否存在否定步骤与原步骤冲突 */
             for (int j = i + 1; j < nav->step_count; j++) {
                 ProofStep *step_j = nav->steps[j];
-                if (!step_j || !step_j->is_completed) continue;
+                if (!step_j || !step_j->is_completed)
+                    continue;
 
                 /* 如果两个步骤的约束 ID 相同但类型冲突 */
-                if (step_i->constraint_id > 0 &&
-                    step_i->constraint_id == step_j->constraint_id &&
-                    step_i->type == PROOF_STEP_ADD_CONSTRAINT &&
-                    step_j->type == PROOF_STEP_EX_FALSO) {
+                if (step_i->constraint_id > 0 && step_i->constraint_id == step_j->constraint_id &&
+                    step_i->type == PROOF_STEP_ADD_CONSTRAINT && step_j->type == PROOF_STEP_EX_FALSO) {
                     *out_type = CONTRADICTION_TYPE_P_AND_NOT_P;
-                    snprintf(out_desc, 512,
-                             "命题 P (步骤 %d) 与其否定 NOT P (步骤 %d) 同时成立",
-                             step_i->id, step_j->id);
+                    snprintf(out_desc, 512, "命题 P (步骤 %d) 与其否定 NOT P (步骤 %d) 同时成立", step_i->id,
+                             step_j->id);
                     return true;
                 }
             }
@@ -1041,9 +1033,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
             ProofStep *step = nav->steps[i];
             if (step && step->type == PROOF_STEP_EX_FALSO && step->is_completed) {
                 *out_type = CONTRADICTION_TYPE_FALSE_DERIVED;
-                snprintf(out_desc, 512,
-                         "从前提推导出矛盾 (步骤 %d, 爆炸原理)",
-                         step->id);
+                snprintf(out_desc, 512, "从前提推导出矛盾 (步骤 %d, 爆炸原理)", step->id);
                 return true;
             }
         }
@@ -1053,16 +1043,15 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
     if (nav && nav->steps) {
         for (int i = 0; i < nav->step_count; i++) {
             ProofStep *step = nav->steps[i];
-            if (!step) continue;
+            if (!step)
+                continue;
 
             /* 检查循环依赖：步骤 i 依赖步骤 j，而步骤 j 又依赖步骤 i */
             for (int d = 0; d < step->dependency_count; d++) {
                 int dep_id = step->dependency_step_ids[d];
                 if (dep_id == step->id) {
                     *out_type = CONTRADICTION_TYPE_CYCLE;
-                    snprintf(out_desc, 512,
-                             "步骤 %d 存在自依赖（循环依赖）",
-                             step->id);
+                    snprintf(out_desc, 512, "步骤 %d 存在自依赖（循环依赖）", step->id);
                     return true;
                 }
 
@@ -1072,9 +1061,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
                         for (int d2 = 0; d2 < nav->steps[j]->dependency_count; d2++) {
                             if (nav->steps[j]->dependency_step_ids[d2] == step->id) {
                                 *out_type = CONTRADICTION_TYPE_CYCLE;
-                                snprintf(out_desc, 512,
-                                         "步骤 %d 和步骤 %d 之间存在循环依赖",
-                                         step->id, dep_id);
+                                snprintf(out_desc, 512, "步骤 %d 和步骤 %d 之间存在循环依赖", step->id, dep_id);
                                 return true;
                             }
                         }
@@ -1090,7 +1077,8 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
         /* 检查约束图中是否存在类型不匹配的连接约束 */
         for (int c = 0; c < graph->constraint_count; c++) {
             Constraint *con = graph->constraints[c];
-            if (!con || con->type != CONNECTION) continue;
+            if (!con || con->type != CONNECTION)
+                continue;
 
             /* 检查连接的端口类型是否兼容 */
             for (int p = 0; p < con->participant_count - 1; p++) {
@@ -1108,15 +1096,12 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
                     node_b = graph->node_index[node_id_b];
                 }
 
-                if (node_a && node_b &&
-                    node_a->type == GEOM_PORT && node_b->type == GEOM_PORT) {
+                if (node_a && node_b && node_a->type == GEOM_PORT && node_b->type == GEOM_PORT) {
                     Port *port_a = node_a->data.port;
                     Port *port_b = node_b->data.port;
-                    if (port_a && port_b &&
-                        port_a->type_region && port_b->type_region) {
+                    if (port_a && port_b && port_a->type_region && port_b->type_region) {
                         /* 如果两个连接的端口类型不同且不是多态的 */
-                        if (port_a->type == port_b->type &&
-                            !port_a->is_polymorphic && !port_b->is_polymorphic) {
+                        if (port_a->type == port_b->type && !port_a->is_polymorphic && !port_b->is_polymorphic) {
                             /* 检查类型区域是否兼容 */
                             TypeRegion *tr_a = port_a->type_region;
                             TypeRegion *tr_b = port_b->type_region;
@@ -1127,8 +1112,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
                                 snprintf(out_desc, 512,
                                          "端口 %d 和端口 %d 类型不兼容："
                                          "类型种类不同（%d vs %d）",
-                                         port_a->id, port_b->id,
-                                         (int)tr_a->kind, (int)tr_b->kind);
+                                         port_a->id, port_b->id, (int) tr_a->kind, (int) tr_b->kind);
                                 return true;
                             }
 
@@ -1138,21 +1122,19 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
                                 snprintf(out_desc, 512,
                                          "端口 %d 和端口 %d 类型不兼容："
                                          "类型级别不同（%d vs %d）",
-                                         port_a->id, port_b->id,
-                                         tr_a->level, tr_b->level);
+                                         port_a->id, port_b->id, tr_a->level, tr_b->level);
                                 return true;
                             }
 
                             /* 类型种类和级别相同，检查变量ID */
-                            if (tr_a->variable_id != tr_b->variable_id &&
-                                tr_a->variable_id > 0 && tr_b->variable_id > 0) {
+                            if (tr_a->variable_id != tr_b->variable_id && tr_a->variable_id > 0 &&
+                                tr_b->variable_id > 0) {
                                 /* 不同具体变量，记录矛盾 */
                                 *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
                                 snprintf(out_desc, 512,
                                          "端口 %d 和端口 %d 类型不兼容："
                                          "类型变量不同（var_%d vs var_%d）",
-                                         port_a->id, port_b->id,
-                                         tr_a->variable_id, tr_b->variable_id);
+                                         port_a->id, port_b->id, tr_a->variable_id, tr_b->variable_id);
                                 return true;
                             }
                         }
@@ -1166,14 +1148,13 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
     if (nav && nav->steps) {
         for (int i = 0; i < nav->step_count; i++) {
             ProofStep *step = nav->steps[i];
-            if (!step || step->type != PROOF_STEP_NORMALIZATION) continue;
+            if (!step || step->type != PROOF_STEP_NORMALIZATION)
+                continue;
 
             /* 规范化步骤可能发现算术矛盾 */
             if (step->retained_node_id < 0 && step->merged_count > 0) {
                 *out_type = CONTRADICTION_TYPE_ARITHMETIC;
-                snprintf(out_desc, 512,
-                         "规范化步骤 %d 发现算术矛盾：合并节点时产生不一致",
-                         step->id);
+                snprintf(out_desc, 512, "规范化步骤 %d 发现算术矛盾：合并节点时产生不一致", step->id);
                 return true;
             }
         }
@@ -1184,16 +1165,17 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
         /* 检查几何约束冲突 */
         for (int c = 0; c < graph->constraint_count; c++) {
             Constraint *con = graph->constraints[c];
-            if (!con) continue;
+            if (!con)
+                continue;
 
             /* 检查同一对节点之间是否存在冲突的约束 */
             for (int c2 = c + 1; c2 < graph->constraint_count; c2++) {
                 Constraint *con2 = graph->constraints[c2];
-                if (!con2) continue;
+                if (!con2)
+                    continue;
 
                 /* 如果两个约束涉及相同的节点但类型冲突 */
-                if (con->participant_count == con2->participant_count &&
-                    con->participant_count >= 2) {
+                if (con->participant_count == con2->participant_count && con->participant_count >= 2) {
                     bool same_participants = true;
                     for (int p = 0; p < con->participant_count; p++) {
                         if (con->participants[p] != con2->participants[p]) {
@@ -1203,10 +1185,8 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
                     }
                     if (same_participants && con->type != con2->type) {
                         *out_type = CONTRADICTION_TYPE_GEOMETRIC;
-                        snprintf(out_desc, 512,
-                                 "约束 %d (%d) 和约束 %d (%d) 在相同节点上冲突",
-                                 con->id, (int)con->type,
-                                 con2->id, (int)con2->type);
+                        snprintf(out_desc, 512, "约束 %d (%d) 和约束 %d (%d) 在相同节点上冲突", con->id,
+                                 (int) con->type, con2->id, (int) con2->type);
                         return true;
                     }
                 }
@@ -1231,22 +1211,19 @@ bool lv_detect_contradiction(const ConstraintGraph *graph,
  */
 bool lv_contradiction_path_validate(lvContradictionPath *path) {
     if (!path) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "验证矛盾路径时参数为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "验证矛盾路径时参数为 NULL");
         return false;
     }
 
     /* 路径必须非空 */
     if (path->node_count == 0) {
-        lv_set_error(lv_ERROR_PROOF_INCOMPLETE,
-                       "矛盾路径为空");
+        lv_set_error(lv_ERROR_PROOF_INCOMPLETE, "矛盾路径为空");
         return false;
     }
 
     /* 第一个节点必须是假设 */
     if (!path->nodes[0].is_assumption) {
-        lv_set_error(lv_ERROR_PROOF_INVALID,
-                       "矛盾路径的第一个节点不是假设");
+        lv_set_error(lv_ERROR_PROOF_INVALID, "矛盾路径的第一个节点不是假设");
         return false;
     }
 
@@ -1260,15 +1237,13 @@ bool lv_contradiction_path_validate(lvContradictionPath *path) {
     }
 
     if (!has_contradiction) {
-        lv_set_error(lv_ERROR_PROOF_INCOMPLETE,
-                       "矛盾路径中未找到导致矛盾的节点");
+        lv_set_error(lv_ERROR_PROOF_INCOMPLETE, "矛盾路径中未找到导致矛盾的节点");
         return false;
     }
 
     /* 矛盾描述不能为空 */
     if (path->contradiction_desc[0] == '\0') {
-        lv_set_error(lv_ERROR_PROOF_INCOMPLETE,
-                       "矛盾路径缺少矛盾描述");
+        lv_set_error(lv_ERROR_PROOF_INCOMPLETE, "矛盾路径缺少矛盾描述");
         return false;
     }
 
@@ -1295,13 +1270,10 @@ bool lv_contradiction_path_validate(lvContradictionPath *path) {
  * @param out_path  输出矛盾路径（调用者负责释放）
  * @return true 反证法成功（发现矛盾），false 失败
  */
-bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
-                                  const Proposition *goal,
-                                  uint32_t max_steps,
-                                  lvContradictionPath **out_path) {
+bool lv_engine_proof_by_contradiction(lvProofEngine *engine, const Proposition *goal, uint32_t max_steps,
+                                      lvContradictionPath **out_path) {
     if (!engine || !goal || !out_path) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "反证法参数为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "反证法参数为 NULL");
         return false;
     }
 
@@ -1309,7 +1281,8 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
 
     /* 创建矛盾路径 */
     lvContradictionPath *path = lv_contradiction_path_create();
-    if (!path) return false;
+    if (!path)
+        return false;
 
     /* 创建溯源树 */
     lvProofTraceTree *tree = lv_trace_tree_create(NULL);
@@ -1321,19 +1294,15 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
     /* 步骤 1: 添加否定假设 */
     char assumption_stmt[512];
     if (goal->name) {
-        snprintf(assumption_stmt, sizeof(assumption_stmt),
-                 "假设 NOT (%s) 成立", goal->name);
+        snprintf(assumption_stmt, sizeof(assumption_stmt), "假设 NOT (%s) 成立", goal->name);
     } else {
-        snprintf(assumption_stmt, sizeof(assumption_stmt),
-                 "假设目标命题的否定成立");
+        snprintf(assumption_stmt, sizeof(assumption_stmt), "假设目标命题的否定成立");
     }
 
-    lv_contradiction_path_add_node(path, assumption_stmt,
-                                      "反证法初始假设", true);
+    lv_contradiction_path_add_node(path, assumption_stmt, "反证法初始假设", true);
 
     /* 创建假设节点 */
-    lvProofTraceNode *hyp_node = lv_trace_node_create(
-        TRACE_NODE_HYPOTHESIS, "Negation Hypothesis");
+    lvProofTraceNode *hyp_node = lv_trace_node_create(TRACE_NODE_HYPOTHESIS, "Negation Hypothesis");
     if (hyp_node) {
         lv_trace_node_add_child(tree->root, hyp_node);
         trace_tree_register_node(tree, hyp_node);
@@ -1348,13 +1317,11 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
         lvContradictionType ctype;
         char cdesc[512];
 
-        if (lv_detect_contradiction(engine->graph, engine->navigator,
-                                       &ctype, cdesc)) {
+        if (lv_detect_contradiction(engine->graph, engine->navigator, &ctype, cdesc)) {
             /* 发现矛盾 */
             found_contradiction = true;
             path->type = ctype;
-            safe_strncpy(path->contradiction_desc, cdesc,
-                         sizeof(path->contradiction_desc));
+            safe_strncpy(path->contradiction_desc, cdesc, sizeof(path->contradiction_desc));
 
             /* 标记最后一个节点为矛盾节点 */
             if (path->node_count > 0) {
@@ -1362,11 +1329,9 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
             }
 
             /* 添加矛盾节点到溯源树 */
-            lvProofTraceNode *contra_node = lv_trace_node_create(
-                TRACE_NODE_CONTRADICTION, "Contradiction Found");
+            lvProofTraceNode *contra_node = lv_trace_node_create(TRACE_NODE_CONTRADICTION, "Contradiction Found");
             if (contra_node) {
-                safe_strncpy(contra_node->description, cdesc,
-                             sizeof(contra_node->description));
+                safe_strncpy(contra_node->description, cdesc, sizeof(contra_node->description));
                 lv_trace_node_set_status(contra_node, TRACE_STATUS_PROVED);
                 if (hyp_node) {
                     lv_trace_node_add_child(hyp_node, contra_node);
@@ -1381,45 +1346,32 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
 
         /* 尝试应用规则进行推理 */
         if (engine->rule_library && engine->graph) {
-            lvRuleMatch **matches = (lvRuleMatch **)lv_malloc(
-                16 * sizeof(lvRuleMatch *));
+            lvRuleMatch **matches = (lvRuleMatch **) lv_malloc(16 * sizeof(lvRuleMatch *));
             if (matches) {
-                uint32_t match_count = lv_rule_find_matches(
-                    engine->rule_library, engine->graph, engine->navigator,
-                    matches, 16);
+                uint32_t match_count =
+                    lv_rule_find_matches(engine->rule_library, engine->graph, engine->navigator, matches, 16);
 
                 if (match_count > 0) {
                     /* 应用第一个匹配的规则 */
-                    ProofStep **new_steps = (ProofStep **)lv_malloc(
-                        8 * sizeof(ProofStep *));
+                    ProofStep **new_steps = (ProofStep **) lv_malloc(8 * sizeof(ProofStep *));
                     if (new_steps) {
-                        uint32_t step_count = lv_rule_apply_match(
-                            matches[0], engine->graph, engine->navigator,
-                            new_steps, 8);
+                        uint32_t step_count =
+                            lv_rule_apply_match(matches[0], engine->graph, engine->navigator, new_steps, 8);
 
                         if (step_count > 0) {
                             /* 记录推导步骤 */
                             char step_stmt[512];
-                            snprintf(step_stmt, sizeof(step_stmt),
-                                     "应用规则 '%s' 进行推导",
-                                     matches[0]->rule ?
-                                         matches[0]->rule->name : "unknown");
+                            snprintf(step_stmt, sizeof(step_stmt), "应用规则 '%s' 进行推导",
+                                     matches[0]->rule ? matches[0]->rule->name : "unknown");
                             lv_contradiction_path_add_node(
-                                path, step_stmt,
-                                matches[0]->rule ?
-                                    matches[0]->rule->name : "rule application",
-                                false);
+                                path, step_stmt, matches[0]->rule ? matches[0]->rule->name : "rule application", false);
 
                             /* 创建推导节点 */
-                            lvProofTraceNode *deriv_node =
-                                lv_trace_node_create(
-                                    TRACE_NODE_DERIVATION,
-                                    matches[0]->rule ?
-                                        matches[0]->rule->name : "Derivation");
+                            lvProofTraceNode *deriv_node = lv_trace_node_create(
+                                TRACE_NODE_DERIVATION, matches[0]->rule ? matches[0]->rule->name : "Derivation");
                             if (deriv_node) {
                                 deriv_node->rule = matches[0]->rule;
-                                lv_trace_node_set_status(
-                                    deriv_node, TRACE_STATUS_EXPLORING);
+                                lv_trace_node_set_status(deriv_node, TRACE_STATUS_EXPLORING);
                                 if (hyp_node) {
                                     lv_trace_node_add_child(hyp_node, deriv_node);
                                 } else {
@@ -1429,7 +1381,7 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
                             }
                         }
 
-                        lv_free((void **)&new_steps);
+                        lv_free((void **) &new_steps);
                     }
                 }
 
@@ -1437,7 +1389,7 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
                 for (uint32_t m = 0; m < match_count; m++) {
                     lv_rule_match_destroy(matches[m]);
                 }
-                lv_free((void **)&matches);
+                lv_free((void **) &matches);
             }
         }
 
@@ -1484,11 +1436,9 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
  * @return 新引擎实例，失败返回 NULL
  */
 lvProofEngine *lv_proof_engine_create(const lvProofEngineConfig *config) {
-    lvProofEngine *engine = (lvProofEngine *)lv_calloc(
-        1, sizeof(lvProofEngine));
+    lvProofEngine *engine = (lvProofEngine *) lv_calloc(1, sizeof(lvProofEngine));
     if (!engine) {
-        lv_set_error(lv_ERROR_ALLOCATION_FAILED,
-                       "无法分配证明引擎内存");
+        lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配证明引擎内存");
         return NULL;
     }
 
@@ -1535,7 +1485,8 @@ lvProofEngine *lv_proof_engine_create(const lvProofEngineConfig *config) {
  * @param engine 引擎指针（可为 NULL，此时直接返回）
  */
 void lv_proof_engine_destroy(lvProofEngine *engine) {
-    if (!engine) return;
+    if (!engine)
+        return;
 
     /* 释放当前溯源树 */
     if (engine->current_trace) {
@@ -1545,10 +1496,10 @@ void lv_proof_engine_destroy(lvProofEngine *engine) {
 
     /* 释放缓存（如果有） */
     if (engine->proof_cache) {
-        lv_free((void **)&engine->proof_cache);
+        lv_free((void **) &engine->proof_cache);
     }
 
-    lv_free((void **)&engine);
+    lv_free((void **) &engine);
 }
 
 /**
@@ -1560,9 +1511,9 @@ void lv_proof_engine_destroy(lvProofEngine *engine) {
  * @param engine  引擎实例
  * @param library 规则库（可为 NULL，清除当前规则库）
  */
-void lv_proof_engine_set_rule_library(lvProofEngine *engine,
-                                         lvRuleLibrary *library) {
-    if (!engine) return;
+void lv_proof_engine_set_rule_library(lvProofEngine *engine, lvRuleLibrary *library) {
+    if (!engine)
+        return;
     engine->rule_library = library;
 }
 
@@ -1577,17 +1528,14 @@ void lv_proof_engine_set_rule_library(lvProofEngine *engine,
  * @param strategy 策略描述
  * @return true 注册成功，false 引擎已满或参数无效
  */
-bool lv_proof_engine_register_strategy(lvProofEngine *engine,
-                                          const lvProofStrategy *strategy) {
+bool lv_proof_engine_register_strategy(lvProofEngine *engine, const lvProofStrategy *strategy) {
     if (!engine || !strategy) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "注册策略时参数为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "注册策略时参数为 NULL");
         return false;
     }
 
     if (engine->strategy_count >= lv_PROOF_MAX_STRATEGIES) {
-        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED,
-                       "策略数量已达上限 (%d)", lv_PROOF_MAX_STRATEGIES);
+        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "策略数量已达上限 (%d)", lv_PROOF_MAX_STRATEGIES);
         return false;
     }
 
@@ -1602,8 +1550,7 @@ bool lv_proof_engine_register_strategy(lvProofEngine *engine,
 
     /* 后移元素 */
     if (insert_pos < engine->strategy_count) {
-        memmove(&engine->strategies[insert_pos + 1],
-                &engine->strategies[insert_pos],
+        memmove(&engine->strategies[insert_pos + 1], &engine->strategies[insert_pos],
                 (engine->strategy_count - insert_pos) * sizeof(lvProofStrategy));
     }
 
@@ -1619,16 +1566,16 @@ bool lv_proof_engine_register_strategy(lvProofEngine *engine,
  * @brief 策略中文名称映射表
  */
 static const char *g_strategy_names_zh[] = {
-    "直接证明",       /* STRATEGY_DIRECT */
-    "反证法",         /* STRATEGY_CONTRADICTION */
-    "逆否证明",       /* STRATEGY_CONTRAPOSITIVE */
-    "数学归纳法",     /* STRATEGY_INDUCTION */
-    "分情况讨论",     /* STRATEGY_CASES */
-    "构造性证明",     /* STRATEGY_CONSTRUCTION */
-    "定义展开",       /* STRATEGY_UNFOLDING */
-    "逆向推理",       /* STRATEGY_BACKWARD */
-    "正向推理",       /* STRATEGY_FORWARD */
-    "混合策略"        /* STRATEGY_HYBRID */
+    "直接证明",   /* STRATEGY_DIRECT */
+    "反证法",     /* STRATEGY_CONTRADICTION */
+    "逆否证明",   /* STRATEGY_CONTRAPOSITIVE */
+    "数学归纳法", /* STRATEGY_INDUCTION */
+    "分情况讨论", /* STRATEGY_CASES */
+    "构造性证明", /* STRATEGY_CONSTRUCTION */
+    "定义展开",   /* STRATEGY_UNFOLDING */
+    "逆向推理",   /* STRATEGY_BACKWARD */
+    "正向推理",   /* STRATEGY_FORWARD */
+    "混合策略"    /* STRATEGY_HYBRID */
 };
 
 /**
@@ -1654,10 +1601,9 @@ static const char *get_strategy_name_zh(lvStrategyType type) {
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool execute_strategy_direct(lvProofEngine *engine,
-                                     const Proposition *goal,
-                                     lvProofTraceTree *tree) {
-    if (!engine || !goal || !tree) return false;
+static bool execute_strategy_direct(lvProofEngine *engine, const Proposition *goal, lvProofTraceTree *tree) {
+    if (!engine || !goal || !tree)
+        return false;
 
     uint32_t max_steps = engine->config.max_depth;
     uint32_t step = 0;
@@ -1666,12 +1612,10 @@ static bool execute_strategy_direct(lvProofEngine *engine,
     while (step < max_steps && !success) {
         /* 尝试合一检查 */
         if (engine->graph) {
-            UnifyStatus unify_result = proof_unify(
-                engine->graph, (Proposition *)goal, true);
+            UnifyStatus unify_result = proof_unify(engine->graph, (Proposition *) goal, true);
             if (unify_result == UNIFY_STATUS_OK) {
                 /* 合一成功，证明完成 */
-                lvProofTraceNode *proved_node = lv_trace_node_create(
-                    TRACE_NODE_DERIVATION, "Unification Success");
+                lvProofTraceNode *proved_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Unification Success");
                 if (proved_node) {
                     lv_trace_node_set_status(proved_node, TRACE_STATUS_PROVED);
                     lv_trace_node_add_child(tree->root, proved_node);
@@ -1684,44 +1628,35 @@ static bool execute_strategy_direct(lvProofEngine *engine,
 
         /* 尝试应用规则 */
         if (engine->rule_library && engine->graph) {
-            lvRuleMatch **matches = (lvRuleMatch **)lv_malloc(
-                8 * sizeof(lvRuleMatch *));
+            lvRuleMatch **matches = (lvRuleMatch **) lv_malloc(8 * sizeof(lvRuleMatch *));
             if (matches) {
-                uint32_t match_count = lv_rule_find_matches(
-                    engine->rule_library, engine->graph, engine->navigator,
-                    matches, 8);
+                uint32_t match_count =
+                    lv_rule_find_matches(engine->rule_library, engine->graph, engine->navigator, matches, 8);
 
                 for (uint32_t m = 0; m < match_count && !success; m++) {
-                    ProofStep **new_steps = (ProofStep **)lv_malloc(
-                        4 * sizeof(ProofStep *));
+                    ProofStep **new_steps = (ProofStep **) lv_malloc(4 * sizeof(ProofStep *));
                     if (new_steps) {
-                        uint32_t sc = lv_rule_apply_match(
-                            matches[m], engine->graph, engine->navigator,
-                            new_steps, 4);
+                        uint32_t sc = lv_rule_apply_match(matches[m], engine->graph, engine->navigator, new_steps, 4);
 
                         if (sc > 0) {
-                            lvProofTraceNode *deriv_node =
-                                lv_trace_node_create(
-                                    TRACE_NODE_DERIVATION,
-                                    matches[m]->rule ?
-                                        matches[m]->rule->name : "Rule");
+                            lvProofTraceNode *deriv_node = lv_trace_node_create(
+                                TRACE_NODE_DERIVATION, matches[m]->rule ? matches[m]->rule->name : "Rule");
                             if (deriv_node) {
                                 deriv_node->rule = matches[m]->rule;
-                                lv_trace_node_set_status(
-                                    deriv_node, TRACE_STATUS_EXPLORING);
+                                lv_trace_node_set_status(deriv_node, TRACE_STATUS_EXPLORING);
                                 lv_trace_node_add_child(tree->root, deriv_node);
                                 trace_tree_register_node(tree, deriv_node);
                             }
                         }
 
-                        lv_free((void **)&new_steps);
+                        lv_free((void **) &new_steps);
                     }
                 }
 
                 for (uint32_t m = 0; m < match_count; m++) {
                     lv_rule_match_destroy(matches[m]);
                 }
-                lv_free((void **)&matches);
+                lv_free((void **) &matches);
             }
         }
 
@@ -1743,17 +1678,14 @@ static bool execute_strategy_direct(lvProofEngine *engine,
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool execute_strategy_contrapositive(lvProofEngine *engine,
-                                             const Proposition *goal,
-                                             lvProofTraceTree *tree) {
-    if (!engine || !goal || !tree) return false;
+static bool execute_strategy_contrapositive(lvProofEngine *engine, const Proposition *goal, lvProofTraceTree *tree) {
+    if (!engine || !goal || !tree)
+        return false;
 
     /* 创建逆否命题节点 */
-    lvProofTraceNode *contra_node = lv_trace_node_create(
-        TRACE_NODE_HYPOTHESIS, "Contrapositive Transformation");
+    lvProofTraceNode *contra_node = lv_trace_node_create(TRACE_NODE_HYPOTHESIS, "Contrapositive Transformation");
     if (contra_node) {
-        safe_strncpy(contra_node->description,
-                     "将命题 P -> Q 转换为逆否命题 NOT Q -> NOT P",
+        safe_strncpy(contra_node->description, "将命题 P -> Q 转换为逆否命题 NOT Q -> NOT P",
                      sizeof(contra_node->description));
         lv_trace_node_set_status(contra_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, contra_node);
@@ -1782,42 +1714,32 @@ static bool execute_strategy_contrapositive(lvProofEngine *engine,
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool execute_strategy_induction(lvProofEngine *engine,
-                                        const Proposition *goal,
-                                        lvProofTraceTree *tree) {
-    if (!engine || !goal || !tree) return false;
+static bool execute_strategy_induction(lvProofEngine *engine, const Proposition *goal, lvProofTraceTree *tree) {
+    if (!engine || !goal || !tree)
+        return false;
 
     /* 基础步节点 */
-    lvProofTraceNode *base_node = lv_trace_node_create(
-        TRACE_NODE_DERIVATION, "Base Case (n=0)");
+    lvProofTraceNode *base_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Base Case (n=0)");
     if (base_node) {
-        safe_strncpy(base_node->description,
-                     "验证基础情况：当 n=0 时命题成立",
-                     sizeof(base_node->description));
+        safe_strncpy(base_node->description, "验证基础情况：当 n=0 时命题成立", sizeof(base_node->description));
         lv_trace_node_set_status(base_node, TRACE_STATUS_PROVED);
         lv_trace_node_add_child(tree->root, base_node);
         trace_tree_register_node(tree, base_node);
     }
 
     /* 归纳假设节点 */
-    lvProofTraceNode *ih_node = lv_trace_node_create(
-        TRACE_NODE_HYPOTHESIS, "Inductive Hypothesis");
+    lvProofTraceNode *ih_node = lv_trace_node_create(TRACE_NODE_HYPOTHESIS, "Inductive Hypothesis");
     if (ih_node) {
-        safe_strncpy(ih_node->description,
-                     "归纳假设：假设命题在 n=k 时成立",
-                     sizeof(ih_node->description));
+        safe_strncpy(ih_node->description, "归纳假设：假设命题在 n=k 时成立", sizeof(ih_node->description));
         lv_trace_node_set_status(ih_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, ih_node);
         trace_tree_register_node(tree, ih_node);
     }
 
     /* 归纳步节点 */
-    lvProofTraceNode *step_node = lv_trace_node_create(
-        TRACE_NODE_DERIVATION, "Inductive Step (k -> k+1)");
+    lvProofTraceNode *step_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Inductive Step (k -> k+1)");
     if (step_node) {
-        safe_strncpy(step_node->description,
-                     "归纳步：由 n=k 成立推导 n=k+1 也成立",
-                     sizeof(step_node->description));
+        safe_strncpy(step_node->description, "归纳步：由 n=k 成立推导 n=k+1 也成立", sizeof(step_node->description));
         lv_trace_node_set_status(step_node, TRACE_STATUS_PROVED);
         lv_trace_node_add_child(tree->root, step_node);
         trace_tree_register_node(tree, step_node);
@@ -1842,16 +1764,13 @@ static bool execute_strategy_induction(lvProofEngine *engine,
      */
     if (base_ok) {
         /* 构造蕴含式命题 P(k) -> P(k+1) */
-        Proposition *impl = proposition_create(
-            goal->id + 10000, PROPOSITION_TYPE_IMPLICATION);
+        Proposition *impl = proposition_create(goal->id + 10000, PROPOSITION_TYPE_IMPLICATION);
         if (impl) {
             /* 前提：归纳假设 P(k) —— 复制原目标结构作为 P(k) 的代表 */
-            Proposition *ih_prop = proposition_create(
-                goal->id + 10001, goal->type);
+            Proposition *ih_prop = proposition_create(goal->id + 10001, goal->type);
             if (ih_prop) {
                 ih_prop->name = lv_strdup(goal->name ? goal->name : "P(k)");
-                ih_prop->description = lv_strdup(
-                    "归纳假设：假设命题在 n=k 时成立 (P(k))");
+                ih_prop->description = lv_strdup("归纳假设：假设命题在 n=k 时成立 (P(k))");
                 /* 复制子命题结构以保留原始命题的语义 */
                 for (int si = 0; si < goal->sub_prop_count; si++) {
                     if (goal->sub_props[si]) {
@@ -1863,12 +1782,10 @@ static bool execute_strategy_induction(lvProofEngine *engine,
             }
 
             /* 结论：归纳目标 P(k+1) —— 复制原目标结构作为 P(k+1) 的代表 */
-            Proposition *goal_prop = proposition_create(
-                goal->id + 10002, goal->type);
+            Proposition *goal_prop = proposition_create(goal->id + 10002, goal->type);
             if (goal_prop) {
                 goal_prop->name = lv_strdup(goal->name ? goal->name : "P(k+1)");
-                goal_prop->description = lv_strdup(
-                    "归纳目标：证明命题在 n=k+1 时也成立 (P(k+1))");
+                goal_prop->description = lv_strdup("归纳目标：证明命题在 n=k+1 时也成立 (P(k+1))");
                 for (int si = 0; si < goal->sub_prop_count; si++) {
                     if (goal->sub_props[si]) {
                         proposition_ref(goal->sub_props[si]);
@@ -1919,10 +1836,9 @@ static bool execute_strategy_induction(lvProofEngine *engine,
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool execute_strategy_cases(lvProofEngine *engine,
-                                    const Proposition *goal,
-                                    lvProofTraceTree *tree) {
-    if (!engine || !goal || !tree) return false;
+static bool execute_strategy_cases(lvProofEngine *engine, const Proposition *goal, lvProofTraceTree *tree) {
+    if (!engine || !goal || !tree)
+        return false;
 
     /* 根据命题类型确定分情况方式 */
     int num_cases = 2; /* 默认分为两种情况 */
@@ -1933,19 +1849,17 @@ static bool execute_strategy_cases(lvProofEngine *engine,
 
     bool all_proved = true;
 
-    for (int c = 0; c < num_cases && c < (int)lv_PROOF_MAX_BRANCHES; c++) {
+    for (int c = 0; c < num_cases && c < (int) lv_PROOF_MAX_BRANCHES; c++) {
         char case_label[128];
         snprintf(case_label, sizeof(case_label), "Case %d", c + 1);
 
-        lvProofTraceNode *case_node = lv_trace_node_create(
-            TRACE_NODE_DERIVATION, case_label);
+        lvProofTraceNode *case_node = lv_trace_node_create(TRACE_NODE_DERIVATION, case_label);
         if (!case_node) {
             all_proved = false;
             continue;
         }
 
-        snprintf(case_node->description, sizeof(case_node->description),
-                 "第 %d 种情况的分析与证明", c + 1);
+        snprintf(case_node->description, sizeof(case_node->description), "第 %d 种情况的分析与证明", c + 1);
 
         /* 尝试对每种情况使用直接证明 */
         bool case_success = execute_strategy_direct(engine, goal, tree);
@@ -1975,57 +1889,47 @@ static bool execute_strategy_cases(lvProofEngine *engine,
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool execute_strategy_construction(lvProofEngine *engine,
-                                           const Proposition *goal,
-                                           lvProofTraceTree *tree) {
-    if (!engine || !goal || !tree) return false;
+static bool execute_strategy_construction(lvProofEngine *engine, const Proposition *goal, lvProofTraceTree *tree) {
+    if (!engine || !goal || !tree)
+        return false;
 
     /* 构造步骤节点 */
-    lvProofTraceNode *construct_node = lv_trace_node_create(
-        TRACE_NODE_DEFINITION, "Explicit Construction");
-    if (!construct_node) return false;
+    lvProofTraceNode *construct_node = lv_trace_node_create(TRACE_NODE_DEFINITION, "Explicit Construction");
+    if (!construct_node)
+        return false;
 
-    safe_strncpy(construct_node->description,
-                 "构造满足目标命题的数学对象",
-                 sizeof(construct_node->description));
+    safe_strncpy(construct_node->description, "构造满足目标命题的数学对象", sizeof(construct_node->description));
 
     /* 使用规则库尝试构造 */
     bool success = false;
 
     if (engine->rule_library && engine->graph) {
         /* 查找构造规则 */
-        lvRule **construct_rules = (lvRule **)lv_malloc(
-            16 * sizeof(lvRule *));
+        lvRule **construct_rules = (lvRule **) lv_malloc(16 * sizeof(lvRule *));
         if (construct_rules) {
-            uint32_t rule_count = lv_rule_library_get_by_type(
-                engine->rule_library, RULE_TYPE_CONSTRUCTOR,
-                construct_rules, 16);
+            uint32_t rule_count =
+                lv_rule_library_get_by_type(engine->rule_library, RULE_TYPE_CONSTRUCTOR, construct_rules, 16);
 
             for (uint32_t r = 0; r < rule_count && !success; r++) {
-                if (lv_rule_is_applicable(construct_rules[r],
-                                             engine->graph,
-                                             engine->navigator)) {
+                if (lv_rule_is_applicable(construct_rules[r], engine->graph, engine->navigator)) {
                     lvRuleMatch match;
                     memset(&match, 0, sizeof(match));
                     match.rule = construct_rules[r];
                     match.is_complete = true;
                     match.confidence = 1.0;
 
-                    ProofStep **new_steps = (ProofStep **)lv_malloc(
-                        4 * sizeof(ProofStep *));
+                    ProofStep **new_steps = (ProofStep **) lv_malloc(4 * sizeof(ProofStep *));
                     if (new_steps) {
-                        uint32_t sc = lv_rule_apply_match(
-                            &match, engine->graph, engine->navigator,
-                            new_steps, 4);
+                        uint32_t sc = lv_rule_apply_match(&match, engine->graph, engine->navigator, new_steps, 4);
                         if (sc > 0) {
                             success = true;
                         }
-                        lv_free((void **)&new_steps);
+                        lv_free((void **) &new_steps);
                     }
                 }
             }
 
-            lv_free((void **)&construct_rules);
+            lv_free((void **) &construct_rules);
         }
     }
 
@@ -2052,34 +1956,28 @@ static bool execute_strategy_construction(lvProofEngine *engine,
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool execute_strategy_unfolding(lvProofEngine *engine,
-                                        const Proposition *goal,
-                                        lvProofTraceTree *tree) {
-    if (!engine || !goal || !tree) return false;
+static bool execute_strategy_unfolding(lvProofEngine *engine, const Proposition *goal, lvProofTraceTree *tree) {
+    if (!engine || !goal || !tree)
+        return false;
 
     /* 查找并展开定义 */
     if (engine->rule_library) {
-        lvRule **def_rules = (lvRule **)lv_malloc(
-            16 * sizeof(lvRule *));
+        lvRule **def_rules = (lvRule **) lv_malloc(16 * sizeof(lvRule *));
         if (def_rules) {
-            uint32_t rule_count = lv_rule_library_get_by_type(
-                engine->rule_library, RULE_TYPE_DEFINITION,
-                def_rules, 16);
+            uint32_t rule_count =
+                lv_rule_library_get_by_type(engine->rule_library, RULE_TYPE_DEFINITION, def_rules, 16);
 
             for (uint32_t r = 0; r < rule_count; r++) {
-                lvProofTraceNode *unfold_node = lv_trace_node_create(
-                    TRACE_NODE_DEFINITION, def_rules[r]->name);
+                lvProofTraceNode *unfold_node = lv_trace_node_create(TRACE_NODE_DEFINITION, def_rules[r]->name);
                 if (unfold_node) {
-                    safe_strncpy(unfold_node->description,
-                                 def_rules[r]->description,
-                                 sizeof(unfold_node->description));
+                    safe_strncpy(unfold_node->description, def_rules[r]->description, sizeof(unfold_node->description));
                     lv_trace_node_set_status(unfold_node, TRACE_STATUS_PROVED);
                     lv_trace_node_add_child(tree->root, unfold_node);
                     trace_tree_register_node(tree, unfold_node);
                 }
             }
 
-            lv_free((void **)&def_rules);
+            lv_free((void **) &def_rules);
         }
     }
 
@@ -2098,18 +1996,14 @@ static bool execute_strategy_unfolding(lvProofEngine *engine,
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool execute_strategy_backward(lvProofEngine *engine,
-                                       const Proposition *goal,
-                                       lvProofTraceTree *tree) {
-    if (!engine || !goal || !tree) return false;
+static bool execute_strategy_backward(lvProofEngine *engine, const Proposition *goal, lvProofTraceTree *tree) {
+    if (!engine || !goal || !tree)
+        return false;
 
     /* 创建逆向推理起始节点 */
-    lvProofTraceNode *back_node = lv_trace_node_create(
-        TRACE_NODE_GOAL, "Backward Analysis");
+    lvProofTraceNode *back_node = lv_trace_node_create(TRACE_NODE_GOAL, "Backward Analysis");
     if (back_node) {
-        safe_strncpy(back_node->description,
-                     "从目标出发，逆向分析所需前提",
-                     sizeof(back_node->description));
+        safe_strncpy(back_node->description, "从目标出发，逆向分析所需前提", sizeof(back_node->description));
         lv_trace_node_set_status(back_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, back_node);
         trace_tree_register_node(tree, back_node);
@@ -2119,10 +2013,10 @@ static bool execute_strategy_backward(lvProofEngine *engine,
     if (goal->sub_props) {
         for (int i = 0; i < goal->sub_prop_count; i++) {
             Proposition *sub = goal->sub_props[i];
-            if (!sub) continue;
+            if (!sub)
+                continue;
 
-            lvProofTraceNode *sub_goal = lv_trace_node_create(
-                TRACE_NODE_GOAL, sub->name ? sub->name : "Sub-goal");
+            lvProofTraceNode *sub_goal = lv_trace_node_create(TRACE_NODE_GOAL, sub->name ? sub->name : "Sub-goal");
             if (sub_goal) {
                 sub_goal->proposition = sub;
                 lv_trace_node_set_status(sub_goal, TRACE_STATUS_EXPLORING);
@@ -2147,10 +2041,9 @@ static bool execute_strategy_backward(lvProofEngine *engine,
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool execute_strategy_forward(lvProofEngine *engine,
-                                      const Proposition *goal,
-                                      lvProofTraceTree *tree) {
-    if (!engine || !goal || !tree) return false;
+static bool execute_strategy_forward(lvProofEngine *engine, const Proposition *goal, lvProofTraceTree *tree) {
+    if (!engine || !goal || !tree)
+        return false;
 
     uint32_t max_steps = engine->config.max_depth;
     uint32_t step = 0;
@@ -2158,11 +2051,9 @@ static bool execute_strategy_forward(lvProofEngine *engine,
     while (step < max_steps) {
         /* 检查是否已到达目标 */
         if (engine->graph) {
-            UnifyStatus result = proof_unify(
-                engine->graph, (Proposition *)goal, false);
+            UnifyStatus result = proof_unify(engine->graph, (Proposition *) goal, false);
             if (result == UNIFY_STATUS_OK) {
-                lvProofTraceNode *final_node = lv_trace_node_create(
-                    TRACE_NODE_DERIVATION, "Goal Reached");
+                lvProofTraceNode *final_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Goal Reached");
                 if (final_node) {
                     lv_trace_node_set_status(final_node, TRACE_STATUS_PROVED);
                     lv_trace_node_add_child(tree->root, final_node);
@@ -2174,24 +2065,17 @@ static bool execute_strategy_forward(lvProofEngine *engine,
 
         /* 应用规则 */
         if (engine->rule_library && engine->graph) {
-            lvRuleMatch **matches = (lvRuleMatch **)lv_malloc(
-                8 * sizeof(lvRuleMatch *));
+            lvRuleMatch **matches = (lvRuleMatch **) lv_malloc(8 * sizeof(lvRuleMatch *));
             if (matches) {
-                uint32_t mc = lv_rule_find_matches(
-                    engine->rule_library, engine->graph, engine->navigator,
-                    matches, 8);
+                uint32_t mc = lv_rule_find_matches(engine->rule_library, engine->graph, engine->navigator, matches, 8);
 
                 if (mc > 0) {
-                    ProofStep **new_steps = (ProofStep **)lv_malloc(
-                        4 * sizeof(ProofStep *));
+                    ProofStep **new_steps = (ProofStep **) lv_malloc(4 * sizeof(ProofStep *));
                     if (new_steps) {
-                        lv_rule_apply_match(
-                            matches[0], engine->graph, engine->navigator,
-                            new_steps, 4);
+                        lv_rule_apply_match(matches[0], engine->graph, engine->navigator, new_steps, 4);
 
                         lvProofTraceNode *fwd_node = lv_trace_node_create(
-                            TRACE_NODE_DERIVATION,
-                            matches[0]->rule ? matches[0]->rule->name : "Forward Step");
+                            TRACE_NODE_DERIVATION, matches[0]->rule ? matches[0]->rule->name : "Forward Step");
                         if (fwd_node) {
                             fwd_node->rule = matches[0]->rule;
                             lv_trace_node_set_status(fwd_node, TRACE_STATUS_EXPLORING);
@@ -2199,14 +2083,14 @@ static bool execute_strategy_forward(lvProofEngine *engine,
                             trace_tree_register_node(tree, fwd_node);
                         }
 
-                        lv_free((void **)&new_steps);
+                        lv_free((void **) &new_steps);
                     }
                 }
 
                 for (uint32_t m = 0; m < mc; m++) {
                     lv_rule_match_destroy(matches[m]);
                 }
-                lv_free((void **)&matches);
+                lv_free((void **) &matches);
             }
         }
 
@@ -2227,18 +2111,14 @@ static bool execute_strategy_forward(lvProofEngine *engine,
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool execute_strategy_hybrid(lvProofEngine *engine,
-                                     const Proposition *goal,
-                                     lvProofTraceTree *tree) {
-    if (!engine || !goal || !tree) return false;
+static bool execute_strategy_hybrid(lvProofEngine *engine, const Proposition *goal, lvProofTraceTree *tree) {
+    if (!engine || !goal || !tree)
+        return false;
 
     /* 阶段 1: 逆向分析 */
-    lvProofTraceNode *analysis_node = lv_trace_node_create(
-        TRACE_NODE_DERIVATION, "Phase 1: Backward Analysis");
+    lvProofTraceNode *analysis_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Phase 1: Backward Analysis");
     if (analysis_node) {
-        safe_strncpy(analysis_node->description,
-                     "混合策略阶段1：逆向分析目标结构",
-                     sizeof(analysis_node->description));
+        safe_strncpy(analysis_node->description, "混合策略阶段1：逆向分析目标结构", sizeof(analysis_node->description));
         lv_trace_node_set_status(analysis_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, analysis_node);
         trace_tree_register_node(tree, analysis_node);
@@ -2255,11 +2135,9 @@ static bool execute_strategy_hybrid(lvProofEngine *engine,
     }
 
     /* 阶段 3: 尝试反证法 */
-    lvProofTraceNode *contra_node = lv_trace_node_create(
-        TRACE_NODE_DERIVATION, "Phase 3: Contradiction Fallback");
+    lvProofTraceNode *contra_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Phase 3: Contradiction Fallback");
     if (contra_node) {
-        safe_strncpy(contra_node->description,
-                     "混合策略阶段3：正向推理失败，切换到反证法",
+        safe_strncpy(contra_node->description, "混合策略阶段3：正向推理失败，切换到反证法",
                      sizeof(contra_node->description));
         lv_trace_node_set_status(contra_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, contra_node);
@@ -2267,8 +2145,7 @@ static bool execute_strategy_hybrid(lvProofEngine *engine,
     }
 
     lvContradictionPath *contra_path = NULL;
-    bool contra_ok = lv_engine_proof_by_contradiction(
-        engine, goal, engine->config.max_depth, &contra_path);
+    bool contra_ok = lv_engine_proof_by_contradiction(engine, goal, engine->config.max_depth, &contra_path);
 
     if (contra_ok) {
         if (contra_node) {
@@ -2297,18 +2174,16 @@ static bool execute_strategy_hybrid(lvProofEngine *engine,
  * @param tree   溯源树
  * @return 是否成功
  */
-static bool dispatch_strategy(lvProofEngine *engine,
-                               const Proposition *goal,
-                               lvStrategyType type,
-                               lvProofTraceTree *tree) {
+static bool dispatch_strategy(lvProofEngine *engine, const Proposition *goal, lvStrategyType type,
+                              lvProofTraceTree *tree) {
     switch (type) {
         case STRATEGY_DIRECT:
             return execute_strategy_direct(engine, goal, tree);
         case STRATEGY_CONTRADICTION: {
             lvContradictionPath *path = NULL;
-            bool ok = lv_engine_proof_by_contradiction(
-                engine, goal, engine->config.max_depth, &path);
-            if (path) lv_contradiction_path_destroy(path);
+            bool ok = lv_engine_proof_by_contradiction(engine, goal, engine->config.max_depth, &path);
+            if (path)
+                lv_contradiction_path_destroy(path);
             return ok;
         }
         case STRATEGY_CONTRAPOSITIVE:
@@ -2345,14 +2220,10 @@ static bool dispatch_strategy(lvProofEngine *engine,
  * @param out_trace     输出溯源树
  * @return true 证明成功，false 证明失败
  */
-bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine,
-                                            const Proposition *goal,
-                                            ConstraintGraph *graph,
-                                            lvStrategyType strategy_type,
-                                            lvProofTraceTree **out_trace) {
+bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine, const Proposition *goal, ConstraintGraph *graph,
+                                         lvStrategyType strategy_type, lvProofTraceTree **out_trace) {
     if (!engine || !goal || !out_trace) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "证明参数为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "证明参数为 NULL");
         return false;
     }
 
@@ -2362,15 +2233,14 @@ bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine,
     engine->graph = graph;
 
     /* 创建溯源树 */
-    lvProofTraceTree *tree = lv_trace_tree_create((Proposition *)goal);
-    if (!tree) return false;
+    lvProofTraceTree *tree = lv_trace_tree_create((Proposition *) goal);
+    if (!tree)
+        return false;
 
     /* 记录策略信息到根节点描述 */
     if (tree->root) {
-        snprintf(tree->root->description, sizeof(tree->root->description),
-                 "使用 %s 策略证明: %s",
-                 get_strategy_name_zh(strategy_type),
-                 goal->name ? goal->name : "unnamed goal");
+        snprintf(tree->root->description, sizeof(tree->root->description), "使用 %s 策略证明: %s",
+                 get_strategy_name_zh(strategy_type), goal->name ? goal->name : "unnamed goal");
     }
 
     /* 记录开始时间 */
@@ -2381,7 +2251,7 @@ bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine,
 
     /* 记录结束时间 */
     int64_t end_time = get_time_ns();
-    double elapsed = (double)(end_time - start_time) / 1e6;
+    double elapsed = (double) (end_time - start_time) / 1e6;
 
     /* 更新溯源树状态 */
     if (success) {
@@ -2405,8 +2275,7 @@ bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine,
         engine->success_proofs++;
     }
     engine->avg_proof_time_ms =
-        (engine->avg_proof_time_ms * (double)(engine->total_proofs - 1) + elapsed) /
-        (double)engine->total_proofs;
+        (engine->avg_proof_time_ms * (double) (engine->total_proofs - 1) + elapsed) / (double) engine->total_proofs;
 
     engine->current_trace = tree;
     *out_trace = tree;
@@ -2426,27 +2295,20 @@ bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine,
  * @param out_trace 输出溯源树
  * @return true 证明成功，false 证明失败
  */
-bool lv_proof_engine_prove(lvProofEngine *engine,
-                              const Proposition *goal,
-                              ConstraintGraph *graph,
-                              lvProofTraceTree **out_trace) {
+bool lv_proof_engine_prove(lvProofEngine *engine, const Proposition *goal, ConstraintGraph *graph,
+                           lvProofTraceTree **out_trace) {
     if (!engine || !goal || !out_trace) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "证明参数为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "证明参数为 NULL");
         return false;
     }
 
     /* 如果有注册的策略，使用第一个 */
     if (engine->strategy_count > 0) {
-        return lv_proof_engine_prove_with_strategy(
-            engine, goal, graph,
-            engine->strategies[0].type,
-            out_trace);
+        return lv_proof_engine_prove_with_strategy(engine, goal, graph, engine->strategies[0].type, out_trace);
     }
 
     /* 默认使用直接证明 */
-    return lv_proof_engine_prove_with_strategy(
-        engine, goal, graph, STRATEGY_DIRECT, out_trace);
+    return lv_proof_engine_prove_with_strategy(engine, goal, graph, STRATEGY_DIRECT, out_trace);
 }
 
 /**
@@ -2462,14 +2324,10 @@ bool lv_proof_engine_prove(lvProofEngine *engine,
  * @param out_strategy 输出使用的策略类型
  * @return true 证明成功，false 所有策略均失败
  */
-bool lv_proof_engine_auto_prove(lvProofEngine *engine,
-                                   const Proposition *goal,
-                                   ConstraintGraph *graph,
-                                   lvProofTraceTree **out_trace,
-                                   lvStrategyType *out_strategy) {
+bool lv_proof_engine_auto_prove(lvProofEngine *engine, const Proposition *goal, ConstraintGraph *graph,
+                                lvProofTraceTree **out_trace, lvStrategyType *out_strategy) {
     if (!engine || !goal || !out_trace) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "自动证明参数为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "自动证明参数为 NULL");
         return false;
     }
 
@@ -2482,10 +2340,7 @@ bool lv_proof_engine_auto_prove(lvProofEngine *engine,
     if (engine->strategy_count > 0) {
         for (uint32_t i = 0; i < engine->strategy_count; i++) {
             lvProofTraceTree *trace = NULL;
-            bool success = lv_proof_engine_prove_with_strategy(
-                engine, goal, graph,
-                engine->strategies[i].type,
-                &trace);
+            bool success = lv_proof_engine_prove_with_strategy(engine, goal, graph, engine->strategies[i].type, &trace);
 
             if (success) {
                 *out_trace = trace;
@@ -2503,24 +2358,13 @@ bool lv_proof_engine_auto_prove(lvProofEngine *engine,
     } else {
         /* 没有注册策略，尝试所有内置策略 */
         static const lvStrategyType builtin_strategies[] = {
-            STRATEGY_DIRECT,
-            STRATEGY_CONTRADICTION,
-            STRATEGY_CONTRAPOSITIVE,
-            STRATEGY_INDUCTION,
-            STRATEGY_CASES,
-            STRATEGY_CONSTRUCTION,
-            STRATEGY_UNFOLDING,
-            STRATEGY_BACKWARD,
-            STRATEGY_FORWARD,
-            STRATEGY_HYBRID
-        };
+            STRATEGY_DIRECT,  STRATEGY_CONTRADICTION, STRATEGY_CONTRAPOSITIVE, STRATEGY_INDUCTION,
+            STRATEGY_CASES,   STRATEGY_CONSTRUCTION,  STRATEGY_UNFOLDING,      STRATEGY_BACKWARD,
+            STRATEGY_FORWARD, STRATEGY_HYBRID};
 
         for (int i = 0; i < 10; i++) {
             lvProofTraceTree *trace = NULL;
-            bool success = lv_proof_engine_prove_with_strategy(
-                engine, goal, graph,
-                builtin_strategies[i],
-                &trace);
+            bool success = lv_proof_engine_prove_with_strategy(engine, goal, graph, builtin_strategies[i], &trace);
 
             if (success) {
                 *out_trace = trace;
@@ -2536,8 +2380,7 @@ bool lv_proof_engine_auto_prove(lvProofEngine *engine,
         }
     }
 
-    lv_set_error(lv_ERROR_PROOF_INCOMPLETE,
-                   "所有证明策略均失败");
+    lv_set_error(lv_ERROR_PROOF_INCOMPLETE, "所有证明策略均失败");
     return false;
 }
 
@@ -2551,15 +2394,17 @@ bool lv_proof_engine_auto_prove(lvProofEngine *engine,
  * @param out_success 输出成功次数（可为 NULL）
  * @param out_avg_time 输出平均时间（毫秒，可为 NULL）
  */
-void lv_proof_engine_get_stats(const lvProofEngine *engine,
-                                  uint64_t *out_total,
-                                  uint64_t *out_success,
-                                  double *out_avg_time) {
-    if (!engine) return;
+void lv_proof_engine_get_stats(const lvProofEngine *engine, uint64_t *out_total, uint64_t *out_success,
+                               double *out_avg_time) {
+    if (!engine)
+        return;
 
-    if (out_total) *out_total = engine->total_proofs;
-    if (out_success) *out_success = engine->success_proofs;
-    if (out_avg_time) *out_avg_time = engine->avg_proof_time_ms;
+    if (out_total)
+        *out_total = engine->total_proofs;
+    if (out_success)
+        *out_success = engine->success_proofs;
+    if (out_avg_time)
+        *out_avg_time = engine->avg_proof_time_ms;
 }
 
 /* ============== 证明验证 ============== */
@@ -2578,8 +2423,7 @@ void lv_proof_engine_get_stats(const lvProofEngine *engine,
  * @param out_error 输出错误消息（缓冲区至少 512 字节）
  * @return 验证结果
  */
-lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace,
-                                    char *out_error) {
+lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error) {
     if (!trace) {
         if (out_error) {
             snprintf(out_error, 512, "溯源树为 NULL");
@@ -2597,9 +2441,8 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace,
     /* 检查根节点状态 */
     if (trace->root->status != TRACE_STATUS_PROVED) {
         if (out_error) {
-            snprintf(out_error, 512,
-                     "根节点状态为 %d（期望 PROVED=%d）",
-                     (int)trace->root->status, (int)TRACE_STATUS_PROVED);
+            snprintf(out_error, 512, "根节点状态为 %d（期望 PROVED=%d）", (int) trace->root->status,
+                     (int) TRACE_STATUS_PROVED);
         }
         return lv_VERIFY_INCOMPLETE;
     }
@@ -2611,20 +2454,15 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace,
         /* 推导节点必须有子节点（依赖） */
         if (node->type == TRACE_NODE_DERIVATION && node->child_count == 0) {
             if (out_error) {
-                snprintf(out_error, 512,
-                         "推导节点 %u ('%s') 没有子节点（缺少推导依据）",
-                         node->id, node->label);
+                snprintf(out_error, 512, "推导节点 %u ('%s') 没有子节点（缺少推导依据）", node->id, node->label);
             }
             return lv_VERIFY_INVALID;
         }
 
         /* 检查未完成的子目标 */
-        if (node->type == TRACE_NODE_GOAL &&
-            node->status == TRACE_STATUS_UNEXPLORED) {
+        if (node->type == TRACE_NODE_GOAL && node->status == TRACE_STATUS_UNEXPLORED) {
             if (out_error) {
-                snprintf(out_error, 512,
-                         "子目标节点 %u ('%s') 未被探索",
-                         node->id, node->label);
+                snprintf(out_error, 512, "子目标节点 %u ('%s') 未被探索", node->id, node->label);
             }
             return lv_VERIFY_INCOMPLETE;
         }
@@ -2635,9 +2473,8 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace,
     if (computed != trace->final_color) {
         /* 警告但不标记为无效 */
         if (out_error) {
-            snprintf(out_error, 512,
-                     "警告：信任颜色不一致（计算值=%d, 记录值=%d）",
-                     (int)computed, (int)trace->final_color);
+            snprintf(out_error, 512, "警告：信任颜色不一致（计算值=%d, 记录值=%d）", (int) computed,
+                     (int) trace->final_color);
         }
     }
 
@@ -2658,9 +2495,7 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace,
  * @param out_error 输出错误消息（缓冲区至少 512 字节）
  * @return 验证结果
  */
-lvVerifyResult lv_verify_proof_step(const ProofStep *step,
-                                         const ConstraintGraph *graph,
-                                         char *out_error) {
+lvVerifyResult lv_verify_proof_step(const ProofStep *step, const ConstraintGraph *graph, char *out_error) {
     if (!step) {
         if (out_error) {
             snprintf(out_error, 512, "证明步骤为 NULL");
@@ -2671,9 +2506,7 @@ lvVerifyResult lv_verify_proof_step(const ProofStep *step,
     /* 检查步骤类型 */
     if (step->type < PROOF_STEP_ADD_NODE || step->type > PROOF_STEP_ORACLE) {
         if (out_error) {
-            snprintf(out_error, 512,
-                     "步骤 %d 的类型 %d 无效",
-                     step->id, (int)step->type);
+            snprintf(out_error, 512, "步骤 %d 的类型 %d 无效", step->id, (int) step->type);
         }
         return lv_VERIFY_INVALID;
     }
@@ -2681,9 +2514,7 @@ lvVerifyResult lv_verify_proof_step(const ProofStep *step,
     /* 检查步骤是否完成 */
     if (!step->is_completed) {
         if (out_error) {
-            snprintf(out_error, 512,
-                     "步骤 %d 尚未完成",
-                     step->id);
+            snprintf(out_error, 512, "步骤 %d 尚未完成", step->id);
         }
         return lv_VERIFY_INCOMPLETE;
     }
@@ -2696,9 +2527,7 @@ lvVerifyResult lv_verify_proof_step(const ProofStep *step,
         }
         if (!found) {
             if (out_error) {
-                snprintf(out_error, 512,
-                         "步骤 %d 引用的约束 %d 在约束图中不存在",
-                         step->id, step->constraint_id);
+                snprintf(out_error, 512, "步骤 %d 引用的约束 %d 在约束图中不存在", step->id, step->constraint_id);
             }
             return lv_VERIFY_INVALID;
         }
@@ -2722,7 +2551,8 @@ lvVerifyResult lv_verify_proof_step(const ProofStep *step,
  * @return true 节点是冗余的
  */
 static bool is_redundant_node(const lvProofTraceNode *node) {
-    if (!node) return false;
+    if (!node)
+        return false;
 
     /* 无子节点的推导节点是冗余的 */
     if (node->type == TRACE_NODE_DERIVATION && node->child_count == 0) {
@@ -2754,20 +2584,18 @@ static bool is_redundant_node(const lvProofTraceNode *node) {
  * @param out_optimized 输出优化后的溯源树
  * @return true 成功优化（或无需优化），false 参数无效
  */
-bool lv_optimize_proof(const lvProofTraceTree *trace,
-                          lvProofTraceTree **out_optimized) {
+bool lv_optimize_proof(const lvProofTraceTree *trace, lvProofTraceTree **out_optimized) {
     if (!trace || !out_optimized) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "优化证明参数为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "优化证明参数为 NULL");
         return false;
     }
 
     *out_optimized = NULL;
 
     /* 创建新的溯源树 */
-    lvProofTraceTree *optimized = lv_trace_tree_create(
-        trace->root ? trace->root->proposition : NULL);
-    if (!optimized) return false;
+    lvProofTraceTree *optimized = lv_trace_tree_create(trace->root ? trace->root->proposition : NULL);
+    if (!optimized)
+        return false;
 
     /* 复制非冗余节点 */
     uint32_t removed_count = 0;
@@ -2776,7 +2604,8 @@ bool lv_optimize_proof(const lvProofTraceTree *trace,
         lvProofTraceNode *src_node = trace->all_nodes[i];
 
         /* 跳过根节点（已由 create 创建） */
-        if (src_node == trace->root) continue;
+        if (src_node == trace->root)
+            continue;
 
         /* 跳过冗余节点 */
         if (is_redundant_node(src_node)) {
@@ -2785,12 +2614,11 @@ bool lv_optimize_proof(const lvProofTraceTree *trace,
         }
 
         /* 创建新节点并复制属性 */
-        lvProofTraceNode *new_node = lv_trace_node_create(
-            src_node->type, src_node->label);
-        if (!new_node) continue;
+        lvProofTraceNode *new_node = lv_trace_node_create(src_node->type, src_node->label);
+        if (!new_node)
+            continue;
 
-        safe_strncpy(new_node->description, src_node->description,
-                     sizeof(new_node->description));
+        safe_strncpy(new_node->description, src_node->description, sizeof(new_node->description));
         new_node->status = src_node->status;
         new_node->trust_color = src_node->trust_color;
         new_node->proposition = src_node->proposition;
@@ -2809,7 +2637,7 @@ bool lv_optimize_proof(const lvProofTraceTree *trace,
     trace_tree_update_stats(optimized);
 
     *out_optimized = optimized;
-    (void)removed_count; /* 统计已消除的冗余节点数，供调试使用 */
+    (void) removed_count; /* 统计已消除的冗余节点数，供调试使用 */
     return true;
 }
 
@@ -2828,7 +2656,8 @@ bool lv_optimize_proof(const lvProofTraceTree *trace,
  * @return 复杂度分数（0-10000）
  */
 uint32_t lv_compute_proof_complexity(const lvProofTraceTree *trace) {
-    if (!trace) return 0;
+    if (!trace)
+        return 0;
 
     uint32_t score = 0;
 
@@ -2844,15 +2673,15 @@ uint32_t lv_compute_proof_complexity(const lvProofTraceTree *trace) {
         for (uint32_t i = 0; i < trace->node_count; i++) {
             total_children += trace->all_nodes[i]->child_count;
         }
-        double avg_branch = (double)total_children / (double)trace->node_count;
-        score += (uint32_t)(avg_branch * 2);
+        double avg_branch = (double) total_children / (double) trace->node_count;
+        score += (uint32_t) (avg_branch * 2);
     }
 
     /* 未完成节点贡献 */
     uint32_t incomplete = trace->node_count - trace->proved_count - trace->disproved_count;
     if (trace->node_count > 0) {
-        double incomplete_ratio = (double)incomplete / (double)trace->node_count;
-        score += (uint32_t)(incomplete_ratio * 5000);
+        double incomplete_ratio = (double) incomplete / (double) trace->node_count;
+        score += (uint32_t) (incomplete_ratio * 5000);
     }
 
     return score;
@@ -2870,7 +2699,8 @@ uint32_t lv_compute_proof_complexity(const lvProofTraceTree *trace) {
  * @return 简化后的步骤数
  */
 uint32_t lv_simplify_proof(lvProofTraceTree *trace) {
-    if (!trace) return 0;
+    if (!trace)
+        return 0;
 
     uint32_t removed = 0;
 
@@ -2911,21 +2741,19 @@ uint32_t lv_simplify_proof(lvProofTraceTree *trace) {
  * @param lang  输出语言（中文/英文）
  * @return 自然语言文本（调用者需用 lv_free 释放），失败返回 NULL
  */
-char *lv_proof_to_natural_language(const lvProofTraceTree *trace,
-                                      ProofNaturalLanguage lang) {
+char *lv_proof_to_natural_language(const lvProofTraceTree *trace, ProofNaturalLanguage lang) {
     if (!trace) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "导出自然语言时溯源树为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "导出自然语言时溯源树为 NULL");
         return NULL;
     }
 
     StringBuffer *buf = string_buffer_create();
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
 
     const char *proof_str = (lang == PROOF_NL_LANG_ZH_CN) ? "证明" : "Proof";
-    const char *begin_str = (lang == PROOF_NL_LANG_ZH_CN) ?
-        "以下是该命题的证明过程：" :
-        "Below is the proof of this proposition:";
+    const char *begin_str =
+        (lang == PROOF_NL_LANG_ZH_CN) ? "以下是该命题的证明过程：" : "Below is the proof of this proposition:";
 
     string_buffer_append(buf, "%s\n", proof_str);
     string_buffer_append(buf, "%s\n\n", begin_str);
@@ -2935,7 +2763,8 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace,
         lvProofTraceNode *node = trace->all_nodes[i];
 
         /* 跳过根节点 */
-        if (node == trace->root) continue;
+        if (node == trace->root)
+            continue;
 
         const char *status_str;
         switch (node->status) {
@@ -2985,8 +2814,7 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace,
         }
 
         if (lang == PROOF_NL_LANG_ZH_CN) {
-            string_buffer_append(buf, "步骤 %u: [%s] %s %s",
-                                 i + 1, type_str, node->label, status_str);
+            string_buffer_append(buf, "步骤 %u: [%s] %s %s", i + 1, type_str, node->label, status_str);
 
             if (node->description[0] != '\0') {
                 string_buffer_append(buf, "\n  说明: %s", node->description);
@@ -3000,8 +2828,7 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace,
                 string_buffer_append(buf, "\n  耗时: %.2f ms", node->elapsed_ms);
             }
         } else {
-            string_buffer_append(buf, "Step %u: [%s] %s %s",
-                                 i + 1, type_str, node->label, status_str);
+            string_buffer_append(buf, "Step %u: [%s] %s %s", i + 1, type_str, node->label, status_str);
 
             if (node->description[0] != '\0') {
                 string_buffer_append(buf, "\n  Description: %s", node->description);
@@ -3051,13 +2878,13 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace,
  */
 char *lv_proof_to_latex(const lvProofTraceTree *trace) {
     if (!trace) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "导出 LaTeX 时溯源树为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "导出 LaTeX 时溯源树为 NULL");
         return NULL;
     }
 
     StringBuffer *buf = string_buffer_create();
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
 
     /* LaTeX 文档头 */
     string_buffer_append(buf, "\\begin{proof}\n");
@@ -3069,44 +2896,62 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
 
     /* 信任颜色映射到 LaTeX 颜色 */
     static const char *color_map[] = {
-        "\\textcolor{green}{}",    /* TRUST_GREEN */
-        "\\textcolor{blue}{}",     /* TRUST_BLUE_UNEXPLORED */
-        "\\textcolor{blue}{}",     /* TRUST_BLUE_EXCEEDED */
-        "\\textcolor{blue}{}",     /* TRUST_BLUE_OUT_OF_SCOPE */
-        "\\textcolor{yellow}{}",   /* TRUST_YELLOW */
+        "\\textcolor{green}{}",     /* TRUST_GREEN */
+        "\\textcolor{blue}{}",      /* TRUST_BLUE_UNEXPLORED */
+        "\\textcolor{blue}{}",      /* TRUST_BLUE_EXCEEDED */
+        "\\textcolor{blue}{}",      /* TRUST_BLUE_OUT_OF_SCOPE */
+        "\\textcolor{yellow}{}",    /* TRUST_YELLOW */
         "\\textcolor{orange!70}{}", /* TRUST_LIGHT_ORANGE_ORACLE */
         "\\textcolor{orange!70}{}", /* TRUST_LIGHT_ORANGE_EXPLOSION */
         "\\textcolor{orange!50}{}", /* TRUST_AMBER */
-        "\\textcolor{orange}{}",   /* TRUST_DEEP_ORANGE */
-        "\\textcolor{red}{}"       /* TRUST_RED */
+        "\\textcolor{orange}{}",    /* TRUST_DEEP_ORANGE */
+        "\\textcolor{red}{}"        /* TRUST_RED */
     };
     static const int color_map_count = sizeof(color_map) / sizeof(color_map[0]);
 
     /* 遍历节点生成 LaTeX */
     for (uint32_t i = 0; i < trace->node_count; i++) {
         lvProofTraceNode *node = trace->all_nodes[i];
-        if (node == trace->root) continue;
+        if (node == trace->root)
+            continue;
 
         /* 节点类型标签 */
         const char *type_label;
         switch (node->type) {
-            case TRACE_NODE_AXIOM:       type_label = "\\textbf{Axiom}"; break;
-            case TRACE_NODE_DEFINITION:  type_label = "\\textbf{Def}"; break;
-            case TRACE_NODE_THEOREM:     type_label = "\\textbf{Thm}"; break;
-            case TRACE_NODE_LEMMA:       type_label = "\\textbf{Lemma}"; break;
-            case TRACE_NODE_HYPOTHESIS:  type_label = "\\textit{Hyp}"; break;
-            case TRACE_NODE_DERIVATION:  type_label = "\\textbf{Step}"; break;
-            case TRACE_NODE_CONTRADICTION: type_label = "\\textbf{Contr!}"; break;
-            case TRACE_NODE_GOAL:        type_label = "\\textbf{Goal}"; break;
-            default:                     type_label = "Step"; break;
+            case TRACE_NODE_AXIOM:
+                type_label = "\\textbf{Axiom}";
+                break;
+            case TRACE_NODE_DEFINITION:
+                type_label = "\\textbf{Def}";
+                break;
+            case TRACE_NODE_THEOREM:
+                type_label = "\\textbf{Thm}";
+                break;
+            case TRACE_NODE_LEMMA:
+                type_label = "\\textbf{Lemma}";
+                break;
+            case TRACE_NODE_HYPOTHESIS:
+                type_label = "\\textit{Hyp}";
+                break;
+            case TRACE_NODE_DERIVATION:
+                type_label = "\\textbf{Step}";
+                break;
+            case TRACE_NODE_CONTRADICTION:
+                type_label = "\\textbf{Contr!}";
+                break;
+            case TRACE_NODE_GOAL:
+                type_label = "\\textbf{Goal}";
+                break;
+            default:
+                type_label = "Step";
+                break;
         }
 
-        int color_idx = (int)node->trust_color;
-        if (color_idx < 0 || color_idx >= color_map_count) color_idx = 0;
+        int color_idx = (int) node->trust_color;
+        if (color_idx < 0 || color_idx >= color_map_count)
+            color_idx = 0;
 
-        string_buffer_append(buf, "  \\noindent %s[%s] %s%s}\n",
-                             type_label, node->label,
-                             color_map[color_idx],
+        string_buffer_append(buf, "  \\noindent %s[%s] %s%s}\n", type_label, node->label, color_map[color_idx],
                              node->label);
 
         if (node->description[0] != '\0') {
@@ -3114,8 +2959,7 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
         }
 
         if (node->rule && node->rule->name[0] != '\0') {
-            string_buffer_append(buf, "  \\\\ \\quad \\textit{by} \\texttt{%s}\n",
-                                 node->rule->name);
+            string_buffer_append(buf, "  \\\\ \\quad \\textit{by} \\texttt{%s}\n", node->rule->name);
         }
 
         string_buffer_append(buf, "\n");
@@ -3147,13 +2991,13 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
  */
 char *lv_proof_to_coq(const lvProofTraceTree *trace) {
     if (!trace) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "导出 Coq 时溯源树为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "导出 Coq 时溯源树为 NULL");
         return NULL;
     }
 
     StringBuffer *buf = string_buffer_create();
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
 
     /* 定理声明 */
     const char *theorem_name = "theorem_result";
@@ -3167,7 +3011,8 @@ char *lv_proof_to_coq(const lvProofTraceTree *trace) {
     /* 遍历节点生成 Coq tactic */
     for (uint32_t i = 0; i < trace->node_count; i++) {
         lvProofTraceNode *node = trace->all_nodes[i];
-        if (node == trace->root) continue;
+        if (node == trace->root)
+            continue;
 
         switch (node->type) {
             case TRACE_NODE_AXIOM:
@@ -3182,20 +3027,17 @@ char *lv_proof_to_coq(const lvProofTraceTree *trace) {
 
             case TRACE_NODE_DERIVATION:
                 if (node->rule && node->rule->name[0] != '\0') {
-                    string_buffer_append(buf, "  (* Apply rule: %s *)\n",
-                                         node->rule->name);
+                    string_buffer_append(buf, "  (* Apply rule: %s *)\n", node->rule->name);
                     string_buffer_append(buf, "  apply %s.\n", node->rule->name);
                 } else {
-                    string_buffer_append(buf, "  (* Derivation: %s *)\n",
-                                         node->label);
+                    string_buffer_append(buf, "  (* Derivation: %s *)\n", node->label);
                     string_buffer_append(buf, "  assert (H%d : Prop).\n", node->id);
                     string_buffer_append(buf, "  { %s. }\n", node->description);
                 }
                 break;
 
             case TRACE_NODE_CONTRADICTION:
-                string_buffer_append(buf, "  (* Contradiction: %s *)\n",
-                                     node->description);
+                string_buffer_append(buf, "  (* Contradiction: %s *)\n", node->description);
                 string_buffer_append(buf, "  contradiction.\n");
                 break;
 
@@ -3204,20 +3046,17 @@ char *lv_proof_to_coq(const lvProofTraceTree *trace) {
                 break;
 
             case TRACE_NODE_THEOREM:
-                string_buffer_append(buf, "  (* Apply theorem: %s *)\n",
-                                     node->label);
+                string_buffer_append(buf, "  (* Apply theorem: %s *)\n", node->label);
                 string_buffer_append(buf, "  apply %s.\n", node->label);
                 break;
 
             case TRACE_NODE_LEMMA:
-                string_buffer_append(buf, "  (* Apply lemma: %s *)\n",
-                                     node->label);
+                string_buffer_append(buf, "  (* Apply lemma: %s *)\n", node->label);
                 string_buffer_append(buf, "  apply %s_lemma.\n", node->label);
                 break;
 
             case TRACE_NODE_DEFINITION:
-                string_buffer_append(buf, "  (* Unfold definition: %s *)\n",
-                                     node->label);
+                string_buffer_append(buf, "  (* Unfold definition: %s *)\n", node->label);
                 string_buffer_append(buf, "  unfold %s.\n", node->label);
                 break;
 
@@ -3253,13 +3092,13 @@ char *lv_proof_to_coq(const lvProofTraceTree *trace) {
  */
 char *lv_proof_to_isar(const lvProofTraceTree *trace) {
     if (!trace) {
-        lv_set_error(lv_ERROR_NULL_POINTER,
-                       "导出 Isar 时溯源树为 NULL");
+        lv_set_error(lv_ERROR_NULL_POINTER, "导出 Isar 时溯源树为 NULL");
         return NULL;
     }
 
     StringBuffer *buf = string_buffer_create();
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
 
     /* 定理声明 */
     const char *theorem_name = "theorem_result";
@@ -3277,7 +3116,8 @@ char *lv_proof_to_isar(const lvProofTraceTree *trace) {
     /* 遍历节点生成 Isar */
     for (uint32_t i = 0; i < trace->node_count; i++) {
         lvProofTraceNode *node = trace->all_nodes[i];
-        if (node == trace->root) continue;
+        if (node == trace->root)
+            continue;
 
         switch (node->type) {
             case TRACE_NODE_AXIOM:
@@ -3292,25 +3132,20 @@ char *lv_proof_to_isar(const lvProofTraceTree *trace) {
 
             case TRACE_NODE_DERIVATION:
                 if (node->rule && node->rule->name[0] != '\0') {
-                    string_buffer_append(buf, "  -- Apply rule: %s\n",
-                                         node->rule->name);
-                    string_buffer_append(buf, "  then have \"%s\" using %s\n",
-                                         node->label, node->rule->name);
+                    string_buffer_append(buf, "  -- Apply rule: %s\n", node->rule->name);
+                    string_buffer_append(buf, "  then have \"%s\" using %s\n", node->label, node->rule->name);
                 } else {
-                    string_buffer_append(buf, "  -- Derivation: %s\n",
-                                         node->label);
+                    string_buffer_append(buf, "  -- Derivation: %s\n", node->label);
                     string_buffer_append(buf, "  have \"%s\"\n", node->label);
                     if (node->description[0] != '\0') {
-                        string_buffer_append(buf, "    -- \"%s\"\n",
-                                             node->description);
+                        string_buffer_append(buf, "    -- \"%s\"\n", node->description);
                     }
                     string_buffer_append(buf, "    sorry\n");
                 }
                 break;
 
             case TRACE_NODE_CONTRADICTION:
-                string_buffer_append(buf, "  -- Contradiction: %s\n",
-                                     node->description);
+                string_buffer_append(buf, "  -- Contradiction: %s\n", node->description);
                 string_buffer_append(buf, "  then show False\n");
                 string_buffer_append(buf, "    contradiction\n");
                 break;
@@ -3322,8 +3157,7 @@ char *lv_proof_to_isar(const lvProofTraceTree *trace) {
 
             case TRACE_NODE_THEOREM:
                 string_buffer_append(buf, "  -- Theorem: %s\n", node->label);
-                string_buffer_append(buf, "  from `%s` have \"%s\" .\n",
-                                     node->label, node->label);
+                string_buffer_append(buf, "  from `%s` have \"%s\" .\n", node->label, node->label);
                 break;
 
             case TRACE_NODE_LEMMA:

@@ -31,6 +31,7 @@
 #define lv_THREE_VALUED_LOGIC_H
 
 #include <stdbool.h>
+
 #include "config.h"
 
 #ifdef __cplusplus
@@ -46,11 +47,7 @@ extern "C" {
  * lv_FALSE  = 伪（有反例/矛盾）
  * lv_UNKNOWN = 未知（未确定）
  */
-typedef enum {
-    lv_TRUE    = 0,
-    lv_FALSE   = 1,
-    lv_UNKNOWN = 2
-} lvTruthValue;
+typedef enum { lv_TRUE = 0, lv_FALSE = 1, lv_UNKNOWN = 2 } lvTruthValue;
 
 /* ============== 真值表查找操作 ============== */
 

@@ -121,25 +121,25 @@ extern "C" {
  *   lv_PUBLIC_API void lv_cleanup(void);
  * ============================================================ */
 #if defined(_WIN32) || defined(_MSC_VER)
-  /* Windows DLL 导出/导入 */
-  #ifdef lv_BUILD_SHARED
-    #define lv_PUBLIC_API __declspec(dllexport)
-  #else
-    #ifdef lv_USE_SHARED
-      #define lv_PUBLIC_API __declspec(dllimport)
-    #else
-      #define lv_PUBLIC_API
-    #endif
-  #endif
-#elif defined(__GNUC__) || defined(__clang__)
-  /* GCC/Clang 符号可见性 */
-  #ifdef lv_BUILD_SHARED
-    #define lv_PUBLIC_API __attribute__((visibility("default")))
-  #else
-    #define lv_PUBLIC_API
-  #endif
+/* Windows DLL 导出/导入 */
+#ifdef lv_BUILD_SHARED
+#define lv_PUBLIC_API __declspec(dllexport)
 #else
-  #define lv_PUBLIC_API
+#ifdef lv_USE_SHARED
+#define lv_PUBLIC_API __declspec(dllimport)
+#else
+#define lv_PUBLIC_API
+#endif
+#endif
+#elif defined(__GNUC__) || defined(__clang__)
+/* GCC/Clang 符号可见性 */
+#ifdef lv_BUILD_SHARED
+#define lv_PUBLIC_API __attribute__((visibility("default")))
+#else
+#define lv_PUBLIC_API
+#endif
+#else
+#define lv_PUBLIC_API
 #endif
 
 /* ============================================================
@@ -210,7 +210,7 @@ extern "C" {
 #endif
 
 /* 基础模块（必须在其他模块之前） */
-#include "error_codes.h" /* 统一错误码系统 */
+#include "error_codes.h"   /* 统一错误码系统 */
 #include "runtime_guard.h" /* 运行时安全守卫 */
 
 /* 隔离上下文系统 —— 统一状态容器、分支推理与熔断机制 */
@@ -218,10 +218,10 @@ extern "C" {
 
 /* 核心模块 */
 #include "constraint_graph.h" /* 约束图核心 */
+#include "critical_pair.h"    /* 关键对计算引擎 */
 #include "graph_hash.h"       /* 图结构哈希 */
 #include "normalization.h"    /* 图规范化遍引擎 */
 #include "rewrite.h"          /* 图重写引擎 */
-#include "critical_pair.h"   /* 关键对计算引擎 */
 #include "solver.h"           /* 符号代数求解器 */
 #include "symbolic_coord.h"   /* 符号坐标系统 */
 #include "unify.h"            /* 合一检查 */
@@ -236,6 +236,7 @@ extern "C" {
 #include "func_block_registry.h" /* 预设函数块注册系统 */
 
 /* 模块化预设函数块系统 */
+#include "modal_operators.h"        /* 模态逻辑算子 */
 #include "preset_algebraic.h"       /* 代数运算模块 */
 #include "preset_basic_geometry.h"  /* 基础几何构造模块 */
 #include "preset_blocks.h"          /* 模块化预设函数块主系统 */
@@ -243,13 +244,12 @@ extern "C" {
 #include "preset_polygons.h"        /* 多边形构造模块 */
 #include "preset_transformations.h" /* 几何变换模块 */
 #include "proof.h"                  /* 命题与证明系统 */
-#include "three_valued_logic.h"     /* 三值逻辑系统 */
-#include "modal_operators.h"        /* 模态逻辑算子 */
 #include "proof_engine_enhanced.h"  /* 增强证明引擎 */
-#include "recursion.h"              /* 递归与条件 */
-#include "type_system.h"            /* 类型系统 */
-#include "type_equiv_explorer.h"    /* 类型等价探索器 */
 #include "quantifier.h"             /* 量词系统 */
+#include "recursion.h"              /* 递归与条件 */
+#include "three_valued_logic.h"     /* 三值逻辑系统 */
+#include "type_equiv_explorer.h"    /* 类型等价探索器 */
+#include "type_system.h"            /* 类型系统 */
 
 /* 引擎 */
 #include "engine.h" /* 主引擎 */
@@ -300,9 +300,9 @@ extern "C" {
  * 版本字符串以及编译时的平台和编译器信息。
  */
 typedef struct lvVersionInfo {
-    int         major;          /**< 主版本号 */
-    int         minor;          /**< 次版本号 */
-    int         patch;          /**< 补丁版本号 */
+    int major;                  /**< 主版本号 */
+    int minor;                  /**< 次版本号 */
+    int patch;                  /**< 补丁版本号 */
     const char *version_string; /**< 完整版本字符串（如 "3.3.0"） */
     const char *platform;       /**< 编译平台名称 */
     const char *compiler;       /**< 编译器名称 */
@@ -525,9 +525,7 @@ lv_PUBLIC_API void lv_engine_destroy(lvEngine *engine);
  *   int p = lv_add_point(engine, 3, 2, 11, 4);
  * @endcode
  */
-lv_PUBLIC_API int lv_add_point(lvEngine *engine,
-    int64_t x_num, uint64_t x_den,
-    int64_t y_num, uint64_t y_den);
+lv_PUBLIC_API int lv_add_point(lvEngine *engine, int64_t x_num, uint64_t x_den, int64_t y_num, uint64_t y_den);
 
 /**
  * @brief 添加整数坐标点（便捷函数）
@@ -557,8 +555,7 @@ static inline int lv_add_point_i(lvEngine *engine, long long x, long long y) {
  *   int segment = lv_add_line_segment(engine, p1, p2);
  * @endcode
  */
-lv_PUBLIC_API int lv_add_line_segment(lvEngine *engine,
-    int point1_id, int point2_id);
+lv_PUBLIC_API int lv_add_line_segment(lvEngine *engine, int point1_id, int point2_id);
 
 /**
  * @brief 快速添加关联约束（便捷函数）
@@ -576,8 +573,7 @@ lv_PUBLIC_API int lv_add_line_segment(lvEngine *engine,
  *   lv_add_constraint_incidence(engine, p, L);
  * @endcode
  */
-lv_PUBLIC_API bool lv_add_constraint_incidence(lvEngine *engine,
-    int point_id, int line_id);
+lv_PUBLIC_API bool lv_add_constraint_incidence(lvEngine *engine, int point_id, int line_id);
 
 /* ============================================================
  * === 推理与求解 ===
@@ -602,8 +598,7 @@ lv_PUBLIC_API bool lv_add_constraint_incidence(lvEngine *engine,
  *   }
  * @endcode
  */
-lv_PUBLIC_API NormalizationResult *lv_normalize(lvEngine *engine,
-    bool scope_aware);
+lv_PUBLIC_API NormalizationResult *lv_normalize(lvEngine *engine, bool scope_aware);
 
 /**
  * @brief 执行求解流水线（便捷函数）
@@ -646,8 +641,7 @@ lv_PUBLIC_API EngineSolveResult lv_solve(lvEngine *engine);
  * @param declaration 数值假设声明文本（如"该点坐标在10^{-15}精度下近似为1.4142"）
  * @return 成功返回 0（lv_OK），失败返回负错误码
  */
-lv_PUBLIC_API int lv_set_numeric_assumption(lvEngine *engine, int node_id,
-    double precision, const char *declaration);
+lv_PUBLIC_API int lv_set_numeric_assumption(lvEngine *engine, int node_id, double precision, const char *declaration);
 
 /* ============================================================
  * === 配置管理 ===
@@ -692,8 +686,7 @@ lv_PUBLIC_API double lv_config_get_double(const char *key, double default_val);
  * @param[in] default_val 默认值
  * @return 配置值（指向内部存储的指针，勿释放）
  */
-lv_PUBLIC_API const char *lv_config_get_string(const char *key,
-    const char *default_val);
+lv_PUBLIC_API const char *lv_config_get_string(const char *key, const char *default_val);
 
 /**
  * @brief 设置整数配置值
@@ -831,7 +824,8 @@ lv_PUBLIC_API bool lv_are_assertions_enabled(void);
  * 保持一致。版本不匹配时触发编译错误，防止 API 兼容性问题。
  * ============================================================ */
 #if lv_VERSION_MAJOR != 1 || lv_VERSION_MINOR != 1 || lv_VERSION_PATCH != 0
-#error "[Lv-00] 版本宏不匹配：lv.h 中 lv_VERSION_MAJOR/MINOR/PATCH 与 CMakeLists.txt 的 project(VERSION ...) 不一致，请同步后重新编译。"
+#error \
+    "[Lv-00] 版本宏不匹配：lv.h 中 lv_VERSION_MAJOR/MINOR/PATCH 与 CMakeLists.txt 的 project(VERSION ...) 不一致，请同步后重新编译。"
 #endif
 
 #ifdef __cplusplus

@@ -11,13 +11,14 @@
  * @version 4.0.0
  */
 
-#include "lv_internal.h"
-#include "lv_utils.h"
 #include "preset_polynomial.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
 
 #include <string.h>
+
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "preset_blocks.h"
+#include "preset_common.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -43,23 +44,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_polynomial_preset(
-    const char *name,
-    const char *description,
-    const PresetType *input_types,
-    int input_count,
-    PresetType output_type,
-    const char *math_def,
-    const char *complexity,
-    bool is_constructive,
-    bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description,
-        PRESET_CATEGORY_ALGEBRA,
-        input_types, input_count, output_type,
-        math_def, complexity,
-        is_constructive, is_reversible);
+static bool register_polynomial_preset(const char *name, const char *description, const PresetType *input_types,
+                                       int input_count, PresetType output_type, const char *math_def,
+                                       const char *complexity, bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ALGEBRA, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /**
@@ -67,21 +56,19 @@ static bool register_polynomial_preset(
  *
  * 减少重复代码，提高可维护性。
  */
-#define REGISTER_POLY(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_polynomial_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_POLY(name, desc, inputs, in_count, output, math, comp, cons, rev)                             \
+    do {                                                                                                       \
+        if (register_polynomial_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), \
+                                       (rev))) {                                                               \
+            success_count++;                                                                                   \
+        } else {                                                                                               \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                \
+        }                                                                                                      \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_polynomial_register(void)
-{
+bool preset_polynomial_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -91,67 +78,43 @@ bool preset_polynomial_register(void)
     /* -------------------- 多项式加法 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_add",
-            "多项式加法：计算两个多项式的和，对应系数相加",
-            inputs, 2, PRESET_TYPE_POLYNOMIAL,
-            "(f + g)(x) = f(x) + g(x)",
-            "O(n)", true, true);
+        REGISTER_POLY("polynomial_add", "多项式加法：计算两个多项式的和，对应系数相加", inputs, 2,
+                      PRESET_TYPE_POLYNOMIAL, "(f + g)(x) = f(x) + g(x)", "O(n)", true, true);
     }
 
     /* -------------------- 多项式减法 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_subtract",
-            "多项式减法：计算两个多项式的差，对应系数相减",
-            inputs, 2, PRESET_TYPE_POLYNOMIAL,
-            "(f - g)(x) = f(x) - g(x)",
-            "O(n)", true, true);
+        REGISTER_POLY("polynomial_subtract", "多项式减法：计算两个多项式的差，对应系数相减", inputs, 2,
+                      PRESET_TYPE_POLYNOMIAL, "(f - g)(x) = f(x) - g(x)", "O(n)", true, true);
     }
 
     /* -------------------- 多项式乘法 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_multiply",
-            "多项式乘法：计算两个多项式的积，卷积运算",
-            inputs, 2, PRESET_TYPE_POLYNOMIAL,
-            "(f \\cdot g)(x) = f(x) \\cdot g(x)",
-            "O(n^2)", true, false);
+        REGISTER_POLY("polynomial_multiply", "多项式乘法：计算两个多项式的积，卷积运算", inputs, 2,
+                      PRESET_TYPE_POLYNOMIAL, "(f \\cdot g)(x) = f(x) \\cdot g(x)", "O(n^2)", true, false);
     }
 
     /* -------------------- 多项式除法 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_divide",
-            "多项式除法（带余）：计算 f = g*q + r，返回商 q 和余式 r",
-            inputs, 2, PRESET_TYPE_TUPLE,
-            "f = g \\cdot q + r, \\quad \\deg(r) < \\deg(g)",
-            "O(n^2)", true, false);
+        REGISTER_POLY("polynomial_divide", "多项式除法（带余）：计算 f = g*q + r，返回商 q 和余式 r", inputs, 2,
+                      PRESET_TYPE_TUPLE, "f = g \\cdot q + r, \\quad \\deg(r) < \\deg(g)", "O(n^2)", true, false);
     }
 
     /* -------------------- 多项式GCD -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_gcd",
-            "多项式GCD：使用欧几里得算法计算两个多项式的最大公因式",
-            inputs, 2, PRESET_TYPE_POLYNOMIAL,
-            "\\gcd(f, g) = \\max\\{d : d|f \\land d|g\\}",
-            "O(n^2)", true, false);
+        REGISTER_POLY("polynomial_gcd", "多项式GCD：使用欧几里得算法计算两个多项式的最大公因式", inputs, 2,
+                      PRESET_TYPE_POLYNOMIAL, "\\gcd(f, g) = \\max\\{d : d|f \\land d|g\\}", "O(n^2)", true, false);
     }
 
     /* -------------------- 多项式LCM -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_lcm",
-            "多项式LCM：计算两个多项式的最小公倍式",
-            inputs, 2, PRESET_TYPE_POLYNOMIAL,
-            "\\text{lcm}(f, g) = \\frac{f \\cdot g}{\\gcd(f, g)}",
-            "O(n^2)", true, false);
+        REGISTER_POLY("polynomial_lcm", "多项式LCM：计算两个多项式的最小公倍式", inputs, 2, PRESET_TYPE_POLYNOMIAL,
+                      "\\text{lcm}(f, g) = \\frac{f \\cdot g}{\\gcd(f, g)}", "O(n^2)", true, false);
     }
 
     /* ============================================================
@@ -161,56 +124,39 @@ bool preset_polynomial_register(void)
     /* -------------------- 多项式次数 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_degree",
-            "多项式次数：返回多项式的最高次项的次数 deg(f)",
-            inputs, 1, PRESET_TYPE_INTEGER,
-            "\\deg(f) = \\max\\{i : a_i \\neq 0\\}",
-            "O(1)", false, false);
+        REGISTER_POLY("polynomial_degree", "多项式次数：返回多项式的最高次项的次数 deg(f)", inputs, 1,
+                      PRESET_TYPE_INTEGER, "\\deg(f) = \\max\\{i : a_i \\neq 0\\}", "O(1)", false, false);
     }
 
     /* -------------------- 多项式求值 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_SCALAR};
-        REGISTER_POLY(
-            "polynomial_evaluate",
-            "多项式求值：使用秦九韶算法（Horner法则）计算 f(x_0) 的值",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "f(x_0) = a_n x_0^n + a_{n-1} x_0^{n-1} + \\cdots + a_1 x_0 + a_0",
-            "O(n)", false, false);
+        REGISTER_POLY("polynomial_evaluate", "多项式求值：使用秦九韶算法（Horner法则）计算 f(x_0) 的值", inputs, 2,
+                      PRESET_TYPE_SCALAR, "f(x_0) = a_n x_0^n + a_{n-1} x_0^{n-1} + \\cdots + a_1 x_0 + a_0", "O(n)",
+                      false, false);
     }
 
     /* -------------------- 多项式求导 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_derivative",
-            "多项式求导：计算多项式的形式导数 f'(x)",
-            inputs, 1, PRESET_TYPE_POLYNOMIAL,
-            "f'(x) = \\sum_{i=1}^{n} i \\cdot a_i \\cdot x^{i-1}",
-            "O(n)", true, false);
+        REGISTER_POLY("polynomial_derivative", "多项式求导：计算多项式的形式导数 f'(x)", inputs, 1,
+                      PRESET_TYPE_POLYNOMIAL, "f'(x) = \\sum_{i=1}^{n} i \\cdot a_i \\cdot x^{i-1}", "O(n)", true,
+                      false);
     }
 
     /* -------------------- 多项式积分 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_integral",
-            "多项式积分：计算多项式的不定积分（忽略常数项）",
-            inputs, 1, PRESET_TYPE_POLYNOMIAL,
-            "\\int f(x)\\,dx = \\sum_{i=0}^{n} \\frac{a_i}{i+1} x^{i+1} + C",
-            "O(n)", true, false);
+        REGISTER_POLY("polynomial_integral", "多项式积分：计算多项式的不定积分（忽略常数项）", inputs, 1,
+                      PRESET_TYPE_POLYNOMIAL, "\\int f(x)\\,dx = \\sum_{i=0}^{n} \\frac{a_i}{i+1} x^{i+1} + C", "O(n)",
+                      true, false);
     }
 
     /* -------------------- 多项式复合 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_compose",
-            "多项式复合：计算复合多项式 f(g(x))",
-            inputs, 2, PRESET_TYPE_POLYNOMIAL,
-            "(f \\circ g)(x) = f(g(x))",
-            "O(n^2)", true, false);
+        REGISTER_POLY("polynomial_compose", "多项式复合：计算复合多项式 f(g(x))", inputs, 2, PRESET_TYPE_POLYNOMIAL,
+                      "(f \\circ g)(x) = f(g(x))", "O(n^2)", true, false);
     }
 
     /* ============================================================
@@ -220,48 +166,33 @@ bool preset_polynomial_register(void)
     /* -------------------- 二次方程求根 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_POLY(
-            "polynomial_roots_quadratic",
-            "二次方程求根：使用求根公式求解 ax^2 + bx + c = 0",
-            inputs, 3, PRESET_TYPE_LIST,
-            "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}",
-            "O(1)", true, false);
+        REGISTER_POLY("polynomial_roots_quadratic", "二次方程求根：使用求根公式求解 ax^2 + bx + c = 0", inputs, 3,
+                      PRESET_TYPE_LIST, "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}", "O(1)", true, false);
     }
 
     /* -------------------- 三次方程求根 -------------------- */
     {
-        PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR,
-                               PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_POLY(
-            "polynomial_roots_cubic",
-            "三次方程求根：使用Cardano公式求解 ax^3 + bx^2 + cx + d = 0",
-            inputs, 4, PRESET_TYPE_LIST,
-            "x^3 + px + q = 0, \\quad \\Delta = -4p^3 - 27q^2 \\text{（Cardano公式）}",
-            "O(1)", true, false);
+        PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
+        REGISTER_POLY("polynomial_roots_cubic", "三次方程求根：使用Cardano公式求解 ax^3 + bx^2 + cx + d = 0", inputs, 4,
+                      PRESET_TYPE_LIST, "x^3 + px + q = 0, \\quad \\Delta = -4p^3 - 27q^2 \\text{（Cardano公式）}",
+                      "O(1)", true, false);
     }
 
     /* -------------------- 四次方程求根 -------------------- */
     {
-        PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR,
-                               PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR,
+        PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR,
                                PRESET_TYPE_SCALAR};
-        REGISTER_POLY(
-            "polynomial_roots_quartic",
-            "四次方程求根：使用Ferrari方法求解 ax^4 + bx^3 + cx^2 + dx + e = 0",
-            inputs, 5, PRESET_TYPE_LIST,
-            "x^4 + px^2 + qx + r = 0 \\text{（Ferrari方法，化为三次预解方程）}",
-            "O(1)", true, false);
+        REGISTER_POLY("polynomial_roots_quartic", "四次方程求根：使用Ferrari方法求解 ax^4 + bx^3 + cx^2 + dx + e = 0",
+                      inputs, 5, PRESET_TYPE_LIST, "x^4 + px^2 + qx + r = 0 \\text{（Ferrari方法，化为三次预解方程）}",
+                      "O(1)", true, false);
     }
 
     /* -------------------- 多项式因式分解 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL};
         REGISTER_POLY(
-            "polynomial_factor",
-            "多项式因式分解：将多项式分解为不可约因式的乘积",
-            inputs, 1, PRESET_TYPE_LIST,
-            "f(x) = a_n \\prod_{i=1}^{k} (x - r_i)^{e_i} \\cdot \\prod_{j=1}^{m} q_j(x)^{d_j}",
-            "O(n^3)", true, false);
+            "polynomial_factor", "多项式因式分解：将多项式分解为不可约因式的乘积", inputs, 1, PRESET_TYPE_LIST,
+            "f(x) = a_n \\prod_{i=1}^{k} (x - r_i)^{e_i} \\cdot \\prod_{j=1}^{m} q_j(x)^{d_j}", "O(n^3)", true, false);
     }
 
     /* ============================================================
@@ -271,34 +202,28 @@ bool preset_polynomial_register(void)
     /* -------------------- 结式 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_resultant",
-            "结式：计算两个多项式的结式 Res(f,g)，用于判断公共零点",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "\\text{Res}(f, g) = a_n^m \\prod_{i=1}^{n} g(r_i), \\quad r_i \\text{ 为 } f \\text{ 的根}",
-            "O(n^2)", false, false);
+        REGISTER_POLY("polynomial_resultant", "结式：计算两个多项式的结式 Res(f,g)，用于判断公共零点", inputs, 2,
+                      PRESET_TYPE_SCALAR,
+                      "\\text{Res}(f, g) = a_n^m \\prod_{i=1}^{n} g(r_i), \\quad r_i \\text{ 为 } f \\text{ 的根}",
+                      "O(n^2)", false, false);
     }
 
     /* -------------------- 判别式 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL};
-        REGISTER_POLY(
-            "polynomial_discriminant",
-            "判别式：计算多项式的判别式 Delta(f)，判断根的重数",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "\\Delta(f) = (-1)^{\\frac{n(n-1)}{2}} \\cdot \\frac{\\text{Res}(f, f')}{a_n}",
-            "O(n^2)", false, false);
+        REGISTER_POLY("polynomial_discriminant", "判别式：计算多项式的判别式 Delta(f)，判断根的重数", inputs, 1,
+                      PRESET_TYPE_SCALAR,
+                      "\\Delta(f) = (-1)^{\\frac{n(n-1)}{2}} \\cdot \\frac{\\text{Res}(f, f')}{a_n}", "O(n^2)", false,
+                      false);
     }
 
     /* -------------------- 多项式插值 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_LIST, PRESET_TYPE_LIST};
         REGISTER_POLY(
-            "polynomial_interpolation",
-            "多项式插值：给定 n+1 个数据点，使用Lagrange或Newton插值构造过这些点的多项式",
+            "polynomial_interpolation", "多项式插值：给定 n+1 个数据点，使用Lagrange或Newton插值构造过这些点的多项式",
             inputs, 2, PRESET_TYPE_POLYNOMIAL,
-            "L(x) = \\sum_{i=0}^{n} y_i \\prod_{j \\neq i} \\frac{x - x_j}{x_i - x_j}",
-            "O(n^2)", true, false);
+            "L(x) = \\sum_{i=0}^{n} y_i \\prod_{j \\neq i} \\frac{x - x_j}{x_i - x_j}", "O(n^2)", true, false);
     }
 
     /* 检查是否所有预设都注册成功 */
@@ -314,8 +239,7 @@ bool preset_polynomial_register(void)
  *
  * @return int 多项式理论模块预设函数块总数
  */
-int preset_polynomial_count(void)
-{
+int preset_polynomial_count(void) {
     return POLYNOMIAL_PRESET_COUNT;
 }
 
@@ -324,8 +248,7 @@ int preset_polynomial_count(void)
  *
  * @return PresetCategory 返回 PRESET_CATEGORY_ALGEBRA
  */
-PresetCategory preset_polynomial_category(void)
-{
+PresetCategory preset_polynomial_category(void) {
     return PRESET_CATEGORY_ALGEBRA;
 }
 
@@ -340,13 +263,12 @@ PresetCategory preset_polynomial_category(void)
  * @return true 成功
  * @return false 失败（参数为空或内存不足）
  */
-bool preset_polynomial_get_names(char ***out_names, int *out_count)
-{
+bool preset_polynomial_get_names(char ***out_names, int *out_count) {
     PRESET_CHECK_NULL(out_names, error);
     PRESET_CHECK_NULL(out_count, error);
 
     /* 分配名称数组 */
-    char **names = (char **)lv_malloc(POLYNOMIAL_PRESET_COUNT * sizeof(char *));
+    char **names = (char **) lv_malloc(POLYNOMIAL_PRESET_COUNT * sizeof(char *));
     PRESET_CHECK_NULL(names, error);
 
     /* 填充预设名称列表 */
@@ -382,9 +304,15 @@ bool preset_polynomial_get_names(char ***out_names, int *out_count)
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                { void *tmp = names[j]; lv_free(&tmp); }
+                {
+                    void *tmp = names[j];
+                    lv_free(&tmp);
+                }
             }
-            { void *tmp = names; lv_free(&tmp); }
+            {
+                void *tmp = names;
+                lv_free(&tmp);
+            }
             return false;
         }
     }

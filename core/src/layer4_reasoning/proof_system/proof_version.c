@@ -25,12 +25,13 @@
  */
 
 #include "proof_version.h"
-#include "lv_utils.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
+
+#include "lv_utils.h"
 
 #ifdef _WIN32
 #include <direct.h>
@@ -56,23 +57,14 @@
 #define SHA256_DIGEST_SIZE 32
 
 static const uint32_t sha256_k[64] = {
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
-    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
-    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
-    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
-};
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
 #define ROTR(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
 #define CH(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
@@ -84,7 +76,7 @@ static const uint32_t sha256_k[64] = {
 
 typedef struct {
     uint32_t state[8];
-    uint8_t  buffer[SHA256_BLOCK_SIZE];
+    uint8_t buffer[SHA256_BLOCK_SIZE];
     uint64_t bitcount;
     uint32_t buflen;
 } Sha256Ctx;
@@ -109,31 +101,43 @@ static void sha256_transform(Sha256Ctx *ctx, const uint8_t block[SHA256_BLOCK_SI
     int i;
 
     for (i = 0; i < 16; i++) {
-        w[i] = ((uint32_t)block[i * 4] << 24) |
-               ((uint32_t)block[i * 4 + 1] << 16) |
-               ((uint32_t)block[i * 4 + 2] << 8) |
-               ((uint32_t)block[i * 4 + 3]);
+        w[i] = ((uint32_t) block[i * 4] << 24) | ((uint32_t) block[i * 4 + 1] << 16) |
+               ((uint32_t) block[i * 4 + 2] << 8) | ((uint32_t) block[i * 4 + 3]);
     }
     for (i = 16; i < 64; i++) {
         w[i] = SIG1(w[i - 2]) + w[i - 7] + SIG0(w[i - 15]) + w[i - 16];
     }
 
-    a = ctx->state[0]; b = ctx->state[1];
-    c = ctx->state[2]; d = ctx->state[3];
-    e = ctx->state[4]; f = ctx->state[5];
-    g = ctx->state[6]; h = ctx->state[7];
+    a = ctx->state[0];
+    b = ctx->state[1];
+    c = ctx->state[2];
+    d = ctx->state[3];
+    e = ctx->state[4];
+    f = ctx->state[5];
+    g = ctx->state[6];
+    h = ctx->state[7];
 
     for (i = 0; i < 64; i++) {
         t1 = h + EP1(e) + CH(e, f, g) + sha256_k[i] + w[i];
         t2 = EP0(a) + MAJ(a, b, c);
-        h = g; g = f; f = e; e = d + t1;
-        d = c; c = b; b = a; a = t1 + t2;
+        h = g;
+        g = f;
+        f = e;
+        e = d + t1;
+        d = c;
+        c = b;
+        b = a;
+        a = t1 + t2;
     }
 
-    ctx->state[0] += a; ctx->state[1] += b;
-    ctx->state[2] += c; ctx->state[3] += d;
-    ctx->state[4] += e; ctx->state[5] += f;
-    ctx->state[6] += g; ctx->state[7] += h;
+    ctx->state[0] += a;
+    ctx->state[1] += b;
+    ctx->state[2] += c;
+    ctx->state[3] += d;
+    ctx->state[4] += e;
+    ctx->state[5] += f;
+    ctx->state[6] += g;
+    ctx->state[7] += h;
 }
 
 static void sha256_update(Sha256Ctx *ctx, const uint8_t *data, size_t len) {
@@ -148,7 +152,7 @@ static void sha256_update(Sha256Ctx *ctx, const uint8_t *data, size_t len) {
 }
 
 static void sha256_final(Sha256Ctx *ctx, uint8_t hash[SHA256_DIGEST_SIZE]) {
-    ctx->bitcount += (uint64_t)ctx->buflen * 8;
+    ctx->bitcount += (uint64_t) ctx->buflen * 8;
 
     ctx->buffer[ctx->buflen++] = 0x80;
 
@@ -166,15 +170,15 @@ static void sha256_final(Sha256Ctx *ctx, uint8_t hash[SHA256_DIGEST_SIZE]) {
 
     /* Append bit length as big-endian 64-bit */
     for (int i = 7; i >= 0; i--) {
-        ctx->buffer[56 + (7 - i)] = (uint8_t)(ctx->bitcount >> (i * 8));
+        ctx->buffer[56 + (7 - i)] = (uint8_t) (ctx->bitcount >> (i * 8));
     }
     sha256_transform(ctx, ctx->buffer);
 
     for (int i = 0; i < 8; i++) {
-        hash[i * 4]     = (uint8_t)(ctx->state[i] >> 24);
-        hash[i * 4 + 1] = (uint8_t)(ctx->state[i] >> 16);
-        hash[i * 4 + 2] = (uint8_t)(ctx->state[i] >> 8);
-        hash[i * 4 + 3] = (uint8_t)(ctx->state[i]);
+        hash[i * 4] = (uint8_t) (ctx->state[i] >> 24);
+        hash[i * 4 + 1] = (uint8_t) (ctx->state[i] >> 16);
+        hash[i * 4 + 2] = (uint8_t) (ctx->state[i] >> 8);
+        hash[i * 4 + 3] = (uint8_t) (ctx->state[i]);
     }
 }
 
@@ -197,7 +201,7 @@ static bool compute_sha256_hex(const void *data, size_t len, char *out, size_t o
     uint8_t hash[SHA256_DIGEST_SIZE];
 
     sha256_init(&ctx);
-    sha256_update(&ctx, (const uint8_t *)data, len);
+    sha256_update(&ctx, (const uint8_t *) data, len);
     sha256_final(&ctx, hash);
 
     for (int i = 0; i < SHA256_DIGEST_SIZE; i++) {
@@ -276,7 +280,7 @@ static bool build_path(const char *dir, const char *file, char *out, size_t out_
 
     /* 安全构建路径 */
     int written = snprintf(out, out_size, "%s%s%s", dir, sep, file);
-    return (written >= 0 && (size_t)written < out_size);
+    return (written >= 0 && (size_t) written < out_size);
 }
 
 /**
@@ -313,7 +317,8 @@ static bool create_repo_dirs(const char *repo_path) {
  */
 static bool write_file(const char *path, const char *content) {
     FILE *f = fopen(path, "w");
-    if (!f) return false;
+    if (!f)
+        return false;
     if (content) {
         fputs(content, f);
     }
@@ -329,7 +334,8 @@ static bool write_file(const char *path, const char *content) {
  */
 static char *read_file(const char *path) {
     FILE *f = fopen(path, "r");
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
 
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
@@ -340,13 +346,13 @@ static char *read_file(const char *path) {
         return NULL;
     }
 
-    char *buf = (char *)lv_malloc((size_t)size + 1);
+    char *buf = (char *) lv_malloc((size_t) size + 1);
     if (!buf) {
         fclose(f);
         return NULL;
     }
 
-    size_t read = fread(buf, 1, (size_t)size, f);
+    size_t read = fread(buf, 1, (size_t) size, f);
     buf[read] = '\0';
     fclose(f);
     return buf;
@@ -355,15 +361,15 @@ static char *read_file(const char *path) {
 /**
  * @brief Compute a commit OID from message, parent, and file hashes.
  */
-static void compute_commit_oid(const char *message, const char *parent_oid,
-    const char *file_hashes, int64_t timestamp, char *oid_out) {
+static void compute_commit_oid(const char *message, const char *parent_oid, const char *file_hashes, int64_t timestamp,
+                               char *oid_out) {
     /* Combine all data into a single buffer for hashing */
     size_t msg_len = message ? strlen(message) : 0;
     size_t parent_len = parent_oid ? strlen(parent_oid) : 0;
     size_t fh_len = file_hashes ? strlen(file_hashes) : 0;
     size_t total = msg_len + 1 + parent_len + 1 + fh_len + 1 + sizeof(int64_t);
 
-    char *buf = (char *)lv_malloc(total);
+    char *buf = (char *) lv_malloc(total);
     if (!buf) {
         memset(oid_out, '0', lv_OID_LENGTH - 1);
         oid_out[lv_OID_LENGTH - 1] = '\0';
@@ -390,7 +396,7 @@ static void compute_commit_oid(const char *message, const char *parent_oid,
     pos += sizeof(int64_t);
 
     compute_sha256_hex(buf, pos, oid_out, lv_OID_LENGTH);
-    lv_free((void**)&buf);
+    lv_free((void **) &buf);
     buf = NULL;
 }
 
@@ -405,12 +411,13 @@ static bool write_commit_file(const char *repo_path, const lvProofCommit *commit
     build_path(tmp, commit->oid, path, sizeof(path));
 
     FILE *f = fopen(path, "w");
-    if (!f) return false;
+    if (!f)
+        return false;
 
     fprintf(f, "oid: %s\n", commit->oid);
     fprintf(f, "message: %s\n", commit->message);
     fprintf(f, "parent: %s\n", commit->parent_oid);
-    fprintf(f, "timestamp: %lld\n", (long long)commit->timestamp);
+    fprintf(f, "timestamp: %lld\n", (long long) commit->timestamp);
 
     fclose(f);
     return true;
@@ -421,7 +428,8 @@ static bool write_commit_file(const char *repo_path, const lvProofCommit *commit
  */
 static bool read_commit_file(const char *path, lvProofCommit *commit) {
     char *content = read_file(path);
-    if (!content) return false;
+    if (!content)
+        return false;
 
     memset(commit, 0, sizeof(lvProofCommit));
 
@@ -439,7 +447,7 @@ static bool read_commit_file(const char *path, lvProofCommit *commit) {
         line = strtok(NULL, "\n");
     }
 
-    lv_free((void**)&content);
+    lv_free((void **) &content);
     content = NULL;
     return true;
 }
@@ -451,12 +459,12 @@ static int64_t get_timestamp(void) {
 #ifdef _WIN32
     FILETIME ft;
     GetSystemTimeAsFileTime(&ft);
-    int64_t tt = ((int64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+    int64_t tt = ((int64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime;
     /* Convert from 100-nanosecond intervals since 1601-01-01 to Unix epoch */
     return (tt - 116444736000000000LL) / 10000000LL;
 #else
-    #include <time.h>
-    return (int64_t)time(NULL);
+#include <time.h>
+    return (int64_t) time(NULL);
 #endif
 }
 
@@ -465,17 +473,19 @@ static int64_t get_timestamp(void) {
  * ============================================================ */
 
 lvProofRepo *proof_repo_init(const char *path) {
-    if (!path) return NULL;
+    if (!path)
+        return NULL;
 
-    lvProofRepo *repo = (lvProofRepo *)lv_calloc(1, sizeof(lvProofRepo));
-    if (!repo) return NULL;
+    lvProofRepo *repo = (lvProofRepo *) lv_calloc(1, sizeof(lvProofRepo));
+    if (!repo)
+        return NULL;
 
     strncpy(repo->path, path, sizeof(repo->path) - 1);
     repo->path[sizeof(repo->path) - 1] = '\0';
 
     /* Create directory structure */
     if (!create_repo_dirs(path)) {
-        lv_free((void**)&repo);
+        lv_free((void **) &repo);
         repo = NULL;
         return NULL;
     }
@@ -489,7 +499,7 @@ lvProofRepo *proof_repo_init(const char *path) {
     compute_commit_oid(root.message, "", "", root.timestamp, root.oid);
 
     if (!write_commit_file(path, &root)) {
-        lv_free((void**)&repo);
+        lv_free((void **) &repo);
         repo = NULL;
         return NULL;
     }
@@ -519,10 +529,12 @@ lvProofRepo *proof_repo_init(const char *path) {
 }
 
 lvProofRepo *proof_repo_open(const char *path) {
-    if (!path) return NULL;
+    if (!path)
+        return NULL;
 
-    lvProofRepo *repo = (lvProofRepo *)lv_calloc(1, sizeof(lvProofRepo));
-    if (!repo) return NULL;
+    lvProofRepo *repo = (lvProofRepo *) lv_calloc(1, sizeof(lvProofRepo));
+    if (!repo)
+        return NULL;
 
     strncpy(repo->path, path, sizeof(repo->path) - 1);
     repo->path[sizeof(repo->path) - 1] = '\0';
@@ -534,15 +546,16 @@ lvProofRepo *proof_repo_open(const char *path) {
 
     char *head = read_file(head_path);
     if (!head) {
-        lv_free((void**)&repo);
+        lv_free((void **) &repo);
         repo = NULL;
         return NULL;
     }
     /* Strip trailing newline */
     size_t hlen = strlen(head);
-    if (hlen > 0 && head[hlen - 1] == '\n') head[hlen - 1] = '\0';
+    if (hlen > 0 && head[hlen - 1] == '\n')
+        head[hlen - 1] = '\0';
     safe_strncpy(repo->head_commit, head, lv_OID_LENGTH);
-    lv_free((void**)&head);
+    lv_free((void **) &head);
     head = NULL;
 
     /* Read branches */
@@ -565,19 +578,19 @@ lvProofRepo *proof_repo_open(const char *path) {
                     break;
                 }
             }
-            if (already) continue;
+            if (already)
+                continue;
 
             char bp[1024];
             build_path(branches_dir, known_branches[j], bp, sizeof(bp));
             char *content = read_file(bp);
             if (content) {
-                safe_strncpy(repo->branches[repo->branch_count], known_branches[j],
-                    lv_BRANCH_NAME_MAX);
+                safe_strncpy(repo->branches[repo->branch_count], known_branches[j], lv_BRANCH_NAME_MAX);
                 size_t clen = strlen(content);
-                if (clen > 0 && content[clen - 1] == '\n') content[clen - 1] = '\0';
-                safe_strncpy(repo->branch_heads[repo->branch_count], content,
-                    lv_OID_LENGTH);
-                lv_free((void**)&content);
+                if (clen > 0 && content[clen - 1] == '\n')
+                    content[clen - 1] = '\0';
+                safe_strncpy(repo->branch_heads[repo->branch_count], content, lv_OID_LENGTH);
+                lv_free((void **) &content);
                 content = NULL;
                 repo->branch_count++;
             }
@@ -595,8 +608,9 @@ lvProofRepo *proof_repo_open(const char *path) {
 }
 
 void proof_repo_destroy(lvProofRepo *repo) {
-    if (!repo) return;
-    lv_free((void**)&repo);
+    if (!repo)
+        return;
+    lv_free((void **) &repo);
     repo = NULL;
 }
 
@@ -604,13 +618,15 @@ void proof_repo_destroy(lvProofRepo *repo) {
  * API implementation: Commits
  * ============================================================ */
 
-bool proof_repo_commit(lvProofRepo *repo, const char *message,
-    const char **files, const char **contents, size_t file_count) {
-    if (!repo || !message) return false;
+bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **files, const char **contents,
+                       size_t file_count) {
+    if (!repo || !message)
+        return false;
 
     /* Compute file hashes and store objects */
-    char *hash_buf = (char *)lv_malloc(file_count * (lv_OID_LENGTH + 1));
-    if (!hash_buf) return false;
+    char *hash_buf = (char *) lv_malloc(file_count * (lv_OID_LENGTH + 1));
+    if (!hash_buf)
+        return false;
     memset(hash_buf, 0, file_count * (lv_OID_LENGTH + 1));
 
     char dir[1024], obj_dir[1024], obj_path[1024];
@@ -618,7 +634,8 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message,
     build_path(dir, "objects", obj_dir, sizeof(obj_dir));
 
     for (size_t i = 0; i < file_count; i++) {
-        if (!files[i] || !contents[i]) continue;
+        if (!files[i] || !contents[i])
+            continue;
 
         /* Compute content hash */
         char hash[lv_OID_LENGTH];
@@ -646,7 +663,7 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message,
     commit.timestamp = get_timestamp();
     compute_commit_oid(message, repo->head_commit, hash_buf, commit.timestamp, commit.oid);
 
-    lv_free((void**)&hash_buf);
+    lv_free((void **) &hash_buf);
     hash_buf = NULL;
 
     /* Write commit file */
@@ -680,7 +697,8 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message,
  * ============================================================ */
 
 size_t proof_repo_log(lvProofRepo *repo, lvProofCommit *commits, size_t max_count) {
-    if (!repo || !commits || max_count == 0) return 0;
+    if (!repo || !commits || max_count == 0)
+        return 0;
 
     size_t count = 0;
     char current_oid[lv_OID_LENGTH];
@@ -710,9 +728,9 @@ size_t proof_repo_log(lvProofRepo *repo, lvProofCommit *commits, size_t max_coun
  * API implementation: Diff
  * ============================================================ */
 
-bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b,
-    lvProofDiff *diff) {
-    if (!repo || !diff) return false;
+bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b, lvProofDiff *diff) {
+    if (!repo || !diff)
+        return false;
 
     diff->entries = NULL;
     diff->count = 0;
@@ -730,8 +748,9 @@ bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b,
 
     /* If oid_a is NULL, treat as empty tree (all files added) */
     if (!oid_a || oid_a[0] == '\0') {
-        diff->entries = (lvProofDiffEntry *)lv_calloc(1, sizeof(lvProofDiffEntry));
-        if (!diff->entries) return false;
+        diff->entries = (lvProofDiffEntry *) lv_calloc(1, sizeof(lvProofDiffEntry));
+        if (!diff->entries)
+            return false;
 
         strncpy(diff->entries[0].path, "(root)", sizeof(diff->entries[0].path) - 1);
         diff->entries[0].path[sizeof(diff->entries[0].path) - 1] = '\0';
@@ -744,8 +763,9 @@ bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b,
     }
 
     /* Compare two commits */
-    diff->entries = (lvProofDiffEntry *)lv_calloc(1, sizeof(lvProofDiffEntry));
-    if (!diff->entries) return false;
+    diff->entries = (lvProofDiffEntry *) lv_calloc(1, sizeof(lvProofDiffEntry));
+    if (!diff->entries)
+        return false;
 
     strncpy(diff->entries[0].path, "(commit)", sizeof(diff->entries[0].path) - 1);
     diff->entries[0].path[sizeof(diff->entries[0].path) - 1] = '\0';
@@ -758,8 +778,9 @@ bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b,
 }
 
 void proof_repo_diff_destroy(lvProofDiff *diff) {
-    if (!diff) return;
-    lv_free((void**)&diff->entries);
+    if (!diff)
+        return;
+    lv_free((void **) &diff->entries);
     diff->entries = NULL;
     diff->count = 0;
 }
@@ -769,8 +790,10 @@ void proof_repo_diff_destroy(lvProofDiff *diff) {
  * ============================================================ */
 
 bool proof_repo_branch(lvProofRepo *repo, const char *name) {
-    if (!repo || !name) return false;
-    if (repo->branch_count >= lv_MAX_BRANCHES) return false;
+    if (!repo || !name)
+        return false;
+    if (repo->branch_count >= lv_MAX_BRANCHES)
+        return false;
 
     /* Check if branch already exists */
     for (int i = 0; i < repo->branch_count; i++) {
@@ -796,7 +819,8 @@ bool proof_repo_branch(lvProofRepo *repo, const char *name) {
 }
 
 bool proof_repo_checkout(lvProofRepo *repo, const char *name) {
-    if (!repo || !name) return false;
+    if (!repo || !name)
+        return false;
 
     /* Find branch */
     for (int i = 0; i < repo->branch_count; i++) {

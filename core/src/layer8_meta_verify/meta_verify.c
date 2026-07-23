@@ -11,13 +11,15 @@
  */
 
 #include "lv/meta_verify.h"
-#include "lv/proof.h"
-#include "lv/proof_compiler.h"
-#include "lv/lv_utils.h"
-#include "lv/lv_parse_utils.h"
+
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+
+#include "lv/lv_parse_utils.h"
+#include "lv/lv_utils.h"
+#include "lv/proof.h"
+#include "lv/proof_compiler.h"
 
 /* ============================================================
  * 内部验证检查函数
@@ -73,10 +75,8 @@ static int check_type_consistency(const lvSession *session, char *desc, int desc
 
     /* 检查推理结果是否包含"已证明"或"成功"等正向类型标记 */
     int has_proof_result = 0;
-    const char *positive_markers[] = {
-        "已证明", "成功", "proved", "success", "completed", "完成"
-    };
-    int marker_count = (int)(sizeof(positive_markers) / sizeof(positive_markers[0]));
+    const char *positive_markers[] = {"已证明", "成功", "proved", "success", "completed", "完成"};
+    int marker_count = (int) (sizeof(positive_markers) / sizeof(positive_markers[0]));
     for (int i = 0; i < marker_count; i++) {
         if (strstr(reasoning_msg, positive_markers[i]) != NULL) {
             has_proof_result = 1;
@@ -85,8 +85,7 @@ static int check_type_consistency(const lvSession *session, char *desc, int desc
     }
 
     if (!has_proof_result) {
-        snprintf(desc, desc_size, "类型一致性失败：推理结果无有效证明类型标记 (msg: %.200s)",
-                 reasoning_msg);
+        snprintf(desc, desc_size, "类型一致性失败：推理结果无有效证明类型标记 (msg: %.200s)", reasoning_msg);
         return 0;
     }
 
@@ -133,19 +132,20 @@ static int check_completeness(const lvSession *session, char *desc, int desc_siz
         if (i == lv_STAGE_VISUAL) {
             if (s != lv_STAGE_COMPLETED && s != lv_STAGE_SKIPPED) {
                 unresolved_count++;
-                if (first_unresolved < 0) first_unresolved = i;
+                if (first_unresolved < 0)
+                    first_unresolved = i;
             }
         } else {
             if (s != lv_STAGE_COMPLETED) {
                 unresolved_count++;
-                if (first_unresolved < 0) first_unresolved = i;
+                if (first_unresolved < 0)
+                    first_unresolved = i;
             }
         }
     }
 
     if (unresolved_count > 0) {
-        snprintf(desc, desc_size, "完备性失败: %d 个阶段未完成，首个未解决阶段=%d",
-                 unresolved_count, first_unresolved);
+        snprintf(desc, desc_size, "完备性失败: %d 个阶段未完成，首个未解决阶段=%d", unresolved_count, first_unresolved);
         return 0;
     }
 
@@ -200,9 +200,7 @@ static int check_soundness(const lvSession *session, char *desc, int desc_size) 
             /* 如果当前阶段完成，前驱阶段也必须完成（除非前驱是 SKIPPED） */
             lvStageStatus prev = session->stages[i - 1].status;
             if (prev != lv_STAGE_COMPLETED && prev != lv_STAGE_SKIPPED) {
-                snprintf(desc, desc_size,
-                         "可靠性失败：阶段 %d 已完成但其前驱阶段 %d 状态=%d",
-                         i, i - 1, prev);
+                snprintf(desc, desc_size, "可靠性失败：阶段 %d 已完成但其前驱阶段 %d 状态=%d", i, i - 1, prev);
                 return 0;
             }
         }
@@ -210,13 +208,10 @@ static int check_soundness(const lvSession *session, char *desc, int desc_size) 
 
     /* 检查循环依赖：阶段完成顺序必须单调递增（时间戳递增） */
     for (int i = 1; i < lv_STAGE_COUNT; i++) {
-        if (session->stages[i].status == lv_STAGE_COMPLETED &&
-            session->stages[i - 1].status == lv_STAGE_COMPLETED) {
+        if (session->stages[i].status == lv_STAGE_COMPLETED && session->stages[i - 1].status == lv_STAGE_COMPLETED) {
             /* 验证耗时合理性：后续阶段耗时不应为负 */
             if (session->stages[i].elapsed_ms < 0) {
-                snprintf(desc, desc_size,
-                         "可靠性失败：阶段 %d 耗时为负值 (%.2fms)",
-                         i, session->stages[i].elapsed_ms);
+                snprintf(desc, desc_size, "可靠性失败：阶段 %d 耗时为负值 (%.2fms)", i, session->stages[i].elapsed_ms);
                 return 0;
             }
         }
@@ -226,15 +221,11 @@ static int check_soundness(const lvSession *session, char *desc, int desc_size) 
     const char *reasoning_msg = session->stages[lv_STAGE_REASONING].error_msg;
     if (reasoning_msg) {
         /* 检查推理消息中是否包含矛盾标记 */
-        const char *contradiction_markers[] = {
-            "矛盾", "contradiction", "CONTRADICTORY", "不一致"
-        };
-        int marker_count = (int)(sizeof(contradiction_markers) / sizeof(contradiction_markers[0]));
+        const char *contradiction_markers[] = {"矛盾", "contradiction", "CONTRADICTORY", "不一致"};
+        int marker_count = (int) (sizeof(contradiction_markers) / sizeof(contradiction_markers[0]));
         for (int i = 0; i < marker_count; i++) {
             if (strstr(reasoning_msg, contradiction_markers[i]) != NULL) {
-                snprintf(desc, desc_size,
-                         "可靠性失败：推理阶段包含矛盾标记 '%s'",
-                         contradiction_markers[i]);
+                snprintf(desc, desc_size, "可靠性失败：推理阶段包含矛盾标记 '%s'", contradiction_markers[i]);
                 return 0;
             }
         }
@@ -244,16 +235,17 @@ static int check_soundness(const lvSession *session, char *desc, int desc_size) 
     int completed_count = 0;
     int failed_count = 0;
     for (int i = 0; i < lv_STAGE_COUNT; i++) {
-        if (session->stages[i].status == lv_STAGE_COMPLETED) completed_count++;
-        if (session->stages[i].status == lv_STAGE_FAILED) failed_count++;
+        if (session->stages[i].status == lv_STAGE_COMPLETED)
+            completed_count++;
+        if (session->stages[i].status == lv_STAGE_FAILED)
+            failed_count++;
     }
     if (completed_count > 0 && failed_count > 0) {
         /* 存在混合状态：检查是否合理（如后续阶段因前置失败而终止） */
         /* 如果有 FAILED 阶段，会话应该标记为失败 */
         if (session->success) {
-            snprintf(desc, desc_size,
-                     "可靠性失败：存在 %d 个完成和 %d 个失败阶段，但会话标记为成功",
-                     completed_count, failed_count);
+            snprintf(desc, desc_size, "可靠性失败：存在 %d 个完成和 %d 个失败阶段，但会话标记为成功", completed_count,
+                     failed_count);
             return 0;
         }
     }
@@ -266,9 +258,7 @@ static int check_soundness(const lvSession *session, char *desc, int desc_size) 
         }
     }
 
-    snprintf(desc, desc_size,
-             "可靠性通过: 依赖链一致，无循环依赖，无矛盾，%d 阶段完成",
-             completed_count);
+    snprintf(desc, desc_size, "可靠性通过: 依赖链一致，无循环依赖，无矛盾，%d 阶段完成", completed_count);
     return 1;
 }
 
@@ -298,15 +288,11 @@ static int check_nontriviality(const lvSession *session, char *desc, int desc_si
     }
 
     /* 检查是否为平凡证明（仅 "trivial" 或 "rfl"） */
-    const char *trivial_markers[] = {
-        "trivial", "rfl", "平凡", "axiom", "假设即结论"
-    };
-    int marker_count = (int)(sizeof(trivial_markers) / sizeof(trivial_markers[0]));
+    const char *trivial_markers[] = {"trivial", "rfl", "平凡", "axiom", "假设即结论"};
+    int marker_count = (int) (sizeof(trivial_markers) / sizeof(trivial_markers[0]));
     for (int i = 0; i < marker_count; i++) {
         if (strstr(reasoning_msg, trivial_markers[i]) != NULL) {
-            snprintf(desc, desc_size,
-                     "非平凡性失败：证明仅包含平凡标记 '%s'",
-                     trivial_markers[i]);
+            snprintf(desc, desc_size, "非平凡性失败：证明仅包含平凡标记 '%s'", trivial_markers[i]);
             return 0;
         }
     }
@@ -327,9 +313,8 @@ static int check_nontriviality(const lvSession *session, char *desc, int desc_si
     /* 检查证明深度 > 1：至少尝试了 2 个策略或推理耗时 > 1ms */
     double reasoning_time = session->stages[lv_STAGE_REASONING].elapsed_ms;
     if (strategy_attempts > 0 && strategy_attempts < 2 && reasoning_time < 1.0) {
-        snprintf(desc, desc_size,
-                 "非平凡性失败：证明深度不足 (策略尝试=%d, 耗时=%.2fms)",
-                 strategy_attempts, reasoning_time);
+        snprintf(desc, desc_size, "非平凡性失败：证明深度不足 (策略尝试=%d, 耗时=%.2fms)", strategy_attempts,
+                 reasoning_time);
         return 0;
     }
 
@@ -345,8 +330,7 @@ static int check_nontriviality(const lvSession *session, char *desc, int desc_si
                 int tokens = 0;
                 lv_parse_int(num_start, &tokens);
                 if (tokens < 2) {
-                    snprintf(desc, desc_size,
-                             "非平凡性失败：输入仅含 %d 个标记（不足 2 个）", tokens);
+                    snprintf(desc, desc_size, "非平凡性失败：输入仅含 %d 个标记（不足 2 个）", tokens);
                     return 0;
                 }
             }
@@ -372,9 +356,8 @@ static int check_nontriviality(const lvSession *session, char *desc, int desc_si
         }
     }
 
-    snprintf(desc, desc_size,
-             "非平凡性通过: 策略尝试=%d, 推理耗时=%.2fms, 证明非平凡",
-             strategy_attempts, reasoning_time);
+    snprintf(desc, desc_size, "非平凡性通过: 策略尝试=%d, 推理耗时=%.2fms, 证明非平凡", strategy_attempts,
+             reasoning_time);
     return 1;
 }
 
@@ -392,8 +375,7 @@ static int check_roundtrip(const lvSession *session, char *desc, int desc_size) 
 
     /* 检查输出阶段是否已完成 */
     if (session->stages[lv_STAGE_OUTPUT].status != lv_STAGE_COMPLETED) {
-        snprintf(desc, desc_size, "往返验证失败：输出阶段未完成 (status=%d)",
-                 session->stages[lv_STAGE_OUTPUT].status);
+        snprintf(desc, desc_size, "往返验证失败：输出阶段未完成 (status=%d)", session->stages[lv_STAGE_OUTPUT].status);
         return 0;
     }
 
@@ -406,11 +388,8 @@ static int check_roundtrip(const lvSession *session, char *desc, int desc_size) 
 
     /* 检查输出是否包含有效的结构化标记 */
     int found_markers = 0;
-    const char *structure_markers[] = {
-        "格式=", "proof", "latex", "html", "字节",
-        "预估", "format", "bytes", "output"
-    };
-    int marker_count = (int)(sizeof(structure_markers) / sizeof(structure_markers[0]));
+    const char *structure_markers[] = {"格式=", "proof", "latex", "html", "字节", "预估", "format", "bytes", "output"};
+    int marker_count = (int) (sizeof(structure_markers) / sizeof(structure_markers[0]));
     for (int i = 0; i < marker_count; i++) {
         if (strstr(output_msg, structure_markers[i]) != NULL) {
             found_markers++;
@@ -418,8 +397,7 @@ static int check_roundtrip(const lvSession *session, char *desc, int desc_size) 
     }
 
     if (found_markers < 2) {
-        snprintf(desc, desc_size,
-                 "往返验证失败：输出缺少有效的结构化标记 (仅找到 %d 个)", found_markers);
+        snprintf(desc, desc_size, "往返验证失败：输出缺少有效的结构化标记 (仅找到 %d 个)", found_markers);
         return 0;
     }
 
@@ -433,8 +411,7 @@ static int check_roundtrip(const lvSession *session, char *desc, int desc_size) 
             int bytes = 0;
             lv_parse_int(num_start, &bytes);
             if (bytes <= 0) {
-                snprintf(desc, desc_size,
-                         "往返验证失败：输出字节数无效 (%d)", bytes);
+                snprintf(desc, desc_size, "往返验证失败：输出字节数无效 (%d)", bytes);
                 return 0;
             }
         }
@@ -444,19 +421,19 @@ static int check_roundtrip(const lvSession *session, char *desc, int desc_size) 
     const char *parse_msg = session->stages[lv_STAGE_PARSE].error_msg;
     if (parse_msg) {
         int bracket_depth = 0;
-        int len = (int)strlen(parse_msg);
+        int len = (int) strlen(parse_msg);
         for (int i = 0; i < len; i++) {
-            if (parse_msg[i] == '(' || parse_msg[i] == '[') bracket_depth++;
-            if (parse_msg[i] == ')' || parse_msg[i] == ']') bracket_depth--;
+            if (parse_msg[i] == '(' || parse_msg[i] == '[')
+                bracket_depth++;
+            if (parse_msg[i] == ')' || parse_msg[i] == ']')
+                bracket_depth--;
             if (bracket_depth < 0) {
-                snprintf(desc, desc_size,
-                         "往返验证失败：解析输出包含不匹配的括号");
+                snprintf(desc, desc_size, "往返验证失败：解析输出包含不匹配的括号");
                 return 0;
             }
         }
         if (bracket_depth != 0) {
-            snprintf(desc, desc_size,
-                     "往返验证失败：解析输出括号不平衡 (depth=%d)", bracket_depth);
+            snprintf(desc, desc_size, "往返验证失败：解析输出括号不平衡 (depth=%d)", bracket_depth);
             return 0;
         }
     }
@@ -470,14 +447,12 @@ static int check_roundtrip(const lvSession *session, char *desc, int desc_size) 
         } else if (strstr(reasoning_msg, "模拟") != NULL) {
             /* 模拟模式也包含可解析信息 */
         } else {
-            snprintf(desc, desc_size,
-                     "往返验证警告：推理输出格式可能不可重新解析");
+            snprintf(desc, desc_size, "往返验证警告：推理输出格式可能不可重新解析");
             /* 不严格失败 */
         }
     }
 
-    snprintf(desc, desc_size,
-             "往返验证通过: 输出包含 %d 个结构化标记，可重新解析", found_markers);
+    snprintf(desc, desc_size, "往返验证通过: 输出包含 %d 个结构化标记，可重新解析", found_markers);
     return 1;
 }
 
@@ -496,12 +471,12 @@ typedef int (*check_func_t)(const lvSession *, char *, int);
  * 每个函数执行单一维度的验证，结果写入 lvMetaVerifyResult::description。
  */
 static const check_func_t g_check_funcs[lv_CHECK_COUNT] = {
-    check_structural,        /* lv_CHECK_STRUCTURAL */
-    check_type_consistency,  /* lv_CHECK_TYPE */
-    check_completeness,      /* lv_CHECK_COMPLETE */
-    check_soundness,         /* lv_CHECK_SOUND */
-    check_nontriviality,     /* lv_CHECK_NONTRIVIAL */
-    check_roundtrip          /* lv_CHECK_ROUNDTRIP */
+    check_structural,       /* lv_CHECK_STRUCTURAL */
+    check_type_consistency, /* lv_CHECK_TYPE */
+    check_completeness,     /* lv_CHECK_COMPLETE */
+    check_soundness,        /* lv_CHECK_SOUND */
+    check_nontriviality,    /* lv_CHECK_NONTRIVIAL */
+    check_roundtrip         /* lv_CHECK_ROUNDTRIP */
 };
 
 /* ============================================================
@@ -518,8 +493,9 @@ static const check_func_t g_check_funcs[lv_CHECK_COUNT] = {
  */
 lvMetaVerifier *lv_meta_verifier_create(void) {
     lvMetaVerifier *v = lv_calloc(1, sizeof(lvMetaVerifier));
-    if (!v) return NULL;
-    v->check_mask = (1 << lv_CHECK_COUNT) - 1;  /* All checks enabled */
+    if (!v)
+        return NULL;
+    v->check_mask = (1 << lv_CHECK_COUNT) - 1; /* All checks enabled */
     v->strict_mode = 0;
     return v;
 }
@@ -532,7 +508,7 @@ lvMetaVerifier *lv_meta_verifier_create(void) {
  * @param verifier 要销毁的元验证器指针
  */
 void lv_meta_verifier_destroy(lvMetaVerifier *verifier) {
-    lv_free((void **)&verifier);
+    lv_free((void **) &verifier);
 }
 
 /**
@@ -570,7 +546,8 @@ void lv_meta_verifier_disable_check(lvMetaVerifier *verifier, lvVerifyCheck chec
  * @param strict   非零值启用严格模式，零值禁用
  */
 void lv_meta_verifier_set_strict(lvMetaVerifier *verifier, int strict) {
-    if (verifier) verifier->strict_mode = strict;
+    if (verifier)
+        verifier->strict_mode = strict;
 }
 
 /**
@@ -593,12 +570,11 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
     }
     report.total_checks = lv_CHECK_COUNT;
     for (int i = 0; i < lv_CHECK_COUNT; i++) {
-        report.results[i].check = (lvVerifyCheck)i;
+        report.results[i].check = (lvVerifyCheck) i;
         if (verifier->check_mask & (1 << i)) {
             /* 调用对应的检查函数 */
-            int passed = g_check_funcs[i](session,
-                                           report.results[i].description,
-                                           sizeof(report.results[i].description));
+            int passed =
+                g_check_funcs[i](session, report.results[i].description, sizeof(report.results[i].description));
             report.results[i].passed = passed;
             if (passed) {
                 report.passed_checks++;
@@ -606,16 +582,14 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
                 report.failed_checks++;
             }
         } else {
-            report.results[i].passed = -1;  /* Skipped */
+            report.results[i].passed = -1; /* Skipped */
             report.skipped_checks++;
         }
     }
 
     /* 生成摘要 */
-    snprintf(report.summary, sizeof(report.summary),
-             "Meta-verification: %d/%d passed, %d failed, %d skipped",
-             report.passed_checks, report.total_checks,
-             report.failed_checks, report.skipped_checks);
+    snprintf(report.summary, sizeof(report.summary), "Meta-verification: %d/%d passed, %d failed, %d skipped",
+             report.passed_checks, report.total_checks, report.failed_checks, report.skipped_checks);
     return report;
 }
 
@@ -637,13 +611,13 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
         return report;
     }
 
-    lvProofObject *p = (lvProofObject *)proof;
+    lvProofObject *p = (lvProofObject *) proof;
     report.total_checks = lv_CHECK_COUNT;
 
     for (int i = 0; i < lv_CHECK_COUNT; i++) {
-        report.results[i].check = (lvVerifyCheck)i;
+        report.results[i].check = (lvVerifyCheck) i;
         if (!(verifier->check_mask & (1 << i))) {
-            report.results[i].passed = -1;  /* Skipped */
+            report.results[i].passed = -1; /* Skipped */
             report.skipped_checks++;
             continue;
         }
@@ -651,176 +625,181 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
         int passed = 0;
         char desc[512] = {0};
 
-        switch ((lvVerifyCheck)i) {
-        case lv_CHECK_STRUCTURAL: {
-            /* 检查证明至少有一个步骤 */
-            if (!p) {
-                snprintf(desc, sizeof(desc), "Proof is NULL");
-                break;
-            }
-            if (p->step_count < 1) {
-                snprintf(desc, sizeof(desc), "Proof has no steps (step_count=%d)", p->step_count);
-                break;
-            }
-            if (!p->steps || !p->steps[0]) {
-                snprintf(desc, sizeof(desc), "Proof steps array is NULL or first step is NULL");
-                break;
-            }
-            snprintf(desc, sizeof(desc), "Structural check passed: %d steps", p->step_count);
-            passed = 1;
-            break;
-        }
-        case lv_CHECK_TYPE: {
-            /* 检查步骤链有效性：每个步骤的前提引用更早的步骤 */
-            if (!p) {
-                snprintf(desc, sizeof(desc), "Proof is NULL");
-                break;
-            }
-            passed = 1;
-            for (int s = 0; s < p->step_count; s++) {
-                lvProofStepRecord *step = p->steps[s];
-                if (!step) {
-                    snprintf(desc, sizeof(desc), "Step %d is NULL", s);
-                    passed = 0;
+        switch ((lvVerifyCheck) i) {
+            case lv_CHECK_STRUCTURAL: {
+                /* 检查证明至少有一个步骤 */
+                if (!p) {
+                    snprintf(desc, sizeof(desc), "Proof is NULL");
                     break;
                 }
-                for (int j = 0; j < step->premise_count; j++) {
-                    int pid = step->premise_step_ids[j];
-                    if (pid < 0 || pid >= s) {
-                        snprintf(desc, sizeof(desc),
-                            "Step %d references premise %d which is not an earlier step",
-                            s, pid);
+                if (p->step_count < 1) {
+                    snprintf(desc, sizeof(desc), "Proof has no steps (step_count=%d)", p->step_count);
+                    break;
+                }
+                if (!p->steps || !p->steps[0]) {
+                    snprintf(desc, sizeof(desc), "Proof steps array is NULL or first step is NULL");
+                    break;
+                }
+                snprintf(desc, sizeof(desc), "Structural check passed: %d steps", p->step_count);
+                passed = 1;
+                break;
+            }
+            case lv_CHECK_TYPE: {
+                /* 检查步骤链有效性：每个步骤的前提引用更早的步骤 */
+                if (!p) {
+                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    break;
+                }
+                passed = 1;
+                for (int s = 0; s < p->step_count; s++) {
+                    lvProofStepRecord *step = p->steps[s];
+                    if (!step) {
+                        snprintf(desc, sizeof(desc), "Step %d is NULL", s);
+                        passed = 0;
+                        break;
+                    }
+                    for (int j = 0; j < step->premise_count; j++) {
+                        int pid = step->premise_step_ids[j];
+                        if (pid < 0 || pid >= s) {
+                            snprintf(desc, sizeof(desc), "Step %d references premise %d which is not an earlier step",
+                                     s, pid);
+                            passed = 0;
+                            break;
+                        }
+                    }
+                    if (!passed)
+                        break;
+                }
+                if (passed) {
+                    snprintf(desc, sizeof(desc), "Type/chain check passed: all premises reference earlier steps");
+                }
+                break;
+            }
+            case lv_CHECK_COMPLETE: {
+                /* 检查最后一步的结论是否匹配目标 */
+                if (!p) {
+                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    break;
+                }
+                if (p->step_count == 0) {
+                    snprintf(desc, sizeof(desc), "No steps to check conclusion");
+                    break;
+                }
+                lvProofStepRecord *last = p->steps[p->step_count - 1];
+                if (!last || !last->conclusion) {
+                    snprintf(desc, sizeof(desc), "Last step has no conclusion");
+                    break;
+                }
+                if (p->goal && last->conclusion != p->goal &&
+                    !(last->conclusion->label && p->goal->label &&
+                      strcmp(last->conclusion->label, p->goal->label) == 0)) {
+                    snprintf(desc, sizeof(desc), "Last step conclusion does not match goal");
+                    break;
+                }
+                snprintf(desc, sizeof(desc), "Completeness check passed: final conclusion matches goal");
+                passed = 1;
+                break;
+            }
+            case lv_CHECK_SOUND: {
+                /* 检查循环依赖：确保没有步骤间接依赖自身 */
+                if (!p) {
+                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    break;
+                }
+                passed = 1;
+                /* 对每个步骤，检查其前提链是否回指自身 */
+                for (int s = 0; s < p->step_count; s++) {
+                    lvProofStepRecord *step = p->steps[s];
+                    if (!step)
+                        continue;
+                    /* BFS 检查前提链中是否包含步骤 s 自身 */
+                    /* 队列大小：最坏情况每个步骤的所有前提都入队 */
+                    int queue_cap = p->step_count * 4;
+                    if (queue_cap < 16)
+                        queue_cap = 16;
+                    int *queue = (int *) lv_malloc((size_t) queue_cap * sizeof(int));
+                    int *visited = (int *) lv_calloc((size_t) p->step_count, sizeof(int));
+                    if (!queue || !visited) {
+                        lv_free((void **) &queue);
+                        lv_free((void **) &visited);
+                        snprintf(desc, sizeof(desc), "Memory allocation failed");
+                        passed = 0;
+                        break;
+                    }
+                    int head = 0, tail = 0;
+                    for (int j = 0; j < step->premise_count; j++) {
+                        if (tail < queue_cap) {
+                            queue[tail++] = step->premise_step_ids[j];
+                        }
+                    }
+                    visited[s] = 1;
+                    int found_cycle = 0;
+                    while (head < tail) {
+                        int cur = queue[head++];
+                        if (cur == s) {
+                            found_cycle = 1;
+                            break;
+                        }
+                        if (cur < 0 || cur >= p->step_count)
+                            continue;
+                        if (visited[cur])
+                            continue;
+                        visited[cur] = 1;
+                        lvProofStepRecord *cur_step = p->steps[cur];
+                        if (cur_step) {
+                            for (int j = 0; j < cur_step->premise_count; j++) {
+                                if (tail < queue_cap) {
+                                    queue[tail++] = cur_step->premise_step_ids[j];
+                                }
+                            }
+                        }
+                    }
+                    lv_free((void **) &queue);
+                    lv_free((void **) &visited);
+                    if (found_cycle) {
+                        snprintf(desc, sizeof(desc), "Circular dependency detected at step %d", s);
                         passed = 0;
                         break;
                     }
                 }
-                if (!passed) break;
-            }
-            if (passed) {
-                snprintf(desc, sizeof(desc), "Type/chain check passed: all premises reference earlier steps");
-            }
-            break;
-        }
-        case lv_CHECK_COMPLETE: {
-            /* 检查最后一步的结论是否匹配目标 */
-            if (!p) {
-                snprintf(desc, sizeof(desc), "Proof is NULL");
+                if (passed) {
+                    snprintf(desc, sizeof(desc), "Soundness check passed: no circular dependencies");
+                }
                 break;
             }
-            if (p->step_count == 0) {
-                snprintf(desc, sizeof(desc), "No steps to check conclusion");
-                break;
-            }
-            lvProofStepRecord *last = p->steps[p->step_count - 1];
-            if (!last || !last->conclusion) {
-                snprintf(desc, sizeof(desc), "Last step has no conclusion");
-                break;
-            }
-            if (p->goal && last->conclusion != p->goal &&
-                !(last->conclusion->label && p->goal->label &&
-                  strcmp(last->conclusion->label, p->goal->label) == 0)) {
-                snprintf(desc, sizeof(desc),
-                    "Last step conclusion does not match goal");
-                break;
-            }
-            snprintf(desc, sizeof(desc), "Completeness check passed: final conclusion matches goal");
-            passed = 1;
-            break;
-        }
-        case lv_CHECK_SOUND: {
-            /* 检查循环依赖：确保没有步骤间接依赖自身 */
-            if (!p) {
-                snprintf(desc, sizeof(desc), "Proof is NULL");
-                break;
-            }
-            passed = 1;
-            /* 对每个步骤，检查其前提链是否回指自身 */
-            for (int s = 0; s < p->step_count; s++) {
-                lvProofStepRecord *step = p->steps[s];
-                if (!step) continue;
-                /* BFS 检查前提链中是否包含步骤 s 自身 */
-                /* 队列大小：最坏情况每个步骤的所有前提都入队 */
-                int queue_cap = p->step_count * 4;
-                if (queue_cap < 16) queue_cap = 16;
-                int *queue = (int *)lv_malloc((size_t)queue_cap * sizeof(int));
-                int *visited = (int *)lv_calloc((size_t)p->step_count, sizeof(int));
-                if (!queue || !visited) {
-                    lv_free((void **)&queue); lv_free((void **)&visited);
-                    snprintf(desc, sizeof(desc), "Memory allocation failed");
-                    passed = 0;
+            case lv_CHECK_NONTRIVIAL: {
+                /* 检查证明非平凡：至少有2个步骤或使用了公理/假设 */
+                if (!p) {
+                    snprintf(desc, sizeof(desc), "Proof is NULL");
                     break;
                 }
-                int head = 0, tail = 0;
-                for (int j = 0; j < step->premise_count; j++) {
-                    if (tail < queue_cap) {
-                        queue[tail++] = step->premise_step_ids[j];
-                    }
-                }
-                visited[s] = 1;
-                int found_cycle = 0;
-                while (head < tail) {
-                    int cur = queue[head++];
-                    if (cur == s) { found_cycle = 1; break; }
-                    if (cur < 0 || cur >= p->step_count) continue;
-                    if (visited[cur]) continue;
-                    visited[cur] = 1;
-                    lvProofStepRecord *cur_step = p->steps[cur];
-                    if (cur_step) {
-                        for (int j = 0; j < cur_step->premise_count; j++) {
-                            if (tail < queue_cap) {
-                                queue[tail++] = cur_step->premise_step_ids[j];
-                            }
-                        }
-                    }
-                }
-                lv_free((void **)&queue); lv_free((void **)&visited);
-                if (found_cycle) {
-                    snprintf(desc, sizeof(desc),
-                        "Circular dependency detected at step %d", s);
-                    passed = 0;
+                if (p->step_count <= 1 && p->axiom_count == 0 && p->assumption_count == 0) {
+                    snprintf(desc, sizeof(desc), "Proof is trivial: only %d step(s), no axioms or assumptions",
+                             p->step_count);
                     break;
                 }
-            }
-            if (passed) {
-                snprintf(desc, sizeof(desc), "Soundness check passed: no circular dependencies");
-            }
-            break;
-        }
-        case lv_CHECK_NONTRIVIAL: {
-            /* 检查证明非平凡：至少有2个步骤或使用了公理/假设 */
-            if (!p) {
-                snprintf(desc, sizeof(desc), "Proof is NULL");
+                snprintf(desc, sizeof(desc), "Nontriviality check passed: %d steps, %d axioms, %d assumptions",
+                         p->step_count, p->axiom_count, p->assumption_count);
+                passed = 1;
                 break;
             }
-            if (p->step_count <= 1 && p->axiom_count == 0 && p->assumption_count == 0) {
-                snprintf(desc, sizeof(desc),
-                    "Proof is trivial: only %d step(s), no axioms or assumptions",
-                    p->step_count);
+            case lv_CHECK_ROUNDTRIP: {
+                /* 检查证明标记为已完成 */
+                if (!p) {
+                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    break;
+                }
+                if (!p->is_proved) {
+                    snprintf(desc, sizeof(desc), "Proof is not marked as proved");
+                    break;
+                }
+                snprintf(desc, sizeof(desc), "Roundtrip check passed: proof is marked as proved");
+                passed = 1;
                 break;
             }
-            snprintf(desc, sizeof(desc),
-                "Nontriviality check passed: %d steps, %d axioms, %d assumptions",
-                p->step_count, p->axiom_count, p->assumption_count);
-            passed = 1;
-            break;
-        }
-        case lv_CHECK_ROUNDTRIP: {
-            /* 检查证明标记为已完成 */
-            if (!p) {
-                snprintf(desc, sizeof(desc), "Proof is NULL");
+            default:
+                snprintf(desc, sizeof(desc), "Unknown check");
                 break;
-            }
-            if (!p->is_proved) {
-                snprintf(desc, sizeof(desc), "Proof is not marked as proved");
-                break;
-            }
-            snprintf(desc, sizeof(desc), "Roundtrip check passed: proof is marked as proved");
-            passed = 1;
-            break;
-        }
-        default:
-            snprintf(desc, sizeof(desc), "Unknown check");
-            break;
         }
 
         report.results[i].passed = passed;
@@ -834,10 +813,8 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
     }
 
     /* 生成摘要 */
-    snprintf(report.summary, sizeof(report.summary),
-             "Proof meta-verification: %d/%d passed, %d failed, %d skipped",
-             report.passed_checks, report.total_checks,
-             report.failed_checks, report.skipped_checks);
+    snprintf(report.summary, sizeof(report.summary), "Proof meta-verification: %d/%d passed, %d failed, %d skipped",
+             report.passed_checks, report.total_checks, report.failed_checks, report.skipped_checks);
     return report;
 }
 
@@ -862,7 +839,8 @@ int lv_verify_report_passed(const lvVerifyReport *report) {
  * @return 摘要字符串指针，report 为 NULL 时返回 NULL
  */
 const char *lv_verify_report_summary(const lvVerifyReport *report) {
-    if (!report) return NULL;
+    if (!report)
+        return NULL;
     return report->summary;
 }
 
@@ -876,6 +854,7 @@ const char *lv_verify_report_summary(const lvVerifyReport *report) {
  * @return 单项检查结果指针，参数无效时返回 NULL
  */
 const lvMetaVerifyResult *lv_verify_report_result(const lvVerifyReport *report, lvVerifyCheck check) {
-    if (!report || check < 0 || check >= lv_CHECK_COUNT) return NULL;
+    if (!report || check < 0 || check >= lv_CHECK_COUNT)
+        return NULL;
     return &report->results[check];
 }

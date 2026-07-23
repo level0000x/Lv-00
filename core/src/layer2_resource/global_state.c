@@ -19,14 +19,14 @@
  * @license MIT
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <float.h>
 #include <limits.h>
-#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "lv/lv_utils.h"
 
@@ -34,14 +34,14 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
-#define GS_LOCK()   EnterCriticalSection(&g_state_mutex)
+#define GS_LOCK() EnterCriticalSection(&g_state_mutex)
 #define GS_UNLOCK() LeaveCriticalSection(&g_state_mutex)
 #define GS_INIT_LOCK() InitializeCriticalSection(&g_state_mutex)
 #define GS_DESTROY_LOCK() DeleteCriticalSection(&g_state_mutex)
 static CRITICAL_SECTION g_state_mutex;
 #else
 #include <pthread.h>
-#define GS_LOCK()   pthread_mutex_lock(&g_state_mutex)
+#define GS_LOCK() pthread_mutex_lock(&g_state_mutex)
 #define GS_UNLOCK() pthread_mutex_unlock(&g_state_mutex)
 #define GS_INIT_LOCK() pthread_mutex_init(&g_state_mutex, NULL)
 #define GS_DESTROY_LOCK() pthread_mutex_destroy(&g_state_mutex)
@@ -50,19 +50,14 @@ static pthread_mutex_t g_state_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* ── 常量 ─────────────────────────────────────────────────────────── */
 
-#define lv_GS_MAX_PARAMS       256
-#define lv_GS_MAX_KEY_LEN       128
-#define lv_GS_MAX_VALUE_LEN     512
-#define lv_GS_MAX_ERROR_LEN     256
+#define lv_GS_MAX_PARAMS 256
+#define lv_GS_MAX_KEY_LEN 128
+#define lv_GS_MAX_VALUE_LEN 512
+#define lv_GS_MAX_ERROR_LEN 256
 
 /* ── 参数类型 ─────────────────────────────────────────────────────── */
 
-typedef enum {
-    lv_GS_TYPE_INT    = 0,
-    lv_GS_TYPE_DOUBLE = 1,
-    lv_GS_TYPE_STRING = 2,
-    lv_GS_TYPE_BOOL   = 3
-} lvGsParamType;
+typedef enum { lv_GS_TYPE_INT = 0, lv_GS_TYPE_DOUBLE = 1, lv_GS_TYPE_STRING = 2, lv_GS_TYPE_BOOL = 3 } lvGsParamType;
 
 /* ── 参数条目 ─────────────────────────────────────────────────────── */
 
@@ -70,15 +65,15 @@ typedef enum {
  * @brief 全局状态参数条目
  */
 typedef struct {
-    char              key[lv_GS_MAX_KEY_LEN];   /**< 参数键名 */
-    lvGsParamType  type;                        /**< 参数类型 */
+    char key[lv_GS_MAX_KEY_LEN]; /**< 参数键名 */
+    lvGsParamType type;          /**< 参数类型 */
     union {
-        int    int_val;                        /**< 整数值 */
-        double dbl_val;                        /**< 浮点数值 */
-        char   str_val[lv_GS_MAX_VALUE_LEN];   /**< 字符串值 */
-        bool   bool_val;                       /**< 布尔值 */
-    } value;                                    /**< 参数值联合体 */
-    bool              is_set;                   /**< 是否已设置 */
+        int int_val;                       /**< 整数值 */
+        double dbl_val;                    /**< 浮点数值 */
+        char str_val[lv_GS_MAX_VALUE_LEN]; /**< 字符串值 */
+        bool bool_val;                     /**< 布尔值 */
+    } value;                               /**< 参数值联合体 */
+    bool is_set;                           /**< 是否已设置 */
 } lvGsParam;
 
 /* ── 全局状态结构体 ─────────────────────────────────────────────────── */
@@ -87,10 +82,10 @@ typedef struct {
  * @brief 全局状态结构
  */
 typedef struct {
-    lvGsParam  params[lv_GS_MAX_PARAMS];  /**< 参数数组 */
-    int          param_count;              /**< 当前参数数量 */
-    bool         initialized;              /**< 初始化标志 */
-    char         version[64];              /**< 版本号 */
+    lvGsParam params[lv_GS_MAX_PARAMS]; /**< 参数数组 */
+    int param_count;                    /**< 当前参数数量 */
+    bool initialized;                   /**< 初始化标志 */
+    char version[64];                   /**< 版本号 */
 } lvGlobalState;
 
 static lvGlobalState g_state = {0};
@@ -104,9 +99,11 @@ static lvGlobalState g_state = {0};
  * @return 参数索引，未找到返回 -1
  */
 static int find_param_index(const char *key) {
-    if (!key) return -1;
+    if (!key)
+        return -1;
     for (int i = 0; i < g_state.param_count; i++) {
-        if (strcmp(g_state.params[i].key, key) == 0) return i;
+        if (strcmp(g_state.params[i].key, key) == 0)
+            return i;
     }
     return -1;
 }
@@ -119,14 +116,17 @@ static int find_param_index(const char *key) {
  * @return 参数索引，失败（注册表已满）返回 -1
  */
 static int find_or_create_param(const char *key, lvGsParamType type) {
-    if (!key) return -1;
+    if (!key)
+        return -1;
     int idx = find_param_index(key);
-    if (idx >= 0) return idx;
-    if (g_state.param_count >= lv_GS_MAX_PARAMS) return -1;
+    if (idx >= 0)
+        return idx;
+    if (g_state.param_count >= lv_GS_MAX_PARAMS)
+        return -1;
     idx = g_state.param_count++;
     memset(&g_state.params[idx], 0, sizeof(lvGsParam));
     strncpy(g_state.params[idx].key, key, lv_GS_MAX_KEY_LEN - 1);
-    g_state.params[idx].key[lv_GS_MAX_KEY_LEN - 1] = '\0';  /* 确保 null-terminate */
+    g_state.params[idx].key[lv_GS_MAX_KEY_LEN - 1] = '\0'; /* 确保 null-terminate */
     g_state.params[idx].type = type;
     return idx;
 }
@@ -150,7 +150,7 @@ int lv_global_state_init(void) {
     g_state.param_count = 0;
     g_state.initialized = true;
     strncpy(g_state.version, "3.3.0", sizeof(g_state.version) - 1);
-    g_state.version[sizeof(g_state.version) - 1] = '\0';  /* 确保 null-terminate */
+    g_state.version[sizeof(g_state.version) - 1] = '\0'; /* 确保 null-terminate */
     GS_UNLOCK();
     return 0;
 }
@@ -161,7 +161,8 @@ int lv_global_state_init(void) {
  * 清零状态并销毁互斥锁。若未初始化则直接返回。
  */
 void lv_global_state_cleanup(void) {
-    if (!g_state.initialized) return;
+    if (!g_state.initialized)
+        return;
     GS_LOCK();
     memset(&g_state, 0, sizeof(lvGlobalState));
     GS_UNLOCK();
@@ -187,10 +188,14 @@ bool lv_global_state_is_initialized(void) {
  * @return 0 成功，-1 失败（未初始化或注册表已满）
  */
 int lv_global_state_set_int(const char *key, int value) {
-    if (!g_state.initialized) return -1;
+    if (!g_state.initialized)
+        return -1;
     GS_LOCK();
     int idx = find_or_create_param(key, lv_GS_TYPE_INT);
-    if (idx < 0) { GS_UNLOCK(); return -1; }
+    if (idx < 0) {
+        GS_UNLOCK();
+        return -1;
+    }
     g_state.params[idx].value.int_val = value;
     g_state.params[idx].is_set = true;
     GS_UNLOCK();
@@ -205,11 +210,18 @@ int lv_global_state_set_int(const char *key, int value) {
  * @return 整数值或 default_val
  */
 int lv_global_state_get_int(const char *key, int default_val) {
-    if (!g_state.initialized) return default_val;
+    if (!g_state.initialized)
+        return default_val;
     GS_LOCK();
     int idx = find_param_index(key);
-    if (idx < 0 || !g_state.params[idx].is_set) { GS_UNLOCK(); return default_val; }
-    if (g_state.params[idx].type != lv_GS_TYPE_INT) { GS_UNLOCK(); return default_val; }
+    if (idx < 0 || !g_state.params[idx].is_set) {
+        GS_UNLOCK();
+        return default_val;
+    }
+    if (g_state.params[idx].type != lv_GS_TYPE_INT) {
+        GS_UNLOCK();
+        return default_val;
+    }
     int ret = g_state.params[idx].value.int_val;
     GS_UNLOCK();
     return ret;
@@ -225,10 +237,14 @@ int lv_global_state_get_int(const char *key, int default_val) {
  * @return 0 成功，-1 失败
  */
 int lv_global_state_set_double(const char *key, double value) {
-    if (!g_state.initialized) return -1;
+    if (!g_state.initialized)
+        return -1;
     GS_LOCK();
     int idx = find_or_create_param(key, lv_GS_TYPE_DOUBLE);
-    if (idx < 0) { GS_UNLOCK(); return -1; }
+    if (idx < 0) {
+        GS_UNLOCK();
+        return -1;
+    }
     g_state.params[idx].value.dbl_val = value;
     g_state.params[idx].is_set = true;
     GS_UNLOCK();
@@ -243,11 +259,18 @@ int lv_global_state_set_double(const char *key, double value) {
  * @return 浮点数值或 default_val
  */
 double lv_global_state_get_double(const char *key, double default_val) {
-    if (!g_state.initialized) return default_val;
+    if (!g_state.initialized)
+        return default_val;
     GS_LOCK();
     int idx = find_param_index(key);
-    if (idx < 0 || !g_state.params[idx].is_set) { GS_UNLOCK(); return default_val; }
-    if (g_state.params[idx].type != lv_GS_TYPE_DOUBLE) { GS_UNLOCK(); return default_val; }
+    if (idx < 0 || !g_state.params[idx].is_set) {
+        GS_UNLOCK();
+        return default_val;
+    }
+    if (g_state.params[idx].type != lv_GS_TYPE_DOUBLE) {
+        GS_UNLOCK();
+        return default_val;
+    }
     double ret = g_state.params[idx].value.dbl_val;
     GS_UNLOCK();
     return ret;
@@ -263,13 +286,17 @@ double lv_global_state_get_double(const char *key, double default_val) {
  * @return 0 成功，-1 失败
  */
 int lv_global_state_set_string(const char *key, const char *value) {
-    if (!g_state.initialized) return -1;
+    if (!g_state.initialized)
+        return -1;
     GS_LOCK();
     int idx = find_or_create_param(key, lv_GS_TYPE_STRING);
-    if (idx < 0) { GS_UNLOCK(); return -1; }
+    if (idx < 0) {
+        GS_UNLOCK();
+        return -1;
+    }
     if (value) {
         strncpy(g_state.params[idx].value.str_val, value, lv_GS_MAX_VALUE_LEN - 1);
-        g_state.params[idx].value.str_val[lv_GS_MAX_VALUE_LEN - 1] = '\0';  /* 确保 null-terminate */
+        g_state.params[idx].value.str_val[lv_GS_MAX_VALUE_LEN - 1] = '\0'; /* 确保 null-terminate */
     } else {
         g_state.params[idx].value.str_val[0] = '\0';
     }
@@ -286,11 +313,18 @@ int lv_global_state_set_string(const char *key, const char *value) {
  * @return 字符串值或 default_val
  */
 const char *lv_global_state_get_string(const char *key, const char *default_val) {
-    if (!g_state.initialized) return default_val;
+    if (!g_state.initialized)
+        return default_val;
     GS_LOCK();
     int idx = find_param_index(key);
-    if (idx < 0 || !g_state.params[idx].is_set) { GS_UNLOCK(); return default_val; }
-    if (g_state.params[idx].type != lv_GS_TYPE_STRING) { GS_UNLOCK(); return default_val; }
+    if (idx < 0 || !g_state.params[idx].is_set) {
+        GS_UNLOCK();
+        return default_val;
+    }
+    if (g_state.params[idx].type != lv_GS_TYPE_STRING) {
+        GS_UNLOCK();
+        return default_val;
+    }
     const char *ret = g_state.params[idx].value.str_val;
     GS_UNLOCK();
     return ret;
@@ -306,10 +340,14 @@ const char *lv_global_state_get_string(const char *key, const char *default_val)
  * @return 0 成功，-1 失败
  */
 int lv_global_state_set_bool(const char *key, bool value) {
-    if (!g_state.initialized) return -1;
+    if (!g_state.initialized)
+        return -1;
     GS_LOCK();
     int idx = find_or_create_param(key, lv_GS_TYPE_BOOL);
-    if (idx < 0) { GS_UNLOCK(); return -1; }
+    if (idx < 0) {
+        GS_UNLOCK();
+        return -1;
+    }
     g_state.params[idx].value.bool_val = value;
     g_state.params[idx].is_set = true;
     GS_UNLOCK();
@@ -324,11 +362,18 @@ int lv_global_state_set_bool(const char *key, bool value) {
  * @return 布尔值或 default_val
  */
 bool lv_global_state_get_bool(const char *key, bool default_val) {
-    if (!g_state.initialized) return default_val;
+    if (!g_state.initialized)
+        return default_val;
     GS_LOCK();
     int idx = find_param_index(key);
-    if (idx < 0 || !g_state.params[idx].is_set) { GS_UNLOCK(); return default_val; }
-    if (g_state.params[idx].type != lv_GS_TYPE_BOOL) { GS_UNLOCK(); return default_val; }
+    if (idx < 0 || !g_state.params[idx].is_set) {
+        GS_UNLOCK();
+        return default_val;
+    }
+    if (g_state.params[idx].type != lv_GS_TYPE_BOOL) {
+        GS_UNLOCK();
+        return default_val;
+    }
     bool ret = g_state.params[idx].value.bool_val;
     GS_UNLOCK();
     return ret;
@@ -342,7 +387,8 @@ bool lv_global_state_get_bool(const char *key, bool default_val) {
  * @return 0 成功，-1 未初始化
  */
 int lv_global_state_reset(void) {
-    if (!g_state.initialized) return -1;
+    if (!g_state.initialized)
+        return -1;
     GS_LOCK();
     g_state.param_count = 0;
     GS_UNLOCK();

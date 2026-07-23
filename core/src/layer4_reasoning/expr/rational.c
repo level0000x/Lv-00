@@ -115,12 +115,12 @@ lvRational *lv_rational_create_from_i64(int64_t num, uint64_t den) {
 
     /* 将 int64_t 转为 mpz_t（通过字符串中转避免 Windows LLP64 下 unsigned long 32 位截断） */
     char num_str[32];
-    snprintf(num_str, sizeof(num_str), "%lld", (long long)num);
+    snprintf(num_str, sizeof(num_str), "%lld", (long long) num);
     mpz_set_str(r->num, num_str, 10);
 
     char den_str[32];
     /* den 为 uint64_t，使用 %llu 避免大值输出为负数的符号错误 */
-    snprintf(den_str, sizeof(den_str), "%llu", (unsigned long long)den);
+    snprintf(den_str, sizeof(den_str), "%llu", (unsigned long long) den);
     mpz_set_str(r->den, den_str, 10);
 
     lv_rational_simplify(r);
@@ -256,11 +256,10 @@ static void lv_rational_canonicalize(lvRational *r) {
 
     if (num_bits > limit || den_bits > limit) {
         /* 截断：将分子和分母同时右移，保留有效位数 */
-        int shift = (int)(num_bits > den_bits ? num_bits - limit
-                                              : den_bits - limit);
+        int shift = (int) (num_bits > den_bits ? num_bits - limit : den_bits - limit);
         if (shift > 0) {
-            mpz_tdiv_q_2exp(r->num, r->num, (unsigned int)shift);
-            mpz_tdiv_q_2exp(r->den, r->den, (unsigned int)shift);
+            mpz_tdiv_q_2exp(r->num, r->num, (unsigned int) shift);
+            mpz_tdiv_q_2exp(r->den, r->den, (unsigned int) shift);
         }
         /* 再次化简 */
         lv_rational_simplify(r);
@@ -672,7 +671,7 @@ int lv_rational_estimate_loss(const lvRational *r) {
     }
 
     /* 否则估算损失 */
-    int loss = (int)(total_bits - 53);
+    int loss = (int) (total_bits - 53);
     return loss > 0 ? loss : 0;
 }
 
@@ -734,12 +733,16 @@ char *lv_rational_to_string(const lvRational *r) {
     /* 检查分母是否为 1 —— 使用标准 malloc 分配（调用者用 free 释放） */
     if (mpz_cmp_si(r->den, 1) == 0) {
         char *gmp_str = mpz_get_str(NULL, 10, r->num);
-        if (!gmp_str) return NULL;
+        if (!gmp_str)
+            return NULL;
         size_t slen = strlen(gmp_str);
         char *result = (char *) malloc(slen + 1);
-        if (!result) { free(gmp_str); return NULL; }
+        if (!result) {
+            free(gmp_str);
+            return NULL;
+        }
         memcpy(result, gmp_str, slen + 1);
-        free(gmp_str);  /* GMP分配，用标准 free 释放 */
+        free(gmp_str); /* GMP分配，用标准 free 释放 */
         return result;
     }
 
@@ -748,23 +751,23 @@ char *lv_rational_to_string(const lvRational *r) {
     char *den_str = mpz_get_str(NULL, 10, r->den);
 
     if (!num_str || !den_str) {
-        free(num_str);  /* GMP分配，用标准 free 释放 */
-        free(den_str);  /* GMP分配，用标准 free 释放 */
+        free(num_str); /* GMP分配，用标准 free 释放 */
+        free(den_str); /* GMP分配，用标准 free 释放 */
         return NULL;
     }
 
     size_t len = strlen(num_str) + strlen(den_str) + 2; /* num + '/' + den + '\0' */
     char *result = (char *) malloc(len);
     if (!result) {
-        free(num_str);  /* GMP分配，用标准 free 释放 */
-        free(den_str);  /* GMP分配，用标准 free 释放 */
+        free(num_str); /* GMP分配，用标准 free 释放 */
+        free(den_str); /* GMP分配，用标准 free 释放 */
         return NULL;
     }
 
     snprintf(result, len, "%s/%s", num_str, den_str);
 
-    free(num_str);   /* GMP分配，用标准 free 释放 */
-    free(den_str);   /* GMP分配，用标准 free 释放 */
+    free(num_str); /* GMP分配，用标准 free 释放 */
+    free(den_str); /* GMP分配，用标准 free 释放 */
 
     return result;
 }
@@ -781,7 +784,7 @@ lvRational *lv_rational_from_string(const char *s) {
 
     if (slash) {
         /* 格式: "num/den" */
-        size_t num_len = (size_t)(slash - s);
+        size_t num_len = (size_t) (slash - s);
         char *num_str = (char *) lv_malloc(num_len + 1);
         if (!num_str)
             return NULL;

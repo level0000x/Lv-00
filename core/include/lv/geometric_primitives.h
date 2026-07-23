@@ -33,17 +33,17 @@ typedef struct ProofNavigator ProofNavigator;
  * @brief 几何原语统一状态码
  */
 typedef enum {
-    GEO_STATUS_OK = 0,           /**< 操作成功 */
-    GEO_STATUS_NULL_ARG,         /**< 空指针参数 */
-    GEO_STATUS_INVALID_TYPE,     /**< 无效的类型参数 */
-    GEO_STATUS_INVALID_PARAM,    /**< 无效的参数 */
-    GEO_STATUS_NOT_FOUND,        /**< 未找到目标对象 */
-    GEO_STATUS_CONFLICT,         /**< 约束冲突 */
-    GEO_STATUS_NO_SOLUTION,      /**< 无解 */
-    GEO_STATUS_TIMEOUT,          /**< 操作超时 */
-    GEO_STATUS_IO_ERROR,         /**< I/O 错误 */
-    GEO_STATUS_UNSUPPORTED,      /**< 不支持的格式/操作 */
-    GEO_STATUS_INTERNAL_ERROR    /**< 内部错误 */
+    GEO_STATUS_OK = 0,        /**< 操作成功 */
+    GEO_STATUS_NULL_ARG,      /**< 空指针参数 */
+    GEO_STATUS_INVALID_TYPE,  /**< 无效的类型参数 */
+    GEO_STATUS_INVALID_PARAM, /**< 无效的参数 */
+    GEO_STATUS_NOT_FOUND,     /**< 未找到目标对象 */
+    GEO_STATUS_CONFLICT,      /**< 约束冲突 */
+    GEO_STATUS_NO_SOLUTION,   /**< 无解 */
+    GEO_STATUS_TIMEOUT,       /**< 操作超时 */
+    GEO_STATUS_IO_ERROR,      /**< I/O 错误 */
+    GEO_STATUS_UNSUPPORTED,   /**< 不支持的格式/操作 */
+    GEO_STATUS_INTERNAL_ERROR /**< 内部错误 */
 } GeoStatus;
 
 /**
@@ -56,9 +56,9 @@ typedef enum {
  * data 和 message 的所有权语义由各原语函数文档说明。
  */
 typedef struct {
-    GeoStatus status;     /**< 操作状态码 */
-    void *data;           /**< 结果数据（具体类型见各原语说明） */
-    const char *message;  /**< 状态/错误描述 */
+    GeoStatus status;    /**< 操作状态码 */
+    void *data;          /**< 结果数据（具体类型见各原语说明） */
+    const char *message; /**< 状态/错误描述 */
 } GeoResult;
 
 /* ================================================================
@@ -67,11 +67,11 @@ typedef struct {
 
 /** @brief 几何节点类型 */
 typedef enum {
-    GEO_NODE_POINT = 0,      /**< 几何点 */
-    GEO_NODE_LINE_SEGMENT,   /**< 线段 */
-    GEO_NODE_REGION,         /**< 区域 */
-    GEO_NODE_PORT,           /**< 端口 */
-    GEO_NODE_FUNCTION_BLOCK  /**< 函数块 */
+    GEO_NODE_POINT = 0,     /**< 几何点 */
+    GEO_NODE_LINE_SEGMENT,  /**< 线段 */
+    GEO_NODE_REGION,        /**< 区域 */
+    GEO_NODE_PORT,          /**< 端口 */
+    GEO_NODE_FUNCTION_BLOCK /**< 函数块 */
 } GeoNodeType;
 
 /** @brief 约束关系类型 */
@@ -95,8 +95,7 @@ typedef enum {
  * @param count ids 数组长度
  * @return GeoResult，data 指向 int（新节点 ID，调用者需 free）
  */
-GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type,
-                          const int *ids, int count);
+GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type, const int *ids, int count);
 
 /**
  * @brief 原语 2：创建约束关系
@@ -106,9 +105,7 @@ GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type,
  * @param count        参与节点数量
  * @return GeoResult，data 为 NULL
  */
-GeoResult geo_create_constraint(ConstraintGraph *graph,
-                                GeoConstraintType type,
-                                const int *participants, int count);
+GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type, const int *participants, int count);
 
 /**
  * @brief 原语 3：求解约束系统
@@ -133,8 +130,7 @@ GeoResult geo_normalize(ConstraintGraph *graph, bool scope_aware);
  * @param step_limit 最大重写步数（0 使用默认值）
  * @return GeoResult，data 指向 int（实际应用步数，调用者需 free）
  */
-GeoResult geo_rewrite(ConstraintGraph *graph, void **rules,
-                      int rule_count, int step_limit);
+GeoResult geo_rewrite(ConstraintGraph *graph, void **rules, int rule_count, int step_limit);
 
 /**
  * @brief 原语 6：统一构造与命题
@@ -142,8 +138,7 @@ GeoResult geo_rewrite(ConstraintGraph *graph, void **rules,
  * @param proposition  命题图（不可为 NULL）
  * @return GeoResult，data 为 NULL（成功时）
  */
-GeoResult geo_unify(const ConstraintGraph *construction,
-                    const ConstraintGraph *proposition);
+GeoResult geo_unify(const ConstraintGraph *construction, const ConstraintGraph *proposition);
 
 /**
  * @brief 原语 7：打包为函数块
@@ -156,10 +151,8 @@ GeoResult geo_unify(const ConstraintGraph *construction,
  * @param output_count     输出端口数量
  * @return GeoResult，data 指向 int（函数块 ID，调用者需 free）
  */
-GeoResult geo_pack(ConstraintGraph *graph, const int *internal_ids,
-                   int internal_count, const int *input_port_ids,
-                   int input_count, const int *output_port_ids,
-                   int output_count);
+GeoResult geo_pack(ConstraintGraph *graph, const int *internal_ids, int internal_count, const int *input_port_ids,
+                   int input_count, const int *output_port_ids, int output_count);
 
 /**
  * @brief 原语 8：实例化函数块
@@ -170,8 +163,7 @@ GeoResult geo_pack(ConstraintGraph *graph, const int *internal_ids,
  * @param arg_count     映射数量
  * @return GeoResult，data 指向 int*（首元素为长度，后续为新节点 ID；调用者需 free）
  */
-GeoResult geo_instantiate(ConstraintGraph *graph, lvEngine *engine,
-                          int func_block_id, const int *arg_mappings,
+GeoResult geo_instantiate(ConstraintGraph *graph, lvEngine *engine, int func_block_id, const int *arg_mappings,
                           int arg_count);
 
 /**
@@ -190,8 +182,7 @@ GeoResult geo_prove(ProofNavigator *nav, int strategy, int max_steps);
  * @param filepath 输出文件路径
  * @return GeoResult，data 为 NULL
  */
-GeoResult geo_export(ProofNavigator *nav, const char *format,
-                     const char *filepath);
+GeoResult geo_export(ProofNavigator *nav, const char *format, const char *filepath);
 
 /**
  * @brief 原语 11：序列化约束图
@@ -219,8 +210,7 @@ GeoResult geo_deserialize(const char *json);
  *   "constraint" -> data 指向 Constraint*（只读，不可 free）
  *   "count"      -> data 指向 int（节点数和约束数，调用者需 free；首元素为节点数，次元素为约束数）
  */
-GeoResult geo_query(const ConstraintGraph *graph, const char *query,
-                    int target_id);
+GeoResult geo_query(const ConstraintGraph *graph, const char *query, int target_id);
 
 #ifdef __cplusplus
 }

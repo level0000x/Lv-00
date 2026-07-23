@@ -46,12 +46,9 @@ lv_PUBLIC_API lvSymExpr *sym_expr_create_const(double value);
 
 lv_PUBLIC_API lvSymExpr *sym_expr_create_var(const char *var_name);
 
-lv_PUBLIC_API lvSymExpr *sym_expr_create_binary(lvSymExprKind kind,
-                                                    lvSymExpr *left,
-                                                    lvSymExpr *right);
+lv_PUBLIC_API lvSymExpr *sym_expr_create_binary(lvSymExprKind kind, lvSymExpr *left, lvSymExpr *right);
 
-lv_PUBLIC_API lvSymExpr *sym_expr_create_unary(lvSymExprKind kind,
-                                                   lvSymExpr *operand);
+lv_PUBLIC_API lvSymExpr *sym_expr_create_unary(lvSymExprKind kind, lvSymExpr *operand);
 
 /* ============================================================
  * Destruction
@@ -69,10 +66,8 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr);
  * Evaluation
  * ============================================================ */
 
-lv_PUBLIC_API double sym_expr_eval_double(const lvSymExpr *expr,
-                                            const char **var_names,
-                                            const double *var_values,
-                                            int var_count);
+lv_PUBLIC_API double sym_expr_eval_double(const lvSymExpr *expr, const char **var_names, const double *var_values,
+                                          int var_count);
 
 /* ============================================================
  * String representation
@@ -84,16 +79,13 @@ lv_PUBLIC_API char *sym_expr_to_string(const lvSymExpr *expr);
  * Differentiation
  * ============================================================ */
 
-lv_PUBLIC_API lvSymExpr *sym_expr_diff(const lvSymExpr *expr,
-                                           const char *var_name);
+lv_PUBLIC_API lvSymExpr *sym_expr_diff(const lvSymExpr *expr, const char *var_name);
 
 /* ============================================================
  * Substitution
  * ============================================================ */
 
-lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr,
-                                                 const char *var_name,
-                                                 const lvSymExpr *replacement);
+lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr, const char *var_name, const lvSymExpr *replacement);
 
 #ifdef __cplusplus
 }

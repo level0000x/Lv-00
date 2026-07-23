@@ -28,9 +28,10 @@
 #define lv_DEBUG_F_OK F_OK
 #endif
 
-#include "debug.h"
-#include "context.h"      /* v3.3.0: 结构化日志需要 lvContext */
 #include "lv/engine.h"
+
+#include "context.h" /* v3.3.0: 结构化日志需要 lvContext */
+#include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "stream.h"
@@ -129,7 +130,9 @@ static CRITICAL_SECTION g_log_mutex;
 static INIT_ONCE g_log_init_once = INIT_ONCE_STATIC_INIT;
 
 static BOOL CALLBACK log_mutex_init_callback(PINIT_ONCE once, PVOID param, PVOID *context) {
-    (void)once; (void)param; (void)context;
+    (void) once;
+    (void) param;
+    (void) context;
     InitializeCriticalSection(&g_log_mutex);
     return TRUE;
 }
@@ -149,7 +152,9 @@ static CRITICAL_SECTION g_counter_mutex;
 static INIT_ONCE g_counter_init_once = INIT_ONCE_STATIC_INIT;
 
 static BOOL CALLBACK counter_mutex_init_callback(PINIT_ONCE once, PVOID param, PVOID *context) {
-    (void)once; (void)param; (void)context;
+    (void) once;
+    (void) param;
+    (void) context;
     InitializeCriticalSection(&g_counter_mutex);
     return TRUE;
 }
@@ -173,33 +178,37 @@ static int g_log_ring_buffer_capacity = lv_LOG_RING_BUFFER_DEFAULT_CAPACITY;
 
 #ifdef _WIN32
 /** @brief 通用互斥锁加锁宏（Windows 下使用 InitOnceExecuteOnce 确保线程安全惰性初始化） */
-#define lv_MUTEX_LOCK(mutex) do { \
-    EnterCriticalSection(&(mutex)); \
-} while (0)
+#define lv_MUTEX_LOCK(mutex)            \
+    do {                                \
+        EnterCriticalSection(&(mutex)); \
+    } while (0)
 
 /** @brief 通用互斥锁解锁宏 */
-#define lv_MUTEX_UNLOCK(mutex) do { \
-    LeaveCriticalSection(&(mutex)); \
-} while (0)
+#define lv_MUTEX_UNLOCK(mutex)          \
+    do {                                \
+        LeaveCriticalSection(&(mutex)); \
+    } while (0)
 #else
 /** @brief 通用互斥锁加锁宏（POSIX 版本） */
-#define lv_MUTEX_LOCK(mutex) do { \
-    pthread_mutex_lock(&(mutex)); \
-} while (0)
+#define lv_MUTEX_LOCK(mutex)          \
+    do {                              \
+        pthread_mutex_lock(&(mutex)); \
+    } while (0)
 
 /** @brief 通用互斥锁解锁宏（POSIX 版本） */
-#define lv_MUTEX_UNLOCK(mutex) do { \
-    pthread_mutex_unlock(&(mutex)); \
-} while (0)
+#define lv_MUTEX_UNLOCK(mutex)          \
+    do {                                \
+        pthread_mutex_unlock(&(mutex)); \
+    } while (0)
 #endif
 
 /* 锁函数生成宏：消除 6 个锁函数的重复代码 */
 #define lv_DEFINE_LOCK_FUNCS(name, mutex_var) \
-    static void name##_lock(void) { \
-        lv_MUTEX_LOCK(mutex_var); \
-    } \
-    static void name##_unlock(void) { \
-        lv_MUTEX_UNLOCK(mutex_var); \
+    static void name##_lock(void) {           \
+        lv_MUTEX_LOCK(mutex_var);             \
+    }                                         \
+    static void name##_unlock(void) {         \
+        lv_MUTEX_UNLOCK(mutex_var);           \
     }
 
 /* 日志加锁（使用 InitOnceExecuteOnce 确保互斥锁初始化） */
@@ -231,8 +240,8 @@ lv_DEFINE_LOCK_FUNCS(debug_refcount, g_counter_mutex)
 #define debug_lock_refcount debug_refcount_lock
 #define debug_unlock_refcount debug_refcount_unlock
 
-/* 获取日志级别字符串 —— v3.3.0：扩展 TRACE 和 FATAL 级别 */
-static const char *log_level_string(LogLevel level) {
+    /* 获取日志级别字符串 —— v3.3.0：扩展 TRACE 和 FATAL 级别 */
+    static const char *log_level_string(LogLevel level) {
     switch (level) {
         case LOG_LEVEL_TRACE:
             return "TRACE";
@@ -337,7 +346,8 @@ static void rotate_logs(void) {
     /* 重命名现有文件: .4 -> .5, .3 -> .4, 依此类推 */
     for (i = lv_LOG_MAX_FILES - 1; i >= 1; i--) {
         snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME, i);
-        snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME, i + 1);
+        snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
+                 i + 1);
         if (access(old_path, lv_DEBUG_F_OK) == 0) {
             rename(old_path, new_path);
         }
@@ -442,9 +452,9 @@ int debug_assert_port_invariants(const lvEngine *engine, DebugContext *ctx) {
                 LOG_ERROR("port", "Node %d: Port is marked as formal param but has invalid parent_block_id (%d)",
                           node->id, port->parent_block_id);
                 lv_set_error(lv_ERROR_INVALID_STATE,
-                               "[PORT INVARIANT VIOLATION] Node %d: Port is marked as formal param but has invalid "
-                               "parent_block_id (%d)",
-                               node->id, port->parent_block_id);
+                             "[PORT INVARIANT VIOLATION] Node %d: Port is marked as formal param but has invalid "
+                             "parent_block_id (%d)",
+                             node->id, port->parent_block_id);
                 violations++;
                 /* 在 release 构建中不应该 abort，而是使用 lv_set_error
                  * 记录错误后返回当前的 violations 计数。 */
@@ -455,8 +465,8 @@ int debug_assert_port_invariants(const lvEngine *engine, DebugContext *ctx) {
             if (port->namespace_depth < 0) {
                 LOG_ERROR("port", "Node %d: Port has negative namespace_depth (%d)", node->id, port->namespace_depth);
                 lv_set_error(lv_ERROR_INVALID_STATE,
-                               "[PORT INVARIANT VIOLATION] Node %d: Port has negative namespace_depth (%d)", node->id,
-                               port->namespace_depth);
+                             "[PORT INVARIANT VIOLATION] Node %d: Port has negative namespace_depth (%d)", node->id,
+                             port->namespace_depth);
                 violations++;
                 /* 在 release 构建中不应该 abort，而是使用 lv_set_error
                  * 记录错误后返回当前的 violations 计数。 */
@@ -477,9 +487,9 @@ int debug_assert_port_invariants(const lvEngine *engine, DebugContext *ctx) {
                                   "is_formal_param is false",
                                   node->id, port_id, node->id, p->parent_block_id);
                         lv_set_error(lv_ERROR_INVALID_STATE,
-                                       "[PORT INVARIANT VIOLATION] Function block %d input port %d: parent_block_id "
-                                       "mismatch (expected %d, got %d) or is_formal_param is false",
-                                       node->id, port_id, node->id, p->parent_block_id);
+                                     "[PORT INVARIANT VIOLATION] Function block %d input port %d: parent_block_id "
+                                     "mismatch (expected %d, got %d) or is_formal_param is false",
+                                     node->id, port_id, node->id, p->parent_block_id);
                         violations++;
                         /* 在 release 构建中不应该 abort，而是使用 lv_set_error
                          * 记录错误后返回当前的 violations 计数。 */
@@ -500,9 +510,9 @@ int debug_assert_port_invariants(const lvEngine *engine, DebugContext *ctx) {
                                   "is_formal_param is true",
                                   node->id, port_id, node->id, p->parent_block_id);
                         lv_set_error(lv_ERROR_INVALID_STATE,
-                                       "[PORT INVARIANT VIOLATION] Function block %d output port %d: parent_block_id "
-                                       "mismatch (expected %d, got %d) or is_formal_param is true",
-                                       node->id, port_id, node->id, p->parent_block_id);
+                                     "[PORT INVARIANT VIOLATION] Function block %d output port %d: parent_block_id "
+                                     "mismatch (expected %d, got %d) or is_formal_param is true",
+                                     node->id, port_id, node->id, p->parent_block_id);
                         violations++;
                         /* 在 release 构建中不应该 abort，而是使用 lv_set_error
                          * 记录错误后返回当前的 violations 计数。 */
@@ -888,7 +898,8 @@ bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *confi
     if (config && config->include_log_buffer) {
         fprintf(f, "[Recent Log Buffer (%d entries)]\n", g_log_buffer_count);
         /* 按时间顺序输出：从最旧到最新 */
-        int start = (g_log_buffer_head - g_log_buffer_count + lv_EMERGENCY_LOG_BUFFER_SIZE) % lv_EMERGENCY_LOG_BUFFER_SIZE;
+        int start =
+            (g_log_buffer_head - g_log_buffer_count + lv_EMERGENCY_LOG_BUFFER_SIZE) % lv_EMERGENCY_LOG_BUFFER_SIZE;
         for (int i = 0; i < g_log_buffer_count; i++) {
             int idx = (start + i) % lv_EMERGENCY_LOG_BUFFER_SIZE;
             if (g_log_buffer[idx]) {
@@ -1008,8 +1019,8 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
     }
 
     result->total_ports = total_ports;
-    result->invalid_port_ids = (int *) lv_calloc((size_t)(total_ports > 0 ? total_ports : 1), sizeof(int));
-    result->error_messages = (char **) lv_calloc((size_t)(total_ports > 0 ? total_ports : 1), sizeof(char *));
+    result->invalid_port_ids = (int *) lv_calloc((size_t) (total_ports > 0 ? total_ports : 1), sizeof(int));
+    result->error_messages = (char **) lv_calloc((size_t) (total_ports > 0 ? total_ports : 1), sizeof(char *));
     result->invalid_ports = 0;
     result->all_valid = true;
 
@@ -1179,8 +1190,7 @@ static void trace_session_ensure_capacity(TraceSession *session) {
         if (session->capacity > INT_MAX / 2)
             return; /* 防止溢出 */
         int new_capacity = session->capacity * 2;
-        TraceEvent *new_events =
-            (TraceEvent *) lv_realloc(session->events, sizeof(TraceEvent) * (size_t) new_capacity);
+        TraceEvent *new_events = (TraceEvent *) lv_realloc(session->events, sizeof(TraceEvent) * (size_t) new_capacity);
         if (new_events) {
             /* 初始化新增部分为零 */
             memset(new_events + session->capacity, 0, sizeof(TraceEvent) * (size_t) (new_capacity - session->capacity));
@@ -1369,7 +1379,7 @@ char *trace_session_export_json(const TraceSession *session) {
     do {                                                                     \
         int w = snprintf(json + pos, capacity - pos, fmt, ##__VA_ARGS__);    \
         if (w < 0) {                                                         \
-            lv_free((void **) &json);                                      \
+            lv_free((void **) &json);                                        \
             return NULL;                                                     \
         }                                                                    \
         if ((size_t) w >= capacity - pos) {                                  \
@@ -1378,7 +1388,7 @@ char *trace_session_export_json(const TraceSession *session) {
                 return NULL;                                                 \
             w = snprintf(json + pos, capacity - pos, fmt, ##__VA_ARGS__);    \
             if (w < 0) {                                                     \
-                lv_free((void **) &json);                                  \
+                lv_free((void **) &json);                                    \
                 return NULL;                                                 \
             }                                                                \
         }                                                                    \
@@ -1569,11 +1579,8 @@ int debug_log_init(void) {
     if (!g_log_ring_buffer) {
         g_log_ring_buffer = lv_log_ring_buffer_create(g_log_ring_buffer_capacity);
         if (g_log_ring_buffer) {
-            lv_log_ring_buffer_write(g_log_ring_buffer,
-                                       LOG_LEVEL_INFO, "debug", "debug_log_init",
-                                       __FILE__, __LINE__,
-                                       "环形日志缓冲区已创建（容量: %d）",
-                                       g_log_ring_buffer_capacity);
+            lv_log_ring_buffer_write(g_log_ring_buffer, LOG_LEVEL_INFO, "debug", "debug_log_init", __FILE__, __LINE__,
+                                     "环形日志缓冲区已创建（容量: %d）", g_log_ring_buffer_capacity);
         }
     }
 
@@ -1733,10 +1740,10 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
         /* FATAL 不在此处加锁/解锁，因为 emergency_save 会在内部自行加锁 */
         EmergencySaveConfig cfg;
         memset(&cfg, 0, sizeof(cfg));
-        cfg.filepath = "lv_emergency_save.log";  /* 使用默认路径 */
-        cfg.include_graph = true;     /* 包含约束图快照 */
-        cfg.include_counters = true;  /* 包含性能计数器 */
-        cfg.include_log_buffer = true;/* 包含日志缓冲区 */
+        cfg.filepath = "lv_emergency_save.log"; /* 使用默认路径 */
+        cfg.include_graph = true;               /* 包含约束图快照 */
+        cfg.include_counters = true;            /* 包含性能计数器 */
+        cfg.include_log_buffer = true;          /* 包含日志缓冲区 */
         cfg.include_memory_map = false;
         debug_emergency_save(NULL, &cfg);
     }
@@ -1758,11 +1765,11 @@ static uint64_t get_timestamp_us(void) {
         QueryPerformanceFrequency(&freq_cached);
     }
     QueryPerformanceCounter(&counter);
-    return (uint64_t)((counter.QuadPart * 1000000ULL) / freq_cached.QuadPart);
+    return (uint64_t) ((counter.QuadPart * 1000000ULL) / freq_cached.QuadPart);
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+    return (uint64_t) ts.tv_sec * 1000000ULL + (uint64_t) ts.tv_nsec / 1000ULL;
 #endif
 }
 
@@ -1789,9 +1796,9 @@ lvLogRingBuffer *lv_log_ring_buffer_create(int capacity) {
         return NULL;
     }
 
-    rb->entries = lv_calloc((size_t)capacity, sizeof(lvLogEntry));
+    rb->entries = lv_calloc((size_t) capacity, sizeof(lvLogEntry));
     if (!rb->entries) {
-        lv_free((void **)&rb);
+        lv_free((void **) &rb);
         return NULL;
     }
 
@@ -1812,8 +1819,8 @@ void lv_log_ring_buffer_destroy(lvLogRingBuffer *rb) {
     if (!rb) {
         return;
     }
-    lv_free((void **)&rb->entries);
-    lv_free((void **)&rb);
+    lv_free((void **) &rb->entries);
+    lv_free((void **) &rb);
 }
 
 /**
@@ -1826,10 +1833,8 @@ void lv_log_ring_buffer_destroy(lvLogRingBuffer *rb) {
  *       如果在已持有 log_lock 的上下文中调用，请使用
  *       lv_log_ring_buffer_write_unlocked() 内部版本。
  */
-void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level,
-                                const char *module_name, const char *function_name,
-                                const char *file_name, int line_number,
-                                const char *fmt, ...) {
+void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level, const char *module_name, const char *function_name,
+                              const char *file_name, int line_number, const char *fmt, ...) {
     if (!rb || rb->capacity < 1) {
         return;
     }
@@ -1878,7 +1883,8 @@ void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level,
  */
 lvLogEntry *lv_log_ring_buffer_export(const lvLogRingBuffer *rb, int *out_count) {
     if (!rb || !out_count) {
-        if (out_count) *out_count = 0;
+        if (out_count)
+            *out_count = 0;
         return NULL;
     }
 
@@ -1890,7 +1896,7 @@ lvLogEntry *lv_log_ring_buffer_export(const lvLogRingBuffer *rb, int *out_count)
         return NULL;
     }
 
-    lvLogEntry *exported = lv_calloc((size_t)rb->count, sizeof(lvLogEntry));
+    lvLogEntry *exported = lv_calloc((size_t) rb->count, sizeof(lvLogEntry));
     if (!exported) {
         *out_count = 0;
         log_unlock();
@@ -1922,7 +1928,7 @@ void lv_log_ring_buffer_clear(lvLogRingBuffer *rb) {
     rb->head = 0;
     rb->count = 0;
     rb->wrapped = false;
-    memset(rb->entries, 0, (size_t)rb->capacity * sizeof(lvLogEntry));
+    memset(rb->entries, 0, (size_t) rb->capacity * sizeof(lvLogEntry));
     log_unlock();
 }
 
@@ -1946,7 +1952,7 @@ bool lv_log_ring_buffer_resize(lvLogRingBuffer *rb, int capacity) {
 
     log_lock();
 
-    lvLogEntry *new_entries = lv_calloc((size_t)capacity, sizeof(lvLogEntry));
+    lvLogEntry *new_entries = lv_calloc((size_t) capacity, sizeof(lvLogEntry));
     if (!new_entries) {
         log_unlock();
         return false;
@@ -1974,7 +1980,7 @@ bool lv_log_ring_buffer_resize(lvLogRingBuffer *rb, int capacity) {
     }
 
     /* 替换旧的缓冲区 */
-    lv_free((void **)&rb->entries);
+    lv_free((void **) &rb->entries);
     rb->entries = new_entries;
     rb->capacity = capacity;
     rb->head = keep_count % capacity;
@@ -2010,10 +2016,8 @@ bool lv_log_ring_buffer_resize(lvLogRingBuffer *rb, int capacity) {
  * @param fmt           格式字符串
  * @param ...           格式参数
  */
-void lv_log_with_context(struct lvContext *ctx, LogLevel level,
-                           const char *module_name, const char *function_name,
-                           const char *file_name, int line_number,
-                           const char *fmt, ...) {
+void lv_log_with_context(struct lvContext *ctx, LogLevel level, const char *module_name, const char *function_name,
+                         const char *file_name, int line_number, const char *fmt, ...) {
     /* 1. 格式化消息到临时缓冲区 */
     char message[512];
     va_list args;
@@ -2026,16 +2030,13 @@ void lv_log_with_context(struct lvContext *ctx, LogLevel level,
 
     /* 3. 写入全局环形缓冲区 */
     if (g_log_ring_buffer) {
-        lv_log_ring_buffer_write(g_log_ring_buffer, level,
-                                   module_name, function_name,
-                                   file_name, line_number,
-                                   "%s", message);
+        lv_log_ring_buffer_write(g_log_ring_buffer, level, module_name, function_name, file_name, line_number, "%s",
+                                 message);
         /* 覆盖自动设置的 context_id 为实际的上下文 ID */
         log_lock();
         if (g_log_ring_buffer->count > 0) {
             /* 找到刚写入的条目（head - 1，处理绕回） */
-            int last_idx = (g_log_ring_buffer->head - 1 + g_log_ring_buffer->capacity)
-                           % g_log_ring_buffer->capacity;
+            int last_idx = (g_log_ring_buffer->head - 1 + g_log_ring_buffer->capacity) % g_log_ring_buffer->capacity;
             /* 从上下文中获取 ID（如果可用） */
             if (ctx && ctx->context_id > 0) {
                 g_log_ring_buffer->entries[last_idx].context_id = ctx->context_id;
@@ -2045,7 +2046,7 @@ void lv_log_with_context(struct lvContext *ctx, LogLevel level,
     }
 
     /* 4. 使用上下文信息（防止未使用参数警告） */
-    (void)ctx;
+    (void) ctx;
 }
 
 /*=== Performance Counters Implementation ===*/
@@ -2072,8 +2073,8 @@ void debug_reset_counters(void) {
 
 void debug_counter_node_created(void) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *)&g_counters.total_nodes_created);
-    InterlockedIncrement64((volatile LONG64 *)&g_counters.current_nodes_alive);
+    InterlockedIncrement64((volatile LONG64 *) &g_counters.total_nodes_created);
+    InterlockedIncrement64((volatile LONG64 *) &g_counters.current_nodes_alive);
 #else
     __atomic_fetch_add(&g_counters.total_nodes_created, 1, __ATOMIC_RELAXED);
     __atomic_fetch_add(&g_counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
@@ -2082,7 +2083,7 @@ void debug_counter_node_created(void) {
 
 void debug_counter_node_destroyed(void) {
 #ifdef _WIN32
-    InterlockedDecrement64((volatile LONG64 *)&g_counters.current_nodes_alive);
+    InterlockedDecrement64((volatile LONG64 *) &g_counters.current_nodes_alive);
 #else
     __atomic_fetch_sub(&g_counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
 #endif
@@ -2090,8 +2091,8 @@ void debug_counter_node_destroyed(void) {
 
 void debug_counter_constraint_created(void) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *)&g_counters.total_constraints_created);
-    InterlockedIncrement64((volatile LONG64 *)&g_counters.current_constraints_alive);
+    InterlockedIncrement64((volatile LONG64 *) &g_counters.total_constraints_created);
+    InterlockedIncrement64((volatile LONG64 *) &g_counters.current_constraints_alive);
 #else
     __atomic_fetch_add(&g_counters.total_constraints_created, 1, __ATOMIC_RELAXED);
     __atomic_fetch_add(&g_counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
@@ -2100,7 +2101,7 @@ void debug_counter_constraint_created(void) {
 
 void debug_counter_constraint_destroyed(void) {
 #ifdef _WIN32
-    InterlockedDecrement64((volatile LONG64 *)&g_counters.current_constraints_alive);
+    InterlockedDecrement64((volatile LONG64 *) &g_counters.current_constraints_alive);
 #else
     __atomic_fetch_sub(&g_counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
 #endif
@@ -2108,8 +2109,8 @@ void debug_counter_constraint_destroyed(void) {
 
 void debug_counter_solver_called(uint64_t time_us) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *)&g_counters.solver_call_count);
-    InterlockedExchangeAdd64((volatile LONG64 *)&g_counters.solver_total_time_us, (LONG64)time_us);
+    InterlockedIncrement64((volatile LONG64 *) &g_counters.solver_call_count);
+    InterlockedExchangeAdd64((volatile LONG64 *) &g_counters.solver_total_time_us, (LONG64) time_us);
 #else
     __atomic_fetch_add(&g_counters.solver_call_count, 1, __ATOMIC_RELAXED);
     __atomic_fetch_add(&g_counters.solver_total_time_us, time_us, __ATOMIC_RELAXED);
@@ -2118,7 +2119,7 @@ void debug_counter_solver_called(uint64_t time_us) {
 
 void debug_counter_rewrite_step(void) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *)&g_counters.rewrite_total_steps);
+    InterlockedIncrement64((volatile LONG64 *) &g_counters.rewrite_total_steps);
 #else
     __atomic_fetch_add(&g_counters.rewrite_total_steps, 1, __ATOMIC_RELAXED);
 #endif
@@ -2126,7 +2127,7 @@ void debug_counter_rewrite_step(void) {
 
 void debug_counter_rule_applied(void) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *)&g_counters.rewrite_rule_applications);
+    InterlockedIncrement64((volatile LONG64 *) &g_counters.rewrite_rule_applications);
 #else
     __atomic_fetch_add(&g_counters.rewrite_rule_applications, 1, __ATOMIC_RELAXED);
 #endif
@@ -2134,9 +2135,9 @@ void debug_counter_rule_applied(void) {
 
 void debug_counter_unify_called(bool success) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *)&g_counters.unify_check_count);
+    InterlockedIncrement64((volatile LONG64 *) &g_counters.unify_check_count);
     if (success) {
-        InterlockedIncrement64((volatile LONG64 *)&g_counters.unify_success_count);
+        InterlockedIncrement64((volatile LONG64 *) &g_counters.unify_success_count);
     }
 #else
     __atomic_fetch_add(&g_counters.unify_check_count, 1, __ATOMIC_RELAXED);
@@ -2148,19 +2149,20 @@ void debug_counter_unify_called(bool success) {
 
 void debug_counter_memory_update(uint64_t current_bytes) {
 #ifdef _WIN32
-    InterlockedExchange64((volatile LONG64 *)&g_counters.memory_current, (LONG64)current_bytes);
+    InterlockedExchange64((volatile LONG64 *) &g_counters.memory_current, (LONG64) current_bytes);
     LONG64 old_peak;
     do {
         old_peak = g_counters.memory_usage_peak;
-        if (current_bytes <= (uint64_t)old_peak) break;
-    } while (InterlockedCompareExchange64((volatile LONG64 *)&g_counters.memory_usage_peak,
-                                          (LONG64)current_bytes, old_peak) != old_peak);
+        if (current_bytes <= (uint64_t) old_peak)
+            break;
+    } while (InterlockedCompareExchange64((volatile LONG64 *) &g_counters.memory_usage_peak, (LONG64) current_bytes,
+                                          old_peak) != old_peak);
 #else
     __atomic_store_n(&g_counters.memory_current, current_bytes, __ATOMIC_RELAXED);
     uint64_t old_peak = __atomic_load_n(&g_counters.memory_usage_peak, __ATOMIC_RELAXED);
     while (current_bytes > old_peak) {
-        if (__atomic_compare_exchange_n(&g_counters.memory_usage_peak, &old_peak, current_bytes,
-                                        0, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+        if (__atomic_compare_exchange_n(&g_counters.memory_usage_peak, &old_peak, current_bytes, 0, __ATOMIC_RELAXED,
+                                        __ATOMIC_RELAXED)) {
             break;
         }
     }

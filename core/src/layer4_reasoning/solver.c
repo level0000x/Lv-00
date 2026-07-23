@@ -46,11 +46,12 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/stream.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
 #include "mpz_poly.h"
-#include "lv/stream.h"
 #include "stream_context_util.h"
 
 /* SOLVER_MAX_VAR_ID 已在 solver.h 中统一定义，此处不再重复 */
@@ -126,7 +127,7 @@ void solver_set_stream_context(StreamContext *ctx) {
 
 /* solver_eq_system.c */
 void equation_system_init(EquationSystem *sys);
-int  equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
 void equation_system_clear(EquationSystem *sys);
 
 /* solver_coord_extract.c */
@@ -137,7 +138,9 @@ bool point_coord(const GeomNode *pt, int idx, double *out);
 void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
 
 /* 直线方程结构体 ax + by + c = 0 */
-typedef struct { double a, b, c; } LineEquation;
+typedef struct {
+    double a, b, c;
+} LineEquation;
 bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out);
 
 /* solver_linear.c */
@@ -150,10 +153,10 @@ bool is_out_of_scope(const mpz_poly_t *poly);
 bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2);
 bool check_incompatible_distances(const ConstraintGraph *graph);
 bool check_contradiction_after_substitution(EquationSystem *sys);
-int  constraint_weight(const Constraint *c);
-int  count_point_variables(const ConstraintGraph *graph, int **out_ids);
-void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count,
-                          int *multiple_solutions, bool *no_solution, bool do_substitute);
+int constraint_weight(const Constraint *c);
+int count_point_variables(const ConstraintGraph *graph, int **out_ids);
+void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count, int *multiple_solutions,
+                          bool *no_solution, bool do_substitute);
 void cleanup_groebner_result(GroebnerResult *result);
 
 /* solver_snapshot.c */
@@ -161,12 +164,12 @@ bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot
 void solver_snapshot_restore(ConstraintGraph *graph, const SolverSnapshot *snapshot);
 void solver_snapshot_free(SolverSnapshot *snapshot);
 
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
-    do { \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
+#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
+    do {                                                               \
+        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
             lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label; \
-        } \
+            goto label;                                                \
+        }                                                              \
     } while (0)
 
 static int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
@@ -224,7 +227,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_eq;
         lv_SAFE_SNPRINTF(_snw_eq, detail, sizeof(detail), "{\"equation_count\":%d,\"phase\":\"extraction\"}",
-                           sys.count);
+                         sys.count);
         lv_UNUSED(_snw_eq);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -321,7 +324,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 char detail[SOLVER_DETAIL_BUF_SIZE];
                 int _snw_ts;
                 lv_SAFE_SNPRINTF(_snw_ts, detail, sizeof(detail), "{\"phase\":\"topology_sort\",\"var_count\":%d}",
-                                   all_var_count);
+                                 all_var_count);
                 lv_UNUSED(_snw_ts);
                 ev.detail_json = detail;
                 stream_emit(solver_stream_ctx, &ev);
@@ -438,8 +441,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 char detail[SOLVER_DETAIL_BUF_SIZE];
                 int _snw_gb_prog;
                 lv_SAFE_SNPRINTF(_snw_gb_prog, detail, sizeof(detail),
-                                   "{\"phase\":\"groebner_entry\",\"remaining\":%d,\"solved\":%d}", remaining_before_gb,
-                                   solved_count);
+                                 "{\"phase\":\"groebner_entry\",\"remaining\":%d,\"solved\":%d}", remaining_before_gb,
+                                 solved_count);
                 lv_UNUSED(_snw_gb_prog);
                 ev.detail_json = detail;
                 stream_emit(solver_stream_ctx, &ev);
@@ -534,15 +537,15 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_sum;
         lv_SAFE_SNPRINTF(_snw_sum, detail, sizeof(detail),
-                           "{\"phase\":\"solve_summary\","
-                           "\"solved_variables\":%d,"
-                           "\"remaining_equations\":%d,"
-                           "\"multiple_solutions\":%d,"
-                           "\"unique\":%s,"
-                           "\"overdetermined\":%s,"
-                           "\"max_degree\":%d}",
-                           solved_count, remaining, multiple_solutions, result->unique ? "true" : "false",
-                           result->overdetermined ? "true" : "false", max_degree_global);
+                         "{\"phase\":\"solve_summary\","
+                         "\"solved_variables\":%d,"
+                         "\"remaining_equations\":%d,"
+                         "\"multiple_solutions\":%d,"
+                         "\"unique\":%s,"
+                         "\"overdetermined\":%s,"
+                         "\"max_degree\":%d}",
+                         solved_count, remaining, multiple_solutions, result->unique ? "true" : "false",
+                         result->overdetermined ? "true" : "false", max_degree_global);
         lv_UNUSED(_snw_sum);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -721,13 +724,13 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_fb;
         lv_SAFE_SNPRINTF(_snw_fb, detail, sizeof(detail),
-                           "{\"type\":\"%s\",\"dof\":%d,\"free_count\":%d,\"overconstrained\":%d}",
-                           (fb->type == SOLVER_FEEDBACK_TYPE_VARIABLE_SOLVED)     ? "solved"
-                           : (fb->type == SOLVER_FEEDBACK_TYPE_OVERCONSTRAINED)   ? "overconstrained"
-                           : (fb->type == SOLVER_FEEDBACK_TYPE_DOF_CHANGED)       ? "dof_changed"
-                           : (fb->type == SOLVER_FEEDBACK_TYPE_CONFLICT_DETECTED) ? "conflict"
-                                                                             : "constraint_added",
-                           fb->degrees_of_freedom, fb->free_var_count, fb->overconstrained_count);
+                         "{\"type\":\"%s\",\"dof\":%d,\"free_count\":%d,\"overconstrained\":%d}",
+                         (fb->type == SOLVER_FEEDBACK_TYPE_VARIABLE_SOLVED)     ? "solved"
+                         : (fb->type == SOLVER_FEEDBACK_TYPE_OVERCONSTRAINED)   ? "overconstrained"
+                         : (fb->type == SOLVER_FEEDBACK_TYPE_DOF_CHANGED)       ? "dof_changed"
+                         : (fb->type == SOLVER_FEEDBACK_TYPE_CONFLICT_DETECTED) ? "conflict"
+                                                                                : "constraint_added",
+                         fb->degrees_of_freedom, fb->free_var_count, fb->overconstrained_count);
         lv_UNUSED(_snw_fb);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -855,7 +858,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                                 char buf[SOLVER_DETAIL_BUF_SIZE];
                                 int _snw;
                                 lv_SAFE_SNPRINTF(_snw, buf, sizeof(buf), "betweenness:p1=(%.6f,%.6f),p3=(%.6f,%.6f)",
-                                                   x1, y1, x3, y3);
+                                                 x1, y1, x3, y3);
                                 lv_UNUSED(_snw);
                                 target->numeric_assumption_declaration = lv_malloc(strlen(buf) + 1);
                                 if (target->numeric_assumption_declaration) {
@@ -947,7 +950,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_diag;
         lv_SAFE_SNPRINTF(_snw_diag, detail, sizeof(detail), "{\"phase\":\"analyze_out_of_scope\",\"var_id\":%d}",
-                           var_id);
+                         var_id);
         lv_UNUSED(_snw_diag);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -1014,7 +1017,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_found;
         lv_SAFE_SNPRINTF(_snw_found, detail, sizeof(detail), "{\"degree\":%d,\"var_id\":%d}", target_poly->degree,
-                           var_id);
+                         var_id);
         lv_UNUSED(_snw_found);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -1030,8 +1033,8 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
 
         size_t needed = 256 + strlen(f1_str) + strlen(f2_str);
         if (needed > INT_MAX) {
-            lv_free((void **)&f1_str);
-            lv_free((void **)&f2_str);
+            lv_free((void **) &f1_str);
+            lv_free((void **) &f2_str);
             mpz_poly_clear(&factor1);
             mpz_poly_clear(&factor2);
             return SOLVER_STATUS_OUT_OF_SCOPE;
@@ -1039,11 +1042,11 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         *suggestion = lv_malloc(needed);
         int _snw;
         lv_SAFE_SNPRINTF(_snw, *suggestion, needed,
-                           "Polynomial factors into (%s) * (%s). "
-                           "Split into multiple quadratic steps with auxiliary lines: "
-                           "solve each factor separately and combine solutions. "
-                           "Each factor of degree <= 2 is within constructible scope.",
-                           f1_str, f2_str);
+                         "Polynomial factors into (%s) * (%s). "
+                         "Split into multiple quadratic steps with auxiliary lines: "
+                         "solve each factor separately and combine solutions. "
+                         "Each factor of degree <= 2 is within constructible scope.",
+                         f1_str, f2_str);
         lv_UNUSED(_snw);
 
         /* 流式事件: 因式分解成功 */
@@ -1056,17 +1059,18 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
             ev.description = "因式分解成功，可通过拆分求解";
             char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw_fact;
-            lv_SAFE_SNPRINTF(
-                _snw_fact, detail, sizeof(detail),
-                "{\"diagnosis\":\"factorable\",\"resolvable\":true,\"factor1\":\"%s\",\"factor2\":\"%s\"}", f1_str,
-                f2_str);
+            lv_SAFE_SNPRINTF(_snw_fact, detail, sizeof(detail),
+                             "{\"diagnosis\":\"factorable\",\"resolvable\":true,\"factor1\":\"%s\",\"factor2\":\"%s\"}",
+                             f1_str, f2_str);
             lv_UNUSED(_snw_fact);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
         }
 
-        lv_free((void **) &f1_str); f1_str = NULL;  /* GMP分配，用标准free */
-        lv_free((void **) &f2_str); f2_str = NULL;  /* GMP分配，用标准free */
+        lv_free((void **) &f1_str);
+        f1_str = NULL; /* GMP分配，用标准free */
+        lv_free((void **) &f2_str);
+        f2_str = NULL; /* GMP分配，用标准free */
         mpz_poly_clear(&factor1);
         mpz_poly_clear(&factor2);
         equation_system_clear(&sys);
@@ -1113,20 +1117,20 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
     char *poly_str = mpz_poly_get_str(target_poly);
     size_t needed = 256 + strlen(poly_str);
     if (needed > INT_MAX || needed == 0) {
-        lv_free((void **)&poly_str);
+        lv_free((void **) &poly_str);
         return SOLVER_STATUS_OUT_OF_SCOPE;
     }
     *suggestion = lv_malloc(needed);
     int _snw2;
     lv_SAFE_SNPRINTF(_snw2, *suggestion, needed,
-                       "Irreducible polynomial of degree %d with coefficients [%s]. "
-                       "Exceeds quadratic coverage. "
-                       "Consider: (1) adding auxiliary construction lines to decompose "
-                       "into quadratic sub-problems, (2) checking if the problem "
-                       "reduces to a known unconstructible problem (angle trisection, "
-                       "cube duplication, circle squaring), or (3) using numerical "
-                       "approximation with Neusis construction.",
-                       target_poly->degree, poly_str);
+                     "Irreducible polynomial of degree %d with coefficients [%s]. "
+                     "Exceeds quadratic coverage. "
+                     "Consider: (1) adding auxiliary construction lines to decompose "
+                     "into quadratic sub-problems, (2) checking if the problem "
+                     "reduces to a known unconstructible problem (angle trisection, "
+                     "cube duplication, circle squaring), or (3) using numerical "
+                     "approximation with Neusis construction.",
+                     target_poly->degree, poly_str);
     lv_UNUSED(_snw2);
 
     /* 流式事件: 一般不可约高次多项式 */
@@ -1140,15 +1144,16 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_irr;
         lv_SAFE_SNPRINTF(_snw_irr, detail, sizeof(detail),
-                           "{\"diagnosis\":\"irreducible_high_degree\",\"degree\":%d,"
-                           "\"polynomial\":\"%s\",\"resolvable\":false}",
-                           target_poly->degree, poly_str);
+                         "{\"diagnosis\":\"irreducible_high_degree\",\"degree\":%d,"
+                         "\"polynomial\":\"%s\",\"resolvable\":false}",
+                         target_poly->degree, poly_str);
         lv_UNUSED(_snw_irr);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
 
-    lv_free((void **) &poly_str); poly_str = NULL;  /* GMP分配，用标准free */
+    lv_free((void **) &poly_str);
+    poly_str = NULL; /* GMP分配，用标准free */
 
     equation_system_clear(&sys);
     return SOLVER_STATUS_OUT_OF_SCOPE;
@@ -2048,9 +2053,9 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                         char detail[SOLVER_DETAIL_BUF_SIZE];
                         int _snw_gb;
                         lv_SAFE_SNPRINTF(_snw_gb, detail, sizeof(detail),
-                                           "{\"phase\":\"s_polynomial\",\"pair\":[%d,%d],"
-                                           "\"basis_size\":%d,\"step\":%d,\"total_pairs\":%lld}",
-                                           i, j, g_count, steps, total_pairs);
+                                         "{\"phase\":\"s_polynomial\",\"pair\":[%d,%d],"
+                                         "\"basis_size\":%d,\"step\":%d,\"total_pairs\":%lld}",
+                                         i, j, g_count, steps, total_pairs);
                         lv_UNUSED(_snw_gb);
                         ev.detail_json = detail;
                         stream_emit(solver_stream_ctx, &ev);
@@ -2163,8 +2168,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                             int old_capacity = g_capacity;
                             /* 内存安全修复：检查 g_capacity 翻倍是否溢出 */
                             if (g_capacity > INT_MAX / 2) {
-                                lv_set_error(lv_ERROR_OUT_OF_MEMORY,
-                                               "buchberger_groebner: 基容量翻倍将溢出 INT_MAX");
+                                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基容量翻倍将溢出 INT_MAX");
                                 mv_poly_clear(&remainder);
                                 break;
                             }
@@ -2172,7 +2176,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                             /* 内存安全修复：检查 g_capacity * g_capacity 是否溢出 */
                             if (g_capacity > 0 && g_capacity > INT_MAX / g_capacity) {
                                 lv_set_error(lv_ERROR_OUT_OF_MEMORY,
-                                               "buchberger_groebner: pair矩阵容量平方将溢出 INT_MAX");
+                                             "buchberger_groebner: pair矩阵容量平方将溢出 INT_MAX");
                                 mv_poly_clear(&remainder);
                                 break;
                             }
@@ -2311,9 +2315,9 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw_ar;
             lv_SAFE_SNPRINTF(_snw_ar, detail, sizeof(detail),
-                               "{\"phase\":\"auto_reduction\",\"reduced_count\":%d,"
-                               "\"final_basis_size\":%d,\"total_steps\":%d}",
-                               reduced_count, g_count, steps);
+                             "{\"phase\":\"auto_reduction\",\"reduced_count\":%d,"
+                             "\"final_basis_size\":%d,\"total_steps\":%d}",
+                             reduced_count, g_count, steps);
             lv_UNUSED(_snw_ar);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
@@ -2436,7 +2440,7 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
                 for (int k = i; k < sys->count; k++) {
                     memset(&polys[k], 0, sizeof(mpz_poly_t));
                 }
-                lv_free((void **)&polys);
+                lv_free((void **) &polys);
                 return NULL;
             }
             memset(exponents, 0, (size_t) vcount * sizeof(int));
@@ -3236,7 +3240,8 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
         if (sys->eqs[i].poly.degree < 0)
             continue;
         if (dirty_set_contains(ds, sys->eqs[i].var_node_id)) {
-            EQUATION_PUSH_OR_GOTO(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index, push_error);
+            EQUATION_PUSH_OR_GOTO(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index,
+                                  push_error);
         }
     }
 
@@ -3263,7 +3268,8 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
                 }
             }
             if (!found) {
-                EQUATION_PUSH_OR_GOTO(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index, push_error);
+                EQUATION_PUSH_OR_GOTO(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index,
+                                      push_error);
             }
         }
     }
@@ -3873,7 +3879,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc;
         lv_SAFE_SNPRINTF(_snw_inc, detail, sizeof(detail), "{\"phase\":\"incremental\",\"dirty_count\":%d}",
-                           n_dirty_vars);
+                         n_dirty_vars);
         lv_UNUSED(_snw_inc);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -3898,7 +3904,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
     for (int i = 0; i < graph->node_count; i++) {
         if (affected[i]) {
             /* 使用临时变量接收 lv_realloc 结果，防止 OOM 时原指针泄漏 */
-            int *new_ids = lv_realloc(affected_ids, (size_t)(affected_count + 1) * sizeof(int));
+            int *new_ids = lv_realloc(affected_ids, (size_t) (affected_count + 1) * sizeof(int));
             if (new_ids) {
                 affected_ids = new_ids;
                 affected_ids[affected_count++] = graph->nodes[i]->id;
@@ -3919,7 +3925,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_dep;
         lv_SAFE_SNPRINTF(_snw_dep, detail, sizeof(detail), "{\"phase\":\"dependency_propagation\",\"affected\":%d}",
-                           affected_count);
+                         affected_count);
         lv_UNUSED(_snw_dep);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -3990,7 +3996,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_filt;
         lv_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail), "{\"phase\":\"filter\",\"filtered_eq_count\":%d}",
-                           filtered_sys.count);
+                         filtered_sys.count);
         lv_UNUSED(_snw_filt);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -4069,8 +4075,8 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc_done;
         lv_SAFE_SNPRINTF(_snw_inc_done, detail, sizeof(detail),
-                           "{\"phase\":\"incremental_done\",\"solved\":%d,\"multiple\":%d,\"unique\":%d}", solved_count,
-                           multiple_solutions, result->unique ? 1 : 0);
+                         "{\"phase\":\"incremental_done\",\"solved\":%d,\"multiple\":%d,\"unique\":%d}", solved_count,
+                         multiple_solutions, result->unique ? 1 : 0);
         lv_UNUSED(_snw_inc_done);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -5004,13 +5010,13 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_gc;
         lv_SAFE_SNPRINTF(_snw_gc, detail, sizeof(detail),
-                           "{\"phase\":\"groebner_complete\",\"status\":\"%s\","
-                           "\"input_equations\":%d,\"active_equations\":%d,"
-                           "\"basis_size\":%d,\"variables\":%d}",
-                           (status == SOLVER_STATUS_OK)             ? "ok"
-                           : (status == SOLVER_STATUS_OUT_OF_SCOPE) ? "out_of_scope"
-                                                             : "timeout",
-                           system->count, active_count, g_count, var_count);
+                         "{\"phase\":\"groebner_complete\",\"status\":\"%s\","
+                         "\"input_equations\":%d,\"active_equations\":%d,"
+                         "\"basis_size\":%d,\"variables\":%d}",
+                         (status == SOLVER_STATUS_OK)             ? "ok"
+                         : (status == SOLVER_STATUS_OUT_OF_SCOPE) ? "out_of_scope"
+                                                                  : "timeout",
+                         system->count, active_count, g_count, var_count);
         lv_UNUSED(_snw_gc);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -5207,9 +5213,8 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         /* Extract coefficients a, b, c using GMP's mpz_get_d which
          * converts mpz_t directly to double. */
         double a_val = mpz_get_d(system->eqs[i].poly.coeffs[2]) / lv_SOLVER_SCALE_FACTOR;
-        double b_val = (system->eqs[i].poly.degree >= 1)
-                           ? mpz_get_d(system->eqs[i].poly.coeffs[1]) / lv_SOLVER_SCALE_FACTOR
-                           : 0.0;
+        double b_val =
+            (system->eqs[i].poly.degree >= 1) ? mpz_get_d(system->eqs[i].poly.coeffs[1]) / lv_SOLVER_SCALE_FACTOR : 0.0;
         double c_val = mpz_get_d(system->eqs[i].poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
 
         double discriminant = b_val * b_val - 4.0 * a_val * c_val;
@@ -5247,9 +5252,9 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw3;
             lv_SAFE_SNPRINTF(_snw3, detail, sizeof(detail),
-                               "{\"var_id\":%d,\"coord\":%d,\"root1\":%.6f,\"root2\":%.6f,\"D\":%.6f}",
-                               system->eqs[i].var_node_id, system->eqs[i].coord_index, branch_vars[branch_count].root1,
-                               branch_vars[branch_count].root2, discriminant);
+                             "{\"var_id\":%d,\"coord\":%d,\"root1\":%.6f,\"root2\":%.6f,\"D\":%.6f}",
+                             system->eqs[i].var_node_id, system->eqs[i].coord_index, branch_vars[branch_count].root1,
+                             branch_vars[branch_count].root2, discriminant);
             lv_UNUSED(_snw3);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
@@ -5446,7 +5451,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw4;
             lv_SAFE_SNPRINTF(_snw4, detail, sizeof(detail), "{\"checked\":%d,\"total\":%d,\"valid\":%d}", b + 1,
-                               total_branches, valid_branches);
+                             total_branches, valid_branches);
             lv_UNUSED(_snw4);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
@@ -5496,7 +5501,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                 if (coord_str) {
                     int _sn_tmp;
                     lv_SAFE_SNPRINTF(_sn_tmp, detail + pos, (size_t) (sizeof(detail) - pos - 5), "%s\"%s\"",
-                                       (v > 0 ? "," : ""), coord_str);
+                                     (v > 0 ? "," : ""), coord_str);
                     pos += _sn_tmp;
                     lv_free((void **) &coord_str);
                 }
@@ -5552,8 +5557,8 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     if (solver_stream_ctx) {
         char msg[128];
         int _snw5;
-        lv_SAFE_SNPRINTF(_snw5, msg, sizeof(msg), "多解分支处理: 生成 %d 个有效分支 (共 %d 个理论组合)",
-                           valid_branches, total_branches);
+        lv_SAFE_SNPRINTF(_snw5, msg, sizeof(msg), "多解分支处理: 生成 %d 个有效分支 (共 %d 个理论组合)", valid_branches,
+                         total_branches);
         lv_UNUSED(_snw5);
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, msg, valid_branches);
     }

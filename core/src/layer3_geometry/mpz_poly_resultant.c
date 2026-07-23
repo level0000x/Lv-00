@@ -9,34 +9,35 @@
  * @version 3.0.1
  */
 
-#include "mpz_poly.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "mpz_poly.h"
 
 /* ============================================================
  * 模块级常量定义
  * ============================================================ */
 
 /* 多项式次数上限：输入多项式的最高允许次数，防止组合爆炸 */
-#define MPZ_RES_INPUT_DEGREE_MAX         4
+#define MPZ_RES_INPUT_DEGREE_MAX 4
 
 /* 结果多项式次数硬上限：插值结果多项式最多达到20次 */
-#define MPZ_RES_RESULT_DEGREE_CAP        20
+#define MPZ_RES_RESULT_DEGREE_CAP 20
 
 /* Bareiss 行列式算法的约定值和初始值 */
-#define MPZ_RES_EMPTY_DETERMINANT        1   /* 空方阵的行列式约定值 */
-#define MPZ_RES_INITIAL_PIVOT            1   /* Bareiss算法初始主元 */
-#define MPZ_RES_SIGN_POSITIVE            1   /* 行列式符号跟踪 */
+#define MPZ_RES_EMPTY_DETERMINANT 1 /* 空方阵的行列式约定值 */
+#define MPZ_RES_INITIAL_PIVOT 1     /* Bareiss算法初始主元 */
+#define MPZ_RES_SIGN_POSITIVE 1     /* 行列式符号跟踪 */
 
 /* 多项式幂次初始化常量 */
-#define MPZ_RES_POWER_INIT               1   /* x^0 / y^0 的初始值 */
-#define MPZ_RES_NEWTON_CONST_TERM        1   /* 牛顿插值初始常数项 */
+#define MPZ_RES_POWER_INIT 1        /* x^0 / y^0 的初始值 */
+#define MPZ_RES_NEWTON_CONST_TERM 1 /* 牛顿插值初始常数项 */
 
 /* 内部数学常量 */
-#define MPZ_RES_EVEN_PARITY_CHECK        2   /* 奇偶性检查模数 */
-#define MPZ_RES_NEGATIVE_SIGN           (-1) /* 负号标记 */
+#define MPZ_RES_EVEN_PARITY_CHECK 2 /* 奇偶性检查模数 */
+#define MPZ_RES_NEGATIVE_SIGN (-1)  /* 负号标记 */
 
 /* ------------------------------------------------------------------ */
 /*  内部：双变量多项式表示                                           */
@@ -60,8 +61,8 @@
  */
 
 typedef struct {
-    mpz_poly_t *coeffs;  /* Array of polynomials in y, indexed by x-degree */
-    int deg_x;           /* Degree in x */
+    mpz_poly_t *coeffs; /* Array of polynomials in y, indexed by x-degree */
+    int deg_x;          /* Degree in x */
 } BivariatePoly;
 
 /**
@@ -104,7 +105,7 @@ static void bivariate_poly_clear(BivariatePoly *bp) {
         for (int i = 0; i <= bp->deg_x; i++) {
             mpz_poly_clear(&bp->coeffs[i]);
         }
-        lv_free((void**)&bp->coeffs);
+        lv_free((void **) &bp->coeffs);
     }
     bp->coeffs = NULL;
     bp->deg_x = -1;
@@ -121,7 +122,8 @@ static void bivariate_poly_clear(BivariatePoly *bp) {
  * @param poly_in_y  作为该幂次系数的 y 元多项式
  */
 static void bivariate_poly_set_coeff(BivariatePoly *bp, int x_pow, const mpz_poly_t *poly_in_y) {
-    if (x_pow < 0 || x_pow > bp->deg_x) return;
+    if (x_pow < 0 || x_pow > bp->deg_x)
+        return;
     mpz_poly_set(&bp->coeffs[x_pow], poly_in_y);
 }
 
@@ -139,7 +141,7 @@ static void bivariate_poly_set_coeff(BivariatePoly *bp, int x_pow, const mpz_pol
 
 /* 简化的矩阵结构，用于行列式计算 */
 typedef struct {
-    mpz_t *data;    /* 行优先存储：data[row * cols + col] */
+    mpz_t *data; /* 行优先存储：data[row * cols + col] */
     int rows;
     int cols;
 } MPZMatrix;
@@ -162,8 +164,8 @@ static void mpz_matrix_init(MPZMatrix *m, int rows, int cols) {
         return;
     }
     /* 防止 rows * cols 整数溢出 */
-    size_t total = (size_t)rows * (size_t)cols;
-    if (total / (size_t)rows != (size_t)cols) {
+    size_t total = (size_t) rows * (size_t) cols;
+    if (total / (size_t) rows != (size_t) cols) {
         /* 溢出 */
         m->rows = m->cols = 0;
         m->data = NULL;
@@ -187,13 +189,14 @@ static void mpz_matrix_init(MPZMatrix *m, int rows, int cols) {
  * @param m 矩阵指针
  */
 static void mpz_matrix_clear(MPZMatrix *m) {
-    if (!m || !m->data) return;
+    if (!m || !m->data)
+        return;
     /* 使用 size_t 避免 rows*cols 超过 INT_MAX 时溢出 */
-    size_t total = (size_t)m->rows * (size_t)m->cols;
+    size_t total = (size_t) m->rows * (size_t) m->cols;
     for (size_t i = 0; i < total; i++) {
         mpz_clear(m->data[i]);
     }
-    lv_free((void**)&m->data);
+    lv_free((void **) &m->data);
     m->data = NULL;
 }
 
@@ -205,7 +208,7 @@ static void mpz_matrix_clear(MPZMatrix *m) {
  * @param col 列索引（从0开始）
  * @return mpz_t 指针
  */
-static inline mpz_t* mpz_matrix_at(MPZMatrix *m, int row, int col) {
+static inline mpz_t *mpz_matrix_at(MPZMatrix *m, int row, int col) {
     return &m->data[row * m->cols + col];
 }
 
@@ -217,7 +220,7 @@ static inline mpz_t* mpz_matrix_at(MPZMatrix *m, int row, int col) {
  * @param col 列索引（从0开始）
  * @return const mpz_t 指针
  */
-static inline const mpz_t* mpz_matrix_at_const(const MPZMatrix *m, int row, int col) {
+static inline const mpz_t *mpz_matrix_at_const(const MPZMatrix *m, int row, int col) {
     return &m->data[row * m->cols + col];
 }
 
@@ -245,22 +248,29 @@ static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
     }
 
     int n = m->rows;
-    if (n == 0) { mpz_set_ui(result, MPZ_RES_EMPTY_DETERMINANT); return true; }
-    if (n == 1) { mpz_set(result, *mpz_matrix_at_const(m, 0, 0)); return true; }
+    if (n == 0) {
+        mpz_set_ui(result, MPZ_RES_EMPTY_DETERMINANT);
+        return true;
+    }
+    if (n == 1) {
+        mpz_set(result, *mpz_matrix_at_const(m, 0, 0));
+        return true;
+    }
 
     /* 创建工作副本 */
-    mpz_t *a = lv_malloc((size_t)n * (size_t)n * sizeof(mpz_t));
+    mpz_t *a = lv_malloc((size_t) n * (size_t) n * sizeof(mpz_t));
     if (!a) {
         mpz_set_si(result, 0);
         return false;
     }
-    for (int i = 0; i < n * n; i++) mpz_init_set(a[i], m->data[i]);
+    for (int i = 0; i < n * n; i++)
+        mpz_init_set(a[i], m->data[i]);
 
     mpz_t pivot, temp, prev_pivot;
     mpz_inits(pivot, temp, prev_pivot, NULL);
     mpz_set_ui(prev_pivot, MPZ_RES_INITIAL_PIVOT);
 
-    int sign = MPZ_RES_SIGN_POSITIVE;  /* 跟踪行交换的符号变化 */
+    int sign = MPZ_RES_SIGN_POSITIVE; /* 跟踪行交换的符号变化 */
 
     for (int k = 0; k < n - 1; k++) {
         mpz_set(pivot, a[k * n + k]);
@@ -268,14 +278,20 @@ static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
             /* 查找非零主元 */
             int swap_row = -1;
             for (int i = k + 1; i < n; i++) {
-                if (mpz_sgn(a[i * n + k]) != 0) { swap_row = i; break; }
+                if (mpz_sgn(a[i * n + k]) != 0) {
+                    swap_row = i;
+                    break;
+                }
             }
-            if (swap_row < 0) { mpz_set_ui(result, 0); goto cleanup; }
+            if (swap_row < 0) {
+                mpz_set_ui(result, 0);
+                goto cleanup;
+            }
             /* 交换第 k 行和 swap_row 行 */
             for (int j = k; j < n; j++) {
                 mpz_swap(a[k * n + j], a[swap_row * n + j]);
             }
-            sign = -sign;  /* 行交换改变行列式符号 */
+            sign = -sign; /* 行交换改变行列式符号 */
             mpz_set(pivot, a[k * n + k]);
         }
 
@@ -292,12 +308,14 @@ static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
     }
 
     mpz_set(result, a[(n - 1) * n + (n - 1)]);
-    if (sign < 0) mpz_neg(result, result);
+    if (sign < 0)
+        mpz_neg(result, result);
 
 cleanup:
     mpz_clears(pivot, temp, prev_pivot, NULL);
-    for (int i = 0; i < n * n; i++) mpz_clear(a[i]);
-    lv_free((void**)&a);
+    for (int i = 0; i < n * n; i++)
+        mpz_clear(a[i]);
+    lv_free((void **) &a);
     return true;
 }
 
@@ -387,12 +405,11 @@ static bool mpz_matrix_det(MPZMatrix *m, mpz_t det) {
  * @param resultant 输出：Res_y(f, g) 作为 x 的一元多项式
  * @return true 表示计算成功，false 表示内存分配失败
  */
-static bool compute_bivariate_resultant(
-    const BivariatePoly *f,  /* f(x,y) - x 和 y 的二元多项式 */
-    const BivariatePoly *g,  /* g(x,y) - x 和 y 的二元多项式 */
-    int deg_f_y,             /* f 关于 y 的次数 */
-    int deg_g_y,             /* g 关于 y 的次数 */
-    mpz_poly_t *resultant)   /* 输出：关于 x 的一元多项式 */
+static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x 和 y 的二元多项式 */
+                                        const BivariatePoly *g, /* g(x,y) - x 和 y 的二元多项式 */
+                                        int deg_f_y,            /* f 关于 y 的次数 */
+                                        int deg_g_y,            /* g 关于 y 的次数 */
+                                        mpz_poly_t *resultant)  /* 输出：关于 x 的一元多项式 */
 {
     bool ret = false;
 
@@ -434,8 +451,8 @@ static bool compute_bivariate_resultant(
     mpz_t *x_vals = lv_malloc(res_deg_bound * sizeof(mpz_t));
     mpz_t *y_vals = lv_malloc(res_deg_bound * sizeof(mpz_t));
     if (!x_vals || !y_vals) {
-        lv_free((void**)&x_vals);
-        lv_free((void**)&y_vals);
+        lv_free((void **) &x_vals);
+        lv_free((void **) &y_vals);
         mpz_poly_init(resultant);
         resultant->degree = -1;
         return false;
@@ -446,7 +463,7 @@ static bool compute_bivariate_resultant(
         /* 使用不对称取值点（偏移 0.5），避免当 res_deg_bound 为偶数时
          * 以 0 为中心对称分布导致 x_vals[i] == x_vals[i-j] 重复 */
         mpz_set_si(x_vals[i], i - res_deg_bound / 2); /* 以 0 为中心 */
-        if (i > 0 && mpz_cmp(x_vals[i], x_vals[i-1]) == 0) {
+        if (i > 0 && mpz_cmp(x_vals[i], x_vals[i - 1]) == 0) {
             mpz_add_ui(x_vals[i], x_vals[i], 1); /* 消除重复 */
         }
     }
@@ -588,8 +605,8 @@ static bool compute_bivariate_resultant(
             mpz_init(den);
             mpz_init(diff);
 
-            mpz_sub(num, div_diff[i], div_diff[i-1]);
-            mpz_sub(den, x_vals[i], x_vals[i-j]);
+            mpz_sub(num, div_diff[i], div_diff[i - 1]);
+            mpz_sub(den, x_vals[i], x_vals[i - j]);
 
             /* 整数除法（对于多项式插值应该是精确的） */
             if (mpz_cmp_si(den, 0) == 0) {
@@ -653,13 +670,12 @@ static bool compute_bivariate_resultant(
         for (int i = 0; i <= newton_term.degree; i++) {
             /* 如果 i > 0，来自 a_{i-1}*x 的 x^i 项贡献 */
             if (i > 0) {
-                mpz_add(new_term.coeffs[i], new_term.coeffs[i],
-                        newton_term.coeffs[i-1]);
+                mpz_add(new_term.coeffs[i], new_term.coeffs[i], newton_term.coeffs[i - 1]);
             }
             /* 来自 -x_{k-1}*a_i 的 x^i 项贡献 */
             mpz_t prod;
             mpz_init(prod);
-            mpz_mul(prod, x_vals[k-1], newton_term.coeffs[i]);
+            mpz_mul(prod, x_vals[k - 1], newton_term.coeffs[i]);
             mpz_sub(new_term.coeffs[i], new_term.coeffs[i], prod);
             mpz_clear(prod);
         }
@@ -680,8 +696,7 @@ static bool compute_bivariate_resultant(
     mpz_poly_clear(&newton_term);
 
     /* Clean up leading zero coefficients */
-    while (resultant->degree > 0 &&
-           mpz_cmp_si(resultant->coeffs[resultant->degree], 0) == 0) {
+    while (resultant->degree > 0 && mpz_cmp_si(resultant->coeffs[resultant->degree], 0) == 0) {
         mpz_clear(resultant->coeffs[resultant->degree]);
         resultant->degree--;
     }
@@ -690,7 +705,7 @@ static bool compute_bivariate_resultant(
     for (int i = 0; i <= actual_deg; i++) {
         mpz_clear(div_diff[i]);
     }
-    lv_free((void**)&div_diff);
+    lv_free((void **) &div_diff);
 
     ret = true;
 
@@ -701,13 +716,13 @@ cleanup_resultant:
             for (int i = 0; i <= actual_deg; i++) {
                 mpz_clear(div_diff[i]);
             }
-            lv_free((void**)&div_diff);
+            lv_free((void **) &div_diff);
         }
         if (resultant->coeffs) {
             for (int i = 0; i <= resultant->degree; i++) {
                 mpz_clear(resultant->coeffs[i]);
             }
-            lv_free((void**)&resultant->coeffs);
+            lv_free((void **) &resultant->coeffs);
             resultant->coeffs = NULL;
         }
         resultant->degree = -1;
@@ -718,8 +733,8 @@ cleanup_x_y_vals:
         mpz_clear(x_vals[i]);
         mpz_clear(y_vals[i]);
     }
-    lv_free((void**)&x_vals);
-    lv_free((void**)&y_vals);
+    lv_free((void **) &x_vals);
+    lv_free((void **) &y_vals);
 
     return ret;
 }
@@ -778,14 +793,15 @@ cleanup_x_y_vals:
  *   计算 Res_y(p(y), y^n * q(x/y))，其中 n = deg(q)
  */
 
-bool mpz_poly_resultant(
-    const mpz_poly_t *p,       /* Minimal polynomial of alpha (in y) */
-    const mpz_poly_t *q,       /* Minimal polynomial of beta (in y) */
-    AlgebraicOp op,            /* SUM or PRODUCT */
-    mpz_poly_t *result         /* Output: minimal polynomial of result */
+bool mpz_poly_resultant(const mpz_poly_t *p, /* Minimal polynomial of alpha (in y) */
+                        const mpz_poly_t *q, /* Minimal polynomial of beta (in y) */
+                        AlgebraicOp op,      /* SUM or PRODUCT */
+                        mpz_poly_t *result   /* Output: minimal polynomial of result */
 ) {
-    if (!p || !q || !result) return false;
-    if (p->degree < 0 || q->degree < 0) return false;
+    if (!p || !q || !result)
+        return false;
+    if (p->degree < 0 || q->degree < 0)
+        return false;
     if (p->degree > MPZ_RES_INPUT_DEGREE_MAX || q->degree > MPZ_RES_INPUT_DEGREE_MAX) {
         /* Out of scope for our simple implementation */
         mpz_poly_init(result);
@@ -882,8 +898,7 @@ bool mpz_poly_resultant(
                 mpz_mul(term, term, sign);
 
                 /* Add to g.coeffs[x_pow].coeffs[y_pow] */
-                mpz_add(g.coeffs[x_pow].coeffs[y_pow],
-                        g.coeffs[x_pow].coeffs[y_pow], term);
+                mpz_add(g.coeffs[x_pow].coeffs[y_pow], g.coeffs[x_pow].coeffs[y_pow], term);
 
                 mpz_clear(term);
                 mpz_clear(binom_val);
@@ -920,9 +935,7 @@ bool mpz_poly_resultant(
             int y_pow = n - i;
 
             /* g.coeffs[x_pow].coeffs[y_pow] += q->coeffs[i] */
-            mpz_add(g.coeffs[x_pow].coeffs[y_pow],
-                    g.coeffs[x_pow].coeffs[y_pow],
-                    q->coeffs[i]);
+            mpz_add(g.coeffs[x_pow].coeffs[y_pow], g.coeffs[x_pow].coeffs[y_pow], q->coeffs[i]);
         }
     }
 

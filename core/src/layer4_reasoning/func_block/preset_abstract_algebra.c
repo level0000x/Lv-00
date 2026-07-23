@@ -30,73 +30,75 @@
 
 /* ==================== 兼容宏与常量定义 ==================== */
 
-#define PRESET_REGISTER_CAT_COUNTED(cnt, name, desc, cat, inputs, in_cnt, out, math_def, comp, constructive, reversible) \
-    do { \
-        if (preset_blocks_register_simple(name, desc, (PresetCategory)(cat), inputs, in_cnt, out, math_def, comp, constructive, reversible)) { \
-            (cnt)++; \
-        } \
-    } while(0)
+#define PRESET_REGISTER_CAT_COUNTED(cnt, name, desc, cat, inputs, in_cnt, out, math_def, comp, constructive,       \
+                                    reversible)                                                                    \
+    do {                                                                                                           \
+        if (preset_blocks_register_simple(name, desc, (PresetCategory) (cat), inputs, in_cnt, out, math_def, comp, \
+                                          constructive, reversible)) {                                             \
+            (cnt)++;                                                                                               \
+        }                                                                                                          \
+    } while (0)
 
 /* 缺失的 PresetType 兼容定义 */
-#define PRESET_TYPE_RING_ELEMENT       PRESET_TYPE_GROUP_ELEMENT
-#define PRESET_TYPE_RING_HOMOMORPHISM  PRESET_TYPE_HOMOMORPHISM
-#define PRESET_TYPE_DOMAIN             PRESET_TYPE_RING
-#define PRESET_TYPE_ALGEBRAIC_ELEMENT  PRESET_TYPE_GROUP_ELEMENT
-#define PRESET_TYPE_FIELD_EXTENSION    PRESET_TYPE_EXTENSION
-#define PRESET_TYPE_SUBMODULE          PRESET_TYPE_SUBGROUP
+#define PRESET_TYPE_RING_ELEMENT PRESET_TYPE_GROUP_ELEMENT
+#define PRESET_TYPE_RING_HOMOMORPHISM PRESET_TYPE_HOMOMORPHISM
+#define PRESET_TYPE_DOMAIN PRESET_TYPE_RING
+#define PRESET_TYPE_ALGEBRAIC_ELEMENT PRESET_TYPE_GROUP_ELEMENT
+#define PRESET_TYPE_FIELD_EXTENSION PRESET_TYPE_EXTENSION
+#define PRESET_TYPE_SUBMODULE PRESET_TYPE_SUBGROUP
 #define PRESET_TYPE_MODULE_HOMOMORPHISM PRESET_TYPE_HOMOMORPHISM
-#define PRESET_TYPE_REPRESENTATION     PRESET_TYPE_HOMOMORPHISM
+#define PRESET_TYPE_REPRESENTATION PRESET_TYPE_HOMOMORPHISM
 
 /* 群论预设名称兼容 */
-#define PRESET_GROUP_CYCLIC_GENERATOR       "group_cyclic_generator"
-#define PRESET_GROUP_ELEMENT_ORDER          PRESET_ELEMENT_ORDER
-#define PRESET_GROUP_COSET                  "group_coset"
-#define PRESET_GROUP_NORMAL_SUBGROUP        "group_normal_subgroup"
-#define PRESET_GROUP_QUOTIENT               "group_quotient"
-#define PRESET_GROUP_ISOMORPHISM            "group_isomorphism"
-#define PRESET_GROUP_AUTOMORPHISM           "group_automorphism"
-#define PRESET_GROUP_CONJUGACY_CLASS        PRESET_CONJUGACY_CLASS
-#define PRESET_GROUP_CENTRALIZER            "group_centralizer"
-#define PRESET_GROUP_COMMUTATOR             "group_commutator"
-#define PRESET_GROUP_DERIVED_SUBGROUP       "group_derived_subgroup"
-#define PRESET_GROUP_SYLOW_SUBGROUP         "group_sylow_subgroup"
+#define PRESET_GROUP_CYCLIC_GENERATOR "group_cyclic_generator"
+#define PRESET_GROUP_ELEMENT_ORDER PRESET_ELEMENT_ORDER
+#define PRESET_GROUP_COSET "group_coset"
+#define PRESET_GROUP_NORMAL_SUBGROUP "group_normal_subgroup"
+#define PRESET_GROUP_QUOTIENT "group_quotient"
+#define PRESET_GROUP_ISOMORPHISM "group_isomorphism"
+#define PRESET_GROUP_AUTOMORPHISM "group_automorphism"
+#define PRESET_GROUP_CONJUGACY_CLASS PRESET_CONJUGACY_CLASS
+#define PRESET_GROUP_CENTRALIZER "group_centralizer"
+#define PRESET_GROUP_COMMUTATOR "group_commutator"
+#define PRESET_GROUP_DERIVED_SUBGROUP "group_derived_subgroup"
+#define PRESET_GROUP_SYLOW_SUBGROUP "group_sylow_subgroup"
 
 /* 环论预设名称兼容 */
-#define PRESET_RING_IDEAL                   "ring_ideal"
-#define PRESET_RING_PRINCIPAL_IDEAL         "ring_principal_ideal"
-#define PRESET_RING_QUOTIENT                "ring_quotient"
-#define PRESET_RING_HOMOMORPHISM_KERNEL     "ring_homomorphism_kernel"
-#define PRESET_RING_HOMOMORPHISM_IMAGE      "ring_homomorphism_image"
-#define PRESET_RING_PRIME_IDEAL             "ring_prime_ideal"
-#define PRESET_RING_MAXIMAL_IDEAL           "ring_maximal_ideal"
-#define PRESET_RING_JACOBSON_RADICAL        "ring_jacobson_radical"
-#define PRESET_RING_NILRADICAL              "ring_nilradical"
-#define PRESET_RING_FRACTION_FIELD          "ring_fraction_field"
+#define PRESET_RING_IDEAL "ring_ideal"
+#define PRESET_RING_PRINCIPAL_IDEAL "ring_principal_ideal"
+#define PRESET_RING_QUOTIENT "ring_quotient"
+#define PRESET_RING_HOMOMORPHISM_KERNEL "ring_homomorphism_kernel"
+#define PRESET_RING_HOMOMORPHISM_IMAGE "ring_homomorphism_image"
+#define PRESET_RING_PRIME_IDEAL "ring_prime_ideal"
+#define PRESET_RING_MAXIMAL_IDEAL "ring_maximal_ideal"
+#define PRESET_RING_JACOBSON_RADICAL "ring_jacobson_radical"
+#define PRESET_RING_NILRADICAL "ring_nilradical"
+#define PRESET_RING_FRACTION_FIELD "ring_fraction_field"
 
 /* 域论预设名称兼容 */
-#define PRESET_FIELD_EXTENSION_DEGREE       "field_extension_degree"
-#define PRESET_FIELD_MINIMAL_POLYNOMIAL     "field_minimal_polynomial"
-#define PRESET_FIELD_CONJUGATE              "field_conjugate"
-#define PRESET_FIELD_SPLITTING_FIELD        "field_splitting_field"
-#define PRESET_FIELD_GALOIS_GROUP           "field_galois_group"
-#define PRESET_FIELD_GALOIS_CORRESPONDENCE  "field_galois_correspondence"
-#define PRESET_FIELD_SEPARABLE_EXTENSION    "field_separable_extension"
-#define PRESET_FIELD_NORMAL_BASIS           "field_normal_basis"
+#define PRESET_FIELD_EXTENSION_DEGREE "field_extension_degree"
+#define PRESET_FIELD_MINIMAL_POLYNOMIAL "field_minimal_polynomial"
+#define PRESET_FIELD_CONJUGATE "field_conjugate"
+#define PRESET_FIELD_SPLITTING_FIELD "field_splitting_field"
+#define PRESET_FIELD_GALOIS_GROUP "field_galois_group"
+#define PRESET_FIELD_GALOIS_CORRESPONDENCE "field_galois_correspondence"
+#define PRESET_FIELD_SEPARABLE_EXTENSION "field_separable_extension"
+#define PRESET_FIELD_NORMAL_BASIS "field_normal_basis"
 
 /* 模论预设名称兼容 */
-#define PRESET_MODULE_FREE_RANK             "module_free_rank"
-#define PRESET_MODULE_SUBMODULE             "module_submodule"
-#define PRESET_MODULE_QUOTIENT              "module_quotient"
-#define PRESET_MODULE_HOMOMORPHISM_KERNEL   "module_homomorphism_kernel"
-#define PRESET_MODULE_HOMOMORPHISM_IMAGE    "module_homomorphism_image"
-#define PRESET_MODULE_HOM                   "module_hom"
-#define PRESET_MODULE_TENSOR_PRODUCT        "module_tensor_product"
-#define PRESET_MODULE_EXACT_SEQUENCE        "module_exact_sequence"
+#define PRESET_MODULE_FREE_RANK "module_free_rank"
+#define PRESET_MODULE_SUBMODULE "module_submodule"
+#define PRESET_MODULE_QUOTIENT "module_quotient"
+#define PRESET_MODULE_HOMOMORPHISM_KERNEL "module_homomorphism_kernel"
+#define PRESET_MODULE_HOMOMORPHISM_IMAGE "module_homomorphism_image"
+#define PRESET_MODULE_HOM "module_hom"
+#define PRESET_MODULE_TENSOR_PRODUCT "module_tensor_product"
+#define PRESET_MODULE_EXACT_SEQUENCE "module_exact_sequence"
 
 /* 表示论预设名称兼容 */
-#define PRESET_REPRESENTATION_GROUP         "representation_group"
-#define PRESET_REPRESENTATION_EQUIVALENCE   "representation_equivalence"
-#define PRESET_REPRESENTATION_CHARACTER     "representation_character"
+#define PRESET_REPRESENTATION_GROUP "representation_group"
+#define PRESET_REPRESENTATION_EQUIVALENCE "representation_equivalence"
+#define PRESET_REPRESENTATION_CHARACTER "representation_character"
 #define PRESET_REPRESENTATION_DECOMPOSITION "representation_decomposition"
 
 /* ==================== 预设函数块数量 ==================== */
@@ -141,183 +143,115 @@ bool preset_abstract_algebra_register(void) {
     /* -------------------- 循环群生成元计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP, PRESET_TYPE_INTEGER};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_CYCLIC_GENERATOR,
-                                        "循环群生成元：计算群G中由元素g生成的循环子群 <g>",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_SUBGROUP,
-                                        "\\langle g \\rangle = \\{ g^n : n \\in \\mathbb{Z} \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_CYCLIC_GENERATOR,
+                                    "循环群生成元：计算群G中由元素g生成的循环子群 <g>",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_SUBGROUP,
+                                    "\\langle g \\rangle = \\{ g^n : n \\in \\mathbb{Z} \\}", "O(n)", true, false);
     }
 
     /* -------------------- 群的阶计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_ORDER,
-                                        "群的阶：计算有限群G中元素的个数 |G|",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_INTEGER,
-                                        "|G| = \\text{群中元素的个数}",
-                                        "O(n)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_ORDER, "群的阶：计算有限群G中元素的个数 |G|",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_INTEGER,
+                                    "|G| = \\text{群中元素的个数}", "O(n)", false, false);
     }
 
     /* -------------------- 元素阶计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP_ELEMENT};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_ELEMENT_ORDER,
-                                        "元素阶：计算群中元素g的阶 ord(g)，即最小的正整数n使 g^n = e",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_INTEGER,
-                                        "\\text{ord}(g) = \\min\\{n \\in \\mathbb{Z}^+ : g^n = e\\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_ELEMENT_ORDER,
+                                    "元素阶：计算群中元素g的阶 ord(g)，即最小的正整数n使 g^n = e",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_INTEGER,
+                                    "\\text{ord}(g) = \\min\\{n \\in \\mathbb{Z}^+ : g^n = e\\}", "O(n)", true, false);
     }
 
     /* -------------------- 陪集构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_SUBGROUP, PRESET_TYPE_GROUP_ELEMENT};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_COSET,
-                                        "左陪集：构造子群H关于元素g的左陪集 gH",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_SET,
-                                        "gH = \\{ gh : h \\in H \\}",
-                                        "O(|H|)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_COSET, "左陪集：构造子群H关于元素g的左陪集 gH",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_SET,
+                                    "gH = \\{ gh : h \\in H \\}", "O(|H|)", true, false);
     }
 
     /* -------------------- 正规子群检验 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP, PRESET_TYPE_SUBGROUP};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_NORMAL_SUBGROUP,
-                                        "正规子群检验：判断子群H是否为群G的正规子群 (gHg^{-1} = H)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_BOOLEAN,
-                                        "H \\trianglelefteq G \\Leftrightarrow \\forall g \\in G: gHg^{-1} \\subseteq H",
-                                        "O(n^2)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_GROUP_NORMAL_SUBGROUP, "正规子群检验：判断子群H是否为群G的正规子群 (gHg^{-1} = H)",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_BOOLEAN,
+            "H \\trianglelefteq G \\Leftrightarrow \\forall g \\in G: gHg^{-1} \\subseteq H", "O(n^2)", false, false);
     }
 
     /* -------------------- 商群构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP, PRESET_TYPE_SUBGROUP};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_QUOTIENT,
-                                        "商群：构造群G关于正规子群N的商群 G/N",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_GROUP,
-                                        "G/N = \\{ gN : g \\in G \\}, \\quad |G/N| = |G|/|N|",
-                                        "O(n)",
-                                        true, true);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_QUOTIENT, "商群：构造群G关于正规子群N的商群 G/N",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_GROUP,
+                                    "G/N = \\{ gN : g \\in G \\}, \\quad |G/N| = |G|/|N|", "O(n)", true, true);
     }
 
     /* -------------------- 同构判定 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP, PRESET_TYPE_GROUP};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_ISOMORPHISM,
-                                        "群同构判定：判断群G和H是否同构 (存在双射保持群运算)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_BOOLEAN,
-                                        "G \\cong H \\Leftrightarrow \\exists \\phi: G \\to H, \\text{双射且} \\phi(ab) = \\phi(a)\\phi(b)",
-                                        "O(n^3)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_GROUP_ISOMORPHISM, "群同构判定：判断群G和H是否同构 (存在双射保持群运算)",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_BOOLEAN,
+            "G \\cong H \\Leftrightarrow \\exists \\phi: G \\to H, \\text{双射且} \\phi(ab) = \\phi(a)\\phi(b)",
+            "O(n^3)", false, false);
     }
 
     /* -------------------- 自同构群计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_AUTOMORPHISM,
-                                        "自同构群：计算群G的自同构群 Aut(G)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_GROUP,
-                                        "\\text{Aut}(G) = \\{ \\phi: G \\to G | \\phi\\text{为双射同构} \\}",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_AUTOMORPHISM, "自同构群：计算群G的自同构群 Aut(G)",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_GROUP,
+                                    "\\text{Aut}(G) = \\{ \\phi: G \\to G | \\phi\\text{为双射同构} \\}", "O(n^2)",
+                                    true, false);
     }
 
     /* -------------------- 共轭类计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP, PRESET_TYPE_GROUP_ELEMENT};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_CONJUGACY_CLASS,
-                                        "共轭类：计算元素g在群G中的共轭类 [g]",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_SET,
-                                        "[g] = \\{ hgh^{-1} : h \\in G \\}",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_CONJUGACY_CLASS, "共轭类：计算元素g在群G中的共轭类 [g]",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_SET,
+                                    "[g] = \\{ hgh^{-1} : h \\in G \\}", "O(n^2)", true, false);
     }
 
     /* -------------------- 中心化子计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP, PRESET_TYPE_GROUP_ELEMENT};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_CENTRALIZER,
-                                        "中心化子：计算元素g在群G中的中心化子 C_G(g)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_SUBGROUP,
-                                        "C_G(g) = \\{ h \\in G : hg = gh \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_CENTRALIZER,
+                                    "中心化子：计算元素g在群G中的中心化子 C_G(g)", ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
+                                    inputs, 2, PRESET_TYPE_SUBGROUP, "C_G(g) = \\{ h \\in G : hg = gh \\}", "O(n)",
+                                    true, false);
     }
 
     /* -------------------- 换位子计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP_ELEMENT, PRESET_TYPE_GROUP_ELEMENT};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_COMMUTATOR,
-                                        "换位子：计算元素a和b的换位子 [a,b] = aba^{-1}b^{-1}",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_GROUP_ELEMENT,
-                                        "[a,b] = aba^{-1}b^{-1}",
-                                        "O(1)",
-                                        true, true);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_COMMUTATOR,
+                                    "换位子：计算元素a和b的换位子 [a,b] = aba^{-1}b^{-1}",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_GROUP_ELEMENT,
+                                    "[a,b] = aba^{-1}b^{-1}", "O(1)", true, true);
     }
 
     /* -------------------- 导群计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_DERIVED_SUBGROUP,
-                                        "导群：计算群G的导群 G'，即所有换位子生成的子群",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_SUBGROUP,
-                                        "G' = \\langle [a,b] : a,b \\in G \\rangle",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_GROUP_DERIVED_SUBGROUP,
+                                    "导群：计算群G的导群 G'，即所有换位子生成的子群", ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
+                                    inputs, 1, PRESET_TYPE_SUBGROUP, "G' = \\langle [a,b] : a,b \\in G \\rangle",
+                                    "O(n^2)", true, false);
     }
 
     /* -------------------- Sylow子群检验 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP, PRESET_TYPE_INTEGER};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_GROUP_SYLOW_SUBGROUP,
-                                        "Sylow子群：计算群G的p-Sylow子群（阶为p^k的极大子群）",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_SUBGROUP,
-                                        "\\text{Syl}_p(G) = \\{ P \\leq G : |P| = p^k, p \\nmid [G:P] \\}",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_GROUP_SYLOW_SUBGROUP, "Sylow子群：计算群G的p-Sylow子群（阶为p^k的极大子群）",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_SUBGROUP,
+            "\\text{Syl}_p(G) = \\{ P \\leq G : |P| = p^k, p \\nmid [G:P] \\}", "O(n^2)", true, false);
     }
 
     /* ============================================================
@@ -331,141 +265,85 @@ bool preset_abstract_algebra_register(void) {
     /* -------------------- 理想构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING, PRESET_TYPE_LIST};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_IDEAL,
-                                        "理想生成：由生成元集合S构造环R的理想 (S)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_IDEAL,
-                                        "(S) = \\{ \\sum r_i s_i : r_i \\in R, s_i \\in S \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_IDEAL, "理想生成：由生成元集合S构造环R的理想 (S)",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_IDEAL,
+                                    "(S) = \\{ \\sum r_i s_i : r_i \\in R, s_i \\in S \\}", "O(n)", true, false);
     }
 
     /* -------------------- 主理想环生成 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING, PRESET_TYPE_RING_ELEMENT};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_PRINCIPAL_IDEAL,
-                                        "主理想：构造由元素a生成的主理想 (a)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_IDEAL,
-                                        "(a) = \\{ ra : r \\in R \\}",
-                                        "O(1)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_PRINCIPAL_IDEAL, "主理想：构造由元素a生成的主理想 (a)",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_IDEAL,
+                                    "(a) = \\{ ra : r \\in R \\}", "O(1)", true, false);
     }
 
     /* -------------------- 商环构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING, PRESET_TYPE_IDEAL};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_QUOTIENT,
-                                        "商环：构造环R关于理想I的商环 R/I",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_RING,
-                                        "R/I = \\{ r+I : r \\in R \\}",
-                                        "O(n)",
-                                        true, true);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_QUOTIENT, "商环：构造环R关于理想I的商环 R/I",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_RING,
+                                    "R/I = \\{ r+I : r \\in R \\}", "O(n)", true, true);
     }
 
     /* -------------------- 环同态核 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING_HOMOMORPHISM};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_HOMOMORPHISM_KERNEL,
-                                        "环同态核：计算环同态phi的核 ker(phi)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_IDEAL,
-                                        "\\ker(\\phi) = \\{ r \\in R : \\phi(r) = 0 \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_HOMOMORPHISM_KERNEL,
+                                    "环同态核：计算环同态phi的核 ker(phi)", ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs,
+                                    1, PRESET_TYPE_IDEAL, "\\ker(\\phi) = \\{ r \\in R : \\phi(r) = 0 \\}", "O(n)",
+                                    true, false);
     }
 
     /* -------------------- 环同态像 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING_HOMOMORPHISM};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_HOMOMORPHISM_IMAGE,
-                                        "环同态像：计算环同态phi的像 im(phi)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_RING,
-                                        "\\text{im}(\\phi) = \\{ \\phi(r) : r \\in R \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_HOMOMORPHISM_IMAGE,
+                                    "环同态像：计算环同态phi的像 im(phi)", ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1,
+                                    PRESET_TYPE_RING, "\\text{im}(\\phi) = \\{ \\phi(r) : r \\in R \\}", "O(n)", true,
+                                    false);
     }
 
     /* -------------------- 素理想检验 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING, PRESET_TYPE_IDEAL};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_PRIME_IDEAL,
-                                        "素理想检验：判断理想P是否为环R的素理想",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_BOOLEAN,
-                                        "P\\text{为素理想} \\Leftrightarrow R/P\\text{为整环}",
-                                        "O(n)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_PRIME_IDEAL, "素理想检验：判断理想P是否为环R的素理想",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_BOOLEAN,
+                                    "P\\text{为素理想} \\Leftrightarrow R/P\\text{为整环}", "O(n)", false, false);
     }
 
     /* -------------------- 极大理想检验 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING, PRESET_TYPE_IDEAL};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_MAXIMAL_IDEAL,
-                                        "极大理想检验：判断理想M是否为环R的极大理想",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_BOOLEAN,
-                                        "M\\text{为极大理想} \\Leftrightarrow R/M\\text{为域}",
-                                        "O(n)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_MAXIMAL_IDEAL,
+                                    "极大理想检验：判断理想M是否为环R的极大理想", ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
+                                    inputs, 2, PRESET_TYPE_BOOLEAN,
+                                    "M\\text{为极大理想} \\Leftrightarrow R/M\\text{为域}", "O(n)", false, false);
     }
 
     /* -------------------- Jacobson根 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_JACOBSON_RADICAL,
-                                        "Jacobson根：计算环R的Jacobson根 J(R)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_IDEAL,
-                                        "J(R) = \\bigcap_{\\text{极大理想 } M} M",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_JACOBSON_RADICAL, "Jacobson根：计算环R的Jacobson根 J(R)",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_IDEAL,
+                                    "J(R) = \\bigcap_{\\text{极大理想 } M} M", "O(n^2)", true, false);
     }
 
     /* -------------------- Nilradical -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_RING};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_NILRADICAL,
-                                        "Nilradical：计算环R的幂零根 Nil(R)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_IDEAL,
-                                        "\\text{Nil}(R) = \\{ r \\in R : r^n = 0\\text{对某个}n>0 \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_NILRADICAL, "Nilradical：计算环R的幂零根 Nil(R)",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_IDEAL,
+                                    "\\text{Nil}(R) = \\{ r \\in R : r^n = 0\\text{对某个}n>0 \\}", "O(n)", true,
+                                    false);
     }
 
     /* -------------------- 分式域构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_DOMAIN};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_RING_FRACTION_FIELD,
-                                        "分式域：构造整环R的分式域 Q(R)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_FIELD,
-                                        "Q(R) = \\{ a/b : a,b \\in R, b \\neq 0 \\}",
-                                        "O(1)",
-                                        true, true);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_RING_FRACTION_FIELD, "分式域：构造整环R的分式域 Q(R)",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_FIELD,
+                                    "Q(R) = \\{ a/b : a,b \\in R, b \\neq 0 \\}", "O(1)", true, true);
     }
 
     /* ============================================================
@@ -478,113 +356,74 @@ bool preset_abstract_algebra_register(void) {
     /* -------------------- 域扩张次数 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_FIELD_EXTENSION_DEGREE,
-                                        "域扩张次数：计算扩张 E/F 的次数 [E:F]",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_INTEGER,
-                                        "[E:F] = \\dim_F(E)",
-                                        "O(n)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_FIELD_EXTENSION_DEGREE,
+                                    "域扩张次数：计算扩张 E/F 的次数 [E:F]", ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs,
+                                    2, PRESET_TYPE_INTEGER, "[E:F] = \\dim_F(E)", "O(n)", false, false);
     }
 
     /* -------------------- 最小多项式 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_ALGEBRAIC_ELEMENT};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_FIELD_MINIMAL_POLYNOMIAL,
-                                        "最小多项式：计算代数元alpha在域F上的最小多项式 m_alpha(x)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_POLYNOMIAL,
-                                        "m_{\\alpha}(x) = \\min\\{ f(x) \\in F[x] : f \\neq 0, f(\\alpha) = 0 \\}",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_FIELD_MINIMAL_POLYNOMIAL, "最小多项式：计算代数元alpha在域F上的最小多项式 m_alpha(x)",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_POLYNOMIAL,
+            "m_{\\alpha}(x) = \\min\\{ f(x) \\in F[x] : f \\neq 0, f(\\alpha) = 0 \\}", "O(n^2)", true, false);
     }
 
     /* -------------------- 代数元共轭 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_ALGEBRAIC_ELEMENT};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_FIELD_CONJUGATE,
-                                        "代数共轭：计算代数元alpha在代数闭包中的所有共轭",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_LIST,
-                                        "\\alpha_i = \\sigma_i(\\alpha), \\quad \\sigma_i \\in \\text{Gal}(\\bar{F}/F)",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_FIELD_CONJUGATE, "代数共轭：计算代数元alpha在代数闭包中的所有共轭",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_LIST,
+            "\\alpha_i = \\sigma_i(\\alpha), \\quad \\sigma_i \\in \\text{Gal}(\\bar{F}/F)", "O(n)", true, false);
     }
 
     /* -------------------- 分裂域构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_POLYNOMIAL};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_FIELD_SPLITTING_FIELD,
-                                        "分裂域：构造多项式f(x)在域F上的分裂域",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_FIELD,
-                                        "\\text{Spl}(f,F) = F(\\alpha_1,\\ldots,\\alpha_n), f(\\alpha_i)=0",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_FIELD_SPLITTING_FIELD, "分裂域：构造多项式f(x)在域F上的分裂域",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_FIELD,
+            "\\text{Spl}(f,F) = F(\\alpha_1,\\ldots,\\alpha_n), f(\\alpha_i)=0", "O(n^2)", true, false);
     }
 
     /* -------------------- 伽罗瓦群计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FIELD_EXTENSION};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_FIELD_GALOIS_GROUP,
-                                        "伽罗瓦群：计算域扩张 E/F 的伽罗瓦群 Gal(E/F)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_GROUP,
-                                        "\\text{Gal}(E/F) = \\{ \\sigma : E \\to E | \\sigma|_F = \\text{id}, \\sigma\\text{为域同构} \\}",
-                                        "O(n!)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_FIELD_GALOIS_GROUP, "伽罗瓦群：计算域扩张 E/F 的伽罗瓦群 Gal(E/F)",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_GROUP,
+            "\\text{Gal}(E/F) = \\{ \\sigma : E \\to E | \\sigma|_F = \\text{id}, \\sigma\\text{为域同构} \\}", "O(n!)",
+            true, false);
     }
 
     /* -------------------- 伽罗瓦对应 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FIELD_EXTENSION, PRESET_TYPE_SUBGROUP};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_FIELD_GALOIS_CORRESPONDENCE,
-                                        "伽罗瓦对应：根据子群H确定对应的中间域 E^H",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_FIELD,
-                                        "E^H = \\{ e \\in E : \\sigma(e) = e\\ \\forall \\sigma \\in H \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_FIELD_GALOIS_CORRESPONDENCE, "伽罗瓦对应：根据子群H确定对应的中间域 E^H",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_FIELD,
+            "E^H = \\{ e \\in E : \\sigma(e) = e\\ \\forall \\sigma \\in H \\}", "O(n)", true, false);
     }
 
     /* -------------------- 可分扩张检验 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FIELD_EXTENSION};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_FIELD_SEPARABLE_EXTENSION,
-                                        "可分扩张检验：判断域扩张 E/F 是否为可分扩张",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_BOOLEAN,
-                                        "E/F\\text{可分} \\Leftrightarrow \\forall \\alpha \\in E, m_\\alpha(x)\\text{无重根}",
-                                        "O(n^2)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_FIELD_SEPARABLE_EXTENSION, "可分扩张检验：判断域扩张 E/F 是否为可分扩张",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_BOOLEAN,
+            "E/F\\text{可分} \\Leftrightarrow \\forall \\alpha \\in E, m_\\alpha(x)\\text{无重根}", "O(n^2)", false,
+            false);
     }
 
     /* -------------------- 正规基计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FIELD_EXTENSION};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_FIELD_NORMAL_BASIS,
-                                        "正规基：计算伽罗瓦扩张 E/F 的正规基",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_LIST,
-                                        "\\{ \\sigma_1(\\alpha), \\ldots, \\sigma_n(\\alpha) \\}, \\alpha\\text{为生成元}",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_FIELD_NORMAL_BASIS, "正规基：计算伽罗瓦扩张 E/F 的正规基",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_LIST,
+                                    "\\{ \\sigma_1(\\alpha), \\ldots, \\sigma_n(\\alpha) \\}, \\alpha\\text{为生成元}",
+                                    "O(n^2)", true, false);
     }
 
     /* ============================================================
@@ -597,113 +436,71 @@ bool preset_abstract_algebra_register(void) {
     /* -------------------- 自由模秩计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_MODULE};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_MODULE_FREE_RANK,
-                                        "自由模秩：计算自由R-模M的秩 rank(M)",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_INTEGER,
-                                        "\\text{rank}(M) = n \\text{ 若 } M \\cong R^n",
-                                        "O(n)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_MODULE_FREE_RANK, "自由模秩：计算自由R-模M的秩 rank(M)",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_INTEGER,
+                                    "\\text{rank}(M) = n \\text{ 若 } M \\cong R^n", "O(n)", false, false);
     }
 
     /* -------------------- 子模构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_MODULE, PRESET_TYPE_LIST};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_MODULE_SUBMODULE,
-                                        "子模生成：由生成元集合S构造M的子模",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_SUBMODULE,
-                                        "\\langle S \\rangle_R = \\{ \\sum r_i s_i : r_i \\in R, s_i \\in S \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_MODULE_SUBMODULE, "子模生成：由生成元集合S构造M的子模",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_SUBMODULE,
+                                    "\\langle S \\rangle_R = \\{ \\sum r_i s_i : r_i \\in R, s_i \\in S \\}", "O(n)",
+                                    true, false);
     }
 
     /* -------------------- 商模构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_MODULE, PRESET_TYPE_SUBMODULE};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_MODULE_QUOTIENT,
-                                        "商模：构造模M关于子模N的商模 M/N",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_MODULE,
-                                        "M/N = \\{ m+N : m \\in M \\}",
-                                        "O(n)",
-                                        true, true);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_MODULE_QUOTIENT, "商模：构造模M关于子模N的商模 M/N",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_MODULE,
+                                    "M/N = \\{ m+N : m \\in M \\}", "O(n)", true, true);
     }
 
     /* -------------------- 模同态核 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_MODULE_HOMOMORPHISM};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_MODULE_HOMOMORPHISM_KERNEL,
-                                        "模同态核：计算模同态phi的核",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_SUBMODULE,
-                                        "\\ker(\\phi) = \\{ m \\in M : \\phi(m) = 0 \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_MODULE_HOMOMORPHISM_KERNEL, "模同态核：计算模同态phi的核",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_SUBMODULE,
+                                    "\\ker(\\phi) = \\{ m \\in M : \\phi(m) = 0 \\}", "O(n)", true, false);
     }
 
     /* -------------------- 模同态像 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_MODULE_HOMOMORPHISM};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_MODULE_HOMOMORPHISM_IMAGE,
-                                        "模同态像：计算模同态phi的像",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_MODULE,
-                                        "\\text{im}(\\phi) = \\{ \\phi(m) : m \\in M \\}",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_MODULE_HOMOMORPHISM_IMAGE, "模同态像：计算模同态phi的像",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_MODULE,
+                                    "\\text{im}(\\phi) = \\{ \\phi(m) : m \\in M \\}", "O(n)", true, false);
     }
 
     /* -------------------- Hom函子 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_MODULE, PRESET_TYPE_MODULE};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_MODULE_HOM,
-                                        "Hom函子：计算Hom_R(M,N)，即M到N的R-模同态全体",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_MODULE,
-                                        "\\text{Hom}_R(M,N) = \\{ \\phi : M \\to N | \\phi(rx) = r\\phi(x) \\}",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_MODULE_HOM, "Hom函子：计算Hom_R(M,N)，即M到N的R-模同态全体",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_MODULE,
+                                    "\\text{Hom}_R(M,N) = \\{ \\phi : M \\to N | \\phi(rx) = r\\phi(x) \\}", "O(n^2)",
+                                    true, false);
     }
 
     /* -------------------- 张量积 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_MODULE, PRESET_TYPE_MODULE};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_MODULE_TENSOR_PRODUCT,
-                                        "张量积：计算模M和N的张量积 M \\otimes_ R N",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_MODULE,
-                                        "M \\otimes_R N = (M \\times N)/\\sim, \\text{双线性性}",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_MODULE_TENSOR_PRODUCT,
+                                    "张量积：计算模M和N的张量积 M \\otimes_ R N", ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
+                                    inputs, 2, PRESET_TYPE_MODULE,
+                                    "M \\otimes_R N = (M \\times N)/\\sim, \\text{双线性性}", "O(n^2)", true, false);
     }
 
     /* -------------------- 正合序列检验 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_SEQUENCE};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_MODULE_EXACT_SEQUENCE,
-                                        "正合序列检验：验证序列 0->A->B->C->0 是否为正合",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_BOOLEAN,
-                                        "0 \\to A \\xrightarrow{f} B \\xrightarrow{g} C \\to 0\\text{ 正合} \\Leftrightarrow \\text{im}(f) = \\ker(g)",
-                                        "O(n)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_MODULE_EXACT_SEQUENCE,
+                                    "正合序列检验：验证序列 0->A->B->C->0 是否为正合",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_BOOLEAN,
+                                    "0 \\to A \\xrightarrow{f} B \\xrightarrow{g} C \\to 0\\text{ 正合} "
+                                    "\\Leftrightarrow \\text{im}(f) = \\ker(g)",
+                                    "O(n)", false, false);
     }
 
     /* ============================================================
@@ -716,57 +513,37 @@ bool preset_abstract_algebra_register(void) {
     /* -------------------- 群表示构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_GROUP, PRESET_TYPE_MATRIX};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_REPRESENTATION_GROUP,
-                                        "群表示：构造群G的线性表示（群同态到GL_n(C)）",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_HOMOMORPHISM,
-                                        "\\rho: G \\to GL_n(\\mathbb{C}), \\quad \\rho(gh) = \\rho(g)\\rho(h)",
-                                        "O(n^2)",
-                                        true, true);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_REPRESENTATION_GROUP, "群表示：构造群G的线性表示（群同态到GL_n(C)）",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_HOMOMORPHISM,
+            "\\rho: G \\to GL_n(\\mathbb{C}), \\quad \\rho(gh) = \\rho(g)\\rho(h)", "O(n^2)", true, true);
     }
 
     /* -------------------- 表示等价判定 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_REPRESENTATION, PRESET_TYPE_REPRESENTATION};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_REPRESENTATION_EQUIVALENCE,
-                                        "表示等价判定：判断两个群表示是否等价",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 2,
-                                        PRESET_TYPE_BOOLEAN,
-                                        "\\rho \\sim \\sigma \\Leftrightarrow \\exists P: \\rho(g) = P^{-1}\\sigma(g)P",
-                                        "O(n^3)",
-                                        false, false);
+        PRESET_REGISTER_CAT_COUNTED(
+            success_count, PRESET_REPRESENTATION_EQUIVALENCE, "表示等价判定：判断两个群表示是否等价",
+            ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 2, PRESET_TYPE_BOOLEAN,
+            "\\rho \\sim \\sigma \\Leftrightarrow \\exists P: \\rho(g) = P^{-1}\\sigma(g)P", "O(n^3)", false, false);
     }
 
     /* -------------------- 特征标计算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_REPRESENTATION};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_REPRESENTATION_CHARACTER,
-                                        "特征标：计算群表示rho的特征标 chi(g) = Tr(rho(g))",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_FUNCTION,
-                                        "\\chi_\\rho(g) = \\text{Tr}(\\rho(g))",
-                                        "O(n)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_REPRESENTATION_CHARACTER,
+                                    "特征标：计算群表示rho的特征标 chi(g) = Tr(rho(g))",
+                                    ABSTRACT_ALGEBRA_DEFAULT_CATEGORY, inputs, 1, PRESET_TYPE_FUNCTION,
+                                    "\\chi_\\rho(g) = \\text{Tr}(\\rho(g))", "O(n)", true, false);
     }
 
     /* -------------------- 表示分解 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_REPRESENTATION};
-        PRESET_REGISTER_CAT_COUNTED(success_count,
-                                        PRESET_REPRESENTATION_DECOMPOSITION,
-                                        "表示分解：将群表示分解为不可约表示的直和",
-                                        ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
-                                        inputs, 1,
-                                        PRESET_TYPE_LIST,
-                                        "\\rho = m_1\\rho_1 \\oplus \\cdots \\oplus m_k\\rho_k",
-                                        "O(n^2)",
-                                        true, false);
+        PRESET_REGISTER_CAT_COUNTED(success_count, PRESET_REPRESENTATION_DECOMPOSITION,
+                                    "表示分解：将群表示分解为不可约表示的直和", ABSTRACT_ALGEBRA_DEFAULT_CATEGORY,
+                                    inputs, 1, PRESET_TYPE_LIST,
+                                    "\\rho = m_1\\rho_1 \\oplus \\cdots \\oplus m_k\\rho_k", "O(n^2)", true, false);
     }
 
     /* 抽象代数模块预设注册完成 */

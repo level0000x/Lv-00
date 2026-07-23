@@ -6,8 +6,10 @@
  */
 
 #include "../solver_dirty_set.h"
-#include "lv/lv.h"
+
 #include <limits.h>
+
+#include "lv/lv.h"
 
 /* 数组增长因子（与 solver.c 原实现保持一致） */
 #ifndef lv_ARRAY_GROWTH_FACTOR

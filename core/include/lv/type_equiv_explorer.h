@@ -41,6 +41,7 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+
 #include "constraint_graph.h"
 #include "type_system.h"
 
@@ -129,9 +130,7 @@ typedef struct {
  * @return 新分配的探索器，调用者负责 type_equiv_explore_destroy；
  *         任一参数为 NULL 返回 NULL
  */
-TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts,
-                                              const TypeRegion *left,
-                                              const TypeRegion *right);
+TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts, const TypeRegion *left, const TypeRegion *right);
 
 /**
  * @brief BFS 自动搜索合一路径
@@ -183,11 +182,8 @@ void type_equiv_explore_destroy(TypeEquivExplorer *explorer);
  * @param out_found         输出：是否成功找到等价证明
  * @param out_exhausted     输出：是否已穷尽搜索空间
  */
-void type_equiv_explore_get_stats(const TypeEquivExplorer *explorer,
-                                  int *out_nodes,
-                                  int *out_max_depth,
-                                  bool *out_found,
-                                  bool *out_exhausted);
+void type_equiv_explore_get_stats(const TypeEquivExplorer *explorer, int *out_nodes, int *out_max_depth,
+                                  bool *out_found, bool *out_exhausted);
 
 #ifdef __cplusplus
 }

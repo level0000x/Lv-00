@@ -20,25 +20,20 @@
 
 #include <string.h>
 
-#include "lv_utils.h"
 #include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ============== 全局单例难度过滤器 ============== */
 /* 线程局部存储：每个线程可有独立的难度过滤器 */
 #ifdef lv_THREAD_LOCAL
 static lv_THREAD_LOCAL lvAxiomGradeFilter g_grade_filter = {
-    GRADE_BASIC,     /* min_grade */
+    GRADE_BASIC,        /* min_grade */
     GRADE_INTERMEDIATE, /* max_grade 默认中级 */
-    true,            /* filter_enabled 默认启用 */
-    1                /* current_level 默认为1（已解锁中级） */
+    true,               /* filter_enabled 默认启用 */
+    1                   /* current_level 默认为1（已解锁中级） */
 };
 #else
-static lvAxiomGradeFilter g_grade_filter = {
-    GRADE_BASIC,
-    GRADE_INTERMEDIATE,
-    true,
-    1
-};
+static lvAxiomGradeFilter g_grade_filter = {GRADE_BASIC, GRADE_INTERMEDIATE, true, 1};
 #endif
 
 /* ============== 难度过滤器 API ============== */
@@ -84,8 +79,8 @@ const lvAxiomGradeFilter *lv_axiom_get_filter(void) {
  * @param description 教学描述（可为 NULL）
  * @return 新分配的公理分级元数据，失败返回 NULL
  */
-lvAxiomGradeMeta *lv_axiom_grade_meta_create(const char *name, lvAxiomGrade grade,
-                                                  lvProofStyle style, const char *description) {
+lvAxiomGradeMeta *lv_axiom_grade_meta_create(const char *name, lvAxiomGrade grade, lvProofStyle style,
+                                             const char *description) {
     if (!name)
         return NULL;
 
@@ -151,8 +146,7 @@ bool lv_axiom_grade_check(const lvAxiomGradeMeta *meta) {
         return true;
 
     /* 检查难度等级是否在允许范围内 */
-    return (meta->grade >= g_grade_filter.min_grade &&
-            meta->grade <= g_grade_filter.max_grade);
+    return (meta->grade >= g_grade_filter.min_grade && meta->grade <= g_grade_filter.max_grade);
 }
 
 /* ============== 字符串转换 ============== */
@@ -165,11 +159,16 @@ bool lv_axiom_grade_check(const lvAxiomGradeMeta *meta) {
  */
 const char *lv_axiom_grade_to_string(lvAxiomGrade grade) {
     switch (grade) {
-        case GRADE_BASIC:       return "基础级";
-        case GRADE_INTERMEDIATE: return "中级";
-        case GRADE_ADVANCED:     return "高级";
-        case GRADE_EXPERT:       return "专家级";
-        default:                 return "未知等级";
+        case GRADE_BASIC:
+            return "基础级";
+        case GRADE_INTERMEDIATE:
+            return "中级";
+        case GRADE_ADVANCED:
+            return "高级";
+        case GRADE_EXPERT:
+            return "专家级";
+        default:
+            return "未知等级";
     }
 }
 
@@ -181,11 +180,16 @@ const char *lv_axiom_grade_to_string(lvAxiomGrade grade) {
  */
 const char *lv_proof_style_to_string(lvProofStyle style) {
     switch (style) {
-        case STYLE_FORWARD:       return "正向推理";
-        case STYLE_BACKWARD:      return "反向推理";
-        case STYLE_CONTRADICTION: return "反证法（归谬法）";
-        case STYLE_INDUCTION:     return "归纳法";
-        default:                  return "未知风格";
+        case STYLE_FORWARD:
+            return "正向推理";
+        case STYLE_BACKWARD:
+            return "反向推理";
+        case STYLE_CONTRADICTION:
+            return "反证法（归谬法）";
+        case STYLE_INDUCTION:
+            return "归纳法";
+        default:
+            return "未知风格";
     }
 }
 
@@ -224,8 +228,8 @@ lvAxiomGrade lv_axiom_unlock_next_grade(void) {
  * @param max_out       输出数组最大容量
  * @return 实际匹配的公理数量（可能大于 max_out）
  */
-int lv_axiom_filter_by_style(const lvAxiomGradeMeta *metas, int meta_count,
-                                lvProofStyle style, int *out_indices, int max_out) {
+int lv_axiom_filter_by_style(const lvAxiomGradeMeta *metas, int meta_count, lvProofStyle style, int *out_indices,
+                             int max_out) {
     if (!metas || meta_count <= 0 || !out_indices || max_out <= 0)
         return 0;
 

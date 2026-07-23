@@ -31,15 +31,17 @@
  */
 
 #include "quantifier.h"
-#include "three_valued_logic.h"
-#include "lv_utils.h"
-#include "lv/proof.h"
-#include "lv/constraint_graph.h"
-#include "error_codes.h"
 
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "lv/constraint_graph.h"
+#include "lv/proof.h"
+
+#include "error_codes.h"
+#include "lv_utils.h"
+#include "three_valued_logic.h"
 
 /* ============== 内部辅助宏 ============== */
 
@@ -77,8 +79,7 @@ static void init_quant_result(lvQuantifiedResult *result);
  * @param needed  需要的最小容量
  * @return true 成功，false 失败（内存不足）
  */
-static bool domain_ensure_capacity(lvDomain *domain, int needed)
-{
+static bool domain_ensure_capacity(lvDomain *domain, int needed) {
     int new_capacity;
 
     if (needed <= domain->element_capacity) {
@@ -94,8 +95,7 @@ static bool domain_ensure_capacity(lvDomain *domain, int needed)
         new_capacity *= 2;
     }
 
-    int *new_elements = (int *)lv_realloc(domain->domain_elements,
-                                            (size_t)new_capacity * sizeof(int));
+    int *new_elements = (int *) lv_realloc(domain->domain_elements, (size_t) new_capacity * sizeof(int));
     if (!new_elements) {
         return false;
     }
@@ -112,8 +112,7 @@ static bool domain_ensure_capacity(lvDomain *domain, int needed)
  * @param needed  需要的最小容量
  * @return true 成功，false 失败
  */
-static bool instantiate_ensure_capacity(lvQuantifiedExpr *expr, int needed)
-{
+static bool instantiate_ensure_capacity(lvQuantifiedExpr *expr, int needed) {
     int new_capacity;
 
     if (needed <= expr->instantiated_capacity) {
@@ -121,16 +120,14 @@ static bool instantiate_ensure_capacity(lvQuantifiedExpr *expr, int needed)
         return true;
     }
 
-    new_capacity = expr->instantiated_capacity == 0
-                       ? INSTANTIATE_INITIAL_CAPACITY
-                       : expr->instantiated_capacity * 2;
+    new_capacity = expr->instantiated_capacity == 0 ? INSTANTIATE_INITIAL_CAPACITY : expr->instantiated_capacity * 2;
     while (new_capacity < needed) {
         new_capacity *= 2;
-        if (new_capacity <= 0 || new_capacity > INT_MAX / 2) return false;
+        if (new_capacity <= 0 || new_capacity > INT_MAX / 2)
+            return false;
     }
 
-    int *new_ids = (int *)lv_realloc(expr->instantiated_ids,
-                                       (size_t)new_capacity * sizeof(int));
+    int *new_ids = (int *) lv_realloc(expr->instantiated_ids, (size_t) new_capacity * sizeof(int));
     if (!new_ids) {
         return false;
     }
@@ -150,9 +147,8 @@ static bool instantiate_ensure_capacity(lvQuantifiedExpr *expr, int needed)
  * @param name  命题名称（内部复制）
  * @return 新分配的 Proposition，失败返回 NULL
  */
-static struct Proposition *create_result_proposition(int id, const char *name)
-{
-    struct Proposition *prop = (struct Proposition *)lv_calloc(1, sizeof(struct Proposition));
+static struct Proposition *create_result_proposition(int id, const char *name) {
+    struct Proposition *prop = (struct Proposition *) lv_calloc(1, sizeof(struct Proposition));
     if (!prop) {
         return NULL;
     }
@@ -161,7 +157,7 @@ static struct Proposition *create_result_proposition(int id, const char *name)
     if (name) {
         prop->label = lv_strdup(name);
         if (!prop->label) {
-            lv_free((void **)&prop);
+            lv_free((void **) &prop);
             return NULL;
         }
     }
@@ -180,8 +176,7 @@ static struct Proposition *create_result_proposition(int id, const char *name)
  * @param element_id  要评估的元素ID
  * @return 三值真值
  */
-static lvTruthValue evaluate_body_for_element(const lvQuantifiedExpr *expr, int element_id)
-{
+static lvTruthValue evaluate_body_for_element(const lvQuantifiedExpr *expr, int element_id) {
     if (!expr || !expr->body_proposition) {
         return lv_UNKNOWN;
     }
@@ -198,7 +193,7 @@ static lvTruthValue evaluate_body_for_element(const lvQuantifiedExpr *expr, int 
      * 中是否包含与 element_id 相关的约束 */
     if (expr->body_proposition->precondition_region_ids) {
         /* 检查前置条件区域中是否包含 element_id */
-        for (int i = 0; i < (int)expr->body_proposition->precondition_region_count; i++) {
+        for (int i = 0; i < (int) expr->body_proposition->precondition_region_count; i++) {
             if (expr->body_proposition->precondition_region_ids[i] == element_id) {
                 return lv_TRUE;
             }
@@ -207,7 +202,7 @@ static lvTruthValue evaluate_body_for_element(const lvQuantifiedExpr *expr, int 
 
     /* 检查体命题的 output_port_ids 是否与 element_id 关联 */
     if (expr->body_proposition->output_port_ids) {
-        for (int i = 0; i < (int)expr->body_proposition->output_port_count; i++) {
+        for (int i = 0; i < (int) expr->body_proposition->output_port_count; i++) {
             if (expr->body_proposition->output_port_ids[i] == element_id) {
                 return lv_TRUE;
             }
@@ -240,8 +235,7 @@ static lvTruthValue evaluate_body_for_element(const lvQuantifiedExpr *expr, int 
  *
  * @param result  结果结构体指针
  */
-static void init_quant_result(lvQuantifiedResult *result)
-{
+static void init_quant_result(lvQuantifiedResult *result) {
     if (!result) {
         return;
     }
@@ -265,9 +259,8 @@ static void init_quant_result(lvQuantifiedResult *result)
  * @param domain_name 域名称（内部复制，可为 NULL）
  * @return 新分配的域，失败返回 NULL
  */
-lvDomain *lv_quant_domain_create(int id, const char *domain_name)
-{
-    lvDomain *domain = (lvDomain *)lv_calloc(1, sizeof(lvDomain));
+lvDomain *lv_quant_domain_create(int id, const char *domain_name) {
+    lvDomain *domain = (lvDomain *) lv_calloc(1, sizeof(lvDomain));
     if (!domain) {
         return NULL;
     }
@@ -294,15 +287,14 @@ lvDomain *lv_quant_domain_create(int id, const char *domain_name)
  * @param count    元素数量
  * @return 新分配的域，失败返回 NULL
  */
-lvDomain *lv_quant_domain_create_finite(int id, const int *elements, int count)
-{
+lvDomain *lv_quant_domain_create_finite(int id, const int *elements, int count) {
     lvDomain *domain;
 
     if (count < 0) {
         return NULL;
     }
 
-    domain = (lvDomain *)lv_calloc(1, sizeof(lvDomain));
+    domain = (lvDomain *) lv_calloc(1, sizeof(lvDomain));
     if (!domain) {
         return NULL;
     }
@@ -318,12 +310,12 @@ lvDomain *lv_quant_domain_create_finite(int id, const int *elements, int count)
 
     /* 复制元素到内部数组 */
     if (count > 0 && elements) {
-        domain->domain_elements = (int *)lv_malloc((size_t)count * sizeof(int));
+        domain->domain_elements = (int *) lv_malloc((size_t) count * sizeof(int));
         if (!domain->domain_elements) {
-            lv_free((void **)&domain);
+            lv_free((void **) &domain);
             return NULL;
         }
-        memcpy(domain->domain_elements, elements, (size_t)count * sizeof(int));
+        memcpy(domain->domain_elements, elements, (size_t) count * sizeof(int));
         domain->element_count = count;
         domain->element_capacity = count;
     }
@@ -340,8 +332,7 @@ lvDomain *lv_quant_domain_create_finite(int id, const int *elements, int count)
  * @param element  元素节点ID
  * @return true 成功，false 失败（内存不足或域为 NULL）
  */
-bool lv_quant_domain_add_element(lvDomain *domain, int element)
-{
+bool lv_quant_domain_add_element(lvDomain *domain, int element) {
     int i;
 
     if (!domain) {
@@ -378,8 +369,7 @@ bool lv_quant_domain_add_element(lvDomain *domain, int element)
  * @param count    元素数量
  * @return true 成功，false 失败
  */
-bool lv_quant_domain_add_elements(lvDomain *domain, const int *elements, int count)
-{
+bool lv_quant_domain_add_elements(lvDomain *domain, const int *elements, int count) {
     int i;
 
     if (!domain || !elements || count <= 0) {
@@ -404,8 +394,7 @@ bool lv_quant_domain_add_elements(lvDomain *domain, const int *elements, int cou
  * @param element   元素ID
  * @return true 属于，false 不属于
  */
-bool lv_quant_domain_contains(const lvDomain *domain, int element)
-{
+bool lv_quant_domain_contains(const lvDomain *domain, int element) {
     int i;
 
     if (!domain) {
@@ -437,8 +426,7 @@ bool lv_quant_domain_contains(const lvDomain *domain, int element)
  * @param domain 域
  * @return 元素数量（-1 表示无限）
  */
-int lv_quant_domain_size(const lvDomain *domain)
-{
+int lv_quant_domain_size(const lvDomain *domain) {
     if (!domain) {
         return -1;
     }
@@ -463,8 +451,7 @@ int lv_quant_domain_size(const lvDomain *domain)
  *
  * @param domain 域（可为 NULL，此时无操作）
  */
-void lv_quant_domain_destroy(lvDomain *domain)
-{
+void lv_quant_domain_destroy(lvDomain *domain) {
     if (!domain) {
         return;
     }
@@ -473,7 +460,7 @@ void lv_quant_domain_destroy(lvDomain *domain)
     lv_FREE_AND_NULL(domain->domain_elements);
     /* subgraph 的所有权不属于域，不在此处释放 */
 
-    lv_free((void **)&domain);
+    lv_free((void **) &domain);
 }
 
 /* ============== 量化表达式 API ============== */
@@ -495,16 +482,15 @@ void lv_quant_domain_destroy(lvDomain *domain)
  * @param body_prop        体命题（所有权转移）
  * @return 新分配的量化表达式，失败返回 NULL
  */
-lvQuantifiedExpr *lv_quant_expr_create(int id, lvQuantifier quantifier, const char *variable_name,
-                                           int variable_node_id, lvDomain *domain, struct Proposition *body_prop)
-{
+lvQuantifiedExpr *lv_quant_expr_create(int id, lvQuantifier quantifier, const char *variable_name, int variable_node_id,
+                                       lvDomain *domain, struct Proposition *body_prop) {
     lvQuantifiedExpr *expr;
 
     if (!domain) {
         return NULL;
     }
 
-    expr = (lvQuantifiedExpr *)lv_calloc(1, sizeof(lvQuantifiedExpr));
+    expr = (lvQuantifiedExpr *) lv_calloc(1, sizeof(lvQuantifiedExpr));
     if (!expr) {
         return NULL;
     }
@@ -538,8 +524,7 @@ lvQuantifiedExpr *lv_quant_expr_create(int id, lvQuantifier quantifier, const ch
  *
  * @param expr 量化表达式（可为 NULL，此时无操作）
  */
-void lv_quant_expr_destroy(lvQuantifiedExpr *expr)
-{
+void lv_quant_expr_destroy(lvQuantifiedExpr *expr) {
     if (!expr) {
         return;
     }
@@ -556,12 +541,12 @@ void lv_quant_expr_destroy(lvQuantifiedExpr *expr)
         lv_FREE_AND_NULL(expr->body_proposition->precondition_region_ids);
         lv_FREE_AND_NULL(expr->body_proposition->postcondition_constraint_ids);
         /* sub_props 和 pattern 已在 proposition_destroy 中递归释放，此处释放外层命题即可 */
-        lv_free((void **)&(expr->body_proposition));
+        lv_free((void **) &(expr->body_proposition));
     }
 
     lv_FREE_AND_NULL(expr->instantiated_ids);
 
-    lv_free((void **)&expr);
+    lv_free((void **) &expr);
 }
 
 /**
@@ -579,8 +564,7 @@ void lv_quant_expr_destroy(lvQuantifiedExpr *expr)
  * @param expr 量化表达式
  * @return 三值真值
  */
-lvTruthValue lv_quant_expr_evaluate(lvQuantifiedExpr *expr)
-{
+lvTruthValue lv_quant_expr_evaluate(lvQuantifiedExpr *expr) {
     int domain_size;
     int i;
     int satisfying_count;
@@ -608,21 +592,21 @@ lvTruthValue lv_quant_expr_evaluate(lvQuantifiedExpr *expr)
     /* 空域处理 */
     if (domain_size == 0) {
         switch (expr->quantifier) {
-        case lv_FORALL:
-            /* 空合取的恒等元为 TRUE */
-            expr->cached_truth = lv_TRUE;
-            break;
-        case lv_EXISTS:
-            /* 空析取的恒等元为 FALSE */
-            expr->cached_truth = lv_FALSE;
-            break;
-        case lv_EXISTS_UNIQUE:
-            /* 空域上不存在唯一满足的元素 */
-            expr->cached_truth = lv_FALSE;
-            break;
-        default:
-            expr->cached_truth = lv_UNKNOWN;
-            break;
+            case lv_FORALL:
+                /* 空合取的恒等元为 TRUE */
+                expr->cached_truth = lv_TRUE;
+                break;
+            case lv_EXISTS:
+                /* 空析取的恒等元为 FALSE */
+                expr->cached_truth = lv_FALSE;
+                break;
+            case lv_EXISTS_UNIQUE:
+                /* 空域上不存在唯一满足的元素 */
+                expr->cached_truth = lv_FALSE;
+                break;
+            default:
+                expr->cached_truth = lv_UNKNOWN;
+                break;
         }
         expr->truth_cache_valid = true;
         return expr->cached_truth;
@@ -630,58 +614,58 @@ lvTruthValue lv_quant_expr_evaluate(lvQuantifiedExpr *expr)
 
     /* 有限域：枚举评估 */
     switch (expr->quantifier) {
-    case lv_FORALL: {
-        /* ∀x∈D.P(x) → P(d1) ∧ ... ∧ P(dn) */
-        result = lv_TRUE;
-        for (i = 0; i < expr->domain->element_count; i++) {
-            elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
-            result = lv_tvl_and(result, elem_truth);
-            /* 短路：遇到 FALSE 立即停止 */
-            if (result == lv_FALSE) {
-                break;
+        case lv_FORALL: {
+            /* ∀x∈D.P(x) → P(d1) ∧ ... ∧ P(dn) */
+            result = lv_TRUE;
+            for (i = 0; i < expr->domain->element_count; i++) {
+                elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
+                result = lv_tvl_and(result, elem_truth);
+                /* 短路：遇到 FALSE 立即停止 */
+                if (result == lv_FALSE) {
+                    break;
+                }
             }
+            expr->cached_truth = result;
+            break;
         }
-        expr->cached_truth = result;
-        break;
-    }
 
-    case lv_EXISTS: {
-        /* ∃x∈D.P(x) → P(d1) ∨ ... ∨ P(dn) */
-        result = lv_FALSE;
-        for (i = 0; i < expr->domain->element_count; i++) {
-            elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
-            result = lv_tvl_or(result, elem_truth);
-            /* 短路：遇到 TRUE 立即停止 */
-            if (result == lv_TRUE) {
-                break;
+        case lv_EXISTS: {
+            /* ∃x∈D.P(x) → P(d1) ∨ ... ∨ P(dn) */
+            result = lv_FALSE;
+            for (i = 0; i < expr->domain->element_count; i++) {
+                elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
+                result = lv_tvl_or(result, elem_truth);
+                /* 短路：遇到 TRUE 立即停止 */
+                if (result == lv_TRUE) {
+                    break;
+                }
             }
+            expr->cached_truth = result;
+            break;
         }
-        expr->cached_truth = result;
-        break;
-    }
 
-    case lv_EXISTS_UNIQUE: {
-        /* ∃!x∈D.P(x) → 恰好一个元素满足 */
-        satisfying_count = 0;
-        result = lv_FALSE;
-        for (i = 0; i < expr->domain->element_count; i++) {
-            elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
-            if (elem_truth == lv_TRUE) {
-                satisfying_count++;
-            } else if (elem_truth == lv_UNKNOWN) {
-                result = lv_UNKNOWN;
+        case lv_EXISTS_UNIQUE: {
+            /* ∃!x∈D.P(x) → 恰好一个元素满足 */
+            satisfying_count = 0;
+            result = lv_FALSE;
+            for (i = 0; i < expr->domain->element_count; i++) {
+                elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
+                if (elem_truth == lv_TRUE) {
+                    satisfying_count++;
+                } else if (elem_truth == lv_UNKNOWN) {
+                    result = lv_UNKNOWN;
+                }
             }
+            if (result != lv_UNKNOWN) {
+                result = (satisfying_count == 1) ? lv_TRUE : lv_FALSE;
+            }
+            expr->cached_truth = result;
+            break;
         }
-        if (result != lv_UNKNOWN) {
-            result = (satisfying_count == 1) ? lv_TRUE : lv_FALSE;
-        }
-        expr->cached_truth = result;
-        break;
-    }
 
-    default:
-        expr->cached_truth = lv_UNKNOWN;
-        break;
+        default:
+            expr->cached_truth = lv_UNKNOWN;
+            break;
     }
 
     expr->truth_cache_valid = true;
@@ -706,9 +690,7 @@ lvTruthValue lv_quant_expr_evaluate(lvQuantifiedExpr *expr)
  * @param out_result   输出结果
  * @return 操作结果状态码
  */
-lvQuantResult lv_quantifier_instantiate(const lvQuantifiedExpr *expr, int instance_id,
-                                            lvQuantifiedResult *out_result)
-{
+lvQuantResult lv_quantifier_instantiate(const lvQuantifiedExpr *expr, int instance_id, lvQuantifiedResult *out_result) {
     char name_buf[RESULT_NAME_BUF_SIZE];
     const char *quant_str;
 
@@ -754,9 +736,8 @@ lvQuantResult lv_quantifier_instantiate(const lvQuantifiedExpr *expr, int instan
 
     /* 创建结果命题 */
     quant_str = lv_quant_to_string(expr->quantifier);
-    (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s(%d).P(%d)",
-                   quant_str, expr->variable_name ? expr->variable_name : "x",
-                   expr->id, instance_id);
+    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s(%d).P(%d)", quant_str,
+                    expr->variable_name ? expr->variable_name : "x", expr->id, instance_id);
 
     out_result->result_prop = create_result_proposition(expr->body_proposition->id, name_buf);
     if (!out_result->result_prop) {
@@ -788,8 +769,7 @@ lvQuantResult lv_quantifier_instantiate(const lvQuantifiedExpr *expr, int instan
  * @param out_result   输出结果
  * @return 操作结果状态码
  */
-lvQuantResult lv_quantifier_generalize(const lvQuantifiedExpr *expr, lvQuantifiedResult *out_result)
-{
+lvQuantResult lv_quantifier_generalize(const lvQuantifiedExpr *expr, lvQuantifiedResult *out_result) {
     char name_buf[RESULT_NAME_BUF_SIZE];
     const char *quant_str;
     lvTruthValue truth;
@@ -840,10 +820,8 @@ lvQuantResult lv_quantifier_generalize(const lvQuantifiedExpr *expr, lvQuantifie
 
     /* 创建结果命题 */
     quant_str = lv_quant_to_string(expr->quantifier);
-    (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s∈D.P(%s)",
-                   quant_str,
-                   expr->variable_name ? expr->variable_name : "x",
-                   expr->variable_name ? expr->variable_name : "x");
+    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s∈D.P(%s)", quant_str,
+                    expr->variable_name ? expr->variable_name : "x", expr->variable_name ? expr->variable_name : "x");
 
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
     if (!out_result->result_prop) {
@@ -878,9 +856,7 @@ lvQuantResult lv_quantifier_generalize(const lvQuantifiedExpr *expr, lvQuantifie
  * @param out_result   输出结果
  * @return 操作结果状态码
  */
-lvQuantResult lv_quant_exists_introduce(lvQuantifiedExpr *expr, int witness_id,
-                                            lvQuantifiedResult *out_result)
-{
+lvQuantResult lv_quant_exists_introduce(lvQuantifiedExpr *expr, int witness_id, lvQuantifiedResult *out_result) {
     char name_buf[RESULT_NAME_BUF_SIZE];
     const char *quant_str;
 
@@ -930,10 +906,8 @@ lvQuantResult lv_quant_exists_introduce(lvQuantifiedExpr *expr, int witness_id,
 
     /* 创建结果命题 */
     quant_str = lv_quant_to_string(expr->quantifier);
-    (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s∈D.P(%s)",
-                   quant_str,
-                   expr->variable_name ? expr->variable_name : "x",
-                   expr->variable_name ? expr->variable_name : "x");
+    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s∈D.P(%s)", quant_str,
+                    expr->variable_name ? expr->variable_name : "x", expr->variable_name ? expr->variable_name : "x");
 
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
     if (!out_result->result_prop) {
@@ -961,9 +935,8 @@ lvQuantResult lv_quant_exists_introduce(lvQuantifiedExpr *expr, int witness_id,
  * @param out_result   输出结果
  * @return 操作结果状态码
  */
-lvQuantResult lv_quant_exists_eliminate(const lvQuantifiedExpr *exists_expr,
-                                            struct Proposition *target_prop, lvQuantifiedResult *out_result)
-{
+lvQuantResult lv_quant_exists_eliminate(const lvQuantifiedExpr *exists_expr, struct Proposition *target_prop,
+                                        lvQuantifiedResult *out_result) {
     int i;
     char name_buf[RESULT_NAME_BUF_SIZE];
 
@@ -989,8 +962,7 @@ lvQuantResult lv_quant_exists_eliminate(const lvQuantifiedExpr *exists_expr,
     /* 在有限域上寻找目击者 */
     if (exists_expr->domain && exists_expr->domain->is_finite) {
         for (i = 0; i < exists_expr->domain->element_count; i++) {
-            lvTruthValue elem_truth = evaluate_body_for_element(
-                exists_expr, exists_expr->domain->domain_elements[i]);
+            lvTruthValue elem_truth = evaluate_body_for_element(exists_expr, exists_expr->domain->domain_elements[i]);
             if (elem_truth == lv_TRUE) {
                 out_result->witness_node_id = exists_expr->domain->domain_elements[i];
                 break;
@@ -1007,9 +979,8 @@ lvQuantResult lv_quant_exists_eliminate(const lvQuantifiedExpr *exists_expr,
 
     /* 使用目标命题作为结果 */
     if (target_prop) {
-        (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ElimE_%s_%d",
-                       exists_expr->variable_name ? exists_expr->variable_name : "x",
-                       exists_expr->id);
+        (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ElimE_%s_%d",
+                        exists_expr->variable_name ? exists_expr->variable_name : "x", exists_expr->id);
         out_result->result_prop = create_result_proposition(target_prop->id, name_buf);
     }
 
@@ -1037,9 +1008,7 @@ lvQuantResult lv_quant_exists_eliminate(const lvQuantifiedExpr *exists_expr,
  * @param out_result   输出结果（含 status、truth_value 和 result_prop）
  * @return 操作结果状态码
  */
-lvQuantResult lv_quant_eliminate_forall_finite(const lvQuantifiedExpr *expr,
-                                                    lvQuantifiedResult *out_result)
-{
+lvQuantResult lv_quant_eliminate_forall_finite(const lvQuantifiedExpr *expr, lvQuantifiedResult *out_result) {
     int i;
     char name_buf[RESULT_NAME_BUF_SIZE];
     lvTruthValue combined_truth;
@@ -1067,7 +1036,7 @@ lvQuantResult lv_quant_eliminate_forall_finite(const lvQuantifiedExpr *expr,
     if (expr->domain->element_count == 0) {
         out_result->status = lv_QUANT_DOMAIN_EMPTY;
         out_result->truth_value = lv_TRUE;
-        (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ForallElim_empty_%d", expr->id);
+        (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ForallElim_empty_%d", expr->id);
         out_result->result_prop = create_result_proposition(expr->id, name_buf);
         return lv_QUANT_DOMAIN_EMPTY;
     }
@@ -1085,8 +1054,8 @@ lvQuantResult lv_quant_eliminate_forall_finite(const lvQuantifiedExpr *expr,
     out_result->truth_value = combined_truth;
 
     /* 创建结果命题：P(d1) ∧ ... ∧ P(dn) */
-    (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ForallElim_%s_%d",
-                   expr->variable_name ? expr->variable_name : "x", expr->id);
+    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ForallElim_%s_%d", expr->variable_name ? expr->variable_name : "x",
+                    expr->id);
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
     if (!out_result->result_prop) {
         out_result->status = lv_QUANT_ERROR;
@@ -1114,9 +1083,7 @@ lvQuantResult lv_quant_eliminate_forall_finite(const lvQuantifiedExpr *expr,
  * @param out_result   输出结果（含 status、truth_value、witness_node_id 和 result_prop）
  * @return 操作结果状态码
  */
-lvQuantResult lv_quant_eliminate_exists_finite(const lvQuantifiedExpr *expr,
-                                                    lvQuantifiedResult *out_result)
-{
+lvQuantResult lv_quant_eliminate_exists_finite(const lvQuantifiedExpr *expr, lvQuantifiedResult *out_result) {
     int i;
     char name_buf[RESULT_NAME_BUF_SIZE];
     lvTruthValue combined_truth;
@@ -1144,7 +1111,7 @@ lvQuantResult lv_quant_eliminate_exists_finite(const lvQuantifiedExpr *expr,
     if (expr->domain->element_count == 0) {
         out_result->status = lv_QUANT_DOMAIN_EMPTY;
         out_result->truth_value = lv_FALSE;
-        (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsElim_empty_%d", expr->id);
+        (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsElim_empty_%d", expr->id);
         out_result->result_prop = create_result_proposition(expr->id, name_buf);
         return lv_QUANT_DOMAIN_EMPTY;
     }
@@ -1168,8 +1135,8 @@ lvQuantResult lv_quant_eliminate_exists_finite(const lvQuantifiedExpr *expr,
     out_result->truth_value = combined_truth;
 
     /* 创建结果命题：P(d1) ∨ ... ∨ P(dn) */
-    (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsElim_%s_%d",
-                   expr->variable_name ? expr->variable_name : "x", expr->id);
+    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsElim_%s_%d", expr->variable_name ? expr->variable_name : "x",
+                    expr->id);
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
     if (!out_result->result_prop) {
         out_result->status = lv_QUANT_ERROR;
@@ -1202,9 +1169,7 @@ lvQuantResult lv_quant_eliminate_exists_finite(const lvQuantifiedExpr *expr,
  * @param out_result   输出结果
  * @return 操作结果状态码
  */
-lvQuantResult lv_quant_eliminate_exists_unique_finite(const lvQuantifiedExpr *expr,
-                                                           lvQuantifiedResult *out_result)
-{
+lvQuantResult lv_quant_eliminate_exists_unique_finite(const lvQuantifiedExpr *expr, lvQuantifiedResult *out_result) {
     int i;
     char name_buf[RESULT_NAME_BUF_SIZE];
     int satisfying_count;
@@ -1234,7 +1199,7 @@ lvQuantResult lv_quant_eliminate_exists_unique_finite(const lvQuantifiedExpr *ex
     if (expr->domain->element_count == 0) {
         out_result->status = lv_QUANT_DOMAIN_EMPTY;
         out_result->truth_value = lv_FALSE;
-        (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsUniqueElim_empty_%d", expr->id);
+        (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsUniqueElim_empty_%d", expr->id);
         out_result->result_prop = create_result_proposition(expr->id, name_buf);
         return lv_QUANT_DOMAIN_EMPTY;
     }
@@ -1266,8 +1231,8 @@ lvQuantResult lv_quant_eliminate_exists_unique_finite(const lvQuantifiedExpr *ex
     }
 
     /* 创建结果命题 */
-    (void)snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsUniqueElim_%s_%d",
-                   expr->variable_name ? expr->variable_name : "x", expr->id);
+    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsUniqueElim_%s_%d",
+                    expr->variable_name ? expr->variable_name : "x", expr->id);
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
     if (!out_result->result_prop) {
         out_result->status = lv_QUANT_ERROR;
@@ -1292,8 +1257,7 @@ lvQuantResult lv_quant_eliminate_exists_unique_finite(const lvQuantifiedExpr *ex
  * @param expr 量化表达式
  * @return true 可消去，false 不可
  */
-bool lv_quant_is_eliminable(const lvQuantifiedExpr *expr)
-{
+bool lv_quant_is_eliminable(const lvQuantifiedExpr *expr) {
     if (!expr || !expr->domain) {
         return false;
     }
@@ -1320,8 +1284,7 @@ bool lv_quant_is_eliminable(const lvQuantifiedExpr *expr)
  * @param expr 量化表达式
  * @return 满足体命题的元素数量（-1 = 无法确定）
  */
-int lv_quant_count_satisfying(const lvQuantifiedExpr *expr)
-{
+int lv_quant_count_satisfying(const lvQuantifiedExpr *expr) {
     int i;
     int count;
 
@@ -1360,8 +1323,7 @@ int lv_quant_count_satisfying(const lvQuantifiedExpr *expr)
  *
  * @param result 结果结构体指针
  */
-void lv_quant_result_destroy(lvQuantifiedResult *result)
-{
+void lv_quant_result_destroy(lvQuantifiedResult *result) {
     if (!result) {
         return;
     }
@@ -1374,7 +1336,7 @@ void lv_quant_result_destroy(lvQuantifiedResult *result)
         lv_FREE_AND_NULL(result->result_prop->output_port_ids);
         lv_FREE_AND_NULL(result->result_prop->precondition_region_ids);
         lv_FREE_AND_NULL(result->result_prop->postcondition_constraint_ids);
-        lv_free((void **)&(result->result_prop));
+        lv_free((void **) &(result->result_prop));
     }
 
     /* 重置字段 */
@@ -1398,17 +1360,16 @@ void lv_quant_result_destroy(lvQuantifiedResult *result)
  *         - lv_EXISTS_UNIQUE -> "∃!"
  *         - 其他               -> "?(未知)"
  */
-const char *lv_quant_to_string(lvQuantifier q)
-{
+const char *lv_quant_to_string(lvQuantifier q) {
     switch (q) {
-    case lv_FORALL:
-        return "\xe2\x88\x80"; /* ∀ UTF-8: E2 88 80 */
-    case lv_EXISTS:
-        return "\xe2\x88\x83"; /* ∃ UTF-8: E2 88 83 */
-    case lv_EXISTS_UNIQUE:
-        return "\xe2\x88\x83!"; /* ∃! UTF-8 */
-    default:
-        return "?(unknown)";
+        case lv_FORALL:
+            return "\xe2\x88\x80"; /* ∀ UTF-8: E2 88 80 */
+        case lv_EXISTS:
+            return "\xe2\x88\x83"; /* ∃ UTF-8: E2 88 83 */
+        case lv_EXISTS_UNIQUE:
+            return "\xe2\x88\x83!"; /* ∃! UTF-8 */
+        default:
+            return "?(unknown)";
     }
 }
 
@@ -1421,28 +1382,27 @@ const char *lv_quant_to_string(lvQuantifier q)
  * @param result 操作结果
  * @return 静态字符串（中文描述）
  */
-const char *lv_quant_result_to_string(lvQuantResult result)
-{
+const char *lv_quant_result_to_string(lvQuantResult result) {
     switch (result) {
-    case lv_QUANT_OK:
-        return "操作成功";
-    case lv_QUANT_DOMAIN_EMPTY:
-        return "域为空";
-    case lv_QUANT_DOMAIN_INFINITE:
-        return "域为无限，消去不可能";
-    case lv_QUANT_INVALID_VARIABLE:
-        return "变量无效";
-    case lv_QUANT_BODY_UNDEFINED:
-        return "体命题未定义";
-    case lv_QUANT_INSTANTIATE_FAILED:
-        return "实例化失败";
-    case lv_QUANT_GENERALIZE_FAILED:
-        return "泛化失败";
-    case lv_QUANT_COUNTEREXAMPLE:
-        return "找到反例";
-    case lv_QUANT_ERROR:
-        return "一般性错误";
-    default:
-        return "未知结果";
+        case lv_QUANT_OK:
+            return "操作成功";
+        case lv_QUANT_DOMAIN_EMPTY:
+            return "域为空";
+        case lv_QUANT_DOMAIN_INFINITE:
+            return "域为无限，消去不可能";
+        case lv_QUANT_INVALID_VARIABLE:
+            return "变量无效";
+        case lv_QUANT_BODY_UNDEFINED:
+            return "体命题未定义";
+        case lv_QUANT_INSTANTIATE_FAILED:
+            return "实例化失败";
+        case lv_QUANT_GENERALIZE_FAILED:
+            return "泛化失败";
+        case lv_QUANT_COUNTEREXAMPLE:
+            return "找到反例";
+        case lv_QUANT_ERROR:
+            return "一般性错误";
+        default:
+            return "未知结果";
     }
 }

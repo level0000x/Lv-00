@@ -24,14 +24,14 @@
 
 #include "groebner_engine.h"
 
-#include "lv/lv.h"
-
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "lv/lv.h"
 
 #include "error_codes.h"
 #include "lv_internal.h"
@@ -65,15 +65,15 @@
 
 #ifdef _WIN32
 typedef CRITICAL_SECTION lvGroebnerMutex;
-#define GROEBNER_MUTEX_INIT(m)   InitializeCriticalSection(&(m))
+#define GROEBNER_MUTEX_INIT(m) InitializeCriticalSection(&(m))
 #define GROEBNER_MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
-#define GROEBNER_MUTEX_LOCK(m)   EnterCriticalSection(&(m))
+#define GROEBNER_MUTEX_LOCK(m) EnterCriticalSection(&(m))
 #define GROEBNER_MUTEX_UNLOCK(m) LeaveCriticalSection(&(m))
 #else
 typedef pthread_mutex_t lvGroebnerMutex;
-#define GROEBNER_MUTEX_INIT(m)   pthread_mutex_init(&(m), NULL)
+#define GROEBNER_MUTEX_INIT(m) pthread_mutex_init(&(m), NULL)
 #define GROEBNER_MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
-#define GROEBNER_MUTEX_LOCK(m)   pthread_mutex_lock(&(m))
+#define GROEBNER_MUTEX_LOCK(m) pthread_mutex_lock(&(m))
 #define GROEBNER_MUTEX_UNLOCK(m) pthread_mutex_unlock(&(m))
 #endif
 
@@ -129,9 +129,9 @@ typedef pthread_mutex_t lvGroebnerMutex;
 typedef struct {
     /** 多项式池 —— 按 poly_id 索引 */
     lvPolynomial **polys;
-    int poly_count;     /**< 当前多项式数量 */
-    int poly_capacity;  /**< 多项式池容量 */
-    int next_poly_id;   /**< 下一个多项式 ID */
+    int poly_count;    /**< 当前多项式数量 */
+    int poly_capacity; /**< 多项式池容量 */
+    int next_poly_id;  /**< 下一个多项式 ID */
 
     /** 理想池 —— 按 ideal_id 索引 */
     lvIdeal **ideals;
@@ -176,16 +176,14 @@ static lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capa
 static void poly_internal_destroy(lvPolynomial *poly);
 static bool poly_ensure_capacity(lvPolynomial *poly, int needed);
 static lvPolynomial *poly_internal_copy(const lvPolynomial *src, const lvPolynomialRing *ring);
-static lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial *g,
-                                         const lvPolynomialRing *ring);
-static lvPolynomial *poly_internal_multiply(const lvPolynomial *f, const lvPolynomial *g,
-                                              const lvPolynomialRing *ring);
+static lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial *g, const lvPolynomialRing *ring);
+static lvPolynomial *poly_internal_multiply(const lvPolynomial *f, const lvPolynomial *g, const lvPolynomialRing *ring);
 static lvPolynomial *poly_internal_substitute(const lvPolynomial *f, int var_index, const lvPolynomial *subst,
-                                                const lvPolynomialRing *ring);
+                                              const lvPolynomialRing *ring);
 static lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomial *g,
-                                                  const lvPolynomialRing *ring);
+                                                const lvPolynomialRing *ring);
 static lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **basis, int basis_count,
-                                            const lvPolynomialRing *ring);
+                                          const lvPolynomialRing *ring);
 static bool poly_internal_is_zero(const lvPolynomial *poly);
 static int poly_internal_total_degree(const lvPolynomial *poly, int var_count);
 static void poly_internal_scale(lvPolynomial *poly, double scalar);
@@ -193,10 +191,10 @@ static int poly_internal_store(lvRegistryData *data, lvPolynomial *poly);
 static int ideal_internal_store(lvRegistryData *data, lvIdeal *ideal);
 static int variety_internal_store(lvRegistryData *data, lvVariety *variety);
 static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolynomial **generators,
-                                                    int gen_count, lvGroebnerAlgorithm algorithm);
+                                                  int gen_count, lvGroebnerAlgorithm algorithm);
 static lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, const lvPolynomialRing *ring);
 static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis, const lvPolynomialRing *ring,
-                                                int *solution_count);
+                                              int *solution_count);
 static double groebner_newton_refine(double (*eval)(double, void *), double (*deriv)(double, void *), void *ctx,
                                      double x0);
 static char *groebner_strdup_safe(const char *src);
@@ -223,120 +221,74 @@ static int mono_compare(const lvPolynomialRing *ring, const int *powers_a, const
     int vc = ring->var_count;
 
     switch (ring->order) {
-    case MONOMIAL_LEX: {
-        /* 纯字典序：从左到右逐项比较 */
-        for (int i = 0; i < vc; i++) {
-            if (powers_a[i] != powers_b[i]) {
-                return powers_a[i] - powers_b[i];
-            }
-        }
-        return 0;
-    }
-    case MONOMIAL_GRLEX: {
-        /* 分次字典序：先比较总次数，相同时用字典序 */
-        int deg_a = 0, deg_b = 0;
-        for (int i = 0; i < vc; i++) {
-            deg_a += powers_a[i];
-            deg_b += powers_b[i];
-        }
-        if (deg_a != deg_b) {
-            return deg_a - deg_b;
-        }
-        for (int i = 0; i < vc; i++) {
-            if (powers_a[i] != powers_b[i]) {
-                return powers_a[i] - powers_b[i];
-            }
-        }
-        return 0;
-    }
-    case MONOMIAL_GREVLEX: {
-        /* 分次反字典序：先比较总次数，相同时从右向左逐项比较（取反） */
-        int deg_a = 0, deg_b = 0;
-        for (int i = 0; i < vc; i++) {
-            deg_a += powers_a[i];
-            deg_b += powers_b[i];
-        }
-        if (deg_a != deg_b) {
-            return deg_a - deg_b;
-        }
-        for (int i = vc - 1; i >= 0; i--) {
-            if (powers_a[i] != powers_b[i]) {
-                /* grevlex: 次数相等时，最后变量指数较小的单项式更大 */
-                return powers_b[i] - powers_a[i];
-            }
-        }
-        return 0;
-    }
-    case MONOMIAL_ELIM: {
-        /* 消去序：先按消去变量组比较，再按默认 grevlex 比较剩余变量 */
-        int elim_count = ring->elim_var_count;
-        if (elim_count > 0 && ring->elim_vars) {
-            /* 先比较消去组的总次数 */
-            int deg_elim_a = 0, deg_elim_b = 0;
+        case MONOMIAL_LEX: {
+            /* 纯字典序：从左到右逐项比较 */
             for (int i = 0; i < vc; i++) {
-                bool is_elim = false;
-                for (int j = 0; j < elim_count; j++) {
-                    if (ring->elim_vars[j] == i) {
-                        is_elim = true;
-                        break;
+                if (powers_a[i] != powers_b[i]) {
+                    return powers_a[i] - powers_b[i];
+                }
+            }
+            return 0;
+        }
+        case MONOMIAL_GRLEX: {
+            /* 分次字典序：先比较总次数，相同时用字典序 */
+            int deg_a = 0, deg_b = 0;
+            for (int i = 0; i < vc; i++) {
+                deg_a += powers_a[i];
+                deg_b += powers_b[i];
+            }
+            if (deg_a != deg_b) {
+                return deg_a - deg_b;
+            }
+            for (int i = 0; i < vc; i++) {
+                if (powers_a[i] != powers_b[i]) {
+                    return powers_a[i] - powers_b[i];
+                }
+            }
+            return 0;
+        }
+        case MONOMIAL_GREVLEX: {
+            /* 分次反字典序：先比较总次数，相同时从右向左逐项比较（取反） */
+            int deg_a = 0, deg_b = 0;
+            for (int i = 0; i < vc; i++) {
+                deg_a += powers_a[i];
+                deg_b += powers_b[i];
+            }
+            if (deg_a != deg_b) {
+                return deg_a - deg_b;
+            }
+            for (int i = vc - 1; i >= 0; i--) {
+                if (powers_a[i] != powers_b[i]) {
+                    /* grevlex: 次数相等时，最后变量指数较小的单项式更大 */
+                    return powers_b[i] - powers_a[i];
+                }
+            }
+            return 0;
+        }
+        case MONOMIAL_ELIM: {
+            /* 消去序：先按消去变量组比较，再按默认 grevlex 比较剩余变量 */
+            int elim_count = ring->elim_var_count;
+            if (elim_count > 0 && ring->elim_vars) {
+                /* 先比较消去组的总次数 */
+                int deg_elim_a = 0, deg_elim_b = 0;
+                for (int i = 0; i < vc; i++) {
+                    bool is_elim = false;
+                    for (int j = 0; j < elim_count; j++) {
+                        if (ring->elim_vars[j] == i) {
+                            is_elim = true;
+                            break;
+                        }
+                    }
+                    if (is_elim) {
+                        deg_elim_a += powers_a[i];
+                        deg_elim_b += powers_b[i];
                     }
                 }
-                if (is_elim) {
-                    deg_elim_a += powers_a[i];
-                    deg_elim_b += powers_b[i];
+                if (deg_elim_a != deg_elim_b) {
+                    return deg_elim_a - deg_elim_b;
                 }
             }
-            if (deg_elim_a != deg_elim_b) {
-                return deg_elim_a - deg_elim_b;
-            }
-        }
-        /* 回退到 grevlex */
-        int deg_a = 0, deg_b = 0;
-        for (int i = 0; i < vc; i++) {
-            deg_a += powers_a[i];
-            deg_b += powers_b[i];
-        }
-        if (deg_a != deg_b) {
-            return deg_a - deg_b;
-        }
-        for (int i = vc - 1; i >= 0; i--) {
-            if (powers_a[i] != powers_b[i]) {
-                return powers_b[i] - powers_a[i];
-            }
-        }
-        return 0;
-    }
-    case MONOMIAL_WEIGHT: {
-        /* 权重序：先按权重向量的点积比较，再回退 grevlex */
-        if (ring->weights) {
-            double w_a = 0.0, w_b = 0.0;
-            for (int i = 0; i < vc; i++) {
-                w_a += ring->weights[i] * powers_a[i];
-                w_b += ring->weights[i] * powers_b[i];
-            }
-            if (fabs(w_a - w_b) > GROEBNER_ZERO_THRESHOLD) {
-                return (w_a > w_b) ? 1 : -1;
-            }
-        }
-        /* 回退到 grevlex */
-        int deg_a = 0, deg_b = 0;
-        for (int i = 0; i < vc; i++) {
-            deg_a += powers_a[i];
-            deg_b += powers_b[i];
-        }
-        if (deg_a != deg_b) {
-            return deg_a - deg_b;
-        }
-        for (int i = vc - 1; i >= 0; i--) {
-            if (powers_a[i] != powers_b[i]) {
-                return powers_b[i] - powers_a[i];
-            }
-        }
-        return 0;
-    }
-    default:
-        /* 默认 grevlex */
-        {
+            /* 回退到 grevlex */
             int deg_a = 0, deg_b = 0;
             for (int i = 0; i < vc; i++) {
                 deg_a += powers_a[i];
@@ -352,6 +304,52 @@ static int mono_compare(const lvPolynomialRing *ring, const int *powers_a, const
             }
             return 0;
         }
+        case MONOMIAL_WEIGHT: {
+            /* 权重序：先按权重向量的点积比较，再回退 grevlex */
+            if (ring->weights) {
+                double w_a = 0.0, w_b = 0.0;
+                for (int i = 0; i < vc; i++) {
+                    w_a += ring->weights[i] * powers_a[i];
+                    w_b += ring->weights[i] * powers_b[i];
+                }
+                if (fabs(w_a - w_b) > GROEBNER_ZERO_THRESHOLD) {
+                    return (w_a > w_b) ? 1 : -1;
+                }
+            }
+            /* 回退到 grevlex */
+            int deg_a = 0, deg_b = 0;
+            for (int i = 0; i < vc; i++) {
+                deg_a += powers_a[i];
+                deg_b += powers_b[i];
+            }
+            if (deg_a != deg_b) {
+                return deg_a - deg_b;
+            }
+            for (int i = vc - 1; i >= 0; i--) {
+                if (powers_a[i] != powers_b[i]) {
+                    return powers_b[i] - powers_a[i];
+                }
+            }
+            return 0;
+        }
+        default:
+            /* 默认 grevlex */
+            {
+                int deg_a = 0, deg_b = 0;
+                for (int i = 0; i < vc; i++) {
+                    deg_a += powers_a[i];
+                    deg_b += powers_b[i];
+                }
+                if (deg_a != deg_b) {
+                    return deg_a - deg_b;
+                }
+                for (int i = vc - 1; i >= 0; i--) {
+                    if (powers_a[i] != powers_b[i]) {
+                        return powers_b[i] - powers_a[i];
+                    }
+                }
+                return 0;
+            }
     }
 }
 
@@ -451,7 +449,7 @@ static bool mono_is_coprime(const lvPolynomialRing *ring, const int *powers_a, c
  * @param var_count 变量数量
  */
 static void mono_copy(int *dest, const int *src, int var_count) {
-    memcpy(dest, src, (size_t)var_count * sizeof(int));
+    memcpy(dest, src, (size_t) var_count * sizeof(int));
 }
 
 /* ================================================================
@@ -469,7 +467,7 @@ static char *groebner_strdup_safe(const char *src) {
         return NULL;
     }
     size_t len = strlen(src);
-    char *dst = (char *)lv_malloc(len + 1);
+    char *dst = (char *) lv_malloc(len + 1);
     if (!dst) {
         return NULL;
     }
@@ -494,7 +492,7 @@ static int poly_sort_terms(lvPolynomial *poly, const lvPolynomialRing *ring) {
     }
 
     int vc = ring->var_count;
-    double *coeffs = (double *)poly->coeffs;
+    double *coeffs = (double *) poly->coeffs;
 
     for (int i = 0; i < poly->term_count - 1; i++) {
         for (int j = i + 1; j < poly->term_count; j++) {
@@ -571,7 +569,7 @@ static lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capa
         return NULL;
     }
 
-    lvPolynomial *poly = (lvPolynomial *)lv_calloc(1, sizeof(lvPolynomial));
+    lvPolynomial *poly = (lvPolynomial *) lv_calloc(1, sizeof(lvPolynomial));
     if (!poly) {
         return NULL;
     }
@@ -581,16 +579,16 @@ static lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capa
     }
 
     int vc = ring->var_count;
-    poly->powers = (int *)lv_calloc((size_t)capacity * (size_t)vc, sizeof(int));
+    poly->powers = (int *) lv_calloc((size_t) capacity * (size_t) vc, sizeof(int));
     if (!poly->powers) {
-        lv_free((void**)&poly);
+        lv_free((void **) &poly);
         return NULL;
     }
 
-    poly->coeffs = (double *)lv_calloc((size_t)capacity, sizeof(double));
+    poly->coeffs = (double *) lv_calloc((size_t) capacity, sizeof(double));
     if (!poly->coeffs) {
-        lv_free((void**)&poly->powers);
-        lv_free((void**)&poly);
+        lv_free((void **) &poly->powers);
+        lv_free((void **) &poly);
         return NULL;
     }
 
@@ -613,10 +611,10 @@ static void poly_internal_destroy(lvPolynomial *poly) {
     if (!poly) {
         return;
     }
-    lv_free((void**)&poly->powers);
-    lv_free((void**)&poly->coeffs);
-    lv_free((void**)&poly->label);
-    lv_free((void**)&poly);
+    lv_free((void **) &poly->powers);
+    lv_free((void **) &poly->coeffs);
+    lv_free((void **) &poly->label);
+    lv_free((void **) &poly);
 }
 
 /**
@@ -698,23 +696,23 @@ static bool poly_ensure_capacity_ex(lvPolynomial *poly, int needed, int var_coun
         }
     }
 
-    int *new_powers = (int *)lv_realloc(poly->powers, (size_t)new_cap * (size_t)var_count * sizeof(int));
+    int *new_powers = (int *) lv_realloc(poly->powers, (size_t) new_cap * (size_t) var_count * sizeof(int));
     if (!new_powers) {
         return false;
     }
     /* 清零新分配的区域 */
     memset(new_powers + poly->term_capacity * var_count, 0,
-           (size_t)(new_cap - poly->term_capacity) * (size_t)var_count * sizeof(int));
+           (size_t) (new_cap - poly->term_capacity) * (size_t) var_count * sizeof(int));
     poly->powers = new_powers;
 
-    double *new_coeffs = (double *)lv_realloc(poly->coeffs, (size_t)new_cap * sizeof(double));
+    double *new_coeffs = (double *) lv_realloc(poly->coeffs, (size_t) new_cap * sizeof(double));
     if (!new_coeffs) {
         /* powers 已扩容成功，但 coeffs 失败了 —— 这是不太可能的情况，回滚 powers */
         /* 为简化，不处理这种极端情况，假设 realloc 要么都成功要么都失败 */
         return false;
     }
     /* 清零新系数 */
-    memset(new_coeffs + poly->term_capacity, 0, (size_t)(new_cap - poly->term_capacity) * sizeof(double));
+    memset(new_coeffs + poly->term_capacity, 0, (size_t) (new_cap - poly->term_capacity) * sizeof(double));
     poly->coeffs = new_coeffs;
     poly->term_capacity = new_cap;
 
@@ -743,8 +741,8 @@ static lvPolynomial *poly_internal_copy(const lvPolynomial *src, const lvPolynom
     cpy->total_degree = src->total_degree;
     cpy->is_homogeneous = src->is_homogeneous;
 
-    memcpy(cpy->powers, src->powers, (size_t)src->term_count * (size_t)vc * sizeof(int));
-    memcpy(cpy->coeffs, src->coeffs, (size_t)src->term_count * sizeof(double));
+    memcpy(cpy->powers, src->powers, (size_t) src->term_count * (size_t) vc * sizeof(int));
+    memcpy(cpy->coeffs, src->coeffs, (size_t) src->term_count * sizeof(double));
 
     return cpy;
 }
@@ -761,8 +759,7 @@ static lvPolynomial *poly_internal_copy(const lvPolynomial *src, const lvPolynom
  * @param ring 所属环
  * @return 新多项式的和，失败返回 NULL
  */
-static lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial *g,
-                                         const lvPolynomialRing *ring) {
+static lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial *g, const lvPolynomialRing *ring) {
     if (!f || !g || !ring) {
         return NULL;
     }
@@ -778,7 +775,7 @@ static lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial
         return NULL;
     }
 
-    double *coeffs = (double *)result->coeffs;
+    double *coeffs = (double *) result->coeffs;
     int fi = 0, gi = 0;
 
     while (fi < f->term_count && gi < g->term_count) {
@@ -793,18 +790,18 @@ static lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial
         if (cmp > 0) {
             /* f 的项更大 */
             mono_copy(&result->powers[ti * vc], &f->powers[fi * vc], vc);
-            coeffs[ti] = ((double *)f->coeffs)[fi];
+            coeffs[ti] = ((double *) f->coeffs)[fi];
             result->term_count++;
             fi++;
         } else if (cmp < 0) {
             /* g 的项更大 */
             mono_copy(&result->powers[ti * vc], &g->powers[gi * vc], vc);
-            coeffs[ti] = ((double *)g->coeffs)[gi];
+            coeffs[ti] = ((double *) g->coeffs)[gi];
             result->term_count++;
             gi++;
         } else {
             /* 同类项 */
-            double sum = ((double *)f->coeffs)[fi] + ((double *)g->coeffs)[gi];
+            double sum = ((double *) f->coeffs)[fi] + ((double *) g->coeffs)[gi];
             if (fabs(sum) > GROEBNER_ZERO_THRESHOLD) {
                 mono_copy(&result->powers[ti * vc], &f->powers[fi * vc], vc);
                 coeffs[ti] = sum;
@@ -823,7 +820,7 @@ static lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial
             return NULL;
         }
         mono_copy(&result->powers[ti * vc], &f->powers[fi * vc], vc);
-        coeffs[ti] = ((double *)f->coeffs)[fi];
+        coeffs[ti] = ((double *) f->coeffs)[fi];
         result->term_count++;
         fi++;
     }
@@ -836,7 +833,7 @@ static lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial
             return NULL;
         }
         mono_copy(&result->powers[ti * vc], &g->powers[gi * vc], vc);
-        coeffs[ti] = ((double *)g->coeffs)[gi];
+        coeffs[ti] = ((double *) g->coeffs)[gi];
         result->term_count++;
         gi++;
     }
@@ -861,7 +858,7 @@ static lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial
  * @return 新多项式的积，失败返回 NULL
  */
 static lvPolynomial *poly_internal_multiply(const lvPolynomial *f, const lvPolynomial *g,
-                                              const lvPolynomialRing *ring) {
+                                            const lvPolynomialRing *ring) {
     if (!f || !g || !ring) {
         return NULL;
     }
@@ -880,9 +877,9 @@ static lvPolynomial *poly_internal_multiply(const lvPolynomial *f, const lvPolyn
         return NULL;
     }
 
-    double *f_coeffs = (double *)f->coeffs;
-    double *g_coeffs = (double *)g->coeffs;
-    double *r_coeffs = (double *)result->coeffs;
+    double *f_coeffs = (double *) f->coeffs;
+    double *g_coeffs = (double *) g->coeffs;
+    double *r_coeffs = (double *) result->coeffs;
 
     for (int i = 0; i < f->term_count; i++) {
         for (int j = 0; j < g->term_count; j++) {
@@ -924,7 +921,7 @@ static lvPolynomial *poly_internal_multiply(const lvPolynomial *f, const lvPolyn
  * @return 代入结果多项式，失败返回 NULL
  */
 static lvPolynomial *poly_internal_substitute(const lvPolynomial *f, int var_index, const lvPolynomial *subst,
-                                                const lvPolynomialRing *ring) {
+                                              const lvPolynomialRing *ring) {
     if (!f || !subst || !ring) {
         return NULL;
     }
@@ -939,7 +936,7 @@ static lvPolynomial *poly_internal_substitute(const lvPolynomial *f, int var_ind
     }
 
     int vc = ring->var_count;
-    double *f_coeffs = (double *)f->coeffs;
+    double *f_coeffs = (double *) f->coeffs;
 
     for (int i = 0; i < f->term_count; i++) {
         int exp = f->powers[i * vc + var_index];
@@ -958,10 +955,10 @@ static lvPolynomial *poly_internal_substitute(const lvPolynomial *f, int var_ind
         term_poly->term_count = 1;
         term_poly->term_capacity = 1;
         /* 重新分配以确保正确大小 */
-        lv_free((void**)&term_poly->powers);
-        lv_free((void**)&term_poly->coeffs);
-        term_poly->powers = (int *)lv_calloc((size_t)vc, sizeof(int));
-        term_poly->coeffs = (double *)lv_calloc(1, sizeof(double));
+        lv_free((void **) &term_poly->powers);
+        lv_free((void **) &term_poly->coeffs);
+        term_poly->powers = (int *) lv_calloc((size_t) vc, sizeof(int));
+        term_poly->coeffs = (double *) lv_calloc(1, sizeof(double));
         if (!term_poly->powers || !term_poly->coeffs) {
             poly_internal_destroy(term_poly);
             poly_internal_destroy(result);
@@ -973,7 +970,7 @@ static lvPolynomial *poly_internal_substitute(const lvPolynomial *f, int var_ind
                 term_poly->powers[k] = f->powers[i * vc + k];
             }
         }
-        ((double *)term_poly->coeffs)[0] = coeff;
+        ((double *) term_poly->coeffs)[0] = coeff;
 
         /* 计算 subst^{exp} */
         if (exp == 0) {
@@ -1043,7 +1040,7 @@ static bool poly_internal_is_zero(const lvPolynomial *poly) {
         return true;
     }
     /* 检查是否所有系数都接近零 */
-    double *coeffs = (double *)poly->coeffs;
+    double *coeffs = (double *) poly->coeffs;
     for (int i = 0; i < poly->term_count; i++) {
         if (fabs(coeffs[i]) > GROEBNER_ZERO_THRESHOLD) {
             return false;
@@ -1083,7 +1080,7 @@ static void poly_internal_scale(lvPolynomial *poly, double scalar) {
     if (!poly) {
         return;
     }
-    double *coeffs = (double *)poly->coeffs;
+    double *coeffs = (double *) poly->coeffs;
     for (int i = 0; i < poly->term_count; i++) {
         coeffs[i] *= scalar;
     }
@@ -1100,7 +1097,8 @@ static void poly_internal_scale(lvPolynomial *poly, double scalar) {
  */
 static int poly_leading_term(const lvPolynomial *poly, const lvPolynomialRing *ring, int *lt_out, double *lc_out) {
     if (!poly || !ring || poly->term_count == 0) {
-        if (lc_out) *lc_out = 0.0;
+        if (lc_out)
+            *lc_out = 0.0;
         return -1;
     }
 
@@ -1116,7 +1114,7 @@ static int poly_leading_term(const lvPolynomial *poly, const lvPolynomialRing *r
         mono_copy(lt_out, &poly->powers[best_idx * vc], vc);
     }
     if (lc_out) {
-        *lc_out = ((double *)poly->coeffs)[best_idx];
+        *lc_out = ((double *) poly->coeffs)[best_idx];
     }
     return 0;
 }
@@ -1138,35 +1136,35 @@ static int poly_leading_term(const lvPolynomial *poly, const lvPolynomialRing *r
  * @return S-多项式，失败返回 NULL
  */
 static lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomial *g,
-                                                  const lvPolynomialRing *ring) {
+                                                const lvPolynomialRing *ring) {
     if (!f || !g || !ring) {
         return NULL;
     }
 
     int vc = ring->var_count;
     double lc_f, lc_g;
-    int *lt_f = (int *)lv_calloc((size_t)vc, sizeof(int));
-    int *lt_g = (int *)lv_calloc((size_t)vc, sizeof(int));
-    int *lcm = (int *)lv_calloc((size_t)vc, sizeof(int));
-    int *quot_f = (int *)lv_calloc((size_t)vc, sizeof(int));
-    int *quot_g = (int *)lv_calloc((size_t)vc, sizeof(int));
+    int *lt_f = (int *) lv_calloc((size_t) vc, sizeof(int));
+    int *lt_g = (int *) lv_calloc((size_t) vc, sizeof(int));
+    int *lcm = (int *) lv_calloc((size_t) vc, sizeof(int));
+    int *quot_f = (int *) lv_calloc((size_t) vc, sizeof(int));
+    int *quot_g = (int *) lv_calloc((size_t) vc, sizeof(int));
 
     if (!lt_f || !lt_g || !lcm || !quot_f || !quot_g) {
-        lv_free((void**)&lt_f);
-        lv_free((void**)&lt_g);
-        lv_free((void**)&lcm);
-        lv_free((void**)&quot_f);
-        lv_free((void**)&quot_g);
+        lv_free((void **) &lt_f);
+        lv_free((void **) &lt_g);
+        lv_free((void **) &lcm);
+        lv_free((void **) &quot_f);
+        lv_free((void **) &quot_g);
         return NULL;
     }
 
     /* 获取前导项 */
     if (poly_leading_term(f, ring, lt_f, &lc_f) != 0 || poly_leading_term(g, ring, lt_g, &lc_g) != 0) {
-        lv_free((void**)&lt_f);
-        lv_free((void**)&lt_g);
-        lv_free((void**)&lcm);
-        lv_free((void**)&quot_f);
-        lv_free((void**)&quot_g);
+        lv_free((void **) &lt_f);
+        lv_free((void **) &lt_g);
+        lv_free((void **) &lcm);
+        lv_free((void **) &quot_f);
+        lv_free((void **) &quot_g);
         /* 如果任一项为零多项式，S-多项式为零 */
         return poly_internal_create(ring, 1, NULL);
     }
@@ -1181,10 +1179,10 @@ static lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvP
     if (!term_f) {
         goto s_poly_cleanup;
     }
-    lv_free((void**)&term_f->powers);
-    lv_free((void**)&term_f->coeffs);
-    term_f->powers = (int *)lv_calloc((size_t)vc, sizeof(int));
-    term_f->coeffs = (double *)lv_calloc(1, sizeof(double));
+    lv_free((void **) &term_f->powers);
+    lv_free((void **) &term_f->coeffs);
+    term_f->powers = (int *) lv_calloc((size_t) vc, sizeof(int));
+    term_f->coeffs = (double *) lv_calloc(1, sizeof(double));
     if (!term_f->powers || !term_f->coeffs) {
         poly_internal_destroy(term_f);
         goto s_poly_cleanup;
@@ -1192,7 +1190,7 @@ static lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvP
     term_f->term_capacity = 1;
     term_f->term_count = 1;
     mono_copy(term_f->powers, quot_f, vc);
-    ((double *)term_f->coeffs)[0] = lc_g; /* 乘以 lc_g 使得 S(f,g) 的前导项抵消 */
+    ((double *) term_f->coeffs)[0] = lc_g; /* 乘以 lc_g 使得 S(f,g) 的前导项抵消 */
 
     lvPolynomial *part_f = poly_internal_multiply(term_f, f, ring);
     poly_internal_destroy(term_f);
@@ -1206,10 +1204,10 @@ static lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvP
         poly_internal_destroy(part_f);
         goto s_poly_cleanup;
     }
-    lv_free((void**)&term_g->powers);
-    lv_free((void**)&term_g->coeffs);
-    term_g->powers = (int *)lv_calloc((size_t)vc, sizeof(int));
-    term_g->coeffs = (double *)lv_calloc(1, sizeof(double));
+    lv_free((void **) &term_g->powers);
+    lv_free((void **) &term_g->coeffs);
+    term_g->powers = (int *) lv_calloc((size_t) vc, sizeof(int));
+    term_g->coeffs = (double *) lv_calloc(1, sizeof(double));
     if (!term_g->powers || !term_g->coeffs) {
         poly_internal_destroy(term_g);
         poly_internal_destroy(part_f);
@@ -1218,7 +1216,7 @@ static lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvP
     term_g->term_capacity = 1;
     term_g->term_count = 1;
     mono_copy(term_g->powers, quot_g, vc);
-    ((double *)term_g->coeffs)[0] = lc_f; /* 乘以 lc_f */
+    ((double *) term_g->coeffs)[0] = lc_f; /* 乘以 lc_f */
 
     lvPolynomial *part_g = poly_internal_multiply(term_g, g, ring);
     poly_internal_destroy(term_g);
@@ -1233,19 +1231,19 @@ static lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvP
     poly_internal_destroy(part_f);
     poly_internal_destroy(part_g);
 
-    lv_free((void**)&lt_f);
-    lv_free((void**)&lt_g);
-    lv_free((void**)&lcm);
-    lv_free((void**)&quot_f);
-    lv_free((void**)&quot_g);
+    lv_free((void **) &lt_f);
+    lv_free((void **) &lt_g);
+    lv_free((void **) &lcm);
+    lv_free((void **) &quot_f);
+    lv_free((void **) &quot_g);
     return s_poly;
 
 s_poly_cleanup:
-    lv_free((void**)&lt_f);
-    lv_free((void**)&lt_g);
-    lv_free((void**)&lcm);
-    lv_free((void**)&quot_f);
-    lv_free((void**)&quot_g);
+    lv_free((void **) &lt_f);
+    lv_free((void **) &lt_g);
+    lv_free((void **) &lcm);
+    lv_free((void **) &quot_f);
+    lv_free((void **) &quot_g);
     return NULL;
 }
 
@@ -1270,7 +1268,7 @@ s_poly_cleanup:
  *       约化结果是唯一的（即 normal form）。
  */
 static lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **basis, int basis_count,
-                                            const lvPolynomialRing *ring) {
+                                          const lvPolynomialRing *ring) {
     if (!p || !basis || !ring) {
         return NULL;
     }
@@ -1281,7 +1279,7 @@ static lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **
     }
 
     int vc = ring->var_count;
-    double *rem_coeffs = (double *)remainder->coeffs;
+    double *rem_coeffs = (double *) remainder->coeffs;
     int step_count = 0;
 
     int reduce_max = lv_config_get_int("groebner_reduce_max_steps", 10000);
@@ -1303,16 +1301,17 @@ static lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **
                     continue;
                 }
                 double lc_b;
-                int *lt_b = (int *)lv_calloc((size_t)vc, sizeof(int));
-                if (!lt_b) continue;
+                int *lt_b = (int *) lv_calloc((size_t) vc, sizeof(int));
+                if (!lt_b)
+                    continue;
                 if (poly_leading_term(basis[j], ring, lt_b, &lc_b) == 0) {
                     if (mono_divides(ring, &remainder->powers[i * vc], lt_b)) {
                         reducer_idx = j;
-                        lv_free((void**)&lt_b);
+                        lv_free((void **) &lt_b);
                         break;
                     }
                 }
-                lv_free((void**)&lt_b);
+                lv_free((void **) &lt_b);
             }
 
             if (reducer_idx < 0) {
@@ -1322,44 +1321,45 @@ static lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **
             /* 获取约化器信息 */
             lvPolynomial *reducer = basis[reducer_idx];
             double lc_r;
-            int *lt_r = (int *)lv_calloc((size_t)vc, sizeof(int));
-            if (!lt_r) continue;
+            int *lt_r = (int *) lv_calloc((size_t) vc, sizeof(int));
+            if (!lt_r)
+                continue;
             if (poly_leading_term(reducer, ring, lt_r, &lc_r) != 0) {
-                lv_free((void**)&lt_r);
+                lv_free((void **) &lt_r);
                 continue;
             }
 
             /* 计算商单项式：m = t / LT(reducer) */
-            int *quot_mono = (int *)lv_calloc((size_t)vc, sizeof(int));
+            int *quot_mono = (int *) lv_calloc((size_t) vc, sizeof(int));
             if (!quot_mono) {
-                lv_free((void**)&lt_r);
+                lv_free((void **) &lt_r);
                 continue;
             }
             mono_divide(ring, &remainder->powers[i * vc], lt_r, quot_mono);
-            lv_free((void**)&lt_r);
+            lv_free((void **) &lt_r);
 
             /* 构造乘子多项式：c * m，其中 c = coeff(t)/lc(reducer) */
             double factor = rem_coeffs[i] / lc_r;
 
             lvPolynomial *mult_term = poly_internal_create(ring, 1, NULL);
             if (!mult_term) {
-                lv_free((void**)&quot_mono);
+                lv_free((void **) &quot_mono);
                 continue;
             }
-            lv_free((void**)&mult_term->powers);
-            lv_free((void**)&mult_term->coeffs);
-            mult_term->powers = (int *)lv_calloc((size_t)vc, sizeof(int));
-            mult_term->coeffs = (double *)lv_calloc(1, sizeof(double));
+            lv_free((void **) &mult_term->powers);
+            lv_free((void **) &mult_term->coeffs);
+            mult_term->powers = (int *) lv_calloc((size_t) vc, sizeof(int));
+            mult_term->coeffs = (double *) lv_calloc(1, sizeof(double));
             if (!mult_term->powers || !mult_term->coeffs) {
                 poly_internal_destroy(mult_term);
-                lv_free((void**)&quot_mono);
+                lv_free((void **) &quot_mono);
                 continue;
             }
             mult_term->term_capacity = 1;
             mult_term->term_count = 1;
             mono_copy(mult_term->powers, quot_mono, vc);
-            ((double *)mult_term->coeffs)[0] = factor;
-            lv_free((void**)&quot_mono);
+            ((double *) mult_term->coeffs)[0] = factor;
+            lv_free((void **) &quot_mono);
 
             /* 减去的部分 = mult_term * reducer */
             lvPolynomial *subtrahend = poly_internal_multiply(mult_term, reducer, ring);
@@ -1384,11 +1384,11 @@ static lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **
 
             poly_internal_destroy(remainder);
             remainder = new_rem;
-            rem_coeffs = (double *)remainder->coeffs;
+            rem_coeffs = (double *) remainder->coeffs;
 
             /* 清理并排序 */
             poly_sort_terms(remainder, ring);
-            rem_coeffs = (double *)remainder->coeffs;
+            rem_coeffs = (double *) remainder->coeffs;
 
             changed = true;
             break; /* 重新开始约化循环 */
@@ -1422,22 +1422,22 @@ static lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **
  * @return Gröbner 基结构体，失败返回 NULL
  */
 static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolynomial **generators,
-                                                    int gen_count, lvGroebnerAlgorithm algorithm) {
+                                                  int gen_count, lvGroebnerAlgorithm algorithm) {
     if (!ring || !generators || gen_count <= 0) {
         return NULL;
     }
 
     lv_UNUSED(algorithm); /* 当前仅实现 Buchberger */
 
-    lvGroebnerBasis *basis = (lvGroebnerBasis *)lv_calloc(1, sizeof(lvGroebnerBasis));
+    lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
     if (!basis) {
         return NULL;
     }
 
-    basis->basis_polys = (lvPolynomial **)lv_calloc((size_t)gen_count * 2 + GROEBNER_BASIS_INIT_CAPACITY,
-                                                   sizeof(lvPolynomial *));
+    basis->basis_polys =
+        (lvPolynomial **) lv_calloc((size_t) gen_count * 2 + GROEBNER_BASIS_INIT_CAPACITY, sizeof(lvPolynomial *));
     if (!basis->basis_polys) {
-        lv_free((void**)&basis);
+        lv_free((void **) &basis);
         return NULL;
     }
     basis->bases_capacity = gen_count * 2 + GROEBNER_BASIS_INIT_CAPACITY;
@@ -1449,15 +1449,15 @@ static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, 
         if (generators[i] && !poly_internal_is_zero(generators[i])) {
             if (basis->bases_count >= basis->bases_capacity) {
                 int new_cap = basis->bases_capacity * 2;
-                lvPolynomial **new_polys = (lvPolynomial **)lv_realloc(basis->basis_polys,
-                                                                        (size_t)new_cap * sizeof(lvPolynomial *));
+                lvPolynomial **new_polys =
+                    (lvPolynomial **) lv_realloc(basis->basis_polys, (size_t) new_cap * sizeof(lvPolynomial *));
                 if (!new_polys) {
                     /* 清理已分配的内存 */
                     for (int j = 0; j < basis->bases_count; j++) {
                         poly_internal_destroy(basis->basis_polys[j]);
                     }
-                    lv_free((void**)&basis->basis_polys);
-                    lv_free((void**)&basis);
+                    lv_free((void **) &basis->basis_polys);
+                    lv_free((void **) &basis);
                     return NULL;
                 }
                 basis->basis_polys = new_polys;
@@ -1469,8 +1469,8 @@ static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, 
                 for (int j = 0; j < basis->bases_count; j++) {
                     poly_internal_destroy(basis->basis_polys[j]);
                 }
-                lv_free((void**)&basis->basis_polys);
-                lv_free((void**)&basis);
+                lv_free((void **) &basis->basis_polys);
+                lv_free((void **) &basis);
                 return NULL;
             }
             basis->bases_count++;
@@ -1491,16 +1491,16 @@ static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, 
     /* 使用简单方法：维护一个增长的对列表 */
     int pair_capacity = 4096;
     int pair_count = 0;
-    int *pairs_i = (int *)lv_malloc((size_t)pair_capacity * sizeof(int));
-    int *pairs_j = (int *)lv_malloc((size_t)pair_capacity * sizeof(int));
+    int *pairs_i = (int *) lv_malloc((size_t) pair_capacity * sizeof(int));
+    int *pairs_j = (int *) lv_malloc((size_t) pair_capacity * sizeof(int));
     if (!pairs_i || !pairs_j) {
-        lv_free((void**)&pairs_i);
-        lv_free((void**)&pairs_j);
+        lv_free((void **) &pairs_i);
+        lv_free((void **) &pairs_j);
         for (int i = 0; i < basis->bases_count; i++) {
             poly_internal_destroy(basis->basis_polys[i]);
         }
-        lv_free((void**)&basis->basis_polys);
-        lv_free((void**)&basis);
+        lv_free((void **) &basis->basis_polys);
+        lv_free((void **) &basis);
         return NULL;
     }
 
@@ -1509,18 +1509,18 @@ static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, 
         for (int j = i + 1; j < basis->bases_count; j++) {
             if (pair_count >= pair_capacity) {
                 int new_cap = pair_capacity * 2;
-                int *new_i = (int *)lv_realloc(pairs_i, (size_t)new_cap * sizeof(int));
-                int *new_j = (int *)lv_realloc(pairs_j, (size_t)new_cap * sizeof(int));
+                int *new_i = (int *) lv_realloc(pairs_i, (size_t) new_cap * sizeof(int));
+                int *new_j = (int *) lv_realloc(pairs_j, (size_t) new_cap * sizeof(int));
                 if (!new_i || !new_j) {
-                    lv_free((void**)&new_i);
-                    lv_free((void**)&new_j);
-                    lv_free((void**)&pairs_i);
-                    lv_free((void**)&pairs_j);
+                    lv_free((void **) &new_i);
+                    lv_free((void **) &new_j);
+                    lv_free((void **) &pairs_i);
+                    lv_free((void **) &pairs_j);
                     for (int k = 0; k < basis->bases_count; k++) {
                         poly_internal_destroy(basis->basis_polys[k]);
                     }
-                    lv_free((void**)&basis->basis_polys);
-                    lv_free((void**)&basis);
+                    lv_free((void **) &basis->basis_polys);
+                    lv_free((void **) &basis);
                     return NULL;
                 }
                 pairs_i = new_i;
@@ -1548,23 +1548,23 @@ static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, 
         lvPolynomial *fj = basis->basis_polys[idx_j];
 
         /* 优化 1：互质判别式 —— 若前导项互质，则 S(fi, fj) 一定约化为 0 */
-        int *lt_i = (int *)lv_calloc((size_t)vc, sizeof(int));
-        int *lt_j = (int *)lv_calloc((size_t)vc, sizeof(int));
+        int *lt_i = (int *) lv_calloc((size_t) vc, sizeof(int));
+        int *lt_j = (int *) lv_calloc((size_t) vc, sizeof(int));
         if (!lt_i || !lt_j) {
-            lv_free((void**)&lt_i);
-            lv_free((void**)&lt_j);
+            lv_free((void **) &lt_i);
+            lv_free((void **) &lt_j);
             continue;
         }
 
         if (poly_leading_term(fi, ring, lt_i, NULL) != 0 || poly_leading_term(fj, ring, lt_j, NULL) != 0) {
-            lv_free((void**)&lt_i);
-            lv_free((void**)&lt_j);
+            lv_free((void **) &lt_i);
+            lv_free((void **) &lt_j);
             continue;
         }
 
         bool coprime = mono_is_coprime(ring, lt_i, lt_j);
-        lv_free((void**)&lt_i);
-        lv_free((void**)&lt_j);
+        lv_free((void **) &lt_i);
+        lv_free((void **) &lt_j);
 
         if (coprime) {
             /* 互质 => S(fi, fj) 约化为 0，跳过 */
@@ -1589,8 +1589,8 @@ static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, 
             /* 扩容基数组 */
             if (basis->bases_count >= basis->bases_capacity) {
                 int new_cap = basis->bases_capacity * 2;
-                lvPolynomial **new_polys = (lvPolynomial **)lv_realloc(basis->basis_polys,
-                                                                        (size_t)new_cap * sizeof(lvPolynomial *));
+                lvPolynomial **new_polys =
+                    (lvPolynomial **) lv_realloc(basis->basis_polys, (size_t) new_cap * sizeof(lvPolynomial *));
                 if (!new_polys) {
                     poly_internal_destroy(r);
                     break;
@@ -1607,11 +1607,11 @@ static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, 
             for (int i = 0; i < new_idx; i++) {
                 if (pair_count >= pair_capacity) {
                     int new_cap = pair_capacity * 2;
-                    int *new_i = (int *)lv_realloc(pairs_i, (size_t)new_cap * sizeof(int));
-                    int *new_j = (int *)lv_realloc(pairs_j, (size_t)new_cap * sizeof(int));
+                    int *new_i = (int *) lv_realloc(pairs_i, (size_t) new_cap * sizeof(int));
+                    int *new_j = (int *) lv_realloc(pairs_j, (size_t) new_cap * sizeof(int));
                     if (!new_i || !new_j) {
-                        lv_free((void**)&new_i);
-                        lv_free((void**)&new_j);
+                        lv_free((void **) &new_i);
+                        lv_free((void **) &new_j);
                         pair_count = 0;
                         break;
                     }
@@ -1628,8 +1628,8 @@ static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, 
         }
     }
 
-    lv_free((void**)&pairs_i);
-    lv_free((void**)&pairs_j);
+    lv_free((void **) &pairs_i);
+    lv_free((void **) &pairs_j);
 
     /* 计算约化 Groebner 基 */
     basis = groebner_internal_reduce_basis(basis, ring);
@@ -1661,7 +1661,8 @@ static lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, c
     /* 规一化所有基多项式的前导系数 */
     for (int i = 0; i < basis->bases_count; i++) {
         lvPolynomial *p = basis->basis_polys[i];
-        if (poly_internal_is_zero(p)) continue;
+        if (poly_internal_is_zero(p))
+            continue;
         double lc;
         if (poly_leading_term(p, ring, NULL, &lc) == 0 && fabs(lc) > GROEBNER_ZERO_THRESHOLD) {
             poly_internal_scale(p, 1.0 / lc);
@@ -1676,32 +1677,36 @@ static lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, c
             poly_internal_destroy(pi);
             continue;
         }
-        int *lt_pi = (int *)lv_calloc((size_t)vc, sizeof(int));
-        if (!lt_pi) continue;
+        int *lt_pi = (int *) lv_calloc((size_t) vc, sizeof(int));
+        if (!lt_pi)
+            continue;
         if (poly_leading_term(pi, ring, lt_pi, NULL) != 0) {
-            lv_free((void**)&lt_pi);
+            lv_free((void **) &lt_pi);
             poly_internal_destroy(pi);
             continue;
         }
 
         bool redundant = false;
         for (int j = 0; j < basis->bases_count; j++) {
-            if (i == j) continue;
+            if (i == j)
+                continue;
             lvPolynomial *pj = basis->basis_polys[j];
-            if (poly_internal_is_zero(pj)) continue;
-            int *lt_pj = (int *)lv_calloc((size_t)vc, sizeof(int));
-            if (!lt_pj) continue;
+            if (poly_internal_is_zero(pj))
+                continue;
+            int *lt_pj = (int *) lv_calloc((size_t) vc, sizeof(int));
+            if (!lt_pj)
+                continue;
             if (poly_leading_term(pj, ring, lt_pj, NULL) == 0) {
                 if (mono_divides(ring, lt_pi, lt_pj)) {
                     redundant = true;
-                    lv_free((void**)&lt_pj);
+                    lv_free((void **) &lt_pj);
                     break;
                 }
             }
-            lv_free((void**)&lt_pj);
+            lv_free((void **) &lt_pj);
         }
 
-        lv_free((void**)&lt_pi);
+        lv_free((void **) &lt_pi);
 
         if (!redundant) {
             basis->basis_polys[write_pos] = pi;
@@ -1715,8 +1720,9 @@ static lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, c
     /* 互相约化：每个基元素用其余基元素约化 */
     for (int i = 0; i < basis->bases_count; i++) {
         /* 构建不含第 i 个元素的基数组 */
-        lvPolynomial **others = (lvPolynomial **)lv_malloc((size_t)(basis->bases_count - 1) * sizeof(lvPolynomial *));
-        if (!others) continue;
+        lvPolynomial **others = (lvPolynomial **) lv_malloc((size_t) (basis->bases_count - 1) * sizeof(lvPolynomial *));
+        if (!others)
+            continue;
         int o_count = 0;
         for (int j = 0; j < basis->bases_count; j++) {
             if (j != i) {
@@ -1724,7 +1730,7 @@ static lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, c
             }
         }
         lvPolynomial *reduced = poly_internal_reduce(basis->basis_polys[i], others, o_count, ring);
-        lv_free((void**)&others);
+        lv_free((void **) &others);
         if (reduced) {
             poly_internal_destroy(basis->basis_polys[i]);
             basis->basis_polys[i] = reduced;
@@ -1734,7 +1740,8 @@ static lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, c
     /* 再次规一化 */
     for (int i = 0; i < basis->bases_count; i++) {
         lvPolynomial *p = basis->basis_polys[i];
-        if (poly_internal_is_zero(p)) continue;
+        if (poly_internal_is_zero(p))
+            continue;
         double lc;
         if (poly_leading_term(p, ring, NULL, &lc) == 0 && fabs(lc) > GROEBNER_ZERO_THRESHOLD) {
             poly_internal_scale(p, 1.0 / lc);
@@ -1774,8 +1781,7 @@ static int poly_internal_store(lvRegistryData *data, lvPolynomial *poly) {
 
     if (data->poly_count >= data->poly_capacity) {
         int new_cap = data->poly_capacity == 0 ? GROEBNER_POLY_INIT_CAPACITY : data->poly_capacity * 2;
-        lvPolynomial **new_polys = (lvPolynomial **)lv_realloc(data->polys,
-                                                                 (size_t)new_cap * sizeof(lvPolynomial *));
+        lvPolynomial **new_polys = (lvPolynomial **) lv_realloc(data->polys, (size_t) new_cap * sizeof(lvPolynomial *));
         if (!new_polys) {
             return -1;
         }
@@ -1799,8 +1805,7 @@ static int ideal_internal_store(lvRegistryData *data, lvIdeal *ideal) {
 
     if (data->ideal_count >= data->ideal_capacity) {
         int new_cap = data->ideal_capacity == 0 ? GROEBNER_IDEAL_INIT_GEN_CAPACITY : data->ideal_capacity * 2;
-        lvIdeal **new_ideals = (lvIdeal **)lv_realloc(data->ideals,
-                                                         (size_t)new_cap * sizeof(lvIdeal *));
+        lvIdeal **new_ideals = (lvIdeal **) lv_realloc(data->ideals, (size_t) new_cap * sizeof(lvIdeal *));
         if (!new_ideals) {
             return -1;
         }
@@ -1824,8 +1829,7 @@ static int variety_internal_store(lvRegistryData *data, lvVariety *variety) {
 
     if (data->variety_count >= data->variety_capacity) {
         int new_cap = data->variety_capacity == 0 ? 8 : data->variety_capacity * 2;
-        lvVariety **new_vars = (lvVariety **)lv_realloc(data->varieties,
-                                                           (size_t)new_cap * sizeof(lvVariety *));
+        lvVariety **new_vars = (lvVariety **) lv_realloc(data->varieties, (size_t) new_cap * sizeof(lvVariety *));
         if (!new_vars) {
             return -1;
         }
@@ -1852,7 +1856,7 @@ static lvRegistryData *registry_data_ensure(void) {
         g_data_mutex_initialized = 1;
     }
     if (!g_data) {
-        g_data = (lvRegistryData *)lv_calloc(1, sizeof(lvRegistryData));
+        g_data = (lvRegistryData *) lv_calloc(1, sizeof(lvRegistryData));
     }
     return g_data;
 }
@@ -1870,7 +1874,7 @@ typedef struct {
 } UnivariatePolyCtx;
 
 static double univar_eval(double x, void *ctx) {
-    UnivariatePolyCtx *uc = (UnivariatePolyCtx *)ctx;
+    UnivariatePolyCtx *uc = (UnivariatePolyCtx *) ctx;
     double result = 0.0;
     double xpow = 1.0;
     for (int i = 0; i <= uc->degree; i++) {
@@ -1884,7 +1888,7 @@ static double univar_eval(double x, void *ctx) {
  * @brief 单变量多项式求导
  */
 static double univar_deriv(double x, void *ctx) {
-    UnivariatePolyCtx *uc = (UnivariatePolyCtx *)ctx;
+    UnivariatePolyCtx *uc = (UnivariatePolyCtx *) ctx;
     double result = 0.0;
     double xpow = 1.0;
     for (int i = 1; i <= uc->degree; i++) {
@@ -1897,8 +1901,8 @@ static double univar_deriv(double x, void *ctx) {
 /**
  * @brief 牛顿法细化单变量根
  */
-static double groebner_newton_refine(double (*eval)(double, void *), double (*deriv)(double, void *),
-                                     void *ctx, double x0) {
+static double groebner_newton_refine(double (*eval)(double, void *), double (*deriv)(double, void *), void *ctx,
+                                     double x0) {
     double x = x0;
     double prev_fx = fabs(eval(x, ctx));
     for (int iter = 0; iter < GROEBNER_NEWTON_MAX_ITER; iter++) {
@@ -1932,9 +1936,8 @@ static double groebner_newton_refine(double (*eval)(double, void *), double (*de
  *
  * @return 解点坐标数组（调用者负责释放），*solution_count 输出解的数量
  */
-static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis,
-                                                 const lvPolynomialRing *ring,
-                                                 int *solution_count) {
+static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis, const lvPolynomialRing *ring,
+                                              int *solution_count) {
     *solution_count = 0;
     if (!basis || !ring || basis->bases_count == 0) {
         return NULL;
@@ -1955,7 +1958,8 @@ static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis,
     lvPolynomial *univar = NULL;
     for (int i = 0; i < basis->bases_count; i++) {
         lvPolynomial *p = basis->basis_polys[i];
-        if (poly_internal_is_zero(p)) continue;
+        if (poly_internal_is_zero(p))
+            continue;
         bool single_var = true;
         for (int ti = 0; ti < p->term_count; ti++) {
             for (int v = 0; v < vc - 1; v++) {
@@ -1964,7 +1968,8 @@ static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis,
                     break;
                 }
             }
-            if (!single_var) break;
+            if (!single_var)
+                break;
         }
         if (single_var) {
             univar = p;
@@ -1979,7 +1984,7 @@ static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis,
     /* 提取最高次数用于构造单变量多项式上下文 */
     int max_deg = 0;
     double *deg_coeffs = NULL;
-    double *u_coeffs = (double *)univar->coeffs;
+    double *u_coeffs = (double *) univar->coeffs;
     for (int ti = 0; ti < univar->term_count; ti++) {
         int deg = univar->powers[ti * vc + vc - 1];
         if (deg > max_deg) {
@@ -1987,7 +1992,7 @@ static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis,
         }
     }
 
-    deg_coeffs = (double *)lv_calloc((size_t)(max_deg + 1), sizeof(double));
+    deg_coeffs = (double *) lv_calloc((size_t) (max_deg + 1), sizeof(double));
     if (!deg_coeffs) {
         return NULL;
     }
@@ -2002,15 +2007,15 @@ static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis,
 
     /* 简单的根搜索：在区间 [-10, 10] 上分段查找符号变化 */
     int max_solutions = 16;
-    double *roots = (double *)lv_malloc((size_t)max_solutions * sizeof(double));
+    double *roots = (double *) lv_malloc((size_t) max_solutions * sizeof(double));
     int root_count = 0;
     if (!roots) {
-        lv_free((void**)&deg_coeffs);
+        lv_free((void **) &deg_coeffs);
         return NULL;
     }
 
     double a = -10.0, b = 10.0;
-    double step = (b - a) / (double)GROEBNER_ROOT_SEARCH_SEGMENTS;
+    double step = (b - a) / (double) GROEBNER_ROOT_SEARCH_SEGMENTS;
     double prev_val = univar_eval(a, &ctx);
 
     for (int seg = 1; seg <= GROEBNER_ROOT_SEARCH_SEGMENTS && root_count < max_solutions; seg++) {
@@ -2030,17 +2035,17 @@ static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis,
         prev_val = curr_val;
     }
 
-    lv_free((void**)&deg_coeffs);
+    lv_free((void **) &deg_coeffs);
 
     if (root_count == 0) {
-        lv_free((void**)&roots);
+        lv_free((void **) &roots);
         return NULL;
     }
 
     /* 为每个根构造解点坐标（此处简化：仅一维） */
-    lvPolynomial **solutions = (lvPolynomial **)lv_malloc((size_t)root_count * sizeof(lvPolynomial *));
+    lvPolynomial **solutions = (lvPolynomial **) lv_malloc((size_t) root_count * sizeof(lvPolynomial *));
     if (!solutions) {
-        lv_free((void**)&roots);
+        lv_free((void **) &roots);
         return NULL;
     }
 
@@ -2050,33 +2055,33 @@ static lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis,
             for (int j = 0; j < ri; j++) {
                 poly_internal_destroy(solutions[j]);
             }
-            lv_free((void**)&solutions);
-            lv_free((void**)&roots);
+            lv_free((void **) &solutions);
+            lv_free((void **) &roots);
             return NULL;
         }
         sol->term_count = 1;
         sol->term_capacity = 1;
-        lv_free((void**)&sol->powers);
-        lv_free((void**)&sol->coeffs);
-        sol->powers = (int *)lv_calloc((size_t)vc, sizeof(int));
-        sol->coeffs = (double *)lv_calloc(1, sizeof(double));
+        lv_free((void **) &sol->powers);
+        lv_free((void **) &sol->coeffs);
+        sol->powers = (int *) lv_calloc((size_t) vc, sizeof(int));
+        sol->coeffs = (double *) lv_calloc(1, sizeof(double));
         if (!sol->powers || !sol->coeffs) {
             poly_internal_destroy(sol);
             for (int j = 0; j < ri; j++) {
                 poly_internal_destroy(solutions[j]);
             }
-            lv_free((void**)&solutions);
-            lv_free((void**)&roots);
+            lv_free((void **) &solutions);
+            lv_free((void **) &roots);
             return NULL;
         }
         sol->term_capacity = 1;
         /* 常量多项式表示点坐标 */
-        ((double *)sol->coeffs)[0] = roots[ri];
+        ((double *) sol->coeffs)[0] = roots[ri];
         solutions[ri] = sol;
     }
 
     *solution_count = root_count;
-    lv_free((void**)&roots);
+    lv_free((void **) &roots);
     return solutions;
 }
 
@@ -2092,14 +2097,14 @@ lvRingRegistry *ring_registry_create(int capacity) {
         capacity = 8;
     }
 
-    lvRingRegistry *registry = (lvRingRegistry *)lv_calloc(1, sizeof(lvRingRegistry));
+    lvRingRegistry *registry = (lvRingRegistry *) lv_calloc(1, sizeof(lvRingRegistry));
     if (!registry) {
         return NULL;
     }
 
-    registry->rings = (lvPolynomialRing **)lv_calloc((size_t)capacity, sizeof(lvPolynomialRing *));
+    registry->rings = (lvPolynomialRing **) lv_calloc((size_t) capacity, sizeof(lvPolynomialRing *));
     if (!registry->rings) {
-        lv_free((void**)&registry);
+        lv_free((void **) &registry);
         return NULL;
     }
     registry->ring_capacity = capacity;
@@ -2132,7 +2137,7 @@ void ring_registry_destroy(lvRingRegistry *registry) {
             for (int i = 0; i < g_data->poly_count; i++) {
                 poly_internal_destroy(g_data->polys[i]);
             }
-            lv_free((void**)&g_data->polys);
+            lv_free((void **) &g_data->polys);
         }
         if (g_data->ideals) {
             for (int i = 0; i < g_data->ideal_count; i++) {
@@ -2141,34 +2146,34 @@ void ring_registry_destroy(lvRingRegistry *registry) {
                         for (int j = 0; j < g_data->ideals[i]->cached_basis->bases_count; j++) {
                             poly_internal_destroy(g_data->ideals[i]->cached_basis->basis_polys[j]);
                         }
-                        lv_free((void**)&g_data->ideals[i]->cached_basis->basis_polys);
-                        lv_free((void**)&g_data->ideals[i]->cached_basis);
+                        lv_free((void **) &g_data->ideals[i]->cached_basis->basis_polys);
+                        lv_free((void **) &g_data->ideals[i]->cached_basis);
                     }
-                    lv_free((void**)&g_data->ideals[i]->label);
-                    lv_free((void**)&g_data->ideals[i]);
+                    lv_free((void **) &g_data->ideals[i]->label);
+                    lv_free((void **) &g_data->ideals[i]);
                 }
             }
-            lv_free((void**)&g_data->ideals);
+            lv_free((void **) &g_data->ideals);
         }
         if (g_data->varieties) {
             for (int i = 0; i < g_data->variety_count; i++) {
                 if (g_data->varieties[i]) {
                     if (g_data->varieties[i]->solution_points) {
                         for (int j = 0; j < g_data->varieties[i]->solution_count; j++) {
-                            lv_free((void**)&g_data->varieties[i]->solution_points[j]);
+                            lv_free((void **) &g_data->varieties[i]->solution_points[j]);
                         }
-                        lv_free((void**)&g_data->varieties[i]->solution_points);
+                        lv_free((void **) &g_data->varieties[i]->solution_points);
                     }
-                    lv_free((void**)&g_data->varieties[i]->label);
-                    lv_free((void**)&g_data->varieties[i]);
+                    lv_free((void **) &g_data->varieties[i]->label);
+                    lv_free((void **) &g_data->varieties[i]);
                 }
             }
-            lv_free((void**)&g_data->varieties);
+            lv_free((void **) &g_data->varieties);
         }
         if (g_data->bases) {
-            lv_free((void**)&g_data->bases);
+            lv_free((void **) &g_data->bases);
         }
-        lv_free((void**)&g_data);
+        lv_free((void **) &g_data);
         g_data = NULL;
     }
 
@@ -2182,34 +2187,34 @@ void ring_registry_destroy(lvRingRegistry *registry) {
     /* 释放环 */
     for (int i = 0; i < registry->ring_count; i++) {
         if (registry->rings[i]) {
-            lv_free((void**)&registry->rings[i]->var_names);
-            lv_free((void**)&registry->rings[i]->elim_vars);
-            lv_free((void**)&registry->rings[i]->weights);
-            lv_free((void**)&registry->rings[i]->label);
-            lv_free((void**)&registry->rings[i]);
+            lv_free((void **) &registry->rings[i]->var_names);
+            lv_free((void **) &registry->rings[i]->elim_vars);
+            lv_free((void **) &registry->rings[i]->weights);
+            lv_free((void **) &registry->rings[i]->label);
+            lv_free((void **) &registry->rings[i]);
         }
     }
-    lv_free((void**)&registry->rings);
+    lv_free((void **) &registry->rings);
     registry->rings = NULL;
     registry->ring_count = 0;
     registry->ring_capacity = 0;
     registry->is_initialized = false;
-    lv_free((void**)&registry);
+    lv_free((void **) &registry);
 }
 
 /**
  * @brief 创建一个多项式环
  */
-int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count,
-                lvRingFieldType field, lvMonomialOrder order, const char *label) {
+int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count, lvRingFieldType field,
+                lvMonomialOrder order, const char *label) {
     if (!registry || !var_names || var_count < 1) {
         return -1;
     }
 
     if (registry->ring_count >= registry->ring_capacity) {
         int new_cap = registry->ring_capacity * 2;
-        lvPolynomialRing **new_rings = (lvPolynomialRing **)lv_realloc(registry->rings,
-                                                                          (size_t)new_cap * sizeof(lvPolynomialRing *));
+        lvPolynomialRing **new_rings =
+            (lvPolynomialRing **) lv_realloc(registry->rings, (size_t) new_cap * sizeof(lvPolynomialRing *));
         if (!new_rings) {
             return -1;
         }
@@ -2217,14 +2222,14 @@ int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count
         registry->ring_capacity = new_cap;
     }
 
-    lvPolynomialRing *ring = (lvPolynomialRing *)lv_calloc(1, sizeof(lvPolynomialRing));
+    lvPolynomialRing *ring = (lvPolynomialRing *) lv_calloc(1, sizeof(lvPolynomialRing));
     if (!ring) {
         return -1;
     }
 
-    ring->var_names = (char **)lv_calloc((size_t)var_count, sizeof(char *));
+    ring->var_names = (char **) lv_calloc((size_t) var_count, sizeof(char *));
     if (!ring->var_names) {
-        lv_free((void**)&ring);
+        lv_free((void **) &ring);
         return -1;
     }
     for (int i = 0; i < var_count; i++) {
@@ -2256,14 +2261,14 @@ void ring_destroy(lvRingRegistry *registry, int ring_id) {
     if (ring) {
         if (ring->var_names) {
             for (int i = 0; i < ring->var_count; i++) {
-                lv_free((void**)&ring->var_names[i]);
+                lv_free((void **) &ring->var_names[i]);
             }
-            lv_free((void**)&ring->var_names);
+            lv_free((void **) &ring->var_names);
         }
-        lv_free((void**)&ring->elim_vars);
-        lv_free((void**)&ring->weights);
-        lv_free((void**)&ring->label);
-        lv_free((void**)&ring);
+        lv_free((void **) &ring->elim_vars);
+        lv_free((void **) &ring->weights);
+        lv_free((void **) &ring->label);
+        lv_free((void **) &ring);
     }
 
     /* 将后续环前移 */
@@ -2287,8 +2292,8 @@ int ring_register(lvRingRegistry *registry, lvPolynomialRing *ring) {
 
     if (registry->ring_count >= registry->ring_capacity) {
         int new_cap = registry->ring_capacity * 2;
-        lvPolynomialRing **new_rings = (lvPolynomialRing **)lv_realloc(registry->rings,
-                                                                          (size_t)new_cap * sizeof(lvPolynomialRing *));
+        lvPolynomialRing **new_rings =
+            (lvPolynomialRing **) lv_realloc(registry->rings, (size_t) new_cap * sizeof(lvPolynomialRing *));
         if (!new_rings) {
             return -1;
         }
@@ -2372,25 +2377,47 @@ void poly_destroy(lvRingRegistry *registry, int poly_id) {
  * @brief 多项式加法
  */
 int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char *result_label) {
-    if (!registry) return -1;
+    if (!registry)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (poly_id_f < 0 || poly_id_g < 0) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (poly_id_f < 0 || poly_id_g < 0) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvPolynomial *f = g_data->polys[poly_id_f];
     lvPolynomial *g = g_data->polys[poly_id_g];
-    if (!f || !g) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!f || !g) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
-    if (f->ring_id != g->ring_id) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (f->ring_id != g->ring_id) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
     lvPolynomialRing *ring = registry->rings[f->ring_id];
-    if (!ring) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ring) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvPolynomial *result = poly_internal_add(f, g, ring);
-    if (!result) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!result) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
-    lv_free((void**)&result->label);
+    lv_free((void **) &result->label);
     result->label = groebner_strdup_safe(result_label);
 
     int ret = poly_internal_store(g_data, result);
@@ -2402,25 +2429,47 @@ int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char 
  * @brief 多项式乘法
  */
 int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char *result_label) {
-    if (!registry) return -1;
+    if (!registry)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (poly_id_f < 0 || poly_id_g < 0) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (poly_id_f < 0 || poly_id_g < 0) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvPolynomial *f = g_data->polys[poly_id_f];
     lvPolynomial *g = g_data->polys[poly_id_g];
-    if (!f || !g) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!f || !g) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
-    if (f->ring_id != g->ring_id) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (f->ring_id != g->ring_id) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
     lvPolynomialRing *ring = registry->rings[f->ring_id];
-    if (!ring) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ring) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvPolynomial *result = poly_internal_multiply(f, g, ring);
-    if (!result) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!result) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
-    lv_free((void**)&result->label);
+    lv_free((void **) &result->label);
     result->label = groebner_strdup_safe(result_label);
 
     int ret = poly_internal_store(g_data, result);
@@ -2431,27 +2480,48 @@ int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const 
 /**
  * @brief 多项式代入
  */
-int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int subst_poly_id,
-                    const char *result_label) {
-    if (!registry) return -1;
+int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int subst_poly_id, const char *result_label) {
+    if (!registry)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (poly_id < 0 || subst_poly_id < 0) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (poly_id >= g_data->poly_count || subst_poly_id >= g_data->poly_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (poly_id < 0 || subst_poly_id < 0) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (poly_id >= g_data->poly_count || subst_poly_id >= g_data->poly_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvPolynomial *f = g_data->polys[poly_id];
     lvPolynomial *subst = g_data->polys[subst_poly_id];
-    if (!f || !subst) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!f || !subst) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
-    if (f->ring_id != subst->ring_id) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (f->ring_id != subst->ring_id) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
     lvPolynomialRing *ring = registry->rings[f->ring_id];
-    if (!ring) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ring) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvPolynomial *result = poly_internal_substitute(f, var_index, subst, ring);
-    if (!result) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!result) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
-    lv_free((void**)&result->label);
+    lv_free((void **) &result->label);
     result->label = groebner_strdup_safe(result_label);
 
     int ret = poly_internal_store(g_data, result);
@@ -2486,16 +2556,15 @@ int ideal_create(lvRingRegistry *registry, int ring_id, const char *label) {
         return -1;
     }
 
-    lvIdeal *ideal = (lvIdeal *)lv_calloc(1, sizeof(lvIdeal));
+    lvIdeal *ideal = (lvIdeal *) lv_calloc(1, sizeof(lvIdeal));
     if (!ideal) {
         return -1;
     }
 
     ideal->ring_id = ring_id;
-    ideal->generators = (lvPolynomial **)lv_calloc((size_t)GROEBNER_IDEAL_INIT_GEN_CAPACITY,
-                                                    sizeof(lvPolynomial *));
+    ideal->generators = (lvPolynomial **) lv_calloc((size_t) GROEBNER_IDEAL_INIT_GEN_CAPACITY, sizeof(lvPolynomial *));
     if (!ideal->generators) {
-        lv_free((void**)&ideal);
+        lv_free((void **) &ideal);
         return -1;
     }
     ideal->generator_capacity = GROEBNER_IDEAL_INIT_GEN_CAPACITY;
@@ -2508,9 +2577,9 @@ int ideal_create(lvRingRegistry *registry, int ring_id, const char *label) {
     lvRegistryData *data = registry_data_ensure();
     if (!data) {
         GROEBNER_MUTEX_UNLOCK(g_data_mutex);
-        lv_free((void**)&ideal->generators);
-        lv_free((void**)&ideal->label);
-        lv_free((void**)&ideal);
+        lv_free((void **) &ideal->generators);
+        lv_free((void **) &ideal->label);
+        lv_free((void **) &ideal);
         return -1;
     }
 
@@ -2531,20 +2600,23 @@ void ideal_destroy(lvRingRegistry *registry, int ideal_id) {
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
-    if (!ideal) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return; }
+    if (!ideal) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return;
+    }
 
     if (ideal->cached_basis) {
         if (ideal->cached_basis->basis_polys) {
             for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
                 poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
             }
-            lv_free((void**)&ideal->cached_basis->basis_polys);
+            lv_free((void **) &ideal->cached_basis->basis_polys);
         }
-        lv_free((void**)&ideal->cached_basis);
+        lv_free((void **) &ideal->cached_basis);
     }
-    lv_free((void**)&ideal->generators);
-    lv_free((void**)&ideal->label);
-    lv_free((void**)&ideal);
+    lv_free((void **) &ideal->generators);
+    lv_free((void **) &ideal->label);
+    lv_free((void **) &ideal);
     g_data->ideals[ideal_id] = NULL;
     GROEBNER_MUTEX_UNLOCK(g_data_mutex);
 }
@@ -2553,23 +2625,39 @@ void ideal_destroy(lvRingRegistry *registry, int ideal_id) {
  * @brief 向理想添加生成元
  */
 int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
-    if (!registry) return -1;
+    if (!registry)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (poly_id < 0 || poly_id >= g_data->poly_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (poly_id < 0 || poly_id >= g_data->poly_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     lvPolynomial *poly = g_data->polys[poly_id];
-    if (!ideal || !poly) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ideal || !poly) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
-    if (ideal->ring_id != poly->ring_id) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (ideal->ring_id != poly->ring_id) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     if (ideal->generator_count >= ideal->generator_capacity) {
         int new_cap = ideal->generator_capacity * 2;
-        lvPolynomial **new_gens = (lvPolynomial **)lv_realloc(ideal->generators,
-                                                                 (size_t)new_cap * sizeof(lvPolynomial *));
+        lvPolynomial **new_gens =
+            (lvPolynomial **) lv_realloc(ideal->generators, (size_t) new_cap * sizeof(lvPolynomial *));
         if (!new_gens) {
             GROEBNER_MUTEX_UNLOCK(g_data_mutex);
             return -1;
@@ -2589,22 +2677,38 @@ int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
  * @brief 计算 Groebner 基
  */
 int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm algorithm) {
-    if (!registry) return -1;
+    if (!registry)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
-    if (!ideal) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ideal) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
-    if (!ring) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ring) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     if (ideal->generator_count == 0) {
         /* 零理想 */
-        lvGroebnerBasis *basis = (lvGroebnerBasis *)lv_calloc(1, sizeof(lvGroebnerBasis));
-        if (!basis) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+        lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
+        if (!basis) {
+            GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+            return -1;
+        }
         basis->is_minimal = true;
         basis->is_reduced = true;
         basis->algorithm_used = GROEBNER_BUCHBERGER;
@@ -2615,17 +2719,16 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
     }
 
     uint64_t start_us = 0;
-    start_us = (uint64_t)clock(); /* 简单计时 */
+    start_us = (uint64_t) clock(); /* 简单计时 */
 
-    lvGroebnerBasis *basis = groebner_internal_compute(ring, ideal->generators,
-                                                          ideal->generator_count, algorithm);
+    lvGroebnerBasis *basis = groebner_internal_compute(ring, ideal->generators, ideal->generator_count, algorithm);
     if (!basis) {
         GROEBNER_MUTEX_UNLOCK(g_data_mutex);
         return -1;
     }
 
-    uint64_t elapsed = (uint64_t)clock() - start_us;
-    basis->computation_time_us = (int64_t)(elapsed * 1000000 / CLOCKS_PER_SEC);
+    uint64_t elapsed = (uint64_t) clock() - start_us;
+    basis->computation_time_us = (int64_t) (elapsed * 1000000 / CLOCKS_PER_SEC);
 
     /* 释放旧缓存 */
     if (ideal->cached_basis) {
@@ -2633,9 +2736,9 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
             for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
                 poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
             }
-            lv_free((void**)&ideal->cached_basis->basis_polys);
+            lv_free((void **) &ideal->cached_basis->basis_polys);
         }
-        lv_free((void**)&ideal->cached_basis);
+        lv_free((void **) &ideal->cached_basis);
     }
 
     ideal->cached_basis = basis;
@@ -2648,25 +2751,41 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
  * @brief 增量式 Groebner 基计算
  */
 int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new_poly_id) {
-    if (!registry) return -1;
+    if (!registry)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (new_poly_id < 0 || new_poly_id >= g_data->poly_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (new_poly_id < 0 || new_poly_id >= g_data->poly_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     lvPolynomial *new_poly = g_data->polys[new_poly_id];
-    if (!ideal || !new_poly) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ideal->ring_id != new_poly->ring_id) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ideal || !new_poly) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ideal->ring_id != new_poly->ring_id) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     /* 添加生成元并完全重算（简化版；真正的 F5 增量算法需更多实现） */
     /* 注意：ideal_add_generator 和 groebner_compute 内部也会加锁，
      * 但由于我们已经持有锁，这里直接操作内部数据以避免死锁。 */
     if (ideal->generator_count >= ideal->generator_capacity) {
         int new_cap = ideal->generator_capacity * 2;
-        lvPolynomial **new_gens = (lvPolynomial **)lv_realloc(ideal->generators,
-                                                                 (size_t)new_cap * sizeof(lvPolynomial *));
+        lvPolynomial **new_gens =
+            (lvPolynomial **) lv_realloc(ideal->generators, (size_t) new_cap * sizeof(lvPolynomial *));
         if (!new_gens) {
             GROEBNER_MUTEX_UNLOCK(g_data_mutex);
             return -1;
@@ -2684,10 +2803,13 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
     }
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
-    if (!ring) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ring) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
-    lvGroebnerBasis *basis = groebner_internal_compute(ring, ideal->generators,
-                                                          ideal->generator_count, GROEBNER_BUCHBERGER);
+    lvGroebnerBasis *basis =
+        groebner_internal_compute(ring, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
     if (!basis) {
         GROEBNER_MUTEX_UNLOCK(g_data_mutex);
         return -1;
@@ -2699,9 +2821,9 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
             for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
                 poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
             }
-            lv_free((void**)&ideal->cached_basis->basis_polys);
+            lv_free((void **) &ideal->cached_basis->basis_polys);
         }
-        lv_free((void**)&ideal->cached_basis);
+        lv_free((void **) &ideal->cached_basis);
     }
 
     ideal->cached_basis = basis;
@@ -2714,26 +2836,45 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
  * @brief 理想成员判定
  */
 bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
-    if (!registry) return false;
+    if (!registry)
+        return false;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return false; }
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return false; }
-    if (poly_id < 0 || poly_id >= g_data->poly_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return false; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
+    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
+    if (poly_id < 0 || poly_id >= g_data->poly_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     lvPolynomial *poly = g_data->polys[poly_id];
-    if (!ideal || !poly) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return false; }
+    if (!ideal || !poly) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
 
-    if (ideal->ring_id != poly->ring_id) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return false; }
+    if (ideal->ring_id != poly->ring_id) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
-    if (!ring) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return false; }
+    if (!ring) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
 
     /* 确保 Groebner 基已计算（直接调用内部函数，已持有锁） */
     if (!ideal->basis_valid || !ideal->cached_basis) {
-        lvGroebnerBasis *basis = groebner_internal_compute(ring, ideal->generators,
-                                                              ideal->generator_count, GROEBNER_BUCHBERGER);
+        lvGroebnerBasis *basis =
+            groebner_internal_compute(ring, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
         if (!basis) {
             GROEBNER_MUTEX_UNLOCK(g_data_mutex);
             return false;
@@ -2744,18 +2885,21 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
                 for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
                     poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
                 }
-                lv_free((void**)&ideal->cached_basis->basis_polys);
+                lv_free((void **) &ideal->cached_basis->basis_polys);
             }
-            lv_free((void**)&ideal->cached_basis);
+            lv_free((void **) &ideal->cached_basis);
         }
         ideal->cached_basis = basis;
         ideal->basis_valid = true;
     }
 
     /* 用 Groebner 基约化：余式为零则属于理想 */
-    lvPolynomial *nf = poly_internal_reduce(poly, ideal->cached_basis->basis_polys,
-                                               ideal->cached_basis->bases_count, ring);
-    if (!nf) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return false; }
+    lvPolynomial *nf =
+        poly_internal_reduce(poly, ideal->cached_basis->basis_polys, ideal->cached_basis->bases_count, ring);
+    if (!nf) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
 
     bool is_member = poly_internal_is_zero(nf);
     poly_internal_destroy(nf);
@@ -2767,35 +2911,57 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
  * @brief 理想交
  */
 int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b) {
-    if (!registry) return -1;
+    if (!registry)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ideal_id_a < 0 || ideal_id_b < 0) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ideal_id_a < 0 || ideal_id_b < 0) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvIdeal *ia = g_data->ideals[ideal_id_a];
     lvIdeal *ib = g_data->ideals[ideal_id_b];
-    if (!ia || !ib) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ia->ring_id != ib->ring_id) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ia || !ib) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ia->ring_id != ib->ring_id) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     /* I ∩ J = (tI + (1-t)J) ∩ R，其中 t 为新变量。
      * 简化实现：用 Groebner 基消去方法。 */
     lvPolynomialRing *ring = registry->rings[ia->ring_id];
-    if (!ring) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ring) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     /* 创建结果理想，其生成元为两个理想的生成元并集（直接操作，已持有锁） */
-    lvIdeal *result_ideal = (lvIdeal *)lv_calloc(1, sizeof(lvIdeal));
-    if (!result_ideal) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    lvIdeal *result_ideal = (lvIdeal *) lv_calloc(1, sizeof(lvIdeal));
+    if (!result_ideal) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
     result_ideal->ring_id = ia->ring_id;
     result_ideal->generator_capacity = ia->generator_count + ib->generator_count;
     if (result_ideal->generator_capacity < GROEBNER_IDEAL_INIT_GEN_CAPACITY) {
         result_ideal->generator_capacity = GROEBNER_IDEAL_INIT_GEN_CAPACITY;
     }
-    result_ideal->generators = (lvPolynomial **)lv_calloc((size_t)result_ideal->generator_capacity,
-                                                              sizeof(lvPolynomial *));
+    result_ideal->generators =
+        (lvPolynomial **) lv_calloc((size_t) result_ideal->generator_capacity, sizeof(lvPolynomial *));
     if (!result_ideal->generators) {
-        lv_free((void**)&result_ideal);
+        lv_free((void **) &result_ideal);
         GROEBNER_MUTEX_UNLOCK(g_data_mutex);
         return -1;
     }
@@ -2826,36 +2992,54 @@ int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b)
 /**
  * @brief 理想商 I : J
  */
-int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b,
-                   const char *result_label) {
-    if (!registry) return -1;
+int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, const char *result_label) {
+    if (!registry)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ideal_id_a < 0 || ideal_id_b < 0) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ideal_id_a < 0 || ideal_id_b < 0) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvIdeal *ia = g_data->ideals[ideal_id_a];
     lvIdeal *ib = g_data->ideals[ideal_id_b];
-    if (!ia || !ib) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ia->ring_id != ib->ring_id) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ia || !ib) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ia->ring_id != ib->ring_id) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     /* I : <g> = (I ∩ <g>) / g 推广到多个生成元：
      * I : J = ∩_{g in generators(J)} (I : <g>)
      * 简化实现：返回与 I 相同的理想（完整实现需逐个生成元计算商） */
 
     /* 直接创建理想（已持有锁，避免调用 ideal_create 导致死锁） */
-    lvIdeal *result_ideal = (lvIdeal *)lv_calloc(1, sizeof(lvIdeal));
-    if (!result_ideal) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    lvIdeal *result_ideal = (lvIdeal *) lv_calloc(1, sizeof(lvIdeal));
+    if (!result_ideal) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
     result_ideal->ring_id = ia->ring_id;
     result_ideal->generator_capacity = ia->generator_count;
     if (result_ideal->generator_capacity < GROEBNER_IDEAL_INIT_GEN_CAPACITY) {
         result_ideal->generator_capacity = GROEBNER_IDEAL_INIT_GEN_CAPACITY;
     }
-    result_ideal->generators = (lvPolynomial **)lv_calloc((size_t)result_ideal->generator_capacity,
-                                                              sizeof(lvPolynomial *));
+    result_ideal->generators =
+        (lvPolynomial **) lv_calloc((size_t) result_ideal->generator_capacity, sizeof(lvPolynomial *));
     if (!result_ideal->generators) {
-        lv_free((void**)&result_ideal);
+        lv_free((void **) &result_ideal);
         GROEBNER_MUTEX_UNLOCK(g_data_mutex);
         return -1;
     }
@@ -2883,23 +3067,39 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b,
  * @brief 计算代数簇
  */
 int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
-    if (!registry) return -1;
+    if (!registry)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
-    if (!g_data) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!g_data) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
+    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
-    if (!ideal) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ideal) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     /* 确保 Groebner 基已计算（直接调用内部函数，已持有锁） */
     if (!ideal->basis_valid || !ideal->cached_basis) {
         lvPolynomialRing *ring_for_basis = registry->rings[ideal->ring_id];
-        if (!ring_for_basis) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+        if (!ring_for_basis) {
+            GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+            return -1;
+        }
 
-        lvGroebnerBasis *basis = groebner_internal_compute(ring_for_basis, ideal->generators,
-                                                              ideal->generator_count, GROEBNER_BUCHBERGER);
-        if (!basis) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+        lvGroebnerBasis *basis =
+            groebner_internal_compute(ring_for_basis, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
+        if (!basis) {
+            GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+            return -1;
+        }
 
         /* 释放旧缓存 */
         if (ideal->cached_basis) {
@@ -2907,19 +3107,25 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
                 for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
                     poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
                 }
-                lv_free((void**)&ideal->cached_basis->basis_polys);
+                lv_free((void **) &ideal->cached_basis->basis_polys);
             }
-            lv_free((void**)&ideal->cached_basis);
+            lv_free((void **) &ideal->cached_basis);
         }
         ideal->cached_basis = basis;
         ideal->basis_valid = true;
     }
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
-    if (!ring) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ring) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
-    lvVariety *variety = (lvVariety *)lv_calloc(1, sizeof(lvVariety));
-    if (!variety) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    lvVariety *variety = (lvVariety *) lv_calloc(1, sizeof(lvVariety));
+    if (!variety) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     variety->ideal_id = ideal_id;
     variety->label = groebner_strdup_safe(label);
@@ -2931,13 +3137,13 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
     if (sol_polys && sol_count > 0) {
         variety->is_zero_dimensional = true;
         variety->solution_count = sol_count;
-        variety->solution_points = (double **)lv_calloc((size_t)sol_count, sizeof(double *));
+        variety->solution_points = (double **) lv_calloc((size_t) sol_count, sizeof(double *));
         if (variety->solution_points) {
             for (int i = 0; i < sol_count && sol_polys[i]; i++) {
-                variety->solution_points[i] = (double *)lv_calloc((size_t)ring->var_count, sizeof(double));
+                variety->solution_points[i] = (double *) lv_calloc((size_t) ring->var_count, sizeof(double));
                 if (variety->solution_points[i]) {
                     for (int v = 0; v < ring->var_count && v < sol_polys[i]->term_count; v++) {
-                        variety->solution_points[i][v] = ((double *)sol_polys[i]->coeffs)[v];
+                        variety->solution_points[i][v] = ((double *) sol_polys[i]->coeffs)[v];
                     }
                 }
             }
@@ -2949,7 +3155,7 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
         for (int i = 0; i < sol_count; i++) {
             poly_internal_destroy(sol_polys[i]);
         }
-        lv_free((void**)&sol_polys);
+        lv_free((void **) &sol_polys);
     } else {
         /* 非零维：估算维数 */
         variety->is_zero_dimensional = false;
@@ -2963,8 +3169,8 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
     lvRegistryData *data = registry_data_ensure();
     if (!data) {
         GROEBNER_MUTEX_UNLOCK(g_data_mutex);
-        lv_free((void**)&variety->label);
-        lv_free((void**)&variety);
+        lv_free((void **) &variety->label);
+        lv_free((void **) &variety);
         return -1;
     }
 
@@ -3008,10 +3214,11 @@ bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id) {
 /**
  * @brief 从代数簇中获取指定索引的解点坐标
  */
-bool variety_get_solution_point(lvRingRegistry *registry, int variety_id,
-                                int point_idx, double *out_coords, int coord_count) {
+bool variety_get_solution_point(lvRingRegistry *registry, int variety_id, int point_idx, double *out_coords,
+                                int coord_count) {
     lv_UNUSED(registry);
-    if (!out_coords || coord_count <= 0) return false;
+    if (!out_coords || coord_count <= 0)
+        return false;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
     if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
@@ -3019,8 +3226,7 @@ bool variety_get_solution_point(lvRingRegistry *registry, int variety_id,
         return false;
     }
     lvVariety *v = g_data->varieties[variety_id];
-    if (!v || !v->solution_points || !v->is_zero_dimensional ||
-        point_idx < 0 || point_idx >= v->solution_count) {
+    if (!v || !v->solution_points || !v->is_zero_dimensional || point_idx < 0 || point_idx >= v->solution_count) {
         GROEBNER_MUTEX_UNLOCK(g_data_mutex);
         return false;
     }
@@ -3044,24 +3250,31 @@ bool variety_get_solution_point(lvRingRegistry *registry, int variety_id,
 /**
  * @brief 将约束图转换为多项式理想
  */
-int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *graph,
-                               int ring_id, const char *result_label) {
-    if (!registry || !graph) return -1;
-    if (ring_id < 0 || ring_id >= registry->ring_count) return -1;
+int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
+                              const char *result_label) {
+    if (!registry || !graph)
+        return -1;
+    if (ring_id < 0 || ring_id >= registry->ring_count)
+        return -1;
 
     GROEBNER_MUTEX_LOCK(g_data_mutex);
 
     lvPolynomialRing *ring = registry->rings[ring_id];
-    if (!ring) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    if (!ring) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
 
     /* 直接创建理想（已持有锁，避免调用 ideal_create 导致死锁） */
-    lvIdeal *ideal = (lvIdeal *)lv_calloc(1, sizeof(lvIdeal));
-    if (!ideal) { GROEBNER_MUTEX_UNLOCK(g_data_mutex); return -1; }
+    lvIdeal *ideal = (lvIdeal *) lv_calloc(1, sizeof(lvIdeal));
+    if (!ideal) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return -1;
+    }
     ideal->ring_id = ring_id;
-    ideal->generators = (lvPolynomial **)lv_calloc((size_t)GROEBNER_IDEAL_INIT_GEN_CAPACITY,
-                                                    sizeof(lvPolynomial *));
+    ideal->generators = (lvPolynomial **) lv_calloc((size_t) GROEBNER_IDEAL_INIT_GEN_CAPACITY, sizeof(lvPolynomial *));
     if (!ideal->generators) {
-        lv_free((void**)&ideal);
+        lv_free((void **) &ideal);
         GROEBNER_MUTEX_UNLOCK(g_data_mutex);
         return -1;
     }

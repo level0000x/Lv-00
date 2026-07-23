@@ -13,11 +13,12 @@
  */
 
 #include "lv/geo_spec.h"
-#include "lv/lv_parse_utils.h"
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include "lv/lv_parse_utils.h"
 
 /* ================================================================
  *  内部辅助：简易 JSON 字段提取
@@ -33,21 +34,23 @@
  * @param out    输出值
  * @return 0 成功，-1 未找到字段或参数无效
  */
-static int json_get_double(const char *json, const char *field, double *out)
-{
+static int json_get_double(const char *json, const char *field, double *out) {
     char pattern[64];
     const char *pos;
 
-    if (!json || !field || !out) return -1;
+    if (!json || !field || !out)
+        return -1;
 
     /* 构造搜索模式 "field" */
     snprintf(pattern, sizeof(pattern), "\"%s\"", field);
     pos = strstr(json, pattern);
-    if (!pos) return -1;
+    if (!pos)
+        return -1;
 
     /* 跳过字段名和冒号 */
     pos = strchr(pos, ':');
-    if (!pos) return -1;
+    if (!pos)
+        return -1;
     pos++;
 
     /* 跳过空白 */
@@ -72,19 +75,21 @@ static int json_get_double(const char *json, const char *field, double *out)
  * @param out    输出值
  * @return 0 成功，-1 未找到字段或参数无效
  */
-static int json_get_int(const char *json, const char *field, int *out)
-{
+static int json_get_int(const char *json, const char *field, int *out) {
     char pattern[64];
     const char *pos;
 
-    if (!json || !field || !out) return -1;
+    if (!json || !field || !out)
+        return -1;
 
     snprintf(pattern, sizeof(pattern), "\"%s\"", field);
     pos = strstr(json, pattern);
-    if (!pos) return -1;
+    if (!pos)
+        return -1;
 
     pos = strchr(pos, ':');
-    if (!pos) return -1;
+    if (!pos)
+        return -1;
     pos++;
 
     while (*pos == ' ' || *pos == '\t' || *pos == '\n' || *pos == '\r') {
@@ -106,15 +111,16 @@ static int json_get_int(const char *json, const char *field, int *out)
  * @param type_name 类型名称（如 "point"、"polygon"）
  * @return 包含返回 1，不包含返回 0
  */
-static int json_has_type(const char *json, const char *type_name)
-{
+static int json_has_type(const char *json, const char *type_name) {
     char pattern[64];
 
-    if (!json || !type_name) return 0;
+    if (!json || !type_name)
+        return 0;
 
     /* 搜索 "type":"type_name" 或 "type" : "type_name" 等变体 */
     snprintf(pattern, sizeof(pattern), "\"type\"");
-    if (!strstr(json, pattern)) return 0;
+    if (!strstr(json, pattern))
+        return 0;
 
     snprintf(pattern, sizeof(pattern), "\"%s\"", type_name);
     return (strstr(json, pattern) != NULL) ? 1 : 0;
@@ -130,14 +136,15 @@ static int json_has_type(const char *json, const char *type_name)
  * @param json JSON 字符串（含 "x" 和 "y" 字段）
  * @return 分配的 lvGeoSpecPoint 指针，失败返回 NULL
  */
-static lvGeoSpecPoint *parse_point(const char *json)
-{
+static lvGeoSpecPoint *parse_point(const char *json) {
     lvGeoSpecPoint *pt;
 
-    if (!json) return NULL;
+    if (!json)
+        return NULL;
 
-    pt = (lvGeoSpecPoint *)calloc(1, sizeof(lvGeoSpecPoint));
-    if (!pt) return NULL;
+    pt = (lvGeoSpecPoint *) calloc(1, sizeof(lvGeoSpecPoint));
+    if (!pt)
+        return NULL;
 
     /* 解析坐标，缺失时默认 (0, 0) */
     if (json_get_double(json, "x", &pt->x) != 0) {
@@ -156,16 +163,17 @@ static lvGeoSpecPoint *parse_point(const char *json)
  * @param json JSON 字符串（含 "count" 和 "points" 数组）
  * @return 分配的 lvGeoSpecPolygon 指针，失败返回 NULL
  */
-static lvGeoSpecPolygon *parse_polygon(const char *json)
-{
+static lvGeoSpecPolygon *parse_polygon(const char *json) {
     lvGeoSpecPolygon *poly;
     int count;
     const char *pos;
 
-    if (!json) return NULL;
+    if (!json)
+        return NULL;
 
-    poly = (lvGeoSpecPolygon *)calloc(1, sizeof(lvGeoSpecPolygon));
-    if (!poly) return NULL;
+    poly = (lvGeoSpecPolygon *) calloc(1, sizeof(lvGeoSpecPolygon));
+    if (!poly)
+        return NULL;
 
     /* 解析顶点数量，默认三角形 */
     if (json_get_int(json, "count", &count) != 0 || count <= 0) {
@@ -178,7 +186,7 @@ static lvGeoSpecPolygon *parse_polygon(const char *json)
     }
 
     poly->count = count;
-    poly->pts = (lvGeoSpecPoint *)calloc((size_t)count, sizeof(lvGeoSpecPoint));
+    poly->pts = (lvGeoSpecPoint *) calloc((size_t) count, sizeof(lvGeoSpecPoint));
     if (!poly->pts) {
         free(poly);
         return NULL;
@@ -190,7 +198,8 @@ static lvGeoSpecPolygon *parse_polygon(const char *json)
         int i;
         for (i = 0; i < count; i++) {
             pos = strchr(pos, '{');
-            if (!pos) break;
+            if (!pos)
+                break;
             json_get_double(pos, "x", &poly->pts[i].x);
             json_get_double(pos, "y", &poly->pts[i].y);
             pos++;
@@ -214,8 +223,7 @@ static lvGeoSpecPolygon *parse_polygon(const char *json)
  * @param out  输出指针地址（解析结果写入 *out）
  * @return 0 成功解析为点，1 成功解析为多边形，-1 失败
  */
-int lv_geo_spec_parse(const char *json, void *out)
-{
+int lv_geo_spec_parse(const char *json, void *out) {
     if (!json || !out) {
         return -1;
     }
@@ -223,16 +231,18 @@ int lv_geo_spec_parse(const char *json, void *out)
     /* 检测点类型 */
     if (json_has_type(json, "point") || strstr(json, "Point") != NULL) {
         lvGeoSpecPoint *pt = parse_point(json);
-        if (!pt) return -1;
-        *(lvGeoSpecPoint **)out = pt;
+        if (!pt)
+            return -1;
+        *(lvGeoSpecPoint **) out = pt;
         return 0;
     }
 
     /* 检测多边形类型 */
     if (json_has_type(json, "polygon") || strstr(json, "Polygon") != NULL) {
         lvGeoSpecPolygon *poly = parse_polygon(json);
-        if (!poly) return -1;
-        *(lvGeoSpecPolygon **)out = poly;
+        if (!poly)
+            return -1;
+        *(lvGeoSpecPolygon **) out = poly;
         return 1;
     }
 
@@ -248,14 +258,14 @@ int lv_geo_spec_parse(const char *json, void *out)
  *
  * @param spec 要释放的结构指针
  */
-void lv_geo_spec_destroy(void *spec)
-{
+void lv_geo_spec_destroy(void *spec) {
     lvGeoSpecPolygon *poly;
 
-    if (!spec) return;
+    if (!spec)
+        return;
 
     /* 尝试作为多边形释放（含动态点数组需要额外释放） */
-    poly = (lvGeoSpecPolygon *)spec;
+    poly = (lvGeoSpecPolygon *) spec;
     if (poly->pts != NULL && poly->count > 0) {
         free(poly->pts);
         poly->pts = NULL;

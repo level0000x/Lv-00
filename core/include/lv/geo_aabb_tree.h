@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
@@ -52,14 +52,14 @@ typedef struct {
 
 /** 射线命中结果 */
 typedef struct {
-    bool   hit;
+    bool hit;
     double t;
-    int    primitive_id;
+    int primitive_id;
 } lvAABBRayHit;
 
 /** 最近邻查询结果 */
 typedef struct {
-    int    primitive_id;
+    int primitive_id;
     double distance;
     double closest_x;
     double closest_y;
@@ -68,15 +68,15 @@ typedef struct {
 
 /** 范围/点查询结果 */
 typedef struct {
-    int  *ids;
-    int   count;
-    int   capacity;
+    int *ids;
+    int count;
+    int capacity;
 } lvAABBQueryResult;
 
 /** AABB 树配置 */
 typedef struct {
-    int  max_leaf_size;
-    int  max_depth;
+    int max_leaf_size;
+    int max_depth;
     bool use_sah;
 } lvAABBTreeConfig;
 
@@ -94,23 +94,23 @@ typedef struct lvAABBNode {
 /** 2D AABB 树 */
 typedef struct lvAABBTree2D {
     lvAABBNode *nodes;
-    int   node_count;
-    int   node_capacity;
-    int   root;
-    int   primitive_count;
+    int node_count;
+    int node_capacity;
+    int root;
+    int primitive_count;
     lvAABB2D *primitives;
     lvAABBTreeConfig config;
-    int  *leaf_prim_ids;
-    int   leaf_prim_capacity;
+    int *leaf_prim_ids;
+    int leaf_prim_capacity;
 } lvAABBTree2D;
 
 /** 3D AABB 树 */
 typedef struct lvAABBTree3D {
     lvAABBNode *nodes;
-    int   node_count;
-    int   node_capacity;
-    int   root;
-    int   primitive_count;
+    int node_count;
+    int node_capacity;
+    int root;
+    int primitive_count;
     lvAABB3D *primitives;
     lvAABBTreeConfig config;
 } lvAABBTree3D;
@@ -167,54 +167,38 @@ lv_PUBLIC_API lvAABBTreeConfig lv_aabb_tree_default_config(void);
  * 2D AABB 树构建与查询 API
  * ======================================================================== */
 
-lv_PUBLIC_API lvAABBTree2D *lv_aabb2d_build(
-    const lvAABB2D *bboxes, int count,
-    const lvAABBTreeConfig *config);
+lv_PUBLIC_API lvAABBTree2D *lv_aabb2d_build(const lvAABB2D *bboxes, int count, const lvAABBTreeConfig *config);
 
 lv_PUBLIC_API void lv_aabb2d_destroy(lvAABBTree2D *tree);
 
-lv_PUBLIC_API lvAABBRayHit lv_aabb2d_ray_query(
-    const lvAABBTree2D *tree, lvAABBRay2D ray);
+lv_PUBLIC_API lvAABBRayHit lv_aabb2d_ray_query(const lvAABBTree2D *tree, lvAABBRay2D ray);
 
-lv_PUBLIC_API lvAABBNearestResult lv_aabb2d_nearest(
-    const lvAABBTree2D *tree, double px, double py);
+lv_PUBLIC_API lvAABBNearestResult lv_aabb2d_nearest(const lvAABBTree2D *tree, double px, double py);
 
-lv_PUBLIC_API void lv_aabb2d_range_query(
-    const lvAABBTree2D *tree, lvAABB2D query,
-    lvAABBQueryResult *result);
+lv_PUBLIC_API void lv_aabb2d_range_query(const lvAABBTree2D *tree, lvAABB2D query, lvAABBQueryResult *result);
 
-lv_PUBLIC_API void lv_aabb2d_point_query(
-    const lvAABBTree2D *tree, double px, double py,
-    lvAABBQueryResult *result);
+lv_PUBLIC_API void lv_aabb2d_point_query(const lvAABBTree2D *tree, double px, double py, lvAABBQueryResult *result);
 
 lv_PUBLIC_API lvAABB2D lv_aabb2d_root_bbox(const lvAABBTree2D *tree);
 
-lv_PUBLIC_API void lv_aabb2d_stats(const lvAABBTree2D *tree,
-    int *out_node_count, int *out_depth, int *out_leaf_count);
+lv_PUBLIC_API void lv_aabb2d_stats(const lvAABBTree2D *tree, int *out_node_count, int *out_depth, int *out_leaf_count);
 
 /* ========================================================================
  * 3D AABB 树构建与查询 API
  * ======================================================================== */
 
-lv_PUBLIC_API lvAABBTree3D *lv_aabb3d_build(
-    const lvAABB3D *bboxes, int count,
-    const lvAABBTreeConfig *config);
+lv_PUBLIC_API lvAABBTree3D *lv_aabb3d_build(const lvAABB3D *bboxes, int count, const lvAABBTreeConfig *config);
 
 lv_PUBLIC_API void lv_aabb3d_destroy(lvAABBTree3D *tree);
 
-lv_PUBLIC_API lvAABBRayHit lv_aabb3d_ray_query(
-    const lvAABBTree3D *tree, lvAABBRay3D ray);
+lv_PUBLIC_API lvAABBRayHit lv_aabb3d_ray_query(const lvAABBTree3D *tree, lvAABBRay3D ray);
 
-lv_PUBLIC_API lvAABBNearestResult lv_aabb3d_nearest(
-    const lvAABBTree3D *tree, double px, double py, double pz);
+lv_PUBLIC_API lvAABBNearestResult lv_aabb3d_nearest(const lvAABBTree3D *tree, double px, double py, double pz);
 
-lv_PUBLIC_API void lv_aabb3d_range_query(
-    const lvAABBTree3D *tree, lvAABB3D query,
-    lvAABBQueryResult *result);
+lv_PUBLIC_API void lv_aabb3d_range_query(const lvAABBTree3D *tree, lvAABB3D query, lvAABBQueryResult *result);
 
-lv_PUBLIC_API void lv_aabb3d_point_query(
-    const lvAABBTree3D *tree, double px, double py, double pz,
-    lvAABBQueryResult *result);
+lv_PUBLIC_API void lv_aabb3d_point_query(const lvAABBTree3D *tree, double px, double py, double pz,
+                                         lvAABBQueryResult *result);
 
 lv_PUBLIC_API lvAABB3D lv_aabb3d_root_bbox(const lvAABBTree3D *tree);
 

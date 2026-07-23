@@ -22,6 +22,7 @@
 #define lv_MINI_KERNEL_H
 #include <stdbool.h>
 #include <stddef.h>
+
 #include "constraint_graph.h"
 #ifdef __cplusplus
 extern "C" {
@@ -112,7 +113,7 @@ struct MiniStatement {
     /* 证明引用（仅 $p 类型有效） */
     int proof_refs[64]; /**< 证明所引用的前驱语句 ID 列表 */
     int ref_count;      /**< 实际引用数量 */
-    bool verified; /**< 是否已通过验证 */
+    bool verified;      /**< 是否已通过验证 */
     /* 约束图关联 */
     int constraint_node_id; /**< 关联的约束图节点 ID（-1 表示无关联） */
 };

@@ -12,13 +12,13 @@
  * @date 2026-05-24
  */
 
-#include "lv/lv_internal.h"
-
+#include <ctype.h>
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <math.h>
-#include <ctype.h>
+
+#include "lv/lv_internal.h"
 
 /* ============================================================
  * 内部数据结构
@@ -26,20 +26,20 @@
 
 /** @brief 优化后的表达式条目 */
 typedef struct {
-    char *expr;             /**< 优化后的表达式字符串 */
-    double error_bound;     /**< 估计的误差上界 */
-    char *description;      /**< 优化说明 */
+    char *expr;         /**< 优化后的表达式字符串 */
+    double error_bound; /**< 估计的误差上界 */
+    char *description;  /**< 优化说明 */
 } OptimizedEntry;
 
 /** @brief Herbie 优化上下文 */
 typedef struct {
-    OptimizedEntry *entries;    /**< 优化结果列表 */
-    int entry_count;            /**< 结果数量 */
-    int entry_capacity;         /**< 结果容量 */
-    char *original_expr;        /**< 原始表达式 */
-    double original_error;      /**< 原始误差 */
-    double best_error;          /**< 最优误差 */
-    char *best_expr;            /**< 最优表达式 */
+    OptimizedEntry *entries; /**< 优化结果列表 */
+    int entry_count;         /**< 结果数量 */
+    int entry_capacity;      /**< 结果容量 */
+    char *original_expr;     /**< 原始表达式 */
+    double original_error;   /**< 原始误差 */
+    double best_error;       /**< 最优误差 */
+    char *best_expr;         /**< 最优表达式 */
 } HerbieOptimizer;
 
 /* ============================================================
@@ -48,41 +48,31 @@ typedef struct {
 
 /** @brief 重写规则条目 */
 typedef struct {
-    const char *pattern;        /**< 匹配模式（子串） */
-    const char *replacement;    /**< 替换表达式 */
-    const char *description;    /**< 规则说明 */
-    double error_improvement;   /**< 估计的误差改善倍数 */
+    const char *pattern;      /**< 匹配模式（子串） */
+    const char *replacement;  /**< 替换表达式 */
+    const char *description;  /**< 规则说明 */
+    double error_improvement; /**< 估计的误差改善倍数 */
 } RewriteRuleEntry;
 
 /** @brief 内置重写规则表 */
 static const RewriteRuleEntry builtin_rules[] = {
     /* 消除灾难性抵消：sqrt(a^2+b^2) 形式 */
-    { "sqrt(x*x+y*y)",    "hypot(x,y)",
-      "使用 hypot 避免中间溢出", 1e6 },
+    {"sqrt(x*x+y*y)", "hypot(x,y)", "使用 hypot 避免中间溢出", 1e6},
     /* 消除灾难性抵消：a^2 - b^2 → (a-b)*(a+b) */
-    { "a*a-b*b",          "(a-b)*(a+b)",
-      "因式分解避免 a≈b 时的灾难性抵消", 1e8 },
+    {"a*a-b*b", "(a-b)*(a+b)", "因式分解避免 a≈b 时的灾难性抵消", 1e8},
     /* 改善精度：exp(x) - 1 */
-    { "exp(x)-1",         "expm1(x)",
-      "使用 expm1 避免 x 接近零时的精度损失", 1e10 },
+    {"exp(x)-1", "expm1(x)", "使用 expm1 避免 x 接近零时的精度损失", 1e10},
     /* 改善精度：log(1+x) */
-    { "log(1+x)",         "log1p(x)",
-      "使用 log1p 避免 x 接近零时的精度损失", 1e10 },
+    {"log(1+x)", "log1p(x)", "使用 log1p 避免 x 接近零时的精度损失", 1e10},
     /* 改善精度：1 - cos(x) */
-    { "1-cos(x)",         "2*sin(x/2)*sin(x/2)",
-      "用半角公式避免 cos(x) 接近 1 时的抵消", 1e6 },
+    {"1-cos(x)", "2*sin(x/2)*sin(x/2)", "用半角公式避免 cos(x) 接近 1 时的抵消", 1e6},
     /* 改善精度：(e^x - e^(-x)) / 2 → sinh(x) */
-    { "(exp(x)-exp(-x))/2", "sinh(x)",
-      "使用 sinh 替代指数差分", 1e4 },
+    {"(exp(x)-exp(-x))/2", "sinh(x)", "使用 sinh 替代指数差分", 1e4},
     /* 改善精度：(e^x + e^(-x)) / 2 → cosh(x) */
-    { "(exp(x)+exp(-x))/2", "cosh(x)",
-      "使用 cosh 替代指数求和", 1e4 },
+    {"(exp(x)+exp(-x))/2", "cosh(x)", "使用 cosh 替代指数求和", 1e4},
     /* 二次公式：避免 b^2-4ac 的抵消 */
-    { "(-b+sqrt(b*b-4*a*c))/(2*a)",
-      "-2*c/(b+sqrt(b*b-4*a*c))",
-      "二次公式分子有理化", 1e8 },
-    { NULL, NULL, NULL, 0.0 }
-};
+    {"(-b+sqrt(b*b-4*a*c))/(2*a)", "-2*c/(b+sqrt(b*b-4*a*c))", "二次公式分子有理化", 1e8},
+    {NULL, NULL, NULL, 0.0}};
 
 /* ============================================================
  * 内部辅助函数
@@ -99,42 +89,44 @@ static const RewriteRuleEntry builtin_rules[] = {
  * @param var_count  变量数量
  * @return 估计的相对误差
  */
-static double estimate_relative_error(const char *expr, double value,
-                                       int var_count) {
-    if (!expr || fabs(value) < 1e-30) return 1.0;
+static double estimate_relative_error(const char *expr, double value, int var_count) {
+    if (!expr || fabs(value) < 1e-30)
+        return 1.0;
 
     /* 简化估计：基于表达式复杂度和变量数量 */
     double eps = ldexp(1.0, -53); /* FP64 epsilon */
     int op_count = 0;
     for (const char *p = expr; *p; p++) {
-        if (*p == '+' || *p == '-' || *p == '*' || *p == '/') op_count++;
+        if (*p == '+' || *p == '-' || *p == '*' || *p == '/')
+            op_count++;
     }
 
     /* 误差 ≈ op_count * eps * 条件数放大因子 */
-    double condition_factor = (double)(var_count + 1);
-    return (double)(op_count + 1) * eps * condition_factor;
+    double condition_factor = (double) (var_count + 1);
+    return (double) (op_count + 1) * eps * condition_factor;
 }
 
 /**
  * @brief 检查表达式是否包含指定子串（忽略空白）
  */
 static int contains_pattern(const char *expr, const char *pattern) {
-    if (!expr || !pattern) return 0;
+    if (!expr || !pattern)
+        return 0;
     return strstr(expr, pattern) != NULL;
 }
 
 /**
  * @brief 添加优化结果条目
  */
-static int add_entry(HerbieOptimizer *opt, const char *expr,
-                      double error, const char *desc) {
-    if (!opt || !expr) return -1;
+static int add_entry(HerbieOptimizer *opt, const char *expr, double error, const char *desc) {
+    if (!opt || !expr)
+        return -1;
 
     if (opt->entry_count >= opt->entry_capacity) {
         int new_cap = opt->entry_capacity == 0 ? 8 : opt->entry_capacity * 2;
-        OptimizedEntry *new_arr = lv_realloc(opt->entries,
-                                                (size_t)new_cap * sizeof(OptimizedEntry));
-        if (!new_arr) return -1;
+        OptimizedEntry *new_arr = lv_realloc(opt->entries, (size_t) new_cap * sizeof(OptimizedEntry));
+        if (!new_arr)
+            return -1;
         opt->entries = new_arr;
         opt->entry_capacity = new_cap;
     }
@@ -143,12 +135,13 @@ static int add_entry(HerbieOptimizer *opt, const char *expr,
     e->expr = lv_strdup(expr);
     e->error_bound = error;
     e->description = lv_strdup(desc ? desc : "");
-    if (!e->expr) return -1;
+    if (!e->expr)
+        return -1;
 
     /* 更新最优结果 */
     if (error < opt->best_error) {
         opt->best_error = error;
-        lv_free((void **)&opt->best_expr);
+        lv_free((void **) &opt->best_expr);
         opt->best_expr = lv_strdup(expr);
     }
 
@@ -160,14 +153,15 @@ static int add_entry(HerbieOptimizer *opt, const char *expr,
  * @brief 释放优化器内部资源
  */
 static void optimizer_clear(HerbieOptimizer *opt) {
-    if (!opt) return;
+    if (!opt)
+        return;
     for (int i = 0; i < opt->entry_count; i++) {
-        lv_free((void **)&opt->entries[i].expr);
-        lv_free((void **)&opt->entries[i].description);
+        lv_free((void **) &opt->entries[i].expr);
+        lv_free((void **) &opt->entries[i].description);
     }
-    lv_free((void **)&opt->entries);
-    lv_free((void **)&opt->original_expr);
-    lv_free((void **)&opt->best_expr);
+    lv_free((void **) &opt->entries);
+    lv_free((void **) &opt->original_expr);
+    lv_free((void **) &opt->best_expr);
     opt->entries = NULL;
     opt->entry_count = 0;
     opt->entry_capacity = 0;
@@ -189,9 +183,9 @@ static void optimizer_clear(HerbieOptimizer *opt) {
  * @param opt         优化器上下文
  * @return 找到的优化数量
  */
-static int herbie_apply_builtin_rules(const char *expr,
-                                       HerbieOptimizer *opt) {
-    if (!expr || !opt) return 0;
+static int herbie_apply_builtin_rules(const char *expr, HerbieOptimizer *opt) {
+    if (!expr || !opt)
+        return 0;
 
     int found = 0;
 
@@ -201,8 +195,7 @@ static int herbie_apply_builtin_rules(const char *expr,
             double improv = builtin_rules[i].error_improvement;
             double new_err = (fabs(improv) > 1e-15) ? orig_err / improv : orig_err;
 
-            add_entry(opt, builtin_rules[i].replacement,
-                      new_err, builtin_rules[i].description);
+            add_entry(opt, builtin_rules[i].replacement, new_err, builtin_rules[i].description);
             found++;
         }
     }
@@ -221,9 +214,9 @@ static int herbie_apply_builtin_rules(const char *expr,
  * @param opt            优化器上下文
  * @return 解析到的优化数量
  */
-static int parse_herbie_output(const char *herbie_output,
-                                HerbieOptimizer *opt) {
-    if (!herbie_output || !opt) return 0;
+static int parse_herbie_output(const char *herbie_output, HerbieOptimizer *opt) {
+    if (!herbie_output || !opt)
+        return 0;
 
     int found = 0;
     const char *line = herbie_output;
@@ -234,24 +227,27 @@ static int parse_herbie_output(const char *herbie_output,
         if (!suggest) {
             suggest = strstr(line, "Suggestion:");
         }
-        if (!suggest) break;
+        if (!suggest)
+            break;
 
         /* 跳过标记和空白 */
         suggest += 10;
-        while (*suggest && isspace((unsigned char)*suggest)) suggest++;
+        while (*suggest && isspace((unsigned char) *suggest))
+            suggest++;
 
         /* 提取优化后的表达式（到行尾或分隔符） */
         const char *end = suggest;
-        while (*end && *end != '\n' && *end != '\r') end++;
+        while (*end && *end != '\n' && *end != '\r')
+            end++;
 
-        size_t len = (size_t)(end - suggest);
+        size_t len = (size_t) (end - suggest);
         if (len > 0 && len < 1024) {
             char *opt_expr = lv_calloc(len + 1, sizeof(char));
             if (opt_expr) {
                 memcpy(opt_expr, suggest, len);
                 opt_expr[len] = '\0';
                 add_entry(opt, opt_expr, 1e-16, "Herbie 子进程优化");
-                lv_free((void **)&opt_expr);
+                lv_free((void **) &opt_expr);
                 found++;
             }
         }
@@ -283,9 +279,9 @@ static int parse_herbie_output(const char *herbie_output,
  * @param[out] out_error   输出：优化后的误差上界（可为 NULL）
  * @return 优化后的表达式字符串（调用者负责释放），失败返回 NULL
  */
-char *lv_herbie_optimize(const char *expression,
-                            double *out_value, double *out_error) {
-    if (!expression) return NULL;
+char *lv_herbie_optimize(const char *expression, double *out_value, double *out_error) {
+    if (!expression)
+        return NULL;
 
     HerbieOptimizer opt;
     memset(&opt, 0, sizeof(opt));
@@ -312,8 +308,10 @@ char *lv_herbie_optimize(const char *expression,
     }
 
     /* 填充输出参数 */
-    if (out_value) *out_value = 0.0; /* 简化：不实际求值 */
-    if (out_error) *out_error = opt.best_error;
+    if (out_value)
+        *out_value = 0.0; /* 简化：不实际求值 */
+    if (out_error)
+        *out_error = opt.best_error;
 
     optimizer_clear(&opt);
     return result;

@@ -49,11 +49,11 @@
 
 /* [Bug修复] 为 realloc 非本分配器路径获取旧大小所需的平台头文件 */
 #ifdef _WIN32
-#include <malloc.h>  /* _msize */
+#include <malloc.h> /* _msize */
 #elif defined(__linux__)
-#include <malloc.h>  /* malloc_usable_size */
+#include <malloc.h> /* malloc_usable_size */
 #elif defined(__APPLE__)
-#include <malloc/malloc.h>  /* malloc_size on macOS */
+#include <malloc/malloc.h> /* malloc_size on macOS */
 #endif
 
 #include "error_codes.h"
@@ -96,13 +96,13 @@ typedef struct AllocHeader {
     char data[];                    /**< 柔性数组成员：实际数据起始位置 */
 } AllocHeader;
 
-#define ALLOC_HEAD_MAGIC  0xADBEEF01  /**< 头部魔数（存活标记） */
-#define ALLOC_TAIL_MAGIC  0xADBEEF02  /**< 尾部魔数（缓冲区溢出检测） */
-#define ALLOC_POISON      0xDEADBEEF  /**< 毒模式（use-after-free 检测） */
-#define ALLOC_MAGIC_FREED 0xDEADDEAD  /**< 已释放标记（double-free 检测） */
+#define ALLOC_HEAD_MAGIC 0xADBEEF01                   /**< 头部魔数（存活标记） */
+#define ALLOC_TAIL_MAGIC 0xADBEEF02                   /**< 尾部魔数（缓冲区溢出检测） */
+#define ALLOC_POISON 0xDEADBEEF                       /**< 毒模式（use-after-free 检测） */
+#define ALLOC_MAGIC_FREED 0xDEADDEAD                  /**< 已释放标记（double-free 检测） */
 #define ALLOC_HEADER_SIZE offsetof(AllocHeader, data) /**< 头部大小（不含 data） */
 
-#define ALLOC_TAIL_MAGIC_SIZE sizeof(uint32_t)        /**< 尾部魔数大小 */
+#define ALLOC_TAIL_MAGIC_SIZE sizeof(uint32_t) /**< 尾部魔数大小 */
 
 /** 全局追踪链表头 —— 记录所有未释放的分配 */
 static lv_THREAD_LOCAL AllocHeader *g_tracked_allocs = NULL;
@@ -115,18 +115,18 @@ static lv_THREAD_LOCAL AllocHeader *g_tracked_allocs = NULL;
 static AllocHeader *get_header(void *ptr) {
     if (!ptr)
         return NULL;
-    AllocHeader *hdr = (AllocHeader *)((char *)ptr - ALLOC_HEADER_SIZE);
+    AllocHeader *hdr = (AllocHeader *) ((char *) ptr - ALLOC_HEADER_SIZE);
     /* 检查头部魔数 */
     if (hdr->head_magic != ALLOC_HEAD_MAGIC)
         return NULL;
     /* 检查尾部魔数（缓冲区溢出检测）—— 使用 memcpy 避免未对齐访问 */
     if (hdr->tail_offset > 0) {
         uint32_t tail_value;
-        memcpy(&tail_value, (char *)ptr + hdr->tail_offset, sizeof(uint32_t));
+        memcpy(&tail_value, (char *) ptr + hdr->tail_offset, sizeof(uint32_t));
         if (tail_value != ALLOC_TAIL_MAGIC) {
             /* 尾部魔数不匹配 —— 可能发生了缓冲区溢出 */
-            lv_LOG_ERROR("内存损坏检测: 尾部魔数不匹配，指针=0x%p, 期望=0x%08X, 实际=0x%08X",
-                           ptr, ALLOC_TAIL_MAGIC, tail_value);
+            lv_LOG_ERROR("内存损坏检测: 尾部魔数不匹配，指针=0x%p, 期望=0x%08X, 实际=0x%08X", ptr, ALLOC_TAIL_MAGIC,
+                         tail_value);
             return NULL;
         }
     }
@@ -174,7 +174,7 @@ static void fill_poison(void *data, size_t size) {
         return;
     /* 使用 memcpy 避免未对齐访问 —— data 可能非 4 字节对齐 */
     uint32_t poison_val = ALLOC_POISON;
-    uint8_t *p = (uint8_t *)data;
+    uint8_t *p = (uint8_t *) data;
     size_t count = size / sizeof(uint32_t);
     for (size_t i = 0; i < count; i++) {
         memcpy(p + i * sizeof(uint32_t), &poison_val, sizeof(uint32_t));
@@ -182,7 +182,7 @@ static void fill_poison(void *data, size_t size) {
     /* 填充剩余不足 4 字节的尾部 */
     size_t remaining = size % sizeof(uint32_t);
     if (remaining > 0) {
-        uint8_t *tail = (uint8_t *)(p + count);
+        uint8_t *tail = (uint8_t *) (p + count);
         memset(tail, 0xBE, remaining);
     }
 }
@@ -204,21 +204,20 @@ void *lv_malloc_tracked(size_t size, const char *file, int line) {
     /* 检查溢出：头部大小 + 用户请求大小 + 尾部魔数大小 */
     AllocHeader *hdr = NULL;
     size_t total = ALLOC_HEADER_SIZE;
-    if (total > SIZE_MAX - alloc_size ||
-        total + alloc_size > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) {
-        lv_set_error(lv_ERROR_OVERFLOW, "malloc 溢出: header=%zu + size=%zu + tail=%zu",
-                       (size_t)ALLOC_HEADER_SIZE, alloc_size, (size_t)ALLOC_TAIL_MAGIC_SIZE);
+    if (total > SIZE_MAX - alloc_size || total + alloc_size > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) {
+        lv_set_error(lv_ERROR_OVERFLOW, "malloc 溢出: header=%zu + size=%zu + tail=%zu", (size_t) ALLOC_HEADER_SIZE,
+                     alloc_size, (size_t) ALLOC_TAIL_MAGIC_SIZE);
         return NULL;
     }
     total += alloc_size;
     total += ALLOC_TAIL_MAGIC_SIZE;
 
-    hdr = (AllocHeader *)malloc(total);
+    hdr = (AllocHeader *) malloc(total);
     if (!hdr)
         return NULL;
 
     hdr->head_magic = ALLOC_HEAD_MAGIC;
-    hdr->tail_offset = (uint32_t)alloc_size;
+    hdr->tail_offset = (uint32_t) alloc_size;
     hdr->size = alloc_size;
     hdr->file = file;
     hdr->line = line;
@@ -261,18 +260,20 @@ void *lv_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
     /* 检查头部和尾部大小溢出 */
     {
         size_t full = ALLOC_HEADER_SIZE;
-        if (full > SIZE_MAX - total) goto overflow;
+        if (full > SIZE_MAX - total)
+            goto overflow;
         full += total;
-        if (full > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto overflow;
+        if (full > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE)
+            goto overflow;
         full += ALLOC_TAIL_MAGIC_SIZE;
 
-        AllocHeader *hdr = (AllocHeader *)malloc(full);
+        AllocHeader *hdr = (AllocHeader *) malloc(full);
         if (!hdr)
             return NULL;
         memset(hdr, 0, full);
 
         hdr->head_magic = ALLOC_HEAD_MAGIC;
-        hdr->tail_offset = (uint32_t)total;
+        hdr->tail_offset = (uint32_t) total;
         hdr->size = total;
         hdr->file = file;
         hdr->line = line;
@@ -293,8 +294,8 @@ void *lv_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
     }
 
 overflow:
-    lv_set_error(lv_ERROR_OVERFLOW, "calloc 溢出: header=%zu + total=%zu + tail=%zu",
-                   (size_t)ALLOC_HEADER_SIZE, total, (size_t)ALLOC_TAIL_MAGIC_SIZE);
+    lv_set_error(lv_ERROR_OVERFLOW, "calloc 溢出: header=%zu + total=%zu + tail=%zu", (size_t) ALLOC_HEADER_SIZE, total,
+                 (size_t) ALLOC_TAIL_MAGIC_SIZE);
     return NULL;
 }
 
@@ -323,15 +324,17 @@ void *lv_realloc(void *ptr, size_t size) {
 
         /* 计算新总大小 */
         size_t new_total = ALLOC_HEADER_SIZE;
-        if (new_total > SIZE_MAX - alloc_size) goto realloc_overflow;
+        if (new_total > SIZE_MAX - alloc_size)
+            goto realloc_overflow;
         new_total += alloc_size;
-        if (new_total > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto realloc_overflow;
+        if (new_total > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE)
+            goto realloc_overflow;
         new_total += ALLOC_TAIL_MAGIC_SIZE;
 
         /* 从追踪链表中移除旧节点 */
         untrack_allocation(old_hdr);
 
-        AllocHeader *new_hdr = (AllocHeader *)realloc(old_hdr, new_total);
+        AllocHeader *new_hdr = (AllocHeader *) realloc(old_hdr, new_total);
         if (!new_hdr) {
             /* realloc 失败：旧分配仍然有效，重新加入追踪链表 */
             track_allocation(old_hdr);
@@ -339,7 +342,7 @@ void *lv_realloc(void *ptr, size_t size) {
         }
 
         new_hdr->head_magic = ALLOC_HEAD_MAGIC;
-        new_hdr->tail_offset = (uint32_t)alloc_size;
+        new_hdr->tail_offset = (uint32_t) alloc_size;
         new_hdr->size = alloc_size;
 
         /* 设置尾部魔数 */
@@ -372,11 +375,11 @@ void *lv_realloc(void *ptr, size_t size) {
         /* 尝试获取旧分配的实际可用大小 */
         size_t old_usable_size = 0;
 #ifdef _WIN32
-        old_usable_size = (size_t)_msize(ptr);
+        old_usable_size = (size_t) _msize(ptr);
 #elif defined(__APPLE__)
-        old_usable_size = (size_t)malloc_size(ptr);
+        old_usable_size = (size_t) malloc_size(ptr);
 #elif defined(__linux__)
-        old_usable_size = (size_t)malloc_usable_size(ptr);
+        old_usable_size = (size_t) malloc_usable_size(ptr);
 #endif
         if (old_usable_size > 0) {
             /* 复制 min(alloc_size, old_usable_size) 字节，确保不越界 */
@@ -512,15 +515,15 @@ bool lv_memory_check_poison(const void *ptr, size_t size) {
     if (!ptr || size == 0)
         return true; /* 空区域视为安全 */
 
-    const uint8_t *p = (const uint8_t *)ptr;
+    const uint8_t *p = (const uint8_t *) ptr;
     size_t count = size / sizeof(uint32_t);
     uint32_t val;
 
     for (size_t i = 0; i < count; i++) {
-        memcpy(&val, p + i * sizeof(uint32_t), sizeof(uint32_t));  /* 避免未对齐访问 */
+        memcpy(&val, p + i * sizeof(uint32_t), sizeof(uint32_t)); /* 避免未对齐访问 */
         if (val == ALLOC_POISON) {
-            lv_LOG_WARNING("Poison 标记检测: 地址 0x%p 偏移 %zu 处发现毒模式 0x%08X（可能 use-after-free）",
-                             ptr, i * sizeof(uint32_t), ALLOC_POISON);
+            lv_LOG_WARNING("Poison 标记检测: 地址 0x%p 偏移 %zu 处发现毒模式 0x%08X（可能 use-after-free）", ptr,
+                           i * sizeof(uint32_t), ALLOC_POISON);
             return false;
         }
     }
@@ -528,7 +531,7 @@ bool lv_memory_check_poison(const void *ptr, size_t size) {
     /* 检查尾部不完整的字节 */
     size_t remaining = size % sizeof(uint32_t);
     if (remaining > 0) {
-        const uint8_t *tail = (const uint8_t *)(p + count);
+        const uint8_t *tail = (const uint8_t *) (p + count);
         for (size_t i = 0; i < remaining; i++) {
             if (tail[i] == 0xBE) {
                 return false;
@@ -543,7 +546,7 @@ bool lv_memory_check_magic(const void *ptr) {
     if (!ptr)
         return true; /* NULL 视为安全 */
 
-    AllocHeader *hdr = (AllocHeader *)((char *)ptr - ALLOC_HEADER_SIZE);
+    AllocHeader *hdr = (AllocHeader *) ((char *) ptr - ALLOC_HEADER_SIZE);
 
     /* 检查头部魔数 */
     if (hdr->head_magic != ALLOC_HEAD_MAGIC) {
@@ -557,10 +560,10 @@ bool lv_memory_check_magic(const void *ptr) {
 
     /* 检查尾部魔数 */
     if (hdr->tail_offset > 0) {
-        const uint32_t *tail = (const uint32_t *)((const char *)ptr + hdr->tail_offset);
+        const uint32_t *tail = (const uint32_t *) ((const char *) ptr + hdr->tail_offset);
         if (*tail != ALLOC_TAIL_MAGIC) {
-            lv_LOG_ERROR("尾部魔数检测失败: 指针 0x%p 可能发生缓冲区溢出, 期望 0x%08X, 实际 0x%08X",
-                           ptr, ALLOC_TAIL_MAGIC, *tail);
+            lv_LOG_ERROR("尾部魔数检测失败: 指针 0x%p 可能发生缓冲区溢出, 期望 0x%08X, 实际 0x%08X", ptr,
+                         ALLOC_TAIL_MAGIC, *tail);
             return false;
         }
     }
@@ -582,8 +585,7 @@ bool lv_poison_is_enabled(void) {
 
 void *lv_malloc_bounded(size_t size, size_t max_size) {
     if (size > max_size) {
-        lv_set_error(lv_ERROR_OVERFLOW,
-                       "malloc_bounded: 请求大小 %zu 超过上限 %zu", size, max_size);
+        lv_set_error(lv_ERROR_OVERFLOW, "malloc_bounded: 请求大小 %zu 超过上限 %zu", size, max_size);
         return NULL;
     }
     return lv_malloc(size);
@@ -628,8 +630,7 @@ int lv_memory_leak_report(FILE *output) {
             snprintf(location, sizeof(location), "<未记录>");
         }
 
-        fprintf(output, "0x%p %-12zu %-30s [泄漏]\n",
-                (const void *)curr->data, curr->size, location);
+        fprintf(output, "0x%p %-12zu %-30s [泄漏]\n", (const void *) curr->data, curr->size, location);
 
         curr = curr->track_next;
     }
@@ -855,7 +856,7 @@ int lv_snprintf(char *buf, size_t size, const char *fmt, ...) {
         buf[0] = '\0';
         return -1;
     }
-    if ((size_t)written >= size) {
+    if ((size_t) written >= size) {
         buf[size - 1] = '\0';
     }
 
@@ -1559,7 +1560,7 @@ bool config_save(const ConfigManager *mgr) {
         const char *dot = strchr(item->key, '.');
         if (dot) {
             char section[256];
-            size_t section_len = (size_t)(dot - item->key);
+            size_t section_len = (size_t) (dot - item->key);
             if (section_len >= sizeof(section))
                 section_len = sizeof(section) - 1;
             memcpy(section, item->key, section_len);
@@ -1819,7 +1820,7 @@ static uint64_t xorshift64star(void) {
 int lv_random_int(int min, int max) {
     if (min >= max)
         return min;
-    uint64_t range = (uint64_t)max - (uint64_t)min;
+    uint64_t range = (uint64_t) max - (uint64_t) min;
     /* 拒绝采样法：消除模偏差。
      * 当 range 不是 2^64 的约数时，xorshift64star() % range 会使较小值
      * 的出现概率略高于较大值。通过计算阈值并拒绝超出范围的采样值来保证均匀性。 */
@@ -1896,11 +1897,16 @@ static FILE *g_log_file = NULL;
  */
 static const char *log_level_name(int level) {
     switch (level) {
-    case lv_LOG_LEVEL_ERROR:   return "ERROR";
-    case lv_LOG_LEVEL_WARNING: return "WARN ";
-    case lv_LOG_LEVEL_INFO:    return "INFO ";
-    case lv_LOG_LEVEL_DEBUG:   return "DEBUG";
-    default:                     return "TRACE";
+        case lv_LOG_LEVEL_ERROR:
+            return "ERROR";
+        case lv_LOG_LEVEL_WARNING:
+            return "WARN ";
+        case lv_LOG_LEVEL_INFO:
+            return "INFO ";
+        case lv_LOG_LEVEL_DEBUG:
+            return "DEBUG";
+        default:
+            return "TRACE";
     }
 }
 
@@ -1922,7 +1928,8 @@ static const char *log_level_name(int level) {
  */
 void lv_log_message(int level, const char *file, int line, const char *fmt, ...) {
     /* 运行时级别过滤：低于当前级别的日志直接丢弃 */
-    if (level > g_log_level) return;
+    if (level > g_log_level)
+        return;
 
     /* 生成时间戳 */
     time_t now = time(NULL);
@@ -1935,8 +1942,7 @@ void lv_log_message(int level, const char *file, int line, const char *fmt, ...)
     const char *level_str = log_level_name(level);
 
     /* 输出到 stderr */
-    fprintf(stderr, "[%s] [%s] [%s:%d] ", timestamp, level_str,
-            file ? file : "?", line);
+    fprintf(stderr, "[%s] [%s] [%s:%d] ", timestamp, level_str, file ? file : "?", line);
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
@@ -1946,8 +1952,7 @@ void lv_log_message(int level, const char *file, int line, const char *fmt, ...)
 
     /* 可选：同时写入日志文件 */
     if (g_log_file) {
-        fprintf(g_log_file, "[%s] [%s] [%s:%d] ", timestamp, level_str,
-                file ? file : "?", line);
+        fprintf(g_log_file, "[%s] [%s] [%s:%d] ", timestamp, level_str, file ? file : "?", line);
         va_list args2;
         va_start(args2, fmt);
         vfprintf(g_log_file, fmt, args2);
@@ -2010,7 +2015,7 @@ bool lv_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, 
 
     /* 计算最小需求容量 */
     int min_required = count + min_growth;
-    if (min_required < count)  /* 溢出检测 */
+    if (min_required < count) /* 溢出检测 */
         return false;
 
     /* 计算新容量 */
@@ -2024,10 +2029,10 @@ bool lv_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, 
     }
 
     /* 分配前检查 size_t 溢出 */
-    if ((size_t)new_cap > SIZE_MAX / elem_size)
+    if ((size_t) new_cap > SIZE_MAX / elem_size)
         return false;
 
-    void *new_arr = lv_realloc(*arr, (size_t)new_cap * elem_size);
+    void *new_arr = lv_realloc(*arr, (size_t) new_cap * elem_size);
     if (!new_arr)
         return false;
 
@@ -2049,7 +2054,7 @@ bool lv_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, 
 uint64_t lv_fnv1a_hash(const void *data, size_t len) {
     if (!data || len == 0)
         return 0;
-    const uint8_t *p = (const uint8_t *)data;
+    const uint8_t *p = (const uint8_t *) data;
     uint64_t hash = lv_FNV64_OFFSET_BASIS;
     for (size_t i = 0; i < len; i++) {
         hash ^= p[i];
@@ -2069,11 +2074,11 @@ uint64_t lv_fnv1a_hash(const void *data, size_t len) {
  * 后进先出（LIFO）顺序销毁，确保依赖关系正确（后分配的先释放）。
  */
 typedef struct TrackedResource {
-    void *resource;                  /**< 资源指针（文件句柄、内存、锁等） */
+    void *resource;                /**< 资源指针（文件句柄、内存、锁等） */
     lvResourceDestroyFunc destroy; /**< 资源销毁回调 */
-    char *name;                      /**< 资源名称（用于调试），可为 NULL */
-    struct TrackedResource *prev;    /**< 前驱节点 */
-    struct TrackedResource *next;    /**< 后继节点 */
+    char *name;                    /**< 资源名称（用于调试），可为 NULL */
+    struct TrackedResource *prev;  /**< 前驱节点 */
+    struct TrackedResource *next;  /**< 后继节点 */
 } TrackedResource;
 
 /**
@@ -2086,7 +2091,7 @@ struct ResourceTracker {
 };
 
 ResourceTracker *lv_resource_tracker_create(void) {
-    ResourceTracker *rt = (ResourceTracker *)lv_calloc(1, sizeof(ResourceTracker));
+    ResourceTracker *rt = (ResourceTracker *) lv_calloc(1, sizeof(ResourceTracker));
     return rt; /* calloc 已将 head/tail/count 置零 */
 }
 
@@ -2108,12 +2113,11 @@ void lv_resource_tracker_destroy(ResourceTracker **rt) {
     *rt = NULL;
 }
 
-bool lv_resource_track(ResourceTracker *rt, void *resource,
-                          lvResourceDestroyFunc destroy, const char *name) {
+bool lv_resource_track(ResourceTracker *rt, void *resource, lvResourceDestroyFunc destroy, const char *name) {
     if (!rt || !resource || !destroy)
         return false;
 
-    TrackedResource *node = (TrackedResource *)lv_calloc(1, sizeof(TrackedResource));
+    TrackedResource *node = (TrackedResource *) lv_calloc(1, sizeof(TrackedResource));
     if (!node)
         return false;
 
@@ -2122,7 +2126,7 @@ bool lv_resource_track(ResourceTracker *rt, void *resource,
 
     /* 复制名称（若有） */
     if (name) {
-        node->name = (char *)lv_malloc(strlen(name) + 1);
+        node->name = (char *) lv_malloc(strlen(name) + 1);
         if (node->name) {
             /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
             lv_strlcpy(node->name, name, strlen(name) + 1);
@@ -2182,8 +2186,7 @@ void lv_resource_tracker_cleanup(ResourceTracker *rt) {
 
         /* 调用销毁回调 */
         if (node->resource && node->destroy) {
-            lv_LOG_DEBUG("资源追踪器清理: %s (0x%p)",
-                           node->name ? node->name : "<未命名>", node->resource);
+            lv_LOG_DEBUG("资源追踪器清理: %s (0x%p)", node->name ? node->name : "<未命名>", node->resource);
             node->destroy(node->resource);
         }
 

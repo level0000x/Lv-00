@@ -56,25 +56,25 @@ typedef struct lvProofEngine lvProofEngine;
  * @brief 溯源节点类型
  */
 typedef enum {
-    TRACE_NODE_AXIOM,           /**< 公理 */
-    TRACE_NODE_DEFINITION,      /**< 定义 */
-    TRACE_NODE_THEOREM,         /**< 定理 */
-    TRACE_NODE_LEMMA,           /**< 引理 */
-    TRACE_NODE_HYPOTHESIS,      /**< 假设 */
-    TRACE_NODE_DERIVATION,      /**< 推导 */
-    TRACE_NODE_CONTRADICTION,   /**< 矛盾 */
-    TRACE_NODE_GOAL             /**< 目标 */
+    TRACE_NODE_AXIOM,         /**< 公理 */
+    TRACE_NODE_DEFINITION,    /**< 定义 */
+    TRACE_NODE_THEOREM,       /**< 定理 */
+    TRACE_NODE_LEMMA,         /**< 引理 */
+    TRACE_NODE_HYPOTHESIS,    /**< 假设 */
+    TRACE_NODE_DERIVATION,    /**< 推导 */
+    TRACE_NODE_CONTRADICTION, /**< 矛盾 */
+    TRACE_NODE_GOAL           /**< 目标 */
 } lvTraceNodeType;
 
 /**
  * @brief 溯源节点状态
  */
 typedef enum {
-    TRACE_STATUS_UNEXPLORED,    /**< 未探索 */
-    TRACE_STATUS_EXPLORING,     /**< 探索中 */
-    TRACE_STATUS_PROVED,        /**< 已证明 */
-    TRACE_STATUS_DISPROVED,     /**< 已证伪 */
-    TRACE_STATUS_BLOCKED        /**< 阻塞 */
+    TRACE_STATUS_UNEXPLORED, /**< 未探索 */
+    TRACE_STATUS_EXPLORING,  /**< 探索中 */
+    TRACE_STATUS_PROVED,     /**< 已证明 */
+    TRACE_STATUS_DISPROVED,  /**< 已证伪 */
+    TRACE_STATUS_BLOCKED     /**< 阻塞 */
 } lvTraceNodeStatus;
 
 /**
@@ -82,54 +82,54 @@ typedef enum {
  */
 struct lvProofTraceNode {
     /* 基本信息 */
-    uint32_t id;                        /**< 节点 ID */
-    lvTraceNodeType type;             /**< 节点类型 */
-    lvTraceNodeStatus status;         /**< 节点状态 */
-    char label[256];                    /**< 节点标签 */
-    char description[512];              /**< 详细描述 */
+    uint32_t id;              /**< 节点 ID */
+    lvTraceNodeType type;     /**< 节点类型 */
+    lvTraceNodeStatus status; /**< 节点状态 */
+    char label[256];          /**< 节点标签 */
+    char description[512];    /**< 详细描述 */
 
     /* 证明内容 */
-    Proposition *proposition;           /**< 关联命题 */
-    ProofStep *step;                    /**< 关联证明步骤 */
-    lvRule *rule;                     /**< 使用的规则 */
+    Proposition *proposition; /**< 关联命题 */
+    ProofStep *step;          /**< 关联证明步骤 */
+    lvRule *rule;             /**< 使用的规则 */
 
     /* 信任颜色 */
-    TrustColor trust_color;             /**< 信任颜色 */
+    TrustColor trust_color; /**< 信任颜色 */
 
     /* 树结构 */
-    lvProofTraceNode *parent;         /**< 父节点 */
-    lvProofTraceNode **children;      /**< 子节点数组 */
-    uint32_t child_count;               /**< 子节点数量 */
-    uint32_t child_capacity;            /**< 子节点容量 */
+    lvProofTraceNode *parent;    /**< 父节点 */
+    lvProofTraceNode **children; /**< 子节点数组 */
+    uint32_t child_count;        /**< 子节点数量 */
+    uint32_t child_capacity;     /**< 子节点容量 */
 
     /* 依赖关系 */
-    uint32_t *dependency_ids;           /**< 依赖节点 ID */
-    uint32_t dependency_count;          /**< 依赖数量 */
+    uint32_t *dependency_ids;  /**< 依赖节点 ID */
+    uint32_t dependency_count; /**< 依赖数量 */
 
     /* 元数据 */
-    int depth;                          /**< 树深度 */
-    int64_t create_time_ns;             /**< 创建时间 */
-    int64_t complete_time_ns;           /**< 完成时间 */
-    double elapsed_ms;                  /**< 耗时（毫秒） */
+    int depth;                /**< 树深度 */
+    int64_t create_time_ns;   /**< 创建时间 */
+    int64_t complete_time_ns; /**< 完成时间 */
+    double elapsed_ms;        /**< 耗时（毫秒） */
 };
 
 /**
  * @brief 溯源树
  */
 struct lvProofTraceTree {
-    lvProofTraceNode *root;           /**< 根节点 */
-    lvProofTraceNode **all_nodes;     /**< 所有节点（用于遍历） */
-    uint32_t node_count;                /**< 节点总数 */
-    uint32_t node_capacity;             /**< 节点容量 */
+    lvProofTraceNode *root;       /**< 根节点 */
+    lvProofTraceNode **all_nodes; /**< 所有节点（用于遍历） */
+    uint32_t node_count;          /**< 节点总数 */
+    uint32_t node_capacity;       /**< 节点容量 */
 
     /* 统计信息 */
-    uint32_t proved_count;              /**< 已证明节点数 */
-    uint32_t disproved_count;           /**< 已证伪节点数 */
-    uint32_t max_depth;                 /**< 最大深度 */
+    uint32_t proved_count;    /**< 已证明节点数 */
+    uint32_t disproved_count; /**< 已证伪节点数 */
+    uint32_t max_depth;       /**< 最大深度 */
 
     /* 状态 */
-    bool is_complete;                   /**< 是否完成 */
-    TrustColor final_color;             /**< 最终信任颜色 */
+    bool is_complete;       /**< 是否完成 */
+    TrustColor final_color; /**< 最终信任颜色 */
 };
 
 /* ============== 反证法路径 ============== */
@@ -138,38 +138,38 @@ struct lvProofTraceTree {
  * @brief 矛盾类型
  */
 typedef enum {
-    CONTRADICTION_TYPE_P_AND_NOT_P,     /**< P ∧ ¬P */
-    CONTRADICTION_TYPE_FALSE_DERIVED,   /**< 推导出假 */
-    CONTRADICTION_TYPE_CYCLE,           /**< 循环依赖 */
-    CONTRADICTION_TYPE_TYPE_MISMATCH,   /**< 类型不匹配 */
-    CONTRADICTION_TYPE_ARITHMETIC,      /**< 算术矛盾 */
-    CONTRADICTION_TYPE_GEOMETRIC        /**< 几何矛盾 */
+    CONTRADICTION_TYPE_P_AND_NOT_P,   /**< P ∧ ¬P */
+    CONTRADICTION_TYPE_FALSE_DERIVED, /**< 推导出假 */
+    CONTRADICTION_TYPE_CYCLE,         /**< 循环依赖 */
+    CONTRADICTION_TYPE_TYPE_MISMATCH, /**< 类型不匹配 */
+    CONTRADICTION_TYPE_ARITHMETIC,    /**< 算术矛盾 */
+    CONTRADICTION_TYPE_GEOMETRIC      /**< 几何矛盾 */
 } lvContradictionType;
 
 /**
  * @brief 反证法路径节点
  */
 typedef struct {
-    uint32_t id;                        /**< 节点 ID */
-    char statement[512];                /**< 陈述 */
-    char justification[256];            /**< 理由 */
-    bool is_assumption;                 /**< 是否为假设 */
-    bool leads_to_contradiction;        /**< 是否导致矛盾 */
+    uint32_t id;                 /**< 节点 ID */
+    char statement[512];         /**< 陈述 */
+    char justification[256];     /**< 理由 */
+    bool is_assumption;          /**< 是否为假设 */
+    bool leads_to_contradiction; /**< 是否导致矛盾 */
 } lvContradictionPathNode;
 
 /**
  * @brief 反证法路径
  */
 struct lvContradictionPath {
-    lvContradictionPathNode *nodes;   /**< 节点数组 */
-    uint32_t node_count;                /**< 节点数量 */
-    uint32_t node_capacity;             /**< 节点容量 */
+    lvContradictionPathNode *nodes; /**< 节点数组 */
+    uint32_t node_count;            /**< 节点数量 */
+    uint32_t node_capacity;         /**< 节点容量 */
 
-    lvContradictionType type;         /**< 矛盾类型 */
-    char contradiction_desc[512];       /**< 矛盾描述 */
+    lvContradictionType type;     /**< 矛盾类型 */
+    char contradiction_desc[512]; /**< 矛盾描述 */
 
-    lvProofTraceTree *trace_tree;     /**< 完整溯源树 */
-    bool is_valid;                      /**< 是否有效 */
+    lvProofTraceTree *trace_tree; /**< 完整溯源树 */
+    bool is_valid;                /**< 是否有效 */
 };
 
 /* ============== 证明策略 ============== */
@@ -178,49 +178,49 @@ struct lvContradictionPath {
  * @brief 策略类型
  */
 typedef enum {
-    STRATEGY_DIRECT,            /**< 直接证明 */
-    STRATEGY_CONTRADICTION,     /**< 反证法 */
-    STRATEGY_CONTRAPOSITIVE,    /**< 逆否证明 */
-    STRATEGY_INDUCTION,         /**< 数学归纳法 */
-    STRATEGY_CASES,             /**< 分情况讨论 */
-    STRATEGY_CONSTRUCTION,      /**< 构造性证明 */
-    STRATEGY_UNFOLDING,         /**< 定义展开 */
-    STRATEGY_BACKWARD,          /**< 逆向推理 */
-    STRATEGY_FORWARD,           /**< 正向推理 */
-    STRATEGY_HYBRID             /**< 混合策略 */
+    STRATEGY_DIRECT,         /**< 直接证明 */
+    STRATEGY_CONTRADICTION,  /**< 反证法 */
+    STRATEGY_CONTRAPOSITIVE, /**< 逆否证明 */
+    STRATEGY_INDUCTION,      /**< 数学归纳法 */
+    STRATEGY_CASES,          /**< 分情况讨论 */
+    STRATEGY_CONSTRUCTION,   /**< 构造性证明 */
+    STRATEGY_UNFOLDING,      /**< 定义展开 */
+    STRATEGY_BACKWARD,       /**< 逆向推理 */
+    STRATEGY_FORWARD,        /**< 正向推理 */
+    STRATEGY_HYBRID          /**< 混合策略 */
 } lvStrategyType;
 
 /**
  * @brief 策略状态
  */
 typedef enum {
-    STRATEGY_STATUS_PENDING,    /**< 待执行 */
-    STRATEGY_STATUS_RUNNING,    /**< 执行中 */
-    STRATEGY_STATUS_SUCCESS,    /**< 成功 */
-    STRATEGY_STATUS_FAILED,     /**< 失败 */
-    STRATEGY_STATUS_TIMEOUT     /**< 超时 */
+    STRATEGY_STATUS_PENDING, /**< 待执行 */
+    STRATEGY_STATUS_RUNNING, /**< 执行中 */
+    STRATEGY_STATUS_SUCCESS, /**< 成功 */
+    STRATEGY_STATUS_FAILED,  /**< 失败 */
+    STRATEGY_STATUS_TIMEOUT  /**< 超时 */
 } lvStrategyStatus;
 
 /**
  * @brief 证明策略
  */
 struct lvProofStrategy {
-    lvStrategyType type;              /**< 策略类型 */
-    char name[64];                      /**< 策略名称 */
-    char description[256];              /**< 策略描述 */
+    lvStrategyType type;   /**< 策略类型 */
+    char name[64];         /**< 策略名称 */
+    char description[256]; /**< 策略描述 */
 
-    lvStrategyStatus status;          /**< 策略状态 */
-    double priority;                    /**< 优先级（越高越优先） */
+    lvStrategyStatus status; /**< 策略状态 */
+    double priority;         /**< 优先级（越高越优先） */
 
     /* 执行信息 */
-    int64_t start_time_ns;              /**< 开始时间 */
-    int64_t end_time_ns;                /**< 结束时间 */
-    double elapsed_ms;                  /**< 耗时 */
+    int64_t start_time_ns; /**< 开始时间 */
+    int64_t end_time_ns;   /**< 结束时间 */
+    double elapsed_ms;     /**< 耗时 */
 
     /* 结果 */
-    lvProofTraceTree *trace_tree;     /**< 生成的溯源树 */
-    uint32_t step_count;                /**< 步骤数 */
-    char error_message[512];            /**< 错误消息 */
+    lvProofTraceTree *trace_tree; /**< 生成的溯源树 */
+    uint32_t step_count;          /**< 步骤数 */
+    char error_message[512];      /**< 错误消息 */
 
     /* 适用性检查 */
     bool (*is_applicable)(const Proposition *prop, const ConstraintGraph *graph);
@@ -233,13 +233,13 @@ struct lvProofStrategy {
  * @brief 证明引擎配置
  */
 typedef struct {
-    uint32_t max_depth;                 /**< 最大证明深度 */
-    uint32_t max_branches;              /**< 最大分支数 */
-    uint32_t timeout_ms;                /**< 超时时间（毫秒） */
-    bool enable_parallel;               /**< 启用并行证明 */
-    bool enable_cache;                  /**< 启用结果缓存 */
-    bool verify_proofs;                 /**< 验证证明 */
-    bool optimize_proofs;               /**< 优化证明 */
+    uint32_t max_depth;    /**< 最大证明深度 */
+    uint32_t max_branches; /**< 最大分支数 */
+    uint32_t timeout_ms;   /**< 超时时间（毫秒） */
+    bool enable_parallel;  /**< 启用并行证明 */
+    bool enable_cache;     /**< 启用结果缓存 */
+    bool verify_proofs;    /**< 验证证明 */
+    bool optimize_proofs;  /**< 优化证明 */
 } lvProofEngineConfig;
 
 /**
@@ -262,9 +262,9 @@ struct lvProofEngine {
     lvProofTraceTree *current_trace;
 
     /* 统计 */
-    uint64_t total_proofs;              /**< 总证明次数 */
-    uint64_t success_proofs;            /**< 成功次数 */
-    double avg_proof_time_ms;           /**< 平均证明时间 */
+    uint64_t total_proofs;    /**< 总证明次数 */
+    uint64_t success_proofs;  /**< 成功次数 */
+    double avg_proof_time_ms; /**< 平均证明时间 */
 
     /* 缓存 */
     void *proof_cache;
@@ -330,10 +330,8 @@ lv_PUBLIC_API TrustColor lv_trace_node_compute_color(lvProofTraceNode *node);
  * @param max_length 最大路径长度
  * @return 实际路径长度
  */
-lv_PUBLIC_API uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree,
-                                    uint32_t from_id, uint32_t to_id,
-                                    lvProofTraceNode **out_path,
-                                    uint32_t max_length);
+lv_PUBLIC_API uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id, uint32_t to_id,
+                                               lvProofTraceNode **out_path, uint32_t max_length);
 
 /**
  * @brief 导出溯源树为 DOT 格式
@@ -360,10 +358,8 @@ lv_PUBLIC_API char *lv_trace_tree_to_json(const lvProofTraceTree *tree);
  * @param out_path 输出矛盾路径
  * @return 是否成功
  */
-lv_PUBLIC_API bool lv_engine_proof_by_contradiction(lvProofEngine *engine,
-                                  const Proposition *goal,
-                                  uint32_t max_steps,
-                                  lvContradictionPath **out_path);
+lv_PUBLIC_API bool lv_engine_proof_by_contradiction(lvProofEngine *engine, const Proposition *goal, uint32_t max_steps,
+                                                    lvContradictionPath **out_path);
 
 /**
  * @brief 创建矛盾路径
@@ -385,10 +381,8 @@ lv_PUBLIC_API void lv_contradiction_path_destroy(lvContradictionPath *path);
  * @param is_assumption 是否为假设
  * @return 节点 ID
  */
-lv_PUBLIC_API uint32_t lv_contradiction_path_add_node(lvContradictionPath *path,
-                                           const char *statement,
-                                           const char *justification,
-                                           bool is_assumption);
+lv_PUBLIC_API uint32_t lv_contradiction_path_add_node(lvContradictionPath *path, const char *statement,
+                                                      const char *justification, bool is_assumption);
 
 /**
  * @brief 检测矛盾
@@ -398,10 +392,8 @@ lv_PUBLIC_API uint32_t lv_contradiction_path_add_node(lvContradictionPath *path,
  * @param out_desc 输出矛盾描述
  * @return 是否检测到矛盾
  */
-lv_PUBLIC_API bool lv_detect_contradiction(const ConstraintGraph *graph,
-                                const ProofNavigator *nav,
-                                lvContradictionType *out_type,
-                                char *out_desc);
+lv_PUBLIC_API bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator *nav,
+                                           lvContradictionType *out_type, char *out_desc);
 
 /**
  * @brief 验证反证法证明
@@ -430,8 +422,7 @@ lv_PUBLIC_API void lv_proof_engine_destroy(lvProofEngine *engine);
  * @param engine 引擎
  * @param library 规则库
  */
-lv_PUBLIC_API void lv_proof_engine_set_rule_library(lvProofEngine *engine,
-                                         lvRuleLibrary *library);
+lv_PUBLIC_API void lv_proof_engine_set_rule_library(lvProofEngine *engine, lvRuleLibrary *library);
 
 /**
  * @brief 注册证明策略
@@ -439,8 +430,7 @@ lv_PUBLIC_API void lv_proof_engine_set_rule_library(lvProofEngine *engine,
  * @param strategy 策略
  * @return 是否成功
  */
-lv_PUBLIC_API bool lv_proof_engine_register_strategy(lvProofEngine *engine,
-                                          const lvProofStrategy *strategy);
+lv_PUBLIC_API bool lv_proof_engine_register_strategy(lvProofEngine *engine, const lvProofStrategy *strategy);
 
 /**
  * @brief 执行证明
@@ -450,10 +440,8 @@ lv_PUBLIC_API bool lv_proof_engine_register_strategy(lvProofEngine *engine,
  * @param out_trace 输出溯源树
  * @return 是否成功
  */
-lv_PUBLIC_API bool lv_proof_engine_prove(lvProofEngine *engine,
-                              const Proposition *goal,
-                              ConstraintGraph *graph,
-                              lvProofTraceTree **out_trace);
+lv_PUBLIC_API bool lv_proof_engine_prove(lvProofEngine *engine, const Proposition *goal, ConstraintGraph *graph,
+                                         lvProofTraceTree **out_trace);
 
 /**
  * @brief 自动选择策略并证明
@@ -464,11 +452,8 @@ lv_PUBLIC_API bool lv_proof_engine_prove(lvProofEngine *engine,
  * @param out_strategy 输出使用的策略
  * @return 是否成功
  */
-lv_PUBLIC_API bool lv_proof_engine_auto_prove(lvProofEngine *engine,
-                                   const Proposition *goal,
-                                   ConstraintGraph *graph,
-                                   lvProofTraceTree **out_trace,
-                                   lvStrategyType *out_strategy);
+lv_PUBLIC_API bool lv_proof_engine_auto_prove(lvProofEngine *engine, const Proposition *goal, ConstraintGraph *graph,
+                                              lvProofTraceTree **out_trace, lvStrategyType *out_strategy);
 
 /**
  * @brief 使用指定策略证明
@@ -479,11 +464,9 @@ lv_PUBLIC_API bool lv_proof_engine_auto_prove(lvProofEngine *engine,
  * @param out_trace 输出溯源树
  * @return 是否成功
  */
-lv_PUBLIC_API bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine,
-                                            const Proposition *goal,
-                                            ConstraintGraph *graph,
-                                            lvStrategyType strategy_type,
-                                            lvProofTraceTree **out_trace);
+lv_PUBLIC_API bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine, const Proposition *goal,
+                                                       ConstraintGraph *graph, lvStrategyType strategy_type,
+                                                       lvProofTraceTree **out_trace);
 
 /**
  * @brief 获取引擎统计信息
@@ -492,10 +475,8 @@ lv_PUBLIC_API bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine,
  * @param out_success 输出成功次数
  * @param out_avg_time 输出平均时间
  */
-lv_PUBLIC_API void lv_proof_engine_get_stats(const lvProofEngine *engine,
-                                  uint64_t *out_total,
-                                  uint64_t *out_success,
-                                  double *out_avg_time);
+lv_PUBLIC_API void lv_proof_engine_get_stats(const lvProofEngine *engine, uint64_t *out_total, uint64_t *out_success,
+                                             double *out_avg_time);
 
 /* ============== 证明验证 ============== */
 
@@ -503,10 +484,10 @@ lv_PUBLIC_API void lv_proof_engine_get_stats(const lvProofEngine *engine,
  * @brief 验证结果
  */
 typedef enum {
-    lv_VERIFY_VALID,                /**< 有效 */
-    lv_VERIFY_INVALID,              /**< 无效 */
-    lv_VERIFY_INCOMPLETE,           /**< 不完整 */
-    lv_VERIFY_ERROR                 /**< 验证错误 */
+    lv_VERIFY_VALID,      /**< 有效 */
+    lv_VERIFY_INVALID,    /**< 无效 */
+    lv_VERIFY_INCOMPLETE, /**< 不完整 */
+    lv_VERIFY_ERROR       /**< 验证错误 */
 } lvVerifyResult;
 
 /**
@@ -515,8 +496,7 @@ typedef enum {
  * @param out_error 输出错误消息
  * @return 验证结果
  */
-lv_PUBLIC_API lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace,
-                                    char *out_error);
+lv_PUBLIC_API lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error);
 
 /**
  * @brief 验证证明步骤
@@ -525,9 +505,7 @@ lv_PUBLIC_API lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace,
  * @param out_error 输出错误消息
  * @return 验证结果
  */
-lv_PUBLIC_API lvVerifyResult lv_verify_proof_step(const ProofStep *step,
-                                         const ConstraintGraph *graph,
-                                         char *out_error);
+lv_PUBLIC_API lvVerifyResult lv_verify_proof_step(const ProofStep *step, const ConstraintGraph *graph, char *out_error);
 
 /* ============== 证明优化 ============== */
 
@@ -537,8 +515,7 @@ lv_PUBLIC_API lvVerifyResult lv_verify_proof_step(const ProofStep *step,
  * @param out_optimized 输出优化后的溯源树
  * @return 是否成功优化
  */
-lv_PUBLIC_API bool lv_optimize_proof(const lvProofTraceTree *trace,
-                          lvProofTraceTree **out_optimized);
+lv_PUBLIC_API bool lv_optimize_proof(const lvProofTraceTree *trace, lvProofTraceTree **out_optimized);
 
 /**
  * @brief 计算证明复杂度
@@ -562,8 +539,7 @@ lv_PUBLIC_API uint32_t lv_simplify_proof(lvProofTraceTree *trace);
  * @param lang 语言
  * @return 自然语言文本
  */
-lv_PUBLIC_API char *lv_proof_to_natural_language(const lvProofTraceTree *trace,
-                                      ProofNaturalLanguage lang);
+lv_PUBLIC_API char *lv_proof_to_natural_language(const lvProofTraceTree *trace, ProofNaturalLanguage lang);
 
 /**
  * @brief 导出证明为 LaTeX

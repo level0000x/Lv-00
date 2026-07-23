@@ -1,9 +1,10 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv/interop.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 
 /**
  * @file opml_codec.c
@@ -30,19 +31,25 @@
  */
 static int json_escape_string(const char *src, char *dst, int dst_size) {
     int pos = 0;
-    if (!src || !dst || dst_size <= 0) return 0;
+    if (!src || !dst || dst_size <= 0)
+        return 0;
     while (*src && pos < dst_size - 6) { /* 保留空间用于 \uXXXX */
-        unsigned char c = (unsigned char)*src;
+        unsigned char c = (unsigned char) *src;
         if (c == '"') {
-            dst[pos++] = '\\'; dst[pos++] = '"';
+            dst[pos++] = '\\';
+            dst[pos++] = '"';
         } else if (c == '\\') {
-            dst[pos++] = '\\'; dst[pos++] = '\\';
+            dst[pos++] = '\\';
+            dst[pos++] = '\\';
         } else if (c == '\n') {
-            dst[pos++] = '\\'; dst[pos++] = 'n';
+            dst[pos++] = '\\';
+            dst[pos++] = 'n';
         } else if (c == '\r') {
-            dst[pos++] = '\\'; dst[pos++] = 'r';
+            dst[pos++] = '\\';
+            dst[pos++] = 'r';
         } else if (c == '\t') {
-            dst[pos++] = '\\'; dst[pos++] = 't';
+            dst[pos++] = '\\';
+            dst[pos++] = 't';
         } else if (c < 0x20) {
             pos += snprintf(dst + pos, dst_size - pos, "\\u%04x", c);
         } else {
@@ -56,33 +63,33 @@ static int json_escape_string(const char *src, char *dst, int dst_size) {
 
 /* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */
 typedef enum {
-    lv_STEP_ADD_NODE = 0,      /* 添加节点 */
-    lv_STEP_ADD_CONSTRAINT,    /* 添加约束 */
-    lv_STEP_REWRITE,           /* 重写 */
-    lv_STEP_FUNCTION_APP,      /* 函数应用 */
-    lv_STEP_EXACT,             /* 精确匹配 */
-    lv_STEP_HAVE,              /* 中间引理 */
-    lv_STEP_CALC,              /* 计算链 */
-    lv_STEP_NORMALIZATION,     /* 规范化 */
-    lv_STEP_ORACLE             /* 外部预言 */
+    lv_STEP_ADD_NODE = 0,   /* 添加节点 */
+    lv_STEP_ADD_CONSTRAINT, /* 添加约束 */
+    lv_STEP_REWRITE,        /* 重写 */
+    lv_STEP_FUNCTION_APP,   /* 函数应用 */
+    lv_STEP_EXACT,          /* 精确匹配 */
+    lv_STEP_HAVE,           /* 中间引理 */
+    lv_STEP_CALC,           /* 计算链 */
+    lv_STEP_NORMALIZATION,  /* 规范化 */
+    lv_STEP_ORACLE          /* 外部预言 */
 } lvProofStepType;
 
 /* 证明步骤结构体 */
 typedef struct {
-    int type;                     /* 步骤类型（lvProofStepType） */
-    char description[512];       /* 步骤描述 */
-    int id;                      /* 步骤编号 */
-    int dependencies[64];        /* 依赖的步骤 ID 列表 */
-    int dep_count;               /* 依赖数量 */
+    int type;              /* 步骤类型（lvProofStepType） */
+    char description[512]; /* 步骤描述 */
+    int id;                /* 步骤编号 */
+    int dependencies[64];  /* 依赖的步骤 ID 列表 */
+    int dep_count;         /* 依赖数量 */
 } lvProofStep;
 
 /* 内部证明结构体（用于导出/导入） */
 typedef struct {
-    char theorem_name[256];      /* 定理名称 */
-    int step_count;              /* 步骤数量 */
-    int step_capacity;           /* 步骤容量 */
-    lvProofStep *steps;        /* 步骤数组 */
-    char axioms[1024];           /* 公理列表（逗号分隔） */
+    char theorem_name[256]; /* 定理名称 */
+    int step_count;         /* 步骤数量 */
+    int step_capacity;      /* 步骤容量 */
+    lvProofStep *steps;     /* 步骤数组 */
+    char axioms[1024];      /* 公理列表（逗号分隔） */
 } lvOpmlProof;
 
 /**
@@ -93,16 +100,26 @@ typedef struct {
  */
 static const char *step_type_name(int type) {
     switch (type) {
-        case lv_STEP_ADD_NODE:        return "add_node";
-        case lv_STEP_ADD_CONSTRAINT:  return "add_constraint";
-        case lv_STEP_REWRITE:         return "rewrite";
-        case lv_STEP_FUNCTION_APP:    return "function_app";
-        case lv_STEP_EXACT:           return "exact";
-        case lv_STEP_HAVE:            return "have";
-        case lv_STEP_CALC:            return "calc";
-        case lv_STEP_NORMALIZATION:   return "normalization";
-        case lv_STEP_ORACLE:          return "oracle";
-        default:                        return "unknown";
+        case lv_STEP_ADD_NODE:
+            return "add_node";
+        case lv_STEP_ADD_CONSTRAINT:
+            return "add_constraint";
+        case lv_STEP_REWRITE:
+            return "rewrite";
+        case lv_STEP_FUNCTION_APP:
+            return "function_app";
+        case lv_STEP_EXACT:
+            return "exact";
+        case lv_STEP_HAVE:
+            return "have";
+        case lv_STEP_CALC:
+            return "calc";
+        case lv_STEP_NORMALIZATION:
+            return "normalization";
+        case lv_STEP_ORACLE:
+            return "oracle";
+        default:
+            return "unknown";
     }
 }
 
@@ -118,101 +135,114 @@ static const char *step_type_name(int type) {
  * @return 成功返回 0，失败返回 -1
  */
 static int opml_export_proof(void *proof, char *output, int output_size) {
-    if (!proof || !output || output_size <= 0) return -1;
+    if (!proof || !output || output_size <= 0)
+        return -1;
 
-    lvOpmlProof *p = (lvOpmlProof *)proof;
+    lvOpmlProof *p = (lvOpmlProof *) proof;
 
     int pos = 0;
 
     /* 转义定理名称，防止 JSON 注入 */
     char escaped_name[1024];
-    json_escape_string(p->theorem_name, escaped_name, (int)sizeof(escaped_name));
+    json_escape_string(p->theorem_name, escaped_name, (int) sizeof(escaped_name));
 
     /* 写入 JSON 头部 */
     pos += snprintf(output + pos, output_size - pos,
-        "{\n"
-        "  \"opml_version\": \"1.0.0\",\n"
-        "  \"source_system\": \"lv\",\n"
-        "  \"metadata\": {\n"
-        "    \"title\": \"%s\",\n"
-        "    \"date\": \"2026-06-04\"\n"
-        "  },\n",
-        escaped_name);
-    if (pos >= output_size) return -1;
+                    "{\n"
+                    "  \"opml_version\": \"1.0.0\",\n"
+                    "  \"source_system\": \"lv\",\n"
+                    "  \"metadata\": {\n"
+                    "    \"title\": \"%s\",\n"
+                    "    \"date\": \"2026-06-04\"\n"
+                    "  },\n",
+                    escaped_name);
+    if (pos >= output_size)
+        return -1;
 
     /* 生成 theory 段（包含公理） */
     if (strlen(p->axioms) > 0) {
         pos += snprintf(output + pos, output_size - pos,
-            "  \"theory\": {\n"
-            "    \"axioms\": [\n");
-        if (pos >= output_size) return -1;
+                        "  \"theory\": {\n"
+                        "    \"axioms\": [\n");
+        if (pos >= output_size)
+            return -1;
 
         /* 逐个输出公理 */
         const char *ax = p->axioms;
         int first_axiom = 1;
         while (*ax) {
             /* 跳过空白 */
-            while (*ax && (*ax == ' ' || *ax == ',' || *ax == '\t')) ax++;
-            if (!*ax) break;
+            while (*ax && (*ax == ' ' || *ax == ',' || *ax == '\t'))
+                ax++;
+            if (!*ax)
+                break;
 
             /* 找到公理名结尾 */
             const char *ax_end = ax;
-            while (*ax_end && *ax_end != ',' && *ax_end != '\n') ax_end++;
+            while (*ax_end && *ax_end != ',' && *ax_end != '\n')
+                ax_end++;
 
             if (ax_end > ax) {
                 if (!first_axiom) {
-                    if (pos >= output_size) return -1;
+                    if (pos >= output_size)
+                        return -1;
                     pos += snprintf(output + pos, output_size - pos, ",\n");
                 }
                 first_axiom = 0;
 
                 /* 写入公理条目 */
-                if (pos >= output_size) return -1;
+                if (pos >= output_size)
+                    return -1;
                 pos += snprintf(output + pos, output_size - pos, "      { \"name\": \"");
-                int ax_len = (int)(ax_end - ax);
+                int ax_len = (int) (ax_end - ax);
                 if (pos + ax_len + 32 < output_size) {
                     memcpy(output + pos, ax, ax_len);
                     pos += ax_len;
                 }
-                if (pos >= output_size) return -1;
+                if (pos >= output_size)
+                    return -1;
                 pos += snprintf(output + pos, output_size - pos, "\" }");
             }
             ax = ax_end;
         }
 
-        if (pos >= output_size) return -1;
+        if (pos >= output_size)
+            return -1;
         pos += snprintf(output + pos, output_size - pos,
-            "\n    ]\n"
-            "  },\n");
+                        "\n    ]\n"
+                        "  },\n");
     } else {
-        if (pos >= output_size) return -1;
-        pos += snprintf(output + pos, output_size - pos,
-            "  \"theory\": {},\n");
+        if (pos >= output_size)
+            return -1;
+        pos += snprintf(output + pos, output_size - pos, "  \"theory\": {},\n");
     }
 
     /* 生成 proof 段（包含步骤数组） */
-    if (pos >= output_size) return -1;
+    if (pos >= output_size)
+        return -1;
     pos += snprintf(output + pos, output_size - pos,
-        "  \"proof\": {\n"
-        "    \"method\": \"forward_chain\",\n"
-        "    \"steps\": [\n");
+                    "  \"proof\": {\n"
+                    "    \"method\": \"forward_chain\",\n"
+                    "    \"steps\": [\n");
 
     /* 遍历每个步骤，生成 JSON 对象 */
     for (int i = 0; i < p->step_count; i++) {
         lvProofStep *step = &p->steps[i];
 
         if (i > 0) {
-            if (pos >= output_size) return -1;
+            if (pos >= output_size)
+                return -1;
             pos += snprintf(output + pos, output_size - pos, ",\n");
         }
 
-        if (pos >= output_size) return -1;
+        if (pos >= output_size)
+            return -1;
         pos += snprintf(output + pos, output_size - pos,
-            "      {\n"
-            "        \"id\": %d,\n"
-            "        \"type\": \"%s\",\n"
-            "        \"description\": \"",
-            step->id, step_type_name(step->type));
+                        "      {\n"
+                        "        \"id\": %d,\n"
+                        "        \"type\": \"%s\",\n"
+                        "        \"description\": \"",
+                        step->id, step_type_name(step->type));
 
         /* 写入描述（转义双引号和反斜杠） */
         const char *desc = step->description;
@@ -226,37 +256,44 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
             desc++;
         }
 
-        if (pos >= output_size) return -1;
+        if (pos >= output_size)
+            return -1;
         pos += snprintf(output + pos, output_size - pos, "\",\n");
 
         /* 写入依赖列表 */
-        if (pos >= output_size) return -1;
-        pos += snprintf(output + pos, output_size - pos,
-            "        \"dependencies\": [");
+        if (pos >= output_size)
+            return -1;
+        pos += snprintf(output + pos, output_size - pos, "        \"dependencies\": [");
 
         for (int d = 0; d < step->dep_count; d++) {
             if (d > 0) {
-                if (pos >= output_size) return -1;
+                if (pos >= output_size)
+                    return -1;
                 pos += snprintf(output + pos, output_size - pos, ", ");
             }
-            if (pos >= output_size) return -1;
+            if (pos >= output_size)
+                return -1;
             pos += snprintf(output + pos, output_size - pos, "%d", step->dependencies[d]);
         }
 
-        if (pos >= output_size) return -1;
-        pos += snprintf(output + pos, output_size - pos, "]\n"
-            "      }");
+        if (pos >= output_size)
+            return -1;
+        pos += snprintf(output + pos, output_size - pos,
+                        "]\n"
+                        "      }");
     }
 
     /* 写入 proof 段尾部和 JSON 结尾 */
-    if (pos >= output_size) return -1;
+    if (pos >= output_size)
+        return -1;
     pos += snprintf(output + pos, output_size - pos,
-        "\n    ]\n"
-        "  }\n"
-        "}\n");
+                    "\n    ]\n"
+                    "  }\n"
+                    "}\n");
 
     /* 确保以 null 结尾 */
-    if (pos >= output_size) return -1;
+    if (pos >= output_size)
+        return -1;
     output[pos] = '\0';
     return 0;
 }
@@ -267,7 +304,8 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
  * @brief 跳过 JSON 空白字符
  */
 static const char *json_skip_ws(const char *p) {
-    while (p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')) p++;
+    while (p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'))
+        p++;
     return p;
 }
 
@@ -275,7 +313,8 @@ static const char *json_skip_ws(const char *p) {
  * @brief 提取 JSON 字符串值并写入缓冲区
  */
 static const char *json_extract_string(const char *p, char *buf, int buf_size) {
-    if (!p || *p != '"') return NULL;
+    if (!p || *p != '"')
+        return NULL;
     p++; /* 跳过开头 " */
     int i = 0;
     while (*p && *p != '"' && i < buf_size - 1) {
@@ -287,22 +326,26 @@ static const char *json_extract_string(const char *p, char *buf, int buf_size) {
                 for (int k = 0; k < 4; k++) {
                     char hc = p[k + 1];
                     cp <<= 4;
-                    if (hc >= '0' && hc <= '9') cp |= (unsigned int)(hc - '0');
-                    else if (hc >= 'a' && hc <= 'f') cp |= (unsigned int)(hc - 'a' + 10);
-                    else if (hc >= 'A' && hc <= 'F') cp |= (unsigned int)(hc - 'A' + 10);
+                    if (hc >= '0' && hc <= '9')
+                        cp |= (unsigned int) (hc - '0');
+                    else if (hc >= 'a' && hc <= 'f')
+                        cp |= (unsigned int) (hc - 'a' + 10);
+                    else if (hc >= 'A' && hc <= 'F')
+                        cp |= (unsigned int) (hc - 'A' + 10);
                 }
                 p += 4; /* 跳过 uXXXX */
                 /* BMP 字符直接写UTF-8 (最多3字节) */
                 if (cp < 0x80) {
-                    buf[i++] = (char)cp;
+                    buf[i++] = (char) cp;
                 } else if (cp < 0x800) {
-                    buf[i++] = (char)(0xC0 | (cp >> 6));
-                    if (i < buf_size - 1) buf[i++] = (char)(0x80 | (cp & 0x3F));
+                    buf[i++] = (char) (0xC0 | (cp >> 6));
+                    if (i < buf_size - 1)
+                        buf[i++] = (char) (0x80 | (cp & 0x3F));
                 } else {
-                    buf[i++] = (char)(0xE0 | (cp >> 12));
+                    buf[i++] = (char) (0xE0 | (cp >> 12));
                     if (i < buf_size - 2) {
-                        buf[i++] = (char)(0x80 | ((cp >> 6) & 0x3F));
-                        buf[i++] = (char)(0x80 | (cp & 0x3F));
+                        buf[i++] = (char) (0x80 | ((cp >> 6) & 0x3F));
+                        buf[i++] = (char) (0x80 | (cp & 0x3F));
                     }
                 }
                 continue; /* 跳过下面的 buf[i++] = *p++ */
@@ -311,7 +354,8 @@ static const char *json_extract_string(const char *p, char *buf, int buf_size) {
         buf[i++] = *p++;
     }
     buf[i] = '\0';
-    if (*p == '"') p++; /* 跳过结尾 " */
+    if (*p == '"')
+        p++; /* 跳过结尾 " */
     return p;
 }
 
@@ -319,13 +363,15 @@ static const char *json_extract_string(const char *p, char *buf, int buf_size) {
  * @brief 在 JSON 对象中查找指定键的值位置
  */
 static const char *json_find_key(const char *obj_start, const char *key) {
-    if (!obj_start || !key) return NULL;
+    if (!obj_start || !key)
+        return NULL;
     char search[256];
     snprintf(search, sizeof(search), "\"%s\"", key);
     const char *p = obj_start;
     while (p && *p) {
         p = strstr(p, search);
-        if (!p) return NULL;
+        if (!p)
+            return NULL;
         p += strlen(search);
         p = json_skip_ws(p);
         if (*p == ':') {
@@ -347,14 +393,25 @@ static const char *json_find_key(const char *obj_start, const char *key) {
  * @return 匹配的 '}' 之后的位置指针
  */
 static const char *json_skip_object(const char *p) {
-    if (!p || *p != '{') return p;
+    if (!p || *p != '{')
+        return p;
     int depth = 0;
     for (; *p; p++) {
-        if (*p == '{') depth++;
-        else if (*p == '}') { depth--; if (depth == 0) { p++; break; } }
-        else if (*p == '"') {
+        if (*p == '{')
+            depth++;
+        else if (*p == '}') {
+            depth--;
+            if (depth == 0) {
+                p++;
+                break;
+            }
+        } else if (*p == '"') {
             p++; /* 跳过字符串内容 */
-            while (*p && *p != '"') { if (*p == '\\' && *(p+1)) p++; p++; }
+            while (*p && *p != '"') {
+                if (*p == '\\' && *(p + 1))
+                    p++;
+                p++;
+            }
         }
     }
     return p;
@@ -363,12 +420,12 @@ static const char *json_skip_object(const char *p) {
 /**
  * @brief 从 theory 段提取公理和定义名称列表
  */
-static void parse_theory_section(const char *theory_json,
-                                  char axioms[][256], int *axiom_count, int max_axioms,
-                                  char definitions[][256], int *def_count, int max_defs) {
+static void parse_theory_section(const char *theory_json, char axioms[][256], int *axiom_count, int max_axioms,
+                                 char definitions[][256], int *def_count, int max_defs) {
     *axiom_count = 0;
     *def_count = 0;
-    if (!theory_json) return;
+    if (!theory_json)
+        return;
 
     /* 查找 "axioms" 键 */
     const char *axioms_val = json_find_key(theory_json, "axioms");
@@ -376,11 +433,13 @@ static void parse_theory_section(const char *theory_json,
         const char *end = axioms_val;
         while (*axiom_count < max_axioms) {
             end = json_skip_ws(end + 1); /* 跳过 [ 或 , */
-            if (*end == ']' || !*end) break;
+            if (*end == ']' || !*end)
+                break;
             end = json_skip_ws(end);
             if (*end == '"') {
                 end = json_extract_string(end, axioms[*axiom_count], 256);
-                if (end) (*axiom_count)++;
+                if (end)
+                    (*axiom_count)++;
             } else {
                 end++;
             }
@@ -393,11 +452,13 @@ static void parse_theory_section(const char *theory_json,
         const char *end = defs_val;
         while (*def_count < max_defs) {
             end = json_skip_ws(end + 1);
-            if (*end == ']' || !*end) break;
+            if (*end == ']' || !*end)
+                break;
             end = json_skip_ws(end);
             if (*end == '"') {
                 end = json_extract_string(end, definitions[*def_count], 256);
-                if (end) (*def_count)++;
+                if (end)
+                    (*def_count)++;
             } else {
                 end++;
             }
@@ -408,18 +469,22 @@ static void parse_theory_section(const char *theory_json,
 /**
  * @brief 从 proof 段提取证明步骤
  */
-static void parse_proof_steps(const char *proof_json,
-                               lvOpmlProof *proof, int max_steps) {
-    if (!proof_json || !proof) return;
+static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int max_steps) {
+    if (!proof_json || !proof)
+        return;
 
     /* 查找 "steps" 键 */
     const char *steps_val = json_find_key(proof_json, "steps");
-    if (!steps_val || *steps_val != '[') return;
+    if (!steps_val || *steps_val != '[')
+        return;
 
     const char *p = steps_val + 1; /* 跳过 [ */
     while (p && *p && *p != ']' && proof->step_count < max_steps) {
         p = json_skip_ws(p);
-        if (*p != '{') { p++; continue; }
+        if (*p != '{') {
+            p++;
+            continue;
+        }
 
         /* 解析单个 step 对象 */
         const char *step_end = json_skip_object(p);
@@ -437,15 +502,24 @@ static void parse_proof_steps(const char *proof_json,
             char type_name[64];
             json_extract_string(type_val, type_name, sizeof(type_name));
             /* 映射类型名到 lvProofStepType */
-            if (strcmp(type_name, "axiom") == 0) step->type = lv_STEP_ADD_NODE;
-            else if (strcmp(type_name, "definition") == 0) step->type = lv_STEP_ADD_CONSTRAINT;
-            else if (strcmp(type_name, "rewrite") == 0) step->type = lv_STEP_REWRITE;
-            else if (strcmp(type_name, "apply") == 0) step->type = lv_STEP_FUNCTION_APP;
-            else if (strcmp(type_name, "exact") == 0) step->type = lv_STEP_EXACT;
-            else if (strcmp(type_name, "have") == 0) step->type = lv_STEP_HAVE;
-            else if (strcmp(type_name, "calc") == 0) step->type = lv_STEP_CALC;
-            else if (strcmp(type_name, "normalization") == 0) step->type = lv_STEP_NORMALIZATION;
-            else step->type = lv_STEP_ORACLE;
+            if (strcmp(type_name, "axiom") == 0)
+                step->type = lv_STEP_ADD_NODE;
+            else if (strcmp(type_name, "definition") == 0)
+                step->type = lv_STEP_ADD_CONSTRAINT;
+            else if (strcmp(type_name, "rewrite") == 0)
+                step->type = lv_STEP_REWRITE;
+            else if (strcmp(type_name, "apply") == 0)
+                step->type = lv_STEP_FUNCTION_APP;
+            else if (strcmp(type_name, "exact") == 0)
+                step->type = lv_STEP_EXACT;
+            else if (strcmp(type_name, "have") == 0)
+                step->type = lv_STEP_HAVE;
+            else if (strcmp(type_name, "calc") == 0)
+                step->type = lv_STEP_CALC;
+            else if (strcmp(type_name, "normalization") == 0)
+                step->type = lv_STEP_NORMALIZATION;
+            else
+                step->type = lv_STEP_ORACLE;
         }
 
         proof->step_count++;
@@ -457,7 +531,8 @@ static void parse_proof_steps(const char *proof_json,
  * @brief OPML JSON 导入
  */
 static int opml_import_proof(const char *input, void **proof) {
-    if (!input || !proof) return -1;
+    if (!input || !proof)
+        return -1;
 
     /* 验证输入包含 OPML 版本头 */
     if (!strstr(input, "opml_version")) {
@@ -469,13 +544,17 @@ static int opml_import_proof(const char *input, void **proof) {
     const char *proof_start = strstr(input, "\"proof\"");
 
     /* 分配 lvOpmlProof 结构体 */
-    lvOpmlProof *p = (lvOpmlProof *)lv_calloc(1, sizeof(lvOpmlProof));
-    if (!p) return -1;
+    lvOpmlProof *p = (lvOpmlProof *) lv_calloc(1, sizeof(lvOpmlProof));
+    if (!p)
+        return -1;
 
     /* 初始化步骤数组 */
     p->step_capacity = 64;
-    p->steps = (lvProofStep *)lv_calloc(p->step_capacity, sizeof(lvProofStep));
-    if (!p->steps) { lv_free((void **)&p); return -1; }
+    p->steps = (lvProofStep *) lv_calloc(p->step_capacity, sizeof(lvProofStep));
+    if (!p->steps) {
+        lv_free((void **) &p);
+        return -1;
+    }
 
     /* 提取并解析 theory 段 */
     if (theory_start) {
@@ -484,12 +563,17 @@ static int opml_import_proof(const char *input, void **proof) {
             int depth = 0;
             const char *end = brace;
             for (; *end; end++) {
-                if (*end == '{') depth++;
-                else if (*end == '}') depth--;
-                if (depth == 0) { end++; break; }
+                if (*end == '{')
+                    depth++;
+                else if (*end == '}')
+                    depth--;
+                if (depth == 0) {
+                    end++;
+                    break;
+                }
             }
-            size_t len = (size_t)(end - brace);
-            char *theory_buf = (char *)lv_calloc(1, len + 1);
+            size_t len = (size_t) (end - brace);
+            char *theory_buf = (char *) lv_calloc(1, len + 1);
             if (theory_buf) {
                 memcpy(theory_buf, brace, len);
                 theory_buf[len] = '\0';
@@ -498,24 +582,24 @@ static int opml_import_proof(const char *input, void **proof) {
                 char axiom_names[32][256];
                 char def_names[32][256];
                 int axiom_count = 0, def_count = 0;
-                parse_theory_section(theory_buf, axiom_names, &axiom_count, 32,
-                                      def_names, &def_count, 32);
+                parse_theory_section(theory_buf, axiom_names, &axiom_count, 32, def_names, &def_count, 32);
 
                 /* 将公理名称写入 axioms 字段（逗号分隔） */
                 int pos = 0;
-                for (int i = 0; i < axiom_count && pos < (int)sizeof(p->axioms) - 1; i++) {
-                    if (i > 0 && pos < (int)sizeof(p->axioms) - 2) {
+                for (int i = 0; i < axiom_count && pos < (int) sizeof(p->axioms) - 1; i++) {
+                    if (i > 0 && pos < (int) sizeof(p->axioms) - 2) {
                         p->axioms[pos++] = ',';
                         p->axioms[pos++] = ' ';
                     }
-                    int slen = (int)strlen(axiom_names[i]);
-                    if (pos + slen >= (int)sizeof(p->axioms)) slen = (int)sizeof(p->axioms) - pos - 1;
+                    int slen = (int) strlen(axiom_names[i]);
+                    if (pos + slen >= (int) sizeof(p->axioms))
+                        slen = (int) sizeof(p->axioms) - pos - 1;
                     memcpy(p->axioms + pos, axiom_names[i], slen);
                     pos += slen;
                 }
                 p->axioms[pos] = '\0';
 
-                lv_free((void **)&theory_buf);
+                lv_free((void **) &theory_buf);
             }
         }
     }
@@ -527,12 +611,17 @@ static int opml_import_proof(const char *input, void **proof) {
             int depth = 0;
             const char *end = brace;
             for (; *end; end++) {
-                if (*end == '{') depth++;
-                else if (*end == '}') depth--;
-                if (depth == 0) { end++; break; }
+                if (*end == '{')
+                    depth++;
+                else if (*end == '}')
+                    depth--;
+                if (depth == 0) {
+                    end++;
+                    break;
+                }
             }
-            size_t len = (size_t)(end - brace);
-            char *proof_buf = (char *)lv_calloc(1, len + 1);
+            size_t len = (size_t) (end - brace);
+            char *proof_buf = (char *) lv_calloc(1, len + 1);
             if (proof_buf) {
                 memcpy(proof_buf, brace, len);
                 proof_buf[len] = '\0';
@@ -540,14 +629,15 @@ static int opml_import_proof(const char *input, void **proof) {
                 /* 从 proof 中提取步骤 */
                 parse_proof_steps(proof_buf, p, p->step_capacity);
 
-                lv_free((void **)&proof_buf);
+                lv_free((void **) &proof_buf);
             }
         }
     }
 
     /* 查找定理名称（可选：从 "theorem_name" 或 "name" 键） */
     const char *name_val = json_find_key(input, "theorem_name");
-    if (!name_val) name_val = json_find_key(input, "name");
+    if (!name_val)
+        name_val = json_find_key(input, "name");
     if (name_val && *name_val == '"') {
         json_extract_string(name_val, p->theorem_name, sizeof(p->theorem_name));
     }
@@ -560,7 +650,8 @@ static int opml_import_proof(const char *input, void **proof) {
  * @brief OPML 输入校验
  */
 static int opml_validate(const char *input) {
-    if (!input) return 0;
+    if (!input)
+        return 0;
     /* 检查 OPML 版本头 */
     return strstr(input, "opml_version") != NULL;
 }
@@ -575,7 +666,8 @@ static int opml_validate(const char *input) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_register_opml_plugin(lvInteropManager *mgr) {
-    if (!mgr) return -1;
+    if (!mgr)
+        return -1;
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "opml", sizeof(plugin.name) - 1);

@@ -1,6 +1,7 @@
 ﻿#ifndef lv_PRESET_DIFFERENTIAL_GEOMETRY_ADV_H
 #define lv_PRESET_DIFFERENTIAL_GEOMETRY_ADV_H
 #include <stdbool.h>
+
 #include "func_block_registry.h"
 #ifdef __cplusplus
 extern "C" {

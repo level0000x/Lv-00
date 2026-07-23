@@ -11,8 +11,8 @@
 #include "simd_ops.h"
 
 #include <math.h>
-#include <stdio.h>
 #include <stdatomic.h>
+#include <stdio.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -38,47 +38,51 @@ static void detect_simd_capabilities(void) {
     /* x86/x64 平台 */
 
 #if defined(__GNUC__) || defined(__clang__)
-    /* GCC/Clang: 使用 __builtin_cpu_supports */
-    #if defined(__SSE2__)
+/* GCC/Clang: 使用 __builtin_cpu_supports */
+#if defined(__SSE2__)
     caps |= lv_SIMD_SSE2;
-    #endif
-    #if defined(__SSE4_1__)
+#endif
+#if defined(__SSE4_1__)
     caps |= lv_SIMD_SSE41;
-    #endif
-    #if defined(__AVX__)
+#endif
+#if defined(__AVX__)
     caps |= lv_SIMD_AVX;
-    #endif
-    #if defined(__AVX2__)
+#endif
+#if defined(__AVX2__)
     caps |= lv_SIMD_AVX2;
-    #endif
-    #if defined(__AVX512F__)
+#endif
+#if defined(__AVX512F__)
     caps |= lv_SIMD_AVX512F;
-    #endif
+#endif
 
 #elif defined(_MSC_VER)
-    /* MSVC: 使用 __cpuid */
-    #include <intrin.h>
+/* MSVC: 使用 __cpuid */
+#include <intrin.h>
     int cpuinfo[4];
     __cpuid(cpuinfo, 0);
 
     if (cpuinfo[0] >= 1) {
         __cpuid(cpuinfo, 1);
-        if (cpuinfo[3] & (1 << 26)) caps |= lv_SIMD_SSE2;
-        if (cpuinfo[2] & (1 << 19)) caps |= lv_SIMD_SSE41;
-        if (cpuinfo[2] & (1 << 28)) caps |= lv_SIMD_AVX;
+        if (cpuinfo[3] & (1 << 26))
+            caps |= lv_SIMD_SSE2;
+        if (cpuinfo[2] & (1 << 19))
+            caps |= lv_SIMD_SSE41;
+        if (cpuinfo[2] & (1 << 28))
+            caps |= lv_SIMD_AVX;
     }
 
     if (cpuinfo[0] >= 7) {
         __cpuidex(cpuinfo, 7, 0);
-        if (cpuinfo[1] & (1 << 5)) caps |= lv_SIMD_AVX2;
+        if (cpuinfo[1] & (1 << 5))
+            caps |= lv_SIMD_AVX2;
     }
 #endif
 
 #elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM) || defined(_M_ARM64)
-    /* ARM 平台 */
-    #if defined(__ARM_NEON) || defined(__ARM_NEON__) || defined(_M_ARM64)
+/* ARM 平台 */
+#if defined(__ARM_NEON) || defined(__ARM_NEON__) || defined(_M_ARM64)
     caps |= lv_SIMD_NEON;
-    #endif
+#endif
 #endif
 
     /* 如果没有检测到任何SIMD能力，使用标量实现 */
@@ -102,14 +106,22 @@ static bool lv_simd_has_capability(lvSimdCapability cap) {
 
 const char *lv_simd_capability_name(lvSimdCapability cap) {
     switch (cap) {
-        case lv_SIMD_NONE:    return "None (Scalar)";
-        case lv_SIMD_SSE2:    return "SSE2";
-        case lv_SIMD_SSE41:   return "SSE4.1";
-        case lv_SIMD_AVX:     return "AVX";
-        case lv_SIMD_AVX2:    return "AVX2";
-        case lv_SIMD_AVX512F: return "AVX-512F";
-        case lv_SIMD_NEON:    return "NEON";
-        default:                return "Unknown";
+        case lv_SIMD_NONE:
+            return "None (Scalar)";
+        case lv_SIMD_SSE2:
+            return "SSE2";
+        case lv_SIMD_SSE41:
+            return "SSE4.1";
+        case lv_SIMD_AVX:
+            return "AVX";
+        case lv_SIMD_AVX2:
+            return "AVX2";
+        case lv_SIMD_AVX512F:
+            return "AVX-512F";
+        case lv_SIMD_NEON:
+            return "NEON";
+        default:
+            return "Unknown";
     }
 }
 
@@ -118,7 +130,8 @@ const char *lv_simd_capability_name(lvSimdCapability cap) {
 static lvSimdStats g_simd_stats = {0};
 
 void lv_simd_get_stats(lvSimdStats *stats) {
-    if (stats) *stats = g_simd_stats;
+    if (stats)
+        *stats = g_simd_stats;
 }
 
 void lv_simd_reset_stats(void) {
@@ -126,7 +139,7 @@ void lv_simd_reset_stats(void) {
 }
 
 static void lv_simd_print_diag(void *stream) {
-    FILE *f = stream ? (FILE *)stream : stdout;
+    FILE *f = stream ? (FILE *) stream : stdout;
 
     fprintf(f, "\n========== Lv-00 SIMD 诊断 ==========\n");
     fprintf(f, "检测到的SIMD能力:\n");
@@ -134,10 +147,7 @@ static void lv_simd_print_diag(void *stream) {
     detect_simd_capabilities();
 
     const char *caps[] = {"SSE2", "SSE4.1", "AVX", "AVX2", "AVX-512F", "NEON"};
-    lvSimdCapability flags[] = {
-        lv_SIMD_SSE2, lv_SIMD_SSE41, lv_SIMD_AVX,
-        lv_SIMD_AVX2, lv_SIMD_AVX512F, lv_SIMD_NEON
-    };
+    lvSimdCapability flags[] = {lv_SIMD_SSE2, lv_SIMD_SSE41, lv_SIMD_AVX, lv_SIMD_AVX2, lv_SIMD_AVX512F, lv_SIMD_NEON};
 
     bool has_any = false;
     for (int i = 0; i < 6; i++) {
@@ -152,12 +162,12 @@ static void lv_simd_print_diag(void *stream) {
     }
 
     fprintf(f, "\n--- 性能统计 ---\n");
-    fprintf(f, "4元素向量操作: %llu\n", (unsigned long long)g_simd_stats.vec4_ops);
-    fprintf(f, "8元素向量操作: %llu\n", (unsigned long long)g_simd_stats.vec8_ops);
-    fprintf(f, "数组操作: %llu\n", (unsigned long long)g_simd_stats.array_ops);
-    fprintf(f, "处理元素总数: %llu\n", (unsigned long long)g_simd_stats.elements_processed);
-    fprintf(f, "SIMD总耗时: %llu us\n", (unsigned long long)g_simd_stats.simd_time_us);
-    fprintf(f, "标量回退次数: %llu\n", (unsigned long long)g_simd_stats.scalar_fallbacks);
+    fprintf(f, "4元素向量操作: %llu\n", (unsigned long long) g_simd_stats.vec4_ops);
+    fprintf(f, "8元素向量操作: %llu\n", (unsigned long long) g_simd_stats.vec8_ops);
+    fprintf(f, "数组操作: %llu\n", (unsigned long long) g_simd_stats.array_ops);
+    fprintf(f, "处理元素总数: %llu\n", (unsigned long long) g_simd_stats.elements_processed);
+    fprintf(f, "SIMD总耗时: %llu us\n", (unsigned long long) g_simd_stats.simd_time_us);
+    fprintf(f, "标量回退次数: %llu\n", (unsigned long long) g_simd_stats.scalar_fallbacks);
     fprintf(f, "=====================================\n\n");
 }
 
@@ -169,11 +179,11 @@ static inline uint64_t get_time_us(void) {
     LARGE_INTEGER freq, counter;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&counter);
-    return (uint64_t)((counter.QuadPart * 1000000ULL) / freq.QuadPart);
+    return (uint64_t) ((counter.QuadPart * 1000000ULL) / freq.QuadPart);
 #else
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return (uint64_t)tv.tv_sec * 1000000ULL + (uint64_t)tv.tv_usec;
+    return (uint64_t) tv.tv_sec * 1000000ULL + (uint64_t) tv.tv_usec;
 #endif
 }
 
@@ -377,7 +387,10 @@ lvVec4d lv_vec4d_cmpge(lvVec4d a, lvVec4d b) {
 lvVec4d lv_vec4d_select(lvVec4d mask, lvVec4d a, lvVec4d b) {
     lvVec4d r;
     /* 使用位操作实现选择 */
-    union { double d; uint64_t u; } m, va, vb, vr;
+    union {
+        double d;
+        uint64_t u;
+    } m, va, vb, vr;
 
     for (int i = 0; i < 4; i++) {
         m.d = mask.v[i];
@@ -396,17 +409,23 @@ static double lv_vec4d_hsum(lvVec4d a) {
 
 static double lv_vec4d_hmax(lvVec4d a) {
     double m = a.v[0];
-    if (a.v[1] > m) m = a.v[1];
-    if (a.v[2] > m) m = a.v[2];
-    if (a.v[3] > m) m = a.v[3];
+    if (a.v[1] > m)
+        m = a.v[1];
+    if (a.v[2] > m)
+        m = a.v[2];
+    if (a.v[3] > m)
+        m = a.v[3];
     return m;
 }
 
 static double lv_vec4d_hmin(lvVec4d a) {
     double m = a.v[0];
-    if (a.v[1] < m) m = a.v[1];
-    if (a.v[2] < m) m = a.v[2];
-    if (a.v[3] < m) m = a.v[3];
+    if (a.v[1] < m)
+        m = a.v[1];
+    if (a.v[2] < m)
+        m = a.v[2];
+    if (a.v[3] < m)
+        m = a.v[3];
     return m;
 }
 
@@ -513,53 +532,61 @@ lvVec8f lv_vec8f_zero(void) {
 
 lvVec8f lv_vec8f_set1(float val) {
     lvVec8f v;
-    for (int i = 0; i < 8; i++) v.v[i] = val;
+    for (int i = 0; i < 8; i++)
+        v.v[i] = val;
     g_simd_stats.vec8_ops++;
     return v;
 }
 
 lvVec8f lv_vec8f_load(const float *ptr) {
     lvVec8f v;
-    for (int i = 0; i < 8; i++) v.v[i] = ptr[i];
+    for (int i = 0; i < 8; i++)
+        v.v[i] = ptr[i];
     g_simd_stats.vec8_ops++;
     return v;
 }
 
 static void lv_vec8f_store(float *ptr, lvVec8f vec) {
-    for (int i = 0; i < 8; i++) ptr[i] = vec.v[i];
+    for (int i = 0; i < 8; i++)
+        ptr[i] = vec.v[i];
 }
 
 lvVec8f lv_vec8f_add(lvVec8f a, lvVec8f b) {
     lvVec8f r;
-    for (int i = 0; i < 8; i++) r.v[i] = a.v[i] + b.v[i];
+    for (int i = 0; i < 8; i++)
+        r.v[i] = a.v[i] + b.v[i];
     g_simd_stats.vec8_ops++;
     return r;
 }
 
 lvVec8f lv_vec8f_sub(lvVec8f a, lvVec8f b) {
     lvVec8f r;
-    for (int i = 0; i < 8; i++) r.v[i] = a.v[i] - b.v[i];
+    for (int i = 0; i < 8; i++)
+        r.v[i] = a.v[i] - b.v[i];
     g_simd_stats.vec8_ops++;
     return r;
 }
 
 lvVec8f lv_vec8f_mul(lvVec8f a, lvVec8f b) {
     lvVec8f r;
-    for (int i = 0; i < 8; i++) r.v[i] = a.v[i] * b.v[i];
+    for (int i = 0; i < 8; i++)
+        r.v[i] = a.v[i] * b.v[i];
     g_simd_stats.vec8_ops++;
     return r;
 }
 
 lvVec8f lv_vec8f_div(lvVec8f a, lvVec8f b) {
     lvVec8f r;
-    for (int i = 0; i < 8; i++) r.v[i] = a.v[i] / b.v[i];
+    for (int i = 0; i < 8; i++)
+        r.v[i] = a.v[i] / b.v[i];
     g_simd_stats.vec8_ops++;
     return r;
 }
 
 static float lv_vec8f_hsum(lvVec8f a) {
     float sum = 0.0f;
-    for (int i = 0; i < 8; i++) sum += a.v[i];
+    for (int i = 0; i < 8; i++)
+        sum += a.v[i];
     return sum;
 }
 
@@ -602,8 +629,7 @@ static void lv_simd_mul_array_d(const double *a, const double *b, double *out, s
     }
 }
 
-static void lv_simd_fmadd_array_d(const double *a, const double *b, const double *c,
-                              double *out, size_t count) {
+static void lv_simd_fmadd_array_d(const double *a, const double *b, const double *c, double *out, size_t count) {
     g_simd_stats.array_ops++;
     g_simd_stats.elements_processed += count;
 
@@ -685,7 +711,8 @@ static void lv_simd_scale_array_d(const double *in, double scale, double *out, s
 }
 
 static double lv_simd_max_array_d(const double *arr, size_t count) {
-    if (count == 0) return 0.0;
+    if (count == 0)
+        return 0.0;
 
     g_simd_stats.array_ops++;
     g_simd_stats.elements_processed += count;
@@ -699,14 +726,16 @@ static double lv_simd_max_array_d(const double *arr, size_t count) {
     }
 
     for (; i < count; i++) {
-        if (arr[i] > max_val) max_val = arr[i];
+        if (arr[i] > max_val)
+            max_val = arr[i];
     }
 
     return max_val;
 }
 
 static double lv_simd_min_array_d(const double *arr, size_t count) {
-    if (count == 0) return 0.0;
+    if (count == 0)
+        return 0.0;
 
     g_simd_stats.array_ops++;
     g_simd_stats.elements_processed += count;
@@ -720,7 +749,8 @@ static double lv_simd_min_array_d(const double *arr, size_t count) {
     }
 
     for (; i < count; i++) {
-        if (arr[i] < min_val) min_val = arr[i];
+        if (arr[i] < min_val)
+            min_val = arr[i];
     }
 
     return min_val;
@@ -728,9 +758,8 @@ static double lv_simd_min_array_d(const double *arr, size_t count) {
 
 /* ============== 几何运算加速 ============== */
 
-static void lv_simd_distance_array(const double *x1, const double *y1,
-                               const double *x2, const double *y2,
-                               double *out, size_t count) {
+static void lv_simd_distance_array(const double *x1, const double *y1, const double *x2, const double *y2, double *out,
+                                   size_t count) {
     g_simd_stats.array_ops++;
     g_simd_stats.elements_processed += count;
 
@@ -741,10 +770,8 @@ static void lv_simd_distance_array(const double *x1, const double *y1,
     }
 }
 
-static void lv_simd_point_line_distance_array(const double *px, const double *py,
-                                          double x1, double y1,
-                                          double x2, double y2,
-                                          double *out, size_t count) {
+static void lv_simd_point_line_distance_array(const double *px, const double *py, double x1, double y1, double x2,
+                                              double y2, double *out, size_t count) {
     g_simd_stats.array_ops++;
     g_simd_stats.elements_processed += count;
 
@@ -763,7 +790,7 @@ static void lv_simd_point_line_distance_array(const double *px, const double *py
     }
 
     double len = sqrt(len_sq);
-    double nx = -dy / len;  /* 法向量 */
+    double nx = -dy / len; /* 法向量 */
     double ny = dx / len;
 
     for (size_t i = 0; i < count; i++) {
@@ -773,9 +800,8 @@ static void lv_simd_point_line_distance_array(const double *px, const double *py
     }
 }
 
-static void lv_simd_cross2d_array(const double *ax, const double *ay,
-                              const double *bx, const double *by,
-                              double *out, size_t count) {
+static void lv_simd_cross2d_array(const double *ax, const double *ay, const double *bx, const double *by, double *out,
+                                  size_t count) {
     g_simd_stats.array_ops++;
     g_simd_stats.elements_processed += count;
 
@@ -799,9 +825,8 @@ static void lv_simd_cross2d_array(const double *ax, const double *ay,
     }
 }
 
-static void lv_simd_point_in_circle_array(const double *px, const double *py,
-                                      double cx, double cy, double r,
-                                      int *out, size_t count) {
+static void lv_simd_point_in_circle_array(const double *px, const double *py, double cx, double cy, double r, int *out,
+                                          size_t count) {
     g_simd_stats.array_ops++;
     g_simd_stats.elements_processed += count;
 
@@ -829,10 +854,7 @@ lvVec4d lv_simd_mat4x4_vec4_mul(const double mat[16], lvVec4d vec) {
     return result;
 }
 
-static void lv_simd_mat4x4_vec4_array_mul(const double mat[16],
-                                      const double *vecs,
-                                      double *out,
-                                      size_t count) {
+static void lv_simd_mat4x4_vec4_array_mul(const double mat[16], const double *vecs, double *out, size_t count) {
     g_simd_stats.array_ops++;
     g_simd_stats.elements_processed += count;
 
@@ -843,9 +865,7 @@ static void lv_simd_mat4x4_vec4_array_mul(const double mat[16],
     }
 }
 
-static void lv_simd_mat3x3_vec2_mul(const double mat[9],
-                                double x, double y,
-                                double *out_x, double *out_y) {
+static void lv_simd_mat3x3_vec2_mul(const double mat[9], double x, double y, double *out_x, double *out_y) {
     /* 齐次坐标变换 */
     double w = mat[6] * x + mat[7] * y + mat[8];
     /* 除零保护：w 接近零时回退到仿射变换（取 w=1） */

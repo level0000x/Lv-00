@@ -14,6 +14,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include "lv_api_spec.h"
 
 #ifdef __cplusplus
@@ -25,8 +26,8 @@ extern "C" {
  * ============================================================ */
 
 typedef enum {
-    lv_MSG_UP = 0,     /**< 低层→高层（结果报告/事件通知） */
-    lv_MSG_DOWN = 1,   /**< 高层→低层（指令下发/配置注入） */
+    lv_MSG_UP = 0,   /**< 低层→高层（结果报告/事件通知） */
+    lv_MSG_DOWN = 1, /**< 高层→低层（指令下发/配置注入） */
 } lvMsgDirection;
 
 /* ============================================================
@@ -117,27 +118,27 @@ typedef enum {
 
 typedef struct {
     /* ---- 路由信息 ---- */
-    lvMsgType      type;
+    lvMsgType type;
     lvMsgDirection direction;
-    int              sender_layer;
-    int              target_layer;
-    uint32_t         msg_id;          /**< 单调递增消息 ID */
-    uint32_t         reply_to;        /**< 回复哪个 msg_id（0 = 新消息） */
+    int sender_layer;
+    int target_layer;
+    uint32_t msg_id;   /**< 单调递增消息 ID */
+    uint32_t reply_to; /**< 回复哪个 msg_id（0 = 新消息） */
 
     /* ---- 元数据 ---- */
-    char name[lv_MSG_NAME_LEN];     /**< 人类可读消息名（调试用） */
+    char name[lv_MSG_NAME_LEN];        /**< 人类可读消息名（调试用） */
     char description[lv_MSG_DESC_LEN]; /**< 消息描述 */
 
     /* ---- 载荷 ---- */
-    void            *payload;          /**< 类型化载荷（由 type 决定类型） */
-    size_t           payload_size;     /**< 载荷字节数（0 表示无效） */
+    void *payload;       /**< 类型化载荷（由 type 决定类型） */
+    size_t payload_size; /**< 载荷字节数（0 表示无效） */
 
     /* ---- JSON 缓冲（可选，用于序列化场景） ---- */
     char json_buf[lv_MSG_JSON_LEN];
 
     /* ---- 错误信息 ---- */
-    int error_code;                    /**< 0 = 成功，非零参考 lvErrorCode */
-    char error_ctx[256];              /**< 错误上下文描述 */
+    int error_code;      /**< 0 = 成功，非零参考 lvErrorCode */
+    char error_ctx[256]; /**< 错误上下文描述 */
 } lvLayerMessage;
 
 /* ============================================================
@@ -152,8 +153,7 @@ typedef struct {
  * @param target  目标层号
  * @return 堆分配的消息，失败返回 NULL
  */
-lv_API lvLayerMessage *lv_msg_create(lvMsgType type, lvMsgDirection dir,
-                                  int sender, int target);
+lv_API lvLayerMessage *lv_msg_create(lvMsgType type, lvMsgDirection dir, int sender, int target);
 
 /**
  * @brief 销毁消息并释放 payload（如果 payload 非空）

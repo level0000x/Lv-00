@@ -11,15 +11,17 @@
  * @param out 输出整数
  * @return 成功返回 0，失败返回 -1
  */
-static inline int lv_parse_int(const char *str, int *out)
-{
-    if (!str || !*str || !out) return -1;
+static inline int lv_parse_int(const char *str, int *out) {
+    if (!str || !*str || !out)
+        return -1;
     char *end = NULL;
     errno = 0;
     long val = strtol(str, &end, 10);
-    if (errno != 0 || end == str || *end != '\0') return -1;
-    if (val > INT_MAX || val < INT_MIN) return -1;
-    *out = (int)val;
+    if (errno != 0 || end == str || *end != '\0')
+        return -1;
+    if (val > INT_MAX || val < INT_MIN)
+        return -1;
+    *out = (int) val;
     return 0;
 }
 
@@ -29,13 +31,14 @@ static inline int lv_parse_int(const char *str, int *out)
  * @param out 输出双精度浮点数
  * @return 成功返回 0，失败返回 -1
  */
-static inline int lv_parse_double(const char *str, double *out)
-{
-    if (!str || !*str || !out) return -1;
+static inline int lv_parse_double(const char *str, double *out) {
+    if (!str || !*str || !out)
+        return -1;
     char *end = NULL;
     errno = 0;
     double val = strtod(str, &end);
-    if (errno != 0 || end == str) return -1;
+    if (errno != 0 || end == str)
+        return -1;
     *out = val;
     return 0;
 }
@@ -46,10 +49,10 @@ static inline int lv_parse_double(const char *str, double *out)
  * @param default_value 解析失败时返回的默认值
  * @return 解析后的整数，或默认值
  */
-static inline int lv_parse_int_default(const char *str, int default_value)
-{
+static inline int lv_parse_int_default(const char *str, int default_value) {
     int result = 0;
-    if (lv_parse_int(str, &result) != 0) return default_value;
+    if (lv_parse_int(str, &result) != 0)
+        return default_value;
     return result;
 }
 

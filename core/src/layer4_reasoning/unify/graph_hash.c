@@ -15,13 +15,14 @@
  */
 
 #include "lv/graph_hash.h"
-#include "lv/lv_utils.h"
-#include "lv/lv_internal.h"     /* FNV 常量：lv_FNV64_OFFSET_BASIS, lv_FNV64_PRIME */
-#include "lv/symbolic_coord.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "lv/lv_internal.h" /* FNV 常量：lv_FNV64_OFFSET_BASIS, lv_FNV64_PRIME */
+#include "lv/lv_utils.h"
+#include "lv/symbolic_coord.h"
 
 /* ==================== 局部常量 ==================== */
 
@@ -45,7 +46,7 @@
 static uint64_t fnv1a_hash(const char *s) {
     uint64_t hash = lv_FNV64_OFFSET_BASIS;
     while (s && *s) {
-        hash ^= (uint8_t)(*s);
+        hash ^= (uint8_t) (*s);
         hash *= lv_FNV64_PRIME;
         s++;
     }
@@ -55,18 +56,20 @@ static uint64_t fnv1a_hash(const char *s) {
 /* ==================== 公共 API 实现 ==================== */
 
 GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
-    if (!graph) return NULL;
+    if (!graph)
+        return NULL;
 
-    GraphHash *gh = (GraphHash *)lv_calloc(1, sizeof(GraphHash));
-    if (!gh) return NULL;
+    GraphHash *gh = (GraphHash *) lv_calloc(1, sizeof(GraphHash));
+    if (!gh)
+        return NULL;
 
     gh->node_count = graph->node_count;
 
     /* 分配节点哈希数组 */
     if (graph->node_count > 0) {
-        gh->node_hashes = (uint64_t *)lv_calloc((size_t)graph->node_count, sizeof(uint64_t));
+        gh->node_hashes = (uint64_t *) lv_calloc((size_t) graph->node_count, sizeof(uint64_t));
         if (!gh->node_hashes) {
-            lv_free((void **)&gh);
+            lv_free((void **) &gh);
             return NULL;
         }
     } else {
@@ -78,13 +81,13 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
         GeomNode *node = graph->nodes[i];
 
         /* 构造基础描述 "id:type" */
-        char *desc = (char *)lv_malloc(GRAPH_HASH_DESC_BUF);
+        char *desc = (char *) lv_malloc(GRAPH_HASH_DESC_BUF);
         if (!desc) {
-            desc = (char *)lv_malloc(1);
-            if (desc) desc[0] = '\0';
+            desc = (char *) lv_malloc(1);
+            if (desc)
+                desc[0] = '\0';
         } else {
-            snprintf(desc, GRAPH_HASH_DESC_BUF, "%d:%d",
-                     node->id, (int)node->type);
+            snprintf(desc, GRAPH_HASH_DESC_BUF, "%d:%d", node->id, (int) node->type);
         }
 
         /* 对于 POINT 类型，拼接符号坐标序列化 */
@@ -96,22 +99,21 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
 
                 /* 检查溢出 */
                 if (desc_len > SIZE_MAX - coord_len - 2) {
-                    lv_free((void **)&coord_str);
+                    lv_free((void **) &coord_str);
                 } else {
-                    char *new_desc = (char *)lv_malloc(desc_len + coord_len + 2);
+                    char *new_desc = (char *) lv_malloc(desc_len + coord_len + 2);
                     if (new_desc) {
-                        snprintf(new_desc, desc_len + coord_len + 2, "%s:%s",
-                                 desc, coord_str);
-                        lv_free((void **)&desc);
+                        snprintf(new_desc, desc_len + coord_len + 2, "%s:%s", desc, coord_str);
+                        lv_free((void **) &desc);
                         desc = new_desc;
                     }
-                    lv_free((void **)&coord_str);
+                    lv_free((void **) &coord_str);
                 }
             }
         }
 
         gh->node_hashes[i] = fnv1a_hash(desc);
-        lv_free((void **)&desc);
+        lv_free((void **) &desc);
     }
 
     /* 合并节点哈希为整体哈希（XOR-and-MULTIPLY 组合） */
@@ -125,8 +127,7 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         char desc[GRAPH_HASH_CONSTRAINT_DESC];
-        snprintf(desc, GRAPH_HASH_CONSTRAINT_DESC, "C:%d:%d",
-                 c->id, (int)c->type);
+        snprintf(desc, GRAPH_HASH_CONSTRAINT_DESC, "C:%d:%d", c->id, (int) c->type);
         uint64_t chash = fnv1a_hash(desc);
         gh->hash ^= chash;
         gh->hash *= lv_FNV64_PRIME;
@@ -136,20 +137,24 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
 }
 
 bool graph_hash_equal(const GraphHash *a, const GraphHash *b) {
-    if (!a || !b) return false;
-    if (a->hash != b->hash) return false;
-    if (a->node_count != b->node_count) return false;
+    if (!a || !b)
+        return false;
+    if (a->hash != b->hash)
+        return false;
+    if (a->node_count != b->node_count)
+        return false;
 
     for (int i = 0; i < a->node_count; i++) {
-        if (a->node_hashes[i] != b->node_hashes[i]) return false;
+        if (a->node_hashes[i] != b->node_hashes[i])
+            return false;
     }
     return true;
 }
 
 void graph_hash_destroy(GraphHash *hash) {
     if (hash) {
-        lv_free((void **)&hash->node_hashes);
-        lv_free((void **)&hash);
+        lv_free((void **) &hash->node_hashes);
+        lv_free((void **) &hash);
     }
 }
 
@@ -164,22 +169,24 @@ void graph_hash_destroy(GraphHash *hash) {
  * @return uint64_t 图哈希值，输入为 NULL 时返回 0
  */
 uint64_t compute_quick_graph_hash(const ConstraintGraph *graph) {
-    if (!graph) return 0;
+    if (!graph)
+        return 0;
 
     uint64_t hash = lv_FNV64_OFFSET_BASIS;
 
     /* 混入节点数量 */
-    hash ^= (uint64_t)graph->node_count;
+    hash ^= (uint64_t) graph->node_count;
     hash *= lv_FNV64_PRIME;
 
     /* 逐节点混入 id 和 type */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node) continue;
+        if (!node)
+            continue;
 
-        hash ^= (uint64_t)node->id;
+        hash ^= (uint64_t) node->id;
         hash *= lv_FNV64_PRIME;
-        hash ^= (uint64_t)node->type;
+        hash ^= (uint64_t) node->type;
         hash *= lv_FNV64_PRIME;
 
         /* 对于 POINT 节点，混入坐标哈希 */
@@ -189,23 +196,24 @@ uint64_t compute_quick_graph_hash(const ConstraintGraph *graph) {
                 uint64_t ch = fnv1a_hash(coord_str);
                 hash ^= ch;
                 hash *= lv_FNV64_PRIME;
-                lv_free((void **)&coord_str);
+                lv_free((void **) &coord_str);
             }
         }
     }
 
     /* 混入约束数量 */
-    hash ^= (uint64_t)graph->constraint_count;
+    hash ^= (uint64_t) graph->constraint_count;
     hash *= lv_FNV64_PRIME;
 
     /* 逐约束混入 id 和 type */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c) continue;
+        if (!c)
+            continue;
 
-        hash ^= (uint64_t)c->id;
+        hash ^= (uint64_t) c->id;
         hash *= lv_FNV64_PRIME;
-        hash ^= (uint64_t)c->type;
+        hash ^= (uint64_t) c->type;
         hash *= lv_FNV64_PRIME;
     }
 

@@ -201,10 +201,10 @@ struct MeasureSystem {
 
 /* ============== 选择器块分支状态 ============== */
 typedef enum {
-    BRANCH_INACTIVE, /* 不活跃（灰色虚影） */
-    BRANCH_ACTIVE_SELECTED,   /* 活跃（实线） */
-    BRANCH_PENDING,  /* 待定（半透明） */
-    BRANCH_SHADOWED  /* 虚影状态（被遮蔽的分支） */
+    BRANCH_INACTIVE,        /* 不活跃（灰色虚影） */
+    BRANCH_ACTIVE_SELECTED, /* 活跃（实线） */
+    BRANCH_PENDING,         /* 待定（半透明） */
+    BRANCH_SHADOWED         /* 虚影状态（被遮蔽的分支） */
 } BranchState;
 
 /* 向后兼容别名 */
@@ -384,7 +384,8 @@ lv_PUBLIC_API MeasureCompareResult measure_compare(Measure *m, SymbolicCoord *a,
 /**
  * 比较两个节点的测度
  */
-lv_PUBLIC_API MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b, const ConstraintGraph *graph);
+lv_PUBLIC_API MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b,
+                                                         const ConstraintGraph *graph);
 
 /* ============== 递归上下文API ============== */
 
@@ -406,8 +407,8 @@ lv_PUBLIC_API void recursion_context_set_measure(RecursionContext *ctx, Measure 
 /**
  * 进入递归调用
  */
-lv_PUBLIC_API RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_block_id, const GeomNode *input,
-                                             ConstraintGraph *graph);
+lv_PUBLIC_API RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_block_id,
+                                                           const GeomNode *input, ConstraintGraph *graph);
 
 /**
  * 退出递归调用
@@ -418,7 +419,8 @@ lv_PUBLIC_API void recursion_context_exit(RecursionContext *ctx);
  * 检查测度递减性（修改1：验证整条调用链的单调递减）
  * 遍历整个 measure_values 数组，验证严格单调递减
  */
-lv_PUBLIC_API RecursionCheckResult recursion_context_check_decreasing(const RecursionContext *ctx, SymbolicCoord *new_value);
+lv_PUBLIC_API RecursionCheckResult recursion_context_check_decreasing(const RecursionContext *ctx,
+                                                                      SymbolicCoord *new_value);
 
 /**
  * 获取当前深度
@@ -436,7 +438,8 @@ lv_PUBLIC_API void recursion_context_reset(RecursionContext *ctx);
  * @param callback 回调函数
  * @param user_data 用户数据
  */
-lv_PUBLIC_API void recursion_context_set_depth_callback(RecursionContext *ctx, RecursionDepthCallback callback, void *user_data);
+lv_PUBLIC_API void recursion_context_set_depth_callback(RecursionContext *ctx, RecursionDepthCallback callback,
+                                                        void *user_data);
 
 /* ============== 全局递归深度保护（熔断器） ============== */
 
@@ -524,7 +527,8 @@ lv_PUBLIC_API bool selector_block_set_branches(SelectorBlock *sb, int true_root,
  * @param false_ids 假分支子图的节点ID数组
  * @param false_count 假分支节点数量
  */
-lv_PUBLIC_API void selector_block_set_branch_nodes(SelectorBlock *sb, int *true_ids, int true_count, int *false_ids, int false_count);
+lv_PUBLIC_API void selector_block_set_branch_nodes(SelectorBlock *sb, int *true_ids, int true_count, int *false_ids,
+                                                   int false_count);
 
 /**
  * 获取指定分支的节点列表（修改3）
@@ -560,7 +564,7 @@ lv_PUBLIC_API void selector_block_update_states(SelectorBlock *sb, BranchState t
  * @return RECURSION_CHECK_RESULT_OK 严格递减，RECURSION_CHECK_RESULT_NOT_DECREASING 未递减，RECURSION_CHECK_RESULT_ERROR 出错
  */
 lv_PUBLIC_API RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, const Measure *measure,
-                                                const ConstraintGraph *graph, int node_id);
+                                                              const ConstraintGraph *graph, int node_id);
 
 /**
  * 统计选择器块各分支的节点数量
@@ -609,8 +613,8 @@ lv_PUBLIC_API bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a,
  * @param is_well_founded 是否为良基关系
  * @return 注册是否成功
  */
-lv_PUBLIC_API bool measure_system_register_non_symbolic(MeasureSystem *ms, int measure_type_id, NonSymbolicComparator comparator,
-                                          bool is_well_founded);
+lv_PUBLIC_API bool measure_system_register_non_symbolic(MeasureSystem *ms, int measure_type_id,
+                                                        NonSymbolicComparator comparator, bool is_well_founded);
 
 /**
  * 验证所有已注册的非符号测度
@@ -632,9 +636,10 @@ lv_PUBLIC_API bool measure_system_validate_non_symbolic(MeasureSystem *ms);
  * @param comparator 非符号测度比较器（由公理包提供）
  * @return RECURSION_CHECK_RESULT_OK 递减，RECURSION_CHECK_RESULT_NOT_DECREASING 未递减，RECURSION_CHECK_RESULT_MEASURE_UNKNOWN 未知
  */
-lv_PUBLIC_API RecursionCheckResult recursion_validate_non_symbolic_measure(const Measure *measure, SymbolicCoord *before_value,
-                                                             SymbolicCoord *after_value,
-                                                             NonSymbolicComparator comparator);
+lv_PUBLIC_API RecursionCheckResult recursion_validate_non_symbolic_measure(const Measure *measure,
+                                                                           SymbolicCoord *before_value,
+                                                                           SymbolicCoord *after_value,
+                                                                           NonSymbolicComparator comparator);
 
 /* ============== 递归内置测试结果 ============== */
 
@@ -669,8 +674,9 @@ typedef struct {
  * @param results 测试结果输出数组（由调用者分配，至少 test_count 个元素）
  * @return 是否全部通过
  */
-lv_PUBLIC_API bool recursion_run_measure_tests(const Measure *measure, int test_count, SymbolicCoord ***test_before_values,
-                                 SymbolicCoord ***test_after_values, MeasureTestResult *results);
+lv_PUBLIC_API bool recursion_run_measure_tests(const Measure *measure, int test_count,
+                                               SymbolicCoord ***test_before_values, SymbolicCoord ***test_after_values,
+                                               MeasureTestResult *results);
 
 /* ============== 辅助函数 ============== */
 
@@ -720,8 +726,8 @@ lv_PUBLIC_API int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestR
  * @param axiom_pkg AxiomPackage指针（不透明指针，避免循环包含）
  * @return 0 成功，-1 测度未找到或非非符号测度
  */
-lv_PUBLIC_API int recursion_validate_non_symbolic_with_axiom(MeasureSystem *sys, int measure_id, const char *axiom_template_name,
-                                               void *axiom_pkg);
+lv_PUBLIC_API int recursion_validate_non_symbolic_with_axiom(MeasureSystem *sys, int measure_id,
+                                                             const char *axiom_template_name, void *axiom_pkg);
 
 /**
  * @brief 获取与非符号测度关联的公理模板名称

@@ -13,11 +13,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv/proof.h"
-#include "lv/engine.h"
+
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
+#include "lv/engine.h"
+#include "lv/proof.h"
 #include "lv/solver.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -35,20 +37,49 @@ lv_DECLARE_STREAM_CTX(proof);
  * @return 写入 dst 的字符数（不含终止符）
  */
 static int json_escape(char *dst, size_t dst_size, const char *src) {
-    if (!dst || dst_size == 0) return 0;
-    if (!src) { dst[0] = '\0'; return 0; }
+    if (!dst || dst_size == 0)
+        return 0;
+    if (!src) {
+        dst[0] = '\0';
+        return 0;
+    }
     size_t j = 0;
     for (size_t i = 0; src[i] && j < dst_size - 2; i++) {
         switch (src[i]) {
-            case '"':  if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = '"'; } break;
-            case '\\': if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = '\\'; } break;
-            case '\n': if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = 'n'; } break;
-            case '\r': if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = 'r'; } break;
-            case '\t': if (j + 2 < dst_size) { dst[j++] = '\\'; dst[j++] = 't'; } break;
+            case '"':
+                if (j + 2 < dst_size) {
+                    dst[j++] = '\\';
+                    dst[j++] = '"';
+                }
+                break;
+            case '\\':
+                if (j + 2 < dst_size) {
+                    dst[j++] = '\\';
+                    dst[j++] = '\\';
+                }
+                break;
+            case '\n':
+                if (j + 2 < dst_size) {
+                    dst[j++] = '\\';
+                    dst[j++] = 'n';
+                }
+                break;
+            case '\r':
+                if (j + 2 < dst_size) {
+                    dst[j++] = '\\';
+                    dst[j++] = 'r';
+                }
+                break;
+            case '\t':
+                if (j + 2 < dst_size) {
+                    dst[j++] = '\\';
+                    dst[j++] = 't';
+                }
+                break;
             default:
-                if ((unsigned char)src[i] < 0x20) {
+                if ((unsigned char) src[i] < 0x20) {
                     if (j + 6 < dst_size)
-                        j += (size_t)snprintf(dst + j, dst_size - j, "\\u%04x", (unsigned char)src[i]);
+                        j += (size_t) snprintf(dst + j, dst_size - j, "\\u%04x", (unsigned char) src[i]);
                 } else {
                     dst[j++] = src[i];
                 }
@@ -56,7 +87,7 @@ static int json_escape(char *dst, size_t dst_size, const char *src) {
         }
     }
     dst[j] = '\0';
-    return (int)j;
+    return (int) j;
 }
 
 /**
@@ -68,8 +99,7 @@ static int json_escape(char *dst, size_t dst_size, const char *src) {
  * @param map_size 映射数组大小
  * @return 深拷贝后的命题，调用者负责释放；失败返回 NULL
  */
-static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
-                                                       const int *id_map, int map_size) {
+static Proposition *instantiate_prop_with_port_remap(const Proposition *prop, const int *id_map, int map_size) {
     if (!prop)
         return NULL;
 
@@ -128,8 +158,7 @@ static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
 
     /* 替换后置条件约束 ID */
     if (prop->postcondition_constraint_ids && prop->postcondition_count > 0) {
-        inst->postcondition_constraint_ids = lv_malloc(
-            (size_t) prop->postcondition_count * sizeof(int));
+        inst->postcondition_constraint_ids = lv_malloc((size_t) prop->postcondition_count * sizeof(int));
         if (inst->postcondition_constraint_ids) {
             inst->postcondition_count = prop->postcondition_count;
             for (int j = 0; j < prop->postcondition_count; j++) {

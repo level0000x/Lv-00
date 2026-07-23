@@ -57,8 +57,7 @@ lvConvertResult lv_convert_to_text(lvRepresentationConverter *conv, void *block)
 lvConvertResult lv_convert_from_text(lvRepresentationConverter *conv, const char *code);
 
 /* Roundtrip verification */
-int lv_converter_verify_roundtrip(lvRepresentationConverter *conv,
-                                     void *original, lvViewType type);
+int lv_converter_verify_roundtrip(lvRepresentationConverter *conv, void *original, lvViewType type);
 
 /* Direct conversion functions (legacy API) */
 lvConvertResult lv_convert_block_to_text(void *block);

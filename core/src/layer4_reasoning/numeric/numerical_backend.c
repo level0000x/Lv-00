@@ -31,8 +31,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "error_codes.h"
 #include "lv/config.h"
+
+#include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -63,13 +64,11 @@ static void serial_vector_zero(lvVector *v);
 static void serial_vector_const_set(lvVector *v, double c);
 static void serial_vector_copy(lvVector *dst, const lvVector *src);
 static void serial_vector_scale(lvVector *v, double c);
-static void serial_vector_linear_sum(double a, const lvVector *x, double b,
-                                     const lvVector *y, lvVector *z);
+static void serial_vector_linear_sum(double a, const lvVector *x, double b, const lvVector *y, lvVector *z);
 static double serial_vector_dot(const lvVector *x, const lvVector *y);
 static double serial_vector_norm(const lvVector *v);
 static double serial_vector_max_norm(const lvVector *v);
-static double serial_vector_wrms_norm(const lvVector *v,
-                                      const lvVector *weights);
+static double serial_vector_wrms_norm(const lvVector *v, const lvVector *weights);
 static void serial_vector_abs(lvVector *v);
 static void serial_vector_inv(lvVector *v, const lvVector *d);
 static void serial_vector_compare(lvVector *v, double c);
@@ -80,29 +79,21 @@ static lvMatrix *serial_matrix_clone(const lvMatrix *A);
 static void serial_matrix_destroy(lvMatrix *A);
 static void serial_matrix_zero(lvMatrix *A);
 static void serial_matrix_copy(lvMatrix *dst, const lvMatrix *src);
-static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x,
-                                lvVector *y);
+static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *y);
 static void serial_matrix_scale(lvMatrix *A, double c);
-static void serial_matrix_set_element(lvMatrix *A, int64_t row, int64_t col,
-                                      double val);
-static double serial_matrix_get_element(const lvMatrix *A, int64_t row,
-                                        int64_t col);
+static void serial_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val);
+static double serial_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col);
 static int serial_matrix_factor(lvMatrix *A);
-static int serial_matrix_solve(const lvMatrix *A, const lvVector *b,
-                               lvVector *x);
+static int serial_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x);
 
 static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A);
-static int serial_linsol_solve(lvLinearSolver *LS, const lvMatrix *A,
-                               const lvVector *b, lvVector *x);
+static int serial_linsol_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static void serial_linsol_destroy(lvLinearSolver *LS);
 
 /* 迭代法接口声明（当前为占位实现，完整实现需引入迭代求解算法） */
-static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
-                                 const lvVector *b, lvVector *x);
-static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
-                                    const lvVector *b, lvVector *x);
-static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A,
-                              const lvVector *b, lvVector *x);
+static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 
 /* ========================================================================
  * 静态操作表（SERIAL 后端）
@@ -110,36 +101,17 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A,
 
 /** @brief SERIAL 向量操作表 */
 static const lvVectorOps serial_vector_ops = {
-    serial_vector_clone,
-    serial_vector_destroy,
-    serial_vector_zero,
-    serial_vector_const_set,
-    serial_vector_copy,
-    serial_vector_scale,
-    serial_vector_linear_sum,
-    serial_vector_dot,
-    serial_vector_norm,
-    serial_vector_max_norm,
-    serial_vector_wrms_norm,
-    serial_vector_abs,
-    serial_vector_inv,
-    serial_vector_compare,
-    serial_vector_length,
-    serial_vector_data_ptr,
+    serial_vector_clone, serial_vector_destroy,  serial_vector_zero,       serial_vector_const_set,
+    serial_vector_copy,  serial_vector_scale,    serial_vector_linear_sum, serial_vector_dot,
+    serial_vector_norm,  serial_vector_max_norm, serial_vector_wrms_norm,  serial_vector_abs,
+    serial_vector_inv,   serial_vector_compare,  serial_vector_length,     serial_vector_data_ptr,
 };
 
 /** @brief SERIAL 稠密矩阵操作表 */
 static const lvMatrixOps serial_dense_matrix_ops = {
-    serial_matrix_clone,
-    serial_matrix_destroy,
-    serial_matrix_zero,
-    serial_matrix_copy,
-    serial_matrix_matvec,
-    serial_matrix_scale,
-    serial_matrix_set_element,
-    serial_matrix_get_element,
-    serial_matrix_factor,
-    serial_matrix_solve,
+    serial_matrix_clone,  serial_matrix_destroy, serial_matrix_zero,        serial_matrix_copy,
+    serial_matrix_matvec, serial_matrix_scale,   serial_matrix_set_element, serial_matrix_get_element,
+    serial_matrix_factor, serial_matrix_solve,
 };
 
 /** @brief SERIAL 稠密 LU 求解器操作表 */
@@ -261,15 +233,16 @@ static void serial_vector_scale(lvVector *v, double c) {
 /**
  * @brief 线性组合：z = a*x + b*y
  */
-static void serial_vector_linear_sum(double a, const lvVector *x, double b,
-                                     const lvVector *y, lvVector *z) {
+static void serial_vector_linear_sum(double a, const lvVector *x, double b, const lvVector *y, lvVector *z) {
     if (!x || !y || !z || !x->data || !y->data || !z->data) {
         return;
     }
     int64_t n = x->length;
     /* 使用最短的向量长度避免越界 */
-    if (y->length < n) n = y->length;
-    if (z->length < n) n = z->length;
+    if (y->length < n)
+        n = y->length;
+    if (z->length < n)
+        n = z->length;
     for (int64_t i = 0; i < n; ++i) {
         z->data[i] = a * x->data[i] + b * y->data[i];
     }
@@ -284,7 +257,8 @@ static double serial_vector_dot(const lvVector *x, const lvVector *y) {
     }
     double sum = 0.0;
     int64_t n = x->length;
-    if (y->length < n) n = y->length;
+    if (y->length < n)
+        n = y->length;
     for (int64_t i = 0; i < n; ++i) {
         sum += x->data[i] * y->data[i];
     }
@@ -327,14 +301,14 @@ static double serial_vector_max_norm(const lvVector *v) {
  *
  * WRMS-norm = sqrt( (1/n) * sum_i (v_i * w_i)^2 )
  */
-static double serial_vector_wrms_norm(const lvVector *v,
-                                      const lvVector *weights) {
+static double serial_vector_wrms_norm(const lvVector *v, const lvVector *weights) {
     if (!v || !weights || !v->data || !weights->data || v->length == 0) {
         return 0.0;
     }
     double sum_sq = 0.0;
     int64_t n = v->length;
-    if (weights->length < n) n = weights->length;
+    if (weights->length < n)
+        n = weights->length;
     for (int64_t i = 0; i < n; ++i) {
         double wv = v->data[i] * weights->data[i];
         sum_sq += wv * wv;
@@ -434,8 +408,7 @@ static lvMatrix *serial_matrix_clone(const lvMatrix *A) {
     clone->data = lv_malloc(data_size);
     if (!clone->data) {
         lv_free((void **) &clone);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "矩阵数据分配失败 %lldx%lld",
-                       (long long) rows, (long long) cols);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "矩阵数据分配失败 %lldx%lld", (long long) rows, (long long) cols);
         return NULL;
     }
     if (A->data) {
@@ -488,8 +461,7 @@ static void serial_matrix_copy(lvMatrix *dst, const lvMatrix *src) {
  *
  * 对于行 i，y[i] = sum_j A[j * rows + i] * x[j]
  */
-static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x,
-                                lvVector *y) {
+static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *y) {
     lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(x, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(y, lv_BACKEND_MEM_ERROR);
@@ -498,10 +470,8 @@ static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x,
     lv_CHECK_NULL(y->data, lv_BACKEND_NOT_INITIALIZED);
 
     if (A->cols != x->length || A->rows != y->length) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
-                       "matvec 维度不匹配: A(%lldx%lld), x(%lld), y(%lld)",
-                       (long long) A->rows, (long long) A->cols,
-                       (long long) x->length, (long long) y->length);
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "matvec 维度不匹配: A(%lldx%lld), x(%lld), y(%lld)", (long long) A->rows,
+                     (long long) A->cols, (long long) x->length, (long long) y->length);
         return lv_BACKEND_INVALID_ARGS;
     }
 
@@ -543,10 +513,8 @@ static void serial_matrix_scale(lvMatrix *A, double c) {
 /**
  * @brief 设置单个元素值（列主序）
  */
-static void serial_matrix_set_element(lvMatrix *A, int64_t row, int64_t col,
-                                      double val) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows ||
-        col >= A->cols) {
+static void serial_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val) {
+    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) {
         return;
     }
     double *data = (double *) A->data;
@@ -556,10 +524,8 @@ static void serial_matrix_set_element(lvMatrix *A, int64_t row, int64_t col,
 /**
  * @brief 获取单个元素值（列主序）
  */
-static double serial_matrix_get_element(const lvMatrix *A, int64_t row,
-                                        int64_t col) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows ||
-        col >= A->cols) {
+static double serial_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col) {
+    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) {
         return 0.0;
     }
     double *data = (double *) A->data;
@@ -579,9 +545,8 @@ static int serial_matrix_factor(lvMatrix *A) {
     lv_CHECK_NULL(A->data, lv_BACKEND_NOT_INITIALIZED);
 
     if (A->rows != A->cols) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
-                       "LU分解要求方阵，当前为 %lldx%lld",
-                       (long long) A->rows, (long long) A->cols);
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "LU分解要求方阵，当前为 %lldx%lld", (long long) A->rows,
+                     (long long) A->cols);
         return lv_BACKEND_INVALID_ARGS;
     }
 
@@ -601,9 +566,7 @@ static int serial_matrix_factor(lvMatrix *A) {
         }
 
         if (pivot < lv_EPSILON_DOUBLE) {
-            lv_ERROR_SET(lv_BACKEND_LINSOL_FAILED,
-                           "LU分解遇到奇异矩阵，pivot≈0 at col=%lld",
-                           (long long) k);
+            lv_ERROR_SET(lv_BACKEND_LINSOL_FAILED, "LU分解遇到奇异矩阵，pivot≈0 at col=%lld", (long long) k);
             return lv_BACKEND_LINSOL_FAILED;
         }
 
@@ -635,8 +598,7 @@ static int serial_matrix_factor(lvMatrix *A) {
  *
  * 前代消去（利用 L）后再回代（利用 U）。
  */
-static int serial_matrix_solve(const lvMatrix *A, const lvVector *b,
-                               lvVector *x) {
+static int serial_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x) {
     lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(b, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(x, lv_BACKEND_MEM_ERROR);
@@ -645,9 +607,8 @@ static int serial_matrix_solve(const lvMatrix *A, const lvVector *b,
     lv_CHECK_NULL(x->data, lv_BACKEND_NOT_INITIALIZED);
 
     if (A->rows != A->cols) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
-                       "solve要求方阵，当前为 %lldx%lld",
-                       (long long) A->rows, (long long) A->cols);
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "solve要求方阵，当前为 %lldx%lld", (long long) A->rows,
+                     (long long) A->cols);
         return lv_BACKEND_INVALID_ARGS;
     }
 
@@ -688,7 +649,7 @@ static int serial_matrix_solve(const lvMatrix *A, const lvVector *b,
  */
 typedef struct DenseLUData {
     lvMatrix *clone; /**< 矩阵副本（用于保留分解结果） */
-    bool factored;     /**< 是否已完成分解 */
+    bool factored;   /**< 是否已完成分解 */
 } DenseLUData;
 
 /**
@@ -728,8 +689,7 @@ static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A) {
  *
  * 首次调用时自动执行 LU 分解。
  */
-static int serial_linsol_solve(lvLinearSolver *LS, const lvMatrix *A,
-                               const lvVector *b, lvVector *x) {
+static int serial_linsol_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x) {
     lv_CHECK_NULL(LS, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(b, lv_BACKEND_MEM_ERROR);
@@ -737,8 +697,7 @@ static int serial_linsol_solve(lvLinearSolver *LS, const lvMatrix *A,
 
     DenseLUData *lu = (DenseLUData *) LS->solver_data;
     if (!lu || !lu->clone) {
-        lv_ERROR_SET(lv_BACKEND_NOT_INITIALIZED,
-                       "线性求解器未初始化，请先调用 setup");
+        lv_ERROR_SET(lv_BACKEND_NOT_INITIALIZED, "线性求解器未初始化，请先调用 setup");
         return lv_BACKEND_NOT_INITIALIZED;
     }
 
@@ -795,13 +754,13 @@ static void serial_linsol_destroy(lvLinearSolver *LS) {
  * @brief 迭代求解器私有数据
  */
 typedef struct IterSolverData {
-    lvMatrix *clone;   /**< 矩阵副本 */
-    int max_iters;       /**< 最大迭代次数 */
-    double tol;          /**< 收敛容差 */
-    double *r;           /**< 残差向量 */
-    double *p;           /**< 方向向量 */
-    double *ap;          /**< A*p 向量 */
-    double *work;        /**< 通用工作向量 */
+    lvMatrix *clone; /**< 矩阵副本 */
+    int max_iters;   /**< 最大迭代次数 */
+    double tol;      /**< 收敛容差 */
+    double *r;       /**< 残差向量 */
+    double *p;       /**< 方向向量 */
+    double *ap;      /**< A*p 向量 */
+    double *work;    /**< 通用工作向量 */
 } IterSolverData;
 
 /**
@@ -830,10 +789,14 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
 
     if (!is->r || !is->p || !is->ap || !is->work) {
         /* 清理已分配资源 */
-        if (is->r) lv_free((void **) &is->r);
-        if (is->p) lv_free((void **) &is->p);
-        if (is->ap) lv_free((void **) &is->ap);
-        if (is->work) lv_free((void **) &is->work);
+        if (is->r)
+            lv_free((void **) &is->r);
+        if (is->p)
+            lv_free((void **) &is->p);
+        if (is->ap)
+            lv_free((void **) &is->ap);
+        if (is->work)
+            lv_free((void **) &is->work);
         is->clone->ops->destroy(is->clone);
         lv_free((void **) &is);
         lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "迭代求解器工作区分配失败");
@@ -843,11 +806,16 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
     /* 释放旧数据 */
     if (LS->solver_data) {
         IterSolverData *old = (IterSolverData *) LS->solver_data;
-        if (old->clone) old->clone->ops->destroy(old->clone);
-        if (old->r) lv_free((void **) &old->r);
-        if (old->p) lv_free((void **) &old->p);
-        if (old->ap) lv_free((void **) &old->ap);
-        if (old->work) lv_free((void **) &old->work);
+        if (old->clone)
+            old->clone->ops->destroy(old->clone);
+        if (old->r)
+            lv_free((void **) &old->r);
+        if (old->p)
+            lv_free((void **) &old->p);
+        if (old->ap)
+            lv_free((void **) &old->ap);
+        if (old->work)
+            lv_free((void **) &old->work);
         lv_free((void **) &LS->solver_data);
     }
     LS->solver_data = is;
@@ -861,8 +829,7 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
  * @details 使用 Modified Gram-Schmidt 正交化的 Arnoldi 过程构建上 Hessenberg 矩阵，
  *          通过 Givens 旋转求解最小二乘问题，每 m=30 步重启一次。
  */
-static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
-                                 const lvVector *b, lvVector *x) {
+static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x) {
     lv_CHECK_NULL(LS, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(b, lv_BACKEND_MEM_ERROR);
@@ -871,7 +838,8 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
     IterSolverData *is = (IterSolverData *) LS->solver_data;
     if (!is) {
         int ret = serial_iter_setup(LS, A);
-        if (ret != lv_BACKEND_OK) return ret;
+        if (ret != lv_BACKEND_OK)
+            return ret;
         is = (IterSolverData *) LS->solver_data;
     }
 
@@ -883,23 +851,29 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
 
     /* ---- 分配 GMRES 专用工作区 ---- */
     /* V: 正交基，(m+1) 列，每列 n 个元素 */
-    double *V = lv_calloc((size_t)(m + 1) * (size_t)n, sizeof(double));
+    double *V = lv_calloc((size_t) (m + 1) * (size_t) n, sizeof(double));
     /* H: 上 Hessenberg 矩阵，(m+1) x m，按列存储 */
-    double *H = lv_calloc((size_t)(m + 1) * (size_t)m, sizeof(double));
+    double *H = lv_calloc((size_t) (m + 1) * (size_t) m, sizeof(double));
     /* Givens 旋转参数 */
-    double *cs = lv_calloc((size_t)m, sizeof(double));
-    double *sn = lv_calloc((size_t)m, sizeof(double));
+    double *cs = lv_calloc((size_t) m, sizeof(double));
+    double *sn = lv_calloc((size_t) m, sizeof(double));
     /* 最小二乘右端项及解向量 */
-    double *rhs = lv_calloc((size_t)(m + 1), sizeof(double));
-    double *y   = lv_calloc((size_t)m, sizeof(double));
+    double *rhs = lv_calloc((size_t) (m + 1), sizeof(double));
+    double *y = lv_calloc((size_t) m, sizeof(double));
 
     if (!V || !H || !cs || !sn || !rhs || !y) {
-        if (V) lv_free((void **) &V);
-        if (H) lv_free((void **) &H);
-        if (cs) lv_free((void **) &cs);
-        if (sn) lv_free((void **) &sn);
-        if (rhs) lv_free((void **) &rhs);
-        if (y) lv_free((void **) &y);
+        if (V)
+            lv_free((void **) &V);
+        if (H)
+            lv_free((void **) &H);
+        if (cs)
+            lv_free((void **) &cs);
+        if (sn)
+            lv_free((void **) &sn);
+        if (rhs)
+            lv_free((void **) &rhs);
+        if (y)
+            lv_free((void **) &y);
         return lv_BACKEND_MEM_ERROR;
     }
 
@@ -924,14 +898,15 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
     int converged = 0;
 
     while (total_iters < max_iter && !converged) {
-        int k_max = (int)((max_iter - total_iters) < m ? (max_iter - total_iters) : m);
+        int k_max = (int) ((max_iter - total_iters) < m ? (max_iter - total_iters) : m);
 
         /* ---- 计算初始残差 r0 = b - A*x ---- */
         double *r0 = is->r;
         memset(r0, 0, (size_t) n * sizeof(double));
         for (int64_t j = 0; j < A->cols; ++j) {
             double xj = x->data[j];
-            if (fabs(xj) < lv_NUM_EPSILON) continue;
+            if (fabs(xj) < lv_NUM_EPSILON)
+                continue;
             double *col_j = a_data + j * n;
             for (int64_t i = 0; i < n; ++i)
                 r0[i] += col_j[i] * xj;
@@ -959,20 +934,21 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
             V[i] = r0[i] * inv_r0;
 
         /* rhs = e1 * ||r0|| */
-        memset(rhs, 0, (size_t)(m + 1) * sizeof(double));
+        memset(rhs, 0, (size_t) (m + 1) * sizeof(double));
         rhs[0] = r0_norm;
-        memset(H, 0, (size_t)(m + 1) * (size_t)m * sizeof(double));
+        memset(H, 0, (size_t) (m + 1) * (size_t) m * sizeof(double));
 
         /* ---- Arnoldi 过程 ---- */
         int k;
         for (k = 0; k < k_max; ++k) {
             /* w = A * V[k] */
-            double *vk = V + (int64_t)k * n;
-            double *w  = V + (int64_t)(k + 1) * n;
+            double *vk = V + (int64_t) k * n;
+            double *w = V + (int64_t) (k + 1) * n;
             memset(w, 0, (size_t) n * sizeof(double));
             for (int64_t j = 0; j < A->cols; ++j) {
                 double vkj = vk[j];
-                if (fabs(vkj) < lv_NUM_EPSILON) continue;
+                if (fabs(vkj) < lv_NUM_EPSILON)
+                    continue;
                 double *col_j = a_data + j * n;
                 for (int64_t i = 0; i < n; ++i)
                     w[i] += col_j[i] * vkj;
@@ -980,7 +956,7 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
 
             /* Modified Gram-Schmidt 正交化 */
             for (int jj = 0; jj <= k; ++jj) {
-                double *vj = V + (int64_t)jj * n;
+                double *vj = V + (int64_t) jj * n;
                 double dot = 0.0;
                 for (int64_t i = 0; i < n; ++i)
                     dot += w[i] * vj[i];
@@ -1015,8 +991,8 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
             }
 
             /* ---- 计算新的 Givens 旋转 ---- */
-            double h_kk   = H[k * m + k];
-            double h_k1k  = H[(k + 1) * m + k];
+            double h_kk = H[k * m + k];
+            double h_k1k = H[(k + 1) * m + k];
             double h_norm = sqrt(h_kk * h_kk + h_k1k * h_k1k);
             if (h_norm < lv_EPSILON_DOUBLE) {
                 cs[k] = 1.0;
@@ -1025,12 +1001,12 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
                 cs[k] = h_kk / h_norm;
                 sn[k] = h_k1k / h_norm;
             }
-            H[k * m + k]       = h_norm;
+            H[k * m + k] = h_norm;
             H[(k + 1) * m + k] = 0.0;
 
             /* 更新 rhs */
             rhs[k + 1] = -sn[k] * rhs[k];
-            rhs[k]     =  cs[k] * rhs[k];
+            rhs[k] = cs[k] * rhs[k];
 
             /* 收敛检查 */
             double res = fabs(rhs[k + 1]);
@@ -1062,8 +1038,9 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
         /* ---- 更新解 x = x + V * y ---- */
         for (int j = 0; j < k_max; ++j) {
             double yj = y[j];
-            if (fabs(yj) < lv_NUM_EPSILON) continue;
-            double *vj = V + (int64_t)j * n;
+            if (fabs(yj) < lv_NUM_EPSILON)
+                continue;
+            double *vj = V + (int64_t) j * n;
             for (int64_t i = 0; i < n; ++i)
                 x->data[i] += yj * vj[i];
         }
@@ -1089,8 +1066,7 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
  *          相比 BiCG 具有更平滑的收敛行为。
  *          工作向量分配：r=is->r, p=is->p, v=is->ap, s=is->work, t=额外分配
  */
-static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
-                                    const lvVector *b, lvVector *x) {
+static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x) {
     lv_CHECK_NULL(LS, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(b, lv_BACKEND_MEM_ERROR);
@@ -1099,7 +1075,8 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
     IterSolverData *is = (IterSolverData *) LS->solver_data;
     if (!is) {
         int ret = serial_iter_setup(LS, A);
-        if (ret != lv_BACKEND_OK) return ret;
+        if (ret != lv_BACKEND_OK)
+            return ret;
         is = (IterSolverData *) LS->solver_data;
     }
 
@@ -1110,10 +1087,12 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
 
     /* 分配额外工作向量：r0_shadow 和 t */
     double *r0 = lv_calloc((size_t) n, sizeof(double));
-    double *t  = lv_calloc((size_t) n, sizeof(double));
+    double *t = lv_calloc((size_t) n, sizeof(double));
     if (!r0 || !t) {
-        if (r0) lv_free((void **) &r0);
-        if (t)  lv_free((void **) &t);
+        if (r0)
+            lv_free((void **) &r0);
+        if (t)
+            lv_free((void **) &t);
         return lv_BACKEND_MEM_ERROR;
     }
 
@@ -1148,7 +1127,8 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
             rho_new += r0[i] * r[i];
 
         /* 处理 rho=0 的 breakdown */
-        if (fabs(rho_new) < lv_EPSILON_DOUBLE) break;
+        if (fabs(rho_new) < lv_EPSILON_DOUBLE)
+            break;
         /* 防止除零：rho 和 omega 在后续迭代中可能为零 */
         double safe_rho = (fabs(rho) < lv_EPSILON_DOUBLE) ? 1.0 : rho;
         double safe_omega = (fabs(omega) < lv_EPSILON_DOUBLE) ? 1.0 : omega;
@@ -1162,7 +1142,8 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
         memset(v, 0, (size_t) n * sizeof(double));
         for (int64_t j = 0; j < A->cols; ++j) {
             double pj = p[j];
-            if (fabs(pj) < lv_NUM_EPSILON) continue;
+            if (fabs(pj) < lv_NUM_EPSILON)
+                continue;
             double *col_j = a_data + j * n;
             for (int64_t i = 0; i < n; ++i)
                 v[i] += col_j[i] * pj;
@@ -1172,7 +1153,8 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
         double r0v = 0.0;
         for (int64_t i = 0; i < n; ++i)
             r0v += r0[i] * v[i];
-        if (fabs(r0v) < lv_EPSILON_DOUBLE) break;
+        if (fabs(r0v) < lv_EPSILON_DOUBLE)
+            break;
         alpha = rho_new / r0v;
 
         /* s = r - alpha * v */
@@ -1183,7 +1165,8 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
         memset(t, 0, (size_t) n * sizeof(double));
         for (int64_t j = 0; j < A->cols; ++j) {
             double sj = s[j];
-            if (fabs(sj) < lv_NUM_EPSILON) continue;
+            if (fabs(sj) < lv_NUM_EPSILON)
+                continue;
             double *col_j = a_data + j * n;
             for (int64_t i = 0; i < n; ++i)
                 t[i] += col_j[i] * sj;
@@ -1220,7 +1203,8 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
         r_norm = sqrt(r_norm);
 
         double threshold = (b_norm > lv_EPSILON_DOUBLE) ? tol * b_norm : tol;
-        if (r_norm < threshold) break;
+        if (r_norm < threshold)
+            break;
     }
 
     lv_free((void **) &r0);
@@ -1235,8 +1219,7 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
  *          使用短递推关系，每步仅需一次矩阵-向量乘法和两次内积。
  *          工作向量：r=is->r, p=is->p, Ap=is->ap
  */
-static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A,
-                              const lvVector *b, lvVector *x) {
+static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x) {
     lv_CHECK_NULL(LS, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(b, lv_BACKEND_MEM_ERROR);
@@ -1245,7 +1228,8 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A,
     IterSolverData *is = (IterSolverData *) LS->solver_data;
     if (!is) {
         int ret = serial_iter_setup(LS, A);
-        if (ret != lv_BACKEND_OK) return ret;
+        if (ret != lv_BACKEND_OK)
+            return ret;
         is = (IterSolverData *) LS->solver_data;
     }
 
@@ -1255,9 +1239,9 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A,
     double *a_data = (double *) is->clone->data;
 
     /* 工作向量别名 */
-    double *r  = is->r;   /* 残差 */
-    double *p  = is->p;   /* 搜索方向 */
-    double *ap = is->ap;  /* A*p */
+    double *r = is->r;   /* 残差 */
+    double *p = is->p;   /* 搜索方向 */
+    double *ap = is->ap; /* A*p */
 
     /* 计算 ||b|| 用于相对收敛判据 */
     double b_norm = 0.0;
@@ -1281,7 +1265,8 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A,
         memset(ap, 0, (size_t) n * sizeof(double));
         for (int64_t j = 0; j < A->cols; ++j) {
             double pj = p[j];
-            if (fabs(pj) < lv_NUM_EPSILON) continue;
+            if (fabs(pj) < lv_NUM_EPSILON)
+                continue;
             double *col_j = a_data + j * n;
             for (int64_t i = 0; i < n; ++i)
                 ap[i] += col_j[i] * pj;
@@ -1291,7 +1276,8 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A,
         double pap = 0.0;
         for (int64_t i = 0; i < n; ++i)
             pap += p[i] * ap[i];
-        if (fabs(pap) < lv_EPSILON_DOUBLE) break;
+        if (fabs(pap) < lv_EPSILON_DOUBLE)
+            break;
         double alpha = rs_old / pap;
 
         /* 更新 x 和 r */
@@ -1305,10 +1291,12 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A,
         for (int64_t i = 0; i < n; ++i)
             rs_new += r[i] * r[i];
         double r_norm = sqrt(rs_new);
-        if (r_norm < threshold) break;
+        if (r_norm < threshold)
+            break;
 
         /* beta = (r_new, r_new) / (r_old, r_old) */
-        if (fabs(rs_old) < lv_EPSILON_DOUBLE) rs_old = 1.0;
+        if (fabs(rs_old) < lv_EPSILON_DOUBLE)
+            rs_old = 1.0;
         double beta = rs_new / rs_old;
 
         /* p = r + beta * p */
@@ -1330,13 +1318,12 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A,
  */
 lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
     if (n <= 0) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
-                       "向量长度必须为正整数，当前 n=%lld", (long long) n);
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "向量长度必须为正整数，当前 n=%lld", (long long) n);
         return NULL;
     }
 
     /* SERIAL 是默认实现；其他后端如果未实现也回退到 SERIAL */
-    (void)backend;
+    (void) backend;
 
     lvVector *v = lv_calloc(1, sizeof(lvVector));
     lv_CHECK_ALLOC(v, NULL);
@@ -1349,8 +1336,7 @@ lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
     v->data = lv_calloc((size_t) n, sizeof(double));
     if (!v->data) {
         lv_free((void **) &v);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "向量数据分配失败，长度=%lld",
-                       (long long) n);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "向量数据分配失败，长度=%lld", (long long) n);
         return NULL;
     }
     memset(v->data, 0, (size_t) n * sizeof(double));
@@ -1361,17 +1347,15 @@ lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
 /**
  * @brief 创建矩阵（指定后端、维度和格式）
  */
-lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows,
-                               int64_t cols, bool sparse) {
+lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bool sparse) {
     if (rows <= 0 || cols <= 0) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
-                       "矩阵维度必须为正整数，当前 %lldx%lld",
-                       (long long) rows, (long long) cols);
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "矩阵维度必须为正整数，当前 %lldx%lld", (long long) rows,
+                     (long long) cols);
         return NULL;
     }
 
     /* SERIAL 是默认实现；其他后端即使未实现也回退到 SERIAL */
-    (void)backend;
+    (void) backend;
 
     lvMatrix *A = lv_calloc(1, sizeof(lvMatrix));
     lv_CHECK_ALLOC(A, NULL);
@@ -1388,8 +1372,7 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows,
     A->data = lv_malloc(data_size);
     if (!A->data) {
         lv_free((void **) &A);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "矩阵数据分配失败 %lldx%lld",
-                       (long long) rows, (long long) cols);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "矩阵数据分配失败 %lldx%lld", (long long) rows, (long long) cols);
         return NULL;
     }
     memset(A->data, 0, data_size);
@@ -1400,10 +1383,9 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows,
 /**
  * @brief 创建线性求解器（指定后端和求解方法）
  */
-lvLinearSolver *lv_linsol_create(lvBackendType backend,
-                                     lvLinearSolverMethod method) {
+lvLinearSolver *lv_linsol_create(lvBackendType backend, lvLinearSolverMethod method) {
     /* SERIAL 是默认实现；其他后端如果未实现也回退到 SERIAL */
-    (void)backend;
+    (void) backend;
 
     lvLinearSolver *LS = lv_calloc(1, sizeof(lvLinearSolver));
     lv_CHECK_ALLOC(LS, NULL);
@@ -1430,9 +1412,7 @@ lvLinearSolver *lv_linsol_create(lvBackendType backend,
             break;
         default:
             lv_free((void **) &LS);
-            lv_ERROR_SET(lv_BACKEND_UNSUPPORTED,
-                           "不支持的线性求解方法: %s",
-                           lv_linsol_method_name(method));
+            lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "不支持的线性求解方法: %s", lv_linsol_method_name(method));
             return NULL;
     }
 

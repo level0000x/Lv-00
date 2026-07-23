@@ -12,15 +12,17 @@
  */
 
 #include "func_block_preset_ops.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "error_codes.h"
-#include "lv/constraint_graph.h"
 
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdatomic.h>
+
+#include "lv/constraint_graph.h"
+
+#include "error_codes.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
 
 /* ================================================================
  * 命名常量
@@ -48,9 +50,9 @@
  *   - 确保所有计数器在程序启动时即完成零初始化
  *   - 让所有调用点共享同一计数器，避免命名冲突
  * ================================================================ */
-static _Atomic int g_bind_counter = 0;         /**< partial_bind 操作计数器 */
-static _Atomic int g_compose_counter = 0;      /**< compose 操作计数器 */
-static _Atomic int g_recursive_counter = 0;    /**< 递归预设计数器 */
+static _Atomic int g_bind_counter = 0;      /**< partial_bind 操作计数器 */
+static _Atomic int g_compose_counter = 0;   /**< compose 操作计数器 */
+static _Atomic int g_recursive_counter = 0; /**< 递归预设计数器 */
 
 /* ================================================================
  * 预设链式调用实现
@@ -63,9 +65,9 @@ static _Atomic int g_recursive_counter = 0;    /**< 递归预设计数器 */
  * 输入映射指定当前步骤的每个输入端口应从上一步骤的哪个输出获取数据。
  */
 typedef struct ChainNode {
-    char *preset_name;                    /**< 预设名称（动态分配，由 preset_chain_destroy 释放） */
-    int *input_mapping;                   /**< 输入映射数组：input_mapping[j] 表示第 j 个输入来自上一步的第 input_mapping[j] 个输出 */
-    int mapping_count;                    /**< 映射数组长度（通常等于预设的输入端口数量） */
+    char *preset_name;  /**< 预设名称（动态分配，由 preset_chain_destroy 释放） */
+    int *input_mapping; /**< 输入映射数组：input_mapping[j] 表示第 j 个输入来自上一步的第 input_mapping[j] 个输出 */
+    int mapping_count;  /**< 映射数组长度（通常等于预设的输入端口数量） */
 } ChainNode;
 
 /**
@@ -75,21 +77,21 @@ typedef struct ChainNode {
  * 支持通过 input_mapping 自定义数据流连接。
  */
 struct PresetChain {
-    ChainNode *nodes;                     /**< 节点数组（动态分配，按执行顺序排列） */
-    int count;                            /**< 当前节点数量（已添加的预设步骤数） */
-    int capacity;                         /**< 数组容量（>= count，用于扩容判断） */
+    ChainNode *nodes; /**< 节点数组（动态分配，按执行顺序排列） */
+    int count;        /**< 当前节点数量（已添加的预设步骤数） */
+    int capacity;     /**< 数组容量（>= count，用于扩容判断） */
 };
 
-PresetChain *preset_chain_create(void)
-{
+PresetChain *preset_chain_create(void) {
     /* 分配链结构体 */
     PresetChain *chain = lv_calloc(1, sizeof(PresetChain));
-    if (!chain) return NULL;
+    if (!chain)
+        return NULL;
 
     /* 分配初始容量的节点数组 */
     chain->nodes = lv_calloc(PRESET_CHAIN_INITIAL_CAPACITY, sizeof(ChainNode));
     if (!chain->nodes) {
-        lv_free((void **)&chain);
+        lv_free((void **) &chain);
         return NULL;
     }
 
@@ -106,18 +108,18 @@ PresetChain *preset_chain_create(void)
     return chain;
 }
 
-void preset_chain_destroy(PresetChain *chain)
-{
-    if (!chain) return;
+void preset_chain_destroy(PresetChain *chain) {
+    if (!chain)
+        return;
 
     /* 释放每个节点的资源 */
     for (int i = 0; i < chain->count; i++) {
-        lv_free((void **)&chain->nodes[i].preset_name);
-        lv_free((void **)&chain->nodes[i].input_mapping);
+        lv_free((void **) &chain->nodes[i].preset_name);
+        lv_free((void **) &chain->nodes[i].input_mapping);
     }
 
-    lv_free((void **)&chain->nodes);
-    lv_free((void **)&chain);
+    lv_free((void **) &chain->nodes);
+    lv_free((void **) &chain);
 }
 
 /**
@@ -129,25 +131,26 @@ void preset_chain_destroy(PresetChain *chain)
  * @param chain 预设链指针
  * @return true 扩容成功或无需扩容，false 参数无效或内存不足
  */
-static bool ensure_chain_capacity(PresetChain *chain)
-{
-    if (!chain) return false;
-    if (chain->count < chain->capacity) return true;
+static bool ensure_chain_capacity(PresetChain *chain) {
+    if (!chain)
+        return false;
+    if (chain->count < chain->capacity)
+        return true;
 
     /* 【修复】检查 capacity * GROWTH_FACTOR 是否溢出 int 范围 */
     if (chain->capacity > INT_MAX / PRESET_CHAIN_GROWTH_FACTOR) {
-        return false;  /* 溢出，无法继续扩容 */
+        return false; /* 溢出，无法继续扩容 */
     }
     int new_capacity = chain->capacity * PRESET_CHAIN_GROWTH_FACTOR;
 
     /* 【修复】检查 new_capacity * sizeof(ChainNode) 是否溢出 size_t */
-    if ((size_t)new_capacity > SIZE_MAX / sizeof(ChainNode)) {
-        return false;  /* size_t 乘法将溢出，拒绝分配 */
+    if ((size_t) new_capacity > SIZE_MAX / sizeof(ChainNode)) {
+        return false; /* size_t 乘法将溢出，拒绝分配 */
     }
 
-    ChainNode *new_nodes = lv_realloc(chain->nodes,
-                                         (size_t)new_capacity * sizeof(ChainNode));
-    if (!new_nodes) return false;
+    ChainNode *new_nodes = lv_realloc(chain->nodes, (size_t) new_capacity * sizeof(ChainNode));
+    if (!new_nodes)
+        return false;
 
     /* 初始化新节点 */
     for (int i = chain->capacity; i < new_capacity; i++) {
@@ -161,23 +164,23 @@ static bool ensure_chain_capacity(PresetChain *chain)
     return true;
 }
 
-bool preset_chain_add(PresetChain *chain,
-                       const char *preset_name,
-                       const int *input_mapping)
-{
-    if (!chain || !preset_name) return false;
+bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *input_mapping) {
+    if (!chain || !preset_name)
+        return false;
 
     /* 验证预设存在 */
     PresetBlockMetadata *meta = preset_blocks_get_metadata(preset_name);
     if (!meta) {
         /* 使用 lv_ERROR_SET 宏记录错误信息（宏定义在 error_codes.h 中） */
-        lv_ERROR_SET(lv_ERROR_INVALID_PARAM,
-                       "预设 '%s' 不存在", preset_name);
+        lv_ERROR_SET(lv_ERROR_INVALID_PARAM, "预设 '%s' 不存在", preset_name);
         return false;
     }
 
     if (!ensure_chain_capacity(chain)) {
-        { void *tmp = meta; lv_free(&tmp); }
+        {
+            void *tmp = meta;
+            lv_free(&tmp);
+        }
         return false;
     }
 
@@ -186,20 +189,25 @@ bool preset_chain_add(PresetChain *chain,
     /* 复制预设名称 */
     node->preset_name = lv_strdup(preset_name);
     if (!node->preset_name) {
-        { void *tmp = meta; lv_free(&tmp); }
+        {
+            void *tmp = meta;
+            lv_free(&tmp);
+        }
         return false;
     }
 
     /* 复制输入映射 */
     if (input_mapping && meta->input_count > 0) {
-        node->input_mapping = lv_malloc((size_t)meta->input_count * sizeof(int));
+        node->input_mapping = lv_malloc((size_t) meta->input_count * sizeof(int));
         if (!node->input_mapping) {
-            lv_free((void **)&node->preset_name);
-            { void *tmp = meta; lv_free(&tmp); }
+            lv_free((void **) &node->preset_name);
+            {
+                void *tmp = meta;
+                lv_free(&tmp);
+            }
             return false;
         }
-        memcpy(node->input_mapping, input_mapping,
-               (size_t)meta->input_count * sizeof(int));
+        memcpy(node->input_mapping, input_mapping, (size_t) meta->input_count * sizeof(int));
         node->mapping_count = meta->input_count;
     } else {
         node->input_mapping = NULL;
@@ -207,7 +215,10 @@ bool preset_chain_add(PresetChain *chain,
     }
 
     chain->count++;
-    { void *tmp = meta; lv_free(&tmp); }
+    {
+        void *tmp = meta;
+        lv_free(&tmp);
+    }
     return true;
 }
 
@@ -234,13 +245,8 @@ bool preset_chain_add(PresetChain *chain,
  * @param out_output_count 输出：最终输出节点数量
  * @return true 执行成功，false 参数无效或任一步骤实例化失败
  */
-bool preset_chain_execute(PresetChain *chain,
-                           ConstraintGraph *graph,
-                           const int *initial_args,
-                           int arg_count,
-                           int **out_final_outputs,
-                           int *out_output_count)
-{
+bool preset_chain_execute(PresetChain *chain, ConstraintGraph *graph, const int *initial_args, int arg_count,
+                          int **out_final_outputs, int *out_output_count) {
     if (!chain || !graph || !out_final_outputs || !out_output_count) {
         return false;
     }
@@ -248,7 +254,8 @@ bool preset_chain_execute(PresetChain *chain,
     *out_final_outputs = NULL;
     *out_output_count = 0;
 
-    if (chain->count == 0) return false;
+    if (chain->count == 0)
+        return false;
 
     /* 当前可用的输出节点ID */
     int *current_outputs = NULL;
@@ -256,9 +263,10 @@ bool preset_chain_execute(PresetChain *chain,
 
     /* 复制初始参数 */
     if (initial_args && arg_count > 0) {
-        current_outputs = lv_malloc((size_t)arg_count * sizeof(int));
-        if (!current_outputs) return false;
-        memcpy(current_outputs, initial_args, (size_t)arg_count * sizeof(int));
+        current_outputs = lv_malloc((size_t) arg_count * sizeof(int));
+        if (!current_outputs)
+            return false;
+        memcpy(current_outputs, initial_args, (size_t) arg_count * sizeof(int));
         current_output_count = arg_count;
     }
 
@@ -269,7 +277,7 @@ bool preset_chain_execute(PresetChain *chain,
         /* 查找预设 */
         FuncBlock *fb = func_block_registry_lookup(node->preset_name);
         if (!fb) {
-            lv_free((void **)&current_outputs);
+            lv_free((void **) &current_outputs);
             return false;
         }
 
@@ -277,7 +285,7 @@ bool preset_chain_execute(PresetChain *chain,
         if (fb->input_count < -1) {
             /* 输入端口计数异常，视为无效函数块 */
             func_block_destroy(fb);
-            lv_free((void **)&current_outputs);
+            lv_free((void **) &current_outputs);
             return false;
         }
 
@@ -286,10 +294,10 @@ bool preset_chain_execute(PresetChain *chain,
         int mapping_count = fb->input_count;
 
         if (mapping_count > 0) {
-            arg_mappings = lv_malloc((size_t)mapping_count * sizeof(int));
+            arg_mappings = lv_malloc((size_t) mapping_count * sizeof(int));
             if (!arg_mappings) {
                 func_block_destroy(fb);
-                lv_free((void **)&current_outputs);
+                lv_free((void **) &current_outputs);
                 return false;
             }
 
@@ -300,7 +308,7 @@ bool preset_chain_execute(PresetChain *chain,
                     if (map_idx >= 0 && map_idx < current_output_count) {
                         arg_mappings[j] = current_outputs[map_idx];
                     } else {
-                        arg_mappings[j] = -1;  /* 无效映射 */
+                        arg_mappings[j] = -1; /* 无效映射 */
                     }
                 } else if (j < current_output_count) {
                     /* 默认顺序映射 */
@@ -315,22 +323,21 @@ bool preset_chain_execute(PresetChain *chain,
         int *new_outputs = NULL;
         int new_output_count = 0;
 
-        InstantiateResult result = func_block_instantiate(
-            fb, graph, arg_mappings, mapping_count,
-            &new_outputs, &new_output_count);
+        InstantiateResult result =
+            func_block_instantiate(fb, graph, arg_mappings, mapping_count, &new_outputs, &new_output_count);
 
         func_block_destroy(fb);
-        lv_free((void **)&arg_mappings);
+        lv_free((void **) &arg_mappings);
 
         if (result != INSTANTIATE_OK) {
             /* 修复内存泄漏：错误路径下释放可能已分配的 new_outputs */
-            lv_free((void **)&new_outputs);
-            lv_free((void **)&current_outputs);
+            lv_free((void **) &new_outputs);
+            lv_free((void **) &current_outputs);
             return false;
         }
 
         /* 更新当前输出 */
-        lv_free((void **)&current_outputs);
+        lv_free((void **) &current_outputs);
         current_outputs = new_outputs;
         current_output_count = new_output_count;
     }
@@ -344,13 +351,8 @@ bool preset_chain_execute(PresetChain *chain,
  * 预设批量操作实现
  * ================================================================ */
 
-bool preset_batch_instantiate(const char *preset_name,
-                               ConstraintGraph *graph,
-                               const int **arg_sets,
-                               int set_count,
-                               int args_per_set,
-                               int ***out_results)
-{
+bool preset_batch_instantiate(const char *preset_name, ConstraintGraph *graph, const int **arg_sets, int set_count,
+                              int args_per_set, int ***out_results) {
     if (!preset_name || !graph || !arg_sets || !out_results || set_count <= 0) {
         return false;
     }
@@ -358,25 +360,24 @@ bool preset_batch_instantiate(const char *preset_name,
     /* 查找预设 */
     FuncBlock *template_fb = func_block_registry_lookup(preset_name);
     if (!template_fb) {
-        lv_ERROR_SET(lv_ERROR_INVALID_PARAM,
-                       "预设 '%s' 不存在", preset_name);
+        lv_ERROR_SET(lv_ERROR_INVALID_PARAM, "预设 '%s' 不存在", preset_name);
         return false;
     }
 
     /* 验证参数数量 */
     if (template_fb->input_count != args_per_set && template_fb->input_count != -1) {
         func_block_destroy(template_fb);
-        lv_ERROR_SET(lv_ERROR_INVALID_PARAM,
-                       "参数数量不匹配：预设需要 %d 个参数，提供了 %d 个",
-                       template_fb->input_count, args_per_set);
+        lv_ERROR_SET(lv_ERROR_INVALID_PARAM, "参数数量不匹配：预设需要 %d 个参数，提供了 %d 个",
+                     template_fb->input_count, args_per_set);
         return false;
     }
 
     func_block_destroy(template_fb);
 
     /* 分配结果数组 */
-    int **results = lv_malloc((size_t)set_count * sizeof(int *));
-    if (!results) return false;
+    int **results = lv_malloc((size_t) set_count * sizeof(int *));
+    if (!results)
+        return false;
 
     /* 批量实例化 */
     for (int i = 0; i < set_count; i++) {
@@ -386,9 +387,9 @@ bool preset_batch_instantiate(const char *preset_name,
         if (!fb) {
             /* 清理已分配的结果 */
             for (int j = 0; j < i; j++) {
-                lv_free((void **)&results[j]);
+                lv_free((void **) &results[j]);
             }
-            lv_free((void **)&results);
+            lv_free((void **) &results);
             return false;
         }
 
@@ -396,32 +397,30 @@ bool preset_batch_instantiate(const char *preset_name,
         int output_count = 0;
 
         /* 复制参数（因为实例化可能修改参数数组） */
-        int *args_copy = lv_malloc((size_t)args_per_set * sizeof(int));
+        int *args_copy = lv_malloc((size_t) args_per_set * sizeof(int));
         if (!args_copy) {
             func_block_destroy(fb);
             for (int j = 0; j < i; j++) {
-                lv_free((void **)&results[j]);
+                lv_free((void **) &results[j]);
             }
-            lv_free((void **)&results);
+            lv_free((void **) &results);
             return false;
         }
-        memcpy(args_copy, arg_sets[i], (size_t)args_per_set * sizeof(int));
+        memcpy(args_copy, arg_sets[i], (size_t) args_per_set * sizeof(int));
 
-        InstantiateResult result = func_block_instantiate(
-            fb, graph, args_copy, args_per_set,
-            &outputs, &output_count);
+        InstantiateResult result = func_block_instantiate(fb, graph, args_copy, args_per_set, &outputs, &output_count);
 
         func_block_destroy(fb);
-        lv_free((void **)&args_copy);
+        lv_free((void **) &args_copy);
 
         if (result != INSTANTIATE_OK) {
             /* 【修复】错误路径：释放可能已被 func_block_instantiate 分配的 outputs，防止内存泄漏 */
-            lv_free((void **)&outputs);
+            lv_free((void **) &outputs);
             /* 清理已分配的结果 */
             for (int j = 0; j < i; j++) {
-                lv_free((void **)&results[j]);
+                lv_free((void **) &results[j]);
             }
-            lv_free((void **)&results);
+            lv_free((void **) &results);
             return false;
         }
 
@@ -431,7 +430,7 @@ bool preset_batch_instantiate(const char *preset_name,
             if (results[i]) {
                 results[i][0] = outputs[0];
             }
-            lv_free((void **)&outputs);
+            lv_free((void **) &outputs);
         } else {
             results[i] = NULL;
         }
@@ -441,12 +440,8 @@ bool preset_batch_instantiate(const char *preset_name,
     return true;
 }
 
-bool preset_batch_apply(const char *preset_name,
-                         ConstraintGraph *graph,
-                         const int *target_nodes,
-                         int node_count,
-                         int ***out_results)
-{
+bool preset_batch_apply(const char *preset_name, ConstraintGraph *graph, const int *target_nodes, int node_count,
+                        int ***out_results) {
     if (!preset_name || !graph || !target_nodes || !out_results || node_count <= 0) {
         return false;
     }
@@ -454,30 +449,27 @@ bool preset_batch_apply(const char *preset_name,
     /* 查找预设 */
     const PresetBlockMetadata *meta = preset_blocks_get_metadata(preset_name);
     if (!meta) {
-        lv_ERROR_SET(lv_ERROR_INVALID_PARAM,
-                       "预设 '%s' 不存在", preset_name);
+        lv_ERROR_SET(lv_ERROR_INVALID_PARAM, "预设 '%s' 不存在", preset_name);
         return false;
     }
 
     int input_count = meta->input_count;
     if (input_count <= 0) {
-        lv_ERROR_SET(lv_ERROR_INVALID_PARAM,
-                       "预设 '%s' 不支持批量应用", preset_name);
+        lv_ERROR_SET(lv_ERROR_INVALID_PARAM, "预设 '%s' 不支持批量应用", preset_name);
         return false;
     }
 
     /* 计算可以应用多少次 */
     int apply_count = node_count / input_count;
     if (apply_count == 0) {
-        lv_ERROR_SET(lv_ERROR_INVALID_PARAM,
-                       "节点数量不足：需要 %d 个节点，只有 %d 个",
-                       input_count, node_count);
+        lv_ERROR_SET(lv_ERROR_INVALID_PARAM, "节点数量不足：需要 %d 个节点，只有 %d 个", input_count, node_count);
         return false;
     }
 
     /* 分配结果数组 */
-    int **results = lv_malloc((size_t)apply_count * sizeof(int *));
-    if (!results) return false;
+    int **results = lv_malloc((size_t) apply_count * sizeof(int *));
+    if (!results)
+        return false;
 
     /* 批量应用 */
     for (int i = 0; i < apply_count; i++) {
@@ -486,20 +478,20 @@ bool preset_batch_apply(const char *preset_name,
         FuncBlock *fb = func_block_registry_lookup(preset_name);
         if (!fb) {
             for (int j = 0; j < i; j++) {
-                lv_free((void **)&results[j]);
+                lv_free((void **) &results[j]);
             }
-            lv_free((void **)&results);
+            lv_free((void **) &results);
             return false;
         }
 
         /* 准备参数 */
-        int *args = lv_malloc((size_t)input_count * sizeof(int));
+        int *args = lv_malloc((size_t) input_count * sizeof(int));
         if (!args) {
             func_block_destroy(fb);
             for (int j = 0; j < i; j++) {
-                lv_free((void **)&results[j]);
+                lv_free((void **) &results[j]);
             }
-            lv_free((void **)&results);
+            lv_free((void **) &results);
             return false;
         }
 
@@ -510,31 +502,29 @@ bool preset_batch_apply(const char *preset_name,
         int *outputs = NULL;
         int output_count = 0;
 
-        InstantiateResult result = func_block_instantiate(
-            fb, graph, args, input_count,
-            &outputs, &output_count);
+        InstantiateResult result = func_block_instantiate(fb, graph, args, input_count, &outputs, &output_count);
 
         func_block_destroy(fb);
-        lv_free((void **)&args);
+        lv_free((void **) &args);
 
         if (result != INSTANTIATE_OK) {
             /* 【修复】错误路径：释放可能已被 func_block_instantiate 分配的 outputs，防止内存泄漏 */
-            lv_free((void **)&outputs);
+            lv_free((void **) &outputs);
             for (int j = 0; j < i; j++) {
-                lv_free((void **)&results[j]);
+                lv_free((void **) &results[j]);
             }
-            lv_free((void **)&results);
+            lv_free((void **) &results);
             return false;
         }
 
         /* 保存输出 */
         if (output_count > 0) {
-            results[i] = lv_malloc((size_t)output_count * sizeof(int));
+            results[i] = lv_malloc((size_t) output_count * sizeof(int));
             if (results[i]) {
-                memcpy(results[i], outputs, (size_t)output_count * sizeof(int));
+                memcpy(results[i], outputs, (size_t) output_count * sizeof(int));
             }
         }
-        lv_free((void **)&outputs);
+        lv_free((void **) &outputs);
     }
 
     *out_results = results;
@@ -558,15 +548,12 @@ bool preset_batch_apply(const char *preset_name,
  * @return 验证结果结构体（包含各检查项的状态和错误信息），
  *         调用者需通过 preset_validation_result_destroy 释放 error_message
  */
-PresetValidationResult preset_validate(const char *preset_name)
-{
-    PresetValidationResult result = {
-        .is_valid = false,
-        .has_valid_inputs = false,
-        .has_valid_outputs = false,
-        .determinism_check_passed = false,
-        .error_message = NULL
-    };
+PresetValidationResult preset_validate(const char *preset_name) {
+    PresetValidationResult result = {.is_valid = false,
+                                     .has_valid_inputs = false,
+                                     .has_valid_outputs = false,
+                                     .determinism_check_passed = false,
+                                     .error_message = NULL};
 
     if (!preset_name) {
         result.error_message = lv_strdup("预设名称为空");
@@ -598,16 +585,14 @@ PresetValidationResult preset_validate(const char *preset_name)
     }
 
     /* 检查确定性 */
-    if (fb->determinism == DETERMINISM_VERIFIED ||
-        fb->determinism == DETERMINISM_PARTIALLY_VERIFIED) {
+    if (fb->determinism == DETERMINISM_VERIFIED || fb->determinism == DETERMINISM_PARTIALLY_VERIFIED) {
         result.determinism_check_passed = true;
     }
 
     func_block_destroy(fb);
 
     /* 综合判断 */
-    result.is_valid = result.has_valid_inputs &&
-                      result.has_valid_outputs;
+    result.is_valid = result.has_valid_inputs && result.has_valid_outputs;
 
     if (!result.is_valid && !result.error_message) {
         result.error_message = lv_strdup("预设定义不完整");
@@ -616,22 +601,20 @@ PresetValidationResult preset_validate(const char *preset_name)
     return result;
 }
 
-void preset_validation_result_destroy(PresetValidationResult *result)
-{
-    if (!result) return;
-    lv_free((void **)&result->error_message);
+void preset_validation_result_destroy(PresetValidationResult *result) {
+    if (!result)
+        return;
+    lv_free((void **) &result->error_message);
 }
 
-bool preset_test_instantiation(const char *preset_name,
-                                ConstraintGraph *graph,
-                                const int *test_args,
-                                int arg_count)
-{
-    if (!preset_name || !graph) return false;
+bool preset_test_instantiation(const char *preset_name, ConstraintGraph *graph, const int *test_args, int arg_count) {
+    if (!preset_name || !graph)
+        return false;
 
     /* 查找预设 */
     FuncBlock *fb = func_block_registry_lookup(preset_name);
-    if (!fb) return false;
+    if (!fb)
+        return false;
 
     /* 验证参数数量 */
     if (fb->input_count != arg_count && fb->input_count != -1) {
@@ -642,27 +625,25 @@ bool preset_test_instantiation(const char *preset_name,
     /* 复制参数 */
     int *args_copy = NULL;
     if (arg_count > 0 && test_args) {
-        args_copy = lv_malloc((size_t)arg_count * sizeof(int));
+        args_copy = lv_malloc((size_t) arg_count * sizeof(int));
         if (!args_copy) {
             func_block_destroy(fb);
             return false;
         }
-        memcpy(args_copy, test_args, (size_t)arg_count * sizeof(int));
+        memcpy(args_copy, test_args, (size_t) arg_count * sizeof(int));
     }
 
     /* 尝试实例化 */
     int *outputs = NULL;
     int output_count = 0;
 
-    InstantiateResult result = func_block_instantiate(
-        fb, graph, args_copy, arg_count,
-        &outputs, &output_count);
+    InstantiateResult result = func_block_instantiate(fb, graph, args_copy, arg_count, &outputs, &output_count);
 
     func_block_destroy(fb);
-    lv_free((void **)&args_copy);
+    lv_free((void **) &args_copy);
 
     if (result == INSTANTIATE_OK && outputs) {
-        lv_free((void **)&outputs);
+        lv_free((void **) &outputs);
         return true;
     }
 
@@ -673,15 +654,14 @@ bool preset_test_instantiation(const char *preset_name,
  * 预设参数操作实现
  * ================================================================ */
 
-bool preset_create_bindings(const char *preset_name,
-                             PresetParamBinding **out_bindings,
-                             int *out_count)
-{
-    if (!preset_name || !out_bindings || !out_count) return false;
+bool preset_create_bindings(const char *preset_name, PresetParamBinding **out_bindings, int *out_count) {
+    if (!preset_name || !out_bindings || !out_count)
+        return false;
 
     /* 获取元数据 */
     const PresetBlockMetadata *meta = preset_blocks_get_metadata(preset_name);
-    if (!meta) return false;
+    if (!meta)
+        return false;
 
     int count = meta->input_count;
     if (count <= 0) {
@@ -690,8 +670,9 @@ bool preset_create_bindings(const char *preset_name,
         return true;
     }
 
-    PresetParamBinding *bindings = lv_calloc((size_t)count, sizeof(PresetParamBinding));
-    if (!bindings) return false;
+    PresetParamBinding *bindings = lv_calloc((size_t) count, sizeof(PresetParamBinding));
+    if (!bindings)
+        return false;
 
     for (int i = 0; i < count; i++) {
         bindings[i].param_index = i;
@@ -704,23 +685,20 @@ bool preset_create_bindings(const char *preset_name,
     return true;
 }
 
-void preset_bindings_destroy(PresetParamBinding *bindings)
-{
-    lv_free((void **)&bindings);
+void preset_bindings_destroy(PresetParamBinding *bindings) {
+    lv_free((void **) &bindings);
 }
 
-bool preset_partial_bind(const char *preset_name,
-                          const PresetParamBinding *bindings,
-                          int binding_count,
-                          char **out_new_preset_name)
-{
+bool preset_partial_bind(const char *preset_name, const PresetParamBinding *bindings, int binding_count,
+                         char **out_new_preset_name) {
     if (!preset_name || !bindings || !out_new_preset_name || binding_count <= 0) {
         return false;
     }
 
     /* 查找原预设 */
     FuncBlock *fb = func_block_registry_lookup(preset_name);
-    if (!fb) return false;
+    if (!fb)
+        return false;
 
     /* 【修复】验证查找返回的函数块状态完整性 */
     if (fb->input_count < -1 || fb->output_count < -1) {
@@ -730,8 +708,7 @@ bool preset_partial_bind(const char *preset_name,
 
     /* 生成新预设名称 */
     char new_name[MAX_PRESET_NAME_LENGTH];
-    snprintf(new_name, sizeof(new_name), "%s_bound_%d",
-             preset_name, atomic_fetch_add(&g_bind_counter, 1));
+    snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, atomic_fetch_add(&g_bind_counter, 1));
 
     /* 创建新函数块 */
     FuncBlock *new_fb = func_block_create(fb->id + 10000);
@@ -760,7 +737,7 @@ bool preset_partial_bind(const char *preset_name,
 
     /* 设置输入端口（只包含未绑定的参数） */
     if (remaining_count > 0) {
-        int *remaining_ports = lv_malloc((size_t)remaining_count * sizeof(int));
+        int *remaining_ports = lv_malloc((size_t) remaining_count * sizeof(int));
         if (!remaining_ports) {
             func_block_destroy(fb);
             func_block_destroy(new_fb);
@@ -775,7 +752,7 @@ bool preset_partial_bind(const char *preset_name,
         }
 
         func_block_set_input_ports(new_fb, remaining_ports, remaining_count);
-        lv_free((void **)&remaining_ports);
+        lv_free((void **) &remaining_ports);
     }
 
     /* 复制输出端口 */
@@ -785,8 +762,7 @@ bool preset_partial_bind(const char *preset_name,
     func_block_set_internal_nodes(new_fb, fb->internal_node_ids, fb->internal_node_count);
 
     /* 注册新预设 */
-    bool registered = func_block_register(new_name, new_fb->description,
-                                           PRESET_CATEGORY_CONSTRUCTION, new_fb);
+    bool registered = func_block_register(new_name, new_fb->description, PRESET_CATEGORY_CONSTRUCTION, new_fb);
 
     func_block_destroy(fb);
     func_block_destroy(new_fb);
@@ -803,11 +779,9 @@ bool preset_partial_bind(const char *preset_name,
  * 预设搜索与推荐实现
  * ================================================================ */
 
-int preset_search_by_signature(int input_count,
-                                int output_count,
-                                PresetSearchResult *out_result)
-{
-    if (!out_result) return 0;
+int preset_search_by_signature(int input_count, int output_count, PresetSearchResult *out_result) {
+    if (!out_result)
+        return 0;
 
     out_result->names = NULL;
     out_result->relevance_scores = NULL;
@@ -817,8 +791,8 @@ int preset_search_by_signature(int input_count,
     char **names = lv_malloc(64 * sizeof(char *));
     double *scores = lv_malloc(64 * sizeof(double));
     if (!names || !scores) {
-        lv_free((void **)&names);
-        lv_free((void **)&scores);
+        lv_free((void **) &names);
+        lv_free((void **) &scores);
         return 0;
     }
 
@@ -831,7 +805,8 @@ int preset_search_by_signature(int input_count,
 
     for (int i = 0; i < total; i++) {
         const PresetBlockMetadata *meta = preset_blocks_get_metadata(all_names[i]);
-        if (!meta) continue;
+        if (!meta)
+            continue;
 
         bool match = true;
         double score = 1.0;
@@ -866,17 +841,16 @@ int preset_search_by_signature(int input_count,
         out_result->relevance_scores = scores;
         out_result->count = count;
     } else {
-        lv_free((void **)&names);
-        lv_free((void **)&scores);
+        lv_free((void **) &names);
+        lv_free((void **) &scores);
     }
 
     return count;
 }
 
-int preset_recommend_related(const char *preset_name,
-                              PresetSearchResult *out_result)
-{
-    if (!preset_name || !out_result) return 0;
+int preset_recommend_related(const char *preset_name, PresetSearchResult *out_result) {
+    if (!preset_name || !out_result)
+        return 0;
 
     out_result->names = NULL;
     out_result->relevance_scores = NULL;
@@ -884,14 +858,15 @@ int preset_recommend_related(const char *preset_name,
 
     /* 获取参考预设 */
     const PresetBlockMetadata *ref_meta = preset_blocks_get_metadata(preset_name);
-    if (!ref_meta) return 0;
+    if (!ref_meta)
+        return 0;
 
     /* 临时存储 */
     char **names = lv_malloc(64 * sizeof(char *));
     double *scores = lv_malloc(64 * sizeof(double));
     if (!names || !scores) {
-        lv_free((void **)&names);
-        lv_free((void **)&scores);
+        lv_free((void **) &names);
+        lv_free((void **) &scores);
         return 0;
     }
 
@@ -903,10 +878,12 @@ int preset_recommend_related(const char *preset_name,
     int total = preset_blocks_get_all_names(all_names, 256);
 
     for (int i = 0; i < total; i++) {
-        if (strcmp(all_names[i], preset_name) == 0) continue;
+        if (strcmp(all_names[i], preset_name) == 0)
+            continue;
 
         const PresetBlockMetadata *meta = preset_blocks_get_metadata(all_names[i]);
-        if (!meta) continue;
+        if (!meta)
+            continue;
 
         double score = 0.0;
 
@@ -924,8 +901,7 @@ int preset_recommend_related(const char *preset_name,
         }
 
         /* 名称相似性 */
-        if (strstr(meta->name, preset_name) ||
-            strstr(preset_name, meta->name)) {
+        if (strstr(meta->name, preset_name) || strstr(preset_name, meta->name)) {
             score += 1.0;
         }
 
@@ -941,25 +917,25 @@ int preset_recommend_related(const char *preset_name,
         out_result->relevance_scores = scores;
         out_result->count = count;
     } else {
-        lv_free((void **)&names);
-        lv_free((void **)&scores);
+        lv_free((void **) &names);
+        lv_free((void **) &scores);
     }
 
     return count;
 }
 
-void preset_search_result_destroy(PresetSearchResult *result)
-{
-    if (!result) return;
+void preset_search_result_destroy(PresetSearchResult *result) {
+    if (!result)
+        return;
 
     if (result->names) {
         for (int i = 0; i < result->count; i++) {
-            lv_free((void **)&result->names[i]);
+            lv_free((void **) &result->names[i]);
         }
-        lv_free((void **)&result->names);
+        lv_free((void **) &result->names);
     }
 
-    lv_free((void **)&result->relevance_scores);
+    lv_free((void **) &result->relevance_scores);
     result->count = 0;
 }
 
@@ -967,20 +943,20 @@ void preset_search_result_destroy(PresetSearchResult *result)
  * 预设组合操作实现
  * ================================================================ */
 
-static bool preset_compose(const char *preset_a,
-                     const char *preset_b,
-                     PresetComposeMode mode,
-                     char **out_composed_name)
-{
-    if (!preset_a || !preset_b || !out_composed_name) return false;
+static bool preset_compose(const char *preset_a, const char *preset_b, PresetComposeMode mode,
+                           char **out_composed_name) {
+    if (!preset_a || !preset_b || !out_composed_name)
+        return false;
 
     /* 查找预设 */
     FuncBlock *fb_a = func_block_registry_lookup(preset_a);
     FuncBlock *fb_b = func_block_registry_lookup(preset_b);
 
     if (!fb_a || !fb_b) {
-        if (fb_a) func_block_destroy(fb_a);
-        if (fb_b) func_block_destroy(fb_b);
+        if (fb_a)
+            func_block_destroy(fb_a);
+        if (fb_b)
+            func_block_destroy(fb_b);
         return false;
     }
 
@@ -1052,12 +1028,12 @@ static bool preset_compose(const char *preset_a,
 
     if (success && composed) {
         /* 设置名称 */
-        if (composed->name) lv_free((void **)&composed->name);
+        if (composed->name)
+            lv_free((void **) &composed->name);
         composed->name = lv_strdup(new_name);
 
         /* 注册新预设 */
-        bool registered = func_block_register(new_name, composed->description,
-                                               PRESET_CATEGORY_CONSTRUCTION, composed);
+        bool registered = func_block_register(new_name, composed->description, PRESET_CATEGORY_CONSTRUCTION, composed);
         func_block_destroy(composed);
 
         if (registered) {
@@ -1069,56 +1045,50 @@ static bool preset_compose(const char *preset_a,
     return false;
 }
 
-bool preset_make_recursive(const char *base_preset,
-                            int max_iterations,
-                            char **out_recursive_name)
-{
+bool preset_make_recursive(const char *base_preset, int max_iterations, char **out_recursive_name) {
     if (!base_preset || !out_recursive_name || max_iterations <= 0) {
         return false;
     }
 
     /* 查找基础预设 */
     FuncBlock *fb = func_block_registry_lookup(base_preset);
-    if (!fb) return false;
+    if (!fb)
+        return false;
 
     /* 验证预设可以递归（输入输出兼容） */
     if (fb->output_count != fb->input_count) {
         func_block_destroy(fb);
-        lv_ERROR_SET(lv_ERROR_INVALID_PARAM,
-                       "预设 '%s' 的输入输出数量不匹配，无法递归",
-                       base_preset);
+        lv_ERROR_SET(lv_ERROR_INVALID_PARAM, "预设 '%s' 的输入输出数量不匹配，无法递归", base_preset);
         return false;
     }
 
     /* 生成递归预设名称 */
     char new_name[MAX_PRESET_NAME_LENGTH];
-    snprintf(new_name, sizeof(new_name), "recursive_%s_%d",
-             base_preset, atomic_fetch_add(&g_recursive_counter, 1));
+    snprintf(new_name, sizeof(new_name), "recursive_%s_%d", base_preset, atomic_fetch_add(&g_recursive_counter, 1));
 
     /* 创建递归预设（简化实现：复制原预设并添加递归标记） */
     FuncBlock *recursive_fb = func_block_copy(fb);
     func_block_destroy(fb);
 
-    if (!recursive_fb) return false;
+    if (!recursive_fb)
+        return false;
 
     /* 更新名称和描述 */
     if (recursive_fb->name) {
-        lv_free((void **)&recursive_fb->name);
+        lv_free((void **) &recursive_fb->name);
     }
     recursive_fb->name = lv_strdup(new_name);
 
     if (recursive_fb->description) {
         char desc_buf[512];
-        snprintf(desc_buf, sizeof(desc_buf),
-                 "%s（递归版本，最大迭代%d次）",
-                 recursive_fb->description, max_iterations);
-        lv_free((void **)&recursive_fb->description);
+        snprintf(desc_buf, sizeof(desc_buf), "%s（递归版本，最大迭代%d次）", recursive_fb->description, max_iterations);
+        lv_free((void **) &recursive_fb->description);
         recursive_fb->description = lv_strdup(desc_buf);
     }
 
     /* 注册递归预设 */
-    bool registered = func_block_register(new_name, recursive_fb->description,
-                                           PRESET_CATEGORY_CONSTRUCTION, recursive_fb);
+    bool registered =
+        func_block_register(new_name, recursive_fb->description, PRESET_CATEGORY_CONSTRUCTION, recursive_fb);
     func_block_destroy(recursive_fb);
 
     if (registered) {

@@ -22,9 +22,10 @@
 
 #include <string.h>
 
+#include "lv/constraint_graph.h" /* GeomNode type */
+
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/constraint_graph.h"  /* GeomNode type */
 
 /* ============================================================
  * 符号坐标深拷贝

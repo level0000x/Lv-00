@@ -16,24 +16,25 @@
  * @version 1.0.0
  */
 
-#include "lv/engine.h"
-#include "lv/context.h"
-#include "lv/dsl_compiler.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "func_block_preset.h"
-#include "preset_core.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
+#include "lv/context.h"
+#include "lv/dsl_compiler.h"
+#include "lv/engine.h"
+
+#include "func_block_preset.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "preset_core.h"
+
 /* ── 错误码兼容：未在 error_codes.h 中定义的便捷 API 专用码 ── */
 #ifndef lv_ERROR_PROOF_FAILED
-#define lv_ERROR_PROOF_FAILED   lv_ERROR_PROOF_INVALID
+#define lv_ERROR_PROOF_FAILED lv_ERROR_PROOF_INVALID
 #endif
 #ifndef lv_ERROR_MODULE_ERROR
-#define lv_ERROR_MODULE_ERROR   lv_ERROR_INTERNAL
+#define lv_ERROR_MODULE_ERROR lv_ERROR_INTERNAL
 #endif
 
 /* ── 预设系统前向声明（定义在 preset_manager.c） ── */
@@ -57,19 +58,16 @@ const PresetMetadata *preset_get_metadata(PresetEntryHandle entry);
  * @param op_name   操作名称（用于错误消息）
  * @return true 转移成功，false 转移失败
  */
-static bool safe_transition(lvContext *ctx, lvContextState new_state,
-                            const char *op_name) {
-    if (!ctx) return false;
+static bool safe_transition(lvContext *ctx, lvContextState new_state, const char *op_name) {
+    if (!ctx)
+        return false;
 
     lvErrorCode ec = lv_context_set_state(ctx, new_state);
     if (ec != lv_OK) {
         /* 转移失败时设置上下文错误信息 */
         ctx->error_code = ec;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "%s: 状态转移失败（当前状态 %s -> 目标状态 %s）",
-                 op_name,
-                 lv_context_state_name(ctx->state),
-                 lv_context_state_name(new_state));
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "%s: 状态转移失败（当前状态 %s -> 目标状态 %s）",
+                 op_name, lv_context_state_name(ctx->state), lv_context_state_name(new_state));
         return false;
     }
     return true;
@@ -106,12 +104,10 @@ int lv_prove(lvContext *ctx, const char *goal) {
     }
 
     /* 只有 IDLE 和 COMPLETE 状态允许开始新的证明 */
-    if (ctx->state != lv_CONTEXT_IDLE &&
-        ctx->state != lv_CONTEXT_COMPLETE) {
+    if (ctx->state != lv_CONTEXT_IDLE && ctx->state != lv_CONTEXT_COMPLETE) {
         ctx->error_code = lv_ERROR_INVALID_STATE;
         snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "lv_prove: 当前状态 %s 不允许开始新证明（需要 IDLE 或 COMPLETE）",
-                 lv_context_state_name(ctx->state));
+                 "lv_prove: 当前状态 %s 不允许开始新证明（需要 IDLE 或 COMPLETE）", lv_context_state_name(ctx->state));
         return -2;
     }
 
@@ -159,8 +155,7 @@ int lv_prove(lvContext *ctx, const char *goal) {
         /* 证明失败：矛盾、超时或资源耗尽 */
         ctx->state = lv_CONTEXT_ERROR;
         ctx->error_code = lv_ERROR_PROOF_FAILED;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "lv_prove: 证明失败（重写-求解流水线返回 %d）", steps);
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_prove: 证明失败（重写-求解流水线返回 %d）", steps);
         return -4;
     }
 }
@@ -201,22 +196,20 @@ int lv_preset_load(lvContext *ctx, const char *name) {
     PresetEntryHandle entry = preset_find(name);
     if (!entry) {
         ctx->error_code = lv_ERROR_NOT_FOUND;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "lv_preset_load: 预设 '%s' 不存在", name);
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_load: 预设 '%s' 不存在", name);
         return -3;
     }
 
     /* ---- 注册到上下文的模块引用 ----
      * 将预设条目作为模块引用记录在上下文中，
      * 方便后续 lv_preset_apply() 使用。 */
-    if (ctx->module_ref_count < 256) {  /* 防止引用数组溢出 */
-        ctx->module_refs[ctx->module_ref_count] = (void *)entry;
+    if (ctx->module_ref_count < 256) { /* 防止引用数组溢出 */
+        ctx->module_refs[ctx->module_ref_count] = (void *) entry;
         ctx->module_ref_count++;
     } else {
         preset_release(entry);
         ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "lv_preset_load: 模块引用数组已满（%d 个）",
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_load: 模块引用数组已满（%d 个）",
                  ctx->module_ref_count);
         return -4;
     }
@@ -247,7 +240,7 @@ int lv_preset_unload(lvContext *ctx, const char *name) {
     /* ---- 在模块引用列表中查找匹配的预设 ---- */
     int found_idx = -1;
     for (int i = 0; i < ctx->module_ref_count; i++) {
-        PresetEntryHandle entry = (PresetEntryHandle)ctx->module_refs[i];
+        PresetEntryHandle entry = (PresetEntryHandle) ctx->module_refs[i];
         if (entry) {
             const PresetMetadata *meta = preset_get_metadata(entry);
             if (meta && meta->name && strcmp(meta->name, name) == 0) {
@@ -259,13 +252,12 @@ int lv_preset_unload(lvContext *ctx, const char *name) {
 
     if (found_idx < 0) {
         ctx->error_code = lv_ERROR_NOT_FOUND;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "lv_preset_unload: 上下文中未加载预设 '%s'", name);
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_unload: 上下文中未加载预设 '%s'", name);
         return -3;
     }
 
     /* ---- 移除并释放引用 ---- */
-    PresetEntryHandle entry = (PresetEntryHandle)ctx->module_refs[found_idx];
+    PresetEntryHandle entry = (PresetEntryHandle) ctx->module_refs[found_idx];
     preset_release(entry);
 
     /* 将最后一个元素移到空位，保持紧凑排列 */
@@ -299,11 +291,9 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
     }
 
     /* 仅允许在 IDLE 或 PARSING 状态下应用预设 */
-    if (ctx->state != lv_CONTEXT_IDLE &&
-        ctx->state != lv_CONTEXT_PARSING) {
+    if (ctx->state != lv_CONTEXT_IDLE && ctx->state != lv_CONTEXT_PARSING) {
         ctx->error_code = lv_ERROR_INVALID_STATE;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "lv_preset_apply: 当前状态 %s 不允许应用预设",
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_apply: 当前状态 %s 不允许应用预设",
                  lv_context_state_name(ctx->state));
         return -2;
     }
@@ -311,7 +301,7 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
     /* ---- 在已加载列表中查找 ---- */
     PresetEntryHandle target = NULL;
     for (int i = 0; i < ctx->module_ref_count; i++) {
-        PresetEntryHandle entry = (PresetEntryHandle)ctx->module_refs[i];
+        PresetEntryHandle entry = (PresetEntryHandle) ctx->module_refs[i];
         if (entry) {
             const PresetMetadata *meta = preset_get_metadata(entry);
             if (meta && meta->name && strcmp(meta->name, name) == 0) {
@@ -324,8 +314,7 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
     if (!target) {
         ctx->error_code = lv_ERROR_NOT_FOUND;
         snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "lv_preset_apply: 预设 '%s' 未加载，请先调用 lv_preset_load()",
-                 name);
+                 "lv_preset_apply: 预设 '%s' 未加载，请先调用 lv_preset_load()", name);
         return -3;
     }
 
@@ -333,8 +322,7 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
     const PresetMetadata *meta = preset_get_metadata(target);
     if (!meta) {
         ctx->error_code = lv_ERROR_INTERNAL;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "lv_preset_apply: 无法获取预设 '%s' 的元数据", name);
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_apply: 无法获取预设 '%s' 的元数据", name);
         return -4;
     }
 
@@ -354,7 +342,7 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
      * preset_instantiate_to_context() 接口已就绪（见 preset_blocks.h），
      *       当前实例化依赖调用方通过 engine API 显式创建节点并注册约束。
      */
-    (void)meta; /* preset_instantiate_to_context() 调用方显式传参 */
+    (void) meta; /* preset_instantiate_to_context() 调用方显式传参 */
 
     ctx->error_code = lv_OK;
     ctx->error_message[0] = '\0';

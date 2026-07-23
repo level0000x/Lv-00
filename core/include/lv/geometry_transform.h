@@ -15,7 +15,7 @@ typedef struct ConstraintGraph ConstraintGraph;
 
 /* -- Transform type enum -- */
 typedef enum {
-    TRANSFORM_IDENTITY    = 0,
+    TRANSFORM_IDENTITY = 0,
     TRANSFORM_TRANSLATION,
     TRANSFORM_ROTATION,
     TRANSFORM_SCALE,
@@ -55,9 +55,9 @@ typedef struct {
     double angle;
     double angle_cos;
     double angle_sin;
-    bool   is_special_angle;
-    int    angle_numerator;
-    int    angle_denominator;
+    bool is_special_angle;
+    int angle_numerator;
+    int angle_denominator;
 } lvRotationParams;
 
 /* -- Scale params -- */
@@ -89,10 +89,10 @@ typedef struct {
 /* -- Transform params union -- */
 typedef union {
     lvTranslationParams translation;
-    lvRotationParams    rotation;
-    lvScaleParams       scale;
-    lvScalingParams     scaling;
-    lvReflectionParams  reflection;
+    lvRotationParams rotation;
+    lvScaleParams scale;
+    lvScalingParams scaling;
+    lvReflectionParams reflection;
 } lvTransformParamsUnion;
 
 typedef struct {
@@ -101,31 +101,31 @@ typedef struct {
 
 /* -- Main transform struct -- */
 typedef struct lvTransform {
-    lvTransformType   type;
-    lvAffineMatrix    matrix;
-    bool                matrix_valid;
+    lvTransformType type;
+    lvAffineMatrix matrix;
+    bool matrix_valid;
     lvTransformParams params;
-    bool                is_isometry;
-    bool                is_orientation_preserving;
-    int                 ref_count;
+    bool is_isometry;
+    bool is_orientation_preserving;
+    int ref_count;
 } lvTransform;
 
 /* -- Transform sequence -- */
 typedef struct {
     lvTransform **transforms;
-    int             count;
-    int             capacity;
-    bool            composite_valid;
+    int count;
+    int capacity;
+    bool composite_valid;
 } lvTransformSequence;
 
 /* -- Transform group -- */
 #define GROUP_MAX_GENERATORS 16
 typedef struct {
-    char            *group_name;
-    lvTransform  **generators;
-    int              generator_count;
-    int              order;
-    bool             is_abelian;
+    char *group_name;
+    lvTransform **generators;
+    int generator_count;
+    int order;
+    bool is_abelian;
 } lvTransformGroup;
 
 /* -- Transform matrix (output type, uses mpq_t) -- */
@@ -152,8 +152,7 @@ lvTransform *lv_transform_translation(const mpq_t dx, const mpq_t dy);
  * @param angle_denom 旋转角度分母
  * @return 成功返回旋转变换指针，失败返回 NULL
  */
-lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy,
-                                        int angle_num, int angle_denom);
+lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num, int angle_denom);
 /**
  * @brief 创建旋转变换（任意有理余弦/正弦值）
  * @param cx 旋转中心 X 坐标（有理数）
@@ -162,8 +161,7 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy,
  * @param sin_a 旋转角正弦值（有理数）
  * @return 成功返回旋转变换指针，失败返回 NULL
  */
-lvTransform *lv_transform_rotation_arbitrary(const mpq_t cx, const mpq_t cy,
-                                                  const mpq_t cos_a, const mpq_t sin_a);
+lvTransform *lv_transform_rotation_arbitrary(const mpq_t cx, const mpq_t cy, const mpq_t cos_a, const mpq_t sin_a);
 /**
  * @brief 创建旋转变换（浮点角度）
  * @param cx 旋转中心 X 坐标
@@ -187,8 +185,7 @@ lvTransform *lv_transform_scale(const mpq_t sx, const mpq_t sy);
  * @param by 反射轴上点 B 的 Y 坐标（有理数）
  * @return 成功返回反射变换指针，失败返回 NULL
  */
-lvTransform *lv_transform_reflection(const mpq_t ax, const mpq_t ay,
-                                          const mpq_t bx, const mpq_t by);
+lvTransform *lv_transform_reflection(const mpq_t ax, const mpq_t ay, const mpq_t bx, const mpq_t by);
 /**
  * @brief 创建反射变换（通过直线方程定义反射轴）
  * @param a 直线方程系数 a（有理数）
@@ -228,8 +225,7 @@ bool lv_transform_apply_point(const lvTransform *t, mpq_t x, mpq_t y);
  * @param dst_x 目标 X 坐标（输出，有理数）
  * @param dst_y 目标 Y 坐标（输出，有理数）
  */
-void lv_transform_apply_mpq(const lvTransform *t, const mpq_t src_x, const mpq_t src_y,
-                                mpq_t dst_x, mpq_t dst_y);
+void lv_transform_apply_mpq(const lvTransform *t, const mpq_t src_x, const mpq_t src_y, mpq_t dst_x, mpq_t dst_y);
 /**
  * @brief 使用变换平移点（浮点坐标）
  * @param t 变换指针
@@ -238,8 +234,7 @@ void lv_transform_apply_mpq(const lvTransform *t, const mpq_t src_x, const mpq_t
  * @param dst_x 目标 X 坐标（输出）
  * @param dst_y 目标 Y 坐标（输出）
  */
-void lv_transform_apply_double(const lvTransform *t, double src_x, double src_y,
-                                   double *dst_x, double *dst_y);
+void lv_transform_apply_double(const lvTransform *t, double src_x, double src_y, double *dst_x, double *dst_y);
 /**
  * @brief 组合两个变换（先应用 a 再应用 b）
  * @param a 第一个变换指针
@@ -290,10 +285,8 @@ lvTransform *lv_transform_inverse(const lvTransform *t);
  * @param ry 反射结果 Y 坐标（输出，有理数）
  * @return 成功返回 true，失败返回 false
  */
-bool lv_reflect_point(const mpq_t ax, const mpq_t ay,
-                         const mpq_t bx, const mpq_t by,
-                         const mpq_t px, const mpq_t py,
-                         mpq_t rx, mpq_t ry);
+bool lv_reflect_point(const mpq_t ax, const mpq_t ay, const mpq_t bx, const mpq_t by, const mpq_t px, const mpq_t py,
+                      mpq_t rx, mpq_t ry);
 
 /* -- Sequence API -- */
 /**
@@ -409,9 +402,7 @@ int lv_transform_order(const lvTransform *t);
  * @param max_count       数组最大容量
  * @return 找到的对称变换数量
  */
-int lv_transform_identify_symmetries(const ConstraintGraph *graph,
-                                        lvTransform **out_transforms,
-                                        int max_count);
+int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform **out_transforms, int max_count);
 
 #ifdef __cplusplus
 }

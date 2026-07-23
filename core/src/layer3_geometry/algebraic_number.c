@@ -29,16 +29,21 @@
  * @param b 整数
  * @return |a| 和 |b| 的最大公约数（>= 1）
  */
-static int64_t alg_gcd(int64_t a, int64_t b)
-{
+static int64_t alg_gcd(int64_t a, int64_t b) {
     /* INT64_MIN 的绝对值会溢出（-INT64_MIN > INT64_MAX），
      * 将其转换为 uint64_t 安全处理 */
-    if (a == INT64_MIN) a = INT64_MAX;  /* |INT64_MIN| = INT64_MAX + 1，取 INT64_MAX 近似 */
-    else if (a < 0) a = -a;
-    if (b == INT64_MIN) b = INT64_MAX;
-    else if (b < 0) b = -b;
-    if (a == 0) return b;
-    if (b == 0) return a;
+    if (a == INT64_MIN)
+        a = INT64_MAX; /* |INT64_MIN| = INT64_MAX + 1，取 INT64_MAX 近似 */
+    else if (a < 0)
+        a = -a;
+    if (b == INT64_MIN)
+        b = INT64_MAX;
+    else if (b < 0)
+        b = -b;
+    if (a == 0)
+        return b;
+    if (b == 0)
+        return a;
     while (b != 0) {
         int64_t t = b;
         b = a % b;
@@ -54,16 +59,17 @@ static int64_t alg_gcd(int64_t a, int64_t b)
  * @param b 整数（非零）
  * @return |a| 和 |b| 的最小公倍数
  */
-static int64_t alg_lcm(int64_t a, int64_t b)
-{
-    if (a == 0 || b == 0) return 0;
+static int64_t alg_lcm(int64_t a, int64_t b) {
+    if (a == 0 || b == 0)
+        return 0;
     int64_t g = alg_gcd(a, b);
     /* 防止溢出：先除后乘。
      * 先将负数安全转为正数（INT64_MIN 在 alg_gcd 中已被替换为 INT64_MAX） */
     int64_t aa = (a < 0) ? -a : a;
     int64_t bb = (b < 0) ? -b : b;
     /* 检查 a/g * b 是否溢出 int64_t */
-    if (aa / g > INT64_MAX / bb) return INT64_MAX;  /* 溢出时返回上限 */
+    if (aa / g > INT64_MAX / bb)
+        return INT64_MAX; /* 溢出时返回上限 */
     return (aa / g) * bb;
 }
 
@@ -75,27 +81,32 @@ static int64_t alg_lcm(int64_t a, int64_t b)
  * @param[out] result 乘积（无溢出时有效）
  * @return true 溢出，false 无溢出
  */
-static bool alg_mul_overflow(int64_t a, int64_t b, int64_t *result)
-{
+static bool alg_mul_overflow(int64_t a, int64_t b, int64_t *result) {
     if (a == 0 || b == 0) {
         *result = 0;
         return false;
     }
     if (a > 0) {
         if (b > 0) {
-            if (a > INT64_MAX / b) return true;
+            if (a > INT64_MAX / b)
+                return true;
         } else {
-            if (b < INT64_MIN / a) return true;
+            if (b < INT64_MIN / a)
+                return true;
         }
     } else {
         if (b > 0) {
-            if (a < INT64_MIN / b) return true;
+            if (a < INT64_MIN / b)
+                return true;
         } else {
-            if (a < INT64_MAX / b) return true;  /* 注意：两个负数相乘 */
+            if (a < INT64_MAX / b)
+                return true; /* 注意：两个负数相乘 */
             /* 保护：a 或 b 为 INT64_MIN 时 |a| 或 |b| 溢出 */
-            if (a == INT64_MIN || b == INT64_MIN) return true;
+            if (a == INT64_MIN || b == INT64_MIN)
+                return true;
             /* 修正：|a| * |b|，但 a < 0, b < 0 */
-            if ((-a) > INT64_MAX / (-b)) return true;
+            if ((-a) > INT64_MAX / (-b))
+                return true;
         }
     }
     *result = a * b;
@@ -105,8 +116,7 @@ static bool alg_mul_overflow(int64_t a, int64_t b, int64_t *result)
 /**
  * @brief 检测 int64_t 加法是否溢出
  */
-static bool alg_add_overflow(int64_t a, int64_t b, int64_t *result)
-{
+static bool alg_add_overflow(int64_t a, int64_t b, int64_t *result) {
     if ((b > 0 && a > INT64_MAX - b) || (b < 0 && a < INT64_MIN - b)) {
         return true;
     }
@@ -117,8 +127,7 @@ static bool alg_add_overflow(int64_t a, int64_t b, int64_t *result)
 /**
  * @brief 检测 int64_t 减法是否溢出
  */
-static bool alg_sub_overflow(int64_t a, int64_t b, int64_t *result)
-{
+static bool alg_sub_overflow(int64_t a, int64_t b, int64_t *result) {
     if ((b < 0 && a > INT64_MAX + b) || (b > 0 && a < INT64_MIN + b)) {
         return true;
     }
@@ -132,8 +141,7 @@ static bool alg_sub_overflow(int64_t a, int64_t b, int64_t *result)
  * 将 p/q 约分为最简形式，确保 q > 0。
  * 调用者需确保 q != 0。
  */
-static void alg_rational_simplify(int64_t *p, int64_t *q)
-{
+static void alg_rational_simplify(int64_t *p, int64_t *q) {
     if (*q < 0) {
         *p = -*p;
         *q = -*q;
@@ -148,10 +156,11 @@ static void alg_rational_simplify(int64_t *p, int64_t *q)
 /**
  * @brief 判断整数是否为完全平方数
  */
-static bool alg_is_perfect_square(int64_t n)
-{
-    if (n < 0) return false;
-    if (n == 0 || n == 1) return true;
+static bool alg_is_perfect_square(int64_t n) {
+    if (n < 0)
+        return false;
+    if (n == 0 || n == 1)
+        return true;
     int64_t lo = 1, hi = n < 46341 ? n : 46341; /* sqrt(INT64_MAX) ≈ 3037000499，但 46341^2 < INT64_MAX */
     /* 使用更安全的上界 */
     hi = (n < 3037000500LL) ? n : 3037000500LL;
@@ -162,9 +171,12 @@ static bool alg_is_perfect_square(int64_t n)
             hi = mid - 1;
             continue;
         }
-        if (sq == n) return true;
-        if (sq < n) lo = mid + 1;
-        else hi = mid - 1;
+        if (sq == n)
+            return true;
+        if (sq < n)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
     }
     return false;
 }
@@ -172,22 +184,29 @@ static bool alg_is_perfect_square(int64_t n)
 /**
  * @brief 计算整数平方根（向下取整）
  */
-static int64_t alg_isqrt(int64_t n)
-{
-    if (n < 0) return 0;
-    if (n == 0) return 0;
-    int64_t x = (int64_t)sqrt((double)n);
+static int64_t alg_isqrt(int64_t n) {
+    if (n < 0)
+        return 0;
+    if (n == 0)
+        return 0;
+    int64_t x = (int64_t) sqrt((double) n);
     /* 修正浮点误差 */
     while (x > 0) {
         int64_t sq;
-        if (alg_mul_overflow(x, x, &sq)) { x--; continue; }
-        if (sq <= n) break;
+        if (alg_mul_overflow(x, x, &sq)) {
+            x--;
+            continue;
+        }
+        if (sq <= n)
+            break;
         x--;
     }
     while (true) {
         int64_t sq;
-        if (alg_mul_overflow(x + 1, x + 1, &sq)) break;
-        if (sq > n) break;
+        if (alg_mul_overflow(x + 1, x + 1, &sq))
+            break;
+        if (sq > n)
+            break;
         x++;
     }
     return x;
@@ -196,29 +215,28 @@ static int64_t alg_isqrt(int64_t n)
 /**
  * @brief 设置错误码（若 err 非空）
  */
-static void alg_set_error_rational(AlgRationalError *err, AlgRationalError code)
-{
-    if (err) *err = code;
+static void alg_set_error_rational(AlgRationalError *err, AlgRationalError code) {
+    if (err)
+        *err = code;
 }
-static void alg_set_error_quadratic(AlgQuadraticError *err, AlgQuadraticError code)
-{
-    if (err) *err = code;
+static void alg_set_error_quadratic(AlgQuadraticError *err, AlgQuadraticError code) {
+    if (err)
+        *err = code;
 }
-static void alg_set_error_interval(AlgIntervalError *err, AlgIntervalError code)
-{
-    if (err) *err = code;
+static void alg_set_error_interval(AlgIntervalError *err, AlgIntervalError code) {
+    if (err)
+        *err = code;
 }
-static void alg_set_error_poly(AlgPolyError *err, AlgPolyError code)
-{
-    if (err) *err = code;
+static void alg_set_error_poly(AlgPolyError *err, AlgPolyError code) {
+    if (err)
+        *err = code;
 }
 
 /* ============================================================
  * 第一层：有理数域 Q —— 实现
  * ============================================================ */
 
-lv_PUBLIC_API AlgRational alg_rational_create(int64_t p, int64_t q, AlgRationalError *err)
-{
+lv_PUBLIC_API AlgRational alg_rational_create(int64_t p, int64_t q, AlgRationalError *err) {
     AlgRational result;
     if (q == 0) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_ZERO_DEN);
@@ -233,33 +251,28 @@ lv_PUBLIC_API AlgRational alg_rational_create(int64_t p, int64_t q, AlgRationalE
     return result;
 }
 
-lv_PUBLIC_API AlgRational alg_rational_zero(void)
-{
+lv_PUBLIC_API AlgRational alg_rational_zero(void) {
     AlgRational r;
     r.num = 0;
     r.den = 1;
     return r;
 }
 
-lv_PUBLIC_API AlgRational alg_rational_one(void)
-{
+lv_PUBLIC_API AlgRational alg_rational_one(void) {
     AlgRational r;
     r.num = 1;
     r.den = 1;
     return r;
 }
 
-lv_PUBLIC_API AlgRational alg_rational_from_int(int64_t n)
-{
+lv_PUBLIC_API AlgRational alg_rational_from_int(int64_t n) {
     AlgRational r;
     r.num = n;
     r.den = 1;
     return r;
 }
 
-lv_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRational *b,
-                                             AlgRationalError *err)
-{
+lv_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
     if (!a || !b) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_NULL);
         return alg_rational_zero();
@@ -267,10 +280,8 @@ lv_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRation
 
     /* a.num/b.den + b.num/a.den = (a.num * b.den + b.num * a.den) / (a.den * b.den) */
     int64_t num1, num2, denom;
-    if (alg_mul_overflow(a->num, b->den, &num1) ||
-        alg_mul_overflow(b->num, a->den, &num2) ||
-        alg_add_overflow(num1, num2, &num1) ||
-        alg_mul_overflow(a->den, b->den, &denom)) {
+    if (alg_mul_overflow(a->num, b->den, &num1) || alg_mul_overflow(b->num, a->den, &num2) ||
+        alg_add_overflow(num1, num2, &num1) || alg_mul_overflow(a->den, b->den, &denom)) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_OVERFLOW);
         return alg_rational_zero();
     }
@@ -279,19 +290,15 @@ lv_PUBLIC_API AlgRational alg_rational_add(const AlgRational *a, const AlgRation
     return alg_rational_create(num1, denom, NULL);
 }
 
-lv_PUBLIC_API AlgRational alg_rational_sub(const AlgRational *a, const AlgRational *b,
-                                             AlgRationalError *err)
-{
+lv_PUBLIC_API AlgRational alg_rational_sub(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
     if (!a || !b) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_NULL);
         return alg_rational_zero();
     }
 
     int64_t num1, num2, denom;
-    if (alg_mul_overflow(a->num, b->den, &num1) ||
-        alg_mul_overflow(b->num, a->den, &num2) ||
-        alg_sub_overflow(num1, num2, &num1) ||
-        alg_mul_overflow(a->den, b->den, &denom)) {
+    if (alg_mul_overflow(a->num, b->den, &num1) || alg_mul_overflow(b->num, a->den, &num2) ||
+        alg_sub_overflow(num1, num2, &num1) || alg_mul_overflow(a->den, b->den, &denom)) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_OVERFLOW);
         return alg_rational_zero();
     }
@@ -300,9 +307,7 @@ lv_PUBLIC_API AlgRational alg_rational_sub(const AlgRational *a, const AlgRation
     return alg_rational_create(num1, denom, NULL);
 }
 
-lv_PUBLIC_API AlgRational alg_rational_mul(const AlgRational *a, const AlgRational *b,
-                                             AlgRationalError *err)
-{
+lv_PUBLIC_API AlgRational alg_rational_mul(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
     if (!a || !b) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_NULL);
         return alg_rational_zero();
@@ -330,9 +335,7 @@ lv_PUBLIC_API AlgRational alg_rational_mul(const AlgRational *a, const AlgRation
     return result;
 }
 
-lv_PUBLIC_API AlgRational alg_rational_div(const AlgRational *a, const AlgRational *b,
-                                             AlgRationalError *err)
-{
+lv_PUBLIC_API AlgRational alg_rational_div(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
     if (!a || !b) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_NULL);
         return alg_rational_zero();
@@ -354,24 +357,21 @@ lv_PUBLIC_API AlgRational alg_rational_div(const AlgRational *a, const AlgRation
     return alg_rational_mul(a, &inv_b, err);
 }
 
-lv_PUBLIC_API AlgRational alg_rational_neg(const AlgRational *a)
-{
+lv_PUBLIC_API AlgRational alg_rational_neg(const AlgRational *a) {
     AlgRational r;
     r.num = -a->num;
     r.den = a->den;
     return r;
 }
 
-lv_PUBLIC_API AlgRational alg_rational_abs(const AlgRational *a)
-{
+lv_PUBLIC_API AlgRational alg_rational_abs(const AlgRational *a) {
     AlgRational r;
     r.num = (a->num < 0) ? -a->num : a->num;
     r.den = a->den;
     return r;
 }
 
-lv_PUBLIC_API AlgRational alg_rational_inv(const AlgRational *a, AlgRationalError *err)
-{
+lv_PUBLIC_API AlgRational alg_rational_inv(const AlgRational *a, AlgRationalError *err) {
     if (!a) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_NULL);
         return alg_rational_zero();
@@ -384,9 +384,7 @@ lv_PUBLIC_API AlgRational alg_rational_inv(const AlgRational *a, AlgRationalErro
     return alg_rational_create(a->den, a->num, NULL);
 }
 
-lv_PUBLIC_API AlgRational alg_rational_pow(const AlgRational *a, int n,
-                                             AlgRationalError *err)
-{
+lv_PUBLIC_API AlgRational alg_rational_pow(const AlgRational *a, int n, AlgRationalError *err) {
     if (!a) {
         alg_set_error_rational(err, ALG_RATIONAL_ERR_NULL);
         return alg_rational_zero();
@@ -440,70 +438,72 @@ lv_PUBLIC_API AlgRational alg_rational_pow(const AlgRational *a, int n,
     return result;
 }
 
-lv_PUBLIC_API int alg_rational_cmp(const AlgRational *a, const AlgRational *b)
-{
+lv_PUBLIC_API int alg_rational_cmp(const AlgRational *a, const AlgRational *b) {
     /* a.num/a.den - b.num/b.den = (a.num * b.den - b.num * a.den) / (a.den * b.den) */
     /* 由于 den > 0，只需比较分子 */
     int64_t lhs, rhs;
     /* 使用 __int128 避免溢出（如果编译器支持） */
 #if defined(__SIZEOF_INT128__)
-    __int128 l = (__int128)a->num * (__int128)b->den;
-    __int128 r = (__int128)b->num * (__int128)a->den;
-    if (l < r) return -1;
-    if (l > r) return 1;
+    __int128 l = (__int128) a->num * (__int128) b->den;
+    __int128 r = (__int128) b->num * (__int128) a->den;
+    if (l < r)
+        return -1;
+    if (l > r)
+        return 1;
     return 0;
 #else
     /* 回退到 double 近似比较 */
-    double da = (double)a->num / (double)a->den;
-    double db = (double)b->num / (double)b->den;
-    if (da < db) return -1;
-    if (da > db) return 1;
+    double da = (double) a->num / (double) a->den;
+    double db = (double) b->num / (double) b->den;
+    if (da < db)
+        return -1;
+    if (da > db)
+        return 1;
     return 0;
 #endif
 }
 
-lv_PUBLIC_API bool alg_rational_eq(const AlgRational *a, const AlgRational *b)
-{
+lv_PUBLIC_API bool alg_rational_eq(const AlgRational *a, const AlgRational *b) {
     return alg_rational_cmp(a, b) == 0;
 }
 
-lv_PUBLIC_API double alg_rational_to_double(const AlgRational *r)
-{
-    return (double)r->num / (double)r->den;
+lv_PUBLIC_API double alg_rational_to_double(const AlgRational *r) {
+    return (double) r->num / (double) r->den;
 }
 
-lv_PUBLIC_API int alg_rational_to_string(const AlgRational *r, char *buf, size_t size)
-{
+lv_PUBLIC_API int alg_rational_to_string(const AlgRational *r, char *buf, size_t size) {
     if (r->den == 1) {
-        return snprintf(buf, size, "%lld", (long long)r->num);
+        return snprintf(buf, size, "%lld", (long long) r->num);
     }
-    return snprintf(buf, size, "%lld/%lld", (long long)r->num, (long long)r->den);
+    return snprintf(buf, size, "%lld/%lld", (long long) r->num, (long long) r->den);
 }
 
-lv_PUBLIC_API bool alg_rational_is_zero(const AlgRational *r)
-{
+lv_PUBLIC_API bool alg_rational_is_zero(const AlgRational *r) {
     return r->num == 0;
 }
 
-lv_PUBLIC_API bool alg_rational_is_positive(const AlgRational *r)
-{
+lv_PUBLIC_API bool alg_rational_is_positive(const AlgRational *r) {
     return r->num > 0;
 }
 
-lv_PUBLIC_API bool alg_rational_is_negative(const AlgRational *r)
-{
+lv_PUBLIC_API bool alg_rational_is_negative(const AlgRational *r) {
     return r->num < 0;
 }
 
-lv_PUBLIC_API const char *alg_rational_error_string(AlgRationalError err)
-{
+lv_PUBLIC_API const char *alg_rational_error_string(AlgRationalError err) {
     switch (err) {
-        case ALG_RATIONAL_OK:          return "成功";
-        case ALG_RATIONAL_ERR_ZERO_DEN: return "分母为零";
-        case ALG_RATIONAL_ERR_OVERFLOW: return "整数溢出";
-        case ALG_RATIONAL_ERR_NULL:     return "空指针";
-        case ALG_RATIONAL_ERR_INVALID:  return "无效参数";
-        default:                        return "未知错误";
+        case ALG_RATIONAL_OK:
+            return "成功";
+        case ALG_RATIONAL_ERR_ZERO_DEN:
+            return "分母为零";
+        case ALG_RATIONAL_ERR_OVERFLOW:
+            return "整数溢出";
+        case ALG_RATIONAL_ERR_NULL:
+            return "空指针";
+        case ALG_RATIONAL_ERR_INVALID:
+            return "无效参数";
+        default:
+            return "未知错误";
     }
 }
 
@@ -511,11 +511,8 @@ lv_PUBLIC_API const char *alg_rational_error_string(AlgRationalError err)
  * 第二层：二次代数数域 Q(sqrt(d)) —— 实现
  * ============================================================ */
 
-lv_PUBLIC_API AlgQuadratic alg_quadratic_create(int64_t a_val, int64_t a_den,
-                                                    int64_t b_val, int64_t b_den,
-                                                    int64_t d,
-                                                    AlgQuadraticError *err)
-{
+lv_PUBLIC_API AlgQuadratic alg_quadratic_create(int64_t a_val, int64_t a_den, int64_t b_val, int64_t b_den, int64_t d,
+                                                AlgQuadraticError *err) {
     AlgQuadratic result;
     memset(&result, 0, sizeof(result));
 
@@ -534,8 +531,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_create(int64_t a_val, int64_t a_den,
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic alg_quadratic_from_rational(const AlgRational *r, int64_t d)
-{
+lv_PUBLIC_API AlgQuadratic alg_quadratic_from_rational(const AlgRational *r, int64_t d) {
     AlgQuadratic q;
     q.a = *r;
     q.b = alg_rational_zero();
@@ -543,16 +539,11 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_from_rational(const AlgRational *r, int
     return q;
 }
 
-lv_PUBLIC_API AlgQuadratic alg_quadratic_sqrt(int64_t b_val, int64_t b_den,
-                                                 int64_t d,
-                                                 AlgQuadraticError *err)
-{
+lv_PUBLIC_API AlgQuadratic alg_quadratic_sqrt(int64_t b_val, int64_t b_den, int64_t d, AlgQuadraticError *err) {
     return alg_quadratic_create(0, 1, b_val, b_den, d, err);
 }
 
-lv_PUBLIC_API AlgQuadratic alg_quadratic_add(const AlgQuadratic *x, const AlgQuadratic *y,
-                                                AlgQuadraticError *err)
-{
+lv_PUBLIC_API AlgQuadratic alg_quadratic_add(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, ALG_QUADRATIC_ERR_NULL);
         AlgQuadratic z;
@@ -574,9 +565,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_add(const AlgQuadratic *x, const AlgQua
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic alg_quadratic_sub(const AlgQuadratic *x, const AlgQuadratic *y,
-                                                AlgQuadraticError *err)
-{
+lv_PUBLIC_API AlgQuadratic alg_quadratic_sub(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, ALG_QUADRATIC_ERR_NULL);
         AlgQuadratic z;
@@ -598,9 +587,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_sub(const AlgQuadratic *x, const AlgQua
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic alg_quadratic_mul(const AlgQuadratic *x, const AlgQuadratic *y,
-                                                AlgQuadraticError *err)
-{
+lv_PUBLIC_API AlgQuadratic alg_quadratic_mul(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, ALG_QUADRATIC_ERR_NULL);
         AlgQuadratic z;
@@ -638,9 +625,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_mul(const AlgQuadratic *x, const AlgQua
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y,
-                                                AlgQuadraticError *err)
-{
+lv_PUBLIC_API AlgQuadratic alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, ALG_QUADRATIC_ERR_NULL);
         AlgQuadratic z;
@@ -696,8 +681,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_div(const AlgQuadratic *x, const AlgQua
     return numerator;
 }
 
-lv_PUBLIC_API AlgQuadratic alg_quadratic_neg(const AlgQuadratic *x)
-{
+lv_PUBLIC_API AlgQuadratic alg_quadratic_neg(const AlgQuadratic *x) {
     AlgQuadratic result;
     result.a = alg_rational_neg(&x->a);
     result.b = alg_rational_neg(&x->b);
@@ -705,8 +689,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_neg(const AlgQuadratic *x)
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic alg_quadratic_conj(const AlgQuadratic *x)
-{
+lv_PUBLIC_API AlgQuadratic alg_quadratic_conj(const AlgQuadratic *x) {
     AlgQuadratic result;
     result.a = x->a;
     result.b = alg_rational_neg(&x->b);
@@ -714,9 +697,7 @@ lv_PUBLIC_API AlgQuadratic alg_quadratic_conj(const AlgQuadratic *x)
     return result;
 }
 
-lv_PUBLIC_API AlgRational alg_quadratic_norm(const AlgQuadratic *x,
-                                                AlgQuadraticError *err)
-{
+lv_PUBLIC_API AlgRational alg_quadratic_norm(const AlgQuadratic *x, AlgQuadraticError *err) {
     if (!x) {
         alg_set_error_quadratic(err, ALG_QUADRATIC_ERR_NULL);
         return alg_rational_zero();
@@ -737,18 +718,17 @@ lv_PUBLIC_API AlgRational alg_quadratic_norm(const AlgQuadratic *x,
     return norm;
 }
 
-lv_PUBLIC_API int alg_quadratic_cmp(const AlgQuadratic *x, const AlgQuadratic *y)
-{
+lv_PUBLIC_API int alg_quadratic_cmp(const AlgQuadratic *x, const AlgQuadratic *y) {
     double dx = alg_quadratic_to_double(x);
     double dy = alg_quadratic_to_double(y);
-    if (dx < dy) return -1;
-    if (dx > dy) return 1;
+    if (dx < dy)
+        return -1;
+    if (dx > dy)
+        return 1;
     return 0;
 }
 
-lv_PUBLIC_API int alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadratic *y,
-                                             AlgQuadraticError *err)
-{
+lv_PUBLIC_API int alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, ALG_QUADRATIC_ERR_NULL);
         return 0;
@@ -786,8 +766,7 @@ lv_PUBLIC_API int alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadra
     return alg_quadratic_cmp(x, y);
 }
 
-lv_PUBLIC_API double alg_quadratic_to_double(const AlgQuadratic *x)
-{
+lv_PUBLIC_API double alg_quadratic_to_double(const AlgQuadratic *x) {
     double a = alg_rational_to_double(&x->a);
     double b = alg_rational_to_double(&x->b);
     double sqrt_d;
@@ -797,54 +776,54 @@ lv_PUBLIC_API double alg_quadratic_to_double(const AlgQuadratic *x)
         /* 负判别式：二次无理数无法表示为实数，只返回有理部分 */
         return a;
     } else {
-        sqrt_d = sqrt((double)x->d);
+        sqrt_d = sqrt((double) x->d);
     }
     return a + b * sqrt_d;
 }
 
-lv_PUBLIC_API int alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size_t size)
-{
+lv_PUBLIC_API int alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size_t size) {
     int written = 0;
     int n;
 
     /* 有理部分 */
     n = alg_rational_to_string(&x->a, buf, size);
     written += n;
-    if (written < (int)size) buf += n;
+    if (written < (int) size)
+        buf += n;
 
     /* sqrt(d) 部分 */
     if (!alg_rational_is_zero(&x->b)) {
         if (alg_rational_is_positive(&x->b)) {
-            n = snprintf(buf, size > (size_t)written ? size - (size_t)written : 0,
-                         " + ");
+            n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, " + ");
             written += n;
-            if (written < (int)size) buf += n;
+            if (written < (int) size)
+                buf += n;
         } else {
-            n = snprintf(buf, size > (size_t)written ? size - (size_t)written : 0,
-                         " - ");
+            n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, " - ");
             written += n;
-            if (written < (int)size) buf += n;
+            if (written < (int) size)
+                buf += n;
         }
 
         /* 系数绝对值 */
         AlgRational abs_b = alg_rational_abs(&x->b);
         AlgRational _one = alg_rational_one();
         if (!alg_rational_eq(&abs_b, &_one)) {
-            n = alg_rational_to_string(&abs_b, buf,
-                                       size > (size_t)written ? size - (size_t)written : 0);
+            n = alg_rational_to_string(&abs_b, buf, size > (size_t) written ? size - (size_t) written : 0);
             written += n;
-            if (written < (int)size) buf += n;
-            n = snprintf(buf, size > (size_t)written ? size - (size_t)written : 0, "*");
+            if (written < (int) size)
+                buf += n;
+            n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, "*");
             written += n;
-            if (written < (int)size) buf += n;
+            if (written < (int) size)
+                buf += n;
         }
 
         /* sqrt(d) */
         if (x->d == 0) {
             /* 退化为有理数 */
         } else {
-            n = snprintf(buf, size > (size_t)written ? size - (size_t)written : 0,
-                         "sqrt(%lld)", (long long)x->d);
+            n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, "sqrt(%lld)", (long long) x->d);
             written += n;
         }
     }
@@ -852,25 +831,28 @@ lv_PUBLIC_API int alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size
     return written;
 }
 
-lv_PUBLIC_API bool alg_quadratic_is_rational(const AlgQuadratic *x)
-{
+lv_PUBLIC_API bool alg_quadratic_is_rational(const AlgQuadratic *x) {
     return alg_rational_is_zero(&x->b);
 }
 
-lv_PUBLIC_API AlgRational alg_quadratic_rational_part(const AlgQuadratic *x)
-{
+lv_PUBLIC_API AlgRational alg_quadratic_rational_part(const AlgQuadratic *x) {
     return x->a;
 }
 
-lv_PUBLIC_API const char *alg_quadratic_error_string(AlgQuadraticError err)
-{
+lv_PUBLIC_API const char *alg_quadratic_error_string(AlgQuadraticError err) {
     switch (err) {
-        case ALG_QUADRATIC_OK:        return "成功";
-        case ALG_QUADRATIC_ERR_DOMAIN: return "域不匹配（d 不同）";
-        case ALG_QUADRATIC_ERR_OVERFLOW: return "整数溢出";
-        case ALG_QUADRATIC_ERR_NULL:   return "空指针";
-        case ALG_QUADRATIC_ERR_INVALID: return "无效参数";
-        default:                       return "未知错误";
+        case ALG_QUADRATIC_OK:
+            return "成功";
+        case ALG_QUADRATIC_ERR_DOMAIN:
+            return "域不匹配（d 不同）";
+        case ALG_QUADRATIC_ERR_OVERFLOW:
+            return "整数溢出";
+        case ALG_QUADRATIC_ERR_NULL:
+            return "空指针";
+        case ALG_QUADRATIC_ERR_INVALID:
+            return "无效参数";
+        default:
+            return "未知错误";
     }
 }
 
@@ -878,10 +860,8 @@ lv_PUBLIC_API const char *alg_quadratic_error_string(AlgQuadraticError err)
  * 第三层：区间运算 —— 实现
  * ============================================================ */
 
-lv_PUBLIC_API AlgInterval alg_interval_create(int64_t lo_val, int64_t lo_den,
-                                                int64_t hi_val, int64_t hi_den,
-                                                AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgInterval alg_interval_create(int64_t lo_val, int64_t lo_den, int64_t hi_val, int64_t hi_den,
+                                              AlgIntervalError *err) {
     AlgInterval result;
     AlgRationalError r_err;
 
@@ -899,17 +879,14 @@ lv_PUBLIC_API AlgInterval alg_interval_create(int64_t lo_val, int64_t lo_den,
     return result;
 }
 
-lv_PUBLIC_API AlgInterval alg_interval_point(const AlgRational *r)
-{
+lv_PUBLIC_API AlgInterval alg_interval_point(const AlgRational *r) {
     AlgInterval iv;
     iv.lo = *r;
     iv.hi = *r;
     return iv;
 }
 
-lv_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x,
-                                                         AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x, AlgIntervalError *err) {
     if (!x) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         AlgInterval iv;
@@ -935,18 +912,18 @@ lv_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x,
     /* lo = floor(val) - 1, hi = ceil(val) + 1 作为粗略包围 */
     /* 钳制到 int64 安全范围再转换，避免大值时 floor/ceil 结果的未定义行为 */
     double clamped_val = val;
-    if (clamped_val > 9223372036854774784.0) clamped_val = 9223372036854774784.0;
-    if (clamped_val < -9223372036854774784.0) clamped_val = -9223372036854774784.0;
-    int64_t lo_int = (int64_t)floor(clamped_val) - 1;
-    int64_t hi_int = (int64_t)ceil(clamped_val) + 1;
+    if (clamped_val > 9223372036854774784.0)
+        clamped_val = 9223372036854774784.0;
+    if (clamped_val < -9223372036854774784.0)
+        clamped_val = -9223372036854774784.0;
+    int64_t lo_int = (int64_t) floor(clamped_val) - 1;
+    int64_t hi_int = (int64_t) ceil(clamped_val) + 1;
 
     alg_set_error_interval(err, ALG_INTERVAL_OK);
     return alg_interval_create(lo_int, 1, hi_int, 1, NULL);
 }
 
-lv_PUBLIC_API AlgInterval alg_interval_add(const AlgInterval *x, const AlgInterval *y,
-                                             AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgInterval alg_interval_add(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         AlgInterval iv;
@@ -961,9 +938,7 @@ lv_PUBLIC_API AlgInterval alg_interval_add(const AlgInterval *x, const AlgInterv
     return result;
 }
 
-lv_PUBLIC_API AlgInterval alg_interval_sub(const AlgInterval *x, const AlgInterval *y,
-                                             AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgInterval alg_interval_sub(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         AlgInterval iv;
@@ -978,9 +953,7 @@ lv_PUBLIC_API AlgInterval alg_interval_sub(const AlgInterval *x, const AlgInterv
     return result;
 }
 
-lv_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInterval *y,
-                                             AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         AlgInterval iv;
@@ -995,12 +968,18 @@ lv_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInterv
     AlgRational p4 = alg_rational_mul(&x->hi, &y->hi, NULL);
 
     AlgRational lo = p1, hi = p1;
-    if (alg_rational_cmp(&p2, &lo) < 0) lo = p2;
-    if (alg_rational_cmp(&p3, &lo) < 0) lo = p3;
-    if (alg_rational_cmp(&p4, &lo) < 0) lo = p4;
-    if (alg_rational_cmp(&p2, &hi) > 0) hi = p2;
-    if (alg_rational_cmp(&p3, &hi) > 0) hi = p3;
-    if (alg_rational_cmp(&p4, &hi) > 0) hi = p4;
+    if (alg_rational_cmp(&p2, &lo) < 0)
+        lo = p2;
+    if (alg_rational_cmp(&p3, &lo) < 0)
+        lo = p3;
+    if (alg_rational_cmp(&p4, &lo) < 0)
+        lo = p4;
+    if (alg_rational_cmp(&p2, &hi) > 0)
+        hi = p2;
+    if (alg_rational_cmp(&p3, &hi) > 0)
+        hi = p3;
+    if (alg_rational_cmp(&p4, &hi) > 0)
+        hi = p4;
 
     AlgInterval result;
     result.lo = lo;
@@ -1009,9 +988,7 @@ lv_PUBLIC_API AlgInterval alg_interval_mul(const AlgInterval *x, const AlgInterv
     return result;
 }
 
-lv_PUBLIC_API AlgInterval alg_interval_div(const AlgInterval *x, const AlgInterval *y,
-                                             AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgInterval alg_interval_div(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         AlgInterval iv;
@@ -1048,17 +1025,14 @@ lv_PUBLIC_API AlgInterval alg_interval_div(const AlgInterval *x, const AlgInterv
     return alg_interval_mul(x, &inv_y, err);
 }
 
-lv_PUBLIC_API AlgInterval alg_interval_neg(const AlgInterval *x)
-{
+lv_PUBLIC_API AlgInterval alg_interval_neg(const AlgInterval *x) {
     AlgInterval result;
     result.lo = alg_rational_neg(&x->hi);
     result.hi = alg_rational_neg(&x->lo);
     return result;
 }
 
-lv_PUBLIC_API AlgInterval alg_interval_intersect(const AlgInterval *x, const AlgInterval *y,
-                                                    AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgInterval alg_interval_intersect(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         AlgInterval iv;
@@ -1086,9 +1060,7 @@ lv_PUBLIC_API AlgInterval alg_interval_intersect(const AlgInterval *x, const Alg
     return result;
 }
 
-lv_PUBLIC_API AlgInterval alg_interval_hull(const AlgInterval *x, const AlgInterval *y,
-                                              AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgInterval alg_interval_hull(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         AlgInterval iv;
@@ -1112,32 +1084,23 @@ lv_PUBLIC_API AlgInterval alg_interval_hull(const AlgInterval *x, const AlgInter
     return result;
 }
 
-lv_PUBLIC_API bool alg_interval_contains(const AlgInterval *x, const AlgInterval *y)
-{
-    return alg_rational_cmp(&x->lo, &y->lo) <= 0 &&
-           alg_rational_cmp(&x->hi, &y->hi) >= 0;
+lv_PUBLIC_API bool alg_interval_contains(const AlgInterval *x, const AlgInterval *y) {
+    return alg_rational_cmp(&x->lo, &y->lo) <= 0 && alg_rational_cmp(&x->hi, &y->hi) >= 0;
 }
 
-lv_PUBLIC_API bool alg_interval_contains_rational(const AlgInterval *x,
-                                                     const AlgRational *r)
-{
-    return alg_rational_cmp(&x->lo, r) <= 0 &&
-           alg_rational_cmp(&x->hi, r) >= 0;
+lv_PUBLIC_API bool alg_interval_contains_rational(const AlgInterval *x, const AlgRational *r) {
+    return alg_rational_cmp(&x->lo, r) <= 0 && alg_rational_cmp(&x->hi, r) >= 0;
 }
 
-lv_PUBLIC_API bool alg_interval_is_empty(const AlgInterval *x)
-{
+lv_PUBLIC_API bool alg_interval_is_empty(const AlgInterval *x) {
     return alg_rational_cmp(&x->lo, &x->hi) > 0;
 }
 
-lv_PUBLIC_API bool alg_interval_is_point(const AlgInterval *x)
-{
+lv_PUBLIC_API bool alg_interval_is_point(const AlgInterval *x) {
     return alg_rational_eq(&x->lo, &x->hi);
 }
 
-lv_PUBLIC_API AlgRational alg_interval_width(const AlgInterval *x,
-                                                AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgRational alg_interval_width(const AlgInterval *x, AlgIntervalError *err) {
     if (!x) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         return alg_rational_zero();
@@ -1146,9 +1109,7 @@ lv_PUBLIC_API AlgRational alg_interval_width(const AlgInterval *x,
     return alg_rational_sub(&x->hi, &x->lo, NULL);
 }
 
-lv_PUBLIC_API AlgRational alg_interval_midpoint(const AlgInterval *x,
-                                                   AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgRational alg_interval_midpoint(const AlgInterval *x, AlgIntervalError *err) {
     if (!x) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         return alg_rational_zero();
@@ -1159,10 +1120,8 @@ lv_PUBLIC_API AlgRational alg_interval_midpoint(const AlgInterval *x,
     return alg_rational_div(&sum, &two, NULL);
 }
 
-lv_PUBLIC_API void alg_interval_bisect(const AlgInterval *x,
-                                          AlgInterval *lower, AlgInterval *upper,
-                                          AlgIntervalError *err)
-{
+lv_PUBLIC_API void alg_interval_bisect(const AlgInterval *x, AlgInterval *lower, AlgInterval *upper,
+                                       AlgIntervalError *err) {
     if (!x) {
         alg_set_error_interval(err, ALG_INTERVAL_ERR_NULL);
         return;
@@ -1183,43 +1142,52 @@ lv_PUBLIC_API void alg_interval_bisect(const AlgInterval *x,
     alg_set_error_interval(err, ALG_INTERVAL_OK);
 }
 
-lv_PUBLIC_API int alg_interval_to_string(const AlgInterval *x, char *buf, size_t size)
-{
+lv_PUBLIC_API int alg_interval_to_string(const AlgInterval *x, char *buf, size_t size) {
     int written = 0;
     int n;
 
     n = snprintf(buf, size, "[");
     written += n;
-    if (written < (int)size) buf += n;
+    if (written < (int) size)
+        buf += n;
 
-    n = alg_rational_to_string(&x->lo, buf, size > (size_t)written ? size - (size_t)written : 0);
+    n = alg_rational_to_string(&x->lo, buf, size > (size_t) written ? size - (size_t) written : 0);
     written += n;
-    if (written < (int)size) buf += n;
+    if (written < (int) size)
+        buf += n;
 
-    n = snprintf(buf, size > (size_t)written ? size - (size_t)written : 0, ", ");
+    n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, ", ");
     written += n;
-    if (written < (int)size) buf += n;
+    if (written < (int) size)
+        buf += n;
 
-    n = alg_rational_to_string(&x->hi, buf, size > (size_t)written ? size - (size_t)written : 0);
+    n = alg_rational_to_string(&x->hi, buf, size > (size_t) written ? size - (size_t) written : 0);
     written += n;
-    if (written < (int)size) buf += n;
+    if (written < (int) size)
+        buf += n;
 
-    n = snprintf(buf, size > (size_t)written ? size - (size_t)written : 0, "]");
+    n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, "]");
     written += n;
 
     return written;
 }
 
-lv_PUBLIC_API const char *alg_interval_error_string(AlgIntervalError err)
-{
+lv_PUBLIC_API const char *alg_interval_error_string(AlgIntervalError err) {
     switch (err) {
-        case ALG_INTERVAL_OK:            return "成功";
-        case ALG_INTERVAL_ERR_EMPTY:     return "空区间";
-        case ALG_INTERVAL_ERR_OVERFLOW:   return "整数溢出";
-        case ALG_INTERVAL_ERR_NULL:      return "空指针";
-        case ALG_INTERVAL_ERR_INVALID:    return "无效参数（lo > hi）";
-        case ALG_INTERVAL_ERR_DIV_BY_ZERO: return "除以包含零的区间";
-        default:                          return "未知错误";
+        case ALG_INTERVAL_OK:
+            return "成功";
+        case ALG_INTERVAL_ERR_EMPTY:
+            return "空区间";
+        case ALG_INTERVAL_ERR_OVERFLOW:
+            return "整数溢出";
+        case ALG_INTERVAL_ERR_NULL:
+            return "空指针";
+        case ALG_INTERVAL_ERR_INVALID:
+            return "无效参数（lo > hi）";
+        case ALG_INTERVAL_ERR_DIV_BY_ZERO:
+            return "除以包含零的区间";
+        default:
+            return "未知错误";
     }
 }
 
@@ -1230,23 +1198,20 @@ lv_PUBLIC_API const char *alg_interval_error_string(AlgIntervalError err)
 /**
  * @brief 规范化多项式（去除高次零系数）
  */
-static void alg_poly_normalize(AlgPoly *p)
-{
+static void alg_poly_normalize(AlgPoly *p) {
     while (p->degree > 0 && p->coef[p->degree] == 0) {
         p->degree--;
     }
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_zero(void)
-{
+lv_PUBLIC_API AlgPoly alg_poly_zero(void) {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
     p.degree = 0;
     return p;
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_const(int64_t c)
-{
+lv_PUBLIC_API AlgPoly alg_poly_const(int64_t c) {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
     p.coef[0] = c;
@@ -1255,8 +1220,7 @@ lv_PUBLIC_API AlgPoly alg_poly_const(int64_t c)
     return p;
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_linear(int64_t a, int64_t b)
-{
+lv_PUBLIC_API AlgPoly alg_poly_linear(int64_t a, int64_t b) {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
     p.coef[1] = a;
@@ -1266,8 +1230,7 @@ lv_PUBLIC_API AlgPoly alg_poly_linear(int64_t a, int64_t b)
     return p;
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_quadratic(int64_t a, int64_t b, int64_t c)
-{
+lv_PUBLIC_API AlgPoly alg_poly_quadratic(int64_t a, int64_t b, int64_t c) {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
     p.coef[2] = a;
@@ -1278,14 +1241,11 @@ lv_PUBLIC_API AlgPoly alg_poly_quadratic(int64_t a, int64_t b, int64_t c)
     return p;
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_x(void)
-{
+lv_PUBLIC_API AlgPoly alg_poly_x(void) {
     return alg_poly_linear(1, 0);
 }
 
-lv_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n,
-                                           AlgPolyError *err)
-{
+lv_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n, AlgPolyError *err) {
     if (!p) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
         return 0;
@@ -1301,23 +1261,23 @@ lv_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n,
             alg_set_error_poly(err, ALG_POLY_ERR_OVERFLOW);
             double d_result = 0.0;
             for (int j = p->degree; j >= 0; j--) {
-                d_result = d_result * (double)n + (double)p->coef[j];
+                d_result = d_result * (double) n + (double) p->coef[j];
             }
             /* 钳制到 int64 安全范围再转换，避免大值时未定义行为 */
-            if (d_result > 9223372036854774784.0) d_result = 9223372036854774784.0;
-            if (d_result < -9223372036854774784.0) d_result = -9223372036854774784.0;
-            return (int64_t)d_result;
+            if (d_result > 9223372036854774784.0)
+                d_result = 9223372036854774784.0;
+            if (d_result < -9223372036854774784.0)
+                d_result = -9223372036854774784.0;
+            return (int64_t) d_result;
         }
     }
 
     alg_set_error_poly(err, ALG_POLY_OK);
-    (void)overflow_flag;
+    (void) overflow_flag;
     return result;
 }
 
-lv_PUBLIC_API AlgRational alg_poly_eval_rational(const AlgPoly *p, const AlgRational *r,
-                                                   AlgPolyError *err)
-{
+lv_PUBLIC_API AlgRational alg_poly_eval_rational(const AlgPoly *p, const AlgRational *r, AlgPolyError *err) {
     if (!p || !r) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
         return alg_rational_zero();
@@ -1337,9 +1297,7 @@ lv_PUBLIC_API AlgRational alg_poly_eval_rational(const AlgPoly *p, const AlgRati
     return result;
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_add(const AlgPoly *p, const AlgPoly *q,
-                                      AlgPolyError *err)
-{
+lv_PUBLIC_API AlgPoly alg_poly_add(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
     if (!p || !q) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
         return alg_poly_zero();
@@ -1364,9 +1322,7 @@ lv_PUBLIC_API AlgPoly alg_poly_add(const AlgPoly *p, const AlgPoly *q,
     return result;
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_sub(const AlgPoly *p, const AlgPoly *q,
-                                      AlgPolyError *err)
-{
+lv_PUBLIC_API AlgPoly alg_poly_sub(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
     if (!p || !q) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
         return alg_poly_zero();
@@ -1391,9 +1347,7 @@ lv_PUBLIC_API AlgPoly alg_poly_sub(const AlgPoly *p, const AlgPoly *q,
     return result;
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_mul(const AlgPoly *p, const AlgPoly *q,
-                                      AlgPolyError *err)
-{
+lv_PUBLIC_API AlgPoly alg_poly_mul(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
     if (!p || !q) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
         return alg_poly_zero();
@@ -1430,8 +1384,7 @@ lv_PUBLIC_API AlgPoly alg_poly_mul(const AlgPoly *p, const AlgPoly *q,
     return result;
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_neg(const AlgPoly *p)
-{
+lv_PUBLIC_API AlgPoly alg_poly_neg(const AlgPoly *p) {
     AlgPoly result;
     for (int i = 0; i <= ALG_POLY_MAX_DEGREE; i++) {
         result.coef[i] = -p->coef[i];
@@ -1440,28 +1393,23 @@ lv_PUBLIC_API AlgPoly alg_poly_neg(const AlgPoly *p)
     return result;
 }
 
-lv_PUBLIC_API int64_t alg_poly_lead_coef(const AlgPoly *p)
-{
+lv_PUBLIC_API int64_t alg_poly_lead_coef(const AlgPoly *p) {
     return p->coef[p->degree];
 }
 
-lv_PUBLIC_API int64_t alg_poly_const_coef(const AlgPoly *p)
-{
+lv_PUBLIC_API int64_t alg_poly_const_coef(const AlgPoly *p) {
     return p->coef[0];
 }
 
-lv_PUBLIC_API bool alg_poly_is_zero(const AlgPoly *p)
-{
+lv_PUBLIC_API bool alg_poly_is_zero(const AlgPoly *p) {
     return p->degree == 0 && p->coef[0] == 0;
 }
 
-lv_PUBLIC_API bool alg_poly_is_const(const AlgPoly *p)
-{
+lv_PUBLIC_API bool alg_poly_is_const(const AlgPoly *p) {
     return p->degree == 0;
 }
 
-lv_PUBLIC_API int64_t alg_poly_discriminant(const AlgPoly *p, AlgPolyError *err)
-{
+lv_PUBLIC_API int64_t alg_poly_discriminant(const AlgPoly *p, AlgPolyError *err) {
     if (!p) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
         return 0;
@@ -1478,10 +1426,8 @@ lv_PUBLIC_API int64_t alg_poly_discriminant(const AlgPoly *p, AlgPolyError *err)
         case 2: {
             /* ax^2 + bx + c: 判别式为 b^2 - 4ac */
             int64_t b_sq, four_ac, disc;
-            if (alg_mul_overflow(p->coef[1], p->coef[1], &b_sq) ||
-                alg_mul_overflow(4, p->coef[2], &four_ac) ||
-                alg_mul_overflow(four_ac, p->coef[0], &four_ac) ||
-                alg_sub_overflow(b_sq, four_ac, &disc)) {
+            if (alg_mul_overflow(p->coef[1], p->coef[1], &b_sq) || alg_mul_overflow(4, p->coef[2], &four_ac) ||
+                alg_mul_overflow(four_ac, p->coef[0], &four_ac) || alg_sub_overflow(b_sq, four_ac, &disc)) {
                 alg_set_error_poly(err, ALG_POLY_ERR_OVERFLOW);
                 return 0;
             }
@@ -1494,9 +1440,7 @@ lv_PUBLIC_API int64_t alg_poly_discriminant(const AlgPoly *p, AlgPolyError *err)
     }
 }
 
-lv_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots,
-                                             int max_roots, AlgPolyError *err)
-{
+lv_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roots, AlgPolyError *err) {
     if (!p || !roots || max_roots <= 0) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
         return 0;
@@ -1521,7 +1465,8 @@ lv_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots,
     if (p->degree == 2) {
         /* ax^2 + bx + c = 0 */
         int64_t disc = alg_poly_discriminant(p, err);
-        if (err && *err != ALG_POLY_OK) return 0;
+        if (err && *err != ALG_POLY_OK)
+            return 0;
 
         if (disc < 0) {
             /* 无实根 */
@@ -1545,13 +1490,11 @@ lv_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots,
             int64_t sqrt_disc = alg_isqrt(disc);
             AlgRationalError r_err;
             if (found < max_roots) {
-                roots[found] = alg_rational_create(-p->coef[1] - sqrt_disc,
-                                                    2 * p->coef[2], &r_err);
+                roots[found] = alg_rational_create(-p->coef[1] - sqrt_disc, 2 * p->coef[2], &r_err);
                 found++;
             }
             if (found < max_roots) {
-                roots[found] = alg_rational_create(-p->coef[1] + sqrt_disc,
-                                                    2 * p->coef[2], &r_err);
+                roots[found] = alg_rational_create(-p->coef[1] + sqrt_disc, 2 * p->coef[2], &r_err);
                 found++;
             }
         }
@@ -1576,8 +1519,7 @@ lv_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots,
             reduced.coef[i - 1] = p->coef[i];
         }
         alg_poly_normalize(&reduced);
-        int sub_found = alg_poly_rational_roots(&reduced, roots + found,
-                                                 max_roots - found, err);
+        int sub_found = alg_poly_rational_roots(&reduced, roots + found, max_roots - found, err);
         return found + sub_found;
     }
 
@@ -1634,8 +1576,7 @@ lv_PUBLIC_API int alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots,
     return found;
 }
 
-lv_PUBLIC_API AlgPoly alg_poly_derivative(const AlgPoly *p, AlgPolyError *err)
-{
+lv_PUBLIC_API AlgPoly alg_poly_derivative(const AlgPoly *p, AlgPolyError *err) {
     if (!p) {
         alg_set_error_poly(err, ALG_POLY_ERR_NULL);
         return alg_poly_zero();
@@ -1653,7 +1594,7 @@ lv_PUBLIC_API AlgPoly alg_poly_derivative(const AlgPoly *p, AlgPolyError *err)
 
     for (int i = 1; i <= p->degree; i++) {
         int64_t new_coef;
-        if (alg_mul_overflow((int64_t)i, p->coef[i], &new_coef)) {
+        if (alg_mul_overflow((int64_t) i, p->coef[i], &new_coef)) {
             alg_set_error_poly(err, ALG_POLY_ERR_OVERFLOW);
             return alg_poly_zero();
         }
@@ -1665,8 +1606,7 @@ lv_PUBLIC_API AlgPoly alg_poly_derivative(const AlgPoly *p, AlgPolyError *err)
     return result;
 }
 
-lv_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size)
-{
+lv_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size) {
     if (!p) {
         return snprintf(buf, size, "(null)");
     }
@@ -1675,10 +1615,11 @@ lv_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size)
     bool first = true;
 
     for (int i = p->degree; i >= 0; i--) {
-        if (p->coef[i] == 0) continue;
+        if (p->coef[i] == 0)
+            continue;
 
         int n;
-        size_t remaining = (size > (size_t)written) ? size - (size_t)written : 0;
+        size_t remaining = (size > (size_t) written) ? size - (size_t) written : 0;
 
         if (!first && remaining > 0) {
             if (p->coef[i] > 0) {
@@ -1687,30 +1628,32 @@ lv_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size)
                 n = snprintf(buf, remaining, " - ");
             }
             written += n;
-            if (written < (int)size) buf += n;
-            remaining = (size > (size_t)written) ? size - (size_t)written : 0;
+            if (written < (int) size)
+                buf += n;
+            remaining = (size > (size_t) written) ? size - (size_t) written : 0;
         }
 
         int64_t coef = (p->coef[i] < 0 && !first) ? -p->coef[i] : p->coef[i];
 
         if (i == 0) {
-            n = snprintf(buf, remaining, "%lld", (long long)coef);
+            n = snprintf(buf, remaining, "%lld", (long long) coef);
         } else if (i == 1) {
             if (coef == 1) {
                 n = snprintf(buf, remaining, "x");
             } else {
-                n = snprintf(buf, remaining, "%lld*x", (long long)coef);
+                n = snprintf(buf, remaining, "%lld*x", (long long) coef);
             }
         } else {
             if (coef == 1) {
                 n = snprintf(buf, remaining, "x^%d", i);
             } else {
-                n = snprintf(buf, remaining, "%lld*x^%d", (long long)coef, i);
+                n = snprintf(buf, remaining, "%lld*x^%d", (long long) coef, i);
             }
         }
 
         written += n;
-        if (written < (int)size) buf += n;
+        if (written < (int) size)
+            buf += n;
         first = false;
     }
 
@@ -1722,16 +1665,22 @@ lv_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size)
     return written;
 }
 
-lv_PUBLIC_API const char *alg_poly_error_string(AlgPolyError err)
-{
+lv_PUBLIC_API const char *alg_poly_error_string(AlgPolyError err) {
     switch (err) {
-        case ALG_POLY_OK:          return "成功";
-        case ALG_POLY_ERR_DEGREE:  return "次数超限";
-        case ALG_POLY_ERR_OVERFLOW: return "整数溢出";
-        case ALG_POLY_ERR_NULL:     return "空指针";
-        case ALG_POLY_ERR_INVALID:  return "无效参数";
-        case ALG_POLY_ERR_DIV_BY_ZERO: return "除以零多项式";
-        default:                    return "未知错误";
+        case ALG_POLY_OK:
+            return "成功";
+        case ALG_POLY_ERR_DEGREE:
+            return "次数超限";
+        case ALG_POLY_ERR_OVERFLOW:
+            return "整数溢出";
+        case ALG_POLY_ERR_NULL:
+            return "空指针";
+        case ALG_POLY_ERR_INVALID:
+            return "无效参数";
+        case ALG_POLY_ERR_DIV_BY_ZERO:
+            return "除以零多项式";
+        default:
+            return "未知错误";
     }
 }
 
@@ -1739,28 +1688,22 @@ lv_PUBLIC_API const char *alg_poly_error_string(AlgPolyError err)
  * 跨层数域转换工具 —— 实现
  * ============================================================ */
 
-lv_PUBLIC_API AlgInterval alg_quadratic_to_interval(const AlgQuadratic *x,
-                                                       AlgIntervalError *err)
-{
+lv_PUBLIC_API AlgInterval alg_quadratic_to_interval(const AlgQuadratic *x, AlgIntervalError *err) {
     return alg_interval_from_quadratic(x, err);
 }
 
-lv_PUBLIC_API AlgInterval alg_rational_to_interval(const AlgRational *r)
-{
+lv_PUBLIC_API AlgInterval alg_rational_to_interval(const AlgRational *r) {
     return alg_interval_point(r);
 }
 
-lv_PUBLIC_API bool alg_has_real_roots(int64_t a, int64_t b, int64_t c)
-{
+lv_PUBLIC_API bool alg_has_real_roots(int64_t a, int64_t b, int64_t c) {
     if (a == 0) {
         /* 退化为一次方程 bx + c = 0，总有实根（若 b != 0） */
         return b != 0;
     }
     /* 判别式 b^2 - 4ac >= 0 */
     int64_t b_sq, four_ac, disc;
-    if (alg_mul_overflow(b, b, &b_sq) ||
-        alg_mul_overflow(4, a, &four_ac) ||
-        alg_mul_overflow(four_ac, c, &four_ac) ||
+    if (alg_mul_overflow(b, b, &b_sq) || alg_mul_overflow(4, a, &four_ac) || alg_mul_overflow(four_ac, c, &four_ac) ||
         alg_sub_overflow(b_sq, four_ac, &disc)) {
         /* int64 溢出时使用 __int128 精确计算判别式符号，
          * 避免 double 近似可能导致的符号误判。 */
@@ -1768,9 +1711,11 @@ lv_PUBLIC_API bool alg_has_real_roots(int64_t a, int64_t b, int64_t c)
         __int128 b_128 = b;
         __int128 a_128 = a;
         __int128 c_128 = c;
-        __int128 disc_128 = b_128 * b_128 - (__int128)4 * a_128 * c_128;
-        if (disc_128 > 0) sign = 1;
-        else if (disc_128 < 0) sign = -1;
+        __int128 disc_128 = b_128 * b_128 - (__int128) 4 * a_128 * c_128;
+        if (disc_128 > 0)
+            sign = 1;
+        else if (disc_128 < 0)
+            sign = -1;
         return sign >= 0;
     }
     return disc >= 0;

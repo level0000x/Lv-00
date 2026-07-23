@@ -9,6 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
 #include "lv/lv_utils.h"
 
 /* ========================================================================
@@ -29,7 +30,7 @@ lvRational *lv_rational_create_from_mpz(const mpz_t num, const mpz_t den);
 lvRational *lv_rational_create_from_si(long num, unsigned long den);
 lvRational *lv_rational_create_from_i64(int64_t num, uint64_t den);
 lvRational *lv_rational_clone(const lvRational *src);
-void          lv_rational_destroy(lvRational **r);
+void lv_rational_destroy(lvRational **r);
 
 /* ========================================================================
  * 赋值操作
@@ -72,19 +73,19 @@ void lv_rational_neg_inplace(lvRational *a);
  * 比较操作
  * ======================================================================== */
 
-int  lv_rational_cmp(const lvRational *a, const lvRational *b);
+int lv_rational_cmp(const lvRational *a, const lvRational *b);
 bool lv_rational_equal(const lvRational *a, const lvRational *b);
 bool lv_rational_is_zero(const lvRational *a);
 bool lv_rational_is_one(const lvRational *a);
 bool lv_rational_is_integer(const lvRational *a);
-int  lv_rational_sgn(const lvRational *a);
+int lv_rational_sgn(const lvRational *a);
 
 /* ========================================================================
  * 与 double 的转换
  * ======================================================================== */
 
 bool lv_rational_to_double(const lvRational *r, double *out_lossy, int *out_loss_bits);
-int  lv_rational_estimate_loss(const lvRational *r);
+int lv_rational_estimate_loss(const lvRational *r);
 
 /* ========================================================================
  * 防止分母溢出
@@ -97,7 +98,7 @@ bool lv_rational_den_is_safe(const mpz_t den);
  * 格式化与调试
  * ======================================================================== */
 
-char         *lv_rational_to_string(const lvRational *r);
+char *lv_rational_to_string(const lvRational *r);
 lvRational *lv_rational_from_string(const char *s);
 
 /* ========================================================================
@@ -105,14 +106,19 @@ lvRational *lv_rational_from_string(const char *s);
  * ======================================================================== */
 
 lvRational *lv_rational_from_mpq(mpq_srcptr val);
-void          lv_rational_to_mpq(const lvRational *r, mpq_t out);
+void lv_rational_to_mpq(const lvRational *r, mpq_t out);
 
 /* ========================================================================
  * 兼容宏
  * ======================================================================== */
 
 #ifndef SAFE_FREE_STR
-#define SAFE_FREE_STR(p) do { if (p) { lv_free((void**)&(p)); } } while(0)
+#define SAFE_FREE_STR(p)             \
+    do {                             \
+        if (p) {                     \
+            lv_free((void **) &(p)); \
+        }                            \
+    } while (0)
 #endif
 
 #ifdef __cplusplus

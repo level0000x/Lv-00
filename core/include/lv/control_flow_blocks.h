@@ -19,7 +19,7 @@ typedef enum {
 
 /* If block */
 typedef struct lvIfBlock {
-    void *base;  /* FuncBlock base */
+    void *base; /* FuncBlock base */
 
     int condition_port;
     int then_output;

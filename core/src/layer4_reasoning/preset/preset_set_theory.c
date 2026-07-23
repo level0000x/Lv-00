@@ -23,11 +23,13 @@
  */
 
 #include "preset_set_theory.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
+
+#include <string.h>
+
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include <string.h>
+#include "preset_blocks.h"
+#include "preset_common.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -53,16 +55,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_set_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_SET_THEORY,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_set_preset(const char *name, const char *description, const PresetType *input_types,
+                                int input_count, PresetType output_type, const char *math_def, const char *complexity,
+                                bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_SET_THEORY, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /**
@@ -71,21 +68,18 @@ static bool register_set_preset(
  * 减少重复代码，提高可维护性。
  * 注册成功时递增 success_count，失败时输出错误日志。
  */
-#define REGISTER_SET(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_set_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_SET(name, desc, inputs, in_count, output, math, comp, cons, rev)                                 \
+    do {                                                                                                          \
+        if (register_set_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), (rev))) { \
+            success_count++;                                                                                      \
+        } else {                                                                                                  \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                   \
+        }                                                                                                         \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_set_theory_register(void)
-{
+bool preset_set_theory_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -101,12 +95,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_union",
-            "并集：A ∪ B = {x : x ∈ A ∨ x ∈ B}",
-            inputs, 2, PRESET_TYPE_SET,
-            "A \\cup B = \\{x : x \\in A \\lor x \\in B\\}",
-            "O(|A| + |B|)", true, false);
+        REGISTER_SET("set_union", "并集：A ∪ B = {x : x ∈ A ∨ x ∈ B}", inputs, 2, PRESET_TYPE_SET,
+                     "A \\cup B = \\{x : x \\in A \\lor x \\in B\\}", "O(|A| + |B|)", true, false);
     }
 
     /* -------------------- 2. 交集：A ∩ B -------------------- */
@@ -118,12 +108,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_intersection",
-            "交集：A ∩ B = {x : x ∈ A ∧ x ∈ B}",
-            inputs, 2, PRESET_TYPE_SET,
-            "A \\cap B = \\{x : x \\in A \\land x \\in B\\}",
-            "O(min(|A|, |B|))", true, false);
+        REGISTER_SET("set_intersection", "交集：A ∩ B = {x : x ∈ A ∧ x ∈ B}", inputs, 2, PRESET_TYPE_SET,
+                     "A \\cap B = \\{x : x \\in A \\land x \\in B\\}", "O(min(|A|, |B|))", true, false);
     }
 
     /* -------------------- 3. 差集：A \ B -------------------- */
@@ -135,12 +121,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_difference",
-            "差集：A \\ B = {x : x ∈ A ∧ x ∉ B}",
-            inputs, 2, PRESET_TYPE_SET,
-            "A \\setminus B = \\{x : x \\in A \\land x \\notin B\\}",
-            "O(|A|)", true, false);
+        REGISTER_SET("set_difference", "差集：A \\ B = {x : x ∈ A ∧ x ∉ B}", inputs, 2, PRESET_TYPE_SET,
+                     "A \\setminus B = \\{x : x \\in A \\land x \\notin B\\}", "O(|A|)", true, false);
     }
 
     /* -------------------- 4. 补集：A^c -------------------- */
@@ -153,12 +135,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_complement",
-            "补集：A^c = U \\ A = {x ∈ U : x ∉ A}，相对于全集 U",
-            inputs, 2, PRESET_TYPE_SET,
-            "A^c = U \\setminus A = \\{x \\in U : x \\notin A\\}",
-            "O(|U|)", true, true);
+        REGISTER_SET("set_complement", "补集：A^c = U \\ A = {x ∈ U : x ∉ A}，相对于全集 U", inputs, 2, PRESET_TYPE_SET,
+                     "A^c = U \\setminus A = \\{x \\in U : x \\notin A\\}", "O(|U|)", true, true);
     }
 
     /* -------------------- 5. 对称差：A △ B -------------------- */
@@ -171,12 +149,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_symmetric_difference",
-            "对称差：A △ B = (A \\ B) ∪ (B \\ A)",
-            inputs, 2, PRESET_TYPE_SET,
-            "A \\triangle B = (A \\setminus B) \\cup (B \\setminus A)",
-            "O(|A| + |B|)", true, true);
+        REGISTER_SET("set_symmetric_difference", "对称差：A △ B = (A \\ B) ∪ (B \\ A)", inputs, 2, PRESET_TYPE_SET,
+                     "A \\triangle B = (A \\setminus B) \\cup (B \\setminus A)", "O(|A| + |B|)", true, true);
     }
 
     /* -------------------- 6. 笛卡尔积：A × B -------------------- */
@@ -189,12 +163,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_cartesian_product",
-            "笛卡尔积：A × B = {(a, b) : a ∈ A, b ∈ B}",
-            inputs, 2, PRESET_TYPE_SET,
-            "A \\times B = \\{(a, b) : a \\in A, b \\in B\\}",
-            "O(|A| \\cdot |B|)", true, false);
+        REGISTER_SET("set_cartesian_product", "笛卡尔积：A × B = {(a, b) : a ∈ A, b ∈ B}", inputs, 2, PRESET_TYPE_SET,
+                     "A \\times B = \\{(a, b) : a \\in A, b \\in B\\}", "O(|A| \\cdot |B|)", true, false);
     }
 
     /* -------------------- 7. 幂集：P(A) -------------------- */
@@ -208,12 +178,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_power_set",
-            "幂集：P(A) = {S : S ⊆ A}，A 的所有子集构成的集合",
-            inputs, 1, PRESET_TYPE_SET,
-            "\\mathcal{P}(A) = \\{S : S \\subseteq A\\}, \\quad |\\mathcal{P}(A)| = 2^{|A|}",
-            "O(2^{|A|})", true, false);
+        REGISTER_SET("set_power_set", "幂集：P(A) = {S : S ⊆ A}，A 的所有子集构成的集合", inputs, 1, PRESET_TYPE_SET,
+                     "\\mathcal{P}(A) = \\{S : S \\subseteq A\\}, \\quad |\\mathcal{P}(A)| = 2^{|A|}", "O(2^{|A|})",
+                     true, false);
     }
 
     /* -------------------- 8. 子集判定：A ⊆ B -------------------- */
@@ -226,12 +193,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_subset_check",
-            "子集判定：A ⊆ B，判定 A 中每个元素是否都属于 B",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "A \\subseteq B \\Leftrightarrow \\forall x \\in A, x \\in B",
-            "O(|A|)", true, false);
+        REGISTER_SET("set_subset_check", "子集判定：A ⊆ B，判定 A 中每个元素是否都属于 B", inputs, 2,
+                     PRESET_TYPE_BOOLEAN, "A \\subseteq B \\Leftrightarrow \\forall x \\in A, x \\in B", "O(|A|)", true,
+                     false);
     }
 
     /* -------------------- 9. 集合相等判定 -------------------- */
@@ -244,12 +208,10 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_equality_check",
-            "集合相等判定：A = B 当且仅当 A ⊆ B 且 B ⊆ A（外延公理）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "A = B \\Leftrightarrow A \\subseteq B \\land B \\subseteq A \\quad \\text{（外延公理）}",
-            "O(|A| + |B|)", true, true);
+        REGISTER_SET("set_equality_check", "集合相等判定：A = B 当且仅当 A ⊆ B 且 B ⊆ A（外延公理）", inputs, 2,
+                     PRESET_TYPE_BOOLEAN,
+                     "A = B \\Leftrightarrow A \\subseteq B \\land B \\subseteq A \\quad \\text{（外延公理）}",
+                     "O(|A| + |B|)", true, true);
     }
 
     /* -------------------- 10. 空集判定 -------------------- */
@@ -262,12 +224,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET};
-        REGISTER_SET(
-            "set_empty_check",
-            "空集判定：A = ∅，判定集合是否不含任何元素",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "A = \\emptyset \\Leftrightarrow \\lnot \\exists x: x \\in A",
-            "O(1)", true, false);
+        REGISTER_SET("set_empty_check", "空集判定：A = ∅，判定集合是否不含任何元素", inputs, 1, PRESET_TYPE_BOOLEAN,
+                     "A = \\emptyset \\Leftrightarrow \\lnot \\exists x: x \\in A", "O(1)", true, false);
     }
 
     /* ============================================================
@@ -284,12 +242,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "relation_compose",
-            "关系复合：R ∘ S = {(a, c) : ∃b, (a,b)∈S ∧ (b,c)∈R}",
-            inputs, 2, PRESET_TYPE_SET,
-            "R \\circ S = \\{(a, c) : \\exists b, (a,b) \\in S \\land (b,c) \\in R\\}",
-            "O(|S| \\cdot |R|)", true, false);
+        REGISTER_SET("relation_compose", "关系复合：R ∘ S = {(a, c) : ∃b, (a,b)∈S ∧ (b,c)∈R}", inputs, 2,
+                     PRESET_TYPE_SET, "R \\circ S = \\{(a, c) : \\exists b, (a,b) \\in S \\land (b,c) \\in R\\}",
+                     "O(|S| \\cdot |R|)", true, false);
     }
 
     /* -------------------- 12. 逆关系 -------------------- */
@@ -302,12 +257,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET};
-        REGISTER_SET(
-            "relation_inverse",
-            "逆关系：R^{-1} = {(b, a) : (a, b) ∈ R}",
-            inputs, 1, PRESET_TYPE_SET,
-            "R^{-1} = \\{(b, a) : (a, b) \\in R\\}",
-            "O(|R|)", true, true);
+        REGISTER_SET("relation_inverse", "逆关系：R^{-1} = {(b, a) : (a, b) ∈ R}", inputs, 1, PRESET_TYPE_SET,
+                     "R^{-1} = \\{(b, a) : (a, b) \\in R\\}", "O(|R|)", true, true);
     }
 
     /* -------------------- 13. 自反性判定 -------------------- */
@@ -320,12 +271,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "relation_reflexive_check",
-            "自反性判定：R 是自反的当且仅当 ∀a ∈ A, (a, a) ∈ R",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "R \\text{ 自反} \\Leftrightarrow \\forall a \\in A, (a, a) \\in R",
-            "O(|A|)", true, false);
+        REGISTER_SET("relation_reflexive_check", "自反性判定：R 是自反的当且仅当 ∀a ∈ A, (a, a) ∈ R", inputs, 2,
+                     PRESET_TYPE_BOOLEAN, "R \\text{ 自反} \\Leftrightarrow \\forall a \\in A, (a, a) \\in R", "O(|A|)",
+                     true, false);
     }
 
     /* -------------------- 14. 对称性判定 -------------------- */
@@ -337,12 +285,10 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "relation_symmetric_check",
-            "对称性判定：R 是对称的当且仅当 (a,b) ∈ R ⇒ (b,a) ∈ R",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "R \\text{ 对称} \\Leftrightarrow \\forall a, b \\in A, (a,b) \\in R \\Rightarrow (b,a) \\in R",
-            "O(|R|)", true, false);
+        REGISTER_SET("relation_symmetric_check", "对称性判定：R 是对称的当且仅当 (a,b) ∈ R ⇒ (b,a) ∈ R", inputs, 2,
+                     PRESET_TYPE_BOOLEAN,
+                     "R \\text{ 对称} \\Leftrightarrow \\forall a, b \\in A, (a,b) \\in R \\Rightarrow (b,a) \\in R",
+                     "O(|R|)", true, false);
     }
 
     /* -------------------- 15. 传递性判定 -------------------- */
@@ -355,12 +301,11 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "relation_transitive_check",
-            "传递性判定：R 是传递的当且仅当 (a,b)∈R ∧ (b,c)∈R ⇒ (a,c)∈R",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "R \\text{ 传递} \\Leftrightarrow \\forall a, b, c: (a,b) \\in R \\land (b,c) \\in R \\Rightarrow (a,c) \\in R",
-            "O(|R|^2)", true, false);
+        REGISTER_SET("relation_transitive_check", "传递性判定：R 是传递的当且仅当 (a,b)∈R ∧ (b,c)∈R ⇒ (a,c)∈R", inputs,
+                     2, PRESET_TYPE_BOOLEAN,
+                     "R \\text{ 传递} \\Leftrightarrow \\forall a, b, c: (a,b) \\in R \\land (b,c) \\in R \\Rightarrow "
+                     "(a,c) \\in R",
+                     "O(|R|^2)", true, false);
     }
 
     /* -------------------- 16. 等价关系判定 -------------------- */
@@ -374,9 +319,8 @@ bool preset_set_theory_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
         REGISTER_SET(
-            "relation_equivalence_check",
-            "等价关系判定：R 是等价关系当且仅当自反 ∧ 对称 ∧ 传递",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
+            "relation_equivalence_check", "等价关系判定：R 是等价关系当且仅当自反 ∧ 对称 ∧ 传递", inputs, 2,
+            PRESET_TYPE_BOOLEAN,
             "R \\text{ 是等价关系} \\Leftrightarrow \\text{自反}(R) \\land \\text{对称}(R) \\land \\text{传递}(R)",
             "O(|A|^2 \\cdot |R|)", true, false);
     }
@@ -392,12 +336,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_ANY};
-        REGISTER_SET(
-            "equivalence_class",
-            "等价类：[a]_R = {x ∈ A : (a, x) ∈ R}",
-            inputs, 3, PRESET_TYPE_SET,
-            "[a]_R = \\{x \\in A : (a, x) \\in R\\}",
-            "O(|A|)", true, false);
+        REGISTER_SET("equivalence_class", "等价类：[a]_R = {x ∈ A : (a, x) ∈ R}", inputs, 3, PRESET_TYPE_SET,
+                     "[a]_R = \\{x \\in A : (a, x) \\in R\\}", "O(|A|)", true, false);
     }
 
     /* -------------------- 18. 商集 -------------------- */
@@ -411,12 +351,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "quotient_set",
-            "商集：A/R = {[a]_R : a ∈ A}，所有等价类构成的集合",
-            inputs, 2, PRESET_TYPE_SET,
-            "A/R = \\{[a]_R : a \\in A\\}, \\quad \\pi: A \\to A/R, \\; a \\mapsto [a]_R",
-            "O(|A|)", true, false);
+        REGISTER_SET("quotient_set", "商集：A/R = {[a]_R : a ∈ A}，所有等价类构成的集合", inputs, 2, PRESET_TYPE_SET,
+                     "A/R = \\{[a]_R : a \\in A\\}, \\quad \\pi: A \\to A/R, \\; a \\mapsto [a]_R", "O(|A|)", true,
+                     false);
     }
 
     /* ============================================================
@@ -434,12 +371,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION};
-        REGISTER_SET(
-            "function_compose",
-            "函数复合：g ∘ f，(g ∘ f)(x) = g(f(x))",
-            inputs, 2, PRESET_TYPE_FUNCTION,
-            "(g \\circ f)(x) = g(f(x)), \\quad \\text{要求 } \\text{cod}(f) = \\text{dom}(g)",
-            "O(n)，n 为定义域大小", true, false);
+        REGISTER_SET("function_compose", "函数复合：g ∘ f，(g ∘ f)(x) = g(f(x))", inputs, 2, PRESET_TYPE_FUNCTION,
+                     "(g \\circ f)(x) = g(f(x)), \\quad \\text{要求 } \\text{cod}(f) = \\text{dom}(g)",
+                     "O(n)，n 为定义域大小", true, false);
     }
 
     /* -------------------- 20. 逆函数判定 -------------------- */
@@ -452,12 +386,10 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "function_inverse_check",
-            "逆函数判定：f 存在逆函数当且仅当 f 是双射",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
-            "f^{-1} \\text{ 存在} \\Leftrightarrow f \\text{ 是双射}, \\quad f \\circ f^{-1} = \\text{id}_B",
-            "O(|A| + |B|)", true, false);
+        REGISTER_SET("function_inverse_check", "逆函数判定：f 存在逆函数当且仅当 f 是双射", inputs, 3,
+                     PRESET_TYPE_BOOLEAN,
+                     "f^{-1} \\text{ 存在} \\Leftrightarrow f \\text{ 是双射}, \\quad f \\circ f^{-1} = \\text{id}_B",
+                     "O(|A| + |B|)", true, false);
     }
 
     /* -------------------- 21. 单射判定 -------------------- */
@@ -472,9 +404,8 @@ bool preset_set_theory_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET};
         REGISTER_SET(
-            "function_injective_check",
-            "单射判定：f 是单射当且仅当 f(a1) = f(a2) ⇒ a1 = a2",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
+            "function_injective_check", "单射判定：f 是单射当且仅当 f(a1) = f(a2) ⇒ a1 = a2", inputs, 3,
+            PRESET_TYPE_BOOLEAN,
             "f \\text{ 单射} \\Leftrightarrow \\forall a_1, a_2 \\in A, f(a_1) = f(a_2) \\Rightarrow a_1 = a_2",
             "O(|A| \\log |A|)", true, false);
     }
@@ -490,9 +421,8 @@ bool preset_set_theory_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET};
         REGISTER_SET(
-            "function_surjective_check",
-            "满射判定：f 是满射当且仅当 ∀b ∈ B, ∃a ∈ A, f(a) = b",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
+            "function_surjective_check", "满射判定：f 是满射当且仅当 ∀b ∈ B, ∃a ∈ A, f(a) = b", inputs, 3,
+            PRESET_TYPE_BOOLEAN,
             "f \\text{ 满射} \\Leftrightarrow \\forall b \\in B, \\exists a \\in A, f(a) = b \\Leftrightarrow f(A) = B",
             "O(|A| + |B|)", true, false);
     }
@@ -508,12 +438,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "function_bijective_check",
-            "双射判定：f 是双射当且仅当 f 既是单射又是满射",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
-            "f \\text{ 双射} \\Leftrightarrow f \\text{ 单射} \\land f \\text{ 满射}",
-            "O(|A| \\log |A| + |B|)", true, false);
+        REGISTER_SET("function_bijective_check", "双射判定：f 是双射当且仅当 f 既是单射又是满射", inputs, 3,
+                     PRESET_TYPE_BOOLEAN, "f \\text{ 双射} \\Leftrightarrow f \\text{ 单射} \\land f \\text{ 满射}",
+                     "O(|A| \\log |A| + |B|)", true, false);
     }
 
     /* -------------------- 24. 像：f(A) -------------------- */
@@ -526,12 +453,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "function_image",
-            "像：f(S) = {f(x) : x ∈ S}，S 为定义域的子集",
-            inputs, 3, PRESET_TYPE_SET,
-            "f(S) = \\{f(x) : x \\in S \\subseteq A\\}",
-            "O(|S|)", true, false);
+        REGISTER_SET("function_image", "像：f(S) = {f(x) : x ∈ S}，S 为定义域的子集", inputs, 3, PRESET_TYPE_SET,
+                     "f(S) = \\{f(x) : x \\in S \\subseteq A\\}", "O(|S|)", true, false);
     }
 
     /* -------------------- 25. 原像：f^(-1)(B) -------------------- */
@@ -546,12 +469,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "function_preimage",
-            "原像：f^{-1}(T) = {x ∈ A : f(x) ∈ T}，T 为陪域的子集",
-            inputs, 3, PRESET_TYPE_SET,
-            "f^{-1}(T) = \\{x \\in A : f(x) \\in T \\subseteq B\\}",
-            "O(|A|)", true, false);
+        REGISTER_SET("function_preimage", "原像：f^{-1}(T) = {x ∈ A : f(x) ∈ T}，T 为陪域的子集", inputs, 3,
+                     PRESET_TYPE_SET, "f^{-1}(T) = \\{x \\in A : f(x) \\in T \\subseteq B\\}", "O(|A|)", true, false);
     }
 
     /* -------------------- 26. 不动点 -------------------- */
@@ -565,12 +484,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "function_fixpoint",
-            "不动点：计算函数 f 的不动点集合 {x ∈ A : f(x) = x}",
-            inputs, 2, PRESET_TYPE_SET,
-            "\\text{Fix}(f) = \\{x \\in A : f(x) = x\\}",
-            "O(|A|)", true, false);
+        REGISTER_SET("function_fixpoint", "不动点：计算函数 f 的不动点集合 {x ∈ A : f(x) = x}", inputs, 2,
+                     PRESET_TYPE_SET, "\\text{Fix}(f) = \\{x \\in A : f(x) = x\\}", "O(|A|)", true, false);
     }
 
     /* ============================================================
@@ -590,12 +505,10 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "order_check",
-            "偏序关系判定：≤ 是偏序当且仅当自反 ∧ 反对称 ∧ 传递",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "\\le \\text{ 是偏序} \\Leftrightarrow \\text{自反} \\land \\text{反对称} \\land \\text{传递}",
-            "O(|A|^2 \\cdot |R|)", true, false);
+        REGISTER_SET("order_check", "偏序关系判定：≤ 是偏序当且仅当自反 ∧ 反对称 ∧ 传递", inputs, 2,
+                     PRESET_TYPE_BOOLEAN,
+                     "\\le \\text{ 是偏序} \\Leftrightarrow \\text{自反} \\land \\text{反对称} \\land \\text{传递}",
+                     "O(|A|^2 \\cdot |R|)", true, false);
     }
 
     /* -------------------- 28. 最小元 -------------------- */
@@ -609,12 +522,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "order_min",
-            "最小元：在偏序集子集 S 中查找最小元 m（∀x ∈ S, m ≤ x）",
-            inputs, 3, PRESET_TYPE_ANY,
-            "\\min S = m \\Leftrightarrow m \\in S \\land \\forall x \\in S, m \\le x",
-            "O(|S|^2)", true, false);
+        REGISTER_SET("order_min", "最小元：在偏序集子集 S 中查找最小元 m（∀x ∈ S, m ≤ x）", inputs, 3, PRESET_TYPE_ANY,
+                     "\\min S = m \\Leftrightarrow m \\in S \\land \\forall x \\in S, m \\le x", "O(|S|^2)", true,
+                     false);
     }
 
     /* -------------------- 29. 最大元 -------------------- */
@@ -628,12 +538,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "order_max",
-            "最大元：在偏序集子集 S 中查找最大元 M（∀x ∈ S, x ≤ M）",
-            inputs, 3, PRESET_TYPE_ANY,
-            "\\max S = M \\Leftrightarrow M \\in S \\land \\forall x \\in S, x \\le M",
-            "O(|S|^2)", true, false);
+        REGISTER_SET("order_max", "最大元：在偏序集子集 S 中查找最大元 M（∀x ∈ S, x ≤ M）", inputs, 3, PRESET_TYPE_ANY,
+                     "\\max S = M \\Leftrightarrow M \\in S \\land \\forall x \\in S, x \\le M", "O(|S|^2)", true,
+                     false);
     }
 
     /* -------------------- 30. 上确界 -------------------- */
@@ -647,12 +554,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "order_supremum",
-            "上确界（最小上界）：sup(S)，S 的最小上界",
-            inputs, 3, PRESET_TYPE_ANY,
-            "\\sup S = \\min\\{u \\in A : \\forall x \\in S, x \\le u\\}",
-            "O(|S|^2)", true, false);
+        REGISTER_SET("order_supremum", "上确界（最小上界）：sup(S)，S 的最小上界", inputs, 3, PRESET_TYPE_ANY,
+                     "\\sup S = \\min\\{u \\in A : \\forall x \\in S, x \\le u\\}", "O(|S|^2)", true, false);
     }
 
     /* -------------------- 31. 下确界 -------------------- */
@@ -666,12 +569,8 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "order_infimum",
-            "下确界（最大下界）：inf(S)，S 的最大下界",
-            inputs, 3, PRESET_TYPE_ANY,
-            "\\inf S = \\max\\{l \\in A : \\forall x \\in S, l \\le x\\}",
-            "O(|S|^2)", true, false);
+        REGISTER_SET("order_infimum", "下确界（最大下界）：inf(S)，S 的最大下界", inputs, 3, PRESET_TYPE_ANY,
+                     "\\inf S = \\max\\{l \\in A : \\forall x \\in S, l \\le x\\}", "O(|S|^2)", true, false);
     }
 
     /* ============================================================
@@ -689,12 +588,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET(
-            "zfc_pairing",
-            "ZFC配对公理：对任意集合 a, b，存在集合 {a, b}",
-            inputs, 2, PRESET_TYPE_SET,
-            "\\forall a, \\forall b, \\exists c, \\forall x: x \\in c \\Leftrightarrow x = a \\lor x = b",
-            "O(1)", true, false);
+        REGISTER_SET("zfc_pairing", "ZFC配对公理：对任意集合 a, b，存在集合 {a, b}", inputs, 2, PRESET_TYPE_SET,
+                     "\\forall a, \\forall b, \\exists c, \\forall x: x \\in c \\Leftrightarrow x = a \\lor x = b",
+                     "O(1)", true, false);
     }
 
     /* -------------------- 33. ZFC并集公理 -------------------- */
@@ -708,12 +604,10 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET};
-        REGISTER_SET(
-            "zfc_union",
-            "ZFC并集公理：对任意集合族 A，存在集合 ∪A = {x : ∃Y ∈ A, x ∈ Y}",
-            inputs, 1, PRESET_TYPE_SET,
-            "\\forall A, \\exists B, \\forall x: x \\in B \\Leftrightarrow \\exists Y \\in A, x \\in Y",
-            "O(|A| \\cdot \\max|Y|)", true, false);
+        REGISTER_SET("zfc_union", "ZFC并集公理：对任意集合族 A，存在集合 ∪A = {x : ∃Y ∈ A, x ∈ Y}", inputs, 1,
+                     PRESET_TYPE_SET,
+                     "\\forall A, \\exists B, \\forall x: x \\in B \\Leftrightarrow \\exists Y \\in A, x \\in Y",
+                     "O(|A| \\cdot \\max|Y|)", true, false);
     }
 
     /* -------------------- 34. ZFC幂集公理 -------------------- */
@@ -727,12 +621,9 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET};
-        REGISTER_SET(
-            "zfc_power_set",
-            "ZFC幂集公理：对任意集合 A，存在集合 P(A) = {S : S ⊆ A}",
-            inputs, 1, PRESET_TYPE_SET,
-            "\\forall A, \\exists B, \\forall S: S \\in B \\Leftrightarrow S \\subseteq A",
-            "O(2^{|A|})", true, false);
+        REGISTER_SET("zfc_power_set", "ZFC幂集公理：对任意集合 A，存在集合 P(A) = {S : S ⊆ A}", inputs, 1,
+                     PRESET_TYPE_SET, "\\forall A, \\exists B, \\forall S: S \\in B \\Leftrightarrow S \\subseteq A",
+                     "O(2^{|A|})", true, false);
     }
 
     /* -------------------- 35. ZFC替换公理 -------------------- */
@@ -747,12 +638,11 @@ bool preset_set_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_EXPRESSION};
-        REGISTER_SET(
-            "zfc_replacement",
-            "ZFC替换公理模式：若 φ(x,y) 是函数性质，则 {y : ∃x ∈ A, φ(x,y)} 是集合",
-            inputs, 2, PRESET_TYPE_SET,
-            "(\\forall x \\exists! y \\, \\varphi(x,y)) \\Rightarrow \\forall A \\exists B \\forall y (y \\in B \\Leftrightarrow \\exists x \\in A \\, \\varphi(x,y))",
-            "O(|A|)", false, false);
+        REGISTER_SET("zfc_replacement", "ZFC替换公理模式：若 φ(x,y) 是函数性质，则 {y : ∃x ∈ A, φ(x,y)} 是集合", inputs,
+                     2, PRESET_TYPE_SET,
+                     "(\\forall x \\exists! y \\, \\varphi(x,y)) \\Rightarrow \\forall A \\exists B \\forall y (y \\in "
+                     "B \\Leftrightarrow \\exists x \\in A \\, \\varphi(x,y))",
+                     "O(|A|)", false, false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -764,8 +654,7 @@ bool preset_set_theory_register(void)
  * @brief 获取集合论预设函数块的类别
  * @return 预设类别枚举值
  */
-PresetCategory preset_set_theory_category(void)
-{
+PresetCategory preset_set_theory_category(void) {
     return PRESET_CATEGORY_LOGIC;
 }
 
@@ -775,12 +664,13 @@ PresetCategory preset_set_theory_category(void)
  * @param out_count 输出：名称数量
  * @return true 成功，false 内存分配失败
  */
-bool preset_set_theory_get_names(char ***out_names, int *out_count)
-{
-    if (!out_names || !out_count) return false;
+bool preset_set_theory_get_names(char ***out_names, int *out_count) {
+    if (!out_names || !out_count)
+        return false;
     *out_count = SET_THEORY_PRESET_COUNT;
-    char **names = (char **)lv_malloc(SET_THEORY_PRESET_COUNT * sizeof(char *));
-    if (!names) return false;
+    char **names = (char **) lv_malloc(SET_THEORY_PRESET_COUNT * sizeof(char *));
+    if (!names)
+        return false;
 
     const char *preset_names[] = {
         /* 集合基本运算 */
@@ -827,10 +717,16 @@ bool preset_set_theory_get_names(char ***out_names, int *out_count)
 
     for (int i = 0; i < SET_THEORY_PRESET_COUNT; i++) {
         size_t len = strlen(preset_names[i]) + 1;
-        names[i] = (char *)lv_malloc(len);
+        names[i] = (char *) lv_malloc(len);
         if (!names[i]) {
-            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv_free(&tmp); }
-            { void *tmp = names; lv_free(&tmp); }
+            for (int j = 0; j < i; j++) {
+                void *tmp = names[j];
+                lv_free(&tmp);
+            }
+            {
+                void *tmp = names;
+                lv_free(&tmp);
+            }
             return false;
         }
         memcpy(names[i], preset_names[i], len);

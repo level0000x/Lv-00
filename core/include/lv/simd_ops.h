@@ -6,18 +6,18 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* ── SIMD capability flags ── */
 typedef enum {
-    lv_SIMD_NONE    = 0,
-    lv_SIMD_SSE2    = 1 << 0,
-    lv_SIMD_SSE41   = 1 << 1,
-    lv_SIMD_AVX     = 1 << 2,
-    lv_SIMD_AVX2    = 1 << 3,
+    lv_SIMD_NONE = 0,
+    lv_SIMD_SSE2 = 1 << 0,
+    lv_SIMD_SSE41 = 1 << 1,
+    lv_SIMD_AVX = 1 << 2,
+    lv_SIMD_AVX2 = 1 << 3,
     lv_SIMD_AVX512F = 1 << 4,
-    lv_SIMD_NEON    = 1 << 5
+    lv_SIMD_NEON = 1 << 5
 } lvSimdCapability;
 
 /* ── SIMD statistics ── */

@@ -52,7 +52,7 @@ typedef int lvSolverLit;
 typedef int lvConstraintId;
 
 /** @brief 无效约束 ID 标记 */
-#define lv_CONSTRAINT_ID_INVALID  (-1)
+#define lv_CONSTRAINT_ID_INVALID (-1)
 
 /* ================================================================
  * 求解结果枚举
@@ -63,8 +63,8 @@ typedef int lvConstraintId;
  */
 typedef enum {
     lv_SOLVER_UNKNOWN = 0, /**< 未知（资源耗尽或未求解） */
-    lv_SOLVER_SAT     = 1, /**< 可满足 */
-    lv_SOLVER_UNSAT   = 2  /**< 不可满足 */
+    lv_SOLVER_SAT = 1,     /**< 可满足 */
+    lv_SOLVER_UNSAT = 2    /**< 不可满足 */
 } lvSolverResult;
 
 /* ================================================================
@@ -87,16 +87,16 @@ typedef enum {
  * - UNSAT: 不可满足
  */
 typedef enum {
-    CDCL_IDLE        = 0, /**< 空闲 */
+    CDCL_IDLE = 0,        /**< 空闲 */
     CDCL_PROPAGATING = 1, /**< 传播中 */
-    CDCL_CONFLICT    = 2, /**< 冲突 */
-    CDCL_ANALYZING   = 3, /**< 分析中 */
+    CDCL_CONFLICT = 2,    /**< 冲突 */
+    CDCL_ANALYZING = 3,   /**< 分析中 */
     CDCL_BACKJUMPING = 4, /**< 回跳中 */
-    CDCL_LEARNING    = 5, /**< 学习中 */
-    CDCL_DECIDING    = 6, /**< 决策中 */
-    CDCL_RESTARTING  = 7, /**< 重启中 */
-    CDCL_SATISFIED   = 8, /**< 已满足 */
-    CDCL_UNSAT       = 9  /**< 不可满足 */
+    CDCL_LEARNING = 5,    /**< 学习中 */
+    CDCL_DECIDING = 6,    /**< 决策中 */
+    CDCL_RESTARTING = 7,  /**< 重启中 */
+    CDCL_SATISFIED = 8,   /**< 已满足 */
+    CDCL_UNSAT = 9        /**< 不可满足 */
 } CDCLState;
 
 /* ================================================================
@@ -111,48 +111,48 @@ typedef enum {
  */
 typedef struct {
     /* 赋值状态 */
-    int *assigns;           /**< 变量赋值数组：0=未赋值, >0=正文字, <0=负文字 */
-    int *levels;            /**< 每个变量的决策层级 */
-    int *reasons;           /**< 每个变量的原因子句索引（-1=决策赋值） */
-    int var_count;           /**< 变量总数 */
-    int var_capacity;        /**< 赋值数组容量 */
+    int *assigns;     /**< 变量赋值数组：0=未赋值, >0=正文字, <0=负文字 */
+    int *levels;      /**< 每个变量的决策层级 */
+    int *reasons;     /**< 每个变量的原因子句索引（-1=决策赋值） */
+    int var_count;    /**< 变量总数 */
+    int var_capacity; /**< 赋值数组容量 */
 
     /* Trail（赋值序列） */
-    int *trail;              /**< 赋值序列（文字列表） */
-    int trail_size;          /**< trail 当前大小 */
-    int trail_capacity;      /**< trail 容量 */
-    int *trail_lim;          /**< 决策层起始位置数组 */
-    int trail_lim_capacity;  /**< trail_lim 数组容量 */
+    int *trail;             /**< 赋值序列（文字列表） */
+    int trail_size;         /**< trail 当前大小 */
+    int trail_capacity;     /**< trail 容量 */
+    int *trail_lim;         /**< 决策层起始位置数组 */
+    int trail_lim_capacity; /**< trail_lim 数组容量 */
 
     /* 子句库 */
-    int **clauses;           /**< 子句数组（文字序列） */
-    int *clause_sizes;       /**< 每子句的文字数 */
-    int orig_clause_count;   /**< 原始子句数 */
-    int learn_clause_count;  /**< 学习子句数 */
-    int clause_capacity;     /**< 子句数组容量 */
+    int **clauses;          /**< 子句数组（文字序列） */
+    int *clause_sizes;      /**< 每子句的文字数 */
+    int orig_clause_count;  /**< 原始子句数 */
+    int learn_clause_count; /**< 学习子句数 */
+    int clause_capacity;    /**< 子句数组容量 */
 
     /* 冲突分析 */
-    int *conflict_clause;    /**< 冲突/学习子句缓冲区 */
-    int conflict_size;       /**< 冲突子句文字数 */
-    int conflict_capacity;   /**< 冲突缓冲区容量 */
-    int backtrack_level;     /**< 回跳目标层级 */
+    int *conflict_clause;  /**< 冲突/学习子句缓冲区 */
+    int conflict_size;     /**< 冲突子句文字数 */
+    int conflict_capacity; /**< 冲突缓冲区容量 */
+    int backtrack_level;   /**< 回跳目标层级 */
 
     /* 监视文字 */
-    int **watches;           /**< 监视文字数组 */
-    int *watch_sizes;        /**< 每个变量的监视列表大小 */
-    int *watch_capacities;   /**< 每个变量的监视列表容量 */
+    int **watches;         /**< 监视文字数组 */
+    int *watch_sizes;      /**< 每个变量的监视列表大小 */
+    int *watch_capacities; /**< 每个变量的监视列表容量 */
 
     /* 状态机 */
-    CDCLState state;         /**< 当前 CDCL 状态 */
-    int decision_level;      /**< 当前决策层级 */
+    CDCLState state;    /**< 当前 CDCL 状态 */
+    int decision_level; /**< 当前决策层级 */
 
     /* 统计 */
-    int64_t conflicts;       /**< 冲突计数 */
-    int64_t decisions;       /**< 决策计数 */
-    int64_t propagations;    /**< 传播计数 */
-    int64_t restarts;       /**< 重启计数 */
+    int64_t conflicts;        /**< 冲突计数 */
+    int64_t decisions;        /**< 决策计数 */
+    int64_t propagations;     /**< 传播计数 */
+    int64_t restarts;         /**< 重启计数 */
     int64_t learned_literals; /**< 学习文字总数 */
-    double time_ms;          /**< 求解耗时（毫秒） */
+    double time_ms;           /**< 求解耗时（毫秒） */
 } CDCLContext;
 
 /* ================================================================
@@ -163,9 +163,9 @@ typedef struct {
  * @brief 求解器配置
  */
 typedef struct {
-    bool enable_restarts;    /**< 启用 Luby 序列重启 */
-    int restart_interval;    /**< 重启间隔（冲突数） */
-    double max_time_sec;     /**< 最大求解时间（秒，0=无限制） */
+    bool enable_restarts; /**< 启用 Luby 序列重启 */
+    int restart_interval; /**< 重启间隔（冲突数） */
+    double max_time_sec;  /**< 最大求解时间（秒，0=无限制） */
 } lvSolverConfig;
 
 /* ================================================================
@@ -249,9 +249,7 @@ lv_PUBLIC_API int lv_solver_var_count(const lvSolver *solver);
  * @param count    文字数量
  * @return 约束 ID，失败返回 lv_CONSTRAINT_ID_INVALID
  */
-lv_PUBLIC_API lvConstraintId lv_solver_add_constraint(lvSolver *solver,
-                                                             const lvSolverLit *literals,
-                                                             int count);
+lv_PUBLIC_API lvConstraintId lv_solver_add_constraint(lvSolver *solver, const lvSolverLit *literals, int count);
 
 /**
  * @brief 移除约束
@@ -259,8 +257,7 @@ lv_PUBLIC_API lvConstraintId lv_solver_add_constraint(lvSolver *solver,
  * @param constraint_id 约束 ID
  * @return true 成功
  */
-lv_PUBLIC_API bool lv_solver_remove_constraint(lvSolver *solver,
-                                                   lvConstraintId constraint_id);
+lv_PUBLIC_API bool lv_solver_remove_constraint(lvSolver *solver, lvConstraintId constraint_id);
 
 /* ================================================================
  * 求解 API
@@ -280,9 +277,8 @@ lv_PUBLIC_API lvSolverResult lv_solver_solve(lvSolver *solver);
  * @param count       假设数量
  * @return 求解结果
  */
-lv_PUBLIC_API lvSolverResult lv_solver_solve_under_assumptions(lvSolver *solver,
-                                                                      const lvSolverLit *assumptions,
-                                                                      int count);
+lv_PUBLIC_API lvSolverResult lv_solver_solve_under_assumptions(lvSolver *solver, const lvSolverLit *assumptions,
+                                                               int count);
 
 /**
  * @brief 使用 Groebner 基代数方法求解
@@ -301,8 +297,7 @@ lv_PUBLIC_API lvSolverResult lv_solver_solve_algebraic(lvSolver *solver);
  * @param constraint_id 约束 ID
  * @return true 表示该约束失败
  */
-lv_PUBLIC_API bool lv_solver_failed_constraint(const lvSolver *solver,
-                                                   lvConstraintId constraint_id);
+lv_PUBLIC_API bool lv_solver_failed_constraint(const lvSolver *solver, lvConstraintId constraint_id);
 
 /**
  * @brief 检查假设文字是否在最近求解中失败
@@ -310,8 +305,7 @@ lv_PUBLIC_API bool lv_solver_failed_constraint(const lvSolver *solver,
  * @param assumption 假设文字
  * @return true 表示该假设失败
  */
-lv_PUBLIC_API bool lv_solver_failed_assumption(const lvSolver *solver,
-                                                    lvSolverLit assumption);
+lv_PUBLIC_API bool lv_solver_failed_assumption(const lvSolver *solver, lvSolverLit assumption);
 
 /**
  * @brief 获取冲突集（最近学习子句）
@@ -319,8 +313,7 @@ lv_PUBLIC_API bool lv_solver_failed_assumption(const lvSolver *solver,
  * @param out_count 输出冲突集文字数量
  * @return 冲突集文字数组（调用者需 lv_free 释放），失败返回 NULL
  */
-lv_PUBLIC_API lvSolverLit *lv_solver_conflict_set(const lvSolver *solver,
-                                                         int *out_count);
+lv_PUBLIC_API lvSolverLit *lv_solver_conflict_set(const lvSolver *solver, int *out_count);
 
 /* ================================================================
  * 查询赋值 API
@@ -344,8 +337,7 @@ lv_PUBLIC_API int lv_solver_get_value(const lvSolver *solver, lvSolverVar var);
  * @param coord     输出符号坐标
  * @return true 成功获取坐标
  */
-lv_PUBLIC_API bool lv_solver_get_coord(const lvSolver *solver, lvSolverVar var_base,
-                                            SymbolicCoord *coord);
+lv_PUBLIC_API bool lv_solver_get_coord(const lvSolver *solver, lvSolverVar var_base, SymbolicCoord *coord);
 
 /* ================================================================
  * CDCL 状态机访问 API
@@ -366,9 +358,8 @@ lv_PUBLIC_API CDCLState lv_solver_cdcl_state(const lvSolver *solver);
  * @param out_propagations 输出传播计数（可为 NULL）
  * @param out_restarts    输出重启计数（可为 NULL）
  */
-lv_PUBLIC_API void lv_solver_cdcl_stats(const lvSolver *solver, int64_t *out_conflicts,
-                                             int64_t *out_decisions, int64_t *out_propagations,
-                                             int64_t *out_restarts);
+lv_PUBLIC_API void lv_solver_cdcl_stats(const lvSolver *solver, int64_t *out_conflicts, int64_t *out_decisions,
+                                        int64_t *out_propagations, int64_t *out_restarts);
 
 /**
  * @brief 获取 CDCL 上下文（只读访问）
@@ -386,8 +377,7 @@ lv_PUBLIC_API const CDCLContext *lv_solver_cdcl_context(const lvSolver *solver);
  * @param solver 求解器实例
  * @param graph  约束图（引用，不转移所有权）
  */
-lv_PUBLIC_API void lv_solver_set_constraint_graph(lvSolver *solver,
-                                                       const struct ConstraintGraph *graph);
+lv_PUBLIC_API void lv_solver_set_constraint_graph(lvSolver *solver, const struct ConstraintGraph *graph);
 
 /* ================================================================
  * 导入/导出 API

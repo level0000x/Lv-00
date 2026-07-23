@@ -152,8 +152,8 @@ ProofColor proof_color_combine(ProofColor a, ProofColor b) {
      *   2. 否则，取枚举值较大者（即信任级别较低者）。
      */
 
-    int a_val = (int)a;
-    int b_val = (int)b;
+    int a_val = (int) a;
+    int b_val = (int) b;
 
     /* 判断是否为"浅橙色"（PROOF_COLOR_ORANGE_ORACLE 或 PROOF_COLOR_ORANGE_EX_FALSO） */
     int is_a_lo = (a == PROOF_COLOR_ORANGE_ORACLE || a == PROOF_COLOR_ORANGE_EX_FALSO);

@@ -25,12 +25,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/constraint_graph.h"
+#include "lv/solver.h"
 #include "lv/symbolic_coord.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/solver.h"
 
 #ifndef lv_ADJ_MAX_PER_NODE
 #define lv_ADJ_MAX_PER_NODE 256
@@ -51,9 +53,7 @@ lv_DECLARE_STREAM_CTX(graph);
  * @param max_redundant 冗余约束数组的最大容量
  * @return 冗余约束 ID 数组，调用者负责释放；失败返回 NULL
  */
-static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
-                                                  int *out_count,
-                                                  int max_redundant) {
+static int *find_linearly_dependent_constraints(ConstraintGraph *graph, int *out_count, int max_redundant) {
     if (!graph || !out_count || max_redundant <= 0)
         return NULL;
 
@@ -91,7 +91,7 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
         if (graph->nodes[i] && graph->nodes[i]->id > max_node_id)
             max_node_id = graph->nodes[i]->id;
     }
-    int *node_id_to_var_idx = lv_malloc((size_t)(max_node_id + 1) * 2 * sizeof(int));
+    int *node_id_to_var_idx = lv_malloc((size_t) (max_node_id + 1) * 2 * sizeof(int));
     int *linear_constraint_indices = lv_malloc((size_t) num_linear * sizeof(int));
     if (!point_ids || !point_seen || !node_id_to_var_idx || !linear_constraint_indices) {
         lv_free((void **) &redundant);
@@ -101,7 +101,7 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
         lv_free((void **) &linear_constraint_indices);
         return NULL;
     }
-    memset(node_id_to_var_idx, -1, (size_t)(max_node_id + 1) * 2 * sizeof(int));
+    memset(node_id_to_var_idx, -1, (size_t) (max_node_id + 1) * 2 * sizeof(int));
 
     int point_idx = 0;
     for (int i = 0; i < graph->node_count; i++) {
@@ -126,7 +126,7 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
     }
 
     /* 构建增广矩阵 */
-    mpq_t *matrix = lv_malloc((size_t) num_linear * (size_t)(num_vars + 1) * sizeof(mpq_t));
+    mpq_t *matrix = lv_malloc((size_t) num_linear * (size_t) (num_vars + 1) * sizeof(mpq_t));
     int *pivot_row = lv_malloc((size_t) num_linear * sizeof(int));
     if (!matrix || !pivot_row) {
         lv_free((void **) &redundant);
@@ -195,7 +195,8 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph,
             mpq_div(matrix[rank * (num_vars + 1) + c2], matrix[rank * (num_vars + 1) + c2], lead);
         mpq_clear(lead);
         for (int row = 0; row < num_linear; row++) {
-            if (row == rank) continue;
+            if (row == rank)
+                continue;
             mpq_t factor;
             mpq_init(factor);
             mpq_set(factor, matrix[row * (num_vars + 1) + col]);
@@ -324,7 +325,8 @@ static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_
  * @param max_out     输出数组的最大容量
  * @return 找到的约束数量
  */
-static int count_point_constraints(const ConstraintGraph *graph, int point_id, Constraint **out_constraints, int max_out) {
+static int count_point_constraints(const ConstraintGraph *graph, int point_id, Constraint **out_constraints,
+                                   int max_out) {
     int count = 0;
     for (int i = 0; i < graph->constraint_count && count < max_out; i++) {
         Constraint *c = graph->constraints[i];
@@ -426,7 +428,8 @@ static bool point_on_segment(const ConstraintGraph *graph, int point_id, int seg
 static void add_conflict_group(int **conflicts, int *conflict_count, int **conflict_sizes, const int *node_ids,
                                int node_count) {
     conflicts[*conflict_count] = lv_malloc((size_t) node_count * sizeof(int));
-    if (!conflicts[*conflict_count]) return;
+    if (!conflicts[*conflict_count])
+        return;
     memcpy(conflicts[*conflict_count], node_ids, node_count * sizeof(int));
     (*conflict_sizes)[*conflict_count] = node_count;
     (*conflict_count)++;
@@ -471,9 +474,9 @@ static void add_conflict_group(int **conflicts, int *conflict_count, int **confl
 
 /* DFS 栈帧 —— 模拟递归调用栈的一个级别 */
 typedef struct {
-    int node_id;       /**< 当前正在探索的端口节点 ID */
-    int neighbor_idx;  /**< 当前节点已处理到的邻接索引（恢复点） */
-    int path_len;      /**< 该节点在 path 数组中的位置 */
+    int node_id;      /**< 当前正在探索的端口节点 ID */
+    int neighbor_idx; /**< 当前节点已处理到的邻接索引（恢复点） */
+    int path_len;     /**< 该节点在 path 数组中的位置 */
 } DfsFrame;
 
 /**
@@ -588,8 +591,7 @@ static bool has_connection_cycle(ConstraintGraph *graph, int start_port_id, bool
                     }
 
                     int cycle_len = frame->path_len - cycle_start + 1;
-                    add_conflict_group(conflicts, conflict_count, conflict_sizes,
-                                       &path[cycle_start], cycle_len);
+                    add_conflict_group(conflicts, conflict_count, conflict_sizes, &path[cycle_start], cycle_len);
                     found_cycle = true;
                     break;
                 }
@@ -600,8 +602,7 @@ static bool has_connection_cycle(ConstraintGraph *graph, int start_port_id, bool
 
                     /* 检查深度限制 */
                     if (stack_top + 1 >= lv_MAX_TRAVERSAL_DEPTH) {
-                        LOG_WARN("constraint_graph",
-                                 "环路检测: 遍历深度超过上限 %d，在节点 %d 处截断",
+                        LOG_WARN("constraint_graph", "环路检测: 遍历深度超过上限 %d，在节点 %d 处截断",
                                  lv_MAX_TRAVERSAL_DEPTH, next_port);
                         /* 超过深度上限：将该分支视为死胡同 */
                         frame->neighbor_idx = cnt; /* 跳过该节点剩余邻接 */
@@ -695,15 +696,15 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
     }
 
     /* adj: node_id -> 约束索引的扁平数组 */
-    size_t adj_total = (size_t)(max_node_id + 1) * lv_ADJ_MAX_PER_NODE;
-    if (adj_total > (size_t)INT_MAX) {
+    size_t adj_total = (size_t) (max_node_id + 1) * lv_ADJ_MAX_PER_NODE;
+    if (adj_total > (size_t) INT_MAX) {
         lv_free((void **) &conflicts);
         lv_free((void **) out_conflict_sizes);
         *out_conflict_sizes = NULL;
         *out_conflict_count = -1;
         return NULL;
     }
-    int *adj_lists = lv_calloc((int)adj_total, sizeof(int));
+    int *adj_lists = lv_calloc((int) adj_total, sizeof(int));
     int *adj_counts = lv_calloc(max_node_id + 1, sizeof(int));
 
     /* inc_adj: node_id -> INCIDENCE 约束索引 */
@@ -751,8 +752,8 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
                 if (ta && tc && tc[nid] < lv_ADJ_MAX_PER_NODE) {
                     ta[nid * lv_ADJ_MAX_PER_NODE + tc[nid]++] = i;
                 } else if (ta && tc) {
-                    LOG_DEBUG("constraint_graph", "节点 %d 超出类型特定邻接限制 (%d)，类型 %d", nid, lv_ADJ_MAX_PER_NODE,
-                              c->type);
+                    LOG_DEBUG("constraint_graph", "节点 %d 超出类型特定邻接限制 (%d)，类型 %d", nid,
+                              lv_ADJ_MAX_PER_NODE, c->type);
                 }
             }
         }
@@ -938,7 +939,7 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
     if (max_port_id > 0) {
         bool *visited = lv_calloc(max_port_id + 1, sizeof(bool));
         bool *rec_stack = lv_calloc(max_port_id + 1, sizeof(bool));
-        int *path = lv_malloc((size_t)(max_port_id + 1) * sizeof(int));
+        int *path = lv_malloc((size_t) (max_port_id + 1) * sizeof(int));
 
         if (visited && rec_stack && path) {
             for (int i = 0; i < graph->node_count; i++) {

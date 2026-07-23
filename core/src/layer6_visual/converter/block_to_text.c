@@ -1,10 +1,11 @@
-﻿#include "lv/representation_converter.h"
+﻿#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv/func_block.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_parse_utils.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
+#include "lv/representation_converter.h"
 
 /* 内部辅助：追加字符串到动态缓冲区 */
 typedef struct {
@@ -24,7 +25,7 @@ static void buf_init(TextBuf *b) {
 }
 
 static void buf_append(TextBuf *b, const char *s) {
-    int slen = (int)strlen(s);
+    int slen = (int) strlen(s);
     while (b->len + slen + 1 > b->cap) {
         b->cap *= 2;
         char *tmp = lv_realloc(b->data, b->cap);
@@ -71,17 +72,19 @@ lvConvertResult lv_convert_block_to_text(void *graph) {
         int count;
     } BlockGraphView;
 
-    BlockGraphView *bg = (BlockGraphView *)graph;
+    BlockGraphView *bg = (BlockGraphView *) graph;
     TextBuf buf;
     buf_init(&buf);
 
     /* 遍历所有函数块（假设已按拓扑序排列） */
     for (int i = 0; i < bg->count; i++) {
         FuncBlock *fb = bg->blocks[i];
-        if (!fb) continue;
+        if (!fb)
+            continue;
 
         const char *name = func_block_get_name(fb);
-        if (!name) name = "unnamed";
+        if (!name)
+            name = "unnamed";
 
         /* 生成块声明头部 */
         buf_appendf(&buf, "block %s {\n", name);
@@ -123,7 +126,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
     }
 
     /* 验证输入文本非空 */
-    int len = (int)strlen(code);
+    int len = (int) strlen(code);
     if (len == 0) {
         result.success = 0;
         strncpy(result.error_msg, "empty code input", sizeof(result.error_msg));
@@ -147,7 +150,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
     sg->cap = 16;
     sg->blocks = lv_calloc(sg->cap, sizeof(FuncBlock *));
     if (!sg->blocks) {
-        lv_free((void **)&sg);
+        lv_free((void **) &sg);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
@@ -158,8 +161,10 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
     int block_id_counter = 0;
     while (*p) {
         /* 跳过空白行 */
-        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
-        if (!*p) break;
+        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+            p++;
+        if (!*p)
+            break;
 
         /* 检测 "block" 关键字 */
         if (strncmp(p, "block ", 6) == 0) {
@@ -171,8 +176,10 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                 name[ni++] = *p++;
             }
             /* 跳到花括号 */
-            while (*p && *p != '{') p++;
-            if (*p == '{') p++;
+            while (*p && *p != '{')
+                p++;
+            if (*p == '{')
+                p++;
 
             /* 创建函数块 */
             FuncBlock *fb = func_block_create(block_id_counter++);
@@ -185,8 +192,10 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
 
                 while (*p && *p != '}') {
                     /* 跳过空白 */
-                    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
-                    if (!*p || *p == '}') break;
+                    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+                        p++;
+                    if (!*p || *p == '}')
+                        break;
 
                     /* 检测 input */
                     if (strncmp(p, "input ", 6) == 0) {
@@ -197,9 +206,11 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                             port_id = 0;
                             lv_parse_int(p, &port_id);
                         }
-                        if (in_cnt < 64) inputs[in_cnt++] = port_id;
+                        if (in_cnt < 64)
+                            inputs[in_cnt++] = port_id;
                         /* 跳到行尾 */
-                        while (*p && *p != '\n') p++;
+                        while (*p && *p != '\n')
+                            p++;
                     }
                     /* 检测 output */
                     else if (strncmp(p, "output ", 7) == 0) {
@@ -210,19 +221,23 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                             port_id = 0;
                             lv_parse_int(p, &port_id);
                         }
-                        if (out_cnt < MAX_BLOCK_PORTS) outputs[out_cnt++] = port_id;
+                        if (out_cnt < MAX_BLOCK_PORTS)
+                            outputs[out_cnt++] = port_id;
                         /* 跳到行尾 */
-                        while (*p && *p != '\n') p++;
-                    }
-                    else {
+                        while (*p && *p != '\n')
+                            p++;
+                    } else {
                         /* 跳过其他行 */
-                        while (*p && *p != '\n') p++;
+                        while (*p && *p != '\n')
+                            p++;
                     }
                 }
 
                 /* 设置端口 */
-                if (in_cnt > 0) func_block_set_input_ports(fb, inputs, in_cnt);
-                if (out_cnt > 0) func_block_set_output_ports(fb, outputs, out_cnt);
+                if (in_cnt > 0)
+                    func_block_set_input_ports(fb, inputs, in_cnt);
+                if (out_cnt > 0)
+                    func_block_set_output_ports(fb, outputs, out_cnt);
 
                 /* 添加到块图 */
                 if (sg->count >= sg->cap) {
@@ -237,11 +252,12 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                 sg->blocks[sg->count++] = fb;
             }
 
-            if (*p == '}') p++;
-        }
-        else {
+            if (*p == '}')
+                p++;
+        } else {
             /* 跳过非块行 */
-            while (*p && *p != '\n') p++;
+            while (*p && *p != '\n')
+                p++;
         }
     }
 

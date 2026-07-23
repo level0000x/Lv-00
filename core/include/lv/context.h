@@ -152,20 +152,20 @@ lv_PUBLIC_API bool lv_context_state_transition_valid(lvContextState from, lvCont
  * @brief 推理分支类型
  */
 typedef enum {
-    REASONING_BRANCH_NONE,         /**< 无分支（主推理线） */
-    REASONING_BRANCH_FORWARD,      /**< 前向证明分支 */
+    REASONING_BRANCH_NONE,          /**< 无分支（主推理线） */
+    REASONING_BRANCH_FORWARD,       /**< 前向证明分支 */
     REASONING_BRANCH_CONTRADICTION, /**< 反证法分支：假设否定命题成立 */
-    REASONING_BRANCH_HYPOTHESIS    /**< 假设引入分支：引入临时假设 */
+    REASONING_BRANCH_HYPOTHESIS     /**< 假设引入分支：引入临时假设 */
 } ReasoningBranchType;
 
 /**
  * @brief 推理分支状态
  */
 typedef enum {
-    BRANCH_ACTIVE,    /**< 分支仍在推理中 */
-    BRANCH_CLOSED,    /**< 分支已闭合（到达目标） */
-    BRANCH_FAILED,    /**< 分支推理失败 */
-    BRANCH_ABANDONED  /**< 分支被放弃（超时/熔断） */
+    BRANCH_ACTIVE,   /**< 分支仍在推理中 */
+    BRANCH_CLOSED,   /**< 分支已闭合（到达目标） */
+    BRANCH_FAILED,   /**< 分支推理失败 */
+    BRANCH_ABANDONED /**< 分支被放弃（超时/熔断） */
 } ReasoningBranchStatus;
 
 /**
@@ -263,9 +263,9 @@ typedef struct ReasoningStack {
  * @brief 熔断器状态
  */
 typedef enum {
-    CIRCUIT_BREAKER_CLOSED,      /**< 关闭态：正常工作 */
-    CIRCUIT_BREAKER_HALF_OPEN,   /**< 半开态：冷却后试探性恢复 */
-    CIRCUIT_BREAKER_OPEN         /**< 打开态：熔断，拒绝执行 */
+    CIRCUIT_BREAKER_CLOSED,    /**< 关闭态：正常工作 */
+    CIRCUIT_BREAKER_HALF_OPEN, /**< 半开态：冷却后试探性恢复 */
+    CIRCUIT_BREAKER_OPEN       /**< 打开态：熔断，拒绝执行 */
 } CircuitBreakerState;
 
 /**
@@ -919,7 +919,8 @@ lv_PUBLIC_API lvErrorCode lv_context_set_state(lvContext *ctx, lvContextState ne
  * @param timeout_ms  该分支的独立超时（0 = 继承父上下文超时）
  * @return lv_OK 成功，其他错误码表示失败
  */
-lv_PUBLIC_API lvErrorCode lv_context_push_reasoning(lvContext *ctx, ReasoningBranchType branch_type, uint64_t timeout_ms);
+lv_PUBLIC_API lvErrorCode lv_context_push_reasoning(lvContext *ctx, ReasoningBranchType branch_type,
+                                                    uint64_t timeout_ms);
 
 /**
  * @brief 从推理栈弹出栈顶帧（分支闭合）

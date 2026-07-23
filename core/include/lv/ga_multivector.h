@@ -132,8 +132,7 @@ lv_PUBLIC_API lvMultiVector *ga_mv_negate(const lvMultiVector *mv);
  * @param b 第二个 multivector 指针
  * @return 成功返回几何积结果的指针，失败返回 NULL
  */
-lv_PUBLIC_API lvMultiVector *ga_mv_geometric_product(const lvMultiVector *a,
-                                                          const lvMultiVector *b);
+lv_PUBLIC_API lvMultiVector *ga_mv_geometric_product(const lvMultiVector *a, const lvMultiVector *b);
 
 /**
  * @brief Inner (dot) product for vectors. Returns scalar.
@@ -149,8 +148,7 @@ lv_PUBLIC_API double ga_mv_inner_product(const lvMultiVector *a, const lvMultiVe
  * @param b 第二个 multivector 指针
  * @return 成功返回外积结果的指针，失败返回 NULL
  */
-lv_PUBLIC_API lvMultiVector *ga_mv_outer_product(const lvMultiVector *a,
-                                                      const lvMultiVector *b);
+lv_PUBLIC_API lvMultiVector *ga_mv_outer_product(const lvMultiVector *a, const lvMultiVector *b);
 
 /* ============================================================
  * Norm and reverse
@@ -201,8 +199,7 @@ lv_PUBLIC_API lvMultiVector *ga_mv_dual(const lvMultiVector *mv);
  * @param mv 被变换的 multivector 指针
  * @return 成功返回夹心积结果的指针，失败返回 NULL
  */
-lv_PUBLIC_API lvMultiVector *ga_mv_sandwich(const lvMultiVector *rotor,
-                                                  const lvMultiVector *mv);
+lv_PUBLIC_API lvMultiVector *ga_mv_sandwich(const lvMultiVector *rotor, const lvMultiVector *mv);
 
 /* ============================================================
  * Comparison
@@ -235,13 +232,13 @@ lv_PUBLIC_API lvMultiVector *ga_mv_scalar(double value);
 /* ============================================================
  * Convenience aliases (short names)
  * ============================================================ */
-#define ga_geometric_product(a, b)  ga_mv_geometric_product(a, b)
-#define ga_outer_product(a, b)      ga_mv_outer_product(a, b)
-#define ga_inner_product(a, b)      ga_mv_inner_product(a, b)
-#define ga_reverse(mv)              ga_mv_reverse(mv)
-#define ga_norm(mv)                 ga_mv_norm(mv)
-#define ga_norm_squared(mv)         ga_mv_norm_squared(mv)
-#define ga_equal(a, b, eps)         ga_mv_equal(a, b, eps)
+#define ga_geometric_product(a, b) ga_mv_geometric_product(a, b)
+#define ga_outer_product(a, b) ga_mv_outer_product(a, b)
+#define ga_inner_product(a, b) ga_mv_inner_product(a, b)
+#define ga_reverse(mv) ga_mv_reverse(mv)
+#define ga_norm(mv) ga_mv_norm(mv)
+#define ga_norm_squared(mv) ga_mv_norm_squared(mv)
+#define ga_equal(a, b, eps) ga_mv_equal(a, b, eps)
 
 #ifdef __cplusplus
 }

@@ -33,11 +33,16 @@
  */
 static const char *port_dep_type_to_string(PortDependencyType type) {
     switch (type) {
-        case PORT_DEP_INCIDENCE:   return "INCIDENCE";
-        case PORT_DEP_BETWEENNESS: return "BETWEENNESS";
-        case PORT_DEP_CONTAINMENT: return "CONTAINMENT";
-        case PORT_DEP_INTERSECTION:return "INTERSECTION";
-        default:                   return "UNKNOWN";
+        case PORT_DEP_INCIDENCE:
+            return "INCIDENCE";
+        case PORT_DEP_BETWEENNESS:
+            return "BETWEENNESS";
+        case PORT_DEP_CONTAINMENT:
+            return "CONTAINMENT";
+        case PORT_DEP_INTERSECTION:
+            return "INTERSECTION";
+        default:
+            return "UNKNOWN";
     }
 }
 
@@ -48,10 +53,14 @@ static const char *port_dep_type_to_string(PortDependencyType type) {
  * @return 对应的端口依赖类型枚举值
  */
 static PortDependencyType port_dep_type_from_string(const char *s) {
-    if (strcmp(s, "INCIDENCE") == 0)    return PORT_DEP_INCIDENCE;
-    if (strcmp(s, "BETWEENNESS") == 0)  return PORT_DEP_BETWEENNESS;
-    if (strcmp(s, "CONTAINMENT") == 0)  return PORT_DEP_CONTAINMENT;
-    if (strcmp(s, "INTERSECTION") == 0) return PORT_DEP_INTERSECTION;
+    if (strcmp(s, "INCIDENCE") == 0)
+        return PORT_DEP_INCIDENCE;
+    if (strcmp(s, "BETWEENNESS") == 0)
+        return PORT_DEP_BETWEENNESS;
+    if (strcmp(s, "CONTAINMENT") == 0)
+        return PORT_DEP_CONTAINMENT;
+    if (strcmp(s, "INTERSECTION") == 0)
+        return PORT_DEP_INTERSECTION;
     return PORT_DEP_INCIDENCE;
 }
 
@@ -62,28 +71,37 @@ static PortDependencyType port_dep_type_from_string(const char *s) {
  * @return 序列化后的字符串，调用方负责释放，失败返回 NULL
  */
 char *func_block_serialize_state(const FuncBlock *fb) {
-    if (!fb) return NULL;
+    if (!fb)
+        return NULL;
 
     /* 估算缓冲区大小 */
     size_t buf_size = SERIALIZE_BUFFER_INITIAL_SIZE;
-    if (fb->name)              buf_size += strlen(fb->name);
-    if (fb->description)       buf_size += strlen(fb->description);
-    buf_size += (size_t)(fb->internal_node_count + fb->input_count +
-                         fb->output_count + fb->port_dep_count +
-                         fb->precondition_count) * 32;
+    if (fb->name)
+        buf_size += strlen(fb->name);
+    if (fb->description)
+        buf_size += strlen(fb->description);
+    buf_size += (size_t) (fb->internal_node_count + fb->input_count + fb->output_count + fb->port_dep_count +
+                          fb->precondition_count) *
+                32;
 
     char *buf = lv_malloc(buf_size);
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
     buf[0] = '\0';
     size_t pos = 0;
 
-    /* 辅助宏：安全写入格式化字符串，防止缓冲区溢出 */
-    #define WRITE_FMT(fmt, ...) do { \
+/* 辅助宏：安全写入格式化字符串，防止缓冲区溢出 */
+#define WRITE_FMT(fmt, ...)                                              \
+    do {                                                                 \
         int w = snprintf(buf + pos, buf_size - pos, fmt, ##__VA_ARGS__); \
-        if (w < 0) goto done; \
-        if ((size_t)w >= buf_size - pos) { pos = buf_size - 1; goto done; } \
-        pos += (size_t)w; \
-    } while(0)
+        if (w < 0)                                                       \
+            goto done;                                                   \
+        if ((size_t) w >= buf_size - pos) {                              \
+            pos = buf_size - 1;                                          \
+            goto done;                                                   \
+        }                                                                \
+        pos += (size_t) w;                                               \
+    } while (0)
 
     /* 头部：函数块ID和名称 */
     WRITE_FMT("func_block {\n  id = %d\n", fb->id);
@@ -102,9 +120,15 @@ char *func_block_serialize_state(const FuncBlock *fb) {
     {
         const char *vs = "EXPANDED";
         switch (fb->view_state) {
-            case FB_VIEW_COLLAPSED: vs = "COLLAPSED"; break;
-            case FB_VIEW_PINNED:    vs = "PINNED";    break;
-            default:                vs = "EXPANDED";  break;
+            case FB_VIEW_COLLAPSED:
+                vs = "COLLAPSED";
+                break;
+            case FB_VIEW_PINNED:
+                vs = "PINNED";
+                break;
+            default:
+                vs = "EXPANDED";
+                break;
         }
         WRITE_FMT("  view_state = %s\n", vs);
     }
@@ -132,24 +156,21 @@ char *func_block_serialize_state(const FuncBlock *fb) {
 
     /* 选择器配置 */
     if (fb->selector) {
-        WRITE_FMT("  selector {\n    type = %d\n    reference_node_id = %d\n  }\n",
-            (int)fb->selector->type,
-            fb->selector->reference_node_id);
+        WRITE_FMT("  selector {\n    type = %d\n    reference_node_id = %d\n  }\n", (int) fb->selector->type,
+                  fb->selector->reference_node_id);
     }
 
     /* 端口依赖 */
     for (int i = 0; i < fb->port_dep_count; i++) {
         PortDependency *dep = &fb->port_deps[i];
-        WRITE_FMT("  port_dep {\n"
+        WRITE_FMT(
+            "  port_dep {\n"
             "    type = %s\n"
             "    port_id = %d\n"
             "    external_node_id = %d\n"
             "    internal_node_id = %d\n"
             "  }\n",
-            port_dep_type_to_string(dep->type),
-            dep->port_id,
-            dep->external_node_id,
-            dep->internal_node_id);
+            port_dep_type_to_string(dep->type), dep->port_id, dep->external_node_id, dep->internal_node_id);
     }
 
     /* 前置条件 */
@@ -168,7 +189,7 @@ char *func_block_serialize_state(const FuncBlock *fb) {
 
     WRITE_FMT("}\n");
 
-    #undef WRITE_FMT
+#undef WRITE_FMT
 done:
     buf[pos] = '\0';
     return buf;
@@ -181,7 +202,8 @@ done:
  * @return 指向第一个非空白字符的指针
  */
 static const char *skip_whitespace(const char *p) {
-    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+        p++;
     return p;
 }
 
@@ -196,7 +218,10 @@ static const char *parse_int(const char *p, int *out) {
     p = skip_whitespace(p);
     *out = 0;
     int sign = 1;
-    if (*p == '-') { sign = -1; p++; }
+    if (*p == '-') {
+        sign = -1;
+        p++;
+    }
     while (*p >= '0' && *p <= '9') {
         *out = *out * 10 + (*p - '0');
         p++;
@@ -216,17 +241,22 @@ static const char *parse_int(const char *p, int *out) {
  */
 static const char *parse_quoted_string(const char *p, char **out) {
     p = skip_whitespace(p);
-    if (*p != '"') { *out = NULL; return p; }
+    if (*p != '"') {
+        *out = NULL;
+        return p;
+    }
     p++; /* 跳过开始引号 */
     const char *start = p;
-    while (*p && *p != '"') p++;
-    size_t len = (size_t)(p - start);
+    while (*p && *p != '"')
+        p++;
+    size_t len = (size_t) (p - start);
     *out = lv_malloc(len + 1);
     if (*out) {
         memcpy(*out, start, len);
         (*out)[len] = '\0';
     }
-    if (*p == '"') p++; /* 跳过结束引号 */
+    if (*p == '"')
+        p++; /* 跳过结束引号 */
     return p;
 }
 
@@ -240,7 +270,11 @@ static const char *parse_quoted_string(const char *p, char **out) {
  */
 static const char *parse_int_array(const char *p, int **out, int *out_count) {
     p = skip_whitespace(p);
-    if (*p != '[') { *out = NULL; *out_count = 0; return p; }
+    if (*p != '[') {
+        *out = NULL;
+        *out_count = 0;
+        return p;
+    }
     p++; /* 跳过 '[' */
 
     /* 先计算元素数量 */
@@ -249,7 +283,8 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
     while (*scan && *scan != ']') {
         if (*scan >= '0' && *scan <= '9') {
             count++;
-            while (*scan >= '0' && *scan <= '9') scan++;
+            while (*scan >= '0' && *scan <= '9')
+                scan++;
         } else {
             scan++;
         }
@@ -258,12 +293,17 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
     if (count == 0) {
         *out = NULL;
         *out_count = 0;
-        if (*p == ']') p++;
+        if (*p == ']')
+            p++;
         return p;
     }
 
-    int *arr = lv_malloc((size_t)count * sizeof(int));
-    if (!arr) { *out = NULL; *out_count = 0; return p; }
+    int *arr = lv_malloc((size_t) count * sizeof(int));
+    if (!arr) {
+        *out = NULL;
+        *out_count = 0;
+        return p;
+    }
 
     int idx = 0;
     while (*p && *p != ']' && idx < count) {
@@ -271,7 +311,10 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
         if (*p >= '0' || *p == '-') {
             int val = 0;
             int sign = 1;
-            if (*p == '-') { sign = -1; p++; }
+            if (*p == '-') {
+                sign = -1;
+                p++;
+            }
             while (*p >= '0' && *p <= '9') {
                 val = val * 10 + (*p - '0');
                 p++;
@@ -281,7 +324,8 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
             p++;
         }
     }
-    if (*p == ']') p++;
+    if (*p == ']')
+        p++;
 
     *out = arr;
     *out_count = idx;
@@ -296,24 +340,29 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
  * @return true  成功，false 失败
  */
 bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
-    if (!fb || !data) return false;
+    if (!fb || !data)
+        return false;
 
     const char *p = data;
 
     /* 查找 "func_block {" */
     const char *header = strstr(p, "func_block");
-    if (!header) return false;
+    if (!header)
+        return false;
     p = header + strlen("func_block");
     p = skip_whitespace(p);
-    if (*p != '{') return false;
+    if (*p != '{')
+        return false;
     p++; /* 跳过 '{' */
 
     while (*p && *p != '}') {
         p = skip_whitespace(p);
-        if (*p == '}') break;
+        if (*p == '}')
+            break;
 
-        /* 辅助宏：检查字符位置是否为键值分隔符或结束符 */
-        #define IS_KEY_BOUNDARY(s, off) ((s)[off] == ' ' || (s)[off] == '=' || (s)[off] == '\t' || (s)[off] == '\0' || (s)[off] == '\n' || (s)[off] == '{')
+/* 辅助宏：检查字符位置是否为键值分隔符或结束符 */
+#define IS_KEY_BOUNDARY(s, off) \
+    ((s)[off] == ' ' || (s)[off] == '=' || (s)[off] == '\t' || (s)[off] == '\0' || (s)[off] == '\n' || (s)[off] == '{')
 
         /* 解析键名 */
         if (strncmp(p, "id", 2) == 0 && IS_KEY_BOUNDARY(p, 2)) {
@@ -332,7 +381,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 p++;
                 char *name;
                 p = parse_quoted_string(p, &name);
-                lv_free((void **)&fb->name);
+                lv_free((void **) &fb->name);
                 fb->name = name;
             }
         } else if (strncmp(p, "description", 11) == 0 && IS_KEY_BOUNDARY(p, 11)) {
@@ -342,7 +391,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 p++;
                 char *desc;
                 p = parse_quoted_string(p, &desc);
-                lv_free((void **)&fb->description);
+                lv_free((void **) &fb->description);
                 fb->description = desc;
             }
         } else if (strncmp(p, "determinism", 11) == 0 && IS_KEY_BOUNDARY(p, 11)) {
@@ -365,7 +414,8 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                     p += 10;
                 } else {
                     /* 跳过未知值到行尾 */
-                    while (*p && *p != '\n') p++;
+                    while (*p && *p != '\n')
+                        p++;
                 }
             }
         } else if (strncmp(p, "view_state", 10) == 0 && IS_KEY_BOUNDARY(p, 10)) {
@@ -382,7 +432,8 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                     p += 6;
                 } else {
                     fb->view_state = FB_VIEW_EXPANDED;
-                    while (*p && *p != '\n') p++;
+                    while (*p && *p != '\n')
+                        p++;
                 }
             }
         } else if (strncmp(p, "internal_nodes", 14) == 0 && IS_KEY_BOUNDARY(p, 14)) {
@@ -394,7 +445,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 int count = 0;
                 p = parse_int_array(p, &arr, &count);
                 func_block_set_internal_nodes(fb, arr, count);
-                lv_free((void **)&arr);
+                lv_free((void **) &arr);
             }
         } else if (strncmp(p, "input_ports", 11) == 0 && IS_KEY_BOUNDARY(p, 11)) {
             p += 11;
@@ -405,7 +456,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 int count = 0;
                 p = parse_int_array(p, &arr, &count);
                 func_block_set_input_ports(fb, arr, count);
-                lv_free((void **)&arr);
+                lv_free((void **) &arr);
             }
         } else if (strncmp(p, "output_ports", 12) == 0 && IS_KEY_BOUNDARY(p, 12)) {
             p += 12;
@@ -416,7 +467,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 int count = 0;
                 p = parse_int_array(p, &arr, &count);
                 func_block_set_output_ports(fb, arr, count);
-                lv_free((void **)&arr);
+                lv_free((void **) &arr);
             }
         } else if (strncmp(p, "selector", 8) == 0 && IS_KEY_BOUNDARY(p, 8)) {
             p += 8;
@@ -430,19 +481,26 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                     if (strncmp(p, "type", 4) == 0 && IS_KEY_BOUNDARY(p, 4)) {
                         p += 4;
                         p = skip_whitespace(p);
-                        if (*p == '=') { p++; p = parse_int(p, &sel_type); }
+                        if (*p == '=') {
+                            p++;
+                            p = parse_int(p, &sel_type);
+                        }
                     } else if (strncmp(p, "reference_node_id", 18) == 0 && IS_KEY_BOUNDARY(p, 18)) {
                         p += 18;
                         p = skip_whitespace(p);
-                        if (*p == '=') { p++; p = parse_int(p, &ref_id); }
+                        if (*p == '=') {
+                            p++;
+                            p = parse_int(p, &ref_id);
+                        }
                     } else {
                         p++;
                     }
                 }
-                if (*p == '}') p++;
-                SolutionSelector *sel = selector_create_with_reference(
-                    (SelectorType)sel_type, ref_id);
-                if (sel) func_block_set_selector(fb, sel);
+                if (*p == '}')
+                    p++;
+                SolutionSelector *sel = selector_create_with_reference((SelectorType) sel_type, ref_id);
+                if (sel)
+                    func_block_set_selector(fb, sel);
             }
         } else if (strncmp(p, "port_dep", 8) == 0 && IS_KEY_BOUNDARY(p, 8)) {
             p += 8;
@@ -464,33 +522,44 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                             p = skip_whitespace(p);
                             /* 读取类型字符串 */
                             const char *start = p;
-                            while (*p && *p != '\n' && *p != ' ' && *p != '}') p++;
-                            size_t len = (size_t)(p - start);
+                            while (*p && *p != '\n' && *p != ' ' && *p != '}')
+                                p++;
+                            size_t len = (size_t) (p - start);
                             char *type_str = lv_malloc(len + 1);
                             if (type_str) {
                                 memcpy(type_str, start, len);
                                 type_str[len] = '\0';
                                 dep.type = port_dep_type_from_string(type_str);
-                                lv_free((void **)&type_str);
+                                lv_free((void **) &type_str);
                             }
                         }
                     } else if (strncmp(p, "port_id", 7) == 0 && IS_KEY_BOUNDARY(p, 7)) {
                         p += 7;
                         p = skip_whitespace(p);
-                        if (*p == '=') { p++; p = parse_int(p, &dep.port_id); }
+                        if (*p == '=') {
+                            p++;
+                            p = parse_int(p, &dep.port_id);
+                        }
                     } else if (strncmp(p, "external_node_id", 17) == 0 && IS_KEY_BOUNDARY(p, 17)) {
                         p += 17;
                         p = skip_whitespace(p);
-                        if (*p == '=') { p++; p = parse_int(p, &dep.external_node_id); }
+                        if (*p == '=') {
+                            p++;
+                            p = parse_int(p, &dep.external_node_id);
+                        }
                     } else if (strncmp(p, "internal_node_id", 17) == 0 && IS_KEY_BOUNDARY(p, 17)) {
                         p += 17;
                         p = skip_whitespace(p);
-                        if (*p == '=') { p++; p = parse_int(p, &dep.internal_node_id); }
+                        if (*p == '=') {
+                            p++;
+                            p = parse_int(p, &dep.internal_node_id);
+                        }
                     } else {
                         p++;
                     }
                 }
-                if (*p == '}') p++;
+                if (*p == '}')
+                    p++;
                 func_block_add_port_dependency(fb, &dep);
             }
         } else if (strncmp(p, "preconditions", 13) == 0 && IS_KEY_BOUNDARY(p, 13)) {
@@ -502,7 +571,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 int count = 0;
                 p = parse_int_array(p, &arr, &count);
                 func_block_set_preconditions(fb, arr, count);
-                lv_free((void **)&arr);
+                lv_free((void **) &arr);
             }
         } else if (strncmp(p, "measure", 7) == 0 && IS_KEY_BOUNDARY(p, 7)) {
             p += 7;
@@ -515,12 +584,16 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                     if (strncmp(p, "node_id", 7) == 0 && IS_KEY_BOUNDARY(p, 7)) {
                         p += 7;
                         p = skip_whitespace(p);
-                        if (*p == '=') { p++; p = parse_int(p, &node_id); }
+                        if (*p == '=') {
+                            p++;
+                            p = parse_int(p, &node_id);
+                        }
                     } else {
                         p++;
                     }
                 }
-                if (*p == '}') p++;
+                if (*p == '}')
+                    p++;
                 if (node_id >= 0) {
                     fb->has_measure = true;
                     fb->measure_node_id = node_id;
@@ -528,11 +601,12 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
             }
         } else {
             /* 跳过未知键到行尾 */
-            while (*p && *p != '\n') p++;
+            while (*p && *p != '\n')
+                p++;
         }
     }
 
-    #undef IS_KEY_BOUNDARY
+#undef IS_KEY_BOUNDARY
 
     return true;
 }

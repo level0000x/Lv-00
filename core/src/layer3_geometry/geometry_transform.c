@@ -65,7 +65,7 @@ static void mpq_sub_by_ui(mpq_t result, const mpq_t op, unsigned long n) {
 /* ============== 变换创建/销毁实现 ============== */
 
 lvTransform *lv_transform_identity(void) {
-    lvTransform *t = (lvTransform *)lv_calloc(1, sizeof(lvTransform));
+    lvTransform *t = (lvTransform *) lv_calloc(1, sizeof(lvTransform));
     if (!t) {
         return NULL;
     }
@@ -83,10 +83,10 @@ lvTransform *lv_transform_identity(void) {
     mpq_init(t->matrix.d);
     mpq_init(t->matrix.ty);
 
-    mpq_set_ui(t->matrix.a, 1, 1); /* a = 1 */
-    mpq_set_ui(t->matrix.d, 1, 1); /* d = 1 */
-    mpq_set_ui(t->matrix.b, 0, 1); /* b = 0 */
-    mpq_set_ui(t->matrix.c, 0, 1); /* c = 0 */
+    mpq_set_ui(t->matrix.a, 1, 1);  /* a = 1 */
+    mpq_set_ui(t->matrix.d, 1, 1);  /* d = 1 */
+    mpq_set_ui(t->matrix.b, 0, 1);  /* b = 0 */
+    mpq_set_ui(t->matrix.c, 0, 1);  /* c = 0 */
     mpq_set_ui(t->matrix.tx, 0, 1); /* tx = 0 */
     mpq_set_ui(t->matrix.ty, 0, 1); /* ty = 0 */
 
@@ -119,8 +119,7 @@ lvTransform *lv_transform_translation(const mpq_t dx, const mpq_t dy) {
     return t;
 }
 
-lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy,
-                                        int angle_num, int angle_denom) {
+lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num, int angle_denom) {
     lvTransform *t = lv_transform_identity();
     if (!t) {
         return NULL;
@@ -157,7 +156,7 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy,
     int normalized = angle_num / angle_denom;
 
     switch (normalized) {
-        case 0:   /* 0° */
+        case 0: /* 0° */
             mpq_set_ui(t->params.params.rotation.cos_theta, 1, 1);
             mpq_set_ui(t->params.params.rotation.sin_theta, 0, 1);
             mpq_set_ui(t->matrix.a, 1, 1);
@@ -165,7 +164,7 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy,
             mpq_set_ui(t->matrix.c, 0, 1);
             mpq_set_ui(t->matrix.d, 1, 1);
             break;
-        case 90:  /* 90° */
+        case 90: /* 90° */
             mpq_set_ui(t->params.params.rotation.cos_theta, 0, 1);
             mpq_set_ui(t->params.params.rotation.sin_theta, 1, 1);
             mpq_set_ui(t->matrix.a, 0, 1);
@@ -195,7 +194,7 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy,
              * 再通过 mpq_set_d 转换为有理数近似。
              * 这保证了变换矩阵始终被正确设置，而非静默降级为单位矩阵。 */
             {
-                double angle_rad = (double)angle_num / (double)angle_denom * M_PI / 180.0;
+                double angle_rad = (double) angle_num / (double) angle_denom * M_PI / 180.0;
                 double cos_d = cos(angle_rad);
                 double sin_d = sin(angle_rad);
                 mpq_set_d(t->params.params.rotation.cos_theta, cos_d);
@@ -233,9 +232,8 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy,
     return t;
 }
 
-lvTransform *lv_transform_rotation_arbitrary(const mpq_t cx, const mpq_t cy,
-                                                  const mpq_t cos_theta,
-                                                  const mpq_t sin_theta) {
+lvTransform *lv_transform_rotation_arbitrary(const mpq_t cx, const mpq_t cy, const mpq_t cos_theta,
+                                             const mpq_t sin_theta) {
     lvTransform *t = lv_transform_identity();
     if (!t) {
         return NULL;
@@ -284,8 +282,7 @@ lvTransform *lv_transform_rotation_arbitrary(const mpq_t cx, const mpq_t cy,
     return t;
 }
 
-lvTransform *lv_transform_reflection(const mpq_t ax, const mpq_t ay,
-                                          const mpq_t bx, const mpq_t by) {
+lvTransform *lv_transform_reflection(const mpq_t ax, const mpq_t ay, const mpq_t bx, const mpq_t by) {
     lvTransform *t = lv_transform_identity();
     if (!t) {
         return NULL;
@@ -369,14 +366,12 @@ lvTransform *lv_transform_reflection(const mpq_t ax, const mpq_t ay,
          * 注意：matrix.a/b/c/d 已经在前面除以 denom 归一化，
          * 因此不能再用 matrix 元素来组装平移分量。
          */
-        mpq_mul(t->matrix.tx, t->params.params.reflection.line_a,
-                t->params.params.reflection.line_c);
+        mpq_mul(t->matrix.tx, t->params.params.reflection.line_a, t->params.params.reflection.line_c);
         mpq_mul_by_ui(t->matrix.tx, t->matrix.tx, 2);
         mpq_neg(t->matrix.tx, t->matrix.tx);
         mpq_div(t->matrix.tx, t->matrix.tx, denom);
 
-        mpq_mul(t->matrix.ty, t->params.params.reflection.line_b,
-                t->params.params.reflection.line_c);
+        mpq_mul(t->matrix.ty, t->params.params.reflection.line_b, t->params.params.reflection.line_c);
         mpq_mul_by_ui(t->matrix.ty, t->matrix.ty, 2);
         mpq_neg(t->matrix.ty, t->matrix.ty);
         mpq_div(t->matrix.ty, t->matrix.ty, denom);
@@ -419,8 +414,10 @@ lvTransform *lv_transform_reflection_line(const mpq_t a, const mpq_t b, const mp
         /* 垂直线 ax + c = 0 */
         if (mpq_sgn(a) == 0) {
             /* a 和 b 同时为零，不是有效直线方程 */
-            mpq_clear(ax); mpq_clear(ay);
-            mpq_clear(bx); mpq_clear(by);
+            mpq_clear(ax);
+            mpq_clear(ay);
+            mpq_clear(bx);
+            mpq_clear(by);
             return NULL;
         }
         mpq_neg(ax, c);
@@ -465,7 +462,7 @@ lvTransform *lv_transform_scaling(const mpq_t cx, const mpq_t cy, const mpq_t sc
     mpq_t temp;
     mpq_init(temp);
 
-    mpq_sub_by_ui(temp, scale, 1);  /* 使用我们定义的辅助函数 */
+    mpq_sub_by_ui(temp, scale, 1); /* 使用我们定义的辅助函数 */
     mpq_mul(t->matrix.tx, temp, cx);
     mpq_neg(t->matrix.tx, t->matrix.tx);
 
@@ -611,12 +608,12 @@ bool lv_transform_get_matrix(lvTransform *t, lvTransformMatrix *matrix) {
 /* ============== 变换复合实现 ============== */
 
 lvTransformSequence *lv_transform_sequence_create(void) {
-    lvTransformSequence *seq = (lvTransformSequence *)lv_calloc(1, sizeof(lvTransformSequence));
+    lvTransformSequence *seq = (lvTransformSequence *) lv_calloc(1, sizeof(lvTransformSequence));
     if (!seq) {
         return NULL;
     }
 
-    seq->transforms = (lvTransform **)lv_malloc(TRANSFORM_SEQ_INIT_CAPACITY * sizeof(lvTransform *));
+    seq->transforms = (lvTransform **) lv_malloc(TRANSFORM_SEQ_INIT_CAPACITY * sizeof(lvTransform *));
     if (!seq->transforms) {
         lv_free((void **) &seq);
         return NULL;
@@ -646,8 +643,7 @@ bool lv_transform_sequence_add(lvTransformSequence *seq, lvTransform *t) {
 
     if (seq->count >= seq->capacity) {
         uint32_t new_cap = seq->capacity * 2;
-        lvTransform **new_arr = (lvTransform **)lv_realloc(seq->transforms,
-                                                             new_cap * sizeof(lvTransform *));
+        lvTransform **new_arr = (lvTransform **) lv_realloc(seq->transforms, new_cap * sizeof(lvTransform *));
         if (!new_arr) {
             return false;
         }
@@ -667,7 +663,7 @@ lvTransform *lv_transform_compose(const lvTransform *t1, const lvTransform *t2) 
         return NULL;
     }
 
-    lvTransform *result = (lvTransform *)lv_calloc(1, sizeof(lvTransform));
+    lvTransform *result = (lvTransform *) lv_calloc(1, sizeof(lvTransform));
     if (!result) {
         return NULL;
     }
@@ -837,7 +833,7 @@ lvTransform *lv_transform_inverse(const lvTransform *t) {
         return NULL;
     }
 
-    lvTransform *inv = (lvTransform *)lv_calloc(1, sizeof(lvTransform));
+    lvTransform *inv = (lvTransform *) lv_calloc(1, sizeof(lvTransform));
     if (!inv) {
         return NULL;
     }
@@ -912,20 +908,15 @@ bool lv_transform_equal(const lvTransform *t1, const lvTransform *t2) {
         return false;
     }
 
-    return (mpq_equal(t1->matrix.a, t2->matrix.a) &&
-            mpq_equal(t1->matrix.b, t2->matrix.b) &&
-            mpq_equal(t1->matrix.c, t2->matrix.c) &&
-            mpq_equal(t1->matrix.d, t2->matrix.d) &&
-            mpq_equal(t1->matrix.tx, t2->matrix.tx) &&
-            mpq_equal(t1->matrix.ty, t2->matrix.ty));
+    return (mpq_equal(t1->matrix.a, t2->matrix.a) && mpq_equal(t1->matrix.b, t2->matrix.b) &&
+            mpq_equal(t1->matrix.c, t2->matrix.c) && mpq_equal(t1->matrix.d, t2->matrix.d) &&
+            mpq_equal(t1->matrix.tx, t2->matrix.tx) && mpq_equal(t1->matrix.ty, t2->matrix.ty));
 }
 
 /* ============== 特殊变换识别实现 ============== */
 
-bool lv_points_are_symmetric(const mpq_t px, const mpq_t py,
-                                const mpq_t qx, const mpq_t qy,
-                                const mpq_t ax, const mpq_t ay,
-                                const mpq_t bx, const mpq_t by) {
+bool lv_points_are_symmetric(const mpq_t px, const mpq_t py, const mpq_t qx, const mpq_t qy, const mpq_t ax,
+                             const mpq_t ay, const mpq_t bx, const mpq_t by) {
     mpq_t rx, ry;
     mpq_init(rx);
     mpq_init(ry);
@@ -940,10 +931,8 @@ bool lv_points_are_symmetric(const mpq_t px, const mpq_t py,
     return result;
 }
 
-bool lv_reflect_point(const mpq_t px, const mpq_t py,
-                         const mpq_t ax, const mpq_t ay,
-                         const mpq_t bx, const mpq_t by,
-                         mpq_t out_x, mpq_t out_y) {
+bool lv_reflect_point(const mpq_t px, const mpq_t py, const mpq_t ax, const mpq_t ay, const mpq_t bx, const mpq_t by,
+                      mpq_t out_x, mpq_t out_y) {
     /* 计算点关于直线的对称点 */
     /* 使用向量投影公式 */
 
@@ -991,14 +980,14 @@ bool lv_reflect_point(const mpq_t px, const mpq_t py,
     /* 对称点 R = 2*H - P */
     mpq_t two;
     mpq_init(two);
-    mpq_set_ui(two, 2, 1);  /* two = 2/1 = 2 */
-    
+    mpq_set_ui(two, 2, 1); /* two = 2/1 = 2 */
+
     mpq_mul(out_x, hx, two);
     mpq_sub(out_x, out_x, px);
 
     mpq_mul(out_y, hy, two);
     mpq_sub(out_y, out_y, py);
-    
+
     mpq_clear(two);
 
     mpq_clear(dx);
@@ -1014,10 +1003,8 @@ bool lv_reflect_point(const mpq_t px, const mpq_t py,
     return true;
 }
 
-bool lv_rotate_point(const mpq_t px, const mpq_t py,
-                        const mpq_t cx, const mpq_t cy,
-                        int angle_num, int angle_denom,
-                        mpq_t out_x, mpq_t out_y) {
+bool lv_rotate_point(const mpq_t px, const mpq_t py, const mpq_t cx, const mpq_t cy, int angle_num, int angle_denom,
+                     mpq_t out_x, mpq_t out_y) {
     lvTransform *rot = lv_transform_rotation(cx, cy, angle_num, angle_denom);
     if (!rot) {
         return false;
@@ -1042,31 +1029,42 @@ char *lv_transform_to_string(const lvTransform *t) {
 
     const char *type_str;
     switch (t->type) {
-        case TRANSFORM_IDENTITY: type_str = "Identity"; break;
-        case TRANSFORM_TRANSLATION: type_str = "Translation"; break;
-        case TRANSFORM_ROTATION: type_str = "Rotation"; break;
-        case TRANSFORM_REFLECTION: type_str = "Reflection"; break;
-        case TRANSFORM_SCALING: type_str = "Scaling"; break;
-        case TRANSFORM_GLUING: type_str = "Composite"; break;
-        default: type_str = "Unknown"; break;
+        case TRANSFORM_IDENTITY:
+            type_str = "Identity";
+            break;
+        case TRANSFORM_TRANSLATION:
+            type_str = "Translation";
+            break;
+        case TRANSFORM_ROTATION:
+            type_str = "Rotation";
+            break;
+        case TRANSFORM_REFLECTION:
+            type_str = "Reflection";
+            break;
+        case TRANSFORM_SCALING:
+            type_str = "Scaling";
+            break;
+        case TRANSFORM_GLUING:
+            type_str = "Composite";
+            break;
+        default:
+            type_str = "Unknown";
+            break;
     }
 
     /* 动态计算字符串长度并分配缓冲区，避免固定缓冲区溢出 */
-    int needed = snprintf(NULL, 0, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]",
-             type_str,
-             t->matrix.a, t->matrix.b, t->matrix.tx,
-             t->matrix.c, t->matrix.d, t->matrix.ty);
-    if (needed < 0) return NULL;
-    size_t size = (size_t)needed + 1;
+    int needed = snprintf(NULL, 0, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]", type_str, t->matrix.a, t->matrix.b,
+                          t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty);
+    if (needed < 0)
+        return NULL;
+    size_t size = (size_t) needed + 1;
 
-    char *result = (char *)lv_malloc(size);
+    char *result = (char *) lv_malloc(size);
     if (!result) {
         return NULL;
     }
 
-    snprintf(result, size, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]",
-             type_str,
-             t->matrix.a, t->matrix.b, t->matrix.tx,
+    snprintf(result, size, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]", type_str, t->matrix.a, t->matrix.b, t->matrix.tx,
              t->matrix.c, t->matrix.d, t->matrix.ty);
 
     return result;
@@ -1079,40 +1077,51 @@ char *lv_transform_to_json(const lvTransform *t) {
 
     const char *type_str;
     switch (t->type) {
-        case TRANSFORM_IDENTITY: type_str = "identity"; break;
-        case TRANSFORM_TRANSLATION: type_str = "translation"; break;
-        case TRANSFORM_ROTATION: type_str = "rotation"; break;
-        case TRANSFORM_REFLECTION: type_str = "reflection"; break;
-        case TRANSFORM_SCALING: type_str = "scaling"; break;
-        case TRANSFORM_GLUING: type_str = "composite"; break;
-        default: type_str = "unknown"; break;
+        case TRANSFORM_IDENTITY:
+            type_str = "identity";
+            break;
+        case TRANSFORM_TRANSLATION:
+            type_str = "translation";
+            break;
+        case TRANSFORM_ROTATION:
+            type_str = "rotation";
+            break;
+        case TRANSFORM_REFLECTION:
+            type_str = "reflection";
+            break;
+        case TRANSFORM_SCALING:
+            type_str = "scaling";
+            break;
+        case TRANSFORM_GLUING:
+            type_str = "composite";
+            break;
+        default:
+            type_str = "unknown";
+            break;
     }
 
     /* 动态计算字符串长度并分配缓冲区，避免固定缓冲区溢出 */
     int needed = snprintf(NULL, 0,
-             "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":\"%Qd\",\"ty\":\"%Qd\"},"
-             "\"is_isometry\":%s,\"is_orientation_preserving\":%s}",
-             type_str,
-             t->matrix.a, t->matrix.b, t->matrix.tx,
-             t->matrix.c, t->matrix.d, t->matrix.ty,
-             t->is_isometry ? "true" : "false",
-             t->is_orientation_preserving ? "true" : "false");
-    if (needed < 0) return NULL;
-    size_t size = (size_t)needed + 1;
+                          "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":"
+                          "\"%Qd\",\"ty\":\"%Qd\"},"
+                          "\"is_isometry\":%s,\"is_orientation_preserving\":%s}",
+                          type_str, t->matrix.a, t->matrix.b, t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty,
+                          t->is_isometry ? "true" : "false", t->is_orientation_preserving ? "true" : "false");
+    if (needed < 0)
+        return NULL;
+    size_t size = (size_t) needed + 1;
 
-    char *result = (char *)lv_malloc(size);
+    char *result = (char *) lv_malloc(size);
     if (!result) {
         return NULL;
     }
 
     snprintf(result, size,
-             "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":\"%Qd\",\"ty\":\"%Qd\"},"
+             "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":\"%Qd\","
+             "\"ty\":\"%Qd\"},"
              "\"is_isometry\":%s,\"is_orientation_preserving\":%s}",
-             type_str,
-             t->matrix.a, t->matrix.b, t->matrix.tx,
-             t->matrix.c, t->matrix.d, t->matrix.ty,
-             t->is_isometry ? "true" : "false",
-             t->is_orientation_preserving ? "true" : "false");
+             type_str, t->matrix.a, t->matrix.b, t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty,
+             t->is_isometry ? "true" : "false", t->is_orientation_preserving ? "true" : "false");
 
     return result;
 }
@@ -1120,7 +1129,7 @@ char *lv_transform_to_json(const lvTransform *t) {
 /* ============== 变换群实现 ============== */
 
 lvTransformGroup *lv_transform_group_create(const char *name) {
-    lvTransformGroup *group = (lvTransformGroup *)lv_calloc(1, sizeof(lvTransformGroup));
+    lvTransformGroup *group = (lvTransformGroup *) lv_calloc(1, sizeof(lvTransformGroup));
     if (!group) {
         return NULL;
     }
@@ -1128,13 +1137,13 @@ lvTransformGroup *lv_transform_group_create(const char *name) {
     if (name) {
         /* 使用 lv_malloc + strcpy 替代标准 strdup，确保与 lv_free 配对 */
         size_t name_len = strlen(name);
-        group->group_name = (char *)lv_malloc(name_len + 1);
+        group->group_name = (char *) lv_malloc(name_len + 1);
         if (group->group_name) {
             memcpy(group->group_name, name, name_len + 1);
         }
     }
 
-    group->generators = (lvTransform **)lv_malloc(GROUP_MAX_GENERATORS * sizeof(lvTransform *));
+    group->generators = (lvTransform **) lv_malloc(GROUP_MAX_GENERATORS * sizeof(lvTransform *));
     if (!group->generators) {
         lv_free((void **) &group);
         return NULL;
@@ -1202,19 +1211,28 @@ lvTransformGroup *lv_transform_group_create_preset(const char *type) {
     } else if (strcmp(type, "D2") == 0 || strcmp(type, "Klein") == 0) {
         /* Klein 四元群：两个正交反射 */
         mpq_t ax, ay, bx, by;
-        mpq_init(ax); mpq_init(ay); mpq_init(bx); mpq_init(by);
-        mpq_set_ui(ax, 0, 1); mpq_set_ui(ay, 0, 1);
-        mpq_set_ui(bx, 1, 1); mpq_set_ui(by, 0, 1);
+        mpq_init(ax);
+        mpq_init(ay);
+        mpq_init(bx);
+        mpq_init(by);
+        mpq_set_ui(ax, 0, 1);
+        mpq_set_ui(ay, 0, 1);
+        mpq_set_ui(bx, 1, 1);
+        mpq_set_ui(by, 0, 1);
         lvTransform *r1 = lv_transform_reflection(ax, ay, bx, by);
 
-        mpq_set_ui(bx, 0, 1); mpq_set_ui(by, 1, 1);
+        mpq_set_ui(bx, 0, 1);
+        mpq_set_ui(by, 1, 1);
         lvTransform *r2 = lv_transform_reflection(ax, ay, bx, by);
 
         lv_transform_group_add_generator(group, r1);
         lv_transform_group_add_generator(group, r2);
         lv_transform_unref(r1);
         lv_transform_unref(r2);
-        mpq_clear(ax); mpq_clear(ay); mpq_clear(bx); mpq_clear(by);
+        mpq_clear(ax);
+        mpq_clear(ay);
+        mpq_clear(bx);
+        mpq_clear(by);
 
         group->order = 4;
         group->is_abelian = true;
@@ -1290,8 +1308,7 @@ int lv_transform_order(const lvTransform *t) {
         /* 对于平移变换，T^n 的平移量是 n 倍，永不等于恒等（除非 dx=dy=0）。
          * 快速检测：如果第一次复合后平移量不为零，且类型是平移，则无限阶 */
         if (n == 1 && t->type == TRANSFORM_TRANSLATION) {
-            if (mpq_cmp_ui(current->matrix.tx, 0, 1) != 0 ||
-                mpq_cmp_ui(current->matrix.ty, 0, 1) != 0) {
+            if (mpq_cmp_ui(current->matrix.tx, 0, 1) != 0 || mpq_cmp_ui(current->matrix.ty, 0, 1) != 0) {
                 lv_transform_destroy(current);
                 lv_transform_destroy(identity);
                 return 0; /* 无限阶 */
@@ -1323,9 +1340,7 @@ int lv_transform_order(const lvTransform *t) {
  * @param max_count       输出数组的最大容量
  * @return 找到的对称变换数量（0 表示无对称或参数无效）
  */
-int lv_transform_identify_symmetries(const ConstraintGraph *graph,
-                                        lvTransform **out_transforms,
-                                        int max_count) {
+int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform **out_transforms, int max_count) {
     if (!graph || !out_transforms || max_count <= 0) {
         return 0;
     }
@@ -1341,9 +1356,14 @@ int lv_transform_identify_symmetries(const ConstraintGraph *graph,
      * 反射直线: y = 0 (即 a=0, b=1, c=0 -> line from (0,0) to (1,0)) */
     if (found < max_count) {
         mpq_t ax, ay, bx, by;
-        mpq_init(ax); mpq_init(ay); mpq_init(bx); mpq_init(by);
-        mpq_set_ui(ax, 0, 1); mpq_set_ui(ay, 0, 1);
-        mpq_set_ui(bx, 1, 1); mpq_set_ui(by, 0, 1);
+        mpq_init(ax);
+        mpq_init(ay);
+        mpq_init(bx);
+        mpq_init(by);
+        mpq_set_ui(ax, 0, 1);
+        mpq_set_ui(ay, 0, 1);
+        mpq_set_ui(bx, 1, 1);
+        mpq_set_ui(by, 0, 1);
 
         lvTransform *ref_x = lv_transform_reflection(ax, ay, bx, by);
         if (ref_x) {
@@ -1353,23 +1373,34 @@ int lv_transform_identify_symmetries(const ConstraintGraph *graph,
             out_transforms[found++] = ref_x;
         }
 
-        mpq_clear(ax); mpq_clear(ay); mpq_clear(bx); mpq_clear(by);
+        mpq_clear(ax);
+        mpq_clear(ay);
+        mpq_clear(bx);
+        mpq_clear(by);
     }
 
     /* ---- 检测 2: 关于 y 轴的反射 ----
      * 反射直线: x = 0 (即 a=1, b=0, c=0 -> line from (0,0) to (0,1)) */
     if (found < max_count) {
         mpq_t ax, ay, bx, by;
-        mpq_init(ax); mpq_init(ay); mpq_init(bx); mpq_init(by);
-        mpq_set_ui(ax, 0, 1); mpq_set_ui(ay, 0, 1);
-        mpq_set_ui(bx, 0, 1); mpq_set_ui(by, 1, 1);
+        mpq_init(ax);
+        mpq_init(ay);
+        mpq_init(bx);
+        mpq_init(by);
+        mpq_set_ui(ax, 0, 1);
+        mpq_set_ui(ay, 0, 1);
+        mpq_set_ui(bx, 0, 1);
+        mpq_set_ui(by, 1, 1);
 
         lvTransform *ref_y = lv_transform_reflection(ax, ay, bx, by);
         if (ref_y) {
             out_transforms[found++] = ref_y;
         }
 
-        mpq_clear(ax); mpq_clear(ay); mpq_clear(bx); mpq_clear(by);
+        mpq_clear(ax);
+        mpq_clear(ay);
+        mpq_clear(bx);
+        mpq_clear(by);
     }
 
     /* ---- 检测 3: 关于原点的 180 度旋转（中心对称） ---- */
@@ -1400,16 +1431,24 @@ int lv_transform_identify_symmetries(const ConstraintGraph *graph,
      * 反射直线: y=x (即 from (0,0) to (1,1)) */
     if (found < max_count) {
         mpq_t ax, ay, bx, by;
-        mpq_init(ax); mpq_init(ay); mpq_init(bx); mpq_init(by);
-        mpq_set_ui(ax, 0, 1); mpq_set_ui(ay, 0, 1);
-        mpq_set_ui(bx, 1, 1); mpq_set_ui(by, 1, 1);
+        mpq_init(ax);
+        mpq_init(ay);
+        mpq_init(bx);
+        mpq_init(by);
+        mpq_set_ui(ax, 0, 1);
+        mpq_set_ui(ay, 0, 1);
+        mpq_set_ui(bx, 1, 1);
+        mpq_set_ui(by, 1, 1);
 
         lvTransform *ref_yx = lv_transform_reflection(ax, ay, bx, by);
         if (ref_yx) {
             out_transforms[found++] = ref_yx;
         }
 
-        mpq_clear(ax); mpq_clear(ay); mpq_clear(bx); mpq_clear(by);
+        mpq_clear(ax);
+        mpq_clear(ay);
+        mpq_clear(bx);
+        mpq_clear(by);
     }
 
     mpq_clear(zero);

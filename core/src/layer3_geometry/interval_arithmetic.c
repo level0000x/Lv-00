@@ -68,9 +68,12 @@ static double round_up(double x) {
  */
 static double min4(double a, double b, double c, double d) {
     double m = a;
-    if (b < m) m = b;
-    if (c < m) m = c;
-    if (d < m) m = d;
+    if (b < m)
+        m = b;
+    if (c < m)
+        m = c;
+    if (d < m)
+        m = d;
     return m;
 }
 
@@ -79,9 +82,12 @@ static double min4(double a, double b, double c, double d) {
  */
 static double max4(double a, double b, double c, double d) {
     double m = a;
-    if (b > m) m = b;
-    if (c > m) m = c;
-    if (d > m) m = d;
+    if (b > m)
+        m = b;
+    if (c > m)
+        m = c;
+    if (d > m)
+        m = d;
     return m;
 }
 
@@ -123,8 +129,8 @@ lvInterval interval_entire(void) {
 
 lvIntervalConfig interval_config_default(void) {
     lvIntervalConfig cfg;
-    cfg.precision = 53;       /* double precision */
-    cfg.rounding_eps = 0.0;   /* no extra rounding in double mode */
+    cfg.precision = 53;     /* double precision */
+    cfg.rounding_eps = 0.0; /* no extra rounding in double mode */
     return cfg;
 }
 
@@ -238,14 +244,18 @@ lvInterval interval_sin(lvInterval a) {
     double k_min_lo = floor((lo - M_PI / 2.0) / M_PI);
     double k_max_hi = ceil((hi - M_PI / 2.0) / M_PI);
     /* 限制搜索范围避免过大循环（区间跨度已在上方保证 < 2*pi，因此最多覆盖 3 个极值点） */
-    if (k_min_lo < -2.0) k_min_lo = -2.0;
-    if (k_max_hi > 2.0) k_max_hi = 2.0;
+    if (k_min_lo < -2.0)
+        k_min_lo = -2.0;
+    if (k_max_hi > 2.0)
+        k_max_hi = 2.0;
     for (double k = k_min_lo; k <= k_max_hi; k += 1.0) {
         double crit = M_PI / 2.0 + k * M_PI;
         if (crit >= lo && crit <= hi) {
             double sc = sin(crit);
-            if (sc > r.hi) r.hi = round_up(sc);
-            if (sc < r.lo) r.lo = round_down(sc);
+            if (sc > r.hi)
+                r.hi = round_up(sc);
+            if (sc < r.lo)
+                r.lo = round_down(sc);
         }
     }
 
@@ -253,8 +263,10 @@ lvInterval interval_sin(lvInterval a) {
         double crit = -M_PI / 2.0 + k * M_PI;
         if (crit >= lo && crit <= hi) {
             double sc = sin(crit);
-            if (sc < r.lo) r.lo = round_down(sc);
-            if (sc > r.hi) r.hi = round_up(sc);
+            if (sc < r.lo)
+                r.lo = round_down(sc);
+            if (sc > r.hi)
+                r.hi = round_up(sc);
         }
     }
 
@@ -290,14 +302,18 @@ lvInterval interval_cos(lvInterval a) {
     /* 使用区间端点动态计算极值点范围 */
     double k_min = floor(lo / M_PI);
     double k_max = ceil(hi / M_PI);
-    if (k_min < -2.0) k_min = -2.0;
-    if (k_max > 2.0) k_max = 2.0;
+    if (k_min < -2.0)
+        k_min = -2.0;
+    if (k_max > 2.0)
+        k_max = 2.0;
     for (double k = k_min; k <= k_max; k += 1.0) {
         double crit = k * M_PI;
         if (crit >= lo && crit <= hi) {
             double cc = cos(crit);
-            if (cc > r.hi) r.hi = round_up(cc);
-            if (cc < r.lo) r.lo = round_down(cc);
+            if (cc > r.hi)
+                r.hi = round_up(cc);
+            if (cc < r.lo)
+                r.lo = round_down(cc);
         }
     }
 
@@ -432,8 +448,10 @@ lvInterval interval_intersect(lvInterval a, lvInterval b) {
 }
 
 lvInterval interval_union(lvInterval a, lvInterval b) {
-    if (interval_is_empty(a)) return b;
-    if (interval_is_empty(b)) return a;
+    if (interval_is_empty(a))
+        return b;
+    if (interval_is_empty(b))
+        return a;
     lvInterval r;
     r.lo = (a.lo < b.lo) ? a.lo : b.lo;
     r.hi = (a.hi > b.hi) ? a.hi : b.hi;
@@ -453,11 +471,11 @@ lvInterval interval_union(lvInterval a, lvInterval b) {
  */
 
 typedef struct {
-    const char *pos;            /**< Current position in the expression string */
-    const char **var_names;     /**< Variable names */
+    const char *pos;                 /**< Current position in the expression string */
+    const char **var_names;          /**< Variable names */
     const lvInterval *var_intervals; /**< Variable intervals */
-    int var_count;              /**< Number of variables */
-    int error;                  /**< Nonzero if parsing error occurred */
+    int var_count;                   /**< Number of variables */
+    int error;                       /**< Nonzero if parsing error occurred */
 } ExprParser;
 
 static void skip_whitespace(ExprParser *p) {
@@ -503,10 +521,8 @@ static lvInterval parse_primary(ExprParser *p) {
     if ((*p->pos >= 'a' && *p->pos <= 'z') || (*p->pos >= 'A' && *p->pos <= 'Z') || *p->pos == '_') {
         char name[64];
         int len = 0;
-        while (len < 63 && ((*p->pos >= 'a' && *p->pos <= 'z') ||
-               (*p->pos >= 'A' && *p->pos <= 'Z') ||
-               (*p->pos >= '0' && *p->pos <= '9') ||
-               *p->pos == '_')) {
+        while (len < 63 && ((*p->pos >= 'a' && *p->pos <= 'z') || (*p->pos >= 'A' && *p->pos <= 'Z') ||
+                            (*p->pos >= '0' && *p->pos <= '9') || *p->pos == '_')) {
             name[len++] = *p->pos;
             p->pos++;
         }
@@ -519,15 +535,23 @@ static lvInterval parse_primary(ExprParser *p) {
             p->pos++;
             lvInterval arg = parse_expr(p);
             skip_whitespace(p);
-            if (*p->pos == ')') p->pos++;
-            else p->error = 1;
+            if (*p->pos == ')')
+                p->pos++;
+            else
+                p->error = 1;
 
-            if (strcmp(name, "sqrt") == 0) return interval_sqrt(arg);
-            if (strcmp(name, "sin") == 0) return interval_sin(arg);
-            if (strcmp(name, "cos") == 0) return interval_cos(arg);
-            if (strcmp(name, "exp") == 0) return interval_exp(arg);
-            if (strcmp(name, "log") == 0) return interval_log(arg);
-            if (strcmp(name, "abs") == 0) return interval_abs(arg);
+            if (strcmp(name, "sqrt") == 0)
+                return interval_sqrt(arg);
+            if (strcmp(name, "sin") == 0)
+                return interval_sin(arg);
+            if (strcmp(name, "cos") == 0)
+                return interval_cos(arg);
+            if (strcmp(name, "exp") == 0)
+                return interval_exp(arg);
+            if (strcmp(name, "log") == 0)
+                return interval_log(arg);
+            if (strcmp(name, "abs") == 0)
+                return interval_abs(arg);
 
             /* Unknown function */
             p->error = 1;
@@ -588,12 +612,8 @@ static lvInterval parse_expr(ExprParser *p) {
     return left;
 }
 
-lvInterval interval_from_symbolic(
-    const char *expr_str,
-    const char **var_names,
-    const lvInterval *var_intervals,
-    int var_count)
-{
+lvInterval interval_from_symbolic(const char *expr_str, const char **var_names, const lvInterval *var_intervals,
+                                  int var_count) {
     if (!expr_str || !var_names || !var_intervals || var_count <= 0) {
         return interval_empty();
     }
@@ -641,14 +661,8 @@ int interval_verify_solution(lvInterval f_interval, double tolerance) {
     return 0;
 }
 
-int interval_verify_adaptive(
-    const char *expr_str,
-    const char **var_names,
-    lvInterval *var_intervals,
-    int var_count,
-    int max_depth,
-    double tolerance)
-{
+int interval_verify_adaptive(const char *expr_str, const char **var_names, lvInterval *var_intervals, int var_count,
+                             int max_depth, double tolerance) {
     if (!expr_str || !var_names || !var_intervals || var_count <= 0) {
         return -1;
     }

@@ -72,11 +72,11 @@ typedef struct lvMemoryStats lvMemoryStats;
  * @brief 对象池配置
  */
 typedef struct {
-    size_t object_size;     /**< 单个对象大小（字节） */
-    size_t capacity;        /**< 初始容量 */
-    bool thread_safe;       /**< 是否线程安全 */
-    bool auto_grow;         /**< 容量不足时是否自动扩展 */
-    const char *name;       /**< 池名称（用于调试） */
+    size_t object_size; /**< 单个对象大小（字节） */
+    size_t capacity;    /**< 初始容量 */
+    bool thread_safe;   /**< 是否线程安全 */
+    bool auto_grow;     /**< 容量不足时是否自动扩展 */
+    const char *name;   /**< 池名称（用于调试） */
 } lvPoolConfig;
 
 /**
@@ -114,10 +114,8 @@ bool lv_pool_free(lvObjectPool *pool, void *obj);
  * @param out_total_frees 输出：总释放次数
  * @param out_current_used 输出：当前使用数量
  */
-void lv_pool_get_stats(lvObjectPool *pool,
-                         uint64_t *out_total_allocs,
-                         uint64_t *out_total_frees,
-                         size_t *out_current_used);
+void lv_pool_get_stats(lvObjectPool *pool, uint64_t *out_total_allocs, uint64_t *out_total_frees,
+                       size_t *out_current_used);
 
 /**
  * @brief 清空对象池（不销毁池本身）
@@ -162,10 +160,8 @@ void lv_linear_allocator_reset(lvLinearAllocator *allocator);
  * @param out_used_bytes 输出：已使用字节数
  * @param out_capacity_bytes 输出：总容量字节数
  */
-void lv_linear_allocator_get_stats(const lvLinearAllocator *allocator,
-                                     size_t *out_total_blocks,
-                                     size_t *out_used_bytes,
-                                     size_t *out_capacity_bytes);
+void lv_linear_allocator_get_stats(const lvLinearAllocator *allocator, size_t *out_total_blocks, size_t *out_used_bytes,
+                                   size_t *out_capacity_bytes);
 
 /* ============== 对象缓存（LRU） ============== */
 
@@ -197,10 +193,8 @@ typedef void (*lvCacheDestroyFunc)(void *obj, void *user_data);
  * @param user_data 用户数据
  * @return 新创建的对象缓存，失败返回 NULL
  */
-lvObjectCache *lv_cache_create(size_t capacity,
-                                   lvCacheCreateFunc create_func,
-                                   lvCacheDestroyFunc destroy_func,
-                                   void *user_data);
+lvObjectCache *lv_cache_create(size_t capacity, lvCacheCreateFunc create_func, lvCacheDestroyFunc destroy_func,
+                               void *user_data);
 
 /**
  * @brief 销毁对象缓存
@@ -237,10 +231,7 @@ void lv_cache_clear(lvObjectCache *cache);
  * @param out_misses 输出：未命中次数
  * @param out_current_size 输出：当前大小
  */
-void lv_cache_get_stats(const lvObjectCache *cache,
-                          uint64_t *out_hits,
-                          uint64_t *out_misses,
-                          size_t *out_current_size);
+void lv_cache_get_stats(const lvObjectCache *cache, uint64_t *out_hits, uint64_t *out_misses, size_t *out_current_size);
 
 /* ============== 全局内存统计 ============== */
 
@@ -248,11 +239,11 @@ void lv_cache_get_stats(const lvObjectCache *cache,
  * @brief 内存类型统计条目
  */
 typedef struct {
-    const char *name;           /**< 类型名称 */
-    uint64_t total_allocs;      /**< 总分配次数 */
-    uint64_t total_frees;       /**< 总释放次数 */
-    uint64_t current_bytes;     /**< 当前使用字节数 */
-    uint64_t peak_bytes;        /**< 峰值使用字节数 */
+    const char *name;       /**< 类型名称 */
+    uint64_t total_allocs;  /**< 总分配次数 */
+    uint64_t total_frees;   /**< 总释放次数 */
+    uint64_t current_bytes; /**< 当前使用字节数 */
+    uint64_t peak_bytes;    /**< 峰值使用字节数 */
 } lvMemTypeStat;
 
 /**
@@ -273,9 +264,9 @@ struct lvMemoryStats {
      *   注册将失败并返回 -1。建议在系统初始化阶段检查注册返回值。
      */
     lvMemTypeStat types[lv_MEM_STAT_MAX_TYPES]; /**< 各类型统计 */
-    int type_count;                                 /**< 已注册类型数 */
-    uint64_t total_bytes;                           /**< 总使用字节数 */
-    uint64_t peak_bytes;                            /**< 总峰值字节数 */
+    int type_count;                             /**< 已注册类型数 */
+    uint64_t total_bytes;                       /**< 总使用字节数 */
+    uint64_t peak_bytes;                        /**< 总峰值字节数 */
 };
 
 /**

@@ -40,7 +40,7 @@
  * @return Newly allocated node, or NULL on failure
  */
 static lvADExpr *expr_alloc(lvADExprKind kind) {
-    lvADExpr *expr = (lvADExpr *)calloc(1, sizeof(lvADExpr));
+    lvADExpr *expr = (lvADExpr *) calloc(1, sizeof(lvADExpr));
     if (expr) {
         expr->kind = kind;
         expr->var_index = -1;
@@ -58,8 +58,9 @@ static lvADExpr *expr_alloc(lvADExprKind kind) {
  * @return true on success, false on failure
  */
 static bool expr_set_binary_children(lvADExpr *expr, lvADExpr *a, lvADExpr *b) {
-    expr->children = (lvADExpr **)malloc(2 * sizeof(lvADExpr *));
-    if (!expr->children) return false;
+    expr->children = (lvADExpr **) malloc(2 * sizeof(lvADExpr *));
+    if (!expr->children)
+        return false;
     expr->children[0] = a;
     expr->children[1] = b;
     expr->child_count = 2;
@@ -74,8 +75,9 @@ static bool expr_set_binary_children(lvADExpr *expr, lvADExpr *a, lvADExpr *b) {
  * @return true on success, false on failure
  */
 static bool expr_set_unary_child(lvADExpr *expr, lvADExpr *child) {
-    expr->children = (lvADExpr **)malloc(sizeof(lvADExpr *));
-    if (!expr->children) return false;
+    expr->children = (lvADExpr **) malloc(sizeof(lvADExpr *));
+    if (!expr->children)
+        return false;
     expr->children[0] = child;
     expr->child_count = 1;
     return true;
@@ -91,8 +93,8 @@ static bool expr_set_unary_child(lvADExpr *expr, lvADExpr *child) {
  * Returns a pair (value, tangent) for each node.
  */
 typedef struct {
-    double value;    /**< Primal value */
-    double tangent;  /**< Tangent (derivative) value */
+    double value;   /**< Primal value */
+    double tangent; /**< Tangent (derivative) value */
 } ForwardResult;
 
 /**
@@ -103,8 +105,7 @@ typedef struct {
  * @param var_value   The value of that variable
  * @return (value, derivative) pair
  */
-static ForwardResult forward_eval(const lvADExpr *expr, int var_index,
-    double var_value) {
+static ForwardResult forward_eval(const lvADExpr *expr, int var_index, double var_value) {
     ForwardResult result = {0.0, 0.0};
 
     switch (expr->kind) {
@@ -172,10 +173,7 @@ static ForwardResult forward_eval(const lvADExpr *expr, int var_index,
              * the exponent is constant (exp.tangent == 0); otherwise the
              * derivative is ill-defined in the real domain. */
             if (base.value > 0.0) {
-                result.tangent = result.value * (
-                    exp.tangent * log(base.value) +
-                    exp.value * base.tangent / base.value
-                );
+                result.tangent = result.value * (exp.tangent * log(base.value) + exp.value * base.tangent / base.value);
             } else if (fabs(exp.tangent) < 1e-15) {
                 /* Exponent is effectively constant: d/dx (base^n) = n * base^(n-1) * dbase/dx */
                 if (base.value < 0.0 && fabs(exp.value - 1.0 - round(exp.value - 1.0)) > 1e-15) {
@@ -203,7 +201,8 @@ static ForwardResult forward_eval(const lvADExpr *expr, int var_index,
  * @brief Reset all gradient accumulators in the expression tree.
  */
 static void reset_gradients(lvADExpr *expr) {
-    if (!expr) return;
+    if (!expr)
+        return;
     expr->gradient = 0.0;
     for (size_t i = 0; i < expr->child_count; i++) {
         reset_gradients(expr->children[i]);
@@ -218,14 +217,13 @@ static void reset_gradients(lvADExpr *expr) {
  * @param var_count   Number of variables
  * @return The primal value of this node
  */
-static double reverse_forward_pass(lvADExpr *expr,
-    const double *var_values, size_t var_count) {
+static double reverse_forward_pass(lvADExpr *expr, const double *var_values, size_t var_count) {
     switch (expr->kind) {
         case AD_CONST:
             return expr->value;
 
         case AD_VAR:
-            if (expr->var_index >= 0 && (size_t)expr->var_index < var_count) {
+            if (expr->var_index >= 0 && (size_t) expr->var_index < var_count) {
                 return var_values[expr->var_index];
             }
             return 0.0;
@@ -248,10 +246,8 @@ static double reverse_forward_pass(lvADExpr *expr,
             return cos(reverse_forward_pass(expr->children[0], var_values, var_count));
 
         case AD_POW:
-            return pow(
-                reverse_forward_pass(expr->children[0], var_values, var_count),
-                reverse_forward_pass(expr->children[1], var_values, var_count)
-            );
+            return pow(reverse_forward_pass(expr->children[0], var_values, var_count),
+                       reverse_forward_pass(expr->children[1], var_values, var_count));
     }
     return 0.0;
 }
@@ -263,7 +259,8 @@ static double reverse_forward_pass(lvADExpr *expr,
  * @param adjoint  The incoming adjoint (gradient) value
  */
 static void reverse_backward_pass(lvADExpr *expr, double adjoint) {
-    if (!expr) return;
+    if (!expr)
+        return;
 
     /* Accumulate gradient */
     expr->gradient += adjoint;
@@ -327,14 +324,15 @@ static void reverse_backward_pass(lvADExpr *expr, double adjoint) {
  * @brief Store primal values in all nodes during forward pass.
  */
 static void store_values(lvADExpr *expr, const double *var_values, size_t var_count) {
-    if (!expr) return;
+    if (!expr)
+        return;
 
     switch (expr->kind) {
         case AD_CONST:
             /* value already set */
             break;
         case AD_VAR:
-            if (expr->var_index >= 0 && (size_t)expr->var_index < var_count) {
+            if (expr->var_index >= 0 && (size_t) expr->var_index < var_count) {
                 expr->value = var_values[expr->var_index];
             }
             break;
@@ -373,7 +371,7 @@ static void store_values(lvADExpr *expr, const double *var_values, size_t var_co
  * ============================================================ */
 
 lvADEngine *ad_engine_create(lvADMode mode) {
-    lvADEngine *engine = (lvADEngine *)malloc(sizeof(lvADEngine));
+    lvADEngine *engine = (lvADEngine *) malloc(sizeof(lvADEngine));
     if (engine) {
         engine->mode = mode;
     }
@@ -405,9 +403,11 @@ lvADExpr *ad_expr_create_var(int var_index) {
 }
 
 lvADExpr *ad_expr_add(lvADExpr *a, lvADExpr *b) {
-    if (!a || !b) return NULL;
+    if (!a || !b)
+        return NULL;
     lvADExpr *expr = expr_alloc(AD_ADD);
-    if (!expr) return NULL;
+    if (!expr)
+        return NULL;
     if (!expr_set_binary_children(expr, a, b)) {
         free(expr);
         return NULL;
@@ -416,9 +416,11 @@ lvADExpr *ad_expr_add(lvADExpr *a, lvADExpr *b) {
 }
 
 lvADExpr *ad_expr_mul(lvADExpr *a, lvADExpr *b) {
-    if (!a || !b) return NULL;
+    if (!a || !b)
+        return NULL;
     lvADExpr *expr = expr_alloc(AD_MUL);
-    if (!expr) return NULL;
+    if (!expr)
+        return NULL;
     if (!expr_set_binary_children(expr, a, b)) {
         free(expr);
         return NULL;
@@ -427,9 +429,11 @@ lvADExpr *ad_expr_mul(lvADExpr *a, lvADExpr *b) {
 }
 
 lvADExpr *ad_expr_sin(lvADExpr *x) {
-    if (!x) return NULL;
+    if (!x)
+        return NULL;
     lvADExpr *expr = expr_alloc(AD_SIN);
-    if (!expr) return NULL;
+    if (!expr)
+        return NULL;
     if (!expr_set_unary_child(expr, x)) {
         free(expr);
         return NULL;
@@ -438,9 +442,11 @@ lvADExpr *ad_expr_sin(lvADExpr *x) {
 }
 
 lvADExpr *ad_expr_cos(lvADExpr *x) {
-    if (!x) return NULL;
+    if (!x)
+        return NULL;
     lvADExpr *expr = expr_alloc(AD_COS);
-    if (!expr) return NULL;
+    if (!expr)
+        return NULL;
     if (!expr_set_unary_child(expr, x)) {
         free(expr);
         return NULL;
@@ -449,9 +455,11 @@ lvADExpr *ad_expr_cos(lvADExpr *x) {
 }
 
 lvADExpr *ad_expr_pow(lvADExpr *base, lvADExpr *exponent) {
-    if (!base || !exponent) return NULL;
+    if (!base || !exponent)
+        return NULL;
     lvADExpr *expr = expr_alloc(AD_POW);
-    if (!expr) return NULL;
+    if (!expr)
+        return NULL;
     if (!expr_set_binary_children(expr, base, exponent)) {
         free(expr);
         return NULL;
@@ -460,7 +468,8 @@ lvADExpr *ad_expr_pow(lvADExpr *base, lvADExpr *exponent) {
 }
 
 void ad_expr_destroy(lvADExpr *expr) {
-    if (!expr) return;
+    if (!expr)
+        return;
 
     /* 保存子节点指针并清空 children，防止共享子节点（如 x*x）导致 double free */
     size_t count = expr->child_count;
@@ -470,12 +479,13 @@ void ad_expr_destroy(lvADExpr *expr) {
 
     /* 销毁子节点：跳过重复指针，每个唯一指针只释放一次 */
     for (size_t i = 0; i < count; i++) {
-        if (!saved[i]) continue;
+        if (!saved[i])
+            continue;
         /* 检查是否与后续子节点重复 */
         bool duplicate = false;
         for (size_t j = i + 1; j < count; j++) {
             if (saved[j] == saved[i]) {
-                saved[j] = NULL;  /* 标记为已处理，避免后续重复释放 */
+                saved[j] = NULL; /* 标记为已处理，避免后续重复释放 */
                 duplicate = true;
             }
         }
@@ -492,9 +502,9 @@ void ad_expr_destroy(lvADExpr *expr) {
  * API implementation: Differentiation
  * ============================================================ */
 
-bool ad_forward_diff(lvADExpr *expr, int var_index,
-    double var_value, double *value, double *derivative) {
-    if (!expr || !value || !derivative) return false;
+bool ad_forward_diff(lvADExpr *expr, int var_index, double var_value, double *value, double *derivative) {
+    if (!expr || !value || !derivative)
+        return false;
 
     ForwardResult result = forward_eval(expr, var_index, var_value);
     *value = result.value;
@@ -516,9 +526,10 @@ bool ad_forward_diff(lvADExpr *expr, int var_index,
  * same gradient multiple times.
  */
 static void collect_gradients(const lvADExpr *expr, double *gradients, size_t var_count) {
-    if (!expr) return;
+    if (!expr)
+        return;
 
-    if (expr->kind == AD_VAR && expr->var_index >= 0 && (size_t)expr->var_index < var_count) {
+    if (expr->kind == AD_VAR && expr->var_index >= 0 && (size_t) expr->var_index < var_count) {
         gradients[expr->var_index] += expr->gradient;
     }
 
@@ -538,10 +549,9 @@ static void collect_gradients(const lvADExpr *expr, double *gradients, size_t va
     }
 }
 
-bool ad_reverse_diff(lvADExpr *expr,
-    const double *var_values, size_t var_count,
-    double *value, double *gradients) {
-    if (!expr || !var_values || !value || !gradients) return false;
+bool ad_reverse_diff(lvADExpr *expr, const double *var_values, size_t var_count, double *value, double *gradients) {
+    if (!expr || !var_values || !value || !gradients)
+        return false;
 
     /* Reset all gradients */
     reset_gradients(expr);
@@ -566,15 +576,16 @@ bool ad_reverse_diff(lvADExpr *expr,
  * API implementation: Evaluation and gradient query
  * ============================================================ */
 
-bool ad_eval(lvADExpr *expr,
-    const double *var_values, size_t var_count, double *result) {
-    if (!expr || !var_values || !result) return false;
+bool ad_eval(lvADExpr *expr, const double *var_values, size_t var_count, double *result) {
+    if (!expr || !var_values || !result)
+        return false;
     *result = reverse_forward_pass(expr, var_values, var_count);
     return true;
 }
 
 double ad_grad(lvADExpr *expr, int var_index) {
-    if (!expr) return 0.0;
+    if (!expr)
+        return 0.0;
 
     /* Sum gradients across all occurrences of var_index in the DAG.
      * A variable may appear multiple times (e.g., x in x*x), and each

@@ -32,13 +32,12 @@
 
 #include "lv/stream.h"
 
-#include "lv.h"
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
+#include "lv.h"
 #include "lv_utils.h"
 #ifdef _WIN32
 #include <windows.h>

@@ -42,7 +42,7 @@ extern "C" {
  *          lv_CONFIG_SOLVER_MAX_VAR_ID；若未定义则回退到默认值 100000。
  */
 #ifndef lv_CONFIG_SOLVER_MAX_VAR_ID
-#define SOLVER_MAX_VAR_ID 100000  /* 回退默认值 */
+#define SOLVER_MAX_VAR_ID 100000 /* 回退默认值 */
 #else
 #define SOLVER_MAX_VAR_ID lv_CONFIG_SOLVER_MAX_VAR_ID
 #endif
@@ -66,8 +66,8 @@ typedef struct GroebnerResult {
      * 保留 int 是因为内部求解器接口和调用方均使用 int 计数，
      * 且实际解数量受 SOLVER_MAX_VAR_ID 限制，不会超过 INT_MAX。
      * 未来如需支持超大规模解集，应迁移为 size_t。 */
-    bool unique;               /**< 是否唯一解 */
-    bool overdetermined;       /**< 是否过度约束 */
+    bool unique;         /**< 是否唯一解 */
+    bool overdetermined; /**< 是否过度约束 */
 } GroebnerResult;
 
 /**
@@ -81,8 +81,8 @@ typedef enum {
     SOLVER_STATUS_NO_SOLUTION,     /**< 无解 */
     SOLVER_STATUS_OVERCONSTRAINED, /**< 过度约束 */
     SOLVER_STATUS_OUT_OF_SCOPE,    /**< 超出范围 */
-    SOLVER_STATUS_TIMEOUT,          /**< 超时 */
-    SOLVER_STATUS_OUT_OF_MEMORY     /**< 内存不足 */
+    SOLVER_STATUS_TIMEOUT,         /**< 超时 */
+    SOLVER_STATUS_OUT_OF_MEMORY    /**< 内存不足 */
 } SolverStatus;
 
 /* AlgebraicOp is now defined in mpz_poly.h (included above) */
@@ -108,8 +108,8 @@ typedef enum {
  *         SOLVER_NO_SOLUTION / SOLVER_OVERCONSTRAINED /
  *         SOLVER_OUT_OF_SCOPE / SOLVER_TIMEOUT
  */
-lv_PUBLIC_API SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_variable_ids, int dirty_count,
-                                    GroebnerResult **out_result);
+lv_PUBLIC_API SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_variable_ids,
+                                                  int dirty_count, GroebnerResult **out_result);
 
 /**
  * @brief 消除几何约束
@@ -119,7 +119,8 @@ lv_PUBLIC_API SolverStatus solve_algebraic_system(ConstraintGraph *graph, const 
  * @param[in] elim_count      要消除的变量数量
  * @return 求解器状态
  */
-lv_PUBLIC_API SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const int *eliminate_ids, int elim_count);
+lv_PUBLIC_API SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const int *eliminate_ids,
+                                              int elim_count);
 
 /**
  * @brief 分析超出范围的变量
@@ -158,7 +159,8 @@ lv_PUBLIC_API bool check_conflict_equations(const ConstraintGraph *graph);
  * @param[out] result 结果最小多项式
  * @return true 成功，false 失败（度数超过 4 或其他错误）
  */
-lv_PUBLIC_API bool compute_algebraic_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op, mpz_poly_t *result);
+lv_PUBLIC_API bool compute_algebraic_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op,
+                                               mpz_poly_t *result);
 
 /* ------------------------------------------------------------------ */
 /*  增量求解：仅重解脏变量子图                                           */
@@ -176,7 +178,8 @@ lv_PUBLIC_API bool compute_algebraic_resultant(const mpz_poly_t *p, const mpz_po
  *         调用者需用 groebner_result_destroy() 释放。
  *         出错返回 NULL。
  */
-lv_PUBLIC_API GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirty_var_ids, int n_dirty_vars);
+lv_PUBLIC_API GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirty_var_ids,
+                                                       int n_dirty_vars);
 
 /**
  * @brief 释放 Groebner 结果
@@ -298,7 +301,7 @@ lv_PUBLIC_API int equation_system_get_coord_index(const EquationSystem *sys, int
  *         SOLVER_TIMEOUT 分支组合过多或内存不足
  */
 lv_PUBLIC_API SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, const EquationSystem *system,
-                                              SymbolicCoord ***out_branches, int *out_branch_count);
+                                                            SymbolicCoord ***out_branches, int *out_branch_count);
 
 /* ============== 交互式求解反馈（Solvespace风格） ============== */
 

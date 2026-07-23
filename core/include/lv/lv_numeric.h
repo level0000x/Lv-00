@@ -137,8 +137,7 @@ lv_PUBLIC_API double lv_rad_to_deg(double rad);
  * @param t 插值参数（通常在 [0, 1] 区间内）
  * @return 插值结果
  */
-static inline double lv_lerp(double a, double b, double t)
-{
+static inline double lv_lerp(double a, double b, double t) {
     return a + t * (b - a);
 }
 

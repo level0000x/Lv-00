@@ -18,12 +18,13 @@
 #include <windows.h>
 #endif
 
-#include "lv/proof.h"
-#include "lv/proof_trace.h"
-#include "lv/engine.h"
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
+#include "lv/engine.h"
+#include "lv/proof.h"
+#include "lv/proof_trace.h"
 #include "lv/trust_color.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -42,12 +43,14 @@ lv_DECLARE_STREAM_CTX(proof);
 
 /** 深拷贝约束图（用于证明句柄内部复制） */
 static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
-    if (!src) return NULL;
+    if (!src)
+        return NULL;
     /* 通过 JSON 序列化/反序列化实现深拷贝 */
     char *json = graph_serialize_to_json(src);
-    if (!json) return NULL;
+    if (!json)
+        return NULL;
     ConstraintGraph *copy = graph_deserialize_from_json(json);
-    lv_free((void**)&json);
+    lv_free((void **) &json);
     return copy;
 }
 
@@ -58,7 +61,8 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
  * 颜色优先级：深橙色 > 橙黄色 > 浅橙色 > 黄色 > 蓝色 > 绿色
  */
 ProofColor proof_navigator_compute_final_color(ProofNavigator *nav) {
-    if (!nav) return PROOF_COLOR_GREEN;
+    if (!nav)
+        return PROOF_COLOR_GREEN;
 
     ProofColor final_color = PROOF_COLOR_GREEN;
 
@@ -105,14 +109,13 @@ ProofColor proof_navigator_compute_final_color(ProofNavigator *nav) {
                     graph_color = node_color;
                 } else {
                     /* 多颜色叠加 */
-                    bool is_lo = (node_color == PROOF_COLOR_ORANGE_ORACLE ||
-                                  node_color == PROOF_COLOR_ORANGE_EX_FALSO);
-                    bool is_graph_lo = (graph_color == PROOF_COLOR_ORANGE_ORACLE ||
-                                        graph_color == PROOF_COLOR_ORANGE_EX_FALSO);
+                    bool is_lo = (node_color == PROOF_COLOR_ORANGE_ORACLE || node_color == PROOF_COLOR_ORANGE_EX_FALSO);
+                    bool is_graph_lo =
+                        (graph_color == PROOF_COLOR_ORANGE_ORACLE || graph_color == PROOF_COLOR_ORANGE_EX_FALSO);
                     if ((is_lo && graph_color == PROOF_COLOR_AMBER) ||
                         (is_graph_lo && node_color == PROOF_COLOR_AMBER)) {
                         graph_color = PROOF_COLOR_DARK_ORANGE;
-                    } else if ((int)node_color > (int)graph_color) {
+                    } else if ((int) node_color > (int) graph_color) {
                         graph_color = node_color;
                     }
                 }
@@ -484,9 +487,7 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
     }
 
     /* ====== 阶段 2：创建证明追踪树 ====== */
-    lvProofTree *trace_tree = lv_proof_tree_create(
-        goal_prop->name ? goal_prop->name : "待证定理",
-        "反证法（归谬法）");
+    lvProofTree *trace_tree = lv_proof_tree_create(goal_prop->name ? goal_prop->name : "待证定理", "反证法（归谬法）");
 
     if (!trace_tree) {
         proof_navigator_destroy(branch_nav);
@@ -500,8 +501,8 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
     }
 
     /* 添加反证法假设步骤到追踪树 */
-    lvProofTreeNode *assume_node = lv_proof_tree_add_step(
-        trace_tree, NULL, "反证法假设", negated_goal->name ? negated_goal->name : "¬目标", -1);
+    lvProofTreeNode *assume_node =
+        lv_proof_tree_add_step(trace_tree, NULL, "反证法假设", negated_goal->name ? negated_goal->name : "¬目标", -1);
     if (assume_node) {
         lv_proof_tree_mark_contradiction(assume_node);
     }
@@ -559,12 +560,12 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
         {
             char node_label[128];
             snprintf(node_label, sizeof(node_label), "从假设 ¬P 推导出中间结论（步骤 %d）", i + 1);
-            lvProofTreeNode *fw_node = lv_proof_tree_add_step(
-                trace_tree, assume_node, "正向推理", node_label, fw_step->id);
+            lvProofTreeNode *fw_node =
+                lv_proof_tree_add_step(trace_tree, assume_node, "正向推理", node_label, fw_step->id);
             if (fw_node) {
                 lv_proof_tree_mark_contradiction(fw_node);
-                lv_proof_tree_add_premise(fw_node, 0,
-                    negated_goal->name ? negated_goal->name : "¬P（反证法假设）", false);
+                lv_proof_tree_add_premise(fw_node, 0, negated_goal->name ? negated_goal->name : "¬P（反证法假设）",
+                                          false);
             }
         }
 
@@ -594,8 +595,7 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
          *         说明推导出的构造与已知公理冲突 */
         if (!has_contradiction) {
             ProofColor final_color = proof_navigator_compute_final_color(branch_nav);
-            if (final_color == PROOF_COLOR_ORANGE_EX_FALSO ||
-                final_color == PROOF_COLOR_DARK_ORANGE) {
+            if (final_color == PROOF_COLOR_ORANGE_EX_FALSO || final_color == PROOF_COLOR_DARK_ORANGE) {
                 has_contradiction = true;
                 lv_free((void **) &contradiction_desc);
                 contradiction_desc = lv_strdup("证明颜色变为橙色：存在不可构造性冲突，表明矛盾");
@@ -610,16 +610,16 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
             {
                 char contra_label[128];
                 snprintf(contra_label, sizeof(contra_label), "矛盾! %s", contradiction_desc);
-                lvProofTreeNode *contra_node = lv_proof_tree_add_step(
-                    trace_tree, assume_node, "矛盾检测", contra_label, i);
+                lvProofTreeNode *contra_node =
+                    lv_proof_tree_add_step(trace_tree, assume_node, "矛盾检测", contra_label, i);
                 if (contra_node) {
                     lv_proof_tree_mark_contradiction(contra_node);
                 }
             }
 
             if (proof_stream_ctx) {
-                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_CONFLICT_DETECTED,
-                                  contradiction_desc, contradiction_at_step);
+                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_CONFLICT_DETECTED, contradiction_desc,
+                                   contradiction_at_step);
             }
             break;
         }
@@ -650,9 +650,8 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
     if (!contradiction_found) {
         /* 未发现矛盾：记录失败原因 */
         char err_buf[256];
-        snprintf(err_buf, sizeof(err_buf),
-                "反证法失败：在 %d 步正向推理后未发现矛盾。假设 ¬P 未导出冲突。",
-                forward_step_count);
+        snprintf(err_buf, sizeof(err_buf), "反证法失败：在 %d 步正向推理后未发现矛盾。假设 ¬P 未导出冲突。",
+                 forward_step_count);
         result->error_message = lv_strdup(err_buf);
     }
 
@@ -818,13 +817,15 @@ static volatile int g_breakpoint_store_count = 0;
 #ifdef _WIN32
 static CRITICAL_SECTION g_breakpoint_cs = {0};
 static volatile LONG g_breakpoint_cs_initialized = 0;
-#define BREAKPOINT_LOCK() do { \
-    if (!g_breakpoint_cs_initialized) { \
-        InterlockedCompareExchange(&g_breakpoint_cs_initialized, 1, 0); \
-        if (g_breakpoint_cs_initialized) InitializeCriticalSection(&g_breakpoint_cs); \
-    } \
-    EnterCriticalSection(&g_breakpoint_cs); \
-} while(0)
+#define BREAKPOINT_LOCK()                                                   \
+    do {                                                                    \
+        if (!g_breakpoint_cs_initialized) {                                 \
+            InterlockedCompareExchange(&g_breakpoint_cs_initialized, 1, 0); \
+            if (g_breakpoint_cs_initialized)                                \
+                InitializeCriticalSection(&g_breakpoint_cs);                \
+        }                                                                   \
+        EnterCriticalSection(&g_breakpoint_cs);                             \
+    } while (0)
 #define BREAKPOINT_UNLOCK() LeaveCriticalSection(&g_breakpoint_cs)
 #else
 static pthread_mutex_t g_breakpoint_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -853,7 +854,7 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 如果没有找到，分配新槽位 */
     if (slot < 0) {
-        int current_count = (int)g_breakpoint_store_count;
+        int current_count = (int) g_breakpoint_store_count;
         if (current_count >= MAX_BREAKPOINT_SNAPSHOTS) {
             BREAKPOINT_UNLOCK();
             return false; /* 存储已满 */
@@ -1048,8 +1049,8 @@ bool proof_breakpoint_delete(int breakpoint_id) {
 static const char *proof_color_to_html_hex(ProofColor c);
 
 bool proof_export_html(ProofNavigator *nav, const char *filepath) {
-    (void)nav;
-    (void)filepath;
+    (void) nav;
+    (void) filepath;
     /* HTML 渲染已迁移至 UI 层（ui/L3-modules/P4-Proof/）。
        内核通过 lv_protocol.h 的 lvProofNavigator 结构体提供数据。 */
     return false;
@@ -1059,7 +1060,7 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
  * @brief 辅助函数：将 ProofColor 转换为 HTML 十六进制颜色字符串
  */
 static const char *proof_color_to_html_hex(ProofColor c) {
-    (void)c;
+    (void) c;
     return "#78909C";
 }
 
@@ -1467,8 +1468,7 @@ static bool g_axiom_locked = false;
 void proof_lock_axioms(void) {
     g_axiom_locked = true;
     if (proof_stream_ctx) {
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO,
-                           "公理库已锁定：禁止修改公理集合", 0);
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, "公理库已锁定：禁止修改公理集合", 0);
     }
 }
 
@@ -1478,8 +1478,7 @@ void proof_lock_axioms(void) {
 void proof_unlock_axioms(void) {
     g_axiom_locked = false;
     if (proof_stream_ctx) {
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO,
-                           "公理库已解锁：允许修改公理集合", 0);
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, "公理库已解锁：允许修改公理集合", 0);
     }
 }
 
@@ -1540,8 +1539,7 @@ bool proposition_contradicts(const Proposition *a, const Proposition *b) {
     /* 蕴含与原蕴含反向 */
     if ((a->type == PROPOSITION_TYPE_IMPLICATION && b->type == PROPOSITION_TYPE_IMPLICATION)) {
         /* 两个蕴含命题，检查是否一个的前件等于另一个的后件且结论相反 */
-        if (a->precondition_count == b->postcondition_count &&
-            a->postcondition_count == b->precondition_count) {
+        if (a->precondition_count == b->postcondition_count && a->postcondition_count == b->precondition_count) {
             /* 检查前提/后件 ID 集合的交集 */
             bool pre_post_overlap = false;
             for (int ap = 0; ap < a->precondition_count && !pre_post_overlap; ap++) {
@@ -1561,8 +1559,8 @@ bool proposition_contradicts(const Proposition *a, const Proposition *b) {
 
     /* 规则 4：通过命题 ID 和类型完全相同但颜色不同来检测重复声明矛盾
      * （如同一命题被同时标记为 GREEN 和 ORANGE_EX_FALSO，说明推导路径冲突） */
-    if (a->id == b->id && a->type == b->type &&
-        a->color != PROOF_COLOR_BLUE_UNEXPLORED && b->color != PROOF_COLOR_BLUE_UNEXPLORED) {
+    if (a->id == b->id && a->type == b->type && a->color != PROOF_COLOR_BLUE_UNEXPLORED &&
+        b->color != PROOF_COLOR_BLUE_UNEXPLORED) {
         /* 同一命题有两条不同信任颜色的推导路径，标记为潜在矛盾 */
         if ((a->color == PROOF_COLOR_GREEN && b->color == PROOF_COLOR_ORANGE_EX_FALSO) ||
             (a->color == PROOF_COLOR_ORANGE_EX_FALSO && b->color == PROOF_COLOR_GREEN)) {
@@ -1609,7 +1607,7 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
     /* 先遍历一次计算祖先数量 */
     int capacity = 16;
     int count = 0;
-    int *ancestors = lv_malloc((size_t)capacity * sizeof(int));
+    int *ancestors = lv_malloc((size_t) capacity * sizeof(int));
     if (!ancestors)
         return false;
 
@@ -1629,13 +1627,13 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
         /* 扩容 */
         if (count >= capacity) {
             if (capacity > INT_MAX / 2) {
-                lv_free((void **)&ancestors);
+                lv_free((void **) &ancestors);
                 return false;
             }
             int new_cap = capacity * 2;
             int *new_arr = lv_realloc(ancestors, new_cap * sizeof(int));
             if (!new_arr) {
-                lv_free((void **)&ancestors);
+                lv_free((void **) &ancestors);
                 return false;
             }
             ancestors = new_arr;
@@ -1660,21 +1658,43 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
  * 返回静态缓冲区（非线程安全），每次调用覆盖前一次结果。
  */
 static const char *json_escape(const char *s) {
-    if (!s) return "";
+    if (!s)
+        return "";
     static char buf[4096];
     size_t j = 0;
     for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
         switch (s[i]) {
-            case '"':  buf[j++] = '\\'; buf[j++] = '"'; break;
-            case '\\': buf[j++] = '\\'; buf[j++] = '\\'; break;
-            case '\n': buf[j++] = '\\'; buf[j++] = 'n'; break;
-            case '\r': buf[j++] = '\\'; buf[j++] = 'r'; break;
-            case '\t': buf[j++] = '\\'; buf[j++] = 't'; break;
-            case '\b': buf[j++] = '\\'; buf[j++] = 'b'; break;
-            case '\f': buf[j++] = '\\'; buf[j++] = 'f'; break;
+            case '"':
+                buf[j++] = '\\';
+                buf[j++] = '"';
+                break;
+            case '\\':
+                buf[j++] = '\\';
+                buf[j++] = '\\';
+                break;
+            case '\n':
+                buf[j++] = '\\';
+                buf[j++] = 'n';
+                break;
+            case '\r':
+                buf[j++] = '\\';
+                buf[j++] = 'r';
+                break;
+            case '\t':
+                buf[j++] = '\\';
+                buf[j++] = 't';
+                break;
+            case '\b':
+                buf[j++] = '\\';
+                buf[j++] = 'b';
+                break;
+            case '\f':
+                buf[j++] = '\\';
+                buf[j++] = 'f';
+                break;
             default:
-                if ((unsigned char)s[i] < 0x20) {
-                    j += (size_t)snprintf(buf + j, sizeof(buf) - j, "\\u%04x", (unsigned char)s[i]);
+                if ((unsigned char) s[i] < 0x20) {
+                    j += (size_t) snprintf(buf + j, sizeof(buf) - j, "\\u%04x", (unsigned char) s[i]);
                 } else {
                     buf[j++] = s[i];
                 }
@@ -1692,17 +1712,35 @@ static const char *json_escape(const char *s) {
  * 返回静态缓冲区（非线程安全），每次调用覆盖前一次结果。
  */
 const char *html_escape(const char *s) {
-    if (!s) return "";
+    if (!s)
+        return "";
     static char buf[4096];
     size_t j = 0;
     for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
         switch (s[i]) {
-            case '&':  memcpy(buf + j, "&amp;", 5); j += 5; break;
-            case '<':  memcpy(buf + j, "&lt;", 4);  j += 4; break;
-            case '>':  memcpy(buf + j, "&gt;", 4);  j += 4; break;
-            case '"':  memcpy(buf + j, "&quot;", 6); j += 6; break;
-            case '\'': memcpy(buf + j, "&#39;", 5);  j += 5; break;
-            default:   buf[j++] = s[i]; break;
+            case '&':
+                memcpy(buf + j, "&amp;", 5);
+                j += 5;
+                break;
+            case '<':
+                memcpy(buf + j, "&lt;", 4);
+                j += 4;
+                break;
+            case '>':
+                memcpy(buf + j, "&gt;", 4);
+                j += 4;
+                break;
+            case '"':
+                memcpy(buf + j, "&quot;", 6);
+                j += 6;
+                break;
+            case '\'':
+                memcpy(buf + j, "&#39;", 5);
+                j += 5;
+                break;
+            default:
+                buf[j++] = s[i];
+                break;
         }
     }
     buf[j] = '\0';
@@ -2296,8 +2334,8 @@ void *proof_navigator_search(void *nav) {
  * @param ms  超时时间（毫秒）
  */
 void smtsolver_set_timeout(SMTSolver s, int ms) {
-    (void)s;
-    (void)ms;
+    (void) s;
+    (void) ms;
     /* 存根：完整实现应将超时设置传递给底层求解器 */
 }
 
@@ -2309,8 +2347,8 @@ void smtsolver_set_timeout(SMTSolver s, int ms) {
  * @return 命题字符串描述（当前存根返回 NULL）
  */
 const char *constraint_solver_get_proposition(void *solver, void *geom_obj) {
-    (void)solver;
-    (void)geom_obj;
+    (void) solver;
+    (void) geom_obj;
     /* 存根：完整实现应从求解器的类型注册表中查询命题 */
     return NULL;
 }

@@ -1,9 +1,9 @@
 #ifndef lv_GRAPH_HASH_H
 #define lv_GRAPH_HASH_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "lv/constraint_graph.h"
 
@@ -13,9 +13,9 @@ extern "C" {
 
 /* 图哈希结构体 */
 typedef struct GraphHash {
-    uint64_t hash;             /**< 整体哈希值 */
-    int node_count;            /**< 节点数量 */
-    uint64_t *node_hashes;     /**< 各节点独立哈希数组 */
+    uint64_t hash;         /**< 整体哈希值 */
+    int node_count;        /**< 节点数量 */
+    uint64_t *node_hashes; /**< 各节点独立哈希数组 */
 } GraphHash;
 
 /**

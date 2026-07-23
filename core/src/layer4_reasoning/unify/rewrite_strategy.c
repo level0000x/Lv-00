@@ -41,9 +41,10 @@
  * @return Newly allocated copy, or NULL on failure
  */
 static char *str_dup(const char *src) {
-    if (!src) return NULL;
+    if (!src)
+        return NULL;
     size_t len = strlen(src);
-    char *dst = (char *)malloc(len + 1);
+    char *dst = (char *) malloc(len + 1);
     if (dst) {
         memcpy(dst, src, len + 1);
     }
@@ -58,10 +59,12 @@ static char *str_dup(const char *src) {
  * @return Pointer to the first match, or NULL if not found
  */
 static const char *find_first_match(const char *text, const char *pattern) {
-    if (!text || !pattern || !*pattern) return NULL;
+    if (!text || !pattern || !*pattern)
+        return NULL;
     size_t plen = strlen(pattern);
     size_t tlen = strlen(text);
-    if (plen > tlen) return NULL;
+    if (plen > tlen)
+        return NULL;
     for (size_t i = 0; i <= tlen - plen; i++) {
         if (memcmp(text + i, pattern, plen) == 0) {
             return text + i;
@@ -78,10 +81,12 @@ static const char *find_first_match(const char *text, const char *pattern) {
  * @return Pointer to the last match, or NULL if not found
  */
 static const char *find_last_match(const char *text, const char *pattern) {
-    if (!text || !pattern || !*pattern) return NULL;
+    if (!text || !pattern || !*pattern)
+        return NULL;
     size_t plen = strlen(pattern);
     size_t tlen = strlen(text);
-    if (plen > tlen) return NULL;
+    if (plen > tlen)
+        return NULL;
     const char *result = NULL;
     for (size_t i = 0; i <= tlen - plen; i++) {
         if (memcmp(text + i, pattern, plen) == 0) {
@@ -103,24 +108,24 @@ static const char *find_last_match(const char *text, const char *pattern) {
  * @param use_last     If true, replace the last match; otherwise the first
  * @return Newly allocated string with the substitution applied, or NULL on failure
  */
-static char *apply_substitution(const char *text, const char *pattern,
-    const char *replacement, bool use_last) {
-    if (!text || !pattern || !*pattern) return str_dup(text);
+static char *apply_substitution(const char *text, const char *pattern, const char *replacement, bool use_last) {
+    if (!text || !pattern || !*pattern)
+        return str_dup(text);
 
-    const char *match = use_last
-        ? find_last_match(text, pattern)
-        : find_first_match(text, pattern);
+    const char *match = use_last ? find_last_match(text, pattern) : find_first_match(text, pattern);
 
-    if (!match) return str_dup(text);
+    if (!match)
+        return str_dup(text);
 
     size_t plen = strlen(pattern);
     size_t rlen = strlen(replacement);
-    size_t prefix_len = (size_t)(match - text);
+    size_t prefix_len = (size_t) (match - text);
     size_t suffix_len = strlen(match + plen);
     size_t new_len = prefix_len + rlen + suffix_len;
 
-    char *result = (char *)malloc(new_len + 1);
-    if (!result) return NULL;
+    char *result = (char *) malloc(new_len + 1);
+    if (!result)
+        return NULL;
 
     memcpy(result, text, prefix_len);
     memcpy(result + prefix_len, replacement, rlen);
@@ -137,29 +142,29 @@ static char *apply_substitution(const char *text, const char *pattern,
  * @param use_last  If true, match innermost (last); otherwise outermost (first)
  * @return Newly allocated string with the rule applied, or NULL if no match
  */
-static char *apply_single_rule(const char *term, const lvRewriteRuleEx *rule,
-    bool use_last) {
-    if (!term || !rule || !rule->pattern) return NULL;
+static char *apply_single_rule(const char *term, const lvRewriteRuleEx *rule, bool use_last) {
+    if (!term || !rule || !rule->pattern)
+        return NULL;
 
     /* Check condition if present */
     if (rule->condition_fn && !rule->condition_fn(term)) {
         return NULL;
     }
 
-    const char *match = use_last
-        ? find_last_match(term, rule->pattern)
-        : find_first_match(term, rule->pattern);
+    const char *match = use_last ? find_last_match(term, rule->pattern) : find_first_match(term, rule->pattern);
 
-    if (!match) return NULL;
+    if (!match)
+        return NULL;
 
     size_t plen = strlen(rule->pattern);
     size_t rlen = strlen(rule->replacement);
-    size_t prefix_len = (size_t)(match - term);
+    size_t prefix_len = (size_t) (match - term);
     size_t suffix_len = strlen(match + plen);
     size_t new_len = prefix_len + rlen + suffix_len;
 
-    char *result = (char *)malloc(new_len + 1);
-    if (!result) return NULL;
+    char *result = (char *) malloc(new_len + 1);
+    if (!result)
+        return NULL;
 
     memcpy(result, term, prefix_len);
     memcpy(result + prefix_len, rule->replacement, rlen);
@@ -176,24 +181,26 @@ static char *apply_single_rule(const char *term, const lvRewriteRuleEx *rule,
  * @param count  Number of rules
  * @return Newly allocated string with all applicable rules applied, or NULL
  */
-static char *apply_parallel_rules(const char *term, const lvRewriteRuleEx *rules,
-    size_t count) {
-    if (!term) return NULL;
+static char *apply_parallel_rules(const char *term, const lvRewriteRuleEx *rules, size_t count) {
+    if (!term)
+        return NULL;
 
     char *current = str_dup(term);
-    if (!current) return NULL;
+    if (!current)
+        return NULL;
 
     bool changed = true;
     while (changed) {
         changed = false;
         for (size_t i = 0; i < count; i++) {
-            if (!rules[i].pattern || !*rules[i].pattern) continue;
-            if (rules[i].condition_fn && !rules[i].condition_fn(current)) continue;
+            if (!rules[i].pattern || !*rules[i].pattern)
+                continue;
+            if (rules[i].condition_fn && !rules[i].condition_fn(current))
+                continue;
 
             const char *match = find_first_match(current, rules[i].pattern);
             if (match) {
-                char *next = apply_substitution(current, rules[i].pattern,
-                    rules[i].replacement, false);
+                char *next = apply_substitution(current, rules[i].pattern, rules[i].replacement, false);
                 if (next) {
                     if (strcmp(next, current) != 0) {
                         changed = true;
@@ -220,21 +227,23 @@ static char *apply_parallel_rules(const char *term, const lvRewriteRuleEx *rules
  * @param max_iter  Maximum iterations
  * @return Newly allocated string with the canonical form
  */
-static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules,
-    size_t count, int max_iter) {
-    if (!term) return NULL;
+static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, size_t count, int max_iter) {
+    if (!term)
+        return NULL;
 
     char *best = str_dup(term);
-    if (!best) return NULL;
+    if (!best)
+        return NULL;
 
     for (int iter = 0; iter < max_iter; iter++) {
         bool any_change = false;
         for (size_t i = 0; i < count; i++) {
-            if (!rules[i].pattern || !*rules[i].pattern) continue;
-            if (rules[i].condition_fn && !rules[i].condition_fn(best)) continue;
+            if (!rules[i].pattern || !*rules[i].pattern)
+                continue;
+            if (rules[i].condition_fn && !rules[i].condition_fn(best))
+                continue;
 
-            char *next = apply_substitution(best, rules[i].pattern,
-                rules[i].replacement, false);
+            char *next = apply_substitution(best, rules[i].pattern, rules[i].replacement, false);
             if (next && strcmp(next, best) != 0) {
                 any_change = true;
                 /* Keep the lexicographically smallest variant */
@@ -248,7 +257,8 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules,
                 free(next);
             }
         }
-        if (!any_change) break;
+        if (!any_change)
+            break;
     }
 
     return best;
@@ -276,13 +286,12 @@ static void sort_rules_by_priority(lvRewriteRuleEx *rules, size_t count) {
  * API implementation: Engine lifecycle
  * ============================================================ */
 
-lvRewriteEngineEx *rewrite_engine_ex_create(lvRewriteStrategyEx strategy,
-    int max_iterations) {
-    lvRewriteEngineEx *engine = (lvRewriteEngineEx *)malloc(sizeof(lvRewriteEngineEx));
-    if (!engine) return NULL;
+lvRewriteEngineEx *rewrite_engine_ex_create(lvRewriteStrategyEx strategy, int max_iterations) {
+    lvRewriteEngineEx *engine = (lvRewriteEngineEx *) malloc(sizeof(lvRewriteEngineEx));
+    if (!engine)
+        return NULL;
 
-    engine->rules = (lvRewriteRuleEx *)malloc(
-        INITIAL_RULE_CAPACITY * sizeof(lvRewriteRuleEx));
+    engine->rules = (lvRewriteRuleEx *) malloc(INITIAL_RULE_CAPACITY * sizeof(lvRewriteRuleEx));
     if (!engine->rules) {
         free(engine);
         return NULL;
@@ -297,13 +306,14 @@ lvRewriteEngineEx *rewrite_engine_ex_create(lvRewriteStrategyEx strategy,
 }
 
 void rewrite_engine_ex_destroy(lvRewriteEngineEx *engine) {
-    if (!engine) return;
+    if (!engine)
+        return;
 
     /* Free each rule's owned strings */
     for (size_t i = 0; i < engine->rule_count; i++) {
-        free((char *)engine->rules[i].name);
-        free((char *)engine->rules[i].pattern);
-        free((char *)engine->rules[i].replacement);
+        free((char *) engine->rules[i].name);
+        free((char *) engine->rules[i].pattern);
+        free((char *) engine->rules[i].replacement);
     }
 
     free(engine->rules);
@@ -314,17 +324,17 @@ void rewrite_engine_ex_destroy(lvRewriteEngineEx *engine) {
  * API implementation: Rule management
  * ============================================================ */
 
-bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine,
-    const char *name, const char *pattern, const char *replacement,
-    int priority, lvRewriteConditionFn condition) {
-    if (!engine || !name || !pattern || !replacement) return false;
+bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine, const char *name, const char *pattern,
+                                const char *replacement, int priority, lvRewriteConditionFn condition) {
+    if (!engine || !name || !pattern || !replacement)
+        return false;
 
     /* Grow array if needed */
     if (engine->rule_count >= engine->rule_capacity) {
         size_t new_cap = engine->rule_capacity * 2;
-        lvRewriteRuleEx *new_rules = (lvRewriteRuleEx *)lv_realloc(
-            engine->rules, new_cap * sizeof(lvRewriteRuleEx));
-        if (!new_rules) return false;
+        lvRewriteRuleEx *new_rules = (lvRewriteRuleEx *) lv_realloc(engine->rules, new_cap * sizeof(lvRewriteRuleEx));
+        if (!new_rules)
+            return false;
         engine->rules = new_rules;
         engine->rule_capacity = new_cap;
     }
@@ -337,9 +347,9 @@ bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine,
     rule->condition_fn = condition;
 
     if (!rule->name || !rule->pattern || !rule->replacement) {
-        free((char *)rule->name);
-        free((char *)rule->pattern);
-        free((char *)rule->replacement);
+        free((char *) rule->name);
+        free((char *) rule->pattern);
+        free((char *) rule->replacement);
         return false;
     }
 
@@ -355,9 +365,9 @@ bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine,
  * API implementation: Rewrite execution
  * ============================================================ */
 
-bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine,
-    const char *input, lvRewriteResultEx *result) {
-    if (!engine || !input || !result) return false;
+bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result) {
+    if (!engine || !input || !result)
+        return false;
 
     result->output = NULL;
     result->iterations = 0;
@@ -376,7 +386,8 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine,
     switch (engine->strategy) {
         case REWRITE_INNERMOST: {
             char *current = str_dup(input);
-            if (!current) return false;
+            if (!current)
+                return false;
 
             for (int i = 0; i < engine->max_iterations; i++) {
                 bool any_applied = false;
@@ -407,7 +418,8 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine,
 
         case REWRITE_OUTERMOST: {
             char *current = str_dup(input);
-            if (!current) return false;
+            if (!current)
+                return false;
 
             for (int i = 0; i < engine->max_iterations; i++) {
                 bool any_applied = false;
@@ -438,7 +450,8 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine,
 
         case REWRITE_PARALLEL: {
             char *current = str_dup(input);
-            if (!current) return false;
+            if (!current)
+                return false;
 
             for (int i = 0; i < engine->max_iterations; i++) {
                 char *next = apply_parallel_rules(current, engine->rules, engine->rule_count);
@@ -465,9 +478,9 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine,
         }
 
         case REWRITE_EGRAPH: {
-            char *current = apply_egraph_rules(input, engine->rules,
-                engine->rule_count, engine->max_iterations);
-            if (!current) return false;
+            char *current = apply_egraph_rules(input, engine->rules, engine->rule_count, engine->max_iterations);
+            if (!current)
+                return false;
             result->output = current;
             result->converged = true;
             result->iterations = 1;
@@ -480,7 +493,8 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine,
 }
 
 void rewrite_engine_result_ex_destroy(lvRewriteResultEx *result) {
-    if (!result) return;
+    if (!result)
+        return;
     free(result->output);
     result->output = NULL;
 }

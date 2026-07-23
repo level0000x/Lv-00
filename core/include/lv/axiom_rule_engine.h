@@ -20,6 +20,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 #include "proof.h"
 /* ============== 配置常量 ============== */
@@ -45,14 +46,14 @@ typedef struct lvDifficultyAssessment lvDifficultyAssessment;
  * @brief 规则类型枚举
  */
 typedef enum {
-    RULE_TYPE_INFERENCE,        /**< 推理规则（前提 -> 结论） */
-    RULE_TYPE_REWRITE,          /**< 重写规则（左部 -> 右部） */
-    RULE_TYPE_AXIOM,            /**< 公理（无条件成立） */
-    RULE_TYPE_DEFINITION,       /**< 定义（展开/收起） */
-    RULE_TYPE_THEOREM,          /**< 定理（需要证明） */
-    RULE_TYPE_LEMMA,            /**< 引理 */
-    RULE_TYPE_TACTIC,           /**< 策略（复合规则） */
-    RULE_TYPE_CONSTRUCTOR       /**< 构造规则 */
+    RULE_TYPE_INFERENCE,  /**< 推理规则（前提 -> 结论） */
+    RULE_TYPE_REWRITE,    /**< 重写规则（左部 -> 右部） */
+    RULE_TYPE_AXIOM,      /**< 公理（无条件成立） */
+    RULE_TYPE_DEFINITION, /**< 定义（展开/收起） */
+    RULE_TYPE_THEOREM,    /**< 定理（需要证明） */
+    RULE_TYPE_LEMMA,      /**< 引理 */
+    RULE_TYPE_TACTIC,     /**< 策略（复合规则） */
+    RULE_TYPE_CONSTRUCTOR /**< 构造规则 */
 } lvRuleType;
 /**
  * @brief 规则优先级
@@ -68,43 +69,43 @@ typedef enum {
  * @brief 规则状态
  */
 typedef enum {
-    RULE_STATUS_DISABLED,       /**< 禁用 */
-    RULE_STATUS_ENABLED,        /**< 启用 */
-    RULE_STATUS_DEPRECATED,     /**< 已弃用 */
-    RULE_STATUS_EXPERIMENTAL    /**< 实验性 */
+    RULE_STATUS_DISABLED,    /**< 禁用 */
+    RULE_STATUS_ENABLED,     /**< 启用 */
+    RULE_STATUS_DEPRECATED,  /**< 已弃用 */
+    RULE_STATUS_EXPERIMENTAL /**< 实验性 */
 } lvRuleStatus;
 /**
  * @brief 难度维度
  */
 typedef enum {
-    DIFF_DIM_STRUCTURAL,        /**< 结构复杂度 */
-    DIFF_DIM_CONCEPTUAL,        /**< 概念难度 */
-    DIFF_DIM_COMPUTATIONAL,     /**< 计算复杂度 */
-    DIFF_DIM_CREATIVE,          /**< 创造性要求 */
-    DIFF_DIM_KNOWLEDGE,         /**< 知识依赖 */
-    DIFF_DIM_COUNT              /**< 维度数量 */
+    DIFF_DIM_STRUCTURAL,    /**< 结构复杂度 */
+    DIFF_DIM_CONCEPTUAL,    /**< 概念难度 */
+    DIFF_DIM_COMPUTATIONAL, /**< 计算复杂度 */
+    DIFF_DIM_CREATIVE,      /**< 创造性要求 */
+    DIFF_DIM_KNOWLEDGE,     /**< 知识依赖 */
+    DIFF_DIM_COUNT          /**< 维度数量 */
 } lvDifficultyDimension;
 /* ============== 规则条件 ============== */
 /**
  * @brief 条件类型
  */
 typedef enum {
-    COND_TYPE_PATTERN_MATCH,    /**< 模式匹配 */
-    COND_TYPE_TYPE_CHECK,       /**< 类型检查 */
-    COND_TYPE_VALUE_COMPARE,    /**< 值比较 */
-    COND_TYPE_EXISTS,           /**< 存在性检查 */
-    COND_TYPE_FORALL,           /**< 全称检查 */
-    COND_TYPE_CUSTOM            /**< 自定义条件 */
+    COND_TYPE_PATTERN_MATCH, /**< 模式匹配 */
+    COND_TYPE_TYPE_CHECK,    /**< 类型检查 */
+    COND_TYPE_VALUE_COMPARE, /**< 值比较 */
+    COND_TYPE_EXISTS,        /**< 存在性检查 */
+    COND_TYPE_FORALL,        /**< 全称检查 */
+    COND_TYPE_CUSTOM         /**< 自定义条件 */
 } lvConditionType;
 /**
  * @brief 规则条件
  */
 typedef struct {
-    lvConditionType type;     /**< 条件类型 */
-    char pattern[256];          /**< 模式字符串 */
-    char variable[64];          /**< 相关变量 */
-    int int_param;              /**< 整数参数 */
-    double float_param;         /**< 浮点参数 */
+    lvConditionType type; /**< 条件类型 */
+    char pattern[256];    /**< 模式字符串 */
+    char variable[64];    /**< 相关变量 */
+    int int_param;        /**< 整数参数 */
+    double float_param;   /**< 浮点参数 */
     bool (*custom_check)(const ConstraintGraph *graph, const void *context);
 } lvRuleCondition;
 /* ============== 规则结构 ============== */
@@ -112,115 +113,115 @@ typedef struct {
  * @brief 规则变量
  */
 typedef struct {
-    char name[64];              /**< 变量名 */
-    char type[64];              /**< 类型约束 */
-    bool is_bound;              /**< 是否已绑定 */
-    int bound_node_id;          /**< 绑定的节点 ID */
+    char name[64];     /**< 变量名 */
+    char type[64];     /**< 类型约束 */
+    bool is_bound;     /**< 是否已绑定 */
+    int bound_node_id; /**< 绑定的节点 ID */
 } lvRuleVariable;
 /**
  * @brief 规则前提
  */
 typedef struct {
-    char pattern[256];          /**< 前提模式 */
+    char pattern[256];           /**< 前提模式 */
     lvRuleCondition *conditions; /**< 额外条件 */
-    uint32_t condition_count;   /**< 条件数量 */
-    bool is_optional;           /**< 是否可选 */
+    uint32_t condition_count;    /**< 条件数量 */
+    bool is_optional;            /**< 是否可选 */
 } lvRulePremise;
 /**
  * @brief 规则结论
  */
 typedef struct {
-    char pattern[256];          /**< 结论模式 */
-    char justification[256];    /**< 证明理由 */
-    TrustColor trust_color;     /**< 信任颜色 */
+    char pattern[256];       /**< 结论模式 */
+    char justification[256]; /**< 证明理由 */
+    TrustColor trust_color;  /**< 信任颜色 */
 } lvRuleConclusion;
 /**
  * @brief 规则结构
  */
 struct lvRule {
     /* 基本信息 */
-    uint32_t id;                /**< 规则 ID */
-    char name[lv_RULE_NAME_MAX_LEN]; /**< 规则名称 */
+    uint32_t id;                            /**< 规则 ID */
+    char name[lv_RULE_NAME_MAX_LEN];        /**< 规则名称 */
     char description[lv_RULE_DESC_MAX_LEN]; /**< 描述 */
-    lvRuleType type;          /**< 规则类型 */
-    lvRuleStatus status;      /**< 规则状态 */
+    lvRuleType type;                        /**< 规则类型 */
+    lvRuleStatus status;                    /**< 规则状态 */
     /* 规则内容 */
-    lvRuleVariable variables[lv_RULE_MAX_VARIABLES]; /**< 变量 */
-    uint32_t var_count;         /**< 变量数量 */
-    lvRulePremise premises[lv_RULE_MAX_PREMISES]; /**< 前提 */
-    uint32_t premise_count;     /**< 前提数量 */
+    lvRuleVariable variables[lv_RULE_MAX_VARIABLES];       /**< 变量 */
+    uint32_t var_count;                                    /**< 变量数量 */
+    lvRulePremise premises[lv_RULE_MAX_PREMISES];          /**< 前提 */
+    uint32_t premise_count;                                /**< 前提数量 */
     lvRuleConclusion conclusions[lv_RULE_MAX_CONCLUSIONS]; /**< 结论 */
-    uint32_t conclusion_count;  /**< 结论数量 */
+    uint32_t conclusion_count;                             /**< 结论数量 */
     /* 元数据 */
-    lvRulePriority priority;  /**< 优先级 */
-    uint32_t difficulty_score;  /**< 难度分数 (0-1000) */
-    uint32_t difficulty_level;  /**< 难度等级 (1-10) */
+    lvRulePriority priority;                      /**< 优先级 */
+    uint32_t difficulty_score;                    /**< 难度分数 (0-1000) */
+    uint32_t difficulty_level;                    /**< 难度等级 (1-10) */
     double difficulty_dimensions[DIFF_DIM_COUNT]; /**< 各维度难度 */
     /* 统计信息 */
-    uint64_t apply_count;       /**< 应用次数 */
-    uint64_t success_count;     /**< 成功次数 */
-    double avg_apply_time_ms;   /**< 平均应用时间 */
+    uint64_t apply_count;     /**< 应用次数 */
+    uint64_t success_count;   /**< 成功次数 */
+    double avg_apply_time_ms; /**< 平均应用时间 */
     /* 依赖关系 */
-    uint32_t *dependency_ids;   /**< 依赖规则 ID */
-    uint32_t dependency_count;  /**< 依赖数量 */
+    uint32_t *dependency_ids;  /**< 依赖规则 ID */
+    uint32_t dependency_count; /**< 依赖数量 */
     /* 标签 */
-    char **tags;                /**< 标签数组 */
-    uint32_t tag_count;         /**< 标签数量 */
+    char **tags;        /**< 标签数组 */
+    uint32_t tag_count; /**< 标签数量 */
     /* 所属包 */
-    char package_name[64];      /**< 所属公理包名称 */
+    char package_name[64]; /**< 所属公理包名称 */
 };
 /* ============== 规则匹配 ============== */
 /**
  * @brief 规则匹配结果
  */
 struct lvRuleMatch {
-    lvRule *rule;             /**< 匹配的规则 */
+    lvRule *rule;                                   /**< 匹配的规则 */
     lvRuleVariable bindings[lv_RULE_MAX_VARIABLES]; /**< 变量绑定 */
-    uint32_t binding_count;     /**< 绑定数量 */
-    double confidence;          /**< 匹配置信度 */
-    uint32_t matched_premises;  /**< 匹配的前提数量 */
-    bool is_complete;           /**< 是否完全匹配 */
+    uint32_t binding_count;                         /**< 绑定数量 */
+    double confidence;                              /**< 匹配置信度 */
+    uint32_t matched_premises;                      /**< 匹配的前提数量 */
+    bool is_complete;                               /**< 是否完全匹配 */
 };
 /* ============== 难度评估 ============== */
 /**
  * @brief 难度评估结果
  */
 struct lvDifficultyAssessment {
-    uint32_t overall_score;     /**< 总分 (0-1000) */
-    uint32_t level;             /**< 等级 (1-10) */
+    uint32_t overall_score;            /**< 总分 (0-1000) */
+    uint32_t level;                    /**< 等级 (1-10) */
     double dimensions[DIFF_DIM_COUNT]; /**< 各维度分数 */
-    char breakdown[1024];       /**< 详细分析 */
-    char recommendation[512];   /**< 推荐建议 */
+    char breakdown[1024];              /**< 详细分析 */
+    char recommendation[512];          /**< 推荐建议 */
 };
 /* ============== 规则库 ============== */
 /**
  * @brief 规则库配置
  */
 typedef struct {
-    uint32_t max_rules;         /**< 最大规则数 */
-    bool auto_validate;         /**< 自动验证规则 */
-    bool auto_difficulty;       /**< 自动评估难度 */
-    bool enable_cache;          /**< 启用匹配缓存 */
+    uint32_t max_rules;          /**< 最大规则数 */
+    bool auto_validate;          /**< 自动验证规则 */
+    bool auto_difficulty;        /**< 自动评估难度 */
+    bool enable_cache;           /**< 启用匹配缓存 */
     const char *default_package; /**< 默认公理包 */
 } lvRuleLibraryConfig;
 /**
  * @brief 规则库结构
  */
 struct lvRuleLibrary {
-    lvRule **rules;           /**< 规则数组 */
-    uint32_t rule_count;        /**< 规则数量 */
-    uint32_t rule_capacity;     /**< 规则容量 */
+    lvRule **rules;         /**< 规则数组 */
+    uint32_t rule_count;    /**< 规则数量 */
+    uint32_t rule_capacity; /**< 规则容量 */
     /* 索引 */
-    uint32_t *id_index;         /**< ID 索引 */
-    char **name_index;          /**< 名称索引 */
-    uint32_t *type_index;       /**< 类型索引 */
+    uint32_t *id_index;   /**< ID 索引 */
+    char **name_index;    /**< 名称索引 */
+    uint32_t *type_index; /**< 类型索引 */
     /* 缓存 */
-    void *match_cache;          /**< 匹配缓存 */
+    void *match_cache; /**< 匹配缓存 */
     /* 配置 */
     lvRuleLibraryConfig config;
     /* 统计 */
-    uint64_t total_matches;     /**< 总匹配次数 */
-    uint64_t cache_hits;        /**< 缓存命中次数 */
+    uint64_t total_matches; /**< 总匹配次数 */
+    uint64_t cache_hits;    /**< 缓存命中次数 */
 };
 /* ============== 规则库管理 ============== */
 /**
@@ -270,10 +271,8 @@ lvRule *lv_rule_library_get_by_name(const lvRuleLibrary *library, const char *na
  * @param max_count 最大数量
  * @return 实际数量
  */
-uint32_t lv_rule_library_get_by_type(const lvRuleLibrary *library,
-                                        lvRuleType type,
-                                        lvRule **out_rules,
-                                        uint32_t max_count);
+uint32_t lv_rule_library_get_by_type(const lvRuleLibrary *library, lvRuleType type, lvRule **out_rules,
+                                     uint32_t max_count);
 /**
  * @brief 获取指定难度范围的规则
  * @param library 规则库
@@ -283,11 +282,8 @@ uint32_t lv_rule_library_get_by_type(const lvRuleLibrary *library,
  * @param max_count 最大数量
  * @return 实际数量
  */
-uint32_t lv_rule_library_get_by_difficulty(const lvRuleLibrary *library,
-                                              uint32_t min_level,
-                                              uint32_t max_level,
-                                              lvRule **out_rules,
-                                              uint32_t max_count);
+uint32_t lv_rule_library_get_by_difficulty(const lvRuleLibrary *library, uint32_t min_level, uint32_t max_level,
+                                           lvRule **out_rules, uint32_t max_count);
 /**
  * @brief 按标签搜索规则
  * @param library 规则库
@@ -296,10 +292,8 @@ uint32_t lv_rule_library_get_by_difficulty(const lvRuleLibrary *library,
  * @param max_count 最大数量
  * @return 实际数量
  */
-uint32_t lv_rule_library_search_by_tag(const lvRuleLibrary *library,
-                                          const char *tag,
-                                          lvRule **out_rules,
-                                          uint32_t max_count);
+uint32_t lv_rule_library_search_by_tag(const lvRuleLibrary *library, const char *tag, lvRule **out_rules,
+                                       uint32_t max_count);
 /* ============== 规则创建 ============== */
 /**
  * @brief 创建规则
@@ -387,8 +381,7 @@ void lv_difficulty_assessment_destroy(lvDifficultyAssessment *assessment);
  * @param graph 约束图
  * @return 难度评估结果
  */
-lvDifficultyAssessment *lv_proof_step_assess_difficulty(const ProofStep *step,
-                                                             const ConstraintGraph *graph);
+lvDifficultyAssessment *lv_proof_step_assess_difficulty(const ProofStep *step, const ConstraintGraph *graph);
 /**
  * @brief 评估命题难度
  * @param prop 命题
@@ -417,11 +410,8 @@ const char *lv_difficulty_dimension_to_string(lvDifficultyDimension dimension);
  * @param max_count 最大数量
  * @return 实际匹配数量
  */
-uint32_t lv_rule_find_matches(const lvRuleLibrary *library,
-                                 const ConstraintGraph *graph,
-                                 const ProofNavigator *context,
-                                 lvRuleMatch **out_matches,
-                                 uint32_t max_count);
+uint32_t lv_rule_find_matches(const lvRuleLibrary *library, const ConstraintGraph *graph, const ProofNavigator *context,
+                              lvRuleMatch **out_matches, uint32_t max_count);
 /**
  * @brief 应用规则匹配
  * @param match 规则匹配
@@ -431,11 +421,8 @@ uint32_t lv_rule_find_matches(const lvRuleLibrary *library,
  * @param max_steps 最大步骤数
  * @return 实际生成步骤数
  */
-uint32_t lv_rule_apply_match(const lvRuleMatch *match,
-                                ConstraintGraph *graph,
-                                ProofNavigator *context,
-                                ProofStep **out_steps,
-                                uint32_t max_steps);
+uint32_t lv_rule_apply_match(const lvRuleMatch *match, ConstraintGraph *graph, ProofNavigator *context,
+                             ProofStep **out_steps, uint32_t max_steps);
 /**
  * @brief 销毁规则匹配
  * @param match 匹配指针
@@ -448,18 +435,16 @@ void lv_rule_match_destroy(lvRuleMatch *match);
  * @param context 证明上下文
  * @return 是否适用
  */
-bool lv_rule_is_applicable(const lvRule *rule,
-                              const ConstraintGraph *graph,
-                              const ProofNavigator *context);
+bool lv_rule_is_applicable(const lvRule *rule, const ConstraintGraph *graph, const ProofNavigator *context);
 /* ============== 规则推荐 ============== */
 /**
  * @brief 规则推荐结果
  */
 typedef struct {
-    lvRule **rules;           /**< 推荐规则数组 */
-    double *scores;             /**< 推荐分数 */
-    uint32_t count;             /**< 推荐数量 */
-    char *reason;               /**< 推荐理由 */
+    lvRule **rules; /**< 推荐规则数组 */
+    double *scores; /**< 推荐分数 */
+    uint32_t count; /**< 推荐数量 */
+    char *reason;   /**< 推荐理由 */
 } lvRuleRecommendation;
 /**
  * @brief 根据上下文推荐规则
@@ -469,10 +454,8 @@ typedef struct {
  * @param max_count 最大推荐数量
  * @return 推荐结果（调用者负责释放）
  */
-lvRuleRecommendation *lv_rule_recommend(const lvRuleLibrary *library,
-                                             const ConstraintGraph *graph,
-                                             const ProofNavigator *context,
-                                             uint32_t max_count);
+lvRuleRecommendation *lv_rule_recommend(const lvRuleLibrary *library, const ConstraintGraph *graph,
+                                        const ProofNavigator *context, uint32_t max_count);
 /**
  * @brief 销毁规则推荐
  * @param rec 推荐指针

@@ -17,14 +17,16 @@
  * @version 3.3.0
  */
 
-#include "lv/symbolic_coord.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/constraint_graph.h"
+#include "lv/symbolic_coord.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -635,7 +637,7 @@ Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     alg->minimal_poly.coeffs = malloc(3 * sizeof(mpz_t));
     if (!alg->minimal_poly.coeffs) {
         mpz_poly_clear(&alg->minimal_poly);
-        lv_free((void**)&alg);  /* lv_malloc分配 */
+        lv_free((void **) &alg); /* lv_malloc分配 */
         return NULL;
     }
 

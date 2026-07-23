@@ -32,18 +32,23 @@
  * @return 0 on success, -1 on allocation failure
  */
 static int nt_poly_ensure_capacity(lvPoly *p, int deg) {
-    if (deg < 0) return 0;
-    if (deg < p->capacity) return 0;
+    if (deg < 0)
+        return 0;
+    if (deg < p->capacity)
+        return 0;
 
     int new_cap = p->capacity;
-    if (new_cap <= 0) new_cap = NT_POLY_DEFAULT_CAPACITY;
+    if (new_cap <= 0)
+        new_cap = NT_POLY_DEFAULT_CAPACITY;
     while (new_cap <= deg) {
-        if (new_cap > INT_MAX / 2) return -1; /* overflow guard */
+        if (new_cap > INT_MAX / 2)
+            return -1; /* overflow guard */
         new_cap *= 2;
     }
 
-    mpz_t *new_coeffs = (mpz_t *)lv_realloc(p->coeffs, (size_t)new_cap * sizeof(mpz_t));
-    if (!new_coeffs) return -1;
+    mpz_t *new_coeffs = (mpz_t *) lv_realloc(p->coeffs, (size_t) new_cap * sizeof(mpz_t));
+    if (!new_coeffs)
+        return -1;
 
     p->coeffs = new_coeffs;
 
@@ -63,7 +68,8 @@ static int nt_poly_ensure_capacity(lvPoly *p, int deg) {
  * A polynomial with all zero coefficients has degree -1.
  */
 static void nt_poly_normalize(lvPoly *p) {
-    if (!p || !p->coeffs) return;
+    if (!p || !p->coeffs)
+        return;
     while (p->degree >= 0 && mpz_cmp_ui(p->coeffs[p->degree], 0) == 0) {
         p->degree--;
     }
@@ -74,8 +80,9 @@ static void nt_poly_normalize(lvPoly *p) {
  * ============================================================ */
 
 lv_PUBLIC_API lvPoly *nt_poly_create(void) {
-    lvPoly *p = (lvPoly *)calloc(1, sizeof(lvPoly));
-    if (!p) return NULL;
+    lvPoly *p = (lvPoly *) calloc(1, sizeof(lvPoly));
+    if (!p)
+        return NULL;
     p->coeffs = NULL;
     p->degree = -1;
     p->capacity = 0;
@@ -83,7 +90,8 @@ lv_PUBLIC_API lvPoly *nt_poly_create(void) {
 }
 
 lv_PUBLIC_API void nt_poly_destroy(lvPoly *p) {
-    if (!p) return;
+    if (!p)
+        return;
     if (p->coeffs) {
         for (int i = 0; i < p->capacity; i++) {
             mpz_clear(p->coeffs[i]);
@@ -98,9 +106,11 @@ lv_PUBLIC_API void nt_poly_destroy(lvPoly *p) {
  * ============================================================ */
 
 lv_PUBLIC_API int nt_poly_set_coeff(lvPoly *p, int deg, const mpz_t val) {
-    if (!p || deg < 0) return -1;
+    if (!p || deg < 0)
+        return -1;
 
-    if (nt_poly_ensure_capacity(p, deg) != 0) return -1;
+    if (nt_poly_ensure_capacity(p, deg) != 0)
+        return -1;
 
     mpz_set(p->coeffs[deg], val);
 
@@ -127,9 +137,9 @@ lv_PUBLIC_API int nt_poly_get_coeff(const lvPoly *p, int deg, mpz_t out) {
  * Arithmetic
  * ============================================================ */
 
-lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a,
-                                const lvPoly *b) {
-    if (!result || !a || !b) return -1;
+lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a, const lvPoly *b) {
+    if (!result || !a || !b)
+        return -1;
 
     int max_deg = (a->degree > b->degree) ? a->degree : b->degree;
     if (max_deg < 0) {
@@ -138,7 +148,8 @@ lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a,
         return 0;
     }
 
-    if (nt_poly_ensure_capacity(result, max_deg) != 0) return -1;
+    if (nt_poly_ensure_capacity(result, max_deg) != 0)
+        return -1;
 
     for (int i = 0; i <= max_deg; i++) {
         mpz_t tmp;
@@ -159,9 +170,9 @@ lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a,
     return 0;
 }
 
-lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a,
-                                const lvPoly *b) {
-    if (!result || !a || !b) return -1;
+lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a, const lvPoly *b) {
+    if (!result || !a || !b)
+        return -1;
 
     /* Zero polynomial cases */
     if (a->degree < 0 || b->degree < 0) {
@@ -170,11 +181,13 @@ lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a,
     }
 
     /* Overflow guard */
-    if (a->degree > INT_MAX - b->degree) return -1;
+    if (a->degree > INT_MAX - b->degree)
+        return -1;
 
     int new_deg = a->degree + b->degree;
 
-    if (nt_poly_ensure_capacity(result, new_deg) != 0) return -1;
+    if (nt_poly_ensure_capacity(result, new_deg) != 0)
+        return -1;
 
     /* Zero out result coefficients up to new_deg */
     for (int i = 0; i <= new_deg; i++) {
@@ -197,16 +210,18 @@ lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a,
     return 0;
 }
 
-lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f,
-                                const lvPoly *m) {
-    if (!result || !f || !m) return -1;
-    if (m->degree < 0) return -1; /* cannot mod by zero polynomial */
+lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m) {
+    if (!result || !f || !m)
+        return -1;
+    if (m->degree < 0)
+        return -1; /* cannot mod by zero polynomial */
 
     /* If deg(f) < deg(m), remainder is f */
     if (f->degree < m->degree) {
         /* Copy f into result */
         if (f->degree >= 0) {
-            if (nt_poly_ensure_capacity(result, f->degree) != 0) return -1;
+            if (nt_poly_ensure_capacity(result, f->degree) != 0)
+                return -1;
             for (int i = 0; i <= f->degree; i++) {
                 mpz_set(result->coeffs[i], f->coeffs[i]);
             }
@@ -218,8 +233,9 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f,
     /* Polynomial long division: compute f mod m
      * We work on a copy of f's coefficients */
     int rem_deg = f->degree;
-    mpz_t *rem = (mpz_t *)malloc((size_t)(rem_deg + 1) * sizeof(mpz_t));
-    if (!rem) return -1;
+    mpz_t *rem = (mpz_t *) malloc((size_t) (rem_deg + 1) * sizeof(mpz_t));
+    if (!rem)
+        return -1;
 
     for (int i = 0; i <= rem_deg; i++) {
         mpz_init_set(rem[i], f->coeffs[i]);
@@ -253,7 +269,8 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f,
     if (rem_deg >= 0) {
         if (nt_poly_ensure_capacity(result, rem_deg) != 0) {
             /* cleanup on failure */
-            for (int i = 0; i <= f->degree; i++) mpz_clear(rem[i]);
+            for (int i = 0; i <= f->degree; i++)
+                mpz_clear(rem[i]);
             free(rem);
             mpz_clear(lead_m);
             mpz_clear(factor);
@@ -278,9 +295,9 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f,
     return 0;
 }
 
-lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a,
-                                const lvPoly *b) {
-    if (!result || !a || !b) return -1;
+lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a, const lvPoly *b) {
+    if (!result || !a || !b)
+        return -1;
 
     /* Handle zero polynomial cases */
     if (a->degree < 0 && b->degree < 0) {
@@ -289,7 +306,8 @@ lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a,
     }
     if (a->degree < 0) {
         /* gcd(0, b) = b (normalized) */
-        if (nt_poly_ensure_capacity(result, b->degree) != 0) return -1;
+        if (nt_poly_ensure_capacity(result, b->degree) != 0)
+            return -1;
         for (int i = 0; i <= b->degree; i++) {
             mpz_set(result->coeffs[i], b->coeffs[i]);
         }
@@ -299,7 +317,8 @@ lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a,
     }
     if (b->degree < 0) {
         /* gcd(a, 0) = a (normalized) */
-        if (nt_poly_ensure_capacity(result, a->degree) != 0) return -1;
+        if (nt_poly_ensure_capacity(result, a->degree) != 0)
+            return -1;
         for (int i = 0; i <= a->degree; i++) {
             mpz_set(result->coeffs[i], a->coeffs[i]);
         }
@@ -323,13 +342,17 @@ lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a,
     }
 
     /* Copy a into u */
-    if (nt_poly_ensure_capacity(u, a->degree) != 0) goto fail;
-    for (int i = 0; i <= a->degree; i++) mpz_set(u->coeffs[i], a->coeffs[i]);
+    if (nt_poly_ensure_capacity(u, a->degree) != 0)
+        goto fail;
+    for (int i = 0; i <= a->degree; i++)
+        mpz_set(u->coeffs[i], a->coeffs[i]);
     u->degree = a->degree;
 
     /* Copy b into v */
-    if (nt_poly_ensure_capacity(v, b->degree) != 0) goto fail;
-    for (int i = 0; i <= b->degree; i++) mpz_set(v->coeffs[i], b->coeffs[i]);
+    if (nt_poly_ensure_capacity(v, b->degree) != 0)
+        goto fail;
+    for (int i = 0; i <= b->degree; i++)
+        mpz_set(v->coeffs[i], b->coeffs[i]);
     v->degree = b->degree;
 
     while (v->degree >= 0) {
@@ -343,7 +366,8 @@ lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a,
 
     /* u now holds the GCD; copy into result */
     if (u->degree >= 0) {
-        if (nt_poly_ensure_capacity(result, u->degree) != 0) goto fail;
+        if (nt_poly_ensure_capacity(result, u->degree) != 0)
+            goto fail;
         for (int i = 0; i <= u->degree; i++) {
             mpz_set(result->coeffs[i], u->coeffs[i]);
         }
@@ -388,6 +412,7 @@ lv_PUBLIC_API int nt_poly_eval(const lvPoly *p, const mpz_t x, mpz_t out) {
 }
 
 lv_PUBLIC_API int nt_poly_degree(const lvPoly *p) {
-    if (!p) return -1;
+    if (!p)
+        return -1;
     return p->degree;
 }

@@ -1,8 +1,9 @@
 ﻿#ifndef lv_GAPPA_DSL_H
 #define lv_GAPPA_DSL_H
-#include "lv/gappa_propagate.h"
 #include <stdbool.h>
 #include <stddef.h>
+
+#include "lv/gappa_propagate.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,20 +22,10 @@ typedef struct {
 bool gappa_format_predefined(const char *name, lvGappaFormat *out);
 
 /** Rounding modes */
-typedef enum {
-    lv_ROUND_NE = 0,
-    lv_ROUND_NA,
-    lv_ROUND_NU,
-    lv_ROUND_ND,
-    lv_ROUND_ZR
-} lvRoundingMode;
+typedef enum { lv_ROUND_NE = 0, lv_ROUND_NA, lv_ROUND_NU, lv_ROUND_ND, lv_ROUND_ZR } lvRoundingMode;
 
 /** Predicate types */
-typedef enum {
-    lv_PRED_BND = 0,
-    lv_PRED_ABS,
-    lv_PRED_REL
-} lvPredType;
+typedef enum { lv_PRED_BND = 0, lv_PRED_ABS, lv_PRED_REL } lvPredType;
 
 /** Gappa predicate */
 typedef struct lvGappaPredicate {
@@ -76,8 +67,7 @@ typedef struct {
 int lv_gappa_parse(const char *input);
 
 /** Parse with structured output */
-bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count,
-                 lvGappaProofGoal **goals, int *goal_count);
+bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGappaProofGoal **goals, int *goal_count);
 
 /** Free parsed results */
 void gappa_predicates_free(lvGappaPredicate *preds, int count);
@@ -90,9 +80,8 @@ int lv_gappa_eval(const char *expr, double *lo, double *hi);
 char *lv_gappa_prove(const char *script);
 
 /** Prove with structured API */
-lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count,
-                                  const lvGappaProofGoal *goals, int goal_count,
-                                  const void *config);
+lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count, const lvGappaProofGoal *goals,
+                               int goal_count, const void *config);
 
 /** Free proof result */
 void gappa_result_free(lvGappaProofResult *result);

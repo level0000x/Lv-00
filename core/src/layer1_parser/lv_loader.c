@@ -15,12 +15,15 @@
  */
 
 #include "lv/lv_loader.h"
-#include "lv/lv_lexer.h"
-#include "lv/lv.h"
-#include "lv_utils.h"
-#include <string.h>
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "lv/lv.h"
+#include "lv/lv_lexer.h"
+
+#include "lv_utils.h"
 
 /* ── 名称映射表：跟踪 AST 名称到引擎节点 ID 的映射 ── */
 
@@ -31,8 +34,8 @@
  * 用于在后续约束和证明语句中引用已声明的实体。
  */
 typedef struct {
-    char name[64];  /**< 实体名称（最多 63 字符） */
-    int  node_id;   /**< 引擎节点 ID，-1 表示尚未关联 */
+    char name[64]; /**< 实体名称（最多 63 字符） */
+    int node_id;   /**< 引擎节点 ID，-1 表示尚未关联 */
 } LvNameMap;
 
 /** @brief 名称映射表最大容量 */
@@ -59,7 +62,8 @@ static void name_map_clear(void) {
  * @param node_id 引擎节点 ID
  */
 static void name_map_add(const char *name, int node_id) {
-    if (name_map_count >= LV_MAX_NAMED_ENTITIES) return;
+    if (name_map_count >= LV_MAX_NAMED_ENTITIES)
+        return;
     LvNameMap *entry = &name_map[name_map_count++];
     lv_strncpy(entry->name, name, sizeof(entry->name));
     entry->node_id = node_id;
@@ -74,7 +78,8 @@ static void name_map_add(const char *name, int node_id) {
  * @return 引擎节点 ID，未找到或 name 为 NULL 返回 -1
  */
 static int name_map_lookup(const char *name) {
-    if (!name) return -1;
+    if (!name)
+        return -1;
     for (int i = 0; i < name_map_count; i++) {
         if (strcmp(name_map[i].name, name) == 0)
             return name_map[i].node_id;
@@ -97,10 +102,12 @@ static int name_map_lookup(const char *name) {
  * @return 文件内容的堆分配缓冲区，失败返回 NULL
  */
 static char *read_file(const char *filepath, size_t *out_len) {
-    if (!filepath || !out_len) return NULL;
+    if (!filepath || !out_len)
+        return NULL;
 
     FILE *fp = fopen(filepath, "rb");
-    if (!fp) return NULL;
+    if (!fp)
+        return NULL;
 
     fseek(fp, 0, SEEK_END);
     long len = ftell(fp);
@@ -111,13 +118,13 @@ static char *read_file(const char *filepath, size_t *out_len) {
         return NULL;
     }
 
-    char *buf = (char *)lv_malloc((size_t)len + 1);
+    char *buf = (char *) lv_malloc((size_t) len + 1);
     if (!buf) {
         fclose(fp);
         return NULL;
     }
 
-    size_t read = fread(buf, 1, (size_t)len, fp);
+    size_t read = fread(buf, 1, (size_t) len, fp);
     fclose(fp);
 
     buf[read] = '\0';
@@ -140,9 +147,10 @@ static char *read_file(const char *filepath, size_t *out_len) {
  * @param node   AST 声明节点
  */
 static void process_declaration(lvEngine *engine, LvAstNode *node) {
-    LvEntityType etype = (LvEntityType)node->data.decl.entity_type;
+    LvEntityType etype = (LvEntityType) node->data.decl.entity_type;
     const char *names = node->data.decl.names;
-    if (!names || !engine) return;
+    if (!names || !engine)
+        return;
 
     /* 复制 names 用于拆分 */
     char buf[1024];
@@ -158,26 +166,26 @@ static void process_declaration(lvEngine *engine, LvAstNode *node) {
 #endif
     while (tok) {
         switch (etype) {
-        case LV_ENTITY_POINT: {
-            /* 使用默认坐标 (0,1,0,1) 即 (0,0) */
-            int id = lv_add_point(engine, 0, 1, 0, 1);
-            if (id >= 0) {
-                name_map_add(tok, id);
+            case LV_ENTITY_POINT: {
+                /* 使用默认坐标 (0,1,0,1) 即 (0,0) */
+                int id = lv_add_point(engine, 0, 1, 0, 1);
+                if (id >= 0) {
+                    name_map_add(tok, id);
+                }
+                break;
             }
-            break;
-        }
-        case LV_ENTITY_LINE:
-        case LV_ENTITY_SEGMENT: {
-            /* Line/Segment: 暂存名称，等待端点声明后处理 */
-            /* 使用 -1 表示尚未关联端点 */
-            name_map_add(tok, -1);
-            break;
-        }
-        default:
-            /* Circle, Ray, Triangle, Polygon, Scalar, Bool, Proposition, Proof */
-            /* 暂不处理 */
-            name_map_add(tok, -1);
-            break;
+            case LV_ENTITY_LINE:
+            case LV_ENTITY_SEGMENT: {
+                /* Line/Segment: 暂存名称，等待端点声明后处理 */
+                /* 使用 -1 表示尚未关联端点 */
+                name_map_add(tok, -1);
+                break;
+            }
+            default:
+                /* Circle, Ray, Triangle, Polygon, Scalar, Bool, Proposition, Proof */
+                /* 暂不处理 */
+                name_map_add(tok, -1);
+                break;
         }
 #ifdef _MSC_VER
         tok = strtok_s(NULL, ",", &save);
@@ -206,8 +214,7 @@ LvParseResult lv_load_file(const char *filepath) {
 
     if (!filepath) {
         result.error_count = 1;
-        lv_strncpy(result.errors[0].message, "filepath is NULL",
-                   sizeof(result.errors[0].message));
+        lv_strncpy(result.errors[0].message, "filepath is NULL", sizeof(result.errors[0].message));
         return result;
     }
 
@@ -216,28 +223,25 @@ LvParseResult lv_load_file(const char *filepath) {
     char *source = read_file(filepath, &len);
     if (!source) {
         result.error_count = 1;
-        lv_snprintf(result.errors[0].message, sizeof(result.errors[0].message),
-                    "failed to read file: %s", filepath);
+        lv_snprintf(result.errors[0].message, sizeof(result.errors[0].message), "failed to read file: %s", filepath);
         return result;
     }
 
     /* Lex → Parse */
     LvLexer *lexer = lv_lexer_create(source, len);
     if (!lexer) {
-        lv_free((void **)&source);
+        lv_free((void **) &source);
         result.error_count = 1;
-        lv_strncpy(result.errors[0].message, "failed to create lexer",
-                   sizeof(result.errors[0].message));
+        lv_strncpy(result.errors[0].message, "failed to create lexer", sizeof(result.errors[0].message));
         return result;
     }
 
     LvParser *parser = lv_parser_create(lexer);
     if (!parser) {
         lv_lexer_destroy(lexer);
-        lv_free((void **)&source);
+        lv_free((void **) &source);
         result.error_count = 1;
-        lv_strncpy(result.errors[0].message, "failed to create parser",
-                   sizeof(result.errors[0].message));
+        lv_strncpy(result.errors[0].message, "failed to create parser", sizeof(result.errors[0].message));
         return result;
     }
 
@@ -245,7 +249,7 @@ LvParseResult lv_load_file(const char *filepath) {
 
     lv_parser_destroy(parser);
     lv_lexer_destroy(lexer);
-    lv_free((void **)&source);
+    lv_free((void **) &source);
 
     return result;
 }
@@ -264,13 +268,15 @@ LvParseResult lv_load_file(const char *filepath) {
  * @return 应用成功返回 true，失败返回 false
  */
 bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSemaContext *sema) {
-    if (!engine || !result || !result->ast) return false;
+    if (!engine || !result || !result->ast)
+        return false;
 
-    (void)sema; /* 保留供将来扩展使用 */
+    (void) sema; /* 保留供将来扩展使用 */
     name_map_clear();
 
     LvAstNode *ast = result->ast;
-    if (ast->type != LV_AST_PROGRAM) return false;
+    if (ast->type != LV_AST_PROGRAM)
+        return false;
 
     /* 第一遍：处理声明（添加几何对象到引擎） */
     for (LvAstNode *stmt = ast->child; stmt; stmt = stmt->next) {
@@ -282,7 +288,7 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
     /* 第二遍：处理声明之后的线段/直线（如果端点已知） */
     for (LvAstNode *stmt = ast->child; stmt; stmt = stmt->next) {
         if (stmt->type == LV_AST_DECLARATION) {
-            LvEntityType etype = (LvEntityType)stmt->data.decl.entity_type;
+            LvEntityType etype = (LvEntityType) stmt->data.decl.entity_type;
             if (etype == LV_ENTITY_SEGMENT || etype == LV_ENTITY_LINE) {
                 /* 线段/直线需要两个已知端点才能创建 */
                 /* 这里简化处理：跳过，因为端点尚未连接 */

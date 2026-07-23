@@ -70,16 +70,16 @@ typedef enum {
  * @brief 导出格式类型
  */
 typedef enum {
-    INTEROP_EXPORT_COQ = 0,  /**< Coq格式 */
-    INTEROP_EXPORT_LEAN,     /**< Lean格式 */
-    INTEROP_EXPORT_HTML,     /**< 独立HTML */
-    INTEROP_EXPORT_SVG,      /**< SVG矢量图 */
-    INTEROP_EXPORT_PDF,      /**< PDF文档 */
-    INTEROP_EXPORT_TIKZ,     /**< LaTeX TikZ */
-    INTEROP_EXPORT_GEOJSON,  /**< GeoJSON格式 */
+    INTEROP_EXPORT_COQ = 0,   /**< Coq格式 */
+    INTEROP_EXPORT_LEAN,      /**< Lean格式 */
+    INTEROP_EXPORT_HTML,      /**< 独立HTML */
+    INTEROP_EXPORT_SVG,       /**< SVG矢量图 */
+    INTEROP_EXPORT_PDF,       /**< PDF文档 */
+    INTEROP_EXPORT_TIKZ,      /**< LaTeX TikZ */
+    INTEROP_EXPORT_GEOJSON,   /**< GeoJSON格式 */
     INTEROP_EXPORT_CANONICAL, /**< 规范表示 */
-    INTEROP_EXPORT_ISABELLE, /**< Isabelle/HOL格式 */
-    INTEROP_EXPORT_HOL_LIGHT /**< HOL Light格式 */
+    INTEROP_EXPORT_ISABELLE,  /**< Isabelle/HOL格式 */
+    INTEROP_EXPORT_HOL_LIGHT  /**< HOL Light格式 */
 } InteropExportFormat;
 
 /**
@@ -162,8 +162,8 @@ typedef struct {
     void *internal_data;       /**< 内部数据 */
 
     /* 引擎复用：首次命令时惰性创建 */
-    void *persistent_engine;   /**< lvEngine* 引擎复用 */
-    int engine_in_use;         /**< 引擎使用计数 */
+    void *persistent_engine; /**< lvEngine* 引擎复用 */
+    int engine_in_use;       /**< 引擎使用计数 */
 
     /* 流式输出 */
     bool stream_enabled;         /**< 流式输出是否启用 */
@@ -178,9 +178,9 @@ typedef InteropServer lvInteropManager;
  * @brief 外部证明系统类型
  */
 typedef enum {
-    lv_EXT_COQ,       /**< Coq 证明助手 */
-    lv_EXT_LEAN4,     /**< Lean 4 证明助手 */
-    lv_EXT_JSON,      /**< JSON 格式 (OPML 等) */
+    lv_EXT_COQ,   /**< Coq 证明助手 */
+    lv_EXT_LEAN4, /**< Lean 4 证明助手 */
+    lv_EXT_JSON,  /**< JSON 格式 (OPML 等) */
     lv_EXT_COUNT
 } lvExternalSystem;
 
@@ -191,12 +191,12 @@ typedef struct lvInteropPlugin lvInteropPlugin;
  * @brief 互操作插件（外部证明系统桥接）
  */
 struct lvInteropPlugin {
-    char name[64];                    /**< 插件名称 */
-    char version[32];                 /**< 版本号 */
-    lvExternalSystem system;        /**< 外部系统类型 */
-    int (*export_proof)(void *, char *, int);  /**< 导出证明函数 */
+    char name[64];                              /**< 插件名称 */
+    char version[32];                           /**< 版本号 */
+    lvExternalSystem system;                    /**< 外部系统类型 */
+    int (*export_proof)(void *, char *, int);   /**< 导出证明函数 */
     int (*import_proof)(const char *, void **); /**< 导入证明函数 */
-    int (*validate)(const char *);    /**< 验证函数 */
+    int (*validate)(const char *);              /**< 验证函数 */
 };
 
 /* 兼容宏：旧代码使用 lvPlugin，实际是 lvInteropPlugin */
@@ -552,10 +552,10 @@ const char *interop_constraint_type_name(ConstraintType type);
 void interop_stream_callback(const struct StreamEvent *event, void *user_data);
 
 /* 兼容宏 */
-#define trust_color_to_svg(trust)     interop_trust_color_to_svg(trust)
-#define trust_color_to_tikz(trust)    interop_trust_color_to_tikz(trust)
-#define geom_type_name(type)          interop_geom_type_name(type)
-#define constraint_type_name(type)    interop_constraint_type_name(type)
+#define trust_color_to_svg(trust) interop_trust_color_to_svg(trust)
+#define trust_color_to_tikz(trust) interop_trust_color_to_tikz(trust)
+#define geom_type_name(type) interop_geom_type_name(type)
+#define constraint_type_name(type) interop_constraint_type_name(type)
 
 #ifdef __cplusplus
 }

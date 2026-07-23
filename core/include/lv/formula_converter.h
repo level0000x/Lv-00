@@ -14,6 +14,7 @@
 extern "C" {
 #endif
 #include <stdbool.h>
+
 #include "constraint_graph.h"
 #include "formula_parser.h"
 /* ============================================================

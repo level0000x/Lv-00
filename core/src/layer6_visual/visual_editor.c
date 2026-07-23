@@ -10,10 +10,12 @@
  */
 
 #include "lv/visual_editor.h"
-#include "lv/block_scheduler.h"
-#include "lv/lv_utils.h"
+
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv/block_scheduler.h"
+#include "lv/lv_utils.h"
 
 /**
  * @brief 创建可视化编辑器实例
@@ -24,7 +26,8 @@
  */
 lvVisualEditor *lv_visual_editor_create(void) {
     lvVisualEditor *editor = lv_calloc(1, sizeof(lvVisualEditor));
-    if (!editor) return NULL;
+    if (!editor)
+        return NULL;
     editor->layer_id = lv_LAYER_VISUAL;
     editor->active_view = lv_VIEW_NODE_GRAPH;
     editor->state = lv_EDITOR_IDLE;
@@ -39,9 +42,10 @@ lvVisualEditor *lv_visual_editor_create(void) {
  * @param editor 编辑器指针
  */
 void lv_visual_editor_destroy(lvVisualEditor *editor) {
-    if (!editor) return;
+    if (!editor)
+        return;
     /* Sub-views destroyed by their own managers */
-    lv_free((void **)&editor);
+    lv_free((void **) &editor);
 }
 
 /**
@@ -53,7 +57,8 @@ void lv_visual_editor_destroy(lvVisualEditor *editor) {
  * @return 成功返回0，失败返回-1
  */
 int lv_visual_editor_reset(lvVisualEditor *editor) {
-    if (!editor) return -1;
+    if (!editor)
+        return -1;
     editor->state = lv_EDITOR_IDLE;
     editor->error_count = 0;
     memset(editor->last_error, 0, sizeof(editor->last_error));
@@ -68,8 +73,10 @@ int lv_visual_editor_reset(lvVisualEditor *editor) {
  * @return 成功返回0，失败返回-1
  */
 int lv_visual_editor_switch_view(lvVisualEditor *editor, lvViewType view) {
-    if (!editor) return -1;
-    if (view < lv_VIEW_GEOMETRY_CANVAS || view > lv_VIEW_TEXT_CODE) return -1;
+    if (!editor)
+        return -1;
+    if (view < lv_VIEW_GEOMETRY_CANVAS || view > lv_VIEW_TEXT_CODE)
+        return -1;
     editor->active_view = view;
     return 0;
 }
@@ -93,7 +100,8 @@ lvViewType lv_visual_editor_active_view(const lvVisualEditor *editor) {
  * @return 成功返回0，失败返回-1
  */
 int lv_visual_editor_execute(lvVisualEditor *editor) {
-    if (!editor) return -1;
+    if (!editor)
+        return -1;
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
         strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error));
@@ -130,8 +138,7 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
     } else {
         editor->state = lv_EDITOR_ERROR;
         /* [安全] 防止 exec_result.error_msg 为 NULL 或过长导致缓冲区问题 */
-        strncpy(editor->last_error,
-                exec_result.error_msg ? exec_result.error_msg : "unknown error",
+        strncpy(editor->last_error, exec_result.error_msg ? exec_result.error_msg : "unknown error",
                 sizeof(editor->last_error) - 1);
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
@@ -152,7 +159,8 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
  * @return 成功返回0，失败返回-1
  */
 int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
-    if (!editor) return -1;
+    if (!editor)
+        return -1;
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
         strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error));
@@ -192,8 +200,7 @@ int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
     } else {
         editor->state = lv_EDITOR_ERROR;
         /* [安全] 防止 exec_result.error_msg 为 NULL 或过长导致缓冲区问题 */
-        strncpy(editor->last_error,
-                exec_result.error_msg ? exec_result.error_msg : "unknown error",
+        strncpy(editor->last_error, exec_result.error_msg ? exec_result.error_msg : "unknown error",
                 sizeof(editor->last_error) - 1);
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;

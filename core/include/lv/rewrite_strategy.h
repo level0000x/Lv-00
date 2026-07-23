@@ -1,10 +1,11 @@
 ﻿#ifndef lv_REWRITE_STRATEGY_H
 #define lv_REWRITE_STRATEGY_H
 
-#include "lv/rewrite.h"
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+
 #include "lv/lv_utils.h"
+#include "lv/rewrite.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -84,13 +85,11 @@ lvRewriteEngineEx *rewrite_engine_ex_create(lvRewriteStrategyType strategy, int 
 void rewrite_engine_ex_destroy(lvRewriteEngineEx *engine);
 
 /** 添加重写规则（按优先级排序） */
-bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine,
-    const char *name, const char *pattern, const char *replacement,
-    int priority, lvRewriteConditionFn condition);
+bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine, const char *name, const char *pattern,
+                                const char *replacement, int priority, lvRewriteConditionFn condition);
 
 /** 执行重写引擎 */
-bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine,
-    const char *input, lvRewriteResultEx *result);
+bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result);
 
 /** 销毁重写结果（NULL 安全） */
 void rewrite_engine_result_ex_destroy(lvRewriteResultEx *result);

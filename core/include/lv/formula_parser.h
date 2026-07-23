@@ -244,15 +244,15 @@ const char *formula_detect_syntax(const char *input);
  * 用于在解析过程中维护状态信息，包括输入位置、错误处理等。
  */
 typedef struct {
-    const char *input;                   /* 输入字符串 */
-    size_t pos;                          /* 当前位置 */
-    size_t length;                       /* 输入长度 */
-    char error_message[256];             /* 错误消息缓冲区 */
-    bool has_error;                      /* 是否有错误 */
-    int line;                            /* 当前行号 */
-    int column;                          /* 当前列号 */
-    int node_count;                      /* AST节点计数（安全限制用） */
-    int current_depth;                   /* 当前解析递归深度 */
+    const char *input;       /* 输入字符串 */
+    size_t pos;              /* 当前位置 */
+    size_t length;           /* 输入长度 */
+    char error_message[256]; /* 错误消息缓冲区 */
+    bool has_error;          /* 是否有错误 */
+    int line;                /* 当前行号 */
+    int column;              /* 当前列号 */
+    int node_count;          /* AST节点计数（安全限制用） */
+    int current_depth;       /* 当前解析递归深度 */
 } ParserContext;
 
 /**
@@ -562,24 +562,24 @@ FormulaNode *parse_python_expression(ParserContext *ctx);
 #endif
 
 /* 兼容宏：简化子模块中的调用 */
-#define set_error(ctx, msg)            formula_set_error(ctx, msg)
-#define is_digit(c)                    formula_is_digit(c)
-#define is_alpha(c)                    formula_is_alpha(c)
-#define is_alnum(c)                    formula_is_alnum(c)
-#define peek(ctx)                      formula_peek(ctx)
-#define peek_next(ctx)                 formula_peek_next(ctx)
-#define consume(ctx)                   formula_consume(ctx)
-#define skip_whitespace(ctx)           formula_skip_whitespace(ctx)
-#define expect_char(ctx, c)            formula_expect_char(ctx, c)
-#define is_at_end(ctx)                 formula_is_at_end(ctx)
-#define match_string(ctx, str)         formula_match_string(ctx, str)
-#define match_and_consume(ctx, str)    formula_match_and_consume(ctx, str)
-#define track_node(ctx, node)          formula_track_node(ctx, node)
-#define parse_number(ctx)              formula_parse_number(ctx)
-#define parse_identifier_str(ctx)      formula_parse_identifier_str(ctx)
-#define DSL_KEYWORDS                   formula_dsl_keywords
-#define LATEX_COMMANDS                 formula_latex_commands
-#define PYTHON_FEATURES                formula_python_features
+#define set_error(ctx, msg) formula_set_error(ctx, msg)
+#define is_digit(c) formula_is_digit(c)
+#define is_alpha(c) formula_is_alpha(c)
+#define is_alnum(c) formula_is_alnum(c)
+#define peek(ctx) formula_peek(ctx)
+#define peek_next(ctx) formula_peek_next(ctx)
+#define consume(ctx) formula_consume(ctx)
+#define skip_whitespace(ctx) formula_skip_whitespace(ctx)
+#define expect_char(ctx, c) formula_expect_char(ctx, c)
+#define is_at_end(ctx) formula_is_at_end(ctx)
+#define match_string(ctx, str) formula_match_string(ctx, str)
+#define match_and_consume(ctx, str) formula_match_and_consume(ctx, str)
+#define track_node(ctx, node) formula_track_node(ctx, node)
+#define parse_number(ctx) formula_parse_number(ctx)
+#define parse_identifier_str(ctx) formula_parse_identifier_str(ctx)
+#define DSL_KEYWORDS formula_dsl_keywords
+#define LATEX_COMMANDS formula_latex_commands
+#define PYTHON_FEATURES formula_python_features
 
 #ifdef __cplusplus
 }

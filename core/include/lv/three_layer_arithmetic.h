@@ -39,7 +39,7 @@ extern "C" {
  * 适用场景：纯符号计算、形式化验证、不允许近似的数学证明。
  */
 #ifndef lv_NO_FLOAT
-#define lv_NO_FLOAT 0          /* 1 = 禁用所有浮点运算 */
+#define lv_NO_FLOAT 0 /* 1 = 禁用所有浮点运算 */
 #endif
 
 /**
@@ -52,7 +52,7 @@ extern "C" {
  * 适用场景：需要绝对精确的代数计算，但允许浮点用于显示/日志。
  */
 #ifndef lv_STRICT_EXACT_MODE
-#define lv_STRICT_EXACT_MODE 0  /* 1 = 严格精确模式，禁用近似 */
+#define lv_STRICT_EXACT_MODE 0 /* 1 = 严格精确模式，禁用近似 */
 #endif
 
 /**
@@ -65,7 +65,7 @@ extern "C" {
  * 适用场景：渐进式移除浮点依赖的迁移阶段。
  */
 #ifndef lv_FLOAT_AUDIT
-#define lv_FLOAT_AUDIT 0        /* 1 = 审计模式，记录所有浮点使用 */
+#define lv_FLOAT_AUDIT 0 /* 1 = 审计模式，记录所有浮点使用 */
 #endif
 
 /* ============================================================
@@ -148,7 +148,7 @@ extern "C" {
  * @note 当 lv_NO_FLOAT=1 时，使用此宏将产生编译错误。
  */
 #ifndef lv_LOSSY_TO_DOUBLE
-#define lv_LOSSY_TO_DOUBLE(x) ((double)(x))  /* 标记有损转换 */
+#define lv_LOSSY_TO_DOUBLE(x) ((double) (x)) /* 标记有损转换 */
 #endif
 
 /**

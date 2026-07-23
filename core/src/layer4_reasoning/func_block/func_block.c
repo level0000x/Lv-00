@@ -23,11 +23,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/solver.h"
+#include "lv/stream.h"
+
 #include "func_block_internal.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/solver.h"
-#include "lv/stream.h"
 #include "stream_context_util.h"
 
 /* ==================== 命名常量 ==================== */
@@ -74,20 +75,22 @@ void func_block_set_stream_context(StreamContext *ctx) {
  * 该函数封装了函数块系统中常见的"释放旧数组、深拷贝新数组"模式，
  * 避免在多个设置函数中重复相同的逻辑。
  */
-static bool func_block_set_int_array(int **target, int *count,
-                                      const int *values, int n) {
-    if (!target || !count) return false;
+static bool func_block_set_int_array(int **target, int *count, const int *values, int n) {
+    if (!target || !count)
+        return false;
 
     /* 释放旧数组 */
-    lv_free((void **)target);
+    lv_free((void **) target);
     *count = 0;
 
     /* 空数组直接返回 */
-    if (n <= 0 || !values) return true;
+    if (n <= 0 || !values)
+        return true;
 
     /* 分配新数组并深拷贝 */
-    int *copy = (int *)lv_malloc((size_t)n * sizeof(int));
-    if (!copy) return false;
+    int *copy = (int *) lv_malloc((size_t) n * sizeof(int));
+    if (!copy)
+        return false;
 
     for (int i = 0; i < n; i++) {
         copy[i] = values[i];
@@ -128,7 +131,7 @@ static bool func_block_set_int_array(int **target, int *count,
  *         内存不足时返回 NULL
  */
 FuncBlock *func_block_create(int id) {
-    FuncBlock *fb = (FuncBlock *)lv_calloc(1, sizeof(FuncBlock));
+    FuncBlock *fb = (FuncBlock *) lv_calloc(1, sizeof(FuncBlock));
     if (!fb) {
         lv_LOG_ERROR("func_block_create: 内存分配失败 (id=%d)", id);
         return NULL;
@@ -155,8 +158,8 @@ FuncBlock *func_block_create(int id) {
     /* 初始化容量字段 */
     fb->port_dep_capacity = 0;
 
-    lv_LOG_DEBUG("func_block_create: 创建函数块 id=%d, version=%d.%d.%d",
-                   id, fb->version_major, fb->version_minor, fb->version_patch);
+    lv_LOG_DEBUG("func_block_create: 创建函数块 id=%d, version=%d.%d.%d", id, fb->version_major, fb->version_minor,
+                 fb->version_patch);
 
     return fb;
 }
@@ -224,8 +227,7 @@ void func_block_destroy(FuncBlock *fb) {
 bool func_block_set_internal_nodes(FuncBlock *fb, const int *node_ids, int count) {
     if (!fb || count < 0)
         return false;
-    return func_block_set_int_array(&fb->internal_node_ids, &fb->internal_node_count,
-                                    node_ids, count);
+    return func_block_set_int_array(&fb->internal_node_ids, &fb->internal_node_count, node_ids, count);
 }
 
 /**
@@ -248,8 +250,7 @@ bool func_block_set_internal_nodes(FuncBlock *fb, const int *node_ids, int count
 bool func_block_set_input_ports(FuncBlock *fb, const int *port_ids, int count) {
     if (!fb || count < 0)
         return false;
-    return func_block_set_int_array(&fb->input_port_ids, &fb->input_count,
-                                    port_ids, count);
+    return func_block_set_int_array(&fb->input_port_ids, &fb->input_count, port_ids, count);
 }
 
 /**
@@ -272,8 +273,7 @@ bool func_block_set_input_ports(FuncBlock *fb, const int *port_ids, int count) {
 bool func_block_set_output_ports(FuncBlock *fb, const int *port_ids, int count) {
     if (!fb || count < 0)
         return false;
-    return func_block_set_int_array(&fb->output_port_ids, &fb->output_count,
-                                    port_ids, count);
+    return func_block_set_int_array(&fb->output_port_ids, &fb->output_count, port_ids, count);
 }
 
 /**
@@ -446,8 +446,7 @@ bool func_block_set_selector(FuncBlock *fb, SolutionSelector *selector) {
  */
 bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
     if (!fb || !dep) {
-        lv_LOG_ERROR("func_block_add_port_dependency: 无效参数 (fb=%p, dep=%p)",
-                       (void*)fb, (void*)dep);
+        lv_LOG_ERROR("func_block_add_port_dependency: 无效参数 (fb=%p, dep=%p)", (void *) fb, (void *) dep);
         return false;
     }
 
@@ -460,8 +459,7 @@ bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
         } else {
             /* 检查乘法溢出 */
             if (fb->port_dep_capacity > INT_MAX / 2) {
-                lv_LOG_ERROR("func_block_add_port_dependency: 容量溢出 (capacity=%d)",
-                               fb->port_dep_capacity);
+                lv_LOG_ERROR("func_block_add_port_dependency: 容量溢出 (capacity=%d)", fb->port_dep_capacity);
                 return false;
             }
             new_cap = fb->port_dep_capacity * 2;
@@ -469,9 +467,8 @@ bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
 
         /* 确保满足最小需求 */
         int min_required = fb->port_dep_count + 1;
-        if (min_required < fb->port_dep_count) {  /* 加法溢出检查 */
-            lv_LOG_ERROR("func_block_add_port_dependency: 计数溢出 (count=%d)",
-                           fb->port_dep_count);
+        if (min_required < fb->port_dep_count) { /* 加法溢出检查 */
+            lv_LOG_ERROR("func_block_add_port_dependency: 计数溢出 (count=%d)", fb->port_dep_count);
             return false;
         }
 
@@ -481,17 +478,15 @@ bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
 
         /* 检查 size_t 溢出 */
         size_t alloc_size;
-        if ((size_t)new_cap > SIZE_MAX / sizeof(PortDependency)) {
-            lv_LOG_ERROR("func_block_add_port_dependency: 分配大小溢出 (new_cap=%d)",
-                           new_cap);
+        if ((size_t) new_cap > SIZE_MAX / sizeof(PortDependency)) {
+            lv_LOG_ERROR("func_block_add_port_dependency: 分配大小溢出 (new_cap=%d)", new_cap);
             return false;
         }
-        alloc_size = (size_t)new_cap * sizeof(PortDependency);
+        alloc_size = (size_t) new_cap * sizeof(PortDependency);
 
-        PortDependency *new_deps = (PortDependency *)lv_realloc(fb->port_deps, alloc_size);
+        PortDependency *new_deps = (PortDependency *) lv_realloc(fb->port_deps, alloc_size);
         if (!new_deps) {
-            lv_LOG_ERROR("func_block_add_port_dependency: 内存分配失败 (size=%zu)",
-                           alloc_size);
+            lv_LOG_ERROR("func_block_add_port_dependency: 内存分配失败 (size=%zu)", alloc_size);
             return false;
         }
 
@@ -516,8 +511,7 @@ bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
 bool func_block_set_preconditions(FuncBlock *fb, const int *region_ids, int count) {
     if (!fb || count < 0)
         return false;
-    return func_block_set_int_array(&fb->precondition_region_ids, &fb->precondition_count,
-                                    region_ids, count);
+    return func_block_set_int_array(&fb->precondition_region_ids, &fb->precondition_count, region_ids, count);
 }
 
 /* ============== 跨边界检测 ============== */
@@ -577,11 +571,8 @@ bool func_block_detect_cross_boundary(ConstraintGraph *graph, const int *interna
  * @param error_size 错误消息缓冲区大小
  * @return lv_OK 成功（无跨边界约束或全部已处理），其他错误码
  */
-static int handle_cross_boundary_constraints(ConstraintGraph *graph,
-    const int *internal_ids, int internal_count,
-    const int *port_ids, int port_count,
-    char *error_msg, int error_size)
-{
+static int handle_cross_boundary_constraints(ConstraintGraph *graph, const int *internal_ids, int internal_count,
+                                             const int *port_ids, int port_count, char *error_msg, int error_size) {
     if (!graph || !internal_ids || internal_count <= 0)
         return lv_OK;
 
@@ -594,9 +585,9 @@ static int handle_cross_boundary_constraints(ConstraintGraph *graph,
     int *bound_ids = NULL;
     if (total_bound > 0) {
         /* 检查数组大小乘法溢出 */
-        if ((size_t)total_bound > SIZE_MAX / sizeof(int))
+        if ((size_t) total_bound > SIZE_MAX / sizeof(int))
             return lv_ERROR_OVERFLOW;
-        bound_ids = (int *)lv_malloc((size_t)total_bound * sizeof(int));
+        bound_ids = (int *) lv_malloc((size_t) total_bound * sizeof(int));
         if (!bound_ids)
             return lv_ERROR_OUT_OF_MEMORY;
         int bidx = 0;
@@ -609,11 +600,10 @@ static int handle_cross_boundary_constraints(ConstraintGraph *graph,
     }
 
     int count = 0;
-    CrossBoundaryConstraint *cbs = find_cross_boundary_constraints(
-        graph, bound_ids, total_bound, NULL, 0, &count);
+    CrossBoundaryConstraint *cbs = find_cross_boundary_constraints(graph, bound_ids, total_bound, NULL, 0, &count);
 
     if (bound_ids)
-        lv_free((void **)&bound_ids);
+        lv_free((void **) &bound_ids);
 
     if (!cbs || count == 0)
         return lv_OK;
@@ -627,15 +617,14 @@ static int handle_cross_boundary_constraints(ConstraintGraph *graph,
         /* 非连接约束需要用户决策 */
         if (error_msg && error_size > 0) {
             snprintf(error_msg, error_size,
-                "跨边界%d: 约束#%d (type=%d) 涉及外部节点#%d，"
-                "请选择: promote/disconnect/cancel",
-                i, cbs[i].constraint_id, (int)cbs[i].type,
-                cbs[i].node_ids[0]);
+                     "跨边界%d: 约束#%d (type=%d) 涉及外部节点#%d，"
+                     "请选择: promote/disconnect/cancel",
+                     i, cbs[i].constraint_id, (int) cbs[i].type, cbs[i].node_ids[0]);
         }
-        result = lv_ERROR_UNKNOWN;  /* 需要用户介入 */
+        result = lv_ERROR_UNKNOWN; /* 需要用户介入 */
     }
 
-    lv_free((void **)&cbs);
+    lv_free((void **) &cbs);
     return result;
 }
 
@@ -752,8 +741,7 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
     /* 【修复】局部变量栈空间保护：防止打包规模超出系统安全上限，
      * 避免在后续处理中因 VLA 或栈数组过大导致栈溢出。 */
     if (total_bound > lv_MAX_FB_LOCAL_VARS) {
-        lv_LOG_ERROR("func_block_pack: 局部变量总数 %d 超过上限 %d",
-                       total_bound, lv_MAX_FB_LOCAL_VARS);
+        lv_LOG_ERROR("func_block_pack: 局部变量总数 %d 超过上限 %d", total_bound, lv_MAX_FB_LOCAL_VARS);
         return PACK_RESULT_OUT_OF_MEMORY;
     }
     int *bound_ids = NULL;
@@ -799,25 +787,23 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
             } else if (g_cross_boundary_ctx.callback) {
                 /* 使用回调为每条非 CONNECTION 约束获取处理方式 */
                 int action_idx = 0;
-                int *cb_actions = (int *)lv_malloc((size_t)non_connection_count * sizeof(int));
+                int *cb_actions = (int *) lv_malloc((size_t) non_connection_count * sizeof(int));
                 if (cb_actions) {
                     for (int i = 0; i < conflict_count; i++) {
                         if (conflicts[i].type == CONNECTION)
                             continue;
                         CrossBoundaryResolution res = g_cross_boundary_ctx.callback(
-                            conflicts[i].constraint_id, conflicts[i].type,
-                            conflicts[i].node_ids[0],
-                            conflicts[i].node_ids[1],
-                            g_cross_boundary_ctx.user_data);
+                            conflicts[i].constraint_id, conflicts[i].type, conflicts[i].node_ids[0],
+                            conflicts[i].node_ids[1], g_cross_boundary_ctx.user_data);
                         if (res.action == CROSS_BOUNDARY_CANCEL) {
-                            lv_free((void **)&cb_actions);
-                            lv_free((void **)&conflicts);
-                            lv_free((void **)&bound_ids);
+                            lv_free((void **) &cb_actions);
+                            lv_free((void **) &conflicts);
+                            lv_free((void **) &bound_ids);
                             return PACK_RESULT_CANCELLED;
                         }
-                        cb_actions[action_idx++] = (int)res.action;
+                        cb_actions[action_idx++] = (int) res.action;
                     }
-                    cross_boundary_actions = (CrossBoundaryAction *)cb_actions;
+                    cross_boundary_actions = (CrossBoundaryAction *) cb_actions;
                     cross_boundary_count = non_connection_count;
                     can_process = true;
                 }
@@ -1092,28 +1078,28 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
     /* 参数验证 */
     if (!graph || !config || !out_func_block) {
         lv_ERROR_RETURN(lv_ERROR_INVALID_PARAM, PACK_RESULT_INVALID_NODES,
-                          "无效参数: graph=%p, config=%p, out_func_block=%p", (void *) graph, (void *) config,
-                          (void *) out_func_block);
+                        "无效参数: graph=%p, config=%p, out_func_block=%p", (void *) graph, (void *) config,
+                        (void *) out_func_block);
     }
 
     /* 验证必需参数 */
     if (!config->internal_node_ids || config->internal_count <= 0) {
         lv_ERROR_RETURN(lv_ERROR_INVALID_PARAM, PACK_RESULT_INVALID_NODES, "无效的内部节点: ids=%p, count=%d",
-                          (void *) config->internal_node_ids, config->internal_count);
+                        (void *) config->internal_node_ids, config->internal_count);
     }
 
     if (!config->input_port_ids || config->input_count < 0) {
         lv_ERROR_RETURN(lv_ERROR_INVALID_PARAM, PACK_RESULT_INVALID_PORTS, "无效的输入端口: ids=%p, count=%d",
-                          (void *) config->input_port_ids, config->input_count);
+                        (void *) config->input_port_ids, config->input_count);
     }
 
     if (!config->output_port_ids || config->output_count < 0) {
         lv_ERROR_RETURN(lv_ERROR_INVALID_PARAM, PACK_RESULT_INVALID_PORTS, "无效的输出端口: ids=%p, count=%d",
-                          (void *) config->output_port_ids, config->output_count);
+                        (void *) config->output_port_ids, config->output_count);
     }
 
     /* 准备跨边界约束处理参数 */
-    CrossBoundaryAction *actions = (CrossBoundaryAction *)config->cross_boundary_actions;
+    CrossBoundaryAction *actions = (CrossBoundaryAction *) config->cross_boundary_actions;
     int action_count = config->cross_boundary_count;
     bool actions_allocated = false;
 
@@ -1127,19 +1113,18 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
      */
     if (!actions || action_count <= 0) {
         char error_buf[256];
-        int cb_status = handle_cross_boundary_constraints(graph,
-            config->internal_node_ids, config->internal_count,
-            config->input_port_ids, config->input_count,
-            error_buf, sizeof(error_buf));
+        int cb_status = handle_cross_boundary_constraints(graph, config->internal_node_ids, config->internal_count,
+                                                          config->input_port_ids, config->input_count, error_buf,
+                                                          sizeof(error_buf));
 
         if (cb_status != lv_OK) {
             /* 存在非 CONNECTION 类型的跨边界约束，需要用户决策 */
             if (g_cross_boundary_ctx.callback) {
                 /* 使用回调获取每条约束的处理方式 */
                 int count = 0;
-                CrossBoundaryConstraint *cbs = find_cross_boundary_constraints(graph,
-                    config->internal_node_ids, config->internal_count,
-                    config->input_port_ids, config->input_count, &count);
+                CrossBoundaryConstraint *cbs =
+                    find_cross_boundary_constraints(graph, config->internal_node_ids, config->internal_count,
+                                                    config->input_port_ids, config->input_count, &count);
 
                 if (cbs && count > 0) {
                     int non_conn_count = 0;
@@ -1149,18 +1134,17 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
                     }
 
                     if (non_conn_count > 0) {
-                        CrossBoundaryAction *cb_actions = (CrossBoundaryAction *)lv_malloc(
-                            (size_t)non_conn_count * sizeof(CrossBoundaryAction));
+                        CrossBoundaryAction *cb_actions =
+                            (CrossBoundaryAction *) lv_malloc((size_t) non_conn_count * sizeof(CrossBoundaryAction));
                         if (cb_actions) {
                             int act_idx = 0;
                             bool cancelled = false;
                             for (int i = 0; i < count; i++) {
                                 if (cbs[i].type == CONNECTION)
                                     continue;
-                                CrossBoundaryResolution res = g_cross_boundary_ctx.callback(
-                                    cbs[i].constraint_id, cbs[i].type,
-                                    cbs[i].node_ids[0], cbs[i].node_ids[1],
-                                    g_cross_boundary_ctx.user_data);
+                                CrossBoundaryResolution res =
+                                    g_cross_boundary_ctx.callback(cbs[i].constraint_id, cbs[i].type, cbs[i].node_ids[0],
+                                                                  cbs[i].node_ids[1], g_cross_boundary_ctx.user_data);
                                 if (res.action == CROSS_BOUNDARY_CANCEL) {
                                     cancelled = true;
                                     break;
@@ -1168,8 +1152,8 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
                                 cb_actions[act_idx++] = res.action;
                             }
                             if (cancelled) {
-                                lv_free((void **)&cb_actions);
-                                lv_free((void **)&cbs);
+                                lv_free((void **) &cb_actions);
+                                lv_free((void **) &cbs);
                                 return PACK_RESULT_CANCELLED;
                             }
                             actions = cb_actions;
@@ -1177,12 +1161,12 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
                             actions_allocated = true;
                         }
                     }
-                    lv_free((void **)&cbs);
+                    lv_free((void **) &cbs);
                 }
             } else {
                 /* 无回调，返回错误消息让调用者处理 */
-                lv_ERROR_RETURN(lv_ERROR_UNKNOWN, PACK_RESULT_CROSS_BOUNDARY_CONFLICT,
-                                  "跨边界约束检查失败: %s", error_buf);
+                lv_ERROR_RETURN(lv_ERROR_UNKNOWN, PACK_RESULT_CROSS_BOUNDARY_CONFLICT, "跨边界约束检查失败: %s",
+                                error_buf);
             }
         }
     }
@@ -1194,7 +1178,7 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
 
     /* 如果 actions 是本函数分配的，需要释放 */
     if (actions_allocated) {
-        lv_free((void **)&actions);
+        lv_free((void **) &actions);
     }
 
     /* 设置名称和描述（如果提供了） */
@@ -1293,7 +1277,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
         dst->selector = lv_calloc(1, sizeof(SolutionSelector));
         if (!dst->selector)
             goto fail;
-        
+
         /* 复制基本字段 */
         dst->selector->type = src->selector->type;
         dst->selector->reference_node_id = src->selector->reference_node_id;
@@ -1304,36 +1288,35 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
         dst->selector->on_select = src->selector->on_select;
         dst->selector->on_change = src->selector->on_change;
         dst->selector->graph = src->selector->graph;
-        
+
         /* 深拷贝选择器名称 */
         if (src->selector->name) {
             dst->selector->name = lv_strdup(src->selector->name);
             if (!dst->selector->name) {
-                lv_free((void **)&dst->selector);
+                lv_free((void **) &dst->selector);
                 dst->selector = NULL;
                 goto fail;
             }
         } else {
             dst->selector->name = NULL;
         }
-        
+
         /* 深拷贝 solution_values 数组 */
         if (src->selector->solution_count > 0 && src->selector->solution_values) {
-            dst->selector->solution_values = lv_malloc(
-                (size_t)src->selector->solution_count * sizeof(double));
+            dst->selector->solution_values = lv_malloc((size_t) src->selector->solution_count * sizeof(double));
             if (!dst->selector->solution_values) {
-                lv_free((void **)&dst->selector->name);
-                lv_free((void **)&dst->selector);
+                lv_free((void **) &dst->selector->name);
+                lv_free((void **) &dst->selector);
                 dst->selector = NULL;
                 goto fail;
             }
             memcpy(dst->selector->solution_values, src->selector->solution_values,
-                   (size_t)src->selector->solution_count * sizeof(double));
+                   (size_t) src->selector->solution_count * sizeof(double));
         } else {
             dst->selector->solution_count = 0;
             dst->selector->solution_values = NULL;
         }
-        
+
         /* user_data 处理：使用深拷贝回调（如果提供）否则浅拷贝 */
         if (src->selector->copy_user_data && src->selector->user_data) {
             /* 使用自定义深拷贝函数 */

@@ -9,24 +9,10 @@ extern "C" {
 #endif
 
 /* List operations */
-typedef enum {
-    lv_LIST_CREATE,
-    lv_LIST_APPEND,
-    lv_LIST_GET,
-    lv_LIST_MAP,
-    lv_LIST_FILTER,
-    lv_LIST_REDUCE
-} lvListOp;
+typedef enum { lv_LIST_CREATE, lv_LIST_APPEND, lv_LIST_GET, lv_LIST_MAP, lv_LIST_FILTER, lv_LIST_REDUCE } lvListOp;
 
 /* Map operations */
-typedef enum {
-    lv_MAP_CREATE,
-    lv_MAP_INSERT,
-    lv_MAP_GET,
-    lv_MAP_REMOVE,
-    lv_MAP_KEYS,
-    lv_MAP_VALUES
-} lvMapOp;
+typedef enum { lv_MAP_CREATE, lv_MAP_INSERT, lv_MAP_GET, lv_MAP_REMOVE, lv_MAP_KEYS, lv_MAP_VALUES } lvMapOp;
 
 /* List block */
 typedef struct lvListBlock {

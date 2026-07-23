@@ -15,9 +15,9 @@
  * @version 1.1.0
  */
 
-#include "lv/lv.h"
-#include "lv/constraint_graph.h"
 #include "lv/conflict_detector.h"
+#include "lv/constraint_graph.h"
+#include "lv/lv.h"
 
 /**
  * Verify completeness: check that constraint graph has no unconstrained
@@ -32,7 +32,8 @@
  * @return 1 if complete, 0 if incomplete, -1 on error
  */
 int meta_verify_completeness(const ConstraintGraph *graph) {
-    if (!graph) return -1;
+    if (!graph)
+        return -1;
 
     /* Walk all nodes, count POINT nodes with coord_count == 0 (unresolved) */
     int unresolved_count = 0;
@@ -44,18 +45,21 @@ int meta_verify_completeness(const ConstraintGraph *graph) {
             error_count++;
             continue;
         }
-        if (!node->is_active) continue;
+        if (!node->is_active)
+            continue;
         if (node->type == GEOM_POINT && node->coord_count == 0) {
             unresolved_count++;
         }
     }
 
-    if (error_count > 0) return -1;
+    if (error_count > 0)
+        return -1;
 
     /* Run conflict_detector for deeper analysis */
     /* Conflicts can prevent resolution, making the graph incomplete */
     bool has_conflict = lv_conflict_detect_quick(graph);
-    if (has_conflict) return 0;
+    if (has_conflict)
+        return 0;
 
     return (unresolved_count == 0) ? 1 : 0;
 }
@@ -74,18 +78,23 @@ int meta_verify_completeness(const ConstraintGraph *graph) {
  * @return 1 if sound, 0 if contradiction found, -1 on error
  */
 int meta_verify_soundness(const ConstraintGraph *graph) {
-    if (!graph) return -1;
-    if (graph->node_count == 0 && graph->constraint_count == 0) return 1;
+    if (!graph)
+        return -1;
+    if (graph->node_count == 0 && graph->constraint_count == 0)
+        return 1;
 
     /* Call lv_conflict_detect_quick for fast structural check */
     bool has_conflict = lv_conflict_detect_quick(graph);
-    if (has_conflict) return 0;
+    if (has_conflict)
+        return 0;
 
     /* Walk constraints checking for basic consistency */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c) continue;
-        if (!c->is_active) continue;
+        if (!c)
+            continue;
+        if (!c->is_active)
+            continue;
 
         /* Check participant validity */
         for (int j = 0; j < c->participant_count; j++) {
@@ -125,10 +134,11 @@ int meta_verify_soundness(const ConstraintGraph *graph) {
  * @param graph_b  Second graph (NULL returns -1)
  * @return 0 if identical, positive count of differences, -1 on error
  */
-int meta_verify_differential(const ConstraintGraph *graph_a,
-                              const ConstraintGraph *graph_b) {
-    if (!graph_a || !graph_b) return -1;
-    if (graph_a == graph_b) return 0;
+int meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b) {
+    if (!graph_a || !graph_b)
+        return -1;
+    if (graph_a == graph_b)
+        return 0;
 
     int differences = 0;
 
@@ -143,8 +153,7 @@ int meta_verify_differential(const ConstraintGraph *graph_a,
     }
 
     /* Compare individual nodes (type, coord_count) */
-    int min_node_count = graph_a->node_count < graph_b->node_count ?
-                         graph_a->node_count : graph_b->node_count;
+    int min_node_count = graph_a->node_count < graph_b->node_count ? graph_a->node_count : graph_b->node_count;
     for (int i = 0; i < min_node_count; i++) {
         GeomNode *na = graph_a->nodes[i];
         GeomNode *nb = graph_b->nodes[i];
@@ -158,8 +167,8 @@ int meta_verify_differential(const ConstraintGraph *graph_a,
     }
 
     /* Compare individual constraints (type, participant_count) */
-    int min_con_count = graph_a->constraint_count < graph_b->constraint_count ?
-                        graph_a->constraint_count : graph_b->constraint_count;
+    int min_con_count =
+        graph_a->constraint_count < graph_b->constraint_count ? graph_a->constraint_count : graph_b->constraint_count;
     for (int i = 0; i < min_con_count; i++) {
         Constraint *ca = graph_a->constraints[i];
         Constraint *cb = graph_b->constraints[i];
@@ -167,8 +176,7 @@ int meta_verify_differential(const ConstraintGraph *graph_a,
             differences++;
             continue;
         }
-        if (ca->type != cb->type ||
-            ca->participant_count != cb->participant_count) {
+        if (ca->type != cb->type || ca->participant_count != cb->participant_count) {
             differences++;
         }
     }

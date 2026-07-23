@@ -10,11 +10,12 @@
  */
 
 #include "preset_special_functions.h"
-#include "preset_blocks.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
 
 #include <string.h>
+
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -23,8 +24,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_special_functions_register(void)
-{
+bool preset_special_functions_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -32,38 +32,26 @@ bool preset_special_functions_register(void)
      * ============================================================ */
 
     /* Gamma函数 */
-    if (preset_blocks_register_by_category(
-            "gamma_function",
-            "计算Gamma函数 Γ(z) = ∫_0^∞ t^{z-1} e^{-t} dt",
-            PRESET_EXT_ANALYSIS,
-            1, 1)) {
+    if (preset_blocks_register_by_category("gamma_function", "计算Gamma函数 Γ(z) = ∫_0^∞ t^{z-1} e^{-t} dt",
+                                           PRESET_EXT_ANALYSIS, 1, 1)) {
         success_count++;
     }
 
     /* Beta函数 */
-    if (preset_blocks_register_by_category(
-            "beta_function",
-            "计算Beta函数 B(a,b) = Γ(a)Γ(b)/Γ(a+b)",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("beta_function", "计算Beta函数 B(a,b) = Γ(a)Γ(b)/Γ(a+b)",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* 不完全Gamma函数 */
-    if (preset_blocks_register_by_category(
-            "incomplete_gamma",
-            "计算不完全Gamma函数 γ(s,x) 和 Γ(s,x)",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("incomplete_gamma", "计算不完全Gamma函数 γ(s,x) 和 Γ(s,x)",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* 误差函数 */
-    if (preset_blocks_register_by_category(
-            "error_function",
-            "计算误差函数 erf(x) = (2/√π) ∫_0^x e^{-t²} dt",
-            PRESET_EXT_ANALYSIS,
-            1, 1)) {
+    if (preset_blocks_register_by_category("error_function", "计算误差函数 erf(x) = (2/√π) ∫_0^x e^{-t²} dt",
+                                           PRESET_EXT_ANALYSIS, 1, 1)) {
         success_count++;
     }
 
@@ -72,29 +60,18 @@ bool preset_special_functions_register(void)
      * ============================================================ */
 
     /* 第一类Bessel函数 */
-    if (preset_blocks_register_by_category(
-            "bessel_j",
-            "计算第一类Bessel函数 J_ν(x)",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("bessel_j", "计算第一类Bessel函数 J_ν(x)", PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* 第二类Bessel函数 */
-    if (preset_blocks_register_by_category(
-            "bessel_y",
-            "计算第二类Bessel函数 Y_ν(x)（Neumann函数）",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("bessel_y", "计算第二类Bessel函数 Y_ν(x)（Neumann函数）",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* 修正Bessel函数 */
-    if (preset_blocks_register_by_category(
-            "bessel_i",
-            "计算第一类修正Bessel函数 I_ν(x)",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("bessel_i", "计算第一类修正Bessel函数 I_ν(x)", PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
@@ -103,20 +80,14 @@ bool preset_special_functions_register(void)
      * ============================================================ */
 
     /* 超几何函数 */
-    if (preset_blocks_register_by_category(
-            "hypergeometric_2f1",
-            "计算Gauss超几何函数 _2F_1(a,b;c;z)",
-            PRESET_EXT_ANALYSIS,
-            4, 1)) {
+    if (preset_blocks_register_by_category("hypergeometric_2f1", "计算Gauss超几何函数 _2F_1(a,b;c;z)",
+                                           PRESET_EXT_ANALYSIS, 4, 1)) {
         success_count++;
     }
 
     /* 合流超几何函数 */
-    if (preset_blocks_register_by_category(
-            "confluent_hypergeometric",
-            "计算合流超几何函数 _1F_1(a;b;z)（Kummer函数）",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("confluent_hypergeometric", "计算合流超几何函数 _1F_1(a;b;z)（Kummer函数）",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
@@ -125,38 +96,26 @@ bool preset_special_functions_register(void)
      * ============================================================ */
 
     /* Legendre多项式 */
-    if (preset_blocks_register_by_category(
-            "legendre_polynomial",
-            "计算Legendre多项式 P_n(x)",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("legendre_polynomial", "计算Legendre多项式 P_n(x)", PRESET_EXT_ANALYSIS, 2,
+                                           1)) {
         success_count++;
     }
 
     /* Chebyshev多项式 */
-    if (preset_blocks_register_by_category(
-            "chebyshev_polynomial",
-            "计算Chebyshev多项式 T_n(x) 和 U_n(x)",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("chebyshev_polynomial", "计算Chebyshev多项式 T_n(x) 和 U_n(x)",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* Hermite多项式 */
-    if (preset_blocks_register_by_category(
-            "hermite_polynomial",
-            "计算Hermite多项式 H_n(x)",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("hermite_polynomial", "计算Hermite多项式 H_n(x)", PRESET_EXT_ANALYSIS, 2,
+                                           1)) {
         success_count++;
     }
 
     /* Laguerre多项式 */
-    if (preset_blocks_register_by_category(
-            "laguerre_polynomial",
-            "计算Laguerre多项式 L_n(x)",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("laguerre_polynomial", "计算Laguerre多项式 L_n(x)", PRESET_EXT_ANALYSIS, 2,
+                                           1)) {
         success_count++;
     }
 
@@ -165,29 +124,20 @@ bool preset_special_functions_register(void)
      * ============================================================ */
 
     /* 椭圆积分 */
-    if (preset_blocks_register_by_category(
-            "elliptic_integral",
-            "计算第一类和第二类椭圆积分 F(φ,k), E(φ,k)",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("elliptic_integral", "计算第一类和第二类椭圆积分 F(φ,k), E(φ,k)",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
     /* Riemann Zeta函数 */
-    if (preset_blocks_register_by_category(
-            "riemann_zeta",
-            "计算Riemann Zeta函数 ζ(s) = Σ n^{-s}",
-            PRESET_EXT_ANALYSIS,
-            1, 1)) {
+    if (preset_blocks_register_by_category("riemann_zeta", "计算Riemann Zeta函数 ζ(s) = Σ n^{-s}", PRESET_EXT_ANALYSIS,
+                                           1, 1)) {
         success_count++;
     }
 
     /* Digamma函数 */
-    if (preset_blocks_register_by_category(
-            "digamma_function",
-            "计算Digamma函数 ψ(z) = Γ'(z)/Γ(z)",
-            PRESET_EXT_ANALYSIS,
-            1, 1)) {
+    if (preset_blocks_register_by_category("digamma_function", "计算Digamma函数 ψ(z) = Γ'(z)/Γ(z)", PRESET_EXT_ANALYSIS,
+                                           1, 1)) {
         success_count++;
     }
 
@@ -195,7 +145,6 @@ bool preset_special_functions_register(void)
     return success_count == SPECIAL_FUNCTIONS_PRESET_COUNT;
 }
 
-int preset_special_functions_count(void)
-{
+int preset_special_functions_count(void) {
     return SPECIAL_FUNCTIONS_PRESET_COUNT;
 }

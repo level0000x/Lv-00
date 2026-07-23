@@ -1,22 +1,23 @@
-﻿#include "lv/representation_converter.h"
+﻿#include <string.h>
+
 #include "lv/func_block.h"
 #include "lv/lv_utils.h"
-#include <string.h>
+#include "lv/representation_converter.h"
 
 /* 节点图内部结构：将 FuncBlock 映射为节点和边 */
 typedef struct {
-    int id;              /* 节点ID（对应 FuncBlock id） */
-    char *name;          /* 节点名称 */
-    int *input_ports;    /* 输入端口ID数组 */
-    int input_count;     /* 输入端口数量 */
-    int *output_ports;   /* 输出端口ID数组 */
-    int output_count;    /* 输出端口数量 */
+    int id;            /* 节点ID（对应 FuncBlock id） */
+    char *name;        /* 节点名称 */
+    int *input_ports;  /* 输入端口ID数组 */
+    int input_count;   /* 输入端口数量 */
+    int *output_ports; /* 输出端口ID数组 */
+    int output_count;  /* 输出端口数量 */
 } NodeGraphNode;
 
 typedef struct {
-    NodeGraphNode *nodes;  /* 节点数组 */
-    int node_count;         /* 节点数量 */
-    int node_cap;           /* 节点数组容量 */
+    NodeGraphNode *nodes; /* 节点数组 */
+    int node_count;       /* 节点数量 */
+    int node_cap;         /* 节点数组容量 */
 
     /* 边：src_node.output_port -> dst_node.input_port */
     struct {
@@ -49,7 +50,7 @@ lvConvertResult lv_convert_block_to_node(void *block) {
         int count;
     } BlockGraphView;
 
-    BlockGraphView *bg = (BlockGraphView *)block;
+    BlockGraphView *bg = (BlockGraphView *) block;
 
     /* 创建节点图 */
     NodeGraph *ng = lv_calloc(1, sizeof(NodeGraph));
@@ -61,7 +62,7 @@ lvConvertResult lv_convert_block_to_node(void *block) {
     ng->node_cap = bg->count > 0 ? bg->count : 8;
     ng->nodes = lv_calloc(ng->node_cap, sizeof(NodeGraphNode));
     if (!ng->nodes) {
-        lv_free((void **)&ng);
+        lv_free((void **) &ng);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
@@ -69,8 +70,8 @@ lvConvertResult lv_convert_block_to_node(void *block) {
     ng->edge_cap = 32;
     ng->edges = lv_calloc(ng->edge_cap, sizeof(ng->edges[0]));
     if (!ng->edges) {
-        lv_free((void **)&ng->nodes);
-        lv_free((void **)&ng);
+        lv_free((void **) &ng->nodes);
+        lv_free((void **) &ng);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
@@ -79,7 +80,8 @@ lvConvertResult lv_convert_block_to_node(void *block) {
     /* 为每个 FuncBlock 创建对应节点 */
     for (int i = 0; i < bg->count; i++) {
         FuncBlock *fb = bg->blocks[i];
-        if (!fb) continue;
+        if (!fb)
+            continue;
 
         NodeGraphNode *node = &ng->nodes[ng->node_count++];
         node->id = func_block_get_id(fb);
@@ -97,7 +99,7 @@ lvConvertResult lv_convert_block_to_node(void *block) {
         if (in_count > 0 && fb->input_port_ids) {
             node->input_ports = lv_calloc(in_count, sizeof(int));
             if (!node->input_ports) {
-                lv_free((void **)&node->name);
+                lv_free((void **) &node->name);
                 ng->node_count--;
                 lv_convert_block_to_node_cleanup(ng);
                 result.success = 0;
@@ -113,8 +115,8 @@ lvConvertResult lv_convert_block_to_node(void *block) {
         if (out_count > 0 && fb->output_port_ids) {
             node->output_ports = lv_calloc(out_count, sizeof(int));
             if (!node->output_ports) {
-                lv_free((void **)&node->name);
-                lv_free((void **)&node->input_ports);
+                lv_free((void **) &node->name);
+                lv_free((void **) &node->input_ports);
                 ng->node_count--;
                 lv_convert_block_to_node_cleanup(ng);
                 result.success = 0;
@@ -130,7 +132,8 @@ lvConvertResult lv_convert_block_to_node(void *block) {
     /* 遍历所有块的端口依赖，建立节点间的连接 */
     for (int i = 0; i < bg->count; i++) {
         FuncBlock *fb = bg->blocks[i];
-        if (!fb || fb->port_dep_count <= 0 || !fb->port_deps) continue;
+        if (!fb || fb->port_dep_count <= 0 || !fb->port_deps)
+            continue;
 
         for (int j = 0; j < fb->port_dep_count; j++) {
             PortDependency *dep = &fb->port_deps[j];
@@ -138,8 +141,10 @@ lvConvertResult lv_convert_block_to_node(void *block) {
             /* 查找源节点和目标节点在节点图中的索引 */
             int src_idx = -1, dst_idx = -1;
             for (int k = 0; k < ng->node_count; k++) {
-                if (ng->nodes[k].id == dep->external_node_id) src_idx = k;
-                if (ng->nodes[k].id == fb->id) dst_idx = k;
+                if (ng->nodes[k].id == dep->external_node_id)
+                    src_idx = k;
+                if (ng->nodes[k].id == fb->id)
+                    dst_idx = k;
             }
 
             if (src_idx >= 0 && dst_idx >= 0) {
@@ -171,17 +176,18 @@ lvConvertResult lv_convert_block_to_node(void *block) {
 
 /* 清理节点图中的动态内存（strdup分配的name等） */
 static void lv_convert_block_to_node_cleanup(NodeGraph *ng) {
-    if (!ng) return;
+    if (!ng)
+        return;
     for (int i = 0; i < ng->node_count; i++) {
-        lv_free((void **)&ng->nodes[i].name);
-        lv_free((void **)&ng->nodes[i].input_ports);
-        lv_free((void **)&ng->nodes[i].output_ports);
+        lv_free((void **) &ng->nodes[i].name);
+        lv_free((void **) &ng->nodes[i].input_ports);
+        lv_free((void **) &ng->nodes[i].output_ports);
     }
-    lv_free((void **)&ng->edges);
-    lv_free((void **)&ng->nodes);
+    lv_free((void **) &ng->edges);
+    lv_free((void **) &ng->nodes);
     ng->node_count = 0;
     ng->edge_count = 0;
-    lv_free((void **)&ng);
+    lv_free((void **) &ng);
 }
 
 lvConvertResult lv_convert_node_to_block(void *node) {
@@ -193,7 +199,7 @@ lvConvertResult lv_convert_node_to_block(void *node) {
     }
 
     /* node 指向 NodeGraph 结构（由 lv_convert_block_to_node 产生） */
-    NodeGraph *ng = (NodeGraph *)node;
+    NodeGraph *ng = (NodeGraph *) node;
 
     /* 创建 BlockGraphView 结构作为输出 */
     typedef struct {
@@ -221,7 +227,7 @@ lvConvertResult lv_convert_node_to_block(void *node) {
     bg->count = ng->node_count;
     bg->blocks = lv_calloc(ng->node_count, sizeof(FuncBlock *));
     if (!bg->blocks) {
-        lv_free((void **)&bg);
+        lv_free((void **) &bg);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
@@ -237,8 +243,8 @@ lvConvertResult lv_convert_node_to_block(void *node) {
             for (int j = 0; j < i; j++) {
                 func_block_destroy(bg->blocks[j]);
             }
-            lv_free((void **)&bg->blocks);
-            lv_free((void **)&bg);
+            lv_free((void **) &bg->blocks);
+            lv_free((void **) &bg);
             result.success = 0;
             strncpy(result.error_msg, "out of memory creating FuncBlock", sizeof(result.error_msg));
             return result;
@@ -275,20 +281,20 @@ lvConvertResult lv_convert_node_to_block(void *node) {
         int src_port = ng->edges[i].src_port;
         int dst_port = ng->edges[i].dst_port;
 
-        if (src_idx < 0 || src_idx >= ng->node_count ||
-            dst_idx < 0 || dst_idx >= ng->node_count) {
+        if (src_idx < 0 || src_idx >= ng->node_count || dst_idx < 0 || dst_idx >= ng->node_count) {
             continue; /* 无效索引，跳过 */
         }
 
         FuncBlock *dst_fb = bg->blocks[dst_idx];
-        if (!dst_fb) continue;
+        if (!dst_fb)
+            continue;
 
         /* 创建端口依赖：目标块依赖源节点的输出端口 */
         PortDependency dep;
-        dep.type = PORT_DEP_INCIDENCE;  /* 默认关联约束类型 */
-        dep.port_id = dst_port;         /* 目标块的输入端口 */
-        dep.external_node_id = ng->nodes[src_idx].id;  /* 外部节点 ID（源节点） */
-        dep.internal_node_id = src_port;                /* 内部节点 ID（源端口） */
+        dep.type = PORT_DEP_INCIDENCE;                /* 默认关联约束类型 */
+        dep.port_id = dst_port;                       /* 目标块的输入端口 */
+        dep.external_node_id = ng->nodes[src_idx].id; /* 外部节点 ID（源节点） */
+        dep.internal_node_id = src_port;              /* 内部节点 ID（源端口） */
         dep.constraint_data = NULL;
 
         func_block_add_port_dependency(dst_fb, &dep);

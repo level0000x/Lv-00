@@ -19,13 +19,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/solver.h"
+
 #include "func_block.h"
+#include "func_block_internal.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/solver.h"
 #include "stream.h"
 #include "stream_context_util.h"
-#include "func_block_internal.h"
 
 /* ==================== 命名常量 ==================== */
 
@@ -48,13 +49,10 @@
  * @param stats        输出参数：填充统计结果
  * @return 分配的 all_ids 数组（调用者负责释放），失败返回 NULL
  */
-int* determinism_collect_constraint_stats(
-    const FuncBlock *fb,
-    const ConstraintGraph *graph,
-    int step_limit,
-    DeterminismStaticStats *stats)
-{
-    if (!fb || !graph || !stats) return NULL;
+int *determinism_collect_constraint_stats(const FuncBlock *fb, const ConstraintGraph *graph, int step_limit,
+                                          DeterminismStaticStats *stats) {
+    if (!fb || !graph || !stats)
+        return NULL;
 
     memset(stats, 0, sizeof(*stats));
 
@@ -67,7 +65,8 @@ int* determinism_collect_constraint_stats(
 
     /* 第2步：统计约束类型 */
     for (int i = 0; i < graph->constraint_count; i++) {
-        if (step_limit > 0 && stats->steps >= step_limit) break;
+        if (step_limit > 0 && stats->steps >= step_limit)
+            break;
         stats->steps++;
 
         Constraint *c = graph->constraints[i];
@@ -80,7 +79,8 @@ int* determinism_collect_constraint_stats(
                 break;
             }
         }
-        if (!involves_internal) continue;
+        if (!involves_internal)
+            continue;
 
         switch (c->type) {
             case INCIDENCE:
@@ -104,11 +104,12 @@ int* determinism_collect_constraint_stats(
             /* 安全性说明：graph_get_node 仅读取图内容，不修改图结构。
              * 此处 graph 参数来源为 const ConstraintGraph *，
              * 强制转换是安全的，因为被调用函数不会产生副作用。 */
-            GeomNode *n = graph_get_node((ConstraintGraph *)graph, fb->internal_node_ids[i]);
+            GeomNode *n = graph_get_node((ConstraintGraph *) graph, fb->internal_node_ids[i]);
             /* 修复：增强 graph_get_node 返回值检查，
              * 对 NULL 返回值记录警告日志，便于排查节点丢失问题 */
             if (!n) {
-                lv_LOG_WARNING("determinism_collect_constraint_stats: "
+                lv_LOG_WARNING(
+                    "determinism_collect_constraint_stats: "
                     "内部节点 id=%d 在图中不存在，跳过自由度计算",
                     fb->internal_node_ids[i]);
                 continue;
@@ -130,9 +131,11 @@ int* determinism_collect_constraint_stats(
  * @return -1 过约束（无解），0 恰好约束（唯一解），1 欠约束（多解）
  */
 int determinism_evaluate_linear_dof(int free_dof) {
-    if (free_dof < 0)  return -1;  /* 过约束：无解 */
-    if (free_dof == 0) return 0;   /* 恰好约束：唯一解 */
-    return 1;                       /* 欠约束：多解 */
+    if (free_dof < 0)
+        return -1; /* 过约束：无解 */
+    if (free_dof == 0)
+        return 0; /* 恰好约束：唯一解 */
+    return 1;     /* 欠约束：多解 */
 }
 
 /**
@@ -147,15 +150,16 @@ int determinism_evaluate_linear_dof(int free_dof) {
  * 3. 释放 GroebnerResult 结构体本身
  */
 void determinism_cleanup_groebner(void *gresult) {
-    if (!gresult) return;
-    GroebnerResult *gr = (GroebnerResult *)gresult;
+    if (!gresult)
+        return;
+    GroebnerResult *gr = (GroebnerResult *) gresult;
     /* 逐个销毁符号坐标解 */
     for (int i = 0; i < gr->solution_count; i++) {
         symbolic_coord_destroy(gr->solutions[i]);
     }
     /* 释放解数组和结构体 */
-    lv_free((void **)&gr->solutions);
-    lv_free((void **)&gr);
+    lv_free((void **) &gr->solutions);
+    lv_free((void **) &gr);
 }
 
 /**
@@ -166,12 +170,9 @@ void determinism_cleanup_groebner(void *gresult) {
  * @param step_limit 步数上限
  * @return 确定性检查结果
  */
-DeterminismCheckResult func_block_check_determinism_static(
-    FuncBlock *fb,
-    ConstraintGraph *graph,
-    int step_limit)
-{
-    if (!fb || !graph) return DETERMINISM_CHECK_NO_SOLUTION;
+DeterminismCheckResult func_block_check_determinism_static(FuncBlock *fb, ConstraintGraph *graph, int step_limit) {
+    if (!fb || !graph)
+        return DETERMINISM_CHECK_NO_SOLUTION;
 
     /* 使用共享核心：收集约束统计 */
     DeterminismStaticStats stats;
@@ -182,7 +183,7 @@ DeterminismCheckResult func_block_check_determinism_static(
             return DETERMINISM_CHECK_UNIQUE;
         return DETERMINISM_CHECK_NO_SOLUTION;
     }
-    lv_free((void **)&all_ids);
+    lv_free((void **) &all_ids);
 
     /* 超时检查 */
     if (step_limit > 0 && stats.steps >= step_limit) {
@@ -232,12 +233,13 @@ DeterminismCheckResult func_block_check_determinism_static(
                 int max_var_id = -1;
                 for (int i = 0; i < total_eqs; i++) {
                     int vid = equation_system_get_var_id(eq_sys, i);
-                    if (vid > max_var_id) max_var_id = vid;
+                    if (vid > max_var_id)
+                        max_var_id = vid;
                 }
                 int var_count = 0;
                 bool *seen_vars = NULL;
                 if (max_var_id >= 0) {
-                    seen_vars = lv_calloc((size_t)(max_var_id + 1), sizeof(bool));
+                    seen_vars = lv_calloc((size_t) (max_var_id + 1), sizeof(bool));
                     if (!seen_vars) {
                         /* 修复：seen_vars 分配失败时，直接销毁 eq_sys 并返回，
                          * seen_vars 为 NULL 无需释放 */
@@ -254,7 +256,7 @@ DeterminismCheckResult func_block_check_determinism_static(
                 }
                 /* 修复：seen_vars 使用完毕后立即释放，确保后续所有 return 路径
                  * 都不会遗漏释放（防御性编程，避免未来代码变更引入泄漏） */
-                lv_free((void **)&seen_vars);
+                lv_free((void **) &seen_vars);
 
                 int actual_free_dof = var_count - total_eqs;
                 if (actual_free_dof < 0) {
@@ -276,12 +278,15 @@ DeterminismCheckResult func_block_check_determinism_static(
     if (stats.quadratic_count == 0) {
         int dof_result = determinism_evaluate_linear_dof(stats.free_dof);
         switch (dof_result) {
-            case -1: fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-                     return DETERMINISM_CHECK_NO_SOLUTION;
-            case  0: fb->determinism = DETERMINISM_VERIFIED;
-                     return DETERMINISM_CHECK_UNIQUE;
-            default: fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
-                     return DETERMINISM_CHECK_MULTIPLE;
+            case -1:
+                fb->determinism = DETERMINISM_NON_DETERMINISTIC;
+                return DETERMINISM_CHECK_NO_SOLUTION;
+            case 0:
+                fb->determinism = DETERMINISM_VERIFIED;
+                return DETERMINISM_CHECK_UNIQUE;
+            default:
+                fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
+                return DETERMINISM_CHECK_MULTIPLE;
         }
     }
 
@@ -351,14 +356,9 @@ __attribute__((deprecated("use func_block_determinism_check_dynamic instead")))
 #elif defined(_MSC_VER)
 __declspec(deprecated("use func_block_determinism_check_dynamic instead"))
 #endif
-DeterminismCheckResult func_block_check_determinism_dynamic(
-    FuncBlock *fb,
-    ConstraintGraph *graph,
-    SymbolicCoord **arg_values,
-    int arg_count,
-    GeomNode ***out_solutions,
-    int *out_solution_count)
-{
+DeterminismCheckResult func_block_check_determinism_dynamic(FuncBlock *fb, ConstraintGraph *graph,
+                                                            SymbolicCoord **arg_values, int arg_count,
+                                                            GeomNode ***out_solutions, int *out_solution_count) {
     if (!fb || !graph || !out_solutions || !out_solution_count) {
         return DETERMINISM_CHECK_NO_SOLUTION;
     }
@@ -394,7 +394,8 @@ DeterminismCheckResult func_block_check_determinism_dynamic(
                 break;
             }
         }
-        if (!involves_internal) continue;
+        if (!involves_internal)
+            continue;
 
         if (c->type == INTERSECTION) {
             has_quadratic = true;
@@ -477,7 +478,7 @@ DeterminismCheckResult func_block_check_determinism_dynamic(
 dynamic_cleanup:
     /* 修复：统一在此释放 all_ids，确保所有路径都不会遗漏释放。
      * 即使 all_ids 为 NULL，lv_free 也能安全处理。 */
-    lv_free((void **)&all_ids);
+    lv_free((void **) &all_ids);
     return retval;
 }
 
@@ -496,15 +497,12 @@ dynamic_cleanup:
  * @param graph 约束图
  * @return 确定性状态（VERIFIED / NON_DETERMINISTIC / PARTIALLY_VERIFIED）
  */
-DeterminismStatus func_block_determinism_check_static(
-    FuncBlock *fb,
-    const ConstraintGraph *graph)
-{
+DeterminismStatus func_block_determinism_check_static(FuncBlock *fb, const ConstraintGraph *graph) {
     if (!fb || !graph) {
         /* 流式事件：静态确定性检查完成 */
         if (func_block_stream_ctx) {
             stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK,
-                "静态确定性检查完成: 非确定性", 1);
+                               "静态确定性检查完成: 非确定性", 1);
         }
         return DETERMINISM_NON_DETERMINISTIC;
     }
@@ -513,14 +511,12 @@ DeterminismStatus func_block_determinism_check_static(
 
     /* 流式事件：静态确定性检查开始 */
     if (func_block_stream_ctx) {
-        stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK,
-            "静态确定性检查开始", 0);
+        stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, "静态确定性检查开始", 0);
     }
 
     /* 使用共享核心：收集约束统计 */
     DeterminismStaticStats stats;
-    int *all_ids = determinism_collect_constraint_stats(fb, graph,
-        lv_DEFAULT_DETERMINISM_STEP_LIMIT, &stats);
+    int *all_ids = determinism_collect_constraint_stats(fb, graph, lv_DEFAULT_DETERMINISM_STEP_LIMIT, &stats);
     if (!all_ids) {
         /* total_count == 0：无内部节点，直接标记为已验证 */
         if (fb->internal_node_count + fb->input_count + fb->output_count == 0) {
@@ -531,7 +527,7 @@ DeterminismStatus func_block_determinism_check_static(
         }
         goto static_done;
     }
-    lv_free((void **)&all_ids);
+    lv_free((void **) &all_ids);
 
     /* 超时检查：分析未完成但未发现冲突 */
     if (stats.steps >= lv_DEFAULT_DETERMINISM_STEP_LIMIT) {
@@ -544,15 +540,18 @@ DeterminismStatus func_block_determinism_check_static(
     if (stats.quadratic_count == 0) {
         int dof_result = determinism_evaluate_linear_dof(stats.free_dof);
         switch (dof_result) {
-            case -1: fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-                     static_result = DETERMINISM_NON_DETERMINISTIC;
-                     goto static_done;
-            case  0: fb->determinism = DETERMINISM_VERIFIED;
-                     static_result = DETERMINISM_VERIFIED;
-                     goto static_done;
-            default: fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
-                     static_result = DETERMINISM_PARTIALLY_VERIFIED;
-                     goto static_done;
+            case -1:
+                fb->determinism = DETERMINISM_NON_DETERMINISTIC;
+                static_result = DETERMINISM_NON_DETERMINISTIC;
+                goto static_done;
+            case 0:
+                fb->determinism = DETERMINISM_VERIFIED;
+                static_result = DETERMINISM_VERIFIED;
+                goto static_done;
+            default:
+                fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
+                static_result = DETERMINISM_PARTIALLY_VERIFIED;
+                goto static_done;
         }
     }
 
@@ -562,8 +561,7 @@ DeterminismStatus func_block_determinism_check_static(
         /* 安全性说明：solve_algebraic_system 仅从图中提取方程，不修改图结构。
          * 此处 graph 参数来源为 const ConstraintGraph *，
          * 强制转换是安全的，因为被调用函数不会产生副作用。 */
-        SolverStatus status = solve_algebraic_system(
-            (ConstraintGraph *)graph, NULL, 0, &gresult);
+        SolverStatus status = solve_algebraic_system((ConstraintGraph *) graph, NULL, 0, &gresult);
 
         switch (status) {
             case SOLVER_UNIQUE:
@@ -602,9 +600,9 @@ DeterminismStatus func_block_determinism_check_static(
 static_done:
     /* 流式事件：静态确定性检查完成 */
     if (func_block_stream_ctx) {
-        const char *desc = (static_result == DETERMINISM_VERIFIED) ? "静态确定性检查完成: 已验证"
-                         : (static_result == DETERMINISM_PARTIALLY_VERIFIED) ? "静态确定性检查完成: 部分验证"
-                         : "静态确定性检查完成: 非确定性";
+        const char *desc = (static_result == DETERMINISM_VERIFIED)             ? "静态确定性检查完成: 已验证"
+                           : (static_result == DETERMINISM_PARTIALLY_VERIFIED) ? "静态确定性检查完成: 部分验证"
+                                                                               : "静态确定性检查完成: 非确定性";
         stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, desc, 1);
     }
     return static_result;
@@ -625,17 +623,13 @@ static_done:
  * @param n_inputs     输入值数量
  * @return 确定性状态（VERIFIED / NON_DETERMINISTIC / PARTIALLY_VERIFIED）
  */
-DeterminismStatus func_block_determinism_check_dynamic(
-    FuncBlock *fb,
-    ConstraintGraph *graph,
-    const SymbolicCoord **input_values,
-    int n_inputs)
-{
+DeterminismStatus func_block_determinism_check_dynamic(FuncBlock *fb, ConstraintGraph *graph,
+                                                       const SymbolicCoord **input_values, int n_inputs) {
     if (!fb || !graph) {
         /* 流式事件：动态确定性检查完成 */
         if (func_block_stream_ctx) {
             stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK,
-                "动态确定性检查完成: 非确定性", 1);
+                               "动态确定性检查完成: 非确定性", 1);
         }
         return DETERMINISM_NON_DETERMINISTIC;
     }
@@ -644,8 +638,7 @@ DeterminismStatus func_block_determinism_check_dynamic(
 
     /* 流式事件：动态确定性检查开始 */
     if (func_block_stream_ctx) {
-        stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK,
-            "动态确定性检查开始", 0);
+        stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, "动态确定性检查开始", 0);
     }
 
     /* 收集所有内部相关节点ID（使用共享辅助函数） */
@@ -681,8 +674,8 @@ DeterminismStatus func_block_determinism_check_dynamic(
     SymbolicCoord ***saved_coords = NULL;
     int *saved_coord_counts = NULL;
     if (n_inputs > 0 && input_values != NULL) {
-        saved_coords = lv_malloc((size_t)n_inputs * sizeof(SymbolicCoord **));
-        saved_coord_counts = lv_malloc((size_t)n_inputs * sizeof(int));
+        saved_coords = lv_malloc((size_t) n_inputs * sizeof(SymbolicCoord **));
+        saved_coord_counts = lv_malloc((size_t) n_inputs * sizeof(int));
         if (saved_coords && saved_coord_counts) {
             /* 初始化 saved_coords 数组，确保恢复时能正确判断哪些槽位有效 */
             for (int i = 0; i < n_inputs; i++) {
@@ -704,7 +697,7 @@ DeterminismStatus func_block_determinism_check_dynamic(
                                 port_node->coord_count = 1;
                             } else {
                                 /* symbolic_coord_copy 失败：恢复原始坐标 */
-                                lv_free((void **)&port_node->symbolic_coords);
+                                lv_free((void **) &port_node->symbolic_coords);
                                 port_node->symbolic_coords = saved_coords[i];
                                 port_node->coord_count = saved_coord_counts[i];
                                 saved_coords[i] = NULL; /* 标记为已恢复，避免 double-free */
@@ -721,8 +714,8 @@ DeterminismStatus func_block_determinism_check_dynamic(
         } else {
             /* saved_coords 或 saved_coord_counts 分配失败：无法安全地保存/恢复坐标，
              * 跳过参数绑定，直接使用当前图中的坐标值进行求解 */
-            lv_free((void **)&saved_coords);
-            lv_free((void **)&saved_coord_counts);
+            lv_free((void **) &saved_coords);
+            lv_free((void **) &saved_coord_counts);
             saved_coords = NULL;
             saved_coord_counts = NULL;
         }
@@ -737,21 +730,22 @@ DeterminismStatus func_block_determinism_check_dynamic(
      * 此时跳过恢复以避免 double-free */
     if (saved_coords && saved_coord_counts) {
         for (int i = 0; i < n_inputs && i < fb->input_count; i++) {
-            if (!saved_coords[i]) continue; /* 跳过未保存或已提前恢复的槽位 */
+            if (!saved_coords[i])
+                continue; /* 跳过未保存或已提前恢复的槽位 */
             GeomNode *port_node = graph_get_node(graph, fb->input_port_ids[i]);
             if (port_node) {
                 /* 释放临时绑定的坐标 */
                 if (port_node->symbolic_coords && port_node->coord_count == 1) {
                     symbolic_coord_destroy(port_node->symbolic_coords[0]);
-                    lv_free((void **)&port_node->symbolic_coords);
+                    lv_free((void **) &port_node->symbolic_coords);
                 }
                 /* 恢复原始坐标 */
                 port_node->symbolic_coords = saved_coords[i];
                 port_node->coord_count = saved_coord_counts[i];
             }
         }
-        lv_free((void **)&saved_coords);
-        lv_free((void **)&saved_coord_counts);
+        lv_free((void **) &saved_coords);
+        lv_free((void **) &saved_coord_counts);
     }
 
     /* 根据求解器结果判断确定性 */
@@ -806,7 +800,8 @@ DeterminismStatus func_block_determinism_check_dynamic(
                             break;
                         }
                     }
-                    if (!involves) continue;
+                    if (!involves)
+                        continue;
                     if (c->type == INTERSECTION) {
                         has_quadratic = true;
                         if (expected_solutions <= INT_MAX / 2) {
@@ -828,12 +823,12 @@ DeterminismStatus func_block_determinism_check_dynamic(
 
 dynamic_done:
     /* 修复：统一在此处释放 all_ids，确保所有路径都不会遗漏释放 */
-    lv_free((void **)&all_ids);
+    lv_free((void **) &all_ids);
     /* 流式事件：动态确定性检查完成 */
     if (func_block_stream_ctx) {
-        const char *desc = (dynamic_result == DETERMINISM_VERIFIED) ? "动态确定性检查完成: 已验证"
-                         : (dynamic_result == DETERMINISM_PARTIALLY_VERIFIED) ? "动态确定性检查完成: 部分验证"
-                         : "动态确定性检查完成: 非确定性";
+        const char *desc = (dynamic_result == DETERMINISM_VERIFIED)             ? "动态确定性检查完成: 已验证"
+                           : (dynamic_result == DETERMINISM_PARTIALLY_VERIFIED) ? "动态确定性检查完成: 部分验证"
+                                                                                : "动态确定性检查完成: 非确定性";
         stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, desc, 1);
     }
     return dynamic_result;
@@ -856,38 +851,29 @@ dynamic_done:
  * @param step_limit 静态分析的最大步数
  * @return 最终确定性状态（VERIFIED / NON_DETERMINISTIC / PARTIALLY_VERIFIED / UNVERIFIED）
  */
-DeterminismState func_block_verify_determinism(
-    FuncBlock *fb, ConstraintGraph *graph, int step_limit)
-{
-    if (!fb || !graph) return DETERMINISM_UNVERIFIED;
+DeterminismState func_block_verify_determinism(FuncBlock *fb, ConstraintGraph *graph, int step_limit) {
+    if (!fb || !graph)
+        return DETERMINISM_UNVERIFIED;
 
     /* 流式事件：确定性验证入口 */
     if (func_block_stream_ctx) {
-        stream_emit_simple(func_block_stream_ctx,
-                           STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK,
-                           "函数块确定性验证开始",
+        stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, "函数块确定性验证开始",
                            -1);
     }
 
     /* 第1步：静态分析 */
-    DeterminismCheckResult static_result =
-        func_block_check_determinism_static(fb, graph, step_limit);
+    DeterminismCheckResult static_result = func_block_check_determinism_static(fb, graph, step_limit);
 
     switch (static_result) {
         case DETERMINISM_CHECK_UNIQUE:
             if (func_block_stream_ctx) {
-                stream_emit_simple(func_block_stream_ctx,
-                                   STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK,
-                                   "确定性验证通过",
+                stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, "确定性验证通过",
                                    -1);
             }
             return DETERMINISM_VERIFIED;
         case DETERMINISM_CHECK_NO_SOLUTION:
             if (func_block_stream_ctx) {
-                stream_emit_simple(func_block_stream_ctx,
-                                   STREAM_EVENT_WARNING,
-                                   "检测到非确定性",
-                                   -1);
+                stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_WARNING, "检测到非确定性", -1);
             }
             return DETERMINISM_NON_DETERMINISTIC;
         case DETERMINISM_CHECK_TIMEOUT:

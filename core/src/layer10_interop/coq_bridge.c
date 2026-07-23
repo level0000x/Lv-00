@@ -12,14 +12,15 @@
  * @author Lv-00 Project
  */
 
+#include <ctype.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv/interop.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <limits.h>
 
 /**
  * @brief Lv-00 证明步骤类型枚举（Coq 映射版）
@@ -28,14 +29,14 @@
  * 每种步骤类型对应一个或多个 Coq 等价策略。
  */
 typedef enum {
-    lv_STEP_ADD_NODE = 0,      /**< 添加节点 → intro */
-    lv_STEP_ADD_CONSTRAINT,    /**< 添加约束 → constructor */
-    lv_STEP_REWRITE,           /**< 重写 → rewrite */
-    lv_STEP_FUNCTION_APP,      /**< 函数应用 → apply */
-    lv_STEP_NORMALIZATION,     /**< 规范化 → simpl */
-    lv_STEP_UNIFY,             /**< 合一 → reflexivity */
-    lv_STEP_EX_FALSO,          /**< 矛盾 → contradiction */
-    lv_STEP_ORACLE             /**< 外部预言 → admit (* oracle *) */
+    lv_STEP_ADD_NODE = 0,   /**< 添加节点 → intro */
+    lv_STEP_ADD_CONSTRAINT, /**< 添加约束 → constructor */
+    lv_STEP_REWRITE,        /**< 重写 → rewrite */
+    lv_STEP_FUNCTION_APP,   /**< 函数应用 → apply */
+    lv_STEP_NORMALIZATION,  /**< 规范化 → simpl */
+    lv_STEP_UNIFY,          /**< 合一 → reflexivity */
+    lv_STEP_EX_FALSO,       /**< 矛盾 → contradiction */
+    lv_STEP_ORACLE          /**< 外部预言 → admit (* oracle *) */
 } lvProofStepType;
 
 /**
@@ -44,9 +45,9 @@ typedef enum {
  * 表示 Coq 证明中的单个步骤，包含类型、描述文本和序号。
  */
 typedef struct {
-    int type;                     /**< 步骤类型（lvProofStepType） */
-    char description[512];       /**< 步骤描述（tactic 名称） */
-    int id;                      /**< 步骤编号（按导入顺序） */
+    int type;              /**< 步骤类型（lvProofStepType） */
+    char description[512]; /**< 步骤描述（tactic 名称） */
+    int id;                /**< 步骤编号（按导入顺序） */
 } lvProofStep;
 
 /**
@@ -55,14 +56,14 @@ typedef struct {
  * 用于 Coq 证明脚本的导入/导出中间表示。包含定理名称和步骤数组。
  */
 typedef struct {
-    char theorem_name[256];      /**< 定理名称 */
-    int step_count;              /**< 当前步骤数量 */
-    int step_capacity;           /**< 步骤数组容量 */
-    lvProofStep *steps;          /**< 步骤动态数组 */
+    char theorem_name[256]; /**< 定理名称 */
+    int step_count;         /**< 当前步骤数量 */
+    int step_capacity;      /**< 步骤数组容量 */
+    lvProofStep *steps;     /**< 步骤动态数组 */
 } lvCoqProof;
 
 /* 映射表大小常量 */
-#define COQ_TACTIC_MAP_COUNT  8
+#define COQ_TACTIC_MAP_COUNT 8
 #define COQ_REVERSE_MAP_COUNT 8
 #define COQ_VALID_TACTICS_COUNT 35
 
@@ -78,24 +79,19 @@ typedef struct {
  * @return 成功返回 0，参数无效或缓冲区不足返回 -1
  */
 static int coq_export_proof(void *proof, char *output, int output_size) {
-    if (!proof || !output || output_size <= 0) return -1;
+    if (!proof || !output || output_size <= 0)
+        return -1;
 
-    lvCoqProof *p = (lvCoqProof *)proof;
+    lvCoqProof *p = (lvCoqProof *) proof;
 
     /* 步骤类型到 Coq tactic 的映射表 */
     static const struct {
         int step_type;
         const char *tactic;
-    } tactic_map[] = {
-        { lv_STEP_ADD_NODE,        "intro" },
-        { lv_STEP_ADD_CONSTRAINT,   "constructor" },
-        { lv_STEP_REWRITE,         "rewrite" },
-        { lv_STEP_FUNCTION_APP,    "apply" },
-        { lv_STEP_NORMALIZATION,   "simpl" },
-        { lv_STEP_UNIFY,           "reflexivity" },
-        { lv_STEP_EX_FALSO,        "contradiction" },
-        { lv_STEP_ORACLE,          "admit (* oracle *)" }
-    };
+    } tactic_map[] = {{lv_STEP_ADD_NODE, "intro"},         {lv_STEP_ADD_CONSTRAINT, "constructor"},
+                      {lv_STEP_REWRITE, "rewrite"},        {lv_STEP_FUNCTION_APP, "apply"},
+                      {lv_STEP_NORMALIZATION, "simpl"},    {lv_STEP_UNIFY, "reflexivity"},
+                      {lv_STEP_EX_FALSO, "contradiction"}, {lv_STEP_ORACLE, "admit (* oracle *)"}};
     int tactic_count = COQ_TACTIC_MAP_COUNT;
 
     /* 输出头 */
@@ -105,18 +101,20 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
     const char *footer =
         ".\n"
         "Qed.\n";
-    int header_len = (int)strlen(header);
-    int footer_len = (int)strlen(footer);
+    int header_len = (int) strlen(header);
+    int footer_len = (int) strlen(footer);
 
     /* 检查基本空间 */
-    if (header_len + footer_len + 64 >= output_size) return -1;
+    if (header_len + footer_len + 64 >= output_size)
+        return -1;
 
     memcpy(output, header, header_len);
     int pos = header_len;
 
     /* 写入定理名称 */
-    int name_len = (int)strlen(p->theorem_name);
-    if (pos + name_len + 16 >= output_size) return -1;
+    int name_len = (int) strlen(p->theorem_name);
+    if (pos + name_len + 16 >= output_size)
+        return -1;
     memcpy(output + pos, p->theorem_name, name_len);
     pos += name_len;
 
@@ -137,15 +135,17 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
         }
 
         /* 检查剩余空间是否足够 */
-        int tac_len = (int)strlen(tac);
-        if (pos + tac_len + 8 >= output_size) return -1;
+        int tac_len = (int) strlen(tac);
+        if (pos + tac_len + 8 >= output_size)
+            return -1;
 
         /* 写入 tactic，以 "." 结尾 */
         pos += snprintf(output + pos, output_size - pos, "  %s.\n", tac);
     }
 
     /* 写入尾部 */
-    if (pos + footer_len + 1 >= output_size) return -1;
+    if (pos + footer_len + 1 >= output_size)
+        return -1;
     memcpy(output + pos, footer, footer_len + 1);
     return 0;
 }
@@ -161,89 +161,101 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
  * @return 成功返回 0，输入无效或解析失败返回 -1
  */
 static int coq_import_proof(const char *input, void **proof) {
-    if (!input || !proof) return -1;
+    if (!input || !proof)
+        return -1;
     *proof = NULL;
 
     /* 检查输入非空 */
-    if (strlen(input) == 0) return -1;
+    if (strlen(input) == 0)
+        return -1;
 
     /* 查找 "Theorem" 关键字 */
     const char *theorem_kw = strstr(input, "Theorem");
-    if (!theorem_kw) return -1;
+    if (!theorem_kw)
+        return -1;
 
     /* 提取定理名（Theorem 后的第一个标识符） */
     const char *name_start = theorem_kw + 7; /* 跳过 "Theorem" */
-    while (*name_start && isspace((unsigned char)*name_start)) name_start++;
+    while (*name_start && isspace((unsigned char) *name_start))
+        name_start++;
     const char *name_end = name_start;
-    while (*name_end && !isspace((unsigned char)*name_end) && *name_end != ':') name_end++;
-    if (name_end == name_start) return -1;
+    while (*name_end && !isspace((unsigned char) *name_end) && *name_end != ':')
+        name_end++;
+    if (name_end == name_start)
+        return -1;
 
     /* 查找 "Proof." 关键字，确定 tactic 脚本起始位置 */
     const char *proof_kw = strstr(input, "Proof.");
-    if (!proof_kw) return -1;
+    if (!proof_kw)
+        return -1;
     const char *script_start = proof_kw + 6; /* 跳过 "Proof." */
-    while (*script_start && isspace((unsigned char)*script_start)) script_start++;
+    while (*script_start && isspace((unsigned char) *script_start))
+        script_start++;
 
     /* 查找 "Qed." 关键字，确定 tactic 脚本结束位置 */
     const char *qed_kw = strstr(script_start, "Qed.");
-    if (!qed_kw) return -1;
+    if (!qed_kw)
+        return -1;
 
     /* Coq tactic 到 Lv-00 步骤类型的反向映射 */
     static const struct {
         const char *tactic;
         int step_type;
-    } reverse_map[] = {
-        { "intro",         lv_STEP_ADD_NODE },
-        { "constructor",   lv_STEP_ADD_CONSTRAINT },
-        { "rewrite",       lv_STEP_REWRITE },
-        { "apply",         lv_STEP_FUNCTION_APP },
-        { "simpl",         lv_STEP_NORMALIZATION },
-        { "reflexivity",   lv_STEP_UNIFY },
-        { "contradiction", lv_STEP_EX_FALSO },
-        { "admit",         lv_STEP_ORACLE }
-    };
+    } reverse_map[] = {{"intro", lv_STEP_ADD_NODE},         {"constructor", lv_STEP_ADD_CONSTRAINT},
+                       {"rewrite", lv_STEP_REWRITE},        {"apply", lv_STEP_FUNCTION_APP},
+                       {"simpl", lv_STEP_NORMALIZATION},    {"reflexivity", lv_STEP_UNIFY},
+                       {"contradiction", lv_STEP_EX_FALSO}, {"admit", lv_STEP_ORACLE}};
     int reverse_count = COQ_REVERSE_MAP_COUNT;
 
     /* 分配证明结构体 */
-    lvCoqProof *p = (lvCoqProof *)lv_calloc(1, sizeof(lvCoqProof));
-    if (!p) return -1;
+    lvCoqProof *p = (lvCoqProof *) lv_calloc(1, sizeof(lvCoqProof));
+    if (!p)
+        return -1;
 
     /* 保存定理名 */
     {
-        size_t nlen = (size_t)(name_end - name_start);
-        if (nlen >= sizeof(p->theorem_name)) nlen = sizeof(p->theorem_name) - 1;
+        size_t nlen = (size_t) (name_end - name_start);
+        if (nlen >= sizeof(p->theorem_name))
+            nlen = sizeof(p->theorem_name) - 1;
         memcpy(p->theorem_name, name_start, nlen);
         p->theorem_name[nlen] = '\0';
     }
 
     /* 初始化步骤数组 */
     p->step_capacity = 16;
-    p->steps = (lvProofStep *)lv_calloc(p->step_capacity, sizeof(lvProofStep));
-    if (!p->steps) { lv_free((void **)&p); return -1; }
+    p->steps = (lvProofStep *) lv_calloc(p->step_capacity, sizeof(lvProofStep));
+    if (!p->steps) {
+        lv_free((void **) &p);
+        return -1;
+    }
 
     /* 逐行解析 tactic 脚本 */
     const char *line = script_start;
     while (line < qed_kw) {
         /* 跳过空白 */
-        while (line < qed_kw && isspace((unsigned char)*line)) line++;
-        if (line >= qed_kw) break;
+        while (line < qed_kw && isspace((unsigned char) *line))
+            line++;
+        if (line >= qed_kw)
+            break;
 
         /* 找到行尾 */
         const char *line_end = line;
-        while (line_end < qed_kw && *line_end != '\n' && *line_end != '\r') line_end++;
+        while (line_end < qed_kw && *line_end != '\n' && *line_end != '\r')
+            line_end++;
 
         /* 提取 tactic 名称（行首到第一个空格或 '.'） */
         const char *tac_start = line;
         const char *tac_end = tac_start;
-        while (tac_end < line_end && !isspace((unsigned char)*tac_end) && *tac_end != '.') tac_end++;
+        while (tac_end < line_end && !isspace((unsigned char) *tac_end) && *tac_end != '.')
+            tac_end++;
 
         if (tac_end > tac_start) {
             /* 查找对应的步骤类型 */
             int step_type = -1;
-            int tac_len = (int)(tac_end - tac_start);
+            int tac_len = (int) (tac_end - tac_start);
 
             for (int j = 0; j < reverse_count; j++) {
-                if ((int)strlen(reverse_map[j].tactic) == tac_len &&
+                if ((int) strlen(reverse_map[j].tactic) == tac_len &&
                     strncmp(tac_start, reverse_map[j].tactic, tac_len) == 0) {
                     step_type = reverse_map[j].step_type;
                     break;
@@ -256,15 +268,15 @@ static int coq_import_proof(const char *input, void **proof) {
                 if (p->step_count >= p->step_capacity) {
                     /* [安全] 乘法前做溢出检查 */
                     if (p->step_capacity > INT_MAX / 2) {
-                        lv_free((void **)&p->steps);
-                        lv_free((void **)&p);
+                        lv_free((void **) &p->steps);
+                        lv_free((void **) &p);
                         return -1;
                     }
                     int new_cap = p->step_capacity * 2;
-                    lvProofStep *new_steps = (lvProofStep *)lv_realloc(p->steps, new_cap * sizeof(lvProofStep));
+                    lvProofStep *new_steps = (lvProofStep *) lv_realloc(p->steps, new_cap * sizeof(lvProofStep));
                     if (!new_steps) {
-                        lv_free((void **)&p->steps);
-                        lv_free((void **)&p);
+                        lv_free((void **) &p->steps);
+                        lv_free((void **) &p);
                         return -1;
                     }
                     p->steps = new_steps;
@@ -276,8 +288,9 @@ static int coq_import_proof(const char *input, void **proof) {
                 step->id = p->step_count;
                 /* 保存 tactic 名称作为描述 */
                 {
-                    size_t dlen = (size_t)(tac_end - tac_start);
-                    if (dlen >= sizeof(step->description)) dlen = sizeof(step->description) - 1;
+                    size_t dlen = (size_t) (tac_end - tac_start);
+                    if (dlen >= sizeof(step->description))
+                        dlen = sizeof(step->description) - 1;
                     memcpy(step->description, tac_start, dlen);
                     step->description[dlen] = '\0';
                 }
@@ -302,45 +315,49 @@ static int coq_import_proof(const char *input, void **proof) {
  * @return 校验通过返回 1，无效输入或校验失败返回 0
  */
 static int coq_validate(const char *input) {
-    if (!input) return 0;
-    if (strlen(input) == 0) return 0;
+    if (!input)
+        return 0;
+    if (strlen(input) == 0)
+        return 0;
 
     /* 检查花括号平衡 */
     int brace_depth = 0;
     /* 检查圆括号平衡 */
     int paren_depth = 0;
     for (const char *p = input; *p; p++) {
-        if (*p == '{') brace_depth++;
+        if (*p == '{')
+            brace_depth++;
         else if (*p == '}') {
             brace_depth--;
-            if (brace_depth < 0) return 0; /* 花括号不匹配 */
-        }
-        else if (*p == '(') paren_depth++;
+            if (brace_depth < 0)
+                return 0; /* 花括号不匹配 */
+        } else if (*p == '(')
+            paren_depth++;
         else if (*p == ')') {
             paren_depth--;
-            if (paren_depth < 0) return 0; /* 圆括号不匹配 */
+            if (paren_depth < 0)
+                return 0; /* 圆括号不匹配 */
         }
     }
-    if (brace_depth != 0) return 0; /* 花括号不平衡 */
-    if (paren_depth != 0) return 0; /* 圆括号不平衡 */
+    if (brace_depth != 0)
+        return 0; /* 花括号不平衡 */
+    if (paren_depth != 0)
+        return 0; /* 圆括号不平衡 */
 
     /* 检查是否包含 "Theorem" 或 "Lemma" 关键字 */
     int has_theorem = (strstr(input, "Theorem") != NULL);
     int has_lemma = (strstr(input, "Lemma") != NULL);
-    if (!has_theorem && !has_lemma) return 0;
+    if (!has_theorem && !has_lemma)
+        return 0;
 
     /* 检查是否包含有效 tactic 名称 */
     static const char *valid_tactics[] = {
-        "intro", "apply", "rewrite", "constructor", "simpl",
-        "reflexivity", "contradiction", "admit", "exact",
-        "induction", "destruct", "cases", "split", "left",
-        "right", "assumption", "auto", "trivial", "omega",
-        "ring", "field", "lia", "nia", "tauto",
-        "unfold", "fold", "change", "replace", "set",
-        "pose", "assert", "generalize", "specialize",
-        "inversion", "injection", "discriminate", "subst",
-        "symmetry", "transitivity", "f_equal", "congruence"
-    };
+        "intro",        "apply",      "rewrite",   "constructor",  "simpl",      "reflexivity", "contradiction",
+        "admit",        "exact",      "induction", "destruct",     "cases",      "split",       "left",
+        "right",        "assumption", "auto",      "trivial",      "omega",      "ring",        "field",
+        "lia",          "nia",        "tauto",     "unfold",       "fold",       "change",      "replace",
+        "set",          "pose",       "assert",    "generalize",   "specialize", "inversion",   "injection",
+        "discriminate", "subst",      "symmetry",  "transitivity", "f_equal",    "congruence"};
     int valid_count = COQ_VALID_TACTICS_COUNT;
 
     int found_tactic = 0;
@@ -365,7 +382,8 @@ static int coq_validate(const char *input) {
  * @return 成功返回 0，mgr 为 NULL 返回 -1
  */
 int lv_register_coq_plugin(lvInteropManager *mgr) {
-    if (!mgr) return -1;
+    if (!mgr)
+        return -1;
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "coq", sizeof(plugin.name) - 1);

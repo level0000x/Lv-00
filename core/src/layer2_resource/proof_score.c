@@ -26,27 +26,27 @@
  *  评分阈值常量
  * ================================================================ */
 
-#define SCORE_THRESHOLD_A_PLUS  0.95    /**< A+ 等级阈值 */
-#define SCORE_THRESHOLD_A       0.85    /**< A  等级阈值 */
-#define SCORE_THRESHOLD_B       0.70    /**< B  等级阈值 */
-#define SCORE_THRESHOLD_C       0.50    /**< C  等级阈值 */
-#define SCORE_INVALID           (-1.0)  /**< 无效分数 */
+#define SCORE_THRESHOLD_A_PLUS 0.95 /**< A+ 等级阈值 */
+#define SCORE_THRESHOLD_A 0.85      /**< A  等级阈值 */
+#define SCORE_THRESHOLD_B 0.70      /**< B  等级阈值 */
+#define SCORE_THRESHOLD_C 0.50      /**< C  等级阈值 */
+#define SCORE_INVALID (-1.0)        /**< 无效分数 */
 
 /* ================================================================
  *  评分维度权重
  * ================================================================ */
 
 /** 完整性权重（证明步骤是否齐全） */
-#define WEIGHT_COMPLETENESS     0.30
+#define WEIGHT_COMPLETENESS 0.30
 
 /** 正确性权重（逻辑推导是否无误） */
-#define WEIGHT_CORRECTNESS      0.35
+#define WEIGHT_CORRECTNESS 0.35
 
 /** 效率权重（证明步数、推理时间） */
-#define WEIGHT_EFFICIENCY       0.20
+#define WEIGHT_EFFICIENCY 0.20
 
 /** 简洁度权重（是否存在冗余步骤） */
-#define WEIGHT_SIMPLICITY       0.15
+#define WEIGHT_SIMPLICITY 0.15
 
 /* ================================================================
  *  内部辅助函数
@@ -58,10 +58,11 @@
  * @param raw 原始分数
  * @return 钳制后的分数
  */
-static double clamp_score(double raw)
-{
-    if (raw < 0.0) return 0.0;
-    if (raw > 1.0) return 1.0;
+static double clamp_score(double raw) {
+    if (raw < 0.0)
+        return 0.0;
+    if (raw > 1.0)
+        return 1.0;
     return raw;
 }
 
@@ -71,8 +72,7 @@ static double clamp_score(double raw)
  * @param score 已钳制到 [0.0, 1.0] 的分数
  * @return 等级字符串（静态存储，无需释放）
  */
-static const char *score_to_grade(double score)
-{
+static const char *score_to_grade(double score) {
     if (score >= SCORE_THRESHOLD_A_PLUS) {
         return "A+";
     }
@@ -105,8 +105,7 @@ static const char *score_to_grade(double score)
  * @param engine   证明引擎句柄（当前预留接口，传 NULL 有效）
  * @return 综合评分 [0.0, 1.0]，无效输入返回 0.0
  */
-double lv_proof_score_evaluate(int proof_id, void *engine)
-{
+double lv_proof_score_evaluate(int proof_id, void *engine) {
     double base_score;
     double completeness;
     double correctness;
@@ -114,7 +113,7 @@ double lv_proof_score_evaluate(int proof_id, void *engine)
     double simplicity;
     double final_score;
 
-    (void)engine;  /* 预留：未来接入证明引擎 */
+    (void) engine; /* 预留：未来接入证明引擎 */
 
     /* 无效 proof_id 检查 */
     if (proof_id < 0) {
@@ -132,16 +131,14 @@ double lv_proof_score_evaluate(int proof_id, void *engine)
      */
 
     /* 模拟各维度评分（基于 proof_id 的确定性计算） */
-    completeness = 0.6 + 0.4 * ((double)(proof_id % 11) / 10.0);
-    correctness  = 0.7 + 0.3 * ((double)(proof_id % 7) / 6.0);
-    efficiency   = 0.5 + 0.5 * ((double)(proof_id % 13) / 12.0);
-    simplicity   = 0.6 + 0.4 * ((double)(proof_id % 9) / 8.0);
+    completeness = 0.6 + 0.4 * ((double) (proof_id % 11) / 10.0);
+    correctness = 0.7 + 0.3 * ((double) (proof_id % 7) / 6.0);
+    efficiency = 0.5 + 0.5 * ((double) (proof_id % 13) / 12.0);
+    simplicity = 0.6 + 0.4 * ((double) (proof_id % 9) / 8.0);
 
     /* 加权综合评分 */
-    final_score = completeness * WEIGHT_COMPLETENESS +
-                  correctness  * WEIGHT_CORRECTNESS  +
-                  efficiency   * WEIGHT_EFFICIENCY    +
-                  simplicity   * WEIGHT_SIMPLICITY;
+    final_score = completeness * WEIGHT_COMPLETENESS + correctness * WEIGHT_CORRECTNESS +
+                  efficiency * WEIGHT_EFFICIENCY + simplicity * WEIGHT_SIMPLICITY;
 
     /* 钳制到有效范围 */
     final_score = clamp_score(final_score);
@@ -156,8 +153,7 @@ double lv_proof_score_evaluate(int proof_id, void *engine)
  * @return 等级字符串（静态存储，无需释放）
  *         无效分数返回 "F"
  */
-const char *lv_proof_score_grade(double score)
-{
+const char *lv_proof_score_grade(double score) {
     /* 无效分数检查 */
     if (score < 0.0) {
         return "F";

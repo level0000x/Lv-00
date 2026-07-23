@@ -1,6 +1,7 @@
 ﻿#ifndef lv_PRESET_LOGIC_ADVANCED_H
 #define lv_PRESET_LOGIC_ADVANCED_H
 #include <stdbool.h>
+
 #include "func_block_registry.h"
 #ifdef __cplusplus
 extern "C" {

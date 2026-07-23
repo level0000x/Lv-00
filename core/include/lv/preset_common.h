@@ -2,9 +2,10 @@
 #define lv_PRESET_COMMON_H
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "func_block_preset.h"
 #include "func_block_registry.h"
 #include "preset_blocks.h"
-#include "func_block_preset.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -71,7 +72,11 @@ extern "C" {
  * ======================================================================== */
 
 #ifndef PRESET_CHECK_NULL
-#define PRESET_CHECK_NULL(ptr, label) do { if (!(ptr)) goto label; } while(0)
+#define PRESET_CHECK_NULL(ptr, label) \
+    do {                              \
+        if (!(ptr))                   \
+            goto label;               \
+    } while (0)
 #endif
 
 /* ========================================================================

@@ -13,15 +13,18 @@
  */
 
 #include "context.h"
-#include "config.h"       /* lv_DEFAULT_* macros */
-#include "lv_utils.h"
-#include "lv/constraint_graph.h"
-#include "stream.h"
-#include "normalization.h"
-#include <stdatomic.h>
+
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "lv/constraint_graph.h"
+
+#include "config.h" /* lv_DEFAULT_* macros */
+#include "lv_utils.h"
+#include "normalization.h"
+#include "stream.h"
 
 /* ============================================================
  * 内部静态变量
@@ -41,10 +44,9 @@ static atomic_uint_fast64_t s_next_context_id = 1;
  * 然后设置各字段的默认值。
  */
 lvContext *lv_context_create(void) {
-    lvContext *ctx = (lvContext *)lv_calloc(1, sizeof(lvContext));
+    lvContext *ctx = (lvContext *) lv_calloc(1, sizeof(lvContext));
     if (!ctx) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY,
-                       "lv_context_create: 分配 lvContext 失败");
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "lv_context_create: 分配 lvContext 失败");
         return NULL;
     }
 
@@ -68,8 +70,7 @@ lvContext *lv_context_create(void) {
     ctx->circuit_breaker.total_steps = 0;
     ctx->circuit_breaker.max_steps = lv_CONTEXT_DEFAULT_MAX_STEPS;
     ctx->circuit_breaker.consecutive_errors = 0;
-    ctx->circuit_breaker.max_consecutive_errors =
-        lv_CONTEXT_DEFAULT_MAX_CONSECUTIVE_ERRORS;
+    ctx->circuit_breaker.max_consecutive_errors = lv_CONTEXT_DEFAULT_MAX_CONSECUTIVE_ERRORS;
     ctx->circuit_breaker.max_memory_bytes = 0; /* 不限制 */
     ctx->circuit_breaker.start_time_us = lv_get_time_us();
     ctx->circuit_breaker.operation_start_us = 0;
@@ -87,8 +88,7 @@ lvContext *lv_context_create(void) {
     ctx->reasoning_stack.frames = NULL;
     ctx->reasoning_stack.top = -1;
     ctx->reasoning_stack.capacity = 0;
-    ctx->reasoning_stack.max_depth =
-        lv_CONTEXT_REASONING_STACK_MAX_DEPTH;
+    ctx->reasoning_stack.max_depth = lv_CONTEXT_REASONING_STACK_MAX_DEPTH;
 
     /* 3. 缓存状态 */
     ctx->cache_valid = false;
@@ -127,37 +127,37 @@ void lv_context_destroy(lvContext *ctx) {
         for (int i = 0; i <= ctx->reasoning_stack.top && i < ctx->reasoning_stack.capacity; i++) {
             ReasoningFrame *frame = &ctx->reasoning_stack.frames[i];
             if (frame->graph_snapshot) {
-                graph_destroy((ConstraintGraph *)frame->graph_snapshot);
+                graph_destroy((ConstraintGraph *) frame->graph_snapshot);
                 frame->graph_snapshot = NULL;
             }
             if (frame->assumption_node_ids) {
-                lv_free((void **)&frame->assumption_node_ids);
+                lv_free((void **) &frame->assumption_node_ids);
             }
             if (frame->target_node_ids) {
-                lv_free((void **)&frame->target_node_ids);
+                lv_free((void **) &frame->target_node_ids);
             }
             /* user_data 由外部管理，不释放 */
         }
-        lv_free((void **)&ctx->reasoning_stack.frames);
+        lv_free((void **) &ctx->reasoning_stack.frames);
     }
 
     /* 2. 释放代数计算缓存 */
     if (ctx->groebner_cache) {
-        lv_free((void **)&ctx->groebner_cache);
+        lv_free((void **) &ctx->groebner_cache);
     }
     if (ctx->symbolic_cache) {
-        lv_free((void **)&ctx->symbolic_cache);
+        lv_free((void **) &ctx->symbolic_cache);
     }
     if (ctx->numeric_cache) {
-        lv_free((void **)&ctx->numeric_cache);
+        lv_free((void **) &ctx->numeric_cache);
     }
     if (ctx->unification_cache) {
-        lv_free((void **)&ctx->unification_cache);
+        lv_free((void **) &ctx->unification_cache);
     }
 
     /* 3. 释放主约束图 */
     if (ctx->main_graph) {
-        graph_destroy((ConstraintGraph *)ctx->main_graph);
+        graph_destroy((ConstraintGraph *) ctx->main_graph);
         ctx->main_graph = NULL;
     }
 
@@ -178,18 +178,18 @@ void lv_context_destroy(lvContext *ctx) {
 
     /* 7. 释放内存池（不透明指针） */
     if (ctx->memory_pool) {
-        lv_free((void **)&ctx->memory_pool);
+        lv_free((void **) &ctx->memory_pool);
     }
 
     /* 8. 释放模块/公理/规则引用数组（不拥有所指对象，仅释放数组本身） */
     if (ctx->module_refs) {
-        lv_free((void **)&ctx->module_refs);
+        lv_free((void **) &ctx->module_refs);
     }
     if (ctx->axiom_pkg_refs) {
-        lv_free((void **)&ctx->axiom_pkg_refs);
+        lv_free((void **) &ctx->axiom_pkg_refs);
     }
     if (ctx->rewrite_rule_refs) {
-        lv_free((void **)&ctx->rewrite_rule_refs);
+        lv_free((void **) &ctx->rewrite_rule_refs);
     }
 
     /* 9. 释放父快照链（递归销毁） */
@@ -204,16 +204,16 @@ void lv_context_destroy(lvContext *ctx) {
 
     /* 10. 释放名称字符串 */
     if (ctx->name) {
-        lv_free((void **)&ctx->name);
+        lv_free((void **) &ctx->name);
     }
 
     /* 11. 释放熔断器错误原因字符串 */
     if (ctx->circuit_breaker.trip_reason) {
-        lv_free((void **)&ctx->circuit_breaker.trip_reason);
+        lv_free((void **) &ctx->circuit_breaker.trip_reason);
     }
 
     /* 12. 释放上下文结构体本身 */
-    lv_free((void **)&ctx);
+    lv_free((void **) &ctx);
 }
 
 /* ============================================================
@@ -227,8 +227,7 @@ void lv_context_destroy(lvContext *ctx) {
  * ctx->error_message 定长缓冲区（512 字节），同时设置
  * ctx->error_code。
  */
-void lv_context_set_error(lvContext *ctx, lvErrorCode code,
-                            const char *fmt, ...) {
+void lv_context_set_error(lvContext *ctx, lvErrorCode code, const char *fmt, ...) {
     if (!ctx) {
         return;
     }
@@ -263,10 +262,9 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
         return NULL;
     }
 
-    lvContext *snap = (lvContext *)lv_calloc(1, sizeof(lvContext));
+    lvContext *snap = (lvContext *) lv_calloc(1, sizeof(lvContext));
     if (!snap) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY,
-                       "lv_context_snapshot: 分配快照失败");
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "lv_context_snapshot: 分配快照失败");
         return NULL;
     }
 
@@ -277,7 +275,7 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
     if (ctx->main_graph) {
         snap->main_graph = graph_create();
         if (!snap->main_graph) {
-            lv_free((void **)&snap);
+            lv_free((void **) &snap);
             return NULL;
         }
         /* graph_create 创建空图；当前为浅拷贝（仅创建空图），完整版应深拷贝所有节点和约束 */
@@ -289,11 +287,12 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
     snap->reasoning_stack.capacity = 0;
     if (ctx->reasoning_stack.capacity > 0 && ctx->reasoning_stack.top >= 0) {
         snap->reasoning_stack.capacity = ctx->reasoning_stack.capacity;
-        snap->reasoning_stack.frames = (ReasoningFrame *)lv_calloc(
-            (size_t)ctx->reasoning_stack.capacity, sizeof(ReasoningFrame));
+        snap->reasoning_stack.frames =
+            (ReasoningFrame *) lv_calloc((size_t) ctx->reasoning_stack.capacity, sizeof(ReasoningFrame));
         if (!snap->reasoning_stack.frames) {
-            if (snap->main_graph) graph_destroy((ConstraintGraph *)snap->main_graph);
-            lv_free((void **)&snap);
+            if (snap->main_graph)
+                graph_destroy((ConstraintGraph *) snap->main_graph);
+            lv_free((void **) &snap);
             return NULL;
         }
         snap->reasoning_stack.top = ctx->reasoning_stack.top;
@@ -308,19 +307,17 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
             }
             /* 深拷贝假设和目标数组 */
             if (src_frame->assumption_node_ids && src_frame->assumption_count > 0) {
-                dst_frame->assumption_node_ids = (int *)lv_calloc(
-                    (size_t)src_frame->assumption_count, sizeof(int));
+                dst_frame->assumption_node_ids = (int *) lv_calloc((size_t) src_frame->assumption_count, sizeof(int));
                 if (dst_frame->assumption_node_ids) {
                     memcpy(dst_frame->assumption_node_ids, src_frame->assumption_node_ids,
-                           (size_t)src_frame->assumption_count * sizeof(int));
+                           (size_t) src_frame->assumption_count * sizeof(int));
                 }
             }
             if (src_frame->target_node_ids && src_frame->target_count > 0) {
-                dst_frame->target_node_ids = (int *)lv_calloc(
-                    (size_t)src_frame->target_count, sizeof(int));
+                dst_frame->target_node_ids = (int *) lv_calloc((size_t) src_frame->target_count, sizeof(int));
                 if (dst_frame->target_node_ids) {
                     memcpy(dst_frame->target_node_ids, src_frame->target_node_ids,
-                           (size_t)src_frame->target_count * sizeof(int));
+                           (size_t) src_frame->target_count * sizeof(int));
                 }
             }
         }
@@ -335,8 +332,7 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
     /* 深拷贝熔断器错误原因 */
     snap->circuit_breaker.trip_reason = NULL;
     if (ctx->circuit_breaker.trip_reason) {
-        snap->circuit_breaker.trip_reason =
-            lv_strdup_safe(ctx->circuit_breaker.trip_reason);
+        snap->circuit_breaker.trip_reason = lv_strdup_safe(ctx->circuit_breaker.trip_reason);
     }
 
     /* 缓存标记为无效（不深拷贝缓存内容） */
@@ -405,27 +401,31 @@ bool lv_context_rollback(lvContext *ctx, lvContext *snapshot) {
         for (int i = 0; i <= ctx->reasoning_stack.top && i < ctx->reasoning_stack.capacity; i++) {
             ReasoningFrame *frame = &ctx->reasoning_stack.frames[i];
             if (frame->graph_snapshot) {
-                graph_destroy((ConstraintGraph *)frame->graph_snapshot);
+                graph_destroy((ConstraintGraph *) frame->graph_snapshot);
             }
             if (frame->assumption_node_ids) {
-                lv_free((void **)&frame->assumption_node_ids);
+                lv_free((void **) &frame->assumption_node_ids);
             }
             if (frame->target_node_ids) {
-                lv_free((void **)&frame->target_node_ids);
+                lv_free((void **) &frame->target_node_ids);
             }
         }
-        lv_free((void **)&ctx->reasoning_stack.frames);
+        lv_free((void **) &ctx->reasoning_stack.frames);
     }
 
     /* 释放缓存 */
-    if (ctx->groebner_cache) lv_free((void **)&ctx->groebner_cache);
-    if (ctx->symbolic_cache) lv_free((void **)&ctx->symbolic_cache);
-    if (ctx->numeric_cache) lv_free((void **)&ctx->numeric_cache);
-    if (ctx->unification_cache) lv_free((void **)&ctx->unification_cache);
+    if (ctx->groebner_cache)
+        lv_free((void **) &ctx->groebner_cache);
+    if (ctx->symbolic_cache)
+        lv_free((void **) &ctx->symbolic_cache);
+    if (ctx->numeric_cache)
+        lv_free((void **) &ctx->numeric_cache);
+    if (ctx->unification_cache)
+        lv_free((void **) &ctx->unification_cache);
 
     /* 释放主约束图 */
     if (ctx->main_graph) {
-        graph_destroy((ConstraintGraph *)ctx->main_graph);
+        graph_destroy((ConstraintGraph *) ctx->main_graph);
     }
 
     /* 释放规范化结果 */
@@ -435,12 +435,12 @@ bool lv_context_rollback(lvContext *ctx, lvContext *snapshot) {
 
     /* 释放名称 */
     if (ctx->name) {
-        lv_free((void **)&ctx->name);
+        lv_free((void **) &ctx->name);
     }
 
     /* 释放熔断器错误原因 */
     if (ctx->circuit_breaker.trip_reason) {
-        lv_free((void **)&ctx->circuit_breaker.trip_reason);
+        lv_free((void **) &ctx->circuit_breaker.trip_reason);
     }
 
     /* 从快照拷贝状态（浅拷贝，因为快照的资源将转移到 ctx） */
@@ -498,12 +498,18 @@ bool lv_context_rollback(lvContext *ctx, lvContext *snapshot) {
  */
 const char *lv_context_state_name(lvContextState state) {
     switch (state) {
-        case lv_CONTEXT_IDLE:      return "IDLE（空闲）";
-        case lv_CONTEXT_PARSING:   return "PARSING（解析中）";
-        case lv_CONTEXT_REASONING: return "REASONING（推理中）";
-        case lv_CONTEXT_ERROR:     return "ERROR（错误）";
-        case lv_CONTEXT_COMPLETE:  return "COMPLETE（完成）";
-        default:                     return "UNKNOWN（未知）";
+        case lv_CONTEXT_IDLE:
+            return "IDLE（空闲）";
+        case lv_CONTEXT_PARSING:
+            return "PARSING（解析中）";
+        case lv_CONTEXT_REASONING:
+            return "REASONING（推理中）";
+        case lv_CONTEXT_ERROR:
+            return "ERROR（错误）";
+        case lv_CONTEXT_COMPLETE:
+            return "COMPLETE（完成）";
+        default:
+            return "UNKNOWN（未知）";
     }
 }
 
@@ -522,11 +528,9 @@ bool lv_context_state_transition_valid(lvContextState from, lvContextState to) {
         case lv_CONTEXT_IDLE:
             return (to == lv_CONTEXT_PARSING || to == lv_CONTEXT_ERROR);
         case lv_CONTEXT_PARSING:
-            return (to == lv_CONTEXT_REASONING || to == lv_CONTEXT_ERROR ||
-                    to == lv_CONTEXT_IDLE);
+            return (to == lv_CONTEXT_REASONING || to == lv_CONTEXT_ERROR || to == lv_CONTEXT_IDLE);
         case lv_CONTEXT_REASONING:
-            return (to == lv_CONTEXT_COMPLETE || to == lv_CONTEXT_ERROR ||
-                    to == lv_CONTEXT_IDLE);
+            return (to == lv_CONTEXT_COMPLETE || to == lv_CONTEXT_ERROR || to == lv_CONTEXT_IDLE);
         case lv_CONTEXT_COMPLETE:
             return (to == lv_CONTEXT_IDLE);
         case lv_CONTEXT_ERROR:
@@ -556,10 +560,8 @@ lvErrorCode lv_context_set_state(lvContext *ctx, lvContextState new_state) {
 
     /* 验证转移合法性 */
     if (!lv_context_state_transition_valid(ctx->state, new_state)) {
-        lv_context_set_error(ctx, lv_ERROR_INVALID_STATE,
-                               "非法状态转移: %s → %s",
-                               lv_context_state_name(ctx->state),
-                               lv_context_state_name(new_state));
+        lv_context_set_error(ctx, lv_ERROR_INVALID_STATE, "非法状态转移: %s → %s", lv_context_state_name(ctx->state),
+                             lv_context_state_name(new_state));
         return lv_ERROR_INVALID_STATE;
     }
 
@@ -605,16 +607,16 @@ static lvErrorCode reasoning_stack_ensure_capacity(ReasoningStack *stack) {
         new_capacity = stack->max_depth;
     }
 
-    ReasoningFrame *new_frames = (ReasoningFrame *)lv_realloc(
-        stack->frames, (size_t)new_capacity * sizeof(ReasoningFrame));
+    ReasoningFrame *new_frames =
+        (ReasoningFrame *) lv_realloc(stack->frames, (size_t) new_capacity * sizeof(ReasoningFrame));
     if (!new_frames) {
         return lv_ERROR_OUT_OF_MEMORY;
     }
 
     /* 清零新增部分 */
-    size_t old_size = (size_t)stack->capacity * sizeof(ReasoningFrame);
-    size_t new_size = (size_t)new_capacity * sizeof(ReasoningFrame);
-    memset((char *)new_frames + old_size, 0, new_size - old_size);
+    size_t old_size = (size_t) stack->capacity * sizeof(ReasoningFrame);
+    size_t new_size = (size_t) new_capacity * sizeof(ReasoningFrame);
+    memset((char *) new_frames + old_size, 0, new_size - old_size);
 
     stack->frames = new_frames;
     stack->capacity = new_capacity;
@@ -625,9 +627,7 @@ static lvErrorCode reasoning_stack_ensure_capacity(ReasoningStack *stack) {
 /**
  * @brief 在当前推理栈上压入一个新分支帧
  */
-lvErrorCode lv_context_push_reasoning(lvContext *ctx,
-                                          ReasoningBranchType branch_type,
-                                          uint64_t timeout_ms) {
+lvErrorCode lv_context_push_reasoning(lvContext *ctx, ReasoningBranchType branch_type, uint64_t timeout_ms) {
     if (!ctx) {
         return lv_ERROR_NULL_POINTER;
     }
@@ -639,10 +639,8 @@ lvErrorCode lv_context_push_reasoning(lvContext *ctx,
 
     /* 检查深度限制 */
     if (ctx->reasoning_stack.top + 1 >= ctx->reasoning_stack.max_depth) {
-        lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED,
-                               "推理栈深度超限: 当前 %d, 最大 %d",
-                               ctx->reasoning_stack.top + 1,
-                               ctx->reasoning_stack.max_depth);
+        lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED, "推理栈深度超限: 当前 %d, 最大 %d",
+                             ctx->reasoning_stack.top + 1, ctx->reasoning_stack.max_depth);
         return lv_ERROR_RESOURCE_EXHAUSTED;
     }
 
@@ -688,8 +686,7 @@ lvErrorCode lv_context_pop_reasoning(lvContext *ctx) {
     }
 
     if (ctx->reasoning_stack.top < 0) {
-        lv_context_set_error(ctx, lv_ERROR_INVALID_STATE,
-                               "推理栈为空，无法弹出");
+        lv_context_set_error(ctx, lv_ERROR_INVALID_STATE, "推理栈为空，无法弹出");
         return lv_ERROR_INVALID_STATE;
     }
 
@@ -697,14 +694,14 @@ lvErrorCode lv_context_pop_reasoning(lvContext *ctx) {
 
     /* 释放帧内资源 */
     if (frame->graph_snapshot) {
-        graph_destroy((ConstraintGraph *)frame->graph_snapshot);
+        graph_destroy((ConstraintGraph *) frame->graph_snapshot);
         frame->graph_snapshot = NULL;
     }
     if (frame->assumption_node_ids) {
-        lv_free((void **)&frame->assumption_node_ids);
+        lv_free((void **) &frame->assumption_node_ids);
     }
     if (frame->target_node_ids) {
-        lv_free((void **)&frame->target_node_ids);
+        lv_free((void **) &frame->target_node_ids);
     }
 
     /* 清零帧 */
@@ -714,8 +711,7 @@ lvErrorCode lv_context_pop_reasoning(lvContext *ctx) {
     ctx->reasoning_stack.top--;
 
     /* 更新熔断器深度 */
-    ctx->circuit_breaker.current_depth =
-        (ctx->reasoning_stack.top >= 0) ? ctx->reasoning_stack.top + 1 : 0;
+    ctx->circuit_breaker.current_depth = (ctx->reasoning_stack.top >= 0) ? ctx->reasoning_stack.top + 1 : 0;
 
     return lv_OK;
 }
@@ -785,14 +781,12 @@ bool lv_context_is_circuit_open(const lvContext *ctx) {
     }
 
     /* 深度超限 */
-    if (ctx->circuit_breaker.max_depth > 0 &&
-        ctx->circuit_breaker.current_depth > ctx->circuit_breaker.max_depth) {
+    if (ctx->circuit_breaker.max_depth > 0 && ctx->circuit_breaker.current_depth > ctx->circuit_breaker.max_depth) {
         return true;
     }
 
     /* 步数超限 */
-    if (ctx->circuit_breaker.max_steps > 0 &&
-        ctx->circuit_breaker.total_steps >= ctx->circuit_breaker.max_steps) {
+    if (ctx->circuit_breaker.max_steps > 0 && ctx->circuit_breaker.total_steps >= ctx->circuit_breaker.max_steps) {
         return true;
     }
 
@@ -835,8 +829,7 @@ bool lv_context_check_timeout(lvContext *ctx) {
     }
 
     /* 未设置超时或未开始操作 */
-    if (ctx->circuit_breaker.timeout_ms == 0 ||
-        ctx->circuit_breaker.operation_start_us == 0) {
+    if (ctx->circuit_breaker.timeout_ms == 0 || ctx->circuit_breaker.operation_start_us == 0) {
         return false;
     }
 
@@ -851,20 +844,17 @@ bool lv_context_check_timeout(lvContext *ctx) {
 
         /* 记录熔断原因 */
         if (ctx->circuit_breaker.trip_reason) {
-            lv_free((void **)&ctx->circuit_breaker.trip_reason);
+            lv_free((void **) &ctx->circuit_breaker.trip_reason);
         }
-        ctx->circuit_breaker.trip_reason =
-            lv_strdup_safe("操作超时熔断");
+        ctx->circuit_breaker.trip_reason = lv_strdup_safe("操作超时熔断");
 
         /* 转入错误状态 */
         ctx->previous_state = ctx->state;
         ctx->state = lv_CONTEXT_ERROR;
         ctx->state_transition_count++;
 
-        lv_context_set_error(ctx, lv_ERROR_TIMEOUT,
-                               "操作超时: 已用 %llu ms, 限制 %llu ms",
-                               (unsigned long long)elapsed_ms,
-                               (unsigned long long)ctx->circuit_breaker.timeout_ms);
+        lv_context_set_error(ctx, lv_ERROR_TIMEOUT, "操作超时: 已用 %llu ms, 限制 %llu ms",
+                             (unsigned long long) elapsed_ms, (unsigned long long) ctx->circuit_breaker.timeout_ms);
         return true;
     }
 
@@ -912,27 +902,23 @@ bool lv_context_record_step(lvContext *ctx) {
     }
 
     /* 检查步数限制 */
-    if (ctx->circuit_breaker.max_steps > 0 &&
-        ctx->circuit_breaker.total_steps >= ctx->circuit_breaker.max_steps) {
+    if (ctx->circuit_breaker.max_steps > 0 && ctx->circuit_breaker.total_steps >= ctx->circuit_breaker.max_steps) {
         /* 触发熔断 */
         ctx->circuit_breaker.state = CIRCUIT_BREAKER_OPEN;
         ctx->circuit_breaker.tripped_at_us = lv_get_time_us();
         ctx->circuit_breaker.trip_count++;
 
         if (ctx->circuit_breaker.trip_reason) {
-            lv_free((void **)&ctx->circuit_breaker.trip_reason);
+            lv_free((void **) &ctx->circuit_breaker.trip_reason);
         }
-        ctx->circuit_breaker.trip_reason =
-            lv_strdup_safe("推理步数超限熔断");
+        ctx->circuit_breaker.trip_reason = lv_strdup_safe("推理步数超限熔断");
 
         ctx->previous_state = ctx->state;
         ctx->state = lv_CONTEXT_ERROR;
         ctx->state_transition_count++;
 
-        lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED,
-                               "推理步数超限: %lld / %lld",
-                               (long long)ctx->circuit_breaker.total_steps,
-                               (long long)ctx->circuit_breaker.max_steps);
+        lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED, "推理步数超限: %lld / %lld",
+                             (long long) ctx->circuit_breaker.total_steps, (long long) ctx->circuit_breaker.max_steps);
         return false;
     }
 
@@ -962,27 +948,23 @@ bool lv_context_record_error(lvContext *ctx) {
 
     ctx->circuit_breaker.consecutive_errors++;
 
-    if (ctx->circuit_breaker.consecutive_errors >=
-        ctx->circuit_breaker.max_consecutive_errors) {
+    if (ctx->circuit_breaker.consecutive_errors >= ctx->circuit_breaker.max_consecutive_errors) {
         /* 触发熔断 */
         ctx->circuit_breaker.state = CIRCUIT_BREAKER_OPEN;
         ctx->circuit_breaker.tripped_at_us = lv_get_time_us();
         ctx->circuit_breaker.trip_count++;
 
         if (ctx->circuit_breaker.trip_reason) {
-            lv_free((void **)&ctx->circuit_breaker.trip_reason);
+            lv_free((void **) &ctx->circuit_breaker.trip_reason);
         }
-        ctx->circuit_breaker.trip_reason =
-            lv_strdup_safe("连续错误超限熔断");
+        ctx->circuit_breaker.trip_reason = lv_strdup_safe("连续错误超限熔断");
 
         ctx->previous_state = ctx->state;
         ctx->state = lv_CONTEXT_ERROR;
         ctx->state_transition_count++;
 
-        lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED,
-                               "连续错误次数超限: %d / %d",
-                               ctx->circuit_breaker.consecutive_errors,
-                               ctx->circuit_breaker.max_consecutive_errors);
+        lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED, "连续错误次数超限: %d / %d",
+                             ctx->circuit_breaker.consecutive_errors, ctx->circuit_breaker.max_consecutive_errors);
         return false;
     }
 
@@ -1071,7 +1053,7 @@ void lv_context_set_name(lvContext *ctx, const char *name) {
 
     /* 释放旧名称 */
     if (ctx->name) {
-        lv_free((void **)&ctx->name);
+        lv_free((void **) &ctx->name);
         ctx->name = NULL;
     }
 
@@ -1134,16 +1116,16 @@ void lv_context_clear_cache(lvContext *ctx) {
     }
 
     if (ctx->groebner_cache) {
-        lv_free((void **)&ctx->groebner_cache);
+        lv_free((void **) &ctx->groebner_cache);
     }
     if (ctx->symbolic_cache) {
-        lv_free((void **)&ctx->symbolic_cache);
+        lv_free((void **) &ctx->symbolic_cache);
     }
     if (ctx->numeric_cache) {
-        lv_free((void **)&ctx->numeric_cache);
+        lv_free((void **) &ctx->numeric_cache);
     }
     if (ctx->unification_cache) {
-        lv_free((void **)&ctx->unification_cache);
+        lv_free((void **) &ctx->unification_cache);
     }
 
     ctx->cache_valid = false;
@@ -1269,48 +1251,40 @@ int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size) {
     int64_t total_cache_access = ctx->cache_hits + ctx->cache_misses;
     double cache_hit_rate = 0.0;
     if (total_cache_access > 0) {
-        cache_hit_rate = (double)ctx->cache_hits / (double)total_cache_access * 100.0;
+        cache_hit_rate = (double) ctx->cache_hits / (double) total_cache_access * 100.0;
     }
 
     /* 格式化统计信息 */
-    int written = snprintf(buf, buf_size,
-        "=== lvContext 统计信息 ===\n"
-        "上下文 ID:        %llu\n"
-        "名称:             %s\n"
-        "当前状态:         %s\n"
-        "推理栈深度:       %d / %d\n"
-        "已执行步数:       %lld / %lld\n"
-        "缓存命中率:       %.1f%% (%lld 次命中 / %lld 次访问)\n"
-        "熔断器状态:       %s\n"
-        "熔断次数:         %d\n"
-        "连续错误:         %d / %d\n"
-        "已处理问题数:     %d\n"
-        "状态转移次数:     %lld\n"
-        "运行时间:         %llu ms\n",
-        (unsigned long long)ctx->context_id,
-        ctx->name ? ctx->name : "(无名)",
-        lv_context_state_name(ctx->state),
-        ctx->reasoning_stack.top + 1,
-        ctx->reasoning_stack.max_depth,
-        (long long)ctx->circuit_breaker.total_steps,
-        (long long)ctx->circuit_breaker.max_steps,
-        cache_hit_rate,
-        (long long)ctx->cache_hits,
-        (long long)total_cache_access,
-        ctx->circuit_breaker.state == CIRCUIT_BREAKER_CLOSED ? "关闭（正常）" :
-        ctx->circuit_breaker.state == CIRCUIT_BREAKER_HALF_OPEN ? "半开（试探）" :
-        "打开（熔断）",
-        ctx->circuit_breaker.trip_count,
-        ctx->circuit_breaker.consecutive_errors,
-        ctx->circuit_breaker.max_consecutive_errors,
-        ctx->problems_processed,
-        (long long)ctx->state_transition_count,
-        (unsigned long long)uptime_ms);
+    int written =
+        snprintf(buf, buf_size,
+                 "=== lvContext 统计信息 ===\n"
+                 "上下文 ID:        %llu\n"
+                 "名称:             %s\n"
+                 "当前状态:         %s\n"
+                 "推理栈深度:       %d / %d\n"
+                 "已执行步数:       %lld / %lld\n"
+                 "缓存命中率:       %.1f%% (%lld 次命中 / %lld 次访问)\n"
+                 "熔断器状态:       %s\n"
+                 "熔断次数:         %d\n"
+                 "连续错误:         %d / %d\n"
+                 "已处理问题数:     %d\n"
+                 "状态转移次数:     %lld\n"
+                 "运行时间:         %llu ms\n",
+                 (unsigned long long) ctx->context_id, ctx->name ? ctx->name : "(无名)",
+                 lv_context_state_name(ctx->state), ctx->reasoning_stack.top + 1, ctx->reasoning_stack.max_depth,
+                 (long long) ctx->circuit_breaker.total_steps, (long long) ctx->circuit_breaker.max_steps,
+                 cache_hit_rate, (long long) ctx->cache_hits, (long long) total_cache_access,
+                 ctx->circuit_breaker.state == CIRCUIT_BREAKER_CLOSED      ? "关闭（正常）"
+                 : ctx->circuit_breaker.state == CIRCUIT_BREAKER_HALF_OPEN ? "半开（试探）"
+                                                                           : "打开（熔断）",
+                 ctx->circuit_breaker.trip_count, ctx->circuit_breaker.consecutive_errors,
+                 ctx->circuit_breaker.max_consecutive_errors, ctx->problems_processed,
+                 (long long) ctx->state_transition_count, (unsigned long long) uptime_ms);
 
     /* 确保字符串终止 */
-    if (written > 0 && (size_t)written >= buf_size) {
+    if (written > 0 && (size_t) written >= buf_size) {
         buf[buf_size - 1] = '\0';
-        return (int)(buf_size - 1);
+        return (int) (buf_size - 1);
     }
 
     return written;
@@ -1352,17 +1326,17 @@ void lv_context_reset(lvContext *ctx) {
         for (int i = 0; i <= ctx->reasoning_stack.top && i < ctx->reasoning_stack.capacity; i++) {
             ReasoningFrame *frame = &ctx->reasoning_stack.frames[i];
             if (frame->graph_snapshot) {
-                graph_destroy((ConstraintGraph *)frame->graph_snapshot);
+                graph_destroy((ConstraintGraph *) frame->graph_snapshot);
                 frame->graph_snapshot = NULL;
             }
             if (frame->assumption_node_ids) {
-                lv_free((void **)&frame->assumption_node_ids);
+                lv_free((void **) &frame->assumption_node_ids);
             }
             if (frame->target_node_ids) {
-                lv_free((void **)&frame->target_node_ids);
+                lv_free((void **) &frame->target_node_ids);
             }
         }
-        lv_free((void **)&ctx->reasoning_stack.frames);
+        lv_free((void **) &ctx->reasoning_stack.frames);
     }
     ctx->reasoning_stack.frames = NULL;
     ctx->reasoning_stack.top = -1;
@@ -1376,7 +1350,7 @@ void lv_context_reset(lvContext *ctx) {
 
     /* 3. 重建主约束图 */
     if (ctx->main_graph) {
-        graph_destroy((ConstraintGraph *)ctx->main_graph);
+        graph_destroy((ConstraintGraph *) ctx->main_graph);
     }
     ctx->main_graph = graph_create();
 
@@ -1423,7 +1397,7 @@ void lv_context_reset(lvContext *ctx) {
     ctx->circuit_breaker.tripped_at_us = 0;
     ctx->circuit_breaker.trip_count = preserved_trip_count;
     if (ctx->circuit_breaker.trip_reason) {
-        lv_free((void **)&ctx->circuit_breaker.trip_reason);
+        lv_free((void **) &ctx->circuit_breaker.trip_reason);
         ctx->circuit_breaker.trip_reason = NULL;
     }
 
@@ -1432,7 +1406,7 @@ void lv_context_reset(lvContext *ctx) {
 
     /* 11. 释放名称 */
     if (ctx->name) {
-        lv_free((void **)&ctx->name);
+        lv_free((void **) &ctx->name);
     }
 
     /* 12. 更新统计 */

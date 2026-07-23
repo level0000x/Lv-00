@@ -28,7 +28,7 @@ extern "C" {
 typedef enum {
     PROPOSITION_KIND_CONSTRUCTIVE,            /**< 构造性命题：可直接构造证明 */
     PROPOSITION_KIND_NON_CONSTRUCTIVE_ORACLE, /**< 非构造性预言：需要外部Oracle */
-    PROPOSITION_KIND_EXPLOSION_PRINCIPLE     /**< 爆炸原理：反证法适用 */
+    PROPOSITION_KIND_EXPLOSION_PRINCIPLE      /**< 爆炸原理：反证法适用 */
 } PropositionKind;
 
 typedef struct AxiomPackage AxiomPackage;
@@ -58,11 +58,11 @@ lv_PUBLIC_API KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPa
  * 用户在模板内完成归约构造，通过合一检查后，蓝色虚框转为已证不可构造。
  */
 typedef struct {
-    char *target_problem_name;         // 目标问题名称（如"三等分角"）
-    char *known_unconstructible_name;  // 已知不可构造问题名称（如"倍立方"）
-    ConstraintGraph *reduction_construction; // 归约构造图
-    bool verified;                     // 是否通过合一检查
-    char *description;                 // 归约方法描述
+    char *target_problem_name;                // 目标问题名称（如"三等分角"）
+    char *known_unconstructible_name;         // 已知不可构造问题名称（如"倍立方"）
+    ConstraintGraph *reduction_construction;  // 归约构造图
+    bool verified;                            // 是否通过合一检查
+    char *description;                        // 归约方法描述
 } UnconstructibleTemplate;
 
 /**
@@ -76,7 +76,8 @@ typedef struct {
  * @return 0 成功
  */
 lv_PUBLIC_API int axiom_package_add_unconstructible_template(AxiomPackage *pkg, const char *target_name,
-    const char *known_name, ConstraintGraph *construction, const char *description);
+                                                             const char *known_name, ConstraintGraph *construction,
+                                                             const char *description);
 
 /**
  * @brief 查找匹配的不可构造性证明模板
@@ -85,7 +86,8 @@ lv_PUBLIC_API int axiom_package_add_unconstructible_template(AxiomPackage *pkg, 
  * @param target_name 目标问题名称
  * @return UnconstructibleTemplate* 匹配的模板，NULL 无匹配
  */
-lv_PUBLIC_API UnconstructibleTemplate *axiom_package_lookup_unconstructible_template(AxiomPackage *pkg, const char *target_name);
+lv_PUBLIC_API UnconstructibleTemplate *axiom_package_lookup_unconstructible_template(AxiomPackage *pkg,
+                                                                                     const char *target_name);
 
 /**
  * @brief 执行不可构造性验证
@@ -107,8 +109,8 @@ typedef enum {
     AXIOM_LOAD_CIRCULAR_DEPENDENCY,
     AXIOM_LOAD_DEPTH_EXCEEDED,
     AXIOM_LOAD_VALIDATION_ERROR,
-    AXIOM_LOAD_NULL_POINTER,  /* 空指针参数 */
-    AXIOM_LOAD_MEMORY_ERROR   /* 内存分配失败 */
+    AXIOM_LOAD_NULL_POINTER, /* 空指针参数 */
+    AXIOM_LOAD_MEMORY_ERROR  /* 内存分配失败 */
 } AxiomLoadStatus;
 
 typedef enum { AXIOM_SAVE_OK, AXIOM_SAVE_FILE_ERROR, AXIOM_SAVE_WRITE_ERROR } AxiomSaveStatus;
@@ -131,7 +133,8 @@ lv_PUBLIC_API AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, const 
  *         如果 pkg 为 NULL 或内存分配失败，返回 NULL。
  */
 lv_PUBLIC_API char *axiom_package_compute_content_hash(AxiomPackage *pkg);
-lv_PUBLIC_API bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loaded_packages, int package_count);
+lv_PUBLIC_API bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loaded_packages,
+                                                       int package_count);
 
 /* ============== ConstraintTemplate 增强 ============== */
 
@@ -139,10 +142,10 @@ lv_PUBLIC_API bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomP
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
-    TEMPLATE_PARAM_TYPE_POINT,       /**< 点参数 */
+    TEMPLATE_PARAM_TYPE_POINT,        /**< 点参数 */
     TEMPLATE_PARAM_TYPE_LINE_SEGMENT, /**< 线段参数 */
     TEMPLATE_PARAM_TYPE_REGION,       /**< 区域参数 */
-    TEMPLATE_PARAM_TYPE_SCALAR       /**< 标量参数 */
+    TEMPLATE_PARAM_TYPE_SCALAR        /**< 标量参数 */
 } TemplateParamType;
 
 typedef struct {
@@ -154,8 +157,8 @@ typedef struct {
  * @brief 模板级别
  */
 typedef enum {
-    TEMPLATE_LEVEL_ONE,   /**< 一级模板（原子度量，通过测试集验证） */
-    TEMPLATE_LEVEL_TWO    /**< 二级模板（用户复合体） */
+    TEMPLATE_LEVEL_ONE, /**< 一级模板（原子度量，通过测试集验证） */
+    TEMPLATE_LEVEL_TWO  /**< 二级模板（用户复合体） */
 } TemplateLevel;
 
 /* 正则形式描述 */
@@ -178,8 +181,8 @@ typedef struct ConstraintTemplate {
     NormalFormDesc normal_form; /* 正则形式描述 */
 
     /* v3.6.0: 模板分级管理与惰性展开 */
-    TemplateLevel level;              /**< 模板级别（一级/二级） */
-    bool is_compressed;               /**< 当前是否处于压缩态 */
+    TemplateLevel level;                  /**< 模板级别（一级/二级） */
+    bool is_compressed;                   /**< 当前是否处于压缩态 */
     ConstraintGraph *compressed_subgraph; /**< 压缩态的内部子图（二级模板用） */
 } ConstraintTemplate;
 
@@ -221,8 +224,9 @@ lv_PUBLIC_API ConstraintGraph *axiom_template_expand_lazy(AxiomPackage *pkg, con
  */
 lv_PUBLIC_API void axiom_template_compress(ConstraintTemplate *tmpl);
 
-lv_PUBLIC_API bool axiom_template_validate_normal_form(const ConstraintTemplate *tmpl, const ConstraintGraph *expanded_graph,
-                                         const char *canonical_form);
+lv_PUBLIC_API bool axiom_template_validate_normal_form(const ConstraintTemplate *tmpl,
+                                                       const ConstraintGraph *expanded_graph,
+                                                       const char *canonical_form);
 
 /* ============== 双层测试集 ============== */
 
@@ -230,41 +234,41 @@ lv_PUBLIC_API bool axiom_template_validate_normal_form(const ConstraintTemplate 
  * @brief 模板测试用例类型
  */
 typedef enum {
-    TEST_CASE_FACTORY,    /**< 出厂测试（内核开发者编写） */
-    TEST_CASE_USER        /**< 用户测试（公理包作者添加） */
+    TEST_CASE_FACTORY, /**< 出厂测试（内核开发者编写） */
+    TEST_CASE_USER     /**< 用户测试（公理包作者添加） */
 } TestCaseType;
 
 /**
  * @brief 模板测试用例
  */
 typedef struct {
-    char *template_name;       /**< 模板名称 */
-    TestCaseType type;         /**< 测试类型 */
-    int param_count;           /**< 参数数量 */
-    SymbolicCoord **params;    /**< 参数值 */
+    char *template_name;                    /**< 模板名称 */
+    TestCaseType type;                      /**< 测试类型 */
+    int param_count;                        /**< 参数数量 */
+    SymbolicCoord **params;                 /**< 参数值 */
     struct ConstraintGraph *expected_graph; /**< 预期的展开后图结构（仅用于正则形式验证） */
-    bool expected_result;      /**< 期望结果（true=通过，false=失败） */
-    char *description;         /**< 测试描述 */
+    bool expected_result;                   /**< 期望结果（true=通过，false=失败） */
+    char *description;                      /**< 测试描述 */
 } TemplateTestCase;
 
 /**
  * @brief 烟测用例结果枚举
  */
 typedef enum {
-    TEST_RESULT_PASSED,        /**< 通过 */
-    TEST_RESULT_FAILED,        /**< 失败 */
-    TEST_RESULT_TIMEOUT,       /**< 超时（步骤数超限） */
-    TEST_RESULT_SKIPPED,       /**< 未运行（总时间超限） */
-    TEST_RESULT_ERROR          /**< 执行错误 */
+    TEST_RESULT_PASSED,  /**< 通过 */
+    TEST_RESULT_FAILED,  /**< 失败 */
+    TEST_RESULT_TIMEOUT, /**< 超时（步骤数超限） */
+    TEST_RESULT_SKIPPED, /**< 未运行（总时间超限） */
+    TEST_RESULT_ERROR    /**< 执行错误 */
 } TestCaseResult;
 
 /**
  * @brief 烟测用例详细记录
  */
 typedef struct {
-    char *test_name;           /**< 测试用例名称 */
-    TestCaseResult result;     /**< 结果 */
-    char *message;             /**< 失败/超时原因描述 */
+    char *test_name;       /**< 测试用例名称 */
+    TestCaseResult result; /**< 结果 */
+    char *message;         /**< 失败/超时原因描述 */
 } TemplateTestRecord;
 
 /**
@@ -275,10 +279,10 @@ typedef struct {
     int passed;
     int failed;
     char **failure_messages;
-    int timed_out;             /**< 超时数量 */
-    int skipped;               /**< 未运行数量 */
+    int timed_out;               /**< 超时数量 */
+    int skipped;                 /**< 未运行数量 */
     TemplateTestRecord *records; /**< 详细记录数组 */
-    int record_count;          /**< 记录数量 */
+    int record_count;            /**< 记录数量 */
 } TemplateTestResult;
 
 /**
@@ -293,8 +297,8 @@ typedef struct {
  * @return 测试结果
  */
 lv_PUBLIC_API TemplateTestResult axiom_template_run_tests(AxiomPackage *pkg, const char *template_name,
-                                            TemplateTestCase *factory_tests, int factory_count,
-                                            TemplateTestCase *user_tests, int user_count);
+                                                          TemplateTestCase *factory_tests, int factory_count,
+                                                          TemplateTestCase *user_tests, int user_count);
 
 /**
  * @brief 释放测试结果
@@ -315,8 +319,8 @@ lv_PUBLIC_API void axiom_template_test_result_destroy(TemplateTestResult *result
  * @param out_failures 输出：失败的测试名称数组（调用者需 free）
  * @return int 失败数量，<0 表示错误
  */
-lv_PUBLIC_API int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, int count,
-                             int *out_passed, int *out_failed, char ***out_failures);
+lv_PUBLIC_API int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, int count, int *out_passed,
+                                          int *out_failed, char ***out_failures);
 
 /**
  * @brief 模板正则形式验证
@@ -339,8 +343,8 @@ lv_PUBLIC_API bool axiom_template_verify_normal_form(AxiomPackage *pkg, const ch
  * @param expected 期望结果
  * @return 新创建的 TemplateTestCase，失败返回 NULL
  */
-lv_PUBLIC_API TemplateTestCase *axiom_template_test_case_create(const char *name, TestCaseType type,
-                                                    int param_count, bool expected);
+lv_PUBLIC_API TemplateTestCase *axiom_template_test_case_create(const char *name, TestCaseType type, int param_count,
+                                                                bool expected);
 
 /**
  * @brief 销毁测试用例
@@ -375,13 +379,14 @@ typedef struct {
  * @brief 在缓存中查找匹配的展开图
  */
 lv_PUBLIC_API ConstraintGraph *axiom_package_lookup_expansion_cache(AxiomPackage *pkg, const char *template_name,
-                                                      SymbolicCoord **params, int param_count);
+                                                                    SymbolicCoord **params, int param_count);
 
 /**
  * @brief 将展开结果存入缓存
  */
-lv_PUBLIC_API bool axiom_package_store_expansion_cache(AxiomPackage *pkg, const char *template_name, SymbolicCoord **params,
-                                         int param_count, ConstraintGraph *expanded_graph);
+lv_PUBLIC_API bool axiom_package_store_expansion_cache(AxiomPackage *pkg, const char *template_name,
+                                                       SymbolicCoord **params, int param_count,
+                                                       ConstraintGraph *expanded_graph);
 
 /**
  * @brief 清空模板展开缓存
@@ -404,9 +409,9 @@ lv_PUBLIC_API void axiom_package_clear_expansion_cache(AxiomPackage *pkg);
 
 /* 引用类型枚举 */
 typedef enum {
-    REF_INTERNAL,    /**< 内引用（内容哈希验证） */
-    REF_EXTERNAL,    /**< 外引用（公认文献，永久有效） */
-    REF_AUTHOR       /**< 作者断言（无形式化支撑，基础即为黄色） */
+    REF_INTERNAL, /**< 内引用（内容哈希验证） */
+    REF_EXTERNAL, /**< 外引用（公认文献，永久有效） */
+    REF_AUTHOR    /**< 作者断言（无形式化支撑，基础即为黄色） */
 } RefType;
 
 /* 追踪一个依赖引用（内部或外部） */
@@ -418,10 +423,10 @@ typedef struct {
     int dependent_node_id; /* 依赖此引用的节点 ID */
     int original_color;    /* 原始信任颜色 (0=GREEN 等) */
     /* === v3.5.0 新增字段：不可构造性证明依赖链 === */
-    RefType ref_type;             /**< 引用类型 */
-    char external_ref[256];       /**< 外部引用字符串（外引用用） */
-    char trust_comment[256];      /**< 信任注释（外引用用，如"截至 2025 年公认有效"） */
-    bool hash_valid;              /**< 内容哈希是否有效（内引用用） */
+    RefType ref_type;        /**< 引用类型 */
+    char external_ref[256];  /**< 外部引用字符串（外引用用） */
+    char trust_comment[256]; /**< 信任注释（外引用用，如"截至 2025 年公认有效"） */
+    bool hash_valid;         /**< 内容哈希是否有效（内引用用） */
 } DependencyRef;
 
 /* ============== AxiomPackage 结构体 ============== */
@@ -433,12 +438,12 @@ struct AxiomPackage {
     int template_count;
     KnownUnconstructible *known_unconstructibles;
     int unconstructible_count;
-    UnconstructibleTemplate *unconstructible_templates; // 不可构造性证明模板
+    UnconstructibleTemplate *unconstructible_templates;  // 不可构造性证明模板
     int unconstructible_template_count;                  // 模板数量
     int unconstructible_template_capacity;               // 模板容量
-    char *bottom_geometry;      /* 底层几何类型 */
-    char *negation_encoding;    /* 否定编码方法 */
-    int contradiction_behavior; /* 矛盾行为 */
+    char *bottom_geometry;                               /* 底层几何类型 */
+    char *negation_encoding;                             /* 否定编码方法 */
+    int contradiction_behavior;                          /* 矛盾行为 */
 
     /* 模板展开缓存 */
     TemplateExpansionCache *expansion_cache;
@@ -467,7 +472,7 @@ struct AxiomPackage {
  * @return 0 成功，-1 参数无效，-2 内存分配失败
  */
 lv_PUBLIC_API int axiom_package_register_dependency_ref(AxiomPackage *pkg, const char *ref_id, const char *content_hash,
-                                          int dependent_node_id);
+                                                        int dependent_node_id);
 
 /**
  * @brief 验证所有依赖引用，返回失效的引用
@@ -481,7 +486,7 @@ lv_PUBLIC_API int axiom_package_register_dependency_ref(AxiomPackage *pkg, const
  * @return 失效引用数量，-1 表示参数无效
  */
 lv_PUBLIC_API int axiom_package_validate_dependencies_with_hashes(AxiomPackage *pkg, DependencyRef **invalidated_refs,
-                                                    int *invalidated_count);
+                                                                  int *invalidated_count);
 
 /**
  * @brief 执行失效依赖的自动降级
@@ -524,8 +529,8 @@ lv_PUBLIC_API int axiom_package_add_internal_ref(AxiomPackage *pkg, int lemma_bl
  * @param[in] trust_comment    信任注释（可选，如 "截至 2025 年公认有效"）
  * @return 0 成功，-1 参数无效，-2 内存分配失败
  */
-lv_PUBLIC_API int axiom_package_add_external_ref(AxiomPackage *pkg, const char *ref_string,
-                                                  int dependent_node_id, const char *trust_comment);
+lv_PUBLIC_API int axiom_package_add_external_ref(AxiomPackage *pkg, const char *ref_string, int dependent_node_id,
+                                                 const char *trust_comment);
 
 /**
  * @brief 创建作者断言引用

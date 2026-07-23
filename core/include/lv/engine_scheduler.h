@@ -2,12 +2,12 @@
 #define lv_ENGINE_SCHEDULER_H
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
-#include "lv/smt_backend.h"   /* SolverBackendType, SMTSolverConfig, SMTSolverResult */
-#include "lv/solver.h"        /* GroebnerResult */
 #include "lv/constraint_graph.h"
+#include "lv/smt_backend.h" /* SolverBackendType, SMTSolverConfig, SMTSolverResult */
+#include "lv/solver.h"      /* GroebnerResult */
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,15 +42,12 @@ typedef enum {
     ROUTE_COND_BACKEND_AVAILABLE
 } RouteConditionType;
 
-typedef enum {
-    ROUTE_COMBINE_AND,
-    ROUTE_COMBINE_OR
-} RouteCombineMode;
+typedef enum { ROUTE_COMBINE_AND, ROUTE_COMBINE_OR } RouteCombineMode;
 
 typedef struct RouteCondition {
     RouteConditionType type;
-    int int_value;       /* 阈值参数 */
-    double float_value;  /* 浮点阈值 */
+    int int_value;      /* 阈值参数 */
+    double float_value; /* 浮点阈值 */
 } RouteCondition;
 
 typedef struct RoutingRule {
@@ -69,7 +66,7 @@ typedef SolverBackendType (*SolverBackendDetectFunc)(void);
 typedef struct SchedulerBackendEntry {
     SolverBackendType type;
     bool available;
-    int priority;           /* 选择优先级 */
+    int priority; /* 选择优先级 */
     char description[128];
     SolverBackendDetectFunc detect_func;
 } SchedulerBackendEntry;
@@ -100,12 +97,10 @@ void scheduler_destroy(EngineScheduler *scheduler);
 void scheduler_reset(EngineScheduler *scheduler);
 
 /* ── 后端注册 ── */
-int scheduler_register_backend(EngineScheduler *scheduler,
-    SolverBackendType type, int priority, const char *description,
-    SolverBackendDetectFunc detect_func);
+int scheduler_register_backend(EngineScheduler *scheduler, SolverBackendType type, int priority,
+                               const char *description, SolverBackendDetectFunc detect_func);
 int scheduler_unregister_backend(EngineScheduler *scheduler, SolverBackendType type);
-int scheduler_list_available_backends(const EngineScheduler *scheduler,
-    SolverBackendType *out_types, int max_count);
+int scheduler_list_available_backends(const EngineScheduler *scheduler, SolverBackendType *out_types, int max_count);
 
 /* ── 后端选择与可用性 ── */
 bool scheduler_is_backend_available(const EngineScheduler *scheduler, SolverBackendType type);
@@ -121,22 +116,20 @@ int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *feature
 const char *scheduler_feature_summary(const GraphFeatures *features);
 
 /* ── 后端选择 ── */
-SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler,
-    const ConstraintGraph *graph, char *out_reason, size_t reason_size);
+SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler, const ConstraintGraph *graph,
+                                           char *out_reason, size_t reason_size);
 
 /* ── 分发求解 ── */
-int scheduler_solve(EngineScheduler *scheduler,
-    const ConstraintGraph *graph, SMTSolverResult *out_result);
-int scheduler_solve_with_backend(EngineScheduler *scheduler,
-    const ConstraintGraph *graph, SolverBackendType backend_type,
-    SMTSolverResult *out_result);
-int scheduler_solve_groebner_compat(EngineScheduler *scheduler,
-    const ConstraintGraph *graph, GroebnerResult **out_result);
+int scheduler_solve(EngineScheduler *scheduler, const ConstraintGraph *graph, SMTSolverResult *out_result);
+int scheduler_solve_with_backend(EngineScheduler *scheduler, const ConstraintGraph *graph,
+                                 SolverBackendType backend_type, SMTSolverResult *out_result);
+int scheduler_solve_groebner_compat(EngineScheduler *scheduler, const ConstraintGraph *graph,
+                                    GroebnerResult **out_result);
 
 /* ── 配置 ── */
 void scheduler_set_default_backend(EngineScheduler *scheduler, SolverBackendType type);
-void scheduler_set_fallback_policy(EngineScheduler *scheduler, bool enable,
-    const SolverBackendType *fallback_types, int depth);
+void scheduler_set_fallback_policy(EngineScheduler *scheduler, bool enable, const SolverBackendType *fallback_types,
+                                   int depth);
 void scheduler_set_auto_create(EngineScheduler *scheduler, bool auto_create);
 
 /* ── 统计与诊断 ── */
@@ -145,8 +138,7 @@ void scheduler_reset_stats(EngineScheduler *scheduler);
 int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_size);
 
 /* ── 结果转换 ── */
-GroebnerResult *scheduler_convert_smt_to_groebner(
-    const SMTSolverResult *smt_result, const ConstraintGraph *graph);
+GroebnerResult *scheduler_convert_smt_to_groebner(const SMTSolverResult *smt_result, const ConstraintGraph *graph);
 
 /* ── 向后兼容 ── */
 struct lvEngine;

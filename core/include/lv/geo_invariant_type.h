@@ -36,12 +36,12 @@ typedef GeoInvariantKind GeoInvariantType;
 /* ── Main invariant struct ── */
 typedef struct GeoInvariant {
     GeoInvariantKind kind;
-    char            *name;
-    double           value;
-    double           trust;
-    int             *entity_ids;
-    int              entity_count;
-    char            *metadata;
+    char *name;
+    double value;
+    double trust;
+    int *entity_ids;
+    int entity_count;
+    char *metadata;
 } GeoInvariant;
 
 /* ── Legacy name ── */
@@ -59,12 +59,8 @@ typedef GeoInvariant lvGeoInvariant;
  * @param entity_count 实体数量
  * @return 成功返回 GeoInvariant 指针，失败返回 NULL
  */
-GeoInvariant *geo_invariant_create(GeoInvariantKind kind,
-                                    const char *name,
-                                    double value,
-                                    double trust,
-                                    const int *entity_ids,
-                                    int entity_count);
+GeoInvariant *geo_invariant_create(GeoInvariantKind kind, const char *name, double value, double trust,
+                                   const int *entity_ids, int entity_count);
 /**
  * @brief 销毁几何不变量对象，释放占用的内存
  *
@@ -112,8 +108,7 @@ int geo_invariant_to_json(const GeoInvariant *inv, char *buf, size_t buf_size);
 int geo_invariant_attach_to_type(GeoInvariant *inv, int type_id, const char *region_name);
 
 /* ── Legacy alias ── */
-#define lv_geo_invariant_check(inv, pts, dim) \
-        (geo_invariant_check_consistency(inv) ? 1 : 0)
+#define lv_geo_invariant_check(inv, pts, dim) (geo_invariant_check_consistency(inv) ? 1 : 0)
 
 #ifdef __cplusplus
 }

@@ -22,11 +22,12 @@
  */
 
 #include "smt_trigger_engine.h"
-#include "lv/lv_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv/lv_utils.h"
 
 /* ========================================================================
  * Internal helpers
@@ -57,9 +58,7 @@ static uint64_t combine_cache_key(int quantifier_id, uint64_t term_hash) {
  *
  * @return true if the (quantifier_id, binding_hash) pair is cached
  */
-static bool cache_contains(const lvTriggerEngine *engine,
-                           int quantifier_id,
-                           uint64_t binding_hash) {
+static bool cache_contains(const lvTriggerEngine *engine, int quantifier_id, uint64_t binding_hash) {
     if (!engine)
         return false;
 
@@ -74,8 +73,7 @@ static bool cache_contains(const lvTriggerEngine *engine,
 /**
  * @brief Count how many instances exist for a given quantifier
  */
-static int count_instances_for_quantifier(const lvTriggerEngine *engine,
-                                          int quantifier_id) {
+static int count_instances_for_quantifier(const lvTriggerEngine *engine, int quantifier_id) {
     if (!engine)
         return 0;
 
@@ -101,8 +99,7 @@ static bool ensure_trigger_capacity(lvTriggerEngine *engine) {
     if (new_capacity < DEFAULT_TRIGGER_CAPACITY)
         new_capacity = DEFAULT_TRIGGER_CAPACITY;
 
-    lvTrigger *new_triggers = (lvTrigger *) lv_realloc(
-        engine->triggers, (size_t) new_capacity * sizeof(lvTrigger));
+    lvTrigger *new_triggers = (lvTrigger *) lv_realloc(engine->triggers, (size_t) new_capacity * sizeof(lvTrigger));
     if (!new_triggers)
         return false;
 
@@ -125,8 +122,8 @@ static bool ensure_cache_capacity(lvTriggerEngine *engine) {
     if (new_capacity < DEFAULT_CACHE_CAPACITY)
         new_capacity = DEFAULT_CACHE_CAPACITY;
 
-    lvInstanceEntry *new_cache = (lvInstanceEntry *) lv_realloc(
-        engine->instance_cache, (size_t) new_capacity * sizeof(lvInstanceEntry));
+    lvInstanceEntry *new_cache =
+        (lvInstanceEntry *) lv_realloc(engine->instance_cache, (size_t) new_capacity * sizeof(lvInstanceEntry));
     if (!new_cache)
         return false;
 
@@ -139,9 +136,7 @@ static bool ensure_cache_capacity(lvTriggerEngine *engine) {
  * Lifecycle
  * ======================================================================== */
 
-lvTriggerEngine *trigger_engine_create(int initial_trigger_count,
-                                         int initial_cache_size,
-                                         int max_instances) {
+lvTriggerEngine *trigger_engine_create(int initial_trigger_count, int initial_cache_size, int max_instances) {
     if (initial_trigger_count <= 0)
         initial_trigger_count = DEFAULT_TRIGGER_CAPACITY;
     if (initial_cache_size <= 0)
@@ -149,20 +144,17 @@ lvTriggerEngine *trigger_engine_create(int initial_trigger_count,
     if (max_instances <= 0)
         max_instances = DEFAULT_MAX_INSTANCES;
 
-    lvTriggerEngine *engine =
-        (lvTriggerEngine *) malloc(sizeof(lvTriggerEngine));
+    lvTriggerEngine *engine = (lvTriggerEngine *) malloc(sizeof(lvTriggerEngine));
     if (!engine)
         return NULL;
 
-    engine->triggers = (lvTrigger *) calloc(
-        (size_t) initial_trigger_count, sizeof(lvTrigger));
+    engine->triggers = (lvTrigger *) calloc((size_t) initial_trigger_count, sizeof(lvTrigger));
     if (!engine->triggers) {
         free(engine);
         return NULL;
     }
 
-    engine->instance_cache = (lvInstanceEntry *) calloc(
-        (size_t) initial_cache_size, sizeof(lvInstanceEntry));
+    engine->instance_cache = (lvInstanceEntry *) calloc((size_t) initial_cache_size, sizeof(lvInstanceEntry));
     if (!engine->instance_cache) {
         free(engine->triggers);
         free(engine);
@@ -200,10 +192,7 @@ void trigger_engine_destroy(lvTriggerEngine *engine) {
  * Pattern registration
  * ======================================================================== */
 
-int trigger_engine_add_pattern(lvTriggerEngine *engine,
-                               const int *pattern_ids,
-                               int pattern_size,
-                               double weight) {
+int trigger_engine_add_pattern(lvTriggerEngine *engine, const int *pattern_ids, int pattern_size, double weight) {
     if (!engine || !pattern_ids || pattern_size <= 0 || pattern_size > lv_TRIGGER_MAX_PATTERNS)
         return -1;
 
@@ -224,11 +213,8 @@ int trigger_engine_add_pattern(lvTriggerEngine *engine,
  * Matching and instantiation
  * ======================================================================== */
 
-bool trigger_engine_find_matches(lvTriggerEngine *engine,
-                                 int quantifier_id,
-                                 const void *ground_term,
-                                 uint64_t term_hash,
-                                 int *match_count) {
+bool trigger_engine_find_matches(lvTriggerEngine *engine, int quantifier_id, const void *ground_term,
+                                 uint64_t term_hash, int *match_count) {
     if (!engine)
         return false;
 

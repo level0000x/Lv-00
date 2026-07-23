@@ -15,11 +15,12 @@
  */
 
 #include "smt_theory_combiner.h"
-#include "lv/lv_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv/lv_utils.h"
 
 /* ========================================================================
  * Internal helpers
@@ -73,8 +74,8 @@ static bool ensure_capacity(lvTheoryCombiner *combiner) {
     if (new_capacity < DEFAULT_CAPACITY)
         new_capacity = DEFAULT_CAPACITY;
 
-    lvTheoryEntry *new_entries = (lvTheoryEntry *) lv_realloc(
-        combiner->entries, (size_t) new_capacity * sizeof(lvTheoryEntry));
+    lvTheoryEntry *new_entries =
+        (lvTheoryEntry *) lv_realloc(combiner->entries, (size_t) new_capacity * sizeof(lvTheoryEntry));
     if (!new_entries)
         return false;
 
@@ -91,13 +92,11 @@ lvTheoryCombiner *smt_combiner_create(int initial_capacity, double timeout_ms) {
     if (initial_capacity <= 0)
         initial_capacity = DEFAULT_CAPACITY;
 
-    lvTheoryCombiner *combiner =
-        (lvTheoryCombiner *) malloc(sizeof(lvTheoryCombiner));
+    lvTheoryCombiner *combiner = (lvTheoryCombiner *) malloc(sizeof(lvTheoryCombiner));
     if (!combiner)
         return NULL;
 
-    combiner->entries = (lvTheoryEntry *) calloc(
-        (size_t) initial_capacity, sizeof(lvTheoryEntry));
+    combiner->entries = (lvTheoryEntry *) calloc((size_t) initial_capacity, sizeof(lvTheoryEntry));
     if (!combiner->entries) {
         free(combiner);
         return NULL;
@@ -126,10 +125,7 @@ void smt_combiner_destroy(lvTheoryCombiner *combiner) {
  * Theory registration
  * ======================================================================== */
 
-bool smt_combiner_add_theory(lvTheoryCombiner *combiner,
-                             lvTheoryId theory_id,
-                             int priority,
-                             lvTheorySolverFn solver_fn,
+bool smt_combiner_add_theory(lvTheoryCombiner *combiner, lvTheoryId theory_id, int priority, lvTheorySolverFn solver_fn,
                              void *solver_context) {
     if (!combiner || !solver_fn)
         return false;
@@ -144,8 +140,7 @@ bool smt_combiner_add_theory(lvTheoryCombiner *combiner,
         combiner->entries[existing_idx].enabled = true;
 
         /* Re-sort by priority */
-        qsort(combiner->entries, (size_t) combiner->entry_count,
-              sizeof(lvTheoryEntry), compare_entries_by_priority);
+        qsort(combiner->entries, (size_t) combiner->entry_count, sizeof(lvTheoryEntry), compare_entries_by_priority);
         return true;
     }
 
@@ -162,15 +157,12 @@ bool smt_combiner_add_theory(lvTheoryCombiner *combiner,
     combiner->entry_count++;
 
     /* Re-sort by priority */
-    qsort(combiner->entries, (size_t) combiner->entry_count,
-          sizeof(lvTheoryEntry), compare_entries_by_priority);
+    qsort(combiner->entries, (size_t) combiner->entry_count, sizeof(lvTheoryEntry), compare_entries_by_priority);
 
     return true;
 }
 
-bool smt_combiner_set_enabled(lvTheoryCombiner *combiner,
-                              lvTheoryId theory_id,
-                              bool enabled) {
+bool smt_combiner_set_enabled(lvTheoryCombiner *combiner, lvTheoryId theory_id, bool enabled) {
     if (!combiner)
         return false;
 
@@ -186,8 +178,7 @@ bool smt_combiner_set_enabled(lvTheoryCombiner *combiner,
  * Solving
  * ======================================================================== */
 
-lvTheoryResult smt_combiner_solve(const lvTheoryCombiner *combiner,
-                                    const void *constraints) {
+lvTheoryResult smt_combiner_solve(const lvTheoryCombiner *combiner, const void *constraints) {
     lvTheoryResult result;
     result.satisfiable = false;
     result.timeout = true;

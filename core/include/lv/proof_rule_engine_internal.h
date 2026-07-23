@@ -6,8 +6,8 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "proof_rule_engine.h"
 

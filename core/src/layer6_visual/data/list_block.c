@@ -22,7 +22,8 @@
  */
 lvListBlock *lv_list_block_create(lvListOp op) {
     lvListBlock *block = lv_calloc(1, sizeof(lvListBlock));
-    if (!block) return NULL;
+    if (!block)
+        return NULL;
     block->operation = op;
     return block;
 }
@@ -35,5 +36,5 @@ lvListBlock *lv_list_block_create(lvListOp op) {
  * @param block 列表块指针
  */
 void lv_list_block_destroy(lvListBlock *block) {
-    lv_free((void **)&block);
+    lv_free((void **) &block);
 }

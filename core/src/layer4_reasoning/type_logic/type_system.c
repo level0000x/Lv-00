@@ -43,11 +43,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv.h"
+#include "lv/stream.h"
+
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/lv.h"
 #include "rewrite.h"
-#include "lv/stream.h"
 
 lv_DECLARE_STREAM_CTX(type_system);
 
@@ -72,7 +73,10 @@ void type_system_set_stream_context(StreamContext *ctx) {
 
 /* visited set：记录已比较的类型对，防止共享子类型导致指数级时间
  * 使用线程局部存储确保多线程环境下类型等价检查的线程安全性 */
-static lv_THREAD_LOCAL struct { const TypeRegion *a; const TypeRegion *b; } s_equiv_visited[MAX_VISITED];
+static lv_THREAD_LOCAL struct {
+    const TypeRegion *a;
+    const TypeRegion *b;
+} s_equiv_visited[MAX_VISITED];
 static lv_THREAD_LOCAL int s_equiv_visited_count = 0;
 
 /**
@@ -82,16 +86,18 @@ static lv_THREAD_LOCAL int s_equiv_visited_count = 0;
  * 如果发现当前类型对已经被比较过，则直接返回 TYPE_EQUIV_OK
  * 以避免无限递归和指数级时间复杂度。
  */
-#define VISITED_CHECK(ta, tb) do { \
-    for (int _vi = 0; _vi < s_equiv_visited_count; _vi++) { \
-        if (s_equiv_visited[_vi].a == (ta) && s_equiv_visited[_vi].b == (tb)) return TYPE_EQUIV_OK; \
-    } \
-    if (s_equiv_visited_count < MAX_VISITED) { \
-        s_equiv_visited[s_equiv_visited_count].a = (ta); \
-        s_equiv_visited[s_equiv_visited_count].b = (tb); \
-        s_equiv_visited_count++; \
-    } \
-} while(0)
+#define VISITED_CHECK(ta, tb)                                                     \
+    do {                                                                          \
+        for (int _vi = 0; _vi < s_equiv_visited_count; _vi++) {                   \
+            if (s_equiv_visited[_vi].a == (ta) && s_equiv_visited[_vi].b == (tb)) \
+                return TYPE_EQUIV_OK;                                             \
+        }                                                                         \
+        if (s_equiv_visited_count < MAX_VISITED) {                                \
+            s_equiv_visited[s_equiv_visited_count].a = (ta);                      \
+            s_equiv_visited[s_equiv_visited_count].b = (tb);                      \
+            s_equiv_visited_count++;                                              \
+        }                                                                         \
+    } while (0)
 
 /* 前向声明：用于辅助函数 */
 static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
@@ -301,8 +307,8 @@ static TypeRegion *type_region_create(TypeSystem *ts, TypeKind kind) {
         return NULL;
     }
     /* 指数扩容策略：避免 O(n²) 的逐次 realloc */
-    int new_capacity = ts->type_region_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY
-                                                     : ts->type_region_capacity * lv_ARRAY_GROWTH_FACTOR;
+    int new_capacity =
+        ts->type_region_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY : ts->type_region_capacity * lv_ARRAY_GROWTH_FACTOR;
     if (new_capacity <= ts->type_region_count) {
         new_capacity = ts->type_region_count + 1; /* 防止容量不足 */
     }
@@ -372,7 +378,7 @@ TypeRegion *type_create_region(TypeSystem *ts, const int *contained_ids, int cou
     tr->level = UNIVERSE_TYPE_1;
 
     if (contained_ids && count > 0) {
-        tr->contained_node_ids = lv_malloc((size_t)count * sizeof(int));
+        tr->contained_node_ids = lv_malloc((size_t) count * sizeof(int));
         if (tr->contained_node_ids) {
             memcpy(tr->contained_node_ids, contained_ids, count * sizeof(int));
             tr->contained_count = count;
@@ -554,8 +560,7 @@ TypeRegion *type_create_bottom(TypeSystem *ts) {
     return tr;
 }
 
-TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
-                                          const char *predicate_name,
+TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type, const char *predicate_name,
                                           const char *predicate_expr) {
     if (!ts || !base_type || !predicate_name)
         return NULL;
@@ -568,13 +573,13 @@ TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
     tr->predicate_name = lv_strdup(predicate_name);
     tr->predicate_expr = predicate_expr ? lv_strdup(predicate_expr) : NULL;
     tr->predicate_constraint_id = -1; /* 稍后通过约束系统关联 */
-    tr->level = base_type->level; /* 子类型与基类型同层级 */
+    tr->level = base_type->level;     /* 子类型与基类型同层级 */
 
     if (!tr->predicate_name) {
         /* 从 type_regions 数组中移除，避免悬空指针导致 type_system_destroy 时 double-free */
         ts->type_region_count--;
         ts->type_regions[ts->type_region_count] = NULL;
-        lv_free((void **)&tr);
+        lv_free((void **) &tr);
         return NULL;
     }
 
@@ -1010,8 +1015,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                 if (type1->contained_node_ids && type2->contained_node_ids) {
                     /* 排序+双指针 O(n log n) 优化 */
                     int count = type1->contained_count;
-                    int *sorted1 = lv_malloc((size_t)count * sizeof(int));
-                    int *sorted2 = lv_malloc((size_t)count * sizeof(int));
+                    int *sorted1 = lv_malloc((size_t) count * sizeof(int));
+                    int *sorted2 = lv_malloc((size_t) count * sizeof(int));
                     if (!sorted1 || !sorted2) {
                         lv_free((void **) &sorted1);
                         lv_free((void **) &sorted2);
@@ -1054,8 +1059,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
 
                     /* 排序+双指针 O(n log n) 优化 */
                     int count = type1->constraint_count;
-                    int *sorted1 = lv_malloc((size_t)count * sizeof(int));
-                    int *sorted2 = lv_malloc((size_t)count * sizeof(int));
+                    int *sorted1 = lv_malloc((size_t) count * sizeof(int));
+                    int *sorted2 = lv_malloc((size_t) count * sizeof(int));
                     if (!sorted1 || !sorted2) {
                         lv_free((void **) &sorted1);
                         lv_free((void **) &sorted2);
@@ -1199,19 +1204,17 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                 TypeRegion canonical_var;
                 memset(&canonical_var, 0, sizeof(canonical_var));
                 canonical_var.kind = TYPE_KIND_VARIABLE;
-                canonical_var.variable_id = -1;  /* 规范变量标记 */
+                canonical_var.variable_id = -1; /* 规范变量标记 */
 
                 /* 替换 type1 体类型中的参数为规范变量 */
                 TypeRegion *norm_body1 = NULL;
-                bool sub1_ok = type_substitute_variable(
-                    ts, type1->body_type, type1->param_node_id,
-                    &canonical_var, &norm_body1);
+                bool sub1_ok =
+                    type_substitute_variable(ts, type1->body_type, type1->param_node_id, &canonical_var, &norm_body1);
 
                 /* 替换 type2 体类型中的参数为规范变量 */
                 TypeRegion *norm_body2 = NULL;
-                bool sub2_ok = type_substitute_variable(
-                    ts, type2->body_type, type2->param_node_id,
-                    &canonical_var, &norm_body2);
+                bool sub2_ok =
+                    type_substitute_variable(ts, type2->body_type, type2->param_node_id, &canonical_var, &norm_body2);
 
                 if (sub1_ok && sub2_ok && norm_body1 && norm_body2) {
                     /* 两个替换都成功，比较规范化后的体类型 */
@@ -1227,8 +1230,10 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                 }
 
                 /* 替换失败，清理并回退到结构比较 */
-                if (norm_body1) type_region_deep_free(norm_body1);
-                if (norm_body2) type_region_deep_free(norm_body2);
+                if (norm_body1)
+                    type_region_deep_free(norm_body1);
+                if (norm_body2)
+                    type_region_deep_free(norm_body2);
 
                 /* 回退：检查体类型的种类是否相同 */
                 if (type1->body_type->kind != type2->body_type->kind) {
@@ -1949,8 +1954,7 @@ bool type_check_non_well_founded_compatibility(TypeSystem *ts, TypeRegion *type)
  * @param depth          当前递归深度
  * @return true 规范化成功，false 参数无效或失败
  */
-static bool type_normalize_internal(TypeSystem *ts, TypeRegion *type,
-                                     TypeRegion **out_normalized, int depth) {
+static bool type_normalize_internal(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized, int depth) {
     if (!ts || !type || !out_normalized)
         return false;
 
@@ -1981,8 +1985,7 @@ static bool type_normalize_internal(TypeSystem *ts, TypeRegion *type,
         for (int i = 0; i < ts->type_var_count; i++) {
             if (ts->type_vars[i] && ts->type_vars[i]->id == type->variable_id) {
                 if (ts->type_vars[i]->bound_type) {
-                    return type_normalize_internal(ts, ts->type_vars[i]->bound_type,
-                                                    out_normalized, depth + 1);
+                    return type_normalize_internal(ts, ts->type_vars[i]->bound_type, out_normalized, depth + 1);
                 }
             }
         }
@@ -2102,7 +2105,8 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
     if (ts->node_type_mapping_count >= ts->node_type_mapping_capacity) {
         int new_capacity = ts->node_type_mapping_capacity == 0 ? NODE_TYPE_MAPPING_INITIAL_CAPACITY
                                                                : ts->node_type_mapping_capacity * 2;
-        if (ts->node_type_mapping_capacity > 0 && ts->node_type_mapping_capacity > INT_MAX / 2) return false;
+        if (ts->node_type_mapping_capacity > 0 && ts->node_type_mapping_capacity > INT_MAX / 2)
+            return false;
         NodeTypeMapping *new_mappings =
             (NodeTypeMapping *) lv_realloc(ts->node_type_mappings, new_capacity * sizeof(NodeTypeMapping));
         if (!new_mappings)
@@ -2616,7 +2620,8 @@ int type_system_register_inference_rule(TypeSystem *ts, int source_node_type, in
 
     /* 需要扩容 */
     if (ts->inference_rule_count >= ts->inference_rule_capacity) {
-        if (ts->inference_rule_capacity > 0 && ts->inference_rule_capacity > INT_MAX / 2) return -1;
+        if (ts->inference_rule_capacity > 0 && ts->inference_rule_capacity > INT_MAX / 2)
+            return -1;
         int new_capacity =
             ts->inference_rule_capacity == 0 ? INFERENCE_RULE_INITIAL_CAPACITY : ts->inference_rule_capacity * 2;
         TypeInferenceRule *new_arr =
@@ -2998,8 +3003,7 @@ ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, 
             if (rule->pattern->kind == TYPE_KIND_VARIABLE) {
                 /* 模式为类型变量 → 可匹配任何类型 */
                 rule_applicable = true;
-            } else if (explorer->current &&
-                       rule->pattern->kind == explorer->current->kind) {
+            } else if (explorer->current && rule->pattern->kind == explorer->current->kind) {
                 /* 顶层种类匹配 → 候选规则 */
                 rule_applicable = true;
             } else if (rule->pattern->kind == TYPE_KIND_BOTTOM) {
@@ -3075,7 +3079,8 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 
     /* 应用前：将当前类型压入撤销栈 */
     if (explorer->undo_count >= explorer->undo_capacity) {
-        if (explorer->undo_capacity > INT_MAX / 2) return EXPLORER_ERROR;
+        if (explorer->undo_capacity > INT_MAX / 2)
+            return EXPLORER_ERROR;
         int new_cap = explorer->undo_capacity * 2;
         TypeRegion **new_stack = (TypeRegion **) lv_realloc(explorer->undo_stack, new_cap * sizeof(TypeRegion *));
         if (!new_stack)

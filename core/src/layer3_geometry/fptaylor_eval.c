@@ -12,15 +12,15 @@
  * @date 2026-05-24
  */
 
-#include "lv/float_error.h"
-#include "lv/lv_internal.h"
-
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 #include <ctype.h>
 #include <float.h>
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "lv/float_error.h"
+#include "lv/lv_internal.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -66,8 +66,10 @@ FloatInterval float_interval_mul(FloatInterval a, FloatInterval b) {
     r.lo = corners[0];
     r.hi = corners[0];
     for (int i = 1; i < 4; i++) {
-        if (corners[i] < r.lo) r.lo = corners[i];
-        if (corners[i] > r.hi) r.hi = corners[i];
+        if (corners[i] < r.lo)
+            r.lo = corners[i];
+        if (corners[i] > r.hi)
+            r.hi = corners[i];
     }
     r.is_exact = a.is_exact && b.is_exact;
     return r;
@@ -100,7 +102,9 @@ FloatInterval float_interval_div(FloatInterval a, FloatInterval b) {
 FloatInterval float_interval_sqrt(FloatInterval a) {
     FloatInterval r;
     if (a.hi < 0.0) {
-        r.lo = NAN; r.hi = NAN; r.is_exact = false;
+        r.lo = NAN;
+        r.hi = NAN;
+        r.is_exact = false;
         return r;
     }
     r.lo = a.lo >= 0.0 ? sqrt(a.lo) : 0.0;
@@ -115,7 +119,9 @@ FloatInterval float_interval_sqrt(FloatInterval a) {
 FloatInterval float_interval_sin(FloatInterval a) {
     FloatInterval r;
     if (a.hi - a.lo >= 2.0 * M_PI) {
-        r.lo = -1.0; r.hi = 1.0; r.is_exact = false;
+        r.lo = -1.0;
+        r.hi = 1.0;
+        r.is_exact = false;
         return r;
     }
     double s_lo = sin(a.lo);
@@ -125,11 +131,13 @@ FloatInterval float_interval_sin(FloatInterval a) {
     /* 检查是否包含 sin 的最大值点 (pi/2 + 2k*pi) */
     double k = ceil((a.lo - M_PI / 2.0) / (2.0 * M_PI));
     double peak = M_PI / 2.0 + k * 2.0 * M_PI;
-    if (peak >= a.lo && peak <= a.hi) r.hi = 1.0;
+    if (peak >= a.lo && peak <= a.hi)
+        r.hi = 1.0;
     /* 检查是否包含 sin 的最小值点 (-pi/2 + 2k*pi) */
     double j = ceil((a.lo + M_PI / 2.0) / (2.0 * M_PI));
     double trough = -M_PI / 2.0 + j * 2.0 * M_PI;
-    if (trough >= a.lo && trough <= a.hi) r.lo = -1.0;
+    if (trough >= a.lo && trough <= a.hi)
+        r.lo = -1.0;
     r.is_exact = a.is_exact && (a.lo == a.hi);
     return r;
 }
@@ -140,7 +148,9 @@ FloatInterval float_interval_sin(FloatInterval a) {
 FloatInterval float_interval_cos(FloatInterval a) {
     FloatInterval r;
     if (a.hi - a.lo >= 2.0 * M_PI) {
-        r.lo = -1.0; r.hi = 1.0; r.is_exact = false;
+        r.lo = -1.0;
+        r.hi = 1.0;
+        r.is_exact = false;
         return r;
     }
     double c_lo = cos(a.lo);
@@ -150,11 +160,13 @@ FloatInterval float_interval_cos(FloatInterval a) {
     /* cos 最大值点 (2k*pi) */
     double k = ceil(a.lo / (2.0 * M_PI));
     double peak = k * 2.0 * M_PI;
-    if (peak >= a.lo && peak <= a.hi) r.hi = 1.0;
+    if (peak >= a.lo && peak <= a.hi)
+        r.hi = 1.0;
     /* cos 最小值点 (pi + 2k*pi) */
     double j = ceil((a.lo - M_PI) / (2.0 * M_PI));
     double trough = M_PI + j * 2.0 * M_PI;
-    if (trough >= a.lo && trough <= a.hi) r.lo = -1.0;
+    if (trough >= a.lo && trough <= a.hi)
+        r.lo = -1.0;
     r.is_exact = a.is_exact && (a.lo == a.hi);
     return r;
 }
@@ -217,16 +229,15 @@ static double fp64_epsilon(void) {
  * @param eps            机器 epsilon
  * @return 绝对误差上界
  */
-static double compute_absolute_error_bound(const double *abs_deriv_sum,
-                                            const double *var_ranges,
-                                            int var_count, double eps) {
+static double compute_absolute_error_bound(const double *abs_deriv_sum, const double *var_ranges, int var_count,
+                                           double eps) {
     double bound = 0.0;
     for (int i = 0; i < var_count; i++) {
         /* 一阶项：|df/dxi| * range(xi) * eps */
         bound += abs_deriv_sum[i] * var_ranges[i] * eps;
     }
     /* 加上舍入误差的保守估计（每步运算最多贡献一个 eps） */
-    bound += eps * (double)var_count;
+    bound += eps * (double) var_count;
     return fabs(bound);
 }
 
@@ -243,12 +254,10 @@ static double compute_absolute_error_bound(const double *abs_deriv_sum,
  * @param out_derivs  输出偏导数绝对值数组
  * @return 成功返回 true
  */
-static bool compute_taylor_coefficients(const char *expr,
-                                         const double *var_values,
-                                         int var_count,
-                                         double *out_center,
-                                         double *out_derivs) {
-    if (!expr || !var_values || !out_center || !out_derivs) return false;
+static bool compute_taylor_coefficients(const char *expr, const double *var_values, int var_count, double *out_center,
+                                        double *out_derivs) {
+    if (!expr || !var_values || !out_center || !out_derivs)
+        return false;
 
     /* 简化实现：使用符号微分和求值 */
     /* 对于简单表达式 "x0 + x1*x2" 等，解析结构并计算导数 */
@@ -265,11 +274,11 @@ static bool compute_taylor_coefficients(const char *expr,
 
     /* 数值偏导数近似 */
     for (int i = 0; i < var_count; i++) {
-        double *x_plus = lv_calloc((size_t)var_count, sizeof(double));
-        double *x_minus = lv_calloc((size_t)var_count, sizeof(double));
+        double *x_plus = lv_calloc((size_t) var_count, sizeof(double));
+        double *x_minus = lv_calloc((size_t) var_count, sizeof(double));
         if (!x_plus || !x_minus) {
-            lv_free((void **)&x_plus);
-            lv_free((void **)&x_minus);
+            lv_free((void **) &x_plus);
+            lv_free((void **) &x_minus);
             out_derivs[i] = 1.0; /* 保守默认值 */
             continue;
         }
@@ -289,8 +298,8 @@ static bool compute_taylor_coefficients(const char *expr,
         }
 
         out_derivs[i] = fabs((f_plus - f_minus) / (2.0 * h));
-        lv_free((void **)&x_plus);
-        lv_free((void **)&x_minus);
+        lv_free((void **) &x_plus);
+        lv_free((void **) &x_minus);
     }
     return true;
 }
@@ -331,9 +340,10 @@ FloatInterval interval_make(double lo, double hi, bool is_exact) {
  * @brief 释放 ErrorBound 内部资源
  */
 void error_bound_destroy(ErrorBound *bound) {
-    if (!bound) return;
+    if (!bound)
+        return;
     if (bound->proof_text) {
-        lv_free((void **)&bound->proof_text);
+        lv_free((void **) &bound->proof_text);
     }
     bound->absolute_error = 0.0;
     bound->relative_error = 0.0;
@@ -357,10 +367,10 @@ void error_bound_destroy(ErrorBound *bound) {
  * @param[out] out        输出的误差界
  * @return true 成功，false 失败
  */
-bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
-                             int var_count, const FPTaylorConfig *cfg,
-                             ErrorBound *out) {
-    if (!expr || !var_bounds || var_count <= 0 || !out) return false;
+bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, int var_count, const FPTaylorConfig *cfg,
+                            ErrorBound *out) {
+    if (!expr || !var_bounds || var_count <= 0 || !out)
+        return false;
 
     /* 使用默认配置（若未提供） */
     FPTaylorConfig default_cfg = fptaylor_config_default();
@@ -374,11 +384,11 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
     double eps = (config->taylor_order >= 2) ? fp32_epsilon() : fp64_epsilon();
 
     /* 计算变量中心值和区间宽度 */
-    double *centers = lv_calloc((size_t)var_count, sizeof(double));
-    double *ranges = lv_calloc((size_t)var_count, sizeof(double));
+    double *centers = lv_calloc((size_t) var_count, sizeof(double));
+    double *ranges = lv_calloc((size_t) var_count, sizeof(double));
     if (!centers || !ranges) {
-        lv_free((void **)&centers);
-        lv_free((void **)&ranges);
+        lv_free((void **) &centers);
+        lv_free((void **) &ranges);
         return false;
     }
 
@@ -389,30 +399,26 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
 
     /* 计算泰勒系数 */
     double center_val = 0.0;
-    double *abs_derivs = lv_calloc((size_t)var_count, sizeof(double));
+    double *abs_derivs = lv_calloc((size_t) var_count, sizeof(double));
     if (!abs_derivs) {
-        lv_free((void **)&centers);
-        lv_free((void **)&ranges);
+        lv_free((void **) &centers);
+        lv_free((void **) &ranges);
         return false;
     }
 
-    bool ok = compute_taylor_coefficients(expr, centers, var_count,
-                                           &center_val, abs_derivs);
+    bool ok = compute_taylor_coefficients(expr, centers, var_count, &center_val, abs_derivs);
     if (!ok) {
-        lv_free((void **)&centers);
-        lv_free((void **)&ranges);
-        lv_free((void **)&abs_derivs);
+        lv_free((void **) &centers);
+        lv_free((void **) &ranges);
+        lv_free((void **) &abs_derivs);
         return false;
     }
 
     /* 计算绝对误差上界 */
-    double abs_err = compute_absolute_error_bound(abs_derivs, ranges,
-                                                   var_count, eps);
+    double abs_err = compute_absolute_error_bound(abs_derivs, ranges, var_count, eps);
 
     /* 计算相对误差上界 */
-    double rel_err = (fabs(center_val) > 1e-30)
-                     ? abs_err / fabs(center_val)
-                     : INFINITY;
+    double rel_err = (fabs(center_val) > 1e-30) ? abs_err / fabs(center_val) : INFINITY;
 
     /* 填充输出 */
     out->absolute_error = abs_err;
@@ -428,16 +434,15 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
              "  relative_error_bound: %.15e\n"
              "  taylor_order: %d\n"
              "  epsilon: %.15e\n",
-             expr, center_val, abs_err, rel_err,
-             config->taylor_order, eps);
+             expr, center_val, abs_err, rel_err, config->taylor_order, eps);
     out->proof_text = lv_strdup(buf);
 
     /* 确定信任颜色等级 */
     out->trust_level = fptaylor_verify_safety(out, 1e-10);
 
-    lv_free((void **)&centers);
-    lv_free((void **)&ranges);
-    lv_free((void **)&abs_derivs);
+    lv_free((void **) &centers);
+    lv_free((void **) &ranges);
+    lv_free((void **) &abs_derivs);
     return true;
 }
 
@@ -456,9 +461,9 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds,
  * @param[out] out     输出的误差界
  * @return true 成功，false 失败
  */
-bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id,
-                              const FPTaylorConfig *cfg, ErrorBound *out) {
-    if (!graph || !out) return false;
+bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out) {
+    if (!graph || !out)
+        return false;
 
     /* 简化实现：使用默认变量区间进行单变量误差分析 */
     memset(out, 0, sizeof(ErrorBound));
@@ -494,12 +499,16 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id,
  * @return 信任颜色等级
  */
 TrustColor fptaylor_verify_safety(const ErrorBound *bound, double tolerance) {
-    if (!bound) return TRUST_YELLOW;
+    if (!bound)
+        return TRUST_YELLOW;
 
     double abs_err = fabs(bound->absolute_error);
 
-    if (abs_err <= 1e-12) return TRUST_GREEN;
-    if (abs_err <= 1e-10) return TRUST_BLUE_UNEXPLORED;
-    if (abs_err <= tolerance) return TRUST_AMBER;
+    if (abs_err <= 1e-12)
+        return TRUST_GREEN;
+    if (abs_err <= 1e-10)
+        return TRUST_BLUE_UNEXPLORED;
+    if (abs_err <= tolerance)
+        return TRUST_AMBER;
     return TRUST_RED;
 }

@@ -17,15 +17,17 @@
  */
 
 #include "lv/prop_verifier.h"
-#include "lv/lv_utils.h"
-#include "lv/stream_context_util.h"
-#include "lv/lv_internal.h"
-#include "lv/stream.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 
 lv_DECLARE_STREAM_CTX(prop_verifier);
 
@@ -33,52 +35,52 @@ lv_DECLARE_STREAM_CTX(prop_verifier);
  * 内部常量
  * ============================================================ */
 
-#define MAX_PREMISES     64    /**< 最大前提数 */
-#define MAX_GOALS        64    /**< 最大目标数 */
-#define MAX_MEMO_ENTRIES 1024  /**< 记忆化条目数 */
-#define MAX_FORMULA_STR  2048  /**< 公式字符串最大长度 */
-#define MAX_COPY_DEPTH   200   /**< 公式深拷贝递归深度（防止栈溢出） */
-#define MAX_DESTROY_DEPTH 200  /**< 公式销毁递归深度（防止栈溢出） */
+#define MAX_PREMISES 64       /**< 最大前提数 */
+#define MAX_GOALS 64          /**< 最大目标数 */
+#define MAX_MEMO_ENTRIES 1024 /**< 记忆化条目数 */
+#define MAX_FORMULA_STR 2048  /**< 公式字符串最大长度 */
+#define MAX_COPY_DEPTH 200    /**< 公式深拷贝递归深度（防止栈溢出） */
+#define MAX_DESTROY_DEPTH 200 /**< 公式销毁递归深度（防止栈溢出） */
 
 /* ---- 销毁栈配置 ---- */
-#define PROP_DESTROY_STACK_INIT_CAP   64   /* 销毁时栈的初始容量 */
-#define PROP_DESTROY_STACK_GROWTH     2    /* 销毁栈扩容倍数 */
+#define PROP_DESTROY_STACK_INIT_CAP 64 /* 销毁时栈的初始容量 */
+#define PROP_DESTROY_STACK_GROWTH 2    /* 销毁栈扩容倍数 */
 
 /* ---- 运算符优先级 ---- */
-#define PROP_PREC_ATOM          100   /* 原子命题优先级 */
-#define PROP_PREC_NEGATION      80    /* 否定运算符优先级 */
-#define PROP_PREC_CONJUNCTION   60    /* 合取运算符优先级 */
-#define PROP_PREC_DISJUNCTION   50    /* 析取运算符优先级 */
-#define PROP_PREC_IMPLICATION   40    /* 蕴含运算符优先级 */
-#define PROP_PREC_DEFAULT       0     /* 默认运算符优先级 */
+#define PROP_PREC_ATOM 100       /* 原子命题优先级 */
+#define PROP_PREC_NEGATION 80    /* 否定运算符优先级 */
+#define PROP_PREC_CONJUNCTION 60 /* 合取运算符优先级 */
+#define PROP_PREC_DISJUNCTION 50 /* 析取运算符优先级 */
+#define PROP_PREC_IMPLICATION 40 /* 蕴含运算符优先级 */
+#define PROP_PREC_DEFAULT 0      /* 默认运算符优先级 */
 
 /* ---- 哈希常量定义 ---- */
-#define PROP_HASH_TYPE_MULTIPLIER      2654435761U  /* 黄金比例乘数（Knuth推荐） */
-#define PROP_HASH_STRING_MULTIPLIER    31           /* 字符串哈希乘数 */
-#define PROP_HASH_LEFT_MULTIPLIER      0x9e3779b9U  /* 左子公式哈希乘数 */
-#define PROP_HASH_RIGHT_MULTIPLIER     0x517cc1b7U  /* 右子公式哈希乘数 */
-#define PROP_HASH_PTR_MULTIPLIER       0x45d9f3bU   /* 指针哈希乘数 */
-#define PROP_HASH_BIT_SHIFT            16           /* 哈希位移偏移量 */
-#define PROP_HASH_PREMISES_MULTIPLIER  31           /* 前提集合哈希乘数 */
+#define PROP_HASH_TYPE_MULTIPLIER 2654435761U  /* 黄金比例乘数（Knuth推荐） */
+#define PROP_HASH_STRING_MULTIPLIER 31         /* 字符串哈希乘数 */
+#define PROP_HASH_LEFT_MULTIPLIER 0x9e3779b9U  /* 左子公式哈希乘数 */
+#define PROP_HASH_RIGHT_MULTIPLIER 0x517cc1b7U /* 右子公式哈希乘数 */
+#define PROP_HASH_PTR_MULTIPLIER 0x45d9f3bU    /* 指针哈希乘数 */
+#define PROP_HASH_BIT_SHIFT 16                 /* 哈希位移偏移量 */
+#define PROP_HASH_PREMISES_MULTIPLIER 31       /* 前提集合哈希乘数 */
 
 /* ---- 时间转换 ---- */
-#define PROP_TIME_MS_PER_SEC           1000         /* 秒到毫秒的转换常数 */
+#define PROP_TIME_MS_PER_SEC 1000 /* 秒到毫秒的转换常数 */
 
 /* ---- 冒烟测试与缓冲区常量 ---- */
-#define PROP_SMOKE_TEST_COUNT          13           /* 内置冒烟测试数 */
-#define PROP_SMOKE_MAX_PREM_PTRS       8            /* 冒烟测试前提指针临时数组大小 */
-#define PROP_SMOKE_CLEANUP_MAX_PTRS    16           /* 冒烟测试清理时临时收集指针数 */
-#define PROP_ATOM_NAME_MAX_LEN         64           /* 原子命题名称最大长度 */
-#define PROP_ATOM_COLLECT_MAX          32           /* 收集原子命题最大数量 */
-#define PROP_PATTERN_DESC_BUFSIZE      256          /* 模式描述缓冲区大小 */
-#define PROP_ANALYSIS_DESC_BUFSIZE     512          /* 分析描述缓冲区大小 */
-#define PROP_MISSING_LIST_BUFSIZE      512          /* 缺失列表缓冲区大小 */
-#define PROP_STREAM_EVENT_BUFSIZE      256          /* 公式事件描述缓冲区大小 */
-#define PROP_JSON_DETAIL_BUFSIZE       192          /* JSON详情缓冲区大小 */
+#define PROP_SMOKE_TEST_COUNT 13       /* 内置冒烟测试数 */
+#define PROP_SMOKE_MAX_PREM_PTRS 8     /* 冒烟测试前提指针临时数组大小 */
+#define PROP_SMOKE_CLEANUP_MAX_PTRS 16 /* 冒烟测试清理时临时收集指针数 */
+#define PROP_ATOM_NAME_MAX_LEN 64      /* 原子命题名称最大长度 */
+#define PROP_ATOM_COLLECT_MAX 32       /* 收集原子命题最大数量 */
+#define PROP_PATTERN_DESC_BUFSIZE 256  /* 模式描述缓冲区大小 */
+#define PROP_ANALYSIS_DESC_BUFSIZE 512 /* 分析描述缓冲区大小 */
+#define PROP_MISSING_LIST_BUFSIZE 512  /* 缺失列表缓冲区大小 */
+#define PROP_STREAM_EVENT_BUFSIZE 256  /* 公式事件描述缓冲区大小 */
+#define PROP_JSON_DETAIL_BUFSIZE 192   /* JSON详情缓冲区大小 */
 
 /* ---- 信任颜色判定阈值 ---- */
-#define PROP_TRUST_YELLOW_THRESHOLD    2            /* 黄色信任的缺失构造上限 */
-#define PROP_TRUST_AMBER_MIN           3            /* 琥珀色信任的缺失构造下限 */
+#define PROP_TRUST_YELLOW_THRESHOLD 2 /* 黄色信任的缺失构造上限 */
+#define PROP_TRUST_AMBER_MIN 3        /* 琥珀色信任的缺失构造下限 */
 
 /* ============================================================
  * 公式创建/销毁
@@ -91,9 +93,11 @@ lv_DECLARE_STREAM_CTX(prop_verifier);
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_atom(const char *name) {
-    if (!name) return NULL;
-    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!name)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_ATOM;
     snprintf(f->data.atom.name, sizeof(f->data.atom.name), "%s", name);
     return f;
@@ -107,9 +111,11 @@ PropFormula *prop_formula_create_atom(const char *name) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *right) {
-    if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!left || !right)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_CONJUNCTION;
     f->data.binary.left = left;
     f->data.binary.right = right;
@@ -124,9 +130,11 @@ PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *rig
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *right) {
-    if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!left || !right)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_DISJUNCTION;
     f->data.binary.left = left;
     f->data.binary.right = right;
@@ -141,9 +149,11 @@ PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *rig
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *right) {
-    if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!left || !right)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_IMPLICATION;
     f->data.binary.left = left;
     f->data.binary.right = right;
@@ -157,9 +167,11 @@ PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *rig
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_negation(PropFormula *operand) {
-    if (!operand) return NULL;
-    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!operand)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_NEGATION;
     f->data.unary.operand = operand;
     return f;
@@ -171,8 +183,9 @@ PropFormula *prop_formula_create_negation(PropFormula *operand) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_bottom(void) {
-    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_BOTTOM;
     return f;
 }
@@ -183,8 +196,9 @@ PropFormula *prop_formula_create_bottom(void) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_true(void) {
-    PropFormula *f = (PropFormula *)lv_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_TRUE;
     return f;
 }
@@ -212,7 +226,8 @@ PropFormula *prop_formula_copy(const PropFormula *f) {
  * @return 副本公式指针，超深度返回 NULL
  */
 static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
     if (depth > MAX_COPY_DEPTH) {
         /* 递归深度超限，防止栈溢出 */
         return NULL;
@@ -221,20 +236,16 @@ static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
         case PROP_ATOM:
             return prop_formula_create_atom(f->data.atom.name);
         case PROP_CONJUNCTION:
-            return prop_formula_create_conjunction(
-                prop_formula_copy_depth(f->data.binary.left, depth + 1),
-                prop_formula_copy_depth(f->data.binary.right, depth + 1));
+            return prop_formula_create_conjunction(prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                                                   prop_formula_copy_depth(f->data.binary.right, depth + 1));
         case PROP_DISJUNCTION:
-            return prop_formula_create_disjunction(
-                prop_formula_copy_depth(f->data.binary.left, depth + 1),
-                prop_formula_copy_depth(f->data.binary.right, depth + 1));
+            return prop_formula_create_disjunction(prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                                                   prop_formula_copy_depth(f->data.binary.right, depth + 1));
         case PROP_IMPLICATION:
-            return prop_formula_create_implication(
-                prop_formula_copy_depth(f->data.binary.left, depth + 1),
-                prop_formula_copy_depth(f->data.binary.right, depth + 1));
+            return prop_formula_create_implication(prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                                                   prop_formula_copy_depth(f->data.binary.right, depth + 1));
         case PROP_NEGATION:
-            return prop_formula_create_negation(
-                prop_formula_copy_depth(f->data.unary.operand, depth + 1));
+            return prop_formula_create_negation(prop_formula_copy_depth(f->data.unary.operand, depth + 1));
         case PROP_BOTTOM:
             return prop_formula_create_bottom();
         case PROP_TRUE:
@@ -265,14 +276,14 @@ void prop_formula_destroy(PropFormula *f) {
  * @param depth 未使用，保留以兼容递归函数签名
  */
 static void prop_formula_destroy_depth(PropFormula *f, int depth) {
-    (void)depth; /* 迭代实现不使用深度参数 */
-    if (!f) return;
+    (void) depth; /* 迭代实现不使用深度参数 */
+    if (!f)
+        return;
 
     /* 显式栈存储待销毁的公式节点 */
     int stack_capacity = PROP_DESTROY_STACK_INIT_CAP;
     int stack_top = 0;
-    PropFormula **stack = (PropFormula **)lv_malloc(
-        (size_t)stack_capacity * sizeof(PropFormula *));
+    PropFormula **stack = (PropFormula **) lv_malloc((size_t) stack_capacity * sizeof(PropFormula *));
     if (!stack) {
         /* 内存分配失败，退化为简单递归（浅层公式仍可正确销毁） */
         prop_formula_destroy(f);
@@ -292,9 +303,10 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 if (current->data.binary.right) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity) break; /* 溢出保护 */
-                        PropFormula **new_stack = (PropFormula **)lv_realloc(
-                            stack, (size_t)new_cap * sizeof(PropFormula *));
+                        if (new_cap <= stack_capacity)
+                            break; /* 溢出保护 */
+                        PropFormula **new_stack =
+                            (PropFormula **) lv_realloc(stack, (size_t) new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
                             /* 栈扩容失败，改用直接递归销毁剩余子节点 */
                             if (current->data.binary.left)
@@ -313,9 +325,10 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 if (current->data.binary.left) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity) break;
-                        PropFormula **new_stack = (PropFormula **)lv_realloc(
-                            stack, (size_t)new_cap * sizeof(PropFormula *));
+                        if (new_cap <= stack_capacity)
+                            break;
+                        PropFormula **new_stack =
+                            (PropFormula **) lv_realloc(stack, (size_t) new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
                             if (current->data.binary.left)
                                 prop_formula_destroy(current->data.binary.left);
@@ -335,9 +348,10 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 if (current->data.unary.operand) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity) break;
-                        PropFormula **new_stack = (PropFormula **)lv_realloc(
-                            stack, (size_t)new_cap * sizeof(PropFormula *));
+                        if (new_cap <= stack_capacity)
+                            break;
+                        PropFormula **new_stack =
+                            (PropFormula **) lv_realloc(stack, (size_t) new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
                             if (current->data.unary.operand)
                                 prop_formula_destroy(current->data.unary.operand);
@@ -357,11 +371,11 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
         }
 
         /* 释放当前节点 */
-        lv_free((void **)&current);
+        lv_free((void **) &current);
     }
 
     /* 释放栈 */
-    lv_free((void **)&stack);
+    lv_free((void **) &stack);
 }
 
 /* ============================================================
@@ -382,8 +396,10 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
  * @return true 表示结构相等，false 表示不同
  */
 static bool formula_equal(const PropFormula *a, const PropFormula *b) {
-    if (!a || !b) return a == b;
-    if (a->type != b->type) return false;
+    if (!a || !b)
+        return a == b;
+    if (a->type != b->type)
+        return false;
     switch (a->type) {
         case PROP_ATOM:
             return strcmp(a->data.atom.name, b->data.atom.name) == 0;
@@ -415,13 +431,20 @@ static bool formula_equal(const PropFormula *a, const PropFormula *b) {
  */
 static int formula_precedence(const PropFormula *f) {
     switch (f->type) {
-        case PROP_ATOM:     return PROP_PREC_ATOM;
-        case PROP_NEGATION: return PROP_PREC_NEGATION;
-        case PROP_CONJUNCTION: return PROP_PREC_CONJUNCTION;
-        case PROP_DISJUNCTION: return PROP_PREC_DISJUNCTION;
-        case PROP_IMPLICATION: return PROP_PREC_IMPLICATION;
-        case PROP_BOTTOM:   return PROP_PREC_ATOM;
-        case PROP_TRUE:     return PROP_PREC_ATOM;
+        case PROP_ATOM:
+            return PROP_PREC_ATOM;
+        case PROP_NEGATION:
+            return PROP_PREC_NEGATION;
+        case PROP_CONJUNCTION:
+            return PROP_PREC_CONJUNCTION;
+        case PROP_DISJUNCTION:
+            return PROP_PREC_DISJUNCTION;
+        case PROP_IMPLICATION:
+            return PROP_PREC_IMPLICATION;
+        case PROP_BOTTOM:
+            return PROP_PREC_ATOM;
+        case PROP_TRUE:
+            return PROP_PREC_ATOM;
         default:
             break;
     }
@@ -429,9 +452,9 @@ static int formula_precedence(const PropFormula *f) {
 }
 
 /* 内部递归序列化 */
-static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
-                                   int parent_prec) {
-    if (!f || size == 0) return;
+static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, int parent_prec) {
+    if (!f || size == 0)
+        return;
     int prec = formula_precedence(f);
     bool need_parens = (parent_prec > prec);
 
@@ -484,17 +507,19 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
  * @return 新分配的字符串指针，失败返回 NULL
  */
 char *prop_formula_to_string(const PropFormula *f) {
-    if (!f) return NULL;
-    char *buf = (char *)lv_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
-    if (!buf) return NULL;
+    if (!f)
+        return NULL;
+    char *buf = (char *) lv_calloc(MAX_FORMULA_STR, sizeof(char)); /* 零初始化分配 */
+    if (!buf)
+        return NULL;
     formula_to_string_buf(f, buf, MAX_FORMULA_STR, 0);
     return buf;
 }
 
 /* LaTeX 序列化 */
-static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size,
-                                  int parent_prec) {
-    if (!f || size == 0) return;
+static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, int parent_prec) {
+    if (!f || size == 0)
+        return;
     int prec = formula_precedence(f);
     bool need_parens = (parent_prec > prec);
 
@@ -547,9 +572,11 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size,
  * @return 新分配的 LaTeX 字符串指针，失败返回 NULL
  */
 char *prop_formula_to_latex(const PropFormula *f) {
-    if (!f) return NULL;
-    char *buf = (char *)lv_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
-    if (!buf) return NULL;
+    if (!f)
+        return NULL;
+    char *buf = (char *) lv_calloc(MAX_FORMULA_STR, sizeof(char)); /* 零初始化分配 */
+    if (!buf)
+        return NULL;
     formula_to_latex_buf(f, buf, MAX_FORMULA_STR, 0);
     return buf;
 }
@@ -563,16 +590,16 @@ typedef struct {
     const PropFormula *goal;
     /* 对前提集的位置标识（简化版：前提指针数组的哈希） */
     uint64_t premises_hash;
-    bool proven;         /* 该条目是否已证明 */
-    bool searched;       /* 是否已搜索过 */
+    bool proven;   /* 该条目是否已证明 */
+    bool searched; /* 是否已搜索过 */
 } MemoEntry;
 
 /* 证明用上下文 */
 typedef struct {
-    const PropFormula **premises;   /* 原始前提 */
+    const PropFormula **premises; /* 原始前提 */
     int premise_count;
     const VerifierConfig *config;
-    int steps;                       /* 已用步数 */
+    int steps; /* 已用步数 */
     bool timed_out;
     /* 计时基准时刻 */
     uint64_t start_time_ms;
@@ -594,7 +621,7 @@ typedef struct {
  */
 #include <time.h>
 static uint64_t get_time_ms(void) {
-    return (uint64_t)time(NULL) * PROP_TIME_MS_PER_SEC;
+    return (uint64_t) time(NULL) * PROP_TIME_MS_PER_SEC;
 }
 
 /* ============================================================
@@ -623,12 +650,13 @@ static uint64_t get_time_ms(void) {
  * @return 64 位哈希值，NULL 公式返回 0
  */
 static uint64_t formula_hash(const PropFormula *f) {
-    if (!f) return 0;
-    uint64_t h = (uint64_t)f->type * PROP_HASH_TYPE_MULTIPLIER;
+    if (!f)
+        return 0;
+    uint64_t h = (uint64_t) f->type * PROP_HASH_TYPE_MULTIPLIER;
     switch (f->type) {
         case PROP_ATOM: {
             for (const char *s = f->data.atom.name; *s; s++)
-                h = h * PROP_HASH_STRING_MULTIPLIER + (uint64_t)(unsigned char)*s;
+                h = h * PROP_HASH_STRING_MULTIPLIER + (uint64_t) (unsigned char) *s;
             break;
         }
         case PROP_CONJUNCTION:
@@ -671,11 +699,9 @@ static uint64_t premises_hash(const PropFormula **premises, int count) {
  * ============================================================ */
 
 /* 在记忆化表中查找 */
-static int memo_find(ProofContext *ctx, const PropFormula *goal,
-                      uint64_t phash) {
+static int memo_find(ProofContext *ctx, const PropFormula *goal, uint64_t phash) {
     for (int i = 0; i < ctx->memo_count; i++) {
-        if (ctx->memo[i].goal == goal &&
-            ctx->memo[i].premises_hash == phash) {
+        if (ctx->memo[i].goal == goal && ctx->memo[i].premises_hash == phash) {
             return i;
         }
     }
@@ -683,9 +709,9 @@ static int memo_find(ProofContext *ctx, const PropFormula *goal,
 }
 
 /* 添加记忆化条目 */
-static void memo_add(ProofContext *ctx, const PropFormula *goal,
-                      uint64_t phash, bool proven) {
-    if (ctx->memo_count >= MAX_MEMO_ENTRIES) return;
+static void memo_add(ProofContext *ctx, const PropFormula *goal, uint64_t phash, bool proven) {
+    if (ctx->memo_count >= MAX_MEMO_ENTRIES)
+        return;
     ctx->memo[ctx->memo_count].goal = goal;
     ctx->memo[ctx->memo_count].premises_hash = phash;
     ctx->memo[ctx->memo_count].proven = proven;
@@ -698,10 +724,10 @@ static void memo_add(ProofContext *ctx, const PropFormula *goal,
  * ============================================================ */
 
 /* 在前提列表中查找公式 */
-static bool premise_contains(const PropFormula **premises, int count,
-                              const PropFormula *f) {
+static bool premise_contains(const PropFormula **premises, int count, const PropFormula *f) {
     for (int i = 0; i < count; i++) {
-        if (formula_equal(premises[i], f)) return true;
+        if (formula_equal(premises[i], f))
+            return true;
     }
     return false;
 }
@@ -723,8 +749,8 @@ static bool premise_contains(const PropFormula **premises, int count,
  * @param max_output  输出数组最大容量
  * @return 输出前提公式数量
  */
-static int forward_chain_conjunctions(const PropFormula **input, int input_count,
-                                       const PropFormula **output, int max_output) {
+static int forward_chain_conjunctions(const PropFormula **input, int input_count, const PropFormula **output,
+                                      int max_output) {
     int out_count = 0;
     /* 先复制输入 */
     for (int i = 0; i < input_count && out_count < max_output; i++) {
@@ -757,15 +783,15 @@ static int forward_chain_conjunctions(const PropFormula **input, int input_count
  * ============================================================ */
 
 /* 前置声明 */
-static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count,
-                   const PropFormula *goal);
+static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, const PropFormula *goal);
 
 /* 检查是否超时或超步数 */
 static bool check_limits(ProofContext *ctx) {
-    if (ctx->steps >= ctx->config->max_steps) return true;
+    if (ctx->steps >= ctx->config->max_steps)
+        return true;
     if (ctx->config->timeout_ms > 0) {
         uint64_t now = get_time_ms();
-        if (now - ctx->start_time_ms >= (uint64_t)ctx->config->timeout_ms) {
+        if (now - ctx->start_time_ms >= (uint64_t) ctx->config->timeout_ms) {
             ctx->timed_out = true;
             return true;
         }
@@ -774,8 +800,8 @@ static bool check_limits(ProofContext *ctx) {
 }
 
 /* 尝试 modus ponens：在前提中找到 A→B 且 A，推导出 B */
-static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises,
-                              int premise_count, const PropFormula *goal) {
+static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises, int premise_count,
+                             const PropFormula *goal) {
     for (int i = 0; i < premise_count; i++) {
         if (premises[i]->type == PROP_IMPLICATION) {
             const PropFormula *impl = premises[i];
@@ -801,14 +827,12 @@ static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises,
 }
 
 /* ���Դ�ǰ����ֱ��ƥ��Ŀ�� */
-static bool try_direct_match(const PropFormula **premises, int premise_count,
-                              const PropFormula *goal) {
+static bool try_direct_match(const PropFormula **premises, int premise_count, const PropFormula *goal) {
     return premise_contains(premises, premise_count, goal);
 }
 
 /* ���� ?-��ȥ���� ?A �� A �Ƴ� �� */
-static bool try_neg_elim(ProofContext *ctx, const PropFormula **premises,
-                          int premise_count) {
+static bool try_neg_elim(ProofContext *ctx, const PropFormula **premises, int premise_count) {
     /* Ŀ���� �ͣ�����Ƿ��� ?A �� A ͬʱ��Ϊǰ�� */
     for (int i = 0; i < premise_count; i++) {
         if (premises[i]->type == PROP_NEGATION) {
@@ -843,13 +867,12 @@ static bool try_neg_elim(ProofContext *ctx, const PropFormula **premises,
  * @param goal          ��֤����Ŀ�깫ʽ
  * @return true ��ʾ֤���ɹ���false ��ʾ֤��ʧ�ܻ�ʱ/������
  */
-static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count,
-                   const PropFormula *goal) {
+static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, const PropFormula *goal) {
     /* ���ݹ�������ƣ���ֹջ��� */
     ++ctx->recursion_depth;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wjump-misses-init"
-    if (ctx->recursion_depth > MAX_MEMO_ENTRIES) {  /* ���ݹ���� = ���仯������ */
+    if (ctx->recursion_depth > MAX_MEMO_ENTRIES) { /* ���ݹ���� = ���仯������ */
         goto prove_depth_exceeded;
     }
 
@@ -891,8 +914,7 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                         if (impl->data.binary.right->type == PROP_BOTTOM) {
                             /* �� A���� = ?A������֤�� A */
                             ctx->steps++;
-                            result = prove(ctx, premises, premise_count,
-                                           impl->data.binary.left);
+                            result = prove(ctx, premises, premise_count, impl->data.binary.left);
                         }
                     }
                 }
@@ -900,8 +922,7 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
             /* ǰ������չ����ȡ��Ӧ�� modus ponens��Ȼ������ ?-��ȥ */
             if (!result) {
                 const PropFormula *expanded[MAX_PREMISES];
-                int exp_count = forward_chain_conjunctions(premises, premise_count,
-                                                            expanded, MAX_PREMISES);
+                int exp_count = forward_chain_conjunctions(premises, premise_count, expanded, MAX_PREMISES);
                 /* �ಽǰ������ */
                 {
                     bool changed = true;
@@ -909,10 +930,8 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                         changed = false;
                         for (int i = 0; i < exp_count && !changed; i++) {
                             if (expanded[i]->type == PROP_IMPLICATION) {
-                                const PropFormula *antecedent =
-                                    expanded[i]->data.binary.left;
-                                const PropFormula *consequent =
-                                    expanded[i]->data.binary.right;
+                                const PropFormula *antecedent = expanded[i]->data.binary.left;
+                                const PropFormula *consequent = expanded[i]->data.binary.right;
                                 if (premise_contains(expanded, exp_count, antecedent) &&
                                     !premise_contains(expanded, exp_count, consequent)) {
                                     expanded[exp_count++] = consequent;
@@ -948,18 +967,15 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
             }
             /* ǰ������չ����ȡ������ modus ponens �� */
             if (!result) {
-                int exp_count = forward_chain_conjunctions(premises, premise_count,
-                                                            expanded, MAX_PREMISES);
+                int exp_count = forward_chain_conjunctions(premises, premise_count, expanded, MAX_PREMISES);
                 /* �ಽǰ������������Ӧ�� modus ponens ֱ���޷��Ƶ�����ʵ */
                 bool changed = true;
                 while (changed && exp_count < MAX_PREMISES) {
                     changed = false;
                     for (int i = 0; i < exp_count && !changed; i++) {
                         if (expanded[i]->type == PROP_IMPLICATION) {
-                            const PropFormula *antecedent =
-                                expanded[i]->data.binary.left;
-                            const PropFormula *consequent =
-                                expanded[i]->data.binary.right;
+                            const PropFormula *antecedent = expanded[i]->data.binary.left;
+                            const PropFormula *consequent = expanded[i]->data.binary.right;
                             if (premise_contains(expanded, exp_count, antecedent) &&
                                 !premise_contains(expanded, exp_count, consequent)) {
                                 expanded[exp_count++] = consequent;
@@ -974,8 +990,7 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
             }
             /* ���� ��-��ȥ������� A��B���� A��goal, B��goal */
             if (!result) {
-                int fc_count = forward_chain_conjunctions(premises, premise_count,
-                                                            fc_expanded, MAX_PREMISES);
+                int fc_count = forward_chain_conjunctions(premises, premise_count, fc_expanded, MAX_PREMISES);
                 /* �ಽǰ������ */
                 {
                     bool changed = true;
@@ -983,10 +998,8 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                         changed = false;
                         for (int i = 0; i < fc_count && !changed; i++) {
                             if (fc_expanded[i]->type == PROP_IMPLICATION) {
-                                const PropFormula *antecedent =
-                                    fc_expanded[i]->data.binary.left;
-                                const PropFormula *consequent =
-                                    fc_expanded[i]->data.binary.right;
+                                const PropFormula *antecedent = fc_expanded[i]->data.binary.left;
+                                const PropFormula *consequent = fc_expanded[i]->data.binary.right;
                                 if (premise_contains(fc_expanded, fc_count, antecedent) &&
                                     !premise_contains(fc_expanded, fc_count, consequent)) {
                                     fc_expanded[fc_count++] = consequent;
@@ -1005,8 +1018,8 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                         ctx->steps++;
                         {
                             int new_count = fc_count;
-                            memcpy((void *)new_premises_l, fc_expanded,
-                                   sizeof(const PropFormula *) * (size_t)fc_count);
+                            memcpy((void *) new_premises_l, fc_expanded,
+                                   sizeof(const PropFormula *) * (size_t) fc_count);
                             if (new_count < MAX_PREMISES) {
                                 new_premises_l[new_count++] = disj->data.binary.left;
                             }
@@ -1019,8 +1032,8 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                             ctx->steps++;
                             {
                                 int new_count = fc_count;
-                                memcpy((void *)new_premises_r, fc_expanded,
-                                       sizeof(const PropFormula *) * (size_t)fc_count);
+                                memcpy((void *) new_premises_r, fc_expanded,
+                                       sizeof(const PropFormula *) * (size_t) fc_count);
                                 if (new_count < MAX_PREMISES) {
                                     new_premises_r[new_count++] = disj->data.binary.right;
                                 }
@@ -1122,8 +1135,7 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
     /* ���Ⳣ�ԣ�ʹ��ǰ����չ����ȡǰ������� */
     if (!result && goal->type == PROP_ATOM) {
         const PropFormula *expanded[MAX_PREMISES];
-        int exp_count = forward_chain_conjunctions(premises, premise_count,
-                                                    expanded, MAX_PREMISES);
+        int exp_count = forward_chain_conjunctions(premises, premise_count, expanded, MAX_PREMISES);
         if (exp_count > premise_count) {
             /* ���µ�ǰ�ᱻ��ȡ */
             result = try_direct_match(expanded, exp_count, goal);
@@ -1150,37 +1162,32 @@ prove_depth_exceeded:
  * ���� API
  * ============================================================ */
 
-VerifyDetail prop_verifier_verify(
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config)
-{
+VerifyDetail prop_verifier_verify(const PropFormula **premises, int premise_count, const PropFormula *goal,
+                                  const VerifierConfig *config) {
     VerifyDetail detail;
     memset(&detail, 0, sizeof(detail));
 
     /* Ĭ������ */
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     detail.max_steps = config->max_steps;
 
     /* ������֤ */
     if (!goal) {
         detail.result = VERIFY_INVALID_INPUT;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "Ŀ�깫ʽΪ NULL");
+        snprintf(detail.error_message, sizeof(detail.error_message), "Ŀ�깫ʽΪ NULL");
         return detail;
     }
     if (premise_count < 0) {
         detail.result = VERIFY_INVALID_INPUT;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "ǰ������Ϊ����: %d", premise_count);
+        snprintf(detail.error_message, sizeof(detail.error_message), "ǰ������Ϊ����: %d", premise_count);
         return detail;
     }
     if (premise_count > 0 && !premises) {
         detail.result = VERIFY_INVALID_INPUT;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "ǰ������ > 0 ��ǰ������Ϊ NULL");
+        snprintf(detail.error_message, sizeof(detail.error_message), "ǰ������ > 0 ��ǰ������Ϊ NULL");
         return detail;
     }
 
@@ -1194,10 +1201,7 @@ VerifyDetail prop_verifier_verify(
 
     /* ��ʽ�¼�����֤��ʼ */
     if (prop_verifier_stream_ctx) {
-        stream_emit_simple(prop_verifier_stream_ctx,
-                           STREAM_EVENT_PROOF_STEP_ADDED,
-                           "������֤��ʼ������֤������",
-                           0);
+        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_STEP_ADDED, "������֤��ʼ������֤������", 0);
     }
 
     /* ִ��֤������ */
@@ -1207,17 +1211,14 @@ VerifyDetail prop_verifier_verify(
 
     if (ctx.timed_out) {
         detail.result = VERIFY_TIMEOUT;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "֤��������ʱ (%d ms)", config->timeout_ms);
+        snprintf(detail.error_message, sizeof(detail.error_message), "֤��������ʱ (%d ms)", config->timeout_ms);
     } else if (proven) {
         detail.result = VERIFY_PROVEN;
-        snprintf(detail.construction_summary,
-                 sizeof(detail.construction_summary),
-                 "֤���ɹ�: ʹ�� %d �����������֤", ctx.steps);
+        snprintf(detail.construction_summary, sizeof(detail.construction_summary), "֤���ɹ�: ʹ�� %d �����������֤",
+                 ctx.steps);
     } else {
         detail.result = VERIFY_FAILED;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "�����ռ�ľ���δ��֤�� (%d ��)", ctx.steps);
+        snprintf(detail.error_message, sizeof(detail.error_message), "�����ռ�ľ���δ��֤�� (%d ��)", ctx.steps);
     }
 
     return detail;
@@ -1229,8 +1230,10 @@ VerifyDetail prop_verifier_verify(
 
 /* ��� child �Ƿ��� parent ���ӽڵ㣨�ݹ飩 */
 static bool formula_is_descendant(const PropFormula *child, const PropFormula *parent) {
-    if (!child || !parent) return false;
-    if (child == parent) return true;
+    if (!child || !parent)
+        return false;
+    if (child == parent)
+        return true;
     switch (parent->type) {
         case PROP_CONJUNCTION:
         case PROP_DISJUNCTION:
@@ -1247,11 +1250,11 @@ static bool formula_is_descendant(const PropFormula *child, const PropFormula *p
 /* �̲⸨���꣺����ԭ������ */
 #define ATOM(name) prop_formula_create_atom(name)
 #define AND(a, b) prop_formula_create_conjunction((a), (b))
-#define OR(a, b)  prop_formula_create_disjunction((a), (b))
+#define OR(a, b) prop_formula_create_disjunction((a), (b))
 #define IMPL(a, b) prop_formula_create_implication((a), (b))
-#define NEG(a)    prop_formula_create_negation(a)
-#define BOT()     prop_formula_create_bottom()
-#define TOP()     prop_formula_create_true()
+#define NEG(a) prop_formula_create_negation(a)
+#define BOT() prop_formula_create_bottom()
+#define TOP() prop_formula_create_true()
 
 int prop_verifier_builtin_smoke_test_count(void) {
     return PROP_SMOKE_TEST_COUNT;
@@ -1357,10 +1360,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
 
     /* ���� 8: (P��Q)��(?Q��?P) (contraposition - intuitionistic) */
     {
-        PropFormula *contra = IMPL(
-            IMPL(ATOM("P"), ATOM("Q")),
-            IMPL(NEG(ATOM("Q")), NEG(ATOM("P")))
-        );
+        PropFormula *contra = IMPL(IMPL(ATOM("P"), ATOM("Q")), IMPL(NEG(ATOM("Q")), NEG(ATOM("P"))));
         tests[7].premise_count = 0;
         tests[7].goal = contra;
         tests[7].expected_provable = true;
@@ -1371,8 +1371,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
      * ��������ʹ����ȫ������ԭ������ */
     {
         PropFormula *pqorr = AND(ATOM("P"), OR(ATOM("Q"), ATOM("R")));
-        PropFormula *pqorpr = OR(AND(ATOM("P"), ATOM("Q")),
-                                  AND(ATOM("P"), ATOM("R")));
+        PropFormula *pqorpr = OR(AND(ATOM("P"), ATOM("Q")), AND(ATOM("P"), ATOM("R")));
         tests[8].premises[0] = pqorr;
         tests[8].premise_count = 1;
         tests[8].goal = pqorpr;
@@ -1434,16 +1433,24 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
             /* ȥ�أ������Ѵ��ڵ�ָ�� */
             bool dup = false;
             for (int d = 0; d < ptr_count; d++) {
-                if (ptrs[d] == tests[i].premises[j]) { dup = true; break; }
+                if (ptrs[d] == tests[i].premises[j]) {
+                    dup = true;
+                    break;
+                }
             }
-            if (!dup) ptrs[ptr_count++] = tests[i].premises[j];
+            if (!dup)
+                ptrs[ptr_count++] = tests[i].premises[j];
         }
         if (tests[i].goal) {
             bool dup = false;
             for (int d = 0; d < ptr_count; d++) {
-                if (ptrs[d] == tests[i].goal) { dup = true; break; }
+                if (ptrs[d] == tests[i].goal) {
+                    dup = true;
+                    break;
+                }
             }
-            if (!dup) ptrs[ptr_count++] = tests[i].goal;
+            if (!dup)
+                ptrs[ptr_count++] = tests[i].goal;
         }
 
         /* ��һ�飺ʶ����Щ��"��"������������ʽ���ӽڵ㣩 */
@@ -1451,8 +1458,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         memset(is_root, true, sizeof(is_root));
         for (int k = 0; k < ptr_count; k++) {
             for (int m = 0; m < ptr_count; m++) {
-                if (k != m && ptrs[k] != ptrs[m] &&
-                    formula_is_descendant(ptrs[k], ptrs[m])) {
+                if (k != m && ptrs[k] != ptrs[m] && formula_is_descendant(ptrs[k], ptrs[m])) {
                     is_root[k] = false;
                     break;
                 }
@@ -1462,7 +1468,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         /* �ڶ��飺ֻ�ͷŸ���ʽ */
         for (int k = 0; k < ptr_count; k++) {
             if (is_root[k]) {
-                prop_formula_destroy((PropFormula *)ptrs[k]);
+                prop_formula_destroy((PropFormula *) ptrs[k]);
             }
         }
     }
@@ -1481,13 +1487,16 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
  * ���ڷ���֤��ʧ��ʱ��Щԭ������ȱ�ٹ��졣
  */
 static int collect_atoms(const PropFormula *f, char atoms[][PROP_ATOM_NAME_MAX_LEN], int max_atoms) {
-    if (!f) return 0;
+    if (!f)
+        return 0;
     switch (f->type) {
         case PROP_ATOM: {
             /* ȥ�ؼ�� */
             for (int i = 0; i < max_atoms; i++) {
-                if (atoms[i][0] == '\0') break;
-                if (strcmp(atoms[i], f->data.atom.name) == 0) return 0;
+                if (atoms[i][0] == '\0')
+                    break;
+                if (strcmp(atoms[i], f->data.atom.name) == 0)
+                    return 0;
             }
             for (int i = 0; i < max_atoms; i++) {
                 if (atoms[i][0] == '\0') {
@@ -1522,30 +1531,29 @@ static int collect_atoms(const PropFormula *f, char atoms[][PROP_ATOM_NAME_MAX_L
  *   - ��֤����RAA����(~A �� ��) �� A
  */
 static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size_t desc_size) {
-    if (!f) return false;
+    if (!f)
+        return false;
 
     /* ��������ɣ�A �� ~A �� ~A �� A */
     if (f->type == PROP_DISJUNCTION) {
         const PropFormula *left = f->data.binary.left;
         const PropFormula *right = f->data.binary.right;
         /* A �� ~A */
-        if (left->type == PROP_NEGATION &&
-            formula_equal(left->data.unary.operand, right)) {
+        if (left->type == PROP_NEGATION && formula_equal(left->data.unary.operand, right)) {
             char *s = prop_formula_to_string(right);
             snprintf(pattern_desc, desc_size,
-                     "������ (LEM): %s \\/ ~%s��ֱ�������߼��в���֤��",
-                     s, s);
-            lv_free((void **)&s);
+                     "������ (LEM): %s \\/ ~%s��ֱ�������߼��в���֤��", s,
+                     s);
+            lv_free((void **) &s);
             return true;
         }
         /* ~A �� A */
-        if (right->type == PROP_NEGATION &&
-            formula_equal(right->data.unary.operand, left)) {
+        if (right->type == PROP_NEGATION && formula_equal(right->data.unary.operand, left)) {
             char *s = prop_formula_to_string(left);
             snprintf(pattern_desc, desc_size,
-                     "������ (LEM): ~%s \\/ %s��ֱ�������߼��в���֤��",
-                     s, s);
-            lv_free((void **)&s);
+                     "������ (LEM): ~%s \\/ %s��ֱ�������߼��в���֤��", s,
+                     s);
+            lv_free((void **) &s);
             return true;
         }
     }
@@ -1554,26 +1562,25 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
     if (f->type == PROP_IMPLICATION) {
         const PropFormula *antecedent = f->data.binary.left;
         const PropFormula *consequent = f->data.binary.right;
-        if (antecedent->type == PROP_NEGATION &&
-            antecedent->data.unary.operand->type == PROP_NEGATION &&
+        if (antecedent->type == PROP_NEGATION && antecedent->data.unary.operand->type == PROP_NEGATION &&
             formula_equal(antecedent->data.unary.operand->data.unary.operand, consequent)) {
             char *s = prop_formula_to_string(consequent);
             snprintf(pattern_desc, desc_size,
-                     "˫�ط���ȥ: ~~%s �� %s��ֱ�������߼��в���֤��",
-                     s, s);
-            lv_free((void **)&s);
+                     "˫�ط���ȥ: ~~%s �� %s��ֱ�������߼��в���֤��", s,
+                     s);
+            lv_free((void **) &s);
             return true;
         }
         /* ��֤�� (RAA): (~A �� ��) �� A */
-        if (antecedent->type == PROP_IMPLICATION &&
-            antecedent->data.binary.left->type == PROP_NEGATION &&
+        if (antecedent->type == PROP_IMPLICATION && antecedent->data.binary.left->type == PROP_NEGATION &&
             antecedent->data.binary.right->type == PROP_BOTTOM &&
             formula_equal(antecedent->data.binary.left->data.unary.operand, consequent)) {
             char *s = prop_formula_to_string(consequent);
             snprintf(pattern_desc, desc_size,
-                     "��֤�� (RAA): (~%s �� _|_) �� %s��ֱ�������߼��в���֤��",
+                     "��֤�� (RAA): (~%s �� _|_) �� "
+                     "%s��ֱ�������߼��в���֤��",
                      s, s);
-            lv_free((void **)&s);
+            lv_free((void **) &s);
             return true;
         }
     }
@@ -1605,24 +1612,22 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
     return false;
 }
 
-InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config)
-{
+InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFormula **premises, int premise_count,
+                                                                    const PropFormula *goal,
+                                                                    const VerifierConfig *config) {
     InconstructibilityAnalysis analysis;
     memset(&analysis, 0, sizeof(analysis));
 
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     /* ��ִ����֤ */
     VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
 
     if (detail.result == VERIFY_PROVEN) {
         analysis.is_inconstructible = false;
-        snprintf(analysis.reason, sizeof(analysis.reason),
-                 "������֤��Ϊ�ɹ��죬���費�ɹ����Է���");
+        snprintf(analysis.reason, sizeof(analysis.reason), "������֤��Ϊ�ɹ��죬���費�ɹ����Է���");
         return analysis;
     }
 
@@ -1630,10 +1635,10 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
 
     /* ����Ƿ���������߼�ģʽ */
     char pattern_desc[PROP_PATTERN_DESC_BUFSIZE] = {0};
-    if (config->use_intuitionistic &&
-        has_classical_pattern(goal, pattern_desc, sizeof(pattern_desc))) {
+    if (config->use_intuitionistic && has_classical_pattern(goal, pattern_desc, sizeof(pattern_desc))) {
         snprintf(analysis.reason, sizeof(analysis.reason),
-                 "ֱ����������: %s����ֱ�������߼��У�֤�������ṩ��ʽ���죬"
+                 "ֱ����������: "
+                 "%s����ֱ�������߼��У�֤�������ṩ��ʽ���죬"
                  "�������������ɻ�˫�ط���ȥ�Ⱦ�����������",
                  pattern_desc);
     } else if (detail.result == VERIFY_TIMEOUT) {
@@ -1653,8 +1658,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
         for (int i = 0; i < atom_count; i++) {
             bool found = false;
             for (int j = 0; j < premise_count; j++) {
-                if (premises[j]->type == PROP_ATOM &&
-                    strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                if (premises[j]->type == PROP_ATOM && strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
                     found = true;
                     break;
                 }
@@ -1677,7 +1681,8 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
                      missing);
         } else {
             snprintf(analysis.reason, sizeof(analysis.reason),
-                     "����ȱ��: ǰ���а�������Ŀ��ԭ�����⣬���޷�ͨ��"
+                     "����ȱ��: "
+                     "ǰ���а�������Ŀ��ԭ�����⣬���޷�ͨ��"
                      "��������������ϳ�Ŀ�ꡣ������Ҫ������̺�ǰ��"
                      "������ӵĹ��첽�衣��ʹ�� %d ��������",
                      detail.steps_used);
@@ -1687,14 +1692,12 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
 
     /* ����ʧ����Ŀ������ */
     analysis.failed_subgoals = 1;
-    analysis.subgoal_descriptions = (char **)lv_malloc(sizeof(char *));  /* �����ڴ� */
+    analysis.subgoal_descriptions = (char **) lv_malloc(sizeof(char *)); /* �����ڴ� */
     if (analysis.subgoal_descriptions) {
-        analysis.subgoal_descriptions[0] = (char *)lv_malloc(512);  /* �����ڴ� */
+        analysis.subgoal_descriptions[0] = (char *) lv_malloc(512); /* �����ڴ� */
         if (analysis.subgoal_descriptions[0]) {
-            snprintf(analysis.subgoal_descriptions[0], 512,
-                     "Ŀ��: %s | ״̬: %s | ����: %d/%d",
-                     prop_formula_to_string(goal),
-                     detail.result == VERIFY_TIMEOUT ? "��ʱ" : "�����ռ�ľ�",
+            snprintf(analysis.subgoal_descriptions[0], 512, "Ŀ��: %s | ״̬: %s | ����: %d/%d",
+                     prop_formula_to_string(goal), detail.result == VERIFY_TIMEOUT ? "��ʱ" : "�����ռ�ľ�",
                      detail.steps_used, detail.max_steps);
         }
         analysis.subgoal_desc_count = 1;
@@ -1704,12 +1707,13 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
 }
 
 void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis) {
-    if (!analysis) return;
+    if (!analysis)
+        return;
     if (analysis->subgoal_descriptions) {
         for (int i = 0; i < analysis->subgoal_desc_count; i++) {
-            lv_free((void**)&analysis->subgoal_descriptions[i]);  /* �ͷŲ���NULL */
+            lv_free((void **) &analysis->subgoal_descriptions[i]); /* �ͷŲ���NULL */
         }
-        lv_free((void**)&analysis->subgoal_descriptions);  /* �ͷŲ���NULL */
+        lv_free((void **) &analysis->subgoal_descriptions); /* �ͷŲ���NULL */
     }
     analysis->subgoal_desc_count = 0;
 }
@@ -1722,10 +1726,12 @@ void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis) {
  * @brief ��ȡ��ʽ���͵� BHK ��������
  */
 static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
-    if (!f || size == 0) return;
+    if (!f || size == 0)
+        return;
     switch (f->type) {
         case PROP_ATOM:
-            snprintf(buf, size, "ԭ������ %s ��Ҫһ������֤��㡢�߶λ�����",
+            snprintf(buf, size,
+                     "ԭ������ %s ��Ҫһ������֤��㡢�߶λ�����",
                      f->data.atom.name);
             break;
         case PROP_CONJUNCTION:
@@ -1735,10 +1741,11 @@ static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
                      prop_formula_to_string(f));
             break;
         case PROP_DISJUNCTION:
-            snprintf(buf, size,
-                     "��ȡ %s ��֤����һ��������Դ��ǵ�֤���/�ң���"
-                     "��Ӧ�����еĺ����ͺ����飨����ǵ���ȡ֤�",
-                     prop_formula_to_string(f));
+            snprintf(
+                buf, size,
+                "��ȡ %s ��֤����һ��������Դ��ǵ�֤���/�ң���"
+                "��Ӧ�����еĺ����ͺ����飨����ǵ���ȡ֤�",
+                prop_formula_to_string(f));
             break;
         case PROP_IMPLICATION:
             snprintf(buf, size,
@@ -1751,8 +1758,7 @@ static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
             snprintf(buf, size,
                      "�� %s ��֤����һ���� %s ��֤��ת��Ϊ �� �Ĺ��죬"
                      "��Ӧ�����еĺ����飨�����������˿ڣ�",
-                     prop_formula_to_string(f),
-                     prop_formula_to_string(f->data.unary.operand));
+                     prop_formula_to_string(f), prop_formula_to_string(f->data.unary.operand));
             break;
         case PROP_BOTTOM:
             snprintf(buf, size,
@@ -1773,7 +1779,8 @@ static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
  * @brief ��ȡ��ʽ���͵ļ���ӳ������
  */
 static void get_geometric_mapping(const PropFormula *f, char *buf, size_t size) {
-    if (!f || size == 0) return;
+    if (!f || size == 0)
+        return;
     switch (f->type) {
         case PROP_ATOM:
             snprintf(buf, size, "GEOM_POINT / GEOM_REGION��֤��ڵ㣩");
@@ -1801,16 +1808,14 @@ static void get_geometric_mapping(const PropFormula *f, char *buf, size_t size) 
     }
 }
 
-BHKVerificationResult prop_verifier_bhk_verify(
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config)
-{
+BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int premise_count, const PropFormula *goal,
+                                               const VerifierConfig *config) {
     BHKVerificationResult result;
     memset(&result, 0, sizeof(result));
 
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     /* ��ִ�������߼���֤ */
     VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
@@ -1838,27 +1843,26 @@ BHKVerificationResult prop_verifier_bhk_verify(
         for (int i = 0; i < atom_count; i++) {
             bool found = false;
             for (int j = 0; j < premise_count; j++) {
-                if (premises[j]->type == PROP_ATOM &&
-                    strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                if (premises[j]->type == PROP_ATOM && strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
                     found = true;
                     break;
                 }
             }
-            if (!found) missing++;
+            if (!found)
+                missing++;
         }
 
         result.missing_constructions = missing;
         result.missing_count = missing;
 
         if (missing > 0) {
-            result.missing_descriptions = (char **)lv_malloc(sizeof(char *) * (size_t)missing);  /* �����ڴ� */
+            result.missing_descriptions = (char **) lv_malloc(sizeof(char *) * (size_t) missing); /* �����ڴ� */
             if (result.missing_descriptions) {
                 int idx = 0;
                 for (int i = 0; i < atom_count && idx < missing; i++) {
                     bool found = false;
                     for (int j = 0; j < premise_count; j++) {
-                        if (premises[j]->type == PROP_ATOM &&
-                            strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                        if (premises[j]->type == PROP_ATOM && strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
                             found = true;
                             break;
                         }
@@ -1866,9 +1870,10 @@ BHKVerificationResult prop_verifier_bhk_verify(
                     if (!found) {
                         char desc[256];
                         snprintf(desc, sizeof(desc),
-                                 "ȱ��ԭ������ '%s' �ļ���֤���Ҫ��Ӧ�ĵ㡢�߶λ�����ڵ㣩",
+                                 "ȱ��ԭ������ '%s' "
+                                 "�ļ���֤���Ҫ��Ӧ�ĵ㡢�߶λ�����ڵ㣩",
                                  goal_atoms[i]);
-                        result.missing_descriptions[idx] = lv_strdup_safe(desc);  /* �����ַ��� */
+                        result.missing_descriptions[idx] = lv_strdup_safe(desc); /* �����ַ��� */
                         idx++;
                     }
                 }
@@ -1877,12 +1882,13 @@ BHKVerificationResult prop_verifier_bhk_verify(
             result.missing_descriptions = NULL;
             /* ��ԭ��ǰ�ᵫ�޷����죺��������������������� */
             result.missing_count = 1;
-            result.missing_descriptions = (char **)lv_malloc(sizeof(char *));  /* �����ڴ� */
+            result.missing_descriptions = (char **) lv_malloc(sizeof(char *)); /* �����ڴ� */
             if (result.missing_descriptions) {
                 char desc[256];
                 snprintf(desc, sizeof(desc),
-                         "�޷�ͨ������ǰ�����Ϲ���Ŀ�꣨������������������");
-                result.missing_descriptions[0] = lv_strdup_safe(desc);  /* �����ַ��� */
+                         "�޷�ͨ������ǰ�����Ϲ���Ŀ�꣨�����������������"
+                         "�");
+                result.missing_descriptions[0] = lv_strdup_safe(desc); /* �����ַ��� */
             }
         }
     }
@@ -1891,12 +1897,13 @@ BHKVerificationResult prop_verifier_bhk_verify(
 }
 
 void prop_verifier_free_bhk_result(BHKVerificationResult *result) {
-    if (!result) return;
+    if (!result)
+        return;
     if (result->missing_descriptions) {
         for (int i = 0; i < result->missing_count; i++) {
-            lv_free((void**)&result->missing_descriptions[i]);  /* �ͷŲ���NULL */
+            lv_free((void **) &result->missing_descriptions[i]); /* �ͷŲ���NULL */
         }
-        lv_free((void**)&result->missing_descriptions);  /* �ͷŲ���NULL */
+        lv_free((void **) &result->missing_descriptions); /* �ͷŲ���NULL */
     }
     result->missing_count = 0;
 }
@@ -1916,30 +1923,29 @@ void prop_verifier_free_bhk_result(BHKVerificationResult *result) {
  *   - ��֤α��VERIFY_DISPROVEN���� TRUST_RED
  *   - ��ʱ/���� �� TRUST_BLUE
  */
-static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk,
-                                          VerifyResult verify_result) {
+static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk, VerifyResult verify_result) {
     switch (verify_result) {
-    case VERIFY_PROVEN:
-        if (!bhk->verified) {
-            /* BHK��δͨ���������ͨ���������Կ��� */
-            return TRUST_YELLOW;
-        }
-        if (bhk->missing_constructions == 0) {
-            return TRUST_GREEN;
-        } else if (bhk->missing_constructions <= 2) {
-            return TRUST_YELLOW;
-        } else {
-            return TRUST_AMBER;
-        }
-    case VERIFY_DISPROVEN:
-        return TRUST_RED;
-    case VERIFY_FAILED:
-        return TRUST_BLUE_UNEXPLORED;
-    case VERIFY_TIMEOUT:
-    case VERIFY_INVALID_INPUT:
-    case VERIFY_ERROR:
-    default:
-        return TRUST_BLUE_UNEXPLORED;
+        case VERIFY_PROVEN:
+            if (!bhk->verified) {
+                /* BHK��δͨ���������ͨ���������Կ��� */
+                return TRUST_YELLOW;
+            }
+            if (bhk->missing_constructions == 0) {
+                return TRUST_GREEN;
+            } else if (bhk->missing_constructions <= 2) {
+                return TRUST_YELLOW;
+            } else {
+                return TRUST_AMBER;
+            }
+        case VERIFY_DISPROVEN:
+            return TRUST_RED;
+        case VERIFY_FAILED:
+            return TRUST_BLUE_UNEXPLORED;
+        case VERIFY_TIMEOUT:
+        case VERIFY_INVALID_INPUT:
+        case VERIFY_ERROR:
+        default:
+            return TRUST_BLUE_UNEXPLORED;
     }
 }
 
@@ -1948,36 +1954,44 @@ static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk,
  */
 static const char *trust_color_name(TrustColor color) {
     switch (color) {
-    case TRUST_GREEN:                  return "绿色：完全可信";
-    case TRUST_BLUE_UNEXPLORED:        return "蓝色-未探索";
-    case TRUST_BLUE_EXCEEDED:          return "蓝色-资源受限";
-    case TRUST_BLUE_OUT_OF_SCOPE:      return "蓝色-超出范围";
-    case TRUST_YELLOW:                 return "黄色：条件性可信";
-    case TRUST_LIGHT_ORANGE_ORACLE:    return "浅橙色-oracle";
-    case TRUST_LIGHT_ORANGE_EXPLOSION: return "浅橙色-爆炸";
-    case TRUST_AMBER:                  return "琥珀色：精度缺失";
-    case TRUST_DEEP_ORANGE:            return "深橙色：叠加";
-    case TRUST_RED:                    return "红色：矛盾/验证伪";
-    default:                           return "未知";
+        case TRUST_GREEN:
+            return "绿色：完全可信";
+        case TRUST_BLUE_UNEXPLORED:
+            return "蓝色-未探索";
+        case TRUST_BLUE_EXCEEDED:
+            return "蓝色-资源受限";
+        case TRUST_BLUE_OUT_OF_SCOPE:
+            return "蓝色-超出范围";
+        case TRUST_YELLOW:
+            return "黄色：条件性可信";
+        case TRUST_LIGHT_ORANGE_ORACLE:
+            return "浅橙色-oracle";
+        case TRUST_LIGHT_ORANGE_EXPLOSION:
+            return "浅橙色-爆炸";
+        case TRUST_AMBER:
+            return "琥珀色：精度缺失";
+        case TRUST_DEEP_ORANGE:
+            return "深橙色：叠加";
+        case TRUST_RED:
+            return "红色：矛盾/验证伪";
+        default:
+            return "未知";
     }
 }
 
-int prop_verifier_apply_trust_colors(
-    ConstraintGraph *graph,
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config,
-    BHKVerificationResult *out_result)
-{
-    if (!graph) return -1;
+int prop_verifier_apply_trust_colors(ConstraintGraph *graph, const PropFormula **premises, int premise_count,
+                                     const PropFormula *goal, const VerifierConfig *config,
+                                     BHKVerificationResult *out_result) {
+    if (!graph)
+        return -1;
 
     /* ����1: ִ�� BHK ��֤ */
-    BHKVerificationResult bhk = prop_verifier_bhk_verify(
-        premises, premise_count, goal, config);
+    BHKVerificationResult bhk = prop_verifier_bhk_verify(premises, premise_count, goal, config);
 
     /* ͬʱ��ȡԭʼ��֤������ж� DISPROVEN ��״̬ */
     VerifierConfig default_cfg = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_cfg;
+    if (!config)
+        config = &default_cfg;
     VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
 
     /* ����2: ӳ��������ɫ */
@@ -1986,27 +2000,25 @@ int prop_verifier_apply_trust_colors(
     /* ��ʽ���: ��֤��ʼ */
     if (prop_verifier_stream_ctx) {
         char desc[256];
-        snprintf(desc, sizeof(desc),
-                 "������ɫ�Ž�: BHK��֤=%s, ȱʧ����=%d, Ŀ����ɫ=%s",
-                 bhk.verified ? "ͨ��" : "δͨ��",
-                 bhk.missing_constructions,
-                 trust_color_name(target_color));
-        stream_emit_simple(prop_verifier_stream_ctx,
-                           STREAM_EVENT_PROOF_COLOR_UPDATE, desc, 0);
+        snprintf(desc, sizeof(desc), "������ɫ�Ž�: BHK��֤=%s, ȱʧ����=%d, Ŀ����ɫ=%s", bhk.verified ? "ͨ��" : "δͨ��",
+                 bhk.missing_constructions, trust_color_name(target_color));
+        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, desc, 0);
     }
 
     /* ����3: ����Լ��ͼ�е����нڵ㣬����������ɫ */
     int updated_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node) continue;
+        if (!node)
+            continue;
 
         bool node_updated = false;
 
         /* �Խڵ��ÿ��������������������ɫ */
         for (int c = 0; c < node->coord_count; c++) {
             SymbolicCoord *coord = node->symbolic_coords[c];
-            if (!coord) continue;
+            if (!coord)
+                continue;
 
             TrustColor old_color = symbolic_coord_get_trust(coord);
             if (old_color != target_color) {
@@ -2032,13 +2044,10 @@ int prop_verifier_apply_trust_colors(
                 snprintf(detail_json, sizeof(detail_json),
                          "{\"node_id\":%d,\"type\":%d,\"old_color\":%d,\"new_color\":%d,"
                          "\"verified\":%s,\"missing\":%d}",
-                         node->id, (int)node->type,
-                         (int)symbolic_coord_get_trust(
-                             node->coord_count > 0 && node->symbolic_coords[0]
-                                 ? node->symbolic_coords[0] : NULL),
-                         (int)target_color,
-                         bhk.verified ? "true" : "false",
-                         bhk.missing_constructions);
+                         node->id, (int) node->type,
+                         (int) symbolic_coord_get_trust(
+                             node->coord_count > 0 && node->symbolic_coords[0] ? node->symbolic_coords[0] : NULL),
+                         (int) target_color, bhk.verified ? "true" : "false", bhk.missing_constructions);
                 ev.detail_json = detail_json;
                 stream_emit(prop_verifier_stream_ctx, &ev);
             }
@@ -2048,11 +2057,8 @@ int prop_verifier_apply_trust_colors(
     /* ��ʽ���: ���ͳ�� */
     if (prop_verifier_stream_ctx) {
         char done_desc[128];
-        snprintf(done_desc, sizeof(done_desc),
-                 "������ɫӦ�����: ������ %d/%d ���ڵ�",
-                 updated_count, graph->node_count);
-        stream_emit_simple(prop_verifier_stream_ctx,
-                           STREAM_EVENT_PROOF_COLOR_UPDATE, done_desc, 0);
+        snprintf(done_desc, sizeof(done_desc), "������ɫӦ�����: ������ %d/%d ���ڵ�", updated_count, graph->node_count);
+        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, done_desc, 0);
     }
 
     /* ����4: �������������������Ҫ�� */
@@ -2072,21 +2078,21 @@ int prop_verifier_apply_trust_colors(
  * ����ȼ��Լ��
  * ============================================================ */
 
-bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b,
-                                      const VerifierConfig *config) {
-    if (!a || !b) return false;
+bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b, const VerifierConfig *config) {
+    if (!a || !b)
+        return false;
 
     /* �ṹ����Կ���·�� */
-    if (formula_equal(a, b)) return true;
+    if (formula_equal(a, b))
+        return true;
 
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     /* ��� a �� b �� b �� a �Ƿ񶼿�֤ */
-    PropFormula *a_impl_b = prop_formula_create_implication(
-        prop_formula_copy(a), prop_formula_copy(b));
-    PropFormula *b_impl_a = prop_formula_create_implication(
-        prop_formula_copy(b), prop_formula_copy(a));
+    PropFormula *a_impl_b = prop_formula_create_implication(prop_formula_copy(a), prop_formula_copy(b));
+    PropFormula *b_impl_a = prop_formula_create_implication(prop_formula_copy(b), prop_formula_copy(a));
 
     VerifyDetail d1 = prop_verifier_verify(NULL, 0, a_impl_b, config);
     VerifyDetail d2 = prop_verifier_verify(NULL, 0, b_impl_a, config);
@@ -2099,20 +2105,20 @@ bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b,
     return result;
 }
 
-bool prop_verifier_check_tautology(const PropFormula *f,
-                                    const VerifierConfig *config) {
-    if (!f) return false;
+bool prop_verifier_check_tautology(const PropFormula *f, const VerifierConfig *config) {
+    if (!f)
+        return false;
 
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     /* ����ʽ = ��ǰ�ἴ��֤ */
     VerifyDetail detail = prop_verifier_verify(NULL, 0, f, config);
     return detail.result == VERIFY_PROVEN;
 }
 
-int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count,
-                                   VerifyDetail *results) {
+int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count, VerifyDetail *results) {
     int passed = 0;
 
     for (int i = 0; i < test_count; i++) {
@@ -2122,8 +2128,7 @@ int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count,
         VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
         /* ����Ԥ�ڲ���֤�Ĳ��ԣ�ʹ��ֱ������ģʽ */
         /* ���ڲ��� 13����ըԭ���������� ex_falso */
-        if (t->expected_provable && t->premise_count == 1 &&
-            t->premises[0] && t->premises[0]->type == PROP_BOTTOM &&
+        if (t->expected_provable && t->premise_count == 1 && t->premises[0] && t->premises[0]->type == PROP_BOTTOM &&
             t->goal && t->goal->type == PROP_ATOM) {
             config.enable_ex_falso = true;
         }
@@ -2134,16 +2139,17 @@ int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count,
             prem_ptrs[j] = t->premises[j];
         }
 
-        results[i] = prop_verifier_verify(prem_ptrs, t->premise_count,
-                                           t->goal, &config);
+        results[i] = prop_verifier_verify(prem_ptrs, t->premise_count, t->goal, &config);
 
         bool actually_proven = (results[i].result == VERIFY_PROVEN);
 
         /* ����Ԥ�ڲ���֤�Ĳ��ԣ�����Ƿ�ȷʵ����֤ */
         if (t->expected_provable) {
-            if (actually_proven) passed++;
+            if (actually_proven)
+                passed++;
         } else {
-            if (!actually_proven) passed++;
+            if (!actually_proven)
+                passed++;
         }
     }
 
@@ -2169,7 +2175,7 @@ PropVerifierResult lv_prop_verify(const void *prop) {
         return res;
     }
 
-    const PropFormula *f = (const PropFormula *)prop;
+    const PropFormula *f = (const PropFormula *) prop;
 
     switch (f->type) {
         case PROP_TRUE:
@@ -2195,7 +2201,7 @@ PropVerifierResult lv_prop_verify(const void *prop) {
 
         case PROP_CONJUNCTION: {
             /* 合取式：所有子命题均需成立 */
-            PropVerifierResult left  = lv_prop_verify(f->data.binary.left);
+            PropVerifierResult left = lv_prop_verify(f->data.binary.left);
             PropVerifierResult right = lv_prop_verify(f->data.binary.right);
             if (left.valid && right.valid) {
                 res.valid = true;
@@ -2230,7 +2236,7 @@ PropVerifierResult lv_prop_verify(const void *prop) {
 
         case PROP_DISJUNCTION: {
             /* 析取式：至少一个子命题成立 */
-            PropVerifierResult left  = lv_prop_verify(f->data.binary.left);
+            PropVerifierResult left = lv_prop_verify(f->data.binary.left);
             PropVerifierResult right = lv_prop_verify(f->data.binary.right);
             if (left.valid || right.valid) {
                 res.valid = true;

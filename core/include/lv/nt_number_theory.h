@@ -12,10 +12,11 @@
  */
 #ifndef lv_NT_NUMBER_THEORY_H
 #define lv_NT_NUMBER_THEORY_H
-#include "lv.h"
 #include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>
+
+#include "lv.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,8 +30,8 @@ extern "C" {
  * modular inverse computation.
  */
 typedef struct lvModContext {
-    mpz_t modulus;   /**< The modulus (must be > 0) */
-    int   is_prime;  /**< Non-zero if modulus is known to be prime */
+    mpz_t modulus; /**< The modulus (must be > 0) */
+    int is_prime;  /**< Non-zero if modulus is known to be prime */
 } lvModContext;
 /* ============================================================
  * Lifecycle
@@ -72,8 +73,7 @@ lv_PUBLIC_API void nt_mod_context_clear(lvModContext *ctx);
  * @param a       First operand
  * @param b       Second operand
  */
-lv_PUBLIC_API void nt_mod_add(mpz_t result, const lvModContext *ctx,
-                                const mpz_t a, const mpz_t b);
+lv_PUBLIC_API void nt_mod_add(mpz_t result, const lvModContext *ctx, const mpz_t a, const mpz_t b);
 /**
  * @brief Modular multiplication: (a * b) mod n
  *
@@ -82,8 +82,7 @@ lv_PUBLIC_API void nt_mod_add(mpz_t result, const lvModContext *ctx,
  * @param a       First operand
  * @param b       Second operand
  */
-lv_PUBLIC_API void nt_mod_mul(mpz_t result, const lvModContext *ctx,
-                                const mpz_t a, const mpz_t b);
+lv_PUBLIC_API void nt_mod_mul(mpz_t result, const lvModContext *ctx, const mpz_t a, const mpz_t b);
 /**
  * @brief Modular inverse: a^(-1) mod n
  *
@@ -95,8 +94,7 @@ lv_PUBLIC_API void nt_mod_mul(mpz_t result, const lvModContext *ctx,
  * @param a       Operand
  * @return true if inverse exists, false otherwise
  */
-lv_PUBLIC_API int nt_mod_inv(mpz_t result, const lvModContext *ctx,
-                               const mpz_t a);
+lv_PUBLIC_API int nt_mod_inv(mpz_t result, const lvModContext *ctx, const mpz_t a);
 /**
  * @brief Modular exponentiation: base^exp mod n
  *
@@ -107,8 +105,7 @@ lv_PUBLIC_API int nt_mod_inv(mpz_t result, const lvModContext *ctx,
  * @param base    Base
  * @param exp     Exponent (must be >= 0)
  */
-lv_PUBLIC_API void nt_mod_pow(mpz_t result, const lvModContext *ctx,
-                                const mpz_t base, const mpz_t exp);
+lv_PUBLIC_API void nt_mod_pow(mpz_t result, const lvModContext *ctx, const mpz_t base, const mpz_t exp);
 /* ============================================================
  * GCD and LCM
  * ============================================================ */
@@ -170,8 +167,7 @@ lv_PUBLIC_API void nt_next_prime(mpz_t result, const mpz_t n);
  * @param bound       Upper bound for trial divisors (0 means no bound)
  * @return Number of factors found, or -1 on error
  */
-lv_PUBLIC_API int nt_factorize_trial_div(const mpz_t n, mpz_t *factors,
-                                           int max_factors, const mpz_t bound);
+lv_PUBLIC_API int nt_factorize_trial_div(const mpz_t n, mpz_t *factors, int max_factors, const mpz_t bound);
 #ifdef __cplusplus
 }
 #endif

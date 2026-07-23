@@ -73,20 +73,20 @@ typedef enum {
 } UniverseLevel;
 
 /* 向后兼容的层级别名 */
-#define UNIVERSE_BASE UNIVERSE_LEVEL_0    /* 第0层：基本几何体（点、线段） */
-#define UNIVERSE_TYPE_1 UNIVERSE_LEVEL_1  /* 第1层：类型区域 */
+#define UNIVERSE_BASE UNIVERSE_LEVEL_0   /* 第0层：基本几何体（点、线段） */
+#define UNIVERSE_TYPE_1 UNIVERSE_LEVEL_1 /* 第1层：类型区域 */
 
 /* ============== 类型种类 ============== */
 typedef enum {
-    TYPE_KIND_POINT,        /* 点类型 */
-    TYPE_KIND_LINE_SEGMENT, /* 线段类型 */
-    TYPE_KIND_REGION,       /* 区域类型 */
-    TYPE_KIND_FUNCTION,     /* 函数类型 */
-    TYPE_KIND_PRODUCT,      /* 乘积类型 */
-    TYPE_KIND_SUM,          /* 和类型 */
-    TYPE_KIND_VARIABLE,     /* 类型变量（多态） */
-    TYPE_KIND_DEPENDENT,    /* 依赖类型 */
-    TYPE_KIND_BOTTOM,       /* ⊥ 类型 */
+    TYPE_KIND_POINT,            /* 点类型 */
+    TYPE_KIND_LINE_SEGMENT,     /* 线段类型 */
+    TYPE_KIND_REGION,           /* 区域类型 */
+    TYPE_KIND_FUNCTION,         /* 函数类型 */
+    TYPE_KIND_PRODUCT,          /* 乘积类型 */
+    TYPE_KIND_SUM,              /* 和类型 */
+    TYPE_KIND_VARIABLE,         /* 类型变量（多态） */
+    TYPE_KIND_DEPENDENT,        /* 依赖类型 */
+    TYPE_KIND_BOTTOM,           /* ⊥ 类型 */
     TYPE_KIND_PREDICATE_SUBTYPE /* PVS风格谓词子类型 {x:T | P(x)} */
 } TypeKind;
 
@@ -164,9 +164,9 @@ struct TypeRegion {
     TypeRegion *body_type; /* 体类型 */
 
     /* 对于PVS风格谓词子类型 {x:base_type | predicate} */
-    TypeRegion *base_type;      /* 基类型 T */
-    char *predicate_name;       /* 谓词名称 P */
-    char *predicate_expr;       /* 谓词表达式字符串 */
+    TypeRegion *base_type;       /* 基类型 T */
+    char *predicate_name;        /* 谓词名称 P */
+    char *predicate_expr;        /* 谓词表达式字符串 */
     int predicate_constraint_id; /* 关联的约束ID（用于验证） */
 
     /* 类型别名 */
@@ -266,7 +266,7 @@ lv_PUBLIC_API void type_rewrite_path_destroy(TypeRewritePath *path);
  * @param after 重写后的类型
  */
 lv_PUBLIC_API void type_rewrite_path_record(TypeRewritePath *path, const char *rule_name, const TypeRegion *before,
-                              const TypeRegion *after);
+                                            const TypeRegion *after);
 
 /**
  * @brief 回放到指定步骤
@@ -414,8 +414,7 @@ lv_PUBLIC_API TypeRegion *type_create_bottom(TypeSystem *ts);
  * @return 新创建的谓词子类型
  */
 lv_PUBLIC_API TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
-                                          const char *predicate_name,
-                                          const char *predicate_expr);
+                                                        const char *predicate_name, const char *predicate_expr);
 
 /**
  * 验证值是否满足谓词子类型的约束
@@ -519,7 +518,8 @@ lv_PUBLIC_API bool type_is_universe_checking_enabled(void);
  * @param use_rewrite 是否使用重写引擎
  * @return 等价检查结果
  */
-lv_PUBLIC_API TypeEquivResult type_check_equivalence(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2, bool use_rewrite);
+lv_PUBLIC_API TypeEquivResult type_check_equivalence(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                                     bool use_rewrite);
 
 /**
  * 检查端口类型兼容性
@@ -528,7 +528,8 @@ lv_PUBLIC_API TypeEquivResult type_check_equivalence(TypeSystem *ts, TypeRegion 
  * @param target_type 目标端口类型
  * @return 类型检查结果
  */
-lv_PUBLIC_API TypeCheckResult type_check_port_compatibility(TypeSystem *ts, TypeRegion *source_type, TypeRegion *target_type);
+lv_PUBLIC_API TypeCheckResult type_check_port_compatibility(TypeSystem *ts, TypeRegion *source_type,
+                                                            TypeRegion *target_type);
 
 /* ============== 类型推断 ============== */
 
@@ -573,7 +574,7 @@ lv_PUBLIC_API bool type_instantiate_variable(TypeSystem *ts, int var_id, TypeReg
  * @return 是否成功
  */
 lv_PUBLIC_API bool type_substitute_variable(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
-                              TypeRegion **out_result);
+                                            TypeRegion **out_result);
 
 /* ============== 非良基模式 ============== */
 
@@ -644,8 +645,8 @@ lv_PUBLIC_API bool type_detach_node_type(TypeSystem *ts, int node_id);
  * @param input_values 输入值的符号坐标数组（可为NULL）
  * @return true 兼容，false 不兼容
  */
-lv_PUBLIC_API bool type_check_dependent(const TypeSystem *ts, const TypeRegion *output_type, const TypeRegion *input_type,
-                          const SymbolicCoord **input_values);
+lv_PUBLIC_API bool type_check_dependent(const TypeSystem *ts, const TypeRegion *output_type,
+                                        const TypeRegion *input_type, const SymbolicCoord **input_values);
 
 /* ============== 辅助函数 ============== */
 
@@ -685,8 +686,8 @@ lv_PUBLIC_API void type_print(const TypeRegion *tr, int indent);
  * @param description 人类可读的规则描述
  * @return 0 成功，-1 失败
  */
-lv_PUBLIC_API int type_system_register_inference_rule(TypeSystem *ts, int source_node_type, int target_type_kind, int priority,
-                                        const char *description);
+lv_PUBLIC_API int type_system_register_inference_rule(TypeSystem *ts, int source_node_type, int target_type_kind,
+                                                      int priority, const char *description);
 
 /**
  * 获取所有已注册的类型推断规则
@@ -773,7 +774,8 @@ lv_PUBLIC_API void path_explorer_destroy(PathExplorer *explorer);
  * @param count 输出可应用规则数量
  * @return EXPLORER_OK 成功，EXPLORER_GOAL_REACHED 已达目标
  */
-lv_PUBLIC_API ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, int **rule_indices, int *count);
+lv_PUBLIC_API ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, int **rule_indices,
+                                                                int *count);
 
 /**
  * @brief 预览规则应用效果（不修改状态）
@@ -782,7 +784,8 @@ lv_PUBLIC_API ExplorerResult path_explorer_get_applicable_rules(const PathExplor
  * @param preview_result 输出预览结果类型区域（调用者需 type_region_destroy）
  * @return EXPLORER_OK 预览成功，EXPLORER_INVALID_RULE 规则不可应用
  */
-lv_PUBLIC_API ExplorerResult path_explorer_preview_rule(PathExplorer *explorer, int rule_index, TypeRegion **preview_result);
+lv_PUBLIC_API ExplorerResult path_explorer_preview_rule(PathExplorer *explorer, int rule_index,
+                                                        TypeRegion **preview_result);
 
 /**
  * @brief 应用规则（修改当前状态）

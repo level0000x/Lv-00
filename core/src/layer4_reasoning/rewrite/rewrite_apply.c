@@ -13,9 +13,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv/rewrite.h"
+
 #include "lv/constraint_graph.h"
 #include "lv/normalization.h"
+#include "lv/rewrite.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -25,13 +27,11 @@ lv_DECLARE_STREAM_CTX(rewrite);
 
 /* ── 前向声明：来自 rewrite_match.c 的共享函数 ── */
 int resolve_binding(const int *bindings, int binding_count, int pattern_var_id);
-int resolve_replacement_participant(
-    int participant_id,
-    const int *match_bindings, int match_binding_count,
-    const int *new_node_map, int new_node_map_count,
-    const int *new_nodes, int new_node_count);
-bool add_constraint_generic(ConstraintGraph *graph, ConstraintType type,
-                            const int *participants, int participant_count);
+int resolve_replacement_participant(int participant_id, const int *match_bindings, int match_binding_count,
+                                    const int *new_node_map, int new_node_map_count, const int *new_nodes,
+                                    int new_node_count);
+bool add_constraint_generic(ConstraintGraph *graph, ConstraintType type, const int *participants,
+                            int participant_count);
 bool pattern_var_used_in_replacement(const RewriteReplacement *repl, int pattern_var_id);
 bool pattern_var_in_replacement_bindings(const RewriteReplacement *repl, int pattern_var_id);
 bool is_matched_constraint(const RewriteMatch *match, int constraint_id);
@@ -68,16 +68,21 @@ typedef struct {
     /* 新节点 */
     int *new_nodes;
     int new_node_count;
-    GeomType *new_node_types;     /* 新节点的几何类型 */
+    GeomType *new_node_types; /* 新节点的几何类型 */
 } ParsedRule;
 
 /* 解析约束类型字符串 */
 static ConstraintType parse_constraint_type(const char *str) {
-    if (strcmp(str, "incidence") == 0) return INCIDENCE;
-    if (strcmp(str, "betweenness") == 0) return BETWEENNESS;
-    if (strcmp(str, "intersection") == 0) return INTERSECTION;
-    if (strcmp(str, "containment") == 0) return CONTAINMENT;
-    if (strcmp(str, "connection") == 0) return CONNECTION;
+    if (strcmp(str, "incidence") == 0)
+        return INCIDENCE;
+    if (strcmp(str, "betweenness") == 0)
+        return BETWEENNESS;
+    if (strcmp(str, "intersection") == 0)
+        return INTERSECTION;
+    if (strcmp(str, "containment") == 0)
+        return CONTAINMENT;
+    if (strcmp(str, "connection") == 0)
+        return CONNECTION;
     return INCIDENCE; /* 默认 */
 }
 
@@ -88,7 +93,8 @@ static ConstraintType parse_constraint_type(const char *str) {
  * @return 跳过空白后的指针
  */
 static const char *skip_whitespace(const char *p) {
-    while (*p == ' ' || *p == '\t' || *p == '\r') p++;
+    while (*p == ' ' || *p == '\t' || *p == '\r')
+        p++;
     return p;
 }
 
@@ -99,8 +105,10 @@ static const char *skip_whitespace(const char *p) {
  * @return 跳过当前行后的指针
  */
 static const char *skip_line(const char *p) {
-    while (*p && *p != '\n') p++;
-    if (*p == '\n') p++;
+    while (*p && *p != '\n')
+        p++;
+    if (*p == '\n')
+        p++;
     return p;
 }
 
@@ -112,16 +120,19 @@ static const char *read_int(const char *p, int *out) {
     p = skip_whitespace(p);
     *out = 0;
     int sign = 1;
-    if (*p == '-') { sign = -1; p++; }
+    if (*p == '-') {
+        sign = -1;
+        p++;
+    }
     while (*p >= '0' && *p <= '9') {
         int digit = *p - '0';
         /* 溢出检查：在乘法前判断 value * 10 是否会超出 INT_MAX/10 */
-        if (*out > INT_MAX / 10 ||
-            (*out == INT_MAX / 10 && digit > INT_MAX % 10)) {
+        if (*out > INT_MAX / 10 || (*out == INT_MAX / 10 && digit > INT_MAX % 10)) {
             /* 整数溢出，钳位到最大/最小值 */
             *out = (sign > 0) ? INT_MAX : INT_MIN;
             /* 跳过剩余数字字符 */
-            while (*p >= '0' && *p <= '9') p++;
+            while (*p >= '0' && *p <= '9')
+                p++;
             return p;
         }
         *out = *out * 10 + digit;
@@ -163,17 +174,24 @@ static const char *read_token(const char *p, char *buf, int buf_size) {
  */
 static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
     FILE *f = fopen(filepath, "r");
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
 
     /* 读取整个文件 */
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);
-    if (fsize <= 0) { fclose(f); return NULL; }
+    if (fsize <= 0) {
+        fclose(f);
+        return NULL;
+    }
 
-    char *content = lv_malloc((size_t)fsize + 1);
-    if (!content) { fclose(f); return NULL; }
-    size_t nread = fread(content, 1, (size_t)fsize, f);
+    char *content = lv_malloc((size_t) fsize + 1);
+    if (!content) {
+        fclose(f);
+        return NULL;
+    }
+    size_t nread = fread(content, 1, (size_t) fsize, f);
     content[nread] = '\0';
     fclose(f);
 
@@ -181,7 +199,10 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
     int rule_count = 0;
     const char *p = content;
     while (*p) {
-        if (*p == '#') { p = skip_line(p); continue; } /* 注释 */
+        if (*p == '#') {
+            p = skip_line(p);
+            continue;
+        } /* 注释 */
         char token[64];
         p = read_token(p, token, sizeof(token));
         if (strcmp(token, "rule") == 0) {
@@ -190,18 +211,30 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
         p = skip_line(p);
     }
 
-    if (rule_count == 0) { lv_free((void**)&content); return NULL; }
+    if (rule_count == 0) {
+        lv_free((void **) &content);
+        return NULL;
+    }
 
     /* 分配规则数组 */
-    ParsedRule *rules = lv_calloc((size_t)rule_count, sizeof(ParsedRule));
-    if (!rules) { lv_free((void**)&content); return NULL; }
+    ParsedRule *rules = lv_calloc((size_t) rule_count, sizeof(ParsedRule));
+    if (!rules) {
+        lv_free((void **) &content);
+        return NULL;
+    }
 
     /* 第二遍：解析规则 */
     p = content;
     int current_rule = -1;
     while (*p) {
-        if (*p == '#') { p = skip_line(p); continue; }
-        if (*p == '\n') { p++; continue; }
+        if (*p == '#') {
+            p = skip_line(p);
+            continue;
+        }
+        if (*p == '\n') {
+            p++;
+            continue;
+        }
 
         char token[256];
         p = read_token(p, token, sizeof(token));
@@ -219,11 +252,12 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 while (*p && *p != '\n') {
                     int v;
                     p = read_int(p, &v);
-                    if (count < 64) vars[count++] = v;
+                    if (count < 64)
+                        vars[count++] = v;
                 }
-                rules[current_rule].pattern_var_ids = lv_malloc((size_t)count * sizeof(int));
+                rules[current_rule].pattern_var_ids = lv_malloc((size_t) count * sizeof(int));
                 if (rules[current_rule].pattern_var_ids) {
-                    memcpy(rules[current_rule].pattern_var_ids, vars, (size_t)count * sizeof(int));
+                    memcpy(rules[current_rule].pattern_var_ids, vars, (size_t) count * sizeof(int));
                     rules[current_rule].pattern_var_count = count;
                 }
             } else if (strcmp(token, "pattern_constraint") == 0) {
@@ -235,25 +269,26 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 while (*p && *p != '\n') {
                     int v;
                     const char *next = read_int(p, &v);
-                    if (next == p) break; /* 没有读到数字 */
+                    if (next == p)
+                        break; /* 没有读到数字 */
                     p = next;
-                    if (pcount < 8) parts[pcount++] = v;
+                    if (pcount < 8)
+                        parts[pcount++] = v;
                 }
                 int idx = rules[current_rule].pattern_constraint_count;
-                void *new_pc = lv_realloc(
-                    rules[current_rule].pattern_constraints,
-                    (size_t)(idx + 1) * sizeof(rules[current_rule].pattern_constraints[0]));
+                void *new_pc = lv_realloc(rules[current_rule].pattern_constraints,
+                                          (size_t) (idx + 1) * sizeof(rules[current_rule].pattern_constraints[0]));
                 if (!new_pc) {
-                    for (int r = 0; r <= current_rule; r++) parsed_rule_destroy(&rules[r]);
-                    lv_free((void**)&rules);
-                    lv_free((void**)&content);
+                    for (int r = 0; r <= current_rule; r++)
+                        parsed_rule_destroy(&rules[r]);
+                    lv_free((void **) &rules);
+                    lv_free((void **) &content);
                     return NULL;
                 }
                 rules[current_rule].pattern_constraints = new_pc;
                 rules[current_rule].pattern_constraints[idx].type = parse_constraint_type(type_str);
                 rules[current_rule].pattern_constraints[idx].participant_count = pcount;
-                memcpy(rules[current_rule].pattern_constraints[idx].participants, parts,
-                       (size_t)pcount * sizeof(int));
+                memcpy(rules[current_rule].pattern_constraints[idx].participants, parts, (size_t) pcount * sizeof(int));
                 rules[current_rule].pattern_constraint_count++;
             } else if (strcmp(token, "replacement_constraint") == 0) {
                 /* replacement_constraint: type p1 p2 [p3] */
@@ -264,25 +299,27 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 while (*p && *p != '\n') {
                     int v;
                     const char *next = read_int(p, &v);
-                    if (next == p) break;
+                    if (next == p)
+                        break;
                     p = next;
-                    if (pcount < 8) parts[pcount++] = v;
+                    if (pcount < 8)
+                        parts[pcount++] = v;
                 }
                 int idx = rules[current_rule].replacement_constraint_count;
-                void *new_rc = lv_realloc(
-                    rules[current_rule].replacement_constraints,
-                    (size_t)(idx + 1) * sizeof(rules[current_rule].replacement_constraints[0]));
+                void *new_rc = lv_realloc(rules[current_rule].replacement_constraints,
+                                          (size_t) (idx + 1) * sizeof(rules[current_rule].replacement_constraints[0]));
                 if (!new_rc) {
-                    for (int r = 0; r <= current_rule; r++) parsed_rule_destroy(&rules[r]);
-                    lv_free((void**)&rules);
-                    lv_free((void**)&content);
+                    for (int r = 0; r <= current_rule; r++)
+                        parsed_rule_destroy(&rules[r]);
+                    lv_free((void **) &rules);
+                    lv_free((void **) &content);
                     return NULL;
                 }
                 rules[current_rule].replacement_constraints = new_rc;
                 rules[current_rule].replacement_constraints[idx].type = parse_constraint_type(type_str);
                 rules[current_rule].replacement_constraints[idx].participant_count = pcount;
                 memcpy(rules[current_rule].replacement_constraints[idx].participants, parts,
-                       (size_t)pcount * sizeof(int));
+                       (size_t) pcount * sizeof(int));
                 rules[current_rule].replacement_constraint_count++;
             } else if (strcmp(token, "node_binding") == 0) {
                 /* node_binding: pattern_var target_id */
@@ -290,13 +327,13 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 p = read_int(p, &var_id);
                 p = read_int(p, &target);
                 int idx = rules[current_rule].node_binding_count;
-                void *new_nb = lv_realloc(
-                    rules[current_rule].node_bindings,
-                    (size_t)(idx + 1) * sizeof(rules[current_rule].node_bindings[0]));
+                void *new_nb = lv_realloc(rules[current_rule].node_bindings,
+                                          (size_t) (idx + 1) * sizeof(rules[current_rule].node_bindings[0]));
                 if (!new_nb) {
-                    for (int r = 0; r <= current_rule; r++) parsed_rule_destroy(&rules[r]);
-                    lv_free((void**)&rules);
-                    lv_free((void**)&content);
+                    for (int r = 0; r <= current_rule; r++)
+                        parsed_rule_destroy(&rules[r]);
+                    lv_free((void **) &rules);
+                    lv_free((void **) &content);
                     return NULL;
                 }
                 rules[current_rule].node_bindings = new_nb;
@@ -310,13 +347,15 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 while (*p && *p != '\n') {
                     int v;
                     const char *next = read_int(p, &v);
-                    if (next == p) break;
+                    if (next == p)
+                        break;
                     p = next;
-                    if (ncount < 64) nodes[ncount++] = v;
+                    if (ncount < 64)
+                        nodes[ncount++] = v;
                 }
-                rules[current_rule].new_nodes = lv_malloc((size_t)ncount * sizeof(int));
+                rules[current_rule].new_nodes = lv_malloc((size_t) ncount * sizeof(int));
                 if (rules[current_rule].new_nodes) {
-                    memcpy(rules[current_rule].new_nodes, nodes, (size_t)ncount * sizeof(int));
+                    memcpy(rules[current_rule].new_nodes, nodes, (size_t) ncount * sizeof(int));
                     rules[current_rule].new_node_count = ncount;
                 }
             } else if (strcmp(token, "new_node_types") == 0) {
@@ -326,27 +365,28 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 while (*p && *p != '\n') {
                     int v;
                     const char *next = read_int(p, &v);
-                    if (next == p) break;
+                    if (next == p)
+                        break;
                     p = next;
                     if (tcount < 64) {
                         /* 验证类型值合法性 */
                         if (v >= GEOM_POINT && v <= GEOM_FUNCTION_BLOCK) {
-                            types[tcount++] = (GeomType)v;
+                            types[tcount++] = (GeomType) v;
                         } else {
                             types[tcount++] = GEOM_POINT; /* 默认为 POINT */
                         }
                     }
                 }
-                rules[current_rule].new_node_types = lv_malloc((size_t)tcount * sizeof(GeomType));
+                rules[current_rule].new_node_types = lv_malloc((size_t) tcount * sizeof(GeomType));
                 if (rules[current_rule].new_node_types) {
-                    memcpy(rules[current_rule].new_node_types, types, (size_t)tcount * sizeof(GeomType));
+                    memcpy(rules[current_rule].new_node_types, types, (size_t) tcount * sizeof(GeomType));
                 }
             }
         }
         p = skip_line(p);
     }
 
-    lv_free((void**)&content);
+    lv_free((void **) &content);
     *out_count = rule_count;
     return rules;
 }
@@ -361,13 +401,14 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
  * @param rule 待销毁的解析规则指针（可为 NULL）
  */
 static void parsed_rule_destroy(ParsedRule *rule) {
-    if (!rule) return;
-    lv_free((void**)&rule->pattern_var_ids);
-    lv_free((void**)&rule->pattern_constraints);
-    lv_free((void**)&rule->replacement_constraints);
-    lv_free((void**)&rule->node_bindings);
-    lv_free((void**)&rule->new_nodes);
-    lv_free((void**)&rule->new_node_types);
+    if (!rule)
+        return;
+    lv_free((void **) &rule->pattern_var_ids);
+    lv_free((void **) &rule->pattern_constraints);
+    lv_free((void **) &rule->replacement_constraints);
+    lv_free((void **) &rule->node_bindings);
+    lv_free((void **) &rule->new_nodes);
+    lv_free((void **) &rule->new_node_types);
 }
 
 /**
@@ -384,14 +425,14 @@ static void parsed_rule_destroy(ParsedRule *rule) {
 static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     /* 构建模式 */
     RewritePattern *pattern = lv_calloc(1, sizeof(RewritePattern));
-    if (!pattern) return NULL;
+    if (!pattern)
+        return NULL;
     pattern->var_count = pr->pattern_var_count;
     pattern->variable_node_ids = NULL;
     if (pr->pattern_var_count > 0 && pr->pattern_var_ids) {
-        pattern->variable_node_ids = lv_malloc((size_t)pr->pattern_var_count * sizeof(int));
+        pattern->variable_node_ids = lv_malloc((size_t) pr->pattern_var_count * sizeof(int));
         if (pattern->variable_node_ids) {
-            memcpy(pattern->variable_node_ids, pr->pattern_var_ids,
-                   (size_t)pr->pattern_var_count * sizeof(int));
+            memcpy(pattern->variable_node_ids, pr->pattern_var_ids, (size_t) pr->pattern_var_count * sizeof(int));
         }
     }
 
@@ -399,20 +440,17 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     pattern->pattern_constraint_count = pr->pattern_constraint_count;
     pattern->pattern_constraints = NULL;
     if (pr->pattern_constraint_count > 0 && pr->pattern_constraints) {
-        pattern->pattern_constraints = lv_malloc(
-            (size_t)pr->pattern_constraint_count * sizeof(Constraint *));
+        pattern->pattern_constraints = lv_malloc((size_t) pr->pattern_constraint_count * sizeof(Constraint *));
         if (pattern->pattern_constraints) {
             for (int i = 0; i < pr->pattern_constraint_count; i++) {
                 Constraint *c = lv_calloc(1, sizeof(Constraint));
                 if (c) {
                     c->type = pr->pattern_constraints[i].type;
                     c->participant_count = pr->pattern_constraints[i].participant_count;
-                    c->participants = lv_malloc(
-                        (size_t)c->participant_count * sizeof(int));
+                    c->participants = lv_malloc((size_t) c->participant_count * sizeof(int));
                     if (c->participants) {
-                        memcpy(c->participants,
-                               pr->pattern_constraints[i].participants,
-                               (size_t)c->participant_count * sizeof(int));
+                        memcpy(c->participants, pr->pattern_constraints[i].participants,
+                               (size_t) c->participant_count * sizeof(int));
                     }
                 }
                 pattern->pattern_constraints[i] = c;
@@ -424,17 +462,17 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     RewriteReplacement *replacement = lv_calloc(1, sizeof(RewriteReplacement));
     if (!replacement) {
         /* 简化清理 */
-        lv_free((void**)&pattern->variable_node_ids);
+        lv_free((void **) &pattern->variable_node_ids);
         if (pattern->pattern_constraints) {
             for (int i = 0; i < pattern->pattern_constraint_count; i++) {
                 if (pattern->pattern_constraints[i]) {
-                    lv_free((void**)&pattern->pattern_constraints[i]->participants);
-                    lv_free((void**)&pattern->pattern_constraints[i]);
+                    lv_free((void **) &pattern->pattern_constraints[i]->participants);
+                    lv_free((void **) &pattern->pattern_constraints[i]);
                 }
             }
-            lv_free((void**)&pattern->pattern_constraints);
+            lv_free((void **) &pattern->pattern_constraints);
         }
-        lv_free((void**)&pattern);
+        lv_free((void **) &pattern);
         return NULL;
     }
 
@@ -442,8 +480,7 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     replacement->binding_count = pr->node_binding_count;
     replacement->node_bindings = NULL;
     if (pr->node_binding_count > 0 && pr->node_bindings) {
-        replacement->node_bindings = lv_malloc(
-            (size_t)pr->node_binding_count * sizeof(int *));
+        replacement->node_bindings = lv_malloc((size_t) pr->node_binding_count * sizeof(int *));
         if (replacement->node_bindings) {
             for (int i = 0; i < pr->node_binding_count; i++) {
                 replacement->node_bindings[i] = lv_malloc(2 * sizeof(int));
@@ -459,20 +496,18 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     replacement->replacement_constraint_count = pr->replacement_constraint_count;
     replacement->replacement_constraints = NULL;
     if (pr->replacement_constraint_count > 0 && pr->replacement_constraints) {
-        replacement->replacement_constraints = lv_malloc(
-            (size_t)pr->replacement_constraint_count * sizeof(Constraint *));
+        replacement->replacement_constraints =
+            lv_malloc((size_t) pr->replacement_constraint_count * sizeof(Constraint *));
         if (replacement->replacement_constraints) {
             for (int i = 0; i < pr->replacement_constraint_count; i++) {
                 Constraint *c = lv_calloc(1, sizeof(Constraint));
                 if (c) {
                     c->type = pr->replacement_constraints[i].type;
                     c->participant_count = pr->replacement_constraints[i].participant_count;
-                    c->participants = lv_malloc(
-                        (size_t)c->participant_count * sizeof(int));
+                    c->participants = lv_malloc((size_t) c->participant_count * sizeof(int));
                     if (c->participants) {
-                        memcpy(c->participants,
-                               pr->replacement_constraints[i].participants,
-                               (size_t)c->participant_count * sizeof(int));
+                        memcpy(c->participants, pr->replacement_constraints[i].participants,
+                               (size_t) c->participant_count * sizeof(int));
                     }
                 }
                 replacement->replacement_constraints[i] = c;
@@ -485,18 +520,16 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     replacement->new_nodes = NULL;
     replacement->new_node_types = NULL;
     if (pr->new_node_count > 0 && pr->new_nodes) {
-        replacement->new_nodes = lv_malloc((size_t)pr->new_node_count * sizeof(int));
+        replacement->new_nodes = lv_malloc((size_t) pr->new_node_count * sizeof(int));
         if (replacement->new_nodes) {
-            memcpy(replacement->new_nodes, pr->new_nodes,
-                   (size_t)pr->new_node_count * sizeof(int));
+            memcpy(replacement->new_nodes, pr->new_nodes, (size_t) pr->new_node_count * sizeof(int));
         }
     }
     /* 新节点类型 */
     if (pr->new_node_count > 0 && pr->new_node_types) {
-        replacement->new_node_types = lv_malloc((size_t)pr->new_node_count * sizeof(GeomType));
+        replacement->new_node_types = lv_malloc((size_t) pr->new_node_count * sizeof(GeomType));
         if (replacement->new_node_types) {
-            memcpy(replacement->new_node_types, pr->new_node_types,
-                   (size_t)pr->new_node_count * sizeof(GeomType));
+            memcpy(replacement->new_node_types, pr->new_node_types, (size_t) pr->new_node_count * sizeof(GeomType));
         }
     }
 
@@ -504,11 +537,9 @@ static RewriteRule *parsed_rule_to_rewrite_rule(const ParsedRule *pr) {
     return rule;
 }
 
-int rewrite_rules_load_from_file(const char *filepath,
-                                  RewriteRule ***out_rules,
-                                  int *out_count)
-{
-    if (!filepath || !out_rules || !out_count) return -1;
+int rewrite_rules_load_from_file(const char *filepath, RewriteRule ***out_rules, int *out_count) {
+    if (!filepath || !out_rules || !out_count)
+        return -1;
 
     *out_rules = NULL;
     *out_count = 0;
@@ -516,17 +547,19 @@ int rewrite_rules_load_from_file(const char *filepath,
     int parsed_count = 0;
     ParsedRule *parsed = parse_lvz_file(filepath, &parsed_count);
     if (!parsed || parsed_count <= 0) {
-        if (parsed) lv_free((void**)&parsed);
+        if (parsed)
+            lv_free((void **) &parsed);
         return -1;
     }
 
-    RewriteRule **rules = lv_malloc((size_t)parsed_count * sizeof(RewriteRule *));
+    RewriteRule **rules = lv_malloc((size_t) parsed_count * sizeof(RewriteRule *));
     if (!rules) {
-        for (int i = 0; i < parsed_count; i++) parsed_rule_destroy(&parsed[i]);
-        lv_free((void**)&parsed);
+        for (int i = 0; i < parsed_count; i++)
+            parsed_rule_destroy(&parsed[i]);
+        lv_free((void **) &parsed);
         return -1;
     }
-    memset(rules, 0, (size_t)parsed_count * sizeof(RewriteRule *));
+    memset(rules, 0, (size_t) parsed_count * sizeof(RewriteRule *));
 
     int loaded = 0;
     for (int i = 0; i < parsed_count; i++) {
@@ -540,17 +573,18 @@ int rewrite_rules_load_from_file(const char *filepath,
         }
         parsed_rule_destroy(&parsed[i]);
     }
-    lv_free((void**)&parsed);
+    lv_free((void **) &parsed);
 
     if (loaded == 0) {
-        lv_free((void**)&rules);
+        lv_free((void **) &rules);
         return 0;
     }
 
     /* 压缩数组 */
     if (loaded < parsed_count) {
-        RewriteRule **compressed = lv_realloc(rules, (size_t)loaded * sizeof(RewriteRule *));
-        if (compressed) rules = compressed;
+        RewriteRule **compressed = lv_realloc(rules, (size_t) loaded * sizeof(RewriteRule *));
+        if (compressed)
+            rules = compressed;
     }
 
     *out_rules = rules;
@@ -558,61 +592,60 @@ int rewrite_rules_load_from_file(const char *filepath,
     return loaded;
 }
 
-bool rewrite_rule_unload(RewriteRule ***rules, int *count,
-                          const char *rule_name)
-{
-    if (!rules || !*rules || !count || !rule_name) return false;
+bool rewrite_rule_unload(RewriteRule ***rules, int *count, const char *rule_name) {
+    if (!rules || !*rules || !count || !rule_name)
+        return false;
 
     int found_idx = -1;
     for (int i = 0; i < *count; i++) {
-        if ((*rules)[i] && (*rules)[i]->name &&
-            strcmp((*rules)[i]->name, rule_name) == 0) {
+        if ((*rules)[i] && (*rules)[i]->name && strcmp((*rules)[i]->name, rule_name) == 0) {
             found_idx = i;
             break;
         }
     }
 
-    if (found_idx < 0) return false;
+    if (found_idx < 0)
+        return false;
 
     /* 销毁该规则 */
     RewriteRule *rule = (*rules)[found_idx];
     if (rule) {
         /* 销毁模式 */
         if (rule->pattern) {
-            lv_free((void**)&rule->pattern->variable_node_ids);
+            lv_free((void **) &rule->pattern->variable_node_ids);
             if (rule->pattern->pattern_constraints) {
                 for (int i = 0; i < rule->pattern->pattern_constraint_count; i++) {
                     if (rule->pattern->pattern_constraints[i]) {
-                        lv_free((void**)&rule->pattern->pattern_constraints[i]->participants);
-                        lv_free((void**)&rule->pattern->pattern_constraints[i]);
+                        lv_free((void **) &rule->pattern->pattern_constraints[i]->participants);
+                        lv_free((void **) &rule->pattern->pattern_constraints[i]);
                     }
                 }
-                lv_free((void**)&rule->pattern->pattern_constraints);
+                lv_free((void **) &rule->pattern->pattern_constraints);
             }
-            lv_free((void**)&rule->pattern);
+            lv_free((void **) &rule->pattern);
         }
         /* 销毁替换 */
         if (rule->replacement) {
             if (rule->replacement->node_bindings) {
                 for (int i = 0; i < rule->replacement->binding_count; i++) {
-                    lv_free((void**)&rule->replacement->node_bindings[i]);
+                    lv_free((void **) &rule->replacement->node_bindings[i]);
                 }
-                lv_free((void**)&rule->replacement->node_bindings);
+                lv_free((void **) &rule->replacement->node_bindings);
             }
             if (rule->replacement->replacement_constraints) {
                 for (int i = 0; i < rule->replacement->replacement_constraint_count; i++) {
                     if (rule->replacement->replacement_constraints[i]) {
-                        lv_free((void**)&rule->replacement->replacement_constraints[i]->participants);
-                        lv_free((void**)&rule->replacement->replacement_constraints[i]);
+                        lv_free((void **) &rule->replacement->replacement_constraints[i]->participants);
+                        lv_free((void **) &rule->replacement->replacement_constraints[i]);
                     }
                 }
-                lv_free((void**)&rule->replacement->replacement_constraints);
+                lv_free((void **) &rule->replacement->replacement_constraints);
             }
-            lv_free((void**)&rule->replacement->new_nodes);
-            lv_free((void**)&rule->replacement);
+            lv_free((void **) &rule->replacement->new_nodes);
+            lv_free((void **) &rule->replacement);
         }
-        lv_free((void**)&rule->name);
-        lv_free((void**)&rule);
+        lv_free((void **) &rule->name);
+        lv_free((void **) &rule);
     }
 
     /* 从数组中移除并压缩 */
@@ -623,16 +656,16 @@ bool rewrite_rule_unload(RewriteRule ***rules, int *count,
 
     /* 缩小数组 */
     if (*count > 0) {
-        RewriteRule **compressed = lv_realloc(*rules, (size_t)*count * sizeof(RewriteRule *));
-        if (compressed) *rules = compressed;
+        RewriteRule **compressed = lv_realloc(*rules, (size_t) *count * sizeof(RewriteRule *));
+        if (compressed)
+            *rules = compressed;
     } else {
-        lv_free((void**)&*rules);
+        lv_free((void **) &*rules);
         *rules = NULL;
     }
 
     if (rewrite_stream_ctx) {
-        stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_INFO,
-                           rule_name, 0);
+        stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_INFO, rule_name, 0);
     }
 
     return true;
@@ -667,29 +700,31 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
      * ================================================================ */
     struct TxnEntry {
         enum { TXN_ADD_NODE, TXN_ADD_CONSTRAINT, TXN_REMOVE_NODE, TXN_REMOVE_CONSTRAINT } kind;
-        int id;              /* node or constraint id */
+        int id;               /* node or constraint id */
         ConstraintType ctype; /* for added constraints */
-        int *participants;   /* copy of participant array for added constraints */
+        int *participants;    /* copy of participant array for added constraints */
         int participant_count;
     };
 
     int txn_cap = 64;
     int txn_count = 0;
-    struct TxnEntry *txn = lv_calloc((size_t)txn_cap, sizeof(struct TxnEntry));
+    struct TxnEntry *txn = lv_calloc((size_t) txn_cap, sizeof(struct TxnEntry));
     if (!txn) {
         graph_snapshot_destroy(snapshot);
         return REWRITE_NO_MATCH;
     }
 
-    #define TXN_PUSH(entry) do { \
-        if (txn_count >= txn_cap) { \
-            txn_cap *= 2; \
-            struct TxnEntry *_tmp = lv_realloc(txn, (size_t)txn_cap * sizeof(struct TxnEntry)); \
-            if (!_tmp) goto txn_rollback; \
-            txn = _tmp; \
-        } \
-        txn[txn_count++] = (entry); \
-    } while(0)
+#define TXN_PUSH(entry)                                                                          \
+    do {                                                                                         \
+        if (txn_count >= txn_cap) {                                                              \
+            txn_cap *= 2;                                                                        \
+            struct TxnEntry *_tmp = lv_realloc(txn, (size_t) txn_cap * sizeof(struct TxnEntry)); \
+            if (!_tmp)                                                                           \
+                goto txn_rollback;                                                               \
+            txn = _tmp;                                                                          \
+        }                                                                                        \
+        txn[txn_count++] = (entry);                                                              \
+    } while (0)
 
     RewriteStatus result = REWRITE_NO_MATCH;
 
@@ -709,8 +744,9 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
      * ---------------------------------------------------------------- */
     int *new_node_map = NULL;
     if (repl->new_node_count > 0) {
-        new_node_map = lv_malloc((size_t)repl->new_node_count * sizeof(int));
-        if (!new_node_map) goto txn_cleanup;
+        new_node_map = lv_malloc((size_t) repl->new_node_count * sizeof(int));
+        if (!new_node_map)
+            goto txn_cleanup;
 
         for (int i = 0; i < repl->new_node_count; i++) {
             GeomType node_type = GEOM_POINT; /* 默认类型 */
@@ -749,134 +785,140 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
             int actual_id = -1;
 
             switch (node_type) {
-            case GEOM_LINE_SEGMENT: {
-                /* 创建线段需要两个端点。如果替换约束中有 INCIDENCE
+                case GEOM_LINE_SEGMENT: {
+                    /* 创建线段需要两个端点。如果替换约束中有 INCIDENCE
                    关联到此线段的端点，使用已解析的端点 ID。
                    否则创建两个占位点作为端点。 */
-                int ep1_id = -1, ep2_id = -1;
-                int placeholder_id = repl->new_nodes[i];
+                    int ep1_id = -1, ep2_id = -1;
+                    int placeholder_id = repl->new_nodes[i];
 
-                /* 尝试从替换约束中找到关联的端点 */
-                for (int c = 0; c < repl->replacement_constraint_count && ep1_id < 0; c++) {
-                    Constraint *rc = repl->replacement_constraints[c];
-                    if (rc->type == INCIDENCE && rc->participant_count == 2) {
-                        for (int p = 0; p < rc->participant_count; p++) {
-                            if (rc->participants[p] == placeholder_id) {
-                                int other_idx = 1 - p;
-                                int other_id = rc->participants[other_idx];
-                                if (other_id < 0) {
-                                    /* 模式变量 -> 查找匹配绑定 */
-                                    other_id = resolve_binding(
-                                        match->node_bindings, match->binding_count, other_id);
-                                } else if (other_id != placeholder_id) {
-                                    /* 检查是否是另一个新节点 */
-                                    bool is_other_new = false;
-                                    for (int nn = 0; nn < i; nn++) {
-                                        if (repl->new_nodes[nn] == other_id) {
-                                            other_id = new_node_map[nn];
-                                            is_other_new = true;
-                                            break;
+                    /* 尝试从替换约束中找到关联的端点 */
+                    for (int c = 0; c < repl->replacement_constraint_count && ep1_id < 0; c++) {
+                        Constraint *rc = repl->replacement_constraints[c];
+                        if (rc->type == INCIDENCE && rc->participant_count == 2) {
+                            for (int p = 0; p < rc->participant_count; p++) {
+                                if (rc->participants[p] == placeholder_id) {
+                                    int other_idx = 1 - p;
+                                    int other_id = rc->participants[other_idx];
+                                    if (other_id < 0) {
+                                        /* 模式变量 -> 查找匹配绑定 */
+                                        other_id =
+                                            resolve_binding(match->node_bindings, match->binding_count, other_id);
+                                    } else if (other_id != placeholder_id) {
+                                        /* 检查是否是另一个新节点 */
+                                        bool is_other_new = false;
+                                        for (int nn = 0; nn < i; nn++) {
+                                            if (repl->new_nodes[nn] == other_id) {
+                                                other_id = new_node_map[nn];
+                                                is_other_new = true;
+                                                break;
+                                            }
                                         }
                                     }
+                                    if (ep1_id < 0)
+                                        ep1_id = other_id;
+                                    else if (ep2_id < 0)
+                                        ep2_id = other_id;
                                 }
-                                if (ep1_id < 0) ep1_id = other_id;
-                                else if (ep2_id < 0) ep2_id = other_id;
                             }
                         }
                     }
+
+                    /* 如果没有找到端点，创建占位点 */
+                    if (ep1_id < 0) {
+                        SymbolicCoord *zc = symbolic_coord_create_rational(0, 1);
+                        SymbolicCoord *coords[] = {zc};
+                        nr = graph_add_point(graph, coords, 1);
+                        symbolic_coord_destroy(zc);
+                        if (nr != ADD_NODE_OK)
+                            goto txn_rollback;
+                        ep1_id = graph->next_node_id - 1;
+                        struct TxnEntry ep_e;
+                        ep_e.kind = TXN_ADD_NODE;
+                        ep_e.id = ep1_id;
+                        ep_e.participants = NULL;
+                        ep_e.participant_count = 0;
+                        TXN_PUSH(ep_e);
+                    }
+                    if (ep2_id < 0) {
+                        SymbolicCoord *zc = symbolic_coord_create_rational(0, 1);
+                        SymbolicCoord *coords[] = {zc};
+                        nr = graph_add_point(graph, coords, 1);
+                        symbolic_coord_destroy(zc);
+                        if (nr != ADD_NODE_OK)
+                            goto txn_rollback;
+                        ep2_id = graph->next_node_id - 1;
+                        struct TxnEntry ep_e;
+                        ep_e.kind = TXN_ADD_NODE;
+                        ep_e.id = ep2_id;
+                        ep_e.participants = NULL;
+                        ep_e.participant_count = 0;
+                        TXN_PUSH(ep_e);
+                    }
+
+                    nr = graph_add_line_segment(graph, ep1_id, ep2_id);
+                    if (nr != ADD_NODE_OK)
+                        goto txn_rollback;
+                    actual_id = graph->next_node_id - 1;
+                    break;
                 }
 
-                /* 如果没有找到端点，创建占位点 */
-                if (ep1_id < 0) {
-                    SymbolicCoord *zc = symbolic_coord_create_rational(0, 1);
-                    SymbolicCoord *coords[] = { zc };
-                    nr = graph_add_point(graph, coords, 1);
-                    symbolic_coord_destroy(zc);
-                    if (nr != ADD_NODE_OK) goto txn_rollback;
-                    ep1_id = graph->next_node_id - 1;
-                    struct TxnEntry ep_e;
-                    ep_e.kind = TXN_ADD_NODE;
-                    ep_e.id = ep1_id;
-                    ep_e.participants = NULL;
-                    ep_e.participant_count = 0;
-                    TXN_PUSH(ep_e);
-                }
-                if (ep2_id < 0) {
-                    SymbolicCoord *zc = symbolic_coord_create_rational(0, 1);
-                    SymbolicCoord *coords[] = { zc };
-                    nr = graph_add_point(graph, coords, 1);
-                    symbolic_coord_destroy(zc);
-                    if (nr != ADD_NODE_OK) goto txn_rollback;
-                    ep2_id = graph->next_node_id - 1;
-                    struct TxnEntry ep_e;
-                    ep_e.kind = TXN_ADD_NODE;
-                    ep_e.id = ep2_id;
-                    ep_e.participants = NULL;
-                    ep_e.participant_count = 0;
-                    TXN_PUSH(ep_e);
-                }
-
-                nr = graph_add_line_segment(graph, ep1_id, ep2_id);
-                if (nr != ADD_NODE_OK) goto txn_rollback;
-                actual_id = graph->next_node_id - 1;
-                break;
-            }
-
-            case GEOM_REGION: {
-                /* 创建区域需要边界线段 ID。
+                case GEOM_REGION: {
+                    /* 创建区域需要边界线段 ID。
                    尝试从替换约束中找到 CONTAINMENT 关联的线段。 */
-                int seg_ids[64];
-                int seg_count = 0;
-                int placeholder_id = repl->new_nodes[i];
+                    int seg_ids[64];
+                    int seg_count = 0;
+                    int placeholder_id = repl->new_nodes[i];
 
-                for (int c = 0; c < repl->replacement_constraint_count && seg_count < 64; c++) {
-                    Constraint *rc = repl->replacement_constraints[c];
-                    if (rc->type == CONTAINMENT && rc->participant_count == 2) {
-                        for (int p = 0; p < rc->participant_count; p++) {
-                            if (rc->participants[p] == placeholder_id) {
-                                int other_idx = 1 - p;
-                                int other_id = rc->participants[other_idx];
-                                if (other_id < 0) {
-                                    other_id = resolve_binding(
-                                        match->node_bindings, match->binding_count, other_id);
-                                } else {
-                                    /* 检查是否是另一个新节点 */
-                                    for (int nn = 0; nn < i; nn++) {
-                                        if (repl->new_nodes[nn] == other_id) {
-                                            other_id = new_node_map[nn];
-                                            break;
+                    for (int c = 0; c < repl->replacement_constraint_count && seg_count < 64; c++) {
+                        Constraint *rc = repl->replacement_constraints[c];
+                        if (rc->type == CONTAINMENT && rc->participant_count == 2) {
+                            for (int p = 0; p < rc->participant_count; p++) {
+                                if (rc->participants[p] == placeholder_id) {
+                                    int other_idx = 1 - p;
+                                    int other_id = rc->participants[other_idx];
+                                    if (other_id < 0) {
+                                        other_id =
+                                            resolve_binding(match->node_bindings, match->binding_count, other_id);
+                                    } else {
+                                        /* 检查是否是另一个新节点 */
+                                        for (int nn = 0; nn < i; nn++) {
+                                            if (repl->new_nodes[nn] == other_id) {
+                                                other_id = new_node_map[nn];
+                                                break;
+                                            }
                                         }
                                     }
-                                }
-                                if (other_id >= 0) {
-                                    seg_ids[seg_count++] = other_id;
+                                    if (other_id >= 0) {
+                                        seg_ids[seg_count++] = other_id;
+                                    }
                                 }
                             }
                         }
                     }
+
+                    /* 如果没有找到边界线段，创建一个空区域（使用空数组） */
+                    nr = graph_add_region(graph, seg_ids, seg_count);
+                    if (nr != ADD_NODE_OK)
+                        goto txn_rollback;
+                    actual_id = graph->next_node_id - 1;
+                    break;
                 }
 
-                /* 如果没有找到边界线段，创建一个空区域（使用空数组） */
-                nr = graph_add_region(graph, seg_ids, seg_count);
-                if (nr != ADD_NODE_OK) goto txn_rollback;
-                actual_id = graph->next_node_id - 1;
-                break;
-            }
+                case GEOM_POINT:
+                default: {
+                    /* 创建 POINT 节点（原有逻辑） */
+                    SymbolicCoord *zero_coord = symbolic_coord_create_rational(0, 1);
+                    SymbolicCoord *coords[] = {zero_coord};
+                    nr = graph_add_point(graph, coords, 1);
+                    symbolic_coord_destroy(zero_coord);
 
-            case GEOM_POINT:
-            default: {
-                /* 创建 POINT 节点（原有逻辑） */
-                SymbolicCoord *zero_coord = symbolic_coord_create_rational(0, 1);
-                SymbolicCoord *coords[] = { zero_coord };
-                nr = graph_add_point(graph, coords, 1);
-                symbolic_coord_destroy(zero_coord);
-
-                if (nr != ADD_NODE_OK) {
-                    goto txn_rollback;
+                    if (nr != ADD_NODE_OK) {
+                        goto txn_rollback;
+                    }
+                    actual_id = graph->next_node_id - 1;
+                    break;
                 }
-                actual_id = graph->next_node_id - 1;
-                break;
-            }
             }
 
             if (nr != ADD_NODE_OK) {
@@ -904,16 +946,15 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
      * ---------------------------------------------------------------- */
     for (int c = 0; c < repl->replacement_constraint_count; c++) {
         Constraint *rc = repl->replacement_constraints[c];
-        int *resolved = lv_malloc((size_t)rc->participant_count * sizeof(int));
-        if (!resolved) goto txn_rollback;
+        int *resolved = lv_malloc((size_t) rc->participant_count * sizeof(int));
+        if (!resolved)
+            goto txn_rollback;
 
         bool all_ok = true;
         for (int p = 0; p < rc->participant_count; p++) {
-            int rid = resolve_replacement_participant(
-                rc->participants[p],
-                match->node_bindings, match->binding_count,
-                new_node_map, repl->new_node_count,
-                repl->new_nodes, repl->new_node_count);
+            int rid = resolve_replacement_participant(rc->participants[p], match->node_bindings, match->binding_count,
+                                                      new_node_map, repl->new_node_count, repl->new_nodes,
+                                                      repl->new_node_count);
             if (rid < 0) {
                 all_ok = false;
                 break;
@@ -922,21 +963,21 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
         }
 
         if (!all_ok) {
-            lv_free((void**)&resolved);
+            lv_free((void **) &resolved);
             goto txn_rollback;
         }
 
         /* 验证所有引用的节点确实存在 */
         for (int p = 0; p < rc->participant_count; p++) {
             if (!graph_get_node(graph, resolved[p])) {
-                lv_free((void**)&resolved);
+                lv_free((void **) &resolved);
                 goto txn_rollback;
             }
         }
 
         bool added = add_constraint_generic(graph, rc->type, resolved, rc->participant_count);
         if (!added) {
-            lv_free((void**)&resolved);
+            lv_free((void **) &resolved);
             goto txn_rollback;
         }
 
@@ -983,18 +1024,21 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
      * ---------------------------------------------------------------- */
     for (int i = 0; i < match->binding_count; i++) {
         int pattern_var_id = match->node_bindings[i * 2];
-        int graph_node_id  = match->node_bindings[i * 2 + 1];
+        int graph_node_id = match->node_bindings[i * 2 + 1];
 
         /* 只考虑模式变量（负 ID） */
-        if (pattern_var_id >= 0) continue;
+        if (pattern_var_id >= 0)
+            continue;
 
         /* 检查替换结果是否仍需要此节点 */
         bool used = pattern_var_used_in_replacement(repl, pattern_var_id);
-        if (used) continue;
+        if (used)
+            continue;
 
         /* 检查替换结果是否重新绑定了此变量 */
         bool rebound = pattern_var_in_replacement_bindings(repl, pattern_var_id);
-        if (rebound) continue;
+        if (rebound)
+            continue;
 
         /* 还需检查：此节点是否被任何未匹配的约束引用？
            如果是，删除它会破坏这些约束。
@@ -1003,16 +1047,19 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
         bool has_external_refs = false;
         for (int c = 0; c < graph->constraint_count; c++) {
             Constraint *con = graph->constraints[c];
-            if (is_matched_constraint(match, con->id)) continue;
+            if (is_matched_constraint(match, con->id))
+                continue;
             for (int p = 0; p < con->participant_count; p++) {
                 if (con->participants[p] == graph_node_id) {
                     has_external_refs = true;
                     break;
                 }
             }
-            if (has_external_refs) break;
+            if (has_external_refs)
+                break;
         }
-        if (has_external_refs) continue;
+        if (has_external_refs)
+            continue;
 
         /* 可以安全移除 */
         GeomNode *node = graph_get_node(graph, graph_node_id);
@@ -1062,13 +1109,13 @@ txn_cleanup:
 
     for (int i = 0; i < txn_count; i++) {
         if (txn[i].kind == TXN_ADD_CONSTRAINT && txn[i].participants) {
-            lv_free((void**)&txn[i].participants);
+            lv_free((void **) &txn[i].participants);
         }
     }
-    lv_free((void**)&txn);
-    lv_free((void**)&new_node_map);
+    lv_free((void **) &txn);
+    lv_free((void **) &new_node_map);
 
-    #undef TXN_PUSH
+#undef TXN_PUSH
 
     return result;
 }
@@ -1087,8 +1134,8 @@ typedef struct {
 } SortedRule;
 
 static int sorted_rule_cmp(const void *a, const void *b) {
-    const SortedRule *sa = (const SortedRule *)a;
-    const SortedRule *sb = (const SortedRule *)b;
+    const SortedRule *sa = (const SortedRule *) a;
+    const SortedRule *sb = (const SortedRule *) b;
     if (sa->rule->reduction_measure != sb->rule->reduction_measure) {
         /* 度量值高的优先 */
         return (sb->rule->reduction_measure > sa->rule->reduction_measure) ? 1 : -1;
@@ -1097,29 +1144,31 @@ static int sorted_rule_cmp(const void *a, const void *b) {
     return (sa->original_index - sb->original_index);
 }
 
-RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
-                                 int rule_count, int step_limit,
-                                 bool normalize_between_steps)
-{
-    if (rule_count <= 0) return REWRITE_OK;
+RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, int rule_count, int step_limit,
+                                 bool normalize_between_steps) {
+    if (rule_count <= 0)
+        return REWRITE_OK;
 
     if (rewrite_stream_ctx) {
-        stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_START,
-                           "rewrite phase started", 0);
+        stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_START, "rewrite phase started", 0);
     }
 
     /* 按规则优先级排序 */
-    SortedRule *sorted = lv_calloc((size_t)rule_count, sizeof(SortedRule));
-    if (!sorted) return REWRITE_TERMINATED;
+    SortedRule *sorted = lv_calloc((size_t) rule_count, sizeof(SortedRule));
+    if (!sorted)
+        return REWRITE_TERMINATED;
     for (int i = 0; i < rule_count; i++) {
         sorted[i].rule = rules[i];
         sorted[i].original_index = i;
     }
-    qsort(sorted, (size_t)rule_count, sizeof(SortedRule), sorted_rule_cmp);
+    qsort(sorted, (size_t) rule_count, sizeof(SortedRule), sorted_rule_cmp);
 
     int steps = 0;
-    int *history_hashes = lv_malloc((size_t)step_limit * sizeof(uint32_t));
-    if (!history_hashes) { lv_free((void**)&sorted); return REWRITE_TERMINATED; }
+    int *history_hashes = lv_malloc((size_t) step_limit * sizeof(uint32_t));
+    if (!history_hashes) {
+        lv_free((void **) &sorted);
+        return REWRITE_TERMINATED;
+    }
     int history_count = 0;
 
     RewriteStatus final_status = REWRITE_OK;
@@ -1136,8 +1185,7 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
         }
         if (loop_detected) {
             if (rewrite_stream_ctx) {
-                stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_ERROR,
-                                   "rewrite loop detected, terminating", steps);
+                stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_ERROR, "rewrite loop detected, terminating", steps);
             }
             final_status = REWRITE_TERMINATED;
             break;
@@ -1151,7 +1199,8 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
         for (int i = 0; i < rule_count; i++) {
             RewriteRule *rule = sorted[i].rule;
             RewriteMatch *match = find_rewrite_match(graph, rule, false);
-            if (!match) continue;
+            if (!match)
+                continue;
 
             if (rewrite_stream_ctx) {
                 stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_MATCH_FOUND,
@@ -1171,11 +1220,12 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
                  * 选择性进行规范化，以防止冗余节点干扰后续匹配。 */
                 if (normalize_between_steps) {
                     NormalizationResult *norm_result = graph_normalize(graph, false);
-                    if (norm_result) normalization_result_destroy(norm_result);
+                    if (norm_result)
+                        normalization_result_destroy(norm_result);
                 }
 
                 applied = true;
-                lv_free((void**)&match);
+                lv_free((void **) &match);
                 break;
             } else {
                 if (rewrite_stream_ctx) {
@@ -1183,10 +1233,11 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
                                        rule->name ? rule->name : "rule rolled back", steps);
                 }
             }
-            lv_free((void**)&match);
+            lv_free((void **) &match);
         }
 
-        if (!applied) break;
+        if (!applied)
+            break;
         steps++;
     }
 
@@ -1195,13 +1246,12 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
     }
 
     if (rewrite_stream_ctx) {
-        stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_DONE,
-                           "rewrite phase done", steps);
+        stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_DONE, "rewrite phase done", steps);
     }
 
 done:
-    lv_free((void**)&history_hashes);
-    lv_free((void**)&sorted);
+    lv_free((void **) &history_hashes);
+    lv_free((void **) &sorted);
     return final_status;
 }
 

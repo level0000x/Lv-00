@@ -38,12 +38,12 @@ typedef struct ConstraintGraph ConstraintGraph;
 
 /** @brief 关系原子类型，与 GeomType 一一对应 */
 typedef enum {
-    REL_ATOM_POINT = 0,       /**< 几何点 */
-    REL_ATOM_LINE = 1,        /**< 线段 */
-    REL_ATOM_REGION = 2,      /**< 区域 */
-    REL_ATOM_PORT = 3,        /**< 端口 */
-    REL_ATOM_FUNC_BLOCK = 4,  /**< 函数块 */
-    REL_ATOM_UNKNOWN = 99     /**< 未知类型 */
+    REL_ATOM_POINT = 0,      /**< 几何点 */
+    REL_ATOM_LINE = 1,       /**< 线段 */
+    REL_ATOM_REGION = 2,     /**< 区域 */
+    REL_ATOM_PORT = 3,       /**< 端口 */
+    REL_ATOM_FUNC_BLOCK = 4, /**< 函数块 */
+    REL_ATOM_UNKNOWN = 99    /**< 未知类型 */
 } RelAtomType;
 
 /* ========================================================================
@@ -52,22 +52,22 @@ typedef enum {
 
 /** @brief 关系原子：关系模型中的基本个体 */
 typedef struct RelAtom {
-    int atom_id;               /**< 原子唯一标识符 */
-    RelAtomType type;          /**< 原子类型 */
-    char *label;               /**< 可选的人类可读标签 */
-    int graph_node_id;         /**< 对应约束图节点的 ID */
+    int atom_id;       /**< 原子唯一标识符 */
+    RelAtomType type;  /**< 原子类型 */
+    char *label;       /**< 可选的人类可读标签 */
+    int graph_node_id; /**< 对应约束图节点的 ID */
 } RelAtom;
 
 /** @brief 关系签名（Sig）：Alloy 中对应类型的抽象，包含一组同质原子 */
 typedef struct RelSignature {
-    char *name;                /**< 签名名称（如 "Point", "LineSegment"） */
-    RelAtomType atom_type;     /**< 签名对应的原子类型 */
-    RelAtom **atoms;            /**< 签名包含的原子数组 */
-    int atom_count;             /**< 当前原子数量 */
-    int atom_capacity;          /**< 原子数组容量 */
-    bool is_abstract;           /**< 是否为抽象签名 */
+    char *name;                     /**< 签名名称（如 "Point", "LineSegment"） */
+    RelAtomType atom_type;          /**< 签名对应的原子类型 */
+    RelAtom **atoms;                /**< 签名包含的原子数组 */
+    int atom_count;                 /**< 当前原子数量 */
+    int atom_capacity;              /**< 原子数组容量 */
+    bool is_abstract;               /**< 是否为抽象签名 */
     struct RelSignature **sub_sigs; /**< 子签名数组（继承用） */
-    int sub_sig_count;          /**< 子签名数量 */
+    int sub_sig_count;              /**< 子签名数量 */
 } RelSignature;
 
 /**
@@ -77,12 +77,12 @@ typedef struct RelSignature {
  * domains 数组记录每列对应的域签名，用于补集等运算。
  */
 typedef struct Relation {
-    char *name;                /**< 关系名称 */
-    int arity;                 /**< 元数（每个元组的元素个数） */
-    int **tuples;              /**< 元组数组，每个元组是 int[arity] */
-    int tuple_count;           /**< 当前元组数量 */
-    int tuple_capacity;        /**< 元组数组容量 */
-    RelSignature *domains[8];  /**< 每列对应的域签名（最多 8 列） */
+    char *name;               /**< 关系名称 */
+    int arity;                /**< 元数（每个元组的元素个数） */
+    int **tuples;             /**< 元组数组，每个元组是 int[arity] */
+    int tuple_count;          /**< 当前元组数量 */
+    int tuple_capacity;       /**< 元组数组容量 */
+    RelSignature *domains[8]; /**< 每列对应的域签名（最多 8 列） */
 } Relation;
 
 /* ========================================================================
@@ -91,33 +91,33 @@ typedef struct Relation {
 
 /** @brief 关系表达式类型 */
 typedef enum {
-    REL_EXPR_ATOMIC,    /**< 原子表达式：直接引用一个关系 */
-    REL_EXPR_COMPOSITE  /**< 复合表达式：二元/一元运算 */
+    REL_EXPR_ATOMIC,   /**< 原子表达式：直接引用一个关系 */
+    REL_EXPR_COMPOSITE /**< 复合表达式：二元/一元运算 */
 } RelExprType;
 
 /** @brief 关系运算符（13 种） */
 typedef enum {
-    REL_OP_UNION = 0,              /**< 并集（R + S） */
-    REL_OP_INTERSECTION,          /**< 交集（R & S） */
-    REL_OP_DIFFERENCE,            /**< 差集（R - S） */
-    REL_OP_JOIN,                  /**< 关系连接（R.S） */
-    REL_OP_PRODUCT,               /**< 笛卡尔积（R -> S） */
-    REL_OP_TRANSPOSE,             /**< 转置（~R） */
-    REL_OP_TRANSITIVE_CLOSURE,    /**< 传递闭包（^R） */
-    REL_OP_REFL_TRANS_CLOSURE,    /**< 自反传递闭包（*R） */
-    REL_OP_IDENTITY,              /**< 恒等关系（iden） */
-    REL_OP_COMPLEMENT,            /**< 补集（~R 相对于全域） */
-    REL_OP_RESTRICT_DOMAIN,       /**< 域约束（S <: R） */
-    REL_OP_RESTRICT_RANGE,        /**< 值域约束（R :> S） */
-    REL_OP_OVERRIDE               /**< 覆盖（R ++ S） */
+    REL_OP_UNION = 0,          /**< 并集（R + S） */
+    REL_OP_INTERSECTION,       /**< 交集（R & S） */
+    REL_OP_DIFFERENCE,         /**< 差集（R - S） */
+    REL_OP_JOIN,               /**< 关系连接（R.S） */
+    REL_OP_PRODUCT,            /**< 笛卡尔积（R -> S） */
+    REL_OP_TRANSPOSE,          /**< 转置（~R） */
+    REL_OP_TRANSITIVE_CLOSURE, /**< 传递闭包（^R） */
+    REL_OP_REFL_TRANS_CLOSURE, /**< 自反传递闭包（*R） */
+    REL_OP_IDENTITY,           /**< 恒等关系（iden） */
+    REL_OP_COMPLEMENT,         /**< 补集（~R 相对于全域） */
+    REL_OP_RESTRICT_DOMAIN,    /**< 域约束（S <: R） */
+    REL_OP_RESTRICT_RANGE,     /**< 值域约束（R :> S） */
+    REL_OP_OVERRIDE            /**< 覆盖（R ++ S） */
 } RelOp;
 
 /** @brief 关系表达式（递归结构） */
 typedef struct RelExpr {
-    RelExprType type;              /**< 表达式类型 */
+    RelExprType type; /**< 表达式类型 */
     union {
         struct {
-            Relation *rel;        /**< 原子表达式引用的关系 */
+            Relation *rel; /**< 原子表达式引用的关系 */
         } atomic;
         struct {
             RelOp op;              /**< 运算符 */
@@ -133,27 +133,27 @@ typedef struct RelExpr {
 
 /** @brief 逻辑公式类型（12 种） */
 typedef enum {
-    REL_FORMULA_FORALL = 0,    /**< 全称量化（all x | F） */
-    REL_FORMULA_EXISTS,        /**< 存在量化（some x | F） */
-    REL_FORMULA_NO,            /**< 不存在量化（no x | F） */
-    REL_FORMULA_SOME,          /**< 至少一个（some R） */
-    REL_FORMULA_LONE,          /**< 至多一个（lone R） */
-    REL_FORMULA_ONE,           /**< 恰好一个（one R） */
-    REL_FORMULA_EQ,            /**< 关系相等（R = S） */
-    REL_FORMULA_SUBSET,        /**< 子集（R in S） */
-    REL_FORMULA_AND,          /**< 合取（F1 && F2） */
-    REL_FORMULA_OR,           /**< 析取（F1 || F2） */
-    REL_FORMULA_NOT,           /**< 否定（!F） */
-    REL_FORMULA_IMPLIES        /**< 蕴含（F1 => F2） */
+    REL_FORMULA_FORALL = 0, /**< 全称量化（all x | F） */
+    REL_FORMULA_EXISTS,     /**< 存在量化（some x | F） */
+    REL_FORMULA_NO,         /**< 不存在量化（no x | F） */
+    REL_FORMULA_SOME,       /**< 至少一个（some R） */
+    REL_FORMULA_LONE,       /**< 至多一个（lone R） */
+    REL_FORMULA_ONE,        /**< 恰好一个（one R） */
+    REL_FORMULA_EQ,         /**< 关系相等（R = S） */
+    REL_FORMULA_SUBSET,     /**< 子集（R in S） */
+    REL_FORMULA_AND,        /**< 合取（F1 && F2） */
+    REL_FORMULA_OR,         /**< 析取（F1 || F2） */
+    REL_FORMULA_NOT,        /**< 否定（!F） */
+    REL_FORMULA_IMPLIES     /**< 蕴含（F1 => F2） */
 } RelFormulaType;
 
 /** @brief 逻辑公式（递归结构） */
 typedef struct RelFormula {
-    RelFormulaType type;            /**< 公式类型 */
-    RelExpr *expr;                  /**< 关联的关系表达式（量词/比较公式使用） */
-    struct RelFormula **sub;         /**< 子公式数组（AND/OR/NOT/IMPLIES 等使用） */
-    int sub_count;                  /**< 子公式数量 */
-    RelSignature *quant_sig;        /**< 量化签名（FORALL/EXISTS 使用） */
+    RelFormulaType type;     /**< 公式类型 */
+    RelExpr *expr;           /**< 关联的关系表达式（量词/比较公式使用） */
+    struct RelFormula **sub; /**< 子公式数组（AND/OR/NOT/IMPLIES 等使用） */
+    int sub_count;           /**< 子公式数量 */
+    RelSignature *quant_sig; /**< 量化签名（FORALL/EXISTS 使用） */
 } RelFormula;
 
 /* ========================================================================
@@ -166,24 +166,24 @@ typedef struct RelFormula {
  * 包含一组签名（类型）、一组命名关系、一组事实和一组断言。
  */
 typedef struct RelModel {
-    RelSignature **sigs;            /**< 签名数组 */
-    int sig_count;                  /**< 签名数量 */
-    int sig_capacity;               /**< 签名数组容量 */
+    RelSignature **sigs; /**< 签名数组 */
+    int sig_count;       /**< 签名数量 */
+    int sig_capacity;    /**< 签名数组容量 */
 
-    Relation **relations;           /**< 命名关系数组 */
-    int relation_count;             /**< 关系数量 */
-    int relation_capacity;          /**< 关系数组容量 */
+    Relation **relations;  /**< 命名关系数组 */
+    int relation_count;    /**< 关系数量 */
+    int relation_capacity; /**< 关系数组容量 */
 
-    RelFormula **facts;             /**< 事实公式数组 */
-    int fact_count;                  /**< 事实数量 */
+    RelFormula **facts; /**< 事实公式数组 */
+    int fact_count;     /**< 事实数量 */
 
-    RelFormula **assertions;        /**< 断言公式数组 */
-    int assertion_count;            /**< 断言数量 */
+    RelFormula **assertions; /**< 断言公式数组 */
+    int assertion_count;     /**< 断言数量 */
 
-    int max_point_count;            /**< 有限范围：最大点数 */
-    int max_line_count;             /**< 有限范围：最大线段数 */
-    int max_region_count;           /**< 有限范围：最大区域数 */
-    int max_func_block_count;       /**< 有限范围：最大函数块数 */
+    int max_point_count;      /**< 有限范围：最大点数 */
+    int max_line_count;       /**< 有限范围：最大线段数 */
+    int max_region_count;     /**< 有限范围：最大区域数 */
+    int max_func_block_count; /**< 有限范围：最大函数块数 */
 } RelModel;
 
 /**
@@ -192,12 +192,12 @@ typedef struct RelModel {
  * 将模型中的每个关系绑定到具体的元组集合。
  */
 typedef struct RelInstance {
-    const RelModel *model;          /**< 所属的关系模型 */
-    RelAtom **atoms;                /**< 实例中的所有原子 */
-    int atom_count;                  /**< 原子数量 */
-    Relation **rel_bindings;         /**< 关系绑定数组 */
-    int binding_count;               /**< 绑定数量 */
-    bool satisfies_assertions;       /**< 是否满足所有断言 */
+    const RelModel *model;     /**< 所属的关系模型 */
+    RelAtom **atoms;           /**< 实例中的所有原子 */
+    int atom_count;            /**< 原子数量 */
+    Relation **rel_bindings;   /**< 关系绑定数组 */
+    int binding_count;         /**< 绑定数量 */
+    bool satisfies_assertions; /**< 是否满足所有断言 */
 } RelInstance;
 
 /* ========================================================================
@@ -206,12 +206,12 @@ typedef struct RelInstance {
 
 /** @brief 有限范围配置：控制每个签名中允许的最大原子数量 */
 typedef struct SmallScopeConfig {
-    int max_points;                 /**< 最大点数 */
-    int max_lines;                  /**< 最大线段数 */
-    int max_regions;                /**< 最大区域数 */
-    int max_ports;                  /**< 最大端口数 */
-    int max_func_blocks;            /**< 最大函数块数 */
-    int max_total_atoms;            /**< 所有签名原子总数上限 */
+    int max_points;      /**< 最大点数 */
+    int max_lines;       /**< 最大线段数 */
+    int max_regions;     /**< 最大区域数 */
+    int max_ports;       /**< 最大端口数 */
+    int max_func_blocks; /**< 最大函数块数 */
+    int max_total_atoms; /**< 所有签名原子总数上限 */
 } SmallScopeConfig;
 
 /* ========================================================================
@@ -220,10 +220,10 @@ typedef struct SmallScopeConfig {
 
 /** @brief SAT 求解结果 */
 typedef enum {
-    SAT_OK = 0,        /**< 成功 */
-    SAT_UNSAT = 1,     /**< 不可满足 */
-    SAT_UNKNOWN = 2,   /**< 未知（求解器无法确定） */
-    SAT_ERROR = -1      /**< 错误 */
+    SAT_OK = 0,      /**< 成功 */
+    SAT_UNSAT = 1,   /**< 不可满足 */
+    SAT_UNKNOWN = 2, /**< 未知（求解器无法确定） */
+    SAT_ERROR = -1   /**< 错误 */
 } SatResult;
 
 /** @brief SAT 文字（literal）：带符号的变量 ID，正值表示正文字，负值表示负文字 */
@@ -235,9 +235,9 @@ typedef int SatLiteral;
  * 将关系元组（原子 ID 序列）映射到 SAT 变量 ID。
  */
 typedef struct SatVarEntry {
-    int var_id;                     /**< SAT 变量 ID（>= 1） */
-    int arity;                      /**< 元组元数 */
-    int atom_ids[8];                /**< 原子 ID 数组（最多 8 个） */
+    int var_id;      /**< SAT 变量 ID（>= 1） */
+    int arity;       /**< 元组元数 */
+    int atom_ids[8]; /**< 原子 ID 数组（最多 8 个） */
 } SatVarEntry;
 
 /**
@@ -246,22 +246,22 @@ typedef struct SatVarEntry {
  * 管理从关系模型/约束图到 CNF 子句的编码过程。
  */
 typedef struct SatEncoding {
-    SatVarEntry *var_map;           /**< 变量映射表 */
-    int var_count;                  /**< 已注册变量数 */
-    int var_capacity;               /**< 变量映射表容量 */
-    int next_var_id;                /**< 下一个可用的变量 ID */
+    SatVarEntry *var_map; /**< 变量映射表 */
+    int var_count;        /**< 已注册变量数 */
+    int var_capacity;     /**< 变量映射表容量 */
+    int next_var_id;      /**< 下一个可用的变量 ID */
 
-    int **clauses;                  /**< CNF 子句数组 */
-    int *clause_sizes;              /**< 每个子句的文字数量 */
-    int clause_count;               /**< 子句数量 */
-    int clause_capacity;            /**< 子句数组容量 */
+    int **clauses;       /**< CNF 子句数组 */
+    int *clause_sizes;   /**< 每个子句的文字数量 */
+    int clause_count;    /**< 子句数量 */
+    int clause_capacity; /**< 子句数组容量 */
 
-    int total_vars;                 /**< 总变量数（统计用） */
-    int total_clauses;              /**< 总子句数（统计用） */
-    double encode_time_ms;          /**< 编码耗时（毫秒） */
+    int total_vars;        /**< 总变量数（统计用） */
+    int total_clauses;     /**< 总子句数（统计用） */
+    double encode_time_ms; /**< 编码耗时（毫秒） */
 
-    const ConstraintGraph *graph;   /**< 关联的约束图（可为 NULL） */
-    const RelModel *rel_model;      /**< 关联的关系模型（可为 NULL） */
+    const ConstraintGraph *graph; /**< 关联的约束图（可为 NULL） */
+    const RelModel *rel_model;    /**< 关联的关系模型（可为 NULL） */
 } SatEncoding;
 
 /**
@@ -274,7 +274,7 @@ typedef struct SatModel {
     int *true_vars;                 /**< 赋值为真的变量 ID 数组 */
     int true_count;                 /**< 赋值为真的变量数量 */
     ConstraintGraph *decoded_graph; /**< 解码后的约束图（可为 NULL） */
-    RelInstance *decoded_instance;   /**< 解码后的关系实例（可为 NULL） */
+    RelInstance *decoded_instance;  /**< 解码后的关系实例（可为 NULL） */
 } SatModel;
 
 /* ========================================================================
@@ -345,8 +345,7 @@ lv_PUBLIC_API bool relation_check_satisfiability(RelModel *model, const SmallSco
  * @param assertions  是否验证断言
  * @return 实例指针（调用方需用 relation_instance_destroy 释放），失败返回 NULL
  */
-lv_PUBLIC_API RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *scope,
-                                                   bool assertions);
+lv_PUBLIC_API RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *scope, bool assertions);
 
 /**
  * @brief 销毁关系实例
@@ -365,8 +364,7 @@ lv_PUBLIC_API void relation_instance_destroy(RelInstance *inst);
  * @param expr   关系表达式
  * @return 求值结果关系（调用方需释放），失败返回 NULL
  */
-lv_PUBLIC_API Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
-                                                  const RelExpr *expr);
+lv_PUBLIC_API Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst, const RelExpr *expr);
 
 /* ========================================================================
  * 公式评估
@@ -380,8 +378,7 @@ lv_PUBLIC_API Relation *relation_evaluate_expr(const RelModel *model, const RelI
  * @param formula 逻辑公式
  * @return true 公式成立，false 不成立或出错
  */
-lv_PUBLIC_API bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst,
-                                                const RelFormula *formula);
+lv_PUBLIC_API bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst, const RelFormula *formula);
 
 /* ========================================================================
  * 导出 API
@@ -455,8 +452,7 @@ lv_PUBLIC_API SatResult constraint_graph_to_sat(const ConstraintGraph *graph, Sa
 /**
  * @brief 将关系模型编码为 SAT
  */
-lv_PUBLIC_API SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *scope,
-                                                 SatEncoding *enc);
+lv_PUBLIC_API SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *scope, SatEncoding *enc);
 
 /* ========================================================================
  * SAT 求解与解码
@@ -470,8 +466,8 @@ lv_PUBLIC_API SatResult sat_solve_and_decode(SatEncoding *enc, SatModel **out_mo
 /**
  * @brief 增量求解：追加假设后求解
  */
-lv_PUBLIC_API SatResult sat_solve_incremental(SatEncoding *enc, const SatLiteral *literals,
-                                                int count, SatModel **out_model);
+lv_PUBLIC_API SatResult sat_solve_incremental(SatEncoding *enc, const SatLiteral *literals, int count,
+                                              SatModel **out_model);
 
 /**
  * @brief 将 SAT 模型解码为约束图

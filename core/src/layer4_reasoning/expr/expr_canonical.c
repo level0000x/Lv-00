@@ -6,10 +6,11 @@
  */
 
 #include "expr_canonical.h"
-#include "lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv_utils.h"
 
 /* ============== 内部辅助 ============== */
 
@@ -21,9 +22,11 @@ static lvExpr *expr_alloc(void) {
 /* ============== 表达式构造 ============== */
 
 lvExpr *lv_expr_create_variable(const char *name) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     lvExpr *e = expr_alloc();
-    if (!e) return NULL;
+    if (!e)
+        return NULL;
     e->type = EXPR_TYPE_VARIABLE;
     e->data.variable.name = lv_strdup(name);
     if (!e->data.variable.name) {
@@ -34,21 +37,24 @@ lvExpr *lv_expr_create_variable(const char *name) {
 }
 
 lvExpr *lv_expr_create_rational(int64_t num, uint64_t den) {
-    if (den == 0) return NULL;
+    if (den == 0)
+        return NULL;
     lvExpr *e = expr_alloc();
-    if (!e) return NULL;
+    if (!e)
+        return NULL;
     e->type = EXPR_TYPE_RATIONAL;
     mpq_init(e->data.rational.value);
-    mpq_set_si(e->data.rational.value, (signed long int) num,
-               (unsigned long int) den);
+    mpq_set_si(e->data.rational.value, (signed long int) num, (unsigned long int) den);
     mpq_canonicalize(e->data.rational.value);
     return e;
 }
 
 lvExpr *lv_expr_create_rational_mpq(const mpq_t value) {
-    if (!value) return NULL;
+    if (!value)
+        return NULL;
     lvExpr *e = expr_alloc();
-    if (!e) return NULL;
+    if (!e)
+        return NULL;
     e->type = EXPR_TYPE_RATIONAL;
     mpq_init(e->data.rational.value);
     mpq_set(e->data.rational.value, value);
@@ -56,9 +62,11 @@ lvExpr *lv_expr_create_rational_mpq(const mpq_t value) {
 }
 
 lvExpr *lv_expr_power(lvExpr *base, lvExpr *exponent) {
-    if (!base || !exponent) return NULL;
+    if (!base || !exponent)
+        return NULL;
     lvExpr *e = expr_alloc();
-    if (!e) return NULL;
+    if (!e)
+        return NULL;
     e->type = EXPR_TYPE_POWER;
     e->data.power.base = base;
     e->data.power.exponent = exponent;
@@ -66,11 +74,12 @@ lvExpr *lv_expr_power(lvExpr *base, lvExpr *exponent) {
 }
 
 /** 创建二元复合表达式（SUM 或 PRODUCT） */
-static lvExpr *expr_composite_binary(lvExprType type,
-                                        lvExpr *a, lvExpr *b) {
-    if (!a || !b) return NULL;
+static lvExpr *expr_composite_binary(lvExprType type, lvExpr *a, lvExpr *b) {
+    if (!a || !b)
+        return NULL;
     lvExpr *e = expr_alloc();
-    if (!e) return NULL;
+    if (!e)
+        return NULL;
     e->type = type;
     e->data.composite.count = 2;
     e->data.composite.operands = (lvExpr **) lv_malloc(2 * sizeof(lvExpr *));
@@ -92,14 +101,16 @@ lvExpr *lv_expr_mul(lvExpr *a, lvExpr *b) {
 }
 
 /** 创建 N 元复合表达式 */
-static lvExpr *expr_composite_n(lvExprType type,
-                                   lvExpr **exprs, uint32_t count) {
-    if (!exprs || count == 0) return NULL;
+static lvExpr *expr_composite_n(lvExprType type, lvExpr **exprs, uint32_t count) {
+    if (!exprs || count == 0)
+        return NULL;
     for (uint32_t i = 0; i < count; i++) {
-        if (!exprs[i]) return NULL;
+        if (!exprs[i])
+            return NULL;
     }
     lvExpr *e = expr_alloc();
-    if (!e) return NULL;
+    if (!e)
+        return NULL;
     e->type = type;
     e->data.composite.count = count;
     e->data.composite.operands = (lvExpr **) lv_malloc((size_t) count * sizeof(lvExpr *));
@@ -122,9 +133,11 @@ lvExpr *lv_expr_product_n(lvExpr **exprs, uint32_t count) {
 }
 
 lvExpr *lv_expr_function(const char *func_name, lvExpr *argument) {
-    if (!func_name || !argument) return NULL;
+    if (!func_name || !argument)
+        return NULL;
     lvExpr *e = expr_alloc();
-    if (!e) return NULL;
+    if (!e)
+        return NULL;
     e->type = EXPR_TYPE_FUNCTION;
     e->data.function.func_name = lv_strdup(func_name);
     if (!e->data.function.func_name) {
@@ -138,7 +151,8 @@ lvExpr *lv_expr_function(const char *func_name, lvExpr *argument) {
 /* ============== 表达式销毁/复制 ============== */
 
 void lv_expr_destroy(lvExpr **expr) {
-    if (!expr || !*expr) return;
+    if (!expr || !*expr)
+        return;
     lvExpr *e = *expr;
 
     switch (e->type) {
@@ -168,9 +182,11 @@ void lv_expr_destroy(lvExpr **expr) {
 }
 
 lvExpr *lv_expr_copy(const lvExpr *expr) {
-    if (!expr) return NULL;
+    if (!expr)
+        return NULL;
     lvExpr *copy = expr_alloc();
-    if (!copy) return NULL;
+    if (!copy)
+        return NULL;
     copy->type = expr->type;
 
     switch (expr->type) {
@@ -192,8 +208,8 @@ lvExpr *lv_expr_copy(const lvExpr *expr) {
         case EXPR_TYPE_PRODUCT:
         case EXPR_TYPE_SUM:
             copy->data.composite.count = expr->data.composite.count;
-            copy->data.composite.operands = (lvExpr **)
-                lv_malloc((size_t) expr->data.composite.count * sizeof(lvExpr *));
+            copy->data.composite.operands =
+                (lvExpr **) lv_malloc((size_t) expr->data.composite.count * sizeof(lvExpr *));
             if (!copy->data.composite.operands) {
                 lv_free((void **) &copy);
                 return NULL;

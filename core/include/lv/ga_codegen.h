@@ -57,10 +57,10 @@ typedef enum GACodegenTarget {
  */
 typedef struct GACodegenOptions {
     GACodegenTarget target;    /**< Target language */
-    const char     *variable_name; /**< Output variable name */
-    const char     *indent;        /**< Indentation string */
-    int             include_header; /**< Include header comments (non-zero = yes) */
-    int             optimize;       /**< Apply optimizations (non-zero = yes) */
+    const char *variable_name; /**< Output variable name */
+    const char *indent;        /**< Indentation string */
+    int include_header;        /**< Include header comments (non-zero = yes) */
+    int optimize;              /**< Apply optimizations (non-zero = yes) */
 } GACodegenOptions;
 
 /**
@@ -72,10 +72,10 @@ typedef struct GACodegenOptions {
  * @param line_count  Number of lines in generated code
  */
 typedef struct GACodegenResult {
-    char            *code;        /**< Generated code string */
-    char            *error_msg;   /**< Error message (NULL if success) */
-    GACodegenTarget  target;      /**< Target language used */
-    int              line_count;  /**< Number of lines generated */
+    char *code;             /**< Generated code string */
+    char *error_msg;        /**< Error message (NULL if success) */
+    GACodegenTarget target; /**< Target language used */
+    int line_count;         /**< Number of lines generated */
 } GACodegenResult;
 
 /* ========================================================================
@@ -92,8 +92,7 @@ typedef struct GACodegenResult {
  * @param options  Code generation options
  * @return A code generation result (caller owns, free with ga_codegen_result_destroy)
  */
-lv_PUBLIC_API GACodegenResult *ga_codegen_compile(const lvMultiVector *mv,
-                                                     const GACodegenOptions *options);
+lv_PUBLIC_API GACodegenResult *ga_codegen_compile(const lvMultiVector *mv, const GACodegenOptions *options);
 
 /**
  * @brief Destroy a code generation result and free its resources

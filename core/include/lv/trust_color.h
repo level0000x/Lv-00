@@ -21,8 +21,8 @@
 #ifndef lv_TRUST_COLOR_H
 #define lv_TRUST_COLOR_H
 
-#include "lv/symbolic_coord.h"  /* TrustColor */
-#include "lv/proof.h"           /* ProofColor */
+#include "lv/proof.h"          /* ProofColor */
+#include "lv/symbolic_coord.h" /* TrustColor */
 
 #ifdef __cplusplus
 extern "C" {

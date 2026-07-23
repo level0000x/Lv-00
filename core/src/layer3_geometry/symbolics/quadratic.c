@@ -20,14 +20,16 @@
  * @version 3.3.0
  */
 
-#include "lv/symbolic_coord.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/constraint_graph.h"
+#include "lv/symbolic_coord.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -66,7 +68,7 @@ static TranscendentalExpr *transcendental_expr_parse(const char *name) {
     if (!tmp)
         return NULL;
     TranscendentalExpr *expr = tmp->expr;
-    tmp->expr = NULL;          /* 转移所有权 */
+    tmp->expr = NULL;              /* 转移所有权 */
     q_transcendental_destroy(tmp); /* 释放外壳，expr 不受影响 */
     return expr;
 }
@@ -133,7 +135,7 @@ void quadratic_destroy(Quadratic *q) {
     if (q) {
         rational_destroy(q->a);
         rational_destroy(q->b);
-        lv_free((void**)&q);  /* lv_malloc分配 */
+        lv_free((void **) &q); /* lv_malloc分配 */
     }
 }
 
@@ -352,20 +354,20 @@ char *quadratic_serialize(const Quadratic *q) {
     char *a_str = rational_serialize(q->a);
     char *b_str = rational_serialize(q->b);
     if (!a_str || !b_str) {
-        lv_free((void**)&a_str); /* lv_malloc分配 */
-        lv_free((void**)&b_str); /* lv_malloc分配 */
+        lv_free((void **) &a_str); /* lv_malloc分配 */
+        lv_free((void **) &b_str); /* lv_malloc分配 */
         return NULL;
     }
     size_t len = strlen(a_str) + strlen(b_str) + 32;
     char *result = lv_malloc(len);
     if (!result) {
-        lv_free((void**)&a_str); /* lv_malloc分配 */
-        lv_free((void**)&b_str); /* lv_malloc分配 */
+        lv_free((void **) &a_str); /* lv_malloc分配 */
+        lv_free((void **) &b_str); /* lv_malloc分配 */
         return NULL;
     }
     snprintf(result, len, "%s + %s*sqrt(%u)", a_str, b_str, q->n);
-    lv_free((void**)&a_str); /* lv_malloc分配 */
-    lv_free((void**)&b_str); /* lv_malloc分配 */
+    lv_free((void **) &a_str); /* lv_malloc分配 */
+    lv_free((void **) &b_str); /* lv_malloc分配 */
     return result;
 }
 
@@ -392,7 +394,8 @@ static void q_transcendental_destroy(Transcendental *t) {
  * @return 移除平方因子后的结果
  */
 static int remove_square_factors(int n) {
-    if (n == 0) return 0;
+    if (n == 0)
+        return 0;
     int result = 1;
     int temp = (n < 0) ? -n : n;
     for (int i = 2; i * i <= temp; i++) {

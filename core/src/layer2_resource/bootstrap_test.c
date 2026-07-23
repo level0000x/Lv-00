@@ -19,16 +19,18 @@
  */
 
 #include "lv/bootstrap_test.h"
-#include "lv/lv_utils.h"
-#include "lv/lv.h"
-#include "lv/cross_platform.h"
-#include "lv/constraint_graph.h"
-#include "lv/engine.h"
-#include "lv/proof_trace.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "lv/constraint_graph.h"
+#include "lv/cross_platform.h"
+#include "lv/engine.h"
+#include "lv/lv.h"
+#include "lv/lv_utils.h"
+#include "lv/proof_trace.h"
 
 /* ============== 兼容定义 ============== */
 
@@ -49,7 +51,7 @@
  */
 static inline AddConstraintResult graph_add_distance_constraint(ConstraintGraph *g, int a, int b, double dist) {
     /* 创建辅助距离节点：symbolic_coords 编码距离值 */
-    SymbolicCoord *dist_coord = symbolic_coord_create_rational((long long)(dist * 1000000), 1000000);
+    SymbolicCoord *dist_coord = symbolic_coord_create_rational((long long) (dist * 1000000), 1000000);
     SymbolicCoord *coords[1];
     coords[0] = dist_coord;
     graph_add_point(g, coords, 1);
@@ -84,8 +86,7 @@ static uint64_t g_fail_count = 0;
  *
  * @return true 初始化成功，false 失败
  */
-bool bootstrap_test_framework_init(void)
-{
+bool bootstrap_test_framework_init(void) {
     if (g_initialized) {
         return true;
     }
@@ -118,8 +119,7 @@ bool bootstrap_test_framework_init(void)
  * 清理原语包装器和 Lv-00 核心系统。
  * 幂等函数，多次调用安全。
  */
-void bootstrap_test_framework_cleanup(void)
-{
+void bootstrap_test_framework_cleanup(void) {
     if (!g_initialized) {
         return;
     }
@@ -136,8 +136,7 @@ void bootstrap_test_framework_cleanup(void)
  *
  * @return true 已初始化，false 未初始化
  */
-bool bootstrap_test_framework_is_initialized(void)
-{
+bool bootstrap_test_framework_is_initialized(void) {
     return g_initialized;
 }
 
@@ -145,9 +144,9 @@ bool bootstrap_test_framework_is_initialized(void)
 
 /** @brief 差分测试结构体，包含测试名称、DSL 源码和输入图 */
 struct BootstrapDiffTest {
-    char *test_name;     /**< 测试名称 */
-    char *dsl_source;    /**< DSL 源码 */
-    void *input_graph;  /**< 输入图指针（由调用者管理） */
+    char *test_name;   /**< 测试名称 */
+    char *dsl_source;  /**< DSL 源码 */
+    void *input_graph; /**< 输入图指针（由调用者管理） */
 };
 
 /**
@@ -160,9 +159,7 @@ struct BootstrapDiffTest {
  * @param dsl_source DSL 源码（可为 NULL）
  * @return 新创建的 BootstrapDiffTest 指针，失败返回 NULL
  */
-BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name,
-                                               const char *dsl_source)
-{
+BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name, const char *dsl_source) {
     BootstrapDiffTest *test = lv_calloc(1, sizeof(BootstrapDiffTest));
     if (!test) {
         return NULL;
@@ -182,16 +179,15 @@ BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name,
  *
  * @param test 待销毁的 BootstrapDiffTest 指针（可为 NULL）
  */
-void bootstrap_diff_test_destroy(BootstrapDiffTest *test)
-{
+void bootstrap_diff_test_destroy(BootstrapDiffTest *test) {
     if (!test) {
         return;
     }
 
-    lv_free((void**)&test->test_name);
-    lv_free((void**)&test->dsl_source);
+    lv_free((void **) &test->test_name);
+    lv_free((void **) &test->dsl_source);
     /* input_graph 由调用者管理 */
-    lv_free((void**)&test);
+    lv_free((void **) &test);
 }
 
 /**
@@ -202,8 +198,7 @@ void bootstrap_diff_test_destroy(BootstrapDiffTest *test)
  * @param test 待运行的测试
  * @return 测试结果指针（调用者须通过 bootstrap_diff_test_result_destroy 释放），失败返回 NULL
  */
-BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
-{
+BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test) {
     if (!test || !g_initialized) {
         return NULL;
     }
@@ -221,10 +216,9 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
 
     /* 通过几何层执行（如果有输入图） */
     if (test->input_graph) {
-        ConstraintGraph *g = (ConstraintGraph *)test->input_graph;
-        result->geo_layer_output = lv_asprintf(
-            "graph:nodes=%d,constraints=%d",
-            graph_get_node_count(g), graph_get_constraint_count(g));
+        ConstraintGraph *g = (ConstraintGraph *) test->input_graph;
+        result->geo_layer_output =
+            lv_asprintf("graph:nodes=%d,constraints=%d", graph_get_node_count(g), graph_get_constraint_count(g));
     }
 
     /* 比较两个输出 */
@@ -258,17 +252,16 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
  *
  * @param result 待销毁的结果指针（可为 NULL）
  */
-void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result)
-{
+void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result) {
     if (!result) {
         return;
     }
 
-    lv_free((void**)&result->c_api_output);
-    lv_free((void**)&result->geo_layer_output);
-    lv_free((void**)&result->diff_description);
-    lv_free((void**)&result->error_message);
-    lv_free((void**)&result);
+    lv_free((void **) &result->c_api_output);
+    lv_free((void **) &result->geo_layer_output);
+    lv_free((void **) &result->diff_description);
+    lv_free((void **) &result->error_message);
+    lv_free((void **) &result);
 }
 
 /**
@@ -279,10 +272,8 @@ void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result)
  * @param out_results 输出结果数组（须预先分配足够空间）
  * @return 成功执行的测试数量
  */
-uint32_t bootstrap_diff_test_run_batch(BootstrapDiffTest **tests,
-                                        uint32_t count,
-                                        BootstrapDiffTestResult **out_results)
-{
+uint32_t bootstrap_diff_test_run_batch(BootstrapDiffTest **tests, uint32_t count,
+                                       BootstrapDiffTestResult **out_results) {
     if (!tests || !out_results || !g_initialized) {
         return 0;
     }
@@ -314,8 +305,7 @@ struct RandomGenerator {
  *
  * @return 默认配置
  */
-RandomGeneratorConfig random_generator_default_config(void)
-{
+RandomGeneratorConfig random_generator_default_config(void) {
     RandomGeneratorConfig config;
     memset(&config, 0, sizeof(config));
 
@@ -335,7 +325,7 @@ RandomGeneratorConfig random_generator_default_config(void)
     config.allow_overconstrained = false;
     config.use_symbolic_coords = true;
 
-    config.seed = (uint64_t)time(NULL);
+    config.seed = (uint64_t) time(NULL);
 
     return config;
 }
@@ -346,8 +336,7 @@ RandomGeneratorConfig random_generator_default_config(void)
  * @param config 生成器配置（为 NULL 时使用默认配置）
  * @return 新创建的 RandomGenerator 指针，失败返回 NULL
  */
-RandomGenerator *random_generator_create(const RandomGeneratorConfig *config)
-{
+RandomGenerator *random_generator_create(const RandomGeneratorConfig *config) {
     RandomGenerator *gen = lv_calloc(1, sizeof(RandomGenerator));
     if (!gen) {
         return NULL;
@@ -369,9 +358,8 @@ RandomGenerator *random_generator_create(const RandomGeneratorConfig *config)
  *
  * @param gen 待销毁的生成器指针（可为 NULL）
  */
-void random_generator_destroy(RandomGenerator *gen)
-{
-    lv_free((void**)&gen);
+void random_generator_destroy(RandomGenerator *gen) {
+    lv_free((void **) &gen);
 }
 
 /**
@@ -383,8 +371,7 @@ void random_generator_destroy(RandomGenerator *gen)
  * @param gen 随机生成器
  * @return 生成的 ConstraintGraph 指针，失败返回 NULL
  */
-void *random_generator_generate_graph(RandomGenerator *gen)
-{
+void *random_generator_generate_graph(RandomGenerator *gen) {
     if (!gen) {
         return NULL;
     }
@@ -396,17 +383,15 @@ void *random_generator_generate_graph(RandomGenerator *gen)
     }
 
     /* 确定实体数量 */
-    uint32_t point_count = gen->config.min_points +
-        (lv_random_int(0, gen->config.max_points - gen->config.min_points));
-    uint32_t line_count = gen->config.min_lines +
-        (lv_random_int(0, gen->config.max_lines - gen->config.min_lines));
+    uint32_t point_count = gen->config.min_points + (lv_random_int(0, gen->config.max_points - gen->config.min_points));
+    uint32_t line_count = gen->config.min_lines + (lv_random_int(0, gen->config.max_lines - gen->config.min_lines));
 
     /* 创建随机点（使用符号坐标） */
     for (uint32_t i = 0; i < point_count; i++) {
         double x = lv_random_double(gen->config.coord_min, gen->config.coord_max);
         double y = lv_random_double(gen->config.coord_min, gen->config.coord_max);
-        SymbolicCoord *sx = symbolic_coord_create_rational((long long)(x * 1000), 1000);
-        SymbolicCoord *sy = symbolic_coord_create_rational((long long)(y * 1000), 1000);
+        SymbolicCoord *sx = symbolic_coord_create_rational((long long) (x * 1000), 1000);
+        SymbolicCoord *sy = symbolic_coord_create_rational((long long) (y * 1000), 1000);
         SymbolicCoord *coords[] = {sx, sy};
         graph_add_point(graph, coords, 2);
         symbolic_coord_destroy(sx);
@@ -415,8 +400,8 @@ void *random_generator_generate_graph(RandomGenerator *gen)
 
     /* 创建随机线段 */
     for (uint32_t i = 0; i < line_count; i++) {
-        int a = lv_random_int(0, (int)point_count - 1);
-        int b = lv_random_int(0, (int)point_count - 1);
+        int a = lv_random_int(0, (int) point_count - 1);
+        int b = lv_random_int(0, (int) point_count - 1);
         if (a != b) {
             graph_add_line_segment(graph, a, b);
         }
@@ -425,8 +410,8 @@ void *random_generator_generate_graph(RandomGenerator *gen)
     /* 添加随机约束 */
     for (uint32_t i = 0; i < point_count - 1; i++) {
         if (lv_random_double(0.0, 1.0) < gen->config.constraint_density) {
-            int a = (int)i;
-            int b = (int)i + 1;
+            int a = (int) i;
+            int b = (int) i + 1;
             double dist = lv_random_double(0.1, 50.0);
             graph_add_distance_constraint(graph, a, b, dist);
         }
@@ -444,61 +429,72 @@ void *random_generator_generate_graph(RandomGenerator *gen)
  * @param gen 随机生成器
  * @return DSL 字符串（调用者须通过 lv_free 释放），失败返回 NULL
  */
-char *random_generator_generate_dsl(RandomGenerator *gen)
-{
+char *random_generator_generate_dsl(RandomGenerator *gen) {
     if (!gen) {
         return NULL;
     }
 
     /* 随机 DSL 生成：根据配置生成几何构造 DSL */
-    uint32_t n_points = gen->config.min_points +
-        (lv_random_int(0, gen->config.max_points - gen->config.min_points));
+    uint32_t n_points = gen->config.min_points + (lv_random_int(0, gen->config.max_points - gen->config.min_points));
 
     /* 预估最大需要的缓冲区大小 */
     size_t max_buf_size = 4096;
     /* 每个点最多 ~50 字节，每个约束最多 ~60 字节，加上固定开销 */
-    size_t estimated = 128 + (size_t)n_points * 60 + (size_t)(n_points / 2 + 1) * 80;
+    size_t estimated = 128 + (size_t) n_points * 60 + (size_t) (n_points / 2 + 1) * 80;
     if (estimated > max_buf_size) {
         max_buf_size = estimated;
     }
 
-    char *buf = (char *)lv_malloc(max_buf_size);
-    if (!buf) return NULL;
+    char *buf = (char *) lv_malloc(max_buf_size);
+    if (!buf)
+        return NULL;
     size_t remaining = max_buf_size;
     int pos = 0;
 
     int written = snprintf(buf + pos, remaining, "#version 5.0.0\n");
-    if (written < 0 || (size_t)written >= remaining) { lv_free((void**)&buf); return NULL; }
-    pos += written; remaining -= (size_t)written;
+    if (written < 0 || (size_t) written >= remaining) {
+        lv_free((void **) &buf);
+        return NULL;
+    }
+    pos += written;
+    remaining -= (size_t) written;
 
     /* 生成点声明 */
     for (uint32_t i = 0; i < n_points; i++) {
         double x = lv_random_double(gen->config.coord_min, gen->config.coord_max);
         double y = lv_random_double(gen->config.coord_min, gen->config.coord_max);
-        written = snprintf(buf + pos, remaining,
-            "Point P%u = (%.2f, %.2f);\n", i, x, y);
-        if (written < 0 || (size_t)written >= remaining) { lv_free((void**)&buf); return NULL; }
-        pos += written; remaining -= (size_t)written;
+        written = snprintf(buf + pos, remaining, "Point P%u = (%.2f, %.2f);\n", i, x, y);
+        if (written < 0 || (size_t) written >= remaining) {
+            lv_free((void **) &buf);
+            return NULL;
+        }
+        pos += written;
+        remaining -= (size_t) written;
     }
 
     /* 生成随机约束 */
-    const char *constraint_types[] = {
-        "collinear", "distance", "parallel", "perpendicular"
-    };
-    int n_constraints = lv_random_int(1, (int)n_points / 2 + 1);
+    const char *constraint_types[] = {"collinear", "distance", "parallel", "perpendicular"};
+    int n_constraints = lv_random_int(1, (int) n_points / 2 + 1);
     for (int c = 0; c < n_constraints; c++) {
         int type_idx = lv_random_int(0, 3);
-        int a = lv_random_int(0, (int)n_points - 1);
-        int b = lv_random_int(0, (int)n_points - 1);
-        if (a == b) b = (b + 1) % (int)n_points;
-        written = snprintf(buf + pos, remaining,
-            "Constraint %s(P%u, P%u);\n", constraint_types[type_idx], a, b);
-        if (written < 0 || (size_t)written >= remaining) { lv_free((void**)&buf); return NULL; }
-        pos += written; remaining -= (size_t)written;
+        int a = lv_random_int(0, (int) n_points - 1);
+        int b = lv_random_int(0, (int) n_points - 1);
+        if (a == b)
+            b = (b + 1) % (int) n_points;
+        written = snprintf(buf + pos, remaining, "Constraint %s(P%u, P%u);\n", constraint_types[type_idx], a, b);
+        if (written < 0 || (size_t) written >= remaining) {
+            lv_free((void **) &buf);
+            return NULL;
+        }
+        pos += written;
+        remaining -= (size_t) written;
     }
 
     written = snprintf(buf + pos, remaining, "Prove;\n");
-    if (written < 0 || (size_t)written >= remaining) { lv_free((void**)&buf); return NULL; }
+    if (written < 0 || (size_t) written >= remaining) {
+        lv_free((void **) &buf);
+        return NULL;
+    }
 
     return buf;
 }
@@ -511,10 +507,7 @@ char *random_generator_generate_dsl(RandomGenerator *gen)
  * @param count      生成数量
  * @return 成功生成的图数量
  */
-uint32_t random_generator_generate_batch(RandomGenerator *gen,
-                                          void **out_graphs,
-                                          uint32_t count)
-{
+uint32_t random_generator_generate_batch(RandomGenerator *gen, void **out_graphs, uint32_t count) {
     if (!gen || !out_graphs) {
         return 0;
     }
@@ -538,8 +531,7 @@ uint32_t random_generator_generate_batch(RandomGenerator *gen,
  * @param gen  随机生成器
  * @param seed 新种子值
  */
-void random_generator_reset_seed(RandomGenerator *gen, uint64_t seed)
-{
+void random_generator_reset_seed(RandomGenerator *gen, uint64_t seed) {
     if (gen) {
         gen->current_seed = seed;
         lv_random_init(seed);
@@ -550,9 +542,9 @@ void random_generator_reset_seed(RandomGenerator *gen, uint64_t seed)
 
 /** @brief 图同构比较器结构体 */
 struct GraphIsomorphismComparator {
-    bool ignore_ids;          /**< 是否忽略节点 ID 差异 */
-    bool compare_coords;      /**< 是否比较坐标 */
-    double coord_tolerance;   /**< 坐标比较容差 */
+    bool ignore_ids;        /**< 是否忽略节点 ID 差异 */
+    bool compare_coords;    /**< 是否比较坐标 */
+    double coord_tolerance; /**< 坐标比较容差 */
 };
 
 /**
@@ -562,8 +554,7 @@ struct GraphIsomorphismComparator {
  *
  * @return 新创建的 GraphIsomorphismComparator 指针，失败返回 NULL
  */
-GraphIsomorphismComparator *graph_isomorphism_create(void)
-{
+GraphIsomorphismComparator *graph_isomorphism_create(void) {
     GraphIsomorphismComparator *comp = lv_calloc(1, sizeof(GraphIsomorphismComparator));
     if (!comp) {
         return NULL;
@@ -581,9 +572,8 @@ GraphIsomorphismComparator *graph_isomorphism_create(void)
  *
  * @param comp 待销毁的比较器指针（可为 NULL）
  */
-void graph_isomorphism_destroy(GraphIsomorphismComparator *comp)
-{
-    lv_free((void**)&comp);
+void graph_isomorphism_destroy(GraphIsomorphismComparator *comp) {
+    lv_free((void **) &comp);
 }
 
 /**
@@ -594,11 +584,8 @@ void graph_isomorphism_destroy(GraphIsomorphismComparator *comp)
  * @param compare_coords  是否比较坐标
  * @param coord_tolerance 坐标比较容差
  */
-void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
-                                  bool ignore_ids,
-                                  bool compare_coords,
-                                  double coord_tolerance)
-{
+void graph_isomorphism_configure(GraphIsomorphismComparator *comp, bool ignore_ids, bool compare_coords,
+                                 double coord_tolerance) {
     if (comp) {
         comp->ignore_ids = ignore_ids;
         comp->compare_coords = compare_coords;
@@ -618,17 +605,14 @@ void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
  * @param graph_b 图 B
  * @return true 同构，false 不同构或参数无效
  */
-bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
-                                const void *graph_a,
-                                const void *graph_b)
-{
+bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *graph_a, const void *graph_b) {
     if (!comp || !graph_a || !graph_b) {
         return false;
     }
 
     /* VF2 同构检测（基于度数序列和邻域签名匹配，完整版需支持回溯搜索） */
-    const ConstraintGraph *ga = (const ConstraintGraph *)graph_a;
-    const ConstraintGraph *gb = (const ConstraintGraph *)graph_b;
+    const ConstraintGraph *ga = (const ConstraintGraph *) graph_a;
+    const ConstraintGraph *gb = (const ConstraintGraph *) graph_b;
 
     if (graph_get_node_count(ga) != graph_get_node_count(gb)) {
         return false;
@@ -638,12 +622,17 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
     }
 
     int n = graph_get_node_count(ga);
-    if (n == 0) return true;
+    if (n == 0)
+        return true;
 
     /* 计算度数序列 */
-    int *deg_a = (int *)calloc((size_t)n, sizeof(int));
-    int *deg_b = (int *)calloc((size_t)n, sizeof(int));
-    if (!deg_a || !deg_b) { free(deg_a); free(deg_b); return false; }
+    int *deg_a = (int *) calloc((size_t) n, sizeof(int));
+    int *deg_b = (int *) calloc((size_t) n, sizeof(int));
+    if (!deg_a || !deg_b) {
+        free(deg_a);
+        free(deg_b);
+        return false;
+    }
 
     for (int i = 0; i < n; i++) {
         int cids[64];
@@ -654,14 +643,25 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
     /* 排序度数序列后比较 */
     for (int i = 0; i < n - 1; i++) {
         for (int j = i + 1; j < n; j++) {
-            if (deg_a[i] > deg_a[j]) { int t = deg_a[i]; deg_a[i] = deg_a[j]; deg_a[j] = t; }
-            if (deg_b[i] > deg_b[j]) { int t = deg_b[i]; deg_b[i] = deg_b[j]; deg_b[j] = t; }
+            if (deg_a[i] > deg_a[j]) {
+                int t = deg_a[i];
+                deg_a[i] = deg_a[j];
+                deg_a[j] = t;
+            }
+            if (deg_b[i] > deg_b[j]) {
+                int t = deg_b[i];
+                deg_b[i] = deg_b[j];
+                deg_b[j] = t;
+            }
         }
     }
 
     bool same_degree = true;
     for (int i = 0; i < n; i++) {
-        if (deg_a[i] != deg_b[i]) { same_degree = false; break; }
+        if (deg_a[i] != deg_b[i]) {
+            same_degree = false;
+            break;
+        }
     }
 
     if (!same_degree) {
@@ -672,9 +672,15 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
 
     /* VF2 邻域签名比较：对每个节点，收集其邻居的度数并排序后比较 */
     /* 重新计算度数（因为上面的已排序） */
-    int *deg_a_raw = (int *)calloc((size_t)n, sizeof(int));
-    int *deg_b_raw = (int *)calloc((size_t)n, sizeof(int));
-    if (!deg_a_raw || !deg_b_raw) { free(deg_a); free(deg_b); free(deg_a_raw); free(deg_b_raw); return false; }
+    int *deg_a_raw = (int *) calloc((size_t) n, sizeof(int));
+    int *deg_b_raw = (int *) calloc((size_t) n, sizeof(int));
+    if (!deg_a_raw || !deg_b_raw) {
+        free(deg_a);
+        free(deg_b);
+        free(deg_a_raw);
+        free(deg_b_raw);
+        return false;
+    }
 
     for (int i = 0; i < n; i++) {
         int cids[64];
@@ -684,14 +690,19 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
 
     /* 为每个节点计算排序后的邻居度数签名 */
     int max_neighbors = 64;
-    int *neighbor_sigs_a = (int *)calloc((size_t)n * (size_t)max_neighbors, sizeof(int));
-    int *neighbor_sigs_b = (int *)calloc((size_t)n * (size_t)max_neighbors, sizeof(int));
-    int *neighbor_counts_a = (int *)calloc((size_t)n, sizeof(int));
-    int *neighbor_counts_b = (int *)calloc((size_t)n, sizeof(int));
+    int *neighbor_sigs_a = (int *) calloc((size_t) n * (size_t) max_neighbors, sizeof(int));
+    int *neighbor_sigs_b = (int *) calloc((size_t) n * (size_t) max_neighbors, sizeof(int));
+    int *neighbor_counts_a = (int *) calloc((size_t) n, sizeof(int));
+    int *neighbor_counts_b = (int *) calloc((size_t) n, sizeof(int));
     if (!neighbor_sigs_a || !neighbor_sigs_b || !neighbor_counts_a || !neighbor_counts_b) {
-        free(deg_a); free(deg_b); free(deg_a_raw); free(deg_b_raw);
-        free(neighbor_sigs_a); free(neighbor_sigs_b);
-        free(neighbor_counts_a); free(neighbor_counts_b);
+        free(deg_a);
+        free(deg_b);
+        free(deg_a_raw);
+        free(deg_b_raw);
+        free(neighbor_sigs_a);
+        free(neighbor_sigs_b);
+        free(neighbor_counts_a);
+        free(neighbor_counts_b);
         return false;
     }
 
@@ -703,7 +714,8 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
         /* 收集 ga 中节点 i 的邻居度数 */
         for (int c = 0; c < nc_a && neighbor_counts_a[i] < max_neighbors; c++) {
             Constraint *cons = graph_get_constraint(ga, cids_a[c]);
-            if (!cons || !cons->is_active) continue;
+            if (!cons || !cons->is_active)
+                continue;
             for (int p = 0; p < cons->participant_count; p++) {
                 int nb = cons->participants[p];
                 if (nb >= 0 && nb < n && nb != i) {
@@ -716,7 +728,8 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
         /* 收集 gb 中节点 i 的邻居度数 */
         for (int c = 0; c < nc_b && neighbor_counts_b[i] < max_neighbors; c++) {
             Constraint *cons = graph_get_constraint(gb, cids_b[c]);
-            if (!cons || !cons->is_active) continue;
+            if (!cons || !cons->is_active)
+                continue;
             for (int p = 0; p < cons->participant_count; p++) {
                 int nb = cons->participants[p];
                 if (nb >= 0 && nb < n && nb != i) {
@@ -758,8 +771,8 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
     bool same_signatures = (total_sigs_a == total_sigs_b);
     if (same_signatures && total_sigs_a > 0) {
         /* 拼接并排序所有签名 */
-        int *all_sigs_a = (int *)calloc((size_t)total_sigs_a, sizeof(int));
-        int *all_sigs_b = (int *)calloc((size_t)total_sigs_b, sizeof(int));
+        int *all_sigs_a = (int *) calloc((size_t) total_sigs_a, sizeof(int));
+        int *all_sigs_b = (int *) calloc((size_t) total_sigs_b, sizeof(int));
         if (!all_sigs_a || !all_sigs_b) {
             same_signatures = false;
         } else {
@@ -778,16 +791,27 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
             /* 排序 */
             for (int i = 0; i < total_sigs_a - 1; i++) {
                 for (int j = i + 1; j < total_sigs_a; j++) {
-                    if (all_sigs_a[i] > all_sigs_a[j]) { int t = all_sigs_a[i]; all_sigs_a[i] = all_sigs_a[j]; all_sigs_a[j] = t; }
+                    if (all_sigs_a[i] > all_sigs_a[j]) {
+                        int t = all_sigs_a[i];
+                        all_sigs_a[i] = all_sigs_a[j];
+                        all_sigs_a[j] = t;
+                    }
                 }
             }
             for (int i = 0; i < total_sigs_b - 1; i++) {
                 for (int j = i + 1; j < total_sigs_b; j++) {
-                    if (all_sigs_b[i] > all_sigs_b[j]) { int t = all_sigs_b[i]; all_sigs_b[i] = all_sigs_b[j]; all_sigs_b[j] = t; }
+                    if (all_sigs_b[i] > all_sigs_b[j]) {
+                        int t = all_sigs_b[i];
+                        all_sigs_b[i] = all_sigs_b[j];
+                        all_sigs_b[j] = t;
+                    }
                 }
             }
             for (int i = 0; i < total_sigs_a; i++) {
-                if (all_sigs_a[i] != all_sigs_b[i]) { same_signatures = false; break; }
+                if (all_sigs_a[i] != all_sigs_b[i]) {
+                    same_signatures = false;
+                    break;
+                }
             }
             free(all_sigs_a);
             free(all_sigs_b);
@@ -814,31 +838,35 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
  * @param graph 约束图
  * @return 64 位哈希值，失败返回 0
  */
-uint64_t graph_isomorphism_hash(const void *graph)
-{
+uint64_t graph_isomorphism_hash(const void *graph) {
     if (!graph) {
         return 0;
     }
 
     /* WL (Weisfeiler-Lehman) 图核哈希：迭代压缩节点标签 */
-    const ConstraintGraph *g = (const ConstraintGraph *)graph;
+    const ConstraintGraph *g = (const ConstraintGraph *) graph;
     int n = graph_get_node_count(g);
-    if (n == 0) return 0;
+    if (n == 0)
+        return 0;
 
     /* 初始标签：度数 */
-    uint64_t *labels = (uint64_t *)calloc((size_t)n, sizeof(uint64_t));
-    if (!labels) return 0;
+    uint64_t *labels = (uint64_t *) calloc((size_t) n, sizeof(uint64_t));
+    if (!labels)
+        return 0;
 
     for (int i = 0; i < n; i++) {
         int cids[64];
         int deg = graph_find_constraints_involving(g, i, cids, 64);
-        labels[i] = (uint64_t)(deg + 1);
+        labels[i] = (uint64_t) (deg + 1);
     }
 
     /* WL 迭代（3 轮） */
     for (int iter = 0; iter < 3; iter++) {
-        uint64_t *new_labels = (uint64_t *)calloc((size_t)n, sizeof(uint64_t));
-        if (!new_labels) { free(labels); return 0; }
+        uint64_t *new_labels = (uint64_t *) calloc((size_t) n, sizeof(uint64_t));
+        if (!new_labels) {
+            free(labels);
+            return 0;
+        }
 
         for (int i = 0; i < n; i++) {
             int cids[64];
@@ -846,11 +874,12 @@ uint64_t graph_isomorphism_hash(const void *graph)
             uint64_t hash = labels[i];
             for (int c = 0; c < nc; c++) {
                 Constraint *cons = graph_get_constraint(g, cids[c]);
-                if (!cons) continue;
+                if (!cons)
+                    continue;
                 for (int p = 0; p < cons->participant_count; p++) {
                     int nb = cons->participants[p];
                     if (nb >= 0 && nb < n) {
-                        hash ^= (labels[nb] * 2654435761ULL + (uint64_t)cons->type);
+                        hash ^= (labels[nb] * 2654435761ULL + (uint64_t) cons->type);
                     }
                 }
             }
@@ -863,7 +892,7 @@ uint64_t graph_isomorphism_hash(const void *graph)
     /* 聚合所有标签为最终哈希 */
     uint64_t final_hash = 0;
     for (int i = 0; i < n; i++) {
-        final_hash ^= (labels[i] * (uint64_t)(i + 1));
+        final_hash ^= (labels[i] * (uint64_t) (i + 1));
     }
     free(labels);
 
@@ -884,33 +913,34 @@ uint64_t graph_isomorphism_hash(const void *graph)
  * @param out_constraint_mapping 输出约束映射（当前未实现，为 NULL）
  * @return true 映射成功，false 失败或不同构
  */
-bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
-                                     const void *graph_a,
-                                     const void *graph_b,
-                                     int **out_node_mapping,
-                                     int **out_constraint_mapping)
-{
+bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp, const void *graph_a, const void *graph_b,
+                                    int **out_node_mapping, int **out_constraint_mapping) {
     if (!comp || !graph_a || !graph_b) {
         return false;
     }
 
     /* 映射查找（基于度数匹配的贪心算法，完整版需支持回溯和约束传播） */
-    const ConstraintGraph *ga = (const ConstraintGraph *)graph_a;
-    const ConstraintGraph *gb = (const ConstraintGraph *)graph_b;
+    const ConstraintGraph *ga = (const ConstraintGraph *) graph_a;
+    const ConstraintGraph *gb = (const ConstraintGraph *) graph_b;
 
     int na = graph_get_node_count(ga);
     int nb = graph_get_node_count(gb);
-    if (na != nb) return false;
+    if (na != nb)
+        return false;
 
     if (out_node_mapping) {
-        int *mapping = (int *)calloc((size_t)na, sizeof(int));
-        if (!mapping) return false;
+        int *mapping = (int *) calloc((size_t) na, sizeof(int));
+        if (!mapping)
+            return false;
 
         /* 计算度数 */
-        int *deg_a = (int *)calloc((size_t)na, sizeof(int));
-        int *deg_b = (int *)calloc((size_t)nb, sizeof(int));
+        int *deg_a = (int *) calloc((size_t) na, sizeof(int));
+        int *deg_b = (int *) calloc((size_t) nb, sizeof(int));
         if (!deg_a || !deg_b) {
-            free(mapping); free(deg_a); free(deg_b); return false;
+            free(mapping);
+            free(deg_a);
+            free(deg_b);
+            return false;
         }
 
         for (int i = 0; i < na; i++) {
@@ -923,8 +953,13 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
         }
 
         /* 贪心匹配：按度数排序后逐个匹配 */
-        bool *used = (bool *)calloc((size_t)nb, sizeof(bool));
-        if (!used) { free(mapping); free(deg_a); free(deg_b); return false; }
+        bool *used = (bool *) calloc((size_t) nb, sizeof(bool));
+        if (!used) {
+            free(mapping);
+            free(deg_a);
+            free(deg_b);
+            return false;
+        }
 
         for (int i = 0; i < na; i++) {
             mapping[i] = -1;
@@ -940,7 +975,10 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
         /* 检查是否全部匹配 */
         bool all_mapped = true;
         for (int i = 0; i < na; i++) {
-            if (mapping[i] < 0) { all_mapped = false; break; }
+            if (mapping[i] < 0) {
+                all_mapped = false;
+                break;
+            }
         }
 
         /* 边保持验证：检查 G1 中所有边在映射下是否在 G2 中也存在 */
@@ -948,18 +986,22 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
         if (all_mapped) {
             for (int c = 0; c < graph_get_constraint_count(ga) && edges_preserved; c++) {
                 Constraint *cons = graph_get_constraint(ga, c);
-                if (!cons || !cons->is_active) continue;
-                if (cons->participant_count < 2) continue;
+                if (!cons || !cons->is_active)
+                    continue;
+                if (cons->participant_count < 2)
+                    continue;
 
                 /* 对每对参与者 (u, v)，检查 (map[u], map[v]) 是否在 G2 中有对应约束 */
                 for (int p = 0; p < cons->participant_count && edges_preserved; p++) {
                     int u = cons->participants[p];
-                    if (u < 0 || u >= na) continue;
+                    if (u < 0 || u >= na)
+                        continue;
                     int u_mapped = mapping[u];
 
                     for (int q = p + 1; q < cons->participant_count && edges_preserved; q++) {
                         int v = cons->participants[q];
-                        if (v < 0 || v >= na) continue;
+                        if (v < 0 || v >= na)
+                            continue;
                         int v_mapped = mapping[v];
 
                         /* 在 G2 中查找 u_mapped 和 v_mapped 之间是否有相同类型的约束 */
@@ -968,8 +1010,10 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
                         bool found_edge = false;
                         for (int cb = 0; cb < nc_b; cb++) {
                             Constraint *cons_b = graph_get_constraint(gb, cids_b[cb]);
-                            if (!cons_b || !cons_b->is_active) continue;
-                            if (cons_b->type != cons->type) continue;
+                            if (!cons_b || !cons_b->is_active)
+                                continue;
+                            if (cons_b->type != cons->type)
+                                continue;
                             /* 检查 cons_b 是否包含 v_mapped */
                             for (int pp = 0; pp < cons_b->participant_count; pp++) {
                                 if (cons_b->participants[pp] == v_mapped) {
@@ -977,7 +1021,8 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
                                     break;
                                 }
                             }
-                            if (found_edge) break;
+                            if (found_edge)
+                                break;
                         }
                         if (!found_edge) {
                             edges_preserved = false;
@@ -1011,11 +1056,11 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
 
 /** @brief 原语包装器注册表条目 */
 static struct {
-    const char *name;     /**< 原语名称 */
-    void *c_api_func;     /**< C API 函数指针 */
-    uint32_t test_count;  /**< 测试次数 */
-    uint32_t pass_count;  /**< 通过次数 */
-    uint32_t fail_count;  /**< 失败次数 */
+    const char *name;    /**< 原语名称 */
+    void *c_api_func;    /**< C API 函数指针 */
+    uint32_t test_count; /**< 测试次数 */
+    uint32_t pass_count; /**< 通过次数 */
+    uint32_t fail_count; /**< 失败次数 */
 } g_primitives[MAX_PRIMITIVES];
 
 /** 已注册的原语数量 */
@@ -1033,18 +1078,14 @@ static uint32_t g_primitive_count = 0;
  *
  * @return true 初始化成功
  */
-bool primitive_wrapper_init(void)
-{
+bool primitive_wrapper_init(void) {
     g_primitive_count = 0;
 
     /* 注册 13 个最小原语 */
-    const char *primitives[] = {
-        "point_construct", "line_construct", "circle_construct",
-        "distance_measure", "angle_measure", "midpoint_compute",
-        "intersection_compute", "parallel_check", "perpendicular_check",
-        "collinear_check", "coincident_check", "containment_check",
-        "betweenness_check"
-    };
+    const char *primitives[] = {"point_construct",     "line_construct",   "circle_construct",     "distance_measure",
+                                "angle_measure",       "midpoint_compute", "intersection_compute", "parallel_check",
+                                "perpendicular_check", "collinear_check",  "coincident_check",     "containment_check",
+                                "betweenness_check"};
     for (int i = 0; i < 13 && g_primitive_count < MAX_PRIMITIVES; i++) {
         primitive_wrapper_register(primitives[i], NULL, NULL, 0, "void");
     }
@@ -1055,8 +1096,7 @@ bool primitive_wrapper_init(void)
 /**
  * @brief 清理原语包装器（重置注册表）
  */
-void primitive_wrapper_cleanup(void)
-{
+void primitive_wrapper_cleanup(void) {
     g_primitive_count = 0;
 }
 
@@ -1070,12 +1110,8 @@ void primitive_wrapper_cleanup(void)
  * @param return_type 返回类型字符串（预留，当前未使用）
  * @return true 注册成功，false 注册表已满或 name 为 NULL
  */
-bool primitive_wrapper_register(const char *name,
-                                 void *c_api_func,
-                                 const char **param_types,
-                                 uint32_t param_count,
-                                 const char *return_type)
-{
+bool primitive_wrapper_register(const char *name, void *c_api_func, const char **param_types, uint32_t param_count,
+                                const char *return_type) {
     lv_UNUSED(param_types);
     lv_UNUSED(param_count);
     lv_UNUSED(return_type);
@@ -1104,9 +1140,7 @@ bool primitive_wrapper_register(const char *name,
  * @param params 参数数组（当前未使用，可传 NULL）
  * @return 测试结果指针（调用者负责通过 primitive_test_result_destroy 释放），失败返回 NULL
  */
-PrimitiveTestResult *primitive_wrapper_test(const char *name,
-                                             void **params)
-{
+PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params) {
     lv_UNUSED(params);
     if (!name || !g_initialized) {
         return NULL;
@@ -1223,7 +1257,7 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name,
         }
     }
 
-    lv_free((void**)&result);
+    lv_free((void **) &result);
     return NULL;
 }
 
@@ -1232,16 +1266,15 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name,
  *
  * @param result 待销毁的结果指针（可为 NULL）
  */
-void primitive_test_result_destroy(PrimitiveTestResult *result)
-{
+void primitive_test_result_destroy(PrimitiveTestResult *result) {
     if (!result) {
         return;
     }
 
-    lv_free((void**)&result->input_description);
-    lv_free((void**)&result->c_api_result);
-    lv_free((void**)&result->geo_layer_result);
-    lv_free((void**)&result);
+    lv_free((void **) &result->input_description);
+    lv_free((void **) &result->c_api_result);
+    lv_free((void **) &result->geo_layer_result);
+    lv_free((void **) &result);
 }
 
 /**
@@ -1251,9 +1284,7 @@ void primitive_test_result_destroy(PrimitiveTestResult *result)
  * @param max_count   最大测试数量
  * @return 实际测试的原语数量
  */
-uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results,
-                                     uint32_t max_count)
-{
+uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results, uint32_t max_count) {
     if (!out_results || !g_initialized) {
         return 0;
     }
@@ -1277,20 +1308,19 @@ uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results,
  * @param out_passed 输出通过次数（可为 NULL）
  * @param out_failed 输出失败次数（可为 NULL）
  */
-void primitive_wrapper_get_stats(const char *name,
-                                  uint32_t *out_total,
-                                  uint32_t *out_passed,
-                                  uint32_t *out_failed)
-{
+void primitive_wrapper_get_stats(const char *name, uint32_t *out_total, uint32_t *out_passed, uint32_t *out_failed) {
     if (!name) {
         return;
     }
 
     for (uint32_t i = 0; i < g_primitive_count; i++) {
         if (strcmp(g_primitives[i].name, name) == 0) {
-            if (out_total) *out_total = g_primitives[i].test_count;
-            if (out_passed) *out_passed = g_primitives[i].pass_count;
-            if (out_failed) *out_failed = g_primitives[i].fail_count;
+            if (out_total)
+                *out_total = g_primitives[i].test_count;
+            if (out_passed)
+                *out_passed = g_primitives[i].pass_count;
+            if (out_failed)
+                *out_failed = g_primitives[i].fail_count;
             return;
         }
     }
@@ -1310,8 +1340,7 @@ struct TestOracle {
  *
  * @return 新创建的 TestOracle 指针，失败返回 NULL
  */
-TestOracle *test_oracle_create(void)
-{
+TestOracle *test_oracle_create(void) {
     TestOracle *oracle = lv_calloc(1, sizeof(TestOracle));
     if (!oracle) {
         return NULL;
@@ -1327,9 +1356,8 @@ TestOracle *test_oracle_create(void)
  *
  * @param oracle 待销毁的预言机指针（可为 NULL）
  */
-void test_oracle_destroy(TestOracle *oracle)
-{
-    lv_free((void**)&oracle);
+void test_oracle_destroy(TestOracle *oracle) {
+    lv_free((void **) &oracle);
 }
 
 /**
@@ -1341,15 +1369,13 @@ void test_oracle_destroy(TestOracle *oracle)
  * @param graph  约束图
  * @return true 幂等性通过，false 失败或参数无效
  */
-bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
-                                                  void *graph)
-{
+bool test_oracle_verify_normalization_idempotent(TestOracle *oracle, void *graph) {
     if (!oracle || !graph) {
         return false;
     }
 
     /* 幂等性验证：执行两次归一化并比较结果 */
-    ConstraintGraph *g = (ConstraintGraph *)graph;
+    ConstraintGraph *g = (ConstraintGraph *) graph;
 
     /* 使用现有 API */
     NormalizationResult *result1 = graph_normalize(g, false);
@@ -1382,17 +1408,14 @@ bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
  * @param solution 求解结果
  * @return true 求解正确，false 失败或参数无效
  */
-bool test_oracle_verify_solution_correct(TestOracle *oracle,
-                                          const void *graph,
-                                          const void *solution)
-{
+bool test_oracle_verify_solution_correct(TestOracle *oracle, const void *graph, const void *solution) {
     if (!oracle || !graph || !solution) {
         return false;
     }
 
     /* 求解正确性验证：检查解是否满足所有约束 */
-    const ConstraintGraph *g = (const ConstraintGraph *)graph;
-    const ConstraintGraph *sol = (const ConstraintGraph *)solution;
+    const ConstraintGraph *g = (const ConstraintGraph *) graph;
+    const ConstraintGraph *sol = (const ConstraintGraph *) solution;
 
     if (graph_get_node_count(g) != graph_get_node_count(sol)) {
         return false;
@@ -1401,13 +1424,16 @@ bool test_oracle_verify_solution_correct(TestOracle *oracle,
     /* 验证每个节点的坐标是否满足约束 */
     for (int i = 0; i < g->constraint_count; i++) {
         Constraint *c = g->constraints[i];
-        if (!c || !c->is_active) continue;
+        if (!c || !c->is_active)
+            continue;
 
         if (c->type == CONSTRAINT_DISTANCE && c->participant_count >= 2) {
             GeomNode *na = graph_get_node(sol, c->participants[0]);
             GeomNode *nb = graph_get_node(sol, c->participants[1]);
-            if (!na || !nb || !na->symbolic_coords || !nb->symbolic_coords) continue;
-            if (na->coord_count < 2 || nb->coord_count < 2) continue;
+            if (!na || !nb || !na->symbolic_coords || !nb->symbolic_coords)
+                continue;
+            if (na->coord_count < 2 || nb->coord_count < 2)
+                continue;
 
             double ax = symbolic_coord_to_double(na->symbolic_coords[0]);
             double ay = symbolic_coord_to_double(na->symbolic_coords[1]);
@@ -1431,9 +1457,7 @@ bool test_oracle_verify_solution_correct(TestOracle *oracle,
  * @param trace  证明轨迹
  * @return true 有效，false 无效或参数无效
  */
-bool test_oracle_verify_proof_valid(TestOracle *oracle,
-                                     const void *trace)
-{
+bool test_oracle_verify_proof_valid(TestOracle *oracle, const void *trace) {
     if (!oracle || !trace) {
         return false;
     }
@@ -1461,11 +1485,8 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle,
  * @param deserialized 反序列化结果
  * @return true 往返一致，false 不一致或参数无效
  */
-bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
-                                             const void *graph,
-                                             const char *serialized,
-                                             const void *deserialized)
-{
+bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle, const void *graph, const char *serialized,
+                                            const void *deserialized) {
     if (!oracle || !graph || !serialized || !deserialized) {
         return false;
     }
@@ -1495,10 +1516,7 @@ bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
  * @param format  输出格式（预留，当前未使用）
  * @return 报告字符串（调用者须通过 lv_free 释放），失败返回 NULL
  */
-char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
-                                      uint32_t count,
-                                      const char *format)
-{
+char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t count, const char *format) {
     lv_UNUSED(format);
     if (!results || count == 0) {
         return NULL;
@@ -1507,53 +1525,61 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
     /* 完整的报告生成：汇总所有测试结果 */
     uint32_t passed = 0, failed = 0, errors = 0;
     for (uint32_t i = 0; i < count; i++) {
-        if (!results[i]) { errors++; continue; }
-        if (results[i]->passed) passed++;
-        else failed++;
+        if (!results[i]) {
+            errors++;
+            continue;
+        }
+        if (results[i]->passed)
+            passed++;
+        else
+            failed++;
     }
 
     /* 计算报告所需缓冲区大小 */
-    size_t buf_size = 1024 + (size_t)count * 128;
-    char *report = (char *)lv_malloc(buf_size);
-    if (!report) return NULL;
+    size_t buf_size = 1024 + (size_t) count * 128;
+    char *report = (char *) lv_malloc(buf_size);
+    if (!report)
+        return NULL;
 
     int pos = 0;
-    pos += snprintf(report + pos, buf_size - (size_t)pos,
-        "Bootstrap Test Report\n"
-        "=====================\n"
-        "Total tests: %u\n"
-        "Passed: %u\n"
-        "Failed: %u\n"
-        "Errors: %u\n"
-        "Pass rate: %.1f%%\n"
-        "\n--- Test Details ---\n",
-        count, passed, failed, errors,
-        count > 0 ? (double)passed / (double)count * 100.0 : 0.0);
+    pos += snprintf(report + pos, buf_size - (size_t) pos,
+                    "Bootstrap Test Report\n"
+                    "=====================\n"
+                    "Total tests: %u\n"
+                    "Passed: %u\n"
+                    "Failed: %u\n"
+                    "Errors: %u\n"
+                    "Pass rate: %.1f%%\n"
+                    "\n--- Test Details ---\n",
+                    count, passed, failed, errors, count > 0 ? (double) passed / (double) count * 100.0 : 0.0);
 
-    for (uint32_t i = 0; i < count && (size_t)pos < buf_size - 128; i++) {
+    for (uint32_t i = 0; i < count && (size_t) pos < buf_size - 128; i++) {
         if (!results[i]) {
-            pos += snprintf(report + pos, buf_size - (size_t)pos,
-                "[%u] ERROR: result is NULL\n", i);
+            pos += snprintf(report + pos, buf_size - (size_t) pos, "[%u] ERROR: result is NULL\n", i);
             continue;
         }
         const char *status = results[i]->passed ? "PASS" : "FAIL";
         const char *comp = "N/A";
         switch (results[i]->comparison) {
-            case DIFF_RESULT_EQUAL: comp = "IDENTICAL"; break;
-            case DIFF_RESULT_DIFFERENT: comp = "DIFFERENT"; break;
-            case DIFF_RESULT_ERROR: comp = "ERROR"; break;
-            default: break;
+            case DIFF_RESULT_EQUAL:
+                comp = "IDENTICAL";
+                break;
+            case DIFF_RESULT_DIFFERENT:
+                comp = "DIFFERENT";
+                break;
+            case DIFF_RESULT_ERROR:
+                comp = "ERROR";
+                break;
+            default:
+                break;
         }
-        pos += snprintf(report + pos, buf_size - (size_t)pos,
-            "[%u] %s (comparison: %s)\n", i, status, comp);
+        pos += snprintf(report + pos, buf_size - (size_t) pos, "[%u] %s (comparison: %s)\n", i, status, comp);
         if (results[i]->error_message) {
-            pos += snprintf(report + pos, buf_size - (size_t)pos,
-                "    Error: %s\n", results[i]->error_message);
+            pos += snprintf(report + pos, buf_size - (size_t) pos, "    Error: %s\n", results[i]->error_message);
         }
     }
 
-    pos += snprintf(report + pos, buf_size - (size_t)pos,
-        "\n--- End of Report ---\n");
+    pos += snprintf(report + pos, buf_size - (size_t) pos, "\n--- End of Report ---\n");
 
     return report;
 }
@@ -1567,11 +1593,8 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
  * @param format   输出格式（预留，当前未使用）
  * @return true 写入成功，false 失败
  */
-bool bootstrap_test_write_report(BootstrapDiffTestResult **results,
-                                  uint32_t count,
-                                  const char *filepath,
-                                  const char *format)
-{
+bool bootstrap_test_write_report(BootstrapDiffTestResult **results, uint32_t count, const char *filepath,
+                                 const char *format) {
     if (!filepath) {
         return false;
     }
@@ -1583,13 +1606,13 @@ bool bootstrap_test_write_report(BootstrapDiffTestResult **results,
 
     FILE *fp = fopen(filepath, "w");
     if (!fp) {
-        lv_free((void**)&report);
+        lv_free((void **) &report);
         return false;
     }
 
     fprintf(fp, "%s", report);
     fclose(fp);
 
-    lv_free((void**)&report);
+    lv_free((void **) &report);
     return true;
 }

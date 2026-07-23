@@ -38,20 +38,20 @@ static lv_THREAD_LOCAL int g_gc_cmd_count = 0;
  * 包含所有支持的几何构造关键字，NULL 为终止标记。
  */
 static const char *gc_keywords[] = {
-    "point",       /* 点构造 */
-    "line",        /* 直线构造 */
-    "circle",      /* 圆构造 */
-    "segment",     /* 线段构造 */
-    "ray",         /* 射线构造 */
-    "parallel",    /* 平行约束 */
+    "point",         /* 点构造 */
+    "line",          /* 直线构造 */
+    "circle",        /* 圆构造 */
+    "segment",       /* 线段构造 */
+    "ray",           /* 射线构造 */
+    "parallel",      /* 平行约束 */
     "perpendicular", /* 垂直约束 */
-    "intersect",   /* 交点计算 */
-    "midpoint",    /* 中点计算 */
-    "constraint",  /* 通用约束 */
-    "prove",       /* 证明声明 */
-    "let",         /* 变量绑定 */
-    "assert",      /* 断言声明 */
-    NULL           /* 终止标记 */
+    "intersect",     /* 交点计算 */
+    "midpoint",      /* 中点计算 */
+    "constraint",    /* 通用约束 */
+    "prove",         /* 证明声明 */
+    "let",           /* 变量绑定 */
+    "assert",        /* 断言声明 */
+    NULL             /* 终止标记 */
 };
 
 /* ================================================================
@@ -62,8 +62,7 @@ static const char *gc_keywords[] = {
  * @brief 设置错误信息到线程局部缓冲区
  * @param msg 错误信息（NULL 则清空）
  */
-static void gc_set_error(const char *msg)
-{
+static void gc_set_error(const char *msg) {
     if (msg) {
         strncpy(g_gc_error_buf, msg, sizeof(g_gc_error_buf) - 1);
         g_gc_error_buf[sizeof(g_gc_error_buf) - 1] = '\0';
@@ -78,10 +77,10 @@ static void gc_set_error(const char *msg)
  * @param p 当前解析位置
  * @return 跳过空白后的新位置
  */
-static const char *gc_skip_whitespace(const char *p)
-{
-    if (!p) return NULL;
-    while (*p && isspace((unsigned char)*p)) {
+static const char *gc_skip_whitespace(const char *p) {
+    if (!p)
+        return NULL;
+    while (*p && isspace((unsigned char) *p)) {
         p++;
     }
     return p;
@@ -90,17 +89,15 @@ static const char *gc_skip_whitespace(const char *p)
 /**
  * @brief 判断是否为标识符起始字符（字母或下划线）
  */
-static int gc_is_ident_start(char c)
-{
-    return isalpha((unsigned char)c) || c == '_';
+static int gc_is_ident_start(char c) {
+    return isalpha((unsigned char) c) || c == '_';
 }
 
 /**
  * @brief 判断是否为标识符延续字符（字母、数字、下划线或连字符）
  */
-static int gc_is_ident_char(char c)
-{
-    return isalnum((unsigned char)c) || c == '_' || c == '-';
+static int gc_is_ident_char(char c) {
+    return isalnum((unsigned char) c) || c == '_' || c == '-';
 }
 
 /**
@@ -108,9 +105,9 @@ static int gc_is_ident_char(char c)
  * @param p 指向注释起始 '//' 之后的字符
  * @return 跳过注释后的新位置
  */
-static const char *gc_skip_line_comment(const char *p)
-{
-    if (!p) return NULL;
+static const char *gc_skip_line_comment(const char *p) {
+    if (!p)
+        return NULL;
     while (*p && *p != '\n') {
         p++;
     }
@@ -125,8 +122,7 @@ static const char *gc_skip_line_comment(const char *p)
  * @param bufsz 缓冲区大小
  * @return 解析后的新指针位置，失败返回 NULL
  */
-static const char *gc_parse_identifier(const char *p, char *buf, int bufsz)
-{
+static const char *gc_parse_identifier(const char *p, char *buf, int bufsz) {
     int len = 0;
 
     if (!p || !buf || bufsz <= 0) {
@@ -159,12 +155,11 @@ static const char *gc_parse_identifier(const char *p, char *buf, int bufsz)
  * @param engine 引擎句柄（当前预留接口，传 NULL 有效）
  * @return 0 解析成功，-1 参数错误或解析失败
  */
-int lv_gc_parse(const char *source, void *engine)
-{
+int lv_gc_parse(const char *source, void *engine) {
     const char *p;
     char ident[128];
 
-    (void)engine;  /* 预留：未来传递给引擎注册构造 */
+    (void) engine; /* 预留：未来传递给引擎注册构造 */
 
     if (!source) {
         gc_set_error("source is NULL");
@@ -179,7 +174,8 @@ int lv_gc_parse(const char *source, void *engine)
     p = source;
     while (*p) {
         p = gc_skip_whitespace(p);
-        if (!*p) break;
+        if (!*p)
+            break;
 
         /* 跳过行注释 */
         if (*p == '/' && *(p + 1) == '/') {
@@ -195,7 +191,7 @@ int lv_gc_parse(const char *source, void *engine)
 
         /* 尝试解析标识符/关键字 */
         if (gc_is_ident_start(*p)) {
-            const char *next = gc_parse_identifier(p, ident, (int)sizeof(ident));
+            const char *next = gc_parse_identifier(p, ident, (int) sizeof(ident));
             if (!next) {
                 gc_set_error("failed to parse identifier");
                 return -1;
@@ -231,8 +227,8 @@ int lv_gc_parse(const char *source, void *engine)
         }
 
         /* 跳过数字字面量 */
-        if (isdigit((unsigned char)*p) || *p == '.') {
-            while (*p && (isdigit((unsigned char)*p) || *p == '.')) {
+        if (isdigit((unsigned char) *p) || *p == '.') {
+            while (*p && (isdigit((unsigned char) *p) || *p == '.')) {
                 p++;
             }
             continue;
@@ -242,18 +238,19 @@ int lv_gc_parse(const char *source, void *engine)
         if (*p == '"') {
             p++;
             while (*p && *p != '"') {
-                if (*p == '\\') p++;  /* 跳过转义字符 */
+                if (*p == '\\')
+                    p++; /* 跳过转义字符 */
                 p++;
             }
-            if (*p == '"') p++;
+            if (*p == '"')
+                p++;
             continue;
         }
 
         /* 未知字符：报告错误 */
         {
             char err_msg[64];
-            snprintf(err_msg, sizeof(err_msg),
-                     "unexpected character '%c' (0x%02X)", *p, (unsigned char)*p);
+            snprintf(err_msg, sizeof(err_msg), "unexpected character '%c' (0x%02X)", *p, (unsigned char) *p);
             gc_set_error(err_msg);
             return -1;
         }
@@ -267,8 +264,7 @@ int lv_gc_parse(const char *source, void *engine)
  *
  * @return 错误信息字符串（内部存储，勿释放），无错误返回 NULL
  */
-const char *lv_gc_error(void)
-{
+const char *lv_gc_error(void) {
     if (g_gc_has_error) {
         return g_gc_error_buf;
     }
@@ -280,7 +276,6 @@ const char *lv_gc_error(void)
  *
  * @return 命令计数（即遇到的关键字数量）
  */
-int lv_gc_command_count(void)
-{
+int lv_gc_command_count(void) {
     return g_gc_cmd_count;
 }

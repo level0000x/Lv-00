@@ -48,7 +48,7 @@ typedef struct StreamContext StreamContext;
 lv_PUBLIC_API void rewrite_set_stream_context(StreamContext *ctx);
 
 typedef struct RewritePattern {
-    int kind;           /* type kind (TypeKind) — used by type_system.c */
+    int kind; /* type kind (TypeKind) — used by type_system.c */
     int *variable_node_ids;
     int var_count;
     Constraint **pattern_constraints;
@@ -273,8 +273,8 @@ lv_PUBLIC_API bool rewrite_rule_unload(RewriteRule ***rules, int *count, const c
  * @param[in] measure    归约度量值（用于循环检测）
  * @return 新创建的重写规则（调用者负责释放），失败返回 NULL
  */
-lv_PUBLIC_API RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern, RewriteReplacement *replacement,
-                                 int measure);
+lv_PUBLIC_API RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern,
+                                               RewriteReplacement *replacement, int measure);
 
 /**
  * @brief 销毁重写规则
@@ -292,7 +292,8 @@ lv_PUBLIC_API void rewrite_rule_destroy(RewriteRule *rule);
  * @param[in] local_equivalence_tolerant  是否容忍局部等价
  * @return 匹配的节点绑定信息（调用者负责释放），失败返回 NULL
  */
-lv_PUBLIC_API RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool local_equivalence_tolerant);
+lv_PUBLIC_API RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule,
+                                               bool local_equivalence_tolerant);
 
 /**
  * @brief 应用重写规则
@@ -314,8 +315,8 @@ lv_PUBLIC_API RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *r
  * @param[in] normalize_between_steps   是否在每步之间规范化
  * @return 重写状态
  */
-lv_PUBLIC_API RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, int rule_count, int step_limit,
-                                 bool normalize_between_steps);
+lv_PUBLIC_API RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, int rule_count,
+                                               int step_limit, bool normalize_between_steps);
 
 /* ---- VF2 子图同构匹配 ---- */
 
@@ -327,7 +328,8 @@ lv_PUBLIC_API RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRu
  * @param[in] local_equivalence_tolerant 是否容忍局部等价
  * @return 匹配的节点绑定信息（调用者负责释放），失败返回 NULL
  */
-lv_PUBLIC_API RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *pattern, bool local_equivalence_tolerant);
+lv_PUBLIC_API RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *pattern,
+                                           bool local_equivalence_tolerant);
 
 /* ---- WL 图核哈希循环检测 ---- */
 
@@ -380,7 +382,8 @@ lv_PUBLIC_API RewriteMatch *find_best_match(ConstraintGraph *graph, RewriteRule 
  * @param[in] graph_before   重写前的图哈希快照
  * @return true 如果度量满足归约/扩展要求，false 如果没有
  */
-lv_PUBLIC_API bool rewrite_validate_measure(const ConstraintGraph *graph, const RewriteRule *rule, const GraphSnapshot *graph_before);
+lv_PUBLIC_API bool rewrite_validate_measure(const ConstraintGraph *graph, const RewriteRule *rule,
+                                            const GraphSnapshot *graph_before);
 
 /* ---- WL 图核哈希（公开接口） ---- */
 
@@ -420,7 +423,7 @@ lv_PUBLIC_API uint64_t rewrite_compute_wl_hash(const ConstraintGraph *graph);
  * @return 0 成功，-1 参数错误或内存不足
  */
 lv_PUBLIC_API int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, const int *used_node_ids,
-                                     int used_count, RewriteMatch ***out_matches, int *out_match_count);
+                                                   int used_count, RewriteMatch ***out_matches, int *out_match_count);
 
 /**
  * @brief 批量应用非重叠匹配
@@ -435,8 +438,8 @@ lv_PUBLIC_API int find_all_non_overlapping_matches(ConstraintGraph *graph, Rewri
  * @param[out] out_applied_count 接收成功应用的替换数量
  * @return 0 成功，-1 参数错误或内存不足
  */
-lv_PUBLIC_API int rewrite_apply_all_matches(ConstraintGraph *graph, RewriteRule *rule, RewriteMatch *matches, int match_count,
-                              int *out_applied_count);
+lv_PUBLIC_API int rewrite_apply_all_matches(ConstraintGraph *graph, RewriteRule *rule, RewriteMatch *matches,
+                                            int match_count, int *out_applied_count);
 
 /* ================================================================
  * === 第六梯队参考项目落地 (P1) — Maude 重写策略引擎 ==============
@@ -509,8 +512,9 @@ lv_PUBLIC_API void rewrite_strategy_destroy(RewriteStrategy *s);
  * @param out_steps      输出：实际执行的重写步数
  * @return 是否至少成功了一步
  */
-lv_PUBLIC_API bool rewrite_strategy_apply(const ConstraintGraph *graph, const RewriteStrategy *strategy, const RewriteRule *rules,
-                            int rule_count, ConstraintGraph **out_graph, int *out_steps);
+lv_PUBLIC_API bool rewrite_strategy_apply(const ConstraintGraph *graph, const RewriteStrategy *strategy,
+                                          const RewriteRule *rules, int rule_count, ConstraintGraph **out_graph,
+                                          int *out_steps);
 
 /**
  * @brief BFS/DFS 逆向证明搜索（Maude `search =>*` 的 Lv-00 对应）
@@ -527,8 +531,9 @@ lv_PUBLIC_API bool rewrite_strategy_apply(const ConstraintGraph *graph, const Re
  * @param out_path_len  输出：路径长度
  * @return 是否找到证明路径
  */
-lv_PUBLIC_API bool rewrite_search_backward(const ConstraintGraph *target_graph, const RewriteRule *rules, int rule_count,
-                             int max_depth, bool use_bfs, int **out_path, int *out_path_len);
+lv_PUBLIC_API bool rewrite_search_backward(const ConstraintGraph *target_graph, const RewriteRule *rules,
+                                           int rule_count, int max_depth, bool use_bfs, int **out_path,
+                                           int *out_path_len);
 
 /* ================================================================
  * === 第六梯队参考项目落地 (P1) — Herbie 数值精度优化 ==============
@@ -563,13 +568,14 @@ typedef struct RewriteNumRule {
 
 /** 创建数值重写规则 */
 lv_PUBLIC_API RewriteNumRule *rewrite_num_rule_create(const char *name, const char *pattern, const char *replacement,
-                                        RewriteNumPriority pri, double improvement);
+                                                      RewriteNumPriority pri, double improvement);
 
 /** 销毁数值重写规则 */
 lv_PUBLIC_API void rewrite_num_rule_destroy(RewriteNumRule *rule);
 
 /** 在表达式上应用数值优化规则（返回优化后的表达式字符串，调用者释放） */
-lv_PUBLIC_API char *rewrite_num_optimize(const char *expr, RewriteNumRule **rules, int rule_count, double *out_improvement);
+lv_PUBLIC_API char *rewrite_num_optimize(const char *expr, RewriteNumRule **rules, int rule_count,
+                                         double *out_improvement);
 
 /** 注册内置数值优化规则集（含 sqrt-diff-recip, quadratic-formula-avoid-cancel 等 6 条） */
 lv_PUBLIC_API int rewrite_num_register_builtins(void);

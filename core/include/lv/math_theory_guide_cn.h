@@ -19,7 +19,7 @@
 #ifndef lv_MATH_THEORY_GUIDE_CN_H
 #define lv_MATH_THEORY_GUIDE_CN_H
 #include <stdbool.h>
-#include <stddef.h>  /* size_t */
+#include <stddef.h> /* size_t */
 #ifdef __cplusplus
 extern "C" {
 #endif

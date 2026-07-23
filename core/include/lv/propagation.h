@@ -44,10 +44,12 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "lv/lv_config.h"
+
 #include "constraint_graph.h"
 #include "stream.h"
 #include "symbolic_coord.h"
-#include "lv/lv_config.h"
 /* ================================================================
  * 常量定义
  * ================================================================ */
@@ -61,9 +63,9 @@ extern "C" {
 #define PROP_ENTROPY_UNBOUNDED (-1.0)
 
 // Config defaults — values read from runtime lvConfig:
-int  propagation_default_max_iterations(void);
-int  propagation_default_max_backtracks(void);
-int  propagation_wfc_max_collaboration_iterations(void);
+int propagation_default_max_iterations(void);
+int propagation_default_max_backtracks(void);
+int propagation_wfc_max_collaboration_iterations(void);
 /* ================================================================
  * 枚举类型
  * ================================================================ */
@@ -73,28 +75,28 @@ int  propagation_wfc_max_collaboration_iterations(void);
  * 决定在 WFC 循环中选择下一个坍缩节点的方式。
  */
 typedef enum {
-    PROP_STRATEGY_MIN_ENTROPY,    /**< WFC: 选择状态空间最小的节点（熵最小化） */
-    PROP_STRATEGY_MRVS,           /**< MRV: 最少剩余值启发式（约束满足术语） */
-    PROP_STRATEGY_DEGREE,         /**< Degree: 选择度数（邻接约束数）最高的节点 */
-    PROP_STRATEGY_BFS,            /**< BFS: 从最近修改处广度优先传播 */
-    PROP_STRATEGY_TOPOLOGICAL     /**< 拓扑序: 按依赖关系顺序选择 */
+    PROP_STRATEGY_MIN_ENTROPY, /**< WFC: 选择状态空间最小的节点（熵最小化） */
+    PROP_STRATEGY_MRVS,        /**< MRV: 最少剩余值启发式（约束满足术语） */
+    PROP_STRATEGY_DEGREE,      /**< Degree: 选择度数（邻接约束数）最高的节点 */
+    PROP_STRATEGY_BFS,         /**< BFS: 从最近修改处广度优先传播 */
+    PROP_STRATEGY_TOPOLOGICAL  /**< 拓扑序: 按依赖关系顺序选择 */
 } PropagationStrategy;
 /**
  * @brief 传播结果枚举
  */
 typedef enum {
-    PROP_RESULT_CONSISTENT,       /**< 相容，可继续传播 */
-    PROP_RESULT_CONTRADICTION,    /**< 矛盾，某节点状态空间为空 */
-    PROP_RESULT_SATISFIED,        /**< 所有节点已坍缩为唯一值 */
-    PROP_RESULT_STABLE,           /**< 传播收敛，但仍有未确定节点 */
-    PROP_RESULT_TIMEOUT           /**< 超时 */
+    PROP_RESULT_CONSISTENT,    /**< 相容，可继续传播 */
+    PROP_RESULT_CONTRADICTION, /**< 矛盾，某节点状态空间为空 */
+    PROP_RESULT_SATISFIED,     /**< 所有节点已坍缩为唯一值 */
+    PROP_RESULT_STABLE,        /**< 传播收敛，但仍有未确定节点 */
+    PROP_RESULT_TIMEOUT        /**< 超时 */
 } PropagationResult;
 /**
  * @brief 坍缩策略枚举
  */
 typedef enum {
-    PROP_COLLAPSE_FIRST,          /**< 确定性：选择第一个候选 */
-    PROP_COLLAPSE_WEIGHTED        /**< 加权随机：按约束兼容性加权 */
+    PROP_COLLAPSE_FIRST,   /**< 确定性：选择第一个候选 */
+    PROP_COLLAPSE_WEIGHTED /**< 加权随机：按约束兼容性加权 */
 } CollapseStrategy;
 /* ================================================================
  * 数据结构
@@ -106,14 +108,14 @@ typedef enum {
  * 当 is_collapsed 为 true 时，状态空间收缩为唯一值。
  */
 typedef struct NodeStateSpace {
-    int node_id;                       /**< 关联的节点 ID */
-    SymbolicCoord **possible_coords;   /**< 可能坐标列表（每个元素是一个 dim 维坐标数组） */
-    int *coord_dims;                   /**< 每个候选坐标的维度 */
-    int coord_count;                   /**< 候选坐标数量 */
-    int capacity;                      /**< 预分配容量 */
-    bool is_collapsed;                 /**< 是否已坍缩为唯一值 */
-    SymbolicCoord *collapsed_value;    /**< 坍缩后的唯一坐标值 */
-    bool is_unbounded;                 /**< 是否为无界自由变量 */
+    int node_id;                     /**< 关联的节点 ID */
+    SymbolicCoord **possible_coords; /**< 可能坐标列表（每个元素是一个 dim 维坐标数组） */
+    int *coord_dims;                 /**< 每个候选坐标的维度 */
+    int coord_count;                 /**< 候选坐标数量 */
+    int capacity;                    /**< 预分配容量 */
+    bool is_collapsed;               /**< 是否已坍缩为唯一值 */
+    SymbolicCoord *collapsed_value;  /**< 坍缩后的唯一坐标值 */
+    bool is_unbounded;               /**< 是否为无界自由变量 */
 } NodeStateSpace;
 /**
  * @brief 传播快照
@@ -121,14 +123,14 @@ typedef struct NodeStateSpace {
  * 保存传播上下文的完整状态，用于回溯。
  */
 typedef struct PropagationSnapshot {
-    NodeStateSpace *states;       /**< 所有节点状态空间的深拷贝 */
-    int state_count;              /**< 状态空间数量 */
-    int64_t propagation_steps;    /**< 当时的传播步数 */
-    int64_t collapse_count;       /**< 当时的坍缩次数 */
-    int64_t backtrack_count;      /**< 当时的回溯次数 */
-    int64_t prune_count;          /**< 当时的剪枝次数 */
-    int decision_node_id;         /**< 本次决策的节点 ID */
-    int decision_coord_index;     /**< 本次决策选择的坐标索引 */
+    NodeStateSpace *states;    /**< 所有节点状态空间的深拷贝 */
+    int state_count;           /**< 状态空间数量 */
+    int64_t propagation_steps; /**< 当时的传播步数 */
+    int64_t collapse_count;    /**< 当时的坍缩次数 */
+    int64_t backtrack_count;   /**< 当时的回溯次数 */
+    int64_t prune_count;       /**< 当时的剪枝次数 */
+    int decision_node_id;      /**< 本次决策的节点 ID */
+    int decision_coord_index;  /**< 本次决策选择的坐标索引 */
 } PropagationSnapshot;
 /**
  * @brief 传播上下文
@@ -136,15 +138,15 @@ typedef struct PropagationSnapshot {
  * 约束传播引擎的核心上下文，管理节点状态空间、传播队列和回溯栈。
  */
 typedef struct PropagationContext {
-    ConstraintGraph *graph;           /**< 关联约束图（只读引用，不拥有所有权） */
-    NodeStateSpace *state_spaces;     /**< 每个节点的状态空间数组 */
-    int state_count;                  /**< 状态空间数量（= graph->node_count） */
-    PropagationStrategy strategy;     /**< 节点选择策略 */
+    ConstraintGraph *graph;             /**< 关联约束图（只读引用，不拥有所有权） */
+    NodeStateSpace *state_spaces;       /**< 每个节点的状态空间数组 */
+    int state_count;                    /**< 状态空间数量（= graph->node_count） */
+    PropagationStrategy strategy;       /**< 节点选择策略 */
     CollapseStrategy collapse_strategy; /**< 坍缩策略 */
-    int max_iterations;               /**< 最大传播轮次 */
-    int max_backtracks;               /**< 最大回溯次数 */
+    int max_iterations;                 /**< 最大传播轮次 */
+    int max_backtracks;                 /**< 最大回溯次数 */
     /* 传播队列（环形缓冲区） */
-    int *propagation_queue;           /**< 待传播节点 ID 队列 */
+    int *propagation_queue; /**< 待传播节点 ID 队列 */
     int queue_head, queue_tail;
     int queue_capacity;
     int queue_size;
@@ -153,12 +155,12 @@ typedef struct PropagationContext {
     int snapshot_count;
     int snapshot_capacity;
     /* 统计信息 */
-    int64_t propagation_steps;        /**< 传播步数 */
-    int64_t collapse_count;           /**< 坍缩次数 */
-    int64_t backtrack_count;          /**< 回溯次数 */
-    int64_t prune_count;              /**< 剪枝（状态移除）次数 */
+    int64_t propagation_steps; /**< 传播步数 */
+    int64_t collapse_count;    /**< 坍缩次数 */
+    int64_t backtrack_count;   /**< 回溯次数 */
+    int64_t prune_count;       /**< 剪枝（状态移除）次数 */
     /* 流式事件 */
-    StreamContext *stream_ctx;        /**< 流式输出上下文（可为 NULL） */
+    StreamContext *stream_ctx; /**< 流式输出上下文（可为 NULL） */
 } PropagationContext;
 /* ================================================================
  * 生命周期管理
@@ -356,11 +358,8 @@ void propagation_set_max_backtracks(PropagationContext *ctx, int max_backtracks)
  * @param out_backtracks   [out] 回溯次数
  * @param out_prunes       [out] 剪枝次数
  */
-void propagation_get_statistics(const PropagationContext *ctx,
-                                 int64_t *out_steps,
-                                 int64_t *out_collapses,
-                                 int64_t *out_backtracks,
-                                 int64_t *out_prunes);
+void propagation_get_statistics(const PropagationContext *ctx, int64_t *out_steps, int64_t *out_collapses,
+                                int64_t *out_backtracks, int64_t *out_prunes);
 /**
  * @brief 统计未坍缩节点数量
  * @param ctx  传播上下文

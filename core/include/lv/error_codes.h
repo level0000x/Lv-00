@@ -62,7 +62,7 @@ typedef enum {
     /* 成功 */
     lv_OK = 0,
     /* 通用系统错误 (1-99) */
-    lv_ERROR_UNKNOWN = 1,             /**< 未知错误 */
+    lv_ERROR_UNKNOWN = 1, /**< 未知错误 */
     /* 16-69: 预留范围 / Reserved range */
     lv_ERROR_INVALID_PARAM = 2,       /**< 无效参数 */
     lv_ERROR_NULL_POINTER = 3,        /**< 空指针 */
@@ -84,15 +84,15 @@ typedef enum {
     lv_ERROR_VALUE_OUT_OF_RANGE = 18, /**< 数值越界 */
     lv_ERROR_INTERNAL = 70,           /**< 内部错误 */
     /* 解析器安全错误 (130-139) */
-    lv_ERROR_PARSER_NULL_INPUT = 130,     /**< 输入为NULL */
-    lv_ERROR_PARSER_EMPTY_INPUT = 131,    /**< 输入为空字符串 */
-    lv_ERROR_PARSER_INPUT_TOO_LONG = 132, /**< 输入长度超限 */
-    lv_ERROR_PARSER_ILLEGAL_CHARS = 133,  /**< 输入含非法控制字符或null字节 */
-    lv_ERROR_PARSER_TOO_MANY_TOKENS = 134,/**< token数量超限 */
-    lv_ERROR_PARSER_DEPTH_EXCEEDED = 135, /**< AST深度超限 */
-    lv_ERROR_PARSER_NODE_LIMIT = 136,     /**< AST节点数超限 */
-    lv_ERROR_PARSER_TOKEN_TOO_LONG = 137, /**< token长度超限 */
-    lv_ERROR_PARSER_POOL_EXHAUSTED = 138, /**< 内存池耗尽 */
+    lv_ERROR_PARSER_NULL_INPUT = 130,      /**< 输入为NULL */
+    lv_ERROR_PARSER_EMPTY_INPUT = 131,     /**< 输入为空字符串 */
+    lv_ERROR_PARSER_INPUT_TOO_LONG = 132,  /**< 输入长度超限 */
+    lv_ERROR_PARSER_ILLEGAL_CHARS = 133,   /**< 输入含非法控制字符或null字节 */
+    lv_ERROR_PARSER_TOO_MANY_TOKENS = 134, /**< token数量超限 */
+    lv_ERROR_PARSER_DEPTH_EXCEEDED = 135,  /**< AST深度超限 */
+    lv_ERROR_PARSER_NODE_LIMIT = 136,      /**< AST节点数超限 */
+    lv_ERROR_PARSER_TOKEN_TOO_LONG = 137,  /**< token长度超限 */
+    lv_ERROR_PARSER_POOL_EXHAUSTED = 138,  /**< 内存池耗尽 */
     /* 内存与资源错误 (100-199) */
     lv_ERROR_OUT_OF_MEMORY = 100,      /**< 内存不足 */
     lv_ERROR_ALLOCATION_FAILED = 101,  /**< 内存分配失败 */
@@ -144,7 +144,7 @@ typedef enum {
     lv_ERROR_PROOF_INCOMPLETE = 901,          /**< 证明不完整 */
     lv_ERROR_PROOF_VERIFICATION_FAILED = 902, /**< 证明验证失败 */
     lv_ERROR_CIRCUIT_OPEN = 903,              /**< 熔断器已跳闸（OPEN 态） */
-    lv_ERROR_COUNT /**< 错误码总数，用于数组大小计算 */
+    lv_ERROR_COUNT                            /**< 错误码总数，用于数组大小计算 */
 } lvErrorCode;
 /* ============================================================
  * 错误信息获取
@@ -219,7 +219,8 @@ lv_PUBLIC_API void lv_set_error(lvErrorCode code, const char *format, ...);
  * @param format 格式化字符串
  * @param ... 可变参数
  */
-lv_PUBLIC_API void lv_set_error_ctx(lvErrorCode code, const char *file, int line, const char *func, const char *format, ...);
+lv_PUBLIC_API void lv_set_error_ctx(lvErrorCode code, const char *file, int line, const char *func, const char *format,
+                                    ...);
 /**
  * @brief 清除当前线程的错误状态
  */
@@ -253,29 +254,30 @@ lv_PUBLIC_API lvErrorCode lv_error_code_from_string(const char *name);
  * 此宏仅设置错误状态，不执行 return/goto 等控制流操作，
  * 适用于需要在设置错误后继续执行清理逻辑的场景。
  */
-#define lv_ERROR_SET(code, fmt, ...) lv_set_error_ctx((lvErrorCode)(code), __FILE__, __LINE__, __func__, (fmt), ##__VA_ARGS__)
+#define lv_ERROR_SET(code, fmt, ...) \
+    lv_set_error_ctx((lvErrorCode) (code), __FILE__, __LINE__, __func__, (fmt), ##__VA_ARGS__)
 /**
  * @brief 检查指针是否为NULL，如果是则设置错误并返回
  * @param ptr 要检查的指针
  * @param ret 返回值
  */
-#define lv_CHECK_NULL(ptr, ret)                                                                          \
-    do {                                                                                                   \
-        if ((ptr) == NULL) {                                                                               \
+#define lv_CHECK_NULL(ptr, ret)                                                                        \
+    do {                                                                                               \
+        if ((ptr) == NULL) {                                                                           \
             lv_set_error_ctx(lv_ERROR_NULL_POINTER, __FILE__, __LINE__, __func__, "空指针: %s", #ptr); \
-            return (ret);                                                                                  \
-        }                                                                                                  \
+            return (ret);                                                                              \
+        }                                                                                              \
     } while (0)
 /**
  * @brief 检查指针是否为NULL，如果是则设置错误并无返回值返回（用于 void 函数）
  * @param ptr 要检查的指针
  */
-#define lv_CHECK_NULL_VOID(ptr)                                                                          \
-    do {                                                                                                   \
-        if ((ptr) == NULL) {                                                                               \
+#define lv_CHECK_NULL_VOID(ptr)                                                                        \
+    do {                                                                                               \
+        if ((ptr) == NULL) {                                                                           \
             lv_set_error_ctx(lv_ERROR_NULL_POINTER, __FILE__, __LINE__, __func__, "空指针: %s", #ptr); \
-            return;                                                                                        \
-        }                                                                                                  \
+            return;                                                                                    \
+        }                                                                                              \
     } while (0)
 /**
  * @brief 检查条件，如果不满足则设置错误并返回
@@ -285,23 +287,23 @@ lv_PUBLIC_API lvErrorCode lv_error_code_from_string(const char *name);
  * @param msg 错误消息
  */
 #define lv_CHECK(cond, err_code, ret, msg)                                                      \
-    do {                                                                                          \
-        if (!(cond)) {                                                                            \
+    do {                                                                                        \
+        if (!(cond)) {                                                                          \
             lv_set_error_ctx((err_code), __FILE__, __LINE__, __func__, "%s: %s", (msg), #cond); \
-            return (ret);                                                                         \
-        }                                                                                         \
+            return (ret);                                                                       \
+        }                                                                                       \
     } while (0)
 /**
  * @brief 检查内存分配是否成功
  * @param ptr 分配的指针
  * @param ret 返回值
  */
-#define lv_CHECK_ALLOC(ptr, ret)                                                                                \
-    do {                                                                                                          \
-        if ((ptr) == NULL) {                                                                                      \
+#define lv_CHECK_ALLOC(ptr, ret)                                                                              \
+    do {                                                                                                      \
+        if ((ptr) == NULL) {                                                                                  \
             lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, __func__, "内存分配失败: %s", #ptr); \
-            return (ret);                                                                                         \
-        }                                                                                                         \
+            return (ret);                                                                                     \
+        }                                                                                                     \
     } while (0)
 /**
  * @brief 检查索引是否在有效范围内
@@ -310,12 +312,12 @@ lv_PUBLIC_API lvErrorCode lv_error_code_from_string(const char *name);
  * @param ret 返回值
  */
 #define lv_CHECK_INDEX(idx, max, ret)                                                          \
-    do {                                                                                         \
-        if ((idx) < 0 || (idx) >= (max)) {                                                       \
-            lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,           \
-                               "索引越界: %s=%d, 有效范围[0, %s=%d]", #idx, (idx), #max, (max)); \
-            return (ret);                                                                        \
-        }                                                                                        \
+    do {                                                                                       \
+        if ((idx) < 0 || (idx) >= (max)) {                                                     \
+            lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,             \
+                             "索引越界: %s=%d, 有效范围[0, %s=%d]", #idx, (idx), #max, (max)); \
+            return (ret);                                                                      \
+        }                                                                                      \
     } while (0)
 /**
  * @brief 检查范围是否有效（min <= val <= max）
@@ -325,12 +327,12 @@ lv_PUBLIC_API lvErrorCode lv_error_code_from_string(const char *name);
  * @param ret 返回值
  */
 #define lv_CHECK_RANGE(val, min, max, ret)                                                                        \
-    do {                                                                                                            \
-        if ((val) < (min) || (val) > (max)) {                                                                       \
-            lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,                              \
-                               "值超出范围: %s=%d, 有效范围[%s=%d, %s=%d]", #val, (val), #min, (min), #max, (max)); \
-            return (ret);                                                                                           \
-        }                                                                                                           \
+    do {                                                                                                          \
+        if ((val) < (min) || (val) > (max)) {                                                                     \
+            lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,                                \
+                             "值超出范围: %s=%d, 有效范围[%s=%d, %s=%d]", #val, (val), #min, (min), #max, (max)); \
+            return (ret);                                                                                         \
+        }                                                                                                         \
     } while (0)
 
 /* ============================================================
@@ -343,8 +345,8 @@ lv_PUBLIC_API lvErrorCode lv_error_code_from_string(const char *name);
  * 可选的 value 字段可用于传递计算结果。
  */
 typedef struct {
-    lvErrorCode code;      /**< 错误码 */
-    int           value;     /**< 返回值（可选，仅 code == lv_OK 时有效） */
+    lvErrorCode code; /**< 错误码 */
+    int value;        /**< 返回值（可选，仅 code == lv_OK 时有效） */
 } lvResult;
 
 /* ============================================================
@@ -354,13 +356,13 @@ typedef struct {
  * @brief 创建成功的 lvResult
  * @param val 返回值
  */
-#define lv_RESULT_OK(val) ((lvResult){ .code = lv_OK, .value = (val) })
+#define lv_RESULT_OK(val) ((lvResult) {.code = lv_OK, .value = (val)})
 
 /**
  * @brief 创建失败的 lvResult
  * @param err 错误码
  */
-#define lv_ERR(err) ((lvResult){ .code = (err), .value = 0 })
+#define lv_ERR(err) ((lvResult) {.code = (err), .value = 0})
 
 /**
  * @brief 传播错误 - 如果 result 包含错误，则立即返回该错误结果
@@ -371,12 +373,12 @@ typedef struct {
  *
  * @param result_expr 要检查的 lvResult 表达式
  */
-#define lv_PROPAGATE(result_expr)                                                \
-    do {                                                                           \
-        lvResult _lv_tmp_res = (result_expr);                                  \
-        if ((_lv_tmp_res).code != lv_OK) {                                     \
-            return _lv_tmp_res;                                                  \
-        }                                                                          \
+#define lv_PROPAGATE(result_expr)             \
+    do {                                      \
+        lvResult _lv_tmp_res = (result_expr); \
+        if ((_lv_tmp_res).code != lv_OK) {    \
+            return _lv_tmp_res;               \
+        }                                     \
     } while (0)
 
 #ifdef __cplusplus

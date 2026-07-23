@@ -97,8 +97,8 @@ typedef enum {
  */
 typedef enum {
     SCRIPT_LANG_lv_DSL = 0, /**< Lv-00 原生 DSL */
-    SCRIPT_LANG_PYTHON = 1,   /**< Python 脚本 */
-    SCRIPT_LANG_LUA = 2       /**< Lua 脚本 */
+    SCRIPT_LANG_PYTHON = 1, /**< Python 脚本 */
+    SCRIPT_LANG_LUA = 2     /**< Lua 脚本 */
 } ScriptLanguage;
 /**
  * @brief 随机化验证结果
@@ -168,10 +168,10 @@ typedef struct lvGeoCanvasState {
  * 这不是严格的形式化证明，但在实践中对于排除错误猜想非常高效。
  */
 typedef struct lvRandomizedCheck {
-    int sample_count; /**< 随机采样次数 */
-    double tolerance; /**< 数值容差 */
-    int passed_samples; /**< 通过的样本数 */
-    int failed_samples; /**< 失败的样本数 */
+    int sample_count;               /**< 随机采样次数 */
+    double tolerance;               /**< 数值容差 */
+    int passed_samples;             /**< 通过的样本数 */
+    int failed_samples;             /**< 失败的样本数 */
     bool is_probabilistically_true; /**< 概率真值判定 */
     double confidence_level;        /**< 置信水平 [0.0, 1.0] */
     /* ── 调试信息 ── */
@@ -200,7 +200,7 @@ typedef struct lvGeoScriptBinding {
     bool auto_generate; /**< 自动生成脚本标志（true = 每次构造自动追加） */
     /* ── 脚本缓冲区 ── */
     char full_script[lv_GEO_SCRIPT_BUFFER_SIZE]; /**< 完整构造脚本 */
-    int script_length;                             /**< 脚本当前长度 */
+    int script_length;                           /**< 脚本当前长度 */
 } lvGeoScriptBinding;
 /**
  * @brief 连续性跟踪器 —— 借鉴 Cinderella Continuity 机制
@@ -275,8 +275,8 @@ typedef struct lvInteractiveGeo {
     lvConstraintMaintainer constraint_maint; /**< 约束保持 */
     /* ── 快照系统 ── */
     char *snapshots[lv_GEO_MAX_SNAPSHOTS]; /**< 状态快照 JSON 数组 */
-    int snapshot_count;                      /**< 快照数量 */
-    int current_snapshot_index;              /**< 当前快照索引（用于撤销/重做） */
+    int snapshot_count;                    /**< 快照数量 */
+    int current_snapshot_index;            /**< 当前快照索引（用于撤销/重做） */
     /* ── 引擎引用 ── */
     lvEngine *engine_handle; /**< 关联的 lvEngine 句柄 */
     /* ── 回调 ── */
@@ -394,9 +394,8 @@ ConstraintMaintainStatus interactive_geo_drag_end(lvInteractiveGeo *geo, double 
  * @param[out]    result       输出：验证结果详情
  * @return 随机化验证结果状态码
  */
-int interactive_geo_randomized_check(lvInteractiveGeo *geo, int sample_count,
-                                     double tolerance, const char *theorem_expr,
-                                     lvRandomizedCheck *result);
+int interactive_geo_randomized_check(lvInteractiveGeo *geo, int sample_count, double tolerance,
+                                     const char *theorem_expr, lvRandomizedCheck *result);
 
 /* ==================== 坐标变换 ==================== */
 
@@ -412,9 +411,8 @@ int interactive_geo_randomized_check(lvInteractiveGeo *geo, int sample_count,
  * @param[out] screen_x 输出的屏幕坐标 X
  * @param[out] screen_y 输出的屏幕坐标 Y
  */
-void interactive_geo_world_to_screen(const lvInteractiveGeo *geo,
-                                     double world_x, double world_y,
-                                     double *screen_x, double *screen_y);
+void interactive_geo_world_to_screen(const lvInteractiveGeo *geo, double world_x, double world_y, double *screen_x,
+                                     double *screen_y);
 
 /**
  * @brief 将屏幕坐标转换为世界坐标
@@ -427,9 +425,8 @@ void interactive_geo_world_to_screen(const lvInteractiveGeo *geo,
  * @param[out] world_x  输出的世界坐标 X
  * @param[out] world_y  输出的世界坐标 Y
  */
-void interactive_geo_screen_to_world(const lvInteractiveGeo *geo,
-                                     double screen_x, double screen_y,
-                                     double *world_x, double *world_y);
+void interactive_geo_screen_to_world(const lvInteractiveGeo *geo, double screen_x, double screen_y, double *world_x,
+                                     double *world_y);
 
 /* ==================== 命中检测 ==================== */
 
@@ -449,9 +446,8 @@ void interactive_geo_screen_to_world(const lvInteractiveGeo *geo,
  * @param[out] out_distance 可选：输出最近对象的距离
  * @return 命中对象 ID，无命中返回 -1
  */
-int interactive_geo_hit_test(const lvInteractiveGeo *geo,
-                             double screen_x, double screen_y,
-                             double hit_radius, double *out_distance);
+int interactive_geo_hit_test(const lvInteractiveGeo *geo, double screen_x, double screen_y, double hit_radius,
+                             double *out_distance);
 
 /**
  * @brief 获取指定对象的当前世界坐标
@@ -464,9 +460,7 @@ int interactive_geo_hit_test(const lvInteractiveGeo *geo,
  * @param[out] world_y   输出 Y 坐标
  * @return 成功返回 0，对象不存在返回 -1
  */
-int interactive_geo_get_object_position(const lvInteractiveGeo *geo,
-                                        int object_id,
-                                        double *world_x, double *world_y);
+int interactive_geo_get_object_position(const lvInteractiveGeo *geo, int object_id, double *world_x, double *world_y);
 
 /**
  * @brief 更新视口缩放级别
@@ -478,8 +472,7 @@ int interactive_geo_get_object_position(const lvInteractiveGeo *geo,
  * @param[in]     center_x   缩放中心 X（屏幕坐标）
  * @param[in]     center_y   缩放中心 Y（屏幕坐标）
  */
-void interactive_geo_zoom(lvInteractiveGeo *geo, double zoom_delta,
-                          double center_x, double center_y);
+void interactive_geo_zoom(lvInteractiveGeo *geo, double zoom_delta, double center_x, double center_y);
 
 /**
  * @brief 重置视口到默认状态
@@ -498,8 +491,7 @@ void interactive_geo_reset_viewport(lvInteractiveGeo *geo);
  * @param[in]     width  画布宽度（像素）
  * @param[in]     height 画布高度（像素）
  */
-void interactive_geo_set_canvas_size(lvInteractiveGeo *geo,
-                                     double width, double height);
+void interactive_geo_set_canvas_size(lvInteractiveGeo *geo, double width, double height);
 
 #ifdef __cplusplus
 }

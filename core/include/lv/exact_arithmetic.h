@@ -23,4 +23,3 @@ bool lv_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
 bool lv_safe_sub_impl(int64_t a, int64_t b, int64_t *out);
 
 #endif /* lv_EXACT_ARITHMETIC_H */
-

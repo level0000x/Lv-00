@@ -25,15 +25,16 @@
  * 函数与此类型完全兼容，无需强制转换。 */
 
 #include "lv/constraint_graph.h" /* graph_set_stream_context   */
-#include "func_block.h"       /* func_block_set_stream_context */
-#include "normalization.h"    /* normalization_set_stream_context*/
 #include "lv/proof.h"            /* proof_set_stream_context      */
-#include "prop_verifier.h"    /* prop_verifier_set_stream_context*/
-#include "recursion.h"        /* recursion_set_stream_context  */
-#include "rewrite.h"          /* rewrite_set_stream_context    */
 #include "lv/solver.h"           /* solver_set_stream_context     */
-#include "type_system.h"      /* type_system_set_stream_context*/
-#include "unify.h"            /* unify_set_stream_context      */
+
+#include "func_block.h"    /* func_block_set_stream_context */
+#include "normalization.h" /* normalization_set_stream_context*/
+#include "prop_verifier.h" /* prop_verifier_set_stream_context*/
+#include "recursion.h"     /* recursion_set_stream_context  */
+#include "rewrite.h"       /* rewrite_set_stream_context    */
+#include "type_system.h"   /* type_system_set_stream_context*/
+#include "unify.h"         /* unify_set_stream_context      */
 
 /* ================================================================
  * 全局注册表（编译期初始化，运行期只读追加）
@@ -106,7 +107,7 @@ void stream_context_dispatch_all(StreamContext *ctx) {
  * 调用即可，无需修改 engine.c。
  */
 void stream_context_register_builtins(StreamContext *ctx) {
-    (void)ctx;
+    (void) ctx;
     /* 使用 static 标志确保只注册一次 */
     static int builtins_registered = 0;
     if (builtins_registered)

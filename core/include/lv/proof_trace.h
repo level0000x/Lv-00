@@ -57,8 +57,8 @@ typedef struct lvProofTree {
 
 lvProofTree *lv_proof_tree_create(const char *name, const char *strategy);
 void lv_proof_tree_destroy(lvProofTree *tree);
-lvProofTreeNode *lv_proof_tree_add_step(lvProofTree *tree, lvProofTreeNode *parent,
-                                             const char *desc, const char *detail, int id);
+lvProofTreeNode *lv_proof_tree_add_step(lvProofTree *tree, lvProofTreeNode *parent, const char *desc,
+                                        const char *detail, int id);
 bool lv_proof_tree_mark_contradiction(lvProofTreeNode *node);
 char *lv_proof_tree_export_text(const lvProofTree *tree, const char *opts);
 

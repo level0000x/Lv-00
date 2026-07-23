@@ -23,7 +23,7 @@
 
 #include "debug.h"
 #include "lv_internal.h"
-#include "lv_utils.h"  /* 提供 lv_malloc/lv_free/lv_strdup */
+#include "lv_utils.h" /* 提供 lv_malloc/lv_free/lv_strdup */
 #include "mpz_poly.h"
 
 /*
@@ -74,15 +74,13 @@
  * NOTE: 使用线程局部存储以保证多线程环境下的安全性。
  *       每个线程拥有独立的溢出上下文。
  * ============================================================ */
-lv_THREAD_LOCAL struct OverflowContext g_overflow_context = {
-    .last_result = NULL,
-    .last_operation = NULL,
-    .left_type = RATIONAL,
-    .right_type = RATIONAL,
-    .overflow_count = 0,
-    .frozen_point = NULL,
-    .has_frozen_point = false
-};
+lv_THREAD_LOCAL struct OverflowContext g_overflow_context = {.last_result = NULL,
+                                                             .last_operation = NULL,
+                                                             .left_type = RATIONAL,
+                                                             .right_type = RATIONAL,
+                                                             .overflow_count = 0,
+                                                             .frozen_point = NULL,
+                                                             .has_frozen_point = false};
 
 /* ============================================================
  * A/B Plan switching (Section 1.6 of design_v2.9.md)
@@ -181,8 +179,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
      * 测试始终使用 sqrt(2) 和 sqrt(3) 作为基准操作数（common case），
      * 因为它们是代数几何中最常见的二次无理数类型。
      */
-    int test_degree = (max_poly_degree >= 4) ? 4 :
-                      (max_poly_degree >= 3) ? 3 : 2;
+    int test_degree = (max_poly_degree >= 4) ? 4 : (max_poly_degree >= 3) ? 3 : 2;
 
     /* Create test polynomials */
     /* 主操作数: root of x² - 2 = 0 (sqrt(2)) */
@@ -190,15 +187,16 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
     mpz_poly_init(&poly);
     poly.degree = test_degree;
     int coeff_count = test_degree + 1;
-    poly.coeffs = malloc((size_t)coeff_count * sizeof(mpz_t));
+    poly.coeffs = malloc((size_t) coeff_count * sizeof(mpz_t));
     if (!poly.coeffs) {
         mpz_poly_clear(&poly);
         result.precision_stable = false;
         result.performance_stable = false;
         return result;
     }
-    for (int k = 0; k < coeff_count; k++) mpz_init(poly.coeffs[k]);
-    mpz_set_si(poly.coeffs[0], -2);      /* constant term: -2 */
+    for (int k = 0; k < coeff_count; k++)
+        mpz_init(poly.coeffs[k]);
+    mpz_set_si(poly.coeffs[0], -2); /* constant term: -2 */
     /* intermediate coefficients = 0 (already initialized) */
     mpz_set_si(poly.coeffs[test_degree], 1); /* leading coefficient: 1 */
 
@@ -218,7 +216,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
     mpz_poly_t poly2;
     mpz_poly_init(&poly2);
     poly2.degree = test_degree;
-    poly2.coeffs = malloc((size_t)coeff_count * sizeof(mpz_t));
+    poly2.coeffs = malloc((size_t) coeff_count * sizeof(mpz_t));
     if (!poly2.coeffs) {
         mpz_poly_clear(&poly2);
         algebraic_destroy(current);
@@ -226,7 +224,8 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
         result.performance_stable = false;
         return result;
     }
-    for (int k = 0; k < coeff_count; k++) mpz_init(poly2.coeffs[k]);
+    for (int k = 0; k < coeff_count; k++)
+        mpz_init(poly2.coeffs[k]);
     mpz_set_si(poly2.coeffs[0], -3);
     mpz_set_si(poly2.coeffs[test_degree], 1);
 
@@ -343,7 +342,8 @@ void *circuit_get_frozen_point(void) {
 /* symbolics/ 子目录函数由 algebraic.c / quadratic.c / transcendental.c 提供 */
 
 bool is_rational_zero(const Rational *r) {
-    if (!r) return true;
+    if (!r)
+        return true;
     return mpq_sgn(r->value) == 0;
 }
 
@@ -360,7 +360,8 @@ bool is_rational_zero(const Rational *r) {
  * @return 移除所有平方因子后的结果（n 的无平方部分）
  */
 int64_t remove_square_factors(int64_t n) {
-    if (n <= 1) return n;
+    if (n <= 1)
+        return n;
     int64_t result = 1;
     for (int64_t d = 2; d * d <= n; d++) {
         int count = 0;
@@ -374,6 +375,7 @@ int64_t remove_square_factors(int64_t n) {
         }
     }
     /* 剩余的大于 sqrt(n) 的质因子（必为 1 次） */
-    if (n > 1) result *= n;
+    if (n > 1)
+        result *= n;
     return result;
 }

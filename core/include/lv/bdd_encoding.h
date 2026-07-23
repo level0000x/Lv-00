@@ -27,6 +27,7 @@ extern "C" {
 #endif
 #include <stdbool.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 #include "symbolic_coord.h"
 /* ========================================================================
@@ -49,27 +50,27 @@ typedef struct BDDNode {
 
 /** ITE 计算表条目（缓存 ITE(f,g,h) 结果） */
 typedef struct ITECacheEntry {
-    BDDNode *f;       /**< ITE 第一个参数 */
-    BDDNode *g;       /**< ITE 第二个参数 */
-    BDDNode *h;       /**< ITE 第三个参数 */
-    BDDNode *result;  /**< 缓存的 ITE 结果 */
-    bool occupied;    /**< 该槽位是否被占用 */
+    BDDNode *f;      /**< ITE 第一个参数 */
+    BDDNode *g;      /**< ITE 第二个参数 */
+    BDDNode *h;      /**< ITE 第三个参数 */
+    BDDNode *result; /**< 缓存的 ITE 结果 */
+    bool occupied;   /**< 该槽位是否被占用 */
 } ITECacheEntry;
 
 /** BDD 管理器（唯一表 + 变量序 + 缓存） */
 typedef struct BDDManager {
-    BDDNode *true_node;        /**< 终端 T 节点（常量 1） */
-    BDDNode *false_node;       /**< 终端 F 节点（常量 0） */
-    BDDNode **unique_table;    /**< 唯一表（哈希桶数组，用于节点去重） */
-    int unique_table_size;     /**< 唯一表哈希桶数 */
-    int *var_order;            /**< 变量序数组（var_order[i] = 第 i 层的变量 ID） */
-    int var_count;             /**< 已注册变量总数 */
-    int var_capacity;          /**< var_order 数组容量 */
-    uint64_t node_count;       /**< 当前存活节点数（不含终端节点） */
+    BDDNode *true_node;            /**< 终端 T 节点（常量 1） */
+    BDDNode *false_node;           /**< 终端 F 节点（常量 0） */
+    BDDNode **unique_table;        /**< 唯一表（哈希桶数组，用于节点去重） */
+    int unique_table_size;         /**< 唯一表哈希桶数 */
+    int *var_order;                /**< 变量序数组（var_order[i] = 第 i 层的变量 ID） */
+    int var_count;                 /**< 已注册变量总数 */
+    int var_capacity;              /**< var_order 数组容量 */
+    uint64_t node_count;           /**< 当前存活节点数（不含终端节点） */
     ITECacheEntry *computed_table; /**< ITE 计算表（缓存 ITE 结果，避免重复计算） */
-    int computed_table_size;   /**< 计算表大小 */
-    char **var_names;          /**< 变量名称表（var_names[i] = 第 i 个变量的名称） */
-    BDDVarType *var_types;     /**< 变量类型表（var_types[i] = 第 i 个变量的类型） */
+    int computed_table_size;       /**< 计算表大小 */
+    char **var_names;              /**< 变量名称表（var_names[i] = 第 i 个变量的名称） */
+    BDDVarType *var_types;         /**< 变量类型表（var_types[i] = 第 i 个变量的类型） */
 } BDDManager;
 /* ========================================================================
  * ADD (Algebraic Decision Diagram) 类型

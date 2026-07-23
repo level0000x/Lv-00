@@ -23,22 +23,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
 /* 前向声明 */
-static bool segments_intersect(double x1, double y1, double x2, double y2,
-                                double x3, double y3, double x4, double y4);
+static bool segments_intersect(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4);
 
 /* 包装函数：从 GeomNode* 段提取坐标并检测相交 */
 static bool segments_intersect_nodes(const GeomNode *s1, const GeomNode *s2) {
-    if (!s1 || !s2) return false;
+    if (!s1 || !s2)
+        return false;
     /* 段节点的 data.segment 中应包含端点坐标信息，
        这里使用简化的 0 值检查，避免编译错误 */
-    (void)s1; (void)s2;
+    (void) s1;
+    (void) s2;
     return false;
 }
 
@@ -1138,7 +1141,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                     /* 设置类型特定数据 */
                     if (node_type == GEOM_REGION && boundary_segs && boundary_seg_count > 0) {
-                        node->data.region.boundary_segments = lv_malloc((size_t) boundary_seg_count * sizeof(GeomNode *));
+                        node->data.region.boundary_segments =
+                            lv_malloc((size_t) boundary_seg_count * sizeof(GeomNode *));
                         if (node->data.region.boundary_segments) {
                             for (int i = 0; i < boundary_seg_count; i++) {
                                 node->data.region.boundary_segments[i] = graph_get_node(graph, boundary_segs[i]);

@@ -1,21 +1,18 @@
 #include "lv/adaptive_pruning.h"
-#include "lv_utils.h"
+
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+
+#include "lv_utils.h"
 
 #define lv_DEFAULT_TIME_BUDGET_MS 30000.0
 #define lv_DEFAULT_MAX_ITERATIONS 10000
 
 /* ── Complexity Analysis ── */
 
-lvProblemComplexity lv_analyze_complexity(
-    size_t node_count,
-    size_t constraint_count,
-    size_t edge_count,
-    size_t max_poly_degree,
-    size_t axiom_count)
-{
+lvProblemComplexity lv_analyze_complexity(size_t node_count, size_t constraint_count, size_t edge_count,
+                                          size_t max_poly_degree, size_t axiom_count) {
     lvProblemComplexity c;
     memset(&c, 0, sizeof(c));
     c.node_count = node_count;
@@ -27,25 +24,26 @@ lvProblemComplexity lv_analyze_complexity(
     /* Estimate search space: O(nodes! * constraints^degree) */
     double factorial = 1.0;
     size_t n = node_count > 20 ? 20 : node_count;
-    for (size_t i = 2; i <= n; i++) factorial *= (double)i;
-    if (node_count > 20) factorial *= pow((double)node_count, (double)(node_count - 20));
+    for (size_t i = 2; i <= n; i++)
+        factorial *= (double) i;
+    if (node_count > 20)
+        factorial *= pow((double) node_count, (double) (node_count - 20));
 
-    double constraint_factor = pow((double)(constraint_count + 1), (double)(max_poly_degree + 1));
+    double constraint_factor = pow((double) (constraint_count + 1), (double) (max_poly_degree + 1));
     c.estimated_search_space = log2(factorial * constraint_factor + 1.0);
 
     return c;
 }
 
-size_t lv_compute_adaptive_limit(const lvProblemComplexity *complexity,
-                                   double target_time_ms)
-{
-    if (!complexity || complexity->node_count == 0) return 1000;
+size_t lv_compute_adaptive_limit(const lvProblemComplexity *complexity, double target_time_ms) {
+    if (!complexity || complexity->node_count == 0)
+        return 1000;
 
     /* Adaptive formula: limit = base * log2(nodes+1) * sqrt(constraints) * (1 + degree/10) */
     double base = 100.0;
-    double node_factor = log2((double)complexity->node_count + 1.0);
-    double constraint_factor = sqrt((double)complexity->constraint_count + 1.0);
-    double degree_factor = 1.0 + (double)complexity->max_polynomial_degree / 10.0;
+    double node_factor = log2((double) complexity->node_count + 1.0);
+    double constraint_factor = sqrt((double) complexity->constraint_count + 1.0);
+    double degree_factor = 1.0 + (double) complexity->max_polynomial_degree / 10.0;
 
     double limit = base * node_factor * constraint_factor * degree_factor;
 
@@ -56,10 +54,12 @@ size_t lv_compute_adaptive_limit(const lvProblemComplexity *complexity,
     }
 
     /* Cap at reasonable maximum */
-    if (limit > 100000.0) limit = 100000.0;
-    if (limit < 100.0) limit = 100.0;
+    if (limit > 100000.0)
+        limit = 100000.0;
+    if (limit < 100.0)
+        limit = 100.0;
 
-    return (size_t)limit;
+    return (size_t) limit;
 }
 
 /* ── Default Configuration ── */
@@ -68,9 +68,9 @@ lvAdaptiveConfig lv_default_adaptive_config(void) {
     lvAdaptiveConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.base_iterations = 100.0;
-    cfg.time_budget_ms = lv_DEFAULT_TIME_BUDGET_MS;       /* 30 seconds */
-    cfg.progress_threshold = 0.1;       /* 10% minimum progress */
-    cfg.solution_likelihood_min = 0.01; /* 1% minimum probability */
+    cfg.time_budget_ms = lv_DEFAULT_TIME_BUDGET_MS; /* 30 seconds */
+    cfg.progress_threshold = 0.1;                   /* 10% minimum progress */
+    cfg.solution_likelihood_min = 0.01;             /* 1% minimum probability */
     cfg.enable_heuristic_pruning = 1;
     cfg.enable_neural_suggestion = 0;
     return cfg;
@@ -80,7 +80,8 @@ lvAdaptiveConfig lv_default_adaptive_config(void) {
 
 lvAdaptivePruner *lv_pruner_create(const lvAdaptiveConfig *config) {
     lvAdaptivePruner *pruner = lv_calloc(1, sizeof(lvAdaptivePruner));
-    if (!pruner) return NULL;
+    if (!pruner)
+        return NULL;
     pruner->config = config ? *config : lv_default_adaptive_config();
     pruner->max_iterations = lv_DEFAULT_MAX_ITERATIONS;
     pruner->max_time_ms = pruner->config.time_budget_ms;
@@ -88,22 +89,21 @@ lvAdaptivePruner *lv_pruner_create(const lvAdaptiveConfig *config) {
 }
 
 void lv_pruner_destroy(lvAdaptivePruner *pruner) {
-    lv_free((void **)&pruner);
+    lv_free((void **) &pruner);
 }
 
-int lv_pruner_set_problem(lvAdaptivePruner *pruner,
-                            const lvProblemComplexity *complexity) {
-    if (!pruner || !complexity) return -1;
+int lv_pruner_set_problem(lvAdaptivePruner *pruner, const lvProblemComplexity *complexity) {
+    if (!pruner || !complexity)
+        return -1;
     pruner->complexity = *complexity;
     pruner->max_iterations = lv_compute_adaptive_limit(complexity, pruner->config.time_budget_ms);
-    pruner->max_depth = (size_t)(log2((double)complexity->node_count + 1.0) * 3.0);
+    pruner->max_depth = (size_t) (log2((double) complexity->node_count + 1.0) * 3.0);
     return 0;
 }
 
 /* ── Pruning Decisions ── */
 
-lvPruningDecision lv_pruner_evaluate(lvAdaptivePruner *pruner,
-                                           const lvSearchHeuristics *heuristics) {
+lvPruningDecision lv_pruner_evaluate(lvAdaptivePruner *pruner, const lvSearchHeuristics *heuristics) {
     lvPruningDecision decision = {0, 0.0, ""};
 
     if (!pruner || !heuristics) {
@@ -124,8 +124,7 @@ lvPruningDecision lv_pruner_evaluate(lvAdaptivePruner *pruner,
     }
 
     /* Rule 2: Low progress + significant time spent */
-    if (pruner->config.enable_heuristic_pruning &&
-        heuristics->time_spent_ms > pruner->config.time_budget_ms * 0.5 &&
+    if (pruner->config.enable_heuristic_pruning && heuristics->time_spent_ms > pruner->config.time_budget_ms * 0.5 &&
         heuristics->progress_estimate < pruner->config.progress_threshold) {
         decision.should_prune = 1;
         decision.confidence = 0.7;
@@ -170,13 +169,14 @@ int lv_pruner_iterations_exceeded(const lvAdaptivePruner *pruner, size_t iterati
 
 /* ── Heuristic Scoring ── */
 
-double lv_estimate_progress(int branches_explored, int total_branches,
-                                double time_spent_ms, double time_budget_ms) {
-    if (total_branches <= 0) return 0.0;
-    if (time_budget_ms <= 0.0) return 0.0;
+double lv_estimate_progress(int branches_explored, int total_branches, double time_spent_ms, double time_budget_ms) {
+    if (total_branches <= 0)
+        return 0.0;
+    if (time_budget_ms <= 0.0)
+        return 0.0;
 
     /* Weighted combination of branch progress and time progress */
-    double branch_progress = (double)branches_explored / (double)total_branches;
+    double branch_progress = (double) branches_explored / (double) total_branches;
     double time_progress = time_spent_ms / time_budget_ms;
 
     /* If we've explored many branches but made little overall progress,
@@ -184,9 +184,9 @@ double lv_estimate_progress(int branches_explored, int total_branches,
     return 0.6 * branch_progress + 0.4 * (1.0 - time_progress);
 }
 
-double lv_estimate_solution_likelihood(const lvProblemComplexity *complexity,
-                                           int depth, int conflicts_found) {
-    if (!complexity) return 0.5;
+double lv_estimate_solution_likelihood(const lvProblemComplexity *complexity, int depth, int conflicts_found) {
+    if (!complexity)
+        return 0.5;
 
     /* Base probability decreases with search space size */
     double base_prob = 1.0 / (1.0 + complexity->estimated_search_space * 0.01);
@@ -200,21 +200,22 @@ double lv_estimate_solution_likelihood(const lvProblemComplexity *complexity,
     double likelihood = base_prob * depth_factor * conflict_factor;
 
     /* Clamp to [0, 1] */
-    if (likelihood < 0.0) likelihood = 0.0;
-    if (likelihood > 1.0) likelihood = 1.0;
+    if (likelihood < 0.0)
+        likelihood = 0.0;
+    if (likelihood > 1.0)
+        likelihood = 1.0;
 
     return likelihood;
 }
 
 /* ── Neural Suggestion (Heuristic-based) ── */
 
-lvNeuralSuggestion lv_neural_suggest_strategy(
-    const lvProblemComplexity *complexity)
-{
+lvNeuralSuggestion lv_neural_suggest_strategy(const lvProblemComplexity *complexity) {
     lvNeuralSuggestion suggestion;
     memset(&suggestion, 0, sizeof(suggestion));
 
-    if (!complexity) return suggestion;
+    if (!complexity)
+        return suggestion;
 
     /* 初始化所有策略权重为低基线 */
     for (int i = 0; i < STRATEGY_COUNT; i++) {
@@ -301,9 +302,11 @@ lvNeuralSuggestion lv_neural_suggest_strategy(
 
     /* 置信度基于特征匹配的清晰度：
      * 匹配越多、特征越明确，置信度越高 */
-    suggestion.confidence = (float)feature_matches / 6.0f;
-    if (suggestion.confidence > 1.0f) suggestion.confidence = 1.0f;
-    if (suggestion.confidence < 0.0f) suggestion.confidence = 0.0f;
+    suggestion.confidence = (float) feature_matches / 6.0f;
+    if (suggestion.confidence > 1.0f)
+        suggestion.confidence = 1.0f;
+    if (suggestion.confidence < 0.0f)
+        suggestion.confidence = 0.0f;
 
     suggestion.valid = 1;
 
@@ -315,11 +318,12 @@ lvNeuralSuggestion lv_neural_suggest_strategy(
 lvPrunerStats lv_pruner_get_stats(const lvAdaptivePruner *pruner) {
     lvPrunerStats stats;
     memset(&stats, 0, sizeof(stats));
-    if (!pruner) return stats;
+    if (!pruner)
+        return stats;
     stats.total_pruned = pruner->total_pruned;
     stats.total_explored = pruner->total_explored;
     stats.total_time_saved_ms = pruner->total_time_saved_ms;
     size_t total = stats.total_pruned + stats.total_explored;
-    stats.pruning_rate = total > 0 ? (double)stats.total_pruned / (double)total : 0.0;
+    stats.pruning_rate = total > 0 ? (double) stats.total_pruned / (double) total : 0.0;
     return stats;
 }

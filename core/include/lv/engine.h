@@ -26,8 +26,8 @@
 extern "C" {
 #endif
 
-#include "config.h"
 #include "axiom_pkg.h"
+#include "config.h"
 #include "module.h"
 #include "stream.h"
 #include "unify.h"
@@ -49,19 +49,19 @@ typedef struct RewriteRule RewriteRule;
  * ============================================================ */
 
 /** @brief Layer 1: 输入解析层 — 词法分析、公式解析、DSL 编译 */
-#define lv_LAYER_PARSER    1
+#define lv_LAYER_PARSER 1
 
 /** @brief Layer 2: 资源管理层 — 内存分配、错误码、调试、工具函数 */
-#define lv_LAYER_RESOURCE  2
+#define lv_LAYER_RESOURCE 2
 
 /** @brief Layer 3: 几何拓扑层 — 约束图、符号坐标、几何原语 */
-#define lv_LAYER_GEOMETRY  3
+#define lv_LAYER_GEOMETRY 3
 
 /** @brief Layer 4: 公理推理层 — 引擎、求解器、证明、重写、合一 */
 #define lv_LAYER_REASONING 4
 
 /** @brief Layer 5: 结果输出层 — 流式输出、TikZ 导出、互操作 */
-#define lv_LAYER_OUTPUT    5
+#define lv_LAYER_OUTPUT 5
 
 /* ── 层级验证开关 ──
  * 通过 CMake 选项 ENABLE_LAYER_VALIDATION 控制。
@@ -72,7 +72,8 @@ typedef struct RewriteRule RewriteRule;
 
 /* 确保 lv_CURRENT_LAYER 已被 CMake 定义 */
 #ifndef lv_CURRENT_LAYER
-#error "lv_CURRENT_LAYER must be defined when lv_ENABLE_LAYER_VALIDATION is enabled. \
+#error \
+    "lv_CURRENT_LAYER must be defined when lv_ENABLE_LAYER_VALIDATION is enabled. \
 Check that the source file belongs to a CMake layer target (lv_layerN_*)."
 #endif
 
@@ -93,12 +94,11 @@ Check that the source file belongs to a CMake layer target (lv_layerN_*)."
  * @note 此宏在编译时通过 _Static_assert 检查，不产生运行时代码。
  * @note 当 lv_ENABLE_LAYER_VALIDATION 未定义时，此宏为空操作。
  */
-#define lv_ALLOW_LAYER(min_layer) \
-    _Static_assert(lv_CURRENT_LAYER >= (min_layer), \
-        "lv layer boundary violation: layer " #lv_CURRENT_LAYER \
-        " may not call functions from layer " #min_layer \
-        " (only upper layers may call lower layers)." \
-        " See docs/ARCHITECTURE_v3.3.md")
+#define lv_ALLOW_LAYER(min_layer)                                                                           \
+    _Static_assert(lv_CURRENT_LAYER >= (min_layer), "lv layer boundary violation: layer " #lv_CURRENT_LAYER \
+                                                    " may not call functions from layer " #min_layer        \
+                                                    " (only upper layers may call lower layers)."           \
+                                                    " See docs/ARCHITECTURE_v3.3.md")
 
 /**
  * @brief 编译时断言：当前层可以直接调用目标层
@@ -108,15 +108,14 @@ Check that the source file belongs to a CMake layer target (lv_layerN_*)."
  *
  * @param target_layer 目标层级编号
  */
-#define lv_REQUIRE_STRICTLY_ABOVE(target_layer) \
-    _Static_assert(lv_CURRENT_LAYER > (target_layer), \
-        "lv layer boundary violation: layer " #lv_CURRENT_LAYER \
-        " must be strictly above layer " #target_layer)
+#define lv_REQUIRE_STRICTLY_ABOVE(target_layer)                                                               \
+    _Static_assert(lv_CURRENT_LAYER > (target_layer), "lv layer boundary violation: layer " #lv_CURRENT_LAYER \
+                                                      " must be strictly above layer " #target_layer)
 
 #else
 /* 未启用层级验证时，所有检查宏均为空操作 */
-#define lv_ALLOW_LAYER(min_layer)                 ((void)0)
-#define lv_REQUIRE_STRICTLY_ABOVE(target_layer)   ((void)0)
+#define lv_ALLOW_LAYER(min_layer) ((void) 0)
+#define lv_REQUIRE_STRICTLY_ABOVE(target_layer) ((void) 0)
 #endif /* lv_ENABLE_LAYER_VALIDATION */
 
 /**
@@ -128,9 +127,9 @@ Check that the source file belongs to a CMake layer target (lv_layerN_*)."
  * 启用后，跨层函数调用会检查调用栈是否合规，
  * 违规时通过 engine 的错误报告机制发出警告。
  */
-#define lv_LAYER_VALIDATION_FLAG_NONE     0x00  /**< 不执行层级验证 */
-#define lv_LAYER_VALIDATION_FLAG_RUNTIME  0x01  /**< 运行时调用栈检查 */
-#define lv_LAYER_VALIDATION_FLAG_STRICT   0x02  /**< 严格模式：违规即中止 */
+#define lv_LAYER_VALIDATION_FLAG_NONE 0x00    /**< 不执行层级验证 */
+#define lv_LAYER_VALIDATION_FLAG_RUNTIME 0x01 /**< 运行时调用栈检查 */
+#define lv_LAYER_VALIDATION_FLAG_STRICT 0x02  /**< 严格模式：违规即中止 */
 
 /* 前向声明 —— lvContext 定义在 context.h 中，避免循环依赖 */
 struct lvContext;
@@ -139,13 +138,13 @@ struct lvContext;
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
-    ENGINE_STATUS_OK,                 /**< 操作成功完成 */
-    ENGINE_STATUS_OUT_OF_MEMORY,      /**< 内存分配失败 */
-    ENGINE_STATUS_INVALID_STATE,      /**< 引擎处于无效状态（如未初始化即调用） */
-    ENGINE_STATUS_INVALID_ARGUMENT,   /**< 传入参数无效（空指针、越界等） */
-    ENGINE_STATUS_CONSTRAINT_CONFLICT,/**< 约束冲突：无法满足的约束条件 */
-    ENGINE_STATUS_MODULE_ERROR,       /**< 模块加载/执行错误 */
-    ENGINE_STATUS_ERROR_INTERNAL      /**< 内部错误 */
+    ENGINE_STATUS_OK,                  /**< 操作成功完成 */
+    ENGINE_STATUS_OUT_OF_MEMORY,       /**< 内存分配失败 */
+    ENGINE_STATUS_INVALID_STATE,       /**< 引擎处于无效状态（如未初始化即调用） */
+    ENGINE_STATUS_INVALID_ARGUMENT,    /**< 传入参数无效（空指针、越界等） */
+    ENGINE_STATUS_CONSTRAINT_CONFLICT, /**< 约束冲突：无法满足的约束条件 */
+    ENGINE_STATUS_MODULE_ERROR,        /**< 模块加载/执行错误 */
+    ENGINE_STATUS_ERROR_INTERNAL       /**< 内部错误 */
 } EngineStatus;
 
 /* ============================================================
@@ -284,16 +283,16 @@ typedef enum {
  *         销毁后，引擎指针不可再被使用（悬垂指针）。
  */
 typedef struct lvEngine {
-    ConstraintGraph *main_graph;    /**< 主约束图指针 —— 引擎的核心数据结构，所有几何元素与约束的容器 */
-    Module **loaded_modules;        /**< 已加载模块的动态数组（指针数组） */
-    int module_count;               /**< 已加载模块数量 */
-    int module_capacity;            /**< 模块数组当前容量（指数增长，初始 lv_INITIAL_ARRAY_CAPACITY） */
-    AxiomPackage **axiom_packages;  /**< 已加载公理包的动态数组（指针数组） */
-    int axiom_package_count;        /**< 已加载公理包数量 */
-    int axiom_package_capacity;     /**< 公理包数组当前容量（指数增长） */
-    RewriteRule **rewrite_rules;    /**< 重写规则的动态数组（指针数组） */
-    int rewrite_rule_count;         /**< 已注册重写规则数量 */
-    int rewrite_rule_capacity;      /**< 重写规则数组当前容量（指数增长） */
+    ConstraintGraph *main_graph;   /**< 主约束图指针 —— 引擎的核心数据结构，所有几何元素与约束的容器 */
+    Module **loaded_modules;       /**< 已加载模块的动态数组（指针数组） */
+    int module_count;              /**< 已加载模块数量 */
+    int module_capacity;           /**< 模块数组当前容量（指数增长，初始 lv_INITIAL_ARRAY_CAPACITY） */
+    AxiomPackage **axiom_packages; /**< 已加载公理包的动态数组（指针数组） */
+    int axiom_package_count;       /**< 已加载公理包数量 */
+    int axiom_package_capacity;    /**< 公理包数组当前容量（指数增长） */
+    RewriteRule **rewrite_rules;   /**< 重写规则的动态数组（指针数组） */
+    int rewrite_rule_count;        /**< 已注册重写规则数量 */
+    int rewrite_rule_capacity;     /**< 重写规则数组当前容量（指数增长） */
 
     /* 可配置的重写步数上限（默认: 1000） */
     int rewrite_step_limit;
@@ -305,7 +304,7 @@ typedef struct lvEngine {
     int last_unify_status;
 
     /* ── 引擎级别的错误状态（每个引擎实例独立隔离）── */
-    EngineStatus last_status; /* 最近一次操作的状态码 */
+    EngineStatus last_status;                            /* 最近一次操作的状态码 */
     char last_error[lv_CONFIG_ENGINE_ERROR_BUFFER_SIZE]; /**< 最近一次操作的错误描述文本（大小由 config.h 控制） */
 
     /* 流式输出上下文（可选，为 NULL 时不发射事件） */
@@ -446,8 +445,9 @@ lv_PUBLIC_API AxiomLoadStatus engine_load_axiom_package(lvEngine *engine, const 
  * @param[out] out_func_block_id 输出：新创建的函数块 ID
  * @return true 成功，false 失败（参数无效或内存不足）
  */
-lv_PUBLIC_API bool engine_pack_function(lvEngine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
-                          int input_count, const int *output_port_ids, int output_count, int *out_func_block_id);
+lv_PUBLIC_API bool engine_pack_function(lvEngine *engine, const int *internal_node_ids, int internal_count,
+                                        const int *input_port_ids, int input_count, const int *output_port_ids,
+                                        int output_count, int *out_func_block_id);
 
 /**
  * @brief 实例化一个已打包的函数块
@@ -464,8 +464,8 @@ lv_PUBLIC_API bool engine_pack_function(lvEngine *engine, const int *internal_no
  * @param[out] out_result_count 输出：实例化产生的结果（输出端口）数量
  * @return 新创建的输出端口节点 ID 数组（调用者负责 free），失败返回 NULL
  */
-lv_PUBLIC_API int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int *arg_mappings, int arg_count,
-                                 int *out_result_count);
+lv_PUBLIC_API int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int *arg_mappings,
+                                               int arg_count, int *out_result_count);
 
 lv_PUBLIC_API UnifyStatus engine_unify(lvEngine *engine, ConstraintGraph *construction, ConstraintGraph *proposition);
 
@@ -665,8 +665,8 @@ lv_PUBLIC_API bool engine_is_streaming_enabled(const lvEngine *engine);
  * @param node_id      相关节点 ID（-1 表示无）
  * @param constraint_id 相关约束 ID（-1 表示无）
  */
-lv_PUBLIC_API void engine_emit_stream_event(lvEngine *engine, StreamEventType type, const char *description, int step_number,
-                              int node_id, int constraint_id);
+lv_PUBLIC_API void engine_emit_stream_event(lvEngine *engine, StreamEventType type, const char *description,
+                                            int step_number, int node_id, int constraint_id);
 
 /* ---- 五状态机 API（v3.3.0 形式化）---- */
 

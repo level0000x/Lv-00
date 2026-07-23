@@ -138,7 +138,8 @@ lv_PUBLIC_API Rune *magic_array_get_rune(const MagicArray *array, int rune_index
 lv_PUBLIC_API int magic_array_get_rune_count(const MagicArray *array);
 
 /* 约束操作 */
-lv_PUBLIC_API int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int rune1_index, int rune2_index);
+lv_PUBLIC_API int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int rune1_index,
+                                             int rune2_index);
 lv_PUBLIC_API bool magic_array_remove_constraint(MagicArray *array, int constraint_index);
 lv_PUBLIC_API int magic_array_get_constraint_count(const MagicArray *array);
 
@@ -218,7 +219,7 @@ lv_PUBLIC_API SpellStatus spell_get_status(const Spell *spell);
 
 /* 咒语执行 */
 lv_PUBLIC_API SpellStatus spell_cast(Spell *spell, MagicArray *array, SymbolicCoord **inputs, int input_count,
-                       SymbolicCoord **outputs, int output_count);
+                                     SymbolicCoord **outputs, int output_count);
 
 /* 咒语验证 */
 lv_PUBLIC_API bool spell_validate_structure(const Spell *spell);

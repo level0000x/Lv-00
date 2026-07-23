@@ -33,17 +33,16 @@
 /**
  * @brief Compute the number of steps needed for the integration interval.
  */
-static size_t compute_num_steps(const lvODEProblem *problem,
-                                const lvODEConfig  *config) {
+static size_t compute_num_steps(const lvODEProblem *problem, const lvODEConfig *config) {
     double t_start = problem->t_span[0];
-    double t_end   = problem->t_span[1];
-    double dt      = config->dt;
+    double t_end = problem->t_span[1];
+    double dt = config->dt;
 
     if (dt <= 0.0 || t_end <= t_start) {
         return 0;
     }
 
-    size_t n = (size_t)ceil((t_end - t_start) / dt);
+    size_t n = (size_t) ceil((t_end - t_start) / dt);
     /* Respect max_steps limit */
     if (config->max_steps > 0 && n > config->max_steps) {
         n = config->max_steps;
@@ -54,12 +53,12 @@ static size_t compute_num_steps(const lvODEProblem *problem,
 /**
  * @brief Perform one step of the explicit Euler method.
  */
-static void euler_step(lvODERhsFn rhs, double t, const double *y,
-                       double dt, size_t dim, void *params, double *y_next) {
-    double *dydt = (double *)lv_calloc(dim, sizeof(double));
+static void euler_step(lvODERhsFn rhs, double t, const double *y, double dt, size_t dim, void *params, double *y_next) {
+    double *dydt = (double *) lv_calloc(dim, sizeof(double));
     if (!dydt) {
         /* 分配失败：清零输出并返回 */
-        if (y_next) memset(y_next, 0, dim * sizeof(double));
+        if (y_next)
+            memset(y_next, 0, dim * sizeof(double));
         return;
     }
 
@@ -69,26 +68,28 @@ static void euler_step(lvODERhsFn rhs, double t, const double *y,
         y_next[i] = y[i] + dt * dydt[i];
     }
 
-    lv_free((void **)&dydt);
+    lv_free((void **) &dydt);
 }
 
 /**
  * @brief Perform one step of the classical RK4 method.
  */
-static void rk4_step(lvODERhsFn rhs, double t, const double *y,
-                     double dt, size_t dim, void *params, double *y_next) {
-    double *k1 = (double *)lv_calloc(dim, sizeof(double));
-    double *k2 = (double *)lv_calloc(dim, sizeof(double));
-    double *k3 = (double *)lv_calloc(dim, sizeof(double));
-    double *k4 = (double *)lv_calloc(dim, sizeof(double));
-    double *ytmp = (double *)lv_calloc(dim, sizeof(double));
+static void rk4_step(lvODERhsFn rhs, double t, const double *y, double dt, size_t dim, void *params, double *y_next) {
+    double *k1 = (double *) lv_calloc(dim, sizeof(double));
+    double *k2 = (double *) lv_calloc(dim, sizeof(double));
+    double *k3 = (double *) lv_calloc(dim, sizeof(double));
+    double *k4 = (double *) lv_calloc(dim, sizeof(double));
+    double *ytmp = (double *) lv_calloc(dim, sizeof(double));
 
     if (!k1 || !k2 || !k3 || !k4 || !ytmp) {
         /* Allocation failure: zero out y_next and clean up */
-        if (y_next) memset(y_next, 0, dim * sizeof(double));
-        lv_free((void **)&k1); lv_free((void **)&k2);
-        lv_free((void **)&k3); lv_free((void **)&k4);
-        lv_free((void **)&ytmp);
+        if (y_next)
+            memset(y_next, 0, dim * sizeof(double));
+        lv_free((void **) &k1);
+        lv_free((void **) &k2);
+        lv_free((void **) &k3);
+        lv_free((void **) &k4);
+        lv_free((void **) &ytmp);
         return;
     }
 
@@ -118,19 +119,18 @@ static void rk4_step(lvODERhsFn rhs, double t, const double *y,
         y_next[i] = y[i] + (dt / 6.0) * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
     }
 
-    lv_free((void **)&k1);
-    lv_free((void **)&k2);
-    lv_free((void **)&k3);
-    lv_free((void **)&k4);
-    lv_free((void **)&ytmp);
+    lv_free((void **) &k1);
+    lv_free((void **) &k2);
+    lv_free((void **) &k3);
+    lv_free((void **) &k4);
+    lv_free((void **) &ytmp);
 }
 
 /* ============================================================
  * API: Solve
  * ============================================================ */
 
-lvODESolution *ode_solve(const lvODEProblem *problem,
-                           const lvODEConfig  *config) {
+lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config) {
     if (!problem || !config || !problem->rhs_fn || !problem->y0) {
         return NULL;
     }
@@ -146,19 +146,20 @@ lvODESolution *ode_solve(const lvODEProblem *problem,
     }
 
     /* Allocate solution */
-    lvODESolution *sol = (lvODESolution *)lv_calloc(1, sizeof(lvODESolution));
-    if (!sol) return NULL;
+    lvODESolution *sol = (lvODESolution *) lv_calloc(1, sizeof(lvODESolution));
+    if (!sol)
+        return NULL;
 
     sol->n_steps = n_steps + 1; /* Include initial condition */
-    sol->dim    = dim;
+    sol->dim = dim;
 
-    sol->t_values = (double *)lv_calloc(sol->n_steps, sizeof(double));
-    sol->y_values = (double *)lv_calloc(sol->n_steps * dim, sizeof(double));
+    sol->t_values = (double *) lv_calloc(sol->n_steps, sizeof(double));
+    sol->y_values = (double *) lv_calloc(sol->n_steps * dim, sizeof(double));
 
     if (!sol->t_values || !sol->y_values) {
-        lv_free((void **)&sol->t_values);
-        lv_free((void **)&sol->y_values);
-        lv_free((void **)&sol);
+        lv_free((void **) &sol->t_values);
+        lv_free((void **) &sol->y_values);
+        lv_free((void **) &sol);
         return NULL;
     }
 
@@ -172,14 +173,14 @@ lvODESolution *ode_solve(const lvODEProblem *problem,
     }
 
     /* Integration loop */
-    double *y_curr = (double *)lv_calloc(dim, sizeof(double));
-    double *y_next = (double *)lv_calloc(dim, sizeof(double));
+    double *y_curr = (double *) lv_calloc(dim, sizeof(double));
+    double *y_next = (double *) lv_calloc(dim, sizeof(double));
     if (!y_curr || !y_next) {
-        lv_free((void **)&y_curr);
-        lv_free((void **)&y_next);
-        lv_free((void **)&sol->t_values);
-        lv_free((void **)&sol->y_values);
-        lv_free((void **)&sol);
+        lv_free((void **) &y_curr);
+        lv_free((void **) &y_next);
+        lv_free((void **) &sol->t_values);
+        lv_free((void **) &sol->y_values);
+        lv_free((void **) &sol);
         return NULL;
     }
 
@@ -194,14 +195,12 @@ lvODESolution *ode_solve(const lvODEProblem *problem,
 
         switch (config->method) {
             case ODE_RK4:
-                rk4_step(problem->rhs_fn, t, y_curr, dt, dim,
-                         problem->params, y_next);
+                rk4_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next);
                 break;
             case ODE_EULER:
             case ODE_ADAMS: /* Fall back to Euler for unsupported methods */
             default:
-                euler_step(problem->rhs_fn, t, y_curr, dt, dim,
-                           problem->params, y_next);
+                euler_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next);
                 break;
         }
 
@@ -219,8 +218,8 @@ lvODESolution *ode_solve(const lvODEProblem *problem,
         }
     }
 
-    lv_free((void **)&y_curr);
-    lv_free((void **)&y_next);
+    lv_free((void **) &y_curr);
+    lv_free((void **) &y_next);
     return sol;
 }
 
@@ -229,8 +228,9 @@ lvODESolution *ode_solve(const lvODEProblem *problem,
  * ============================================================ */
 
 void ode_solution_destroy(lvODESolution *sol) {
-    if (!sol) return;
-    lv_free((void **)&sol->t_values);
-    lv_free((void **)&sol->y_values);
-    lv_free((void **)&sol);
+    if (!sol)
+        return;
+    lv_free((void **) &sol->t_values);
+    lv_free((void **) &sol->y_values);
+    lv_free((void **) &sol);
 }

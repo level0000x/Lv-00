@@ -21,10 +21,10 @@
 
 #include "smt_bitvector.h"
 
-#include <stdlib.h>
-#include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #undef bv_from_int
 
@@ -384,8 +384,7 @@ lvBitVector *bv_mul(const lvBitVector *a, const lvBitVector *b) {
              * Use __uint128_t if available for the full 128-bit product.
              */
 #if defined(__SIZEOF_INT128__)
-            __uint128_t product = (__uint128_t) a->words[i] * b->words[j]
-                                  + result->words[i + j] + carry;
+            __uint128_t product = (__uint128_t) a->words[i] * b->words[j] + result->words[i + j] + carry;
             result->words[i + j] = (uint64_t) product;
             carry = (uint64_t) (product >> 64);
 #else
@@ -403,8 +402,7 @@ lvBitVector *bv_mul(const lvBitVector *a, const lvBitVector *b) {
             uint64_t mid = (p0 >> 32) + (p1 & 0xFFFFFFFF) + (p2 & 0xFFFFFFFF);
             uint64_t hi_part = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
 
-            uint64_t lo_sum = (p0 & 0xFFFFFFFF) + (mid << 32)
-                              + result->words[i + j] + carry;
+            uint64_t lo_sum = (p0 & 0xFFFFFFFF) + (mid << 32) + result->words[i + j] + carry;
             carry = hi_part + (lo_sum < result->words[i + j] ? 1 : 0);
             result->words[i + j] = lo_sum;
 #endif
@@ -496,7 +494,7 @@ bool bv_slt(const lvBitVector *a, const lvBitVector *b) {
 #include "lv/smt_bitvector.h"
 
 lvBitVec *lv_bv_create(size_t width, unsigned long long value) {
-    lvBitVec *bv = bv_create((int)width);
+    lvBitVec *bv = bv_create((int) width);
     if (bv && value != 0 && bv->words) {
         bv->words[0] = value;
         bv_normalize(bv);
@@ -504,17 +502,43 @@ lvBitVec *lv_bv_create(size_t width, unsigned long long value) {
     return bv;
 }
 
-void lv_bv_free(lvBitVec *bv) { bv_destroy(bv); }
+void lv_bv_free(lvBitVec *bv) {
+    bv_destroy(bv);
+}
 
-lvBitVec *lv_bv_and(const lvBitVec *a, const lvBitVec *b) { return bv_and(a, b); }
-lvBitVec *lv_bv_or(const lvBitVec *a, const lvBitVec *b) { return bv_or(a, b); }
-lvBitVec *lv_bv_xor(const lvBitVec *a, const lvBitVec *b) { return bv_xor(a, b); }
-lvBitVec *lv_bv_not(const lvBitVec *a) { return bv_not(a); }
-lvBitVec *lv_bv_shift_left(const lvBitVec *a, int shift) { return bv_shift_left(a, shift); }
-lvBitVec *lv_bv_shift_right(const lvBitVec *a, int shift) { return bv_shift_right(a, shift); }
-lvBitVec *lv_bv_extract(const lvBitVec *bv, int high, int low) { return bv_extract(bv, high, low); }
-lvBitVec *lv_bv_concat(const lvBitVec *a, const lvBitVec *b) { return bv_concat(a, b); }
-lvBitVec *lv_bv_add(const lvBitVec *a, const lvBitVec *b) { return bv_add(a, b); }
-lvBitVec *lv_bv_mul(const lvBitVec *a, const lvBitVec *b) { return bv_mul(a, b); }
-int lv_bv_equals(const lvBitVec *a, const lvBitVec *b) { return bv_eq(a, b); }
-long long lv_bv_to_int(const lvBitVec *bv) { return (long long)bv_to_int(bv); }
+lvBitVec *lv_bv_and(const lvBitVec *a, const lvBitVec *b) {
+    return bv_and(a, b);
+}
+lvBitVec *lv_bv_or(const lvBitVec *a, const lvBitVec *b) {
+    return bv_or(a, b);
+}
+lvBitVec *lv_bv_xor(const lvBitVec *a, const lvBitVec *b) {
+    return bv_xor(a, b);
+}
+lvBitVec *lv_bv_not(const lvBitVec *a) {
+    return bv_not(a);
+}
+lvBitVec *lv_bv_shift_left(const lvBitVec *a, int shift) {
+    return bv_shift_left(a, shift);
+}
+lvBitVec *lv_bv_shift_right(const lvBitVec *a, int shift) {
+    return bv_shift_right(a, shift);
+}
+lvBitVec *lv_bv_extract(const lvBitVec *bv, int high, int low) {
+    return bv_extract(bv, high, low);
+}
+lvBitVec *lv_bv_concat(const lvBitVec *a, const lvBitVec *b) {
+    return bv_concat(a, b);
+}
+lvBitVec *lv_bv_add(const lvBitVec *a, const lvBitVec *b) {
+    return bv_add(a, b);
+}
+lvBitVec *lv_bv_mul(const lvBitVec *a, const lvBitVec *b) {
+    return bv_mul(a, b);
+}
+int lv_bv_equals(const lvBitVec *a, const lvBitVec *b) {
+    return bv_eq(a, b);
+}
+long long lv_bv_to_int(const lvBitVec *bv) {
+    return (long long) bv_to_int(bv);
+}

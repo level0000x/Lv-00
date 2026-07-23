@@ -44,12 +44,12 @@ extern "C" {
  * @brief 基准测试结果结构体
  */
 typedef struct {
-    const char *name;        /**< 基准测试名称 */
-    int         iterations;  /**< 执行的迭代次数 */
-    double      mean_ns;     /**< 平均耗时（纳秒） */
-    double      min_ns;      /**< 最小耗时（纳秒） */
-    double      max_ns;      /**< 最大耗时（纳秒） */
-    double      stddev_ns;   /**< 标准差（纳秒） */
+    const char *name; /**< 基准测试名称 */
+    int iterations;   /**< 执行的迭代次数 */
+    double mean_ns;   /**< 平均耗时（纳秒） */
+    double min_ns;    /**< 最小耗时（纳秒） */
+    double max_ns;    /**< 最大耗时（纳秒） */
+    double stddev_ns; /**< 标准差（纳秒） */
 } lvPerfBenchResult;
 
 /* ================================================================
@@ -82,8 +82,7 @@ typedef struct lvPerfSession lvPerfSession;
  * @param result   输出结果结构体
  * @return 0 表示成功，-1 表示参数错误（fn 或 result 为 NULL）
  */
-int lv_perf_benchmark_run(const char *name, void (*fn)(void),
-                            void *setup_fn, lvPerfBenchResult *result);
+int lv_perf_benchmark_run(const char *name, void (*fn)(void), void *setup_fn, lvPerfBenchResult *result);
 
 /**
  * @brief 打印基准测试结果
@@ -95,9 +94,7 @@ int lv_perf_benchmark_run(const char *name, void (*fn)(void),
  * @param result 基准测试结果
  * @param out    输出流（如 stdout, stderr）
  */
-void lv_perf_benchmark_print_result(const char *name,
-                                       const lvPerfBenchResult *result,
-                                       FILE *out);
+void lv_perf_benchmark_print_result(const char *name, const lvPerfBenchResult *result, FILE *out);
 
 /* ================================================================
  * 性能会话 API
@@ -141,8 +138,7 @@ void lv_perf_end(lvPerfSession *session, const char *region_name);
  * @param type_name 分配的类型名称
  * @param bytes     分配的字节数
  */
-void lv_perf_session_record_alloc(lvPerfSession *session,
-                                     const char *type_name, size_t bytes);
+void lv_perf_session_record_alloc(lvPerfSession *session, const char *type_name, size_t bytes);
 
 /**
  * @brief 记录一次内存释放事件
@@ -151,8 +147,7 @@ void lv_perf_session_record_alloc(lvPerfSession *session,
  * @param type_name 释放的类型名称
  * @param bytes     释放的字节数
  */
-void lv_perf_session_record_free(lvPerfSession *session,
-                                    const char *type_name, size_t bytes);
+void lv_perf_session_record_free(lvPerfSession *session, const char *type_name, size_t bytes);
 
 /**
  * @brief 打印性能分析报告
@@ -177,8 +172,7 @@ void lv_perf_report_print(const lvPerfSession *session, FILE *out);
  * @param buffer_size 缓冲区大小（字节）
  * @return 写入的字节数（不含末尾 '\0'），失败返回 -1
  */
-int lv_perf_report_to_json(const lvPerfSession *session,
-                              char *buffer, size_t buffer_size);
+int lv_perf_report_to_json(const lvPerfSession *session, char *buffer, size_t buffer_size);
 
 /**
  * @brief 重置性能会话

@@ -17,9 +17,9 @@
 #include "reasoning_cache.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 
 /* ================================================================
  * 常量定义
@@ -43,9 +43,9 @@
  * @brief 哈希表槽位
  */
 typedef struct {
-    uint64_t key;       /**< 哈希键（0 表示空槽位或已删除） */
-    int value;          /**< 推理结果值 */
-    bool occupied;      /**< true = 已占用或已删除，false = 空槽位 */
+    uint64_t key;        /**< 哈希键（0 表示空槽位或已删除） */
+    int value;           /**< 推理结果值 */
+    bool occupied;       /**< true = 已占用或已删除，false = 空槽位 */
     size_t insert_order; /**< 插入顺序号，用于替换策略 */
 } CacheSlot;
 
@@ -53,12 +53,12 @@ typedef struct {
  * @brief 推理结果缓存内部结构
  */
 struct lvReasoningCache {
-    CacheSlot *slots;       /**< 哈希槽位数组 */
-    size_t capacity;        /**< 槽位总数（2 的幂） */
-    size_t size;            /**< 当前已占用槽位数 */
-    size_t next_order;      /**< 下一个插入顺序号 */
-    size_t hits;            /**< 缓存命中次数 */
-    size_t misses;          /**< 缓存未命中次数 */
+    CacheSlot *slots;  /**< 哈希槽位数组 */
+    size_t capacity;   /**< 槽位总数（2 的幂） */
+    size_t size;       /**< 当前已占用槽位数 */
+    size_t next_order; /**< 下一个插入顺序号 */
+    size_t hits;       /**< 缓存命中次数 */
+    size_t misses;     /**< 缓存未命中次数 */
 };
 
 /* ================================================================
@@ -103,7 +103,7 @@ static size_t hash_index(uint64_t key, size_t capacity) {
     key ^= key >> 33;
     key *= 0xc4ceb9fe1a85ec53ULL;
     key ^= key >> 33;
-    return (size_t)(key & (uint64_t)(capacity - 1));
+    return (size_t) (key & (uint64_t) (capacity - 1));
 }
 
 /**
@@ -117,7 +117,7 @@ static size_t hash_index(uint64_t key, size_t capacity) {
 static bool cache_find_slot(const lvReasoningCache *cache, uint64_t key, size_t *out_index) {
     size_t idx = hash_index(key, cache->capacity);
     size_t first_deleted = cache->capacity; /* 记录第一个已删除槽位，用于插入优化 */
-    (void)first_deleted; /* 预留给未来插入优化使用 */
+    (void) first_deleted;                   /* 预留给未来插入优化使用 */
 
     for (size_t probe = 0; probe < cache->capacity; probe++) {
         size_t i = (idx + probe) & (cache->capacity - 1);
@@ -175,13 +175,13 @@ static bool cache_is_full(const lvReasoningCache *cache) {
  * ================================================================ */
 
 lvReasoningCache *lv_reasoning_cache_create(size_t capacity) {
-    lvReasoningCache *cache = (lvReasoningCache *)calloc(1, sizeof(lvReasoningCache));
+    lvReasoningCache *cache = (lvReasoningCache *) calloc(1, sizeof(lvReasoningCache));
     if (!cache) {
         return NULL;
     }
 
     cache->capacity = next_power_of_two(capacity);
-    cache->slots = (CacheSlot *)calloc(cache->capacity, sizeof(CacheSlot));
+    cache->slots = (CacheSlot *) calloc(cache->capacity, sizeof(CacheSlot));
     if (!cache->slots) {
         free(cache);
         return NULL;
@@ -293,16 +293,21 @@ static void lv_reasoning_cache_clear(lvReasoningCache *cache) {
     cache->misses = 0;
 }
 
-static void lv_reasoning_cache_get_stats(const lvReasoningCache *cache,
-                                     size_t *hits, size_t *misses, size_t *size) {
+static void lv_reasoning_cache_get_stats(const lvReasoningCache *cache, size_t *hits, size_t *misses, size_t *size) {
     if (!cache) {
-        if (hits) *hits = 0;
-        if (misses) *misses = 0;
-        if (size) *size = 0;
+        if (hits)
+            *hits = 0;
+        if (misses)
+            *misses = 0;
+        if (size)
+            *size = 0;
         return;
     }
 
-    if (hits) *hits = cache->hits;
-    if (misses) *misses = cache->misses;
-    if (size) *size = cache->size;
+    if (hits)
+        *hits = cache->hits;
+    if (misses)
+        *misses = cache->misses;
+    if (size)
+        *size = cache->size;
 }

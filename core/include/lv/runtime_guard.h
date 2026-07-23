@@ -29,8 +29,8 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* 前向声明 —— 避免循环依赖 */
 struct lvContext;
@@ -87,9 +87,9 @@ struct lvContext;
 
 /** @brief 运行时保护读写锁类型（Windows） */
 typedef struct lvRwLock {
-    SRWLOCK srw_lock;          /**< Slim Reader/Writer Lock（Vista+） */
-    volatile LONG write_flag;  /**< 写者标记 */
-    volatile LONG reader_count;/**< 当前读者计数 */
+    SRWLOCK srw_lock;           /**< Slim Reader/Writer Lock（Vista+） */
+    volatile LONG write_flag;   /**< 写者标记 */
+    volatile LONG reader_count; /**< 当前读者计数 */
 } lvRwLock;
 
 /** @brief 运行时保护互斥锁类型（Windows） */
@@ -101,9 +101,9 @@ typedef CRITICAL_SECTION lvMutex;
 
 /** @brief 运行时保护读写锁类型（POSIX） */
 typedef struct lvRwLock {
-    pthread_rwlock_t rwlock;        /**< POSIX 读写锁 */
-    volatile int write_flag;        /**< 写者标记（用于快速路径检查） */
-    volatile int reader_count;      /**< 当前读者计数 */
+    pthread_rwlock_t rwlock;   /**< POSIX 读写锁 */
+    volatile int write_flag;   /**< 写者标记（用于快速路径检查） */
+    volatile int reader_count; /**< 当前读者计数 */
 } lvRwLock;
 
 /** @brief 运行时保护互斥锁类型（POSIX） */
@@ -144,10 +144,10 @@ typedef struct lvGuardStats {
  * 内嵌在 lvContext 结构体中（当 lv_ENABLE_RUNTIME_GUARDS 启用时）。
  */
 typedef struct lvGuardContext {
-    lvRwLock ctx_rwlock;      /**< 上下文级读写锁（保护整个上下文） */
-    lvMutex stat_mutex;       /**< 统计信息互斥锁 */
-    lvGuardStats stats;       /**< 运行时保护统计 */
-    bool initialized;           /**< 是否已初始化 */
+    lvRwLock ctx_rwlock; /**< 上下文级读写锁（保护整个上下文） */
+    lvMutex stat_mutex;  /**< 统计信息互斥锁 */
+    lvGuardStats stats;  /**< 运行时保护统计 */
+    bool initialized;    /**< 是否已初始化 */
 } lvGuardContext;
 
 /* ============================================================
@@ -198,50 +198,52 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
 #ifdef _WIN32
 
 /** @brief 初始化读写锁（Windows SRWLock） */
-#define lv_RWLOCK_INIT(lock)  do { \
-    InitializeSRWLock(&(lock)->srw_lock); \
-    (lock)->write_flag = 0; \
-    (lock)->reader_count = 0; \
-} while(0)
+#define lv_RWLOCK_INIT(lock)                  \
+    do {                                      \
+        InitializeSRWLock(&(lock)->srw_lock); \
+        (lock)->write_flag = 0;               \
+        (lock)->reader_count = 0;             \
+    } while (0)
 
 /** @brief 销毁读写锁（Windows SRWLock 无需显式销毁） */
-#define lv_RWLOCK_DESTROY(lock)  ((void)0)
+#define lv_RWLOCK_DESTROY(lock) ((void) 0)
 
 /** @brief 获取写锁（独占锁） */
-#define lv_RWLOCK_WRLOCK(lock)  AcquireSRWLockExclusive(&(lock)->srw_lock)
+#define lv_RWLOCK_WRLOCK(lock) AcquireSRWLockExclusive(&(lock)->srw_lock)
 
 /** @brief 释放写锁 */
-#define lv_RWLOCK_WRUNLOCK(lock)  ReleaseSRWLockExclusive(&(lock)->srw_lock)
+#define lv_RWLOCK_WRUNLOCK(lock) ReleaseSRWLockExclusive(&(lock)->srw_lock)
 
 /** @brief 获取读锁（共享锁） */
-#define lv_RWLOCK_RDLOCK(lock)  AcquireSRWLockShared(&(lock)->srw_lock)
+#define lv_RWLOCK_RDLOCK(lock) AcquireSRWLockShared(&(lock)->srw_lock)
 
 /** @brief 释放读锁 */
-#define lv_RWLOCK_RDUNLOCK(lock)  ReleaseSRWLockShared(&(lock)->srw_lock)
+#define lv_RWLOCK_RDUNLOCK(lock) ReleaseSRWLockShared(&(lock)->srw_lock)
 
 #else /* POSIX */
 
 /** @brief 初始化读写锁（POSIX pthread_rwlock） */
-#define lv_RWLOCK_INIT(lock)  do { \
-    pthread_rwlock_init(&(lock)->rwlock, NULL); \
-    (lock)->write_flag = 0; \
-    (lock)->reader_count = 0; \
-} while(0)
+#define lv_RWLOCK_INIT(lock)                        \
+    do {                                            \
+        pthread_rwlock_init(&(lock)->rwlock, NULL); \
+        (lock)->write_flag = 0;                     \
+        (lock)->reader_count = 0;                   \
+    } while (0)
 
 /** @brief 销毁读写锁 */
-#define lv_RWLOCK_DESTROY(lock)  pthread_rwlock_destroy(&(lock)->rwlock)
+#define lv_RWLOCK_DESTROY(lock) pthread_rwlock_destroy(&(lock)->rwlock)
 
 /** @brief 获取写锁（独占锁） */
-#define lv_RWLOCK_WRLOCK(lock)  pthread_rwlock_wrlock(&(lock)->rwlock)
+#define lv_RWLOCK_WRLOCK(lock) pthread_rwlock_wrlock(&(lock)->rwlock)
 
 /** @brief 释放写锁 */
-#define lv_RWLOCK_WRUNLOCK(lock)  pthread_rwlock_unlock(&(lock)->rwlock)
+#define lv_RWLOCK_WRUNLOCK(lock) pthread_rwlock_unlock(&(lock)->rwlock)
 
 /** @brief 获取读锁（共享锁） */
-#define lv_RWLOCK_RDLOCK(lock)  pthread_rwlock_rdlock(&(lock)->rwlock)
+#define lv_RWLOCK_RDLOCK(lock) pthread_rwlock_rdlock(&(lock)->rwlock)
 
 /** @brief 释放读锁 */
-#define lv_RWLOCK_RDUNLOCK(lock)  pthread_rwlock_unlock(&(lock)->rwlock)
+#define lv_RWLOCK_RDUNLOCK(lock) pthread_rwlock_unlock(&(lock)->rwlock)
 
 #endif /* _WIN32 */
 
@@ -255,22 +257,24 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
  *
  * @param ctx lvContext 指针（必须已启用运行时保护）
  */
-#define lv_RUNTIME_LOCK(ctx)  do { \
-    if ((ctx) && (ctx)->guard.initialized) { \
-        lv_RWLOCK_WRLOCK(&(ctx)->guard.ctx_rwlock); \
-        (ctx)->guard.stats.lock_acquired_count++; \
-    } \
-} while(0)
+#define lv_RUNTIME_LOCK(ctx)                            \
+    do {                                                \
+        if ((ctx) && (ctx)->guard.initialized) {        \
+            lv_RWLOCK_WRLOCK(&(ctx)->guard.ctx_rwlock); \
+            (ctx)->guard.stats.lock_acquired_count++;   \
+        }                                               \
+    } while (0)
 
 /**
  * @brief 释放上下文的运行时写锁
  * @param ctx lvContext 指针
  */
-#define lv_RUNTIME_UNLOCK(ctx)  do { \
-    if ((ctx) && (ctx)->guard.initialized) { \
-        lv_RWLOCK_WRUNLOCK(&(ctx)->guard.ctx_rwlock); \
-    } \
-} while(0)
+#define lv_RUNTIME_UNLOCK(ctx)                            \
+    do {                                                  \
+        if ((ctx) && (ctx)->guard.initialized) {          \
+            lv_RWLOCK_WRUNLOCK(&(ctx)->guard.ctx_rwlock); \
+        }                                                 \
+    } while (0)
 
 /**
  * @brief 获取上下文的读守卫（共享读锁）
@@ -280,22 +284,24 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
  *
  * @param ctx lvContext 指针
  */
-#define lv_READ_GUARD(ctx)  do { \
-    if ((ctx) && (ctx)->guard.initialized) { \
-        lv_RWLOCK_RDLOCK(&(ctx)->guard.ctx_rwlock); \
-        (ctx)->guard.stats.read_guard_count++; \
-    } \
-} while(0)
+#define lv_READ_GUARD(ctx)                              \
+    do {                                                \
+        if ((ctx) && (ctx)->guard.initialized) {        \
+            lv_RWLOCK_RDLOCK(&(ctx)->guard.ctx_rwlock); \
+            (ctx)->guard.stats.read_guard_count++;      \
+        }                                               \
+    } while (0)
 
 /**
  * @brief 释放上下文的读守卫
  * @param ctx lvContext 指针
  */
-#define lv_READ_UNGUARD(ctx)  do { \
-    if ((ctx) && (ctx)->guard.initialized) { \
-        lv_RWLOCK_RDUNLOCK(&(ctx)->guard.ctx_rwlock); \
-    } \
-} while(0)
+#define lv_READ_UNGUARD(ctx)                              \
+    do {                                                  \
+        if ((ctx) && (ctx)->guard.initialized) {          \
+            lv_RWLOCK_RDUNLOCK(&(ctx)->guard.ctx_rwlock); \
+        }                                                 \
+    } while (0)
 
 /**
  * @brief 获取上下文的写守卫（独占写锁）
@@ -304,22 +310,24 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
  *
  * @param ctx lvContext 指针
  */
-#define lv_WRITE_GUARD(ctx)  do { \
-    if ((ctx) && (ctx)->guard.initialized) { \
-        lv_RWLOCK_WRLOCK(&(ctx)->guard.ctx_rwlock); \
-        (ctx)->guard.stats.write_guard_count++; \
-    } \
-} while(0)
+#define lv_WRITE_GUARD(ctx)                             \
+    do {                                                \
+        if ((ctx) && (ctx)->guard.initialized) {        \
+            lv_RWLOCK_WRLOCK(&(ctx)->guard.ctx_rwlock); \
+            (ctx)->guard.stats.write_guard_count++;     \
+        }                                               \
+    } while (0)
 
 /**
  * @brief 释放上下文的写守卫
  * @param ctx lvContext 指针
  */
-#define lv_WRITE_UNGUARD(ctx)  do { \
-    if ((ctx) && (ctx)->guard.initialized) { \
-        lv_RWLOCK_WRUNLOCK(&(ctx)->guard.ctx_rwlock); \
-    } \
-} while(0)
+#define lv_WRITE_UNGUARD(ctx)                             \
+    do {                                                  \
+        if ((ctx) && (ctx)->guard.initialized) {          \
+            lv_RWLOCK_WRUNLOCK(&(ctx)->guard.ctx_rwlock); \
+        }                                                 \
+    } while (0)
 
 /* ============================================================
  * 原子操作宏 —— 用于关键计数器的无锁递增/递减
@@ -339,42 +347,41 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
  * @return 递增后的值
  */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
-#define lv_ATOMIC_INC(var)   atomic_fetch_add((_Atomic int*)&(var), 1) + 1
-#define lv_ATOMIC_DEC(var)   atomic_fetch_sub((_Atomic int*)&(var), 1) - 1
-#define lv_ATOMIC_ADD(var, n) atomic_fetch_add((_Atomic int*)&(var), (n))
-#define lv_ATOMIC_LOAD(var)  atomic_load((_Atomic int*)&(var))
-#define lv_ATOMIC_STORE(var, n) atomic_store((_Atomic int*)&(var), (n))
+#define lv_ATOMIC_INC(var) atomic_fetch_add((_Atomic int *) &(var), 1) + 1
+#define lv_ATOMIC_DEC(var) atomic_fetch_sub((_Atomic int *) &(var), 1) - 1
+#define lv_ATOMIC_ADD(var, n) atomic_fetch_add((_Atomic int *) &(var), (n))
+#define lv_ATOMIC_LOAD(var) atomic_load((_Atomic int *) &(var))
+#define lv_ATOMIC_STORE(var, n) atomic_store((_Atomic int *) &(var), (n))
 #define lv_ATOMIC_CAS(var, expected, desired) \
-    atomic_compare_exchange_strong((_Atomic int*)&(var), &(expected), (desired))
+    atomic_compare_exchange_strong((_Atomic int *) &(var), &(expected), (desired))
 
 #elif defined(__GNUC__) || defined(__clang__)
 /* GCC/Clang 内建原子操作 */
-#define lv_ATOMIC_INC(var)   __sync_add_and_fetch(&(var), 1)
-#define lv_ATOMIC_DEC(var)   __sync_sub_and_fetch(&(var), 1)
+#define lv_ATOMIC_INC(var) __sync_add_and_fetch(&(var), 1)
+#define lv_ATOMIC_DEC(var) __sync_sub_and_fetch(&(var), 1)
 #define lv_ATOMIC_ADD(var, n) __sync_add_and_fetch(&(var), (n))
-#define lv_ATOMIC_LOAD(var)  __sync_fetch_and_add(&(var), 0)
-#define lv_ATOMIC_STORE(var, n) (void)__sync_lock_test_and_set(&(var), (n))
-#define lv_ATOMIC_CAS(var, expected, desired) \
-    __sync_bool_compare_and_swap(&(var), (expected), (desired))
+#define lv_ATOMIC_LOAD(var) __sync_fetch_and_add(&(var), 0)
+#define lv_ATOMIC_STORE(var, n) (void) __sync_lock_test_and_set(&(var), (n))
+#define lv_ATOMIC_CAS(var, expected, desired) __sync_bool_compare_and_swap(&(var), (expected), (desired))
 
 #elif defined(_MSC_VER)
 /* MSVC 内建原子操作 */
 #include <windows.h>
-#define lv_ATOMIC_INC(var)   InterlockedIncrement((LONG volatile*)&(var))
-#define lv_ATOMIC_DEC(var)   InterlockedDecrement((LONG volatile*)&(var))
-#define lv_ATOMIC_ADD(var, n) InterlockedExchangeAdd((LONG volatile*)&(var), (n))
-#define lv_ATOMIC_LOAD(var)  InterlockedCompareExchange((LONG volatile*)&(var), 0, 0)
-#define lv_ATOMIC_STORE(var, n) InterlockedExchange((LONG volatile*)&(var), (n))
+#define lv_ATOMIC_INC(var) InterlockedIncrement((LONG volatile *) &(var))
+#define lv_ATOMIC_DEC(var) InterlockedDecrement((LONG volatile *) &(var))
+#define lv_ATOMIC_ADD(var, n) InterlockedExchangeAdd((LONG volatile *) &(var), (n))
+#define lv_ATOMIC_LOAD(var) InterlockedCompareExchange((LONG volatile *) &(var), 0, 0)
+#define lv_ATOMIC_STORE(var, n) InterlockedExchange((LONG volatile *) &(var), (n))
 #define lv_ATOMIC_CAS(var, expected, desired) \
-    (InterlockedCompareExchange((LONG volatile*)&(var), (desired), (expected)) == (expected))
+    (InterlockedCompareExchange((LONG volatile *) &(var), (desired), (expected)) == (expected))
 
 #else
 /* 无原子操作支持时的回退方案：使用 volatile 读/写 */
 #warning "lv_ENABLE_RUNTIME_GUARDS: 无原子操作支持，使用 volatile 回退（非线程安全）"
-#define lv_ATOMIC_INC(var)   (++(var))
-#define lv_ATOMIC_DEC(var)   (--(var))
+#define lv_ATOMIC_INC(var) (++(var))
+#define lv_ATOMIC_DEC(var) (--(var))
 #define lv_ATOMIC_ADD(var, n) ((var) += (n))
-#define lv_ATOMIC_LOAD(var)  (var)
+#define lv_ATOMIC_LOAD(var) (var)
 #define lv_ATOMIC_STORE(var, n) ((var) = (n))
 #define lv_ATOMIC_CAS(var, expected, desired) \
     (((var) == (expected)) ? ((var) = (desired), true) : ((expected) = (var), false))
@@ -385,16 +392,16 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
  * @param var int64_t 兼容变量
  */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
-#define lv_ATOMIC_INC64(var)  (atomic_fetch_add((_Atomic int64_t*)&(var), 1) + 1)
-#define lv_ATOMIC_ADD64(var, n) atomic_fetch_add((_Atomic int64_t*)&(var), (n))
+#define lv_ATOMIC_INC64(var) (atomic_fetch_add((_Atomic int64_t *) &(var), 1) + 1)
+#define lv_ATOMIC_ADD64(var, n) atomic_fetch_add((_Atomic int64_t *) &(var), (n))
 #elif defined(__GNUC__) || defined(__clang__)
-#define lv_ATOMIC_INC64(var)  __sync_add_and_fetch(&(var), 1LL)
-#define lv_ATOMIC_ADD64(var, n) __sync_add_and_fetch(&(var), (int64_t)(n))
+#define lv_ATOMIC_INC64(var) __sync_add_and_fetch(&(var), 1LL)
+#define lv_ATOMIC_ADD64(var, n) __sync_add_and_fetch(&(var), (int64_t) (n))
 #elif defined(_MSC_VER)
-#define lv_ATOMIC_INC64(var)  InterlockedIncrement64((LONG64 volatile*)&(var))
-#define lv_ATOMIC_ADD64(var, n) InterlockedExchangeAdd64((LONG64 volatile*)&(var), (n))
+#define lv_ATOMIC_INC64(var) InterlockedIncrement64((LONG64 volatile *) &(var))
+#define lv_ATOMIC_ADD64(var, n) InterlockedExchangeAdd64((LONG64 volatile *) &(var), (n))
 #else
-#define lv_ATOMIC_INC64(var)  (++(var))
+#define lv_ATOMIC_INC64(var) (++(var))
 #define lv_ATOMIC_ADD64(var, n) ((var) += (n))
 #endif
 
@@ -426,30 +433,30 @@ lv_PUBLIC_API bool lv_verify_data_integrity(struct lvContext *ctx);
  * 零开销：不影响任何性能。
  * ============================================================ */
 
-#define lv_RUNTIME_LOCK(ctx)        ((void)0)
-#define lv_RUNTIME_UNLOCK(ctx)      ((void)0)
-#define lv_READ_GUARD(ctx)          ((void)0)
-#define lv_READ_UNGUARD(ctx)        ((void)0)
-#define lv_WRITE_GUARD(ctx)         ((void)0)
-#define lv_WRITE_UNGUARD(ctx)       ((void)0)
+#define lv_RUNTIME_LOCK(ctx) ((void) 0)
+#define lv_RUNTIME_UNLOCK(ctx) ((void) 0)
+#define lv_READ_GUARD(ctx) ((void) 0)
+#define lv_READ_UNGUARD(ctx) ((void) 0)
+#define lv_WRITE_GUARD(ctx) ((void) 0)
+#define lv_WRITE_UNGUARD(ctx) ((void) 0)
 
 /* 回退到普通操作（非原子的，但已是全局/线程局部即可） */
-#define lv_ATOMIC_INC(var)          (++(var))
-#define lv_ATOMIC_DEC(var)          (--(var))
-#define lv_ATOMIC_ADD(var, n)       ((var) += (n))
-#define lv_ATOMIC_LOAD(var)         (var)
-#define lv_ATOMIC_STORE(var, n)     ((var) = (n))
+#define lv_ATOMIC_INC(var) (++(var))
+#define lv_ATOMIC_DEC(var) (--(var))
+#define lv_ATOMIC_ADD(var, n) ((var) += (n))
+#define lv_ATOMIC_LOAD(var) (var)
+#define lv_ATOMIC_STORE(var, n) ((var) = (n))
 #define lv_ATOMIC_CAS(var, expected, desired) \
     (((var) == (expected)) ? ((var) = (desired), true) : ((expected) = (var), false))
 
-#define lv_ATOMIC_INC64(var)        (++(var))
-#define lv_ATOMIC_ADD64(var, n)     ((var) += (n))
+#define lv_ATOMIC_INC64(var) (++(var))
+#define lv_ATOMIC_ADD64(var, n) ((var) += (n))
 
 /**
  * @brief 运行时保护禁用时的数据完整性校验 —— 始终返回 true
  */
 static inline bool lv_verify_data_integrity(struct lvContext *ctx) {
-    (void)ctx;
+    (void) ctx;
     return true;
 }
 
@@ -472,18 +479,22 @@ static inline bool lv_verify_data_integrity(struct lvContext *ctx) {
  * @param retval  条件为假时的返回值
  */
 #ifdef lv_ENABLE_RUNTIME_GUARDS
-#define lv_ASSERT_RUNTIME(ctx, cond, retval)  do { \
-    if (!(cond)) { \
-        (ctx)->guard.stats.integrity_failures++; \
-        lv_context_set_error((ctx), lv_ERROR_ASSERTION_FAILED, \
-            "运行时断言失败: %s [%s:%d]", #cond, __FILE__, __LINE__); \
-        return (retval); \
-    } \
-} while(0)
+#define lv_ASSERT_RUNTIME(ctx, cond, retval)                                                                      \
+    do {                                                                                                          \
+        if (!(cond)) {                                                                                            \
+            (ctx)->guard.stats.integrity_failures++;                                                              \
+            lv_context_set_error((ctx), lv_ERROR_ASSERTION_FAILED, "运行时断言失败: %s [%s:%d]", #cond, __FILE__, \
+                                 __LINE__);                                                                       \
+            return (retval);                                                                                      \
+        }                                                                                                         \
+    } while (0)
 #else
-#define lv_ASSERT_RUNTIME(ctx, cond, retval)  do { \
-    if (!(cond)) { return (retval); } \
-} while(0)
+#define lv_ASSERT_RUNTIME(ctx, cond, retval) \
+    do {                                     \
+        if (!(cond)) {                       \
+            return (retval);                 \
+        }                                    \
+    } while (0)
 #endif
 
 /**
@@ -505,8 +516,7 @@ static inline bool lv_verify_data_integrity(struct lvContext *ctx) {
  * lv_RUNTIME_UNLOCK(ctx) 显式释放。也可借助
  * __attribute__((cleanup)) 在 GCC/Clang 中实现自动释放。
  */
-#define lv_GUARDED_SECTION(ctx) \
-    lv_RUNTIME_LOCK(ctx)
+#define lv_GUARDED_SECTION(ctx) lv_RUNTIME_LOCK(ctx)
 
 #ifdef __cplusplus
 }

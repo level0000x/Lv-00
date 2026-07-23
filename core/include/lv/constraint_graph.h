@@ -35,10 +35,10 @@
 extern "C" {
 #endif
 
+#include <stdatomic.h> /* v3.4.1: 原子操作支持多线程安全 */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdatomic.h> /* v3.4.1: 原子操作支持多线程安全 */
 
 #include "error_codes.h"
 #include "symbolic_coord.h"
@@ -61,10 +61,12 @@ typedef struct StreamContext StreamContext;
  */
 
 /** @brief 原子递增节点ID并返回新值（线程安全） */
-#define GRAPH_ATOMIC_NODE_ID_INCREMENT(graph) atomic_fetch_add_explicit(&((graph)->next_node_id), 1, memory_order_relaxed)
+#define GRAPH_ATOMIC_NODE_ID_INCREMENT(graph) \
+    atomic_fetch_add_explicit(&((graph)->next_node_id), 1, memory_order_relaxed)
 
 /** @brief 原子递增约束ID并返回新值（线程安全） */
-#define GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph) atomic_fetch_add_explicit(&((graph)->next_constraint_id), 1, memory_order_relaxed)
+#define GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph) \
+    atomic_fetch_add_explicit(&((graph)->next_constraint_id), 1, memory_order_relaxed)
 
 /* lv_DEPRECATED 宏统一由 lv.h 定义，此处不再重复声明。 */
 
@@ -211,7 +213,7 @@ struct Constraint {
     int *participants;
     int participant_count;
     int template_id;
-    bool is_active; /**< 约束生命周期标记：true=活跃，false=已废弃 */
+    bool is_active;       /**< 约束生命周期标记：true=活跃，false=已废弃 */
     double numeric_value; /**< 约束的数值参数（如距离、角度等），仅部分约束类型使用 */
     double satisfaction;  /**< 约束满意度 (0.0~1.0)，用于概率推理 */
 };
@@ -289,8 +291,8 @@ struct ConstraintGraph {
      * 每个 ConstraintGraph 实例拥有独立的错误轨道，
      * 多线程/多引擎场景下不再相互覆盖错误信息。
      * ============================================================ */
-    char *error_buffer;       /**< 图级内部错误消息缓冲区（256 字节，堆分配） */
-    char *serialize_buffer;   /**< 图级序列化错误消息缓冲区（256 字节，堆分配） */
+    char *error_buffer;     /**< 图级内部错误消息缓冲区（256 字节，堆分配） */
+    char *serialize_buffer; /**< 图级序列化错误消息缓冲区（256 字节，堆分配） */
 
     /* ============================================================
      * lvContext 指针 (v3.4.0: 统一错误系统迁移)
@@ -299,13 +301,13 @@ struct ConstraintGraph {
      * graph_set_error() 和 graph_get_error() 函数会优先使用 context
      * 中的错误存储，fallback 到 error_buffer。
      * ============================================================ */
-    struct lvContext *context;  /**< 关联的 lvContext 实例（可选，v3.4.0 新增） */
-    bool dirty;                    /**< 脏标记：约束被修改时置 true，需同步后置 false */
+    struct lvContext *context; /**< 关联的 lvContext 实例（可选，v3.4.0 新增） */
+    bool dirty;                /**< 脏标记：约束被修改时置 true，需同步后置 false */
 };
 
 typedef enum {
-    ADD_NODE_OK,            /* 添加成功 */
-    ADD_NODE_CONFLICT,      /* 添加冲突 */
+    ADD_NODE_OK,             /* 添加成功 */
+    ADD_NODE_CONFLICT,       /* 添加冲突 */
     ADD_NODE_INVALID_REGION, /* 无效区域 */
     ADD_NODE_ERROR           /* 添加错误 */
 } AddNodeResult;
@@ -367,7 +369,8 @@ lv_PUBLIC_API AddNodeResult graph_add_line_segment(ConstraintGraph *graph, int e
  * @param[in] segment_count        边界线段数量
  * @return 操作结果状态码
  */
-lv_PUBLIC_API AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segment_ids, int segment_count);
+lv_PUBLIC_API AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segment_ids,
+                                             int segment_count);
 
 /**
  * @brief 向约束图添加端口节点
@@ -378,7 +381,8 @@ lv_PUBLIC_API AddNodeResult graph_add_region(ConstraintGraph *graph, const int *
  * @param[in] parent_block_id  父函数块 ID
  * @return 操作结果状态码
  */
-lv_PUBLIC_API AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespace_depth, int parent_block_id);
+lv_PUBLIC_API AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespace_depth,
+                                           int parent_block_id);
 /**
  * @brief 向约束图添加函数块节点
  *
@@ -392,8 +396,9 @@ lv_PUBLIC_API AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type
  * @return 操作结果状态码
  *
  */
-lv_PUBLIC_API AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *internal_node_ids, int internal_count,
-                                       const int *input_port_ids, int input_count, const int *output_port_ids, int output_count);
+lv_PUBLIC_API AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *internal_node_ids,
+                                                     int internal_count, const int *input_port_ids, int input_count,
+                                                     const int *output_port_ids, int output_count);
 
 /**
  * @brief 获取最近一次通过 graph_add_* 成功添加的节点 ID
@@ -436,7 +441,8 @@ lv_PUBLIC_API AddConstraintResult graph_add_betweenness(ConstraintGraph *graph, 
  * @param[in] result_point_id 交点节点 ID
  * @return 操作结果状态码
  */
-lv_PUBLIC_API AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id, int line2_id, int result_point_id);
+lv_PUBLIC_API AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id, int line2_id,
+                                                         int result_point_id);
 
 /**
  * @brief 添加包含约束（内部对象完全包含在外部对象内）
@@ -485,7 +491,8 @@ lv_PUBLIC_API RemoveConstraintResult graph_remove_constraint(ConstraintGraph *gr
  * @param[in]  max_results 数组最大容量
  * @return 找到的约束数量
  */
-lv_PUBLIC_API int graph_find_constraints_involving(const ConstraintGraph *graph, int node_id, int *out_indices, int max_results);
+lv_PUBLIC_API int graph_find_constraints_involving(const ConstraintGraph *graph, int node_id, int *out_indices,
+                                                   int max_results);
 
 /**
  * @brief 检查约束图的相容性状态
@@ -509,7 +516,8 @@ lv_PUBLIC_API bool graph_check_compatibility(const ConstraintGraph *graph, lvCon
  * @param[in] n_parts      参与者数量
  * @return 冗余约束的索引，无冗余返回 -1
  */
-lv_PUBLIC_API int graph_detect_redundancy(const ConstraintGraph *graph, ConstraintType type, const int *participants, int n_parts);
+lv_PUBLIC_API int graph_detect_redundancy(const ConstraintGraph *graph, ConstraintType type, const int *participants,
+                                          int n_parts);
 
 /**
  * @brief 获取约束图中的节点总数
@@ -580,8 +588,8 @@ lv_PUBLIC_API void graph_constraint_index_insert(ConstraintGraph *graph, Constra
  * @param[in] coord_count 坐标数量
  * @return 新创建的节点指针，失败返回 NULL
  */
-lv_PUBLIC_API GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType type, SymbolicCoord **coords,
-                                 int coord_count);
+lv_PUBLIC_API GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType type,
+                                               SymbolicCoord **coords, int coord_count);
 
 /**
  * @brief 使用指定 ID 添加约束（用于反序列化）
@@ -594,7 +602,7 @@ lv_PUBLIC_API GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_
  * @return 新创建的约束指针，失败返回 NULL
  */
 lv_PUBLIC_API Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_id, ConstraintType type,
-                                         const int *participants, int participant_count);
+                                                       const int *participants, int participant_count);
 
 /**
  * @brief 创建空的约束图
@@ -638,10 +646,10 @@ lv_PUBLIC_API void graph_set_stream_context(StreamContext *ctx);
  * 描述一个跨越函数块边界的约束，包含约束 ID、类型和涉及的节点。
  */
 typedef struct {
-    int constraint_id; /**< 约束 ID */
+    int constraint_id;   /**< 约束 ID */
     ConstraintType type; /**< 约束类型 */
-    int node_ids[2]; /**< 涉及的节点 ID（内部节点和外部节点） */
-    int node_count; /**< 涉及的节点数量 */
+    int node_ids[2];     /**< 涉及的节点 ID（内部节点和外部节点） */
+    int node_count;      /**< 涉及的节点数量 */
 } CrossBoundaryConstraint;
 
 /**
@@ -657,9 +665,10 @@ typedef struct {
  * @param[out] out_count       输出：找到的跨边界约束数量
  * @return 跨边界约束数组（调用者需 free），无跨边界约束返回 NULL
  */
-lv_PUBLIC_API CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph, const int *internal_node_ids,
-                                                         int internal_count, const int *port_ids, int port_count,
-                                                         int *out_count);
+lv_PUBLIC_API CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
+                                                                       const int *internal_node_ids, int internal_count,
+                                                                       const int *port_ids, int port_count,
+                                                                       int *out_count);
 
 /**
  * @brief 检测图中的冗余约束
@@ -681,7 +690,8 @@ lv_PUBLIC_API int *graph_detect_redundant_constraints(const ConstraintGraph *gra
  *         调用者需逐组释放，然后释放数组本身。
  *         无冲突或出错返回 NULL。
  */
-lv_PUBLIC_API int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_count, int **out_conflict_sizes);
+lv_PUBLIC_API int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_count,
+                                           int **out_conflict_sizes);
 
 /**
  * @brief 验证区域的闭合性（边界线段是否形成封闭环路）
@@ -859,7 +869,8 @@ lv_PUBLIC_API char *graph_export_dot(const ConstraintGraph *graph, const DOTExpo
  *
  * @note 内部调用 graph_export_dot() 后写入文件
  */
-lv_PUBLIC_API int graph_export_dot_file(const ConstraintGraph *graph, const DOTExportConfig *config, const char *filepath);
+lv_PUBLIC_API int graph_export_dot_file(const ConstraintGraph *graph, const DOTExportConfig *config,
+                                        const char *filepath);
 
 /**
  * @brief 快捷导出：约束图 → DOT → 渲染为 SVG（需系统安装 graphviz）
@@ -877,7 +888,8 @@ lv_PUBLIC_API int graph_export_dot_file(const ConstraintGraph *graph, const DOTE
  *
  * @note 需系统 PATH 中有 graphviz 的 dot 命令
  */
-lv_PUBLIC_API int graph_export_dot_to_svg(const ConstraintGraph *graph, const DOTExportConfig *config, const char *output_svg);
+lv_PUBLIC_API int graph_export_dot_to_svg(const ConstraintGraph *graph, const DOTExportConfig *config,
+                                          const char *output_svg);
 
 /* ============================================================
  * 约束生命周期管理与脏标记同步 (v3.5.0)

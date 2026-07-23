@@ -12,14 +12,16 @@
  * @author Lv-00 Project
  */
 
-#include "lv/interop.h"
-#include "lv_utils.h"
-#include "lv/lv_internal.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "lv/interop.h"
+#include "lv/lv_internal.h"
+
+#include "lv_utils.h"
 
 /**
  * @brief Lv-00 证明步骤类型枚举（Lean 4 映射版）
@@ -28,15 +30,15 @@
  * 相比 Coq 版本增加了 EXACT、HAVE、CALC 三种步骤类型。
  */
 typedef enum {
-    lv_STEP_ADD_NODE = 0,      /**< 添加节点 → intro */
-    lv_STEP_ADD_CONSTRAINT,    /**< 添加约束 → constructor */
-    lv_STEP_REWRITE,           /**< 重写 → rw */
-    lv_STEP_FUNCTION_APP,      /**< 函数应用 → apply */
-    lv_STEP_EXACT,             /**< 精确匹配 → exact */
-    lv_STEP_HAVE,              /**< 中间引理 → have */
-    lv_STEP_CALC,              /**< 计算链 → calc */
-    lv_STEP_NORMALIZATION,     /**< 规范化 → simp */
-    lv_STEP_ORACLE             /**< 外部预言 → sorry */
+    lv_STEP_ADD_NODE = 0,   /**< 添加节点 → intro */
+    lv_STEP_ADD_CONSTRAINT, /**< 添加约束 → constructor */
+    lv_STEP_REWRITE,        /**< 重写 → rw */
+    lv_STEP_FUNCTION_APP,   /**< 函数应用 → apply */
+    lv_STEP_EXACT,          /**< 精确匹配 → exact */
+    lv_STEP_HAVE,           /**< 中间引理 → have */
+    lv_STEP_CALC,           /**< 计算链 → calc */
+    lv_STEP_NORMALIZATION,  /**< 规范化 → simp */
+    lv_STEP_ORACLE          /**< 外部预言 → sorry */
 } lvProofStepType;
 
 /**
@@ -45,9 +47,9 @@ typedef enum {
  * 表示 Lean 4 证明中的单个步骤，包含类型、描述文本和序号。
  */
 typedef struct {
-    int type;                     /**< 步骤类型（lvProofStepType） */
-    char description[512];       /**< 步骤描述（tactic 名称） */
-    int id;                      /**< 步骤编号（按导入顺序） */
+    int type;              /**< 步骤类型（lvProofStepType） */
+    char description[512]; /**< 步骤描述（tactic 名称） */
+    int id;                /**< 步骤编号（按导入顺序） */
 } lvProofStep;
 
 /**
@@ -57,38 +59,33 @@ typedef struct {
  * 包含定理名称和动态增长的步骤数组。
  */
 typedef struct {
-    char theorem_name[256];      /**< 定理名称 */
-    int step_count;              /**< 当前步骤数量 */
-    int step_capacity;           /**< 步骤数组容量 */
-    lvProofStep *steps;          /**< 步骤动态数组 */
+    char theorem_name[256]; /**< 定理名称 */
+    int step_count;         /**< 当前步骤数量 */
+    int step_capacity;      /**< 步骤数组容量 */
+    lvProofStep *steps;     /**< 步骤动态数组 */
 } lvLean4Proof;
 
 /* 映射表大小常量 */
-#define LEAN4_TACTIC_MAP_COUNT   9
+#define LEAN4_TACTIC_MAP_COUNT 9
 #define LEAN4_REVERSE_MAP_COUNT 35
 #define LEAN4_VALID_TACTICS_COUNT 31
 
 /* Lean 4 proof export: 遍历 Lv-00 证明树并生成 Lean 4 tactic 脚本 */
 static int lean4_export_proof(void *proof, char *output, int output_size) {
-    if (!proof || !output || output_size <= 0) return -1;
+    if (!proof || !output || output_size <= 0)
+        return -1;
 
-    lvLean4Proof *p = (lvLean4Proof *)proof;
+    lvLean4Proof *p = (lvLean4Proof *) proof;
 
     /* 步骤类型到 Lean 4 tactic 的映射表 */
     static const struct {
         int step_type;
         const char *tactic;
-    } tactic_map[] = {
-        { lv_STEP_ADD_NODE,        "intro" },
-        { lv_STEP_ADD_CONSTRAINT,   "constructor" },
-        { lv_STEP_REWRITE,         "rw" },
-        { lv_STEP_FUNCTION_APP,    "apply" },
-        { lv_STEP_EXACT,           "exact" },
-        { lv_STEP_HAVE,            "have" },
-        { lv_STEP_CALC,            "calc" },
-        { lv_STEP_NORMALIZATION,   "simp" },
-        { lv_STEP_ORACLE,          "sorry" }
-    };
+    } tactic_map[] = {{lv_STEP_ADD_NODE, "intro"}, {lv_STEP_ADD_CONSTRAINT, "constructor"},
+                      {lv_STEP_REWRITE, "rw"},     {lv_STEP_FUNCTION_APP, "apply"},
+                      {lv_STEP_EXACT, "exact"},    {lv_STEP_HAVE, "have"},
+                      {lv_STEP_CALC, "calc"},      {lv_STEP_NORMALIZATION, "simp"},
+                      {lv_STEP_ORACLE, "sorry"}};
     int tactic_count = LEAN4_TACTIC_MAP_COUNT;
 
     /* 输出头 */
@@ -96,19 +93,21 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
         "import lv.HilbertAxioms\n\n"
         "theorem ";
     const char *footer = "\n";
-    int header_len = (int)strlen(header);
-    int footer_len = (int)strlen(footer);
+    int header_len = (int) strlen(header);
+    int footer_len = (int) strlen(footer);
 
     /* 计算可用空间 */
     int avail = output_size - header_len - footer_len - 1;
-    if (avail < 64) return -1;
+    if (avail < 64)
+        return -1;
 
     memcpy(output, header, header_len);
     int pos = header_len;
 
     /* 写入定理名称 */
-    int name_len = (int)strlen(p->theorem_name);
-    if (pos + name_len + 32 >= output_size) return -1;
+    int name_len = (int) strlen(p->theorem_name);
+    if (pos + name_len + 32 >= output_size)
+        return -1;
     memcpy(output + pos, p->theorem_name, name_len);
     pos += name_len;
 
@@ -129,15 +128,17 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
         }
 
         /* 检查剩余空间 */
-        int tac_len = (int)strlen(tac);
-        if (pos + tac_len + 8 >= output_size) return -1;
+        int tac_len = (int) strlen(tac);
+        if (pos + tac_len + 8 >= output_size)
+            return -1;
 
         /* 写入 tactic（缩进两格） */
         pos += snprintf(output + pos, output_size - pos, "  %s\n", tac);
     }
 
     /* 写入尾部 */
-    if (pos + footer_len >= output_size) return -1;
+    if (pos + footer_len >= output_size)
+        return -1;
     memcpy(output + pos, footer, footer_len + 1);
     return 0;
 }
@@ -145,15 +146,16 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
 /* Lean 4 proof import: 解析 Lean 4 tactic 脚本并转换为 Lv-00 证明树 */
 
 /* 辅助：向证明结构体添加一个步骤，自动处理扩容 */
-static int lean4_add_step(lvLean4Proof *p, int step_type,
-                           const char *desc, int desc_len) {
-    if (!p || step_type < 0) return -1;
+static int lean4_add_step(lvLean4Proof *p, int step_type, const char *desc, int desc_len) {
+    if (!p || step_type < 0)
+        return -1;
     if (p->step_count >= p->step_capacity) {
-        if (p->step_capacity > INT_MAX / 2) return -1;
+        if (p->step_capacity > INT_MAX / 2)
+            return -1;
         int new_cap = p->step_capacity * 2;
-        lvProofStep *new_steps = (lvProofStep *)lv_realloc(
-            p->steps, new_cap * sizeof(lvProofStep));
-        if (!new_steps) return -1;
+        lvProofStep *new_steps = (lvProofStep *) lv_realloc(p->steps, new_cap * sizeof(lvProofStep));
+        if (!new_steps)
+            return -1;
         p->steps = new_steps;
         p->step_capacity = new_cap;
     }
@@ -162,8 +164,8 @@ static int lean4_add_step(lvLean4Proof *p, int step_type,
     step->id = p->step_count;
     if (desc && desc_len > 0) {
         int copy_len = desc_len;
-        if (copy_len >= (int)sizeof(step->description))
-            copy_len = (int)sizeof(step->description) - 1;
+        if (copy_len >= (int) sizeof(step->description))
+            copy_len = (int) sizeof(step->description) - 1;
         memcpy(step->description, desc, copy_len);
         step->description[copy_len] = '\0';
     } else {
@@ -179,47 +181,46 @@ static int lean4_lookup_tactic(const char *name, int name_len) {
         const char *tactic;
         int step_type;
     } reverse_map[] = {
-        { "intro",       lv_STEP_ADD_NODE },
-        { "constructor", lv_STEP_ADD_CONSTRAINT },
-        { "cases",       lv_STEP_ADD_CONSTRAINT },
-        { "induction",   lv_STEP_ADD_CONSTRAINT },
-        { "rw",          lv_STEP_REWRITE },
-        { "rewrite",     lv_STEP_REWRITE },
-        { "apply",       lv_STEP_FUNCTION_APP },
-        { "exact",       lv_STEP_EXACT },
-        { "have",        lv_STEP_HAVE },
-        { "calc",        lv_STEP_CALC },
-        { "simp",        lv_STEP_NORMALIZATION },
-        { "norm",        lv_STEP_NORMALIZATION },
-        { "ring",        lv_STEP_NORMALIZATION },
-        { "linarith",    lv_STEP_NORMALIZATION },
-        { "omega",       lv_STEP_NORMALIZATION },
-        { "rfl",         lv_STEP_EXACT },
-        { "refl",        lv_STEP_EXACT },
-        { "trivial",     lv_STEP_EXACT },
-        { "assumption",  lv_STEP_EXACT },
-        { "sorry",       lv_STEP_ORACLE },
-        { "admit",       lv_STEP_ORACLE },
-        { "funext",      lv_STEP_FUNCTION_APP },
-        { "subst",       lv_STEP_REWRITE },
-        { "conv",        lv_STEP_REWRITE },
-        { "show",        lv_STEP_HAVE },
-        { "obtain",      lv_STEP_HAVE },
-        { "suffices",    lv_STEP_HAVE },
-        { "left",        lv_STEP_ADD_CONSTRAINT },
-        { "right",       lv_STEP_ADD_CONSTRAINT },
-        { "split",       lv_STEP_ADD_CONSTRAINT },
-        { "first",       lv_STEP_ORACLE },
-        { "skip",        lv_STEP_ORACLE },
-        { "done",        lv_STEP_EXACT },
-        { "at",          lv_STEP_REWRITE },
-        { "let",         lv_STEP_HAVE },
-        { "from",        lv_STEP_FUNCTION_APP },
+        {"intro", lv_STEP_ADD_NODE},
+        {"constructor", lv_STEP_ADD_CONSTRAINT},
+        {"cases", lv_STEP_ADD_CONSTRAINT},
+        {"induction", lv_STEP_ADD_CONSTRAINT},
+        {"rw", lv_STEP_REWRITE},
+        {"rewrite", lv_STEP_REWRITE},
+        {"apply", lv_STEP_FUNCTION_APP},
+        {"exact", lv_STEP_EXACT},
+        {"have", lv_STEP_HAVE},
+        {"calc", lv_STEP_CALC},
+        {"simp", lv_STEP_NORMALIZATION},
+        {"norm", lv_STEP_NORMALIZATION},
+        {"ring", lv_STEP_NORMALIZATION},
+        {"linarith", lv_STEP_NORMALIZATION},
+        {"omega", lv_STEP_NORMALIZATION},
+        {"rfl", lv_STEP_EXACT},
+        {"refl", lv_STEP_EXACT},
+        {"trivial", lv_STEP_EXACT},
+        {"assumption", lv_STEP_EXACT},
+        {"sorry", lv_STEP_ORACLE},
+        {"admit", lv_STEP_ORACLE},
+        {"funext", lv_STEP_FUNCTION_APP},
+        {"subst", lv_STEP_REWRITE},
+        {"conv", lv_STEP_REWRITE},
+        {"show", lv_STEP_HAVE},
+        {"obtain", lv_STEP_HAVE},
+        {"suffices", lv_STEP_HAVE},
+        {"left", lv_STEP_ADD_CONSTRAINT},
+        {"right", lv_STEP_ADD_CONSTRAINT},
+        {"split", lv_STEP_ADD_CONSTRAINT},
+        {"first", lv_STEP_ORACLE},
+        {"skip", lv_STEP_ORACLE},
+        {"done", lv_STEP_EXACT},
+        {"at", lv_STEP_REWRITE},
+        {"let", lv_STEP_HAVE},
+        {"from", lv_STEP_FUNCTION_APP},
     };
     int count = LEAN4_REVERSE_MAP_COUNT;
     for (int j = 0; j < count; j++) {
-        if ((int)strlen(reverse_map[j].tactic) == name_len &&
-            strncmp(name, reverse_map[j].tactic, name_len) == 0) {
+        if ((int) strlen(reverse_map[j].tactic) == name_len && strncmp(name, reverse_map[j].tactic, name_len) == 0) {
             return reverse_map[j].step_type;
         }
     }
@@ -227,48 +228,65 @@ static int lean4_lookup_tactic(const char *name, int name_len) {
 }
 
 /* 辅助：提取标识符（字母/数字/下划线/点/单引号） */
-static const char *lean4_extract_ident(const char *p, const char **ident_start,
-                                        const char **ident_end) {
-    while (p && isspace((unsigned char)*p)) p++;
+static const char *lean4_extract_ident(const char *p, const char **ident_start, const char **ident_end) {
+    while (p && isspace((unsigned char) *p))
+        p++;
     *ident_start = p;
-    while (*p && (isalnum((unsigned char)*p) || *p == '_' || *p == '.' ||
-                  *p == '\'' || *p == '!')) p++;
+    while (*p && (isalnum((unsigned char) *p) || *p == '_' || *p == '.' || *p == '\'' || *p == '!'))
+        p++;
     *ident_end = p;
     return p;
 }
 
 /* 辅助：跳过括号内的内容（包括嵌套），返回结束位置 */
 static const char *lean4_skip_bracketed(const char *p, char open, char close) {
-    if (!p || *p != open) return p;
+    if (!p || *p != open)
+        return p;
     int depth = 0;
     for (; *p; p++) {
-        if (*p == open) depth++;
-        else if (*p == close) { depth--; if (depth == 0) { p++; break; } }
-        else if (*p == '"') {
+        if (*p == open)
+            depth++;
+        else if (*p == close) {
+            depth--;
+            if (depth == 0) {
+                p++;
+                break;
+            }
+        } else if (*p == '"') {
             p++;
-            while (*p && *p != '"') { if (*p == '\\' && *(p+1)) p++; p++; }
+            while (*p && *p != '"') {
+                if (*p == '\\' && *(p + 1))
+                    p++;
+                p++;
+            }
         }
     }
     return p;
 }
 
 /* 递归解析 tactic 脚本，处理嵌套 by 块、match 表达式、. 链 */
-static void lean4_parse_tactics(const char *start, const char *end,
-                                 lvLean4Proof *p, int base_indent) {
+static void lean4_parse_tactics(const char *start, const char *end, lvLean4Proof *p, int base_indent) {
     const char *pos = start;
     while (pos < end) {
         /* 跳过空白和空行 */
-        while (pos < end && isspace((unsigned char)*pos)) pos++;
-        if (pos >= end) break;
+        while (pos < end && isspace((unsigned char) *pos))
+            pos++;
+        if (pos >= end)
+            break;
 
         /* 计算当前缩进级别 */
         int cur_indent = 0;
-        while (pos < end && *pos == ' ') { cur_indent++; pos++; }
-        if (pos >= end) break;
+        while (pos < end && *pos == ' ') {
+            cur_indent++;
+            pos++;
+        }
+        if (pos >= end)
+            break;
 
         /* 跳过注释行 */
         if (*pos == '-' && *(pos + 1) == '-') {
-            while (pos < end && *pos != '\n') pos++;
+            while (pos < end && *pos != '\n')
+                pos++;
             continue;
         }
 
@@ -278,11 +296,12 @@ static void lean4_parse_tactics(const char *start, const char *end,
 
         if (ident_end <= ident_start) {
             /* 无法识别的 token，跳过到行尾 */
-            while (pos < end && *pos != '\n') pos++;
+            while (pos < end && *pos != '\n')
+                pos++;
             continue;
         }
 
-        int ident_len = (int)(ident_end - ident_start);
+        int ident_len = (int) (ident_end - ident_start);
 
         /* 处理 match 表达式：match h with | ... => ... */
         if (ident_len == 5 && strncmp(ident_start, "match", 5) == 0) {
@@ -290,8 +309,7 @@ static void lean4_parse_tactics(const char *start, const char *end,
             /* 跳过 match 目标表达式（到 "with"） */
             const char *with_kw = NULL;
             for (const char *s = pos; s + 5 < end; s++) {
-                if (isspace((unsigned char)s[0]) && strncmp(s + 1, "with", 4) == 0 &&
-                    isspace((unsigned char)s[5])) {
+                if (isspace((unsigned char) s[0]) && strncmp(s + 1, "with", 4) == 0 && isspace((unsigned char) s[5])) {
                     with_kw = s + 6;
                     break;
                 }
@@ -300,8 +318,10 @@ static void lean4_parse_tactics(const char *start, const char *end,
                 pos = with_kw;
                 /* 解析 match 分支：| pattern => tactic */
                 while (pos < end) {
-                    while (pos < end && isspace((unsigned char)*pos)) pos++;
-                    if (pos >= end) break;
+                    while (pos < end && isspace((unsigned char) *pos))
+                        pos++;
+                    if (pos >= end)
+                        break;
                     if (*pos == '|') {
                         pos++;
                         /* 跳过 pattern */
@@ -310,8 +330,8 @@ static void lean4_parse_tactics(const char *start, const char *end,
                         while (arrow < end) {
                             if (strncmp(arrow, "=>", 2) == 0) {
                                 /* 检查 => 前后不是字符串的一部分 */
-                                if ((arrow == pos || isspace((unsigned char)*(arrow-1)) ||
-                                     *(arrow-1) == ':' || *(arrow-1) == '_') &&
+                                if ((arrow == pos || isspace((unsigned char) *(arrow - 1)) || *(arrow - 1) == ':' ||
+                                     *(arrow - 1) == '_') &&
                                     (arrow[2] == ' ' || arrow[2] == '\n')) {
                                     found_arrow = 1;
                                     break;
@@ -321,10 +341,10 @@ static void lean4_parse_tactics(const char *start, const char *end,
                         }
                         if (found_arrow) {
                             pos = arrow + 2;
-                            while (pos < end && isspace((unsigned char)*pos)) pos++;
+                            while (pos < end && isspace((unsigned char) *pos))
+                                pos++;
                             /* 检查分支 tactic 是否是嵌套的 by 块 */
-                            if (strncmp(pos, "by", 2) == 0 &&
-                                (pos[2] == ' ' || pos[2] == '\n' || pos[2] == '\t')) {
+                            if (strncmp(pos, "by", 2) == 0 && (pos[2] == ' ' || pos[2] == '\n' || pos[2] == '\t')) {
                                 pos += 2;
                                 /* 找到嵌套 by 块的结束（缩进恢复或文件结束） */
                                 const char *nested_start = pos;
@@ -332,14 +352,22 @@ static void lean4_parse_tactics(const char *start, const char *end,
                                 const char *nested_end = pos;
                                 while (nested_end < end) {
                                     const char *nl = strchr(nested_end, '\n');
-                                    if (!nl) { nested_end = end; break; }
+                                    if (!nl) {
+                                        nested_end = end;
+                                        break;
+                                    }
                                     nested_end = nl + 1;
                                     /* 检查下一行的缩进 */
                                     int next_indent = 0;
                                     const char *check = nested_end;
-                                    while (check < end && *check == ' ') { next_indent++; check++; }
-                                    if (check >= end) break;
-                                    if (*check == '\n' || *check == '\r') continue;
+                                    while (check < end && *check == ' ') {
+                                        next_indent++;
+                                        check++;
+                                    }
+                                    if (check >= end)
+                                        break;
+                                    if (*check == '\n' || *check == '\r')
+                                        continue;
                                     if (next_indent <= cur_indent) {
                                         nested_end = nl;
                                         break;
@@ -351,19 +379,22 @@ static void lean4_parse_tactics(const char *start, const char *end,
                             } else {
                                 /* 单行 tactic */
                                 const char *tac_line_end = pos;
-                                while (tac_line_end < end && *tac_line_end != '\n') tac_line_end++;
+                                while (tac_line_end < end && *tac_line_end != '\n')
+                                    tac_line_end++;
                                 lean4_parse_tactics(pos, tac_line_end, p, cur_indent + 2);
                                 pos = tac_line_end;
                             }
                         } else {
                             /* 没找到 =>，跳过到行尾 */
-                            while (pos < end && *pos != '\n') pos++;
+                            while (pos < end && *pos != '\n')
+                                pos++;
                         }
                     } else if (*pos == '\n' || *pos == '\r') {
                         pos++;
                     } else {
                         /* match 体中未识别内容，跳过 */
-                        while (pos < end && *pos != '\n' && *pos != '|') pos++;
+                        while (pos < end && *pos != '\n' && *pos != '|')
+                            pos++;
                     }
                 }
             }
@@ -377,13 +408,21 @@ static void lean4_parse_tactics(const char *start, const char *end,
             const char *nested_end = pos;
             while (nested_end < end) {
                 const char *nl = strchr(nested_end, '\n');
-                if (!nl) { nested_end = end; break; }
+                if (!nl) {
+                    nested_end = end;
+                    break;
+                }
                 nested_end = nl + 1;
                 int next_indent = 0;
                 const char *check = nested_end;
-                while (check < end && *check == ' ') { next_indent++; check++; }
-                if (check >= end) break;
-                if (*check == '\n' || *check == '\r') continue;
+                while (check < end && *check == ' ') {
+                    next_indent++;
+                    check++;
+                }
+                if (check >= end)
+                    break;
+                if (*check == '\n' || *check == '\r')
+                    continue;
                 if (next_indent <= cur_indent) {
                     nested_end = nl;
                     break;
@@ -405,8 +444,10 @@ static void lean4_parse_tactics(const char *start, const char *end,
 
         /* 跳过当前 tactic 的参数（括号内容） */
         while (pos < end) {
-            while (pos < end && isspace((unsigned char)*pos)) pos++;
-            if (pos >= end) break;
+            while (pos < end && isspace((unsigned char) *pos))
+                pos++;
+            if (pos >= end)
+                break;
             if (*pos == '(') {
                 pos = lean4_skip_bracketed(pos, '(', ')');
             } else if (*pos == '[') {
@@ -419,11 +460,9 @@ static void lean4_parse_tactics(const char *start, const char *end,
                 const char *chain_start = NULL, *chain_end = NULL;
                 pos = lean4_extract_ident(pos, &chain_start, &chain_end);
                 if (chain_end > chain_start) {
-                    int chain_type = lean4_lookup_tactic(chain_start,
-                                                          (int)(chain_end - chain_start));
+                    int chain_type = lean4_lookup_tactic(chain_start, (int) (chain_end - chain_start));
                     if (chain_type >= 0) {
-                        lean4_add_step(p, chain_type, chain_start,
-                                        (int)(chain_end - chain_start));
+                        lean4_add_step(p, chain_type, chain_start, (int) (chain_end - chain_start));
                     }
                 }
             } else if (*pos == '\n' || *pos == '\r') {
@@ -437,45 +476,58 @@ static void lean4_parse_tactics(const char *start, const char *end,
 }
 
 static int lean4_import_proof(const char *input, void **proof) {
-    if (!input || !proof) return -1;
+    if (!input || !proof)
+        return -1;
 
     /* 验证输入非空 */
-    if (strlen(input) == 0) return -1;
+    if (strlen(input) == 0)
+        return -1;
 
     /* 查找 theorem 关键字 */
     const char *theorem_kw = strstr(input, "theorem");
-    if (!theorem_kw) return -1;
+    if (!theorem_kw)
+        return -1;
 
     /* 提取定理名（theorem 后的第一个标识符） */
     const char *name_start = theorem_kw + 7; /* 跳过 "theorem" */
-    while (*name_start && isspace((unsigned char)*name_start)) name_start++;
+    while (*name_start && isspace((unsigned char) *name_start))
+        name_start++;
     const char *name_end = name_start;
-    while (*name_end && !isspace((unsigned char)*name_end) && *name_end != ':') name_end++;
+    while (*name_end && !isspace((unsigned char) *name_end) && *name_end != ':')
+        name_end++;
 
-    if (name_end == name_start) return -1;
+    if (name_end == name_start)
+        return -1;
 
     /* 提取 tactic 脚本（":= by" 之后的内容） */
     const char *by_kw = strstr(input, ":= by");
-    if (!by_kw) return -1;
+    if (!by_kw)
+        return -1;
     const char *script_start = by_kw + 5; /* 跳过 ":= by" */
-    while (*script_start && isspace((unsigned char)*script_start)) script_start++;
+    while (*script_start && isspace((unsigned char) *script_start))
+        script_start++;
 
     /* 分配证明结构体 */
-    lvLean4Proof *p = (lvLean4Proof *)lv_calloc(1, sizeof(lvLean4Proof));
-    if (!p) return -1;
+    lvLean4Proof *p = (lvLean4Proof *) lv_calloc(1, sizeof(lvLean4Proof));
+    if (!p)
+        return -1;
 
     /* 保存定理名 */
     {
-        size_t nlen = (size_t)(name_end - name_start);
-        if (nlen >= sizeof(p->theorem_name)) nlen = sizeof(p->theorem_name) - 1;
+        size_t nlen = (size_t) (name_end - name_start);
+        if (nlen >= sizeof(p->theorem_name))
+            nlen = sizeof(p->theorem_name) - 1;
         memcpy(p->theorem_name, name_start, nlen);
         p->theorem_name[nlen] = '\0';
     }
 
     /* 初始化步骤数组 */
     p->step_capacity = 16;
-    p->steps = (lvProofStep *)lv_calloc(p->step_capacity, sizeof(lvProofStep));
-    if (!p->steps) { lv_free((void **)&(p)); return -1; }
+    p->steps = (lvProofStep *) lv_calloc(p->step_capacity, sizeof(lvProofStep));
+    if (!p->steps) {
+        lv_free((void **) &(p));
+        return -1;
+    }
 
     /* 确定脚本结束位置（到下一个顶层关键字或文件末尾） */
     const char *script_end = script_start + strlen(script_start);
@@ -489,42 +541,48 @@ static int lean4_import_proof(const char *input, void **proof) {
 
 /* Lean 4 validation: 基本语法校验（花括号平衡、有效 tactic 名、类型签名） */
 static int lean4_validate(const char *input) {
-    if (!input) return 0;
+    if (!input)
+        return 0;
 
     /* 检查输入非空 */
-    if (strlen(input) == 0) return 0;
+    if (strlen(input) == 0)
+        return 0;
 
     /* 检查花括号平衡 */
     int brace_depth = 0;
     for (const char *p = input; *p; p++) {
-        if (*p == '{') brace_depth++;
+        if (*p == '{')
+            brace_depth++;
         else if (*p == '}') {
             brace_depth--;
-            if (brace_depth < 0) return 0; /* 花括号不匹配 */
+            if (brace_depth < 0)
+                return 0; /* 花括号不匹配 */
         }
     }
-    if (brace_depth != 0) return 0; /* 花括号不平衡 */
+    if (brace_depth != 0)
+        return 0; /* 花括号不平衡 */
 
     /* 检查是否包含 theorem 关键字 */
-    if (!strstr(input, "theorem")) return 0;
+    if (!strstr(input, "theorem"))
+        return 0;
 
     /* 检查定理声明是否包含类型签名（冒号后跟类型表达式） */
     const char *thm = strstr(input, "theorem");
     if (thm) {
         const char *colon = strchr(thm, ':');
-        if (!colon) return 0; /* 缺少类型签名 */
+        if (!colon)
+            return 0; /* 缺少类型签名 */
         /* 确认冒号后不是 ":="（即确实有类型声明） */
-        if (colon[1] == '=' && colon[2] == ' ') return 0;
+        if (colon[1] == '=' && colon[2] == ' ')
+            return 0;
     }
 
     /* 检查有效 tactic 名称（常见 Lean 4 tactic 列表） */
-    static const char *valid_tactics[] = {
-        "intro", "constructor", "rw", "rewrite", "apply", "exact",
-        "have", "calc", "simp", "cases", "induction", "refl",
-        "rfl", "trivial", "sorry", "assumption", "exact", "by",
-        "fun", "let", "show", "from", "obtain", "suffices",
-        "at", "left", "right", "split", "first", "skip", "done"
-    };
+    static const char *valid_tactics[] = {"intro", "constructor", "rw",       "rewrite",   "apply", "exact", "have",
+                                          "calc",  "simp",        "cases",    "induction", "refl",  "rfl",   "trivial",
+                                          "sorry", "assumption",  "exact",    "by",        "fun",   "let",   "show",
+                                          "from",  "obtain",      "suffices", "at",        "left",  "right", "split",
+                                          "first", "skip",        "done"};
     int valid_count = LEAN4_VALID_TACTICS_COUNT;
 
     /* 如果包含 ":= by"，检查 by 后是否有已知 tactic */
@@ -539,7 +597,8 @@ static int lean4_validate(const char *input) {
             }
         }
         /* 如果 tactic 块非空但未找到已知 tactic，仍然通过（可能是自定义 tactic） */
-        if (!found_valid) return 0;
+        if (!found_valid)
+            return 0;
     }
 
     return 1; /* 校验通过 */
@@ -547,7 +606,8 @@ static int lean4_validate(const char *input) {
 
 /* 注册 Lean 4 插件 */
 int lv_register_lean4_plugin(lvInteropManager *mgr) {
-    if (!mgr) return -1;
+    if (!mgr)
+        return -1;
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "lean4", sizeof(plugin.name) - 1);

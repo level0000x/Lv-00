@@ -37,16 +37,18 @@
  * @return true 如果已超时，false 否则
  */
 static bool is_search_timed_out(const lvRuleEngine *engine, uint64_t start_time_us) {
-    if (engine->timeout_ms == 0) return false;
+    if (engine->timeout_ms == 0)
+        return false;
     uint64_t elapsed_us = lv_circuit_breaker_now_us() - start_time_us;
-    return elapsed_us >= (uint64_t)engine->timeout_ms * 1000ULL;
+    return elapsed_us >= (uint64_t) engine->timeout_ms * 1000ULL;
 }
 
 /**
  * @brief Safe string duplication using lv_strdup
  */
 static char *safe_strdup(const char *s) {
-    if (!s) return NULL;
+    if (!s)
+        return NULL;
     return lv_strdup(s);
 }
 
@@ -77,13 +79,12 @@ static void sort_rules_by_weight(lvProofRule **rules, int count) {
  * @param max_out Maximum number of rules to collect
  * @return Number of applicable rules found
  */
-static int collect_applicable_rules(const lvRuleEngine *engine,
-                                     const lvProofState *state,
-                                     lvProofRule **out,
-                                     int max_out) {
+static int collect_applicable_rules(const lvRuleEngine *engine, const lvProofState *state, lvProofRule **out,
+                                    int max_out) {
     int count = 0;
     int i;
-    if (!engine || !state || !out || max_out <= 0) return 0;
+    if (!engine || !state || !out || max_out <= 0)
+        return 0;
 
     for (i = 0; i < engine->rule_count && count < max_out; i++) {
         lvProofRule *rule = engine->rule_set[i];
@@ -99,10 +100,8 @@ static int collect_applicable_rules(const lvRuleEngine *engine,
 /**
  * @brief Internal recursive search for best-first strategy
  */
-static lvSearchResultStatus search_best_first(lvRuleEngine *engine,
-                                                 lvProofState *state,
-                                                 int depth,
-                                                 uint64_t start_time_us) {
+static lvSearchResultStatus search_best_first(lvRuleEngine *engine, lvProofState *state, int depth,
+                                              uint64_t start_time_us) {
     lvProofRule *applicable[lv_RULE_SET_CAPACITY];
     int count, i;
 
@@ -150,8 +149,8 @@ static lvSearchResultStatus search_best_first(lvRuleEngine *engine,
 
             /* Recurse or finish immediately when the rule closes all goals. */
             lvSearchResultStatus result = proof_state_is_complete(state)
-                ? SEARCH_RESULT_FOUND
-                : search_best_first(engine, state, depth + 1, start_time_us);
+                                              ? SEARCH_RESULT_FOUND
+                                              : search_best_first(engine, state, depth + 1, start_time_us);
             if (result == SEARCH_RESULT_FOUND) {
                 state->current_depth = saved_depth;
                 return SEARCH_RESULT_FOUND;
@@ -200,10 +199,8 @@ static lvSearchResultStatus search_best_first(lvRuleEngine *engine,
 /**
  * @brief Internal recursive search for depth-first strategy
  */
-static lvSearchResultStatus search_depth_first(lvRuleEngine *engine,
-                                                  lvProofState *state,
-                                                  int depth,
-                                                  uint64_t start_time_us) {
+static lvSearchResultStatus search_depth_first(lvRuleEngine *engine, lvProofState *state, int depth,
+                                               uint64_t start_time_us) {
     lvProofRule *applicable[lv_RULE_SET_CAPACITY];
     int count, i;
 
@@ -238,8 +235,8 @@ static lvSearchResultStatus search_depth_first(lvRuleEngine *engine,
             proof_state_record_rule(state, rule->name);
 
             lvSearchResultStatus result = proof_state_is_complete(state)
-                ? SEARCH_RESULT_FOUND
-                : search_depth_first(engine, state, depth + 1, start_time_us);
+                                              ? SEARCH_RESULT_FOUND
+                                              : search_depth_first(engine, state, depth + 1, start_time_us);
             if (result == SEARCH_RESULT_FOUND) {
                 state->current_depth = saved_depth;
                 return SEARCH_RESULT_FOUND;
@@ -288,8 +285,8 @@ static lvSearchResultStatus search_depth_first(lvRuleEngine *engine,
  * @brief BFS 队列节点，用于存储待搜索的证明状态快照
  */
 typedef struct BfsQueueNode {
-    lvProofState *state;  /* 证明状态副本 */
-    int depth;              /* 当前深度 */
+    lvProofState *state;       /* 证明状态副本 */
+    int depth;                 /* 当前深度 */
     struct BfsQueueNode *next; /* 队列链表下一节点 */
 } BfsQueueNode;
 
@@ -297,8 +294,9 @@ typedef struct BfsQueueNode {
  * @brief 创建 BFS 队列节点
  */
 static BfsQueueNode *bfs_queue_node_create(lvProofState *state, int depth) {
-    BfsQueueNode *node = (BfsQueueNode *)lv_calloc(1, sizeof(BfsQueueNode));
-    if (!node) return NULL;
+    BfsQueueNode *node = (BfsQueueNode *) lv_calloc(1, sizeof(BfsQueueNode));
+    if (!node)
+        return NULL;
     node->state = state;
     node->depth = depth;
     node->next = NULL;
@@ -309,9 +307,9 @@ static BfsQueueNode *bfs_queue_node_create(lvProofState *state, int depth) {
  * @brief BFS 队列结构（简单的链表队列）
  */
 typedef struct {
-    BfsQueueNode *front;  /* 队首 */
-    BfsQueueNode *rear;   /* 队尾 */
-    int size;             /* 队列大小 */
+    BfsQueueNode *front; /* 队首 */
+    BfsQueueNode *rear;  /* 队尾 */
+    int size;            /* 队列大小 */
 } BfsQueue;
 
 /**
@@ -328,7 +326,8 @@ static void bfs_queue_init(BfsQueue *q) {
  */
 static bool bfs_queue_enqueue(BfsQueue *q, lvProofState *state, int depth) {
     BfsQueueNode *node = bfs_queue_node_create(state, depth);
-    if (!node) return false;
+    if (!node)
+        return false;
     if (q->rear) {
         q->rear->next = node;
     } else {
@@ -343,7 +342,8 @@ static bool bfs_queue_enqueue(BfsQueue *q, lvProofState *state, int depth) {
  * @brief 出队（从队首取出状态）
  */
 static BfsQueueNode *bfs_queue_dequeue(BfsQueue *q) {
-    if (!q->front) return NULL;
+    if (!q->front)
+        return NULL;
     BfsQueueNode *node = q->front;
     q->front = node->next;
     if (!q->front) {
@@ -361,7 +361,7 @@ static void bfs_queue_clear(BfsQueue *q) {
         BfsQueueNode *node = bfs_queue_dequeue(q);
         if (node) {
             proof_state_destroy(node->state);
-            lv_free((void **)&node);
+            lv_free((void **) &node);
         }
     }
 }
@@ -371,10 +371,12 @@ static void bfs_queue_clear(BfsQueue *q) {
  */
 static lvProofState *proof_state_clone(const lvProofState *src) {
     int i;
-    if (!src) return NULL;
+    if (!src)
+        return NULL;
 
-    lvProofState *dst = (lvProofState *)lv_calloc(1, sizeof(lvProofState));
-    if (!dst) return NULL;
+    lvProofState *dst = (lvProofState *) lv_calloc(1, sizeof(lvProofState));
+    if (!dst)
+        return NULL;
 
     /* 复制目标栈 */
     for (i = 0; i <= src->goal_stack_top && i < lv_GOAL_STACK_MAX; i++) {
@@ -413,9 +415,8 @@ static lvProofState *proof_state_clone(const lvProofState *src) {
  * 使用队列实现广度优先搜索：先扩展当前深度的所有状态，
  * 再进入下一深度。每一层展开所有适用规则的所有可能分支。
  */
-static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine,
-                                                    lvProofState *initial_state,
-                                                    uint64_t start_time_us) {
+static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine, lvProofState *initial_state,
+                                                 uint64_t start_time_us) {
     BfsQueue queue;
     bfs_queue_init(&queue);
 
@@ -442,7 +443,7 @@ static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine,
         BfsQueueNode *current_node = bfs_queue_dequeue(&queue);
         lvProofState *current_state = current_node->state;
         int current_depth = current_node->depth;
-        lv_free((void **)&current_node);
+        lv_free((void **) &current_node);
 
         /* 深度限制检查 */
         if (current_depth >= engine->max_depth) {
@@ -510,8 +511,7 @@ static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine,
 
         /* 收集当前状态的所有适用规则 */
         lvProofRule *applicable[lv_RULE_SET_CAPACITY];
-        int count = collect_applicable_rules(engine, current_state, applicable,
-                                              lv_RULE_SET_CAPACITY);
+        int count = collect_applicable_rules(engine, current_state, applicable, lv_RULE_SET_CAPACITY);
 
         if (count == 0) {
             /* 当前状态无适用规则，丢弃 */
@@ -522,11 +522,13 @@ static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine,
         /* 对每个适用规则，克隆状态并应用规则，然后入队 */
         for (int i = 0; i < count; i++) {
             lvProofRule *rule = applicable[i];
-            if (!rule->apply_fn) continue;
+            if (!rule->apply_fn)
+                continue;
 
             /* 克隆当前状态 */
             lvProofState *child_state = proof_state_clone(current_state);
-            if (!child_state) continue;
+            if (!child_state)
+                continue;
 
             /* 在克隆状态上应用规则 */
             if (rule->apply_fn(rule, child_state)) {
@@ -553,9 +555,8 @@ static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine,
 /**
  * @brief Internal search for iterative deepening strategy
  */
-static lvSearchResultStatus search_iterative_deepening(lvRuleEngine *engine,
-                                                          lvProofState *state,
-                                                          uint64_t start_time_us) {
+static lvSearchResultStatus search_iterative_deepening(lvRuleEngine *engine, lvProofState *state,
+                                                       uint64_t start_time_us) {
     int depth_limit;
     for (depth_limit = 1; depth_limit <= engine->max_depth; depth_limit++) {
         /* 超时检查 */
@@ -584,18 +585,15 @@ static lvSearchResultStatus search_iterative_deepening(lvRuleEngine *engine,
 /* ============== Rule Engine API Implementation ============== */
 
 lvRuleEngine *rule_engine_create(void) {
-    return rule_engine_create_ex(SEARCH_BEST_FIRST, lv_DEFAULT_MAX_DEPTH,
-                                  lv_DEFAULT_SEARCH_TIMEOUT_MS);
+    return rule_engine_create_ex(SEARCH_BEST_FIRST, lv_DEFAULT_MAX_DEPTH, lv_DEFAULT_SEARCH_TIMEOUT_MS);
 }
 
-lvRuleEngine *rule_engine_create_ex(lvSearchStrategy strategy,
-                                       int max_depth,
-                                       uint64_t timeout_ms) {
-    lvRuleEngine *engine = (lvRuleEngine *)lv_calloc(1, sizeof(lvRuleEngine));
-    if (!engine) return NULL;
+lvRuleEngine *rule_engine_create_ex(lvSearchStrategy strategy, int max_depth, uint64_t timeout_ms) {
+    lvRuleEngine *engine = (lvRuleEngine *) lv_calloc(1, sizeof(lvRuleEngine));
+    if (!engine)
+        return NULL;
 
-    engine->rule_set = (lvProofRule **)lv_malloc(
-        sizeof(lvProofRule *) * lv_RULE_SET_CAPACITY);
+    engine->rule_set = (lvProofRule **) lv_malloc(sizeof(lvProofRule *) * lv_RULE_SET_CAPACITY);
     if (!engine->rule_set) {
         lv_free((void **) &engine);
         return NULL;
@@ -613,7 +611,8 @@ lvRuleEngine *rule_engine_create_ex(lvSearchStrategy strategy,
 
 void rule_engine_destroy(lvRuleEngine *engine) {
     int i;
-    if (!engine) return;
+    if (!engine)
+        return;
 
     if (engine->rule_set) {
         for (i = 0; i < engine->rule_count; i++) {
@@ -630,8 +629,10 @@ void rule_engine_destroy(lvRuleEngine *engine) {
 }
 
 bool rule_engine_add_rule(lvRuleEngine *engine, lvProofRule *rule) {
-    if (!engine || !rule) return false;
-    if (engine->rule_count >= engine->rule_capacity) return false;
+    if (!engine || !rule)
+        return false;
+    if (engine->rule_count >= engine->rule_capacity)
+        return false;
 
     engine->rule_set[engine->rule_count++] = rule;
     return true;
@@ -639,11 +640,11 @@ bool rule_engine_add_rule(lvRuleEngine *engine, lvProofRule *rule) {
 
 bool rule_engine_remove_rule(lvRuleEngine *engine, const char *name) {
     int i;
-    if (!engine || !name) return false;
+    if (!engine || !name)
+        return false;
 
     for (i = 0; i < engine->rule_count; i++) {
-        if (engine->rule_set[i] &&
-            strncmp(engine->rule_set[i]->name, name, lv_PROOF_RULE_NAME_MAX) == 0) {
+        if (engine->rule_set[i] && strncmp(engine->rule_set[i]->name, name, lv_PROOF_RULE_NAME_MAX) == 0) {
             lv_free((void **) &engine->rule_set[i]);
             /* Shift remaining rules */
             int j;
@@ -658,23 +659,22 @@ bool rule_engine_remove_rule(lvRuleEngine *engine, const char *name) {
     return false;
 }
 
-const lvProofRule *rule_engine_find_rule(const lvRuleEngine *engine,
-                                             const char *name) {
+const lvProofRule *rule_engine_find_rule(const lvRuleEngine *engine, const char *name) {
     int i;
-    if (!engine || !name) return NULL;
+    if (!engine || !name)
+        return NULL;
 
     for (i = 0; i < engine->rule_count; i++) {
-        if (engine->rule_set[i] &&
-            strncmp(engine->rule_set[i]->name, name, lv_PROOF_RULE_NAME_MAX) == 0) {
+        if (engine->rule_set[i] && strncmp(engine->rule_set[i]->name, name, lv_PROOF_RULE_NAME_MAX) == 0) {
             return engine->rule_set[i];
         }
     }
     return NULL;
 }
 
-lvSearchResultStatus rule_engine_search(lvRuleEngine *engine,
-                                           lvProofState *state) {
-    if (!engine || !state) return SEARCH_RESULT_ERROR;
+lvSearchResultStatus rule_engine_search(lvRuleEngine *engine, lvProofState *state) {
+    if (!engine || !state)
+        return SEARCH_RESULT_ERROR;
 
     /* Check if already complete */
     if (proof_state_is_complete(state)) {
@@ -700,7 +700,8 @@ lvSearchResultStatus rule_engine_search(lvRuleEngine *engine,
 }
 
 int rule_engine_rule_count(const lvRuleEngine *engine) {
-    if (!engine) return -1;
+    if (!engine)
+        return -1;
     return engine->rule_count;
 }
 
@@ -708,10 +709,12 @@ int rule_engine_rule_count(const lvRuleEngine *engine) {
 
 lvProofState *proof_state_create(const char *initial_goal) {
     lvProofState *state;
-    if (!initial_goal) return NULL;
+    if (!initial_goal)
+        return NULL;
 
-    state = (lvProofState *)lv_calloc(1, sizeof(lvProofState));
-    if (!state) return NULL;
+    state = (lvProofState *) lv_calloc(1, sizeof(lvProofState));
+    if (!state)
+        return NULL;
 
     state->goal_stack_top = -1;
     state->current_depth = 0;
@@ -727,7 +730,8 @@ lvProofState *proof_state_create(const char *initial_goal) {
 
 void proof_state_destroy(lvProofState *state) {
     int i;
-    if (!state) return;
+    if (!state)
+        return;
 
     /* Free goal stack entries */
     for (i = 0; i <= state->goal_stack_top && i < lv_GOAL_STACK_MAX; i++) {
@@ -758,8 +762,10 @@ void proof_state_destroy(lvProofState *state) {
 }
 
 bool proof_state_push_goal(lvProofState *state, const char *goal) {
-    if (!state || !goal) return false;
-    if (state->goal_stack_top + 1 >= lv_GOAL_STACK_MAX) return false;
+    if (!state || !goal)
+        return false;
+    if (state->goal_stack_top + 1 >= lv_GOAL_STACK_MAX)
+        return false;
 
     state->goal_stack_top++;
     state->goal_stack[state->goal_stack_top] = safe_strdup(goal);
@@ -769,8 +775,10 @@ bool proof_state_push_goal(lvProofState *state, const char *goal) {
 }
 
 bool proof_state_pop_goal(lvProofState *state) {
-    if (!state) return false;
-    if (state->goal_stack_top < 0) return false;
+    if (!state)
+        return false;
+    if (state->goal_stack_top < 0)
+        return false;
 
     if (state->goal_stack[state->goal_stack_top]) {
         lv_free((void **) &state->goal_stack[state->goal_stack_top]);
@@ -789,34 +797,42 @@ bool proof_state_pop_goal(lvProofState *state) {
 }
 
 bool proof_state_add_hypothesis(lvProofState *state, const char *hypothesis) {
-    if (!state || !hypothesis) return false;
-    if (state->hypothesis_count >= lv_HYPOTHESIS_MAX) return false;
+    if (!state || !hypothesis)
+        return false;
+    if (state->hypothesis_count >= lv_HYPOTHESIS_MAX)
+        return false;
 
     state->hypotheses[state->hypothesis_count] = safe_strdup(hypothesis);
-    if (!state->hypotheses[state->hypothesis_count]) return false;
+    if (!state->hypotheses[state->hypothesis_count])
+        return false;
 
     state->hypothesis_count++;
     return true;
 }
 
 bool proof_state_record_rule(lvProofState *state, const char *name) {
-    if (!state || !name) return false;
-    if (state->applied_rule_count >= lv_APPLIED_RULES_MAX) return false;
+    if (!state || !name)
+        return false;
+    if (state->applied_rule_count >= lv_APPLIED_RULES_MAX)
+        return false;
 
     state->applied_rules[state->applied_rule_count] = safe_strdup(name);
-    if (!state->applied_rules[state->applied_rule_count]) return false;
+    if (!state->applied_rules[state->applied_rule_count])
+        return false;
 
     state->applied_rule_count++;
     return true;
 }
 
 bool proof_state_is_complete(const lvProofState *state) {
-    if (!state) return false;
+    if (!state)
+        return false;
     return state->goal_stack_top < 0;
 }
 
 const char *proof_state_current_goal(const lvProofState *state) {
-    if (!state) return NULL;
+    if (!state)
+        return NULL;
     return state->current_goal;
 }
 
@@ -824,37 +840,59 @@ const char *proof_state_current_goal(const lvProofState *state) {
 
 const char *proof_rule_type_to_string(lvProofRuleType type) {
     switch (type) {
-        case RULE_INTRO:          return "INTRO";
-        case RULE_ELIM:           return "ELIM";
-        case RULE_REWRITE:        return "REWRITE";
-        case RULE_INDUCTION:      return "INDUCTION";
-        case RULE_CONTRADICTION:  return "CONTRADICTION";
-        case RULE_CASE_SPLIT:     return "CASE_SPLIT";
-        case RULE_GENERALIZE:     return "GENERALIZE";
-        case RULE_SPECIALIZE:     return "SPECIALIZE";
-        case RULE_NEURAL_SUGGEST: return "NEURAL_SUGGEST";
-        case RULE_AUX_CONSTRUCT:  return "AUX_CONSTRUCT";
-        default:                  return "UNKNOWN";
+        case RULE_INTRO:
+            return "INTRO";
+        case RULE_ELIM:
+            return "ELIM";
+        case RULE_REWRITE:
+            return "REWRITE";
+        case RULE_INDUCTION:
+            return "INDUCTION";
+        case RULE_CONTRADICTION:
+            return "CONTRADICTION";
+        case RULE_CASE_SPLIT:
+            return "CASE_SPLIT";
+        case RULE_GENERALIZE:
+            return "GENERALIZE";
+        case RULE_SPECIALIZE:
+            return "SPECIALIZE";
+        case RULE_NEURAL_SUGGEST:
+            return "NEURAL_SUGGEST";
+        case RULE_AUX_CONSTRUCT:
+            return "AUX_CONSTRUCT";
+        default:
+            return "UNKNOWN";
     }
 }
 
 const char *search_strategy_to_string(lvSearchStrategy strategy) {
     switch (strategy) {
-        case SEARCH_BEST_FIRST:           return "BEST_FIRST";
-        case SEARCH_DEPTH_FIRST:          return "DEPTH_FIRST";
-        case SEARCH_BREADTH_FIRST:        return "BREADTH_FIRST";
-        case SEARCH_ITERATIVE_DEEPENING:  return "ITERATIVE_DEEPENING";
-        default:                          return "UNKNOWN";
+        case SEARCH_BEST_FIRST:
+            return "BEST_FIRST";
+        case SEARCH_DEPTH_FIRST:
+            return "DEPTH_FIRST";
+        case SEARCH_BREADTH_FIRST:
+            return "BREADTH_FIRST";
+        case SEARCH_ITERATIVE_DEEPENING:
+            return "ITERATIVE_DEEPENING";
+        default:
+            return "UNKNOWN";
     }
 }
 
 const char *search_result_status_to_string(lvSearchResultStatus status) {
     switch (status) {
-        case SEARCH_RESULT_FOUND:       return "FOUND";
-        case SEARCH_RESULT_TIMEOUT:     return "TIMEOUT";
-        case SEARCH_RESULT_DEPTH_LIMIT: return "DEPTH_LIMIT";
-        case SEARCH_RESULT_EXHAUSTED:   return "EXHAUSTED";
-        case SEARCH_RESULT_ERROR:       return "ERROR";
-        default:                        return "UNKNOWN";
+        case SEARCH_RESULT_FOUND:
+            return "FOUND";
+        case SEARCH_RESULT_TIMEOUT:
+            return "TIMEOUT";
+        case SEARCH_RESULT_DEPTH_LIMIT:
+            return "DEPTH_LIMIT";
+        case SEARCH_RESULT_EXHAUSTED:
+            return "EXHAUSTED";
+        case SEARCH_RESULT_ERROR:
+            return "ERROR";
+        default:
+            return "UNKNOWN";
     }
 }

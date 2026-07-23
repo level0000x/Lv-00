@@ -21,6 +21,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/lv_utils.h"
 
 #ifndef MPZ_POLY_T_DEFINED
@@ -41,7 +42,7 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
         for (int i = 0; i <= p->degree; i++) {
             mpz_clear(p->coeffs[i]);
         }
-        lv_free((void**)&(p->coeffs));
+        lv_free((void **) &(p->coeffs));
     }
     p->coeffs = NULL;
     p->degree = -1;
@@ -102,7 +103,7 @@ static inline void mpz_poly_normalize(mpz_poly_t *result) {
         result->degree--;
     }
     if (result->degree < 0) {
-        lv_free((void**)&(result->coeffs));
+        lv_free((void **) &(result->coeffs));
     }
 }
 
@@ -222,7 +223,7 @@ static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, cons
     mpz_clear(tmp);
     mpz_clear(factor);
     if (quotient->degree < 0) {
-        lv_free((void**)&(quotient->coeffs));
+        lv_free((void **) &(quotient->coeffs));
     }
 }
 
@@ -231,10 +232,10 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
         return strdup("0");
     }
     /* 整数溢出检查：确保 (degree + 1) * sizeof(char*) 不会溢出 */
-    if (p->degree > (int)((SIZE_MAX / sizeof(char *)) - 1)) {
+    if (p->degree > (int) ((SIZE_MAX / sizeof(char *)) - 1)) {
         return NULL;
     }
-    size_t coeff_count = (size_t)(p->degree + 1);
+    size_t coeff_count = (size_t) (p->degree + 1);
     char **coeff_strs = lv_malloc(coeff_count * sizeof(char *));
     size_t total_len = 0;
     for (int i = 0; i <= p->degree; i++) {
@@ -249,9 +250,9 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
         strcat(result, coeff_strs[i]);
     }
     for (int i = 0; i <= p->degree; i++) {
-        lv_free((void**)&(coeff_strs[i]));
+        lv_free((void **) &(coeff_strs[i]));
     }
-    lv_free((void**)&(coeff_strs));
+    lv_free((void **) &(coeff_strs));
     return result;
 }
 

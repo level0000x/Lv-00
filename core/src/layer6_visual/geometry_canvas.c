@@ -9,27 +9,28 @@
  * @author Lv-00 Project
  */
 
-#include "lv/visual_editor.h"
-#include "lv/lv_utils.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+
+#include "lv/lv_utils.h"
+#include "lv/visual_editor.h"
 
 /* 几何画布视图 - 完整实现 */
 
 /** @brief 几何实体类型枚举 */
 typedef enum {
-    lv_GEOM_POINT,    /**< 点 */
-    lv_GEOM_LINE,     /**< 线 */
-    lv_GEOM_CIRCLE,   /**< 圆 */
-    lv_GEOM_POLYGON   /**< 多边形 */
+    lv_GEOM_POINT,  /**< 点 */
+    lv_GEOM_LINE,   /**< 线 */
+    lv_GEOM_CIRCLE, /**< 圆 */
+    lv_GEOM_POLYGON /**< 多边形 */
 } lvGeomEntityType;
 
 /** @brief 几何实体结构 */
 typedef struct lvGeomEntity {
-    int id;                  /**< 实体唯一标识 */
-    lvGeomEntityType type;   /**< 实体类型 */
-    char label[128];         /**< 实体标签 */
+    int id;                /**< 实体唯一标识 */
+    lvGeomEntityType type; /**< 实体类型 */
+    char label[128];       /**< 实体标签 */
 
     /** 坐标数据（统一存储）
      *  point: [x, y]
@@ -37,42 +38,42 @@ typedef struct lvGeomEntity {
      *  circle: [cx, cy, r]
      *  polygon: [x1, y1, x2, y2, ...] */
     double *coords;
-    int coord_count;         /**< 坐标数量 */
+    int coord_count; /**< 坐标数量 */
 
     /* 颜色 */
-    char stroke_color[32];   /**< 描边颜色 */
-    char fill_color[32];     /**< 填充颜色 */
-    double stroke_width;     /**< 描边宽度 */
+    char stroke_color[32]; /**< 描边颜色 */
+    char fill_color[32];   /**< 填充颜色 */
+    double stroke_width;   /**< 描边宽度 */
 } lvGeomEntity;
 
 /** @brief 约束可视化结构 */
 typedef struct lvGeomConstraint {
-    int id;                  /**< 约束唯一标识 */
-    int entity_a_id;         /**< 实体A的ID */
-    int entity_b_id;         /**< 实体B的ID */
-    char label[128];         /**< 约束标签 */
-    char color[32];          /**< 约束颜色 */
+    int id;          /**< 约束唯一标识 */
+    int entity_a_id; /**< 实体A的ID */
+    int entity_b_id; /**< 实体B的ID */
+    char label[128]; /**< 约束标签 */
+    char color[32];  /**< 约束颜色 */
 } lvGeomConstraint;
 
 /** @brief 视图边界结构 */
 typedef struct lvViewBounds {
-    double min_x, min_y, max_x, max_y;  /**< 边界范围 */
-    int valid;                           /**< 边界是否有效 */
+    double min_x, min_y, max_x, max_y; /**< 边界范围 */
+    int valid;                         /**< 边界是否有效 */
 } lvViewBounds;
 
 /** @brief 几何画布内部结构 */
 typedef struct lvGeometryCanvas {
-    int view_type;                          /**< 视图类型标识 */
-    lvGeomEntity *entities;                 /**< 实体数组 */
-    int entity_count;                       /**< 实体数量 */
-    int entity_capacity;                    /**< 实体数组容量 */
-    lvGeomConstraint *constraints;          /**< 约束数组 */
-    int constraint_count;                   /**< 约束数量 */
-    int constraint_capacity;                /**< 约束数组容量 */
-    lvViewBounds bounds;                    /**< 视图边界缓存 */
-    void *proof_overlay;                    /**< 证明覆盖层（保留扩展） */
-    int next_entity_id;                     /**< 下一个实体ID */
-    int next_constraint_id;                 /**< 下一个约束ID */
+    int view_type;                 /**< 视图类型标识 */
+    lvGeomEntity *entities;        /**< 实体数组 */
+    int entity_count;              /**< 实体数量 */
+    int entity_capacity;           /**< 实体数组容量 */
+    lvGeomConstraint *constraints; /**< 约束数组 */
+    int constraint_count;          /**< 约束数量 */
+    int constraint_capacity;       /**< 约束数组容量 */
+    lvViewBounds bounds;           /**< 视图边界缓存 */
+    void *proof_overlay;           /**< 证明覆盖层（保留扩展） */
+    int next_entity_id;            /**< 下一个实体ID */
+    int next_constraint_id;        /**< 下一个约束ID */
 } lvGeometryCanvas;
 
 /**
@@ -84,14 +85,22 @@ typedef struct lvGeometryCanvas {
  */
 lvGeometryCanvas *lv_geometry_canvas_create(void) {
     lvGeometryCanvas *canvas = lv_calloc(1, sizeof(lvGeometryCanvas));
-    if (!canvas) return NULL;
+    if (!canvas)
+        return NULL;
     canvas->view_type = lv_VIEW_GEOMETRY_CANVAS;
     canvas->entity_capacity = 16;
     canvas->entities = lv_calloc(canvas->entity_capacity, sizeof(lvGeomEntity));
-    if (!canvas->entities) { lv_free((void **)&canvas); return NULL; }
+    if (!canvas->entities) {
+        lv_free((void **) &canvas);
+        return NULL;
+    }
     canvas->constraint_capacity = 16;
     canvas->constraints = lv_calloc(canvas->constraint_capacity, sizeof(lvGeomConstraint));
-    if (!canvas->constraints) { lv_free((void **)&canvas->entities); lv_free((void **)&canvas); return NULL; }
+    if (!canvas->constraints) {
+        lv_free((void **) &canvas->entities);
+        lv_free((void **) &canvas);
+        return NULL;
+    }
     canvas->next_entity_id = 1;
     canvas->next_constraint_id = 1;
     /* 画布结构体无全局颜色字段；实体和约束在添加时各自设置默认样式 */
@@ -106,13 +115,14 @@ lvGeometryCanvas *lv_geometry_canvas_create(void) {
  * @param canvas 几何画布指针
  */
 void lv_geometry_canvas_destroy(lvGeometryCanvas *canvas) {
-    if (!canvas) return;
+    if (!canvas)
+        return;
     for (int i = 0; i < canvas->entity_count; i++) {
-        lv_free((void **)&canvas->entities[i].coords);
+        lv_free((void **) &canvas->entities[i].coords);
     }
-    lv_free((void **)&canvas->entities);
-    lv_free((void **)&canvas->constraints);
-    lv_free((void **)&canvas);
+    lv_free((void **) &canvas->entities);
+    lv_free((void **) &canvas->constraints);
+    lv_free((void **) &canvas);
 }
 
 /**
@@ -128,25 +138,27 @@ void lv_geometry_canvas_destroy(lvGeometryCanvas *canvas) {
  * @param coord_count 坐标数量
  * @return 成功返回实体ID，失败返回-1
  */
-int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type,
-                                     const char *label, const double *coords,
-                                     int coord_count) {
-    if (!canvas || !coords || coord_count <= 0) return -1;
+int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char *label, const double *coords,
+                                  int coord_count) {
+    if (!canvas || !coords || coord_count <= 0)
+        return -1;
 
     /* 自动扩容 */
     if (canvas->entity_count >= canvas->entity_capacity) {
         /* [安全] 防止 entity_capacity * 2 整数溢出 */
-        if (canvas->entity_capacity > INT_MAX / 2) return -1;
+        if (canvas->entity_capacity > INT_MAX / 2)
+            return -1;
         int new_cap = canvas->entity_capacity * 2;
         lvGeomEntity *new_arr = lv_realloc(canvas->entities, new_cap * sizeof(lvGeomEntity));
-        if (!new_arr) return -1;
+        if (!new_arr)
+            return -1;
         canvas->entities = new_arr;
         canvas->entity_capacity = new_cap;
     }
 
     lvGeomEntity *ent = &canvas->entities[canvas->entity_count];
     ent->id = canvas->next_entity_id++;
-    ent->type = (lvGeomEntityType)type;
+    ent->type = (lvGeomEntityType) type;
     if (label) {
         strncpy(ent->label, label, sizeof(ent->label) - 1);
         ent->label[sizeof(ent->label) - 1] = '\0';
@@ -155,15 +167,17 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type,
     }
 
     /* 复制坐标 */
-    if (coord_count < 0) return -1;
+    if (coord_count < 0)
+        return -1;
     ent->coords = lv_calloc(coord_count, sizeof(double));
     if (!ent->coords) {
         /* calloc失败，清零该实体槽位防止半初始化数据残留 */
         memset(ent, 0, sizeof(lvGeomEntity));
         return -1;
     }
-    if ((size_t)coord_count > SIZE_MAX / sizeof(double)) return -1;
-    memcpy(ent->coords, coords, (size_t)coord_count * sizeof(double));
+    if ((size_t) coord_count > SIZE_MAX / sizeof(double))
+        return -1;
+    memcpy(ent->coords, coords, (size_t) coord_count * sizeof(double));
     ent->coord_count = coord_count;
 
     /* 默认样式 */
@@ -190,21 +204,25 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type,
  * @return 成功返回0，失败返回-1
  */
 int lv_geometry_canvas_remove_entity(lvGeometryCanvas *canvas, int id) {
-    if (!canvas || id <= 0) return -1;
+    if (!canvas || id <= 0)
+        return -1;
     int found = -1;
     for (int i = 0; i < canvas->entity_count; i++) {
-        if (canvas->entities[i].id == id) { found = i; break; }
+        if (canvas->entities[i].id == id) {
+            found = i;
+            break;
+        }
     }
-    if (found < 0) return -1;
+    if (found < 0)
+        return -1;
 
     /* 释放坐标 */
-    lv_free((void **)&canvas->entities[found].coords);
+    lv_free((void **) &canvas->entities[found].coords);
 
     /* 移除相关约束 */
     int new_c = 0;
     for (int i = 0; i < canvas->constraint_count; i++) {
-        if (canvas->constraints[i].entity_a_id != id &&
-            canvas->constraints[i].entity_b_id != id) {
+        if (canvas->constraints[i].entity_a_id != id && canvas->constraints[i].entity_b_id != id) {
             if (new_c != i) {
                 canvas->constraints[new_c] = canvas->constraints[i];
             }
@@ -231,19 +249,19 @@ int lv_geometry_canvas_remove_entity(lvGeometryCanvas *canvas, int id) {
  * @param label        约束标签（可为NULL）
  * @return 成功返回约束ID，失败返回-1
  */
-int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas,
-                                        int entity_a_id, int entity_b_id,
-                                        const char *label) {
-    if (!canvas || entity_a_id <= 0 || entity_b_id <= 0) return -1;
+int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas, int entity_a_id, int entity_b_id, const char *label) {
+    if (!canvas || entity_a_id <= 0 || entity_b_id <= 0)
+        return -1;
 
     /* 自动扩容 */
     if (canvas->constraint_count >= canvas->constraint_capacity) {
         /* [安全] 防止 constraint_capacity * 2 整数溢出 */
-        if (canvas->constraint_capacity > INT_MAX / 2) return -1;
+        if (canvas->constraint_capacity > INT_MAX / 2)
+            return -1;
         int new_cap = canvas->constraint_capacity * 2;
-        lvGeomConstraint *new_arr = lv_realloc(canvas->constraints,
-                                               new_cap * sizeof(lvGeomConstraint));
-        if (!new_arr) return -1;
+        lvGeomConstraint *new_arr = lv_realloc(canvas->constraints, new_cap * sizeof(lvGeomConstraint));
+        if (!new_arr)
+            return -1;
         canvas->constraints = new_arr;
         canvas->constraint_capacity = new_cap;
     }
@@ -284,18 +302,26 @@ static void compute_bounds(lvGeometryCanvas *canvas) {
         for (int j = 0; j < e->coord_count; j += 2) {
             double x = e->coords[j];
             double y = (j + 1 < e->coord_count) ? e->coords[j + 1] : 0;
-            if (x < min_x) min_x = x;
-            if (y < min_y) min_y = y;
-            if (x > max_x) max_x = x;
-            if (y > max_y) max_y = y;
+            if (x < min_x)
+                min_x = x;
+            if (y < min_y)
+                min_y = y;
+            if (x > max_x)
+                max_x = x;
+            if (y > max_y)
+                max_y = y;
         }
         /* 圆需要考虑半径 */
         if (e->type == lv_GEOM_CIRCLE && e->coord_count >= 3) {
             double r = e->coords[2];
-            if (e->coords[0] - r < min_x) min_x = e->coords[0] - r;
-            if (e->coords[1] - r < min_y) min_y = e->coords[1] - r;
-            if (e->coords[0] + r > max_x) max_x = e->coords[0] + r;
-            if (e->coords[1] + r > max_y) max_y = e->coords[1] + r;
+            if (e->coords[0] - r < min_x)
+                min_x = e->coords[0] - r;
+            if (e->coords[1] - r < min_y)
+                min_y = e->coords[1] - r;
+            if (e->coords[0] + r > max_x)
+                max_x = e->coords[0] + r;
+            if (e->coords[1] + r > max_y)
+                max_y = e->coords[1] + r;
         }
     }
     /* 添加边距 */
@@ -316,7 +342,8 @@ static void compute_bounds(lvGeometryCanvas *canvas) {
  * @return 成功返回0，边界无效返回-1
  */
 int lv_geometry_canvas_fit_view(lvGeometryCanvas *canvas) {
-    if (!canvas) return -1;
+    if (!canvas)
+        return -1;
     compute_bounds(canvas);
     return canvas->bounds.valid ? 0 : -1;
 }
@@ -337,26 +364,29 @@ int lv_geometry_canvas_fit_view(lvGeometryCanvas *canvas) {
  * @param cy     输出中心Y坐标
  * @return 成功返回0，失败返回-1
  */
-static int find_entity_center(lvGeometryCanvas *canvas, int id,
-                                double *cx, double *cy) {
+static int find_entity_center(lvGeometryCanvas *canvas, int id, double *cx, double *cy) {
     for (int i = 0; i < canvas->entity_count; i++) {
         lvGeomEntity *e = &canvas->entities[i];
         if (e->id == id) {
             if (e->type == lv_GEOM_POINT && e->coord_count >= 2) {
-                *cx = e->coords[0]; *cy = e->coords[1];
+                *cx = e->coords[0];
+                *cy = e->coords[1];
             } else if (e->type == lv_GEOM_LINE && e->coord_count >= 4) {
                 *cx = (e->coords[0] + e->coords[2]) / 2.0;
                 *cy = (e->coords[1] + e->coords[3]) / 2.0;
             } else if (e->type == lv_GEOM_CIRCLE && e->coord_count >= 2) {
-                *cx = e->coords[0]; *cy = e->coords[1];
+                *cx = e->coords[0];
+                *cy = e->coords[1];
             } else if (e->coord_count >= 2) {
                 double sx = 0, sy = 0;
                 for (int j = 0; j < e->coord_count; j += 2) {
                     sx += e->coords[j];
-                    if (j + 1 < e->coord_count) sy += e->coords[j + 1];
+                    if (j + 1 < e->coord_count)
+                        sy += e->coords[j + 1];
                 }
                 int npts = (e->coord_count + 1) / 2;
-                *cx = sx / npts; *cy = sy / npts;
+                *cx = sx / npts;
+                *cy = sy / npts;
             } else {
                 return -1;
             }
@@ -376,128 +406,129 @@ static int find_entity_center(lvGeometryCanvas *canvas, int id,
  * @return 成功返回分配的SVG字符串，失败返回NULL
  */
 char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
-    if (!canvas) return NULL;
+    if (!canvas)
+        return NULL;
 
     /* 确保边界已计算 */
-    if (!canvas->bounds.valid) compute_bounds(canvas);
+    if (!canvas->bounds.valid)
+        compute_bounds(canvas);
     if (!canvas->bounds.valid) {
         /* 空画布，使用默认边界 */
-        canvas->bounds.min_x = 0; canvas->bounds.min_y = 0;
-        canvas->bounds.max_x = 800; canvas->bounds.max_y = 600;
+        canvas->bounds.min_x = 0;
+        canvas->bounds.min_y = 0;
+        canvas->bounds.max_x = 800;
+        canvas->bounds.max_y = 600;
         canvas->bounds.valid = 1;
     }
 
     /* [安全] 估算输出缓冲区大小，防止整数溢出 */
-    size_t est_size = (size_t)canvas->entity_count * 512
-                    + (size_t)canvas->constraint_count * 256 + 4096;
+    size_t est_size = (size_t) canvas->entity_count * 512 + (size_t) canvas->constraint_count * 256 + 4096;
     /* 限制最大缓冲区大小防止过度分配 */
-    if (est_size > 1024 * 1024 * 16) est_size = 1024 * 1024 * 16;
-    int buf_size = (int)est_size;
+    if (est_size > 1024 * 1024 * 16)
+        est_size = 1024 * 1024 * 16;
+    int buf_size = (int) est_size;
     char *buf = lv_calloc(buf_size, sizeof(char));
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
 
     int pos = 0;
-    /* 辅助宏：安全写入 snprintf 链，防止 pos 溢出 buf_size */
-    #define SVG_SAFE_WRITE(...) do { \
-        if (pos < buf_size) { \
-            int _w = snprintf(buf + pos, (size_t)(buf_size - pos), __VA_ARGS__); \
-            if (_w > 0) { \
-                pos += _w; \
-                if (pos >= buf_size) pos = buf_size - 1; \
-            } \
-        } \
-    } while(0)
+/* 辅助宏：安全写入 snprintf 链，防止 pos 溢出 buf_size */
+#define SVG_SAFE_WRITE(...)                                                       \
+    do {                                                                          \
+        if (pos < buf_size) {                                                     \
+            int _w = snprintf(buf + pos, (size_t) (buf_size - pos), __VA_ARGS__); \
+            if (_w > 0) {                                                         \
+                pos += _w;                                                        \
+                if (pos >= buf_size)                                              \
+                    pos = buf_size - 1;                                           \
+            }                                                                     \
+        }                                                                         \
+    } while (0)
 
     SVG_SAFE_WRITE(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         "<svg xmlns=\"http://www.w3.org/2000/svg\" "
         "viewBox=\"%g %g %g %g\" width=\"800\" height=\"600\">\n",
-        canvas->bounds.min_x, canvas->bounds.min_y,
-        canvas->bounds.max_x - canvas->bounds.min_x,
+        canvas->bounds.min_x, canvas->bounds.min_y, canvas->bounds.max_x - canvas->bounds.min_x,
         canvas->bounds.max_y - canvas->bounds.min_y);
 
     /* 绘制实体 */
     for (int i = 0; i < canvas->entity_count; i++) {
         lvGeomEntity *e = &canvas->entities[i];
         switch (e->type) {
-        case lv_GEOM_POINT:
-            if (e->coord_count >= 2) {
-                SVG_SAFE_WRITE(
-                    "  <circle cx=\"%g\" cy=\"%g\" r=\"4\" "
-                    "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
-                    e->coords[0], e->coords[1],
-                    e->fill_color, e->stroke_color, e->stroke_width);
-                if (e->label[0] != '\0') {
+            case lv_GEOM_POINT:
+                if (e->coord_count >= 2) {
                     SVG_SAFE_WRITE(
-                        "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
-                        "text-anchor=\"middle\" dy=\"-8\">%s</text>\n",
-                        e->coords[0], e->coords[1], e->label);
-                }
-            }
-            break;
-        case lv_GEOM_LINE:
-            if (e->coord_count >= 4) {
-                SVG_SAFE_WRITE(
-                    "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
-                    "stroke=\"%s\" stroke-width=\"%g\"/>\n",
-                    e->coords[0], e->coords[1],
-                    e->coords[2], e->coords[3],
-                    e->stroke_color, e->stroke_width);
-                if (e->label[0] != '\0') {
-                    double mx = (e->coords[0] + e->coords[2]) / 2.0;
-                    double my = (e->coords[1] + e->coords[3]) / 2.0;
-                    SVG_SAFE_WRITE(
-                        "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
-                        "text-anchor=\"middle\" dy=\"-6\">%s</text>\n",
-                        mx, my, e->label);
-                }
-            }
-            break;
-        case lv_GEOM_CIRCLE:
-            if (e->coord_count >= 3) {
-                SVG_SAFE_WRITE(
-                    "  <circle cx=\"%g\" cy=\"%g\" r=\"%g\" "
-                    "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
-                    e->coords[0], e->coords[1], e->coords[2],
-                    e->fill_color, e->stroke_color, e->stroke_width);
-                if (e->label[0] != '\0') {
-                    SVG_SAFE_WRITE(
-                        "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
-                        "text-anchor=\"middle\" dy=\"-%g\">%s</text>\n",
-                        e->coords[0], e->coords[1], e->coords[2] + 4, e->label);
-                }
-            }
-            break;
-        case lv_GEOM_POLYGON:
-            if (e->coord_count >= 6) {
-                SVG_SAFE_WRITE(
-                    "  <polygon points=\"");
-                for (int j = 0; j < e->coord_count; j += 2) {
-                    if (j + 1 < e->coord_count) {
+                        "  <circle cx=\"%g\" cy=\"%g\" r=\"4\" "
+                        "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
+                        e->coords[0], e->coords[1], e->fill_color, e->stroke_color, e->stroke_width);
+                    if (e->label[0] != '\0') {
                         SVG_SAFE_WRITE(
-                            "%g,%g ", e->coords[j], e->coords[j + 1]);
+                            "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
+                            "text-anchor=\"middle\" dy=\"-8\">%s</text>\n",
+                            e->coords[0], e->coords[1], e->label);
                     }
                 }
-                SVG_SAFE_WRITE(
-                    "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
-                    e->fill_color, e->stroke_color, e->stroke_width);
-                if (e->label[0] != '\0') {
-                    double cx = 0, cy = 0;
-                    int npts = e->coord_count / 2;
-                    for (int j = 0; j < e->coord_count; j += 2) {
-                        cx += e->coords[j];
-                        if (j + 1 < e->coord_count) cy += e->coords[j + 1];
-                    }
-                    cx /= npts; cy /= npts;
+                break;
+            case lv_GEOM_LINE:
+                if (e->coord_count >= 4) {
                     SVG_SAFE_WRITE(
-                        "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
-                        "text-anchor=\"middle\">%s</text>\n",
-                        cx, cy, e->label);
+                        "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
+                        "stroke=\"%s\" stroke-width=\"%g\"/>\n",
+                        e->coords[0], e->coords[1], e->coords[2], e->coords[3], e->stroke_color, e->stroke_width);
+                    if (e->label[0] != '\0') {
+                        double mx = (e->coords[0] + e->coords[2]) / 2.0;
+                        double my = (e->coords[1] + e->coords[3]) / 2.0;
+                        SVG_SAFE_WRITE(
+                            "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
+                            "text-anchor=\"middle\" dy=\"-6\">%s</text>\n",
+                            mx, my, e->label);
+                    }
                 }
-            }
-            break;
-        default:
-            break;
+                break;
+            case lv_GEOM_CIRCLE:
+                if (e->coord_count >= 3) {
+                    SVG_SAFE_WRITE(
+                        "  <circle cx=\"%g\" cy=\"%g\" r=\"%g\" "
+                        "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
+                        e->coords[0], e->coords[1], e->coords[2], e->fill_color, e->stroke_color, e->stroke_width);
+                    if (e->label[0] != '\0') {
+                        SVG_SAFE_WRITE(
+                            "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
+                            "text-anchor=\"middle\" dy=\"-%g\">%s</text>\n",
+                            e->coords[0], e->coords[1], e->coords[2] + 4, e->label);
+                    }
+                }
+                break;
+            case lv_GEOM_POLYGON:
+                if (e->coord_count >= 6) {
+                    SVG_SAFE_WRITE("  <polygon points=\"");
+                    for (int j = 0; j < e->coord_count; j += 2) {
+                        if (j + 1 < e->coord_count) {
+                            SVG_SAFE_WRITE("%g,%g ", e->coords[j], e->coords[j + 1]);
+                        }
+                    }
+                    SVG_SAFE_WRITE("\" fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n", e->fill_color,
+                                   e->stroke_color, e->stroke_width);
+                    if (e->label[0] != '\0') {
+                        double cx = 0, cy = 0;
+                        int npts = e->coord_count / 2;
+                        for (int j = 0; j < e->coord_count; j += 2) {
+                            cx += e->coords[j];
+                            if (j + 1 < e->coord_count)
+                                cy += e->coords[j + 1];
+                        }
+                        cx /= npts;
+                        cy /= npts;
+                        SVG_SAFE_WRITE(
+                            "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
+                            "text-anchor=\"middle\">%s</text>\n",
+                            cx, cy, e->label);
+                    }
+                }
+                break;
+            default:
+                break;
         }
     }
 
@@ -505,8 +536,10 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
     for (int i = 0; i < canvas->constraint_count; i++) {
         lvGeomConstraint *c = &canvas->constraints[i];
         double ax, ay, bx, by;
-        if (find_entity_center(canvas, c->entity_a_id, &ax, &ay) != 0) continue;
-        if (find_entity_center(canvas, c->entity_b_id, &bx, &by) != 0) continue;
+        if (find_entity_center(canvas, c->entity_a_id, &ax, &ay) != 0)
+            continue;
+        if (find_entity_center(canvas, c->entity_b_id, &bx, &by) != 0)
+            continue;
 
         SVG_SAFE_WRITE(
             "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
@@ -524,6 +557,6 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
     }
 
     SVG_SAFE_WRITE("</svg>\n");
-    #undef SVG_SAFE_WRITE
+#undef SVG_SAFE_WRITE
     return buf;
 }

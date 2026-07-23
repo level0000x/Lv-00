@@ -11,12 +11,15 @@
  */
 
 #include "lv/proof_widget.h"
-#include "lv_utils.h"
-#include "lv/proof.h"
-#include "lv/lv_internal.h"
+
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+
+#include "lv/lv_internal.h"
+#include "lv/proof.h"
+
+#include "lv_utils.h"
 
 /* ================================================================
  * 内部常量
@@ -45,11 +48,11 @@ lvWidgetLayout *proof_widget_init(int layout_capacity) {
         layout_capacity = 8;
     }
 
-    lvWidgetLayout *layout = (lvWidgetLayout *)lv_calloc(1, sizeof(lvWidgetLayout));
-    if (!layout) return NULL;
+    lvWidgetLayout *layout = (lvWidgetLayout *) lv_calloc(1, sizeof(lvWidgetLayout));
+    if (!layout)
+        return NULL;
 
-    layout->widgets = (ProofWidgetState *)lv_calloc((size_t)layout_capacity,
-                                                       sizeof(ProofWidgetState));
+    layout->widgets = (ProofWidgetState *) lv_calloc((size_t) layout_capacity, sizeof(ProofWidgetState));
     if (!layout->widgets) {
         lv_free_ptr(layout);
         return NULL;
@@ -68,7 +71,8 @@ lvWidgetLayout *proof_widget_init(int layout_capacity) {
 
 /* 销毁 Widget 布局，释放所有内部资源 */
 void proof_widget_destroy(lvWidgetLayout *layout) {
-    if (!layout) return;
+    if (!layout)
+        return;
 
     /* 释放每个 widget 的动态字符串 */
     for (int i = 0; i < layout->widget_count; i++) {
@@ -99,21 +103,23 @@ void proof_widget_destroy(lvWidgetLayout *layout) {
  * @param bound_step 绑定的证明步骤 ID
  * @return widget_id（非负），失败返回 -1
  */
-int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type,
-                          const char *label, int bound_step) {
-    if (!layout) return -1;
+int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type, const char *label, int bound_step) {
+    if (!layout)
+        return -1;
 
     /* 容量不足时倍增扩容 */
     if (layout->widget_count >= layout->widget_capacity) {
-        if (layout->widget_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) return -1;
+        if (layout->widget_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR)
+            return -1;
         int new_cap = layout->widget_capacity * lv_ARRAY_GROWTH_FACTOR;
-        ProofWidgetState *new_arr = (ProofWidgetState *)lv_realloc(
-            layout->widgets, (size_t)new_cap * sizeof(ProofWidgetState));
-        if (!new_arr) return -1;
+        ProofWidgetState *new_arr =
+            (ProofWidgetState *) lv_realloc(layout->widgets, (size_t) new_cap * sizeof(ProofWidgetState));
+        if (!new_arr)
+            return -1;
 
         /* 清零新增部分 */
         memset(new_arr + layout->widget_capacity, 0,
-               (size_t)(new_cap - layout->widget_capacity) * sizeof(ProofWidgetState));
+               (size_t) (new_cap - layout->widget_capacity) * sizeof(ProofWidgetState));
         layout->widgets = new_arr;
         layout->widget_capacity = new_cap;
     }
@@ -143,11 +149,12 @@ int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type,
  * @param interaction_json 新的交互数据 JSON（可为 NULL 表示不更新）
  * @return 0 成功，-1 参数无效或 widget_id 越界
  */
-int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active,
-                        bool is_enabled, const char *display_label,
-                        int bound_step_id, const char *interaction_json) {
-    if (!layout) return -1;
-    if (widget_id < 0 || widget_id >= layout->widget_count) return -1;
+int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active, bool is_enabled,
+                        const char *display_label, int bound_step_id, const char *interaction_json) {
+    if (!layout)
+        return -1;
+    if (widget_id < 0 || widget_id >= layout->widget_count)
+        return -1;
 
     ProofWidgetState *ws = &layout->widgets[widget_id];
     ws->is_active = is_active;
@@ -156,13 +163,15 @@ int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active,
 
     /* 更新显示标签（重新分配） */
     if (display_label) {
-        if (ws->display_label) lv_free_ptr(ws->display_label);
+        if (ws->display_label)
+            lv_free_ptr(ws->display_label);
         ws->display_label = lv_strdup(display_label);
     }
 
     /* 更新交互数据 JSON（重新分配） */
     if (interaction_json) {
-        if (ws->interaction_data) lv_free_ptr(ws->interaction_data);
+        if (ws->interaction_data)
+            lv_free_ptr(ws->interaction_data);
         ws->interaction_data = lv_strdup(interaction_json);
     }
 
@@ -180,7 +189,8 @@ int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active,
  * @return 0 成功，-1 参数无效
  */
 int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_goal) {
-    if (!navigator || !out_goal) return -1;
+    if (!navigator || !out_goal)
+        return -1;
 
     /* 初始化输出结构 */
     memset(out_goal, 0, sizeof(lvGoalDisplay));
@@ -190,7 +200,8 @@ int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_go
     /* 实际项目中应从 navigator 查询当前目标；
      * 此处分配默认文本作为桩实现 */
     out_goal->goal_text = lv_strdup("no goal available");
-    if (!out_goal->goal_text) return -1;
+    if (!out_goal->goal_text)
+        return -1;
 
     return 0;
 }
@@ -202,12 +213,12 @@ int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_go
  * @param max_count      数组最大容量
  * @return 实际假设数量（>=0），失败返回 -1
  */
-int proof_widget_get_hypotheses(const ProofNavigator *navigator,
-                                lvHypothesisEntry *out_hypotheses, int max_count) {
-    if (!navigator || !out_hypotheses || max_count <= 0) return -1;
+int proof_widget_get_hypotheses(const ProofNavigator *navigator, lvHypothesisEntry *out_hypotheses, int max_count) {
+    if (!navigator || !out_hypotheses || max_count <= 0)
+        return -1;
 
     /* 清零输出数组 */
-    memset(out_hypotheses, 0, (size_t)max_count * sizeof(lvHypothesisEntry));
+    memset(out_hypotheses, 0, (size_t) max_count * sizeof(lvHypothesisEntry));
 
     /* 实际项目中应遍历 navigator 的假设集合；
      * 此处返回 0 条假设（由上层根据实际数据填充） */
@@ -219,7 +230,8 @@ int proof_widget_get_hypotheses(const ProofNavigator *navigator,
  * @param goal 目标显示结构指针（可为 NULL）
  */
 void goal_display_free(lvGoalDisplay *goal) {
-    if (!goal) return;
+    if (!goal)
+        return;
 
     if (goal->goal_text) {
         lv_free_ptr(goal->goal_text);
@@ -230,9 +242,12 @@ void goal_display_free(lvGoalDisplay *goal) {
     if (goal->hypotheses) {
         for (int i = 0; i < goal->hyp_count; i++) {
             lvHypothesisEntry *he = &goal->hypotheses[i];
-            if (he->name) lv_free_ptr(he->name);
-            if (he->type_text) lv_free_ptr(he->type_text);
-            if (he->value_text) lv_free_ptr(he->value_text);
+            if (he->name)
+                lv_free_ptr(he->name);
+            if (he->type_text)
+                lv_free_ptr(he->type_text);
+            if (he->value_text)
+                lv_free_ptr(he->value_text);
         }
         lv_free_ptr(goal->hypotheses);
         goal->hypotheses = NULL;
@@ -265,10 +280,10 @@ void goal_display_free(lvGoalDisplay *goal) {
  * @param max_count       数组最大容量
  * @return 0 成功，-1 参数无效
  */
-int proof_widget_suggest_tactic(const ProofNavigator *navigator,
-                                char **out_suggestions, double *out_confidences,
+int proof_widget_suggest_tactic(const ProofNavigator *navigator, char **out_suggestions, double *out_confidences,
                                 int max_count) {
-    if (!navigator || !out_suggestions || !out_confidences || max_count <= 0) return -1;
+    if (!navigator || !out_suggestions || !out_confidences || max_count <= 0)
+        return -1;
 
     /* 初始化输出 */
     for (int i = 0; i < max_count; i++) {
@@ -301,13 +316,13 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator,
  * @param max_count      数组最大容量
  * @return 0 成功，-1 参数无效
  */
-int proof_widget_get_step_highlights(const ProofNavigator *navigator,
-                                     lvProofStepHighlight *out_highlights,
+int proof_widget_get_step_highlights(const ProofNavigator *navigator, lvProofStepHighlight *out_highlights,
                                      int max_count) {
-    if (!navigator || !out_highlights || max_count <= 0) return -1;
+    if (!navigator || !out_highlights || max_count <= 0)
+        return -1;
 
     /* 清零输出数组 */
-    memset(out_highlights, 0, (size_t)max_count * sizeof(lvProofStepHighlight));
+    memset(out_highlights, 0, (size_t) max_count * sizeof(lvProofStepHighlight));
 
     /* 实际项目中应遍历 navigator 的步骤列表并设置高亮状态 */
     for (int i = 0; i < max_count; i++) {
@@ -327,23 +342,28 @@ int proof_widget_get_step_highlights(const ProofNavigator *navigator,
  * @return JSON 字符串（调用者负责释放），失败返回 NULL
  */
 char *proof_widget_get_search_tree(const ProofNavigator *navigator) {
-    if (!navigator) return NULL;
+    if (!navigator)
+        return NULL;
 
     size_t cap = JSON_BUF_INIT_SIZE;
-    char *buf = (char *)lv_malloc(cap);
-    if (!buf) return NULL;
+    char *buf = (char *) lv_malloc(cap);
+    if (!buf)
+        return NULL;
 
     int n = snprintf(buf, cap,
-        "{\"type\":\"search_tree\",\"root\":{\"id\":0,"
-        "\"tactic\":\"start\",\"children\":[]},\"status\":\"active\"}");
-    if (n < 0 || (size_t)n >= cap) {
-        cap = (size_t)n + 1;
-        char *nb = (char *)lv_realloc(buf, cap);
-        if (!nb) { lv_free_ptr(buf); return NULL; }
+                     "{\"type\":\"search_tree\",\"root\":{\"id\":0,"
+                     "\"tactic\":\"start\",\"children\":[]},\"status\":\"active\"}");
+    if (n < 0 || (size_t) n >= cap) {
+        cap = (size_t) n + 1;
+        char *nb = (char *) lv_realloc(buf, cap);
+        if (!nb) {
+            lv_free_ptr(buf);
+            return NULL;
+        }
         buf = nb;
         snprintf(buf, cap,
-            "{\"type\":\"search_tree\",\"root\":{\"id\":0,"
-            "\"tactic\":\"start\",\"children\":[]},\"status\":\"active\"}");
+                 "{\"type\":\"search_tree\",\"root\":{\"id\":0,"
+                 "\"tactic\":\"start\",\"children\":[]},\"status\":\"active\"}");
     }
 
     return buf;
@@ -351,21 +371,24 @@ char *proof_widget_get_search_tree(const ProofNavigator *navigator) {
 
 /* 获取依赖图的 JSON 表示（调用者负责释放返回的字符串） */
 char *proof_widget_get_dependency_graph(const ProofNavigator *navigator) {
-    if (!navigator) return NULL;
+    if (!navigator)
+        return NULL;
 
     size_t cap = JSON_BUF_INIT_SIZE;
-    char *buf = (char *)lv_malloc(cap);
-    if (!buf) return NULL;
+    char *buf = (char *) lv_malloc(cap);
+    if (!buf)
+        return NULL;
 
-    int n = snprintf(buf, cap,
-        "{\"type\":\"dependency_graph\",\"nodes\":[],\"edges\":[]}");
-    if (n < 0 || (size_t)n >= cap) {
-        cap = (size_t)n + 1;
-        char *nb = (char *)lv_realloc(buf, cap);
-        if (!nb) { lv_free_ptr(buf); return NULL; }
+    int n = snprintf(buf, cap, "{\"type\":\"dependency_graph\",\"nodes\":[],\"edges\":[]}");
+    if (n < 0 || (size_t) n >= cap) {
+        cap = (size_t) n + 1;
+        char *nb = (char *) lv_realloc(buf, cap);
+        if (!nb) {
+            lv_free_ptr(buf);
+            return NULL;
+        }
         buf = nb;
-        snprintf(buf, cap,
-            "{\"type\":\"dependency_graph\",\"nodes\":[],\"edges\":[]}");
+        snprintf(buf, cap, "{\"type\":\"dependency_graph\",\"nodes\":[],\"edges\":[]}");
     }
 
     return buf;
@@ -381,24 +404,26 @@ char *proof_widget_get_dependency_graph(const ProofNavigator *navigator) {
  * @return JSON 字符串（调用者负责释放），失败返回 NULL
  */
 char *proof_widget_export_layout(const lvWidgetLayout *layout) {
-    if (!layout) return NULL;
+    if (!layout)
+        return NULL;
 
     /* 估算缓冲区：基础 JSON + 每个 widget 约 160 字节 */
-    size_t cap = (size_t)(JSON_BUF_INIT_SIZE + layout->widget_count * 160);
-    char *buf = (char *)lv_malloc(cap);
-    if (!buf) return NULL;
+    size_t cap = (size_t) (JSON_BUF_INIT_SIZE + layout->widget_count * 160);
+    char *buf = (char *) lv_malloc(cap);
+    if (!buf)
+        return NULL;
 
     size_t pos = 0;
     int written;
 
     /* JSON 头 */
     written = snprintf(buf + pos, cap - pos,
-        "{\"layout_type\":%d,\"columns\":%d,\"rows\":%d,"
-        "\"widget_count\":%d,\"persistence_key\":\"%s\",\"widgets\":[",
-        (int)layout->layout_type, layout->columns, layout->rows,
-        layout->widget_count,
-        layout->persistence_key ? layout->persistence_key : "");
-    if (written > 0) pos += (size_t)written;
+                       "{\"layout_type\":%d,\"columns\":%d,\"rows\":%d,"
+                       "\"widget_count\":%d,\"persistence_key\":\"%s\",\"widgets\":[",
+                       (int) layout->layout_type, layout->columns, layout->rows, layout->widget_count,
+                       layout->persistence_key ? layout->persistence_key : "");
+    if (written > 0)
+        pos += (size_t) written;
 
     /* 逐个 Widget 序列化 */
     for (int i = 0; i < layout->widget_count; i++) {
@@ -407,30 +432,35 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
         /* 确保容量充足 */
         if (pos + 256 > cap) {
             cap *= 2;
-            char *nb = (char *)lv_realloc(buf, cap);
-            if (!nb) { lv_free_ptr(buf); return NULL; }
+            char *nb = (char *) lv_realloc(buf, cap);
+            if (!nb) {
+                lv_free_ptr(buf);
+                return NULL;
+            }
             buf = nb;
         }
 
         if (i > 0) {
             buf[pos++] = ',';
         }
-        written = snprintf(buf + pos, cap - pos,
-            "{\"id\":%d,\"type\":%d,\"active\":%s,\"enabled\":%s,"
-            "\"label\":\"%s\",\"step\":%d}",
-            ws->widget_id, (int)ws->widget_type,
-            ws->is_active ? "true" : "false",
-            ws->is_enabled ? "true" : "false",
-            ws->display_label ? ws->display_label : "",
-            ws->bound_step_id);
-        if (written > 0) pos += (size_t)written;
+        written =
+            snprintf(buf + pos, cap - pos,
+                     "{\"id\":%d,\"type\":%d,\"active\":%s,\"enabled\":%s,"
+                     "\"label\":\"%s\",\"step\":%d}",
+                     ws->widget_id, (int) ws->widget_type, ws->is_active ? "true" : "false",
+                     ws->is_enabled ? "true" : "false", ws->display_label ? ws->display_label : "", ws->bound_step_id);
+        if (written > 0)
+            pos += (size_t) written;
     }
 
     /* JSON 尾 */
     if (pos + 8 > cap) {
         cap += 8;
-        char *nb = (char *)lv_realloc(buf, cap);
-        if (!nb) { lv_free_ptr(buf); return NULL; }
+        char *nb = (char *) lv_realloc(buf, cap);
+        if (!nb) {
+            lv_free_ptr(buf);
+            return NULL;
+        }
         buf = nb;
     }
     snprintf(buf + pos, cap - pos, "]}");
@@ -447,11 +477,12 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
  * @param out_feedback 输出反馈字符串（调用者需释放）
  * @return 0 成功，-1 参数无效
  */
-int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name,
-                              const char *tactic_args, bool *out_success,
-                              char **out_feedback) {
-    if (!navigator || !tactic_name) return -1;
-    if (!out_success || !out_feedback) return -1;
+int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name, const char *tactic_args,
+                              bool *out_success, char **out_feedback) {
+    if (!navigator || !tactic_name)
+        return -1;
+    if (!out_success || !out_feedback)
+        return -1;
 
     *out_success = false;
     *out_feedback = NULL;
@@ -466,8 +497,7 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
         step_type = PROOF_STEP_REWRITE;
     } else if (strcmp(tactic_name, "destruct") == 0) {
         step_type = PROOF_STEP_NORMALIZATION;
-    } else if (strcmp(tactic_name, "reflexivity") == 0 ||
-               strcmp(tactic_name, "assumption") == 0) {
+    } else if (strcmp(tactic_name, "reflexivity") == 0 || strcmp(tactic_name, "assumption") == 0) {
         step_type = PROOF_STEP_UNIFY;
     } else if (strcmp(tactic_name, "exfalso") == 0) {
         step_type = PROOF_STEP_EX_FALSO;
@@ -488,16 +518,16 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
     /* 设置步骤备注 */
     if (tactic_args && tactic_args[0]) {
         /* [安全] 计算备注缓冲区大小：确保 tactic_name 和 tactic_args 不超过 2^31-1 */
-    if (strlen(tactic_name) > 0x3FFFFFFF || (tactic_args && strlen(tactic_args) > 0x3FFFFFFF)) {
-        *out_feedback = lv_strdup("tactic name or args too long");
-        return (*out_feedback) ? 0 : -1;
-    }
-    int buf_size = (int)(strlen(tactic_name) + (tactic_args ? strlen(tactic_args) : 0) + 4);
-        char *note = (char *)lv_malloc((size_t)buf_size);
+        if (strlen(tactic_name) > 0x3FFFFFFF || (tactic_args && strlen(tactic_args) > 0x3FFFFFFF)) {
+            *out_feedback = lv_strdup("tactic name or args too long");
+            return (*out_feedback) ? 0 : -1;
+        }
+        int buf_size = (int) (strlen(tactic_name) + (tactic_args ? strlen(tactic_args) : 0) + 4);
+        char *note = (char *) lv_malloc((size_t) buf_size);
         if (note) {
-            snprintf(note, (size_t)buf_size, "%s %s", tactic_name, tactic_args);
+            snprintf(note, (size_t) buf_size, "%s %s", tactic_name, tactic_args);
             proof_step_set_note(step, note);
-            lv_free((void **)&(note));
+            lv_free((void **) &(note));
         }
     } else {
         proof_step_set_note(step, tactic_name);
@@ -526,9 +556,9 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
  * @param columns    列数（<=0 时使用默认值 2）
  * @param rows       行数（<=0 时使用默认值 2）
  */
-void proof_widget_set_layout_type(lvWidgetLayout *layout, lvLayoutType layout_type,
-                                  int columns, int rows) {
-    if (!layout) return;
+void proof_widget_set_layout_type(lvWidgetLayout *layout, lvLayoutType layout_type, int columns, int rows) {
+    if (!layout)
+        return;
     layout->layout_type = layout_type;
     layout->columns = (columns > 0) ? columns : DEFAULT_COLUMNS;
     layout->rows = (rows > 0) ? rows : DEFAULT_ROWS;
@@ -539,9 +569,9 @@ void proof_widget_set_layout_type(lvWidgetLayout *layout, lvLayoutType layout_ty
  * @param layout          布局指针
  * @param persistence_key 持久化键字符串（内部复制，可为 NULL）
  */
-void proof_widget_set_persistence_key(lvWidgetLayout *layout,
-                                      const char *persistence_key) {
-    if (!layout) return;
+void proof_widget_set_persistence_key(lvWidgetLayout *layout, const char *persistence_key) {
+    if (!layout)
+        return;
 
     if (layout->persistence_key) {
         lv_free_ptr(layout->persistence_key);
@@ -555,17 +585,18 @@ void proof_widget_set_persistence_key(lvWidgetLayout *layout,
  * @param order_indices 顺序索引数组
  * @param count         数组长度
  */
-void proof_widget_set_order(lvWidgetLayout *layout, const int *order_indices,
-                            int count) {
-    if (!layout || !order_indices || count <= 0) return;
+void proof_widget_set_order(lvWidgetLayout *layout, const int *order_indices, int count) {
+    if (!layout || !order_indices || count <= 0)
+        return;
 
     /* 释放旧的顺序数组 */
     if (layout->order_indices) {
         lv_free_ptr(layout->order_indices);
     }
 
-    layout->order_indices = (int *)lv_malloc((size_t)count * sizeof(int));
-    if (!layout->order_indices) return;
+    layout->order_indices = (int *) lv_malloc((size_t) count * sizeof(int));
+    if (!layout->order_indices)
+        return;
 
-    memcpy(layout->order_indices, order_indices, (size_t)count * sizeof(int));
+    memcpy(layout->order_indices, order_indices, (size_t) count * sizeof(int));
 }

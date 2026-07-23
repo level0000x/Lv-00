@@ -10,11 +10,12 @@
  */
 
 #include "preset_probability_statistics.h"
-#include "preset_blocks.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
 
 #include <string.h>
+
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -23,8 +24,7 @@
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_probability_statistics_register(void)
-{
+bool preset_probability_statistics_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -32,38 +32,26 @@ bool preset_probability_statistics_register(void)
      * ============================================================ */
 
     /* 正态分布 */
-    if (preset_blocks_register_by_category(
-            "normal_distribution",
-            "构造正态分布 N(μ, σ²) 及其PDF/CDF计算",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("normal_distribution", "构造正态分布 N(μ, σ²) 及其PDF/CDF计算",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
     /* 二项分布 */
-    if (preset_blocks_register_by_category(
-            "binomial_distribution",
-            "构造二项分布 B(n, p) 及概率计算",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("binomial_distribution", "构造二项分布 B(n, p) 及概率计算",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
     /* Poisson分布 */
-    if (preset_blocks_register_by_category(
-            "poisson_distribution",
-            "构造Poisson分布 P(λ) 及概率计算",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("poisson_distribution", "构造Poisson分布 P(λ) 及概率计算",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* 期望与方差 */
-    if (preset_blocks_register_by_category(
-            "expectation_variance",
-            "计算随机变量的期望 E[X] 和方差 Var(X)",
-            PRESET_EXT_ANALYSIS,
-            1, 1)) {
+    if (preset_blocks_register_by_category("expectation_variance", "计算随机变量的期望 E[X] 和方差 Var(X)",
+                                           PRESET_EXT_ANALYSIS, 1, 1)) {
         success_count++;
     }
 
@@ -72,29 +60,20 @@ bool preset_probability_statistics_register(void)
      * ============================================================ */
 
     /* Z检验 */
-    if (preset_blocks_register_by_category(
-            "z_test",
-            "单样本Z检验（已知总体方差的均值检验）",
-            PRESET_EXT_ANALYSIS,
-            4, 1)) {
+    if (preset_blocks_register_by_category("z_test", "单样本Z检验（已知总体方差的均值检验）", PRESET_EXT_ANALYSIS, 4,
+                                           1)) {
         success_count++;
     }
 
     /* t检验 */
-    if (preset_blocks_register_by_category(
-            "t_test",
-            "单样本/双样本t检验（未知总体方差的均值检验）",
-            PRESET_EXT_ANALYSIS,
-            4, 1)) {
+    if (preset_blocks_register_by_category("t_test", "单样本/双样本t检验（未知总体方差的均值检验）",
+                                           PRESET_EXT_ANALYSIS, 4, 1)) {
         success_count++;
     }
 
     /* 卡方检验 */
-    if (preset_blocks_register_by_category(
-            "chi_square_test",
-            "卡方拟合优度检验（观测频数与期望频数比较）",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("chi_square_test", "卡方拟合优度检验（观测频数与期望频数比较）",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
@@ -103,20 +82,14 @@ bool preset_probability_statistics_register(void)
      * ============================================================ */
 
     /* 贝叶斯定理 */
-    if (preset_blocks_register_by_category(
-            "bayes_theorem",
-            "应用贝叶斯定理 P(A|B) = P(B|A)P(A)/P(B)",
-            PRESET_EXT_ANALYSIS,
-            4, 1)) {
+    if (preset_blocks_register_by_category("bayes_theorem", "应用贝叶斯定理 P(A|B) = P(B|A)P(A)/P(B)",
+                                           PRESET_EXT_ANALYSIS, 4, 1)) {
         success_count++;
     }
 
     /* 贝叶斯参数估计 */
-    if (preset_blocks_register_by_category(
-            "bayesian_estimation",
-            "贝叶斯参数估计：后验 ∝ 似然 x 先验",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("bayesian_estimation", "贝叶斯参数估计：后验 ∝ 似然 x 先验",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
@@ -125,29 +98,20 @@ bool preset_probability_statistics_register(void)
      * ============================================================ */
 
     /* 最小二乘回归 */
-    if (preset_blocks_register_by_category(
-            "least_squares_regression",
-            "最小二乘法线性回归 y = a + bx",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("least_squares_regression", "最小二乘法线性回归 y = a + bx",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* 置信区间 */
-    if (preset_blocks_register_by_category(
-            "confidence_interval",
-            "计算总体均值的置信区间",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("confidence_interval", "计算总体均值的置信区间", PRESET_EXT_ANALYSIS, 3,
+                                           1)) {
         success_count++;
     }
 
     /* 极大似然估计 */
-    if (preset_blocks_register_by_category(
-            "maximum_likelihood_estimation",
-            "极大似然估计（MLE）求参数估计值",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("maximum_likelihood_estimation", "极大似然估计（MLE）求参数估计值",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
@@ -156,20 +120,14 @@ bool preset_probability_statistics_register(void)
      * ============================================================ */
 
     /* 相关系数 */
-    if (preset_blocks_register_by_category(
-            "correlation_coefficient",
-            "计算Pearson相关系数 r = Cov(X,Y)/(σ_X σ_Y)",
-            PRESET_EXT_ANALYSIS,
-            2, 1)) {
+    if (preset_blocks_register_by_category("correlation_coefficient", "计算Pearson相关系数 r = Cov(X,Y)/(σ_X σ_Y)",
+                                           PRESET_EXT_ANALYSIS, 2, 1)) {
         success_count++;
     }
 
     /* 中心极限定理 */
-    if (preset_blocks_register_by_category(
-            "central_limit_theorem",
-            "中心极限定理应用：样本均值的近似分布",
-            PRESET_EXT_ANALYSIS,
-            3, 1)) {
+    if (preset_blocks_register_by_category("central_limit_theorem", "中心极限定理应用：样本均值的近似分布",
+                                           PRESET_EXT_ANALYSIS, 3, 1)) {
         success_count++;
     }
 
@@ -177,7 +135,6 @@ bool preset_probability_statistics_register(void)
     return success_count == PROBABILITY_STATISTICS_PRESET_COUNT;
 }
 
-int preset_probability_statistics_count(void)
-{
+int preset_probability_statistics_count(void) {
     return PROBABILITY_STATISTICS_PRESET_COUNT;
 }

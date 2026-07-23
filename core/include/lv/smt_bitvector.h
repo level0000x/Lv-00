@@ -5,9 +5,9 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 /** Bitvector type. */
 typedef struct lvBitVec {
@@ -18,7 +18,7 @@ typedef struct lvBitVec {
 /** Compatibility typedef for test code. */
 typedef lvBitVec lvBitVector;
 
-#define bv_from_int(v, w) lv_bv_create((w), (unsigned long long)(v))
+#define bv_from_int(v, w) lv_bv_create((w), (unsigned long long) (v))
 
 /** Create bitvector. */
 lvBitVec *lv_bv_create(size_t width, unsigned long long value);

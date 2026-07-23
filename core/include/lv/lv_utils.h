@@ -617,17 +617,17 @@ static inline size_t lv_max_z(size_t a, size_t b) {
  * @warning 初始化容量为 8，增长因子为 2；失败时自动设置 lv_ERROR_OUT_OF_MEMORY
  */
 #define lv_ENSURE_ARRAY_CAP(arr, count, cap, ret_on_fail)                  \
-    do {                                                                     \
-        if ((count) >= (cap)) {                                              \
-            size_t _new_cap = (cap) == 0 ? 8 : (cap) * 2;                    \
+    do {                                                                   \
+        if ((count) >= (cap)) {                                            \
+            size_t _new_cap = (cap) == 0 ? 8 : (cap) * 2;                  \
             void *_new_arr = lv_realloc((arr), _new_cap * sizeof(*(arr))); \
-            if (!_new_arr) {                                                 \
-                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "数组扩容失败");    \
-                return (ret_on_fail);                                        \
-            }                                                                \
-            (arr) = _new_arr;                                                \
-            (cap) = _new_cap;                                                \
-        }                                                                    \
+            if (!_new_arr) {                                               \
+                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "数组扩容失败");      \
+                return (ret_on_fail);                                      \
+            }                                                              \
+            (arr) = _new_arr;                                              \
+            (cap) = _new_cap;                                              \
+        }                                                                  \
     } while (0)
 
 /** 通用最小/最大值宏（保留向后兼容，类型安全请使用 lv_min_i/lv_max_i） */
@@ -647,43 +647,42 @@ static inline size_t lv_max_z(size_t a, size_t b) {
  * @brief 交换两个同类型变量
  */
 #define lv_SWAP(type, a, b) \
-    do {                      \
-        type _tmp = (a);      \
-        (a) = (b);            \
-        (b) = _tmp;           \
+    do {                    \
+        type _tmp = (a);    \
+        (a) = (b);          \
+        (b) = _tmp;         \
     } while (0)
 
 /**
  * @brief 检查指针是否为NULL，如果是则返回指定值
  */
-#define lv_RETURN_IF_NULL(ptr, ret)                                                          \
-    do {                                                                                       \
-        if (!(ptr)) {                                                                          \
-            lv_set_error(lv_ERROR_NULL_POINTER,                                            \
-                           "Null pointer: " #ptr " at " __FILE__ ":" lv_TOSTRING(__LINE__)); \
-            return (ret);                                                                      \
-        }                                                                                      \
+#define lv_RETURN_IF_NULL(ptr, ret)                                                                               \
+    do {                                                                                                          \
+        if (!(ptr)) {                                                                                             \
+            lv_set_error(lv_ERROR_NULL_POINTER, "Null pointer: " #ptr " at " __FILE__ ":" lv_TOSTRING(__LINE__)); \
+            return (ret);                                                                                         \
+        }                                                                                                         \
     } while (0)
 
 /**
  * @brief 检查条件，不满足则返回错误
  */
-#define lv_RETURN_IF_FALSE(cond, err_code, ret)                                                               \
-    do {                                                                                                        \
-        if (!(cond)) {                                                                                          \
+#define lv_RETURN_IF_FALSE(cond, err_code, ret)                                                             \
+    do {                                                                                                    \
+        if (!(cond)) {                                                                                      \
             lv_set_error((err_code), "Condition failed: " #cond " at " __FILE__ ":" lv_TOSTRING(__LINE__)); \
-            return (ret);                                                                                       \
-        }                                                                                                       \
+            return (ret);                                                                                   \
+        }                                                                                                   \
     } while (0)
 
 /**
  * @brief 安全调用函数并检查返回值
  */
-#define lv_SAFE_CALL(func, ret_val, ret)             \
-    do {                                               \
-        ret_val = (func);                              \
+#define lv_SAFE_CALL(func, ret_val, ret)           \
+    do {                                           \
+        ret_val = (func);                          \
         if (lv_is_error(lv_get_last_error_code())) \
-            return (ret);                              \
+            return (ret);                          \
     } while (0)
 
 /**
@@ -699,13 +698,13 @@ static inline size_t lv_max_z(size_t a, size_t b) {
  * @param ptr  目标指针变量
  * @param value 要赋的值
  */
-#define lv_SAFE_ASSIGN(ptr, value)                                                       \
-    do {                                                                                   \
-        if ((ptr) != NULL) {                                                               \
+#define lv_SAFE_ASSIGN(ptr, value)                                                        \
+    do {                                                                                  \
+        if ((ptr) != NULL) {                                                              \
             lv_LOG_WARNING("lv_SAFE_ASSIGN: 指针 " #ptr " 非空时被覆盖 (0x%p)，可能泄漏", \
-                             (const void *)(uintptr_t)(ptr));                              \
-        }                                                                                  \
-        (ptr) = (value);                                                                   \
+                           (const void *) (uintptr_t) (ptr));                             \
+        }                                                                                 \
+        (ptr) = (value);                                                                  \
     } while (0)
 
 /**
@@ -722,9 +721,9 @@ static inline size_t lv_max_z(size_t a, size_t b) {
  * @param ret 空指针时的返回值
  */
 #define lv_NULL_CHECK(ptr, ret) \
-    do {                          \
-        if (!(ptr))               \
-            return (ret);         \
+    do {                        \
+        if (!(ptr))             \
+            return (ret);       \
     } while (0)
 
 /**
@@ -740,11 +739,11 @@ static inline size_t lv_max_z(size_t a, size_t b) {
  * @note 此宏展开为 lv_free((void**)&(ptr))，
  *       ptr 必须是可以取地址的变量（不能是表达式或字面量）。
  */
-#define lv_FREE_AND_NULL(ptr)      \
-    do {                             \
-        if ((ptr)) {                 \
-            lv_free((void **)&(ptr)); \
-        }                            \
+#define lv_FREE_AND_NULL(ptr)          \
+    do {                               \
+        if ((ptr)) {                   \
+            lv_free((void **) &(ptr)); \
+        }                              \
     } while (0)
 
 /* ============================================================
@@ -986,8 +985,8 @@ lv_PUBLIC_API void lv_resource_tracker_destroy(ResourceTracker **rt);
  * @param name 资源名称（用于调试输出，可为 NULL）
  * @return true 追踪成功，false 失败
  */
-lv_PUBLIC_API bool lv_resource_track(ResourceTracker *rt, void *resource,
-                          lvResourceDestroyFunc destroy, const char *name);
+lv_PUBLIC_API bool lv_resource_track(ResourceTracker *rt, void *resource, lvResourceDestroyFunc destroy,
+                                     const char *name);
 
 /**
  * @brief 取消追踪一个资源

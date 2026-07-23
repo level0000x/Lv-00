@@ -18,19 +18,21 @@
 
 #include <float.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv/constraint_graph.h"
-#include "lv/symbolic_coord.h"
+#include "lv/context.h"
 #include "lv/stream.h"
-#include "type_system.h"
+#include "lv/symbolic_coord.h"
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/context.h"
-#include <stdarg.h>
+#include "type_system.h"
 
 /* ── 流上下文声明 ── */
 lv_DECLARE_STREAM_CTX(graph);
@@ -57,43 +59,42 @@ unsigned constraint_id_hash(int id, int capacity);
  * @param has_external       是否有外部引用
  * @return true 表示引用合法，false 表示违反作用域规则
  */
-static bool validate_cross_boundary_refs(GeomNode *func_block,
-                                          int *internal_ids, int internal_count,
-                                          int external_namespace, int external_parent,
-                                          bool has_internal, bool has_external) {
-    (void)internal_count; /* 未使用参数 */
+static bool validate_cross_boundary_refs(GeomNode *func_block, int *internal_ids, int internal_count,
+                                         int external_namespace, int external_parent, bool has_internal,
+                                         bool has_external) {
+    (void) internal_count; /* 未使用参数 */
 
-        if (has_internal && has_external) {
-            /* 检查作用域规则：
+    if (has_internal && has_external) {
+        /* 检查作用域规则：
              * - 子块可以引用父块的公共节点
              * - 兄弟块不能相互引用私有节点
              * - namespace_depth 差异应最多为1才是有效引用
              */
-            int block_namespace = func_block->namespace_depth;
-            int block_parent = func_block->parent_block_id;
+        int block_namespace = func_block->namespace_depth;
+        int block_parent = func_block->parent_block_id;
 
-            /* 引用兄弟块内部节点是无效的 */
-            if (external_namespace == block_namespace && external_parent != block_parent) {
-                /* 相同深度但不同父块 - 兄弟块引用 */
-                lv_free((void **) &internal_ids);
-                lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references sibling block's private node");
-                return false;
-            }
-
-            /* 引用更深命名空间的节点是无效的 */
-            if (external_namespace > block_namespace) {
-                lv_free((void **) &internal_ids);
-                lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references node from deeper namespace");
-                return false;
-            }
-
-            /* 命名空间深度差异 > 1 是无效的 */
-            if (block_namespace - external_namespace > 1) {
-                lv_free((void **) &internal_ids);
-                lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint spans more than one namespace level");
-                return false;
-            }
+        /* 引用兄弟块内部节点是无效的 */
+        if (external_namespace == block_namespace && external_parent != block_parent) {
+            /* 相同深度但不同父块 - 兄弟块引用 */
+            lv_free((void **) &internal_ids);
+            lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references sibling block's private node");
+            return false;
         }
+
+        /* 引用更深命名空间的节点是无效的 */
+        if (external_namespace > block_namespace) {
+            lv_free((void **) &internal_ids);
+            lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references node from deeper namespace");
+            return false;
+        }
+
+        /* 命名空间深度差异 > 1 是无效的 */
+        if (block_namespace - external_namespace > 1) {
+            lv_free((void **) &internal_ids);
+            lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint spans more than one namespace level");
+            return false;
+        }
+    }
 
     lv_free((void **) &internal_ids);
     return true;
@@ -144,7 +145,7 @@ AddConstraintResult graph_add_incidence(ConstraintGraph *graph, int point_id, in
         snprintf(buf, sizeof(buf), "添加关联约束: id=%d, point=%d, target=%d", con->id, point_id, line_or_region_id);
         stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONSTRAINT_ADDED, buf, 0);
     }
-    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
+    graph->dirty = true; /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -190,7 +191,7 @@ AddConstraintResult graph_add_betweenness(ConstraintGraph *graph, int p1_id, int
                  "(点 %d-%d-%d 不共线)",
                  con->id, p1_id, p2_id, p3_id);
     }
-    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
+    graph->dirty = true; /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -237,7 +238,7 @@ AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id,
                  "(线 %d 和 %d 已在不同点相交)",
                  con->id, line1_id, line2_id);
     }
-    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
+    graph->dirty = true; /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -265,8 +266,8 @@ AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, 
     if (!type_check_universe_constraint(outer, inner)) {
         UniverseLevel outer_level = type_get_universe_level(outer);
         UniverseLevel inner_level = type_get_universe_level(inner);
-        graph_set_error(graph, "违反宇宙层级约束: 区域层级 %d 必须高于内容层级 %d",
-                        (int)outer_level, (int)inner_level);
+        graph_set_error(graph, "违反宇宙层级约束: 区域层级 %d 必须高于内容层级 %d", (int) outer_level,
+                        (int) inner_level);
         return ADD_CONSTRAINT_CONFLICT;
     }
 
@@ -286,7 +287,7 @@ AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, 
     con->participants[0] = inner_id;
     con->participants[1] = outer_id;
     con->participant_count = 2;
-    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
+    graph->dirty = true; /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -335,7 +336,7 @@ AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id
     /* 建立双向连接关系 */
     dst_port->connected_to = src;
     src_port->connected_to = dst;
-    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
+    graph->dirty = true; /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -448,7 +449,7 @@ RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id) {
                 graph->constraints[k] = graph->constraints[k + 1];
             }
             graph->constraint_count--;
-            graph->dirty = true;  /* v3.5.0: 约束被移除，标记脏状态 */
+            graph->dirty = true; /* v3.5.0: 约束被移除，标记脏状态 */
         }
     }
 
@@ -504,7 +505,7 @@ RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int const
         graph->constraints[i] = graph->constraints[i + 1];
     }
     graph->constraint_count--;
-    graph->dirty = true;  /* v3.5.0: 约束被移除，标记脏状态 */
+    graph->dirty = true; /* v3.5.0: 约束被移除，标记脏状态 */
     if (graph_stream_ctx) {
         char buf[128];
         snprintf(buf, sizeof(buf), "移除约束: id=%d", cid);
@@ -543,7 +544,7 @@ void graph_sync_nodes(ConstraintGraph *graph) {
     if (!graph)
         return;
     if (!graph->dirty)
-        return;  /* 无变更，无需同步 */
+        return; /* 无变更，无需同步 */
 
     /* 遍历所有活跃约束，传播约束信息到受影响节点 */
     for (int i = 0; i < graph->constraint_count; i++) {
@@ -571,8 +572,7 @@ void graph_sync_nodes(ConstraintGraph *graph) {
                     /* 拓扑约束允许较低的 trust */
                     break;
                 default:
-                    lv_LOG_ERROR("graph_sync_nodes: 未知约束类型 %d (id=%d)",
-                                   (int)c->type, c->id);
+                    lv_LOG_ERROR("graph_sync_nodes: 未知约束类型 %d (id=%d)", (int) c->type, c->id);
                     break;
             }
         }
@@ -597,13 +597,11 @@ int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id) {
 
     Constraint *con = graph_get_constraint(graph, constraint_id);
     if (!con) {
-        lv_set_error(lv_ERROR_NOT_FOUND,
-                       "graph_deactivate_constraint: 约束 #%d 未找到", constraint_id);
+        lv_set_error(lv_ERROR_NOT_FOUND, "graph_deactivate_constraint: 约束 #%d 未找到", constraint_id);
         return lv_ERROR_NOT_FOUND;
     }
     if (!con->is_active) {
-        lv_set_error(lv_ERROR_UNKNOWN,
-                       "graph_deactivate_constraint: 约束 #%d 已经是不活跃状态", constraint_id);
+        lv_set_error(lv_ERROR_UNKNOWN, "graph_deactivate_constraint: 约束 #%d 已经是不活跃状态", constraint_id);
         return lv_ERROR_UNKNOWN;
     }
 
@@ -616,9 +614,7 @@ int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id) {
     /* 标记图为脏状态，需要同步 */
     graph_mark_dirty(graph);
 
-    LOG_INFO("constraint_graph",
-             "约束 #%d (类型=%d) 已废弃，保留数据用于审计跟踪",
-             constraint_id, (int)con->type);
+    LOG_INFO("constraint_graph", "约束 #%d (类型=%d) 已废弃，保留数据用于审计跟踪", constraint_id, (int) con->type);
 
     if (graph_stream_ctx) {
         char buf[128];
@@ -644,7 +640,7 @@ int graph_find_constraints_involving(const ConstraintGraph *graph, int node_id, 
     int count = 0;
     for (int i = 0; i < graph->constraint_count && count < max_results; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c->is_active)                    /* v3.5.0: 跳过不活跃约束 */
+        if (!c->is_active) /* v3.5.0: 跳过不活跃约束 */
             continue;
         for (int j = 0; j < c->participant_count; j++) {
             if (c->participants[j] == node_id) {
@@ -670,7 +666,7 @@ int graph_detect_redundancy(const ConstraintGraph *graph, ConstraintType type, c
         return -1;
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c->is_active)                    /* v3.5.0: 跳过不活跃约束 */
+        if (!c->is_active) /* v3.5.0: 跳过不活跃约束 */
             continue;
         if (c->type != type || c->participant_count != n_parts)
             continue;
@@ -779,7 +775,7 @@ ConstraintGraph *graph_create(void) {
         return NULL;
     graph->next_node_id = 0;
     graph->next_constraint_id = 0;
-    graph->dirty = false;  /* v3.5.0: 脏标记初始化为 false */
+    graph->dirty = false; /* v3.5.0: 脏标记初始化为 false */
 
     /* ============================================================================
      * 遗留缓冲区说明 (v3.4.0 计划清理)

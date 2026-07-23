@@ -52,39 +52,39 @@ typedef void (*lvBenchTeardownFunc)(void *user_data);
  */
 typedef struct {
     /* 基本信息 */
-    char name[64];              /**< 测试名称 */
-    int iterations;             /**< 迭代次数 */
+    char name[64];  /**< 测试名称 */
+    int iterations; /**< 迭代次数 */
     /* 时间统计 */
-    uint64_t total_time_us;     /**< 总耗时（微秒） */
-    double mean_us;             /**< 平均耗时 */
-    double std_dev_us;          /**< 标准差 */
-    double min_us;              /**< 最小耗时 */
-    double max_us;              /**< 最大耗时 */
+    uint64_t total_time_us; /**< 总耗时（微秒） */
+    double mean_us;         /**< 平均耗时 */
+    double std_dev_us;      /**< 标准差 */
+    double min_us;          /**< 最小耗时 */
+    double max_us;          /**< 最大耗时 */
     /* 百分位 */
     double percentiles[lv_BENCH_PERCENTILE_COUNT]; /**< P50, P75, P90, P95, P99 */
     /* 吞吐量 */
-    double ops_per_sec;         /**< 每秒操作数 */
+    double ops_per_sec; /**< 每秒操作数 */
     /* 内存（可选） */
-    size_t memory_before;       /**< 测试前内存使用 */
-    size_t memory_after;        /**< 测试后内存使用 */
-    size_t memory_peak;         /**< 峰值内存使用 */
+    size_t memory_before; /**< 测试前内存使用 */
+    size_t memory_after;  /**< 测试后内存使用 */
+    size_t memory_peak;   /**< 峰值内存使用 */
     /* 状态 */
-    bool success;               /**< 是否成功 */
-    char error_msg[256];        /**< 错误信息 */
+    bool success;        /**< 是否成功 */
+    char error_msg[256]; /**< 错误信息 */
 } lvBenchResult;
 /* ============== 基准测试套件 ============== */
 /**
  * @brief 基准测试用例
  */
 typedef struct {
-    char name[64];                  /**< 用例名称 */
+    char name[64];                /**< 用例名称 */
     lvBenchFunc func;             /**< 测试函数 */
     lvBenchSetupFunc setup;       /**< 设置函数 */
     lvBenchTeardownFunc teardown; /**< 清理函数 */
-    void *user_data;                /**< 用户数据 */
-    int min_iterations;             /**< 最小迭代次数 */
-    int max_iterations;             /**< 最大迭代次数 */
-    double target_time_sec;         /**< 目标运行时间 */
+    void *user_data;              /**< 用户数据 */
+    int min_iterations;           /**< 最小迭代次数 */
+    int max_iterations;           /**< 最大迭代次数 */
+    double target_time_sec;       /**< 目标运行时间 */
 } lvBenchCase;
 /**
  * @brief 基准测试套件
@@ -136,8 +136,7 @@ char *lv_bench_suite_to_markdown(const lvBenchSuite *suite);
  * @param target_time_sec 目标运行时间
  * @return 测试结果
  */
-lvBenchResult lv_benchmark_run(lvBenchFunc func, void *user_data,
-                                    int min_iterations, double target_time_sec);
+lvBenchResult lv_benchmark_run(lvBenchFunc func, void *user_data, int min_iterations, double target_time_sec);
 /**
  * @brief 运行带设置/清理的基准测试
  */
@@ -147,26 +146,23 @@ lvBenchResult lv_benchmark_run_full(const lvBenchCase *case_);
  * @brief 比较两个结果
  */
 typedef struct {
-    double mean_ratio;         /**< 均值比率 (new/old) */
-    double min_ratio;          /**< 最小值比率 */
-    double max_ratio;          /**< 最大值比率 */
-    double ops_ratio;          /**< 吞吐量比率 */
-    bool is_regression;        /**< 是否为性能回归 */
+    double mean_ratio;           /**< 均值比率 (new/old) */
+    double min_ratio;            /**< 最小值比率 */
+    double max_ratio;            /**< 最大值比率 */
+    double ops_ratio;            /**< 吞吐量比率 */
+    bool is_regression;          /**< 是否为性能回归 */
     double regression_threshold; /**< 回归阈值 */
 } lvBenchComparison;
 /**
  * @brief 比较两个基准测试结果
  */
-lvBenchComparison lv_bench_compare(const lvBenchResult *baseline,
-                                        const lvBenchResult *current,
-                                        double regression_threshold);
+lvBenchComparison lv_bench_compare(const lvBenchResult *baseline, const lvBenchResult *current,
+                                   double regression_threshold);
 /**
  * @brief 打印比较结果
  */
-void lv_bench_print_comparison(const lvBenchComparison *cmp,
-                                  const lvBenchResult *baseline,
-                                  const lvBenchResult *current,
-                                  void *stream);
+void lv_bench_print_comparison(const lvBenchComparison *cmp, const lvBenchResult *baseline,
+                               const lvBenchResult *current, void *stream);
 /* ============== 内置基准测试 ============== */
 /**
  * @brief 运行Lv-00核心模块基准测试
@@ -199,9 +195,9 @@ lvBenchSuite *lv_bench_run_thread_tests(void);
  * @brief 高精度计时器
  */
 typedef struct {
-    uint64_t start;    /**< 开始时间 */
-    uint64_t end;      /**< 结束时间 */
-    bool running;      /**< 是否运行中 */
+    uint64_t start; /**< 开始时间 */
+    uint64_t end;   /**< 结束时间 */
+    bool running;   /**< 是否运行中 */
 } lvTimer;
 /**
  * @brief 创建计时器
@@ -250,17 +246,17 @@ void lv_reset_memory_stats(void);
  */
 typedef struct {
     /* 计数器 */
-    uint64_t operations;        /**< 操作次数 */
-    uint64_t errors;            /**< 错误次数 */
+    uint64_t operations; /**< 操作次数 */
+    uint64_t errors;     /**< 错误次数 */
     /* 时间 */
-    uint64_t total_time_us;     /**< 总耗时 */
-    uint64_t min_time_us;       /**< 最小耗时 */
-    uint64_t max_time_us;       /**< 最大耗时 */
+    uint64_t total_time_us; /**< 总耗时 */
+    uint64_t min_time_us;   /**< 最小耗时 */
+    uint64_t max_time_us;   /**< 最大耗时 */
     /* 内存 */
-    size_t memory_allocated;    /**< 分配内存 */
-    size_t memory_freed;        /**< 释放内存 */
-    size_t memory_current;      /**< 当前内存 */
-    size_t memory_peak;         /**< 峰值内存 */
+    size_t memory_allocated; /**< 分配内存 */
+    size_t memory_freed;     /**< 释放内存 */
+    size_t memory_current;   /**< 当前内存 */
+    size_t memory_peak;      /**< 峰值内存 */
     /* 自定义计数器 */
     uint64_t custom_counters[8];
 } lvPerfMonitor;

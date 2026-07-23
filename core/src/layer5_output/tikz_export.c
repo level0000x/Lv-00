@@ -13,14 +13,16 @@
  */
 
 #include "tikz_export.h"
-#include "lv/constraint_graph.h"
-#include "lv/symbolic_coord.h"
-#include "lv/lv_utils.h"
-#include "lv_internal.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
+
+#include "lv/constraint_graph.h"
+#include "lv/lv_utils.h"
+#include "lv/symbolic_coord.h"
+
+#include "lv_internal.h"
 
 /** 输出缓冲区初始容量（64 KB） */
 #define TIKZ_BUF_INIT_CAP (64 * 1024)
@@ -33,9 +35,9 @@
  * 用于在内存中逐步构建 TikZ 代码，避免频繁的 snprintf 边界检查。
  */
 typedef struct {
-    char  *data;   /**< 缓冲区数据指针 */
-    size_t len;    /**< 当前数据长度 */
-    size_t cap;    /**< 缓冲区总容量 */
+    char *data; /**< 缓冲区数据指针 */
+    size_t len; /**< 当前数据长度 */
+    size_t cap; /**< 缓冲区总容量 */
 } TikzBuf;
 
 /**
@@ -46,7 +48,8 @@ typedef struct {
  */
 static bool tikz_buf_init(TikzBuf *b) {
     b->data = lv_malloc(TIKZ_BUF_INIT_CAP);
-    if (!b->data) return false;
+    if (!b->data)
+        return false;
     b->data[0] = '\0';
     b->len = 0;
     b->cap = TIKZ_BUF_INIT_CAP;
@@ -59,7 +62,8 @@ static bool tikz_buf_init(TikzBuf *b) {
  * @param b 缓冲区指针
  */
 static void tikz_buf_destroy(TikzBuf *b) {
-    if (b) lv_free((void **)&b->data);
+    if (b)
+        lv_free((void **) &b->data);
 }
 
 /**
@@ -75,9 +79,11 @@ static bool tikz_buf_append(TikzBuf *b, const char *s) {
     size_t slen = strlen(s);
     if (b->len + slen + 1 > b->cap) {
         size_t new_cap = b->cap * 2;
-        if (new_cap < b->cap) return false; /* 溢出 */
+        if (new_cap < b->cap)
+            return false; /* 溢出 */
         char *nd = lv_realloc(b->data, new_cap);
-        if (!nd) return false;
+        if (!nd)
+            return false;
         b->data = nd;
         b->cap = new_cap;
     }
@@ -95,9 +101,11 @@ static bool tikz_buf_append(TikzBuf *b, const char *s) {
  * @return 整数字节值（范围 [0,255]），自动钳位边界
  */
 static int tikz_byte(float c) {
-    int v = (int)(c * 255.0f + 0.5f);
-    if (v < 0) return 0;
-    if (v > 255) return 255;
+    int v = (int) (c * 255.0f + 0.5f);
+    if (v < 0)
+        return 0;
+    if (v > 255)
+        return 255;
     return v;
 }
 
@@ -117,61 +125,65 @@ static int tikz_byte(float c) {
  * @return 成功时返回写入缓冲区的字符数（不含终止符），失败返回 -1
  */
 int lv_tikz_export(void *graph, char *out, size_t buf_size) {
-    if (!graph || !out || buf_size == 0) return -1;
+    if (!graph || !out || buf_size == 0)
+        return -1;
 
-    ConstraintGraph *g = (ConstraintGraph *)graph;
+    ConstraintGraph *g = (ConstraintGraph *) graph;
     int written = 0;
 
     /* 写入 TikZ 头部 */
     int n = snprintf(out, buf_size,
-        "%% Lv-00 TikZ Export\n"
-        "\\begin{tikzpicture}[scale=1.0, x=1cm, y=1cm]\n");
-    if (n < 0 || (size_t)n >= buf_size) return -1;
+                     "%% Lv-00 TikZ Export\n"
+                     "\\begin{tikzpicture}[scale=1.0, x=1cm, y=1cm]\n");
+    if (n < 0 || (size_t) n >= buf_size)
+        return -1;
     written = n;
 
     /* 遍历所有节点，按类型导出 */
     for (int i = 0; i < g->node_count; i++) {
         GeomNode *node = g->nodes[i];
-        if (!node || !node->is_active) continue;
+        if (!node || !node->is_active)
+            continue;
 
         switch (node->type) {
-        case GEOM_POINT: {
-            if (node->coord_count >= 2 && node->symbolic_coords &&
-                node->symbolic_coords[0] && node->symbolic_coords[1]) {
-                double x = symbolic_coord_to_double(node->symbolic_coords[0]);
-                double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                n = snprintf(out + written, buf_size - (size_t)written,
-                    "  \\fill (%.4f, %.4f) circle (2pt);\n", x, y);
-                if (n < 0) return -1;
-                written += n;
+            case GEOM_POINT: {
+                if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
+                    node->symbolic_coords[1]) {
+                    double x = symbolic_coord_to_double(node->symbolic_coords[0]);
+                    double y = symbolic_coord_to_double(node->symbolic_coords[1]);
+                    n = snprintf(out + written, buf_size - (size_t) written, "  \\fill (%.4f, %.4f) circle (2pt);\n", x,
+                                 y);
+                    if (n < 0)
+                        return -1;
+                    written += n;
+                }
+                break;
             }
-            break;
-        }
-        case GEOM_LINE_SEGMENT: {
-            if (node->coord_count >= 4 && node->symbolic_coords &&
-                node->symbolic_coords[0] && node->symbolic_coords[1] &&
-                node->symbolic_coords[2] && node->symbolic_coords[3]) {
-                double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
-                double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
-                double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
-                double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
-                n = snprintf(out + written, buf_size - (size_t)written,
-                    "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n", x1, y1, x2, y2);
-                if (n < 0) return -1;
-                written += n;
+            case GEOM_LINE_SEGMENT: {
+                if (node->coord_count >= 4 && node->symbolic_coords && node->symbolic_coords[0] &&
+                    node->symbolic_coords[1] && node->symbolic_coords[2] && node->symbolic_coords[3]) {
+                    double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
+                    double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
+                    double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
+                    double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
+                    n = snprintf(out + written, buf_size - (size_t) written, "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n",
+                                 x1, y1, x2, y2);
+                    if (n < 0)
+                        return -1;
+                    written += n;
+                }
+                break;
             }
-            break;
-        }
-        default:
-            /* 其他类型暂不导出 */
-            break;
+            default:
+                /* 其他类型暂不导出 */
+                break;
         }
     }
 
     /* 写入尾部 */
-    n = snprintf(out + written, buf_size - (size_t)written,
-        "\\end{tikzpicture}\n");
-    if (n < 0) return -1;
+    n = snprintf(out + written, buf_size - (size_t) written, "\\end{tikzpicture}\n");
+    if (n < 0)
+        return -1;
     written += n;
 
     return written;
@@ -189,52 +201,52 @@ int lv_tikz_export(void *graph, char *out, size_t buf_size) {
  * @return 成功时返回写入的字节数，失败返回 -1
  */
 int lv_tikz_export_file(void *graph, const char *filename) {
-    if (!graph || !filename) return -1;
+    if (!graph || !filename)
+        return -1;
 
     /* 先用缓冲区构建输出 */
     TikzBuf buf;
-    if (!tikz_buf_init(&buf)) return -1;
+    if (!tikz_buf_init(&buf))
+        return -1;
 
     /* 写入头部 */
     tikz_buf_append(&buf,
-        "% Lv-00 TikZ Export\n"
-        "\\begin{tikzpicture}[scale=1.0, x=1cm, y=1cm]\n");
+                    "% Lv-00 TikZ Export\n"
+                    "\\begin{tikzpicture}[scale=1.0, x=1cm, y=1cm]\n");
 
-    ConstraintGraph *g = (ConstraintGraph *)graph;
+    ConstraintGraph *g = (ConstraintGraph *) graph;
     for (int i = 0; i < g->node_count; i++) {
         GeomNode *node = g->nodes[i];
-        if (!node || !node->is_active) continue;
+        if (!node || !node->is_active)
+            continue;
 
         switch (node->type) {
-        case GEOM_POINT: {
-            if (node->coord_count >= 2 && node->symbolic_coords &&
-                node->symbolic_coords[0] && node->symbolic_coords[1]) {
-                double x = symbolic_coord_to_double(node->symbolic_coords[0]);
-                double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                char line[128];
-                snprintf(line, sizeof(line),
-                    "  \\fill (%.4f, %.4f) circle (2pt);\n", x, y);
-                tikz_buf_append(&buf, line);
+            case GEOM_POINT: {
+                if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
+                    node->symbolic_coords[1]) {
+                    double x = symbolic_coord_to_double(node->symbolic_coords[0]);
+                    double y = symbolic_coord_to_double(node->symbolic_coords[1]);
+                    char line[128];
+                    snprintf(line, sizeof(line), "  \\fill (%.4f, %.4f) circle (2pt);\n", x, y);
+                    tikz_buf_append(&buf, line);
+                }
+                break;
             }
-            break;
-        }
-        case GEOM_LINE_SEGMENT: {
-            if (node->coord_count >= 4 && node->symbolic_coords &&
-                node->symbolic_coords[0] && node->symbolic_coords[1] &&
-                node->symbolic_coords[2] && node->symbolic_coords[3]) {
-                double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
-                double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
-                double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
-                double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
-                char line[128];
-                snprintf(line, sizeof(line),
-                    "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n", x1, y1, x2, y2);
-                tikz_buf_append(&buf, line);
+            case GEOM_LINE_SEGMENT: {
+                if (node->coord_count >= 4 && node->symbolic_coords && node->symbolic_coords[0] &&
+                    node->symbolic_coords[1] && node->symbolic_coords[2] && node->symbolic_coords[3]) {
+                    double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
+                    double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
+                    double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
+                    double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
+                    char line[128];
+                    snprintf(line, sizeof(line), "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n", x1, y1, x2, y2);
+                    tikz_buf_append(&buf, line);
+                }
+                break;
             }
-            break;
-        }
-        default:
-            break;
+            default:
+                break;
         }
     }
 
@@ -250,5 +262,5 @@ int lv_tikz_export_file(void *graph, const char *filename) {
     fclose(fp);
     tikz_buf_destroy(&buf);
 
-    return (int)written;
+    return (int) written;
 }
