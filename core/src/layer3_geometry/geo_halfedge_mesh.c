@@ -1,12 +1,14 @@
-﻿/**
+/**
  * @file geo_halfedge_mesh.c
  * @brief Halfedge 网格拓扑数据结构实现
  *
- * 实现策略：
+ * @details 实现策略：
  *   - 使用结构化数组存储拓扑关系
  *   - 半边自动配对（twin）构建
  *   - 面迭代使用半边环绕遍历
+ *   - 支持三角面/四边面添加、邻接查询和几何量计算
  *
+ * @author Lv-00 Project
  * @version v3.6.0
  */
 
@@ -33,6 +35,10 @@
  * 第一部分：默认配置与创建释放
  * ======================================================================== */
 
+/**
+ * @brief 获取默认 Halfedge 网格配置
+ * @return 默认配置（初始容量 64，维护法向量，不维护曲率）
+ */
 lvHeMeshConfig lv_he_mesh_default_config(void)
 {
     lvHeMeshConfig cfg;
@@ -43,8 +49,15 @@ lvHeMeshConfig lv_he_mesh_default_config(void)
     return cfg;
 }
 
+/**
+ * @brief 确保顶点数组有足够容量，必要时扩容
+ * @param mesh 网格指针
+ * @return 成功返回 true，失败返回 false
+ */
 static bool ensure_capacity(lvHeMesh *mesh)
 {
+    /* [安全] 防止整数溢出 */
+    if (mesh->vertex_capacity > INT_MAX / 2) return false;
     int new_cap = mesh->vertex_capacity * 2;
     if (new_cap < INITIAL_CAPACITY) new_cap = INITIAL_CAPACITY;
 
@@ -54,6 +67,7 @@ static bool ensure_capacity(lvHeMesh *mesh)
         mesh->vertex_out_he, new_cap * sizeof(lvHalfedge));
 
     if (!new_vdata || !new_vhe) {
+        /* [安全] 任一 realloc 失败时，原有指针仍有效，需释放已分配的部分 */
         if (new_vdata) lv_free((void **)&(new_vdata));
         if (new_vhe) lv_free((void **)&(new_vhe));
         return false;
@@ -66,6 +80,11 @@ static bool ensure_capacity(lvHeMesh *mesh)
     return true;
 }
 
+/**
+ * @brief 创建 Halfedge 网格
+ * @param config 配置指针（可为 NULL，使用默认配置）
+ * @return 新网格（调用者通过 lv_he_mesh_destroy 释放），失败返回 NULL
+ */
 lvHeMesh *lv_he_mesh_create(const lvHeMeshConfig *config)
 {
     lvHeMesh *mesh = (lvHeMesh *)lv_calloc(1, sizeof(lvHeMesh));
@@ -129,6 +148,10 @@ lvHeMesh *lv_he_mesh_create(const lvHeMeshConfig *config)
     return mesh;
 }
 
+/**
+ * @brief 销毁 Halfedge 网格并释放所有资源
+ * @param mesh 网格指针（可为 NULL）
+ */
 void lv_he_mesh_destroy(lvHeMesh *mesh)
 {
     if (!mesh) return;
@@ -147,6 +170,10 @@ void lv_he_mesh_destroy(lvHeMesh *mesh)
     lv_free((void **)&(mesh));
 }
 
+/**
+ * @brief 清空网格所有拓扑数据（保留容量）
+ * @param mesh 网格指针
+ */
 void lv_he_mesh_clear(lvHeMesh *mesh)
 {
     if (!mesh) return;
@@ -170,6 +197,12 @@ void lv_he_mesh_clear(lvHeMesh *mesh)
  * 第二部分：顶点和半边操作
  * ======================================================================== */
 
+/**
+ * @brief 添加顶点
+ * @param mesh 网格指针
+ * @param x, y, z  三维坐标
+ * @return 顶点索引，失败返回 lv_HE_INVALID
+ */
 lvVertex lv_he_mesh_add_vertex(lvHeMesh *mesh, double x, double y, double z)
 {
     if (!mesh) return lv_HE_INVALID;
@@ -192,6 +225,12 @@ lvVertex lv_he_mesh_add_vertex(lvHeMesh *mesh, double x, double y, double z)
     return v;
 }
 
+/**
+ * @brief 获取顶点位置
+ * @param mesh 网格指针
+ * @param v    顶点索引
+ * @return 三维坐标
+ */
 lvPoint3D lv_he_mesh_get_vertex_position(const lvHeMesh *mesh, lvVertex v)
 {
     lvPoint3D p = {0, 0, 0};
@@ -201,6 +240,12 @@ lvPoint3D lv_he_mesh_get_vertex_position(const lvHeMesh *mesh, lvVertex v)
     return p;
 }
 
+/**
+ * @brief 设置顶点位置
+ * @param mesh 网格指针
+ * @param v    顶点索引
+ * @param pos  新坐标
+ */
 void lv_he_mesh_set_vertex_position(lvHeMesh *mesh, lvVertex v, lvPoint3D pos)
 {
     if (mesh && v >= 0 && v < mesh->vertex_count) {
@@ -208,6 +253,12 @@ void lv_he_mesh_set_vertex_position(lvHeMesh *mesh, lvVertex v, lvPoint3D pos)
     }
 }
 
+/**
+ * @brief 获取顶点的出半边
+ * @param mesh 网格指针
+ * @param v    顶点索引
+ * @return 半边索引，无效返回 lv_HE_INVALID
+ */
 lvHalfedge lv_he_mesh_vertex_out_halfedge(const lvHeMesh *mesh, lvVertex v)
 {
     if (mesh && v >= 0 && v < mesh->vertex_count) {
@@ -216,6 +267,12 @@ lvHalfedge lv_he_mesh_vertex_out_halfedge(const lvHeMesh *mesh, lvVertex v)
     return lv_HE_INVALID;
 }
 
+/**
+ * @brief 获取半边的起点顶点
+ * @param mesh 网格指针
+ * @param he   半边索引
+ * @return 顶点索引，无效返回 lv_HE_INVALID
+ */
 lvVertex lv_he_mesh_halfedge_vertex(const lvHeMesh *mesh, lvHalfedge he)
 {
     if (mesh && he >= 0 && he < mesh->halfedge_count) {
@@ -224,6 +281,12 @@ lvVertex lv_he_mesh_halfedge_vertex(const lvHeMesh *mesh, lvHalfedge he)
     return lv_HE_INVALID;
 }
 
+/**
+ * @brief 获取半边的孪生半边
+ * @param mesh 网格指针
+ * @param he   半边索引
+ * @return 孪生半边索引，无效返回 lv_HE_INVALID
+ */
 lvHalfedge lv_he_mesh_halfedge_twin(const lvHeMesh *mesh, lvHalfedge he)
 {
     if (mesh && he >= 0 && he < mesh->halfedge_count) {
@@ -232,6 +295,12 @@ lvHalfedge lv_he_mesh_halfedge_twin(const lvHeMesh *mesh, lvHalfedge he)
     return lv_HE_INVALID;
 }
 
+/**
+ * @brief 获取半边的下一条半边
+ * @param mesh 网格指针
+ * @param he   半边索引
+ * @return 下一条半边索引，无效返回 lv_HE_INVALID
+ */
 lvHalfedge lv_he_mesh_halfedge_next(const lvHeMesh *mesh, lvHalfedge he)
 {
     if (mesh && he >= 0 && he < mesh->halfedge_count) {
@@ -240,6 +309,12 @@ lvHalfedge lv_he_mesh_halfedge_next(const lvHeMesh *mesh, lvHalfedge he)
     return lv_HE_INVALID;
 }
 
+/**
+ * @brief 获取半边所属的面
+ * @param mesh 网格指针
+ * @param he   半边索引
+ * @return 面索引，无效返回 lv_HE_INVALID
+ */
 lvFace lv_he_mesh_halfedge_face(const lvHeMesh *mesh, lvHalfedge he)
 {
     if (mesh && he >= 0 && he < mesh->halfedge_count) {
@@ -306,8 +381,11 @@ void lv_he_mesh_edge_vertices(const lvHeMesh *mesh, lvEdge e, lvVertex *out_v1, 
     if (!mesh || e < 0 || e >= mesh->edge_count) return;
 
     lvHalfedge he = mesh->edge_he[e];
-    *out_v1 = mesh->he_vertex[he];
-    *out_v2 = mesh->he_vertex[mesh->he_twin[he]];
+    /* [安全] 防止 out_v1/out_v2 为空指针 */
+    if (he < 0 || he >= mesh->halfedge_count) return;
+    if (mesh->he_twin[he] < 0 || mesh->he_twin[he] >= mesh->halfedge_count) return;
+    if (out_v1) *out_v1 = mesh->he_vertex[he];
+    if (out_v2) *out_v2 = mesh->he_vertex[mesh->he_twin[he]];
 }
 
 /* ========================================================================
@@ -344,7 +422,10 @@ static lvHalfedge add_halfedge_pair(lvHeMesh *mesh, lvVertex v1, lvVertex v2)
 
     /* 创建两个半边 */
     if (mesh->halfedge_count + 1 >= mesh->halfedge_capacity) {
+        /* [安全] 防止整数溢出 */
+        if (mesh->halfedge_capacity > INT_MAX / 2) return lv_HE_INVALID;
         int new_cap = mesh->halfedge_capacity * 2;
+        /* [安全] 先全部 realloc，任一失败则回滚整个操作 */
         lvHalfedge *new_twin = (lvHalfedge *)lv_realloc(mesh->he_twin, new_cap * sizeof(lvHalfedge));
         lvHalfedge *new_next = (lvHalfedge *)lv_realloc(mesh->he_next, new_cap * sizeof(lvHalfedge));
         lvHalfedge *new_prev = (lvHalfedge *)lv_realloc(mesh->he_prev, new_cap * sizeof(lvHalfedge));
@@ -352,6 +433,12 @@ static lvHalfedge add_halfedge_pair(lvHeMesh *mesh, lvVertex v1, lvVertex v2)
         lvVertex *new_vertex = (lvVertex *)lv_realloc(mesh->he_vertex, new_cap * sizeof(lvVertex));
 
         if (!new_twin || !new_next || !new_prev || !new_face || !new_vertex) {
+            /* [安全] 任一失败：释放已分配的内存（原有旧指针仍有效，未被覆盖） */
+            if (new_twin)   lv_free((void **)&(new_twin));
+            if (new_next)   lv_free((void **)&(new_next));
+            if (new_prev)   lv_free((void **)&(new_prev));
+            if (new_face)   lv_free((void **)&(new_face));
+            if (new_vertex) lv_free((void **)&(new_vertex));
             mesh->edge_count--;
             return lv_HE_INVALID;
         }
@@ -455,9 +542,16 @@ lvFace lv_he_mesh_add_face_triangle(lvHeMesh *mesh, lvVertex v1, lvVertex v2, lv
     double nz = ax * by - ay * bx;
     double len = sqrt(nx * nx + ny * ny + nz * nz);
 
-    mesh->face_data[f].normal.x = nx / len;
-    mesh->face_data[f].normal.y = ny / len;
-    mesh->face_data[f].normal.z = nz / len;
+    /* [安全] 防止零向量导致除零 */
+    if (len > 1e-12) {
+        mesh->face_data[f].normal.x = nx / len;
+        mesh->face_data[f].normal.y = ny / len;
+        mesh->face_data[f].normal.z = nz / len;
+    } else {
+        mesh->face_data[f].normal.x = 0.0;
+        mesh->face_data[f].normal.y = 0.0;
+        mesh->face_data[f].normal.z = 1.0;
+    }
     mesh->face_data[f].area = len / 2.0;
     mesh->face_data[f].valence = 3;
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_export_enhanced.c
  * @brief 增强的证明导出功能实现
  *
@@ -30,6 +30,12 @@ typedef struct {
     size_t cap;
 } DStr;
 
+/**
+ * @brief 初始化动态字符串构建器
+ * @param d   字符串构建器指针
+ * @param cap 初始容量
+ * @return 0 成功，-1 内存分配失败
+ */
 static int dstr_init(DStr *d, size_t cap) {
     d->data = (char *)lv_malloc(cap);
     if (!d->data) return -1;
@@ -39,6 +45,12 @@ static int dstr_init(DStr *d, size_t cap) {
     return 0;
 }
 
+/**
+ * @brief 确保缓冲区有足够的空间容纳额外内容
+ * @param d     字符串构建器指针
+ * @param extra 需要的额外字节数
+ * @return 0 成功，-1 内存分配失败
+ */
 static int dstr_grow(DStr *d, size_t extra) {
     size_t needed = d->len + extra + 1;
     if (needed <= d->cap) return 0;
@@ -51,6 +63,13 @@ static int dstr_grow(DStr *d, size_t extra) {
     return 0;
 }
 
+/**
+ * @brief 向动态字符串追加格式化内容（printf 风格）
+ * @param d   字符串构建器指针
+ * @param fmt printf 格式字符串
+ * @param ... 格式化参数
+ * @return 0 成功，-1 失败
+ */
 static int dstr_append(DStr *d, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -65,6 +84,13 @@ static int dstr_append(DStr *d, const char *fmt, ...) {
     return 0;
 }
 
+/**
+ * @brief 向动态字符串追加原始字节数据
+ * @param d 字符串构建器指针
+ * @param s 数据源指针
+ * @param n 字节数
+ * @return 0 成功，-1 失败
+ */
 static int dstr_append_raw(DStr *d, const char *s, size_t n) {
     if (!s || n == 0) return 0;
     if (dstr_grow(d, n) != 0) return -1;
@@ -74,11 +100,21 @@ static int dstr_append_raw(DStr *d, const char *s, size_t n) {
     return 0;
 }
 
+/**
+ * @brief 向动态字符串追加 C 字符串
+ * @param d 字符串构建器指针
+ * @param s 要追加的字符串（可为 NULL）
+ * @return 0 成功，-1 失败
+ */
 static int dstr_append_str(DStr *d, const char *s) {
     if (!s) return 0;
     return dstr_append_raw(d, s, strlen(s));
 }
 
+/**
+ * @brief 释放动态字符串构建器的内部缓冲区
+ * @param d 字符串构建器指针
+ */
 static void dstr_free(DStr *d) {
     if (d->data) {
         lv_free((void **)&(d->data));
@@ -92,6 +128,11 @@ static void dstr_free(DStr *d) {
  * 错误结果工厂
  * ================================================================ */
 
+/**
+ * @brief 创建错误结果对象
+ * @param msg 错误消息（可为 NULL，使用默认消息）
+ * @return 错误结果对象指针
+ */
 static lvExportResult *make_error(const char *msg) {
     lvExportResult *r = (lvExportResult *)lv_malloc(sizeof(lvExportResult));
     if (!r) return NULL;
@@ -108,6 +149,11 @@ static lvExportResult *make_error(const char *msg) {
     return r;
 }
 
+/**
+ * @brief 创建成功结果对象（接管 DStr 内部缓冲区所有权）
+ * @param d 已完成写入的字符串构建器（释放调用者职责）
+ * @return 成功结果对象指针，失败返回 NULL
+ */
 static lvExportResult *make_success(DStr *d) {
     lvExportResult *r = (lvExportResult *)lv_malloc(sizeof(lvExportResult));
     if (!r) {
@@ -125,12 +171,21 @@ static lvExportResult *make_success(DStr *d) {
  * 工具函数
  * ================================================================ */
 
-/** 安全字符串（NULL → ""） */
+/**
+ * @brief 安全字符串宏：NULL 转为空字符串
+ * @param s 输入字符串
+ * @return 非空字符串指针
+ */
 static const char *safe_str(const char *s) {
     return s ? s : "";
 }
 
-/** 将定理名转换为安全的标识符（替换特殊字符） */
+/**
+ * @brief 将定理名转换为安全的标识符（替换特殊字符为下划线）
+ * @param dst    输出缓冲区
+ * @param dst_sz 输出缓冲区大小
+ * @param src    源字符串
+ */
 static void sanitize_id(char *dst, size_t dst_sz, const char *src) {
     size_t j = 0;
     for (size_t i = 0; src[i] && j + 1 < dst_sz; i++) {
@@ -150,7 +205,12 @@ static void sanitize_id(char *dst, size_t dst_sz, const char *src) {
     }
 }
 
-/** JSON 字符串转义：在 str 前后加引号，转义 \ 和 " */
+/**
+ * @brief JSON 字符串转义：在 str 前后加引号，转义 \\ 和 \"
+ * @param d   字符串构建器指针
+ * @param str 要转义的字符串（可为 NULL，输出 "null"）
+ * @return 0 成功，-1 失败
+ */
 static int dstr_append_json_string(DStr *d, const char *str) {
     if (!str) {
         return dstr_append(d, "null");

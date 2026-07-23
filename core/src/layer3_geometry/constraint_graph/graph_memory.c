@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file graph_memory.c
  * @brief ConstraintGraph 内存管理
  *
@@ -71,6 +71,8 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
         return NULL;
 
     /* Allocate enough space for both phases */
+    /* [安全] 防止 constraint_count * 2 整数溢出 */
+    if (graph->constraint_count > INT_MAX / 2) return NULL;
     int max_redundant = graph->constraint_count * 2;
     int *redundant = lv_malloc((size_t) max_redundant * sizeof(int));
     if (!redundant)
@@ -278,7 +280,16 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     /* 使用 GMP mpq_t 构建系数矩阵进行精确算术运算
      * 矩阵维度：num_linear x (num_vars + 1) [增广矩阵]
      * 每行代表一个约束对应的线性方程 */
-    mpq_t *matrix = lv_malloc((size_t) num_linear * (num_vars + 1) * sizeof(mpq_t));
+    /* [安全] 防止乘法溢出：size_t 计算 */
+    size_t matrix_size = (size_t) num_linear * (size_t)(num_vars + 1);
+    if (num_linear > 0 && matrix_size / (size_t) num_linear != (size_t)(num_vars + 1)) {
+        lv_free((void **) &point_ids);
+        lv_free((void **) &point_seen);
+        lv_free((void **) &node_id_to_var_idx);
+        lv_free((void **) &linear_constraint_indices);
+        return redundant;
+    }
+    mpq_t *matrix = lv_malloc(matrix_size * sizeof(mpq_t));
     if (!matrix) {
         lv_free((void **) &point_ids);
         lv_free((void **) &point_seen);

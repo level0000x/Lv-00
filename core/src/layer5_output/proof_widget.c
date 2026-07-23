@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_widget.c
  * @brief 证明交互可视化组件实现 -- Widget 生命周期、布局管理、证明状态查询与策略推荐
  *
@@ -35,7 +35,11 @@
  * 第一部分：生命周期
  * ================================================================ */
 
-/* 创建 Widget 布局，分配初始容量 */
+/**
+ * @brief 创建 Widget 布局，分配初始容量
+ * @param layout_capacity 初始 widget 容量（<=0 时使用默认值 8）
+ * @return 布局指针，失败返回 NULL
+ */
 lvWidgetLayout *proof_widget_init(int layout_capacity) {
     if (layout_capacity <= 0) {
         layout_capacity = 8;
@@ -87,7 +91,14 @@ void proof_widget_destroy(lvWidgetLayout *layout) {
  * 第二部分：Widget 注册与更新
  * ================================================================ */
 
-/* 注册新 Widget 到布局中，返回 widget_id；失败返回 -1 */
+/**
+ * @brief 注册新 Widget 到布局中
+ * @param layout     布局指针
+ * @param widget_type Widget 类型枚举
+ * @param label      显示标签（可为 NULL，内部会复制）
+ * @param bound_step 绑定的证明步骤 ID
+ * @return widget_id（非负），失败返回 -1
+ */
 int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type,
                           const char *label, int bound_step) {
     if (!layout) return -1;
@@ -120,7 +131,17 @@ int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type,
     return id;
 }
 
-/* 更新已有 Widget 的状态 */
+/**
+ * @brief 更新已有 Widget 的状态
+ * @param layout          布局指针
+ * @param widget_id       Widget ID
+ * @param is_active       是否激活
+ * @param is_enabled      是否启用
+ * @param display_label   新的显示标签（可为 NULL 表示不更新）
+ * @param bound_step_id   新的绑定步骤 ID
+ * @param interaction_json 新的交互数据 JSON（可为 NULL 表示不更新）
+ * @return 0 成功，-1 参数无效或 widget_id 越界
+ */
 int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active,
                         bool is_enabled, const char *display_label,
                         int bound_step_id, const char *interaction_json) {
@@ -151,7 +172,12 @@ int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active,
  * 第三部分：证明状态查询
  * ================================================================ */
 
-/* 从 ProofNavigator 获取当前证明目标，填充 out_goal */
+/**
+ * @brief 从 ProofNavigator 获取当前证明目标
+ * @param navigator 证明导航器指针
+ * @param out_goal  输出参数，填充目标显示结构
+ * @return 0 成功，-1 参数无效
+ */
 int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_goal) {
     if (!navigator || !out_goal) return -1;
 
@@ -168,7 +194,13 @@ int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_go
     return 0;
 }
 
-/* 从 ProofNavigator 获取假设列表 */
+/**
+ * @brief 从 ProofNavigator 获取假设列表
+ * @param navigator     证明导航器指针
+ * @param out_hypotheses 输出假设列表数组
+ * @param max_count      数组最大容量
+ * @return 实际假设数量（>=0），失败返回 -1
+ */
 int proof_widget_get_hypotheses(const ProofNavigator *navigator,
                                 lvHypothesisEntry *out_hypotheses, int max_count) {
     if (!navigator || !out_hypotheses || max_count <= 0) return -1;
@@ -181,7 +213,10 @@ int proof_widget_get_hypotheses(const ProofNavigator *navigator,
     return 0;
 }
 
-/* 释放 GoalDisplay 内部动态分配的资源 */
+/**
+ * @brief 释放 GoalDisplay 内部动态分配的资源
+ * @param goal 目标显示结构指针（可为 NULL）
+ */
 void goal_display_free(lvGoalDisplay *goal) {
     if (!goal) return;
 
@@ -221,7 +256,14 @@ void goal_display_free(lvGoalDisplay *goal) {
  * 第四部分：智能推荐与可视化
  * ================================================================ */
 
-/* 基于当前证明状态建议可用策略 */
+/**
+ * @brief 基于当前证明状态建议可用策略
+ * @param navigator      证明导航器指针
+ * @param out_suggestions 输出策略名称字符串数组（各条目调用者需释放）
+ * @param out_confidences 输出对应置信度数组
+ * @param max_count       数组最大容量
+ * @return 0 成功，-1 参数无效
+ */
 int proof_widget_suggest_tactic(const ProofNavigator *navigator,
                                 char **out_suggestions, double *out_confidences,
                                 int max_count) {
@@ -251,7 +293,13 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator,
     return 0;
 }
 
-/* 获取每个证明步骤的高亮状态 */
+/**
+ * @brief 获取每个证明步骤的高亮状态
+ * @param navigator     证明导航器指针
+ * @param out_highlights 输出高亮状态数组
+ * @param max_count      数组最大容量
+ * @return 0 成功，-1 参数无效
+ */
 int proof_widget_get_step_highlights(const ProofNavigator *navigator,
                                      lvProofStepHighlight *out_highlights,
                                      int max_count) {
@@ -272,7 +320,11 @@ int proof_widget_get_step_highlights(const ProofNavigator *navigator,
     return 0;
 }
 
-/* 获取搜索树的 JSON 表示（调用者负责释放返回的字符串） */
+/**
+ * @brief 获取搜索树的 JSON 表示
+ * @param navigator 证明导航器指针
+ * @return JSON 字符串（调用者负责释放），失败返回 NULL
+ */
 char *proof_widget_get_search_tree(const ProofNavigator *navigator) {
     if (!navigator) return NULL;
 
@@ -322,7 +374,11 @@ char *proof_widget_get_dependency_graph(const ProofNavigator *navigator) {
  * 第五部分：布局导出与策略回传
  * ================================================================ */
 
-/* 将布局导出为 JSON 字符串（调用者负责释放） */
+/**
+ * @brief 将布局导出为 JSON 字符串
+ * @param layout 布局指针
+ * @return JSON 字符串（调用者负责释放），失败返回 NULL
+ */
 char *proof_widget_export_layout(const lvWidgetLayout *layout) {
     if (!layout) return NULL;
 
@@ -381,7 +437,15 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
     return buf;
 }
 
-/* 应用策略到当前证明状态 */
+/**
+ * @brief 应用策略到当前证明状态
+ * @param navigator   证明导航器指针
+ * @param tactic_name 策略名称（如 "intro"、"apply"）
+ * @param tactic_args 策略参数（可为 NULL）
+ * @param out_success 输出是否成功
+ * @param out_feedback 输出反馈字符串（调用者需释放）
+ * @return 0 成功，-1 参数无效
+ */
 int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name,
                               const char *tactic_args, bool *out_success,
                               char **out_feedback) {
@@ -422,7 +486,12 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
 
     /* 设置步骤备注 */
     if (tactic_args && tactic_args[0]) {
-        int buf_size = (int)strlen(tactic_name) + (int)strlen(tactic_args) + 4;
+        /* [安全] 计算备注缓冲区大小：确保 tactic_name 和 tactic_args 不超过 2^31-1 */
+    if (strlen(tactic_name) > 0x3FFFFFFF || (tactic_args && strlen(tactic_args) > 0x3FFFFFFF)) {
+        *out_feedback = lv_strdup("tactic name or args too long");
+        return (*out_feedback) ? 0 : -1;
+    }
+    int buf_size = (int)(strlen(tactic_name) + (tactic_args ? strlen(tactic_args) : 0) + 4);
         char *note = (char *)lv_malloc((size_t)buf_size);
         if (note) {
             snprintf(note, (size_t)buf_size, "%s %s", tactic_name, tactic_args);
@@ -449,7 +518,13 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
  * 第六部分：布局管理
  * ================================================================ */
 
-/* 设置布局类型和网格尺寸 */
+/**
+ * @brief 设置布局类型和网格尺寸
+ * @param layout     布局指针
+ * @param layout_type 布局类型枚举
+ * @param columns    列数（<=0 时使用默认值 2）
+ * @param rows       行数（<=0 时使用默认值 2）
+ */
 void proof_widget_set_layout_type(lvWidgetLayout *layout, lvLayoutType layout_type,
                                   int columns, int rows) {
     if (!layout) return;
@@ -458,7 +533,11 @@ void proof_widget_set_layout_type(lvWidgetLayout *layout, lvLayoutType layout_ty
     layout->rows = (rows > 0) ? rows : DEFAULT_ROWS;
 }
 
-/* 设置布局的持久化键（用于状态序列化与恢复） */
+/**
+ * @brief 设置布局的持久化键（用于状态序列化与恢复）
+ * @param layout          布局指针
+ * @param persistence_key 持久化键字符串（内部复制，可为 NULL）
+ */
 void proof_widget_set_persistence_key(lvWidgetLayout *layout,
                                       const char *persistence_key) {
     if (!layout) return;
@@ -469,7 +548,12 @@ void proof_widget_set_persistence_key(lvWidgetLayout *layout,
     layout->persistence_key = persistence_key ? lv_strdup(persistence_key) : NULL;
 }
 
-/* 设置 Widget 的显示顺序 */
+/**
+ * @brief 设置 Widget 的显示顺序
+ * @param layout        布局指针
+ * @param order_indices 顺序索引数组
+ * @param count         数组长度
+ */
 void proof_widget_set_order(lvWidgetLayout *layout, const int *order_indices,
                             int count) {
     if (!layout || !order_indices || count <= 0) return;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rational.c
  * @brief Rational 有理数类型
  *
@@ -8,6 +8,7 @@
  */
 
 #include "lv/symbolic_coord.h"
+#include "lv/lv_config.h"
 #include <float.h>
 #include <inttypes.h>
 #include <math.h>
@@ -361,8 +362,9 @@ void circuit_handle_overflow(void) {
              g_overflow_context.last_operation ? g_overflow_context.last_operation : "unknown",
              g_overflow_context.overflow_count);
 
-    /* 连续3次触发后，建议永久降级 */
-    if (g_overflow_context.overflow_count >= lv_CIRCUIT_OVERFLOW_THRESHOLD) {
+    /* 连续超过阈值后，建议永久降级 */
+    int threshold = lv_config_get_int("circuit_overflow_threshold");
+    if (g_overflow_context.overflow_count >= threshold) {
         fprintf(stderr, "[BIT CIRCUIT] Suggesting permanent downgrade to numerical approximation (AMBER)\n");
         /* 实际降级由调用者根据用户选择处理 */
     }

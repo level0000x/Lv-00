@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file math_input.c
  * @brief 数学输入处理 —— 解析 LaTeX 风格数学表达式并规范化
  *
@@ -7,6 +7,7 @@
  *          - 纯文本代数表达式: x^2 + y^2 = r^2
  *          - GCLC 几何构造语句: point A 0 0
  *
+ * @author Lv-00 Project
  * @version 1.1.0
  */
 
@@ -17,6 +18,17 @@
 #include <string.h>
 #include <ctype.h>
 
+/**
+ * @brief 解析并规范化数学输入表达式
+ *
+ * 检测输入格式（LaTeX / GCLC / 纯文本），提取净表达式内容并写入
+ * normalized 缓冲区。LaTeX 格式去除 $ 包裹符号，纯文本去除首尾空白。
+ *
+ * @param input      原始输入字符串
+ * @param normalized 输出缓冲区，存放规范化后的表达式
+ * @param buf_size   输出缓冲区大小
+ * @return 规范化后表达式长度（不含 null 终止符）；失败返回 -1
+ */
 int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
     if (!input || !normalized || buf_size == 0) return -1;
 
@@ -62,6 +74,15 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
     return (int)len;
 }
 
+/**
+ * @brief 检测数学输入字符串的格式类型
+ *
+ * 根据输入内容判断其格式：LaTeX 数学模式（$ 开头）、GCLC 几何构造
+ * （point/line/circle 关键字）或纯文本表达式。
+ *
+ * @param input 输入字符串
+ * @return 格式类型：1=LaTeX, 2=GCLC, 0=纯文本；输入无效返回 -1
+ */
 int lv_math_input_detect_format(const char *input) {
     if (!input) return -1;
 

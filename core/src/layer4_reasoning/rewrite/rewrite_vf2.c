@@ -26,6 +26,14 @@ uint32_t compute_graph_hash(ConstraintGraph *graph);
 /* include for lv_config_get_int */
 #include "lv/lv.h"
 
+/**
+ * @brief 检测重写循环：计算当前图哈希并与历史记录比较
+ *
+ * @param graph         约束图指针
+ * @param history_hashes 历史哈希值数组
+ * @param history_count  历史哈希值数量
+ * @return true 检测到循环，false 无循环
+ */
 static bool detect_rewrite_loop(ConstraintGraph *graph, int *history_hashes, int history_count) {
     uint32_t current_hash = compute_graph_hash(graph);
     for (int i = 0; i < history_count; i++) {
@@ -44,7 +52,16 @@ static bool detect_rewrite_loop(ConstraintGraph *graph, int *history_hashes, int
  * ===========================================================================
  */
 
-/* 初始化 VF2 匹配状态 */
+/**
+ * @brief 初始化 VF2 匹配状态
+ *
+ * 分配 core_1/core_2/in_1/out_1/in_2/out_2 数组以及 in_set/out_set 集合。
+ * 所有数组初始化为 0 或 -1，in/out 集合容量初始为 target_size（至少 8）。
+ *
+ * @param state        待初始化的 VF2State 指针
+ * @param pattern_size 模式图节点数
+ * @param target_size  目标图节点数
+ */
 static void vf2_state_init(VF2State *state, int pattern_size, int target_size) {
     state->pattern_size = pattern_size;
     state->target_size = target_size;
@@ -77,7 +94,13 @@ static void vf2_state_init(VF2State *state, int pattern_size, int target_size) {
     state->out_capacity = initial_capacity;
 }
 
-/* 销毁 VF2 匹配状态，释放内存 */
+/**
+ * @brief 销毁 VF2 匹配状态，释放所有动态分配的数组
+ *
+ * 释放 core_1/core_2/in_1/out_1/in_2/out_2/in_set/out_set，并将所有指针置 NULL。
+ *
+ * @param state VF2State 指针
+ */
 static void vf2_state_destroy(VF2State *state) {
     lv_free((void**)&state->core_1);
     lv_free((void**)&state->core_2);
@@ -93,9 +116,22 @@ static void vf2_state_destroy(VF2State *state) {
     state->in_set = state->out_set = NULL;
 }
 
-/* 检查模式图中节点 p 的邻居是否与目标图中节点 t 的邻居兼容。
- * 对于已映射的邻居，验证对应关系的一致性。
- * 对于 POINT 节点，使用 symbolic_coord_compare() 进行符号坐标判等。 */
+/**
+ * @brief 检查模式节点 p 与目标节点 t 的匹配可行性
+ *
+ * 验证节点类型、信任颜色、LO 子类型、端口类型、函数块状态等语义属性一致。
+ * 在 local_equivalence_tolerant 模式下，对 POINT 和 LINE_SEGMENT 节点
+ * 使用 symbolic_coord_compare 进行符号坐标判等。
+ * 同时检查已映射邻居在双方图中的约束兼容性（正向和反向）。
+ *
+ * @param state                      VF2 匹配状态
+ * @param p                          模式图节点索引
+ * @param t                          目标图节点索引
+ * @param pattern_graph              模式约束图
+ * @param target_graph               目标约束图
+ * @param local_equivalence_tolerant 是否允许局部等价近似（启用符号坐标比较）
+ * @return true 匹配可行，false 不可行
+ */
 static bool vf2_feasible(VF2State *state, int p, int t,
                           ConstraintGraph *pattern_graph,
                           ConstraintGraph *target_graph,
@@ -273,9 +309,20 @@ static bool vf2_feasible(VF2State *state, int p, int t,
     return true;
 }
 
-/* VF2 前瞻函数：检查匹配 p->t 是否有前景。
- * 验证未映射邻居的兼容性，确保不会因为当前匹配导致
- * 后续无法完成匹配。 */
+/**
+ * @brief VF2 前瞻函数：检查匹配 p→t 是否有前景
+ *
+ * 验证未映射邻居的兼容性，确保不会因为当前匹配导致后续无法完成匹配。
+ * 检查目标图的未映射邻居数是否不少于模式图的未映射邻居数，
+ * 以及未映射邻居的类型兼容性。
+ *
+ * @param state         VF2 匹配状态
+ * @param p             模式图节点索引
+ * @param t             目标图节点索引
+ * @param pattern_graph 模式约束图
+ * @param target_graph  目标约束图
+ * @return true 有前景（可继续匹配），false 无前景（应回溯）
+ */
 static bool vf2_lookahead(VF2State *state, int p, int t,
                            ConstraintGraph *pattern_graph,
                            ConstraintGraph *target_graph)
@@ -368,12 +415,23 @@ static bool vf2_lookahead(VF2State *state, int p, int t,
     return true;
 }
 
-/* VF2 递归匹配：尝试将模式图的所有节点映射到目标图。
- * 使用可行性剪枝和前瞻函数来减少搜索空间。
- * 找到的最大匹配会保存在 best_match 中。
+/**
+ * @brief VF2 递归匹配：尝试将模式图的所有节点映射到目标图
  *
- * @param depth 当前递归深度，由上层调用者传入 depth+1。
- *              超过 REWRITE_VF2_MAX_DEPTH 时返回 false，防止栈溢出。 */
+ * 使用 MRV（最受约束变量）启发式选择下一个节点，按度数兼容性排序候选，
+ * 通过可行性剪枝（vf2_feasible）和前瞻函数（vf2_lookahead）减少搜索空间。
+ * 递归深度受 REWRITE_VF2_MAX_DEPTH 保护以防止栈溢出。
+ * 找到的完整匹配返回 true。
+ *
+ * @param state                      VF2 匹配状态
+ * @param pattern_graph              模式约束图
+ * @param target_graph               目标约束图
+ * @param local_equivalence_tolerant 是否允许局部等价近似
+ * @param best_match                 最佳匹配结果（当前未使用）
+ * @param best_match_size            最佳匹配大小（当前未使用）
+ * @param depth                      当前递归深度（由调用者传入 depth+1）
+ * @return true 找到完整匹配，false 未找到
+ */
 static bool vf2_match_recursive(VF2State *state,
                                  ConstraintGraph *pattern_graph,
                                  ConstraintGraph *target_graph,
@@ -579,13 +637,22 @@ static bool vf2_match_recursive(VF2State *state,
     return false;
 }
 
-/* VF2 子图同构匹配的公开接口。
+/**
+ * @brief VF2 子图同构匹配的公开接口
+ *
  * 在目标图中搜索与模式图同构的子图，返回匹配结果。
- * 如果找到匹配，返回 RewriteMatch 对象；否则返回 NULL。
+ * 内部构建模式约束图，初始化 VF2 状态，执行递归匹配，
+ * 并将 VF2 匹配结果转换为 RewriteMatch 格式。
  *
  * 当 local_equivalence_tolerant 为 true 时，在可行性检查和
  * 约束匹配阶段，对 POINT 节点使用 symbolic_coord_compare
- * 进行坐标相等性验证（design_v2.9.md Section 6.2）。 */
+ * 进行坐标相等性验证（design_v2.9.md Section 6.2）。
+ *
+ * @param target_graph              目标约束图
+ * @param pattern                   重写模式（包含模式变量和约束）
+ * @param local_equivalence_tolerant 是否允许局部等价近似
+ * @return 匹配结果 RewriteMatch 对象，未找到匹配或失败返回 NULL
+ */
 RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
                               RewritePattern *pattern,
                               bool local_equivalence_tolerant)

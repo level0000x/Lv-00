@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite_wl.c
  * @brief WL 循环检测与度量验证
  *
@@ -118,15 +118,32 @@ static RewriteMatch *perform_coord_validated_match(
  * ===========================================================================
  */
 
-/* 初始化 WL 哈希历史环形缓冲区 */
+/**
+ * @brief 初始化 WL 哈希历史环形缓冲区
+ *
+ * 分配 hash_history 和 light_hash_history 缓冲区，初始化为零。
+ * 两个缓冲区都使用 WL_HISTORY_SIZE 作为容量。
+ *
+ * @param hist WL 哈希历史结构体指针（不能为 NULL）
+ */
 void wl_history_init(WLHashHistory *hist) {
     hist->hash_history = lv_malloc(WL_HISTORY_SIZE * sizeof(uint64_t));
     if (hist->hash_history) memset(hist->hash_history, 0, WL_HISTORY_SIZE * sizeof(uint64_t));
+    hist->light_hash_history = lv_malloc(WL_HISTORY_SIZE * sizeof(uint32_t));
+    if (hist->light_hash_history) memset(hist->light_hash_history, 0, WL_HISTORY_SIZE * sizeof(uint32_t));
     hist->history_count = 0;
     hist->history_pos = 0;
+    hist->light_history_count = 0;
+    hist->light_history_pos = 0;
 }
 
-/* uint64_t 比较函数（供 qsort 使用） */
+/**
+ * @brief uint64_t 比较函数（供 qsort 使用）
+ *
+ * @param a 指向第一个 uint64_t 的指针
+ * @param b 指向第二个 uint64_t 的指针
+ * @return -1（a < b）、0（a == b）、1（a > b）
+ */
 static int uint64_compare(const void *a, const void *b) {
     uint64_t va = *(const uint64_t *)a;
     uint64_t vb = *(const uint64_t *)b;
@@ -135,15 +152,32 @@ static int uint64_compare(const void *a, const void *b) {
     return 0;
 }
 
-/* 销毁 WL 哈希历史，释放内存 */
+/**
+ * @brief 销毁 WL 哈希历史，释放内存
+ *
+ * 释放 hash_history 和 light_hash_history 缓冲区，并将所有字段归零。
+ *
+ * @param hist WL 哈希历史结构体指针
+ */
 void wl_history_destroy(WLHashHistory *hist) {
     lv_free((void**)&hist->hash_history);
+    lv_free((void**)&hist->light_hash_history);
     hist->hash_history = NULL;
+    hist->light_hash_history = NULL;
     hist->history_count = 0;
     hist->history_pos = 0;
+    hist->light_history_count = 0;
+    hist->light_history_pos = 0;
 }
 
-/* 向环形缓冲区中推入一个新的图哈希（64位完整哈希 + 32位轻量哈希） */
+/**
+ * @brief 向环形缓冲区中推入一个新的图哈希（64 位完整哈希 + 32 位轻量哈希）
+ *
+ * 将哈希值写入环形缓冲区当前位置，并同步更新 light_hash_history。
+ *
+ * @param hist WL 哈希历史结构体指针
+ * @param hash 64 位图哈希值
+ */
 static void wl_history_push(WLHashHistory *hist, uint64_t hash) {
     hist->hash_history[hist->history_pos] = hash;
     hist->history_pos = (hist->history_pos + 1) % WL_HISTORY_SIZE;
@@ -159,7 +193,15 @@ static void wl_history_push(WLHashHistory *hist, uint64_t hash) {
     }
 }
 
-/* 两阶段检查：先用32位轻量哈希快速预筛选，匹配时再用64位确认 */
+/**
+ * @brief 两阶段检查：先用 32 位轻量哈希快速预筛选，匹配时再用 64 位确认
+ *
+ * 仅检查轻量哈希历史，不涉及完整哈希比较。
+ *
+ * @param hist      WL 哈希历史结构体指针
+ * @param light_hash 32 位轻量哈希值
+ * @return true 轻量哈希存在于历史中，false 不存在
+ */
 static bool wl_history_contains_light(WLHashHistory *hist, uint32_t light_hash) {
     for (int i = 0; i < hist->light_history_count; i++) {
         if (hist->light_hash_history[i] == light_hash) {
@@ -169,7 +211,15 @@ static bool wl_history_contains_light(WLHashHistory *hist, uint32_t light_hash) 
     return false;
 }
 
-/* 检查环形缓冲区中是否已包含指定的哈希值 */
+/**
+ * @brief 检查环形缓冲区中是否已包含指定的哈希值（两阶段检查）
+ *
+ * 阶段 1：32 位轻量预筛选；阶段 2：64 位精确确认。
+ *
+ * @param hist WL 哈希历史结构体指针
+ * @param hash 64 位图哈希值
+ * @return true 哈希值已存在于历史中，false 不存在
+ */
 static bool wl_history_contains(WLHashHistory *hist, uint64_t hash) {
     /* 阶段1：32位轻量预筛选 */
     uint32_t light = (uint32_t)(hash ^ (hash >> 32));
@@ -186,9 +236,16 @@ static bool wl_history_contains(WLHashHistory *hist, uint64_t hash) {
     return false;
 }
 
-/* 计算节点的初始 WL 标签。
- * 标签基于节点类型和约束拓扑（不包含坐标值），
- * 确保结构相同但坐标不同的图具有相同的初始标签。 */
+/**
+ * @brief 计算节点的初始 WL 标签
+ *
+ * 标签基于节点类型、信任颜色、Light Orange 子类型和约束拓扑（不包含坐标值），
+ * 确保结构相同但坐标不同的图具有相同的初始标签。
+ *
+ * @param graph     约束图指针
+ * @param node_count 节点数量
+ * @return 动态分配的 uint64_t 标签数组，失败返回 NULL；调用者负责释放
+ */
 static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_count) {
     uint64_t *labels = lv_malloc((size_t)node_count * sizeof(uint64_t));
     if (!labels) return NULL;
@@ -234,9 +291,16 @@ static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_coun
     return labels;
 }
 
-/* 执行一轮 WL 迭代：根据邻居标签精化当前标签。
+/**
+ * @brief 执行一轮 WL 迭代：根据邻居标签精化当前标签
+ *
  * 每个节点的新标签 = hash(旧标签 + 排序后的邻居标签列表)。
- * 返回新分配的标签数组，调用者负责释放。 */
+ *
+ * @param graph     约束图指针
+ * @param labels    当前节点标签数组
+ * @param node_count 节点数量
+ * @return 动态分配的新标签数组，失败返回 NULL；调用者负责释放
+ */
 static uint64_t *wl_refine_labels(ConstraintGraph *graph,
                                     uint64_t *labels, int node_count)
 {
@@ -312,8 +376,14 @@ static uint64_t *wl_refine_labels(ConstraintGraph *graph,
     return new_labels;
 }
 
-/* 计算 WL 图核哈希（2 轮迭代，基于拓扑结构，忽略坐标值）。
- * 将所有节点标签聚合为一个 64 位图哈希。 */
+/**
+ * @brief 计算 WL 图核哈希（2 轮迭代，基于拓扑结构，忽略坐标值）
+ *
+ * 将所有节点标签聚合为一个 64 位图哈希。
+ *
+ * @param graph 约束图指针
+ * @return 64 位图哈希值，图为空或出错返回 0
+ */
 uint64_t compute_wl_graph_hash(ConstraintGraph *graph) {
     if (!graph || graph->node_count == 0)
         return 0;
@@ -342,10 +412,17 @@ uint64_t compute_wl_graph_hash(ConstraintGraph *graph) {
     return graph_hash;
 }
 
-/* 使用 WL 图核哈希检测重写循环。
+/**
+ * @brief 使用 WL 图核哈希检测重写循环
+ *
  * 计算当前图的 WL 哈希，与历史缓冲区比较。
  * 如果发现重复哈希，说明图回到了之前的状态，存在循环。
- * 新哈希会被推入历史缓冲区（固定 16 步）。 */
+ * 新哈希会被推入历史缓冲区（固定 16 步）。
+ *
+ * @param graph 约束图指针
+ * @param hist  WL 哈希历史记录
+ * @return REWRITE_TERMINATED（检测到循环）或 REWRITE_OK（无循环）
+ */
 RewriteStatus detect_rewrite_loop_wl(ConstraintGraph *graph, WLHashHistory *hist) {
     if (!graph || !hist) return REWRITE_OK;
 
@@ -373,10 +450,17 @@ RewriteStatus detect_rewrite_loop_wl(ConstraintGraph *graph, WLHashHistory *hist
  * ===========================================================================
  */
 
-/* 评估重写规则的前置条件。
- * 如果规则没有设置前置条件（condition_func 为 NULL），
- * 默认返回 true（通过）。
- * 前置条件在匹配成功后、替换前调用。 */
+/**
+ * @brief 评估重写规则的前置条件
+ *
+ * 如果规则没有设置前置条件（condition_func 为 NULL），默认返回 true（通过）。
+ * 前置条件在匹配成功后、替换前调用。
+ *
+ * @param graph 约束图指针
+ * @param rule  重写规则指针
+ * @param match 当前匹配结果
+ * @return true 前置条件通过，false 不通过
+ */
 bool evaluate_precondition(ConstraintGraph *graph,
                                    RewriteRule *rule,
                                    RewriteMatch *match)
@@ -396,6 +480,17 @@ bool evaluate_precondition(ConstraintGraph *graph,
  * 则返回 1，否则返回 0。
  * =========================================================================== */
 
+/**
+ * @brief 验证重写规则的归约度量是否有效
+ *
+ * 在应用重写规则后，验证归约度量是否确实减少了。
+ * 度量定义为：节点数 + 约束数。
+ *
+ * @param graph        应用规则后的约束图指针
+ * @param rule         应用的重写规则指针
+ * @param graph_before 应用规则前的图快照（可选）
+ * @return true 度量验证通过，false 验证失败
+ */
 bool rewrite_validate_measure(const ConstraintGraph *graph, const RewriteRule *rule, const GraphSnapshot *graph_before) {
     if (!graph || !rule) return false;
 
@@ -435,9 +530,16 @@ bool rewrite_validate_measure(const ConstraintGraph *graph, const RewriteRule *r
  * ===========================================================================
  */
 
-/* 在图中查找最佳匹配（匹配子图节点数最多的匹配）。
+/**
+ * @brief 在图中查找最佳匹配（匹配子图节点数最多的匹配）
+ *
  * 使用 VF2 算法进行子图同构匹配，并通过前置条件验证。
- * 返回最佳匹配的 RewriteMatch 对象，或 NULL 表示未找到。 */
+ *
+ * @param graph                    目标约束图指针
+ * @param rule                     重写规则指针
+ * @param local_equivalence_tolerant 是否允许局部等价近似
+ * @return 最佳匹配的 RewriteMatch 对象，或 NULL 表示未找到
+ */
 RewriteMatch *find_best_match(ConstraintGraph *graph,
                                       RewriteRule *rule,
                                       bool local_equivalence_tolerant)

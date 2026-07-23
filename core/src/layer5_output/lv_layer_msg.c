@@ -1,6 +1,14 @@
-﻿/**
+/**
  * @file lv_layer_msg.c
  * @brief 层间通信消息实现
+ *
+ * @details 实现 Lv-00 系统各层之间的消息传递机制：
+ *          - 消息创建与销毁（lv_msg_create / lv_msg_destroy）
+ *          - 消息签名（lv_msg_sign）：分配唯一序列号
+ *          - 消息类型名称映射（msg_type_name）
+ *          消息携带类型、方向、发送者/目标层 ID、负载（payload）等字段。
+ *
+ * @author Lv-00 Project
  */
 
 #include "lv/lv_layer_msg.h"
@@ -8,10 +16,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+/** 全局消息序列号计数器，每创建一条消息自增一次 */
 static uint32_t g_msg_sequence = 0;
 
 /* ---- 消息类型名称映射 ---- */
 
+/**
+ * @brief 将消息类型枚举值转换为人类可读的字符串
+ *
+ * @param type 消息类型枚举值
+ * @return 类型名称字符串（如 "PARSE_TEXT"、"GRAPH_ADD_NODE"），未知类型返回 "UNKNOWN"
+ */
 static const char *msg_type_name(lvMsgType type) {
     switch (type) {
         case lv_MSG_NONE:              return "NONE";

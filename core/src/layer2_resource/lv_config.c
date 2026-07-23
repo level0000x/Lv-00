@@ -1,6 +1,19 @@
 /**
  * @file lv_config.c
  * @brief Lv-00 运行时配置系统实现
+ *
+ * @details 提供运行时配置的集中管理，包含以下功能：
+ *          - 默认配置（lv_config_default）：所有子系统参数的默认值定义
+ *          - 当前配置管理（lv_config_current / lv_config_apply）：全局状态读写
+ *          - 类型安全的 setter 函数（lv_config_set_*）：直接修改全局配置
+ *          - 通用 key-value setter（lv_config_set_int / lv_config_set_double）
+ *          - JSON 配置文件加载（lv_config_load_json）和导出（lv_config_to_json）
+ *
+ * 配置覆盖范围：求解器、约束图、重写、流式、精度、MiniKernel、SAT、
+ * 压力测试、解析器、类型系统、运行时防护、协议、交互几何、ODE、
+ * 证明、递归/上下文、互操作、日志、监控、插件、后端、测试、内存、健康等。
+ *
+ * @author Lv-00 Project
  */
 
 #include "lv/lv.h"
@@ -14,6 +27,14 @@
 static lvConfig g_active_config;
 static int g_config_applied = 0;
 
+/**
+ * @brief 获取默认配置
+ *
+ * 返回静态默认配置结构体。所有字段预置为安全的默认值。
+ * 函数内部使用 static initialized 标志实现线程安全的一次性初始化。
+ *
+ * @return 指向默认配置的常量指针
+ */
 const lvConfig *lv_config_default(void) {
     static lvConfig def;
     static int initialized = 0;
@@ -150,6 +171,13 @@ const lvConfig *lv_config_default(void) {
     return &def;
 }
 
+/**
+ * @brief 获取当前生效的配置
+ *
+ * 首次调用时从默认配置初始化全局配置。
+ *
+ * @return 指向当前配置的常量指针
+ */
 const lvConfig *lv_config_current(void) {
     if (!g_config_applied) {
         g_active_config = *lv_config_default();
@@ -158,6 +186,14 @@ const lvConfig *lv_config_current(void) {
     return &g_active_config;
 }
 
+/**
+ * @brief 应用新的配置
+ *
+ * 用传入配置覆盖全局配置，立即生效。
+ *
+ * @param cfg 新配置指针，不能为 NULL
+ * @return 0 成功，-1 失败（cfg 为 NULL）
+ */
 int lv_config_apply(const lvConfig *cfg) {
     if (!cfg) return -1;
     g_active_config = *cfg;
@@ -167,33 +203,120 @@ int lv_config_apply(const lvConfig *cfg) {
 
 /* ---- 类型安全 setter（直接改全局配置，立即生效） ---- */
 
+/** @brief 获取可变的全局配置指针（内部辅助） */
 static lvConfig *cfg_mut(void) {
     lv_config_current(); /* ensure initialized */
     return &g_active_config;
 }
 
+/**
+ * @brief 设置求解器最大变量 ID
+ * @param val 新值
+ */
 void lv_config_set_solver_max_var_id(int val)       { cfg_mut()->solver_max_var_id = val; }
+/**
+ * @brief 设置求解器最大迭代次数
+ * @param val 新值
+ */
 void lv_config_set_solver_max_iterations(int val)    { cfg_mut()->solver_max_iterations = val; }
+/**
+ * @brief 设置证明最大深度
+ * @param val 新值
+ */
 void lv_config_set_proof_max_depth(int val)           { cfg_mut()->proof_max_depth = val; }
+/**
+ * @brief 设置证明最大分支数
+ * @param val 新值
+ */
 void lv_config_set_proof_max_branches(int val)        { cfg_mut()->proof_max_branches = val; }
+/**
+ * @brief 设置协议最大绘制命令数
+ * @param val 新值
+ */
 void lv_config_set_proto_max_draw_cmds(int val)       { cfg_mut()->proto_max_draw_cmds = val; }
+/**
+ * @brief 设置协议最大证明步数
+ * @param val 新值
+ */
 void lv_config_set_proto_max_proof_steps(int val)     { cfg_mut()->proto_max_proof_steps = val; }
+/**
+ * @brief 设置协议最大终端行数
+ * @param val 新值
+ */
 void lv_config_set_proto_max_terminal_lines(int val)  { cfg_mut()->proto_max_terminal_lines = val; }
+/**
+ * @brief 设置交互几何最大对象数
+ * @param val 新值
+ */
 void lv_config_set_geo_max_objects(int val)           { cfg_mut()->geo_max_objects = val; }
+/**
+ * @brief 设置交互几何最大约束数
+ * @param val 新值
+ */
 void lv_config_set_geo_max_constraints(int val)       { cfg_mut()->geo_max_constraints = val; }
+/**
+ * @brief 设置交互几何最小缩放
+ * @param val 新值
+ */
 void lv_config_set_geo_min_zoom(double val)           { cfg_mut()->geo_min_zoom = val; }
+/**
+ * @brief 设置交互几何最大缩放
+ * @param val 新值
+ */
 void lv_config_set_geo_max_zoom(double val)           { cfg_mut()->geo_max_zoom = val; }
+/**
+ * @brief 设置解析器最大输入长度
+ * @param val 新值
+ */
 void lv_config_set_parser_max_input_length(int val)   { cfg_mut()->parser_max_input_length = val; }
+/**
+ * @brief 设置解析器最大 AST 节点数
+ * @param val 新值
+ */
 void lv_config_set_parser_max_ast_nodes(int val)      { cfg_mut()->parser_max_ast_nodes = val; }
+/**
+ * @brief 设置最大递归深度
+ * @param val 新值
+ */
 void lv_config_set_max_recursion_depth(int val)       { cfg_mut()->max_recursion_depth = val; }
+/**
+ * @brief 设置默认重写限制
+ * @param val 新值
+ */
 void lv_config_set_default_rewrite_limit(int val)     { cfg_mut()->default_rewrite_limit = val; }
+/**
+ * @brief 设置 ODE 最大参数维度
+ * @param val 新值
+ */
 void lv_config_set_geoevol_max_param_dim(int val)     { cfg_mut()->geoevol_max_param_dim = val; }
+/**
+ * @brief 设置 ODE 最大拒绝次数
+ * @param val 新值
+ */
 void lv_config_set_geoevol_max_rejections(int val)    { cfg_mut()->geoevol_max_rejections = val; }
+/**
+ * @brief 设置流式最大回调数
+ * @param val 新值
+ */
 void lv_config_set_stream_max_callbacks(int val)      { cfg_mut()->stream_max_callbacks = val; }
+/**
+ * @brief 设置最大插件数
+ * @param val 新值
+ */
 void lv_config_set_max_plugins(int val)               { cfg_mut()->max_plugins = val; }
 
 /* ---- 通用 key-value setter ---- */
 
+/**
+ * @brief 通过字符串键设置整型配置项
+ *
+ * 在全局配置中查找与 key 匹配的整型字段并设置值。
+ * 若未找到匹配项，返回 false 但不报错。
+ *
+ * @param key 配置项名称（字符串）
+ * @param val 新值
+ * @return true 设置成功，false 未找到匹配项或 key 为 NULL
+ */
 bool lv_config_set_int(const char *key, int val) {
     if (!key) return false;
     lvConfig *c = cfg_mut();
@@ -281,6 +404,13 @@ bool lv_config_set_int(const char *key, int val) {
     return false;
 }
 
+/**
+ * @brief 通过字符串键设置浮点型配置项
+ *
+ * @param key 配置项名称
+ * @param val 新值
+ * @return true 设置成功，false 未找到匹配项或 key 为 NULL
+ */
 bool lv_config_set_double(const char *key, double val) {
     if (!key) return false;
     lvConfig *c = cfg_mut();
@@ -299,6 +429,9 @@ bool lv_config_set_double(const char *key, double val) {
 
 /* ---- 重置 ---- */
 
+/**
+ * @brief 重置配置为默认值
+ */
 void lv_config_reset(void) {
     g_active_config = *lv_config_default();
     g_config_applied = 1;
@@ -306,22 +439,46 @@ void lv_config_reset(void) {
 
 /* ---- minimal JSON parser ---- */
 
+/**
+ * @brief 跳过空白字符
+ * @param p 输入字符串指针
+ * @return 指向第一个非空白字符的指针
+ */
 static const char *json_skip_ws(const char *p) {
     while (*p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')) p++;
     return p;
 }
 
+/**
+ * @brief 解析 JSON 整数值（带负号支持）
+ * @param p   输入指针（会更新为解析结束位置）
+ * @param out 输出解析结果
+ * @return 0 成功，-1 解析失败
+ */
 static int json_parse_int(const char **p, int *out) {
     *p = json_skip_ws(*p);
     int sign = 1;
     if (**p == '-') { sign = -1; (*p)++; }
     if (!isdigit((unsigned char)**p)) return -1;
     int val = 0;
-    while (isdigit((unsigned char)**p)) { val = val * 10 + (**p - '0'); (*p)++; }
+    while (isdigit((unsigned char)**p)) {
+        /* 防止整数溢出：若 val 即将超过 INT_MAX/10，截断处理 */
+        if (val > INT_MAX / 10) {
+            val = INT_MAX / 10;
+        }
+        val = val * 10 + (**p - '0');
+        (*p)++;
+    }
     *out = sign * val;
     return 0;
 }
 
+/**
+ * @brief 解析 JSON 浮点数值
+ * @param p   输入指针（会更新为解析结束位置）
+ * @param out 输出解析结果
+ * @return 0 成功
+ */
 static int json_parse_double(const char **p, double *out) {
     *p = json_skip_ws(*p);
     char buf[64]; int i = 0;
@@ -332,6 +489,12 @@ static int json_parse_double(const char **p, double *out) {
     return 0;
 }
 
+/**
+ * @brief 在 JSON 字符串中查找指定键，并返回键后的位置
+ * @param p   JSON 字符串
+ * @param key 要查找的键名
+ * @return 键值对中冒号后的位置，未找到返回 NULL
+ */
 static const char *json_find_key(const char *p, const char *key) {
     while (*p) {
         p = json_skip_ws(p);
@@ -357,11 +520,26 @@ static const char *json_find_key(const char *p, const char *key) {
     return NULL;
 }
 
+/**
+ * @brief 从 JSON 字符串中解析指定键的整数值
+ * @param json JSON 字符串
+ * @param key  键名
+ * @param out  输出值
+ * @return 0 成功，1 键未找到
+ */
 static int json_config_int(const char *json, const char *key, int *out) {
     const char *p = json_find_key(json, key);
     if (!p || *p != ':') return 0;
     p++; return json_parse_int(&p, out);
 }
+
+/**
+ * @brief 从 JSON 字符串中解析指定键的浮点数值
+ * @param json JSON 字符串
+ * @param key  键名
+ * @param out  输出值
+ * @return 0 成功，1 键未找到
+ */
 static int json_config_double(const char *json, const char *key, double *out) {
     const char *p = json_find_key(json, key);
     if (!p || *p != ':') return 0;
@@ -371,6 +549,16 @@ static int json_config_double(const char *json, const char *key, double *out) {
 #define JLD_INT(k,f)  json_config_int(json_data, k, &cfg.f)
 #define JLD_DBL(k,f)  json_config_double(json_data, k, &cfg.f)
 
+/**
+ * @brief 从 JSON 文件加载配置
+ *
+ * 读取 JSON 格式的配置文件，解析其中的键值对并应用到全局配置。
+ * 仅解析预定义的配置项，未知键将被忽略。
+ * 文件大小限制为 1MB。
+ *
+ * @param json_path JSON 文件路径
+ * @return 0 成功，-1 失败（文件无法打开、过大或解析错误）
+ */
 int lv_config_load_json(const char *json_path) {
     if (!json_path) return -1;
     FILE *f = fopen(json_path, "rb");
@@ -448,6 +636,13 @@ int lv_config_load_json(const char *json_path) {
     return lv_config_apply(&cfg);
 }
 
+/**
+ * @brief 将当前配置导出为 JSON 字符串
+ *
+ * @param buf      输出缓冲区
+ * @param buf_size 缓冲区大小
+ * @return 写入的字符数（不含结尾 null），失败返回 -1
+ */
 int lv_config_to_json(char *buf, size_t buf_size) {
     if (!buf || buf_size < 64) return -1;
     const lvConfig *c = lv_config_current();
@@ -476,7 +671,18 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         "  \"log_max_files\": %d,\n"
         "  \"max_plugins\": %d,\n"
         "  \"backend_step_limit\": %d,\n"
-        "  \"default_memory_limit_mb\": %d\n"
+        "  \"default_memory_limit_mb\": %d,\n"
+        "  \"vf2_max_depth\": %d,\n"
+        "  \"buchberger_max_steps\": %d,\n"
+        "  \"groebner_reduce_max_steps\": %d,\n"
+        "  \"cdcl_max_steps\": %d,\n"
+        "  \"cdcl_max_decisions\": %d,\n"
+        "  \"cdcl_max_restarts\": %d,\n"
+        "  \"type_infer_max_depth\": %d,\n"
+        "  \"type_equiv_max_depth\": %d,\n"
+        "  \"circuit_overflow_threshold\": %d,\n"
+        "  \"smoke_test_step_limit\": %d,\n"
+        "  \"smoke_test_timeout_ms\": %d\n"
         "}\n",
         c->solver_max_var_id, c->solver_max_iterations,
         c->default_rewrite_limit, c->stream_async_queue_capacity,
@@ -489,5 +695,11 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         c->geoevol_max_param_dim, c->proof_max_depth,
         c->max_recursion_depth, c->interop_ws_default_port,
         c->log_max_files, c->max_plugins,
-        c->backend_step_limit, c->default_memory_limit_mb);
+        c->backend_step_limit, c->default_memory_limit_mb,
+        c->vf2_max_depth, c->buchberger_max_steps,
+        c->groebner_reduce_max_steps, c->cdcl_max_steps,
+        c->cdcl_max_decisions, c->cdcl_max_restarts,
+        c->type_infer_max_depth, c->type_equiv_max_depth,
+        c->circuit_overflow_threshold,
+        c->smoke_test_step_limit, c->smoke_test_timeout_ms);
 }

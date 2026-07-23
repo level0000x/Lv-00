@@ -213,7 +213,7 @@ static double transcendental_expr_to_double(const Transcendental *t) {
  * ============================================================ */
 
 SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
-    SymbolicCoord *coord = lv_malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
     if (!coord)
         return NULL;
     coord->type = RATIONAL;
@@ -237,7 +237,7 @@ SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
  * @return 新创建的符号坐标对象，失败时返回 NULL；调用者需负责释放
  */
 SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, double right) {
-    SymbolicCoord *coord = lv_malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
     if (!coord)
         return NULL;
     coord->type = ALGEBRAIC;
@@ -261,7 +261,7 @@ SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, do
  * @return 新创建的符号坐标对象，失败时返回 NULL；调用者需负责释放
  */
 SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigned int n) {
-    SymbolicCoord *coord = lv_malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
     if (!coord)
         return NULL;
     coord->type = QUADRATIC;
@@ -277,7 +277,7 @@ SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigne
 }
 
 SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
-    SymbolicCoord *coord = lv_malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
     if (!coord)
         return NULL;
     coord->type = TRANSCENDENTAL;
@@ -551,7 +551,7 @@ static SymbolicCoord *rational_to_algebraic(const SymbolicCoord *r) {
     if (!alg)
         return NULL;
 
-    SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
     if (!result) {
         algebraic_destroy(alg);
         return NULL;
@@ -593,7 +593,7 @@ static SymbolicCoord *quadratic_to_algebraic(const SymbolicCoord *q) {
     if (!alg)
         return NULL;
 
-    SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
     if (!result) {
         algebraic_destroy(alg);
         return NULL;
@@ -650,7 +650,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -680,7 +680,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -751,7 +751,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -920,7 +920,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
                 t->expr = expr;
 
-                SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+                SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
                 if (!result) {
                     transcendental_destroy(t);
                     return NULL;
@@ -950,7 +950,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -979,7 +979,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1050,7 +1050,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1214,7 +1214,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1243,7 +1243,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1277,7 +1277,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1465,7 +1465,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1494,7 +1494,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1564,7 +1564,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -1739,7 +1739,7 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
     if (!src)
         return NULL;
 
-    SymbolicCoord *dst = lv_malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *dst = lv_calloc(1, sizeof(SymbolicCoord));
     if (!dst)
         return NULL;
 
@@ -2047,7 +2047,7 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
 
             t->expr = expr;
 
-            SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3557,7 +3557,7 @@ SymbolicCoord *symbolic_coord_create_with_plan(long num, long den) {
             rational_destroy(r);
 
             if (alg) {
-                SymbolicCoord *result = lv_malloc(sizeof(SymbolicCoord));
+                SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
                 if (!result) {
                     algebraic_destroy(alg);
                     return NULL;

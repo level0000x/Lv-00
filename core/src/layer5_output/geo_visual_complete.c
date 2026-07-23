@@ -6,6 +6,7 @@
  * 支持 SVG / Cairo / Three.js / TikZ / PNG 五种渲染后端。
  *
  * @version 1.0.0
+ * @author Lv-00 Project
  */
 
 #include "lv/geo_visual.h"

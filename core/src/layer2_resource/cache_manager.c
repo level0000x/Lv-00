@@ -1,11 +1,21 @@
-﻿/**
+/**
  * @file cache_manager.c
  * @brief 缓存管理器实现
  *
- * 实现 LRU 缓存、上下文隔离、创建/查找/失效、统计功能。
- * 遵循 cache_manager.h 中定义的完整接口。
+ * @details 实现 LRU 缓存系统，包含以下功能：
+ *          - 基于哈希表和双向链表的 LRU 淘汰策略
+ *          - 上下文隔离（context）机制，支持多租户缓存
+ *          - 创建、查找、失效、统计等完整生命周期管理
+ *          - 自动淘汰（auto-evict）和自定义析构函数支持
+ *
+ * 设计要点：
+ * - 哈希桶使用 FNV-1a 变体哈希算法（HASH_PRIME = 0x0100000001B3ULL）
+ * - LRU 链表头部为最近使用项，尾部为最久未使用项
+ * - 上下文隔离通过 context_id 标记实现，支持切换和嵌套
+ * - 所有公共 API 包含空指针和魔法数（magic）校验
  *
  * @version 4.0.0
+ * @author Lv-00 Project
  */
 
 #include "lv/cache_manager.h"
@@ -98,6 +108,15 @@ static void evict_lru(lvCacheManager *mgr)
  * 缓存管理器生命周期
  * ======================================================================== */
 
+/**
+ * @brief 创建缓存管理器
+ *
+ * 分配并初始化缓存管理器，包含哈希桶、上下文数组和默认上下文。
+ * 若 config 为 NULL，则使用默认配置（lv_CACHE_DEFAULT_SIZE 等）。
+ *
+ * @param config 缓存配置指针（可为 NULL，将使用默认配置）
+ * @return 新创建的缓存管理器指针，失败返回 NULL
+ */
 lvCacheManager *lv_cache_manager_create(const lvCacheConfig *config)
 {
     lvCacheManager *mgr = (lvCacheManager *)calloc(1, sizeof(lvCacheManager));
@@ -144,6 +163,14 @@ lvCacheManager *lv_cache_manager_create(const lvCacheConfig *config)
     return mgr;
 }
 
+/**
+ * @brief 销毁缓存管理器
+ *
+ * 释放所有缓存条目、哈希桶、上下文数组及管理器本身。
+ * 对每个条目调用其自定义析构函数（如果已设置）。
+ *
+ * @param manager 缓存管理器指针（可为 NULL）
+ */
 void lv_cache_manager_destroy(lvCacheManager *manager)
 {
     if (manager == NULL) return;
@@ -168,6 +195,14 @@ void lv_cache_manager_destroy(lvCacheManager *manager)
     free(manager);
 }
 
+/**
+ * @brief 检查缓存管理器是否有效
+ *
+ * 验证指针非空、魔法数正确且运行状态为 true。
+ *
+ * @param manager 缓存管理器指针
+ * @return true 有效，false 无效
+ */
 bool lv_cache_manager_is_valid(const lvCacheManager *manager)
 {
     return (manager != NULL && manager->magic == lv_CACHE_MAGIC && manager->is_running);
@@ -177,6 +212,19 @@ bool lv_cache_manager_is_valid(const lvCacheManager *manager)
  * 缓存存取操作
  * ======================================================================== */
 
+/**
+ * @brief 向缓存中存入数据
+ *
+ * 若键已存在，则更新其数据并移到 LRU 头部；
+ * 若不存在，创建新条目后插入。
+ * 在插入前根据配置自动执行 LRU 淘汰。
+ *
+ * @param manager 缓存管理器
+ * @param key     缓存键（字符串）
+ * @param data    数据指针
+ * @param size    数据大小（字节）
+ * @return true 成功，false 失败（参数无效或内存不足）
+ */
 bool lv_cache_put(lvCacheManager *manager, const char *key,
                      const void *data, size_t size)
 {
@@ -214,6 +262,7 @@ bool lv_cache_put(lvCacheManager *manager, const char *key,
     if (entry == NULL) return false;
 
     strncpy(entry->key, key, sizeof(entry->key) - 1);
+    entry->key[sizeof(entry->key) - 1] = '\0';  /* 确保 null-terminate */
     entry->data = malloc(size);
     if (entry->data == NULL) {
         free(entry);
@@ -237,6 +286,17 @@ bool lv_cache_put(lvCacheManager *manager, const char *key,
     return true;
 }
 
+/**
+ * @brief 从缓存中获取数据
+ *
+ * 查找指定键对应的缓存条目，命中时将其移到 LRU 头部并返回数据指针。
+ *
+ * @param manager  缓存管理器
+ * @param key      缓存键
+ * @param out_data 输出数据指针（可为 NULL，仅检查是否存在）
+ * @param out_size 输出数据大小（可为 NULL）
+ * @return true 命中，false 未命中或参数无效
+ */
 bool lv_cache_mgr_get(lvCacheManager *manager, const char *key,
                           void **out_data, size_t *out_size)
 {
@@ -263,6 +323,13 @@ bool lv_cache_mgr_get(lvCacheManager *manager, const char *key,
     return false;
 }
 
+/**
+ * @brief 从缓存中移除指定键的条目
+ *
+ * @param manager 缓存管理器
+ * @param key     缓存键
+ * @return true 成功移除，false 未找到或参数无效
+ */
 bool lv_cache_mgr_remove(lvCacheManager *manager, const char *key)
 {
     if (!lv_cache_manager_is_valid(manager) || key == NULL) return false;
@@ -283,6 +350,13 @@ bool lv_cache_mgr_remove(lvCacheManager *manager, const char *key)
     return false;
 }
 
+/**
+ * @brief 检查缓存中是否存在指定键
+ *
+ * @param manager 缓存管理器
+ * @param key     缓存键
+ * @return true 存在，false 不存在或参数无效
+ */
 bool lv_cache_contains(lvCacheManager *manager, const char *key)
 {
     if (!lv_cache_manager_is_valid(manager) || key == NULL) return false;
@@ -303,6 +377,14 @@ bool lv_cache_contains(lvCacheManager *manager, const char *key)
  * 上下文管理
  * ======================================================================== */
 
+/**
+ * @brief 创建新的缓存上下文
+ *
+ * @param manager   缓存管理器
+ * @param name      上下文名称
+ * @param parent_id 父上下文 ID（0 表示根上下文）
+ * @return 新上下文的 ID，失败返回 0
+ */
 uint32_t lv_cache_context_create(lvCacheManager *manager, const char *name,
                                     uint32_t parent_id)
 {
@@ -312,6 +394,7 @@ uint32_t lv_cache_context_create(lvCacheManager *manager, const char *name,
     lvCacheContext *ctx = &manager->contexts[manager->context_count];
     ctx->context_id = manager->next_context_id++;
     strncpy(ctx->name, name, sizeof(ctx->name) - 1);
+    ctx->name[sizeof(ctx->name) - 1] = '\0';  /* 确保 null-terminate */
     ctx->parent_id = parent_id;
     ctx->depth = 0;
     ctx->is_active = true;
@@ -320,6 +403,13 @@ uint32_t lv_cache_context_create(lvCacheManager *manager, const char *name,
     return ctx->context_id;
 }
 
+/**
+ * @brief 切换当前活跃上下文
+ *
+ * @param manager    缓存管理器
+ * @param context_id 目标上下文 ID
+ * @return true 切换成功，false 未找到对应上下文
+ */
 bool lv_cache_context_switch(lvCacheManager *manager, uint32_t context_id)
 {
     if (!lv_cache_manager_is_valid(manager)) return false;
@@ -333,12 +423,28 @@ bool lv_cache_context_switch(lvCacheManager *manager, uint32_t context_id)
     return false;
 }
 
+/**
+ * @brief 获取当前活跃上下文 ID
+ *
+ * @param manager 缓存管理器（可为 NULL）
+ * @return 当前上下文 ID，manager 为 NULL 时返回 0
+ */
 uint32_t lv_cache_context_current(const lvCacheManager *manager)
 {
     if (manager == NULL) return 0;
     return manager->current_context_id;
 }
 
+/**
+ * @brief 销毁指定上下文
+ *
+ * 标记上下文为非活跃。若当前上下文被销毁，回退到默认上下文（ID=1）。
+ * 不允许销毁默认上下文。
+ *
+ * @param manager    缓存管理器
+ * @param context_id 待销毁的上下文 ID
+ * @return true 销毁成功，false 无效或不允许销毁默认上下文
+ */
 bool lv_cache_context_destroy(lvCacheManager *manager, uint32_t context_id)
 {
     if (!lv_cache_manager_is_valid(manager)) return false;
@@ -361,6 +467,14 @@ bool lv_cache_context_destroy(lvCacheManager *manager, uint32_t context_id)
  * 统计与查询
  * ======================================================================== */
 
+/**
+ * @brief 获取缓存管理器全局统计信息
+ *
+ * @param manager   缓存管理器（可为 NULL）
+ * @param out_hits  输出总命中次数（可为 NULL）
+ * @param out_misses 输出总未命中次数（可为 NULL）
+ * @param out_size  输出当前缓存大小（可为 NULL）
+ */
 void lv_cache_mgr_get_stats(const lvCacheManager *manager,
                                 uint64_t *out_hits, uint64_t *out_misses,
                                 size_t *out_size)
@@ -371,6 +485,15 @@ void lv_cache_mgr_get_stats(const lvCacheManager *manager,
     if (out_size) *out_size = manager->current_size;
 }
 
+/**
+ * @brief 获取指定上下文的统计信息
+ *
+ * @param manager    缓存管理器（可为 NULL）
+ * @param context_id 上下文 ID
+ * @param out_hits   输出命中次数（可为 NULL）
+ * @param out_misses 输出未命中次数（可为 NULL）
+ * @param out_size   输出总大小（可为 NULL）
+ */
 void lv_cache_get_context_stats(const lvCacheManager *manager,
                                    uint32_t context_id,
                                    uint64_t *out_hits, uint64_t *out_misses,
@@ -390,18 +513,36 @@ void lv_cache_get_context_stats(const lvCacheManager *manager,
     if (out_size) *out_size = 0;
 }
 
+/**
+ * @brief 获取当前缓存条目数量
+ *
+ * @param manager 缓存管理器（可为 NULL）
+ * @return 条目数量，manager 为 NULL 时返回 0
+ */
 int lv_cache_entry_count(const lvCacheManager *manager)
 {
     if (manager == NULL) return 0;
     return manager->entry_count;
 }
 
+/**
+ * @brief 获取当前缓存数据总大小
+ *
+ * @param manager 缓存管理器（可为 NULL）
+ * @return 数据总大小（字节），manager 为 NULL 时返回 0
+ */
 size_t lv_cache_current_size(const lvCacheManager *manager)
 {
     if (manager == NULL) return 0;
     return manager->current_size;
 }
 
+/**
+ * @brief 获取缓存配置
+ *
+ * @param manager 缓存管理器（可为 NULL）
+ * @return 配置指针，manager 为 NULL 时返回 NULL
+ */
 const lvCacheConfig *lv_cache_get_config(const lvCacheManager *manager)
 {
     if (manager == NULL) return NULL;
@@ -412,6 +553,15 @@ const lvCacheConfig *lv_cache_get_config(const lvCacheManager *manager)
  * 杂项操作
  * ======================================================================== */
 
+/**
+ * @brief 重置缓存管理器，清空所有条目和统计信息
+ *
+ * 释放所有缓存条目，重置 LRU 链表和统计计数器，
+ * 但保留上下文配置。
+ *
+ * @param manager 缓存管理器
+ * @return lv_OK 成功，lv_ERROR_INVALID_STATE 参数无效
+ */
 lvErrorCode lv_cache_manager_reset(lvCacheManager *manager)
 {
     if (!lv_cache_manager_is_valid(manager)) return lv_ERROR_INVALID_STATE;
@@ -443,12 +593,25 @@ lvErrorCode lv_cache_manager_reset(lvCacheManager *manager)
     return lv_OK;
 }
 
+/**
+ * @brief 清空缓存（统一接口别名）
+ *
+ * 调用 lv_cache_manager_reset 实现。
+ *
+ * @param manager 缓存管理器（可为 NULL）
+ */
 void lv_unified_cache_clear(lvCacheManager *manager)
 {
     if (manager == NULL) return;
     lv_cache_manager_reset(manager);
 }
 
+/**
+ * @brief 设置缓存条目的默认析构函数
+ *
+ * @param manager    缓存管理器（可为 NULL）
+ * @param destructor 析构函数指针（void (*)(void *, size_t)）
+ */
 void lv_cache_set_destructor(lvCacheManager *manager,
                                 void (*destructor)(void *, size_t))
 {

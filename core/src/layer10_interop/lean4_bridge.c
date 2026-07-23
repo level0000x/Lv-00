@@ -1,37 +1,66 @@
-﻿#include "lv/interop.h"
+/**
+ * @file lean4_bridge.c
+ * @brief Lean 4 证明互操作桥接实现
+ *
+ * @details 实现 Lv-00 内部证明表示与 Lean 4 证明脚本之间的双向转换：
+ *   1. lean4_export_proof — 将内部证明树导出为 Lean 4 兼容的 .lean 脚本
+ *   2. lean4_import_proof — 解析 Lean 4 脚本并构建内部证明树（支持嵌套 by 块、match 表达式、. 链）
+ *   3. lean4_validate — 对 Lean 4 输入进行基本语法校验（花括号平衡、关键字检测）
+ *
+ * 步骤映射通过 36 条反向映射表覆盖常见的 Lean 4 tactic。
+ *
+ * @author Lv-00 Project
+ */
+
+#include "lv/interop.h"
 #include "lv_utils.h"
 #include "lv/lv_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <limits.h>
 
-/* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */
+/**
+ * @brief Lv-00 证明步骤类型枚举（Lean 4 映射版）
+ *
+ * 将 Lv-00 内部证明步骤映射为 Lean 4 证明策略（tactic）。
+ * 相比 Coq 版本增加了 EXACT、HAVE、CALC 三种步骤类型。
+ */
 typedef enum {
-    lv_STEP_ADD_NODE = 0,      /* 添加节点 → intro */
-    lv_STEP_ADD_CONSTRAINT,    /* 添加约束 → constructor */
-    lv_STEP_REWRITE,           /* 重写 → rw */
-    lv_STEP_FUNCTION_APP,      /* 函数应用 → apply */
-    lv_STEP_EXACT,             /* 精确匹配 → exact */
-    lv_STEP_HAVE,              /* 中间引理 → have */
-    lv_STEP_CALC,              /* 计算链 → calc */
-    lv_STEP_NORMALIZATION,     /* 规范化 → simp */
-    lv_STEP_ORACLE             /* 外部预言 → sorry */
+    lv_STEP_ADD_NODE = 0,      /**< 添加节点 → intro */
+    lv_STEP_ADD_CONSTRAINT,    /**< 添加约束 → constructor */
+    lv_STEP_REWRITE,           /**< 重写 → rw */
+    lv_STEP_FUNCTION_APP,      /**< 函数应用 → apply */
+    lv_STEP_EXACT,             /**< 精确匹配 → exact */
+    lv_STEP_HAVE,              /**< 中间引理 → have */
+    lv_STEP_CALC,              /**< 计算链 → calc */
+    lv_STEP_NORMALIZATION,     /**< 规范化 → simp */
+    lv_STEP_ORACLE             /**< 外部预言 → sorry */
 } lvProofStepType;
 
-/* 证明步骤结构体 */
+/**
+ * @brief 证明步骤结构体
+ *
+ * 表示 Lean 4 证明中的单个步骤，包含类型、描述文本和序号。
+ */
 typedef struct {
-    int type;                     /* 步骤类型（lvProofStepType） */
-    char description[512];       /* 步骤描述 */
-    int id;                      /* 步骤编号 */
+    int type;                     /**< 步骤类型（lvProofStepType） */
+    char description[512];       /**< 步骤描述（tactic 名称） */
+    int id;                      /**< 步骤编号（按导入顺序） */
 } lvProofStep;
 
-/* 内部证明结构体（用于导出/导入） */
+/**
+ * @brief 内部证明结构体（Lean 4 版）
+ *
+ * 用于 Lean 4 证明脚本的导入/导出中间表示。
+ * 包含定理名称和动态增长的步骤数组。
+ */
 typedef struct {
-    char theorem_name[256];      /* 定理名称 */
-    int step_count;              /* 步骤数量 */
-    int step_capacity;           /* 步骤容量 */
-    lvProofStep *steps;        /* 步骤数组 */
+    char theorem_name[256];      /**< 定理名称 */
+    int step_count;              /**< 当前步骤数量 */
+    int step_capacity;           /**< 步骤数组容量 */
+    lvProofStep *steps;          /**< 步骤动态数组 */
 } lvLean4Proof;
 
 /* 映射表大小常量 */

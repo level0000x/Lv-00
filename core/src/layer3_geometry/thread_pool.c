@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file thread_pool.c
  * @brief 线程池实现
  *
@@ -6,6 +6,8 @@
  * 支持等待组 (WaitGroup) 机制，允许提交一组任务后统一等待完成。
  *
  * @version 1.0.0
+ *
+ * @author Lv-00 Project
  */
 
 #define lv_THREAD_POOL_IMPL
@@ -146,10 +148,18 @@ static void *worker_func(void *arg)
 #endif
 }
 
+/* ---- 前向声明 ---- */
+void lv_thread_pool_destroy(lvThreadPool *pool);
+
 /* ========================================================================
  * 线程池 API 实现
  * ======================================================================== */
 
+/**
+ * @brief 创建线程池
+ * @param num_threads 工作线程数（<=0 时使用默认值 4）
+ * @return 线程池（调用者通过 lv_thread_pool_destroy 释放），失败返回 NULL
+ */
 lvThreadPool *lv_thread_pool_create(int num_threads)
 {
     if (num_threads <= 0) {
@@ -177,14 +187,28 @@ lvThreadPool *lv_thread_pool_create(int num_threads)
     for (int i = 0; i < num_threads; i++) {
 #ifdef _WIN32
         pool->threads[i] = CreateThread(NULL, 0, worker_func, pool, 0, NULL);
+        if (!pool->threads[i]) {
+            /* [安全] 线程创建失败，清理已创建线程后返回 NULL */
+            pool->thread_count = i; /* 只清理已成功创建的线程 */
+            lv_thread_pool_destroy(pool);
+            return NULL;
+        }
 #else
-        pthread_create(&pool->threads[i], NULL, worker_func, pool);
+        if (pthread_create(&pool->threads[i], NULL, worker_func, pool) != 0) {
+            pool->thread_count = i;
+            lv_thread_pool_destroy(pool);
+            return NULL;
+        }
 #endif
     }
 
     return pool;
 }
 
+/**
+ * @brief 销毁线程池，等待所有工作线程结束并释放资源
+ * @param pool 线程池指针（可为 NULL）
+ */
 void lv_thread_pool_destroy(lvThreadPool *pool)
 {
     if (pool == NULL) return;
@@ -218,6 +242,13 @@ void lv_thread_pool_destroy(lvThreadPool *pool)
     free(pool);
 }
 
+/**
+ * @brief 提交任务到线程池
+ * @details 创建等待组并将任务加入队列。调用者需通过 lv_thread_pool_wait_group 等待完成。
+ * @param pool 线程池指针
+ * @param task 任务节点（由调用者分配，线程池会在执行后 free）
+ * @return 等待组指针（调用者传入 lv_thread_pool_wait_group），失败返回 NULL
+ */
 lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task)
 {
     if (pool == NULL || task == NULL) return NULL;
@@ -255,6 +286,12 @@ lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task)
     return group;
 }
 
+/**
+ * @brief 等待一组任务完成并释放等待组
+ * @param pool      线程池指针（当前未使用，保留为将来扩展）
+ * @param group     等待组指针（函数内部会自动释放）
+ * @param timeout_ms 超时毫秒（当前简化实现中忽略，始终等待全部完成）
+ */
 void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group,
                                   int timeout_ms)
 {
@@ -277,6 +314,11 @@ void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group,
  * 全局线程池
  * ======================================================================== */
 
+/**
+ * @brief 获取全局单例线程池
+ * @warning 当前实现非线程安全，并发调用可能导致重复创建。
+ * @return 全局线程池指针
+ */
 lvThreadPool *lv_get_global_thread_pool(void)
 {
     /* 注意：此简化实现非线程安全地初始化全局池 */

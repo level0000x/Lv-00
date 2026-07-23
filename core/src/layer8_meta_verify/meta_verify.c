@@ -839,15 +839,40 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
     return report;
 }
 
+/**
+ * @brief 查询验证报告是否全部通过
+ *
+ * 当报告中无失败项时视为通过（跳过项不影响判定）。
+ *
+ * @param report 验证报告指针
+ * @return 全部通过返回 1，有失败项或 report 为 NULL 返回 0
+ */
 int lv_verify_report_passed(const lvVerifyReport *report) {
     return report ? (report->failed_checks == 0) : 0;
 }
 
+/**
+ * @brief 获取验证报告的文本摘要
+ *
+ * 返回预先生成的摘要字符串，形如 "Meta-verification: 5/6 passed, 0 failed, 1 skipped"。
+ *
+ * @param report 验证报告指针
+ * @return 摘要字符串指针，report 为 NULL 时返回 NULL
+ */
 const char *lv_verify_report_summary(const lvVerifyReport *report) {
     if (!report) return NULL;
     return report->summary;
 }
 
+/**
+ * @brief 获取单项检查的详细结果
+ *
+ * 按检查项索引返回对应的 lvMetaVerifyResult，包含检查状态和描述信息。
+ *
+ * @param report 验证报告指针
+ * @param check  要查询的检查项枚举值
+ * @return 单项检查结果指针，参数无效时返回 NULL
+ */
 const lvMetaVerifyResult *lv_verify_report_result(const lvVerifyReport *report, lvVerifyCheck check) {
     if (!report || check < 0 || check >= lv_CHECK_COUNT) return NULL;
     return &report->results[check];

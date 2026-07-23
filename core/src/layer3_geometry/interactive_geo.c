@@ -25,6 +25,12 @@ int interactive_geo_snapshot(lvInteractiveGeo *g);
 
 /* ── 内部辅助 ── */
 
+/**
+ * @brief 检查对象是否为活跃状态
+ * @param g  交互几何上下文
+ * @param id 对象 ID
+ * @return 活跃返回 true
+ */
 static bool is_active(const lvInteractiveGeo *g, int id)
 {
     if (!g || !g->canvas_state.active_object_ids) return false;
@@ -33,6 +39,10 @@ static bool is_active(const lvInteractiveGeo *g, int id)
     return false;
 }
 
+/**
+ * @brief 同步视口变换矩阵
+ * @param s 画布状态指针
+ */
 static void sync_matrix(lvGeoCanvasState *s)
 {
     memset(s->viewport_matrix, 0, sizeof(s->viewport_matrix));
@@ -43,7 +53,12 @@ static void sync_matrix(lvGeoCanvasState *s)
     s->viewport_matrix[2][2] = 1.0;
 }
 
-/* 约束传播：查询被拖拽节点的关联约束，收集受影响对象 */
+/**
+ * @brief 约束传播：查询被拖拽节点的关联约束，收集受影响对象
+ * @param g   交互几何上下文
+ * @param did 被拖拽对象 ID
+ * @return 约束维护状态
+ */
 static ConstraintMaintainStatus propagate(lvInteractiveGeo *g, int did)
 {
     if (!g) return CONSTRAINT_FAILED;
@@ -82,6 +97,11 @@ static ConstraintMaintainStatus propagate(lvInteractiveGeo *g, int did)
 
 /* ==================== 生命周期 ==================== */
 
+/**
+ * @brief 初始化交互几何系统
+ * @param engine 引擎句柄
+ * @return 交互几何上下文（调用者通过 interactive_geo_destroy 释放），失败返回 NULL
+ */
 lvInteractiveGeo *interactive_geo_init(lvEngine *engine)
 {
     lvInteractiveGeo *g = (lvInteractiveGeo *)calloc(1, sizeof(*g));
@@ -120,6 +140,10 @@ lvInteractiveGeo *interactive_geo_init(lvEngine *engine)
     return g;
 }
 
+/**
+ * @brief 销毁交互几何系统并释放所有资源
+ * @param g 交互几何上下文（可为 NULL）
+ */
 void interactive_geo_destroy(lvInteractiveGeo *g)
 {
     if (!g) return;
@@ -139,6 +163,11 @@ void interactive_geo_destroy(lvInteractiveGeo *g)
 
 /* ==================== 模式管理 ==================== */
 
+/**
+ * @brief 设置交互模式
+ * @param g    交互几何上下文
+ * @param mode 新模式
+ */
 void interactive_geo_set_mode(lvInteractiveGeo *g, InteractiveGeoMode mode)
 {
     if (!g || g->canvas_state.current_mode == mode) return;
@@ -147,6 +176,11 @@ void interactive_geo_set_mode(lvInteractiveGeo *g, InteractiveGeoMode mode)
     if (g->on_mode_changed) g->on_mode_changed(mode);
 }
 
+/**
+ * @brief 获取当前交互模式
+ * @param g 交互几何上下文
+ * @return 当前模式
+ */
 InteractiveGeoMode interactive_geo_get_mode(const lvInteractiveGeo *g)
 {
     return g ? g->canvas_state.current_mode : GEO_MODE_SELECT;

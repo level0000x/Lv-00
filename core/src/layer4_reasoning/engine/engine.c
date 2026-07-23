@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_config.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/stream.h"
@@ -1157,12 +1158,13 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
         /* 存在冻结点，调用方可能需要回滚到该点 */
         int overflow = circuit_get_overflow_count();
 
-        /* 步骤2：若 overflow_count >= lv_CIRCUIT_OVERFLOW_THRESHOLD，建议永久降级 */
-        if (overflow >= lv_CIRCUIT_OVERFLOW_THRESHOLD) {
+        /* 步骤2：若 overflow_count >= 阈值，建议永久降级 */
+        int threshold = lv_config_get_int("circuit_overflow_threshold");
+        if (overflow >= threshold) {
             snprintf(engine->last_error, sizeof(engine->last_error),
                      "engine_handle_circuit_trip: 溢出计数 %d >= %d，"
                      "建议永久降级为琥珀色",
-                     overflow, lv_CIRCUIT_OVERFLOW_THRESHOLD);
+                     overflow, threshold);
             engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
             return ENGINE_CIRCUIT_DOWNGRADE;
         }
@@ -1178,12 +1180,13 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
 
     /* 步骤3：无冻结点，仅报告警告 */
     int overflow = circuit_get_overflow_count();
-    if (overflow >= lv_CIRCUIT_OVERFLOW_THRESHOLD) {
+    int threshold = lv_config_get_int("circuit_overflow_threshold");
+    if (overflow >= threshold) {
         /* 即使没有冻结点，反复溢出也建议降级 */
         snprintf(engine->last_error, sizeof(engine->last_error),
                  "engine_handle_circuit_trip: 溢出计数 %d >= %d，"
                  "建议永久降级为琥珀色",
-                 overflow, lv_CIRCUIT_OVERFLOW_THRESHOLD);
+                 overflow, threshold);
         engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
         return ENGINE_CIRCUIT_DOWNGRADE;
     }

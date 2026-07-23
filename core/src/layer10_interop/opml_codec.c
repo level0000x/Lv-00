@@ -1,4 +1,4 @@
-﻿#include "lv/interop.h"
+#include "lv/interop.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include <stdlib.h>
@@ -6,7 +6,27 @@
 #include <stdio.h>
 
 /**
+ * @file opml_codec.c
+ * @brief OPML 格式的证明导入/导出编解码器
+ *
+ * @details 实现 OPML JSON 格式与 Lv-00 内部证明树之间的双向转换。
+ *          包含 JSON 转义/解析辅助函数、证明步骤序列化/反序列化、
+ *          theory 段（公理/定义）解析、proof 段（步骤）解析，
+ *          以及插件注册接口。
+ * @author Lv-00 Project
+ * @version 1.0.0
+ */
+
+/**
  * @brief JSON 字符串转义
+ *
+ * 将源字符串中的特殊字符（双引号、反斜杠、控制字符）转义为 JSON 兼容形式。
+ * 对于小于 0x20 的控制字符，使用 \\uXXXX 格式转义。
+ *
+ * @param src      源字符串（UTF-8）
+ * @param dst      目标缓冲区
+ * @param dst_size 目标缓冲区大小
+ * @return 写入目标缓冲区的字符数（不含 null 终止符）
  */
 static int json_escape_string(const char *src, char *dst, int dst_size) {
     int pos = 0;
@@ -67,6 +87,9 @@ typedef struct {
 
 /**
  * @brief 将步骤类型枚举映射为字符串名称
+ *
+ * @param type 步骤类型值（lvProofStepType 枚举）
+ * @return 对应的字符串名称，未知类型返回 "unknown"
  */
 static const char *step_type_name(int type) {
     switch (type) {
@@ -84,7 +107,15 @@ static const char *step_type_name(int type) {
 }
 
 /**
- * @brief OPML JSON 导出
+ * @brief 将内部证明结构导出为 OPML JSON 格式
+ *
+ * 将 lvOpmlProof 结构序列化为 OPML 兼容的 JSON 字符串，
+ * 包含 metadata、theory（公理列表）和 proof（步骤数组）三个主要段。
+ *
+ * @param proof      指向 lvOpmlProof 结构的指针
+ * @param output     目标缓冲区
+ * @param output_size 目标缓冲区大小
+ * @return 成功返回 0，失败返回 -1
  */
 static int opml_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0) return -1;
@@ -307,10 +338,13 @@ static const char *json_find_key(const char *obj_start, const char *key) {
 }
 
 /**
- * @brief 提取 JSON 数组中的所有字符串值
- */
-/**
  * @brief 解析嵌套 JSON 对象并返回结束位置
+ *
+ * 从 '{' 开始，正确处理嵌套的花括号和字符串转义内容，
+ * 返回匹配的 '}' 之后的位置。
+ *
+ * @param p 指向 '{' 的指针
+ * @return 匹配的 '}' 之后的位置指针
  */
 static const char *json_skip_object(const char *p) {
     if (!p || *p != '{') return p;
@@ -531,13 +565,23 @@ static int opml_validate(const char *input) {
     return strstr(input, "opml_version") != NULL;
 }
 
-/* 注册 OPML 插件 */
+/**
+ * @brief 注册 OPML 互操作插件到管理器
+ *
+ * 将 OPML 编解码器注册到 lvInteropManager，使其能够处理
+ * OPML JSON 格式的证明导入/导出和验证。
+ *
+ * @param mgr 互操作管理器指针
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_register_opml_plugin(lvInteropManager *mgr) {
     if (!mgr) return -1;
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "opml", sizeof(plugin.name) - 1);
+    plugin.name[sizeof(plugin.name) - 1] = '\0';
     strncpy(plugin.version, "1.0.0", sizeof(plugin.version) - 1);
+    plugin.version[sizeof(plugin.version) - 1] = '\0';
     plugin.system = lv_EXT_JSON;
     plugin.export_proof = opml_export_proof;
     plugin.import_proof = opml_import_proof;

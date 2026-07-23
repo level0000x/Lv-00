@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interop_command.c
  * @brief 命令解析与执行
  *
@@ -26,6 +26,15 @@ lv_DECLARE_STREAM_CTX(interop);
 
 /* ── 命令解析与执行 ── */
 
+/**
+ * @brief 解析输入字符串为互操作命令结构
+ * @details 按空格分割输入字符串，第一个 token 为命令名称，后续为参数。
+ *          支持 AddNode/RemoveNode/AddConstraint 等 18 种命令类型。
+ *          参数最多 INTEROP_MAX_PARAMS 个，每个参数最长 256 字符。
+ * @param input 输入字符串
+ * @param cmd   输出参数，解析后的命令结构
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 或 lv_ERROR_PARSE 失败
+ */
 int interop_parse_command(const char *input, InteropCommand *cmd) {
     if (!input || !cmd)
         return lv_ERROR_INVALID_PARAM;
@@ -125,26 +134,6 @@ int interop_serialize_response(const InteropResponse *resp, char *output, size_t
  * @return lv_OK 成功，错误码表示失败原因
  */
 int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
-    /**
-     * @brief 执行互操作命令
-     *
-     * 根据命令类型分派到不同的处理逻辑。支持节点/约束的增删查改操作、
-     * 图结构查询、函数块打包/例化、求解、重写和合一检查。
-     *
-     * GET_GRAPH命令使用 graph_serialize_to_json() 序列化引擎主图为
-     * JSON字符串，包含所有节点（坐标、类型、信任色）和约束（类型、参与方）。
-     * 如果引擎尚未加载图数据，返回空图JSON。
-     *
-     * 求解命令（Solve）委托给engine内部的求解管线。重写（Rewrite）按
-     * 重写步数限制逐步应用。合一（Unify）检查两支构造的同构性。
-     *
-     * @param engine Lv-00引擎实例，提供main_graph和各操作入口
-     * @param cmd 解析后的命令结构，包含命令类型和参数列表
-     * @param resp 输出响应结构，填充status_code和data字段
-     * @return lv_OK 命令执行成功（可能携带业务错误码在resp->status_code中）
-     *         lv_ERROR_INVALID_PARAM 参数无效
-     *         lv_ERROR_UNSUPPORTED 命令类型不支持
-     */
     if (!engine || !cmd || !resp)
         return lv_ERROR_INVALID_PARAM;
 
@@ -793,16 +782,14 @@ const char *interop_constraint_type_name(ConstraintType type) {
 }
 
 /**
- * @brief 计算图的边界框（用于SVG viewBox）
- *
- * 遍历约束图中所有节点的坐标，计算最小/最大 x、y 值，
- * 并添加边距用于 SVG viewBox 的设置。
- *
- * @param graph 约束图指针，若为空或无节点则使用默认值 [0,100]x[0,100]
- * @param min_x [out] 输出最小 x 坐标
- * @param min_y [out] 输出最小 y 坐标
- * @param max_x [out] 输出最大 x 坐标
- * @param max_y [out] 输出最大 y 坐标
+ * @brief 计算图的边界框（用于 SVG viewBox）
+ * @details 遍历约束图中所有节点的坐标，计算最小/最大 x、y 值，
+ *          并添加边距用于 viewBox 的设置。
+ * @param graph 约束图指针（可为 NULL）
+ * @param min_x [out] 最小 x 坐标
+ * @param min_y [out] 最小 y 坐标
+ * @param max_x [out] 最大 x 坐标
+ * @param max_y [out] 最大 y 坐标
  */
 static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, double *min_y, double *max_x,
                                  double *max_y) {

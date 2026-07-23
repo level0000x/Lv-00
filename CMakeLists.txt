@@ -369,6 +369,7 @@ set(lv_HEADERS
     core/include/lv/approx_counter.h
     # 位数熔断系统
     core/include/lv/bit_burning.h
+    core/include/lv/command_log.h
     # v1.1.0 新增模块头文件（第二轮：计算后端与数值模块）
     core/include/lv/atp_backend.h
     core/include/lv/solver_core.h
@@ -886,6 +887,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/expr/exact_arithmetic.c
     # 近似计数器
     core/src/layer4_reasoning/backends/approx_counter.c
+    # 命令日志系统
+    core/src/layer4_reasoning/command_log.c
     # 内核子模块：熔断器、元证明
     core/src/layer4_reasoning/kernel/circuit_breaker.c
     core/src/layer4_reasoning/kernel/meta_proof.c

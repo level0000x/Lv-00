@@ -1,36 +1,64 @@
-﻿#include "lv/interop.h"
+/**
+ * @file coq_bridge.c
+ * @brief Coq 证明互操作桥接实现
+ *
+ * @details 实现 Lv-00 内部证明表示与 Coq 证明脚本之间的双向转换：
+ *   1. coq_export_proof — 将内部证明树导出为 Coq 8.18 兼容的 .v 脚本
+ *   2. coq_import_proof — 解析 Coq .v 脚本并构建内部证明树
+ *   3. coq_validate — 对 Coq 输入进行基本语法校验（括号平衡、关键字检测）
+ *
+ * Coq 与 Lv-00 步骤类型的映射通过 tactic_map / reverse_map 静态表完成。
+ *
+ * @author Lv-00 Project
+ */
+
+#include "lv/interop.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <limits.h>
 
-/* Lv-00 证明步骤类型枚举 */
+/**
+ * @brief Lv-00 证明步骤类型枚举（Coq 映射版）
+ *
+ * 将 Lv-00 内部证明步骤映射为 Coq 证明策略（tactic）。
+ * 每种步骤类型对应一个或多个 Coq 等价策略。
+ */
 typedef enum {
-    lv_STEP_ADD_NODE = 0,      /* 添加节点 → intro */
-    lv_STEP_ADD_CONSTRAINT,    /* 添加约束 → constructor */
-    lv_STEP_REWRITE,           /* 重写 → rewrite */
-    lv_STEP_FUNCTION_APP,      /* 函数应用 → apply */
-    lv_STEP_NORMALIZATION,     /* 规范化 → simpl */
-    lv_STEP_UNIFY,             /* 合一 → reflexivity */
-    lv_STEP_EX_FALSO,          /* 矛盾 → contradiction */
-    lv_STEP_ORACLE             /* 外部预言 → admit (* oracle *) */
+    lv_STEP_ADD_NODE = 0,      /**< 添加节点 → intro */
+    lv_STEP_ADD_CONSTRAINT,    /**< 添加约束 → constructor */
+    lv_STEP_REWRITE,           /**< 重写 → rewrite */
+    lv_STEP_FUNCTION_APP,      /**< 函数应用 → apply */
+    lv_STEP_NORMALIZATION,     /**< 规范化 → simpl */
+    lv_STEP_UNIFY,             /**< 合一 → reflexivity */
+    lv_STEP_EX_FALSO,          /**< 矛盾 → contradiction */
+    lv_STEP_ORACLE             /**< 外部预言 → admit (* oracle *) */
 } lvProofStepType;
 
-/* 证明步骤结构体 */
+/**
+ * @brief 证明步骤结构体
+ *
+ * 表示 Coq 证明中的单个步骤，包含类型、描述文本和序号。
+ */
 typedef struct {
-    int type;                     /* 步骤类型（lvProofStepType） */
-    char description[512];       /* 步骤描述 */
-    int id;                      /* 步骤编号 */
+    int type;                     /**< 步骤类型（lvProofStepType） */
+    char description[512];       /**< 步骤描述（tactic 名称） */
+    int id;                      /**< 步骤编号（按导入顺序） */
 } lvProofStep;
 
-/* 内部证明结构体（用于导出/导入） */
+/**
+ * @brief 内部证明结构体（Coq 版）
+ *
+ * 用于 Coq 证明脚本的导入/导出中间表示。包含定理名称和步骤数组。
+ */
 typedef struct {
-    char theorem_name[256];      /* 定理名称 */
-    int step_count;              /* 步骤数量 */
-    int step_capacity;           /* 步骤容量 */
-    lvProofStep *steps;        /* 步骤数组 */
+    char theorem_name[256];      /**< 定理名称 */
+    int step_count;              /**< 当前步骤数量 */
+    int step_capacity;           /**< 步骤数组容量 */
+    lvProofStep *steps;          /**< 步骤动态数组 */
 } lvCoqProof;
 
 /* 映射表大小常量 */
@@ -39,7 +67,15 @@ typedef struct {
 #define COQ_VALID_TACTICS_COUNT 35
 
 /**
- * @brief Coq 证明导出
+ * @brief 将内部证明树导出为 Coq .v 脚本格式
+ *
+ * 遍历 lvCoqProof 的步骤数组，将每一步骤类型通过 tactic_map 映射为
+ * Coq tactic 名称，生成符合 Coq 8.18 语法的完整 .v 文件内容。
+ *
+ * @param proof      lvCoqProof 指针（内部证明结构体）
+ * @param output     输出缓冲区（用于写入 Coq 脚本）
+ * @param output_size 输出缓冲区大小（字节）
+ * @return 成功返回 0，参数无效或缓冲区不足返回 -1
  */
 static int coq_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0) return -1;
@@ -115,7 +151,14 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
 }
 
 /**
- * @brief Coq 证明导入
+ * @brief 解析 Coq .v 脚本并构建内部证明树
+ *
+ * 从 Coq 脚本中提取 "Theorem"/"Lemma" 关键字后的定理名，扫描 "Proof." 到 "Qed."
+ * 之间的 tactic 行，通过 reverse_map 反向映射为 Lv-00 步骤类型。
+ *
+ * @param input  Coq .v 脚本内容（以 null 结尾的字符串）
+ * @param proof  输出参数：成功时指向新分配的 lvCoqProof 结构体
+ * @return 成功返回 0，输入无效或解析失败返回 -1
  */
 static int coq_import_proof(const char *input, void **proof) {
     if (!input || !proof) return -1;
@@ -211,6 +254,12 @@ static int coq_import_proof(const char *input, void **proof) {
             if (step_type >= 0) {
                 /* 检查是否需要扩容 */
                 if (p->step_count >= p->step_capacity) {
+                    /* [安全] 乘法前做溢出检查 */
+                    if (p->step_capacity > INT_MAX / 2) {
+                        lv_free((void **)&p->steps);
+                        lv_free((void **)&p);
+                        return -1;
+                    }
                     int new_cap = p->step_capacity * 2;
                     lvProofStep *new_steps = (lvProofStep *)lv_realloc(p->steps, new_cap * sizeof(lvProofStep));
                     if (!new_steps) {
@@ -244,7 +293,13 @@ static int coq_import_proof(const char *input, void **proof) {
 }
 
 /**
- * @brief Coq 输入校验
+ * @brief 对 Coq 输入进行基本语法校验
+ *
+ * 检查花括号和圆括号的嵌套平衡性，检测是否包含 "Theorem"/"Lemma" 关键字，
+ * 以及是否包含已知的有效 tactic 名称（含自定义 tactic 的宽松判断）。
+ *
+ * @param input Coq 脚本输入
+ * @return 校验通过返回 1，无效输入或校验失败返回 0
  */
 static int coq_validate(const char *input) {
     if (!input) return 0;
@@ -300,7 +355,15 @@ static int coq_validate(const char *input) {
     return found_tactic ? 1 : 0;
 }
 
-/* 注册 Coq 插件 */
+/**
+ * @brief 注册 Coq 互操作插件
+ *
+ * 向 lvInteropManager 注册 Coq 8.18 支持的插件实例，提供导出 (export_proof)、
+ * 导入 (import_proof) 和校验 (validate) 回调函数。
+ *
+ * @param mgr 互操作管理器指针
+ * @return 成功返回 0，mgr 为 NULL 返回 -1
+ */
 int lv_register_coq_plugin(lvInteropManager *mgr) {
     if (!mgr) return -1;
     lvPlugin plugin;

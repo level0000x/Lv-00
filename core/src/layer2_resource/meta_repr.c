@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file meta_repr.c
  * @brief Lv-00 元表示层实现
  *
@@ -50,6 +50,11 @@ struct MetaReprDecoder {
 
 /* ============== 默认配置 ============== */
 
+/**
+ * @brief 获取元表示编码器的默认配置
+ *
+ * @return 默认配置结构体
+ */
 MetaReprConfig meta_repr_default_config(void)
 {
     MetaReprConfig config;
@@ -78,6 +83,12 @@ MetaReprConfig meta_repr_default_config(void)
 
 /* ============== 编码器 API 实现 ============== */
 
+/**
+ * @brief 创建元表示编码器
+ *
+ * @param config 编码配置（为 NULL 时使用默认配置）
+ * @return 新创建的编码器指针，失败返回 NULL
+ */
 MetaReprEncoder *meta_repr_encoder_create(const MetaReprConfig *config)
 {
     MetaReprEncoder *encoder = (MetaReprEncoder *)lv_malloc(sizeof(MetaReprEncoder));
@@ -99,6 +110,11 @@ MetaReprEncoder *meta_repr_encoder_create(const MetaReprConfig *config)
     return encoder;
 }
 
+/**
+ * @brief 销毁元表示编码器
+ *
+ * @param encoder 编码器指针（可为 NULL）
+ */
 void meta_repr_encoder_destroy(MetaReprEncoder *encoder)
 {
     if (!encoder) return;
@@ -106,6 +122,11 @@ void meta_repr_encoder_destroy(MetaReprEncoder *encoder)
     lv_free((void **)&encoder);
 }
 
+/**
+ * @brief 重置编码器内部计数
+ *
+ * @param encoder 编码器指针
+ */
 void meta_repr_encoder_reset(MetaReprEncoder *encoder)
 {
     if (!encoder || !encoder->is_initialized) return;
@@ -113,6 +134,16 @@ void meta_repr_encoder_reset(MetaReprEncoder *encoder)
     encoder->constraint_count = 0;
 }
 
+/**
+ * @brief 将约束图编码为几何表示
+ *
+ * 遍历原图的节点和约束，将节点坐标映射为几何点，
+ * 约束关系映射为几何约束，返回新的 ConstraintGraph。
+ *
+ * @param encoder 编码器
+ * @param graph   原始约束图
+ * @return 编码后的约束图，失败返回 NULL
+ */
 ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder,
                                          const ConstraintGraph *graph)
 {
@@ -177,6 +208,15 @@ ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder,
     return encoded;
 }
 
+/**
+ * @brief 将单个几何节点编码为几何表示
+ *
+ * 将节点的 ID 和类型线性映射到几何坐标。
+ *
+ * @param encoder 编码器
+ * @param node    原始几何节点
+ * @return 编码后的几何节点，失败返回 NULL
+ */
 GeomNode *meta_repr_encode_node(MetaReprEncoder *encoder,
                                  const GeomNode *node)
 {
@@ -216,6 +256,15 @@ GeomNode *meta_repr_encode_node(MetaReprEncoder *encoder,
     return encoded;
 }
 
+/**
+ * @brief 将函数块编码为几何区域表示
+ *
+ * 函数块被编码为 GEOM_REGION 类型节点，输入/输出端口编码为边界上的 GEOM_PORT 子节点。
+ *
+ * @param encoder 编码器
+ * @param block   函数块指针
+ * @return 编码后的区域节点，失败返回 NULL
+ */
 GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder,
                                        const FuncBlock *block)
 {
@@ -324,6 +373,13 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder,
     return encoded_region;
 }
 
+/**
+ * @brief 将类型区域编码为几何区域表示
+ *
+ * @param encoder     编码器
+ * @param type_region 类型区域指针
+ * @return 编码后的区域节点，失败返回 NULL
+ */
 GeomNode *meta_repr_encode_type_region(MetaReprEncoder *encoder,
                                         const TypeRegion *type_region)
 {
@@ -366,6 +422,13 @@ GeomNode *meta_repr_encode_type_region(MetaReprEncoder *encoder,
     return encoded_region;
 }
 
+/**
+ * @brief 将命题编码为几何点表示
+ *
+ * @param encoder    编码器
+ * @param proposition 命题指针
+ * @return 编码后的几何节点，失败返回 NULL
+ */
 GeomNode *meta_repr_encode_proposition(MetaReprEncoder *encoder,
                                         const Proposition *proposition)
 {
@@ -410,6 +473,11 @@ GeomNode *meta_repr_encode_proposition(MetaReprEncoder *encoder,
 
 /* ============== 解码器 API 实现 ============== */
 
+/**
+ * @brief 创建元表示解码器
+ *
+ * @return 新创建的解码器指针，失败返回 NULL
+ */
 MetaReprDecoder *meta_repr_decoder_create(void)
 {
     MetaReprDecoder *decoder = (MetaReprDecoder *)lv_malloc(sizeof(MetaReprDecoder));
@@ -422,6 +490,11 @@ MetaReprDecoder *meta_repr_decoder_create(void)
     return decoder;
 }
 
+/**
+ * @brief 销毁元表示解码器
+ *
+ * @param decoder 解码器指针（可为 NULL）
+ */
 void meta_repr_decoder_destroy(MetaReprDecoder *decoder)
 {
     if (!decoder) return;
@@ -429,6 +502,15 @@ void meta_repr_decoder_destroy(MetaReprDecoder *decoder)
     lv_free((void **)&decoder);
 }
 
+/**
+ * @brief 将编码后的约束图解码回原始结构
+ *
+ * 使用默认编码方案的逆映射（基于坐标反推 ID 和类型）。
+ *
+ * @param decoder       解码器
+ * @param encoded_graph 编码后的约束图
+ * @return 解码后的约束图，失败返回 NULL
+ */
 ConstraintGraph *meta_repr_decode_graph(MetaReprDecoder *decoder,
                                          const ConstraintGraph *encoded_graph)
 {
@@ -486,6 +568,13 @@ ConstraintGraph *meta_repr_decode_graph(MetaReprDecoder *decoder,
     return decoded;
 }
 
+/**
+ * @brief 将编码后的几何节点解码回原始结构
+ *
+ * @param decoder      解码器
+ * @param encoded_node 编码后的几何节点
+ * @return 解码后的几何节点，失败返回 NULL
+ */
 GeomNode *meta_repr_decode_node(MetaReprDecoder *decoder,
                                  const GeomNode *encoded_node)
 {
@@ -524,6 +613,15 @@ GeomNode *meta_repr_decode_node(MetaReprDecoder *decoder,
     return decoded;
 }
 
+/**
+ * @brief 将编码后的函数块区域解码回 FuncBlock
+ *
+ * 从 GEOM_REGION 类型节点的边界端口点中恢复输入/输出端口。
+ *
+ * @param decoder        解码器
+ * @param encoded_block  编码后的区域节点
+ * @return 解码后的 FuncBlock 指针，失败返回 NULL
+ */
 FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
                                         const GeomNode *encoded_block)
 {
@@ -596,6 +694,14 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
 
 /* ============== 验证 API 实现 ============== */
 
+/**
+ * @brief 验证编码-解码往返一致性
+ *
+ * @param original 原始数据指针
+ * @param decoded  解码后的数据指针
+ * @param type_name 类型名称（用于选择比较策略）
+ * @return true 一致，false 不一致或参数无效
+ */
 bool meta_repr_verify_roundtrip(const void *original,
                                  const void *decoded,
                                  const char *type_name)
@@ -624,6 +730,15 @@ bool meta_repr_verify_roundtrip(const void *original,
     return memcmp(original, decoded, sizeof(void *)) == 0;
 }
 
+/**
+ * @brief 比较两个约束图是否等价
+ *
+ * 比较节点数、约束数以及相同 ID 的节点类型和约束类型。
+ *
+ * @param a 图 A
+ * @param b 图 B
+ * @return true 等价，false 不等价或参数无效
+ */
 bool meta_repr_graph_equivalent(const ConstraintGraph *a,
                                  const ConstraintGraph *b)
 {
@@ -660,6 +775,15 @@ bool meta_repr_graph_equivalent(const ConstraintGraph *a,
     return true;
 }
 
+/**
+ * @brief 检查两个约束图是否同构
+ *
+ * 在等价性检查的基础上，进一步验证每个节点的坐标完全匹配。
+ *
+ * @param a 图 A
+ * @param b 图 B
+ * @return true 同构，false 不同构或参数无效
+ */
 bool meta_repr_isomorphic(const ConstraintGraph *a,
                            const ConstraintGraph *b)
 {
@@ -694,6 +818,13 @@ bool meta_repr_isomorphic(const ConstraintGraph *a,
 
 /* ============== 工具 API 实现 ============== */
 
+/**
+ * @brief 获取编码器的统计信息
+ *
+ * @param encoder             编码器（可为 NULL）
+ * @param out_node_count      输出已编码节点数（可为 NULL）
+ * @param out_constraint_count 输出已编码约束数（可为 NULL）
+ */
 void meta_repr_get_stats(MetaReprEncoder *encoder,
                           int *out_node_count,
                           int *out_constraint_count)
@@ -708,6 +839,15 @@ void meta_repr_get_stats(MetaReprEncoder *encoder,
     if (out_constraint_count) *out_constraint_count = encoder->constraint_count;
 }
 
+/**
+ * @brief 将编码后的约束图导出为 DOT 格式
+ *
+ * 生成 Graphviz DOT 格式的图形描述，节点形状根据 GeomType 映射。
+ *
+ * @param encoded_graph 编码后的约束图
+ * @param filepath      输出文件路径
+ * @return true 成功，false 失败（参数无效或文件写入失败）
+ */
 bool meta_repr_export_dot(const ConstraintGraph *encoded_graph,
                            const char *filepath)
 {
@@ -781,6 +921,12 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph,
     return true;
 }
 
+/**
+ * @brief 将编码后的约束图导出为 JSON 格式
+ *
+ * @param encoded_graph 编码后的约束图
+ * @return JSON 字符串（调用者须通过 lv_free 释放），失败返回 NULL
+ */
 char *meta_repr_export_json(const ConstraintGraph *encoded_graph)
 {
     if (!encoded_graph) return NULL;

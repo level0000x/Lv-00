@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver.c
  * @brief 符号代数求解器实现
  *
@@ -3947,8 +3947,10 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
     int affected_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         if (affected[i]) {
-            affected_ids = lv_realloc(affected_ids, (size_t) (affected_count + 1) * sizeof(int));
-            if (affected_ids) {
+            /* 使用临时变量接收 lv_realloc 结果，防止 OOM 时原指针泄漏 */
+            int *new_ids = lv_realloc(affected_ids, (size_t)(affected_count + 1) * sizeof(int));
+            if (new_ids) {
+                affected_ids = new_ids;
                 affected_ids[affected_count++] = graph->nodes[i]->id;
             }
         }

@@ -1,14 +1,15 @@
-﻿/* ========================================================================
- * equiv_class.c — 等价类管理器实现
- *
- * 代数等价关系管理，包含：
- *   - 并查集底层实现
- *   - 坐标等价合并
- *   - 约束推导等价
- *   - 代数共轭等价
- *   - 几何变换等价
- *   - 合并合法性证明
- * ======================================================================== */
+/**
+ * @file equiv_class.c
+ * @brief 等价类管理器实现
+ * @details 代数等价关系管理，包含：
+ *          - 并查集（Union-Find）底层实现
+ *          - 坐标等价合并
+ *          - 约束推导等价
+ *          - 代数共轭等价
+ *          - 几何变换等价
+ *          - 合并合法性证明
+ * @author Lv-00 Project
+ */
 
 #include "equiv_class.h"
 
@@ -30,6 +31,12 @@
  * 并查集内部实现
  * ================================================================ */
 
+/**
+ * @brief 初始化并查集
+ * @param mgr      等价类管理器
+ * @param capacity 初始容量
+ * @return 成功返回 0，失败返回 -1
+ */
 static int uf_create(EquivClassManager *mgr, int capacity) {
     mgr->uf_capacity = capacity;
     mgr->uf_parent = (int *)calloc((size_t)capacity, sizeof(int));
@@ -99,6 +106,7 @@ static bool equiv_ensure_class_capacity(EquivClassManager *mgr) {
 static bool equiv_ensure_node_mapping(EquivClassManager *mgr, int node_id) {
     if (node_id < mgr->node_to_class_capacity) return true;
     int new_cap = mgr->node_to_class_capacity < 16 ? 16 : mgr->node_to_class_capacity * 2;
+    /* [安全] 防止整数溢出导致无限循环 */
     while (new_cap <= node_id) {
         if (new_cap > INT_MAX / 2) return false;
         new_cap *= 2;
@@ -196,6 +204,11 @@ static int equiv_find_or_create_class(EquivClassManager *mgr, int node_id) {
  * 生命周期管理
  * ================================================================ */
 
+/**
+ * @brief 创建等价类管理器
+ * @param graph 关联的约束图
+ * @return 等价类管理器（调用者通过 equiv_manager_destroy 释放），失败返回 NULL
+ */
 EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     if (!graph) return NULL;
 
@@ -226,6 +239,10 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     return mgr;
 }
 
+/**
+ * @brief 销毁等价类管理器并释放所有资源
+ * @param mgr 等价类管理器（可为 NULL）
+ */
 void equiv_manager_destroy(EquivClassManager *mgr) {
     if (!mgr) return;
 

@@ -94,6 +94,8 @@ static bool is_free_variable_ref(const GeomNode *node, int func_block_id) {
  *
  * 根据原节点类型创建对应类型的新节点，复制坐标等公共数据。
  * 对于 PORT 节点，同时复制 is_formal_param 等端口属性。
+ * 支持的节点类型：GEOM_POINT、GEOM_PORT、GEOM_LINE_SEGMENT、GEOM_REGION。
+ * 其他类型返回 -1 并记录警告。
  *
  * @param graph  目标约束图
  * @param source 原节点（只读）
@@ -282,14 +284,15 @@ static int build_id_mapping(ConstraintGraph *graph, int func_block_id,
  * @brief 查找并重建涉及内部节点的所有约束
  *
  * 遍历图中所有约束，对每个参与者包含内部节点的约束：
- * - 使用 ID 映射表将内部节点 ID 替换为新 ID
- * - 重新创建约束
+ * 1. 使用 ID 映射表将内部节点 ID 替换为新 ID
+ * 2. 重新创建约束（调用 graph_add_* 系列函数）
+ * 3. 记录受影响的旧约束 ID，最后逐个惰性删除（graph_deactivate_constraint）
  *
  * @param graph          约束图
  * @param internal_ids   内部节点 ID 数组
  * @param internal_count 内部节点数量
  * @param id_map         ID 映射表（old_id → new_id）
- * @return true 全部成功，false 部分失败
+ * @return true 全部成功，false 部分失败（内存分配失败等）
  */
 static bool remap_internal_constraints(ConstraintGraph *graph,
                                         const int *internal_ids, int internal_count,
@@ -543,9 +546,24 @@ bool beta_reduce_match(ConstraintGraph *graph, int *out_func_block_id,
     return false;
 }
 
-/* ===========================================================================
- * beta_reduce_apply：执行 β-归约应用
- * =========================================================================== */
+/**
+ * @brief 执行 β-归约应用
+ *
+ * 将匹配到的 β-归约模式实际应用到约束图上。执行步骤如下：
+ * 1. 构建函数块内部节点 ID 数组
+ * 2. 分配 ID 映射表
+ * 3. 根据三字段规则（A/B/C）构建 ID 映射：形式参数→实参、自由变量→自身、内部局部→副本
+ * 4. 重建涉及内部节点的所有约束，使用 ID 映射替换参与者
+ * 5. 将输出端口的外部消费者重连到复制的内部输出端口
+ * 6. 移除函数块节点
+ * 7. 标记图为脏状态
+ *
+ * @param graph           约束图
+ * @param func_block_id   函数块节点 ID
+ * @param arg_node_id     实参节点 ID
+ * @param output_port_id  函数块的输出端口 ID
+ * @return true 归约成功，false 失败
+ */
 
 bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id,
                         int arg_node_id, int output_port_id)

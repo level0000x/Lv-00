@@ -10,7 +10,7 @@
  *          主要特性：
  *          - 整数、有理数（3/4）、小数（3.14）数字字面量
  *          - 字符串字面量，含转义序列处理
- *          - C 风格单行（//）和块注释（/* */）
+ *          - C 风格单行（//）和块注释（slash-star ... star-slash）
  *          - 关键字查找表
  *          - 多字符运算符（->, ==, !=, <=, >=, =>, |-, |=）
  *
@@ -144,7 +144,7 @@ static LvToken make_token(LvLexer *lexer, LvTokenType type, size_t start_pos, si
  * @brief 跳过空白字符和注释
  *
  * 扫描并跳过空格、制表符、换行符、回车符，以及 C 风格的单行（//）
- * 和块注释（/* ... *​/）。跳过自动更新行号和列号。
+ * 和块注释（slash-star ... star-slash）。跳过自动更新行号和列号。
  *
  * @param lexer 词法分析器指针
  */
@@ -369,13 +369,20 @@ LvToken lv_lexer_next(LvLexer *lexer) {
  * @brief 前瞻获取 Token
  *
  * 返回当前位置之后第 lookahead 个 Token，不消耗任何 Token。
- * 前瞻缓冲区最多缓存 3 个 Token。
+ * 前瞻缓冲区最多缓存 3 个 Token（lookahead 有效范围为 0~2）。
  *
  * @param lexer     词法分析器指针
- * @param lookahead 前瞻偏移量（0 为下一个 Token）
- * @return 前瞻位置的 LvToken
+ * @param lookahead 前瞻偏移量（0 为下一个 Token，最大 2）
+ * @return 前瞻位置的 LvToken；若 lookahead 越界则返回 LV_TOKEN_ERROR
  */
 LvToken lv_lexer_peek(LvLexer *lexer, int lookahead) {
+    /* [安全] 限制 lookahead 最大为 2，防止 peek_buf[3] 越界写入 */
+    if (lookahead < 0 || lookahead >= 3) {
+        LvToken err_tok;
+        memset(&err_tok, 0, sizeof(err_tok));
+        err_tok.type = LV_TOKEN_ERROR;
+        return err_tok;
+    }
     while (lexer->peek_count <= lookahead) {
         lexer->peek_buf[lexer->peek_count++] = lex_raw(lexer);
     }
@@ -440,8 +447,8 @@ const char *lv_token_type_name(LvTokenType type) {
  */
 size_t lv_token_text(const LvToken *token, char *buf, size_t buf_size) {
     if (!token || !buf || buf_size == 0) return 0;
+    /* [安全] 使用 lv_strncpy 替代标准 strncpy，保证 null 终止且处理 NULL src */
     size_t copy_len = token->length < buf_size - 1 ? token->length : buf_size - 1;
-    strncpy(buf, token->start, copy_len);
-    buf[copy_len] = '\0';
+    lv_strncpy(buf, token->start, copy_len + 1);
     return copy_len;
 }

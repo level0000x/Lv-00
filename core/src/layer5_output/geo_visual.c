@@ -1,6 +1,11 @@
-﻿/**
+/**
  * @file geo_visual.c
  * @brief 几何可视化抽象层实现
+ * @details 提供几何图形（点、线段、圆、多边形、组合对象）的创建、样式设置、
+ *          空间变换和场景管理功能。支持多种渲染后端（SVG/Cairo/Three.js/TikZ/PPM），
+ *          每个后端通过独立的递归渲染函数实现。本文件是 geo_visual_complete.c 的轻量级变体，
+ *          使用不同的对象布局（render_cache 存储端点数据、transform 存储位置）。
+ * @author Lv-00 Project
  */
 
 #include "lv/geo_visual.h"
@@ -11,12 +16,17 @@
 
 /* ============ 内部工具函数 ============ */
 
+/** @brief 初始化 4×4 列主序单位矩阵 */
 static void identity_matrix(float m[16]) {
     memset(m, 0, 16 * sizeof(float));
     m[0] = m[5] = m[10] = m[15] = 1.0f;
 }
 
-/* 将渲染内容写入输出文件（文本模式） */
+/**
+ * @brief 将渲染内容写入输出文件（文本模式）
+ * @param path    输出文件路径
+ * @param content 要写入的字符串内容
+ */
 static void write_output_to_file(const char *path, const char *content) {
     FILE *fp = fopen(path, "w");
     if (fp) {
@@ -29,6 +39,12 @@ static void write_output_to_file(const char *path, const char *content) {
 
 /* ============ 构造器实现 ============ */
 
+/**
+ * @brief 创建一个点对象
+ * @param x X 坐标
+ * @param y Y 坐标
+ * @return 点对象指针，失败返回 NULL
+ */
 lvVisualObject* lv_visual_point_create(float x, float y) {
     lvVisualObject* obj = (lvVisualObject*)lv_malloc(sizeof(lvVisualObject));
     if (!obj) return NULL;
@@ -55,6 +71,14 @@ lvVisualObject* lv_visual_point_create(float x, float y) {
     return obj;
 }
 
+/**
+ * @brief 创建一条线段对象
+ * @param x1 起点 X 坐标
+ * @param y1 起点 Y 坐标
+ * @param x2 终点 X 坐标
+ * @param y2 终点 Y 坐标
+ * @return 线段对象指针，失败返回 NULL
+ */
 lvVisualObject* lv_visual_line_create(float x1, float y1, float x2, float y2) {
     lvVisualObject* obj = (lvVisualObject*)lv_malloc(sizeof(lvVisualObject));
     if (!obj) return NULL;
@@ -120,6 +144,12 @@ lvVisualObject* lv_visual_circle_create(float cx, float cy, float r) {
     return obj;
 }
 
+/**
+ * @brief 创建组合对象（组）
+ * @param objs 子对象指针数组
+ * @param n    子对象数量
+ * @return 组合对象指针，失败返回 NULL
+ */
 lvVisualObject* lv_visual_group_create(lvVisualObject** objs, size_t n) {
     lvVisualObject* obj = (lvVisualObject*)lv_malloc(sizeof(lvVisualObject));
     if (!obj) return NULL;
@@ -151,12 +181,25 @@ lvVisualObject* lv_visual_group_create(lvVisualObject** objs, size_t n) {
 
 /* ============ 样式设置 ============ */
 
+/**
+ * @brief 设置对象的完整样式
+ * @param obj   目标对象指针
+ * @param style 样式结构指针（内容会被复制）
+ */
 void lv_visual_set_style(lvVisualObject* obj, const lvVisualStyle* style) {
     if (obj && style) {
         obj->style = *style;
     }
 }
 
+/**
+ * @brief 设置对象的描边颜色（RGBA）
+ * @param obj 目标对象指针
+ * @param r 红色分量 [0,1]
+ * @param g 绿色分量 [0,1]
+ * @param b 蓝色分量 [0,1]
+ * @param a Alpha 分量 [0,1]
+ */
 void lv_visual_set_color(lvVisualObject* obj, float r, float g, float b, float a) {
     if (obj) {
         obj->style.stroke_color[0] = r;
@@ -166,6 +209,11 @@ void lv_visual_set_color(lvVisualObject* obj, float r, float g, float b, float a
     }
 }
 
+/**
+ * @brief 设置对象的虚线模式
+ * @param obj    目标对象指针
+ * @param dashed 非零值启用虚线，0 为实线
+ */
 void lv_visual_set_dashed(lvVisualObject* obj, int dashed) {
     if (obj) {
         obj->style.dashed = dashed;
@@ -174,6 +222,13 @@ void lv_visual_set_dashed(lvVisualObject* obj, int dashed) {
 
 /* ============ 变换 ============ */
 
+/**
+ * @brief 平移对象
+ * @param obj 目标对象指针
+ * @param dx  X 方向偏移量
+ * @param dy  Y 方向偏移量
+ * @param dz  Z 方向偏移量
+ */
 void lv_visual_translate(lvVisualObject* obj, float dx, float dy, float dz) {
     if (!obj) return;
     obj->transform[12] += dx;
@@ -181,12 +236,24 @@ void lv_visual_translate(lvVisualObject* obj, float dx, float dy, float dz) {
     obj->transform[14] += dz;
 }
 
+/**
+ * @brief 缩放对象
+ * @param obj 目标对象指针
+ * @param sx  X 方向缩放比例
+ * @param sy  Y 方向缩放比例
+ */
 void lv_visual_scale(lvVisualObject* obj, float sx, float sy) {
     if (!obj) return;
     obj->transform[0] *= sx;
     obj->transform[5] *= sy;
 }
 
+/**
+ * @brief 旋转对象（Rodrigues 旋转公式）
+ * @param obj   目标对象指针
+ * @param angle 旋转角度（弧度）
+ * @param axis  旋转轴向量（3 元素数组），为 NULL 时默认绕 Z 轴旋转
+ */
 void lv_visual_rotate(lvVisualObject* obj, float angle, float axis[3]) {
     if (!obj) return;
 
@@ -255,6 +322,10 @@ void lv_visual_rotate(lvVisualObject* obj, float angle, float axis[3]) {
 
 /* ============ 场景管理 ============ */
 
+/**
+ * @brief 创建可视化场景
+ * @return 场景指针，失败返回 NULL
+ */
 lvVisualScene* lv_visual_scene_create(void) {
     lvVisualScene* scene = (lvVisualScene*)lv_malloc(sizeof(lvVisualScene));
     if (!scene) return NULL;
@@ -287,6 +358,10 @@ void lv_visual_scene_add(lvVisualScene* scene, lvVisualObject* obj) {
     scene->object_count = new_count;
 }
 
+/**
+ * @brief 清空场景中所有对象并释放资源
+ * @param scene 场景指针
+ */
 void lv_visual_scene_clear(lvVisualScene* scene) {
     if (!scene) return;
     
@@ -299,6 +374,14 @@ void lv_visual_scene_clear(lvVisualScene* scene) {
     scene->object_count = 0;
 }
 
+/**
+ * @brief 设置场景相机参数
+ * @param scene 场景指针
+ * @param cx    相机中心 X 坐标
+ * @param cy    相机中心 Y 坐标
+ * @param cz    相机中心 Z 坐标
+ * @param zoom  缩放比例
+ */
 void lv_visual_scene_set_camera(lvVisualScene* scene, float cx, float cy, float cz, float zoom) {
     if (!scene) return;
     scene->camera_center[0] = cx;
@@ -309,7 +392,12 @@ void lv_visual_scene_set_camera(lvVisualScene* scene, float cx, float cy, float 
 
 /* ============ SVG 辅助函数 ============ */
 
-/* 将浮点 RGBA 颜色转换为 SVG 颜色字符串 */
+/**
+ * @brief 将浮点 RGBA 颜色转换为 SVG 颜色字符串
+ * @param c        4 元素 RGBA 数组 [0,1]
+ * @param buf      输出缓冲区
+ * @param buf_size 缓冲区大小
+ */
 static void color_to_svg(float c[4], char* buf, size_t buf_size) {
     int r = (int)(c[0] * 255.0f);
     int g = (int)(c[1] * 255.0f);
@@ -684,7 +772,12 @@ static void render_object_threejs(lvVisualObject* obj, char** buf, size_t* pos, 
 
 /* ============ TikZ 辅助函数 ============ */
 
-/* 将浮点 RGBA 颜色转换为 TikZ 颜色定义 */
+/**
+ * @brief 将浮点 RGBA 颜色转换为 TikZ 颜色定义
+ * @param c        4 元素 RGBA 数组 [0,1]
+ * @param buf      输出缓冲区
+ * @param buf_size 缓冲区大小
+ */
 static void color_to_tikz(float c[4], char* buf, size_t buf_size) {
     int r = (int)(c[0] * 255.0f);
     int g = (int)(c[1] * 255.0f);
@@ -800,7 +893,17 @@ static void render_object_tikz(lvVisualObject* obj, char** buf, size_t* pos, siz
 
 /* ============ PPM 像素缓冲辅助函数 ============ */
 
-/* 设置像素颜色（含边界检查） */
+/**
+ * @brief 设置像素颜色（含边界检查）
+ * @param pixels 像素缓冲（RGB 排列）
+ * @param w      图像宽度
+ * @param h      图像高度
+ * @param x      像素 X 坐标
+ * @param y      像素 Y 坐标
+ * @param r      红色分量
+ * @param g      绿色分量
+ * @param b      蓝色分量
+ */
 static void ppm_set_pixel(unsigned char* pixels, int w, int h, int x, int y,
                           unsigned char r, unsigned char g, unsigned char b) {
     if (x < 0 || x >= w || y < 0 || y >= h) return;
@@ -810,7 +913,14 @@ static void ppm_set_pixel(unsigned char* pixels, int w, int h, int x, int y,
     pixels[idx + 2] = b;
 }
 
-/* Bresenham 画线算法 */
+/**
+ * @brief Bresenham 画线算法
+ * @param pixels 像素缓冲
+ * @param w,h    图像尺寸
+ * @param x0,y0  起点坐标
+ * @param x1,y1  终点坐标
+ * @param r,g,b  颜色分量
+ */
 static void ppm_draw_line(unsigned char* pixels, int w, int h,
                           int x0, int y0, int x1, int y1,
                           unsigned char r, unsigned char g, unsigned char b) {
@@ -829,7 +939,14 @@ static void ppm_draw_line(unsigned char* pixels, int w, int h,
     }
 }
 
-/* 中点圆算法：画圆轮廓 */
+/**
+ * @brief 中点圆算法：画圆轮廓
+ * @param pixels 像素缓冲
+ * @param w,h    图像尺寸
+ * @param cx,cy  圆心坐标
+ * @param radius 半径
+ * @param r,g,b  颜色分量
+ */
 static void ppm_draw_circle(unsigned char* pixels, int w, int h,
                             int cx, int cy, int radius,
                             unsigned char r, unsigned char g, unsigned char b) {
@@ -858,7 +975,14 @@ static void ppm_draw_circle(unsigned char* pixels, int w, int h,
     }
 }
 
-/* 填充圆（Bresenham 实心圆） */
+/**
+ * @brief 填充圆（Bresenham 实心圆扫描线算法）
+ * @param pixels 像素缓冲
+ * @param w,h    图像尺寸
+ * @param cx,cy  圆心坐标
+ * @param radius 半径
+ * @param r,g,b  颜色分量
+ */
 static void ppm_fill_circle(unsigned char* pixels, int w, int h,
                             int cx, int cy, int radius,
                             unsigned char r, unsigned char g, unsigned char b) {
@@ -887,7 +1011,13 @@ static void ppm_fill_circle(unsigned char* pixels, int w, int h,
     }
 }
 
-/* 递归光栅化单个对象到像素缓冲 */
+/**
+ * @brief 递归光栅化单个对象到像素缓冲
+ * @param obj    可视化对象指针
+ * @param pixels 像素缓冲
+ * @param w      图像宽度
+ * @param h      图像高度
+ */
 static void rasterize_object_ppm(lvVisualObject* obj, unsigned char* pixels, int w, int h) {
     if (!obj) return;
 
@@ -960,6 +1090,13 @@ static void rasterize_object_ppm(lvVisualObject* obj, unsigned char* pixels, int
 
 /* ============ 渲染器 ============ */
 
+/**
+ * @brief 创建渲染器
+ * @param backend 渲染后端类型
+ * @param width   输出宽度（像素）
+ * @param height  输出高度（像素）
+ * @return 渲染器指针，失败返回 NULL
+ */
 lvVisualRenderer* lv_visual_renderer_create(lvRenderBackend backend, int width, int height) {
     lvVisualRenderer* renderer = (lvVisualRenderer*)lv_malloc(sizeof(lvVisualRenderer));
     if (!renderer) return NULL;
@@ -1132,6 +1269,10 @@ void lv_visual_render(lvVisualRenderer* renderer, lvVisualScene* scene, const ch
 
 /* ============ 清理 ============ */
 
+/**
+ * @brief 销毁可视化对象，递归释放所有子对象
+ * @param obj 要销毁的对象指针
+ */
 void lv_visual_object_destroy(lvVisualObject* obj) {
     if (!obj) return;
     
@@ -1159,6 +1300,10 @@ void lv_visual_scene_destroy(lvVisualScene* scene) {
     lv_free_ptr(scene);
 }
 
+/**
+ * @brief 销毁渲染器，释放资源
+ * @param renderer 渲染器指针
+ */
 void lv_visual_renderer_destroy(lvVisualRenderer* renderer) {
     if (!renderer) return;
     lv_free_ptr(renderer);

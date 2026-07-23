@@ -1,4 +1,4 @@
-﻿#ifndef lv_EQUIV_CLASS_H
+#ifndef lv_EQUIV_CLASS_H
 #define lv_EQUIV_CLASS_H
 
 #ifdef __cplusplus
@@ -90,6 +90,10 @@ EquivMergeResult   equiv_merge_classes(EquivClassManager *mgr, int node_a, int n
                                         EquivSourceType source, int constraint_id, TrustColor trust);
 
 int  equiv_merge_by_coord(EquivClassManager *mgr);
+int  equiv_derive_from_constraints(EquivClassManager *mgr);
+int  equiv_merge_algebraic_conjugates(EquivClassManager *mgr);
+int  equiv_merge_by_transform(EquivClassManager *mgr);
+bool equiv_prove_merge_valid(EquivClassManager *mgr, int class_a_idx, int class_b_idx);
 int  equiv_merge_all(EquivClassManager *mgr);
 int  equiv_find(const EquivClassManager *mgr, int node_id);
 const EquivClass *equiv_get_class(const EquivClassManager *mgr, int node_id);

@@ -1,8 +1,16 @@
 /**
  * @file bootstrap_test.c
- * @brief Lv-00 自举差分测试框架实现骨架
+ * @brief Lv-00 自举差分测试框架实现
  *
- * @details 本文件提供自举测试框架的基础实现。
+ * @details 本文件提供自举测试框架的基础实现，包含：
+ *          - 框架初始化/清理（bootstrap_test_framework_*）
+ *          - 差分测试（BootstrapDiffTest）：DSL vs C API vs 几何层三路对比
+ *          - 随机生成器（RandomGenerator）：随机约束图和 DSL 脚本生成
+ *          - 图同构比较器（GraphIsomorphismComparator）：VF2 风格的同构检测
+ *          - 原语包装器（Primitive Wrapper）：13 个几何原语的注册和测试
+ *          - 测试预言机（TestOracle）：归一化幂等性、求解正确性、证明有效性验证
+ *          - 报告生成（bootstrap_test_generate_report / write_report）
+ *
  *          完整实现将在 Phase 1-4 逐步完成。
  *
  * @author Lv-00 Project
@@ -245,6 +253,13 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test)
     return result;
 }
 
+/**
+ * @brief 销毁差分测试结果
+ *
+ * 释放结果中的所有动态分配字段。
+ *
+ * @param result 待销毁的结果指针（可为 NULL）
+ */
 void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result)
 {
     if (!result) {
@@ -258,6 +273,14 @@ void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result)
     lv_free((void**)&result);
 }
 
+/**
+ * @brief 批量运行差分测试
+ *
+ * @param tests      测试指针数组
+ * @param count      测试数量
+ * @param out_results 输出结果数组（须预先分配足够空间）
+ * @return 成功执行的测试数量
+ */
 uint32_t bootstrap_diff_test_run_batch(BootstrapDiffTest **tests,
                                         uint32_t count,
                                         BootstrapDiffTestResult **out_results)
@@ -279,11 +302,20 @@ uint32_t bootstrap_diff_test_run_batch(BootstrapDiffTest **tests,
 
 /* ============== 随机生成器 ============== */
 
+/** @brief 随机生成器结构体 */
 struct RandomGenerator {
-    RandomGeneratorConfig config;
-    uint64_t current_seed;
+    RandomGeneratorConfig config; /**< 生成器配置 */
+    uint64_t current_seed;        /**< 当前种子 */
 };
 
+/**
+ * @brief 获取默认随机生成器配置
+ *
+ * 默认配置：3~20 个点，1~10 条线，0~5 个圆，
+ * 约束密度 0.5，坐标范围 [-100, 100]。
+ *
+ * @return 默认配置
+ */
 RandomGeneratorConfig random_generator_default_config(void)
 {
     RandomGeneratorConfig config;
@@ -310,6 +342,12 @@ RandomGeneratorConfig random_generator_default_config(void)
     return config;
 }
 
+/**
+ * @brief 创建随机生成器
+ *
+ * @param config 生成器配置（为 NULL 时使用默认配置）
+ * @return 新创建的 RandomGenerator 指针，失败返回 NULL
+ */
 RandomGenerator *random_generator_create(const RandomGeneratorConfig *config)
 {
     RandomGenerator *gen = lv_malloc(sizeof(RandomGenerator));
@@ -328,11 +366,25 @@ RandomGenerator *random_generator_create(const RandomGeneratorConfig *config)
     return gen;
 }
 
+/**
+ * @brief 销毁随机生成器
+ *
+ * @param gen 待销毁的生成器指针（可为 NULL）
+ */
 void random_generator_destroy(RandomGenerator *gen)
 {
     lv_free((void**)&gen);
 }
 
+/**
+ * @brief 生成随机约束图
+ *
+ * 根据配置随机生成几何实体（点、线段）和约束，
+ * 支持符号坐标和随机距离约束。
+ *
+ * @param gen 随机生成器
+ * @return 生成的 ConstraintGraph 指针，失败返回 NULL
+ */
 void *random_generator_generate_graph(RandomGenerator *gen)
 {
     if (!gen) {
@@ -385,6 +437,15 @@ void *random_generator_generate_graph(RandomGenerator *gen)
     return graph;
 }
 
+/**
+ * @brief 生成随机 DSL 源码
+ *
+ * 根据配置随机生成几何构造 DSL 脚本，
+ * 包含点声明、随机约束和证明指令。
+ *
+ * @param gen 随机生成器
+ * @return DSL 字符串（调用者须通过 lv_free 释放），失败返回 NULL
+ */
 char *random_generator_generate_dsl(RandomGenerator *gen)
 {
     if (!gen) {
@@ -395,17 +456,31 @@ char *random_generator_generate_dsl(RandomGenerator *gen)
     uint32_t n_points = gen->config.min_points +
         (lv_random_int(0, gen->config.max_points - gen->config.min_points));
 
-    /* 构建 DSL 缓冲区 */
-    char buf[4096];
+    /* 预估最大需要的缓冲区大小 */
+    size_t max_buf_size = 4096;
+    /* 每个点最多 ~50 字节，每个约束最多 ~60 字节，加上固定开销 */
+    size_t estimated = 128 + (size_t)n_points * 60 + (size_t)(n_points / 2 + 1) * 80;
+    if (estimated > max_buf_size) {
+        max_buf_size = estimated;
+    }
+
+    char *buf = (char *)lv_malloc(max_buf_size);
+    if (!buf) return NULL;
+    size_t remaining = max_buf_size;
     int pos = 0;
-    pos += snprintf(buf + pos, sizeof(buf) - (size_t)pos, "#version 5.0.0\n");
+
+    int written = snprintf(buf + pos, remaining, "#version 5.0.0\n");
+    if (written < 0 || (size_t)written >= remaining) { lv_free((void**)&buf); return NULL; }
+    pos += written; remaining -= (size_t)written;
 
     /* 生成点声明 */
     for (uint32_t i = 0; i < n_points; i++) {
         double x = lv_random_double(gen->config.coord_min, gen->config.coord_max);
         double y = lv_random_double(gen->config.coord_min, gen->config.coord_max);
-        pos += snprintf(buf + pos, sizeof(buf) - (size_t)pos,
+        written = snprintf(buf + pos, remaining,
             "Point P%u = (%.2f, %.2f);\n", i, x, y);
+        if (written < 0 || (size_t)written >= remaining) { lv_free((void**)&buf); return NULL; }
+        pos += written; remaining -= (size_t)written;
     }
 
     /* 生成随机约束 */
@@ -418,17 +493,26 @@ char *random_generator_generate_dsl(RandomGenerator *gen)
         int a = lv_random_int(0, (int)n_points - 1);
         int b = lv_random_int(0, (int)n_points - 1);
         if (a == b) b = (b + 1) % (int)n_points;
-        pos += snprintf(buf + pos, sizeof(buf) - (size_t)pos,
+        written = snprintf(buf + pos, remaining,
             "Constraint %s(P%u, P%u);\n", constraint_types[type_idx], a, b);
+        if (written < 0 || (size_t)written >= remaining) { lv_free((void**)&buf); return NULL; }
+        pos += written; remaining -= (size_t)written;
     }
 
-    pos += snprintf(buf + pos, sizeof(buf) - (size_t)pos, "Prove;\n");
+    written = snprintf(buf + pos, remaining, "Prove;\n");
+    if (written < 0 || (size_t)written >= remaining) { lv_free((void**)&buf); return NULL; }
 
-    char *dsl = lv_strdup_safe(buf);
-
-    return dsl;
+    return buf;
 }
 
+/**
+ * @brief 批量生成随机约束图
+ *
+ * @param gen       随机生成器
+ * @param out_graphs 输出图指针数组（须预先分配 count 个元素空间）
+ * @param count      生成数量
+ * @return 成功生成的图数量
+ */
 uint32_t random_generator_generate_batch(RandomGenerator *gen,
                                           void **out_graphs,
                                           uint32_t count)
@@ -448,6 +532,14 @@ uint32_t random_generator_generate_batch(RandomGenerator *gen,
     return generated;
 }
 
+/**
+ * @brief 重置随机种子
+ *
+ * 重新设置生成器的种子并初始化随机数状态。
+ *
+ * @param gen  随机生成器
+ * @param seed 新种子值
+ */
 void random_generator_reset_seed(RandomGenerator *gen, uint64_t seed)
 {
     if (gen) {
@@ -458,12 +550,20 @@ void random_generator_reset_seed(RandomGenerator *gen, uint64_t seed)
 
 /* ============== 图同构比较器 ============== */
 
+/** @brief 图同构比较器结构体 */
 struct GraphIsomorphismComparator {
-    bool ignore_ids;
-    bool compare_coords;
-    double coord_tolerance;
+    bool ignore_ids;          /**< 是否忽略节点 ID 差异 */
+    bool compare_coords;      /**< 是否比较坐标 */
+    double coord_tolerance;   /**< 坐标比较容差 */
 };
 
+/**
+ * @brief 创建图同构比较器
+ *
+ * 默认配置：忽略 ID、比较坐标、容差 1e-10。
+ *
+ * @return 新创建的 GraphIsomorphismComparator 指针，失败返回 NULL
+ */
 GraphIsomorphismComparator *graph_isomorphism_create(void)
 {
     GraphIsomorphismComparator *comp = lv_malloc(sizeof(GraphIsomorphismComparator));
@@ -478,11 +578,24 @@ GraphIsomorphismComparator *graph_isomorphism_create(void)
     return comp;
 }
 
+/**
+ * @brief 销毁图同构比较器
+ *
+ * @param comp 待销毁的比较器指针（可为 NULL）
+ */
 void graph_isomorphism_destroy(GraphIsomorphismComparator *comp)
 {
     lv_free((void**)&comp);
 }
 
+/**
+ * @brief 配置图同构比较器参数
+ *
+ * @param comp            比较器
+ * @param ignore_ids      是否忽略节点 ID
+ * @param compare_coords  是否比较坐标
+ * @param coord_tolerance 坐标比较容差
+ */
 void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
                                   bool ignore_ids,
                                   bool compare_coords,
@@ -495,6 +608,18 @@ void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
     }
 }
 
+/**
+ * @brief 比较两个约束图是否同构
+ *
+ * 使用 VF2 风格的度数序列 + 邻域签名匹配算法。
+ * 先比较节点数和约束数，再比较排序后的度数序列，
+ * 最后比较排序后的邻域签名多集合。
+ *
+ * @param comp   比较器
+ * @param graph_a 图 A
+ * @param graph_b 图 B
+ * @return true 同构，false 不同构或参数无效
+ */
 bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
                                 const void *graph_a,
                                 const void *graph_b)
@@ -682,6 +807,15 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
     return same_signatures;
 }
 
+/**
+ * @brief 计算约束图的 Weisfeiler-Lehman 图核哈希
+ *
+ * 执行 3 轮 WL 迭代：初始标签为度数，每轮将节点标签
+ * 与其邻居标签和约束类型哈希混合，最后聚合为 64 位哈希值。
+ *
+ * @param graph 约束图
+ * @return 64 位哈希值，失败返回 0
+ */
 uint64_t graph_isomorphism_hash(const void *graph)
 {
     if (!graph) {
@@ -738,6 +872,20 @@ uint64_t graph_isomorphism_hash(const void *graph)
     return final_hash;
 }
 
+/**
+ * @brief 查找两个同构图之间的节点映射
+ *
+ * 基于度数匹配的贪心算法。先按度数匹配节点，
+ * 再验证边保持性（G1 中的约束在映射下 G2 中也存在）。
+ * 完整版需要回溯和约束传播支持。
+ *
+ * @param comp                 比较器
+ * @param graph_a              图 A
+ * @param graph_b              图 B
+ * @param out_node_mapping     输出节点映射数组（na 个 int），调用者负责 free
+ * @param out_constraint_mapping 输出约束映射（当前未实现，为 NULL）
+ * @return true 映射成功，false 失败或不同构
+ */
 bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
                                      const void *graph_a,
                                      const void *graph_b,
@@ -863,16 +1011,30 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
 
 #define MAX_PRIMITIVES 13
 
+/** @brief 原语包装器注册表条目 */
 static struct {
-    const char *name;
-    void *c_api_func;
-    uint32_t test_count;
-    uint32_t pass_count;
-    uint32_t fail_count;
+    const char *name;     /**< 原语名称 */
+    void *c_api_func;     /**< C API 函数指针 */
+    uint32_t test_count;  /**< 测试次数 */
+    uint32_t pass_count;  /**< 通过次数 */
+    uint32_t fail_count;  /**< 失败次数 */
 } g_primitives[MAX_PRIMITIVES];
 
+/** 已注册的原语数量 */
 static uint32_t g_primitive_count = 0;
 
+/**
+ * @brief 初始化原语包装器
+ *
+ * 注册 13 个最小几何原语：
+ * point_construct, line_construct, circle_construct,
+ * distance_measure, angle_measure, midpoint_compute,
+ * intersection_compute, parallel_check, perpendicular_check,
+ * collinear_check, coincident_check, containment_check,
+ * betweenness_check。
+ *
+ * @return true 初始化成功
+ */
 bool primitive_wrapper_init(void)
 {
     g_primitive_count = 0;
@@ -892,11 +1054,24 @@ bool primitive_wrapper_init(void)
     return true;
 }
 
+/**
+ * @brief 清理原语包装器（重置注册表）
+ */
 void primitive_wrapper_cleanup(void)
 {
     g_primitive_count = 0;
 }
 
+/**
+ * @brief 注册一个几何原语
+ *
+ * @param name        原语名称
+ * @param c_api_func  C API 函数指针（可为 NULL）
+ * @param param_types 参数类型数组（预留，当前未使用）
+ * @param param_count 参数数量（预留，当前未使用）
+ * @param return_type 返回类型字符串（预留，当前未使用）
+ * @return true 注册成功，false 注册表已满或 name 为 NULL
+ */
 bool primitive_wrapper_register(const char *name,
                                  void *c_api_func,
                                  const char **param_types,
@@ -921,6 +1096,16 @@ bool primitive_wrapper_register(const char *name,
     return true;
 }
 
+/**
+ * @brief 运行单个原语差分测试
+ *
+ * 创建测试约束图，添加 3 个点和 3 个距离约束，
+ * 执行基本的约束满足检查，比较 C API 和基础测试结果。
+ *
+ * @param name   原语名称
+ * @param params 参数数组（当前未使用，可传 NULL）
+ * @return 测试结果指针（调用者负责通过 primitive_test_result_destroy 释放），失败返回 NULL
+ */
 PrimitiveTestResult *primitive_wrapper_test(const char *name,
                                              void **params)
 {
@@ -1045,6 +1230,11 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name,
     return NULL;
 }
 
+/**
+ * @brief 销毁原语测试结果
+ *
+ * @param result 待销毁的结果指针（可为 NULL）
+ */
 void primitive_test_result_destroy(PrimitiveTestResult *result)
 {
     if (!result) {
@@ -1057,6 +1247,13 @@ void primitive_test_result_destroy(PrimitiveTestResult *result)
     lv_free((void**)&result);
 }
 
+/**
+ * @brief 测试所有已注册的原语
+ *
+ * @param out_results 输出结果数组（须预先分配 max_count 个元素空间）
+ * @param max_count   最大测试数量
+ * @return 实际测试的原语数量
+ */
 uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results,
                                      uint32_t max_count)
 {
@@ -1075,6 +1272,14 @@ uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results,
     return tested;
 }
 
+/**
+ * @brief 获取指定原语的测试统计
+ *
+ * @param name       原语名称
+ * @param out_total  输出总测试次数（可为 NULL）
+ * @param out_passed 输出通过次数（可为 NULL）
+ * @param out_failed 输出失败次数（可为 NULL）
+ */
 void primitive_wrapper_get_stats(const char *name,
                                   uint32_t *out_total,
                                   uint32_t *out_passed,
@@ -1096,11 +1301,18 @@ void primitive_wrapper_get_stats(const char *name,
 
 /* ============== 测试预言机 ============== */
 
+/** @brief 测试预言机结构体，用于验证测试结果的正确性 */
 struct TestOracle {
-    /* 验证规则配置 */
-    bool strict_mode;
+    bool strict_mode; /**< 严格模式标志 */
 };
 
+/**
+ * @brief 创建测试预言机
+ *
+ * 默认开启严格模式。
+ *
+ * @return 新创建的 TestOracle 指针，失败返回 NULL
+ */
 TestOracle *test_oracle_create(void)
 {
     TestOracle *oracle = lv_malloc(sizeof(TestOracle));
@@ -1113,11 +1325,25 @@ TestOracle *test_oracle_create(void)
     return oracle;
 }
 
+/**
+ * @brief 销毁测试预言机
+ *
+ * @param oracle 待销毁的预言机指针（可为 NULL）
+ */
 void test_oracle_destroy(TestOracle *oracle)
 {
     lv_free((void**)&oracle);
 }
 
+/**
+ * @brief 验证归一化幂等性
+ *
+ * 对约束图执行两次归一化，验证第二次归一化不再产生合并。
+ *
+ * @param oracle 测试预言机
+ * @param graph  约束图
+ * @return true 幂等性通过，false 失败或参数无效
+ */
 bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
                                                   void *graph)
 {
@@ -1149,6 +1375,16 @@ bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
     return idempotent;
 }
 
+/**
+ * @brief 验证求解正确性
+ *
+ * 检查解是否满足约束图中的所有约束。
+ *
+ * @param oracle   测试预言机
+ * @param graph    原始约束图
+ * @param solution 求解结果
+ * @return true 求解正确，false 失败或参数无效
+ */
 bool test_oracle_verify_solution_correct(TestOracle *oracle,
                                           const void *graph,
                                           const void *solution)
@@ -1191,6 +1427,13 @@ bool test_oracle_verify_solution_correct(TestOracle *oracle,
     return true;
 }
 
+/**
+ * @brief 验证证明轨迹的有效性
+ *
+ * @param oracle 测试预言机
+ * @param trace  证明轨迹
+ * @return true 有效，false 无效或参数无效
+ */
 bool test_oracle_verify_proof_valid(TestOracle *oracle,
                                      const void *trace)
 {
@@ -1210,6 +1453,17 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle,
     return true;
 }
 
+/**
+ * @brief 验证序列化往返一致性
+ *
+ * 对约束图进行序列化再反序列化，使用图同构比较器验证一致性。
+ *
+ * @param oracle       测试预言机
+ * @param graph        原始约束图
+ * @param serialized   序列化结果
+ * @param deserialized 反序列化结果
+ * @return true 往返一致，false 不一致或参数无效
+ */
 bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
                                              const void *graph,
                                              const char *serialized,
@@ -1234,6 +1488,16 @@ bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
 
 /* ============== 报告生成 ============== */
 
+/**
+ * @brief 生成差分测试报告
+ *
+ * 汇总所有测试结果，生成格式化的文本报告。
+ *
+ * @param results 测试结果数组
+ * @param count   测试结果数量
+ * @param format  输出格式（预留，当前未使用）
+ * @return 报告字符串（调用者须通过 lv_free 释放），失败返回 NULL
+ */
 char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
                                       uint32_t count,
                                       const char *format)
@@ -1297,6 +1561,15 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
     return report;
 }
 
+/**
+ * @brief 将测试报告写入文件
+ *
+ * @param results  测试结果数组
+ * @param count    测试结果数量
+ * @param filepath 输出文件路径
+ * @param format   输出格式（预留，当前未使用）
+ * @return true 写入成功，false 失败
+ */
 bool bootstrap_test_write_report(BootstrapDiffTestResult **results,
                                   uint32_t count,
                                   const char *filepath,

@@ -492,6 +492,19 @@ int lv_proto_dsl_text(void *engine, char *out, size_t buf_size)
 
 /* ---- M4-Tree：证明树 ---- */
 
+/**
+ * @brief 生成引擎状态树形结构
+ *
+ * @details 以树形结构展示引擎子系统状态：
+ *          - 根节点：引擎版本信息
+ *          - 子节点 0：健康评分
+ *          - 子节点 1：求解器调用次数
+ *          - 子节点 2：当前内存使用量
+ *
+ * @param engine   引擎实例指针（可为 NULL）
+ * @param out_root 输出树根节点指针（由调用者通过 lv_proto_free_tree 释放）
+ * @return 0 成功，-1 内存分配失败或参数无效
+ */
 int lv_proto_tree(void *engine, lvTreeNode **out_root)
 {
     if (!out_root) return -1;
@@ -571,6 +584,16 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root)
 
 /* ---- M6-Topology：拓扑图 ---- */
 
+/**
+ * @brief 生成引擎拓扑图数据（Input → Engine → Output）
+ *
+ * @details 创建固定拓扑结构：3 个块（Input、Lv-00 Engine、Output）
+ *          和 2 条边（Input→Engine, Engine→Output），展示引擎数据流。
+ *
+ * @param engine 引擎实例指针（可为 NULL）
+ * @param out    输出拓扑图结构（由调用者通过 lv_proto_free_topology 释放）
+ * @return 0 成功，-1 参数无效或内存分配失败
+ */
 int lv_proto_topology(void *engine, lvTopoGraph *out)
 {
     if (!out) return -1;
@@ -630,6 +653,19 @@ int lv_proto_topology(void *engine, lvTopoGraph *out)
 
 /* ---- P4-Proof：证明导航 ---- */
 
+/**
+ * @brief 生成证明导航器数据
+ *
+ * @details 基于引擎统计信息构造证明步骤序列：
+ *          - 步骤 0：系统初始化（公理）
+ *          - 步骤 1：约束求解（策略，含节点/约束/求解器统计）
+ *          - 步骤 2：健康检查（引理）
+ *          同时填充导航器摘要信息（策略标签、自然语言摘要、完成状态）。
+ *
+ * @param engine 引擎实例指针（可为 NULL）
+ * @param out    输出证明导航器结构（由调用者通过 lv_proto_free_proof 释放）
+ * @return 0 成功，-1 参数无效或内存分配失败
+ */
 int lv_proto_proof_navigator(void *engine, lvProofNavigator *out)
 {
     if (!out) return -1;
@@ -722,6 +758,17 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out)
 
 /* ---- P8-Engine：引擎状态 ---- */
 
+/**
+ * @brief 生成引擎状态快照
+ *
+ * @details 收集引擎的性能计数器、内存统计和健康评分，填充 lvEngineStatus
+ *          结构，包含节点数、约束数、证明步数、撤销/重做深度、内存使用量、
+ *          引擎状态标签和后端信息字符串。
+ *
+ * @param engine 引擎实例指针（可为 NULL，提供额外的引擎内部状态）
+ * @param out    输出引擎状态结构
+ * @return 0 成功，-1 参数无效
+ */
 int lv_proto_engine_status(void *engine, lvEngineStatus *out)
 {
     if (!out) return -1;
@@ -782,6 +829,7 @@ int lv_proto_engine_status(void *engine, lvEngineStatus *out)
  * 三、内置命令补全
  * ================================================================ */
 
+/** 内置终端命令列表，用于命令补全 */
 static const char *kBuiltinCommands[] = {
     "add point",
     "add segment",
@@ -812,9 +860,22 @@ static const char *kBuiltinCommands[] = {
     "stream stop",
 };
 
+/** 内置命令总数 */
 #define BUILTIN_CMD_COUNT \
     (sizeof(kBuiltinCommands) / sizeof(kBuiltinCommands[0]))
 
+/**
+ * @brief 基于输入前缀生成命令补全列表
+ *
+ * @details 遍历内置命令列表，收集匹配给定前缀的条目的补全项。
+ *          补全项的 text 字段使用 _strdup 分配内存，
+ *          调用者使用完毕后应通过 lv_proto_free_completions 释放。
+ *
+ * @param engine 引擎实例指针（当前未使用，保留扩展）
+ * @param prefix 输入前缀字符串（可为 NULL，视为空前缀匹配全部）
+ * @param out    输出补全列表
+ * @return 匹配项数量（0 表示无匹配），-1 参数无效或内存分配失败
+ */
 int lv_proto_completions(void *engine, const char *prefix,
                            lvCompletionList *out)
 {
@@ -864,6 +925,17 @@ int lv_proto_completions(void *engine, const char *prefix,
     return 0;
 }
 
+/**
+ * @brief 执行终端命令并返回响应
+ *
+ * @details 当前实现接收任意命令字符串，返回确认消息。
+ *          实际命令执行由上层引擎层处理。
+ *
+ * @param engine  引擎实例指针（可为 NULL）
+ * @param command 命令字符串（可为 NULL）
+ * @param out     输出终端响应结构
+ * @return 0 成功，-1 参数无效
+ */
 int lv_proto_terminal_exec(void *engine, const char *command,
                              lvTerminalResponse *out)
 {
@@ -893,6 +965,11 @@ int lv_proto_terminal_exec(void *engine, const char *command,
  * 四、资源释放
  * ================================================================ */
 
+/**
+ * @brief 释放绘制命令列表资源
+ *
+ * @param list 绘制命令列表指针
+ */
 void lv_proto_free_draw_commands(lvDrawCmdList *list)
 {
     if (!list) {
@@ -902,6 +979,11 @@ void lv_proto_free_draw_commands(lvDrawCmdList *list)
     memset(list, 0, sizeof(*list));
 }
 
+/**
+ * @brief 释放表格行列表资源
+ *
+ * @param list 表格行列表指针
+ */
 void lv_proto_free_table_rows(lvTableRowList *list)
 {
     if (!list) {
@@ -911,6 +993,11 @@ void lv_proto_free_table_rows(lvTableRowList *list)
     memset(list, 0, sizeof(*list));
 }
 
+/**
+ * @brief 递归释放树节点及其所有子节点
+ *
+ * @param node 要释放的树节点指针
+ */
 static void lv_proto_free_tree_node(lvTreeNode *node)
 {
     if (!node) {
@@ -923,11 +1010,23 @@ static void lv_proto_free_tree_node(lvTreeNode *node)
     free(node);
 }
 
+/**
+ * @brief 释放树结构资源
+ *
+ * @param root 树根节点指针
+ */
 void lv_proto_free_tree(lvTreeNode *root)
 {
     lv_proto_free_tree_node(root);
 }
 
+/**
+ * @brief 释放拓扑图资源
+ *
+ * @details 释放拓扑块中的输入/输出端口数组、块数组和边数组。
+ *
+ * @param graph 拓扑图指针
+ */
 void lv_proto_free_topology(lvTopoGraph *graph)
 {
     if (!graph) {
@@ -942,6 +1041,13 @@ void lv_proto_free_topology(lvTopoGraph *graph)
     memset(graph, 0, sizeof(*graph));
 }
 
+/**
+ * @brief 释放证明导航器资源
+ *
+ * @details 释放所有证明步骤的依赖 ID 数组和步骤数组本身。
+ *
+ * @param nav 证明导航器指针
+ */
 void lv_proto_free_proof(lvProofNavigator *nav)
 {
     if (!nav) {
@@ -954,6 +1060,13 @@ void lv_proto_free_proof(lvProofNavigator *nav)
     memset(nav, 0, sizeof(*nav));
 }
 
+/**
+ * @brief 释放命令补全列表资源
+ *
+ * @details 释放每个补全项动态分配的 text 字符串以及 items 数组。
+ *
+ * @param list 补全列表指针
+ */
 void lv_proto_free_completions(lvCompletionList *list)
 {
     if (!list) {

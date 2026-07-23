@@ -1,9 +1,34 @@
+/**
+ * @file lv_ast.c
+ * @brief AST 节点创建、销毁与打印实现
+ *
+ * @details 实现 Lv-00 抽象语法树（AST）的节点工厂函数、递归销毁和可视化打印。
+ *          支持 28 种节点类型，覆盖声明、表达式、字面量、逻辑运算符、
+ *          量化表达式、语句和模块声明等。
+ *
+ *          节点使用 lv_malloc/lv_calloc 统一分配，销毁时自动释放所有
+ *          动态分配的内部数据（字符串、子节点等）。
+ *
+ * @author Lv-00 Project
+ */
+
 #include "lv/lv_ast.h"
 #include "lv_utils.h"
 #include <stdio.h>
 #include <string.h>
 
 /* ── 创建基础节点 ── */
+
+/**
+ * @brief 创建 AST 基础节点
+ *
+ * 分配并初始化一个 AST 节点，设置类型和源代码位置信息。
+ * 使用 lv_calloc 确保所有字段初始为零。
+ *
+ * @param type 节点类型
+ * @param loc  源代码位置
+ * @return 节点指针，分配失败返回 NULL
+ */
 LvAstNode *lv_ast_create(LvAstNodeType type, LvSourceLoc loc) {
     LvAstNode *node = (LvAstNode *)lv_calloc(1, sizeof(LvAstNode));
     if (!node) return NULL;
@@ -12,6 +37,13 @@ LvAstNode *lv_ast_create(LvAstNodeType type, LvSourceLoc loc) {
     return node;
 }
 
+/**
+ * @brief 创建标识符表达式节点
+ *
+ * @param loc  源代码位置
+ * @param name 标识符名称（会被复制到节点内部存储）
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_ident(LvSourceLoc loc, const char *name) {
     LvAstNode *node = lv_ast_create(LV_AST_IDENTIFIER_EXPR, loc);
     if (!node) return NULL;
@@ -19,6 +51,13 @@ LvAstNode *lv_ast_create_ident(LvSourceLoc loc, const char *name) {
     return node;
 }
 
+/**
+ * @brief 创建整数字面量节点
+ *
+ * @param loc   源代码位置
+ * @param value 整数值
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_int(LvSourceLoc loc, long long value) {
     LvAstNode *node = lv_ast_create(LV_AST_INTEGER_LITERAL, loc);
     if (!node) return NULL;
@@ -26,6 +65,14 @@ LvAstNode *lv_ast_create_int(LvSourceLoc loc, long long value) {
     return node;
 }
 
+/**
+ * @brief 创建有理数字面量节点
+ *
+ * @param loc 源代码位置
+ * @param num 分子
+ * @param den 分母
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_rational(LvSourceLoc loc, long long num, long long den) {
     LvAstNode *node = lv_ast_create(LV_AST_RATIONAL_LITERAL, loc);
     if (!node) return NULL;
@@ -34,6 +81,13 @@ LvAstNode *lv_ast_create_rational(LvSourceLoc loc, long long num, long long den)
     return node;
 }
 
+/**
+ * @brief 创建小数字面量节点
+ *
+ * @param loc   源代码位置
+ * @param value 浮点数值
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_decimal(LvSourceLoc loc, double value) {
     LvAstNode *node = lv_ast_create(LV_AST_DECIMAL_LITERAL, loc);
     if (!node) return NULL;
@@ -41,6 +95,13 @@ LvAstNode *lv_ast_create_decimal(LvSourceLoc loc, double value) {
     return node;
 }
 
+/**
+ * @brief 创建字符串字面量节点
+ *
+ * @param loc   源代码位置
+ * @param value 字符串值（会被复制到节点内部存储）
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_string(LvSourceLoc loc, const char *value) {
     LvAstNode *node = lv_ast_create(LV_AST_STRING_LITERAL, loc);
     if (!node) return NULL;
@@ -48,6 +109,13 @@ LvAstNode *lv_ast_create_string(LvSourceLoc loc, const char *value) {
     return node;
 }
 
+/**
+ * @brief 创建布尔字面量节点
+ *
+ * @param loc   源代码位置
+ * @param value 布尔值（0=假, 非0=真）
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_bool(LvSourceLoc loc, int value) {
     LvAstNode *node = lv_ast_create(LV_AST_BOOL_LITERAL, loc);
     if (!node) return NULL;
@@ -55,6 +123,14 @@ LvAstNode *lv_ast_create_bool(LvSourceLoc loc, int value) {
     return node;
 }
 
+/**
+ * @brief 创建函数调用表达式节点
+ *
+ * @param loc       源代码位置
+ * @param func_name 函数名称（会被复制到节点内部存储）
+ * @param args      参数链表头节点
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_call(LvSourceLoc loc, const char *func_name, LvAstNode *args) {
     LvAstNode *node = lv_ast_create(LV_AST_FUNCTION_CALL, loc);
     if (!node) return NULL;
@@ -70,6 +146,15 @@ LvAstNode *lv_ast_create_call(LvSourceLoc loc, const char *func_name, LvAstNode 
     return node;
 }
 
+/**
+ * @brief 创建二元运算表达式节点
+ *
+ * @param loc   源代码位置
+ * @param op    运算符字符串（如 "+", "-", "*", "/"）
+ * @param left  左操作数
+ * @param right 右操作数
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right) {
     LvAstNode *node = lv_ast_create(LV_AST_BINARY_OP, loc);
     if (!node) return NULL;
@@ -79,6 +164,14 @@ LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left
     return node;
 }
 
+/**
+ * @brief 创建一元运算表达式节点
+ *
+ * @param loc     源代码位置
+ * @param op      运算符字符串
+ * @param operand 操作数
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *operand) {
     LvAstNode *node = lv_ast_create(LV_AST_UNARY_OP, loc);
     if (!node) return NULL;
@@ -87,6 +180,15 @@ LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *opera
     return node;
 }
 
+/**
+ * @brief 创建比较表达式节点
+ *
+ * @param loc   源代码位置
+ * @param op    比较运算符（如 "==", "!=", "<", ">"）
+ * @param left  左操作数
+ * @param right 右操作数
+ * @return 节点指针，失败返回 NULL
+ */
 LvAstNode *lv_ast_create_compare(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right) {
     LvAstNode *node = lv_ast_create(LV_AST_COMPARE, loc);
     if (!node) return NULL;
@@ -97,6 +199,15 @@ LvAstNode *lv_ast_create_compare(LvSourceLoc loc, const char *op, LvAstNode *lef
 }
 
 /* ── 追加子节点 ── */
+
+/**
+ * @brief 向父节点追加一个子节点
+ *
+ * 将 child 追加到 parent 的子节点链表末尾。同时更新 child_count。
+ *
+ * @param parent 父节点
+ * @param child  子节点
+ */
 void lv_ast_append_child(LvAstNode *parent, LvAstNode *child) {
     if (!parent || !child) return;
     if (!parent->child) {
@@ -110,6 +221,15 @@ void lv_ast_append_child(LvAstNode *parent, LvAstNode *child) {
 }
 
 /* ── 销毁 AST 树 ── */
+
+/**
+ * @brief 递归销毁 AST 树
+ *
+ * 先递归销毁兄弟节点（next）和子节点（child），然后根据节点类型
+ * 释放 union data 中的动态分配数据，最后释放节点本身。
+ *
+ * @param node 要销毁的 AST 子树根节点（允许为 NULL）
+ */
 void lv_ast_destroy(LvAstNode *node) {
     if (!node) return;
 
@@ -172,10 +292,22 @@ void lv_ast_destroy(LvAstNode *node) {
 }
 
 /* ── 打印 AST 树 ── */
+
+/**
+ * @brief 打印缩进空格
+ *
+ * @param indent 缩进层级（每级缩进 2 个空格）
+ */
 static void print_indent(int indent) {
     for (int i = 0; i < indent; i++) fputs("  ", stdout);
 }
 
+/**
+ * @brief 获取 AST 节点类型的字符串名称
+ *
+ * @param type 节点类型枚举值
+ * @return 类型名称字符串（静态存储，无需释放）
+ */
 static const char *ast_type_name(LvAstNodeType type) {
     static const char *names[] = {
         "PROGRAM",
@@ -196,6 +328,16 @@ static const char *ast_type_name(LvAstNodeType type) {
     return "UNKNOWN";
 }
 
+/**
+ * @brief 递归打印 AST 树
+ *
+ * 以缩进格式输出 AST 树的结构，显示每个节点的类型和附加信息
+ * （如标识符名称、字面量值、运算符等）。递归遍历兄弟节点、子节点
+ * 以及特殊子节点（二元/一元运算的操作数等）。
+ *
+ * @param node   要打印的节点（允许为 NULL）
+ * @param indent 当前缩进层级
+ */
 void lv_ast_print(const LvAstNode *node, int indent) {
     if (!node) return;
     print_indent(indent);
@@ -328,6 +470,13 @@ void lv_ast_print(const LvAstNode *node, int indent) {
 }
 
 /* ── 实体类型名称 ── */
+
+/**
+ * @brief 获取实体类型的字符串名称
+ *
+ * @param type 实体类型枚举值
+ * @return 类型名称字符串（静态存储，无需释放）
+ */
 const char *lv_entity_type_name(LvEntityType type) {
     static const char *names[] = {
         "Point", "Line", "Circle", "Segment", "Ray", "Angle",
@@ -339,6 +488,16 @@ const char *lv_entity_type_name(LvEntityType type) {
 }
 
 /* ── 根据关键字 token 获取实体类型 ── */
+
+/**
+ * @brief 根据关键字 Token 类型获取对应的实体类型
+ *
+ * 将解析器识别的关键字 Token（如 LV_TOKEN_KW_POINT）转换为
+ * 实体类型枚举值（如 LV_ENTITY_POINT）。
+ *
+ * @param tok Token 类型
+ * @return 对应的实体类型；若无法映射则返回 LV_ENTITY_COUNT（非法值）
+ */
 LvEntityType lv_entity_type_from_token(LvTokenType tok) {
     switch (tok) {
     case LV_TOKEN_KW_POINT:        return LV_ENTITY_POINT;

@@ -1,11 +1,12 @@
-﻿/**
+/**
  * @file sparse_linear_algebra.c
  * @brief 稀疏线性代数 —— CSR 格式稀疏矩阵运算
  *
  * @details 实现 Compressed Sparse Row (CSR) 格式的稀疏矩阵，
- *          支持矩阵元素读写、稀疏矩阵-向量乘法和迭代求解。
- *          用于几何约束系统中的大型稀疏线性方程组。
+ *          支持矩阵元素读写、稀疏矩阵-向量乘法和 Jacobi 迭代求解。
+ *          用于几何约束系统中的大型稀疏线性方程组求解。
  *
+ * @author Lv-00 Project
  * @version 1.1.0
  */
 
@@ -31,6 +32,12 @@ struct lvSparseMatrix {
 
 #define lv_SPARSE_INIT_CAP 128
 
+/**
+ * @brief 创建 CSR 稀疏矩阵
+ * @param rows 行数
+ * @param cols 列数
+ * @return 稀疏矩阵（调用者通过 lv_sparse_destroy 释放），失败返回 NULL
+ */
 lvSparseMatrix *lv_sparse_create(int rows, int cols) {
     if (rows <= 0 || cols <= 0) return NULL;
 
@@ -58,6 +65,10 @@ lvSparseMatrix *lv_sparse_create(int rows, int cols) {
     return m;
 }
 
+/**
+ * @brief 销毁稀疏矩阵
+ * @param m 矩阵指针（可为 NULL）
+ */
 void lv_sparse_destroy(lvSparseMatrix *m) {
     if (!m) return;
     lv_free(m->values);
@@ -72,18 +83,26 @@ static bool sparse_grow(lvSparseMatrix *m, int needed) {
     int new_cap = m->nnz_cap * 2;
     while (new_cap < m->nnz + needed) new_cap *= 2;
 
+    /* [安全] 先扩容 values，立即赋值以避免后续失败时 m->values 成为悬空指针 */
     double *nv = lv_realloc(m->values,  sizeof(double) * new_cap);
-    int    *nc = lv_realloc(m->col_idx, sizeof(int)    * new_cap);
-    if (!nv || !nc) {
-        lv_free(nv); lv_free(nc);
-        return false;
-    }
-    m->values  = nv;
+    if (!nv) return false;
+    m->values = nv;
+
+    int *nc = lv_realloc(m->col_idx, sizeof(int)    * new_cap);
+    if (!nc) return false;  /* m->values 仍有效，m->col_idx 指向旧有效数据 */
     m->col_idx = nc;
     m->nnz_cap = new_cap;
     return true;
 }
 
+/**
+ * @brief 设置稀疏矩阵元素值
+ * @param m    矩阵指针
+ * @param row  行索引
+ * @param col  列索引
+ * @param val  值（0.0 时跳过存储）
+ * @return 成功返回 0，参数无效返回 -1，扩容失败返回 -1
+ */
 int lv_sparse_set(lvSparseMatrix *m, int row, int col, double val) {
     if (!m || row < 0 || row >= m->rows || col < 0 || col >= m->cols)
         return -1;
@@ -105,6 +124,13 @@ int lv_sparse_set(lvSparseMatrix *m, int row, int col, double val) {
     return 0;
 }
 
+/**
+ * @brief 获取稀疏矩阵元素值
+ * @param m    矩阵指针
+ * @param row  行索引
+ * @param col  列索引
+ * @return 元素值；参数无效或未存储时返回 0.0
+ */
 double lv_sparse_get(const lvSparseMatrix *m, int row, int col) {
     if (!m || row < 0 || row >= m->rows || col < 0 || col >= m->cols)
         return 0.0;
@@ -118,6 +144,14 @@ double lv_sparse_get(const lvSparseMatrix *m, int row, int col) {
     return 0.0;
 }
 
+/**
+ * @brief Jacobi 迭代法求解稀疏线性方程组 Ax = b
+ * @details 仅支持方阵（rows == cols）。迭代上限 100 次，收敛容差 1e-6。
+ * @param A 系数矩阵
+ * @param b 右端向量
+ * @param x 输出解向量
+ * @return 成功时返回迭代次数；参数无效返回 -1；非方阵返回 -2；零对角线返回 -3
+ */
 int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
     if (!A || !b || !x) return -1;
     if (A->rows != A->cols) return -2; /* 仅支持方阵 */

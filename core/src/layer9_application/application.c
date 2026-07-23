@@ -1,3 +1,14 @@
+/**
+ * @file application.c
+ * @brief 应用层实现
+ *
+ * @details 实现 Lv-00 证明系统的主应用入口，提供会话管理（创建/运行/移除）、
+ * REPL 交互式环境、文件批量处理、运行统计等功能。作为顶层编排器，
+ * 协调 pipelines（解析→资源→几何→推理→输出→可视化）的完整生命周期。
+ *
+ * @author Lv-00 Project
+ */
+
 #include "lv/application.h"
 #include "lv/orchestrator.h"
 #include "lv/lv_internal.h"
@@ -5,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <limits.h>
 
 /**
  * @brief 获取默认应用配置
@@ -84,8 +96,9 @@ lvSession *lv_app_create_session(lvApplication *app, const char *name) {
     if (!app) return NULL;
     /* 检查容量，不足时进行动态扩容（容量翻倍） */
     if (app->session_count >= app->session_capacity) {
+        /* [安全] 乘法前做溢出检查：防止 INT_MAX/2 以下时 int * 2 溢出导致 UB */
+        if (app->session_capacity > INT_MAX / 2) return NULL;
         int new_cap = app->session_capacity * 2;
-        if (new_cap <= app->session_capacity) return NULL; /* 整数溢出保护 */
         lvSession **_tmp = (lvSession **)lv_realloc(
             app->sessions, (size_t)new_cap * sizeof(lvSession *));
         if (!_tmp) return NULL;
@@ -295,12 +308,12 @@ int lv_app_run_repl(lvApplication *app) {
 /**
  * @brief 获取应用的运行统计信息
  *
- * 输出截至调用时的累计运行次数、通过次数和失败次数。各输出指针可为 NULL 以跳过对应字段。
+ * 输出截至调用时的累计运行次数、通过次数和失败次数。
  *
  * @param app    应用实例（只读）
- * @param total  输出参数：总运行次数（可为 NULL）
- * @param passed 输出参数：通过次数（可为 NULL）
- * @param failed 输出参数：失败次数（可为 NULL）
+ * @param total  输出参数：总运行次数（可为 NULL 跳过）
+ * @param passed 输出参数：通过次数（可为 NULL 跳过）
+ * @param failed 输出参数：失败次数（可为 NULL 跳过）
  * @return 成功返回 0，app 为 NULL 返回 -1
  */
 int lv_app_stats(const lvApplication *app, int *total, int *passed, int *failed) {

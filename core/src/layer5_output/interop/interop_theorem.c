@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interop_theorem.c
  * @brief 定理导入/导出与补全
  *
@@ -50,27 +50,21 @@ void interop_theorem_context_destroy(InteropTheoremContext *ctx) {
     lv_free((void **) &ctx);
 }
 
+/**
+ * @brief 向定理交换上下文中添加一次定理调用记录
+ * @details 将定理名称和参数列表序列化为一条调用记录，追加到上下文的
+ *          exported_calls 缓冲区中。每条记录格式为：
+ *          "theorem_name;param1;param2;...\n"
+ *          使用分号分隔字段，换行符分隔不同调用。
+ *          缓冲区通过 lv_realloc 动态扩展。
+ * @param ctx          定理交换上下文
+ * @param theorem_name 被调用的定理名称（不可为空）
+ * @param params       参数数组（可为 NULL，此时 param_count 必须为 0）
+ * @param param_count  参数数量（>= 0）
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 或 lv_ERROR_OUT_OF_MEMORY
+ */
 int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_name, const char **params,
                              int param_count) {
-    /**
-     * @brief 向定理交换上下文中添加一次定理调用记录
-     *
-     * 将定理名称和参数列表序列化为一条调用记录，追加到上下文的
-     * exported_calls缓冲区中。每条记录格式为：
-     *   "theorem_name;param1;param2;...\n"
-     * 使用分号分隔字段，换行符分隔不同调用。
-     *
-     * 缓冲区通过 lv_realloc 动态扩展，支持任意数量的调用记录。
-     * 如果当前缓冲区为空，则为其分配初始空间。
-     *
-     * @param ctx 定理交换上下文，其 exported_calls 和 calls_len 会被更新
-     * @param theorem_name 被调用的定理名称（不可为空）
-     * @param params 传递给定理的参数数组（可为 NULL，此时 param_count 必须为 0）
-     * @param param_count 参数数量（>= 0）
-     * @return lv_OK 调用记录成功添加
-     *         lv_ERROR_INVALID_PARAM ctx 或 theorem_name 为 NULL
-     *         lv_ERROR_OUT_OF_MEMORY 内存分配失败
-     */
     if (!ctx || !theorem_name)
         return lv_ERROR_INVALID_PARAM;
 
@@ -125,39 +119,19 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
     return lv_OK;
 }
 
+/**
+ * @brief 导出定理调用序列为指定格式的证明脚本
+ * @details 解析定理交换上下文中存储的调用记录（由 interop_theorem_add_call 积累），
+ *          按目标格式（Coq/Lean/Isabelle/HOL Light）生成可直接嵌入证明脚本的代码片段。
+ * @param ctx         定理交换上下文（只读）
+ * @param format      目标导出格式
+ * @param output      输出缓冲区
+ * @param output_size 输出缓冲区大小
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，
+ *         lv_ERROR_UNSUPPORTED 格式不支持，lv_ERROR_BUFFER_TOO_SMALL 缓冲区不足
+ */
 int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExportFormat format, char *output,
                                  size_t output_size) {
-    /**
-     * @brief 导出定理调用序列为指定格式的证明脚本
-     *
-     * 解析定理交换上下文中存储的调用记录（由 interop_theorem_add_call 积累），
-     * 按目标格式（Coq 或 Lean）生成可直接嵌入证明脚本的代码片段。
-     *
-     * Coq 格式示例输出：
-     *   (* Theorem calls exported by Lv-00 *)
-     *   (* Trust base: MyTheory v1.0 *)
-     *   apply axiom_name.
-     *   apply between_identity with (A := P1) (B := P2).
-     *
-     * Lean 格式示例输出：
-     *   /- Theorem calls exported by Lv-00 -/
-     *   /- Trust base: MyTheory v1.0 -/
-     *   apply axiom_name
-     *   apply between_identity P1 P2
-     *
-     * 调用记录的解析遵循 interop_theorem_add_call 的存储格式：
-     * 分号分隔字段，换行符分隔不同调用。如果上下文中没有调用记录，
-     * 输出仅包含头部注释和说明。
-     *
-     * @param ctx 定理交换上下文（const，只读）
-     * @param format 目标导出格式（INTEROP_EXPORT_COQ 或 INTEROP_EXPORT_LEAN）
-     * @param output 输出缓冲区，用于存放生成的脚本代码
-     * @param output_size 输出缓冲区大小（字节）
-     * @return lv_OK 导出成功
-     *         lv_ERROR_INVALID_PARAM ctx/output 为 NULL 或 output_size 为 0
-     *         lv_ERROR_UNSUPPORTED format 不是 Coq/Lean
-     *         lv_ERROR_BUFFER_TOO_SMALL 缓冲区不足
-     */
     if (!ctx || !output || output_size == 0)
         return lv_ERROR_INVALID_PARAM;
 
@@ -231,8 +205,8 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
         int call_index = 0;
         while (line && offset < output_size) {
             /* 每行格式: theorem_name;param1;param2;...; */
-            char *save_ptr_line = NULL;
-            char *name = strtok_s(line, ";", &save_ptr_line);
+            char *field_ctx = NULL;
+            char *name = strtok_s(line, ";", &field_ctx);
             if (name && strlen(name) > 0) {
                 /* 生成 apply 语句 */
                 written = snprintf(output + offset, output_size - offset, "%s%s", apply_prefix, name);
@@ -260,7 +234,7 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
                         return lv_ERROR_BUFFER_TOO_SMALL;
                     }
                     offset += written;
-                    param = strtok_s(NULL, ";", &save_ptr_line);
+                    param = strtok_s(NULL, ";", &field_ctx);
                     pidx++;
                 }
 
@@ -297,35 +271,19 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
     return lv_OK;
 }
 
+/**
+ * @brief 导入外部定理作为信任基块
+ * @details 将外部证明助手（Coq/Lean）导出的定理注册为 Lv-00 引擎中的信任基块。
+ *          执行参数校验、名称验证、哈希格式检查和块注册。
+ * @param engine          引擎实例
+ * @param trust_base_name 信任基名称（如 "Tarski_axioms"）
+ * @param content_hash    内容哈希值（十六进制字符串）
+ * @param description     可选的描述文本（可为 NULL）
+ * @param block_id        [out] 输出新注册的块 ID
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_UNSUPPORTED 不支持
+ */
 int interop_import_external_theorem(lvEngine *engine, const char *trust_base_name, const char *content_hash,
                                     const char *description, int *block_id) {
-    /**
-     * @brief 导入外部定理作为信任基块
-     *
-     * 将外部证明助手（Coq/Lean）导出的定理注册为Lv-00引擎中的信任基块。
-     * 执行以下验证步骤：
-     *   1. 参数校验：确保 trust_base_name、content_hash、block_id 非空
-     *   2. 信任基名称验证：名称不能为空，长度不超过63字符，
-     *      仅允许字母、数字和下划线
-     *   3. 内容哈希验证：哈希值长度至少为8字符，且仅包含十六进制字符
-     *   4. 描述记录：将描述信息写入引擎日志（如有）
-     *   5. 块注册：返回一个新的 block_id 作为该信任基的唯一标识
-     *
-     * 信任基验证机制说明：
-     * - 名称合法性检查确保信任基可以安全地在文件系统和网络中使用
-     * - 哈希格式验证确保内容完整性校验的数据格式正确，
-     *   但实际的哈希比对（SHA-256/MD5）由外部调用者在导入前完成
-     * - 注册为信任基后，该块可作为其他定理调用的前提基础
-     *
-     * @param engine Lv-00引擎实例
-     * @param trust_base_name 信任基名称（如 "Tarski_axioms"）
-     * @param content_hash 内容哈希值（十六进制字符串，如 "a1b2c3d4..."）
-     * @param description 可选的描述文本（可为 NULL）
-     * @param block_id 输出参数，接收新注册的块ID
-     * @return lv_OK 信任基成功注册
-     *         lv_ERROR_INVALID_PARAM 参数无效（空指针或格式不合法）
-     *         lv_ERROR_UNSUPPORTED 引擎不支持信任基注册
-     */
     if (!engine || !trust_base_name || !content_hash || !block_id) {
         return lv_ERROR_INVALID_PARAM;
     }

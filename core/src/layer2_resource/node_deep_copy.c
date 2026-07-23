@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file node_deep_copy.c
  * @brief 几何节点深拷贝公共实现
  * @details 提供统一的节点、端口和符号坐标深拷贝函数，
@@ -8,6 +8,12 @@
  * - type_region 执行浅拷贝（指针赋值），所有权由 TypeSystem 统一管理。
  * - connected_to 指针置为 NULL，需调用者通过 ID 映射更新连接关系。
  * - symbolic_coords 执行深拷贝，所有权归新节点所有。
+ *
+ * 深拷贝策略覆盖四种坐标类型：
+ * - RATIONAL: 通过 mpq_set 深拷贝，避免 mpz_get_si/mpz_get_ui 截断问题
+ * - ALGEBRAIC: 通过 algebraic_create 重建，包含最小多项式和隔离区间
+ * - QUADRATIC: 通过 mpq_set 深拷贝有理数分量，再调用 quadratic_create
+ * - TRANSCENDENTAL: 通过 transcendental_create 重建，深拷贝表达式树
  *
  * @author Lv-00 Project
  */

@@ -1,7 +1,10 @@
-﻿/**
+/**
  * @file ga_interface.c
- * @brief PGA geometric quantity embedding and extraction interface
- *
+ * @brief PGA 几何量的嵌入与提取接口
+ * @details 实现 Cl(3,0,1) 投影几何代数中几何对象（点、向量、平面、射线、
+ *          旋转、平移）与多向量之间的相互转换。提供几何构造工具函数
+ *          （三点共线、四点共面、平面构造等）。
+ * @author Lv-00 Project
  * @version 1.0.0
  */
 
@@ -38,6 +41,11 @@
  * Point Operations
  * ============================================================ */
 
+/**
+ * @brief 将三维点嵌入为 PGA 多向量
+ * @param x, y, z  点的世界坐标
+ * @return 嵌入后的多向量（调用者负责释放），失败返回 NULL
+ */
 lvMultiVector *ga_embed_point(double x, double y, double z) {
     lvMultiVector *mv = ga_mv_create();
     if (!mv) return NULL;
@@ -51,6 +59,12 @@ lvMultiVector *ga_embed_point(double x, double y, double z) {
     return mv;
 }
 
+/**
+ * @brief 从 PGA 多向量中提取三维点坐标
+ * @param mv    源多向量
+ * @param out_x, out_y, out_z  输出坐标（不能为 NULL）
+ * @return 成功返回 0；参数无效或非有效点（w 分量为零）返回 -1
+ */
 int ga_extract_point(const lvMultiVector *mv,
                      double *out_x, double *out_y, double *out_z) {
     if (!mv || !out_x || !out_y || !out_z) return -1;
@@ -69,6 +83,11 @@ int ga_extract_point(const lvMultiVector *mv,
  * Vector Operations
  * ============================================================ */
 
+/**
+ * @brief 将方向向量嵌入为 PGA 多向量
+ * @param vx, vy, vz  向量分量
+ * @return 嵌入后的多向量（调用者负责释放），失败返回 NULL
+ */
 lvMultiVector *ga_embed_vector(double vx, double vy, double vz) {
     lvMultiVector *mv = ga_mv_create();
     if (!mv) return NULL;
@@ -81,6 +100,12 @@ lvMultiVector *ga_embed_vector(double vx, double vy, double vz) {
     return mv;
 }
 
+/**
+ * @brief 从 PGA 多向量中提取方向向量
+ * @param mv    源多向量
+ * @param out_vx, out_vy, out_vz  输出向量分量（不能为 NULL）
+ * @return 成功返回 0，失败返回 -1
+ */
 int ga_extract_vector(const lvMultiVector *mv,
                       double *out_vx, double *out_vy, double *out_vz) {
     if (!mv || !out_vx || !out_vy || !out_vz) return -1;
@@ -96,6 +121,12 @@ int ga_extract_vector(const lvMultiVector *mv,
  * Plane Operations
  * ============================================================ */
 
+/**
+ * @brief 将平面嵌入为 PGA 多向量（法线-距离形式）
+ * @param nx, ny, nz  平面法向量分量
+ * @param d           原点到平面的距离（带符号）
+ * @return 嵌入后的多向量（调用者负责释放），失败返回 NULL
+ */
 lvMultiVector *ga_embed_plane(double nx, double ny, double nz, double d) {
     lvMultiVector *mv = ga_mv_create();
     if (!mv) return NULL;
@@ -109,6 +140,13 @@ lvMultiVector *ga_embed_plane(double nx, double ny, double nz, double d) {
     return mv;
 }
 
+/**
+ * @brief 从 PGA 多向量中提取平面参数（法线-距离形式）
+ * @param mv                源多向量
+ * @param out_nx, out_ny, out_nz  输出法向量分量（不能为 NULL）
+ * @param out_d             输出距离（不能为 NULL）
+ * @return 成功返回 0，失败返回 -1
+ */
 int ga_extract_plane(const lvMultiVector *mv,
                      double *out_nx, double *out_ny, double *out_nz,
                      double *out_d) {
@@ -126,6 +164,12 @@ int ga_extract_plane(const lvMultiVector *mv,
  * Ray Operations
  * ============================================================ */
 
+/**
+ * @brief 将射线嵌入为 PGA 多向量（起点 ^ 方向的外积）
+ * @param origin 起点多向量
+ * @param dir    方向多向量
+ * @return 表示射线的多向量（调用者负责释放），失败返回 NULL
+ */
 lvMultiVector *ga_embed_ray(const lvMultiVector *origin,
                                const lvMultiVector *dir) {
     if (!origin || !dir) return NULL;
@@ -134,6 +178,14 @@ lvMultiVector *ga_embed_ray(const lvMultiVector *origin,
     return ga_mv_outer_product(origin, dir);
 }
 
+/**
+ * @brief 从 PGA 多向量中提取射线的起点和方向
+ * @param mv         源多向量
+ * @param out_origin 输出起点多向量（调用者需通过 ga_mv_destroy 释放）
+ * @param out_dir    输出方向多向量（调用者需通过 ga_mv_destroy 释放）
+ * @return 成功返回 0，失败返回 -1
+ * @warning 输出参数在失败时可能部分分配，调用者仍须对非 NULL 输出调用 ga_mv_destroy
+ */
 int ga_extract_ray(const lvMultiVector *mv,
                    lvMultiVector **out_origin,
                    lvMultiVector **out_dir) {
@@ -167,6 +219,12 @@ int ga_extract_ray(const lvMultiVector *mv,
  * Rotor Operations (Rotations)
  * ============================================================ */
 
+/**
+ * @brief 将旋转嵌入为 PGA Rotor 多向量
+ * @param ax, ay, az  旋转轴向量（不必归一化）
+ * @param angle       旋转角度（弧度）
+ * @return Rotor 多向量（调用者负责释放），轴为零向量时返回 NULL
+ */
 lvMultiVector *ga_embed_rotation(double ax, double ay, double az,
                                     double angle) {
     /* Normalize axis */
@@ -193,6 +251,13 @@ lvMultiVector *ga_embed_rotation(double ax, double ay, double az,
     return mv;
 }
 
+/**
+ * @brief 从 Rotor 多向量中提取旋转轴和角度
+ * @param rotor          Rotor 多向量
+ * @param out_ax, out_ay, out_az  输出旋转轴单位向量（不能为 NULL）
+ * @param out_angle      输出旋转角度（弧度，不能为 NULL）
+ * @return 成功返回 0，失败返回 -1
+ */
 int ga_extract_rotation(const lvMultiVector *rotor,
                         double *out_ax, double *out_ay, double *out_az,
                         double *out_angle) {
@@ -225,6 +290,11 @@ int ga_extract_rotation(const lvMultiVector *rotor,
  * Motor Operations (Translations)
  * ============================================================ */
 
+/**
+ * @brief 将平移嵌入为 PGA Motor 多向量
+ * @param tx, ty, tz  平移向量分量
+ * @return Motor 多向量（调用者负责释放），失败返回 NULL
+ */
 lvMultiVector *ga_embed_translation(double tx, double ty, double tz) {
     lvMultiVector *mv = ga_mv_create();
     if (!mv) return NULL;
@@ -242,6 +312,11 @@ lvMultiVector *ga_embed_translation(double tx, double ty, double tz) {
  * Geometric Construction Functions
  * ============================================================ */
 
+/**
+ * @brief 构造经过两点的直线
+ * @param p1, p2  点多向量
+ * @return 表示直线的多向量（调用者负责释放），失败返回 NULL
+ */
 lvMultiVector *ga_line_from_two_points(const lvMultiVector *p1,
                                           const lvMultiVector *p2) {
     if (!p1 || !p2) return NULL;
@@ -250,6 +325,11 @@ lvMultiVector *ga_line_from_two_points(const lvMultiVector *p1,
     return ga_mv_outer_product(p1, p2);
 }
 
+/**
+ * @brief 判断三点是否共线
+ * @param p1, p2, p3  点多向量
+ * @return 共线返回 true，否则返回 false（参数无效时也返回 false）
+ */
 bool ga_three_points_collinear(const lvMultiVector *p1,
                                 const lvMultiVector *p2,
                                 const lvMultiVector *p3) {
@@ -267,6 +347,11 @@ bool ga_three_points_collinear(const lvMultiVector *p1,
     return fabs(det) < 1e-6;
 }
 
+/**
+ * @brief 判断四点是否共面
+ * @param p1, p2, p3, p4  点多向量
+ * @return 共面返回 true，否则返回 false（参数无效时也返回 false）
+ */
 bool ga_four_points_coplanar(const lvMultiVector *p1,
                               const lvMultiVector *p2,
                               const lvMultiVector *p3,
@@ -287,6 +372,11 @@ bool ga_four_points_coplanar(const lvMultiVector *p1,
     return fabs(det) < 1e-6;
 }
 
+/**
+ * @brief 过三点构造平面（外积 P1 ^ P2 ^ P3）
+ * @param p1, p2, p3  点多向量
+ * @return 表示平面的多向量（调用者负责释放），失败返回 NULL
+ */
 lvMultiVector *ga_plane_from_three_points(const lvMultiVector *p1,
                                              const lvMultiVector *p2,
                                              const lvMultiVector *p3) {

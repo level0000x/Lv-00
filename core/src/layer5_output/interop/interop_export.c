@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interop_export.c
  * @brief 导出（Coq/Lean/HTML/SVG/TikZ/GeoJSON/PDF/Canonical）
  *
@@ -30,6 +30,16 @@ lv_DECLARE_STREAM_CTX(interop);
 
 /* ── 导出模块 ── */
 
+/**
+ * @brief 计算图的边界框（用于 SVG viewBox 和 PDF 页面尺寸）
+ * @details 遍历约束图中所有节点的坐标，计算最小/最大 x、y 值，
+ *          并添加自适应边距。
+ * @param graph 约束图指针（可为 NULL）
+ * @param min_x [out] 最小 x 坐标
+ * @param min_y [out] 最小 y 坐标
+ * @param max_x [out] 最大 x 坐标
+ * @param max_y [out] 最大 y 坐标
+ */
 static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, double *min_y, double *max_x,
                                  double *max_y) {
     *min_x = 0.0;
@@ -138,34 +148,33 @@ static void svg_escape_string(const char *src, char *dst, size_t dst_size) {
  */
 /* ==================== 导出功能 ==================== */
 
+/**
+ * @brief 导出 Coq 定理证明代码
+ * @details 生成 Coq 源文件的框架结构（Require Import、Context、Theorem 声明），
+ *          并将 Lv-00 ProofStep 序列映射为 Coq tactic 序列。
+ *
+ * 证明步骤到 Coq tactic 的映射规则：
+ *   - PROOF_STEP_ADD_NODE        -> pose proof (构造点/线段/区域)
+ *   - PROOF_STEP_ADD_CONSTRAINT  -> assert (约束声明)
+ *   - PROOF_STEP_REWRITE         -> rewrite H.
+ *   - PROOF_STEP_FUNCTION_APP    -> apply theorem_name.
+ *   - PROOF_STEP_PACK_FUNCTION   -> (* 函数块打包 *)
+ *   - PROOF_STEP_NORMALIZATION   -> rewrite H. (归一化)
+ *   - PROOF_STEP_UNIFY           -> reflexivity. 或 congruence.
+ *   - PROOF_STEP_EX_FALSO        -> exfalso.
+ *   - PROOF_STEP_ORACLE          -> admit. (非构造性依赖)
+ *
+ * 信任颜色处理：
+ *   - GREEN   -> 全构造（可信），生成完整 tactic
+ *   - BLUE    -> 未探索/资源受限，使用 admit
+ *   - ORANGE  -> 非构造性oracle，使用 admit + 注释
+ *   - AMBER   -> 数值假设，使用 admit + 精度注释
+ *
+ * @param proof 证明对象指针
+ * @param config 导出配置（主要使用 output_path）
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
+ */
 int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *config) {
-    /**
-     * @brief 导出 Coq 定理证明代码
-     *
-     * 生成 Coq 源文件的框架结构（Require Import、Context、Theorem 声明），
-     * 并将 Lv-00 ProofStep 序列映射为 Coq tactic 序列。
-     *
-     * 证明步骤到 Coq tactic 的映射规则：
-     *   - PROOF_STEP_ADD_NODE        -> pose proof (构造点/线段/区域)
-     *   - PROOF_STEP_ADD_CONSTRAINT  -> assert (约束声明)
-     *   - PROOF_STEP_REWRITE         -> rewrite H.
-     *   - PROOF_STEP_FUNCTION_APP    -> apply theorem_name.
-     *   - PROOF_STEP_PACK_FUNCTION   -> (* 函数块打包 *)
-     *   - PROOF_STEP_NORMALIZATION   -> rewrite H. (归一化)
-     *   - PROOF_STEP_UNIFY           -> reflexivity. 或 congruence.
-     *   - PROOF_STEP_EX_FALSO        -> exfalso.
-     *   - PROOF_STEP_ORACLE          -> admit. (非构造性依赖)
-     *
-     * 信任颜色处理：
-     *   - GREEN   -> 全构造（可信），生成完整 tactic
-     *   - BLUE    -> 未探索/资源受限，使用 admit
-     *   - ORANGE  -> 非构造性oracle，使用 admit + 注释
-     *   - AMBER   -> 数值假设，使用 admit + 精度注释
-     *
-     * @param proof 证明对象指针
-     * @param config 导出配置（主要使用 output_path）
-     * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
-     */
     if (!proof || !config)
         return lv_ERROR_INVALID_PARAM;
 
@@ -244,35 +253,34 @@ int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *c
     return lv_OK;
 }
 
+/**
+ * @brief 导出 Lean 4 定理证明代码
+ * @details 生成 Lean 4 源文件的框架结构（import、namespace、theorem 声明），
+ *          并将 Lv-00 ProofStep 序列映射为 Lean 4 tactic 序列。
+ *
+ * 证明步骤到 Lean 4 tactic 的映射规则：
+ *   - PROOF_STEP_ADD_NODE        -> have h ... := by intro <name> ; constructor
+ *   - PROOF_STEP_ADD_CONSTRAINT  -> have h ... := by constructor ; assumption
+ *   - PROOF_STEP_REWRITE         -> rw [h]
+ *   - PROOF_STEP_FUNCTION_APP    -> apply h
+ *   - PROOF_STEP_PACK_FUNCTION   -> -- 函数块打包（仅注释）
+ *   - PROOF_STEP_NORMALIZATION   -> simp [normalization]
+ *   - PROOF_STEP_UNIFY           -> rfl
+ *   - PROOF_STEP_EX_FALSO        -> contradiction ; assumption
+ *   - PROOF_STEP_ORACLE          -> by exact (oracle.verify <step_id>)
+ *
+ * 信任颜色处理：
+ *   - GREEN   -> 全构造（可信），生成完整 tactic
+ *   - BLUE    -> 未探索/资源受限，使用 by admit + 注释
+ *   - ORANGE  -> 非构造性oracle，使用 by exact oracle_result.<name> + 注释
+ *   - AMBER   -> 数值假设，使用 by sorry -- [NUMERIC] 注释
+ *   - 其他    -> by trivial / by assumption 作为回退
+ *
+ * @param proof 证明对象指针
+ * @param config 导出配置
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
+ */
 int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *config) {
-    /**
-     * @brief 导出 Lean 4 定理证明代码
-     *
-     * 生成 Lean 4 源文件的框架结构（import、namespace、theorem 声明），
-     * 并将 Lv-00 ProofStep 序列映射为 Lean 4 tactic 序列。
-     *
-     * 证明步骤到 Lean 4 tactic 的映射规则：
-     *   - PROOF_STEP_ADD_NODE        -> have h : ... := by intro <name> ; constructor
-     *   - PROOF_STEP_ADD_CONSTRAINT  -> have h : ... := by constructor ; assumption
-     *   - PROOF_STEP_REWRITE         -> rw [h]
-     *   - PROOF_STEP_FUNCTION_APP    -> apply h
-     *   - PROOF_STEP_PACK_FUNCTION   -> -- 函数块打包（仅注释）
-     *   - PROOF_STEP_NORMALIZATION   -> simp [normalization]
-     *   - PROOF_STEP_UNIFY           -> rfl
-     *   - PROOF_STEP_EX_FALSO        -> contradiction ; assumption
-     *   - PROOF_STEP_ORACLE          -> by exact (oracle.verify <step_id>)
-     *
-     * 信任颜色处理：
-     *   - GREEN   -> 全构造（可信），生成完整 tactic
-     *   - BLUE    -> 未探索/资源受限，使用 by admit + 注释
-     *   - ORANGE  -> 非构造性oracle，使用 by exact oracle_result.<name> + 注释
-     *   - AMBER   -> 数值假设，使用 by sorry -- [NUMERIC] 注释
-     *   - 其他    -> by trivial / by assumption 作为回退
-     *
-     * @param proof 证明对象指针
-     * @param config 导出配置
-     * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
-     */
     if (!proof || !config)
         return lv_ERROR_INVALID_PARAM;
 
@@ -533,6 +541,12 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
     return lv_OK;
 }
 
+/**
+ * @brief 将约束图导出为 HTML（当前为桩，实际渲染已迁移至 UI 层）
+ * @param engine 引擎实例指针
+ * @param config 导出配置
+ * @return -1（未实现）
+ */
 int interop_export_html(const lvEngine *engine, const InteropExportConfig *config) {
     (void)engine;
     (void)config;
@@ -541,6 +555,12 @@ int interop_export_html(const lvEngine *engine, const InteropExportConfig *confi
     return -1;
 }
 
+/**
+ * @brief 将约束图导出为 SVG 矢量图文件
+ * @param graph  约束图指针
+ * @param config 导出配置（output_path 指定输出文件路径）
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
+ */
 int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *config) {
     /**
      * @brief 将约束图导出为SVG矢量图
@@ -1014,8 +1034,14 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
     return lv_OK;
 }
 
+/**
+ * @brief 将约束图导出为 LaTeX TikZ 代码文件
+ * @param graph  约束图指针
+ * @param config 导出配置（output_path 指定 .tex 文件路径）
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
+ */
 int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig *config) {
-    /**
+    /*
      * @brief 将约束图导出为LaTeX TikZ代码
      *
      * 【已实现功能】
@@ -1549,11 +1575,9 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
 
 /**
  * @brief 将约束图导出为 TikZ 片段（不含文档框架）
- *
- * 仅输出 \begin{tikzpicture}...\end{tikzpicture} 片段，
- * 可直接嵌入已有的 LaTeX 文档。包含样式定义、节点渲染、
- * 约束渲染、符号坐标标签和自动图例。
- *
+ * @details 仅输出 \\begin{tikzpicture}...\\end{tikzpicture} 片段，
+ *          可直接嵌入已有的 LaTeX 文档。包含样式定义、节点渲染、
+ *          约束渲染、符号坐标标签和自动图例。
  * @param graph 约束图指针
  * @param output 输出缓冲区
  * @param size 缓冲区大小
@@ -1955,6 +1979,14 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
     return total;
 }
 
+/**
+ * @brief 将约束图导出为规范表示（Canonical）文本文件
+ * @details 包含节点（类型、ID、坐标、信任色、命名空间深度、父块 ID、类型特定信息）、
+ *          约束（类型、ID、参与者列表、模板 ID）和邻接表。
+ * @param graph       约束图指针
+ * @param output_path 输出文件路径
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
+ */
 int interop_export_canonical(const ConstraintGraph *graph, const char *output_path) {
     if (!graph || !output_path)
         return lv_ERROR_INVALID_PARAM;
@@ -2085,6 +2117,14 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
     return lv_OK;
 }
 
+/**
+ * @brief 将约束图导出为 GeoJSON 格式文件
+ * @details 动态生成 FeatureCollection，包含点类型节点（Point）和线段类型节点（LineString）
+ *          及其坐标。点直接导出坐标，线段通过 INCIDENCE 约束查找端点坐标。
+ * @param graph  约束图指针
+ * @param config 导出配置（output_path 指定输出文件路径）
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
+ */
 int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConfig *config) {
     if (!graph || !config)
         return lv_ERROR_INVALID_PARAM;
@@ -2195,82 +2235,10 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
 }
 
 /**
- * @brief 将约束图导出为PDF文档（最小化纯C实现，无外部库依赖）
- *
- * 【实现概述】
- *   本函数采用"手工写入PDF"的方式，直接生成符合PDF 1.4规范的二进制文件，
- *   不依赖任何外部PDF/Cairo库。这是类似Cairo的"最小化途径"——通过直接操作
- *   PDF的底层运算符来实现矢量图形的绘制。
- *
- * 【已实现功能】
- *   1. PDF文件结构生成 —— 完整的PDF 1.4规范文件头、交叉引用表和尾部
- *   2. 坐标系统建立 —— 根据约束图的包围盒自动计算页面尺寸和坐标变换
- *   3. 点（Point）渲染 —— 使用填充圆（粗线+line cap round 模拟实心点）
- *   4. 线段（Line Segment）渲染 —— 直线段绘制，带信任颜色映射
- *   5. 约束关系渲染 —— 支持关联约束（虚线）、连接约束（实线箭头）
- *   6. 函数块（Function Block）渲染 —— 作为圆角矩形绘制
- *   7. 信任颜色映射 —— 基于TrustColor的RGB颜色分配
- *   8. Helvetica字体嵌入 —— 使用标准14种PDF内置字体，无需嵌入字体文件
- *
- * 【简化实现的部分（完整功能需要额外依赖或后续版本）】
- *   1. 区域（Region）多边形填充 —— 当前仅渲染区域的边界线段；
- *      完整实现需要构造闭合 path 并使用 even-odd fill 规则填充。
- *      所需运算符：h（闭合路径）+ f（非零绕组填充）或 B（填充+描边）。
- *   2. 文本标签渲染 —— 当前使用近似的 Tm 矩阵定位文本；
- *      完整实现需要精确计算文本度量（字宽、行距）和变换矩阵。
- *      可引入 FreeType 库获取精确字形度量。
- *   3. 贝塞尔曲线（c/v/y 运算符）—— 当前仅处理直线段（m/l运算符）；
- *      完整实现需要生成 PDF 的三次贝塞尔曲线 c/v/y 运算符。
- *      所需数据：从 GeomNode 的 coord_count > 4 提取控制点。
- *   4. 透明度/混合模式 —— 当前为不透明渲染；
- *      完整实现需要 PDF ExtGState 字典支持透明度和混合模式。
- *   5. 图例（Legend）—— 当前未生成图例；
- *      完整实现需要在页面底部或侧边绘制图例说明框。
- *   6. 页面元数据 —— 当前不包含信息字典；
- *      完整实现需要添加 Title/Author/Creator/Subject 等PDF信息字典。
- *   7. 多页支持 —— 当前仅支持单页输出；
- *      完整实现需要管理 Pages 树和多个 Page 对象。
- *   8. 压缩 —— 当前使用原始ASCII文本内容流；
- *      完整实现需要使用 zlib 进行 FlateDecode 压缩以减小文件体积。
- *      可通过条件编译 #if __has_include(<zlib.h>) 启用。
- *   9. 中文字体支持 —— 当前仅使用 Helvetica（Latin-1）；
- *      完整实现需要 CID 字体映射或 TrueType 嵌入（需字体嵌入库）。
- *  10. 箭头标记 —— 当前使用线段表示连接约束；
- *      完整实现需要手动绘制三角形路径作为箭头标记。
- *
- * 【PDF内容流运算符参考】
- *   以下是本函数使用的核心PDF图形运算符：
- *   - m x y       : 移动到(x, y)
- *   - l x y       : 从当前点画线到(x, y)
- *   - S           : 描边路径
- *   - re x y w h  : 矩形路径
- *   - B           : 填充并描边路径
- *   - w n         : 设置线宽为 n
- *   - n n n RG    : 设置描边颜色（RGB，0.0-1.0）
- *   - n n n rg    : 设置填充颜色（RGB，0.0-1.0）
- *   - [n n] 0 d   : 设置虚线模式
- *   - BT ... ET   : 文本块
- *   - /F1 sz Tf   : 选择字体和大小
- *   - (text) Tj   : 显示文本
- *   - cm a b c d e f : 变换矩阵
- *   - q / Q        : 保存/恢复图形状态
- *
- * 【外部依赖说明】
- *   本函数的"纯C手工PDF"方案不依赖任何外部库：
- *   - 不依赖 Cairo/Pango/Harfbuzz
- *   - 不依赖 libpdf/zlib
- *   - 不依赖 LaTeX/TikZ（与 interop_export_tikz 互补）
- *
- *   生成的PDF可在以下阅读器中打开：
- *   - Adobe Acrobat Reader
- *   - 浏览器内置PDF查看器（Chrome/Edge/Firefox）
- *   - macOS Preview / 任何PDF阅读器
- *
- * @param graph 约束图指针（包含所有节点和约束关系）
- * @param config 导出配置（output_path 指定 .pdf 文件路径）
- * @return lv_OK 成功导出
- *         lv_ERROR_INVALID_PARAM 参数无效
- *         lv_ERROR_IO 文件无法创建或写入
+ * @brief 将约束图导出为 PDF 文档（最小化纯C实现，无外部库依赖）
+ * @param graph  约束图指针
+ * @param config 导出配置
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
  */
 int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *config) {
     if (!graph || !config)
