@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite.c
  * @brief 图重写引擎实现
  * @details 实现 VF2 子图同构匹配算法和 Weisfeiler-Lehman 图核哈希。
@@ -56,9 +56,6 @@
 #include "stream_context_util.h"
 
 /* ==================== 命名常量 ==================== */
-
-/** VF2 子图同构搜索回溯深度上限 */
-#define REWRITE_VF2_MAX_DEPTH 100
 
 /** 哈希计算批次大小（用于 WL 图核哈希的增量计算） */
 #define REWRITE_HASH_BATCH_SIZE 64

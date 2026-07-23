@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file config.h
  * @brief Lv-00 集中化配置
  *
@@ -235,6 +235,9 @@ typedef struct {
     int default_rewrite_limit;
     int wl_iterations;
     int wl_history_size;
+    int vf2_max_depth;
+    int buchberger_max_steps;
+    int groebner_reduce_max_steps;
 
     /* ---- 流式输出 ---- */
     int stream_async_queue_capacity;
@@ -253,6 +256,11 @@ typedef struct {
     int mini_kernel_max_proof_depth;
     int mini_kernel_verify_timeout_ms;
 
+    /* ---- SAT 求解器 ---- */
+    int cdcl_max_steps;
+    int cdcl_max_decisions;
+    int cdcl_max_restarts;
+
     /* ---- 压力测试 ---- */
     int stress_test_default_chain;
     int stress_test_max_poly_degree;
@@ -269,6 +277,10 @@ typedef struct {
     int parser_max_statements;
     int parser_max_arguments;
     int parser_max_participants;
+
+    /* ---- 类型系统 ---- */
+    int type_infer_max_depth;
+    int type_equiv_max_depth;
 
     /* ---- 运行时防护 ---- */
     int runtime_guard_max_recurse;
@@ -340,6 +352,10 @@ typedef struct {
     /* ---- 测试框架 ---- */
     int test_max_suites;
     int test_max_cases;
+
+    /* ---- 烟测保护 ---- */
+    int smoke_test_step_limit;       /**< 烟测独立步数上限（默认=1000） */
+    int smoke_test_timeout_ms;       /**< 烟测总时间上限毫秒（默认=30000） */
 
     /* ---- 熔断器 ---- */
     int circuit_overflow_threshold;

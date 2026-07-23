@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file graph_index.c
  * @brief GIndex 空间索引
  *
@@ -16,6 +16,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
 #include "lv/stream.h"
+#include "type_system.h"
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -250,6 +251,16 @@ AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, 
         return ADD_CONSTRAINT_CONFLICT;
     if (outer->type != GEOM_REGION)
         return ADD_CONSTRAINT_CONFLICT;
+
+    /* 添加包含约束时检查宇宙层级 */
+    if (!type_check_universe_constraint(outer, inner)) {
+        UniverseLevel outer_level = type_get_universe_level(outer);
+        UniverseLevel inner_level = type_get_universe_level(inner);
+        graph_set_error(graph, "违反宇宙层级约束: 区域层级 %d 必须高于内容层级 %d",
+                        (int)outer_level, (int)inner_level);
+        return ADD_CONSTRAINT_CONFLICT;
+    }
+
     int participants[2] = {inner_id, outer_id};
     if (constraint_exists(graph, CONTAINMENT, participants, 2))
         return ADD_CONSTRAINT_DUPLICATE;

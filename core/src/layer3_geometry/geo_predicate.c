@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_predicate.c
  * @brief 精确几何谓词实现 —— 借鉴 CGAL Exact Predicate Paradigm
  *
@@ -274,6 +274,12 @@ static lvInterval four_points_concyclic_exact_interval(
  *   > 0 -> LEFT（逆时针）
  *   < 0 -> RIGHT（顺时针）
  *   = 0 -> COLLINEAR（共线）
+ *
+ * @param p1x, p1y  第一个点坐标
+ * @param p2x, p2y  第二个点坐标
+ * @param p3x, p3y  第三个点坐标
+ * @param mode      精度模式（APPROX / EXACT / ADAPTIVE）
+ * @return lvOrientation 方向枚举（LEFT / RIGHT / COLLINEAR / DEGENERATE）
  */
 lv_PUBLIC_API lvOrientation lv_orientation_2d(
     double p1x, double p1y,
@@ -291,6 +297,11 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
     const lvGeometryConfig *cfg = lv_geometry_get_config();
     double eps = cfg ? cfg->collinear_epsilon : lv_GEO_COLLINEAR_EPSILON;
 
+    /*
+     * 仅检查 p1-p2 和 p1-p3 的重合：
+     * p1 是方向计算的原点参考点，当 p1 与 p2 或 p1 与 p3 重合时，
+     * 叉积 (p2-p1)×(p3-p1) 的两项同时为零，几何判定无意义。
+     */
     if (d12_sq < eps * eps && d13_sq < eps * eps) {
         return lv_ORIENTATION_DEGENERATE;
     }
@@ -338,6 +349,10 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
         /*
          * 自适应阈值：当 |cross| 相对于输入坐标的量级足够大时，
          * 浮点结果可信。否则回退到区间算术。
+         *
+         * 阈值取 ADAPTIVE_THRESHOLD * max_coord^3，因为 2D 叉积
+         * (p2-p1)×(p3-p1) 展开后每项都是坐标差乘积，量级正比于 O(coord^3)，
+         * 因此浮点舍入误差的上界也按此标度增长。
          */
         double max_coord = fmax(fmax(fabs(p1x), fabs(p1y)),
                                 fmax(fmax(fabs(p2x), fabs(p2y)),
@@ -345,6 +360,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
         double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord * max_coord;
 
         if (threshold == 0.0) {
+            /* 所有坐标为零时的保底阈值，避免退化为精确模式死胡同 */
             threshold = ADAPTIVE_THRESHOLD;
         }
 
@@ -377,6 +393,13 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
  * @brief 判定四点方向（3D orientation test）
  *
  * 计算四面体有符号体积的六倍（3x3 行列式）。
+ *
+ * @param p1x, p1y, p1z  第一个点坐标
+ * @param p2x, p2y, p2z  第二个点坐标
+ * @param p3x, p3y, p3z  第三个点坐标
+ * @param p4x, p4y, p4z  第四个点坐标
+ * @param mode           精度模式
+ * @return lvOrientation 方向枚举（LEFT / RIGHT / COPLANAR / DEGENERATE）
  */
 lv_PUBLIC_API lvOrientation lv_orientation_3d(
     double p1x, double p1y, double p1z,
@@ -385,7 +408,11 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
     double p4x, double p4y, double p4z,
     lvPredicateMode mode)
 {
-    /* 检查退化情况 */
+    /*
+     * 检查退化情况：若 p1 几乎与 p2、p3、p4 均重合，
+     * 则四面体体积为零且无法确定方向。
+     * 3D 方向使用 p1 作为参考原点，因此只需检查 p1 与其余三点的距离。
+     */
     double d12_sq = (p2x-p1x)*(p2x-p1x) + (p2y-p1y)*(p2y-p1y) + (p2z-p1z)*(p2z-p1z);
     double d13_sq = (p3x-p1x)*(p3x-p1x) + (p3y-p1y)*(p3y-p1y) + (p3z-p1z)*(p3z-p1z);
     double d14_sq = (p4x-p1x)*(p4x-p1x) + (p4y-p1y)*(p4y-p1y) + (p4z-p1z)*(p4z-p1z);
@@ -447,6 +474,10 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
                    - ay * (bx * cz - bz * cx)
                    + az * (bx * cy - by * cx);
 
+        /*
+         * 3D 行列式每项为三个坐标差之积，量级 O(coord^3)，
+         * 因此阈值按 max_coord^3 标度，与 2D 情形同理。
+         */
         double max_coord = fmax(fmax(fmax(fabs(p1x), fabs(p1y)), fabs(p1z)),
                                 fmax(fmax(fmax(fabs(p2x), fabs(p2y)), fabs(p2z)),
                                      fmax(fmax(fmax(fabs(p3x), fabs(p3y)), fabs(p3z)),
@@ -485,6 +516,12 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(
  * @brief 判定点相对于直线的位置
  *
  * 委托给 lv_orientation_2d，将直线方向映射为 lvLineSide。
+ *
+ * @param px, py   查询点坐标
+ * @param lx1, ly1 直线第一点
+ * @param lx2, ly2 直线第二点
+ * @param mode     精度模式
+ * @return lvLineSide 点侧枚举（LEFT / RIGHT / ON / DEGENERATE）
  */
 lv_PUBLIC_API lvLineSide lv_line_side(
     double px, double py,
@@ -519,6 +556,12 @@ lv_PUBLIC_API lvLineSide lv_line_side(
  * @brief 判定点相对于有向线段的位置
  *
  * 与 lv_line_side 相同的判定逻辑，语义上针对有向线段。
+ *
+ * @param px, py   查询点坐标
+ * @param sx1, sy1 线段起点
+ * @param sx2, sy2 线段终点
+ * @param mode     精度模式
+ * @return lvLineSide 点侧枚举（LEFT / RIGHT / ON / DEGENERATE）
  */
 lv_PUBLIC_API lvLineSide lv_segment_side(
     double px, double py,
@@ -556,6 +599,12 @@ lv_PUBLIC_API lvLineSide lv_segment_side(
  *   < 0 -> INSIDE
  *   = 0 -> ON
  *   > 0 -> OUTSIDE
+ *
+ * @param px, py 查询点坐标
+ * @param cx, cy 圆心坐标
+ * @param r      圆半径
+ * @param mode   精度模式
+ * @return lvSideOfCircle 位置枚举（INSIDE / ON / OUTSIDE / DEGENERATE）
  */
 lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(
     double px, double py,
@@ -615,6 +664,11 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(
         double r_sq = r * r;
         double diff = dist_sq - r_sq;
 
+        /*
+         * diff = |p-c|^2 - r^2 的量级为 O(coord^2)，
+         * 但这里保守地使用 O(coord^3) 标度以确保在坐标量级较大时
+         * 也能优先使用浮点快速判定，仅在接近零时回退到精确模式。
+         */
         double max_coord = fmax(fmax(fabs(px), fabs(py)),
                                 fmax(fmax(fabs(cx), fabs(cy)), fabs(r)));
         double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord * max_coord;
@@ -651,6 +705,13 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(
  *
  * 使用两个 line_side 判定：如果两个点都在直线的同一侧（同为 LEFT 或同为 RIGHT），
  * 则返回 true。如果任一点在直线上，也视为同侧。
+ *
+ * @param ax, ay   第一个点坐标
+ * @param bx, by   第二个点坐标
+ * @param lx1, ly1 直线第一点
+ * @param lx2, ly2 直线第二点
+ * @param mode     精度模式
+ * @return true 两点在直线同侧（或一点/两点在直线上）
  */
 lv_PUBLIC_API bool lv_same_side_of_line(
     double ax, double ay,
@@ -684,7 +745,15 @@ lv_PUBLIC_API bool lv_same_side_of_line(
 /**
  * @brief 判定两点是否在圆同侧
  *
- * 使用两个 side_of_circle 判定。
+ * 使用两个 side_of_circle 判定：两点同时在圆内、同时在圆外、
+ * 或任一点在圆上时返回 true。
+ *
+ * @param ax, ay 第一个点坐标
+ * @param bx, by 第二个点坐标
+ * @param cx, cy 圆心坐标
+ * @param r      圆半径
+ * @param mode   精度模式
+ * @return true 两点在圆同侧（或一点/两点在圆上）
  */
 lv_PUBLIC_API bool lv_same_side_of_circle(
     double ax, double ay,
@@ -723,7 +792,14 @@ lv_PUBLIC_API bool lv_same_side_of_circle(
  *   1. C 和 D 在 AB 的两侧（或至少一个在 AB 上），且
  *   2. A 和 B 在 CD 的两侧（或至少一个在 CD 上）
  *
- * 特殊处理端点重合的情况。
+ * 特殊处理端点共线及重合的退化情况。
+ *
+ * @param ax, ay 线段 A 的端点
+ * @param bx, by 线段 B 的端点
+ * @param cx, cy 线段 C 的端点
+ * @param dx, dy 线段 D 的端点
+ * @param mode   精度模式
+ * @return true 两条线段相交（含端点接触）
  */
 lv_PUBLIC_API bool lv_segments_intersect(
     double ax, double ay,
@@ -758,6 +834,10 @@ lv_PUBLIC_API bool lv_segments_intersect(
     /*
      * 共线情况：如果所有点共线，需要检查线段是否重叠。
      * 使用 bounding box 检查。
+     *
+     * 方向谓词只能判断点是否在无限直线上，无法判断点是否在
+     * 线段"内部"——共线点可能在线段延长线上。因此需要通过
+     * 一维区间重叠（含 epsilon 容差）来确认。
      */
     if (d1 == lv_ORIENTATION_COLLINEAR && d2 == lv_ORIENTATION_COLLINEAR &&
         d3 == lv_ORIENTATION_COLLINEAR && d4 == lv_ORIENTATION_COLLINEAR) {
@@ -765,16 +845,12 @@ lv_PUBLIC_API bool lv_segments_intersect(
          * 检查 C 或 D 是否在 AB 的 bounding box 内，
          * 或 A 或 B 是否在 CD 的 bounding box 内。
          */
-        /* C 在 AB 上的 bounding box 检查 */
         int c_on_ab = (cx >= fmin(ax, bx) - lv_GEO_DISTANCE_EPSILON && cx <= fmax(ax, bx) + lv_GEO_DISTANCE_EPSILON &&
                        cy >= fmin(ay, by) - lv_GEO_DISTANCE_EPSILON && cy <= fmax(ay, by) + lv_GEO_DISTANCE_EPSILON);
-        /* D 在 AB 上的 bounding box 检查 */
         int d_on_ab = (dx >= fmin(ax, bx) - lv_GEO_DISTANCE_EPSILON && dx <= fmax(ax, bx) + lv_GEO_DISTANCE_EPSILON &&
                        dy >= fmin(ay, by) - lv_GEO_DISTANCE_EPSILON && dy <= fmax(ay, by) + lv_GEO_DISTANCE_EPSILON);
-        /* A 在 CD 上的 bounding box 检查 */
         int a_on_cd = (ax >= fmin(cx, dx) - lv_GEO_DISTANCE_EPSILON && ax <= fmax(cx, dx) + lv_GEO_DISTANCE_EPSILON &&
                        ay >= fmin(cy, dy) - lv_GEO_DISTANCE_EPSILON && ay <= fmax(cy, dy) + lv_GEO_DISTANCE_EPSILON);
-        /* B 在 CD 上的 bounding box 检查 */
         int b_on_cd = (bx >= fmin(cx, dx) - lv_GEO_DISTANCE_EPSILON && bx <= fmax(cx, dx) + lv_GEO_DISTANCE_EPSILON &&
                        by >= fmin(cy, dy) - lv_GEO_DISTANCE_EPSILON && by <= fmax(cy, dy) + lv_GEO_DISTANCE_EPSILON);
 
@@ -783,7 +859,8 @@ lv_PUBLIC_API bool lv_segments_intersect(
 
     /*
      * 端点在另一线段上的情况：
-     * 如果 C 在 AB 上（d1 == COLLINEAR），检查 C 是否在 AB 的 bounding box 内
+     * 方向异号表示两线段交叉，而此时其中一个端点恰好在另一线段上。
+     * 共线点还需要 bounding box 验证（防止延长线上的误判）。
      */
     if (d1 == lv_ORIENTATION_COLLINEAR) {
         int c_on_ab = (cx >= fmin(ax, bx) - lv_GEO_DISTANCE_EPSILON && cx <= fmax(ax, bx) + lv_GEO_DISTANCE_EPSILON &&
@@ -833,6 +910,13 @@ lv_PUBLIC_API bool lv_segments_intersect(
  *   - orientation(C, A, P)
  *
  * 如果三个方向一致（全部同向或包含共线），则点在三角形内部（含边界）。
+ *
+ * @param px, py 查询点坐标
+ * @param ax, ay 三角形顶点 A
+ * @param bx, by 三角形顶点 B
+ * @param cx, cy 三角形顶点 C
+ * @param mode   精度模式
+ * @return true 点在三角形内部或边界上
  */
 lv_PUBLIC_API bool lv_point_in_triangle(
     double px, double py,
@@ -870,6 +954,13 @@ lv_PUBLIC_API bool lv_point_in_triangle(
  *   | bx  by  bx^2+by^2  1 | = 0
  *   | cx  cy  cx^2+cy^2  1 |
  *   | dx  dy  dx^2+dy^2  1 |
+ *
+ * @param ax, ay 第一个点
+ * @param bx, by 第二个点
+ * @param cx, cy 第三个点
+ * @param dx, dy 第四个点
+ * @param mode   精度模式
+ * @return true 四点共圆
  */
 lv_PUBLIC_API bool lv_four_points_concyclic(
     double ax, double ay,
@@ -909,7 +1000,11 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
 
         double det = m11 - m21 + m31 - m41;
 
-        /* 归一化：除以坐标量级 */
+        /*
+         * 归一化：按坐标量级缩放行列式，使其与容差 eps 可比。
+         * 共圆行列式每项包含坐标与坐标平方的乘积，量级 O(coord^3)，
+         * 当坐标量级很大时直接与 eps 比较会导致假阳性。
+         */
         double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)),
                                      fmax(fabs(bx), fabs(by))),
                                 fmax(fmax(fabs(cx), fabs(cy)),
@@ -945,6 +1040,10 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
 
         double det = m11 - m21 + m31 - m41;
 
+        /*
+         * 共圆行列式每项为坐标与坐标平方的乘积，量级 O(coord^3)，
+         * 阈值同取 max_coord^3。
+         */
         double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)),
                                      fmax(fabs(bx), fabs(by))),
                                 fmax(fmax(fabs(cx), fabs(cy)),
@@ -977,9 +1076,9 @@ lv_PUBLIC_API bool lv_four_points_concyclic(
  * 允许共线顶点（退化边）。
  *
  * @param xs, ys 顶点坐标数组
- * @param n       顶点数量（必须 >= 3）
- * @param mode    精度模式
- * @return true 多边形为凸
+ * @param n      顶点数量（必须 >= 3）
+ * @param mode   精度模式
+ * @return true 多边形为凸，false 为非凸或输入无效
  */
 lv_PUBLIC_API bool lv_polygon_is_convex(
     const double *xs, const double *ys, int n,
@@ -1031,6 +1130,12 @@ lv_PUBLIC_API bool lv_polygon_is_convex(
  *   1. 确定多边形的绕行方向（通过第一个非共线三顶点）
  *   2. 使用二分法找到点所在的扇形区域
  *   3. 检查点是否在该扇形区域的三角形内
+ *
+ * @param px, py   查询点坐标
+ * @param xs, ys   凸多边形顶点坐标数组
+ * @param n        顶点数量（必须 >= 3）
+ * @param mode     精度模式
+ * @return true 点在凸多边形内部或边界上
  */
 lv_PUBLIC_API bool lv_point_in_convex_polygon(
     double px, double py,
@@ -1112,6 +1217,12 @@ lv_PUBLIC_API bool lv_point_in_convex_polygon(
  * 奇数交点 -> 内部，偶数交点 -> 外部。
  *
  * 注意处理射线经过顶点的退化情况。
+ *
+ * @param px, py 查询点坐标
+ * @param xs, ys 多边形顶点坐标数组
+ * @param n      顶点数量（必须 >= 3）
+ * @param mode   精度模式（仅用于顶点重合判断的容差）
+ * @return true 点在多边形内部或边界上
  */
 lv_PUBLIC_API bool lv_point_in_polygon(
     double px, double py,
@@ -1178,6 +1289,8 @@ lv_PUBLIC_API bool lv_point_in_polygon(
 
 /**
  * @brief 获取谓词统计信息
+ *
+ * @param stats [out] 输出统计信息的缓冲区（不可为 NULL）
  */
 lv_PUBLIC_API void lv_predicate_get_stats(lvPredicateStats *stats)
 {
@@ -1188,6 +1301,8 @@ lv_PUBLIC_API void lv_predicate_get_stats(lvPredicateStats *stats)
 
 /**
  * @brief 重置谓词统计信息
+ *
+ * 将统计计数器清零，通常在开始新的测试或算例前调用。
  */
 lv_PUBLIC_API void lv_predicate_reset_stats(void)
 {
@@ -1196,6 +1311,8 @@ lv_PUBLIC_API void lv_predicate_reset_stats(void)
 
 /**
  * @brief 设置全局谓词精度模式
+ *
+ * @param mode 新的精度模式（APPROX / EXACT / ADAPTIVE / SYMBOLIC）
  */
 lv_PUBLIC_API void lv_predicate_set_mode(lvPredicateMode mode)
 {
@@ -1204,6 +1321,8 @@ lv_PUBLIC_API void lv_predicate_set_mode(lvPredicateMode mode)
 
 /**
  * @brief 获取全局谓词精度模式
+ *
+ * @return 当前精度模式（APPROX / EXACT / ADAPTIVE / SYMBOLIC）
  */
 lv_PUBLIC_API lvPredicateMode lv_predicate_get_mode(void)
 {

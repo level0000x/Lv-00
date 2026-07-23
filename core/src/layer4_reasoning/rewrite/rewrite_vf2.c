@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite_vf2.c
  * @brief VF2 子图同构匹配
  *
@@ -23,10 +23,8 @@
 /* ── 前向声明 ── */
 uint32_t compute_graph_hash(ConstraintGraph *graph);
 
-/* ── VF2 递归深度限制 ── */
-#ifndef REWRITE_VF2_MAX_DEPTH
-#define REWRITE_VF2_MAX_DEPTH 64
-#endif
+/* include for lv_config_get_int */
+#include "lv/lv.h"
 
 static bool detect_rewrite_loop(ConstraintGraph *graph, int *history_hashes, int history_count) {
     uint32_t current_hash = compute_graph_hash(graph);
@@ -385,8 +383,9 @@ static bool vf2_match_recursive(VF2State *state,
                                  int depth)
 {
     /* 递归深度保护：超过限制则立即返回失败，防止栈溢出 */
-    if (depth > REWRITE_VF2_MAX_DEPTH) {
-        LOG_WARN("rewrite", "VF2: max recursion depth (%d) exceeded", REWRITE_VF2_MAX_DEPTH);
+    int max_depth = lv_config_get_int("vf2_max_depth", 64);
+    if (depth > max_depth) {
+        LOG_WARN("rewrite", "VF2: max recursion depth (%d) exceeded", max_depth);
         return false;
     }
 

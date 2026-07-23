@@ -51,6 +51,55 @@ lv_PUBLIC_API void axiom_set_stream_context(StreamContext *ctx);
 lv_PUBLIC_API bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructible *item);
 lv_PUBLIC_API KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, const char *name);
 
+/**
+ * @brief 不可构造性证明模板
+ *
+ * 一个几何构造，其输入是目标问题，其输出是一个已知不可构造问题的构造。
+ * 用户在模板内完成归约构造，通过合一检查后，蓝色虚框转为已证不可构造。
+ */
+typedef struct {
+    char *target_problem_name;         // 目标问题名称（如"三等分角"）
+    char *known_unconstructible_name;  // 已知不可构造问题名称（如"倍立方"）
+    ConstraintGraph *reduction_construction; // 归约构造图
+    bool verified;                     // 是否通过合一检查
+    char *description;                 // 归约方法描述
+} UnconstructibleTemplate;
+
+/**
+ * @brief 创建不可构造性证明模板
+ *
+ * @param pkg 公理包
+ * @param target_name 目标问题名称
+ * @param known_name 已知不可构造问题名称
+ * @param construction 归约构造图（接过所有权）
+ * @param description 归约描述
+ * @return 0 成功
+ */
+lv_PUBLIC_API int axiom_package_add_unconstructible_template(AxiomPackage *pkg, const char *target_name,
+    const char *known_name, ConstraintGraph *construction, const char *description);
+
+/**
+ * @brief 查找匹配的不可构造性证明模板
+ *
+ * @param pkg 公理包
+ * @param target_name 目标问题名称
+ * @return UnconstructibleTemplate* 匹配的模板，NULL 无匹配
+ */
+lv_PUBLIC_API UnconstructibleTemplate *axiom_package_lookup_unconstructible_template(AxiomPackage *pkg, const char *target_name);
+
+/**
+ * @brief 执行不可构造性验证
+ *
+ * 尝试用可用模板将目标问题归约到已知不可构造问题。
+ * 如果成功，将目标问题的 trust color 改为相应的颜色（绿/黄）。
+ *
+ * @param graph 约束图
+ * @param target_node_id 目标问题节点 ID
+ * @param pkg 公理包
+ * @return true 验证通过
+ */
+lv_PUBLIC_API bool axiom_package_verify_unconstructible(ConstraintGraph *graph, int target_node_id, AxiomPackage *pkg);
+
 typedef enum {
     AXIOM_LOAD_OK,
     AXIOM_LOAD_FILE_NOT_FOUND,
@@ -101,6 +150,14 @@ typedef struct {
     char name[64];
 } TemplateParam;
 
+/**
+ * @brief 模板级别
+ */
+typedef enum {
+    TEMPLATE_LEVEL_ONE,   /**< 一级模板（原子度量，通过测试集验证） */
+    TEMPLATE_LEVEL_TWO    /**< 二级模板（用户复合体） */
+} TemplateLevel;
+
 /* 正则形式描述 */
 typedef struct {
     int expected_node_types[8];       /* 期望的节点类型序列 */
@@ -119,10 +176,50 @@ typedef struct ConstraintTemplate {
     TemplateParam *params;      /* 参数描述数组 */
     int param_desc_count;       /* 参数描述数量 */
     NormalFormDesc normal_form; /* 正则形式描述 */
+
+    /* v3.6.0: 模板分级管理与惰性展开 */
+    TemplateLevel level;              /**< 模板级别（一级/二级） */
+    bool is_compressed;               /**< 当前是否处于压缩态 */
+    ConstraintGraph *compressed_subgraph; /**< 压缩态的内部子图（二级模板用） */
 } ConstraintTemplate;
 
 lv_PUBLIC_API bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl);
 lv_PUBLIC_API ConstraintTemplate *axiom_package_get_template(AxiomPackage *pkg, const char *name);
+
+/* ============== 模板分级管理与惰性展开 ============== */
+
+/**
+ * @brief 设置模板级别
+ *
+ * @param tmpl  模板指针
+ * @param level 模板级别
+ */
+lv_PUBLIC_API void axiom_template_set_level(ConstraintTemplate *tmpl, TemplateLevel level);
+
+/**
+ * @brief 惰性展开模板
+ *
+ * 一级模板：直接调用 expand() 展开。
+ * 二级模板：如果处于压缩态，先获取内部子图，再展开。
+ * 展开后标记为非压缩态。
+ *
+ * @param pkg           公理包
+ * @param template_name 模板名称
+ * @param params        参数
+ * @param param_count   参数数量
+ * @return 展开后的约束图（缓存中查找或新展开）
+ */
+lv_PUBLIC_API ConstraintGraph *axiom_template_expand_lazy(AxiomPackage *pkg, const char *template_name,
+                                                          SymbolicCoord **params, int param_count);
+
+/**
+ * @brief 将模板重新压缩为压缩态
+ *
+ * 释放展开后的约束图，恢复到压缩态，节省内存。
+ *
+ * @param tmpl 模板
+ */
+lv_PUBLIC_API void axiom_template_compress(ConstraintTemplate *tmpl);
 
 lv_PUBLIC_API bool axiom_template_validate_normal_form(const ConstraintTemplate *tmpl, const ConstraintGraph *expanded_graph,
                                          const char *canonical_form);
@@ -151,6 +248,26 @@ typedef struct {
 } TemplateTestCase;
 
 /**
+ * @brief 烟测用例结果枚举
+ */
+typedef enum {
+    TEST_RESULT_PASSED,        /**< 通过 */
+    TEST_RESULT_FAILED,        /**< 失败 */
+    TEST_RESULT_TIMEOUT,       /**< 超时（步骤数超限） */
+    TEST_RESULT_SKIPPED,       /**< 未运行（总时间超限） */
+    TEST_RESULT_ERROR          /**< 执行错误 */
+} TestCaseResult;
+
+/**
+ * @brief 烟测用例详细记录
+ */
+typedef struct {
+    char *test_name;           /**< 测试用例名称 */
+    TestCaseResult result;     /**< 结果 */
+    char *message;             /**< 失败/超时原因描述 */
+} TemplateTestRecord;
+
+/**
  * @brief 模板测试结果
  */
 typedef struct {
@@ -158,6 +275,10 @@ typedef struct {
     int passed;
     int failed;
     char **failure_messages;
+    int timed_out;             /**< 超时数量 */
+    int skipped;               /**< 未运行数量 */
+    TemplateTestRecord *records; /**< 详细记录数组 */
+    int record_count;          /**< 记录数量 */
 } TemplateTestResult;
 
 /**
@@ -270,6 +391,13 @@ lv_PUBLIC_API void axiom_package_clear_expansion_cache(AxiomPackage *pkg);
 #define DEP_TRUST_DEEP_ORANGE 8
 #define DEP_TRUST_RED 9
 
+/* 引用类型枚举 */
+typedef enum {
+    REF_INTERNAL,    /**< 内引用（内容哈希验证） */
+    REF_EXTERNAL,    /**< 外引用（公认文献，永久有效） */
+    REF_AUTHOR       /**< 作者断言（无形式化支撑，基础即为黄色） */
+} RefType;
+
 /* 追踪一个依赖引用（内部或外部） */
 typedef struct {
     char ref_id[64];       /* 引用标识符 */
@@ -278,6 +406,11 @@ typedef struct {
                                *（不含终止符），超出部分将被截断，不足则未定义行为。 */
     int dependent_node_id; /* 依赖此引用的节点 ID */
     int original_color;    /* 原始信任颜色 (0=GREEN 等) */
+    /* === v3.5.0 新增字段：不可构造性证明依赖链 === */
+    RefType ref_type;             /**< 引用类型 */
+    char external_ref[256];       /**< 外部引用字符串（外引用用） */
+    char trust_comment[256];      /**< 信任注释（外引用用，如"截至 2025 年公认有效"） */
+    bool hash_valid;              /**< 内容哈希是否有效（内引用用） */
 } DependencyRef;
 
 /* ============== AxiomPackage 结构体 ============== */
@@ -289,6 +422,9 @@ struct AxiomPackage {
     int template_count;
     KnownUnconstructible *known_unconstructibles;
     int unconstructible_count;
+    UnconstructibleTemplate *unconstructible_templates; // 不可构造性证明模板
+    int unconstructible_template_count;                  // 模板数量
+    int unconstructible_template_capacity;               // 模板容量
     char *bottom_geometry;      /* 底层几何类型 */
     char *negation_encoding;    /* 否定编码方法 */
     int contradiction_behavior; /* 矛盾行为 */
@@ -349,6 +485,79 @@ lv_PUBLIC_API int axiom_package_validate_dependencies_with_hashes(AxiomPackage *
  * @return 被降级的节点数量
  */
 lv_PUBLIC_API int axiom_package_auto_degrade_invalidated(AxiomPackage *pkg, ConstraintGraph *graph);
+
+/* ============== 不可构造性证明依赖链引用 ============== */
+
+/**
+ * @brief 创建内引用
+ *
+ * 指向公理包内的一个引理块，通过内容哈希验证。
+ * 内容哈希基于约束图的规范表示（Canonical Graph Representation）计算。
+ *
+ * @param[in] pkg              公理包
+ * @param[in] lemma_block_id   引理块 ID
+ * @param[in] dependent_node_id 依赖此引理的节点 ID
+ * @return 0 成功，-1 参数无效，-2 内存分配失败
+ */
+lv_PUBLIC_API int axiom_package_add_internal_ref(AxiomPackage *pkg, int lemma_block_id, int dependent_node_id);
+
+/**
+ * @brief 创建外引用
+ *
+ * 指向公认文献或形式化证明。
+ * 外引用被视为永久有效的形式化支撑，不参与自动重验。
+ *
+ * @param[in] pkg              公理包
+ * @param[in] ref_string       规范引用字符串（如 "Wantzel 1837"）
+ * @param[in] dependent_node_id 依赖此引用的节点 ID
+ * @param[in] trust_comment    信任注释（可选，如 "截至 2025 年公认有效"）
+ * @return 0 成功，-1 参数无效，-2 内存分配失败
+ */
+lv_PUBLIC_API int axiom_package_add_external_ref(AxiomPackage *pkg, const char *ref_string,
+                                                  int dependent_node_id, const char *trust_comment);
+
+/**
+ * @brief 创建作者断言引用
+ *
+ * 无形式化支撑，由公理包作者声明。
+ * 系统立即识别为黄色基础（TRUST_YELLOW）。
+ *
+ * @param[in] pkg              公理包
+ * @param[in] dependent_node_id 依赖此断言的节点 ID
+ * @return 0 成功，-1 参数无效，-2 内存分配失败
+ */
+lv_PUBLIC_API int axiom_package_add_author_assertion(AxiomPackage *pkg, int dependent_node_id);
+
+/* ============== 引理自动重验循环 ============== */
+
+/**
+ * @brief 引理自动重验循环
+ *
+ * 遍历公理包中的所有依赖引用，对每个 REF_INTERNAL 类型的引用：
+ * 1. 计算当前内容哈希
+ * 2. 与存储的哈希对比
+ * 3. 如果哈希不匹配，标记为"遗留"并记录
+ * 4. 如果哈希匹配，保留绿色状态
+ *
+ * @param[in]  pkg              公理包
+ * @param[out] out_stale        输出：过期的引理块数量（可为 NULL）
+ * @param[out] out_stale_names  输出：过期引理块名称数组（调用者需 free，可为 NULL）
+ * @return 处理的总引用数
+ */
+lv_PUBLIC_API int axiom_package_reverify_lemmas(AxiomPackage *pkg, int *out_stale, char ***out_stale_names);
+
+/**
+ * @brief 标记引理为遗留状态
+ *
+ * 当自动重验失败时调用。将引理标记为"遗留"，
+ * 即"在旧版本下得证，未验证兼容性"。
+ * 用户可手动重证或保留为遗留块。
+ *
+ * @param[in] pkg    公理包
+ * @param[in] ref_id 引理块引用 ID
+ * @return 0 成功，-1 未找到或参数无效
+ */
+lv_PUBLIC_API int axiom_package_mark_lemma_stale(AxiomPackage *pkg, const char *ref_id);
 
 #ifdef __cplusplus
 }

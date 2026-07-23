@@ -8,12 +8,24 @@
  * 3. 测试用例的创建与销毁
  *
  * 测试执行器是纯比对函数，不执行任何推理，不使用约束求解器。
+ *
+ * v3.5.0 新增烟测保护机制：
+ * - 独立步数上限：每个用例的约束生成步数上限，超限标记为 TIMEOUT
+ * - 总时间上限：整个烟测集执行总时间上限，超限标记后续用例为 SKIPPED
+ * - 加载策略：若有 TIMEOUT/SKIPPED，发出警告但仍允许加载
  */
 
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
+#include "lv/lv.h"
 #include "lv_internal.h"
 #include "debug.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <time.h>
+#endif
 
 /* ============== 辅助：图结构比对 ============== */
 
@@ -44,6 +56,22 @@ static bool graph_structure_match(const ConstraintGraph *a, const ConstraintGrap
     return true;
 }
 
+/* ============== 烟测时间监控 ============== */
+
+/**
+ * @brief 获取当前单调时间（毫秒）
+ * 用于烟测超时检测。
+ */
+static uint64_t get_current_time_ms(void) {
+#ifdef _WIN32
+    return (uint64_t)GetTickCount64();
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000 + (uint64_t)ts.tv_nsec / 1000000;
+#endif
+}
+
 /* ============== 模板测试执行器 ============== */
 
 int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, int count,
@@ -57,18 +85,46 @@ int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, in
     *out_failed = 0;
     *out_failures = NULL;
 
+    /* 读取烟测保护配置 */
+    int step_limit = lv_config_get_int("smoke_test_step_limit", 1000);
+    int timeout_ms = lv_config_get_int("smoke_test_timeout_ms", 30000);
+    uint64_t start_time = get_current_time_ms();
+
     /* 分配失败消息数组 */
     char **failures = lv_calloc((size_t)count, sizeof(char *));
     if (!failures) return -1;
 
     int fail_count = 0;
+    int timed_out = 0;
+    int skipped = 0;
 
     for (int i = 0; i < count; i++) {
         TemplateTestCase *tc = test_cases[i];
+
+        /* 检查总时间是否超限 */
+        uint64_t elapsed = get_current_time_ms() - start_time;
+        if (elapsed >= (uint64_t)timeout_ms) {
+            /* 当前及剩余用例标记为 SKIPPED */
+            for (int j = i; j < count; j++) {
+                skipped++;
+                if (fail_count < count && test_cases[j]) {
+                    char msg[128];
+                    int _sn_ret;
+                    lv_SAFE_SNPRINTF(_sn_ret, msg, sizeof(msg),
+                                     "[SKIPPED] '%s': total time exceeded (%d ms limit)",
+                                     test_cases[j]->template_name, timeout_ms);
+                    (void)_sn_ret;
+                    failures[fail_count] = lv_strdup_safe(msg);
+                    if (failures[fail_count]) fail_count++;
+                }
+            }
+            break;
+        }
+
         if (!tc) {
-            /* 空测试用例视为失败 */
+            /* 空测试用例视为 ERROR */
             if (fail_count < count) {
-                failures[fail_count] = lv_strdup_safe("(null test case)");
+                failures[fail_count] = lv_strdup_safe("[ERROR] (null test case)");
                 if (failures[fail_count]) fail_count++;
             }
             continue;
@@ -81,7 +137,7 @@ int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, in
                 char msg[128];
                 int _sn_ret;
                 lv_SAFE_SNPRINTF(_sn_ret, msg, sizeof(msg),
-                                 "Template '%s' not found", tc->template_name);
+                                 "[ERROR] Template '%s' not found", tc->template_name);
                 (void)_sn_ret;
                 failures[fail_count] = lv_strdup_safe(msg);
                 if (failures[fail_count]) fail_count++;
@@ -95,7 +151,7 @@ int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, in
                 char msg[128];
                 int _sn_ret;
                 lv_SAFE_SNPRINTF(_sn_ret, msg, sizeof(msg),
-                                 "Template '%s' has no expand function", tc->template_name);
+                                 "[ERROR] Template '%s' has no expand function", tc->template_name);
                 (void)_sn_ret;
                 failures[fail_count] = lv_strdup_safe(msg);
                 if (failures[fail_count]) fail_count++;
@@ -107,13 +163,32 @@ int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, in
         ConstraintGraph *expanded = graph_create();
         if (!expanded) {
             if (fail_count < count) {
-                failures[fail_count] = lv_strdup_safe("Out of memory creating temp graph");
+                failures[fail_count] = lv_strdup_safe("[ERROR] Out of memory creating temp graph");
                 if (failures[fail_count]) fail_count++;
             }
             continue;
         }
 
         tmpl->expand(tc->params, expanded);
+
+        /* 步数检查：展开后的约束数量作为步数指标 */
+        int step_count = expanded->constraint_count;
+        if (step_count > step_limit) {
+            timed_out++;
+            if (fail_count < count) {
+                char msg[256];
+                int _sn_ret;
+                lv_SAFE_SNPRINTF(_sn_ret, msg, sizeof(msg),
+                                 "[TIMEOUT] '%s': step count %d exceeds limit %d (nodes=%d)",
+                                 tc->template_name, step_count, step_limit,
+                                 expanded->node_count);
+                (void)_sn_ret;
+                failures[fail_count] = lv_strdup_safe(msg);
+                if (failures[fail_count]) fail_count++;
+            }
+            graph_destroy(expanded);
+            continue;
+        }
 
         /* 判断展开是否"通过"：产生了有效约束 */
         bool actual_pass = (expanded->constraint_count > 0);
@@ -131,8 +206,7 @@ int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, in
                 char msg[256];
                 int _sn_ret;
                 lv_SAFE_SNPRINTF(_sn_ret, msg, sizeof(msg),
-                                 "[%s] '%s': expected %s, got %s (nodes=%d, constraints=%d)",
-                                 (tc->type == TEST_CASE_FACTORY) ? "FACTORY" : "USER",
+                                 "[FAIL] '%s': expected %s, got %s (nodes=%d, constraints=%d)",
                                  tc->template_name,
                                  tc->expected_result ? "pass" : "fail",
                                  actual_pass ? "pass" : "fail",
@@ -149,6 +223,13 @@ int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, in
 
     *out_failed = fail_count;
     *out_failures = failures;
+
+    /* 加载策略：若有 TIMEOUT 或 SKIPPED，发出警告但仍允许加载 */
+    if (timed_out > 0 || skipped > 0) {
+        LOG_WARN("axiom_template_test", "Smoke test completed with %d timed out, %d skipped (of %d total)",
+                 timed_out, skipped, count);
+    }
+
     return fail_count;
 }
 

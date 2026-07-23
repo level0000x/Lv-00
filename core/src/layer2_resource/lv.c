@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv.c
  * @brief Lv-00 几何元语言系统主实现
  *
@@ -21,6 +21,7 @@
 
 #include "func_block_registry.h"
 #include "lv_internal.h"
+#include "lv/bit_burning.h"
 
 /* ============================================================
  * 全局状态管理
@@ -675,4 +676,41 @@ void lv_set_assertions_enabled(bool enabled) {
 /** @brief 查询运行时断言是否启用 @return true 启用，false 禁用 */
 bool lv_are_assertions_enabled(void) {
     return g_assertions_enabled;
+}
+
+/* ============================================================
+ * SetNumericAssumption API —— 节点永久降级为数值假设
+ * ============================================================ */
+
+/**
+ * @brief 将节点永久降级为数值假设（SetNumericAssumption 命令）
+ *
+ * 当位数熔断触发且用户选择"永久降级"时调用此函数。
+ * 将节点的信任颜色设为 TRUST_AMBER，存储精度阈值和声明文本。
+ * 所有下游依赖节点自动继承 TRUST_AMBER。
+ *
+ * @param engine     引擎实例
+ * @param node_id    要降级的节点 ID
+ * @param precision  数值精度阈值（如 1e-15）
+ * @param declaration 数值假设声明文本（如"该点坐标在10^{-15}精度下近似为1.4142"）
+ * @return 成功返回 0（lv_OK），失败返回负错误码
+ */
+int lv_set_numeric_assumption(lvEngine *engine, int node_id,
+    double precision, const char *declaration) {
+    /* 参数有效性检查 */
+    if (!engine || !engine->main_graph) {
+        lv_set_error(lv_ERROR_NULL_POINTER,
+            "lv_set_numeric_assumption: engine 或 main_graph 为 NULL");
+        return -1;
+    }
+
+    /* 委托给 bit_burning_downgrade_to_amber 执行降级操作 */
+    if (!bit_burning_downgrade_to_amber(engine->main_graph, node_id,
+                                         precision, declaration)) {
+        lv_set_error(lv_ERROR_INVALID_PARAM,
+            "lv_set_numeric_assumption: 节点 %d 不存在或降级失败", node_id);
+        return -1;
+    }
+
+    return 0; /* lv_OK */
 }

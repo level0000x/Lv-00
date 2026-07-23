@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file groebner_parallel.c
  * @brief 并行 Groebner 基计算引擎 —— 基于 Buchberger 算法的多线程实现
  *
@@ -13,6 +13,7 @@
 #include "lv/groebner_parallel.h"
 #include "lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -22,11 +23,7 @@
  * 内部常量
  * ======================================================================== */
 
-/** @brief Buchberger 算法最大步数 */
-#define GROEBNER_PARALLEL_BUCHBERGER_MAX_STEPS 50000
-
-/** @brief 多项式约化最大步数 */
-#define GROEBNER_PARALLEL_REDUCE_MAX_STEPS 10000
+/* 运行时配置位于 lvConfig 中，通过 lv_config_get_int() 读取 */
 
 /* ========================================================================
  * 内部数据结构
@@ -350,8 +347,10 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
 static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_size) {
     if (simple_poly_is_zero(&f) || basis_size == 0) return f;
 
-    int max_steps = GROEBNER_PARALLEL_REDUCE_MAX_STEPS;
+    int reduce_max = lv_config_get_int("groebner_reduce_max_steps", 10000);
     int step = 0;
+
+    int max_steps = reduce_max;
 
     while (f.term_count > 0 && step < max_steps) {
         step++;

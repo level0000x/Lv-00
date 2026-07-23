@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file plugin_system.c
  * @brief LV-00 模块化插件系统实现
  *
@@ -30,6 +30,7 @@ typedef struct {
 
 /* ============ 辅助函数 ============ */
 
+/* 获取高精度时间戳（纳秒级） */
 static uint64_t get_timestamp(void) {
 #ifdef _WIN32
     FILETIME ft;
@@ -42,6 +43,7 @@ static uint64_t get_timestamp(void) {
 #endif
 }
 
+/* 加载动态链接库 */
 static void* load_library(const char* path) {
 #ifdef _WIN32
     return LoadLibraryA(path);
@@ -50,6 +52,7 @@ static void* load_library(const char* path) {
 #endif
 }
 
+/* 卸载动态链接库 */
 static void unload_library(void* handle) {
     if (!handle) return;
 #ifdef _WIN32
@@ -59,6 +62,7 @@ static void unload_library(void* handle) {
 #endif
 }
 
+/* 从动态库中查找符号地址 */
 static void* get_symbol(void* handle, const char* name) {
     if (!handle || !name) return NULL;
 #pragma GCC diagnostic push
@@ -71,6 +75,7 @@ static void* get_symbol(void* handle, const char* name) {
 #pragma GCC diagnostic pop
 }
 
+/* 设置系统错误消息（支持 printf 风格格式化） */
 static void set_error(lvPluginSystem* system, const char* format, ...) {
     if (!system) return;
     
@@ -85,6 +90,11 @@ static void set_error(lvPluginSystem* system, const char* format, ...) {
 
 /* ============ 生命周期管理 ============ */
 
+/**
+ * @brief 创建插件系统实例
+ * @param ctx LV-00 上下文指针
+ * @return 成功返回插件系统指针，失败返回 NULL
+ */
 lvPluginSystem* lv_plugin_system_create(lvContext* ctx) {
     lvPluginSystem* system = (lvPluginSystem*)lv_malloc(sizeof(lvPluginSystem));
     if (!system) return NULL;
@@ -129,6 +139,10 @@ lvPluginSystem* lv_plugin_system_create(lvContext* ctx) {
     return system;
 }
 
+/**
+ * @brief 销毁插件系统实例，释放所有相关资源
+ * @param system 插件系统指针
+ */
 void lv_plugin_system_destroy(lvPluginSystem* system) {
     if (!system) return;
     
@@ -146,6 +160,11 @@ void lv_plugin_system_destroy(lvPluginSystem* system) {
     lv_free((void **)&system);
 }
 
+/**
+ * @brief 初始化插件系统
+ * @param system 插件系统指针
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_system_init(lvPluginSystem* system) {
     if (!system) return -1;
     
@@ -153,6 +172,10 @@ int lv_plugin_system_init(lvPluginSystem* system) {
     return 0;
 }
 
+/**
+ * @brief 清理插件系统，卸载所有已加载的插件
+ * @param system 插件系统指针
+ */
 void lv_plugin_system_cleanup(lvPluginSystem* system) {
     if (!system) return;
     if (!system->plugins || system->plugin_count <= 0) return;
@@ -167,6 +190,12 @@ void lv_plugin_system_cleanup(lvPluginSystem* system) {
 
 /* ============ 插件加载与卸载 ============ */
 
+/**
+ * @brief 从指定路径加载插件
+ * @param system 插件系统指针
+ * @param path 插件动态库文件路径
+ * @return 成功返回插件指针，失败返回 NULL
+ */
 lvPlugin* lv_plugin_load(lvPluginSystem* system, const char* path) {
     if (!system || !path) return NULL;
     if (system->plugin_count >= system->plugin_capacity) {
@@ -268,6 +297,12 @@ lvPlugin* lv_plugin_load(lvPluginSystem* system, const char* path) {
     return plugin;
 }
 
+/**
+ * @brief 卸载指定插件，释放其占用的资源
+ * @param system 插件系统指针
+ * @param plugin 待卸载的插件指针
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_unload(lvPluginSystem* system, lvPlugin* plugin) {
     if (!system || !plugin) return -1;
     
@@ -335,6 +370,12 @@ int lv_plugin_unload(lvPluginSystem* system, lvPlugin* plugin) {
     return 0;
 }
 
+/**
+ * @brief 重新加载指定插件（卸载后重新加载）
+ * @param system 插件系统指针
+ * @param plugin 待重新加载的插件指针
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_reload(lvPluginSystem* system, lvPlugin* plugin) {
     if (!system || !plugin) return -1;
     if (plugin->path[0] == '\0') return -1;
@@ -351,6 +392,11 @@ int lv_plugin_reload(lvPluginSystem* system, lvPlugin* plugin) {
 
 /* ============ 插件激活与停用 ============ */
 
+/**
+ * @brief 激活插件，解析依赖并调用激活回调
+ * @param plugin 待激活的插件指针
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_activate(lvPlugin* plugin) {
     if (!plugin) return -1;
     if (plugin->state != lv_PLUGIN_STATE_LOADED) return -1;
@@ -389,6 +435,11 @@ int lv_plugin_activate(lvPlugin* plugin) {
     return 0;
 }
 
+/**
+ * @brief 停用插件，调用停用回调并发送停用事件
+ * @param plugin 待停用的插件指针
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_deactivate(lvPlugin* plugin) {
     if (!plugin) return -1;
     if (plugin->state != lv_PLUGIN_STATE_ACTIVE) return -1;
@@ -417,16 +468,32 @@ int lv_plugin_deactivate(lvPlugin* plugin) {
     return 0;
 }
 
+/**
+ * @brief 检查插件是否处于激活状态
+ * @param plugin 插件指针
+ * @return 激活返回 1，否则返回 0
+ */
 int lv_plugin_is_active(const lvPlugin* plugin) {
     return plugin && plugin->state == lv_PLUGIN_STATE_ACTIVE;
 }
 
+/**
+ * @brief 获取插件的当前状态
+ * @param plugin 插件指针
+ * @return 插件状态枚举值
+ */
 lvPluginState lv_plugin_get_state(const lvPlugin* plugin) {
     return plugin ? plugin->state : lv_PLUGIN_STATE_UNLOADED;
 }
 
 /* ============ 插件查询 ============ */
 
+/**
+ * @brief 按名称查找已加载的插件
+ * @param system 插件系统指针
+ * @param name 插件名称
+ * @return 找到返回插件指针，未找到返回 NULL
+ */
 lvPlugin* lv_plugin_find(lvPluginSystem* system, const char* name) {
     if (!system || !name) return NULL;
     
@@ -438,6 +505,12 @@ lvPlugin* lv_plugin_find(lvPluginSystem* system, const char* name) {
     return NULL;
 }
 
+/**
+ * @brief 获取所有已加载插件的数组
+ * @param system 插件系统指针
+ * @param count 输出参数，插件数量
+ * @return 返回插件指针数组，失败返回 NULL
+ */
 lvPlugin** lv_plugin_get_all(lvPluginSystem* system, size_t* count) {
     if (!system || !count) return NULL;
     
@@ -445,6 +518,13 @@ lvPlugin** lv_plugin_get_all(lvPluginSystem* system, size_t* count) {
     return system->plugins;
 }
 
+/**
+ * @brief 按类型筛选已加载的插件
+ * @param system 插件系统指针
+ * @param type 插件类型
+ * @param count 输出参数，匹配的插件数量
+ * @return 成功返回匹配的插件指针数组（需调用者释放），失败返回 NULL
+ */
 lvPlugin** lv_plugin_get_by_type(lvPluginSystem* system, lvPluginType type, size_t* count) {
     if (!system || !count) return NULL;
     
@@ -480,6 +560,13 @@ lvPlugin** lv_plugin_get_by_type(lvPluginSystem* system, lvPluginType type, size
     return result;
 }
 
+/**
+ * @brief 按状态筛选已加载的插件
+ * @param system 插件系统指针
+ * @param state 插件状态
+ * @param count 输出参数，匹配的插件数量
+ * @return 成功返回匹配的插件指针数组（需调用者释放），失败返回 NULL
+ */
 lvPlugin** lv_plugin_get_by_state(lvPluginSystem* system, lvPluginState state, size_t* count) {
     if (!system || !count) return NULL;
     
@@ -517,6 +604,12 @@ lvPlugin** lv_plugin_get_by_state(lvPluginSystem* system, lvPluginState state, s
 
 /* ============ 接口注册与查询 ============ */
 
+/**
+ * @brief 注册插件接口到系统和插件注册表
+ * @param plugin 注册接口的插件指针
+ * @param iface 待注册的接口指针
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_register_interface(lvPlugin* plugin, lvPluginInterface* iface) {
     if (!plugin || !plugin->context || !iface) return -1;
     if (plugin->registered_interface_count >= lv_MAX_INTERFACES) return -1;
@@ -547,6 +640,12 @@ int lv_plugin_register_interface(lvPlugin* plugin, lvPluginInterface* iface) {
     return 0;
 }
 
+/**
+ * @brief 从插件和系统中注销指定名称的接口
+ * @param plugin 注销接口的插件指针
+ * @param name 接口名称
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_unregister_interface(lvPlugin* plugin, const char* name) {
     if (!plugin || !plugin->context || !name) return -1;
     
@@ -571,6 +670,13 @@ int lv_plugin_unregister_interface(lvPlugin* plugin, const char* name) {
     return -1;
 }
 
+/**
+ * @brief 按名称和版本精确查询已注册的接口
+ * @param system 插件系统指针
+ * @param name 接口名称
+ * @param version 接口版本号
+ * @return 找到返回接口指针，未找到返回 NULL
+ */
 lvPluginInterface* lv_plugin_query_interface(lvPluginSystem* system, const char* name, uint32_t version) {
     if (!system || !name) return NULL;
     
@@ -583,7 +689,7 @@ lvPluginInterface* lv_plugin_query_interface(lvPluginSystem* system, const char*
     return NULL;
 }
 
-/* 通配符模式匹配：支持 '*' glob */
+/* 通配符模式匹配：支持 '*' 和 '?' glob 通配符 */
 static int wildcard_match(const char* pattern, const char* str) {
     if (!pattern || !str) return 0;
 
@@ -615,6 +721,13 @@ static int wildcard_match(const char* pattern, const char* str) {
     return *p == '\0';
 }
 
+/**
+ * @brief 按通配符模式查询已注册的接口列表
+ * @param system 插件系统指针
+ * @param pattern 通配符匹配模式（支持 '*' 和 '?'）
+ * @param count 输出参数，匹配的接口数量
+ * @return 成功返回匹配的接口指针数组（需调用者释放），失败返回 NULL
+ */
 lvPluginInterface** lv_plugin_query_interfaces(lvPluginSystem* system, const char* pattern, size_t* count) {
     if (!system || !pattern || !count) return NULL;
 
@@ -652,6 +765,10 @@ lvPluginInterface** lv_plugin_query_interfaces(lvPluginSystem* system, const cha
 
 /* ============ 插件配置 ============ */
 
+/**
+ * @brief 创建插件配置对象
+ * @return 成功返回配置指针，失败返回 NULL
+ */
 lvPluginConfig* lv_plugin_config_create(void) {
     lvPluginConfig* config = (lvPluginConfig*)lv_malloc(sizeof(lvPluginConfig));
     if (!config) return NULL;
@@ -669,12 +786,22 @@ lvPluginConfig* lv_plugin_config_create(void) {
     return config;
 }
 
+/**
+ * @brief 销毁插件配置对象，释放资源
+ * @param config 插件配置指针
+ */
 void lv_plugin_config_destroy(lvPluginConfig* config) {
     if (!config) return;
     if (config->entries) lv_free((void **)&config->entries);
     lv_free((void **)&config);
 }
 
+/**
+ * @brief 从 INI 格式文件加载配置
+ * @param config 插件配置指针
+ * @param filepath 配置文件路径
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_config_load(lvPluginConfig* config, const char* filepath) {
     if (!config || !filepath) return -1;
     
@@ -750,6 +877,12 @@ int lv_plugin_config_load(lvPluginConfig* config, const char* filepath) {
     return 0;
 }
 
+/**
+ * @brief 将配置保存到文件（key=value 格式）
+ * @param config 插件配置指针
+ * @param filepath 保存路径
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_config_save(const lvPluginConfig* config, const char* filepath) {
     if (!config || !filepath) return -1;
     
@@ -764,6 +897,14 @@ int lv_plugin_config_save(const lvPluginConfig* config, const char* filepath) {
     return 0;
 }
 
+/**
+ * @brief 设置配置项的值（若 key 已存在则覆盖）
+ * @param config 插件配置指针
+ * @param key 配置键名
+ * @param value 配置值
+ * @param type 配置值类型标识
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_config_set(lvPluginConfig* config, const char* key, const char* value, int type) {
     if (!config || !key || !value) return -1;
     if (!config->entries) return -1;
@@ -787,6 +928,13 @@ int lv_plugin_config_set(lvPluginConfig* config, const char* key, const char* va
     return 0;
 }
 
+/**
+ * @brief 获取配置项的值，不存在则返回默认值
+ * @param config 插件配置指针
+ * @param key 配置键名
+ * @param default_value 默认值
+ * @return 配置值或默认值
+ */
 const char* lv_plugin_config_get(const lvPluginConfig* config, const char* key, const char* default_value) {
     if (!config || !key) return default_value;
     
@@ -799,6 +947,12 @@ const char* lv_plugin_config_get(const lvPluginConfig* config, const char* key, 
     return default_value;
 }
 
+/**
+ * @brief 将配置应用到指定插件（调用 on_configure 回调）
+ * @param plugin 插件指针
+ * @param config 配置指针
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_apply_config(lvPlugin* plugin, const lvPluginConfig* config) {
     if (!plugin || !config) return -1;
     
@@ -811,6 +965,14 @@ int lv_plugin_apply_config(lvPlugin* plugin, const lvPluginConfig* config) {
 
 /* ============ 事件系统 ============ */
 
+/**
+ * @brief 发送事件到指定插件
+ * @param plugin 目标插件指针
+ * @param type 事件类型
+ * @param data 事件数据
+ * @param data_size 数据大小
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_send_event(lvPlugin* plugin, lvPluginEventType type, void* data, size_t data_size) {
     if (!plugin || !plugin->context) return -1;
     
@@ -830,6 +992,14 @@ int lv_plugin_send_event(lvPlugin* plugin, lvPluginEventType type, void* data, s
     return 0;
 }
 
+/**
+ * @brief 向系统中所有已加载的插件广播事件
+ * @param system 插件系统指针
+ * @param type 事件类型
+ * @param data 事件数据
+ * @param data_size 数据大小
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_broadcast_event(lvPluginSystem* system, lvPluginEventType type, void* data, size_t data_size) {
     if (!system) return -1;
     
@@ -853,6 +1023,11 @@ int lv_plugin_broadcast_event(lvPluginSystem* system, lvPluginEventType type, vo
     return 0;
 }
 
+/**
+ * @brief 设置插件系统的事件处理器
+ * @param system 插件系统指针
+ * @param handler 事件处理回调函数
+ */
 void lv_plugin_set_event_handler(lvPluginSystem* system, void (*handler)(lvPluginSystem*, const lvPluginEvent*)) {
     if (system) {
         system->event_handler = handler;
@@ -861,6 +1036,12 @@ void lv_plugin_set_event_handler(lvPluginSystem* system, void (*handler)(lvPlugi
 
 /* ============ 依赖管理 ============ */
 
+/**
+ * @brief 解析并激活指定插件的所有依赖
+ * @param system 插件系统指针
+ * @param plugin 待解析依赖的插件指针
+ * @return 成功返回 0，缺失必需依赖时返回 -1
+ */
 int lv_plugin_resolve_dependencies(lvPluginSystem* system, lvPlugin* plugin) {
     if (!system || !plugin) return -1;
     if (!plugin->info.dependencies && plugin->info.dependency_count > 0) return -1;
@@ -899,6 +1080,11 @@ int lv_plugin_resolve_dependencies(lvPluginSystem* system, lvPlugin* plugin) {
     return 0;
 }
 
+/**
+ * @brief 检查插件是否包含非可选的必需依赖
+ * @param plugin 插件指针
+ * @return 有非可选依赖返回 0，无非可选依赖返回 1，出错返回 -1
+ */
 int lv_plugin_check_dependencies(const lvPlugin* plugin) {
     if (!plugin) return -1;
     if (!plugin->info.dependencies && plugin->info.dependency_count > 0) return -1;
@@ -912,6 +1098,13 @@ int lv_plugin_check_dependencies(const lvPlugin* plugin) {
     return 1; /* 没有非可选依赖 */
 }
 
+/**
+ * @brief 获取所有依赖指定插件的插件列表
+ * @param system 插件系统指针
+ * @param plugin 被依赖的插件指针
+ * @param count 输出参数，依赖者数量
+ * @return 成功返回依赖者数组（需调用者释放），失败返回 NULL
+ */
 lvPlugin** lv_plugin_get_dependents(lvPluginSystem* system, const lvPlugin* plugin, size_t* count) {
     if (!system || !plugin || !count) return NULL;
     
@@ -957,6 +1150,12 @@ lvPlugin** lv_plugin_get_dependents(lvPluginSystem* system, const lvPlugin* plug
 
 /* ============ 搜索路径管理 ============ */
 
+/**
+ * @brief 添加插件搜索路径
+ * @param system 插件系统指针
+ * @param path 搜索路径
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_system_add_search_path(lvPluginSystem* system, const char* path) {
     if (!system || !path) return -1;
     if (!system->search_paths) return -1;
@@ -983,6 +1182,12 @@ int lv_plugin_system_add_search_path(lvPluginSystem* system, const char* path) {
     return 0;
 }
 
+/**
+ * @brief 移除插件搜索路径
+ * @param system 插件系统指针
+ * @param path 待移除的搜索路径
+ * @return 成功返回 0，未找到返回 -1
+ */
 int lv_plugin_system_remove_search_path(lvPluginSystem* system, const char* path) {
     if (!system || !path) return -1;
     if (!system->search_paths) return -1;
@@ -998,6 +1203,12 @@ int lv_plugin_system_remove_search_path(lvPluginSystem* system, const char* path
     return -1;
 }
 
+/**
+ * @brief 获取所有已注册的搜索路径
+ * @param system 插件系统指针
+ * @param count 输出参数，路径数量
+ * @return 返回搜索路径数组
+ */
 char** lv_plugin_system_get_search_paths(lvPluginSystem* system, size_t* count) {
     if (!system || !count) return NULL;
     
@@ -1007,6 +1218,12 @@ char** lv_plugin_system_get_search_paths(lvPluginSystem* system, size_t* count) 
 
 /* ============ 自动加载 ============ */
 
+/**
+ * @brief 从指定目录自动扫描并加载插件
+ * @param system 插件系统指针
+ * @param directory 待扫描的目录路径
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_system_autoload(lvPluginSystem* system, const char* directory) {
     if (!system || !directory) return -1;
 
@@ -1110,6 +1327,11 @@ int lv_plugin_system_autoload(lvPluginSystem* system, const char* directory) {
     return 0;
 }
 
+/**
+ * @brief 自动加载所有搜索路径下的插件
+ * @param system 插件系统指针
+ * @return 成功返回 0，失败返回 -1
+ */
 int lv_plugin_system_autoload_all(lvPluginSystem* system) {
     if (!system) return -1;
     
@@ -1127,13 +1349,19 @@ int lv_plugin_system_autoload_all(lvPluginSystem* system) {
 #define lv_PLUGIN_VERSION_OK       1
 #define lv_PLUGIN_VERSION_MISMATCH 0
 
-/* 解析语义版本字符串 "major.minor.patch" */
+/* 解析语义版本字符串 "major.minor.patch"，返回 sscanf 匹配项数 */
 static int parse_semver(const char* ver_str, int* major, int* minor, int* patch) {
     if (!ver_str) return -1;
     *major = *minor = *patch = 0;
     return sscanf(ver_str, "%d.%d.%d", major, minor, patch);
 }
 
+/**
+ * @brief 检查版本号是否满足要求（语义版本比较）
+ * @param required 要求的版本字符串
+ * @param provided 提供的版本字符串
+ * @return 兼容返回 lv_PLUGIN_VERSION_OK (1)，不兼容返回 lv_PLUGIN_VERSION_MISMATCH (0)
+ */
 int lv_plugin_check_version(const char* required, const char* provided) {
     if (!required || !provided) return lv_PLUGIN_VERSION_MISMATCH;
 
@@ -1163,12 +1391,23 @@ int lv_plugin_check_version(const char* required, const char* provided) {
     return lv_PLUGIN_VERSION_MISMATCH;
 }
 
+/**
+ * @brief 检查 API 版本兼容性（provided >= required）
+ * @param required 要求的 API 版本
+ * @param provided 提供的 API 版本
+ * @return 兼容返回 1，不兼容返回 0
+ */
 int lv_plugin_check_api_compatibility(uint32_t required, uint32_t provided) {
     return provided >= required;
 }
 
 /* ============ 插件信息 ============ */
 
+/**
+ * @brief 获取插件信息的 JSON 字符串
+ * @param plugin 插件指针
+ * @return 成功返回 JSON 字符串（需调用者释放），失败返回 NULL
+ */
 char* lv_plugin_get_info_json(const lvPlugin* plugin) {
     if (!plugin) return NULL;
     
@@ -1196,6 +1435,11 @@ char* lv_plugin_get_info_json(const lvPlugin* plugin) {
     return json;
 }
 
+/**
+ * @brief 获取插件系统完整信息的 JSON 字符串
+ * @param system 插件系统指针
+ * @return 成功返回 JSON 字符串（需调用者释放），失败返回 NULL
+ */
 char* lv_plugin_system_get_info_json(const lvPluginSystem* system) {
     if (!system) return NULL;
 
@@ -1242,6 +1486,11 @@ char* lv_plugin_system_get_info_json(const lvPluginSystem* system) {
 
 /* ============ 错误处理 ============ */
 
+/**
+ * @brief 获取指定插件最近一次的错误消息
+ * @param plugin 插件指针
+ * @return 错误字符串，无错误返回空字符串
+ */
 const char* lv_plugin_get_last_error(const lvPlugin* plugin) {
     if (!plugin || !plugin->context) return NULL;
     if (!plugin->context->system) return NULL;
@@ -1251,6 +1500,11 @@ const char* lv_plugin_get_last_error(const lvPlugin* plugin) {
     return internal->last_error;
 }
 
+/**
+ * @brief 获取插件系统的最近一次错误消息
+ * @param system 插件系统指针
+ * @return 错误字符串，无错误返回空字符串
+ */
 const char* lv_plugin_system_get_last_error(const lvPluginSystem* system) {
     if (!system) return NULL;
     
@@ -1258,6 +1512,10 @@ const char* lv_plugin_system_get_last_error(const lvPluginSystem* system) {
     return internal->last_error;
 }
 
+/**
+ * @brief 清除指定插件的错误消息
+ * @param plugin 插件指针
+ */
 void lv_plugin_clear_error(lvPlugin* plugin) {
     if (!plugin || !plugin->context) return;
     if (!plugin->context->system) return;
@@ -1267,6 +1525,10 @@ void lv_plugin_clear_error(lvPlugin* plugin) {
     internal->last_error[0] = '\0';
 }
 
+/**
+ * @brief 清除插件系统的错误消息
+ * @param system 插件系统指针
+ */
 void lv_plugin_system_clear_error(lvPluginSystem* system) {
     if (!system) return;
     

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_core.c
  * @brief CDCL SAT 求解器核心实现 —— 借鉴 CaDiCaL 的 CDCL 极简内核
  *
@@ -21,26 +21,9 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv.h"
 #include "lv/constraint_graph.h"
 #include "lv/groebner_parallel.h"
-
-/** CDCL 求解器最大决策次数默认值 */
-#define CDCL_MAX_DECISIONS_DEFAULT     1000
-/** CDCL 求解器主循环最大步数默认值 */
-#define CDCL_MAX_STEPS_DEFAULT         1000
-/** CDCL 求解器最大重启次数默认值 */
-#define CDCL_MAX_RESTARTS_DEFAULT      10
-
-/** 从环境变量或配置读取整数值，若未设置则返回默认值 */
-static int cdcl_get_int_config(const char *env_name, int default_val) {
-    const char *val = getenv(env_name);
-    if (val) {
-        char *endptr;
-        long n = strtol(val, &endptr, 10);
-        if (endptr != val && n > 0 && n <= INT_MAX) return (int)n;
-    }
-    return default_val;
-}
 
 /* ========================================================================
  * 内部常量
@@ -971,8 +954,7 @@ static CDCLState cdcl_step_decide(CDCLContext *ctx) {
     if (all_assigned) return CDCL_SATISFIED;
 
     /* 资源耗尽检查 */
-    int max_decisions = cdcl_get_int_config("lv_CDCL_MAX_DECISIONS",
-                                             CDCL_MAX_DECISIONS_DEFAULT);
+    int max_decisions = lv_config_get_int("cdcl_max_decisions", 1000);
     if (ctx->decisions > max_decisions) {
         return CDCL_IDLE;
     }
@@ -1052,8 +1034,7 @@ static CDCLState cdcl_run(lvSolver *solver) {
         ctx->state = CDCL_PROPAGATING;
     }
 
-    int max_steps = cdcl_get_int_config("lv_CDCL_MAX_STEPS",
-                                          CDCL_MAX_STEPS_DEFAULT);
+    int max_steps = lv_config_get_int("cdcl_max_steps", 1000);
     int step = 0;
 
     while (step < max_steps) {
@@ -1092,8 +1073,7 @@ static CDCLState cdcl_run(lvSolver *solver) {
                 ctx->state = cdcl_step_learn(ctx);
                 /* 检查是否需要重启 */
                 if (ctx->state == CDCL_DECIDING && solver->config.enable_restarts) {
-                    int max_restarts = cdcl_get_int_config("lv_CDCL_MAX_RESTARTS",
-                                                            CDCL_MAX_RESTARTS_DEFAULT);
+                    int max_restarts = lv_config_get_int("cdcl_max_restarts", 10);
                     if (ctx->restarts < max_restarts &&
                         ctx->conflicts > 0 &&
                         ctx->conflicts % (int64_t)solver->config.restart_interval == 0) {

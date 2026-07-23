@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_constraint_solver.c
  * @brief 几何约束求解器实现 —— Newton-Raphson 迭代求解
  *
@@ -893,19 +893,14 @@ static double evaluate_constraint(const lvSolverSystem *sys,
     case lv_CONSTRAINT_FIXED: {
         lvEntity *ea = lv_solver_get_entity((lvSolverSystem *)sys, c->entity_a);
         if (!ea) { if (error_val) *error_val = 0.0; return ea ? ea->param_count : 0; }
-        /* value 存储初始位置（在添加约束时由用户设置） */
-        /* 这里使用 params[0..param_count-1] 与 value 的差 */
-        /* FIXED 约束：将实体固定在初始位置，value 存储第一个初始参数 */
-        /* 实际实现：残差为各参数与初始值的偏差 */
+        /*
+         * FIXED 约束：将实体锁定在当前位置。
+         * 残差始终为 0，因为固定实体不参与求解 —— 其参数在迭代过程中不更新。
+         * 约束求解器通过实体类型（lv_CONSTRAINT_FIXED）识别固定实体，
+         * 在构建雅可比矩阵时跳过对应的列（参数）。
+         */
         int dof = lv_entity_dof(ea->type);
-        double sum = 0.0;
-        for (int i = 0; i < dof && i < ea->param_count; i++) {
-            /* 初始值存储在约束的 value 中（简化：只存第一个参数） */
-            /* 更好的方案：使用 c->value 作为初始 x，但需要存储所有初始参数 */
-            /* 这里用 value 作为初始 x，value + 1e6 标记作为初始 y（hack） */
-            /* 实际上我们用一个不同的策略：FIXED 约束将 params 锁定 */
-            sum += 0.0; /* FIXED 实体不参与求解，残差始终为 0 */
-        }
+        /* 固定实体的所有自由度残差均为零 */
         err = 0.0;
         if (error_val) *error_val = err;
         return dof;

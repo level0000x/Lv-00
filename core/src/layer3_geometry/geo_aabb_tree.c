@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_aabb_tree.c
  * @brief AABB 树空间索引的完整 C 实现
  *
@@ -416,6 +416,8 @@ static int aabb_node_alloc(lvAABBTree2D *tree)
 
 /**
  * @brief 为 3D 树分配一个新节点，返回节点索引
+ *
+ * 内部复用 lvAABBNode 结构，扩容策略与 2D 版本一致（2 倍扩容）。
  */
 static int aabb3d_node_alloc(lvAABBTree3D *tree)
 {
@@ -589,15 +591,15 @@ static int aabb2d_build_recursive(lvAABBTree2D *tree,
         return node_idx;
     }
 
-    /* 选择分裂轴：选择跨度最大的轴 */
+    /* 选择分裂轴：跨度最大的轴——跨度越大意味着潜在重叠区域更小，树更平衡 */
     double span_x = node_bbox.xmax - node_bbox.xmin;
     double span_y = node_bbox.ymax - node_bbox.ymin;
     int split_axis = (span_x >= span_y) ? 0 : 1;
 
-    /* 按分裂轴排序 */
+    /* 按分裂轴对几何体中心坐标排序，使中位数两侧的几何体在空间上分离 */
     sort_primitives_2d(tree, prim_indices, count, split_axis);
 
-    /* 中位数分裂 */
+    /* 中位数分裂：取排序后中间位置，将几何体均分为左右两组，保证树平衡 */
     int mid = count / 2;
 
     /* 递归构建左右子树 */
@@ -623,6 +625,15 @@ static int aabb2d_build_recursive(lvAABBTree2D *tree,
 
 /**
  * @brief 递归构建 3D AABB 树（自顶向下中位数分裂）
+ *
+ * 沿跨度最大的轴将几何体按中心坐标排序后对半分割，
+ * 递归构建左右子树，最终形成平衡二叉树。
+ *
+ * @param tree        AABB 树
+ * @param prim_indices 几何体索引数组（会被重排）
+ * @param count       当前子集的几何体数量
+ * @param depth       当前递归深度
+ * @return 新创建的节点索引
  */
 static int aabb3d_build_recursive(lvAABBTree3D *tree,
                                    int *prim_indices, int count, int depth)
@@ -630,7 +641,7 @@ static int aabb3d_build_recursive(lvAABBTree3D *tree,
     int node_idx = aabb3d_node_alloc(tree);
     if (node_idx == AABB_INVALID_NODE) return AABB_INVALID_NODE;
 
-    /* 计算当前子集的包围盒 */
+    /* 计算当前子集所有几何体的联合包围盒，存为该节点的 bbox */
     lvAABB3D node_bbox = lv_aabb3d_empty();
     for (int i = 0; i < count; i++) {
         node_bbox = lv_aabb3d_merge(node_bbox,
@@ -638,7 +649,7 @@ static int aabb3d_build_recursive(lvAABBTree3D *tree,
     }
     tree->nodes[node_idx].bbox = node_bbox;
 
-    /* 终止条件 */
+    /* 终止条件：几何体足够少或已达最大深度，停止分裂成为叶子节点 */
     if (count <= tree->config.max_leaf_size || depth >= tree->config.max_depth) {
         tree->nodes[node_idx].primitive_id = prim_indices[0];
         tree->nodes[node_idx].left  = AABB_INVALID_NODE;
@@ -647,7 +658,7 @@ static int aabb3d_build_recursive(lvAABBTree3D *tree,
         return node_idx;
     }
 
-    /* 选择分裂轴：选择跨度最大的轴 */
+    /* 选择分裂轴：跨度最大的轴有助于减少子树包围盒之间的重叠 */
     double span_x = node_bbox.xmax - node_bbox.xmin;
     double span_y = node_bbox.ymax - node_bbox.ymin;
     double span_z = node_bbox.zmax - node_bbox.zmin;
@@ -655,10 +666,10 @@ static int aabb3d_build_recursive(lvAABBTree3D *tree,
     if (span_y >= span_x && span_y >= span_z) split_axis = 1;
     else if (span_z >= span_x && span_z >= span_y) split_axis = 2;
 
-    /* 按分裂轴排序 */
+    /* 沿分裂轴按中心坐标排序，使相近的几何体在数组中相邻 */
     sort_primitives_3d(tree, prim_indices, count, split_axis);
 
-    /* 中位数分裂 */
+    /* 中位数分裂：将排序后的数组从中间切分，构建平衡树 */
     int mid = count / 2;
 
     /* 递归构建左右子树 */
@@ -670,6 +681,7 @@ static int aabb3d_build_recursive(lvAABBTree3D *tree,
     tree->nodes[node_idx].right = right_idx;
     tree->nodes[node_idx].primitive_id = AABB_INVALID_NODE;
 
+    /* 高度 = max(左子树高度, 右子树高度) + 1，用于树深度统计 */
     int lh = (left_idx != AABB_INVALID_NODE)  ? tree->nodes[left_idx].height  : 0;
     int rh = (right_idx != AABB_INVALID_NODE) ? tree->nodes[right_idx].height : 0;
     tree->nodes[node_idx].height = ((lh > rh) ? lh : rh) + 1;
@@ -696,18 +708,18 @@ static int aabb3d_build_recursive(lvAABBTree3D *tree,
 static bool aabb2d_ray_intersect(lvAABB2D bb, lvAABBRay2D ray,
                                   double tmin, double tmax)
 {
-    /* X 轴 slab */
+    /* X 轴 slab：计算射线与 x=xmin 和 x=xmax 两平面的交点参数，
+     * 取进入参数的较大者（tmin）和退出参数的较小者（tmax）以缩小区间 */
     if (fabs(ray.dx) < DBL_EPSILON) {
-        /* 射线平行于 X 轴平面 */
         if (ray.ox < bb.xmin || ray.ox > bb.xmax) return false;
     } else {
         double inv_d = 1.0 / ray.dx;
         double t1 = (bb.xmin - ray.ox) * inv_d;
         double t2 = (bb.xmax - ray.ox) * inv_d;
         if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
-        if (t1 > tmin) tmin = t1;
-        if (t2 < tmax) tmax = t2;
-        if (tmin > tmax) return false;
+        if (t1 > tmin) tmin = t1;  /* 取各轴进入参数的最大值 */
+        if (t2 < tmax) tmax = t2;  /* 取各轴退出参数的最小值 */
+        if (tmin > tmax) return false;  /* 区间已空 */
     }
 
     /* Y 轴 slab */
@@ -728,21 +740,32 @@ static bool aabb2d_ray_intersect(lvAABB2D bb, lvAABBRay2D ray,
 
 /**
  * @brief 3D 射线与 AABB 相交检测（Slab Method）
+ *
+ * Slab method 将 AABB 视为三组平行平面围成的区域，对每组平面计算
+ * 射线的进入参数 t1 和退出参数 t2，通过逐轴取交集（tmin = max, tmax = min）
+ * 得到射线在 AABB 内的整体区间。若最终 tmin > tmax 则不相交。
+ *
+ * @param bb    包围盒
+ * @param ray   射线
+ * @param tmin  射线参数下界（会被收窄）
+ * @param tmax  射线参数上界（会被收窄）
+ * @return 射线在 [tmin, tmax] 范围内是否与 bb 相交
  */
 static bool aabb3d_ray_intersect(lvAABB3D bb, lvAABBRay3D ray,
                                   double tmin, double tmax)
 {
-    /* X 轴 slab */
+    /* X 轴 slab：计算射线与 x=xmin 和 x=xmax 两平面的交点参数 */
     if (fabs(ray.dx) < DBL_EPSILON) {
+        /* 射线平行于 X 轴平面：仅当射线起点在 slab 内才可能相交 */
         if (ray.ox < bb.xmin || ray.ox > bb.xmax) return false;
     } else {
         double inv_d = 1.0 / ray.dx;
         double t1 = (bb.xmin - ray.ox) * inv_d;
         double t2 = (bb.xmax - ray.ox) * inv_d;
         if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
-        if (t1 > tmin) tmin = t1;
-        if (t2 < tmax) tmax = t2;
-        if (tmin > tmax) return false;
+        if (t1 > tmin) tmin = t1;  /* 取各轴进入参数的最大值 */
+        if (t2 < tmax) tmax = t2;  /* 取各轴退出参数的最小值 */
+        if (tmin > tmax) return false;  /* 区间已空，提前退出 */
     }
 
     /* Y 轴 slab */
@@ -781,13 +804,14 @@ static bool aabb3d_ray_intersect(lvAABB3D bb, lvAABBRay3D ray,
 /**
  * @brief 计算 2D 点到 AABB 的最近距离平方
  *
- * 如果点在 AABB 内部，返回 0。
- * 否则返回各轴上最近距离的平方和。
+ * 若点在 AABB 内部则距离为 0；否则取各轴上点到最近边界的距离。
+ * 使用平方距离避免不必要的开方。
  */
 static double aabb2d_point_distance_sq(lvAABB2D bb, double px, double py)
 {
     double dx = 0.0, dy = 0.0;
 
+    /* 将点"夹持"到 AABB 的最近边界上，差值即为该轴上的距离分量 */
     if (px < bb.xmin)      dx = bb.xmin - px;
     else if (px > bb.xmax) dx = px - bb.xmax;
 
@@ -799,6 +823,8 @@ static double aabb2d_point_distance_sq(lvAABB2D bb, double px, double py)
 
 /**
  * @brief 计算 3D 点到 AABB 的最近距离平方
+ *
+ * 对每条轴独立计算点到边界的距离，原理与 2D 版本相同。
  */
 static double aabb3d_point_distance_sq(lvAABB3D bb, double px, double py,
                                         double pz)
@@ -819,6 +845,9 @@ static double aabb3d_point_distance_sq(lvAABB3D bb, double px, double py,
 
 /**
  * @brief 计算 2D 点到 AABB 的最近距离
+ *
+ * 对平方距离开方得到欧几里得距离。调用方需要真实距离时使用，
+ * 仅用于比较时请使用 _distance_sq 版本以避免开方开销。
  */
 static double aabb2d_point_distance(lvAABB2D bb, double px, double py)
 {
@@ -843,6 +872,7 @@ static double aabb3d_point_distance(lvAABB3D bb, double px, double py,
  */
 static lvAABBPoint2D aabb2d_closest_point(lvAABB2D bb, double px, double py)
 {
+    /* 将点"夹持"到 AABB 边界上：小于下界取边界最小值，大于上界取边界最大值 */
     lvAABBPoint2D cp;
     cp.x = (px < bb.xmin) ? bb.xmin : (px > bb.xmax) ? bb.xmax : px;
     cp.y = (py < bb.ymin) ? bb.ymin : (py > bb.ymax) ? bb.ymax : py;
@@ -851,6 +881,8 @@ static lvAABBPoint2D aabb2d_closest_point(lvAABB2D bb, double px, double py)
 
 /**
  * @brief 计算 3D 点到 3D AABB 的最近点坐标
+ *
+ * 原理与 2D 版本相同：点在各轴上被夹持到最近的 AABB 边界。
  */
 static lvAABBPoint3D aabb3d_closest_point(lvAABB3D bb, double px,
                                               double py, double pz)
@@ -888,19 +920,18 @@ static void aabb2d_ray_recursive(const lvAABBTree2D *tree, int node_idx,
 
         const lvAABB2D *prim_bb = &tree->primitives[node->primitive_id];
         if (aabb2d_ray_intersect(*prim_bb, ray, tmin, tmax)) {
-            /* 计算精确的 t 值 */
-            double t_enter = tmin;
-            /* 重新计算精确 t 值 */
+            /* 用 slab method 重新计算精确的相交参数 t0（进入点），
+             * 因为外层 aabb2d_ray_intersect 只能判断是否相交，不返回 t 值 */
             double t0 = 0.0, t1 = DBL_MAX;
 
-            /* X slab */
+            /* X slab：计算射线进入/退出 X 区间时的参数 */
             if (fabs(ray.dx) > DBL_EPSILON) {
                 double inv_d = 1.0 / ray.dx;
                 double tx1 = (prim_bb->xmin - ray.ox) * inv_d;
                 double tx2 = (prim_bb->xmax - ray.ox) * inv_d;
                 if (tx1 > tx2) { double tmp = tx1; tx1 = tx2; tx2 = tmp; }
-                if (tx1 > t0) t0 = tx1;
-                if (tx2 < t1) t1 = tx2;
+                if (tx1 > t0) t0 = tx1;  /* 各轴进入参数取最大 */
+                if (tx2 < t1) t1 = tx2;  /* 各轴退出参数取最小 */
             } else {
                 if (ray.ox < prim_bb->xmin || ray.ox > prim_bb->xmax) return;
             }
@@ -917,6 +948,7 @@ static void aabb2d_ray_recursive(const lvAABBTree2D *tree, int node_idx,
                 if (ray.oy < prim_bb->ymin || ray.oy > prim_bb->ymax) return;
             }
 
+            /* 有效区间且 t0 小于已知最佳命中时更新结果 */
             if (t0 <= t1 && t0 >= 0.0 && t0 < best->t) {
                 best->hit = true;
                 best->t = t0;
@@ -934,15 +966,19 @@ static void aabb2d_ray_recursive(const lvAABBTree2D *tree, int node_idx,
     node_bb2d.xmax = node->bbox.xmax;
     node_bb2d.ymax = node->bbox.ymax;
 
+    /* 内部节点：射线与节点 AABB 不相交则跳过整个子树 */
     if (!aabb2d_ray_intersect(node_bb2d, ray, tmin, tmax)) return;
 
-    /* 递归遍历子树 */
+    /* 递归遍历左右子树 */
     aabb2d_ray_recursive(tree, node->left,  ray, tmin, tmax, best);
     aabb2d_ray_recursive(tree, node->right, ray, tmin, tmax, best);
 }
 
 /**
  * @brief 3D 射线递归查询
+ *
+ * 先检测节点 AABB 与射线的相交性进行剪枝，叶子节点则进一步
+ * 计算精确的相交参数 t，保存最近（t 最小）的命中。
  */
 static void aabb3d_ray_recursive(const lvAABBTree3D *tree, int node_idx,
                                   lvAABBRay3D ray,
@@ -950,16 +986,18 @@ static void aabb3d_ray_recursive(const lvAABBTree3D *tree, int node_idx,
                                   lvAABBRayHit *best)
 {
     if (node_idx == AABB_INVALID_NODE) return;
+    /* 剪枝：当前 tmin 已超过已知最佳命中，后续 slab 只会使 tmin 更大 */
     if (tmin > best->t) return;
 
     const lvAABBNode *node = &tree->nodes[node_idx];
 
-    /* 叶子节点 */
+    /* 叶子节点：进行精确的射线-几何体相交检测 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
 
         const lvAABB3D *prim_bb = &tree->primitives[node->primitive_id];
         if (aabb3d_ray_intersect(*prim_bb, ray, tmin, tmax)) {
+            /* 用 slab method 重新计算精确的相交参数 t0 */
             double t0 = 0.0, t1 = DBL_MAX;
 
             /* X slab */
@@ -968,8 +1006,8 @@ static void aabb3d_ray_recursive(const lvAABBTree3D *tree, int node_idx,
                 double tx1 = (prim_bb->xmin - ray.ox) * inv_d;
                 double tx2 = (prim_bb->xmax - ray.ox) * inv_d;
                 if (tx1 > tx2) { double tmp = tx1; tx1 = tx2; tx2 = tmp; }
-                if (tx1 > t0) t0 = tx1;
-                if (tx2 < t1) t1 = tx2;
+                if (tx1 > t0) t0 = tx1;  /* 各轴进入参数取最大 */
+                if (tx2 < t1) t1 = tx2;  /* 各轴退出参数取最小 */
             } else {
                 if (ray.ox < prim_bb->xmin || ray.ox > prim_bb->xmax) return;
             }
@@ -998,6 +1036,7 @@ static void aabb3d_ray_recursive(const lvAABBTree3D *tree, int node_idx,
                 if (ray.oz < prim_bb->zmin || ray.oz > prim_bb->zmax) return;
             }
 
+            /* 有效区间且 t0 < best->t 时更新 */
             if (t0 <= t1 && t0 >= 0.0 && t0 < best->t) {
                 best->hit = true;
                 best->t = t0;
@@ -1007,7 +1046,7 @@ static void aabb3d_ray_recursive(const lvAABBTree3D *tree, int node_idx,
         return;
     }
 
-    /* 内部节点 */
+    /* 内部节点：检测节点 AABB 与射线的相交性，不相交则跳过子树 */
     if (!aabb3d_ray_intersect(node->bbox, ray, tmin, tmax)) return;
 
     aabb3d_ray_recursive(tree, node->left,  ray, tmin, tmax, best);
@@ -1070,7 +1109,7 @@ static void aabb2d_nearest_recursive(const lvAABBTree2D *tree, int node_idx,
         return;
     }
 
-    /* 内部节点：优先遍历更近的子树 */
+    /* 内部节点：优先遍历距离更近的子树，使 best->distance 尽快收敛 */
     int first  = node->left;
     int second = node->right;
 
@@ -1097,7 +1136,10 @@ static void aabb2d_nearest_recursive(const lvAABBTree2D *tree, int node_idx,
 }
 
 /**
- * @brief 3D 最近邻递归查询
+ * @brief 3D 最近邻递归查询（线性搜索 + AABB 距离剪枝）
+ *
+ * 计算查询点到节点 AABB 的最近距离进行剪枝，
+ * 内部节点优先遍历距离更近的子树以提高剪枝效率。
  */
 static void aabb3d_nearest_recursive(const lvAABBTree3D *tree, int node_idx,
                                       double px, double py, double pz,
@@ -1107,11 +1149,11 @@ static void aabb3d_nearest_recursive(const lvAABBTree3D *tree, int node_idx,
 
     const lvAABBNode *node = &tree->nodes[node_idx];
 
-    /* 剪枝 */
+    /* 剪枝：如果点到节点 AABB 的距离已经 ≥ 已知最近距离，无需进入该子树 */
     double dist_to_node = aabb3d_point_distance(node->bbox, px, py, pz);
     if (dist_to_node > best->distance) return;
 
-    /* 叶子节点 */
+    /* 叶子节点：计算点到所有包含的几何体的精确距离 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
 
@@ -1132,7 +1174,7 @@ static void aabb3d_nearest_recursive(const lvAABBTree3D *tree, int node_idx,
         return;
     }
 
-    /* 内部节点：优先遍历更近的子树 */
+    /* 内部节点：优先遍历距离更近的子树，使 best->distance 尽快减小以增强剪枝 */
     int first  = node->left;
     int second = node->right;
 
@@ -1155,7 +1197,9 @@ static void aabb3d_nearest_recursive(const lvAABBTree3D *tree, int node_idx,
  * ----------------------------------------------------------------------- */
 
 /**
- * @brief 向查询结果中添加一个 ID
+ * @brief 向查询结果中添加一个 ID（自动扩容）
+ *
+ * 使用 2 倍扩容策略，初始容量为 16。
  */
 static void result_push_back(lvAABBQueryResult *result, int id)
 {
@@ -1174,6 +1218,9 @@ static void result_push_back(lvAABBQueryResult *result, int id)
 
 /**
  * @brief 2D 范围查询递归
+ *
+ * 遍历树节点，通过节点 AABB 与查询框的相交检测进行剪枝，
+ * 仅深入有可能包含结果的子树。
  */
 static void aabb2d_range_recursive(const lvAABBTree2D *tree, int node_idx,
                                     lvAABB2D query,
@@ -1190,10 +1237,10 @@ static void aabb2d_range_recursive(const lvAABBTree2D *tree, int node_idx,
     node_bb2d.xmax = node->bbox.xmax;
     node_bb2d.ymax = node->bbox.ymax;
 
-    /* 剪枝：节点 AABB 与查询 AABB 不相交则跳过 */
+    /* 剪枝：节点 AABB 与查询 AABB 不相交则跳过整个子树 */
     if (!lv_aabb2d_intersects(node_bb2d, query)) return;
 
-    /* 叶子节点 */
+    /* 叶子节点：检测几何体 AABB 是否与查询框相交 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
         if (lv_aabb2d_intersects(tree->primitives[node->primitive_id],
@@ -1203,13 +1250,15 @@ static void aabb2d_range_recursive(const lvAABBTree2D *tree, int node_idx,
         return;
     }
 
-    /* 递归遍历子树 */
+    /* 内部节点：递归遍历左右子树 */
     aabb2d_range_recursive(tree, node->left,  query, result);
     aabb2d_range_recursive(tree, node->right, query, result);
 }
 
 /**
  * @brief 3D 范围查询递归
+ *
+ * 原理与 2D 版本相同，使用 3D AABB 相交检测进行剪枝。
  */
 static void aabb3d_range_recursive(const lvAABBTree3D *tree, int node_idx,
                                     lvAABB3D query,
@@ -1219,10 +1268,10 @@ static void aabb3d_range_recursive(const lvAABBTree3D *tree, int node_idx,
 
     const lvAABBNode *node = &tree->nodes[node_idx];
 
-    /* 剪枝 */
+    /* 剪枝：节点 AABB 与查询框不相交则跳过 */
     if (!lv_aabb3d_intersects(node->bbox, query)) return;
 
-    /* 叶子节点 */
+    /* 叶子节点：精确检测几何体与查询框的相交性 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
         if (lv_aabb3d_intersects(tree->primitives[node->primitive_id],
@@ -1243,6 +1292,9 @@ static void aabb3d_range_recursive(const lvAABBTree3D *tree, int node_idx,
 
 /**
  * @brief 2D 点查询递归
+ *
+ * 通过检测点是否在节点 AABB 内进行剪枝，
+ * 仅进入可能包含该点的子树。
  */
 static void aabb2d_point_recursive(const lvAABBTree2D *tree, int node_idx,
                                     double px, double py,
@@ -1259,10 +1311,10 @@ static void aabb2d_point_recursive(const lvAABBTree2D *tree, int node_idx,
     node_bb2d.xmax = node->bbox.xmax;
     node_bb2d.ymax = node->bbox.ymax;
 
-    /* 剪枝：点不在节点 AABB 内 */
+    /* 剪枝：点不在节点 AABB 内则跳过整个子树 */
     if (!lv_aabb2d_contains(node_bb2d, px, py)) return;
 
-    /* 叶子节点 */
+    /* 叶子节点：检测几何体是否包含该点 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
         if (lv_aabb2d_contains(tree->primitives[node->primitive_id],
@@ -1279,6 +1331,8 @@ static void aabb2d_point_recursive(const lvAABBTree2D *tree, int node_idx,
 
 /**
  * @brief 3D 点查询递归
+ *
+ * 原理与 2D 版本相同，使用 3D 点包含检测进行剪枝。
  */
 static void aabb3d_point_recursive(const lvAABBTree3D *tree, int node_idx,
                                     double px, double py, double pz,
@@ -1288,10 +1342,10 @@ static void aabb3d_point_recursive(const lvAABBTree3D *tree, int node_idx,
 
     const lvAABBNode *node = &tree->nodes[node_idx];
 
-    /* 剪枝 */
+    /* 剪枝：点不在节点 AABB 内则跳过 */
     if (!lv_aabb3d_contains(node->bbox, px, py, pz)) return;
 
-    /* 叶子节点 */
+    /* 叶子节点：精确检测几何体是否包含该点 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
         if (node->primitive_id == AABB_INVALID_NODE) return;
         if (lv_aabb3d_contains(tree->primitives[node->primitive_id],
@@ -1312,6 +1366,9 @@ static void aabb3d_point_recursive(const lvAABBTree3D *tree, int node_idx,
 
 /**
  * @brief 递归计算树深度
+ *
+ * 利用节点预存的 height 字段直接返回（O(1) 复杂度），
+ * height 在建树时已从子节点递推得到。
  */
 static int aabb_tree_depth(const lvAABBNode *nodes, int root)
 {
@@ -1321,6 +1378,8 @@ static int aabb_tree_depth(const lvAABBNode *nodes, int root)
 
 /**
  * @brief 递归计算叶子节点数量
+ *
+ * 遍历树结构，统计没有子节点的节点数（O(N) 复杂度）。
  */
 static int aabb_tree_leaf_count(const lvAABBNode *nodes, int root)
 {

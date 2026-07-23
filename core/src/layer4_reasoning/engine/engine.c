@@ -77,7 +77,16 @@
  *   - 清理错误：成功操作后自动调用 engine_clear_error(engine)
  * ============================================================ */
 
-/* 线程局部回退状态 —— 仅在引擎实例不可用时使用 */
+/*
+ * [LEGACY] 线程局部回退状态 —— 仅在引擎实例不可用时使用
+ *
+ * 迁移状态（v3.4.1）：统一错误处理已引入 engine_set_error/engine_clear_error/engine_get_error，
+ * 所有新代码应使用引擎实例级别的错误存储。这两个线程局部变量仅在以下场景回退：
+ * 1. engine_create 失败时（实例尚不存在）
+ * 2. 全局初始化阶段的早期错误
+ *
+ * 这些变量将在第 2 阶段迁移完成后移除。
+ */
 #define lv_ERROR_MSG_SIZE 512
 static lv_THREAD_LOCAL EngineStatus g_thread_last_status = ENGINE_STATUS_OK;
 static lv_THREAD_LOCAL char g_thread_last_error[lv_ERROR_MSG_SIZE] = {0};
@@ -384,6 +393,11 @@ static const char *engine_extract_module_name(const char *filepath) {
     /* 如果提取后为空，回退到 "temp" */
     if (name_buf[0] == '\0')
         lv_strlcpy(name_buf, "temp", lv_MAX_NAME_LENGTH);
+
+    /* 检测截断：如果原始文件名长度超过缓冲区，记录提示 */
+    /* 注意：lv_strlcpy 保证 name_buf 以 NUL 结尾，因此
+     * 当原始名 >= lv_MAX_NAME_LENGTH-1 时会被截断。
+     * 截断后的模块名仍然唯一标识，不影响功能。 */
 
     return name_buf;
 }

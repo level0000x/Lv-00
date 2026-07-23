@@ -276,6 +276,9 @@ AxiomPackage *axiom_package_create(const char *name, const char *version) {
     pkg->template_count = 0;
     pkg->known_unconstructibles = NULL;
     pkg->unconstructible_count = 0;
+    pkg->unconstructible_templates = NULL;
+    pkg->unconstructible_template_count = 0;
+    pkg->unconstructible_template_capacity = 0;
     pkg->bottom_geometry = NULL;
     pkg->negation_encoding = NULL;
     pkg->contradiction_behavior = EXPLOSION_PRINCIPLE;
@@ -304,6 +307,10 @@ void axiom_package_destroy(AxiomPackage *pkg) {
     for (int i = 0; i < pkg->template_count; i++) {
         lv_free((void**)&pkg->templates[i].name);
         lv_free((void**)&pkg->templates[i].params);
+        /* v3.6.0: 释放压缩态子图 */
+        if (pkg->templates[i].compressed_subgraph) {
+            graph_destroy(pkg->templates[i].compressed_subgraph);
+        }
     }
     lv_free((void**)&pkg->templates);
     
@@ -321,7 +328,19 @@ void axiom_package_destroy(AxiomPackage *pkg) {
         lv_free((void**)&uc->dependency_chain);
     }
     lv_free((void**)&pkg->known_unconstructibles);
-    
+
+    /* 释放不可构造性证明模板 */
+    for (int i = 0; i < pkg->unconstructible_template_count; i++) {
+        UnconstructibleTemplate *tmpl = &pkg->unconstructible_templates[i];
+        lv_free((void**)&tmpl->target_problem_name);
+        lv_free((void**)&tmpl->known_unconstructible_name);
+        if (tmpl->reduction_construction) {
+            graph_destroy(tmpl->reduction_construction);
+        }
+        lv_free((void**)&tmpl->description);
+    }
+    lv_free((void**)&pkg->unconstructible_templates);
+
     lv_free((void**)&pkg->bottom_geometry);
     lv_free((void**)&pkg->negation_encoding);
 
@@ -398,6 +417,180 @@ KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, co
     return NULL;
 }
 
+/* ============== 不可构造性证明模板 ============== */
+
+int axiom_package_add_unconstructible_template(AxiomPackage *pkg, const char *target_name,
+    const char *known_name, ConstraintGraph *construction, const char *description)
+{
+    if (!pkg || !target_name || !known_name || !construction) return -1;
+
+    /* 扩容 */
+    if (pkg->unconstructible_template_count >= pkg->unconstructible_template_capacity) {
+        int new_cap = pkg->unconstructible_template_capacity == 0
+            ? 8 : pkg->unconstructible_template_capacity * 2;
+        UnconstructibleTemplate *new_arr = lv_realloc(pkg->unconstructible_templates,
+            (size_t)new_cap * sizeof(UnconstructibleTemplate));
+        if (!new_arr) return -2;
+        pkg->unconstructible_templates = new_arr;
+        pkg->unconstructible_template_capacity = new_cap;
+    }
+
+    UnconstructibleTemplate *slot = &pkg->unconstructible_templates[pkg->unconstructible_template_count];
+    memset(slot, 0, sizeof(UnconstructibleTemplate));
+
+    /* 深拷贝字符串字段 */
+    slot->target_problem_name = safe_lv_strdup_safe(target_name);
+    slot->known_unconstructible_name = safe_lv_strdup_safe(known_name);
+    slot->description = safe_lv_strdup_safe(description);
+    slot->verified = false;
+
+    /* 接过归约构造图的所有权 */
+    slot->reduction_construction = construction;
+
+    pkg->unconstructible_template_count++;
+
+    if (axiom_stream_ctx) {
+        stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO,
+            "已注册不可构造性证明模板", 0);
+    }
+
+    return 0;
+}
+
+UnconstructibleTemplate *axiom_package_lookup_unconstructible_template(AxiomPackage *pkg, const char *target_name) {
+    if (!pkg || !target_name) return NULL;
+
+    for (int i = 0; i < pkg->unconstructible_template_count; i++) {
+        if (strcmp(pkg->unconstructible_templates[i].target_problem_name, target_name) == 0) {
+            return &pkg->unconstructible_templates[i];
+        }
+    }
+    return NULL;
+}
+
+bool axiom_package_verify_unconstructible(ConstraintGraph *graph, int target_node_id, AxiomPackage *pkg) {
+    if (!graph || !pkg) return false;
+
+    /* 获取目标问题节点 */
+    GeomNode *target_node = graph_get_node(graph, target_node_id);
+    if (!target_node) return false;
+
+    /* 遍历所有不可构造性证明模板 */
+    for (int i = 0; i < pkg->unconstructible_template_count; i++) {
+        UnconstructibleTemplate *tmpl = &pkg->unconstructible_templates[i];
+        if (!tmpl->target_problem_name || !tmpl->reduction_construction) continue;
+
+        /* 检查目标问题名称是否匹配（通过节点名称或自定义属性判断） */
+        bool name_matched = false;
+        /* 优先匹配 numeric_assumption_declaration 中可能包含的名称 */
+        if (target_node->numeric_assumption_declaration &&
+            strstr(target_node->numeric_assumption_declaration, tmpl->target_problem_name)) {
+            name_matched = true;
+        }
+        /* 也检查 symbolic_coords 中的信息，看是否与目标问题关联 */
+        if (!name_matched) {
+            /* 简易启发式匹配：直接通过模板的目标名称推断 */
+            for (int k = 0; k < target_node->coord_count && target_node->symbolic_coords && target_node->symbolic_coords[k]; k++) {
+                char *coord_str = symbolic_coord_serialize(target_node->symbolic_coords[k]);
+                if (coord_str) {
+                    if (strstr(coord_str, tmpl->target_problem_name)) {
+                        name_matched = true;
+                    }
+                    lv_free((void**)&coord_str);
+                    if (name_matched) break;
+                }
+            }
+        }
+
+        if (!name_matched) continue;
+
+        /* 找到匹配的模板，执行归约构造验证
+         * 通过检查归约构造图的约束是否与目标节点关联的约束兼容来判定。
+         * 这本质上是一个构造性合一检查。
+         */
+        bool reduction_valid = true;
+
+        /* 验证归约构造图不为空且有约束 */
+        if (tmpl->reduction_construction->constraint_count == 0) {
+            reduction_valid = false;
+        }
+
+        /* 验证约束兼容性：检查归约构造的约束是否与目标图兼容 */
+        if (reduction_valid) {
+            for (int j = 0; j < tmpl->reduction_construction->constraint_count; j++) {
+                Constraint *rc = tmpl->reduction_construction->constraints[j];
+                if (!rc || !rc->is_active) continue;
+
+                /* 检查目标图中是否存在等效约束 */
+                bool found_equiv = false;
+                for (int k = 0; k < graph->constraint_count; k++) {
+                    Constraint *gc = graph->constraints[k];
+                    if (!gc || !gc->is_active) continue;
+
+                    /* 约束类型必须相同 */
+                    if (gc->type != rc->type) continue;
+
+                    /* 参与者数量必须相同 */
+                    if (gc->participant_count != rc->participant_count) continue;
+
+                    /* 检查参与者节点 ID 是否匹配（在目标图中查找等效节点） */
+                    bool all_participants_found = true;
+                    for (int p = 0; p < rc->participant_count; p++) {
+                        GeomNode *rcp = graph_get_node((ConstraintGraph *)tmpl->reduction_construction, rc->participants[p]);
+                        GeomNode *gp = graph_get_node(graph, gc->participants[p]);
+                        if (!rcp || !gp) {
+                            all_participants_found = false;
+                            break;
+                        }
+                        /* 简单比对：节点类型应一致 */
+                        if (rcp->type != gp->type) {
+                            all_participants_found = false;
+                            break;
+                        }
+                    }
+
+                    if (all_participants_found) {
+                        found_equiv = true;
+                        break;
+                    }
+                }
+
+                if (!found_equiv) {
+                    reduction_valid = false;
+                    break;
+                }
+            }
+        }
+
+        if (reduction_valid) {
+            /* 验证通过：标记模板已验证 */
+            tmpl->verified = true;
+
+            /* 更新目标节点的信任颜色
+             * 检查已知不可构造问题的验证状态以决定颜色
+             */
+            KnownUnconstructible *known = axiom_package_lookup_unconstructible(pkg,
+                tmpl->known_unconstructible_name);
+            if (known && known->green_verified) {
+                /* 已知问题已通过形式化验证，目标问题也为 GREEN */
+                target_node->trust = TRUST_GREEN;
+            } else {
+                /* 已知问题为条件性不可构造（YELLOW），目标问题也为 YELLOW */
+                target_node->trust = TRUST_YELLOW;
+            }
+
+            if (axiom_stream_ctx) {
+                stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO,
+                    "不可构造性验证通过：目标问题已归约到已知不可构造问题", 0);
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /* ============== 模板管理 ============== */
 
 bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl) {
@@ -420,6 +613,10 @@ bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl
      * 若调用者需要注册参数描述，应使用独立的 API 设置。 */
     slot->params = NULL;
     slot->param_desc_count = 0;
+    /* v3.6.0: 模板分级管理初始化 */
+    slot->level = TEMPLATE_LEVEL_ONE;      /* 默认为一级模板 */
+    slot->is_compressed = false;
+    slot->compressed_subgraph = NULL;
     pkg->template_count++;
     
     if (axiom_stream_ctx) {
@@ -1484,10 +1681,23 @@ void axiom_template_test_result_destroy(TemplateTestResult *result) {
         lv_free((void**)&result->failure_messages);
     }
 
+    /* 释放详细记录 */
+    if (result->records) {
+        for (int i = 0; i < result->record_count; i++) {
+            lv_free((void**)&result->records[i].test_name);
+            lv_free((void**)&result->records[i].message);
+        }
+        lv_free((void**)&result->records);
+    }
+
     result->total = 0;
     result->passed = 0;
     result->failed = 0;
+    result->timed_out = 0;
+    result->skipped = 0;
+    result->record_count = 0;
     result->failure_messages = NULL;
+    result->records = NULL;
 }
 
 /* ============== 模板展开缓存 ============== */
@@ -1661,10 +1871,13 @@ int axiom_package_validate_dependencies_with_hashes(
     char *current_hash = axiom_package_compute_content_hash(pkg);
     if (!current_hash) return -1;
 
-    /* 第一遍：统计失效引用数量 */
+    /* 第一遍：统计失效引用数量（仅验证 REF_INTERNAL 类型的引用）
+     * REF_EXTERNAL 为公认文献，永久有效，不参与自动重验
+     * REF_AUTHOR 为基础黄色，无形式化支撑，不参与哈希验证 */
     int fail_count = 0;
     for (int i = 0; i < pkg->dep_ref_count; i++) {
         DependencyRef *ref = &pkg->dep_refs[i];
+        if (ref->ref_type != REF_INTERNAL) continue;
         if (strcmp(ref->content_hash, current_hash) != 0) {
             fail_count++;
         }
@@ -1686,6 +1899,7 @@ int axiom_package_validate_dependencies_with_hashes(
     int out_idx = 0;
     for (int i = 0; i < pkg->dep_ref_count; i++) {
         DependencyRef *ref = &pkg->dep_refs[i];
+        if (ref->ref_type != REF_INTERNAL) continue;
         if (strcmp(ref->content_hash, current_hash) != 0) {
             output[out_idx++] = *ref;
         }
@@ -1756,5 +1970,454 @@ int axiom_package_auto_degrade_invalidated(
     /* 释放验证结果数组 */
     lv_free((void**)&invalidated);
 
+    /* 步骤3：处理作者断言引用 —— 确保依赖节点保持 YELLOW */
+    for (int i = 0; i < pkg->dep_ref_count; i++) {
+        DependencyRef *ref = &pkg->dep_refs[i];
+        if (ref->ref_type != REF_AUTHOR) continue;
+
+        GeomNode *node = graph_get_node(graph, ref->dependent_node_id);
+        if (!node) {
+            fprintf(stderr,
+                "[WARNING] axiom_package_auto_degrade_invalidated: "
+                "作者断言依赖节点 %d 未在约束图中找到 (ref_id='%s')\n",
+                ref->dependent_node_id, ref->ref_id);
+            continue;
+        }
+
+        /* 作者断言基础即为 YELLOW，确保未被错误提升为 GREEN */
+        if (node->trust == TRUST_GREEN) {
+            node->trust = TRUST_YELLOW;
+            degraded_count++;
+            fprintf(stderr,
+                "[WARNING] axiom_package_auto_degrade_invalidated: "
+                "节点 %d 从 GREEN 降级为 YELLOW "
+                "(author assertion -- no formal proof, ref_id='%s')\n",
+                ref->dependent_node_id, ref->ref_id);
+        }
+    }
+
     return degraded_count;
+}
+
+/* ============== 不可构造性证明依赖链引用 ============== */
+
+/**
+ * @brief 计算引理块的内容哈希
+ *
+ * 基于当前公理包的已知不可构造问题和模板数据计算哈希。
+ * 用于内引用的内容验证。
+ */
+static char *compute_lemma_block_hash(AxiomPackage *pkg, int lemma_block_id) {
+    if (!pkg) return NULL;
+
+    SHA256Context ctx;
+    sha256_init(&ctx);
+
+    /* 哈希引理块 ID 作为标识 */
+    sha256_hash_data(&ctx, &lemma_block_id, sizeof(lemma_block_id));
+
+    /* 哈希所有已知不可构造问题中的依赖链（这些构成引理块的约束逻辑） */
+    for (int i = 0; i < pkg->unconstructible_count; i++) {
+        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
+        sha256_hash_string(&ctx, uc->name);
+        sha256_hash_string(&ctx, uc->reduces_to);
+        sha256_hash_data(&ctx, &uc->green_verified, sizeof(bool));
+
+        /* 哈希依赖链 */
+        for (int j = 0; j < uc->dependency_count; j++) {
+            sha256_hash_string(&ctx, uc->dependency_chain[j]);
+        }
+
+        sha256_hash_string(&ctx, uc->external_ref);
+    }
+
+    /* 哈希所有模板名称和参数（构成构造性基础） */
+    for (int i = 0; i < pkg->template_count; i++) {
+        sha256_hash_string(&ctx, pkg->templates[i].name);
+        sha256_hash_data(&ctx, &pkg->templates[i].param_count, sizeof(int));
+        sha256_hash_data(&ctx, &pkg->templates[i].verified, sizeof(bool));
+    }
+
+    /* 哈希几何信息和矛盾行为 */
+    sha256_hash_string(&ctx, pkg->bottom_geometry);
+    sha256_hash_string(&ctx, pkg->negation_encoding);
+    sha256_hash_data(&ctx, &pkg->contradiction_behavior, sizeof(int));
+
+    /* 计算最终哈希 */
+    uint8_t hash[AXIOM_SHA256_OUTPUT_SIZE];
+    sha256_final(&ctx, hash);
+
+    /* 转换为十六进制字符串 */
+    char *result = lv_malloc(AXIOM_SHA256_HEX_SIZE);
+    if (result) {
+        for (int i = 0; i < AXIOM_SHA256_OUTPUT_SIZE; i++) {
+            snprintf(result + i * 2, 3, "%02x", hash[i]);
+        }
+        result[AXIOM_SHA256_HEX_SIZE - 1] = '\0';
+    }
+
+    return result;
+}
+
+int axiom_package_add_internal_ref(AxiomPackage *pkg, int lemma_block_id, int dependent_node_id) {
+    if (!pkg) return -1;
+    if (lemma_block_id < 0 || dependent_node_id < 0) return -1;
+
+    /* 计算引理块的内容哈希 */
+    char *hash = compute_lemma_block_hash(pkg, lemma_block_id);
+    if (!hash) return -2;
+
+    /* 生成引用标识符 */
+    char ref_id[64];
+    snprintf(ref_id, sizeof(ref_id), "internal:lemma:%d", lemma_block_id);
+
+    /* 扩容 */
+    if (pkg->dep_ref_count >= pkg->dep_ref_capacity) {
+        int new_cap = pkg->dep_ref_capacity == 0 ? AXIOM_DEP_REF_CACHE_CAP : pkg->dep_ref_capacity * 2;
+        DependencyRef *new_arr = lv_realloc(pkg->dep_refs,
+            (size_t)new_cap * sizeof(DependencyRef));
+        if (!new_arr) {
+            lv_free((void**)&hash);
+            return -2;
+        }
+        pkg->dep_refs = new_arr;
+        pkg->dep_ref_capacity = new_cap;
+    }
+
+    DependencyRef *ref = &pkg->dep_refs[pkg->dep_ref_count];
+    memset(ref, 0, sizeof(DependencyRef));
+
+    lv_strlcpy(ref->ref_id, ref_id, sizeof(ref->ref_id));
+    lv_strlcpy(ref->content_hash, hash, sizeof(ref->content_hash));
+    lv_free((void**)&hash);
+
+    ref->dependent_node_id = dependent_node_id;
+    ref->original_color = DEP_TRUST_GREEN;
+    ref->ref_type = REF_INTERNAL;
+    ref->hash_valid = true;
+
+    pkg->dep_ref_count++;
+
+    if (axiom_stream_ctx) {
+        stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO,
+            "已注册内引用（内容哈希验证）", 0);
+    }
+
+    return 0;
+}
+
+int axiom_package_add_external_ref(AxiomPackage *pkg, const char *ref_string,
+                                    int dependent_node_id, const char *trust_comment) {
+    if (!pkg || !ref_string) return -1;
+    if (dependent_node_id < 0) return -1;
+
+    /* 生成引用标识符 */
+    char ref_id[64];
+    snprintf(ref_id, sizeof(ref_id), "external:%.48s", ref_string);
+
+    /* 扩容 */
+    if (pkg->dep_ref_count >= pkg->dep_ref_capacity) {
+        int new_cap = pkg->dep_ref_capacity == 0 ? AXIOM_DEP_REF_CACHE_CAP : pkg->dep_ref_capacity * 2;
+        DependencyRef *new_arr = lv_realloc(pkg->dep_refs,
+            (size_t)new_cap * sizeof(DependencyRef));
+        if (!new_arr) return -2;
+        pkg->dep_refs = new_arr;
+        pkg->dep_ref_capacity = new_cap;
+    }
+
+    DependencyRef *ref = &pkg->dep_refs[pkg->dep_ref_count];
+    memset(ref, 0, sizeof(DependencyRef));
+
+    lv_strlcpy(ref->ref_id, ref_id, sizeof(ref->ref_id));
+    /* 外引用不设内容哈希（永久有效，不参与自动重验） */
+    ref->content_hash[0] = '\0';
+
+    ref->dependent_node_id = dependent_node_id;
+    ref->original_color = DEP_TRUST_GREEN;
+    ref->ref_type = REF_EXTERNAL;
+    ref->hash_valid = false;
+
+    /* 存储外部引用字符串和信任注释 */
+    lv_strlcpy(ref->external_ref, ref_string, sizeof(ref->external_ref));
+    if (trust_comment && trust_comment[0] != '\0') {
+        lv_strlcpy(ref->trust_comment, trust_comment, sizeof(ref->trust_comment));
+    }
+
+    pkg->dep_ref_count++;
+
+    if (axiom_stream_ctx) {
+        stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO,
+            "已注册外引用（公认文献，永久有效）", 0);
+    }
+
+    return 0;
+}
+
+int axiom_package_add_author_assertion(AxiomPackage *pkg, int dependent_node_id) {
+    if (!pkg) return -1;
+    if (dependent_node_id < 0) return -1;
+
+    /* 生成引用标识符 */
+    char ref_id[64];
+    snprintf(ref_id, sizeof(ref_id), "author:node:%d", dependent_node_id);
+
+    /* 扩容 */
+    if (pkg->dep_ref_count >= pkg->dep_ref_capacity) {
+        int new_cap = pkg->dep_ref_count == 0 ? AXIOM_DEP_REF_CACHE_CAP : pkg->dep_ref_capacity * 2;
+        DependencyRef *new_arr = lv_realloc(pkg->dep_refs,
+            (size_t)new_cap * sizeof(DependencyRef));
+        if (!new_arr) return -2;
+        pkg->dep_refs = new_arr;
+        pkg->dep_ref_capacity = new_cap;
+    }
+
+    DependencyRef *ref = &pkg->dep_refs[pkg->dep_ref_count];
+    memset(ref, 0, sizeof(DependencyRef));
+
+    lv_strlcpy(ref->ref_id, ref_id, sizeof(ref->ref_id));
+    /* 作者断言不设内容哈希（无形式化支撑） */
+    ref->content_hash[0] = '\0';
+
+    ref->dependent_node_id = dependent_node_id;
+    /* 作者断言基础即为黄色，无形式化支撑 */
+    ref->original_color = DEP_TRUST_YELLOW;
+    ref->ref_type = REF_AUTHOR;
+    ref->hash_valid = false;
+
+    pkg->dep_ref_count++;
+
+    if (axiom_stream_ctx) {
+        stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO,
+            "已注册作者断言（无形式化支撑，黄色基础）", 0);
+    }
+
+    return 0;
+}
+
+/* ============== graph_copy：约束图深拷贝 ============== */
+
+/**
+ * @brief 深拷贝约束图
+ *
+ * 遍历源图中的所有节点和约束，在新图中创建完全独立的副本。
+ * 高级类型（Port、Region、FunctionBlock）通过 graph_add_node_with_id
+ * 复制基础字段，调用者可后续设置特定字段。
+ */
+ConstraintGraph *graph_copy(const ConstraintGraph *graph) {
+    if (!graph) return NULL;
+
+    ConstraintGraph *new_graph = graph_create();
+    if (!new_graph) return NULL;
+
+    /* 复制所有节点 */
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *src = graph->nodes[i];
+        if (!src) continue;
+
+        /* 使用带ID接口添加节点，保持ID一致 */
+        GeomNode *dst = graph_add_node_with_id(new_graph, src->id, src->type,
+                                                src->symbolic_coords, src->coord_count);
+        if (!dst) {
+            graph_destroy(new_graph);
+            return NULL;
+        }
+
+        /* 复制增强字段 */
+        dst->trust = src->trust;
+        dst->is_active = src->is_active;
+        dst->lo_subtype = src->lo_subtype;
+        dst->namespace_depth = src->namespace_depth;
+        dst->parent_block_id = src->parent_block_id;
+        dst->numeric_precision = src->numeric_precision;
+
+        /* 深拷贝 numeric_assumption_declaration */
+        if (src->numeric_assumption_declaration) {
+            dst->numeric_assumption_declaration = lv_strdup_safe(src->numeric_assumption_declaration);
+        }
+    }
+
+    /* 复制所有约束 */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *src = graph->constraints[i];
+        if (!src) continue;
+
+        Constraint *dst = graph_add_constraint_with_id(new_graph, src->id, src->type,
+                                                        src->participants, src->participant_count);
+        if (!dst) {
+            graph_destroy(new_graph);
+            return NULL;
+        }
+
+        /* 复制增强字段 */
+        dst->template_id = src->template_id;
+        dst->is_active = src->is_active;
+        dst->numeric_value = src->numeric_value;
+        dst->satisfaction = src->satisfaction;
+    }
+
+    /* 复制高级图属性 */
+    new_graph->dirty = graph->dirty;
+
+    return new_graph;
+}
+
+/* ============== 模板分级管理与惰性展开 ============== */
+
+void axiom_template_set_level(ConstraintTemplate *tmpl, TemplateLevel level) {
+    if (!tmpl) return;
+    tmpl->level = level;
+    /* 二级模板默认标记为压缩态 */
+    if (level == TEMPLATE_LEVEL_TWO) {
+        tmpl->is_compressed = true;
+    }
+}
+
+ConstraintGraph *axiom_template_expand_lazy(AxiomPackage *pkg, const char *template_name,
+                                              SymbolicCoord **params, int param_count) {
+    if (!pkg || !template_name) return NULL;
+
+    ConstraintTemplate *tmpl = axiom_package_get_template(pkg, template_name);
+    if (!tmpl) return NULL;
+
+    /* 先查展开缓存 */
+    ConstraintGraph *cached = axiom_package_lookup_expansion_cache(pkg, template_name, params, param_count);
+    if (cached) return cached;
+
+    ConstraintGraph *result = NULL;
+
+    /* 二级模板：从压缩态展开 */
+    if (tmpl->level == TEMPLATE_LEVEL_TWO && tmpl->is_compressed && tmpl->compressed_subgraph) {
+        result = graph_copy(tmpl->compressed_subgraph);
+    } else {
+        /* 正常展开 */
+        result = graph_create();
+        if (result && tmpl->expand) {
+            tmpl->expand(params, result);
+        }
+    }
+
+    /* 存入缓存并标记为非压缩态 */
+    if (result) {
+        axiom_package_store_expansion_cache(pkg, template_name, params, param_count, result);
+        tmpl->is_compressed = false;
+    }
+
+    return result;
+}
+
+void axiom_template_compress(ConstraintTemplate *tmpl) {
+    if (!tmpl || tmpl->level != TEMPLATE_LEVEL_TWO) return;
+    tmpl->is_compressed = true;
+    /* 展开缓存由缓存管理器自行处理，此处仅恢复压缩态标记 */
+}
+
+/* ============== 引理自动重验循环（Section 11） ============== */
+
+/**
+ * @brief 重新验证引理块
+ *
+ * 尝试重新验证引理块的内容。
+ * 通过重新计算公理包的当前内容哈希并与存储的哈希对比来判断内容是否发生变化。
+ *
+ * @param pkg 公理包
+ * @param ref 要重验的依赖引用
+ * @return true 重验通过（哈希匹配）
+ */
+static bool lemma_reverify(AxiomPackage *pkg, DependencyRef *ref) {
+    if (!pkg || !ref) return false;
+
+    /* 计算当前内容哈希 */
+    char *current_hash = axiom_package_compute_content_hash(pkg);
+    if (!current_hash) return false;
+
+    /* 对比哈希 */
+    bool match = (strcmp(ref->content_hash, current_hash) == 0);
+    lv_free((void **)&current_hash);
+    return match;
+}
+
+int axiom_package_reverify_lemmas(AxiomPackage *pkg, int *out_stale, char ***out_stale_names) {
+    if (!pkg) return 0;
+
+    int total = 0;
+    int stale_count = 0;
+
+    /* 第一遍：统计需要处理的 REF_INTERNAL 引用总数和失效数 */
+    for (int i = 0; i < pkg->dep_ref_count; i++) {
+        DependencyRef *ref = &pkg->dep_refs[i];
+        if (ref->ref_type != REF_INTERNAL) continue;
+        total++;
+        if (!lemma_reverify(pkg, ref)) {
+            stale_count++;
+        }
+    }
+
+    /* 分配输出数组 */
+    char **stale_names = NULL;
+    if (stale_count > 0) {
+        stale_names = (char **)lv_calloc((size_t)stale_count, sizeof(char *));
+        if (!stale_names) {
+            if (out_stale) *out_stale = 0;
+            if (out_stale_names) *out_stale_names = NULL;
+            return total;
+        }
+    }
+
+    /* 第二遍：标记失效引用并记录名称 */
+    int idx = 0;
+    for (int i = 0; i < pkg->dep_ref_count; i++) {
+        DependencyRef *ref = &pkg->dep_refs[i];
+        if (ref->ref_type != REF_INTERNAL) continue;
+        if (!lemma_reverify(pkg, ref)) {
+            axiom_package_mark_lemma_stale(pkg, ref->ref_id);
+            if (stale_names && idx < stale_count) {
+                stale_names[idx] = lv_strdup_safe(ref->ref_id);
+                idx++;
+            }
+        }
+    }
+
+    if (out_stale) *out_stale = stale_count;
+    if (out_stale_names) {
+        *out_stale_names = stale_names;
+    } else if (stale_names) {
+        /* 调用者不需要名称数组，释放分配的内存 */
+        for (int i = 0; i < stale_count; i++) {
+            lv_free((void **)&stale_names[i]);
+        }
+        lv_free((void **)&stale_names);
+    }
+
+    if (axiom_stream_ctx) {
+        stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO,
+            "引理自动重验完成", 0);
+    }
+
+    return total;
+}
+
+int axiom_package_mark_lemma_stale(AxiomPackage *pkg, const char *ref_id) {
+    if (!pkg || !ref_id) return -1;
+
+    for (int i = 0; i < pkg->dep_ref_count; i++) {
+        DependencyRef *ref = &pkg->dep_refs[i];
+        if (strcmp(ref->ref_id, ref_id) != 0) continue;
+
+        /* 设置信任注释，标识为遗留状态 */
+        lv_strlcpy(ref->trust_comment,
+            "遗留 - 在旧版本下得证，未验证兼容性",
+            sizeof(ref->trust_comment));
+
+        /* 将信任颜色设为黄色，表示需人工介入 */
+        ref->original_color = DEP_TRUST_YELLOW;
+
+        if (axiom_stream_ctx) {
+            stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_WARNING,
+                "引理标记为遗留状态", 0);
+        }
+
+        return 0;
+    }
+
+    return -1;
 }

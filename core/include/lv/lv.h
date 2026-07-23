@@ -633,6 +633,22 @@ lv_PUBLIC_API NormalizationResult *lv_normalize(lvEngine *engine,
  */
 lv_PUBLIC_API EngineSolveResult lv_solve(lvEngine *engine);
 
+/**
+ * @brief 将节点永久降级为数值假设（SetNumericAssumption 命令）
+ *
+ * 当位数熔断触发且用户选择"永久降级"时调用此函数。
+ * 将节点的信任颜色设为 TRUST_AMBER，存储精度阈值和声明文本。
+ * 所有下游依赖节点自动继承 TRUST_AMBER。
+ *
+ * @param engine     引擎实例
+ * @param node_id    要降级的节点 ID
+ * @param precision  数值精度阈值（如 1e-15）
+ * @param declaration 数值假设声明文本（如"该点坐标在10^{-15}精度下近似为1.4142"）
+ * @return 成功返回 0（lv_OK），失败返回负错误码
+ */
+lv_PUBLIC_API int lv_set_numeric_assumption(lvEngine *engine, int node_id,
+    double precision, const char *declaration);
+
 /* ============================================================
  * === 配置管理 ===
  * ============================================================ */

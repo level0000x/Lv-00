@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_config.c
  * @brief Lv-00 运行时配置系统实现
  */
@@ -31,6 +31,9 @@ const lvConfig *lv_config_default(void) {
     def.default_rewrite_limit = 1000;
     def.wl_iterations = 3;
     def.wl_history_size = 64;
+    def.vf2_max_depth = 100;
+    def.buchberger_max_steps = 50000;
+    def.groebner_reduce_max_steps = 10000;
     /* 流式 */
     def.stream_async_queue_capacity = 1024;
     def.stream_initial_callbacks = 16;
@@ -45,6 +48,10 @@ const lvConfig *lv_config_default(void) {
     def.mini_kernel_max_statements = 10000;
     def.mini_kernel_max_proof_depth = 1000;
     def.mini_kernel_verify_timeout_ms = 30000;
+    /* SAT 求解器 */
+    def.cdcl_max_steps = 1000;
+    def.cdcl_max_decisions = 1000;
+    def.cdcl_max_restarts = 10;
     /* 压力测试 */
     def.stress_test_default_chain = 100;
     def.stress_test_max_poly_degree = 4;
@@ -60,6 +67,9 @@ const lvConfig *lv_config_default(void) {
     def.parser_max_statements = 64;
     def.parser_max_arguments = 16;
     def.parser_max_participants = 16;
+    /* 类型系统 */
+    def.type_infer_max_depth = 100;
+    def.type_equiv_max_depth = 16;
     /* 防护 */
     def.runtime_guard_max_recurse = 128;
     def.runtime_guard_spin_attempts = 1024;
@@ -119,6 +129,9 @@ const lvConfig *lv_config_default(void) {
     /* 测试 */
     def.test_max_suites = 256;
     def.test_max_cases = 4096;
+    /* 烟测保护 */
+    def.smoke_test_step_limit = 1000;
+    def.smoke_test_timeout_ms = 30000;
     /* 熔断 */
     def.circuit_overflow_threshold = 3;
     /* 代数 */
@@ -191,6 +204,9 @@ bool lv_config_set_int(const char *key, int val) {
     SET_IF("default_rewrite_limit",          default_rewrite_limit)
     SET_IF("wl_iterations",                  wl_iterations)
     SET_IF("wl_history_size",                wl_history_size)
+    SET_IF("vf2_max_depth",                  vf2_max_depth)
+    SET_IF("buchberger_max_steps",           buchberger_max_steps)
+    SET_IF("groebner_reduce_max_steps",      groebner_reduce_max_steps)
     SET_IF("stream_async_queue_capacity",    stream_async_queue_capacity)
     SET_IF("stream_initial_callbacks",       stream_initial_callbacks)
     SET_IF("stream_max_callbacks",           stream_max_callbacks)
@@ -202,6 +218,9 @@ bool lv_config_set_int(const char *key, int val) {
     SET_IF("mini_kernel_max_statements",     mini_kernel_max_statements)
     SET_IF("mini_kernel_max_proof_depth",    mini_kernel_max_proof_depth)
     SET_IF("mini_kernel_verify_timeout_ms",  mini_kernel_verify_timeout_ms)
+    SET_IF("cdcl_max_steps",                 cdcl_max_steps)
+    SET_IF("cdcl_max_decisions",             cdcl_max_decisions)
+    SET_IF("cdcl_max_restarts",              cdcl_max_restarts)
     SET_IF("parser_max_input_length",        parser_max_input_length)
     SET_IF("parser_max_tokens",              parser_max_tokens)
     SET_IF("parser_max_ast_depth",           parser_max_ast_depth)
@@ -212,6 +231,8 @@ bool lv_config_set_int(const char *key, int val) {
     SET_IF("parser_max_statements",          parser_max_statements)
     SET_IF("parser_max_arguments",           parser_max_arguments)
     SET_IF("parser_max_participants",        parser_max_participants)
+    SET_IF("type_infer_max_depth",           type_infer_max_depth)
+    SET_IF("type_equiv_max_depth",           type_equiv_max_depth)
     SET_IF("runtime_guard_max_recurse",      runtime_guard_max_recurse)
     SET_IF("runtime_guard_spin_attempts",    runtime_guard_spin_attempts)
     SET_IF("proto_max_draw_cmds",            proto_max_draw_cmds)
@@ -250,6 +271,8 @@ bool lv_config_set_int(const char *key, int val) {
     SET_IF("backend_timeout_ms",             backend_timeout_ms)
     SET_IF("test_max_suites",                test_max_suites)
     SET_IF("test_max_cases",                 test_max_cases)
+    SET_IF("smoke_test_step_limit",          smoke_test_step_limit)
+    SET_IF("smoke_test_timeout_ms",          smoke_test_timeout_ms)
     SET_IF("circuit_overflow_threshold",     circuit_overflow_threshold)
     SET_IF("value_too_large",                value_too_large)
     SET_IF("downgrade_denominator",          downgrade_denominator)
@@ -368,14 +391,22 @@ int lv_config_load_json(const char *json_path) {
     /* graph */            JLD_INT("max_module_depth", max_module_depth);
                            JLD_INT("graph_adj_max_per_node", graph_adj_max_per_node);
     /* rewrite */          JLD_INT("default_rewrite_limit", default_rewrite_limit);
+                           JLD_INT("vf2_max_depth", vf2_max_depth);
+                           JLD_INT("buchberger_max_steps", buchberger_max_steps);
+                           JLD_INT("groebner_reduce_max_steps", groebner_reduce_max_steps);
     /* stream */           JLD_INT("stream_async_queue_capacity", stream_async_queue_capacity);
                            JLD_INT("stream_max_callbacks", stream_max_callbacks);
     /* precision */        JLD_INT("max_precision_bits", max_precision_bits);
                            JLD_INT("bit_cutoff_threshold", bit_cutoff_threshold);
+    /* sat */              JLD_INT("cdcl_max_steps", cdcl_max_steps);
+                           JLD_INT("cdcl_max_decisions", cdcl_max_decisions);
+                           JLD_INT("cdcl_max_restarts", cdcl_max_restarts);
     /* parser */           JLD_INT("parser_max_input_length", parser_max_input_length);
                            JLD_INT("parser_max_tokens", parser_max_tokens);
                            JLD_INT("parser_max_ast_depth", parser_max_ast_depth);
                            JLD_INT("parser_max_ast_nodes", parser_max_ast_nodes);
+    /* type */             JLD_INT("type_infer_max_depth", type_infer_max_depth);
+                           JLD_INT("type_equiv_max_depth", type_equiv_max_depth);
     /* guard */            JLD_INT("runtime_guard_max_recurse", runtime_guard_max_recurse);
     /* proto */            JLD_INT("proto_max_draw_cmds", proto_max_draw_cmds);
                            JLD_INT("proto_max_table_rows", proto_max_table_rows);
@@ -408,6 +439,8 @@ int lv_config_load_json(const char *json_path) {
     /* plugin */           JLD_INT("max_plugins", max_plugins);
     /* backend */          JLD_INT("backend_step_limit", backend_step_limit);
                            JLD_INT("backend_timeout_ms", backend_timeout_ms);
+    /* smoke test */       JLD_INT("smoke_test_step_limit", smoke_test_step_limit);
+                           JLD_INT("smoke_test_timeout_ms", smoke_test_timeout_ms);
     /* circuit */          JLD_INT("circuit_overflow_threshold", circuit_overflow_threshold);
     /* memory */           JLD_INT("default_memory_limit_mb", default_memory_limit_mb);
 

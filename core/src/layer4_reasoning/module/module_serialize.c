@@ -310,8 +310,23 @@ ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_
     }
     
     /* 加载完成后使用三色 DFS 进行完整循环依赖检测 */
-    if (module_full_cycle_detect(loaded, count, NULL, NULL)) {
-        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "检测到循环依赖，模块加载终止");
+    int *cycle_path = NULL;
+    int cycle_path_len = 0;
+    if (module_full_cycle_detect(loaded, count, &cycle_path, &cycle_path_len)) {
+        /* 构建错误消息：报告循环路径 */
+        char buf[512] = {0};
+        int pos = snprintf(buf, sizeof(buf), "模块循环依赖: ");
+        for (int i = 0; i < cycle_path_len; i++) {
+            Module *m = loaded[cycle_path[i]];
+            if (m) {
+                pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", m->name);
+                if (i < cycle_path_len - 1) {
+                    pos += snprintf(buf + pos, sizeof(buf) - pos, " → ");
+                }
+            }
+        }
+        lv_set_error(lv_ERROR_INVALID_PARAM, "%s", buf);
+        lv_free((void **)&cycle_path);
         return MODULE_LOAD_CIRCULAR_DEPENDENCY;
     }
     
@@ -627,12 +642,31 @@ static int module_index_in_array(Module **modules, int count, Module *mod) {
  */
 static bool dfs_detect_cycle(Module *mod, Module **modules, int count,
                               DFSColor *color_map,
+                              int *path_stack, int *path_stack_len,
                               int **out_path, int *out_path_len) {
     int idx = module_index_in_array(modules, count, mod);
     if (idx < 0) return false;
 
     if (color_map[idx] == DFS_GRAY) {
         /* 检测到循环！当前模块在当前 DFS 路径上 */
+        if (out_path && out_path_len && path_stack && path_stack_len) {
+            /* 找到当前 idx 在路径栈中的位置 */
+            int cycle_start = -1;
+            for (int i = 0; i < *path_stack_len; i++) {
+                if (path_stack[i] == idx) {
+                    cycle_start = i;
+                    break;
+                }
+            }
+            if (cycle_start >= 0) {
+                int cycle_len = *path_stack_len - cycle_start;
+                *out_path = (int *)lv_malloc((size_t)cycle_len * sizeof(int));
+                if (*out_path) {
+                    memcpy(*out_path, path_stack + cycle_start, (size_t)cycle_len * sizeof(int));
+                    *out_path_len = cycle_len;
+                }
+            }
+        }
         return true;
     }
     if (color_map[idx] == DFS_BLACK) {
@@ -643,11 +677,19 @@ static bool dfs_detect_cycle(Module *mod, Module **modules, int count,
     /* 标记为访问中 */
     color_map[idx] = DFS_GRAY;
 
+    /* 将当前模块索引加入路径栈 */
+    if (path_stack && path_stack_len) {
+        path_stack[*path_stack_len] = idx;
+        (*path_stack_len)++;
+    }
+
     /* 遍历依赖 */
     for (int i = 0; i < mod->dependency_count; i++) {
         Module *dep = mod->dependencies[i].module;
         if (dep) {
-            if (dfs_detect_cycle(dep, modules, count, color_map, out_path, out_path_len)) {
+            if (dfs_detect_cycle(dep, modules, count, color_map,
+                                  path_stack, path_stack_len,
+                                  out_path, out_path_len)) {
                 return true;
             }
         }
@@ -655,6 +697,10 @@ static bool dfs_detect_cycle(Module *mod, Module **modules, int count,
 
     /* 标记为访问完成 */
     color_map[idx] = DFS_BLACK;
+    /* 将当前模块索引移出路径栈 */
+    if (path_stack && path_stack_len && *path_stack_len > 0) {
+        (*path_stack_len)--;
+    }
     return false;
 }
 
@@ -676,10 +722,15 @@ bool module_full_cycle_detect(Module **modules, int count, int **out_path, int *
     DFSColor *color_map = (DFSColor *)lv_calloc((size_t)count, sizeof(DFSColor));
     if (!color_map) return false;
 
+    /* 路径栈：跟踪当前 DFS 路径上的模块索引 */
+    int path_stack[MAX_MODULE_DEPTH];
+    int path_stack_len = 0;
+
     bool has_cycle = false;
     for (int i = 0; i < count && !has_cycle; i++) {
         if (color_map[i] == DFS_WHITE) {
             has_cycle = dfs_detect_cycle(modules[i], modules, count, color_map,
+                                          path_stack, &path_stack_len,
                                           out_path, out_path_len);
         }
     }

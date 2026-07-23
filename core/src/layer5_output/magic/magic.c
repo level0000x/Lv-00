@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file magic.c
  * @brief 编程魔法系统实现 —— 基于 Lv-00 的咒语编程模拟器
  *
@@ -151,12 +151,14 @@ Rune *rune_create_rational(int64_t num, uint64_t denom, MagicElement element) {
     if (!rune)
         return NULL;
 
+    /* 创建有理数类型的符号坐标 */
     rune->coord = symbolic_coord_create_rational(num, denom);
     if (!rune->coord) {
         lv_free((void **) &rune);
         return NULL;
     }
 
+    /* 初始化符文属性：元素类型、名称、符号和威力等级 */
     rune->element = element;
     rune->name = NULL;
     rune->symbol = NULL;
@@ -243,12 +245,14 @@ Rune *rune_create_transcendental(const char *name, MagicElement element) {
     if (!rune)
         return NULL;
 
+    /* 创建超越数类型的符号坐标（如 pi, e 等） */
     rune->coord = symbolic_coord_create_transcendental(name);
     if (!rune->coord) {
         lv_free((void **) &rune);
         return NULL;
     }
 
+    /* 初始化符文属性 */
     rune->element = element;
     rune->name = NULL;
     rune->symbol = NULL;
@@ -274,20 +278,24 @@ Rune *rune_copy(const Rune *src) {
     if (!rune)
         return NULL;
 
+    /* 深拷贝符号坐标 */
     rune->coord = symbolic_coord_copy(src->coord);
     if (!rune->coord) {
         lv_free((void **)&rune);
         return NULL;
     }
+    /* 拷贝标量属性 */
     rune->element = src->element;
     rune->power_level = src->power_level;
 
+    /* 深拷贝可空字符串字段：name */
     if (src->name) {
         rune->name = lv_strdup_safe(src->name);
     } else {
         rune->name = NULL;
     }
 
+    /* 深拷贝可空字符串字段：symbol */
     if (src->symbol) {
         rune->symbol = lv_strdup_safe(src->symbol);
     } else {
@@ -309,6 +317,7 @@ void rune_destroy(Rune *rune) {
     if (!rune)
         return;
 
+    /* 逆序释放：先释放内部子对象，再释放自身 */
     if (rune->coord) {
         symbolic_coord_destroy(rune->coord);
     }
@@ -368,10 +377,12 @@ int rune_serialize_to_buffer(const Rune *rune, char *buf, int buf_size) {
     if (!rune || !buf || buf_size <= 0)
         return -1;
 
+    /* 序列化符号坐标为 JSON 子串 */
     char *coord_str = symbolic_coord_serialize(rune->coord);
     if (!coord_str)
         return -1;
 
+    /* 将符文信息写入调用者提供的缓冲区 */
     int written = snprintf(buf, (size_t) buf_size, "{\"element\":%d,\"power\":%d,\"coord\":%s}", rune->element,
                            rune->power_level, coord_str);
 
@@ -564,6 +575,7 @@ RuneSequence *rune_sequence_create(void) {
     if (!seq)
         return NULL;
 
+    /* 初始化动态数组，预分配初始容量 */
     seq->capacity = MAGIC_RUNE_SEQUENCE_INIT_CAP;
     seq->rune_count = 0;
     seq->runes = (Rune **) lv_malloc(seq->capacity * sizeof(Rune *));
@@ -590,6 +602,7 @@ bool rune_sequence_add(RuneSequence *seq, Rune *rune) {
     if (!seq || !rune)
         return false;
 
+    /* 容量不足时自动扩容（翻倍策略） */
     if (seq->rune_count >= seq->capacity) {
         int new_capacity = seq->capacity * MAGIC_RUNE_SEQUENCE_GROWTH;
         Rune **new_runes = (Rune **) lv_realloc(seq->runes, new_capacity * sizeof(Rune *));
@@ -599,6 +612,7 @@ bool rune_sequence_add(RuneSequence *seq, Rune *rune) {
         seq->capacity = new_capacity;
     }
 
+    /* 追加符文到序列尾部 */
     seq->runes[seq->rune_count++] = rune;
     return true;
 }
@@ -640,9 +654,11 @@ void rune_sequence_destroy(RuneSequence *seq) {
     if (!seq)
         return;
 
+    /* 销毁序列中的每个符文（序列拥有所有权） */
     for (int i = 0; i < seq->rune_count; i++) {
         rune_destroy(seq->runes[i]);
     }
+    /* 释放动态数组和结构体本身 */
     lv_free((void **) &seq->runes);
     lv_free((void **) &seq);
 }
@@ -706,12 +722,14 @@ MagicArray *magic_array_create(void) {
     if (!array)
         return NULL;
 
+    /* 创建符文序列子组件 */
     array->runes = rune_sequence_create();
     if (!array->runes) {
         lv_free((void **) &array);
         return NULL;
     }
 
+    /* 创建底层约束图子组件 */
     array->graph = graph_create();
     if (!array->graph) {
         rune_sequence_destroy(array->runes);
@@ -719,10 +737,12 @@ MagicArray *magic_array_create(void) {
         return NULL;
     }
 
+    /* 初始化约束类型动态数组 */
     array->constraint_count = 0;
     array->constraint_capacity = MAGIC_ARRAY_CONSTRAINT_INIT_CAP;
     array->constraints = (ArrayConstraintType *) lv_malloc(array->constraint_capacity * sizeof(ArrayConstraintType));
 
+    /* 子组件创建失败时逆序释放已创建的资源 */
     if (!array->constraints) {
         graph_destroy(array->graph);
         rune_sequence_destroy(array->runes);
@@ -745,6 +765,7 @@ void magic_array_destroy(MagicArray *array) {
     if (!array)
         return;
 
+    /* 逆序释放各子组件：符文序列、约束图、约束数组、自身 */
     if (array->runes) {
         rune_sequence_destroy(array->runes);
     }
@@ -771,6 +792,7 @@ int magic_array_add_rune(MagicArray *array, Rune *rune) {
     if (!array || !rune)
         return -1;
 
+    /* 将符文坐标添加到底层约束图中 */
     SymbolicCoord *coord = rune_get_value(rune);
     SymbolicCoord *coords[2] = {coord, coord};
 
@@ -779,6 +801,7 @@ int magic_array_add_rune(MagicArray *array, Rune *rune) {
         return -1;
     }
 
+    /* 获取新节点在约束图中的索引 */
     int index = array->graph->next_node_id - 1;
 
     /* 复制符文到序列（调用者保留原符文所有权） */
@@ -788,6 +811,7 @@ int magic_array_add_rune(MagicArray *array, Rune *rune) {
         return -1;
     }
 
+    /* 将符文副本追加到序列，失败时回滚图节点 */
     if (!rune_sequence_add(array->runes, rune_clone)) {
         graph_remove_node(array->graph, index);
         rune_destroy(rune_clone);
@@ -811,13 +835,13 @@ bool magic_array_remove_rune(MagicArray *array, int rune_index) {
         return false;
     }
 
-    /* 从图中移除节点 */
+    /* 从底层约束图中移除对应节点 */
     GeomNode *node = graph_get_node(array->graph, rune_index);
     if (node) {
         graph_remove_node(array->graph, rune_index);
     }
 
-    /* 从序列中移除符文 */
+    /* 从符文序列中移除并销毁符文，后续元素前移填补空缺 */
     rune_destroy(array->runes->runes[rune_index]);
     for (int i = rune_index; i < array->runes->rune_count - 1; i++) {
         array->runes->runes[i] = array->runes->runes[i + 1];
@@ -873,6 +897,7 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
     if (rune2_index < 0 || rune2_index >= array->runes->rune_count)
         return -1;
 
+    /* 约束数组容量不足时自动扩容 */
     if (array->constraint_count >= array->constraint_capacity) {
         int new_capacity = array->constraint_capacity * MAGIC_ARRAY_CONSTRAINT_GROWTH;
         ArrayConstraintType *new_constraints =
@@ -883,7 +908,7 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
         array->constraint_capacity = new_capacity;
     }
 
-    /* 转换为底层约束类型并添加到图 */
+    /* 将魔法阵约束类型映射为底层约束图内部类型 */
     ConstraintType graph_type;
     switch (type) {
         case ARRAY_CONNECTION:
@@ -905,6 +930,7 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
 
     (void)graph_type; /* 预留给后续 graph_add_xxx 类型扩展 */
 
+    /* 在约束图中添加 incidence 边，关联两个符文节点 */
     int participants[2] = {rune1_index, rune2_index};
     AddConstraintResult result = graph_add_incidence(array->graph, participants[0], participants[1]);
 
@@ -930,10 +956,10 @@ bool magic_array_remove_constraint(MagicArray *array, int constraint_index) {
         return false;
     }
 
-    /* 从图中移除约束 */
+    /* 从底层约束图中移除指定约束 */
     graph_remove_constraint(array->graph, constraint_index);
 
-    /* 从数组中移除 */
+    /* 从约束数组中移除，后续元素前移填补空缺 */
     for (int i = constraint_index; i < array->constraint_count - 1; i++) {
         array->constraints[i] = array->constraints[i + 1];
     }
@@ -967,6 +993,7 @@ bool magic_array_check_balance(const MagicArray *array) {
     if (!array)
         return false;
 
+    /* 统计各魔法元素出现的次数 */
     int element_counts[MAGIC_ELEMENT_TOTAL_COUNT] = {0};
     for (int i = 0; i < array->runes->rune_count; i++) {
         Rune *rune = array->runes->runes[i];
@@ -976,7 +1003,7 @@ bool magic_array_check_balance(const MagicArray *array) {
         }
     }
 
-    /* 计算元素分布的方差 */
+    /* 计算五种有效元素（不含NONE）的分布方差 */
     double mean = (double) array->runes->rune_count / (double) MAGIC_REAL_ELEMENT_COUNT;
     double variance = 0.0;
 
@@ -986,7 +1013,7 @@ bool magic_array_check_balance(const MagicArray *array) {
     }
     variance /= (double) MAGIC_REAL_ELEMENT_COUNT;
 
-    /* 方差小于阈值表示平衡 */
+    /* 方差小于（均值 × 平衡阈值）时视为元素分布平衡 */
     return variance < mean * MAGIC_ELEMENT_BALANCE_THRESHOLD;
 }
 
@@ -1001,6 +1028,7 @@ int array_count_elements(const MagicArray *array, MagicElement element) {
     if (!array)
         return 0;
 
+    /* 遍历魔法阵中的所有符文，统计指定元素的出现次数 */
     int count = 0;
     for (int i = 0; i < array->runes->rune_count; i++) {
         if (array->runes->runes[i]->element == element) {
@@ -1028,20 +1056,22 @@ double array_calculate_stability(const MagicArray *array) {
     double stability = MAGIC_STABILITY_MAX;
     int conflicts = 0;
 
+    /* 统计冲突约束的数量 */
     for (int i = 0; i < array->constraint_count; i++) {
         if (array->constraints[i] == ARRAY_CONFLICT) {
             conflicts++;
         }
     }
 
-    /* 每有一个冲突约束，稳定性降低 */
+    /* 每个冲突约束降低固定比例的稳定性 */
     stability -= (double) conflicts * MAGIC_STABILITY_CONFLICT_PENALTY;
 
-    /* 符文数量过少也不稳定 */
+    /* 符文数量少于最低要求时稳定性折半 */
     if (array->runes->rune_count < MAGIC_STABILITY_MIN_RUNES) {
         stability *= MAGIC_STABILITY_TOO_FEW_MULTIPLIER;
     }
 
+    /* 截断到 [0.0, 1.0] 范围内 */
     return stability < 0.0 ? 0.0 : stability;
 }
 
@@ -1062,7 +1092,7 @@ MagicArray *magic_array_copy(const MagicArray *src) {
     if (!copy)
         return NULL;
 
-    /* 复制符文 */
+    /* 逐个深拷贝符文，同步更新约束图 */
     for (int i = 0; i < src->runes->rune_count; i++) {
         Rune *rune = rune_copy(src->runes->runes[i]);
         if (!rune) {
@@ -1075,12 +1105,12 @@ MagicArray *magic_array_copy(const MagicArray *src) {
             return NULL;
         }
 
-        /* 添加到图 */
+        /* 将符文坐标加入副本的约束图 */
         SymbolicCoord *coords[] = { rune->coord };
         graph_add_point(copy->graph, coords, 1);
     }
 
-    /* 复制约束 */
+    /* 深拷贝所有约束关系 */
     for (int i = 0; i < src->constraint_count; i++) {
         magic_array_add_constraint(copy, src->constraints[i], i, (i + 1) % src->runes->rune_count);
     }
@@ -1102,7 +1132,7 @@ bool magic_array_merge(MagicArray *dest, const MagicArray *src) {
     if (!dest || !src)
         return false;
 
-    /* 合并所有符文 */
+    /* 将源魔法阵的所有符文逐个复制到目标阵 */
     for (int i = 0; i < src->runes->rune_count; i++) {
         int idx = magic_array_add_rune(dest, src->runes->runes[i]);
         if (idx < 0) {
@@ -1111,7 +1141,7 @@ bool magic_array_merge(MagicArray *dest, const MagicArray *src) {
         }
     }
 
-    /* 合并所有约束 */
+    /* 将源魔法阵的所有约束关系映射到目标阵 */
     for (int i = 0; i < src->constraint_count; i++) {
         /* 约束索引需要映射到 dest 中的新索引 */
         int result = magic_array_add_constraint(dest, src->constraints[i], i, (i + 1) % src->runes->rune_count);
@@ -1147,15 +1177,17 @@ char *magic_array_serialize(const MagicArray *array) {
     if (!json)
         return NULL;
 
+    /* 写入 JSON 头部：符文数和约束数 */
     int offset = 0;
     offset += snprintf(json + offset, buf_size - offset, "{\"rune_count\":%d,\"constraint_count\":%d,\"runes\":[",
                        rune_count, constraint_count);
     if (offset < 0) goto done;
 
-    /* 序列化每个符文 */
+    /* 逐个序列化符文为 JSON 对象 */
     for (int i = 0; i < rune_count && offset < (int)buf_size; i++) {
         Rune *rune = array->runes->runes[i];
         const char *elem_str = element_to_string(rune->element);
+        /* 元素间用逗号分隔 */
         if (i > 0 && offset < (int)buf_size) {
             offset += snprintf(json + offset, buf_size - offset, ",");
             if (offset < 0) break;
@@ -1167,6 +1199,7 @@ char *magic_array_serialize(const MagicArray *array) {
         }
     }
 
+    /* 闭合 JSON 数组和对象 */
     if (offset >= 0 && offset < (int)buf_size)
         offset += snprintf(json + offset, buf_size - offset, "]}");
 
@@ -1583,6 +1616,7 @@ Spell *spell_create(const char *name) {
 
     memset(spell, 0, sizeof(Spell));
 
+    /* 设置咒语名称（默认"Unnamed Spell"） */
     if (name) {
         spell->name = lv_strdup_safe(name);
     } else {
@@ -1595,18 +1629,21 @@ Spell *spell_create(const char *name) {
         return NULL;
     }
 
+    /* 初始化描述为空字符串 */
     spell->description = lv_strdup_safe("");
     if (!spell->description) {
         lv_free((void **) &spell->name);
         lv_free((void **) &spell);
         return NULL;
     }
+    /* 设置咒语默认参数：难度1、输出1、开模阶段、空闲状态 */
     spell->difficulty = MAGIC_SPELL_DIFFICULTY_DEFAULT;
     spell->input_count = 0;
     spell->output_count = MAGIC_SPELL_OUTPUT_DEFAULT;
     spell->current_stage = SPELL_STAGE_MOLDING;
     spell->status = SPELL_STATUS_IDLE;
 
+    /* 初始化各阶段默认配置 */
     spell->molding = rune_sequence_create();
     spell->purifying_element = ELEMENT_FIRE;
     spell->purifying_purity = MAGIC_SPELL_PURITY_DEFAULT;
@@ -1629,6 +1666,7 @@ void spell_destroy(Spell *spell) {
     if (!spell)
         return;
 
+    /* 释放咒语各子组件：名称、描述、开模符文序列 */
     if (spell->name)
         lv_free((void **) &spell->name);
     if (spell->description)
@@ -1715,14 +1753,17 @@ bool spell_configure_molding(Spell *spell, const RuneSequence *seq) {
     if (!spell || !seq)
         return false;
 
+    /* 替换旧的符文序列 */
     if (spell->molding) {
         rune_sequence_destroy(spell->molding);
     }
 
+    /* 创建新的符文序列 */
     spell->molding = rune_sequence_create();
     if (!spell->molding)
         return false;
 
+    /* 深拷贝每个符文到咒语的开模序列 */
     for (int i = 0; i < seq->rune_count; i++) {
         Rune *copy = rune_copy(seq->runes[i]);
         if (!copy || !rune_sequence_add(spell->molding, copy)) {
@@ -1880,10 +1921,11 @@ SpellStatus spell_cast(Spell *spell, MagicArray *array, SymbolicCoord **inputs, 
     if (!spell || !array)
         return SPELL_STATUS_FAILED;
 
+    /* 初始化施法状态 */
     spell->current_stage = SPELL_STAGE_MOLDING;
     spell->status = SPELL_STATUS_CASTING;
 
-    /* 开模阶段 */
+    /* 开模阶段：检查开模符文序列是否为空 */
     if (spell->molding->rune_count == 0) {
         spell->status = SPELL_STATUS_FAILED;
         return spell->status;
@@ -1891,7 +1933,7 @@ SpellStatus spell_cast(Spell *spell, MagicArray *array, SymbolicCoord **inputs, 
 
     spell->current_stage = SPELL_STAGE_PURIFYING;
 
-    /* 提纯阶段 - 检查元素 */
+    /* 提纯阶段：检查魔法阵中是否存在所需的魔法元素 */
     bool has_matching_element = false;
     for (int i = 0; i < array->runes->rune_count; i++) {
         if (array->runes->runes[i]->element == spell->purifying_element) {
@@ -1900,6 +1942,7 @@ SpellStatus spell_cast(Spell *spell, MagicArray *array, SymbolicCoord **inputs, 
         }
     }
 
+    /* 需要提纯但缺少对应元素时，施法失败 */
     if (!has_matching_element && spell->purifying_purity > MAGIC_SPELL_PURITY_CHECK_THRESH) {
         spell->status = SPELL_STATUS_FAILED;
         return spell->status;
@@ -1907,7 +1950,7 @@ SpellStatus spell_cast(Spell *spell, MagicArray *array, SymbolicCoord **inputs, 
 
     spell->current_stage = SPELL_STAGE_INFUSING;
 
-    /* 灌注阶段 - 能量检查 */
+    /* 灌注阶段：检查魔法阵稳定性，低于阈值则触发反噬 */
     double stability = array_calculate_stability(array);
     if (stability < MAGIC_STABILITY_BACKLASH_THRESHOLD) {
         spell->status = SPELL_STATUS_BACKLASH;
@@ -1927,6 +1970,7 @@ SpellStatus spell_cast(Spell *spell, MagicArray *array, SymbolicCoord **inputs, 
         } else if (input_count == 1) {
             outputs[0] = symbolic_coord_copy(inputs[0]);
         } else {
+            /* 累加所有输入坐标 */
             SymbolicCoord *sum = symbolic_coord_copy(inputs[0]);
             for (int i = 1; i < input_count; i++) {
                 SymbolicCoord *tmp = symbolic_coord_add(sum, inputs[i]);
@@ -1955,10 +1999,13 @@ SpellStatus spell_cast(Spell *spell, MagicArray *array, SymbolicCoord **inputs, 
 bool spell_validate_structure(const Spell *spell) {
     if (!spell)
         return false;
+    /* 检查难度是否在有效范围 [1, 10] 内 */
     if (spell->difficulty < MAGIC_SPELL_DIFFICULTY_MIN || spell->difficulty > MAGIC_SPELL_DIFFICULTY_MAX)
         return false;
+    /* 检查开模符文序列是否非空 */
     if (spell->molding->rune_count == 0)
         return false;
+    /* 检查提纯纯度是否在 [0.0, 1.0] 范围内 */
     if (spell->purifying_purity < MAGIC_SPELL_PURITY_MIN || spell->purifying_purity > MAGIC_SPELL_PURITY_MAX)
         return false;
     return true;
@@ -2088,6 +2135,7 @@ SpellBook *spellbook_create(void) {
     if (!book)
         return NULL;
 
+    /* 初始化动态咒语数组，预分配初始容量 */
     book->capacity = MAGIC_SPELLBOOK_INIT_CAP;
     book->spell_count = 0;
     book->spells = (Spell **) lv_malloc(book->capacity * sizeof(Spell *));
@@ -2112,9 +2160,11 @@ void spellbook_destroy(SpellBook *book) {
     if (!book)
         return;
 
+    /* 销毁书中的所有咒语（咒语书拥有所有权） */
     for (int i = 0; i < book->spell_count; i++) {
         spell_destroy(book->spells[i]);
     }
+    /* 释放动态数组和结构体本身 */
     lv_free((void **) &book->spells);
     lv_free((void **) &book);
 }
@@ -2133,6 +2183,7 @@ bool spellbook_add_spell(SpellBook *book, Spell *spell) {
     if (!book || !spell)
         return false;
 
+    /* 容量不足时自动扩容（翻倍策略） */
     if (book->spell_count >= book->capacity) {
         int new_capacity = book->capacity * MAGIC_SPELLBOOK_GROWTH;
         Spell **new_spells = (Spell **) lv_realloc(book->spells, new_capacity * sizeof(Spell *));
@@ -2142,6 +2193,7 @@ bool spellbook_add_spell(SpellBook *book, Spell *spell) {
         book->capacity = new_capacity;
     }
 
+    /* 将咒语追加到书尾（咒语书获得所有权） */
     book->spells[book->spell_count++] = spell;
     return true;
 }
@@ -2159,9 +2211,11 @@ bool spellbook_remove_spell(SpellBook *book, const char *spell_name) {
     if (!book || !spell_name)
         return false;
 
+    /* 按名称查找并移除咒语 */
     for (int i = 0; i < book->spell_count; i++) {
         if (strcmp(book->spells[i]->name, spell_name) == 0) {
             spell_destroy(book->spells[i]);
+            /* 后续元素前移填补空缺 */
             for (int j = i; j < book->spell_count - 1; j++) {
                 book->spells[j] = book->spells[j + 1];
             }
@@ -2218,6 +2272,7 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
         return NULL;
 
     *count = book->spell_count;
+    /* 分配咒语名称指针数组 */
     char **names = (char **) lv_malloc(book->spell_count * sizeof(char *));
 
     if (!names) {
@@ -2225,6 +2280,7 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
         return NULL;
     }
 
+    /* 逐个复制咒语名称到数组 */
     for (int i = 0; i < book->spell_count; i++) {
         names[i] = lv_strdup_safe(book->spells[i]->name);
         /* 如果某个名称复制失败，释放已分配的内存并返回 NULL */
@@ -2260,23 +2316,28 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
  */
 IncantationProfile incantation_optimize(const char *goal, double target_value) {
     lv_UNUSED(target_value);
+    /* 设置默认咏唱配置：标准长度 */
     IncantationProfile profile = {INCANTATION_STANDARD, MAGIC_INCANTATION_PRECISION_DEFAULT,
                                   MAGIC_INCANTATION_SPEED_DEFAULT, MAGIC_INCANTATION_STEALTH_DEFAULT};
 
     if (!goal)
         return profile;
 
+    /* 根据施法目标调整咏唱参数 */
     if (strcmp(goal, "speed") == 0) {
+        /* 速度优先：短咏唱，高速度高隐蔽，低精度 */
         profile.length = INCANTATION_SHORT;
         profile.speed = MAGIC_INCANTATION_SPEED_FAST;
         profile.precision = MAGIC_INCANTATION_PRECISION_LOW;
         profile.stealth = MAGIC_INCANTATION_STEALTH_HIGH;
     } else if (strcmp(goal, "precision") == 0) {
+        /* 精度优先：长咏唱，高精度，低速度和隐蔽 */
         profile.length = INCANTATION_LONG;
         profile.speed = MAGIC_INCANTATION_SPEED_SLOW;
         profile.precision = MAGIC_INCANTATION_PRECISION_HIGH;
         profile.stealth = MAGIC_INCANTATION_STEALTH_LOW;
     } else if (strcmp(goal, "stealth") == 0) {
+        /* 隐蔽优先：短咏唱，高隐蔽，中等速度和精度 */
         profile.length = INCANTATION_SHORT;
         profile.speed = MAGIC_INCANTATION_SPEED_MED;
         profile.precision = MAGIC_INCANTATION_PRECISION_MED;
@@ -2299,10 +2360,12 @@ double incantation_calculate_power(const IncantationProfile *profile) {
     if (!profile)
         return 0.0;
 
+    /* 加权计算基础威力：精度40% + 速度30% + 隐蔽30% */
     double power = profile->precision * MAGIC_INCANTATION_WEIGHT_PRECISION +
                    profile->speed * MAGIC_INCANTATION_WEIGHT_SPEED +
                    profile->stealth * MAGIC_INCANTATION_WEIGHT_STEALTH;
 
+    /* 根据咏唱长度施加倍率（瞬发0.5x ~ 仪式1.5x） */
     switch (profile->length) {
         case INCANTATION_INSTANT:
             power *= MAGIC_INCANTATION_MULT_INSTANT;
@@ -2348,6 +2411,7 @@ RestrictionLevel spell_check_restriction(const Spell *spell, const ForbiddenSpel
     if (!spell || !criteria)
         return RESTRICTION_NONE;
 
+    /* 统计满足的禁术判定标准数量 */
     int criteria_count = 0;
     if (criteria->external_cost_unacceptable)
         criteria_count++;
@@ -2356,12 +2420,14 @@ RestrictionLevel spell_check_restriction(const Spell *spell, const ForbiddenSpel
     if (criteria->governance_uncontrollable)
         criteria_count++;
 
+    /* 根据满足的标准数量确定限制等级 */
     if (criteria_count >= MAGIC_RESTRICTION_CRITERIA_ABSOLUTE)
         return RESTRICTION_ABSOLUTE;
     if (criteria_count == MAGIC_RESTRICTION_CRITERIA_FORBID)
         return RESTRICTION_FORBIDDEN;
     if (criteria_count == MAGIC_RESTRICTION_CRITERIA_CONTROL)
         return RESTRICTION_CONTROLLED;
+    /* 难度超过阈值也视为限制级 */
     if (spell->difficulty > MAGIC_SPELL_RESTRICTION_DIFF)
         return RESTRICTION_LIMITED;
 
@@ -2414,12 +2480,13 @@ Domain *domain_create(const char *name, int range) {
         return NULL;
     }
 
+    /* 初始化领域属性：范围、中心、激活状态、强度 */
     domain->range = range;
     domain->center = NULL;
     domain->active = false;
     domain->strength = 0.0;
 
-    /* 初始化规则系统 */
+    /* 初始化规则系统：初始为空，按需分配 */
     domain->rules = NULL;
     domain->rule_count = 0;
     domain->rule_capacity = 0;
@@ -2438,11 +2505,13 @@ Domain *domain_create(const char *name, int range) {
 void domain_destroy(Domain *domain) {
     if (!domain)
         return;
+    /* 释放领域名称 */
     if (domain->name)
         lv_free((void **) &domain->name);
+    /* 释放领域中心坐标 */
     if (domain->center)
         symbolic_coord_destroy(domain->center);
-    /* 释放所有规则 */
+    /* 释放所有规则及其模式字符串 */
     if (domain->rules) {
         for (int i = 0; i < domain->rule_count; i++) {
             if (domain->rules[i].pattern)
@@ -2468,7 +2537,7 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
     if (!domain || !rule_name)
         return false;
 
-    /* 检查重复规则（相同 pattern） */
+    /* 检查重复规则（相同 pattern 视为已存在，跳过） */
     for (int i = 0; i < domain->rule_count; i++) {
         if (domain->rules[i].pattern &&
             strcmp(domain->rules[i].pattern, rule_name) == 0) {
@@ -2476,7 +2545,7 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
         }
     }
 
-    /* 扩容检查 */
+    /* 规则数组容量不足时自动扩容 */
     if (domain->rule_count >= domain->rule_capacity) {
         int new_cap = domain->rule_capacity == 0 ? 8 : domain->rule_capacity * 2;
         DomainRule *new_rules = (DomainRule *) lv_realloc(
@@ -2487,7 +2556,7 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
         domain->rule_capacity = new_cap;
     }
 
-    /* 添加新规则 */
+    /* 添加新规则并设置默认动作 */
     int idx = domain->rule_count;
     domain->rules[idx].pattern = lv_strdup_safe(rule_name);
     if (!domain->rules[idx].pattern)
@@ -2503,7 +2572,7 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
             domain->rules[i] = domain->rules[i - 1];
             domain->rules[i - 1] = tmp;
         } else {
-            break; /* 已排好序 */
+            break; /* 尾部已排好序，提前退出 */
         }
     }
 
@@ -2524,9 +2593,11 @@ bool domain_activate(Domain *domain, SymbolicCoord *center) {
     if (!domain)
         return false;
 
+    /* 替换已有的中心坐标 */
     if (domain->center) {
         symbolic_coord_destroy(domain->center);
     }
+    /* 深拷贝中心坐标并激活领域 */
     domain->center = symbolic_coord_copy(center);
     domain->active = true;
     domain->strength = MAGIC_DOMAIN_ACTIVATION_STRENGTH;
@@ -2545,6 +2616,7 @@ bool domain_activate(Domain *domain, SymbolicCoord *center) {
 bool domain_deactivate(Domain *domain) {
     if (!domain)
         return false;
+    /* 设置为非激活状态，强度归零 */
     domain->active = false;
     domain->strength = 0.0;
     return true;
@@ -2612,6 +2684,7 @@ SymbolicCoord *domain_get_center(const Domain *domain) {
  * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *element_to_string(MagicElement element) {
+    /* 元素名称查找表，与 MagicElement 枚举顺序一致 */
     static const char *names[] = {"无属性", "火", "水", "风", "土", "以太"};
     /* 边界检查：防止数组越界 */
     if (element < 0 || element > ELEMENT_ETHER) {
@@ -2632,6 +2705,7 @@ MagicElement string_to_element(const char *str) {
     if (!str)
         return ELEMENT_NONE;
 
+    /* 支持中英文名称匹配 */
     if (strcmp(str, "FIRE") == 0 || strcmp(str, "火") == 0)
         return ELEMENT_FIRE;
     if (strcmp(str, "WATER") == 0 || strcmp(str, "水") == 0)
@@ -2654,6 +2728,7 @@ MagicElement string_to_element(const char *str) {
  * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *stage_to_string(SpellStage stage) {
+    /* 施法阶段名称查找表，与 SpellStage 枚举顺序一致 */
     static const char *names[] = {"开模", "提纯", "灌注", "释放"};
     /* 边界检查：防止数组越界 */
     if (stage < 0 || stage > SPELL_STAGE_RELEASING) {
@@ -2670,6 +2745,7 @@ const char *stage_to_string(SpellStage stage) {
  * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *status_to_string(SpellStatus status) {
+    /* 咒语状态名称查找表，与 SpellStatus 枚举顺序一致 */
     static const char *names[] = {"空闲", "施法中", "成功", "失败", "反噬"};
     /* 边界检查：防止数组越界 */
     if (status < 0 || status > SPELL_STATUS_BACKLASH) {
@@ -2686,6 +2762,7 @@ const char *status_to_string(SpellStatus status) {
  * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *reaction_to_string(ElementReaction reaction) {
+    /* 元素反应名称查找表，与 ElementReaction 枚举顺序一致 */
     static const char *names[] = {"无反应", "增强", "削弱", "冲突"};
     /* 边界检查：防止数组越界 */
     if (reaction < 0 || reaction > ELEMENT_REACTION_CONFLICT) {
@@ -2702,6 +2779,7 @@ const char *reaction_to_string(ElementReaction reaction) {
  * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *restriction_to_string(RestrictionLevel level) {
+    /* 限制等级名称查找表，与 RestrictionLevel 枚举顺序一致 */
     static const char *names[] = {"无限制", "限制级", "管制级", "禁术级", "绝对禁术"};
     /* 边界检查：防止数组越界 */
     if (level < 0 || level > RESTRICTION_ABSOLUTE) {

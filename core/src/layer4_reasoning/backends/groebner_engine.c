@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file groebner_engine.c
  * @brief Groebner 基计算引擎实现 —— Buchberger 算法、理想操作与代数簇求解
  *
@@ -23,6 +23,8 @@
  */
 
 #include "groebner_engine.h"
+
+#include "lv/lv.h"
 
 #include <float.h>
 #include <math.h>
@@ -96,12 +98,6 @@ typedef pthread_mutex_t lvGroebnerMutex;
 
 /** @brief 代数簇求解的最大迭代次数 */
 #define GROEBNER_SOLVE_MAX_ITER 200
-
-/** @brief Buchberger 算法最大步数 */
-#define GROEBNER_BUCHBERGER_MAX_STEPS 50000
-
-/** @brief 多项式约化最大步数 */
-#define GROEBNER_REDUCE_MAX_STEPS 10000
 
 /** @brief 数值零阈值 */
 #define GROEBNER_ZERO_THRESHOLD 1e-15
@@ -1288,8 +1284,9 @@ static lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **
     double *rem_coeffs = (double *)remainder->coeffs;
     int step_count = 0;
 
+    int reduce_max = lv_config_get_int("groebner_reduce_max_steps", 10000);
     bool changed = true;
-    while (changed && step_count < GROEBNER_REDUCE_MAX_STEPS) {
+    while (changed && step_count < reduce_max) {
         changed = false;
         step_count++;
 
@@ -1537,8 +1534,9 @@ static lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, 
     }
 
     int step = 0;
+    int buchberger_max = lv_config_get_int("buchberger_max_steps", 50000);
 
-    while (pair_count > 0 && step < GROEBNER_BUCHBERGER_MAX_STEPS) {
+    while (pair_count > 0 && step < buchberger_max) {
         step++;
 
         /* 取一对 */

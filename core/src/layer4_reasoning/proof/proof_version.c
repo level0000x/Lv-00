@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_version.c
  * @brief 证明版本管理与序列化
  *
@@ -834,47 +834,7 @@ void lv_task_group_destroy(lvTaskGroup *group) {
  * - proof_multi_strategy_execute: 执行已激活的策略进行证明搜索
  * ================================================================ */
 
-/**
- * @brief 激活指定的多策略证明搜索策略（占位实现）
- *
- * @param mse            多策略引擎实例（当前未使用）
- * @param strategy_type  要激活的策略类型（当前未使用）
- * @return 始终返回 false，表示激活失败（功能尚未实现）
- *
- * @note 此为占位实现。当 proof_multi_strategy.c 模块可用时，
- *       链接器将使用该模块中的完整实现替换此函数。
- */
-bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategyType strategy_type) {
-    if (!mse) return false;
-    if (strategy_type < 0 || strategy_type >= PROOF_STRATEGY_COUNT)
-        return false;
-    mse->active_strategy_index = (int) strategy_type;
-    return true;
-}
-
-bool proof_multi_strategy_execute(ProofMultiStrategy *mse) {
-    if (!mse || mse->active_strategy_index < 0)
-        return false;
-    /* 委托给证明导航器的核心搜索 */
-    if (mse->shared_navigator) {
-        return proof_navigator_search(mse->shared_navigator);
-    }
-    return false;
-}
-
-const char *proof_strategy_type_to_string(ProofStrategyType type) {
-    switch (type) {
-    case PROOF_STRATEGY_DIRECT:      return "直接构造法";
-    case PROOF_STRATEGY_AREA:        return "面积法";
-    case PROOF_STRATEGY_COORDINATE:  return "坐标法";
-    case PROOF_STRATEGY_VECTOR:      return "向量法";
-    case PROOF_STRATEGY_TRANSFORM:   return "变换法";
-    case PROOF_STRATEGY_TRIGONOMETRY:return "三角法";
-    case PROOF_STRATEGY_ALGEBRAIC:   return "代数法";
-    case PROOF_STRATEGY_CONTRADICTION:return "反证法";
-    default:                          return "未知策略";
-    }
-}
+/* 这三个函数的完整实现在 proof_system/proof_multi_strategy.c 中 */
 
 /**
  * @brief 清洗 label，使其成为合法的 Isar 标识符

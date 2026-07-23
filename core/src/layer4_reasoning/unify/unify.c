@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file unify.c
  * @brief 合一检查实现
  * @details 实现构造与命题之间的合一检查，包括约束匹配、坐标判等、
@@ -77,6 +77,7 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"       /* lv_strdup_safe, lv_malloc 等统一内存管理 */
+#include "lv/geometric_primitives.h"
 #include "normalization.h"
 #include "lv/proof.h"
 #include "stream.h"
@@ -331,6 +332,13 @@ static bool match_ports(const ConstraintGraph *construction,
  * ------------------------------------------------------------------------- */
 
 UnifyStatus unify_construction_with_proposition(const ConstraintGraph *construction, const ConstraintGraph *proposition) {
+    /* 合一前执行图规范化遍（设计文档 3.8 节） */
+    if (construction) {
+        geo_normalize((ConstraintGraph *)construction, true);
+    }
+    if (proposition) {
+        geo_normalize((ConstraintGraph *)proposition, true);
+    }
     if (unify_stream_ctx) {
         stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
             "合一检查开始", 0);
@@ -543,6 +551,13 @@ UnifyStatus unify_construction_with_proposition_coord(const ConstraintGraph *con
  * ------------------------------------------------------------------------- */
 
 UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGraph *construction, const ConstraintGraph *proposition) {
+    /* 合一前执行图规范化遍（设计文档 3.8 节） */
+    if (construction) {
+        geo_normalize((ConstraintGraph *)construction, true);
+    }
+    if (proposition) {
+        geo_normalize((ConstraintGraph *)proposition, true);
+    }
     NormalizationResult *nc = graph_normalize((ConstraintGraph *)construction, true);
     NormalizationResult *np = graph_normalize((ConstraintGraph *)proposition, true);
     if (!nc || !np) {

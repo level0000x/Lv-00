@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file memory_pool.c
  * @brief 内存池系统实现
  *
@@ -627,7 +627,7 @@ lvObjectCache *lv_cache_create(size_t capacity,
     cache->hash_capacity = lv_HASH_TABLE_INIT_CAP;
     cache->hash_table = (CacheEntry **)calloc(cache->hash_capacity, sizeof(CacheEntry *));
     if (!cache->hash_table) {
-        lv_free((void **)&cache);
+        free(cache);
         return NULL;
     }
 
@@ -646,12 +646,15 @@ void lv_cache_destroy(lvObjectCache *cache) {
         if (cache->destroy_func && entry->value) {
             cache->destroy_func(entry->value, cache->user_data);
         }
-        lv_free((void **)&entry);
+        free(entry);
         entry = next;
     }
 
-    lv_free((void **)&cache->hash_table);
-    lv_free((void **)&cache);
+    /* 注意：cache->hash_table 使用 calloc 分配，CacheEntry 使用 malloc 分配，
+     * 此处用标准 free 释放而非 lv_free，因为这些内存在 cache 模块中
+     * 使用原生 calloc/malloc 分配，未经过 lv 的追踪系统 */
+    free(cache->hash_table);
+    free(cache);
 }
 
 /* 将条目移到链表头部 */
@@ -715,7 +718,7 @@ static void evict_lru(lvObjectCache *cache) {
     if (cache->destroy_func && entry->value) {
         cache->destroy_func(entry->value, cache->user_data);
     }
-    lv_free((void **)&entry);
+    free(entry);
     cache->current_size--;
 }
 
@@ -813,7 +816,7 @@ bool lv_cache_remove(lvObjectCache *cache, lvCacheKey key) {
             if (cache->destroy_func && entry->value) {
                 cache->destroy_func(entry->value, cache->user_data);
             }
-            lv_free((void **)&entry);
+            free(entry);
             cache->current_size--;
 
             return true;
@@ -836,7 +839,7 @@ void lv_cache_clear(lvObjectCache *cache) {
         if (cache->destroy_func && entry->value) {
             cache->destroy_func(entry->value, cache->user_data);
         }
-        lv_free((void **)&entry);
+        free(entry);
         entry = next;
     }
 
@@ -1026,6 +1029,12 @@ static lvObjectPool *g_symbolic_coord_pool = NULL;
 static lvObjectPool *g_proof_step_pool = NULL;
 
 bool lv_init_preset_pools(void) {
+    /* 防御性检查：防止二次初始化导致旧池泄漏 */
+    if (g_node_pool != NULL || g_constraint_pool != NULL ||
+        g_symbolic_coord_pool != NULL || g_proof_step_pool != NULL) {
+        return true;  /* 已经初始化 */
+    }
+
     lvPoolConfig config = {
         .object_size = 0,
         .capacity = lv_POOL_DEFAULT_CAPACITY,

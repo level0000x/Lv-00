@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file type_system.c
  * @brief 类型系统实现 —— 宇宙层级类型论与等价检查
  *
@@ -45,6 +45,7 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv.h"
 #include "rewrite.h"
 #include "lv/stream.h"
 
@@ -60,18 +61,10 @@ void type_system_set_stream_context(StreamContext *ctx) {
 #define INFERENCE_RULE_INITIAL_CAPACITY 8
 
 /**
- * 类型推断的最大递归深度限制 —— TYPE_INFER_MAX_DEPTH
- *
- * 防止在存在循环连接的约束图中发生无限递归。
- * 取值 100 的理由：在实际约束图中，类型推断路径极少超过 30 层；
- * 100 提供了约 3 倍的安全余量，既不会过早截断合法推断，
- * 也不会在异常回路中耗尽栈空间（每层栈帧约 120 字节，100 层约 12KB，
- * 远在默认 1MB 栈大小之内）。
+ * 类型推断与等价检查的递归深度限制已迁移至 lvConfig 运行时系统。
+ * 通过 lv_config_get_int("type_infer_max_depth", 100) 和
+ * lv_config_get_int("type_equiv_max_depth", 16) 读取。
  */
-#define TYPE_INFER_MAX_DEPTH 100
-
-/* 递归深度限制，防止无限递归（类型等价检查） */
-#define TYPE_EQUIV_MAX_DEPTH 16
 
 /* visited set 最大容量，防止共享子类型导致指数级时间 */
 #define TYPE_EQUIV_MAX_VISITED 256
@@ -791,6 +784,84 @@ bool type_check_cumulative(TypeSystem *ts, TypeRegion *lower, TypeRegion *higher
     return false;
 }
 
+/* ============== 宇宙层级类型系统（6.1节） ============== */
+
+/**
+ * 全局层级检查开关（默认开启）
+ * type_set_universe_checking() / type_is_universe_checking_enabled() 控制此标志
+ */
+static bool s_universe_checking_enabled = true;
+
+/**
+ * @brief 获取几何节点的宇宙层级
+ *
+ * GEOM_POINT / GEOM_LINE_SEGMENT / GEOM_PORT → UNIVERSE_LEVEL_0
+ * GEOM_REGION → UNIVERSE_LEVEL_1（由基本几何体构成的集合）
+ * GEOM_FUNCTION_BLOCK → UNIVERSE_LEVEL_1（函数空间）
+ *
+ * @param node 几何节点
+ * @return 宇宙层级；node 为 NULL 或未知类型时返回 UNIVERSE_LEVEL_0
+ */
+UniverseLevel type_get_universe_level(const GeomNode *node) {
+    if (!node)
+        return UNIVERSE_LEVEL_0;
+
+    switch (node->type) {
+        case GEOM_POINT:
+        case GEOM_LINE_SEGMENT:
+        case GEOM_PORT:
+            return UNIVERSE_LEVEL_0;
+        case GEOM_REGION:
+        case GEOM_FUNCTION_BLOCK:
+            return UNIVERSE_LEVEL_1;
+        default:
+            return UNIVERSE_LEVEL_0;
+    }
+}
+
+/**
+ * @brief 检查区域包含关系是否满足宇宙层级约束
+ *
+ * 规则：外层的宇宙层级必须严格高于内层的宇宙层级。
+ * 如果层级检查已关闭（type_set_universe_checking(false)），不做检查返回 true。
+ *
+ * @param outer 外部对象节点（通常是区域）
+ * @param inner 内部对象节点
+ * @return true 层级检查通过或已关闭；false 违反层级约束
+ */
+bool type_check_universe_constraint(const GeomNode *outer, const GeomNode *inner) {
+    /* 层级检查已关闭时跳过检查 */
+    if (!s_universe_checking_enabled)
+        return true;
+
+    if (!outer || !inner)
+        return false;
+
+    UniverseLevel outer_level = type_get_universe_level(outer);
+    UniverseLevel inner_level = type_get_universe_level(inner);
+
+    /* 外层必须严格高于内层（外层 > 内层） */
+    return outer_level > inner_level;
+}
+
+/**
+ * @brief 设置/关闭层级检查
+ *
+ * @param enabled true 开启层级检查（默认），false 关闭
+ */
+void type_set_universe_checking(bool enabled) {
+    s_universe_checking_enabled = enabled;
+}
+
+/**
+ * @brief 查询当前层级检查状态
+ *
+ * @return true 层级检查开启，false 已关闭
+ */
+bool type_is_universe_checking_enabled(void) {
+    return s_universe_checking_enabled;
+}
+
 /* ============== 类型等价检查 ============== */
 
 /* qsort 比较函数：按 int 升序排列 */
@@ -807,7 +878,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
         return TYPE_EQUIV_ERROR;
 
     /* 递归深度限制检查 */
-    if (depth >= TYPE_EQUIV_MAX_DEPTH) {
+    int equiv_max = lv_config_get_int("type_equiv_max_depth", 16);
+    if (depth >= equiv_max) {
         return TYPE_EQUIV_UNKNOWN;
     }
 
@@ -1312,7 +1384,8 @@ static bool type_infer_node_internal(TypeSystem *ts, ConstraintGraph *graph, int
 
     /* 递归深度限制检查。
      * 超过最大深度时返回 false，避免在循环依赖的约束图中无限递归。 */
-    if (depth >= TYPE_INFER_MAX_DEPTH) {
+    int infer_max = lv_config_get_int("type_infer_max_depth", 100);
+    if (depth >= infer_max) {
         return false;
     }
 

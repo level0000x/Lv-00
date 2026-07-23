@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：约束图 (constraint_graph)
  * 功能概述：Lv-00 系统的核心数据结构，提供几何节点（点、线段、区域、
  *          端口、函数块）和约束（关联、之间、相交、包含、连接）的
@@ -604,6 +604,17 @@ lv_PUBLIC_API Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, i
  * @note 调用者获得所有权，需在不再使用时调用 graph_destroy() 释放。
  */
 lv_PUBLIC_API ConstraintGraph *graph_create(void);
+
+/**
+ * @brief 深拷贝约束图
+ *
+ * 遍历源图中的所有节点和约束，在新图中创建完全独立的副本。
+ * 调用者负责对返回的图调用 graph_destroy() 释放。
+ *
+ * @param graph 源图（非 NULL）
+ * @return 新分配的图副本，失败返回 NULL
+ */
+lv_PUBLIC_API ConstraintGraph *graph_copy(const ConstraintGraph *graph);
 
 /**
  * @brief 销毁约束图，释放所有内部资源
