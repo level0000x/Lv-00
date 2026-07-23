@@ -150,6 +150,10 @@ static void alg_rational_simplify(int64_t *p, int64_t *q) {
     if (g > 1) {
         *p /= g;
         *q /= g;
+    } else if (g == 0 && *q != 0) {
+        /* gcd(0, q) = |q|，简化为 0/1 */
+        *p /= *q;
+        *q = 1;
     }
 }
 

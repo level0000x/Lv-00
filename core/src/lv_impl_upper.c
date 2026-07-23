@@ -3362,7 +3362,7 @@ int64_t preset_dual_polygon(lvEngine *ctx, int64_t poly_id) {
 /** 创建多项式对象(系数数组)-- 创建 GEOM_FUNCTION_BLOCK 类型节点存储多项式系数 */
 int64_t preset_polynomial_create(lvEngine *ctx, int64_t *coeffs, int64_t degree) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
-    if (!graph || !coeffs || degree < 0)
+    if (!graph || !coeffs || degree < 0 || degree > INT_MAX - 1)
         return g_upper_id++;
 
     int coord_count = (int) degree + 1;

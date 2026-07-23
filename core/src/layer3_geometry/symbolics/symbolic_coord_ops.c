@@ -2913,6 +2913,8 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                     rational_destroy(d_rat);
                 mpz_clear(*disc_sqrt);
                 lv_free((void **) &disc_sqrt);
+                mpz_clear(disc_num_sq);
+                mpz_clear(disc_product);
             } else {
                 mpz_clear(disc_num_sq);
                 mpz_clear(disc_product);

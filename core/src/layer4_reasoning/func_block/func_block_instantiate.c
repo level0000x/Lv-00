@@ -1005,6 +1005,10 @@ static bool detect_variable_capture(FuncBlock *block, const int *actual_arg_node
 
     /* 收集实参中的自由变量 ID */
     /* 自由变量 = 实参节点 ID 本身（因为它们来自外部作用域） */
+    if (arg_count > INT_MAX / 2) {
+        lv_free((void **)&bound_ids);
+        return false;
+    }
     int free_capacity = arg_count * 2;
     int *free_ids = lv_malloc((size_t) free_capacity * sizeof(int));
     if (!free_ids) {
