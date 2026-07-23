@@ -1159,7 +1159,7 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
         int overflow = circuit_get_overflow_count();
 
         /* 步骤2：若 overflow_count >= 阈值，建议永久降级 */
-        int threshold = lv_config_get_int("circuit_overflow_threshold");
+        int threshold = lv_config_get_int("circuit_overflow_threshold", 3);
         if (overflow >= threshold) {
             snprintf(engine->last_error, sizeof(engine->last_error),
                      "engine_handle_circuit_trip: 溢出计数 %d >= %d，"
@@ -1180,7 +1180,7 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
 
     /* 步骤3：无冻结点，仅报告警告 */
     int overflow = circuit_get_overflow_count();
-    int threshold = lv_config_get_int("circuit_overflow_threshold");
+    int threshold = lv_config_get_int("circuit_overflow_threshold", 3);
     if (overflow >= threshold) {
         /* 即使没有冻结点，反复溢出也建议降级 */
         snprintf(engine->last_error, sizeof(engine->last_error),
