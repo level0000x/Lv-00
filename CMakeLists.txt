@@ -884,10 +884,24 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/simd_ops.c
     # 求解器子模块：坐标提取、方程组、线性、快照、符号
     core/src/layer4_reasoning/solver/solver_coord_extract.c
+    core/src/layer4_reasoning/solver/solver_conflict.c
+    core/src/layer4_reasoning/solver/solver_dirty_set.c
     core/src/layer4_reasoning/solver/solver_eq_system.c
+    core/src/layer4_reasoning/solver/solver_feedback.c
+    core/src/layer4_reasoning/solver/solver_incremental.c
     core/src/layer4_reasoning/solver/solver_linear.c
+    core/src/layer4_reasoning/solver/solver_order.c
+    core/src/layer4_reasoning/solver/solver_result.c
     core/src/layer4_reasoning/solver/solver_snapshot.c
+    core/src/layer4_reasoning/solver/solver_stats.c
     core/src/layer4_reasoning/solver/solver_symbolic.c
+    # 求解器扩展（新提取模块）
+    core/src/layer4_reasoning/solver/solver_eliminate.c
+    core/src/layer4_reasoning/solver/solver_engine.c
+    core/src/layer4_reasoning/solver/solver_equation_extract.c
+    core/src/layer4_reasoning/solver/solver_geom_templates.c
+    core/src/layer4_reasoning/solver/solver_groebner.c
+    core/src/layer4_reasoning/solver/solver_multibranch.c
     # 求解器扩展：脏集合、快照
     core/src/layer4_reasoning/solver_ext/solver_dirty_set.c
     core/src/layer4_reasoning/solver_ext/solver_snapshot.c

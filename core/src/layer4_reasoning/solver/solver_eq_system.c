@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_eq_system.c
  * @brief 方程系统（初始化/添加/清空）
  *
@@ -148,4 +148,63 @@ void equation_system_clear(EquationSystem *sys) {
     sys->eqs = NULL;
     sys->count = 0;
     sys->capacity = 0;
+}
+
+/* ================================================================== */
+/*  PUBLIC API: Equation system lifecycle                              */
+/* ================================================================== */
+
+/**
+ * @brief 创建并初始化一个空的方程系统
+ *
+ * @return 新分配的 EquationSystem 指针，失败返回 NULL
+ */
+EquationSystem *equation_system_create(void) {
+    EquationSystem *sys = lv_calloc(1, sizeof(EquationSystem));
+    if (!sys)
+        return NULL;
+    equation_system_init(sys);
+    return sys;
+}
+
+/**
+ * @brief 销毁方程系统并释放所有资源
+ *
+ * @param sys 方程系统指针（可为 NULL，内部会检查）
+ */
+void equation_system_destroy(EquationSystem *sys) {
+    if (!sys)
+        return;
+    equation_system_clear(sys);
+    lv_free((void **) &sys);
+}
+
+/**
+ * @brief 获取方程系统中的方程数量
+ *
+ * @param sys 方程系统指针（可为 NULL）
+ * @return 方程数量，sys 为 NULL 时返回 0
+ */
+int equation_system_count(const EquationSystem *sys) {
+    if (!sys)
+        return 0;
+    return sys->count;
+}
+
+const mpz_poly_t *equation_system_get_poly(const EquationSystem *sys, int index) {
+    if (!sys || index < 0 || index >= sys->count)
+        return NULL;
+    return &sys->eqs[index].poly;
+}
+
+int equation_system_get_var_id(const EquationSystem *sys, int index) {
+    if (!sys || index < 0 || index >= sys->count)
+        return -1;
+    return sys->eqs[index].var_node_id;
+}
+
+int equation_system_get_coord_index(const EquationSystem *sys, int index) {
+    if (!sys || index < 0 || index >= sys->count)
+        return -1;
+    return sys->eqs[index].coord_index;
 }
