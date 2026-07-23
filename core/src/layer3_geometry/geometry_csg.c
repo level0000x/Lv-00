@@ -887,6 +887,15 @@ static void csg_compute_convex_hull(const CSGVec3 *vertices, int vertex_count, C
     centroid.y /= (double) vertex_count;
     centroid.z /= (double) vertex_count;
 
+    /* 计算顶点坐标最大绝对值，用于相对 epsilon 缩放 */
+    double max_vertex_abs = 0.0;
+    for (int i = 0; i < vertex_count; i++) {
+        max_vertex_abs = fmax(max_vertex_abs, fabs(vertices[i].x));
+        max_vertex_abs = fmax(max_vertex_abs, fabs(vertices[i].y));
+        max_vertex_abs = fmax(max_vertex_abs, fabs(vertices[i].z));
+    }
+    double csg_hull_eps = CSG_BSP_EPSILON * fmax(1.0, max_vertex_abs);
+
     /* 暴力枚举所有三元组 */
     for (int i = 0; i < vertex_count - 2; i++) {
         for (int j = i + 1; j < vertex_count - 1; j++) {
@@ -897,7 +906,7 @@ static void csg_compute_convex_hull(const CSGVec3 *vertices, int vertex_count, C
 
                 /* 退化三角形（面积为零），跳过 */
                 double nlen = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-                if (nlen < CSG_BSP_EPSILON)
+                if (nlen < csg_hull_eps)
                     continue;
 
                 /* 检查所有其他顶点是否在面的同一侧 */
@@ -910,9 +919,9 @@ static void csg_compute_convex_hull(const CSGVec3 *vertices, int vertex_count, C
                         continue;
 
                     double d = csg_signed_distance(vertices[i], normal, vertices[m]);
-                    if (d > CSG_BSP_EPSILON)
+                    if (d > csg_hull_eps)
                         pos_count++;
-                    else if (d < -CSG_BSP_EPSILON)
+                    else if (d < -csg_hull_eps)
                         neg_count++;
 
                     /* 两侧都有顶点 → 不是凸包面 */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file herbie_eval.c
  * @brief Herbie 浮点优化接口实现
  *
@@ -198,7 +198,8 @@ static int herbie_apply_builtin_rules(const char *expr,
     for (int i = 0; builtin_rules[i].pattern; i++) {
         if (contains_pattern(expr, builtin_rules[i].pattern)) {
             double orig_err = estimate_relative_error(expr, 1.0, 2);
-            double new_err = orig_err / builtin_rules[i].error_improvement;
+            double improv = builtin_rules[i].error_improvement;
+            double new_err = (fabs(improv) > 1e-15) ? orig_err / improv : orig_err;
 
             add_entry(opt, builtin_rules[i].replacement,
                       new_err, builtin_rules[i].description);

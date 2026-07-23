@@ -26,6 +26,10 @@
 #include <string.h>
 #include <math.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 /* ============================================================
  * 内部常量和宏
  * ============================================================ */
@@ -1814,7 +1818,8 @@ static double eval_node(const FormulaNode *node, double x, double y) {
         case NODE_BINARY_OP_DIV: {
             double l = eval_node(node->data.binary_op.left, x, y);
             double r = eval_node(node->data.binary_op.right, x, y);
-            return (r != 0.0) ? l / r : 0.0;
+            /* 使用容差检查代替精确零比较，防止次正规数除法溢出 */
+            return (fabs(r) > 1e-15) ? l / r : 0.0;
         }
 
         case NODE_BINARY_OP_POW: {
@@ -1848,6 +1853,11 @@ static double eval_node(const FormulaNode *node, double x, double y) {
 
         case NODE_UNARY_OP_TAN: {
             double v = eval_node(node->data.unary_op.operand, x, y);
+            /* tan(x) 在 x ≈ π/2 + nπ 处发散为 HUGE_VAL，使用容差避开奇点 */
+            double rem = fmod(v + M_PI_2, M_PI);
+            if (fabs(rem) < 1e-12 || fabs(rem - M_PI) < 1e-12) {
+                return 0.0;
+            }
             return tan(v);
         }
 

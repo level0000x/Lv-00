@@ -1,4 +1,4 @@
-﻿# Lv-00 几何元语言系统 v3.4-academic - 模块文档索引
+# Lv-00 几何元语言系统 v1.1.0 - 模块文档索引
 
 ## 概述
 
@@ -13,7 +13,7 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 
 ## 文档结构
 
-本文档目录包含 Lv-00 v3.4-academic 全部核心模块的详细描述：
+本文档目录包含 Lv-00 v1.1.0 全部核心模块的详细描述：
 
 ### 核心模块
 
@@ -141,192 +141,68 @@ if (result == UNIFY_OK) {
 
 ```
 Lv-00/
-├── include/lv/          # 头文件
-│   │
-│   │  ── 公共API入口 ──────────────────────────────────
-│   ├── lv.h                  # 主头文件
-│   ├── config.h                # 编译配置
-│   ├── cross_platform.h        # 跨平台宏
-│   ├── error_codes.h           # 错误码定义
-│   ├── lv_utils.h            # 通用工具
-│   ├── lv_numeric.h          # 数值类型工具
-│   └── lv_internal.h         # 内部接口
-│   │
-│   │  ── 引擎与上下文 ────────────────────────────────
-│   ├── ctx.h                # 主引擎
-│   ├── engine_scheduler.h      # 引擎调度器
-│   ├── context.h               # 上下文管理
-│   ├── circuit_breaker.h       # 熔断器
-│   ├── runtime_guard.h         # 运行时守卫
-│   └── status_codes.h          # 状态码定义
-│   │
-│   │  ── 解析层 (Layer 1) ────────────────────────────
-│   ├── formula_parser.h        # 公式解析器
-│   ├── formula_renderer.h      # 公式渲染器
-│   ├── formula_converter.h     # 公式转换器
-│   ├── dsl_compiler.h          # DSL 编译器
-│   ├── lexer_shared.h          # 共享词法器
-│   ├── math_input.h            # 数学输入处理
-│   └── parser_safety.h         # 解析安全检查
-│   │
-│   │  ── 资源层 (Layer 2 / shared) ──────────────────
-│   ├── debug.h                 # 调试工具
-│   ├── module.h                # 模块系统
-│   ├── memory_pool.h           # 内存池
-│   ├── runtime_monitor.h       # 运行时监控
-│   ├── node_deep_copy.h        # 节点深拷贝
-│   ├── test_framework.h        # 测试框架
-│   └── exact_arithmetic.h      # 精确算术
-│   │
-│   │  ── 几何层 (Layer 3) ────────────────────────────
-│   ├── constraint_graph.h      # 约束图
-│   ├── symbolic_coord.h        # 符号坐标
-│   ├── normalization.h         # 规范化
-│   ├── graph_hash.h            # 图哈希
-│   ├── mpz_poly.h              # 多精度多项式
-│   ├── geometry_types.h        # 几何类型定义
-│   ├── geometry_transform.h    # 几何变换
-│   ├── geometry_compress.h     # 几何压缩
-│   ├── euclidean_geometry.h    # 欧氏几何
-│   ├── high_dim.h              # 高维几何
-│   ├── interactive_geo.h       # 交互式几何
-│   ├── geom_evol.h             # 几何演化
-│   ├── geo_event_detect.h      # 几何事件检测
-│   ├── geo_invariant_type.h    # 几何不变量类型
-│   ├── geo_spec.h              # 几何规格
-│   ├── geo_topology.h          # 几何拓扑
-│   ├── equiv_class.h           # 等价类
-│   └── propagation.h           # 传播引擎
-│   │
-│   │  ── 推理层 (Layer 4) ────────────────────────────
-│   ├── solver.h                # 求解器
-│   ├── solver_core.h           # 求解器核心
-│   ├── rewrite.h               # 重写引擎
-│   ├── rewrite_strategy.h      # 重写策略
-│   ├── unify.h                 # 合一检查
-│   ├── proof.h                 # 证明系统
-│   ├── proof_engine_enhanced.h # 增强证明引擎
-│   ├── proof_priority.h        # 证明优先级
-│   ├── proof_rule_engine.h     # 证明规则引擎
-│   ├── proof_score.h           # 证明评分
-│   ├── proof_session.h         # 证明会话
-│   ├── proof_trace.h           # 证明追踪
-│   ├── proof_version.h         # 证明版本
-│   ├── proof_export_enhanced.h # 增强证明导出
-│   ├── proof_widget.h          # 证明可视化组件
-│   ├── axiom_pkg.h             # 公理包
-│   ├── axiom_rule_engine.h     # 公理规则引擎
-│   ├── axiom_grade.h           # 公理评级
-│   ├── func_block.h            # 函数块
-│   ├── func_block_internal.h   # 函数块内部
-│   ├── func_block_preset.h     # 函数块预设
-│   ├── func_block_preset_ops.h # 函数块预设操作
-│   ├── func_block_registry.h   # 函数块注册表
-│   ├── func_block_utils.h      # 函数块工具
-│   ├── type_system.h           # 类型系统
-│   ├── recursion.h             # 递归与条件
-│   ├── three_valued_logic.h    # 三值逻辑
-│   ├── modal_operators.h       # 模态算子
-│   ├── quantifier.h            # 量词
-│   ├── path_type.h             # 路径类型
-│   ├── logic_check.h           # 逻辑检查
-│   ├── prop_verifier.h         # 命题验证器
-│   ├── meta_proof.h            # 元证明
-│   ├── stream.h                # 流式输出
-│   ├── stream_context_util.h   # 流上下文工具
-│   ├── math_protocol.h         # 数学协议
-│   ├── relation_model.h        # 关系模型
-│   ├── sym_expr.h              # 符号表达式
-│   ├── smt_backend.h           # SMT 后端
-│   ├── smt_bitvector.h         # SMT 位向量
-│   ├── smt_theory_combiner.h   # SMT 理论组合器
-│   ├── smt_trigger_engine.h    # SMT 触发引擎
-│   ├── atp_backend.h           # ATP 后端
-│   ├── sat_encoding.h          # SAT 编码
-│   ├── bdd_encoding.h          # BDD 编码
-│   ├── sparse_linear_algebra.h # 稀疏线性代数
-│   ├── approx_counter.h        # 近似计数器
-│   ├── groebner_engine.h       # Groebner 引擎
-│   ├── algebra_mode.h          # 代数模式
-│   ├── rational.h              # 有理数
-│   ├── nt_number_theory.h      # 数论
-│   ├── nt_polynomial.h         # 数论多项式
-│   ├── interval_arithmetic.h   # 区间算术
-│   ├── float_error.h           # 浮点误差
-│   ├── fptaylor_eval.h         # FPTaylor 评估
-│   ├── herbie_eval.h           # Herbie 评估
-│   ├── gappa_dsl.h             # Gappa DSL
-│   ├── gappa_propagate.h       # Gappa 传播
-│   ├── inequality_reasoning.h  # 不等式推理
-│   ├── numerical_backend.h     # 数值后端
-│   ├── probabilistic_constraint.h # 概率约束
-│   ├── ode_solver.h            # ODE 求解器
-│   ├── autodiff.h              # 自动微分
-│   ├── gc_language.h           # GC 语言
-│   ├── expr_canonical.h        # 表达式规范化
-│   ├── expr_canon.h            # 表达式规范化(旧)
-│   ├── fast_index.h            # 快速索引
-│   ├── simd_ops.h              # SIMD 操作
-│   ├── benchmark.h             # 基准测试
-│   ├── thread_pool.h           # 线程池
-│   ├── magic.h                 # 魔法模块
-│   └── ecosystem.h             # 生态系统
-│   │
-│   │  ── 输出层 (Layer 5) ────────────────────────────
-│   ├── tikz_export.h           # TikZ 导出
-│   └── interop.h               # 跨语言互操作
-│   │
-│   │  ── 预设函数块库 ────────────────────────────────
-│   ├── preset_core.h           # 预设核心
-│   └── preset_*.h              # 63个领域预设（详见 20_preset_registry.md）
-│
-├── src/                   # 源文件
-├── tests/                 # 测试文件
-├── docs/                  # 文档目录（本目录）
-│   ├── README.md          # 本文档
-│   ├── 01_symbolic_coord.md
-│   ├── 02_constraint_graph.md
-│   ├── 03_normalization.md
-│   ├── 04_solver.md
-│   ├── 05_rewrite.md
-│   ├── 06_unify.md
-│   ├── 07_func_block.md
-│   ├── 08_type_system.md
-│   ├── 09_proof.md
-│   ├── 10_recursion.md
-│   ├── 11_wfc_paradigm.md
-│   ├── 12_context_and_lifecycle.md
-│   ├── 13_error_handling.md
-│   ├── 14_memory_management.md
-│   ├── 15_parsing_layer.md
-│   ├── 16_geometry_layer.md
-│   ├── 17_reasoning_layer.md
-│   ├── 18_output_layer.md
-│   ├── 19_numerical_backends.md
-│   └── 20_preset_registry.md
-└── CMakeLists.txt         # 构建配置
+├── core/                     # 核心引擎（C11）
+│   ├── include/lv/         # 公共 API 头文件（229 个 .h）
+│   │   ├── lv.h            # 主头文件 — 唯一公共入口
+│   │   ├── config.h          # 配置系统
+│   │   ├── proof.h           # 证明系统
+│   │   ├── func_block.h      # 函数块系统
+│   │   ├── lambda_term.h     # λ-演算数据结构
+│   │   └── preset_*.h        # 60+ 数学理论预设声明
+│   └── src/                  # 十层实现（401 个 .c）
+│       ├── layer1_parser/            # 公式解析、DSL 编译
+│       ├── layer2_resource/          # 内存池、缓存、上下文、调试
+│       ├── layer3_geometry/          # 约束图、符号坐标、代数数
+│       ├── layer4_reasoning/         # 证明引擎、Groebner、SMT/SAT、λ-演算
+│       ├── layer5_output/            # 输出与导出、插件系统
+│       ├── layer6_visual/            # 可视化编程、块调度器
+│       ├── layer7_orchestration/     # 流水线编排
+│       ├── layer8_meta_verify/      # 元验证
+│       ├── layer9_application/       # 应用入口
+│       └── layer10_interop/         # Coq/Lean4/OPML 桥接
+├── ui/                       # Web 前端（React + TypeScript + Vite）
+│   ├── L1-base/              # 基础样式与工具
+│   ├── L2-components/        # 原子组件（16 个）
+│   ├── L3-modules/           # 业务模块（17 个）
+│   ├── L4-shell/             # 应用壳
+│   ├── L5-core/              # 内核桥接与状态管理
+│   ├── L6-monitor/           # 运行监控
+│   └── shells/               # VS Code 扩展 / Qt 独立窗口
+├── bootstrap/                # .lv 语义规格 + GMP 原语运行时
+├── formal/                   # Lean 4 形式化（编译器 pipeline + Hilbert 公理）
+├── lv-formal/              # 经典几何形式化框架
+├── module/                   # 扩展模块：Python 绑定、公理包（.lvz）、流桥接
+├── cmake/                    # CMake 打包配置
+├── doc/                      # 技术文档与报告
+├── test/                     # 测试套件
+├── examples/                 # 演示示例
+├── tool/                     # 辅助工具
+├── CMakeLists.txt
+├── VERSION                   # 1.1.0
+├── IMPLEMENTATION_STATUS_AUDIT.md
+└── README.md
 ```
 
 ## 编译说明
 
 ### 依赖
 
-- C11 编译器
-- GMP 库 (GNU Multiple Precision Arithmetic Library)
+- C11 编译器（GCC / Clang / MSVC）
+- GMP 库 ≥ 6.0
+- CMake ≥ 3.15
 
 ### 编译步骤
 
 ```bash
 mkdir build && cd build
 cmake ..
-make
+cmake --build .
 ```
 
 ### 运行测试
 
 ```bash
-./test_basic
-./test_comprehensive
+ctest --output-on-failure
 ```
 
 ## 设计原则
@@ -342,32 +218,27 @@ make
 
 ### 自举路线
 
-1. C实现内核
-2. 公理系统编辑器
-3. 微自举A：几何可表达性验证
-4. 微自举B：几何证明能力验证
-5. 可行性原型：λ-演算几何表示
-6. 首次自举：命题逻辑验证器
+1. ✅ C实现内核（基础约束图+推理引擎完整）
+2. ✅ 公理系统编辑器
+3. ✅ 微自举A：几何可表达性验证（lv 解析自身 .lv 文件）
+4. ✅ λ-演算核心集成（Church 编码、Y 组合子、β-归约）
+5. ⏳ 微自举B：几何证明能力验证
+6. ⏳ 首次自举：命题逻辑验证器
 
 ## 版本历史
 
-- **v3.4-academic** (当前版本)
-  - 十层单向依赖学术架构（解析层 -> 几何公理层 -> 约束拓扑层 -> 推理层 -> 输出层）
-  - 完整实现 122+ 核心头文件模块
-  - 函数块系统：打包、例化、确定性检查、预设注册表
-  - 类型系统：宇宙层级、类型等价检查
-  - 命题与证明系统：合一检查、证明导航器、多策略推理
-  - 递归与条件：测度系统、选择器块
-  - SMT/ATP/SAT/BDD 多后端推理支持
-  - 数值后端：区间算术、Herbie、FPTaylor、Gappa
-  - 63个领域预设函数块
-
-- **v3.0.0**
-  - 完整实现18个核心模块
-  - 函数块系统：打包、例化、确定性检查
-  - 类型系统：宇宙层级、类型等价检查
-  - 命题与证明系统：合一检查、证明导航器
-  - 递归与条件：测度系统、选择器块
+- **v1.1.0**（当前版本）
+  - 十层单向依赖架构，C11 实现
+  - 符号坐标系统（GMP 精确有理数）、约束图核心、图规范化
+  - 推理引擎：Groebner 基求解器（237KB）、SMT/ATP/SAT/BDD 多后端
+  - λ-演算核心集成（β-归约、Church 编码、Y 组合子）
+  - 端口作用域系统 + 信任颜色 8 色体系
+  - 证明系统：多策略合一、证明导航器、证明导出
+  - UI 前端 L1–L6 分层架构（React 19 + TypeScript + Vite）
+  - Lean 4 形式化验证：编译器 pipeline 已证，54 个公理包验证
+  - 函数块系统、类型系统、递归与条件
+  - 60+ 数学理论预设，模块加载器（SHA-256 + DFS 循环检测）
+  - 401 个 .c、229 个 .h、84 个 .lean、154 个 .lv、41 个 .tsx、1011 个 .ts
 
 ## 许可证
 

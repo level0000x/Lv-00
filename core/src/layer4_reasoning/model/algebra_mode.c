@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file algebra_mode.c
  * @brief 代数模式构造引擎 —— 完整实现
  *
@@ -15,6 +15,10 @@
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 /* ================================================================
  * 内部辅助

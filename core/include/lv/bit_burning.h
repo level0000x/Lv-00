@@ -12,8 +12,10 @@
 extern "C" {
 #endif
 
+#ifndef BIT_CUTOFF_THRESHOLD
 /** 位数熔断阈值（比特） */
 #define BIT_CUTOFF_THRESHOLD 1000000
+#endif
 
 /** 连续熔断阈值（次） */
 #define MAX_CONSECUTIVE_TRIPS 3

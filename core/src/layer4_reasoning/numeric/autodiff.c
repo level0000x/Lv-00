@@ -158,6 +158,12 @@ static ForwardResult forward_eval(const lvADExpr *expr, int var_index,
         case AD_POW: {
             ForwardResult base = forward_eval(expr->children[0], var_index, var_value);
             ForwardResult exp = forward_eval(expr->children[1], var_index, var_value);
+            /* 保护：负底数的非整数幂在实数域无定义 */
+            if (base.value < 0.0 && fabs(exp.value - round(exp.value)) > 1e-15) {
+                result.value = 0.0;
+                result.tangent = 0.0;
+                break;
+            }
             result.value = pow(base.value, exp.value);
             /* d/dx (f^g) = f^g * (g' * ln(f) + g * f'/f)
              *
@@ -172,7 +178,11 @@ static ForwardResult forward_eval(const lvADExpr *expr, int var_index,
                 );
             } else if (fabs(exp.tangent) < 1e-15) {
                 /* Exponent is effectively constant: d/dx (base^n) = n * base^(n-1) * dbase/dx */
-                result.tangent = exp.value * pow(base.value, exp.value - 1.0) * base.tangent;
+                if (base.value < 0.0 && fabs(exp.value - 1.0 - round(exp.value - 1.0)) > 1e-15) {
+                    result.tangent = 0.0;
+                } else {
+                    result.tangent = exp.value * pow(base.value, exp.value - 1.0) * base.tangent;
+                }
             } else {
                 /* Base <= 0 with varying exponent: derivative undefined in reals.
                  * Return 0 to indicate non-differentiability. */

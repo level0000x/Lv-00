@@ -4956,8 +4956,6 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
 
     /* Step 3: Filter out zero polynomials and collect non-trivial ones */
     int active_count = 0;
-    if (system->count > 0) {
-    }
     for (int i = 0; i < system->count; i++) {
         if (!mv_poly_is_zero(&mv_polys[i])) {
             active_count++;

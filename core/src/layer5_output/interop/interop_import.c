@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interop_import.c
  * @brief 导入（GeoGebra/SVG）
  *
@@ -22,6 +22,10 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_parse_utils.h"
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 /* ── GeoGebra ZIP 解析常量 ── */
 

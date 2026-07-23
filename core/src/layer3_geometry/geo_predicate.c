@@ -1204,7 +1204,7 @@ lv_PUBLIC_API bool lv_point_in_convex_polygon(
     int hi = n - 1;
 
     while (hi - lo > 1) {
-        int mid = (lo + hi) / 2;
+        int mid = lo + (hi - lo) / 2;
 
         /*
          * 检查点相对于边 (v0, v[mid]) 的方向。

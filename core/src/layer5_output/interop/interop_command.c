@@ -204,7 +204,10 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 SymbolicCoord *coords[3] = {NULL, NULL, NULL};
                 int coord_count = 0;
                 for (int i = 1; i < cmd->param_count && (i - 1) < 3; i++) {
-                    double val = atof(cmd->params[i]);
+                    double val = 0.0;
+                    if (lv_parse_double(cmd->params[i], &val) != 0) {
+                        val = 0.0;
+                    }
                     int64_t num = (int64_t) (val * 1000000.0);
                     coords[i - 1] = symbolic_coord_create_rational(num, 1000000UL);
                     if (coords[i - 1])

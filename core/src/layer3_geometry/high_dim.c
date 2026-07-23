@@ -1845,15 +1845,20 @@ int high_dim_project_to_3d(const double *coord_4d, int dim_count,
              * 奇点保护：当 w 接近 camera_distance 时，投影点趋于无穷。
              * 使用最小阈值避免除零和数值溢出。
              */
-            if (fabs(denominator) < 0.001) {
-                denominator = (denominator >= 0) ? 0.001 : -0.001;
+            if (fabs(denominator) < camera_distance * 1e-6 + 1e-12) {
+                double min_denom = camera_distance * 1e-6 + 1e-12;
+                denominator = (denominator >= 0) ? min_denom : -min_denom;
                 lv_set_error(lv_OK,
                     "4D透视投影：w=%.4f接近摄像机距离d=%.4f，"
-                    "已应用奇点保护（截断因子=1000x）",
-                    w, camera_distance);
+                    "已应用奇点保护（截断因子=%.0fx）",
+                    w, camera_distance, camera_distance / min_denom);
             }
 
             double factor = camera_distance / denominator;
+
+            /* 防止 factor 过大导致坐标溢出 */
+            if (factor > 1e12) factor = 1e12;
+            if (factor < -1e12) factor = -1e12;
 
             coord_3d[0] = coord_4d[0] * factor;
             coord_3d[1] = coord_4d[1] * factor;

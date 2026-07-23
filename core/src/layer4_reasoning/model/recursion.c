@@ -43,6 +43,10 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 lv_DECLARE_STREAM_CTX(recursion);
 
 void recursion_set_stream_context(StreamContext *ctx) {

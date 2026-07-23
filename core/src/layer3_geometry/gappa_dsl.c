@@ -21,6 +21,7 @@
 #include "lv/gappa_dsl.h"
 #include "lv/lv_utils.h"
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -235,7 +236,10 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count,
                 char *abs_end = strrchr(token, '|');
                 char *leq = strstr(token, "<=");
                 if (abs_start && abs_end && abs_end > abs_start && leq) {
-                    double bound = atof(leq + 2);
+                    char *end = NULL;
+                    errno = 0;
+                    double bound = strtod(leq + 2, &end);
+                    if (errno != 0 || end == leq + 2) bound = 0.0;
                     /* 提取 | 内的表达式 */
                     size_t expr_len = (size_t)(abs_end - abs_start - 1);
                     char inner_expr[256] = {0};
@@ -344,7 +348,10 @@ lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count,
                         }
                     } else if (gpred.type == lv_PRED_ABS) {
                         /* ABS 目标：计算最大绝对偏差 */
-                        double center = atof(gpred.expr_rhs);
+                        char *end = NULL;
+                        errno = 0;
+                        double center = strtod(gpred.expr_rhs, &end);
+                        if (errno != 0 || end == gpred.expr_rhs) center = 0.0;
                         double dev_lo = fabs(hyp[j].bound_lo - center);
                         double dev_hi = fabs(hyp[j].bound_hi - center);
                         double max_dev = dev_lo > dev_hi ? dev_lo : dev_hi;

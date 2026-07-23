@@ -23,6 +23,7 @@
  */
 
 #include "lv/symbolic_coord.h"
+#include <errno.h>
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -34,6 +35,10 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
 #define SYM_COORD_SIGFIGS_MIN_SAFE 6
@@ -64,7 +69,7 @@ Transcendental *transcendental_create(const char *name) {
         coeff_num = -1;
         if (name[3] == '/') {
             is_mul = false;
-            coeff_den = atol(name + 4);
+            { char *e = NULL; errno = 0; long v = strtol(name + 4, &e, 10); if (errno == 0 && e != name + 4) coeff_den = (int64_t)v; }
             if (coeff_den <= 0)
                 return NULL;
         }
@@ -72,7 +77,7 @@ Transcendental *transcendental_create(const char *name) {
         /* pi/N 形式 */
         base = "pi";
         is_mul = false;
-        coeff_den = atol(name + 3);
+        { char *e = NULL; errno = 0; long v = strtol(name + 3, &e, 10); if (errno == 0 && e != name + 3) coeff_den = (int64_t)v; }
         if (coeff_den <= 0)
             return NULL;
     } else if (strncmp(name, "-pi/", 4) == 0) {
@@ -85,12 +90,12 @@ Transcendental *transcendental_create(const char *name) {
             /* N*pi 或 N*pi/M */
             base = "pi";
             is_mul = true;
-            coeff_num = atol(name);
+            { char *e = NULL; errno = 0; long v = strtol(name, &e, 10); if (errno == 0 && e != name) coeff_num = (int64_t)v; }
             if (coeff_num <= 0)
                 return NULL;
             const char *after = star_pos + 3; /* skip "*pi" */
             if (*after == '/') {
-                coeff_den = atol(after + 1);
+                { char *e = NULL; errno = 0; long v = strtol(after + 1, &e, 10); if (errno == 0 && e != after + 1) coeff_den = (int64_t)v; }
                 if (coeff_den <= 0)
                     return NULL;
             }
@@ -98,12 +103,12 @@ Transcendental *transcendental_create(const char *name) {
             /* -N*pi 或 -N*pi/M */
             base = "pi";
             is_mul = true;
-            coeff_num = atol(name);
+            { char *e = NULL; errno = 0; long v = strtol(name, &e, 10); if (errno == 0 && e != name) coeff_num = (int64_t)v; }
             if (coeff_num >= 0)
                 return NULL;
             const char *after = star_pos + 3;
             if (*after == '/') {
-                coeff_den = atol(after + 1);
+                { char *e = NULL; errno = 0; long v = strtol(after + 1, &e, 10); if (errno == 0 && e != after + 1) coeff_den = (int64_t)v; }
                 if (coeff_den <= 0)
                     return NULL;
             }

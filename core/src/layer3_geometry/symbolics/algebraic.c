@@ -69,8 +69,12 @@ void refine_algebraic_bounds(Algebraic *a, int iterations) {
         double val_left = evaluate_poly_at_double(&a->minimal_poly, a->left_bound);
 
         if (fabs(val_mid) < lv_EPSILON_NEWTON) {
-            a->left_bound = mid - lv_EPSILON_NEWTON;
-            a->right_bound = mid + lv_EPSILON_NEWTON;
+            /* 使用相对区间宽度：根据 |mid| 缩放 epsilon，
+             * 避免对大数值使用固定宽度导致精度过剩，
+             * 对小数值使用过宽区间导致根隔离不精确。 */
+            double eps_rel = lv_EPSILON_NEWTON * fmax(1.0, fabs(mid));
+            a->left_bound = mid - eps_rel;
+            a->right_bound = mid + eps_rel;
             return;
         }
 

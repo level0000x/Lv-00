@@ -1,7 +1,7 @@
 # Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
 [![C11](https://img.shields.io/badge/C-11-green.svg)](https://en.cppreference.com/w/c)
 [![Lean4](https://img.shields.io/badge/Lean-4-purple.svg)](https://lean-lang.org/)
 
@@ -479,21 +479,21 @@ SVG、Cairo 脚本、Three.js HTML、TikZ LaTeX、PPM 光栅化
 
 > 以下为**计划**，不代表已实现。已实现内容请见[项目现状](#项目现状)。
 
-**v1.1.0（基线）**
+**v1.1.0（当前基线，已完成）**
 - 十层目录结构与引擎 API 完整实现
 - GMP 精确有理数计算（完整）
 - 编译器 pipeline 的 Lean 形式化（完整）
 - UI 系统内核/前端完全解耦（完整）
 - Groebner 求解器（237KB 完整实现）
 - 54 个公理包 Lean 验证（完整）
+- 资源释放命名统一、内存分配器统一、头文件依赖精简（v1.8.0 工程优化批次）
+- 命名统一：全仓库 `lv00` 前缀消解为 `lv`
+- 端口作用域系统完整化
+- 信任颜色系统完整化
+- λ-演算核心集成
+- 基础设施补齐（SHA-256 共享、模块加载器增强）
 
-**v2.0.0（当前）**
-- 端口作用域系统完整化 ✅
-- 信任颜色系统完整化 ✅
-- λ-演算核心集成 ✅
-- 基础设施补齐（SHA-256 共享、模块加载器增强）✅
-
-**v2.1.0+（后续）**
+**v1.2.0+（后续）**
 - 消除 Lean 中的 `axiom` 假设，补齐 30 个几何定理证明
 - 公理自动发现
 - 多语言绑定支持

@@ -18,9 +18,10 @@
 #include "lv/gappa_dsl.h"
 #include "lv/lv_internal.h"
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#define _USE_MATH_DEFINES
+
 #include <math.h>
 #include <ctype.h>
 #include <float.h>
@@ -678,7 +679,10 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
             for (int i = 0; i < bw_count; i++) {
                 if (output->preds[i].type != lv_PRED_ABS) continue;
 
-                double center = atof(output->preds[i].expr_rhs);
+                char *end = NULL;
+                errno = 0;
+                double center = strtod(output->preds[i].expr_rhs, &end);
+                if (errno != 0 || end == output->preds[i].expr_rhs) center = 0.0;
                 double eps    = output->preds[i].bound_abs;
 
                 lvGappaPredicate bnd;
@@ -789,9 +793,10 @@ int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredS
 
     if (goal->type == lv_PRED_ABS) {
         /* ABS 目标: |x - c| <= bound → x in [c - bound, c + bound] */
-        double center = atof(goal->expr_lhs + 2); /* 跳过 "|x" ... 但实际是 "x" */
-        /* 尝试从 expr_rhs 获取中心值 */
-        center = atof(goal->expr_rhs);
+        char *end = NULL;
+        errno = 0;
+        double center = strtod(goal->expr_rhs, &end);
+        if (errno != 0 || end == goal->expr_rhs) center = 0.0;
 
         lvGappaPredicate derived;
         memset(&derived, 0, sizeof(derived));

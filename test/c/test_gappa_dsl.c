@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_gappa_dsl.c
  * @brief Test suite for the Gappa DSL module
  *
@@ -17,9 +17,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "gappa_dsl.h"
-#include "gappa_propagate.h"
-#include "interval_arithmetic.h"
+#include "lv/gappa_dsl.h"
+#include "lv/gappa_propagate.h"
+#include "lv/interval_arithmetic.h"
 #include "test_helpers.h"
 
 /* ============================================================
@@ -213,7 +213,7 @@ static void test_gappa_prove_fail(void) {
 
 static void test_gappa_pred_set(void) {
     lvGappaPredSet set;
-    gappa_pred_set_init(&set);
+    lv_gappa_pred_set_init(&set);
 
     TEST_ASSERT_EQ(set.count, 0);
 
@@ -224,30 +224,30 @@ static void test_gappa_pred_set(void) {
     pred.bound_lo = 0.0;
     pred.bound_hi = 1.0;
 
-    TEST_ASSERT_MSG(gappa_pred_set_add(&set, &pred) == true, "add should succeed");
+    TEST_ASSERT_MSG(lv_gappa_pred_set_add(&set, &pred) == true, "add should succeed");
     TEST_ASSERT_EQ(set.count, 1);
 
     /* Find existing */
     lvGappaPredicate found;
-    int idx = gappa_pred_set_find(&set, "x", &found);
+    int idx = lv_gappa_pred_set_find(&set, "x", &found);
     TEST_ASSERT_MSG(idx >= 0, "should find x");
     TEST_ASSERT_EQ(found.type, lv_PRED_BND);
 
     /* Find non-existing */
-    idx = gappa_pred_set_find(&set, "y", &found);
+    idx = lv_gappa_pred_set_find(&set, "y", &found);
     TEST_ASSERT_MSG(idx < 0, "should not find y");
 
     /* Duplicate add should not increase count */
-    TEST_ASSERT_MSG(gappa_pred_set_add(&set, &pred) == false, "duplicate add should fail");
+    TEST_ASSERT_MSG(lv_gappa_pred_set_add(&set, &pred) == false, "duplicate add should fail");
     TEST_ASSERT_EQ(set.count, 1);
 
-    gappa_pred_set_clear(&set);
+    lv_gappa_pred_set_clear(&set);
     TEST_ASSERT_EQ(set.count, 0);
 }
 
 static void test_gappa_propagate_forward(void) {
     lvGappaPredSet input;
-    gappa_pred_set_init(&input);
+    lv_gappa_pred_set_init(&input);
 
     /* Add hypotheses: x in [1, 2], y in [3, 4] */
     lvGappaPredicate px;
@@ -256,7 +256,7 @@ static void test_gappa_propagate_forward(void) {
     strncpy(px.expr_lhs, "x", sizeof(px.expr_lhs) - 1);
     px.bound_lo = 1.0;
     px.bound_hi = 2.0;
-    gappa_pred_set_add(&input, &px);
+    lv_gappa_pred_set_add(&input, &px);
 
     lvGappaPredicate py;
     memset(&py, 0, sizeof(py));
@@ -264,12 +264,12 @@ static void test_gappa_propagate_forward(void) {
     strncpy(py.expr_lhs, "y", sizeof(py.expr_lhs) - 1);
     py.bound_lo = 3.0;
     py.bound_hi = 4.0;
-    gappa_pred_set_add(&input, &py);
+    lv_gappa_pred_set_add(&input, &py);
 
     lvGappaPredSet output;
-    lvGappaPropagateConfig cfg = gappa_propagate_config_default();
+    lvGappaPropagateConfig cfg = lv_gappa_propagate_config_default();
 
-    int derived = gappa_propagate(&input, &output, &cfg);
+    int derived = lv_gappa_propagate_set(&input, &output, &cfg);
 
     TEST_ASSERT_MSG(derived > 0, "forward propagation should derive new predicates");
     TEST_ASSERT_MSG(output.count > input.count, "output should have more predicates than input");
@@ -287,7 +287,7 @@ static void test_gappa_propagate_forward(void) {
 
 static void test_gappa_propagate_backward(void) {
     lvGappaPredSet known;
-    gappa_pred_set_init(&known);
+    lv_gappa_pred_set_init(&known);
 
     /* Goal: |x - 0.5| <= 0.3 */
     lvGappaPredicate goal;
@@ -298,16 +298,16 @@ static void test_gappa_propagate_backward(void) {
     goal.bound_abs = 0.3;
 
     lvGappaPredSet output;
-    lvGappaPropagateConfig cfg = gappa_propagate_config_default();
+    lvGappaPropagateConfig cfg = lv_gappa_propagate_config_default();
 
-    int needed = gappa_propagate_backward(&goal, &known, &output, &cfg);
+    int needed = lv_gappa_propagate_backward(&goal, &known, &output, &cfg);
 
     TEST_ASSERT_MSG(needed > 0, "backward propagation should generate hypotheses");
 
     /* Should derive x in [0.2, 0.8] */
     if (needed > 0) {
         lvGappaPredicate found;
-        int idx = gappa_pred_set_find(&output, "x", &found);
+        int idx = lv_gappa_pred_set_find(&output, "x", &found);
         TEST_ASSERT_MSG(idx >= 0, "should find x hypothesis");
         if (idx >= 0) {
             TEST_ASSERT_MSG(fabs(found.bound_lo - 0.2) < 1e-15,

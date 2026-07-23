@@ -91,6 +91,17 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
     node->is_active = true;  /* v3.6.0: 新节点默认活跃 */
     node->namespace_depth = 0;
     node->parent_block_id = -1;
+
+    /* v3.x: PORT 类型节点同步分配 Port 结构体，避免后续 data.port 为 NULL */
+    if (type == GEOM_PORT) {
+        node->data.port = lv_calloc(1, sizeof(Port));
+        if (node->data.port) {
+            node->data.port->type = PORT_INPUT;
+            node->data.port->namespace_depth = 0;
+            node->data.port->parent_block_id = -1;
+            node->data.port->is_formal_param = false;
+        }
+    }
     GeomNode **new_nodes = (GeomNode **)graph_ensure_capacity(
         graph->nodes, graph->node_count, &graph->node_capacity,
         sizeof(GeomNode *), 1);
@@ -159,6 +170,17 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
     node->namespace_depth = 0;
     node->parent_block_id = -1;
 
+    /* PORT 类型节点同步分配 Port 结构体 */
+    if (type == GEOM_PORT) {
+        node->data.port = lv_calloc(1, sizeof(Port));
+        if (node->data.port) {
+            node->data.port->type = PORT_INPUT;
+            node->data.port->namespace_depth = 0;
+            node->data.port->parent_block_id = -1;
+            node->data.port->is_formal_param = false;
+        }
+    }
+
     /* 复制坐标 */
     if (coord_count > 0 && coords) {
         node->symbolic_coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
@@ -189,6 +211,11 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
         }
         int new_capacity =
             graph->node_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY : graph->node_capacity * lv_ARRAY_GROWTH_FACTOR;
+        /* 检查 size_t 乘积溢出：new_capacity * sizeof(GeomNode *) 可能超过 SIZE_MAX */
+        if ((size_t)new_capacity > SIZE_MAX / sizeof(GeomNode *)) {
+            lv_free((void **) &node);
+            return NULL;
+        }
         GeomNode **new_nodes = lv_realloc(graph->nodes, (size_t) new_capacity * sizeof(GeomNode *));
         if (!new_nodes) {
             /* 清理已分配的坐标 */

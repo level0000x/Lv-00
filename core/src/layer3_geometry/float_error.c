@@ -820,7 +820,7 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
     /* 计算中心点值：取每个变量区间的中点 */
     double center_vals[MAX_EQUATIONS];
     for (int i = 0; i < var_count; i++) {
-        center_vals[i] = (var_bounds[i].lo + var_bounds[i].hi) / 2.0;
+        center_vals[i] = var_bounds[i].lo + (var_bounds[i].hi - var_bounds[i].lo) / 2.0;
         tf->deriv_var_ids[i] = i;
     }
 

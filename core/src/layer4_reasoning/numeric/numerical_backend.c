@@ -1046,7 +1046,13 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
             double sum = rhs[i];
             for (int j = i + 1; j < k_max; ++j)
                 sum -= H[i * m + j] * y[j];
-            y[i] = sum / H[i * m + i];
+            /* 保护：H 对角线在 Givens 旋转后应非零，数值误差可能导致接近零 */
+            double diag = H[i * m + i];
+            if (fabs(diag) < lv_EPSILON_DOUBLE) {
+                converged = 0;
+                break;
+            }
+            y[i] = sum / diag;
         }
 
         /* ---- 更新解 x = x + V * y ---- */

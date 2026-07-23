@@ -471,8 +471,8 @@ static void update_node_params(lvDynGraph *graph, int node_id)
                 lvDynNode *p1 = lv_dyn_graph_get_node(graph, node->parent_ids[0]);
                 lvDynNode *p2 = lv_dyn_graph_get_node(graph, node->parent_ids[1]);
                 if (p1 && p2 && p1->param_count >= 2 && p2->param_count >= 2) {
-                    node->params[0] = (p1->params[0] + p2->params[0]) / 2.0;
-                    node->params[1] = (p1->params[1] + p2->params[1]) / 2.0;
+                    node->params[0] = p1->params[0] + (p2->params[0] - p1->params[0]) / 2.0;
+                    node->params[1] = p1->params[1] + (p2->params[1] - p1->params[1]) / 2.0;
                     node->param_count = 2;
                 }
             }

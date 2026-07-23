@@ -42,6 +42,10 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
 #define SYM_COORD_SIGFIGS_MIN_SAFE 6
 #define SYM_COORD_SIGFIGS_APPROX 4
@@ -75,52 +79,101 @@ static lv_THREAD_LOCAL int g_degrade_total = 0;
 static SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *result);
 
 /* ── 位数熔断辅助函数 ── */
-static void bit_burning_check_result(SymbolicCoord *result, const char *operation);
+
+/**
+ * @brief 获取有理数总位数（分子+分母），含溢出保护
+ * @return 总位数，溢出时返回 SIZE_MAX
+ */
+static size_t rational_total_bits(const Rational *r) {
+    if (!r) return 0;
+    size_t num = mpz_sizeinbase(mpq_numref(r->value), 2);
+    size_t den = mpz_sizeinbase(mpq_denref(r->value), 2);
+    if (num > SIZE_MAX - den) return SIZE_MAX;
+    return num + den;
+}
 
 /**
  * @brief 检查 SymbolicCoord 结果的位数是否超过熔断阈值。
  *
- * 当 Rational 类型结果的分子或分母位数超过 BIT_CUTOFF_THRESHOLD 时，
- * 触发熔断状态更新。如果连续触发次数达到 MAX_CONSECUTIVE_TRIPS，
- * 自动将结果降级为 TRUST_AMBER。
+ * 支持 RATIONAL / ALGEBRAIC / QUADRATIC 三种类型。
+ * 当位数超过 BIT_CUTOFF_THRESHOLD 时，触发熔断状态更新
+ * 并将结果降级为 TRUST_AMBER。
  *
  * @param result   运算结果（可为 NULL）
- * @param operation 操作名称（如 "add", "multiply" 等）
+ * @param operation 操作名称（预留，暂未使用）
  */
 static void bit_burning_check_result(SymbolicCoord *result, const char *operation) {
-    if (!result || result->type != RATIONAL)
-        return;
+    if (!result) return;
 
-    (void)operation; /* 保留参数供未来扩展使用 */
+    (void)operation;
 
-    size_t num_bits = mpz_sizeinbase(mpq_numref(result->data.rational->value), 2);
-    size_t den_bits = mpz_sizeinbase(mpq_denref(result->data.rational->value), 2);
+    size_t total_bits = 0;
+    bool overflow = false;
 
-    /* 溢出保护 */
-    if (num_bits > SIZE_MAX - den_bits) {
-        /* 位数溢出，严重情况，直接标记为 AMBER */
-        result->trust = TRUST_AMBER;
+    switch (result->type) {
+    case RATIONAL: {
+        if (!result->data.rational) return;
+        total_bits = rational_total_bits(result->data.rational);
+        if (total_bits == SIZE_MAX) overflow = true;
+        break;
+    }
+    case ALGEBRAIC: {
+        if (!result->data.algebraic) return;
+        /* 检查缓存有理数 */
+        if (result->data.algebraic->cached_rational) {
+            size_t rb = rational_total_bits(result->data.algebraic->cached_rational);
+            if (rb == SIZE_MAX) { overflow = true; break; }
+            total_bits += rb;
+        }
+        /* 检查多项式系数 */
+        for (int i = 0; i <= result->data.algebraic->minimal_poly.degree; i++) {
+            size_t cb = (size_t)mpz_sizeinbase(result->data.algebraic->minimal_poly.coeffs[i], 2);
+            if (cb > (size_t)BIT_CUTOFF_THRESHOLD) { overflow = true; break; }
+            total_bits += cb;
+        }
+        break;
+    }
+    case QUADRATIC: {
+        if (!result->data.quadratic) return;
+        size_t rb_a = rational_total_bits(result->data.quadratic->a);
+        size_t rb_b = rational_total_bits(result->data.quadratic->b);
+        if (rb_a == SIZE_MAX || rb_b == SIZE_MAX) { overflow = true; break; }
+        total_bits = rb_a + rb_b;
+        break;
+    }
+    default:
+        /* TRANSCENDENTAL 等无位数概念 */
         return;
     }
 
-    size_t total_bits = num_bits + den_bits;
-    if (total_bits <= BIT_CUTOFF_THRESHOLD)
-        return;
-
-    BitBurningState *state = bit_burning_get_global_state();
-    if (bit_burning_check(total_bits, state)) {
-        /* 连续的位数熔断触发，根据连续次数执行不同策略 */
-        if (state->consecutive_trips >= MAX_CONSECUTIVE_TRIPS) {
-            /* 逃逸出口：连续 3 次触发，永久降级为数值假设 */
-            result->trust = TRUST_AMBER;
-        } else {
-            /* 第 1-2 次：标记为 AMBER，但保留完整构造信息 */
-            result->trust = TRUST_AMBER;
-        }
+    if (overflow || total_bits > (size_t)BIT_CUTOFF_THRESHOLD) {
+        BitBurningState *state = bit_burning_get_global_state();
+        bit_burning_check(total_bits > (size_t)BIT_CUTOFF_THRESHOLD ? total_bits : BIT_CUTOFF_THRESHOLD, state);
+        /* 统一降级为数值假设 */
+        result->trust = TRUST_AMBER;
     }
 }
 
 /* ── SymbolicCoord 操作 ── */
+
+/**
+ * @brief 安全地将字符串解析为 int64_t，替代不安全的 atol()。
+ *
+ * atol() 无法检测无效输入（如空指针、非数字字符、溢出），
+ * 在解析符号角度名称时可能导致未定义行为。
+ * 本函数使用 strtol() 进行带错误检测的解析。
+ *
+ * @param str 输入字符串
+ * @return 解析后的 int64_t 值，解析失败返回 0
+ */
+static int64_t safe_atol(const char *str) {
+    if (!str || !*str) return 0;
+    char *end = NULL;
+    errno = 0;
+    long val = strtol(str, &end, 10);
+    if (errno != 0 || end == str) return 0;
+    return (int64_t)val;
+}
 
 /**
  * 将超越数转换为 double 近似值。
@@ -184,13 +237,13 @@ static double transcendental_expr_to_double(const Transcendental *t) {
             int64_t coeff_num = 1;
             int64_t coeff_den = 1;
             if (star_pos == name + 1 && name[0] != '-') {
-                coeff_num = atol(name);
+                coeff_num = safe_atol(name);
             } else if (star_pos == name + 2 && name[0] == '-') {
-                coeff_num = atol(name);
+                coeff_num = safe_atol(name);
             }
             const char *after = star_pos + 3;
             if (*after == '/') {
-                coeff_den = atol(after + 1);
+                coeff_den = safe_atol(after + 1);
             }
             if (coeff_den > 0) {
                 return M_PI * (double) coeff_num / (double) coeff_den;
@@ -199,14 +252,14 @@ static double transcendental_expr_to_double(const Transcendental *t) {
 
         /* Try pi/N form */
         if (strncmp(name, "pi/", 3) == 0) {
-            int64_t den = atol(name + 3);
+            int64_t den = safe_atol(name + 3);
             if (den > 0)
                 return M_PI / (double) den;
         }
 
         /* Try -pi/N form */
         if (strncmp(name, "-pi/", 4) == 0) {
-            int64_t den = atol(name + 4);
+            int64_t den = safe_atol(name + 4);
             if (den > 0)
                 return -M_PI / (double) den;
         }
@@ -214,11 +267,11 @@ static double transcendental_expr_to_double(const Transcendental *t) {
         /* Try -N*pi/M form */
         if (name[0] == '-' && strstr(name, "*pi")) {
             char *sp = strstr(name, "*pi");
-            int64_t coeff_num = atol(name);
+            int64_t coeff_num = safe_atol(name);
             int64_t coeff_den = 1;
             const char *after = sp + 3;
             if (*after == '/') {
-                coeff_den = atol(after + 1);
+                coeff_den = safe_atol(after + 1);
             }
             if (coeff_den > 0) {
                 return M_PI * (double) coeff_num / (double) coeff_den;
@@ -1436,6 +1489,10 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
     g_overflow_context.right_type = b->type;
     g_overflow_context.last_operation = "divide";
 
+    /* 显式除零检查：除数 b 不能为零 */
+    if (symbolic_coord_is_zero(b)) {
+        return NULL;
+    }
     /* Transcendental / anything */
     if (a->type == TRANSCENDENTAL || b->type == TRANSCENDENTAL) {
         const SymbolicCoord *trans_coord = (a->type == TRANSCENDENTAL) ? a : b;

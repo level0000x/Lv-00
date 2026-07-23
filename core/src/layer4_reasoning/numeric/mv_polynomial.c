@@ -97,6 +97,11 @@ int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
             return -1;
         }
         new_cap = new_cap == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : new_cap * lv_ARRAY_GROWTH_FACTOR;
+        /* 检查 size_t 乘积溢出：new_cap * sizeof(MVMonomial) 可能超过 SIZE_MAX */
+        if ((size_t)new_cap > SIZE_MAX / sizeof(MVMonomial)) {
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
+            return -1;
+        }
         p->capacity = new_cap;
         MVMonomial *new_terms = lv_realloc(p->terms, p->capacity * sizeof(MVMonomial));
         if (!new_terms) {

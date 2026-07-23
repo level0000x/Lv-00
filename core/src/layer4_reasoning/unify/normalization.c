@@ -38,6 +38,7 @@
 #include <stdint.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/graph_hash.h"
 #include "lv_internal.h"
 #include "normalization.h"
 #include "stream.h"
@@ -60,16 +61,6 @@
 
 /** 描述缓冲区大小 —— snprintf 用于流式事件的字符串缓冲区 */
 #define NORM_DESC_BUFFER_SIZE        128
-
-/** 约束描述缓冲区大小 —— compute_complete_graph_hash 使用 */
-#define NORM_HASH_DESC_BUFFER_SIZE   256
-
-/** 哈希计算描述符大小 —— 约束条目 */
-#define NORM_CONSTRAINT_DESC_SIZE     64
-
-/* FNV-1a 别名 —— 引用 lv_internal.h 中的统一定义，本文件内统一缩写 */
-#define NORM_FNV1A_OFFSET  lv_FNV64_OFFSET_BASIS
-#define NORM_FNV1A_PRIME   lv_FNV64_PRIME
 
 /** 端点哈希混合常量 —— golden ratio */
 #define NORM_GOLDEN_RATIO_MIX 0x9e3779b97f4a7c15ULL
@@ -1274,95 +1265,8 @@ void normalization_result_destroy(NormalizationResult *result) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  图哈希 / 重写历史记录（功能不变）                                  */
+/*  重写历史记录                                                       */
 /* ------------------------------------------------------------------ */
-
-static uint64_t fnv1a_hash(const char *s) {
-    uint64_t hash = lv_FNV64_OFFSET_BASIS;
-    while (*s) {
-        hash ^= (uint8_t)(*s++);
-        hash *= lv_FNV64_PRIME;
-    }
-    return hash;
-}
-
-GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
-    GraphHash *gh = lv_calloc(1, sizeof(GraphHash));
-    if (!gh) return NULL;
-    gh->node_count = graph->node_count;
-    gh->node_hashes = lv_calloc((size_t)graph->node_count , sizeof(uint64_t));
-    if (!gh->node_hashes && graph->node_count > 0) {
-        lv_free((void**)&gh);
-        return NULL;
-    }
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        char *desc = lv_malloc(NORM_HASH_DESC_BUFFER_SIZE);
-        if (!desc) {
-            /* 内存分配失败：使用 lv_malloc 分配最小缓冲区并复制空字符串，
-               确保后续 lv_free 能正确释放（strdup 使用标准 malloc，
-               与 lv_free 的自定义 AllocHeader 不兼容） */
-            desc = lv_malloc(1);
-            if (desc) desc[0] = '\0';
-        } else {
-            snprintf(desc, NORM_HASH_DESC_BUFFER_SIZE, "%d:%d", node->id, (int)node->type);
-        }
-        if (node->type == GEOM_POINT && node->coord_count > 0) {
-            char *coord_str = symbolic_coord_serialize(node->symbolic_coords[0]);
-            if (coord_str) {
-                /* 检查 strlen 总和是否溢出，防止分配过小的缓冲区 */
-                size_t desc_len = strlen(desc);
-                size_t coord_len = strlen(coord_str);
-                if (desc_len > SIZE_MAX - coord_len - 2) {
-                    /* 长度溢出：跳过拼接，仅使用 desc */
-                    lv_free((void**)&coord_str);
-                } else {
-                    char *new_desc = lv_malloc(desc_len + coord_len + 2);
-                    if (new_desc) {
-                        /* 使用 snprintf 替代 sprintf，防止缓冲区溢出 */
-                        snprintf(new_desc, desc_len + coord_len + 2, "%s:%s", desc, coord_str);
-                        lv_free((void**)&desc);
-                        desc = new_desc;
-                    }
-                    lv_free((void**)&coord_str);
-                }
-            }
-        }
-        gh->node_hashes[i] = fnv1a_hash(desc);
-        lv_free((void**)&desc);
-    }
-    gh->hash = lv_FNV64_OFFSET_BASIS;
-    for (int i = 0; i < graph->node_count; i++) {
-        gh->hash ^= gh->node_hashes[i];
-        gh->hash *= lv_FNV64_PRIME;
-    }
-    for (int i = 0; i < graph->constraint_count; i++) {
-        Constraint *c = graph->constraints[i];
-        char desc[NORM_CONSTRAINT_DESC_SIZE];
-        snprintf(desc, NORM_CONSTRAINT_DESC_SIZE, "C:%d:%d", c->id, (int)c->type);
-        uint64_t chash = fnv1a_hash(desc);
-        gh->hash ^= chash;
-        gh->hash *= lv_FNV64_PRIME;
-    }
-    return gh;
-}
-
-bool graph_hash_equal(const GraphHash *a, const GraphHash *b) {
-    if (!a || !b) return false;
-    if (a->hash != b->hash) return false;
-    if (a->node_count != b->node_count) return false;
-    for (int i = 0; i < a->node_count; i++) {
-        if (a->node_hashes[i] != b->node_hashes[i]) return false;
-    }
-    return true;
-}
-
-void graph_hash_destroy(GraphHash *hash) {
-    if (hash) {
-        lv_free((void**)&hash->node_hashes);
-        lv_free((void**)&hash);
-    }
-}
 
 RewriteHistory *rewrite_history_create(int capacity) {
     RewriteHistory *rh = lv_calloc(1, sizeof(RewriteHistory));

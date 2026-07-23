@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -8,15 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### 新增 (Added)
+- **λ-演算核心集成** — λ-项数据结构 (`LvLambdaTerm`)、β-归约实现、λ-项 ↔ 约束图编译、Church 编码 + Y 组合子测试
+- **端口作用域系统完整化** — `GeomNode` 三字段 (`namespace_depth`/`parent_block_id`/`is_formal_param`) 生命周期管理
+- **信任颜色系统完整化** — 扩展 `TrustColor` 枚举（8 色），着色传播逻辑，数值假设逃逸出口
+- **基础设施补齐** — 约束模板双层测试框架、模块加载器 SHA-256 + DFS 循环检测、跨边界约束检查
 - **UI 系统 L1–L6 分层架构** — React 19 + TypeScript 6 + Vite 8 + Zustand，与 C 内核完全解耦
 - **内核/UI 通信协议** — `KernelBridge` 接口 + `DrawCmd`/`UserAction` 类型定义
 - **Mock Bridge** — `createMockBridge()` 完整模拟内核，前端可独立开发测试
 - **UI 新组件** — CanvasToolbar、Checkbox、CommandPalette、ExpressionList、Slider
 - **内核配置系统** — `lv_config.h` + `lv_config.c`，独立配置管理
-- **新增头文件** — `preset_abstract_algebra.h`、`preset_name_defs.h`、`proof_rule_engine_internal.h`、`proof_session_internal.h`、`proof_version_internal.h`、`smt_theory_combiner.h`、`smt_trigger_engine.h`、`lv_config.h`
+- **新增头文件** — `preset_abstract_algebra.h`、`preset_name_defs.h`、`proof_rule_engine_internal.h`、`proof_session_internal.h`、`proof_version_internal.h`、`smt_theory_combiner.h`、`smt_trigger_engine.h`、`lv_config.h`、`lambda_term.h`
 - **CMake 打包配置** — `cmake/lv-config.cmake.in` + `cmake/lv.pc.in`（find_package / pkg-config 支持）
 
 ### 变更 (Changed)
+- **资源释放命名统一** — 36 个文件的 `_free` 命名统一为 `_destroy`，消除命名歧义
+- **内存分配器统一** — 11 个文件中 30+ `malloc`、30+ `realloc`、80+ `free` 替换为 `lv_*` 内存分配器
+- **头文件依赖精简** — 4 个核心头文件（`engine.h` 从 10 个依赖减至 5 个 + 2 个前向声明），累计移除 12 个 `#include`
+- **全仓库命名统一** — 所有 `lv00` 前缀消解为 `lv`（代码、文件格式、注释）
 - **UI 内核完全解耦** — UI 仅通过 `protocol/index.ts` 与内核通信，不再直接依赖内核头文件
 - **头文件全面修复** — 11+ 个头文件（`geo_halfedge_mesh.h`、`simd_ops.h`、`interval_arithmetic.h`、`geometry_transform.h` 等）重新编写以匹配 .c 实现
 - **源码恢复** — 从 git 历史恢复 63+ 源文件（版本 A `38310ea` 05-23，版本 B `e36f4b6` 06-04）
@@ -30,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `geo_event_detect.h`：M_PI 兼容（`_USE_MATH_DEFINES` + fallback）
 - `algebraic_number.h`：从 git 恢复完整 670 行文件
 
-### 项目指标（截至 2026-06-27）
+### 项目指标（截至 2026-07-23）
 | 指标 | v1.1.0 初版 | 当前 |
 |:---|---:|---:|
 | .c | 232 | 401 |

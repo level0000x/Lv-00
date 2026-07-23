@@ -11,6 +11,7 @@
 
 #include "lv/algebraic_number.h"
 
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -91,6 +92,8 @@ static bool alg_mul_overflow(int64_t a, int64_t b, int64_t *result)
             if (a < INT64_MIN / b) return true;
         } else {
             if (a < INT64_MAX / b) return true;  /* 注意：两个负数相乘 */
+            /* 保护：a 或 b 为 INT64_MIN 时 |a| 或 |b| 溢出 */
+            if (a == INT64_MIN || b == INT64_MIN) return true;
             /* 修正：|a| * |b|，但 a < 0, b < 0 */
             if ((-a) > INT64_MAX / (-b)) return true;
         }
@@ -390,6 +393,11 @@ lv_PUBLIC_API AlgRational alg_rational_pow(const AlgRational *a, int n,
     }
     if (n < 0) {
         /* 负指数：先取倒数再计算正幂 */
+        /* 保护：n == INT_MIN 时 -n 溢出，直接报错返回 */
+        if (n == INT_MIN) {
+            alg_set_error_rational(err, ALG_RATIONAL_ERR_OVERFLOW);
+            return alg_rational_zero();
+        }
         AlgRationalError inv_err;
         AlgRational inv = alg_rational_inv(a, &inv_err);
         if (inv_err != ALG_RATIONAL_OK) {

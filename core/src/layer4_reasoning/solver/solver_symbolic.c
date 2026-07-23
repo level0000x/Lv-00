@@ -24,6 +24,10 @@
 #include "stream_context_util.h"
 #include "lv/symbolic_coord.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 /* --- 共享宏 --- */
 #define lv_SOLVER_DYNARRAY_INIT_CAP 16
 #define lv_ZERO_EPSILON 1e-12
@@ -1088,6 +1092,8 @@ int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max
     } else {
         /* 三个不等实根 (casus irreducibilis): 三角函数公式
          * y_k = 2√(-P/3) * cos((acos(3Q/(2P)*√(-3/P)) + 2πk)/3) */
+        /* 数值稳定性：casus irreducibilis 要求 P < 0，浮点误差可能导致 P >= 0 */
+        if (P >= 0) return sol_count;
         double sqrt_term = sqrt(-P / 3.0);
         double acos_arg = 3.0 * Q / (2.0 * P) * sqrt(-3.0 / P);
         if (acos_arg > 1.0) acos_arg = 1.0;

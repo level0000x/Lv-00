@@ -1646,6 +1646,8 @@ void debug_log_shutdown(void) {
 }
 
 void debug_log_cleanup(void) {
+    /* 委托给 debug_log_shutdown 处理实际清理 */
+    debug_log_shutdown();
 }
 
 void debug_set_log_level(LogLevel level) {

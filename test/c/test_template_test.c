@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv.h"
+#include "lv/lv_utils.h"
 
 /* ============== 辅助展开函数 ============== */
 
@@ -177,8 +178,8 @@ static int test_runner_basic(void) {
     printf("  测试1 (期望通过): passed=%d, failed=%d, ret=%d\n", passed, failed, ret);
 
     if (failures) {
-        for (int i = 0; i < failed; i++) free(failures[i]);
-        free(failures);
+        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
+        lv_free((void **)&failures);
         failures = NULL;
     }
     axiom_template_test_case_destroy(tc_pass);
@@ -195,8 +196,8 @@ static int test_runner_basic(void) {
     printf("  测试2 (期望失败): passed=%d, failed=%d, ret=%d\n", passed, failed, ret);
 
     if (failures) {
-        for (int i = 0; i < failed; i++) free(failures[i]);
-        free(failures);
+        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
+        lv_free((void **)&failures);
         failures = NULL;
     }
     axiom_template_test_case_destroy(tc_fail);
@@ -217,8 +218,8 @@ static int test_runner_basic(void) {
     }
 
     if (failures) {
-        for (int i = 0; i < failed; i++) free(failures[i]);
-        free(failures);
+        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
+        lv_free((void **)&failures);
         failures = NULL;
     }
     axiom_template_test_case_destroy(tc_mismatch);
@@ -315,9 +316,10 @@ static int test_normal_form_verification(void) {
     tmpl->params = NULL;
     tmpl->param_desc_count = 0;
     tmpl->normal_form.constraint_type_count = 1;
-    tmpl->normal_form.node_type_count = 1;
+    tmpl->normal_form.node_type_count = 2;
     tmpl->normal_form.expected_constraint_types[0] = 0;
     tmpl->normal_form.expected_node_types[0] = 0;
+    tmpl->normal_form.expected_node_types[1] = 0;
     tmpl->level = TEMPLATE_LEVEL_ONE;
     tmpl->is_compressed = false;
     tmpl->compressed_subgraph = NULL;
@@ -404,8 +406,8 @@ static int test_edge_cases(void) {
     printf("  不存在的模板: passed=%d, failed=%d (正确)\n", passed, failed);
 
     if (failures) {
-        for (int i = 0; i < failed; i++) free(failures[i]);
-        free(failures);
+        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
+        lv_free((void **)&failures);
     }
     axiom_template_test_case_destroy(tc2);
 
@@ -457,8 +459,8 @@ static int test_edge_cases(void) {
     printf("  无 expand 模板: passed=%d, failed=%d (正确)\n", passed, failed);
 
     if (failures) {
-        for (int i = 0; i < failed; i++) free(failures[i]);
-        free(failures);
+        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
+        lv_free((void **)&failures);
     }
     axiom_template_test_case_destroy(tc3);
 
@@ -470,11 +472,15 @@ static int test_edge_cases(void) {
 /* ============== 主函数 ============== */
 
 int main(void) {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== Lv-00 Template Test Framework Test Suite ===\n\n");
+
+    lv_init();
+    printf("lv_init() done\n");
 
     test_case_lifecycle();
     test_runner_basic();
-    /* TODO: test_runner_high_level 堆损坏根因在 axiom_template_run_tests 内部 */
+    test_runner_high_level();
     test_normal_form_verification();
     test_edge_cases();
 

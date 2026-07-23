@@ -440,8 +440,13 @@ static bool check_incidence_compatible(const SymbolicCoord *point_coord,
         py = symbolic_coord_to_double(point_node->symbolic_coords[1]);
     }
     double det = (px - ax_d) * (by_d - ay_d) - (py - ay_d) * (bx_d - ax_d);
-    /* 使用容差判断点是否在线段上 */
-    double tol = 1e-9;
+    /* 使用相对容差判断点是否在线段上。
+     * 行列式量级正比于坐标乘积 O(coord²)，对于大坐标（如 1e6），
+     * 绝对容差 1e-9 过于严格，会误判实际上在线上的点。 */
+    double max_coord = fmax(fmax(fabs(px), fabs(py)),
+                            fmax(fmax(fabs(ax_d), fabs(ay_d)),
+                                 fmax(fabs(bx_d), fabs(by_d))));
+    double tol = 1e-9 * fmax(1.0, max_coord * max_coord);
     return (fabs(det) < tol);
 }
 

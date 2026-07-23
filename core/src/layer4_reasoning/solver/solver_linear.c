@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_linear.c
  * @brief 数值求解器（线性/二次/三次）
  *
@@ -86,7 +86,12 @@ static bool solve_quadratic(mpz_poly_t *poly, QuadraticRoots *out) {
         return true;
     }
     double disc = b * b - 4.0 * a * c;
-    if (disc < -lv_EPSILON_DOUBLE) {
+    /* 使用相对容差判断判别式是否为负/零。
+     * 当系数量级很大时（如 b² ~ 1e20），判别式的浮点计算舍入误差
+     * 可达 O(|b²| * eps_machine)，远超绝对容差 lv_EPSILON_DOUBLE。
+     * 使用 max(|b²|, |4ac|) * eps 作为相对容差。 */
+    double disc_tol = lv_EPSILON_DOUBLE * fmax(1.0, fmax(b * b, fabs(4.0 * a * c)));
+    if (disc < -disc_tol) {
         /* 无实数根 */
         out->root_count = 0;
         return true;
@@ -96,7 +101,7 @@ static bool solve_quadratic(mpz_poly_t *poly, QuadraticRoots *out) {
     double sq = sqrt(disc);
     out->roots[0] = (-b - sq) / (2.0 * a);
     out->roots[1] = (-b + sq) / (2.0 * a);
-    out->root_count = (fabs(disc) < lv_EPSILON_DOUBLE) ? 1 : 2;
+    out->root_count = (fabs(disc) < disc_tol) ? 1 : 2;
     return true;
 }
 
@@ -659,6 +664,8 @@ static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, 
     } else {
         /* 三个不等实根 (casus irreducibilis): 使用三角函数
          * y_k = 2*sqrt(-P/3)*cos((acos(3Q/(2P)*sqrt(-3/P)) + 2*pi*k)/3) */
+        /* 数值稳定性：casus irreducibilis 要求 P < 0，浮点误差可能导致 P >= 0 */
+        if (P >= 0) return sol_count;
         double sqrt_term = sqrt(-P / 3.0);
         double acos_arg = 3.0 * Q / (2.0 * P) * sqrt(-3.0 / P);
         /* 裁剪到 [-1, 1] 以防止浮点精度误差导致 acos 返回 NaN */

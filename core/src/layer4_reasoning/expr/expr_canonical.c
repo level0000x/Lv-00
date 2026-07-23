@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file expr_canonical.c
  * @brief 符号表达式构造与操作实现
  *
@@ -159,6 +159,9 @@ void lv_expr_destroy(lvExpr **expr) {
         case EXPR_TYPE_FUNCTION:
             lv_free((void **) &e->data.function.func_name);
             break;
+        default:
+            /* 未知类型：静默忽略（避免新增枚举值时内存泄漏） */
+            break;
     }
     lv_free((void **) &e->label);
     lv_free((void **) expr);
@@ -207,6 +210,10 @@ lvExpr *lv_expr_copy(const lvExpr *expr) {
             }
             copy->data.function.argument = expr->data.function.argument;
             break;
+        default:
+            /* 未知类型：cast 无法复制，返回 NULL 表示失败 */
+            lv_free((void **) &copy);
+            return NULL;
     }
 
     if (expr->label) {

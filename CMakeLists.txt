@@ -426,7 +426,6 @@ set(lv_HEADERS
     core/include/lv/proof_trace.h
     core/include/lv/runtime_guard.h
     core/include/lv/exact_arithmetic.h
-    core/include/lv/preset_blocks.h
     core/include/lv/sha256.h
     # [QA] Pending header additions: adaptive_pruning, autodiff, cache_manager,
     # conflict_detector, ga_codegen, ga_interface, ga_multivector, groebner_parallel,
@@ -712,6 +711,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/rewrite.c
     core/src/layer4_reasoning/unify/unify.c
     core/src/layer4_reasoning/unify/normalization.c
+    core/src/layer4_reasoning/unify/graph_hash.c
     core/src/layer4_reasoning/model/recursion.c
     # 类型与属性
     core/src/layer4_reasoning/type_logic/type_system.c
@@ -1230,9 +1230,8 @@ if(BUILD_TESTS)
         test/c/test_proof.c proof_test)
     add_lv_test_and_register(test_axiom_pkg
         test/c/test_axiom_pkg.c axiom_pkg_test)
-    # TODO: test_template_test allocator混用已修复，但预存堆损坏需进一步诊断
-    # add_lv_test_and_register(test_template_test
-    #     test/c/test_template_test.c template_test_test)
+    add_lv_test_and_register(test_template_test
+        test/c/test_template_test.c template_test_test)
     add_lv_test_and_register(test_module
         test/c/test_module.c module_test)
     add_lv_test_and_register(test_graph_serialize
@@ -1372,9 +1371,8 @@ if(BUILD_TESTS)
     # v3.4.0 新增：区间/数值验证模块测试
     add_lv_test_and_register(test_interval_arithmetic
         test/c/test_interval_arithmetic.c test_interval_arithmetic)
-    # test_gappa_dsl disabled: gappa_pred_set_add lv_ prefix mismatch
-    # add_lv_test_and_register(test_gappa_dsl
-    #     test/c/test_gappa_dsl.c test_gappa_dsl)
+    add_lv_test_and_register(test_gappa_dsl
+        test/c/test_gappa_dsl.c test_gappa_dsl)
     # v3.4.0 新增：SMT/SAT 模块测试
     add_lv_test_and_register(test_smt_bitvector
         test/c/test_smt_bitvector.c test_smt_bitvector)
@@ -1551,6 +1549,10 @@ if(BUILD_EXAMPLES)
     add_lv_example(example_high_dim    test/examples/high_dim_demo.c)
     add_lv_example(example_streaming      test/examples/streaming_demo.c)
     add_lv_example(example_stream_advanced test/examples/stream_advanced_demo.c)
+    add_lv_example(example_type_system     test/examples/type_system_demo.c)
+    add_lv_example(example_recursion       test/examples/recursion_demo.c)
+    # example_proof 使用已移除的旧 API (PROPOSITION_ATOMIC, lvLogicContext 等)，暂不构建
+    # add_lv_example(example_proof           test/examples/proof_demo.c)
 endif()
 
 # 修复 1：安装规则 —— 支持 cmake --install 将库文件和头文件安装到系统目录

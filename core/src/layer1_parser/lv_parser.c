@@ -1,5 +1,6 @@
 #include "lv/lv_parser.h"
 #include "lv_utils.h"
+#include <errno.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1051,7 +1052,13 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
 
     /* 整数/有理数/小数 */
     if (p->current.type == LV_TOKEN_INTEGER) {
-        long long val = atoll(token_text(&p->current));
+        const char *txt = token_text(&p->current);
+        char *end = NULL;
+        errno = 0;
+        long long val = strtoll(txt, &end, 10);
+        if (errno != 0 || end == txt) {
+            val = 0;
+        }
         advance(p);
         return lv_ast_create_int(loc, val);
     }
@@ -1059,13 +1066,26 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
     if (p->current.type == LV_TOKEN_RATIONAL) {
         const char *txt = token_text(&p->current);
         long long num = 0, den = 1;
-        sscanf(txt, "%lld/%lld", &num, &den);
+        char *end = NULL;
+        errno = 0;
+        num = strtoll(txt, &end, 10);
+        if (errno == 0 && end != txt && *end == '/') {
+            errno = 0;
+            den = strtoll(end + 1, &end, 10);
+            if (errno != 0 || den == 0) den = 1;
+        }
         advance(p);
         return lv_ast_create_rational(loc, num, den);
     }
 
     if (p->current.type == LV_TOKEN_DECIMAL) {
-        double val = atof(token_text(&p->current));
+        const char *txt = token_text(&p->current);
+        char *end = NULL;
+        errno = 0;
+        double val = strtod(txt, &end);
+        if (errno != 0 || end == txt) {
+            val = 0.0;
+        }
         advance(p);
         return lv_ast_create_decimal(loc, val);
     }
