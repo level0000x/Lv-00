@@ -193,9 +193,8 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
     if (rule_count == 0) { lv_free((void**)&content); return NULL; }
 
     /* 分配规则数组 */
-    ParsedRule *rules = lv_malloc((size_t)rule_count * sizeof(ParsedRule));
+    ParsedRule *rules = lv_calloc((size_t)rule_count, sizeof(ParsedRule));
     if (!rules) { lv_free((void**)&content); return NULL; }
-    memset(rules, 0, (size_t)rule_count * sizeof(ParsedRule));
 
     /* 第二遍：解析规则 */
     p = content;
@@ -676,7 +675,7 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
 
     int txn_cap = 64;
     int txn_count = 0;
-    struct TxnEntry *txn = lv_malloc((size_t)txn_cap * sizeof(struct TxnEntry));
+    struct TxnEntry *txn = lv_calloc((size_t)txn_cap, sizeof(struct TxnEntry));
     if (!txn) {
         graph_snapshot_destroy(snapshot);
         return REWRITE_NO_MATCH;
@@ -1110,7 +1109,7 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules,
     }
 
     /* 按规则优先级排序 */
-    SortedRule *sorted = lv_malloc((size_t)rule_count * sizeof(SortedRule));
+    SortedRule *sorted = lv_calloc((size_t)rule_count, sizeof(SortedRule));
     if (!sorted) return REWRITE_TERMINATED;
     for (int i = 0; i < rule_count; i++) {
         sorted[i].rule = rules[i];

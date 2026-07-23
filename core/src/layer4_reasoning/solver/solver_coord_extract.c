@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_coord_extract.c
  * @brief 坐标提取与方程提取
  *
@@ -1415,9 +1415,7 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
         return NULL;
     }
 
-    VarInfo *info = lv_malloc((size_t) var_count * sizeof(VarInfo));
-    if (info)
-        memset(info, 0, (size_t) var_count * sizeof(VarInfo));
+    VarInfo *info = lv_calloc((size_t) var_count, sizeof(VarInfo));
     for (int i = 0; i < var_count; i++) {
         info[i].node_id = var_ids[i];
         info[i].eq_count = 0;

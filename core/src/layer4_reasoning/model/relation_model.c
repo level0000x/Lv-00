@@ -50,7 +50,7 @@ static bool tuple_eq(const int *a, const int *b, int arity) {
  * @brief 复制元组
  */
 static int *tuple_clone(const int *src, int arity) {
-    int *dst = (int *)lv_malloc((size_t)arity * sizeof(int));
+    int *dst = (int *)lv_calloc((size_t)arity , sizeof(int));
     if (!dst) return NULL;
     memcpy(dst, src, (size_t)arity * sizeof(int));
     return dst;
@@ -235,7 +235,7 @@ Relation *rel_join(const Relation *a, const Relation *b) {
         for (int j = 0; j < b->tuple_count; j++) {
             if (a_last == b->tuples[j][0]) {
                 /* 构建新元组: a[0..a->arity-2] + b[1..b->arity-1] */
-                int *t = (int *)lv_malloc((size_t)new_arity * sizeof(int));
+                int *t = (int *)lv_calloc((size_t)new_arity, sizeof(int));
                 if (!t) {
                     rel_destroy(r);
                     return NULL;
@@ -275,7 +275,7 @@ Relation *rel_product(const Relation *a, const Relation *b) {
 
     for (int i = 0; i < a->tuple_count; i++) {
         for (int j = 0; j < b->tuple_count; j++) {
-            int *t = (int *)lv_malloc((size_t)new_arity * sizeof(int));
+            int *t = (int *)lv_calloc((size_t)new_arity, sizeof(int));
             if (!t) {
                 rel_destroy(r);
                 return NULL;
@@ -465,7 +465,7 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
     };
 
     /* 分配初始签名容量 */
-    model->sigs = (RelSignature **)lv_malloc((size_t)SIG_INITIAL_CAP * sizeof(RelSignature *));
+    model->sigs = (RelSignature **)lv_calloc((size_t)SIG_INITIAL_CAP , sizeof(RelSignature *));
     if (!model->sigs) {
         lv_free((void **)&model);
         return NULL;
@@ -483,7 +483,7 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
         sig->name = lv_strdup_safe(sig_names[si]);
         sig->atom_type = sig_types[si];
         sig->atom_capacity = 64;
-        sig->atoms = (RelAtom **)lv_malloc((size_t)sig->atom_capacity * sizeof(RelAtom *));
+        sig->atoms = (RelAtom **)lv_calloc((size_t)sig->atom_capacity, sizeof(RelAtom *));
         if (!sig->atoms) {
             lv_free((void **)&sig->name);
             lv_free((void **)&sig);
@@ -662,7 +662,7 @@ RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *sco
         }
     }
 
-    inst->atoms = (RelAtom **)lv_malloc((size_t)total_atoms * sizeof(RelAtom *));
+    inst->atoms = (RelAtom **)lv_calloc((size_t)total_atoms, sizeof(RelAtom *));
     if (!inst->atoms) {
         lv_free((void **)&inst);
         return NULL;

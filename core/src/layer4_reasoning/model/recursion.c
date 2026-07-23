@@ -1403,7 +1403,7 @@ void selector_block_set_branch_nodes(SelectorBlock *sb,
 
     /* 复制新的真分支节点ID数组 */
     if (true_ids && true_count > 0) {
-        sb->true_branch_node_ids = lv_malloc(true_count * sizeof(int));
+        sb->true_branch_node_ids = lv_calloc(true_count, sizeof(int));
         if (sb->true_branch_node_ids) {
             memcpy(sb->true_branch_node_ids, true_ids, true_count * sizeof(int));
             sb->true_branch_node_count = true_count;
@@ -1420,7 +1420,7 @@ void selector_block_set_branch_nodes(SelectorBlock *sb,
 
     /* 复制新的假分支节点ID数组 */
     if (false_ids && false_count > 0) {
-        sb->false_branch_node_ids = lv_malloc(false_count * sizeof(int));
+        sb->false_branch_node_ids = lv_calloc(false_count, sizeof(int));
         if (sb->false_branch_node_ids) {
             memcpy(sb->false_branch_node_ids, false_ids, false_count * sizeof(int));
             sb->false_branch_node_count = false_count;

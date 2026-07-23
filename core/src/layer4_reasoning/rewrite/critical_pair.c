@@ -383,7 +383,7 @@ bool critical_pair_compare(CriticalPair *cp)
     } else {
         /* 合一失败 → 非汇合，收集不匹配详情 */
         cp->is_confluent = false;
-        cp->mismatches = lv_malloc(MAX_MISMATCHES * sizeof(CpMismatch));
+        cp->mismatches = lv_calloc(MAX_MISMATCHES, sizeof(CpMismatch));
 
         if (cp->mismatches) {
             CpMismatch *m = &cp->mismatches[0];

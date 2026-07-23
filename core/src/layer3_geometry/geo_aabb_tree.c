@@ -1415,7 +1415,7 @@ lv_PUBLIC_API lvAABBTree2D *lv_aabb2d_build(
     if (!bboxes || count <= 0) return NULL;
 
     /* 分配树结构 */
-    lvAABBTree2D *tree = (lvAABBTree2D *)lv_malloc(sizeof(lvAABBTree2D));
+    lvAABBTree2D *tree = (lvAABBTree2D *)lv_calloc(1, sizeof(lvAABBTree2D));
     if (!tree) return NULL;
 
     /* 初始化 */
@@ -1644,7 +1644,7 @@ lv_PUBLIC_API lvAABBTree3D *lv_aabb3d_build(
     }
 
     /* 拷贝几何体包围盒 */
-    tree->primitives = (lvAABB3D *)lv_malloc((size_t)count * sizeof(lvAABB3D));
+    tree->primitives = (lvAABB3D *)lv_calloc((size_t)count, sizeof(lvAABB3D));
     if (!tree->primitives) {
         lv_free((void **)&(tree));
         return NULL;

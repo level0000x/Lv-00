@@ -1,4 +1,4 @@
-﻿#include "lv/representation_converter.h"
+#include "lv/representation_converter.h"
 #include "lv/func_block.h"
 #include "lv/geometry_types.h"
 #include "lv/lv_utils.h"
@@ -46,18 +46,16 @@ static inline SymbolicCoord *symbolic_coord_from_double(double val) {
 }
 
 static inline PointEntity *point_entity_create(SymbolicCoord *x, SymbolicCoord *y) {
-    PointEntity *p = (PointEntity *)lv_malloc(sizeof(PointEntity));
+    PointEntity *p = (PointEntity *)lv_calloc(1, sizeof(PointEntity));
     if (!p) return NULL;
-    memset(p, 0, sizeof(PointEntity));
     p->x = x;
     p->y = y;
     return p;
 }
 
 static inline PolygonEntity *polygon_entity_create(PointEntity **corners, int count) {
-    PolygonEntity *poly = (PolygonEntity *)lv_malloc(sizeof(PolygonEntity));
+    PolygonEntity *poly = (PolygonEntity *)lv_calloc(1, sizeof(PolygonEntity));
     if (!poly) return NULL;
-    memset(poly, 0, sizeof(PolygonEntity));
     poly->vertex_count = count;
     (void)corners;
     return poly;

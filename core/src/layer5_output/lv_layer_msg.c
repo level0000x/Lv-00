@@ -83,10 +83,9 @@ static const char *msg_type_name(lvMsgType type) {
 
 lvLayerMessage *lv_msg_create(lvMsgType type, lvMsgDirection dir,
                                   int sender, int target) {
-    lvLayerMessage *msg = (lvLayerMessage *)lv_malloc(sizeof(lvLayerMessage));
+    lvLayerMessage *msg = (lvLayerMessage *)lv_calloc(1, sizeof(lvLayerMessage));
     if (!msg) return NULL;
 
-    memset(msg, 0, sizeof(*msg));
     msg->type = type;
     msg->direction = dir;
     msg->sender_layer = sender;

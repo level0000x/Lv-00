@@ -167,7 +167,7 @@ typedef struct {
  * @return 新缓冲区，失败返回 NULL
  */
 static StringBuffer *string_buffer_create(void) {
-    StringBuffer *buf = (StringBuffer *)lv_malloc(sizeof(StringBuffer));
+    StringBuffer *buf = (StringBuffer *)lv_calloc(1, sizeof(StringBuffer));
     if (!buf) return NULL;
     buf->capacity = EXPORT_BUFFER_INITIAL_SIZE;
     buf->data = (char *)lv_malloc(buf->capacity);
@@ -629,8 +629,8 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree,
         uint32_t depth;
     } SearchFrame;
 
-    SearchFrame *stack = (SearchFrame *)lv_malloc(
-        tree->node_count * sizeof(SearchFrame));
+    SearchFrame *stack = (SearchFrame *)lv_calloc(
+        tree->node_count, sizeof(SearchFrame));
     if (!stack) return 0;
 
     /* 访问标记：使用 ID 到索引的映射避免哈希碰撞 */

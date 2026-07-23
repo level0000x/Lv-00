@@ -46,7 +46,7 @@ static void write_output_to_file(const char *path, const char *content) {
  * @return 点对象指针，失败返回 NULL
  */
 lvVisualObject* lv_visual_point_create(float x, float y) {
-    lvVisualObject* obj = (lvVisualObject*)lv_malloc(sizeof(lvVisualObject));
+    lvVisualObject* obj = (lvVisualObject*)lv_calloc(1, sizeof(lvVisualObject));
     if (!obj) return NULL;
     
     obj->type = lv_VISUAL_POINT;
@@ -327,7 +327,7 @@ void lv_visual_rotate(lvVisualObject* obj, float angle, float axis[3]) {
  * @return 场景指针，失败返回 NULL
  */
 lvVisualScene* lv_visual_scene_create(void) {
-    lvVisualScene* scene = (lvVisualScene*)lv_malloc(sizeof(lvVisualScene));
+    lvVisualScene* scene = (lvVisualScene*)lv_calloc(1, sizeof(lvVisualScene));
     if (!scene) return NULL;
     
     scene->objects = NULL;
@@ -1098,7 +1098,7 @@ static void rasterize_object_ppm(lvVisualObject* obj, unsigned char* pixels, int
  * @return 渲染器指针，失败返回 NULL
  */
 lvVisualRenderer* lv_visual_renderer_create(lvRenderBackend backend, int width, int height) {
-    lvVisualRenderer* renderer = (lvVisualRenderer*)lv_malloc(sizeof(lvVisualRenderer));
+    lvVisualRenderer* renderer = (lvVisualRenderer*)lv_calloc(1, sizeof(lvVisualRenderer));
     if (!renderer) return NULL;
     
     renderer->backend = backend;

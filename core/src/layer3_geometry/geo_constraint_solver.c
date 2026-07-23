@@ -414,7 +414,7 @@ lv_PUBLIC_API lvSolverSystem *lv_solver_create(const lvSolverConfig *config)
         return NULL;
     }
 
-    sys->constraints = (lvConstraint *)lv_malloc(INITIAL_CAPACITY * sizeof(lvConstraint));
+    sys->constraints = (lvConstraint *)lv_calloc(INITIAL_CAPACITY, sizeof(lvConstraint));
     if (!sys->constraints) {
         lv_free((void **)&(sys->entities));
         lv_free((void **)&(sys_ex));

@@ -289,7 +289,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
         lv_free((void **) &linear_constraint_indices);
         return redundant;
     }
-    mpq_t *matrix = lv_malloc(matrix_size * sizeof(mpq_t));
+    mpq_t *matrix = lv_calloc(matrix_size, sizeof(mpq_t));
     if (!matrix) {
         lv_free((void **) &point_ids);
         lv_free((void **) &point_seen);

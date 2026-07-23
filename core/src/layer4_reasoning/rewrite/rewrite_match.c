@@ -485,7 +485,7 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     snap->port_ref_count = port_ref_count;
     snap->port_refs = NULL;
     if (port_ref_count > 0) {
-        snap->port_refs = lv_malloc((size_t)port_ref_count * sizeof(PortRef));
+        snap->port_refs = lv_calloc((size_t)port_ref_count, sizeof(PortRef));
         if (snap->port_refs) {
             int idx = 0;
             for (int i = 0; i < graph->node_count; i++) {
@@ -510,7 +510,7 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     snap->region_ref_count = region_ref_count;
     snap->region_refs = NULL;
     if (region_ref_count > 0) {
-        snap->region_refs = lv_malloc((size_t)region_ref_count * sizeof(RegionRef));
+        snap->region_refs = lv_calloc((size_t)region_ref_count, sizeof(RegionRef));
         if (snap->region_refs) {
             int idx = 0;
             for (int i = 0; i < graph->node_count; i++) {
@@ -540,7 +540,7 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     snap->fb_ref_count = fb_ref_count;
     snap->fb_refs = NULL;
     if (fb_ref_count > 0) {
-        snap->fb_refs = lv_malloc((size_t)fb_ref_count * sizeof(FBRef));
+        snap->fb_refs = lv_calloc((size_t)fb_ref_count, sizeof(FBRef));
         if (snap->fb_refs) {
             int idx = 0;
             for (int i = 0; i < graph->node_count; i++) {

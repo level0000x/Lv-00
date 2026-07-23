@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module_delta.c
  * @brief Delta 差分系统
  *
@@ -457,7 +457,7 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
         char *json = module_serialize_to_json(mod);
         if (!json) return NULL;
 
-        ModuleDelta *delta = (ModuleDelta *)lv_malloc(sizeof(ModuleDelta));
+        ModuleDelta *delta = (ModuleDelta *)lv_calloc(1, sizeof(ModuleDelta));
         if (!delta) { lv_free((void**)&json); return NULL; }
 
         delta->base_version_hash = base_hash;
@@ -752,7 +752,7 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
     json_writer_putc(&w, '}'); /* end changes */
     json_writer_putc(&w, '}'); /* end root */
 
-    ModuleDelta *delta = (ModuleDelta *)lv_malloc(sizeof(ModuleDelta));
+    ModuleDelta *delta = (ModuleDelta *)lv_calloc(1, sizeof(ModuleDelta));
     if (!delta) { json_writer_destroy(&w); return NULL; }
 
     delta->base_version_hash = base_hash;

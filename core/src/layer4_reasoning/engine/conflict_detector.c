@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file conflict_detector.c
  * @brief 矛盾约束检测器实现
  *
@@ -61,7 +61,7 @@ const ConflictDetectorConfig *lv_conflict_detector_default_config(void) {
  * ================================================================ */
 
 ConflictReport *lv_conflict_report_create(void) {
-    ConflictReport *report = (ConflictReport *)lv_malloc(sizeof(ConflictReport));
+    ConflictReport *report = (ConflictReport *)lv_calloc(1, sizeof(ConflictReport));
     if (!report) return NULL;
     
     memset(report, 0, sizeof(ConflictReport));
@@ -225,13 +225,13 @@ static int expected_participant_count(ConstraintType type) {
 
 static void add_constraint_entity_ids(ConflictRecord *rec, const Constraint *constraint) {
     if (!rec || !constraint) return;
-    rec->constraint_ids = (int *)lv_malloc(sizeof(int));
+    rec->constraint_ids = (int *)lv_calloc(1, sizeof(int));
     if (rec->constraint_ids) {
         rec->constraint_ids[0] = constraint->id;
         rec->constraint_count = 1;
     }
     if (constraint->participant_count > 0 && constraint->participants) {
-        rec->node_ids = (int *)lv_malloc(sizeof(int) * (size_t)constraint->participant_count);
+        rec->node_ids = (int *)lv_calloc(1, sizeof(int) * (size_t)constraint->participant_count);
         if (rec->node_ids) {
             for (int i = 0; i < constraint->participant_count; i++) {
                 rec->node_ids[i] = constraint->participants[i];
@@ -697,7 +697,7 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph,
     
     /* 分配并查集数组（parent[i] 表示节点 i 的父节点） */
     int uf_size = max_node_id + 1;
-    int *parent = (int *)lv_malloc(sizeof(int) * (size_t)uf_size);
+    int *parent = (int *)lv_calloc((size_t)uf_size, sizeof(int));
     if (!parent) return lv_ERROR_NULL_POINTER;
     
     /* 初始化：每个节点的父节点是自己 */
@@ -801,8 +801,8 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
     if (max_id <= 0) return 0;
 
     /* 0=白色(未访问), 1=灰色(在栈中), 2=黑色(已完成) */
-    int *color = (int *)lv_malloc(sizeof(int) * (size_t)(max_id + 1));
-    int *parent_node = (int *)lv_malloc(sizeof(int) * (size_t)(max_id + 1));
+    int *color = (int *)lv_calloc(1, sizeof(int) * (size_t)(max_id + 1));
+    int *parent_node = (int *)lv_calloc(1, sizeof(int) * (size_t)(max_id + 1));
     if (!color || !parent_node) {
         lv_free((void **)&color);
         lv_free((void **)&parent_node);
@@ -816,8 +816,8 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
     /* DFS 递归栈（手动实现避免栈溢出） */
     /* 栈大小为 max_id+1，但 DFS 深度可能超过此值，需要动态检查 */
     int stack_cap = max_id + 1;
-    int *stack = (int *)lv_malloc(sizeof(int) * (size_t)stack_cap);
-    int *iter = (int *)lv_malloc(sizeof(int) * (size_t)stack_cap);
+    int *stack = (int *)lv_calloc((size_t)stack_cap, sizeof(int));
+    int *iter = (int *)lv_calloc((size_t)stack_cap, sizeof(int));
     if (!stack || !iter) {
         lv_free((void **)&color);
         lv_free((void **)&parent_node);

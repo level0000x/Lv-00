@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file normalization.c
  * @brief 图规范化引擎实现
  * @details 实现约束图的规范化处理，包括并查集合并、哈希预分组 O(n) 优化。
@@ -199,7 +199,7 @@ static int cmp_seg_hash(const void *a, const void *b) {
  * @return parent 数组指针，失败返回 NULL（调用者需用 uf_destroy 释放）
  */
 static int *uf_create(int n, int **out_rank) {
-    int *parent = lv_malloc((size_t)n * sizeof(int));
+    int *parent = lv_calloc((size_t)n , sizeof(int));
     int *rank   = lv_calloc((size_t)n, sizeof(int));
     if (!parent || !rank) {
         lv_free((void**)&parent);
@@ -258,7 +258,7 @@ static void uf_union(int *parent, int *rank, int x, int y) {
  * @return true 成功，false 内存分配失败
  */
 static bool uf_resolve_to_min_id(int *parent, GeomNode **nodes, int n) {
-    int *set_min_idx = lv_malloc((size_t)n * sizeof(int));
+    int *set_min_idx = lv_calloc((size_t)n , sizeof(int));
     if (!set_min_idx) return false;
     for (int i = 0; i < n; i++) set_min_idx[i] = -1;
     for (int i = 0; i < n; i++) {
@@ -322,7 +322,7 @@ static void uf_update_constraint_participants(ConstraintGraph *graph,
  * @return 合并节点索引数组（调用者需 free），失败返回 NULL
  */
 static int *uf_collect_merged(int *parent, int n, int *out_count) {
-    int *merged = lv_malloc((size_t)n * sizeof(int));
+    int *merged = lv_calloc((size_t)n , sizeof(int));
     if (!merged) { *out_count = 0; return NULL; }
     int total = 0;
     for (int i = 0; i < n; i++) {
@@ -378,11 +378,11 @@ static int idx_from_id(int *id_to_idx, int max_id, int id) {
 /* ------------------------------------------------------------------ */
 
 NormalizationLog *normalization_log_create(int initial_capacity) {
-    NormalizationLog *log = lv_malloc(sizeof(NormalizationLog));
+    NormalizationLog *log = lv_calloc(1, sizeof(NormalizationLog));
     if (!log) return NULL;
     log->capacity = initial_capacity > 0 ? initial_capacity : NORM_DEFAULT_CAPACITY;
     log->count = 0;
-    log->entries = lv_malloc((size_t)log->capacity * sizeof(NormalizationLogEntry));
+    log->entries = lv_calloc((size_t)log->capacity , sizeof(NormalizationLogEntry));
     if (!log->entries) {
         lv_free((void**)&log);
         return NULL;
@@ -581,9 +581,9 @@ int merge_regions(ConstraintGraph *graph, NormalizationLog *log) {
             if (seg_count == 0) continue;
             if (scope_key(ni) != scope_key(nj)) continue;
             /* 比较边界线段 ID 序列：尝试所有旋转和翻转组合 */
-            int *ids_a = lv_malloc((size_t)seg_count * sizeof(int));
-            int *ids_b = lv_malloc((size_t)seg_count * sizeof(int));
-            int *ids_b_rev = lv_malloc((size_t)seg_count * sizeof(int));
+            int *ids_a = lv_calloc((size_t)seg_count , sizeof(int));
+            int *ids_b = lv_calloc((size_t)seg_count, sizeof(int));
+            int *ids_b_rev = lv_calloc((size_t)seg_count, sizeof(int));
             for (int k = 0; k < seg_count; k++) {
                 ids_a[k] = ni->data.region.boundary_segments[k]->id;
                 ids_b[k] = nj->data.region.boundary_segments[k]->id;
@@ -696,15 +696,15 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
     }
     if (max_candidates == 0) return NULL;
 
-    NodeMergeCandidate *candidates = lv_malloc((size_t)max_candidates * sizeof(NodeMergeCandidate));
+    NodeMergeCandidate *candidates = lv_calloc((size_t)max_candidates , sizeof(NodeMergeCandidate));
     if (!candidates) return NULL;
 
     /* 第一阶段：点候选（坐标相等）—— 使用哈希预分组 */
     {
         /* 步骤1：收集所有 POINT 节点索引并计算哈希 */
         int point_count = 0;
-        int *point_indices = lv_malloc((size_t)graph->node_count * sizeof(int));
-        uint64_t *point_hashes = lv_malloc((size_t)graph->node_count * sizeof(uint64_t));
+        int *point_indices = lv_calloc((size_t)graph->node_count, sizeof(int));
+        uint64_t *point_hashes = lv_calloc((size_t)graph->node_count , sizeof(uint64_t));
         if (point_indices && point_hashes) {
             for (int i = 0; i < graph->node_count; i++) {
                 GeomNode *ni = graph->nodes[i];
@@ -718,7 +718,7 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
 
         if (point_count > 1 && point_indices && point_hashes) {
             /* 步骤2：按哈希值排序点索引 */
-            HashIdx *pairs = lv_malloc((size_t)point_count * sizeof(HashIdx));
+            HashIdx *pairs = lv_calloc((size_t)point_count , sizeof(HashIdx));
             if (pairs) {
                 for (int i = 0; i < point_count; i++) {
                     pairs[i].hash = point_hashes[i];
@@ -766,8 +766,8 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
     {
         /* 步骤1：收集所有 LINE_SEGMENT 节点索引和端点哈希 */
         int seg_count = 0;
-        int *seg_indices = lv_malloc((size_t)graph->node_count * sizeof(int));
-        uint64_t *seg_hashes = lv_malloc((size_t)graph->node_count * sizeof(uint64_t));
+        int *seg_indices = lv_calloc((size_t)graph->node_count, sizeof(int));
+        uint64_t *seg_hashes = lv_calloc((size_t)graph->node_count , sizeof(uint64_t));
         if (seg_indices && seg_hashes) {
             for (int i = 0; i < graph->node_count; i++) {
                 GeomNode *ni = graph->nodes[i];
@@ -781,7 +781,7 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
 
         if (seg_count > 1 && seg_indices && seg_hashes) {
             /* 使用 qsort 按哈希值排序线段索引 */
-            HashIdx *seg_pairs = lv_malloc((size_t)seg_count * sizeof(HashIdx));
+            HashIdx *seg_pairs = lv_calloc((size_t)seg_count , sizeof(HashIdx));
             if (seg_pairs) {
                 for (int i = 0; i < seg_count; i++) {
                     seg_pairs[i].hash = seg_hashes[i];
@@ -834,8 +834,8 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
             if (ni->data.region.segment_count == 0) continue;
             /* 比较排序后的边界线段 ID 集合 */
             int seg_count = ni->data.region.segment_count;
-            int *ids_a = lv_malloc((size_t)seg_count * sizeof(int));
-            int *ids_b = lv_malloc((size_t)seg_count * sizeof(int));
+            int *ids_a = lv_calloc((size_t)seg_count , sizeof(int));
+            int *ids_b = lv_calloc((size_t)seg_count, sizeof(int));
             for (int k = 0; k < seg_count; k++) {
                 ids_a[k] = ni->data.region.boundary_segments[k]->id;
                 ids_b[k] = nj->data.region.boundary_segments[k]->id;
@@ -1085,7 +1085,7 @@ static int normalize_phase(ConstraintGraph *graph, NormalizationResult *result,
 
     /* 快照合并前的节点ID，用于记录映射关系 */
     int n = graph->node_count;
-    int *ids_before = lv_malloc((size_t)n * sizeof(int));
+    int *ids_before = lv_calloc((size_t)n , sizeof(int));
     for (int i = 0; i < n; i++) {
         ids_before[i] = graph->nodes[i]->id;
     }
@@ -1167,16 +1167,15 @@ static int normalize_phase(ConstraintGraph *graph, NormalizationResult *result,
 }
 
 NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
-    NormalizationResult *result = lv_malloc(sizeof(NormalizationResult));
+    NormalizationResult *result = lv_calloc(1, sizeof(NormalizationResult));
     if (!result) return NULL;
-    memset(result, 0, sizeof(NormalizationResult));
     result->user_confirmed = true;
 
     int total_nodes = graph->node_count;
     /* 预分配结果数组（按最坏情况分配） */
-    result->original_ids      = lv_malloc((size_t)total_nodes * sizeof(int));
-    result->representative_ids = lv_malloc((size_t)total_nodes * sizeof(int));
-    result->merged_node_ids    = lv_malloc((size_t)total_nodes * sizeof(int));
+    result->original_ids      = lv_calloc((size_t)total_nodes , sizeof(int));
+    result->representative_ids = lv_calloc((size_t)total_nodes, sizeof(int));
+    result->merged_node_ids    = lv_calloc((size_t)total_nodes , sizeof(int));
     result->merged_capacity    = total_nodes;  /* 记录预分配容量，供边界检查使用 */
     result->log = normalization_log_create(total_nodes > 0 ? total_nodes : NORM_DEFAULT_CAPACITY);
     if (!result->original_ids || !result->representative_ids ||
@@ -1288,10 +1287,10 @@ static uint64_t fnv1a_hash(const char *s) {
 }
 
 GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
-    GraphHash *gh = lv_malloc(sizeof(GraphHash));
+    GraphHash *gh = lv_calloc(1, sizeof(GraphHash));
     if (!gh) return NULL;
     gh->node_count = graph->node_count;
-    gh->node_hashes = lv_malloc((size_t)graph->node_count * sizeof(uint64_t));
+    gh->node_hashes = lv_calloc((size_t)graph->node_count , sizeof(uint64_t));
     if (!gh->node_hashes && graph->node_count > 0) {
         lv_free((void**)&gh);
         return NULL;
@@ -1366,11 +1365,11 @@ void graph_hash_destroy(GraphHash *hash) {
 }
 
 RewriteHistory *rewrite_history_create(int capacity) {
-    RewriteHistory *rh = lv_malloc(sizeof(RewriteHistory));
+    RewriteHistory *rh = lv_calloc(1, sizeof(RewriteHistory));
     if (!rh) return NULL;
     rh->capacity = capacity;
     rh->count = 0;
-    rh->history = lv_malloc((size_t)capacity * sizeof(GraphHash *));
+    rh->history = lv_calloc((size_t)capacity , sizeof(GraphHash *));
     if (!rh->history) {
         lv_free((void**)&rh);
         return NULL;

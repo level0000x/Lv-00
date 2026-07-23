@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_dependency.c
  * @brief 证明依赖图与传递闭包
  *
@@ -95,7 +95,7 @@ static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
 
     /* 替换输出端口 ID */
     if (prop->output_port_ids && prop->output_count > 0) {
-        inst->output_port_ids = lv_malloc((size_t) prop->output_count * sizeof(int));
+        inst->output_port_ids = lv_calloc((size_t) prop->output_count, sizeof(int));
         if (inst->output_port_ids) {
             inst->output_count = prop->output_count;
             inst->output_port_count = prop->output_port_count;
@@ -112,7 +112,7 @@ static Proposition *instantiate_prop_with_port_remap(const Proposition *prop,
 
     /* 替换输入端口 ID */
     if (prop->input_port_ids && prop->input_count > 0) {
-        inst->input_port_ids = lv_malloc((size_t) prop->input_count * sizeof(int));
+        inst->input_port_ids = lv_calloc((size_t) prop->input_count, sizeof(int));
         if (inst->input_port_ids) {
             inst->input_count = prop->input_count;
             for (int j = 0; j < prop->input_count; j++) {

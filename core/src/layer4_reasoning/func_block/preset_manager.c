@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_manager.c
  * @brief 预设函数块管理器 - 核心实现
  *
@@ -422,13 +422,12 @@ bool preset_query(const PresetQueryCriteria *criteria,
     }
 
     /* ── 第一步：分配结果结构 ── */
-    PresetQueryResult *result = (PresetQueryResult *)lv_malloc(sizeof(PresetQueryResult));
+    PresetQueryResult *result = (PresetQueryResult *)lv_calloc(1, sizeof(PresetQueryResult));
     if (!result) {
         unlock_library();
         set_error("内存分配失败");
         goto error;
     }
-    memset(result, 0, sizeof(PresetQueryResult));
 
     /* 预分配名称数组（最多 entry_count 个） */
     int max_candidates = g_library.entry_count;
@@ -790,13 +789,12 @@ bool preset_instantiate(const char *name,
     }
 
     /* 创建实例结构 */
-    PresetInstance *instance = (PresetInstance *)lv_malloc(sizeof(PresetInstance));
+    PresetInstance *instance = (PresetInstance *)lv_calloc(1, sizeof(PresetInstance));
     if (!instance) {
         unlock_library();
         set_error("内存分配失败");
         return false;
     }
-    memset(instance, 0, sizeof(PresetInstance));
 
     instance->preset_name = lv_strdup_safe(name);
 
@@ -2620,15 +2618,13 @@ bool preset_register_custom(const PresetMetadata *metadata,
     }
     
     /* 创建新条目 */
-    InternalPresetEntry *entry = (InternalPresetEntry*)lv_malloc(
-        sizeof(InternalPresetEntry));
+    InternalPresetEntry *entry = (InternalPresetEntry*)lv_calloc(
+        1, sizeof(InternalPresetEntry));
     if (entry == NULL) {
         unlock_library();
         set_error("内存分配失败");
         return false;
     }
-    
-    memset(entry, 0, sizeof(InternalPresetEntry));
     
     /* 复制元数据 */
     memcpy(&entry->metadata, metadata, sizeof(PresetMetadata));

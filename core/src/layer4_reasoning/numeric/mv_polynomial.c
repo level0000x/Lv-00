@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file mv_polynomial.c
  * @brief 多变量多项式实现 — 从 solver.c 拆分
  *
@@ -87,7 +87,7 @@ int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
         p->terms = new_terms;
     }
     MVMonomial *m = &p->terms[p->term_count];
-    m->exponents = lv_malloc((size_t) p->var_count * sizeof(int));
+    m->exponents = lv_calloc((size_t) p->var_count, sizeof(int));
     if (!m->exponents) {
         lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
         return -1;
@@ -138,7 +138,7 @@ void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p,
         mpz_init(new_coeff);
         mpz_mul(new_coeff, p->terms[i].coeff, mono_coeff);
 
-        int *new_exp = lv_malloc((size_t) var_count * sizeof(int));
+        int *new_exp = lv_calloc((size_t) var_count, sizeof(int));
         if (!new_exp) {
             mpz_clear(new_coeff);
             continue;

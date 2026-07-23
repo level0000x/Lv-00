@@ -769,8 +769,8 @@ lvPluginConfig* lv_plugin_config_create(void) {
     lvPluginConfig* config = (lvPluginConfig*)lv_calloc(1, sizeof(lvPluginConfig));
     if (!config) return NULL;
     config->entry_capacity = 256;
-    config->entries = (lvPluginConfigEntry*)lv_malloc(
-        sizeof(lvPluginConfigEntry) * config->entry_capacity);
+    config->entries = (lvPluginConfigEntry*)lv_calloc(
+        config->entry_capacity, sizeof(lvPluginConfigEntry));
     
     if (!config->entries) {
         lv_free((void **)&config);

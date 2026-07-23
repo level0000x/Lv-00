@@ -192,9 +192,8 @@ lvSolver *lv_solver_create(void) {
 lvSolver *lv_solver_create_with_config(const lvSolverConfig *config) {
     lv_CHECK_NULL(config, NULL);
 
-    lvSolver *s = (lvSolver *)lv_malloc(sizeof(lvSolver));
+    lvSolver *s = (lvSolver *)lv_calloc(1, sizeof(lvSolver));
     lv_CHECK_ALLOC(s, NULL);
-    memset(s, 0, sizeof(lvSolver));
 
     /* 复制配置 */
     s->config = *config;

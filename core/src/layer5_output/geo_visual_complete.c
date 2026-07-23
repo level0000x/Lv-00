@@ -606,9 +606,8 @@ static void tikz_render_scene(FILE *fp, const lvVisualRenderer *renderer,
 lvVisualRenderer *lv_visual_renderer_create(lvRenderBackend backend,
                                                   int width, int height)
 {
-    lvVisualRenderer *renderer = (lvVisualRenderer *)lv_malloc(sizeof(lvVisualRenderer));
+    lvVisualRenderer *renderer = (lvVisualRenderer *)lv_calloc(1, sizeof(lvVisualRenderer));
     if (renderer == NULL) return NULL;
-    memset(renderer, 0, sizeof(lvVisualRenderer));
 
     renderer->backend = backend;
     renderer->backend_ctx = NULL;

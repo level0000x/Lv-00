@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file stream.c
  * @brief 流式输出系统实现 —— 引擎事件回调与实时状态推送
  *
@@ -98,12 +98,12 @@
 
 static void *lv_mutex_create(void) {
 #ifdef _WIN32
-    CRITICAL_SECTION *cs = (CRITICAL_SECTION *) lv_malloc(sizeof(CRITICAL_SECTION));
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *) lv_calloc(1, sizeof(CRITICAL_SECTION));
     if (cs)
         InitializeCriticalSection(cs);
     return cs;
 #else
-    pthread_mutex_t *m = (pthread_mutex_t *) lv_malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_t *m = (pthread_mutex_t *) lv_calloc(1, sizeof(pthread_mutex_t));
     if (m)
         pthread_mutex_init(m, NULL);
     return m;
@@ -144,12 +144,12 @@ static void lv_mutex_unlock(void *mutex) {
 static void *lv_condvar_create(void) {
 #ifdef _WIN32
     /* Windows CONDITION_VARIABLE 是栈分配的，用堆包装 */
-    CONDITION_VARIABLE *cv = (CONDITION_VARIABLE *) lv_malloc(sizeof(CONDITION_VARIABLE));
+    CONDITION_VARIABLE *cv = (CONDITION_VARIABLE *) lv_calloc(1, sizeof(CONDITION_VARIABLE));
     if (cv)
         InitializeConditionVariable(cv);
     return cv;
 #else
-    pthread_cond_t *cv = (pthread_cond_t *) lv_malloc(sizeof(pthread_cond_t));
+    pthread_cond_t *cv = (pthread_cond_t *) lv_calloc(1, sizeof(pthread_cond_t));
     if (cv)
         pthread_cond_init(cv, NULL);
     return cv;
@@ -273,13 +273,13 @@ static void stream_lazy_enqueue(StreamContext *ctx, const StreamEvent *event);
  * @return 新上下文指针，内存不足返回 NULL
  */
 StreamContext *stream_context_create(void) {
-    StreamContext *ctx = (StreamContext *) lv_malloc(sizeof(StreamContext));
+    StreamContext *ctx = (StreamContext *) lv_calloc(1, sizeof(StreamContext));
     if (!ctx)
         return NULL;
     memset(ctx, 0, sizeof(StreamContext));
 
     /* 预分配初始容量的回调数组 */
-    ctx->callbacks = (CallbackEntry *) lv_malloc(sizeof(CallbackEntry) * STREAM_INITIAL_CALLBACKS);
+    ctx->callbacks = (CallbackEntry *) lv_calloc(1, sizeof(CallbackEntry) * STREAM_INITIAL_CALLBACKS);
     if (!ctx->callbacks) {
         lv_free((void **) &ctx);
         return NULL;
@@ -1266,7 +1266,7 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
             return false;
         }
         /* For pthread, store the thread in a heap-allocated buffer */
-        pthread_t *thread_ptr = (pthread_t *) lv_malloc(sizeof(pthread_t));
+        pthread_t *thread_ptr = (pthread_t *) lv_calloc(1, sizeof(pthread_t));
         if (thread_ptr) {
             *thread_ptr = thread;
             ctx->async_thread = thread_ptr;
@@ -2185,7 +2185,7 @@ uint64_t stream_parse_filter_mask(const char *str) {
 static bool stream_lazy_ensure_capacity(StreamContext *ctx) {
     if (ctx->lazy_capacity == 0) {
         ctx->lazy_capacity = 64;
-        ctx->lazy_queue = (StreamEvent *) lv_malloc(sizeof(StreamEvent) * (size_t) ctx->lazy_capacity);
+        ctx->lazy_queue = (StreamEvent *) lv_calloc(1, sizeof(StreamEvent) * (size_t) ctx->lazy_capacity);
         return ctx->lazy_queue != NULL;
     }
     if (ctx->lazy_count >= ctx->lazy_capacity) {
@@ -2194,7 +2194,7 @@ static bool stream_lazy_ensure_capacity(StreamContext *ctx) {
             ctx->dropped_count++;
             return false;
         }
-        StreamEvent *new_queue = (StreamEvent *) lv_malloc(sizeof(StreamEvent) * (size_t) new_cap);
+        StreamEvent *new_queue = (StreamEvent *) lv_calloc((size_t) new_cap, sizeof(StreamEvent));
         if (!new_queue)
             return false;
         /* 拷贝环形缓冲区到线性数组 */

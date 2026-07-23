@@ -1482,7 +1482,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = lv_malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;

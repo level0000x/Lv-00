@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_selector.c
  * @brief 多解选择器实现
  * @details 提供从多个候选解中选择特定解的策略，包括正根/负根选择、
@@ -166,9 +166,8 @@ static double point_distance(GeomNode *a, GeomNode *b) {
  * @return 新创建的选择器指针，失败返回 NULL
  */
 SolutionSelector *selector_create(SelectorType type) {
-    SolutionSelector *sel = lv_malloc(sizeof(SolutionSelector));
+    SolutionSelector *sel = lv_calloc(1, sizeof(SolutionSelector));
     if (!sel) return NULL;
-    memset(sel, 0, sizeof(SolutionSelector));
     sel->type = type;
     sel->reference_node_id = -1;
     sel->custom_func = NULL;

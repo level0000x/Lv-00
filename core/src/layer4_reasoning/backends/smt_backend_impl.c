@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file smt_backend_impl.c
  * @brief SMT 后端抽象层实现 —— 多引擎 SMT 求解器框架（含 Groebner 基真实求解）
  *
@@ -207,12 +207,10 @@ const SMTSolverConfig *smtsolver_default_config(SolverBackendType type) {
  * 未链接的后端设置 SMT_ERROR_BACKEND_UNAVAILABLE 但不阻止创建句柄。
  */
 SMTSolver *smtsolver_create(SolverBackendType type, const SMTSolverConfig *config) {
-    SMTSolver *solver = (SMTSolver *)lv_malloc(sizeof(SMTSolver));
+    SMTSolver *solver = (SMTSolver *)lv_calloc(1, sizeof(SMTSolver));
     if (!solver) {
         return NULL;
     }
-
-    memset(solver, 0, sizeof(SMTSolver));
     solver->type = type;
     solver->is_initialized = true;
     solver->has_assertions = false;

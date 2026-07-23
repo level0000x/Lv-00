@@ -244,8 +244,11 @@ void *lv_calloc(size_t nmemb, size_t size) {
 }
 
 void *lv_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
-    if (nmemb == 0 || size == 0)
-        return NULL;
+    /* 零大小请求：分配最小块（1 字节数据），保持与 lv_malloc(0) 一致的语义 */
+    if (nmemb == 0 || size == 0) {
+        nmemb = 1;
+        size = 1;
+    }
 
     /* 检查溢出 */
     if (nmemb > SIZE_MAX / size) {

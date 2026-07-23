@@ -26,7 +26,7 @@ lv_DECLARE_STREAM_CTX(interop);
 /* ── 定理系统 ── */
 
 InteropTheoremContext *interop_theorem_context_create(const char *trust_base_name, const char *trust_base_version) {
-    InteropTheoremContext *ctx = (InteropTheoremContext *) lv_malloc(sizeof(InteropTheoremContext));
+    InteropTheoremContext *ctx = (InteropTheoremContext *) lv_calloc(1, sizeof(InteropTheoremContext));
     if (!ctx)
         return NULL;
 

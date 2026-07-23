@@ -107,7 +107,7 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
                 /* 深拷贝表达式树 */
                 if (copy->data.transcendental && orig->data.transcendental->expr) {
                     TranscendentalExpr *src_expr = orig->data.transcendental->expr;
-                    TranscendentalExpr *dst_expr = lv_malloc(sizeof(TranscendentalExpr));
+                    TranscendentalExpr *dst_expr = lv_calloc(1, sizeof(TranscendentalExpr));
                     if (dst_expr) {
                         dst_expr->expr_type = src_expr->expr_type;
                         lv_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));

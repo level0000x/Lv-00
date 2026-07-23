@@ -207,12 +207,11 @@ const char *engine_status_get_description(EngineStatus status) {
  *         此时可通过 engine_get_last_status() 获取 ENGINE_STATUS_OUT_OF_MEMORY 错误码。
  */
 lvEngine *engine_create(void) {
-    lvEngine *engine = lv_malloc(sizeof(lvEngine));
+    lvEngine *engine = lv_calloc(1, sizeof(lvEngine));
     if (!engine) {
         g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
         return NULL;
     }
-    memset(engine, 0, sizeof(lvEngine));
     engine->rewrite_step_limit = lv_DEFAULT_REWRITE_STEP_LIMIT; /* 默认重写步数限制 */
     engine->frozen_point = NULL;
     engine->context = NULL; /* 迁移中：暂不绑定上下文，后续可通过 engine_bind_context() 设置 */
@@ -617,7 +616,7 @@ int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int 
     /* 拷贝内部节点ID */
     if (func_block->data.func_block.internal_node_count > 0) {
         int ic = func_block->data.func_block.internal_node_count;
-        int *ids = lv_malloc((size_t) ic * sizeof(int));
+        int *ids = lv_calloc((size_t) ic , sizeof(int));
         if (!ids) {
             func_block_destroy(fb);
             engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "内部节点ID数组分配失败");
@@ -1373,7 +1372,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
     /* 第一遍：深拷贝所有节点 */
     /* 预分配足够容量以容纳所有源节点 */
     if (src->node_count > 0) {
-        dst->nodes = lv_malloc((size_t) src->node_count * sizeof(GeomNode *));
+        dst->nodes = lv_calloc((size_t) src->node_count , sizeof(GeomNode *));
         if (!dst->nodes) {
             graph_destroy(dst);
             lv_free((void **) &id_map);
@@ -1462,7 +1461,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
      * 因此，约束分配失败时释放已分配的所有资源并返回 NULL。 */
     for (int i = 0; i < src->constraint_count; i++) {
         Constraint *orig_c = src->constraints[i];
-        Constraint *copy_c = lv_malloc(sizeof(Constraint));
+        Constraint *copy_c = lv_calloc(1, sizeof(Constraint));
         if (!copy_c) {
             /* 约束分配失败：释放已复制的所有约束和整个目标图，返回 NULL */
             for (int k = 0; k < dst->constraint_count; k++) {
@@ -1481,7 +1480,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
         copy_c->participant_count = orig_c->participant_count;
 
         if (orig_c->participant_count > 0) {
-            copy_c->participants = lv_malloc((size_t) orig_c->participant_count * sizeof(int));
+            copy_c->participants = lv_calloc((size_t) orig_c->participant_count, sizeof(int));
             if (copy_c->participants) {
                 for (int j = 0; j < orig_c->participant_count; j++) {
                     int old_pid = orig_c->participants[j];
@@ -1500,7 +1499,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
 
         Constraint **tmp_cons;
         if (dst->constraint_count == 0) {
-            tmp_cons = lv_malloc(sizeof(Constraint *));
+            tmp_cons = lv_calloc(1, sizeof(Constraint *));
         } else {
             tmp_cons = lv_realloc(dst->constraints, (size_t) (dst->constraint_count + 1) * sizeof(Constraint *));
         }

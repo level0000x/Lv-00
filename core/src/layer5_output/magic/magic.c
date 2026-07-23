@@ -147,7 +147,7 @@
  * @return 新创建的符文指针，失败返回 NULL
  */
 Rune *rune_create_rational(int64_t num, uint64_t denom, MagicElement element) {
-    Rune *rune = (Rune *) lv_malloc(sizeof(Rune));
+    Rune *rune = (Rune *) lv_calloc(1, sizeof(Rune));
     if (!rune)
         return NULL;
 
@@ -179,7 +179,7 @@ Rune *rune_create_rational(int64_t num, uint64_t denom, MagicElement element) {
  * @return 新创建的符文指针，失败返回 NULL
  */
 Rune *rune_create_algebraic(double value, MagicElement element) {
-    Rune *rune = (Rune *) lv_malloc(sizeof(Rune));
+    Rune *rune = (Rune *) lv_calloc(1, sizeof(Rune));
     if (!rune)
         return NULL;
 
@@ -241,7 +241,7 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
  * @return 新创建的符文指针，失败返回 NULL
  */
 Rune *rune_create_transcendental(const char *name, MagicElement element) {
-    Rune *rune = (Rune *) lv_malloc(sizeof(Rune));
+    Rune *rune = (Rune *) lv_calloc(1, sizeof(Rune));
     if (!rune)
         return NULL;
 
@@ -718,7 +718,7 @@ struct MagicArray {
  * @return 新创建的魔法阵指针，失败返回 NULL
  */
 MagicArray *magic_array_create(void) {
-    MagicArray *array = (MagicArray *) lv_malloc(sizeof(MagicArray));
+    MagicArray *array = (MagicArray *) lv_calloc(1, sizeof(MagicArray));
     if (!array)
         return NULL;
 
@@ -1610,11 +1610,9 @@ struct Spell {
  * @return 新创建的咒语指针，失败返回 NULL
  */
 Spell *spell_create(const char *name) {
-    Spell *spell = (Spell *) lv_malloc(sizeof(Spell));
+    Spell *spell = (Spell *) lv_calloc(1, sizeof(Spell));
     if (!spell)
         return NULL;
-
-    memset(spell, 0, sizeof(Spell));
 
     /* 设置咒语名称（默认"Unnamed Spell"） */
     if (name) {
@@ -2131,7 +2129,7 @@ struct SpellBook {
  * @return 新创建的咒语书指针，失败返回 NULL
  */
 SpellBook *spellbook_create(void) {
-    SpellBook *book = (SpellBook *) lv_malloc(sizeof(SpellBook));
+    SpellBook *book = (SpellBook *) lv_calloc(1, sizeof(SpellBook));
     if (!book)
         return NULL;
 
@@ -2469,7 +2467,7 @@ struct Domain {
  * @return 新创建的领域指针，失败返回 NULL
  */
 Domain *domain_create(const char *name, int range) {
-    Domain *domain = (Domain *) lv_malloc(sizeof(Domain));
+    Domain *domain = (Domain *) lv_calloc(1, sizeof(Domain));
     if (!domain)
         return NULL;
 

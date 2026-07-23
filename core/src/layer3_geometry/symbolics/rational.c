@@ -81,7 +81,7 @@ Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominato
     if (!denominator || mpz_sgn(denominator) == 0) {
         return NULL;
     }
-    Rational *r = lv_malloc(sizeof(Rational));
+    Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);
@@ -153,7 +153,7 @@ Rational *rational_subtract(const Rational *a, const Rational *b) {
  */
 Rational *rational_multiply(const Rational *a, const Rational *b) {
     if (!a || !b) return NULL;
-    Rational *r = lv_malloc(sizeof(Rational));
+    Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
         return NULL;
     mpq_init(r->value);

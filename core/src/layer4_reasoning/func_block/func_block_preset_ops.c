@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_preset_ops.c
  * @brief 预设函数块操作接口实现
  *
@@ -83,11 +83,11 @@ struct PresetChain {
 PresetChain *preset_chain_create(void)
 {
     /* 分配链结构体 */
-    PresetChain *chain = lv_malloc(sizeof(PresetChain));
+    PresetChain *chain = lv_calloc(1, sizeof(PresetChain));
     if (!chain) return NULL;
 
     /* 分配初始容量的节点数组 */
-    chain->nodes = lv_malloc(PRESET_CHAIN_INITIAL_CAPACITY * sizeof(ChainNode));
+    chain->nodes = lv_calloc(PRESET_CHAIN_INITIAL_CAPACITY, sizeof(ChainNode));
     if (!chain->nodes) {
         lv_free((void **)&chain);
         return NULL;
@@ -690,7 +690,7 @@ bool preset_create_bindings(const char *preset_name,
         return true;
     }
 
-    PresetParamBinding *bindings = lv_malloc((size_t)count * sizeof(PresetParamBinding));
+    PresetParamBinding *bindings = lv_calloc((size_t)count, sizeof(PresetParamBinding));
     if (!bindings) return false;
 
     for (int i = 0; i < count; i++) {

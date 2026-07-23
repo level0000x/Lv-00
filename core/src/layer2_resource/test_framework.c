@@ -445,7 +445,7 @@ lvTestReport *lv_test_run_suite(const char *suite_name) {
     }
 
     report->start_time_ns = get_time_ns();
-    report->suites = (lvTestSuite *)lv_malloc(sizeof(lvTestSuite));
+    report->suites = (lvTestSuite *)lv_calloc(1, sizeof(lvTestSuite));
     if (!report->suites) {
         lv_free((void **) &report);
         MUTEX_UNLOCK(g_test_system.mutex);

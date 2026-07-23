@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file numerical_backend.c
  * @brief 多后端数值抽象层 —— SERIAL 后端完整实现
  *
@@ -181,7 +181,7 @@ static lvVector *serial_vector_clone(const lvVector *v) {
     lv_CHECK_NULL(v, NULL);
 
     int64_t n = v->length;
-    lvVector *clone = lv_malloc(sizeof(lvVector));
+    lvVector *clone = lv_calloc(1, sizeof(lvVector));
     lv_CHECK_ALLOC(clone, NULL);
 
     clone->length = n;
@@ -189,7 +189,7 @@ static lvVector *serial_vector_clone(const lvVector *v) {
     clone->ops = &serial_vector_ops;
     clone->backend_data = NULL;
 
-    clone->data = lv_malloc((size_t) n * sizeof(double));
+    clone->data = lv_calloc((size_t) n, sizeof(double));
     if (!clone->data) {
         lv_free((void **) &clone);
         lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "向量数据分配失败，长度=%lld", (long long) n);
@@ -420,7 +420,7 @@ static lvMatrix *serial_matrix_clone(const lvMatrix *A) {
     int64_t cols = A->cols;
     size_t data_size = (size_t) (rows * cols) * sizeof(double);
 
-    lvMatrix *clone = lv_malloc(sizeof(lvMatrix));
+    lvMatrix *clone = lv_calloc(1, sizeof(lvMatrix));
     lv_CHECK_ALLOC(clone, NULL);
 
     clone->rows = rows;
@@ -700,7 +700,7 @@ static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A) {
     lv_CHECK_NULL(LS, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
 
-    DenseLUData *lu = lv_malloc(sizeof(DenseLUData));
+    DenseLUData *lu = lv_calloc(1, sizeof(DenseLUData));
     lv_CHECK_ALLOC(lu, lv_BACKEND_MEM_ERROR);
 
     lu->clone = serial_matrix_clone(A);
@@ -811,10 +811,8 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
     lv_CHECK_NULL(LS, lv_BACKEND_MEM_ERROR);
     lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
 
-    IterSolverData *is = lv_malloc(sizeof(IterSolverData));
+    IterSolverData *is = lv_calloc(1, sizeof(IterSolverData));
     lv_CHECK_ALLOC(is, lv_BACKEND_MEM_ERROR);
-
-    memset(is, 0, sizeof(IterSolverData));
     is->max_iters = NBLINSOL_DEFAULT_MAX_ITERS;
     is->tol = NBLINSOL_DEFAULT_TOL;
 
@@ -825,10 +823,10 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
     }
 
     int64_t n = A->rows;
-    is->r = lv_malloc((size_t) n * sizeof(double));
-    is->p = lv_malloc((size_t) n * sizeof(double));
-    is->ap = lv_malloc((size_t) n * sizeof(double));
-    is->work = lv_malloc((size_t) n * sizeof(double));
+    is->r = lv_calloc((size_t) n, sizeof(double));
+    is->p = lv_calloc((size_t) n, sizeof(double));
+    is->ap = lv_calloc((size_t) n, sizeof(double));
+    is->work = lv_calloc((size_t) n, sizeof(double));
 
     if (!is->r || !is->p || !is->ap || !is->work) {
         /* 清理已分配资源 */
@@ -885,15 +883,15 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
 
     /* ---- 分配 GMRES 专用工作区 ---- */
     /* V: 正交基，(m+1) 列，每列 n 个元素 */
-    double *V = lv_malloc((size_t)(m + 1) * (size_t)n * sizeof(double));
+    double *V = lv_calloc((size_t)(m + 1) * (size_t)n, sizeof(double));
     /* H: 上 Hessenberg 矩阵，(m+1) x m，按列存储 */
-    double *H = lv_malloc((size_t)(m + 1) * (size_t)m * sizeof(double));
+    double *H = lv_calloc((size_t)(m + 1) * (size_t)m, sizeof(double));
     /* Givens 旋转参数 */
-    double *cs = lv_malloc((size_t)m * sizeof(double));
-    double *sn = lv_malloc((size_t)m * sizeof(double));
+    double *cs = lv_calloc((size_t)m, sizeof(double));
+    double *sn = lv_calloc((size_t)m, sizeof(double));
     /* 最小二乘右端项及解向量 */
-    double *rhs = lv_malloc((size_t)(m + 1) * sizeof(double));
-    double *y   = lv_malloc((size_t)m * sizeof(double));
+    double *rhs = lv_calloc((size_t)(m + 1), sizeof(double));
+    double *y   = lv_calloc((size_t)m, sizeof(double));
 
     if (!V || !H || !cs || !sn || !rhs || !y) {
         if (V) lv_free((void **) &V);
@@ -1101,8 +1099,8 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
     double *a_data = (double *) is->clone->data;
 
     /* 分配额外工作向量：r0_shadow 和 t */
-    double *r0 = lv_malloc((size_t) n * sizeof(double));
-    double *t  = lv_malloc((size_t) n * sizeof(double));
+    double *r0 = lv_calloc((size_t) n, sizeof(double));
+    double *t  = lv_calloc((size_t) n, sizeof(double));
     if (!r0 || !t) {
         if (r0) lv_free((void **) &r0);
         if (t)  lv_free((void **) &t);
@@ -1330,7 +1328,7 @@ lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
     /* SERIAL 是默认实现；其他后端如果未实现也回退到 SERIAL */
     (void)backend;
 
-    lvVector *v = lv_malloc(sizeof(lvVector));
+    lvVector *v = lv_calloc(1, sizeof(lvVector));
     lv_CHECK_ALLOC(v, NULL);
 
     v->length = n;
@@ -1338,7 +1336,7 @@ lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
     v->ops = &serial_vector_ops;
     v->backend_data = NULL;
 
-    v->data = lv_malloc((size_t) n * sizeof(double));
+    v->data = lv_calloc((size_t) n, sizeof(double));
     if (!v->data) {
         lv_free((void **) &v);
         lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "向量数据分配失败，长度=%lld",
@@ -1365,7 +1363,7 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows,
     /* SERIAL 是默认实现；其他后端即使未实现也回退到 SERIAL */
     (void)backend;
 
-    lvMatrix *A = lv_malloc(sizeof(lvMatrix));
+    lvMatrix *A = lv_calloc(1, sizeof(lvMatrix));
     lv_CHECK_ALLOC(A, NULL);
 
     A->rows = rows;
@@ -1397,7 +1395,7 @@ lvLinearSolver *lv_linsol_create(lvBackendType backend,
     /* SERIAL 是默认实现；其他后端如果未实现也回退到 SERIAL */
     (void)backend;
 
-    lvLinearSolver *LS = lv_malloc(sizeof(lvLinearSolver));
+    lvLinearSolver *LS = lv_calloc(1, sizeof(lvLinearSolver));
     lv_CHECK_ALLOC(LS, NULL);
 
     LS->method = method;

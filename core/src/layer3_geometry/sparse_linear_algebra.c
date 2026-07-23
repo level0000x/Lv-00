@@ -41,7 +41,7 @@ struct lvSparseMatrix {
 lvSparseMatrix *lv_sparse_create(int rows, int cols) {
     if (rows <= 0 || cols <= 0) return NULL;
 
-    lvSparseMatrix *m = lv_malloc(sizeof(lvSparseMatrix));
+    lvSparseMatrix *m = lv_calloc(1, sizeof(lvSparseMatrix));
     if (!m) return NULL;
 
     m->rows = rows;

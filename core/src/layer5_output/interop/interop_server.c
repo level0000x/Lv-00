@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interop_server.c
  * @brief 互操作服务器
  *
@@ -251,10 +251,9 @@ InteropServer *interop_server_create(InteropInterfaceType type) {
     /* 初始化 stdout 互斥锁（仅首次创建时生效） */
     stdout_lock_init();
 
-    InteropServer *server = (InteropServer *) lv_malloc(sizeof(InteropServer));
+    InteropServer *server = (InteropServer *) lv_calloc(1, sizeof(InteropServer));
     if (!server)
         return NULL;
-    memset(server, 0, sizeof(InteropServer));
     server->type = type;
     server->stream_callback_id = -1;
     server->stream_filter_mask = STREAM_FILTER_ALL; /* 默认接收所有事件 */

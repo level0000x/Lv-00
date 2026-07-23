@@ -1277,7 +1277,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
 
     /* 深拷贝端口依赖数组 */
     if (src->port_dep_count > 0 && src->port_deps) {
-        dst->port_deps = lv_malloc((size_t) src->port_dep_count * sizeof(PortDependency));
+        dst->port_deps = lv_calloc((size_t) src->port_dep_count, sizeof(PortDependency));
         if (!dst->port_deps)
             goto fail;
         memcpy(dst->port_deps, src->port_deps, (size_t) src->port_dep_count * sizeof(PortDependency));

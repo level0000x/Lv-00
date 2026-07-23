@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file sat_encoding.c
  * @brief SAT 编码管线实现 —— 借鉴 Alloy Kodkod 的关系逻辑到 SAT 编码管道
  *
@@ -124,9 +124,8 @@ SatEncoding *sat_encoding_create(int initial_var_capacity, int initial_clause_ca
     if (initial_var_capacity <= 0) initial_var_capacity = VAR_MAP_INITIAL_CAP;
     if (initial_clause_capacity <= 0) initial_clause_capacity = CLAUSE_INITIAL_CAP;
 
-    SatEncoding *enc = (SatEncoding *)lv_malloc(sizeof(SatEncoding));
+    SatEncoding *enc = (SatEncoding *)lv_calloc(1, sizeof(SatEncoding));
     lv_CHECK_ALLOC(enc, NULL);
-    memset(enc, 0, sizeof(SatEncoding));
 
     enc->var_map = (SatVarEntry *)lv_malloc((size_t)initial_var_capacity * sizeof(SatVarEntry));
     if (!enc->var_map) {
@@ -1072,9 +1071,8 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         if (!rel) continue;
 
                         /* 创建新的关系，填充满足的元组 */
-                        Relation *binding = (Relation *)lv_malloc(sizeof(Relation));
+                        Relation *binding = (Relation *)lv_calloc(1, sizeof(Relation));
                         if (!binding) continue;
-                        memset(binding, 0, sizeof(Relation));
                         strncpy(binding->name, rel->name, sizeof(binding->name) - 1);
                         binding->arity = rel->arity;
                         for (int d = 0; d < rel->arity && d < 8; d++) {

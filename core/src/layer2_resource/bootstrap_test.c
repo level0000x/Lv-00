@@ -1112,12 +1112,11 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name,
         return NULL;
     }
 
-    PrimitiveTestResult *result = lv_malloc(sizeof(PrimitiveTestResult));
+    PrimitiveTestResult *result = lv_calloc(1, sizeof(PrimitiveTestResult));
     if (!result) {
         return NULL;
     }
 
-    memset(result, 0, sizeof(PrimitiveTestResult));
     result->primitive_name = name;
     result->comparison = DIFF_RESULT_ERROR;
     result->passed = false;

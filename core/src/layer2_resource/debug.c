@@ -1787,12 +1787,12 @@ lvLogRingBuffer *lv_log_ring_buffer_create(int capacity) {
         return NULL;
     }
 
-    rb->entries = lv_malloc((size_t)capacity * sizeof(lvLogEntry));
+    rb->entries = lv_calloc((size_t)capacity, sizeof(lvLogEntry));
     if (!rb->entries) {
         lv_free((void **)&rb);
         return NULL;
     }
-    memset(rb->entries, 0, (size_t)capacity * sizeof(lvLogEntry));
+
 
     rb->capacity = capacity;
     rb->head = 0;

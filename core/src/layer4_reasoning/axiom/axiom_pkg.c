@@ -1927,7 +1927,7 @@ int axiom_package_validate_dependencies_with_hashes(
     }
 
     /* 分配输出数组 */
-    DependencyRef *output = lv_malloc((size_t)fail_count * sizeof(DependencyRef));
+    DependencyRef *output = lv_calloc((size_t)fail_count, sizeof(DependencyRef));
     if (!output) {
         lv_free((void**)&current_hash);
         return -1;

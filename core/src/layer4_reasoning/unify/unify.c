@@ -572,7 +572,7 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
     }
 
     /* 计算命题图中所有节点的坐标哈希 */
-    uint64_t *prop_hashes = lv_malloc((size_t)proposition->node_count * sizeof(uint64_t));
+    uint64_t *prop_hashes = lv_calloc((size_t)proposition->node_count , sizeof(uint64_t));
     if (!prop_hashes) {
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
@@ -583,7 +583,7 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
     }
 
     /* 计算构造图中所有节点的坐标哈希 */
-    uint64_t *con_hashes = lv_malloc((size_t)construction->node_count * sizeof(uint64_t));
+    uint64_t *con_hashes = lv_calloc((size_t)construction->node_count, sizeof(uint64_t));
     if (!con_hashes) {
         lv_free((void **)&prop_hashes);
         normalization_result_destroy(nc);
@@ -753,11 +753,11 @@ SimpleProposition *simple_proposition_create(const char *name, int *input_port_i
         return NULL;
     }
 
-    prop->input_port_ids = input_count > 0 ? lv_malloc((size_t)input_count * sizeof(int)) : NULL;
+    prop->input_port_ids = input_count > 0 ? lv_calloc((size_t)input_count , sizeof(int)) : NULL;
     if (input_count > 0 && prop->input_port_ids) {
         memcpy(prop->input_port_ids, input_port_ids, (size_t)input_count * sizeof(int));
     }
-    prop->output_port_ids = output_count > 0 ? lv_malloc((size_t)output_count * sizeof(int)) : NULL;
+    prop->output_port_ids = output_count > 0 ? lv_calloc((size_t)output_count, sizeof(int)) : NULL;
     if (output_count > 0 && prop->output_port_ids) {
         memcpy(prop->output_port_ids, output_port_ids, (size_t)output_count * sizeof(int));
     }
@@ -1149,7 +1149,7 @@ typedef struct {
  * @return true 初始化成功，false 内存分配失败
  */
 static bool id_mapping_init(IdMappingTable *table, int initial_capacity) {
-    table->entries = (IdMappingEntry *)lv_malloc((size_t)initial_capacity * sizeof(IdMappingEntry));
+    table->entries = (IdMappingEntry *)lv_calloc((size_t)initial_capacity, sizeof(IdMappingEntry));
     if (!table->entries) {
         table->capacity = 0;
         table->count = 0;
@@ -1377,7 +1377,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
 
         if (src_node->data.region.boundary_segments &&
             src_node->data.region.segment_count > 0) {
-            new_boundary_ids = lv_malloc(src_node->data.region.segment_count * sizeof(int));
+            new_boundary_ids = lv_calloc(src_node->data.region.segment_count, sizeof(int));
             if (!new_boundary_ids) goto fail;
 
             for (int j = 0; j < src_node->data.region.segment_count; j++) {
@@ -1418,7 +1418,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int new_internal_count = 0;
         if (src_node->data.func_block.internal_nodes &&
             src_node->data.func_block.internal_node_count > 0) {
-            new_internal_ids = lv_malloc(src_node->data.func_block.internal_node_count * sizeof(int));
+            new_internal_ids = lv_calloc(src_node->data.func_block.internal_node_count, sizeof(int));
             if (!new_internal_ids) goto fail;
 
             for (int j = 0; j < src_node->data.func_block.internal_node_count; j++) {
@@ -1435,7 +1435,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int new_input_count = 0;
         if (src_node->data.func_block.input_port_ids &&
             src_node->data.func_block.input_count > 0) {
-            new_input_ids = lv_malloc(src_node->data.func_block.input_count * sizeof(int));
+            new_input_ids = lv_calloc(src_node->data.func_block.input_count, sizeof(int));
             if (!new_input_ids) {
                 lv_free((void **)&new_internal_ids);
                 goto fail;
@@ -1453,7 +1453,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int new_output_count = 0;
         if (src_node->data.func_block.output_port_ids &&
             src_node->data.func_block.output_count > 0) {
-            new_output_ids = lv_malloc(src_node->data.func_block.output_count * sizeof(int));
+            new_output_ids = lv_calloc(src_node->data.func_block.output_count, sizeof(int));
             if (!new_output_ids) {
                 lv_free((void **)&new_internal_ids);
                 lv_free((void **)&new_input_ids);
@@ -1506,7 +1506,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         AddConstraintResult r;
 
         /* 转换约束中的参与者ID */
-        int *new_participants = lv_malloc(sc->participant_count * sizeof(int));
+        int *new_participants = lv_calloc(sc->participant_count, sizeof(int));
         if (!new_participants) goto fail;
         int new_participant_count = 0;
 
