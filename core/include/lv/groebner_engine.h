@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file groebner_engine.h
  * @brief Groebner 基计算引擎 —— 借鉴 Singular/Macaulay2 的多项式理想与 Gröbner 基计算
  *
@@ -437,6 +437,22 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
 int variety_compute(lvRingRegistry *registry, int ideal_id, const char *variety_name);
 bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id);
 int variety_dimension(lvRingRegistry *registry, int variety_id);
+
+/**
+ * @brief 从代数簇中获取指定索引的解点坐标
+ *
+ * 从 variety_compute() 计算得到的代数簇中提取第 point_idx 个解点的坐标值。
+ * 仅对零维簇（有限解）有效；对正维簇返回 false。
+ *
+ * @param registry  环注册表
+ * @param variety_id 代数簇 ID（来自 variety_compute()）
+ * @param point_idx  解点索引（0-based）
+ * @param out_coords 输出缓冲区，用于存储坐标值（大小需 >= coord_count）
+ * @param coord_count 要读取的坐标数量
+ * @return 成功返回 true，簇不存在或索引越界返回 false
+ */
+bool variety_get_solution_point(lvRingRegistry *registry, int variety_id,
+                                int point_idx, double *out_coords, int coord_count);
 
 #ifdef __cplusplus
 }

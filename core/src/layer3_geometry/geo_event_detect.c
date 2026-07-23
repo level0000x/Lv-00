@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_event_detect.c
  * @brief 几何事件检测器 —— 基于 SUNDIALS Rootfinding 的事件检测实现
  *
@@ -261,6 +261,7 @@ static int geodet_root_bisection(lvEventDetector *detector, int event_id,
     double fa = ga;
     double fb = gb;
     double mid, fmid;
+    double fa_initial = fabs(fa);  /* 用于发散检测的参考值 */
 
     for (int iter = 0; iter < max_iter; ++iter) {
         mid = 0.5 * (a + b);
@@ -272,6 +273,12 @@ static int geodet_root_bisection(lvEventDetector *detector, int event_id,
         int ret = geodet_eval_event_func(detector, event_idx, mid, param_b,
                                           dim, &fmid);
         if (ret != 0) {
+            return -1;
+        }
+
+        /* 发散检测：如果 |fmid| 比初始函数值大 1e6 倍，
+         * 说明区间内可能存在极点而非根。终止搜索。 */
+        if (fa_initial > 0.0 && fabs(fmid) > fa_initial * 1e6) {
             return -1;
         }
 
@@ -324,6 +331,7 @@ static int geodet_root_illinois(lvEventDetector *detector, int event_id,
     double x_l = a, f_l = ga;
     double x_r = b, f_r = gb;
     int stall_counter = 0; /* 一端被卡住的计数器 */
+    double f_l_initial = fabs(f_l); /* 用于发散检测的参考值 */
 
     for (int iter = 0; iter < max_iter; ++iter) {
         /* 线性插值 */
@@ -353,6 +361,12 @@ static int geodet_root_illinois(lvEventDetector *detector, int event_id,
         if (f_new == 0.0) {
             *root = x_new;
             return 0;
+        }
+
+        /* 发散检测：如果 |f_new| 比初始函数值大 1e6 倍，
+         * 说明区间内可能存在极点而非根。终止搜索。 */
+        if (f_l_initial > 0.0 && fabs(f_new) > f_l_initial * 1e6) {
+            return -1;
         }
 
         /* 更新区间 */

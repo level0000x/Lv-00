@@ -821,8 +821,9 @@ static double evaluate_constraint(const lvSolverSystem *sys,
         double day = ea->params[3] - ea->params[1];
         double dbx = eb->params[2] - eb->params[0];
         double dby = eb->params[3] - eb->params[1];
-        double angle_a = atan2(day, dax);
-        double angle_b = atan2(dby, dbx);
+        /* 避免退化为点时 atan2(0,0) 返回 NaN */
+        double angle_a = (dax != 0.0 || day != 0.0) ? atan2(day, dax) : 0.0;
+        double angle_b = (dbx != 0.0 || dby != 0.0) ? atan2(dby, dbx) : 0.0;
         double diff = angle_a - angle_b;
         /* 归一化到 [-pi, pi] */
         while (diff > M_PI)  diff -= 2.0 * M_PI;
@@ -1246,6 +1247,7 @@ lv_PUBLIC_API lvSolveResult lv_solver_solve(lvSolverSystem *sys)
 
     lvSolveResult result = lv_SOLVE_NOT_CONVERGED;
     double damping = sys->config.damping_factor;
+    double prev_norm_F = -1.0;  /* 初始化为负值，跳过第一次迭代的比较 */
 
     for (int iter = 0; iter < sys->config.max_iterations; iter++) {
         sys->iteration_count = iter + 1;
@@ -1264,6 +1266,15 @@ lv_PUBLIC_API lvSolveResult lv_solver_solve(lvSolverSystem *sys)
             result = lv_SOLVE_OK;
             break;
         }
+
+        /* 发散检测：如果残差相比上次迭代增长超过 10 倍，
+         * 且本次残差已经超过初始残差，说明迭代正在发散。
+         * 此时终止迭代避免无意义计算。 */
+        if (prev_norm_F > 0.0 && norm_F > prev_norm_F * 10.0) {
+            result = lv_SOLVE_NOT_CONVERGED;
+            break;
+        }
+        prev_norm_F = norm_F;
 
         /* 确定求解维度 */
         int solve_n = (nrows < ncols) ? nrows : ncols;

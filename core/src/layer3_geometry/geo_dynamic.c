@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_dynamic.c
  * @brief 动态几何依赖图实现 — 借鉴 GeoGebra 动态几何系统
  *
@@ -683,7 +683,8 @@ bool lv_dyn_graph_has_path(
     int front = 0, rear = 0;
 
     queue[rear++] = start_id;
-    visited[start_id % 256] = true;
+    /* 使用 unsigned 类型取模确保下标非负（C 中负数取模结果为负） */
+    visited[(unsigned int)start_id % 256] = true;
 
     while (front < rear && rear < 256) {
         int current = queue[front++];
@@ -694,8 +695,8 @@ bool lv_dyn_graph_has_path(
             int child_id = node->child_ids[i];
             if (child_id == target_id) return true;
 
-            if (!visited[child_id % 256]) {
-                visited[child_id % 256] = true;
+            if (!visited[(unsigned int)child_id % 256]) {
+                visited[(unsigned int)child_id % 256] = true;
                 queue[rear++] = child_id;
             }
         }

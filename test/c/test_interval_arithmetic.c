@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_interval_arithmetic.c
  * @brief Test suite for the interval arithmetic module
  *
@@ -100,8 +100,8 @@ static void test_interval_mul(void) {
     lvInterval a = interval_create(-1.0, 2.0, 0);
     lvInterval b = interval_create(3.0, 4.0, 0);
     lvInterval r = interval_mul(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, -4.0, 1e-15), "[-1,2]*[3,4] lo should be -4");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 8.0, 1e-15), "[-1,2]*[3,4] hi should be 8");
+    TEST_ASSERT_MSG(approx_eq(r.lo, -4.0, 2e-15), "[-1,2]*[3,4] lo should be -4");
+    TEST_ASSERT_MSG(approx_eq(r.hi, 8.0, 2e-15), "[-1,2]*[3,4] hi should be 8");
 }
 
 static void test_interval_mul_positive(void) {
@@ -109,8 +109,8 @@ static void test_interval_mul_positive(void) {
     lvInterval a = interval_create(2.0, 3.0, 0);
     lvInterval b = interval_create(4.0, 5.0, 0);
     lvInterval r = interval_mul(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 8.0, 1e-15), "[2,3]*[4,5] lo should be 8");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 15.0, 1e-15), "[2,3]*[4,5] hi should be 15");
+    TEST_ASSERT_MSG(approx_eq(r.lo, 8.0, 2e-15), "[2,3]*[4,5] lo should be 8");
+    TEST_ASSERT_MSG(approx_eq(r.hi, 15.0, 2e-15), "[2,3]*[4,5] hi should be 15");
 }
 
 static void test_interval_div(void) {

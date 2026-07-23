@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_utils.c
  * @brief 几何工具函数实现
  *
@@ -133,7 +133,10 @@ int geo_point_in_triangle(double px, double py,
  */
 double geo_angle(double x1, double y1, double x2, double y2)
 {
-    return atan2(y2 - y1, x2 - x1);
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    if (dx == 0.0 && dy == 0.0) return 0.0;  /* 两点重合时返回 0 而非 NaN */
+    return atan2(dy, dx);
 }
 
 /**

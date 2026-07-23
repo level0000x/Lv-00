@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_multi_strategy.c
  * @brief 多证明方法并存引擎实现（借鉴 JGEX/GEX 架构）
  *
@@ -936,10 +936,10 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                 if (comma1_i && comma1_j) {
                     /* 比较坐标部分 */
                     if (strcmp(comma1_i, comma1_j) == 0) {
-                        int id_i, id_j;
-                        sscanf(facts[i], "point_coord:%d,", &id_i);
-                        sscanf(facts[j], "point_coord:%d,", &id_j);
-                        if (id_i != id_j) {
+                        int id_i = -1, id_j = -1;
+                        int ret_i = sscanf(facts[i], "point_coord:%d,", &id_i);
+                        int ret_j = sscanf(facts[j], "point_coord:%d,", &id_j);
+                        if (ret_i >= 1 && ret_j >= 1 && id_i != id_j) {
                             DEDUCT_ADD_FACT("coincident:%d,%d", id_i, id_j);
                             new_derived++;
                         }

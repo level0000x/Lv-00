@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file parametric_curves.c
  * @brief 参数曲线曲面模块 -- 参数化几何对象的创建、求值与分析
  *
@@ -197,6 +197,14 @@ bool lv_curve_evaluate(const lvParametricCurve *curve, double t,
     if (!curve || !curve->eval_func || !out) {
         return false;
     }
+    /* 域边界检查：禁止在定义域外静默外推 */
+    if (t < curve->domain.t_min - 1e-12 ||
+        t > curve->domain.t_max + 1e-12) {
+        return false;
+    }
+    /* 将 t 钳制到边界（允许微小浮点误差越过边界） */
+    if (t < curve->domain.t_min) t = curve->domain.t_min;
+    if (t > curve->domain.t_max) t = curve->domain.t_max;
     curve->eval_func(t, curve->user_data, out);
     return true;
 }
@@ -216,6 +224,13 @@ bool lv_curve_tangent(const lvParametricCurve *curve, double t,
     if (!curve || !curve->deriv_func || !out_dx || !out_dy) {
         return false;
     }
+    /* 域边界检查：禁止在定义域外静默外推 */
+    if (t < curve->domain.t_min - 1e-12 ||
+        t > curve->domain.t_max + 1e-12) {
+        return false;
+    }
+    if (t < curve->domain.t_min) t = curve->domain.t_min;
+    if (t > curve->domain.t_max) t = curve->domain.t_max;
     curve->deriv_func(t, curve->user_data, out_dx, out_dy);
     return true;
 }

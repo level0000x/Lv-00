@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 模块名称：几何数据压缩引擎 (geometry_compress)
  *
  * 功能概述：
@@ -337,7 +337,7 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
         lv_free((void **) &faces);
         return false;
     }
-    memset(visited, 0, node_count * sizeof(bool));
+    memset(visited, 0, (size_t)node_count * sizeof(bool));
 
     /* Collect coordinate residuals for Huffman encoding */
     int residual_capacity = 256;
@@ -569,8 +569,7 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
         lv_free((void **) &faces);
         return false;
     }
-    memset(visited, 0, node_count * sizeof(bool));
-
+    memset(visited, 0, (size_t)node_count * sizeof(bool));
     /* Traverse triangle faces */
     for (int fi = 0; fi < face_count; fi++) {
         TriangleFace *face = &faces[fi];
@@ -668,8 +667,12 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
             double residual_val = actual - pred_coords[d];
 
             /* Replace coordinate with residual as rational */
+            double scaled_val = residual_val * 1000.0;
+            /* 钳制到 int64 安全范围再转换，避免大值时未定义行为 */
+            if (scaled_val > 9223372036854774784.0) scaled_val = 9223372036854774784.0;
+            if (scaled_val < -9223372036854774784.0) scaled_val = -9223372036854774784.0;
             SymbolicCoord *residual = symbolic_coord_create_rational(
-                (int64_t) (residual_val * 1000.0), 1000);
+                (int64_t)scaled_val, 1000);
             if (residual) {
                 symbolic_coord_destroy(node_target->symbolic_coords[d]);
                 node_target->symbolic_coords[d] = residual;
@@ -1817,7 +1820,7 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
             graph_destroy(cloned);
             return NULL;
         }
-        memcpy(parts_copy, orig->participants, orig->participant_count * sizeof(int));
+        memcpy(parts_copy, orig->participants, (size_t)orig->participant_count * sizeof(int));
 
         Constraint *added = graph_add_constraint_with_id(cloned, orig->id, orig->type,
                                                           parts_copy, orig->participant_count);
@@ -2131,7 +2134,10 @@ static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph
                 double val;
                 memcpy(&val, ptr, sizeof(double));
                 ptr += sizeof(double);
-                coords[d] = symbolic_coord_create_rational((int64_t) (val * 1000000.0), 1000000);
+                double scaled_val = val * 1000000.0;
+                if (scaled_val > 9223372036854774784.0) scaled_val = 9223372036854774784.0;
+                if (scaled_val < -9223372036854774784.0) scaled_val = -9223372036854774784.0;
+                coords[d] = symbolic_coord_create_rational((int64_t)scaled_val, 1000000);
                 if (!coords[d]) {
                     ok = false;
                     break;
@@ -2339,5 +2345,4 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
 
     *out_data = buf;
     *out_size = (size_t) comp_size;
-    return true;
-}
+    return t

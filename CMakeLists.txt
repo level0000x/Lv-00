@@ -880,6 +880,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/rewrite/rewrite_wl.c
     core/src/layer4_reasoning/rewrite/critical_pair.c
     core/src/layer4_reasoning/rewrite/beta_reduce.c
+    core/src/layer4_reasoning/rewrite/rewrite_strategy_impl.c
     # λ-项：数据类型与编译
     core/src/layer4_reasoning/lambda/lambda_term.c
     core/src/layer4_reasoning/lambda/lambda_to_graph.c
@@ -1215,6 +1216,8 @@ if(BUILD_TESTS)
         test/c/test_solver.c solver_test)
     add_lv_test_and_register(test_solver_enhanced
         test/c/test_solver_enhanced.c solver_enhanced_test)
+    add_lv_test_and_register(test_groebner_basis
+        test/c/test_groebner_basis.c groebner_basis_test)
     add_lv_test_and_register(test_rewrite
         test/c/test_rewrite.c rewrite_test)
     add_lv_test_and_register(test_critical_pair
@@ -1386,6 +1389,8 @@ if(BUILD_TESTS)
     # v3.4.0 新增：重写引擎测试
     add_lv_test_and_register(test_rewrite_strategy
         test/c/test_rewrite_strategy.c test_rewrite_strategy)
+    add_lv_test_and_register(test_rewrite_strategy_impl
+        test/c/test_rewrite_strategy_impl.c rewrite_strategy_impl_test)
     # v3.4.0 新增：版本控制测试
     add_lv_test_and_register(test_proof_version
         test/c/test_proof_version.c test_proof_version)

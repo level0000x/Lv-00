@@ -1326,26 +1326,6 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
         return -1;
     }
 
-    /* 注册表和簇 ID 在完整实现中将用于获取解点坐标 */
-    lv_UNUSED(solver->groebner_registry);
-    lv_UNUSED(solver->groebner_variety_id);
-
-    /*
-     * 从代数簇中获取解点。
-     * lvVariety 结构中 solution_points 是一个二维数组：
-     *   solution_points[i][j] 表示第 i 个解点的第 j 个变量值。
-     *
-     * 我们需要将解点坐标映射回约束图中的节点。
-     */
-
-    /* 获取代数簇信息 */
-    /* 注意：当前 lvVariety 通过注册表访问，需要通过 variety_id 查找 */
-    /* 这里我们通过遍历注册表中的簇来获取 */
-
-    /* 由于 lvVariety 的直接访问 API 有限，我们通过环注册表的
-     * 内部数据来获取簇的解点信息。在实际集成中，应添加
-     * variety_get_solution_points() 等 API。 */
-
     /* 遍历节点映射表，为每个有坐标映射的点节点创建 x/y 赋值条目 */
     int assignment_count = 0;
     int max_assignments = solver->groebner_var_count; /* 最多 var_count 个赋值 */
@@ -1360,17 +1340,23 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
         return -1;
     }
 
-    /*
-     * 从代数簇的解点中提取坐标值。
-     * 在完整的实现中，这里应该：
-     * 1. 通过 variety_get_solution_points() 获取解点数组
-     * 2. 取第一个解点（如果有多个解，取第一个）
-     * 3. 将每个变量值映射到对应的节点坐标
-     *
-     * 当前实现使用零值占位，表示需要从代数簇中读取实际值。
-     * 当 constraint_graph_to_ideal() 和 variety_compute() 完全实现后，
-     * 这里将读取真实的数值解。
-     */
+    /* 从代数簇中读取第一个解点的坐标值 */
+    double *coords = NULL;
+    bool got_solution = false;
+
+    if (variety_is_zero_dimensional(solver->groebner_registry, solver->groebner_variety_id)) {
+        coords = (double *)lv_calloc((size_t)max_assignments, sizeof(double));
+        if (coords) {
+            got_solution = variety_get_solution_point(
+                solver->groebner_registry, solver->groebner_variety_id,
+                0, coords, max_assignments);
+            if (!got_solution) {
+                /* 获取解点失败，回退到零值 */
+                lv_free((void **)&coords);
+                coords = NULL;
+            }
+        }
+    }
 
     /* 遍历节点映射表，为每个有映射的点节点创建赋值 */
     for (int i = 0; i < solver->groebner_node_var_map_size && assignment_count < max_assignments; i++) {
@@ -1385,7 +1371,8 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
         assignments[assignment_count].value.rational.numerator = 0;
         assignments[assignment_count].value.rational.denominator = 1;
         assignments[assignment_count].value.rational.is_approx = true;
-        assignments[assignment_count].value.rational.approx_value = 0.0;
+        assignments[assignment_count].value.rational.approx_value =
+            (coords && var_idx < max_assignments) ? coords[var_idx] : 0.0;
         assignment_count++;
 
         if (assignment_count >= max_assignments) break;
@@ -1398,8 +1385,14 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
         assignments[assignment_count].value.rational.numerator = 0;
         assignments[assignment_count].value.rational.denominator = 1;
         assignments[assignment_count].value.rational.is_approx = true;
-        assignments[assignment_count].value.rational.approx_value = 0.0;
+        assignments[assignment_count].value.rational.approx_value =
+            (coords && (var_idx + 1) < max_assignments) ? coords[var_idx + 1] : 0.0;
         assignment_count++;
+    }
+
+    /* 释放临时坐标缓冲区 */
+    if (coords) {
+        lv_free((void **)&coords);
     }
 
     /* 填充结果结构 */

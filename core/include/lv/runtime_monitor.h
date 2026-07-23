@@ -236,6 +236,7 @@ typedef struct {
     double max_val;                      /**< 最大值 */
     double sum;                          /**< 总和 */
     double sum_sq;                       /**< 平方和 */
+    double m2;                           /**< Welford M₂：平方差累积和，用于数值稳定方差（见 Welford 在线算法） */
     double mean;                         /**< 均值 */
     double variance;                     /**< 方差 */
     double std_dev;                      /**< 标准差 */

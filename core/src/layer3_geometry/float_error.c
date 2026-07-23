@@ -753,9 +753,18 @@ static double finite_difference_partial(const char *expr, const FloatInterval *v
         return NAN;
     }
 
-    /* 步长：约 1.49e-8 for double，平衡截断与舍入误差 */
-    double h = sqrt(DBL_EPSILON);
     double x_c = center_vals[var_idx];
+
+    /* 自适应步长：根据 x_c 的量级调整步长，
+     * 确保 x_c + h 和 x_c - h 在浮点意义上可区分。
+     *
+     * 基础步长 sqrt(DBL_EPSILON) ~= 1.49e-8 是标准推荐值，
+     * 但当 |x_c| 很大时（如 1e12），x_c + 1.49e-8 由于 double
+     * 有限精度（约 15-17 位有效数字）会回落到 x_c。
+     * 当 |x_c| 很小时（如 1e-15），步长又可能过度扰动。
+     *
+     * 自适应公式：h = sqrt(DBL_EPSILON) * max(1.0, fabs(x_c)) */
+    double h = sqrt(DBL_EPSILON) * fmax(1.0, fabs(x_c));
 
     /* 扰动后的变量值缓冲区：在栈上分配，最多 MAX_EQUATIONS 个变量 */
     double perturbed[MAX_EQUATIONS];
@@ -922,12 +931,12 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
         char buf[EXPR_BUFFER_INITIAL];
         int off = snprintf(buf, sizeof(buf), "constraint_%d: type=%s, vars=[", c->id, type_str);
         if (off < 0) off = 0;
-        for (int pi = 0; pi < c->participant_count && off < (int) sizeof(buf) - 20; pi++) {
-            off += snprintf(buf + off, sizeof(buf) - off, "%s%d", (pi > 0) ? "," : "", c->participants[pi]);
-            if (off < 0) break;
+        for (int pi = 0; pi < c->participant_count && off >= 0 && off < (int) sizeof(buf) - 20; pi++) {
+            int n = snprintf(buf + off, sizeof(buf) - (size_t)off, "%s%d", (pi > 0) ? "," : "", c->participants[pi]);
+            if (n > 0) off += n;
         }
-        if (off >= 0)
-            snprintf(buf + off, sizeof(buf) - off, "]");
+        if (off >= 0 && off < (int)sizeof(buf))
+            snprintf(buf + off, sizeof(buf) - (size_t)off, "]");
 
         eqs[*eq_count] = lv_strdup(buf);
         (*eq_count)++;

@@ -321,9 +321,21 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(
 
         double cross = (p2x - p1x) * (p3y - p1y) - (p3x - p1x) * (p2y - p1y);
 
-        if (cross > eps) {
+        /*
+         * 自适应阈值：当 |cross| 相对于输入坐标的量级足够大时，
+         * 浮点结果可信。2D 叉积展开后每项都是坐标差乘积，
+         * 量级正比于 O(coord^3)，因此浮点舍入误差的上界也按此标度增长。
+         * 固定阈值对于大坐标会过于严格（舍入误差超过阈值），
+         * 对于小坐标又可能过于宽松。
+         */
+        double max_coord = fmax(fmax(fabs(p1x), fabs(p1y)),
+                                fmax(fmax(fabs(p2x), fabs(p2y)),
+                                     fmax(fabs(p3x), fabs(p3y))));
+        double adapted_eps = eps * fmax(1.0, max_coord * max_coord * max_coord);
+
+        if (cross > adapted_eps) {
             return lv_ORIENTATION_LEFT;
-        } else if (cross < -eps) {
+        } else if (cross < -adapted_eps) {
             return lv_ORIENTATION_RIGHT;
         } else {
             return lv_ORIENTATION_COLLINEAR;

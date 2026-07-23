@@ -592,7 +592,28 @@ void lv_perf_stats_record(lvPerfStats *stats, double value) {
     }
 
     MUTEX_LOCK(g_perf_system.mutex);
+
+    /*
+     * Welford 在线算法：避免朴素方差公式的灾难性抵消。
+     *
+     * 朴素公式：Var = (Σx² - (Σx)²/n) / (n-1)
+     * 当数据均值远大于标准差时（如计时 n 秒级，差异 ms 级），
+     * Σx² 和 (Σx)²/n 几乎相等，相减丢失几乎所有有效数字。
+     *
+     * Welford 算法（单遍增量）：
+     *   n' = n + 1
+     *   δ  = x - μ
+     *   μ' = μ + δ / n'
+     *   M₂' = M₂ + δ * (x - μ')
+     *   Var = M₂ / (n - 1)
+     */
     stats->count++;
+
+    double delta = value - stats->mean;
+    stats->mean += delta / (double)stats->count;
+    double delta2 = value - stats->mean;
+    stats->m2 += delta * delta2;
+
     stats->sum += value;
     stats->sum_sq += value * value;
     stats->last_val = value;
@@ -605,10 +626,9 @@ void lv_perf_stats_record(lvPerfStats *stats, double value) {
         stats->max_val = value;
     }
 
-    /* 计算均值和方差 */
-    stats->mean = stats->sum / stats->count;
+    /* 更新方差和标准差（Welford M₂ / (n-1)） */
     if (stats->count > 1) {
-        stats->variance = (stats->sum_sq - stats->sum * stats->sum / stats->count) / (stats->count - 1);
+        stats->variance = stats->m2 / (double)(stats->count - 1);
         stats->std_dev = sqrt(stats->variance);
     }
     MUTEX_UNLOCK(g_perf_system.mutex);
@@ -622,6 +642,7 @@ void lv_perf_stats_reset(lvPerfStats *stats) {
     memset(stats, 0, sizeof(lvPerfStats));
     stats->min_val = 1e308;
     stats->max_val = -1e308;
+    stats->m2 = 0.0;
 }
 
 /* ============== 健康检查实现 ============== */

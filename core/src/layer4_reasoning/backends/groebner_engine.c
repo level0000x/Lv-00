@@ -2998,6 +2998,38 @@ bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id) {
     return result;
 }
 
+/**
+ * @brief 从代数簇中获取指定索引的解点坐标
+ */
+bool variety_get_solution_point(lvRingRegistry *registry, int variety_id,
+                                int point_idx, double *out_coords, int coord_count) {
+    lv_UNUSED(registry);
+    if (!out_coords || coord_count <= 0) return false;
+
+    GROEBNER_MUTEX_LOCK(g_data_mutex);
+    if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
+    lvVariety *v = g_data->varieties[variety_id];
+    if (!v || !v->solution_points || !v->is_zero_dimensional ||
+        point_idx < 0 || point_idx >= v->solution_count) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
+    double *src = v->solution_points[point_idx];
+    if (!src) {
+        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+        return false;
+    }
+    /* 复制坐标值到输出缓冲区 */
+    for (int i = 0; i < coord_count; i++) {
+        out_coords[i] = src[i];
+    }
+    GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+    return true;
+}
+
 /* ================================================================
  *  第五部分：公共 API —— 约束图到理想转换
  * ================================================================ */

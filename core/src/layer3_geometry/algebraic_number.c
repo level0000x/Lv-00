@@ -917,8 +917,12 @@ lv_PUBLIC_API AlgInterval alg_interval_from_quadratic(const AlgQuadratic *x,
     double val = alg_quadratic_to_double(x);
     /* 使用有理数近似包围 */
     /* lo = floor(val) - 1, hi = ceil(val) + 1 作为粗略包围 */
-    int64_t lo_int = (int64_t)floor(val) - 1;
-    int64_t hi_int = (int64_t)ceil(val) + 1;
+    /* 钳制到 int64 安全范围再转换，避免大值时 floor/ceil 结果的未定义行为 */
+    double clamped_val = val;
+    if (clamped_val > 9223372036854774784.0) clamped_val = 9223372036854774784.0;
+    if (clamped_val < -9223372036854774784.0) clamped_val = -9223372036854774784.0;
+    int64_t lo_int = (int64_t)floor(clamped_val) - 1;
+    int64_t hi_int = (int64_t)ceil(clamped_val) + 1;
 
     alg_set_error_interval(err, ALG_INTERVAL_OK);
     return alg_interval_create(lo_int, 1, hi_int, 1, NULL);
@@ -1283,6 +1287,9 @@ lv_PUBLIC_API int64_t alg_poly_eval_int(const AlgPoly *p, int64_t n,
             for (int j = p->degree; j >= 0; j--) {
                 d_result = d_result * (double)n + (double)p->coef[j];
             }
+            /* 钳制到 int64 安全范围再转换，避免大值时未定义行为 */
+            if (d_result > 9223372036854774784.0) d_result = 9223372036854774784.0;
+            if (d_result < -9223372036854774784.0) d_result = -9223372036854774784.0;
             return (int64_t)d_result;
         }
     }
@@ -1739,9 +1746,16 @@ lv_PUBLIC_API bool alg_has_real_roots(int64_t a, int64_t b, int64_t c)
         alg_mul_overflow(4, a, &four_ac) ||
         alg_mul_overflow(four_ac, c, &four_ac) ||
         alg_sub_overflow(b_sq, four_ac, &disc)) {
-        /* 溢出时使用 double 近似 */
-        double d_disc = (double)b * (double)b - 4.0 * (double)a * (double)c;
-        return d_disc >= 0.0;
+        /* int64 溢出时使用 __int128 精确计算判别式符号，
+         * 避免 double 近似可能导致的符号误判。 */
+        int sign = 0;
+        __int128 b_128 = b;
+        __int128 a_128 = a;
+        __int128 c_128 = c;
+        __int128 disc_128 = b_128 * b_128 - (__int128)4 * a_128 * c_128;
+        if (disc_128 > 0) sign = 1;
+        else if (disc_128 < 0) sign = -1;
+        return sign >= 0;
     }
     return disc >= 0;
 }

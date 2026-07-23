@@ -18,6 +18,7 @@
 
 #include "lv_utils.h"
 
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -189,9 +190,22 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy,
             mpq_set_ui(t->matrix.d, 0, 1);
             break;
         default:
-            /* 其他角度需要根式表示，这里简化处理 */
-            mpq_set_ui(t->params.params.rotation.cos_theta, 1, 1);
-            mpq_set_ui(t->params.params.rotation.sin_theta, 0, 1);
+            /* 其他角度：使用有理数近似计算 cos/sin。
+             * 先将角度转换为弧度，用 double 计算 cos/sin，
+             * 再通过 mpq_set_d 转换为有理数近似。
+             * 这保证了变换矩阵始终被正确设置，而非静默降级为单位矩阵。 */
+            {
+                double angle_rad = (double)angle_num / (double)angle_denom * M_PI / 180.0;
+                double cos_d = cos(angle_rad);
+                double sin_d = sin(angle_rad);
+                mpq_set_d(t->params.params.rotation.cos_theta, cos_d);
+                mpq_set_d(t->params.params.rotation.sin_theta, sin_d);
+                mpq_set_d(t->matrix.a, cos_d);
+                mpq_set_si(t->matrix.b, -1, 1);
+                mpq_mul(t->matrix.b, t->matrix.b, t->params.params.rotation.sin_theta);
+                mpq_set_d(t->matrix.c, sin_d);
+                mpq_set(t->matrix.d, t->params.params.rotation.cos_theta);
+            }
             break;
     }
 

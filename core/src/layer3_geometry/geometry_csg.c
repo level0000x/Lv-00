@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geometry_csg.c
  * @brief Lv-00 CSG 构造实体几何 — BSP 树布尔运算与 OpenSCAD 互操作
  *
@@ -1087,10 +1087,28 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                        - m01 * (m10 * m22 - m12 * m20)
                        + m02 * (m10 * m21 - m11 * m20);
 
+            /* 相对容差奇异检测：行列式应相对于矩阵元素的量级进行判断。
+             * 当坐标值很大时（如 1e6），矩阵元素量级可达 1e6，
+             * 行列式的量级可达 1e18，绝对容差 1e-9 过于严格。
+             * 使用 max|element|^2 * EPSILON 作为相对容差。 */
+            double abs_m00 = fabs(m00), abs_m01 = fabs(m01), abs_m02 = fabs(m02);
+            double abs_m10 = fabs(m10), abs_m11 = fabs(m11), abs_m12 = fabs(m12);
+            double abs_m20 = fabs(m20), abs_m21 = fabs(m21), abs_m22 = fabs(m22);
+            double max_el = abs_m00;
+            if (abs_m01 > max_el) max_el = abs_m01;
+            if (abs_m02 > max_el) max_el = abs_m02;
+            if (abs_m10 > max_el) max_el = abs_m10;
+            if (abs_m11 > max_el) max_el = abs_m11;
+            if (abs_m12 > max_el) max_el = abs_m12;
+            if (abs_m20 > max_el) max_el = abs_m20;
+            if (abs_m21 > max_el) max_el = abs_m21;
+            if (abs_m22 > max_el) max_el = abs_m22;
+            double det_tol = CSG_BSP_EPSILON * fmax(1.0, max_el * max_el);
+
             /* 逆转置 3x3 = (1/det) * adjugate(M)^T = (1/det) * cofactor(M) */
             double inv_det;
             double invT[3][3];
-            if (fabs(det) < CSG_BSP_EPSILON) {
+            if (fabs(det) < det_tol) {
                 /* 奇异矩阵：行列式接近零，法线保持不变（使用单位矩阵） */
                 invT[0][0] = 1.0; invT[0][1] = 0.0; invT[0][2] = 0.0;
                 invT[1][0] = 0.0; invT[1][1] = 1.0; invT[1][2] = 0.0;
@@ -1473,31 +1491,33 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                         /* Rodrigues: v' = v*cos(θ) + (k×v)*sin(θ) + k*(k·v)*(1-cos(θ)) */
                         CSGVec3 va1, va2, vb1, vb2;
 
+                        /* 预计算共享的叉积和点积，避免重复浮点运算 */
+                        CSGVec3 kxva = csg_vec3_cross(axis, va);
+                        double kdva = csg_vec3_dot(axis, va);
+                        CSGVec3 kxvb = csg_vec3_cross(axis, vb);
+                        double kdvb = csg_vec3_dot(axis, vb);
+
                         /* va 在 theta1 */
-                        CSGVec3 kxa1 = csg_vec3_cross(axis, va);
-                        double kda1 = csg_vec3_dot(axis, va);
-                        va1.x = va.x * cos1 + kxa1.x * sin1 + axis.x * kda1 * (1.0 - cos1);
-                        va1.y = va.y * cos1 + kxa1.y * sin1 + axis.y * kda1 * (1.0 - cos1);
-                        va1.z = va.z * cos1 + kxa1.z * sin1 + axis.z * kda1 * (1.0 - cos1);
+                        double c1_complement = 1.0 - cos1;
+                        va1.x = va.x * cos1 + kxva.x * sin1 + axis.x * kdva * c1_complement;
+                        va1.y = va.y * cos1 + kxva.y * sin1 + axis.y * kdva * c1_complement;
+                        va1.z = va.z * cos1 + kxva.z * sin1 + axis.z * kdva * c1_complement;
 
                         /* va 在 theta2 */
-                        CSGVec3 kxa2 = csg_vec3_cross(axis, va);
-                        va2.x = va.x * cos2 + kxa2.x * sin2 + axis.x * kda1 * (1.0 - cos2);
-                        va2.y = va.y * cos2 + kxa2.y * sin2 + axis.y * kda1 * (1.0 - cos2);
-                        va2.z = va.z * cos2 + kxa2.z * sin2 + axis.z * kda1 * (1.0 - cos2);
+                        double c2_complement = 1.0 - cos2;
+                        va2.x = va.x * cos2 + kxva.x * sin2 + axis.x * kdva * c2_complement;
+                        va2.y = va.y * cos2 + kxva.y * sin2 + axis.y * kdva * c2_complement;
+                        va2.z = va.z * cos2 + kxva.z * sin2 + axis.z * kdva * c2_complement;
 
                         /* vb 在 theta1 */
-                        CSGVec3 kxb1 = csg_vec3_cross(axis, vb);
-                        double kdb1 = csg_vec3_dot(axis, vb);
-                        vb1.x = vb.x * cos1 + kxb1.x * sin1 + axis.x * kdb1 * (1.0 - cos1);
-                        vb1.y = vb.y * cos1 + kxb1.y * sin1 + axis.y * kdb1 * (1.0 - cos1);
-                        vb1.z = vb.z * cos1 + kxb1.z * sin1 + axis.z * kdb1 * (1.0 - cos1);
+                        vb1.x = vb.x * cos1 + kxvb.x * sin1 + axis.x * kdvb * c1_complement;
+                        vb1.y = vb.y * cos1 + kxvb.y * sin1 + axis.y * kdvb * c1_complement;
+                        vb1.z = vb.z * cos1 + kxvb.z * sin1 + axis.z * kdvb * c1_complement;
 
                         /* vb 在 theta2 */
-                        CSGVec3 kxb2 = csg_vec3_cross(axis, vb);
-                        vb2.x = vb.x * cos2 + kxb2.x * sin2 + axis.x * kdb1 * (1.0 - cos2);
-                        vb2.y = vb.y * cos2 + kxb2.y * sin2 + axis.y * kdb1 * (1.0 - cos2);
-                        vb2.z = vb.z * cos2 + kxb2.z * sin2 + axis.z * kdb1 * (1.0 - cos2);
+                        vb2.x = vb.x * cos2 + kxvb.x * sin2 + axis.x * kdvb * c2_complement;
+                        vb2.y = vb.y * cos2 + kxvb.y * sin2 + axis.y * kdvb * c2_complement;
+                        vb2.z = vb.z * cos2 + kxvb.z * sin2 + axis.z * kdvb * c2_complement;
 
                         /* 生成两个三角形组成侧面四边形 */
                         CSGTriangle tri;
@@ -1598,15 +1618,15 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
 
             switch (ptype) {
                 case 0: /* 球体 */
-                    n = snprintf(buf + written, (size_t) (buf_size - written), "%ssphere(r=%.4f);\n", indent_str, p[0]);
+                    n = snprintf(buf + written, (size_t) (buf_size - written), "%ssphere(r=%.10g);\n", indent_str, p[0]);
                     break;
                 case 1: /* 立方体 */
                     n = snprintf(buf + written, (size_t) (buf_size - written),
-                                 "%scube([%.4f, %.4f, %.4f], center=true);\n", indent_str, p[0], p[1], p[2]);
+                                 "%scube([%.10g, %.10g, %.10g], center=true);\n", indent_str, p[0], p[1], p[2]);
                     break;
                 case 2: /* 圆柱体 */
                     n = snprintf(buf + written, (size_t) (buf_size - written),
-                                 "%scylinder(r=%.4f, h=%.4f, center=true);\n", indent_str, p[0], p[1]);
+                                 "%scylinder(r=%.10g, h=%.10g, center=true);\n", indent_str, p[0], p[1]);
                     break;
                 default:
                     n = snprintf(buf + written, (size_t) (buf_size - written), "%s// unknown primitive type %d\n",
