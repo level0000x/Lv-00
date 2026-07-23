@@ -903,8 +903,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/solver/solver_groebner.c
     core/src/layer4_reasoning/solver/solver_multibranch.c
     # 求解器扩展：脏集合、快照
-    core/src/layer4_reasoning/solver_ext/solver_dirty_set.c
-    core/src/layer4_reasoning/solver_ext/solver_snapshot.c
+    # solver_dirty_set.c 和 solver_snapshot.c 已移至 solver/ 子目录
+    # 旧路径 solver_ext/ 已清理
     # 证明子模块：依赖、导航、命题、版本、信任颜色
     core/src/layer4_reasoning/proof/proof_dependency.c
     core/src/layer4_reasoning/proof/proof_navigator.c
@@ -928,8 +928,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/lambda/lambda_to_graph.c
     # 引擎调度
     core/src/layer4_reasoning/engine/engine_scheduler.c
-    # 精确算术
-    core/src/layer4_reasoning/expr/exact_arithmetic.c
+    # 精确算术（定义在 layer4_reasoning/exact_arithmetic.c）
+    # core/src/layer4_reasoning/expr/exact_arithmetic.c (已删除，与根目录版本重复)
     # 近似计数器
     core/src/layer4_reasoning/backends/approx_counter.c
     # 命令日志系统

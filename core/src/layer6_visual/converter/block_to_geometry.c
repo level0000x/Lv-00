@@ -9,7 +9,7 @@
 
 #define MAX_BLOCK_PORTS 64
 
-/* ============== 几何实体兼容 stub ============== */
+/* ============== 几何实体编码/解码实现 ============== */
 
 typedef struct {
     double x_min;
