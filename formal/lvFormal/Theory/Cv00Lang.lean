@@ -1,4 +1,4 @@
-﻿/-
+/-
 C11 子集操作语义 (Cv00Lang)
 
 本模块定义 Lv-00 自举编译目标语言 Cv00 的语法和表达式语义：
@@ -41,10 +41,31 @@ def sizeof : Cv00Type → Nat
   | .array t n     => sizeof t * n
   | .struct fs     => fs.sum sizeof
 
-/-- sizeof 恒正（非 void 类型，且排除零长数组退化情况） -/
--- [数学基础公理] 对于 .array t 0 或 .struct [] 等退化情况，sizeof 可能为 0；
--- 完整证明需要对数组长度和结构体字段列表添加额外约束条件
-axiom sizeof_positive (t : Cv00Type) : t ≠ .void → sizeof t > 0
+/-- 非退化类型归纳谓词：sizeof 严格为正 -/
+inductive Nondegenerate : Cv00Type → Prop
+  | int32     : Nondegenerate .int32
+  | int64     : Nondegenerate .int64
+  | float64   : Nondegenerate .float64
+  | pointer   (t : Cv00Type) : Nondegenerate (.pointer t)
+  | array     (elem : Cv00Type) (len : Nat) : Nondegenerate elem → len > 0 → Nondegenerate (.array elem len)
+  | struct_cons (f : Cv00Type) (fs : List Cv00Type) : Nondegenerate f → Nondegenerate (.struct (f :: fs))
+
+/-- 非退化类型的 sizeof 严格为正（替代原公理，杜绝零长数组 / 空结构体反例） -/
+theorem sizeof_positive (t : Cv00Type) (h : Nondegenerate t) : sizeof t > 0 := by
+  induction h with
+  | int32 => decide
+  | int64 => decide
+  | float64 => decide
+  | pointer _ => decide
+  | array elem len h_elem h_len ih =>
+    have h_elem_pos : sizeof elem > 0 := ih
+    have h_len_pos : len > 0 := h_len
+    have h_mul_pos : sizeof elem * len > 0 := mul_pos h_elem_pos h_len_pos
+    simpa [sizeof] using h_mul_pos
+  | struct_cons f fs h_f ih =>
+    have h_f_pos : sizeof f > 0 := ih
+    have h_sum_pos : sizeof f + (fs.sum sizeof) > 0 := by omega
+    simpa [sizeof] using h_sum_pos
 
 /-! ## C 值 -/
 

@@ -1,4 +1,4 @@
-﻿/-
+/-
 lvFormal 主入口
 
 本文件作为 formal/lvFormal 模块的主入口，导入并导出所有子模块。
@@ -124,7 +124,7 @@ export Theory.CompilerCorrectness (
 
 -- Cv00Lang exports
 export Theory.Cv00Lang (
-  Cv00Type sizeof sizeof_positive
+  Cv00Type sizeof Nondegenerate sizeof_positive
   Cv00Val
   Env emptyEnv env_set env_alloc
   Cv00Expr eval_expr

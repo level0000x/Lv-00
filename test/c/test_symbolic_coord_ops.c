@@ -598,7 +598,7 @@ void test_cross_layer_conversion(void) {
 void test_symbolic_coord_create(void) {
     /* 有理数 */
     SymbolicCoord *r = symbolic_coord_create_rational(3, 4);
-    TEST_ASSERT_NOT_NULL(r, "create rational coord");
+    TEST_ASSERT_NOT_NULL(r);
     TEST_ASSERT(r->type == RATIONAL, "type RATIONAL");
     TEST_ASSERT(r->trust == TRUST_GREEN, "trust GREEN");
     symbolic_coord_destroy(r);
@@ -656,12 +656,12 @@ void test_symbolic_coord_rational_arith(void) {
     SymbolicCoord *b = symbolic_coord_create_rational(1, 3);
 
     SymbolicCoord *sum = symbolic_coord_add(a, b);
-    TEST_ASSERT_NOT_NULL(sum, "add result not null");
+    TEST_ASSERT_NOT_NULL(sum);
     TEST_ASSERT(fabs(symbolic_coord_to_double(sum) - 5.0 / 6.0) < 1e-9, "1/2 + 1/3 = 5/6");
     symbolic_coord_destroy(sum);
 
     SymbolicCoord *diff = symbolic_coord_subtract(a, b);
-    TEST_ASSERT_NOT_NULL(diff, "sub result not null");
+    TEST_ASSERT_NOT_NULL(diff);
     TEST_ASSERT(fabs(symbolic_coord_to_double(diff) - 1.0 / 6.0) < 1e-9, "1/2 - 1/3 = 1/6");
     symbolic_coord_destroy(diff);
 
@@ -671,7 +671,7 @@ void test_symbolic_coord_rational_arith(void) {
     symbolic_coord_destroy(prod);
 
     SymbolicCoord *quot = symbolic_coord_divide(a, b);
-    TEST_ASSERT_NOT_NULL(quot, "div result not null");
+    TEST_ASSERT_NOT_NULL(quot);
     TEST_ASSERT(fabs(symbolic_coord_to_double(quot) - 1.5) < 1e-9, "1/2 / 1/3 = 3/2");
     symbolic_coord_destroy(quot);
 
@@ -720,7 +720,7 @@ void test_symbolic_coord_queries(void) {
 
     /* 序列化 */
     char *ser = symbolic_coord_serialize(pos);
-    TEST_ASSERT_NOT_NULL(ser, "serialize not null");
+    TEST_ASSERT_NOT_NULL(ser);
     lv_free_ptr(ser);
 
     /* Hash */
@@ -741,13 +741,13 @@ void test_symbolic_coord_pow_sqrt(void) {
 
     /* sqrt(4) = 2 */
     SymbolicCoord *sqrt_val = symbolic_coord_sqrt(base4);
-    TEST_ASSERT_NOT_NULL(sqrt_val, "sqrt not null");
+    TEST_ASSERT_NOT_NULL(sqrt_val);
     TEST_ASSERT(fabs(symbolic_coord_to_double(sqrt_val) - 2.0) < 1e-9, "sqrt(4) = 2");
     symbolic_coord_destroy(sqrt_val);
 
     /* 4^3 = 64 */
     SymbolicCoord *pow3 = symbolic_coord_pow(base4, 3);
-    TEST_ASSERT_NOT_NULL(pow3, "pow not null");
+    TEST_ASSERT_NOT_NULL(pow3);
     TEST_ASSERT(fabs(symbolic_coord_to_double(pow3) - 64.0) < 1e-9, "4^3 = 64");
     symbolic_coord_destroy(pow3);
 
@@ -759,7 +759,7 @@ void test_symbolic_coord_pow_sqrt(void) {
 
     /* 4^1 = 4 */
     SymbolicCoord *pow1 = symbolic_coord_pow(base4, 1);
-    TEST_ASSERT_NOT_NULL(pow1, "pow 1 not null");
+    TEST_ASSERT_NOT_NULL(pow1);
     TEST_ASSERT(fabs(symbolic_coord_to_double(pow1) - 4.0) < 1e-9, "4^1 = 4");
     symbolic_coord_destroy(pow1);
 
@@ -814,7 +814,7 @@ void test_transcendental_ops(void) {
     SymbolicCoord *e = symbolic_coord_create_transcendental("e");
 
     /* 基本属性 */
-    TEST_ASSERT_NOT_NULL(pi, "pi created");
+    TEST_ASSERT_NOT_NULL(pi);
     double pi_val = symbolic_coord_to_double(pi);
     TEST_ASSERT(fabs(pi_val - M_PI) < 1e-12, "pi to_double");
 
@@ -849,7 +849,7 @@ void test_transcendental_serialize(void) {
     SymbolicCoord *pi = symbolic_coord_create_transcendental("pi");
 
     char *ser = symbolic_coord_serialize(pi);
-    TEST_ASSERT_NOT_NULL(ser, "transcendental serialize");
+    TEST_ASSERT_NOT_NULL(ser);
     TEST_ASSERT(strstr(ser, "pi") != NULL, "serialize contains 'pi'");
     lv_free_ptr(ser);
 
@@ -1093,7 +1093,7 @@ void test_null_safety(void) {
     TEST_ASSERT(is_zero == false, "is_zero(NULL) = false");
 
     char *ser = symbolic_coord_serialize(NULL);
-    TEST_ASSERT_NULL(ser, "serialize(NULL) = NULL");
+    TEST_ASSERT_NULL(ser);
 
     PASS();
 }
@@ -1142,7 +1142,7 @@ void test_large_numbers(void) {
     symbolic_coord_destroy(add_large);
 
     SymbolicCoord *mul_large = symbolic_coord_multiply(large, small);
-    TEST_ASSERT_NOT_NULL(mul_large, "large * small = 1");
+    TEST_ASSERT_NOT_NULL(mul_large);
     double mul_val = symbolic_coord_to_double(mul_large);
     TEST_ASSERT(fabs(mul_val - 1.0) < 1e-9, "1000000 * 1/1000000 = 1");
     symbolic_coord_destroy(mul_large);

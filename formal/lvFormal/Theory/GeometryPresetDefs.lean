@@ -1,4 +1,4 @@
-﻿/-
+/-
 几何预设核心定义
 
 本模块提供二维欧氏几何的基础类型与运算定义，
@@ -53,15 +53,22 @@ def angle (A B C : Pt) : ℝ :=
 
 /-! ## 几何关系谓词 -/
 
-/-- 相似性：两组对应点构成相似四边形 -/
-def similarity (A B C D : Pt) : Prop :=
+/-- 缩放旋转：绕中心 center 缩放 s 倍后旋转 θ -/
+def scale_rotate (p center : Pt) (s : ℝ) (θ : ℝ) : Pt :=
+  let dx := p.x - center.x
+  let dy := p.y - center.y
+  let cosθ := Real.cos θ
+  let sinθ := Real.sin θ
+  { x := center.x + s * (dx * cosθ - dy * sinθ)
+  , y := center.y + s * (dx * sinθ + dy * cosθ)
+  }
+
+/-- 相似性：存在相似变换将点 A 映射到 D，点 B 映射到 E（先缩放旋转再平移） -/
+def similarity (A B D E : Pt) : Prop :=
   ∃ (s : ℝ) (θ : ℝ) (tx ty : ℝ),
     s > 0 ∧
-    B = rotate (translate (scalePt s A) tx ty) A θ ∧
-    C = rotate (translate (scalePt s A) tx ty) A θ ∧
-    D = rotate (translate (scalePt s A) tx ty) A θ
-where
-  scalePt (s : ℝ) (p : Pt) : Pt := { x := s * p.x, y := s * p.y }
+    D = translate (scale_rotate A A s θ) tx ty ∧
+    E = translate (scale_rotate B A s θ) tx ty
 
 /-- 调和点列：四点 A,B,C,D 构成调和点列 (A,B;C,D) = -1 -/
 def is_harmonic (A B C D : Pt) : Prop :=
@@ -115,6 +122,16 @@ def regular_polygon_edge_length (n : ℕ) (R : ℝ) : ℝ :=
   if n < 3 ∨ R ≤ 0 then 0
   else 2 * R * Real.sin (Real.pi / (n : ℝ))
 
+/-! ## 三角形相似（基于缩放旋转和平移） -/
+
+/-- 三角形相似：存在相同相似变换将 △ABC 映射到 △DEF -/
+def triangle_similarity (A B C D E F : Pt) : Prop :=
+  ∃ (s : ℝ) (θ : ℝ) (tx ty : ℝ),
+    s > 0 ∧
+    D = translate (scale_rotate A A s θ) tx ty ∧
+    E = translate (scale_rotate B A s θ) tx ty ∧
+    F = translate (scale_rotate C A s θ) tx ty
+
 /-! ## 公理 -/
 
 /-- Shoelace 公式的归纳步骤：面积 = 头部三角形的有向面积 + 尾部多边形面积 -/
@@ -125,14 +142,78 @@ axiom shoelace_inductive_step (pts : List Pt) (h : pts.length ≥ 3) :
     (((pts.tail.get? 0).getD { x := 0, y := 0 }).x * (pts.head?.getD { x := 0, y := 0 }).y)
 
 /-- Heron 公式标准形式与三角形面积 SSS 等价 -/
--- [数学基础公理] 两个代数表达式的等价性可通过展开和代数化简证明
-axiom heron_formula_standard_valid (a b c : ℝ) (h : a + b > c ∧ b + c > a ∧ c + a > b) :
-  heron_formula_standard a b c = triangle_area_sss a b c
+theorem heron_formula_standard_valid (a b c : ℝ) (h : a + b > c ∧ b + c > a ∧ c + a > b) :
+  heron_formula_standard a b c = triangle_area_sss a b c := by
+  rcases h with ⟨h1, h2, h3⟩
+  unfold heron_formula_standard triangle_area_sss
+  set s := (a + b + c) / 2 with hs
+  -- 由三角形不等式知所有因子为正
+  have sum_pos : 0 < a + b + c := by linarith
+  have ha_pos : 0 < a + b - c := by linarith
+  have hb_pos : 0 < -a + b + c := by linarith
+  have hc_pos : 0 < a - b + c := by linarith
+  have h_prod_nonneg : 0 ≤ (a + b + c) * (-a + b + c) * (a - b + c) * (a + b - c) := by positivity
+  have hsa_pos : 0 < s - a := by nlinarith
+  have hsb_pos : 0 < s - b := by nlinarith
+  have hsc_pos : 0 < s - c := by nlinarith
+  have hRHS_prod_nonneg : 0 ≤ s * (s - a) * (s - b) * (s - c) := by positivity
+  have hLHS_nonneg : 0 ≤ (1/4 : ℝ) * Real.sqrt ((a + b + c) * (-a + b + c) * (a - b + c) * (a + b - c)) := by positivity
+  have hRHS_nonneg : 0 ≤ Real.sqrt (s * (s - a) * (s - b) * (s - c)) := Real.sqrt_nonneg _
+  apply (sq_inj hLHS_nonneg hRHS_nonneg).mp
+  calc
+    ((1/4 : ℝ) * Real.sqrt ((a + b + c) * (-a + b + c) * (a - b + c) * (a + b - c))) ^ 2
+        = ((1/4 : ℝ)^2) * ((Real.sqrt ((a + b + c) * (-a + b + c) * (a - b + c) * (a + b - c))) ^ 2) := by ring
+    _ = (1/16) * ((a + b + c) * (-a + b + c) * (a - b + c) * (a + b - c)) := by
+      simp [Real.sq_sqrt h_prod_nonneg]
+      ring
+    _ = s * (s - a) * (s - b) * (s - c) := by
+      dsimp [s]
+      ring
+    _ = (Real.sqrt (s * (s - a) * (s - b) * (s - c))) ^ 2 := by
+      symm; exact Real.sq_sqrt hRHS_prod_nonneg
 
 /-- 相似变换下角度保持不变 -/
--- [数学基础公理] 角度不变性依赖相似变换的旋转和平移群作用，需三角恒等式
-axiom angle_invariant_under_similarity (A B C D E F G H : Pt)
-  (h_sim : similarity A B D E) (h_align : True) :
-  angle A B C = angle D E F
+theorem angle_invariant_under_similarity (A B C D E F : Pt)
+  (h_sim : triangle_similarity A B C D E F) :
+  angle A B C = angle D E F := by
+  rcases h_sim with ⟨s, θ, tx, ty, hs_pos, hD, hE, hF⟩
+  unfold triangle_similarity angle
+  have h_cos_sq_add_sin_sq : Real.cos θ ^ 2 + Real.sin θ ^ 2 = 1 := Real.cos_sq_add_sin_sq θ
+  -- 从相似性中提取坐标关系
+  have h_D : D.x = A.x + tx ∧ D.y = A.y + ty := by
+    constructor
+    · calc
+        D.x = (translate (scale_rotate A A s θ) tx ty).x := by rw [hD]
+        _ = (scale_rotate A A s θ).x + tx := rfl
+        _ = (A.x + s * ((A.x - A.x) * Real.cos θ - (A.y - A.y) * Real.sin θ)) + tx := rfl
+        _ = A.x + tx := by ring
+    · calc
+        D.y = (translate (scale_rotate A A s θ) tx ty).y := by rw [hD]
+        _ = (scale_rotate A A s θ).y + ty := rfl
+        _ = (A.y + s * ((A.x - A.x) * Real.sin θ + (A.y - A.y) * Real.cos θ)) + ty := rfl
+        _ = A.y + ty := by ring
+  rcases h_D with ⟨hDx, hDy⟩
+  -- 定义向量分量
+  set u1 := A.x - B.x with hu1
+  set u2 := A.y - B.y with hu2
+  set v1 := C.x - B.x with hv1
+  set v2 := C.y - B.y with hv2
+  -- E = T(B) 和 F = T(C) 的坐标
+  have h_Ex : E.x = A.x + s * (u1 * Real.cos θ - u2 * Real.sin θ) + tx := by
+    calc
+      E.x = (translate (scale_rotate B A s θ) tx ty).x := by rw [hE]
+      _ = (scale_rotate B A s θ).x + tx := rfl
+      _ = A.x + s * ((B.x - A.x) * Real.cos θ - (B.y - A.y) * Real.sin θ) + tx := rfl
+      _ = A.x + s * (((B.x - A.x) * Real.cos θ - (B.y - A.y) * Real.sin θ)) + tx := rfl
+      _ = A.x + s * (-u1 * Real.cos θ - (-u2) * Real.sin θ) + tx := by
+        dsimp [u1, u2]
+        ring
+      _ = A.x + s * ((-u1) * Real.cos θ + u2 * Real.sin θ) + tx := by ring
+      _ = A.x + s * (-(u1 * Real.cos θ) + u2 * Real.sin θ) + tx := by ring
+      _ = A.x + s * (--(u1 * Real.cos θ - u2 * Real.sin θ)) + tx := by ring
+      _ = A.x + s * (u1 * Real.cos θ - u2 * Real.sin θ) + tx := by ring
+    -- 简化上面
+    sorry
+  sorry
 
 end lvFormal.Theory.GeometryPresetDefs

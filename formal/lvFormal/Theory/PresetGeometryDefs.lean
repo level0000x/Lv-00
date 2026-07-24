@@ -1,4 +1,4 @@
-﻿/-
+/-
 预设几何核心定义
 
 本模块在 GeometryPresetDefs.Pt 基础上提供带标签的几何体类型与运算定义，
@@ -109,7 +109,16 @@ def circle_defined_by (A B C : LvPoint) : Option (LvPoint × ℝ) :=
     let r := dist O A
     some (O, r)
 
-/-! ## 公理 -/
+/-! ## 介于关系 -/
+
+/-- 点 B 在点 A 和点 C 之间（包含端点），当且仅当存在 t ∈ [0,1] 使得
+    B 的坐标是 A 和 C 的凸组合。 -/
+def between (A B C : LvPoint) : Prop :=
+  ∃ (t : ℝ), 0 ≤ t ∧ t ≤ 1 ∧
+    B.coord.x = A.coord.x + t * (C.coord.x - A.coord.x) ∧
+    B.coord.y = A.coord.y + t * (C.coord.y - A.coord.y)
+
+/-! ## 公理与定理 -/
 
 /-- 共线性自反 -/
 theorem collinear_refl (A B : LvPoint) : collinear A A B := by
@@ -121,20 +130,105 @@ theorem collinear_symm (A B C : LvPoint) (h : collinear A B C) : collinear C B A
   unfold collinear at h ⊢
   linarith
 
-/-- 共线且有序时距离可加 -/
--- [数学基础公理] 距离可加性需要欧氏度量的三角不等式等号条件，超出形式化范围
-axiom dist_additive_of_collinear (A B C : LvPoint) (h_col : collinear A B C) :
-  dist A C = dist A B + dist B C
+/-- 若 B 在 A 和 C 之间，则 A, B, C 共线 -/
+theorem collinear_of_between (A B C : LvPoint) (h_bet : between A B C) : collinear A B C := by
+  rcases h_bet with ⟨t, ht0, ht1, hx, hy⟩
+  unfold collinear
+  calc
+    (B.coord.x - A.coord.x) * (C.coord.y - A.coord.y)
+        = (t * (C.coord.x - A.coord.x)) * (C.coord.y - A.coord.y) := by
+          rw [hx, sub_self, add_sub_cancel]
+    _ = (C.coord.x - A.coord.x) * (t * (C.coord.y - A.coord.y)) := by ring
+    _ = (C.coord.x - A.coord.x) * (B.coord.y - A.coord.y) := by
+      rw [hy, sub_self, add_sub_cancel]
+      ring
 
-/-- 等边三角形的外心等于垂心 -/
--- [数学基础公理] 等边三角形特殊点重合依赖欧氏几何的对称性
-axiom circumcenter_equals_orthocenter_of_equilateral (A B C : LvPoint)
-  (h_eq : is_equilateral A B C) : circumcenter A B C = orthocenter A B C
+/-- 当 B 在 A 和 C 之间时，距离满足可加性：AC = AB + BC -/
+theorem dist_additive_of_collinear (A B C : LvPoint) (h_col : collinear A B C)
+  (h_bet : between A B C) : dist A C = dist A B + dist B C := by
+  rcases h_bet with ⟨t, ht0, ht1, hx, hy⟩
+  unfold dist GeometryPresetDefs.dist
+  rw [hx, hy]
+  have h_nonneg_sq : (A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2 ≥ 0 := by
+    nlinarith [sq_nonneg (A.coord.x - C.coord.x), sq_nonneg (A.coord.y - C.coord.y)]
+  have ht_nonneg : t ≥ 0 := ht0
+  have h1mt_nonneg : 1 - t ≥ 0 := by linarith
+  calc
+    Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2)
+        = 1 * Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) := by simp
+    _ = (t + (1 - t)) * Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) := by ring
+    _ = t * Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) +
+        (1 - t) * Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) := by ring
+    _ = (Real.sqrt (t^2)) * Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) +
+        (Real.sqrt ((1 - t)^2)) * Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) := by
+      rw [Real.sqrt_sq ht_nonneg, Real.sqrt_sq h1mt_nonneg]
+    _ = Real.sqrt (t^2 * ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2)) +
+        Real.sqrt ((1 - t)^2 * ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2)) := by
+      rw [Real.sqrt_mul (show 0 ≤ t^2 from pow_two t ▸ sq_nonneg t),
+        Real.sqrt_mul (show 0 ≤ (1 - t)^2 from pow_two (1 - t) ▸ sq_nonneg (1 - t))]
+    _ = Real.sqrt ((t * (C.coord.x - A.coord.x))^2 + (t * (C.coord.y - A.coord.y))^2) +
+        Real.sqrt (((1 - t) * (A.coord.x - C.coord.x))^2 + ((1 - t) * (A.coord.y - C.coord.y))^2) := by
+      ring
+    _ = Real.sqrt ((A.coord.x - (A.coord.x + t * (C.coord.x - A.coord.x)))^2 +
+                   (A.coord.y - (A.coord.y + t * (C.coord.y - A.coord.y)))^2) +
+        Real.sqrt (((A.coord.x + t * (C.coord.x - A.coord.x)) - C.coord.x)^2 +
+                   ((A.coord.y + t * (C.coord.y - A.coord.y)) - C.coord.y)^2) := by ring
 
-/-- 等边三角形的外心等于重心 -/
--- [数学基础公理] 等边三角形特殊点重合依赖欧氏几何的对称性
-axiom circumcenter_equals_centroid_of_equilateral (A B C : LvPoint)
-  (h_eq : is_equilateral A B C) : circumcenter A B C = centroid A B C
+/-- 辅助引理：距离相等推出平方距离相等 -/
+lemma sq_dist_eq_of_dist_eq {A B C D : LvPoint} (h : dist A B = dist C D) :
+    (A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2 =
+    (C.coord.x - D.coord.x)^2 + (C.coord.y - D.coord.y)^2 := by
+  unfold dist GeometryPresetDefs.dist at h ⊢
+  have h_nonneg1 : 0 ≤ (A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2 := by nlinarith
+  have h_nonneg2 : 0 ≤ (C.coord.x - D.coord.x)^2 + (C.coord.y - D.coord.y)^2 := by nlinarith
+  calc
+    (A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2
+        = (Real.sqrt ((A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2))^2 := by
+      rw [Real.sq_sqrt h_nonneg1]
+    _ = (Real.sqrt ((C.coord.x - D.coord.x)^2 + (C.coord.y - D.coord.y)^2))^2 := by rw [h]
+    _ = (C.coord.x - D.coord.x)^2 + (C.coord.y - D.coord.y)^2 := by rw [Real.sq_sqrt h_nonneg2]
+
+/-- 等边三角形的外心等于重心（坐标相等）-/
+theorem circumcenter_equals_centroid_of_equilateral (A B C : LvPoint)
+  (h_eq : is_equilateral A B C) : (circumcenter A B C).coord = (centroid A B C).coord := by
+  rcases h_eq with ⟨h_ab_bc, h_bc_ca⟩
+  have h_sq_ab_bc : (A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2 =
+                   (B.coord.x - C.coord.x)^2 + (B.coord.y - C.coord.y)^2 :=
+    sq_dist_eq_of_dist_eq h_ab_bc
+  have h_sq_bc_ca : (B.coord.x - C.coord.x)^2 + (B.coord.y - C.coord.y)^2 =
+                   (C.coord.x - A.coord.x)^2 + (C.coord.y - A.coord.y)^2 :=
+    sq_dist_eq_of_dist_eq h_bc_ca
+  apply Pt.ext
+  · unfold circumcenter centroid
+    set d := 2 * (A.coord.x * (B.coord.y - C.coord.y) +
+                  B.coord.x * (C.coord.y - A.coord.y) +
+                  C.coord.x * (A.coord.y - B.coord.y)) with hd
+    by_cases hd0 : d = 0
+    · simp [hd, hd0]
+      nlinarith
+    · simp [hd, hd0]
+      field_simp [hd0]
+      nlinarith
+  · unfold circumcenter centroid
+    set d := 2 * (A.coord.x * (B.coord.y - C.coord.y) +
+                  B.coord.x * (C.coord.y - A.coord.y) +
+                  C.coord.x * (A.coord.y - B.coord.y)) with hd
+    by_cases hd0 : d = 0
+    · simp [hd, hd0]
+      nlinarith
+    · simp [hd, hd0]
+      field_simp [hd0]
+      nlinarith
+
+/-- 等边三角形的外心等于垂心（坐标相等） -/
+theorem circumcenter_equals_orthocenter_of_equilateral (A B C : LvPoint)
+  (h_eq : is_equilateral A B C) : (circumcenter A B C).coord = (orthocenter A B C).coord := by
+  have h_cen : (circumcenter A B C).coord = (centroid A B C).coord :=
+    circumcenter_equals_centroid_of_equilateral A B C h_eq
+  unfold orthocenter
+  -- 垂心定义为 O + 3*(G - O)，由 h_cen 知 O.coord = G.coord，故 O + 3*(G - O) = O
+  have h_eq_coord : (circumcenter A B C).coord = (centroid A B C).coord := h_cen
+  simp [h_eq_coord]
 
 /-- 三点定义的圆是唯一的（内射性） -/
 -- [数学基础公理] 圆的唯一性依赖外心定义的唯一性和半径计算
