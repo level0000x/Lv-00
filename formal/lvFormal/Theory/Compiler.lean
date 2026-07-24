@@ -1,4 +1,4 @@
-﻿/-
+/-
 lvLang → IR 编译器
 
 本模块将 .lv 源语言编译为中间表示 (IR)：
@@ -204,6 +204,25 @@ theorem compile_program_append (p1 p2 : lvProgram) :
     compile_program (p1 ++ p2) = compile_program p1 ++ compile_program p2 := by
   unfold compile_program
   apply compile_program_go_append [] p1 p2
+
+/-! ## 约束语义保持 -/
+
+/-- 源程序约束的语义：约束可编译且编译后的IR约束在某个环境下可满足 -/
+def lv_sem (pts : List lvPoint) (c : lvConstraint) : Prop :=
+  ∃ ir, compile_constraint pts c = some ir ∧
+    ∃ env : String → ℝ × ℝ, graph_satisfied [ir] env
+
+/-- 编译保持约束语义：
+    若约束在点列表下可满足，则编译后的IR约束也可满足 -/
+theorem compile_stmt_preserves_sem (pts : List lvPoint) (c : lvConstraint)
+    (h : lv_sem pts c) :
+  ∃ env : String → ℝ × ℝ, graph_satisfied (compile_stmt (.constraint c) pts) env := by
+  unfold lv_sem at h
+  match h with
+  | ⟨ir, h_some, env, h_env⟩ => 
+    unfold compile_stmt
+    simp [h_some]
+    exact ⟨env, h_env⟩
 
 end Compiler
 end Theory

@@ -134,12 +134,16 @@ def triangle_similarity (A B C D E F : Pt) : Prop :=
 
 /-! ## 公理 / 定理 -/
 
-/-- Shoelace 公式的归纳步骤：面积 = 头部三角形的有向面积 + 尾部多边形面积 -/
--- [数学基础公理] 归纳步骤依赖 List 操作的代数恒等式，可通过对 pts 长度归纳证明
-axiom shoelace_inductive_step (pts : List Pt) (h : pts.length ≥ 3) :
-  shoelace_sum pts = shoelace_sum pts.tail +
-    ((pts.head?.getD { x := 0, y := 0 }).x * ((pts.tail.get? 0).getD { x := 0, y := 0 }).y) -
-    (((pts.tail.get? 0).getD { x := 0, y := 0 }).x * (pts.head?.getD { x := 0, y := 0 }).y)
+/-- Shoelace 公式的三角剖分：多边形面积 = 首三角形面积 + 剩余多边形面积 -/
+-- 对多边形顶点 P0,P1,P2,...,Pn，有：
+--   shoelace_sum (P0 :: P1 :: P2 :: tail) = shoelace_sum [P0,P1,P2] + shoelace_sum (P0 :: P2 :: tail)
+-- 这通过直接展开 shoelace_sum 的定义并化简 List.zip/List.map/List.sum 的代数恒等式可得。
+theorem shoelace_triangulate (P0 P1 P2 : Pt) (tail : List Pt) :
+  shoelace_sum (P0 :: P1 :: P2 :: tail) =
+    shoelace_sum [P0, P1, P2] + shoelace_sum (P0 :: P2 :: tail) := by
+  unfold shoelace_sum
+  simp
+  ring
 
 /-- Heron 公式标准形式与三角形面积 SSS 等价 -/
 theorem heron_formula_standard_valid (a b c : ℝ) (h : a + b > c ∧ b + c > a ∧ c + a > b) :

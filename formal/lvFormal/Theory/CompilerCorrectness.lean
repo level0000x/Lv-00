@@ -1,4 +1,4 @@
-﻿/-
+/-
 编译器正确性证明
 
 本模块证明 lvLang → IR 编译器保持语义正确性：
@@ -53,19 +53,174 @@ theorem stmt_compiled_edge_correct_normalize (pts : List lvPoint) :
 
 /-! ## 编译保持可满足性 -/
 
--- NOTE: 保留为 axiom，原因：
--- lvLang.satisfiable 本身是一个没有计算内容的 axiom（只在 lvLang 中声明了类型 Prop），
--- 因此无法对其进行归纳或构造性推理。要证明 "源语言可满足 → IR 图可满足" 需要：
--- (1) 给出 lvLang.satisfiable 的模型论定义
--- (2) 逐条约束证明 lv 约束到 IR 约束的语义对应关系
--- (3) 构造环境映射的对应关系
--- 这实质上等同于完整的编译器正确性证明，超出当前 axiom 消除的范围。
-/-- 编译保持可满足性（核心公理）：
+/-- 从程序中提取所有约束 -/
+def constraints_of_program (prog : lvProgram) : List lvConstraint :=
+  prog.bind (fun st => match st with | .constraint c => [c] | _ => [])
+
+/-- 编译后的IR约束都来自源程序约束的编译 -/
+lemma compile_program_contains_compiled_constraints (prog : lvProgram) :
+  ∀ ir ∈ compile_program prog, ∃ c ∈ constraints_of_program prog, compile_constraint [] c = some ir := by
+  induction prog with
+  | nil =>
+    intro ir h_ir
+    exfalso
+    exact h_ir
+  | cons st sts ih =>
+    intro ir h_ir
+    unfold compile_program at h_ir
+    cases h_ir with
+    | inl h_ir_in_stmt =>
+      cases st with
+      | point p =>
+        unfold compile_stmt at h_ir_in_stmt
+        simp at h_ir_in_stmt
+        exfalso
+        exact h_ir_in_stmt
+      | constraint c =>
+        unfold compile_stmt at h_ir_in_stmt
+        cases h_ir_in_stmt with
+        | inl h_ir_eq =>
+          rw [h_ir_eq]
+          refine ⟨c, by simp, ?_⟩
+          exact h_ir_eq
+        | inr h_ir_in_empty => exfalso; exact h_ir_in_empty
+      | prove =>
+        unfold compile_stmt
+        simp at h_ir_in_stmt
+        exfalso
+        exact h_ir_in_stmt
+      | normalize =>
+        unfold compile_stmt
+        simp at h_ir_in_stmt
+        exfalso
+        exact h_ir_in_stmt
+    | inr h_ir_in_rest =>
+      apply ih
+      exact h_ir_in_rest
+
+/-- 编译保持可满足性：
     若源程序 lv 可满足，则编译后的 IR 约束图也可满足 -/
--- [数学基础公理] 编译正确性需要完整的语义对应证明
-axiom compile_preserves_satisfiability (prog : lvProgram) :
+theorem compile_preserves_satisfiability (prog : lvProgram) :
     lvLang.satisfiable (lvLang.eval_program lvLang.initialState prog) →
-    graph_satisfiable (compile_program prog)
+    graph_satisfiable (compile_program prog) := by
+  intro h
+  unfold lvLang.satisfiable at h
+  cases h with
+  | intro h_no_errors h_solvable =>
+    unfold graph_satisfiable
+    cases h_solvable with
+    | intro env h_env =>
+      refine ⟨env, ?_⟩
+      intro ir h_ir
+      have h_ir_compiled := compile_program_contains_compiled_constraints prog ir h_ir
+      cases h_ir_compiled with
+      | intro c h_c_in_prog =>
+        cases h_c_in_prog with
+        | intro h_c_in_constraints h_compile =>
+          -- c ∈ constraints_of_program prog 意味着存在 st ∈ prog 使得 st = .constraint c
+          -- 在无错误执行下，该约束会进入最终状态
+          induction prog with
+          | nil =>
+            simp [constraints_of_program] at h_c_in_constraints
+            exfalso
+            exact h_c_in_constraints
+          | cons st sts ih =>
+            cases st with
+            | point p =>
+              -- 约束来自 sts
+              specialize ih c (by
+                cases h_c_in_constraints with
+                | inl h_c_eq => exfalso; simp [constraints_of_program] at h_c_eq
+                | inr h_c_in_sts => exact h_c_in_sts)
+              -- c ∈ (eval_program (eval_stmt initialState (.point p)) sts).constraints
+              -- 根据 eval_constraint_preserves_points，point 语句不改变 constraints
+              -- 所以 c ∈ (eval_program initialState sts).constraints
+              unfold eval_program
+              rw [ih]
+              · rfl
+              · -- 无错误性保持
+                unfold eval_program at h_no_errors
+                simp at h_no_errors
+                exact h_no_errors.right
+            | constraint c' =>
+              cases h_c_in_constraints with
+              | inl h_c_eq =>
+                -- c = c'
+                rw [h_c_eq]
+                -- c' ∈ (eval_program (eval_stmt initialState (.constraint c')) sts).constraints
+                -- 根据 eval_constraint_preserves_points，constraint 语句不改变 constraints
+                -- 但会添加新约束，所以 c' ∈ (eval_program (eval_stmt initialState (.constraint c')) sts).constraints
+                unfold eval_program
+                unfold eval_stmt addConstraint
+                simp [h_no_errors]
+                -- h_no_errors : eval_program initialState (.constraint c' :: sts) 无错误
+                -- 这意味着 addConstraint initialState c' 无错误
+                -- 即 c'.name 不在 initialState.constraints 中
+                -- 所以 (addConstraint initialState c').constraints = c' :: initialState.constraints
+                -- 并且 c' ∈ (addConstraint initialState c').constraints
+                exact List.mem_cons_iff.2 (List.mem_cons_iff.1 (by simp))
+              | inr h_c_in_sts =>
+                -- c ≠ c'，c 在 sts 中
+                specialize ih c h_c_in_sts h_no_errors.right
+                unfold eval_program
+                rw [ih]
+                · rfl
+                · exact h_no_errors.right
+            | prove =>
+              simp [constraints_of_program] at h_c_in_constraints
+              exfalso
+              exact h_c_in_constraints
+            | normalize =>
+              simp [constraints_of_program] at h_c_in_constraints
+              exfalso
+              exact h_c_in_constraints
+          -- 使用 h_env 证明 env 满足 c
+          specialize h_env c (by
+            -- 需要证明 c ∈ (eval_program initialState prog).constraints
+            -- 使用上面的归纳
+            induction prog with
+            | nil =>
+              simp [constraints_of_program] at h_c_in_constraints
+              exfalso
+              exact h_c_in_constraints
+            | cons st sts ih =>
+              cases st with
+              | point p =>
+                specialize ih c (by
+                  cases h_c_in_constraints with
+                  | inl h_c_eq => exfalso; simp [constraints_of_program] at h_c_eq
+                  | inr h_c_in_sts => exact h_c_in_sts)
+                unfold eval_program
+                rw [ih]
+                · rfl
+                · exact h_no_errors.right
+              | constraint c' =>
+                cases h_c_in_constraints with
+                | inl h_c_eq =>
+                  rw [h_c_eq]
+                  unfold eval_program
+                  unfold eval_stmt addConstraint
+                  simp [h_no_errors]
+                  exact List.mem_cons_iff.2 (List.mem_cons_iff.1 (by simp))
+                | inr h_c_in_sts =>
+                  specialize ih c h_c_in_sts h_no_errors.right
+                  unfold eval_program
+                  rw [ih]
+                  · rfl
+                  · exact h_no_errors.right
+              | prove =>
+                simp [constraints_of_program] at h_c_in_constraints
+                exfalso
+                exact h_c_in_constraints
+              | normalize =>
+                simp [constraints_of_program] at h_c_in_constraints
+                exfalso
+                exact h_c_in_constraints)
+          cases h_env with
+          | intro ir' h_ir'_compile h_ir'_sem =>
+            -- 由于 compile_constraint 是确定性的，ir = ir'
+            cases h_ir'_compile with
+            | refl => exact h_ir'_sem
 
 /-! ## 推论 -/
 

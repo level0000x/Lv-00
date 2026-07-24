@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_error_codes.c
  * @brief 错误码系统单元测试
  *
@@ -32,14 +32,14 @@ static int g_failed = 0;
         }                                                            \
     } while (0)
 
-#define TEST_ASSERT_EQ(a, b, msg)                                                                             \
-    do {                                                                                                      \
-        if ((a) == (b)) {                                                                                     \
-            g_passed++;                                                                                       \
-        } else {                                                                                              \
-            g_failed++;                                                                                       \
-            printf("  失败 [%s:%d]: %s (期望=%d, 实际=%d)\n", __FILE__, __LINE__, msg, (int) (b), (int) (a)); \
-        }                                                                                                     \
+#define TEST_ASSERT_EQ(a, b)                                                                  \
+    do {                                                                                      \
+        if ((a) == (b)) {                                                                     \
+            g_passed++;                                                                       \
+        } else {                                                                              \
+            g_failed++;                                                                       \
+            printf("  失败 [%s:%d]: 期望=%d, 实际=%d\n", __FILE__, __LINE__, (int) (b), (int) (a)); \
+        }                                                                                     \
     } while (0)
 
 /* ============== 测试用例 ============== */
@@ -90,11 +90,11 @@ static void test_error_state(void) {
 
     /* 清除错误状态 */
     lv_clear_error();
-    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_OK, "清除后应为 lv_OK");
+    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_OK);
 
     /* 设置错误 */
     lv_set_error(lv_ERROR_NOT_FOUND, "测试错误: 节点未找到 id=%d", 42);
-    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_ERROR_NOT_FOUND, "错误码应为 NOT_FOUND");
+    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_ERROR_NOT_FOUND);
 
     const char *err_msg = lv_get_last_error_message();
     TEST_ASSERT(err_msg != NULL, "错误消息不应为 NULL");
@@ -102,11 +102,11 @@ static void test_error_state(void) {
 
     /* 设置无消息的错误 */
     lv_set_error(lv_ERROR_TIMEOUT, NULL);
-    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_ERROR_TIMEOUT, "错误码应为 TIMEOUT");
+    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_ERROR_TIMEOUT);
 
     /* 清除后验证 */
     lv_clear_error();
-    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_OK, "再次清除后应为 lv_OK");
+    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_OK);
 }
 
 /** 测试错误判断宏 */
@@ -129,7 +129,7 @@ static void test_error_table_validation(void) {
 
     bool valid = lv_error_table_validate();
     TEST_ASSERT(valid, "错误表排序应通过自校验");
-    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_OK, "通过校验后错误码应为 lv_OK");
+    TEST_ASSERT_EQ(lv_get_last_error_code(), lv_OK);
 }
 
 /** 测试错误码转换函数 */
@@ -137,21 +137,17 @@ static void test_error_code_conversion(void) {
     printf("  [错误码转换]\n");
 
     /* AddNodeResult 转换 */
-    TEST_ASSERT_EQ(lv_add_node_result_to_error(ADD_NODE_OK), lv_OK, "ADD_NODE_OK 应转换为 lv_OK");
-    TEST_ASSERT_EQ(lv_add_node_result_to_error(ADD_NODE_CONFLICT), lv_ERROR_NODE_CONFLICT,
-                   "ADD_NODE_CONFLICT 应转换为 lv_ERROR_NODE_CONFLICT");
-    TEST_ASSERT_EQ(lv_add_node_result_to_error(ADD_NODE_INVALID_REGION), lv_ERROR_INVALID_REGION,
-                   "ADD_NODE_INVALID_REGION 应转换为 lv_ERROR_INVALID_REGION");
+    TEST_ASSERT_EQ(lv_add_node_result_to_error(ADD_NODE_OK), lv_OK);
+    TEST_ASSERT_EQ(lv_add_node_result_to_error(ADD_NODE_CONFLICT), lv_ERROR_NODE_CONFLICT);
+    TEST_ASSERT_EQ(lv_add_node_result_to_error(ADD_NODE_INVALID_REGION), lv_ERROR_INVALID_REGION);
 
     /* AddConstraintResult 转换 */
-    TEST_ASSERT_EQ(lv_add_constraint_result_to_error(ADD_CONSTRAINT_OK), lv_OK, "ADD_CONSTRAINT_OK 应转换为 lv_OK");
-    TEST_ASSERT_EQ(lv_add_constraint_result_to_error(ADD_CONSTRAINT_DUPLICATE), lv_ERROR_CONSTRAINT_DUPLICATE,
-                   "ADD_CONSTRAINT_DUPLICATE 应转换正确");
+    TEST_ASSERT_EQ(lv_add_constraint_result_to_error(ADD_CONSTRAINT_OK), lv_OK);
+    TEST_ASSERT_EQ(lv_add_constraint_result_to_error(ADD_CONSTRAINT_DUPLICATE), lv_ERROR_CONSTRAINT_DUPLICATE);
 
     /* RemoveNodeResult 转换 */
-    TEST_ASSERT_EQ(lv_remove_node_result_to_error(REMOVE_NODE_OK), lv_OK, "REMOVE_NODE_OK 应转换为 lv_OK");
-    TEST_ASSERT_EQ(lv_remove_node_result_to_error(REMOVE_NODE_NOT_FOUND), lv_ERROR_NODE_NOT_FOUND,
-                   "REMOVE_NODE_NOT_FOUND 应转换正确");
+    TEST_ASSERT_EQ(lv_remove_node_result_to_error(REMOVE_NODE_OK), lv_OK);
+    TEST_ASSERT_EQ(lv_remove_node_result_to_error(REMOVE_NODE_NOT_FOUND), lv_ERROR_NODE_NOT_FOUND);
 }
 
 /** 测试所有已定义错误码都有映射 */

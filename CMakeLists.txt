@@ -1076,7 +1076,6 @@ set(lv_LAYER6_SOURCES
     core/src/layer6_visual/types/effect_types.c
     core/src/layer6_visual/types/type_inference.c
     # 表示转换
-    core/src/layer6_visual/converter/block_to_geometry.c
     core/src/layer6_visual/converter/block_to_node.c
     core/src/layer6_visual/converter/block_to_text.c
     core/src/layer6_visual/converter/sync_protocol.c
@@ -1229,6 +1228,9 @@ function(add_lv_test name source)
         ${CMAKE_SOURCE_DIR}/test/c
     )
     target_link_libraries(${name} lv ${GMP_LIBRARIES})
+    if(WIN32)
+        target_link_libraries(${name} ws2_32)
+    endif()
 endfunction()
 
 function(add_lv_test_and_register test_name source ctest_name)
@@ -1393,9 +1395,6 @@ if(BUILD_TESTS)
     # 恢复：interop.c 已在 Layer 5 构建列表中，依赖已满足
     add_lv_test_and_register(test_interop
         test/c/test_interop.c interop_test)
-    if(WIN32)
-        target_link_libraries(test_interop ws2_32)
-    endif()
     # 新增：高维结构模块测试
     add_lv_test_and_register(test_high_dim
         test/c/test_high_dim.c high_dim_test)

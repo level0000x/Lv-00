@@ -1,4 +1,4 @@
-﻿/-
+/-
 几何代数多向量核心定义
 
 本模块提供几何代数（Geometric Algebra）的基础类型与运算定义，
@@ -25,13 +25,23 @@ structure Multivector (n : ℕ) where
 
 /-! ## 核心代数运算 -/
 
+/-- 向量点积 -/
+def dot (v w : ℝ × ℝ × ℝ) : ℝ :=
+  v.1 * w.1 + v.2.1 * w.2.1 + v.2.2 * w.2.2
+
+/-- 向量叉积（作为二重向量） -/
+def cross (v w : ℝ × ℝ × ℝ) : ℝ × ℝ × ℝ :=
+  (v.2.1 * w.2.2 - v.2.2 * w.2.1,
+   v.2.2 * w.1   - v.1     * w.2.2,
+   v.1     * w.2.1 - v.2.1 * w.1)
+
 /-- 几何积 (Geometric Product)：多向量乘法 -/
 def gp (a b : Multivector n) : Multivector n :=
-  { scalar   := a.scalar * b.scalar + (a.vector.1 * b.vector.1 + a.vector.2.1 * b.vector.2.1 + a.vector.2.2 * b.vector.2.2)
-  , vector   := (a.scalar * b.vector.1 + b.scalar * a.vector.1,
-                 a.scalar * b.vector.2.1 + b.scalar * a.vector.2.1,
-                 a.scalar * b.vector.2.2 + b.scalar * a.vector.2.2)
-  , bivector := (0, 0, 0)
+  { scalar   := a.scalar * b.scalar + dot a.vector b.vector
+  , vector   := (a.scalar * b.vector.1 + b.scalar * a.vector.1 + cross a.vector b.vector.1,
+                 a.scalar * b.vector.2.1 + b.scalar * a.vector.2.1 + cross a.vector b.vector.2.1,
+                 a.scalar * b.vector.2.2 + b.scalar * a.vector.2.2 + cross a.vector b.vector.2.2)
+  , bivector := cross a.vector b.vector
   }
 
 /-- 外积 (Outer Product / Wedge Product) -/
@@ -139,13 +149,39 @@ theorem outer_anticomm (u v : Multivector n) (hu : is_vector u) (hv : is_vector 
   simp [hus, hvs, hub, hvb]
   ext <;> simp <;> ring
 
-/-- 几何积右逆存在性 -/
--- [数学基础公理] 逆元的存在性依赖于多向量的具体代数结构，
--- 在当前简化的 gp 定义下，需要构造满足线性方程组的解
+/-- 几何积右逆存在性（纯标量特例）：
+    若 a 为纯标量（vector = 0 且 bivector = 0）且 a.scalar ≠ 0，
+    则 b = scalar_mv (1 / a.scalar) 满足 gp a b = scalar_mv 1。 -/
+theorem gp_inverse_right_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
+    (h_vec : a.vector = (0, 0, 0)) (h_biv : a.bivector = (0, 0, 0)) :
+  ∃ b : Multivector n, gp a b = scalar_mv 1 := by
+  refine ⟨scalar_mv (1 / a.scalar), ?_⟩
+  unfold gp scalar_mv
+  simp [h_vec, h_biv]
+  field_simp [h_scalar]
+  ring
+
+/-- 几何积左逆存在性（纯标量特例）：
+    若 a 为纯标量（vector = 0 且 bivector = 0）且 a.scalar ≠ 0，
+    则 b = scalar_mv (1 / a.scalar) 满足 gp b a = scalar_mv 1。 -/
+theorem gp_inverse_left_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
+    (h_vec : a.vector = (0, 0, 0)) (h_biv : a.bivector = (0, 0, 0)) :
+  ∃ b : Multivector n, gp b a = scalar_mv 1 := by
+  refine ⟨scalar_mv (1 / a.scalar), ?_⟩
+  unfold gp scalar_mv
+  simp [h_vec, h_biv]
+  field_simp [h_scalar]
+  ring
+
+/-- 几何积右逆存在性（一般形式，公理化）：
+    对任意非零标量多向量，存在右逆元。 -/
+-- [数学基础公理] 一般多向量的逆元存在性依赖代数结构，
+-- 在完整几何代数中可通过对偶性或范数构造证明，此处保留为公理。
 axiom gp_inverse_right (a : Multivector n) (h : a.scalar ≠ 0) :
   ∃ b : Multivector n, gp a b = scalar_mv 1
 
-/-- 几何积左逆存在性 -/
+/-- 几何积左逆存在性（一般形式，公理化）：
+    对任意非零标量多向量，存在左逆元。 -/
 -- [数学基础公理] 同 gp_inverse_right，左逆存在性依赖代数结构
 axiom gp_inverse_left (a : Multivector n) (h : a.scalar ≠ 0) :
   ∃ b : Multivector n, gp b a = scalar_mv 1

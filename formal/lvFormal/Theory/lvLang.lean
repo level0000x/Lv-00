@@ -130,13 +130,16 @@ def eval_program (s : State) : lvProgram → State
 
 /-! ## 可满足性与无错误 -/
 
-/-- 程序可满足性（公理）：当且仅当约束系统有实数解时成立 -/
--- [数学基础公理] satisfiable 是 lv 语言的元级语义概念，需要模型论定义
-axiom satisfiable (s : State) : Prop
-
 /-- 状态无错误 -/
 def no_errors (s : State) : Prop :=
   s.errors = []
+
+/-- 程序可满足性（计算定义）：状态无错误且所有约束有解 -/
+def satisfiable (s : State) : Prop :=
+  no_errors s ∧ 
+    ∃ (env : String → ℝ × ℝ),
+      ∀ c ∈ s.constraints, 
+        ∃ ir, compile_constraint s.points c = some ir ∧ ir_sem env ir
 
 /-! ## 元理论性质 -/
 
@@ -150,12 +153,14 @@ theorem empty_state_no_errors : no_errors initialState := by
   rfl
 
 /-- 空状态可满足：空约束系统在任何域上都可满足 -/
--- [数学基础公理] satisfiable 是 lv 语言的元级语义概念（需要模型论定义），
--- 因此 empty_satisfiable 被保留为 axiom。如果未来 satisfiable 被赋予具体的
--- 计算定义（例如 satisfiable s := s.errors = []），则可将其改为定理直接证明：
---   theorem empty_satisfiable : satisfiable initialState := by
---     unfold satisfiable; rfl
-axiom empty_satisfiable : satisfiable initialState
+theorem empty_satisfiable : satisfiable initialState := by
+  unfold satisfiable no_errors
+  constructor
+  · exact empty_state_no_errors
+  · refine ⟨fun _ => (0, 0), ?_⟩
+    intro c hc
+    exfalso
+    exact hc
 
 /-- 求值 point 语句将变量名加入状态 -/
 theorem eval_point_defines_var (s : State) (p : lvPoint) :

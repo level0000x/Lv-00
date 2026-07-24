@@ -31,6 +31,19 @@
 #include "lv.h"
 #include "test_helpers.h"
 
+/* EquationSystem 完整定义（solver.h 仅前向声明） */
+typedef struct {
+    mpz_poly_t poly;
+    int var_node_id;
+    int coord_index;
+} PolyEquation;
+
+typedef struct EquationSystem {
+    PolyEquation *eqs;
+    int count;
+    int capacity;
+} EquationSystem;
+
 /* ================================================================== */
 /*  全局计数器（test_helpers.h 要求）                                    */
 /* ================================================================== */
