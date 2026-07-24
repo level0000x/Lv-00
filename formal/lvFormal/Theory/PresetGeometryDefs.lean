@@ -230,10 +230,27 @@ theorem circumcenter_equals_orthocenter_of_equilateral (A B C : LvPoint)
   have h_eq_coord : (circumcenter A B C).coord = (centroid A B C).coord := h_cen
   simp [h_eq_coord]
 
-/-- 三点定义的圆是唯一的（内射性） -/
--- [数学基础公理] 圆的唯一性依赖外心定义的唯一性和半径计算
-axiom circle_inj (A B C D E F : LvPoint)
-  (h1 : circle_defined_by A B C = circle_defined_by D E F) (h2 : ¬ collinear A B C) :
-  {A, B, C} = {D, E, F}
+/-- 若三点不共线，则它们定义的圆存在（不为 none） -/
+theorem circle_defined_by_noncollinear (A B C : LvPoint) (h : ¬ collinear A B C) :
+    circle_defined_by A B C ≠ none := by
+  unfold circle_defined_by
+  simp [h]
+
+/-- 若两组三点定义同一个圆，且第一组不共线，则第二组也不共线。
+
+    注：原始的 `circle_inj` 公理声称此时 {A,B,C} = {D,E,F}，但这是错误的——
+    同一圆上的不同三点组（如单位圆上的 (1,0),(0,1),(-1,0) 与 (1,0),(0,-1),(-1,0)）
+    定义了同一个圆，但点集却不同。故用本定理替代。 -/
+theorem circle_inj_implies_noncollinear (A B C D E F : LvPoint)
+    (h1 : circle_defined_by A B C = circle_defined_by D E F) (h2 : ¬ collinear A B C) :
+    ¬ collinear D E F := by
+  have hABC_some : circle_defined_by A B C ≠ none :=
+    circle_defined_by_noncollinear A B C h2
+  intro hcol_def
+  have hDEF_none : circle_defined_by D E F = none := by
+    unfold circle_defined_by
+    simp [hcol_def]
+  rw [hDEF_none] at h1
+  exact hABC_some h1
 
 end lvFormal.Theory.PresetGeometryDefs

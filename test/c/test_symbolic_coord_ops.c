@@ -621,7 +621,7 @@ void test_symbolic_coord_create(void) {
     /* 复制 */
     SymbolicCoord *orig = symbolic_coord_create_rational(7, 8);
     SymbolicCoord *cp = symbolic_coord_copy(orig);
-    TEST_ASSERT_NOT_NULL(cp, "copy coord");
+    TEST_ASSERT_NOT_NULL(cp);
     TEST_ASSERT(symbolic_coord_compare(orig, cp) == 0, "copy compare equal");
     symbolic_coord_destroy(orig);
     symbolic_coord_destroy(cp);

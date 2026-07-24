@@ -818,9 +818,9 @@ static void test_algebra_constrain_and_prove(void) {
 
     /* 无效参数 */
     TEST_ASSERT_NULL(algebra_constrain(NULL, "incidence", ids, 2));
-    TEST_ASSERT_NULL(algebra_constrain(geom, NULL, ids, 2), "NULL约束类型应失败");
+    TEST_ASSERT_NULL(algebra_constrain(geom, NULL, ids, 2));
     TEST_ASSERT_NULL(algebra_constrain(geom, "incidence", NULL, 1));
-    TEST_ASSERT_NULL(algebra_prove(NULL, "x = y"), "NULL应失败");
+    TEST_ASSERT_NULL(algebra_prove(NULL, "x = y"));
 
     algebra_destroy(geom);
 }
@@ -924,7 +924,7 @@ static void test_algebra_snapshot_restore(void) {
     /* NULL参数 */
     int bad = algebra_snapshot(NULL);
     TEST_ASSERT_EQ(bad, -1);
-    TEST_ASSERT_NULL(algebra_restore(NULL, 0), "NULL恢复应返回NULL");
+    TEST_ASSERT_NULL(algebra_restore(NULL, 0));
 
     algebra_destroy(geom);
 }
@@ -1108,7 +1108,7 @@ static void test_find_rewrite_match_empty(void) {
     TEST_ASSERT_NULL(match);
 
     match = find_best_match(graph, rule, false);
-    TEST_ASSERT_NULL(match, "空图上应无最佳匹配");
+    TEST_ASSERT_NULL(match);
 
     rewrite_rule_destroy(rule);
     graph_destroy(graph);

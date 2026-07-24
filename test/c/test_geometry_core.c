@@ -66,7 +66,7 @@ void test_csg_node_create_destroy(void) {
     TEST_ASSERT_NOT_NULL(un);
 
     CSGNode *diff = csg_node_create(CSG_NODE_DIFFERENCE);
-    TEST_ASSERT_NOT_NULL(diff, "create difference node");
+    TEST_ASSERT_NOT_NULL(diff);
 
     CSGNode *inter = csg_node_create(CSG_NODE_INTERSECTION);
     TEST_ASSERT_NOT_NULL(inter, "create intersection node");
@@ -192,7 +192,7 @@ void test_csg_union(void) {
     CSGNode *box = csg_box_create(3.0, 3.0, 3.0);
 
     CSGNode *uni = geometry_csg_union(sphere, box);
-    TEST_ASSERT_NOT_NULL(uni, "union not null");
+    TEST_ASSERT_NOT_NULL(uni);
     TEST_ASSERT(uni->kind == CSG_NODE_UNION, "union kind");
     TEST_ASSERT(uni->child_count == 2, "union has 2 children");
 
@@ -210,7 +210,7 @@ void test_csg_difference(void) {
     CSGNode *box = csg_box_create(3.0, 3.0, 3.0);
 
     CSGNode *diff = geometry_csg_difference(sphere, box);
-    TEST_ASSERT_NOT_NULL(diff, "difference not null");
+    TEST_ASSERT_NOT_NULL(diff);
     TEST_ASSERT(diff->kind == CSG_NODE_DIFFERENCE, "difference kind");
     TEST_ASSERT(diff->child_count == 2, "difference has 2 children");
 
@@ -306,7 +306,7 @@ void test_csg_example_taj_mahal(void) {
 /** 测试 Euclidean 上下文创建与销毁 */
 void test_euclidean_init_destroy(void) {
     EuclideanContext *ctx = euclidean_init(NULL);
-    TEST_ASSERT_NOT_NULL(ctx, "euclidean_init with NULL graph");
+    TEST_ASSERT_NOT_NULL(ctx);
     TEST_ASSERT(ctx->active_axiom_system == EUCLID_HILBERT, "default system is HILBERT");
     TEST_ASSERT(ctx->point_count == 0, "no points initially");
     TEST_ASSERT(ctx->line_count == 0, "no lines initially");
@@ -672,7 +672,7 @@ void test_euclidean_export(void) {
 
     /* 导出 Tarski */
     ConstraintGraph *tarski = euclidean_export_tarski(ctx);
-    TEST_ASSERT_NOT_NULL(tarski, "export tarski");
+    TEST_ASSERT_NOT_NULL(tarski);
     graph_destroy(tarski);
 
     /* NULL 上下文 */
