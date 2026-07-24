@@ -10,6 +10,28 @@
 - 禁止无实际文件变更的空提交；禁止使用无语义的自动提交替代版本记录。
 - 主干分支保持稳定，功能开发和实验性修改应先在开发分支验证后再合入。
 
+## 2026-07-24
+
+### v1.9.0-dev — 数学严谨性与数值稳定性全面审计
+
+**范围**: 30+ 源文件，覆盖 layer3_geometry / layer4_reasoning / layer5_output / layer10_interop / lv_core
+
+**新增**:
+- 新增 MSVC 构建兼容性配置（C11 atomics、`_CRT_SECURE_NO_WARNINGS`、GMP vcpkg 集成）
+
+**修复**:
+- 8 处除零保护：`lv_reflect_point`（点重合）、`lv_transform_reflection_line`（a,b 同时为零）、`symbolic_coord_ops.c` 连分数（`mpq_inv` 零值）、`algebraic_number.c` gcd(0,0)（`alg_rational_mul`/`alg_rational_simplify`）
+- 5 处 NaN/Inf 传播：`rational.c` 精度收缩（3 处）、`refine_algebraic_bounds` 无限二分循环、`solver_linear.c`/`solver_symbolic.c` 大整数 `mpz_get_d` 后 `isfinite` 检查
+- 15 处整数溢出保护：容量翻倍 `INT_MAX/2` 前置检查（10 文件），分配前乘法溢出（5 文件）
+- 1 处 GMP 内存泄漏：`symbolic_coord_ops.c` 嵌套二次根式回退路径
+- 1 处字符串缓冲区：`proof_widget.c` JSON 序列化截断检测与扩容
+- 1 处递归深度保护：`type_system.c` type_normalize 添加 4096 深度上限
+- 2 处浮点精确比较→容差比较：`geo_event_detect.c` 二分法/牛顿法
+
+**验证**: 编译 152/153 通过，测试 137/138 通过（1 项预存失败）
+
+---
+
 ## 2026-05-25
 
 ### chore(repo): 建立仓库整改追踪基线

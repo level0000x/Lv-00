@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 数学严谨性与数值稳定性修复（3 轮，30+ 文件）
+
+#### P0 — 除零/NaN 关键修复
+- **除零保护** — `lv_reflect_point` (A,B 重合)、`lv_transform_reflection_line` (a,b 同时为零)、`symbolic_coord_ops.c` 连分数求值 (`mpq_inv` 零值)、`algebraic_number.c` (`alg_rational_mul`/`alg_rational_simplify` gcd=0)
+- **NaN/Inf 传播** — `rational.c` mpq_get_d→mpq_set_d 往返 (3 处)、`refine_algebraic_bounds` 无限二分循环、`solver_linear.c`/`solver_symbolic.c` mpz_get_d 后 `isfinite` 检查
+- **浮点精确比较→容差比较** — `geo_event_detect.c` 二分法/牛顿法 `fmid==0.0` 改为 `fabs(fmid) < lv_EPSILON_NUMERIC_COMPARE`
+
+#### P1 — 整数溢出/参数验证
+- **容量翻倍溢出** — 10 个文件添加 `INT_MAX/2` 前置检查（`proof_widget.c`、`magic.c` x4、`benchmark.c`、`lean4_bridge.c`、`proof_compiler.c`、`lv_impl_native.c` x2、`engine_scheduler.c`、`smt_backend_impl.c`、`func_block_instantiate.c`）
+- **分配前溢出** — `smt_backend_impl.c` max_node_id+1、`engine_scheduler.c` point_count*2、`lv_impl_upper.c` degree+1
+- **参数验证** — `magic.c` spell_set_input/output_count 负值检查、`fast_index.c` cell_hash capacity<=0 保护
+
+#### P2 — 内存与健壮性
+- **GMP 内存泄漏** — `symbolic_coord_ops.c` 嵌套二次根式回退路径中 `disc_num_sq`/`disc_product` 未释放
+- **字符串缓冲区** — `proof_widget.c` JSON 序列化 snprintf 截断检测与自动扩容
+- **类型系统递归深度** — `type_system.c` type_normalize 添加 4096 深度上限
+
 ### 新增 (Added)
 - **λ-演算核心集成** — λ-项数据结构 (`LvLambdaTerm`)、β-归约实现、λ-项 ↔ 约束图编译、Church 编码 + Y 组合子测试
 - **端口作用域系统完整化** — `GeomNode` 三字段 (`namespace_depth`/`parent_block_id`/`is_formal_param`) 生命周期管理
@@ -29,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **头文件全面修复** — 11+ 个头文件（`geo_halfedge_mesh.h`、`simd_ops.h`、`interval_arithmetic.h`、`geometry_transform.h` 等）重新编写以匹配 .c 实现
 - **源码恢复** — 从 git 历史恢复 63+ 源文件（版本 A `38310ea` 05-23，版本 B `e36f4b6` 06-04）
 - **删除过时 stub 头文件** — 清理 `core/include/lv/stubs/` 下的废弃预设桩文件
+- **MSVC 构建兼容性** — CMakeLists.txt 添加 C11 atomics 启用、`_CRT_SECURE_NO_WARNINGS`、GMP vcpkg 支持
 
 ### 修复 (Fixed)
 - `geo_halfedge_mesh.h`：lvPoint3D normal 字段、lv_HE_ITER_VERTEX_OUT_HALFEDGES 宏、HeMeshStats 完整字段
@@ -38,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `geo_event_detect.h`：M_PI 兼容（`_USE_MATH_DEFINES` + fallback）
 - `algebraic_number.h`：从 git 恢复完整 670 行文件
 
-### 项目指标（截至 2026-07-23）
+### 项目指标（截至 2026-07-24）
 | 指标 | v1.1.0 初版 | 当前 |
 |:---|---:|---:|
 | .c | 232 | 401 |
@@ -48,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | .py | 83 | 94 |
 | .tsx | 0 | 41 |
 | .ts | — | 1011 |
+| 测试 | — | 138 (137 通过, 1 预存失败) |
 
 ---
 

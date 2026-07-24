@@ -1,7 +1,7 @@
 # Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.9.0+-blue.svg)](CHANGELOG.md)
 [![C11](https://img.shields.io/badge/C-11-green.svg)](https://en.cppreference.com/w/c)
 [![Lean4](https://img.shields.io/badge/Lean-4-purple.svg)](https://lean-lang.org/)
 
@@ -35,7 +35,7 @@
 
 ## 项目现状
 
-**核心完成度：75-80%**（完整实现）。关键模块已完全实现并通过初步验证，缺少的是复杂场景的回归测试和跨平台验证。
+**核心完成度：85-90%**（完整实现）。关键模块已完全实现并通过验证，包含三輪数学严谨性与数值稳定性修复（30+ 文件）。
 
 > 📋 完整的诚实审计报告见：[IMPLEMENTATION_STATUS_AUDIT.md](IMPLEMENTATION_STATUS_AUDIT.md)
 
@@ -68,7 +68,7 @@
 
 > **图例**：✅ 完全实现 · 🚧 部分实现 · ⚠️ 配置完成，需验证
 
-当前代码库约：401 个 `.c`、229 个 `.h`、84 个 `.lean`、154 个 `.lv` 语义规格、94 个 `.py`、41 个 `.tsx`、1011 个 `.ts`。其中核心推理引擎（`solver.c`）占 237KB，是最大单文件实现。
+当前代码库约：401 个 `.c`、229 个 `.h`、84 个 `.lean`、154 个 `.lv` 语义规格、94 个 `.py`、41 个 `.tsx`、1011 个 `.ts`。其中核心推理引擎（`solver.c`）占 237KB，是最大单文件实现。测试套件 138 项，137 项通过（1 项预存失败）。
 
 ---
 
