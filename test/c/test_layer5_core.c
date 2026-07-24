@@ -560,15 +560,15 @@ static void test_incantation_all_goals(void) {
     prof = incantation_optimize("speed", 0.0);
     TEST_ASSERT_EQ(prof.length, INCANTATION_SHORT);
     TEST_ASSERT(prof.speed > 0.9, "speed should be valid");
-    TEST_ASSERT(prof.precision < 0.6, "condition should be true: prof.precision < 0.6");
+    TEST_ASSERT(prof.precision < 0.6, "precision should be low for speed optimization");
     TEST_ASSERT(prof.stealth > 0.8, "stealth should be valid");
 
     /* precision */
     prof = incantation_optimize("precision", 0.0);
     TEST_ASSERT_EQ(prof.length, INCANTATION_LONG);
-    TEST_ASSERT(prof.precision > 0.9, "precision should be valid");
-    TEST_ASSERT(prof.speed < 0.5, "condition should be true: prof.speed < 0.5");
-    TEST_ASSERT(prof.stealth < 0.4, "condition should be true: prof.stealth < 0.4");
+    TEST_ASSERT(prof.precision > 0.9, "precision should be high for precision optimization");
+    TEST_ASSERT(prof.speed < 0.5, "speed should be low for precision optimization");
+    TEST_ASSERT(prof.stealth < 0.4, "stealth should be low for precision optimization");
 
     /* stealth */
     prof = incantation_optimize("stealth", 0.0);

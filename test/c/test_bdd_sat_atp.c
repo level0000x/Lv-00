@@ -1017,9 +1017,9 @@ static void test_approx_count_projected(void) {
 
     /* NULL safety */
     ok = approx_count_projected(NULL, proj_vars, 1, &cfg, &result);
-    TEST_ASSERT(!ok, "operation should succeed");
+    TEST_ASSERT(!ok, "NULL graph should fail");
     ok = approx_count_projected(g, proj_vars, 1, &cfg, NULL);
-    TEST_ASSERT(!ok, "operation should succeed");
+    TEST_ASSERT(!ok, "NULL result should fail");
 
     graph_destroy(g);
 }
@@ -1077,7 +1077,7 @@ static void test_is_approximately_constructible(void) {
 
     /* NULL safety */
     ok = is_approximately_constructible(NULL, 0.5);
-    TEST_ASSERT(!ok, "operation should succeed");
+    TEST_ASSERT(!ok, "NULL graph should fail");
 
     /* Invalid probability */
     ok = is_approximately_constructible(g, 1.5);
@@ -1350,11 +1350,11 @@ static void test_prob_constraint_infer(void) {
 
     /* NULL safety */
     ok = prob_constraint_infer(NULL, 0, constraints, 1, &confidence);
-    TEST_ASSERT(!ok, "operation should succeed");
+    TEST_ASSERT(!ok, "NULL graph should fail");
     ok = prob_constraint_infer(g, 0, NULL, 1, &confidence);
-    TEST_ASSERT(!ok, "operation should succeed");
+    TEST_ASSERT(!ok, "NULL constraints should fail");
     ok = prob_constraint_infer(g, 0, constraints, 0, &confidence);
-    TEST_ASSERT(!ok, "operation should succeed");
+    TEST_ASSERT(!ok, "zero count should fail");
 }
 
 /* ========================================================================

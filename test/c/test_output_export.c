@@ -555,7 +555,7 @@ static void test_widget_get_step_highlights(void) {
     TEST_ASSERT_EQ(highlights[1].step_id, 1);
     TEST_ASSERT_EQ(highlights[2].step_id, 2);
     TEST_ASSERT(highlights[0].color == HIGHLIGHT_NORMAL, "default normal");
-    TEST_ASSERT(!highlights[0].is_animated, "condition should be false: highlights[0].is_animated");
+    TEST_ASSERT(!highlights[0].is_animated, "default should not be animated");
 }
 
 static void test_widget_get_goal_hypotheses(void) {
@@ -570,7 +570,7 @@ static void test_widget_get_goal_hypotheses(void) {
     int rc = proof_widget_get_goal((ProofNavigator *) 0x1, &goal);
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT_NOT_NULL(goal.goal_text);
-    TEST_ASSERT(!goal.is_solved, "condition should be false: goal.is_solved");
+    TEST_ASSERT(!goal.is_solved, "goal should not be solved initially");
 
     /* 释放 */
     goal_display_free(&goal);
