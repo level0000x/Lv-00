@@ -208,7 +208,7 @@ static void test_proto_tree(void) {
 
     for (int i = 0; i < root->child_count && i < 3; i++) {
         TEST_ASSERT_NOT_NULL(root->children[i]);
-        TEST_ASSERT(strlen(root->children[i]->id) > 0, "strlen should succeed");
+        TEST_ASSERT(strlen(root->children[i]->id) > 0, "child id should be non-empty");
     }
 
     lv_proto_free_tree(root);
@@ -266,11 +266,11 @@ static void test_proto_proof_navigator(void) {
 
     /* 验证步骤数据 */
     TEST_ASSERT(nav.steps[0].step_id >= 0, "step_id should be valid");
-    TEST_ASSERT(strlen(nav.steps[0].label) > 0, "strlen should succeed");
+    TEST_ASSERT(strlen(nav.steps[0].label) > 0, "step label should be non-empty");
 
     /* 策略和摘要 */
-    TEST_ASSERT(strlen(nav.strategy_label) > 0, "strlen should succeed");
-    TEST_ASSERT(strlen(nav.nl_summary) > 0, "strlen should succeed");
+    TEST_ASSERT(strlen(nav.strategy_label) > 0, "strategy label should be non-empty");
+    TEST_ASSERT(strlen(nav.nl_summary) > 0, "nl summary should be non-empty");
 
     lv_proto_free_proof(&nav);
     lv_proto_free_proof(NULL);
