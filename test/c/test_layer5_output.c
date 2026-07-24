@@ -187,9 +187,9 @@ static void test_magic_array_lifecycle(void) {
     int idx1 = magic_array_add_rune(arr, r1);
     int idx2 = magic_array_add_rune(arr, r2);
     int idx3 = magic_array_add_rune(arr, r3);
-    TEST_ASSERT_GE(idx1, 0);
-    TEST_ASSERT_GE(idx2, 0);
-    TEST_ASSERT_GE(idx3, 0);
+    TEST_ASSERT(idx1 >= 0, "idx1 >= 0");
+    TEST_ASSERT(idx2 >= 0, "idx2 >= 0");
+    TEST_ASSERT(idx3 >= 0, "idx3 >= 0");
     TEST_ASSERT_EQ(magic_array_get_rune_count(arr), 3);
 
     /* 获取符文 */
@@ -200,9 +200,9 @@ static void test_magic_array_lifecycle(void) {
 
     /* 添加约束 */
     int cid = magic_array_add_constraint(arr, ARRAY_CONNECTION, 0, 1);
-    TEST_ASSERT_GE(cid, 0);
+    TEST_ASSERT(cid >= 0, "cid >= 0");
     int cid2 = magic_array_add_constraint(arr, ARRAY_CONFLICT, 1, 2);
-    TEST_ASSERT_GE(cid2, 0);
+    TEST_ASSERT(cid2 >= 0, "cid2 >= 0");
     TEST_ASSERT_EQ(magic_array_get_constraint_count(arr), 2);
 
     /* 无效约束 */
@@ -702,7 +702,7 @@ static void test_proof_object(void) {
     step->type = (ProofStepType) 0;
     step->depth = 0;
     int id = lv_proof_object_add_step(obj, step);
-    TEST_ASSERT_GE(id, 0, "add step to proof object");
+    TEST_ASSERT(id >= 0, "add step to proof object");
     TEST_ASSERT_EQ(lv_proof_object_get_step_count(obj), 1);
     TEST_ASSERT(lv_proof_object_is_valid(obj), "now valid");
 
@@ -844,7 +844,7 @@ static void test_trust_color(void) {
     TEST_ASSERT_EQ(lv, lv_COLOR_GREEN);
 
     TrustColor tc = lv_protocol_to_trust_color(lv_COLOR_BLUE);
-    TEST_ASSERT_EQ(tc, TRUST_BLUE);
+    TEST_ASSERT_EQ(tc, TRUST_BLUE_UNEXPLORED);
 }
 
 /* ============================================================
@@ -857,11 +857,11 @@ static void test_proof_widget_lifecycle(void) {
 
     /* 注册 Widget */
     int id1 = proof_widget_register(layout, WIDGET_GOAL_DISPLAY, "Goal", 0);
-    TEST_ASSERT_GE(id1, 0);
+    TEST_ASSERT(id1 >= 0, "id1 >= 0");
     int id2 = proof_widget_register(layout, WIDGET_HYPOTHESIS_PANEL, "Hypotheses", 1);
-    TEST_ASSERT_GE(id2, 0);
+    TEST_ASSERT(id2 >= 0, "id2 >= 0");
     int id3 = proof_widget_register(layout, WIDGET_STEP_NAVIGATOR, "Steps", 2);
-    TEST_ASSERT_GE(id3, 0);
+    TEST_ASSERT(id3 >= 0, "id3 >= 0");
 
     /* 更新 */
     TEST_ASSERT_EQ(proof_widget_update(layout, id1, true, true, "Active Goal", 0, NULL), 0);

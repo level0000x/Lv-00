@@ -116,7 +116,7 @@ static void test_rune_sequence_growth(void) {
     Rune *ref[20];
     for (int i = 0; i < 20; i++) {
         ref[i] = rune_create_rational(i, 1, ELEMENT_FIRE);
-        TEST_ASSERT(rune_sequence_add(seq, ref[i]), "add rune %d", i);
+        TEST_ASSERT(rune_sequence_add(seq, ref[i]), "add rune");
     }
     TEST_ASSERT_EQ(rune_sequence_length(seq), 20);
 
@@ -161,7 +161,7 @@ static void test_magic_array_all_constraint_types(void) {
     /* 每加一种约束需要两个符文，我们复用前两个符文 */
     for (int i = 0; i < n_types; i++) {
         int cid = magic_array_add_constraint(arr, types[i], 0, 1);
-        TEST_ASSERT_GE(cid, 0);
+        TEST_ASSERT(cid >= 0, "cid >= 0");
     }
     TEST_ASSERT_EQ(magic_array_get_constraint_count(arr), n_types);
 

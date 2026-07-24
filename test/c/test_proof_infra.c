@@ -331,14 +331,14 @@ static void test_proof_navigator_steps(void) {
     TEST_ASSERT_EQ(proof_navigator_current_step(nav), nav->steps[1]);
 
     /* 越界跳转 */
-    TEST_ASSERT_FALSE(proof_navigator_goto(nav, -1));
-    TEST_ASSERT_FALSE(proof_navigator_goto(nav, 100));
+    TEST_ASSERT(!proof_navigator_goto(nav, -1), "goto -1 should fail");
+    TEST_ASSERT(!proof_navigator_goto(nav, 100), "goto 100 should fail");
 
     /* NULL 安全 */
-    TEST_ASSERT_FALSE(proof_navigator_add_step(NULL, NULL));
-    TEST_ASSERT_FALSE(proof_navigator_next(NULL));
-    TEST_ASSERT_FALSE(proof_navigator_prev(NULL));
-    TEST_ASSERT_FALSE(proof_navigator_goto(NULL, 0));
+    TEST_ASSERT(!proof_navigator_add_step(NULL, NULL), "add step NULL should fail");
+    TEST_ASSERT(!proof_navigator_next(NULL), "next NULL should fail");
+    TEST_ASSERT(!proof_navigator_prev(NULL), "prev NULL should fail");
+    TEST_ASSERT(!proof_navigator_goto(NULL, 0), "goto NULL should fail");
     TEST_ASSERT_NULL(proof_navigator_current_step(NULL));
 
     proof_navigator_destroy(nav);
