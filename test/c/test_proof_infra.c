@@ -146,7 +146,7 @@ static void test_command_entry_create_all_types(void) {
     e = command_entry_create_normalize_graph(true, 50);
     TEST_ASSERT_NOT_NULL(e);
     TEST_ASSERT_EQ(e->type, CMD_NORMALIZE_GRAPH);
-    TEST_ASSERT(e->params.normalize_graph.scope_aware);
+    TEST_ASSERT(e->params.normalize_graph.scope_aware, "e- should be valid");
     TEST_ASSERT_EQ(e->params.normalize_graph.max_iterations, 50);
     command_entry_destroy(e);
 

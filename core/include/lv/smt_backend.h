@@ -1,4 +1,4 @@
-﻿#ifndef lv_SMT_BACKEND_H
+#ifndef lv_SMT_BACKEND_H
 #define lv_SMT_BACKEND_H
 
 #ifdef __cplusplus
@@ -135,6 +135,8 @@ int smtsolver_decode_result(SMTSolver *solver, SMTSatResult sat_result, SMTSolve
 void smtsolver_result_clear(SMTSolverResult *result);
 const SMTVariableAssignment *smtsolver_result_find_assignment(const SMTSolverResult *result, int var_node_id);
 bool smtsolver_result_has_model(const SMTSolverResult *result);
+int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverResult *out_result);
+void smtsolver_result_free(SMTSolverResult *result);
 int smtsolver_check_constraint_satisfied(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverResult *out_result);
 
 bool smtsolver_is_backend_available(SolverBackendType type);

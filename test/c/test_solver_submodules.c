@@ -202,7 +202,7 @@ static void test_eq_system_push(void) {
     int ret = equation_system_push(&sys, poly, 100, 0);
     TEST_ASSERT_EQ(ret, 0);
     TEST_ASSERT_EQ(sys.count, 1);
-    TEST_ASSERT(sys.capacity >= 1);
+    TEST_ASSERT(sys.capacity >= 1, "capacity should be valid");
     TEST_ASSERT_EQ(equation_system_get_var_id(&sys, 0), 100);
     TEST_ASSERT_EQ(equation_system_get_coord_index(&sys, 0), 0);
     TEST_ASSERT_NOT_NULL(equation_system_get_poly(&sys, 0));
@@ -235,7 +235,7 @@ static void test_eq_system_push_many(void) {
     }
 
     TEST_ASSERT_EQ(sys.count, 20);
-    TEST_ASSERT(sys.capacity >= 20);
+    TEST_ASSERT(sys.capacity >= 20, "capacity should be valid");
 
     /* 验证每个条目 */
     for (int i = 0; i < 20; i++) {
@@ -276,20 +276,20 @@ static void test_solve_linear_basic(void) {
 
     /* 2x - 4 = 0 -> x = 2 */
     TEST_ASSERT_EQ(make_linear_poly(&poly, 2, -4), 0);
-    TEST_ASSERT(solve_linear(&poly, &x));
-    TEST_ASSERT(fabs(x - 2.0) < 1e-12);
+    TEST_ASSERT(solve_linear(&poly, &x), "solve linear should succeed");
+    TEST_ASSERT(fabs(x - 2.0) < 1e-12, "fabs should succeed");
     mpz_poly_clear(&poly);
 
     /* 3x + 6 = 0 -> x = -2 */
     TEST_ASSERT_EQ(make_linear_poly(&poly, 3, 6), 0);
-    TEST_ASSERT(solve_linear(&poly, &x));
-    TEST_ASSERT(fabs(x + 2.0) < 1e-12);
+    TEST_ASSERT(solve_linear(&poly, &x), "solve linear should succeed");
+    TEST_ASSERT(fabs(x + 2.0) < 1e-12, "fabs should succeed");
     mpz_poly_clear(&poly);
 
     /* -5x + 10 = 0 -> x = 2 */
     TEST_ASSERT_EQ(make_linear_poly(&poly, -5, 10), 0);
-    TEST_ASSERT(solve_linear(&poly, &x));
-    TEST_ASSERT(fabs(x - 2.0) < 1e-12);
+    TEST_ASSERT(solve_linear(&poly, &x), "solve linear should succeed");
+    TEST_ASSERT(fabs(x - 2.0) < 1e-12, "fabs should succeed");
     mpz_poly_clear(&poly);
 }
 
@@ -299,23 +299,23 @@ static void test_solve_linear_edge_cases(void) {
 
     /* 0*x + 3 = 0 -> a ~= 0, should fail */
     TEST_ASSERT_EQ(make_linear_poly(&poly, 0, 3), 0);
-    TEST_ASSERT(!solve_linear(&poly, &x));
+    TEST_ASSERT(!solve_linear(&poly, &x), "solve linear should fail for invalid input");
     mpz_poly_clear(&poly);
 
     /* 次数为 2 的非线性 -> should fail */
     TEST_ASSERT_EQ(make_quadratic_poly(&poly, 1, 0, -4), 0);
-    TEST_ASSERT(!solve_linear(&poly, &x));
+    TEST_ASSERT(!solve_linear(&poly, &x), "solve linear should fail for invalid input");
     mpz_poly_clear(&poly);
 
     /* degree < 0 的多项式 */
     mpz_poly_init(&poly);
     poly.degree = -1;
     poly.coeffs = NULL;
-    TEST_ASSERT(!solve_linear(&poly, &x));
+    TEST_ASSERT(!solve_linear(&poly, &x), "solve linear should fail for invalid input");
     mpz_poly_clear(&poly);
 
     /* NULL 指针 */
-    TEST_ASSERT(!solve_linear(NULL, &x));
+    TEST_ASSERT(!solve_linear(NULL, &x), "solve linear should fail for invalid input");
 }
 
 /* ================================================================== */
@@ -327,24 +327,24 @@ static void test_coord_to_double(void) {
 
     /* RATIONAL 类型 */
     SymbolicCoord *c = symbolic_coord_create_rational(3, 1);
-    TEST_ASSERT(coord_to_double(c, &val));
-    TEST_ASSERT(fabs(val - 3.0) < 1e-12);
+    TEST_ASSERT(coord_to_double(c, &val), "coord to double should succeed");
+    TEST_ASSERT(fabs(val - 3.0) < 1e-12, "fabs should succeed");
     symbolic_coord_destroy(c);
 
     /* 负有理数 */
     c = symbolic_coord_create_rational(-5, 2);
-    TEST_ASSERT(coord_to_double(c, &val));
-    TEST_ASSERT(fabs(val - (-2.5)) < 1e-12);
+    TEST_ASSERT(coord_to_double(c, &val), "coord to double should succeed");
+    TEST_ASSERT(fabs(val - (-2.5)) < 1e-12, "fabs should succeed");
     symbolic_coord_destroy(c);
 
     /* 零 */
     c = symbolic_coord_create_rational(0, 1);
-    TEST_ASSERT(coord_to_double(c, &val));
-    TEST_ASSERT(fabs(val) < 1e-12);
+    TEST_ASSERT(coord_to_double(c, &val), "coord to double should succeed");
+    TEST_ASSERT(fabs(val) < 1e-12, "fabs should succeed");
     symbolic_coord_destroy(c);
 
     /* NULL 输入 */
-    TEST_ASSERT(!coord_to_double(NULL, &val));
+    TEST_ASSERT(!coord_to_double(NULL, &val), "coord to double should fail for invalid input");
 }
 
 /* ================================================================== */
@@ -357,27 +357,27 @@ static void test_double_to_mpz_scaled(void) {
 
     /* 3.0 * 1000 = 3000 */
     double_to_mpz_scaled(3.0, result, 1000);
-    TEST_ASSERT(mpz_cmp_si(result, 3000) == 0);
+    TEST_ASSERT(mpz_cmp_si(result, 3000) == 0, "mpz cmp si should succeed");
 
     /* -2.5 * 1000 = -2500 */
     double_to_mpz_scaled(-2.5, result, 1000);
-    TEST_ASSERT(mpz_cmp_si(result, -2500) == 0);
+    TEST_ASSERT(mpz_cmp_si(result, -2500) == 0, "mpz cmp si should succeed");
 
     /* 0.0 * 1000 = 0 */
     double_to_mpz_scaled(0.0, result, 1000);
-    TEST_ASSERT(mpz_cmp_si(result, 0) == 0);
+    TEST_ASSERT(mpz_cmp_si(result, 0) == 0, "mpz cmp si should succeed");
 
     /* 无穷大 -> 应为 0（防御性处理） */
     double_to_mpz_scaled(INFINITY, result, 1000);
-    TEST_ASSERT(mpz_cmp_si(result, 0) == 0);
+    TEST_ASSERT(mpz_cmp_si(result, 0) == 0, "mpz cmp si should succeed");
 
     /* NaN -> 应为 0 */
     double_to_mpz_scaled(NAN, result, 1000);
-    TEST_ASSERT(mpz_cmp_si(result, 0) == 0);
+    TEST_ASSERT(mpz_cmp_si(result, 0) == 0, "mpz cmp si should succeed");
 
     /* 极小值接近零 */
     double_to_mpz_scaled(1e-15, result, 1000);
-    TEST_ASSERT(mpz_cmp_si(result, 0) == 0);
+    TEST_ASSERT(mpz_cmp_si(result, 0) == 0, "mpz cmp si should succeed");
 
     mpz_clear(result);
 }
@@ -392,18 +392,18 @@ static void test_coord_to_mpz_scaled(void) {
 
     /* RATIONAL: 3/1 * 1000 = 3000 */
     SymbolicCoord *c = symbolic_coord_create_rational(3, 1);
-    TEST_ASSERT(coord_to_mpz_scaled(c, result, 1000));
-    TEST_ASSERT(mpz_cmp_si(result, 3000) == 0);
+    TEST_ASSERT(coord_to_mpz_scaled(c, result, 1000), "coord to mpz scaled should succeed");
+    TEST_ASSERT(mpz_cmp_si(result, 3000) == 0, "mpz cmp si should succeed");
     symbolic_coord_destroy(c);
 
     /* RATIONAL: -5/2 * 1000 = -2500 */
     c = symbolic_coord_create_rational(-5, 2);
-    TEST_ASSERT(coord_to_mpz_scaled(c, result, 1000));
-    TEST_ASSERT(mpz_cmp_si(result, -2500) == 0);
+    TEST_ASSERT(coord_to_mpz_scaled(c, result, 1000), "coord to mpz scaled should succeed");
+    TEST_ASSERT(mpz_cmp_si(result, -2500) == 0, "mpz cmp si should succeed");
     symbolic_coord_destroy(c);
 
     /* NULL 输入 */
-    TEST_ASSERT(!coord_to_mpz_scaled(NULL, result, 1000));
+    TEST_ASSERT(!coord_to_mpz_scaled(NULL, result, 1000), "coord to mpz scaled should fail for invalid input");
 
     mpz_clear(result);
 }
@@ -417,17 +417,17 @@ static void test_is_out_of_scope(void) {
 
     /* degree 1 -> in scope */
     TEST_ASSERT_EQ(make_linear_poly(&poly, 1, 0), 0);
-    TEST_ASSERT(!is_out_of_scope(&poly));
+    TEST_ASSERT(!is_out_of_scope(&poly), "is out of scope should fail for invalid input");
     mpz_poly_clear(&poly);
 
     /* degree 2 -> in scope */
     TEST_ASSERT_EQ(make_quadratic_poly(&poly, 1, 0, -4), 0);
-    TEST_ASSERT(!is_out_of_scope(&poly));
+    TEST_ASSERT(!is_out_of_scope(&poly), "is out of scope should fail for invalid input");
     mpz_poly_clear(&poly);
 
     /* degree 3 -> in scope */
     TEST_ASSERT_EQ(make_cubic_poly(&poly, 1, 0, 0, -8), 0);
-    TEST_ASSERT(!is_out_of_scope(&poly));
+    TEST_ASSERT(!is_out_of_scope(&poly), "is out of scope should fail for invalid input");
     mpz_poly_clear(&poly);
 
     /* degree 4 -> in scope */
@@ -438,7 +438,7 @@ static void test_is_out_of_scope(void) {
         mpz_init_set_si(poly.coeffs[i], 0);
     mpz_set_si(poly.coeffs[4], 1);
     mpz_set_si(poly.coeffs[0], -16);
-    TEST_ASSERT(!is_out_of_scope(&poly));
+    TEST_ASSERT(!is_out_of_scope(&poly), "is out of scope should fail for invalid input");
     mpz_poly_clear(&poly);
 
     /* degree 5 -> out of scope */
@@ -448,7 +448,7 @@ static void test_is_out_of_scope(void) {
     for (int i = 0; i <= 5; i++)
         mpz_init_set_si(poly.coeffs[i], 0);
     mpz_set_si(poly.coeffs[5], 1);
-    TEST_ASSERT(is_out_of_scope(&poly));
+    TEST_ASSERT(is_out_of_scope(&poly), "is out of scope should succeed");
     mpz_poly_clear(&poly);
 }
 
@@ -461,7 +461,7 @@ static void test_try_factor_polynomial(void) {
 
     /* x^2 - 1 = (x-1)(x+1), degree=2, should fail (degree < 3) */
     TEST_ASSERT_EQ(make_quadratic_poly(&poly, 1, 0, -1), 0);
-    TEST_ASSERT(!try_factor_polynomial(&poly, &f1, &f2));
+    TEST_ASSERT(!try_factor_polynomial(&poly, &f1, &f2), "try factor polynomial should fail for invalid input");
     mpz_poly_clear(&poly);
 
     /* x^3 - x = x*(x^2 - 1) = x*(x-1)*(x+1), 常数项为 0  -> 提取 x */
@@ -472,11 +472,11 @@ static void test_try_factor_polynomial(void) {
     mpz_init_set_si(poly.coeffs[2], 0);  /* 0 */
     mpz_init_set_si(poly.coeffs[1], -1); /* -x */
     mpz_init_set_si(poly.coeffs[0], 0);  /* 0 */
-    TEST_ASSERT(try_factor_polynomial(&poly, &f1, &f2));
+    TEST_ASSERT(try_factor_polynomial(&poly, &f1, &f2), "try factor polynomial should succeed");
     /* f1 = x (coeffs: [0, 1]) */
     TEST_ASSERT_EQ(f1.degree, 1);
-    TEST_ASSERT(mpz_cmp_si(f1.coeffs[0], 0) == 0);
-    TEST_ASSERT(mpz_cmp_si(f1.coeffs[1], 1) == 0);
+    TEST_ASSERT(mpz_cmp_si(f1.coeffs[0], 0) == 0, "mpz cmp si should succeed");
+    TEST_ASSERT(mpz_cmp_si(f1.coeffs[1], 1) == 0, "mpz cmp si should succeed");
     /* f2 = x^2 - 1 */
     TEST_ASSERT_EQ(f2.degree, 2);
     mpz_poly_clear(&f1);
@@ -491,11 +491,11 @@ static void test_try_factor_polynomial(void) {
     mpz_init_set_si(poly.coeffs[2], 0);  /* 0 */
     mpz_init_set_si(poly.coeffs[1], 0);  /* 0 */
     mpz_init_set_si(poly.coeffs[0], -8); /* -8 */
-    TEST_ASSERT(try_factor_polynomial(&poly, &f1, &f2));
+    TEST_ASSERT(try_factor_polynomial(&poly, &f1, &f2), "try factor polynomial should succeed");
     TEST_ASSERT_EQ(f1.degree, 1);
     /* f1 = (x - 2) -> coeffs: [-2, 1] */
-    TEST_ASSERT(mpz_cmp_si(f1.coeffs[0], -2) == 0);
-    TEST_ASSERT(mpz_cmp_si(f1.coeffs[1], 1) == 0);
+    TEST_ASSERT(mpz_cmp_si(f1.coeffs[0], -2) == 0, "mpz cmp si should succeed");
+    TEST_ASSERT(mpz_cmp_si(f1.coeffs[1], 1) == 0, "mpz cmp si should succeed");
     mpz_poly_clear(&f1);
     mpz_poly_clear(&f2);
     mpz_poly_clear(&poly);
@@ -508,11 +508,11 @@ static void test_try_factor_polynomial(void) {
     mpz_init_set_si(poly.coeffs[2], 1);
     mpz_init_set_si(poly.coeffs[1], 1);
     mpz_init_set_si(poly.coeffs[0], 1);
-    TEST_ASSERT(try_factor_polynomial(&poly, &f1, &f2));
+    TEST_ASSERT(try_factor_polynomial(&poly, &f1, &f2), "try factor polynomial should succeed");
     TEST_ASSERT_EQ(f1.degree, 1);
     /* f1 = (x + 1) -> coeffs: [1, 1] 即 (x - (-1)) */
-    TEST_ASSERT(mpz_cmp_si(f1.coeffs[0], 1) == 0); /* -(-1) = 1 */
-    TEST_ASSERT(mpz_cmp_si(f1.coeffs[1], 1) == 0);
+    TEST_ASSERT(mpz_cmp_si(f1.coeffs[0], 1) == 0, "mpz cmp si should succeed"); /* -(-1) = 1 */
+    TEST_ASSERT(mpz_cmp_si(f1.coeffs[1], 1) == 0, "mpz cmp si should succeed");
     mpz_poly_clear(&f1);
     mpz_poly_clear(&f2);
     mpz_poly_clear(&poly);
@@ -525,7 +525,7 @@ static void test_try_factor_polynomial(void) {
     mpz_init_set_si(poly.coeffs[2], 0);
     mpz_init_set_si(poly.coeffs[1], 1);
     mpz_init_set_si(poly.coeffs[0], 1);
-    TEST_ASSERT(!try_factor_polynomial(&poly, &f1, &f2));
+    TEST_ASSERT(!try_factor_polynomial(&poly, &f1, &f2), "try factor polynomial should fail for invalid input");
     mpz_poly_clear(&poly);
 }
 
@@ -538,7 +538,7 @@ static void test_check_incompatible_distances(void) {
     TEST_ASSERT_NOT_NULL(g);
 
     /* 空图 -> 无矛盾 */
-    TEST_ASSERT(!check_incompatible_distances(g));
+    TEST_ASSERT(!check_incompatible_distances(g), "check incompatible distances should fail for invalid input");
 
     /* 创建一条线段 */
     int p1 = add_rpoint(g, 0, 1, 0, 1);
@@ -577,7 +577,7 @@ static void test_check_contradiction(void) {
     equation_system_init(&sys);
 
     /* 空系统 -> 无矛盾 */
-    TEST_ASSERT(!check_contradiction_after_substitution(&sys));
+    TEST_ASSERT(!check_contradiction_after_substitution(&sys), "check contradiction after substitution should fail for invalid input");
 
     /* degree 0 且系数非零 -> 矛盾 */
     {
@@ -589,7 +589,7 @@ static void test_check_contradiction(void) {
         equation_system_push(&sys, poly, 1, 0);
         mpz_poly_clear(&poly);
     }
-    TEST_ASSERT(check_contradiction_after_substitution(&sys));
+    TEST_ASSERT(check_contradiction_after_substitution(&sys), "check contradiction after substitution should succeed");
     equation_system_clear(&sys);
 
     /* degree 0 且系数为零 -> 无矛盾（0=0 是恒等式） */
@@ -602,7 +602,7 @@ static void test_check_contradiction(void) {
         equation_system_push(&sys, poly, 1, 0);
         mpz_poly_clear(&poly);
     }
-    TEST_ASSERT(!check_contradiction_after_substitution(&sys));
+    TEST_ASSERT(!check_contradiction_after_substitution(&sys), "check contradiction after substitution should fail for invalid input");
 
     /* degree 1 且系数不为零 -> 无矛盾（有解） */
     {
@@ -615,7 +615,7 @@ static void test_check_contradiction(void) {
         equation_system_push(&sys, poly, 1, 0);
         mpz_poly_clear(&poly);
     }
-    TEST_ASSERT(!check_contradiction_after_substitution(&sys));
+    TEST_ASSERT(!check_contradiction_after_substitution(&sys), "check contradiction after substitution should fail for invalid input");
 
     equation_system_clear(&sys);
 }
@@ -721,7 +721,7 @@ static void test_quadratic_exact_overflow(void) {
     mpz_init_set_str(poly.coeffs[0], "-4000000000000", 10);
     int n = solve_quadratic_exact(&poly, solutions, 2);
     /* 至少应返回 0（安全失败）或正常解 */
-    TEST_ASSERT(n >= 0);
+    TEST_ASSERT(n >= 0, "n should be valid");
     if (n >= 1 && solutions[0])
         symbolic_coord_destroy(solutions[0]);
     if (n >= 2 && solutions[1])
@@ -741,7 +741,7 @@ static void test_cubic_exact_basic(void) {
     /* x^3 - 8 = 0 -> 一个实根 x~=2 */
     TEST_ASSERT_EQ(make_cubic_poly(&poly, 1, 0, 0, -8), 0);
     n = solve_cubic_exact(&poly, solutions, 3);
-    TEST_ASSERT(n >= 1);
+    TEST_ASSERT(n >= 1, "n should be valid");
     for (int i = 0; i < n; i++) {
         if (solutions[i])
             symbolic_coord_destroy(solutions[i]);
@@ -783,7 +783,7 @@ static void test_solve_equations_pass(void) {
     solve_equations_pass(&sys, result, &solved, &multi, &no_sol, false);
 
     /* 应至少解出一个 */
-    TEST_ASSERT(solved >= 1);
+    TEST_ASSERT(solved >= 1, "solved should be valid");
 
     cleanup_groebner_result(result);
     lv_free((void **) &result);
@@ -806,8 +806,8 @@ static void test_poly_eval_symbolic(void) {
     TEST_ASSERT_NOT_NULL(result);
 
     double d;
-    TEST_ASSERT(coord_to_double(result, &d));
-    TEST_ASSERT(fabs(d - 2.0) < 1e-6);
+    TEST_ASSERT(coord_to_double(result, &d), "coord to double should succeed");
+    TEST_ASSERT(fabs(d - 2.0) < 1e-6, "fabs should succeed");
 
     symbolic_coord_destroy(val);
     symbolic_coord_destroy(result);
@@ -829,16 +829,16 @@ static void test_point_coord(void) {
     TEST_ASSERT_NOT_NULL(pt);
 
     double x, y;
-    TEST_ASSERT(point_coord(pt, 0, &x));
-    TEST_ASSERT(fabs(x - 3.0) < 1e-12);
-    TEST_ASSERT(point_coord(pt, 1, &y));
-    TEST_ASSERT(fabs(y - 7.0) < 1e-12);
+    TEST_ASSERT(point_coord(pt, 0, &x), "point coord should succeed");
+    TEST_ASSERT(fabs(x - 3.0) < 1e-12, "fabs should succeed");
+    TEST_ASSERT(point_coord(pt, 1, &y), "point coord should succeed");
+    TEST_ASSERT(fabs(y - 7.0) < 1e-12, "fabs should succeed");
 
     /* 超出范围的索引 */
-    TEST_ASSERT(!point_coord(pt, 5, &x));
+    TEST_ASSERT(!point_coord(pt, 5, &x), "point coord should fail for invalid input");
 
     /* NULL 输入 */
-    TEST_ASSERT(!point_coord(NULL, 0, &x));
+    TEST_ASSERT(!point_coord(NULL, 0, &x), "point coord should fail for invalid input");
 
     graph_destroy(g);
 }
@@ -861,27 +861,27 @@ static void test_line_from_two_points(void) {
     struct {
         double a, b, c;
     } le;
-    TEST_ASSERT(line_from_two_points(pt1, pt2, &le));
+    TEST_ASSERT(line_from_two_points(pt1, pt2, &le), "line from two points should succeed");
     /* 水平线 y=0 -> a=0, b=-1, c=0 */
-    TEST_ASSERT(fabs(le.a) < 1e-12);
-    TEST_ASSERT(fabs(le.b + 1.0) < 1e-12);
+    TEST_ASSERT(fabs(le.a) < 1e-12, "fabs should succeed");
+    TEST_ASSERT(fabs(le.b + 1.0) < 1e-12, "fabs should succeed");
 
     /* 垂直线：两个点 x 相同 */
     int p3 = add_rpoint(g, 0, 1, 0, 1);
     int p4 = add_rpoint(g, 0, 1, 1, 1);
     GeomNode *pt3 = graph_get_node(g, p3);
     GeomNode *pt4 = graph_get_node(g, p4);
-    TEST_ASSERT(line_from_two_points(pt3, pt4, &le));
+    TEST_ASSERT(line_from_two_points(pt3, pt4, &le), "line from two points should succeed");
     /* 垂直线 x=0 -> a=1, b=0, c=0 */
-    TEST_ASSERT(fabs(le.a - 1.0) < 1e-12);
-    TEST_ASSERT(fabs(le.b) < 1e-12);
+    TEST_ASSERT(fabs(le.a - 1.0) < 1e-12, "fabs should succeed");
+    TEST_ASSERT(fabs(le.b) < 1e-12, "fabs should succeed");
 
     /* 重合点 -> 失败 */
-    TEST_ASSERT(!line_from_two_points(pt1, pt1, &le));
+    TEST_ASSERT(!line_from_two_points(pt1, pt1, &le), "line from two points should fail for invalid input");
 
     /* NULL 输入 */
-    TEST_ASSERT(!line_from_two_points(NULL, pt2, &le));
-    TEST_ASSERT(!line_from_two_points(pt1, NULL, &le));
+    TEST_ASSERT(!line_from_two_points(NULL, pt2, &le), "line from two points should fail for invalid input");
+    TEST_ASSERT(!line_from_two_points(pt1, NULL, &le), "line from two points should fail for invalid input");
 
     graph_destroy(g);
 }
@@ -898,7 +898,7 @@ static void test_extract_equations_full_basic(void) {
     int p1 = add_rpoint(g, 0, 1, 0, 1);
     int p2 = add_rpoint(g, 3, 1, 0, 1);
     int p3 = add_rpoint(g, 0, 1, 4, 1);
-    TEST_ASSERT(p1 >= 0 && p2 >= 0 && p3 >= 0);
+    TEST_ASSERT(p1 >= 0 && p2 >= 0 && p3 >= 0, "p1 should be valid");
 
     /* 创建线段 */
     int s1 = graph_add_line_segment(g, p1, p2);
@@ -916,7 +916,7 @@ static void test_extract_equations_full_basic(void) {
     /* 提取方程 */
     EquationSystem *sys = equation_system_create();
     int count = solver_extract_equations_full(g, sys);
-    TEST_ASSERT(count >= 0);
+    TEST_ASSERT(count >= 0, "count should be valid");
     TEST_ASSERT_EQ(equation_system_count(sys), count);
 
     equation_system_destroy(sys);
@@ -948,7 +948,7 @@ static void test_extract_equations_full_connection(void) {
 
     EquationSystem *sys = equation_system_create();
     int count = solver_extract_equations_full(g, sys);
-    TEST_ASSERT(count >= 0);
+    TEST_ASSERT(count >= 0, "count should be valid");
 
     equation_system_destroy(sys);
     graph_destroy(g);
@@ -966,17 +966,17 @@ static void test_eliminate_geometry_basic(void) {
 
     int elim_ids[] = {p2};
     SolverStatus st = eliminate_geometry(g, p1, elim_ids, 1);
-    TEST_ASSERT(st == SOLVER_STATUS_OK);
+    TEST_ASSERT(st == SOLVER_STATUS_OK, "st should equal SOLVER_STATUS_OK");
 
     /* NULL / 空输入 */
     st = eliminate_geometry(NULL, p1, elim_ids, 1);
-    TEST_ASSERT(st == SOLVER_STATUS_OK);
+    TEST_ASSERT(st == SOLVER_STATUS_OK, "st should equal SOLVER_STATUS_OK");
 
     st = eliminate_geometry(g, p1, NULL, 1);
-    TEST_ASSERT(st == SOLVER_STATUS_OK);
+    TEST_ASSERT(st == SOLVER_STATUS_OK, "st should equal SOLVER_STATUS_OK");
 
     st = eliminate_geometry(g, p1, elim_ids, 0);
-    TEST_ASSERT(st == SOLVER_STATUS_OK);
+    TEST_ASSERT(st == SOLVER_STATUS_OK, "st should equal SOLVER_STATUS_OK");
 
     graph_destroy(g);
 }
@@ -994,14 +994,14 @@ static void test_analyze_out_of_scope_basic(void) {
     char *suggestion = NULL;
     SolverStatus st = analyze_out_of_scope(g, p1, &suggestion);
     /* 对简单的图没有可因式分解的高次方程 */
-    TEST_ASSERT(st == SOLVER_STATUS_OUT_OF_SCOPE);
+    TEST_ASSERT(st == SOLVER_STATUS_OUT_OF_SCOPE, "st should equal SOLVER_STATUS_OUT_OF_SCOPE");
     if (suggestion) {
         lv_free((void **) &suggestion);
     }
 
     /* NULL 输入 */
     st = analyze_out_of_scope(NULL, p1, &suggestion);
-    TEST_ASSERT(st == SOLVER_STATUS_OUT_OF_SCOPE);
+    TEST_ASSERT(st == SOLVER_STATUS_OUT_OF_SCOPE, "st should equal SOLVER_STATUS_OUT_OF_SCOPE");
     if (suggestion) {
         lv_free((void **) &suggestion);
     }
@@ -1058,12 +1058,12 @@ static void test_groebner_basis_compute(void) {
     /* 空系统 */
     EquationSystem *sys = equation_system_create();
     SolverStatus st = groebner_basis_compute(sys);
-    TEST_ASSERT(st == SOLVER_STATUS_OK);
+    TEST_ASSERT(st == SOLVER_STATUS_OK, "st should equal SOLVER_STATUS_OK");
     equation_system_destroy(sys);
 
     /* NULL 输入 */
     st = groebner_basis_compute(NULL);
-    TEST_ASSERT(st == SOLVER_STATUS_OK);
+    TEST_ASSERT(st == SOLVER_STATUS_OK, "st should equal SOLVER_STATUS_OK");
 }
 
 /* ================================================================== */
@@ -1079,7 +1079,7 @@ static void test_compute_algebraic_resultant(void) {
     TEST_ASSERT_EQ(make_linear_poly(&p, 1, -2), 0); /* x - 2 */
     TEST_ASSERT_EQ(make_linear_poly(&q, 1, -3), 0); /* x - 3 */
 
-    TEST_ASSERT(compute_algebraic_resultant(&p, &q, ALG_OP_SUM, &result));
+    TEST_ASSERT(compute_algebraic_resultant(&p, &q, ALG_OP_SUM, &result), "compute algebraic resultant should succeed");
     if (result.degree >= 0) {
         mpz_poly_clear(&result);
     }
@@ -1088,7 +1088,7 @@ static void test_compute_algebraic_resultant(void) {
 
     /* NULL 输入的处理 */
     TEST_ASSERT_EQ(make_linear_poly(&p, 1, -2), 0);
-    TEST_ASSERT(!compute_algebraic_resultant(NULL, &p, ALG_OP_SUM, &result));
+    TEST_ASSERT(!compute_algebraic_resultant(NULL, &p, ALG_OP_SUM, &result), "compute algebraic resultant should fail for invalid input");
     mpz_poly_clear(&p);
 }
 
@@ -1114,7 +1114,7 @@ static void test_substitute_solved(void) {
     TEST_ASSERT_NOT_NULL(p);
     if (p->degree >= 0) {
         double val = mpz_get_d(p->coeffs[0]);
-        TEST_ASSERT(fabs(val) < 1e-9);
+        TEST_ASSERT(fabs(val) < 1e-9, "fabs should succeed");
     }
 
     equation_system_clear(&sys);
@@ -1135,7 +1135,7 @@ static void test_extract_from_constraints(void) {
     EquationSystem sys;
     equation_system_init(&sys);
     extract_equations_from_constraints(g, &sys);
-    TEST_ASSERT(sys.count >= 0);
+    TEST_ASSERT(sys.count >= 0, "count should be valid");
 
     equation_system_clear(&sys);
     graph_destroy(g);

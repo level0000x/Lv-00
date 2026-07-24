@@ -127,6 +127,15 @@ int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text);
 int lv_text_code_delete(lvTextCodeView *view, int pos, int len);
 int lv_text_code_render(const lvTextCodeView *view, char *buffer, size_t size);
 
+/* ---- Geometry Canvas API ---- */
+lvGeometryCanvas *lv_geometry_canvas_create(void);
+void lv_geometry_canvas_destroy(lvGeometryCanvas *canvas);
+int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char *label, const double *coords, int coord_count);
+int lv_geometry_canvas_remove_entity(lvGeometryCanvas *canvas, int id);
+int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas, int entity_a_id, int entity_b_id, const char *label);
+int lv_geometry_canvas_fit_view(lvGeometryCanvas *canvas);
+char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas);
+
 /* ---- Node Graph View API ---- */
 lvNodeGraphView *lv_node_graph_create(void);
 void lv_node_graph_destroy(lvNodeGraphView *graph);
@@ -136,6 +145,14 @@ int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id,
 int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id);
 lvGraphNode *lv_node_graph_find_node(lvNodeGraphView *graph, int id);
 int lv_node_graph_layout(lvNodeGraphView *graph);
+
+/* ---- Block Canvas View API ---- */
+lvBlockCanvasView *lv_block_canvas_create(void);
+void lv_block_canvas_destroy(lvBlockCanvasView *canvas);
+int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, double x, double y, double width, double height, int type, int input_count, int output_count);
+int lv_block_canvas_remove_block(lvBlockCanvasView *canvas, int block_id);
+int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id, int from_port_id, int to_block_id, int to_port_id);
+char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas);
 
 #ifdef __cplusplus
 }

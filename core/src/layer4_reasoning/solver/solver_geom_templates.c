@@ -65,7 +65,7 @@ int count_point_variables(const ConstraintGraph *graph, int **out_ids);
 /*  内部: 几何推理消元模板 - 相似三角形                                 */
 /* ================================================================== */
 
-static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
+int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
     if (!graph || !sys)
         return 0;
     int added = 0;
@@ -319,7 +319,7 @@ static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
 /*  内部: 几何推理消元模板 - 平行线截割 (Parallel cut)                  */
 /* ================================================================== */
 
-static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
+int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
     int added = 0;
 
     for (int i = 0; i < graph->node_count; i++) {

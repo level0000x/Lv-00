@@ -67,9 +67,9 @@ char *mpz_poly_get_str(const mpz_poly_t *p);
 bool debug_is_debug_mode(void);
 
 /* 几何模板函数（在 solver_geom_templates.c 中） */
-static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys);
-static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys);
-static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys);
+int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys);
+int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys);
+int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys);
 
 /* 流式上下文 */
 lv_DECLARE_STREAM_CTX(solver);

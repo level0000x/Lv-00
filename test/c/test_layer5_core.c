@@ -134,8 +134,8 @@ static void test_rune_sequence_growth(void) {
 
     /* 向 NULL 序列添加 */
     Rune *x = rune_create_rational(0, 1, ELEMENT_NONE);
-    TEST_ASSERT(!rune_sequence_add(NULL, x));
-    TEST_ASSERT(!rune_sequence_add(seq, NULL));
+    TEST_ASSERT(!rune_sequence_add(NULL, x), "rune sequence add should fail for invalid input");
+    TEST_ASSERT(!rune_sequence_add(seq, NULL), "rune sequence add should fail for invalid input");
     rune_destroy(x);
 
     rune_sequence_destroy(seq);
@@ -173,9 +173,9 @@ static void test_magic_array_all_constraint_types(void) {
     TEST_ASSERT_EQ(magic_array_add_constraint(NULL, ARRAY_CONNECTION, 0, 1), -1);
 
     /* 移除约束边界 */
-    TEST_ASSERT(!magic_array_remove_constraint(arr, -1));
-    TEST_ASSERT(!magic_array_remove_constraint(arr, 99));
-    TEST_ASSERT(!magic_array_remove_constraint(NULL, 0));
+    TEST_ASSERT(!magic_array_remove_constraint(arr, -1), "magic array remove constraint should fail for invalid input");
+    TEST_ASSERT(!magic_array_remove_constraint(arr, 99), "magic array remove constraint should fail for invalid input");
+    TEST_ASSERT(!magic_array_remove_constraint(NULL, 0), "magic array remove constraint should fail for invalid input");
 
     rune_destroy(r1);
     rune_destroy(r2);
@@ -256,9 +256,9 @@ static void test_magic_array_merge_edge(void) {
     MagicArray *src = magic_array_create();
 
     /* NULL 合并 */
-    TEST_ASSERT(!magic_array_merge(NULL, src));
-    TEST_ASSERT(!magic_array_merge(dest, NULL));
-    TEST_ASSERT(!magic_array_merge(NULL, NULL));
+    TEST_ASSERT(!magic_array_merge(NULL, src), "magic array merge should fail for invalid input");
+    TEST_ASSERT(!magic_array_merge(dest, NULL), "magic array merge should fail for invalid input");
+    TEST_ASSERT(!magic_array_merge(NULL, NULL), "magic array merge should fail for invalid input");
 
     /* 空源合并 */
     TEST_ASSERT(magic_array_merge(dest, src), "empty merge");
@@ -432,47 +432,47 @@ static void test_spell_config_boundary(void) {
     Spell *spell = spell_create("Boundary Test");
 
     /* 难度边界 */
-    TEST_ASSERT(spell_set_difficulty(spell, 0)); /* 截断到 1 */
+    TEST_ASSERT(spell_set_difficulty(spell, 0), "spell set difficulty should succeed"); /* 截断到 1 */
     TEST_ASSERT_EQ(spell_get_difficulty(spell), 1);
-    TEST_ASSERT(spell_set_difficulty(spell, 11)); /* 截断到 10 */
+    TEST_ASSERT(spell_set_difficulty(spell, 11), "spell set difficulty should succeed"); /* 截断到 10 */
     TEST_ASSERT_EQ(spell_get_difficulty(spell), 10);
-    TEST_ASSERT(spell_set_difficulty(spell, 5));
+    TEST_ASSERT(spell_set_difficulty(spell, 5), "spell set difficulty should succeed");
     TEST_ASSERT_EQ(spell_get_difficulty(spell), 5);
-    TEST_ASSERT(!spell_set_difficulty(NULL, 5));
+    TEST_ASSERT(!spell_set_difficulty(NULL, 5), "spell set difficulty should fail for invalid input");
 
     /* 输出数边界 */
-    TEST_ASSERT(spell_set_output_count(spell, 0));
+    TEST_ASSERT(spell_set_output_count(spell, 0), "spell set output count should succeed");
     TEST_ASSERT_EQ(spell_get_output_count(spell), 0);
-    TEST_ASSERT(!spell_set_output_count(spell, -1));
+    TEST_ASSERT(!spell_set_output_count(spell, -1), "spell set output count should fail for invalid input");
 
     /* 提纯边界 */
-    TEST_ASSERT(spell_configure_purifying(spell, ELEMENT_FIRE, -0.5)); /* 截断到 0 */
-    TEST_ASSERT(spell_configure_purifying(spell, ELEMENT_FIRE, 1.5));  /* 截断到 1 */
+    TEST_ASSERT(spell_configure_purifying(spell, ELEMENT_FIRE, -0.5), "spell configure purifying should succeed"); /* 截断到 0 */
+    TEST_ASSERT(spell_configure_purifying(spell, ELEMENT_FIRE, 1.5), "spell configure purifying should succeed");  /* 截断到 1 */
 
     /* 阈值边界 */
-    TEST_ASSERT(spell_configure_infusing(spell, 0)); /* 无效 → T2 默认 */
-    TEST_ASSERT(spell_configure_infusing(spell, 7)); /* 无效 → T2 默认 */
-    TEST_ASSERT(spell_configure_infusing(spell, 3)); /* T3 */
+    TEST_ASSERT(spell_configure_infusing(spell, 0), "spell configure infusing should succeed"); /* 无效 → T2 默认 */
+    TEST_ASSERT(spell_configure_infusing(spell, 7), "spell configure infusing should succeed"); /* 无效 → T2 默认 */
+    TEST_ASSERT(spell_configure_infusing(spell, 3), "spell configure infusing should succeed"); /* T3 */
 
     /* 释放范围边界 */
-    TEST_ASSERT(spell_configure_releasing(spell, -1, -1));
+    TEST_ASSERT(spell_configure_releasing(spell, -1, -1), "spell configure releasing should succeed");
 
     /* 空描述/名称 */
-    TEST_ASSERT(spell_set_description(spell, ""));
+    TEST_ASSERT(spell_set_description(spell, ""), "spell set description should succeed");
     TEST_ASSERT_STR_EQ(spell_get_description(spell), "");
-    TEST_ASSERT(!spell_set_description(NULL, "desc"));
-    TEST_ASSERT(!spell_set_description(spell, NULL));
+    TEST_ASSERT(!spell_set_description(NULL, "desc"), "spell set description should fail for invalid input");
+    TEST_ASSERT(!spell_set_description(spell, NULL), "spell set description should fail for invalid input");
 
     /* 设置输入/输出 NULL */
-    TEST_ASSERT(!spell_set_input_count(NULL, 5));
-    TEST_ASSERT(!spell_set_output_count(NULL, 5));
+    TEST_ASSERT(!spell_set_input_count(NULL, 5), "spell set input count should fail for invalid input");
+    TEST_ASSERT(!spell_set_output_count(NULL, 5), "spell set output count should fail for invalid input");
 
     /* 配置 molding 为 NULL */
-    TEST_ASSERT(!spell_configure_molding(NULL, NULL));
-    TEST_ASSERT(!spell_configure_molding(spell, NULL));
+    TEST_ASSERT(!spell_configure_molding(NULL, NULL), "spell configure molding should fail for invalid input");
+    TEST_ASSERT(!spell_configure_molding(spell, NULL), "spell configure molding should fail for invalid input");
 
     /* 验证结构：无开模符文 → 不合法 */
-    TEST_ASSERT(!spell_validate_structure(spell));
+    TEST_ASSERT(!spell_validate_structure(spell), "spell validate structure should fail for invalid input");
 
     spell_destroy(spell);
 }
@@ -483,15 +483,15 @@ static void test_spell_element_compatibility(void) {
     spell_configure_purifying(spell, ELEMENT_FIRE, 0.8);
 
     /* FIRE vs WATER = 冲突 → 不兼容 */
-    TEST_ASSERT(!spell_check_element_compatibility(spell, ELEMENT_WATER));
+    TEST_ASSERT(!spell_check_element_compatibility(spell, ELEMENT_WATER), "spell check element compatibility should fail for invalid input");
     /* FIRE vs AIR = 增强 → 兼容 */
-    TEST_ASSERT(spell_check_element_compatibility(spell, ELEMENT_AIR));
+    TEST_ASSERT(spell_check_element_compatibility(spell, ELEMENT_AIR), "spell check element compatibility should succeed");
     /* FIRE vs EARTH = 增强 → 兼容 */
-    TEST_ASSERT(spell_check_element_compatibility(spell, ELEMENT_EARTH));
+    TEST_ASSERT(spell_check_element_compatibility(spell, ELEMENT_EARTH), "spell check element compatibility should succeed");
     /* FIRE vs FIRE = 无反应 → 兼容 */
-    TEST_ASSERT(spell_check_element_compatibility(spell, ELEMENT_FIRE));
+    TEST_ASSERT(spell_check_element_compatibility(spell, ELEMENT_FIRE), "spell check element compatibility should succeed");
     /* NULL 咒语 */
-    TEST_ASSERT(!spell_check_element_compatibility(NULL, ELEMENT_FIRE));
+    TEST_ASSERT(!spell_check_element_compatibility(NULL, ELEMENT_FIRE), "spell check element compatibility should fail for invalid input");
 
     spell_destroy(spell);
 }
@@ -513,37 +513,37 @@ static void test_domain_deep(void) {
     TEST_ASSERT_EQ(domain_get_strength(d), 0.0);
 
     /* 添加重复规则 */
-    TEST_ASSERT(domain_add_rule(d, "no_fire", 1.0));
-    TEST_ASSERT(domain_add_rule(d, "no_fire", 2.0)); /* 重复，跳过 */
-    TEST_ASSERT(domain_add_rule(d, "no_water", 0.5));
-    TEST_ASSERT(domain_add_rule(d, "no_earth", 1.5));
+    TEST_ASSERT(domain_add_rule(d, "no_fire", 1.0), "domain add rule should succeed");
+    TEST_ASSERT(domain_add_rule(d, "no_fire", 2.0), "domain add rule should succeed"); /* 重复，跳过 */
+    TEST_ASSERT(domain_add_rule(d, "no_water", 0.5), "domain add rule should succeed");
+    TEST_ASSERT(domain_add_rule(d, "no_earth", 1.5), "domain add rule should succeed");
 
     /* 用坐标激活 */
     SymbolicCoord *center = symbolic_coord_create_rational(0, 1);
-    TEST_ASSERT(domain_activate(d, center));
-    TEST_ASSERT(domain_is_active(d));
-    TEST_ASSERT(domain_get_strength(d) > 0.0);
+    TEST_ASSERT(domain_activate(d, center), "domain activate should succeed");
+    TEST_ASSERT(domain_is_active(d), "domain is active should succeed");
+    TEST_ASSERT(domain_get_strength(d) > 0.0, "domain get strength should succeed");
     TEST_ASSERT_NOT_NULL(domain_get_center(d));
 
     /* 再次激活 — 替换中心 */
     SymbolicCoord *c2 = symbolic_coord_create_rational(10, 1);
-    TEST_ASSERT(domain_activate(d, c2));
+    TEST_ASSERT(domain_activate(d, c2), "domain activate should succeed");
 
     /* 停用 */
-    TEST_ASSERT(domain_deactivate(d));
-    TEST_ASSERT(!domain_is_active(d));
+    TEST_ASSERT(domain_deactivate(d), "domain deactivate should succeed");
+    TEST_ASSERT(!domain_is_active(d), "domain is active should fail for invalid input");
     TEST_ASSERT_EQ(domain_get_strength(d), 0.0);
 
     /* NULL 安全 */
-    TEST_ASSERT(!domain_is_active(NULL));
+    TEST_ASSERT(!domain_is_active(NULL), "domain is active should fail for invalid input");
     TEST_ASSERT_EQ(domain_get_strength(NULL), 0.0);
     TEST_ASSERT_NULL(domain_get_name(NULL));
     TEST_ASSERT_EQ(domain_get_range(NULL), 0);
     TEST_ASSERT_NULL(domain_get_center(NULL));
-    TEST_ASSERT(!domain_activate(NULL, center));
-    TEST_ASSERT(!domain_deactivate(NULL));
-    TEST_ASSERT(!domain_add_rule(NULL, "x", 1.0));
-    TEST_ASSERT(!domain_add_rule(d, NULL, 1.0));
+    TEST_ASSERT(!domain_activate(NULL, center), "domain activate should fail for invalid input");
+    TEST_ASSERT(!domain_deactivate(NULL), "domain deactivate should fail for invalid input");
+    TEST_ASSERT(!domain_add_rule(NULL, "x", 1.0), "domain add rule should fail for invalid input");
+    TEST_ASSERT(!domain_add_rule(d, NULL, 1.0), "domain add rule should fail for invalid input");
 
     symbolic_coord_destroy(center);
     symbolic_coord_destroy(c2);
@@ -559,22 +559,22 @@ static void test_incantation_all_goals(void) {
     /* speed */
     prof = incantation_optimize("speed", 0.0);
     TEST_ASSERT_EQ(prof.length, INCANTATION_SHORT);
-    TEST_ASSERT(prof.speed > 0.9);
-    TEST_ASSERT(prof.precision < 0.6);
-    TEST_ASSERT(prof.stealth > 0.8);
+    TEST_ASSERT(prof.speed > 0.9, "speed should be valid");
+    TEST_ASSERT(prof.precision < 0.6, "condition should be true: prof.precision < 0.6");
+    TEST_ASSERT(prof.stealth > 0.8, "stealth should be valid");
 
     /* precision */
     prof = incantation_optimize("precision", 0.0);
     TEST_ASSERT_EQ(prof.length, INCANTATION_LONG);
-    TEST_ASSERT(prof.precision > 0.9);
-    TEST_ASSERT(prof.speed < 0.5);
-    TEST_ASSERT(prof.stealth < 0.4);
+    TEST_ASSERT(prof.precision > 0.9, "precision should be valid");
+    TEST_ASSERT(prof.speed < 0.5, "condition should be true: prof.speed < 0.5");
+    TEST_ASSERT(prof.stealth < 0.4, "condition should be true: prof.stealth < 0.4");
 
     /* stealth */
     prof = incantation_optimize("stealth", 0.0);
     TEST_ASSERT_EQ(prof.length, INCANTATION_SHORT);
-    TEST_ASSERT(prof.stealth > 0.9);
-    TEST_ASSERT(prof.speed > 0.5);
+    TEST_ASSERT(prof.stealth > 0.9, "stealth should be valid");
+    TEST_ASSERT(prof.speed > 0.5, "speed should be valid");
 
     /* 未知目标应返回默认 */
     prof = incantation_optimize("unknown_goal", 0.0);
@@ -640,10 +640,10 @@ static void test_spellbook_deep(void) {
     TEST_ASSERT_NOT_NULL(book);
 
     /* NULL 书 */
-    TEST_ASSERT(!spellbook_add_spell(NULL, NULL));
+    TEST_ASSERT(!spellbook_add_spell(NULL, NULL), "spellbook add spell should fail for invalid input");
     TEST_ASSERT_NULL(spellbook_get_spell(NULL, "x"));
     TEST_ASSERT_EQ(spellbook_get_count(NULL), 0);
-    TEST_ASSERT(!spellbook_remove_spell(NULL, "x"));
+    TEST_ASSERT(!spellbook_remove_spell(NULL, "x"), "spellbook remove spell should fail for invalid input");
 
     /* 添加大量咒语触发扩容 */
     Spell *many[70];
@@ -651,7 +651,7 @@ static void test_spellbook_deep(void) {
         char name[32];
         snprintf(name, sizeof(name), "Spell_%d", i);
         many[i] = spell_create(name);
-        TEST_ASSERT(spellbook_add_spell(book, many[i]));
+        TEST_ASSERT(spellbook_add_spell(book, many[i]), "spellbook add spell should succeed");
     }
     TEST_ASSERT_EQ(spellbook_get_count(book), 70);
 
@@ -673,9 +673,9 @@ static void test_spellbook_deep(void) {
     lv_free(names);
 
     /* 按名称移除 */
-    TEST_ASSERT(spellbook_remove_spell(book, "Spell_0"));
+    TEST_ASSERT(spellbook_remove_spell(book, "Spell_0"), "spellbook remove spell should succeed");
     TEST_ASSERT_EQ(spellbook_get_count(book), 69);
-    TEST_ASSERT(!spellbook_remove_spell(book, "Nonexistent"));
+    TEST_ASSERT(!spellbook_remove_spell(book, "Nonexistent"), "spellbook remove spell should fail for invalid input");
 
     /* spellbook_list_spells with NULL */
     names = spellbook_list_spells(NULL, &cnt);
@@ -951,7 +951,7 @@ static void test_plugin_json_info(void) {
 
     char *json = lv_plugin_system_get_info_json(sys);
     TEST_ASSERT_NOT_NULL(json);
-    TEST_ASSERT(strstr(json, "plugin_count") != NULL || strstr(json, "version") != NULL);
+    TEST_ASSERT(strstr(json, "plugin_count") != NULL || strstr(json, "version") != NULL, "strstr should succeed");
     lv_free(json);
 
     lv_plugin_system_destroy(sys);
@@ -970,7 +970,7 @@ static void test_plugin_activate_deactivate(void) {
     TEST_ASSERT_EQ(lv_plugin_deactivate(NULL), -1);
 
     /* 状态检查 */
-    TEST_ASSERT(!lv_plugin_is_active(NULL));
+    TEST_ASSERT(!lv_plugin_is_active(NULL), "lv plugin is active should fail for invalid input");
     TEST_ASSERT_EQ(lv_plugin_get_state(NULL), lv_PLUGIN_STATE_UNLOADED);
 
     /* 未加载的不可激活 */
@@ -1022,7 +1022,7 @@ static void test_proof_object_with_premises(void) {
     TEST_ASSERT_EQ(lv_proof_object_get_step_count(obj), 3);
 
     /* 未设置 goal 和 is_proved → isValid 应为 false */
-    TEST_ASSERT(!lv_proof_object_is_valid(obj));
+    TEST_ASSERT(!lv_proof_object_is_valid(obj), "lv proof object is valid should fail for invalid input");
 
     /* verify: 前提顺序正确 */
     bool ok = lv_proof_object_verify(obj);
@@ -1055,13 +1055,13 @@ static void test_proof_object_add_axiom_assumption(void) {
     lvProofObject *obj = lv_proof_object_create();
 
     /* 添加公理/假设边界 */
-    TEST_ASSERT(!lv_proof_object_add_axiom(NULL, 1));
-    TEST_ASSERT(!lv_proof_object_add_assumption(NULL, 1));
+    TEST_ASSERT(!lv_proof_object_add_axiom(NULL, 1), "lv proof object add axiom should fail for invalid input");
+    TEST_ASSERT(!lv_proof_object_add_assumption(NULL, 1), "lv proof object add assumption should fail for invalid input");
 
     /* 添加大量触发扩容 */
     for (int i = 0; i < 40; i++) {
-        TEST_ASSERT(lv_proof_object_add_axiom(obj, i));
-        TEST_ASSERT(lv_proof_object_add_assumption(obj, i));
+        TEST_ASSERT(lv_proof_object_add_axiom(obj, i), "lv proof object add axiom should succeed");
+        TEST_ASSERT(lv_proof_object_add_assumption(obj, i), "lv proof object add assumption should succeed");
     }
 
     lv_proof_object_destroy(obj);
@@ -1091,37 +1091,37 @@ static void test_proof_compiler_all_formats(void) {
     /* JSON 格式 */
     char *json = lv_proof_compiler_to_json(obj, NULL);
     TEST_ASSERT_NOT_NULL(json);
-    TEST_ASSERT(strstr(json, "勾股定理") != NULL || strstr(json, "勾") != NULL || strstr(json, "theorem_name") != NULL);
+    TEST_ASSERT(strstr(json, "勾股定理") != NULL || strstr(json, "勾") != NULL || strstr(json, "theorem_name") != NULL, "strstr should succeed");
     lv_free(json);
 
     /* LaTeX 格式 */
     char *latex = lv_proof_compiler_to_latex(obj, "zh");
     TEST_ASSERT_NOT_NULL(latex);
-    TEST_ASSERT(strstr(latex, "Proof") != NULL || strstr(latex, "证明") != NULL);
+    TEST_ASSERT(strstr(latex, "Proof") != NULL || strstr(latex, "证明") != NULL, "strstr should succeed");
     lv_free(latex);
 
     /* LaTeX 英文 */
     latex = lv_proof_compiler_to_latex(obj, "en");
     TEST_ASSERT_NOT_NULL(latex);
-    TEST_ASSERT(strstr(latex, "Proof") != NULL);
+    TEST_ASSERT(strstr(latex, "Proof") != NULL, "strstr should succeed");
     lv_free(latex);
 
     /* TikZ 格式 */
     char *tikz = lv_proof_compiler_to_tikz(obj);
     TEST_ASSERT_NOT_NULL(tikz);
-    TEST_ASSERT(strstr(tikz, "tikzpicture") != NULL);
+    TEST_ASSERT(strstr(tikz, "tikzpicture") != NULL, "strstr should succeed");
     lv_free(tikz);
 
     /* Text 格式 */
     char *text = lv_proof_compiler_to_text(obj, "zh");
     TEST_ASSERT_NOT_NULL(text);
-    TEST_ASSERT(strstr(text, "证明") != NULL || strstr(text, "勾股定理") != NULL);
+    TEST_ASSERT(strstr(text, "证明") != NULL || strstr(text, "勾股定理") != NULL, "strstr should succeed");
     lv_free(text);
 
     /* Graphviz 格式 */
     char *dot = lv_proof_compiler_to_graphviz(obj, NULL);
     TEST_ASSERT_NOT_NULL(dot);
-    TEST_ASSERT(strstr(dot, "digraph") != NULL);
+    TEST_ASSERT(strstr(dot, "digraph") != NULL, "strstr should succeed");
     lv_free(dot);
 
     lv_proof_object_destroy(obj);
@@ -1161,8 +1161,8 @@ static void test_proof_compiler_null_objects(void) {
 static void test_proof_compiler_config(void) {
     lvCompilerConfig cfg = lv_compiler_config_default();
     TEST_ASSERT_EQ(cfg.format, OUTPUT_FORMAT_TEXT);
-    TEST_ASSERT(cfg.include_metadata);
-    TEST_ASSERT(!cfg.verbose);
+    TEST_ASSERT(cfg.include_metadata, "default config should include metadata");
+    TEST_ASSERT(!cfg.verbose, "default config should not be verbose");
     TEST_ASSERT_EQ(cfg.max_depth, 1024);
 
     lvProofCompiler *comp = lv_proof_compiler_create(&cfg);
@@ -1193,9 +1193,9 @@ static void test_proof_export_to_file(void) {
     TEST_ASSERT(ok, "export to file");
 
     /* NULL 安全 */
-    TEST_ASSERT(!lv_proof_export_to_file(NULL, NULL, OUTPUT_FORMAT_TEXT, "test.txt"));
-    TEST_ASSERT(!lv_proof_export_to_file(obj, NULL, OUTPUT_FORMAT_TEXT, NULL));
-    TEST_ASSERT(!lv_proof_export_to_file(NULL, NULL, OUTPUT_FORMAT_TEXT, NULL));
+    TEST_ASSERT(!lv_proof_export_to_file(NULL, NULL, OUTPUT_FORMAT_TEXT, "test.txt"), "lv proof export to file should fail for invalid input");
+    TEST_ASSERT(!lv_proof_export_to_file(obj, NULL, OUTPUT_FORMAT_TEXT, NULL), "lv proof export to file should fail for invalid input");
+    TEST_ASSERT(!lv_proof_export_to_file(NULL, NULL, OUTPUT_FORMAT_TEXT, NULL), "lv proof export to file should fail for invalid input");
 
     lv_proof_object_destroy(obj);
 }

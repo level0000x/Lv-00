@@ -360,8 +360,8 @@ static void test_bdd_to_cnf(void) {
     }
 
     /* NULL safety */
-    TEST_ASSERT(!bdd_to_cnf(NULL, &cnf));
-    TEST_ASSERT(!bdd_to_cnf(x, NULL));
+    TEST_ASSERT(!bdd_to_cnf(NULL, &cnf), "bdd to cnf should fail for invalid input");
+    TEST_ASSERT(!bdd_to_cnf(x, NULL), "bdd to cnf should fail for invalid input");
 
     bdd_deref(mgr, x);
     bdd_manager_destroy(mgr);
@@ -597,9 +597,9 @@ static void test_sat_export_dimacs(void) {
 
     /* NULL safety */
     ok = sat_encoding_export_dimacs(NULL, "test.cnf");
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "NULL graph should fail");
     ok = sat_encoding_export_dimacs(enc, NULL);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "NULL path should fail");
 
     sat_encoding_destroy(enc);
 }
@@ -899,18 +899,18 @@ static void test_atp_backend_names(void) {
 
     /* Parse from name */
     ATPBackendType out;
-    TEST_ASSERT(atp_backend_type_from_name("vampire", &out));
+    TEST_ASSERT(atp_backend_type_from_name("vampire", &out), "atp backend type from name should succeed");
     TEST_ASSERT_EQ(out, ATP_BACKEND_VAMPIRE);
-    TEST_ASSERT(atp_backend_type_from_name("eprover", &out));
+    TEST_ASSERT(atp_backend_type_from_name("eprover", &out), "atp backend type from name should succeed");
     TEST_ASSERT_EQ(out, ATP_BACKEND_EPROVER);
-    TEST_ASSERT(atp_backend_type_from_name("e", &out));
+    TEST_ASSERT(atp_backend_type_from_name("e", &out), "atp backend type from name should succeed");
     TEST_ASSERT_EQ(out, ATP_BACKEND_EPROVER);
-    TEST_ASSERT(atp_backend_type_from_name("iprover", &out));
+    TEST_ASSERT(atp_backend_type_from_name("iprover", &out), "atp backend type from name should succeed");
     TEST_ASSERT_EQ(out, ATP_BACKEND_IPROVER);
-    TEST_ASSERT(atp_backend_type_from_name("custom", &out));
+    TEST_ASSERT(atp_backend_type_from_name("custom", &out), "atp backend type from name should succeed");
     TEST_ASSERT_EQ(out, ATP_BACKEND_CUSTOM);
-    TEST_ASSERT(!atp_backend_type_from_name("unknown", &out));
-    TEST_ASSERT(!atp_backend_type_from_name(NULL, &out));
+    TEST_ASSERT(!atp_backend_type_from_name("unknown", &out), "atp backend type from name should fail for invalid input");
+    TEST_ASSERT(!atp_backend_type_from_name(NULL, &out), "atp backend type from name should fail for invalid input");
 
     /* Result names */
     TEST_ASSERT_STR_EQ(atp_result_name(ATP_RESULT_SAT), "SAT");
@@ -985,11 +985,11 @@ static void test_approx_count_solutions(void) {
 
     /* NULL safety */
     ok = approx_count_solutions(NULL, &cfg, &result);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "NULL graph should fail");
     ok = approx_count_solutions(g, NULL, &result);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "NULL config should fail");
     ok = approx_count_solutions(g, &cfg, NULL);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "NULL result should fail");
 
     graph_destroy(g);
 }
@@ -1017,9 +1017,9 @@ static void test_approx_count_projected(void) {
 
     /* NULL safety */
     ok = approx_count_projected(NULL, proj_vars, 1, &cfg, &result);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "operation should succeed");
     ok = approx_count_projected(g, proj_vars, 1, &cfg, NULL);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "operation should succeed");
 
     graph_destroy(g);
 }
@@ -1077,7 +1077,7 @@ static void test_is_approximately_constructible(void) {
 
     /* NULL safety */
     ok = is_approximately_constructible(NULL, 0.5);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "operation should succeed");
 
     /* Invalid probability */
     ok = is_approximately_constructible(g, 1.5);
@@ -1154,7 +1154,7 @@ static void test_groebner_parallel_state(void) {
 
 static void test_groebner_poly_is_nonzero_constant(void) {
     /* NULL safety */
-    TEST_ASSERT(!lv_groebner_poly_is_nonzero_constant(NULL));
+    TEST_ASSERT(!lv_groebner_poly_is_nonzero_constant(NULL), "lv groebner poly is nonzero constant should fail for invalid input");
 
     /* Testing with SimplePoly directly is not possible from outside,
      * just verify the NULL case doesn't crash. */
@@ -1350,11 +1350,11 @@ static void test_prob_constraint_infer(void) {
 
     /* NULL safety */
     ok = prob_constraint_infer(NULL, 0, constraints, 1, &confidence);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "operation should succeed");
     ok = prob_constraint_infer(g, 0, NULL, 1, &confidence);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "operation should succeed");
     ok = prob_constraint_infer(g, 0, constraints, 0, &confidence);
-    TEST_ASSERT(!ok);
+    TEST_ASSERT(!ok, "operation should succeed");
 }
 
 /* ========================================================================

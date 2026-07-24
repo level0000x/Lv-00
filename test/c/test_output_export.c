@@ -111,12 +111,12 @@ static void test_proto_draw_commands(void) {
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT(list.count > 0, "has draw commands");
     TEST_ASSERT_NOT_NULL(list.cmds);
-    TEST_ASSERT(list.capacity >= list.count);
+    TEST_ASSERT(list.capacity >= list.count, "capacity should be valid");
 
     /* 验证第一个命令 */
     TEST_ASSERT(list.cmds[0].type == lv_DRAW_TEXT, "first cmd is text");
-    TEST_ASSERT(list.cmds[0].x1 == 10.0);
-    TEST_ASSERT(list.cmds[0].y1 == 20.0);
+    TEST_ASSERT(list.cmds[0].x1 == 10.0, "x1 should equal 10.0");
+    TEST_ASSERT(list.cmds[0].y1 == 20.0, "y1 should equal 20.0");
 
     /* 视口元数据 */
     TEST_ASSERT_EQ(list.viewport_offset_x, 10.0);
@@ -208,7 +208,7 @@ static void test_proto_tree(void) {
 
     for (int i = 0; i < root->child_count && i < 3; i++) {
         TEST_ASSERT_NOT_NULL(root->children[i]);
-        TEST_ASSERT(strlen(root->children[i]->id) > 0);
+        TEST_ASSERT(strlen(root->children[i]->id) > 0, "strlen should succeed");
     }
 
     lv_proto_free_tree(root);
@@ -237,7 +237,7 @@ static void test_proto_topology(void) {
 
     /* 验证块数据 */
     TEST_ASSERT(strlen(graph.blocks[0].name) > 0, "block has name");
-    TEST_ASSERT(graph.blocks[0].layout_x >= 0);
+    TEST_ASSERT(graph.blocks[0].layout_x >= 0, "layout_x should be valid");
 
     /* 资源释放 */
     lv_proto_free_topology(&graph);
@@ -265,12 +265,12 @@ static void test_proto_proof_navigator(void) {
     TEST_ASSERT(nav.is_complete, "navigator is complete");
 
     /* 验证步骤数据 */
-    TEST_ASSERT(nav.steps[0].step_id >= 0);
-    TEST_ASSERT(strlen(nav.steps[0].label) > 0);
+    TEST_ASSERT(nav.steps[0].step_id >= 0, "step_id should be valid");
+    TEST_ASSERT(strlen(nav.steps[0].label) > 0, "strlen should succeed");
 
     /* 策略和摘要 */
-    TEST_ASSERT(strlen(nav.strategy_label) > 0);
-    TEST_ASSERT(strlen(nav.nl_summary) > 0);
+    TEST_ASSERT(strlen(nav.strategy_label) > 0, "strlen should succeed");
+    TEST_ASSERT(strlen(nav.nl_summary) > 0, "strlen should succeed");
 
     lv_proto_free_proof(&nav);
     lv_proto_free_proof(NULL);
@@ -291,9 +291,9 @@ static void test_proto_engine_status(void) {
     TEST_ASSERT_EQ(rc, 0);
 
     /* 验证状态字段 */
-    TEST_ASSERT(status.node_count >= 0);
-    TEST_ASSERT(status.constraint_count >= 0);
-    TEST_ASSERT(status.memory_usage_mb >= 0.0);
+    TEST_ASSERT(status.node_count >= 0, "node_count should be valid");
+    TEST_ASSERT(status.constraint_count >= 0, "constraint_count should be valid");
+    TEST_ASSERT(status.memory_usage_mb >= 0.0, "memory_usage_mb should be valid");
     TEST_ASSERT(strlen(status.engine_state) > 0, "engine state non-empty");
     TEST_ASSERT(strlen(status.backend_info) > 0, "backend info non-empty");
 
@@ -356,13 +356,13 @@ static void test_proto_terminal_exec(void) {
     /* NULL command → error */
     int rc = lv_proto_terminal_exec(NULL, NULL, &resp);
     TEST_ASSERT_EQ(rc, 0);
-    TEST_ASSERT(!resp.success);
+    TEST_ASSERT(!resp.success, "response should indicate failure");
     TEST_ASSERT_EQ(resp.error_code, -1);
 
     /* 有效命令 */
     rc = lv_proto_terminal_exec((void *) 0x1, "solve", &resp);
     TEST_ASSERT_EQ(rc, 0);
-    TEST_ASSERT(resp.success);
+    TEST_ASSERT(resp.success, "response should indicate success");
     TEST_ASSERT(strlen(resp.output) > 0, "has output");
 
     lv_cleanup();
@@ -555,7 +555,7 @@ static void test_widget_get_step_highlights(void) {
     TEST_ASSERT_EQ(highlights[1].step_id, 1);
     TEST_ASSERT_EQ(highlights[2].step_id, 2);
     TEST_ASSERT(highlights[0].color == HIGHLIGHT_NORMAL, "default normal");
-    TEST_ASSERT(!highlights[0].is_animated);
+    TEST_ASSERT(!highlights[0].is_animated, "condition should be false: highlights[0].is_animated");
 }
 
 static void test_widget_get_goal_hypotheses(void) {
@@ -570,7 +570,7 @@ static void test_widget_get_goal_hypotheses(void) {
     int rc = proof_widget_get_goal((ProofNavigator *) 0x1, &goal);
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT_NOT_NULL(goal.goal_text);
-    TEST_ASSERT(!goal.is_solved);
+    TEST_ASSERT(!goal.is_solved, "condition should be false: goal.is_solved");
 
     /* 释放 */
     goal_display_free(&goal);
@@ -601,7 +601,7 @@ static void test_widget_search_tree_dep_graph(void) {
 
     tree = proof_widget_get_search_tree((ProofNavigator *) 0x1);
     TEST_ASSERT_NOT_NULL(tree);
-    TEST_ASSERT(strstr(tree, "search_tree") != NULL || strstr(tree, "type") != NULL);
+    TEST_ASSERT(strstr(tree, "search_tree") != NULL || strstr(tree, "type") != NULL, "strstr should succeed");
     lv_free(tree);
 
     /* Dependency graph */
@@ -610,7 +610,7 @@ static void test_widget_search_tree_dep_graph(void) {
 
     dep = proof_widget_get_dependency_graph((ProofNavigator *) 0x1);
     TEST_ASSERT_NOT_NULL(dep);
-    TEST_ASSERT(strstr(dep, "dependency_graph") != NULL || strstr(dep, "type") != NULL);
+    TEST_ASSERT(strstr(dep, "dependency_graph") != NULL || strstr(dep, "type") != NULL, "strstr should succeed");
     lv_free(dep);
 }
 

@@ -58,7 +58,7 @@ int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, 
 /*  内部: 基于约束图拓扑排序的变量消元顺序                               */
 /* ================================================================== */
 
-static int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
+int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
                                           const int *dirty_var_ids, int dirty_count, int *out_count) {
     *out_count = 0;
     if (!graph || var_count == 0)

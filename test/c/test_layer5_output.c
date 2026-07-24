@@ -108,7 +108,7 @@ static void test_rune_serialize_parse(void) {
     char *ser = rune_serialize(r);
     TEST_ASSERT_NOT_NULL(ser);
     /* 应该包含元素、威力和坐标信息 */
-    TEST_ASSERT(strstr(ser, "FIRE") != NULL || strstr(ser, "0") != NULL); /* FIRE 枚举值=0 */
+    TEST_ASSERT(strstr(ser, "FIRE") != NULL || strstr(ser, "0") != NULL, "strstr should succeed"); /* FIRE 枚举值=0 */
     lv_free(ser);
     rune_destroy(r);
 
@@ -220,8 +220,8 @@ static void test_magic_array_lifecycle(void) {
     /* NULL 安全 */
     TEST_ASSERT_EQ(magic_array_get_rune_count(NULL), 0);
     TEST_ASSERT_EQ(magic_array_get_constraint_count(NULL), 0);
-    TEST_ASSERT(!magic_array_remove_rune(NULL, 0));
-    TEST_ASSERT(!magic_array_remove_constraint(NULL, 0));
+    TEST_ASSERT(!magic_array_remove_rune(NULL, 0), "magic array remove rune should fail for invalid input");
+    TEST_ASSERT(!magic_array_remove_constraint(NULL, 0), "magic array remove constraint should fail for invalid input");
 
     rune_destroy(r1);
     rune_destroy(r2);
@@ -234,7 +234,7 @@ static void test_magic_array_analysis(void) {
     TEST_ASSERT_NOT_NULL(arr);
 
     /* 空阵 -> 不平衡 */
-    TEST_ASSERT(!magic_array_check_balance(arr));
+    TEST_ASSERT(!magic_array_check_balance(arr), "magic array check balance should fail for invalid input");
 
     /* 添加5种不同元素符文 */
     Rune *runes[5];
@@ -305,7 +305,7 @@ static void test_magic_array_serialize(void) {
     /* 序列化 */
     char *json = magic_array_serialize(arr);
     TEST_ASSERT_NOT_NULL(json);
-    TEST_ASSERT(strstr(json, "rune_count") != NULL);
+    TEST_ASSERT(strstr(json, "rune_count") != NULL, "strstr should succeed");
     lv_free(json);
 
     /* 反序列化 */
@@ -431,7 +431,7 @@ static void test_spellbook(void) {
     /* 移除 */
     TEST_ASSERT(spellbook_remove_spell(book, "Heal"), "remove heal");
     TEST_ASSERT_EQ(spellbook_get_count(book), 1);
-    TEST_ASSERT(!spellbook_remove_spell(book, "Nonexistent"));
+    TEST_ASSERT(!spellbook_remove_spell(book, "Nonexistent"), "spellbook remove spell should fail for invalid input");
 
     spellbook_destroy(book); /* 同时销毁内部的咒语 */
 }
@@ -477,13 +477,13 @@ static void test_restriction_domain(void) {
     /* 领域 */
     Domain *dom = domain_create("Protection Field", 10);
     TEST_ASSERT_NOT_NULL(dom);
-    TEST_ASSERT(!domain_is_active(dom));
+    TEST_ASSERT(!domain_is_active(dom), "domain is active should fail for invalid input");
     TEST_ASSERT(domain_add_rule(dom, "no_fire", 1.0), "add rule");
     TEST_ASSERT(domain_activate(dom, NULL), "activate");
     TEST_ASSERT(domain_is_active(dom), "is active");
     TEST_ASSERT(domain_get_strength(dom) > 0.0, "strength > 0");
     TEST_ASSERT(domain_deactivate(dom), "deactivate");
-    TEST_ASSERT(!domain_is_active(dom));
+    TEST_ASSERT(!domain_is_active(dom), "domain is active should fail for invalid input");
     domain_destroy(dom);
 }
 
@@ -554,7 +554,7 @@ static void test_plugin_queries(void) {
     TEST_ASSERT_EQ(cnt, (size_t) 0);
 
     /* is_active / get_state */
-    TEST_ASSERT(!lv_plugin_is_active(NULL));
+    TEST_ASSERT(!lv_plugin_is_active(NULL), "lv plugin is active should fail for invalid input");
     TEST_ASSERT_EQ(lv_plugin_get_state(NULL), (lvPluginState) 0);
 }
 
@@ -694,7 +694,7 @@ static void test_proof_object(void) {
     lvProofObject *obj = lv_proof_object_create();
     TEST_ASSERT_NOT_NULL(obj);
     TEST_ASSERT_EQ(lv_proof_object_get_step_count(obj), 0);
-    TEST_ASSERT(!lv_proof_object_is_valid(obj));
+    TEST_ASSERT(!lv_proof_object_is_valid(obj), "lv proof object is valid should fail for invalid input");
 
     /* 添加步骤 */
     lvProofStepRecord *step = lv_proof_step_record_create();
@@ -718,7 +718,7 @@ static void test_proof_object(void) {
     /* NULL 安全 */
     lv_proof_object_destroy(NULL);
     TEST_ASSERT_EQ(lv_proof_object_get_step_count(NULL), 0);
-    TEST_ASSERT(!lv_proof_object_is_valid(NULL));
+    TEST_ASSERT(!lv_proof_object_is_valid(NULL), "lv proof object is valid should fail for invalid input");
 
     /* 验证 */
     obj = lv_proof_object_create();
@@ -883,7 +883,7 @@ static void test_proof_widget_lifecycle(void) {
     /* 布局导出 */
     char *json = proof_widget_export_layout(layout);
     TEST_ASSERT_NOT_NULL(json);
-    TEST_ASSERT(strstr(json, "widgets") != NULL);
+    TEST_ASSERT(strstr(json, "widgets") != NULL, "strstr should succeed");
     lv_free(json);
 
     /* 持久化键设为 NULL */

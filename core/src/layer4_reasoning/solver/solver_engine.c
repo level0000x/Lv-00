@@ -77,7 +77,7 @@ bool check_contradiction_after_substitution(EquationSystem *sys);
 int count_point_variables(const ConstraintGraph *graph, int **out_ids);
 SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char **suggestion);
 SolverStatus groebner_basis_compute(EquationSystem *system);
-static int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
+int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
                                           const int *dirty_var_ids, int dirty_count, int *out_count);
 
 lv_DECLARE_STREAM_CTX(solver);

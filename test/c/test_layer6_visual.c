@@ -234,11 +234,11 @@ static void test_bc_render_svg(void) {
 
     char *svg = lv_block_canvas_render_svg(canvas);
     TEST_ASSERT_NOT_NULL(svg);
-    TEST_ASSERT(strstr(svg, "<svg") != NULL);
-    TEST_ASSERT(strstr(svg, "</svg>") != NULL);
-    TEST_ASSERT(strstr(svg, "Test") != NULL);
-    TEST_ASSERT(strstr(svg, "Another") != NULL);
-    TEST_ASSERT(strstr(svg, "<?xml") != NULL);
+    TEST_ASSERT(strstr(svg, "<svg") != NULL, "SVG should contain '<svg>'");
+    TEST_ASSERT(strstr(svg, "</svg>") != NULL, "SVG should contain '</svg>'");
+    TEST_ASSERT(strstr(svg, "Test") != NULL, "SVG should contain 'Test'");
+    TEST_ASSERT(strstr(svg, "Another") != NULL, "SVG should contain 'Another'");
+    TEST_ASSERT(strstr(svg, "<?xml") != NULL, "SVG should contain '<?xml'");
     lv_free((void **) &svg);
 
     /* NULL 画布 */
@@ -250,7 +250,7 @@ static void test_bc_render_svg(void) {
     TEST_ASSERT_NOT_NULL(empty);
     svg = lv_block_canvas_render_svg(empty);
     TEST_ASSERT_NOT_NULL(svg);
-    TEST_ASSERT(strstr(svg, "<svg") != NULL);
+    TEST_ASSERT(strstr(svg, "<svg") != NULL, "SVG should contain '<svg>'");
     lv_free((void **) &svg);
     lv_block_canvas_destroy(empty);
 
@@ -423,12 +423,12 @@ static void test_gc_render_svg(void) {
 
     char *svg = lv_geometry_canvas_render_svg(gc);
     TEST_ASSERT_NOT_NULL(svg);
-    TEST_ASSERT(strstr(svg, "<svg") != NULL);
-    TEST_ASSERT(strstr(svg, "</svg>") != NULL);
-    TEST_ASSERT(strstr(svg, "P") != NULL);
-    TEST_ASSERT(strstr(svg, "L") != NULL);
-    TEST_ASSERT(strstr(svg, "C") != NULL);
-    TEST_ASSERT(strstr(svg, "Poly") != NULL);
+    TEST_ASSERT(strstr(svg, "<svg") != NULL, "SVG should contain '<svg>'");
+    TEST_ASSERT(strstr(svg, "</svg>") != NULL, "SVG should contain '</svg>'");
+    TEST_ASSERT(strstr(svg, "P") != NULL, "SVG should contain point 'P'");
+    TEST_ASSERT(strstr(svg, "L") != NULL, "SVG should contain line 'L'");
+    TEST_ASSERT(strstr(svg, "C") != NULL, "SVG should contain circle 'C'");
+    TEST_ASSERT(strstr(svg, "Poly") != NULL, "SVG should contain polygon 'Poly'");
     lv_free((void **) &svg);
 
     /* NULL */
@@ -439,7 +439,7 @@ static void test_gc_render_svg(void) {
     lvGeometryCanvas *empty = lv_geometry_canvas_create();
     svg = lv_geometry_canvas_render_svg(empty);
     TEST_ASSERT_NOT_NULL(svg);
-    TEST_ASSERT(strstr(svg, "<svg") != NULL);
+    TEST_ASSERT(strstr(svg, "<svg") != NULL, "SVG should contain '<svg>'");
     lv_free((void **) &svg);
     lv_geometry_canvas_destroy(empty);
 
@@ -457,7 +457,7 @@ static void test_gc_render_svg_with_constraints(void) {
 
     char *svg = lv_geometry_canvas_render_svg(gc);
     TEST_ASSERT_NOT_NULL(svg);
-    TEST_ASSERT(strstr(svg, "horizontal") != NULL);
+    TEST_ASSERT(strstr(svg, "horizontal") != NULL, "SVG should contain 'horizontal'");
     lv_free((void **) &svg);
 
     lv_geometry_canvas_destroy(gc);
