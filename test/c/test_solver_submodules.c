@@ -1154,8 +1154,8 @@ static void test_coord_to_double_quadratic(void) {
     TEST_ASSERT_NOT_NULL(c);
 
     double val;
-    TEST_ASSERT(coord_to_double(c, &val));
-    TEST_ASSERT(fabs(val - 1.0) < 1e-6);
+    TEST_ASSERT(coord_to_double(c, &val), "quadratic coord should be convertible to double");
+    TEST_ASSERT(fabs(val - 1.0) < 1e-6, "quadratic coord value should be close to 1.0");
 
     symbolic_coord_destroy(c);
 }

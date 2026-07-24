@@ -1,7 +1,7 @@
 # Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-v1.9.0+-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.1.0-blue.svg)](CHANGELOG.md)
 [![C11](https://img.shields.io/badge/C-11-green.svg)](https://en.cppreference.com/w/c)
 [![Lean4](https://img.shields.io/badge/Lean-4-purple.svg)](https://lean-lang.org/)
 
@@ -486,7 +486,7 @@ SVG、Cairo 脚本、Three.js HTML、TikZ LaTeX、PPM 光栅化
 - UI 系统内核/前端完全解耦（完整）
 - Groebner 求解器（237KB 完整实现）
 - 54 个公理包 Lean 验证（完整）
-- 资源释放命名统一、内存分配器统一、头文件依赖精简（v1.8.0 工程优化批次）
+- 资源释放命名统一、内存分配器统一、头文件依赖精简（v1.1.0 工程优化批次）
 - 命名统一：全仓库 `lv00` 前缀消解为 `lv`
 - 端口作用域系统完整化
 - 信任颜色系统完整化

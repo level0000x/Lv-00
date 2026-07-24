@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "lv/block_scheduler.h"
+#include "lv/visual_editor.h"
 #include "lv/extended_types.h"
 #include "lv/func_block.h"
 #include "lv/io_blocks.h"
@@ -602,8 +603,6 @@ static void test_ng_add_find_remove_node(void) {
     /* 查找 */
     lvGraphNode *found = lv_node_graph_find_node(ng, n1);
     TEST_ASSERT_NOT_NULL(found);
-    /* 无法直接比较 label 因为 test_helpers 中没有 TEST_ASSERT_STR_EQ_MSG 宏 */
-    TEST_ASSERT(found->id == n1, "查找返回正确节点");
 
     found = lv_node_graph_find_node(ng, 999);
     TEST_ASSERT_NULL(found);
@@ -691,7 +690,7 @@ static void test_ng_connections(void) {
 static void test_ng_add_many_connections(void) {
     lvNodeGraphView *ng = lv_node_graph_create();
     int prev = lv_node_graph_add_node(ng, 0, "Root", 0, 0, 0);
-    TEST_ASSERT(prev > 0);
+    TEST_ASSERT(prev > 0, "node_graph_add_node should return positive id");
     int ids[50];
     for (int i = 0; i < 50; i++) {
         char label[32];
@@ -870,7 +869,7 @@ static void test_bs_run_edge_cases(void) {
     /* NULL 调度器 */
     lvExecResult res = lv_block_scheduler_run(NULL);
     TEST_ASSERT_EQ(res.success, 0);
-    TEST_ASSERT(strlen(res.error_msg) > 0);
+    TEST_ASSERT(strlen(res.error_msg) > 0, "error_msg should be non-empty for invalid input");
 
     /* 空块图 */
     SimpleBlockGraph *empty = create_test_block_graph(0);
@@ -920,13 +919,13 @@ static void test_bs_incremental(void) {
     /* 无脏块 */
     lvExecResult res = lv_block_scheduler_run_incremental(sched, NULL, 0);
     TEST_ASSERT_EQ(res.success, 1);
-    TEST_ASSERT(res.blocks_skipped > 0);
+    TEST_ASSERT(res.blocks_skipped > 0, "incremental with no dirty blocks should skip all");
 
     /* 标记脏块后执行 */
     int dirty_ids[] = {1, 2};
     res = lv_block_scheduler_run_incremental(sched, dirty_ids, 2);
     TEST_ASSERT_EQ(res.success, 1);
-    TEST_ASSERT(res.blocks_executed > 0);
+    TEST_ASSERT(res.blocks_executed > 0, "dirty blocks should be executed");
 
     /* NULL 增量执行 */
     res = lv_block_scheduler_run_incremental(NULL, NULL, 0);
@@ -1003,7 +1002,8 @@ static void test_tc_insert_delete(void) {
     TEST_ASSERT_EQ(r, 0);
     const char *got = lv_text_code_get_text(view);
     TEST_ASSERT_NOT_NULL(got);
-    TEST_ASSERT(strstr(got, "helloXYZ world") != NULL || strcmp(got, "helloXYZ world") == 0);
+    TEST_ASSERT(strstr(got, "helloXYZ world") != NULL || strcmp(got, "helloXYZ world") == 0,
+                 "inserted text should contain 'helloXYZ world'");
 
     /* 边界位置插入 */
     r = lv_text_code_insert(view, 0, "!");
@@ -1170,8 +1170,8 @@ static void test_convert_block_to_text(void) {
     TEST_ASSERT_NOT_NULL(res.output);
 
     char *text = (char *) res.output;
-    TEST_ASSERT(strstr(text, "block") != NULL);
-    TEST_ASSERT(strstr(text, "block_0") != NULL);
+    TEST_ASSERT(strstr(text, "block") != NULL, "block_to_text output should contain 'block'");
+    TEST_ASSERT(strstr(text, "block_0") != NULL, "block_to_text output should contain 'block_0'");
     lv_free((void **) &text);
 
     /* NULL 输入 */

@@ -1,4 +1,4 @@
-﻿#ifndef lv_VISUAL_EDITOR_H
+#ifndef lv_VISUAL_EDITOR_H
 #define lv_VISUAL_EDITOR_H
 
 #include "lv/func_block.h"
@@ -24,6 +24,7 @@ typedef struct lvNodeGraphView lvNodeGraphView;
 typedef struct lvBlockCanvasView lvBlockCanvasView;
 typedef struct lvTextCodeView lvTextCodeView;
 typedef struct lvViewSynchronizer lvViewSynchronizer;
+typedef struct lvGraphNode lvGraphNode;
 
 /* View synchronizer - keeps all 4 views in sync */
 struct lvViewSynchronizer {
@@ -125,6 +126,16 @@ const char *lv_text_code_get_text(const lvTextCodeView *view);
 int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text);
 int lv_text_code_delete(lvTextCodeView *view, int pos, int len);
 int lv_text_code_render(const lvTextCodeView *view, char *buffer, size_t size);
+
+/* ---- Node Graph View API ---- */
+lvNodeGraphView *lv_node_graph_create(void);
+void lv_node_graph_destroy(lvNodeGraphView *graph);
+int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label, double x, double y, int type);
+int lv_node_graph_remove_node(lvNodeGraphView *graph, int id);
+int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id, const char *label);
+int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id);
+lvGraphNode *lv_node_graph_find_node(lvNodeGraphView *graph, int id);
+int lv_node_graph_layout(lvNodeGraphView *graph);
 
 #ifdef __cplusplus
 }

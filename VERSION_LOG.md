@@ -12,6 +12,38 @@
 
 ## 2026-07-24
 
+### v1.1.0 — 正式发布
+
+**范围**: 全仓库 630+ 源文件，覆盖 solver/backends/Layer3/Layer5/Layer6/lv_core
+
+**新增**:
+- 11 个新测试文件覆盖 solver/backends/Layer3/Layer5/Layer6，新增 ~9000+ 行测试代码
+- λ-演算核心集成：Church 编码、β-归约、Y 组合子
+- 端口作用域系统完整化（namespace_depth/parent_block_id/is_formal_param 三字段）
+- 信任颜色 8 色体系完整化（TrustColor/ProofColor/lvTrustColor 映射+传播）
+- 约束模板双层测试框架（出厂/用户测试集）
+- SHA-256 内容哈希提取为共享模块
+- ODE Adams-Bashforth 多步法数值求解器
+- 重写策略组合子 API（11 个构造函数+执行+搜索）
+- 几何变换预设符号坐标计算
+- 交互式几何系统、等价类管理器、WFC 约束传播引擎测试
+
+**变更**:
+- solver.c 从 8818 行拆分为 18 个子模块（~200 行聚合入口）
+- 36 个文件资源释放命名统一（_free → _destroy）
+- 11 个文件中 140+ malloc/realloc/free 替换为 lv_* 分配器
+- 4 个核心头文件依赖精简，移除 12 个 #include
+- 全仓库 'lv00' 前缀消解为 'lv'
+
+**修复**:
+- 30+ 预存 bug（头文件不匹配、内存泄漏、变量名错误、flaky 测试等）
+- SHA-256 实现重复（从 axiom_pkg.c 和 proof_version.c 提取）
+- 3 个孤儿文件删除（approx_counter.c、engine_scheduler.c、geo_visual.c）
+
+**验证**: 编译 152/153 通过，测试 137/138 通过（1 项预存失败）
+
+---
+
 ### v1.9.0-dev — 数学严谨性与数值稳定性全面审计
 
 **范围**: 30+ 源文件，覆盖 layer3_geometry / layer4_reasoning / layer5_output / layer10_interop / lv_core

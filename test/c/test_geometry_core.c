@@ -967,7 +967,7 @@ void test_euclidean_null_safety(void) {
 
     /* euclidean_create_equivalence_chain NULL 安全 */
     EquivalenceProofChain *chain = euclidean_create_equivalence_chain(NULL);
-    TEST_ASSERT_NULL(chain, "chain from NULL ctx");
+    TEST_ASSERT(chain == NULL, "chain from NULL ctx");
 
     /* euclidean_set_axiom_system NULL 安全 */
     TEST_ASSERT(euclidean_set_axiom_system(NULL, EUCLID_HILBERT) == false, "set axiom NULL");

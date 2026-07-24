@@ -1,4 +1,4 @@
-﻿name: Lv-00 CI
+name: CI
 
 on:
   push:
@@ -7,15 +7,36 @@ on:
     branches: [master, main]
 
 jobs:
-  c-syntax-check:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: powershell
+  # ── Ubuntu: 完整 CMake 构建 + CTest ────────────────────────
+  build-and-test:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup MSYS2 (GCC + GMP)
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libgmp-dev
+
+      - name: Configure CMake (Debug)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build --parallel $(nproc)
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure --parallel $(nproc)
+
+  # ── Windows (MSYS2): GCC 语法检查 + CMake 构建 ────────────
+  windows-build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSYS2 (GCC + GMP + CMake)
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -24,28 +45,38 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-gmp
             mingw-w64-x86_64-make
+            mingw-w64-x86_64-cmake
 
       - name: Syntax check (core impl)
         run: |
-          gcc -fsyntax-only -std=c11 `
-            -Icore/include -Icore/include/lv -Icore/src -IC:/msys64/mingw64/include `
-            -include gmp.h -include lv/lv.h `
+          gcc -fsyntax-only -std=c11 \
+            -Icore/include -Icore/include/lv -Icore/src \
+            -include gmp.h \
             core/src/lv_impl_native.c
 
       - name: Syntax check (runtime)
         run: |
-          gcc -fsyntax-only -std=c11 `
-            -Icore/include -Icore/include/lv -Ibootstrap/runtime -IC:/msys64/mingw64/include `
-            -include gmp.h -include lv/lv.h `
+          gcc -fsyntax-only -std=c11 \
+            -Icore/include -Icore/include/lv -Ibootstrap/runtime \
+            -include gmp.h \
             bootstrap/runtime/primitive_runtime.c
 
+      - name: CMake configure
+        run: |
+          cmake -B build -G "MinGW Makefiles" -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+
+      - name: CMake build
+        run: |
+          cmake --build build --parallel
+
+  # ── Lean 4 类型检查 (formal/) ──────────────────────────────
   lean-typecheck-formal:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Lean 4
-        uses: leanprover/lean4-action@v1
+        uses: leanprover/lean4-action@v2
         with:
           toolchain: 'v4.14.0'
 
@@ -54,13 +85,14 @@ jobs:
           cd formal
           lake build
 
+  # ── Lean 4 类型检查 (lv-formal/) ───────────────────────────
   lean-typecheck-lv-formal:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Lean 4
-        uses: leanprover/lean4-action@v1
+        uses: leanprover/lean4-action@v2
         with:
           toolchain: 'v4.32.0'
 
@@ -69,6 +101,7 @@ jobs:
           cd lv-formal
           lake build
 
+  # ── Python 语法检查 ────────────────────────────────────────
   python-syntax:
     runs-on: ubuntu-latest
     steps:

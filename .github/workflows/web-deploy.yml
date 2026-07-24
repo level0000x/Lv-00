@@ -1,14 +1,9 @@
-﻿# Lv-00 Web 演示部署工作流
-# 注意：部署路径已从 web/ 修正为 web/gui/（与实际目录结构一致）
+# Web 演示部署工作流
+# 注意：web/ 目录尚未创建，仅支持手动触发。
+# 创建 web/gui/index.html, web/gui/js/app.js 及 CMakeLists.txt 后可启用自动部署。
 name: Deploy Web Demo
 
 on:
-  push:
-    branches: [ main, dev ]
-    paths:
-      - 'web/gui/**'
-      - 'core/src/**'
-      - 'core/include/**'
   workflow_dispatch:
 
 jobs:
@@ -60,11 +55,7 @@ jobs:
           echo "ERROR: JS glue not found!"
           exit 1
         fi
-    
-    # 部署到 GitHub Pages。也可考虑替代方案：
-    # - Netlify: 使用 nwtgck/actions-netlify
-    # - Cloudflare Pages: 使用 cloudflare/pages-action
-    # - Vercel: 使用 amondnet/vercel-action
+
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
