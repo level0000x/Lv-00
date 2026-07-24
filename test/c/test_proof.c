@@ -478,4 +478,3 @@ int main(void) {
     printf("\n=== All proof system tests PASSED! ===\n");
     return 0;
 }
-

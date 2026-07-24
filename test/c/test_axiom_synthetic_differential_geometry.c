@@ -63,8 +63,7 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT,
-                "should have 33 constraint templates");
+    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 33 constraint templates");
     printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
 
     /* Check representative templates from each group */
@@ -127,8 +126,8 @@ static void test_templates(void) {
             continue;
         }
         if (tmpl->param_count != expected[i].params) {
-            printf("  FAIL: template '%s' has %d params, expected %d\n",
-                   expected[i].name, tmpl->param_count, expected[i].params);
+            printf("  FAIL: template '%s' has %d params, expected %d\n", expected[i].name, tmpl->param_count,
+                   expected[i].params);
             g_fail_count++;
         } else {
             g_pass_count++;
@@ -147,10 +146,8 @@ static void test_unconstructibles(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                "should have 4 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n",
-           pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 4 unconstructible problems");
+    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     /* Verify each expected unconstructible */
     struct {
@@ -167,8 +164,7 @@ static void test_unconstructibles(void) {
     };
 
     int uc_count = sizeof(expected_uc) / sizeof(expected_uc[0]);
-    TEST_ASSERT(uc_count == EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                "local expected UC count should match");
+    TEST_ASSERT(uc_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "local expected UC count should match");
 
     for (int i = 0; i < uc_count; i++) {
         KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, expected_uc[i].name);
@@ -183,8 +179,7 @@ static void test_unconstructibles(void) {
                     "unconstructible should have minimum dependency count");
         TEST_ASSERT(expected_uc[i].has_ref ? (uc->external_ref != NULL) : 1,
                     "unconstructible should have external_ref");
-        TEST_ASSERT(uc->green_verified == expected_uc[i].green_verified,
-                    "unconstructible green_verified mismatch");
+        TEST_ASSERT(uc->green_verified == expected_uc[i].green_verified, "unconstructible green_verified mismatch");
         g_pass_count++;
     }
 
@@ -206,8 +201,7 @@ static void test_logical_framework(void) {
     printf("  bottom_geometry: '%s'\n", pkg->bottom_geometry);
 
     TEST_ASSERT(pkg->negation_encoding != NULL, "negation_encoding should be set");
-    TEST_ASSERT(strstr(pkg->negation_encoding, "topos") != NULL,
-                "negation_encoding should contain 'topos'");
+    TEST_ASSERT(strstr(pkg->negation_encoding, "topos") != NULL, "negation_encoding should contain 'topos'");
     printf("  negation_encoding: '%s'\n", pkg->negation_encoding);
 
     TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
@@ -268,8 +262,7 @@ static void test_save_load_roundtrip(void) {
     TEST_ASSERT(strcmp(pkg->name, pkg2->name) == 0, "name should be preserved");
     TEST_ASSERT(strcmp(pkg->version, pkg2->version) == 0, "version should be preserved");
     TEST_ASSERT(pkg->template_count == pkg2->template_count, "template count should match");
-    TEST_ASSERT(pkg->unconstructible_count == pkg2->unconstructible_count,
-                "unconstructible count should match");
+    TEST_ASSERT(pkg->unconstructible_count == pkg2->unconstructible_count, "unconstructible count should match");
 
     axiom_package_destroy(pkg);
     axiom_package_destroy(pkg2);
@@ -311,10 +304,8 @@ static void test_unconstructible_lookup(void) {
     KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, "smooth_manifold_classification");
     TEST_ASSERT(uc != NULL, "should find 'smooth_manifold_classification'");
     if (uc) {
-        printf("  Found '%s': reduces_to='%s', deps=%d, ref=%s\n",
-               uc->name, uc->reduces_to ? uc->reduces_to : "(null)",
-               uc->dependency_count,
-               uc->external_ref ? uc->external_ref : "(null)");
+        printf("  Found '%s': reduces_to='%s', deps=%d, ref=%s\n", uc->name, uc->reduces_to ? uc->reduces_to : "(null)",
+               uc->dependency_count, uc->external_ref ? uc->external_ref : "(null)");
     }
 
     /* Test non-existent unconstructible */
@@ -337,7 +328,7 @@ static void test_dependency_validation(void) {
     AxiomPackage *packages[] = {pkg};
     bool valid = axiom_package_validate_dependencies(pkg, packages, 1);
     /* 依赖链引用可能不完整，不做强断言 */
-    (void)valid;
+    (void) valid;
 
     if (!valid) {
         const char *err = axiom_package_get_last_error();

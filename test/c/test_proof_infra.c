@@ -14,9 +14,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
 #include "lv/command_log.h"
 #include "lv/proof.h"
+
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -30,7 +31,7 @@ static void test_command_log_lifecycle(void) {
     CommandLog *log = command_log_create(64);
     TEST_ASSERT_NOT_NULL(log);
     TEST_ASSERT_EQ(command_log_count(log), 0);
-    TEST_ASSERT_EQ(command_log_current_seq(log), (int64_t)0);
+    TEST_ASSERT_EQ(command_log_current_seq(log), (int64_t) 0);
 
     command_log_destroy(log);
     command_log_destroy(NULL);
@@ -82,13 +83,13 @@ static void test_command_log_append(void) {
     }
 
     TEST_ASSERT_EQ(command_log_count(log), 8);
-    TEST_ASSERT_EQ(command_log_current_seq(log), (int64_t)8);
+    TEST_ASSERT_EQ(command_log_current_seq(log), (int64_t) 8);
 
     /* 获取条目验证 */
     const CommandEntry *get = command_log_get(log, 0);
     TEST_ASSERT_NOT_NULL(get);
     TEST_ASSERT_EQ(get->type, CMD_ADD_NODE);
-    TEST_ASSERT_EQ(get->seq, (int64_t)0);
+    TEST_ASSERT_EQ(get->seq, (int64_t) 0);
 
     get = command_log_get(log, 7);
     TEST_ASSERT_NOT_NULL(get);
@@ -101,7 +102,7 @@ static void test_command_log_append(void) {
     /* NULL 安全 */
     TEST_ASSERT_FALSE(command_log_append(NULL, NULL));
     TEST_ASSERT_EQ(command_log_count(NULL), 0);
-    TEST_ASSERT_EQ(command_log_current_seq(NULL), (int64_t)0);
+    TEST_ASSERT_EQ(command_log_current_seq(NULL), (int64_t) 0);
     TEST_ASSERT_NULL(command_log_get(NULL, 0));
 
     command_log_destroy(log);
@@ -190,7 +191,7 @@ static void test_command_log_clear(void) {
 
     command_log_clear(log);
     TEST_ASSERT_EQ(command_log_count(log), 0);
-    TEST_ASSERT_EQ(command_log_current_seq(log), (int64_t)0);
+    TEST_ASSERT_EQ(command_log_current_seq(log), (int64_t) 0);
 
     /* NULL 安全 */
     command_log_clear(NULL);

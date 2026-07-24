@@ -1004,13 +1004,14 @@ int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int
             double n_d = mpz_get_d(n_part);
 
             /* 检查 double 转换是否产生 Inf/NaN */
-            if (!isfinite(a_num_d) || !isfinite(a_den_d) ||
-                !isfinite(b_num_d) || !isfinite(b_den_d) ||
+            if (!isfinite(a_num_d) || !isfinite(a_den_d) || !isfinite(b_num_d) || !isfinite(b_den_d) ||
                 !isfinite(n_d)) {
-                mpz_clear(a_num); mpz_clear(a_den);
-                mpz_clear(b_num); mpz_clear(b_den);
+                mpz_clear(a_num);
+                mpz_clear(a_den);
+                mpz_clear(b_num);
+                mpz_clear(b_den);
                 mpz_clear(n_part);
-                lv_free((void **)&solutions);
+                lv_free((void **) &solutions);
                 return 0;
             }
 

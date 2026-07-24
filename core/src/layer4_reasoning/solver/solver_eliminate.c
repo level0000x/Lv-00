@@ -100,9 +100,11 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
         bool found_linear = false;
 
         for (int i = 0; i < sys.count; i++) {
-            if (sys.eqs[i].var_node_id != eid) continue;
+            if (sys.eqs[i].var_node_id != eid)
+                continue;
             if (!is_linear[i]) {
-                if (sys.eqs[i].poly.degree > 2) out_of_scope_found = true;
+                if (sys.eqs[i].poly.degree > 2)
+                    out_of_scope_found = true;
                 continue;
             }
 
@@ -111,8 +113,8 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                 substitute_solved(&sys, eid, sys.eqs[i].coord_index, val);
                 GeomNode *node = graph_get_node(graph, eid);
                 if (node && node->coord_count > sys.eqs[i].coord_index) {
-                    if (fabs(val) > 9.2e12) { }
-                    else {
+                    if (fabs(val) > 9.2e12) {
+                    } else {
                         SymbolicCoord *new_coord = symbolic_coord_create_rational(
                             (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
                         if (new_coord) {
@@ -130,8 +132,10 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
         if (!found_linear) {
             for (int ci = 0; ci < graph->constraint_count; ci++) {
                 Constraint *c = graph->constraints[ci];
-                if (c->type != BETWEENNESS) continue;
-                if (c->participant_count < 3) continue;
+                if (c->type != BETWEENNESS)
+                    continue;
+                if (c->participant_count < 3)
+                    continue;
                 if (c->participants[1] == eid) {
                     GeomNode *p1 = graph_get_node(graph, c->participants[0]);
                     GeomNode *p3 = graph_get_node(graph, c->participants[2]);
@@ -173,15 +177,17 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
             for (int e = 0; e < elim_count; e++) {
                 int eid = eliminate_ids[e];
                 for (int i = 0; i < tmpl_sys.count; i++) {
-                    if (tmpl_sys.eqs[i].var_node_id != eid) continue;
-                    if (tmpl_sys.eqs[i].poly.degree != 1) continue;
+                    if (tmpl_sys.eqs[i].var_node_id != eid)
+                        continue;
+                    if (tmpl_sys.eqs[i].poly.degree != 1)
+                        continue;
 
                     double val;
                     if (solve_linear(&tmpl_sys.eqs[i].poly, &val)) {
                         GeomNode *node = graph_get_node(graph, eid);
                         if (node && node->coord_count > tmpl_sys.eqs[i].coord_index) {
-                            if (fabs(val) > 9.2e12) { }
-                            else {
+                            if (fabs(val) > 9.2e12) {
+                            } else {
                                 SymbolicCoord *new_coord = symbolic_coord_create_rational(
                                     (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
                                 if (new_coord) {
@@ -201,8 +207,10 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
         equation_system_clear(&tmpl_sys);
     }
 
-    if (out_of_scope_found) return SOLVER_STATUS_OUT_OF_SCOPE;
-    if (any_eliminated) return SOLVER_STATUS_OK;
+    if (out_of_scope_found)
+        return SOLVER_STATUS_OUT_OF_SCOPE;
+    if (any_eliminated)
+        return SOLVER_STATUS_OK;
     return SOLVER_STATUS_OK;
 }
 
@@ -223,7 +231,8 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.description = "开始超出代数范围分析";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_diag;
-        lv_SAFE_SNPRINTF(_snw_diag, detail, sizeof(detail), "{\"phase\":\"analyze_out_of_scope\",\"var_id\":%d}", var_id);
+        lv_SAFE_SNPRINTF(_snw_diag, detail, sizeof(detail), "{\"phase\":\"analyze_out_of_scope\",\"var_id\":%d}",
+                         var_id);
         lv_UNUSED(_snw_diag);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -282,7 +291,8 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.description = "发现高次方程，尝试因式分解";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_found;
-        lv_SAFE_SNPRINTF(_snw_found, detail, sizeof(detail), "{\"degree\":%d,\"var_id\":%d}", target_poly->degree, var_id);
+        lv_SAFE_SNPRINTF(_snw_found, detail, sizeof(detail), "{\"degree\":%d,\"var_id\":%d}", target_poly->degree,
+                         var_id);
         lv_UNUSED(_snw_found);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -297,8 +307,10 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
 
         size_t needed = 256 + strlen(f1_str) + strlen(f2_str);
         if (needed > INT_MAX) {
-            lv_free((void **) &f1_str); lv_free((void **) &f2_str);
-            mpz_poly_clear(&factor1); mpz_poly_clear(&factor2);
+            lv_free((void **) &f1_str);
+            lv_free((void **) &f2_str);
+            mpz_poly_clear(&factor1);
+            mpz_poly_clear(&factor2);
             return SOLVER_STATUS_OUT_OF_SCOPE;
         }
         *suggestion = lv_malloc(needed);
@@ -328,8 +340,10 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
             stream_emit(solver_stream_ctx, &ev);
         }
 
-        lv_free((void **) &f1_str); lv_free((void **) &f2_str);
-        mpz_poly_clear(&factor1); mpz_poly_clear(&factor2);
+        lv_free((void **) &f1_str);
+        lv_free((void **) &f2_str);
+        mpz_poly_clear(&factor1);
+        mpz_poly_clear(&factor2);
         equation_system_clear(&sys);
         return SOLVER_STATUS_OUT_OF_SCOPE;
     }
@@ -337,7 +351,10 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
     if (target_poly->degree == 4) {
         bool biquadratic = true;
         for (int i = 1; i <= 3; i += 2) {
-            if (mpz_cmp_si(target_poly->coeffs[i], 0) != 0) { biquadratic = false; break; }
+            if (mpz_cmp_si(target_poly->coeffs[i], 0) != 0) {
+                biquadratic = false;
+                break;
+            }
         }
         if (biquadratic) {
             *suggestion = lv_strdup_safe(
@@ -352,7 +369,8 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
                 ev.timestamp_ms = stream_timestamp_ms();
                 ev.var_id = var_id;
                 ev.description = "双二次方程，可通过变量替换 u=x² 归约为二次方程求解";
-                ev.detail_json = "{\"diagnosis\":\"biquadratic\",\"resolvable\":true,\"method\":\"substitute_u_equals_x_squared\"}";
+                ev.detail_json =
+                    "{\"diagnosis\":\"biquadratic\",\"resolvable\":true,\"method\":\"substitute_u_equals_x_squared\"}";
                 stream_emit(solver_stream_ctx, &ev);
             }
 
@@ -387,9 +405,10 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.description = "不可约高次多项式，超出二次可构造范围";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_irr;
-        lv_SAFE_SNPRINTF(_snw_irr, detail, sizeof(detail),
-                         "{\"diagnosis\":\"irreducible_high_degree\",\"degree\":%d,\"polynomial\":\"%s\",\"resolvable\":false}",
-                         target_poly->degree, poly_str);
+        lv_SAFE_SNPRINTF(
+            _snw_irr, detail, sizeof(detail),
+            "{\"diagnosis\":\"irreducible_high_degree\",\"degree\":%d,\"polynomial\":\"%s\",\"resolvable\":false}",
+            target_poly->degree, poly_str);
         lv_UNUSED(_snw_irr);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);

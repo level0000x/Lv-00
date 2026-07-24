@@ -284,10 +284,7 @@ static void test_interval_union(void) {
 
 static void test_interval_from_symbolic(void) {
     const char *names[] = {"x", "y"};
-    lvInterval bounds[] = {
-        interval_create(1.0, 2.0, 0),
-        interval_create(3.0, 4.0, 0)
-    };
+    lvInterval bounds[] = {interval_create(1.0, 2.0, 0), interval_create(3.0, 4.0, 0)};
 
     /* x + y with x in [1,2], y in [3,4] => [4,6] */
     lvInterval r = interval_from_symbolic("x + y", names, bounds, 2);
@@ -312,24 +309,21 @@ static void test_interval_to_symbolic(void) {
 static void test_interval_verify_solution(void) {
     /* f(x) in [-0.5, 0.5] should verify with tolerance 1.0 */
     lvInterval iv = interval_create(-0.5, 0.5, 0);
-    TEST_ASSERT_MSG(interval_verify_solution(iv, 1.0) == 1,
-                    "[-0.5,0.5] should verify with tolerance 1.0");
+    TEST_ASSERT_MSG(interval_verify_solution(iv, 1.0) == 1, "[-0.5,0.5] should verify with tolerance 1.0");
 
     /* f(x) in [1.0, 2.0] should NOT verify with tolerance 0.5 */
     lvInterval iv2 = interval_create(1.0, 2.0, 0);
-    TEST_ASSERT_MSG(interval_verify_solution(iv2, 0.5) == 0,
-                    "[1.0,2.0] should not verify with tolerance 0.5");
+    TEST_ASSERT_MSG(interval_verify_solution(iv2, 0.5) == 0, "[1.0,2.0] should not verify with tolerance 0.5");
 
     /* f(x) in [-0.1, 0.1] should verify with tolerance 0.5 */
     lvInterval iv3 = interval_create(-0.1, 0.1, 0);
-    TEST_ASSERT_MSG(interval_verify_solution(iv3, 0.5) == 1,
-                    "[-0.1,0.1] should verify with tolerance 0.5");
+    TEST_ASSERT_MSG(interval_verify_solution(iv3, 0.5) == 1, "[-0.1,0.1] should verify with tolerance 0.5");
 }
 
 static void test_interval_verify_adaptive(void) {
     /* Verify that x - 0.5 = 0 has a solution in x in [0, 1] */
     const char *names[] = {"x"};
-    lvInterval bounds[] = { interval_create(0.0, 1.0, 0) };
+    lvInterval bounds[] = {interval_create(0.0, 1.0, 0)};
 
     int result = interval_verify_adaptive("x - 0.5", names, bounds, 1, 10, 1e-6);
     TEST_ASSERT_MSG(result == 1, "x - 0.5 should have a solution in [0,1]");

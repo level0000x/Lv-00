@@ -113,7 +113,8 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
         if (sys->eqs[i].poly.degree < 0)
             continue;
         if (dirty_set_contains(ds, sys->eqs[i].var_node_id)) {
-            if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index) != 0) {
+            if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index) !=
+                0) {
                 lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 return;
             }
@@ -143,7 +144,8 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
                 }
             }
             if (!found) {
-                if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index) != 0) {
+                if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id,
+                                         sys->eqs[i].coord_index) != 0) {
                     lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     dirty_set_free(&related);
                     return;

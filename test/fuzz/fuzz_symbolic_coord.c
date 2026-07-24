@@ -33,10 +33,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     /* 测试有理数坐标 */
     {
         /* [P1 修复] 使用位移操作代替直接内存操作，避免字节序假设 */
-        int64_t numer = (int64_t)((uint64_t)data[0] | ((uint64_t)data[1] << 8) |
-                                  ((uint64_t)data[2] << 16) | ((uint64_t)data[3] << 24));
-        uint64_t denom = (uint64_t)data[4] | ((uint64_t)data[5] << 8) |
-                         ((uint64_t)data[6] << 16) | ((uint64_t)data[7] << 24);
+        int64_t numer = (int64_t) ((uint64_t) data[0] | ((uint64_t) data[1] << 8) | ((uint64_t) data[2] << 16) |
+                                   ((uint64_t) data[3] << 24));
+        uint64_t denom =
+            (uint64_t) data[4] | ((uint64_t) data[5] << 8) | ((uint64_t) data[6] << 16) | ((uint64_t) data[7] << 24);
         if (denom == 0)
             denom = 1; /* 避免除零 */
 

@@ -11,27 +11,28 @@
  *
  * @author Lv-00 Project
  */
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "lv/lv.h"
-#include "lv/trust_color.h"
 #include "lv/lv_protocol.h"
+#include "lv/trust_color.h"
 
 /* 测试通过/失败计数 */
 static int g_pass = 0;
 static int g_fail = 0;
 
-#define TEST_ASSERT(cond, msg) do { \
-    if (!(cond)) { \
-        fprintf(stderr, "  FAIL: %s (line %d)\n", msg, __LINE__); \
-        g_fail++; \
-    } else { \
-        g_pass++; \
-    } \
-} while(0)
+#define TEST_ASSERT(cond, msg)                                        \
+    do {                                                              \
+        if (!(cond)) {                                                \
+            fprintf(stderr, "  FAIL: %s (line %d)\n", msg, __LINE__); \
+            g_fail++;                                                 \
+        } else {                                                      \
+            g_pass++;                                                 \
+        }                                                             \
+    } while (0)
 
 /* ================================================================
  * 测试 1: TrustColor → ProofColor 映射
@@ -39,29 +40,25 @@ static int g_fail = 0;
 static void test_trust_to_proof(void) {
     printf("[Test] TrustColor → ProofColor 映射\n");
 
-    TEST_ASSERT(trust_color_to_proof(TRUST_GREEN) == PROOF_COLOR_GREEN,
-                "TRUST_GREEN → PROOF_COLOR_GREEN");
+    TEST_ASSERT(trust_color_to_proof(TRUST_GREEN) == PROOF_COLOR_GREEN, "TRUST_GREEN → PROOF_COLOR_GREEN");
     TEST_ASSERT(trust_color_to_proof(TRUST_BLUE_UNEXPLORED) == PROOF_COLOR_BLUE_UNEXPLORED,
                 "TRUST_BLUE_UNEXPLORED → PROOF_COLOR_BLUE_UNEXPLORED");
     TEST_ASSERT(trust_color_to_proof(TRUST_BLUE_EXCEEDED) == PROOF_COLOR_BLUE_RESOURCE,
                 "TRUST_BLUE_EXCEEDED → PROOF_COLOR_BLUE_RESOURCE");
     TEST_ASSERT(trust_color_to_proof(TRUST_BLUE_OUT_OF_SCOPE) == PROOF_COLOR_BLUE_OUT_OF_RANGE,
                 "TRUST_BLUE_OUT_OF_SCOPE → PROOF_COLOR_BLUE_OUT_OF_RANGE");
-    TEST_ASSERT(trust_color_to_proof(TRUST_YELLOW) == PROOF_COLOR_YELLOW,
-                "TRUST_YELLOW → PROOF_COLOR_YELLOW");
+    TEST_ASSERT(trust_color_to_proof(TRUST_YELLOW) == PROOF_COLOR_YELLOW, "TRUST_YELLOW → PROOF_COLOR_YELLOW");
     TEST_ASSERT(trust_color_to_proof(TRUST_LIGHT_ORANGE_ORACLE) == PROOF_COLOR_ORANGE_ORACLE,
                 "TRUST_LIGHT_ORANGE_ORACLE → PROOF_COLOR_ORANGE_ORACLE");
     TEST_ASSERT(trust_color_to_proof(TRUST_LIGHT_ORANGE_EXPLOSION) == PROOF_COLOR_ORANGE_EX_FALSO,
                 "TRUST_LIGHT_ORANGE_EXPLOSION → PROOF_COLOR_ORANGE_EX_FALSO");
-    TEST_ASSERT(trust_color_to_proof(TRUST_AMBER) == PROOF_COLOR_AMBER,
-                "TRUST_AMBER → PROOF_COLOR_AMBER");
+    TEST_ASSERT(trust_color_to_proof(TRUST_AMBER) == PROOF_COLOR_AMBER, "TRUST_AMBER → PROOF_COLOR_AMBER");
     TEST_ASSERT(trust_color_to_proof(TRUST_DEEP_ORANGE) == PROOF_COLOR_DARK_ORANGE,
                 "TRUST_DEEP_ORANGE → PROOF_COLOR_DARK_ORANGE");
-    TEST_ASSERT(trust_color_to_proof(TRUST_RED) == PROOF_COLOR_RED_CONFLICT,
-                "TRUST_RED → PROOF_COLOR_RED_CONFLICT");
+    TEST_ASSERT(trust_color_to_proof(TRUST_RED) == PROOF_COLOR_RED_CONFLICT, "TRUST_RED → PROOF_COLOR_RED_CONFLICT");
 
     /* 越界测试 */
-    TEST_ASSERT(trust_color_to_proof((TrustColor)99) == PROOF_COLOR_BLUE_UNEXPLORED,
+    TEST_ASSERT(trust_color_to_proof((TrustColor) 99) == PROOF_COLOR_BLUE_UNEXPLORED,
                 "越界 TrustColor 回退到 BLUE_UNEXPLORED");
 }
 
@@ -71,16 +68,13 @@ static void test_trust_to_proof(void) {
 static void test_proof_to_trust(void) {
     printf("[Test] ProofColor → TrustColor 映射\n");
 
-    TEST_ASSERT(proof_color_to_trust(PROOF_COLOR_GREEN) == TRUST_GREEN,
-                "PROOF_COLOR_GREEN → TRUST_GREEN");
+    TEST_ASSERT(proof_color_to_trust(PROOF_COLOR_GREEN) == TRUST_GREEN, "PROOF_COLOR_GREEN → TRUST_GREEN");
     TEST_ASSERT(proof_color_to_trust(PROOF_COLOR_BLUE_UNEXPLORED) == TRUST_BLUE_UNEXPLORED,
                 "PROOF_COLOR_BLUE_UNEXPLORED → TRUST_BLUE_UNEXPLORED");
     TEST_ASSERT(proof_color_to_trust(PROOF_COLOR_BLUE_RESOURCE) == TRUST_BLUE_EXCEEDED,
                 "PROOF_COLOR_BLUE_RESOURCE → TRUST_BLUE_EXCEEDED");
-    TEST_ASSERT(proof_color_to_trust(PROOF_COLOR_AMBER) == TRUST_AMBER,
-                "PROOF_COLOR_AMBER → TRUST_AMBER");
-    TEST_ASSERT(proof_color_to_trust(PROOF_COLOR_RED_CONFLICT) == TRUST_RED,
-                "PROOF_COLOR_RED_CONFLICT → TRUST_RED");
+    TEST_ASSERT(proof_color_to_trust(PROOF_COLOR_AMBER) == TRUST_AMBER, "PROOF_COLOR_AMBER → TRUST_AMBER");
+    TEST_ASSERT(proof_color_to_trust(PROOF_COLOR_RED_CONFLICT) == TRUST_RED, "PROOF_COLOR_RED_CONFLICT → TRUST_RED");
     TEST_ASSERT(proof_color_to_trust(PROOF_COLOR_DARK_ORANGE) == TRUST_DEEP_ORANGE,
                 "PROOF_COLOR_DARK_ORANGE → TRUST_DEEP_ORANGE");
 
@@ -91,7 +85,7 @@ static void test_proof_to_trust(void) {
                 "PROOF_COLOR_GREEN_VERIFIED → TRUST_GREEN");
 
     /* 越界测试 */
-    TEST_ASSERT(proof_color_to_trust((ProofColor)99) == TRUST_BLUE_UNEXPLORED,
+    TEST_ASSERT(proof_color_to_trust((ProofColor) 99) == TRUST_BLUE_UNEXPLORED,
                 "越界 ProofColor 回退到 BLUE_UNEXPLORED");
 }
 
@@ -102,18 +96,23 @@ static void test_roundtrip(void) {
     printf("[Test] 双向映射一致性\n");
 
     /* TrustColor → ProofColor → TrustColor 应保持一致 */
-    TrustColor trust_inputs[] = {
-        TRUST_GREEN, TRUST_BLUE_UNEXPLORED, TRUST_BLUE_EXCEEDED,
-        TRUST_BLUE_OUT_OF_SCOPE, TRUST_YELLOW, TRUST_LIGHT_ORANGE_ORACLE,
-        TRUST_LIGHT_ORANGE_EXPLOSION, TRUST_AMBER, TRUST_DEEP_ORANGE, TRUST_RED
-    };
-    for (size_t i = 0; i < sizeof(trust_inputs)/sizeof(trust_inputs[0]); i++) {
+    TrustColor trust_inputs[] = {TRUST_GREEN,
+                                 TRUST_BLUE_UNEXPLORED,
+                                 TRUST_BLUE_EXCEEDED,
+                                 TRUST_BLUE_OUT_OF_SCOPE,
+                                 TRUST_YELLOW,
+                                 TRUST_LIGHT_ORANGE_ORACLE,
+                                 TRUST_LIGHT_ORANGE_EXPLOSION,
+                                 TRUST_AMBER,
+                                 TRUST_DEEP_ORANGE,
+                                 TRUST_RED};
+    for (size_t i = 0; i < sizeof(trust_inputs) / sizeof(trust_inputs[0]); i++) {
         ProofColor mid = trust_color_to_proof(trust_inputs[i]);
         TrustColor back = proof_color_to_trust(mid);
         /* 不完全一致是允许的（如 VERIFIED → GREEN），但不应回退到未知 */
         if (back == TRUST_BLUE_UNEXPLORED && trust_inputs[i] != TRUST_BLUE_UNEXPLORED) {
             g_fail++;
-            fprintf(stderr, "  FAIL: 往返后丢失语义 (input=%d)\n", (int)trust_inputs[i]);
+            fprintf(stderr, "  FAIL: 往返后丢失语义 (input=%d)\n", (int) trust_inputs[i]);
         } else {
             g_pass++;
         }
@@ -151,19 +150,15 @@ static void test_proof_color_combine(void) {
 static void test_color_names(void) {
     printf("[Test] 颜色名称\n");
 
-    TEST_ASSERT(strcmp(trust_color_name(TRUST_GREEN), "Green") == 0,
-                "trust_color_name(TRUST_GREEN) == \"Green\"");
-    TEST_ASSERT(strcmp(trust_color_name(TRUST_RED), "Red") == 0,
-                "trust_color_name(TRUST_RED) == \"Red\"");
-    TEST_ASSERT(strcmp(trust_color_name((TrustColor)99), "Unknown") == 0,
-                "trust_color_name(越界) == \"Unknown\"");
+    TEST_ASSERT(strcmp(trust_color_name(TRUST_GREEN), "Green") == 0, "trust_color_name(TRUST_GREEN) == \"Green\"");
+    TEST_ASSERT(strcmp(trust_color_name(TRUST_RED), "Red") == 0, "trust_color_name(TRUST_RED) == \"Red\"");
+    TEST_ASSERT(strcmp(trust_color_name((TrustColor) 99), "Unknown") == 0, "trust_color_name(越界) == \"Unknown\"");
 
     TEST_ASSERT(strcmp(proof_color_name(PROOF_COLOR_GREEN), "Green (fully constructed)") == 0,
                 "proof_color_name(PROOF_COLOR_GREEN) 正确");
     TEST_ASSERT(strcmp(proof_color_name(PROOF_COLOR_DARK_ORANGE), "Dark orange") == 0,
                 "proof_color_name(DARK_ORANGE) 正确");
-    TEST_ASSERT(strcmp(proof_color_name((ProofColor)99), "Unknown") == 0,
-                "proof_color_name(越界) == \"Unknown\"");
+    TEST_ASSERT(strcmp(proof_color_name((ProofColor) 99), "Unknown") == 0, "proof_color_name(越界) == \"Unknown\"");
 }
 
 /* ================================================================
@@ -172,28 +167,21 @@ static void test_color_names(void) {
 static void test_trust_to_lv(void) {
     printf("[Test] TrustColor ↔ lvTrustColor 映射\n");
 
-    TEST_ASSERT(trust_color_to_lv_protocol(TRUST_GREEN) == lv_COLOR_GREEN,
-                "TRUST_GREEN → lv_COLOR_GREEN");
+    TEST_ASSERT(trust_color_to_lv_protocol(TRUST_GREEN) == lv_COLOR_GREEN, "TRUST_GREEN → lv_COLOR_GREEN");
     TEST_ASSERT(trust_color_to_lv_protocol(TRUST_BLUE_UNEXPLORED) == lv_COLOR_BLUE,
                 "TRUST_BLUE_UNEXPLORED → lv_COLOR_BLUE");
-    TEST_ASSERT(trust_color_to_lv_protocol(TRUST_AMBER) == lv_COLOR_AMBER,
-                "TRUST_AMBER → lv_COLOR_AMBER");
-    TEST_ASSERT(trust_color_to_lv_protocol(TRUST_RED) == lv_COLOR_RED,
-                "TRUST_RED → lv_COLOR_RED");
+    TEST_ASSERT(trust_color_to_lv_protocol(TRUST_AMBER) == lv_COLOR_AMBER, "TRUST_AMBER → lv_COLOR_AMBER");
+    TEST_ASSERT(trust_color_to_lv_protocol(TRUST_RED) == lv_COLOR_RED, "TRUST_RED → lv_COLOR_RED");
 
     /* 互逆映射 */
-    TEST_ASSERT(lv_protocol_to_trust_color(lv_COLOR_GREEN) == TRUST_GREEN,
-                "lv_COLOR_GREEN → TRUST_GREEN");
-    TEST_ASSERT(lv_protocol_to_trust_color(lv_COLOR_AMBER) == TRUST_AMBER,
-                "lv_COLOR_AMBER → TRUST_AMBER");
-    TEST_ASSERT(lv_protocol_to_trust_color(lv_COLOR_RED) == TRUST_RED,
-                "lv_COLOR_RED → TRUST_RED");
+    TEST_ASSERT(lv_protocol_to_trust_color(lv_COLOR_GREEN) == TRUST_GREEN, "lv_COLOR_GREEN → TRUST_GREEN");
+    TEST_ASSERT(lv_protocol_to_trust_color(lv_COLOR_AMBER) == TRUST_AMBER, "lv_COLOR_AMBER → TRUST_AMBER");
+    TEST_ASSERT(lv_protocol_to_trust_color(lv_COLOR_RED) == TRUST_RED, "lv_COLOR_RED → TRUST_RED");
 
     /* lvTrustColor 特有颜色回退 */
     TEST_ASSERT(lv_protocol_to_trust_color(lv_COLOR_GREY) == TRUST_BLUE_UNEXPLORED,
                 "lv_COLOR_GREY → TRUST_BLUE_UNEXPLORED（回退）");
-    TEST_ASSERT(lv_protocol_to_trust_color(lv_COLOR_PURPLE) == TRUST_GREEN,
-                "lv_COLOR_PURPLE → TRUST_GREEN");
+    TEST_ASSERT(lv_protocol_to_trust_color(lv_COLOR_PURPLE) == TRUST_GREEN, "lv_COLOR_PURPLE → TRUST_GREEN");
 }
 
 /* ================================================================

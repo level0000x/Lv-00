@@ -7,21 +7,33 @@
  * 新增覆盖：PARALLEL、PERPENDICULAR、ANGLE、EQUAL_LENGTH、VERTICAL、ON_CIRCLE
  */
 #define _USE_MATH_DEFINES
-#include <stdio.h>
-#include <math.h>
 #include <assert.h>
+#include <math.h>
+#include <stdio.h>
+
 #include "lv/geo_constraint_solver.h"
 
 #define TEST(name) printf("  [TEST] %s ... ", name)
-#define PASS() do { printf("PASS\n"); tests_passed++; } while(0)
-#define FAIL(msg) do { printf("FAIL: %s\n", msg); tests_failed++; } while(0)
-#define ASSERT_NEAR(a, b, eps) do { \
-    double _diff = fabs((double)(a) - (double)(b)); \
-    if (_diff > (eps)) { \
-        printf("  ASSERT_NEAR FAIL: %f vs %f (eps=%f)\n", (double)(a), (double)(b), (double)(eps)); \
-        tests_failed++; \
-    } else { tests_passed++; } \
-} while(0)
+#define PASS()            \
+    do {                  \
+        printf("PASS\n"); \
+        tests_passed++;   \
+    } while (0)
+#define FAIL(msg)                  \
+    do {                           \
+        printf("FAIL: %s\n", msg); \
+        tests_failed++;            \
+    } while (0)
+#define ASSERT_NEAR(a, b, eps)                                                                             \
+    do {                                                                                                   \
+        double _diff = fabs((double) (a) - (double) (b));                                                  \
+        if (_diff > (eps)) {                                                                               \
+            printf("  ASSERT_NEAR FAIL: %f vs %f (eps=%f)\n", (double) (a), (double) (b), (double) (eps)); \
+            tests_failed++;                                                                                \
+        } else {                                                                                           \
+            tests_passed++;                                                                                \
+        }                                                                                                  \
+    } while (0)
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -46,28 +58,46 @@ int main(void) {
     printf("[组 1] 约束类型 DOF 校验\n");
     {
         TEST("constrained_dof: 平行消耗 1 DOF");
-        if (lv_constraint_dof(lv_CONSTRAINT_PARALLEL) == 1) { PASS(); }
-        else { FAIL("期望 1"); }
+        if (lv_constraint_dof(lv_CONSTRAINT_PARALLEL) == 1) {
+            PASS();
+        } else {
+            FAIL("期望 1");
+        }
 
         TEST("constrained_dof: 垂直消耗 1 DOF");
-        if (lv_constraint_dof(lv_CONSTRAINT_PERPENDICULAR) == 1) { PASS(); }
-        else { FAIL("期望 1"); }
+        if (lv_constraint_dof(lv_CONSTRAINT_PERPENDICULAR) == 1) {
+            PASS();
+        } else {
+            FAIL("期望 1");
+        }
 
         TEST("constrained_dof: 角度消耗 1 DOF");
-        if (lv_constraint_dof(lv_CONSTRAINT_ANGLE) == 1) { PASS(); }
-        else { FAIL("期望 1"); }
+        if (lv_constraint_dof(lv_CONSTRAINT_ANGLE) == 1) {
+            PASS();
+        } else {
+            FAIL("期望 1");
+        }
 
         TEST("constrained_dof: 等长消耗 1 DOF");
-        if (lv_constraint_dof(lv_CONSTRAINT_EQUAL_LENGTH) == 1) { PASS(); }
-        else { FAIL("期望 1"); }
+        if (lv_constraint_dof(lv_CONSTRAINT_EQUAL_LENGTH) == 1) {
+            PASS();
+        } else {
+            FAIL("期望 1");
+        }
 
         TEST("constrained_dof: 垂直直线消耗 1 DOF");
-        if (lv_constraint_dof(lv_CONSTRAINT_VERTICAL) == 1) { PASS(); }
-        else { FAIL("期望 1"); }
+        if (lv_constraint_dof(lv_CONSTRAINT_VERTICAL) == 1) {
+            PASS();
+        } else {
+            FAIL("期望 1");
+        }
 
         TEST("constrained_dof: 点在圆上消耗 1 DOF");
-        if (lv_constraint_dof(lv_CONSTRAINT_PT_ON_CIRCLE) == 1) { PASS(); }
-        else { FAIL("期望 1"); }
+        if (lv_constraint_dof(lv_CONSTRAINT_PT_ON_CIRCLE) == 1) {
+            PASS();
+        } else {
+            FAIL("期望 1");
+        }
     }
 
     /* ---- 组2: 平行约束 ---- */
@@ -90,8 +120,11 @@ int main(void) {
 
         TEST("平行约束: 求解成功");
         lvSolveResult res = lv_solver_solve(sys);
-        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) { PASS(); }
-        else { FAIL("求解失败"); }
+        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
+            PASS();
+        } else {
+            FAIL("求解失败");
+        }
 
         lv_solver_destroy(sys);
     }
@@ -115,8 +148,11 @@ int main(void) {
 
         TEST("垂直约束: 求解成功");
         lvSolveResult res = lv_solver_solve(sys);
-        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) { PASS(); }
-        else { FAIL("求解失败"); }
+        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
+            PASS();
+        } else {
+            FAIL("求解失败");
+        }
 
         lv_solver_destroy(sys);
     }
@@ -141,8 +177,11 @@ int main(void) {
 
         TEST("角度约束(90°): 求解成功");
         lvSolveResult res = lv_solver_solve(sys);
-        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) { PASS(); }
-        else { FAIL("求解失败"); }
+        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
+            PASS();
+        } else {
+            FAIL("求解失败");
+        }
 
         lv_solver_destroy(sys);
     }
@@ -166,8 +205,11 @@ int main(void) {
 
         TEST("等长约束: 求解成功");
         lvSolveResult res = lv_solver_solve(sys);
-        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) { PASS(); }
-        else { FAIL("求解失败"); }
+        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
+            PASS();
+        } else {
+            FAIL("求解失败");
+        }
 
         lv_solver_destroy(sys);
     }
@@ -192,8 +234,11 @@ int main(void) {
 
         TEST("垂直直线约束: 求解成功");
         lvSolveResult res = lv_solver_solve(sys);
-        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) { PASS(); }
-        else { FAIL("求解失败"); }
+        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
+            PASS();
+        } else {
+            FAIL("求解失败");
+        }
 
         lv_solver_destroy(sys);
     }
@@ -218,8 +263,11 @@ int main(void) {
 
         TEST("点在圆上约束: 求解成功");
         lvSolveResult res = lv_solver_solve(sys);
-        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) { PASS(); }
-        else { FAIL("求解失败"); }
+        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
+            PASS();
+        } else {
+            FAIL("求解失败");
+        }
 
         /* 验证求解后的几何正确性：点到圆心的距离应等于半径 */
         TEST("点在圆上约束: 几何验证");
@@ -263,20 +311,25 @@ int main(void) {
 
         TEST("混合约束(固定+平行+垂直): DOF 分析");
         lvDOFAnalysis *dof = lv_solver_dof_analyze(sys);
-        if (dof && dof->status >= lv_SYSTEM_UNDER_CONSTRAINED) { PASS(); }
-        else { FAIL("DOF 分析失败"); }
+        if (dof && dof->status >= lv_SYSTEM_UNDER_CONSTRAINED) {
+            PASS();
+        } else {
+            FAIL("DOF 分析失败");
+        }
         lv_dof_analysis_destroy(dof);
 
         TEST("混合约束: 求解成功");
         lvSolveResult res = lv_solver_solve(sys);
-        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) { PASS(); }
-        else { FAIL("求解失败"); }
+        if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
+            PASS();
+        } else {
+            FAIL("求解失败");
+        }
 
         lv_solver_destroy(sys);
     }
 
     /* ---- 总计 ---- */
-    printf("\n=== 结果: %d passed, %d failed, %d total ===\n",
-           tests_passed, tests_failed, tests_passed + tests_failed);
+    printf("\n=== 结果: %d passed, %d failed, %d total ===\n", tests_passed, tests_failed, tests_passed + tests_failed);
     return tests_failed > 0 ? 1 : 0;
 }

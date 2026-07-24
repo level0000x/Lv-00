@@ -426,10 +426,13 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
         lv_free_ptr(buf);
         return NULL;
     }
-    if ((size_t)written >= cap - pos) {
-        cap = pos + (size_t)written + 1;
-        char *nb = (char *)lv_realloc(buf, cap);
-        if (!nb) { lv_free_ptr(buf); return NULL; }
+    if ((size_t) written >= cap - pos) {
+        cap = pos + (size_t) written + 1;
+        char *nb = (char *) lv_realloc(buf, cap);
+        if (!nb) {
+            lv_free_ptr(buf);
+            return NULL;
+        }
         buf = nb;
     }
     pos += (size_t) written;

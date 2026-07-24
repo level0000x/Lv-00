@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv.h"
 #include "test_helpers.h"
 /* 测试多节点图 */

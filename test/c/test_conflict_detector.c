@@ -9,8 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/conflict_detector.h"
+#include "lv/lv.h"
+
 #include "test_helpers.h"
 
 /* 全局测试计数器 */
@@ -24,34 +25,34 @@ int g_fail_count = 0;
 static void test_null_graph(void) {
     ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
-    
+
     /* 检测 NULL 图应该返回错误 */
     int err = lv_conflict_detect_all(NULL, NULL, report);
     TEST_ASSERT(err != 0, "Should return error for NULL graph");
-    
+
     /* 快速检测应该返回 false */
     bool has_conflict = lv_conflict_detect_quick(NULL);
     TEST_ASSERT(!has_conflict, "Quick detect on NULL should return false");
-    
+
     lv_conflict_report_destroy(report);
 }
 
 static void test_empty_graph(void) {
     ConstraintGraph *graph = graph_create();
     TEST_ASSERT_NOT_NULL(graph);
-    
+
     ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
-    
+
     /* 空图应该无矛盾 */
     int err = lv_conflict_detect_all(graph, NULL, report);
     TEST_ASSERT_EQ(err, 0);
     TEST_ASSERT_EQ(report->conflict_count, 0);
-    
+
     /* 快速检测 */
     bool has_conflict = lv_conflict_detect_quick(graph);
     TEST_ASSERT(!has_conflict, "Quick detect on empty graph should return false");
-    
+
     lv_conflict_report_destroy(report);
     graph_destroy(graph);
 }
@@ -67,13 +68,13 @@ static void test_report_lifecycle(void) {
     TEST_ASSERT(!report->has_critical, "New report should not have critical");
     TEST_ASSERT(!report->has_error, "New report should not have error");
     TEST_ASSERT(!report->has_warning, "New report should not have warning");
-    
+
     /* 清空空报告应该安全 */
     lv_conflict_report_clear(report);
     TEST_ASSERT_EQ(report->conflict_count, 0);
-    
+
     lv_conflict_report_destroy(report);
-    
+
     /* 销毁 NULL 应该安全 */
     lv_conflict_report_destroy(NULL);
 }
@@ -85,12 +86,12 @@ static void test_report_lifecycle(void) {
 static void test_default_config(void) {
     const ConflictDetectorConfig *config = lv_conflict_detector_default_config();
     TEST_ASSERT_NOT_NULL(config);
-    
+
     TEST_ASSERT(config->enable_basic_checks, "Basic checks should be enabled by default");
     TEST_ASSERT(config->enable_combination_checks, "Combination checks should be enabled by default");
     TEST_ASSERT(config->enable_transitive_checks, "Transitive checks should be enabled by default");
     TEST_ASSERT(!config->enable_algebraic_checks, "Algebraic checks should be disabled by default");
-    
+
     TEST_ASSERT(config->position_tolerance > 0.0, "Position tolerance should be positive");
     TEST_ASSERT(config->distance_tolerance > 0.0, "Distance tolerance should be positive");
     TEST_ASSERT(config->angle_tolerance > 0.0, "Angle tolerance should be positive");
@@ -103,11 +104,11 @@ static void test_default_config(void) {
 static void test_type_names(void) {
     /* 测试所有类型名称不为 NULL */
     for (int i = 0; i <= CONFLICT_UNKNOWN; i++) {
-        const char *name = lv_conflict_type_name((ConflictType)i);
+        const char *name = lv_conflict_type_name((ConflictType) i);
         TEST_ASSERT_NOT_NULL(name);
         TEST_ASSERT(strlen(name) > 0, "Type name should not be empty");
     }
-    
+
     /* 测试严重程度名称 */
     TEST_ASSERT_NOT_NULL(lv_conflict_severity_name(CONFLICT_SEVERITY_WARNING));
     TEST_ASSERT_NOT_NULL(lv_conflict_severity_name(CONFLICT_SEVERITY_ERROR));
@@ -122,20 +123,20 @@ static void test_simple_triangle_no_conflict(void) {
     /* 创建一个简单的三角形，应该无矛盾 */
     ConstraintGraph *graph = graph_create();
     TEST_ASSERT_NOT_NULL(graph);
-    
+
     /* 添加三个点 */
     SymbolicCoord *coords1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
     SymbolicCoord *coords2[2] = {symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(0, 1)};
     SymbolicCoord *coords3[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(4, 1)};
-    
+
     GeomNode *p1_node = graph_add_node_with_id(graph, 1, GEOM_POINT, coords1, 2);
     GeomNode *p2_node = graph_add_node_with_id(graph, 2, GEOM_POINT, coords2, 2);
     GeomNode *p3_node = graph_add_node_with_id(graph, 3, GEOM_POINT, coords3, 2);
-    
+
     TEST_ASSERT_NOT_NULL(p1_node);
     TEST_ASSERT_NOT_NULL(p2_node);
     TEST_ASSERT_NOT_NULL(p3_node);
-    
+
     /* 添加三条边 */
     AddNodeResult line1_result = graph_add_line_segment(graph, 1, 2);
     int line1 = graph_get_last_added_node_id(graph);
@@ -150,18 +151,18 @@ static void test_simple_triangle_no_conflict(void) {
     TEST_ASSERT(line1 > 0, "Line 1 id should be valid");
     TEST_ASSERT(line2 > 0, "Line 2 id should be valid");
     TEST_ASSERT(line3 > 0, "Line 3 id should be valid");
-    
+
     /* 检测矛盾 */
     ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
-    
+
     int err = lv_conflict_detect_all(graph, NULL, report);
     TEST_ASSERT_EQ(err, 0);
     /* 注意：基础检测可能还无法检测所有情况，所以不强制要求 conflict_count == 0 */
-    
+
     lv_conflict_report_destroy(report);
     graph_destroy(graph);
-    
+
     /* 清理坐标 */
     for (int i = 0; i < 2; i++) {
         symbolic_coord_destroy(coords1[i]);
@@ -232,13 +233,13 @@ static void test_detects_degenerate_betweenness(void) {
 static void test_json_output(void) {
     ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
-    
+
     char buffer[1024];
     int len = lv_conflict_report_to_json(report, buffer, sizeof(buffer));
     TEST_ASSERT(len > 0, "JSON output should succeed");
     TEST_ASSERT(strstr(buffer, "conflict_count") != NULL, "JSON should contain conflict_count");
     TEST_ASSERT(strstr(buffer, "has_critical") != NULL, "JSON should contain has_critical");
-    
+
     lv_conflict_report_destroy(report);
 }
 
@@ -249,19 +250,19 @@ static void test_json_output(void) {
 static void test_convenience_functions(void) {
     ConstraintGraph *graph = graph_create();
     TEST_ASSERT_NOT_NULL(graph);
-    
+
     /* 测试 has_conflicts 便捷函数 */
     bool has_conflict = lv_conflict_graph_has_conflicts(graph);
     /* 空图应该无矛盾 */
     TEST_ASSERT(!has_conflict, "Empty graph should have no conflicts");
-    
+
     /* 测试 get_worst_type */
     ConflictReport *report = lv_conflict_report_create();
     TEST_ASSERT_NOT_NULL(report);
-    
+
     ConflictType worst = lv_conflict_get_worst_type(report);
     TEST_ASSERT_EQ(worst, CONFLICT_UNKNOWN);
-    
+
     lv_conflict_report_destroy(report);
     graph_destroy(graph);
 }
@@ -278,7 +279,10 @@ static void test_distance_conflict_detection(void) {
     SymbolicCoord *c2[2] = {NULL, NULL};
 
     graph = graph_create();
-    if (!graph) { g_fail_count++; return; }
+    if (!graph) {
+        g_fail_count++;
+        return;
+    }
 
     c1[0] = symbolic_coord_create_rational(0, 1);
     c1[1] = symbolic_coord_create_rational(0, 1);
@@ -288,19 +292,25 @@ static void test_distance_conflict_detection(void) {
     graph_add_node_with_id(graph, 2, GEOM_POINT, c2, 2);
 
     int parts1[2] = {1, 2};
-    Constraint *dist1 = graph_add_constraint_with_id(graph, 10, (ConstraintType)CONSTRAINT_DISTANCE, parts1, 2);
-    if (dist1) dist1->numeric_value = 5.0;
+    Constraint *dist1 = graph_add_constraint_with_id(graph, 10, (ConstraintType) CONSTRAINT_DISTANCE, parts1, 2);
+    if (dist1)
+        dist1->numeric_value = 5.0;
 
     int parts2[2] = {1, 2};
-    Constraint *dist2 = graph_add_constraint_with_id(graph, 11, (ConstraintType)CONSTRAINT_DISTANCE, parts2, 2);
-    if (dist2) dist2->numeric_value = 10.0;
+    Constraint *dist2 = graph_add_constraint_with_id(graph, 11, (ConstraintType) CONSTRAINT_DISTANCE, parts2, 2);
+    if (dist2)
+        dist2->numeric_value = 10.0;
 
     report = lv_conflict_report_create();
-    if (!report) goto cleanup;
+    if (!report)
+        goto cleanup;
 
     {
         int err = lv_conflict_detect_all(graph, NULL, report);
-        if (err != 0) { g_fail_count++; goto cleanup; }
+        if (err != 0) {
+            g_fail_count++;
+            goto cleanup;
+        }
 
         if (report->conflict_count <= 0) {
             fprintf(stderr, "  FAIL [%s:%d] Should detect distance conflict\n", __FILE__, __LINE__);
@@ -324,11 +334,15 @@ static void test_distance_conflict_detection(void) {
     }
 
 cleanup:
-    if (report) lv_conflict_report_destroy(report);
-    if (graph) graph_destroy(graph);
+    if (report)
+        lv_conflict_report_destroy(report);
+    if (graph)
+        graph_destroy(graph);
     for (int i = 0; i < 2; i++) {
-        if (c1[i]) symbolic_coord_destroy(c1[i]);
-        if (c2[i]) symbolic_coord_destroy(c2[i]);
+        if (c1[i])
+            symbolic_coord_destroy(c1[i]);
+        if (c2[i])
+            symbolic_coord_destroy(c2[i]);
     }
 }
 
@@ -343,7 +357,6 @@ cleanup:
  * ================================================================ */
 
 
-
 /* ================================================================
  * 测试组：传递等式检测
  * ================================================================ */
@@ -355,7 +368,7 @@ cleanup:
 
 int main(void) {
     printf("=== Conflict Detector Tests ===\n");
-    
+
     TEST_RUN(test_null_graph);
     TEST_RUN(test_empty_graph);
     TEST_RUN(test_report_lifecycle);
@@ -366,7 +379,7 @@ int main(void) {
     TEST_RUN(test_detects_degenerate_betweenness);
     TEST_RUN(test_json_output);
     TEST_RUN(test_convenience_functions);
-    
+
     /* v3.5.1: 新增矛盾检测测试 */
     TEST_RUN(test_distance_conflict_detection);
     /* TEST_RUN(test_distance_no_conflict_same_value); */
@@ -376,7 +389,7 @@ int main(void) {
     /* TEST_RUN(test_horizontal_vs_vertical_conflict); */
     /* TEST_RUN(test_transitive_equality_conflict); */
     /* TEST_RUN(test_transitive_equality_no_conflict_zero_distance); */
-    
+
     TEST_SUMMARY();
     return g_fail_count > 0 ? 1 : 0;
 }

@@ -18,12 +18,11 @@
 
 /* [QA] Uses double for test assertions against GMP mpq_t via comparison helpers. Acceptable in test code. */
 
+#include <gmp.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <gmp.h>
 
 #include "lv.h"
 #include "rational.h"
@@ -39,9 +38,10 @@ int g_fail_count = 0;
  * 辅助宏：释放 to_string 返回的字符串
  * ============================================================ */
 #ifndef SAFE_FREE_STR
-#define SAFE_FREE_STR(s)  \
-    do {                  \
-        if (s) free((s)); \
+#define SAFE_FREE_STR(s) \
+    do {                 \
+        if (s)           \
+            free((s));   \
     } while (0)
 #endif
 

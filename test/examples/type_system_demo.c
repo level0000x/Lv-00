@@ -36,7 +36,7 @@
  * ============================================================ */
 static void print_separator(const char *title) {
     printf("\n--- %s ", title);
-    for (int i = (int)strlen(title); i < 50; i++) {
+    for (int i = (int) strlen(title); i < 50; i++) {
         printf("-");
     }
     printf("\n");
@@ -47,16 +47,26 @@ static void print_separator(const char *title) {
  * ============================================================ */
 static const char *type_kind_cn(TypeKind kind) {
     switch (kind) {
-        case TYPE_KIND_POINT:        return "点类型";
-        case TYPE_KIND_LINE_SEGMENT: return "线段类型";
-        case TYPE_KIND_REGION:       return "区域类型";
-        case TYPE_KIND_FUNCTION:     return "函数类型";
-        case TYPE_KIND_PRODUCT:      return "乘积类型";
-        case TYPE_KIND_SUM:          return "和类型";
-        case TYPE_KIND_VARIABLE:     return "类型变量";
-        case TYPE_KIND_DEPENDENT:    return "依赖类型";
-        case TYPE_KIND_BOTTOM:       return "底部类型 (⊥)";
-        default:                     return "未知类型";
+        case TYPE_KIND_POINT:
+            return "点类型";
+        case TYPE_KIND_LINE_SEGMENT:
+            return "线段类型";
+        case TYPE_KIND_REGION:
+            return "区域类型";
+        case TYPE_KIND_FUNCTION:
+            return "函数类型";
+        case TYPE_KIND_PRODUCT:
+            return "乘积类型";
+        case TYPE_KIND_SUM:
+            return "和类型";
+        case TYPE_KIND_VARIABLE:
+            return "类型变量";
+        case TYPE_KIND_DEPENDENT:
+            return "依赖类型";
+        case TYPE_KIND_BOTTOM:
+            return "底部类型 (⊥)";
+        default:
+            return "未知类型";
     }
 }
 
@@ -132,8 +142,7 @@ static void demo_composite_types(TypeSystem *ts) {
     if (point_to_point) {
         type_add_alias(point_to_point, "PointToPoint");
         printf("  [OK] 函数类型 Point -> Point\n");
-        printf("       输入类型层级: %d, 输出类型层级: %d\n",
-               type_get_level(point_to_point->input_type),
+        printf("       输入类型层级: %d, 输出类型层级: %d\n", type_get_level(point_to_point->input_type),
                type_get_level(point_to_point->output_type));
     }
 
@@ -152,8 +161,7 @@ static void demo_composite_types(TypeSystem *ts) {
     if (point_pair) {
         type_add_alias(point_pair, "PointPair");
         printf("  [OK] 乘积类型 Point x Point\n");
-        printf("       左类型: %s, 右类型: %s\n",
-               type_kind_cn(point_pair->left_type->kind),
+        printf("       左类型: %s, 右类型: %s\n", type_kind_cn(point_pair->left_type->kind),
                type_kind_cn(point_pair->right_type->kind));
     }
 
@@ -163,8 +171,7 @@ static void demo_composite_types(TypeSystem *ts) {
     if (geom_union) {
         type_add_alias(geom_union, "GeomObject");
         printf("  [OK] 和类型 Point + Segment\n");
-        printf("       第一类型: %s, 第二类型: %s\n",
-               type_kind_cn(geom_union->first_type->kind),
+        printf("       第一类型: %s, 第二类型: %s\n", type_kind_cn(geom_union->first_type->kind),
                type_kind_cn(geom_union->second_type->kind));
     }
 }
@@ -194,34 +201,29 @@ static void demo_type_equivalence(TypeSystem *ts) {
 
     /* 检查1：两个点类型应该等价 */
     TypeEquivResult r1 = type_check_equivalence(ts, point_a, point_b, false);
-    printf("  PointA ≡ PointB (直接比较): %s\n",
-           type_equiv_result_to_string(r1));
+    printf("  PointA ≡ PointB (直接比较): %s\n", type_equiv_result_to_string(r1));
 
     /* 检查2：使用重写引擎的规范化等价检查 */
     TypeEquivResult r2 = type_check_equivalence(ts, point_a, point_b, true);
-    printf("  PointA ≡ PointB (规范化比较): %s\n",
-           type_equiv_result_to_string(r2));
+    printf("  PointA ≡ PointB (规范化比较): %s\n", type_equiv_result_to_string(r2));
 
     /* 检查3：点类型和线段类型不应该等价 */
     TypeEquivResult r3 = type_check_equivalence(ts, point_a, segment, false);
-    printf("  PointA ≡ Segment (直接比较): %s\n",
-           type_equiv_result_to_string(r3));
+    printf("  PointA ≡ Segment (直接比较): %s\n", type_equiv_result_to_string(r3));
 
     /* 检查4：函数类型的等价 —— (A->A) ≡ (A->A) */
     TypeRegion *func1 = type_create_function(ts, point_a, point_a);
     TypeRegion *func2 = type_create_function(ts, point_b, point_b);
     if (func1 && func2) {
         TypeEquivResult r4 = type_check_equivalence(ts, func1, func2, true);
-        printf("  (PointA->PointA) ≡ (PointB->PointB): %s\n",
-               type_equiv_result_to_string(r4));
+        printf("  (PointA->PointA) ≡ (PointB->PointB): %s\n", type_equiv_result_to_string(r4));
     }
 
     /* 检查5：不同函数类型不等价 —— (A->A) ≠ (A->B) */
     TypeRegion *func3 = type_create_function(ts, point_a, segment);
     if (func1 && func3) {
         TypeEquivResult r5 = type_check_equivalence(ts, func1, func3, true);
-        printf("  (PointA->PointA) ≡ (PointA->Segment): %s\n",
-               type_equiv_result_to_string(r5));
+        printf("  (PointA->PointA) ≡ (PointA->Segment): %s\n", type_equiv_result_to_string(r5));
     }
 }
 
@@ -249,20 +251,15 @@ static void demo_universe_levels(TypeSystem *ts) {
     }
 
     /* 打印各类型的宇宙层级 */
-    printf("  Point 类型层级:    %d (%s)\n",
-           type_get_level(point),
-           universe_level_to_string(type_get_level(point)));
-    printf("  Segment 类型层级:  %d (%s)\n",
-           type_get_level(segment),
+    printf("  Point 类型层级:    %d (%s)\n", type_get_level(point), universe_level_to_string(type_get_level(point)));
+    printf("  Segment 类型层级:  %d (%s)\n", type_get_level(segment),
            universe_level_to_string(type_get_level(segment)));
-    printf("  (Point->Segment) 类型层级: %d (%s)\n",
-           type_get_level(func_type),
+    printf("  (Point->Segment) 类型层级: %d (%s)\n", type_get_level(func_type),
            universe_level_to_string(type_get_level(func_type)));
 
     /* 检查层级有效性 */
     bool valid = type_check_level_validity(ts, func_type, point);
-    printf("\n  层级有效性检查 (函数类型包含点类型): %s\n",
-           valid ? "有效" : "无效");
+    printf("\n  层级有效性检查 (函数类型包含点类型): %s\n", valid ? "有效" : "无效");
 
     /* 演示累积性检查 */
     printf("\n  累积性检查:\n");
@@ -331,15 +328,12 @@ static void demo_type_inference(TypeSystem *ts) {
     printf("  注册推断规则...\n");
 
     /* 规则1：GEOM_POINT 节点 -> TYPE_KIND_POINT 类型 */
-    int r1 = type_system_register_inference_rule(
-        ts, GEOM_POINT, TYPE_KIND_POINT, 10,
-        "几何点节点推断为点类型");
+    int r1 = type_system_register_inference_rule(ts, GEOM_POINT, TYPE_KIND_POINT, 10, "几何点节点推断为点类型");
     printf("    规则1 (点推断): %s\n", r1 == 0 ? "注册成功" : "注册失败");
 
     /* 规则2：GEOM_LINE_SEGMENT 节点 -> TYPE_KIND_LINE_SEGMENT 类型 */
-    int r2 = type_system_register_inference_rule(
-        ts, GEOM_LINE_SEGMENT, TYPE_KIND_LINE_SEGMENT, 10,
-        "线段节点推断为线段类型");
+    int r2 = type_system_register_inference_rule(ts, GEOM_LINE_SEGMENT, TYPE_KIND_LINE_SEGMENT, 10,
+                                                 "线段节点推断为线段类型");
     printf("    规则2 (线段推断): %s\n", r2 == 0 ? "注册成功" : "注册失败");
 
     /* 创建约束图用于类型推断 */
@@ -370,8 +364,7 @@ static void demo_type_inference(TypeSystem *ts) {
     /* 查看推断后附加到节点的类型 */
     TypeRegion *inferred_type = type_get_node_type(ts, point_id);
     if (inferred_type) {
-        printf("    点节点的推断类型: %s (层级=%d)\n",
-               type_kind_cn(inferred_type->kind),
+        printf("    点节点的推断类型: %s (层级=%d)\n", type_kind_cn(inferred_type->kind),
                type_get_level(inferred_type));
     } else {
         printf("    点节点无推断类型\n");
@@ -382,8 +375,7 @@ static void demo_type_inference(TypeSystem *ts) {
     const TypeInferenceRule *rules = type_system_get_inference_rules(ts, &rule_count);
     printf("\n  已注册推断规则数: %d\n", rule_count);
     for (int i = 0; i < rule_count; i++) {
-        printf("    [%d] 优先级=%d, 描述: %s\n",
-               i, rules[i].priority, rules[i].description);
+        printf("    [%d] 优先级=%d, 描述: %s\n", i, rules[i].priority, rules[i].description);
     }
 
     /* 清理 */

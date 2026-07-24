@@ -510,12 +510,12 @@ int lv_rewrite_apply_strategy(lvRewriteContext *ctx, lvRewriteStrategyType strat
 
     if (ctx->impl) {
         /* 已有引擎，返回规则数（>0 表示可用） */
-        lvRewriteEngineEx *engine = (lvRewriteEngineEx *)ctx->impl;
-        return (int)engine->rule_count > 0 ? 0 : 1;
+        lvRewriteEngineEx *engine = (lvRewriteEngineEx *) ctx->impl;
+        return (int) engine->rule_count > 0 ? 0 : 1;
     }
 
     /* 创建新引擎并存入 context */
-    lvRewriteEngineEx *engine = rewrite_engine_ex_create((lvRewriteStrategyEx)strategy, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create((lvRewriteStrategyEx) strategy, 100);
     if (!engine) {
         return -1;
     }

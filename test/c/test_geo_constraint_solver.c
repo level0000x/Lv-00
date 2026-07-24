@@ -2,9 +2,10 @@
  * @file test_geo_constraint_solver.c
  * @brief 几何约束求解器模块测试（第十三梯队 SolveSpace 落地验证）
  */
-#include <stdio.h>
-#include <math.h>
 #include <assert.h>
+#include <math.h>
+#include <stdio.h>
+
 #include "lv/geo_constraint_solver.h"
 
 #define TEST(name) printf("  [TEST] %s ... ", name)
@@ -21,20 +22,40 @@ int main(void) {
     printf("[组 1] 实体与约束 DOF\n");
     {
         TEST("entity_dof: 2D 点自由度 = 2");
-        if (lv_entity_dof(lv_ENTITY_POINT_2D) == 2) { PASS(); tests_passed++; }
-        else { FAIL("期望 2"); tests_failed++; }
+        if (lv_entity_dof(lv_ENTITY_POINT_2D) == 2) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望 2");
+            tests_failed++;
+        }
 
         TEST("entity_dof: 2D 圆自由度 = 3");
-        if (lv_entity_dof(lv_ENTITY_CIRCLE_2D) == 3) { PASS(); tests_passed++; }
-        else { FAIL("期望 3"); tests_failed++; }
+        if (lv_entity_dof(lv_ENTITY_CIRCLE_2D) == 3) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望 3");
+            tests_failed++;
+        }
 
         TEST("constraint_dof: 两点重合消耗 2 DOF");
-        if (lv_constraint_dof(lv_CONSTRAINT_POINTS_COINCIDENT) == 2) { PASS(); tests_passed++; }
-        else { FAIL("期望 2"); tests_failed++; }
+        if (lv_constraint_dof(lv_CONSTRAINT_POINTS_COINCIDENT) == 2) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望 2");
+            tests_failed++;
+        }
 
         TEST("constraint_dof: 平行消耗 1 DOF");
-        if (lv_constraint_dof(lv_CONSTRAINT_PARALLEL) == 1) { PASS(); tests_passed++; }
-        else { FAIL("期望 1"); tests_failed++; }
+        if (lv_constraint_dof(lv_CONSTRAINT_PARALLEL) == 1) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望 1");
+            tests_failed++;
+        }
     }
 
     /* 2. 便捷函数测试 */
@@ -42,23 +63,33 @@ int main(void) {
     {
         TEST("entity_point_2d: 创建 2D 点");
         lvEntity p = lv_entity_point_2d(0, 3.0, 4.0);
-        if (p.type == lv_ENTITY_POINT_2D && p.param_count == 2 &&
-            fabs(p.params[0] - 3.0) < 1e-10) {
-            PASS(); tests_passed++;
-        } else { FAIL("参数不正确"); tests_failed++; }
+        if (p.type == lv_ENTITY_POINT_2D && p.param_count == 2 && fabs(p.params[0] - 3.0) < 1e-10) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("参数不正确");
+            tests_failed++;
+        }
 
         TEST("entity_circle_2d: 创建 2D 圆");
         lvEntity c = lv_entity_circle_2d(1, 5.0, 6.0, 2.0);
-        if (c.type == lv_ENTITY_CIRCLE_2D && c.param_count == 3 &&
-            fabs(c.params[2] - 2.0) < 1e-10) {
-            PASS(); tests_passed++;
-        } else { FAIL("参数不正确"); tests_failed++; }
+        if (c.type == lv_ENTITY_CIRCLE_2D && c.param_count == 3 && fabs(c.params[2] - 2.0) < 1e-10) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("参数不正确");
+            tests_failed++;
+        }
 
         TEST("constraint_distance: 创建距离约束");
         lvConstraint cd = lv_constraint_distance(0, 0, 1, 10.0);
         if (cd.type == lv_CONSTRAINT_PT_PT_DISTANCE && fabs(cd.value - 10.0) < 1e-10) {
-            PASS(); tests_passed++;
-        } else { FAIL("参数不正确"); tests_failed++; }
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("参数不正确");
+            tests_failed++;
+        }
     }
 
     /* 3. 求解器基础测试 */
@@ -66,26 +97,42 @@ int main(void) {
     {
         TEST("solver_create: 创建求解系统");
         lvSolverSystem *sys = lv_solver_create(NULL);
-        if (sys != NULL) { PASS(); tests_passed++; }
-        else { FAIL("返回 NULL"); tests_failed++; }
+        if (sys != NULL) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("返回 NULL");
+            tests_failed++;
+        }
 
         TEST("solver_add_entity: 添加实体");
         lvEntity p1 = lv_entity_point_2d(0, 0, 0);
         lvEntity p2 = lv_entity_point_2d(1, 3, 4);
         int id1 = lv_solver_add_entity(sys, &p1);
         int id2 = lv_solver_add_entity(sys, &p2);
-        if (id1 == 0 && id2 == 1 && sys->entity_count == 2) { PASS(); tests_passed++; }
-        else { FAIL("实体添加不正确"); tests_failed++; }
+        if (id1 == 0 && id2 == 1 && sys->entity_count == 2) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("实体添加不正确");
+            tests_failed++;
+        }
 
         TEST("solver_add_constraint: 添加约束");
         lvConstraint cd = lv_constraint_distance(0, 0, 1, 5.0);
         int cid = lv_solver_add_constraint(sys, &cd);
-        if (cid == 0 && sys->constraint_count == 1) { PASS(); tests_passed++; }
-        else { FAIL("约束添加不正确"); tests_failed++; }
+        if (cid == 0 && sys->constraint_count == 1) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("约束添加不正确");
+            tests_failed++;
+        }
 
         TEST("solver_free: 释放求解系统");
         lv_solver_destroy(sys);
-        PASS(); tests_passed++;
+        PASS();
+        tests_passed++;
     }
 
     /* 4. DOF 分析测试 */
@@ -103,10 +150,13 @@ int main(void) {
 
         TEST("dof_analyze: 欠约束检测");
         lvDOFAnalysis *dof = lv_solver_dof_analyze(sys);
-        if (dof && dof->remaining_dof == 3 &&
-            dof->status == lv_SYSTEM_UNDER_CONSTRAINED) {
-            PASS(); tests_passed++;
-        } else { FAIL("期望欠约束，剩余 3 DOF"); tests_failed++; }
+        if (dof && dof->remaining_dof == 3 && dof->status == lv_SYSTEM_UNDER_CONSTRAINED) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望欠约束，剩余 3 DOF");
+            tests_failed++;
+        }
         lv_dof_analysis_destroy(dof);
 
         /* 添加固定约束：4 DOF - 1 (distance) - 2 (fixed p1) = 1 DOF（仍欠约束） */
@@ -114,10 +164,13 @@ int main(void) {
         lv_solver_add_constraint(sys, &_c2);
         TEST("dof_analyze: 欠约束（加固定后）");
         dof = lv_solver_dof_analyze(sys);
-        if (dof && dof->remaining_dof == 1 &&
-            dof->status == lv_SYSTEM_UNDER_CONSTRAINED) {
-            PASS(); tests_passed++;
-        } else { FAIL("期望欠约束，剩余 1 DOF"); tests_failed++; }
+        if (dof && dof->remaining_dof == 1 && dof->status == lv_SYSTEM_UNDER_CONSTRAINED) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望欠约束，剩余 1 DOF");
+            tests_failed++;
+        }
         lv_dof_analysis_destroy(dof);
 
         /* 再固定 p2：2 DOF (p2) - 1 (distance) = 1 → 过约束（distance 约束冗余） */
@@ -125,10 +178,13 @@ int main(void) {
         lv_solver_add_constraint(sys, &_c3);
         TEST("dof_analyze: 过约束检测");
         dof = lv_solver_dof_analyze(sys);
-        if (dof && dof->remaining_dof < 0 &&
-            dof->status == lv_SYSTEM_OVER_CONSTRAINED) {
-            PASS(); tests_passed++;
-        } else { FAIL("期望过约束"); tests_failed++; }
+        if (dof && dof->remaining_dof < 0 && dof->status == lv_SYSTEM_OVER_CONSTRAINED) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望过约束");
+            tests_failed++;
+        }
         lv_dof_analysis_destroy(dof);
 
         lv_solver_destroy(sys);
@@ -141,7 +197,7 @@ int main(void) {
 
         /* 固定 p1 在原点，p2 自由，距离约束 = 5 */
         lvEntity p1 = lv_entity_point_2d(0, 0, 0);
-        lvEntity p2 = lv_entity_point_2d(1, 3, 0);  /* 初始距离 3，目标 5 */
+        lvEntity p2 = lv_entity_point_2d(1, 3, 0); /* 初始距离 3，目标 5 */
         lv_solver_add_entity(sys, &p1);
         lv_solver_add_entity(sys, &p2);
         lvConstraint _c3 = lv_constraint_fixed(0, 0);
@@ -155,14 +211,18 @@ int main(void) {
          * Newton-Raphson 对欠约束系统的鲁棒性有限，此处仅验证不崩溃。 */
         printf("(result=%d) ", result);
         if (result != lv_SOLVE_FAILED) {
-            PASS(); tests_passed++;
-        } else { FAIL("求解失败"); tests_failed++; }
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("求解失败");
+            tests_failed++;
+        }
 
         /* 验证 p2.x 应该接近 5.0 */
         lvEntity *solved_p2 = lv_solver_get_entity(sys, 1);
         if (solved_p2) {
-            double dist = sqrt(solved_p2->params[0]*solved_p2->params[0] +
-                               solved_p2->params[1]*solved_p2->params[1]);
+            double dist =
+                sqrt(solved_p2->params[0] * solved_p2->params[0] + solved_p2->params[1] * solved_p2->params[1]);
             printf("(距离=%.4f) ", dist);
         }
 
@@ -200,8 +260,12 @@ int main(void) {
         lvSolveResult result = lv_solver_solve(sys);
         printf("(result=%d, iters=%d) ", result, lv_solver_get_iteration_count(sys));
         if (result == lv_SOLVE_OK || result == lv_SOLVE_NOT_CONVERGED) {
-            PASS(); tests_passed++;
-        } else { FAIL("求解失败"); tests_failed++; }
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("求解失败");
+            tests_failed++;
+        }
 
         lv_solver_destroy(sys);
     }
@@ -215,15 +279,23 @@ int main(void) {
 
         TEST("solver_get_status: 单点欠约束");
         if (lv_solver_get_status(sys) == lv_SYSTEM_UNDER_CONSTRAINED) {
-            PASS(); tests_passed++;
-        } else { FAIL("期望欠约束"); tests_failed++; }
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望欠约束");
+            tests_failed++;
+        }
 
         lvConstraint _c11 = lv_constraint_fixed(0, 0);
         lv_solver_add_constraint(sys, &_c11);
         TEST("solver_get_status: 固定点恰好约束");
         if (lv_solver_get_status(sys) == lv_SYSTEM_WELL_CONSTRAINED) {
-            PASS(); tests_passed++;
-        } else { FAIL("期望恰好约束"); tests_failed++; }
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望恰好约束");
+            tests_failed++;
+        }
 
         lv_solver_destroy(sys);
     }
@@ -244,14 +316,24 @@ int main(void) {
         TEST("solver_set_dragged: 设置拖拽状态");
         lv_solver_set_dragged(sys, 1, true);
         lvEntity *p = lv_solver_get_entity(sys, 1);
-        if (p && p->is_dragged) { PASS(); tests_passed++; }
-        else { FAIL("期望 is_dragged=true"); tests_failed++; }
+        if (p && p->is_dragged) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望 is_dragged=true");
+            tests_failed++;
+        }
 
         TEST("solver_set_drag_position: 设置拖拽位置");
         lv_solver_set_drag_position(sys, 1, 3, 4);
         p = lv_solver_get_entity(sys, 1);
-        if (p && fabs(p->params[0] - 3.0) < 1e-10) { PASS(); tests_passed++; }
-        else { FAIL("期望 x=3.0"); tests_failed++; }
+        if (p && fabs(p->params[0] - 3.0) < 1e-10) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("期望 x=3.0");
+            tests_failed++;
+        }
 
         lv_solver_set_dragged(sys, 1, false);
         lv_solver_destroy(sys);
@@ -262,12 +344,13 @@ int main(void) {
     {
         TEST("hash_index: 创建包含 100 个实体和 100 个约束的系统");
         lvSolverSystem *sys = lv_solver_create(NULL);
-        if (!sys) { FAIL("创建失败"); tests_failed++; }
-        else {
+        if (!sys) {
+            FAIL("创建失败");
+            tests_failed++;
+        } else {
             /* 添加 100 个实体（ID: 1000 ~ 1099） */
             for (int i = 0; i < 100; i++) {
-                lvEntity e = lv_entity_point_2d(1000 + i,
-                    (double)(i * 1.0), (double)(i * 2.0));
+                lvEntity e = lv_entity_point_2d(1000 + i, (double) (i * 1.0), (double) (i * 2.0));
                 int ret = lv_solver_add_entity(sys, &e);
                 if (ret != 1000 + i) {
                     printf("(add_entity %d failed, ret=%d) ", i, ret);
@@ -276,8 +359,7 @@ int main(void) {
 
             /* 添加 100 个约束（ID: 2000 ~ 2099） */
             for (int i = 0; i < 99; i++) {
-                lvConstraint c = lv_constraint_distance(2000 + i,
-                    1000 + i, 1000 + i + 1, 1.0);
+                lvConstraint c = lv_constraint_distance(2000 + i, 1000 + i, 1000 + i + 1, 1.0);
                 lv_solver_add_constraint(sys, &c);
             }
             /* 最后一个约束：固定第一个实体 */
@@ -285,7 +367,8 @@ int main(void) {
             lv_solver_add_constraint(sys, &cf);
 
             if (sys->entity_count == 100 && sys->constraint_count == 100) {
-                PASS(); tests_passed++;
+                PASS();
+                tests_passed++;
             } else {
                 FAIL("实体/约束数量不正确");
                 tests_failed++;
@@ -300,8 +383,13 @@ int main(void) {
                     break;
                 }
             }
-            if (all_found) { PASS(); tests_passed++; }
-            else { FAIL("部分实体未找到"); tests_failed++; }
+            if (all_found) {
+                PASS();
+                tests_passed++;
+            } else {
+                FAIL("部分实体未找到");
+                tests_failed++;
+            }
 
             TEST("hash_index: 通过 ID 查找每个约束都能找到");
             all_found = 1;
@@ -312,14 +400,24 @@ int main(void) {
                     break;
                 }
             }
-            if (all_found) { PASS(); tests_passed++; }
-            else { FAIL("部分约束未找到"); tests_failed++; }
+            if (all_found) {
+                PASS();
+                tests_passed++;
+            } else {
+                FAIL("部分约束未找到");
+                tests_failed++;
+            }
 
             TEST("hash_index: 查找不存在的 ID 返回 NULL");
             lvEntity *ne = lv_solver_get_entity(sys, 9999);
             lvConstraint *nc = lv_solver_get_constraint(sys, 9999);
-            if (ne == NULL && nc == NULL) { PASS(); tests_passed++; }
-            else { FAIL("应返回 NULL"); tests_failed++; }
+            if (ne == NULL && nc == NULL) {
+                PASS();
+                tests_passed++;
+            } else {
+                FAIL("应返回 NULL");
+                tests_failed++;
+            }
 
             TEST("hash_index: 查找结果与线性扫描一致");
             int consistent = 1;
@@ -349,22 +447,35 @@ int main(void) {
                     break;
                 }
             }
-            if (consistent) { PASS(); tests_passed++; }
-            else { FAIL("哈希查找与线性扫描结果不一致"); tests_failed++; }
+            if (consistent) {
+                PASS();
+                tests_passed++;
+            } else {
+                FAIL("哈希查找与线性扫描结果不一致");
+                tests_failed++;
+            }
 
             TEST("hash_index: 删除后查找返回 NULL");
             bool removed = lv_solver_remove_constraint(sys, 2050);
             lvConstraint *after_remove = lv_solver_get_constraint(sys, 2050);
-            if (removed && after_remove == NULL) { PASS(); tests_passed++; }
-            else { FAIL("删除后仍能找到或删除失败"); tests_failed++; }
+            if (removed && after_remove == NULL) {
+                PASS();
+                tests_passed++;
+            } else {
+                FAIL("删除后仍能找到或删除失败");
+                tests_failed++;
+            }
 
             TEST("hash_index: 删除后其他约束仍可查找");
             lvConstraint *c_before = lv_solver_get_constraint(sys, 2049);
             lvConstraint *c_after_swap = lv_solver_get_constraint(sys, 2099);
-            if (c_before && c_before->id == 2049 &&
-                c_after_swap && c_after_swap->id == 2099) {
-                PASS(); tests_passed++;
-            } else { FAIL("swap-and-pop 后索引不一致"); tests_failed++; }
+            if (c_before && c_before->id == 2049 && c_after_swap && c_after_swap->id == 2099) {
+                PASS();
+                tests_passed++;
+            } else {
+                FAIL("swap-and-pop 后索引不一致");
+                tests_failed++;
+            }
 
             lv_solver_destroy(sys);
         }

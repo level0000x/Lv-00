@@ -10,16 +10,16 @@
  * 5. 缓冲区溢出检测（通过魔数校验）
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
+#include "engine.h"
+#include "formula_parser.h"
 #include "lv.h"
 #include "lv_utils.h"
 #include "memory_pool.h"
-#include "formula_parser.h"
-#include "engine.h"
 #include "solver.h"
 #include "test_helpers.h"
 
@@ -50,8 +50,7 @@ static void test_solver_null_graph(void) {
      */
     EngineSolveResult result = engine_solve(NULL);
     /* NULL engine 应返回 ENGINE_SOLVE_ERROR 或类似错误码 */
-    TEST_ASSERT(result == ENGINE_SOLVE_ERROR,
-                "engine_solve(NULL) 应返回 ENGINE_SOLVE_ERROR");
+    TEST_ASSERT(result == ENGINE_SOLVE_ERROR, "engine_solve(NULL) 应返回 ENGINE_SOLVE_ERROR");
 }
 
 static void test_lv_malloc_zero_size(void) {
@@ -62,7 +61,7 @@ static void test_lv_malloc_zero_size(void) {
     void *p = lv_malloc(0);
     /* 无论返回 NULL 还是有效指针，都不应崩溃 */
     if (p != NULL) {
-        lv_free((void **)&p);
+        lv_free((void **) &p);
     }
     g_pass_count++;
 }
@@ -197,7 +196,7 @@ static void test_buffer_overflow_detection(void) {
      * 此处仅验证正常分配的魔数完整性，以及概念性验证。
      */
     size_t alloc_size = 64;
-    unsigned char *ptr = (unsigned char *)lv_malloc(alloc_size);
+    unsigned char *ptr = (unsigned char *) lv_malloc(alloc_size);
     TEST_ASSERT_NOT_NULL(ptr);
 
     /* 正常使用：写入不超过分配大小 */
@@ -209,7 +208,7 @@ static void test_buffer_overflow_detection(void) {
     lv_poison_enable(true);
 
     /* 释放后检查毒模式 */
-    lv_free((void **)&ptr);
+    lv_free((void **) &ptr);
 
     lv_poison_enable(true);
 }
@@ -220,17 +219,17 @@ static void test_magic_head_tail_consistency(void) {
      */
     for (int i = 0; i < 5; i++) {
         size_t sizes[] = {16, 32, 64, 128, 256};
-        unsigned char *p = (unsigned char *)lv_malloc(sizes[i]);
+        unsigned char *p = (unsigned char *) lv_malloc(sizes[i]);
         TEST_ASSERT_NOT_NULL(p);
 
         bool ok = lv_memory_check_magic(p);
         TEST_ASSERT(ok, "每次新分配的魔数应完整");
 
-        memset(p, (unsigned char)i, sizes[i]);
+        memset(p, (unsigned char) i, sizes[i]);
         ok = lv_memory_check_magic(p);
         TEST_ASSERT(ok, "写入后魔数应仍完整");
 
-        lv_free((void **)&p);
+        lv_free((void **) &p);
     }
 }
 

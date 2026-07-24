@@ -13,13 +13,13 @@
  * - NULL 输入安全性
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
-#include "lv.h"
 #include "equiv_class.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* 全局测试计数器 */
@@ -29,8 +29,7 @@ int g_fail_count = 0;
 /* ================================================================
  * 测试 1: 等价类管理器创建与销毁生命周期
  * ================================================================ */
-void test_equiv_lifecycle(void)
-{
+void test_equiv_lifecycle(void) {
     printf("  TEST: equiv_manager_create/destroy lifecycle...\n");
 
     /* 正常创建/销毁 */
@@ -54,21 +53,14 @@ void test_equiv_lifecycle(void)
 /* ================================================================
  * 测试 2: 坐标等价合并 (equiv_merge_by_coord)
  * ================================================================ */
-void test_equiv_merge_by_coord(void)
-{
+void test_equiv_merge_by_coord(void) {
     printf("  TEST: equiv_merge_by_coord — 同坐标点合并...\n");
 
     ConstraintGraph *graph = graph_create();
 
     /* 两个坐标相同的点 (1, 2) */
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(2, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(2, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
 
@@ -97,20 +89,13 @@ void test_equiv_merge_by_coord(void)
 /* ================================================================
  * 测试 3: equiv_find 查询
  * ================================================================ */
-void test_equiv_find(void)
-{
+void test_equiv_find(void) {
     printf("  TEST: equiv_find...\n");
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(5, 1),
-        symbolic_coord_create_rational(5, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(5, 1),
-        symbolic_coord_create_rational(5, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(5, 1), symbolic_coord_create_rational(5, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(5, 1), symbolic_coord_create_rational(5, 1)};
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
 
@@ -145,25 +130,15 @@ void test_equiv_find(void)
 /* ================================================================
  * 测试 4: equiv_are_equivalent
  * ================================================================ */
-void test_equiv_are_equivalent(void)
-{
+void test_equiv_are_equivalent(void) {
     printf("  TEST: equiv_are_equivalent...\n");
 
     ConstraintGraph *graph = graph_create();
 
     /* 点 0,1 同坐标 → 等价；点 2 不同坐标 → 不等价 */
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c2[2] = {
-        symbolic_coord_create_rational(7, 1),
-        symbolic_coord_create_rational(7, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(7, 1), symbolic_coord_create_rational(7, 1)};
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
     graph_add_point(graph, c2, 2);
@@ -198,29 +173,16 @@ void test_equiv_are_equivalent(void)
 /* ================================================================
  * 测试 5: equiv_class_count 计数
  * ================================================================ */
-void test_equiv_class_count(void)
-{
+void test_equiv_class_count(void) {
     printf("  TEST: equiv_class_count — 合并减少类数量...\n");
 
     ConstraintGraph *graph = graph_create();
 
     /* 4 个点：3 个同坐标 (0,0), 1 个不同坐标 (1,1) */
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c2[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c3[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(1, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c3[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(1, 1)};
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
     graph_add_point(graph, c2, 2);
@@ -267,20 +229,13 @@ void test_equiv_class_count(void)
 /* ================================================================
  * 测试 6: equiv_get_class 查询
  * ================================================================ */
-void test_equiv_get_class(void)
-{
+void test_equiv_get_class(void) {
     printf("  TEST: equiv_get_class...\n");
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(3, 1),
-        symbolic_coord_create_rational(3, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(3, 1),
-        symbolic_coord_create_rational(3, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(3, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(3, 1)};
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
 
@@ -318,29 +273,16 @@ void test_equiv_get_class(void)
 /* ================================================================
  * 测试 7: equiv_merge_all 批量合并
  * ================================================================ */
-void test_equiv_merge_all(void)
-{
+void test_equiv_merge_all(void) {
     printf("  TEST: equiv_merge_all...\n");
 
     ConstraintGraph *graph = graph_create();
 
     /* 4 个点：0,1 同坐标；2,3 不同坐标 */
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(2, 1),
-        symbolic_coord_create_rational(2, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(2, 1),
-        symbolic_coord_create_rational(2, 1)
-    };
-    SymbolicCoord *c2[2] = {
-        symbolic_coord_create_rational(4, 1),
-        symbolic_coord_create_rational(4, 1)
-    };
-    SymbolicCoord *c3[2] = {
-        symbolic_coord_create_rational(5, 1),
-        symbolic_coord_create_rational(5, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(2, 1), symbolic_coord_create_rational(2, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(2, 1), symbolic_coord_create_rational(2, 1)};
+    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(4, 1), symbolic_coord_create_rational(4, 1)};
+    SymbolicCoord *c3[2] = {symbolic_coord_create_rational(5, 1), symbolic_coord_create_rational(5, 1)};
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
     graph_add_point(graph, c2, 2);
@@ -384,26 +326,16 @@ void test_equiv_merge_all(void)
 /* ================================================================
  * 测试 8: equiv_prove_merge_valid 合法性验证
  * ================================================================ */
-void test_equiv_prove_merge_valid(void)
-{
+void test_equiv_prove_merge_valid(void) {
     printf("  TEST: equiv_prove_merge_valid...\n");
 
     ConstraintGraph *graph = graph_create();
 
     /* 两个同坐标点 → 它们会在同一类中 */
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
     /* 一个不同坐标点 → 单独一类 */
-    SymbolicCoord *c2[2] = {
-        symbolic_coord_create_rational(9, 1),
-        symbolic_coord_create_rational(9, 1)
-    };
+    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(9, 1), symbolic_coord_create_rational(9, 1)};
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
     graph_add_point(graph, c2, 2);
@@ -451,8 +383,7 @@ void test_equiv_prove_merge_valid(void)
 /* ================================================================
  * 测试 9: NULL 输入安全性综合测试
  * ================================================================ */
-void test_equiv_null_safety(void)
-{
+void test_equiv_null_safety(void) {
     printf("  TEST: NULL input safety for all public functions...\n");
 
     /* 已在各测试中覆盖的 NULL 输入 */
@@ -492,8 +423,7 @@ void test_equiv_null_safety(void)
 /* ================================================================
  * 主函数
  * ================================================================ */
-int main(void)
-{
+int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
     lv_init();
 

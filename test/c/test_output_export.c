@@ -8,17 +8,18 @@
  * @author Lv-00 Project
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+
+#include "lv/constraint_graph.h"
+#include "lv/lv_protocol.h"
+#include "lv/proof.h"
+#include "lv/proof_widget.h"
+#include "lv/tikz_export.h"
 
 #include "lv.h"
-#include "lv/lv_protocol.h"
-#include "lv/tikz_export.h"
-#include "lv/proof_widget.h"
-#include "lv/proof.h"
-#include "lv/constraint_graph.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -32,18 +33,15 @@ int g_fail_count = 0;
 
 static void test_color_all_named(void) {
     /* 所有 12 种颜色的名称 */
-    const char *expected_names[] = {
-        "Green", "Blue", "BlueRange", "Yellow", "Amber", "LightOrange",
-        "Orange", "DarkOrange", "Red", "Grey", "Purple", "Cyan"};
-    const uint32_t expected_rgba[] = {
-        0xFF3fb950, 0xFF58a6ff, 0xFF90caf9, 0xFFd29922, 0xFFffc107, 0xFFff9800,
-        0xFFf0883e, 0xFFdb6d28, 0xFFf85149, 0xFF8b949e, 0xFFbc8cff, 0xFF39c5cf};
-    const char *expected_svg[] = {
-        "#3fb950", "#58a6ff", "#90caf9", "#d29922", "#ffc107", "#ff9800",
-        "#f0883e", "#db6d28", "#f85149", "#8b949e", "#bc8cff", "#39c5cf"};
+    const char *expected_names[] = {"Green",  "Blue",       "BlueRange", "Yellow", "Amber",  "LightOrange",
+                                    "Orange", "DarkOrange", "Red",       "Grey",   "Purple", "Cyan"};
+    const uint32_t expected_rgba[] = {0xFF3fb950, 0xFF58a6ff, 0xFF90caf9, 0xFFd29922, 0xFFffc107, 0xFFff9800,
+                                      0xFFf0883e, 0xFFdb6d28, 0xFFf85149, 0xFF8b949e, 0xFFbc8cff, 0xFF39c5cf};
+    const char *expected_svg[] = {"#3fb950", "#58a6ff", "#90caf9", "#d29922", "#ffc107", "#ff9800",
+                                  "#f0883e", "#db6d28", "#f85149", "#8b949e", "#bc8cff", "#39c5cf"};
 
     for (int i = 0; i < COLOR_COUNT; i++) {
-        lvTrustColor c = (lvTrustColor)i;
+        lvTrustColor c = (lvTrustColor) i;
         TEST_ASSERT_STR_EQ(lv_trust_color_name(c), expected_names[i]);
         TEST_ASSERT_EQ(lv_trust_color_rgba(c), expected_rgba[i]);
         TEST_ASSERT_STR_EQ(lv_trust_color_svg(c), expected_svg[i]);
@@ -59,10 +57,10 @@ static void test_color_all_named(void) {
     }
 
     /* 越界 */
-    TEST_ASSERT_STR_EQ(lv_trust_color_name((lvTrustColor)99), "Unknown");
-    TEST_ASSERT_EQ(lv_trust_color_rgba((lvTrustColor)99), 0xFF888888);
-    TEST_ASSERT_STR_EQ(lv_trust_color_svg((lvTrustColor)99), "#888888");
-    TEST_ASSERT_STR_EQ(lv_trust_color_tikz((lvTrustColor)99), "{HTML}{888888}");
+    TEST_ASSERT_STR_EQ(lv_trust_color_name((lvTrustColor) 99), "Unknown");
+    TEST_ASSERT_EQ(lv_trust_color_rgba((lvTrustColor) 99), 0xFF888888);
+    TEST_ASSERT_STR_EQ(lv_trust_color_svg((lvTrustColor) 99), "#888888");
+    TEST_ASSERT_STR_EQ(lv_trust_color_tikz((lvTrustColor) 99), "{HTML}{888888}");
 }
 
 static void test_color_mapping_all(void) {
@@ -77,7 +75,7 @@ static void test_color_mapping_all(void) {
     TEST_ASSERT_EQ(trust_color_to_lv_protocol(TRUST_AMBER), lv_COLOR_AMBER);
     TEST_ASSERT_EQ(trust_color_to_lv_protocol(TRUST_DEEP_ORANGE), lv_COLOR_DARK_ORANGE);
     TEST_ASSERT_EQ(trust_color_to_lv_protocol(TRUST_RED), lv_COLOR_RED);
-    TEST_ASSERT_EQ(trust_color_to_lv_protocol((TrustColor)99), lv_COLOR_GREY);
+    TEST_ASSERT_EQ(trust_color_to_lv_protocol((TrustColor) 99), lv_COLOR_GREY);
 
     /* lv_protocol_to_trust_color 所有分支 */
     TEST_ASSERT_EQ(lv_protocol_to_trust_color(lv_COLOR_GREEN), TRUST_GREEN);
@@ -92,7 +90,7 @@ static void test_color_mapping_all(void) {
     TEST_ASSERT_EQ(lv_protocol_to_trust_color(lv_COLOR_GREY), TRUST_BLUE_UNEXPLORED);
     TEST_ASSERT_EQ(lv_protocol_to_trust_color(lv_COLOR_PURPLE), TRUST_GREEN);
     TEST_ASSERT_EQ(lv_protocol_to_trust_color(lv_COLOR_CYAN), TRUST_BLUE_UNEXPLORED);
-    TEST_ASSERT_EQ(lv_protocol_to_trust_color((lvTrustColor)99), TRUST_BLUE_UNEXPLORED);
+    TEST_ASSERT_EQ(lv_protocol_to_trust_color((lvTrustColor) 99), TRUST_BLUE_UNEXPLORED);
 }
 
 /* ================================================================
@@ -362,7 +360,7 @@ static void test_proto_terminal_exec(void) {
     TEST_ASSERT_EQ(resp.error_code, -1);
 
     /* 有效命令 */
-    rc = lv_proto_terminal_exec((void*)0x1, "solve", &resp);
+    rc = lv_proto_terminal_exec((void *) 0x1, "solve", &resp);
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT(resp.success);
     TEST_ASSERT(strlen(resp.output) > 0, "has output");
@@ -385,7 +383,7 @@ static void test_tikz_export_points_only(void) {
     lv_add_point(e, 2, 1, 0, 1);
 
     char buf[4096];
-    int n = lv_tikz_export((void*)e->main_graph, buf, sizeof(buf));
+    int n = lv_tikz_export((void *) e->main_graph, buf, sizeof(buf));
     TEST_ASSERT(n > 0, "points-only export");
     TEST_ASSERT(strstr(buf, "\\fill") != NULL, "has point commands");
     TEST_ASSERT(strstr(buf, "\\draw") == NULL, "no line commands (only points)");
@@ -406,7 +404,7 @@ static void test_tikz_export_segments_only(void) {
     lv_add_line_segment(e, 1, 2);
 
     char buf[4096];
-    int n = lv_tikz_export((void*)e->main_graph, buf, sizeof(buf));
+    int n = lv_tikz_export((void *) e->main_graph, buf, sizeof(buf));
     TEST_ASSERT(n > 0, "segments export");
     TEST_ASSERT(strstr(buf, "\\fill") != NULL, "has point commands");
     TEST_ASSERT(strstr(buf, "\\draw") != NULL, "has line commands");
@@ -423,7 +421,7 @@ static void test_tikz_export_file_safety(void) {
     lv_add_point(e, 0, 1, 0, 1);
 
     /* 导出到临时文件 */
-    int n = lv_tikz_export_file((void*)e->main_graph, "test_tikz_temp.tex");
+    int n = lv_tikz_export_file((void *) e->main_graph, "test_tikz_temp.tex");
     TEST_ASSERT(n > 0, "file export");
 
     /* 读取验证 */
@@ -431,8 +429,7 @@ static void test_tikz_export_file_safety(void) {
     TEST_ASSERT_NOT_NULL(fp);
     char check[256] = {0};
     TEST_ASSERT_NOT_NULL(fgets(check, sizeof(check), fp));
-    TEST_ASSERT(strstr(check, "tikzpicture") != NULL || strstr(check, "Lv-00") != NULL,
-                "file contains tikz content");
+    TEST_ASSERT(strstr(check, "tikzpicture") != NULL || strstr(check, "Lv-00") != NULL, "file contains tikz content");
     fclose(fp);
 
     lv_engine_destroy(e);
@@ -445,7 +442,7 @@ static void test_tikz_export_empty_graph(void) {
     TEST_ASSERT_NOT_NULL(e);
 
     char buf[128];
-    int n = lv_tikz_export((void*)e->main_graph, buf, sizeof(buf));
+    int n = lv_tikz_export((void *) e->main_graph, buf, sizeof(buf));
     TEST_ASSERT(n > 0, "empty graph still produces tikzpicture env");
     TEST_ASSERT(strstr(buf, "tikzpicture") != NULL, "has tikzpicture even empty");
 
@@ -472,10 +469,9 @@ static void test_widget_register_all_types(void) {
     lvWidgetLayout *layout = proof_widget_init(10);
     TEST_ASSERT_NOT_NULL(layout);
 
-    ProofWidgetType all_types[] = {
-        WIDGET_GOAL_DISPLAY, WIDGET_HYPOTHESIS_PANEL, WIDGET_APPLY_BUTTON,
-        WIDGET_STEP_NAVIGATOR, WIDGET_SEARCH_TREE, WIDGET_TIMELINE,
-        WIDGET_DEPENDENCY_GRAPH, WIDGET_TACTIC_HISTORY};
+    ProofWidgetType all_types[] = {WIDGET_GOAL_DISPLAY,     WIDGET_HYPOTHESIS_PANEL, WIDGET_APPLY_BUTTON,
+                                   WIDGET_STEP_NAVIGATOR,   WIDGET_SEARCH_TREE,      WIDGET_TIMELINE,
+                                   WIDGET_DEPENDENCY_GRAPH, WIDGET_TACTIC_HISTORY};
     int n_types = sizeof(all_types) / sizeof(all_types[0]);
 
     for (int i = 0; i < n_types; i++) {
@@ -519,11 +515,11 @@ static void test_widget_suggest_tactic(void) {
     TEST_ASSERT_EQ(rc, -1);
 
     /* max_count = 0 */
-    rc = proof_widget_suggest_tactic((ProofNavigator*)0x1, suggestions, confidences, 0);
+    rc = proof_widget_suggest_tactic((ProofNavigator *) 0x1, suggestions, confidences, 0);
     TEST_ASSERT_EQ(rc, -1);
 
     /* 正常调用 */
-    rc = proof_widget_suggest_tactic((ProofNavigator*)0x1, suggestions, confidences, 3);
+    rc = proof_widget_suggest_tactic((ProofNavigator *) 0x1, suggestions, confidences, 3);
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT_NOT_NULL(suggestions[0]);
     TEST_ASSERT_NOT_NULL(suggestions[1]);
@@ -533,7 +529,8 @@ static void test_widget_suggest_tactic(void) {
 
     /* 清理 */
     for (int i = 0; i < 3; i++) {
-        if (suggestions[i]) lv_free(suggestions[i]);
+        if (suggestions[i])
+            lv_free(suggestions[i]);
     }
 }
 
@@ -545,14 +542,14 @@ static void test_widget_get_step_highlights(void) {
     int rc = proof_widget_get_step_highlights(NULL, highlights, 3);
     TEST_ASSERT_EQ(rc, -1);
 
-    rc = proof_widget_get_step_highlights((ProofNavigator*)0x1, NULL, 3);
+    rc = proof_widget_get_step_highlights((ProofNavigator *) 0x1, NULL, 3);
     TEST_ASSERT_EQ(rc, -1);
 
-    rc = proof_widget_get_step_highlights((ProofNavigator*)0x1, highlights, 0);
+    rc = proof_widget_get_step_highlights((ProofNavigator *) 0x1, highlights, 0);
     TEST_ASSERT_EQ(rc, -1);
 
     /* 正常调用 */
-    rc = proof_widget_get_step_highlights((ProofNavigator*)0x1, highlights, 3);
+    rc = proof_widget_get_step_highlights((ProofNavigator *) 0x1, highlights, 3);
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT_EQ(highlights[0].step_id, 0);
     TEST_ASSERT_EQ(highlights[1].step_id, 1);
@@ -567,10 +564,10 @@ static void test_widget_get_goal_hypotheses(void) {
 
     /* NULL 安全 */
     TEST_ASSERT_EQ(proof_widget_get_goal(NULL, &goal), -1);
-    TEST_ASSERT_EQ(proof_widget_get_goal((ProofNavigator*)0x1, NULL), -1);
+    TEST_ASSERT_EQ(proof_widget_get_goal((ProofNavigator *) 0x1, NULL), -1);
 
     /* 正常调用 */
-    int rc = proof_widget_get_goal((ProofNavigator*)0x1, &goal);
+    int rc = proof_widget_get_goal((ProofNavigator *) 0x1, &goal);
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT_NOT_NULL(goal.goal_text);
     TEST_ASSERT(!goal.is_solved);
@@ -586,13 +583,13 @@ static void test_widget_get_goal_hypotheses(void) {
     rc = proof_widget_get_hypotheses(NULL, hypos, 3);
     TEST_ASSERT_EQ(rc, -1);
 
-    rc = proof_widget_get_hypotheses((ProofNavigator*)0x1, NULL, 3);
+    rc = proof_widget_get_hypotheses((ProofNavigator *) 0x1, NULL, 3);
     TEST_ASSERT_EQ(rc, -1);
 
-    rc = proof_widget_get_hypotheses((ProofNavigator*)0x1, hypos, 0);
+    rc = proof_widget_get_hypotheses((ProofNavigator *) 0x1, hypos, 0);
     TEST_ASSERT_EQ(rc, -1);
 
-    rc = proof_widget_get_hypotheses((ProofNavigator*)0x1, hypos, 3);
+    rc = proof_widget_get_hypotheses((ProofNavigator *) 0x1, hypos, 3);
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT_EQ(hypos[0].hyp_id, 0);
 }
@@ -602,7 +599,7 @@ static void test_widget_search_tree_dep_graph(void) {
     char *tree = proof_widget_get_search_tree(NULL);
     TEST_ASSERT_NULL(tree);
 
-    tree = proof_widget_get_search_tree((ProofNavigator*)0x1);
+    tree = proof_widget_get_search_tree((ProofNavigator *) 0x1);
     TEST_ASSERT_NOT_NULL(tree);
     TEST_ASSERT(strstr(tree, "search_tree") != NULL || strstr(tree, "type") != NULL);
     lv_free(tree);
@@ -611,7 +608,7 @@ static void test_widget_search_tree_dep_graph(void) {
     char *dep = proof_widget_get_dependency_graph(NULL);
     TEST_ASSERT_NULL(dep);
 
-    dep = proof_widget_get_dependency_graph((ProofNavigator*)0x1);
+    dep = proof_widget_get_dependency_graph((ProofNavigator *) 0x1);
     TEST_ASSERT_NOT_NULL(dep);
     TEST_ASSERT(strstr(dep, "dependency_graph") != NULL || strstr(dep, "type") != NULL);
     lv_free(dep);
@@ -625,7 +622,7 @@ static void test_widget_apply_tactic(void) {
     int rc = proof_widget_apply_tactic(NULL, "intro", NULL, &success, &feedback);
     TEST_ASSERT_EQ(rc, -1);
 
-    rc = proof_widget_apply_tactic((ProofNavigator*)0x1, NULL, NULL, &success, &feedback);
+    rc = proof_widget_apply_tactic((ProofNavigator *) 0x1, NULL, NULL, &success, &feedback);
     TEST_ASSERT_EQ(rc, -1);
 
     /* 但 apply_tactic 会试图解引用 navigator，所以只能测 NULL 情况 */
@@ -661,8 +658,8 @@ static void test_widget_layout_type_null(void) {
     proof_widget_set_persistence_key(NULL, NULL);
 
     lvWidgetLayout *layout = proof_widget_init(4);
-    proof_widget_set_layout_type(layout, LAYOUT_TABBED, 0, 0);  /* 0 → 默认 2 */
-    proof_widget_set_layout_type(layout, LAYOUT_VERTICAL, -1, -1);  /* 负数 → 默认 */
+    proof_widget_set_layout_type(layout, LAYOUT_TABBED, 0, 0);     /* 0 → 默认 2 */
+    proof_widget_set_layout_type(layout, LAYOUT_VERTICAL, -1, -1); /* 负数 → 默认 */
     proof_widget_destroy(layout);
 }
 

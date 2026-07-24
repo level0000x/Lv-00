@@ -10,14 +10,15 @@
  *   Group 2: 过约束系统的冲突检测
  *   Group 3: 良好约束系统的 DOF 验证与求解
  */
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+
+#include "lv/groebner_engine.h"
+#include "lv/solver.h"
 
 #include "lv.h"
-#include "lv/solver.h"
-#include "lv/groebner_engine.h"
 #include "test_helpers.h"
 
 /* ==================== 全局测试计数器 ==================== */
@@ -26,18 +27,20 @@ int g_fail_count = 0;
 
 /* ==================== 辅助函数 ==================== */
 
-static int add_rat_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
-                          int64_t yn, uint64_t yd) {
+static int add_rat_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
     SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
     SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
     if (!cx || !cy) {
-        if (cx) symbolic_coord_destroy(cx);
-        if (cy) symbolic_coord_destroy(cy);
+        if (cx)
+            symbolic_coord_destroy(cx);
+        if (cy)
+            symbolic_coord_destroy(cy);
         return -1;
     }
     SymbolicCoord *coords[] = {cx, cy};
     AddNodeResult res = graph_add_point(g, coords, 2);
-    if (res != ADD_NODE_OK) return -1;
+    if (res != ADD_NODE_OK)
+        return -1;
     return g->next_node_id - 1;
 }
 
@@ -54,9 +57,9 @@ static void test_group1_right_triangle(void) {
     ConstraintGraph *g = graph_create();
     TEST_ASSERT_NOT_NULL(g);
 
-    int p0 = add_rat_point(g, 0, 1, 0, 1);  /* (0,0) */
-    int p1 = add_rat_point(g, 3, 1, 0, 1);  /* (3,0) */
-    int p2 = add_rat_point(g, 0, 1, 4, 1);  /* (0,4) */
+    int p0 = add_rat_point(g, 0, 1, 0, 1); /* (0,0) */
+    int p1 = add_rat_point(g, 3, 1, 0, 1); /* (3,0) */
+    int p2 = add_rat_point(g, 0, 1, 4, 1); /* (0,4) */
     TEST_ASSERT(p0 >= 0 && p1 >= 0 && p2 >= 0, "add points");
 
     int s01 = graph_add_line_segment(g, p0, p1);
@@ -73,13 +76,11 @@ static void test_group1_right_triangle(void) {
 
     GroebnerResult *result = NULL;
     SolverStatus status = solve_algebraic_system(g, NULL, 0, &result);
-    printf("    solve status: %d  (expect OK=0 or UNIQUE=1)\n", (int)status);
-    TEST_ASSERT(status == SOLVER_STATUS_OK ||
-                status == SOLVER_STATUS_UNIQUE, "solver status OK/UNIQUE");
+    printf("    solve status: %d  (expect OK=0 or UNIQUE=1)\n", (int) status);
+    TEST_ASSERT(status == SOLVER_STATUS_OK || status == SOLVER_STATUS_UNIQUE, "solver status OK/UNIQUE");
     TEST_ASSERT_NOT_NULL(result);
     if (result) {
-        printf("    solutions: %d, unique: %s\n",
-               result->solution_count, result->unique ? "yes" : "no");
+        printf("    solutions: %d, unique: %s\n", result->solution_count, result->unique ? "yes" : "no");
         groebner_result_destroy(result);
     }
     graph_destroy(g);
@@ -122,10 +123,9 @@ static void test_group2_overconstrained(void) {
     /* 求解（求解器可能返回 OK、UNIQUE、MULTIPLE 等，此处不严格断言状态） */
     GroebnerResult *result = NULL;
     SolverStatus status = solve_algebraic_system(g, NULL, 0, &result);
-    printf("    solve status: %d\n", (int)status);
+    printf("    solve status: %d\n", (int) status);
     if (result) {
-        printf("    solutions: %d, unique: %s\n",
-               result->solution_count, result->unique ? "yes" : "no");
+        printf("    solutions: %d, unique: %s\n", result->solution_count, result->unique ? "yes" : "no");
         groebner_result_destroy(result);
     }
     graph_destroy(g);
@@ -164,17 +164,16 @@ static void test_group3_well_constrained(void) {
     int dof = count_degrees_of_freedom(g, &free_var_ids);
     printf("    DOF: %d (expect >= 3)\n", dof);
     TEST_ASSERT(dof >= 3, "DOF >= 3");
-    if (free_var_ids) lv_free((void **)&free_var_ids);
+    if (free_var_ids)
+        lv_free((void **) &free_var_ids);
 
     /* 求解 */
     GroebnerResult *result = NULL;
     SolverStatus status = solve_algebraic_system(g, NULL, 0, &result);
-    printf("    solve status: %d\n", (int)status);
-    TEST_ASSERT(status == SOLVER_STATUS_OK ||
-                status == SOLVER_STATUS_UNIQUE, "solver status OK/UNIQUE");
+    printf("    solve status: %d\n", (int) status);
+    TEST_ASSERT(status == SOLVER_STATUS_OK || status == SOLVER_STATUS_UNIQUE, "solver status OK/UNIQUE");
     if (result) {
-        printf("    solutions: %d, unique: %s\n",
-               result->solution_count, result->unique ? "yes" : "no");
+        printf("    solutions: %d, unique: %s\n", result->solution_count, result->unique ? "yes" : "no");
         groebner_result_destroy(result);
     }
     graph_destroy(g);
@@ -191,7 +190,7 @@ int main(void) {
     TEST_RUN(test_group2_overconstrained);
     TEST_RUN(test_group3_well_constrained);
 
-    printf("\n=== Results: %d passed, %d failed, %d total ===\n",
-           g_pass_count, g_fail_count, g_pass_count + g_fail_count);
+    printf("\n=== Results: %d passed, %d failed, %d total ===\n", g_pass_count, g_fail_count,
+           g_pass_count + g_fail_count);
     return g_fail_count > 0 ? 1 : 0;
 }

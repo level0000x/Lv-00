@@ -147,10 +147,14 @@ int main(void) {
     SymbolicCoord *iy1 = symbolic_coord_create_rational(2, 1);
     if (!ra1 || !rb1 || !ix1 || !iy1) {
         fprintf(stderr, "错误: 创建交点1坐标失败\n");
-        if (ra1) rational_destroy(ra1);
-        if (rb1) rational_destroy(rb1);
-        if (ix1) symbolic_coord_destroy(ix1);
-        if (iy1) symbolic_coord_destroy(iy1);
+        if (ra1)
+            rational_destroy(ra1);
+        if (rb1)
+            rational_destroy(rb1);
+        if (ix1)
+            symbolic_coord_destroy(ix1);
+        if (iy1)
+            symbolic_coord_destroy(iy1);
         graph_destroy(g);
         return 1;
     }
@@ -178,10 +182,14 @@ int main(void) {
     SymbolicCoord *iy2 = symbolic_coord_create_rational(2, 1);
     if (!ra2 || !rb2 || !ix2 || !iy2) {
         fprintf(stderr, "错误: 创建交点2坐标失败\n");
-        if (ra2) rational_destroy(ra2);
-        if (rb2) rational_destroy(rb2);
-        if (ix2) symbolic_coord_destroy(ix2);
-        if (iy2) symbolic_coord_destroy(iy2);
+        if (ra2)
+            rational_destroy(ra2);
+        if (rb2)
+            rational_destroy(rb2);
+        if (ix2)
+            symbolic_coord_destroy(ix2);
+        if (iy2)
+            symbolic_coord_destroy(iy2);
         graph_destroy(g);
         return 1;
     }

@@ -21,18 +21,18 @@
  * @date 2026-07-24
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
-#include "lv.h"
-#include "bdd_encoding.h"
-#include "sat_encoding.h"
-#include "atp_backend.h"
 #include "approx_counter.h"
+#include "atp_backend.h"
+#include "bdd_encoding.h"
 #include "groebner_parallel.h"
+#include "lv.h"
 #include "probabilistic_constraint.h"
+#include "sat_encoding.h"
 #include "test_helpers.h"
 
 /* ========================================================================
@@ -257,8 +257,8 @@ static void test_bdd_ref_deref(void) {
     BDDNode *f = bdd_false(mgr);
 
     /* Terminal nodes always have ref_count >= 1 */
-    bdd_ref(t);   /* increment */
-    bdd_ref(f);   /* increment */
+    bdd_ref(t); /* increment */
+    bdd_ref(f); /* increment */
     bdd_deref(mgr, t);
     bdd_deref(mgr, f);
 
@@ -711,8 +711,8 @@ static void test_sat_solve_and_decode(void) {
     SatModel *model = NULL;
     SatResult res = sat_solve_and_decode(enc, &model);
     /* Should be SAT or UNKNOWN (depends on internal solver availability) */
-    TEST_ASSERT(res == SAT_RESULT_SAT || res == SAT_RESULT_UNKNOWN ||
-                res == SAT_RESULT_UNSAT, "should return a valid result");
+    TEST_ASSERT(res == SAT_RESULT_SAT || res == SAT_RESULT_UNKNOWN || res == SAT_RESULT_UNSAT,
+                "should return a valid result");
     if (model) {
         sat_model_destroy(model);
     }
@@ -767,8 +767,7 @@ static void test_atp_encode_empty_graph(void) {
     char *tptp = atp_encode_constraint_graph(g, ATP_FORMAT_TPTP_FOF, "test_problem", false, NULL);
     TEST_ASSERT_NOT_NULL(tptp);
     TEST_ASSERT(strlen(tptp) > 0, "TPTP output should not be empty");
-    TEST_ASSERT(strstr(tptp, "fof") != NULL || strstr(tptp, "cnf") != NULL,
-                "should contain TPTP format marker");
+    TEST_ASSERT(strstr(tptp, "fof") != NULL || strstr(tptp, "cnf") != NULL, "should contain TPTP format marker");
     lv_free((void **) &tptp);
 
     /* NULL safety */
@@ -836,10 +835,9 @@ static void test_atp_solver_solve(void) {
     int rc = atp_solver_solve(solver, &result);
     TEST_ASSERT_EQ(rc, (int) lv_OK);
     /* Vampire likely not available in PATH, so result should be UNKNOWN */
-    TEST_ASSERT(result.result == ATP_RESULT_UNKNOWN ||
-                result.result == ATP_RESULT_SAT ||
-                result.result == ATP_RESULT_UNSAT,
-                "should return a valid ATP result");
+    TEST_ASSERT(
+        result.result == ATP_RESULT_UNKNOWN || result.result == ATP_RESULT_SAT || result.result == ATP_RESULT_UNSAT,
+        "should return a valid ATP result");
 
     atp_result_destroy(&result);
     atp_solver_destroy(solver);
@@ -1125,15 +1123,15 @@ static void test_groebner_parallel_compute(void) {
     int c1[] = {1, 0};
     int *polys[] = {c1};
 
-    int rc = lv_groebner_parallel_compute(eng, (void**) polys, 1);
+    int rc = lv_groebner_parallel_compute(eng, (void **) polys, 1);
     TEST_ASSERT(rc == 0 || rc == -1, "compute should complete without crash");
 
     /* NULL safety */
-    rc = lv_groebner_parallel_compute(NULL, (void**) polys, 1);
+    rc = lv_groebner_parallel_compute(NULL, (void **) polys, 1);
     TEST_ASSERT_EQ(rc, -1);
     rc = lv_groebner_parallel_compute(eng, NULL, 1);
     TEST_ASSERT_EQ(rc, -1);
-    rc = lv_groebner_parallel_compute(eng, (void**) polys, 0);
+    rc = lv_groebner_parallel_compute(eng, (void **) polys, 0);
     TEST_ASSERT_EQ(rc, -1);
 
     lv_groebner_parallel_destroy(eng);
@@ -1268,8 +1266,7 @@ static void test_prob_dist_sample(void) {
 
     /* All samples should be in [0, 1] */
     for (int i = 0; i < n; i++) {
-        TEST_ASSERT(samples[i] >= 0.0 && samples[i] <= 1.0,
-                    "uniform samples should be in [0,1]");
+        TEST_ASSERT(samples[i] >= 0.0 && samples[i] <= 1.0, "uniform samples should be in [0,1]");
     }
 
     lv_free((void **) &samples);

@@ -20,15 +20,15 @@
  *   - 完备性验证
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
-#include "lv.h"
-#include "propagation.h"
 #include "equiv_class.h"
+#include "lv.h"
 #include "meta_proof.h"
+#include "propagation.h"
 
 /* Helper macros */
 #define TEST_START(name)                 \
@@ -75,12 +75,12 @@
         }                            \
     } while (0)
 
-#define TEST_ASSERT(cond, msg)         \
-    do {                               \
-        if (!(cond)) {                 \
-            TEST_FAIL(msg);            \
-            return;                    \
-        }                              \
+#define TEST_ASSERT(cond, msg) \
+    do {                       \
+        if (!(cond)) {         \
+            TEST_FAIL(msg);    \
+            return;            \
+        }                      \
     } while (0)
 
 /* 全局测试计数器 */
@@ -117,14 +117,8 @@ void test_prop_init_state_spaces(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 添加两个有坐标的点 */
-    SymbolicCoord *coords_a[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *coords_b[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *coords_a[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *coords_b[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
 
     graph_add_point(graph, coords_a, 2);
     graph_add_point(graph, coords_b, 2);
@@ -162,18 +156,9 @@ void test_prop_ac3_collapsed(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 添加三个共线点 */
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c2[2] = {
-        symbolic_coord_create_rational(2, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(2, 1), symbolic_coord_create_rational(0, 1)};
 
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
@@ -186,8 +171,7 @@ void test_prop_ac3_collapsed(void) {
     propagation_init_state_spaces(ctx);
 
     PropagationResult result = propagation_run(ctx);
-    TEST_ASSERT(result == PROP_RESULT_SATISFIED || result == PROP_RESULT_STABLE,
-                "传播结果为 SATISFIED 或 STABLE");
+    TEST_ASSERT(result == PROP_RESULT_SATISFIED || result == PROP_RESULT_STABLE, "传播结果为 SATISFIED 或 STABLE");
 
     propagation_context_destroy(ctx);
     for (int i = 0; i < 2; i++) {
@@ -235,10 +219,7 @@ void test_prop_snapshot(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
 
     graph_add_point(graph, c0, 2);
 
@@ -275,10 +256,7 @@ void test_prop_statistics(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
 
     graph_add_point(graph, c0, 2);
 
@@ -326,14 +304,8 @@ void test_equiv_coord_merge(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 添加两个坐标相同的点 */
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(2, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(2, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
 
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
@@ -364,14 +336,8 @@ void test_equiv_non_equivalent(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
 
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
@@ -398,14 +364,8 @@ void test_equiv_query(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(1, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(1, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(1, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(1, 1)};
 
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
@@ -437,14 +397,8 @@ void test_equiv_statistics(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
 
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
@@ -496,19 +450,13 @@ void test_meta_proof_l1(void) {
 
     /* 添加一个点和一条不经过该点的线段 */
     SymbolicCoord *pt[2] = {
-        symbolic_coord_create_rational(0, 1),  /* x = 0 */
-        symbolic_coord_create_rational(1, 1)   /* y = 1 */
+        symbolic_coord_create_rational(0, 1), /* x = 0 */
+        symbolic_coord_create_rational(1, 1)  /* y = 1 */
     };
     int pt_id = graph_add_point(graph, pt, 2);
 
-    SymbolicCoord *ep1[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *ep2[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *ep1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *ep2[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
     int line_id = graph_add_line_segment(graph, 0, 1);
 
     /* 点 (0,1) 不在线段 (0,0)-(1,0) 上 */
@@ -519,12 +467,10 @@ void test_meta_proof_l1(void) {
     /* 创建一个明显不在线段上的候选 */
     SymbolicCoord *bad_candidate = symbolic_coord_create_rational(5, 1);
     int conflicting = -1;
-    MetaProofResult result = meta_prove_direct_contradiction(ctx, pt_id,
-                                                              bad_candidate, &conflicting);
+    MetaProofResult result = meta_prove_direct_contradiction(ctx, pt_id, bad_candidate, &conflicting);
 
     /* L1 应该能检测到矛盾（候选 y=5 不在线段 y=0 上） */
-    TEST_ASSERT(result == META_PROVE_VALID || result == META_PROVE_INCONCLUSIVE,
-                "L1 返回 VALID 或 INCONCLUSIVE");
+    TEST_ASSERT(result == META_PROVE_VALID || result == META_PROVE_INCONCLUSIVE, "L1 返回 VALID 或 INCONCLUSIVE");
 
     meta_proof_context_destroy(ctx);
     symbolic_coord_destroy(bad_candidate);
@@ -569,13 +515,9 @@ void test_meta_proof_record(void) {
     ConstraintGraph *graph = graph_create();
     MetaProofContext *ctx = meta_proof_context_create(graph, NULL);
 
-    SymbolicCoord *removed[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(2, 1)
-    };
+    SymbolicCoord *removed[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
 
-    meta_proof_record_pruning(ctx, 0, removed, 2,
-                               PRUNE_DIRECT_CONTRADICTION, TRUST_GREEN);
+    meta_proof_record_pruning(ctx, 0, removed, 2, PRUNE_DIRECT_CONTRADICTION, TRUST_GREEN);
 
     const PruningRecord *rec = meta_proof_get_record(ctx);
     TEST_ASSERT(rec != NULL, "剪枝记录存在");
@@ -663,8 +605,7 @@ int main(void) {
     test_meta_proof_statistics();
     test_meta_proof_strategy_toggle();
 
-    printf("\n=== 测试结果: %d 通过, %d 失败 ===\n",
-           g_pass_count, g_fail_count);
+    printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", g_pass_count, g_fail_count);
 
     return g_fail_count > 0 ? 1 : 0;
 }

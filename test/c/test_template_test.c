@@ -15,28 +15,29 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
 #include "lv/lv_utils.h"
+
+#include "lv.h"
 
 /* ============== 辅助展开函数 ============== */
 
 /** 测试用展开函数：生成基础约束（创建1个POINT节点 + 1个约束） */
 static void expand_basic(SymbolicCoord **params, ConstraintGraph *target) {
-    (void)params;
-    if (!target) return;
+    (void) params;
+    if (!target)
+        return;
     /* 使用 graph 创建节点和约束以保证 graph 结构一致性 */
     SymbolicCoord *origin = symbolic_coord_create_rational(0, 1);
     SymbolicCoord *point = symbolic_coord_create_rational(1, 1);
     SymbolicCoord *coords[] = {origin, point};
     int ids[2];
     for (int i = 0; i < 2; i++) {
-        GeomNode *n = graph_add_node_with_id(target, target->next_node_id, GEOM_POINT,
-                                              &coords[i], 1);
+        GeomNode *n = graph_add_node_with_id(target, target->next_node_id, GEOM_POINT, &coords[i], 1);
         ids[i] = n ? n->id : -1;
     }
     if (ids[0] >= 0 && ids[1] >= 0) {
         int parts[2] = {ids[0], ids[1]};
-        graph_add_constraint_with_id(target, -1, (ConstraintType)INCIDENCE, parts, 2);
+        graph_add_constraint_with_id(target, -1, (ConstraintType) INCIDENCE, parts, 2);
     }
     symbolic_coord_destroy(origin);
     symbolic_coord_destroy(point);
@@ -44,40 +45,37 @@ static void expand_basic(SymbolicCoord **params, ConstraintGraph *target) {
 
 /** 测试用展开函数：不生成任何约束 */
 static void expand_empty(SymbolicCoord **params, ConstraintGraph *target) {
-    (void)params;
-    (void)target;
+    (void) params;
+    (void) target;
     /* 不添加任何节点或约束 */
 }
 
 /** 测试用展开函数：生成多个约束 */
 static void expand_multi(SymbolicCoord **params, ConstraintGraph *target) {
-    (void)params;
-    if (!target) return;
+    (void) params;
+    if (!target)
+        return;
     /* 创建3个节点和3个约束确保展开后 constraint_count > 0 */
     SymbolicCoord *coords[3];
     int ids[3];
     for (int i = 0; i < 3; i++) {
-        coords[i] = symbolic_coord_create_rational((int64_t)i, 1);
-        GeomNode *n = graph_add_node_with_id(target, target->next_node_id, GEOM_POINT,
-                                              &coords[i], 1);
+        coords[i] = symbolic_coord_create_rational((int64_t) i, 1);
+        GeomNode *n = graph_add_node_with_id(target, target->next_node_id, GEOM_POINT, &coords[i], 1);
         ids[i] = n ? n->id : -1;
         symbolic_coord_destroy(coords[i]);
     }
     for (int i = 0; i < 3; i++) {
-        if (ids[i] < 0 || ids[(i + 1) % 3] < 0) continue;
+        if (ids[i] < 0 || ids[(i + 1) % 3] < 0)
+            continue;
         int parts[2] = {ids[i], ids[(i + 1) % 3]};
-        graph_add_constraint_with_id(target, -1, (ConstraintType)INCIDENCE, parts, 2);
+        graph_add_constraint_with_id(target, -1, (ConstraintType) INCIDENCE, parts, 2);
     }
 }
 
 /* ============== 辅助：创建并注册测试模板 ============== */
 
-static ConstraintTemplate *create_and_register_template(
-    AxiomPackage *pkg,
-    const char *name,
-    int param_count,
-    void (*expand)(SymbolicCoord **, ConstraintGraph *))
-{
+static ConstraintTemplate *create_and_register_template(AxiomPackage *pkg, const char *name, int param_count,
+                                                        void (*expand)(SymbolicCoord **, ConstraintGraph *)) {
     ConstraintTemplate *tmpl = lv_calloc(1, sizeof(ConstraintTemplate));
     assert(tmpl != NULL);
     tmpl->name = lv_strdup_safe(name);
@@ -95,8 +93,8 @@ static ConstraintTemplate *create_and_register_template(
     assert(ok);
 
     /* 注册后释放包装内存（包内已深拷贝 name；params 被置 NULL 由包管理） */
-    lv_free((void **)&tmpl->name);
-    lv_free((void **)&tmpl);
+    lv_free((void **) &tmpl->name);
+    lv_free((void **) &tmpl);
     return NULL;
 }
 
@@ -106,8 +104,7 @@ static int test_case_lifecycle(void) {
     printf("Test: template test case lifecycle...\n");
 
     /* --- 创建工厂测试用例 --- */
-    TemplateTestCase *tc = axiom_template_test_case_create(
-        "MidpointTest", TEST_CASE_FACTORY, 2, true);
+    TemplateTestCase *tc = axiom_template_test_case_create("MidpointTest", TEST_CASE_FACTORY, 2, true);
     assert(tc != NULL);
     assert(tc->template_name != NULL);
     assert(strcmp(tc->template_name, "MidpointTest") == 0);
@@ -116,8 +113,8 @@ static int test_case_lifecycle(void) {
     assert(tc->expected_result == true);
     assert(tc->params == NULL);
     assert(tc->expected_graph == NULL);
-    printf("  工厂用例: name='%s', type=TEST_CASE_FACTORY, param_count=%d, expected=%d\n",
-           tc->template_name, tc->param_count, tc->expected_result);
+    printf("  工厂用例: name='%s', type=TEST_CASE_FACTORY, param_count=%d, expected=%d\n", tc->template_name,
+           tc->param_count, tc->expected_result);
 
     axiom_template_test_case_destroy(tc);
     printf("  工厂用例销毁成功\n");
@@ -129,8 +126,8 @@ static int test_case_lifecycle(void) {
     assert(tc->type == TEST_CASE_USER);
     assert(tc->param_count == 0);
     assert(tc->expected_result == false);
-    printf("  用户用例: name='%s', type=TEST_CASE_USER, param_count=%d, expected=%d\n",
-           tc->template_name, tc->param_count, tc->expected_result);
+    printf("  用户用例: name='%s', type=TEST_CASE_USER, param_count=%d, expected=%d\n", tc->template_name,
+           tc->param_count, tc->expected_result);
 
     axiom_template_test_case_destroy(tc);
     printf("  用户用例销毁成功\n");
@@ -178,8 +175,9 @@ static int test_runner_basic(void) {
     printf("  测试1 (期望通过): passed=%d, failed=%d, ret=%d\n", passed, failed, ret);
 
     if (failures) {
-        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
-        lv_free((void **)&failures);
+        for (int i = 0; i < failed; i++)
+            lv_free((void **) &failures[i]);
+        lv_free((void **) &failures);
         failures = NULL;
     }
     axiom_template_test_case_destroy(tc_pass);
@@ -189,15 +187,17 @@ static int test_runner_basic(void) {
     assert(tc_fail != NULL);
 
     TemplateTestCase *cases2[] = {tc_fail};
-    passed = 0; failed = 0;
+    passed = 0;
+    failed = 0;
     ret = axiom_template_test_run(pkg, cases2, 1, &passed, &failed, &failures);
     assert(passed == 1);
     assert(failed == 0);
     printf("  测试2 (期望失败): passed=%d, failed=%d, ret=%d\n", passed, failed, ret);
 
     if (failures) {
-        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
-        lv_free((void **)&failures);
+        for (int i = 0; i < failed; i++)
+            lv_free((void **) &failures[i]);
+        lv_free((void **) &failures);
         failures = NULL;
     }
     axiom_template_test_case_destroy(tc_fail);
@@ -207,7 +207,8 @@ static int test_runner_basic(void) {
     assert(tc_mismatch != NULL);
 
     TemplateTestCase *cases3[] = {tc_mismatch};
-    passed = 0; failed = 0;
+    passed = 0;
+    failed = 0;
     ret = axiom_template_test_run(pkg, cases3, 1, &passed, &failed, &failures);
     assert(passed == 0);
     assert(failed >= 1);
@@ -218,8 +219,9 @@ static int test_runner_basic(void) {
     }
 
     if (failures) {
-        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
-        lv_free((void **)&failures);
+        for (int i = 0; i < failed; i++)
+            lv_free((void **) &failures[i]);
+        lv_free((void **) &failures);
         failures = NULL;
     }
     axiom_template_test_case_destroy(tc_mismatch);
@@ -243,8 +245,7 @@ static int test_runner_high_level(void) {
     TemplateTestCase factory_tests[2];
     TemplateTestCase *factory_heap[2];
     for (int i = 0; i < 2; i++) {
-        factory_heap[i] = axiom_template_test_case_create(
-            "MultiTpl", TEST_CASE_FACTORY, 2, true);
+        factory_heap[i] = axiom_template_test_case_create("MultiTpl", TEST_CASE_FACTORY, 2, true);
         assert(factory_heap[i] != NULL);
         factory_tests[i] = *factory_heap[i];
         factory_tests[i].template_name = lv_strdup_safe(factory_heap[i]->template_name);
@@ -255,8 +256,7 @@ static int test_runner_high_level(void) {
     /* --- 用户测试数组 --- */
     TemplateTestCase user_tests[2];
     {
-        TemplateTestCase *utc0 = axiom_template_test_case_create(
-            "MultiTpl", TEST_CASE_USER, 2, true);
+        TemplateTestCase *utc0 = axiom_template_test_case_create("MultiTpl", TEST_CASE_USER, 2, true);
         assert(utc0 != NULL);
         user_tests[0] = *utc0;
         user_tests[0].template_name = lv_strdup_safe(utc0->template_name);
@@ -264,8 +264,7 @@ static int test_runner_high_level(void) {
         axiom_template_test_case_destroy(utc0);
     }
     {
-        TemplateTestCase *utc1 = axiom_template_test_case_create(
-            "MultiTpl", TEST_CASE_USER, 1, false);
+        TemplateTestCase *utc1 = axiom_template_test_case_create("MultiTpl", TEST_CASE_USER, 1, false);
         assert(utc1 != NULL);
         user_tests[1] = *utc1;
         user_tests[1].template_name = lv_strdup_safe(utc1->template_name);
@@ -274,13 +273,11 @@ static int test_runner_high_level(void) {
     }
 
     /* 运行测试 */
-    TemplateTestResult result = axiom_template_run_tests(
-        pkg, "MultiTpl", factory_tests, 2, user_tests, 2);
+    TemplateTestResult result = axiom_template_run_tests(pkg, "MultiTpl", factory_tests, 2, user_tests, 2);
 
     assert(result.total == 4);
-    assert(result.passed >= 3);  /* 前三个 expand_multi → constraint_count=3 > 0，应通过 */
-    printf("  高层运行器: total=%d, passed=%d, failed=%d\n",
-           result.total, result.passed, result.failed);
+    assert(result.passed >= 3); /* 前三个 expand_multi → constraint_count=3 > 0，应通过 */
+    printf("  高层运行器: total=%d, passed=%d, failed=%d\n", result.total, result.passed, result.failed);
 
     if (result.failed > 0 && result.failure_messages) {
         for (int i = 0; i < result.failed; i++) {
@@ -292,10 +289,10 @@ static int test_runner_high_level(void) {
 
     axiom_template_test_result_destroy(&result);
     for (int i = 0; i < 2; i++) {
-        lv_free((void **)&factory_tests[i].template_name);
-        lv_free((void **)&factory_tests[i].description);
-        lv_free((void **)&user_tests[i].template_name);
-        lv_free((void **)&user_tests[i].description);
+        lv_free((void **) &factory_tests[i].template_name);
+        lv_free((void **) &factory_tests[i].description);
+        lv_free((void **) &user_tests[i].template_name);
+        lv_free((void **) &user_tests[i].description);
     }
     axiom_package_destroy(pkg);
     printf("  PASSED\n");
@@ -330,8 +327,8 @@ static int test_normal_form_verification(void) {
 
     bool ok = axiom_package_register_template(pkg, tmpl);
     assert(ok);
-    lv_free((void **)&tmpl->name);
-    lv_free((void **)&tmpl);
+    lv_free((void **) &tmpl->name);
+    lv_free((void **) &tmpl);
 
     /* 验证正则形式 */
     bool verified = axiom_template_verify_normal_form(pkg, "NormTpl");
@@ -403,15 +400,18 @@ static int test_edge_cases(void) {
     TemplateTestCase *tc2 = axiom_template_test_case_create("NonExistent", TEST_CASE_FACTORY, 1, true);
     assert(tc2 != NULL);
     TemplateTestCase *cases2[] = {tc2};
-    passed = 0; failed = 0; failures = NULL;
+    passed = 0;
+    failed = 0;
+    failures = NULL;
     ret = axiom_template_test_run(pkg, cases2, 1, &passed, &failed, &failures);
     assert(passed == 0);
     assert(failed >= 1);
     printf("  不存在的模板: passed=%d, failed=%d (正确)\n", passed, failed);
 
     if (failures) {
-        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
-        lv_free((void **)&failures);
+        for (int i = 0; i < failed; i++)
+            lv_free((void **) &failures[i]);
+        lv_free((void **) &failures);
     }
     axiom_template_test_case_destroy(tc2);
 
@@ -450,21 +450,24 @@ static int test_edge_cases(void) {
     no_expand_tmpl->compressed_subgraph = NULL;
     ok = axiom_package_register_template(pkg, no_expand_tmpl);
     assert(ok);
-    lv_free((void **)&no_expand_tmpl->name);
-    lv_free((void **)&no_expand_tmpl);
+    lv_free((void **) &no_expand_tmpl->name);
+    lv_free((void **) &no_expand_tmpl);
 
     TemplateTestCase *tc3 = axiom_template_test_case_create("NoExpandTpl", TEST_CASE_FACTORY, 1, true);
     assert(tc3 != NULL);
     TemplateTestCase *cases3[] = {tc3};
-    passed = 0; failed = 0; failures = NULL;
+    passed = 0;
+    failed = 0;
+    failures = NULL;
     ret = axiom_template_test_run(pkg, cases3, 1, &passed, &failed, &failures);
     assert(passed == 0);
     assert(failed >= 1);
     printf("  无 expand 模板: passed=%d, failed=%d (正确)\n", passed, failed);
 
     if (failures) {
-        for (int i = 0; i < failed; i++) lv_free((void **)&failures[i]);
-        lv_free((void **)&failures);
+        for (int i = 0; i < failed; i++)
+            lv_free((void **) &failures[i]);
+        lv_free((void **) &failures);
     }
     axiom_template_test_case_destroy(tc3);
 

@@ -331,14 +331,17 @@ int lv_euler_characteristic(int vertices, int edges, int faces) {
 }
 
 int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
-    if (!faces || n_faces == 0) return 0;
-    if (dim < 1 || dim > 3) return 0;
+    if (!faces || n_faces == 0)
+        return 0;
+    if (dim < 1 || dim > 3)
+        return 0;
 
     /* Verify all faces have valid vertex indices (non-negative) */
     size_t face_size = dim + 1;
     for (size_t i = 0; i < n_faces; i++) {
         for (size_t j = 0; j < face_size; j++) {
-            if (faces[i * face_size + j] < 0) return 0;
+            if (faces[i * face_size + j] < 0)
+                return 0;
         }
     }
 
@@ -346,20 +349,23 @@ int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
     if (dim == 2) {
         /* Count unique edges */
         size_t edge_capacity = n_faces * 3;
-        int *edge_set = (int *)calloc((size_t)edge_capacity * 2, sizeof(int));
-        if (!edge_set) return 0;
+        int *edge_set = (int *) calloc((size_t) edge_capacity * 2, sizeof(int));
+        if (!edge_set)
+            return 0;
         size_t n_edges = 0;
 
         for (size_t i = 0; i < n_faces; i++) {
             int tri[3] = {faces[i * 3], faces[i * 3 + 1], faces[i * 3 + 2]};
             /* Canonicalize edges */
-            int edge_pairs[3][2] = {
-                {tri[0], tri[1]}, {tri[1], tri[2]}, {tri[2], tri[0]}
-            };
+            int edge_pairs[3][2] = {{tri[0], tri[1]}, {tri[1], tri[2]}, {tri[2], tri[0]}};
             for (int e = 0; e < 3; e++) {
                 int v0 = edge_pairs[e][0];
                 int v1 = edge_pairs[e][1];
-                if (v0 > v1) { int t = v0; v0 = v1; v1 = t; }
+                if (v0 > v1) {
+                    int t = v0;
+                    v0 = v1;
+                    v1 = t;
+                }
                 /* Check if edge already seen */
                 int found = 0;
                 for (size_t k = 0; k < n_edges; k++) {
@@ -377,7 +383,7 @@ int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
         }
 
         free(edge_set);
-        (void)n_edges;
+        (void) n_edges;
     }
 
     return 1;

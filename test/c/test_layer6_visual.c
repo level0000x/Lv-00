@@ -16,18 +16,18 @@
  * @author Lv-00 Project
  */
 
-#include "test_helpers.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/visual_editor.h"
 #include "lv/block_scheduler.h"
 #include "lv/extended_types.h"
 #include "lv/func_block.h"
-#include "lv/representation_converter.h"
 #include "lv/io_blocks.h"
+#include "lv/representation_converter.h"
+#include "lv/visual_editor.h"
+
+#include "test_helpers.h"
 
 /* ============================================================
  * 前向声明：sync_protocol.c 中未在头文件暴露的内部 API
@@ -59,11 +59,12 @@ typedef struct {
 } SimpleBlockGraph;
 
 static SimpleBlockGraph *create_test_block_graph(int n) {
-    SimpleBlockGraph *bg = (SimpleBlockGraph *)lv_calloc(1, sizeof(SimpleBlockGraph));
-    if (!bg) return NULL;
-    bg->blocks = (FuncBlock **)lv_calloc((size_t)(n > 0 ? n : 1), sizeof(FuncBlock *));
+    SimpleBlockGraph *bg = (SimpleBlockGraph *) lv_calloc(1, sizeof(SimpleBlockGraph));
+    if (!bg)
+        return NULL;
+    bg->blocks = (FuncBlock **) lv_calloc((size_t) (n > 0 ? n : 1), sizeof(FuncBlock *));
     if (!bg->blocks) {
-        lv_free((void **)&bg);
+        lv_free((void **) &bg);
         return NULL;
     }
     bg->count = n;
@@ -79,12 +80,14 @@ static SimpleBlockGraph *create_test_block_graph(int n) {
 }
 
 static void destroy_test_block_graph(SimpleBlockGraph *bg) {
-    if (!bg) return;
+    if (!bg)
+        return;
     for (int i = 0; i < bg->count; i++) {
-        if (bg->blocks[i]) func_block_destroy(bg->blocks[i]);
+        if (bg->blocks[i])
+            func_block_destroy(bg->blocks[i]);
     }
-    lv_free((void **)&bg->blocks);
-    lv_free((void **)&bg);
+    lv_free((void **) &bg->blocks);
+    lv_free((void **) &bg);
 }
 
 /* ============================================================
@@ -142,7 +145,7 @@ static void test_bc_add_many_blocks(void) {
     for (int i = 0; i < 50; i++) {
         char label[32];
         snprintf(label, sizeof(label), "B%d", i);
-        ids[i] = lv_block_canvas_add_block(canvas, label, (double)(i * 130), 0, 120, 60, i % 6, 2, 1);
+        ids[i] = lv_block_canvas_add_block(canvas, label, (double) (i * 130), 0, 120, 60, i % 6, 2, 1);
         TEST_ASSERT(ids[i] > 0, "批量添加块应成功");
     }
     /* 验证 ID 唯一性 */
@@ -235,7 +238,7 @@ static void test_bc_render_svg(void) {
     TEST_ASSERT(strstr(svg, "Test") != NULL);
     TEST_ASSERT(strstr(svg, "Another") != NULL);
     TEST_ASSERT(strstr(svg, "<?xml") != NULL);
-    lv_free((void **)&svg);
+    lv_free((void **) &svg);
 
     /* NULL 画布 */
     svg = lv_block_canvas_render_svg(NULL);
@@ -247,7 +250,7 @@ static void test_bc_render_svg(void) {
     svg = lv_block_canvas_render_svg(empty);
     TEST_ASSERT_NOT_NULL(svg);
     TEST_ASSERT(strstr(svg, "<svg") != NULL);
-    lv_free((void **)&svg);
+    lv_free((void **) &svg);
     lv_block_canvas_destroy(empty);
 
     lv_block_canvas_destroy(canvas);
@@ -380,7 +383,7 @@ static void test_gc_add_many_constraints(void) {
     TEST_ASSERT(p1 > 0, "锚点实体");
     int ids[50];
     for (int i = 0; i < 50; i++) {
-        double pt[] = {(double)i * 10, (double)i * 10};
+        double pt[] = {(double) i * 10, (double) i * 10};
         int pi = lv_geometry_canvas_add_entity(gc, 0, "P", pt, 2);
         ids[i] = lv_geometry_canvas_add_constraint(gc, p1, pi, "link");
         TEST_ASSERT(ids[i] > 0, "批量添加约束");
@@ -425,7 +428,7 @@ static void test_gc_render_svg(void) {
     TEST_ASSERT(strstr(svg, "L") != NULL);
     TEST_ASSERT(strstr(svg, "C") != NULL);
     TEST_ASSERT(strstr(svg, "Poly") != NULL);
-    lv_free((void **)&svg);
+    lv_free((void **) &svg);
 
     /* NULL */
     svg = lv_geometry_canvas_render_svg(NULL);
@@ -436,7 +439,7 @@ static void test_gc_render_svg(void) {
     svg = lv_geometry_canvas_render_svg(empty);
     TEST_ASSERT_NOT_NULL(svg);
     TEST_ASSERT(strstr(svg, "<svg") != NULL);
-    lv_free((void **)&svg);
+    lv_free((void **) &svg);
     lv_geometry_canvas_destroy(empty);
 
     lv_geometry_canvas_destroy(gc);
@@ -454,7 +457,7 @@ static void test_gc_render_svg_with_constraints(void) {
     char *svg = lv_geometry_canvas_render_svg(gc);
     TEST_ASSERT_NOT_NULL(svg);
     TEST_ASSERT(strstr(svg, "horizontal") != NULL);
-    lv_free((void **)&svg);
+    lv_free((void **) &svg);
 
     lv_geometry_canvas_destroy(gc);
 }
@@ -503,7 +506,7 @@ static void test_ve_switch_view(void) {
     TEST_ASSERT_EQ(lv_visual_editor_active_view(editor), lv_VIEW_TEXT_CODE);
 
     /* 无效视图 */
-    r = lv_visual_editor_switch_view(editor, (lvViewType)99);
+    r = lv_visual_editor_switch_view(editor, (lvViewType) 99);
     TEST_ASSERT_EQ(r, -1);
 
     /* NULL */
@@ -637,7 +640,7 @@ static void test_ng_add_many_nodes(void) {
     for (int i = 0; i < 50; i++) {
         char label[32];
         snprintf(label, sizeof(label), "N%d", i);
-        ids[i] = lv_node_graph_add_node(ng, 0, label, (double)(i * 20), (double)(i * 10), i % 5);
+        ids[i] = lv_node_graph_add_node(ng, 0, label, (double) (i * 20), (double) (i * 10), i % 5);
         TEST_ASSERT(ids[i] > 0, "批量添加节点");
     }
     lv_node_graph_destroy(ng);
@@ -693,7 +696,7 @@ static void test_ng_add_many_connections(void) {
     for (int i = 0; i < 50; i++) {
         char label[32];
         snprintf(label, sizeof(label), "N%d", i);
-        int ni = lv_node_graph_add_node(ng, 0, label, (double)(i * 20), (double)(i * 10), 0);
+        int ni = lv_node_graph_add_node(ng, 0, label, (double) (i * 20), (double) (i * 10), 0);
         ids[i] = lv_node_graph_add_connection(ng, prev, ni, "link");
         TEST_ASSERT(ids[i] > 0, "批量添加连接");
     }
@@ -968,14 +971,14 @@ static void test_tc_set_get_text(void) {
     TEST_ASSERT_EQ(r, 0);
     got = lv_text_code_get_text(view);
     TEST_ASSERT_NOT_NULL(got);
-    TEST_ASSERT_EQ(strlen(got), (size_t)8000);
+    TEST_ASSERT_EQ(strlen(got), (size_t) 8000);
 
     /* 设置空字符串 */
     r = lv_text_code_set_text(view, "");
     TEST_ASSERT_EQ(r, 0);
     got = lv_text_code_get_text(view);
     TEST_ASSERT_NOT_NULL(got);
-    TEST_ASSERT_EQ(strlen(got), (size_t)0);
+    TEST_ASSERT_EQ(strlen(got), (size_t) 0);
 
     /* 无效参数 */
     r = lv_text_code_set_text(NULL, "x");
@@ -1082,7 +1085,7 @@ static void test_tc_render(void) {
     /* 应截断但不失败 */
     TEST_ASSERT(r >= 0, "小缓冲区应截断");
     small[3] = '\0';
-    TEST_ASSERT_EQ(strlen(small), (size_t)3);
+    TEST_ASSERT_EQ(strlen(small), (size_t) 3);
 
     /* 无效参数 */
     r = lv_text_code_render(NULL, buf, sizeof(buf));
@@ -1099,7 +1102,7 @@ static void test_tc_render(void) {
  * 测试组 8: Extended Types 扩展类型
  * ============================================================ */
 static void test_list_type_lifecycle(void) {
-    void *dummy_type = (void *)(intptr_t)1;
+    void *dummy_type = (void *) (intptr_t) 1;
     lvListTypeRegion *t = lv_list_type_create(dummy_type);
     TEST_ASSERT_NOT_NULL(t);
     lv_list_type_destroy(t);
@@ -1108,8 +1111,8 @@ static void test_list_type_lifecycle(void) {
 }
 
 static void test_map_type_lifecycle(void) {
-    void *k = (void *)(intptr_t)1;
-    void *v = (void *)(intptr_t)2;
+    void *k = (void *) (intptr_t) 1;
+    void *v = (void *) (intptr_t) 2;
     lvMapTypeRegion *t = lv_map_type_create(k, v);
     TEST_ASSERT_NOT_NULL(t);
     lv_map_type_destroy(t);
@@ -1117,8 +1120,8 @@ static void test_map_type_lifecycle(void) {
 }
 
 static void test_function_type_lifecycle(void) {
-    void *p = (void *)(intptr_t)1;
-    void *r = (void *)(intptr_t)2;
+    void *p = (void *) (intptr_t) 1;
+    void *r = (void *) (intptr_t) 2;
 
     lvFunctionTypeRegion *t = lv_function_type_create(p, r, 0);
     TEST_ASSERT_NOT_NULL(t);
@@ -1140,7 +1143,7 @@ static void test_effect_type_lifecycle(void) {
 }
 
 static void test_extended_type_compatible(void) {
-    void *ta = (void *)(intptr_t)1;
+    void *ta = (void *) (intptr_t) 1;
 
     int r = lv_extended_type_compatible(ta, ta);
     TEST_ASSERT(r != 0, "相同指针应兼容");
@@ -1166,10 +1169,10 @@ static void test_convert_block_to_text(void) {
     TEST_ASSERT_EQ(res.success, 1);
     TEST_ASSERT_NOT_NULL(res.output);
 
-    char *text = (char *)res.output;
+    char *text = (char *) res.output;
     TEST_ASSERT(strstr(text, "block") != NULL);
     TEST_ASSERT(strstr(text, "block_0") != NULL);
-    lv_free((void **)&text);
+    lv_free((void **) &text);
 
     /* NULL 输入 */
     res = lv_convert_block_to_text(NULL);
@@ -1179,9 +1182,9 @@ static void test_convert_block_to_text(void) {
     SimpleBlockGraph *empty = create_test_block_graph(0);
     res = lv_convert_block_to_text(empty);
     TEST_ASSERT_EQ(res.success, 1);
-    text = (char *)res.output;
+    text = (char *) res.output;
     TEST_ASSERT_NOT_NULL(text);
-    lv_free((void **)&text);
+    lv_free((void **) &text);
     destroy_test_block_graph(empty);
 
     destroy_test_block_graph(bg);
@@ -1193,13 +1196,14 @@ static void test_convert_text_to_block(void) {
     TEST_ASSERT_EQ(res.success, 1);
     TEST_ASSERT_NOT_NULL(res.output);
 
-    SimpleBlockGraphCap *sg = (SimpleBlockGraphCap *)res.output;
+    SimpleBlockGraphCap *sg = (SimpleBlockGraphCap *) res.output;
     TEST_ASSERT(sg->count > 0, "应解析出块");
     for (int i = 0; i < sg->count; i++) {
-        if (sg->blocks[i]) func_block_destroy(sg->blocks[i]);
+        if (sg->blocks[i])
+            func_block_destroy(sg->blocks[i]);
     }
-    lv_free((void **)&sg->blocks);
-    lv_free((void **)&sg);
+    lv_free((void **) &sg->blocks);
+    lv_free((void **) &sg);
 
     /* 空代码 */
     res = lv_convert_text_to_block("");
@@ -1213,13 +1217,14 @@ static void test_convert_text_to_block(void) {
     const char *multi = "block A {\n  input port0\n  output port1\n}\nblock B {\n  input port0\n  output port2\n}\n";
     res = lv_convert_text_to_block(multi);
     TEST_ASSERT_EQ(res.success, 1);
-    sg = (SimpleBlockGraphCap *)res.output;
+    sg = (SimpleBlockGraphCap *) res.output;
     TEST_ASSERT(sg->count >= 2, "应解析多个块");
     for (int i = 0; i < sg->count; i++) {
-        if (sg->blocks[i]) func_block_destroy(sg->blocks[i]);
+        if (sg->blocks[i])
+            func_block_destroy(sg->blocks[i]);
     }
-    lv_free((void **)&sg->blocks);
-    lv_free((void **)&sg);
+    lv_free((void **) &sg->blocks);
+    lv_free((void **) &sg);
 }
 
 static void test_convert_block_to_node(void) {
@@ -1235,12 +1240,13 @@ static void test_convert_block_to_node(void) {
     TEST_ASSERT_EQ(res2.success, 1);
 
     /* 清理反向转换输出 */
-    SimpleBlockGraph *bg2 = (SimpleBlockGraph *)res2.output;
+    SimpleBlockGraph *bg2 = (SimpleBlockGraph *) res2.output;
     for (int i = 0; i < bg2->count; i++) {
-        if (bg2->blocks[i]) func_block_destroy(bg2->blocks[i]);
+        if (bg2->blocks[i])
+            func_block_destroy(bg2->blocks[i]);
     }
-    lv_free((void **)&bg2->blocks);
-    lv_free((void **)&bg2);
+    lv_free((void **) &bg2->blocks);
+    lv_free((void **) &bg2);
 
     /* 清理正向转换：node_to_block 不会释放输入 NodeGraph，
      * 所以这里显式调用内部清理函数——无法直接清理内部 NodeGraph，跳过 */
@@ -1263,7 +1269,7 @@ static void test_convert_block_to_geometry(void) {
     TEST_ASSERT_NOT_NULL(res.output);
 
     /* 清理几何编码 */
-    GeometryEncoding *enc = (GeometryEncoding *)res.output;
+    GeometryEncoding *enc = (GeometryEncoding *) res.output;
     lv_geometry_encoding_destroy(enc);
 
     /* 各类型块 */
@@ -1275,7 +1281,7 @@ static void test_convert_block_to_geometry(void) {
     }
     res = lv_convert_block_to_geometry(bg2);
     TEST_ASSERT_EQ(res.success, 1);
-    enc = (GeometryEncoding *)res.output;
+    enc = (GeometryEncoding *) res.output;
     lv_geometry_encoding_destroy(enc);
     destroy_test_block_graph(bg2);
 
@@ -1298,15 +1304,16 @@ static void test_convert_geometry_to_block(void) {
     TEST_ASSERT_EQ(rev.success, 1);
 
     /* 清理反向输出 */
-    SimpleBlockGraphCap *sg2 = (SimpleBlockGraphCap *)rev.output;
+    SimpleBlockGraphCap *sg2 = (SimpleBlockGraphCap *) rev.output;
     for (int i = 0; i < sg2->count; i++) {
-        if (sg2->blocks[i]) func_block_destroy(sg2->blocks[i]);
+        if (sg2->blocks[i])
+            func_block_destroy(sg2->blocks[i]);
     }
-    lv_free((void **)&sg2->blocks);
-    lv_free((void **)&sg2);
+    lv_free((void **) &sg2->blocks);
+    lv_free((void **) &sg2);
 
     /* 清理正向（几何编码） */
-    GeometryEncoding *enc = (GeometryEncoding *)fwd.output;
+    GeometryEncoding *enc = (GeometryEncoding *) fwd.output;
     lv_geometry_encoding_destroy(enc);
 
     /* NULL */
@@ -1330,17 +1337,18 @@ static void test_convert_geometry_roundtrip(void) {
     TEST_ASSERT_EQ(rev.success, 1);
 
     /* 验证反向结果块数量 */
-    SimpleBlockGraphCap *sg = (SimpleBlockGraphCap *)rev.output;
+    SimpleBlockGraphCap *sg = (SimpleBlockGraphCap *) rev.output;
     TEST_ASSERT(sg->count > 0, "往返后的块数应 > 0");
 
     /* 清理 */
     for (int i = 0; i < sg->count; i++) {
-        if (sg->blocks[i]) func_block_destroy(sg->blocks[i]);
+        if (sg->blocks[i])
+            func_block_destroy(sg->blocks[i]);
     }
-    lv_free((void **)&sg->blocks);
-    lv_free((void **)&sg);
+    lv_free((void **) &sg->blocks);
+    lv_free((void **) &sg);
 
-    GeometryEncoding *enc = (GeometryEncoding *)fwd.output;
+    GeometryEncoding *enc = (GeometryEncoding *) fwd.output;
     lv_geometry_encoding_destroy(enc);
 
     destroy_test_block_graph(bg);
@@ -1360,12 +1368,13 @@ static void test_convert_node_roundtrip(void) {
     TEST_ASSERT_EQ(rev.success, 1);
 
     /* 清理 */
-    SimpleBlockGraph *bg2 = (SimpleBlockGraph *)rev.output;
+    SimpleBlockGraph *bg2 = (SimpleBlockGraph *) rev.output;
     for (int i = 0; i < bg2->count; i++) {
-        if (bg2->blocks[i]) func_block_destroy(bg2->blocks[i]);
+        if (bg2->blocks[i])
+            func_block_destroy(bg2->blocks[i]);
     }
-    lv_free((void **)&bg2->blocks);
-    lv_free((void **)&bg2);
+    lv_free((void **) &bg2->blocks);
+    lv_free((void **) &bg2);
 
     destroy_test_block_graph(bg);
 }
@@ -1379,7 +1388,7 @@ static void test_convert_text_roundtrip(void) {
     lvConvertResult fwd = lv_convert_block_to_text(bg);
     TEST_ASSERT_EQ(fwd.success, 1);
 
-    char *text = (char *)fwd.output;
+    char *text = (char *) fwd.output;
     TEST_ASSERT_NOT_NULL(text);
 
     /* text → block */
@@ -1387,13 +1396,14 @@ static void test_convert_text_roundtrip(void) {
     TEST_ASSERT_EQ(rev.success, 1);
 
     /* 清理 */
-    SimpleBlockGraphCap *sg = (SimpleBlockGraphCap *)rev.output;
+    SimpleBlockGraphCap *sg = (SimpleBlockGraphCap *) rev.output;
     for (int i = 0; i < sg->count; i++) {
-        if (sg->blocks[i]) func_block_destroy(sg->blocks[i]);
+        if (sg->blocks[i])
+            func_block_destroy(sg->blocks[i]);
     }
-    lv_free((void **)&sg->blocks);
-    lv_free((void **)&sg);
-    lv_free((void **)&text);
+    lv_free((void **) &sg->blocks);
+    lv_free((void **) &sg);
+    lv_free((void **) &text);
 
     destroy_test_block_graph(bg);
 }
@@ -1441,7 +1451,7 @@ static void test_sp_propagate_text(void) {
     TEST_ASSERT_NOT_NULL(proto);
 
     const char *code = "block test { input port0 output port1 }";
-    int count = lv_sync_propagate(proto, 3, (void *)code, 10);
+    int count = lv_sync_propagate(proto, 3, (void *) code, 10);
     TEST_ASSERT(count >= 0, "文本视图传播");
 
     lv_sync_protocol_destroy(proto);
@@ -1480,7 +1490,7 @@ static void test_sp_propagate_geometry(void) {
     int count = lv_sync_propagate(proto, 0, res.output, 10);
     TEST_ASSERT(count >= 0, "几何画布传播");
 
-    GeometryEncoding *enc = (GeometryEncoding *)res.output;
+    GeometryEncoding *enc = (GeometryEncoding *) res.output;
     lv_geometry_encoding_destroy(enc);
     lv_sync_protocol_destroy(proto);
     destroy_test_block_graph(bg);

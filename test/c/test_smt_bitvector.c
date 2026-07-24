@@ -25,18 +25,18 @@
 #include "test_helpers.h"
 
 /* ── Convenience aliases for test readability ── */
-#define bv_create(w)         lv_bv_create((w), 0)
-#define bv_destroy(bv)       lv_bv_free(bv)
-#define bv_and(a, b)         lv_bv_and(a, b)
-#define bv_or(a, b)          lv_bv_or(a, b)
-#define bv_xor(a, b)         lv_bv_xor(a, b)
-#define bv_not(a)            lv_bv_not(a)
-#define bv_add(a, b)         lv_bv_add(a, b)
-#define bv_mul(a, b)         lv_bv_mul(a, b)
-#define bv_eq(a, b)          lv_bv_equals(a, b)
+#define bv_create(w) lv_bv_create((w), 0)
+#define bv_destroy(bv) lv_bv_free(bv)
+#define bv_and(a, b) lv_bv_and(a, b)
+#define bv_or(a, b) lv_bv_or(a, b)
+#define bv_xor(a, b) lv_bv_xor(a, b)
+#define bv_not(a) lv_bv_not(a)
+#define bv_add(a, b) lv_bv_add(a, b)
+#define bv_mul(a, b) lv_bv_mul(a, b)
+#define bv_eq(a, b) lv_bv_equals(a, b)
 #define bv_extract(bv, h, l) lv_bv_extract(bv, h, l)
-#define bv_concat(a, b)      lv_bv_concat(a, b)
-#define bv_to_int(bv)        lv_bv_to_int(bv)
+#define bv_concat(a, b) lv_bv_concat(a, b)
+#define bv_to_int(bv) lv_bv_to_int(bv)
 
 /* Global test counters (required by test framework) */
 int g_pass_count = 0;

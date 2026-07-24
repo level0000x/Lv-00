@@ -35,35 +35,35 @@ int g_errors = 0;
  * 若 func_call 返回 expected_return，测试通过；
  * 若返回其他值或触发 SIGSEGV（由外部测试框架检测），测试失败。
  */
-#define CHECK_NULL_SAFE(name, expr, expected)                                          \
-    do {                                                                               \
-        printf("  %s ... ", (name));                                                   \
-        fflush(stdout);                                                                \
-        intptr_t result = (intptr_t)(expr);                                            \
-        if (result == (intptr_t)(expected)) {                                          \
-            printf("PASS (returned %ld as expected)\n", (long)result);                 \
-            g_pass_count++;                                                            \
-        } else {                                                                       \
-            printf("FAIL (returned %ld, expected %ld)\n", (long)result, (long)expected); \
-            g_fail_count++;                                                            \
-        }                                                                              \
+#define CHECK_NULL_SAFE(name, expr, expected)                                              \
+    do {                                                                                   \
+        printf("  %s ... ", (name));                                                       \
+        fflush(stdout);                                                                    \
+        intptr_t result = (intptr_t) (expr);                                               \
+        if (result == (intptr_t) (expected)) {                                             \
+            printf("PASS (returned %ld as expected)\n", (long) result);                    \
+            g_pass_count++;                                                                \
+        } else {                                                                           \
+            printf("FAIL (returned %ld, expected %ld)\n", (long) result, (long) expected); \
+            g_fail_count++;                                                                \
+        }                                                                                  \
     } while (0)
 
 /**
  * @brief 检查函数传入有效参数时成功返回
  */
-#define CHECK_VALID(name, expr, unexpected)                                            \
-    do {                                                                               \
-        printf("  %s ... ", (name));                                                   \
-        fflush(stdout);                                                                \
-        intptr_t result = (intptr_t)(expr);                                            \
-        if (result != (intptr_t)(unexpected)) {                                        \
-            printf("PASS (returned %ld)\n", (long)result);                             \
-            g_pass_count++;                                                            \
-        } else {                                                                       \
-            printf("FAIL (returned %ld, which is the failure sentinel)\n", (long)result); \
-            g_fail_count++;                                                            \
-        }                                                                              \
+#define CHECK_VALID(name, expr, unexpected)                                                \
+    do {                                                                                   \
+        printf("  %s ... ", (name));                                                       \
+        fflush(stdout);                                                                    \
+        intptr_t result = (intptr_t) (expr);                                               \
+        if (result != (intptr_t) (unexpected)) {                                           \
+            printf("PASS (returned %ld)\n", (long) result);                                \
+            g_pass_count++;                                                                \
+        } else {                                                                           \
+            printf("FAIL (returned %ld, which is the failure sentinel)\n", (long) result); \
+            g_fail_count++;                                                                \
+        }                                                                                  \
     } while (0)
 
 /* ============================================================
@@ -117,7 +117,7 @@ static void test_null_parameter_safety(void) {
         fflush(stdout);
         AddNodeResult r = graph_add_point(NULL, coords, 2);
         if (r != ADD_NODE_OK) {
-            printf("PASS (correctly rejected with code %d)\n", (int)r);
+            printf("PASS (correctly rejected with code %d)\n", (int) r);
             g_pass_count++;
         } else {
             printf("FAIL (unexpectedly succeeded with NULL graph)\n");
@@ -262,7 +262,7 @@ static void test_extreme_coordinates(void) {
     printf("  symbolic_coord_create_rational(1, (uint64_t)-1) [negative as uint] ... ");
     fflush(stdout);
     {
-        SymbolicCoord *c = symbolic_coord_create_rational(1, (uint64_t)-1);
+        SymbolicCoord *c = symbolic_coord_create_rational(1, (uint64_t) -1);
         if (c) {
             printf("PASS (created)\n");
             symbolic_coord_destroy(c);
@@ -448,8 +448,10 @@ static void test_memory_cycle(void) {
                 symbolic_coord_destroy(cy);
             } else {
                 /* 坐标创建失败，释放已分配的坐标 */
-                if (cx) symbolic_coord_destroy(cx);
-                if (cy) symbolic_coord_destroy(cy);
+                if (cx)
+                    symbolic_coord_destroy(cx);
+                if (cy)
+                    symbolic_coord_destroy(cy);
                 graph_destroy(g);
                 cycle_ok = 0;
                 printf("FAIL (coord creation failed at iter %d)\n", i);
@@ -491,8 +493,10 @@ static void test_large_graph(void) {
         SymbolicCoord *cx = symbolic_coord_create_rational(i, 1);
         SymbolicCoord *cy = symbolic_coord_create_rational(i * 3, 2);
         if (!cx || !cy) {
-            if (cx) symbolic_coord_destroy(cx);
-            if (cy) symbolic_coord_destroy(cy);
+            if (cx)
+                symbolic_coord_destroy(cx);
+            if (cy)
+                symbolic_coord_destroy(cy);
             break;
         }
         SymbolicCoord *coords[] = {cx, cy};
@@ -501,7 +505,8 @@ static void test_large_graph(void) {
         symbolic_coord_destroy(cy);
         if (r == ADD_NODE_OK) {
             success_count++;
-            if (first_point_id < 0) first_point_id = g->next_node_id - 1;
+            if (first_point_id < 0)
+                first_point_id = g->next_node_id - 1;
             last_point_id = g->next_node_id - 1;
         }
     }
@@ -616,7 +621,7 @@ static void test_symbolic_coord_types(void) {
         if (c) {
             TrustColor tc = symbolic_coord_get_trust(c);
             /* 新创建的坐标通常默认为 TRUST_GREEN */
-            printf("%s (color=%d)\n", (tc == TRUST_GREEN) ? "PASS" : "NOTE", (int)tc);
+            printf("%s (color=%d)\n", (tc == TRUST_GREEN) ? "PASS" : "NOTE", (int) tc);
             if (tc == TRUST_GREEN) {
                 g_pass_count++;
             } else {
@@ -799,9 +804,7 @@ int main(void) {
 
     if (!lv_init()) {
         fprintf(stderr, "\nFATAL: lv_init() failed!\n");
-        fprintf(stderr, "Last error: %s (code %d)\n",
-                lv_get_last_error_message(),
-                (int)lv_get_last_error_code());
+        fprintf(stderr, "Last error: %s (code %d)\n", lv_get_last_error_message(), (int) lv_get_last_error_code());
         fprintf(stderr, "Cannot continue without system initialization.\n");
         return 1;
     }

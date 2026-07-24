@@ -62,28 +62,28 @@ static void test_rule_engine_create(void) {
 
 /* Sample applicability check: always applicable */
 static bool sample_always_applicable(const void *rule, const void *state) {
-    (void)rule;
-    (void)state;
+    (void) rule;
+    (void) state;
     return true;
 }
 
 /* Sample applicability check: never applicable */
 static bool sample_never_applicable(const void *rule, const void *state) {
-    (void)rule;
-    (void)state;
+    (void) rule;
+    (void) state;
     return false;
 }
 
 /* Sample apply function: pops the current goal (proves it) */
 static bool sample_pop_goal_apply(void *rule, void *state) {
-    (void)rule;
-    return proof_state_pop_goal((lvProofState *)state);
+    (void) rule;
+    return proof_state_pop_goal((lvProofState *) state);
 }
 
 /* Sample apply function: pushes a sub-goal */
 static bool sample_push_subgoal_apply(void *rule, void *state) {
-    (void)rule;
-    return proof_state_push_goal((lvProofState *)state, "sub_goal_trivial");
+    (void) rule;
+    return proof_state_push_goal((lvProofState *) state, "sub_goal_trivial");
 }
 
 static void test_rule_engine_add_rule(void) {
@@ -93,7 +93,7 @@ static void test_rule_engine_add_rule(void) {
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Create and add a rule */
-    lvProofRule *rule = (lvProofRule *)lv_malloc(sizeof(lvProofRule));
+    lvProofRule *rule = (lvProofRule *) lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(rule);
     memset(rule, 0, sizeof(lvProofRule));
     strncpy(rule->name, "test_intro", lv_PROOF_RULE_NAME_MAX - 1);
@@ -118,7 +118,7 @@ static void test_rule_engine_add_rule(void) {
     TEST_ASSERT_NULL(found);
 
     /* Add a second rule */
-    lvProofRule *rule2 = (lvProofRule *)lv_malloc(sizeof(lvProofRule));
+    lvProofRule *rule2 = (lvProofRule *) lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(rule2);
     memset(rule2, 0, sizeof(lvProofRule));
     strncpy(rule2->name, "test_elim", lv_PROOF_RULE_NAME_MAX - 1);
@@ -164,7 +164,7 @@ static void test_rule_engine_search_simple(void) {
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Add a rule that proves the current goal by popping it */
-    lvProofRule *solve_rule = (lvProofRule *)lv_malloc(sizeof(lvProofRule));
+    lvProofRule *solve_rule = (lvProofRule *) lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(solve_rule);
     memset(solve_rule, 0, sizeof(lvProofRule));
     strncpy(solve_rule->name, "solve_trivial", lv_PROOF_RULE_NAME_MAX - 1);
@@ -211,7 +211,7 @@ static void test_rule_engine_search_simple(void) {
     TEST_ASSERT_NOT_NULL(deep_engine);
 
     /* Add a rule that pushes a sub-goal instead of solving */
-    lvProofRule *deep_rule = (lvProofRule *)lv_malloc(sizeof(lvProofRule));
+    lvProofRule *deep_rule = (lvProofRule *) lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(deep_rule);
     memset(deep_rule, 0, sizeof(lvProofRule));
     strncpy(deep_rule->name, "push_subgoal", lv_PROOF_RULE_NAME_MAX - 1);
@@ -257,9 +257,7 @@ static void test_proof_session_create(void) {
     proof_session_destroy(session);
 
     /* Create session with custom ID */
-    session = proof_session_create_with_id("my_session_001",
-                                            "A /\\ B -> B /\\ A",
-                                            NULL);
+    session = proof_session_create_with_id("my_session_001", "A /\\ B -> B /\\ A", NULL);
     TEST_ASSERT_NOT_NULL(session);
     TEST_ASSERT_STR_EQ(proof_session_get_id(session), "my_session_001");
     TEST_ASSERT_STR_EQ(proof_session_get_target(session), "A /\\ B -> B /\\ A");
@@ -352,19 +350,14 @@ static void test_proof_session_get_state_json(void) {
     TEST_ASSERT_NOT_NULL(json);
 
     /* Verify JSON contains expected fields */
-    TEST_ASSERT(strstr(json, "\"session_id\"") != NULL,
-                "JSON should contain session_id field");
-    TEST_ASSERT(strstr(json, "\"status\": \"ACTIVE\"") != NULL,
-                "JSON should contain ACTIVE status");
-    TEST_ASSERT(strstr(json, "\"target_proposition\"") != NULL,
-                "JSON should contain target_proposition field");
-    TEST_ASSERT(strstr(json, "\"step_count\": 0") != NULL,
-                "JSON should show step_count 0");
-    TEST_ASSERT(strstr(json, "\"is_complete\": false") != NULL,
-                "JSON should show is_complete false");
+    TEST_ASSERT(strstr(json, "\"session_id\"") != NULL, "JSON should contain session_id field");
+    TEST_ASSERT(strstr(json, "\"status\": \"ACTIVE\"") != NULL, "JSON should contain ACTIVE status");
+    TEST_ASSERT(strstr(json, "\"target_proposition\"") != NULL, "JSON should contain target_proposition field");
+    TEST_ASSERT(strstr(json, "\"step_count\": 0") != NULL, "JSON should show step_count 0");
+    TEST_ASSERT(strstr(json, "\"is_complete\": false") != NULL, "JSON should show is_complete false");
 
     if (json) {
-        lv_free((void **)&json);
+        lv_free((void **) &json);
     }
 
     /* Test NULL session */
@@ -461,14 +454,12 @@ static void test_utility_string_functions(void) {
     TEST_ASSERT_STR_EQ(search_strategy_to_string(SEARCH_BEST_FIRST), "BEST_FIRST");
     TEST_ASSERT_STR_EQ(search_strategy_to_string(SEARCH_DEPTH_FIRST), "DEPTH_FIRST");
     TEST_ASSERT_STR_EQ(search_strategy_to_string(SEARCH_BREADTH_FIRST), "BREADTH_FIRST");
-    TEST_ASSERT_STR_EQ(search_strategy_to_string(SEARCH_ITERATIVE_DEEPENING),
-                        "ITERATIVE_DEEPENING");
+    TEST_ASSERT_STR_EQ(search_strategy_to_string(SEARCH_ITERATIVE_DEEPENING), "ITERATIVE_DEEPENING");
 
     /* Search result status strings */
     TEST_ASSERT_STR_EQ(search_result_status_to_string(SEARCH_RESULT_FOUND), "FOUND");
     TEST_ASSERT_STR_EQ(search_result_status_to_string(SEARCH_RESULT_TIMEOUT), "TIMEOUT");
-    TEST_ASSERT_STR_EQ(search_result_status_to_string(SEARCH_RESULT_DEPTH_LIMIT),
-                        "DEPTH_LIMIT");
+    TEST_ASSERT_STR_EQ(search_result_status_to_string(SEARCH_RESULT_DEPTH_LIMIT), "DEPTH_LIMIT");
     TEST_ASSERT_STR_EQ(search_result_status_to_string(SEARCH_RESULT_EXHAUSTED), "EXHAUSTED");
     TEST_ASSERT_STR_EQ(search_result_status_to_string(SEARCH_RESULT_ERROR), "ERROR");
 

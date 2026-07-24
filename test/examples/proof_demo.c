@@ -36,8 +36,7 @@
  * @param yd   Y 坐标分母（必须 > 0）
  * @return     新节点的 ID，失败返回 -1
  * ============================================================ */
-static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
-                     int64_t yn, uint64_t yd) {
+static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
     if (!g || xd == 0 || yd == 0) {
         fprintf(stderr, "add_point: 无效参数\n");
         return -1;
@@ -73,8 +72,7 @@ static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
  *
  * AC = BC = sqrt(4+9) = sqrt(13)，所以三角形 ABC 是等腰三角形。
  * ============================================================ */
-static void construct_isosceles_triangle(ConstraintGraph *g,
-                                          int *out_a, int *out_b, int *out_c) {
+static void construct_isosceles_triangle(ConstraintGraph *g, int *out_a, int *out_b, int *out_c) {
     printf("  创建顶点 A(0, 0)...\n");
     int a = add_point(g, 0, 1, 0, 1);
 
@@ -95,8 +93,7 @@ static void construct_isosceles_triangle(ConstraintGraph *g,
  * 为三角形的三条边创建线段节点，并添加 betweenness 约束
  * 来表示顶点之间的空间关系。
  * ============================================================ */
-static void add_edges_and_constraints(ConstraintGraph *g,
-                                       int a, int b, int c) {
+static void add_edges_and_constraints(ConstraintGraph *g, int a, int b, int c) {
     /* 添加三条边 */
     printf("  添加边 AB...\n");
     graph_add_line_segment(g, a, b);
@@ -149,8 +146,7 @@ static Proposition *create_isosceles_proposition(void) {
     /* 将模式图关联到命题 */
     proposition_set_pattern(prop, pattern);
 
-    printf("  命题创建成功 (ID=%d, 模式图节点数=%d)\n",
-           prop->id, pattern->node_count);
+    printf("  命题创建成功 (ID=%d, 模式图节点数=%d)\n", prop->id, pattern->node_count);
 
     return prop;
 }
@@ -161,8 +157,7 @@ static Proposition *create_isosceles_proposition(void) {
  * 证明导航器管理证明步骤的添加、导航和验证。
  * 我们将构造过程组织为一系列证明步骤。
  * ============================================================ */
-static ProofNavigator *build_proof(ConstraintGraph *construction,
-                                    Proposition *proposition) {
+static ProofNavigator *build_proof(ConstraintGraph *construction, Proposition *proposition) {
     printf("  创建证明导航器...\n");
 
     /* 创建证明导航器，关联目标命题 */
@@ -173,8 +168,7 @@ static ProofNavigator *build_proof(ConstraintGraph *construction,
     }
 
     /* 设置证明策略注释（LeanGeo 风格） */
-    proof_navigator_set_strategy_note(nav,
-        "通过构造等腰三角形 ABC（其中 AC=BC），验证构造满足等腰三角形的定义");
+    proof_navigator_set_strategy_note(nav, "通过构造等腰三角形 ABC（其中 AC=BC），验证构造满足等腰三角形的定义");
 
     /* ---- 证明步骤1：添加顶点 ---- */
     ProofStep *step1 = proof_step_create(PROOF_STEP_ADD_NODE);
@@ -184,7 +178,7 @@ static ProofNavigator *build_proof(ConstraintGraph *construction,
     /* ---- 证明步骤2：添加边 ---- */
     ProofStep *step2 = proof_step_create(PROOF_STEP_ADD_CONSTRAINT);
     step2->note = lv_strdup_safe("连接顶点形成三条边 AB, BC, CA");
-    proof_step_add_dependency(step2, step1->id);  /* 步骤2依赖步骤1 */
+    proof_step_add_dependency(step2, step1->id); /* 步骤2依赖步骤1 */
     proof_navigator_add_step(nav, step2);
 
     /* ---- 证明步骤3：添加约束 ---- */
@@ -240,8 +234,7 @@ static void run_logic_check(ProofNavigator *nav) {
     printf("  一致性: %s\n", report->is_consistent ? "通过" : "存在问题");
     printf("  无循环: %s\n", report->is_non_circular ? "通过" : "存在循环");
     printf("  完备性: %s\n", report->is_complete ? "通过" : "存在问题");
-    printf("  总问题数: %d (错误=%d, 警告=%d, 信息=%d)\n",
-           report->total_issues, report->error_count,
+    printf("  总问题数: %d (错误=%d, 警告=%d, 信息=%d)\n", report->total_issues, report->error_count,
            report->warning_count, report->info_count);
 
     /* 导出文本报告 */
@@ -279,8 +272,7 @@ int main(void) {
     /* ======== 步骤2：添加边和约束 ======== */
     printf("[2/5] 添加边和几何约束...\n");
     add_edges_and_constraints(construction, a, b, c);
-    printf("  节点数: %d, 约束数: %d\n\n",
-           construction->node_count, construction->constraint_count);
+    printf("  节点数: %d, 约束数: %d\n\n", construction->node_count, construction->constraint_count);
 
     /* ======== 步骤3：创建命题 ======== */
     printf("[3/5] 创建等腰三角形判定命题...\n");

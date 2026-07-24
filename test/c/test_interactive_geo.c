@@ -10,13 +10,13 @@
  * - NULL 输入安全性
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
-#include "lv.h"
 #include "interactive_geo.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* 全局测试计数器 */
@@ -26,15 +26,13 @@ int g_fail_count = 0;
 /* ================================================================
  * 测试 1: 交互几何上下文创建与销毁生命周期
  * ================================================================ */
-void test_geo_lifecycle(void)
-{
+void test_geo_lifecycle(void) {
     printf("  TEST: interactive_geo_init/destroy lifecycle...\n");
 
     /* 使用 NULL engine 句柄创建（延迟绑定） */
     lvInteractiveGeo *geo = interactive_geo_init(NULL);
     TEST_ASSERT(geo != NULL, "interactive_geo_init(NULL) returns non-NULL");
-    TEST_ASSERT(geo->canvas_state.current_mode == GEO_MODE_SELECT,
-                "default mode is GEO_MODE_SELECT");
+    TEST_ASSERT(geo->canvas_state.current_mode == GEO_MODE_SELECT, "default mode is GEO_MODE_SELECT");
     TEST_ASSERT(geo->engine_handle == NULL, "engine_handle is NULL");
 
     /* 销毁 */
@@ -49,8 +47,7 @@ void test_geo_lifecycle(void)
 /* ================================================================
  * 测试 2: 模式设置/获取
  * ================================================================ */
-void test_geo_mode(void)
-{
+void test_geo_mode(void) {
     printf("  TEST: interactive_geo_set_mode/get_mode...\n");
 
     lvInteractiveGeo *geo = interactive_geo_init(NULL);
@@ -62,25 +59,20 @@ void test_geo_mode(void)
 
     /* 设置各模式并验证 */
     interactive_geo_set_mode(geo, GEO_MODE_POINT);
-    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_POINT,
-                "set_mode to POINT works");
+    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_POINT, "set_mode to POINT works");
 
     interactive_geo_set_mode(geo, GEO_MODE_LINE);
-    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_LINE,
-                "set_mode to LINE works");
+    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_LINE, "set_mode to LINE works");
 
     interactive_geo_set_mode(geo, GEO_MODE_CIRCLE);
-    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_CIRCLE,
-                "set_mode to CIRCLE works");
+    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_CIRCLE, "set_mode to CIRCLE works");
 
     interactive_geo_set_mode(geo, GEO_MODE_SELECT);
-    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_SELECT,
-                "set_mode to SELECT works");
+    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_SELECT, "set_mode to SELECT works");
 
     /* 切换回同一模式（无操作） */
     interactive_geo_set_mode(geo, GEO_MODE_SELECT);
-    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_SELECT,
-                "set_mode same mode is no-op");
+    TEST_ASSERT(interactive_geo_get_mode(geo) == GEO_MODE_SELECT, "set_mode same mode is no-op");
 
     interactive_geo_destroy(geo);
 
@@ -97,8 +89,7 @@ void test_geo_mode(void)
 /* ================================================================
  * 测试 3: 选择/取消选择
  * ================================================================ */
-void test_geo_select_deselect(void)
-{
+void test_geo_select_deselect(void) {
     printf("  TEST: interactive_geo_select/deselect...\n");
 
     lvInteractiveGeo *geo = interactive_geo_init(NULL);
@@ -158,8 +149,7 @@ void test_geo_select_deselect(void)
 /* ================================================================
  * 测试 4: 世界/屏幕坐标变换
  * ================================================================ */
-void test_geo_coord_transform(void)
-{
+void test_geo_coord_transform(void) {
     printf("  TEST: world/screen coordinate transforms...\n");
 
     lvInteractiveGeo *geo = interactive_geo_init(NULL);
@@ -216,8 +206,7 @@ void test_geo_coord_transform(void)
 /* ================================================================
  * 测试 5: NULL 输入安全性综合测试
  * ================================================================ */
-void test_geo_null_safety(void)
-{
+void test_geo_null_safety(void) {
     printf("  TEST: NULL input safety for all public functions...\n");
 
     /* 已在各测试中覆盖的 NULL 输入 */
@@ -274,8 +263,7 @@ void test_geo_null_safety(void)
 /* ================================================================
  * 主函数
  * ================================================================ */
-int main(void)
-{
+int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
     lv_init();
 

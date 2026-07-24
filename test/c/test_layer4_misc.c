@@ -16,8 +16,6 @@
  * @author Lv-00 Project
  */
 
-#include "test_helpers.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +24,8 @@
 #include "lv/mini_kernel.h"
 #include "lv/relation_model.h"
 #include "lv/rewrite.h"
+
+#include "test_helpers.h"
 
 /* 全局测试计数器 */
 int g_pass_count = 0;
@@ -147,7 +147,7 @@ static void test_mini_kernel_check_substitution(void) {
     TEST_ASSERT_EQ(vr, MINI_VERIFY_OK, "空替换应通过");
     if (result) {
         TEST_ASSERT_STR_EQ(result, "x = y", "空替换应返回原公式");
-        lv_free((void **)&result);
+        lv_free((void **) &result);
     }
 
     /* 有效替换 */
@@ -162,7 +162,7 @@ static void test_mini_kernel_check_substitution(void) {
     if (result) {
         TEST_ASSERT(strstr(result, "A") != NULL, "替换应包含A");
         TEST_ASSERT(strstr(result, "B") != NULL, "替换应包含B");
-        lv_free((void **)&result);
+        lv_free((void **) &result);
     }
 
     /* 冲突替换（同一变量映射到不同表达式）应被检测 */
@@ -355,7 +355,8 @@ static void test_mini_kernel_string_helpers(void) {
 
     /* 验证结果转字符串 */
     TEST_ASSERT_STR_EQ(mini_verify_result_to_string(MINI_VERIFY_OK), "OK", "OK");
-    TEST_ASSERT_STR_EQ(mini_verify_result_to_string(MINI_VERIFY_FAIL_SUBSTITUTION), "SUBSTITUTION_FAIL", "SUBSTITUTION_FAIL");
+    TEST_ASSERT_STR_EQ(mini_verify_result_to_string(MINI_VERIFY_FAIL_SUBSTITUTION), "SUBSTITUTION_FAIL",
+                       "SUBSTITUTION_FAIL");
     TEST_ASSERT_STR_EQ(mini_verify_result_to_string(MINI_VERIFY_FAIL_STACK), "STACK_FAIL", "STACK_FAIL");
     TEST_ASSERT_STR_EQ(mini_verify_result_to_string(MINI_VERIFY_FAIL_CYCLE), "CYCLE", "CYCLE");
 }
@@ -533,15 +534,12 @@ static void test_relation_model_from_graph(void) {
     TEST_ASSERT_NOT_NULL(graph, "创建约束图");
 
     /* 添加一些节点 */
-    SymbolicCoord *coords[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    graph_add_point(graph, (SymbolicCoord *const *)coords, 2);
+    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    graph_add_point(graph, (SymbolicCoord *const *) coords, 2);
 
     coords[0] = symbolic_coord_create_rational(100, 1);
     coords[1] = symbolic_coord_create_rational(100, 1);
-    graph_add_point(graph, (SymbolicCoord *const *)coords, 2);
+    graph_add_point(graph, (SymbolicCoord *const *) coords, 2);
 
     /* 从图构建关系模型 */
     RelModel *model = relation_model_from_graph(graph);
@@ -571,13 +569,13 @@ static void test_relation_model_facts_assertions(void) {
     bool ok = relation_model_add_fact(model, NULL);
     TEST_ASSERT(!ok, "添加NULL事实应失败");
 
-    ok = relation_model_add_fact(NULL, (RelFormula *)(intptr_t)1);
+    ok = relation_model_add_fact(NULL, (RelFormula *) (intptr_t) 1);
     TEST_ASSERT(!ok, "NULL模型添加事实应失败");
 
     ok = relation_model_add_assertion(model, NULL);
     TEST_ASSERT(!ok, "添加NULL断言应失败");
 
-    ok = relation_model_add_assertion(NULL, (RelFormula *)(intptr_t)1);
+    ok = relation_model_add_assertion(NULL, (RelFormula *) (intptr_t) 1);
     TEST_ASSERT(!ok, "NULL模型添加断言应失败");
 
     relation_model_destroy(model);
@@ -635,12 +633,12 @@ static void test_relation_model_satisfiability(void) {
 static void test_algebra_create_destroy(void) {
     AlgebraicGeom *geom = algebra_create(PLANE_XY, "test_geom");
     TEST_ASSERT_NOT_NULL(geom, "algebra_create 应返回非NULL");
-    TEST_ASSERT_EQ(geom->plane, (int)PLANE_XY, "平面应为XY");
+    TEST_ASSERT_EQ(geom->plane, (int) PLANE_XY, "平面应为XY");
     TEST_ASSERT(geom->id > 0, "ID应为正数");
 
     AlgebraicGeom *geom2 = algebra_create(PLANE_XZ, NULL);
     TEST_ASSERT_NOT_NULL(geom2, "NULL名称也应创建成功");
-    TEST_ASSERT_EQ(geom2->plane, (int)PLANE_XZ, "平面应为XZ");
+    TEST_ASSERT_EQ(geom2->plane, (int) PLANE_XZ, "平面应为XZ");
 
     algebra_destroy(geom);
     algebra_destroy(geom2);
@@ -938,7 +936,7 @@ static void test_algebra_work_plane(void) {
 
     AlgebraicGeom *g = algebra_set_work_plane(geom, PLANE_XZ);
     TEST_ASSERT_NOT_NULL(g, "设置工作平面应成功");
-    TEST_ASSERT_EQ(geom->plane, (int)PLANE_XZ, "平面应为XZ");
+    TEST_ASSERT_EQ(geom->plane, (int) PLANE_XZ, "平面应为XZ");
 
     /* 无效平面 */
     g = algebra_set_work_plane(geom, 99);
@@ -1006,7 +1004,7 @@ static void test_vf2_state_basic(void) {
     TEST_ASSERT_EQ(state.target_size, 5, "目标大小应为5");
 
     /* 仅验证结构体大小，VF2状态在匹配过程中由内部函数创建 */
-    TEST_ASSERT((int)sizeof(VF2State) > 0, "VF2State结构体有效");
+    TEST_ASSERT((int) sizeof(VF2State) > 0, "VF2State结构体有效");
 }
 
 /* --- 4.4 WL哈希历史 --- */
@@ -1046,20 +1044,17 @@ static void test_add_constraint_generic(void) {
     ConstraintGraph *graph = graph_create();
     TEST_ASSERT_NOT_NULL(graph);
 
-    SymbolicCoord *coords[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    graph_add_point(graph, (SymbolicCoord *const *)coords, 2);
+    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    graph_add_point(graph, (SymbolicCoord *const *) coords, 2);
     int p1 = graph->next_node_id - 1;
 
     coords[0] = symbolic_coord_create_rational(100, 1);
     coords[1] = symbolic_coord_create_rational(100, 1);
-    graph_add_point(graph, (SymbolicCoord *const *)coords, 2);
+    graph_add_point(graph, (SymbolicCoord *const *) coords, 2);
     int p2 = graph->next_node_id - 1;
 
     /* 添加incidence约束 */
-    bool ok = add_constraint_generic(graph, INCIDENCE, (int[]){p1, p2}, 2);
+    bool ok = add_constraint_generic(graph, INCIDENCE, (int[]) {p1, p2}, 2);
     TEST_ASSERT(ok, "添加incidence约束应成功");
 
     graph_destroy(graph);
@@ -1094,7 +1089,8 @@ static void test_rewrite_rule_null_pattern(void) {
     /* pattern或replacement为NULL时可能失败或使用默认值 */
     RewriteRule *rule = rewrite_rule_create("null_test", NULL, NULL, 0);
     /* 具体行为取决于实现，只要不崩溃 */
-    if (rule) rewrite_rule_destroy(rule);
+    if (rule)
+        rewrite_rule_destroy(rule);
     TEST_ASSERT(1, "NULL pattern不崩溃");
 }
 
@@ -1139,8 +1135,8 @@ static void test_rewrite_rule_load_unload(void) {
 
 /* --- 5.5 数值优化规则 --- */
 static void test_rewrite_num_rule(void) {
-    RewriteNumRule *rule = rewrite_num_rule_create("sqrt-diff", "sqrt(x+1)-sqrt(x)", "1/(sqrt(x+1)+sqrt(x))",
-                                                   REWRITE_NUM_HIGH, 10.0);
+    RewriteNumRule *rule =
+        rewrite_num_rule_create("sqrt-diff", "sqrt(x+1)-sqrt(x)", "1/(sqrt(x+1)+sqrt(x))", REWRITE_NUM_HIGH, 10.0);
     TEST_ASSERT_NOT_NULL(rule, "创建数值优化规则应成功");
     TEST_ASSERT_STR_EQ(rule->name, "sqrt-diff", "名称应匹配");
     TEST_ASSERT_EQ(rule->priority, REWRITE_NUM_HIGH, "优先级应为HIGH");

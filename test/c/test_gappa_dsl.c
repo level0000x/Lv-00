@@ -20,6 +20,7 @@
 #include "lv/gappa_dsl.h"
 #include "lv/gappa_propagate.h"
 #include "lv/interval_arithmetic.h"
+
 #include "test_helpers.h"
 
 /* ============================================================
@@ -36,32 +37,27 @@ static void test_gappa_format_predefined(void) {
     lvGappaFormat fmt;
 
     /* binary32 */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary32", &fmt) == true,
-                    "binary32 should be recognized");
+    TEST_ASSERT_MSG(gappa_format_predefined("binary32", &fmt) == true, "binary32 should be recognized");
     TEST_ASSERT_EQ(fmt.precision_bits, 24);
     TEST_ASSERT_EQ(fmt.exponent_bits, 8);
     TEST_ASSERT_EQ(fmt.rounding, lv_ROUND_NE);
     TEST_ASSERT_MSG(strcmp(fmt.name, "binary32") == 0, "name should be binary32");
 
     /* binary64 */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary64", &fmt) == true,
-                    "binary64 should be recognized");
+    TEST_ASSERT_MSG(gappa_format_predefined("binary64", &fmt) == true, "binary64 should be recognized");
     TEST_ASSERT_EQ(fmt.precision_bits, 53);
     TEST_ASSERT_EQ(fmt.exponent_bits, 11);
 
     /* binary16 */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary16", &fmt) == true,
-                    "binary16 should be recognized");
+    TEST_ASSERT_MSG(gappa_format_predefined("binary16", &fmt) == true, "binary16 should be recognized");
     TEST_ASSERT_EQ(fmt.precision_bits, 11);
 
     /* binary128 */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary128", &fmt) == true,
-                    "binary128 should be recognized");
+    TEST_ASSERT_MSG(gappa_format_predefined("binary128", &fmt) == true, "binary128 should be recognized");
     TEST_ASSERT_EQ(fmt.precision_bits, 113);
 
     /* Unknown format */
-    TEST_ASSERT_MSG(gappa_format_predefined("binary256", &fmt) == false,
-                    "binary256 should not be recognized");
+    TEST_ASSERT_MSG(gappa_format_predefined("binary256", &fmt) == false, "binary256 should not be recognized");
 }
 
 /* ============================================================
@@ -75,10 +71,7 @@ static void test_gappa_parse_simple(void) {
     int goal_count = 0;
 
     /* Parse: "x in [0, 1] -> |x - 0.5| <= 0.5" */
-    bool ok = gappa_parse(
-        "x in [0, 1] -> |x - 0.5| <= 0.5",
-        &hypotheses, &hyp_count,
-        &goals, &goal_count);
+    bool ok = gappa_parse("x in [0, 1] -> |x - 0.5| <= 0.5", &hypotheses, &hyp_count, &goals, &goal_count);
 
     TEST_ASSERT_MSG(ok, "parsing should succeed");
     TEST_ASSERT_EQ(hyp_count, 1);
@@ -94,8 +87,7 @@ static void test_gappa_parse_simple(void) {
     if (ok && goal_count > 0) {
         TEST_ASSERT_EQ(goals[0].predicate.type, lv_PRED_ABS);
         TEST_ASSERT_MSG(goals[0].predicate.is_hypothesis == 0, "should be goal");
-        TEST_ASSERT_MSG(fabs(goals[0].predicate.bound_abs - 0.5) < 1e-15,
-                        "bound should be 0.5");
+        TEST_ASSERT_MSG(fabs(goals[0].predicate.bound_abs - 0.5) < 1e-15, "bound should be 0.5");
     }
 
     /* Cleanup */
@@ -110,10 +102,7 @@ static void test_gappa_parse_multiple(void) {
     int goal_count = 0;
 
     /* Parse multiple statements */
-    bool ok = gappa_parse(
-        "x in [0, 1]; y in [-1, 1]",
-        &hypotheses, &hyp_count,
-        &goals, &goal_count);
+    bool ok = gappa_parse("x in [0, 1]; y in [-1, 1]", &hypotheses, &hyp_count, &goals, &goal_count);
 
     TEST_ASSERT_MSG(ok, "parsing multiple hypotheses should succeed");
     TEST_ASSERT_EQ(hyp_count, 2);
@@ -310,10 +299,8 @@ static void test_gappa_propagate_backward(void) {
         int idx = lv_gappa_pred_set_find(&output, "x", &found);
         TEST_ASSERT_MSG(idx >= 0, "should find x hypothesis");
         if (idx >= 0) {
-            TEST_ASSERT_MSG(fabs(found.bound_lo - 0.2) < 1e-15,
-                            "backward: x lo should be 0.2");
-            TEST_ASSERT_MSG(fabs(found.bound_hi - 0.8) < 1e-15,
-                            "backward: x hi should be 0.8");
+            TEST_ASSERT_MSG(fabs(found.bound_lo - 0.2) < 1e-15, "backward: x lo should be 0.2");
+            TEST_ASSERT_MSG(fabs(found.bound_hi - 0.8) < 1e-15, "backward: x hi should be 0.8");
         }
     }
 }
@@ -333,8 +320,7 @@ static void test_gappa_rewrite_rules(void) {
     strncpy(rules[1].replace_pattern, "x", sizeof(rules[1].replace_pattern) - 1);
     strncpy(rules[1].description, "identity addition", sizeof(rules[1].description) - 1);
 
-    TEST_ASSERT_MSG(gappa_register_rewrite_rules(rules, 2) == true,
-                    "registering rewrite rules should succeed");
+    TEST_ASSERT_MSG(gappa_register_rewrite_rules(rules, 2) == true, "registering rewrite rules should succeed");
 }
 
 /* ============================================================
@@ -344,7 +330,7 @@ static void test_gappa_rewrite_rules(void) {
 static void test_gappa_result_free(void) {
     lvGappaProofResult result;
     memset(&result, 0, sizeof(result));
-    result.goals = (lvGappaProofGoal *)malloc(sizeof(lvGappaProofGoal));
+    result.goals = (lvGappaProofGoal *) malloc(sizeof(lvGappaProofGoal));
     result.goals_total = 1;
 
     gappa_result_free(&result);

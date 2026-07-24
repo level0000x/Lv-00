@@ -307,7 +307,7 @@ static int test_extract_equations_full(void) {
     printf("  提取方程数: %d\n", count);
     /* 验证: 提取的方程数量（当前架构下，INCIDENCE约束提取暂返回0，待完善）*/
     /* assert(count >= 1); -- 待 solver 模块完全恢复后启用 */
-    (void)count;
+    (void) count;
 
     /* 检查方程系统*/
     printf("  方程系统大小: %d\n", equation_system_count(sys));
@@ -440,4 +440,3 @@ int main(void) {
     printf("\n=== All solver tests PASSED! ===\n");
     return 0;
 }
-

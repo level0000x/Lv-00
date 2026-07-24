@@ -40,8 +40,7 @@ static void test_load_from_file(void) {
 
     TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "non_well_founded_set_theory") == 0,
                 "package name should be 'non_well_founded_set_theory'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0,
-                "package version should be '1.0.0'");
+    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
 
     printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
 
@@ -151,10 +150,8 @@ static void test_unconstructible_problems(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                "should have 8 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count,
-           EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 8 unconstructible problems");
+    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     struct {
         const char *name;
@@ -182,8 +179,8 @@ static void test_unconstructible_problems(void) {
             TEST_ASSERT(uc->green_verified == expected[i].green_verified, "green_verified should be true");
             TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 0, "should have external_ref URL");
             TEST_ASSERT(strncmp(uc->external_ref, "https://", 8) == 0, "external_ref should be an HTTPS URL");
-            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to,
-                   uc->dependency_count, uc->green_verified ? "true" : "false");
+            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_count,
+                   uc->green_verified ? "true" : "false");
         } else {
             printf("  MISSING unconstructible: '%s'\n", expected[i].name);
             g_fail_count++;
@@ -199,8 +196,7 @@ static void test_logical_framework(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->bottom_geometry != NULL &&
-                    strcmp(pkg->bottom_geometry, "hyperset_graph_universe") == 0,
+    TEST_ASSERT(pkg->bottom_geometry != NULL && strcmp(pkg->bottom_geometry, "hyperset_graph_universe") == 0,
                 "bottom_geometry should be 'hyperset_graph_universe'");
     printf("  bottom_geometry: %s\n", pkg->bottom_geometry);
 
@@ -257,8 +253,7 @@ static void test_round_trip(void) {
     TEST_ASSERT(pkg2->contradiction_behavior == pkg1->contradiction_behavior,
                 "contradiction_behavior should match after round-trip");
 
-    printf("  Round-trip: templates=%d, unconstructibles=%d\n", pkg2->template_count,
-           pkg2->unconstructible_count);
+    printf("  Round-trip: templates=%d, unconstructibles=%d\n", pkg2->template_count, pkg2->unconstructible_count);
 
     char *hash1 = axiom_package_compute_content_hash(pkg1);
     char *hash2 = axiom_package_compute_content_hash(pkg2);
@@ -326,9 +321,8 @@ static void test_external_refs(void) {
         KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, ref_checks[i].name);
         TEST_ASSERT(uc != NULL, ref_checks[i].name);
         if (uc) {
-            TEST_ASSERT(uc->external_ref != NULL &&
-                            strncmp(uc->external_ref, ref_checks[i].expected_url_prefix,
-                                    strlen(ref_checks[i].expected_url_prefix)) == 0,
+            TEST_ASSERT(uc->external_ref != NULL && strncmp(uc->external_ref, ref_checks[i].expected_url_prefix,
+                                                            strlen(ref_checks[i].expected_url_prefix)) == 0,
                         ref_checks[i].name);
             printf("  [%d] %s -> %s\n", i, uc->name, uc->external_ref);
         }
@@ -345,16 +339,16 @@ static void test_key_axioms_present(void) {
 
     /* Core ZFA axioms: ZF axioms (minus Regularity) + AFA */
     const char *required[] = {
-        "extensionality",     /* ZF1 (strengthened) */
-        "afa_decoration",     /* AFA (replaces Regularity) */
-        "solution_lemma",     /* AFA operational form */
-        "specification",      /* ZF3 */
-        "pairing",            /* ZF4 */
-        "union",              /* ZF5 */
-        "replacement",        /* ZF6 */
-        "infinity",           /* ZF7 */
-        "power_set",          /* ZF8 */
-        "choice",             /* ZFC9 */
+        "extensionality", /* ZF1 (strengthened) */
+        "afa_decoration", /* AFA (replaces Regularity) */
+        "solution_lemma", /* AFA operational form */
+        "specification",  /* ZF3 */
+        "pairing",        /* ZF4 */
+        "union",          /* ZF5 */
+        "replacement",    /* ZF6 */
+        "infinity",       /* ZF7 */
+        "power_set",      /* ZF8 */
+        "choice",         /* ZFC9 */
     };
 
     for (int i = 0; i < 10; i++) {

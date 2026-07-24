@@ -60,9 +60,9 @@ static void test_degenerate_line_from_same_point_is_not_consistent(void) {
     bool ok = graph_check_compatibility(graph, &result);
 
     TEST_ASSERT(ok, "退化线段图相容性检查应成功返回诊断结果");
-    TEST_ASSERT(result.status == lv_CONSTRAINT_STATUS_INCONSISTENT ||
-                    result.status == lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED,
-                "重合点构造线段不得被判为普通相容");
+    TEST_ASSERT(
+        result.status == lv_CONSTRAINT_STATUS_INCONSISTENT || result.status == lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED,
+        "重合点构造线段不得被判为普通相容");
 
     graph_destroy(graph);
 }

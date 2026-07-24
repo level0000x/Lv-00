@@ -350,7 +350,8 @@ static void test_linear_logic_properties(void) {
     TEST_ASSERT(dm_tp != NULL && dm_wp != NULL && dm_bq != NULL, "should have De Morgan duality templates");
 
     /* Property 4: No explosion principle (PROPOSITION_KIND_CONSTRUCTIVE contradiction behavior) */
-    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_CONSTRUCTIVE, "linear logic should NOT have explosion principle");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_CONSTRUCTIVE,
+                "linear logic should NOT have explosion principle");
 
     /* Property 5: Negation is involutive (double negation = identity) */
     ConstraintTemplate *dn = axiom_package_get_template(pkg, "double_negation_involution");

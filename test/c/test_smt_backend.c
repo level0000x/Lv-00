@@ -17,10 +17,10 @@
  * @date 2026-07-24
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #include "lv.h"
 #include "smt_backend.h"
@@ -39,7 +39,8 @@ int g_fail_count = 0;
  * ======================================================================== */
 static ConstraintGraph *create_simple_graph(void) {
     ConstraintGraph *g = graph_create();
-    if (!g) return NULL;
+    if (!g)
+        return NULL;
 
     /* (0,0) and (3,0) — horizontal segment */
     SymbolicCoord *c0_x = symbolic_coord_create_rational(0, 1);
@@ -47,10 +48,14 @@ static ConstraintGraph *create_simple_graph(void) {
     SymbolicCoord *c1_x = symbolic_coord_create_rational(3, 1);
     SymbolicCoord *c1_y = symbolic_coord_create_rational(0, 1);
     if (!c0_x || !c0_y || !c1_x || !c1_y) {
-        if (c0_x) symbolic_coord_destroy(c0_x);
-        if (c0_y) symbolic_coord_destroy(c0_y);
-        if (c1_x) symbolic_coord_destroy(c1_x);
-        if (c1_y) symbolic_coord_destroy(c1_y);
+        if (c0_x)
+            symbolic_coord_destroy(c0_x);
+        if (c0_y)
+            symbolic_coord_destroy(c0_y);
+        if (c1_x)
+            symbolic_coord_destroy(c1_x);
+        if (c1_y)
+            symbolic_coord_destroy(c1_y);
         graph_destroy(g);
         return NULL;
     }
@@ -228,8 +233,7 @@ static void test_solver_encode_check(void) {
 
     /* Check (Groebner backend without graph — returns UNKNOWN since no variety) */
     SMTSatResult sat = smtsolver_check(s);
-    TEST_ASSERT(sat == SMT_RESULT_UNKNOWN || sat == SMT_RESULT_SAT,
-                "check result should be UNKNOWN or SAT");
+    TEST_ASSERT(sat == SMT_RESULT_UNKNOWN || sat == SMT_RESULT_SAT, "check result should be UNKNOWN or SAT");
 
     smtsolver_destroy(s);
     graph_destroy(g);
@@ -263,8 +267,7 @@ static void test_solver_solve_graph(void) {
     TEST_ASSERT(rc == 0 || rc == 1, "solve should complete (0=SAT, 1=UNKNOWN)");
 
     /* Check result structure */
-    TEST_ASSERT(result.sat_result == SMT_RESULT_SAT ||
-                result.sat_result == SMT_RESULT_UNKNOWN,
+    TEST_ASSERT(result.sat_result == SMT_RESULT_SAT || result.sat_result == SMT_RESULT_UNKNOWN,
                 "result should be SAT or UNKNOWN");
     TEST_ASSERT(result.backend_used == GROEBNER, "backend should be GROEBNER");
 
@@ -306,7 +309,7 @@ static void test_result_init_free_clear(void) {
     TEST_ASSERT_EQ(result.sat_result, SMT_RESULT_UNKNOWN);
     TEST_ASSERT_EQ(result.backend_used, GROEBNER);
     TEST_ASSERT_EQ(result.assignment_count, 0);
-    TEST_ASSERT_EQ(result.assignments, (void*)0);
+    TEST_ASSERT_EQ(result.assignments, (void *) 0);
     TEST_ASSERT_EQ(result.unsat_core_size, 0);
 
     /* Free (idempotent) */
@@ -349,20 +352,15 @@ static void test_result_find_assignment(void) {
 
 static void test_backend_availability(void) {
     /* Groebner is always available (built-in) */
-    TEST_ASSERT(smtsolver_is_backend_available(GROEBNER),
-                "Groebner backend should always be available");
+    TEST_ASSERT(smtsolver_is_backend_available(GROEBNER), "Groebner backend should always be available");
 
     /* Z3/cvc5/Singular are not linked */
-    TEST_ASSERT(!smtsolver_is_backend_available(SMT_Z3),
-                "Z3 should not be available (not linked)");
-    TEST_ASSERT(!smtsolver_is_backend_available(SMT_CVC5),
-                "cvc5 should not be available (not linked)");
-    TEST_ASSERT(!smtsolver_is_backend_available(SMT_SINGULAR),
-                "Singular should not be available (not linked)");
+    TEST_ASSERT(!smtsolver_is_backend_available(SMT_Z3), "Z3 should not be available (not linked)");
+    TEST_ASSERT(!smtsolver_is_backend_available(SMT_CVC5), "cvc5 should not be available (not linked)");
+    TEST_ASSERT(!smtsolver_is_backend_available(SMT_SINGULAR), "Singular should not be available (not linked)");
 
     /* Invalid backend */
-    TEST_ASSERT(!smtsolver_is_backend_available((SolverBackendType) 999),
-                "Invalid backend should not be available");
+    TEST_ASSERT(!smtsolver_is_backend_available((SolverBackendType) 999), "Invalid backend should not be available");
 }
 
 static void test_backend_type_names(void) {
@@ -662,12 +660,12 @@ static void test_trigger_find_matches(void) {
 
     /* Find matches */
     int match_count = 0;
-    bool found = trigger_engine_find_matches(e, 0, (void*)(uintptr_t) 0x1234, 0xABCD, &match_count);
+    bool found = trigger_engine_find_matches(e, 0, (void *) (uintptr_t) 0x1234, 0xABCD, &match_count);
     TEST_ASSERT(found, "should find matches");
     TEST_ASSERT(match_count > 0, "should have matches");
 
     /* Second call should find new matches (different term_hash) */
-    found = trigger_engine_find_matches(e, 0, (void*)(uintptr_t) 0x5678, 0xDEAD, &match_count);
+    found = trigger_engine_find_matches(e, 0, (void *) (uintptr_t) 0x5678, 0xDEAD, &match_count);
     TEST_ASSERT(found, "should find more matches");
     TEST_ASSERT(match_count > 0, "should have more matches");
 

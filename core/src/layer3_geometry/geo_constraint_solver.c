@@ -1878,7 +1878,7 @@ lv_PUBLIC_API int lv_solve_constraints(const lvConstraint *constraints, size_t c
 
     /* 为每个点创建实体 */
     for (size_t i = 0; i < n_points; i++) {
-        lvEntity e = lv_entity_point_2d((int)i, points[i * 2], points[i * 2 + 1]);
+        lvEntity e = lv_entity_point_2d((int) i, points[i * 2], points[i * 2 + 1]);
         if (lv_solver_add_entity(sys, &e) < 0) {
             lv_solver_destroy(sys);
             return -1;
@@ -1902,7 +1902,7 @@ lv_PUBLIC_API int lv_solve_constraints(const lvConstraint *constraints, size_t c
 
     /* 提取求解后的坐标 */
     for (size_t i = 0; i < n_points; i++) {
-        lvEntity *entity = lv_solver_get_entity(sys, (int)i);
+        lvEntity *entity = lv_solver_get_entity(sys, (int) i);
         if (entity && entity->param_count >= 2) {
             points[i * 2] = entity->params[0];
             points[i * 2 + 1] = entity->params[1];
@@ -1910,7 +1910,7 @@ lv_PUBLIC_API int lv_solve_constraints(const lvConstraint *constraints, size_t c
     }
 
     lv_solver_destroy(sys);
-    return (int)n_points;
+    return (int) n_points;
 }
 
 /**

@@ -144,8 +144,10 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     int total_eqs = 0;
     int max_degree_global = 0;
     for (int i = 0; i < sys.count; i++) {
-        if (sys.eqs[i].poly.degree >= 0) total_eqs++;
-        if (sys.eqs[i].poly.degree > max_degree_global) max_degree_global = sys.eqs[i].poly.degree;
+        if (sys.eqs[i].poly.degree >= 0)
+            total_eqs++;
+        if (sys.eqs[i].poly.degree > max_degree_global)
+            max_degree_global = sys.eqs[i].poly.degree;
     }
 
     int *point_ids = NULL;
@@ -195,13 +197,18 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         }
         int all_var_count = 0;
         for (int i = 0; i < sys.count; i++) {
-            if (sys.eqs[i].poly.degree < 0) continue;
+            if (sys.eqs[i].poly.degree < 0)
+                continue;
             int vid = sys.eqs[i].var_node_id;
             bool found = false;
             for (int j = 0; j < all_var_count; j++) {
-                if (all_var_ids[j] == vid) { found = true; break; }
+                if (all_var_ids[j] == vid) {
+                    found = true;
+                    break;
+                }
             }
-            if (!found) all_var_ids[all_var_count++] = vid;
+            if (!found)
+                all_var_ids[all_var_count++] = vid;
         }
 
         if (all_var_count > 0) {
@@ -241,14 +248,18 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                     priority[i] = INT_MAX;
                     int vid = sys.eqs[i].var_node_id;
                     for (int k = 0; k < ordered_count; k++) {
-                        if (ordered_ids[k] == vid) { priority[i] = k; break; }
+                        if (ordered_ids[k] == vid) {
+                            priority[i] = k;
+                            break;
+                        }
                     }
                 }
 
                 for (int i = 0; i < sys.count - 1; i++) {
                     int best = i;
                     for (int j = i + 1; j < sys.count; j++) {
-                        if (priority[j] < priority[best]) best = j;
+                        if (priority[j] < priority[best])
+                            best = j;
                     }
                     if (best != i) {
                         PolyEquation tmp = sys.eqs[i];
@@ -299,7 +310,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     {
         int remaining_before_gb = 0;
         for (int i = 0; i < sys.count; i++) {
-            if (sys.eqs[i].poly.degree >= 0) remaining_before_gb++;
+            if (sys.eqs[i].poly.degree >= 0)
+                remaining_before_gb++;
         }
 
         if (remaining_before_gb > 0) {
@@ -382,7 +394,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
 
     int remaining = 0;
     for (int i = 0; i < sys.count; i++) {
-        if (sys.eqs[i].poly.degree >= 0) remaining++;
+        if (sys.eqs[i].poly.degree >= 0)
+            remaining++;
     }
 
     equation_system_clear(&sys);

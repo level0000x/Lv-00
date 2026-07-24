@@ -159,8 +159,8 @@ static void test_templates(void) {
         if (tmpl) {
             found_count++;
             if (tmpl->param_count != core_templates[i].params) {
-                printf("  FAIL: '%s' has %d params, expected %d\n",
-                       core_templates[i].name, tmpl->param_count, core_templates[i].params);
+                printf("  FAIL: '%s' has %d params, expected %d\n", core_templates[i].name, tmpl->param_count,
+                       core_templates[i].params);
                 g_fail_count++;
             } else {
                 g_pass_count++;
@@ -212,8 +212,8 @@ static void test_unconstructible_problems(void) {
             if (uc->reduces_to && strcmp(uc->reduces_to, expected[i].reduces_to) == 0) {
                 g_pass_count++;
             } else {
-                printf("  FAIL: '%s' reduces_to '%s', expected '%s'\n",
-                       expected[i].name, uc->reduces_to ? uc->reduces_to : "(null)", expected[i].reduces_to);
+                printf("  FAIL: '%s' reduces_to '%s', expected '%s'\n", expected[i].name,
+                       uc->reduces_to ? uc->reduces_to : "(null)", expected[i].reduces_to);
                 g_fail_count++;
             }
             if (uc->green_verified != expected[i].green_verified) {
@@ -302,8 +302,8 @@ static void test_round_trip_save_load(void) {
     TEST_ASSERT(pkg1->template_count == pkg2->template_count, "template counts should match");
     TEST_ASSERT(pkg1->unconstructible_count == pkg2->unconstructible_count, "unconstructible counts should match");
 
-    printf("  Round-trip: OK (templates: %d, unconstructibles: %d)\n",
-           pkg2->template_count, pkg2->unconstructible_count);
+    printf("  Round-trip: OK (templates: %d, unconstructibles: %d)\n", pkg2->template_count,
+           pkg2->unconstructible_count);
 
     axiom_package_destroy(pkg1);
     axiom_package_destroy(pkg2);

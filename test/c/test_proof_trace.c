@@ -61,8 +61,7 @@ static void test_proof_tree_create_node(void) {
     TEST_ASSERT_NOT_NULL(tree);
 
     /* 通过 add_step 在根节点下创建新节点 */
-    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL,
-        "Reflexivity Axiom", "AB = AB", 0);
+    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL, "Reflexivity Axiom", "AB = AB", 0);
     TEST_ASSERT_NOT_NULL(node);
 
     /* 验证节点基本字段 */
@@ -113,7 +112,7 @@ static void test_proof_tree_set_root(void) {
     TEST_ASSERT_EQ(tree->node_count, 1);
     TEST_ASSERT_NOT_NULL(tree->all_nodes);
     TEST_ASSERT_NOT_NULL(tree->all_nodes[0]);
-    TEST_ASSERT_EQ((intptr_t)tree->all_nodes[0], (intptr_t)root);
+    TEST_ASSERT_EQ((intptr_t) tree->all_nodes[0], (intptr_t) root);
 
     /* 验证树元数据 */
     TEST_ASSERT_NOT_NULL(tree->theorem_name);
@@ -129,28 +128,25 @@ static void test_proof_tree_node_add_premise(void) {
     lvProofTree *tree = lv_proof_tree_create("Premise Test", NULL);
     TEST_ASSERT_NOT_NULL(tree);
 
-    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL,
-        NULL, "Some Conclusion", 0);
+    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL, NULL, "Some Conclusion", 0);
     TEST_ASSERT_NOT_NULL(node);
     TEST_ASSERT_EQ(node->premise_count, 0);
 
     /* 添加一个公理性前提 */
-    lv_proof_tree_add_premise(node, 100,
-        "Through any two points there is exactly one line", true);
+    lv_proof_tree_add_premise(node, 100, "Through any two points there is exactly one line", true);
     TEST_ASSERT_EQ(node->premise_count, 1);
 
     /* 验证前提字段 */
     TEST_ASSERT_EQ(node->premises[0].premise_id, 100);
     TEST_ASSERT_NOT_NULL(node->premises[0].description);
-    TEST_ASSERT_EQ(node->premises[0].is_axiom, (intptr_t)true);
+    TEST_ASSERT_EQ(node->premises[0].is_axiom, (intptr_t) true);
 
     /* 添加第二个前提（非公理，如已证定理） */
-    lv_proof_tree_add_premise(node, 101,
-        "Triangle ABC is isosceles", false);
+    lv_proof_tree_add_premise(node, 101, "Triangle ABC is isosceles", false);
     TEST_ASSERT_EQ(node->premise_count, 2);
     TEST_ASSERT_EQ(node->premises[1].premise_id, 101);
     TEST_ASSERT_NOT_NULL(node->premises[1].description);
-    TEST_ASSERT_EQ(node->premises[1].is_axiom, (intptr_t)false);
+    TEST_ASSERT_EQ(node->premises[1].is_axiom, (intptr_t) false);
 
     lv_proof_tree_destroy(tree);
 }
@@ -163,8 +159,7 @@ static void test_proof_tree_node_set_axiom(void) {
     TEST_ASSERT_NOT_NULL(tree);
 
     /* 创建节点时不指定公理，后续通过字段直接设置 */
-    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL,
-        NULL, "Conclusion", 0);
+    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL, NULL, "Conclusion", 0);
     TEST_ASSERT_NOT_NULL(node);
     TEST_ASSERT_NULL(node->axiom_used);
 
@@ -188,8 +183,7 @@ static void test_proof_tree_node_set_conclusion(void) {
     TEST_ASSERT_NOT_NULL(tree);
 
     /* 创建节点时不指定结论 */
-    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL,
-        "Given Axiom", NULL, 0);
+    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL, "Given Axiom", NULL, 0);
     TEST_ASSERT_NOT_NULL(node);
     TEST_ASSERT_NULL(node->conclusion);
 
@@ -198,9 +192,8 @@ static void test_proof_tree_node_set_conclusion(void) {
     TEST_ASSERT_NOT_NULL(node->conclusion);
 
     /* 验证结论已正确设置 */
-    TEST_ASSERT_MSG(strcmp(node->conclusion,
-        "Therefore, triangle ABC is congruent to triangle DEF") == 0,
-        "conclusion should match expected string");
+    TEST_ASSERT_MSG(strcmp(node->conclusion, "Therefore, triangle ABC is congruent to triangle DEF") == 0,
+                    "conclusion should match expected string");
 
     lv_proof_tree_destroy(tree);
 }
@@ -213,30 +206,27 @@ static void test_proof_tree_node_add_child(void) {
     TEST_ASSERT_NOT_NULL(tree);
 
     /* 创建父节点 */
-    lvProofTreeNode *parent = lv_proof_tree_add_step(tree, NULL,
-        "Parent Axiom", "Parent Conclusion", 0);
+    lvProofTreeNode *parent = lv_proof_tree_add_step(tree, NULL, "Parent Axiom", "Parent Conclusion", 0);
     TEST_ASSERT_NOT_NULL(parent);
     TEST_ASSERT_EQ(parent->child_count, 0);
 
     /* 添加第一个子节点 */
-    lvProofTreeNode *child1 = lv_proof_tree_add_step(tree, parent,
-        "Child Axiom 1", "Child Conclusion 1", 1);
+    lvProofTreeNode *child1 = lv_proof_tree_add_step(tree, parent, "Child Axiom 1", "Child Conclusion 1", 1);
     TEST_ASSERT_NOT_NULL(child1);
     TEST_ASSERT_EQ(parent->child_count, 1);
     TEST_ASSERT_EQ(child1->depth, 2);
-    TEST_ASSERT_EQ((intptr_t)child1->parent, (intptr_t)parent);
+    TEST_ASSERT_EQ((intptr_t) child1->parent, (intptr_t) parent);
 
     /* 添加第二个子节点 */
-    lvProofTreeNode *child2 = lv_proof_tree_add_step(tree, parent,
-        "Child Axiom 2", "Child Conclusion 2", 2);
+    lvProofTreeNode *child2 = lv_proof_tree_add_step(tree, parent, "Child Axiom 2", "Child Conclusion 2", 2);
     TEST_ASSERT_NOT_NULL(child2);
     TEST_ASSERT_EQ(parent->child_count, 2);
     TEST_ASSERT_EQ(child2->depth, 2);
 
     /* 验证 children 数组 */
     TEST_ASSERT_NOT_NULL(parent->children);
-    TEST_ASSERT_EQ((intptr_t)parent->children[0], (intptr_t)child1);
-    TEST_ASSERT_EQ((intptr_t)parent->children[1], (intptr_t)child2);
+    TEST_ASSERT_EQ((intptr_t) parent->children[0], (intptr_t) child1);
+    TEST_ASSERT_EQ((intptr_t) parent->children[1], (intptr_t) child2);
 
     /* 验证每个子节点的 id 互不相同 */
     TEST_ASSERT_NE(child1->id, child2->id);
@@ -252,34 +242,31 @@ static void test_proof_tree_node_add_child(void) {
  * 测试用例 8：反证法分支标记
  * ============================================================ */
 static void test_proof_tree_node_contradiction(void) {
-    lvProofTree *tree = lv_proof_tree_create("Contradiction Test",
-        "Proof by Contradiction");
+    lvProofTree *tree = lv_proof_tree_create("Contradiction Test", "Proof by Contradiction");
     TEST_ASSERT_NOT_NULL(tree);
 
     /* 创建反证法分支节点 */
-    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL,
-        "Assume Negation", "Suppose sqrt(2) is rational", 0);
+    lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL, "Assume Negation", "Suppose sqrt(2) is rational", 0);
     TEST_ASSERT_NOT_NULL(node);
 
     /* 初始不应为矛盾分支 */
-    TEST_ASSERT_EQ(node->is_contradiction_branch, (intptr_t)false);
+    TEST_ASSERT_EQ(node->is_contradiction_branch, (intptr_t) false);
 
     /* 通过 API 标记为矛盾分支 */
     lv_proof_tree_mark_contradiction(node);
-    TEST_ASSERT_EQ(node->is_contradiction_branch, (intptr_t)true);
+    TEST_ASSERT_EQ(node->is_contradiction_branch, (intptr_t) true);
 
     /* 也可以通过直接设置字段来标记 */
-    lvProofTreeNode *node2 = lv_proof_tree_add_step(tree, node,
-        NULL, "This leads to a contradiction", 1);
+    lvProofTreeNode *node2 = lv_proof_tree_add_step(tree, node, NULL, "This leads to a contradiction", 1);
     TEST_ASSERT_NOT_NULL(node2);
-    TEST_ASSERT_EQ(node2->is_contradiction_branch, (intptr_t)false);
+    TEST_ASSERT_EQ(node2->is_contradiction_branch, (intptr_t) false);
 
     node2->is_contradiction_branch = true;
-    TEST_ASSERT_EQ(node2->is_contradiction_branch, (intptr_t)true);
+    TEST_ASSERT_EQ(node2->is_contradiction_branch, (intptr_t) true);
 
     /* 验证标记对兄弟节点无影响 */
-    TEST_ASSERT_EQ(node->is_contradiction_branch, (intptr_t)true);
-    TEST_ASSERT_EQ(node2->is_contradiction_branch, (intptr_t)true);
+    TEST_ASSERT_EQ(node->is_contradiction_branch, (intptr_t) true);
+    TEST_ASSERT_EQ(node2->is_contradiction_branch, (intptr_t) true);
 
     lv_proof_tree_destroy(tree);
 }
@@ -288,29 +275,24 @@ static void test_proof_tree_node_contradiction(void) {
  * 测试用例 9：证明树文本导出
  * ============================================================ */
 static void test_proof_tree_export_text(void) {
-    lvProofTree *tree = lv_proof_tree_create(
-        "Triangle Angle Sum Theorem",
-        "Construct auxiliary line through vertex");
+    lvProofTree *tree = lv_proof_tree_create("Triangle Angle Sum Theorem", "Construct auxiliary line through vertex");
     TEST_ASSERT_NOT_NULL(tree);
 
     /* 构建简单的证明树 */
-    lvProofTreeNode *step1 = lv_proof_tree_add_step(tree, NULL,
-        "Postulate of Parallel Lines",
-        "Through point C, draw line DE parallel to AB", 0);
+    lvProofTreeNode *step1 = lv_proof_tree_add_step(tree, NULL, "Postulate of Parallel Lines",
+                                                    "Through point C, draw line DE parallel to AB", 0);
     TEST_ASSERT_NOT_NULL(step1);
 
     /* 为 step1 添加前提 */
     lv_proof_tree_add_premise(step1, 1, "Triangle ABC", false);
     lv_proof_tree_add_premise(step1, 2, "Parallel postulate", true);
 
-    lvProofTreeNode *step2 = lv_proof_tree_add_step(tree, step1,
-        "Alternate Interior Angles Theorem",
-        "Angle DCA equals Angle CAB", 1);
+    lvProofTreeNode *step2 =
+        lv_proof_tree_add_step(tree, step1, "Alternate Interior Angles Theorem", "Angle DCA equals Angle CAB", 1);
     TEST_ASSERT_NOT_NULL(step2);
 
-    lvProofTreeNode *step3 = lv_proof_tree_add_step(tree, step1,
-        "Alternate Interior Angles Theorem",
-        "Angle ECB equals Angle CBA", 2);
+    lvProofTreeNode *step3 =
+        lv_proof_tree_add_step(tree, step1, "Alternate Interior Angles Theorem", "Angle ECB equals Angle CBA", 2);
     TEST_ASSERT_NOT_NULL(step3);
 
     /* 导出证明文本（filepath 为 NULL 表示仅返回字符串） */
@@ -321,7 +303,7 @@ static void test_proof_tree_export_text(void) {
     TEST_ASSERT_MSG(strlen(exported) > 0, "exported text should not be empty");
 
     /* 释放导出文本（调用者负责释放） */
-    lv_free((void **)&exported);
+    lv_free((void **) &exported);
     TEST_ASSERT_NULL(exported);
 
     lv_proof_tree_destroy(tree);
@@ -342,35 +324,31 @@ static void test_proof_tree_multi_level(void) {
      *          +-- sibling (depth 2)
      */
 
-    lvProofTreeNode *level1 = lv_proof_tree_add_step(tree, NULL,
-        "Axiom A", "Conclusion Level 1", 0);
+    lvProofTreeNode *level1 = lv_proof_tree_add_step(tree, NULL, "Axiom A", "Conclusion Level 1", 0);
     TEST_ASSERT_NOT_NULL(level1);
     TEST_ASSERT_EQ(level1->depth, 1);
     TEST_ASSERT_EQ(level1->parent->id, 0);
 
-    lvProofTreeNode *level2 = lv_proof_tree_add_step(tree, level1,
-        "Axiom B", "Conclusion Level 2", 1);
+    lvProofTreeNode *level2 = lv_proof_tree_add_step(tree, level1, "Axiom B", "Conclusion Level 2", 1);
     TEST_ASSERT_NOT_NULL(level2);
     TEST_ASSERT_EQ(level2->depth, 2);
-    TEST_ASSERT_EQ((intptr_t)level2->parent, (intptr_t)level1);
+    TEST_ASSERT_EQ((intptr_t) level2->parent, (intptr_t) level1);
 
-    lvProofTreeNode *level3 = lv_proof_tree_add_step(tree, level2,
-        "Axiom C", "Conclusion Level 3", 2);
+    lvProofTreeNode *level3 = lv_proof_tree_add_step(tree, level2, "Axiom C", "Conclusion Level 3", 2);
     TEST_ASSERT_NOT_NULL(level3);
     TEST_ASSERT_EQ(level3->depth, 3);
-    TEST_ASSERT_EQ((intptr_t)level3->parent, (intptr_t)level2);
+    TEST_ASSERT_EQ((intptr_t) level3->parent, (intptr_t) level2);
 
     /* 为 level1 添加另一个子节点，深度应为 2 */
-    lvProofTreeNode *sibling = lv_proof_tree_add_step(tree, level1,
-        "Axiom D", "Sibling Conclusion", 3);
+    lvProofTreeNode *sibling = lv_proof_tree_add_step(tree, level1, "Axiom D", "Sibling Conclusion", 3);
     TEST_ASSERT_NOT_NULL(sibling);
     TEST_ASSERT_EQ(sibling->depth, 2);
-    TEST_ASSERT_EQ((intptr_t)sibling->parent, (intptr_t)level1);
+    TEST_ASSERT_EQ((intptr_t) sibling->parent, (intptr_t) level1);
 
     /* 验证树统计信息 */
     TEST_ASSERT_EQ(tree->total_steps, 4);
     TEST_ASSERT_EQ(tree->max_depth, 3);
-    TEST_ASSERT_EQ(tree->node_count, 5);  /* root + 4 steps */
+    TEST_ASSERT_EQ(tree->node_count, 5); /* root + 4 steps */
 
     /* 验证兄弟关系不影响各自深度 */
     TEST_ASSERT_EQ(level1->child_count, 2);

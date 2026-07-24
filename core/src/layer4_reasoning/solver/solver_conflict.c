@@ -112,9 +112,9 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
             mpz_mul(disc, p->coeffs[1], p->coeffs[1]); /* b^2 */
             mpz_t four_ac;
             mpz_init(four_ac);
-            mpz_mul_si(four_ac, p->coeffs[2], 4); /* 4*a */
+            mpz_mul_si(four_ac, p->coeffs[2], 4);    /* 4*a */
             mpz_mul(four_ac, four_ac, p->coeffs[0]); /* 4*a*c */
-            mpz_sub(disc, disc, four_ac); /* b^2 - 4ac */
+            mpz_sub(disc, disc, four_ac);            /* b^2 - 4ac */
             if (mpz_cmp_si(disc, 0) < 0) {
                 mpz_clear(disc);
                 mpz_clear(four_ac);

@@ -15,15 +15,15 @@
  * 10. 几何配置的线程安全（顺序 set/get 验证）
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
+#include "geometry_config.h"
 #include "lv.h"
 #include "lv_utils.h"
 #include "memory_pool.h"
-#include "geometry_config.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -40,18 +40,18 @@ static void test_basic_alloc_free(void) {
 
     /* 写入数据验证可用性 */
     memset(ptr, 0xAA, 128);
-    unsigned char *bytes = (unsigned char *)ptr;
+    unsigned char *bytes = (unsigned char *) ptr;
     TEST_ASSERT(bytes[0] == 0xAA, "lv_malloc 分配的内存应可写入");
 
     /* lv_free 释放 */
-    lv_free((void **)&ptr);
+    lv_free((void **) &ptr);
     TEST_ASSERT_NULL(ptr);
 }
 
 static void test_calloc_zero_fill(void) {
     size_t count = 64;
     size_t size = sizeof(int);
-    int *arr = (int *)lv_calloc(count, size);
+    int *arr = (int *) lv_calloc(count, size);
     TEST_ASSERT_NOT_NULL(arr);
 
     /* calloc 应将内存清零 */
@@ -64,19 +64,19 @@ static void test_calloc_zero_fill(void) {
     }
     TEST_ASSERT(all_zero, "lv_calloc 分配的内存应全部为零");
 
-    lv_free((void **)&arr);
+    lv_free((void **) &arr);
 }
 
 static void test_realloc_grow(void) {
     /* 初始分配 */
-    int *arr = (int *)lv_malloc(sizeof(int) * 4);
+    int *arr = (int *) lv_malloc(sizeof(int) * 4);
     TEST_ASSERT_NOT_NULL(arr);
     for (int i = 0; i < 4; i++) {
         arr[i] = i * 10;
     }
 
     /* 扩容 */
-    int *new_arr = (int *)lv_realloc(arr, sizeof(int) * 8);
+    int *new_arr = (int *) lv_realloc(arr, sizeof(int) * 8);
     TEST_ASSERT_NOT_NULL(new_arr);
 
     /* 验证原有数据保留 */
@@ -88,7 +88,7 @@ static void test_realloc_grow(void) {
     new_arr[5] = 50;
     TEST_ASSERT(new_arr[4] == 40, "realloc 后新区域应可写入");
 
-    lv_free((void **)&new_arr);
+    lv_free((void **) &new_arr);
 }
 
 /* ============================================================
@@ -145,22 +145,22 @@ static void test_poison_pattern(void) {
 
     /* 分配并写入已知数据 */
     size_t alloc_size = 64;
-    unsigned char *ptr = (unsigned char *)lv_malloc(alloc_size);
+    unsigned char *ptr = (unsigned char *) lv_malloc(alloc_size);
     TEST_ASSERT_NOT_NULL(ptr);
 
     memset(ptr, 0x11, alloc_size);
 
     /* 释放后检查毒模式 */
-    lv_free((void **)&ptr);
+    lv_free((void **) &ptr);
     /* 释放后 ptr 已置 NULL，需要单独分配来验证毒模式行为 */
 
     /* 分配新块，写入数据，释放，然后手动检查毒模式 */
-    unsigned char *ptr2 = (unsigned char *)lv_malloc(alloc_size);
+    unsigned char *ptr2 = (unsigned char *) lv_malloc(alloc_size);
     TEST_ASSERT_NOT_NULL(ptr2);
     memset(ptr2, 0x22, alloc_size);
 
     /* 释放后 ptr2 置 NULL，但内存区域应被毒模式填充 */
-    lv_free((void **)&ptr2);
+    lv_free((void **) &ptr2);
     TEST_ASSERT_NULL(ptr2);
 
     /* 恢复默认状态 */
@@ -174,7 +174,7 @@ static void test_poison_pattern(void) {
 static void test_magic_number_integrity(void) {
     /* 分配内存 */
     size_t alloc_size = 128;
-    unsigned char *ptr = (unsigned char *)lv_malloc(alloc_size);
+    unsigned char *ptr = (unsigned char *) lv_malloc(alloc_size);
     TEST_ASSERT_NOT_NULL(ptr);
 
     /* 检查魔数完整性 */
@@ -187,7 +187,7 @@ static void test_magic_number_integrity(void) {
     TEST_ASSERT(magic_ok, "正常使用后魔数应仍完整");
 
     /* 释放 */
-    lv_free((void **)&ptr);
+    lv_free((void **) &ptr);
 }
 
 /* ============================================================
@@ -209,7 +209,7 @@ static void test_leak_tracking(void) {
     TEST_ASSERT(stats.allocation_count > 0, "分配次数应大于 0");
 
     /* 正常释放追踪分配的内存 */
-    lv_free((void **)&tracked);
+    lv_free((void **) &tracked);
     TEST_ASSERT_NULL(tracked);
 
     /* 验证泄漏报告（此时不应有泄漏） */
@@ -256,7 +256,7 @@ static void test_tracked_allocation(void) {
     TEST_ASSERT_NOT_NULL(p2);
 
     /* 验证 calloc 清零 */
-    unsigned char *bytes = (unsigned char *)p2;
+    unsigned char *bytes = (unsigned char *) p2;
     int all_zero = 1;
     for (int i = 0; i < 64; i++) {
         if (bytes[i] != 0) {
@@ -335,7 +335,7 @@ static void test_linear_allocator(void) {
     TEST_ASSERT_NOT_NULL(p2);
 
     /* p2 应在 p1 之后 */
-    TEST_ASSERT((char *)p2 > (char *)p1, "后续分配地址应递增");
+    TEST_ASSERT((char *) p2 > (char *) p1, "后续分配地址应递增");
 
     /* 统计 */
     size_t total_blocks = 0, used_bytes = 0, capacity_bytes = 0;
@@ -370,8 +370,7 @@ static void test_geometry_config_sequential(void) {
     /* 获取当前配置 */
     const lvGeometryConfig *cur = lv_geometry_get_config();
     TEST_ASSERT_NOT_NULL(cur);
-    TEST_ASSERT(fabs(cur->collinear_epsilon - def->collinear_epsilon) < 1e-15,
-                 "当前配置应与默认配置一致");
+    TEST_ASSERT(fabs(cur->collinear_epsilon - def->collinear_epsilon) < 1e-15, "当前配置应与默认配置一致");
 
     /* 设置自定义配置 */
     lvGeometryConfig custom;
@@ -387,31 +386,28 @@ static void test_geometry_config_sequential(void) {
     /* 验证设置生效 */
     cur = lv_geometry_get_config();
     TEST_ASSERT_NOT_NULL(cur);
-    TEST_ASSERT(fabs(cur->collinear_epsilon - 1e-6) < 1e-15,
-                 "自定义共线容差应已生效");
+    TEST_ASSERT(fabs(cur->collinear_epsilon - 1e-6) < 1e-15, "自定义共线容差应已生效");
 
     /* 多次 set/get 交替验证 */
     for (int i = 0; i < 10; i++) {
         lvGeometryConfig tmp;
-        tmp.collinear_epsilon = (double)(i + 1) * 1e-10;
-        tmp.perpendicular_epsilon = (double)(i + 1) * 1e-10;
-        tmp.parallel_epsilon = (double)(i + 1) * 1e-10;
-        tmp.distance_epsilon = (double)(i + 1) * 1e-10;
-        tmp.angle_epsilon = (double)(i + 1) * 1e-7;
-        tmp.singular_threshold = (double)(i + 1) * 1e-13;
+        tmp.collinear_epsilon = (double) (i + 1) * 1e-10;
+        tmp.perpendicular_epsilon = (double) (i + 1) * 1e-10;
+        tmp.parallel_epsilon = (double) (i + 1) * 1e-10;
+        tmp.distance_epsilon = (double) (i + 1) * 1e-10;
+        tmp.angle_epsilon = (double) (i + 1) * 1e-7;
+        tmp.singular_threshold = (double) (i + 1) * 1e-13;
 
         lv_geometry_set_config(&tmp);
 
         const lvGeometryConfig *got = lv_geometry_get_config();
-        TEST_ASSERT(fabs(got->collinear_epsilon - tmp.collinear_epsilon) < 1e-15,
-                     "交替 set/get 应一致");
+        TEST_ASSERT(fabs(got->collinear_epsilon - tmp.collinear_epsilon) < 1e-15, "交替 set/get 应一致");
     }
 
     /* 恢复默认配置 */
     lv_geometry_set_config(NULL);
     cur = lv_geometry_get_config();
-    TEST_ASSERT(fabs(cur->collinear_epsilon - def->collinear_epsilon) < 1e-15,
-                 "恢复默认后配置应与初始默认一致");
+    TEST_ASSERT(fabs(cur->collinear_epsilon - def->collinear_epsilon) < 1e-15, "恢复默认后配置应与初始默认一致");
 }
 
 /* ============================================================

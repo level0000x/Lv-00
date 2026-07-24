@@ -34,10 +34,8 @@ int g_fail_count = 0;
 static void test_mod_context_init(void) {
     lvModContext ctx;
     nt_mod_context_init(&ctx);
-    TEST_ASSERT_MSG(mpz_cmp_ui(ctx.modulus, 1) == 0,
-                    "initial modulus should be 1");
-    TEST_ASSERT_MSG(ctx.is_prime == 0,
-                    "initial is_prime should be 0");
+    TEST_ASSERT_MSG(mpz_cmp_ui(ctx.modulus, 1) == 0, "initial modulus should be 1");
+    TEST_ASSERT_MSG(ctx.is_prime == 0, "initial is_prime should be 0");
     nt_mod_context_clear(&ctx);
 }
 
@@ -47,10 +45,8 @@ static void test_mod_context_set(void) {
     mpz_init_set_ui(m, 13);
     nt_mod_context_init(&ctx);
     nt_mod_context_set(&ctx, m);
-    TEST_ASSERT_MSG(mpz_cmp(ctx.modulus, m) == 0,
-                    "modulus should be 13 after set");
-    TEST_ASSERT_MSG(ctx.is_prime == 0,
-                    "is_prime should be reset to 0 after set");
+    TEST_ASSERT_MSG(mpz_cmp(ctx.modulus, m) == 0, "modulus should be 13 after set");
+    TEST_ASSERT_MSG(ctx.is_prime == 0, "is_prime should be reset to 0 after set");
     mpz_clear(m);
     nt_mod_context_clear(&ctx);
 }
@@ -72,8 +68,7 @@ static void test_mod_add(void) {
     nt_mod_add(result, &ctx, a, b);
 
     /* (5 + 4) mod 7 = 2 */
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 2) == 0,
-                    "(5 + 4) mod 7 should be 2");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 2) == 0, "(5 + 4) mod 7 should be 2");
 
     mpz_clear(mod);
     mpz_clear(a);
@@ -95,8 +90,7 @@ static void test_mod_add_negative(void) {
     nt_mod_add(result, &ctx, a, b);
 
     /* (-3 + 5) mod 11 = 2 */
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 2) == 0,
-                    "(-3 + 5) mod 11 should be 2");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 2) == 0, "(-3 + 5) mod 11 should be 2");
 
     mpz_clear(mod);
     mpz_clear(a);
@@ -122,8 +116,7 @@ static void test_mod_mul(void) {
     nt_mod_mul(result, &ctx, a, b);
 
     /* (4 * 5) mod 13 = 7 */
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 7) == 0,
-                    "(4 * 5) mod 13 should be 7");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 7) == 0, "(4 * 5) mod 13 should be 7");
 
     mpz_clear(mod);
     mpz_clear(a);
@@ -145,8 +138,7 @@ static void test_mod_mul_zero(void) {
     nt_mod_mul(result, &ctx, a, b);
 
     /* (0 * 42) mod 17 = 0 */
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 0) == 0,
-                    "(0 * 42) mod 17 should be 0");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 0) == 0, "(0 * 42) mod 17 should be 0");
 
     mpz_clear(mod);
     mpz_clear(a);
@@ -173,8 +165,7 @@ static void test_mod_inv(void) {
 
     /* 3^(-1) mod 7 = 5 (because 3 * 5 = 15 = 2*7 + 1) */
     TEST_ASSERT_MSG(ok == 1, "inverse of 3 mod 7 should exist");
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 5) == 0,
-                    "3^(-1) mod 7 should be 5");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 5) == 0, "3^(-1) mod 7 should be 5");
 
     mpz_clear(mod);
     mpz_clear(a);
@@ -220,8 +211,7 @@ static void test_mod_pow(void) {
     nt_mod_pow(result, &ctx, base, exp);
 
     /* 2^10 mod 13 = 1024 mod 13 = 1024 - 78*13 = 1024 - 1014 = 10 */
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 10) == 0,
-                    "2^10 mod 13 should be 10");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 10) == 0, "2^10 mod 13 should be 10");
 
     mpz_clear(mod);
     mpz_clear(base);
@@ -241,8 +231,7 @@ static void test_gcd(void) {
     mpz_init(result);
 
     nt_gcd(result, a, b);
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 6) == 0,
-                    "gcd(48, 18) should be 6");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 6) == 0, "gcd(48, 18) should be 6");
 
     mpz_clear(a);
     mpz_clear(b);
@@ -256,8 +245,7 @@ static void test_gcd_coprime(void) {
     mpz_init(result);
 
     nt_gcd(result, a, b);
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 1) == 0,
-                    "gcd(17, 13) should be 1");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 1) == 0, "gcd(17, 13) should be 1");
 
     mpz_clear(a);
     mpz_clear(b);
@@ -271,8 +259,7 @@ static void test_gcd_zero(void) {
     mpz_init(result);
 
     nt_gcd(result, a, b);
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 5) == 0,
-                    "gcd(0, 5) should be 5");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 5) == 0, "gcd(0, 5) should be 5");
 
     mpz_clear(a);
     mpz_clear(b);
@@ -290,8 +277,7 @@ static void test_lcm(void) {
     mpz_init(result);
 
     nt_lcm(result, a, b);
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 12) == 0,
-                    "lcm(4, 6) should be 12");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 12) == 0, "lcm(4, 6) should be 12");
 
     mpz_clear(a);
     mpz_clear(b);
@@ -305,8 +291,7 @@ static void test_lcm_zero(void) {
     mpz_init(result);
 
     nt_lcm(result, a, b);
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 0) == 0,
-                    "lcm(0, 5) should be 0");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 0) == 0, "lcm(0, 5) should be 0");
 
     mpz_clear(a);
     mpz_clear(b);
@@ -320,16 +305,14 @@ static void test_lcm_zero(void) {
 static void test_miller_rabin_prime(void) {
     mpz_t n;
     mpz_init_set_ui(n, 104729); /* known prime */
-    TEST_ASSERT_MSG(nt_is_prime_miller_rabin(n, 25) == 1,
-                    "104729 should be prime");
+    TEST_ASSERT_MSG(nt_is_prime_miller_rabin(n, 25) == 1, "104729 should be prime");
     mpz_clear(n);
 }
 
 static void test_miller_rabin_composite(void) {
     mpz_t n;
     mpz_init_set_ui(n, 104730); /* 104729 + 1, composite */
-    TEST_ASSERT_MSG(nt_is_prime_miller_rabin(n, 25) == 0,
-                    "104730 should be composite");
+    TEST_ASSERT_MSG(nt_is_prime_miller_rabin(n, 25) == 0, "104730 should be composite");
     mpz_clear(n);
 }
 
@@ -358,8 +341,7 @@ static void test_miller_rabin_small(void) {
 static void test_miller_rabin_carmichael(void) {
     mpz_t n;
     mpz_init_set_ui(n, 561); /* Carmichael number: 3 * 11 * 17 */
-    TEST_ASSERT_MSG(nt_is_prime_miller_rabin(n, 25) == 0,
-                    "561 (Carmichael) should be composite");
+    TEST_ASSERT_MSG(nt_is_prime_miller_rabin(n, 25) == 0, "561 (Carmichael) should be composite");
     mpz_clear(n);
 }
 
@@ -373,8 +355,7 @@ static void test_next_prime(void) {
     mpz_init(result);
 
     nt_next_prime(result, n);
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 17) == 0,
-                    "next prime after 14 should be 17");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 17) == 0, "next prime after 14 should be 17");
 
     mpz_clear(n);
     mpz_clear(result);
@@ -387,8 +368,7 @@ static void test_next_prime_from_prime(void) {
 
     nt_next_prime(result, n);
     /* nextprime(7) returns the next prime >= 7, which is 7 itself */
-    TEST_ASSERT_MSG(mpz_cmp_ui(result, 7) == 0,
-                    "next prime >= 7 should be 7");
+    TEST_ASSERT_MSG(mpz_cmp_ui(result, 7) == 0, "next prime >= 7 should be 7");
 
     mpz_clear(n);
     mpz_clear(result);
@@ -403,10 +383,11 @@ static void test_factorize_trial_div(void) {
     mpz_t factors[10];
     int count, i;
 
-    mpz_init_set_ui(n, 360); /* 360 = 2^3 * 3^2 * 5 */
+    mpz_init_set_ui(n, 360);   /* 360 = 2^3 * 3^2 * 5 */
     mpz_init_set_ui(bound, 0); /* no bound */
 
-    for (i = 0; i < 10; i++) mpz_init(factors[i]);
+    for (i = 0; i < 10; i++)
+        mpz_init(factors[i]);
 
     count = nt_factorize_trial_div(n, factors, 10, bound);
 
@@ -421,7 +402,8 @@ static void test_factorize_trial_div(void) {
 
     mpz_clear(n);
     mpz_clear(bound);
-    for (i = 0; i < 10; i++) mpz_clear(factors[i]);
+    for (i = 0; i < 10; i++)
+        mpz_clear(factors[i]);
 }
 
 static void test_factorize_prime(void) {

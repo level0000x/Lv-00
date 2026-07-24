@@ -207,7 +207,8 @@ static void test_logical_framework(void) {
 
     printf("  bottom_geometry: %s\n", pkg->bottom_geometry);
     printf("  negation_encoding: %s\n", pkg->negation_encoding);
-    printf("  contradiction_behavior: %d (PROPOSITION_KIND_EXPLOSION_PRINCIPLE=%d)\n", pkg->contradiction_behavior, PROPOSITION_KIND_EXPLOSION_PRINCIPLE);
+    printf("  contradiction_behavior: %d (PROPOSITION_KIND_EXPLOSION_PRINCIPLE=%d)\n", pkg->contradiction_behavior,
+           PROPOSITION_KIND_EXPLOSION_PRINCIPLE);
 
     axiom_package_destroy(pkg);
 }
@@ -286,7 +287,7 @@ static void test_dependency_validation(void) {
     AxiomPackage *packages[] = {pkg};
     bool valid = axiom_package_validate_dependencies(pkg, packages, 1);
     /* 依赖链引用可能不完整，不强制必须为 true */
-    (void)valid;
+    (void) valid;
 
     axiom_package_destroy(pkg);
 }

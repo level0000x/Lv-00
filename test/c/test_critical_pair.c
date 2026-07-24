@@ -22,8 +22,7 @@ int g_fail_count = 0;
 
 /* ---- 辅助函数：创建简单重写规则（空模式） ---- */
 
-static RewriteRule *make_empty_rule(const char *name, int measure)
-{
+static RewriteRule *make_empty_rule(const char *name, int measure) {
     RewritePattern *pat = malloc(sizeof(RewritePattern));
     memset(pat, 0, sizeof(RewritePattern));
     pat->var_count = 0;
@@ -57,7 +56,7 @@ static void test_empty_ruleset(void) {
 
 static void test_single_rule(void) {
     RewriteRule *r1 = make_empty_rule("translate_x", 1);
-    RewriteRule *rules[] = { r1 };
+    RewriteRule *rules[] = {r1};
 
     CriticalPairSet *cps = critical_pair_compute_all(rules, 1, NULL);
     TEST_ASSERT_NOT_NULL(cps);
@@ -72,7 +71,7 @@ static void test_single_rule(void) {
 static void test_two_rules(void) {
     RewriteRule *r1 = make_empty_rule("r1", 1);
     RewriteRule *r2 = make_empty_rule("r2", 1);
-    RewriteRule *rules[] = { r1, r2 };
+    RewriteRule *rules[] = {r1, r2};
 
     CriticalPairSet *cps = critical_pair_compute_all(rules, 2, NULL);
     TEST_ASSERT_NOT_NULL(cps);
@@ -118,7 +117,7 @@ static void test_three_rules(void) {
     RewriteRule *r1 = make_empty_rule("a", 1);
     RewriteRule *r2 = make_empty_rule("b", 2);
     RewriteRule *r3 = make_empty_rule("c", 3);
-    RewriteRule *rules[] = { r1, r2, r3 };
+    RewriteRule *rules[] = {r1, r2, r3};
 
     CriticalPairSet *cps = critical_pair_compute_all(rules, 3, NULL);
     TEST_ASSERT_NOT_NULL(cps);

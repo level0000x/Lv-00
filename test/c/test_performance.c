@@ -15,8 +15,9 @@
 #include <string.h>
 
 #include "lv/lv.h"
-#include "lv/performance_profiler.h"
 #include "lv/memory_pool.h"
+#include "lv/performance_profiler.h"
+
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -27,7 +28,7 @@ int g_fail_count = 0;
  * ================================================================ */
 
 typedef struct {
-    int data[16];  /* 64 bytes */
+    int data[16]; /* 64 bytes */
 } TestObj;
 
 /* ================================================================
@@ -47,7 +48,7 @@ static void test_perf_profiler_basic(void) {
     for (int i = 0; i < 1000; i++) {
         sum += i;
     }
-    (void)sum;
+    (void) sum;
 
     lv_perf_end(session, "test_region");
 
@@ -80,7 +81,7 @@ static void test_perf_profiler_basic(void) {
 static lvObjectPool *g_test_pool = NULL;
 
 static void bench_pool_alloc_free(void) {
-    TestObj *obj = (TestObj *)lv_pool_alloc(g_test_pool);
+    TestObj *obj = (TestObj *) lv_pool_alloc(g_test_pool);
     if (obj) {
         obj->data[0] = 1;
         lv_pool_free(g_test_pool, obj);
@@ -91,12 +92,7 @@ static void test_pool_performance(void) {
     printf("\n--- Memory Pool Performance ---\n");
 
     lvPoolConfig config = {
-        .object_size = sizeof(TestObj),
-        .capacity = 1000,
-        .thread_safe = false,
-        .auto_grow = true,
-        .name = "test_pool"
-    };
+        .object_size = sizeof(TestObj), .capacity = 1000, .thread_safe = false, .auto_grow = true, .name = "test_pool"};
 
     g_test_pool = lv_pool_create(&config);
     TEST_ASSERT_NOT_NULL(g_test_pool);
@@ -117,7 +113,7 @@ static void test_pool_performance(void) {
  * ================================================================ */
 
 static void bench_malloc_free(void) {
-    TestObj *obj = (TestObj *)malloc(sizeof(TestObj));
+    TestObj *obj = (TestObj *) malloc(sizeof(TestObj));
     if (obj) {
         obj->data[0] = 1;
         free(obj);
@@ -131,13 +127,11 @@ static void test_malloc_vs_pool(void) {
     lv_perf_benchmark_run("malloc_free", bench_malloc_free, NULL, &malloc_result);
     lv_perf_benchmark_print_result("malloc_free", &malloc_result, stdout);
 
-    lvPoolConfig config = {
-        .object_size = sizeof(TestObj),
-        .capacity = 1000,
-        .thread_safe = false,
-        .auto_grow = true,
-        .name = "compare_pool"
-    };
+    lvPoolConfig config = {.object_size = sizeof(TestObj),
+                           .capacity = 1000,
+                           .thread_safe = false,
+                           .auto_grow = true,
+                           .name = "compare_pool"};
 
     g_test_pool = lv_pool_create(&config);
     if (g_test_pool) {

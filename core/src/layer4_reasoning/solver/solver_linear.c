@@ -419,7 +419,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
             mpz_clear(n_part);
             mpq_clear(rational_part);
             mpq_clear(sqrt_coeff);
-            lv_free((void **)&solutions);
+            lv_free((void **) &solutions);
             return 0;
         }
 

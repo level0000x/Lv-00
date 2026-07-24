@@ -197,7 +197,8 @@ static void test_logical_framework(void) {
      * (ex falso is an axiom in intuitionistic logic too!) */
     TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
                 "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE (ex falso is PROPOSITION_KIND_CONSTRUCTIVE)\n");
+    printf(
+        "  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE (ex falso is PROPOSITION_KIND_CONSTRUCTIVE)\n");
 
     axiom_package_destroy(pkg);
 }

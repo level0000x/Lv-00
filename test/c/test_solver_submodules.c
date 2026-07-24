@@ -24,10 +24,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
 #include "lv/symbolic_coord.h"
+
+#include "lv.h"
 #include "test_helpers.h"
 
 /* ================================================================== */
@@ -42,7 +43,7 @@ int g_fail_count = 0;
 
 /* --- solver_eq_system.c --- */
 void equation_system_init(EquationSystem *sys);
-int  equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
 void equation_system_clear(EquationSystem *sys);
 
 /* --- solver_symbolic.c --- */
@@ -53,17 +54,15 @@ bool is_out_of_scope(const mpz_poly_t *poly);
 bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2);
 bool check_incompatible_distances(const ConstraintGraph *graph);
 bool check_contradiction_after_substitution(EquationSystem *sys);
-int  constraint_weight(const Constraint *c);
-int  count_point_variables(const ConstraintGraph *graph, int **out_ids);
-void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
-                          int *solved_count, int *multiple_solutions,
+int constraint_weight(const Constraint *c);
+int count_point_variables(const ConstraintGraph *graph, int **out_ids);
+void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count, int *multiple_solutions,
                           bool *no_solution, bool do_substitute);
-int  solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions);
-int  solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions);
+int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions);
+int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions);
 SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value);
 void cleanup_groebner_result(GroebnerResult *result);
-bool compute_algebraic_resultant(const mpz_poly_t *p, const mpz_poly_t *q,
-                                 AlgebraicOp op, mpz_poly_t *result);
+bool compute_algebraic_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op, mpz_poly_t *result);
 
 /* --- solver_linear.c --- */
 bool solve_linear(const mpz_poly_t *poly, double *x_out);
@@ -77,19 +76,22 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
 /* ================================================================== */
 /*  辅助函数：创建带有理坐标的点                                         */
 /* ================================================================== */
-static inline int add_rpoint(ConstraintGraph *g, int64_t xn, uint64_t xd,
-                             int64_t yn, uint64_t yd) {
-    if (!g) return -1;
+static inline int add_rpoint(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
+    if (!g)
+        return -1;
     SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
     SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
     if (!cx || !cy) {
-        if (cx) symbolic_coord_destroy(cx);
-        if (cy) symbolic_coord_destroy(cy);
+        if (cx)
+            symbolic_coord_destroy(cx);
+        if (cy)
+            symbolic_coord_destroy(cy);
         return -1;
     }
     SymbolicCoord *coords[] = {cx, cy};
     AddNodeResult r = graph_add_point(g, coords, 2);
-    if (r != ADD_NODE_OK) return -1;
+    if (r != ADD_NODE_OK)
+        return -1;
     return g->next_node_id - 1;
 }
 
@@ -99,8 +101,11 @@ static inline int add_rpoint(ConstraintGraph *g, int64_t xn, uint64_t xd,
 static int make_linear_poly(mpz_poly_t *poly, int64_t a, int64_t b) {
     mpz_poly_init(poly);
     poly->degree = 1;
-    poly->coeffs = (mpz_t *)malloc(2 * sizeof(mpz_t));
-    if (!poly->coeffs) { mpz_poly_clear(poly); return -1; }
+    poly->coeffs = (mpz_t *) malloc(2 * sizeof(mpz_t));
+    if (!poly->coeffs) {
+        mpz_poly_clear(poly);
+        return -1;
+    }
     mpz_init_set_si(poly->coeffs[1], a);
     mpz_init_set_si(poly->coeffs[0], b);
     return 0;
@@ -112,8 +117,11 @@ static int make_linear_poly(mpz_poly_t *poly, int64_t a, int64_t b) {
 static int make_quadratic_poly(mpz_poly_t *poly, int64_t a, int64_t b, int64_t c) {
     mpz_poly_init(poly);
     poly->degree = 2;
-    poly->coeffs = (mpz_t *)malloc(3 * sizeof(mpz_t));
-    if (!poly->coeffs) { mpz_poly_clear(poly); return -1; }
+    poly->coeffs = (mpz_t *) malloc(3 * sizeof(mpz_t));
+    if (!poly->coeffs) {
+        mpz_poly_clear(poly);
+        return -1;
+    }
     mpz_init_set_si(poly->coeffs[2], a);
     mpz_init_set_si(poly->coeffs[1], b);
     mpz_init_set_si(poly->coeffs[0], c);
@@ -126,8 +134,11 @@ static int make_quadratic_poly(mpz_poly_t *poly, int64_t a, int64_t b, int64_t c
 static int make_cubic_poly(mpz_poly_t *poly, int64_t a, int64_t b, int64_t c, int64_t d) {
     mpz_poly_init(poly);
     poly->degree = 3;
-    poly->coeffs = (mpz_t *)malloc(4 * sizeof(mpz_t));
-    if (!poly->coeffs) { mpz_poly_clear(poly); return -1; }
+    poly->coeffs = (mpz_t *) malloc(4 * sizeof(mpz_t));
+    if (!poly->coeffs) {
+        mpz_poly_clear(poly);
+        return -1;
+    }
     mpz_init_set_si(poly->coeffs[3], a);
     mpz_init_set_si(poly->coeffs[2], b);
     mpz_init_set_si(poly->coeffs[1], c);
@@ -422,8 +433,9 @@ static void test_is_out_of_scope(void) {
     /* degree 4 -> in scope */
     mpz_poly_init(&poly);
     poly.degree = 4;
-    poly.coeffs = (mpz_t *)malloc(5 * sizeof(mpz_t));
-    for (int i = 0; i <= 4; i++) mpz_init_set_si(poly.coeffs[i], 0);
+    poly.coeffs = (mpz_t *) malloc(5 * sizeof(mpz_t));
+    for (int i = 0; i <= 4; i++)
+        mpz_init_set_si(poly.coeffs[i], 0);
     mpz_set_si(poly.coeffs[4], 1);
     mpz_set_si(poly.coeffs[0], -16);
     TEST_ASSERT(!is_out_of_scope(&poly));
@@ -432,8 +444,9 @@ static void test_is_out_of_scope(void) {
     /* degree 5 -> out of scope */
     mpz_poly_init(&poly);
     poly.degree = 5;
-    poly.coeffs = (mpz_t *)malloc(6 * sizeof(mpz_t));
-    for (int i = 0; i <= 5; i++) mpz_init_set_si(poly.coeffs[i], 0);
+    poly.coeffs = (mpz_t *) malloc(6 * sizeof(mpz_t));
+    for (int i = 0; i <= 5; i++)
+        mpz_init_set_si(poly.coeffs[i], 0);
     mpz_set_si(poly.coeffs[5], 1);
     TEST_ASSERT(is_out_of_scope(&poly));
     mpz_poly_clear(&poly);
@@ -454,7 +467,7 @@ static void test_try_factor_polynomial(void) {
     /* x^3 - x = x*(x^2 - 1) = x*(x-1)*(x+1), 常数项为 0  -> 提取 x */
     mpz_poly_init(&poly);
     poly.degree = 3;
-    poly.coeffs = (mpz_t *)malloc(4 * sizeof(mpz_t));
+    poly.coeffs = (mpz_t *) malloc(4 * sizeof(mpz_t));
     mpz_init_set_si(poly.coeffs[3], 1);  /* x^3 */
     mpz_init_set_si(poly.coeffs[2], 0);  /* 0 */
     mpz_init_set_si(poly.coeffs[1], -1); /* -x */
@@ -473,7 +486,7 @@ static void test_try_factor_polynomial(void) {
     /* x^3 - 8 = (x-2)(x^2+2x+4), 根 x=2 */
     mpz_poly_init(&poly);
     poly.degree = 3;
-    poly.coeffs = (mpz_t *)malloc(4 * sizeof(mpz_t));
+    poly.coeffs = (mpz_t *) malloc(4 * sizeof(mpz_t));
     mpz_init_set_si(poly.coeffs[3], 1);  /* x^3 */
     mpz_init_set_si(poly.coeffs[2], 0);  /* 0 */
     mpz_init_set_si(poly.coeffs[1], 0);  /* 0 */
@@ -490,7 +503,7 @@ static void test_try_factor_polynomial(void) {
     /* x^3 + x^2 + x + 1 = (x+1)(x^2+1), 根 x=-1 */
     mpz_poly_init(&poly);
     poly.degree = 3;
-    poly.coeffs = (mpz_t *)malloc(4 * sizeof(mpz_t));
+    poly.coeffs = (mpz_t *) malloc(4 * sizeof(mpz_t));
     mpz_init_set_si(poly.coeffs[3], 1);
     mpz_init_set_si(poly.coeffs[2], 1);
     mpz_init_set_si(poly.coeffs[1], 1);
@@ -498,7 +511,7 @@ static void test_try_factor_polynomial(void) {
     TEST_ASSERT(try_factor_polynomial(&poly, &f1, &f2));
     TEST_ASSERT_EQ(f1.degree, 1);
     /* f1 = (x + 1) -> coeffs: [1, 1] 即 (x - (-1)) */
-    TEST_ASSERT(mpz_cmp_si(f1.coeffs[0], 1) == 0);  /* -(-1) = 1 */
+    TEST_ASSERT(mpz_cmp_si(f1.coeffs[0], 1) == 0); /* -(-1) = 1 */
     TEST_ASSERT(mpz_cmp_si(f1.coeffs[1], 1) == 0);
     mpz_poly_clear(&f1);
     mpz_poly_clear(&f2);
@@ -507,7 +520,7 @@ static void test_try_factor_polynomial(void) {
     /* 不可分解的三次: x^3 + x + 1（整数根不存在，常数项为 1，除数 +/-1 都不是根） */
     mpz_poly_init(&poly);
     poly.degree = 3;
-    poly.coeffs = (mpz_t *)malloc(4 * sizeof(mpz_t));
+    poly.coeffs = (mpz_t *) malloc(4 * sizeof(mpz_t));
     mpz_init_set_si(poly.coeffs[3], 1);
     mpz_init_set_si(poly.coeffs[2], 0);
     mpz_init_set_si(poly.coeffs[1], 1);
@@ -531,7 +544,7 @@ static void test_check_incompatible_distances(void) {
     int p1 = add_rpoint(g, 0, 1, 0, 1);
     int p2 = add_rpoint(g, 3, 1, 0, 1);
     int seg1 = graph_add_line_segment(g, p1, p2);
-    (void)seg1;
+    (void) seg1;
 
     /* 为线段设置 numeric_assumption_declaration */
     GeomNode *seg_node = graph_get_node(g, g->next_node_id - 1);
@@ -571,7 +584,7 @@ static void test_check_contradiction(void) {
         mpz_poly_t poly;
         mpz_poly_init(&poly);
         poly.degree = 0;
-        poly.coeffs = (mpz_t *)malloc(1 * sizeof(mpz_t));
+        poly.coeffs = (mpz_t *) malloc(1 * sizeof(mpz_t));
         mpz_init_set_si(poly.coeffs[0], 5);
         equation_system_push(&sys, poly, 1, 0);
         mpz_poly_clear(&poly);
@@ -584,7 +597,7 @@ static void test_check_contradiction(void) {
         mpz_poly_t poly;
         mpz_poly_init(&poly);
         poly.degree = 0;
-        poly.coeffs = (mpz_t *)malloc(1 * sizeof(mpz_t));
+        poly.coeffs = (mpz_t *) malloc(1 * sizeof(mpz_t));
         mpz_init_set_si(poly.coeffs[0], 0);
         equation_system_push(&sys, poly, 1, 0);
         mpz_poly_clear(&poly);
@@ -596,7 +609,7 @@ static void test_check_contradiction(void) {
         mpz_poly_t poly;
         mpz_poly_init(&poly);
         poly.degree = 1;
-        poly.coeffs = (mpz_t *)malloc(2 * sizeof(mpz_t));
+        poly.coeffs = (mpz_t *) malloc(2 * sizeof(mpz_t));
         mpz_init_set_si(poly.coeffs[1], 2);
         mpz_init_set_si(poly.coeffs[0], -4);
         equation_system_push(&sys, poly, 1, 0);
@@ -629,7 +642,7 @@ static void test_constraint_weight(void) {
     c.type = CONNECTION;
     TEST_ASSERT_EQ(constraint_weight(&c), 1);
 
-    c.type = (ConstraintType)999;
+    c.type = (ConstraintType) 999;
     TEST_ASSERT_EQ(constraint_weight(&c), 1);
 }
 
@@ -649,7 +662,7 @@ static void test_count_point_variables(void) {
     int cnt = count_point_variables(g, &ids);
     TEST_ASSERT_EQ(cnt, 2);
     TEST_ASSERT_NOT_NULL(ids);
-    lv_free((void **)&ids);
+    lv_free((void **) &ids);
 
     /* out_ids 为 NULL */
     cnt = count_point_variables(g, NULL);
@@ -671,15 +684,18 @@ static void test_quadratic_exact_basic(void) {
     TEST_ASSERT_EQ(make_quadratic_poly(&poly, 1, 0, -4), 0);
     n = solve_quadratic_exact(&poly, solutions, 2);
     TEST_ASSERT_EQ(n, 2);
-    if (n >= 1 && solutions[0]) symbolic_coord_destroy(solutions[0]);
-    if (n >= 2 && solutions[1]) symbolic_coord_destroy(solutions[1]);
+    if (n >= 1 && solutions[0])
+        symbolic_coord_destroy(solutions[0]);
+    if (n >= 2 && solutions[1])
+        symbolic_coord_destroy(solutions[1]);
     mpz_poly_clear(&poly);
 
     /* x^2 - 2x + 1 = (x-1)^2 = 0 -> 唯一解 x=1 */
     TEST_ASSERT_EQ(make_quadratic_poly(&poly, 1, -2, 1), 0);
     n = solve_quadratic_exact(&poly, solutions, 2);
     TEST_ASSERT_EQ(n, 1);
-    if (n >= 1 && solutions[0]) symbolic_coord_destroy(solutions[0]);
+    if (n >= 1 && solutions[0])
+        symbolic_coord_destroy(solutions[0]);
     mpz_poly_clear(&poly);
 
     /* x^2 + 1 = 0 -> 无实根 */
@@ -699,15 +715,17 @@ static void test_quadratic_exact_overflow(void) {
     mpz_poly_t poly;
     mpz_poly_init(&poly);
     poly.degree = 2;
-    poly.coeffs = (mpz_t *)malloc(3 * sizeof(mpz_t));
+    poly.coeffs = (mpz_t *) malloc(3 * sizeof(mpz_t));
     mpz_init_set_str(poly.coeffs[2], "1000000000000", 10);
     mpz_init_set_str(poly.coeffs[1], "0", 10);
     mpz_init_set_str(poly.coeffs[0], "-4000000000000", 10);
     int n = solve_quadratic_exact(&poly, solutions, 2);
     /* 至少应返回 0（安全失败）或正常解 */
     TEST_ASSERT(n >= 0);
-    if (n >= 1 && solutions[0]) symbolic_coord_destroy(solutions[0]);
-    if (n >= 2 && solutions[1]) symbolic_coord_destroy(solutions[1]);
+    if (n >= 1 && solutions[0])
+        symbolic_coord_destroy(solutions[0]);
+    if (n >= 2 && solutions[1])
+        symbolic_coord_destroy(solutions[1]);
     mpz_poly_clear(&poly);
 }
 
@@ -725,7 +743,8 @@ static void test_cubic_exact_basic(void) {
     n = solve_cubic_exact(&poly, solutions, 3);
     TEST_ASSERT(n >= 1);
     for (int i = 0; i < n; i++) {
-        if (solutions[i]) symbolic_coord_destroy(solutions[i]);
+        if (solutions[i])
+            symbolic_coord_destroy(solutions[i]);
     }
     mpz_poly_clear(&poly);
 
@@ -756,7 +775,7 @@ static void test_solve_equations_pass(void) {
         mpz_poly_clear(&poly);
     }
 
-    GroebnerResult *result = (GroebnerResult *)lv_calloc(1, sizeof(GroebnerResult));
+    GroebnerResult *result = (GroebnerResult *) lv_calloc(1, sizeof(GroebnerResult));
     TEST_ASSERT_NOT_NULL(result);
 
     int solved = 0, multi = 0;
@@ -767,7 +786,7 @@ static void test_solve_equations_pass(void) {
     TEST_ASSERT(solved >= 1);
 
     cleanup_groebner_result(result);
-    lv_free((void **)&result);
+    lv_free((void **) &result);
     equation_system_clear(&sys);
 }
 
@@ -839,7 +858,9 @@ static void test_line_from_two_points(void) {
     TEST_ASSERT_NOT_NULL(pt2);
 
     /* LineEquation 栈上结构（与 solver_coord_extract.c 中的定义匹配） */
-    struct { double a, b, c; } le;
+    struct {
+        double a, b, c;
+    } le;
     TEST_ASSERT(line_from_two_points(pt1, pt2, &le));
     /* 水平线 y=0 -> a=0, b=-1, c=0 */
     TEST_ASSERT(fabs(le.a) < 1e-12);
@@ -975,14 +996,14 @@ static void test_analyze_out_of_scope_basic(void) {
     /* 对简单的图没有可因式分解的高次方程 */
     TEST_ASSERT(st == SOLVER_STATUS_OUT_OF_SCOPE);
     if (suggestion) {
-        lv_free((void **)&suggestion);
+        lv_free((void **) &suggestion);
     }
 
     /* NULL 输入 */
     st = analyze_out_of_scope(NULL, p1, &suggestion);
     TEST_ASSERT(st == SOLVER_STATUS_OUT_OF_SCOPE);
     if (suggestion) {
-        lv_free((void **)&suggestion);
+        lv_free((void **) &suggestion);
     }
 
     graph_destroy(g);
@@ -994,7 +1015,7 @@ static void test_analyze_out_of_scope_basic(void) {
 
 static void test_groebner_result_destroy(void) {
     /* 空结果 */
-    GroebnerResult *r = (GroebnerResult *)lv_calloc(1, sizeof(GroebnerResult));
+    GroebnerResult *r = (GroebnerResult *) lv_calloc(1, sizeof(GroebnerResult));
     TEST_ASSERT_NOT_NULL(r);
     r->solutions = NULL;
     r->solution_count = 0;
@@ -1004,10 +1025,10 @@ static void test_groebner_result_destroy(void) {
     groebner_result_destroy(NULL);
 
     /* 带解的结果 */
-    r = (GroebnerResult *)lv_calloc(1, sizeof(GroebnerResult));
+    r = (GroebnerResult *) lv_calloc(1, sizeof(GroebnerResult));
     TEST_ASSERT_NOT_NULL(r);
     r->solution_count = 2;
-    r->solutions = (SymbolicCoord **)lv_malloc(2 * sizeof(SymbolicCoord *));
+    r->solutions = (SymbolicCoord **) lv_malloc(2 * sizeof(SymbolicCoord *));
     r->solutions[0] = symbolic_coord_create_rational(1, 1);
     r->solutions[1] = symbolic_coord_create_rational(2, 1);
     groebner_result_destroy(r);
@@ -1017,7 +1038,7 @@ static void test_cleanup_groebner_result(void) {
     GroebnerResult r;
     memset(&r, 0, sizeof(r));
     r.solution_count = 2;
-    r.solutions = (SymbolicCoord **)lv_malloc(2 * sizeof(SymbolicCoord *));
+    r.solutions = (SymbolicCoord **) lv_malloc(2 * sizeof(SymbolicCoord *));
     r.solutions[0] = symbolic_coord_create_rational(10, 1);
     r.solutions[1] = symbolic_coord_create_rational(20, 1);
 

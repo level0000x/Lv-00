@@ -6,12 +6,13 @@
  * 三个函数的正确性，覆盖正常路径和边界条件。
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "lv/lv.h"
-#include "lv/constraint_graph.h"
 #include "lv/conflict_detector.h"
+#include "lv/constraint_graph.h"
+#include "lv/lv.h"
+
 #include "test_helpers.h"
 
 /* 测试计数器（test_helpers.h 要求定义） */
@@ -21,8 +22,7 @@ int g_fail_count = 0;
 /* 前向声明：待测函数 */
 extern int meta_verify_completeness(const ConstraintGraph *graph);
 extern int meta_verify_soundness(const ConstraintGraph *graph);
-extern int meta_verify_differential(const ConstraintGraph *graph_a,
-                                     const ConstraintGraph *graph_b);
+extern int meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
 
 /**
  * @brief 创建包含一个已指定坐标的 POINT 节点的约束图
@@ -30,13 +30,16 @@ extern int meta_verify_differential(const ConstraintGraph *graph_a,
  */
 static ConstraintGraph *create_fully_specified_graph(void) {
     ConstraintGraph *g = graph_create();
-    if (!g) return NULL;
+    if (!g)
+        return NULL;
 
     SymbolicCoord *cx = symbolic_coord_create_rational(1, 1);
     SymbolicCoord *cy = symbolic_coord_create_rational(2, 1);
     if (!cx || !cy) {
-        if (cx) symbolic_coord_destroy(cx);
-        if (cy) symbolic_coord_destroy(cy);
+        if (cx)
+            symbolic_coord_destroy(cx);
+        if (cy)
+            symbolic_coord_destroy(cy);
         graph_destroy(g);
         return NULL;
     }
@@ -58,7 +61,8 @@ static ConstraintGraph *create_fully_specified_graph(void) {
  */
 static ConstraintGraph *create_unresolved_graph(void) {
     ConstraintGraph *g = graph_create();
-    if (!g) return NULL;
+    if (!g)
+        return NULL;
 
     /* 添加点时不传递坐标（coord_count = 0），模拟未解析节点 */
     AddNodeResult res = graph_add_point(g, NULL, 0);

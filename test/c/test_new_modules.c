@@ -25,12 +25,7 @@
 
 lv_TEST(MemoryPool, CreateDestroy) {
     lvPoolConfig config = {
-        .object_size = 64,
-        .capacity = 16,
-        .thread_safe = false,
-        .auto_grow = true,
-        .name = "TestPool"
-    };
+        .object_size = 64, .capacity = 16, .thread_safe = false, .auto_grow = true, .name = "TestPool"};
 
     lvObjectPool *pool = lv_pool_create(&config);
     lv_ASSERT_NOT_NULL(pool);
@@ -60,12 +55,7 @@ lv_TEST(MemoryPool, CreateDestroy) {
 
 lv_TEST(MemoryPool, AutoGrow) {
     lvPoolConfig config = {
-        .object_size = 32,
-        .capacity = 4,
-        .thread_safe = false,
-        .auto_grow = true,
-        .name = "GrowPool"
-    };
+        .object_size = 32, .capacity = 4, .thread_safe = false, .auto_grow = true, .name = "GrowPool"};
 
     lvObjectPool *pool = lv_pool_create(&config);
     lv_ASSERT_NOT_NULL(pool);
@@ -305,13 +295,11 @@ lv_TEST(GeometryTransform, Inverse) {
 /* ============== 运行时监控测试 ============== */
 
 lv_TEST(RuntimeMonitor, LogInit) {
-    lvLogConfig config = {
-        .min_level = LOG_LEVEL_DEBUG,
-        .targets = LOG_TARGET_NONE,  /* 禁用输出以避免干扰测试 */
-        .include_timestamp = true,
-        .include_location = false,
-        .colored_output = false
-    };
+    lvLogConfig config = {.min_level = LOG_LEVEL_DEBUG,
+                          .targets = LOG_TARGET_NONE, /* 禁用输出以避免干扰测试 */
+                          .include_timestamp = true,
+                          .include_location = false,
+                          .colored_output = false};
 
     lv_ASSERT_TRUE(lv_log_init(&config));
     lv_log_shutdown();

@@ -14,10 +14,10 @@
  * - NULL 输入安全性
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #include "lv.h"
 #include "propagation.h"
@@ -30,8 +30,7 @@ int g_fail_count = 0;
 /* ================================================================
  * 测试 1: 传播上下文创建与销毁生命周期
  * ================================================================ */
-void test_prop_lifecycle(void)
-{
+void test_prop_lifecycle(void) {
     printf("  TEST: propagation_context_create/destroy lifecycle...\n");
 
     /* 正常创建/销毁 */
@@ -57,8 +56,7 @@ void test_prop_lifecycle(void)
 /* ================================================================
  * 测试 2: 在空图上初始化状态空间
  * ================================================================ */
-void test_prop_init_empty(void)
-{
+void test_prop_init_empty(void) {
     printf("  TEST: propagation_init_state_spaces on empty graph...\n");
 
     ConstraintGraph *graph = graph_create();
@@ -80,16 +78,12 @@ void test_prop_init_empty(void)
 /* ================================================================
  * 测试 3: propagation_get_state_space 查询
  * ================================================================ */
-void test_prop_get_state_space(void)
-{
+void test_prop_get_state_space(void) {
     printf("  TEST: propagation_get_state_space query...\n");
 
     /* 有点的图：有效节点返回非 NULL */
     ConstraintGraph *graph = graph_create();
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
     graph_add_point(graph, c0, 2);
 
     PropagationContext *ctx = propagation_context_create(graph);
@@ -119,21 +113,14 @@ void test_prop_get_state_space(void)
 /* ================================================================
  * 测试 4: propagation_run 在简单图上运行
  * ================================================================ */
-void test_prop_run_simple(void)
-{
+void test_prop_run_simple(void) {
     printf("  TEST: propagation_run on simple graph...\n");
 
     /* 创建两个点 + 一条线段 + 关联约束 */
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
 
@@ -151,8 +138,7 @@ void test_prop_run_simple(void)
 
     /* 运行传播 - 应该不会崩溃 */
     PropagationResult result = propagation_run(ctx);
-    TEST_ASSERT(result == PROP_RESULT_SATISFIED || result == PROP_RESULT_STABLE ||
-                result == PROP_RESULT_CONSISTENT,
+    TEST_ASSERT(result == PROP_RESULT_SATISFIED || result == PROP_RESULT_STABLE || result == PROP_RESULT_CONSISTENT,
                 "propagation_run on simple graph returns valid result");
 
     propagation_context_destroy(ctx);
@@ -172,17 +158,13 @@ void test_prop_run_simple(void)
 /* ================================================================
  * 测试 5: propagation_select_node 节点选择
  * ================================================================ */
-void test_prop_select_node(void)
-{
+void test_prop_select_node(void) {
     printf("  TEST: propagation_select_node...\n");
 
     /* 全坍缩图：select 应返回 -1 */
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
     graph_add_point(graph, c0, 2);
 
     PropagationContext *ctx = propagation_context_create(graph);
@@ -207,16 +189,12 @@ void test_prop_select_node(void)
 /* ================================================================
  * 测试 6: propagation_collapse 坍缩
  * ================================================================ */
-void test_prop_collapse(void)
-{
+void test_prop_collapse(void) {
     printf("  TEST: propagation_collapse...\n");
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(1, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(1, 1)};
     graph_add_point(graph, c0, 2);
 
     PropagationContext *ctx = propagation_context_create(graph);
@@ -245,8 +223,7 @@ void test_prop_collapse(void)
 /* ================================================================
  * 测试 7: propagation_compute_entropy 熵计算
  * ================================================================ */
-void test_prop_entropy(void)
-{
+void test_prop_entropy(void) {
     printf("  TEST: propagation_compute_entropy...\n");
 
     /* 已坍缩 → 熵 = 0 */
@@ -284,21 +261,14 @@ void test_prop_entropy(void)
 /* ================================================================
  * 测试 8: propagation_wfc_solve 完整 WFC 求解
  * ================================================================ */
-void test_prop_wfc_solve(void)
-{
+void test_prop_wfc_solve(void) {
     printf("  TEST: propagation_wfc_solve...\n");
 
     ConstraintGraph *graph = graph_create();
 
     /* 两个已坍缩的点 */
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
-    SymbolicCoord *c1[2] = {
-        symbolic_coord_create_rational(1, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
     graph_add_point(graph, c0, 2);
     graph_add_point(graph, c1, 2);
 
@@ -326,16 +296,12 @@ void test_prop_wfc_solve(void)
 /* ================================================================
  * 测试 9: 快照保存/恢复/销毁
  * ================================================================ */
-void test_prop_snapshot(void)
-{
+void test_prop_snapshot(void) {
     printf("  TEST: propagation_snapshot_save/restore/destroy...\n");
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {
-        symbolic_coord_create_rational(0, 1),
-        symbolic_coord_create_rational(0, 1)
-    };
+    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
     graph_add_point(graph, c0, 2);
 
     PropagationContext *ctx = propagation_context_create(graph);
@@ -381,8 +347,7 @@ void test_prop_snapshot(void)
 /* ================================================================
  * 测试 10: 所有公共函数的 NULL 输入安全性
  * ================================================================ */
-void test_prop_null_safety(void)
-{
+void test_prop_null_safety(void) {
     printf("  TEST: NULL input safety for all public functions...\n");
 
     /* propagation_context_create — 已在 test_prop_lifecycle 中测试 */
@@ -435,8 +400,7 @@ void test_prop_null_safety(void)
 /* ================================================================
  * 主函数
  * ================================================================ */
-int main(void)
-{
+int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
     lv_init();
 

@@ -918,11 +918,11 @@ int lv_proof_rule_apply(const char *rule, const void *input, void **output) {
         /* 用名称作为匹配模式创建临时规则 */
         lvProofRule tmp_rule;
         memset(&tmp_rule, 0, sizeof(tmp_rule));
-        int name_len = (int)strlen(rule);
+        int name_len = (int) strlen(rule);
         if (name_len >= lv_PROOF_RULE_NAME_MAX) {
             name_len = lv_PROOF_RULE_NAME_MAX - 1;
         }
-        memcpy(tmp_rule.name, rule, (size_t)name_len);
+        memcpy(tmp_rule.name, rule, (size_t) name_len);
         tmp_rule.name[name_len] = '\0';
         tmp_rule.weight = 1.0;
         tmp_rule.type = RULE_REWRITE;
@@ -937,7 +937,7 @@ int lv_proof_rule_apply(const char *rule, const void *input, void **output) {
     }
 
     /* 创建证明状态 */
-    const char *goal_str = (const char *)input;
+    const char *goal_str = (const char *) input;
     lvProofState *state = proof_state_create(goal_str);
     if (!state) {
         rule_engine_destroy(engine);
@@ -951,7 +951,7 @@ int lv_proof_rule_apply(const char *rule, const void *input, void **output) {
         /* 输出当前目标（证明已找到） */
         const char *result_goal = proof_state_current_goal(state);
         if (result_goal) {
-            *output = (void *)result_goal;
+            *output = (void *) result_goal;
         } else {
             *output = NULL;
         }

@@ -1,10 +1,19 @@
 #include <stdio.h>
 #include <string.h>
+
 #include "lv/lv_lexer.h"
 
 #define TEST(n) printf("  [TEST] %s ... ", n)
-#define PASS() do { printf("PASS\n"); P++; } while(0)
-#define FAIL(m) do { printf("FAIL: %s\n", m); F++; } while(0)
+#define PASS()            \
+    do {                  \
+        printf("PASS\n"); \
+        P++;              \
+    } while (0)
+#define FAIL(m)                  \
+    do {                         \
+        printf("FAIL: %s\n", m); \
+        F++;                     \
+    } while (0)
 
 static int P = 0, F = 0;
 
@@ -12,8 +21,7 @@ static void test_single_token(const char *src, LvTokenType expected) {
     LvLexer *lex = lv_lexer_create(src, strlen(src));
     LvToken tok = lv_lexer_next(lex);
     if (tok.type != expected) {
-        printf("  expected %s, got %s\n",
-               lv_token_type_name(expected), lv_token_type_name(tok.type));
+        printf("  expected %s, got %s\n", lv_token_type_name(expected), lv_token_type_name(tok.type));
         lv_lexer_destroy(lex);
         FAIL("类型不匹配");
         return;
@@ -122,7 +130,10 @@ int main(void) {
         LvLexer *lex = lv_lexer_create(s, strlen(s));
         LvToken tok = lv_lexer_next(lex);
         TEST("行注释后");
-        if (tok.type == LV_TOKEN_KW_POINT) PASS(); else FAIL("注释未跳过");
+        if (tok.type == LV_TOKEN_KW_POINT)
+            PASS();
+        else
+            FAIL("注释未跳过");
         lv_lexer_destroy(lex);
     }
     {
@@ -130,7 +141,10 @@ int main(void) {
         LvLexer *lex = lv_lexer_create(s, strlen(s));
         LvToken tok = lv_lexer_next(lex);
         TEST("块注释后");
-        if (tok.type == LV_TOKEN_KW_POINT) PASS(); else FAIL("块注释未跳过");
+        if (tok.type == LV_TOKEN_KW_POINT)
+            PASS();
+        else
+            FAIL("块注释未跳过");
         lv_lexer_destroy(lex);
     }
 
@@ -141,17 +155,13 @@ int main(void) {
         LvLexer *lex = lv_lexer_create(src, strlen(src));
         LvToken tok;
         int count = 0;
-        LvTokenType expected[] = {
-            LV_TOKEN_KW_POINT, LV_TOKEN_IDENTIFIER, LV_TOKEN_COMMA,
-            LV_TOKEN_IDENTIFIER, LV_TOKEN_COMMA, LV_TOKEN_IDENTIFIER,
-            LV_TOKEN_SEMICOLON,
-            LV_TOKEN_KW_CONSTRAINT, LV_TOKEN_KW_COLLINEAR,
-            LV_TOKEN_LPAREN, LV_TOKEN_IDENTIFIER, LV_TOKEN_COMMA,
-            LV_TOKEN_IDENTIFIER, LV_TOKEN_COMMA, LV_TOKEN_IDENTIFIER,
-            LV_TOKEN_RPAREN, LV_TOKEN_SEMICOLON,
-            LV_TOKEN_KW_PROVE, LV_TOKEN_KW_TRUE, LV_TOKEN_SEMICOLON,
-            LV_TOKEN_EOF
-        };
+        LvTokenType expected[] = {LV_TOKEN_KW_POINT,   LV_TOKEN_IDENTIFIER,    LV_TOKEN_COMMA,
+                                  LV_TOKEN_IDENTIFIER, LV_TOKEN_COMMA,         LV_TOKEN_IDENTIFIER,
+                                  LV_TOKEN_SEMICOLON,  LV_TOKEN_KW_CONSTRAINT, LV_TOKEN_KW_COLLINEAR,
+                                  LV_TOKEN_LPAREN,     LV_TOKEN_IDENTIFIER,    LV_TOKEN_COMMA,
+                                  LV_TOKEN_IDENTIFIER, LV_TOKEN_COMMA,         LV_TOKEN_IDENTIFIER,
+                                  LV_TOKEN_RPAREN,     LV_TOKEN_SEMICOLON,     LV_TOKEN_KW_PROVE,
+                                  LV_TOKEN_KW_TRUE,    LV_TOKEN_SEMICOLON,     LV_TOKEN_EOF};
         int expected_count = sizeof(expected) / sizeof(expected[0]);
         bool ok = true;
         while (count < expected_count) {
@@ -160,10 +170,14 @@ int main(void) {
                 ok = false;
             }
             count++;
-            if (tok.type == LV_TOKEN_EOF) break;
+            if (tok.type == LV_TOKEN_EOF)
+                break;
         }
         TEST("完整语句 token 序列");
-        if (ok && count == expected_count) PASS(); else FAIL("token 序列不匹配");
+        if (ok && count == expected_count)
+            PASS();
+        else
+            FAIL("token 序列不匹配");
         lv_lexer_destroy(lex);
     }
 
@@ -173,7 +187,10 @@ int main(void) {
         LvLexer *lex = lv_lexer_create("", 0);
         LvToken tok = lv_lexer_next(lex);
         TEST("空输入 EOF");
-        if (tok.type == LV_TOKEN_EOF) PASS(); else FAIL("!EOF");
+        if (tok.type == LV_TOKEN_EOF)
+            PASS();
+        else
+            FAIL("!EOF");
         lv_lexer_destroy(lex);
     }
 

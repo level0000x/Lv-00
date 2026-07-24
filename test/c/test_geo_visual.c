@@ -5,15 +5,24 @@
  * 测试 geo_visual_complete.c 的 SVG / TikZ 渲染输出正确性。
  * 涵盖对象创建、样式设置、场景管理、渲染输出和资源释放。
  */
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv/geo_visual.h"
 
 #define TEST(name) printf("  [TEST] %s ... ", name)
-#define PASS do { printf("PASS\n"); tests_passed++; } while(0)
-#define FAIL do { printf("FAIL\n"); tests_failed++; } while(0)
+#define PASS              \
+    do {                  \
+        printf("PASS\n"); \
+        tests_passed++;   \
+    } while (0)
+#define FAIL              \
+    do {                  \
+        printf("FAIL\n"); \
+        tests_failed++;   \
+    } while (0)
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -21,11 +30,13 @@ static int tests_failed = 0;
 /* 辅助：检查文件是否包含指定字符串 */
 static bool file_contains(const char *path, const char *needle) {
     FILE *f = fopen(path, "r");
-    if (!f) return false;
+    if (!f)
+        return false;
     char buf[4096];
     size_t n = fread(buf, 1, sizeof(buf) - 1, f);
     fclose(f);
-    if (n == 0) return false;
+    if (n == 0)
+        return false;
     buf[n] = '\0';
     return strstr(buf, needle) != NULL;
 }
@@ -33,7 +44,8 @@ static bool file_contains(const char *path, const char *needle) {
 /* 辅助：检查文件是否以指定前缀开头 */
 static bool file_starts_with(const char *path, const char *prefix) {
     FILE *f = fopen(path, "r");
-    if (!f) return false;
+    if (!f)
+        return false;
     char buf[256];
     size_t n = fread(buf, 1, strlen(prefix), f);
     fclose(f);
@@ -57,23 +69,33 @@ int main(void) {
         if (pt) {
             PASS;
             lv_visual_object_destroy(pt);
-        } else FAIL;
+        } else
+            FAIL;
 
         TEST("point_create: 检查类型");
         pt = lv_visual_point_create(0, 0);
-        if (pt && pt->type == lv_VISUAL_POINT) PASS;
-        else { FAIL; if (pt) lv_visual_object_destroy(pt); }
+        if (pt && pt->type == lv_VISUAL_POINT)
+            PASS;
+        else {
+            FAIL;
+            if (pt)
+                lv_visual_object_destroy(pt);
+        }
 
         TEST("line_create: 创建线段");
         lvVisualObject *line = lv_visual_line_create(0, 0, 100, 100);
-        if (line && line->type == lv_VISUAL_SEGMENT) PASS;
-        else FAIL;
+        if (line && line->type == lv_VISUAL_SEGMENT)
+            PASS;
+        else
+            FAIL;
         lv_visual_object_destroy(line);
 
         TEST("circle_create: 创建圆");
         lvVisualObject *circ = lv_visual_circle_create(50, 50, 30);
-        if (circ && circ->type == lv_VISUAL_CIRCLE) PASS;
-        else FAIL;
+        if (circ && circ->type == lv_VISUAL_CIRCLE)
+            PASS;
+        else
+            FAIL;
         lv_visual_object_destroy(circ);
 
         TEST("group_create: 创建组合对象");
@@ -81,14 +103,20 @@ int main(void) {
         children[0] = lv_visual_point_create(0, 0);
         children[1] = lv_visual_point_create(10, 10);
         lvVisualObject *grp = lv_visual_group_create(children, 2);
-        if (grp && grp->type == lv_VISUAL_MOBJECT_GROUP && grp->children_count == 2) PASS;
-        else FAIL;
+        if (grp && grp->type == lv_VISUAL_MOBJECT_GROUP && grp->children_count == 2)
+            PASS;
+        else
+            FAIL;
         lv_visual_object_destroy(grp);
 
         TEST("group_create: NULL输入应返回NULL");
         lvVisualObject *null_grp = lv_visual_group_create(NULL, 0);
-        if (null_grp == NULL) PASS;
-        else { FAIL; lv_visual_object_destroy(null_grp); }
+        if (null_grp == NULL)
+            PASS;
+        else {
+            FAIL;
+            lv_visual_object_destroy(null_grp);
+        }
     }
 
     /* ========== 组 2：样式设置 ========== */
@@ -98,21 +126,25 @@ int main(void) {
 
         TEST("set_color: 设置红色");
         lv_visual_set_color(pt, 1.0f, 0.0f, 0.0f, 1.0f);
-        if (pt->style.stroke_color[0] == 1.0f &&
-            pt->style.stroke_color[1] == 0.0f &&
-            pt->style.stroke_color[2] == 0.0f) PASS;
-        else FAIL;
+        if (pt->style.stroke_color[0] == 1.0f && pt->style.stroke_color[1] == 0.0f && pt->style.stroke_color[2] == 0.0f)
+            PASS;
+        else
+            FAIL;
 
         TEST("set_dashed: 设置虚线");
         lv_visual_set_dashed(pt, 1);
-        if (pt->style.dashed == 1) PASS;
-        else FAIL;
+        if (pt->style.dashed == 1)
+            PASS;
+        else
+            FAIL;
 
         TEST("set_style: 完整样式");
         lvVisualStyle s = {{0.5f, 0.5f, 0.5f, 0.8f}, {0, 0, 0, 0}, 2.0f, 0.9f, 1};
         lv_visual_set_style(pt, &s);
-        if (pt->style.stroke_width == 2.0f && pt->style.opacity == 0.9f) PASS;
-        else FAIL;
+        if (pt->style.stroke_width == 2.0f && pt->style.opacity == 0.9f)
+            PASS;
+        else
+            FAIL;
 
         lv_visual_object_destroy(pt);
     }
@@ -124,14 +156,18 @@ int main(void) {
 
         TEST("translate: 平移 (5,10,0)");
         lv_visual_translate(pt, 5, 10, 0);
-        if (pt->transform[12] == 5.0f && pt->transform[13] == 10.0f) PASS;
-        else FAIL;
+        if (pt->transform[12] == 5.0f && pt->transform[13] == 10.0f)
+            PASS;
+        else
+            FAIL;
 
         lvVisualObject *pt2 = lv_visual_point_create(10, 10);
         TEST("scale: 缩放 2x");
         lv_visual_scale(pt2, 2.0f, 2.0f);
-        if (pt2->transform[0] == 2.0f && pt2->transform[5] == 2.0f) PASS;
-        else FAIL;
+        if (pt2->transform[0] == 2.0f && pt2->transform[5] == 2.0f)
+            PASS;
+        else
+            FAIL;
 
         lv_visual_object_destroy(pt);
         lv_visual_object_destroy(pt2);
@@ -142,19 +178,28 @@ int main(void) {
     {
         TEST("scene_create: 创建空场景");
         lvVisualScene *scene = lv_visual_scene_create();
-        if (scene && scene->object_count == 0) PASS;
-        else { FAIL; if (scene) lv_visual_scene_destroy(scene); }
+        if (scene && scene->object_count == 0)
+            PASS;
+        else {
+            FAIL;
+            if (scene)
+                lv_visual_scene_destroy(scene);
+        }
 
         TEST("scene_add: 添加对象");
         lvVisualObject *pt = lv_visual_point_create(10, 20);
         lv_visual_scene_add(scene, pt);
-        if (scene->object_count == 1) PASS;
-        else FAIL;
+        if (scene->object_count == 1)
+            PASS;
+        else
+            FAIL;
 
         TEST("scene_set_camera: 设置相机");
         lv_visual_scene_set_camera(scene, 50, 50, 0, 2.0f);
-        if (scene->camera_zoom == 2.0f) PASS;
-        else FAIL;
+        if (scene->camera_zoom == 2.0f)
+            PASS;
+        else
+            FAIL;
 
         lv_visual_scene_destroy(scene);
     }
@@ -167,40 +212,52 @@ int main(void) {
 
         TEST("svg: 空场景渲染");
         lv_visual_render(r, scene, tmp_svg);
-        if (file_contains(tmp_svg, "<svg") && file_contains(tmp_svg, "</svg>")) PASS;
-        else FAIL;
+        if (file_contains(tmp_svg, "<svg") && file_contains(tmp_svg, "</svg>"))
+            PASS;
+        else
+            FAIL;
 
         TEST("svg: 点元素渲染");
         lvVisualObject *pt = lv_visual_point_create(100, 150);
         lv_visual_set_color(pt, 1.0f, 0.0f, 0.0f, 1.0f);
         lv_visual_scene_add(scene, pt);
         lv_visual_render(r, scene, tmp_svg);
-        if (file_contains(tmp_svg, "<circle") && file_contains(tmp_svg, "100.00") && file_contains(tmp_svg, "150.00")) PASS;
-        else FAIL;
+        if (file_contains(tmp_svg, "<circle") && file_contains(tmp_svg, "100.00") && file_contains(tmp_svg, "150.00"))
+            PASS;
+        else
+            FAIL;
 
         TEST("svg: 线段元素渲染");
         lvVisualObject *line = lv_visual_line_create(0, 0, 200, 200);
         lv_visual_set_color(line, 0.0f, 0.0f, 1.0f, 1.0f);
         lv_visual_scene_add(scene, line);
         lv_visual_render(r, scene, tmp_svg);
-        if (file_contains(tmp_svg, "<line") && file_contains(tmp_svg, "x1=")) PASS;
-        else FAIL;
+        if (file_contains(tmp_svg, "<line") && file_contains(tmp_svg, "x1="))
+            PASS;
+        else
+            FAIL;
 
         TEST("svg: 圆元素渲染");
         lvVisualObject *circ = lv_visual_circle_create(200, 100, 50);
         lv_visual_set_color(circ, 0.0f, 0.5f, 0.0f, 1.0f);
         lv_visual_scene_add(scene, circ);
         lv_visual_render(r, scene, tmp_svg);
-        if (file_contains(tmp_svg, "<circle") && file_contains(tmp_svg, "50.00")) PASS;
-        else FAIL;
+        if (file_contains(tmp_svg, "<circle") && file_contains(tmp_svg, "50.00"))
+            PASS;
+        else
+            FAIL;
 
         TEST("svg: XML声明存在");
-        if (file_starts_with(tmp_svg, "<?xml")) PASS;
-        else FAIL;
+        if (file_starts_with(tmp_svg, "<?xml"))
+            PASS;
+        else
+            FAIL;
 
         TEST("svg: xmlns声明存在");
-        if (file_contains(tmp_svg, "http://www.w3.org/2000/svg")) PASS;
-        else FAIL;
+        if (file_contains(tmp_svg, "http://www.w3.org/2000/svg"))
+            PASS;
+        else
+            FAIL;
 
         lv_visual_scene_destroy(scene);
         lv_visual_renderer_destroy(r);
@@ -214,36 +271,46 @@ int main(void) {
 
         TEST("tikz: 空场景渲染");
         lv_visual_render(r, scene, tmp_tikz);
-        if (file_contains(tmp_tikz, "tikzpicture") && file_contains(tmp_tikz, "begin")) PASS;
-        else FAIL;
+        if (file_contains(tmp_tikz, "tikzpicture") && file_contains(tmp_tikz, "begin"))
+            PASS;
+        else
+            FAIL;
 
         TEST("tikz: 点渲染输出 \\fill");
         lvVisualObject *pt = lv_visual_point_create(50, 100);
         lv_visual_set_color(pt, 1.0f, 0.0f, 0.0f, 1.0f);
         lv_visual_scene_add(scene, pt);
         lv_visual_render(r, scene, tmp_tikz);
-        if (file_contains(tmp_tikz, "\\fill") && file_contains(tmp_tikz, "50.00") && file_contains(tmp_tikz, "100.00")) PASS;
-        else FAIL;
+        if (file_contains(tmp_tikz, "\\fill") && file_contains(tmp_tikz, "50.00") && file_contains(tmp_tikz, "100.00"))
+            PASS;
+        else
+            FAIL;
 
         TEST("tikz: 线段渲染输出 \\draw");
         lvVisualObject *line = lv_visual_line_create(0, 0, 200, 200);
         lv_visual_set_color(line, 0.0f, 0.0f, 1.0f, 1.0f);
         lv_visual_scene_add(scene, line);
         lv_visual_render(r, scene, tmp_tikz);
-        if (file_contains(tmp_tikz, "\\draw") && file_contains(tmp_tikz, "--")) PASS;
-        else FAIL;
+        if (file_contains(tmp_tikz, "\\draw") && file_contains(tmp_tikz, "--"))
+            PASS;
+        else
+            FAIL;
 
         TEST("tikz: 圆渲染输出 circle");
         lvVisualObject *circ = lv_visual_circle_create(100, 100, 30);
         lv_visual_set_color(circ, 0.0f, 0.5f, 0.0f, 1.0f);
         lv_visual_scene_add(scene, circ);
         lv_visual_render(r, scene, tmp_tikz);
-        if (file_contains(tmp_tikz, "circle") && file_contains(tmp_tikz, "30.00")) PASS;
-        else FAIL;
+        if (file_contains(tmp_tikz, "circle") && file_contains(tmp_tikz, "30.00"))
+            PASS;
+        else
+            FAIL;
 
         TEST("tikz: 颜色 rgb 格式存在");
-        if (file_contains(tmp_tikz, "rgb,1:red")) PASS;
-        else FAIL;
+        if (file_contains(tmp_tikz, "rgb,1:red"))
+            PASS;
+        else
+            FAIL;
 
         lv_visual_scene_destroy(scene);
         lv_visual_renderer_destroy(r);
@@ -254,18 +321,25 @@ int main(void) {
     {
         TEST("renderer_create: SVG后端默认尺寸");
         lvVisualRenderer *r = lv_visual_renderer_create(lv_RENDER_SVG, 0, 0);
-        if (r && r->width == 800 && r->height == 600) PASS;
-        else { FAIL; if (r) lv_visual_renderer_destroy(r); }
+        if (r && r->width == 800 && r->height == 600)
+            PASS;
+        else {
+            FAIL;
+            if (r)
+                lv_visual_renderer_destroy(r);
+        }
 
         TEST("renderer_create: 自定义尺寸");
         lvVisualRenderer *r2 = lv_visual_renderer_create(lv_RENDER_TIKZ, 1024, 768);
-        if (r2 && r2->width == 1024 && r2->height == 768 && r2->backend == lv_RENDER_TIKZ) PASS;
-        else FAIL;
+        if (r2 && r2->width == 1024 && r2->height == 768 && r2->backend == lv_RENDER_TIKZ)
+            PASS;
+        else
+            FAIL;
         lv_visual_renderer_destroy(r2);
 
         lvVisualScene *scene = lv_visual_scene_create();
         TEST("render: NULL参数安全");
-        lv_visual_render(NULL, scene, "x.svg");  /* 不应崩溃 */
+        lv_visual_render(NULL, scene, "x.svg"); /* 不应崩溃 */
         lv_visual_render(r, NULL, "x.svg");
         lv_visual_render(r, scene, NULL);
         PASS;
@@ -298,12 +372,20 @@ int main(void) {
             fclose(f);
             buf[n] = '\0';
             char *p = buf;
-            while ((p = strstr(p, "<circle")) != NULL) { circle_count++; p++; }
+            while ((p = strstr(p, "<circle")) != NULL) {
+                circle_count++;
+                p++;
+            }
             p = buf;
-            while ((p = strstr(p, "<line")) != NULL) { line_count++; p++; }
+            while ((p = strstr(p, "<line")) != NULL) {
+                line_count++;
+                p++;
+            }
         }
-        if (circle_count >= 2 && line_count >= 1) PASS;
-        else FAIL;
+        if (circle_count >= 2 && line_count >= 1)
+            PASS;
+        else
+            FAIL;
 
         lv_visual_scene_destroy(scene);
         lv_visual_renderer_destroy(r);
@@ -320,14 +402,18 @@ int main(void) {
 
         TEST("svg: 虚线 stroke-dasharray");
         lv_visual_render(r, scene, tmp_svg);
-        if (file_contains(tmp_svg, "stroke-dasharray")) PASS;
-        else FAIL;
+        if (file_contains(tmp_svg, "stroke-dasharray"))
+            PASS;
+        else
+            FAIL;
 
         lvVisualRenderer *r2 = lv_visual_renderer_create(lv_RENDER_TIKZ, 200, 200);
         TEST("tikz: 虚线 dashed 选项");
         lv_visual_render(r2, scene, tmp_tikz);
-        if (file_contains(tmp_tikz, "dashed")) PASS;
-        else FAIL;
+        if (file_contains(tmp_tikz, "dashed"))
+            PASS;
+        else
+            FAIL;
 
         lv_visual_scene_destroy(scene);
         lv_visual_renderer_destroy(r);
@@ -342,21 +428,27 @@ int main(void) {
 
         TEST("cairo: 空场景渲染 (main function)");
         lv_visual_render(r, scene, tmp_cairo);
-        if (file_starts_with(tmp_cairo, "/* Generated") && file_contains(tmp_cairo, "int main(void)")) PASS;
-        else FAIL;
+        if (file_starts_with(tmp_cairo, "/* Generated") && file_contains(tmp_cairo, "int main(void)"))
+            PASS;
+        else
+            FAIL;
 
         lvVisualObject *pt = lv_visual_point_create(100, 150);
         lv_visual_set_color(pt, 1.0f, 0.0f, 0.0f, 1.0f);
         lv_visual_scene_add(scene, pt);
 
         TEST("cairo: cairo头文件引用");
-        if (file_contains(tmp_cairo, "#include <cairo.h>")) PASS;
-        else FAIL;
+        if (file_contains(tmp_cairo, "#include <cairo.h>"))
+            PASS;
+        else
+            FAIL;
 
         TEST("cairo: 点渲染为 cairo_arc");
         lv_visual_render(r, scene, tmp_cairo);
-        if (file_contains(tmp_cairo, "cairo_arc") && file_contains(tmp_cairo, "cairo_fill")) PASS;
-        else FAIL;
+        if (file_contains(tmp_cairo, "cairo_arc") && file_contains(tmp_cairo, "cairo_fill"))
+            PASS;
+        else
+            FAIL;
 
         lvVisualObject *line = lv_visual_line_create(0, 0, 200, 200);
         lv_visual_scene_add(scene, line);
@@ -365,18 +457,23 @@ int main(void) {
 
         TEST("cairo: 线段渲染为 move_to / line_to / stroke");
         lv_visual_render(r, scene, tmp_cairo);
-        if (file_contains(tmp_cairo, "cairo_move_to") &&
-            file_contains(tmp_cairo, "cairo_line_to") &&
-            file_contains(tmp_cairo, "cairo_stroke")) PASS;
-        else FAIL;
+        if (file_contains(tmp_cairo, "cairo_move_to") && file_contains(tmp_cairo, "cairo_line_to") &&
+            file_contains(tmp_cairo, "cairo_stroke"))
+            PASS;
+        else
+            FAIL;
 
         TEST("cairo: 圆渲染含 cairo_arc + stroke_preserve");
-        if (file_contains(tmp_cairo, "cairo_stroke_preserve")) PASS;
-        else FAIL;
+        if (file_contains(tmp_cairo, "cairo_stroke_preserve"))
+            PASS;
+        else
+            FAIL;
 
         TEST("cairo: 输出为 cairo_surface_write_to_png");
-        if (file_contains(tmp_cairo, "cairo_surface_write_to_png")) PASS;
-        else FAIL;
+        if (file_contains(tmp_cairo, "cairo_surface_write_to_png"))
+            PASS;
+        else
+            FAIL;
 
         lv_visual_scene_destroy(scene);
         lv_visual_renderer_destroy(r);
@@ -390,17 +487,22 @@ int main(void) {
 
         TEST("threejs: 空场景渲染 (HTML DOCTYPE)");
         lv_visual_render(r, scene, tmp_threejs);
-        if (file_contains(tmp_threejs, "<!DOCTYPE html>") && file_contains(tmp_threejs, "</html>")) PASS;
-        else FAIL;
+        if (file_contains(tmp_threejs, "<!DOCTYPE html>") && file_contains(tmp_threejs, "</html>"))
+            PASS;
+        else
+            FAIL;
 
         TEST("threejs: Three.js CDN 引用");
-        if (file_contains(tmp_threejs, "three.module.js") &&
-            file_contains(tmp_threejs, "OrbitControls")) PASS;
-        else FAIL;
+        if (file_contains(tmp_threejs, "three.module.js") && file_contains(tmp_threejs, "OrbitControls"))
+            PASS;
+        else
+            FAIL;
 
         TEST("threejs: WebGLRenderer 创建");
-        if (file_contains(tmp_threejs, "WebGLRenderer")) PASS;
-        else FAIL;
+        if (file_contains(tmp_threejs, "WebGLRenderer"))
+            PASS;
+        else
+            FAIL;
 
         lvVisualObject *pt = lv_visual_point_create(100, 150);
         lv_visual_set_color(pt, 0.0f, 1.0f, 0.0f, 1.0f);
@@ -408,8 +510,10 @@ int main(void) {
 
         TEST("threejs: 点渲染为 SphereGeometry");
         lv_visual_render(r, scene, tmp_threejs);
-        if (file_contains(tmp_threejs, "SphereGeometry") && file_contains(tmp_threejs, "THREE.Mesh")) PASS;
-        else FAIL;
+        if (file_contains(tmp_threejs, "SphereGeometry") && file_contains(tmp_threejs, "THREE.Mesh"))
+            PASS;
+        else
+            FAIL;
 
         lvVisualObject *line = lv_visual_line_create(0, 0, 200, 200);
         lv_visual_set_color(line, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -419,16 +523,22 @@ int main(void) {
 
         TEST("threejs: 线段渲染为 PlaneGeometry");
         lv_visual_render(r, scene, tmp_threejs);
-        if (file_contains(tmp_threejs, "PlaneGeometry")) PASS;
-        else FAIL;
+        if (file_contains(tmp_threejs, "PlaneGeometry"))
+            PASS;
+        else
+            FAIL;
 
         TEST("threejs: 圆形渲染为 RingGeometry");
-        if (file_contains(tmp_threejs, "RingGeometry")) PASS;
-        else FAIL;
+        if (file_contains(tmp_threejs, "RingGeometry"))
+            PASS;
+        else
+            FAIL;
 
         TEST("threejs: 场景含 OrbitControls");
-        if (file_contains(tmp_threejs, "controls.update")) PASS;
-        else FAIL;
+        if (file_contains(tmp_threejs, "controls.update"))
+            PASS;
+        else
+            FAIL;
 
         lv_visual_scene_destroy(scene);
         lv_visual_renderer_destroy(r);

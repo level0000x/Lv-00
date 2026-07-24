@@ -5,9 +5,9 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 /** Cache entry for reasoning results. */
 typedef struct lvReasoningCache lvReasoningCache;

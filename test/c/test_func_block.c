@@ -347,7 +347,7 @@ static int test_determinism_static_quadratic(void) {
     assert(pack_result == PACK_RESULT_OK);
 
     /* 闈欐€佺‘瀹氭€ф鏌?*/
-    DeterminismCheckResult det_result = (DeterminismCheckResult)func_block_determinism_check_static(fb, g);
+    DeterminismCheckResult det_result = (DeterminismCheckResult) func_block_determinism_check_static(fb, g);
 
     /* 浜屾绾︽潫鍙兘瀵艰嚧澶氱缁撴灉锛堝敮涓€瑙ｃ€佸瑙ｃ€佹棤瑙ｃ€佽秴鏃舵垨瓒呭嚭鑼冨洿锛?*/
     (void) det_result; /* 鎺ュ彈浠讳綍缁撴灉 */
@@ -1037,7 +1037,8 @@ static int test_instantiate_connection_beta_reduction(void) {
         }
     }
     /* 搴旇鑷冲皯鏈夋柊鐨?CONNECTION 绾︽潫琚垱寤?*/
-    assert(connection_count_after >= 0); /* 鍙兘鍥犳儏鍐?B锛堣嚜鐢卞彉閲忥級涓嶅垱寤烘柊绾︽潫 */
+    assert(connection_count_after >=
+           0); /* 鍙兘鍥犳儏鍐?B锛堣嚜鐢卞彉閲忥級涓嶅垱寤烘柊绾︽潫 */
 
     lv_free_ptr(new_node_ids);
     func_block_destroy(fb);
@@ -1266,8 +1267,8 @@ static int test_func_block_serialize_deserialize(void) {
     printf("Test: determinism state serialize/deserialize...\n");
 
     /* 娴嬭瘯鎵€鏈?4 绉嶇‘瀹氭€х姸鎬?*/
-    DeterminismState states[] = {DETERMINISM_STATE_VERIFIED, DETERMINISM_STATE_NON_DETERMINISTIC, DETERMINISM_STATE_PARTIALLY_VERIFIED,
-                                 DETERMINISM_STATE_UNVERIFIED};
+    DeterminismState states[] = {DETERMINISM_STATE_VERIFIED, DETERMINISM_STATE_NON_DETERMINISTIC,
+                                 DETERMINISM_STATE_PARTIALLY_VERIFIED, DETERMINISM_STATE_UNVERIFIED};
 
     for (int i = 0; i < 4; i++) {
         /* 鍒涘缓鍑芥暟鍧楀苟璁剧疆纭畾鎬х姸鎬?*/
@@ -1561,4 +1562,3 @@ int main(void) {
     printf("\n=== All function block tests PASSED! ===\n");
     return 0;
 }
-

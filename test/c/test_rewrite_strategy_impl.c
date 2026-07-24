@@ -7,9 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "lv.h"
-#include "lv/rewrite.h"
+
 #include "lv/constraint_graph.h"
+#include "lv/rewrite.h"
+
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -95,7 +97,7 @@ static void test_strategy_construct(void) {
 
 static int g_test_ctx_val = 0;
 static int test_cond_cb(void *ctx) {
-    return *(int *)ctx;
+    return *(int *) ctx;
 }
 
 static void test_strategy_exec_basic(void) {
@@ -265,8 +267,7 @@ static void test_search_backward_empty(void) {
 static void test_num_rules(void) {
     printf("  Running: test_num_rules ...\n");
 
-    RewriteNumRule *rule = rewrite_num_rule_create(
-        "test-rule", "a*b", "b*a", REWRITE_NUM_HIGH, 2.0);
+    RewriteNumRule *rule = rewrite_num_rule_create("test-rule", "a*b", "b*a", REWRITE_NUM_HIGH, 2.0);
     TEST_ASSERT_NOT_NULL(rule);
     printf("    rule created\n");
 
@@ -281,7 +282,7 @@ static void test_num_rules(void) {
     TEST_ASSERT_NOT_NULL(result);
     printf("    optimize result: %s\n", result);
     TEST_ASSERT(strcmp(result, "x+y") == 0, "no match returns input");
-    lv_free((void **)&result);
+    lv_free((void **) &result);
 
     rewrite_num_rule_destroy(rule);
     printf("    rule destroyed\n");
@@ -308,7 +309,7 @@ int main(void) {
     TEST_RUN(test_search_backward_empty);
     TEST_RUN(test_num_rules);
 
-    printf("\n=== Results: %d passed, %d failed, %d total ===\n",
-           g_pass_count, g_fail_count, g_pass_count + g_fail_count);
+    printf("\n=== Results: %d passed, %d failed, %d total ===\n", g_pass_count, g_fail_count,
+           g_pass_count + g_fail_count);
     return g_fail_count > 0 ? 1 : 0;
 }

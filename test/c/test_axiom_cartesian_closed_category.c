@@ -218,7 +218,8 @@ static void test_logical_framework(void) {
 
     /* CCC uses PROPOSITION_KIND_CONSTRUCTIVE contradiction behavior (minimal logic,
      * no ex falso quodlibet) */
-    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_CONSTRUCTIVE, "contradiction_behavior should be PROPOSITION_KIND_CONSTRUCTIVE");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_CONSTRUCTIVE,
+                "contradiction_behavior should be PROPOSITION_KIND_CONSTRUCTIVE");
     printf("  contradiction_behavior: PROPOSITION_KIND_CONSTRUCTIVE\n");
 
     axiom_package_destroy(pkg);

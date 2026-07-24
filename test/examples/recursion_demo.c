@@ -31,13 +31,14 @@
 /* ============================================================
  * 辅助函数：添加一个有理数坐标的点
  * ============================================================ */
-static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
-                     int64_t yn, uint64_t yd) {
+static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
     SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
     SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
     if (!cx || !cy) {
-        if (cx) symbolic_coord_destroy(cx);
-        if (cy) symbolic_coord_destroy(cy);
+        if (cx)
+            symbolic_coord_destroy(cx);
+        if (cy)
+            symbolic_coord_destroy(cy);
         return -1;
     }
     SymbolicCoord *coords[] = {cx, cy};
@@ -66,7 +67,8 @@ static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
  * ============================================================ */
 static void demo_measure_system(void) {
     printf("\n--- 测度系统演示 ");
-    for (int i = 12; i < 50; i++) printf("-");
+    for (int i = 12; i < 50; i++)
+        printf("-");
     printf("\n");
 
     /* 创建测度系统 */
@@ -79,8 +81,7 @@ static void demo_measure_system(void) {
 
     /* 创建符号测度：线段长度测度
      * 用于递归分解线段时的终止性证明 */
-    Measure *length_measure = measure_create_symbolic(
-        "segment_length", MEASURE_KIND_LENGTH, 0);
+    Measure *length_measure = measure_create_symbolic("segment_length", MEASURE_KIND_LENGTH, 0);
     if (length_measure) {
         length_measure->is_well_founded = true;
         measure_system_add(ms, length_measure);
@@ -92,8 +93,7 @@ static void demo_measure_system(void) {
 
     /* 创建符号测度：嵌套深度测度
      * 用于递归构造嵌套结构时的终止性证明 */
-    Measure *depth_measure = measure_create_symbolic(
-        "nesting_depth", MEASURE_KIND_DEPTH, 0);
+    Measure *depth_measure = measure_create_symbolic("nesting_depth", MEASURE_KIND_DEPTH, 0);
     if (depth_measure) {
         depth_measure->is_well_founded = true;
         measure_system_add(ms, depth_measure);
@@ -103,11 +103,9 @@ static void demo_measure_system(void) {
 
     /* 创建非符号测度：自定义比较函数
      * 用于无法用符号坐标表达的抽象序结构 */
-    Measure *custom_measure = measure_create_custom(
-        "custom_order",
-        /* 比较函数：简单比较节点 ID */
-        NULL,
-        NULL);
+    Measure *custom_measure = measure_create_custom("custom_order",
+                                                    /* 比较函数：简单比较节点 ID */
+                                                    NULL, NULL);
     if (custom_measure) {
         custom_measure->is_well_founded = true;
         measure_system_add(ms, custom_measure);
@@ -136,15 +134,16 @@ static void demo_measure_system(void) {
  * ============================================================ */
 static void demo_recursion_context(void) {
     printf("\n--- 递归上下文演示 ");
-    for (int i = 14; i < 50; i++) printf("-");
+    for (int i = 14; i < 50; i++)
+        printf("-");
     printf("\n");
 
     /* 创建约束图 */
     ConstraintGraph *g = graph_create();
 
     /* 创建线段的两个端点 */
-    int p1 = add_point(g, 0, 1, 0, 1);   /* (0, 0) */
-    int p2 = add_point(g, 8, 1, 0, 1);   /* (8, 0) */
+    int p1 = add_point(g, 0, 1, 0, 1); /* (0, 0) */
+    int p2 = add_point(g, 8, 1, 0, 1); /* (8, 0) */
     graph_add_line_segment(g, p1, p2);
     int seg = g->next_node_id - 1;
 
@@ -160,8 +159,7 @@ static void demo_recursion_context(void) {
     printf("  [OK] 递归上下文创建成功 (最大深度=%d)\n", ctx->max_depth);
 
     /* 创建测度并关联到上下文 */
-    Measure *depth_measure = measure_create_symbolic(
-        "recursion_depth", MEASURE_KIND_DEPTH, 0);
+    Measure *depth_measure = measure_create_symbolic("recursion_depth", MEASURE_KIND_DEPTH, 0);
     if (depth_measure) {
         depth_measure->is_well_founded = true;
         recursion_context_set_measure(ctx, depth_measure);
@@ -174,20 +172,17 @@ static void demo_recursion_context(void) {
     for (int i = 0; i < 5; i++) {
         /* 获取当前节点用于测度计算 */
         GeomNode *node = graph_get_node(g, p1);
-        if (!node) break;
+        if (!node)
+            break;
 
         /* 进入递归调用 */
-        RecursionCheckResult result = recursion_context_enter(
-            ctx, i + 1, node, g);
+        RecursionCheckResult result = recursion_context_enter(ctx, i + 1, node, g);
 
-        printf("    调用 %d: %s (当前深度=%d)\n",
-               i + 1,
-               recursion_check_result_to_string(result),
+        printf("    调用 %d: %s (当前深度=%d)\n", i + 1, recursion_check_result_to_string(result),
                recursion_context_get_depth(ctx));
 
         if (result != RECURSION_CHECK_RESULT_OK) {
-            printf("    递归终止: %s\n",
-                   recursion_check_result_to_string(result));
+            printf("    递归终止: %s\n", recursion_check_result_to_string(result));
             break;
         }
     }
@@ -197,17 +192,16 @@ static void demo_recursion_context(void) {
     /* 检查测度递减性 */
     printf("\n  检查测度递减性:\n");
     SymbolicCoord *test_value = symbolic_coord_create_rational(3, 1);
-    RecursionCheckResult dec_result =
-        recursion_context_check_decreasing(ctx, test_value);
-    printf("    测度递减检查: %s\n",
-           recursion_check_result_to_string(dec_result));
+    RecursionCheckResult dec_result = recursion_context_check_decreasing(ctx, test_value);
+    printf("    测度递减检查: %s\n", recursion_check_result_to_string(dec_result));
 
     /* 重置上下文 */
     recursion_context_reset(ctx);
     printf("  上下文已重置, 深度=%d\n", recursion_context_get_depth(ctx));
 
     /* 清理 */
-    if (depth_measure) measure_destroy(depth_measure);
+    if (depth_measure)
+        measure_destroy(depth_measure);
     recursion_context_destroy(ctx);
     graph_destroy(g);
 }
@@ -223,24 +217,22 @@ static void demo_recursion_context(void) {
  * ============================================================ */
 static void demo_global_recursion_guard(void) {
     printf("\n--- 全局递归深度保护（熔断器） ");
-    for (int i = 22; i < 50; i++) printf("-");
+    for (int i = 22; i < 50; i++)
+        printf("-");
     printf("\n");
 
     /* 确保初始状态干净 */
     lv_recursion_reset();
     printf("  初始深度: %d\n", lv_recursion_get_depth());
-    printf("  熔断器状态: %s\n",
-           lv_recursion_circuit_breaker_triggered() ? "已触发" : "未触发");
+    printf("  熔断器状态: %s\n", lv_recursion_circuit_breaker_triggered() ? "已触发" : "未触发");
 
     /* 模拟递归调用直到接近上限 */
     printf("\n  模拟递归调用:\n");
-    int max_test_depth = 5;  /* 测试用，不真的到128 */
+    int max_test_depth = 5; /* 测试用，不真的到128 */
 
     for (int i = 0; i < max_test_depth; i++) {
         bool ok = lv_recursion_enter();
-        printf("    深度 %d: %s\n",
-               lv_recursion_get_depth(),
-               ok ? "进入成功" : "被拒绝（熔断器触发）");
+        printf("    深度 %d: %s\n", lv_recursion_get_depth(), ok ? "进入成功" : "被拒绝（熔断器触发）");
     }
 
     printf("  当前深度: %d\n", lv_recursion_get_depth());
@@ -250,8 +242,7 @@ static void demo_global_recursion_guard(void) {
         lv_recursion_leave();
     }
     printf("  退出后深度: %d\n", lv_recursion_get_depth());
-    printf("  熔断器状态: %s\n",
-           lv_recursion_circuit_breaker_triggered() ? "已触发" : "未触发");
+    printf("  熔断器状态: %s\n", lv_recursion_circuit_breaker_triggered() ? "已触发" : "未触发");
 
     /* 重置 */
     lv_recursion_reset();
@@ -268,7 +259,7 @@ static void demo_global_recursion_guard(void) {
 
 /* 回调函数：当递归深度超限时被调用 */
 static RecursionAction depth_callback(int current_depth, int max_depth, void *user_data) {
-    (void)user_data;
+    (void) user_data;
     printf("    [回调] 当前深度=%d, 最大深度=%d\n", current_depth, max_depth);
 
     /* 如果深度超过最大值的80%，建议停止 */
@@ -281,7 +272,8 @@ static RecursionAction depth_callback(int current_depth, int max_depth, void *us
 
 static void demo_depth_callback(void) {
     printf("\n--- 深度超限回调演示 ");
-    for (int i = 16; i < 50; i++) printf("-");
+    for (int i = 16; i < 50; i++)
+        printf("-");
     printf("\n");
 
     /* 创建递归上下文，设置较小的最大深度 */
@@ -310,22 +302,19 @@ static void demo_depth_callback(void) {
     /* 模拟递归调用 */
     printf("\n  模拟递归调用:\n");
     for (int i = 0; i < 8; i++) {
-        RecursionCheckResult result = recursion_context_enter(
-            ctx, i + 1, node, g);
-        printf("    调用 %d: %s (深度=%d)\n",
-               i + 1,
-               recursion_check_result_to_string(result),
+        RecursionCheckResult result = recursion_context_enter(ctx, i + 1, node, g);
+        printf("    调用 %d: %s (深度=%d)\n", i + 1, recursion_check_result_to_string(result),
                recursion_context_get_depth(ctx));
 
         if (ctx->is_terminated) {
-            printf("    递归已终止: %s\n",
-                   ctx->termination_reason ? ctx->termination_reason : "未知原因");
+            printf("    递归已终止: %s\n", ctx->termination_reason ? ctx->termination_reason : "未知原因");
             break;
         }
     }
 
     /* 清理 */
-    if (m) measure_destroy(m);
+    if (m)
+        measure_destroy(m);
     recursion_context_destroy(ctx);
     graph_destroy(g);
 }
@@ -338,7 +327,8 @@ static void demo_depth_callback(void) {
  * ============================================================ */
 static void demo_selector_block(void) {
     printf("\n--- 选择器块（条件分支）演示 ");
-    for (int i = 18; i < 50; i++) printf("-");
+    for (int i = 18; i < 50; i++)
+        printf("-");
     printf("\n");
 
     /* 创建约束图 */

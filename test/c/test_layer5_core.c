@@ -7,16 +7,17 @@
  * @author Lv-00 Project
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
-#include "lv.h"
 #include "lv/magic.h"
 #include "lv/plugin_system.h"
-#include "lv/proof_compiler.h"
 #include "lv/proof.h"
+#include "lv/proof_compiler.h"
+
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -153,10 +154,8 @@ static void test_magic_array_all_constraint_types(void) {
     TEST_ASSERT_GE(i2, 0);
 
     /* 测试所有约束类型 */
-    ArrayConstraintType types[] = {
-        ARRAY_CONNECTION, ARRAY_ENHANCEMENT, ARRAY_CONFLICT,
-        ARRAY_INTERSECTION, ARRAY_CONTAINMENT, ARRAY_BOUNDARY,
-        ARRAY_CHANNEL, ARRAY_FOCUS};
+    ArrayConstraintType types[] = {ARRAY_CONNECTION,  ARRAY_ENHANCEMENT, ARRAY_CONFLICT, ARRAY_INTERSECTION,
+                                   ARRAY_CONTAINMENT, ARRAY_BOUNDARY,    ARRAY_CHANNEL,  ARRAY_FOCUS};
     int n_types = sizeof(types) / sizeof(types[0]);
 
     /* 每加一种约束需要两个符文，我们复用前两个符文 */
@@ -209,7 +208,7 @@ static void test_magic_array_stability_boundary(void) {
     Rune *r3 = rune_create_rational(2, 1, ELEMENT_EARTH);
     magic_array_add_rune(arr, r3);
     stab = array_calculate_stability(arr);
-    TEST_ASSERT( stab >= 0.9, "3 rune stability ~1.0");
+    TEST_ASSERT(stab >= 0.9, "3 rune stability ~1.0");
 
     /* 添加大量冲突约束使稳定性归零 */
     for (int i = 0; i < 12; i++) {
@@ -218,7 +217,9 @@ static void test_magic_array_stability_boundary(void) {
     stab = array_calculate_stability(arr);
     TEST_ASSERT_EQ(stab, 0.0);
 
-    rune_destroy(r1); rune_destroy(r2); rune_destroy(r3);
+    rune_destroy(r1);
+    rune_destroy(r2);
+    rune_destroy(r3);
     magic_array_destroy(arr);
 }
 
@@ -290,7 +291,8 @@ static void test_magic_array_deserialize_complex(void) {
     magic_array_destroy(arr);
 
     /* 包含 name 字段 */
-    arr = magic_array_deserialize("{\"name\":\"测试阵\",\"runes\":[{\"type\":\"rational\",\"num\":3,\"denom\":4,\"element\":\"FIRE\"}]}");
+    arr = magic_array_deserialize(
+        "{\"name\":\"测试阵\",\"runes\":[{\"type\":\"rational\",\"num\":3,\"denom\":4,\"element\":\"FIRE\"}]}");
     TEST_ASSERT_NOT_NULL(arr);
     TEST_ASSERT_EQ(magic_array_get_rune_count(arr), 1);
     TEST_ASSERT_EQ(magic_array_get_rune_count(arr), 1);
@@ -333,9 +335,12 @@ static void test_magic_array_balance_deep(void) {
 
     TEST_ASSERT(magic_array_check_balance(arr), "balanced after mixing");
 
-    for (int i = 0; i < 7; i++) rune_destroy(runes[i]);
-    rune_destroy(r_water); rune_destroy(r_air);
-    rune_destroy(r_earth); rune_destroy(r_ether);
+    for (int i = 0; i < 7; i++)
+        rune_destroy(runes[i]);
+    rune_destroy(r_water);
+    rune_destroy(r_air);
+    rune_destroy(r_earth);
+    rune_destroy(r_ether);
     magic_array_destroy(arr);
 }
 
@@ -416,7 +421,10 @@ static void test_spell_cast_paths(void) {
     spell_destroy(spell);
     spell_destroy(empty_spell);
     magic_array_destroy(arr);
-    rune_destroy(ra); rune_destroy(rb); rune_destroy(rc); rune_destroy(sm);
+    rune_destroy(ra);
+    rune_destroy(rb);
+    rune_destroy(rc);
+    rune_destroy(sm);
 }
 
 /* spell 配置边界 */
@@ -424,7 +432,7 @@ static void test_spell_config_boundary(void) {
     Spell *spell = spell_create("Boundary Test");
 
     /* 难度边界 */
-    TEST_ASSERT(spell_set_difficulty(spell, 0));  /* 截断到 1 */
+    TEST_ASSERT(spell_set_difficulty(spell, 0)); /* 截断到 1 */
     TEST_ASSERT_EQ(spell_get_difficulty(spell), 1);
     TEST_ASSERT(spell_set_difficulty(spell, 11)); /* 截断到 10 */
     TEST_ASSERT_EQ(spell_get_difficulty(spell), 10);
@@ -442,9 +450,9 @@ static void test_spell_config_boundary(void) {
     TEST_ASSERT(spell_configure_purifying(spell, ELEMENT_FIRE, 1.5));  /* 截断到 1 */
 
     /* 阈值边界 */
-    TEST_ASSERT(spell_configure_infusing(spell, 0));  /* 无效 → T2 默认 */
-    TEST_ASSERT(spell_configure_infusing(spell, 7));  /* 无效 → T2 默认 */
-    TEST_ASSERT(spell_configure_infusing(spell, 3));  /* T3 */
+    TEST_ASSERT(spell_configure_infusing(spell, 0)); /* 无效 → T2 默认 */
+    TEST_ASSERT(spell_configure_infusing(spell, 7)); /* 无效 → T2 默认 */
+    TEST_ASSERT(spell_configure_infusing(spell, 3)); /* T3 */
 
     /* 释放范围边界 */
     TEST_ASSERT(spell_configure_releasing(spell, -1, -1));
@@ -574,7 +582,9 @@ static void test_incantation_all_goals(void) {
 
     /* incantation_calculate_power — 所有长度 */
     IncantationProfile p;
-    p.precision = 0.8; p.speed = 0.8; p.stealth = 0.8;
+    p.precision = 0.8;
+    p.speed = 0.8;
+    p.stealth = 0.8;
 
     p.length = INCANTATION_INSTANT;
     double pi = incantation_calculate_power(&p);
@@ -599,7 +609,7 @@ static void test_incantation_all_goals(void) {
 /* 辅助函数枚举边界 */
 static void test_helper_enum_boundaries(void) {
     /* 元素字符串边界 */
-    TEST_ASSERT_STR_EQ(element_to_string((MagicElement)99), "未知");
+    TEST_ASSERT_STR_EQ(element_to_string((MagicElement) 99), "未知");
     TEST_ASSERT_EQ(string_to_element(NULL), ELEMENT_NONE);
     TEST_ASSERT_EQ(string_to_element("UNKNOWN"), ELEMENT_NONE);
 
@@ -611,15 +621,15 @@ static void test_helper_enum_boundaries(void) {
     TEST_ASSERT_EQ(string_to_element("以太"), ELEMENT_ETHER);
 
     /* 阶段/状态/反应边界 */
-    TEST_ASSERT_STR_EQ(stage_to_string((SpellStage)99), "未知");
+    TEST_ASSERT_STR_EQ(stage_to_string((SpellStage) 99), "未知");
     TEST_ASSERT_STR_EQ(stage_to_string(SPELL_STAGE_MOLDING), "开模");
-    TEST_ASSERT_STR_EQ(status_to_string((SpellStatus)99), "未知");
+    TEST_ASSERT_STR_EQ(status_to_string((SpellStatus) 99), "未知");
     TEST_ASSERT_STR_EQ(status_to_string(SPELL_STATUS_IDLE), "空闲");
-    TEST_ASSERT_STR_EQ(reaction_to_string((ElementReaction)99), "未知");
+    TEST_ASSERT_STR_EQ(reaction_to_string((ElementReaction) 99), "未知");
     TEST_ASSERT_STR_EQ(reaction_to_string(ELEMENT_REACTION_CONFLICT), "冲突");
 
     /* 限制等级边界 */
-    TEST_ASSERT_STR_EQ(restriction_to_string((RestrictionLevel)99), "未知");
+    TEST_ASSERT_STR_EQ(restriction_to_string((RestrictionLevel) 99), "未知");
     TEST_ASSERT_STR_EQ(restriction_to_string(RESTRICTION_NONE), "无限制");
     TEST_ASSERT_STR_EQ(restriction_to_string(RESTRICTION_ABSOLUTE), "绝对禁术");
 }
@@ -658,7 +668,8 @@ static void test_spellbook_deep(void) {
     TEST_ASSERT_EQ(cnt, 70);
     TEST_ASSERT_STR_EQ(names[0], "Spell_0");
     TEST_ASSERT_STR_EQ(names[69], "Spell_69");
-    for (int i = 0; i < cnt; i++) lv_free(names[i]);
+    for (int i = 0; i < cnt; i++)
+        lv_free(names[i]);
     lv_free(names);
 
     /* 按名称移除 */
@@ -708,11 +719,11 @@ static void test_restriction_all_levels(void) {
 /* purity / threshold 边界 */
 static void test_purity_threshold_boundary(void) {
     /* 无效等级 */
-    TEST_ASSERT_EQ(purity_to_value((PurityLevel)99), 0.0);
-    TEST_ASSERT_EQ(threshold_to_energy((EnergyThreshold)99), 0);
+    TEST_ASSERT_EQ(purity_to_value((PurityLevel) 99), 0.0);
+    TEST_ASSERT_EQ(threshold_to_energy((EnergyThreshold) 99), 0);
 
     /* 分界点 */
-    TEST_ASSERT_EQ(value_to_purity(0.3), PURITY_RAW);     /* < 0.3 */
+    TEST_ASSERT_EQ(value_to_purity(0.3), PURITY_RAW); /* < 0.3 */
     TEST_ASSERT_EQ(energy_to_threshold(1), THRESHOLD_T1);
     TEST_ASSERT_EQ(energy_to_threshold(10), THRESHOLD_T2);
     TEST_ASSERT_EQ(energy_to_threshold(100), THRESHOLD_T3);
@@ -725,7 +736,7 @@ static void test_purity_threshold_boundary(void) {
 static void test_element_reaction_full_matrix(void) {
     /* NONE 对任何元素 */
     for (int e = 0; e <= ELEMENT_ETHER; e++) {
-        TEST_ASSERT_EQ(array_check_element_reaction(ELEMENT_NONE, (MagicElement)e), ELEMENT_REACTION_NONE);
+        TEST_ASSERT_EQ(array_check_element_reaction(ELEMENT_NONE, (MagicElement) e), ELEMENT_REACTION_NONE);
     }
 
     /* FIRE 对 WATER = 冲突 */
@@ -778,13 +789,13 @@ static void test_plugin_interface_full(void) {
     size_t cnt;
     lvPluginInterface **results = lv_plugin_query_interfaces(sys, "test_*", &cnt);
     TEST_ASSERT_NOT_NULL(results);
-    TEST_ASSERT_EQ(cnt, (size_t)1);
+    TEST_ASSERT_EQ(cnt, (size_t) 1);
     lv_free(results);
 
     /* 无匹配模式 */
     results = lv_plugin_query_interfaces(sys, "nomatch_*", &cnt);
     TEST_ASSERT_NULL(results);
-    TEST_ASSERT_EQ(cnt, (size_t)0);
+    TEST_ASSERT_EQ(cnt, (size_t) 0);
 
     /* 注销 */
     TEST_ASSERT_EQ(lv_plugin_unregister_interface(&mock_plugin, "test_interface"), 0);
@@ -852,20 +863,20 @@ static void test_plugin_dependency_deep(void) {
     size_t cnt;
     lvPlugin **deps = lv_plugin_get_dependents(sys, &plugin_a, &cnt);
     TEST_ASSERT_NULL(deps);
-    TEST_ASSERT_EQ(cnt, (size_t)0);
+    TEST_ASSERT_EQ(cnt, (size_t) 0);
 
     lv_plugin_system_destroy(sys);
 }
 
 static void test_plugin_version_deep(void) {
     /* 语义版本各种组合 */
-    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.0", "1.0.0"), 1);  /* 精确匹配 */
-    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.0", "2.0.0"), 1);  /* 更高 major */
-    TEST_ASSERT_EQ(lv_plugin_check_version("2.0.0", "1.0.0"), 0);  /* 更低 major → 不匹配 */
-    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.0", "1.1.0"), 1);  /* 更高 minor */
-    TEST_ASSERT_EQ(lv_plugin_check_version("1.1.0", "1.0.0"), 0);  /* 更低 minor → 不匹配 */
-    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.0", "1.0.1"), 1);  /* 更高 patch */
-    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.1", "1.0.0"), 0);  /* 更低 patch → 不匹配 */
+    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.0", "1.0.0"), 1); /* 精确匹配 */
+    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.0", "2.0.0"), 1); /* 更高 major */
+    TEST_ASSERT_EQ(lv_plugin_check_version("2.0.0", "1.0.0"), 0); /* 更低 major → 不匹配 */
+    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.0", "1.1.0"), 1); /* 更高 minor */
+    TEST_ASSERT_EQ(lv_plugin_check_version("1.1.0", "1.0.0"), 0); /* 更低 minor → 不匹配 */
+    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.0", "1.0.1"), 1); /* 更高 patch */
+    TEST_ASSERT_EQ(lv_plugin_check_version("1.0.1", "1.0.0"), 0); /* 更低 patch → 不匹配 */
 
     /* NULL 参数 */
     TEST_ASSERT_EQ(lv_plugin_check_version(NULL, "1.0.0"), 0);
@@ -873,8 +884,8 @@ static void test_plugin_version_deep(void) {
     TEST_ASSERT_EQ(lv_plugin_check_version(NULL, NULL), 0);
 
     /* API 兼容性 */
-    TEST_ASSERT_EQ(lv_plugin_check_api_compatibility(1, 2), 1);  /* provided >= required */
-    TEST_ASSERT_EQ(lv_plugin_check_api_compatibility(2, 1), 0);  /* provided < required */
+    TEST_ASSERT_EQ(lv_plugin_check_api_compatibility(1, 2), 1); /* provided >= required */
+    TEST_ASSERT_EQ(lv_plugin_check_api_compatibility(2, 1), 0); /* provided < required */
     TEST_ASSERT_EQ(lv_plugin_check_api_compatibility(1, 1), 1);
 }
 
@@ -914,7 +925,7 @@ static void test_plugin_search_path_deep(void) {
 
     size_t cnt;
     char **paths = lv_plugin_system_get_search_paths(sys, &cnt);
-    TEST_ASSERT_EQ(cnt, (size_t)2);
+    TEST_ASSERT_EQ(cnt, (size_t) 2);
 
     /* 移除 */
     TEST_ASSERT_EQ(lv_plugin_system_remove_search_path(sys, "/path/a"), 0);
@@ -985,25 +996,25 @@ static void test_proof_object_with_premises(void) {
 
     /* 创建三个步骤形成链 */
     lvProofStepRecord *s1 = lv_proof_step_record_create();
-    s1->type = (ProofStepType)0;
+    s1->type = (ProofStepType) 0;
     s1->depth = 0;
     s1->rule_name = lv_strdup("axiom");
     lv_proof_object_add_step(obj, s1);
 
     lvProofStepRecord *s2 = lv_proof_step_record_create();
-    s2->type = (ProofStepType)0;
+    s2->type = (ProofStepType) 0;
     s2->depth = 1;
     s2->rule_name = lv_strdup("deduction");
-    s2->premise_step_ids = (int *)lv_malloc(sizeof(int));
+    s2->premise_step_ids = (int *) lv_malloc(sizeof(int));
     s2->premise_step_ids[0] = 0;
     s2->premise_count = 1;
     lv_proof_object_add_step(obj, s2);
 
     lvProofStepRecord *s3 = lv_proof_step_record_create();
-    s3->type = (ProofStepType)0;
+    s3->type = (ProofStepType) 0;
     s3->depth = 2;
     s3->rule_name = lv_strdup("conclusion");
-    s3->premise_step_ids = (int *)lv_malloc(sizeof(int));
+    s3->premise_step_ids = (int *) lv_malloc(sizeof(int));
     s3->premise_step_ids[0] = 1;
     s3->premise_count = 1;
     lv_proof_object_add_step(obj, s3);
@@ -1025,7 +1036,7 @@ static void test_proof_object_invalid_chain(void) {
 
     /* 前提引用未来步骤 */
     lvProofStepRecord *s1 = lv_proof_step_record_create();
-    s1->premise_step_ids = (int *)lv_malloc(sizeof(int));
+    s1->premise_step_ids = (int *) lv_malloc(sizeof(int));
     s1->premise_step_ids[0] = 2; /* 未来步骤 */
     s1->premise_count = 1;
     lv_proof_object_add_step(obj, s1);
@@ -1063,16 +1074,16 @@ static void test_proof_compiler_all_formats(void) {
     obj->is_proved = true;
 
     lvProofStepRecord *s1 = lv_proof_step_record_create();
-    s1->type = (ProofStepType)0;
+    s1->type = (ProofStepType) 0;
     s1->depth = 0;
     s1->rule_name = lv_strdup("公理1");
     lv_proof_object_add_step(obj, s1);
 
     lvProofStepRecord *s2 = lv_proof_step_record_create();
-    s2->type = (ProofStepType)0;
+    s2->type = (ProofStepType) 0;
     s2->depth = 1;
     s2->rule_name = lv_strdup("推理");
-    s2->premise_step_ids = (int *)lv_malloc(sizeof(int));
+    s2->premise_step_ids = (int *) lv_malloc(sizeof(int));
     s2->premise_step_ids[0] = 0;
     s2->premise_count = 1;
     lv_proof_object_add_step(obj, s2);
@@ -1194,7 +1205,7 @@ static void test_proof_step_record_premises(void) {
     TEST_ASSERT_NOT_NULL(rec);
 
     /* 添加前提 */
-    rec->premise_step_ids = (int *)lv_realloc(rec->premise_step_ids, 3 * sizeof(int));
+    rec->premise_step_ids = (int *) lv_realloc(rec->premise_step_ids, 3 * sizeof(int));
     rec->premise_step_ids[0] = 0;
     rec->premise_step_ids[1] = 1;
     rec->premise_step_ids[2] = 2;
@@ -1205,7 +1216,7 @@ static void test_proof_step_record_premises(void) {
     rec->rule_name = lv_strdup("modus_ponens");
     rec->justification = lv_strdup("MP applied");
     rec->depth = 2;
-    rec->color = (ProofColor)0;
+    rec->color = (ProofColor) 0;
 
     lv_proof_step_record_destroy(rec);
     lv_proof_step_record_destroy(NULL);

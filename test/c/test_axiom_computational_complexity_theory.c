@@ -193,8 +193,8 @@ static void test_unconstructible_problems(void) {
         if (uc) {
             /* reduces_to may be NULL for open problems with unknown reduction target */
             bool reduces_ok = (expected[i].reduces_to == NULL)
-                                 ? (uc->reduces_to == NULL)
-                                 : (uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0);
+                                  ? (uc->reduces_to == NULL)
+                                  : (uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0);
             TEST_ASSERT(reduces_ok, expected[i].name);
             TEST_ASSERT(uc->dependency_count == expected[i].dep_count, expected[i].name);
             TEST_ASSERT(uc->green_verified == expected[i].green_verified, expected[i].name);

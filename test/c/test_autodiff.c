@@ -27,8 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
 #include "autodiff.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -40,19 +40,20 @@ int g_fail_count = 0;
 /**
  * @brief Assert that two doubles are approximately equal.
  */
-#define TEST_ASSERT_NEAR(actual, expected, tol, msg)                                        \
-    do {                                                                                    \
-        double _ad_actual = (double)(actual);                                                \
-        double _ad_expected = (double)(expected);                                            \
-        double _ad_diff = _ad_actual - _ad_expected;                                        \
-        if (_ad_diff < 0.0) _ad_diff = -_ad_diff;                                           \
-        if (_ad_diff > (tol)) {                                                              \
-            fprintf(stderr, "  FAIL [%s:%d] %s (actual=%.12f, expected=%.12f, diff=%.12e)\n", \
-                    __FILE__, __LINE__, (msg), _ad_actual, _ad_expected, _ad_diff);          \
-            g_fail_count++;                                                                  \
-            return;                                                                          \
-        }                                                                                    \
-        g_pass_count++;                                                                      \
+#define TEST_ASSERT_NEAR(actual, expected, tol, msg)                                                              \
+    do {                                                                                                          \
+        double _ad_actual = (double) (actual);                                                                    \
+        double _ad_expected = (double) (expected);                                                                \
+        double _ad_diff = _ad_actual - _ad_expected;                                                              \
+        if (_ad_diff < 0.0)                                                                                       \
+            _ad_diff = -_ad_diff;                                                                                 \
+        if (_ad_diff > (tol)) {                                                                                   \
+            fprintf(stderr, "  FAIL [%s:%d] %s (actual=%.12f, expected=%.12f, diff=%.12e)\n", __FILE__, __LINE__, \
+                    (msg), _ad_actual, _ad_expected, _ad_diff);                                                   \
+            g_fail_count++;                                                                                       \
+            return;                                                                                               \
+        }                                                                                                         \
+        g_pass_count++;                                                                                           \
     } while (0)
 
 /* ============================================================
@@ -188,7 +189,7 @@ static void test_reverse_diff_x_squared(void) {
     double gradients[1];
 
     /* At x = 3.0: f(3) = 9, grad = 6 */
-    bool ok = ad_reverse_diff(x2, (double[]){3.0}, 1, &value, gradients);
+    bool ok = ad_reverse_diff(x2, (double[]) {3.0}, 1, &value, gradients);
     TEST_ASSERT(ok, "reverse_diff should succeed");
     TEST_ASSERT_NEAR(value, 9.0, AD_TOLERANCE, "x^2 at x=3 should be 9");
 
@@ -197,7 +198,7 @@ static void test_reverse_diff_x_squared(void) {
     TEST_ASSERT_NEAR(grad, 6.0, AD_TOLERANCE, "d/dx(x^2) at x=3 should be 6");
 
     /* At x = 5.0: f(5) = 25, grad = 10 */
-    ok = ad_reverse_diff(x2, (double[]){5.0}, 1, &value, gradients);
+    ok = ad_reverse_diff(x2, (double[]) {5.0}, 1, &value, gradients);
     TEST_ASSERT(ok, "reverse_diff should succeed");
     TEST_ASSERT_NEAR(value, 25.0, AD_TOLERANCE, "x^2 at x=5 should be 25");
     grad = ad_grad(x2, 0);
@@ -254,31 +255,27 @@ static void test_chain_rule(void) {
     bool ok = ad_forward_diff(expr, 0, 1.0, &value, &deriv);
     TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, sin(1.0), AD_TOLERANCE, "sin(x^2) at x=1 should be sin(1)");
-    TEST_ASSERT_NEAR(deriv, 2.0 * cos(1.0), AD_TOLERANCE,
-        "d/dx(sin(x^2)) at x=1 should be 2*cos(1)");
+    TEST_ASSERT_NEAR(deriv, 2.0 * cos(1.0), AD_TOLERANCE, "d/dx(sin(x^2)) at x=1 should be 2*cos(1)");
 
     /* At x = 0.0: sin(0) = 0, d/dx = 2*0*cos(0) = 0 */
     ok = ad_forward_diff(expr, 0, 0.0, &value, &deriv);
     TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, 0.0, AD_TOLERANCE, "sin(x^2) at x=0 should be 0");
-    TEST_ASSERT_NEAR(deriv, 0.0, AD_TOLERANCE,
-        "d/dx(sin(x^2)) at x=0 should be 0");
+    TEST_ASSERT_NEAR(deriv, 0.0, AD_TOLERANCE, "d/dx(sin(x^2)) at x=0 should be 0");
 
     /* At x = 2.0: sin(4), d/dx = 2*2*cos(4) = 4*cos(4) */
     ok = ad_forward_diff(expr, 0, 2.0, &value, &deriv);
     TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, sin(4.0), AD_TOLERANCE, "sin(x^2) at x=2 should be sin(4)");
-    TEST_ASSERT_NEAR(deriv, 4.0 * cos(4.0), AD_TOLERANCE,
-        "d/dx(sin(x^2)) at x=2 should be 4*cos(4)");
+    TEST_ASSERT_NEAR(deriv, 4.0 * cos(4.0), AD_TOLERANCE, "d/dx(sin(x^2)) at x=2 should be 4*cos(4)");
 
     /* Also test with reverse mode */
     double grad_val;
-    ok = ad_reverse_diff(expr, (double[]){1.0}, 1, &value, &grad_val);
+    ok = ad_reverse_diff(expr, (double[]) {1.0}, 1, &value, &grad_val);
     TEST_ASSERT(ok, "reverse_diff should succeed");
     TEST_ASSERT_NEAR(value, sin(1.0), AD_TOLERANCE, "sin(x^2) at x=1 (reverse)");
     double grad = ad_grad(expr, 0);
-    TEST_ASSERT_NEAR(grad, 2.0 * cos(1.0), AD_TOLERANCE,
-        "d/dx(sin(x^2)) at x=1 (reverse) should be 2*cos(1)");
+    TEST_ASSERT_NEAR(grad, 2.0 * cos(1.0), AD_TOLERANCE, "d/dx(sin(x^2)) at x=1 (reverse) should be 2*cos(1)");
 
     ad_expr_destroy(expr);
 }
@@ -296,11 +293,11 @@ static void test_ad_eval(void) {
     lvADExpr *add = ad_expr_add(mul, three);
 
     double result;
-    bool ok = ad_eval(add, (double[]){5.0}, 1, &result);
+    bool ok = ad_eval(add, (double[]) {5.0}, 1, &result);
     TEST_ASSERT(ok, "eval should succeed");
     TEST_ASSERT_NEAR(result, 13.0, AD_TOLERANCE, "2*5+3 should be 13");
 
-    ok = ad_eval(add, (double[]){-1.0}, 1, &result);
+    ok = ad_eval(add, (double[]) {-1.0}, 1, &result);
     TEST_ASSERT(ok, "eval should succeed");
     TEST_ASSERT_NEAR(result, 1.0, AD_TOLERANCE, "2*(-1)+3 should be 1");
 
@@ -328,8 +325,7 @@ static void test_forward_diff_cos(void) {
     ok = ad_forward_diff(c, 0, M_PI, &value, &deriv);
     TEST_ASSERT(ok, "forward_diff should succeed");
     TEST_ASSERT_NEAR(value, cos(M_PI), AD_TOLERANCE, "cos(PI) should be -1");
-    TEST_ASSERT_NEAR(deriv, -sin(M_PI), AD_TOLERANCE,
-        "d/dx(cos(x)) at x=PI should be ~0");
+    TEST_ASSERT_NEAR(deriv, -sin(M_PI), AD_TOLERANCE, "d/dx(cos(x)) at x=PI should be ~0");
 
     ad_expr_destroy(c);
 }

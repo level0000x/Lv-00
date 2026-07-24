@@ -21,6 +21,7 @@
 
 #include "lv/algebraic_number.h"
 #include "lv/symbolic_coord.h"
+
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -177,7 +178,7 @@ void test_rational_error_strings(void) {
     TEST_ASSERT(strcmp(alg_rational_error_string(ALG_RATIONAL_OK), "成功") == 0, "OK string");
     TEST_ASSERT(strcmp(alg_rational_error_string(ALG_RATIONAL_ERR_ZERO_DEN), "分母为零") == 0, "ZERO_DEN string");
     TEST_ASSERT(strcmp(alg_rational_error_string(ALG_RATIONAL_ERR_OVERFLOW), "整数溢出") == 0, "OVERFLOW string");
-    TEST_ASSERT(alg_rational_error_string((AlgRationalError)999) != NULL, "unknown error should return something");
+    TEST_ASSERT(alg_rational_error_string((AlgRationalError) 999) != NULL, "unknown error should return something");
 
     PASS();
 }
@@ -348,8 +349,8 @@ void test_interval_create_basic(void) {
 void test_interval_arithmetic(void) {
     AlgIntervalError err;
 
-    AlgInterval a = alg_interval_create(1, 4, 3, 4, NULL);  /* [0.25, 0.75] */
-    AlgInterval b = alg_interval_create(1, 2, 1, 1, NULL);   /* [0.5, 1.0] */
+    AlgInterval a = alg_interval_create(1, 4, 3, 4, NULL); /* [0.25, 0.75] */
+    AlgInterval b = alg_interval_create(1, 2, 1, 1, NULL); /* [0.5, 1.0] */
 
     /* 加法 [0.25+0.5, 0.75+1.0] = [0.75, 1.75] */
     AlgInterval sum = alg_interval_add(&a, &b, &err);
@@ -380,8 +381,8 @@ void test_interval_arithmetic(void) {
 void test_interval_set_ops(void) {
     AlgIntervalError err;
 
-    AlgInterval a = alg_interval_create(0, 1, 5, 1, NULL);   /* [0, 5] */
-    AlgInterval b = alg_interval_create(3, 1, 8, 1, NULL);   /* [3, 8] */
+    AlgInterval a = alg_interval_create(0, 1, 5, 1, NULL); /* [0, 5] */
+    AlgInterval b = alg_interval_create(3, 1, 8, 1, NULL); /* [3, 8] */
 
     /* 交集 [3, 5] */
     AlgInterval inter = alg_interval_intersect(&a, &b, &err);
@@ -431,8 +432,9 @@ void test_interval_from_quadratic(void) {
 
     /* sqrt(2) 的区间应包含 1.414 */
     AlgRational approx = alg_rational_create(1414, 1000, NULL);
-    TEST_ASSERT(alg_interval_contains_rational(&iv, &approx) == true || alg_interval_contains_rational(&iv, &approx) == false,
-                "interval for sqrt(2) should be reasonable");
+    TEST_ASSERT(
+        alg_interval_contains_rational(&iv, &approx) == true || alg_interval_contains_rational(&iv, &approx) == false,
+        "interval for sqrt(2) should be reasonable");
 
     /* 字符串 */
     char buf[64];
@@ -505,8 +507,8 @@ void test_poly_eval(void) {
 void test_poly_ops(void) {
     AlgPolyError err;
 
-    AlgPoly a = alg_poly_quadratic(1, 2, 1);   /* x^2 + 2x + 1 = (x+1)^2 */
-    AlgPoly b = alg_poly_linear(1, 1);           /* x + 1 */
+    AlgPoly a = alg_poly_quadratic(1, 2, 1); /* x^2 + 2x + 1 = (x+1)^2 */
+    AlgPoly b = alg_poly_linear(1, 1);       /* x + 1 */
 
     /* 加法：(x^2 + 2x + 1) + (x + 1) = x^2 + 3x + 2 */
     AlgPoly sum = alg_poly_add(&a, &b, &err);
@@ -957,10 +959,10 @@ void test_circuit_operations(void) {
     int count = circuit_get_overflow_count();
     TEST_ASSERT(count >= 0, "overflow count >= 0");
 
-    circuit_set_frozen_point((void *)0x1234);
+    circuit_set_frozen_point((void *) 0x1234);
     TEST_ASSERT(circuit_has_frozen_point() == true, "has_frozen_point");
     void *fp = circuit_get_frozen_point();
-    TEST_ASSERT(fp == (void *)0x1234, "get_frozen_point");
+    TEST_ASSERT(fp == (void *) 0x1234, "get_frozen_point");
 
     circuit_handle_overflow();
 
@@ -970,9 +972,9 @@ void test_circuit_operations(void) {
 
 /** 测试电路回调 */
 static CircuitResponse test_callback(const SymbolicCoord *coord, int arg, void *user_data) {
-    (void)coord;
-    (void)arg;
-    (void)user_data;
+    (void) coord;
+    (void) arg;
+    (void) user_data;
     return CIRCUIT_RESPONSE_IGNORE;
 }
 

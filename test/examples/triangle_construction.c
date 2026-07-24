@@ -77,10 +77,14 @@ static int construct_triangle(ConstraintGraph *g, int *out_a, int *out_b, int *o
         SymbolicCoord *cy = symbolic_coord_create_quadratic(ra, rb, 3);
         if (!cx || !ra || !rb || !cy) {
             fprintf(stderr, "construct_triangle: 创建点C坐标失败\n");
-            if (cx) symbolic_coord_destroy(cx);
-            if (ra) rational_destroy(ra);
-            if (rb) rational_destroy(rb);
-            if (cy) symbolic_coord_destroy(cy);
+            if (cx)
+                symbolic_coord_destroy(cx);
+            if (ra)
+                rational_destroy(ra);
+            if (rb)
+                rational_destroy(rb);
+            if (cy)
+                symbolic_coord_destroy(cy);
             *out_a = *out_b = *out_c = -1;
             return -1;
         }
@@ -208,7 +212,7 @@ static void check_determinism(FuncBlock *fb, ConstraintGraph *g) {
      * 1000 是经验值：在大多数几何构造中，迭代次数超过此值意味着
      * 存在多解或循环依赖，应终止检查并报告超时。
      */
-    DeterminismCheckResult result = (DeterminismCheckResult)func_block_determinism_check_static(fb, g);
+    DeterminismCheckResult result = (DeterminismCheckResult) func_block_determinism_check_static(fb, g);
 
     printf("  检查结果: ");
     switch (result) {

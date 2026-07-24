@@ -19,8 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
 #include "expr_canon.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* ============================================================
@@ -35,9 +35,10 @@ int g_fail_count = 0;
 
 /** 安全释放 lv_expr_canonical_to_string 返回的字符串 */
 #ifndef SAFE_FREE_STR
-#define SAFE_FREE_STR(s)  \
-    do {                  \
-        if (s) free((s)); \
+#define SAFE_FREE_STR(s) \
+    do {                 \
+        if (s)           \
+            free((s));   \
     } while (0)
 #endif
 
@@ -239,14 +240,12 @@ static void test_expr_is_canonical(void) {
 
     /* 规范化后应为规范形式 */
     lv_expr_canonicalize(expr);
-    TEST_ASSERT_MSG(lv_expr_is_canonical(expr),
-                    "freshly canonicalized expr should be canonical");
+    TEST_ASSERT_MSG(lv_expr_is_canonical(expr), "freshly canonicalized expr should be canonical");
 
     /* 添加新项后应不再是规范形式 */
     int exp2[] = {0, 1};
     lv_expr_canonical_add_term(expr, c, exp2);
-    TEST_ASSERT_MSG(!lv_expr_is_canonical(expr),
-                    "expr with unsorted terms should not be canonical");
+    TEST_ASSERT_MSG(!lv_expr_is_canonical(expr), "expr with unsorted terms should not be canonical");
 
     lv_rational_destroy(&c);
     lv_expr_canonical_destroy(&expr);
@@ -409,10 +408,9 @@ static void test_expr_compare_terms(void) {
     /* 测试1：总次数高的项应排在前面 */
     /* exp_a = [2, 0] 总次数 2, exp_b = [1, 0] 总次数 1 */
     int exp_high[] = {2, 0};
-    int exp_low[]  = {1, 0};
+    int exp_low[] = {1, 0};
     int cmp_deg = lv_canonical_compare_terms(exp_high, exp_low, var_count);
-    TEST_ASSERT_MSG(cmp_deg > 0,
-                    "higher degree term should be ordered before lower degree term");
+    TEST_ASSERT_MSG(cmp_deg > 0, "higher degree term should be ordered before lower degree term");
 
     /* 测试2：同次数按字典序（最后一个变量优先比较） */
     /* exp_a = [0, 1] -> 变量0指数0，变量1指数1; exp_b = [1, 0] -> 变量0指数1，变量1指数0 */
@@ -420,8 +418,7 @@ static void test_expr_compare_terms(void) {
     int exp_z[] = {0, 1}; /* z^1 (x=0, z=1) */
     int exp_x[] = {1, 0}; /* x^1 (x=1, z=0) */
     int cmp_lex = lv_canonical_compare_terms(exp_z, exp_x, var_count);
-    TEST_ASSERT_MSG(cmp_lex > 0,
-                    "z^1 should be ordered before x^1 (lexicographic, last var first)");
+    TEST_ASSERT_MSG(cmp_lex > 0, "z^1 should be ordered before x^1 (lexicographic, last var first)");
 
     /* 测试3：相同指数应返回 0 */
     int exp_same1[] = {1, 1};

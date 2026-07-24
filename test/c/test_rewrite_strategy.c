@@ -60,12 +60,10 @@ static void test_rewrite_engine_add_rule(void) {
     lvRewriteEngineEx *engine = rewrite_engine_ex_create(REWRITE_INNERMOST, 100);
     TEST_ASSERT_NOT_NULL(engine);
 
-    bool ok = rewrite_engine_ex_add_rule(engine, "simplify_add_0",
-        "x + 0", "x", 1, NULL);
+    bool ok = rewrite_engine_ex_add_rule(engine, "simplify_add_0", "x + 0", "x", 1, NULL);
     TEST_ASSERT(ok, "add_rule should succeed");
 
-    ok = rewrite_engine_ex_add_rule(engine, "simplify_mul_1",
-        "x * 1", "x", 2, NULL);
+    ok = rewrite_engine_ex_add_rule(engine, "simplify_mul_1", "x * 1", "x", 2, NULL);
     TEST_ASSERT(ok, "add_rule should succeed");
 
     TEST_ASSERT_EQ(engine->rule_count, 2);
@@ -184,8 +182,7 @@ static void test_conditional_rules(void) {
     TEST_ASSERT_NOT_NULL(engine);
 
     /* Rule with condition */
-    rewrite_engine_ex_add_rule(engine, "conditional",
-        "x", "y", 1, condition_contains_safe);
+    rewrite_engine_ex_add_rule(engine, "conditional", "x", "y", 1, condition_contains_safe);
 
     lvRewriteResultEx result;
 

@@ -22,8 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
 #include "geo_topology.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;

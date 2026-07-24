@@ -30,9 +30,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "lv.h"
 #include "circuit_breaker.h"
 #include "context.h"
+#include "lv.h"
 #include "test_helpers.h"
 
 /* ============================================================
@@ -91,8 +91,7 @@ static void test_circuit_breaker_create(void) {
     TEST_ASSERT_NOT_NULL(ctx);
 
     /* 验证熔断器初始状态为 CLOSED */
-    TEST_ASSERT_MSG(cb_is_closed(ctx),
-                    "context created, circuit breaker should be CLOSED");
+    TEST_ASSERT_MSG(cb_is_closed(ctx), "context created, circuit breaker should be CLOSED");
 
     lv_context_destroy(ctx);
 }
@@ -115,20 +114,16 @@ static void test_circuit_breaker_initial_state(void) {
     TEST_ASSERT_NOT_NULL(ctx);
 
     /* check 在 CLOSED 态应返回 true */
-    TEST_ASSERT_MSG(lv_circuit_breaker_check(ctx),
-                    "circuit_breaker_check should return true in CLOSED state");
+    TEST_ASSERT_MSG(lv_circuit_breaker_check(ctx), "circuit_breaker_check should return true in CLOSED state");
 
     /* 验证 is_closed 为 true */
-    TEST_ASSERT_MSG(cb_is_closed(ctx),
-                    "circuit breaker should be CLOSED initially");
+    TEST_ASSERT_MSG(cb_is_closed(ctx), "circuit breaker should be CLOSED initially");
 
     /* 验证 is_open 为 false */
-    TEST_ASSERT_MSG(!cb_is_open(ctx),
-                    "circuit breaker should NOT be OPEN initially");
+    TEST_ASSERT_MSG(!cb_is_open(ctx), "circuit breaker should NOT be OPEN initially");
 
     /* 验证 is_half_open 为 false */
-    TEST_ASSERT_MSG(!cb_is_half_open(ctx),
-                    "circuit breaker should NOT be HALF_OPEN initially");
+    TEST_ASSERT_MSG(!cb_is_half_open(ctx), "circuit breaker should NOT be HALF_OPEN initially");
 
     lv_context_destroy(ctx);
 }
@@ -150,23 +145,19 @@ static void test_circuit_breaker_trip(void) {
     TEST_ASSERT_NOT_NULL(ctx);
 
     /* 起始状态应为 CLOSED */
-    TEST_ASSERT_MSG(cb_is_closed(ctx),
-                    "circuit breaker should be CLOSED before trip");
+    TEST_ASSERT_MSG(cb_is_closed(ctx), "circuit breaker should be CLOSED before trip");
 
     /* 触发熔断 */
     lv_circuit_breaker_trip(ctx, "test trip reason");
 
     /* 验证熔断器进入 OPEN 态 */
-    TEST_ASSERT_MSG(cb_is_open(ctx),
-                    "circuit breaker should be OPEN after trip");
+    TEST_ASSERT_MSG(cb_is_open(ctx), "circuit breaker should be OPEN after trip");
 
     /* 验证 check 返回 false */
-    TEST_ASSERT_MSG(!lv_circuit_breaker_check(ctx),
-                    "circuit_breaker_check should return false when OPEN");
+    TEST_ASSERT_MSG(!lv_circuit_breaker_check(ctx), "circuit_breaker_check should return false when OPEN");
 
     /* 验证不再是 CLOSED */
-    TEST_ASSERT_MSG(!cb_is_closed(ctx),
-                    "circuit breaker should NOT be CLOSED after trip");
+    TEST_ASSERT_MSG(!cb_is_closed(ctx), "circuit breaker should NOT be CLOSED after trip");
 
     lv_context_destroy(ctx);
 }
@@ -189,23 +180,19 @@ static void test_circuit_breaker_reset(void) {
 
     /* 触发熔断 */
     lv_circuit_breaker_trip(ctx, "test trip before reset");
-    TEST_ASSERT_MSG(cb_is_open(ctx),
-                    "circuit breaker should be OPEN after trip (before reset)");
+    TEST_ASSERT_MSG(cb_is_open(ctx), "circuit breaker should be OPEN after trip (before reset)");
 
     /* 重置熔断器 */
     lv_circuit_breaker_reset(ctx);
 
     /* 验证恢复到 CLOSED 态 */
-    TEST_ASSERT_MSG(cb_is_closed(ctx),
-                    "circuit breaker should be CLOSED after reset");
+    TEST_ASSERT_MSG(cb_is_closed(ctx), "circuit breaker should be CLOSED after reset");
 
     /* 验证 check 重新返回 true */
-    TEST_ASSERT_MSG(lv_circuit_breaker_check(ctx),
-                    "circuit_breaker_check should return true after reset");
+    TEST_ASSERT_MSG(lv_circuit_breaker_check(ctx), "circuit_breaker_check should return true after reset");
 
     /* 验证不再是 OPEN 态 */
-    TEST_ASSERT_MSG(!cb_is_open(ctx),
-                    "circuit breaker should NOT be OPEN after reset");
+    TEST_ASSERT_MSG(!cb_is_open(ctx), "circuit breaker should NOT be OPEN after reset");
 
     lv_context_destroy(ctx);
 }
@@ -227,17 +214,14 @@ static void test_circuit_breaker_state_name(void) {
     /* CLOSED 态的名称应非空 */
     const char *name_closed = lv_circuit_breaker_state_name(ctx);
     TEST_ASSERT_NOT_NULL(name_closed);
-    TEST_ASSERT_MSG(strlen(name_closed) > 0,
-                    "CLOSED state name should not be empty");
+    TEST_ASSERT_MSG(strlen(name_closed) > 0, "CLOSED state name should not be empty");
 
     /* trip 后的 OPEN 态名称应非空且不同于 CLOSED */
     lv_circuit_breaker_trip(ctx, "test state name");
     const char *name_open = lv_circuit_breaker_state_name(ctx);
     TEST_ASSERT_NOT_NULL(name_open);
-    TEST_ASSERT_MSG(strlen(name_open) > 0,
-                    "OPEN state name should not be empty");
-    TEST_ASSERT_MSG(strcmp(name_closed, name_open) != 0,
-                    "OPEN state name should differ from CLOSED state name");
+    TEST_ASSERT_MSG(strlen(name_open) > 0, "OPEN state name should not be empty");
+    TEST_ASSERT_MSG(strcmp(name_closed, name_open) != 0, "OPEN state name should differ from CLOSED state name");
 
     /* reset 后恢复 CLOSED，名称应与首次 CLOSED 一致 */
     lv_circuit_breaker_reset(ctx);
@@ -264,18 +248,15 @@ static void test_circuit_breaker_failure_count(void) {
     TEST_ASSERT_NOT_NULL(ctx);
 
     /* 初始连续错误计数应为 0 */
-    TEST_ASSERT_MSG(cb_get_failure_count(ctx) == 0,
-                    "initial consecutive error count should be 0");
+    TEST_ASSERT_MSG(cb_get_failure_count(ctx) == 0, "initial consecutive error count should be 0");
 
     /* trip 后仍然为 0（trip 不递增错误计数） */
     lv_circuit_breaker_trip(ctx, "test failure count");
-    TEST_ASSERT_MSG(cb_get_failure_count(ctx) == 0,
-                    "consecutive error count should remain 0 after direct trip");
+    TEST_ASSERT_MSG(cb_get_failure_count(ctx) == 0, "consecutive error count should remain 0 after direct trip");
 
     /* reset 后仍为 0 */
     lv_circuit_breaker_reset(ctx);
-    TEST_ASSERT_MSG(cb_get_failure_count(ctx) == 0,
-                    "consecutive error count should be 0 after reset");
+    TEST_ASSERT_MSG(cb_get_failure_count(ctx) == 0, "consecutive error count should be 0 after reset");
 
     lv_context_destroy(ctx);
 }
@@ -296,13 +277,11 @@ static void test_circuit_breaker_context_lifecycle(void) {
     TEST_ASSERT_NOT_NULL(ctx);
 
     /* 正常使用：check */
-    TEST_ASSERT_MSG(lv_circuit_breaker_check(ctx),
-                    "circuit_breaker_check should return true in new context");
+    TEST_ASSERT_MSG(lv_circuit_breaker_check(ctx), "circuit_breaker_check should return true in new context");
 
     /* 正常使用：trip */
     lv_circuit_breaker_trip(ctx, "lifecycle test trip");
-    TEST_ASSERT_MSG(cb_is_open(ctx),
-                    "circuit breaker should be OPEN after trip in lifecycle test");
+    TEST_ASSERT_MSG(cb_is_open(ctx), "circuit breaker should be OPEN after trip in lifecycle test");
 
     /* 正常使用：state_name */
     const char *name = lv_circuit_breaker_state_name(ctx);
@@ -310,15 +289,13 @@ static void test_circuit_breaker_context_lifecycle(void) {
 
     /* 正常使用：reset */
     lv_circuit_breaker_reset(ctx);
-    TEST_ASSERT_MSG(cb_is_closed(ctx),
-                    "circuit breaker should be CLOSED after reset in lifecycle test");
+    TEST_ASSERT_MSG(cb_is_closed(ctx), "circuit breaker should be CLOSED after reset in lifecycle test");
 
     /* 正常使用：summary */
     char summary_buf[256];
     int summary_len = lv_circuit_breaker_summary(ctx, summary_buf, sizeof(summary_buf));
-    TEST_ASSERT_MSG(summary_len > 0,
-                    "circuit_breaker_summary should return positive length");
-    TEST_ASSERT_MSG((size_t)summary_len < sizeof(summary_buf),
+    TEST_ASSERT_MSG(summary_len > 0, "circuit_breaker_summary should return positive length");
+    TEST_ASSERT_MSG((size_t) summary_len < sizeof(summary_buf),
                     "circuit_breaker_summary should not exceed buffer size");
 
     /* 销毁上下文 —— 不应崩溃 */

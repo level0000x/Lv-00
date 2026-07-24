@@ -102,45 +102,41 @@ static void test_templates(void) {
         /* Group I: Kolmogorov Axioms */
         "kolmogorov_non_negativity", "kolmogorov_unit_measure", "kolmogorov_sigma_additivity",
         /* Group II: Elementary Consequences */
-        "prob_empty_set_zero", "prob_bounds", "prob_complement_rule", "prob_monotonicity",
-        "prob_union_two", "boole_inequality", "bonferroni_inequality",
-        "prob_continuity_below", "prob_continuity_above", "inclusion_exclusion",
-        "partition_formula", "prob_finite_additivity",
+        "prob_empty_set_zero", "prob_bounds", "prob_complement_rule", "prob_monotonicity", "prob_union_two",
+        "boole_inequality", "bonferroni_inequality", "prob_continuity_below", "prob_continuity_above",
+        "inclusion_exclusion", "partition_formula", "prob_finite_additivity",
         /* Group III: Conditional Probability */
-        "conditional_prob_def", "multiplication_rule", "chain_rule", "law_total_probability",
-        "bayes_theorem", "bayes_theorem_partition",
+        "conditional_prob_def", "multiplication_rule", "chain_rule", "law_total_probability", "bayes_theorem",
+        "bayes_theorem_partition",
         /* Group IV: Independence */
         "independence_pairwise", "independence_mutual", "independence_conditional", "independence_complement",
         "independence_trivial", "independence_pairwise_not_mutual", "independence_sigma_algebras",
         "independence_random_variables",
         /* Group V: Random Variables */
         "random_variable_def", "distribution_function", "random_variable_discrete", "random_variable_continuous",
-        "pmf_def", "pdf_def", "indicator_random_variable", "random_variable_function",
-        "joint_distribution", "marginal_distribution", "random_variable_transformation", "quantile_function",
+        "pmf_def", "pdf_def", "indicator_random_variable", "random_variable_function", "joint_distribution",
+        "marginal_distribution", "random_variable_transformation", "quantile_function",
         /* Group VI: Expected Value and Moments */
-        "expected_value_def", "expected_value_linearity", "expected_value_indicator",
-        "expected_value_nonnegativity", "expected_value_monotonicity",
-        "variance_def", "variance_linear_transform", "covariance_def", "correlation_coefficient",
-        "cauchy_schwarz_inequality",
+        "expected_value_def", "expected_value_linearity", "expected_value_indicator", "expected_value_nonnegativity",
+        "expected_value_monotonicity", "variance_def", "variance_linear_transform", "covariance_def",
+        "correlation_coefficient", "cauchy_schwarz_inequality",
         /* Group VII: Convergence Theorems */
         "convergence_almost_sure", "convergence_probability", "convergence_Lp", "convergence_distribution",
         "monotone_convergence", "dominated_convergence", "fatou_lemma", "convergence_hierarchy",
         /* Group VIII: Law of Large Numbers */
-        "weak_law_large_numbers", "strong_law_large_numbers", "kolmogorov_three_series",
-        "borel_cantelli",
+        "weak_law_large_numbers", "strong_law_large_numbers", "kolmogorov_three_series", "borel_cantelli",
         /* Group IX: Central Limit Theorem */
-        "central_limit_theorem", "lindeberg_feller_clt", "berry_esseen_theorem",
-        "characteristic_function_convergence",
+        "central_limit_theorem", "lindeberg_feller_clt", "berry_esseen_theorem", "characteristic_function_convergence",
         /* Group X: Common Distributions */
         "distribution_bernoulli", "distribution_binomial", "distribution_poisson", "distribution_geometric",
-        "distribution_uniform_continuous", "distribution_exponential", "distribution_normal",
-        "distribution_gamma", "distribution_beta", "distribution_chi_squared",
+        "distribution_uniform_continuous", "distribution_exponential", "distribution_normal", "distribution_gamma",
+        "distribution_beta", "distribution_chi_squared",
         /* Group XI: Stochastic Processes */
-        "stochastic_process_def", "filtration_def", "martingale_def", "markov_property",
-        "stopping_time_def", "optional_stopping_theorem",
+        "stochastic_process_def", "filtration_def", "martingale_def", "markov_property", "stopping_time_def",
+        "optional_stopping_theorem",
         /* Group XII: Characteristic Functions */
-        "characteristic_function_def", "characteristic_function_properties",
-        "characteristic_function_uniqueness", "characteristic_function_inversion"};
+        "characteristic_function_def", "characteristic_function_properties", "characteristic_function_uniqueness",
+        "characteristic_function_inversion"};
 
     for (int i = 0; i < (int) (sizeof(expected_templates) / sizeof(expected_templates[0])); i++) {
         ConstraintTemplate *tmpl = axiom_package_get_template(pkg, expected_templates[i]);
@@ -165,8 +161,9 @@ static void test_unconstructibles(void) {
     printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     const char *expected_unconstructibles[] = {
-        "non_measurable_set_existence", "vitali_set_non_measurable", "banach_tarski_paradox",
-        "solovay_all_sets_measurable",  "slln_without_sigma_additivity", "exact_continuous_simulation",
+        "non_measurable_set_existence",  "vitali_set_non_measurable",
+        "banach_tarski_paradox",         "solovay_all_sets_measurable",
+        "slln_without_sigma_additivity", "exact_continuous_simulation",
         "exact_probability_computation", "regular_conditional_probability_general"};
 
     for (int i = 0; i < (int) (sizeof(expected_unconstructibles) / sizeof(expected_unconstructibles[0])); i++) {
@@ -265,7 +262,7 @@ static void test_dependency_validation(void) {
     AxiomPackage *loaded_packages[] = {pkg};
     bool valid = axiom_package_validate_dependencies(pkg, loaded_packages, 1);
     /* Dependency data may be incomplete; skip strict assert */
-    (void)valid;
+    (void) valid;
 
     axiom_package_destroy(pkg);
 }

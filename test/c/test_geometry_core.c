@@ -32,6 +32,7 @@
 #include "lv/geometry_compress.h"
 #include "lv/geometry_types.h"
 #include "lv/symbolic_coord.h"
+
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -751,9 +752,9 @@ void test_compress_config_default(void) {
         if (ok && decompressed) {
             graph_destroy(decompressed);
         }
-        lv_free((void **)&compressed);
+        lv_free((void **) &compressed);
     } else if (compressed) {
-        lv_free((void **)&compressed);
+        lv_free((void **) &compressed);
     }
 
     graph_destroy(graph);
@@ -805,7 +806,7 @@ void test_edgebreaker_encode(void) {
     TEST_ASSERT(ok == true, "edgebreaker on empty graph");
     /* seq_len 可能为 0 或 >0 */
     if (seq) {
-        lv_free((void **)&seq);
+        lv_free((void **) &seq);
     }
 
     /* 添加一些点节点 */
@@ -825,7 +826,7 @@ void test_edgebreaker_encode(void) {
     ok = edgebreaker_encode(graph, &seq, &seq_len);
     TEST_ASSERT(ok == true, "edgebreaker on graph with points");
     if (seq) {
-        lv_free((void **)&seq);
+        lv_free((void **) &seq);
     }
 
     /* NULL */
@@ -884,7 +885,7 @@ void test_compress_decompress_roundtrip(void) {
             TEST_ASSERT(decompressed->node_count > 0, "decompressed has nodes");
             graph_destroy(decompressed);
         }
-        lv_free((void **)&compressed);
+        lv_free((void **) &compressed);
     }
 
     graph_destroy(original);
@@ -920,12 +921,12 @@ void test_compress_lvzd_io(void) {
         size_t read_size = 0;
         bool read_ok = compress_read_lvzd("test_temp.lvzd", &read_data, &read_size);
         if (read_ok) {
-            lv_free((void **)&read_data);
+            lv_free((void **) &read_data);
         }
 
         /* 清理临时文件 */
         remove("test_temp.lvzd");
-        lv_free((void **)&data);
+        lv_free((void **) &data);
     }
 
     graph_destroy(graph);

@@ -48,8 +48,7 @@ static void test_load_from_file(void) {
 
     TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "linear_algebra") == 0,
                 "package name should be 'linear_algebra'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0,
-                "package version should be '1.0.0'");
+    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
 
     printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
 
@@ -65,8 +64,7 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT,
-                "should have 90 constraint templates");
+    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 90 constraint templates");
     printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
 
     /* Check representative templates from each group */
@@ -190,8 +188,7 @@ static void test_templates(void) {
             g_fail_count++;
             continue;
         }
-        TEST_ASSERT(tmpl->param_count == expected[i].params,
-                    "template parameter count mismatch");
+        TEST_ASSERT(tmpl->param_count == expected[i].params, "template parameter count mismatch");
     }
 
     axiom_package_destroy(pkg);
@@ -206,10 +203,8 @@ static void test_unconstructibles(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                "should have 8 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n",
-           pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 8 unconstructible problems");
+    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     /* Verify each expected unconstructible */
     struct {
@@ -229,8 +224,7 @@ static void test_unconstructibles(void) {
     };
 
     int uc_count = sizeof(expected_uc) / sizeof(expected_uc[0]);
-    TEST_ASSERT(uc_count == EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                "local expected UC count should match");
+    TEST_ASSERT(uc_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "local expected UC count should match");
 
     for (int i = 0; i < uc_count; i++) {
         KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, expected_uc[i].name);
@@ -325,19 +319,15 @@ static void test_save_load_roundtrip(void) {
     AxiomLoadStatus load_status = axiom_package_load(pkg2, SAVE_TEST_PATH);
     TEST_ASSERT(load_status == AXIOM_LOAD_OK, "reloading saved file should succeed");
 
-    TEST_ASSERT(strcmp(pkg2->name, "linear_algebra") == 0,
-                "reloaded package should have same name");
-    TEST_ASSERT(strcmp(pkg2->version, "1.0.0") == 0,
-                "reloaded package should have same version");
-    TEST_ASSERT(pkg2->template_count == EXPECTED_TEMPLATE_COUNT,
-                "reloaded package should have same template count");
+    TEST_ASSERT(strcmp(pkg2->name, "linear_algebra") == 0, "reloaded package should have same name");
+    TEST_ASSERT(strcmp(pkg2->version, "1.0.0") == 0, "reloaded package should have same version");
+    TEST_ASSERT(pkg2->template_count == EXPECTED_TEMPLATE_COUNT, "reloaded package should have same template count");
     TEST_ASSERT(pkg2->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT,
                 "reloaded package should have same unconstructible count");
 
     char *hash_reload = axiom_package_compute_content_hash(pkg2);
     TEST_ASSERT(hash_reload != NULL, "reloaded hash should be computable");
-    TEST_ASSERT(strcmp(hash_orig, hash_reload) == 0,
-                "content hash should survive round-trip");
+    TEST_ASSERT(strcmp(hash_orig, hash_reload) == 0, "content hash should survive round-trip");
 
     lv_free((void **) &hash_orig);
     lv_free((void **) &hash_reload);
@@ -402,12 +392,10 @@ static void test_external_references(void) {
 
     for (int i = 0; i < pkg->unconstructible_count; i++) {
         KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
-        TEST_ASSERT(uc->external_ref != NULL,
-                    "each unconstructible should have an external_ref");
+        TEST_ASSERT(uc->external_ref != NULL, "each unconstructible should have an external_ref");
 
         /* Verify it's a valid URL */
-        int is_url = (strncmp(uc->external_ref, "http://", 7) == 0 ||
-                      strncmp(uc->external_ref, "https://", 8) == 0);
+        int is_url = (strncmp(uc->external_ref, "http://", 7) == 0 || strncmp(uc->external_ref, "https://", 8) == 0);
         TEST_ASSERT(is_url, "external_ref should be a valid URL");
 
         printf("  '%s' -> %s\n", uc->name, uc->external_ref);
@@ -427,21 +415,14 @@ static void test_key_templates(void) {
 
     /* Core vector space axioms */
     const char *core_axioms[] = {
-        "vector_addition_associativity",
-        "vector_addition_commutativity",
-        "vector_additive_identity",
-        "vector_additive_inverse",
-        "scalar_multiplication_compatibility",
-        "scalar_identity",
-        "scalar_distributivity_vector",
-        "scalar_distributivity_field"
-    };
+        "vector_addition_associativity", "vector_addition_commutativity",       "vector_additive_identity",
+        "vector_additive_inverse",       "scalar_multiplication_compatibility", "scalar_identity",
+        "scalar_distributivity_vector",  "scalar_distributivity_field"};
 
     for (int i = 0; i < 8; i++) {
         ConstraintTemplate *tmpl = axiom_package_get_template(pkg, core_axioms[i]);
         TEST_ASSERT(tmpl != NULL, "core vector space axiom template should exist");
-        TEST_ASSERT(tmpl->param_count >= 0 && tmpl->param_count <= 4,
-                    "parameter count should be reasonable");
+        TEST_ASSERT(tmpl->param_count >= 0 && tmpl->param_count <= 4, "parameter count should be reasonable");
     }
 
     /* Linear map essentials */
@@ -452,24 +433,22 @@ static void test_key_templates(void) {
     }
 
     /* Matrix algebra essentials */
-    const char *matrix_ops[] = {"matrix", "matrix_multiplication", "matrix_inverse",
-                                 "determinant", "matrix_transpose"};
+    const char *matrix_ops[] = {"matrix", "matrix_multiplication", "matrix_inverse", "determinant", "matrix_transpose"};
     for (int i = 0; i < 5; i++) {
         ConstraintTemplate *tmpl = axiom_package_get_template(pkg, matrix_ops[i]);
         TEST_ASSERT(tmpl != NULL, "matrix algebra template should exist");
     }
 
     /* Eigenvalue theory essentials */
-    const char *eigen_ops[] = {"eigenvalue", "eigenvector", "characteristic_polynomial",
-                                "cayley_hamilton", "diagonalizability"};
+    const char *eigen_ops[] = {"eigenvalue", "eigenvector", "characteristic_polynomial", "cayley_hamilton",
+                               "diagonalizability"};
     for (int i = 0; i < 5; i++) {
         ConstraintTemplate *tmpl = axiom_package_get_template(pkg, eigen_ops[i]);
         TEST_ASSERT(tmpl != NULL, "eigenvalue theory template should exist");
     }
 
     /* Inner product space essentials */
-    const char *ip_ops[] = {"inner_product", "orthogonality", "gram_schmidt",
-                             "norm_from_inner_product"};
+    const char *ip_ops[] = {"inner_product", "orthogonality", "gram_schmidt", "norm_from_inner_product"};
     for (int i = 0; i < 4; i++) {
         ConstraintTemplate *tmpl = axiom_package_get_template(pkg, ip_ops[i]);
         TEST_ASSERT(tmpl != NULL, "inner product space template should exist");
@@ -482,8 +461,7 @@ static void test_key_templates(void) {
     TEST_ASSERT(tup != NULL, "tensor_universal_property template should exist");
 
     /* Canonical forms */
-    const char *cf_ops[] = {"jordan_normal_form", "spectral_theorem",
-                             "singular_value_decomposition"};
+    const char *cf_ops[] = {"jordan_normal_form", "spectral_theorem", "singular_value_decomposition"};
     for (int i = 0; i < 3; i++) {
         ConstraintTemplate *tmpl = axiom_package_get_template(pkg, cf_ops[i]);
         TEST_ASSERT(tmpl != NULL, "canonical form template should exist");

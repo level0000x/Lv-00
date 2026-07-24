@@ -22,8 +22,10 @@ static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, ui
     SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
     SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
     if (!cx || !cy) {
-        if (cx) symbolic_coord_destroy(cx);
-        if (cy) symbolic_coord_destroy(cy);
+        if (cx)
+            symbolic_coord_destroy(cx);
+        if (cy)
+            symbolic_coord_destroy(cy);
         return -1;
     }
     SymbolicCoord *coords[] = {cx, cy};

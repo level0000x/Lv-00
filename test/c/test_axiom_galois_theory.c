@@ -13,7 +13,6 @@
 #include <string.h>
 
 #include "axiom_pkg.h"
-
 #include "lv_utils.h"
 
 /* Test counters */
@@ -338,7 +337,7 @@ static void test_dependency_validation(void) {
 
     bool valid = axiom_package_validate_dependencies(pkg, NULL, 0);
     /* 依赖链引用可能不完整 */
-    (void)valid;
+    (void) valid;
 
     axiom_package_destroy(pkg);
     TEST_PASS();

@@ -399,7 +399,7 @@ static int test_engine_solve_stream_integration(void) {
     int node_events = count_event_type(STREAM_EVENT_NODE_ADDED);
     printf("  节点添加事件: %d\n", node_events);
     /* assert(node_events >= 3); -- 待引擎流式事件系统完全集成后启用 */
-    (void)node_events;
+    (void) node_events;
 
     /* 验证约束添加事件 */
     int constraint_events = count_event_type(STREAM_EVENT_CONSTRAINT_ADDED);

@@ -153,7 +153,8 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
                 }
             }
             if (!found) {
-                if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index) != 0) {
+                if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id,
+                                         sys->eqs[i].coord_index) != 0) {
                     dirty_set_free(&related);
                     return;
                 }
@@ -247,7 +248,8 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.description = "增量求解开始";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc;
-        lv_SAFE_SNPRINTF(_snw_inc, detail, sizeof(detail), "{\"phase\":\"incremental\",\"dirty_count\":%d}", n_dirty_vars);
+        lv_SAFE_SNPRINTF(_snw_inc, detail, sizeof(detail), "{\"phase\":\"incremental\",\"dirty_count\":%d}",
+                         n_dirty_vars);
         lv_UNUSED(_snw_inc);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -289,7 +291,8 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.description = "依赖传播完成";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_dep;
-        lv_SAFE_SNPRINTF(_snw_dep, detail, sizeof(detail), "{\"phase\":\"dependency_propagation\",\"affected\":%d}", affected_count);
+        lv_SAFE_SNPRINTF(_snw_dep, detail, sizeof(detail), "{\"phase\":\"dependency_propagation\",\"affected\":%d}",
+                         affected_count);
         lv_UNUSED(_snw_dep);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -353,7 +356,8 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.description = "增量求解方程过滤完成";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_filt;
-        lv_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail), "{\"phase\":\"filter\",\"filtered_eq_count\":%d}", filtered_sys.count);
+        lv_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail), "{\"phase\":\"filter\",\"filtered_eq_count\":%d}",
+                         filtered_sys.count);
         lv_UNUSED(_snw_filt);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -422,13 +426,13 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.timestamp_ms = stream_timestamp_ms();
         ev.step_number = solved_count;
         ev.description = multiple_solutions > 0 ? "增量求解完成: 多解"
-                         : solved_count > 0 ? "增量求解完成: 唯一解"
-                                            : "增量求解完成: 部分求解";
+                         : solved_count > 0     ? "增量求解完成: 唯一解"
+                                                : "增量求解完成: 部分求解";
         char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc_done;
         lv_SAFE_SNPRINTF(_snw_inc_done, detail, sizeof(detail),
-                         "{\"phase\":\"incremental_done\",\"solved\":%d,\"multiple\":%d,\"unique\":%d}",
-                         solved_count, multiple_solutions, result->unique ? 1 : 0);
+                         "{\"phase\":\"incremental_done\",\"solved\":%d,\"multiple\":%d,\"unique\":%d}", solved_count,
+                         multiple_solutions, result->unique ? 1 : 0);
         lv_UNUSED(_snw_inc_done);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);

@@ -142,8 +142,7 @@ static void rk4_step(lvODERhsFn rhs, double t, const double *y, double dt, size_
  *   y_{n+1} = y_n + dt * (55/24 * f_n - 59/24 * f_{n-1}
  *                          + 37/24 * f_{n-2} - 9/24 * f_{n-3})
  */
-static void ab4_step(lvODERhsFn rhs, double t, const double *y, double dt,
-                     size_t dim, void *params, double *y_next,
+static void ab4_step(lvODERhsFn rhs, double t, const double *y, double dt, size_t dim, void *params, double *y_next,
                      double **f_history, size_t history_idx) {
     if (!f_history || !f_history[0] || !f_history[1] || !f_history[2] || !f_history[3]) {
         /* Insufficient history — use Euler fallback */
@@ -168,10 +167,8 @@ static void ab4_step(lvODERhsFn rhs, double t, const double *y, double dt,
     hist_idx[3] = (hist_idx[2] == 0) ? 3 : hist_idx[2] - 1;
 
     for (size_t j = 0; j < dim; j++) {
-        double sum = beta[0] * f_n[j]
-                   + beta[1] * f_history[hist_idx[1]][j]
-                   + beta[2] * f_history[hist_idx[2]][j]
-                   + beta[3] * f_history[hist_idx[3]][j];
+        double sum = beta[0] * f_n[j] + beta[1] * f_history[hist_idx[1]][j] + beta[2] * f_history[hist_idx[2]][j] +
+                     beta[3] * f_history[hist_idx[3]][j];
         y_next[j] = y[j] + dt * sum;
     }
 
@@ -270,8 +267,7 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
                     }
                 } else {
                     /* Full AB4 step */
-                    ab4_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next,
-                             f_history, ab_history_idx);
+                    ab4_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next, f_history, ab_history_idx);
                 }
                 break;
             }

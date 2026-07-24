@@ -117,8 +117,7 @@ static void test_repo_commit(void) {
     TEST_ASSERT(ok, "commit should succeed");
 
     /* HEAD should have changed */
-    TEST_ASSERT(strcmp(repo->head_commit, old_head) != 0,
-        "HEAD should change after commit");
+    TEST_ASSERT(strcmp(repo->head_commit, old_head) != 0, "HEAD should change after commit");
 
     proof_repo_destroy(repo);
 
@@ -267,8 +266,7 @@ static void test_repo_checkout(void) {
     proof_repo_commit(repo, "New commit on main", files, contents, 1);
 
     /* HEAD should have advanced */
-    TEST_ASSERT(strcmp(repo->head_commit, dev_head) != 0,
-        "HEAD should have advanced after commit");
+    TEST_ASSERT(strcmp(repo->head_commit, dev_head) != 0, "HEAD should have advanced after commit");
 
     /* Checkout dev branch */
     bool ok = proof_repo_checkout(repo, "dev");

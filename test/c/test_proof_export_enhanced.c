@@ -35,26 +35,26 @@ int g_fail_count = 0;
 static lvProof create_test_proof(void) {
     static lvProofStep steps[3];
 
-    steps[0].step_id    = 1;
-    steps[0].rule       = "assume";
-    steps[0].premise    = NULL;
+    steps[0].step_id = 1;
+    steps[0].rule = "assume";
+    steps[0].premise = NULL;
     steps[0].conclusion = "P";
-    steps[0].depth      = 0;
+    steps[0].depth = 0;
 
-    steps[1].step_id    = 2;
-    steps[1].rule       = "intro";
-    steps[1].premise    = "P";
+    steps[1].step_id = 2;
+    steps[1].rule = "intro";
+    steps[1].premise = "P";
     steps[1].conclusion = "P -> Q";
-    steps[1].depth      = 0;
+    steps[1].depth = 0;
 
-    steps[2].step_id    = 3;
-    steps[2].rule       = "apply";
-    steps[2].premise    = "P -> Q";
+    steps[2].step_id = 3;
+    steps[2].rule = "apply";
+    steps[2].premise = "P -> Q";
     steps[2].conclusion = "Q";
-    steps[2].depth      = 1;
+    steps[2].depth = 1;
 
     lvProof proof;
-    proof.steps   = steps;
+    proof.steps = steps;
     proof.n_steps = 3;
     proof.theorem = "Modus Ponens: P -> (P -> Q) -> Q";
     return proof;
@@ -68,10 +68,10 @@ static void test_export_html(void) {
     lvProof proof = create_test_proof();
 
     lvExportConfig config;
-    config.format              = EXPORT_HTML;
+    config.format = EXPORT_HTML;
     config.include_proof_trace = true;
-    config.include_geometry    = false;
-    config.pretty_print        = true;
+    config.include_geometry = false;
+    config.pretty_print = true;
 
     lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
@@ -80,12 +80,9 @@ static void test_export_html(void) {
     TEST_ASSERT(result->output_size > 0, "HTML output should not be empty");
 
     /* Check for expected HTML elements */
-    TEST_ASSERT(strstr(result->output, "<!DOCTYPE html>") != NULL,
-                "HTML should contain DOCTYPE");
-    TEST_ASSERT(strstr(result->output, "<html") != NULL,
-                "HTML should contain html tag");
-    TEST_ASSERT(strstr(result->output, "Modus Ponens") != NULL,
-                "HTML should contain theorem name");
+    TEST_ASSERT(strstr(result->output, "<!DOCTYPE html>") != NULL, "HTML should contain DOCTYPE");
+    TEST_ASSERT(strstr(result->output, "<html") != NULL, "HTML should contain html tag");
+    TEST_ASSERT(strstr(result->output, "Modus Ponens") != NULL, "HTML should contain theorem name");
 
     proof_export_result_destroy(result);
 }
@@ -98,22 +95,19 @@ static void test_export_latex(void) {
     lvProof proof = create_test_proof();
 
     lvExportConfig config;
-    config.format              = EXPORT_LATEX;
+    config.format = EXPORT_LATEX;
     config.include_proof_trace = false;
-    config.include_geometry    = false;
-    config.pretty_print        = true;
+    config.include_geometry = false;
+    config.pretty_print = true;
 
     lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "LaTeX export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
 
-    TEST_ASSERT(strstr(result->output, "\\documentclass") != NULL,
-                "LaTeX should contain documentclass");
-    TEST_ASSERT(strstr(result->output, "\\begin{proof}") != NULL,
-                "LaTeX should contain proof environment");
-    TEST_ASSERT(strstr(result->output, "\\end{document}") != NULL,
-                "LaTeX should end document");
+    TEST_ASSERT(strstr(result->output, "\\documentclass") != NULL, "LaTeX should contain documentclass");
+    TEST_ASSERT(strstr(result->output, "\\begin{proof}") != NULL, "LaTeX should contain proof environment");
+    TEST_ASSERT(strstr(result->output, "\\end{document}") != NULL, "LaTeX should end document");
 
     proof_export_result_destroy(result);
 }
@@ -126,20 +120,18 @@ static void test_export_coq(void) {
     lvProof proof = create_test_proof();
 
     lvExportConfig config;
-    config.format              = EXPORT_COQ;
+    config.format = EXPORT_COQ;
     config.include_proof_trace = false;
-    config.include_geometry    = false;
-    config.pretty_print        = true;
+    config.include_geometry = false;
+    config.pretty_print = true;
 
     lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "Coq export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
 
-    TEST_ASSERT(strstr(result->output, "Theorem") != NULL,
-                "Coq should contain Theorem");
-    TEST_ASSERT(strstr(result->output, "Qed.") != NULL,
-                "Coq should contain Qed");
+    TEST_ASSERT(strstr(result->output, "Theorem") != NULL, "Coq should contain Theorem");
+    TEST_ASSERT(strstr(result->output, "Qed.") != NULL, "Coq should contain Qed");
 
     proof_export_result_destroy(result);
 }
@@ -152,20 +144,18 @@ static void test_export_lean4(void) {
     lvProof proof = create_test_proof();
 
     lvExportConfig config;
-    config.format              = EXPORT_LEAN4;
+    config.format = EXPORT_LEAN4;
     config.include_proof_trace = false;
-    config.include_geometry    = false;
-    config.pretty_print        = true;
+    config.include_geometry = false;
+    config.pretty_print = true;
 
     lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "Lean 4 export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
 
-    TEST_ASSERT(strstr(result->output, "theorem") != NULL,
-                "Lean 4 should contain theorem");
-    TEST_ASSERT(strstr(result->output, "Mathlib") != NULL,
-                "Lean 4 should import Mathlib");
+    TEST_ASSERT(strstr(result->output, "theorem") != NULL, "Lean 4 should contain theorem");
+    TEST_ASSERT(strstr(result->output, "Mathlib") != NULL, "Lean 4 should import Mathlib");
 
     proof_export_result_destroy(result);
 }
@@ -178,26 +168,21 @@ static void test_export_json(void) {
     lvProof proof = create_test_proof();
 
     lvExportConfig config;
-    config.format              = EXPORT_JSON;
+    config.format = EXPORT_JSON;
     config.include_proof_trace = true;
-    config.include_geometry    = false;
-    config.pretty_print        = true;
+    config.include_geometry = false;
+    config.pretty_print = true;
 
     lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "JSON export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
 
-    TEST_ASSERT(strstr(result->output, "\"theorem\"") != NULL,
-                "JSON should contain theorem field");
-    TEST_ASSERT(strstr(result->output, "\"steps\"") != NULL,
-                "JSON should contain steps field");
-    TEST_ASSERT(strstr(result->output, "\"id\"") != NULL,
-                "JSON should contain id field");
-    TEST_ASSERT(strstr(result->output, "\"rule\"") != NULL,
-                "JSON should contain rule field");
-    TEST_ASSERT(strstr(result->output, "Modus Ponens") != NULL,
-                "JSON should contain theorem name");
+    TEST_ASSERT(strstr(result->output, "\"theorem\"") != NULL, "JSON should contain theorem field");
+    TEST_ASSERT(strstr(result->output, "\"steps\"") != NULL, "JSON should contain steps field");
+    TEST_ASSERT(strstr(result->output, "\"id\"") != NULL, "JSON should contain id field");
+    TEST_ASSERT(strstr(result->output, "\"rule\"") != NULL, "JSON should contain rule field");
+    TEST_ASSERT(strstr(result->output, "Modus Ponens") != NULL, "JSON should contain theorem name");
 
     proof_export_result_destroy(result);
 }
@@ -210,22 +195,19 @@ static void test_export_dot(void) {
     lvProof proof = create_test_proof();
 
     lvExportConfig config;
-    config.format              = EXPORT_DOT;
+    config.format = EXPORT_DOT;
     config.include_proof_trace = false;
-    config.include_geometry    = false;
-    config.pretty_print        = true;
+    config.include_geometry = false;
+    config.pretty_print = true;
 
     lvExportResult *result = proof_export_enhanced(&proof, &config);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "DOT export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
 
-    TEST_ASSERT(strstr(result->output, "digraph Proof") != NULL,
-                "DOT should contain digraph declaration");
-    TEST_ASSERT(strstr(result->output, "step1") != NULL,
-                "DOT should contain step1 node");
-    TEST_ASSERT(strstr(result->output, "->") != NULL,
-                "DOT should contain edges");
+    TEST_ASSERT(strstr(result->output, "digraph Proof") != NULL, "DOT should contain digraph declaration");
+    TEST_ASSERT(strstr(result->output, "step1") != NULL, "DOT should contain step1 node");
+    TEST_ASSERT(strstr(result->output, "->") != NULL, "DOT should contain edges");
 
     proof_export_result_destroy(result);
 }
@@ -239,8 +221,7 @@ static void test_export_from_navigator(void) {
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "Navigator export should succeed");
     TEST_ASSERT_NOT_NULL(result->output);
-    TEST_ASSERT(strstr(result->output, "Test Theorem") != NULL,
-                "Navigator export should contain theorem name");
+    TEST_ASSERT(strstr(result->output, "Test Theorem") != NULL, "Navigator export should contain theorem name");
 
     proof_export_result_destroy(result);
 
@@ -248,8 +229,7 @@ static void test_export_from_navigator(void) {
     result = proof_export_from_navigator("Another Theorem", EXPORT_JSON);
     TEST_ASSERT_NOT_NULL(result);
     TEST_ASSERT(result->success, "Navigator JSON export should succeed");
-    TEST_ASSERT(strstr(result->output, "Another Theorem") != NULL,
-                "Navigator JSON export should contain theorem name");
+    TEST_ASSERT(strstr(result->output, "Another Theorem") != NULL, "Navigator JSON export should contain theorem name");
 
     proof_export_result_destroy(result);
 }
@@ -262,10 +242,10 @@ static void test_export_null_safety(void) {
     lvProof proof = create_test_proof();
 
     lvExportConfig config;
-    config.format              = EXPORT_HTML;
+    config.format = EXPORT_HTML;
     config.include_proof_trace = false;
-    config.include_geometry    = false;
-    config.pretty_print        = true;
+    config.include_geometry = false;
+    config.pretty_print = true;
 
     /* NULL proof */
     lvExportResult *result = proof_export_enhanced(NULL, &config);

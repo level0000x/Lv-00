@@ -1,17 +1,27 @@
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
-#include "lv/lv_lexer.h"
+#include <string.h>
+
 #include "lv/lv_ast.h"
+#include "lv/lv_lexer.h"
+#include "lv/lv_loader.h"
 #include "lv/lv_parser.h"
 #include "lv/lv_sema.h"
-#include "lv/lv_loader.h"
-#include "lv.h"
+
 #include "engine.h"
+#include "lv.h"
 
 #define TEST(n) printf("  [TEST] %s ... ", n)
-#define PASS() do { printf("PASS\n"); P++; } while(0)
-#define FAIL(m) do { printf("FAIL: %s\n", m); F++; } while(0)
+#define PASS()            \
+    do {                  \
+        printf("PASS\n"); \
+        P++;              \
+    } while (0)
+#define FAIL(m)                  \
+    do {                         \
+        printf("FAIL: %s\n", m); \
+        F++;                     \
+    } while (0)
 
 static int P = 0, F = 0;
 
@@ -48,7 +58,8 @@ static void test_parse_full_program(void) {
     if (res.ast) {
         TEST("AST 结构：3 条语句");
         int count = 0;
-        for (LvAstNode *s = res.ast->child; s; s = s->next) count++;
+        for (LvAstNode *s = res.ast->child; s; s = s->next)
+            count++;
         if (count == 3) {
             PASS();
         } else {
@@ -58,8 +69,7 @@ static void test_parse_full_program(void) {
 
         TEST("第一条语句是 Declaration(Point)");
         LvAstNode *first = res.ast->child;
-        if (first && first->type == LV_AST_DECLARATION &&
-            first->data.decl.entity_type == LV_ENTITY_POINT) {
+        if (first && first->type == LV_AST_DECLARATION && first->data.decl.entity_type == LV_ENTITY_POINT) {
             PASS();
         } else {
             FAIL("期望 Declaration(Point)");
@@ -69,8 +79,7 @@ static void test_parse_full_program(void) {
         LvAstNode *second = first ? first->next : NULL;
         if (second && second->type == LV_AST_CONSTRAINT_STMT) {
             LvAstNode *expr = second->data.stmt.expr;
-            if (expr && expr->type == LV_AST_RELATION &&
-                strcmp(expr->data.call.func_name, "collinear") == 0) {
+            if (expr && expr->type == LV_AST_RELATION && strcmp(expr->data.call.func_name, "collinear") == 0) {
                 PASS();
             } else {
                 FAIL("期望 RELATION(collinear)");
@@ -239,7 +248,7 @@ static void test_engine_apply(void) {
         if (st == ENGINE_STATUS_OK || st == ENGINE_STATUS_INVALID_STATE) {
             PASS();
         } else {
-            printf("  status=%d\n", (int)st);
+            printf("  status=%d\n", (int) st);
             FAIL("引擎状态异常");
         }
 
@@ -345,9 +354,12 @@ static void test_full_pipeline(void) {
         }
     }
 
-    if (sema) lv_sema_destroy(sema);
-    if (res.ast) lv_ast_destroy(res.ast);
-    if (engine) engine_destroy(engine);
+    if (sema)
+        lv_sema_destroy(sema);
+    if (res.ast)
+        lv_ast_destroy(res.ast);
+    if (engine)
+        engine_destroy(engine);
 }
 
 int main(void) {

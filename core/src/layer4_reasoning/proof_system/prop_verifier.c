@@ -1886,7 +1886,8 @@ BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int
             if (result.missing_descriptions) {
                 char desc[256];
                 snprintf(desc, sizeof(desc),
-                         "�޷�ͨ������ǰ�����Ϲ���Ŀ�꣨�����������������"
+                         "�޷�ͨ������ǰ�����Ϲ���Ŀ�꣨����������������"
+                         "�"
                          "�");
                 result.missing_descriptions[0] = lv_strdup_safe(desc); /* �����ַ��� */
             }

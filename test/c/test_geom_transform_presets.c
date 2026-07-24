@@ -29,8 +29,8 @@
  * ============================================================ */
 int64_t preset_translate(lvEngine *ctx, int64_t obj_id, int64_t dx, int64_t dy);
 int64_t preset_scale(lvEngine *ctx, int64_t obj_id, int64_t sx, int64_t sy, int64_t denom);
-int64_t preset_affine(lvEngine *ctx, int64_t obj_id, int64_t a11, int64_t a12, int64_t a21, int64_t a22,
-                      int64_t tx, int64_t ty, int64_t denom);
+int64_t preset_affine(lvEngine *ctx, int64_t obj_id, int64_t a11, int64_t a12, int64_t a21, int64_t a22, int64_t tx,
+                      int64_t ty, int64_t denom);
 int64_t preset_reflect_point(lvEngine *ctx, int64_t obj_id, int64_t center_id);
 int64_t preset_identity_transform(lvEngine *ctx);
 int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t ratio_num, int64_t ratio_den);
@@ -46,8 +46,16 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
 static int g_pass = 0, g_fail = 0;
 
 #define TEST(n) printf("  [TEST] %s ... ", n)
-#define PASS()  do { printf("PASS\n"); g_pass++; } while (0)
-#define FAIL(m) do { printf("FAIL: %s\n", m); g_fail++; } while (0)
+#define PASS()            \
+    do {                  \
+        printf("PASS\n"); \
+        g_pass++;         \
+    } while (0)
+#define FAIL(m)                  \
+    do {                         \
+        printf("FAIL: %s\n", m); \
+        g_fail++;                \
+    } while (0)
 
 /* ============================================================
  * 测试 1: preset_translate —— 平移变换
@@ -57,10 +65,17 @@ static int g_pass = 0, g_fail = 0;
  * ============================================================ */
 static void test_preset_translate(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 0, 0);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     int64_t result = preset_translate(engine, (int64_t) p0, 3, 4);
     if (result <= 0) {
@@ -82,10 +97,17 @@ static void test_preset_translate(void) {
  * ============================================================ */
 static void test_preset_scale(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 2, 3);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     int64_t result = preset_scale(engine, (int64_t) p0, 3, 2, 1);
     if (result > 0) {
@@ -108,10 +130,17 @@ static void test_preset_scale(void) {
  * ============================================================ */
 static void test_preset_affine(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 1, 0);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     int64_t result = preset_affine(engine, (int64_t) p0, 0, -1, 1, 0, 0, 0, 1);
     if (result > 0) {
@@ -131,12 +160,23 @@ static void test_preset_affine(void) {
  * ============================================================ */
 static void test_preset_reflect_point(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 2, 2);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
     int center = lv_add_point_i(engine, 0, 0);
-    if (center < 0) { FAIL("添加中心点失败"); lv_engine_destroy(engine); return; }
+    if (center < 0) {
+        FAIL("添加中心点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     int64_t result = preset_reflect_point(engine, (int64_t) p0, (int64_t) center);
     if (result > 0) {
@@ -156,7 +196,10 @@ static void test_preset_reflect_point(void) {
  * ============================================================ */
 static void test_preset_identity(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int64_t result = preset_identity_transform(engine);
     if (result > 0) {
@@ -176,12 +219,23 @@ static void test_preset_identity(void) {
  * ============================================================ */
 static void test_preset_dilate(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 3, 4);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
     int center = lv_add_point_i(engine, 0, 0);
-    if (center < 0) { FAIL("添加中心点失败"); lv_engine_destroy(engine); return; }
+    if (center < 0) {
+        FAIL("添加中心点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     int64_t result = preset_dilate(engine, (int64_t) p0, (int64_t) center, 2, 1);
     if (result > 0) {
@@ -201,12 +255,23 @@ static void test_preset_dilate(void) {
  * ============================================================ */
 static void test_preset_rotation_about(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 1, 0);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
     int center = lv_add_point_i(engine, 0, 0);
-    if (center < 0) { FAIL("添加中心点失败"); lv_engine_destroy(engine); return; }
+    if (center < 0) {
+        FAIL("添加中心点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     /* 90度 = pi/2 rad ≈ 1570796 mrad（毫弧度） */
     int64_t result = preset_rotation_about(engine, (int64_t) p0, (int64_t) center, 1570796);
@@ -227,10 +292,17 @@ static void test_preset_rotation_about(void) {
  * ============================================================ */
 static void test_preset_rotate(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 1, 0);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     int64_t result = preset_rotate(engine, (int64_t) p0, 1570796);
     if (result > 0) {
@@ -250,10 +322,17 @@ static void test_preset_rotate(void) {
  * ============================================================ */
 static void test_preset_shear_x(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 2, 3);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     int64_t result = preset_shear_x(engine, (int64_t) p0, 2, 1);
     if (result > 0) {
@@ -273,10 +352,17 @@ static void test_preset_shear_x(void) {
  * ============================================================ */
 static void test_preset_shear_y(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 2, 3);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     int64_t result = preset_shear_y(engine, (int64_t) p0, 2, 1);
     if (result > 0) {
@@ -296,19 +382,36 @@ static void test_preset_shear_y(void) {
  * ============================================================ */
 static void test_preset_glide_reflect(void) {
     lvEngine *engine = lv_engine_create();
-    if (!engine) { FAIL("引擎创建失败"); return; }
+    if (!engine) {
+        FAIL("引擎创建失败");
+        return;
+    }
 
     int p0 = lv_add_point_i(engine, 1, 0);
-    if (p0 < 0) { FAIL("添加点失败"); lv_engine_destroy(engine); return; }
+    if (p0 < 0) {
+        FAIL("添加点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     /* 创建一条线段（作为反射轴） */
     int l0 = lv_add_point_i(engine, 0, 0);
-    if (l0 < 0) { FAIL("添加线段端点失败"); lv_engine_destroy(engine); return; }
+    if (l0 < 0) {
+        FAIL("添加线段端点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
     int l1 = lv_add_point_i(engine, 1, 1);
-    if (l1 < 0) { FAIL("添加线段端点失败"); lv_engine_destroy(engine); return; }
+    if (l1 < 0) {
+        FAIL("添加线段端点失败");
+        lv_engine_destroy(engine);
+        return;
+    }
 
     if (lv_add_line_segment(engine, l0, l1) < 0) {
-        FAIL("添加线段失败"); lv_engine_destroy(engine); return;
+        FAIL("添加线段失败");
+        lv_engine_destroy(engine);
+        return;
     }
 
     int64_t result = preset_glide_reflect(engine, (int64_t) p0, (int64_t) l0, 2, 3);
