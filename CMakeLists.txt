@@ -1581,6 +1581,42 @@ if(BUILD_TESTS)
     add_lv_test_and_register(test_axiom_cartesian_closed_category
         test/c/test_axiom_cartesian_closed_category.c cartesian_closed_category_axiom_test)
 
+    # === New tests: Layer 3 geometry core ===
+    add_lv_test_and_register(test_symbolic_coord_ops
+        test/c/test_symbolic_coord_ops.c symbolic_coord_ops_test)
+    add_lv_test_and_register(test_geometry_core
+        test/c/test_geometry_core.c geometry_core_test)
+
+    # === New tests: Layer 4 backends ===
+    add_lv_test_and_register(test_smt_backend
+        test/c/test_smt_backend.c smt_backend_test)
+    add_lv_test_and_register(test_bdd_sat_atp
+        test/c/test_bdd_sat_atp.c bdd_sat_atp_test)
+
+    # === New tests: Layer 4 solver submodules ===
+    add_lv_test_and_register(test_solver_submodules
+        test/c/test_solver_submodules.c solver_submodules_test)
+
+    # === New tests: Layer 4 misc (mini_kernel / relation_model / algebra_mode / rewrite) ===
+    add_lv_test_and_register(test_layer4_misc
+        test/c/test_layer4_misc.c layer4_misc_test)
+
+    # === New tests: Layer 5 output (magic / plugin / tikz / proof_compiler / protocol) ===
+    add_lv_test_and_register(test_layer5_output
+        test/c/test_layer5_output.c layer5_output_test)
+    add_lv_test_and_register(test_layer5_core
+        test/c/test_layer5_core.c layer5_core_test)
+    add_lv_test_and_register(test_output_export
+        test/c/test_output_export.c output_export_test)
+
+    # === New tests: Layer 6 visual (canvas / scheduler / type / converter) ===
+    add_lv_test_and_register(test_layer6_visual
+        test/c/test_layer6_visual.c layer6_visual_test)
+
+    # === New tests: Proof infrastructure (command_log / proof_navigator / dependency) ===
+    add_lv_test_and_register(test_proof_infra
+        test/c/test_proof_infra.c proof_infra_test)
+
     # 基准测试（构建但不注册到 CTest，手动运行）
     add_lv_test(test_benchmark test/c/test_benchmark.c)
 endif()
