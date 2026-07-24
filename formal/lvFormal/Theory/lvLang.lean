@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 源语言 (.lv) 的语法与操作语义
 
 本模块定义 .lv 文件的完整形式化描述，包含：
@@ -150,7 +150,11 @@ theorem empty_state_no_errors : no_errors initialState := by
   rfl
 
 /-- 空状态可满足：空约束系统在任何域上都可满足 -/
--- [数学基础公理] 依赖 satisfiable 的语义定义，空约束系统平凡可满足
+-- [数学基础公理] satisfiable 是 lv 语言的元级语义概念（需要模型论定义），
+-- 因此 empty_satisfiable 被保留为 axiom。如果未来 satisfiable 被赋予具体的
+-- 计算定义（例如 satisfiable s := s.errors = []），则可将其改为定理直接证明：
+--   theorem empty_satisfiable : satisfiable initialState := by
+--     unfold satisfiable; rfl
 axiom empty_satisfiable : satisfiable initialState
 
 /-- 求值 point 语句将变量名加入状态 -/

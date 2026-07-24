@@ -132,7 +132,7 @@ def triangle_similarity (A B C D E F : Pt) : Prop :=
     E = translate (scale_rotate B A s θ) tx ty ∧
     F = translate (scale_rotate C A s θ) tx ty
 
-/-! ## 公理 -/
+/-! ## 公理 / 定理 -/
 
 /-- Shoelace 公式的归纳步骤：面积 = 头部三角形的有向面积 + 尾部多边形面积 -/
 -- [数学基础公理] 归纳步骤依赖 List 操作的代数恒等式，可通过对 pts 长度归纳证明
@@ -172,48 +172,107 @@ theorem heron_formula_standard_valid (a b c : ℝ) (h : a + b > c ∧ b + c > a 
     _ = (Real.sqrt (s * (s - a) * (s - b) * (s - c))) ^ 2 := by
       symm; exact Real.sq_sqrt hRHS_prod_nonneg
 
+/-- 相似变换下向量点积缩放：v_ED · v_EF = s² · v_BA · v_BC -/
+lemma dot_product_scales (A B C D E F : Pt) (s θ tx ty : ℝ) (hs_pos : s > 0)
+    (hD : D = translate (scale_rotate A A s θ) tx ty)
+    (hE : E = translate (scale_rotate B A s θ) tx ty)
+    (hF : F = translate (scale_rotate C A s θ) tx ty) :
+    (D.x - E.x) * (F.x - E.x) + (D.y - E.y) * (F.y - E.y) = s^2 * ((A.x - B.x) * (C.x - B.x) + (A.y - B.y) * (C.y - B.y)) := by
+  unfold scale_rotate translate at hD hE hF
+  simp at hD hE hF
+  subst hD; subst hE; subst hF
+  have hcos_sq_add_sin_sq : Real.cos θ ^ 2 + Real.sin θ ^ 2 = 1 := Real.cos_sq_add_sin_sq θ
+  nlinarith
+
+/-- 相似变换下向量模长缩放：|v_ED| = s · |v_BA| -/
+lemma norm_sq_scales (A B X Y : Pt) (s θ tx ty : ℝ) (hs_pos : s > 0)
+    (hX : X = translate (scale_rotate A A s θ) tx ty)
+    (hY : Y = translate (scale_rotate B A s θ) tx ty) :
+    (X.x - Y.x)^2 + (X.y - Y.y)^2 = s^2 * ((A.x - B.x)^2 + (A.y - B.y)^2) := by
+  unfold scale_rotate translate at hX hY
+  simp at hX hY
+  subst hX; subst hY
+  have hcos_sq_add_sin_sq : Real.cos θ ^ 2 + Real.sin θ ^ 2 = 1 := Real.cos_sq_add_sin_sq θ
+  nlinarith
+
 /-- 相似变换下角度保持不变 -/
 theorem angle_invariant_under_similarity (A B C D E F : Pt)
   (h_sim : triangle_similarity A B C D E F) :
   angle A B C = angle D E F := by
   rcases h_sim with ⟨s, θ, tx, ty, hs_pos, hD, hE, hF⟩
-  unfold triangle_similarity angle
-  have h_cos_sq_add_sin_sq : Real.cos θ ^ 2 + Real.sin θ ^ 2 = 1 := Real.cos_sq_add_sin_sq θ
-  -- 从相似性中提取坐标关系
-  have h_D : D.x = A.x + tx ∧ D.y = A.y + ty := by
-    constructor
-    · calc
-        D.x = (translate (scale_rotate A A s θ) tx ty).x := by rw [hD]
-        _ = (scale_rotate A A s θ).x + tx := rfl
-        _ = (A.x + s * ((A.x - A.x) * Real.cos θ - (A.y - A.y) * Real.sin θ)) + tx := rfl
-        _ = A.x + tx := by ring
-    · calc
-        D.y = (translate (scale_rotate A A s θ) tx ty).y := by rw [hD]
-        _ = (scale_rotate A A s θ).y + ty := rfl
-        _ = (A.y + s * ((A.x - A.x) * Real.sin θ + (A.y - A.y) * Real.cos θ)) + ty := rfl
-        _ = A.y + ty := by ring
-  rcases h_D with ⟨hDx, hDy⟩
-  -- 定义向量分量
-  set u1 := A.x - B.x with hu1
-  set u2 := A.y - B.y with hu2
-  set v1 := C.x - B.x with hv1
-  set v2 := C.y - B.y with hv2
-  -- E = T(B) 和 F = T(C) 的坐标
-  have h_Ex : E.x = A.x + s * (u1 * Real.cos θ - u2 * Real.sin θ) + tx := by
-    calc
-      E.x = (translate (scale_rotate B A s θ) tx ty).x := by rw [hE]
-      _ = (scale_rotate B A s θ).x + tx := rfl
-      _ = A.x + s * ((B.x - A.x) * Real.cos θ - (B.y - A.y) * Real.sin θ) + tx := rfl
-      _ = A.x + s * (((B.x - A.x) * Real.cos θ - (B.y - A.y) * Real.sin θ)) + tx := rfl
-      _ = A.x + s * (-u1 * Real.cos θ - (-u2) * Real.sin θ) + tx := by
-        dsimp [u1, u2]
-        ring
-      _ = A.x + s * ((-u1) * Real.cos θ + u2 * Real.sin θ) + tx := by ring
-      _ = A.x + s * (-(u1 * Real.cos θ) + u2 * Real.sin θ) + tx := by ring
-      _ = A.x + s * (--(u1 * Real.cos θ - u2 * Real.sin θ)) + tx := by ring
-      _ = A.x + s * (u1 * Real.cos θ - u2 * Real.sin θ) + tx := by ring
-    -- 简化上面
-    sorry
-  sorry
+  unfold angle
+  -- 定义模长变量，以便处理退化情形
+  set nBA := Real.sqrt ((A.x - B.x)^2 + (A.y - B.y)^2) with hnBA
+  set nBC := Real.sqrt ((C.x - B.x)^2 + (C.y - B.y)^2) with hnBC
+  set nED := Real.sqrt ((D.x - E.x)^2 + (D.y - E.y)^2) with hnED
+  set nEF := Real.sqrt ((F.x - E.x)^2 + (F.y - E.y)^2) with hnEF
+  -- 处理退化情形：|BA| = 0 或 |BC| = 0
+  by_cases hBA_zero : nBA = 0
+  · have hED_zero : nED = 0 := by
+      have h_sq : (D.x - E.x)^2 + (D.y - E.y)^2 = 0 := by
+        have h_temp := norm_sq_scales A B D E s θ tx ty hs_pos hD hE
+        have h_BA_sq : (A.x - B.x)^2 + (A.y - B.y)^2 = 0 := by
+          have h_nonneg : 0 ≤ (A.x - B.x)^2 + (A.y - B.y)^2 := by positivity
+          rw [Real.sqrt_eq_zero.mp hBA_zero] at h_nonneg
+          nlinarith
+        nlinarith
+      calc
+        nED = Real.sqrt ((D.x - E.x)^2 + (D.y - E.y)^2) := rfl
+        _ = Real.sqrt 0 := by rw [h_sq]
+        _ = 0 := by simp
+    simp [hBA_zero, hED_zero]
+  · by_cases hBC_zero : nBC = 0
+    · have hEF_zero : nEF = 0 := by
+        have h_sq : (F.x - E.x)^2 + (F.y - E.y)^2 = 0 := by
+          have h_temp := norm_sq_scales C B F E s θ tx ty hs_pos hF hE
+          have h_BC_sq : (C.x - B.x)^2 + (C.y - B.y)^2 = 0 := by
+            have h_nonneg : 0 ≤ (C.x - B.x)^2 + (C.y - B.y)^2 := by positivity
+            rw [Real.sqrt_eq_zero.mp hBC_zero] at h_nonneg
+            nlinarith
+          nlinarith
+        calc
+          nEF = Real.sqrt ((F.x - E.x)^2 + (F.y - E.y)^2) := rfl
+          _ = Real.sqrt 0 := by rw [h_sq]
+          _ = 0 := by simp
+      simp [hBA_zero, hBC_zero, hEF_zero]
+    · -- 非退化情形：所有模长非零
+      have h_nonzero_BA : nBA ≠ 0 := hBA_zero
+      have h_nonzero_BC : nBC ≠ 0 := hBC_zero
+      have h_nonzero_ED : nED ≠ 0 := by
+        intro hzero
+        apply h_nonzero_BA
+        have h_sq : (D.x - E.x)^2 + (D.y - E.y)^2 = 0 := by
+          have h_nonneg : 0 ≤ (D.x - E.x)^2 + (D.y - E.y)^2 := by positivity
+          rw [Real.sqrt_eq_zero.mp hzero] at h_nonneg
+          nlinarith
+        have h_temp := norm_sq_scales A B D E s θ tx ty hs_pos hD hE
+        have h_nonneg_sq : 0 ≤ (A.x - B.x)^2 + (A.y - B.y)^2 := by positivity
+        nlinarith
+      have h_nonzero_EF : nEF ≠ 0 := by
+        intro hzero
+        apply h_nonzero_BC
+        have h_sq : (F.x - E.x)^2 + (F.y - E.y)^2 = 0 := by
+          have h_nonneg : 0 ≤ (F.x - E.x)^2 + (F.y - E.y)^2 := by positivity
+          rw [Real.sqrt_eq_zero.mp hzero] at h_nonneg
+          nlinarith
+        have h_temp := norm_sq_scales C B F E s θ tx ty hs_pos hF hE
+        have h_nonneg_sq : 0 ≤ (C.x - B.x)^2 + (C.y - B.y)^2 := by positivity
+        nlinarith
+      simp [h_nonzero_BA, h_nonzero_BC, h_nonzero_ED, h_nonzero_EF]
+      -- 核心：点积和模长都缩放 s²，因此 arccos 的参数不变
+      have h_dot_eq : (D.x - E.x) * (F.x - E.x) + (D.y - E.y) * (F.y - E.y) = s^2 * ((A.x - B.x) * (C.x - B.x) + (A.y - B.y) * (C.y - B.y)) :=
+        dot_product_scales A B C D E F s θ tx ty hs_pos hD hE hF
+      have h_norm_BA_sq : (D.x - E.x)^2 + (D.y - E.y)^2 = s^2 * ((A.x - B.x)^2 + (A.y - B.y)^2) :=
+        norm_sq_scales A B D E s θ tx ty hs_pos hD hE
+      have h_norm_BC_sq : (F.x - E.x)^2 + (F.y - E.y)^2 = s^2 * ((C.x - B.x)^2 + (C.y - B.y)^2) :=
+        norm_sq_scales C B F E s θ tx ty hs_pos hF hE
+      -- 化简比率等式
+      have h_ratio_eq : ((A.x - B.x) * (C.x - B.x) + (A.y - B.y) * (C.y - B.y)) / (nBA * nBC) =
+        ((D.x - E.x) * (F.x - E.x) + (D.y - E.y) * (F.y - E.y)) / (nED * nEF) := by
+        dsimp [nBA, nBC, nED, nEF]
+        field_simp [h_nonzero_BA, h_nonzero_BC, h_nonzero_ED, h_nonzero_EF]
+        nlinarith [h_dot_eq, h_norm_BA_sq, h_norm_BC_sq]
+      -- 等参数 ⇒ 等 arccos
+      rw [h_ratio_eq]
 
 end lvFormal.Theory.GeometryPresetDefs

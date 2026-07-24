@@ -99,7 +99,7 @@ static void test_mini_kernel_add_statements(void) {
     int bad = mini_kernel_add_var(NULL, "x", "set");
     TEST_ASSERT_EQ(bad, -1);
     bad = mini_kernel_add_var(kernel, NULL, "set");
-    TEST_ASSERT_EQ(bad, -1, "NULL标签应失败");
+    TEST_ASSERT_EQ(bad, -1);
     bad = mini_kernel_add_var(kernel, "x", NULL);
     TEST_ASSERT_EQ(bad, -1, "NULL类型公式应失败");
 
@@ -144,7 +144,7 @@ static void test_mini_kernel_check_substitution(void) {
     /* 空替换应通过 */
     char *result = NULL;
     MiniVerifyResult vr = mini_kernel_check_substitution(kernel, NULL, 0, "x = y", &result);
-    TEST_ASSERT_EQ(vr, MINI_VERIFY_OK, "空替换应通过");
+    TEST_ASSERT_EQ(vr, MINI_VERIFY_OK);
     if (result) {
         TEST_ASSERT_STR_EQ(result, "x = y");
         lv_free((void **) &result);
@@ -187,11 +187,11 @@ static void test_mini_kernel_check_substitution(void) {
     vr = mini_kernel_check_substitution(NULL, subs, 1, "x", &result);
     TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_MEMORY, "NULL内核应返回MEMORY错误");
     vr = mini_kernel_check_substitution(kernel, subs, 1, NULL, &result);
-    TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_UNBOUND_VAR, "NULL公式应返回UNBOUND_VAR");
+    TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_UNBOUND_VAR);
     vr = mini_kernel_check_substitution(kernel, NULL, 1, "x", &result);
     TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_SUBSTITUTION, "NULL替换且subst_count>0应失败");
     vr = mini_kernel_check_substitution(kernel, subs, -1, "x", &result);
-    TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_SUBSTITUTION, "负替换数应失败");
+    TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_SUBSTITUTION);
 
     mini_kernel_destroy(kernel);
 }
@@ -220,7 +220,7 @@ static void test_mini_kernel_prove_theorem(void) {
 
     /* 无效索引 */
     vr = mini_kernel_prove_theorem(kernel, -1);
-    TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_MEMORY, "负索引应失败");
+    TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_MEMORY);
 
     vr = mini_kernel_prove_theorem(kernel, 999);
     TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_MEMORY);
@@ -249,7 +249,7 @@ static void test_mini_kernel_verify_all(void) {
 
     /* NULL输出参数 */
     vr = mini_kernel_verify_all(kernel, NULL, NULL);
-    TEST_ASSERT_EQ(vr, MINI_VERIFY_OK, "NULL输出参数也可用");
+    TEST_ASSERT_EQ(vr, MINI_VERIFY_OK);
 
     vr = mini_kernel_verify_all(NULL, &passed, &failed);
     TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_MEMORY);
@@ -432,7 +432,7 @@ static void test_rel_set_operations(void) {
 
     /* 交集 */
     Relation *i = rel_intersection(a, b);
-    TEST_ASSERT_NOT_NULL(i, "交集应成功");
+    TEST_ASSERT_NOT_NULL(i);
     TEST_ASSERT(i->tuple_count >= 1, "交集应有至少1个元组");
     rel_destroy(i);
 
@@ -478,7 +478,7 @@ static void test_rel_join_product_transpose(void) {
     /* 转置 */
     Relation *tr = rel_transpose(r1);
     TEST_ASSERT_NOT_NULL(tr);
-    TEST_ASSERT_EQ(tr->arity, 2, "转置后元数应为2");
+    TEST_ASSERT_EQ(tr->arity, 2);
     rel_destroy(tr);
 
     /* 非二元关系转置应失败 */
@@ -507,7 +507,7 @@ static void test_rel_closure(void) {
 
     /* 传递闭包 */
     Relation *tc = rel_transitive_closure(r);
-    TEST_ASSERT_NOT_NULL(tc, "传递闭包应成功");
+    TEST_ASSERT_NOT_NULL(tc);
     TEST_ASSERT(tc->tuple_count >= 3, "传递闭包应有至少3个元组");
     rel_destroy(tc);
 
@@ -543,7 +543,7 @@ static void test_relation_model_from_graph(void) {
 
     /* 从图构建关系模型 */
     RelModel *model = relation_model_from_graph(graph);
-    TEST_ASSERT_NOT_NULL(model, "构建关系模型应成功");
+    TEST_ASSERT_NOT_NULL(model);
     TEST_ASSERT(model->sig_count > 0, "应有签名");
     TEST_ASSERT_NOT_NULL(model->sigs);
 
@@ -603,7 +603,7 @@ static void test_relation_model_satisfiability(void) {
 
     /* 实例查找 */
     RelInstance *inst = relation_find_instance(model, &scope, false);
-    TEST_ASSERT_NOT_NULL(inst, "实例查找应成功");
+    TEST_ASSERT_NOT_NULL(inst);
     TEST_ASSERT(inst->atom_count >= 0, "原子数应>=0");
     relation_instance_destroy(inst);
 
@@ -617,8 +617,8 @@ static void test_relation_model_satisfiability(void) {
     sat = relation_check_satisfiability(model, NULL);
     TEST_ASSERT(!sat, "NULL范围应为false");
 
-    TEST_ASSERT_NULL(relation_find_instance(NULL, &scope, false), "NULL模型实例应为NULL");
-    TEST_ASSERT_NULL(relation_find_instance(model, NULL, false), "NULL范围实例应为NULL");
+    TEST_ASSERT_NULL(relation_find_instance(NULL, &scope, false));
+    TEST_ASSERT_NULL(relation_find_instance(model, NULL, false));
 
     relation_instance_destroy(NULL);
     relation_model_destroy(model);
@@ -637,7 +637,7 @@ static void test_algebra_create_destroy(void) {
     TEST_ASSERT(geom->id > 0, "ID应为正数");
 
     AlgebraicGeom *geom2 = algebra_create(PLANE_XZ, NULL);
-    TEST_ASSERT_NOT_NULL(geom2, "NULL名称也应创建成功");
+    TEST_ASSERT_NOT_NULL(geom2);
     TEST_ASSERT_EQ(geom2->plane, (int) PLANE_XZ, "平面应为XZ");
 
     algebra_destroy(geom);
@@ -651,17 +651,17 @@ static void test_algebra_point_construction(void) {
     TEST_ASSERT_NOT_NULL(geom);
 
     AlgebraicGeom *g = algebra_point(geom, 10.0, 20.0, 0.0);
-    TEST_ASSERT_NOT_NULL(g, "创建点应返回geom");
+    TEST_ASSERT_NOT_NULL(g);
     TEST_ASSERT(algebra_get_current_entity(geom) >= 0, "应有当前实体ID");
 
     g = algebra_point_on(geom, 0);
-    TEST_ASSERT_NOT_NULL(g, "在已有实体上创建点");
+    TEST_ASSERT_NOT_NULL(g);
 
     g = algebra_midpoint(geom, 0, 1);
     TEST_ASSERT_NOT_NULL(g, "创建中点");
 
     g = algebra_intersect(geom, 0, 1);
-    TEST_ASSERT_NOT_NULL(g, "创建交点");
+    TEST_ASSERT_NOT_NULL(g);
 
     /* NULL参数 */
     TEST_ASSERT_NULL(algebra_point(NULL, 1, 2, 3));
@@ -705,17 +705,17 @@ static void test_algebra_circle_construction(void) {
     int center = algebra_get_current_entity(geom);
 
     AlgebraicGeom *g = algebra_circle_radius(geom, center, 30.0);
-    TEST_ASSERT_NOT_NULL(g, "通过半径创建圆应成功");
+    TEST_ASSERT_NOT_NULL(g);
 
     algebra_point(geom, 80, 50, 0);
     int on_circle = algebra_get_current_entity(geom);
 
     g = algebra_circle(geom, center, on_circle);
-    TEST_ASSERT_NOT_NULL(g, "通过圆周上点创建圆应成功");
+    TEST_ASSERT_NOT_NULL(g);
 
     /* 无效参数 */
-    TEST_ASSERT_NULL(algebra_circle_radius(geom, center, -1.0), "负半径应返回NULL");
-    TEST_ASSERT_NULL(algebra_circle(geom, -1, on_circle), "负ID应返回NULL");
+    TEST_ASSERT_NULL(algebra_circle_radius(geom, center, -1.0));
+    TEST_ASSERT_NULL(algebra_circle(geom, -1, on_circle));
 
     algebra_destroy(geom);
 }
@@ -764,7 +764,7 @@ static void test_algebra_transform(void) {
 
     /* 无效旋转轴 */
     g = algebra_rotate(geom, 45.0, 0, 0, 0);
-    TEST_ASSERT_NULL(g, "零长度旋转轴应返回NULL");
+    TEST_ASSERT_NULL(g);
 
     /* 通用变换 */
     double params[] = {10.0, 20.0};
@@ -772,9 +772,9 @@ static void test_algebra_transform(void) {
     TEST_ASSERT_NOT_NULL(g, "通用变换应成功");
 
     /* NULL参数 */
-    TEST_ASSERT_NULL(algebra_translate(NULL, 1, 2, 3), "NULL应失败");
-    TEST_ASSERT_NULL(algebra_rotate(NULL, 45, 0, 0, 1), "NULL应失败");
-    TEST_ASSERT_NULL(algebra_transform(geom, TRANSFORM_TRANSLATE, NULL, 1), "NULL params应失败");
+    TEST_ASSERT_NULL(algebra_translate(NULL, 1, 2, 3));
+    TEST_ASSERT_NULL(algebra_rotate(NULL, 45, 0, 0, 1));
+    TEST_ASSERT_NULL(algebra_transform(geom, TRANSFORM_TRANSLATE, NULL, 1));
 
     algebra_destroy(geom);
 }
@@ -782,16 +782,16 @@ static void test_algebra_transform(void) {
 /* --- 3.7 选择器 --- */
 static void test_algebra_selector(void) {
     lvSelector *sel = algebra_selector_create(SELECTOR_ALL, NULL);
-    TEST_ASSERT_NOT_NULL(sel, "创建选择器应成功");
-    TEST_ASSERT_EQ(sel->type, SELECTOR_ALL, "类型应为ALL");
+    TEST_ASSERT_NOT_NULL(sel);
+    TEST_ASSERT_EQ(sel->type, SELECTOR_ALL);
 
     lvSelector *sel2 = algebra_selector_create(SELECTOR_BY_DIRECTION, ">Z");
-    TEST_ASSERT_NOT_NULL(sel2, "方向选择器应成功");
-    TEST_ASSERT_EQ(sel2->dir_op, SEL_DIR_GREATER, "方向应为GREATER");
+    TEST_ASSERT_NOT_NULL(sel2);
+    TEST_ASSERT_EQ(sel2->dir_op, SEL_DIR_GREATER);
     TEST_ASSERT_EQ(sel2->axis, 'Z', "轴应为Z");
 
     lvSelector *sel3 = algebra_selector_create(SELECTOR_BY_INDEX, NULL);
-    TEST_ASSERT_NOT_NULL(sel3, "索引选择器");
+    TEST_ASSERT_NOT_NULL(sel3);
 
     /* NULL参数 */
     TEST_ASSERT_NULL(algebra_selector_create(SELECTOR_ALL, NULL));
@@ -817,9 +817,9 @@ static void test_algebra_constrain_and_prove(void) {
     TEST_ASSERT_NOT_NULL(g);
 
     /* 无效参数 */
-    TEST_ASSERT_NULL(algebra_constrain(NULL, "incidence", ids, 2), "NULL应失败");
+    TEST_ASSERT_NULL(algebra_constrain(NULL, "incidence", ids, 2));
     TEST_ASSERT_NULL(algebra_constrain(geom, NULL, ids, 2), "NULL约束类型应失败");
-    TEST_ASSERT_NULL(algebra_constrain(geom, "incidence", NULL, 1), "NULL实体数组应失败");
+    TEST_ASSERT_NULL(algebra_constrain(geom, "incidence", NULL, 1));
     TEST_ASSERT_NULL(algebra_prove(NULL, "x = y"), "NULL应失败");
 
     algebra_destroy(geom);
@@ -845,11 +845,11 @@ static void test_algebra_build_and_query(void) {
 
     /* 获取图 */
     ConstraintGraph *graph = algebra_get_graph(geom);
-    TEST_ASSERT_NOT_NULL(graph, "获取约束图应非NULL");
+    TEST_ASSERT_NOT_NULL(graph);
 
     /* 获取状态 */
     status = algebra_get_status(geom);
-    TEST_ASSERT_EQ(status, ALGEBRA_OK, "构建后状态应为OK");
+    TEST_ASSERT_EQ(status, ALGEBRA_OK);
 
     /* 获取当前实体 */
     int cur = algebra_get_current_entity(geom);
@@ -880,7 +880,7 @@ static void test_algebra_undo_redo(void) {
     /* undo */
     g = algebra_undo(geom);
     TEST_ASSERT_NOT_NULL(g);
-    TEST_ASSERT_EQ(geom->history_count, 1, "历史应为1");
+    TEST_ASSERT_EQ(geom->history_count, 1);
 
     /* redo */
     g = algebra_redo(geom);
@@ -916,10 +916,10 @@ static void test_algebra_snapshot_restore(void) {
 
     /* 无效索引 */
     g = algebra_restore(geom, 999);
-    TEST_ASSERT_NULL(g, "无效索引应返回NULL");
+    TEST_ASSERT_NULL(g);
 
     g = algebra_restore(geom, -1);
-    TEST_ASSERT_NULL(g, "负索引应返回NULL");
+    TEST_ASSERT_NULL(g);
 
     /* NULL参数 */
     int bad = algebra_snapshot(NULL);
@@ -940,9 +940,9 @@ static void test_algebra_work_plane(void) {
 
     /* 无效平面 */
     g = algebra_set_work_plane(geom, 99);
-    TEST_ASSERT_NULL(g, "无效平面应返回NULL");
+    TEST_ASSERT_NULL(g);
 
-    TEST_ASSERT_NULL(algebra_set_work_plane(NULL, PLANE_XY), "NULL应失败");
+    TEST_ASSERT_NULL(algebra_set_work_plane(NULL, PLANE_XY));
 
     algebra_destroy(geom);
 }
@@ -1000,8 +1000,8 @@ static void test_vf2_state_basic(void) {
     state.pattern_size = 3;
     state.target_size = 5;
 
-    TEST_ASSERT_EQ(state.pattern_size, 3, "模式大小应为3");
-    TEST_ASSERT_EQ(state.target_size, 5, "目标大小应为5");
+    TEST_ASSERT_EQ(state.pattern_size, 3);
+    TEST_ASSERT_EQ(state.target_size, 5);
 
     /* 仅验证结构体大小，VF2状态在匹配过程中由内部函数创建 */
     TEST_ASSERT((int) sizeof(VF2State) > 0, "VF2State结构体有效");
@@ -1024,7 +1024,7 @@ static void test_wl_history(void) {
 static void test_graph_snapshot_lifecycle(void) {
     /* 创建一个简单的约束图 */
     ConstraintGraph *graph = graph_create();
-    TEST_ASSERT_NOT_NULL(graph, "创建约束图");
+    TEST_ASSERT_NOT_NULL(graph);
 
     GraphSnapshot *snap = graph_snapshot_create(graph);
     /* 空图快照也应成功 */
@@ -1105,7 +1105,7 @@ static void test_find_rewrite_match_empty(void) {
 
     RewriteMatch *match = find_rewrite_match(graph, rule, false);
     /* 空图上应无匹配 */
-    TEST_ASSERT_NULL(match, "空图上应无匹配");
+    TEST_ASSERT_NULL(match);
 
     match = find_best_match(graph, rule, false);
     TEST_ASSERT_NULL(match, "空图上应无最佳匹配");
