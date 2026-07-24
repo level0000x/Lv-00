@@ -170,7 +170,7 @@ int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
 /*  内部: 几何推理消元模板 - 勾股定理                                   */
 /* ================================================================== */
 
-static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
+int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
     if (!graph || !sys)
         return 0;
     int added = 0;

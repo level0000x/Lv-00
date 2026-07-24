@@ -476,7 +476,7 @@ static void test_widget_register_all_types(void) {
 
     for (int i = 0; i < n_types; i++) {
         int id = proof_widget_register(layout, all_types[i], NULL, i);
-        TEST_ASSERT_GE(id, 0);
+        TEST_ASSERT(id >= 0, "widget registration should return non-negative id");
     }
     TEST_ASSERT_EQ(layout->widget_count, n_types);
 

@@ -48,7 +48,10 @@ void lv_geometry_encoding_destroy(GeometryEncoding *enc);
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-/* 最大端口数常量（与 block_to_text.c 保持一致） */
+/* 最大端口数常量（覆盖 lv_internal.h 默认值 32） */
+#ifdef MAX_BLOCK_PORTS
+#undef MAX_BLOCK_PORTS
+#endif
 #define MAX_BLOCK_PORTS 64
 
 /* ============================================================
