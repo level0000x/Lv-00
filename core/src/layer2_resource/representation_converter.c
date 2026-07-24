@@ -312,20 +312,4 @@ lvConvertResult lv_convert_node_to_block(void *node) {
  * @param block 函数块指针
  * @return 转换结果
  */
-lvConvertResult lv_convert_block_to_geometry(void *block) {
-    if (!block)
-        return make_error_result("输入块为 NULL");
-    return make_success_result(NULL);
-}
-
-/**
- * @brief 将几何表示转换为函数块（直接 API）
- *
- * @param entity 几何实体指针
- * @return 转换结果
- */
-lvConvertResult lv_convert_geometry_to_block(void *entity) {
-    if (!entity)
-        return make_error_result("实体为 NULL");
-    return make_success_result(NULL);
-}
+/* 实现在 block_to_geometry.c (layer6_visual/converter) 中 */

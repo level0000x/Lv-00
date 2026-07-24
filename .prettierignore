@@ -1,0 +1,17 @@
+# 构建产物
+build/
+build_*/
+node_modules/
+.venv/
+dist/
+.next/
+
+# 归档/废弃
+_archived/
+_deprecated/
+doc/reports/_archive/
+log/benchmark_results/_archive/
+
+# 其他
+*.min.js
+*.bundle.js

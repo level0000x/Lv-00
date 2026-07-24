@@ -417,7 +417,7 @@ lv_PUBLIC_API lvSolverConfig lv_solver_default_config(void) {
  * @param config 配置（NULL 使用默认配置）
  * @return 求解系统指针，失败返回 NULL
  */
-lv_PUBLIC_API lvSolverSystem *lv_solver_create(const lvSolverConfig *config) {
+lv_PUBLIC_API lvSolverSystem *lv_geo_solver_create(const lvSolverConfig *config) {
     lvSolverSystemEx *sys_ex = (lvSolverSystemEx *) lv_malloc(sizeof(lvSolverSystemEx));
     if (!sys_ex)
         return NULL;
@@ -465,7 +465,7 @@ lv_PUBLIC_API lvSolverSystem *lv_solver_create(const lvSolverConfig *config) {
  * 以释放哈希索引资源。由于 create 分配的是 lvSolverSystemEx，
  * 此处必须使用相同的指针进行释放。
  */
-lv_PUBLIC_API void lv_solver_destroy(lvSolverSystem *sys) {
+lv_PUBLIC_API void lv_geo_solver_destroy(lvSolverSystem *sys) {
     if (!sys)
         return;
     lv_free((void **) &(sys->entities));
@@ -577,7 +577,7 @@ static int find_constraint_index(const lvSolverSystem *sys, int id) {
  *
  * @return 新约束的 ID
  */
-lv_PUBLIC_API int lv_solver_add_constraint(lvSolverSystem *sys, const lvConstraint *c) {
+lv_PUBLIC_API int lv_geo_solver_add_constraint(lvSolverSystem *sys, const lvConstraint *c) {
     if (!sys || !c)
         return -1;
 
@@ -648,7 +648,7 @@ lv_PUBLIC_API lvConstraint *lv_solver_get_constraint(lvSolverSystem *sys, int id
  * 使用 swap-and-pop 策略删除约束，同时更新哈希表中
  * 被移动元素的索引映射。
  */
-lv_PUBLIC_API bool lv_solver_remove_constraint(lvSolverSystem *sys, int id) {
+lv_PUBLIC_API bool lv_geo_solver_remove_constraint(lvSolverSystem *sys, int id) {
     if (!sys)
         return false;
     int idx = find_constraint_index(sys, id);
@@ -1343,7 +1343,7 @@ static void build_jacobian_and_residual(const lvSolverSystem *sys, double *J, do
  *
  * @return 求解结果
  */
-lv_PUBLIC_API lvSolveResult lv_solver_solve(lvSolverSystem *sys) {
+lv_PUBLIC_API lvSolveResult lv_geo_solver_solve(lvSolverSystem *sys) {
     if (!sys)
         return lv_SOLVE_FAILED;
 
@@ -1871,7 +1871,7 @@ lv_PUBLIC_API int lv_solve_constraints(const lvConstraint *constraints, size_t c
     }
 
     lvSolverConfig config = lv_solver_default_config();
-    lvSolverSystem *sys = lv_solver_create(&config);
+    lvSolverSystem *sys = lv_geo_solver_create(&config);
     if (!sys) {
         return -1;
     }
@@ -1880,23 +1880,23 @@ lv_PUBLIC_API int lv_solve_constraints(const lvConstraint *constraints, size_t c
     for (size_t i = 0; i < n_points; i++) {
         lvEntity e = lv_entity_point_2d((int) i, points[i * 2], points[i * 2 + 1]);
         if (lv_solver_add_entity(sys, &e) < 0) {
-            lv_solver_destroy(sys);
+            lv_geo_solver_destroy(sys);
             return -1;
         }
     }
 
     /* 添加所有约束 */
     for (size_t i = 0; i < count; i++) {
-        if (lv_solver_add_constraint(sys, &constraints[i]) < 0) {
-            lv_solver_destroy(sys);
+        if (lv_geo_solver_add_constraint(sys, &constraints[i]) < 0) {
+            lv_geo_solver_destroy(sys);
             return -1;
         }
     }
 
     /* 求解 */
-    lvSolveResult result = lv_solver_solve(sys);
+    lvSolveResult result = lv_geo_solver_solve(sys);
     if (result != lv_SOLVE_OK) {
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
         return -2;
     }
 
@@ -1909,7 +1909,7 @@ lv_PUBLIC_API int lv_solve_constraints(const lvConstraint *constraints, size_t c
         }
     }
 
-    lv_solver_destroy(sys);
+    lv_geo_solver_destroy(sys);
     return (int) n_points;
 }
 

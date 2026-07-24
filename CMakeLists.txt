@@ -1078,6 +1078,7 @@ set(lv_LAYER6_SOURCES
     # 表示转换
     core/src/layer6_visual/converter/block_to_node.c
     core/src/layer6_visual/converter/block_to_text.c
+    core/src/layer6_visual/converter/block_to_geometry.c
     core/src/layer6_visual/converter/sync_protocol.c
 )
 

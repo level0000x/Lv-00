@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "lv/lv_internal.h"
 
@@ -822,4 +823,160 @@ bool lv_proof_export_to_file(const lvProofObject *proof, const lvProofTrace *tra
     lv_free((void **) &content);
 
     return true;
+}
+
+/* ============== Proof Trace 实现 ============== */
+
+static void lv_trace_event_set_description(lvTraceEvent *ev, const char *desc) {
+    if (!ev || !desc) return;
+    if (ev->description) lv_free((void **)&ev->description);
+    ev->description = lv_strdup(desc);
+}
+
+lv_PUBLIC_API lvProofTrace *lv_proof_trace_create(void) {
+    lvProofTrace *trace = (lvProofTrace *)lv_calloc(1, sizeof(lvProofTrace));
+    if (!trace) return NULL;
+
+    trace->event_capacity = 64;
+    trace->events = (lvTraceEvent **)lv_malloc((size_t)trace->event_capacity * sizeof(lvTraceEvent *));
+    if (!trace->events) {
+        lv_free((void **)&trace);
+        return NULL;
+    }
+    trace->event_count = 0;
+    trace->total_steps = 0;
+    trace->total_backtracks = 0;
+    trace->max_depth = 0;
+    trace->snapshot_data = NULL;
+    return trace;
+}
+
+lv_PUBLIC_API void lv_proof_trace_destroy(lvProofTrace *trace) {
+    if (!trace) return;
+    for (int i = 0; i < trace->event_count; i++) {
+        if (trace->events[i]) {
+            lv_trace_event_destroy(trace->events[i]);
+        }
+    }
+    lv_free((void **)&trace->events);
+    if (trace->snapshot_data) lv_free((void **)&trace->snapshot_data);
+    lv_free((void **)&trace);
+}
+
+lv_PUBLIC_API int lv_proof_trace_add_event(lvProofTrace *trace, lvTraceEvent *event) {
+    if (!trace || !event) return -1;
+    if (trace->event_count >= trace->event_capacity) {
+        if (trace->event_capacity > INT_MAX / 2) return -1;
+        int new_cap = trace->event_capacity * 2;
+        lvTraceEvent **new_events = (lvTraceEvent **)lv_realloc(trace->events,
+                                    (size_t)new_cap * sizeof(lvTraceEvent *));
+        if (!new_events) return -1;
+        trace->events = new_events;
+        trace->event_capacity = new_cap;
+    }
+    trace->events[trace->event_count++] = event;
+    return 0;
+}
+
+lv_PUBLIC_API void lv_proof_trace_start(lvProofTrace *trace, int proof_id) {
+    if (!trace) return;
+    trace->proof_id = proof_id;
+    lvTraceEvent *ev = lv_trace_event_create(TRACE_EVENT_START);
+    if (ev) {
+        ev->step_id = proof_id;
+        ev->depth = 0;
+        lv_proof_trace_add_event(trace, ev);
+    }
+}
+
+lv_PUBLIC_API void lv_proof_trace_step(lvProofTrace *trace, int step_id, const char *description, int depth) {
+    if (!trace) return;
+    lvTraceEvent *ev = lv_trace_event_create(TRACE_EVENT_STEP);
+    if (!ev) return;
+    ev->step_id = step_id;
+    ev->depth = depth;
+    lv_trace_event_set_description(ev, description ? description : "");
+    lv_proof_trace_add_event(trace, ev);
+    trace->total_steps++;
+    if (depth > trace->max_depth) trace->max_depth = depth;
+}
+
+lv_PUBLIC_API void lv_proof_trace_backtrack(lvProofTrace *trace, int from_step, int to_step) {
+    if (!trace) return;
+    lvTraceEvent *ev = lv_trace_event_create(TRACE_EVENT_BACKTRACK);
+    if (!ev) return;
+    ev->step_id = from_step;
+    ev->data.backtrack.from_step = from_step;
+    ev->data.backtrack.to_step = to_step;
+    lv_proof_trace_add_event(trace, ev);
+    trace->total_backtracks++;
+}
+
+lv_PUBLIC_API void lv_proof_trace_branch(lvProofTrace *trace, const char *branch_name, int branch_id, int depth) {
+    if (!trace) return;
+    lvTraceEvent *ev = lv_trace_event_create(TRACE_EVENT_BRANCH);
+    if (!ev) return;
+    ev->step_id = branch_id;
+    ev->depth = depth;
+    if (branch_name) {
+        ev->data.branch.branch_name = lv_strdup(branch_name);
+    }
+    ev->data.branch.branch_id = branch_id;
+    lv_proof_trace_add_event(trace, ev);
+}
+
+lv_PUBLIC_API void lv_proof_trace_lemma(lvProofTrace *trace, int lemma_id, const char *lemma_name) {
+    if (!trace) return;
+    lvTraceEvent *ev = lv_trace_event_create(TRACE_EVENT_LEMMA);
+    if (!ev) return;
+    ev->step_id = lemma_id;
+    ev->data.lemma.lemma_id = lemma_id;
+    if (lemma_name) {
+        ev->data.lemma.lemma_name = lv_strdup(lemma_name);
+    }
+    lv_proof_trace_add_event(trace, ev);
+}
+
+lv_PUBLIC_API void lv_proof_trace_contradiction(lvProofTrace *trace, lvProofScopeId scope_id, int assumption_count) {
+    if (!trace) return;
+    lvTraceEvent *ev = lv_trace_event_create(TRACE_EVENT_CONTRADICTION);
+    if (!ev) return;
+    ev->data.contradiction.scope_id = scope_id;
+    ev->data.contradiction.assumption_count = assumption_count;
+    lv_proof_trace_add_event(trace, ev);
+}
+
+lv_PUBLIC_API void lv_proof_trace_complete(lvProofTrace *trace, bool success) {
+    if (!trace) return;
+    lvTraceEvent *ev = lv_trace_event_create(success ? TRACE_EVENT_COMPLETE : TRACE_EVENT_FAIL);
+    if (!ev) return;
+    ev->step_id = trace->proof_id;
+    lv_proof_trace_add_event(trace, ev);
+}
+
+/* ============== Trace Event 实现 ============== */
+
+lv_PUBLIC_API lvTraceEvent *lv_trace_event_create(lvTraceEventType type) {
+    lvTraceEvent *ev = (lvTraceEvent *)lv_calloc(1, sizeof(lvTraceEvent));
+    if (!ev) return NULL;
+    ev->type = type;
+    ev->step_id = -1;
+    ev->description = NULL;
+    ev->details = NULL;
+    ev->depth = 0;
+    ev->timestamp = (int64_t)time(NULL);
+    return ev;
+}
+
+lv_PUBLIC_API void lv_trace_event_destroy(lvTraceEvent *event) {
+    if (!event) return;
+    if (event->description) lv_free((void **)&event->description);
+    if (event->details) lv_free((void **)&event->details);
+    if (event->type == TRACE_EVENT_BRANCH && event->data.branch.branch_name) {
+        lv_free((void **)&event->data.branch.branch_name);
+    }
+    if (event->type == TRACE_EVENT_LEMMA && event->data.lemma.lemma_name) {
+        lv_free((void **)&event->data.lemma.lemma_name);
+    }
+    lv_free((void **)&event);
 }

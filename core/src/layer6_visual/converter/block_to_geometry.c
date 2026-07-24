@@ -90,9 +90,10 @@ typedef struct {
 } GeometryEncoding;
 
 /* 销毁几何编码结构及其内部资源 */
-void lv_geometry_encoding_destroy(GeometryEncoding *enc) {
-    if (!enc)
+void lv_geometry_encoding_destroy(void *ptr) {
+    if (!ptr)
         return;
+    GeometryEncoding *enc = (GeometryEncoding *)ptr;
     for (int i = 0; i < enc->rect_count; i++) {
         if (enc->rects[i]) {
             lv_free((void **) &enc->rects[i]->base.name);

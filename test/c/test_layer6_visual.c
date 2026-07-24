@@ -42,7 +42,7 @@ int lv_sync_propagate(lvSyncProtocol *proto, int source_view, void *change, int 
  * 前向声明：block_to_geometry.c 中未在头文件暴露的内部类型和 API
  * ============================================================ */
 typedef struct GeometryEncoding GeometryEncoding;
-void lv_geometry_encoding_destroy(GeometryEncoding *enc);
+void lv_geometry_encoding_destroy(void *enc);
 
 /* 全局测试计数器 */
 int g_pass_count = 0;

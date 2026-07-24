@@ -491,6 +491,36 @@ CSGNode *csg_cylinder_create(double radius, double height) {
     return node;
 }
 
+/**
+ * @brief 创建长方体/盒子图元
+ * @param width   宽度（X 轴方向）
+ * @param height  高度（Y 轴方向）
+ * @param depth   深度（Z 轴方向）
+ * @return 新 CSGNode（PRIMITIVE 类型，type=1）
+ */
+CSGNode *csg_box_create(double width, double height, double depth) {
+    return csg_cube_create(width, height, depth);
+}
+
+/**
+ * @brief 创建圆锥/圆台图元
+ * @param radius1  下底面半径
+ * @param radius2  上底面半径
+ * @param height   高度（Z 轴方向）
+ * @return 新 CSGNode（PRIMITIVE 类型，type=3）
+ */
+CSGNode *csg_cone_create(double radius1, double radius2, double height) {
+    CSGNode *node = csg_node_create(CSG_NODE_PRIMITIVE);
+    if (!node)
+        return NULL;
+    node->data.prim.type = 3;
+    node->data.prim.params[0] = fabs(radius1);
+    node->data.prim.params[1] = fabs(radius2);
+    node->data.prim.params[2] = fabs(height);
+    csg_node_init_bbox(node);
+    return node;
+}
+
 /* ================================================================
  * CSG 布尔运算（返回新组合节点）
  * ================================================================ */

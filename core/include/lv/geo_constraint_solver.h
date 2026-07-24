@@ -1,4 +1,4 @@
-﻿#ifndef lv_GEO_CONSTRAINT_SOLVER_H
+#ifndef lv_GEO_CONSTRAINT_SOLVER_H
 #define lv_GEO_CONSTRAINT_SOLVER_H
 
 #ifdef __cplusplus
@@ -153,20 +153,20 @@ lv_PUBLIC_API int lv_constraint_dof(lvConstraintType type);
 lv_PUBLIC_API lvSolverConfig lv_solver_default_config(void);
 
 /* 求解器系统创建与释放 */
-lv_PUBLIC_API lvSolverSystem *lv_solver_create(const lvSolverConfig *config);
-lv_PUBLIC_API void lv_solver_destroy(lvSolverSystem *sys);
+lv_PUBLIC_API lvSolverSystem *lv_geo_solver_create(const lvSolverConfig *config);
+lv_PUBLIC_API void lv_geo_solver_destroy(lvSolverSystem *sys);
 
 /* 实体管理 */
 lv_PUBLIC_API int lv_solver_add_entity(lvSolverSystem *sys, const lvEntity *entity);
 lv_PUBLIC_API lvEntity *lv_solver_get_entity(lvSolverSystem *sys, int id);
 
 /* 约束管理 */
-lv_PUBLIC_API int lv_solver_add_constraint(lvSolverSystem *sys, const lvConstraint *c);
+lv_PUBLIC_API int lv_geo_solver_add_constraint(lvSolverSystem *sys, const lvConstraint *c);
 lv_PUBLIC_API lvConstraint *lv_solver_get_constraint(lvSolverSystem *sys, int id);
-lv_PUBLIC_API bool lv_solver_remove_constraint(lvSolverSystem *sys, int id);
+lv_PUBLIC_API bool lv_geo_solver_remove_constraint(lvSolverSystem *sys, int id);
 
 /* 求解核心 */
-lv_PUBLIC_API lvSolveResult lv_solver_solve(lvSolverSystem *sys);
+lv_PUBLIC_API lvSolveResult lv_geo_solver_solve(lvSolverSystem *sys);
 
 /* DOF 分析 */
 lv_PUBLIC_API lvDOFAnalysis *lv_solver_dof_analyze(const lvSolverSystem *sys);

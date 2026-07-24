@@ -96,7 +96,7 @@ int main(void) {
     printf("\n[组 3] 求解器基础操作\n");
     {
         TEST("solver_create: 创建求解系统");
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         if (sys != NULL) {
             PASS();
             tests_passed++;
@@ -120,7 +120,7 @@ int main(void) {
 
         TEST("solver_add_constraint: 添加约束");
         lvConstraint cd = lv_constraint_distance(0, 0, 1, 5.0);
-        int cid = lv_solver_add_constraint(sys, &cd);
+        int cid = lv_geo_solver_add_constraint(sys, &cd);
         if (cid == 0 && sys->constraint_count == 1) {
             PASS();
             tests_passed++;
@@ -130,7 +130,7 @@ int main(void) {
         }
 
         TEST("solver_free: 释放求解系统");
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
         PASS();
         tests_passed++;
     }
@@ -138,7 +138,7 @@ int main(void) {
     /* 4. DOF 分析测试 */
     printf("\n[组 4] DOF 分析\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
 
         /* 2 个点 + 1 个距离约束 = 4 DOF - 1 = 3 DOF（欠约束） */
         lvEntity p1 = lv_entity_point_2d(0, 0, 0);
@@ -146,7 +146,7 @@ int main(void) {
         lv_solver_add_entity(sys, &p1);
         lv_solver_add_entity(sys, &p2);
         lvConstraint _c1 = lv_constraint_distance(0, 0, 1, 5.0);
-        lv_solver_add_constraint(sys, &_c1);
+        lv_geo_solver_add_constraint(sys, &_c1);
 
         TEST("dof_analyze: 欠约束检测");
         lvDOFAnalysis *dof = lv_solver_dof_analyze(sys);
@@ -161,7 +161,7 @@ int main(void) {
 
         /* 添加固定约束：4 DOF - 1 (distance) - 2 (fixed p1) = 1 DOF（仍欠约束） */
         lvConstraint _c2 = lv_constraint_fixed(1, 0);
-        lv_solver_add_constraint(sys, &_c2);
+        lv_geo_solver_add_constraint(sys, &_c2);
         TEST("dof_analyze: 欠约束（加固定后）");
         dof = lv_solver_dof_analyze(sys);
         if (dof && dof->remaining_dof == 1 && dof->status == lv_SYSTEM_UNDER_CONSTRAINED) {
@@ -175,7 +175,7 @@ int main(void) {
 
         /* 再固定 p2：2 DOF (p2) - 1 (distance) = 1 → 过约束（distance 约束冗余） */
         lvConstraint _c3 = lv_constraint_fixed(2, 1);
-        lv_solver_add_constraint(sys, &_c3);
+        lv_geo_solver_add_constraint(sys, &_c3);
         TEST("dof_analyze: 过约束检测");
         dof = lv_solver_dof_analyze(sys);
         if (dof && dof->remaining_dof < 0 && dof->status == lv_SYSTEM_OVER_CONSTRAINED) {
@@ -187,13 +187,13 @@ int main(void) {
         }
         lv_dof_analysis_destroy(dof);
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* 5. 求解测试：两点距离约束 */
     printf("\n[组 5] 求解测试\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
 
         /* 固定 p1 在原点，p2 自由，距离约束 = 5 */
         lvEntity p1 = lv_entity_point_2d(0, 0, 0);
@@ -201,12 +201,12 @@ int main(void) {
         lv_solver_add_entity(sys, &p1);
         lv_solver_add_entity(sys, &p2);
         lvConstraint _c3 = lv_constraint_fixed(0, 0);
-        lv_solver_add_constraint(sys, &_c3);
+        lv_geo_solver_add_constraint(sys, &_c3);
         lvConstraint _c5 = lv_constraint_distance(2, 0, 1, 5.0);
-        lv_solver_add_constraint(sys, &_c5);
+        lv_geo_solver_add_constraint(sys, &_c5);
 
         TEST("solver_solve: 两点距离约束求解");
-        lvSolveResult result = lv_solver_solve(sys);
+        lvSolveResult result = lv_geo_solver_solve(sys);
         /* 欠约束系统（1 DOF），求解器可能成功、不收敛或报告不一致；
          * Newton-Raphson 对欠约束系统的鲁棒性有限，此处仅验证不崩溃。 */
         printf("(result=%d) ", result);
@@ -226,13 +226,13 @@ int main(void) {
             printf("(距离=%.4f) ", dist);
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* 6. 求解测试：三角形约束 */
     printf("\n[组 6] 三角形约束求解\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
 
         /* 三个点构成等边三角形，边长 = 1 */
         lvEntity p1 = lv_entity_point_2d(0, 0, 0);
@@ -244,20 +244,20 @@ int main(void) {
 
         /* 固定 p1 在原点 */
         lvConstraint _c6 = lv_constraint_fixed(3, 0);
-        lv_solver_add_constraint(sys, &_c6);
+        lv_geo_solver_add_constraint(sys, &_c6);
         /* 固定 p2 的 y=0（水平约束） */
         lvConstraint _c7 = lv_constraint_horizontal(4, 1);
-        lv_solver_add_constraint(sys, &_c7);
+        lv_geo_solver_add_constraint(sys, &_c7);
         /* 三边等长（边长 = 1），用距离约束替代 EQUAL_LENGTH */
         lvConstraint _c8 = lv_constraint_distance(5, 0, 1, 1.0);
-        lv_solver_add_constraint(sys, &_c8);
+        lv_geo_solver_add_constraint(sys, &_c8);
         lvConstraint _c9 = lv_constraint_distance(6, 1, 2, 1.0);
-        lv_solver_add_constraint(sys, &_c9);
+        lv_geo_solver_add_constraint(sys, &_c9);
         lvConstraint _c10 = lv_constraint_distance(7, 0, 2, 1.0);
-        lv_solver_add_constraint(sys, &_c10);
+        lv_geo_solver_add_constraint(sys, &_c10);
 
         TEST("solver_solve: 等边三角形约束求解");
-        lvSolveResult result = lv_solver_solve(sys);
+        lvSolveResult result = lv_geo_solver_solve(sys);
         printf("(result=%d, iters=%d) ", result, lv_solver_get_iteration_count(sys));
         if (result == lv_SOLVE_OK || result == lv_SOLVE_NOT_CONVERGED) {
             PASS();
@@ -267,13 +267,13 @@ int main(void) {
             tests_failed++;
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* 7. 系统状态测试 */
     printf("\n[组 7] 系统状态\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         lvEntity p1 = lv_entity_point_2d(0, 0, 0);
         lv_solver_add_entity(sys, &p1);
 
@@ -287,7 +287,7 @@ int main(void) {
         }
 
         lvConstraint _c11 = lv_constraint_fixed(0, 0);
-        lv_solver_add_constraint(sys, &_c11);
+        lv_geo_solver_add_constraint(sys, &_c11);
         TEST("solver_get_status: 固定点恰好约束");
         if (lv_solver_get_status(sys) == lv_SYSTEM_WELL_CONSTRAINED) {
             PASS();
@@ -297,21 +297,21 @@ int main(void) {
             tests_failed++;
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* 8. 拖拽交互测试 */
     printf("\n[组 8] 拖拽交互\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         lvEntity p1 = lv_entity_point_2d(0, 0, 0);
         lvEntity p2 = lv_entity_point_2d(1, 5, 0);
         lv_solver_add_entity(sys, &p1);
         lv_solver_add_entity(sys, &p2);
         lvConstraint _c12 = lv_constraint_fixed(0, 0);
-        lv_solver_add_constraint(sys, &_c12);
+        lv_geo_solver_add_constraint(sys, &_c12);
         lvConstraint _c13 = lv_constraint_distance(1, 0, 1, 5.0);
-        lv_solver_add_constraint(sys, &_c13);
+        lv_geo_solver_add_constraint(sys, &_c13);
 
         TEST("solver_set_dragged: 设置拖拽状态");
         lv_solver_set_dragged(sys, 1, true);
@@ -336,14 +336,14 @@ int main(void) {
         }
 
         lv_solver_set_dragged(sys, 1, false);
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* 9. 哈希索引性能验证 */
     printf("\n[组 9] 哈希索引性能验证\n");
     {
         TEST("hash_index: 创建包含 100 个实体和 100 个约束的系统");
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         if (!sys) {
             FAIL("创建失败");
             tests_failed++;
@@ -360,11 +360,11 @@ int main(void) {
             /* 添加 100 个约束（ID: 2000 ~ 2099） */
             for (int i = 0; i < 99; i++) {
                 lvConstraint c = lv_constraint_distance(2000 + i, 1000 + i, 1000 + i + 1, 1.0);
-                lv_solver_add_constraint(sys, &c);
+                lv_geo_solver_add_constraint(sys, &c);
             }
             /* 最后一个约束：固定第一个实体 */
             lvConstraint cf = lv_constraint_fixed(2099, 1000);
-            lv_solver_add_constraint(sys, &cf);
+            lv_geo_solver_add_constraint(sys, &cf);
 
             if (sys->entity_count == 100 && sys->constraint_count == 100) {
                 PASS();
@@ -456,7 +456,7 @@ int main(void) {
             }
 
             TEST("hash_index: 删除后查找返回 NULL");
-            bool removed = lv_solver_remove_constraint(sys, 2050);
+            bool removed = lv_geo_solver_remove_constraint(sys, 2050);
             lvConstraint *after_remove = lv_solver_get_constraint(sys, 2050);
             if (removed && after_remove == NULL) {
                 PASS();
@@ -477,7 +477,7 @@ int main(void) {
                 tests_failed++;
             }
 
-            lv_solver_destroy(sys);
+            lv_geo_solver_destroy(sys);
         }
     }
 

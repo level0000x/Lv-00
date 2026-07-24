@@ -56,11 +56,11 @@ struct ProofTrace {
  * ============================================================ */
 
 /**
- * @brief 创建新的证明轨迹
+ * @brief 创建新的证明轨迹（内部实现，外部使用 proof_compiler.h 的版本）
  *
  * @return 新创建的证明轨迹指针，失败返回 NULL
  */
-ProofTrace *lv_proof_trace_create(void) {
+static ProofTrace *proof_trace_internal_create(void) {
     ProofTrace *trace = lv_calloc(1, sizeof(ProofTrace));
     if (!trace)
         return NULL;
@@ -80,11 +80,11 @@ ProofTrace *lv_proof_trace_create(void) {
 }
 
 /**
- * @brief 销毁证明轨迹
+ * @brief 销毁证明轨迹（内部实现，外部使用 proof_compiler.h 的版本）
  *
  * @param trace 要销毁的证明轨迹
  */
-void lv_proof_trace_destroy(ProofTrace *trace) {
+static void proof_trace_internal_destroy(ProofTrace *trace) {
     if (!trace)
         return;
     lv_free((void **) &trace->steps);

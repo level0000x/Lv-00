@@ -1,4 +1,4 @@
-﻿#ifndef lv_REPRESENTATION_CONVERTER_H
+#ifndef lv_REPRESENTATION_CONVERTER_H
 #define lv_REPRESENTATION_CONVERTER_H
 
 #include "lv/visual_editor.h"
@@ -66,6 +66,9 @@ lvConvertResult lv_convert_block_to_node(void *block);
 lvConvertResult lv_convert_node_to_block(void *node);
 lvConvertResult lv_convert_block_to_geometry(void *block);
 lvConvertResult lv_convert_geometry_to_block(void *entity);
+
+/* Destroy geometry encoding (internal type, use void* at API boundary) */
+void lv_geometry_encoding_destroy(void *enc);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_geo_constraint_solver_ext.c
  * @brief 几何约束求解器扩展测试 —— 覆盖缺失的约束类型
  *
@@ -40,7 +40,7 @@ static int tests_failed = 0;
 
 /* ============== 辅助：创建求解器并添加两点一线 ============== */
 static lvSolverSystem *create_line_solver(void) {
-    lvSolverSystem *sys = lv_solver_create(NULL);
+    lvSolverSystem *sys = lv_geo_solver_create(NULL);
     assert(sys);
     lvEntity p1 = lv_entity_point_2d(0, 0.0, 0.0);
     lvEntity p2 = lv_entity_point_2d(1, 1.0, 1.0);
@@ -103,7 +103,7 @@ int main(void) {
     /* ---- 组2: 平行约束 ---- */
     printf("\n[组 2] 平行约束\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         assert(sys);
 
         /* 两条线段: L1(0,0)->(1,0) 水平, L2(0,1)->(2,2) 斜线 */
@@ -115,24 +115,24 @@ int main(void) {
         /* 固定 L1, 施加平行约束 -> L2 应调整为水平 */
         lvConstraint fix1 = lv_constraint_fixed(2, 0);
         lvConstraint par = lv_constraint_parallel(3, 0, 1);
-        lv_solver_add_constraint(sys, &fix1);
-        lv_solver_add_constraint(sys, &par);
+        lv_geo_solver_add_constraint(sys, &fix1);
+        lv_geo_solver_add_constraint(sys, &par);
 
         TEST("平行约束: 求解成功");
-        lvSolveResult res = lv_solver_solve(sys);
+        lvSolveResult res = lv_geo_solver_solve(sys);
         if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
             PASS();
         } else {
             FAIL("求解失败");
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* ---- 组3: 垂直约束 ---- */
     printf("\n[组 3] 垂直约束\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         assert(sys);
 
         /* 两条线段: L1(0,0)->(1,0) 水平, L2(0,1)->(1,1) 水平 (初始平行) */
@@ -143,24 +143,24 @@ int main(void) {
 
         lvConstraint fix1 = lv_constraint_fixed(2, 0);
         lvConstraint perp = lv_constraint_perpendicular(3, 0, 1);
-        lv_solver_add_constraint(sys, &fix1);
-        lv_solver_add_constraint(sys, &perp);
+        lv_geo_solver_add_constraint(sys, &fix1);
+        lv_geo_solver_add_constraint(sys, &perp);
 
         TEST("垂直约束: 求解成功");
-        lvSolveResult res = lv_solver_solve(sys);
+        lvSolveResult res = lv_geo_solver_solve(sys);
         if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
             PASS();
         } else {
             FAIL("求解失败");
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* ---- 组4: 角度约束 ---- */
     printf("\n[组 4] 角度约束\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         assert(sys);
 
         /* 两条线段: L1(0,0)->(1,0) 水平, L2(0,0)->(1,1) 45度 */
@@ -172,24 +172,24 @@ int main(void) {
         /* 固定 L1, 施加 90 度角约束 -> L2 应变为垂直 */
         lvConstraint fix1 = lv_constraint_fixed(2, 0);
         lvConstraint ang = lv_constraint_angle(3, 0, 1, M_PI / 2.0);
-        lv_solver_add_constraint(sys, &fix1);
-        lv_solver_add_constraint(sys, &ang);
+        lv_geo_solver_add_constraint(sys, &fix1);
+        lv_geo_solver_add_constraint(sys, &ang);
 
         TEST("角度约束(90°): 求解成功");
-        lvSolveResult res = lv_solver_solve(sys);
+        lvSolveResult res = lv_geo_solver_solve(sys);
         if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
             PASS();
         } else {
             FAIL("求解失败");
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* ---- 组5: 等长约束 ---- */
     printf("\n[组 5] 等长约束\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         assert(sys);
 
         /* 两条线段: L1(0,0)->(3,0) 长3, L2(0,1)->(1,1) 长1 */
@@ -200,24 +200,24 @@ int main(void) {
 
         lvConstraint fix1 = lv_constraint_fixed(2, 0);
         lvConstraint eq = lv_constraint_equal_length(3, 0, 1);
-        lv_solver_add_constraint(sys, &fix1);
-        lv_solver_add_constraint(sys, &eq);
+        lv_geo_solver_add_constraint(sys, &fix1);
+        lv_geo_solver_add_constraint(sys, &eq);
 
         TEST("等长约束: 求解成功");
-        lvSolveResult res = lv_solver_solve(sys);
+        lvSolveResult res = lv_geo_solver_solve(sys);
         if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
             PASS();
         } else {
             FAIL("求解失败");
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* ---- 组6: 垂直直线约束 ---- */
     printf("\n[组 6] 垂直直线约束\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         assert(sys);
 
         /* 一个点 + 一个线段 */
@@ -229,24 +229,24 @@ int main(void) {
         /* 固定端点，对线段施加 VERTICAL -> 线段变为垂直 */
         lvConstraint fix1 = lv_constraint_fixed(2, 1);
         lvConstraint vert = lv_constraint_vertical(3, 1);
-        lv_solver_add_constraint(sys, &fix1);
-        lv_solver_add_constraint(sys, &vert);
+        lv_geo_solver_add_constraint(sys, &fix1);
+        lv_geo_solver_add_constraint(sys, &vert);
 
         TEST("垂直直线约束: 求解成功");
-        lvSolveResult res = lv_solver_solve(sys);
+        lvSolveResult res = lv_geo_solver_solve(sys);
         if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
             PASS();
         } else {
             FAIL("求解失败");
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* ---- 组7: 点在圆上约束 ---- */
     printf("\n[组 7] 点在圆上约束\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         assert(sys);
 
         /* 一个点(1,0) + 圆(0,0, r=2) */
@@ -258,11 +258,11 @@ int main(void) {
         /* 固定圆，点强制在圆上 */
         lvConstraint fix_c = lv_constraint_fixed(2, 1);
         lvConstraint on_c = lv_constraint_on_circle(3, 0, 1);
-        lv_solver_add_constraint(sys, &fix_c);
-        lv_solver_add_constraint(sys, &on_c);
+        lv_geo_solver_add_constraint(sys, &fix_c);
+        lv_geo_solver_add_constraint(sys, &on_c);
 
         TEST("点在圆上约束: 求解成功");
-        lvSolveResult res = lv_solver_solve(sys);
+        lvSolveResult res = lv_geo_solver_solve(sys);
         if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
             PASS();
         } else {
@@ -282,13 +282,13 @@ int main(void) {
             FAIL("无法获取求解后的实体");
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* ---- 组8: 混合约束系统（平行 + 垂直 + 固定） ---- */
     printf("\n[组 8] 混合约束系统\n");
     {
-        lvSolverSystem *sys = lv_solver_create(NULL);
+        lvSolverSystem *sys = lv_geo_solver_create(NULL);
         assert(sys);
 
         /* 两个三角形组合: 
@@ -305,9 +305,9 @@ int main(void) {
         lvConstraint fix = lv_constraint_fixed(3, 0);
         lvConstraint par = lv_constraint_parallel(4, 0, 1);
         lvConstraint perp = lv_constraint_perpendicular(5, 0, 2);
-        lv_solver_add_constraint(sys, &fix);
-        lv_solver_add_constraint(sys, &par);
-        lv_solver_add_constraint(sys, &perp);
+        lv_geo_solver_add_constraint(sys, &fix);
+        lv_geo_solver_add_constraint(sys, &par);
+        lv_geo_solver_add_constraint(sys, &perp);
 
         TEST("混合约束(固定+平行+垂直): DOF 分析");
         lvDOFAnalysis *dof = lv_solver_dof_analyze(sys);
@@ -319,14 +319,14 @@ int main(void) {
         lv_dof_analysis_destroy(dof);
 
         TEST("混合约束: 求解成功");
-        lvSolveResult res = lv_solver_solve(sys);
+        lvSolveResult res = lv_geo_solver_solve(sys);
         if (res == lv_SOLVE_OK || res == lv_SOLVE_NOT_CONVERGED) {
             PASS();
         } else {
             FAIL("求解失败");
         }
 
-        lv_solver_destroy(sys);
+        lv_geo_solver_destroy(sys);
     }
 
     /* ---- 总计 ---- */
