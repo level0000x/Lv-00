@@ -100,7 +100,7 @@ static void test_command_log_append(void) {
     TEST_ASSERT_NULL(command_log_get(log, 100));
 
     /* NULL 安全 */
-    TEST_ASSERT_FALSE(command_log_append(NULL, NULL));
+    TEST_ASSERT(!command_log_append(NULL, NULL), "command_log_append should fail for NULL");
     TEST_ASSERT_EQ(command_log_count(NULL), 0);
     TEST_ASSERT_EQ(command_log_current_seq(NULL), (int64_t) 0);
     TEST_ASSERT_NULL(command_log_get(NULL, 0));
@@ -221,8 +221,8 @@ static void test_command_entry_serialize_json(void) {
     command_log_destroy(restored);
 
     /* NULL 安全 */
-    TEST_ASSERT_FALSE(command_log_serialize_json(NULL, "test.json"));
-    TEST_ASSERT_FALSE(command_log_serialize_json(log, NULL));
+    TEST_ASSERT(!command_log_serialize_json(NULL, "test.json"), "serialize with NULL log should fail");
+    TEST_ASSERT(!command_log_serialize_json(log, NULL), "serialize with NULL path should fail");
     TEST_ASSERT_NULL(command_log_deserialize_json(NULL));
 
     command_log_destroy(log);
@@ -255,10 +255,10 @@ static void test_command_log_execute_replay(void) {
     TEST_ASSERT(command_log_replay_from(log, replay_engine, 0), "replay from 0");
 
     /* NULL 安全 */
-    TEST_ASSERT_FALSE(command_log_replay(NULL, replay_engine));
-    TEST_ASSERT_FALSE(command_log_replay_from(NULL, replay_engine, 0));
-    TEST_ASSERT_FALSE(command_log_replay(log, NULL));
-    TEST_ASSERT_FALSE(command_log_execute(NULL, NULL, NULL));
+    TEST_ASSERT(!command_log_replay(NULL, replay_engine), "replay with NULL log should fail");
+    TEST_ASSERT(!command_log_replay_from(NULL, replay_engine, 0), "replay_from with NULL log should fail");
+    TEST_ASSERT(!command_log_replay(log, NULL), "replay with NULL engine should fail");
+    TEST_ASSERT(!command_log_execute(NULL, NULL, NULL), "execute with NULL should fail");
 
     command_log_destroy(log);
     lv_engine_destroy(replay_engine);
@@ -319,12 +319,12 @@ static void test_proof_navigator_steps(void) {
     TEST_ASSERT(proof_navigator_next(nav), "next again");
 
     /* 超出范围 */
-    TEST_ASSERT_FALSE(proof_navigator_next(nav), "next beyond end");
+    TEST_ASSERT(!proof_navigator_next(nav), "next beyond end");
 
     /* 回退 */
     TEST_ASSERT(proof_navigator_prev(nav), "prev");
     TEST_ASSERT(proof_navigator_prev(nav), "prev again");
-    TEST_ASSERT_FALSE(proof_navigator_prev(nav), "prev before start");
+    TEST_ASSERT(!proof_navigator_prev(nav), "prev before start");
 
     /* 跳转 */
     TEST_ASSERT(proof_navigator_goto(nav, 1), "goto 1");
@@ -366,13 +366,33 @@ static void test_proof_navigator_breakpoints(void) {
     TEST_ASSERT_EQ(nav->current_step, 3);
 
     /* 没有更多断点 */
-    TEST_ASSERT_FALSE(proof_navigator_next_breakpoint(nav));
+    TEST_ASSERT(!proof_navigator_next_breakpoint(nav), "no more breakpoints");
 
     /* NULL 安全 */
-    TEST_ASSERT_FALSE(proof_navigator_next_breakpoint(NULL));
+    TEST_ASSERT(!proof_navigator_next_breakpoint(NULL), "next_breakpoint with NULL should fail");
 
     proof_navigator_destroy(nav);
     proposition_unref(prop);
 }
 
-static void test_pro
+int main(void) {
+    TEST_SUITE_BEGIN("Proof Infrastructure");
+
+    /* ── Command Log ── */
+    printf("\n--- Command Log ---\n");
+    TEST_RUN(test_command_log_lifecycle);
+    TEST_RUN(test_command_log_append);
+    TEST_RUN(test_command_entry_create_all_types);
+    TEST_RUN(test_command_log_clear);
+    TEST_RUN(test_command_entry_serialize_json);
+    TEST_RUN(test_command_log_execute_replay);
+
+    /* ── Proof Navigator ── */
+    printf("\n--- Proof Navigator ---\n");
+    TEST_RUN(test_proof_navigator_create_destroy);
+    TEST_RUN(test_proof_navigator_steps);
+    TEST_RUN(test_proof_navigator_breakpoints);
+
+    TEST_SUITE_END();
+    return g_fail_count > 0 ? 1 : 0;
+}

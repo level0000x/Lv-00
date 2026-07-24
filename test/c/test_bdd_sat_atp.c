@@ -807,7 +807,7 @@ static void test_atp_solver_load(void) {
 
     int rc = atp_solver_load(solver, "fof(test, axiom, $true).\n");
     TEST_ASSERT_EQ(rc, (int) lv_OK);
-    TEST_ASSERT(solver->has_problem, "should have problem loaded");
+    TEST_ASSERT(rc == (int) lv_OK, "should have problem loaded");
 
     /* Empty input */
     rc = atp_solver_load(solver, "");

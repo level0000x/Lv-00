@@ -150,8 +150,8 @@ static void test_magic_array_all_constraint_types(void) {
     Rune *r2 = rune_create_rational(1, 1, ELEMENT_WATER);
     int i1 = magic_array_add_rune(arr, r1);
     int i2 = magic_array_add_rune(arr, r2);
-    TEST_ASSERT_GE(i1, 0);
-    TEST_ASSERT_GE(i2, 0);
+    TEST_ASSERT(i1 >= 0, "i1 >= 0");
+    TEST_ASSERT(i2 >= 0, "i2 >= 0");
 
     /* 测试所有约束类型 */
     ArrayConstraintType types[] = {ARRAY_CONNECTION,  ARRAY_ENHANCEMENT, ARRAY_CONFLICT, ARRAY_INTERSECTION,

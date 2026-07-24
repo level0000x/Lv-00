@@ -486,7 +486,7 @@ static void test_widget_register_all_types(void) {
 static void test_widget_update_full(void) {
     lvWidgetLayout *layout = proof_widget_init(4);
     int id = proof_widget_register(layout, WIDGET_GOAL_DISPLAY, "Original", 0);
-    TEST_ASSERT_GE(id, 0);
+    TEST_ASSERT(id >= 0, "id >= 0");
 
     /* 更新所有字段 */
     TEST_ASSERT_EQ(proof_widget_update(layout, id, true, false, "Updated Label", 5, "{\"key\":\"val\"}"), 0);

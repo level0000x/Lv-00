@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file magic.h
  * @brief 编程魔法系统 - 基于 Lv-00 的咒语编程模拟器
  *
@@ -322,6 +322,9 @@ lv_PUBLIC_API bool domain_add_rule(Domain *domain, const char *rule_name, double
 lv_PUBLIC_API bool domain_activate(Domain *domain, SymbolicCoord *center);
 lv_PUBLIC_API bool domain_deactivate(Domain *domain);
 lv_PUBLIC_API bool domain_is_active(const Domain *domain);
+lv_PUBLIC_API const char *domain_get_name(const Domain *domain);
+lv_PUBLIC_API int domain_get_range(const Domain *domain);
+lv_PUBLIC_API SymbolicCoord *domain_get_center(const Domain *domain);
 lv_PUBLIC_API double domain_get_strength(const Domain *domain);
 
 /* ============================================================

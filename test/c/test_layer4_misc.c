@@ -1172,21 +1172,21 @@ static void test_rewrite_strategy_create(void) {
     RewriteStrategy *s1 = rewrite_strategy_create_idle();
     RewriteStrategy *s2 = rewrite_strategy_create_fail();
     RewriteStrategy *seq = rewrite_strategy_sequence(s1, s2);
-    TEST_ASSERT_NOT_NULL(seq, "sequence策略应成功");
-    TEST_ASSERT_EQ(seq->kind, REWRITE_STRATEGY_KIND_SEQUENCE, "应为SEQUENCE");
+    TEST_ASSERT_NOT_NULL(seq);
+    TEST_ASSERT_EQ(seq->kind, REWRITE_STRATEGY_KIND_SEQUENCE);
     rewrite_strategy_destroy(seq);
 
     s1 = rewrite_strategy_create_idle();
     s2 = rewrite_strategy_create_fail();
     RewriteStrategy *orelse = rewrite_strategy_orelse(s1, s2);
-    TEST_ASSERT_NOT_NULL(orelse, "orelse策略应成功");
+    TEST_ASSERT_NOT_NULL(orelse);
     rewrite_strategy_destroy(orelse);
 
     RewriteStrategy *child = rewrite_strategy_create_idle();
     RewriteStrategy *rep = rewrite_strategy_repeat(child, 5);
-    TEST_ASSERT_NOT_NULL(rep, "repeat策略应成功");
-    TEST_ASSERT_EQ(rep->kind, REWRITE_STRATEGY_KIND_REPEAT, "应为REPEAT");
-    TEST_ASSERT_EQ(rep->max_iterations, 5, "max_iterations应为5");
+    TEST_ASSERT_NOT_NULL(rep);
+    TEST_ASSERT_EQ(rep->kind, REWRITE_STRATEGY_KIND_REPEAT);
+    TEST_ASSERT_EQ(rep->max_iterations, 5);
     rewrite_strategy_destroy(rep);
 
     child = rewrite_strategy_create_idle();
@@ -1196,7 +1196,7 @@ static void test_rewrite_strategy_create(void) {
 
     child = rewrite_strategy_create_idle();
     RewriteStrategy *try_s = rewrite_strategy_try(child);
-    TEST_ASSERT_NOT_NULL(try_s, "try策略应成功");
+    TEST_ASSERT_NOT_NULL(try_s);
     rewrite_strategy_destroy(try_s);
 
     rewrite_strategy_destroy(NULL);
