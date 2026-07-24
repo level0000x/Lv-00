@@ -1160,12 +1160,12 @@ static void test_rewrite_strategy_create(void) {
     RewriteStrategy *s_apply = rewrite_strategy_create_apply_rule(0);
     TEST_ASSERT_NOT_NULL(s_apply, "apply_rule策略应成功");
     TEST_ASSERT_EQ(s_apply->kind, REWRITE_STRATEGY_KIND_APPLY_RULE, "应为APPLY_RULE");
-    TEST_ASSERT_EQ(s_apply->rule_id, 0, "rule_id应为0");
+    TEST_ASSERT_EQ(s_apply->rule_id, 0);
     rewrite_strategy_destroy(s_apply);
 
     RewriteStrategy *s_match = rewrite_strategy_create_match("pattern_expr");
-    TEST_ASSERT_NOT_NULL(s_match, "match策略应成功");
-    TEST_ASSERT_EQ(s_match->kind, REWRITE_STRATEGY_KIND_MATCH_PATTERN, "应为MATCH_PATTERN");
+    TEST_ASSERT_NOT_NULL(s_match);
+    TEST_ASSERT_EQ(s_match->kind, REWRITE_STRATEGY_KIND_MATCH_PATTERN);
     rewrite_strategy_destroy(s_match);
 
     /* 组合策略 */
@@ -1191,7 +1191,7 @@ static void test_rewrite_strategy_create(void) {
 
     child = rewrite_strategy_create_idle();
     RewriteStrategy *norm = rewrite_strategy_normalize(child);
-    TEST_ASSERT_NOT_NULL(norm, "normalize策略应成功");
+    TEST_ASSERT_NOT_NULL(norm);
     rewrite_strategy_destroy(norm);
 
     child = rewrite_strategy_create_idle();

@@ -46,7 +46,7 @@ int g_fail_count = 0;
 void test_csg_node_create_destroy(void) {
     /* 创建各类节点 */
     CSGNode *prim = csg_node_create(CSG_NODE_PRIMITIVE);
-    TEST_ASSERT_NOT_NULL(prim, "create primitive node");
+    TEST_ASSERT_NOT_NULL(prim);
     TEST_ASSERT(prim->kind == CSG_NODE_PRIMITIVE, "kind = PRIMITIVE");
     TEST_ASSERT(prim->child_count == 0, "child count = 0");
     TEST_ASSERT(prim->func_block_id == -1, "func_block_id = -1");
@@ -63,7 +63,7 @@ void test_csg_node_create_destroy(void) {
     TEST_ASSERT(isinf(prim->bbox_min[0]), "bbox_min is INF");
 
     CSGNode *un = csg_node_create(CSG_NODE_UNION);
-    TEST_ASSERT_NOT_NULL(un, "create union node");
+    TEST_ASSERT_NOT_NULL(un);
 
     CSGNode *diff = csg_node_create(CSG_NODE_DIFFERENCE);
     TEST_ASSERT_NOT_NULL(diff, "create difference node");
@@ -72,10 +72,10 @@ void test_csg_node_create_destroy(void) {
     TEST_ASSERT_NOT_NULL(inter, "create intersection node");
 
     CSGNode *xfm = csg_node_create(CSG_NODE_TRANSFORM);
-    TEST_ASSERT_NOT_NULL(xfm, "create transform node");
+    TEST_ASSERT_NOT_NULL(xfm);
 
     CSGNode *hull = csg_node_create(CSG_NODE_HULL);
-    TEST_ASSERT_NOT_NULL(hull, "create hull node");
+    TEST_ASSERT_NOT_NULL(hull);
 
     /* 销毁 */
     csg_node_destroy(prim);
@@ -132,7 +132,7 @@ void test_csg_sphere(void) {
 
     /* 负半径 */
     CSGNode *neg = csg_sphere_create(-3.0);
-    TEST_ASSERT_NOT_NULL(neg, "negative radius sphere");
+    TEST_ASSERT_NOT_NULL(neg);
     TEST_ASSERT(fabs(neg->data.prim.params[0] - 3.0) < 1e-9, "negative radius abs'd to 3");
     csg_node_destroy(neg);
 
@@ -160,7 +160,7 @@ void test_csg_box(void) {
 /** 测试圆柱体创建 */
 void test_csg_cylinder(void) {
     CSGNode *cyl = csg_cylinder_create(3.0, 10.0);
-    TEST_ASSERT_NOT_NULL(cyl, "create cylinder");
+    TEST_ASSERT_NOT_NULL(cyl);
     TEST_ASSERT(cyl->data.prim.type == 2, "cylinder type=2");
     TEST_ASSERT(fabs(cyl->data.prim.params[0] - 3.0) < 1e-9, "cylinder radius=3");
     TEST_ASSERT(fabs(cyl->data.prim.params[1] - 10.0) < 1e-9, "cylinder height=10");
@@ -172,7 +172,7 @@ void test_csg_cylinder(void) {
 /** 测试圆锥创建 */
 void test_csg_cone(void) {
     CSGNode *cone = csg_cone_create(2.0, 4.0, 8.0);
-    TEST_ASSERT_NOT_NULL(cone, "create cone");
+    TEST_ASSERT_NOT_NULL(cone);
     TEST_ASSERT(cone->data.prim.type == 3, "cone type=3");
     TEST_ASSERT(fabs(cone->data.prim.params[0] - 2.0) < 1e-9, "cone r1=2");
     TEST_ASSERT(fabs(cone->data.prim.params[1] - 4.0) < 1e-9, "cone r2=4");
@@ -224,7 +224,7 @@ void test_csg_intersection(void) {
     CSGNode *box = csg_box_create(3.0, 3.0, 3.0);
 
     CSGNode *inter = geometry_csg_intersection(sphere, box);
-    TEST_ASSERT_NOT_NULL(inter, "intersection not null");
+    TEST_ASSERT_NOT_NULL(inter);
     TEST_ASSERT(inter->kind == CSG_NODE_INTERSECTION, "intersection kind");
     TEST_ASSERT(inter->child_count == 2, "intersection has 2 children");
 
@@ -272,7 +272,7 @@ void test_csg_tree_structure(void) {
     CSGNode *uni = geometry_csg_union(sphere, cyl);
 
     /* 验证树结构 */
-    TEST_ASSERT_NOT_NULL(uni, "union created");
+    TEST_ASSERT_NOT_NULL(uni);
     TEST_ASSERT(uni->child_count == 2, "union has 2 children");
     TEST_ASSERT(uni->children[0]->kind == CSG_NODE_PRIMITIVE, "first child is primitive");
     TEST_ASSERT(uni->children[1]->kind == CSG_NODE_PRIMITIVE, "second child is primitive");
@@ -291,7 +291,7 @@ void test_csg_tree_structure(void) {
 /** 测试泰姬陵圆顶示例 */
 void test_csg_example_taj_mahal(void) {
     CSGNode *taj = csg_example_taj_mahal_dome();
-    TEST_ASSERT_NOT_NULL(taj, "taj mahal example created");
+    TEST_ASSERT_NOT_NULL(taj);
     TEST_ASSERT(taj->kind == CSG_NODE_UNION, "taj mahal is union");
     TEST_ASSERT(taj->child_count == 2, "taj mahal has 2 children");
 
@@ -323,7 +323,7 @@ void test_euclidean_init_destroy(void) {
 /** 测试带约束图的 Euclidean 上下文 */
 void test_euclidean_with_graph(void) {
     ConstraintGraph *graph = graph_create();
-    TEST_ASSERT_NOT_NULL(graph, "graph created");
+    TEST_ASSERT_NOT_NULL(graph);
 
     EuclideanContext *ctx = euclidean_init(graph);
     TEST_ASSERT_NOT_NULL(ctx, "euclidean_init with graph");
@@ -370,7 +370,7 @@ void test_euclidean_axiom_system(void) {
 /** 测试约束图绑定 */
 void test_euclidean_bind_graph(void) {
     EuclideanContext *ctx = euclidean_init(NULL);
-    TEST_ASSERT_NOT_NULL(ctx, "context created");
+    TEST_ASSERT_NOT_NULL(ctx);
 
     ConstraintGraph *graph = graph_create();
     euclidean_bind_graph(ctx, graph);
@@ -624,12 +624,12 @@ void test_euclidean_equivalence_chain(void) {
     EuclideanContext *ctx = euclidean_init(NULL);
 
     EquivalenceProofChain *chain = euclidean_create_equivalence_chain(ctx);
-    TEST_ASSERT_NOT_NULL(chain, "equivalence chain created");
+    TEST_ASSERT_NOT_NULL(chain);
     TEST_ASSERT(chain->source_system == EUCLID_BIRKHOFF, "source=Birkhoff");
     TEST_ASSERT(chain->target_system == EUCLID_TARSKI, "target=Tarski");
     TEST_ASSERT(chain->status == EQUIV_STATUS_PENDING, "status=pending");
     TEST_ASSERT(chain->translation_count > 0, "has translations");
-    TEST_ASSERT_NOT_NULL(chain->verification_graph, "has verification graph");
+    TEST_ASSERT_NOT_NULL(chain->verification_graph);
 
     /* 清理 */
     euclidean_destroy(ctx);
@@ -676,8 +676,8 @@ void test_euclidean_export(void) {
     graph_destroy(tarski);
 
     /* NULL 上下文 */
-    TEST_ASSERT_NULL(euclidean_export_birkhoff(NULL), "export with NULL ctx");
-    TEST_ASSERT_NULL(euclidean_export_tarski(NULL), "export with NULL ctx");
+    TEST_ASSERT_NULL(euclidean_export_birkhoff(NULL));
+    TEST_ASSERT_NULL(euclidean_export_tarski(NULL));
 
     euclidean_destroy(ctx);
     graph_destroy(graph);
@@ -940,7 +940,7 @@ void test_compress_lvzd_io(void) {
 /** 测试 CSG NULL 安全 */
 void test_csg_null_safety(void) {
     CSGNode *n = csg_node_create(CSG_NODE_PRIMITIVE);
-    TEST_ASSERT_NOT_NULL(n, "create node");
+    TEST_ASSERT_NOT_NULL(n);
 
     /* NULL 子节点 */
     csg_node_add_child(n, NULL);

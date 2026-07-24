@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file euclidean_geometry.h
  * @brief 欧几里得几何公理体系 —— Birkhoff/Tarski 双公理系统及其等价性验证
  *
@@ -397,6 +397,7 @@ bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_i
 bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int b1_id, int b2_id);
 
 /* ── forward decls for .c internal functions ── */
+EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx);
 void euclidean_destroy_equivalence_chain(EquivalenceProofChain *chain);
 bool euclidean_check_consistency(EuclideanContext *ctx);
 

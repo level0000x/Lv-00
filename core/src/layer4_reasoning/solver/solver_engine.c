@@ -82,7 +82,7 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
 
 lv_DECLARE_STREAM_CTX(solver);
 
-void solver_set_stream_context(StreamContext *ctx) {
+static void solver_set_stream_context_local(StreamContext *ctx) {
     solver_stream_ctx = ctx;
 }
 
