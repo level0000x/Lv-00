@@ -1,4 +1,4 @@
-﻿/-
+/-
 Cv00 内存模型 + exec_stmt
 
 本模块定义 Cv00 语言的内存模型和语句大步语义：
@@ -11,12 +11,14 @@ Cv00 内存模型 + exec_stmt
 -/
 
 import lvFormal.Theory.Cv00Lang
+import lvFormal.Theory.lvLang
 
 namespace lvFormal
 namespace Theory
 namespace Cv00Memory
 
 open Cv00Lang
+open lvLang
 
 /-! ## 内存模型 -/
 
@@ -251,13 +253,50 @@ theorem exec_preserves_mem_if_no_call (m : Mem) (env : Env) (st : Cv00Stmt) :
 /-- Cv00 语义：将 Cv00 语义系统桥接到 Lv-00 形式化体系 -/
 namespace Cv00Semantics
 
-/-- 从 lvLang 的可满足状态构造 Cv00 执行结果 -/
-def lift_satisfiable_to_cv00 (_s : lvLang.State) : Option ExecResult :=
-  -- 桥接函数：将 lv 状态提升为 Cv00 执行
-  some (.normal emptyMem emptyEnv)
+/-- 从 lvLang 的点列表构造 Cv00 环境：每个点 name 映射为 name_x 和 name_y 两个变量 -/
+def points_to_env (pts : List lvPoint) : Env :=
+  let rec go (acc : Env) : List lvPoint → Env
+    | [] => acc
+    | p :: rest =>
+      let acc' := env_set acc (p.name ++ "_x") (.fval p.x)
+      let acc'' := env_set acc' (p.name ++ "_y") (.fval p.y)
+      go acc'' rest
+  go emptyEnv pts
 
-/-- 桥接保持一致性 -/
-theorem bridge_consistent : True := trivial
+/-- 从 lvLang 的可满足状态构造 Cv00 执行结果 -/
+def lift_satisfiable_to_cv00 (s : State) : Option ExecResult :=
+  some (.normal emptyMem (points_to_env s.points))
+
+/-- 桥接保持点坐标的一致性：若环境中有点 p，则 env(p_x) = fval(p.x) -/
+theorem points_to_env_correct_x (pts : List lvPoint) (p : lvPoint) (h : p ∈ pts) :
+    (points_to_env pts) (p.name ++ "_x") = some (.fval p.x) := by
+  induction pts with
+  | nil => simp at h
+  | cons q qs ih =>
+    simp at h
+    rcases h with (rfl | hrest)
+    · unfold points_to_env; simp
+    · unfold points_to_env; simp
+      rw [ih qs hrest]
+
+/-- 桥接保持点坐标的一致性：若环境中有点 p，则 env(p_y) = fval(p.y) -/
+theorem points_to_env_correct_y (pts : List lvPoint) (p : lvPoint) (h : p ∈ pts) :
+    (points_to_env pts) (p.name ++ "_y") = some (.fval p.y) := by
+  induction pts with
+  | nil => simp at h
+  | cons q qs ih =>
+    simp at h
+    rcases h with (rfl | hrest)
+    · unfold points_to_env; simp
+    · unfold points_to_env; simp
+      rw [ih qs hrest]
+
+/-- lift_satisfiable_to_cv00 在可满足状态上总是返回 normal -/
+theorem lift_on_satisfiable_state (s : State) (hs : satisfiable s) :
+    ∃ res, lift_satisfiable_to_cv00 s = some (.normal emptyMem res) := by
+  unfold lift_satisfiable_to_cv00
+  refine ⟨points_to_env s.points, ?_⟩
+  rfl
 
 end Cv00Semantics
 

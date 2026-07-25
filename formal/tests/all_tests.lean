@@ -1,4 +1,4 @@
-﻿/-
+/-
   Lv-00 Formal Verification: Test Suite
   测试入口
 -/
@@ -93,7 +93,15 @@ theorem dsl_wrappers_soundness_test : True := by
 
 /- InteractiveGeoSoundness -/
 theorem interactive_geo_soundness_test : True := by
-  have _ := InteractiveGeoSoundness.interactive_geo_sound []; trivial
+  -- 拖动保持性测试：对空环境验证基本性质
+  have _ := drag_preserves_constraints (fun _ => (0,0)) (.distance "A" "B" (.const 5)) "C" (1,1)
+    (by
+      unfold ir_sem dist ptX ptY
+      simp)
+    (by
+      unfold vars_of_constraint
+      simp)
+  trivial
 
 /- GeomPresetSoundness -/
 theorem geom_preset_soundness_test : True := by
@@ -117,7 +125,8 @@ theorem ndim_geometry_test : True := by
 
 /- DifferentialGeometry -/
 theorem differential_geometry_test : True := by
-  have _ := DifferentialGeometry.diff_geo_consistent []; trivial
+  have _ := theorema_egregium (fun _ => (0,0,0)) (fun _ => (0,0,0)) 0 0 (by rfl)
+  trivial
 
 /- GeometryPresets -/
 theorem geometry_presets_test : True := by
