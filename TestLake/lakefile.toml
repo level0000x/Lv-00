@@ -1,0 +1,10 @@
+name = "TestLake"
+version = "0.1.0"
+defaultTargets = ["testlake"]
+
+[[lean_lib]]
+name = "TestLake"
+
+[[lean_exe]]
+name = "testlake"
+root = "Main"

@@ -12,9 +12,7 @@ Lv-00 源语言 (.lv) 的语法与操作语义
 
 import Mathlib
 
-namespace lvFormal
-namespace Theory
-namespace lvLang
+namespace lvFormal.Theory.lvLang
 
 /-! ## 语法定义 -/
 
@@ -268,6 +266,4 @@ theorem normalize_idempotent (s : State) :
   · simp [h]
   · simp [h]
 
-end lvLang
-end Theory
-end lvFormal
+end lvFormal.Theory.lvLang

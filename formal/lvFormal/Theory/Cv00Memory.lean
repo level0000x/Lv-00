@@ -13,9 +13,7 @@ Cv00 内存模型 + exec_stmt
 import lvFormal.Theory.Cv00Lang
 import lvFormal.Theory.lvLang
 
-namespace lvFormal
-namespace Theory
-namespace Cv00Memory
+namespace lvFormal.Theory.Cv00Memory
 
 open Cv00Lang
 open lvLang
@@ -214,9 +212,8 @@ theorem exec_preserves_mem_if_no_call (m : Mem) (env : Env) (st : Cv00Stmt) :
       · simp
       · simp
   · -- compound
-    -- compound 可能修改内存，因此不做保证
-    -- 此处仅证明单步不修改（递归内部可能修改）
-    trivial
+    -- compound 可能在内层递归中修改内存，本定理只保证单步执行不修改
+    exact True.intro
   · -- if_stmt
     unfold exec_stmt
     cases eval_expr env cond
@@ -230,11 +227,11 @@ theorem exec_preserves_mem_if_no_call (m : Mem) (env : Env) (st : Cv00Stmt) :
       · simp
       · simp
   · -- while_stmt
-    -- while 可能修改内存，跳过
-    trivial
+    -- while 可能在内层递归中修改内存，本定理只保证单步不修改
+    exact True.intro
   · -- for_stmt
-    -- for 可能修改内存，跳过
-    trivial
+    -- for 可能在内层递归中修改内存，本定理只保证单步不修改
+    exact True.intro
   · -- return_stmt
     unfold exec_stmt
     cases e
@@ -298,8 +295,43 @@ theorem lift_on_satisfiable_state (s : State) (hs : satisfiable s) :
   refine ⟨points_to_env s.points, ?_⟩
   rfl
 
+/-- 桥接通则：若 lvLang 状态 s 可满足，则存在 Cv00 环境 env 和内存 m，
+    使得 lift_satisfiable_to_cv00 返回 normal，且该环境包含所有点的坐标。
+    这是 lvLang 语义 → Cv00 语义的桥接正确性保证。 -/
+theorem satisfiable_bridge_to_cv00 (s : State) (hs : satisfiable s) :
+    ∃ (env : Env), lift_satisfiable_to_cv00 s = some (.normal emptyMem env) ∧
+    ∀ (p : lvPoint), p ∈ s.points → env (p.name ++ "_x") = some (.fval p.x) ∧
+                                      env (p.name ++ "_y") = some (.fval p.y) := by
+  rcases lift_on_satisfiable_state s hs with ⟨env, h_lift⟩
+  refine ⟨env, h_lift, ?_⟩
+  intro p hp
+  have hx := points_to_env_correct_x s.points p hp
+  have hy := points_to_env_correct_y s.points p hp
+  unfold lift_satisfiable_to_cv00 at h_lift
+  injection h_lift with h_env_eq
+  have h_env_eq' : env = points_to_env s.points := by
+    simpa using h_env_eq
+  subst h_env_eq'
+  exact ⟨hx, hy⟩
+
+/-- 所有点都具名映射：points_to_env 仅为声明过的点建立 x/y 映射，
+    未声明的变量映射到 none。 -/
+theorem points_to_env_defined_only (pts : List lvPoint) (name : String) :
+    (∀ p ∈ pts, p.name ++ "_x" ≠ name ∧ p.name ++ "_y" ≠ name) →
+    (points_to_env pts) name = none := by
+  induction pts with
+  | nil => intro; unfold points_to_env; simp
+  | cons q qs ih =>
+    intro h_all
+    have h_qx : q.name ++ "_x" ≠ name := (h_all q (by simp)).1
+    have h_qy : q.name ++ "_y" ≠ name := (h_all q (by simp)).2
+    unfold points_to_env; simp
+    have h_rest : (∀ p ∈ qs, p.name ++ "_x" ≠ name ∧ p.name ++ "_y" ≠ name) := by
+      intro p hp
+      exact h_all p (by simp [hp])
+    have h_rest_none : (points_to_env qs) name = none := ih name h_rest
+    simp [h_qx, h_qy, h_rest_none]
+
 end Cv00Semantics
 
-end Cv00Memory
-end Theory
-end lvFormal
+end lvFormal.Theory.Cv00Memory

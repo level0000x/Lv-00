@@ -1,4 +1,4 @@
-﻿/-
+/-
 自举正确性（重写版）
 
 本模块是自举编译流程的正确性声明。
@@ -13,14 +13,12 @@ import lvFormal.Theory.IR
 import lvFormal.Theory.Compiler
 import lvFormal.Theory.CompilerCorrectness
 
-namespace lvFormal
-namespace Theory
-namespace BootstrapCorrectness
+namespace lvFormal.Theory.BootstrapCorrectness
 
-open lvLang
-open IR
-open Compiler
-open CompilerCorrectness
+open lvFormal.Theory.lvLang
+open lvFormal.Theory.IR
+open lvFormal.Theory.Compiler
+open lvFormal.Theory.CompilerCorrectness
 
 /-! ## 旧基础设施（保留兼容）-/
 
@@ -69,6 +67,4 @@ theorem bootstrap_never_unsatisfiable_empty :
     graph_satisfiable (bootstrap_pipeline ([] : lvProgram)) :=
   bootstrap_empty_correct
 
-end BootstrapCorrectness
-end Theory
-end lvFormal
+end lvFormal.Theory.BootstrapCorrectness

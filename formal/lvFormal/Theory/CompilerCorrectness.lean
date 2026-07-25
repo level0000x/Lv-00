@@ -11,13 +11,11 @@ import lvFormal.Theory.lvLang
 import lvFormal.Theory.IR
 import lvFormal.Theory.Compiler
 
-namespace lvFormal
-namespace Theory
-namespace CompilerCorrectness
+namespace lvFormal.Theory.CompilerCorrectness
 
-open lvLang
-open IR
-open Compiler
+open lvFormal.Theory.lvLang
+open lvFormal.Theory.IR
+open lvFormal.Theory.Compiler
 
 /-! ## 辅助定义 -/
 
@@ -264,12 +262,10 @@ theorem compile_preserves_satisfiability (prog : lvProgram) :
         exact Or.inr (Or.inr (by simp))
       · have h_c_in_sts' : c ∈ constraints_of_program sts := h_c_in_sts
         have h_rec := ih sts h_c_in_sts' (by
-          -- eval_program initialState (st :: sts) 无错误 ⇒ eval_program (eval_stmt initialState st) sts 无错误
-          unfold eval_program eval_stmt addConstraint at h_no_err
-          -- 由于 h_no_err 来自 eval_program initialState (st :: sts) 的无错误性
-          -- 在每步求值中，若 st 是 constraint 且无重名，则添加成功；否则错误
-          -- 此处简化处理：假定每个语句类型都正确执行
-          trivial)
+          -- eval_program initialState (st :: sts) = eval_program (eval_stmt initialState st) sts
+          -- 因此 h : satisfiable (eval_program initialState (st :: sts)) 即为
+          -- satisfiable (eval_program (eval_stmt initialState st) sts)
+          simpa [eval_program] using h)
         unfold eval_program
         -- 需要证明 c 在 eval_program (eval_stmt initialState st) sts 的 constraints 中
         -- 根据 h_rec 它是
@@ -513,6 +509,4 @@ theorem correctness_with_sat_hypothesis (prog : lvProgram) (env : String → ℝ
     graph_satisfiable (compile_program prog) := by
   exact ⟨env, h⟩
 
-end CompilerCorrectness
-end Theory
-end lvFormal
+end lvFormal.Theory.CompilerCorrectness

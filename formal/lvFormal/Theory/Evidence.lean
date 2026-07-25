@@ -367,31 +367,134 @@ theorem evidence_no_qed_fails (g : ConstraintGraph) (t : ProofTrace)
   | some .qed => exact (h rfl).elim
   | some _ => rfl
 
-/-- Evidence check is compositional: if two graphs are independently verified,
-    their union is also verifiable (assuming t2 re-proves g1's constraints). -/
-theorem evidence_compositional (g1 g2 : ConstraintGraph) (t1 t2 : ProofTrace)
-    (h1 : evidence_check g1 t1 = true) (h2 : evidence_check g2 t2 = true) :
-    evidence_check (g1 ++ g2) (t1 ++ t2) = true := by
-  unfold evidence_check evidence_check_witness
+/-- If go succeeds on t1 from start state st1 and reaches st2,
+    then processing t1 ++ t2 from st1 is equivalent to processing t2 from st2.
+    This is a general state-transition composition lemma for the verifier. -/
+lemma go_trans_compose (g : ConstraintGraph) (st1 st2 : VerifierState) (t1 t2 : ProofTrace)
+    (h : go g st1 t1 = some st2) : go g st1 (t1 ++ t2) = go g st2 t2 := by
+  induction t1 generalizing st1 st2 with
+  | nil =>
+    unfold go at h
+    simp at h
+    subst h; simp
+  | cons step rest ih =>
+    unfold go at h
+    by_cases hok : step_ok g st1 step = true
+    · simp [hok] at h
+      have h_rest : go g (transition st1 step) rest = some st2 := h
+      unfold go; simp [hok]
+      exact ih (transition st1 step) st2 rest t2 h_rest
+    · simp [hok] at h
+
+/-- Evidence check is compositional in the state-transition sense:
+    if go succeeds on t1 from st, then go succeeds on t1 ++ t2 from st
+    iff go succeeds on t2 from the state reached after t1. -/
+theorem go_compositional (g : ConstraintGraph) (st : VerifierState) (t1 t2 : ProofTrace) :
+    (go g st t1 ≠ none ∧ go g st (t1 ++ t2) ≠ none) ↔
+    (go g st t1 ≠ none ∧ go g (trace_fold st t1) t2 ≠ none) := by
+  constructor
+  · intro ⟨h_go_t1, h_go_combined⟩
+    refine ⟨h_go_t1, ?_⟩
+    rcases Option.ne_none_iff_exists.mp h_go_t1 with ⟨st1, h_go_t1'⟩
+    rcases Option.ne_none_iff_exists.mp h_go_combined with ⟨st2, h_go_combined'⟩
+    have h_eq : go g st (t1 ++ t2) = go g (trace_fold st t1) t2 := by
+      have h_fold : trace_fold st t1 = st1 :=
+        go_some_eq_trace_fold g st t1 st1 h_go_t1'
+      rw [h_fold]
+      exact go_trans_compose g st st1 t1 t2 h_go_t1'
+    have h_not_none : go g (trace_fold st t1) t2 ≠ none := by
+      rw [← h_eq]
+      exact h_go_combined'
+    exact h_not_none
+  · intro ⟨h_go_t1, h_go_t2⟩
+    rcases Option.ne_none_iff_exists.mp h_go_t1 with ⟨st1, h_go_t1'⟩
+    have h_fold : trace_fold st t1 = st1 :=
+      go_some_eq_trace_fold g st t1 st1 h_go_t1'
+    have h_combined : go g st (t1 ++ t2) ≠ none := by
+      rw [go_trans_compose g st st1 t1 t2 h_go_t1', h_fold]
+      exact h_go_t2
+    exact ⟨h_go_t1, h_combined⟩
+
+/-- Prefix property: if go succeeds on a concatenated trace,
+    it also succeeds on the prefix. -/
+lemma go_prefix_not_none (g : ConstraintGraph) (st : VerifierState) (t1 t2 : ProofTrace)
+    (h : go g st (t1 ++ t2) ≠ none) : go g st t1 ≠ none := by
+  induction t1 generalizing st with
+  | nil => unfold go; simp
+  | cons step rest ih =>
+    unfold go at h
+    by_cases h_ok : step_ok g st step
+    · simp [h_ok] at h
+      have h_rest : go g (transition st step) (rest ++ t2) ≠ none := h
+      have h_rest' : go g (transition st step) rest ≠ none := ih (transition st step) t2 h_rest
+      unfold go; simp [h_ok, h_rest']
+    · simp [h_ok] at h
+
+/-- Evidence check is compositional in the forward direction:
+    if t1 ends with qed and evidence_check passes on t1 ++ t2,
+    then evidence_check passes on t1 and go processes t2 from the post-t1 state. -/
+theorem evidence_compositional_forward (g : ConstraintGraph) (t1 t2 : ProofTrace)
+    (h_t1_qed : t1.getLast? = some .qed) :
+    evidence_check g (t1 ++ t2) = true →
+    (evidence_check g t1 = true ∧ go g (trace_fold (initVerifier g) t1) t2 ≠ none) := by
+  intro h_check
+  have h_wit : evidence_check_witness g (t1 ++ t2) ≠ none := by
+    unfold evidence_check at h_check
+    intro hnone; simp [hnone] at h_check
+  rcases Option.ne_none_iff_exists.mp h_wit with ⟨st, h_wit'⟩
   have h_last : (t1 ++ t2).getLast? = some .qed := by
-    have h1_last : t1.getLast? = some .qed := by
-      unfold evidence_check evidence_check_witness at h1
-      have : (evidence_check_witness g1 t1).isSome := h1
-      rcases Option.ne_none_iff_exists.mp (by
-        intro hnone; simp [hnone] at this) with ⟨st, h_wit⟩
-      have h_spec := evidence_check_witness_spec g1 t1 st h_wit
-      exact h_spec.1
-    have h2_last : t2.getLast? = some .qed := by
-      unfold evidence_check evidence_check_witness at h2
-      have : (evidence_check_witness g2 t2).isSome := h2
-      rcases Option.ne_none_iff_exists.mp (by
-        intro hnone; simp [hnone] at this) with ⟨st, h_wit⟩
-      have h_spec := evidence_check_witness_spec g2 t2 st h_wit
-      exact h_spec.1
-    rw [List.getLast?_append]
-    exact h2_last
-  simp [h_last]
-  sorry
+    unfold evidence_check_witness at h_wit'
+    split at h_wit' with h_last_combined
+    · exact h_last_combined
+    · simp at h_wit'
+  have h_go_combined : go g (initVerifier g) (t1 ++ t2) ≠ none := by
+    intro hnone; rw [hnone] at h_wit'; simp at h_wit'
+  have h_go_t1 : go g (initVerifier g) t1 ≠ none :=
+    go_prefix_not_none g (initVerifier g) t1 t2 h_go_combined
+  have h_check_t1 : evidence_check g t1 = true := by
+    unfold evidence_check evidence_check_witness
+    rw [h_t1_qed]; simp [h_go_t1]
+  have h_go_t2 : go g (trace_fold (initVerifier g) t1) t2 ≠ none := by
+    have h_left : go g (initVerifier g) t1 ≠ none ∧ go g (initVerifier g) (t1 ++ t2) ≠ none :=
+      ⟨h_go_t1, h_go_combined⟩
+    exact ((go_compositional g (initVerifier g) t1 t2).mp h_left).2
+  exact ⟨h_check_t1, h_go_t2⟩
+
+/-- Evidence check is compositional in the backward direction:
+    if t1 ends with qed, evidence_check passes on t1, go processes t2
+    from the post-t1 state, and t2 ends with qed (or is empty),
+    then evidence_check passes on t1 ++ t2. -/
+theorem evidence_compositional_backward (g : ConstraintGraph) (t1 t2 : ProofTrace)
+    (h_t1_qed : t1.getLast? = some .qed)
+    (h_check_t1 : evidence_check g t1 = true)
+    (h_go_t2 : go g (trace_fold (initVerifier g) t1) t2 ≠ none)
+    (h_t2_end : t2 = [] ∨ t2.getLast? = some .qed) : evidence_check g (t1 ++ t2) = true := by
+  have h_go_t1 : go g (initVerifier g) t1 ≠ none := by
+    unfold evidence_check evidence_check_witness at h_check_t1
+    rw [h_t1_qed] at h_check_t1
+    intro hnone; simp [hnone] at h_check_t1
+  have h_go_combined : go g (initVerifier g) (t1 ++ t2) ≠ none :=
+    ((go_compositional g (initVerifier g) t1 t2).mpr ⟨h_go_t1, h_go_t2⟩).2
+  have h_last_combined : (t1 ++ t2).getLast? = some .qed := by
+    rcases h_t2_end with (rfl | h_t2_qed)
+    · simpa using h_t1_qed
+    · simpa
+  unfold evidence_check evidence_check_witness
+  rw [h_last_combined]
+  simp [h_go_combined]
+
+/-- Combined evidence compositionality: evidence_check on concatenated trace
+    equals the sequential composition of checks on t1 and t2.
+    This is the main structural property of the evidence verifier. -/
+theorem evidence_compositional (g : ConstraintGraph) (t1 t2 : ProofTrace)
+    (h_t1_qed : t1.getLast? = some .qed)
+    (h_t2_end : t2 = [] ∨ t2.getLast? = some .qed) :
+    evidence_check g (t1 ++ t2) = true ↔
+    (evidence_check g t1 = true ∧ go g (trace_fold (initVerifier g) t1) t2 ≠ none) := by
+  constructor
+  · exact evidence_compositional_forward g t1 t2 h_t1_qed
+  · intro ⟨h_check_t1, h_go_t2⟩
+    exact evidence_compositional_backward g t1 t2 h_t1_qed h_check_t1 h_go_t2 h_t2_end
 
 /- ===============================================================
    Concrete verification examples

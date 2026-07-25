@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: Codegen — IR → Cv00 代码生成 (v1.1 R4)
 ========================================================
 Translates the Intermediate Representation into Cv00Lang (the C operational 
@@ -31,7 +31,7 @@ open lvFormal.Theory.Cv00Lang
     IRExpr uses ℝ semantics; Cv00Expr uses int/float pair model.
     var → .var, const → .lit_float, arithmetic → direct mapping. -/
 def cgen_expr : IRExpr → Cv00Expr
-  | IRExpr.var v     => .var v
+  | IRExpr.var v     => .var (v ++ "_x")  -- IR var → x-coordinate variable
   | IRExpr.const c   => .lit_float c
   | IRExpr.add a b   => .add (cgen_expr a) (cgen_expr b)
   | IRExpr.sub a b   => .sub (cgen_expr a) (cgen_expr b)
@@ -89,20 +89,20 @@ def cgen_declare_coords (points : List String) : List Cv00Stmt :=
   let vars := unique.bind (λ p => [(p ++ "_x", Cv00Type.float64), (p ++ "_y", Cv00Type.float64)])
   vars.map (λ (n, t) => .declare n t (some (.lit_float 0)))
 
-/-- Translate a single IR constraint to Cv00 validation code. -/
+/-- Translate a single IR constraint to Cv00 validation code.
+    Guard passes (returns nop) when the constraint is SATISFIED. -/
 def cgen_constraint : IRConstraint → Cv00Stmt
   | IRConstraint.distance a b d =>
       .compound [
         cgen_guard
-          (.cmp_ne
-            (.call "sqrt" [cgen_dist_sq_expr (a++"_x") (a++"_y") (b++"_x") (b++"_y")])
-            (cgen_expr d))
+          (.cmp_eq (cgen_dist_sq_expr (a++"_x") (a++"_y") (b++"_x") (b++"_y"))
+                   (.mul (cgen_expr d) (cgen_expr d)))
           (cgen_return_error "DIST")
       ]
   | IRConstraint.collinear a b c =>
       .compound [
         cgen_guard
-          (.cmp_ne
+          (.cmp_eq
             (.sub
               (.mul (.sub (cgen_getX b) (cgen_getX a)) (.sub (cgen_getY c) (cgen_getY a)))
               (.mul (.sub (cgen_getY b) (cgen_getY a)) (.sub (cgen_getX c) (cgen_getX a))))
@@ -112,7 +112,7 @@ def cgen_constraint : IRConstraint → Cv00Stmt
   | IRConstraint.perpendicular a b c d_ =>
       .compound [
         cgen_guard
-          (.cmp_ne
+          (.cmp_eq
             (.add
               (.mul (.sub (cgen_getX b) (cgen_getX a)) (.sub (cgen_getX d_) (cgen_getX c)))
               (.mul (.sub (cgen_getY b) (cgen_getY a)) (.sub (cgen_getY d_) (cgen_getY c))))
@@ -122,7 +122,7 @@ def cgen_constraint : IRConstraint → Cv00Stmt
   | IRConstraint.parallel a b c d_ =>
       .compound [
         cgen_guard
-          (.cmp_ne
+          (.cmp_eq
             (.sub
               (.mul (.sub (cgen_getX b) (cgen_getX a)) (.sub (cgen_getY d_) (cgen_getY c)))
               (.mul (.sub (cgen_getY b) (cgen_getY a)) (.sub (cgen_getX d_) (cgen_getX c))))
@@ -132,27 +132,29 @@ def cgen_constraint : IRConstraint → Cv00Stmt
   | IRConstraint.midpoint m a b =>
       .compound [
         cgen_guard
-          (.or_op
-            (.cmp_ne (cgen_getX m) (.div (.add (cgen_getX a) (cgen_getX b)) (.lit_float 2)))
-            (.cmp_ne (cgen_getY m) (.div (.add (cgen_getY a) (cgen_getY b)) (.lit_float 2))))
+          (.cmp_eq
+            (.add
+              (.cmp_eq (cgen_getX m) (.div (.add (cgen_getX a) (cgen_getX b)) (.lit_float 2)))
+              (.cmp_eq (cgen_getY m) (.div (.add (cgen_getY a) (cgen_getY b)) (.lit_float 2))))
+            (.lit_int 2))
           (cgen_return_error "MIDPOINT")
       ]
   | IRConstraint.eq_expr e f =>
       .compound [
-        cgen_guard (.cmp_ne (cgen_expr e) (cgen_expr f)) (cgen_return_error "EQ")
+        cgen_guard (.cmp_eq (cgen_expr e) (cgen_expr f)) (cgen_return_error "EQ")
       ]
   | IRConstraint.lt_expr e f =>
       .compound [
-        cgen_guard (.cmp_ge (cgen_expr e) (cgen_expr f)) (cgen_return_error "LT")
+        cgen_guard (.lt (cgen_expr e) (cgen_expr f)) (cgen_return_error "LT")
       ]
   | IRConstraint.gt_expr e f =>
       .compound [
-        cgen_guard (.cmp_le (cgen_expr e) (cgen_expr f)) (cgen_return_error "GT")
+        cgen_guard (.gt (cgen_expr e) (cgen_expr f)) (cgen_return_error "GT")
       ]
   | IRConstraint.rightAngle a b c =>
       .compound [
         cgen_guard
-          (.cmp_ne
+          (.cmp_eq
             (.add
               (.mul (.sub (cgen_getX a) (cgen_getX b)) (.sub (cgen_getX c) (cgen_getX b)))
               (.mul (.sub (cgen_getY a) (cgen_getY b)) (.sub (cgen_getY c) (cgen_getY b))))
@@ -162,9 +164,9 @@ def cgen_constraint : IRConstraint → Cv00Stmt
   | IRConstraint.equalLength a b c d_ =>
       .compound [
         cgen_guard
-          (.cmp_ne
-            (.call "sqrt" [cgen_dist_sq_expr (a++"_x") (a++"_y") (b++"_x") (b++"_y")])
-            (.call "sqrt" [cgen_dist_sq_expr (c++"_x") (c++"_y") (d_++"_x") (d_++"_y")]))
+          (.cmp_eq
+            (cgen_dist_sq_expr (a++"_x") (a++"_y") (b++"_x") (b++"_y"))
+            (cgen_dist_sq_expr (c++"_x") (c++"_y") (d_++"_x") (d_++"_y")))
           (cgen_return_error "EQ_LEN")
       ]
   | IRConstraint.angle _ _ _ _ _
@@ -202,10 +204,9 @@ def irConstraint_points : IRConstraint → List String
     This is a complete self-contained C program that can be
     executed by Cv00Memory.exec_stmt. -/
 def cgen_graph (g : ConstraintGraph) : Cv00Stmt :=
-  let allPoints : List String :=
-    (g.edges.bind irConstraint_points ++ g.nodes).eraseDups
+  let allPoints : List String := (g.bind irConstraint_points).eraseDups
   let declarations := cgen_declare_coords allPoints
-  let validations := g.edges.map cgen_constraint
+  let validations := g.map cgen_constraint
   let body := declarations ++ validations ++ [.return_stmt (some (.lit_int 0))]
   .compound body
 

@@ -12,9 +12,7 @@ lvLang → IR 编译器
 import lvFormal.Theory.lvLang
 import lvFormal.Theory.IR
 
-namespace lvFormal
-namespace Theory
-namespace Compiler
+namespace lvFormal.Theory.Compiler
 
 open lvLang
 open IR
@@ -205,6 +203,4 @@ theorem compile_program_append (p1 p2 : lvProgram) :
   unfold compile_program
   apply compile_program_go_append [] p1 p2
 
-end Compiler
-end Theory
-end lvFormal
+end lvFormal.Theory.Compiler

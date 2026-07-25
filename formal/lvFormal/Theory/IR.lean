@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 中间表示 (IR)
 
 本模块定义 Lv-00 编译管道中的中间表示形式：
@@ -13,9 +13,7 @@ Lv-00 中间表示 (IR)
 
 import Mathlib
 
-namespace lvFormal
-namespace Theory
-namespace IR
+namespace lvFormal.Theory.IR
 
 open Real
 
@@ -191,6 +189,4 @@ theorem collinear_symm (env : String → ℝ × ℝ) (a b c : String) :
       _ = ptY (env b) - ptY (env c) := by
         nlinarith
 
-end IR
-end Theory
-end lvFormal
+end lvFormal.Theory.IR

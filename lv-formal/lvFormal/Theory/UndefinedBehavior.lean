@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: Undefined Behavior (v1.1 R5)
 ============================================
 C11 undefined behavior classification and UB-freeness proofs.
@@ -28,6 +28,7 @@ import lvFormal.Theory.Cv00Lang
 import lvFormal.Theory.Cv00Memory
 import lvFormal.Theory.Codegen
 import lvFormal.Theory.IR
+import lvFormal.Theory.CodegenCorrectness
 
 namespace lvFormal.Theory.UndefinedBehavior
 

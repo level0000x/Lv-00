@@ -14,9 +14,7 @@ C11 子集操作语义 (Cv00Lang)
 
 import Mathlib
 
-namespace lvFormal
-namespace Theory
-namespace Cv00Lang
+namespace lvFormal.Theory.Cv00Lang
 
 /-! ## C 类型 -/
 
@@ -120,6 +118,12 @@ inductive Cv00Expr where
   | sizeof_expr (t : Cv00Type)
   | cast (t : Cv00Type) (e : Cv00Expr)
   | field_access (e : Cv00Expr) (field : Nat)
+  | call (name : String) (args : List Cv00Expr)
+  | cmp_eq (e1 e2 : Cv00Expr)
+  | cmp_ne (e1 e2 : Cv00Expr)
+  | cmp_ge (e1 e2 : Cv00Expr)
+  | cmp_le (e1 e2 : Cv00Expr)
+  | or_op (e1 e2 : Cv00Expr)
   deriving DecidableEq, Repr
 
 /-! ## 表达式求值 -/
@@ -198,6 +202,31 @@ def eval_expr (env : Env) : Cv00Expr → Option Cv00Val
       match eval_expr env e with
       | some v => some v  -- 简化：所有 cast 都是恒等
       | none => none
+  | .call name args =>
+      -- 外部函数调用未在模型中建模
+      none
+  | .cmp_eq e1 e2 =>
+      match eval_expr env e1, eval_expr env e2 with
+      | some v1, some v2 => some (.ival (if v1 = v2 then 1 else 0))
+      | _, _ => none
+  | .cmp_ne e1 e2 =>
+      match eval_expr env e1, eval_expr env e2 with
+      | some v1, some v2 => some (.ival (if v1 ≠ v2 then 1 else 0))
+      | _, _ => none
+  | .cmp_ge e1 e2 =>
+      match eval_expr env e1, eval_expr env e2 with
+      | some (.ival n1), some (.ival n2) => some (.ival (if n1 ≥ n2 then 1 else 0))
+      | some (.fval x1), some (.fval x2) => some (.ival (if x1 ≥ x2 then 1 else 0))
+      | _, _ => none
+  | .cmp_le e1 e2 =>
+      match eval_expr env e1, eval_expr env e2 with
+      | some (.ival n1), some (.ival n2) => some (.ival (if n1 ≤ n2 then 1 else 0))
+      | some (.fval x1), some (.fval x2) => some (.ival (if x1 ≤ x2 then 1 else 0))
+      | _, _ => none
+  | .or_op e1 e2 =>
+      match eval_expr env e1, eval_expr env e2 with
+      | some (.ival n1), some (.ival n2) => some (.ival (if n1 ≠ 0 ∨ n2 ≠ 0 then 1 else 0))
+      | _, _ => none
   | .field_access _ _ => none  -- 字段访问需要内存模型，定义在 Cv00Memory
 
 /-! ## C 语句 -/
@@ -246,6 +275,4 @@ theorem eval_sizeof (t : Cv00Type) :
     eval_expr emptyEnv (.sizeof_expr t) = some (.ival (sizeof t)) := by
   rfl
 
-end Cv00Lang
-end Theory
-end lvFormal
+end lvFormal.Theory.Cv00Lang
