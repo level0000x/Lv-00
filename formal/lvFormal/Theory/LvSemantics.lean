@@ -481,39 +481,77 @@ lemma qed_trace_sound (g : ConstraintGraph) : TraceSound (initVerifier g) [.qed]
   intro h_sat
   exact h_sat
 
-/-- 程序级证明迹的可靠性：若约束图可满足，则 mkTrivialProofTrace 对应的迹语义可靠 -/
+/-- TraceSound 的组合性引理：若 t₁ 从状态 st 是语义可靠的，
+    且 t₂ 从 trace_fold st t₁（即 t₁ 处理后的状态）也是语义可靠的，
+    则 t₁ ++ t₂ 从状态 st 是语义可靠的。
+    
+    此引理允许我们将证明迹分段组合。
+    证明：对 TraceSound st t₁ 的推导进行归纳。 -/
+lemma trace_sound_append (st : VerifierState) (t1 t2 : ProofTrace)
+    (h1 : TraceSound st t1) (h2 : TraceSound (trace_fold st t1) t2) :
+    TraceSound st (t1 ++ t2) := by
+  induction h1 with
+  | nil =>
+    -- t1 = []，trace_fold st [] = st，故 st ++ t2 = t2
+    simpa [trace_fold] using h2
+  | cons st' step rest h_step h_rest ih =>
+    -- st' ⊢ step :: rest，需证 st' ⊢ (step :: rest) ++ t2 = step :: (rest ++ t2)
+    -- h_rest: TraceSound (transition st' step) rest
+    -- h2（调整后）: TraceSound (trace_fold st' (step :: rest)) t2
+    --   = TraceSound (trace_fold (transition st' step) rest) t2
+    -- 由 ih: 从 h_rest 和调整后的 h2 得 TraceSound (transition st' step) (rest ++ t2)
+    apply TraceSound.cons st' step (rest ++ t2) h_step
+    apply ih
+    -- 展开 trace_fold 使 h2 的状态与 ih 的期望匹配
+    unfold trace_fold at h2
+    -- trace_fold st' (step :: rest) = trace_fold (transition st' step) rest
+    simpa [trace_fold] using h2
+
+/-- qed 步骤从任意状态都是可靠的（只要状态已满足原图约束）。
+    transition st .qed = st，故 step_sound 退化为恒等映射。 -/
+lemma qed_sound_at_state (g : ConstraintGraph) (st : VerifierState) :
+    TraceSound st [.qed] := by
+  refine TraceSound.cons st .qed [] ?_ (TraceSound.nil _)
+  unfold step_sound transition
+  intro h_sat
+  exact h_sat
+
+/-- 程序级证明迹的可靠性：若约束图可满足，则 mkTrivialProofTrace 对应的迹语义可靠。
+    
+    证明结构：
+    1. hypothesis 片段：对每个约束 c ∈ g，hypothesis_c 步骤从空状态是可靠的
+       （因为 h_sat 保证存在 env 满足所有约束）。
+    2. 经过 hypothesis 片段后，状态为 { proved := g.reverse }。
+    3. qed 步骤从该状态总是可靠的（qed_sound_at_state）。
+    4. 由 trace_sound_append 组合二者。 -/
 lemma program_trace_sound (p : LvProgram) (h_sat : graph_satisfiable (lvProgramToConstraintGraph p)) :
     TraceSound (initVerifier (lvProgramToConstraintGraph p)) (mkTrivialProofTrace p) := by
-  unfold mkTrivialProofTrace
+  let g := lvProgramToConstraintGraph p
   -- 将 mkTrivialProofTrace 拆分为 hypothesis 列表 + [qed]
-  -- 先证 hypothesis 片段可靠
-  have h_hyp_sound : TraceSound (initVerifier (lvProgramToConstraintGraph p))
-      ((getConstraints p).map (fun c => ProofStep.hypothesis (lvConstraintToIR c))) := by
+  have h_mkTrace_eq : mkTrivialProofTrace p =
+      ((getConstraints p).map (fun c => ProofStep.hypothesis (lvConstraintToIR c))) ++ [.qed] := by
+    unfold mkTrivialProofTrace
+    rfl
+  rw [h_mkTrace_eq]
+  -- 应用 trace_sound_append
+  apply trace_sound_append (initVerifier g)
+    ((getConstraints p).map (fun c => ProofStep.hypothesis (lvConstraintToIR c)))
+    [.qed]
+  · -- 第一部分：hypothesis 片段可靠
     rcases h_sat with ⟨env, h_env⟩
-    -- 构造一个满足约束图的环境 env
-    -- 将 h_env 从 graph_satisfiable 转换为 hypothesis 迹的 TraceSound
-    -- 使用 hypotheses_trace_sound_gen
-    apply hypotheses_trace_sound_gen (lvProgramToConstraintGraph p) env
-      (initVerifier (lvProgramToConstraintGraph p))
-    · -- ∀ c ∈ g, ir_sem env c（由 h_env）
+    apply hypotheses_trace_sound_gen g env (initVerifier g)
+    · -- ∀ c ∈ g, ir_sem env c
       intro c hc
       exact h_env c hc
-    · -- ∀ c ∈ st.proved, ir_sem env c（空状态，无已证约束）
+    · -- ∀ c ∈ (initVerifier g).proved, ir_sem env c（空状态）
       intro c hc
-      simp at hc
-  -- 再证 qed 步骤可靠
-  have h_qed_sound : TraceSound { proved := (getConstraints p).map lvConstraintToIR } [.qed] := by
-    apply qed_trace_sound
-  -- 组合 hypothesis 片段 + qed 步骤
-  -- 注意：hypothesis 片段结束时的状态是 { proved := ... }
-  -- 我们需要证明此状态与 qed 的起始状态匹配
-  -- 简化处理：用 TraceSound 的传递性
-  -- 假设 hypothesis 片段结束于状态 st_mid，则 qed 步骤从 st_mid 开始
-  -- 由于 qed 步骤不依赖 st_mid 的具体内容，总是可靠的
-  -- 完整的证明需要更细致的状态传递论证
-  -- 当前简化：返回 h_hyp_sound 自身
-  -- TODO: 完整证明需结合 go 的行为证明状态传递
-  exact h_hyp_sound
+      simp [initVerifier] at hc
+  · -- 第二部分：qed 在 hypothesis 处理后的状态上可靠
+    -- 计算 hypothesis 处理后的状态
+    -- trace_fold (initVerifier g) ((getConstraints p).map ...)
+    --   = { proved := g.reverse }（由 go_hypotheses_some + go_some_eq_trace_fold）
+    -- 但这里不需要展开，直接使用 qed_sound_at_state
+    apply qed_sound_at_state g
 
 /-- 简化版可靠性：对任意 Lv 程序 p，若其约束图为空，则平凡证明迹通过检查 -/
 theorem lv_empty_trivial_prove_soundness (p : LvProgram)

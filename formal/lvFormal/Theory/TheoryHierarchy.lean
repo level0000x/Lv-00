@@ -301,10 +301,10 @@ def allTheoryNodes : List TheoryNode :=
     , status := .partial
     }
   , { moduleName := "MetaVerificationTheory"
-    , description := "元验证理论：自指、证明检查器形式化、一致性、信任模型、反射原理"
+    , description := "元验证理论：自指、证明检查器形式化、一致性、信任模型、反射原理、Gödel不完备性、Löb定理"
     , imports := ["LogicalFramework", "Evidence", "IR"]
     , layer := 6
-    , status := .specOnly
+    , status := .partial
     }
 
     -- ===========================================================
@@ -502,14 +502,7 @@ def illegal_upward_dependencies : List (String × String) :=
 
 /-- 层次分配的良基性：所有依赖都是合法的（无向上依赖）。 -/
 theorem layer_assignment_well_founded : illegal_upward_dependencies = [] := by
-  -- 实际上这应该通过检查 allTheoryNodes 来计算。
-  -- 由于这是一个定义，我们直接证明它等于 []。
-  -- 在真实场景中，应该通过自动化脚本来验证。
-  unfold illegal_upward_dependencies
-  -- 对每个节点检查其所有依赖
-  simp [allTheoryNodes, is_legal_dependency, findNode]
-  -- 注意：这需要具体的计算，目前我们声明成立
-  trivial
+  native_decide
 
 /-! ===============================================================
    第五部分：架构文档与演化

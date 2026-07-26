@@ -543,4 +543,93 @@ theorem evidence_rejects_incomplete :
     = false := by
   unfold evidence_check evidence_check_witness; simp
 
+/- ===============================================================
+   State-transition composition
+   =============================================================== -/
+
+/-- If go succeeds on t1 from start state st1 and reaches st2,
+    then processing t1 ++ t2 from st1 is equivalent to processing t2 from st2. -/
+lemma go_trans_compose (g : ConstraintGraph) (st1 st2 : VerifierState) (t1 t2 : ProofTrace)
+    (h : go g st1 t1 = some st2) : go g st1 (t1 ++ t2) = go g st2 t2 := by
+  induction t1 generalizing st1 st2 with
+  | nil =>
+    unfold go at h
+    simp at h
+    subst h; simp
+  | cons step rest ih =>
+    unfold go at h
+    by_cases hok : step_ok g st1 step = true
+    · simp [hok] at h
+      have h_rest : go g (transition st1 step) rest = some st2 := h
+      unfold go; simp [hok]
+      exact ih (transition st1 step) st2 rest t2 h_rest
+    · simp [hok] at h
+
+/- ===============================================================
+   Completeness: satisfiable → there exists a proof trace
+   =============================================================== -/
+
+/-- 构建平凡证明迹：为图 g 中的每个约束生成一个 hypothesis 步骤，
+    最后以 qed 结束。 -/
+def trivial_proof_trace (g : ConstraintGraph) : ProofTrace :=
+  g.map (fun c => ProofStep.hypothesis c) ++ [.qed]
+
+/-- 平凡证明迹以 qed 结尾 -/
+lemma trivial_trace_ends_with_qed (g : ConstraintGraph) :
+    (trivial_proof_trace g).getLast? = some .qed := by
+  unfold trivial_proof_trace
+  simp
+
+/-- go 在处理 constraint graph 的 hypothesis 列表时的行为：
+    对所有 hypothesis 步骤逐一执行 transition，最终状态包含所有约束。 -/
+lemma go_hypotheses_some (g : ConstraintGraph) (st : VerifierState) :
+    go g st (g.map (fun c => .hypothesis c)) =
+    some { proved := g.reverse ++ st.proved } := by
+  induction g generalizing st with
+  | nil => unfold go; simp
+  | cons c rest ih =>
+    unfold go; simp
+    rw [ih { proved := c :: st.proved }]
+    unfold transition; simp
+
+/-- 证据检验的完备性：对于任意约束图 g，
+    都存在一个证明迹 t = [hypothesis c₁, ..., hypothesis cₙ, qed]，
+    使得 evidence_check g t = true。
+    
+    证明：每个 hypothesis 步骤总是被接受，最终 qed 检查
+    确保所有约束都已证明。 -/
+theorem evidence_completeness (g : ConstraintGraph) :
+    ∃ t : ProofTrace, evidence_check g t = true := by
+  refine ⟨trivial_proof_trace g, ?_⟩
+  unfold evidence_check evidence_check_witness
+  rw [trivial_trace_ends_with_qed g]
+  -- 使用 go_trans_compose：go on (map hypothesis ++ [qed]) = go on [qed] from mid state
+  have h_go_hyp : go g (initVerifier g) (g.map (fun c => .hypothesis c)) =
+    some { proved := g.reverse ++ (initVerifier g).proved } :=
+    go_hypotheses_some g (initVerifier g)
+  have h_st_mid : trace_fold (initVerifier g) (g.map (fun c => .hypothesis c)) =
+    { proved := g.reverse } := by
+    calc
+      trace_fold (initVerifier g) (g.map (fun c => .hypothesis c))
+          = { proved := g.reverse ++ (initVerifier g).proved } :=
+        go_some_eq_trace_fold g (initVerifier g) (g.map (fun c => .hypothesis c))
+          { proved := g.reverse ++ (initVerifier g).proved } h_go_hyp
+      _ = { proved := g.reverse } := by unfold initVerifier; simp
+  have h_step_qed : step_ok g { proved := g.reverse } .qed = true := by
+    unfold step_ok
+    -- 需要证明 g.all (g.reverse).contains，即 g 中所有约束都在 g.reverse 中
+    -- g.reverse 包含 g 中的全部元素，因此成立
+    have h_all : ∀ c ∈ g, c ∈ g.reverse := by
+      intro c hc
+      simpa using List.mem_reverse.mp (by simpa using hc)
+    exact List.all_iff.mpr h_all
+  have h_go_qed : go g { proved := g.reverse } [.qed] ≠ none := by
+    unfold go; simp [h_step_qed]
+  have h_combined : go g (initVerifier g) (trivial_proof_trace g) ≠ none := by
+    unfold trivial_proof_trace
+    rw [go_trans_compose g (initVerifier g) { proved := g.reverse }
+      (g.map (fun c => .hypothesis c)) [.qed] h_go_hyp, h_st_mid]
+    exact h_go_qed
+  simp [h_combined]
+
 end lvFormal.Theory.Evidence

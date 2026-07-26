@@ -1,20 +1,32 @@
 /-
-lvFormal 主入口
+lvFormal 主入口（统一版 v1.1）
 
-本文件作为 formal/lvFormal 模块的主入口，导入并导出所有子模块。
-包括 R1-R3 新模块：lvLang, IR, Compiler, CompilerCorrectness,
-Cv00Lang, Cv00Memory, BootstrapCorrectness。
+本文件作为 lvFormal 模块的主入口，导入并导出所有子模块。
+合并自 formal/ 和 lv-formal/ 两个项目的历史分叉。
+
+包含：
+- Theory/*（平铺的 47 个证明模块）
+- Theory/Axioms/（Instances_* + PackageValidation_* 系列）
+- Theory/{Constraint,Groebner,Ontology,Predicates,Proof,Rewrite,Unification,Reasoning}/
+- Classical/Hilbert/（Hilbert 几何公理类型类 + 无矛盾性证明）
+- Basic/Defs.lean（基础几何结构定义）
+- Interop/（互操作层）
 -/
 
-import lvFormal.Theory.lvLang
+-- Theory: 平铺模块
 import lvFormal.Theory.IR
+import lvFormal.Theory.lvLang
+import lvFormal.Theory.LvDSL
+import lvFormal.Theory.LvSemantics
+import lvFormal.Theory.LogicalFramework
 import lvFormal.Theory.Compiler
 import lvFormal.Theory.CompilerCorrectness
+import lvFormal.Theory.Codegen
+import lvFormal.Theory.CodegenCorrectness
 import lvFormal.Theory.Cv00Lang
 import lvFormal.Theory.Cv00Memory
 import lvFormal.Theory.BootstrapCorrectness
-
--- Round 5-6: Theory modules (rebuilt)
+import lvFormal.Theory.BootstrapDefs
 import lvFormal.Theory.ProofEngineSoundness
 import lvFormal.Theory.SolverCorrectness
 import lvFormal.Theory.RewriteProperties
@@ -36,14 +48,11 @@ import lvFormal.Theory.GeometricAlgebra
 import lvFormal.Theory.Numeric
 import lvFormal.Theory.ODESolver
 import lvFormal.Theory.PresetGeometry
--- v1.1 R3+: Definition modules (dependencies)
 import lvFormal.Theory.GeometricAlgebraDefs
 import lvFormal.Theory.GeometryPresetDefs
 import lvFormal.Theory.ODESolverDefs
 import lvFormal.Theory.NumericDefs
 import lvFormal.Theory.PresetGeometryDefs
-import lvFormal.Theory.BootstrapDefs
--- v1.1 R4+: Coverage modules
 import lvFormal.Theory.ConstraintPropagation
 import lvFormal.Theory.InteropSoundness
 import lvFormal.Theory.OrchestrationSoundness
@@ -52,25 +61,42 @@ import lvFormal.Theory.FormulaSemantics
 import lvFormal.Theory.VisualLayerSoundness
 import lvFormal.Theory.MetaVerificationTheory
 import lvFormal.Theory.StreamingTheory
--- v1.1 R4: Codegen + CodegenCorrectness
-import lvFormal.Theory.Codegen
-import lvFormal.Theory.CodegenCorrectness
--- v1.1 R5: UndefinedBehavior + Evidence
 import lvFormal.Theory.UndefinedBehavior
 import lvFormal.Theory.Evidence
--- v1.1 R6: InteropCorrectness
 import lvFormal.Theory.InteropCorrectness
--- v1.1 Hilbert framework
-import lv.Basic
-import lv.Incidence
-import lv.Betweenness
-import lv.Congruence
-import lv.Parallel
-import lv.Continuity
-import lv.Order
-import lv.HilbertAxioms
-import lv.EuclideanPlane
-import lv.lvMeta
+
+-- Theory: 子目录模块
+import lvFormal.Theory.Ontology.Defs
+import lvFormal.Theory.Predicates.Defs
+import lvFormal.Theory.Axioms.Primitive
+import lvFormal.Theory.Axioms.RuleTemplate
+import lvFormal.Theory.Axioms.Instances
+import lvFormal.Theory.Axioms.PackageValidation
+import lvFormal.Theory.Constraint.Graph
+import lvFormal.Theory.Constraint.Normalization
+import lvFormal.Theory.Rewrite.Defs
+import lvFormal.Theory.Unification.Defs
+import lvFormal.Theory.Groebner.Defs
+import lvFormal.Theory.Reasoning.Soundness
+import lvFormal.Theory.Proof.Trace
+
+-- Classical Hilbert 框架
+import lvFormal.Basic.Defs
+import lvFormal.Classical.Hilbert.Basic
+import lvFormal.Classical.Hilbert.Incidence
+import lvFormal.Classical.Hilbert.Betweenness
+import lvFormal.Classical.Hilbert.Congruence
+import lvFormal.Classical.Hilbert.Parallel
+import lvFormal.Classical.Hilbert.Order
+import lvFormal.Classical.Hilbert.Continuity
+import lvFormal.Classical.Hilbert.HilbertAxioms
+import lvFormal.Classical.Hilbert.EuclideanPlane
+import lvFormal.Classical.Hilbert.Consistency
+import lvFormal.Classical.Hilbert.lvMeta
+
+-- Interop
+import lvFormal.Interop.Equivalence
+import lvFormal.Interop.FFI
 
 namespace lvFormal
 
@@ -150,8 +176,6 @@ export Theory.BootstrapCorrectness (
   bootstrap_empty_program
   compiler_semantics_preservation
   bootstrap_empty_correct
-  compiler_semantics_fidelity
-  bootstrap_pipeline_idempotent
   bootstrap_preserves_satisfiability
   bootstrap_never_unsatisfiable_empty
 )
@@ -166,13 +190,13 @@ export Theory.RemovedModule (rose_cognition_sound rose_cognition_complete)
 export Theory.GroebnerTheory (groebner_soundness groebner_completeness)
 export Theory.MathPresetSoundness (math_preset_soundness math_preset_preserves)
 export Theory.DSLWrappersSoundness (dsl_wrapper_sound dsl_wrapper_correct)
-export Theory.InteractiveGeoSoundness (drag_preserves_collinear drag_preserves_constraints)
+export Theory.InteractiveGeoSoundness (interactive_geo_sound interactive_geo_deterministic)
 export Theory.GeomPresetSoundness (geom_preset_soundness geom_preset_valid)
 export Theory.NormalizationProperties (normalization_sound normalization_confluent)
 export Theory.StreamInvariants (stream_invariant_preserved stream_state_safe)
 export Theory.EngineInvariants (engine_invariant_preserved engine_state_consistent)
 export Theory.NDimGeometry (ndim_soundness ndim_completeness)
-export Theory.DifferentialGeometry (theorema_egregium gauss_bonnet_local curvature_invariant_under_isometry)
+export Theory.DifferentialGeometry (diff_geo_soundness diff_geo_consistent)
 export Theory.GeometryPresets (geometry_preset_sound geometry_preset_complete)
 export Theory.GeometricAlgebra (geometric_algebra_sound geometric_algebra_consistent)
 export Theory.Numeric (numeric_stability numeric_precision)

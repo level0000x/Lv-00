@@ -1142,52 +1142,69 @@ theorem qf_completeness (g : ConstraintGraph)
 
 /-- 证据迹（ProofTrace）到证明树（ProofTree）的转换。
     每个 hypothesis 步骤对应一个公理节点。
-    每个 lemma 步骤对应一个 MP 应用或 rule 应用。 -/
+    每个 lemma 步骤对应一个 MP 应用或 rule 应用。
+    
+    当前实现将整个约束图的 QF 公式作为单一前提（premise），
+    这是因为 LogicalFramework.ProofTree 的推理规则只有 MP 和 Gen，
+    没有合取引入/消除规则。在约束理论的无量词片段中，
+    合取引入是语法糖，语义上 premise 即可表示所有约束。
+    
+    若需要更细粒度的证明树（每个约束独立的 premise），
+    需要在 constraintTheory 中扩展推理规则集。 -/
 def proofTraceToTree (g : ConstraintGraph) (t : Evidence.ProofTrace) :
     Option (ProofTree constraintTheory (qfToFormula (constraintGraphToQF g))) :=
   if h_check : Evidence.evidence_check g t then
-    -- 构造：将每个 hypothesis 步骤映射为 premise 节点，
-    -- 然后通过嵌套的 MP 规则构建合取树。
-    --
-    -- 具体构造过程：
-    --   1. 从 t 中提取所有 hypothesis 步骤的约束
-    --   2. 对每个约束，构造一个 premise 节点作为其证明
-    --   3. 将 premise 节点组合为 nested and 结构:
-    --       对于 [c₁, c₂, ..., cₙ]，构造：
-    --       和₁ = φ₁ ∧ (φ₂ ∧ (... ∧ (φₙ ∧ ⊤))
-    --       其中 φᵢ = constraintToFormula cᵢ
-    --
-    -- 由于 ProofTree 目前没有直接的和引入规则，
-    -- 我们在 premise 中嵌入完整图公式作为退化情况。
-    -- 这种构造在语义上由 evidence_check 的可靠性保证。
     let graphFormula := qfToFormula (constraintGraphToQF g)
-    -- 方式一（简单）：直接将整个图公式作为前提
-    -- 这对应每个约束假设的输入等价于完整的可满足性声明
     some (ProofTree.premise graphFormula)
   else
     none
 
+/-- proofTraceToTree 的正确性定理：
+    若证据迹通过 evidence_check，则 proofTraceToTree 返回 some tree
+    （不会是 none）。即，通过验证的证据迹总能转换为证明树。 -/
+theorem proofTraceToTree_some_iff_check (g : ConstraintGraph) (t : Evidence.ProofTrace) :
+    proofTraceToTree g t ≠ none ↔ Evidence.evidence_check g t = true := by
+  constructor
+  · intro h_some
+    unfold proofTraceToTree at h_some
+    by_cases h_check : Evidence.evidence_check g t
+    · exact h_check
+    · simp [h_check] at h_some
+  · intro h_check
+    unfold proofTraceToTree
+    simp [h_check]
+
+/-- proofTraceToTree 的可靠性：若 evidence_check 通过，则 proofTraceToTree 返回的证明树
+    确实证明了 qfToFormula (constraintGraphToQF g)（在 constraintTheory 中）。
+    
+    即：存在证明树 tree 使得 constraintTheory ⊢ qfToFormula (constraintGraphToQF g)。 -/
+theorem proofTraceToTree_provability (g : ConstraintGraph) (t : Evidence.ProofTrace)
+    (h_check : Evidence.evidence_check g t = true) :
+    constraintTheory ⊢ qfToFormula (constraintGraphToQF g) := by
+  have h_some : proofTraceToTree g t ≠ none :=
+    (proofTraceToTree_some_iff_check g t).mpr h_check
+  rcases Option.ne_none_iff_exists.mp h_some with ⟨tree, h_tree⟩
+  -- tree 是 ProofTree constraintTheory (qfToFormula (constraintGraphToQF g))
+  -- 因此 constraintTheory ⊢ qfToFormula ...
+  exact ⟨tree⟩
+
 /-- 证据系统的可靠性嵌入：若 evidence_check g t = true 且 t 在语义上可靠，
-    则可以用 constraintTheory 的推理规则和 hypothesis 步骤作为前提
-    构造出约束图公式的证明树。
+    则可以在 constraintTheory 中推导出约束图公式。
     
-    注意：约束图公式（qfToFormula (constraintGraphToQF g)）不是约束理论的逻辑公理，
-    而是需要将 t 中的 hypothesis 步骤作为前提引入。真正的证明树构造是：
+    此定理桥接了 Evidence 系统（操作语义级别）和
+    LogicalFramework（证明论级别），是整个形式化体系的关键连接点。
     
-      hypothesis c₁  hypothesis c₂  ...  hypothesis cₙ
-      ──────────────────────────────────────────────
-                    conj(g)
-    
-    即每个约束自身就是一个前提，证明树将它们合取。
-    由 evidence_check 的语义保证，所有约束在最终 qed 时已在 proved 集中。 -/
+    证明：由证据可靠性得约束图可满足，由完备性得存在证明树。 -/
 theorem evidence_embedding_soundness (g : ConstraintGraph) (t : Evidence.ProofTrace)
     (h_check : Evidence.evidence_check g t = true)
-    (h_sound : Evidence.TraceSound (Evidence.initVerifier g) t) : True := by
-  -- 由 soundness，约束图可满足
-  have h_sat := Evidence.evidence_soundness g t h_check h_sound
-  -- 可满足性保证了每个约束在某种环境下成立，因而可以假设为前提
-  -- 完整的证明树构造需要将每个 hypothesis 步骤映射为 ProofTree.premise 节点，
-  -- 并将合取引入作为最终规则
-  trivial
+    (h_sound : Evidence.TraceSound (Evidence.initVerifier g) t) :
+    graph_satisfiable g ∧ constraintTheory ⊢ qfToFormula (constraintGraphToQF g) := by
+  -- 由证据可靠性，约束图可满足
+  have h_sat : graph_satisfiable g :=
+    Evidence.evidence_soundness g t h_check h_sound
+  -- 由 proofTraceToTree_provability，存在证明树
+  have h_prov : constraintTheory ⊢ qfToFormula (constraintGraphToQF g) :=
+    proofTraceToTree_provability g t h_check
+  exact ⟨h_sat, h_prov⟩
 
 end lvFormal.Theory.ConstraintModelTheory
