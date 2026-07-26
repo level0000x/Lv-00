@@ -16,6 +16,9 @@ lvFormal 主入口（统一版 v1.1）
 -- Theory: 平铺模块
 import lvFormal.Theory.IR
 import lvFormal.Theory.lvLang
+import lvFormal.Theory.LvDSL
+import lvFormal.Theory.LvSemantics
+import lvFormal.Theory.LogicalFramework
 import lvFormal.Theory.Compiler
 import lvFormal.Theory.CompilerCorrectness
 import lvFormal.Theory.Codegen

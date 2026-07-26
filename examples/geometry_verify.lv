@@ -1,0 +1,34 @@
+// bootstrap: geometry_verify — 几何构造验证: 直角三角形垂线性质
+// [QA] Uses macro-style constraint syntax; other directories use functional-style.
+//      Both are valid .lv00 dialects.
+
+// 定义三角形 ABC
+Point A = (0, 0);
+Point B = (3, 0);
+Point C = (0, 4);
+
+// 垂足 D: A 到 BC 的垂线交点
+Point D;
+
+// 几何约束：直角三角形（A 处垂直）
+Constraint PerpendicularAB_AC: perpendicular(A, B, A, C);
+
+// 边 BC 的线性约束
+Constraint CollinearBCD: collinear(B, C, D);
+
+// AD 垂直于 BC（垂线性质）
+Constraint PerpendicularAD_BC: perpendicular(A, D, B, C);
+
+// 等距约束：BD 与 DC 满足投影比例关系
+Constraint RatioBD_DC: distance(B, D) * distance(B, C) == distance(B, A)^2;
+
+// 垂线定理：直角三角形斜边上的高满足 AD^2 = BD * DC
+Constraint AltitudeTheorem: distance(A, D)^2 == distance(B, D) * distance(D, C);
+
+// 证明：由垂直约束和共线约束，AD 是 BC 上的高
+Prove PerpendicularAD_BC;
+
+// 证明：垂线定理在垂直约束下成立
+Prove AltitudeTheorem;
+
+Normalize;
