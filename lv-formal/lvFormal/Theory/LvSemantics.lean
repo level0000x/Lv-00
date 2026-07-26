@@ -334,15 +334,12 @@ def mkProgramProofTrace (p : LvProgram) : Option ProofTrace :=
 lemma mkProgramProofTrace_passes_check (p : LvProgram) (h_prove : findProveStmt p ≠ none) :
     evidence_check (lvProgramToConstraintGraph p) 
       (mkTrivialProofTrace p) = true := by
-  rcases h_prove with ⟨s, hs⟩
+  have h_some : ∃ s, findProveStmt p = some s :=
+    Option.ne_none_iff_exists.mp h_prove
   -- evidence_completeness 直接保证平凡迹通过检查
   rcases evidence_completeness (lvProgramToConstraintGraph p) with ⟨t, ht⟩
-  -- 但 evidence_completeness 构造的迹就是 trivial_proof_trace
-  -- 我们需要验证它等价于 mkTrivialProofTrace
-  unfold mkTrivialProofTrace lvProgramToConstraintGraph
-  -- 由 evidence_completeness 的构造：
-  -- trivial_proof_trace (lvProgramToConstraintGraph p) 通过检查
-  -- 而 trivial_proof_trace 的定义与 mkTrivialProofTrace 一致
+  -- evidence_completeness 构造的迹就是 trivial_proof_trace
+  -- 验证它等价于 mkTrivialProofTrace
   have h_same : trivial_proof_trace (lvProgramToConstraintGraph p) = 
     mkTrivialProofTrace p := by
     unfold trivial_proof_trace mkTrivialProofTrace lvProgramToConstraintGraph
