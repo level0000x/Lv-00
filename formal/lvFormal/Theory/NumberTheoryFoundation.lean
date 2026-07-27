@@ -802,7 +802,17 @@ theorem quadratic_residue_mul (a b p : ℤ) (ha : IsQuadraticResidue a p) (hb : 
 /-- -1 是模 p 的二次剩余当且仅当 p ≡ 1 (mod 4)。 -/
 theorem neg_one_quadratic_residue (p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
     IsQuadraticResidue (-1) p ↔ p % 4 = 1 := by
-  sorry
+  constructor
+  · intro ⟨hp_ne, x, hx⟩
+    -- x^2 ≡ -1 [MOD p] ⇒ x^4 ≡ 1 [MOD p]
+    -- x 的阶 | 4 且 x 的阶 | (p-1)（由欧拉定理）
+    -- 所以 gcd(4, p-1) ≥ 4，即 4 | p-1，即 p ≡ 1 [MOD 4]
+    sorry
+  · intro hp4
+    -- p ≡ 1 [MOD 4] ⇒ (p-1)/2 是偶数
+    -- 由 Euler 准则: (-1/p) ≡ (-1)^{(p-1)/2} ≡ 1 [MOD p]
+    -- 所以 -1 是 QR
+    sorry
 
 /-! ===============================================================
    第十一部分：勒让德符号 (LegendreSymbol)
@@ -815,20 +825,44 @@ def legendre_symbol (a p : ℤ) : ℤ :=
   else if IsQuadraticResidue a p then 1
   else -1
 
-/-- 勒让德符号的 Euler 准则：(a/p) ≡ a^{(p-1)/2} (mod p)。 -/
+/-- 勒让德符号的 Euler 准则：(a/p) ≡ a^{(p-1)/2} (mod p)。
+    证明利用费马小定理和二次剩余的定义。 -/
 theorem legendre_symbol_formula (a p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
     legendre_symbol a p ≡ a ^ ((p - 1) / 2) [MOD p] := by
-  sorry
+  unfold legendre_symbol
+  by_cases h0 : p ∣ a
+  · simp [h0, Congruent]; exact dvd_trans h0 (dvd_pow h0 (by intro h; exact hp_odd (by omega)))
+  · simp [h0]
+    by_cases hqr : IsQuadraticResidue a p
+    · simp [hqr]; sorry  -- Euler criterion: QR case
+    · simp [hqr]; sorry  -- Euler criterion: QNR case
 
 /-- 勒让德符号的积性：(ab/p) = (a/p)(b/p)。 -/
 theorem legendre_symbol_mul (a b p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
     legendre_symbol (a * b) p = legendre_symbol a p * legendre_symbol b p := by
-  sorry
+  unfold legendre_symbol
+  by_cases hpa : p ∣ a
+  · have hpa' : p ∣ a * b := dvd_mul_of_dvd_left hpa b
+    simp [hpa, hpa']
+  · by_cases hpb : p ∣ b
+    · have hpb' : p ∣ a * b := dvd_mul_of_dvd_right hpb a
+      simp [hpa, hpb, hpb']
+    · have hpa' : ¬ p ∣ a * b := fun h => by
+        rcases (Nat.Prime.dvd_mul (by rwa [Nat.prime_def] : Nat.Prime p.natAbs)).mp (by exact_mod_cast h) with (ha | hb)
+        · exact hpa (by exact_mod_cast ha)
+        · exact hpb (by exact_mod_cast hb)
+      simp [hpa, hpb, hpa']
+      sorry
 
 /-- (a²/p) = 1 当 p ∤ a。 -/
 theorem legendre_symbol_square (a p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) (h : ¬ p ∣ a) :
     legendre_symbol (a ^ 2) p = 1 := by
-  sorry
+  unfold legendre_symbol
+  have hp' : Nat.Prime p.natAbs := by rwa [Nat.prime_def]
+  have h_sq_not : ¬ p ∣ a ^ 2 := fun h_sq =>
+    h ((Nat.Prime.dvd_pow hp').mp (by exact_mod_cast h_sq))
+  simp [h_sq_not, IsQuadraticResidue]
+  exact ⟨by intro h0; exact hp_odd (by omega), ⟨a, by unfold Congruent; ring_nf; exact ⟨0, by ring⟩⟩⟩
 
 /-- (-1/p) = (-1)^{(p-1)/2}。 -/
 theorem legendre_symbol_neg_one (p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
@@ -902,7 +936,46 @@ structure MersennePrime (p : ℕ) where
 
 /-- 若 2^n - 1 是素数，则 n 必为素数。 -/
 theorem mersenne_prime_implies_prime (n : ℕ) (h : IsPrime (mersenne_number n)) : IsPrime n := by
-  sorry
+  unfold IsPrime mersenne_number at *
+  refine ⟨?_, ?_⟩
+  · -- 证明 n ≥ 2
+    by_cases hn2 : n ≥ 2
+    · exact hn2
+    · exfalso
+      have hn_lt : n < 2 := by omega
+      interval_cases n <;> simp at h <;> omega
+  · -- 证明 n 的因子只有 1 和 n
+    intro d hd
+    by_cases hd1 : d = 1; · left; exact hd1
+    by_cases hdn : d = n; · right; exact hdn
+    -- d|n, 1<d, d≠n ⇒ d<n, 则 2^d-1 | 2^n-1 且 1 < 2^d-1 < 2^n-1
+    -- 与 2^n-1 是素数矛盾
+    exfalso
+    have hd_pos : 0 < d := Nat.pos_of_ne_zero (fun h0 => hd1 (by omega))
+    have hd_lt_n : d < n := by
+      have := Nat.le_of_dvd (by omega : 0 < n) hd
+      omega
+    obtain ⟨k, hk⟩ := hd
+    have hk_pos : k > 0 := by omega
+    have hk_gt1 : k > 1 := by
+      by_cases hk1 : k = 1
+      · subst hk1; omega
+      · omega
+    -- 2^d - 1 | 2^n - 1，因为 d | n 且 x^m-1 | x^(m*n)-1
+    have h_dvd : 2 ^ d - 1 ∣ 2 ^ n - 1 := by
+      rw [← hk]
+      exact nat_pow_one_sub_dvd_pow_mul_sub_one 2 d k
+    have h_2d_sub1_gt1 : 2 ^ d - 1 > 1 := by
+      have : d ≥ 2 := by omega
+      have : 2 ^ d ≥ 4 := by
+        interval_cases d <;> norm_num
+      omega
+    have h_2d_sub1_lt : 2 ^ d - 1 < 2 ^ n - 1 := by
+      have : 2 ^ d < 2 ^ n := Nat.pow_lt_pow_right (by omega) (by omega)
+      omega
+    rcases h.2 (2 ^ d - 1) h_dvd with (h_eq1 | h_eq2)
+    · omega
+    · omega
 
 /-- 已知的梅森素数示例：M_2 = 3。 -/
 theorem mersenne_prime_M2 : MersennePrime 2 := by
@@ -956,7 +1029,12 @@ def IsPerfect (n : ℕ) : Prop :=
 /-- 完全数的等价定义：σ(n) = 2n。 -/
 theorem perfect_iff_sigma_eq_2n (n : ℕ) : IsPerfect n ↔ (Nat.divisors n).sum = 2 * n := by
   unfold IsPerfect sum_of_proper_divisors
-  sorry
+  constructor
+  · intro h
+    have : (Nat.divisors n).sum - n = n := h
+    omega
+  · intro h
+    omega
 
 /-- 偶完全数与梅森素数一一对应。
     偶完全数必为 2^{p-1}(2^p-1) 的形式，其中 2^p-1 是梅森素数。 -/
@@ -1003,6 +1081,7 @@ def sigma (n : ℕ) : ℕ :=
 
 /-- 若 gcd(m,n)=1，则 σ(mn) = σ(m) * σ(n)（积性）。 -/
 theorem sigma_mul (m n : ℕ) (h : coprime m n) : sigma (m * n) = sigma m * sigma n := by
+  unfold sigma
   sorry
 
 /-! ===============================================================
@@ -1017,11 +1096,22 @@ def mod_inverse_prime (a p : ℤ) (hp : IsPrime p.natAbs) (h : ¬ p ∣ a) : ℤ
 theorem mod_inverse_prime_correct (a p : ℤ) (hp : IsPrime p.natAbs) (h : ¬ p ∣ a) :
     a * mod_inverse_prime a p hp h ≡ 1 [MOD p] := by
   unfold mod_inverse_prime
-  sorry
+  have hmul : a * a ^ (p - 2) = a ^ (p - 1) := by
+    calc a * a ^ (p - 2) = a ^ 1 * a ^ (p - 2) := by ring
+      _ = a ^ (1 + (p - 2)) := by rw [← pow_succ']
+      _ = a ^ (p - 1) := by
+        congr 1
+        have hp2 : 2 ≤ p.natAbs := hp.1
+        omega
+  rw [hmul]
+  exact fermats_little_theorem_alt a p hp h
 
 /-- 素因子分解的唯一性（算术基本定理）的陈述。 -/
 theorem unique_prime_factorization (n : ℕ) (h : n ≥ 2) : ∃ (l : List ℕ), (∀ p ∈ l, IsPrime p) ∧ n = l.prod := by
-  sorry
+  refine ⟨Nat.factors n, ?_, ?_⟩
+  · intro p hp
+    exact (Nat.mem_factors (by omega : n ≠ 0)).mp hp
+  · exact Nat.prod_factors (by omega : n ≠ 0)
 
 /-- 中国剩余定理在 ℤ/nℤ 上的形式。 -/
 def ZMod (n : ℕ) : Type :=
