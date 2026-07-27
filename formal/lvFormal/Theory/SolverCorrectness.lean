@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: SolverCorrectness (Round 5)
 ===========================================
 Corresponds to: bootstrap/src/layer1_parser/solver_spec.lv
@@ -40,8 +40,25 @@ theorem solver_termination (g : ConstraintGraph) :
   unfold solver_step
   rfl
 
-/-- idle → running → done 是最短终止路径 -/
-theorem shortest_termination_path : True := by
-  trivial
+/-- idle → running → done 是最短终止路径。
+    
+    证明：
+    • idle 到 running 需要 1 步（solver_step .idle g = .running）
+    • running 到 done 需要 1 步（solver_step .running g = .done）
+    • 从 idle 无法在 1 步内到达 done（solver_step .idle g = .running ≠ .done）
+    • 从 idle 在 2 步内到达 done（如上链式应用）
+    • done 状态的步进保持为 done（solver_step .done g = .done）
+    因此，最短路径长度为 2 步，且不存在 1 步路径。 -/
+theorem shortest_termination_path :
+    solver_step (solver_step .idle g) g = .done ∧
+    solver_step .idle g ≠ .done := by
+  have h_step1 : solver_step .idle g = .running := by unfold solver_step; rfl
+  have h_step2 : solver_step .running g = .done := by unfold solver_step; rfl
+  have h_chain : solver_step (solver_step .idle g) g = .done := by
+    rw [h_step1, h_step2]
+  have h_not_one : solver_step .idle g ≠ .done := by
+    rw [h_step1]
+    simp
+  exact ⟨h_chain, h_not_one⟩
 
 end lvFormal.Theory.SolverCorrectness

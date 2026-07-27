@@ -55,7 +55,7 @@ inductive TheoryStatus where
 /-! ===============================================================
    第二部分：Lv-00 完整理论图谱
    
-   这是当前所有 55 个理论模块（包括新创建的）的完整注册表。
+--   这是当前所有 93 个理论模块（包括新创建的）的完整注册表。
    =============================================================== -/
 
 /-- 全部理论节点的注册表。 -/
@@ -87,6 +87,18 @@ def allTheoryNodes : List TheoryNode :=
     , imports := ["Cv00Lang"]
     , layer := 0
     , status := .complete
+    }
+  , { moduleName := "LvDSL"
+    , description := "Lv 语言语法定义：词法、类型系统、表达式、语句、程序"
+    , imports := []
+    , layer := 0
+    , status := .partial
+    }
+  , { moduleName := "LvSemantics"
+    , description := "Lv 语言语义与 IR 连接：表达式/约束/证明的语义桥接"
+    , imports := ["LvDSL", "IR", "Evidence", "LogicalFramework"]
+    , layer := 1
+    , status := .partial
     }
 
     -- ===========================================================
@@ -132,6 +144,12 @@ def allTheoryNodes : List TheoryNode :=
     , layer := 1
     , status := .partial
     }
+  , { moduleName := "CompilerTooling"
+    , description := "编译器工具链：链接器、调试器、追踪器、剖析器、IR优化器"
+    , imports := []
+    , layer := 1
+    , status := .partial
+    }
 
     -- ===========================================================
     -- Layer 2: 自举正确性
@@ -145,6 +163,48 @@ def allTheoryNodes : List TheoryNode :=
   , { moduleName := "BootstrapCorrectness"
     , description := "自举流程正确性"
     , imports := ["BootstrapDefs", "CompilerCorrectness"]
+    , layer := 2
+    , status := .partial
+    }
+  , { moduleName := "ResourceManagement"
+    , description := "资源管理：熔断器、调试工具、错误码系统、测试框架"
+    , imports := []
+    , layer := 2
+    , status := .partial
+    }
+  , { moduleName := "MemorySafetyTheory"
+    , description := "内存安全：内存池不变量、无双重释放、无内存泄漏、无释放后使用、对齐约束、边界检查"
+    , imports := []
+    , layer := 2
+    , status := .partial
+    }
+  , { moduleName := "GlobalStateInvariantsTheory"
+    , description := "全局状态不变量：配置一致性、线程安全、初始化保证、配置持久化往返、模式一致性、更新原子性、会话隔离"
+    , imports := []
+    , layer := 2
+    , status := .partial
+    }
+  , { moduleName := "ContextInvariantsTheory"
+    , description := "上下文不变量：嵌套深度、作用域遮蔽、深/浅拷贝、表示转换往返、上下文切换保持、错误链完整性"
+    , imports := []
+    , layer := 2
+    , status := .partial
+    }
+  , { moduleName := "CacheCoherenceTheory"
+    , description := "缓存一致性：LRU/FIFO/LFU驱逐、脏页写回、FastIndex O(1)查找、缓存击穿/雪崩防护、时间戳单调性"
+    , imports := []
+    , layer := 2
+    , status := .partial
+    }
+  , { moduleName := "CryptoHashTheory"
+    , description := "密码哈希：SHA-256压缩函数、Merkle-Damgård填充、确定性、碰撞阻力、单向性、长度扩展攻击防护"
+    , imports := []
+    , layer := 2
+    , status := .partial
+    }
+  , { moduleName := "EntryPointTheory"
+    , description := "系统入口：SystemMode、初始化序列与阶段排序、依赖图、完整性检查、主循环终止、资源生命周期"
+    , imports := []
     , layer := 2
     , status := .partial
     }
@@ -200,6 +260,48 @@ def allTheoryNodes : List TheoryNode :=
     , layer := 3
     , status := .partial
     }
+  , { moduleName := "CSGGeometryTheory"
+    , description := "构造实体几何：BSP树划分、布尔运算、包围盒层级、图元生成与网格评估"
+    , imports := []
+    , layer := 3
+    , status := .partial
+    }
+  , { moduleName := "GeometrySymbolicsTheory"
+    , description := "符号代数：有理数/二次根式/代数数/超越数、类型提升格、精确算术闭包、位电路熔断"
+    , imports := []
+    , layer := 3
+    , status := .partial
+    }
+  , { moduleName := "GeometryTopologyTheory"
+    , description := "几何拓扑：半边网格、Euler示性数、几何谓词、事件检测、动态几何、参数曲线/Bezier/B-spline、路径类型、拓扑不变量"
+    , imports := []
+    , layer := 3
+    , status := .partial
+    }
+  , { moduleName := "SparseLinearAlgebraTheory"
+    , description := "稀疏线性代数：CSR/CSC格式、SpMV、共轭梯度、Sylvester结式、LU分解、Lanczos特征值、GMRES、代数数域扩张"
+    , imports := []
+    , layer := 3
+    , status := .partial
+    }
+  , { moduleName := "IntervalArithmeticTheory"
+    , description := "区间算术：外延舍入、四角乘法、超越函数区间、Taylor误差分析、自适应验证、调度场求值器、Gappa约束传播、Herbie重写"
+    , imports := []
+    , layer := 3
+    , status := .partial
+    }
+  , { moduleName := "GeometryCompressionTheory"
+    , description := "几何压缩：量化有界误差、无损压缩/解压逆运算、仿射变换组合/逆同态、图哈希一致性、拓扑保持压缩"
+    , imports := []
+    , layer := 3
+    , status := .partial
+    }
+  , { moduleName := "GeometryInfrastructure"
+    , description := "几何基础设施：块调度器、缓存管理、跨平台抽象、确定性状态机"
+    , imports := []
+    , layer := 3
+    , status := .partial
+    }
 
     -- ===========================================================
     -- Layer 4: 约束求解与重写
@@ -245,10 +347,106 @@ def allTheoryNodes : List TheoryNode :=
     -- Layer 4.5: 约束模型论（新层）
     -- ===========================================================
   , { moduleName := "ConstraintModelTheory"
-    , description := "约束模型论：约束图的一阶逻辑嵌入、几何模型、无量词完备性"
+    , description := "约束模型论：约束图的一阶逻辑嵌入、几何模型、语义等价、QV片段完备性"
     , imports := ["LogicalFramework", "IR"]
     , layer := 4
-    , status := .specOnly
+    , status := .partial
+    }
+  , { moduleName := "SMTTheory"
+    , description := "SMT理论：位向量、Nelson-Oppen理论组合、E-matching量词实例化"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "SolverInfrastructure"
+    , description := "求解器基础设施：BDD编码、冲突检测、自适应剪枝、稀疏线性代数、数学预设"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "SATEncoding"
+    , description := "SAT符号编码：变元映射、CNF子句编码、Tseitin变换、编码可靠性/完备性/解码逆定理"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "BDDEncoding"
+    , description := "BDD编码：唯一表哈希、ITE算法、Shannon展开、BDD→CNF Tseitin、Sifting优化、ADD代数决策图、bit-blasting"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "FuncBlockTheory"
+    , description := "函数块理论：端口、组合结合律、例化语义保持、确定性验证、注册表查找、选择器"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "TypeLogicTheory"
+    , description := "类型逻辑：Kleene强三值逻辑、Kripke模态逻辑K、一阶量词对偶性、不等式传递推理"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "ATPBackendTheory"
+    , description := "ATP后端：TPTP编码、SZS解析、ATP→Lv证明映射、后端注册发现、自动选择策略、优雅降级"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "ModuleSystemTheory"
+    , description := "模块系统：加载/卸载、增量更新冲突检测、LVZ打包解包、序列化、依赖图无环、版本兼容、生命周期状态机"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "UnificationTheory"
+    , description := "统一化算法：Martelli-Montanari算法、MGU存在性与唯一性、Occurs Check、三角形式、匹配与统一化关系"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "ExpressionCanonicalizationTheory"
+    , description := "表达式规范化：单项式、多项式合并同类项、规范排序、符号归一化、符号表达式替换、有理数算术"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "SolverModelTheory"
+    , description := "求解器模型：代数模式、推理缓存LRU、递归深度管理、关系模型、多域封闭性"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "AutoDiffTheory"
+    , description := "自动微分：双数代数前向模式、计算图反向模式、链式法则正确性、梯度无截断误差"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "ExactArithmeticTheory"
+    , description := "精确算术：安全乘法溢出检测、安全加法/减法、快速幂溢出防护、高精度时间戳规范化"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "GroupTheoryFoundation"
+    , description := "群论基础：群/子群/正规子群/商群/同态、环/域/模/向量空间、Lagrange定理、同构定理、Cayley定理、中国剩余定理"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "NumberTheoryFoundation"
+    , description := "数论基础：素数、GCD/LCM、Euclidean算法、中国剩余定理、Euler函数、费马小定理、二次互反律、梅森素数"
+    , imports := []
+    , layer := 4
+    , status := .partial
+    }
+  , { moduleName := "LinearAlgebraFoundation"
+    , description := "线性代数基础：向量/矩阵、LU/QR/SVD分解、Cramer法则、Gram-Schmidt、Cholesky分解、正定矩阵"
+    , imports := []
+    , layer := 4
+    , status := .partial
     }
 
     -- ===========================================================
@@ -289,10 +487,10 @@ def allTheoryNodes : List TheoryNode :=
     , status := .complete
     }
   , { moduleName := "ProofStrategy"
-    , description := "证明策略与自动化：Goal/Tactic、策略组合子、前向/后向链、搜索"
+    , description := "证明策略与自动化：Goal/Tactic、策略组合子、前向/后向链、搜索、策略语义定理"
     , imports := ["Evidence", "IR", "AxiomDiscoveryTheory"]
     , layer := 6
-    , status := .specOnly
+    , status := .partial
     }
   , { moduleName := "AxiomDiscoveryTheory"
     , description := "公理发现理论：发现规则、多步推导链、可靠性/覆盖率"
@@ -303,6 +501,18 @@ def allTheoryNodes : List TheoryNode :=
   , { moduleName := "MetaVerificationTheory"
     , description := "元验证理论：自指、证明检查器形式化、一致性、信任模型、反射原理、Gödel不完备性、Löb定理"
     , imports := ["LogicalFramework", "Evidence", "IR"]
+    , layer := 6
+    , status := .partial
+    }
+  , { moduleName := "MetaProofTheory"
+    , description := "元证明：L1直接矛盾、L2传播矛盾、L3代数排除、剪枝完备性报告、策略优先级链、信任颜色系统"
+    , imports := []
+    , layer := 6
+    , status := .partial
+    }
+  , { moduleName := "ProofCompilerTheory"
+    , description := "证明编译：证明对象模型、多格式导出（JSON/LaTeX/Coq/Lean4/HTML/DOT/TikZ）、证明验证、迹事件管理"
+    , imports := ["Evidence"]
     , layer := 6
     , status := .partial
     }
@@ -325,6 +535,24 @@ def allTheoryNodes : List TheoryNode :=
   , { moduleName := "FormulaSemantics"
     , description := "公式语义 (LaTeX/DSL/Python)"
     , imports := ["IR"]
+    , layer := 7
+    , status := .partial
+    }
+  , { moduleName := "PluginSystemTheory"
+    , description := "插件系统：动态库加载、状态机生命周期、接口注册表、依赖图、事件广播、版本兼容性、自动加载"
+    , imports := []
+    , layer := 7
+    , status := .partial
+    }
+  , { moduleName := "TikZExportTheory"
+    , description := "TikZ导出：约束图到TikZ图形映射、节点类型渲染、坐标转换、符号→数值保持、图形完备性"
+    , imports := []
+    , layer := 7
+    , status := .partial
+    }
+  , { moduleName := "MagicConstantsTheory"
+    , description := "魔数常量：MagicCategory/Version/VersionRange、枚举注册表、常量唯一性、向后兼容性、序列化往返"
+    , imports := []
     , layer := 7
     , status := .partial
     }
@@ -416,6 +644,30 @@ def allTheoryNodes : List TheoryNode :=
     }
   , { moduleName := "RemovedModule"
     , description := "ROSE 循环认知模型"
+    , imports := []
+    , layer := 9
+    , status := .partial
+    }
+  , { moduleName := "ApplicationLayer"
+    , description := "应用层：CLI入口、批处理、输出导出、可视化命令"
+    , imports := []
+    , layer := 9
+    , status := .partial
+    }
+  , { moduleName := "ConvenienceAPIsTheory"
+    , description := "便捷函数：字符串/math/集合操作、前置/后置条件、安全性保证（无崩溃全函数）、数学正确性"
+    , imports := []
+    , layer := 9
+    , status := .partial
+    }
+  , { moduleName := "VisualBlockTheory"
+    , description := "可视化块语义：18种块类型、端口签名、连接图、数据流、块组合结合律、良构无环、转换器往返"
+    , imports := []
+    , layer := 9
+    , status := .partial
+    }
+  , { moduleName := "VisualRuntimeTheory"
+    , description := "可视化运行时：Canvas/FrameBuffer/RenderPipeline、事件处理/动画帧/IO、调度器依赖、运行时不变量"
     , imports := []
     , layer := 9
     , status := .partial
@@ -528,23 +780,23 @@ structure LayerInfo where
 def allLayers : List LayerInfo :=
   [ { number := 0, name := "核心语义"
     , responsibility := "定义 Lv-00 系统的所有核心语法和语义：源语言、IR、Cv00 语言和内存模型"
-    , theoryCount := 4, keyModules := ["lvLang", "IR", "Cv00Memory"]
+    , theoryCount := 5, keyModules := ["lvLang", "IR", "Cv00Memory", "LvDSL"]
     }
   , { number := 1, name := "编译器与代码生成"
     , responsibility := "编译器（lvLang→IR）和代码生成器（IR→Cv00）的正确性保证"
-    , theoryCount := 5, keyModules := ["CompilerCorrectness", "CodegenCorrectness", "UndefinedBehavior"]
+    , theoryCount := 6, keyModules := ["CompilerCorrectness", "CodegenCorrectness", "LvSemantics"]
     }
   , { number := 2, name := "自举正确性"
-    , responsibility := "确保编译器可以自举（自己编译自己）的正确性"
-    , theoryCount := 2, keyModules := ["BootstrapCorrectness"]
+    , responsibility := "确保编译器可以自举（自己编译自己）的正确性、资源管理与基础设施"
+    , theoryCount := 9, keyModules := ["BootstrapCorrectness", "MemorySafetyTheory", "GlobalStateInvariantsTheory", "CacheCoherenceTheory", "EntryPointTheory"]
     }
   , { number := 3, name := "几何与代数"
-    , responsibility := "几何基础：预设几何、几何代数、微分几何、N 维几何"
-    , theoryCount := 8, keyModules := ["GeometricAlgebra", "DifferentialGeometry"]
+    , responsibility := "几何基础：预设几何、几何代数、微分几何、N维几何、CSG构造实体几何、几何基础设施、符号代数、几何拓扑、稀疏线性代数、区间算术、几何压缩"
+    , theoryCount := 15, keyModules := ["GeometricAlgebra", "DifferentialGeometry", "CSGGeometryTheory", "GeometrySymbolicsTheory", "GeometryTopologyTheory", "SparseLinearAlgebraTheory", "IntervalArithmeticTheory", "GeometryCompressionTheory"]
     }
   , { number := 4, name := "约束求解与重写"
-    , responsibility := "约束传播、求解器正确性、Groebner 基、重写系统、表达式规范化"
-    , theoryCount := 8, keyModules := ["ConstraintSoundness", "GroebnerTheory", "ConstraintModelTheory"]
+    , responsibility := "约束传播、求解器正确性、Groebner基、重写系统、SAT/BDD编码、函数块理论、类型逻辑、ATP/模块系统、表达式规范化、求解器模型、自动微分"
+    , theoryCount := 23, keyModules := ["ConstraintSoundness", "GroebnerTheory", "ConstraintModelTheory", "BDDEncoding", "FuncBlockTheory", "AutoDiffTheory", "ExactArithmeticTheory", "GroupTheoryFoundation", "NumberTheoryFoundation", "LinearAlgebraFoundation"]
     }
   , { number := 5, name := "数值方法"
     , responsibility := "数值线性代数、ODE 求解器的正确性"
@@ -552,19 +804,19 @@ def allLayers : List LayerInfo :=
     }
   , { number := 6, name := "证据与元验证"
     , responsibility := "零信任证据验证系统、证明策略自动化、公理发现、元验证理论"
-    , theoryCount := 4, keyModules := ["Evidence", "MetaVerificationTheory", "ProofStrategy"]
+    , theoryCount := 6, keyModules := ["Evidence", "MetaVerificationTheory", "ProofStrategy", "MetaProofTheory", "ProofCompilerTheory"]
     }
   , { number := 7, name := "互操作与导出"
-    , responsibility := "与其他形式化工具（Coq）和外部格式（GeoJSON/SVG）的互操作"
-    , theoryCount := 3, keyModules := ["InteropCorrectness"]
+    , responsibility := "与其他形式化工具（Coq）和外部格式（GeoJSON/SVG）的互操作、插件系统"
+    , theoryCount := 6, keyModules := ["InteropCorrectness", "PluginSystemTheory", "TikZExportTheory", "MagicConstantsTheory"]
     }
   , { number := 8, name := "引擎与流式"
     , responsibility := "证明引擎、流式处理、管道编排、端到端正确性"
     , theoryCount := 7, keyModules := ["EngineInvariants", "EndToEndCorrectness"]
     }
   , { number := 9, name := "其他资产"
-    , responsibility := "DSL 包装器、几何/数学预设、可视化、认知模型"
-    , theoryCount := 6, keyModules := ["InteractiveGeoSoundness"]
+    , responsibility := "DSL 包装器、几何/数学预设、可视化、认知模型、应用层、便捷函数、可视化块语义、可视化运行时"
+    , theoryCount := 11, keyModules := ["InteractiveGeoSoundness", "RemovedModule", "ApplicationLayer", "VisualBlockTheory", "VisualRuntimeTheory"]
     }
   ]
 

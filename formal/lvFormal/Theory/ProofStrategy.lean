@@ -236,12 +236,13 @@ def forwardChainStrategy : StrategyCombinator :=
           none))
       ))
 
-/-- 前向链正确性定理：若前向链策略成功执行，则生成的证据迹
-    是对应于原始目标的有效证明。 -/
-theorem forward_chain_soundness (g : ConstraintGraph) (s : StrategyCombinator)
-    (h_success : (interpret s defaultTactics) (goalFromGraph g) ≠ none)
-    (h_strategy : s = forwardChainStrategy) : True := by
-  trivial
+/-- 前向链策略结构正确性：forwardChainStrategy 由 repeat + choice + hypothesis 组成。
+    其结构保证每次 iteration 最多执行一个 hypothesis 步。 -/
+theorem forward_chain_strategy_structure :
+    forwardChainStrategy = .label "ForwardChain"
+      (.repeat (.choice (.atomic (λ g => defaultTactics.hypothesis g))
+                        (.atomic (λ _ => none)))) := by
+  rfl
 
 /-! ===============================================================
    第五部分：后向链策略
