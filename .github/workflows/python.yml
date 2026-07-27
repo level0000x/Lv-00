@@ -1,10 +1,10 @@
-﻿name: Python Bindings
+name: Python Bindings
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [master, dev]
   pull_request:
-    branches: [ main, dev ]
+    branches: [master, dev]
 
 jobs:
   test-python:
@@ -99,7 +99,7 @@ jobs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        echo "lv_LIBRARY_PATH=$PWD/build/liblv.dll" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "lv_LIBRARY_PATH=$pwd/build/liblv.dll" >> $env:GITHUB_ENV
 
     - name: Run Python tests
       working-directory: module/python

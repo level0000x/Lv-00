@@ -1,6 +1,7 @@
 # Web 演示部署工作流
-# 注意：web/ 目录尚未创建，仅支持手动触发。
-# 创建 web/gui/index.html, web/gui/js/app.js 及 CMakeLists.txt 后可启用自动部署。
+# 注意：web/ 目录尚未创建（.gitignore 已排除），暂时禁用。
+# 创建 web/gui/index.html, web/gui/js/app.js 及 CMakeLists.txt 后，
+# 移除下面的 if: false 并替换为对应分支条件以启用自动部署。
 name: Deploy Web Demo
 
 on:
@@ -8,6 +9,8 @@ on:
 
 jobs:
   build-and-deploy:
+    # 禁用：web/ 目录尚未创建
+    if: false
     runs-on: ubuntu-latest
     
     steps:
@@ -58,7 +61,7 @@ jobs:
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./web/gui/dist

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, dev]
   pull_request:
-    branches: [master, main]
+    branches: [master, dev]
 
 jobs:
   # ── Ubuntu: 完整 CMake 构建 + CTest ────────────────────────
@@ -94,7 +94,7 @@ jobs:
       - name: Setup Lean 4
         uses: leanprover/lean4-action@v2
         with:
-          toolchain: 'v4.32.0'
+          toolchain: 'v4.33.0-rc1'
 
       - name: Lake build (lv-formal/)
         run: |
@@ -117,3 +117,4 @@ jobs:
           python -m py_compile module/python/lv/ws_server.py
           python -m py_compile module/python/lv/stream_bridge.py
           python -m py_compile module/python/lv/core.py
+          python -m py_compile module/python/lv/core_optimized.py

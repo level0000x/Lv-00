@@ -758,14 +758,20 @@ theorem sortBy_stable (α : Type) (cmp : α → α → Ordering) (l : List α) (
     ∃ (i' j' : ℕ), i' < j' ∧ i' < (l.sortBy cmp).length ∧
       (l.sortBy cmp).get ⟨i', by
         have hlen : i' < (l.sortBy cmp).length := by
-          have := List.length_perm (List.sortBy_perm cmp l)
-          sorry
+          have hlen_eq := (List.sortBy_perm cmp l).length_eq
+          rw [hlen_eq]
+          exact hi
         exact hlen⟩ = l.get ⟨i, hi⟩ ∧
       (l.sortBy cmp).get ⟨j', by
         have hlen : j' < (l.sortBy cmp).length := by
-          have := List.length_perm (List.sortBy_perm cmp l)
-          sorry
+          have hlen_eq := (List.sortBy_perm cmp l).length_eq
+          rw [hlen_eq]
+          exact hj
         exact hlen⟩ = l.get ⟨j, hj⟩ := by
-  sorry
+  refine ⟨i, j, hij, ?_, ?_, ?_⟩
+  · rw [(List.sortBy_perm cmp l).length_eq]
+    exact hi
+  · simp
+  · simp
 
 end lvFormal.Theory.ConvenienceAPIsTheory
