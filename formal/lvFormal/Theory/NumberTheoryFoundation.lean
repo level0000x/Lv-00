@@ -696,24 +696,80 @@ structure CarmichaelNumber (n : ℕ) where
    第九部分：欧拉定理 (EulersTheorem)
    =============================================================== -/
 
-/-- 欧拉定理：若 gcd(a,n)=1，则 a^φ(n) ≡ 1 (mod n)。 -/
+/-- 欧拉定理：若 gcd(a,n)=1，则 a^φ(n) ≡ 1 (mod n)。
+    证明思路：将 a 替换为它对 n 的非负剩余 r，
+    利用 Nat.ModEq.pow_totient 得到 r^φ(|n|) ≡ 1 (mod |n|)，
+    再通过同余的幂保持性和 n ∣ |n| 得到 a^φ(|n|) ≡ 1 (mod n)。 -/
 theorem eulers_theorem (a n : ℤ) (h : gcd (a.natAbs) (n.natAbs) = 1) :
     a ^ (phi n.natAbs : ℤ) ≡ 1 [MOD n] := by
+  have h_phi_eq : phi n.natAbs = Nat.totient n.natAbs := phi_eq_totient n.natAbs
+  rw [h_phi_eq]
+  set t := Nat.totient n.natAbs with ht
+  by_cases hn0 : n = 0
+  · subst hn0; simp [Congruent]
+  have hn_nonzero : n ≠ 0 := hn0
+  let r := a % n
+  have ha_eq : a ≡ r [MOD n] := by
+    unfold Congruent
+    have h_mod_eq : a - r = n * (a / n) := by
+      rw [Int.ediv_add_emod a n, add_comm]
+      ring
+    rw [h_mod_eq]
+    exact ⟨a / n, rfl⟩
+  have ha_pow : a ^ t ≡ r ^ t [MOD n] := congruent_pow a r n t ha_eq
+  have hr_nonneg : 0 ≤ r := Int.emod_nonneg a (by
+    intro hzero
+    exact hn_nonzero hzero)
+  have hr_lt_nat : (r : ℕ) < n.natAbs := by
+    have h_abs_lt : r < |n| := Int.emod_lt a (by
+      intro hzero
+      exact hn_nonzero hzero)
+    have h_nat_abs_eq : |n| = n.natAbs := by simp
+    rw [h_nat_abs_eq] at h_abs_lt
+    exact_mod_cast h_abs_lt
+  have h_cop_r_n : gcd (r.natAbs) (n.natAbs) = 1 := by
+    apply Nat.eq_one_of_dvd_one
+    intro d hd_r hd_n
+    have hd_a : d ∣ a.natAbs := by
+      have h_conn : a.natAbs = ((r : ℤ) + n * (a / n)).natAbs := by
+        calc
+          a = r + n * (a / n) := by
+            rw [Int.ediv_add_emod a n, add_comm]
+          _ = r + n * (a / n) := rfl
+        sorry
+      sorry
+    sorry
   sorry
 
 /-- 欧拉定理（自然数版本）。 -/
 theorem eulers_theorem_nat (a n : ℕ) (h : coprime a n) : a ^ (phi n) ≡ 1 [MOD n] := by
-  sorry
+  have h_cop : Nat.Coprime a n := by rwa [Nat.coprime_iff_gcd_eq_one]
+  have h_phi_eq : phi n = Nat.totient n := phi_eq_totient n
+  rw [h_phi_eq]
+  have h_mod := Nat.ModEq.pow_totient h_cop
+  unfold Congruent
+  have h_dvd : (n : ℤ) ∣ ((a : ℤ) ^ (Nat.totient n) - (1 : ℤ)) := by
+    have h_mod_int : (a : ℤ) ^ (Nat.totient n) ≡ (1 : ℤ) [ZMOD (n : ℤ)] := h_mod.intCast
+    simpa [Congruent] using h_mod_int
+  exact h_dvd
 
 /-- 欧拉定理是费马小定理的推广：当 n 为素数时 φ(n)=n-1。 -/
 theorem eulers_theorem_generalizes_fermat (a p : ℤ) (hp : IsPrime p.natAbs) (h : ¬ (p : ℤ) ∣ a) :
     a ^ (phi p.natAbs : ℤ) ≡ 1 [MOD p] := by
   rw [phi_prime p.natAbs hp]
-  sorry
+  exact fermats_little_theorem_alt a p hp h
 
-/-- RSA 加密的正确性基础：m^{ed} ≡ m (mod n)，其中 ed ≡ 1 (mod φ(n))。 -/
+/-- RSA 加密的正确性基础：m^{ed} ≡ m (mod n)，其中 ed ≡ 1 (mod φ(n))。
+    由 m^φ(n) ≡ 1 (mod n) 和 ed ≡ 1 (mod φ(n))，立得 m^{ed} ≡ m (mod n)。 -/
 theorem rsa_correctness (m e d n : ℤ) (h_ed : e * d ≡ 1 [MOD (phi n.natAbs : ℤ)])
     (h_mn : gcd (m.natAbs) (n.natAbs) = 1) : m ^ (e * d) ≡ m [MOD n] := by
+  have h_mn' : gcd (m.natAbs) (n.natAbs) = 1 := h_mn
+  have h_phi : m ^ (phi n.natAbs : ℤ) ≡ 1 [MOD n] := eulers_theorem m n h_mn'
+  have h_ed : e * d ≡ 1 [MOD (phi n.natAbs : ℤ)] := h_ed
+  have h_pow : m ^ (e * d) = m ^ ((e * d) % (phi n.natAbs : ℤ)) := by
+    rw [Int.emod_add_ediv (e * d) (phi n.natAbs : ℤ), pow_add, mul_comm,
+      pow_mul, mul_comm, ← pow_mul, mul_comm]
+    sorry
   sorry
 
 /-! ===============================================================
