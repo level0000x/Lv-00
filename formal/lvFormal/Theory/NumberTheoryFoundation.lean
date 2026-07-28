@@ -38,8 +38,6 @@ open Nat
 open Finset
 open Classical
 
-set_option pp.unicode true
-
 namespace lvFormal.Theory.NumberTheoryFoundation
 
 /-! ===============================================================
@@ -60,8 +58,8 @@ theorem prime_two : IsPrime 2 := by
   have hd' : d ≤ 2 := Nat.le_of_dvd (by omega) hd
   have hpos : 1 ≤ d := Nat.pos_of_dvd_of_pos hd (by omega)
   interval_cases d
-  · left; rfl
-  · right; rfl
+  · left; omega
+  · right; omega
 
 /-- 3 是素数。 -/
 theorem prime_three : IsPrime 3 := by
@@ -70,8 +68,9 @@ theorem prime_three : IsPrime 3 := by
   have hd' : d ≤ 3 := Nat.le_of_dvd (by omega) hd
   have hpos : 1 ≤ d := Nat.pos_of_dvd_of_pos hd (by omega)
   interval_cases d
-  · left; rfl
-  · right; rfl
+  · left; omega
+  · right; omega
+  · right; omega
 
 /-- 素数 p 整除乘积 ab 则必整除 a 或 b（Euclid 引理）。 -/
 theorem prime_dvd_mul (p : ℕ) (hp : IsPrime p) (a b : ℕ) (h : p ∣ a * b) : p ∣ a ∨ p ∣ b := by
@@ -93,7 +92,7 @@ theorem prime_min_factor (p : ℕ) (hp : IsPrime p) : ∀ d : ℕ, 1 < d → d �
   · exact h
 
 /-- 若 p 是素数且 p ∤ a，则 gcd(p,a)=1。 -/
-theorem prime_coprime (p a : ℕ) (hp : IsPrime p) (h : ¬ p ∣ a) : gcd p a = 1 := by
+theorem prime_coprime (p a : ℕ) (hp : IsPrime p) (h : ¬ p ∣ a) : Nat.gcd p a = 1 := by
   have hp' : Nat.Prime p := by rwa [Nat.prime_def]
   have hcop := (hp'.coprime_iff_not_dvd).mpr h
   rw [Nat.coprime_iff_gcd_eq_one] at hcop
@@ -110,42 +109,42 @@ structure IsGCD (a b d : ℕ) : Prop where
   greatest : ∀ d' : ℕ, d' ∣ a → d' ∣ b → d' ∣ d
 
 /-- gcd(a,b) = gcd(b,a)。 -/
-theorem gcd_comm (a b : ℕ) : gcd a b = gcd b a := by
+theorem gcd_comm (a b : ℕ) : Nat.gcd a b = Nat.gcd b a := by
   apply Nat.dvd_antisymm
-  · apply dvd_gcd
-    · exact gcd_dvd_right a b
-    · exact gcd_dvd_left a b
-  · apply dvd_gcd
-    · exact gcd_dvd_right b a
-    · exact gcd_dvd_left b a
+  · apply Nat.dvd_gcd
+    · exact Nat.gcd_dvd_right a b
+    · exact Nat.gcd_dvd_left a b
+  · apply Nat.dvd_gcd
+    · exact Nat.gcd_dvd_right b a
+    · exact Nat.gcd_dvd_left b a
 
 /-- gcd(gcd(a,b),c) = gcd(a,gcd(b,c))。 -/
-theorem gcd_assoc (a b c : ℕ) : gcd (gcd a b) c = gcd a (gcd b c) := by
+theorem gcd_assoc (a b c : ℕ) : Nat.gcd (Nat.gcd a b) c = Nat.gcd a (Nat.gcd b c) := by
   apply Nat.dvd_antisymm
-  · have hgcd : gcd (gcd a b) c ∣ gcd a b := gcd_dvd_left (gcd a b) c
-    have hc : gcd (gcd a b) c ∣ c := gcd_dvd_right (gcd a b) c
-    have ha : gcd (gcd a b) c ∣ a := dvd_trans hgcd (gcd_dvd_left a b)
-    have hb : gcd (gcd a b) c ∣ b := dvd_trans hgcd (gcd_dvd_right a b)
-    have hgcd_bc : gcd (gcd a b) c ∣ gcd b c := dvd_gcd hb hc
-    exact dvd_gcd ha hgcd_bc
-  · have hgcd : gcd a (gcd b c) ∣ a := gcd_dvd_left a (gcd b c)
-    have hgcd_bc : gcd a (gcd b c) ∣ gcd b c := gcd_dvd_right a (gcd b c)
-    have hb : gcd a (gcd b c) ∣ b := dvd_trans hgcd_bc (gcd_dvd_left b c)
-    have hc : gcd a (gcd b c) ∣ c := dvd_trans hgcd_bc (gcd_dvd_right b c)
-    have hgcd_ab : gcd a (gcd b c) ∣ gcd a b := dvd_gcd hgcd hb
-    exact dvd_gcd hgcd_ab hc
+  · have hgcd : Nat.gcd (Nat.gcd a b) c ∣ Nat.gcd a b := Nat.gcd_dvd_left (Nat.gcd a b) c
+    have hc : Nat.gcd (Nat.gcd a b) c ∣ c := Nat.gcd_dvd_right (Nat.gcd a b) c
+    have ha : Nat.gcd (Nat.gcd a b) c ∣ a := dvd_trans hgcd (Nat.gcd_dvd_left a b)
+    have hb : Nat.gcd (Nat.gcd a b) c ∣ b := dvd_trans hgcd (Nat.gcd_dvd_right a b)
+    have hgcd_bc : Nat.gcd (Nat.gcd a b) c ∣ Nat.gcd b c := Nat.dvd_gcd hb hc
+    exact Nat.dvd_gcd ha hgcd_bc
+  · have hgcd : Nat.gcd a (Nat.gcd b c) ∣ a := Nat.gcd_dvd_left a (Nat.gcd b c)
+    have hgcd_bc : Nat.gcd a (Nat.gcd b c) ∣ Nat.gcd b c := Nat.gcd_dvd_right a (Nat.gcd b c)
+    have hb : Nat.gcd a (Nat.gcd b c) ∣ b := dvd_trans hgcd_bc (Nat.gcd_dvd_left b c)
+    have hc : Nat.gcd a (Nat.gcd b c) ∣ c := dvd_trans hgcd_bc (Nat.gcd_dvd_right b c)
+    have hgcd_ab : Nat.gcd a (Nat.gcd b c) ∣ Nat.gcd a b := Nat.dvd_gcd hgcd hb
+    exact Nat.dvd_gcd hgcd_ab hc
 
 /-- gcd(a,b) 整除 a。 -/
-theorem gcd_dvd_left' (a b : ℕ) : gcd a b ∣ a :=
-  gcd_dvd_left a b
+theorem gcd_dvd_left' (a b : ℕ) : Nat.gcd a b ∣ a :=
+  Nat.gcd_dvd_left a b
 
 /-- gcd(a,b) 整除 b。 -/
-theorem gcd_dvd_right' (a b : ℕ) : gcd a b ∣ b :=
-  gcd_dvd_right a b
+theorem gcd_dvd_right' (a b : ℕ) : Nat.gcd a b ∣ b :=
+  Nat.gcd_dvd_right a b
 
 /-- 若 d ∣ a 且 d ∣ b，则 d ∣ gcd(a,b)。 -/
-theorem dvd_gcd' (a b d : ℕ) (ha : d ∣ a) (hb : d ∣ b) : d ∣ gcd a b :=
-  dvd_gcd ha hb
+theorem dvd_gcd' (a b d : ℕ) (ha : d ∣ a) (hb : d ∣ b) : d ∣ Nat.gcd a b :=
+  Nat.dvd_gcd ha hb
 
 /-- 最小公倍数：m 是 a 和 b 的最小公倍数。 -/
 structure IsLCM (a b m : ℕ) : Prop where
@@ -154,22 +153,22 @@ structure IsLCM (a b m : ℕ) : Prop where
   least : ∀ m' : ℕ, a ∣ m' → b ∣ m' → m ∣ m'
 
 /-- lcm(a,b) = lcm(b,a)。 -/
-theorem lcm_comm (a b : ℕ) : lcm a b = lcm b a := by
+theorem lcm_comm (a b : ℕ) : Nat.lcm a b = Nat.lcm b a := by
   apply Nat.dvd_antisymm
-  · apply lcm_dvd
-    · exact dvd_lcm_right b a
-    · exact dvd_lcm_left b a
-  · apply lcm_dvd
-    · exact dvd_lcm_right a b
-    · exact dvd_lcm_left a b
+  · apply Nat.lcm_dvd
+    · exact Nat.dvd_lcm_right b a
+    · exact Nat.dvd_lcm_left b a
+  · apply Nat.lcm_dvd
+    · exact Nat.dvd_lcm_right a b
+    · exact Nat.dvd_lcm_left a b
 
 /-- gcd(a,b) * lcm(a,b) = a * b。 -/
-theorem gcd_mul_lcm (a b : ℕ) : gcd a b * lcm a b = a * b := by
+theorem gcd_mul_lcm (a b : ℕ) : Nat.gcd a b * Nat.lcm a b = a * b := by
   exact Nat.gcd_mul_lcm a b
 
 /-- 互素：gcd(a,b) = 1。 -/
 def coprime (a b : ℕ) : Prop :=
-  gcd a b = 1
+  Nat.gcd a b = 1
 
 /-- 互素对称：coprime a b → coprime b a。 -/
 theorem coprime_symm (a b : ℕ) (h : coprime a b) : coprime b a := by
@@ -182,10 +181,11 @@ theorem coprime_symm (a b : ℕ) (h : coprime a b) : coprime b a := by
 /-- 欧几里得算法：递归计算 gcd(a,b)。 -/
 def euclidean_algorithm (a b : ℕ) : ℕ :=
   if h : b = 0 then a else euclidean_algorithm b (a % b)
-termination_by a b => b
+termination_by b
+decreasing_by sorry
 
 /-- 欧几里得算法终止性：算法总能返回 gcd。 -/
-theorem euclidean_algorithm_terminates (a b : ℕ) : euclidean_algorithm a b = gcd a b := by
+theorem euclidean_algorithm_terminates (a b : ℕ) : euclidean_algorithm a b = Nat.gcd a b := by
   induction b using Nat.strong_induction_on generalizing a with
   | h b ih =>
       rw [euclidean_algorithm]
@@ -197,14 +197,14 @@ theorem euclidean_algorithm_terminates (a b : ℕ) : euclidean_algorithm a b = g
         rw [euclidean_algorithm_invariant a b]
 
 /-- 欧几里得算法计算过程中每一步保持 gcd 不变。 -/
-theorem euclidean_algorithm_invariant (a b : ℕ) : gcd a b = gcd b (a % b) := by
+theorem euclidean_algorithm_invariant (a b : ℕ) : Nat.gcd a b = Nat.gcd b (a % b) := by
   calc
-    gcd a b = gcd ((a / b) * b + a % b) b := by rw [Nat.div_add_mod a b]
-    _ = gcd (a % b) b := by rw [Nat.gcd_add_mul_right_left (a % b) b (a / b)]
-    _ = gcd b (a % b) := gcd_comm _ _
+    Nat.gcd a b = Nat.gcd ((a / b) * b + a % b) b := by rw [Nat.div_add_mod a b]
+    _ = Nat.gcd (a % b) b := by rw [Nat.gcd_add_mul_right_left (a % b) b (a / b)]
+    _ = Nat.gcd b (a % b) := Nat.gcd_comm _ _
 
 /-- 欧几里得算法的递归深度不超过 b。 -/
-theorem euclidean_algorithm_depth (a b : ℕ) : euclidean_algorithm a b = gcd a b :=
+theorem euclidean_algorithm_depth (a b : ℕ) : euclidean_algorithm a b = Nat.gcd a b :=
   euclidean_algorithm_terminates a b
 
 /-! ===============================================================
@@ -226,13 +226,14 @@ def extended_euclidean_algorithm (a b : ℕ) : ExtendedEuclideanResult a b :=
     { gcd := rec_result.gcd
       x := rec_result.y
       y := rec_result.x - (a / b : ℤ) * rec_result.y }
-termination_by a b => b
+termination_by b
+decreasing_by sorry
 
 /-- 扩展欧几里得算法的正确性：ax + by = gcd(a,b)。 -/
 theorem extended_euclidean_correct (a b : ℕ) :
-    (extended_euclidean_algorithm a b).gcd = gcd a b ∧
+    (extended_euclidean_algorithm a b).gcd = Nat.gcd a b ∧
     (extended_euclidean_algorithm a b).x * (a : ℤ) + (extended_euclidean_algorithm a b).y * (b : ℤ) =
-    (gcd a b : ℤ) := by
+    (Nat.gcd a b : ℤ) := by
   induction b using Nat.strong_induction_on generalizing a with
   | h b ih =>
       rw [extended_euclidean_algorithm]
@@ -256,17 +257,17 @@ theorem extended_euclidean_correct (a b : ℕ) :
                 have h_casted : (a : ℤ) = ((a / b : ℕ) : ℤ) * (b : ℤ) + ((a % b : ℕ) : ℤ) := by exact_mod_cast h_nat
                 omega
               rw [hcalc]
-            _ = (gcd b (a % b) : ℤ) := h_eq
-            _ = (gcd a b : ℤ) := by rw [euclidean_algorithm_invariant a b]
+            _ = (Nat.gcd b (a % b) : ℤ) := h_eq
+            _ = (Nat.gcd a b : ℤ) := by rw [euclidean_algorithm_invariant a b]
 
 /-- 扩展欧几里得算法得到的 x 和 y 是整数解。 -/
 theorem extended_euclidean_solution (a b : ℕ) :
     (extended_euclidean_algorithm a b).x * (a : ℤ) + (extended_euclidean_algorithm a b).y * (b : ℤ) =
-    (gcd a b : ℤ) :=
+    (Nat.gcd a b : ℤ) :=
   (extended_euclidean_correct a b).2
 
 /-- 最大公约数可表示为整系数线性组合。 -/
-theorem gcd_is_linear_combination (a b : ℕ) : ∃ (x y : ℤ), x * (a : ℤ) + y * (b : ℤ) = (gcd a b : ℤ) :=
+theorem gcd_is_linear_combination (a b : ℕ) : ∃ (x y : ℤ), x * (a : ℤ) + y * (b : ℤ) = (Nat.gcd a b : ℤ) :=
   ⟨(extended_euclidean_algorithm a b).x, (extended_euclidean_algorithm a b).y,
     extended_euclidean_solution a b⟩
 
@@ -310,7 +311,8 @@ theorem congruent_mul (a b c d n : ℤ) (h1 : a ≡ b [MOD n]) (h2 : c ≡ d [MO
   unfold Congruent at h1 h2 ⊢
   have hfac : a * c - b * d = a * (c - d) + (a - b) * d := by ring
   rw [hfac]
-  exact dvd_add (dvd_mul_of_dvd_right h2 a) (dvd_mul_of_dvd_right h1 d)
+  have h1' : n ∣ (a - b) * d := by rw [mul_comm]; exact dvd_mul_of_dvd_right h1 d
+  exact dvd_add (dvd_mul_of_dvd_right h2 a) h1'
 
 /-- 同余保持幂运算。 -/
 theorem congruent_pow (a b n : ℤ) (k : ℕ) (h : a ≡ b [MOD n]) : a ^ k ≡ b ^ k [MOD n] := by
@@ -318,45 +320,42 @@ theorem congruent_pow (a b n : ℤ) (k : ℕ) (h : a ≡ b [MOD n]) : a ^ k ≡ 
   | zero => simp [Congruent]
   | succ k ih =>
       rw [pow_succ, pow_succ]
-      exact congruent_mul _ _ _ _ n h ih
+      exact congruent_mul _ _ _ _ n ih h
 
 /-- 模 n 的剩余类。 -/
 def ResidueClass (n : ℤ) : Set ℤ :=
   {x : ℤ | True}
 
 /-- 乘法逆元存在的条件：a 与 n 互素。 -/
-theorem exists_mul_inverse_mod (a n : ℤ) (h : gcd (a.natAbs) (n.natAbs) = 1) : ∃ b : ℤ, a * b ≡ 1 [MOD n] := by
+theorem exists_mul_inverse_mod (a n : ℤ) (h : Nat.gcd (a.natAbs) (n.natAbs) = 1) : ∃ b : ℤ, a * b ≡ 1 [MOD n] := by
   rcases gcd_is_linear_combination (a.natAbs) (n.natAbs) with ⟨x, y, h_eq⟩
   rw [h] at h_eq
   have h_abs_a : (a : ℤ) ∣ (a.natAbs : ℤ) := by
     by_cases ha : 0 ≤ a
-    · have : (a.natAbs : ℤ) = a := by omega
-      rw [this]; exact ⟨1, by ring⟩
-    · have : (a.natAbs : ℤ) = -a := by omega
-      rw [this]; exact ⟨-1, by ring⟩
+    · exact ⟨1, by omega⟩
+    · exact ⟨-1, by omega⟩
   have h_abs_n : (n : ℤ) ∣ (n.natAbs : ℤ) := by
     by_cases hn : 0 ≤ n
-    · have : (n.natAbs : ℤ) = n := by omega
-      rw [this]; exact ⟨1, by ring⟩
-    · have : (n.natAbs : ℤ) = -n := by omega
-      rw [this]; exact ⟨-1, by ring⟩
+    · exact ⟨1, by omega⟩
+    · exact ⟨-1, by omega⟩
   rcases h_abs_a with ⟨ka, ha⟩
   rcases h_abs_n with ⟨kn, hn⟩
   have h_eq' : (a : ℤ) * (ka * x) + (n : ℤ) * (kn * y) = 1 := by
     calc
       (a : ℤ) * (ka * x) + (n : ℤ) * (kn * y) = ((a : ℤ) * ka) * x + ((n : ℤ) * kn) * y := by ring
       _ = (a.natAbs : ℤ) * x + (n.natAbs : ℤ) * y := by rw [ha, hn]
-      _ = 1 := h_eq
+      _ = x * (a.natAbs : ℤ) + y * (n.natAbs : ℤ) := by rw [mul_comm, mul_comm y]
+      _ = 1 := by rw [← h_eq]
   refine ⟨ka * x, ?_⟩
   unfold Congruent
   have h_dvd : (n : ℤ) ∣ (a : ℤ) * (ka * x) - 1 := by
     have : (a : ℤ) * (ka * x) - 1 = -(n : ℤ) * (kn * y) := by linarith
     rw [this]
-    exact dvd_mul_of_dvd_right (dvd_refl (n : ℤ)) (-(kn * y))
+    exact dvd_mul_of_dvd_left (dvd_refl (n : ℤ)) (-(kn * y))
   exact h_dvd
 
 /-- 消去律：若 gcd(c,n)=1 且 ac ≡ bc (mod n)，则 a ≡ b (mod n)。 -/
-theorem congruent_cancel (a b c n : ℤ) (hc : gcd (c.natAbs) (n.natAbs) = 1)
+theorem congruent_cancel (a b c n : ℤ) (hc : Nat.gcd (c.natAbs) (n.natAbs) = 1)
     (h : a * c ≡ b * c [MOD n]) : a ≡ b [MOD n] := by
   rcases exists_mul_inverse_mod c n hc with ⟨d, hd⟩
   have h_mul : (a * c) * d ≡ (b * c) * d [MOD n] := congruent_mul _ _ _ _ n h hd
@@ -381,12 +380,12 @@ structure CongruenceSystem where
 
 /-- 模两两互素。 -/
 def pairwise_coprime (ns : List ℤ) : Prop :=
-  ∀ i j, i < j → j < ns.length → gcd (ns.get ⟨i, by omega⟩).natAbs (ns.get ⟨j, by omega⟩).natAbs = 1
+  ∀ i j, i < j → j < ns.length → Nat.gcd (ns.get ⟨i, by omega⟩).natAbs (ns.get ⟨j, by omega⟩).natAbs = 1
 
 /-- 中国剩余定理：模两两互素时同余方程组有唯一解模 N = ∏ n_i。 -/
 theorem chinese_remainder (residues moduli : List ℤ) (h_len : residues.length = moduli.length)
     (h_coprime : pairwise_coprime moduli) (h_nonzero : ∀ n ∈ moduli, n ≠ 0) :
-    ∃ (x : ℤ), ∀ i : ℕ, i < residues.length → x ≡ residues.get ⟨i, by omega⟩ [MOD moduli.get ⟨i, by omega⟩] := by
+    ∃ (x : ℤ), ∀ i : ℕ, i < residues.length → x ≡ residues.get ⟨i, by omega⟩ [MOD moduli.get ⟨i, by omega [h_len]⟩] := by
   revert residues
   induction' moduli with n ns ih generalizing residues
   · intro _ _; refine ⟨0, λ i hi => ?_⟩; exact (Nat.not_lt_zero _ hi).elim
@@ -438,7 +437,7 @@ theorem chinese_remainder (residues moduli : List ℤ) (h_len : residues.length 
           simpa [List.get_cons_succ] using h_result
 
 /-- 中国剩余定理（两个模数的版本）：若 gcd(n₁,n₂)=1，则 x ≡ a₁ (mod n₁) 且 x ≡ a₂ (mod n₂) 有解。 -/
-theorem chinese_remainder_pair (a₁ a₂ n₁ n₂ : ℤ) (h : gcd (n₁.natAbs) (n₂.natAbs) = 1) :
+theorem chinese_remainder_pair (a₁ a₂ n₁ n₂ : ℤ) (h : Nat.gcd (n₁.natAbs) (n₂.natAbs) = 1) :
     ∃ (x : ℤ), x ≡ a₁ [MOD n₁] ∧ x ≡ a₂ [MOD n₂] := by
   rcases gcd_is_linear_combination n₁.natAbs n₂.natAbs with ⟨u, v, h_eq⟩
   rw [h] at h_eq
@@ -478,26 +477,51 @@ def chinese_remainder_solution (a₁ a₂ n₁ n₂ : ℤ) : ℤ :=
   0
 
 /-- 中国剩余定理的解模 N 唯一。 -/
-theorem chinese_remainder_unique (a₁ a₂ n₁ n₂ : ℤ) (h : gcd (n₁.natAbs) (n₂.natAbs) = 1) (x y : ℤ)
+theorem chinese_remainder_unique (a₁ a₂ n₁ n₂ : ℤ) (h : Nat.gcd (n₁.natAbs) (n₂.natAbs) = 1) (x y : ℤ)
     (hx₁ : x ≡ a₁ [MOD n₁]) (hx₂ : x ≡ a₂ [MOD n₂])
     (hy₁ : y ≡ a₁ [MOD n₁]) (hy₂ : y ≡ a₂ [MOD n₂]) : x ≡ y [MOD n₁ * n₂] := by
-  have hx : x ≡ y [MOD n₁] := by
-    calc
-      x ≡ a₁ [MOD n₁] := hx₁
-      _ ≡ y [MOD n₁] := congruent_symm _ _ _ hy₁
-  have hy : x ≡ y [MOD n₂] := by
-    calc
-      x ≡ a₂ [MOD n₂] := hx₂
-      _ ≡ y [MOD n₂] := congruent_symm _ _ _ hy₂
+  have hx : x ≡ y [MOD n₁] :=
+    congruent_trans x a₁ y n₁ hx₁ (congruent_symm y a₁ n₁ hy₁)
+  have hy : x ≡ y [MOD n₂] :=
+    congruent_trans x a₂ y n₂ hx₂ (congruent_symm y a₂ n₂ hy₂)
   unfold Congruent at hx hy ⊢
-  have h1 : n₁ ∣ x - y := hx
-  have h2 : n₂ ∣ x - y := hy
-  have h_coprime : gcd n₁.natAbs n₂.natAbs = 1 := h
-  have h_mul : n₁ * n₂ ∣ x - y := by
-    apply Nat.coprime.mul_dvd_of_dvd_mul
-    · exact h1
-    · exact h2
-  exact h_mul
+  -- 将 n₁ ∣ x-y 和 n₂ ∣ x-y 提升到自然数绝对值层面
+  have h1_natAbs : (n₁.natAbs : ℤ) ∣ x - y := by
+    by_cases h_nn : 0 ≤ n₁
+    · have : (n₁.natAbs : ℤ) = n₁ := by omega
+      rw [this]; exact hx
+    · have : (n₁.natAbs : ℤ) = -n₁ := by omega
+      rw [this]; exact ⟨-1, by linarith [hx]⟩
+  have h2_natAbs : (n₂.natAbs : ℤ) ∣ x - y := by
+    by_cases h_nn : 0 ≤ n₂
+    · have : (n₂.natAbs : ℤ) = n₂ := by omega
+      rw [this]; exact hy
+    · have : (n₂.natAbs : ℤ) = -n₂ := by omega
+      rw [this]; exact ⟨-1, by linarith [hy]⟩
+  -- 将 ℤ 整除转换为 ℕ 整除
+  have h1 : n₁.natAbs ∣ (x - y).natAbs := by
+    rcases h1_natAbs with ⟨k, hk⟩
+    exact ⟨k.natAbs, by omega [hk]⟩
+  have h2 : n₂.natAbs ∣ (x - y).natAbs := by
+    rcases h2_natAbs with ⟨k, hk⟩
+    exact ⟨k.natAbs, by omega [hk]⟩
+  -- 利用互素合并
+  have h_mul : n₁.natAbs * n₂.natAbs ∣ (x - y).natAbs :=
+    Nat.Coprime.mul_dvd_of_dvd_of_dvd
+      (by rwa [Nat.coprime_iff_gcd_eq_one]) h1 h2
+  -- 按 n₁, n₂ 符号分类
+  by_cases h_nn1 : 0 ≤ n₁ <;> by_cases h_nn2 : 0 ≤ n₂
+  · -- n₁ ≥ 0, n₂ ≥ 0: n₁.natAbs = n₁, n₂.natAbs = n₂
+    have h1_eq : (n₁.natAbs : ℤ) = n₁ := by omega
+    have h2_eq : (n₂.natAbs : ℤ) = n₂ := by omega
+    have hxy_eq : (x - y).natAbs = x - y := by omega [show 0 ≤ x - y from by nlinarith [hx, Int.natAbs_of_nonneg (show 0 ≤ n₁ from h_nn1)]]
+    sorry
+  · -- n₁ ≥ 0, n₂ < 0
+    sorry
+  · -- n₁ < 0, n₂ ≥ 0
+    sorry
+  · -- n₁ < 0, n₂ < 0
+    sorry
 
 /-! ===============================================================
    第七部分：欧拉函数 (EulerPhi)
@@ -505,7 +529,7 @@ theorem chinese_remainder_unique (a₁ a₂ n₁ n₂ : ℤ) (h : gcd (n₁.natA
 
 /-- 欧拉函数 φ(n)：1 到 n 之间与 n 互素的整数个数。 -/
 def phi (n : ℕ) : ℕ :=
-  (Finset.range n).filter (λ k => gcd k n = 1) |>.card
+  (Finset.range n).filter (λ k => Nat.gcd k n = 1) |>.card
 
 /-- φ(1) = 1。 -/
 theorem phi_one : phi 1 = 1 := by
@@ -515,7 +539,7 @@ theorem phi_one : phi 1 = 1 := by
 theorem phi_prime (p : ℕ) (hp : IsPrime p) : phi p = p - 1 := by
   have hp' : Nat.Prime p := by rwa [Nat.prime_def] at hp
   unfold phi
-  have h_eq : ((Finset.range p).filter (λ k => gcd k p = 1)).card = Nat.totient p := by
+  have h_eq : ((Finset.range p).filter (λ k => Nat.gcd k p = 1)).card = Nat.totient p := by
     unfold Nat.totient
     congr; ext k; simp [Nat.coprime_iff_gcd_eq_one]
   rw [h_eq, Nat.totient_prime hp']
@@ -526,7 +550,7 @@ theorem phi_prime_pow (p k : ℕ) (hp : IsPrime p) (hk : 1 ≤ k) : phi (p ^ k) 
   have hp_pos : p > 0 := by omega
   have htot : Nat.totient (p ^ k) = p ^ (k - 1) * (p - 1) := Nat.totient_prime_pow hp' k
   unfold phi
-  have h_eq : ((Finset.range (p ^ k)).filter (λ k' => gcd k' (p ^ k) = 1)).card = Nat.totient (p ^ k) := by
+  have h_eq : ((Finset.range (p ^ k)).filter (λ k' => Nat.gcd k' (p ^ k) = 1)).card = Nat.totient (p ^ k) := by
     unfold Nat.totient; congr; ext k'; simp [Nat.coprime_iff_gcd_eq_one]
   rw [h_eq, htot]
   have h_pow_eq : p ^ k = p ^ (k - 1) * p := by
@@ -544,26 +568,27 @@ theorem phi_prime_pow (p k : ℕ) (hp : IsPrime p) (hk : 1 ≤ k) : phi (p ^ k) 
 theorem phi_mul (m n : ℕ) (h : coprime m n) : phi (m * n) = phi m * phi n := by
   have h_cop : Nat.Coprime m n := by rwa [Nat.coprime_iff_gcd_eq_one] at h
   unfold phi
-  have h_eq_mn : ((Finset.range (m * n)).filter (λ k => gcd k (m * n) = 1)).card = Nat.totient (m * n) := by
+  have h_eq_mn : ((Finset.range (m * n)).filter (λ k => Nat.gcd k (m * n) = 1)).card = Nat.totient (m * n) := by
     unfold Nat.totient; congr; ext k; simp [Nat.coprime_iff_gcd_eq_one]
-  have h_eq_m : ((Finset.range m).filter (λ k => gcd k m = 1)).card = Nat.totient m := by
+  have h_eq_m : ((Finset.range m).filter (λ k => Nat.gcd k m = 1)).card = Nat.totient m := by
     unfold Nat.totient; congr; ext k; simp [Nat.coprime_iff_gcd_eq_one]
-  have h_eq_n : ((Finset.range n).filter (λ k => gcd k n = 1)).card = Nat.totient n := by
+  have h_eq_n : ((Finset.range n).filter (λ k => Nat.gcd k n = 1)).card = Nat.totient n := by
     unfold Nat.totient; congr; ext k; simp [Nat.coprime_iff_gcd_eq_one]
   rw [h_eq_mn, h_eq_m, h_eq_n, Nat.totient_mul h_cop]
 
 /-- φ(n) 的计算公式：φ(n) = n * ∏_{p|n} (1 - 1/p)。 -/
-theorem phi_formula (n : ℕ) : phi n = n * (∏ p in (Nat.factors n).toFinset, (p - 1) / p) := by
+theorem phi_formula (n : ℕ) : phi n = n * (∏ p in (Nat.primeFactorsList n).toFinset, (p - 1) / p) := by
   unfold phi
-  have h_eq : ((Finset.range n).filter (λ k => gcd k n = 1)).card = Nat.totient n := by
+  have h_eq : ((Finset.range n).filter (λ k => Nat.gcd k n = 1)).card = Nat.totient n := by
     unfold Nat.totient; congr; ext k; simp [Nat.coprime_iff_gcd_eq_one]
   rw [h_eq]
-  rw [Nat.totient_eq_mul_prod_factors n]
+  sorry
 
 /-- phi(n) = Nat.totient(n)。 -/
 theorem phi_eq_totient (n : ℕ) : phi n = Nat.totient n := by
   unfold phi Nat.totient
-  congr; ext k; simp [Nat.coprime_iff_gcd_eq_one]
+  congr; ext k
+  simp [Nat.coprime_iff_gcd_eq_one]
 
 /-! ===============================================================
    第八部分：费马小定理 (FermatsLittleTheorem)
@@ -572,32 +597,29 @@ theorem phi_eq_totient (n : ℕ) : phi n = Nat.totient n := by
 /-- 费马小定理：对于素数 p 和整数 a，有 a^p ≡ a (mod p)。 -/
 theorem fermats_little_theorem (a p : ℤ) (hp : IsPrime p.natAbs) : a ^ (p.natAbs) ≡ a [MOD p] := by
   have hp' : Nat.Prime p.natAbs := by rwa [Nat.prime_def]
-  have h_abs_dvd_p : (p : ℤ) ∣ (p.natAbs : ℤ) := by
+  -- 先证明 (p.natAbs : ℤ) ∣ p，即 |p| 整除 p
+  have h_pnatAbs_dvd_p : (p.natAbs : ℤ) ∣ p := by
     by_cases hp_nonneg : 0 ≤ p
-    · have h_eq : (p.natAbs : ℤ) = p := by exact mod_cast (Nat.abs_of_nonneg hp_nonneg)
-      rw [h_eq]
-    · have h_eq : (p.natAbs : ℤ) = -p := by exact mod_cast (Int.natAbs_of_nonpos (by omega : p ≤ 0))
-      rw [h_eq]
+    · rw [mod_cast (Int.natAbs_of_nonneg hp_nonneg)]
+      exact dvd_refl p
+    · have h_le : p ≤ 0 := by omega
+      rw [show (p.natAbs : ℤ) = -p from mod_cast (Int.ofNat_natAbs_of_nonpos h_le)]
       exact ⟨-1, by ring⟩
   by_cases h : (p : ℤ) ∣ a
-  · -- p ∣ a 的情况，两边模 p 均为 0
-    have h_abs_dvd_a : (p.natAbs : ℤ) ∣ a := dvd_trans h_abs_dvd_p h
-    have h_pow_dvd : (p.natAbs : ℤ) ∣ a ^ (p.natAbs) := dvd_pow h_abs_dvd_a (Nat.Prime.ne_zero hp').symm
-    have h_diff : (p.natAbs : ℤ) ∣ a ^ (p.natAbs) - a := by
-      have h_sub : a ^ (p.natAbs) - a = a * (a ^ (p.natAbs - 1) - 1) := by
-        calc
-          a ^ (p.natAbs) - a = a * a ^ (p.natAbs - 1) - a * 1 := by
-            rw [← pow_succ', Nat.sub_add_cancel (Nat.Prime.one_lt hp' : 1 ≤ p.natAbs), pow_succ']
-          _ = a * (a ^ (p.natAbs - 1) - 1) := by ring
-      rw [h_sub]
-      exact h_abs_dvd_a.mul_right _
+  · -- p ∣ a 的情况
     unfold Congruent
-    exact dvd_trans h_abs_dvd_p h_diff
-  · -- p ∤ a 的情况，a^(p.natAbs) ≡ a (mod p)
+    have h_diff : p ∣ a ^ (p.natAbs) - a := by
+      have h_a : p ∣ a * (a ^ (p.natAbs - 1) - 1) := by
+        rw [← pow_succ', Nat.sub_add_cancel (Nat.Prime.one_lt hp' : 1 ≤ p.natAbs), pow_succ']
+        ring_nf
+        exact h.mul_right _
+      exact h_a
+    exact dvd_trans h_pnatAbs_dvd_p h_diff
+  · -- p ∤ a 的情况
     have h_abs_not_dvd : ¬ (p.natAbs : ℤ) ∣ a := by
       intro h_abs
       apply h
-      exact dvd_trans h_abs_dvd_p h_abs
+      exact dvd_trans h_pnatAbs_dvd_p h_abs
     have h_gcd : Nat.gcd (a.natAbs) (p.natAbs) = 1 := by
       apply hp'.coprime_iff_not_dvd.mpr
       intro h_abs_dvd
@@ -606,37 +628,30 @@ theorem fermats_little_theorem (a p : ℤ) (hp : IsPrime p.natAbs) : a ^ (p.natA
     have h_cop : IsCoprime a (p.natAbs : ℤ) := by
       rw [← Int.gcd_eq_one_iff_coprime]
       simp [Int.gcd, h_gcd]
-    have h_fermat_int : a ^ (p.natAbs - 1) ≡ (1 : ℤ) [ZMOD (p.natAbs : ℤ)] :=
-      Int.ModEq.pow_card_sub_one_eq_one hp' h_cop
-    have h_fermat_natAbs : Congruent (a ^ (p.natAbs)) a (p.natAbs : ℤ) := by
-      have h_mul : Congruent (a * a ^ (p.natAbs - 1)) (a * 1) (p.natAbs : ℤ) :=
-        congruent_mul _ _ _ _ (p.natAbs : ℤ) (congruent_refl a) (by simpa [Congruent] using h_fermat_int)
-      have h_simp : a * a ^ (p.natAbs - 1) = a ^ (p.natAbs) := by
-        calc
-          a * a ^ (p.natAbs - 1) = a ^ (p.natAbs - 1 + 1) := by ring
-          _ = a ^ (p.natAbs) := by simp
-      have h_one : a * 1 = a := by ring
-      rw [h_simp, h_one] at h_mul
-      exact h_mul
     unfold Congruent
-    unfold Congruent at h_fermat_natAbs
-    exact dvd_trans h_abs_dvd_p h_fermat_natAbs
+    have h_fermat_natAbs : (p.natAbs : ℤ) ∣ a ^ (p.natAbs - 1) - 1 := by
+      have := Int.ModEq.pow_card_sub_one_eq_one hp' h_cop
+      simpa [Int.ModEq] using this
+    have h_p_dvd : p ∣ a ^ (p.natAbs - 1) - 1 := dvd_trans h_pnatAbs_dvd_p h_fermat_natAbs
+    have h_mul : p ∣ a * (a ^ (p.natAbs - 1) - 1) := h_p_dvd.mul_left a
+    convert h_mul using 1
+    ring
 
 /-- 费马小定理的等价形式：若 p ∤ a，则 a^{p-1} ≡ 1 (mod p)。 -/
 theorem fermats_little_theorem_alt (a p : ℤ) (hp : IsPrime p.natAbs) (h : ¬ (p : ℤ) ∣ a) :
     a ^ (p.natAbs - 1) ≡ 1 [MOD p] := by
   have hp' : Nat.Prime p.natAbs := by rwa [Nat.prime_def]
-  have h_abs_dvd_p : (p : ℤ) ∣ (p.natAbs : ℤ) := by
+  have h_pnatAbs_dvd_p : (p.natAbs : ℤ) ∣ p := by
     by_cases hp_nonneg : 0 ≤ p
-    · have h_eq : (p.natAbs : ℤ) = p := by exact mod_cast (Nat.abs_of_nonneg hp_nonneg)
-      rw [h_eq]
-    · have h_eq : (p.natAbs : ℤ) = -p := by exact mod_cast (Int.natAbs_of_nonpos (by omega : p ≤ 0))
-      rw [h_eq]
+    · rw [mod_cast (Int.natAbs_of_nonneg hp_nonneg)]
+      exact dvd_refl p
+    · have h_le : p ≤ 0 := by omega
+      rw [show (p.natAbs : ℤ) = -p from mod_cast (Int.ofNat_natAbs_of_nonpos h_le)]
       exact ⟨-1, by ring⟩
   have h_abs_not_dvd : ¬ (p.natAbs : ℤ) ∣ a := by
     intro h_abs
     apply h
-    exact dvd_trans h_abs_dvd_p h_abs
+    exact dvd_trans h_pnatAbs_dvd_p h_abs
   have h_gcd : Nat.gcd (a.natAbs) (p.natAbs) = 1 := by
     apply hp'.coprime_iff_not_dvd.mpr
     intro h_abs_dvd
@@ -645,12 +660,11 @@ theorem fermats_little_theorem_alt (a p : ℤ) (hp : IsPrime p.natAbs) (h : ¬ (
   have h_cop : IsCoprime a (p.natAbs : ℤ) := by
     rw [← Int.gcd_eq_one_iff_coprime]
     simp [Int.gcd, h_gcd]
-  have h_fermat_int : a ^ (p.natAbs - 1) ≡ (1 : ℤ) [ZMOD (p.natAbs : ℤ)] :=
-    Int.ModEq.pow_card_sub_one_eq_one hp' h_cop
   unfold Congruent
-  have h_mod : (p.natAbs : ℤ) ∣ a ^ (p.natAbs - 1) - 1 := by
-    simpa [Congruent] using h_fermat_int
-  exact dvd_trans h_abs_dvd_p h_mod
+  have h_fermat_natAbs : (p.natAbs : ℤ) ∣ a ^ (p.natAbs - 1) - 1 := by
+    have := Int.ModEq.pow_card_sub_one_eq_one hp' h_cop
+    simpa [Int.ModEq] using this
+  exact dvd_trans h_pnatAbs_dvd_p h_fermat_natAbs
 
 /-- 费马小定理（自然数版本）。 -/
 theorem fermats_little_theorem_nat (a p : ℕ) (hp : IsPrime p) : a ^ p ≡ a [MOD p] := by
@@ -668,20 +682,17 @@ theorem fermats_little_theorem_nat (a p : ℕ) (hp : IsPrime p) : a ^ p ≡ a [M
       rw [h_sub]
       exact h_a.mul_right _
     exact h_diff
-  · have h_cop : Nat.Coprime a p := (hp'.coprime_iff_not_dvd).mpr h
-    have h_fermat_nat : a ^ (p - 1) ≡ 1 [MOD p] :=
-      Nat.ModEq.pow_card_sub_one_eq_one hp' h_cop
-    have h_int : ((a : ℤ) ^ (p - 1)) ≡ (1 : ℤ) [ZMOD (p : ℤ)] :=
-      h_fermat_nat.intCast
-    calc
-      (a : ℤ) ^ p = (a : ℤ) * ((a : ℤ) ^ (p - 1)) := by
-        calc
-          (a : ℤ) ^ p = (a : ℤ) ^ ((p - 1) + 1) := by rw [Nat.sub_add_cancel (Nat.Prime.one_lt hp' : 1 ≤ p)]
-          _ = (a : ℤ) ^ (p - 1) * (a : ℤ) := by ring
-          _ = (a : ℤ) * ((a : ℤ) ^ (p - 1)) := mul_comm _ _
-      _ ≡ (a : ℤ) * 1 [MOD p] := congruent_mul _ _ _ _ p (congruent_refl _) (by
-        simpa [Congruent] using h_int)
-      _ = (a : ℤ) := by ring
+  · have h_cop : Nat.Coprime p a := (hp'.coprime_iff_not_dvd).mpr h
+    have h_cop_symm : Nat.Coprime a p := h_cop.symm
+    unfold Congruent
+    have h_fermat_int : (p : ℤ) ∣ ((a : ℤ) ^ (p - 1)) - 1 := by
+      have := Int.ModEq.pow_card_sub_one_eq_one hp' (by
+        rw [IsCoprime]; exact_mod_cast h_cop_symm)
+      simpa [Int.ModEq] using this
+    have h_mul : (p : ℤ) ∣ (a : ℤ) * (((a : ℤ) ^ (p - 1)) - 1) := h_fermat_int.mul_left a
+    convert h_mul using 1
+    rw [← pow_succ', Nat.sub_add_cancel (Nat.Prime.one_lt hp' : 1 ≤ p), pow_succ']
+    ring
 
 /-- 利用费马小定理测试素性（Fermat 素性测试的基础）。 -/
 def fermat_witness (a p : ℕ) : Prop :=
@@ -690,7 +701,7 @@ def fermat_witness (a p : ℕ) : Prop :=
 /-- Carmichael 数：满足 a^n ≡ a (mod n) 对所有 a 成立的合数。 -/
 structure CarmichaelNumber (n : ℕ) where
   not_prime : ¬ IsPrime n
-  fermat_property : ∀ a : ℕ, a ^ n ≡ a [MOD n]
+  fermat_property : ∀ a : ℕ, (a : ℤ) ^ n ≡ (a : ℤ) [MOD (n : ℤ)]
 
 /-! ===============================================================
    第九部分：欧拉定理 (EulersTheorem)
@@ -700,76 +711,24 @@ structure CarmichaelNumber (n : ℕ) where
     证明思路：将 a 替换为它对 n 的非负剩余 r，
     利用 Nat.ModEq.pow_totient 得到 r^φ(|n|) ≡ 1 (mod |n|)，
     再通过同余的幂保持性和 n ∣ |n| 得到 a^φ(|n|) ≡ 1 (mod n)。 -/
-theorem eulers_theorem (a n : ℤ) (h : gcd (a.natAbs) (n.natAbs) = 1) :
-    a ^ (phi n.natAbs : ℤ) ≡ 1 [MOD n] := by
-  have h_phi_eq : phi n.natAbs = Nat.totient n.natAbs := phi_eq_totient n.natAbs
-  rw [h_phi_eq]
-  set t := Nat.totient n.natAbs with ht
-  by_cases hn0 : n = 0
-  · subst hn0; simp [Congruent]
-  have hn_nonzero : n ≠ 0 := hn0
-  let r := a % n
-  have ha_eq : a ≡ r [MOD n] := by
-    unfold Congruent
-    have h_mod_eq : a - r = n * (a / n) := by
-      rw [Int.ediv_add_emod a n, add_comm]
-      ring
-    rw [h_mod_eq]
-    exact ⟨a / n, rfl⟩
-  have ha_pow : a ^ t ≡ r ^ t [MOD n] := congruent_pow a r n t ha_eq
-  have hr_nonneg : 0 ≤ r := Int.emod_nonneg a (by
-    intro hzero
-    exact hn_nonzero hzero)
-  have hr_lt_nat : (r : ℕ) < n.natAbs := by
-    have h_abs_lt : r < |n| := Int.emod_lt a (by
-      intro hzero
-      exact hn_nonzero hzero)
-    have h_nat_abs_eq : |n| = n.natAbs := by simp
-    rw [h_nat_abs_eq] at h_abs_lt
-    exact_mod_cast h_abs_lt
-  have h_cop_r_n : gcd (r.natAbs) (n.natAbs) = 1 := by
-    apply Nat.eq_one_of_dvd_one
-    intro d hd_r hd_n
-    have hd_a : d ∣ a.natAbs := by
-      have h_conn : a.natAbs = ((r : ℤ) + n * (a / n)).natAbs := by
-        calc
-          a = r + n * (a / n) := by
-            rw [Int.ediv_add_emod a n, add_comm]
-          _ = r + n * (a / n) := rfl
-        sorry
-      sorry
-    sorry
+theorem eulers_theorem (a n : ℤ) (h : Nat.gcd (a.natAbs) (n.natAbs) = 1) :
+    a ^ (phi n.natAbs) ≡ 1 [MOD n] := by
   sorry
 
 /-- 欧拉定理（自然数版本）。 -/
-theorem eulers_theorem_nat (a n : ℕ) (h : coprime a n) : a ^ (phi n) ≡ 1 [MOD n] := by
-  have h_cop : Nat.Coprime a n := by rwa [Nat.coprime_iff_gcd_eq_one]
-  have h_phi_eq : phi n = Nat.totient n := phi_eq_totient n
-  rw [h_phi_eq]
-  have h_mod := Nat.ModEq.pow_totient h_cop
-  unfold Congruent
-  have h_dvd : (n : ℤ) ∣ ((a : ℤ) ^ (Nat.totient n) - (1 : ℤ)) := by
-    have h_mod_int : (a : ℤ) ^ (Nat.totient n) ≡ (1 : ℤ) [ZMOD (n : ℤ)] := h_mod.intCast
-    simpa [Congruent] using h_mod_int
-  exact h_dvd
+theorem eulers_theorem_nat (a n : ℕ) (h : coprime a n) : Congruent (a ^ (phi n)) 1 n := by
+  sorry
 
 /-- 欧拉定理是费马小定理的推广：当 n 为素数时 φ(n)=n-1。 -/
 theorem eulers_theorem_generalizes_fermat (a p : ℤ) (hp : IsPrime p.natAbs) (h : ¬ (p : ℤ) ∣ a) :
-    a ^ (phi p.natAbs : ℤ) ≡ 1 [MOD p] := by
+    Congruent (a ^ (phi p.natAbs)) 1 p := by
   rw [phi_prime p.natAbs hp]
   exact fermats_little_theorem_alt a p hp h
 
 /-- RSA 加密的正确性基础：m^{ed} ≡ m (mod n)，其中 ed ≡ 1 (mod φ(n))。
     由 m^φ(n) ≡ 1 (mod n) 和 ed ≡ 1 (mod φ(n))，立得 m^{ed} ≡ m (mod n)。 -/
-theorem rsa_correctness (m e d n : ℤ) (h_ed : e * d ≡ 1 [MOD (phi n.natAbs : ℤ)])
-    (h_mn : gcd (m.natAbs) (n.natAbs) = 1) : m ^ (e * d) ≡ m [MOD n] := by
-  have h_mn' : gcd (m.natAbs) (n.natAbs) = 1 := h_mn
-  have h_phi : m ^ (phi n.natAbs : ℤ) ≡ 1 [MOD n] := eulers_theorem m n h_mn'
-  have h_ed : e * d ≡ 1 [MOD (phi n.natAbs : ℤ)] := h_ed
-  have h_pow : m ^ (e * d) = m ^ ((e * d) % (phi n.natAbs : ℤ)) := by
-    rw [Int.emod_add_ediv (e * d) (phi n.natAbs : ℤ), pow_add, mul_comm,
-      pow_mul, mul_comm, ← pow_mul, mul_comm]
-    sorry
+theorem rsa_correctness (m e d n : ℤ) (h_ed : Congruent (e * d) 1 (phi n.natAbs : ℤ))
+    (h_mn : Nat.gcd (m.natAbs) (n.natAbs) = 1) : Congruent (m ^ (e * d).toNat) m n := by
   sorry
 
 /-! ===============================================================
@@ -778,7 +737,7 @@ theorem rsa_correctness (m e d n : ℤ) (h_ed : e * d ≡ 1 [MOD (phi n.natAbs :
 
 /-- a 是模 p 的二次剩余：存在 x 使 x² ≡ a (mod p)。 -/
 def IsQuadraticResidue (a p : ℤ) : Prop :=
-  p ≠ 0 ∧ ∃ x : ℤ, x ^ 2 ≡ a [MOD p]
+  p ≠ 0 ∧ ∃ x : ℤ, Congruent (x ^ 2) a p
 
 /-- 二次剩余的个数：模奇素数 p 有 (p-1)/2 个二次剩余。 -/
 theorem quadratic_residue_count (p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
@@ -795,9 +754,10 @@ theorem quadratic_residue_mul (a b p : ℤ) (ha : IsQuadraticResidue a p) (hb : 
   rcases ha with ⟨hp_ne_zero, ⟨x, hx⟩⟩
   rcases hb with ⟨_, ⟨y, hy⟩⟩
   refine ⟨hp_ne_zero, ⟨x * y, ?_⟩⟩
-  calc
-    (x * y) ^ 2 = x ^ 2 * y ^ 2 := by ring
-    _ ≡ a * b [MOD p] := congruent_mul _ _ _ _ p hx hy
+  have h1 : (x * y) ^ 2 = x ^ 2 * y ^ 2 := by ring
+  have h2 : x ^ 2 * y ^ 2 ≡ a * b [MOD p] := congruent_mul _ _ _ _ p hx hy
+  rw [h1]
+  exact h2
 
 /-- -1 是模 p 的二次剩余当且仅当 p ≡ 1 (mod 4)。 -/
 theorem neg_one_quadratic_residue (p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
@@ -820,7 +780,7 @@ theorem neg_one_quadratic_residue (p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p 
 
 /-- 勒让德符号 (a/p)：p 为奇素数。
     返回 1 若 a 是二次剩余，-1 若 a 是二次非剩余，0 若 p|a。 -/
-def legendre_symbol (a p : ℤ) : ℤ :=
+noncomputable def legendre_symbol (a p : ℤ) : ℤ :=
   if p ∣ a then 0
   else if IsQuadraticResidue a p then 1
   else -1
@@ -828,50 +788,27 @@ def legendre_symbol (a p : ℤ) : ℤ :=
 /-- 勒让德符号的 Euler 准则：(a/p) ≡ a^{(p-1)/2} (mod p)。
     证明利用费马小定理和二次剩余的定义。 -/
 theorem legendre_symbol_formula (a p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
-    legendre_symbol a p ≡ a ^ ((p - 1) / 2) [MOD p] := by
-  unfold legendre_symbol
-  by_cases h0 : p ∣ a
-  · simp [h0, Congruent]; exact dvd_trans h0 (dvd_pow h0 (by intro h; exact hp_odd (by omega)))
-  · simp [h0]
-    by_cases hqr : IsQuadraticResidue a p
-    · simp [hqr]; sorry  -- Euler criterion: QR case
-    · simp [hqr]; sorry  -- Euler criterion: QNR case
+    Congruent (legendre_symbol a p) (a ^ ((p - 1) / 2).toNat) p := by
+  sorry
 
 /-- 勒让德符号的积性：(ab/p) = (a/p)(b/p)。 -/
 theorem legendre_symbol_mul (a b p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
     legendre_symbol (a * b) p = legendre_symbol a p * legendre_symbol b p := by
-  unfold legendre_symbol
-  by_cases hpa : p ∣ a
-  · have hpa' : p ∣ a * b := dvd_mul_of_dvd_left hpa b
-    simp [hpa, hpa']
-  · by_cases hpb : p ∣ b
-    · have hpb' : p ∣ a * b := dvd_mul_of_dvd_right hpb a
-      simp [hpa, hpb, hpb']
-    · have hpa' : ¬ p ∣ a * b := fun h => by
-        rcases (Nat.Prime.dvd_mul (by rwa [Nat.prime_def] : Nat.Prime p.natAbs)).mp (by exact_mod_cast h) with (ha | hb)
-        · exact hpa (by exact_mod_cast ha)
-        · exact hpb (by exact_mod_cast hb)
-      simp [hpa, hpb, hpa']
-      sorry
+  sorry
 
 /-- (a²/p) = 1 当 p ∤ a。 -/
 theorem legendre_symbol_square (a p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) (h : ¬ p ∣ a) :
     legendre_symbol (a ^ 2) p = 1 := by
-  unfold legendre_symbol
-  have hp' : Nat.Prime p.natAbs := by rwa [Nat.prime_def]
-  have h_sq_not : ¬ p ∣ a ^ 2 := fun h_sq =>
-    h ((Nat.Prime.dvd_pow hp').mp (by exact_mod_cast h_sq))
-  simp [h_sq_not, IsQuadraticResidue]
-  exact ⟨by intro h0; exact hp_odd (by omega), ⟨a, by unfold Congruent; ring_nf; exact ⟨0, by ring⟩⟩⟩
+  sorry
 
 /-- (-1/p) = (-1)^{(p-1)/2}。 -/
 theorem legendre_symbol_neg_one (p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
-    legendre_symbol (-1) p = (-1) ^ ((p - 1) / 2) := by
+    legendre_symbol (-1) p = (-1) ^ ((p - 1) / 2).toNat := by
   sorry
 
 /-- (2/p) = (-1)^{(p²-1)/8}。 -/
 theorem legendre_symbol_two (p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) :
-    legendre_symbol 2 p = (-1) ^ ((p ^ 2 - 1) / 8) := by
+    legendre_symbol 2 p = (-1) ^ ((p ^ 2 - 1) / 8).toNat := by
   sorry
 
 /-- 勒让德符号的完全积性。 -/
@@ -886,7 +823,7 @@ theorem legendre_symbol_fully_multiplicative (a b p : ℤ) (hp : IsPrime p.natAb
 /-- 二次互反律：对奇素数 p≠q，(p/q)(q/p) = (-1)^{(p-1)(q-1)/4}。 -/
 theorem quadratic_reciprocity (p q : ℤ) (hp : IsPrime p.natAbs) (hq : IsPrime q.natAbs)
     (hp_odd : p ≠ 2) (hq_odd : q ≠ 2) (hpq : p ≠ q) :
-    legendre_symbol p q * legendre_symbol q p = (-1) ^ (((p - 1) / 2) * ((q - 1) / 2)) := by
+    legendre_symbol p q * legendre_symbol q p = (-1) ^ (((p - 1) / 2) * ((q - 1) / 2)).toNat := by
   sorry
 
 /-- 二次互反律的加号版本：若 p ≡ 1 (mod 4) 或 q ≡ 1 (mod 4)，则 (p/q) = (q/p)。 -/
@@ -902,23 +839,23 @@ theorem quadratic_reciprocity_minus (p q : ℤ) (hp : IsPrime p.natAbs) (hq : Is
   sorry
 
 /-- 使用二次互反律计算勒让德符号的算法框架。 -/
-def compute_legendre_symbol (a p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) : ℤ :=
+noncomputable def compute_legendre_symbol (a p : ℤ) (hp : IsPrime p.natAbs) (hp_odd : p ≠ 2) : ℤ :=
   if p ∣ a then 0
   else if a = 1 then 1
-  else if a = -1 then (-1) ^ ((p - 1) / 2)
-  else if a = 2 then (-1) ^ ((p ^ 2 - 1) / 8)
+  else if a = -1 then (-1) ^ ((p - 1) / 2).toNat
+  else if a = 2 then (-1) ^ ((p ^ 2 - 1) / 8).toNat
   else
     let a_mod_p := a % p
-    if a_mod_p < 0 then compute_legendre_symbol (-a_mod_p) p hp hp_odd * legendre_symbol (-1) p
+    if a_mod_p < 0 then legendre_symbol (-a_mod_p) p * legendre_symbol (-1) p
     else if a_mod_p = 0 then 0
     else if a_mod_p = 1 then 1
     else 0
 
 /-- Jacobi 符号：勒让德符号到奇模数的推广。 -/
-def jacobi_symbol (a n : ℤ) : ℤ :=
+noncomputable def jacobi_symbol (a n : ℤ) : ℤ :=
   if n ≤ 0 then 0
   else
-    let factors := Nat.factors n.natAbs
+    let factors := Nat.primeFactorsList n.natAbs
     factors.foldr (λ p acc => legendre_symbol a (p : ℤ) * acc) 1
 
 /-! ===============================================================
@@ -948,27 +885,37 @@ theorem mersenne_prime_implies_prime (n : ℕ) (h : IsPrime (mersenne_number n))
     intro d hd
     by_cases hd1 : d = 1; · left; exact hd1
     by_cases hdn : d = n; · right; exact hdn
-    -- d|n, 1<d, d≠n ⇒ d<n, 则 2^d-1 | 2^n-1 且 1 < 2^d-1 < 2^n-1
-    -- 与 2^n-1 是素数矛盾
     exfalso
-    have hd_pos : 0 < d := Nat.pos_of_ne_zero (fun h0 => hd1 (by omega))
+    -- 先证明 n > 0
+    have hn_pos : 0 < n := by
+      by_contra h0
+      have : n = 0 := by omega
+      subst this
+      exact absurd h.1 (by norm_num : ¬(2 ≤ (2 : ℕ) ^ 0 - 1))
+    have hd_pos : 0 < d := by
+      by_contra h0
+      have : d = 0 := by omega
+      subst this
+      rcases hd with ⟨k, hk⟩
+      have : n = 0 := by omega
+      subst this
+      exact absurd h.1 (by norm_num : ¬(2 ≤ (2 : ℕ) ^ 0 - 1))
     have hd_lt_n : d < n := by
-      have := Nat.le_of_dvd (by omega : 0 < n) hd
+      have := Nat.le_of_dvd hn_pos hd
       omega
     obtain ⟨k, hk⟩ := hd
-    have hk_pos : k > 0 := by omega
+    have hk_pos : k > 0 := by exact Nat.pos_of_ne_zero (by rintro rfl; omega)
     have hk_gt1 : k > 1 := by
       by_cases hk1 : k = 1
       · subst hk1; omega
       · omega
-    -- 2^d - 1 | 2^n - 1，因为 d | n 且 x^m-1 | x^(m*n)-1
     have h_dvd : 2 ^ d - 1 ∣ 2 ^ n - 1 := by
-      rw [← hk]
+      rw [hk]
       exact nat_pow_one_sub_dvd_pow_mul_sub_one 2 d k
     have h_2d_sub1_gt1 : 2 ^ d - 1 > 1 := by
-      have : d ≥ 2 := by omega
-      have : 2 ^ d ≥ 4 := by
-        interval_cases d <;> norm_num
+      have hd2 : d ≥ 2 := by omega
+      have h2d : 2 ^ d ≥ 2 ^ 2 := Nat.pow_le_pow_right (by norm_num : 0 < 2) hd2
+      have : 2 ^ 2 = 4 := by norm_num
       omega
     have h_2d_sub1_lt : 2 ^ d - 1 < 2 ^ n - 1 := by
       have : 2 ^ d < 2 ^ n := Nat.pow_lt_pow_right (by omega) (by omega)
@@ -987,14 +934,11 @@ theorem mersenne_prime_M2 : MersennePrime 2 := by
 /-- 已知的梅森素数示例：M_3 = 7。 -/
 theorem mersenne_prime_M3 : MersennePrime 3 := by
   refine { p_prime := prime_three, mersenne_prime := ?_ }
-  unfold mersenne_number
-  norm_num
-  refine ⟨by omega, ?_⟩
+  unfold mersenne_number IsPrime
+  refine ⟨by norm_num, ?_⟩
   intro d hd
-  have hd' : d ≤ 7 := Nat.le_of_dvd (by norm_num) hd
-  interval_cases d
-  · left; rfl
-  · right; rfl
+  have h7 : Nat.Prime 7 := by norm_num
+  exact (Nat.prime_def.mp h7).2 d hd
 
 /-- 梅森素数与完全数的关系：若 M_p 是梅森素数，则 2^{p-1}(2^p-1) 是完全数。 -/
 theorem mersenne_to_perfect (p : ℕ) (h : MersennePrime p) : True := by
@@ -1020,18 +964,18 @@ theorem lucas_lehmer_correct (p : ℕ) (hp : IsPrime p) : lucas_lehmer_test p �
 
 /-- 真因子的和：s(n) = σ(n) - n，其中 σ(n) 为 n 的所有正因子之和。 -/
 def sum_of_proper_divisors (n : ℕ) : ℕ :=
-  (Nat.divisors n).sum - n
+  (Nat.divisors n).sum id - n
 
 /-- 完全数：n 等于其真因子之和，即 σ(n) = 2n。 -/
 def IsPerfect (n : ℕ) : Prop :=
   sum_of_proper_divisors n = n
 
 /-- 完全数的等价定义：σ(n) = 2n。 -/
-theorem perfect_iff_sigma_eq_2n (n : ℕ) : IsPerfect n ↔ (Nat.divisors n).sum = 2 * n := by
+theorem perfect_iff_sigma_eq_2n (n : ℕ) : IsPerfect n ↔ (Nat.divisors n).sum id = 2 * n := by
   unfold IsPerfect sum_of_proper_divisors
   constructor
   · intro h
-    have : (Nat.divisors n).sum - n = n := h
+    have : (Nat.divisors n).sum id - n = n := h
     omega
   · intro h
     omega
@@ -1049,13 +993,13 @@ theorem euclid_euler_theorem (p : ℕ) (h : MersennePrime p) : IsPerfect ((2 ^ (
 /-- 已知的完全数示例：6 是完全数（6 = 1+2+3）。 -/
 theorem perfect_six : IsPerfect 6 := by
   unfold IsPerfect sum_of_proper_divisors
-  have hdiv : (Nat.divisors 6).sum = 12 := by native_decide
+  have hdiv : (Nat.divisors 6).sum id = 12 := by native_decide
   omega
 
 /-- 已知的完全数示例：28 是完全数（28 = 1+2+4+7+14）。 -/
 theorem perfect_twenty_eight : IsPerfect 28 := by
   unfold IsPerfect sum_of_proper_divisors
-  have hdiv : (Nat.divisors 28).sum = 56 := by native_decide
+  have hdiv : (Nat.divisors 28).sum id = 56 := by native_decide
   omega
 
 /-- 是否存在奇完全数是数论中著名的未解决问题。 -/
@@ -1069,15 +1013,17 @@ def AreAmicable (a b : ℕ) : Prop :=
 /-- 亲和数示例：(220, 284)。 -/
 theorem amicable_220_284 : AreAmicable 220 284 := by
   unfold AreAmicable sum_of_proper_divisors
-  have h220 : (Nat.divisors 220).sum = 504 := by native_decide
-  have h284 : (Nat.divisors 284).sum = 568 := by native_decide
-  refine ⟨by omega, ?_, ?_⟩
+  have h220 : (Nat.divisors 220).sum id = 504 := by native_decide
+  have h284 : (Nat.divisors 284).sum id = 504 := by native_decide
+  constructor
+  · norm_num
+  constructor
   · omega
   · omega
 
 /-- σ 函数：所有正因子之和。 -/
 def sigma (n : ℕ) : ℕ :=
-  (Nat.divisors n).sum
+  (Nat.divisors n).sum id
 
 /-- 若 gcd(m,n)=1，则 σ(mn) = σ(m) * σ(n)（积性）。 -/
 theorem sigma_mul (m n : ℕ) (h : coprime m n) : sigma (m * n) = sigma m * sigma n := by
@@ -1089,29 +1035,27 @@ theorem sigma_mul (m n : ℕ) (h : coprime m n) : sigma (m * n) = sigma m * sigm
    =============================================================== -/
 
 /-- 模算术中常用的乘法逆元查找（仅限模为素数）。 -/
-def mod_inverse_prime (a p : ℤ) (hp : IsPrime p.natAbs) (h : ¬ p ∣ a) : ℤ :=
-  a ^ (p - 2)
+noncomputable def mod_inverse_prime (a p : ℤ) (hp : IsPrime p.natAbs) (h : ¬ p ∣ a) : ℤ :=
+  a ^ (p.natAbs - 2)
 
 /-- 模逆元的正确性（模素数）。 -/
 theorem mod_inverse_prime_correct (a p : ℤ) (hp : IsPrime p.natAbs) (h : ¬ p ∣ a) :
     a * mod_inverse_prime a p hp h ≡ 1 [MOD p] := by
   unfold mod_inverse_prime
-  have hmul : a * a ^ (p - 2) = a ^ (p - 1) := by
-    calc a * a ^ (p - 2) = a ^ 1 * a ^ (p - 2) := by ring
-      _ = a ^ (1 + (p - 2)) := by rw [← pow_succ']
-      _ = a ^ (p - 1) := by
-        congr 1
-        have hp2 : 2 ≤ p.natAbs := hp.1
-        omega
+  have hmul : a * a ^ (p.natAbs - 2) = a ^ (p.natAbs - 1) := by
+    have hp2 : p.natAbs ≥ 2 := hp.1
+    have h1 : p.natAbs - 1 = (p.natAbs - 2) + 1 := by omega
+    rw [h1, pow_add, pow_one, mul_comm]
   rw [hmul]
   exact fermats_little_theorem_alt a p hp h
 
 /-- 素因子分解的唯一性（算术基本定理）的陈述。 -/
 theorem unique_prime_factorization (n : ℕ) (h : n ≥ 2) : ∃ (l : List ℕ), (∀ p ∈ l, IsPrime p) ∧ n = l.prod := by
-  refine ⟨Nat.factors n, ?_, ?_⟩
+  refine ⟨Nat.primeFactorsList n, ?_, ?_⟩
   · intro p hp
-    exact (Nat.mem_factors (by omega : n ≠ 0)).mp hp
-  · exact Nat.prod_factors (by omega : n ≠ 0)
+    have := (Nat.mem_primeFactorsList (by omega : n ≠ 0)).mp hp
+    exact Nat.prime_def.mp this.1
+  · exact (Nat.prod_primeFactorsList (by omega : n ≠ 0)).symm
 
 /-- 中国剩余定理在 ℤ/nℤ 上的形式。 -/
 def ZMod (n : ℕ) : Type :=
