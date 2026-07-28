@@ -1,7 +1,7 @@
 # Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-v1.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.2.0-blue.svg)](CHANGELOG.md)
 [![C11](https://img.shields.io/badge/C-11-green.svg)](https://en.cppreference.com/w/c)
 [![Lean4](https://img.shields.io/badge/Lean-4-purple.svg)](https://lean-lang.org/)
 
@@ -375,7 +375,7 @@ Lv-00/
 ├── examples/                # 演示（C/Python 示例）
 ├── tool/                    # 辅助工具
 ├── CMakeLists.txt
-├── VERSION                  # 1.1.0
+├── VERSION                  # 1.2.0
 ├── IMPLEMENTATION_STATUS_AUDIT.md  # 诚实的完成度审计
 └── README.md
 ```
@@ -557,6 +557,6 @@ git push origin feature/your-feature
 
 **Lv-00** = Level Zero · *探索几何构造与形式化推理的统一表达*
 
-版本：1.1.0 | 代码量：~188k 行 C | 测试：137+ 目标 | 形式化验证：70-75%
+版本：1.2.0 | 代码量：~188k 行 C | 测试：137+ 目标 | 形式化验证：70-75%
 
 </div>
