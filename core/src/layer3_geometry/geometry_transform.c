@@ -183,7 +183,7 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num
         case 270: /* 270° */
             mpq_set_ui(t->params.params.rotation.cos_theta, 0, 1);
             mpq_set_si(t->params.params.rotation.sin_theta, -1, 1);
-            mpq_set_si(t->matrix.a, 0, 1);
+            mpq_set_ui(t->matrix.a, 0, 1);
             mpq_set_ui(t->matrix.b, 1, 1);
             mpq_set_si(t->matrix.c, -1, 1);
             mpq_set_ui(t->matrix.d, 0, 1);

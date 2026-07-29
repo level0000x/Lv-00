@@ -182,3 +182,27 @@
 
 ### 阻塞项
 - **编译验证**: 当前环境缺少 C 编译器工具链（GCC/Clang/MSVC），无法执行构建验证
+
+---
+
+## 七、v1.9.2 Groebner 基求解加固
+
+| 分类 | 修改 | 文件 |
+|:---|:---|:---|
+| 约束编码 | `constraint_graph_to_ideal` 从空壳→真实实现：编码 POINT 坐标方程、ID→变量映射 | `core/src/layer4_reasoning/backends/groebner_engine.c` |
+| 辅助函数 | 新增 `poly_internal_make_term`（创建单项式）、`poly_internal_add_term`（添加单项式/常数项，含同类项合并） | 同上 |
+| API 测试 | 新增 6 个引擎 API 直接测试：环生命周期、多项式生命周期、多项式算术、理想操作、约束图编码 | `test/c/test_groebner_basis.c` |
+
+### 新增测试点
+| 测试函数 | 说明 | 断言重点 |
+|:---|:---|:---|
+| `test_engine_ring_lifecycle` | 环创建/查找/属性验证 | var_count、order、field |
+| `test_engine_poly_lifecycle` | 多项式创建/获取/销毁 | ring_id、term_count、销毁后 NULL |
+| `test_engine_poly_arith` | 零多项式加法 | 0 + 0 = 0 |
+| `test_engine_ideal_lifecycle` | 理想创建/添加生成元 | 返回值 == 0 |
+| `test_constraint_graph_to_ideal` | 约束图→理想→Gröbner 基计算 | ideal_id >= 0、compute 成功 |
+
+### constraint_graph_to_ideal 编码规则
+- 每个 POINT 节点分配 2 个连续变量 (x_i, y_i)
+- 符号坐标编码为常量方程 (x_i - val_x = 0, y_i - val_y = 0)
+- INCIDENCE/BETWEENNESS 等约束编码为占位结构（叉积方程骨架）

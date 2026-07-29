@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file modal_operators.c
  * @brief 模态逻辑算子实现（子目录版本）
  *
@@ -99,10 +99,16 @@ static int modal_ensure_reach_matrix(lvModalFrame *frame, int needed_dim) {
 
 /**
  * @brief 递归评估模态公式（内部）
+ *
+ * @param frame         模态框架
+ * @param formula       模态公式
+ * @param world_id      当前评估世界ID
+ * @param out_witness_id 输出：目击世界ID（◇为真时的证明世界，□为假时的反例世界），可为NULL
+ * @return 真值
  */
-static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame, const lvModalFormula *formula, int world_id) {
+static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame, const lvModalFormula *formula, int world_id,
+                                            int *out_witness_id) {
     int from_idx, i;
-    lvTruthValue inner_truth;
 
     if (!frame || !formula)
         return lv_UNKNOWN;
@@ -111,18 +117,13 @@ static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame, const lvM
     if (from_idx < 0)
         return lv_UNKNOWN;
 
-    /* 获取内层命题真值（如果有子公式则递归） */
-    if (formula->sub) {
-        /* 嵌套模态：先评估子公式 */
-        inner_truth = lv_UNKNOWN; /* 由下方逻辑处理 */
-    } else if (formula->inner_prop && frame->worlds[from_idx]) {
-        inner_truth = lv_modal_world_holds(frame->worlds[from_idx], formula->inner_prop);
-    } else {
+    /* 验证公式结构有效 */
+    if (!formula->sub && !formula->inner_prop)
         return lv_UNKNOWN;
-    }
 
     if (formula->op == lv_MODALOP_NECESSARY) {
         /* □P: 在所有可达世界中 P 为真 */
+        lvTruthValue result = lv_TRUE;
         for (i = 0; i < frame->world_count; i++) {
             int to_id;
             lvTruthValue w_truth;
@@ -136,19 +137,22 @@ static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame, const lvM
             }
 
             if (formula->sub) {
-                w_truth = modal_evaluate_internal(frame, formula->sub, to_id);
+                w_truth = modal_evaluate_internal(frame, formula->sub, to_id, NULL);
             } else if (formula->inner_prop && frame->worlds[i]) {
                 w_truth = lv_modal_world_holds(frame->worlds[i], formula->inner_prop);
             } else {
                 w_truth = lv_UNKNOWN;
             }
 
-            if (w_truth == lv_FALSE)
+            if (w_truth == lv_FALSE) {
+                if (out_witness_id)
+                    *out_witness_id = to_id;
                 return lv_FALSE;
+            }
             if (w_truth == lv_UNKNOWN)
-                inner_truth = lv_UNKNOWN;
+                result = lv_UNKNOWN;
         }
-        return (inner_truth == lv_UNKNOWN) ? lv_UNKNOWN : lv_TRUE;
+        return result;
     } else {
         /* ◇P: 在某个可达世界中 P 为真 */
         lvTruthValue result = lv_FALSE;
@@ -165,15 +169,18 @@ static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame, const lvM
             }
 
             if (formula->sub) {
-                w_truth = modal_evaluate_internal(frame, formula->sub, to_id);
+                w_truth = modal_evaluate_internal(frame, formula->sub, to_id, NULL);
             } else if (formula->inner_prop && frame->worlds[i]) {
                 w_truth = lv_modal_world_holds(frame->worlds[i], formula->inner_prop);
             } else {
                 w_truth = lv_UNKNOWN;
             }
 
-            if (w_truth == lv_TRUE)
+            if (w_truth == lv_TRUE) {
+                if (out_witness_id)
+                    *out_witness_id = to_id;
                 return lv_TRUE;
+            }
             if (w_truth == lv_UNKNOWN)
                 result = lv_UNKNOWN;
         }
@@ -391,13 +398,43 @@ void lv_modal_formula_destroy(lvModalFormula *formula) {
 
 int lv_modal_evaluate(const lvModalFrame *frame, const lvModalFormula *formula, int world_id,
                       lvModalEvalResult *result) {
+    int witness_id = -1;
+    const char *op_str;
+    char buf[256];
+
     if (!frame || !formula || !result)
         return -1;
 
     memset(result, 0, sizeof(lvModalEvalResult));
-    result->truth_value = modal_evaluate_internal(frame, formula, world_id);
-    result->witness_world_id = -1;
-    result->explanation = NULL;
+
+    op_str = lv_modal_op_to_string(formula->op);
+    result->truth_value = modal_evaluate_internal(frame, formula, world_id, &witness_id);
+    result->witness_world_id = witness_id;
+
+    /* 生成解释字符串 */
+    switch (result->truth_value) {
+        case lv_TRUE:
+            if (formula->op == lv_MODALOP_POSSIBLE && witness_id >= 0) {
+                lv_snprintf(buf, sizeof(buf), "%sP 在世界 %d 中为真，目击世界: %d",
+                            op_str, world_id, witness_id);
+            } else {
+                lv_snprintf(buf, sizeof(buf), "%sP 在世界 %d 中为真", op_str, world_id);
+            }
+            break;
+        case lv_FALSE:
+            if (formula->op == lv_MODALOP_NECESSARY && witness_id >= 0) {
+                lv_snprintf(buf, sizeof(buf), "%sP 在世界 %d 中为假，反例世界: %d",
+                            op_str, world_id, witness_id);
+            } else {
+                lv_snprintf(buf, sizeof(buf), "%sP 在世界 %d 中为假", op_str, world_id);
+            }
+            break;
+        default:
+            lv_snprintf(buf, sizeof(buf), "%sP 在世界 %d 中的真值未知", op_str, world_id);
+            break;
+    }
+
+    result->explanation = lv_strdup(buf);
     return 0;
 }
 
@@ -429,14 +466,14 @@ lvModalFormula *lv_modal_possible_to_necessary_not(const lvModalFormula *formula
         return NULL;
     /* ◇A -> ¬□¬A: 创建 □¬A，然后外层取反由调用者处理 */
     /* 这里简化为返回等价的嵌套公式 */
-    return lv_modal_formula_create_nested(lv_MODALOP_NECESSARY, (lvModalFormula *) (size_t) formula->sub);
+    return lv_modal_formula_create_nested(lv_MODALOP_NECESSARY, formula->sub);
 }
 
 lvModalFormula *lv_modal_necessary_to_not_possible(const lvModalFormula *formula) {
     if (!formula || formula->op != lv_MODALOP_NECESSARY)
         return NULL;
     /* □A -> ¬◇¬A */
-    return lv_modal_formula_create_nested(lv_MODALOP_POSSIBLE, (lvModalFormula *) (size_t) formula->sub);
+    return lv_modal_formula_create_nested(lv_MODALOP_POSSIBLE, formula->sub);
 }
 
 /* ================================================================
@@ -467,18 +504,35 @@ lvModalFrame *lv_modal_frame_create_geometric_default(void) {
 
 lvModalFormula *lv_modal_assert_point_must_on_line(lvModalFrame *frame, int point_id, int line_id) {
     (void) frame;
-    (void) point_id;
-    (void) line_id;
-    /* 简化实现：返回一个 □ 公式占位符 */
-    return lv_modal_formula_create(lv_MODALOP_NECESSARY, NULL);
+
+    /* 创建原子命题 "point lies on line" */
+    Proposition *prop = proposition_create(0, PROPOSITION_TYPE_ATOMIC);
+    if (!prop)
+        return NULL;
+
+    /* 设置命题名 */
+    char buf[128];
+    lv_snprintf(buf, sizeof(buf), "onLine(p%d, s%d)", point_id, line_id);
+    prop->name = lv_strdup(buf);
+
+    /* 返回 □(onLine(point, line)) */
+    return lv_modal_formula_create(lv_MODALOP_NECESSARY, prop);
 }
 
 lvModalFormula *lv_modal_assert_point_can_on_line(lvModalFrame *frame, int point_id, int line_id) {
     (void) frame;
-    (void) point_id;
-    (void) line_id;
-    /* 简化实现：返回一个 ◇ 公式占位符 */
-    return lv_modal_formula_create(lv_MODALOP_POSSIBLE, NULL);
+
+    /* 创建原子命题 "point lies on line" */
+    Proposition *prop = proposition_create(0, PROPOSITION_TYPE_ATOMIC);
+    if (!prop)
+        return NULL;
+
+    char buf[128];
+    lv_snprintf(buf, sizeof(buf), "onLine(p%d, s%d)", point_id, line_id);
+    prop->name = lv_strdup(buf);
+
+    /* 返回 ◇(onLine(point, line)) */
+    return lv_modal_formula_create(lv_MODALOP_POSSIBLE, prop);
 }
 
 /* ================================================================

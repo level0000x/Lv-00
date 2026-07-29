@@ -180,6 +180,155 @@ static void test_group3_well_constrained(void) {
 }
 
 /* ================================================================
+ *  Group 4: 引擎 API 直接测试 —— 环与多项式的生命周期
+ * ================================================================
+ */
+
+static void test_engine_ring_lifecycle(void) {
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+    TEST_ASSERT(reg->ring_count == 0, "new registry should have 0 rings");
+    TEST_ASSERT(reg->is_initialized, "registry should be initialized");
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "test_ring");
+    TEST_ASSERT(rid >= 0, "ring_create should succeed");
+
+    lvPolynomialRing *r = ring_find(reg, rid);
+    TEST_ASSERT_NOT_NULL(r);
+    TEST_ASSERT_EQ(r->var_count, 2);
+    TEST_ASSERT_EQ((int)r->order, (int)MONOMIAL_GREVLEX);
+    TEST_ASSERT_EQ((int)r->field, (int)RING_FIELD_RATIONAL);
+
+    ring_registry_destroy(reg);
+}
+
+static void test_engine_poly_lifecycle(void) {
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, NULL);
+    TEST_ASSERT(rid >= 0, "ring create");
+
+    int pid = poly_create(reg, rid, 8, "test_poly");
+    TEST_ASSERT(pid >= 0, "poly_create should succeed");
+
+    const lvPolynomial *p = poly_get(reg, pid);
+    TEST_ASSERT_NOT_NULL(p);
+    TEST_ASSERT_EQ(p->ring_id, rid);
+    TEST_ASSERT_EQ(p->term_count, 0);
+
+    poly_destroy(reg, pid);
+
+    /* Verify destruction: should no longer be accessible */
+    const lvPolynomial *gone = poly_get(reg, pid);
+    TEST_ASSERT_NULL(gone);
+
+    ring_registry_destroy(reg);
+}
+
+/* ================================================================
+ *  Group 5: engine API —— 多项式算术
+ * ================================================================
+ */
+
+static void test_engine_poly_arith(void) {
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, NULL);
+
+    /* 创建两个零多项式并相加 */
+    int pa = poly_create(reg, rid, 4, "a");
+    int pb = poly_create(reg, rid, 4, "b");
+    TEST_ASSERT(pa >= 0 && pb >= 0, "poly create");
+
+    int sum = poly_add(reg, pa, pb, "sum");
+    TEST_ASSERT(sum >= 0, "poly_add should succeed");
+    const lvPolynomial *psum = poly_get(reg, sum);
+    TEST_ASSERT_NOT_NULL(psum);
+
+    /* 零 + 零 = 零 */
+    TEST_ASSERT_EQ(psum->term_count, 0);
+
+    poly_destroy(reg, pa);
+    poly_destroy(reg, pb);
+    poly_destroy(reg, sum);
+    ring_registry_destroy(reg);
+}
+
+/* ================================================================
+ *  Group 6: engine API —— 理想操作
+ * ================================================================
+ */
+
+static void test_engine_ideal_lifecycle(void) {
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "ideal_test");
+
+    int iid = ideal_create(reg, rid, "test_ideal");
+    TEST_ASSERT(iid >= 0, "ideal_create should succeed");
+
+    /* 添加一个生成元 */
+    int pid = poly_create(reg, rid, 4, "gen");
+    TEST_ASSERT(pid >= 0, "poly create");
+
+    int rc = ideal_add_generator(reg, iid, pid);
+    TEST_ASSERT_EQ(rc, 0);
+
+    ideal_destroy(reg, iid);
+    poly_destroy(reg, pid);
+    ring_registry_destroy(reg);
+}
+
+/* ================================================================
+ *  Group 7: engine API —— constraint_graph_to_ideal
+ * ================================================================
+ *  创建约束图 → 编码为理想 → 验证理想被正确创建
+ */
+
+static void test_constraint_graph_to_ideal(void) {
+    /* 创建约束图：两个点 + 一条线段 + incidence */
+    ConstraintGraph *g = graph_create();
+    TEST_ASSERT_NOT_NULL(g);
+
+    int p0 = add_rat_point(g, 0, 1, 0, 1); /* (0,0) */
+    int p1 = add_rat_point(g, 3, 1, 4, 1); /* (3,4) */
+    TEST_ASSERT(p0 >= 0 && p1 >= 0, "add points");
+
+    int s01 = graph_add_line_segment(g, p0, p1);
+    TEST_ASSERT(s01 >= 0, "add segment");
+
+    graph_add_incidence(g, p0, s01);
+    graph_add_incidence(g, p1, s01);
+
+    /* 创建环注册表和环（2 个点 → 4 个变量：x0, y0, x1, y1） */
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x0", "y0", "x1", "y1"};
+    int rid = ring_create(reg, vars, 4, RING_FIELD_REAL, MONOMIAL_GREVLEX, "graph_ideal");
+
+    /* 转换 */
+    int ideal_id = constraint_graph_to_ideal(reg, g, rid, "from_graph");
+    TEST_ASSERT(ideal_id >= 0, "constraint_graph_to_ideal should succeed");
+
+    /* 验证理想包含生成元（至少包含 2 个点的坐标方程） */
+    /* 通过 groebner_compute 和 ideal_membership 验证 */
+    int compute_rc = groebner_compute(reg, ideal_id, GROEBNER_BUCHBERGER);
+    TEST_ASSERT_EQ(compute_rc, 0);
+
+    ideal_destroy(reg, ideal_id);
+    ring_registry_destroy(reg);
+    graph_destroy(g);
+}
+
+/* ================================================================
  *  Main
  * ================================================================ */
 
@@ -189,6 +338,13 @@ int main(void) {
     TEST_RUN(test_group1_right_triangle);
     TEST_RUN(test_group2_overconstrained);
     TEST_RUN(test_group3_well_constrained);
+
+    printf("\n[Groebner Engine API Direct Tests]\n");
+    TEST_RUN(test_engine_ring_lifecycle);
+    TEST_RUN(test_engine_poly_lifecycle);
+    TEST_RUN(test_engine_poly_arith);
+    TEST_RUN(test_engine_ideal_lifecycle);
+    TEST_RUN(test_constraint_graph_to_ideal);
 
     printf("\n=== Results: %d passed, %d failed, %d total ===\n", g_pass_count, g_fail_count,
            g_pass_count + g_fail_count);

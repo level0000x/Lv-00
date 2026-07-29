@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file approx_counter.c
  * @brief 近似计数器 —— ApproxMC 风格的 SAT 解近似计数
  *
@@ -636,25 +636,76 @@ bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int pr
     if (!graph || !out)
         return false;
 
-    /* 投影计数：仅对投影变量进行哈希 */
-    /* 简化实现：与全计数相同，
-       但在实际 ApproxMC 中需要使用独立支持集 */
     memset(out, 0, sizeof(*out));
 
     CNFBuilder *base = encode_constraint_graph(graph);
     if (!base)
         return false;
 
-    int direct_count = count_solutions(base, 256);
-    out->cell_sol_count = (uint64_t) direct_count;
-    out->hash_count = 0;
-    out->total_count = (uint64_t) direct_count;
-    out->confidence = cfg ? (1.0 - cfg->delta) : 0.95;
+    /* 如果未指定投影变量，回退到全量计数 */
+    if (!proj_vars || proj_count <= 0) {
+        int direct_count = count_solutions(base, 256);
+        out->cell_sol_count = (uint64_t) direct_count;
+        out->hash_count = 0;
+        out->total_count = (uint64_t) direct_count;
+        out->confidence = cfg ? (1.0 - cfg->delta) : 0.95;
+        cnf_destroy(base);
+        return true;
+    }
 
-    (void) proj_vars;
-    (void) proj_count;
+    /* 投影计数：仅对投影变量生成 XOR 哈希约束 */
+    double delta = cfg ? cfg->delta : 0.05;
+    int num_cells = count_solutions(base, 256);
+    if (num_cells == 0) {
+        out->cell_sol_count = 0;
+        out->hash_count = 0;
+        out->total_count = 0;
+        out->confidence = 0.0;
+        cnf_destroy(base);
+        return true;
+    }
+
+    int hash_count = 0;
+
+    /* 使用投影变量的数量计算哈希轮数 */
+    int xor_count = (proj_count < 8) ? 4 : (proj_count / 2);
+    if (xor_count > 20) xor_count = 20;
+    if (xor_count < 2) xor_count = 2;
+
+    uint64_t total = 0;
+    uint64_t seed = cfg ? cfg->seed : 42;
+
+    for (int hi = 0; hi < xor_count; hi++) {
+        CNFBuilder *hashed = encode_constraint_graph(graph);
+        if (!hashed)
+            continue;
+
+        /* 仅对投影变量生成 XOR 约束，重映射到 CNF 变量索引 */
+        XORConstraint *xc = xor_generate(proj_count, seed + (uint64_t)hi);
+        if (xc) {
+            for (int i = 0; i < xc->count; i++) {
+                xc->vars[i] = proj_vars[xc->vars[i] % proj_count];
+            }
+            CNFBuilder *constrained = xor_to_cnf(xc, hashed);
+            xor_destroy(xc);
+            if (constrained) {
+                int cells = count_solutions(constrained, 256);
+                total += (uint64_t)cells;
+                hash_count++;
+                cnf_destroy(constrained);
+            }
+        } else {
+            cnf_destroy(hashed);
+        }
+    }
 
     cnf_destroy(base);
+
+    out->cell_sol_count = hash_count > 0 ? (total / (uint64_t)hash_count) : 0;
+    out->hash_count = hash_count;
+    out->total_count = out->cell_sol_count * (uint64_t)(1 << xor_count);
+    out->confidence = 1.0 - delta;
+
     return true;
 }
 

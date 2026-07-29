@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_rule_engine.c
  * @brief 公理规则引擎 - 可配置规则库与难度分级
  *
@@ -331,24 +331,121 @@ void lv_difficulty_assessment_destroy(lvDifficultyAssessment *assessment) {
 }
 
 lvDifficultyAssessment *lv_proof_step_assess_difficulty(const ProofStep *step, const ConstraintGraph *graph) {
-    (void) step;
-    (void) graph;
-    /* 简化实现：返回默认评估 */
     lvDifficultyAssessment *a = lv_calloc(1, sizeof(lvDifficultyAssessment));
-    if (a) {
-        a->level = 1;
-        a->overall_score = 100;
+    if (!a)
+        return NULL;
+
+    uint32_t score = 100;
+    uint32_t level = 1;
+
+    if (step) {
+        /* 基于步骤类型和关联数据评估难度 */
+        switch (step->type) {
+            case PROOF_STEP_ADD_NODE:
+                score = 20;
+                level = 1;
+                break;
+            case PROOF_STEP_ADD_CONSTRAINT:
+                score = 50;
+                level = 2;
+                break;
+            case PROOF_STEP_REWRITE:
+                score = 80;
+                level = 2;
+                break;
+            case PROOF_STEP_FUNCTION_APP:
+                score = 120;
+                level = 3;
+                break;
+            case PROOF_STEP_NORMALIZATION:
+                score = 60;
+                level = 2;
+                break;
+            case PROOF_STEP_UNIFY:
+                score = 150;
+                level = 3;
+                break;
+            case PROOF_STEP_ORACLE:
+                score = 200;
+                level = 4;
+                break;
+            default:
+                score = 100;
+                level = 2;
+                break;
+        }
+        /* 如果有规则 ID，尝试查找规则库中更精确的难度 */
+        if (step->rule_id >= 0) {
+            score = (uint32_t)(score + 50);
+            level = level + 1;
+            if (level > 10) level = 10;
+        }
     }
+
+    /* 根据图的复杂度调整 */
+    if (graph) {
+        int node_cnt = graph_get_node_count(graph);
+        if (node_cnt > 20) {
+            score = (uint32_t)(score * 1.5);
+            if (score > 1000) score = 1000;
+        }
+    }
+
+    a->overall_score = score;
+    a->level = level;
+    lv_snprintf(a->breakdown, sizeof(a->breakdown), "步骤类型=%d, score=%u, level=%u",
+                step ? (int)step->type : -1, score, level);
     return a;
 }
 
 lvDifficultyAssessment *lv_proposition_assess_difficulty(const Proposition *prop) {
-    (void) prop;
     lvDifficultyAssessment *a = lv_calloc(1, sizeof(lvDifficultyAssessment));
-    if (a) {
-        a->level = 1;
-        a->overall_score = 100;
+    if (!a)
+        return NULL;
+
+    uint32_t score = 100;
+    uint32_t level = 1;
+
+    if (prop) {
+        /* 基于命题类型和复杂度 */
+        switch (prop->type) {
+            case PROPOSITION_TYPE_ATOMIC:
+                score = 50;
+                level = 1;
+                break;
+            case PROPOSITION_TYPE_CONJUNCTION:
+                score = 150;
+                level = 3;
+                break;
+            case PROPOSITION_TYPE_DISJUNCTION:
+                score = 200;
+                level = 4;
+                break;
+            case PROPOSITION_TYPE_IMPLICATION:
+                score = 300;
+                level = 5;
+                break;
+            default:
+                score = 100;
+                level = 2;
+                break;
+        }
+        /* 基于目标图节点数调整 */
+         if (prop->pattern) {
+             int nc = graph_get_node_count(prop->pattern);
+            if (nc > 10) {
+                score = (uint32_t)(score * (1.0 + nc * 0.05));
+                if (score > 1000) score = 1000;
+                level = (uint32_t)(level + nc / 5);
+                if (level > 10) level = 10;
+            }
+        }
     }
+
+    a->overall_score = score;
+    a->level = level;
+    lv_snprintf(a->breakdown, sizeof(a->breakdown), "命题类型=%d, score=%u, level=%u",
+                prop ? (int)prop->type : -1, score, level);
     return a;
 }
 
@@ -358,19 +455,44 @@ uint32_t lv_rule_find_matches(const lvRuleLibrary *library, const ConstraintGrap
                               lvRuleMatch **out_matches, uint32_t max_count) {
     if (!library || !out_matches)
         return 0;
+
     uint32_t found = 0;
+    int node_count = graph ? graph_get_node_count(graph) : 0;
+
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         lvRule *r = library->rules[i];
         if (!r || r->status != RULE_STATUS_ENABLED)
             continue;
-        if (lv_rule_is_applicable(r, graph, context)) {
-            lvRuleMatch *m = lv_calloc(1, sizeof(lvRuleMatch));
-            if (m) {
-                m->rule = r;
-                m->confidence = 0.8;
-                m->is_complete = true;
-                out_matches[found++] = m;
+
+        /* 通过 lv_rule_is_applicable 过滤基本适用性 */
+        if (!lv_rule_is_applicable(r, graph, context))
+            continue;
+
+        /* 计算匹配置信度：基于规则前提数与图中节点数的匹配度 */
+        double confidence = 0.5;
+
+        if (node_count > 0 && r->premise_count > 0) {
+            /* 检查前提中的变量数是否不超过图节点数 */
+            uint32_t needed_vars = r->var_count;
+            if (needed_vars > 0 && (uint32_t)node_count >= needed_vars) {
+                confidence = 1.0 - (double)(needed_vars) / (double)(node_count + needed_vars) * 0.5;
+                if (confidence < 0.5) confidence = 0.5;
             }
+        } else if (r->premise_count == 0) {
+            /* 无前提的规则（如公理）: 较高置信度 */
+            confidence = 0.9;
+        }
+
+        /* AXIOM 类型始终完全匹配 */
+        bool is_complete = (r->type == RULE_TYPE_AXIOM);
+
+        lvRuleMatch *m = lv_calloc(1, sizeof(lvRuleMatch));
+        if (m) {
+            m->rule = r;
+            m->confidence = confidence;
+            m->is_complete = is_complete;
+            m->matched_premises = r->premise_count;
+            out_matches[found++] = m;
         }
     }
     return found;
@@ -516,8 +638,43 @@ char *lv_rule_to_json(const lvRule *rule) {
 lvRule *lv_rule_from_json(const char *json) {
     if (!json)
         return NULL;
-    /* 简化实现：创建默认规则 */
-    return lv_rule_create("parsed_rule", RULE_TYPE_AXIOM);
+
+    /* 解析基本 JSON 字段 */
+    const char *name_start = strstr(json, "\"name\":\"");
+    const char *type_start = strstr(json, "\"type\":");
+    const char *prio_start = strstr(json, "\"priority\":");
+
+    lvRuleType rtype = RULE_TYPE_AXIOM;
+    lvRulePriority prio = RULE_PRIORITY_NORMAL;
+    char name_buf[lv_RULE_NAME_MAX_LEN] = "parsed_rule";
+
+    if (name_start) {
+        name_start += 8; /* skip "name":" */
+        int ni = 0;
+        while (*name_start && *name_start != '"' && ni < lv_RULE_NAME_MAX_LEN - 1) {
+            name_buf[ni++] = *name_start++;
+        }
+        name_buf[ni] = '\0';
+    }
+
+    if (type_start) {
+        type_start += 7; /* skip "type": */
+        int tv = atoi(type_start);
+        if (tv >= RULE_TYPE_AXIOM && tv <= RULE_TYPE_DEFINITION)
+            rtype = (lvRuleType)tv;
+    }
+
+    if (prio_start) {
+        prio_start += 10; /* skip "priority": */
+        int pv = atoi(prio_start);
+        if (pv >= RULE_PRIORITY_LOWEST && pv <= RULE_PRIORITY_HIGHEST)
+            prio = (lvRulePriority)pv;
+    }
+
+    lvRule *rule = lv_rule_create(name_buf, rtype);
+    if (rule)
+        rule->priority = prio;
+    return rule;
 }
 
 lvRule *lv_rule_copy(const lvRule *rule) {

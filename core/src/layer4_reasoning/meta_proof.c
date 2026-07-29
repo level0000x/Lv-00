@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file meta_proof.c
  * @brief 剪枝合法性元证明实现
  *
@@ -13,6 +13,8 @@
 
 #include "lv/meta_proof.h"
 
+#include <float.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +40,87 @@ static int constraint_graph_get_constraints_for_node(const ConstraintGraph *grap
 static ConstraintType constraint_graph_get_constraint_type(const ConstraintGraph *graph, int constraint_id);
 static PropagationResult propagation_run_with_assignment(PropagationContext *ctx, int node_id,
                                                          const SymbolicCoord *coord, int max_steps);
+
+/* ── L1 矛盾检测辅助函数 ── */
+
+/* 前向声明 */
+static bool check_all_constraints(const ConstraintGraph *graph, int node_id,
+                                   const SymbolicCoord *candidate);
+
+/**
+ * @brief 检查 INCIDENCE 约束是否与候选坐标矛盾
+ *
+ * INCIDENCE(point, line_segment) 要求点在线上。
+ * 通过计算叉积 (x2-x1)*(yp-y1) - (y2-y1)*(xp-x1) 检查。
+ * 叉积非零则点不在线上 → 矛盾。
+ *
+ * @param graph       约束图
+ * @param node_id     被检查的节点 ID（POINT）
+ * @param candidate   候选坐标
+ * @param con_id      约束 ID
+ * @return true 检测到矛盾（点不在线上）
+ */
+static bool check_incidence_contradiction(const ConstraintGraph *graph, int node_id,
+                                           const SymbolicCoord *candidate, int con_id) {
+    Constraint *con = NULL;
+    for (int i = 0; i < graph->constraint_count; i++) {
+        if (graph->constraints[i] && graph->constraints[i]->id == con_id) {
+            con = graph->constraints[i];
+            break;
+        }
+    }
+    if (!con || con->participant_count != 2)
+        return false;
+
+    int point_id = con->participants[0];
+    int seg_id = con->participants[1];
+    (void)point_id;
+
+    /* 查找线段的端点：寻找另一个 INCIDENCE(_, seg_id) 约束 */
+    int ep1 = -1, ep2 = -1;
+    ep1 = node_id; /* 当前节点是其中一个端点 */
+
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c || !c->is_active || c->id == con_id)
+            continue;
+        if (c->type != INCIDENCE || c->participant_count != 2)
+            continue;
+        if (c->participants[1] == seg_id) {
+            int other = c->participants[0];
+            if (other != node_id) {
+                ep2 = other;
+                break;
+            }
+        }
+    }
+    if (ep2 < 0)
+        return false; /* 无法找到另一个端点，不做判断 */
+
+    /* 获取端点坐标 */
+    GeomNode *n1 = NULL, *n2 = NULL;
+    for (int i = 0; i < graph->node_count; i++) {
+        if (graph->nodes[i] && graph->nodes[i]->id == ep1) n1 = graph->nodes[i];
+        if (graph->nodes[i] && graph->nodes[i]->id == ep2) n2 = graph->nodes[i];
+    }
+    if (!n1 || !n2 || !n1->symbolic_coords || !n2->symbolic_coords)
+        return false;
+    if (n1->coord_count < 2 || n2->coord_count < 2)
+        return false;
+
+    /* 提取坐标值（转为 double 做叉积检测） */
+    double x1 = symbolic_coord_to_double(n1->symbolic_coords[0]);
+    double y1 = symbolic_coord_to_double(n1->symbolic_coords[1]);
+    double x2 = symbolic_coord_to_double(n2->symbolic_coords[0]);
+    double y2 = symbolic_coord_to_double(n2->symbolic_coords[1]);
+    double xp = symbolic_coord_to_double(candidate);
+    double yp = (n1->coord_count >= 2) ? symbolic_coord_to_double(candidate + 1) : 0.0;
+
+    /* 叉积 = (x2-x1)*(yp-y1) - (y2-y1)*(xp-x1) */
+    double cross = (x2 - x1) * (yp - y1) - (y2 - y1) * (xp - x1);
+
+    return fabs(cross) > 1e-10; /* 叉积非零 → 不在线上 */
+}
 
 /* ============================================================
  * 内部辅助函数
@@ -195,9 +278,8 @@ MetaProofResult meta_prove_direct_contradiction(MetaProofContext *ctx, int node_
 
         switch (type) {
             case CONSTRAINT_INCIDENCE:
-                /* 关联约束：候选必须在指定位置 */
-                /* 简化：假设总是满足 */
-                contradicts = false;
+                /* 关联约束：候选必须在线上 */
+                contradicts = check_incidence_contradiction(ctx->graph, node_id, candidate, cid);
                 break;
 
             case CONSTRAINT_BETWEEN:
@@ -282,15 +364,14 @@ MetaProofResult meta_prove_algebraic_exclusion(MetaProofContext *ctx, int node_i
         return META_PROVE_INCONCLUSIVE;
     }
 
-    /* 简化实现：假设从约束图提取 Groebner 基 */
-    /* 实际实现需要：
-     * 1. 从约束图提取多项式方程组
-     * 2. 计算 Groebner 基
-     * 3. 将候选代入验证是否满足
-     */
+    /* 检查候选是否满足图中所有涉及该节点的约束 */
+    if (!check_all_constraints(ctx->graph, node_id, candidate)) {
+        /* 候选不满足某约束 → 可以被排除 */
+        ctx->l3_proofs++;
+        return META_PROVE_VALID;
+    }
 
-    /* 简化：总是返回无法确定 */
-    ctx->l3_proofs++;
+    /* 所有约束满足 → 无法通过代数方式排除 */
     return META_PROVE_INCONCLUSIVE;
 }
 
@@ -553,20 +634,142 @@ static ConstraintType constraint_graph_get_constraint_type(const ConstraintGraph
  *
  * 临时将节点的候选坐标设为指定值，然后运行约束传播。
  * 传播完成后恢复原始坐标。返回传播结果。
+ *
+ * 实现步骤：
+ *   1. 保存传播上下文快照
+ *   2. 获取目标节点的状态空间
+ *   3. 坍缩为仅含候选值
+ *   4. 运行 AC-3 约束传播
+ *   5. 恢复快照（恢复原始状态空间）
  */
 static PropagationResult propagation_run_with_assignment(PropagationContext *ctx, int node_id,
                                                          const SymbolicCoord *coord, int max_steps) {
     if (!ctx)
         return PROP_RESULT_CONTRADICTION;
-    (void) node_id;
-    (void) coord;
-    (void) max_steps;
-    /* 简化实现：直接运行传播，不做临时赋值。
-     * 完整实现需要：
-     *   1. 保存节点当前状态空间
-     *   2. 将节点状态空间缩小为仅 {coord}
-     *   3. 运行 propagation_run(ctx)
-     *   4. 恢复原始状态空间
-     * 暂时委托给 propagation_run */
-    return propagation_run(ctx);
+
+    /* 保存快照 */
+    PropagationSnapshot *snap = propagation_snapshot_save(ctx);
+    if (!snap)
+        return PROP_RESULT_CONTRADICTION;
+
+    /* 获取节点的状态空间 */
+    NodeStateSpace *space = propagation_get_state_space(ctx, node_id);
+    if (!space) {
+        propagation_snapshot_destroy(snap);
+        return PROP_RESULT_CONTRADICTION;
+    }
+
+    /* 坍缩节点为候选值 */
+    space->is_collapsed = true;
+    space->collapsed_value = symbolic_coord_copy(coord);
+
+    /* 清空可能的坐标列表（已坍缩，不需要候选集） */
+    for (int i = 0; i < space->coord_count; i++) {
+        symbolic_coord_destroy(space->possible_coords[i]);
+    }
+    lv_free((void **)&space->possible_coords);
+    space->possible_coords = NULL;
+    space->coord_count = 0;
+    space->capacity = 0;
+    space->is_unbounded = false;
+
+    /* 运行约束传播 */
+    PropagationResult result = propagation_run(ctx);
+
+    /* 恢复快照（propagation_snapshot_restore 销毁当前状态和快照） */
+    propagation_snapshot_restore(ctx, snap);
+
+    /* 检测超时 */
+    (void)max_steps;
+
+    if (result == PROP_RESULT_CONTRADICTION)
+        return PROP_RESULT_CONTRADICTION;
+    if (result == PROP_RESULT_TIMEOUT)
+        return PROP_RESULT_TIMEOUT;
+
+    return PROP_RESULT_CONSISTENT;
+}
+
+/**
+ * @brief 检查候选坐标是否满足图中所有约束
+ *
+ * 遍历图中所有涉及指定节点的约束，逐一检查候选坐标是否满足。
+ * 这是 L3 代数排除的简化实现（直接约束检查而非 Groebner 基）。
+ *
+ * @param graph     约束图
+ * @param node_id   节点 ID
+ * @param candidate 候选坐标
+ * @return true 表示所有约束满足（候选可能是合法解），
+ *         false 表示至少一个约束不满足（候选可被排除）
+ */
+static bool check_all_constraints(const ConstraintGraph *graph, int node_id,
+                                   const SymbolicCoord *candidate) {
+    if (!graph || !candidate)
+        return true;
+
+    for (int ci = 0; ci < graph->constraint_count; ci++) {
+        Constraint *con = graph->constraints[ci];
+        if (!con || !con->is_active)
+            continue;
+
+        /* 检查该约束是否涉及本节点 */
+        bool involves_node = false;
+        for (int p = 0; p < con->participant_count; p++) {
+            if (con->participants[p] == node_id) {
+                involves_node = true;
+                break;
+            }
+        }
+        if (!involves_node)
+            continue;
+
+        switch (con->type) {
+            case INCIDENCE: {
+                /* INCIDENCE(point, seg): 叉积 = 0 → 点在线上 */
+                int seg_id = con->participants[0] == node_id ? con->participants[1] : con->participants[0];
+
+                /* 查找线段端点 */
+                int ep1 = -1, ep2 = -1;
+                for (int i = 0; i < graph->constraint_count; i++) {
+                    Constraint *ic = graph->constraints[i];
+                    if (!ic || ic->id == con->id || ic->type != INCIDENCE)
+                        continue;
+                    if (ic->participants[1] == seg_id) {
+                        int other = ic->participants[0];
+                        if (other == node_id) continue;
+                        if (ep1 < 0) ep1 = other;
+                        else if (ep2 < 0) ep2 = other;
+                    }
+                }
+                if (ep1 < 0 || ep2 < 0) continue;
+
+                /* 获取端点坐标 */
+                GeomNode *n1 = NULL, *n2 = NULL;
+                for (int j = 0; j < graph->node_count; j++) {
+                    GeomNode *n = graph->nodes[j];
+                    if (!n) continue;
+                    if (n->id == ep1) n1 = n;
+                    if (n->id == ep2) n2 = n;
+                }
+                if (!n1 || !n2 || n1->coord_count < 2 || n2->coord_count < 2)
+                    continue;
+
+                double x1 = symbolic_coord_to_double(n1->symbolic_coords[0]);
+                double y1 = symbolic_coord_to_double(n1->symbolic_coords[1]);
+                double x2 = symbolic_coord_to_double(n2->symbolic_coords[0]);
+                double y2 = symbolic_coord_to_double(n2->symbolic_coords[1]);
+                double xp = symbolic_coord_to_double(candidate);
+                double yp = (n1->coord_count >= 2) ? symbolic_coord_to_double(candidate + 1) : 0.0;
+
+                double cross = (x2 - x1) * (yp - y1) - (y2 - y1) * (xp - x1);
+                if (fabs(cross) > 1e-10)
+                    return false; /* 不在线上 → 约束不满足 */
+                break;
+            }
+
+            default:
+                break;
+        }
+    }
+    return true;
 }
