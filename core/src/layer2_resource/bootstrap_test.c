@@ -1529,10 +1529,12 @@ bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle, const void *grap
  * @return 报告字符串（调用者须通过 lv_free 释放），失败返回 NULL
  */
 char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t count, const char *format) {
-    lv_UNUSED(format);
     if (!results || count == 0) {
         return NULL;
     }
+
+    /* 判断输出格式 */
+    bool json_format = (format != NULL && strcmp(format, "json") == 0);
 
     /* 完整的报告生成：汇总所有测试结果 */
     uint32_t passed = 0, failed = 0, errors = 0;
@@ -1547,7 +1549,66 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
             failed++;
     }
 
-    /* 计算报告所需缓冲区大小 */
+    if (json_format) {
+        /* 生成 JSON 格式报告 */
+        size_t buf_size = 1024 + (size_t) count * 256;
+        char *report = (char *) lv_malloc(buf_size);
+        if (!report)
+            return NULL;
+
+        int pos = 0;
+        pos += snprintf(report + pos, buf_size - (size_t) pos,
+                        "{\n"
+                        "  \"report_type\": \"bootstrap_test\",\n"
+                        "  \"summary\": {\n"
+                        "    \"total\": %u,\n"
+                        "    \"passed\": %u,\n"
+                        "    \"failed\": %u,\n"
+                        "    \"errors\": %u,\n"
+                        "    \"pass_rate\": %.1f\n"
+                        "  },\n"
+                        "  \"details\": [\n",
+                        count, passed, failed, errors, count > 0 ? (double) passed / (double) count * 100.0 : 0.0);
+
+        for (uint32_t i = 0; i < count && (size_t) pos < buf_size - 256; i++) {
+            if (i > 0)
+                pos += snprintf(report + pos, buf_size - (size_t) pos, ",\n");
+            if (!results[i]) {
+                pos += snprintf(report + pos, buf_size - (size_t) pos,
+                                "    {\"index\": %u, \"status\": \"ERROR\", \"error\": \"result is NULL\"}", i);
+                continue;
+            }
+            const char *status = results[i]->passed ? "PASS" : "FAIL";
+            const char *comp = "N/A";
+            switch (results[i]->comparison) {
+                case DIFF_RESULT_EQUAL:
+                    comp = "IDENTICAL";
+                    break;
+                case DIFF_RESULT_DIFFERENT:
+                    comp = "DIFFERENT";
+                    break;
+                case DIFF_RESULT_ERROR:
+                    comp = "ERROR";
+                    break;
+                default:
+                    break;
+            }
+            if (results[i]->error_message) {
+                pos += snprintf(report + pos, buf_size - (size_t) pos,
+                                "    {\"index\": %u, \"status\": \"%s\", \"comparison\": \"%s\", \"error\": \"%s\"}",
+                                i, status, comp, results[i]->error_message);
+            } else {
+                pos += snprintf(report + pos, buf_size - (size_t) pos,
+                                "    {\"index\": %u, \"status\": \"%s\", \"comparison\": \"%s\"}",
+                                i, status, comp);
+            }
+        }
+
+        pos += snprintf(report + pos, buf_size - (size_t) pos, "\n  ]\n}\n");
+        return report;
+    }
+
+    /* 默认/文本格式（format == NULL 或 "text" 或其他值）：生成文本格式报告 */
     size_t buf_size = 1024 + (size_t) count * 128;
     char *report = (char *) lv_malloc(buf_size);
     if (!report)

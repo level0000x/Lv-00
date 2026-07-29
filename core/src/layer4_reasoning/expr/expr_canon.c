@@ -785,22 +785,294 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
     return buf;
 }
 
-/**
- * @brief 简单解析器: 极其基本的解析，仅用于测试
- *
- * 格式: "coeff*x^e*y^e + coeff*x^e + ..."
- *
- * 完整解析应由 DSL 编译器完成。此函数仅提供基础功能。
- */
-lvExprCanonical *lv_expr_canonical_from_string(const char *str, const char **var_names, int var_count) {
-    lv_UNUSED(str);
-    lv_UNUSED(var_names);
-    lv_UNUSED(var_count);
+/* ========================================================================
+ * 字符串解析（递归下降解析器）
+ * ======================================================================== */
 
-    /* 桩实现: 返回零多项式
-     * 完整解析器应在 DSL 编译器模块中实现。
-     * 此函数保留接口但不在本文件中实现复杂的递归下降解析。 */
+/** 跳过空白字符 */
+static void skip_spaces(const char **pp) {
+    while (**pp && (unsigned char)**pp <= ' ')
+        (*pp)++;
+}
+
+/**
+ * @brief 解析不含 '/' 的十进制数字字符串为有理数
+ *
+ * 支持 "42"（整数）和 "3.14"（小数）两种格式。
+ * 小数通过去除小数点转为分数形式，再通过 lv_rational_from_string
+ * 构造后化简。
+ */
+static lvRational *parse_decimal(const char *start, const char *end) {
+    /* 检查是否有小数点 */
+    const char *dot = NULL;
+    for (const char *cp = start; cp < end; cp++) {
+        if (*cp == '.') {
+            dot = cp;
+            break;
+        }
+    }
+
+    if (!dot) {
+        /* 纯整数 */
+        long val;
+        char *e = NULL;
+        val = strtol(start, &e, 10);
+        if (e == start) return NULL;
+        return lv_rational_create_from_si(val, 1);
+    }
+
+    /* 小数：提取所有数字字符，构造 num/den 分数 */
+    int digits_before_dot = (int)(dot - start);
+    int digits_after_dot  = (int)(end - dot - 1);
+
+    /* 限制小数位精度，避免分母过大 */
+    if (digits_after_dot > 9) digits_after_dot = 9;
+
+    /* 构造分母字符串 "1" + digits_after_dot 个 "0" */
+    char den_buf[32];
+    int den_idx = 0;
+    den_buf[den_idx++] = '1';
+    for (int i = 0; i < digits_after_dot && den_idx < 30; i++)
+        den_buf[den_idx++] = '0';
+    den_buf[den_idx] = '\0';
+
+    /* 构造分子：去掉小数点后的数字字符串 */
+    char num_buf[128];
+    int num_idx = 0;
+
+    /* 处理符号 */
+    if (*start == '-') {
+        num_buf[num_idx++] = '-';
+        start++;
+    } else if (*start == '+') {
+        start++;
+    }
+
+    /* 复制小数点前的数字（不含 '.' 本身）*/
+    for (int i = 0; i < digits_before_dot; i++) {
+        num_buf[num_idx++] = start[i];
+    }
+
+    /* 复制小数点后的数字 */
+    for (int i = 0; i < digits_after_dot; i++) {
+        num_buf[num_idx++] = dot[1 + i];
+    }
+    num_buf[num_idx] = '\0';
+
+    /* 处理边缘情况：纯小数如 ".5" → 分子 "5" */
+    if (num_idx == 0 || (num_idx == 1 && num_buf[0] == '-')) {
+        num_buf[num_idx++] = '0';
+        num_buf[num_idx] = '\0';
+    }
+
+    /* 组合 "num/den" */
+    char full[256];
+    int n = snprintf(full, sizeof(full), "%s/%s", num_buf, den_buf);
+    if (n < 0 || (size_t)n >= sizeof(full))
+        return NULL;
+
+    lvRational *r = lv_rational_from_string(full);
+    if (r) lv_rational_simplify(r);
+    return r;
+}
+
+/**
+ * @brief 从字符串解析规范多项式表达式
+ *
+ * 支持语法：
+ *   expr   → term (('+' | '-') term)*
+ *   term   → [SIGN] [NUMBER] ['*'] factor ('*' factor)*
+ *   factor → VARIABLE ['^' UINT]
+ *
+ * 示例: "3*x^2*y + 5*x - 2", "-x + y", "42", "x^2"
+ *
+ * 变量名必须在 var_names 数组中注册，否则解析失败。
+ *
+ * @param str       输入字符串
+ * @param var_names 变量名数组
+ * @param var_count 变量个数
+ * @return 解析后的规范多项式，失败返回 NULL
+ */
+lvExprCanonical *lv_expr_canonical_from_string(const char *str,
+                                               const char **var_names,
+                                               int var_count) {
+    if (!str)
+        return NULL;
 
     lvExprCanonical *expr = lv_expr_canonical_create(var_count, var_names);
-    return expr; /* 空多项式 = 0 */
+    if (!expr)
+        return NULL;
+
+    const char *p = str;
+    skip_spaces(&p);
+
+    if (*p == '\0')
+        return expr; /* 空字符串 = 零多项式 */
+
+    int sign = 1;
+    bool first_item = true;
+
+    while (*p) {
+        skip_spaces(&p);
+        if (*p == '\0')
+            break;
+
+        /* --- 处理 +/- 分隔符 --- */
+        if (*p == '+' || *p == '-') {
+            if (!first_item) {
+                sign = (*p == '+') ? 1 : -1;
+                p++;
+                continue;
+            } else {
+                sign = (*p == '-') ? -1 : 1;
+                p++;
+                first_item = false;
+            }
+        } else if (first_item) {
+            first_item = false;
+            sign = 1;
+        } else {
+            /* 非首项未出现 + / -，视为终止 */
+            break;
+        }
+
+        skip_spaces(&p);
+        if (*p == '\0')
+            break;
+
+        /* --- 解析数字系数 --- */
+        lvRational *coeff = NULL;
+        const char *num_start = p;
+
+        if (*p == '-' || *p == '+' || (*p >= '0' && *p <= '9') || *p == '.') {
+            char *num_end = NULL;
+            strtod(p, &num_end);
+            if (num_end != p) {
+                coeff = parse_decimal(num_start, num_end);
+                p = num_end;
+                /* 系数后可能有 '*' 分隔符 */
+                skip_spaces(&p);
+                if (*p == '*') {
+                    p++;
+                    skip_spaces(&p);
+                }
+            }
+        }
+
+        /* --- 解析变量因子 --- */
+        int *exponents = (int *)lv_calloc((size_t)var_count, sizeof(int));
+        if (!exponents) {
+            if (coeff) lv_rational_destroy(&coeff);
+            lv_expr_canonical_destroy(&expr);
+            return NULL;
+        }
+
+        bool has_var_part = false;
+
+        while (*p) {
+            skip_spaces(&p);
+            if (*p == '\0' || *p == '+' || *p == '-')
+                break;
+
+            /* 尝试匹配变量名 */
+            int longest_match = 0;
+            int var_idx = -1;
+
+            for (int i = 0; i < var_count; i++) {
+                if (!var_names[i]) continue;
+                size_t vlen = strlen(var_names[i]);
+                if ((int)vlen > longest_match &&
+                    strncmp(p, var_names[i], vlen) == 0) {
+                    /* 确保不是更长的标识符的一部分 */
+                    if (p[vlen] == '\0' || p[vlen] == '*' ||
+                        p[vlen] == '^' || p[vlen] == '+' ||
+                        p[vlen] == '-' || (unsigned char)p[vlen] <= ' ') {
+                        longest_match = (int)vlen;
+                        var_idx = i;
+                    }
+                }
+            }
+
+            if (var_idx < 0)
+                break; /* 不是变量，终止变量因子解析 */
+
+            has_var_part = true;
+            p += longest_match;
+
+            /* 解析可选的指数 ^N */
+            int exponent = 1;
+            skip_spaces(&p);
+            if (*p == '^') {
+                p++;
+                skip_spaces(&p);
+                char *exp_end = NULL;
+                long exp_val = strtol(p, &exp_end, 10);
+                if (exp_end != p && exp_val > 0 && exp_val <= 65536) {
+                    exponent = (int)exp_val;
+                    p = exp_end;
+                }
+            }
+
+            exponents[var_idx] += exponent;
+
+            /* 跳过可选的 '*' */
+            skip_spaces(&p);
+            if (*p == '*') {
+                p++;
+                skip_spaces(&p);
+            }
+        }
+
+        /* --- 创建项 --- */
+        if (coeff == NULL) {
+            /* 没有显式系数：若只有变量部分，系数为 1 */
+            coeff = lv_rational_create_from_si(sign, 1);
+        } else if (sign == -1) {
+            lv_rational_neg_inplace(coeff);
+        }
+
+        if (!has_var_part && coeff) {
+            /* 常数项，指数已全零 */
+        }
+
+        if (coeff && !lv_rational_is_zero(coeff)) {
+            lv_expr_canonical_add_term(expr, coeff, exponents);
+        }
+
+        lv_rational_destroy(&coeff);
+        lv_free((void **)&exponents);
+    }
+
+    /* 规范化并返回 */
+    if (!lv_expr_canonicalize(expr)) {
+        lv_expr_canonical_destroy(&expr);
+        return NULL;
+    }
+
+    return expr;
+}
+
+/* ========================================================================
+ * 旧接口兼容
+ * ======================================================================== */
+
+char *lv_expr_canon(const char *expr) {
+    if (!expr)
+        return NULL;
+
+    /* 尝试从字符串解析为规范形式 */
+    const char *var_names[] = {"x", "y", "z", "w", "u", "v"};
+    int var_count = 6;
+    lvExprCanonical *canon = lv_expr_canonical_from_string(expr, var_names, var_count);
+    if (!canon) {
+        /* 解析失败，回退：返回原始字符串的副本 */
+        char *fallback = (char *)lv_malloc(strlen(expr) + 1);
+        if (fallback)
+            memcpy(fallback, expr, strlen(expr) + 1);
+        return fallback;
+    }
+
+    char *result = lv_expr_canonical_to_string(canon);
+    lv_expr_canonical_destroy(&canon);
+    return result;
 }

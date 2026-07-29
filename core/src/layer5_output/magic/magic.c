@@ -1401,66 +1401,6 @@ static const char *json_skip_string(const char *p) {
     return p;
 }
 
-/**
- * @brief 跳过 JSON 值（字符串、数字、对象、数组、布尔、null）
- *
- * @param p 指向值起始位置的指针
- * @return 跳过值后的下一个字符位置
- */
-static __attribute__((unused)) const char *json_skip_value(const char *p) {
-    if (!p)
-        return NULL;
-
-    /* 跳过空白 */
-    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
-        p++;
-
-    if (*p == '"') {
-        return json_skip_string(p);
-    } else if (*p == '{') {
-        /* 跳过对象 */
-        p++; /* 跳过 '{' */
-        while (*p && *p != '}') {
-            if (*p == '"') {
-                p = json_skip_string(p); /* 跳过键 */
-                while (*p == ' ' || *p == '\t' || *p == ':' || *p == '\n' || *p == '\r')
-                    p++;
-                p = json_skip_value(p); /* 跳过值 */
-            } else {
-                p++;
-            }
-            while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n' || *p == '\r')
-                p++;
-        }
-        if (*p == '}')
-            p++;
-        return p;
-    } else if (*p == '[') {
-        /* 跳过数组 */
-        p++; /* 跳过 '[' */
-        while (*p && *p != ']') {
-            p = json_skip_value(p);
-            while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n' || *p == '\r')
-                p++;
-        }
-        if (*p == ']')
-            p++;
-        return p;
-    } else if (*p == 't') {
-        return p + 4; /* true */
-    } else if (*p == 'f') {
-        return p + 5; /* false */
-    } else if (*p == 'n') {
-        return p + 4; /* null */
-    } else {
-        /* 数字 */
-        while (*p && (*p == '-' || *p == '+' || *p == '.' || *p == 'e' || *p == 'E' || (*p >= '0' && *p <= '9'))) {
-            p++;
-        }
-        return p;
-    }
-}
-
 MagicArray *magic_array_deserialize(const char *json) {
     if (!json || json[0] == '\0') {
         lv_LOG_WARNING("magic_array_deserialize: 输入 JSON 为空");

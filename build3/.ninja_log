@@ -1239,3 +1239,10 @@
 63	1046	8070594535557540	CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_export.c.obj	a1e053149f3760d1
 55	1964	8070594535474515	CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version.c.obj	b0901f5b18e1b10
 1964	3519	8070594554570809	liblv.a	b36b6982d0e4bec3
+30	260	8070598577769063	CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/expr/expr_canon.c.obj	63c6b7c6ec4a40bc
+261	1156	8070598580077563	liblv.a	b36b6982d0e4bec3
+31	180	8070600979482072	CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_eliminate.c.obj	cc5a75aaa2d947f0
+20	182	8070600979358026	CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/node_deep_copy.c.obj	8781b0dba15e87f9
+26	251	8070600979435833	CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/bootstrap_test.c.obj	c77aa878133e8921
+35	282	8070600979517311	CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic.c.obj	9fb6fa6c2a7b4029
+282	834	8070600981988131	liblv.a	b36b6982d0e4bec3

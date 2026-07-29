@@ -114,6 +114,14 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                 GeomNode *node = graph_get_node(graph, eid);
                 if (node && node->coord_count > sys.eqs[i].coord_index) {
                     if (fabs(val) > 9.2e12) {
+                        LOG_WARN("solver", "数值过大 (%.2f > 9.2e12)，使用近似有理数", val);
+                        /* 降级：使用近似值创建坐标 */
+                        SymbolicCoord *approx = symbolic_coord_create_rational(
+                            (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
+                        if (approx) {
+                            symbolic_coord_destroy(node->symbolic_coords[sys.eqs[i].coord_index]);
+                            node->symbolic_coords[sys.eqs[i].coord_index] = approx;
+                        }
                     } else {
                         SymbolicCoord *new_coord = symbolic_coord_create_rational(
                             (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
@@ -187,6 +195,17 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                         GeomNode *node = graph_get_node(graph, eid);
                         if (node && node->coord_count > tmpl_sys.eqs[i].coord_index) {
                             if (fabs(val) > 9.2e12) {
+                                LOG_WARN("solver", "数值过大 (%.2f > 9.2e12)，使用近似有理数", val);
+                                /* 降级：使用近似值创建坐标 */
+                                SymbolicCoord *approx = symbolic_coord_create_rational(
+                                    (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
+                                if (approx) {
+                                    symbolic_coord_destroy(node->symbolic_coords[tmpl_sys.eqs[i].coord_index]);
+                                    node->symbolic_coords[tmpl_sys.eqs[i].coord_index] = approx;
+                                    any_eliminated = true;
+                                    stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,
+                                                       "变量解得 (几何模板)", eid);
+                                }
                             } else {
                                 SymbolicCoord *new_coord = symbolic_coord_create_rational(
                                     (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);

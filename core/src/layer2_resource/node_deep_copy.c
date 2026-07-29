@@ -192,14 +192,16 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
     if (!orig)
         return NULL;
 
-    lv_UNUSED(id_map); /* 预留参数，当前未使用 */
-
     GeomNode *copy = lv_calloc(1, sizeof(GeomNode));
     if (!copy)
         return NULL;
 
     /* 拷贝标量字段 */
-    copy->id = orig->id;
+    if (id_map && id_map[0] != 0) {
+        copy->id = id_map[0];  /* 使用映射后的 ID */
+    } else {
+        copy->id = orig->id;   /* 保持原始 ID */
+    }
     copy->type = orig->type;
     copy->coord_count = orig->coord_count;
     copy->trust = orig->trust;
