@@ -164,6 +164,30 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num
             mpq_set_ui(t->matrix.c, 0, 1);
             mpq_set_ui(t->matrix.d, 1, 1);
             break;
+        case 30: /* 30°: a=cos30, b=-1/2, c=1/2, d=cos30 */
+            mpq_set_d(t->params.params.rotation.cos_theta, 0.8660254037844386);
+            mpq_set_ui(t->params.params.rotation.sin_theta, 1, 2);
+            mpq_set_d(t->matrix.a, 0.8660254037844386);
+            mpq_set_si(t->matrix.b, -1, 2);
+            mpq_set_ui(t->matrix.c, 1, 2);
+            mpq_set_d(t->matrix.d, 0.8660254037844386);
+            break;
+        case 45: /* 45°: a=cos45, b=-sin45, c=sin45, d=cos45 */
+            mpq_set_d(t->params.params.rotation.cos_theta, 0.7071067811865476);
+            mpq_set_d(t->params.params.rotation.sin_theta, 0.7071067811865476);
+            mpq_set_d(t->matrix.a, 0.7071067811865476);
+            mpq_set_d(t->matrix.b, -0.7071067811865476);
+            mpq_set_d(t->matrix.c, 0.7071067811865476);
+            mpq_set_d(t->matrix.d, 0.7071067811865476);
+            break;
+        case 60: /* 60°: a=1/2, b=-sin60, c=sin60, d=1/2 */
+            mpq_set_ui(t->params.params.rotation.cos_theta, 1, 2);
+            mpq_set_d(t->params.params.rotation.sin_theta, 0.8660254037844386);
+            mpq_set_ui(t->matrix.a, 1, 2);
+            mpq_set_d(t->matrix.b, -0.8660254037844386);
+            mpq_set_d(t->matrix.c, 0.8660254037844386);
+            mpq_set_ui(t->matrix.d, 1, 2);
+            break;
         case 90: /* 90° */
             mpq_set_ui(t->params.params.rotation.cos_theta, 0, 1);
             mpq_set_ui(t->params.params.rotation.sin_theta, 1, 1);
@@ -171,6 +195,30 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num
             mpq_set_si(t->matrix.b, -1, 1);
             mpq_set_ui(t->matrix.c, 1, 1);
             mpq_set_ui(t->matrix.d, 0, 1);
+            break;
+        case 120: /* 120°: a=-1/2, b=-sin120, c=sin120, d=-1/2 */
+            mpq_set_si(t->params.params.rotation.cos_theta, -1, 2);
+            mpq_set_d(t->params.params.rotation.sin_theta, 0.8660254037844386);
+            mpq_set_si(t->matrix.a, -1, 2);
+            mpq_set_d(t->matrix.b, -0.8660254037844386);
+            mpq_set_d(t->matrix.c, 0.8660254037844386);
+            mpq_set_si(t->matrix.d, -1, 2);
+            break;
+        case 135: /* 135°: a=cos135, b=-sin135, c=sin135, d=cos135 */
+            mpq_set_d(t->params.params.rotation.cos_theta, -0.7071067811865476);
+            mpq_set_d(t->params.params.rotation.sin_theta, 0.7071067811865476);
+            mpq_set_d(t->matrix.a, -0.7071067811865476);
+            mpq_set_d(t->matrix.b, -0.7071067811865476);
+            mpq_set_d(t->matrix.c, 0.7071067811865476);
+            mpq_set_d(t->matrix.d, -0.7071067811865476);
+            break;
+        case 150: /* 150°: a=cos150, b=-1/2, c=1/2, d=cos150 */
+            mpq_set_d(t->params.params.rotation.cos_theta, -0.8660254037844386);
+            mpq_set_ui(t->params.params.rotation.sin_theta, 1, 2);
+            mpq_set_d(t->matrix.a, -0.8660254037844386);
+            mpq_set_si(t->matrix.b, -1, 2);
+            mpq_set_ui(t->matrix.c, 1, 2);
+            mpq_set_d(t->matrix.d, -0.8660254037844386);
             break;
         case 180: /* 180° */
             mpq_set_si(t->params.params.rotation.cos_theta, -1, 1);

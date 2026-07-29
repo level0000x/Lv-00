@@ -72,6 +72,28 @@ static const RewriteRuleEntry builtin_rules[] = {
     {"(exp(x)+exp(-x))/2", "cosh(x)", "使用 cosh 替代指数求和", 1e4},
     /* 二次公式：避免 b^2-4ac 的抵消 */
     {"(-b+sqrt(b*b-4*a*c))/(2*a)", "-2*c/(b+sqrt(b*b-4*a*c))", "二次公式分子有理化", 1e8},
+    /* 平方差公式：(a+b)*(a-b) → a^2 - b^2 */
+    {"(a+b)*(a-b)", "a*a-b*b", "平方差公式减少运算次数", 1e4},
+    /* 完全平方展开：(a+b)^2 → a^2 + 2ab + b^2 */
+    {"(a+b)*(a+b)", "a*a+2*a*b+b*b", "完全平方展开", 1e2},
+    /* 通用 hypot 形式 */
+    {"sqrt(a*a+b*b)", "hypot(a,b)", "使用 hypot 避免中间溢出", 1e6},
+    /* 分子有理化：sqrt(x) - sqrt(y) */
+    {"sqrt(x)-sqrt(y)", "(x-y)/(sqrt(x)+sqrt(y))", "分子有理化避免 sqrt 抵消", 1e6},
+    /* 合并对数：ln(a) + ln(b) → ln(a*b) */
+    {"log(x)+log(y)", "log(x*y)", "合并对数减少运算次数", 1e2},
+    /* 合并对数：ln(a) - ln(b) → ln(a/b) */
+    {"log(x)-log(y)", "log(x/y)", "合并对数减少运算次数", 1e2},
+    /* 三角恒等式：sin^2 + cos^2 → 1 */
+    {"sin(x)*sin(x)+cos(x)*cos(x)", "1", "三角恒等式简化", 1e2},
+    /* 改善精度：tan(x) - sin(x) → tan(x)*sin^2(x)/(1+cos(x)) */
+    {"tan(x)-sin(x)", "tan(x)*sin(x)*sin(x)/(1+cos(x))", "避免 tan≈sin 时的抵消", 1e6},
+    /* 分散乘除避免溢出：(a*b)/(c*d) → (a/c)*(b/d) */
+    {"(a*b)/(c*d)", "(a/c)*(b/d)", "分散乘除减少中间溢出", 1e4},
+    /* 改善精度：1 - sqrt(1-x) → x/(1+sqrt(1-x)) */
+    {"1-sqrt(1-x)", "x/(1+sqrt(1-x))", "避免 sqrt(1-x)≈1 时的抵消", 1e6},
+    /* 改善精度：log(a) - log(b) → log(a/b) 的数值稳定形式 */
+    {"log(x)-log(y)", "log((x+y)/(y+y))", "备选对数差分形式", 1e2},
     {NULL, NULL, NULL, 0.0}};
 
 /* ============================================================

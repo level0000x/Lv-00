@@ -1071,23 +1071,24 @@ static CSGBSPNode *csg_bsp_build(CSGTriList *tris, double eps) {
 }
 
 /**
- * @brief 将三角形相对于 BSP 树做裁剪，输出在前半空间的部分
+ * @brief 将三角形相对于 BSP 树做裁剪
  *
  * 递归遍历 BSP 树：
- *   - 到达 NULL 节点：三角形完全在外部，保留
- *   - SPLIT：分割后分别递归前/后半部分
- *   - FRONT：递归前半子树
- *   - BACK：递归后半子树（对于差集，丢弃在 B 内部的部分）
- *   - ON：在分割平面上，保留（构成差集后的边界）
+ *   - 到达 NULL 节点：三角形完全在外部/内部（取决于 keep_inside），保留
+ *   - SPLIT：分割后根据 keep_inside 分别递归
+ *   - FRONT：在平面前方（外部），根据 keep_inside 决定是否递归
+ *   - BACK：在平面后方（内部），根据 keep_inside 决定是否递归
+ *   - ON：在分割平面上，保留（构成边界）
  *
- * @param tri   待裁剪三角形
- * @param node  BSP 树节点（可以为 NULL）
- * @param out   输出：裁剪后保留的三角形
- * @param eps   容差
+ * @param tri         待裁剪三角形
+ * @param node        BSP 树节点（可以为 NULL）
+ * @param out         输出：裁剪后保留的三角形
+ * @param eps         容差
+ * @param keep_inside 非零：保留在 BSP 内部的部分；零：保留在 BSP 外部的部分
  */
-static void csg_bsp_clip_triangle(const CSGTriangle *tri, const CSGBSPNode *node, CSGTriList *out, double eps) {
+static void csg_bsp_clip_triangle(const CSGTriangle *tri, const CSGBSPNode *node, CSGTriList *out, double eps, int keep_inside) {
     if (!node) {
-        /* 到达叶子，该三角形完全在外部，保留 */
+        /* 到达叶子，保留（对于 keep_outside 是在外部；对于 keep_inside 是在内部） */
         csg_trilist_append(out, tri);
         return;
     }
@@ -1096,16 +1097,27 @@ static void csg_bsp_clip_triangle(const CSGTriangle *tri, const CSGBSPNode *node
 
     switch (cls) {
         case CSG_BSP_FRONT:
-            /* 完全在平面前方，继续在前半子树中测试 */
-            csg_bsp_clip_triangle(tri, node->front, out, eps);
+            /* 在平面前方（外部半空间） */
+            if (keep_inside) {
+                /* 保留内部：外部部分丢弃 */
+                break;
+            }
+            /* 保留外部：继续在前半子树中测试 */
+            csg_bsp_clip_triangle(tri, node->front, out, eps, keep_inside);
             break;
 
         case CSG_BSP_BACK:
-            /* 完全在平面后方 → 在 B 内部，丢弃（不输出） */
+            /* 在平面后方（内部半空间） */
+            if (keep_inside) {
+                /* 保留内部：继续在后半子树中测试 */
+                csg_bsp_clip_triangle(tri, node->back, out, eps, keep_inside);
+                break;
+            }
+            /* 保留外部：内部部分丢弃 */
             break;
 
         case CSG_BSP_ON:
-            /* 三角形在分割平面上 → 保留（构成差集边界） */
+            /* 三角形在分割平面上 → 保留（构成边界） */
             csg_trilist_append(out, tri);
             break;
 
@@ -1117,14 +1129,20 @@ static void csg_bsp_clip_triangle(const CSGTriangle *tri, const CSGBSPNode *node
 
             csg_bsp_split_triangle(tri, node->plane_point, node->plane_normal, eps, &front_list, &back_list);
 
-            /* 前半部分继续在前半子树中测试 */
-            for (int i = 0; i < front_list.count; i++) {
-                csg_bsp_clip_triangle(&front_list.tris[i], node->front, out, eps);
-            }
-
-            /* 后半部分继续在后半子树中测试（在 B 内部，被丢弃） */
-            for (int i = 0; i < back_list.count; i++) {
-                csg_bsp_clip_triangle(&back_list.tris[i], node->back, out, eps);
+            if (keep_inside) {
+                /* 保留内部：只递归后半部分（内部），前半部分（外部）丢弃 */
+                for (int i = 0; i < back_list.count; i++) {
+                    csg_bsp_clip_triangle(&back_list.tris[i], node->back, out, eps, keep_inside);
+                }
+            } else {
+                /* 保留外部：前半部分（外部）继续在前半子树中测试 */
+                for (int i = 0; i < front_list.count; i++) {
+                    csg_bsp_clip_triangle(&front_list.tris[i], node->front, out, eps, keep_inside);
+                }
+                /* 后半部分（内部）继续在后半子树中测试 */
+                for (int i = 0; i < back_list.count; i++) {
+                    csg_bsp_clip_triangle(&back_list.tris[i], node->back, out, eps, keep_inside);
+                }
             }
 
             csg_trilist_free(&front_list);
@@ -1141,27 +1159,77 @@ static void csg_bsp_clip_triangle(const CSGTriangle *tri, const CSGBSPNode *node
 /**
  * @brief 使用 BSP 方法对两个三角形面列表执行布尔并集
  *
- * 算法概要：
- *   1. 对于 list_b 中的每个面，用 list_a 中的面做分类（IN/OUT/SPLIT）。
- *   2. IN（在 A 内部）的面被丢弃；OUT（在 A 外部）的面保留。
- *   3. SPLIT（横跨 A 表面）的面被裁剪为 IN 和 OUT 两部分，
- *      IN 部分丢弃，OUT 部分保留。
- *   4. 最终输出的三角形集合 = A 的所有面 + B 中在 A 外部的面。
- *
- * 注意：本实现为概念级演示，生产环境中建议使用 CGAL Nef polyhedra
- * 或 Carve 库以获得精确且稳健的 BSP 运算。
+ * 基于 BSP 树的正确并集算法：
+ *   1. 用 list_b 构建 BSP 树
+ *   2. 对 list_a 每个三角形，用 BSP 树裁剪，保留在 BSP 外部的部分（A - B）
+ *   3. 用 list_a 构建 BSP 树
+ *   4. 对 list_b 每个三角形，用 BSP 树裁剪，保留在 BSP 外部的部分（B - A）
+ *   5. 输出 = (A - B) ∪ (B - A) = A ∪ B
  *
  * @param list_a  第一个面列表
  * @param list_b  第二个面列表
  * @param out     输出：并集结果
  */
 static void csg_bsp_union_tri(const CSGTriList *list_a, const CSGTriList *list_b, CSGTriList *out) {
-    /* 简单策略：A 的面全部保留，B 的面全部保留（作为概念级实现） */
-    for (int i = 0; i < list_a->count; i++) {
-        csg_trilist_append(out, &list_a->tris[i]);
+    if (!list_a || !list_b || !out)
+        return;
+
+    /* 阶段 1：保留 list_a 中在 list_b 外部的部分 */
+    if (list_b->count > 0 && list_a->count > 0) {
+        CSGTriList b_copy;
+        csg_trilist_init(&b_copy, list_b->count);
+        for (int i = 0; i < list_b->count; i++) {
+            csg_trilist_append(&b_copy, &list_b->tris[i]);
+        }
+
+        CSGBSPNode *bsp_b = csg_bsp_build(&b_copy, CSG_BSP_EPSILON);
+        csg_trilist_free(&b_copy);
+
+        if (bsp_b) {
+            for (int i = 0; i < list_a->count; i++) {
+                csg_bsp_clip_triangle(&list_a->tris[i], bsp_b, out, CSG_BSP_EPSILON, 0);
+            }
+            csg_bsp_node_destroy(bsp_b);
+        } else {
+            /* BSP 构建失败：回退，保留 A 的所有面 */
+            for (int i = 0; i < list_a->count; i++) {
+                csg_trilist_append(out, &list_a->tris[i]);
+            }
+        }
+    } else {
+        /* list_b 为空：保留 A 的所有面 */
+        for (int i = 0; i < list_a->count; i++) {
+            csg_trilist_append(out, &list_a->tris[i]);
+        }
     }
-    for (int i = 0; i < list_b->count; i++) {
-        csg_trilist_append(out, &list_b->tris[i]);
+
+    /* 阶段 2：保留 list_b 中在 list_a 外部的部分 */
+    if (list_a->count > 0 && list_b->count > 0) {
+        CSGTriList a_copy;
+        csg_trilist_init(&a_copy, list_a->count);
+        for (int i = 0; i < list_a->count; i++) {
+            csg_trilist_append(&a_copy, &list_a->tris[i]);
+        }
+
+        CSGBSPNode *bsp_a = csg_bsp_build(&a_copy, CSG_BSP_EPSILON);
+        csg_trilist_free(&a_copy);
+
+        if (bsp_a) {
+            for (int i = 0; i < list_b->count; i++) {
+                csg_bsp_clip_triangle(&list_b->tris[i], bsp_a, out, CSG_BSP_EPSILON, 0);
+            }
+            csg_bsp_node_destroy(bsp_a);
+        } else {
+            /* BSP 构建失败：回退，保留 B 的所有面 */
+            for (int i = 0; i < list_b->count; i++) {
+                csg_trilist_append(out, &list_b->tris[i]);
+            }
+        }
+    } else if (list_a->count == 0) {
+        /* list_a 为空：保留 B 的所有面 */
+        for (int i = 0; i < list_b->count; i++) {
+            csg_trilist_append(out, &list_b->tris[i]);
+        }
     }
 }
 
@@ -1211,7 +1279,7 @@ static void csg_bsp_difference_tri(const CSGTriList *list_a, const CSGTriList *l
 
     /* 用 BSP 树裁剪 list_a 中的每个三角形 */
     for (int i = 0; i < list_a->count; i++) {
-        csg_bsp_clip_triangle(&list_a->tris[i], bsp_tree, out, CSG_BSP_EPSILON);
+        csg_bsp_clip_triangle(&list_a->tris[i], bsp_tree, out, CSG_BSP_EPSILON, 0);
     }
 
     /* 清理 BSP 树 */
@@ -1221,24 +1289,57 @@ static void csg_bsp_difference_tri(const CSGTriList *list_a, const CSGTriList *l
 /**
  * @brief BSP 布尔交集：list_a 与 list_b 的交集
  *
- * 算法概要：
- *   1. 对 list_a 中的每个面，用 list_b 做分类。
- *   2. 保留在 B 内部（IN）的面，丢弃在 B 外部（OUT）的面。
- *   3. SPLIT 面裁剪后仅保留 IN 部分。
- *   4. 最终输出包含两部分：A 中在 B 内的面 + B 中在 A 内的面。
+ * 基于 BSP 树的正确交集算法：
+ *   1. 用 list_b 构建 BSP 树
+ *   2. 对 list_a 每个三角形，用 BSP 树裁剪，保留在 BSP 内部的部分（A ∩ B）
+ *   3. 用 list_a 构建 BSP 树
+ *   4. 对 list_b 每个三角形，用 BSP 树裁剪，保留在 BSP 内部的部分（B ∩ A）
+ *   5. 输出 = (A ∩ B) ∪ (B ∩ A) = A ∩ B
  *
  * @param list_a  第一个面列表
  * @param list_b  第二个面列表
  * @param out     输出：交集结果
  */
 static void csg_bsp_intersection_tri(const CSGTriList *list_a, const CSGTriList *list_b, CSGTriList *out) {
-    /* 概念级实现：仅保留同时出现在两个列表中三角形中心位于对方包围盒内的面。
-     * 生产环境需要完整 BSP。 */
+    if (!list_a || !list_b || !out)
+        return;
+    if (list_a->count == 0 || list_b->count == 0) {
+        /* 其中一者为空：交集为空 */
+        return;
+    }
 
-    lv_UNUSED(list_b);
+    /* 阶段 1：保留 list_a 中在 list_b 内部的部分 */
+    CSGTriList b_copy;
+    csg_trilist_init(&b_copy, list_b->count);
+    for (int i = 0; i < list_b->count; i++) {
+        csg_trilist_append(&b_copy, &list_b->tris[i]);
+    }
 
+    CSGBSPNode *bsp_b = csg_bsp_build(&b_copy, CSG_BSP_EPSILON);
+    csg_trilist_free(&b_copy);
+
+    if (bsp_b) {
+        for (int i = 0; i < list_a->count; i++) {
+            csg_bsp_clip_triangle(&list_a->tris[i], bsp_b, out, CSG_BSP_EPSILON, 1);
+        }
+        csg_bsp_node_destroy(bsp_b);
+    }
+
+    /* 阶段 2：保留 list_b 中在 list_a 内部的部分 */
+    CSGTriList a_copy;
+    csg_trilist_init(&a_copy, list_a->count);
     for (int i = 0; i < list_a->count; i++) {
-        csg_trilist_append(out, &list_a->tris[i]);
+        csg_trilist_append(&a_copy, &list_a->tris[i]);
+    }
+
+    CSGBSPNode *bsp_a = csg_bsp_build(&a_copy, CSG_BSP_EPSILON);
+    csg_trilist_free(&a_copy);
+
+    if (bsp_a) {
+        for (int i = 0; i < list_b->count; i++) {
+            csg_bsp_clip_triangle(&list_b->tris[i], bsp_a, out, CSG_BSP_EPSILON, 1);
+        }
+        csg_bsp_node_destroy(bsp_a);
     }
 }
 

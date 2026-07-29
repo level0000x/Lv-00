@@ -2748,7 +2748,180 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
 }
 
 /**
+ * @brief 用现有基约化新多项式，仅对非零余式扩展基（增量检测）
+ *
+ * 若已有有效缓存基，先检验新多项式是否已被现有基约化（余式为零表示
+ * 新多项式已在理想中，无需重算）。若非零，只计算新多项式与现有基元素
+ * 间的 S-多项式，避免完全重算。
+ *
+ * @param ring     多项式环
+ * @param old_basis 现有缓存基（传入时不转移所有权）
+ * @param new_poly  新多项式（调用者确保 non-NULL，非零）
+ * @return 扩展后的新基，失败返回 NULL
+ */
+static lvGroebnerBasis *groebner_internal_extend_basis(const lvPolynomialRing *ring,
+                                                        const lvGroebnerBasis *old_basis,
+                                                        lvPolynomial *new_poly) {
+    if (!ring || !old_basis || !new_poly)
+        return NULL;
+
+    int old_count = old_basis->bases_count;
+    int vc = ring->var_count;
+
+    /* 先用旧基约化新多项式 */
+    lvPolynomial *reduced = poly_internal_reduce(new_poly, old_basis->basis_polys, old_count, ring);
+    if (!reduced || poly_internal_is_zero(reduced)) {
+        /* 新多项式已是理想的元素，返回旧基的副本 */
+        if (reduced)
+            poly_internal_destroy(reduced);
+        lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
+        if (!basis)
+            return NULL;
+        basis->basis_polys = (lvPolynomial **) lv_calloc((size_t)(old_count + 1), sizeof(lvPolynomial *));
+        if (!basis->basis_polys) {
+            lv_free((void **) &basis);
+            return NULL;
+        }
+        for (int i = 0; i < old_count; i++) {
+            basis->basis_polys[i] = poly_internal_copy(old_basis->basis_polys[i], ring);
+        }
+        basis->bases_count = old_count;
+        basis->bases_capacity = old_count + 1;
+        basis->is_minimal = old_basis->is_minimal;
+        basis->is_reduced = old_basis->is_reduced;
+        basis->reducing_degree = old_basis->reducing_degree;
+        return basis;
+    }
+
+    /* 新多项式约化后非零，建立新基：先复制旧基，再加入约化后的新多项式 */
+    int new_capacity = old_count + 16;
+    lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
+    if (!basis) {
+        poly_internal_destroy(reduced);
+        return NULL;
+    }
+    basis->basis_polys = (lvPolynomial **) lv_calloc((size_t) new_capacity, sizeof(lvPolynomial *));
+    if (!basis->basis_polys) {
+        lv_free((void **) &basis);
+        poly_internal_destroy(reduced);
+        return NULL;
+    }
+    basis->bases_capacity = new_capacity;
+
+    for (int i = 0; i < old_count; i++) {
+        basis->basis_polys[i] = poly_internal_copy(old_basis->basis_polys[i], ring);
+    }
+    basis->basis_polys[old_count] = reduced;
+    basis->bases_count = old_count + 1;
+
+    /* 工作列表：记录新增基元的索引 */
+    int *new_indices = (int *) lv_malloc((size_t) new_capacity * sizeof(int));
+    if (!new_indices) {
+        for (int i = 0; i < basis->bases_count; i++)
+            poly_internal_destroy(basis->basis_polys[i]);
+        lv_free((void **) &basis->basis_polys);
+        lv_free((void **) &basis);
+        return NULL;
+    }
+    int new_count = 1;
+    new_indices[0] = old_count;
+
+    /* 增量 Buchberger 核心：只处理涉及新增基元的对 */
+    int buchberger_max = lv_config_get_int("buchberger_max_steps", 50000);
+    int step = 0;
+    int new_i = 0;
+
+    while (new_i < new_count && step < buchberger_max) {
+        step++;
+        int idx_new = new_indices[new_i++];
+
+        lvPolynomial *f_new = basis->basis_polys[idx_new];
+
+        /* 与所有已有的基元（含其他新基元）计算 S-多项式 */
+        for (int j = 0; j < basis->bases_count; j++) {
+            if (j == idx_new)
+                continue;
+
+            lvPolynomial *fj = basis->basis_polys[j];
+
+            /* 互质判别式优化 */
+            int *lt_new = (int *) lv_calloc((size_t) vc, sizeof(int));
+            int *lt_j = (int *) lv_calloc((size_t) vc, sizeof(int));
+            if (!lt_new || !lt_j) {
+                lv_free((void **) &lt_new);
+                lv_free((void **) &lt_j);
+                continue;
+            }
+
+            if (poly_leading_term(f_new, ring, lt_new, NULL) != 0 ||
+                poly_leading_term(fj, ring, lt_j, NULL) != 0) {
+                lv_free((void **) &lt_new);
+                lv_free((void **) &lt_j);
+                continue;
+            }
+
+            bool coprime = mono_is_coprime(ring, lt_new, lt_j);
+            lv_free((void **) &lt_new);
+            lv_free((void **) &lt_j);
+
+            if (coprime)
+                continue;
+
+            /* 计算 S-多项式 */
+            lvPolynomial *s = poly_internal_s_polynomial(f_new, fj, ring);
+            if (!s)
+                continue;
+
+            /* 用当前基约化 */
+            lvPolynomial *r = poly_internal_reduce(s, basis->basis_polys, basis->bases_count, ring);
+            poly_internal_destroy(s);
+            if (!r)
+                continue;
+
+            if (!poly_internal_is_zero(r)) {
+                /* 余式非零，加入基 */
+                if (basis->bases_count >= basis->bases_capacity) {
+                    int new_cap = basis->bases_capacity * 2;
+                    lvPolynomial **new_polys = (lvPolynomial **) lv_realloc(
+                        basis->basis_polys, (size_t) new_cap * sizeof(lvPolynomial *));
+                    if (!new_polys) {
+                        poly_internal_destroy(r);
+                        break;
+                    }
+                    basis->basis_polys = new_polys;
+                    basis->bases_capacity = new_cap;
+
+                    int *new_ni = (int *) lv_realloc(new_indices, (size_t) new_cap * sizeof(int));
+                    if (!new_ni) {
+                        poly_internal_destroy(r);
+                        break;
+                    }
+                    new_indices = new_ni;
+                }
+
+                basis->basis_polys[basis->bases_count] = r;
+                new_indices[new_count++] = basis->bases_count;
+                basis->bases_count++;
+            } else {
+                poly_internal_destroy(r);
+            }
+        }
+    }
+
+    lv_free((void **) &new_indices);
+
+    /* 约化并规范化基 */
+    basis = groebner_internal_reduce_basis(basis, ring);
+    return basis;
+}
+
+/**
  * @brief 增量式 Groebner 基计算
+ *
+ * 改进说明：
+ * - 若有有效缓存基，先检测新多项式是否已被现有基约化（余式为零则跳过重算）
+ * - 若非零，仅计算新多项式与现有基元素间的 S-多项式（增量扩展）
+ * - 若增量扩展失败或未缓存基，回退到完全重算
  */
 int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new_poly_id) {
     if (!registry)
@@ -2779,9 +2952,7 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
         return -1;
     }
 
-    /* 添加生成元并完全重算（简化版；真正的 F5 增量算法需更多实现） */
-    /* 注意：ideal_add_generator 和 groebner_compute 内部也会加锁，
-     * 但由于我们已经持有锁，这里直接操作内部数据以避免死锁。 */
+    /* 将新多项式添加到生成元列表 */
     if (ideal->generator_count >= ideal->generator_capacity) {
         int new_cap = ideal->generator_capacity * 2;
         lvPolynomial **new_gens =
@@ -2796,23 +2967,30 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
     ideal->generators[ideal->generator_count++] = new_poly;
     ideal->basis_valid = false;
 
-    /* 直接调用内部计算（已持有锁） */
-    if (ideal->generator_count == 0) {
-        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
-        return 0;
-    }
-
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
     if (!ring) {
         GROEBNER_MUTEX_UNLOCK(g_data_mutex);
         return -1;
     }
 
-    lvGroebnerBasis *basis =
-        groebner_internal_compute(ring, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
+    lvGroebnerBasis *basis = NULL;
+
+    /* 增量路径：若有有效缓存基，尝试增量扩展 */
+    if (ideal->cached_basis && ideal->cached_basis->bases_count > 0) {
+        basis = groebner_internal_extend_basis(ring, ideal->cached_basis, new_poly);
+    }
+
+    /* 若增量扩展失败或无缓存基，回退到完全重算 */
     if (!basis) {
-        GROEBNER_MUTEX_UNLOCK(g_data_mutex);
-        return -1;
+        if (ideal->generator_count == 0) {
+            GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+            return 0;
+        }
+        basis = groebner_internal_compute(ring, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
+        if (!basis) {
+            GROEBNER_MUTEX_UNLOCK(g_data_mutex);
+            return -1;
+        }
     }
 
     /* 释放旧缓存 */

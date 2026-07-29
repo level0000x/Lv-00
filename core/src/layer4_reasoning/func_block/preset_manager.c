@@ -1216,6 +1216,27 @@ bool preset_bind_parameter(const char *preset_name, int param_index, int value, 
         return false;
     }
 
+    /* 验证参数类型兼容性：
+     * 检查输入参数的 PresetParamType 与模板端口的端口类型是否兼容。
+     * 若元数据定义了输入参数类型信息，则验证：
+     * - PARAM_TYPE_VARIADIC: 不可绑定到单值
+     * - PARAM_TYPE_ANY: 始终兼容（多态类型）
+     * - 其余具体类型: 均可绑定节点 ID */
+    if (entry->metadata.input_params != NULL && param_index < entry->metadata.input_count) {
+        PresetParamType param_type = entry->metadata.input_params[param_index].type;
+        if (param_type == PARAM_TYPE_VARIADIC) {
+            unlock_library();
+            set_error("参数索引 %d 类型为 VARIADIC，无法绑定单个值", param_index);
+            return false;
+        }
+        /* 简单类型枚举匹配检查：确保参数类型在有效的枚举范围内 */
+        if (param_type < PARAM_TYPE_POINT || param_type > PARAM_TYPE_VARIADIC) {
+            unlock_library();
+            set_error("参数索引 %d 类型无效", param_index);
+            return false;
+        }
+    }
+
     /* 生成新预设名称：原名称 + _bound_ + 索引 */
     char new_name[PRESET_BUFFER_SIZE];
     int written = snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, param_index);

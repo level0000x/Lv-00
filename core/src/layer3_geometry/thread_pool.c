@@ -361,13 +361,28 @@ void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group, int timeo
 
 /**
  * @brief 获取全局单例线程池
- * @warning 当前实现非线程安全，并发调用可能导致重复创建。
+ *
+ * 使用静态初始化锁确保线程安全：
+ * - Windows: SRWLOCK（静态初始化，轻量级读写锁）
+ * - POSIX: pthread_mutex_t（静态初始化 PTHREAD_MUTEX_INITIALIZER）
+ *
  * @return 全局线程池指针
  */
 lvThreadPool *lv_get_global_thread_pool(void) {
-    /* 注意：此简化实现非线程安全地初始化全局池 */
+#ifdef _WIN32
+    static SRWLOCK g_pool_lock = SRWLOCK_INIT;
+    AcquireSRWLockExclusive(&g_pool_lock);
     if (g_global_pool == NULL) {
         g_global_pool = lv_thread_pool_create(DEFAULT_THREADS);
     }
+    ReleaseSRWLockExclusive(&g_pool_lock);
+#else
+    static pthread_mutex_t g_pool_lock = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_pool_lock);
+    if (g_global_pool == NULL) {
+        g_global_pool = lv_thread_pool_create(DEFAULT_THREADS);
+    }
+    pthread_mutex_unlock(&g_pool_lock);
+#endif
     return g_global_pool;
 }

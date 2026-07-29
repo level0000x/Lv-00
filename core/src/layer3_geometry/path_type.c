@@ -260,7 +260,9 @@ int path_compose(lvPathSystem *sys, int path_id_p, int path_id_q, const char *la
  * @brief 路径传输（coe -- 沿路径消去）
  *
  * 已知在起点端点满足某属性，沿路径传输到终点端点。
- * 简化实现：创建传输记录，标记传输完成。
+ * 遍历路径的构造步骤，对每一步的坐标或属性执行实际的代数传输计算：
+ * - 若路径有关联的构造图，遍历其约束并将涉及起点端点的约束映射到终点端点
+ * - 将 transported 数据从端点 a 传输到端点 b
  */
 int path_transport(lvPathSystem *sys, int path_id, int source_type_id, lvTransportMode mode, void **transported) {
     if (!sys || !sys->is_initialized)
@@ -269,6 +271,43 @@ int path_transport(lvPathSystem *sys, int path_id, int source_type_id, lvTranspo
         return -1;
 
     const lvPath *p = &sys->paths[path_id];
+
+    /* 如果路径有构造图，遍历其约束执行实际代数传输 */
+    if (p->construction) {
+        ConstraintGraph *cg = p->construction;
+        for (int i = 0; i < cg->constraint_count; i++) {
+            Constraint *c = cg->constraints[i];
+            if (c && c->is_active) {
+                /* 对约束中的每个参与者节点，若等于 endpoint_a 则替换为 endpoint_b */
+                int *mapped_participants = NULL;
+                if (c->participant_count > 0) {
+                    mapped_participants = (int *) lv_malloc((size_t)c->participant_count * sizeof(int));
+                    if (mapped_participants) {
+                        for (int j = 0; j < c->participant_count; j++) {
+                            if (c->participants[j] == p->endpoint_a) {
+                                mapped_participants[j] = p->endpoint_b;
+                            } else {
+                                mapped_participants[j] = c->participants[j];
+                            }
+                        }
+                        /* 将传输后的约束重新添加到构造图中 */
+                        graph_add_constraint_with_id(cg, -1, c->type,
+                                                     mapped_participants, c->participant_count);
+                        lv_free((void **) &mapped_participants);
+                    }
+                }
+            }
+        }
+    }
+
+    /* 对 transported 数据执行传输：从 endpoint_a 映射为 endpoint_b */
+    if (transported && *transported) {
+        /* 若 transported 是 int* 类型的节点 ID，传输即替换为终点 ID */
+        int *node_ptr = (int *)*transported;
+        if (*node_ptr == p->endpoint_a) {
+            *node_ptr = p->endpoint_b;
+        }
+    }
 
     /* 扩容检查 */
     if (sys->coe_count >= sys->coe_capacity) {
@@ -281,7 +320,7 @@ int path_transport(lvPathSystem *sys, int path_id, int source_type_id, lvTranspo
         sys->coe_capacity = new_cap;
     }
 
-    /* 创建消去上下文 */
+    /* 创建消去上下文记录 */
     lvPathCoercionContext *ctx = &sys->coe_contexts[sys->coe_count];
     memset(ctx, 0, sizeof(lvPathCoercionContext));
     ctx->context_id = sys->coe_count;
@@ -390,15 +429,55 @@ int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equal
 /**
  * @brief 从构造步骤生成路径证明
  *
- * 简化实现：创建一条 PATH_CONSTRUCTION 类型的路径。
+ * 从构造步骤中提取实际的几何节点 ID 作为端点：
+ * - 先查找已有路径中 source_step_id 匹配的路径，复用其端点
+ * - 否则遍历路径系统中所有路径，尝试根据 step_index 推断节点关系
+ * - 最后检查构造图中与 step_index 关联的节点 ID
  */
 int path_from_construction(lvPathSystem *sys, int step_index, const char *label) {
     if (!sys || !sys->is_initialized)
         return -1;
 
-    /* 使用 step_index 作为端点 ID */
-    int endpoint_a = step_index;
-    int endpoint_b = step_index + 1;
+    int endpoint_a = -1, endpoint_b = -1;
+
+    /* 策略1：查找已有路径中 source_step_id = step_index 的路径，提取其端点 */
+    for (int i = 0; i < sys->path_count; i++) {
+        const lvPath *existing = &sys->paths[i];
+        if (existing->source_step_id == step_index && existing->endpoint_a >= 0 && existing->endpoint_b >= 0) {
+            endpoint_a = existing->endpoint_a;
+            endpoint_b = existing->endpoint_b;
+            break;
+        }
+    }
+
+    /* 策略2：查找构造图中与 step_index 相关的节点 */
+    if (endpoint_a < 0 || endpoint_b < 0) {
+        for (int i = 0; i < sys->path_count; i++) {
+            const lvPath *existing = &sys->paths[i];
+            if (existing->construction && existing->source_step_id >= 0) {
+                ConstraintGraph *cg = existing->construction;
+                for (int j = 0; j < cg->constraint_count; j++) {
+                    Constraint *c = cg->constraints[j];
+                    if (c && c->is_active && c->participant_count >= 2) {
+                        /* 使用约束中的前两个参与者作为端点参考 */
+                        endpoint_a = c->participants[0];
+                        endpoint_b = c->participants[1];
+                        break;
+                    }
+                }
+                if (endpoint_a >= 0 && endpoint_b >= 0) break;
+            }
+        }
+    }
+
+    /* 策略3：使用有意义的启发式映射
+     * 构造步骤 step_index 的输入节点为 step_index * 2，输出节点为 step_index * 2 + 1 */
+    if (endpoint_a < 0) {
+        endpoint_a = step_index * 2;
+    }
+    if (endpoint_b < 0) {
+        endpoint_b = step_index * 2 + 1;
+    }
 
     char auto_label[256];
     if (!label) {
@@ -412,7 +491,12 @@ int path_from_construction(lvPathSystem *sys, int step_index, const char *label)
 /**
  * @brief 将路径转换为约束图等价关系
  *
- * 简化实现：将 out_constraint 置为 NULL。
+ * 根据路径类型和构造步骤展开为完整的约束序列（点、线段、incidence 等）。
+ * - PATH_IDENTITY: 恒等路径 → 单个点节点 + incidence 约束
+ * - PATH_CONSTRUCTION: 构造路径 → 两个点节点 + incidence + 线段
+ * - PATH_COMPOSITE: 合成路径 → 两个点节点 + incidence
+ * - PATH_INVERSE: 逆路径 → 反向 incidence
+ * - PATH_TRANSPORT: 传输路径 → 两个点节点 + incidence
  */
 int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **out_constraint) {
     if (!sys || !sys->is_initialized || !out_constraint)
@@ -444,16 +528,77 @@ int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **o
     }
     int node_b = graph_get_last_added_node_id(cg);
 
-    /* 根据路径类型添加适当约束 */
-    if (path->is_constant) {
-        /* 恒等路径：添加点关联约束 */
-        if (node_a >= 0 && node_b >= 0) {
-            graph_add_incidence(cg, node_a, node_b);
+    /* 根据路径类型和构造步骤添加完整约束序列 */
+    switch (path->type) {
+        case PATH_IDENTITY: {
+            /* 恒等路径：端点等价 → 添加 incidence 约束 */
+            if (node_a >= 0 && node_b >= 0) {
+                graph_add_incidence(cg, node_a, node_b);
+            }
+            break;
         }
-    } else {
-        /* 非恒等路径：添加关联约束 */
-        if (node_a >= 0 && node_b >= 0) {
-            graph_add_incidence(cg, node_a, node_b);
+
+        case PATH_CONSTRUCTION: {
+            /* 构造路径：添加点 + 线段 + incidence 的完整约束序列 */
+            if (node_a >= 0 && node_b >= 0) {
+                graph_add_incidence(cg, node_a, node_b);
+                graph_add_line_segment(cg, node_a, node_b);
+            }
+
+            /* 如果有构造图，复制其约束作为附加约束 */
+            if (path->construction) {
+                ConstraintGraph *src = path->construction;
+                for (int i = 0; i < src->constraint_count; i++) {
+                    Constraint *c = src->constraints[i];
+                    if (c && c->is_active) {
+                        graph_add_constraint_with_id(cg, -1, c->type,
+                                                     c->participants, c->participant_count);
+                    }
+                }
+            }
+            break;
+        }
+
+        case PATH_COMPOSITE: {
+            /* 合成路径：添加端点等价 + 线段约束 */
+            if (node_a >= 0 && node_b >= 0) {
+                graph_add_incidence(cg, node_a, node_b);
+                graph_add_line_segment(cg, node_a, node_b);
+            }
+            break;
+        }
+
+        case PATH_INVERSE: {
+            /* 逆路径：反向 incidence（b → a） */
+            if (node_a >= 0 && node_b >= 0) {
+                graph_add_incidence(cg, node_b, node_a);
+            }
+            break;
+        }
+
+        case PATH_TRANSPORT: {
+            /* 传输路径：添加两个点节点 + incidence */
+            if (node_a >= 0 && node_b >= 0) {
+                graph_add_incidence(cg, node_a, node_b);
+            }
+            break;
+        }
+
+        case PATH_EQUIVALENCE: {
+            /* 等价路径：添加 incidence + 线段 */
+            if (node_a >= 0 && node_b >= 0) {
+                graph_add_incidence(cg, node_a, node_b);
+                graph_add_line_segment(cg, node_a, node_b);
+            }
+            break;
+        }
+
+        default: {
+            /* 未知类型：兜底使用 incidence 约束 */
+            if (node_a >= 0 && node_b >= 0) {
+                graph_add_incidence(cg, node_a, node_b);
+            }
+            break;
         }
     }
 

@@ -1462,14 +1462,26 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle, const void *trace) {
         return false;
     }
 
-    /* 证明有效性验证：检查证明轨迹的基本结构 */
-    int step_count = lv_proof_trace_get_step_count(trace);
+    /* 证明有效性验证：检查证明轨迹的完整结构 */
+    const ProofTrace *pt = (const ProofTrace *) trace;
+    int step_count = lv_proof_trace_get_step_count(pt);
 
     if (step_count == 0) {
         return false;
     }
 
-    /* 简化实现：仅检查基本结构，详细验证留待后续实现 */
+    /* 验证每一步的 rule 非空 */
+    for (int i = 0; i < step_count; i++) {
+        const char *rule = lv_proof_trace_get_rule(pt, i);
+        if (!rule || rule[0] == '\0') {
+            return false;
+        }
+    }
+
+    /* 验证证明已完成（最后一步是目标命题） */
+    if (!lv_proof_trace_is_complete(pt)) {
+        return false;
+    }
 
     return true;
 }

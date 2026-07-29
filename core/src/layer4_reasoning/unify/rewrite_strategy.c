@@ -215,53 +215,248 @@ static char *apply_parallel_rules(const char *term, const lvRewriteRuleEx *rules
     return current;
 }
 
+/* ============================================================
+ * E-graph: simple hash set + union-find for e-class management
+ * ============================================================ */
+
+/** @brief FNV-1a hash for strings */
+static size_t egraph_str_hash(const char *s) {
+    size_t hash = 14695981039346656037ULL;
+    while (*s) {
+        hash ^= (unsigned char) *s++;
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
+/** @brief E-node table entry (hash set + e-class via union-find) */
+typedef struct {
+    char *expr;           /**< expression string */
+    int eclass_parent;    /**< union-find parent in e-class (index into table) */
+    int eclass_rank;      /**< union-find rank */
+    bool occupied;
+} EgraphEntry;
+
+/** @brief Simple e-graph structure: hash set of e-nodes + e-class union-find */
+typedef struct {
+    EgraphEntry *entries;
+    size_t capacity;
+    size_t count;
+} Egraph;
+
+/**
+ * @brief Create an e-graph with the given initial capacity.
+ */
+static Egraph *egraph_create(size_t capacity) {
+    Egraph *g = (Egraph *) malloc(sizeof(Egraph));
+    if (!g)
+        return NULL;
+    g->capacity = (capacity < 64) ? 64 : capacity;
+    g->count = 0;
+    g->entries = (EgraphEntry *) calloc(g->capacity, sizeof(EgraphEntry));
+    if (!g->entries) {
+        free(g);
+        return NULL;
+    }
+    return g;
+}
+
+/**
+ * @brief Destroy an e-graph, freeing all managed strings.
+ */
+static void egraph_destroy(Egraph *g) {
+    if (!g)
+        return;
+    for (size_t i = 0; i < g->capacity; i++) {
+        free(g->entries[i].expr);
+    }
+    free(g->entries);
+    free(g);
+}
+
+/**
+ * @brief Find or insert an expression in the e-node table.
+ *
+ * @param g       E-graph
+ * @param expr    Expression string
+ * @param is_new  [out] Set to true if this is a new insertion
+ * @return Index into the entries array
+ */
+static size_t egraph_find_or_insert(Egraph *g, const char *expr, bool *is_new) {
+    size_t hash = egraph_str_hash(expr);
+    size_t idx = hash % g->capacity;
+
+    while (g->entries[idx].occupied) {
+        if (strcmp(g->entries[idx].expr, expr) == 0) {
+            *is_new = false;
+            return idx;
+        }
+        idx = (idx + 1) % g->capacity;
+    }
+
+    g->entries[idx].expr = str_dup(expr);
+    g->entries[idx].occupied = true;
+    g->entries[idx].eclass_parent = (int) g->count;
+    g->entries[idx].eclass_rank = 0;
+    g->count++;
+    *is_new = true;
+    return idx;
+}
+
+/**
+ * @brief Union-find find with path compression.
+ *
+ * @param g    E-graph
+ * @param idx  Index of the entry to find
+ * @return Root e-class representative index
+ */
+static int egraph_eclass_find(Egraph *g, size_t idx) {
+    int p = g->entries[idx].eclass_parent;
+    if (p != (int) idx) {
+        g->entries[idx].eclass_parent = egraph_eclass_find(g, (size_t) p);
+    }
+    return g->entries[idx].eclass_parent;
+}
+
+/**
+ * @brief Union two e-classes.
+ *
+ * @param g     E-graph
+ * @param idx_a Index of first entry
+ * @param idx_b Index of second entry
+ */
+static void egraph_eclass_union(Egraph *g, size_t idx_a, size_t idx_b) {
+    int ra = egraph_eclass_find(g, idx_a);
+    int rb = egraph_eclass_find(g, idx_b);
+    if (ra == rb)
+        return;
+    if (g->entries[ra].eclass_rank < g->entries[rb].eclass_rank) {
+        g->entries[ra].eclass_parent = rb;
+    } else if (g->entries[ra].eclass_rank > g->entries[rb].eclass_rank) {
+        g->entries[rb].eclass_parent = ra;
+    } else {
+        g->entries[rb].eclass_parent = ra;
+        g->entries[ra].eclass_rank++;
+    }
+}
+
+/**
+ * @brief Collect all expressions in the same e-class as the input entry,
+ *        return the lexicographically smallest one.
+ *
+ * @param g          E-graph
+ * @param input_idx  Index of the input expression's entry
+ * @return Newly allocated string with the best expression
+ */
+static char *egraph_get_best(Egraph *g, size_t input_idx) {
+    int target_eclass = egraph_eclass_find(g, input_idx);
+    const char *best = NULL;
+    for (size_t i = 0; i < g->capacity; i++) {
+        if (!g->entries[i].occupied)
+            continue;
+        if (egraph_eclass_find(g, i) == target_eclass) {
+            if (!best || strcmp(g->entries[i].expr, best) < 0) {
+                best = g->entries[i].expr;
+            }
+        }
+    }
+    return best ? str_dup(best) : NULL;
+}
+
 /**
  * @brief Apply e-graph rewriting: treat rules as equalities, accumulate all variants.
  *
- * In this simplified implementation, e-graph mode applies all rules exhaustively
- * and returns the canonical (lexicographically smallest) result.
+ * This implementation maintains a hash set of unique e-nodes and a union-find
+ * structure to track e-class equivalence. After exhaustive application of rules,
+ * all equivalent expressions belong to the same e-class. The result is the
+ * lexicographically smallest expression from the input's e-class.
  *
- * @param term   The input term
- * @param rules  Array of rules
- * @param count  Number of rules
- * @param max_iter  Maximum iterations
+ * @param term     The input term
+ * @param rules    Array of rules
+ * @param count    Number of rules
+ * @param max_iter Maximum iterations
  * @return Newly allocated string with the canonical form
  */
 static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, size_t count, int max_iter) {
     if (!term)
         return NULL;
 
-    char *best = str_dup(term);
-    if (!best)
-        return NULL;
+    /* Create e-graph with initial capacity */
+    Egraph *g = egraph_create(256);
+    if (!g)
+        return str_dup(term);
 
-    for (int iter = 0; iter < max_iter; iter++) {
-        bool any_change = false;
-        for (size_t i = 0; i < count; i++) {
-            if (!rules[i].pattern || !*rules[i].pattern)
-                continue;
-            if (rules[i].condition_fn && !rules[i].condition_fn(best))
-                continue;
+    /* Insert initial term into the e-graph */
+    bool is_new;
+    size_t input_idx = egraph_find_or_insert(g, term, &is_new);
 
-            char *next = apply_substitution(best, rules[i].pattern, rules[i].replacement, false);
-            if (next && strcmp(next, best) != 0) {
-                any_change = true;
-                /* Keep the lexicographically smallest variant */
-                if (strcmp(next, best) < 0) {
-                    free(best);
-                    best = next;
-                } else {
-                    free(next);
+    /* Worklist: indices of newly discovered expressions to process */
+    size_t worklist_cap = 1024;
+    size_t *worklist = (size_t *) malloc(worklist_cap * sizeof(size_t));
+    if (!worklist) {
+        egraph_destroy(g);
+        return str_dup(term);
+    }
+    size_t work_count = 0;
+    worklist[work_count++] = input_idx;
+
+    for (int iter = 0; iter < max_iter && work_count > 0; iter++) {
+        /* Snapshot current worklist; new additions go to next iteration */
+        size_t current_count = work_count;
+        work_count = 0;
+
+        for (size_t wi = 0; wi < current_count; wi++) {
+            size_t node_idx = worklist[wi];
+            if (!g->entries[node_idx].occupied)
+                continue;
+            const char *current_expr = g->entries[node_idx].expr;
+
+            for (size_t ri = 0; ri < count; ri++) {
+                if (!rules[ri].pattern || !*rules[ri].pattern)
+                    continue;
+                if (rules[ri].condition_fn && !rules[ri].condition_fn(current_expr))
+                    continue;
+
+                char *result = apply_substitution(current_expr, rules[ri].pattern, rules[ri].replacement, false);
+                if (!result)
+                    continue;
+                if (strcmp(result, current_expr) == 0) {
+                    free(result);
+                    continue;
                 }
-            } else if (next) {
-                free(next);
+
+                /* Insert result into e-node table */
+                bool result_new;
+                size_t result_idx = egraph_find_or_insert(g, result, &result_new);
+
+                /* Merge original and result into the same e-class */
+                egraph_eclass_union(g, node_idx, result_idx);
+
+                /* If result is a new e-node, add to next worklist */
+                if (result_new) {
+                    if (work_count >= worklist_cap) {
+                        worklist_cap *= 2;
+                        size_t *new_wl = (size_t *) realloc(worklist, worklist_cap * sizeof(size_t));
+                        if (!new_wl) {
+                            free(result);
+                            break;
+                        }
+                        worklist = new_wl;
+                    }
+                    worklist[work_count++] = result_idx;
+                }
+                free(result);
             }
         }
-        if (!any_change)
-            break;
     }
 
-    return best;
+    free(worklist);
+
+    /* Retrieve the best (lexicographically smallest) expression from the
+     * same e-class as the input term */
+    char *best = egraph_get_best(g, input_idx);
+    egraph_destroy(g);
+    return best ? best : str_dup(term);
 }
 
 /**
