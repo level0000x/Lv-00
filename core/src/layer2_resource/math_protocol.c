@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file math_protocol.c
  * @brief 数学协议编解码模块 —— Layer2 资源管理层
  *
@@ -222,6 +222,8 @@ static const char *geom_type_name(GeomType type) {
             return "line_segment";
         case GEOM_REGION:
             return "region";
+        case GEOM_CIRCLE:
+            return "circle";
         case GEOM_PORT:
             return "port";
         case GEOM_FUNCTION_BLOCK:
@@ -246,6 +248,8 @@ static const char *constraint_type_name(ConstraintType type) {
             return "containment";
         case CONNECTION:
             return "connection";
+        case ANGLE:
+            return "angle";
         default:
             return "unknown";
     }

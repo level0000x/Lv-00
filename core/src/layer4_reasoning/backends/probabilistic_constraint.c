@@ -262,6 +262,9 @@ static SimpleDTMC *build_dtmc_from_graph(const ConstraintGraph *graph) {
             case CONTAINMENT:
                 dtmc_add_transition(mc, src, dst, prob);
                 break;
+            case ANGLE:
+                dtmc_add_transition(mc, src, dst, prob);
+                break;
             case CONNECTION:
                 dtmc_add_transition(mc, src, dst, prob);
                 dtmc_add_transition(mc, dst, src, prob);

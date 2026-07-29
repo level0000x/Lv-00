@@ -135,6 +135,11 @@ GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type, 
         case GEO_CONSTRAINT_CONNECTION:
             res = graph_add_connection(graph, p[0], p[1]);
             break;
+        case GEO_CONSTRAINT_ANGLE:
+            if (n < 3)
+                return geo_err(GEO_STATUS_INVALID_PARAM, "角度需2条线段和角度值");
+            res = graph_add_angle(graph, p[0], p[1], (double)p[2]);
+            break;
         default:
             return geo_err(GEO_STATUS_INVALID_TYPE, "未知约束类型");
     }

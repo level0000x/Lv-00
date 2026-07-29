@@ -266,7 +266,7 @@ static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_coun
 
         /* 统计该节点参与的每种约束类型的数量（拓扑信息） */
         int incidence_count = 0, betweenness_count = 0;
-        int intersection_count = 0, containment_count = 0;
+        int intersection_count = 0, containment_count = 0, angle_count = 0;
         int connection_count = 0;
 
         for (int c = 0; c < graph->constraint_count; c++) {
@@ -286,6 +286,9 @@ static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_coun
                         case CONTAINMENT:
                             containment_count++;
                             break;
+                        case ANGLE:
+                            angle_count++;
+                            break;
                         case CONNECTION:
                             connection_count++;
                             break;
@@ -300,6 +303,7 @@ static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_coun
         label = label * 31 + (uint64_t) betweenness_count;
         label = label * 31 + (uint64_t) intersection_count;
         label = label * 31 + (uint64_t) containment_count;
+        label = label * 31 + (uint64_t) angle_count;
         label = label * 31 + (uint64_t) connection_count;
 
         labels[i] = label;

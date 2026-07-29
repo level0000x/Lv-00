@@ -1186,6 +1186,12 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 break;
             }
 
+            case ANGLE: {
+                /* 角度约束: 两条线段之间的夹角。
+                 * 当前暂不生成坐标方程，后续版本可引入方向向量叉积。 */
+                break;
+            }
+
             case CONNECTION: {
                 /* 端口之间的连接。从关联节点的数值假设声明中提取距离约束。
                如果两个节点都有坐标且其中一个编码了距离，

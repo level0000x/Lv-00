@@ -761,6 +761,10 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
                 }
                 break;
 
+            case ANGLE:
+                /* 角度约束：暂不支持BDD编码 */
+                break;
+
             case CONNECTION:
                 /* 连接: 端口连接 —— 此处跳过（端口编码需单独处理） */
                 break;

@@ -538,6 +538,9 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
             case GEOM_REGION:
                 sig_idx = 2;
                 break;
+            case GEOM_CIRCLE:
+                sig_idx = 2;
+                break;
             case GEOM_PORT:
                 sig_idx = 3;
                 break;

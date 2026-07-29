@@ -115,7 +115,7 @@ AddConstraintResult graph_add_incidence(ConstraintGraph *graph, int point_id, in
         return ADD_CONSTRAINT_CONFLICT;
     if (point->type != GEOM_POINT)
         return ADD_CONSTRAINT_CONFLICT;
-    if (target->type != GEOM_LINE_SEGMENT && target->type != GEOM_REGION)
+    if (target->type != GEOM_LINE_SEGMENT && target->type != GEOM_REGION && target->type != GEOM_CIRCLE)
         return ADD_CONSTRAINT_CONFLICT;
     int participants[2] = {point_id, line_or_region_id};
     if (constraint_exists(graph, INCIDENCE, participants, 2))
@@ -146,6 +146,45 @@ AddConstraintResult graph_add_incidence(ConstraintGraph *graph, int point_id, in
         stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONSTRAINT_ADDED, buf, 0);
     }
     graph->dirty = true; /* v3.5.0: 约束被添加，标记脏状态 */
+    return ADD_CONSTRAINT_OK;
+}
+
+/**
+ * @brief 添加角度约束（两条线段之间的夹角）
+ *
+ * 声明两条线段在指定角度处相交。
+ *
+ * @param graph         约束图指针
+ * @param line1_id      第一条线段 ID
+ * @param line2_id      第二条线段 ID
+ * @param angle_degrees 角度值（度）
+ * @return 操作结果枚举
+ */
+AddConstraintResult graph_add_angle(ConstraintGraph *graph, int line1_id, int line2_id, double angle_degrees) {
+    GeomNode *l1 = graph_get_node(graph, line1_id);
+    GeomNode *l2 = graph_get_node(graph, line2_id);
+    if (!l1 || !l2)
+        return ADD_CONSTRAINT_CONFLICT;
+    if (l1->type != GEOM_LINE_SEGMENT || l2->type != GEOM_LINE_SEGMENT)
+        return ADD_CONSTRAINT_CONFLICT;
+    int participants[2] = {line1_id, line2_id};
+    if (constraint_exists(graph, ANGLE, participants, 2))
+        return ADD_CONSTRAINT_DUPLICATE;
+    Constraint *con = graph_alloc_constraint(graph, ANGLE);
+    if (!con)
+        return ADD_CONSTRAINT_CONFLICT;
+    con->participants = lv_malloc(2 * sizeof(int));
+    if (!con->participants) {
+        graph->constraint_count--;
+        constraint_index_remove(graph, con->id);
+        lv_free((void **) &con);
+        return ADD_CONSTRAINT_CONFLICT;
+    }
+    con->participants[0] = line1_id;
+    con->participants[1] = line2_id;
+    con->participant_count = 2;
+    con->numeric_value = angle_degrees;
+    graph->dirty = true;
     return ADD_CONSTRAINT_OK;
 }
 
@@ -259,7 +298,7 @@ AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, 
         return ADD_CONSTRAINT_CONFLICT;
     if (inner->type != GEOM_POINT && inner->type != GEOM_REGION)
         return ADD_CONSTRAINT_CONFLICT;
-    if (outer->type != GEOM_REGION)
+    if (outer->type != GEOM_REGION && outer->type != GEOM_CIRCLE)
         return ADD_CONSTRAINT_CONFLICT;
 
     /* 添加包含约束时检查宇宙层级 */
@@ -382,6 +421,11 @@ static bool node_in_region_boundary(const ConstraintGraph *graph, int node_id) {
                 if (n->data.region.boundary_segments[j] && n->data.region.boundary_segments[j]->id == node_id) {
                     return true;
                 }
+            }
+        }
+        if (n->type == GEOM_CIRCLE) {
+            if (n->data.circle.center_node_id == node_id || n->data.circle.radius_node_id == node_id) {
+                return true;
             }
         }
     }
@@ -569,7 +613,8 @@ void graph_sync_nodes(ConstraintGraph *graph) {
                     break;
                 case CONTAINMENT:
                 case CONNECTION:
-                    /* 拓扑约束允许较低的 trust */
+                case ANGLE:
+                    /* 拓扑/数值约束允许较低的 trust */
                     break;
                 default:
                     lv_LOG_ERROR("graph_sync_nodes: 未知约束类型 %d (id=%d)", (int) c->type, c->id);

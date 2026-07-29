@@ -247,6 +247,12 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
                                  lang, con->id, con->participants[0], con->participants[1]);
                 }
                 break;
+            case ANGLE:
+                if (con->participant_count >= 2) {
+                    n = snprintf(buf + offset, (size_t) remaining, "%s(constraint_%d, axiom, angle(l%d, l%d)).\n",
+                                 lang, con->id, con->participants[0], con->participants[1]);
+                }
+                break;
             case CONNECTION:
                 if (con->participant_count >= 2) {
                     n = snprintf(buf + offset, (size_t) remaining, "%s(constraint_%d, axiom, connect(p%d, p%d)).\n",

@@ -1000,3 +1000,141 @@ lvBenchSuite *lv_bench_run_thread_tests(void) {
 
     return suite;
 }
+
+/* ============ 报告导出 ============ */
+
+void lv_bench_suite_print_report(const lvBenchSuite *suite, void *stream) {
+    FILE *fp = stream ? (FILE *) stream : stdout;
+    if (!suite) {
+        fprintf(fp, "错误：套件为空\n");
+        return;
+    }
+    fprintf(fp, "========================================\n");
+    fprintf(fp, "  基准测试报告: %s\n", suite->name);
+    fprintf(fp, "  日期: %s %s\n", __DATE__, __TIME__);
+    fprintf(fp, "========================================\n");
+    fprintf(fp, "%-32s %10s %12s %12s %14s\n", "测试项", "迭代次数", "平均(μs)", "标准差", "吞吐量(ops/s)");
+    fprintf(fp, "----------------------------------------------------------------\n");
+    for (int i = 0; i < suite->result_count; i++) {
+        const lvBenchResult *r = &suite->results[i];
+        fprintf(fp, "%-32s %10d %12.3f %12.3f %14.1f\n",
+                r->name[0] ? r->name : "(未命名)",
+                r->iterations,
+                r->mean_us,
+                r->std_dev_us,
+                r->ops_per_sec);
+    }
+    fprintf(fp, "========================================\n");
+}
+
+char *lv_bench_suite_to_json(const lvBenchSuite *suite) {
+    if (!suite) {
+        char *buf = malloc(4);
+        if (buf) buf[0] = '\0';
+        return buf;
+    }
+
+    /* 第一遍：计算所需缓冲区大小 */
+    int size = 2;
+    size += (int) strlen("  \"name\": \"\",\n  \"results\": [\n  ]\n") + 64;
+    for (int i = 0; i < suite->result_count; i++) {
+        const lvBenchResult *r = &suite->results[i];
+        size += 256 + (int) strlen(r->name);
+    }
+
+    char *buf = (char *) malloc((size_t) size);
+    if (!buf)
+        return NULL;
+
+    /* 第二遍：格式化输出 */
+    char *p = buf;
+    p += sprintf(p, "{\n");
+    p += sprintf(p, "  \"name\": \"%s\",\n", suite->name);
+    p += sprintf(p, "  \"results\": [\n");
+    for (int i = 0; i < suite->result_count; i++) {
+        const lvBenchResult *r = &suite->results[i];
+        p += sprintf(p,
+                     "    {\n"
+                     "      \"name\": \"%s\",\n"
+                     "      \"iterations\": %d,\n"
+                     "      \"mean_us\": %.3f,\n"
+                     "      \"std_dev_us\": %.3f,\n"
+                     "      \"min_us\": %.3f,\n"
+                     "      \"max_us\": %.3f,\n"
+                     "      \"ops_per_sec\": %.1f,\n"
+                     "      \"total_time_us\": %llu,\n"
+                     "      \"success\": %s\n"
+                     "    }%s\n",
+                     r->name,
+                     r->iterations,
+                     r->mean_us,
+                     r->std_dev_us,
+                     r->min_us,
+                     r->max_us,
+                     r->ops_per_sec,
+                     (unsigned long long) r->total_time_us,
+                     r->success ? "true" : "false",
+                     (i < suite->result_count - 1) ? "," : "");
+    }
+    p += sprintf(p, "  ]\n");
+    p += sprintf(p, "}\n");
+
+    return buf;
+}
+
+char *lv_bench_suite_to_markdown(const lvBenchSuite *suite) {
+    if (!suite) {
+        char *buf = malloc(1);
+        if (buf) buf[0] = '\0';
+        return buf;
+    }
+
+    /* 第一遍：计算大小 */
+    int size = 512;
+    for (int i = 0; i < suite->result_count; i++) {
+        const lvBenchResult *r = &suite->results[i];
+        size += 128 + (int) strlen(r->name);
+    }
+
+    char *buf = (char *) malloc((size_t) size);
+    if (!buf)
+        return NULL;
+
+    char *p = buf;
+    p += sprintf(p, "# 基准测试报告: %s\n\n", suite->name);
+    p += sprintf(p, "| 测试项 | 迭代次数 | 平均(μs) | 标准差 | 吞吐量(ops/s) |\n");
+    p += sprintf(p, "|-------|---------|---------|-------|-------------|\n");
+    for (int i = 0; i < suite->result_count; i++) {
+        const lvBenchResult *r = &suite->results[i];
+        p += sprintf(p, "| %s | %d | %.3f | %.3f | %.1f |\n",
+                     r->name, r->iterations, r->mean_us, r->std_dev_us, r->ops_per_sec);
+    }
+
+    return buf;
+}
+
+void lv_perf_print_report(const lvPerfMonitor *monitor, void *stream) {
+    FILE *fp = stream ? (FILE *) stream : stdout;
+    if (!monitor) {
+        fprintf(fp, "错误：监控器为空\n");
+        return;
+    }
+    fprintf(fp, "========================================\n");
+    fprintf(fp, "  性能监控报告\n");
+    fprintf(fp, "  日期: %s %s\n", __DATE__, __TIME__);
+    fprintf(fp, "========================================\n");
+    fprintf(fp, "操作统计:\n");
+    fprintf(fp, "  操作总数:        %llu\n", (unsigned long long) monitor->operations);
+    fprintf(fp, "  错误数:          %llu\n", (unsigned long long) monitor->errors);
+    fprintf(fp, "  总耗时(μs):      %llu\n", (unsigned long long) monitor->total_time_us);
+    fprintf(fp, "  最小耗时(μs):    %llu\n", (unsigned long long) monitor->min_time_us);
+    fprintf(fp, "  最大耗时(μs):    %llu\n", (unsigned long long) monitor->max_time_us);
+    fprintf(fp, "  平均耗时(μs):    %.3f\n", lv_perf_avg_time_us(monitor));
+    fprintf(fp, "  吞吐量(ops/s):   %.1f\n", lv_perf_throughput(monitor));
+    fprintf(fp, "\n内存统计:\n");
+    fprintf(fp, "  分配总量(字节):  %zu\n", monitor->memory_allocated);
+    fprintf(fp, "  释放总量(字节):  %zu\n", monitor->memory_freed);
+    fprintf(fp, "  当前使用(字节):  %zu\n", monitor->memory_current);
+    fprintf(fp, "  峰值使用(字节):  %zu\n", monitor->memory_peak);
+    fprintf(fp, "========================================\n");
+}

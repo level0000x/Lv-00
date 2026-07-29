@@ -364,6 +364,8 @@ static const char *geom_type_to_string(GeomType type) {
             return "LINE_SEGMENT";
         case GEOM_REGION:
             return "REGION";
+        case GEOM_CIRCLE:
+            return "CIRCLE";
         case GEOM_PORT:
             return "PORT";
         case GEOM_FUNCTION_BLOCK:
@@ -384,6 +386,8 @@ static const char *constraint_type_to_string(ConstraintType type) {
             return "INTERSECTION";
         case CONTAINMENT:
             return "CONTAINMENT";
+        case ANGLE:
+            return "ANGLE";
         case CONNECTION:
             return "CONNECTION";
         default:

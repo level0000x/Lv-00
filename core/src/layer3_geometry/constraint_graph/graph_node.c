@@ -247,9 +247,9 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
 
     /* 流式事件: 节点添加 */
     if (graph_stream_ctx) {
-        static const char *type_names[] = {"POINT", "LINE", "REGION", "PORT", "FUNC_BLOCK"};
+        static const char *type_names[] = {"POINT", "LINE", "REGION", "CIRCLE", "PORT", "FUNC_BLOCK"};
         char desc[128];
-        const char *tname = (type >= 0 && type <= 4) ? type_names[type] : "UNKNOWN";
+        const char *tname = (type >= 0 && type <= 5) ? type_names[type] : "UNKNOWN";
         snprintf(desc, sizeof(desc), "添加节点 #%d (类型: %s)", node_id, tname);
         stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, desc, node_id);
     }
@@ -319,10 +319,11 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
             "BETWEENNESS",  /* 介于约束 */
             "INTERSECTION", /* 相交约束 */
             "CONTAINMENT",  /* 包含约束 */
-            "CONNECTION"    /* 连接约束 */
+            "CONNECTION",   /* 连接约束 */
+            "ANGLE"         /* 角度约束 */
         };
         char desc[256];
-        const char *cname = (type >= 0 && type <= 4) ? ctype_names[type] : "UNKNOWN";
+        const char *cname = (type >= 0 && type <= 5) ? ctype_names[type] : "UNKNOWN";
         snprintf(desc, sizeof(desc), "添加约束 #%d (类型: %s, 参与者: %d个)", constraint_id, cname, participant_count);
         stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONSTRAINT_ADDED, desc, constraint_id);
     }
@@ -871,6 +872,7 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
         }
         case CONTAINMENT:
         case CONNECTION:
+        case ANGLE:
             /* No simple algebraic conflict check for these types */
             break;
         default:
@@ -1070,6 +1072,8 @@ static int constraint_dof_cost(const Constraint *con) {
             return 1;
         case CONNECTION: /* 连接约束：数据流连接，非几何约束 */
             return 0;
+        case ANGLE:      /* 角度约束：两条线段之间的夹角 */
+            return 1;
         default:
             /* 未知约束类型：保守按 1 DOF 消耗计 */
             return 1;
@@ -1125,7 +1129,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, lvConstraintCompati
             active_segment_count++;
             /* 每条线段连接两个端点，完全确定其相对位置（4 DOF 约束） */
             segment_constraint_bonus += 4;
-        } else if (node->type == GEOM_POINT || node->type == GEOM_REGION) {
+        } else if (node->type == GEOM_POINT || node->type == GEOM_REGION || node->type == GEOM_CIRCLE) {
             active_geometry_nodes++;
         }
     }
@@ -1236,10 +1240,16 @@ AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segme
     GeomNode *node = graph_alloc_node(graph, GEOM_REGION);
     if (!node)
         return ADD_NODE_CONFLICT;
-    /* 存储边界线段 ID 到端口数据中（简化处理） */
+    /* 存储边界线段引用 */
     node->coord_count = 0;
     node->symbolic_coords = NULL;
-    (void) boundary_segment_ids; /* 完整实现需存储边界线段引用 */
+    node->data.region.boundary_segments = (GeomNode **) lv_calloc((size_t) segment_count, sizeof(GeomNode *));
+    if (!node->data.region.boundary_segments)
+        return ADD_NODE_CONFLICT;
+    node->data.region.segment_count = segment_count;
+    for (int i = 0; i < segment_count; i++) {
+        node->data.region.boundary_segments[i] = graph_get_node(graph, boundary_segment_ids[i]);
+    }
     if (graph_stream_ctx) {
         char buf[128];
         snprintf(buf, sizeof(buf), "添加区域节点: id=%d, segments=%d", node->id, segment_count);

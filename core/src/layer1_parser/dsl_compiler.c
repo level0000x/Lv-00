@@ -1562,14 +1562,16 @@ bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph) {
             }
 
             case IR_CREATE_CIRCLE: {
-                /* 圆 -> 在约束图中表示为区域或特殊节点 */
-                /* 当前用 GEOM_REGION 作为占位 */
-                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_REGION, NULL, 0);
+                /* 圆 -> 创建 GEOM_CIRCLE 节点 */
+                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_CIRCLE, NULL, 0);
                 if (node && op->result_id >= 0) {
                     ENSURE_ID_MAP(op->result_id + 1);
                     if (op->result_id >= id_map_count)
                         id_map_count = op->result_id + 1;
                     id_map[op->result_id] = node->id;
+                    /* 初始化圆心和半径端点为 -1，后续通过约束设置 */
+                    node->data.circle.center_node_id = -1;
+                    node->data.circle.radius_node_id = -1;
                 }
                 break;
             }

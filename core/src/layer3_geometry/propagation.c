@@ -409,6 +409,7 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
                 break;
             }
             case GEOM_REGION:
+            case GEOM_CIRCLE:
             case GEOM_PORT:
             case GEOM_FUNCTION_BLOCK:
                 /* 其他类型暂不处理状态空间 */
@@ -505,6 +506,7 @@ static bool check_constraint_compatible(const SymbolicCoord *candidate, const Co
         case INTERSECTION:
         case CONTAINMENT:
         case CONNECTION:
+        case ANGLE:
             /* 其他约束类型暂不进行候选过滤 */
             return true;
         default:

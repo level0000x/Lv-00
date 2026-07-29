@@ -817,6 +817,7 @@ UniverseLevel type_get_universe_level(const GeomNode *node) {
         case GEOM_PORT:
             return UNIVERSE_LEVEL_0;
         case GEOM_REGION:
+        case GEOM_CIRCLE:
         case GEOM_FUNCTION_BLOCK:
             return UNIVERSE_LEVEL_1;
         default:
@@ -1408,6 +1409,9 @@ static bool type_infer_node_internal(TypeSystem *ts, ConstraintGraph *graph, int
             return true;
 
         case GEOM_REGION:
+            *out_type = type_create_region(ts, NULL, 0);
+            return true;
+        case GEOM_CIRCLE:
             *out_type = type_create_region(ts, NULL, 0);
             return true;
 

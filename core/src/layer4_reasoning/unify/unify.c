@@ -168,6 +168,17 @@ static int nodes_coords_equal(GeomNode *a, GeomNode *b) {
                 return 0;
             if (a->data.region.segment_count == 0)
                 return 1; /* 两个空区域视为相等 */
+            goto geom_region_circle_compare;
+
+        case GEOM_CIRCLE:
+            /* CIRCLE: 比较圆心和半径端点 */
+            if (a->data.circle.center_node_id != b->data.circle.center_node_id)
+                return 0;
+            if (a->data.circle.radius_node_id != b->data.circle.radius_node_id)
+                return 0;
+            return 1;
+
+        geom_region_circle_compare:
             /* 逐个比较边界线段 */
             for (int s = 0; s < a->data.region.segment_count; s++) {
                 GeomNode *seg_a = a->data.region.boundary_segments[s];
@@ -274,6 +285,13 @@ static uint64_t compute_node_coord_hash(GeomNode *node) {
                     h ^= (uint64_t) (s + 1) * 0x9E3779B97F4A7C15ULL;
                 }
             }
+            return h;
+
+        case GEOM_CIRCLE:
+            /* 对圆的圆心和半径端点 ID 计算哈希 */
+            h ^= (uint64_t) 0xC1C1C1C1C1C1C1C1ULL;
+            h ^= (uint64_t) node->data.circle.center_node_id * 0x9E3779B97F4A7C15ULL;
+            h ^= (uint64_t) node->data.circle.radius_node_id * 0x9E3779B97F4A7C16ULL;
             return h;
 
         case GEOM_FUNCTION_BLOCK:
@@ -1392,6 +1410,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
             }
             case GEOM_LINE_SEGMENT:
             case GEOM_REGION:
+            case GEOM_CIRCLE:
             case GEOM_FUNCTION_BLOCK:
                 /* 这些类型在第二阶段处理 */
                 continue;
@@ -1670,6 +1689,14 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
             case CONTAINMENT:
                 if (new_participant_count >= 2) {
                     r = graph_add_containment(dst, new_participants[0], new_participants[1]);
+                } else {
+                    r = ADD_CONSTRAINT_CONFLICT;
+                }
+                break;
+            case ANGLE:
+                if (new_participant_count >= 2) {
+                    /* 使用 numeric_value 传递角度值（角度值存放在构造图的约束中） */
+                    r = graph_add_angle(dst, new_participants[0], new_participants[1], 0.0);
                 } else {
                     r = ADD_CONSTRAINT_CONFLICT;
                 }

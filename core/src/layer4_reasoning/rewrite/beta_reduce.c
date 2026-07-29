@@ -219,6 +219,20 @@ static int duplicate_node(ConstraintGraph *graph, const GeomNode *source) {
             }
             return new_id;
         }
+        case GEOM_CIRCLE: {
+            /* 圆节点：使用 graph_add_region 创建占位，后续可添加独立 graph_add_circle API */
+            int empty_segs[] = {0};
+            AddNodeResult nr = graph_add_region(graph, empty_segs, 0);
+            if (nr != ADD_NODE_OK)
+                return -1;
+            int new_id = graph_get_last_added_node_id(graph);
+            GeomNode *new_node = graph_get_node(graph, new_id);
+            if (new_node) {
+                new_node->namespace_depth = source->namespace_depth;
+                new_node->parent_block_id = source->parent_block_id;
+            }
+            return new_id;
+        }
 
         default:
             LOG_WARN("beta_reduce", "duplicate_node: 不支持的节点类型 %d", (int) source->type);
@@ -393,6 +407,10 @@ static bool remap_internal_constraints(ConstraintGraph *graph, const int *intern
             case CONTAINMENT:
                 if (con->participant_count == 2)
                     ar = graph_add_containment(graph, resolved_participants[0], resolved_participants[1]);
+                break;
+            case ANGLE:
+                if (con->participant_count == 2)
+                    ar = graph_add_angle(graph, resolved_participants[0], resolved_participants[1], con->numeric_value);
                 break;
             case CONNECTION:
                 if (con->participant_count == 2)

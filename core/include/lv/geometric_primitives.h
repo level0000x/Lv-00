@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geometric_primitives.h
  * @brief 几何原语统一包装层 -- 13 个 geo_* 原语的 DSL 汇编指令集
  *
@@ -70,6 +70,7 @@ typedef enum {
     GEO_NODE_POINT = 0,     /**< 几何点 */
     GEO_NODE_LINE_SEGMENT,  /**< 线段 */
     GEO_NODE_REGION,        /**< 区域 */
+    GEO_NODE_CIRCLE,        /**< 圆 */
     GEO_NODE_PORT,          /**< 端口 */
     GEO_NODE_FUNCTION_BLOCK /**< 函数块 */
 } GeoNodeType;
@@ -80,7 +81,8 @@ typedef enum {
     GEO_CONSTRAINT_BETWEENNESS,   /**< 之间：点B在点A和点C之间 */
     GEO_CONSTRAINT_INTERSECTION,  /**< 相交：两线段在交点处相交 */
     GEO_CONSTRAINT_CONTAINMENT,   /**< 包含：内部对象在外对象内 */
-    GEO_CONSTRAINT_CONNECTION     /**< 连接：端口之间的数据流 */
+    GEO_CONSTRAINT_CONNECTION,    /**< 连接：端口之间的数据流 */
+    GEO_CONSTRAINT_ANGLE          /**< 角度：两条线段之间的夹角 */
 } GeoConstraintType;
 
 /* ================================================================

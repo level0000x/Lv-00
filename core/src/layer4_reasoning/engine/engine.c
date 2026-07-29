@@ -1545,6 +1545,18 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
                     }
                 }
                 break;
+            case GEOM_CIRCLE:
+                if (id_map) {
+                    if (copy->data.circle.center_node_id >= 0 && copy->data.circle.center_node_id <= max_id &&
+                        id_map[copy->data.circle.center_node_id] >= 0) {
+                        copy->data.circle.center_node_id = id_map[copy->data.circle.center_node_id];
+                    }
+                    if (copy->data.circle.radius_node_id >= 0 && copy->data.circle.radius_node_id <= max_id &&
+                        id_map[copy->data.circle.radius_node_id] >= 0) {
+                        copy->data.circle.radius_node_id = id_map[copy->data.circle.radius_node_id];
+                    }
+                }
+                break;
             case GEOM_FUNCTION_BLOCK:
                 for (int j = 0; j < copy->data.func_block.internal_node_count; j++) {
                     if (copy->data.func_block.internal_nodes[j]) {

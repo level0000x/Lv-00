@@ -189,6 +189,10 @@ bool add_constraint_generic(ConstraintGraph *graph, ConstraintType type, const i
             if (participant_count == 2)
                 return graph_add_containment(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
             break;
+        case ANGLE:
+            if (participant_count >= 2)
+                return graph_add_angle(graph, participants[0], participants[1], 0.0) == ADD_CONSTRAINT_OK;
+            break;
         case CONNECTION:
             if (participant_count == 2)
                 return graph_add_connection(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
@@ -358,10 +362,16 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
             }
             break;
         }
-        case GEOM_REGION: {
+        case GEOM_REGION:
+        case GEOM_CIRCLE: {
             dst->data.region.boundary_segments = NULL;
             dst->data.region.segment_count = 0;
             if (src->data.region.segment_count > 0 && src->data.region.boundary_segments) {
+                goto geom_clone_region;
+            }
+            break;
+        }
+        geom_clone_region:
                 dst->data.region.boundary_segments =
                     lv_malloc((size_t) src->data.region.segment_count * sizeof(GeomNode *));
                 if (dst->data.region.boundary_segments) {
@@ -370,9 +380,7 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
                     memset(dst->data.region.boundary_segments, 0,
                            (size_t) src->data.region.segment_count * sizeof(GeomNode *));
                 }
-            }
             break;
-        }
         case GEOM_FUNCTION_BLOCK: {
             dst->data.func_block.internal_nodes = NULL;
             dst->data.func_block.input_port_ids = NULL;
@@ -439,6 +447,9 @@ static void snapshot_node_destroy(GeomNode *node) {
             break;
         case GEOM_REGION:
             lv_free((void **) &node->data.region.boundary_segments);
+            break;
+        case GEOM_CIRCLE:
+            /* CIRCLE 节点无额外动态分配数据 */
             break;
         case GEOM_FUNCTION_BLOCK:
             lv_free((void **) &node->data.func_block.internal_nodes);
@@ -679,6 +690,9 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
                 break;
             case GEOM_REGION:
                 lv_free((void **) &node->data.region.boundary_segments);
+                break;
+            case GEOM_CIRCLE:
+                /* CIRCLE 节点无额外动态分配数据 */
                 break;
             case GEOM_FUNCTION_BLOCK:
                 lv_free((void **) &node->data.func_block.internal_nodes);

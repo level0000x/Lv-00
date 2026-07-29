@@ -975,6 +975,9 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
             case CONNECTION:
                 type_str = "CONNECTION";
                 break;
+            case ANGLE:
+                type_str = "ANGLE";
+                break;
             default:
                 break;
         }

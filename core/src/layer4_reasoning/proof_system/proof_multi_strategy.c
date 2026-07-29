@@ -908,6 +908,10 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                 if (c->participant_count >= 2)
                     DEDUCT_ADD_FACT("containment:%d,%d", c->participants[0], c->participants[1]);
                 break;
+            case ANGLE:
+                if (c->participant_count >= 2)
+                    DEDUCT_ADD_FACT("angle:%d,%d", c->participants[0], c->participants[1]);
+                break;
             case CONNECTION:
                 if (c->participant_count >= 2)
                     DEDUCT_ADD_FACT("connection:%d,%d", c->participants[0], c->participants[1]);

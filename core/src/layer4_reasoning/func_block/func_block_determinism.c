@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_determinism.c
  * @brief 函数块确定性检查模块
  * @details 实现函数块的静态/动态确定性检查、确定性验证流水线。
@@ -86,6 +86,7 @@ int *determinism_collect_constraint_stats(const FuncBlock *fb, const ConstraintG
             case INCIDENCE:
             case BETWEENNESS:
             case CONTAINMENT:
+            case ANGLE:
                 stats->linear_count++;
                 break;
             case INTERSECTION:

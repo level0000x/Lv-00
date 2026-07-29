@@ -545,6 +545,14 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 break;
             }
 
+            case ANGLE: {
+                if (c->participant_count < 2)
+                    break;
+                /* angle(line1, line2): angle between two segments */
+                count++;
+                break;
+            }
+
             case CONNECTION: {
                 if (c->participant_count < 2)
                     break;

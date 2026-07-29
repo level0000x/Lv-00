@@ -287,6 +287,12 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
             }
             break;
 
+        case GEOM_CIRCLE:
+            /* CIRCLE 类型：直接复制圆心和半径端点 ID */
+            copy->data.circle.center_node_id = orig->data.circle.center_node_id;
+            copy->data.circle.radius_node_id = orig->data.circle.radius_node_id;
+            break;
+
         case GEOM_FUNCTION_BLOCK:
             /* FunctionBlock类型：分配内部节点和端口ID数组 */
             copy->data.func_block.internal_node_count = orig->data.func_block.internal_node_count;

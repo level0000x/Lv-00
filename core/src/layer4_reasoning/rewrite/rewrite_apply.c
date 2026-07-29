@@ -908,6 +908,15 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
                     break;
                 }
 
+                case GEOM_CIRCLE: {
+                    /* 创建圆节点（使用 graph_add_region 创建，后续可扩展为独立 API） */
+                    int empty_segs[] = {0};
+                    nr = graph_add_region(graph, empty_segs, 0);
+                    if (nr != ADD_NODE_OK)
+                        goto txn_rollback;
+                    actual_id = graph->next_node_id - 1;
+                    break;
+                }
                 case GEOM_POINT:
                 default: {
                     /* 创建 POINT 节点（原有逻辑） */

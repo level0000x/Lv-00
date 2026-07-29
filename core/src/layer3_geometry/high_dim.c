@@ -707,6 +707,7 @@ int high_dim_calculate_fidelity(HighDimManager *manager, int block_id, const Con
                 case BETWEENNESS:
                 case INTERSECTION:
                 case CONTAINMENT:
+                case ANGLE:
                     required_dims = 2;
                     break;
             }

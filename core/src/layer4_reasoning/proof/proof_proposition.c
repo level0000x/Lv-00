@@ -377,6 +377,9 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *orig) {
                     }
                 }
                 break;
+            case GEOM_CIRCLE:
+                /* 圆节点的中心/半径为核心整数ID，无需指针重映射 */
+                break;
             case GEOM_FUNCTION_BLOCK:
                 for (int j = 0; j < cn->data.func_block.internal_node_count; j++) {
                     if (cn->data.func_block.internal_nodes[j]) {

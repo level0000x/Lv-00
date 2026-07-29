@@ -145,6 +145,9 @@ bool bit_burning_rollback(ConstraintGraph *graph, BitBurningState *state) {
                 case GEOM_REGION:
                     lv_free((void **) &graph->nodes[i]->data.region.boundary_segments);
                     break;
+                case GEOM_CIRCLE:
+                    /* CIRCLE 节点无额外动态分配数据 */
+                    break;
                 case GEOM_FUNCTION_BLOCK:
                     lv_free((void **) &graph->nodes[i]->data.func_block.internal_nodes);
                     lv_free((void **) &graph->nodes[i]->data.func_block.input_port_ids);
@@ -329,6 +332,7 @@ bool bit_burning_is_blocked(ConstraintGraph *graph, int source_node_id, int targ
 
         case GEOM_LINE_SEGMENT:
         case GEOM_REGION:
+        case GEOM_CIRCLE:
         case GEOM_PORT:
         case GEOM_FUNCTION_BLOCK:
             /* 这些类型可能依赖数值计算，阻断 */

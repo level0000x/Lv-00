@@ -435,6 +435,9 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
                 /* 包含约束：包含关系 -> 距离约束 */
                 n = smtlib2_encode_containment(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
                 break;
+            case ANGLE:
+                /* 角度约束：暂不支持SMT编码 */
+                break;
             case CONNECTION:
                 /* 连接约束：端口连接 -> 坐标等价 */
                 n = smtlib2_encode_connection(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
@@ -1538,6 +1541,10 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
                             }
                         }
                     }
+                    break;
+                }
+                case ANGLE: {
+                    /* 角度约束：暂不支持理想编码 */
                     break;
                 }
                 case CONNECTION: {

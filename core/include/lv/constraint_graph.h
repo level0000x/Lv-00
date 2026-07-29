@@ -1,7 +1,7 @@
 /* ========================================================================
  * 模块名称：约束图 (constraint_graph)
  * 功能概述：Lv-00 系统的核心数据结构，提供几何节点（点、线段、区域、
- *          端口、函数块）和约束（关联、之间、相交、包含、连接）的
+ *          端口、函数块）和约束（关联、之间、相交、包含、连接、角度）的
  *          创建/删除/查询接口，以及 O(1) 哈希索引加速查找，
  *          支持冗余检测与冲突分析、JSON 序列化、DOT 格式导出。
  *
@@ -85,6 +85,7 @@ typedef enum {
     GEOM_POINT,         /* 几何点：零维对象，用符号坐标表示位置 */
     GEOM_LINE_SEGMENT,  /* 线段：一维对象，由两个端点定义 */
     GEOM_REGION,        /* 区域：二维对象，由边界线段围成的封闭区域 */
+    GEOM_CIRCLE,        /* 圆：由圆心和半径定义的二维几何对象 */
     GEOM_PORT,          /* 端口：函数块的输入/输出接口，支持多态类型 */
     GEOM_FUNCTION_BLOCK /* 函数块：封装的几何构造单元，含内部节点和端口 */
 } GeomType;
@@ -110,7 +111,8 @@ typedef enum {
     BETWEENNESS,  /* 之间约束：点B在点A和点C之间（共线有序） */
     INTERSECTION, /* 相交约束：两个几何对象在某点相交 */
     CONTAINMENT,  /* 包含约束：一个对象完全包含在另一个对象内 */
-    CONNECTION    /* 连接约束：端口之间的数据流连接 */
+    CONNECTION,   /* 连接约束：端口之间的数据流连接 */
+    ANGLE         /* 角度约束：两条线段之间的夹角 */
 } ConstraintType;
 
 typedef struct GeomNode GeomNode;
@@ -191,6 +193,10 @@ struct GeomNode {
             int segment_count;            /* 边界线段数量 */
         } region;                         /* 区域数据（GEOM_REGION 类型使用） */
         struct {
+            int center_node_id; /* 圆心节点 ID */
+            int radius_node_id; /* 半径端点节点 ID（圆心到此点的距离为半径） */
+        } circle;               /* 圆数据（GEOM_CIRCLE 类型使用） */
+        struct {
             GeomNode **internal_nodes; /* 内部节点数组 */
             int *input_port_ids;       /* 输入端口 ID 数组 */
             int *output_port_ids;      /* 输出端口 ID 数组 */
@@ -214,7 +220,7 @@ struct Constraint {
     int participant_count;
     int template_id;
     bool is_active;       /**< 约束生命周期标记：true=活跃，false=已废弃 */
-    double numeric_value; /**< 约束的数值参数（如距离、角度等），仅部分约束类型使用 */
+    double numeric_value; /**< 约束的数值参数（如距离、角度等），仅部分约束类型使用；ANGLE 类型使用此字段存储角度值（度） */
     double satisfaction;  /**< 约束满意度 (0.0~1.0)，用于概率推理 */
 };
 
@@ -463,6 +469,17 @@ lv_PUBLIC_API AddConstraintResult graph_add_containment(ConstraintGraph *graph, 
  * @return 操作结果状态码
  */
 lv_PUBLIC_API AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id, int dst_port_id);
+
+/**
+ * @brief 添加角度约束（两条线段之间的夹角）
+ *
+ * @param[in] graph     约束图
+ * @param[in] line1_id  第一条线段 ID
+ * @param[in] line2_id  第二条线段 ID
+ * @param[in] angle_degrees 角度值（度）
+ * @return 操作结果状态码
+ */
+lv_PUBLIC_API AddConstraintResult graph_add_angle(ConstraintGraph *graph, int line1_id, int line2_id, double angle_degrees);
 
 /**
  * @brief 从约束图中移除节点
@@ -795,7 +812,7 @@ lv_PUBLIC_API const char *graph_get_error(const ConstraintGraph *graph);
  * 节点渲染为矩形，标注类型颜色（点=蓝、线段=绿、区域=橙、
  * 端口=灰、函数块=紫）和维度信息。
  * 约束渲染为有向边，标注约束类型（INCIDENCE/BETWEENNESS/
- * INTERSECTION/CONTAINMENT/CONNECTION）。
+ * INTERSECTION/CONTAINMENT/CONNECTION/ANGLE）。
  *
  * 用途：
  * - 约束图可视化（替代手写 Canvas 布局）

@@ -544,6 +544,10 @@ int sat_encode_constraint(SatEncoding *enc, int constraint_id) {
                 return sat_encode_containment(enc, con->participants[0], con->participants[1]);
             break;
 
+        case ANGLE:
+            /* 角度约束：暂不支持SAT编码 */
+            break;
+
         case CONNECTION:
             /* 连接约束编码为关系存在 */
             if (con->participant_count >= 2) {

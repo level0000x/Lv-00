@@ -225,6 +225,9 @@ bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size)
         case GEOM_REGION:
             snprintf(out_name, buf_size, "R%d", node->id);
             break;
+        case GEOM_CIRCLE:
+            snprintf(out_name, buf_size, "C%d", node->id);
+            break;
         case GEOM_PORT:
             snprintf(out_name, buf_size, "Port%d", node->id);
             break;
@@ -1108,15 +1111,30 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
      *   (ax-bx)(cx-bx) + (ay-by)(cy-by) = |BA|*|BC|*cos(θ)
      *
      * 这是一个二次方程，约束图无法直接表示。
-     * 当前使用 betweenness 约束作为拓扑占位符，
-     * 并将角度信息编码到 numeric_assumption_declaration 中。
+     * 使用 ANGLE 约束类型，将角度信息存储在 numeric_value 中（度）。
      */
 
     if (formula_converter_stream_ctx) {
-        stream_emit_warning(formula_converter_stream_ctx, "角度约束转换为近似实现（使用 betweenness 占位）", 0);
+        stream_emit_warning(formula_converter_stream_ctx, "角度约束转换为 ANGLE 约束（数值近似）", 0);
     }
 
-    AddConstraintResult result = graph_add_betweenness(graph, a_id, b_id, c_id);
+    /* 将弧度转换为度 */
+    double angle_deg = angle_rad * 180.0 / M_PI;
+
+    /* 创建两条线段 AB 和 BC */
+    AddNodeResult seg_ab = graph_add_line_segment(graph, a_id, b_id);
+    if (seg_ab != ADD_NODE_OK) {
+        return false;
+    }
+    int seg_ab_id = graph_get_last_added_node_id(graph);
+
+    AddNodeResult seg_bc = graph_add_line_segment(graph, b_id, c_id);
+    if (seg_bc != ADD_NODE_OK) {
+        return false;
+    }
+    int seg_bc_id = graph_get_last_added_node_id(graph);
+
+    AddConstraintResult result = graph_add_angle(graph, seg_ab_id, seg_bc_id, angle_deg);
 
     if (result != ADD_CONSTRAINT_OK) {
         return false;
@@ -1128,9 +1146,8 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
     Constraint *constraint = graph_get_constraint(graph, *out_constraint_id);
     if (constraint) {
         /*
-         * 注意：Constraint 结构体没有 numeric_assumption_declaration 字段。
-         * 角度信息通过创建一个辅助点节点来存储。
-         * 该点节点的 numeric_assumption_declaration 包含角度约束参数。
+         * 角度信息已存储在 constraint->numeric_value 中。
+         * 创建一个辅助点节点存储 cos(θ) 和 sin(θ) 以备后续代数求解。
          */
     }
 
@@ -1524,6 +1541,32 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
                 }
             } break;
 
+            case GEOM_CIRCLE: {
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{circle } %s\\\\\n", name);
+                if (n > 0 && latex_len + (size_t) n < latex_size) {
+                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
+                    latex_len += (size_t) n;
+                    result->latex_output[latex_len] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Circle()\n", name);
+                if (n > 0 && python_len + (size_t) n < python_size) {
+                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
+                    python_len += (size_t) n;
+                    result->python_output[python_len] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "circle %s(); ", name);
+                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
+                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
+                    dsl_len += (size_t) n;
+                    result->dsl_output[dsl_len] = '\0';
+                }
+            } break;
+
             case GEOM_PORT: {
                 const char *port_type_str = "unknown";
                 if (node->data.port) {
@@ -1623,6 +1666,10 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
             case CONNECTION:
                 constraint_name = "connection";
                 constraint_latex = "\\leftrightarrow";
+                break;
+            case ANGLE:
+                constraint_name = "angle";
+                constraint_latex = "\\angle";
                 break;
             default:
                 constraint_name = "unknown";

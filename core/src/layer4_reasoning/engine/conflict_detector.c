@@ -233,6 +233,7 @@ static int expected_participant_count(ConstraintType type) {
         case INCIDENCE:
         case CONTAINMENT:
         case CONNECTION:
+        case ANGLE:
         case CONSTRAINT_DISTANCE:
         case CONSTRAINT_ANGLE:
         case CONSTRAINT_COINCIDENT:

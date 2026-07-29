@@ -539,17 +539,167 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
 }
 
 /**
- * @brief 将约束图导出为 HTML（当前为桩，实际渲染已迁移至 UI 层）
+ * @brief 将约束图导出为独立 HTML 演示文件
+ *
+ * 先生成 SVG 内容，再嵌入含深色主题 CSS 和引擎统计信息的 HTML 页面。
+ *
  * @param engine 引擎实例指针
- * @param config 导出配置
- * @return -1（未实现）
+ * @param config 导出配置（output_path 指定输出文件路径）
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
  */
 int interop_export_html(const lvEngine *engine, const InteropExportConfig *config) {
-    (void) engine;
-    (void) config;
-    /* HTML 渲染已迁移至 UI 层（ui/L3-modules/）。
-       内核通过 lv_protocol.h 提供结构化数据。 */
-    return -1;
+    if (!engine || !config)
+        return lv_ERROR_INVALID_PARAM;
+    if (!config->output_path[0])
+        return lv_ERROR_INVALID_PARAM;
+
+    ConstraintGraph *graph = engine->main_graph;
+    if (!graph)
+        return lv_ERROR_INVALID_PARAM;
+
+    /* ---- 1. 生成 SVG 到临时文件 ---- */
+    char svg_temp_path[INTEROP_MAX_PATH_LEN];
+    {
+        const char *tmp_name = tmpnam(NULL);
+        if (!tmp_name)
+            return lv_ERROR_IO;
+        lv_strlcpy(svg_temp_path, tmp_name, sizeof(svg_temp_path));
+    }
+
+    InteropExportConfig svg_cfg;
+    memset(&svg_cfg, 0, sizeof(svg_cfg));
+    lv_strlcpy(svg_cfg.output_path, svg_temp_path, sizeof(svg_cfg.output_path));
+
+    int svg_ret = interop_export_svg(graph, &svg_cfg);
+    if (svg_ret != lv_OK) {
+        remove(svg_temp_path);
+        return svg_ret;
+    }
+
+    /* ---- 2. 读取临时 SVG 文件内容 ---- */
+    char *svg_content = NULL;
+    long svg_size = 0;
+    {
+        FILE *svg_fp = fopen(svg_temp_path, "rb");
+        if (!svg_fp) {
+            remove(svg_temp_path);
+            return lv_ERROR_IO;
+        }
+        fseek(svg_fp, 0, SEEK_END);
+        svg_size = ftell(svg_fp);
+        fseek(svg_fp, 0, SEEK_SET);
+        if (svg_size > 0) {
+            svg_content = (char *) lv_malloc((size_t) svg_size + 1);
+            if (svg_content) {
+                size_t read_bytes = fread(svg_content, 1, (size_t) svg_size, svg_fp);
+                svg_content[read_bytes] = '\0';
+            }
+        }
+        fclose(svg_fp);
+        remove(svg_temp_path);
+    }
+
+    /* ---- 3. 构建 HTML ---- */
+    FILE *fp = fopen(config->output_path, "w");
+    if (!fp) {
+        lv_free(svg_content);
+        return lv_ERROR_IO;
+    }
+
+    int node_count = graph->node_count;
+    int constraint_count = graph->constraint_count;
+
+    fprintf(fp,
+            "<!DOCTYPE html>\n"
+            "<html lang=\"zh-CN\">\n"
+            "<head>\n"
+            "  <meta charset=\"UTF-8\">\n"
+            "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+            "  <title>Lv-00 几何约束图导出</title>\n"
+            "  <style>\n"
+            "    * { margin: 0; padding: 0; box-sizing: border-box; }\n"
+            "    body {\n"
+            "      background: #1a1b26;\n"
+            "      color: #c0caf5;\n"
+            "      font-family: 'Consolas', 'Courier New', monospace;\n"
+            "      padding: 24px;\n"
+            "      min-height: 100vh;\n"
+            "    }\n"
+            "    h1 {\n"
+            "      font-size: 20px;\n"
+            "      font-weight: 600;\n"
+            "      color: #7aa2f7;\n"
+            "      margin-bottom: 16px;\n"
+            "      letter-spacing: 0.5px;\n"
+            "    }\n"
+            "    .stats {\n"
+            "      display: flex;\n"
+            "      gap: 24px;\n"
+            "      margin-bottom: 20px;\n"
+            "      padding: 12px 16px;\n"
+            "      background: #24283b;\n"
+            "      border-radius: 8px;\n"
+            "      border: 1px solid #3b4261;\n"
+            "      font-size: 13px;\n"
+            "    }\n"
+            "    .stats span { color: #9ece6a; }\n"
+            "    .stats .label { color: #a9b1d6; }\n"
+            "    .svg-container {\n"
+            "      background: #ffffff;\n"
+            "      border-radius: 8px;\n"
+            "      border: 1px solid #3b4261;\n"
+            "      padding: 8px;\n"
+            "      overflow: auto;\n"
+            "      display: inline-block;\n"
+            "    }\n"
+            "    .footer {\n"
+            "      margin-top: 16px;\n"
+            "      font-size: 11px;\n"
+            "      color: #565f89;\n"
+            "    }\n"
+            "  </style>\n"
+            "</head>\n"
+            "<body>\n"
+            "  <h1>Lv-00 几何约束图</h1>\n"
+            "  <div class=\"stats\">\n"
+            "    <div><span class=\"label\">节点</span> <span>%d</span></div>\n"
+            "    <div><span class=\"label\">约束</span> <span>%d</span></div>\n"
+            "    <div><span class=\"label\">引擎版本</span> <span>%s</span></div>\n"
+            "  </div>\n"
+            "  <div class=\"svg-container\">\n",
+            node_count, constraint_count, lv_VERSION_STRING);
+
+    /* 嵌入 SVG（跳过 XML 声明行） */
+    if (svg_content) {
+        char *svg_body = svg_content;
+        /* 跳过可选的 <?xml ...?> 行 */
+        if (svg_body[0] == '<' && svg_body[1] == '?') {
+            char *nl = strchr(svg_body, '\n');
+            if (nl)
+                svg_body = nl + 1;
+        }
+        fprintf(fp, "%s\n", svg_body);
+        lv_free(svg_content);
+    } else {
+        fprintf(fp, "    <p>SVG 生成失败</p>\n");
+    }
+
+    fprintf(fp,
+            "  </div>\n"
+            "  <div class=\"footer\">\n"
+            "    由 Lv-00 v%s 生成\n"
+            "  </div>\n"
+            "</body>\n"
+            "</html>\n",
+            lv_VERSION_STRING);
+
+    fclose(fp);
+
+    if (interop_stream_ctx) {
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "HTML 导出完成", 0);
+    }
+
+    return lv_OK;
 }
 
 /**
@@ -960,6 +1110,15 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
                         "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
                         "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#14b8a6\" "
                         "stroke-dasharray=\"2,4\"/>\n",
+                        x0, y0, x1, y1);
+                break;
+
+            case ANGLE:
+                /* 角度约束：紫色虚线 */
+                fprintf(fp,
+                        "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
+                        "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#a855f7\" "
+                        "stroke-dasharray=\"4,2\"/>\n",
                         x0, y0, x1, y1);
                 break;
 
@@ -1398,6 +1557,14 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
                         x0, y0, x1, y1);
                 break;
 
+            case ANGLE:
+                /* 角度约束：purple dashed */
+                fprintf(fp,
+                        "    \\draw[constraint, purple, densely dashed] "
+                        "(%.2f, %.2f) -- (%.2f, %.2f);\n",
+                        x0, y0, x1, y1);
+                break;
+
             case CONNECTION:
                 fprintf(fp, "    \\draw[connection] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
                 break;
@@ -1413,7 +1580,7 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
         bool has_point = false, has_line = false, has_region = false;
         bool has_block = false, has_port = false;
         bool has_incidence = false, has_betweenness = false;
-        bool has_intersection = false, has_containment = false;
+        bool has_intersection = false, has_containment = false, has_angle = false;
         bool has_connection = false;
 
         for (int i = 0; i < graph->node_count; i++) {
@@ -1428,6 +1595,9 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
                     has_line = true;
                     break;
                 case GEOM_REGION:
+                    has_region = true;
+                    break;
+                case GEOM_CIRCLE:
                     has_region = true;
                     break;
                 case GEOM_FUNCTION_BLOCK:
@@ -1456,6 +1626,9 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
                     break;
                 case CONTAINMENT:
                     has_containment = true;
+                    break;
+                case ANGLE:
+                    has_angle = true;
                     break;
                 case CONNECTION:
                     has_connection = true;
@@ -1800,6 +1973,14 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
                     x0, y0, x1, y1);
                 break;
 
+            case ANGLE:
+                /* 角度约束：紫色虚线段 */
+                TIKZ_FRAG_PRINTF(
+                    "    \\draw[constraint, purple, densely dashed] "
+                    "(%.2f, %.2f) -- (%.2f, %.2f);\n",
+                    x0, y0, x1, y1);
+                break;
+
             case CONNECTION:
                 TIKZ_FRAG_PRINTF("    \\draw[connection] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
                 break;
@@ -1814,7 +1995,7 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
         bool has_point = false, has_line = false, has_region = false;
         bool has_block = false, has_port = false;
         bool has_incidence = false, has_betweenness = false;
-        bool has_intersection = false, has_containment = false;
+        bool has_intersection = false, has_containment = false, has_angle = false;
         bool has_connection = false;
 
         for (int i = 0; i < graph->node_count; i++) {
@@ -1829,6 +2010,9 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
                     has_line = true;
                     break;
                 case GEOM_REGION:
+                    has_region = true;
+                    break;
+                case GEOM_CIRCLE:
                     has_region = true;
                     break;
                 case GEOM_FUNCTION_BLOCK:
@@ -1857,6 +2041,9 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
                     break;
                 case CONTAINMENT:
                     has_containment = true;
+                    break;
+                case ANGLE:
+                    has_angle = true;
                     break;
                 case CONNECTION:
                     has_connection = true;
@@ -2051,6 +2238,9 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
                 break;
             case GEOM_REGION:
                 fprintf(fp, " boundary_segments=%d", node->data.region.segment_count);
+                break;
+            case GEOM_CIRCLE:
+                fprintf(fp, " center=%d radius=%d", node->data.circle.center_node_id, node->data.circle.radius_node_id);
                 break;
             case GEOM_FUNCTION_BLOCK:
                 fprintf(fp, " internal=%d inputs=%d outputs=%d state=%d", node->data.func_block.internal_node_count,
@@ -2565,6 +2755,18 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
                 /* 包含约束：青色点划线 */
                 BUF_APPEND("0.08 0.72 0.65 RG\n");
                 BUF_APPEND("[6.0 3.0 1.0 3.0] 0 d\n");
+                BUF_APPEND("%.2f w\n", 1.0);
+                BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
+                BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
+                BUF_APPEND("S\n");
+                BUF_APPEND("[] 0 d\n");
+                BUF_APPEND("%.2f w\n", 1.5);
+                break;
+
+            case ANGLE:
+                /* 角度约束：紫色虚线 */
+                BUF_APPEND("0.66 0.33 0.97 RG\n");
+                BUF_APPEND("[4.0 2.0] 0 d\n");
                 BUF_APPEND("%.2f w\n", 1.0);
                 BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
                 BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));

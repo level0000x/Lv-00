@@ -21,6 +21,7 @@ typedef struct GraphFeatures {
     int incidence_constraints, betweenness_constraints;
     int intersection_constraints, containment_constraints;
     int connection_constraints;
+    int angle_constraints;
     int nonlinear_constraints;
     double nonlinear_ratio;
     bool has_quantifier_like;

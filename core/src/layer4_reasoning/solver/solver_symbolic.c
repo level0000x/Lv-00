@@ -533,6 +533,8 @@ int constraint_weight(const Constraint *c) {
             return 2; /* 点在两条线上 */
         case CONTAINMENT:
             return 1; /* 至少一个边界约束 */
+        case ANGLE:
+            return 1; /* 角度约束消耗 1 DOF */
         case CONNECTION:
             return 1; /* 端口连接性 */
         default:

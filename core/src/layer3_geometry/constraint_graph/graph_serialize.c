@@ -191,6 +191,8 @@ static const char *geom_type_to_string(GeomType type) {
             return "LINE_SEGMENT";
         case GEOM_REGION:
             return "REGION";
+        case GEOM_CIRCLE:
+            return "CIRCLE";
         case GEOM_PORT:
             return "PORT";
         case GEOM_FUNCTION_BLOCK:
@@ -220,6 +222,8 @@ static const char *constraint_type_to_string(ConstraintType type) {
             return "CONTAINMENT";
         case CONNECTION:
             return "CONNECTION";
+        case ANGLE:
+            return "ANGLE";
         default:
             return "UNKNOWN";
     }
@@ -463,6 +467,11 @@ char *graph_constraint_serialize_to_json(const Constraint *constraint) {
     /* template_id */
     json_buf_append(&buf, "\"template_id\":");
     snprintf(id_str, sizeof(id_str), "%d", constraint->template_id);
+    json_buf_append(&buf, id_str);
+
+    /* numeric_value (used by ANGLE constraints) */
+    json_buf_append(&buf, ",\"numeric_value\":");
+    snprintf(id_str, sizeof(id_str), "%.15g", constraint->numeric_value);
     json_buf_append(&buf, id_str);
 
     json_buf_append_char(&buf, '}');
@@ -764,6 +773,8 @@ static GeomType string_to_geom_type(const char *str) {
         return GEOM_LINE_SEGMENT;
     if (strcmp(str, "REGION") == 0)
         return GEOM_REGION;
+    if (strcmp(str, "CIRCLE") == 0)
+        return GEOM_CIRCLE;
     if (strcmp(str, "PORT") == 0)
         return GEOM_PORT;
     if (strcmp(str, "FUNCTION_BLOCK") == 0)
@@ -782,6 +793,8 @@ static ConstraintType string_to_constraint_type(const char *str) {
         return CONTAINMENT;
     if (strcmp(str, "CONNECTION") == 0)
         return CONNECTION;
+    if (strcmp(str, "ANGLE") == 0)
+        return ANGLE;
     return INCIDENCE;
 }
 
@@ -920,6 +933,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 PortType port_type = PORT_INPUT;
                 bool is_formal_param = false;
                 bool is_polymorphic = false;
+                int circle_center_id = -1;
+                int circle_radius_id = -1;
                 SymbolicCoord **coords = NULL;
 
                 while (json_parser_peek(&p) != '}' && json_parser_peek(&p) != '\0') {
@@ -1101,6 +1116,10 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                             json_parser_expect(&p, ']');
                         }
+                    } else if (strcmp(node_key, "center_node_id") == 0) {
+                        json_parser_parse_int(&p, &circle_center_id);
+                    } else if (strcmp(node_key, "radius_node_id") == 0) {
+                        json_parser_parse_int(&p, &circle_radius_id);
                     } else if (strcmp(node_key, "boundary_segments") == 0) {
                         boundary_segs = json_parser_parse_int_array(&p, &boundary_seg_count);
                     } else if (strcmp(node_key, "internal_nodes") == 0) {
@@ -1149,6 +1168,9 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                             }
                             node->data.region.segment_count = boundary_seg_count;
                         }
+                    } else if (node_type == GEOM_CIRCLE) {
+                        node->data.circle.center_node_id = circle_center_id;
+                        node->data.circle.radius_node_id = circle_radius_id;
                     } else if (node_type == GEOM_PORT) {
                         Port *port = lv_calloc(1, sizeof(Port));
                         if (port) {
@@ -1238,6 +1260,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 p.pos++; /* skip '{' */
 
                 int constraint_id = 0, template_id = -1;
+                double numeric_value = 0.0;
                 ConstraintType constraint_type = INCIDENCE;
                 int *participants = NULL;
                 int participant_count = 0;
@@ -1266,6 +1289,11 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         participants = json_parser_parse_int_array(&p, &participant_count);
                     } else if (strcmp(ckey, "template_id") == 0) {
                         json_parser_parse_int(&p, &template_id);
+                    } else if (strcmp(ckey, "numeric_value") == 0) {
+                        json_parser_skip_ws(&p);
+                        char *end;
+                        numeric_value = strtod(p.data + p.pos, &end);
+                        p.pos = (size_t)(end - p.data);
                     } else {
                         json_parser_skip_value(&p);
                     }
@@ -1283,6 +1311,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                                                                           participants, participant_count);
                     if (constraint) {
                         constraint->template_id = template_id;
+                        constraint->numeric_value = numeric_value;
                         if (constraint_id >= graph->next_constraint_id) {
                             graph->next_constraint_id = constraint_id + 1;
                         }

@@ -527,6 +527,9 @@ int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *feature
             case CONTAINMENT:
                 features->containment_constraints++;
                 break;
+            case ANGLE:
+                features->angle_constraints++;
+                break;
             case CONNECTION:
                 features->connection_constraints++;
                 break;
@@ -543,7 +546,7 @@ int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *feature
     features->has_quantifier_like = false;
     features->has_boolean_variables = false;
 
-    /* 方程数量估计 = incidence + intersection + containment */
+    /* 方程数量估计 = incidence + intersection + containment + angle */
     features->estimated_equation_count =
         features->incidence_constraints + features->intersection_constraints + features->containment_constraints;
 
@@ -562,12 +565,12 @@ const char *scheduler_feature_summary(const GraphFeatures *features) {
     static char summary[512];
     snprintf(summary, sizeof(summary),
              "nodes=%d pts=%d fixed=%d ports=%d blocks=%d "
-             "constraints=%d inc=%d btw=%d int=%d cnt=%d conn=%d "
+             "constraints=%d inc=%d btw=%d int=%d cnt=%d ang=%d conn=%d "
              "nl=%d nl_ratio=%.2f eq_est=%d deg_max=%d",
              features->total_nodes, features->variable_nodes, features->fixed_nodes, features->port_nodes,
              features->block_nodes, features->total_constraints, features->incidence_constraints,
              features->betweenness_constraints, features->intersection_constraints, features->containment_constraints,
-             features->connection_constraints, features->nonlinear_constraints, features->nonlinear_ratio,
+             features->angle_constraints, features->connection_constraints, features->nonlinear_constraints, features->nonlinear_ratio,
              features->estimated_equation_count, features->estimated_degree_max);
     return summary;
 }

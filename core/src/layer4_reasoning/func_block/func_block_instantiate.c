@@ -199,6 +199,12 @@ static InstantiateResult instantiate_copy_internal_nodes(FuncBlock *fb, Constrai
                 }
                 break;
             }
+            case GEOM_CIRCLE: {
+                /* 圆节点数据为简单整数 ID，直接复制 */
+                copy->data.circle.center_node_id = orig->data.circle.center_node_id;
+                copy->data.circle.radius_node_id = orig->data.circle.radius_node_id;
+                break;
+            }
             case GEOM_FUNCTION_BLOCK: {
                 if (orig->data.func_block.internal_nodes && orig->data.func_block.internal_node_count > 0) {
                     copy->data.func_block.internal_nodes =
@@ -334,6 +340,17 @@ static void instantiate_update_references(ConstraintGraph *graph, int *new_node_
                             copy->data.region.boundary_segments[j] = graph_get_node(graph, id_map[old_seg_id]);
                         }
                     }
+                }
+                break;
+            case GEOM_CIRCLE:
+                /* 圆的圆心和半径数据在节点创建时已设置 */
+                if (copy->data.circle.center_node_id >= 0 && copy->data.circle.center_node_id <= max_id &&
+                    id_map[copy->data.circle.center_node_id] >= 0) {
+                    copy->data.circle.center_node_id = id_map[copy->data.circle.center_node_id];
+                }
+                if (copy->data.circle.radius_node_id >= 0 && copy->data.circle.radius_node_id <= max_id &&
+                    id_map[copy->data.circle.radius_node_id] >= 0) {
+                    copy->data.circle.radius_node_id = id_map[copy->data.circle.radius_node_id];
                 }
                 break;
 

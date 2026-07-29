@@ -810,6 +810,8 @@ const char *interop_geom_type_name(GeomType type) {
             return "line_segment";
         case GEOM_REGION:
             return "region";
+        case GEOM_CIRCLE:
+            return "circle";
         case GEOM_PORT:
             return "port";
         case GEOM_FUNCTION_BLOCK:
@@ -837,6 +839,8 @@ const char *interop_constraint_type_name(ConstraintType type) {
             return "intersection";
         case CONTAINMENT:
             return "containment";
+        case ANGLE:
+            return "angle";
         case CONNECTION:
             return "connection";
         default:
