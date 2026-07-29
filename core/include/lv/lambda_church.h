@@ -88,6 +88,64 @@ lv_PUBLIC_API LvLambdaTerm *lv_church_if(void);
  */
 lv_PUBLIC_API LvLambdaTerm *lv_church_iszero(void);
 
+/* ── Church 算术运算 ── */
+
+/**
+ * @brief Church 加法: λm.λn.λf.λx.m f (n f x)
+ *
+ * 对两个 Church 数字求和。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_add(void);
+
+/**
+ * @brief Church 减法: λm.λn.n pred m
+ *
+ * 使用前驱函数重复 n 次作用于 m 实现减法。
+ * 注：当 m < n 时结果为零（Church 前驱在零上继续返回零）。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_sub(void);
+
+/* ── Church 对（pair）── */
+
+/**
+ * @brief Church 对: λx.λy.λf.f x y
+ *
+ * 将两个值编码为一个有序对。
+ * 实际构造时 x 和 y 作为 Church 数字/布尔值传入。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_pair(void);
+
+/**
+ * @brief 取对的第一个元素: λp.p true
+ *
+ * 应用 pair 到 true，true 选择第一个参数。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_first(void);
+
+/**
+ * @brief 取对的第二个元素: λp.p false
+ *
+ * 应用 pair 到 false，false 选择第二个参数。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_second(void);
+
+/* ── Church 列表 ── */
+
+/**
+ * @brief Church 空列表 (nil): λc.λn.n
+ *
+ * 列表的编码：list = λcons.λnil.(...)
+ * 空列表直接返回 nil。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_nil(void);
+
+/**
+ * @brief Church 列表构造 (cons): λh.λt.λc.λn.c h (t c n)
+ *
+ * 将元素 h 添加到列表 t 的头部。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_cons(void);
+
 /* ── 不动点组合子 ── */
 
 /**

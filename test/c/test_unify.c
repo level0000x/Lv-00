@@ -1,4 +1,4 @@
-﻿/*
+/*
  * test_unify.c - Lv-00 合一检查测试
  *
  * 测试合一检查系统：
@@ -13,6 +13,8 @@
 #include <string.h>
 
 #include "lv.h"
+#include "lv/constraint_graph.h"
+#include "lv/unify.h"
 #include "test_helpers.h"
 
 /* 创建简单构造：两点一线 */
@@ -240,6 +242,45 @@ static int test_empty_graph_unify(void) {
     return 0;
 }
 
+/* 测试端口匹配中的 parent_block_id 和 is_formal_param 检查 */
+static int test_port_match_higher_order(void) {
+    printf("\n=== Testing Port Match with parent_block_id ===\n");
+    int failures = 0;
+
+    /* 创建两个图，各包含一个函数块 + 端口 */
+    int internal_ids1[] = {101, 102};
+    int input_ids1[] = {201, 202};
+    int output_ids1[] = {301};
+
+    ConstraintGraph *g1 = graph_create();
+    graph_add_function_block(g1, internal_ids1, 2, input_ids1, 2, output_ids1, 1);
+    int g1_fb_id = graph_get_last_added_node_id(g1);
+    /* 在 g1_fb_id 下添加端口 */
+    graph_add_port(g1, PORT_INPUT, 0, g1_fb_id);
+    graph_add_port(g1, PORT_INPUT, 0, g1_fb_id);
+
+    /* 第二个图：不同的 parent_block_id，但其他相同 */
+    ConstraintGraph *g2 = graph_create();
+    graph_add_function_block(g2, internal_ids1, 2, input_ids1, 2, output_ids1, 1);
+    int g2_fb_id = graph_get_last_added_node_id(g2);
+    graph_add_port(g2, PORT_INPUT, 0, g2_fb_id);
+    graph_add_port(g2, PORT_INPUT, 0, g2_fb_id);
+
+    /* 端口匹配应成功（两者端口都属于各自的唯一函数块，parent_block_id 内部匹配） */
+    int bindings[16];
+    int count = unify_match_ports(g1, g2, bindings, 16);
+    if (count > 0) {
+        printf("  Port match across graphs: OK (%d matches)\n", count);
+    } else {
+        printf("  Port match across graphs: FAILED (count=%d)\n", count);
+        failures++;
+    }
+
+    graph_destroy(g1);
+    graph_destroy(g2);
+    return failures;
+}
+
 int main(void) {
     printf("=== Lv-00 Unify Test Suite ===\n");
     int failures = 0;
@@ -251,6 +292,7 @@ int main(void) {
     failures += test_proof_normalize();
     failures += test_complex_construction_unify();
     failures += test_empty_graph_unify();
+    failures += test_port_match_higher_order();
 
     printf("\n=== Test Summary ===\n");
     if (failures == 0)

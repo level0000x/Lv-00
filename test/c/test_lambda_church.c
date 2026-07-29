@@ -672,7 +672,7 @@ static void test_type_check_app_id(void) {
  * @brief 测试 Church 编码公共 API 的各个函数不会崩溃或返回 NULL
  */
 static void test_church_public_api(void) {
-    LvLambdaTerm *terms[16];
+    LvLambdaTerm *terms[24];
     int count = 0;
     bool ok = true;
 
@@ -689,6 +689,13 @@ static void test_church_public_api(void) {
     terms[count++] = lv_church_false();
     terms[count++] = lv_church_if();
     terms[count++] = lv_church_iszero();
+    terms[count++] = lv_church_add();
+    terms[count++] = lv_church_sub();
+    terms[count++] = lv_church_pair();
+    terms[count++] = lv_church_first();
+    terms[count++] = lv_church_second();
+    terms[count++] = lv_church_nil();
+    terms[count++] = lv_church_cons();
     terms[count++] = lv_church_y_combinator();
 
     for (int i = 0; i < count; i++) {
@@ -716,6 +723,57 @@ static void test_church_public_api(void) {
         FAIL("公共 API 返回 NULL");
 }
 
+/* ── Church 扩展测试 ── */
+
+/** 测试 Church 加法: add 2 3 → 5 的 roundtrip */
+static void test_church_add_roundtrip(void) {
+    LvLambdaTerm *a2 = lv_church_add();
+    LvLambdaTerm *c2 = lv_church_2();
+    LvLambdaTerm *c3 = lv_church_n(3);
+
+    /* add 2 3 */
+    LvLambdaTerm *add23 = lv_lambda_create_app(lv_lambda_create_app(a2, c2), c3);
+    int rc = compile_and_check_roundtrip(add23);
+    lv_lambda_destroy(add23);
+    if (rc == 0)
+        PASS();
+    else
+        FAIL("Church add 2 3 roundtrip 失败");
+}
+
+/** 测试 pair 编译 */
+static void test_church_pair_compile(void) {
+    LvLambdaTerm *pr = lv_church_pair();
+    int rc = compile_and_check_roundtrip(pr);
+    lv_lambda_destroy(pr);
+    if (rc == 0)
+        PASS();
+    else
+        FAIL("Church pair 编译失败");
+}
+
+/** 测试 nil 编译 */
+static void test_church_nil_compile(void) {
+    LvLambdaTerm *nil = lv_church_nil();
+    int rc = compile_and_check_roundtrip(nil);
+    lv_lambda_destroy(nil);
+    if (rc == 0)
+        PASS();
+    else
+        FAIL("Church nil 编译失败");
+}
+
+/** 测试 cons 编译 */
+static void test_church_cons_compile(void) {
+    LvLambdaTerm *cons = lv_church_cons();
+    int rc = compile_and_check_roundtrip(cons);
+    lv_lambda_destroy(cons);
+    if (rc == 0)
+        PASS();
+    else
+        FAIL("Church cons 编译失败");
+}
+
 /* ====================================================================
  * main
  * ==================================================================== */
@@ -726,6 +784,16 @@ int main(void) {
     printf("[Church 编码公共 API]\n");
     TEST("公共 API 完整性");
     test_church_public_api();
+
+    printf("\n[Church 编码扩展]\n");
+    TEST("add 2 3 roundtrip");
+    test_church_add_roundtrip();
+    TEST("pair 编译");
+    test_church_pair_compile();
+    TEST("nil 编译");
+    test_church_nil_compile();
+    TEST("cons 编译");
+    test_church_cons_compile();
 
     printf("\n[Church 数字编译与还原]\n");
     TEST("Church 0: λf.λx.x");

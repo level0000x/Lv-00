@@ -110,6 +110,99 @@ LvLambdaTerm *lv_church_iszero(void) {
 }
 
 /* ================================================================
+ *  Church 算术运算
+ * ================================================================ */
+
+/**
+ * λm.λn.λf.λx.m f (n f x)
+ * De Bruijn: m=3, n=2, f=1, x=0
+ */
+LvLambdaTerm *lv_church_add(void) {
+    /* m f (n f x) */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(3), lv_lambda_create_var(1)),
+        lv_lambda_create_app(lv_lambda_create_app(lv_lambda_create_var(2), lv_lambda_create_var(1)),
+                             lv_lambda_create_var(0)));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body))));
+}
+
+/**
+ * λm.λn.n pred m
+ * De Bruijn: m=1, n=0
+ */
+LvLambdaTerm *lv_church_sub(void) {
+    LvLambdaTerm *pred_term = lv_church_pred();
+    /* n pred m */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(0), pred_term),
+        lv_lambda_create_var(1));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/* ================================================================
+ *  Church 对（pair）
+ * ================================================================ */
+
+/**
+ * λx.λy.λf.f x y
+ * De Bruijn: x=2, y=1, f=0
+ */
+LvLambdaTerm *lv_church_pair(void) {
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(0), lv_lambda_create_var(2)),
+        lv_lambda_create_var(1));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
+}
+
+/**
+ * λp.p true
+ * De Bruijn: p=0
+ */
+LvLambdaTerm *lv_church_first(void) {
+    LvLambdaTerm *true_term = lv_church_true();
+    LvLambdaTerm *body = lv_lambda_create_app(lv_lambda_create_var(0), true_term);
+    return lv_lambda_create_abs(0, body);
+}
+
+/**
+ * λp.p false
+ * De Bruijn: p=0
+ */
+LvLambdaTerm *lv_church_second(void) {
+    LvLambdaTerm *false_term = lv_church_false();
+    LvLambdaTerm *body = lv_lambda_create_app(lv_lambda_create_var(0), false_term);
+    return lv_lambda_create_abs(0, body);
+}
+
+/* ================================================================
+ *  Church 列表
+ * ================================================================ */
+
+/**
+ * 空列表 (nil): λc.λn.n
+ * De Bruijn: c=1, n=0
+ */
+LvLambdaTerm *lv_church_nil(void) {
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_var(0)));
+}
+
+/**
+ * cons: λh.λt.λc.λn.c h (t c n)
+ * De Bruijn: h=3, t=2, c=1, n=0
+ */
+LvLambdaTerm *lv_church_cons(void) {
+    /* c h */
+    LvLambdaTerm *ch = lv_lambda_create_app(lv_lambda_create_var(1), lv_lambda_create_var(3));
+    /* t c n */
+    LvLambdaTerm *tcn = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(2), lv_lambda_create_var(1)),
+        lv_lambda_create_var(0));
+    /* c h (t c n) */
+    LvLambdaTerm *body = lv_lambda_create_app(ch, tcn);
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body))));
+}
+
+/* ================================================================
  *  不动点组合子
  * ================================================================ */
 

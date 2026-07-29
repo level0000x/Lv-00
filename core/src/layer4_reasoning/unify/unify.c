@@ -182,9 +182,17 @@ static int nodes_coords_equal(GeomNode *a, GeomNode *b) {
             }
             return 1;
 
-        case GEOM_FUNCTION_BLOCK:
-            /* FUNCTION_BLOCK: 比较内部节点数量 */
+        case GEOM_FUNCTION_BLOCK: {
+            int j;
+            /* 比较内部节点数量和端口数量 */
             if (a->data.func_block.internal_node_count != b->data.func_block.internal_node_count)
+                return 0;
+            if (a->data.func_block.input_count != b->data.func_block.input_count)
+                return 0;
+            if (a->data.func_block.output_count != b->data.func_block.output_count)
+                return 0;
+            /* 比较确定性状态 */
+            if (a->data.func_block.determinism_state != b->data.func_block.determinism_state)
                 return 0;
             /* 逐个比较内部节点的坐标 */
             for (int n = 0; n < a->data.func_block.internal_node_count; n++) {
@@ -192,11 +200,21 @@ static int nodes_coords_equal(GeomNode *a, GeomNode *b) {
                 GeomNode *nb = b->data.func_block.internal_nodes[n];
                 if (!na || !nb)
                     return 0;
-                /* 比较内部节点的坐标：委托给内联辅助函数 */
                 if (!coords_equal_by_type(na, nb))
                     return 0;
             }
+            /* 比较输入端口 ID 数组 */
+            for (j = 0; j < a->data.func_block.input_count; j++) {
+                if (a->data.func_block.input_port_ids[j] != b->data.func_block.input_port_ids[j])
+                    return 0;
+            }
+            /* 比较输出端口 ID 数组 */
+            for (j = 0; j < a->data.func_block.output_count; j++) {
+                if (a->data.func_block.output_port_ids[j] != b->data.func_block.output_port_ids[j])
+                    return 0;
+            }
             return 1;
+        }
 
         default:
             return 0;
@@ -324,6 +342,16 @@ static bool match_ports(const ConstraintGraph *construction, const ConstraintGra
                 continue;
             }
             if (pp->namespace_depth != cp->namespace_depth) {
+                cidx++;
+                continue;
+            }
+            /* 比较父函数块 ID：确保端口属于相同的函数块作用域 */
+            if (pp->parent_block_id != cp->parent_block_id) {
+                cidx++;
+                continue;
+            }
+            /* 比较形式参数标志 */
+            if (pp->is_formal_param != cp->is_formal_param) {
                 cidx++;
                 continue;
             }
@@ -672,6 +700,10 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
                 continue;
             if (pp->namespace_depth != cp->namespace_depth)
                 continue;
+            if (pp->parent_block_id != cp->parent_block_id)
+                continue;
+            if (pp->is_formal_param != cp->is_formal_param)
+                continue;
 
             /* 类型等价检查（TypeSystem） */
             if (pp->type_region && cp->type_region && ts) {
@@ -1010,6 +1042,14 @@ UnifyStatus unify_construction_with_proposition_detailed(const ConstraintGraph *
                 continue;
             }
             if (pp->namespace_depth != cp->namespace_depth) {
+                cidx++;
+                continue;
+            }
+            if (pp->parent_block_id != cp->parent_block_id) {
+                cidx++;
+                continue;
+            }
+            if (pp->is_formal_param != cp->is_formal_param) {
                 cidx++;
                 continue;
             }
@@ -1853,6 +1893,10 @@ int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph
             if (pp->type != cp->type)
                 continue;
             if (pp->namespace_depth != cp->namespace_depth)
+                continue;
+            if (pp->parent_block_id != cp->parent_block_id)
+                continue;
+            if (pp->is_formal_param != cp->is_formal_param)
                 continue;
 
             /* TypeSystem 等价检查 */
