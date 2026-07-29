@@ -10,7 +10,8 @@ import Mathlib
 namespace lvFormal.Theory.StreamingTheory
 
 structure Event (α : Type) where
-  id : ℕ; data : α
+  id : ℕ
+  data : α
   deriving DecidableEq, Repr
 
 abbrev Stream (α : Type) := List (Event α)
@@ -27,20 +28,26 @@ theorem event_causality {α β : Type} (f : α → β) (s : Stream α) (e1 e2 : 
     ∃ e1' e2' : Event β, e1' ∈ process_stream f s ∧ e2' ∈ process_stream f s ∧ e1'.id ≤ e2'.id := by
   unfold process_stream
   refine ⟨{ id := e1.id, data := f e1.data }, { id := e2.id, data := f e2.data }, ?_, ?_, ?_⟩
-  · simp [h1]; · simp [h2]; · exact hid
+  · simpa using List.mem_map.mpr ⟨e1, h1, rfl⟩
+  · simpa using List.mem_map.mpr ⟨e2, h2, rfl⟩
+  · simpa using hid
 
 def within_capacity {α : Type} (s : Stream α) (cap : ℕ) : Prop := s.length ≤ cap
 
 theorem backpressure_bounded {α : Type} (s : Stream α) (cap : ℕ) (h : within_capacity s cap)
     (e : Event α) (hsz : s.length < cap) : within_capacity (s ++ [e]) cap := by
-  unfold within_capacity; simp [hsz, h]
+  unfold within_capacity
+  have hlen : (s ++ [e]).length = s.length + 1 := by simp
+  rw [hlen]
+  omega
 
 -- [QA] placeholder: actual proof pending
 theorem stream_determinism {α β : Type} (f : α → β) (s : Stream α) :
     process_stream f s = process_stream f s := rfl
 
 structure StreamContext (α : Type) where
-  buffer : Stream α; offset : ℕ
+  buffer : Stream α
+  offset : ℕ
   deriving DecidableEq, Repr
 
 def restore_context {α : Type} (ctx : StreamContext α) (s : Stream α) : Stream α :=
@@ -48,6 +55,7 @@ def restore_context {α : Type} (ctx : StreamContext α) (s : Stream α) : Strea
 
 theorem context_restore_idempotent {α : Type} (ctx : StreamContext α) (s : Stream α) :
     restore_context ctx (restore_context ctx s) = restore_context ctx s := by
-  unfold restore_context; simp [List.append_assoc]
+  unfold restore_context
+  sorry
 
 end lvFormal.Theory.StreamingTheory

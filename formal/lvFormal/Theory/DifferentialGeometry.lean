@@ -22,6 +22,8 @@ import Mathlib
 
 open Real
 
+noncomputable section
+
 namespace lvFormal.Theory.DifferentialGeometry
 
 /-! ## 曲面与微分几何基础定义 -/

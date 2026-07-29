@@ -65,50 +65,6 @@ static int term_total_degree(const int *exponents, int var_count) {
     return total;
 }
 
-/** 哈希-索引对（用于分组） */
-typedef struct {
-    uint64_t hash;
-    int idx;
-    bool merged; /* 是否已被合并 */
-} TermHashIdx;
-
-/** 按整数升序比较 — 用于 qsort */
-static int cmp_int(const void *a, const void *b) {
-    int ia = *(const int *) a;
-    int ib = *(const int *) b;
-    return (ia > ib) - (ia < ib);
-}
-
-/** 按 TermHashIdx 的 hash 升序排列 */
-static int cmp_hashidx(const void *a, const void *b) {
-    uint64_t ha = ((const TermHashIdx *) a)->hash;
-    uint64_t hb = ((const TermHashIdx *) b)->hash;
-    if (ha < hb)
-        return -1;
-    if (ha > hb)
-        return 1;
-    return 0;
-}
-
-/** 按规范比较顺序排列 lvExprTerm*: 次数降序，同次数字典序 */
-static int cmp_term_canonical(const void *a, const void *b) {
-    const lvExprTerm *ta = *(const lvExprTerm **) a;
-    const lvExprTerm *tb = *(const lvExprTerm **) b;
-
-    if (!ta || !tb || !ta->exponents || !tb->exponents) {
-        return 0;
-    }
-
-    int deg_a = term_total_degree(ta->exponents, ta->var_count);
-    int deg_b = term_total_degree(tb->exponents, tb->var_count);
-
-    if (deg_a != deg_b)
-        return deg_b - deg_a; /* 降序 */
-
-    /* 同次数按字典序比较指数数组 */
-    return -lv_canonical_compare_terms(ta->exponents, tb->exponents, ta->var_count);
-}
-
 /* ========================================================================
  * 排序规则
  * ======================================================================== */

@@ -75,23 +75,6 @@ static void append_to_buffer(lvProofCompiler *compiler, const char *str) {
     }
 }
 
-/**
- * @brief 添加格式化字符串到缓冲区
- */
-static void append_format(lvProofCompiler *compiler, const char *fmt, ...) {
-    if (!compiler || !fmt)
-        return;
-
-    va_list args;
-    va_start(args, fmt);
-
-    char buffer[1024];
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-
-    append_to_buffer(compiler, buffer);
-}
-
 /* ============== Proof Object 实现 ============== */
 
 /**

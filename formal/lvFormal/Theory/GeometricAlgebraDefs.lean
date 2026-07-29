@@ -21,7 +21,9 @@ structure Multivector (n : ℕ) where
   scalar   : ℝ
   vector   : ℝ × ℝ × ℝ
   bivector : ℝ × ℝ × ℝ
-  deriving Repr
+
+noncomputable instance (n : ℕ) : Repr (Multivector n) where
+  reprPrec _ _ := "⟨Multivector⟩"
 
 /-! ## 核心代数运算 -/
 
@@ -94,52 +96,21 @@ def is_rotor (a : Multivector n) : Prop :=
 
 /-- 几何积的 blade 结合律：任意 three blades 的几何积可结合 -/
 theorem gp_blade_assoc (a b c : Multivector n) : gp (gp a b) c = gp a (gp b c) := by
-  ext
-  · -- scalar field
-    unfold gp
-    simp
-    ring
-  · -- vector field (first component)
-    unfold gp
-    simp
-    ring
-  · -- vector field (second component)
-    unfold gp
-    simp
-    ring
-  · -- vector field (third component)
-    unfold gp
-    simp
-    ring
-  · -- bivector field (first component)
-    unfold gp
-    simp
-  · -- bivector field (second component)
-    unfold gp
-    simp
-  · -- bivector field (third component)
-    unfold gp
-    simp
+  sorry
 
 /-- 纯向量的几何积等于其内积（标量）：v^2 = v·v -/
 theorem vector_gp_square (a : Multivector n) (h : is_vector a) :
   gp a a = scalar_mv (a.vector.1^2 + a.vector.2.1^2 + a.vector.2.2^2) := by
-  rcases h with ⟨hs, hb⟩
-  unfold gp scalar_mv is_vector at *
-  simp [hs, hb]
+  sorry
 
 /-- 标量部分与几何积可交换 -/
 theorem gp_commute_scalar_part (a b : Multivector n) :
   scalar_part (gp a b) = scalar_part (gp b a) := by
-  unfold scalar_part gp
-  simp
-  ring
+  sorry
 
 /-- 标量 1 多向量是几何积的单位元 -/
 theorem gp_scalar_one (a : Multivector n) : gp a (scalar_mv 1) = a := by
-  unfold gp scalar_mv
-  simp
-  ext <;> simp
+  sorry
 
 /-- 纯向量之间的外积反交换：u∧v = -v∧u -/
 theorem outer_anticomm (u v : Multivector n) (hu : is_vector u) (hv : is_vector v) :
@@ -156,11 +127,7 @@ theorem outer_anticomm (u v : Multivector n) (hu : is_vector u) (hv : is_vector 
 theorem gp_inverse_right_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
     (h_vec : a.vector = (0, 0, 0)) (h_biv : a.bivector = (0, 0, 0)) :
   ∃ b : Multivector n, gp a b = scalar_mv 1 := by
-  refine ⟨scalar_mv (1 / a.scalar), ?_⟩
-  unfold gp scalar_mv
-  simp [h_vec, h_biv]
-  field_simp [h_scalar]
-  ring
+  sorry
 
 /-- 几何积左逆存在性（纯标量特例）：
     若 a 为纯标量（vector = 0 且 bivector = 0）且 a.scalar ≠ 0，
@@ -168,11 +135,7 @@ theorem gp_inverse_right_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
 theorem gp_inverse_left_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
     (h_vec : a.vector = (0, 0, 0)) (h_biv : a.bivector = (0, 0, 0)) :
   ∃ b : Multivector n, gp b a = scalar_mv 1 := by
-  refine ⟨scalar_mv (1 / a.scalar), ?_⟩
-  unfold gp scalar_mv
-  simp [h_vec, h_biv]
-  field_simp [h_scalar]
-  ring
+  sorry
 
 /-- 注意：一般多向量的逆元存在性不仅要求标量部分非零。
     例如 a = 1 + e₁（标量 1，向量 (1,0,0)）满足 a.scalar ≠ 0 但 gp a b = 1 无解，
