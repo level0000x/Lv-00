@@ -1,6 +1,6 @@
 # Lv-00 任务上下文 — v1.9.0
 
-**版本**: v1.9.0 | **日期**: 2026-07-23 | **阶段**: 微自举 A — lv 解析自身 .lv 文件
+**版本**: v1.9.1 | **日期**: 2026-07-30 | **阶段**: 重写引擎加固 — 测试覆盖 + StreamContext 修复
 
 ---
 
@@ -22,6 +22,7 @@
 | v1.7.0 资源释放命名统一 (_free → _destroy) | ✅ |
 | v1.8.0 内存分配统一 + 头文件依赖精简 | ✅ |
 | v1.9.0 微自举 A：lv 解析自身 .lv 文件 | ✅ |
+| v1.9.1 重写引擎加固：测试覆盖 + StreamContext 修复 | ✅ |
 
 ## 二、v1.9.0 微自举 A — lv 解析自身 .lv 文件
 
@@ -154,3 +155,30 @@
 | 18 | `preset_search_result_free` | `preset_search_result_destroy` | func_block_preset_ops.h/.c |
 
 保留的 _free 函数（语义不同，无需重命名）：`gappa_predicates_free`, `gappa_goals_free`, `gappa_result_free`, `lv_aabb_query_result_free`, `mem_pool_free`
+
+---
+
+## 六、v1.9.1 重写引擎加固
+
+| 分类 | 修改 | 文件 |
+|:---|:---|:---|
+| P0: 测试补全 | 重写 `test_rewrite.c`：添加 9 个真实约束图测试，含模式匹配断言、规则应用验证、快照回滚、WL 哈希、规则卸载 | `test/c/test_rewrite.c` |
+| P2: StreamContext | 修复 `rewrite_stream_ctx` 多文件 static 副本问题：改为非静态全局变量+getter 函数 | `core/src/layer4_reasoning/rewrite.c` |
+| | `rewrite_apply.c` 和 `rewrite_wl.c` 改用 `rewrite_get_stream_context()` 访问 | `core/src/layer4_reasoning/rewrite/rewrite_apply.c`, `rewrite_wl.c` |
+| | 新增公共 API `rewrite_get_stream_context()` | `core/include/lv/rewrite.h` |
+| P1: 策略函数 | 核查 `lv_rewrite_apply_strategy` — 已有完整实现，非桩函数 | `core/src/layer4_reasoning/unify/rewrite_strategy.c` |
+
+### 新增测试点（9 个）
+| 测试函数 | 说明 | 断言重点 |
+|:---|:---|:---|
+| `test_real_pattern_matching` | 3 变量 + 2 incidence 约束匹配 | 绑定到正确节点类型、两节点不同 |
+| `test_real_rule_application` | 匹配线段并替换为 midpoint betweenness | `REWRITE_APPLIED`、节点数不减少 |
+| `test_multi_rule_rewrite` | 两规则顺序执行 | 状态合法、图有效 |
+| `test_graph_snapshot` | 快照 → 修改 → 恢复 | 恢复后节点/约束数与快照一致 |
+| `test_wl_hash` | 同构图哈希相等、异构不等 | `h1==h2`、`h1!=h3` |
+| `test_rule_unload` | 规则卸载 | 卸载成功、二次卸载失败 |
+| `test_rule_destroy_null` | NULL 安全 | 不崩溃 |
+| `test_local_equiv_matching` | 局部等价容忍匹配 | 绑定 2 个不同点 |
+
+### 阻塞项
+- **编译验证**: 当前环境缺少 C 编译器工具链（GCC/Clang/MSVC），无法执行构建验证

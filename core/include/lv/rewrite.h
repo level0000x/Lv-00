@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：重写引擎 (rewrite)
  * 功能概述：提供约束图的规则匹配、替换与循环检测功能。支持 VF2 子图
  *          同构匹配、规则热加载/卸载、图快照事务回滚、WL 图核哈希
@@ -46,6 +46,12 @@ typedef struct StreamContext StreamContext;
  * @param ctx  流式上下文（可为 NULL 以禁用流式输出）
  */
 lv_PUBLIC_API void rewrite_set_stream_context(StreamContext *ctx);
+
+/**
+ * @brief 获取重写引擎的流式输出上下文
+ * @return 当前流式上下文指针，未设置时返回 NULL
+ */
+lv_PUBLIC_API StreamContext *rewrite_get_stream_context(void);
 
 typedef struct RewritePattern {
     int kind; /* type kind (TypeKind) — used by type_system.c */

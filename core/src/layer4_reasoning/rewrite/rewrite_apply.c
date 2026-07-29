@@ -23,7 +23,8 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
-lv_DECLARE_STREAM_CTX(rewrite);
+/* rewrite_stream_ctx 定义在 rewrite.c 中，通过 getter 函数访问 */
+StreamContext *rewrite_get_stream_context(void);
 
 /* ── 前向声明：来自 rewrite_match.c 的共享函数 ── */
 int resolve_binding(const int *bindings, int binding_count, int pattern_var_id);
@@ -566,8 +567,9 @@ int rewrite_rules_load_from_file(const char *filepath, RewriteRule ***out_rules,
         rules[loaded] = parsed_rule_to_rewrite_rule(&parsed[i]);
         if (rules[loaded]) {
             loaded++;
-            if (rewrite_stream_ctx) {
-                stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_RULE_LOADED,
+            StreamContext *rctx = rewrite_get_stream_context();
+            if (rctx) {
+                stream_emit_simple(rctx, STREAM_EVENT_REWRITE_RULE_LOADED,
                                    rules[loaded - 1]->name ? rules[loaded - 1]->name : "(unnamed)", 0);
             }
         }
@@ -664,8 +666,9 @@ bool rewrite_rule_unload(RewriteRule ***rules, int *count, const char *rule_name
         *rules = NULL;
     }
 
-    if (rewrite_stream_ctx) {
-        stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_INFO, rule_name, 0);
+    StreamContext *rctx = rewrite_get_stream_context();
+    if (rctx) {
+        stream_emit_simple(rctx, STREAM_EVENT_INFO, rule_name, 0);
     }
 
     return true;
@@ -1149,8 +1152,11 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
     if (rule_count <= 0)
         return REWRITE_OK;
 
-    if (rewrite_stream_ctx) {
-        stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_START, "rewrite phase started", 0);
+    {
+        StreamContext *rctx = rewrite_get_stream_context();
+        if (rctx) {
+            stream_emit_simple(rctx, STREAM_EVENT_REWRITE_START, "rewrite phase started", 0);
+        }
     }
 
     /* 按规则优先级排序 */
@@ -1184,8 +1190,8 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
             }
         }
         if (loop_detected) {
-            if (rewrite_stream_ctx) {
-                stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_ERROR, "rewrite loop detected, terminating", steps);
+            { StreamContext *rctx2 = rewrite_get_stream_context(); if (rctx2) {
+                stream_emit_simple(rctx2, STREAM_EVENT_ERROR, "rewrite loop detected, terminating", steps); }
             }
             final_status = REWRITE_TERMINATED;
             break;
@@ -1202,17 +1208,19 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
             if (!match)
                 continue;
 
-            if (rewrite_stream_ctx) {
-                stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_MATCH_FOUND,
+            { StreamContext *rctx3 = rewrite_get_stream_context();
+            if (rctx3) {
+                stream_emit_simple(rctx3, STREAM_EVENT_REWRITE_MATCH_FOUND,
                                    rule->name ? rule->name : "rule matched", steps);
-            }
+            } }
 
             RewriteStatus status = apply_rewrite(graph, rule, match);
             if (status == REWRITE_APPLIED) {
-                if (rewrite_stream_ctx) {
-                    stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_APPLIED,
+                { StreamContext *rctx4 = rewrite_get_stream_context();
+                if (rctx4) {
+                    stream_emit_simple(rctx4, STREAM_EVENT_REWRITE_APPLIED,
                                        rule->name ? rule->name : "rule applied", steps);
-                }
+                } }
                 /* apply_rewrite 内部已通过快照机制处理冲突检测和回滚，
                  * 返回 REWRITE_APPLIED 表示替换成功且图一致。 */
 
@@ -1228,10 +1236,11 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
                 lv_free((void **) &match);
                 break;
             } else {
-                if (rewrite_stream_ctx) {
-                    stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_ROLLBACK,
+                { StreamContext *rctx5 = rewrite_get_stream_context();
+                if (rctx5) {
+                    stream_emit_simple(rctx5, STREAM_EVENT_REWRITE_ROLLBACK,
                                        rule->name ? rule->name : "rule rolled back", steps);
-                }
+                } }
             }
             lv_free((void **) &match);
         }
@@ -1245,9 +1254,10 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
         final_status = REWRITE_TERMINATED;
     }
 
-    if (rewrite_stream_ctx) {
-        stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_REWRITE_DONE, "rewrite phase done", steps);
-    }
+    { StreamContext *rctx6 = rewrite_get_stream_context();
+    if (rctx6) {
+        stream_emit_simple(rctx6, STREAM_EVENT_REWRITE_DONE, "rewrite phase done", steps);
+    } }
 
 done:
     lv_free((void **) &history_hashes);

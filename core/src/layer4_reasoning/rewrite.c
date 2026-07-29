@@ -61,7 +61,14 @@
 /** 哈希计算批次大小（用于 WL 图核哈希的增量计算） */
 #define REWRITE_HASH_BATCH_SIZE 64
 
-lv_DECLARE_STREAM_CTX(rewrite);
+/* rewrite_stream_ctx 是非静态全局变量，供 rewrite_apply.c 和
+ * rewrite_wl.c 等拆分模块共享。各子模块通过 rewrite_get_stream_context()
+ * 访问此变量，确保 setter 调用对所有子模块生效。 */
+lv_UNUSED_ATTR lv_THREAD_LOCAL StreamContext *rewrite_stream_ctx = NULL;
+
+StreamContext *rewrite_get_stream_context(void) {
+    return rewrite_stream_ctx;
+}
 
 void rewrite_set_stream_context(StreamContext *ctx) {
     rewrite_stream_ctx = ctx;

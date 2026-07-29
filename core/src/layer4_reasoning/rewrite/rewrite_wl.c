@@ -23,7 +23,8 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
-lv_DECLARE_STREAM_CTX(rewrite);
+/* rewrite_stream_ctx 定义在 rewrite.c 中，通过 getter 函数访问 */
+StreamContext *rewrite_get_stream_context(void);
 
 /**
  * 执行带坐标验证的子图同构匹配。
@@ -465,10 +466,11 @@ RewriteStatus detect_rewrite_loop_wl(ConstraintGraph *graph, WLHashHistory *hist
 
     /* 检查缓冲区中是否已存在该哈希 */
     if (wl_history_contains(hist, current_hash)) {
-        if (rewrite_stream_ctx) {
-            stream_emit_simple(rewrite_stream_ctx, STREAM_EVENT_ERROR, "WL rewrite loop detected: graph hash repeated",
+        { StreamContext *rctx = rewrite_get_stream_context();
+        if (rctx) {
+            stream_emit_simple(rctx, STREAM_EVENT_ERROR, "WL rewrite loop detected: graph hash repeated",
                                -1);
-        }
+        } }
         return REWRITE_TERMINATED;
     }
 
