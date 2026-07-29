@@ -63,9 +63,10 @@ struct lvThreadTask {
 
 /** 等待组 */
 struct lvWaitGroup {
-    int pending;    /**< 待完成任务数 */
-    lvMutex mutex;  /**< 保护互斥锁 */
-    lvCondVar cond; /**< 等待条件变量 */
+    int pending;         /**< 待完成任务数 */
+    int completed_count; /**< 已完成任务数（支持超时查询） */
+    lvMutex mutex;       /**< 保护互斥锁 */
+    lvCondVar cond;      /**< 等待条件变量 */
 };
 
 /** 线程池 */
@@ -133,6 +134,7 @@ static void *worker_func(void *arg)
             if (task->group != NULL) {
                 MUTEX_LOCK(task->group->mutex);
                 task->group->pending--;
+                task->group->completed_count++;
                 if (task->group->pending <= 0) {
                     COND_SIGNAL(task->group->cond);
                 }
@@ -261,6 +263,7 @@ lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task) {
     MUTEX_INIT(group->mutex);
     COND_INIT(group->cond);
     group->pending = 1;
+    group->completed_count = 0;
 
     task->group = group;
     task->next = NULL;
@@ -291,8 +294,8 @@ lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task) {
 /**
  * @brief 等待一组任务完成并释放等待组
  * @param pool      线程池指针（当前未使用，保留为将来扩展）
- * @param group     等待组指针（函数内部会自动释放）
- * @param timeout_ms 超时毫秒（当前简化实现中忽略，始终等待全部完成）
+ * @param group     等待组指针（全部完成后内部自动释放；超时后不释放，调用者可检查 group->pending）
+ * @param timeout_ms 超时毫秒（<0 无限等待，==0 非阻塞检查立即返回，>0 等待指定毫秒）
  */
 void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group, int timeout_ms) {
     (void) pool;
@@ -300,15 +303,56 @@ void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group, int timeo
         return;
 
     MUTEX_LOCK(group->mutex);
-    /* 简化实现：不支持精确超时，一直等到所有任务完成 */
-    (void) timeout_ms;
-    while (group->pending > 0) {
-        COND_WAIT(group->cond, group->mutex);
-    }
-    MUTEX_UNLOCK(group->mutex);
 
-    MUTEX_DESTROY(group->mutex);
-    free(group);
+    if (timeout_ms < 0) {
+        /* 无限等待，直到所有任务完成 */
+        while (group->pending > 0) {
+            COND_WAIT(group->cond, group->mutex);
+        }
+        MUTEX_UNLOCK(group->mutex);
+        MUTEX_DESTROY(group->mutex);
+        free(group);
+    } else if (timeout_ms == 0) {
+        /* 非阻塞检查：立即返回，不等待 */
+        /* pending > 0 表示任务未完成，调用者可自行检查 group->pending */
+        MUTEX_UNLOCK(group->mutex);
+        /* 不销毁、不释放，调用者可重试 */
+    } else {
+        /* 带超时等待 */
+#ifdef _WIN32
+        while (group->pending > 0) {
+            if (SleepConditionVariableCS(&group->cond, &group->mutex, (DWORD) timeout_ms) == 0) {
+                /* 超时：不再等待，保留 group 供调用者检查 */
+                break;
+            }
+        }
+#else
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_sec += timeout_ms / 1000;
+        ts.tv_nsec += (long) (timeout_ms % 1000) * 1000000L;
+        if (ts.tv_nsec >= 1000000000L) {
+            ts.tv_sec++;
+            ts.tv_nsec -= 1000000000L;
+        }
+        while (group->pending > 0) {
+            if (pthread_cond_timedwait(&group->cond, &group->mutex, &ts) != 0) {
+                /* 超时：不再等待，保留 group 供调用者检查 */
+                break;
+            }
+        }
+#endif
+
+        if (group->pending <= 0) {
+            /* 所有任务已完成 */
+            MUTEX_UNLOCK(group->mutex);
+            MUTEX_DESTROY(group->mutex);
+            free(group);
+        } else {
+            /* 超时，保留 group，调用者可检查 pending/completed_count */
+            MUTEX_UNLOCK(group->mutex);
+        }
+    }
 }
 
 /* ========================================================================

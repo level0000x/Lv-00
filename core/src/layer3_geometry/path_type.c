@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file path_type.c
  * @brief HoTT 路径类型实现
  *
@@ -331,23 +331,56 @@ int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equal
     if (!eq)
         return -1;
 
-    /* 添加端点节点并建立关联 */
-    SymbolicCoord *coords_a[2] = {0};
-    SymbolicCoord *coords_b[2] = {0};
-    AddNodeResult r_a = graph_add_point(eq, coords_a, 0);
-    AddNodeResult r_b = graph_add_point(eq, coords_b, 0);
-    if (r_a != ADD_NODE_OK || r_b != ADD_NODE_OK) {
+    /* 使用端点 ID 创建区分性的符号坐标 */
+    SymbolicCoord *coord_a_x = symbolic_coord_create_rational(path->endpoint_a * 1000 + 1, 1000);
+    SymbolicCoord *coord_a_y = symbolic_coord_create_rational(path->endpoint_a * 1000 + 2, 1000);
+    SymbolicCoord *coords_a[2] = {coord_a_x, coord_a_y};
+
+    SymbolicCoord *coord_b_x = symbolic_coord_create_rational(path->endpoint_b * 1000 + 3, 1000);
+    SymbolicCoord *coord_b_y = symbolic_coord_create_rational(path->endpoint_b * 1000 + 4, 1000);
+    SymbolicCoord *coords_b[2] = {coord_b_x, coord_b_y};
+
+    /* 添加路径端点作为图中的点节点 */
+    AddNodeResult r_a = graph_add_point(eq, (SymbolicCoord *const *) coords_a, 2);
+    if (r_a != ADD_NODE_OK) {
+        symbolic_coord_destroy(coord_a_x);
+        symbolic_coord_destroy(coord_a_y);
+        symbolic_coord_destroy(coord_b_x);
+        symbolic_coord_destroy(coord_b_y);
         graph_destroy(eq);
         return -1;
     }
-
     int node_a = graph_get_last_added_node_id(eq);
-    (void) node_a;
 
-    /* 如果路径源已有构造图，复制约束 */
+    AddNodeResult r_b = graph_add_point(eq, (SymbolicCoord *const *) coords_b, 2);
+    if (r_b != ADD_NODE_OK) {
+        symbolic_coord_destroy(coord_b_x);
+        symbolic_coord_destroy(coord_b_y);
+        graph_destroy(eq);
+        return -1;
+    }
+    int node_b = graph_get_last_added_node_id(eq);
+
+    /* 路径 p : a = b 表示端点 a 与端点 b 等价 → 添加 incidence 约束 */
+    if (node_a >= 0 && node_b >= 0) {
+        graph_add_incidence(eq, node_a, node_b);
+    }
+
+    /* 非恒等路径：添加线段连接两端点，表示路径的几何轨迹 */
+    if (!path->is_constant && node_a >= 0 && node_b >= 0) {
+        graph_add_line_segment(eq, node_a, node_b);
+    }
+
+    /* 如果路径源已有构造图，深度复制其约束到等式图中 */
     if (path->construction) {
-        /* 浅关联路径的构造信息 */
-        (void) path->construction; /* 占位：后续可深度复制约束 */
+        ConstraintGraph *src = path->construction;
+        for (int i = 0; i < src->constraint_count; i++) {
+            Constraint *c = src->constraints[i];
+            if (c && c->is_active) {
+                graph_add_constraint_with_id(eq, -1, c->type,
+                                             c->participants, c->participant_count);
+            }
+        }
     }
 
     *out_equality = eq;

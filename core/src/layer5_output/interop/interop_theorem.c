@@ -514,8 +514,42 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
     }
 
     /* 当前图中的节点名称和约束名称补全 */
-    /* 从 engine 获取实时节点/约束名称列表（暂未实现） */
-    (void) engine;
+    /* 从 engine 获取实时节点/约束名称列表 */
+    if (engine && engine->main_graph) {
+        ConstraintGraph *graph = engine->main_graph;
+
+        /* 遍历所有活跃节点生成补全项 */
+        for (int i = 0; i < graph->node_count && count < capacity - 1; i++) {
+            GeomNode *node = graph->nodes[i];
+            if (!node || !node->is_active)
+                continue;
+
+            char node_name[64];
+            snprintf(node_name, sizeof(node_name), "%s_%d",
+                     interop_geom_type_name(node->type), node->id);
+            if (str_prefix_match(node_name, p)) {
+                result[count] = strdup(node_name);
+                if (result[count])
+                    count++;
+            }
+        }
+
+        /* 遍历所有活跃约束生成补全项 */
+        for (int i = 0; i < graph->constraint_count && count < capacity - 1; i++) {
+            Constraint *con = graph->constraints[i];
+            if (!con || !con->is_active)
+                continue;
+
+            char con_name[64];
+            snprintf(con_name, sizeof(con_name), "%s_%d",
+                     interop_constraint_type_name(con->type), con->id);
+            if (str_prefix_match(con_name, p)) {
+                result[count] = strdup(con_name);
+                if (result[count])
+                    count++;
+            }
+        }
+    }
 
     if (count == 0) {
         free(result);

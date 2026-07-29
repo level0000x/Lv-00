@@ -242,32 +242,99 @@ int geo_simplicial_euler_characteristic(const lvSimplicialComplex *sc) {
  * ============================================================ */
 
 lvBoundary *geo_simplicial_boundary(const lvSimplicialComplex *sc, const lvTriangle *tri) {
-    (void) sc; /* Reserved for future use */
-
-    if (!tri)
+    if (!tri && (!sc || sc->n_triangles == 0))
         return NULL;
 
     lvBoundary *bnd = (lvBoundary *) lv_calloc(1, sizeof(lvBoundary));
     if (!bnd)
         return NULL;
 
-    bnd->edges = (lvEdge *) lv_calloc(3, sizeof(lvEdge));
-    if (!bnd->edges) {
-        lv_free((void **) &(bnd));
-        return NULL;
-    }
-    bnd->n_edges = 3;
-
-    /* Boundary of (v0, v1, v2) is {(v0,v1), (v1,v2), (v0,v2)} */
-    bnd->edges[0].v0 = tri->v0;
-    bnd->edges[0].v1 = tri->v1;
-    bnd->edges[1].v0 = tri->v1;
-    bnd->edges[1].v1 = tri->v2;
-    bnd->edges[2].v0 = tri->v0;
-    bnd->edges[2].v1 = tri->v2;
-
+    bnd->edges = NULL;
+    bnd->n_edges = 0;
     bnd->vertices = NULL;
     bnd->n_vertices = 0;
+
+    if (sc && sc->n_triangles > 0) {
+        /* 遍历复形 sc 中的所有三角形，提取所有唯一的边 */
+        size_t max_edges = sc->n_triangles * 3;
+        lvEdge *tmp_edges = (lvEdge *) lv_calloc(max_edges, sizeof(lvEdge));
+        if (!tmp_edges) {
+            lv_free((void **) &(bnd));
+            return NULL;
+        }
+        size_t n_unique = 0;
+
+        for (size_t i = 0; i < sc->n_triangles; i++) {
+            int tri_verts[3] = {sc->triangles[i].v0, sc->triangles[i].v1, sc->triangles[i].v2};
+            /* 每个三角形贡献三条边 */
+            int edge_pairs[3][2] = {
+                {tri_verts[0], tri_verts[1]},
+                {tri_verts[1], tri_verts[2]},
+                {tri_verts[2], tri_verts[0]}
+            };
+            for (int e = 0; e < 3; e++) {
+                int v0 = edge_pairs[e][0];
+                int v1 = edge_pairs[e][1];
+                /* 规范化边顺序 */
+                if (v0 > v1) {
+                    int t = v0; v0 = v1; v1 = t;
+                }
+                /* 去重 */
+                bool dup = false;
+                for (size_t k = 0; k < n_unique; k++) {
+                    if (tmp_edges[k].v0 == v0 && tmp_edges[k].v1 == v1) {
+                        dup = true;
+                        break;
+                    }
+                }
+                if (!dup) {
+                    tmp_edges[n_unique].v0 = v0;
+                    tmp_edges[n_unique].v1 = v1;
+                    n_unique++;
+                }
+            }
+        }
+
+        bnd->edges = tmp_edges;
+        bnd->n_edges = n_unique;
+
+        /* 收集所有唯一顶点 */
+        size_t max_verts = (size_t) sc->n_vertices;
+        int *vert_set = (int *) lv_calloc(max_verts, sizeof(int));
+        if (vert_set) {
+            size_t nv = 0;
+            for (size_t i = 0; i < n_unique; i++) {
+                int found_v0 = 0, found_v1 = 0;
+                for (size_t j = 0; j < nv; j++) {
+                    if (vert_set[j] == tmp_edges[i].v0) found_v0 = 1;
+                    if (vert_set[j] == tmp_edges[i].v1) found_v1 = 1;
+                }
+                if (!found_v0) vert_set[nv++] = tmp_edges[i].v0;
+                if (!found_v1) vert_set[nv++] = tmp_edges[i].v1;
+            }
+            bnd->vertices = (int *) lv_calloc(nv, sizeof(int));
+            if (bnd->vertices) {
+                memcpy(bnd->vertices, vert_set, nv * sizeof(int));
+                bnd->n_vertices = (int) nv;
+            }
+            lv_free((void **) &(vert_set));
+        }
+    } else if (tri) {
+        /* 兼容旧用法：仅处理单个三角形 */
+        bnd->edges = (lvEdge *) lv_calloc(3, sizeof(lvEdge));
+        if (!bnd->edges) {
+            lv_free((void **) &(bnd));
+            return NULL;
+        }
+        bnd->n_edges = 3;
+
+        bnd->edges[0].v0 = tri->v0;
+        bnd->edges[0].v1 = tri->v1;
+        bnd->edges[1].v0 = tri->v1;
+        bnd->edges[1].v1 = tri->v2;
+        bnd->edges[2].v0 = tri->v0;
+        bnd->edges[2].v1 = tri->v2;
+    }
 
     return bnd;
 }
@@ -345,46 +412,65 @@ int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
         }
     }
 
-    /* For dim == 2 (triangles), check that edges are shared between faces */
+    /* For dim == 2 (triangles), verify simplicial complex properties */
     if (dim == 2) {
-        /* Count unique edges */
-        size_t edge_capacity = n_faces * 3;
-        int *edge_set = (int *) calloc((size_t) edge_capacity * 2, sizeof(int));
-        if (!edge_set)
+        /*
+         * 收集所有边并计数每条边被多少个三角形共享。
+         * 单纯复形条件：每条边至多被 2 个三角形共享。
+         */
+        size_t max_edges = n_faces * 3;
+        int *edge_data = (int *) calloc(max_edges * 3, sizeof(int));
+        /* edge_data[k*3 + 0] = v0, edge_data[k*3 + 1] = v1, edge_data[k*3 + 2] = triangle_count */
+        if (!edge_data)
             return 0;
         size_t n_edges = 0;
 
         for (size_t i = 0; i < n_faces; i++) {
             int tri[3] = {faces[i * 3], faces[i * 3 + 1], faces[i * 3 + 2]};
-            /* Canonicalize edges */
             int edge_pairs[3][2] = {{tri[0], tri[1]}, {tri[1], tri[2]}, {tri[2], tri[0]}};
+
             for (int e = 0; e < 3; e++) {
                 int v0 = edge_pairs[e][0];
                 int v1 = edge_pairs[e][1];
                 if (v0 > v1) {
-                    int t = v0;
-                    v0 = v1;
-                    v1 = t;
+                    int t = v0; v0 = v1; v1 = t;
                 }
-                /* Check if edge already seen */
-                int found = 0;
+
+                /* 查找或添加边 */
+                int idx = -1;
                 for (size_t k = 0; k < n_edges; k++) {
-                    if (edge_set[k * 2] == v0 && edge_set[k * 2 + 1] == v1) {
-                        found = 1;
+                    if (edge_data[k * 3] == v0 && edge_data[k * 3 + 1] == v1) {
+                        idx = (int) k;
                         break;
                     }
                 }
-                if (!found) {
-                    edge_set[n_edges * 2] = v0;
-                    edge_set[n_edges * 2 + 1] = v1;
+
+                if (idx < 0) {
+                    /* 新边 */
+                    edge_data[n_edges * 3] = v0;
+                    edge_data[n_edges * 3 + 1] = v1;
+                    edge_data[n_edges * 3 + 2] = 1;
                     n_edges++;
+                } else {
+                    /* 已有边，递增计数 */
+                    edge_data[idx * 3 + 2]++;
+                    /* 单纯复形条件：每条边至多被 2 个三角形共享 */
+                    if (edge_data[idx * 3 + 2] > 2) {
+                        free(edge_data);
+                        return 0;
+                    }
                 }
             }
         }
 
-        free(edge_set);
-        (void) n_edges;
+        free(edge_data);
     }
+
+    /*
+     * 对于 dim == 1（线段），每条边（即线段本身）至多出现一次（无重复）。
+     * 对于 dim == 3（四面体），每条边至多被多个四面体共享，
+     * 此处暂不实现完整的 3-复形验证。
+     */
 
     return 1;
 }

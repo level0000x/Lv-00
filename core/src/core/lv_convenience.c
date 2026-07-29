@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_convenience.c
  * @brief Lv-00 高层便捷 API 包装层
  *
@@ -23,6 +23,7 @@
 #include "lv/context.h"
 #include "lv/dsl_compiler.h"
 #include "lv/engine.h"
+#include "lv/stream.h"
 
 #include "func_block_preset.h"
 #include "lv_internal.h"
@@ -333,16 +334,27 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
         }
     }
 
-    /* ---- 实例化预设并应用到约束图 ----
-     * 预设实例化的核心逻辑：
-     *   1. 使用预设模板的输入端口数量和默认参数进行实例化
-     *   2. 将实例化的函数块内部节点和约束合并到 ctx->main_graph
-     *   3. 输出端口节点 ID 记录在上下文中供后续引用
-     *
-     * preset_instantiate_to_context() 接口已就绪（见 preset_blocks.h），
-     *       当前实例化依赖调用方通过 engine API 显式创建节点并注册约束。
-     */
-    (void) meta; /* preset_instantiate_to_context() 调用方显式传参 */
+    /* ---- 实例化预设并应用到约束图 ---- */
+    FuncBlock *fb = NULL;
+    InstantiateResult ir = func_block_preset_instantiate(meta->name, NULL, 0, ctx->main_graph, &fb);
+
+    if (ir != INSTANTIATE_OK) {
+        ctx->error_code = lv_ERROR_INTERNAL;
+        snprintf(ctx->error_message, sizeof(ctx->error_message),
+                 "lv_preset_apply: 预设 '%s' 实例化失败 (result=%d)", name, (int) ir);
+        return -4;
+    }
+
+    /* 将实例化的输出记录到流（如果可用） */
+    if (fb && ctx->stream_ctx) {
+        int fb_id = 0;
+        if (ctx->main_graph && ctx->main_graph->node_count > 0) {
+            GeomNode *last = ctx->main_graph->nodes[ctx->main_graph->node_count - 1];
+            if (last)
+                fb_id = last->id;
+        }
+        stream_emit_preset_instantiate(ctx->stream_ctx, name, fb_id, ctx->rewrite_step_limit);
+    }
 
     ctx->error_code = lv_OK;
     ctx->error_message[0] = '\0';

@@ -733,9 +733,30 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
  * @return 对应的 SVG 颜色字符串（如 "#22c55e"），未知颜色返回 "#9ca3af"
  */
 const char *interop_trust_color_to_svg(TrustColor trust) {
-    (void) trust;
-    /* 颜色映射已迁移至 lv_protocol.c */
-    return NULL;
+    switch (trust) {
+        case TRUST_GREEN:
+            return "#22c55e";
+        case TRUST_BLUE_UNEXPLORED:
+            return "#3b82f6";
+        case TRUST_BLUE_EXCEEDED:
+            return "#6366f1";
+        case TRUST_BLUE_OUT_OF_SCOPE:
+            return "#93c5fd";
+        case TRUST_YELLOW:
+            return "#eab308";
+        case TRUST_LIGHT_ORANGE_ORACLE:
+            return "#fb923c";
+        case TRUST_LIGHT_ORANGE_EXPLOSION:
+            return "#f97316";
+        case TRUST_AMBER:
+            return "#f59e0b";
+        case TRUST_DEEP_ORANGE:
+            return "#ea580c";
+        case TRUST_RED:
+            return "#ef4444";
+        default:
+            return "#9ca3af";
+    }
 }
 
 /**
@@ -747,9 +768,30 @@ const char *interop_trust_color_to_svg(TrustColor trust) {
  * @return 对应的 TikZ 颜色字符串（如 "green!70!black"），未知颜色返回 "gray"
  */
 const char *interop_trust_color_to_tikz(TrustColor trust) {
-    (void) trust;
-    /* 颜色映射已迁移至 lv_protocol.c */
-    return NULL;
+    switch (trust) {
+        case TRUST_GREEN:
+            return "green!70!black";
+        case TRUST_BLUE_UNEXPLORED:
+            return "blue!70!black";
+        case TRUST_BLUE_EXCEEDED:
+            return "blue!50!black";
+        case TRUST_BLUE_OUT_OF_SCOPE:
+            return "blue!30!black";
+        case TRUST_YELLOW:
+            return "yellow!70!black";
+        case TRUST_LIGHT_ORANGE_ORACLE:
+            return "orange!40!black";
+        case TRUST_LIGHT_ORANGE_EXPLOSION:
+            return "orange!60!black";
+        case TRUST_AMBER:
+            return "orange!80!black";
+        case TRUST_DEEP_ORANGE:
+            return "red!70!black";
+        case TRUST_RED:
+            return "red!80!black";
+        default:
+            return "gray";
+    }
 }
 
 /**

@@ -299,8 +299,7 @@ static XORConstraint *xor_generate(int num_vars, uint64_t seed) {
             parity_sum ^= 1;
         }
     }
-    xc->parity = (int) (seed & 1);
-    (void) parity_sum;
+    xc->parity = parity_sum;
     return xc;
 }
 

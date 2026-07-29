@@ -1322,14 +1322,20 @@ lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
         return NULL;
     }
 
-    /* SERIAL 是默认实现；其他后端如果未实现也回退到 SERIAL */
-    (void) backend;
+    /*
+     * 多后端分派：当前仅 SERIAL 后端有完整实现。
+     * OpenMP / CUDA / HIP / SINGULAR 后端可后续添加。
+     */
+    if (backend != lv_BACKEND_SERIAL) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL 可用", lv_backend_name(backend));
+        return NULL;
+    }
 
     lvVector *v = lv_calloc(1, sizeof(lvVector));
     lv_CHECK_ALLOC(v, NULL);
 
     v->length = n;
-    v->backend = lv_BACKEND_SERIAL;
+    v->backend = backend;
     v->ops = &serial_vector_ops;
     v->backend_data = NULL;
 
@@ -1354,8 +1360,14 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bo
         return NULL;
     }
 
-    /* SERIAL 是默认实现；其他后端即使未实现也回退到 SERIAL */
-    (void) backend;
+    /*
+     * 多后端分派：当前仅 SERIAL 后端有完整实现。
+     * OpenMP / CUDA / HIP / SINGULAR 后端可后续添加。
+     */
+    if (backend != lv_BACKEND_SERIAL) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL 可用", lv_backend_name(backend));
+        return NULL;
+    }
 
     lvMatrix *A = lv_calloc(1, sizeof(lvMatrix));
     lv_CHECK_ALLOC(A, NULL);
@@ -1364,7 +1376,7 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bo
     A->cols = cols;
     A->sparse = sparse;
     A->format = sparse ? lv_MATRIX_SPARSE_CSR : lv_MATRIX_DENSE;
-    A->backend = lv_BACKEND_SERIAL;
+    A->backend = backend;
     A->ops = &serial_dense_matrix_ops;
     A->backend_data = NULL;
 
@@ -1384,8 +1396,14 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bo
  * @brief 创建线性求解器（指定后端和求解方法）
  */
 lvLinearSolver *lv_linsol_create(lvBackendType backend, lvLinearSolverMethod method) {
-    /* SERIAL 是默认实现；其他后端如果未实现也回退到 SERIAL */
-    (void) backend;
+    /*
+     * 多后端分派：当前仅 SERIAL 后端有完整实现。
+     * OpenMP / CUDA / HIP / SINGULAR 后端可后续添加。
+     */
+    if (backend != lv_BACKEND_SERIAL) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL 可用", lv_backend_name(backend));
+        return NULL;
+    }
 
     lvLinearSolver *LS = lv_calloc(1, sizeof(lvLinearSolver));
     lv_CHECK_ALLOC(LS, NULL);

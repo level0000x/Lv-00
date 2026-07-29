@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_score.c
  * @brief 证明评分模块 —— Layer2 资源管理层
  *
@@ -106,14 +106,11 @@ static const char *score_to_grade(double score) {
  * @return 综合评分 [0.0, 1.0]，无效输入返回 0.0
  */
 double lv_proof_score_evaluate(int proof_id, void *engine) {
-    double base_score;
     double completeness;
     double correctness;
     double efficiency;
     double simplicity;
     double final_score;
-
-    (void) engine; /* 预留：未来接入证明引擎 */
 
     /* 无效 proof_id 检查 */
     if (proof_id < 0) {
@@ -121,20 +118,92 @@ double lv_proof_score_evaluate(int proof_id, void *engine) {
     }
 
     /*
-     * 基于 proof_id 的确定性模拟评分。
-     * 使用简单哈希确保同一 proof_id 每次返回相同分数。
-     * 完整实现应遍历证明树节点，统计：
-     *   - 完整性：已证明子目标 / 总子目标
-     *   - 正确性：正确推理步 / 总推理步
-     *   - 效率：   基于步数的反比评分
-     *   - 简洁度：1.0 - (冗余步 / 总步)
+     * 真实评分：从引擎的约束图中获取证明状态数据，
+     * 评估完整性、正确性、效率和简洁度四个维度。
+     * 如果 engine 不可用或无法获取证明数据，降级使用确定性哈希模拟。
      */
+    lvEngine *eng = (lvEngine *) engine;
+    if (eng && eng->main_graph) {
+        ConstraintGraph *graph = eng->main_graph;
+        int active_node_count = 0;
+        int green_node_count = 0;
+        int active_constraint_count = 0;
+        int conflict_node_count = 0;
+        double total_satisfaction = 0.0;
 
-    /* 模拟各维度评分（基于 proof_id 的确定性计算） */
-    completeness = 0.6 + 0.4 * ((double) (proof_id % 11) / 10.0);
-    correctness = 0.7 + 0.3 * ((double) (proof_id % 7) / 6.0);
-    efficiency = 0.5 + 0.5 * ((double) (proof_id % 13) / 12.0);
-    simplicity = 0.6 + 0.4 * ((double) (proof_id % 9) / 8.0);
+        /* 遍历节点统计：活跃数、绿色（已证明）数、冲突数 */
+        for (int i = 0; i < graph->node_count; i++) {
+            GeomNode *node = graph->nodes[i];
+            if (!node || !node->is_active)
+                continue;
+            active_node_count++;
+            if (node->trust == TRUST_GREEN)
+                green_node_count++;
+            if (node->trust == TRUST_RED)
+                conflict_node_count++;
+        }
+
+        /* 遍历约束统计：满意度累计 */
+        for (int i = 0; i < graph->constraint_count; i++) {
+            Constraint *con = graph->constraints[i];
+            if (!con || !con->is_active)
+                continue;
+            active_constraint_count++;
+            total_satisfaction += con->satisfaction;
+        }
+
+        /* ---- 完整性：绿色（已证明）节点占比 ---- */
+        if (active_node_count > 0) {
+            completeness = (double) green_node_count / (double) active_node_count;
+            completeness = 0.3 + 0.7 * completeness; /* 确保基础分 */
+        } else {
+            completeness = 0.5;
+        }
+
+        /* ---- 正确性：约束满意度均值 ---- */
+        if (active_constraint_count > 0) {
+            correctness = total_satisfaction / (double) active_constraint_count;
+        } else {
+            correctness = 0.7;
+        }
+
+        /* ---- 效率：约束/节点比例越接近 1.0 效率越高 ---- */
+        if (active_node_count > 0) {
+            double ratio = (double) active_constraint_count / (double) active_node_count;
+            if (ratio <= 0.5)
+                efficiency = 0.6 + 0.4 * (ratio / 0.5);
+            else if (ratio <= 1.5)
+                efficiency = 1.0 - 0.2 * ((ratio - 0.5) / 1.0);
+            else
+                efficiency = 0.8 - 0.3 * ((ratio - 1.5) / (ratio + 0.5));
+            efficiency = clamp_score(efficiency);
+        } else {
+            efficiency = 0.6;
+        }
+
+        /* ---- 简洁度：冲突惩罚 + 冗余检测 ---- */
+        if (active_node_count > 0 && active_constraint_count > 0) {
+            double conflict_penalty = (double) conflict_node_count / (double) active_node_count;
+            simplicity = 0.9 - 0.5 * conflict_penalty;
+            /* 检测冗余约束并惩罚 */
+            int redundant_count = 0;
+            int *redundant_ids = graph_detect_redundant_constraints(graph, &redundant_count);
+            if (redundant_ids) {
+                double redundancy_ratio = (double) redundant_count / (double) active_constraint_count;
+                simplicity -= 0.3 * redundancy_ratio;
+                free(redundant_ids);
+            }
+            simplicity = clamp_score(simplicity);
+        } else {
+            simplicity = 0.7;
+        }
+    } else {
+        /* 降级：无可用引擎或图，使用确定性哈希模拟评分 */
+        completeness = 0.6 + 0.4 * ((double) (proof_id % 11) / 10.0);
+        correctness = 0.7 + 0.3 * ((double) (proof_id % 7) / 6.0);
+        efficiency = 0.5 + 0.5 * ((double) (proof_id % 13) / 12.0);
+        simplicity = 0.6 + 0.4 * ((double) (proof_id % 9) / 8.0);
+    }
 
     /* 加权综合评分 */
     final_score = completeness * WEIGHT_COMPLETENESS + correctness * WEIGHT_CORRECTNESS +

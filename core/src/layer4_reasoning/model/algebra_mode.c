@@ -29,11 +29,17 @@
 #define SNAPSHOT_INIT_CAPACITY 4
 #define REDO_INIT_CAPACITY 8
 
-/* 历史记录中额外操作类型（GeomType 枚举未包含的） */
+/* 历史记录中额外操作类型（使用唯一大整数避免与其他枚举重叠） */
 enum {
-    HISTORY_CIRCLE = 100, /**< 圆操作 */
-    HISTORY_RAY = 101,    /**< 射线操作 */
-    HISTORY_PLANE = 200   /**< 工作平面切换 */
+    HISTORY_CIRCLE = 100,         /**< 圆操作 */
+    HISTORY_RAY = 101,            /**< 射线操作 */
+    HISTORY_POINT = 102,          /**< 点构造 */
+    HISTORY_LINE_SEGMENT = 103,   /**< 线段构造 */
+    HISTORY_INCIDENCE = 104,      /**< 关联约束 */
+    HISTORY_TRANSFORM = 105,      /**< 变换操作 */
+    HISTORY_SELECTOR_ALL = 106,   /**< 全选 */
+    HISTORY_PROVE = 107,          /**< 证明操作 */
+    HISTORY_PLANE = 200           /**< 工作平面切换 */
 };
 
 /** 全局 ID 计数器 */
@@ -156,7 +162,7 @@ AlgebraicGeom *algebra_point(AlgebraicGeom *geom, double x, double y, double z) 
 
     /* graph_add_point 内部消费了 coords，无需手动释放 */
     geom->current_entity = graph_get_last_added_node_id(geom->graph);
-    history_push(geom, (int) GEOM_POINT);
+    history_push(geom, HISTORY_POINT);
     return geom;
 }
 
@@ -173,7 +179,7 @@ AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id) {
 
     graph_add_incidence(geom->graph, new_id, entity_id);
     geom->current_entity = new_id;
-    history_push(geom, (int) GEOM_POINT);
+    history_push(geom, HISTORY_POINT);
     return geom;
 }
 
@@ -192,7 +198,7 @@ AlgebraicGeom *algebra_midpoint(AlgebraicGeom *geom, int id_a, int id_b) {
     graph_add_incidence(geom->graph, mid_id, id_b);
 
     geom->current_entity = mid_id;
-    history_push(geom, (int) GEOM_POINT);
+    history_push(geom, HISTORY_POINT);
     return geom;
 }
 
@@ -210,7 +216,7 @@ AlgebraicGeom *algebra_intersect(AlgebraicGeom *geom, int id_a, int id_b) {
     graph_add_incidence(geom->graph, isect_id, id_b);
 
     geom->current_entity = isect_id;
-    history_push(geom, (int) GEOM_POINT);
+    history_push(geom, HISTORY_POINT);
     return geom;
 }
 
@@ -224,7 +230,7 @@ AlgebraicGeom *algebra_line(AlgebraicGeom *geom, int id_a, int id_b) {
 
     graph_add_line_segment(geom->graph, id_a, id_b);
     geom->current_entity = graph_get_last_added_node_id(geom->graph);
-    history_push(geom, (int) GEOM_LINE_SEGMENT);
+    history_push(geom, HISTORY_LINE_SEGMENT);
     return geom;
 }
 
@@ -239,7 +245,7 @@ AlgebraicGeom *algebra_ray(AlgebraicGeom *geom, int origin_id, int through_id) {
     /* 射线：在 origin 和 through 之间构建一条线 */
     graph_add_line_segment(geom->graph, origin_id, through_id);
     geom->current_entity = graph_get_last_added_node_id(geom->graph);
-    history_push(geom, (int) GEOM_LINE_SEGMENT);
+    history_push(geom, HISTORY_LINE_SEGMENT);
     return geom;
 }
 
@@ -296,7 +302,7 @@ AlgebraicGeom *algebra_parallel(AlgebraicGeom *geom, int line_id, int point_id) 
     graph_add_incidence(geom->graph, parallel_id, line_id);
 
     geom->current_entity = parallel_id;
-    history_push(geom, (int) GEOM_LINE_SEGMENT);
+    history_push(geom, HISTORY_LINE_SEGMENT);
     return geom;
 }
 
@@ -316,7 +322,7 @@ AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point
     graph_add_incidence(geom->graph, perp_id, line_id);
 
     geom->current_entity = perp_id;
-    history_push(geom, (int) GEOM_LINE_SEGMENT);
+    history_push(geom, HISTORY_LINE_SEGMENT);
     return geom;
 }
 
@@ -441,7 +447,7 @@ AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, lvTransformOp op, const do
     /* 累积变换：new_transform = m * old_transform */
     mul_matrix(geom->transform, m, geom->transform);
     geom->has_transform = true;
-    history_push(geom, (int) op);
+    history_push(geom, HISTORY_TRANSFORM);
     return geom;
 }
 
@@ -558,7 +564,7 @@ AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const lvSelector *sel, int **
         }
     }
 
-    history_push(geom, (int) SELECTOR_ALL);
+    history_push(geom, HISTORY_SELECTOR_ALL);
     return geom;
 }
 
@@ -580,7 +586,7 @@ AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_typ
         graph_add_intersection(geom->graph, entity_ids[0], entity_ids[1], entity_ids[2]);
     }
 
-    history_push(geom, (int) INCIDENCE);
+    history_push(geom, HISTORY_INCIDENCE);
     return geom;
 }
 
@@ -589,7 +595,7 @@ AlgebraicGeom *algebra_prove(AlgebraicGeom *geom, const char *proposition) {
         return NULL;
 
     /* 证明操作：记录命题待后续引擎处理 */
-    history_push(geom, -1);
+    history_push(geom, HISTORY_PROVE);
     return geom;
 }
 
@@ -669,7 +675,32 @@ AlgebraicGeom *algebra_redo(AlgebraicGeom *geom) {
 
     int step = geom->redo_stack[--geom->redo_count];
     history_push(geom, step);
-    (void) step;
+
+    /* 根据步骤类型重新执行几何构造 */
+    switch (step) {
+        case HISTORY_POINT:
+        case HISTORY_LINE_SEGMENT:
+        case HISTORY_CIRCLE:
+        case HISTORY_RAY:
+            /* 点、线段、圆、射线的构造：更新 current_entity 为图中最后一个节点 */
+            if (geom->graph && geom->graph->node_count > 0) {
+                geom->current_entity = graph_get_last_added_node_id(geom->graph);
+            }
+            break;
+
+        case HISTORY_INCIDENCE:
+            /* 约束操作不改变 current_entity，保持已有值即可 */
+            break;
+
+        case HISTORY_TRANSFORM:
+            /* 变换操作：恢复变换累积状态 */
+            geom->has_transform = true;
+            break;
+
+        default:
+            /* HISTORY_PLANE 等平面切换：current_entity 不受影响 */
+            break;
+    }
 
     return geom;
 }

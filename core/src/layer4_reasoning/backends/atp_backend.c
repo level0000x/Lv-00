@@ -41,6 +41,7 @@
 #define pclose _pclose
 #else
 #include <fcntl.h>
+#include <poll.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -401,16 +402,11 @@ static bool atp_check_executable(const char *name) {
  */
 static int atp_run_subprocess(const char *executable, const char *tptp_text, double timeout_sec, const char *extra_args,
                               char **out_output, int *out_exit_code) {
-    /* 超时处理：在子进程创建后监控，超时则终止
-     * Windows: TerminateProcess / POSIX: kill(SIGTERM) + kill(SIGKILL) */
-    if (timeout_sec > 0.0) {
-        /* 记录开始时间，后续若超过则终止子进程 */
-        time_t start_time = time(NULL);
-        if (start_time == (time_t) -1)
-            start_time = 0;
-        /* 超时检查将在进程等待循环中执行 */
-    }
-    (void) timeout_sec; /* 超时精确实现在子进程创建后生效 */
+    /* 记录开始时间，用于超时检查 */
+    time_t start_time = time(NULL);
+    if (start_time == (time_t) -1)
+        start_time = 0;
+
     if (!executable || !tptp_text || !out_output || !out_exit_code)
         return (int) lv_ERROR_NULL_POINTER;
 
@@ -446,32 +442,101 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
         snprintf(cmd, sizeof(cmd), "%s %s 2>&1", executable, temp_path);
     }
 
-    /* 执行子进程 */
-    FILE *fp = popen(cmd, "r");
-    if (!fp) {
+    /* 创建匿名管道用于捕获 stdout+stderr */
+    HANDLE hReadPipe, hWritePipe;
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.lpSecurityDescriptor = NULL;
+    sa.bInheritHandle = TRUE;
+
+    if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
+        remove(temp_path);
+        return (int) lv_ERROR_IO;
+    }
+    /* 确保读端不继承给子进程 */
+    if (!SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0)) {
+        CloseHandle(hReadPipe);
+        CloseHandle(hWritePipe);
         remove(temp_path);
         return (int) lv_ERROR_IO;
     }
 
-    /* 读取输出 */
+    /* 设置子进程启动信息 */
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    memset(&si, 0, sizeof(si));
+    memset(&pi, 0, sizeof(pi));
+    si.cb = sizeof(STARTUPINFOA);
+    si.hStdError = hWritePipe;
+    si.hStdOutput = hWritePipe;
+    si.dwFlags |= STARTF_USESTDHANDLES;
+
+    BOOL created = CreateProcessA(
+        NULL,      /* 可执行文件名（在命令行中指定） */
+        cmd,       /* 命令行 */
+        NULL,      /* 进程安全属性 */
+        NULL,      /* 线程安全属性 */
+        TRUE,      /* 句柄可继承 */
+        0,         /* 创建标志 */
+        NULL,      /* 环境变量 */
+        NULL,      /* 当前目录 */
+        &si,
+        &pi
+    );
+
+    /* 关闭写端句柄——子进程拥有其副本 */
+    CloseHandle(hWritePipe);
+
+    if (!created) {
+        CloseHandle(hReadPipe);
+        remove(temp_path);
+        return (int) lv_ERROR_IO;
+    }
+
+    /* 分配输出缓冲区 */
     size_t out_size = 65536;
     size_t out_len = 0;
     char *output = (char *) lv_malloc(out_size);
     if (!output) {
-        pclose(fp);
+        CloseHandle(hReadPipe);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
         remove(temp_path);
         return (int) lv_ERROR_OUT_OF_MEMORY;
     }
 
+    /* 等待进程完成或超时 */
+    DWORD timeout_ms = (timeout_sec > 0.0) ? (DWORD)(timeout_sec * 1000.0) : INFINITE;
+    DWORD wait_result = WaitForSingleObject(pi.hProcess, timeout_ms);
+
+    int exit_code = -1;
+    if (wait_result == WAIT_TIMEOUT) {
+        /* 超时：强制终止子进程 */
+        TerminateProcess(pi.hProcess, 1);
+        WaitForSingleObject(pi.hProcess, 5000);
+        exit_code = -1;
+    } else {
+        /* 正常退出，获取退出码 */
+        DWORD code = 0;
+        if (GetExitCodeProcess(pi.hProcess, &code)) {
+            exit_code = (int) code;
+        }
+    }
+
+    /* 读取管道中的所有输出（进程已终止或已完成） */
+    DWORD bytes_read;
     char buffer[4096];
-    while (fgets(buffer, sizeof(buffer), fp)) {
+    while (ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytes_read, NULL) && bytes_read > 0) {
+        buffer[bytes_read] = '\0';
         size_t chunk_len = strlen(buffer);
         while (out_len + chunk_len + 1 >= out_size) {
             out_size *= 2;
             char *new_output = (char *) lv_realloc(output, out_size);
             if (!new_output) {
                 lv_free((void **) &output);
-                pclose(fp);
+                CloseHandle(hReadPipe);
+                CloseHandle(pi.hProcess);
+                CloseHandle(pi.hThread);
                 remove(temp_path);
                 return (int) lv_ERROR_OUT_OF_MEMORY;
             }
@@ -482,7 +547,10 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
     }
     output[out_len] = '\0';
 
-    int exit_code = pclose(fp);
+    /* 清理 */
+    CloseHandle(hReadPipe);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
 
     /* 清理临时文件 */
     remove(temp_path);
@@ -551,7 +619,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
         _exit(127);
     }
 
-    /* 父进程：关闭写端，读取管道输出 */
+    /* 父进程：关闭写端，使用 poll + WNOHANG 实现带超时的进程等待 */
     lv_free((void **) &extra_copy);
     close(pipefd[1]);
 
@@ -560,29 +628,116 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
     char *output = (char *) lv_malloc(out_size);
     if (!output) {
         close(pipefd[0]);
+        kill(pid, SIGKILL);
         waitpid(pid, NULL, 0);
         remove(temp_path);
         return (int) lv_ERROR_OUT_OF_MEMORY;
     }
 
-    ssize_t nread;
-    char buffer[4096];
-    while ((nread = read(pipefd[0], buffer, sizeof(buffer))) > 0) {
-        while (out_len + (size_t) nread + 1 >= out_size) {
-            out_size *= 2;
-            char *new_output = (char *) lv_realloc(output, out_size);
-            if (!new_output) {
-                lv_free((void **) &output);
-                close(pipefd[0]);
-                waitpid(pid, NULL, 0);
-                remove(temp_path);
-                return (int) lv_ERROR_OUT_OF_MEMORY;
+    bool process_exited = false;
+    bool timed_out = false;
+    int exit_code = -1;
+
+    /* 使用 poll() 实现带超时的管道读取和进程状态监控 */
+    struct pollfd pfd;
+    pfd.fd = pipefd[0];
+    pfd.events = POLLIN;
+
+    while (1) {
+        /* 检查是否超时 */
+        if (timeout_sec > 0.0 && !timed_out) {
+            double elapsed = difftime(time(NULL), start_time);
+            if (elapsed >= timeout_sec) {
+                timed_out = true;
+                kill(pid, SIGTERM);
+                /* 给 1.5 秒优雅退出，然后强制终止 */
+                struct timespec ts = { .tv_sec = 1, .tv_nsec = 500000000L };
+                nanosleep(&ts, NULL);
+                kill(pid, SIGKILL);
+                exit_code = -1;
             }
-            output = new_output;
         }
-        memcpy(output + out_len, buffer, (size_t) nread);
-        out_len += (size_t) nread;
+
+        /* 如果已超时终止，做最终读取 */
+        if (timed_out) {
+            char buf[4096];
+            ssize_t n;
+            while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
+                while (out_len + (size_t) n + 1 >= out_size) {
+                    out_size *= 2;
+                    char *new_output = (char *) lv_realloc(output, out_size);
+                    if (!new_output) {
+                        lv_free((void **) &output);
+                        close(pipefd[0]);
+                        waitpid(pid, NULL, 0);
+                        remove(temp_path);
+                        return (int) lv_ERROR_OUT_OF_MEMORY;
+                    }
+                    output = new_output;
+                }
+                memcpy(output + out_len, buf, (size_t) n);
+                out_len += (size_t) n;
+            }
+            break;
+        }
+
+        /* 非阻塞地检查子进程是否已退出 */
+        int status = 0;
+        pid_t ret = waitpid(pid, &status, WNOHANG);
+        if (ret == pid) {
+            /* 子进程已正常退出 */
+            process_exited = true;
+            exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+            /* 读取剩余管道数据 */
+            char buf[4096];
+            ssize_t n;
+            while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
+                while (out_len + (size_t) n + 1 >= out_size) {
+                    out_size *= 2;
+                    char *new_output = (char *) lv_realloc(output, out_size);
+                    if (!new_output) {
+                        lv_free((void **) &output);
+                        close(pipefd[0]);
+                        remove(temp_path);
+                        return (int) lv_ERROR_OUT_OF_MEMORY;
+                    }
+                    output = new_output;
+                }
+                memcpy(output + out_len, buf, (size_t) n);
+                out_len += (size_t) n;
+            }
+            break;
+        }
+
+        /* 使用 poll 等待管道数据就绪（100ms 超时） */
+        int poll_ret = poll(&pfd, 1, 100);
+        if (poll_ret > 0 && (pfd.revents & POLLIN)) {
+            char buf[4096];
+            ssize_t nread = read(pipefd[0], buf, sizeof(buf));
+            if (nread > 0) {
+                while (out_len + (size_t) nread + 1 >= out_size) {
+                    out_size *= 2;
+                    char *new_output = (char *) lv_realloc(output, out_size);
+                    if (!new_output) {
+                        lv_free((void **) &output);
+                        close(pipefd[0]);
+                        kill(pid, SIGKILL);
+                        waitpid(pid, NULL, 0);
+                        remove(temp_path);
+                        return (int) lv_ERROR_OUT_OF_MEMORY;
+                    }
+                    output = new_output;
+                }
+                memcpy(output + out_len, buf, (size_t) nread);
+                out_len += (size_t) nread;
+            } else if (nread == 0) {
+                /* EOF — 子进程已关闭 stdout，继续检查进程状态 */
+                continue;
+            }
+        }
+        /* poll_ret == 0：100ms 内无数据，回到循环开头重新检查超时和进程状态 */
     }
+
     if (out_len == 0) {
         output[0] = '\0';
     } else {
@@ -590,10 +745,12 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
     }
     close(pipefd[0]);
 
-    /* 等待子进程结束 */
-    int status = 0;
-    waitpid(pid, &status, 0);
-    int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    /* 如果进程尚未被回收（非超时情况），最后阻塞等待一次 */
+    if (!process_exited && !timed_out) {
+        int status = 0;
+        waitpid(pid, &status, 0);
+        exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    }
 
     /* 清理临时文件 */
     remove(temp_path);

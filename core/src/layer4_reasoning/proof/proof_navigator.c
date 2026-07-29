@@ -1061,8 +1061,34 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
  * @brief 辅助函数：将 ProofColor 转换为 HTML 十六进制颜色字符串
  */
 static const char *proof_color_to_html_hex(ProofColor c) {
-    (void) c;
-    return "#78909C";
+    switch (c) {
+        case PROOF_COLOR_GREEN:
+            return "#4CAF50";             /* 绿色：全构造 */
+        case PROOF_COLOR_BLUE_UNEXPLORED:
+            return "#2196F3";             /* 蓝色（未探索） */
+        case PROOF_COLOR_BLUE_RESOURCE:
+            return "#1976D2";             /* 蓝色（资源受限） */
+        case PROOF_COLOR_BLUE_OUT_OF_RANGE:
+            return "#0D47A1";             /* 蓝色（超出范围） */
+        case PROOF_COLOR_GREEN_VERIFIED:
+            return "#2E7D32";             /* 绿色实框：已证不可构造 */
+        case PROOF_COLOR_YELLOW:
+            return "#FFC107";             /* 黄色虚线框：条件性不可构造 */
+        case PROOF_COLOR_ORANGE_ORACLE:
+            return "#FF9800";             /* 浅橙色实心端口：依赖非构造性 oracle */
+        case PROOF_COLOR_ORANGE_EX_FALSO:
+            return "#F57C00";             /* 浅橙色虚线箭头：爆炸原理步骤 */
+        case PROOF_COLOR_AMBER:
+            return "#FFB300";             /* 橙黄色：含数值假设 */
+        case PROOF_COLOR_DARK_ORANGE:
+            return "#E65100";             /* 深橙色：非构造性依赖与数值假设叠加 */
+        case PROOF_COLOR_GREEN_COMPLETE:
+            return "#1B5E20";             /* 绿色：证明完成 */
+        case PROOF_COLOR_RED_CONFLICT:
+            return "#D32F2F";             /* 红色：冲突/矛盾 */
+        default:
+            return "#78909C";             /* 灰色：未知颜色 */
+    }
 }
 
 

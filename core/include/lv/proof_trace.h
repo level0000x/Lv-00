@@ -1,6 +1,7 @@
 #ifndef lv_PROOF_TRACE_H
 #define lv_PROOF_TRACE_H
 #include <stdbool.h>
+#include "lv/lv_api_spec.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
