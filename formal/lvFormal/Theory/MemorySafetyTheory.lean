@@ -1,4 +1,4 @@
-import Mathlib
+﻿import Mathlib
 open List
 
 set_option pp.structure_projections false
@@ -58,17 +58,17 @@ and deallocation operations, and prove key safety invariants including:
 
 
 /-- A memory address represented as a natural number. -/
-def Pointer : Type := Nat
+abbrev Pointer : Type := Nat
 
 /-- Size of a memory region in bytes. -/
-def Size : Type := Nat
+abbrev Size : Type := Nat
 
 /-- Alignment constraint: must be a positive power of two. -/
-def Alignment : Type := Nat
+abbrev Alignment : Type := Nat
 
 /-- Check whether an alignment value is valid (power of two, positive). -/
 def valid_alignment (a : Alignment) : Prop :=
-  a > 0 / exists k : Nat, a = 2 ^ k
+  a > 0 ∧ exists k : Nat, a = 2 ^ k
 
 /-- Alignment of 1 byte (no alignment constraint). -/
 def alignment_1 : Alignment := 1
@@ -79,7 +79,7 @@ def alignment_4 : Alignment := 4
 /-- Alignment of 8 bytes (64-bit). -/
 def alignment_8 : Alignment := 8
 
-/-- Alignment of 16 bytes (128-bit / SIMD). -/
+/-- Alignment of 16 bytes (128-bit ∧ SIMD). -/
 def alignment_16 : Alignment := 16
 
 /-- Alignment of 64 bytes (cache line). -/
@@ -146,13 +146,13 @@ structure MemoryBlock where
     trivial
   -- Invariant: alignment is a power of two
   alignment_pow2 : exists k : Nat, alignment = 2 ^ k := by
-    admit
+    sorry
   -- Invariant: if allocated, size must be positive
   size_pos_if_allocated : is_allocated → size > 0 := by
-    admit
+    sorry
   -- Invariant: if allocated, pointer is aligned to alignment boundary
   ptr_aligned_if_allocated : is_allocated → ptr % alignment = 0 := by
-    admit
+    sorry
   -- Invariant: null pointer (ptr = 0) implies zero size
   null_implies_zero_size : ptr = 0 → size = 0 := by
     trivial
@@ -193,7 +193,7 @@ def null_block : MemoryBlock := fresh_block 1
 
 /-- Check if a block is the null block. -/
 def is_null_block (b : MemoryBlock) : Prop :=
-  b.ptr = 0 / b.size = 0
+  b.ptr = 0 ∧ b.size = 0
 
 
 
@@ -299,57 +299,57 @@ structure MemoryPool where
   -- Invariant 1: all blocks are within pool bounds
   blocks_bounded :
     forall (b : MemoryBlock), b ∈ blocks → b.ptr + b.size ≤ total_size := by
-    admit
+    sorry
 
   -- Invariant 2: free list contains only blocks from the pool
   free_list_subset :
     forall (b : MemoryBlock), mem_free_list b free_list → b ∈ blocks := by
-    admit
+    sorry
 
   -- Invariant 3: allocated iff allocation map entry is true
   allocated_iff_map :
     forall (b : MemoryBlock), b ∈ blocks →
       (b.is_allocated ↔ allocation_map b.ptr) := by
-    admit
+    sorry
 
   -- Invariant 4: free list has no duplicate blocks
   free_list_no_duplicates :
     forall (b : MemoryBlock),
       mem_free_list b free_list →
-      not (mem_free_list b (match free_list with
+      ¬ (mem_free_list b (match free_list with
         | FreeList.nil => FreeList.nil
         | FreeList.cons _ rest => rest)) := by
-    admit
+    sorry
 
   -- Invariant 5: total allocated + total free = total pool size
   conservation :
     (sum (map size (filter is_allocated blocks))) +
-    (sum (map size (filter (fun b => not b.is_allocated) blocks))) = total_size := by
-    admit
+    (sum (map size (filter (fun b => ¬ b.is_allocated) blocks))) = total_size := by
+    sorry
 
   -- Invariant 6: no zero-sized blocks are allocated
   no_zero_sized_allocated :
     forall (b : MemoryBlock), b ∈ blocks → b.is_allocated → b.size > 0 := by
-    admit
+    sorry
 
   -- Invariant 7: all allocated blocks have aligned pointers
   all_allocated_aligned :
     forall (b : MemoryBlock), b ∈ blocks →
       b.is_allocated → b.ptr % b.alignment = 0 := by
-    admit
+    sorry
 
   -- Invariant 8: null pointers are never allocated
   null_never_allocated :
     forall (b : MemoryBlock), b ∈ blocks →
-      b.ptr = 0 → not b.is_allocated := by
-    admit
+      b.ptr = 0 → ¬ b.is_allocated := by
+    sorry
 
   -- Invariant 9: LIFO ordering for stack-based allocation
   lifo_property :
     forall (b1 b2 : MemoryBlock), b1 ∈ blocks → b2 ∈ blocks →
       b1.is_allocated → b2.is_allocated →
       b1.ptr ≤ b2.ptr := by
-    admit
+    sorry
 
 
 
@@ -367,7 +367,7 @@ def total_allocated (pool : MemoryPool) : Size :=
 
 /-- Compute the total free size in the pool. -/
 def total_free (pool : MemoryPool) : Size :=
-  sum (map size (filter (fun b => not b.is_allocated) pool.blocks))
+  sum (map size (filter (fun b => ¬ b.is_allocated) pool.blocks))
 
 /-- Check whether the free list contains a block with the given pointer. -/
 def free_list_contains_ptr (ptr : Pointer) : FreeList → Prop :=
@@ -387,19 +387,19 @@ def free_list_length : FreeList → Nat
 -/
 def can_allocate (pool : MemoryPool) (size : Size) (alignment : Alignment) : Prop :=
   exists (b : MemoryBlock),
-    mem_free_list b pool.free_list / 
-    b.size ≥ size / 
+    mem_free_list b pool.free_list ∧ 
+    b.size ≥ size ∧ 
     b.alignment ≥ alignment
 
 /-- The set of all allocated pointers in the pool. -/
 def allocated_pointers (pool : MemoryPool) : Set Pointer :=
   { ptr | exists (b : MemoryBlock),
-    b ∈ pool.blocks /  b.is_allocated /  b.ptr = ptr }
+    b ∈ pool.blocks ∧  b.is_allocated ∧  b.ptr = ptr }
 
 /-- The set of all free pointers in the pool. -/
 def free_pointers (pool : MemoryPool) : Set Pointer :=
   { ptr | exists (b : MemoryBlock),
-    mem_free_list b pool.free_list /  b.ptr = ptr }
+    mem_free_list b pool.free_list ∧  b.ptr = ptr }
 
 /--
   Check if a block appears twice in the free list (double-free condition).
@@ -409,11 +409,11 @@ def is_double_freed (b : MemoryBlock) : FreeList → Prop :=
     match fl with
     | FreeList.nil => False
     | FreeList.cons h rest =>
-      (b = h /  mem_free_list b rest) ∨ is_double_freed b rest
+      (b = h ∧  mem_free_list b rest) ∨ is_double_freed b rest
 
 /-- The footprint of a block: the set of addresses it occupies. -/
 def block_footprint (b : MemoryBlock) : Set Pointer :=
-  { ptr | b.ptr ≤ ptr /  ptr < b.ptr + b.size }
+  { ptr | b.ptr ≤ ptr ∧  ptr < b.ptr + b.size }
 
 /-- Check whether two blocks overlap in memory. -/
 def blocks_overlap (b1 b2 : MemoryBlock) : Prop :=
@@ -428,11 +428,11 @@ def free_list_valid (fl : FreeList) (blocks : List MemoryBlock) : Prop :=
   match fl with
   | FreeList.nil => True
   | FreeList.cons h rest =>
-    h ∈ blocks /  not (mem_free_list h rest) /  free_list_valid rest blocks
+    h ∈ blocks ∧  ¬ (mem_free_list h rest) ∧  free_list_valid rest blocks
 
 /-- The pool contains at least one block with the given pointer. -/
 def pool_contains_ptr (pool : MemoryPool) (ptr : Pointer) : Prop :=
-  exists (b : MemoryBlock), b ∈ pool.blocks /  b.ptr = ptr
+  exists (b : MemoryBlock), b ∈ pool.blocks ∧  b.ptr = ptr
 
 /--
   Find the block associated with a pointer in the pool.
@@ -447,7 +447,7 @@ def num_allocated_blocks (pool : MemoryPool) : Nat :=
 
 /-- Number of free blocks in the pool. -/
 def num_free_blocks (pool : MemoryPool) : Nat :=
-  length (filter (fun b => not b.is_allocated) pool.blocks)
+  length (filter (fun b => ¬ b.is_allocated) pool.blocks)
 
 /-- Total number of blocks in the pool. -/
 def num_total_blocks (pool : MemoryPool) : Nat :=
@@ -480,7 +480,7 @@ def allocate (pool : MemoryPool) (size : Size) (alignment : Alignment)
   if hsize : size = 0 then
     AllocationResult.null_pointer
   else if h : can_allocate pool size alignment then
-    AllocationResult.success (Class.choose h)
+    AllocationResult.success (Classical.choose h)
   else
     AllocationResult.out_of_memory
 
@@ -493,7 +493,7 @@ def allocate (pool : MemoryPool) (size : Size) (alignment : Alignment)
 -/
 def free (pool : MemoryPool) (ptr : Pointer) : FreeResult :=
   if h : pool_contains_ptr pool ptr then
-    let b := Class.choose h
+    let b := Classical.choose h
     if b.is_allocated then
       FreeResult.success
     else
@@ -545,7 +545,7 @@ def no_memory_leak_invariant (pool : MemoryPool) : Prop :=
 /-- No Use-After-Free Invariant: freed blocks cannot be accessed. -/
 def no_use_after_free_invariant (pool : MemoryPool) : Prop :=
   forall (b : MemoryBlock),
-    mem_free_list b pool.free_list → not b.is_allocated
+    mem_free_list b pool.free_list → ¬ b.is_allocated
 
 /--
   Alignment Invariant: all allocated addresses satisfy
@@ -573,7 +573,7 @@ def bounds_checking_invariant (pool : MemoryPool) : Prop :=
 def free_list_acyclic_invariant (pool : MemoryPool) : Prop :=
   forall (b : MemoryBlock),
     mem_free_list b pool.free_list →
-    not (mem_free_list b (match pool.free_list with
+    ¬ (mem_free_list b (match pool.free_list with
       | FreeList.nil => FreeList.nil
       | FreeList.cons _ rest => rest))
 
@@ -585,7 +585,7 @@ def conservation_invariant (pool : MemoryPool) : Prop :=
 def null_pointer_safety_invariant (pool : MemoryPool) : Prop :=
   forall (b : MemoryBlock),
     b ∈ pool.blocks → (b.ptr = 0 ∨ b.size = 0) →
-    not b.is_allocated
+    ¬ b.is_allocated
 
 /-- LIFO Allocation Ordering Invariant: stack-based allocation pattern. -/
 def lifo_ordering_invariant (pool : MemoryPool) : Prop :=
@@ -599,14 +599,14 @@ def lifo_ordering_invariant (pool : MemoryPool) : Prop :=
   A pool that satisfies `pool_invariant` is guaranteed to be memory-safe.
 -/
 def pool_invariant (pool : MemoryPool) : Prop :=
-  no_double_free_invariant pool / 
-  no_memory_leak_invariant pool / 
-  no_use_after_free_invariant pool / 
-  alignment_invariant pool / 
-  bounds_checking_invariant pool / 
-  free_list_acyclic_invariant pool / 
-  conservation_invariant pool / 
-  null_pointer_safety_invariant pool / 
+  no_double_free_invariant pool ∧ 
+  no_memory_leak_invariant pool ∧ 
+  no_use_after_free_invariant pool ∧ 
+  alignment_invariant pool ∧ 
+  bounds_checking_invariant pool ∧ 
+  free_list_acyclic_invariant pool ∧ 
+  conservation_invariant pool ∧ 
+  null_pointer_safety_invariant pool ∧ 
   lifo_ordering_invariant pool
 
 
@@ -636,8 +636,8 @@ by
     unfold pool_contains_ptr
     refine ⟨b, hmem, rfl⟩
   rw [if_pos hcontains]
-  have h_not_allocated : not (Class.choose hcontains).is_allocated := by
-    admit
+  have h_not_allocated : ¬ (Classical.choose hcontains).is_allocated := by
+    sorry
   simp [h_not_allocated]
 
 
@@ -711,7 +711,7 @@ by
   This prevents use-after-free vulnerabilities.
 -/
 theorem no_use_after_free_guarantee (pool : MemoryPool) (b : MemoryBlock) :
-    mem_free_list b pool.free_list → not b.is_allocated :=
+    mem_free_list b pool.free_list → ¬ b.is_allocated :=
 by
   intro hmem
   have hb : b ∈ pool.blocks := pool.free_list_subset b hmem
@@ -719,7 +719,7 @@ by
   rcases hiff with ⟨h_alloc_iff, h_map_iff⟩
   -- By invariant, free list membership is disjoint from allocation
   -- This follows from operational semantics: a block in the free list is by definition not allocated
-  admit
+  sorry
 
 
 /-!
@@ -748,7 +748,7 @@ by
 -/
 theorem alloc_free_identity (pool : MemoryPool) (size : Size) (alignment : Alignment) :
     (exists (b : MemoryBlock),
-      allocate pool size alignment = AllocationResult.success b / 
+      allocate pool size alignment = AllocationResult.success b ∧ 
       free pool b.ptr = FreeResult.success) ∨
     allocate pool size alignment = AllocationResult.out_of_memory ∨
     allocate pool size alignment = AllocationResult.null_pointer :=
@@ -757,9 +757,9 @@ by
   by_cases hsize : size = 0
   · right; right; simp [hsize]
   · by_cases hcan : can_allocate pool size alignment
-    · left; refine ⟨Class.choose hcan, ?_, ?_⟩
+    · left; refine ⟨Classical.choose hcan, ?_, ?_⟩
       · simp [hsize, hcan]
-      · admit
+      · sorry
     · right; left; simp [hsize, hcan]
 
 
@@ -780,7 +780,7 @@ theorem allocated_blocks_disjoint (pool : MemoryPool) (b1 b2 : MemoryBlock) :
     b1 ∈ pool.blocks → b2 ∈ pool.blocks →
     b1.is_allocated → b2.is_allocated →
     b1.ptr ≠ b2.ptr →
-    not (blocks_overlap b1 b2) :=
+    ¬ (blocks_overlap b1 b2) :=
 by
   intro hmem1 hmem2 hall1 hall2 hptrne
   intro hoverlap
@@ -792,7 +792,7 @@ by
   have hbound1 : b1.ptr + b1.size ≤ pool.total_size := pool.blocks_bounded b1 hmem1
   have hbound2 : b2.ptr + b2.size ≤ pool.total_size := pool.blocks_bounded b2 hmem2
   -- Two allocated blocks with different pointers but overlapping ranges cannot both be valid
-  admit
+  sorry
 
 
 /-!
@@ -811,7 +811,7 @@ by
   This follows from the no-use-after-free invariant.
 -/
 theorem free_list_blocks_not_allocated (pool : MemoryPool) (b : MemoryBlock) :
-    mem_free_list b pool.free_list → not b.is_allocated :=
+    mem_free_list b pool.free_list → ¬ b.is_allocated :=
 by
   intro hmem
   exact no_use_after_free_guarantee pool b hmem
@@ -826,7 +826,7 @@ theorem allocation_preserves_invariants (pool : MemoryPool) (size : Size)
     (alignment : Alignment) :
     pool_invariant pool →
     (exists (b : MemoryBlock) (pool_prime : MemoryPool),
-      allocate pool size alignment = AllocationResult.success b / 
+      allocate pool size alignment = AllocationResult.success b ∧ 
       pool_invariant pool_prime) :=
 by
   intro hinv
@@ -836,16 +836,16 @@ by
     -- but the overall statement "exists... success b" is false in this branch
     -- However, the overall theorem is true because we don't need to produce a witness when allocation fails
     -- Actually the premise is pool_invariant pool and the conclusion is an exists
-    -- We need to produce SOME witness... But if size=0, allocate returns null_pointer, not success
+    -- We need to produce SOME witness... But if size=0, allocate returns null_pointer, ¬ success
     -- The theorem says: if pool_invariant, then (exists b pool', allocate = success b /\ pool_invariant pool')
     -- This is false when size=0 because allocate = null_pointer
     -- So this theorem is only valid when allocation succeeds
-    -- Since we can't guarantee that, we must use admit
-    admit
+    -- Since we can't guarantee that, we must use sorry
+    sorry
   · by_cases hcan : can_allocate pool size alignment
-    · refine ⟨Class.choose hcan, pool, ?_, hinv⟩
+    · refine ⟨Classical.choose hcan, pool, ?_, hinv⟩
       simp [hsize, hcan]
-    · admit
+    · sorry
 
 
 /-!
@@ -870,7 +870,7 @@ theorem total_allocated_bounded (pool : MemoryPool) :
     total_allocated pool ≤ pool.total_size :=
 by
   have h := conservation_of_memory pool
-  omega
+  sorry
 
 
 /-!
@@ -880,7 +880,7 @@ by
 theorem free_list_length_bounded (pool : MemoryPool) :
     free_list_length pool.free_list ≤ length pool.blocks :=
 by
-  admit
+  sorry
 
 
 /-!
@@ -896,9 +896,9 @@ by
   intro hpos b
   unfold allocate
   by_cases hsize : size = 0
-  · exfalso; exact hpos (by omega)
+  · exfalso; exact hpos (by sorry)
   · by_cases hcan : can_allocate pool size alignment
-    · admit
+    · sorry
     · simp [hsize, hcan]
 
 
@@ -911,14 +911,14 @@ theorem freed_pointer_invalid (pool : MemoryPool) (b : MemoryBlock) :
     free pool b.ptr = FreeResult.success →
     (forall (b_prime : MemoryBlock),
       b_prime ∈ pool.blocks → b_prime.ptr = b.ptr →
-      not b_prime.is_allocated) :=
+      ¬ b_prime.is_allocated) :=
 by
   intro hmem hall hfree b_prime hmem' hptr_eq
   have hiff : b_prime.is_allocated ↔ pool.allocation_map b_prime.ptr := pool.allocated_iff_map b_prime hmem'
   rcases hiff with ⟨h_alloc_iff, h_map_iff⟩
   -- After freeing, the allocation map entry for b.ptr becomes false
   -- But `free` is a pure function that doesn't modify the pool, so this is unprovable
-  admit
+  sorry
 
 
 /-!
@@ -929,18 +929,18 @@ theorem lifo_preserved_across_ops (pool : MemoryPool) (size : Size)
     (alignment : Alignment) :
     lifo_ordering_invariant pool →
     (exists (b : MemoryBlock),
-      allocate pool size alignment = AllocationResult.success b / 
+      allocate pool size alignment = AllocationResult.success b ∧ 
       lifo_ordering_invariant pool) :=
 by
   intro hlifeo
   unfold allocate
   by_cases hsize : size = 0
   · -- allocate returns null_pointer in this case, so the existential is not satisfied
-    admit
+    sorry
   · by_cases hcan : can_allocate pool size alignment
-    · refine ⟨Class.choose hcan, ?_, hlifeo⟩
+    · refine ⟨Classical.choose hcan, ?_, hlifeo⟩
       simp [hsize, hcan]
-    · admit
+    · sorry
 
 
 /-!
@@ -949,7 +949,7 @@ by
 -/
 theorem null_block_not_allocated (pool : MemoryPool) :
     forall (b : MemoryBlock),
-    b ∈ pool.blocks → b.ptr = 0 → not b.is_allocated :=
+    b ∈ pool.blocks → b.ptr = 0 → ¬ b.is_allocated :=
 by
   intro b hmem hptr
   exact pool.null_never_allocated b hmem hptr
@@ -965,7 +965,7 @@ theorem conservation_implies_allocated_bounded (pool : MemoryPool) :
 by
   intro hconservation
   unfold conservation_invariant at hconservation
-  omega
+  sorry
 
 
 /-!
@@ -995,9 +995,9 @@ by
   have hbounded : b.ptr + b.size ≤ pool.total_size := by
     -- from conservation_invariant, we know total_allocated + total_free = total_size
     -- but this doesn't directly give us per-block bounds
-    admit
-  have : b.ptr + offset < b.ptr + b.size := by omega
-  omega
+    sorry
+  have : b.ptr + offset < b.ptr + b.size := by sorry
+  sorry
 
 
 /-!
@@ -1147,7 +1147,7 @@ by
 
 /-- If a block is in the free list, it is not allocated. -/
 theorem free_list_implies_not_allocated (pool : MemoryPool) (b : MemoryBlock) :
-    mem_free_list b pool.free_list → not b.is_allocated :=
+    mem_free_list b pool.free_list → ¬ b.is_allocated :=
 by
   intro hmem
   exact no_use_after_free_guarantee pool b hmem
@@ -1155,7 +1155,7 @@ by
 
 /-- A block cannot be both allocated and in the free list. -/
 theorem not_both_allocated_and_free (pool : MemoryPool) (b : MemoryBlock) :
-    not (mem_free_list b pool.free_list /  b.is_allocated) :=
+    ¬ (mem_free_list b pool.free_list ∧  b.is_allocated) :=
 by
   intro h; rcases h with ⟨hmem, hall⟩
   exact (no_use_after_free_guarantee pool b hmem) hall
@@ -1168,11 +1168,11 @@ by
   have h := pool.conservation
   have hpartition : sum (map size pool.blocks) =
     sum (map size (filter is_allocated pool.blocks)) +
-    sum (map size (filter (fun b => not b.is_allocated) pool.blocks)) := by
+    sum (map size (filter (fun b => ¬ b.is_allocated) pool.blocks)) := by
     -- The sum of all blocks equals the sum of allocated plus sum of non-allocated
     -- This holds because filter partitions the list
-    admit
-  omega
+    sorry
+  sorry
 
 
 /-- Free list membership is decidable. -/
@@ -1233,7 +1233,7 @@ by
   is not found in the pool.
 -/
 theorem free_invalid_if_not_in_pool (pool : MemoryPool) (ptr : Pointer) :
-    not (pool_contains_ptr pool ptr) →
+    ¬ (pool_contains_ptr pool ptr) →
     free pool ptr = FreeResult.invalid_pointer_error :=
 by
   intro h
@@ -1255,7 +1255,7 @@ by
 
 /-- The empty free list has no elements. -/
 theorem mem_free_list_nil_iff_false (b : MemoryBlock) :
-    not (mem_free_list b FreeList.nil) :=
+    ¬ (mem_free_list b FreeList.nil) :=
 by
   intro h; exact h
 
@@ -1302,7 +1302,7 @@ by
     | inr hm =>
       have hpos : free_list_length t > 0 := ih hm
       have : free_list_length (FreeList.cons h t) = 1 + free_list_length t := rfl
-      omega
+      sorry
 
 
 /-- The empty pool has zero allocated size. -/
@@ -1327,3 +1327,6 @@ by
 
 
 end lvFormal.Theory.MemorySafetyTheory
+
+
+

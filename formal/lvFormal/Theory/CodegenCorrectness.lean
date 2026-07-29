@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: CodegenCorrectness — 代码生成语义保持 (v1.1 R5)
 =================================================================
 Proves two properties of the codegen (IR → Cv00):

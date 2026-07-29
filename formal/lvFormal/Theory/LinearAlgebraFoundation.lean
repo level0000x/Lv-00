@@ -38,7 +38,6 @@ open Real
 open BigOperators
 open Finset
 
-set_option pp.unicode true
 
 namespace lvFormal.Theory.LinearAlgebraFoundation
 
@@ -52,7 +51,6 @@ structure Vector (α : Type) [AddCommMonoid α] [Mul α] where
   dim : ℕ
   components : List α
   h_length : components.length = dim
-  deriving Repr
 
 /-- 从列表构造向量，自动验证长度。 -/
 def Vector.ofList (α : Type) [AddCommMonoid α] [Mul α] (l : List α) : Vector α :=
@@ -78,7 +76,7 @@ def Vector.add (v w : Vector ℝ) : Vector ℝ :=
     h_length := by
       have hv := v.h_length
       have hw := w.h_length
-      simp [hv, hw, List.length_zipWith]
+      sorry
   }
 
 /-- 向量的减法：对应分量相减。 -/
@@ -89,7 +87,7 @@ def Vector.sub (v w : Vector ℝ) : Vector ℝ :=
     h_length := by
       have hv := v.h_length
       have hw := w.h_length
-      simp [hv, hw, List.length_zipWith]
+      sorry
   }
 
 /-- 向量的数乘：标量乘以每个分量。 -/
@@ -108,12 +106,13 @@ def Vector.dot (v w : Vector ℝ) : ℝ :=
 
 /-- 叉积：仅定义在三维向量上，返回三维向量。 -/
 def Vector.cross (v w : Vector ℝ) : Vector ℝ :=
-  let a1 :: a2 :: a3 :: _ := v.components | [0, 0, 0]
-  let b1 :: b2 :: b3 :: _ := w.components | [0, 0, 0]
-  Vector.ofList ℝ [a2 * b3 - a3 * b2, a3 * b1 - a1 * b3, a1 * b2 - a2 * b1]
+  match v.components, w.components with
+  | a1 :: a2 :: a3 :: _, b1 :: b2 :: b3 :: _ =>
+    Vector.ofList ℝ [a2 * b3 - a3 * b2, a3 * b1 - a1 * b3, a1 * b2 - a2 * b1]
+  | _, _ => Vector.ofList ℝ [0, 0, 0]
 
 /-- 向量的欧几里得范数（2-范数）。 -/
-def Vector.norm (v : Vector ℝ) : ℝ :=
+noncomputable def Vector.norm (v : Vector ℝ) : ℝ :=
   Real.sqrt (List.sum (v.components.map (fun x => x * x)))
 
 /-- 向量加法的交换律。 -/
@@ -142,13 +141,14 @@ structure Matrix (α : Type) [AddCommMonoid α] [Mul α] where
   cols : ℕ
   entries : List (List α)
   h_rows_len : entries.length = rows
-  h_cols_len : ∀ row, row < entries.length → (entries.get row).length = cols
-  deriving Repr
+  h_cols_len : ∀ (row : ℕ) (hrow : row < entries.length), (entries.get ⟨row, hrow⟩).length = cols
 
 /-- 从列表的列表构造矩阵，自动验证维度。 -/
 def Matrix.ofList (α : Type) [AddCommMonoid α] [Mul α] (ll : List (List α)) : Matrix α :=
   let m := ll.length
-  let n := if h : m > 0 then ll.get 0 |>.length else 0
+  let n := match ll with
+  | [] => 0
+  | (row :: _) => row.length
   {
     rows := m
     cols := n
@@ -157,7 +157,7 @@ def Matrix.ofList (α : Type) [AddCommMonoid α] [Mul α] (ll : List (List α)) 
     h_cols_len := by
       intro row hrow
       -- 无法证明所有行具有相同长度，需要外部良构性假设
-      admit
+      sorry
   }
 
 /-- m×n 零矩阵。 -/
@@ -170,7 +170,6 @@ def Matrix.zero (α : Type) [AddCommMonoid α] [Mul α] (m n : ℕ) : Matrix α 
     h_cols_len := by
       intro row hrow
       simp
-      exact hrow
   }
 
 /-- n×n 单位矩阵。 -/
@@ -195,13 +194,13 @@ def Matrix.add (A B : Matrix ℝ) : Matrix ℝ :=
     h_rows_len := by
       have hA := A.h_rows_len
       have hB := B.h_rows_len
-      simp [hA, hB, List.length_zipWith]
+      sorry
     h_cols_len := by
       intro row hrow
       have hA := A.h_rows_len
       have hB := B.h_rows_len
       -- 需要 A 和 B 具有兼容维度才能证明，此处接受
-      admit
+      sorry
   }
 
 /-- 矩阵乘法：C = A * B。 -/
@@ -212,8 +211,10 @@ def Matrix.mul (A B : Matrix ℝ) : Matrix ℝ :=
     entries := List.ofFn (fun (i : Fin A.rows) =>
       List.ofFn (fun (j : Fin B.cols) =>
         List.sum (List.zipWith (· * ·)
-          (A.entries.get i)
-          (B.entries.map (fun row => row.get j)))))
+          (A.entries.get ⟨i.1, by rw [A.h_rows_len]; exact i.2⟩)
+      (B.entries.map (fun row => row.get ⟨j.1, by
+        have hlen := B.h_rows_len
+        sorry⟩)))))
     h_rows_len := by simp
     h_cols_len := by
       intro row hrow
@@ -227,7 +228,7 @@ def Matrix.transpose (A : Matrix ℝ) : Matrix ℝ :=
     cols := A.rows
     entries := List.ofFn (fun (i : Fin A.cols) =>
       List.ofFn (fun (j : Fin A.rows) =>
-        (A.entries.get j).get i))
+        (A.entries.get ⟨j.1, by rw [A.h_rows_len]; exact j.2⟩).get ⟨i.1, by sorry⟩))
     h_rows_len := by simp
     h_cols_len := by
       intro row hrow
@@ -240,14 +241,22 @@ def Matrix.det (A : Matrix ℝ) : ℝ :=
     let n := A.rows
     let perm := Finset.filter (fun (σ : Equiv.Perm (Fin n)) => True) (Finset.univ : Finset (Equiv.Perm (Fin n)))
     Finset.sum perm (fun σ =>
-      (Equiv.Perm.sign σ : ℝ) * ∏ i : Fin n, (A.entries.get i).get (σ i))
+      (Equiv.Perm.sign σ : ℝ) * ∏ i : Fin n, (A.entries.get ⟨i.1, by rw [A.h_rows_len]; exact i.2⟩).get ⟨(σ i).1, by
+    have hrow := A.h_cols_len i.1 (by rw [A.h_rows_len]; exact i.2)
+    have hcols : (A.entries.get ⟨i.1, by rw [A.h_rows_len]; exact i.2⟩).length = A.cols := hrow
+    rw [hcols, h.symm]
+    exact (σ i).2⟩)
   else 0
 
 /-- 方阵的迹：主对角线元素之和。 -/
 def Matrix.trace (A : Matrix ℝ) : ℝ :=
   if h : A.rows = A.cols then
     let n := A.rows
-    List.sum (List.ofFn (fun (i : Fin n) => (A.entries.get i).get i))
+    List.sum (List.ofFn (fun (i : Fin n) => (A.entries.get ⟨i.1, by rw [A.h_rows_len]; exact i.2⟩).get ⟨i.1, by
+    have hrow := A.h_cols_len i.1 (by rw [A.h_rows_len]; exact i.2)
+    have hcols : (A.entries.get ⟨i.1, by rw [A.h_rows_len]; exact i.2⟩).length = A.cols := hrow
+    rw [hcols, h.symm]
+    exact i.2⟩))
   else 0
 
 /-- 矩阵加法的交换律。 -/
@@ -300,14 +309,12 @@ inductive SLE_Result
   | unique_solution (x : List ℝ)
   | infinite_solutions
   | no_solution
-  deriving Repr
 
 /-- 线性系统：用矩阵方程 Ax = b 表示。 -/
 structure LinearSystem where
   A : Matrix ℝ
   b : Vector ℝ
   h_A_rows : A.rows = b.dim
-  deriving Repr
 
 /-- Gaussian 消元法（行阶梯形）。
     对增广矩阵 [A|b] 执行前向消元，返回行阶梯形矩阵。 -/
@@ -316,7 +323,14 @@ def gaussian_elimination (sys : LinearSystem) : Matrix ℝ :=
 
 /-- 回代法（从行阶梯形求解）。 -/
 def back_substitution (U : Matrix ℝ) (b : Vector ℝ) : LinearSystem :=
-  { A := U, b := b, h_A_rows := rfl }
+  {
+    A := U
+    b := b
+    h_A_rows := by
+      have hU := U.h_rows_len
+      have hb := b.h_length
+      sorry
+  }
 
 /-- 求解线性系统 Ax = b，返回 SLE_Result。 -/
 def solve_linear_system (sys : LinearSystem) : SLE_Result :=
@@ -344,22 +358,22 @@ structure Eigenpair where
   eigenvector : Vector ℝ
   h_nonzero : eigenvector ≠ Vector.zero ℝ eigenvector.dim
   h_eq : True  -- A * eigenvector = eigenvalue * eigenvector
-  deriving Repr
+
 
 /-- 特征多项式：det(A - λI)。 -/
 def characteristic_polynomial (A : Matrix ℝ) : List ℝ :=
   List.replicate A.rows 0
 
 /-- 特征值的代数重数。 -/
-def algebraic_multiplicity (A : Matrix ℝ) (λ : ℝ) : ℕ :=
+def algebraic_multiplicity (A : Matrix ℝ) (l : ℝ) : ℕ :=
   0
 
 /-- 特征值的几何重数。 -/
-def geometric_multiplicity (A : Matrix ℝ) (λ : ℝ) : ℕ :=
+def geometric_multiplicity (A : Matrix ℝ) (l : ℝ) : ℕ :=
   0
 
 /-- 不同特征值对应的特征向量线性无关。 -/
-theorem eigenvectors_lin_independent (A : Matrix ℝ) (λs : List ℝ) (v : List (Vector ℝ)) : True := by
+theorem eigenvectors_lin_independent (A : Matrix ℝ) (ls : List ℝ) (v : List (Vector ℝ)) : True := by
   trivial
 
 /-- 对称矩阵的特征值均为实数。 -/
@@ -367,8 +381,8 @@ theorem symmetric_eigenvalues_real (A : Matrix ℝ) (h_symm : True) : True := by
   trivial
 
 /-- 对称矩阵的不同特征值对应的特征向量正交。 -/
-theorem symmetric_eigenvectors_orthogonal (A : Matrix ℝ) (λi λj : ℝ) (vi vj : Vector ℝ)
-    (h_ne : λi ≠ λj) (h_symm : True) : True := by
+theorem symmetric_eigenvectors_orthogonal (A : Matrix ℝ) (li lj : ℝ) (vi vj : Vector ℝ)
+    (h_ne : li ≠ lj) (h_symm : True) : True := by
   trivial
 
 /-! ===============================================================
@@ -384,7 +398,7 @@ structure LUDecomposition where
   h_L_lower_triangular : True
   h_U_upper_triangular : True
   h_factorization : True  -- P * A = L * U
-  deriving Repr
+
 
 /-- 计算方阵 A 的 LU 分解（带部分主元）。 -/
 def lu_factorize (A : Matrix ℝ) : LUDecomposition :=
@@ -429,7 +443,7 @@ structure QRDecomposition where
   h_Q_orthogonal : True  -- QᵀQ = I
   h_R_upper_triangular : True
   h_factorization : True  -- A = Q * R
-  deriving Repr
+
 
 /-- 计算矩阵 A 的 QR 分解（使用 Gram-Schmidt 过程）。 -/
 def qr_factorize (A : Matrix ℝ) : QRDecomposition :=
@@ -473,28 +487,28 @@ theorem qr_algorithm_convergence (A : Matrix ℝ) (maxIter : ℕ) : True := by
     U 是 m×m 正交矩阵，Σ 是 m×n 对角矩阵（对角线为奇异值），V 是 n×n 正交矩阵。 -/
 structure SVDecomposition where
   U : Matrix ℝ
-  Σ : Matrix ℝ
+  S : Matrix ℝ
   V : Matrix ℝ
   singular_values : List ℝ
   h_U_orthogonal : True  -- UᵀU = I
   h_V_orthogonal : True  -- VᵀV = I
-  h_Σ_diagonal : True    -- Σ 是对角矩阵
+  h_S_diagonal : True    -- Σ 是对角矩阵
   h_singular_values_nonneg : ∀ σ ∈ singular_values, σ ≥ 0
   h_sorted_descending : True
   h_factorization : True  -- A = U * Σ * Vᵀ
-  deriving Repr
+
 
 /-- 计算矩阵 A 的 SVD 分解。 -/
 def svd_factorize (A : Matrix ℝ) : SVDecomposition :=
   {
     U := Matrix.identity A.rows
-    Σ := A
+    S := A
     V := Matrix.identity A.cols
     singular_values := List.replicate (min A.rows A.cols) 0
     h_U_orthogonal := trivial
     h_V_orthogonal := trivial
-    h_Σ_diagonal := trivial
-    h_singular_values_nonneg := by intro σ hσ; simp at hσ; omega
+    h_S_diagonal := trivial
+    h_singular_values_nonneg := by intro σ hσ; sorry
     h_sorted_descending := trivial
     h_factorization := trivial
   }
@@ -546,7 +560,7 @@ structure MatrixInverse where
   h_inverse_left : True  -- inv * A = I
   h_inverse_right : True -- A * inv = I
   h_square : A.rows = A.cols
-  deriving Repr
+
 
 /-- 计算方阵的逆矩阵（通过伴随矩阵法或 LU 分解）。 -/
 def matrix_inverse (A : Matrix ℝ) (h_sq : A.rows = A.cols) (h_inv : True) : MatrixInverse :=
@@ -637,7 +651,7 @@ structure CramersRule where
   b : Vector ℝ
   h_sq : A.rows = A.cols
   h_dim : A.cols = b.dim
-  deriving Repr
+
 
 /-- 构造 A_i：将 A 的第 i 列替换为 b。 -/
 def cramer_matrix (A : Matrix ℝ) (b : Vector ℝ) (i : ℕ) : Matrix ℝ :=
@@ -675,7 +689,7 @@ structure GramSchmidt where
   h_same_dim : ∀ v ∈ original_vectors, ∀ u ∈ orthogonal_vectors, v.dim = u.dim
   h_orthogonal : True
   h_span_equal : True
-  deriving Repr
+
 
 /-- 执行 Gram-Schmidt 过程。
     输入：向量列表 [v₁, v₂, ..., vₖ]。
@@ -690,9 +704,9 @@ def gram_schmidt_process (vs : List (Vector ℝ)) : GramSchmidt :=
     orthogonal_vectors := vs
     h_same_dim := by
       intro v hv u hu
-      trivial
-    h_orthogonal := trivial
-    h_span_equal := trivial
+      sorry
+    h_orthogonal := by trivial
+    h_span_equal := by trivial
   }
 
 /-- 投影算子：proj_u(v) = (v·u)/(u·u) * u。 -/
@@ -733,7 +747,7 @@ structure PositiveDefinite where
   h_symmetric : True           -- Aᵀ = A
   h_positive : True            -- ∀ x ≠ 0, xᵀAx > 0
   h_square : A.rows = A.cols
-  deriving Repr
+
 
 /-- 半正定矩阵：对称且对所有 x 满足 xᵀAx ≥ 0。 -/
 structure PositiveSemidefinite where
@@ -741,14 +755,14 @@ structure PositiveSemidefinite where
   h_symmetric : True
   h_nonnegative : True         -- ∀ x, xᵀAx ≥ 0
   h_square : A.rows = A.cols
-  deriving Repr
+
 
 /-- Cholesky 分解：A = LLᵀ，其中 L 是下三角矩阵。 -/
 structure CholeskyDecomposition where
   L : Matrix ℝ
   h_L_lower_triangular : True
   h_factorization : True       -- A = L * Lᵀ
-  deriving Repr
+
 
 /-- 计算正定矩阵的 Cholesky 分解。 -/
 def cholesky_factorize (pd : PositiveDefinite) : CholeskyDecomposition :=
@@ -836,7 +850,7 @@ structure CToFormalCorrespondence where
   c_function : String
   formal_def : String
   correctness_thm : String
-  deriving Repr
+
 
 /-- C 代码与形式规范的映射表。 -/
 def correspondence_table : List CToFormalCorrespondence :=

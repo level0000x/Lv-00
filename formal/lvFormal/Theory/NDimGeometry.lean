@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: NDimGeometry (Round 6)
 ======================================
 Corresponds to: bootstrap/src/layer3_geometry/core_graph.lv

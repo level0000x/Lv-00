@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: ProofCompilerTheory -- 证明编译理论 (v1.3 R1)
 ============================================================
 对应: core/src/layer5_output/proof_compiler.c

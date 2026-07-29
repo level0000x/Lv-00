@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: InteropSoundness (Round 6)
 =====================================
 Corresponds to: bootstrap/src/interop/interop_soundness.lv

@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: GeometryPresets (Round 6)
 =========================================
 Corresponds to: bootstrap/src/layer3_geometry/constraint_system.lv

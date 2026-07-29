@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: FormulaSemantics (Round 6)
 =====================================
 Corresponds to: bootstrap/src/semantics/formula_semantics.lv

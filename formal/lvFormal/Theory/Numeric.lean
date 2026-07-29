@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: Numeric (Round 6)
 =================================
 Corresponds to: bootstrap/src/layer3_geometry/approx_counter.lv

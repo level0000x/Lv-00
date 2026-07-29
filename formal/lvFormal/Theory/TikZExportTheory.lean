@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: TikZExportTheory -- TikZ 导出理论 (v1.3 R1)
 =========================================================
 对应: core/src/layer5_output/tikz_export.c

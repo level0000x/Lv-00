@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: StreamingTheory (Round 6)
 =====================================
 Corresponds to: bootstrap/src/streaming/streaming_theory.lv

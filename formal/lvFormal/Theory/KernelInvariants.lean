@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: KernelInvariants (Round 5)
 ==========================================
 Corresponds to: bootstrap/src/spec/lv_config.lv

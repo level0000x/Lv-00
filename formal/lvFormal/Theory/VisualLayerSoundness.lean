@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: VisualLayerSoundness (Round 6)
 =====================================
 Corresponds to: bootstrap/src/visual/visual_layer_soundness.lv

@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: MetaProofTheory -- 元证明理论 (v1.3 R1)
 =====================================================
 对应: core/src/layer4_reasoning/meta_proof.c

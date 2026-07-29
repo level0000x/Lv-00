@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: StreamInvariants (Round 6)
 ==========================================
 Corresponds to: bootstrap/src/layer2_resource/runtime_monitor.lv

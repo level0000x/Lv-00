@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: ExactArithmeticTheory -- 精确算术理论 (v1.3 R1)
 =============================================================
 对应: core/src/layer4_reasoning/exact_arithmetic.c

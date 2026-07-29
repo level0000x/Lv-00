@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: GeomPresetSoundness (Round 5)
 =============================================
 Corresponds to: bootstrap/src/layer3_geometry/point_ops.lv

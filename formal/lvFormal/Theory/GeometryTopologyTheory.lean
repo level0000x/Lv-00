@@ -1,4 +1,4 @@
-﻿import Mathlib
+import Mathlib
 
 namespace lvFormal.Theory.GeometryTopologyTheory
 

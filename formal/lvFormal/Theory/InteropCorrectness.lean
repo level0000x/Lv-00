@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: InteropCorrectness — 互操作正确性 (v1.1 R6)
 =============================================================
 Proves that exports to Coq, Lean4, OPML, GeoJSON, and SVG

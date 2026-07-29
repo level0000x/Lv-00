@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: MathPresetSoundness (Round 5)
 =============================================
 Corresponds to: bootstrap/src/preset/preset_linear_algebra.lv
