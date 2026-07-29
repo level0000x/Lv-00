@@ -939,11 +939,20 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
             graph_type = CONNECTION;
     }
 
-    (void) graph_type; /* 预留给后续 graph_add_xxx 类型扩展 */
-
-    /* 在约束图中添加 incidence 边，关联两个符文节点 */
     int participants[2] = {rune1_index, rune2_index};
-    AddConstraintResult result = graph_add_incidence(array->graph, participants[0], participants[1]);
+    AddConstraintResult result;
+    switch (graph_type) {
+        case CONTAINMENT:
+            result = graph_add_containment(array->graph, participants[0], participants[1]);
+            break;
+        case CONNECTION:
+            result = graph_add_connection(array->graph, participants[0], participants[1]);
+            break;
+        case INCIDENCE:
+        default:
+            result = graph_add_incidence(array->graph, participants[0], participants[1]);
+            break;
+    }
 
     if (result == ADD_CONSTRAINT_OK) {
         array->constraints[array->constraint_count++] = type;

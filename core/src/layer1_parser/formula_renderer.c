@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_renderer.c
  * @brief 公式渲染器实现
  *
@@ -1877,10 +1877,12 @@ static int render_mathml_internal(const FormulaNode *node, char *buffer, size_t 
  * options 预留：未来可控制精度、宽度等格式参数。
  */
 static int render_ascii_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
-    /* options 预留 */
-    (void) options;
     if (!node || !buffer || size == 0)
         return -1;
+
+    /* options->precision 控制浮点数输出精度 */
+    int prec = (options && options->precision > 0) ? options->precision : 6;
+    (void) prec; /* 精度参数由 render_number_internal 使用 */
 
     switch (node->type) {
         case NODE_NUMBER: {

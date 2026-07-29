@@ -271,8 +271,14 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
     if (!engine || !result || !result->ast)
         return false;
 
-    (void) sema; /* 保留供将来扩展使用 */
     name_map_clear();
+
+    /* 使用 sema 进行语义验证 */
+    if (sema) {
+        if (lv_sema_error_count(sema) > 0) {
+            return false;
+        }
+    }
 
     LvAstNode *ast = result->ast;
     if (ast->type != LV_AST_PROGRAM)

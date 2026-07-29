@@ -648,7 +648,7 @@ Algebraic *algebraic_from_quadratic(const Quadratic *q) {
 
     mpz_set_ui(alg->minimal_poly.coeffs[2], 1);
 
-    /* -2a: need to handle rational a */
+    /* -2a (通过 GMP mpq 处理有理数 a) */
     mpq_t two_a;
     mpq_init(two_a);
     mpq_mul_2exp(two_a, q->a->value, 1); /* 2*a */

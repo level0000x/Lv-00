@@ -312,6 +312,10 @@ void engine_destroy(lvEngine *engine) {
         engine->frozen_point = NULL;
     }
     if (engine->stream_ctx) {
+        /* 在销毁流式上下文前，清除所有已注册模块的全局指针，
+         * 防止 type_system_stream_ctx、rewrite_stream_ctx 等
+         * 全局变量成为悬挂指针，导致后续操作堆损坏。 */
+        stream_context_clear_all();
         stream_context_destroy(engine->stream_ctx);
         engine->stream_ctx = NULL;
     }

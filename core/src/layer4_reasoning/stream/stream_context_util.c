@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file stream_context_util.c
  * @brief 流式上下文注册/分发机制的实现
  *
@@ -79,6 +79,22 @@ void stream_context_dispatch_all(StreamContext *ctx) {
     for (int i = 0; i < registered_count; i++) {
         if (registered_setters[i]) {
             registered_setters[i](ctx);
+        }
+    }
+}
+
+/**
+ * @brief 清除所有已注册 setter 的全局流式上下文指针为 NULL
+ *
+ * 在引擎销毁其流式上下文前调用，防止各模块持有悬挂指针。
+ * 如果不调用此函数，各模块的 StreamContext 全局变量 (如
+ * type_system_stream_ctx、rewrite_stream_ctx 等) 仍指向
+ * 已释放的内存，后续使用会导致堆损坏或访问违例。
+ */
+void stream_context_clear_all(void) {
+    for (int i = 0; i < registered_count; i++) {
+        if (registered_setters[i]) {
+            registered_setters[i](NULL);
         }
     }
 }

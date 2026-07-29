@@ -1557,6 +1557,10 @@ if(BUILD_TESTS)
     add_lv_test_and_register(test_lambda_church
         test/c/test_lambda_church.c lambda_church_test)
 
+    # λ-演算 β-归约结果验证（图结构指纹比对）
+    add_lv_test_and_register(test_lambda_eval
+        test/c/test_lambda_eval.c lambda_eval_test)
+
     # 新增公理包测试
     add_lv_test_and_register(test_axiom_topos_theory
         test/c/test_axiom_topos_theory.c topos_theory_axiom_test)

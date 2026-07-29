@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file stream.h
  * @brief 流式输出系统 —— 引擎事件回调、实时状态推送
  *
@@ -280,6 +280,7 @@ lv_PUBLIC_API void stream_context_destroy(StreamContext *ctx);
 
 lv_PUBLIC_API void stream_context_register_builtins(StreamContext *ctx);
 lv_PUBLIC_API void stream_context_dispatch_all(StreamContext *ctx);
+lv_PUBLIC_API void stream_context_clear_all(void);
 
 /* ============== 回调管理 API ============== */
 

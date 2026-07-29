@@ -573,8 +573,17 @@ bool beta_reduce_match(ConstraintGraph *graph, int *out_func_block_id, int *out_
             }
         }
 
-        if (found_output_port_id < 0)
-            continue;
+        /* 匹配成功：只要输入端口有实参连接即为有效 redex。
+         * 输出端口可以没有外部消费者（body→output 使用 connected_to
+         * 关联而非 CONNECTION 约束）。
+         * 如果输出端口没有外部消费者，使用函数块的第一个输出端口。 */
+        if (found_output_port_id < 0) {
+            /* 使用第一个输出端口作为默认值 */
+            if (output_port_count > 0 && output_port_ids)
+                found_output_port_id = output_port_ids[0];
+            else
+                continue;
+        }
 
         /* 匹配成功 */
         *out_func_block_id = fb_id;
