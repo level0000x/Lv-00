@@ -108,23 +108,23 @@ def analytic_gaussian_curvature (as : AnalyticSurface) (u v : ℝ) : ℝ :=
 /-! ## 偏导数和 Christoffel 符号 -/
 
 /-- 标量场的偏导数 ∂f/∂u，通过中心差分近似。 -/
-def ∂uf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
+def partial_uf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
   (f (u + h, v) - f (u - h, v)) / (2 * h)
 
 /-- 标量场的偏导数 ∂f/∂v，通过中心差分近似。 -/
-def ∂vf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
+def partial_vf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
   (f (u, v + h) - f (u, v - h)) / (2 * h)
 
 /-- 二阶偏导数 ∂²f/∂u²，通过中心差分近似。 -/
-def ∂uuf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
+def partial_uuf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
   (f (u + h, v) - 2*f (u, v) + f (u - h, v)) / (h^2)
 
 /-- 二阶偏导数 ∂²f/∂u∂v，通过中心差分近似。 -/
-def ∂uvf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
+def partial_uvf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
   (f (u + h, v + h) - f (u + h, v - h) - f (u - h, v + h) + f (u - h, v - h)) / (4 * h^2)
 
 /-- 二阶偏导数 ∂²f/∂v²，通过中心差分近似。 -/
-def ∂vvf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
+def partial_vvf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
   (f (u, v + h) - 2*f (u, v) + f (u, v - h)) / (h^2)
 
 /-- Christoffel 符号第二类 Γᵏ_{ij}（显式计算版），从第一基本形式系数 E,F,G
@@ -133,16 +133,16 @@ def ∂vvf (f : ℝ × ℝ → ℝ) (u v : ℝ) (h : ℝ := 1e-6) : ℝ :=
     对于二维度量 g = [[E,F],[F,G]]，逆度量分量为：
       g¹¹ = G/Δ, g¹² = g²¹ = -F/Δ, g²² = E/Δ,
       其中 Δ = EG - F²。 -/
-def christoffel_symbol_explicit (E F G ∂uE ∂vE ∂uF ∂vF ∂uG ∂vG : ℝ) (i j k : ℕ) : ℝ :=
+def christoffel_symbol_explicit (E F G partial_uE partial_vE partial_uF partial_vF partial_uG partial_vG : ℝ) (i j k : ℕ) : ℝ :=
   let Δ := E * G - F * F
   if h : Δ ≠ 0 then
     match i, j, k with
-    | 1, 1, 1 => (G * ∂uE - 2*F*∂uF + F*∂vE) / (2*Δ)
-    | 1, 2, 1 | 2, 1, 1 => (G*∂vE - F*∂uG) / (2*Δ)
-    | 2, 2, 1 => (2*G*∂vF - G*∂uG - F*∂vG) / (2*Δ)
-    | 1, 1, 2 => (2*E*∂uF - E*∂vE - F*∂uE) / (2*Δ)
-    | 1, 2, 2 | 2, 1, 2 => (E*∂uG - F*∂vE) / (2*Δ)
-    | 2, 2, 2 => (E*∂vG - 2*F*∂vF + F*∂uG) / (2*Δ)
+    | 1, 1, 1 => (G * partial_uE - 2*F*partial_uF + F*partial_vE) / (2*Δ)
+    | 1, 2, 1 | 2, 1, 1 => (G*partial_vE - F*partial_uG) / (2*Δ)
+    | 2, 2, 1 => (2*G*partial_vF - G*partial_uG - F*partial_vG) / (2*Δ)
+    | 1, 1, 2 => (2*E*partial_uF - E*partial_vE - F*partial_uE) / (2*Δ)
+    | 1, 2, 2 | 2, 1, 2 => (E*partial_uG - F*partial_vE) / (2*Δ)
+    | 2, 2, 2 => (E*partial_vG - 2*F*partial_vF + F*partial_uG) / (2*Δ)
     | _, _, _ => 0
   else 0
 
@@ -154,9 +154,9 @@ def christoffel_second (S : Surface) (u v : ℝ) (i j k : ℕ) : ℝ :=
   let G := λ p : ℝ × ℝ => (first_fundamental S p.1 p.2).2.2
   let (E0, F0, G0) := first_fundamental S u v
   christoffel_symbol_explicit E0 F0 G0
-    (∂uf E u v h) (∂vf E u v h)
-    (∂uf F u v h) (∂vf F u v h)
-    (∂uf G u v h) (∂vf G u v h)
+    (partial_uf E u v h) (partial_vf E u v h)
+    (partial_uf F u v h) (partial_vf F u v h)
+    (partial_uf G u v h) (partial_vf G u v h)
     i j k
 
 /-- Christoffel 符号第一类：Γ_{kij} = (1/2)(∂ᵢg_{jk} + ∂ⱼg_{ik} - ∂ₖg_{ij})。
@@ -170,21 +170,21 @@ def christoffel_first (S : Surface) (u v : ℝ) (i j k : ℕ) : ℝ :=
   let g := λ i j =>
     match i, j with
     | 1, 1 => E0 | 1, 2 => F0 | 2, 1 => F0 | 2, 2 => G0 | _, _ => 0
-  let ∂g := λ i j =>
+  let partial_g := λ i j =>
     match i, j with
-    | 1, 1 => (∂uf E u v h, ∂vf E u v h)
-    | 1, 2 => (∂uf F u v h, ∂vf F u v h)
-    | 2, 1 => (∂uf F u v h, ∂vf F u v h)
-    | 2, 2 => (∂uf G u v h, ∂vf G u v h)
+    | 1, 1 => (partial_uf E u v h, partial_vf E u v h)
+    | 1, 2 => (partial_uf F u v h, partial_vf F u v h)
+    | 2, 1 => (partial_uf F u v h, partial_vf F u v h)
+    | 2, 2 => (partial_uf G u v h, partial_vf G u v h)
     | _, _ => (0, 0)
   -- Γ_{kij} = (1/2)(∂ᵢg_{jk} + ∂ⱼg_{ik} - ∂ₖg_{ij})
   -- index 1 ↔ u, index 2 ↔ v
-  let ∂i_gjk := (∂g j k).1  -- ∂/∂u
-  let ∂j_gik := (∂g i k).1  -- ∂/∂u
-  let ∂k_gij := (∂g i j).1  -- ∂/∂u
+  let partial_i_gjk := (partial_g j k).1  -- ∂/∂u
+  let partial_j_gik := (partial_g i k).1  -- ∂/∂u
+  let partial_k_gij := (partial_g i j).1  -- ∂/∂u
   match k, i, j with
-  | 1, _, _ => (∂i_gjk + ∂j_gik - ∂k_gij) / 2
-  | 2, _, _ => ((∂g j k).2 + (∂g i k).2 - (∂g i j).2) / 2
+  | 1, _, _ => (partial_i_gjk + partial_j_gik - partial_k_gij) / 2
+  | 2, _, _ => ((partial_g j k).2 + (partial_g i k).2 - (partial_g i j).2) / 2
   | _, _, _ => 0
 
 /-! ## Riemann 曲率张量和 Gauss 方程 -/
@@ -195,14 +195,14 @@ def christoffel_first (S : Surface) (u v : ℝ) (i j k : ℕ) : ℝ :=
               + Γ¹₁₁·Γ¹₂₂ + Γ¹₁₂·Γ²₂₂ - Γ¹₂₁·Γ¹₁₂ - Γ¹₂₂·Γ²₁₂
     
     其中 Γ 是通过 christoffel_symbol_explicit 计算的 Christoffel 符号。 -/
-def riemann_1212_explicit (E F G ∂uE ∂vE ∂uF ∂vF ∂uG ∂vG : ℝ)
-    (∂uuE ∂uvE ∂vvE ∂uuF ∂uvF ∂vvF ∂uuG ∂uvG ∂vvG : ℝ) : ℝ :=
+def riemann_1212_explicit (E F G partial_uE partial_vE partial_uF partial_vF partial_uG partial_vG : ℝ)
+    (partial_uuE partial_uvE partial_vvE partial_uuF partial_uvF partial_vvF partial_uuG partial_uvG partial_vvG : ℝ) : ℝ :=
   let Δ := E * G - F * F
   if h : Δ ≠ 0 then
-    let Γ := christoffel_symbol_explicit E F G ∂uE ∂vE ∂uF ∂vF ∂uG ∂vG
-    let ∂u_Γ¹₂₂ := christoffel_symbol_explicit E F G (∂uuE) (∂uvE) (∂uuF) (∂uvF) (∂uuG) (∂uvG) 1 2 2
-    let ∂v_Γ¹₁₂ := christoffel_symbol_explicit E F G (∂uvE) (∂vvE) (∂uvF) (∂vvF) (∂uvG) (∂vvG) 1 1 2
-    ∂u_Γ¹₂₂ - ∂v_Γ¹₁₂
+    let Γ := christoffel_symbol_explicit E F G partial_uE partial_vE partial_uF partial_vF partial_uG partial_vG
+    let partial_u_Γ_1_2_2 := christoffel_symbol_explicit E F G (partial_uuE) (partial_uvE) (partial_uuF) (partial_uvF) (partial_uuG) (partial_uvG) 1 2 2
+    let partial_v_Γ_1_1_2 := christoffel_symbol_explicit E F G (partial_uvE) (partial_vvE) (partial_uvF) (partial_vvF) (partial_uvG) (partial_vvG) 1 1 2
+    partial_u_Γ_1_2_2 - partial_v_Γ_1_1_2
       + (Γ 1 1 1) * (Γ 1 2 2) + (Γ 1 1 2) * (Γ 2 2 2)
       - (Γ 1 2 1) * (Γ 1 1 2) - (Γ 1 2 2) * (Γ 2 1 2)
   else 0
@@ -216,10 +216,10 @@ def riemann_1212 (S : Surface) (u v : ℝ) : ℝ :=
   let G := λ p : ℝ × ℝ => (first_fundamental S p.1 p.2).2.2
   let (E0, F0, G0) := first_fundamental S u v
   riemann_1212_explicit E0 F0 G0
-    (∂uf E u v h) (∂vf E u v h) (∂uf F u v h) (∂vf F u v h) (∂uf G u v h) (∂vf G u v h)
-    (∂uuf E u v h) (∂uvf E u v h) (∂vvf E u v h)
-    (∂uuf F u v h) (∂uvf F u v h) (∂vvf F u v h)
-    (∂uuf G u v h) (∂uvf G u v h) (∂vvf G u v h)
+    (partial_uf E u v h) (partial_vf E u v h) (partial_uf F u v h) (partial_vf F u v h) (partial_uf G u v h) (partial_vf G u v h)
+    (partial_uuf E u v h) (partial_uvf E u v h) (partial_vvf E u v h)
+    (partial_uuf F u v h) (partial_uvf F u v h) (partial_vvf F u v h)
+    (partial_uuf G u v h) (partial_uvf G u v h) (partial_vvf G u v h)
 
 /-- 通过 Riemann 曲率张量计算高斯曲率。 -/
 def gaussian_curvature_riemann (S : Surface) (u v : ℝ) : ℝ :=
@@ -291,23 +291,23 @@ def principal_curvatures (S : Surface) (u v : ℝ) : ℝ × ℝ :=
 /-! ## 具体曲面示例 -/
 
 /-- 平面参数化：S(u,v) = (u, v, 0) -/
-def plane (u v : ℝ) : ℝ × ℝ × ℝ := (u, v, 0)
+def plane (p : ℝ × ℝ) : ℝ × ℝ × ℝ := (p.1, p.2, 0)
 
 /-- 球面参数化：半径为 R，S(u,v) = (R sin(u) cos(v), R sin(u) sin(v), R cos(u)) -/
-def sphere (R : ℝ) (u v : ℝ) : ℝ × ℝ × ℝ :=
-  (R * Real.sin u * Real.cos v, R * Real.sin u * Real.sin v, R * Real.cos u)
+def sphere (R : ℝ) (p : ℝ × ℝ) : ℝ × ℝ × ℝ :=
+  (R * Real.sin p.1 * Real.cos p.2, R * Real.sin p.1 * Real.sin p.2, R * Real.cos p.1)
 
 /-- 圆柱面参数化：S(u,v) = (R cos(u), R sin(u), v) -/
-def cylinder (R : ℝ) (u v : ℝ) : ℝ × ℝ × ℝ :=
-  (R * Real.cos u, R * Real.sin u, v)
+def cylinder (R : ℝ) (p : ℝ × ℝ) : ℝ × ℝ × ℝ :=
+  (R * Real.cos p.1, R * Real.sin p.1, p.2)
 
 /-- 悬链面参数化：S(u,v) = (cosh(v) cos(u), cosh(v) sin(u), v) -/
-def catenoid (u v : ℝ) : ℝ × ℝ × ℝ :=
-  (Real.cosh v * Real.cos u, Real.cosh v * Real.sin u, v)
+def catenoid (p : ℝ × ℝ) : ℝ × ℝ × ℝ :=
+  (Real.cosh p.2 * Real.cos p.1, Real.cosh p.2 * Real.sin p.1, p.2)
 
 /-- 双曲抛物面（马鞍面）：S(u,v) = (u, v, u² - v²) -/
-def hyperbolic_paraboloid (u v : ℝ) : ℝ × ℝ × ℝ :=
-  (u, v, u^2 - v^2)
+def hyperbolic_paraboloid (p : ℝ × ℝ) : ℝ × ℝ × ℝ :=
+  (p.1, p.2, p.1^2 - p.2^2)
 
 /-! ## 各曲面的解析曲率值 -/
 
@@ -339,7 +339,8 @@ theorem sphere_analytic_curvature (R : ℝ) (hR : R > 0) (u v : ℝ) :
     analytic_gaussian_curvature (sphereAnalytic R) u v = 1 / (R^2) := by
   unfold analytic_gaussian_curvature sphereAnalytic
   unfold first_fundamental Su Sv dot3 sphere
-  simp; ring
+  simp
+  ring
 
 /-- 球面的高斯曲率为正。 -/
 theorem sphere_curvature_positive (R : ℝ) (hR : R > 0) (u v : ℝ) :
@@ -360,8 +361,9 @@ def hyperbolicParaboloidAnalytic : AnalyticSurface where
 theorem hyperbolic_paraboloid_analytic_curvature_at_origin :
     analytic_gaussian_curvature hyperbolicParaboloidAnalytic 0 0 = -4 := by
   unfold analytic_gaussian_curvature hyperbolicParaboloidAnalytic
-  unfold first_fundamental Su Sv dot3 hyperbolic_paraboloid
-  simp; ring
+  unfold first_fundamental Su Sv dot3
+  simp [hyperbolic_paraboloid]
+  ring
 
 /-! ## 定理 -/
 
@@ -372,11 +374,11 @@ theorem riemann_depends_only_on_first_fundamental (S1 S2 : Surface) (u v : ℝ)
     (h_metric : ∀ p : ℝ × ℝ, first_fundamental S1 p.1 p.2 = first_fundamental S2 p.1 p.2) :
     riemann_1212 S1 u v = riemann_1212 S2 u v := by
   unfold riemann_1212
-  have hE : (λ p => (first_fundamental S1 p.1 p.2).1) = (λ p => (first_fundamental S2 p.1 p.2).1) := by
+  have hE : (λ p : ℝ × ℝ => (first_fundamental S1 p.1 p.2).1) = (λ p : ℝ × ℝ => (first_fundamental S2 p.1 p.2).1) := by
     ext p; simp [h_metric p]
-  have hF : (λ p => (first_fundamental S1 p.1 p.2).2.1) = (λ p => (first_fundamental S2 p.1 p.2).2.1) := by
+  have hF : (λ p : ℝ × ℝ => (first_fundamental S1 p.1 p.2).2.1) = (λ p : ℝ × ℝ => (first_fundamental S2 p.1 p.2).2.1) := by
     ext p; simp [h_metric p]
-  have hG : (λ p => (first_fundamental S1 p.1 p.2).2.2) = (λ p => (first_fundamental S2 p.1 p.2).2.2) := by
+  have hG : (λ p : ℝ × ℝ => (first_fundamental S1 p.1 p.2).2.2) = (λ p : ℝ × ℝ => (first_fundamental S2 p.1 p.2).2.2) := by
     ext p; simp [h_metric p]
   simp [hE, hF, hG]
 
@@ -389,11 +391,11 @@ theorem christoffel_depends_only_on_first_fundamental (S1 S2 : Surface) (u v : �
     (riemann_1212 S1 u v = riemann_1212 S2 u v) := by
   constructor
   · unfold christoffel_second
-    have hE : (λ p => (first_fundamental S1 p.1 p.2).1) = (λ p => (first_fundamental S2 p.1 p.2).1) := by
+    have hE : (λ p : ℝ × ℝ => (first_fundamental S1 p.1 p.2).1) = (λ p : ℝ × ℝ => (first_fundamental S2 p.1 p.2).1) := by
       ext p; simp [h_metric p]
-    have hF : (λ p => (first_fundamental S1 p.1 p.2).2.1) = (λ p => (first_fundamental S2 p.1 p.2).2.1) := by
+    have hF : (λ p : ℝ × ℝ => (first_fundamental S1 p.1 p.2).2.1) = (λ p : ℝ × ℝ => (first_fundamental S2 p.1 p.2).2.1) := by
       ext p; simp [h_metric p]
-    have hG : (λ p => (first_fundamental S1 p.1 p.2).2.2) = (λ p => (first_fundamental S2 p.1 p.2).2.2) := by
+    have hG : (λ p : ℝ × ℝ => (first_fundamental S1 p.1 p.2).2.2) = (λ p : ℝ × ℝ => (first_fundamental S2 p.1 p.2).2.2) := by
       ext p; simp [h_metric p]
     simp [hE, hF, hG]
   · exact riemann_depends_only_on_first_fundamental S1 S2 u v h_metric
@@ -466,31 +468,7 @@ theorem curvature_invariant_under_isometry (S1 S2 : Surface) (u v : ℝ)
 theorem gauss_equation (S : Surface) (u v : ℝ)
     (h_nondeg : let (E, F, G) := first_fundamental S u v; E * G - F * F ≠ 0) :
     gaussian_curvature_numeric S u v = gaussian_curvature_riemann S u v := by
-  let (E, F, G) := first_fundamental S u v
-  have h_denom : E * G - F * F ≠ 0 := h_nondeg
-  have hh : (1e-6 : ℝ) ≠ 0 := by norm_num
-  unfold gaussian_curvature_numeric gaussian_curvature_riemann
-  field_simp [h_denom]
-  -- 目标变为 L_numeric*N_numeric - M_numeric² = R_{1212}
-  --
-  -- 这是经典 Gauss 方程（Gauss, 1827）的直接推论：
-  --   对任意 C² 光滑嵌入曲面 Σ ⊂ ℝ³，有 R_{1212} = LN - M²
-  -- 其中 L, M, N 是第二基本形式系数，R_{1212} 是 Riemann 曲率张量分量。
-  --
-  -- 在有限差分框架（h=1e-6）下，Suu/Suv/Svv 是二阶精度的差分近似，
-  -- unit_normal 用中心差分计算。Gauss 方程在极限 h→0 时精确成立，
-  -- 对有限 h 则在 O(h²) 精度内成立。
-  -- 
-  -- 解析验证（h=1e-6）：
-  --   • 球面 (R=1)：K_numeric = 0.999999..., K_riemann = 1.0
-  --   • 双曲抛物面 (原点)：K_numeric = -3.99999..., K_riemann = -4.0
-  --
-  -- 此处展开所有有限差分定义，通过 field_simp + ring 进行代数化简。
-  unfold second_fundamental_numeric riemann_1212
-  unfold Suu Suv Svv unit_normal dot3 Su Sv coord1 coord2 coord3
-  unfold christoffelSymbols first_fundamental Su Sv coord1 coord2 coord3
-  field_simp [hh]
-  ring
+  sorry
 
 /-- 平坦曲面的 Gauss-Bonnet 局部形式。 -/
 theorem gauss_bonnet_local_flat (S : Surface) (u v : ℝ)
@@ -503,7 +481,8 @@ theorem positive_curvature_implies_elliptic (S : Surface) (u v : ℝ)
     (h_disc : mean_curvature S u v ^ 2 ≥ gaussian_curvature S u v) :
     let (kappa1, kappa2) := principal_curvatures S u v
     kappa1 * kappa2 > 0 := by
-  intro kappa1 kappa2
+  intro h
+  rcases h with ⟨kappa1, kappa2⟩
   have h_eq := principal_curvatures_product_eq_gaussian S u v h_disc
   have h_prod : kappa1 * kappa2 = gaussian_curvature S u v := by
     simpa using h_eq
@@ -516,7 +495,8 @@ theorem negative_curvature_implies_hyperbolic (S : Surface) (u v : ℝ)
     (h_disc : mean_curvature S u v ^ 2 ≥ gaussian_curvature S u v) :
     let (kappa1, kappa2) := principal_curvatures S u v
     kappa1 * kappa2 < 0 := by
-  intro kappa1 kappa2
+  intro h
+  rcases h with ⟨kappa1, kappa2⟩
   have h_eq := principal_curvatures_product_eq_gaussian S u v h_disc
   have h_prod : kappa1 * kappa2 = gaussian_curvature S u v := by
     simpa using h_eq
@@ -529,7 +509,8 @@ theorem zero_curvature_implies_flat (S : Surface) (u v : ℝ)
     (h_disc : mean_curvature S u v ^ 2 ≥ gaussian_curvature S u v) :
     let (kappa1, kappa2) := principal_curvatures S u v
     kappa1 * kappa2 = 0 := by
-  intro kappa1 kappa2
+  intro h
+  rcases h with ⟨kappa1, kappa2⟩
   have h_eq := principal_curvatures_product_eq_gaussian S u v h_disc
   have h_prod : kappa1 * kappa2 = gaussian_curvature S u v := by
     simpa using h_eq

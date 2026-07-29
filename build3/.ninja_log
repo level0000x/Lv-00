@@ -1249,3 +1249,6 @@
 75	517	8070604122256075	CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/expr/expr_canon.c.obj	63c6b7c6ec4a40bc
 83	520	8070604122315455	CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/proof_compiler.c.obj	a6d916b7de03bb00
 520	1449	8070604126700657	liblv.a	b36b6982d0e4bec3
+48	192	8070608450015925	CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/meta_proof.c.obj	829ee76b570f9ce1
+41	196	8070608449939310	CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/ode_solver.c.obj	56516e9e3d20d87d
+196	756	8070608451497884	liblv.a	b36b6982d0e4bec3

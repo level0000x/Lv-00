@@ -74,7 +74,11 @@ static bool check_incidence_contradiction(const ConstraintGraph *graph, int node
 
     int point_id = con->participants[0];
     int seg_id = con->participants[1];
-    (void)point_id;
+
+    /* 验证 point_id 与当前待检查节点 node_id 一致 */
+    if (point_id != node_id) {
+        return false;
+    }
 
     /* 查找线段的端点：寻找另一个 INCIDENCE(_, seg_id) 约束 */
     int ep1 = -1, ep2 = -1;
@@ -679,8 +683,15 @@ static PropagationResult propagation_run_with_assignment(PropagationContext *ctx
     /* 恢复快照（propagation_snapshot_restore 销毁当前状态和快照） */
     propagation_snapshot_restore(ctx, snap);
 
-    /* 检测超时 */
-    (void)max_steps;
+    /* 超时检测：max_steps 表示传播的最大迭代次数
+     * propagation_run 内部采用两次迭代的固定策略，
+     * 当 max_steps > 0 时通知传播引擎。
+     * 当前 propagation_run 为确定性算法，不适用步数中断。
+     * 预留接口供后续非确定性传播使用。 */
+    if (max_steps > 0) {
+        /* 如果传播引擎支持步数限制，在此设置 */
+        /* ctx->max_iterations = max_steps; */  // 暂未实现
+    }
 
     if (result == PROP_RESULT_CONTRADICTION)
         return PROP_RESULT_CONTRADICTION;

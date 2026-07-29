@@ -237,6 +237,22 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
         return NULL;
     }
 
+    /* Pre-allocate arrays for adaptive step size control (RK4 only) */
+    double *y_full = (double *) lv_malloc(dim * sizeof(double));
+    double *y_half = (double *) lv_malloc(dim * sizeof(double));
+    double *y_tmp_adapt = (double *) lv_malloc(dim * sizeof(double));
+    if (!y_full || !y_half || !y_tmp_adapt) {
+        lv_free((void **) &y_curr);
+        lv_free((void **) &y_next);
+        lv_free((void **) &y_full);
+        lv_free((void **) &y_half);
+        lv_free((void **) &y_tmp_adapt);
+        lv_free((void **) &sol->t_values);
+        lv_free((void **) &sol->y_values);
+        lv_free((void **) &sol);
+        return NULL;
+    }
+
     /* Copy initial state */
     memcpy(y_curr, problem->y0, dim * sizeof(double));
 
@@ -252,7 +268,53 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
 
         switch (config->method) {
             case ODE_RK4:
-                rk4_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next);
+                if (config->rtol > 0.0 && config->atol > 0.0) {
+                    /* 自适应步长控制（基于步长加倍误差估计） */
+                    double current_dt = dt;
+                    int retries = 0;
+                    const int max_retries = 100;
+
+                    for (;;) {
+                        /* 用 current_dt 做一步完整步进 */
+                        rk4_step(problem->rhs_fn, t, y_curr, current_dt, dim, problem->params, y_full);
+
+                        /* 用两个半步进 */
+                        rk4_step(problem->rhs_fn, t, y_curr, current_dt * 0.5, dim, problem->params, y_tmp_adapt);
+                        rk4_step(problem->rhs_fn, t + current_dt * 0.5, y_tmp_adapt, current_dt * 0.5, dim,
+                                 problem->params, y_half);
+
+                        /* 估计相对误差 */
+                        double max_err = 0.0;
+                        for (size_t j = 0; j < dim; j++) {
+                            double scale = config->atol + config->rtol * fmax(fabs(y_curr[j]), fabs(y_full[j]));
+                            double err = fabs(y_full[j] - y_half[j]) / scale;
+                            if (err > max_err) max_err = err;
+                        }
+
+                        const double safety = 0.9;
+
+                        if (max_err > 1.0 && retries < max_retries) {
+                            /* 步进被拒绝：缩小 dt 重试 */
+                            current_dt *= fmax(0.2, safety / pow(max_err, 1.0 / 4.0));
+                            retries++;
+                            continue;
+                        }
+
+                        /* 步进被接受：根据误差调整后续步长 */
+                        if (max_err < 0.5 && max_err > 1e-15) {
+                            double factor = fmin(5.0, safety / pow(max_err, 1.0 / 4.0));
+                            dt = current_dt * fmin(factor, 10.0 * config->dt / current_dt);
+                        } else {
+                            dt = current_dt;
+                        }
+
+                        memcpy(y_next, y_full, dim * sizeof(double));
+                        break;
+                    }
+                } else {
+                    /* 固定步长 RK4 */
+                    rk4_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next);
+                }
                 break;
             case ODE_ADAMS: {
                 /* AB4 startup: first 3 steps use RK4 to build history */
@@ -293,6 +355,9 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
 
     lv_free((void **) &y_curr);
     lv_free((void **) &y_next);
+    lv_free((void **) &y_full);
+    lv_free((void **) &y_half);
+    lv_free((void **) &y_tmp_adapt);
     /* Free AB history buffers */
     for (int k = 0; k < 4; k++) {
         lv_free((void **) &f_history[k]);

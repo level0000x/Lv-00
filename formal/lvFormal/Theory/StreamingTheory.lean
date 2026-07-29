@@ -28,8 +28,8 @@ theorem event_causality {α β : Type} (f : α → β) (s : Stream α) (e1 e2 : 
     ∃ e1' e2' : Event β, e1' ∈ process_stream f s ∧ e2' ∈ process_stream f s ∧ e1'.id ≤ e2'.id := by
   unfold process_stream
   refine ⟨{ id := e1.id, data := f e1.data }, { id := e2.id, data := f e2.data }, ?_, ?_, ?_⟩
-  · simpa using List.mem_map.mpr ⟨e1, h1, rfl⟩
-  · simpa using List.mem_map.mpr ⟨e2, h2, rfl⟩
+  · refine List.mem_map.mpr ⟨e1, h1, ?_⟩; rfl
+  · refine List.mem_map.mpr ⟨e2, h2, ?_⟩; rfl
   · simpa using hid
 
 def within_capacity {α : Type} (s : Stream α) (cap : ℕ) : Prop := s.length ≤ cap
