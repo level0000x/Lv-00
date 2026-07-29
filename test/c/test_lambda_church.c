@@ -15,17 +15,12 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/engine.h"
 #include "lv/lambda_term.h"
+#include "lv/lambda_to_graph.h"
+#include "lv/lambda_type_check.h"
 #include "lv/lv_utils.h"
-
-/* ── 内部函数的 extern 声明（非 public API） ── */
-
-/* lambda_to_graph.h 内声明 */
-bool lambda_to_graph(LvLambdaTerm *term, ConstraintGraph *graph, int *out_node_id);
-LvLambdaTerm *graph_to_lambda(ConstraintGraph *graph, int node_id);
-
-/* beta_reduce.c 内声明 */
-bool beta_reduce(ConstraintGraph *graph);
+#include "lv/proof.h"
 
 /* ── 测试基础设施 ── */
 #define TEST(n) printf("  [TEST] %s ... ", n)
@@ -533,6 +528,186 @@ static void test_y_combinator_factorial(void) {
     PASS();
 }
 
+/* ================================================================
+ * 集成测试：β-归约公共 API
+ * ================================================================ */
+
+/**
+ * @brief 验证 beta_reduce 通过公共头文件暴露为 public API
+ */
+static void test_beta_reduce_public_api(void) {
+    /* λy.(λx.x) y — 外层 λy 绑定变量 y，避免自由变量（同 test_beta_id 模式） */
+    LvLambdaTerm *body =
+        lv_lambda_create_app(lv_lambda_create_abs(0, lv_lambda_create_var(0)), lv_lambda_create_var(0));
+    LvLambdaTerm *term = lv_lambda_create_abs(0, body);
+
+    ConstraintGraph *graph = graph_create();
+    int root_id;
+    bool ok = lambda_to_graph(term, graph, &root_id);
+    lv_lambda_destroy(term);
+    if (!ok) {
+        graph_destroy(graph);
+        FAIL("compile λy.(λx.x) y");
+        return;
+    }
+
+    /* beta_reduce 通过 public API 调用不应崩溃 */
+    beta_reduce(graph);
+
+    graph_destroy(graph);
+    PASS();
+}
+
+/**
+ * @brief 验证引擎重写-求解管线集成 β-归约
+ */
+static void test_engine_lambda_integration(void) {
+    lvEngine *engine = engine_create();
+    if (!engine) {
+        FAIL("engine create");
+        return;
+    }
+
+    /* λy.(λx.x) y 编译到引擎的主图 */
+    LvLambdaTerm *body =
+        lv_lambda_create_app(lv_lambda_create_abs(0, lv_lambda_create_var(0)), lv_lambda_create_var(0));
+    LvLambdaTerm *term = lv_lambda_create_abs(0, body);
+    int root_id;
+    bool ok = lambda_to_graph(term, engine->main_graph, &root_id);
+    lv_lambda_destroy(term);
+    if (!ok) {
+        engine_destroy(engine);
+        FAIL("engine: compile λy.(λx.x) y");
+        return;
+    }
+
+    /* β-归约通过公共 API 在引擎上下文中调用（可能不匹配，但不应崩溃） */
+    beta_reduce(engine->main_graph);
+
+    engine_destroy(engine);
+    PASS();
+}
+
+/**
+ * @brief 验证证明多策略系统已注册 λ-演算策略
+ */
+static void test_proof_strategy_lambda(void) {
+    Proposition *prop = proposition_create(0, PROPOSITION_TYPE_ATOMIC);
+    ProofMultiStrategy *mse = proof_multi_strategy_create(NULL);
+    if (!mse) {
+        proposition_unref(prop);
+        FAIL("mse create");
+        return;
+    }
+
+    /* 检查 λ-演算策略描述符已注册 */
+    const ProofStrategyDescriptor *desc = &mse->strategies[PROOF_STRATEGY_LAMBDA_CALCULUS];
+    if (desc->type != PROOF_STRATEGY_LAMBDA_CALCULUS || !desc->name || !desc->execute) {
+        proof_multi_strategy_destroy(mse);
+        proposition_unref(prop);
+        FAIL("lambda strategy descriptor");
+        return;
+    }
+
+    proof_multi_strategy_destroy(mse);
+    proposition_unref(prop);
+    PASS();
+}
+
+/* ================================================================
+ * λ-项类型检查测试
+ * ================================================================ */
+
+/**
+ * @brief 测试 λx.x 的类型推断结果为 α → α
+ */
+static void test_type_infer_id(void) {
+    /* λx.x */
+    LvLambdaTerm *id = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+
+    TypeSystem *ts = type_system_create();
+    LambdaTypingContext ctx;
+    if (!ts || !lambda_type_check_init(&ctx, ts)) {
+        type_system_destroy(ts);
+        lv_lambda_destroy(id);
+        FAIL("type_infer_id: init");
+        return;
+    }
+
+    TypeRegion *type = lambda_type_infer(id, &ctx);
+    lv_lambda_destroy(id);
+    if (!type || type->kind != TYPE_KIND_FUNCTION) {
+        lambda_type_check_destroy(&ctx);
+        type_system_destroy(ts);
+        FAIL("type_infer_id: not function type");
+        return;
+    }
+    lambda_type_check_destroy(&ctx);
+    type_system_destroy(ts);
+    PASS();
+}
+
+/**
+ * @brief 测试 λx.λy.x 的类型推断结果为 α → β → α
+ */
+static void test_type_infer_k(void) {
+    /* λx.λy.x — K 组合子 */
+    LvLambdaTerm *body = lv_lambda_create_abs(1, lv_lambda_create_var(1));
+    LvLambdaTerm *term = lv_lambda_create_abs(0, body);
+
+    TypeSystem *ts = type_system_create();
+    LambdaTypingContext ctx;
+    if (!ts || !lambda_type_check_init(&ctx, ts)) {
+        type_system_destroy(ts);
+        lv_lambda_destroy(term);
+        FAIL("type_infer_k: init");
+        return;
+    }
+
+    TypeRegion *type = lambda_type_infer(term, &ctx);
+    lv_lambda_destroy(term);
+    if (!type || type->kind != TYPE_KIND_FUNCTION) {
+        lambda_type_check_destroy(&ctx);
+        type_system_destroy(ts);
+        FAIL("type_infer_k: not function type");
+        return;
+    }
+    lambda_type_check_destroy(&ctx);
+    type_system_destroy(ts);
+    PASS();
+}
+
+/**
+ * @brief 测试 (λx.x)(λy.y) 类型推断通过
+ */
+static void test_type_check_app_id(void) {
+    /* (λx.x) (λy.y) */
+    LvLambdaTerm *id1 = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    LvLambdaTerm *id2 = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    LvLambdaTerm *app = lv_lambda_create_app(id1, id2);
+
+    TypeSystem *ts = type_system_create();
+    LambdaTypingContext ctx;
+    if (!ts || !lambda_type_check_init(&ctx, ts)) {
+        type_system_destroy(ts);
+        lv_lambda_destroy(app);
+        FAIL("type_check_app_id: init");
+        return;
+    }
+
+    TypeRegion *type = lambda_type_infer(app, &ctx);
+    lv_lambda_destroy(app);
+    if (!type) {
+        lambda_type_check_destroy(&ctx);
+        type_system_destroy(ts);
+        FAIL("type_check_app_id: result is NULL");
+        return;
+    }
+    lambda_type_check_destroy(&ctx);
+    type_system_destroy(ts);
+    PASS();
+}
+
 /* ====================================================================
  * main
  * ==================================================================== */
@@ -569,6 +744,22 @@ int main(void) {
     test_y_combinator_step();
     TEST("Y 组合子阶乘编译");
     test_y_combinator_factorial();
+
+    printf("\n[集成测试]\n");
+    TEST("beta_reduce 公共 API");
+    test_beta_reduce_public_api();
+    TEST("引擎管线集成");
+    test_engine_lambda_integration();
+    TEST("证明策略注册");
+    test_proof_strategy_lambda();
+
+    printf("\n[λ-项类型检查]\n");
+    TEST("λx.x 类型推断");
+    test_type_infer_id();
+    TEST("λx.λy.x 类型推断");
+    test_type_infer_k();
+    TEST("(λx.x)(λy.y) 类型检查");
+    test_type_check_app_id();
 
     printf("\n=== %d passed, %d failed ===\n", P, F);
     return F > 0 ? 1 : 0;

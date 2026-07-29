@@ -1,6 +1,6 @@
 /**
  * @file lambda_to_graph.h
- * @brief λ-项到约束图的编译和反向转换（内部头文件，非 public API）
+ * @brief λ-项到约束图的编译和反向转换（Public API）
  *
  * 根据 Lv-00 设计文档 8.1 节，λ-演算的几何编码将 λ-项编译为
  * 约束图中的函数块：
@@ -32,7 +32,7 @@ extern "C" {
  * @param out_node_id 输出：根节点 ID
  * @return true 编译成功
  */
-bool lambda_to_graph(LvLambdaTerm *term, ConstraintGraph *graph, int *out_node_id);
+lv_PUBLIC_API bool lambda_to_graph(LvLambdaTerm *term, ConstraintGraph *graph, int *out_node_id);
 
 /**
  * @brief 将约束图函数块还原为 λ-项
@@ -44,7 +44,19 @@ bool lambda_to_graph(LvLambdaTerm *term, ConstraintGraph *graph, int *out_node_i
  * @param node_id 根函数块节点 ID
  * @return 还原的 λ-项（调用者负责销毁），失败返回 NULL
  */
-LvLambdaTerm *graph_to_lambda(ConstraintGraph *graph, int node_id);
+lv_PUBLIC_API LvLambdaTerm *graph_to_lambda(ConstraintGraph *graph, int node_id);
+
+/**
+ * @brief 在约束图上执行一次 β-归约
+ *
+ * 在约束图中搜索可归约的函数块应用模式（函数块 + 实参 + 输出端口），
+ * 匹配成功后执行端口继承规则的图变换操作。
+ * 每调用一次最多执行一个 β-归约。
+ *
+ * @param graph 约束图
+ * @return true 成功执行一次 β-归约，false 无匹配模式或执行失败
+ */
+lv_PUBLIC_API bool beta_reduce(ConstraintGraph *graph);
 
 #ifdef __cplusplus
 }

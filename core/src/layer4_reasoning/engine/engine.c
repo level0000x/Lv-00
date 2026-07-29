@@ -39,6 +39,7 @@
 #include <string.h>
 
 #include "lv/bit_burning.h"
+#include "lv/lambda_to_graph.h"
 #include "lv/lv_config.h"
 #include "lv/stream.h"
 #include "lv/trust_color.h"
@@ -1169,6 +1170,16 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
             if (rewrite_progress > 0) {
                 remaining_rewrite = max_rewrite_steps;
                 continue;
+            }
+
+            /* β-归约步骤：重写停滞时尝试 λ-演算 β-归约 */
+            {
+                bool beta_progress = beta_reduce(engine->main_graph);
+                if (beta_progress) {
+                    total_steps++;
+                    remaining_rewrite = max_rewrite_steps; /* 归约成功，返回重写阶段 */
+                    continue;
+                }
             }
         } else {
             remaining_rewrite = 0;

@@ -13,7 +13,7 @@
  * 2. graph_to_lambda()：约束图 → λ-项（反编译方向）
  */
 
-#include "lambda_to_graph.h"
+#include "lv/lambda_to_graph.h"
 
 #include <stdio.h>
 #include <stdlib.h>

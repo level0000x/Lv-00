@@ -405,6 +405,10 @@ set(lv_HEADERS
     core/include/lv/path_type.h
     core/include/lv/three_layer_arithmetic.h
     core/include/lv/geometric_primitives.h
+    # λ-演算：λ-项与约束图编译
+    core/include/lv/lambda_to_graph.h
+    # λ-演算：λ-项类型检查
+    core/include/lv/lambda_type_check.h
     # 模块化预设函数块系统
     core/include/lv/preset_blocks.h
     # v1.1.0 性能优化模块
@@ -928,6 +932,7 @@ set(lv_LAYER4_SOURCES
     # λ-项：数据类型与编译
     core/src/layer4_reasoning/lambda/lambda_term.c
     core/src/layer4_reasoning/lambda/lambda_to_graph.c
+    core/src/layer4_reasoning/lambda/lambda_type_check.c
     # 引擎调度
     core/src/layer4_reasoning/engine/engine_scheduler.c
     # 精确算术（定义在 layer4_reasoning/exact_arithmetic.c）

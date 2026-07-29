@@ -26,6 +26,7 @@
 #include "atp_backend.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lambda_to_graph.h"
 #include "normalization.h"
 #include "type_system.h"
 #include "unify.h"
@@ -1718,6 +1719,55 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
     return verified;
 }
 
+/* ============== λ-演算归约策略 ============== */
+
+/**
+ * @brief λ-演算适用性检查
+ *
+ * 检查约束图中是否存在 GEOM_FUNCTION_BLOCK 类型的节点
+ * （即 λ-抽象编译到约束图后的结果），有则说明 λ-演算策略可能适用。
+ */
+static bool lambda_calculus_applicability_check(const ProofMultiStrategy *mse, const ConstraintGraph *graph,
+                                                 const Proposition *prop) {
+    (void) mse;
+    (void) prop;
+    if (!graph)
+        return false;
+    for (int i = 0; i < graph->node_count; i++) {
+        if (graph->nodes[i] && graph->nodes[i]->type == GEOM_FUNCTION_BLOCK)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief λ-演算策略执行 —— 在约束图上反复执行 β-归约
+ *
+ * 遍历约束图中的函数块节点，对每个可归约的 λ-应用执行 β-归约，
+ * 每成功一次记录一个证明步骤。
+ */
+static bool execute_lambda_calculus(ProofMultiStrategy *mse, ProofNavigator *nav) {
+    (void) mse;
+    if (!nav || !nav->construction)
+        return false;
+
+    int count = 0;
+    const int MAX_BETA_STEPS = 1000;
+    for (int i = 0; i < MAX_BETA_STEPS; i++) {
+        if (!beta_reduce(nav->construction))
+            break;
+        count++;
+
+        ProofStep *step = proof_step_create(PROOF_STEP_FUNCTION_APP);
+        if (step) {
+            step->color = PROOF_COLOR_GREEN;
+            proof_navigator_add_step(nav, step);
+        }
+    }
+
+    return count > 0;
+}
+
 /* ============== 策略注册表 ============== */
 
 /**
@@ -1777,6 +1827,13 @@ static void fill_default_descriptor(ProofStrategyDescriptor *desc, ProofStrategy
             desc->description = lv_strdup_safe("建立坐标系，使用解析几何方法进行计算和验证");
             desc->applicability_check = default_applicability_check;
             desc->execute = execute_coordinate;
+            break;
+
+        case PROOF_STRATEGY_LAMBDA_CALCULUS:
+            desc->name = lv_strdup_safe("λ-演算归约法");
+            desc->description = lv_strdup_safe("通过 β-归约化简 λ-项，基于 Church 编码进行函数式计算");
+            desc->applicability_check = lambda_calculus_applicability_check;
+            desc->execute = execute_lambda_calculus;
             break;
 
         case PROOF_STRATEGY_ORACLE:
