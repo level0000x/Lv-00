@@ -665,8 +665,8 @@ static int module_index_in_array(Module **modules, int count, Module *mod) {
  * @param modules 所有模块数组
  * @param count 模块数量
  * @param color_map 颜色表
- * @param out_path 输出：循环路径（暂未实现，保留参数供扩展）
- * @param out_path_len 输出：路径长度（暂未实现，保留参数供扩展）
+ * @param out_path 输出：循环路径（调用者需 free，可为 NULL）
+ * @param out_path_len 输出：路径长度（可为 NULL）
  * @return true 检测到循环，false 无循环
  */
 static bool dfs_detect_cycle(Module *mod, Module **modules, int count, DFSColor *color_map, int *path_stack,
@@ -738,8 +738,8 @@ static bool dfs_detect_cycle(Module *mod, Module **modules, int count, DFSColor 
  *
  * @param modules 模块数组
  * @param count 模块数量
- * @param out_path 输出：循环路径（调用者需 free，当前暂未实现）
- * @param out_path_len 输出：路径长度（当前暂未实现）
+ * @param out_path 输出：循环路径（调用者需 free，可为 NULL）
+ * @param out_path_len 输出：路径长度（可为 NULL）
  * @return true 检测到循环依赖，false 无循环
  */
 bool module_full_cycle_detect(Module **modules, int count, int **out_path, int *out_path_len) {

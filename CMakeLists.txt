@@ -409,6 +409,8 @@ set(lv_HEADERS
     core/include/lv/lambda_to_graph.h
     # λ-演算：λ-项类型检查
     core/include/lv/lambda_type_check.h
+    # λ-演算：Church 编码公共 API
+    core/include/lv/lambda_church.h
     # 模块化预设函数块系统
     core/include/lv/preset_blocks.h
     # v1.1.0 性能优化模块
@@ -933,6 +935,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/lambda/lambda_term.c
     core/src/layer4_reasoning/lambda/lambda_to_graph.c
     core/src/layer4_reasoning/lambda/lambda_type_check.c
+    core/src/layer4_reasoning/lambda/lambda_church.c
     # 引擎调度
     core/src/layer4_reasoning/engine/engine_scheduler.c
     # 精确算术（定义在 layer4_reasoning/exact_arithmetic.c）

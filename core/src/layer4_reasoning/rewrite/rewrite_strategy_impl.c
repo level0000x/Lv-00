@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lambda_to_graph.h"
 #include "lv/lv.h"
 #include "lv/rewrite.h"
 
@@ -119,6 +120,13 @@ RewriteStrategy *rewrite_strategy_try(RewriteStrategy *child) {
         s->kind = REWRITE_STRATEGY_KIND_TRY;
         s->left = child;
     }
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_create_beta_reduce(void) {
+    RewriteStrategy *s = lv_calloc(1, sizeof(RewriteStrategy));
+    if (s)
+        s->kind = REWRITE_STRATEGY_KIND_BETA_REDUCE;
     return s;
 }
 
@@ -331,6 +339,22 @@ static bool strategy_execute(const ConstraintGraph *graph, const RewriteStrategy
             *out_graph = graph_copy(graph);
             *out_steps = 0;
             return true; /* try 永远不对外失败 */
+        }
+
+        case REWRITE_STRATEGY_KIND_BETA_REDUCE: {
+            /* β-归约：对约束图副本执行一次 beta_reduce */
+            ConstraintGraph *cpy = graph_copy(graph);
+            if (!cpy)
+                return false;
+            if (beta_reduce(cpy)) {
+                *out_graph = cpy;
+                *out_steps = 1;
+                return true;
+            }
+            graph_destroy(cpy);
+            *out_graph = NULL;
+            *out_steps = 0;
+            return false;
         }
 
         default:

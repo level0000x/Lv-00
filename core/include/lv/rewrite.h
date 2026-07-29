@@ -473,7 +473,8 @@ typedef enum {
     REWRITE_STRATEGY_KIND_ORELSE,        /**< s1 or-else s2: 回退组合 */
     REWRITE_STRATEGY_KIND_REPEAT,        /**< repeat s: 重复直到不动点 */
     REWRITE_STRATEGY_KIND_NORMALIZE,     /**< normalize s: 规范化（等价于 repeat(s ; s)） */
-    REWRITE_STRATEGY_KIND_TRY            /**< try s: 尝试，失败则保持原状 */
+    REWRITE_STRATEGY_KIND_TRY,           /**< try s: 尝试，失败则保持原状 */
+    REWRITE_STRATEGY_KIND_BETA_REDUCE    /**< β-归约: 对约束图中的函数块执行一次 β-归约 */
 } RewriteStrategyKind;
 
 /** @brief 可执行重写策略树节点 */
@@ -501,6 +502,7 @@ lv_PUBLIC_API RewriteStrategy *rewrite_strategy_orelse(RewriteStrategy *left, Re
 lv_PUBLIC_API RewriteStrategy *rewrite_strategy_repeat(RewriteStrategy *child, int max_iter);
 lv_PUBLIC_API RewriteStrategy *rewrite_strategy_normalize(RewriteStrategy *child);
 lv_PUBLIC_API RewriteStrategy *rewrite_strategy_try(RewriteStrategy *child);
+lv_PUBLIC_API RewriteStrategy *rewrite_strategy_create_beta_reduce(void);
 lv_PUBLIC_API void rewrite_strategy_destroy(RewriteStrategy *s);
 
 /**

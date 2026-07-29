@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
+#include "lv/lambda_church.h"
 #include "lv/lambda_term.h"
 #include "lv/lambda_to_graph.h"
 #include "lv/lambda_type_check.h"
@@ -37,118 +38,75 @@
 
 static int P = 0, F = 0;
 
-/* ── Church 数字 / 布尔 / 算术辅助函数 ── */
+/* ── Church 编码辅助函数（通过公共 API） ── */
 
 /** Church numeral 0: λf.λx.x */
 static LvLambdaTerm *church_0(void) {
-    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_var(0)));
+    return lv_church_0();
 }
 
 /** Church numeral 1: λf.λx.(f x) */
 static LvLambdaTerm *church_1(void) {
-    return lv_lambda_create_abs(
-        0, lv_lambda_create_abs(0, lv_lambda_create_app(lv_lambda_create_var(1), lv_lambda_create_var(0))));
+    return lv_church_1();
 }
 
 /** Church numeral 2: λf.λx.(f (f x)) */
 static LvLambdaTerm *church_2(void) {
-    return lv_lambda_create_abs(
-        0, lv_lambda_create_abs(
-               0, lv_lambda_create_app(lv_lambda_create_var(1),
-                                       lv_lambda_create_app(lv_lambda_create_var(1), lv_lambda_create_var(0)))));
+    return lv_church_2();
 }
 
 /** Church numeral n 的通用构造 */
 static LvLambdaTerm *church_n(int n) {
-    LvLambdaTerm *body = lv_lambda_create_var(0);
-    for (int i = 0; i < n; i++) {
-        body = lv_lambda_create_app(lv_lambda_create_var(1), body);
-    }
-    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+    return lv_church_n(n);
 }
 
 /** Church successor: λn.λf.λx.f (n f x) */
 static LvLambdaTerm *church_succ(void) {
-    LvLambdaTerm *body = lv_lambda_create_app(
-        lv_lambda_create_var(1),
-        lv_lambda_create_app(lv_lambda_create_app(lv_lambda_create_var(2), lv_lambda_create_var(1)),
-                             lv_lambda_create_var(0)));
-    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
+    return lv_church_succ();
 }
 
 /** Church multiplication: λm.λn.λf.m (n f) */
 static LvLambdaTerm *church_mul(void) {
-    LvLambdaTerm *body = lv_lambda_create_app(lv_lambda_create_var(2),
-                                              lv_lambda_create_app(lv_lambda_create_var(1), lv_lambda_create_var(0)));
-    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
+    return lv_church_mul();
 }
 
 /** Church exponentiation (pow m n = n m): λm.λn.n m */
 static LvLambdaTerm *church_pow(void) {
-    LvLambdaTerm *body = lv_lambda_create_app(lv_lambda_create_var(0), lv_lambda_create_var(1));
-    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+    return lv_church_pow();
 }
 
 /* ── Church 布尔值 ── */
 
 /** true = λx.λy.x */
 static LvLambdaTerm *church_true(void) {
-    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_var(1)));
+    return lv_church_true();
 }
 
 /** false = λx.λy.y */
 static LvLambdaTerm *church_false(void) {
-    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_var(0)));
+    return lv_church_false();
 }
 
 /** if = λp.λt.λf.p t f */
 static LvLambdaTerm *church_if(void) {
-    return lv_lambda_create_abs(
-        0, lv_lambda_create_abs(
-               0, lv_lambda_create_abs(
-                      0, lv_lambda_create_app(lv_lambda_create_app(lv_lambda_create_var(2), lv_lambda_create_var(1)),
-                                              lv_lambda_create_var(0)))));
+    return lv_church_if();
 }
 
 /** iszero = λn. n (λx.false) true */
 static LvLambdaTerm *church_iszero(void) {
-    LvLambdaTerm *false_term = church_false();
-    LvLambdaTerm *true_term = church_true();
-    LvLambdaTerm *body = lv_lambda_create_app(
-        lv_lambda_create_app(lv_lambda_create_var(0), lv_lambda_create_abs(0, false_term)), true_term);
-    return lv_lambda_create_abs(0, body);
+    return lv_church_iszero();
 }
 
 /** Church predecessor: λn.λf.λx.n (λg.λh.h (g f)) (λu.x) (λu.u) */
 static LvLambdaTerm *church_pred(void) {
-    /* λg.λh.h (g f) — inside λn.λf.λx: f=Var(3) from λh */
-    LvLambdaTerm *inner1 = lv_lambda_create_abs(
-        0, lv_lambda_create_app(lv_lambda_create_var(0),
-                                lv_lambda_create_app(lv_lambda_create_var(1), lv_lambda_create_var(3))));
-    LvLambdaTerm *pair_fn = lv_lambda_create_abs(0, inner1);
-
-    /* λu.x — x is at depth 2: scope=[n(3),f(2),x(1),u(0)] */
-    LvLambdaTerm *const_x = lv_lambda_create_abs(0, lv_lambda_create_var(2));
-
-    /* λu.u */
-    LvLambdaTerm *const_u = lv_lambda_create_abs(0, lv_lambda_create_var(0));
-
-    /* n pair_fn const_x const_u */
-    LvLambdaTerm *body = lv_lambda_create_app(
-        lv_lambda_create_app(lv_lambda_create_app(lv_lambda_create_var(0), pair_fn), const_x), const_u);
-
-    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
+    return lv_church_pred();
 }
 
 /* ── Y 组合子 ── */
 
 /** Y 组合子: λf.(λx.f (x x)) (λx.f (x x)) */
 static LvLambdaTerm *y_combinator(void) {
-    LvLambdaTerm *inner = lv_lambda_create_abs(
-        0, lv_lambda_create_app(lv_lambda_create_var(1),
-                                lv_lambda_create_app(lv_lambda_create_var(0), lv_lambda_create_var(0))));
-    LvLambdaTerm *body = lv_lambda_create_app(lv_lambda_copy(inner), inner);
-    return lv_lambda_create_abs(0, body);
+    return lv_church_y_combinator();
 }
 
 /* ── 辅助：编译 λ-term → 约束图 ── */
@@ -708,6 +666,56 @@ static void test_type_check_app_id(void) {
     PASS();
 }
 
+/* ── 公共 API 直接测试 ── */
+
+/**
+ * @brief 测试 Church 编码公共 API 的各个函数不会崩溃或返回 NULL
+ */
+static void test_church_public_api(void) {
+    LvLambdaTerm *terms[16];
+    int count = 0;
+    bool ok = true;
+
+    /* 调用所有公共 API 函数，验证不返回 NULL */
+    terms[count++] = lv_church_0();
+    terms[count++] = lv_church_1();
+    terms[count++] = lv_church_2();
+    terms[count++] = lv_church_n(5);
+    terms[count++] = lv_church_succ();
+    terms[count++] = lv_church_mul();
+    terms[count++] = lv_church_pow();
+    terms[count++] = lv_church_pred();
+    terms[count++] = lv_church_true();
+    terms[count++] = lv_church_false();
+    terms[count++] = lv_church_if();
+    terms[count++] = lv_church_iszero();
+    terms[count++] = lv_church_y_combinator();
+
+    for (int i = 0; i < count; i++) {
+        if (!terms[i]) {
+            ok = false;
+            break;
+        }
+    }
+
+    /* 验证 lv_church_n(负数) 返回 NULL */
+    LvLambdaTerm *neg = lv_church_n(-1);
+    if (neg != NULL) {
+        lv_lambda_destroy(neg);
+        ok = false;
+    }
+
+    /* 清理 */
+    for (int i = 0; i < count; i++) {
+        lv_lambda_destroy(terms[i]);
+    }
+
+    if (ok)
+        PASS();
+    else
+        FAIL("公共 API 返回 NULL");
+}
+
 /* ====================================================================
  * main
  * ==================================================================== */
@@ -715,7 +723,11 @@ int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== λ-演算端到端测试 ===\n\n");
 
-    printf("[Church 数字编译与还原]\n");
+    printf("[Church 编码公共 API]\n");
+    TEST("公共 API 完整性");
+    test_church_public_api();
+
+    printf("\n[Church 数字编译与还原]\n");
     TEST("Church 0: λf.λx.x");
     test_church_zero();
     TEST("Church 1: λf.λx.(f x)");

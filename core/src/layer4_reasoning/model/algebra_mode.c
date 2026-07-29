@@ -45,6 +45,22 @@ static void identity_matrix(double m[16]) {
     m[0] = m[5] = m[10] = m[15] = 1.0;
 }
 
+/** 4x4 矩阵乘法：result = a * b（列主序） */
+static void mul_matrix(double result[16], const double a[16], const double b[16]) {
+    int i, j, k;
+    double tmp[16];
+    for (j = 0; j < 4; j++) {
+        for (i = 0; i < 4; i++) {
+            double sum = 0.0;
+            for (k = 0; k < 4; k++) {
+                sum += a[i + k * 4] * b[k + j * 4];
+            }
+            tmp[i + j * 4] = sum;
+        }
+    }
+    memcpy(result, tmp, 16 * sizeof(double));
+}
+
 /** 向历史中追加步骤 */
 static void history_push(AlgebraicGeom *geom, int step) {
     if (!geom)
@@ -309,69 +325,164 @@ AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point
  * ================================================================ */
 
 AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, lvTransformOp op, const double *params, int param_count) {
+    double m[16];
+
     if (!geom || !params || param_count < 1)
         return NULL;
-    (void) op;
-    (void) params;
-    (void) param_count;
 
+    identity_matrix(m);
+
+    switch (op) {
+        case TRANSFORM_TRANSLATE:
+            if (param_count < 3)
+                return NULL;
+            m[3] = params[0];  /* dx */
+            m[7] = params[1];  /* dy */
+            m[11] = params[2]; /* dz */
+            break;
+
+        case TRANSFORM_ROTATE: {
+            double angle_deg, ax, ay, az, rad, c, s, len, ux, uy, uz;
+            if (param_count < 4)
+                return NULL;
+            angle_deg = params[0];
+            ax = params[1];
+            ay = params[2];
+            az = params[3];
+            rad = angle_deg * M_PI / 180.0;
+            c = cos(rad);
+            s = sin(rad);
+            len = sqrt(ax * ax + ay * ay + az * az);
+            if (len < 1e-15)
+                return NULL;
+            ux = ax / len;
+            uy = ay / len;
+            uz = az / len;
+            m[0] = c + ux * ux * (1 - c);
+            m[1] = ux * uy * (1 - c) + uz * s;
+            m[2] = ux * uz * (1 - c) - uy * s;
+            m[4] = uy * ux * (1 - c) - uz * s;
+            m[5] = c + uy * uy * (1 - c);
+            m[6] = uy * uz * (1 - c) + ux * s;
+            m[8] = uz * ux * (1 - c) + uy * s;
+            m[9] = uz * uy * (1 - c) - ux * s;
+            m[10] = c + uz * uz * (1 - c);
+            break;
+        }
+
+        case TRANSFORM_SCALE:
+            if (param_count < 3)
+                return NULL;
+            m[0] = params[0];  /* sx */
+            m[5] = params[1];  /* sy */
+            m[10] = params[2]; /* sz */
+            break;
+
+        case TRANSFORM_MIRROR: {
+            double nx, ny, nz, d;
+            if (param_count < 4)
+                return NULL;
+            nx = params[0];
+            ny = params[1];
+            nz = params[2];
+            d = params[3];
+            /* 平面反射矩阵：reflect through plane nx*x + ny*y + nz*z = d */
+            double nlen = sqrt(nx * nx + ny * ny + nz * nz);
+            if (nlen < 1e-15)
+                return NULL;
+            nx /= nlen;
+            ny /= nlen;
+            nz /= nlen;
+            m[0] = 1.0 - 2.0 * nx * nx;
+            m[1] = -2.0 * nx * ny;
+            m[2] = -2.0 * nx * nz;
+            m[3] = 2.0 * nx * d;
+            m[4] = -2.0 * ny * nx;
+            m[5] = 1.0 - 2.0 * ny * ny;
+            m[6] = -2.0 * ny * nz;
+            m[7] = 2.0 * ny * d;
+            m[8] = -2.0 * nz * nx;
+            m[9] = -2.0 * nz * ny;
+            m[10] = 1.0 - 2.0 * nz * nz;
+            m[11] = 2.0 * nz * d;
+            break;
+        }
+
+        case TRANSFORM_PROJECT: {
+            double px, py, pz;
+            if (param_count < 3)
+                return NULL;
+            px = params[0];
+            py = params[1];
+            pz = params[2];
+            /* 正交投影到指定平面（通过原点，法向量为 (px,py,pz)） */
+            double plen = sqrt(px * px + py * py + pz * pz);
+            if (plen < 1e-15)
+                return NULL;
+            px /= plen;
+            py /= plen;
+            pz /= plen;
+            m[0] = 1.0 - px * px;
+            m[1] = -px * py;
+            m[2] = -px * pz;
+            m[4] = -py * px;
+            m[5] = 1.0 - py * py;
+            m[6] = -py * pz;
+            m[8] = -pz * px;
+            m[9] = -pz * py;
+            m[10] = 1.0 - pz * pz;
+            break;
+        }
+
+        default:
+            return NULL;
+    }
+
+    /* 累积变换：new_transform = m * old_transform */
+    mul_matrix(geom->transform, m, geom->transform);
     geom->has_transform = true;
-    history_push(geom, (int) TRANSFORM_TRANSLATE);
+    history_push(geom, (int) op);
     return geom;
 }
 
 AlgebraicGeom *algebra_rotate(AlgebraicGeom *geom, double angle_deg, double axis_x, double axis_y, double axis_z) {
+    double params[4];
+
     if (!geom)
         return NULL;
 
-    double rad = angle_deg * M_PI / 180.0;
-    double c = cos(rad), s = sin(rad);
+    params[0] = angle_deg;
+    params[1] = axis_x;
+    params[2] = axis_y;
+    params[3] = axis_z;
 
-    /* 绕任意轴旋转的 Rodrigues 公式（简化：假设归一化轴） */
-    double len = sqrt(axis_x * axis_x + axis_y * axis_y + axis_z * axis_z);
-    if (len < 1e-15)
-        return NULL;
-    double ux = axis_x / len, uy = axis_y / len, uz = axis_z / len;
-
-    double rot[16];
-    identity_matrix(rot);
-    rot[0] = c + ux * ux * (1 - c);
-    rot[1] = ux * uy * (1 - c) + uz * s;
-    rot[2] = ux * uz * (1 - c) - uy * s;
-    rot[4] = uy * ux * (1 - c) - uz * s;
-    rot[5] = c + uy * uy * (1 - c);
-    rot[6] = uy * uz * (1 - c) + ux * s;
-    rot[8] = uz * ux * (1 - c) + uy * s;
-    rot[9] = uz * uy * (1 - c) - ux * s;
-    rot[10] = c + uz * uz * (1 - c);
-
-    geom->has_transform = true;
-    history_push(geom, (int) TRANSFORM_ROTATE);
-    return geom;
+    return algebra_transform(geom, TRANSFORM_ROTATE, params, 4);
 }
 
 AlgebraicGeom *algebra_translate(AlgebraicGeom *geom, double dx, double dy, double dz) {
+    double params[3];
+
     if (!geom)
         return NULL;
-    (void) dx;
-    (void) dy;
-    (void) dz;
 
-    geom->has_transform = true;
-    history_push(geom, (int) TRANSFORM_TRANSLATE);
-    return geom;
+    params[0] = dx;
+    params[1] = dy;
+    params[2] = dz;
+
+    return algebra_transform(geom, TRANSFORM_TRANSLATE, params, 3);
 }
 
 AlgebraicGeom *algebra_scale(AlgebraicGeom *geom, double sx, double sy, double sz) {
+    double params[3];
+
     if (!geom)
         return NULL;
-    (void) sx;
-    (void) sy;
-    (void) sz;
 
-    geom->has_transform = true;
-    history_push(geom, (int) TRANSFORM_SCALE);
-    return geom;
+    params[0] = sx;
+    params[1] = sy;
+    params[2] = sz;
+
+    return algebra_transform(geom, TRANSFORM_SCALE, params, 3);
 }
 
 /* ================================================================

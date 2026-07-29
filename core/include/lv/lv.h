@@ -266,7 +266,8 @@ extern "C" {
 #include "stream_context_util.h" /* 流式上下文工具宏 */
 
 /* λ-项数据结构 */
-#include "lambda_term.h" /* λ-项（tagged union） */
+#include "lambda_term.h"   /* λ-项（tagged union） */
+#include "lambda_church.h" /* Church 编码公共 API */
 
 /* ============================================================
  * === 版本信息 API ===

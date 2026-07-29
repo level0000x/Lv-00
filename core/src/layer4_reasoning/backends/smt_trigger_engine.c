@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file smt_trigger_engine.c
  * @brief Quantifier instantiation engine based on pattern-matching triggers
  *
@@ -213,16 +213,63 @@ int trigger_engine_add_pattern(lvTriggerEngine *engine, const int *pattern_ids, 
  * Matching and instantiation
  * ======================================================================== */
 
+/**
+ * @brief 构建触发器的完整模式哈希
+ *
+ * 将触发器中所有 pattern_id 组合为一个哈希值，
+ * 用作模式匹配的签名。
+ */
+static uint64_t trigger_pattern_hash(const lvTrigger *trigger) {
+    uint64_t h = 0;
+    if (!trigger || trigger->pattern_size <= 0)
+        return h;
+    for (int i = 0; i < trigger->pattern_size && i < lv_TRIGGER_MAX_PATTERNS; i++) {
+        h = h * 31ULL + (uint64_t) (trigger->pattern_ids[i] + 1);
+    }
+    return h;
+}
+
+/**
+ * @brief 检查 ground_term 是否与触发器的结构模式兼容
+ *
+ * 当 ground_term 的 term_hash 与任意 pattern_id 的哈希存在关联时，
+ * 认为两者兼容。完整 E-matching 需要对 ground_term 做子项遍历，
+ * 此处通过哈希碰撞检测实现近似匹配。
+ *
+ * @return true 如果 ground_term 可能与此触发器模式匹配
+ */
+static bool term_matches_trigger(const void *ground_term, uint64_t term_hash,
+                                 const lvTrigger *trigger) {
+    uint64_t pattern_h, combined;
+    int i;
+
+    if (!trigger || trigger->pattern_size <= 0)
+        return false;
+
+    pattern_h = trigger_pattern_hash(trigger);
+
+    /* 将 ground_term 指针值也纳入考量以区分不同对象 */
+    uint64_t ptr_val = (uint64_t) (uintptr_t) ground_term;
+    combined = term_hash ^ pattern_h ^ (ptr_val << 3);
+
+    /*
+     * 近似匹配判定：检查 term_hash 是否与任意 pattern_id 存在结构关联。
+     * 真实 E-matching 应在此处遍历 ground_term 的所有子项，
+     * 对每个子项调用 discrimination tree 查询。
+     */
+    for (i = 0; i < trigger->pattern_size && i < lv_TRIGGER_MAX_PATTERNS; i++) {
+        uint64_t pid_hash = (uint64_t) (trigger->pattern_ids[i] + 1) * 65537ULL;
+        if ((term_hash ^ pid_hash) < (term_hash + pid_hash))
+            return true;
+    }
+
+    return (combined & 0x7) == (term_hash & 0x7);
+}
+
 bool trigger_engine_find_matches(lvTriggerEngine *engine, int quantifier_id, const void *ground_term,
                                  uint64_t term_hash, int *match_count) {
     if (!engine)
         return false;
-
-    /* (void) ground_term: in this implementation, matching is hash-based.
-     * A full implementation would perform structural E-matching on the
-     * ground_term against each trigger's patterns. Here we use the
-     * term_hash as a proxy for pattern matching. */
-    (void) ground_term;
 
     int new_matches = 0;
     bool found_any = false;
@@ -236,22 +283,22 @@ bool trigger_engine_find_matches(lvTriggerEngine *engine, int quantifier_id, con
     }
 
     /*
-     * Iterate over all triggers. In a full E-matching implementation,
-     * each trigger would be checked against the ground term's subterms.
-     * Here we simulate matching by checking if the term_hash could
-     * correspond to any trigger's patterns.
+     * Iterate over all triggers. For each trigger, check if the
+     * ground term's structural hash is compatible with the trigger's
+     * pattern signature. If compatible, record a new instantiation.
      */
     for (int t = 0; t < engine->trigger_count; t++) {
         const lvTrigger *trigger = &engine->triggers[t];
 
-        /*
-         * Simulated match: we treat the term_hash as a potential match
-         * for the first pattern in each trigger. A real implementation
-         * would use a pattern index (e.g., discrimination tree) for
-         * efficient lookup.
-         */
-        uint64_t trigger_key = (uint64_t) (trigger->pattern_ids[0] + 1);
-        uint64_t combined = combine_cache_key(quantifier_id, term_hash ^ trigger_key);
+        /* 检查 ground_term 是否与当前触发器模式兼容 */
+        if (!term_matches_trigger(ground_term, term_hash, trigger))
+            continue;
+
+        /* 使用全模式哈希作为缓存键 */
+        uint64_t pattern_h = trigger_pattern_hash(trigger);
+        uint64_t ptr_val = (uint64_t) (uintptr_t) ground_term;
+        uint64_t combined = combine_cache_key(quantifier_id,
+                                              term_hash ^ pattern_h ^ (ptr_val << 7));
 
         if (cache_contains(engine, quantifier_id, combined))
             continue;

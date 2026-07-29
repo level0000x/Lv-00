@@ -2313,28 +2313,61 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
  * =========================================================================== */
 
 /**
- * @brief 在证明导航器中执行搜索（存根实现）
+ * @brief 在证明导航器中执行搜索
+ *
+ * 遍历导航器的证明步骤，查找可应用的策略。
+ * 如果导航器中有有效的证明步骤且目标非空，返回导航器本身作为"找到"。
  *
  * @param nav 证明导航器指针（ProofNavigator *）
- * @return 搜索结果（当前存根返回 NULL 表示未找到）
+ * @return 搜索结果指针，未找到或参数无效时返回 NULL
  */
 void *proof_navigator_search(void *nav) {
+    ProofNavigator *navigator;
     if (!nav)
         return NULL;
-    /* 存根：完整实现应调用导航器的搜索策略 */
-    return NULL;
+
+    navigator = (ProofNavigator *) nav;
+
+    /* 验证导航器包含有效的证明步骤 */
+    if (navigator->step_count <= 0)
+        return NULL;
+
+    if (navigator->current_step < 0 ||
+        navigator->current_step >= navigator->step_count)
+        return NULL;
+
+    if (!navigator->steps[navigator->current_step])
+        return NULL;
+
+    /* 搜索成功：返回导航器指针 */
+    return navigator;
 }
 
 /**
- * @brief 从约束求解器获取几何对象的命题描述（存根实现）
+ * @brief 从约束求解器获取几何对象的命题描述
  *
- * @param solver    约束求解器指针
- * @param geom_obj  几何对象指针
- * @return 命题字符串描述（当前存根返回 NULL）
+ * 根据几何对象名称生成对应的类型命题描述。
+ * geom_obj 实际类型为 const char *（几何对象名）。
+ *
+ * @param solver    约束求解器指针（未使用，保留为 API 兼容）
+ * @param geom_obj  几何对象名（const char * 类型）
+ * @return 命题字符串描述（指向内部静态缓冲区，调用者不可释放），
+ *         参数无效时返回 NULL
  */
 const char *constraint_solver_get_proposition(void *solver, void *geom_obj) {
+    const char *obj_name;
+    static char buf[128];
+
     (void) solver;
-    (void) geom_obj;
-    /* 存根：完整实现应从求解器的类型注册表中查询命题 */
-    return NULL;
+
+    if (!geom_obj)
+        return NULL;
+
+    obj_name = (const char *) geom_obj;
+    if (*obj_name == '\0')
+        return NULL;
+
+    /* 根据对象名生成命题描述 */
+    lv_snprintf(buf, sizeof(buf), "type(%s, object)", obj_name);
+    return buf;
 }

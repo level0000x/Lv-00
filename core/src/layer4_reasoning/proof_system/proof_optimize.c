@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_optimize.c
  * @brief 证明优化模块（子目录版本）
  *
@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_internal.h"
 #include "lv/proof_trace.h"
 
 /* ================================================================
@@ -42,14 +43,14 @@ typedef struct {
 } OptStep;
 
 /**
- * @brief 证明优化上下文
+ * @brief 证明优化器（ProofOptimizer 不透明类型实现）
  */
-typedef struct {
+struct ProofOptimizer {
     OptStep steps[OPT_MAX_STEPS]; /**< 步骤数组 */
     int step_count;               /**< 当前步骤数 */
     int next_id;                  /**< 下一个可用步骤ID */
     int eliminated_count;         /**< 已消除步骤数 */
-} OptContext;
+};
 
 /* ================================================================
  *  内部辅助函数
@@ -59,7 +60,7 @@ typedef struct {
  * @brief 在步骤数组中查找步骤索引
  * @return 索引 (0-based)，未找到返回 -1
  */
-static int opt_find_step(const OptContext *ctx, int step_id) {
+static int opt_find_step(const struct ProofOptimizer *ctx, int step_id) {
     int i;
     if (!ctx)
         return -1;
@@ -73,7 +74,7 @@ static int opt_find_step(const OptContext *ctx, int step_id) {
 /**
  * @brief 标记步骤及其所有依赖（可达性分析）
  */
-static void opt_mark_reachable(OptContext *ctx, int step_id) {
+static void opt_mark_reachable(struct ProofOptimizer *ctx, int step_id) {
     int idx = opt_find_step(ctx, step_id);
     int i;
     if (idx < 0 || ctx->steps[idx].is_marked)
@@ -93,7 +94,7 @@ static void opt_mark_reachable(OptContext *ctx, int step_id) {
  * - 步骤 B 唯一依赖步骤 A
  * - 步骤 A 无其他被依赖者
  */
-static bool opt_can_merge(const OptContext *ctx, int idx_a, int idx_b) {
+static bool opt_can_merge(const struct ProofOptimizer *ctx, int idx_a, int idx_b) {
     const OptStep *a, *b;
     int i, ref_count;
 
@@ -129,7 +130,7 @@ static bool opt_can_merge(const OptContext *ctx, int idx_a, int idx_b) {
 /**
  * @brief 拓扑排序辅助：计算入度
  */
-static void opt_compute_indegrees(const OptContext *ctx, int *indegrees) {
+static void opt_compute_indegrees(const struct ProofOptimizer *ctx, int *indegrees) {
     int i, j;
     for (i = 0; i < ctx->step_count; i++) {
         indegrees[i] = 0;
@@ -147,18 +148,11 @@ static void opt_compute_indegrees(const OptContext *ctx, int *indegrees) {
 }
 
 /* ================================================================
- *  公共 API 模拟实现
- *
- *  注：proof_optimize 不在 proof_trace.h 中声明，
- *  但 CMakeLists.txt 注册了此文件，故提供内部入口函数。
+ *  公共 API
  * ================================================================ */
 
-/**
- * @brief 创建证明优化上下文
- * @return 新分配的上下文，失败返回 NULL
- */
-static OptContext *proof_opt_create(void) {
-    OptContext *ctx = (OptContext *) calloc(1, sizeof(OptContext));
+lv_PUBLIC_API ProofOptimizer *lv_proof_opt_create(void) {
+    struct ProofOptimizer *ctx = (struct ProofOptimizer *) calloc(1, sizeof(struct ProofOptimizer));
     if (!ctx)
         return NULL;
     ctx->step_count = 0;
@@ -167,18 +161,12 @@ static OptContext *proof_opt_create(void) {
     return ctx;
 }
 
-/**
- * @brief 销毁证明优化上下文
- */
-static void proof_opt_destroy(OptContext *ctx) {
-    free(ctx);
+lv_PUBLIC_API void lv_proof_opt_destroy(ProofOptimizer *opt) {
+    free(opt);
 }
 
-/**
- * @brief 向优化上下文添加证明步骤
- * @return 分配的步骤ID，失败返回 -1
- */
-static int proof_opt_add_step(OptContext *ctx, const char *rule, const int *deps, int dep_count) {
+lv_PUBLIC_API int lv_proof_opt_add_step(ProofOptimizer *opt, const char *rule, const int *deps, int dep_count) {
+    struct ProofOptimizer *ctx = (struct ProofOptimizer *) opt;
     OptStep *step;
     int i;
 
@@ -200,30 +188,19 @@ static int proof_opt_add_step(OptContext *ctx, const char *rule, const int *deps
     return step->step_id;
 }
 
-/**
- * @brief 死步消除优化
- *
- * 从最终步骤开始进行可达性分析，消除不可达的步骤。
- *
- * @param ctx        优化上下文
- * @param final_step 最终步骤ID（证明结论）
- * @return 消除的步骤数
- */
-static int proof_opt_dead_step_elimination(OptContext *ctx, int final_step) {
+lv_PUBLIC_API int lv_proof_opt_dead_step_elimination(ProofOptimizer *opt, int final_step) {
+    struct ProofOptimizer *ctx = (struct ProofOptimizer *) opt;
     int i, count;
 
     if (!ctx)
         return 0;
 
-    /* 清除所有标记 */
     for (i = 0; i < ctx->step_count; i++) {
         ctx->steps[i].is_marked = false;
     }
 
-    /* 从最终步骤反向标记可达步骤 */
     opt_mark_reachable(ctx, final_step);
 
-    /* 消除未标记的步骤 */
     count = 0;
     for (i = 0; i < ctx->step_count; i++) {
         if (!ctx->steps[i].is_marked && !ctx->steps[i].is_eliminated) {
@@ -236,15 +213,8 @@ static int proof_opt_dead_step_elimination(OptContext *ctx, int final_step) {
     return count;
 }
 
-/**
- * @brief 步骤合并优化
- *
- * 查找可合并的连续步骤对并执行合并。
- *
- * @param ctx 优化上下文
- * @return 合并的步骤对数
- */
-static int proof_opt_merge_steps(OptContext *ctx) {
+lv_PUBLIC_API int lv_proof_opt_merge_steps(ProofOptimizer *opt) {
+    struct ProofOptimizer *ctx = (struct ProofOptimizer *) opt;
     int i, j, merge_count;
 
     if (!ctx)
@@ -258,7 +228,6 @@ static int proof_opt_merge_steps(OptContext *ctx) {
             if (ctx->steps[j].is_eliminated)
                 continue;
             if (opt_can_merge(ctx, i, j)) {
-                /* 合并：将 j 的依赖转移到 i，消除 j */
                 ctx->steps[i].dep_count = ctx->steps[j].dep_count;
                 {
                     int k;
@@ -277,10 +246,8 @@ static int proof_opt_merge_steps(OptContext *ctx) {
     return merge_count;
 }
 
-/**
- * @brief 获取优化后的有效步骤数
- */
-static int proof_opt_active_count(const OptContext *ctx) {
+lv_PUBLIC_API int lv_proof_opt_active_count(const ProofOptimizer *opt) {
+    const struct ProofOptimizer *ctx = (const struct ProofOptimizer *) opt;
     int i, count = 0;
     if (!ctx)
         return 0;
