@@ -3667,7 +3667,7 @@ SymbolicCoord *symbolic_coord_create_with_plan(long num, long den) {
 
             /* 失败后降级并回退 */
             symbolic_coord_auto_degrade("algebraic_from_rational failed");
-            /* fall through to PLAN_B */
+            __attribute__((fallthrough));
         }
         case PLAN_B_QUADRATIC_ONLY: {
             /* 创建二次根式 (a + 0*sqrt(1)) */

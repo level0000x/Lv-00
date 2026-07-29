@@ -557,7 +557,7 @@ set(lv_HEADERS
     core/include/lv/preset_topology.h
     core/include/lv/preset_transformations.h
     core/include/lv/preset_trigonometry.h
-    # v1.2.0 新增：关键对计算引擎 + 类型等价探索器
+    # v1.1.0 新增：关键对计算引擎 + 类型等价探索器
     core/include/lv/critical_pair.h
     core/include/lv/type_equiv_explorer.h
     # v1.9.0 micro-bootstrap: 语义分析与加载器

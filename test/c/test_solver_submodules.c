@@ -568,15 +568,14 @@ static void test_check_incompatible_distances(void) {
 
     /* 创建另一条同端点线段但不同距离 */
     int seg2 = graph_add_line_segment(g, p1, p2);
+    (void) seg2;
     GeomNode *seg_node2 = graph_get_node(g, g->next_node_id - 1);
     if (seg_node2) {
         seg_node2->numeric_assumption_declaration = strdup("distance=5.0");
-        /* 复制端点坐标以便端点比较 */
-        if (seg_node && seg_node->coord_count >= 4 && seg_node->symbolic_coords) {
-            seg_node2->coord_count = seg_node->coord_count;
-            seg_node2->symbolic_coords = seg_node->symbolic_coords;
-        }
     }
+
+    /* 验证矛盾检测 */
+    TEST_ASSERT(check_incompatible_distances(g), "incompatible distances detected");
 
     graph_destroy(g);
 }
@@ -827,8 +826,7 @@ static void test_poly_eval_symbolic(void) {
     mpz_poly_clear(&poly);
 
     /* NULL 输入 */
-    TEST_ASSERT_NULL(poly_eval_symbolic(NULL, val));
-    symbolic_coord_destroy(val);
+    TEST_ASSERT_NULL(poly_eval_symbolic(NULL, NULL));
 }
 
 /* ================================================================== */

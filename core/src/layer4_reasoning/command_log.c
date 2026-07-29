@@ -1004,11 +1004,8 @@ static void json_skip_value(JsonCtx *j) {
 
 /** 查找并解析命令参数字段 */
 static void json_parse_params(JsonCtx *j, CommandEntry *e) {
-    /* 期望 "params": { ... } */
-    char key[64];
-    if (!json_parse_string(j, key, sizeof(key)))
-        return;
-    if (json_expect(j, ':') && json_peek(j) == '{') {
+    /* 调用方已消费 "params": 并定位到 '{'，直接检查并消费 */
+    if (json_peek(j) == '{') {
         json_next(j); /* 消费 '{' */
 
         while (json_peek(j) != '}') {

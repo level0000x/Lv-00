@@ -836,7 +836,10 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
     nav->steps = new_arr;
     nav->steps[nav->step_count] = step;
     nav->step_count = new_count;
-    nav->current_step = new_count - 1;
+    /* 添加首个步骤时自动定位到步骤 0 */
+    if (nav->step_count == 1) {
+        nav->current_step = 0;
+    }
 
     /* 自动更新后继依赖关系：遍历步骤的前驱依赖，将当前步骤添加到被依赖步骤的后继列表中 */
     for (int i = 0; i < step->dependency_count; i++) {

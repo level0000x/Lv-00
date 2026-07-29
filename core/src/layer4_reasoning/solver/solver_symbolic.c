@@ -91,11 +91,23 @@ int coord_to_double(const SymbolicCoord *c, double *out) {
  * @param scale  缩放因子（正数）
  */
 void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
+    /* NaN/INFINITY 防护：mpq_set_d 对非有限值行为未定义，直接返回 0 */
+    if (isnan(val) || isinf(val)) {
+        mpz_set_si(result, 0);
+        return;
+    }
+
     mpq_t q;
     mpq_init(q);
-    mpq_set_d(q, val);                                      /* val → 精确有理数 */
-    mpz_mul_si(mpq_numref(q), mpq_numref(q), (long) scale); /* 分子 * scale */
-    mpz_fdiv_q(result, mpq_numref(q), mpq_denref(q));       /* floor(分子/分母) */
+    mpq_set_d(q, val); /* val → 精确有理数 */
+
+    /* 使用 mpz_t 中间值避免 int64_t → long 截断（Windows long=32位） */
+    mpz_t scale_mpz;
+    mpz_init_set_si(scale_mpz, scale);
+    mpz_mul(mpq_numref(q), mpq_numref(q), scale_mpz); /* 分子 * scale */
+    mpz_clear(scale_mpz);
+
+    mpz_fdiv_q(result, mpq_numref(q), mpq_denref(q)); /* floor(分子/分母) */
     mpq_clear(q);
 }
 
@@ -541,11 +553,15 @@ int count_point_variables(const ConstraintGraph *graph, int **out_ids) {
             count++;
     }
     if (out_ids) {
-        *out_ids = lv_malloc((size_t) count * sizeof(int));
-        int idx = 0;
-        for (int i = 0; i < graph->node_count; i++) {
-            if (graph->nodes[i]->type == GEOM_POINT) {
-                (*out_ids)[idx++] = graph->nodes[i]->id;
+        if (count == 0) {
+            *out_ids = NULL;
+        } else {
+            *out_ids = lv_malloc((size_t) count * sizeof(int));
+            int idx = 0;
+            for (int i = 0; i < graph->node_count; i++) {
+                if (graph->nodes[i]->type == GEOM_POINT) {
+                    (*out_ids)[idx++] = graph->nodes[i]->id;
+                }
             }
         }
     }

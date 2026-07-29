@@ -1,6 +1,6 @@
 # solver.c 拆分方案
 
-## 现状（v1.2.0 — 全部完成）
+## 现状（v1.1.0 — 全部完成）
 
 - **文件**: `core/src/layer4_reasoning/solver.c`（聚合入口，仅 forward declarations）
 - **原始行数**: ~8818 行 → **200 行**

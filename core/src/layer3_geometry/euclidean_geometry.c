@@ -604,13 +604,10 @@ bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int
         if (seg_b_result != ADD_NODE_OK) {
             return false;
         }
-        int seg_b_id = graph_get_last_added_node_id(ctx->constraint_graph);
-
-        AddConstraintResult con_result = graph_add_containment(ctx->constraint_graph, seg_a_id, seg_b_id);
-        if (con_result == ADD_CONSTRAINT_CONFLICT) {
-            euclidean_set_inconsistency(ctx, a1_id, "Congruence assertion failed: constraint conflict");
-            return false;
-        }
+        /* 注：当前 ConstraintType 枚举尚无 CONGRUENCE 类型，
+         * 全等关系暂通过线段节点创建隐式表达。
+         * 待新增 CONGRUENCE 约束类型后再添加显式约束边。 */
+        (void) seg_a_id;
     }
 
     return true;

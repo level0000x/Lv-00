@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file visual_editor.c
  * @brief 可视化编辑器实现
  *
@@ -137,8 +137,8 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
         memset(editor->last_error, 0, sizeof(editor->last_error));
     } else {
         editor->state = lv_EDITOR_ERROR;
-        /* [安全] 防止 exec_result.error_msg 为 NULL 或过长导致缓冲区问题 */
-        strncpy(editor->last_error, exec_result.error_msg ? exec_result.error_msg : "unknown error",
+        /* [安全] 防止 exec_result.error_msg 过长导致缓冲区问题 */
+        strncpy(editor->last_error, exec_result.error_msg[0] ? exec_result.error_msg : "unknown error",
                 sizeof(editor->last_error) - 1);
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
@@ -199,8 +199,8 @@ int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
         memset(editor->last_error, 0, sizeof(editor->last_error));
     } else {
         editor->state = lv_EDITOR_ERROR;
-        /* [安全] 防止 exec_result.error_msg 为 NULL 或过长导致缓冲区问题 */
-        strncpy(editor->last_error, exec_result.error_msg ? exec_result.error_msg : "unknown error",
+        /* [安全] 防止 exec_result.error_msg 过长导致缓冲区问题 */
+        strncpy(editor->last_error, exec_result.error_msg[0] ? exec_result.error_msg : "unknown error",
                 sizeof(editor->last_error) - 1);
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;

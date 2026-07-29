@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "type": "ADD_NODE",
+      "seq": 0,
+      "timestamp_ms": 1785338305087,
+      "params": {
+        "geom_type": 0,
+      "node_id": -1,
+      "coord_count": 2,
+      "namespace_depth": 0,
+      "parent_block_id": -1,
+      "is_formal_param": false,
+      "coords_num": [1, 2],
+      "coords_den": [1, 1]
+      }
+    },
+    {
+      "type": "ADD_CONSTRAINT",
+      "seq": 1,
+      "timestamp_ms": 1785338305087,
+      "params": {
+        "constraint_type": 0,
+      "constraint_id": -1,
+      "participant_count": 2,
+      "participant_ids": [0, 1]
+      }
+    }
+  ]
+}

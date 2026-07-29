@@ -15,7 +15,7 @@
  *          maximum step counts to prevent runaway integration.
  *
  * @author Lv-00 Project
- * @version 1.2.0
+ * @version 1.1.0
  * @date   2026-07-24
  */
 #ifndef lv_ODE_SOLVER_H

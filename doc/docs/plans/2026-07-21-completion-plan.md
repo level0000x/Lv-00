@@ -1,6 +1,6 @@
 ﻿# Lv-00 未完成内容补齐实施规划
 
-> **For agentic workers:** 本计划按优先级分为 6 个 Phase，每个 Task 独立可执行。步骤使用 checkbox (`- [ ]`) 跟踪。
+> **For agentic workers:** 本计划已全部执行完毕。所有 checkbox 标记为已完成，记录实际完成状态。
 
 **Goal:** 修复构建错误 → 统一版本号 → 填充 6 个占位桩模块 → 消除编译警告 → 补齐缺失实现 → 更新文档
 
@@ -8,11 +8,11 @@
 
 **Tech Stack:** C11 + CMake 3.15+ + GMP 6.0+ + GCC/MinGW
 
-**当前基线:**
+**实际完成基线 (2026-07-29):**
 - VERSION 文件: 1.1.0
 - CMakeLists.txt project(): 1.1.0
-- lv.h 宏: 5.0.0 ← 不一致
-- 构建状态: 有编译警告 + 宏重定义警告
+- lv.h 宏: 1.1.0 ✓ 已统一
+- 构建状态: 0 error / 0 warning ✓ 已完成后续 v1.9.0 全面优化
 
 ---
 
@@ -25,7 +25,7 @@
 
 **背景:** `lv.h` 中 `lv_VERSION_MAJOR=5, MINOR=0, PATCH=0`，但 CMakeLists.txt 的 `project(lv VERSION 1.1.0)` 和 `VERSION` 文件都是 `1.1.0`。`_Static_assert` 在 808 行会触发 `#error` 导致编译失败。
 
-- [ ] **Step 1: 修改 lv.h 版本宏**
+- [x] **Step 1: 修改 lv.h 版本宏**
 
 将 [lv.h](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h) 第 199-201 行改为：
 
@@ -35,7 +35,7 @@
 #define lv_VERSION_PATCH 0
 ```
 
-- [ ] **Step 2: 验证修改**
+- [x] **Step 2: 验证修改**
 
 ```powershell
 cd build ; cmake --build . --target lv_static 2>&1 | Select-Object -First 30
@@ -43,7 +43,7 @@ cd build ; cmake --build . --target lv_static 2>&1 | Select-Object -First 30
 
 预期: 不再出现 `#error "版本宏不匹配"`，编译继续进行。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add core/include/lv/lv.h
@@ -61,7 +61,7 @@ git commit -m "fix: 统一版本号 lv.h 5.0.0 → 1.1.0 与 CMake/VERSION 一�
 
 **问题:** 头文件定义 `GROUP_THEORY_PRESET_COUNT 16`，但源文件实际注册了 39 个预设，并在第 38 行重定义为 `39`。应同步头文件中的值。
 
-- [ ] **Step 1: 更新头文件宏值**
+- [x] **Step 1: 更新头文件宏值**
 
 将 [preset_group_theory.h](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/preset_group_theory.h) 第 17 行改为：
 
@@ -69,7 +69,7 @@ git commit -m "fix: 统一版本号 lv.h 5.0.0 → 1.1.0 与 CMake/VERSION 一�
 #define GROUP_THEORY_PRESET_COUNT 39
 ```
 
-- [ ] **Step 2: 删除 .c 文件中的重复宏定义**
+- [x] **Step 2: 删除 .c 文件中的重复宏定义**
 
 将 [preset_group_theory.c](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/preset/preset_group_theory.c) 第 37-39 行的宏定义删除：
 
@@ -80,7 +80,7 @@ git commit -m "fix: 统一版本号 lv.h 5.0.0 → 1.1.0 与 CMake/VERSION 一�
 
 删除这 3 行。
 
-- [ ] **Step 3: 验证编译**
+- [x] **Step 3: 验证编译**
 
 ```powershell
 cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "GROUP_THEORY_PRESET_COUNT"
@@ -88,7 +88,7 @@ cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "GR
 
 预期: 无 `GROUP_THEORY_PRESET_COUNT redefined` 警告。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add core/include/lv/preset_group_theory.h core/src/layer4_reasoning/preset/preset_group_theory.c
@@ -108,7 +108,7 @@ git commit -m "fix: 统一 GROUP_THEORY_PRESET_COUNT 为 39，消除宏重定义
 
 **方案:** 使用 GNU C 扩展 `##__VA_ARGS__` 或改为两个宏：一个无参数版本，一个有参数版本。
 
-- [ ] **Step 1: 定位宏定义**
+- [x] **Step 1: 定位宏定义**
 
 先找到 `lv_LOG_WARNING` 等宏的定义位置：
 
@@ -116,7 +116,7 @@ git commit -m "fix: 统一 GROUP_THEORY_PRESET_COUNT 为 39，消除宏重定义
 Select-String -Path "core/include/lv/*.h" -Pattern "define lv_LOG_WARNING"
 ```
 
-- [ ] **Step 2: 读取并修改宏定义**
+- [x] **Step 2: 读取并修改宏定义**
 
 读取找到的文件中的宏定义。将其改为支持零参数的兼容形式。典型修改：
 
@@ -130,7 +130,7 @@ Select-String -Path "core/include/lv/*.h" -Pattern "define lv_LOG_WARNING"
 
 如果编译器不支持，则改为在每个零参数调用处补一个空字符串参数 `""`。
 
-- [ ] **Step 3: 验证警告消除**
+- [x] **Step 3: 验证警告消除**
 
 ```powershell
 cd build ; cmake --build . 2>&1 | Select-String "variadic macro"
@@ -138,7 +138,7 @@ cd build ; cmake --build . 2>&1 | Select-String "variadic macro"
 
 预期: 无输出。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add core/include/lv/debug.h
@@ -152,7 +152,7 @@ git commit -m "fix: 消除 variadic macro 零参数 -Wpedantic 警告"
 
 **问题:** `if (!system->plugins[i]->path)` 中 `path` 是 `char path[N]` 固定数组，其地址永远非 NULL，应检查 `path[0]`。
 
-- [ ] **Step 1: 修改第 176 行**
+- [x] **Step 1: 修改第 176 行**
 
 ```c
 /* 修改前 */
@@ -162,7 +162,7 @@ if (!system->plugins[i]->path) continue;
 if (system->plugins[i]->path[0] == '\0') continue;
 ```
 
-- [ ] **Step 2: 修改第 334 行**
+- [x] **Step 2: 修改第 334 行**
 
 ```c
 /* 修改前 */
@@ -172,13 +172,13 @@ if (!plugin->path) return -1;
 if (plugin->path[0] == '\0') return -1;
 ```
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
 
 ```powershell
 cd build ; cmake --build . --target lv_layer5_output 2>&1 | Select-String "always evaluate"
 ```
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add core/src/layer5_output/plugin_system.c
@@ -193,7 +193,7 @@ git commit -m "fix: 修复 plugin_system.c 数组地址非 NULL 检查警告"
 - Modify: `core/src/layer5_output/magic/magic.c:887,1336` — `graph_type` 和 `json_skip_value` 未使用
 - Modify: `core/src/layer5_output/geo_visual.c:890-892,546` — 未使用的颜色变量和 `render_object_threejs`
 
-- [ ] **Step 1: 修复 reasoning_cache.c 的 first_deleted**
+- [x] **Step 1: 修复 reasoning_cache.c 的 first_deleted**
 
 `first_deleted` 变量在第 118 行声明但从未在返回路径中使用。改为 `(void)first_deleted;` 抑制警告：
 
@@ -202,7 +202,7 @@ git commit -m "fix: 修复 plugin_system.c 数组地址非 NULL 检查警告"
 (void)first_deleted; /* 保留用于未来的插入优化 */
 ```
 
-- [ ] **Step 2: 修复 preset_group_theory.c 的 get_group_theory_names**
+- [x] **Step 2: 修复 preset_group_theory.c 的 get_group_theory_names**
 
 在 715 行的函数前添加 `__attribute__((unused))` 或 `lv_UNUSED`：
 ```c
@@ -214,7 +214,7 @@ static lv_UNUSED char** get_group_theory_names(void)
 #define lv_UNUSED __attribute__((unused))
 ```
 
-- [ ] **Step 3: 修复 magic.c 和 geo_visual.c 的未使用变量**
+- [x] **Step 3: 修复 magic.c 和 geo_visual.c 的未使用变量**
 
 ```c
 /* magic.c:887 */
@@ -230,13 +230,13 @@ lv_UNUSED static const char *json_skip_value(const char *p) {
 lv_UNUSED static void render_object_threejs(...) {
 ```
 
-- [ ] **Step 4: 验证**
+- [x] **Step 4: 验证**
 
 ```powershell
 cd build ; cmake --build . 2>&1 | Select-String "unused"
 ```
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add core/include/lv/lv.h core/src/layer4_reasoning/reasoning_cache.c core/src/layer4_reasoning/preset/preset_group_theory.c core/src/layer5_output/magic/magic.c core/src/layer5_output/geo_visual.c
@@ -257,13 +257,13 @@ git commit -m "fix: 消除未使用变量和函数编译警告"
 
 **目标:** 实现 DSL 编译器，将 Lv-00 领域特定语言编译为内部 AST 表示。
 
-- [ ] **Step 1: 读取头文件了解接口**
+- [x] **Step 1: 读取头文件了解接口**
 
 ```powershell
 Get-Content core/include/lv/dsl_compiler.h
 ```
 
-- [ ] **Step 2: 实现 dsl_compiler.c**
+- [x] **Step 2: 实现 dsl_compiler.c**
 
 ```c
 /**
@@ -401,7 +401,7 @@ const char *lv_dsl_last_error(void) {
 }
 ```
 
-- [ ] **Step 3: 验证编译**
+- [x] **Step 3: 验证编译**
 
 ```powershell
 cd build ; cmake --build . --target lv_layer1_parser 2>&1 | Select-String "error"
@@ -409,7 +409,7 @@ cd build ; cmake --build . --target lv_layer1_parser 2>&1 | Select-String "error
 
 预期: 无编译错误。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add core/src/layer1_parser/dsl_compiler.c
@@ -422,13 +422,13 @@ git commit -m "feat: 实现 dsl_compiler.c DSL 编译器最小可用版本"
 - Modify: `core/src/layer4_reasoning/engine/engine_scheduler.c`
 - Reference: `core/include/lv/engine_scheduler.h`
 
-- [ ] **Step 1: 读取头文件**
+- [x] **Step 1: 读取头文件**
 
 ```powershell
 Get-Content core/include/lv/engine_scheduler.h
 ```
 
-- [ ] **Step 2: 实现 engine_scheduler.c**
+- [x] **Step 2: 实现 engine_scheduler.c**
 
 ```c
 /**
@@ -527,7 +527,7 @@ bool lv_scheduler_is_running(const lvEngineScheduler *sched) {
 }
 ```
 
-- [ ] **Step 3: 验证编译**
+- [x] **Step 3: 验证编译**
 
 ```powershell
 cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "engine_scheduler.*error"
@@ -535,7 +535,7 @@ cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "en
 
 预期: 无编译错误。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add core/src/layer4_reasoning/engine/engine_scheduler.c
@@ -548,13 +548,13 @@ git commit -m "feat: 实现 engine_scheduler.c 多后端调度器最小可用版
 - Modify: `core/src/layer4_reasoning/backends/approx_counter.c`
 - Reference: `core/include/lv/approx_counter.h`
 
-- [ ] **Step 1: 读取头文件**
+- [x] **Step 1: 读取头文件**
 
 ```powershell
 Get-Content core/include/lv/approx_counter.h
 ```
 
-- [ ] **Step 2: 实现 approx_counter.c**
+- [x] **Step 2: 实现 approx_counter.c**
 
 ```c
 /**
@@ -638,13 +638,13 @@ double lv_approx_counter_get_confidence(lvApproxCounter *counter) {
 }
 ```
 
-- [ ] **Step 3: 验证编译**
+- [x] **Step 3: 验证编译**
 
 ```powershell
 cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "approx_counter.*error"
 ```
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add core/src/layer4_reasoning/backends/approx_counter.c
@@ -657,13 +657,13 @@ git commit -m "feat: 实现 approx_counter.c 近似计数器最小可用版本"
 - Modify: `core/src/layer3_geometry/sparse_linear_algebra.c`
 - Reference: `core/include/lv/sparse_linear_algebra.h`
 
-- [ ] **Step 1: 读取头文件**
+- [x] **Step 1: 读取头文件**
 
 ```powershell
 Get-Content core/include/lv/sparse_linear_algebra.h
 ```
 
-- [ ] **Step 2: 实现 sparse_linear_algebra.c**
+- [x] **Step 2: 实现 sparse_linear_algebra.c**
 
 ```c
 /**
@@ -796,13 +796,13 @@ int lv_sparse_matrix_get_nnz(const lvSparseMatrix *mat) {
 }
 ```
 
-- [ ] **Step 3: 验证编译**
+- [x] **Step 3: 验证编译**
 
 ```powershell
 cd build ; cmake --build . --target lv_layer3_geometry 2>&1 | Select-String "sparse_linear_algebra.*error"
 ```
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add core/src/layer3_geometry/sparse_linear_algebra.c
@@ -816,7 +816,7 @@ git commit -m "feat: 实现 sparse_linear_algebra.c CSR 稀疏矩阵最小可用
 **Files:**
 - Modify: `core/src/layer5_output/tikz_export.c`
 
-- [ ] **Step 1: 实现 tikz_export.c**
+- [x] **Step 1: 实现 tikz_export.c**
 
 ```c
 /**
@@ -865,13 +865,13 @@ bool lv_tikz_export_to_buffer(const lvEngine *engine,
 }
 ```
 
-- [ ] **Step 2: 验证编译**
+- [x] **Step 2: 验证编译**
 
 ```powershell
 cd build ; cmake --build . --target lv_layer5_output 2>&1 | Select-String "tikz_export.*error"
 ```
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add core/src/layer5_output/tikz_export.c
@@ -886,13 +886,13 @@ git commit -m "feat: 实现 tikz_export.c TikZ 导出最小可用版本"
 
 **注:** Layer 2 也有一个 `math_input.c`，Layer 1 的版本处理 DSL 输入。
 
-- [ ] **Step 1: 读取头文件**
+- [x] **Step 1: 读取头文件**
 
 ```powershell
 Get-Content core/include/lv/math_input.h
 ```
 
-- [ ] **Step 2: 实现 math_input.c**
+- [x] **Step 2: 实现 math_input.c**
 
 ```c
 /**
@@ -965,13 +965,13 @@ const char *lv_math_input_get_raw(const lvMathInput *input) {
 }
 ```
 
-- [ ] **Step 3: 验证编译**
+- [x] **Step 3: 验证编译**
 
 ```powershell
 cd build ; cmake --build . --target lv_layer1_parser 2>&1 | Select-String "math_input.*error"
 ```
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add core/src/layer1_parser/math_input.c
@@ -990,13 +990,13 @@ git commit -m "feat: 实现 math_input.c 数学输入解析最小可用版本"
 
 **背景:** 头文件声明了 `preset_abstract_algebra_register()` 等 3 个函数，但对应的 .c 文件不存在。
 
-- [ ] **Step 1: 读取头文件了解接口**
+- [x] **Step 1: 读取头文件了解接口**
 
 ```powershell
 Get-Content core/include/lv/preset_abstract_algebra.h
 ```
 
-- [ ] **Step 2: 创建实现文件**
+- [x] **Step 2: 创建实现文件**
 
 ```c
 /**
@@ -1182,7 +1182,7 @@ bool preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
 }
 ```
 
-- [ ] **Step 3: 将新文件加入 CMake 构建**
+- [x] **Step 3: 将新文件加入 CMake 构建**
 
 在 [CMakeLists.txt](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/CMakeLists.txt) 的 `lv_LAYER4_SOURCES` 中添加对应条目。找到 preset 文件列表（约 748-803 行），在合适位置添加：
 
@@ -1190,13 +1190,13 @@ bool preset_abstract_algebra_get_names(char ***out_names, int *out_count) {
 core/src/layer4_reasoning/preset/preset_abstract_algebra.c
 ```
 
-- [ ] **Step 4: 验证编译**
+- [x] **Step 4: 验证编译**
 
 ```powershell
 cd build ; cmake --build . --target lv_layer4_reasoning 2>&1 | Select-String "preset_abstract_algebra.*error"
 ```
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add core/src/layer4_reasoning/preset/preset_abstract_algebra.c CMakeLists.txt
@@ -1213,7 +1213,7 @@ git commit -m "feat: 创建 preset_abstract_algebra.c 抽象代数预设实现"
 - Modify: `TASK_CONTEXT.md`
 - Modify: `EXECUTION_CONTEXT.md`
 
-- [ ] **Step 1: 更新 TASK_CONTEXT.md**
+- [x] **Step 1: 更新 TASK_CONTEXT.md**
 
 将 "二、待完成" 表格中的已完成项标记为 ✅：
 
@@ -1232,7 +1232,7 @@ git commit -m "feat: 创建 preset_abstract_algebra.c 抽象代数预设实现"
 | GitHub Actions CI/CD | P3 | 待完成 |
 ```
 
-- [ ] **Step 2: 更新 EXECUTION_CONTEXT.md**
+- [x] **Step 2: 更新 EXECUTION_CONTEXT.md**
 
 追加完成记录：
 
@@ -1246,7 +1246,7 @@ git commit -m "feat: 创建 preset_abstract_algebra.c 抽象代数预设实现"
 - 创建 preset_abstract_algebra.c
 ```
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add TASK_CONTEXT.md EXECUTION_CONTEXT.md
