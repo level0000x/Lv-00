@@ -759,6 +759,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/unify/unify.c
     core/src/layer4_reasoning/unify/normalization.c
     core/src/layer4_reasoning/unify/graph_hash.c
+    core/src/layer4_reasoning/unify/lambda_unify.c
     core/src/layer4_reasoning/model/recursion.c
     # 类型与属性
     core/src/layer4_reasoning/type_logic/type_system.c
@@ -1573,6 +1574,10 @@ if(BUILD_TESTS)
     # λ-演算 β-归约结果验证（图结构指纹比对）
     add_lv_test_and_register(test_lambda_eval
         test/c/test_lambda_eval.c lambda_eval_test)
+
+    # λ-演算句法合一 + Miller 模式合一测试
+    add_lv_test_and_register(test_lambda_unify
+        test/c/test_lambda_unify.c lambda_unify_test)
 
     # 新增公理包测试
     add_lv_test_and_register(test_axiom_topos_theory
